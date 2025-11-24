@@ -3,9 +3,6 @@
 
 CGameFramework::CGameFramework()
 {
-	m_hFenceEvent = NULL;
-	for (int i = 0; i < m_nSwapChainBuffers; i++) m_nFenceValues[i] = 0;
-
 	_tcscpy_s(m_pszFrameRate, _T("LapProject ("));
 }
 
@@ -13,15 +10,13 @@ CGameFramework::~CGameFramework()
 {
 }
 
-
 void CGameFramework::OnDestroy()
 {
 	WaitForGpuComplete();
-	//GPU가 모든 명령 리스트를 실행할 때 까지 기다린다.
-	//게임 객체(게임 월드 객체)를 소멸한다. 
-	::CloseHandle(m_hFenceEvent);
-	m_pdxgiSwapChain->SetFullscreenState(FALSE, NULL);
 
+	::CloseHandle(m_hFenceEvent);
+
+	m_pdxgiSwapChain->SetFullscreenState(FALSE, NULL);
 
 #if defined(_DEBUG)
 	IDXGIDebug1* pdxgiDebug = NULL;
@@ -45,4 +40,3 @@ void CGameFramework::WaitForGpuComplete()
 		::WaitForSingleObject(m_hFenceEvent, INFINITE);
 	}
 }
-

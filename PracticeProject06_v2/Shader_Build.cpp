@@ -70,15 +70,32 @@ D3D12_BLEND_DESC CShader::CreateBlendState()
 D3D12_INPUT_LAYOUT_DESC CShader::CreateInputLayout()
 {
 	UINT nInputElementDescs = 2;
-	D3D12_INPUT_ELEMENT_DESC* pd3dInputElementDescs = new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
 
-	//정점은 위치 벡터(POSITION)와 색상(COLOR)을 가진다. 
-	pd3dInputElementDescs[0] = { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
-	pd3dInputElementDescs[1] = { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
+	vector<D3D12_INPUT_ELEMENT_DESC> pd3dInputElementDescs;
+	pd3dInputElementDescs.resize(nInputElementDescs);
+
+	pd3dInputElementDescs[0] = { 
+		"POSITION", 
+		0, 
+		DXGI_FORMAT_R32G32B32_FLOAT, 
+		0, 
+		0, 
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 
+		0 
+	};
+	pd3dInputElementDescs[1] = { 
+		"COLOR", 
+		0, 
+		DXGI_FORMAT_R32G32B32A32_FLOAT, 
+		0, 
+		12, 
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0 
+	};
 
 	D3D12_INPUT_LAYOUT_DESC d3dInputLayoutDesc;
-	d3dInputLayoutDesc.pInputElementDescs = pd3dInputElementDescs;
-	d3dInputLayoutDesc.NumElements = nInputElementDescs;
+	d3dInputLayoutDesc.pInputElementDescs = pd3dInputElementDescs.data();
+	d3dInputLayoutDesc.NumElements = pd3dInputElementDescs.size();
 
 	return(d3dInputLayoutDesc);
 }
@@ -127,12 +144,10 @@ D3D12_SHADER_BYTECODE CShader::CompileShaderFromFile(
 	return(d3dShaderByteCode);
 }
 
-//그래픽스 파이프라인 상태 객체를 생성한다. 
 void CShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dRootSignature)
 {
-	//그래픽스 파이프라인 상태 객체 배열을 생성한다.
-	m_nPipelineStates = 1;
-	m_ppd3dPipelineStates.resize(m_nPipelineStates);
+	m_nd3dPipelineState = 1;
+	m_ppd3dPipelineStates.resize(m_nd3dPipelineState);
 
 	ComPtr<ID3DBlob> pd3dVertexShaderBlob = NULL;
 	ComPtr<ID3DBlob> pd3dPixelShaderBlob = NULL;
@@ -152,20 +167,16 @@ void CShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dRo
 	d3dPipelineStateDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 	d3dPipelineStateDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	d3dPipelineStateDesc.SampleDesc.Count = 1;
-	pd3dDevice->CreateGraphicsPipelineState(&d3dPipelineStateDesc, __uuidof(ID3D12PipelineState), (void**)&m_ppd3dPipelineStates[0]);
-
-	if (d3dPipelineStateDesc.InputLayout.pInputElementDescs)
-		delete[] d3dPipelineStateDesc.InputLayout.pInputElementDescs;
+	pd3dDevice->CreateGraphicsPipelineState(&d3dPipelineStateDesc, IID_PPV_ARGS(&m_ppd3dPipelineStates[0]));
 }
 
 //셰이더 객체가 포함하는 게임 객체들을 생성한다. 
 void CShader::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList, void* pContext)
 {
 	shared_ptr<CTriangleMesh> pTriangleMesh = make_shared<CTriangleMesh>(pd3dDevice, pd3dCommandList);
+	m_nObject = 1;
+	m_ppObjects.resize(m_nObject);
 
-	m_nObjects = 1;
-
-	m_ppObjects.emplace_back(make_shared<CGameObject>());
-	m_ppObjects.back()->SetMesh(pTriangleMesh);
-
+	m_ppObjects[0] = make_shared<CGameObject>();
+	m_ppObjects[0]->SetMesh(pTriangleMesh);
 }

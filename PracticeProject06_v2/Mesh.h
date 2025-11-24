@@ -44,8 +44,8 @@ public:
 	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList);
 
 protected:
-	ComPtr<ID3D12Resource> m_pd3dVertexBuffer = NULL;
-	ComPtr<ID3D12Resource> m_pd3dVertexUploadBuffer = NULL;
+	ComPtr<ID3D12Resource> m_pd3dVertexBuffer;
+	ComPtr<ID3D12Resource> m_pd3dVertexUploadBuffer;
 	D3D12_VERTEX_BUFFER_VIEW m_d3dVertexBufferView;
 	D3D12_PRIMITIVE_TOPOLOGY m_d3dPrimitiveTopology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	UINT m_nSlot = 0;
@@ -57,5 +57,5 @@ protected:
 class CTriangleMesh : public CMesh {
 public:
 	CTriangleMesh(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
-	virtual ~CTriangleMesh() {}
+	virtual ~CTriangleMesh() { }
 };
