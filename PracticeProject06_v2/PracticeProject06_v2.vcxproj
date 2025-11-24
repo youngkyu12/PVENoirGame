@@ -143,6 +143,7 @@
   <ItemGroup>
     <ClCompile Include="GameFramework.cpp" />
     <ClCompile Include="GameFramework_Build.cpp" />
+    <ClCompile Include="GameFramework_Input.cpp" />
     <ClCompile Include="GameFramework_Render.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="Mesh_Build.cpp" />
@@ -153,6 +154,7 @@
     <ClCompile Include="PracticeProject06_v2.cpp" />
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="Scene_Build.cpp" />
+    <ClCompile Include="Scene_Input.cpp" />
     <ClCompile Include="Scene_Render.cpp" />
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="Shader_Build.cpp" />
