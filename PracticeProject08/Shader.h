@@ -29,7 +29,6 @@ public:
 
 // Render
 public:
-	void AnimateObjects(float fTimeElapsed);
 	void OnPrepareRender(ID3D12GraphicsCommandList* pd3dCommandList);
 	void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera);
 
