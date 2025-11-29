@@ -13,19 +13,6 @@
 #define	WRITE_LOCK_IDX(idx)		WriteLockGuard writeLockGuard_##idx(_locks[idx], typeid(this).name());
 #define WRITE_LOCK				WRITE_LOCK_IDX(0)
 
-/*----------------
-	  Memory
------------------*/
-
-#ifdef _DEBUG
-#define xAlloc(size)		StompAllocator::Alloc(size)
-#define xrelease(ptr)		StompAllocator::Release(ptr)
-#else
-#define xAlloc(size)		BaseAllocator::Alloc(size)
-#define xrelease(ptr)		BaseAllocator::Release(ptr)
-#endif
-
-
 /*---------------
 	  Crash
 ---------------*/

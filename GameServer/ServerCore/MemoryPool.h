@@ -1,14 +1,13 @@
 #pragma once
 
-/*-----------------
-	MemoryHeader
-------------------*/
-
 enum
 {
 	SLIST_ALIGNMENT = 16
 };
 
+/*-----------------
+	MemoryHeader
+------------------*/
 
 DECLSPEC_ALIGN(SLIST_ALIGNMENT)
 struct MemoryHeader : public SLIST_ENTRY
@@ -47,10 +46,9 @@ public:
 	MemoryHeader*	Pop();
 
 private:
-	SLIST_HEADER _header;
-	int32 _allocSize = 0;
-	atomic<int32> _allocCount = 0;
-
-
+	SLIST_HEADER	_header;
+	int32			_allocSize = 0;
+	atomic<int32>	_useCount = 0;
+	atomic<int32>	_reserveCount = 0;
 };
 
