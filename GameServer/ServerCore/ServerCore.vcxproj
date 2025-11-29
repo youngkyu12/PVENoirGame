@@ -188,6 +188,7 @@
     </ClCompile>
     <ClCompile Include="RefCounting.cpp" />
     <ClCompile Include="ThreadManager.cpp" />
+    <ClCompile Include="TypeCast.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
