@@ -98,5 +98,8 @@
     <ClCompile Include="MemoryPool.cpp">
       <Filter>Memory</Filter>
     </ClCompile>
+    <ClCompile Include="TypeCast.cpp">
+      <Filter>Memory</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
