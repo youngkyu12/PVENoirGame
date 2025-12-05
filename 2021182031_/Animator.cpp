@@ -63,8 +63,79 @@ bool CAnimator::Play(const std::string& clipName, bool loop, float startTime)
     m_bLoop = loop;
     m_bPlaying = true;
 
+    // =====================================================
+    // ★ 첫 프레임 포즈 즉시 적용 (T-포즈 → 첫 키프레임 보간 제거)
+    // =====================================================
+    if (m_pCurrentClip)
+    {
+        // 1) Local pose 계산
+        m_pCurrentClip->Evaluate(
+            m_fCurrentTime,
+            m_Skeleton,
+            m_LocalPose
+        );
+
+        // 2) Global pose 계산
+        const int boneCount = (int)m_Skeleton.size();
+        for (int i = 0; i < boneCount; ++i)
+        {
+            int parent = m_Skeleton[i].parentIndex;
+            XMMATRIX local = XMLoadFloat4x4(&m_LocalPose[i]);
+
+            if (parent < 0)
+            {
+                XMStoreFloat4x4(&m_GlobalPose[i], local);
+            }
+            else
+            {
+                XMMATRIX parentM = XMLoadFloat4x4(&m_GlobalPose[parent]);
+                XMMATRIX global = local * parentM;
+                XMStoreFloat4x4(&m_GlobalPose[i], global);
+            }
+        }
+
+        // 3) Final bone matrices
+        for (int i = 0; i < boneCount; ++i)
+        {
+            XMMATRIX global = XMLoadFloat4x4(&m_GlobalPose[i]);
+            XMMATRIX offset = XMLoadFloat4x4(&m_Skeleton[i].offsetMatrix);
+            XMMATRIX skin = offset * global;
+            XMStoreFloat4x4(&m_FinalBoneMatrices[i], skin);
+        }
+    }
+    m_NextClipAfterEnd.clear();
+
+    /*
+    {
+        const int boneCount = (int)m_Skeleton.size();
+
+        for (int i = 0; i < boneCount; ++i)
+        {
+            const Bone& b = m_Skeleton[i];
+            const XMFLOAT4X4& g = m_GlobalPose[i];
+
+            char buf[256];
+            sprintf_s(buf,
+                "[Animator::Play] Bone[%d] '%s'\n"
+                "  Row0 = %.3f %.3f %.3f %.3f\n"
+                "  Row1 = %.3f %.3f %.3f %.3f\n"
+                "  Row2 = %.3f %.3f %.3f %.3f\n"
+                "  Row3 = %.3f %.3f %.3f %.3f\n",
+                i, b.name.c_str(),
+                g.m[0][0], g.m[0][1], g.m[0][2], g.m[0][3],
+                g.m[1][0], g.m[1][1], g.m[1][2], g.m[1][3],
+                g.m[2][0], g.m[2][1], g.m[2][2], g.m[2][3],
+                g.m[3][0], g.m[3][1], g.m[3][2], g.m[3][3]
+            );
+
+            OutputDebugStringA(buf);
+        }
+    }
+    */
+
     return true;
 }
+
 
 // ============================================================
 // Stop
@@ -88,86 +159,89 @@ void CAnimator::SetTime(float timeSec)
 // Update
 //   - dt만큼 시간 증가
 //   - 클립 범위 벗어나면 loop 처리
-//   - 실제 본 행렬 계산은 TODO
+//   - 본 행렬 계산
 // ============================================================
 void CAnimator::Update(float dt)
 {
-    // 0) 재생 중이 아니면 아무 것도 안 함
     if (!m_bPlaying || !m_pCurrentClip)
         return;
-
-    // 1) 시간 진행
+	
+    // 시간 증가
     m_fCurrentTime += dt;
+    //m_fCurrentTime += 0.001f;
 
-    float duration = m_pCurrentClip->duration;
 
-    if (duration > 0.0f)
+    // 1) 현재 클립이 끝났는지 검사
+    if (m_fCurrentTime >= m_pCurrentClip->duration)
     {
-        if (m_fCurrentTime > duration)
+        if (m_bLoop)
         {
-            if (m_bLoop)
-            {
-                // 루프: duration 기준으로 감기
-                m_fCurrentTime = fmodf(m_fCurrentTime, duration);
-            }
-            else
-            {
-                // 비루프: 끝에서 멈춤
-                m_fCurrentTime = duration;
-                m_bPlaying = false;
-            }
-        }
-        else if (m_fCurrentTime < 0.0f)
-        {
-            m_fCurrentTime = 0.0f;
-        }
-    }
-
-    const size_t boneCount = m_Skeleton.size();
-    if (boneCount == 0)
-        return;
-
-    // 2) 버퍼 사이즈 보정
-    if (m_LocalPose.size() < boneCount) m_LocalPose.resize(boneCount);
-    if (m_GlobalPose.size() < boneCount) m_GlobalPose.resize(boneCount);
-    if (m_FinalBoneMatrices.size() < boneCount) m_FinalBoneMatrices.resize(boneCount);
-
-    // 3) 현재 시간에서 로컬 본 행렬들 샘플링
-    //    (AnimationClip::Evaluate 가 TRS 보간해서 로컬 행렬을 outLocalTransforms에 채운다고 가정)
-    m_pCurrentClip->Evaluate(m_fCurrentTime, m_LocalPose);
-
-    using namespace DirectX;
-
-    // 4) 로컬 → 글로벌 행렬 계산
-    for (size_t i = 0; i < boneCount; ++i)
-    {
-        XMMATRIX localM = XMLoadFloat4x4(&m_LocalPose[i]);
-        int parentIndex = m_Skeleton[i].parentIndex;
-
-        if (parentIndex < 0 || parentIndex >= (int)boneCount)
-        {
-            // 루트본: 로컬 == 글로벌
-            XMStoreFloat4x4(&m_GlobalPose[i], localM);
+            // 루프 재생이면 0으로 되감기
+            m_fCurrentTime = fmodf(m_fCurrentTime, m_pCurrentClip->duration);
         }
         else
         {
-            // 자식본: 글로벌 = 로컬 * 부모글로벌
-            // (DirectXMath의 행벡터/우측 곱 컨벤션에 맞춘 순서)
-            XMMATRIX parentGlobal = XMLoadFloat4x4(&m_GlobalPose[parentIndex]);
-            XMMATRIX globalM = localM * parentGlobal;
-            XMStoreFloat4x4(&m_GlobalPose[i], globalM);
+            // loop = false → 더 이상 계속되지 않음
+            if (!m_NextClipAfterEnd.empty())
+            {
+                // 다음 클립으로 전환
+                Play(m_NextClipAfterEnd, true, 0.0f);
+                return;
+            }
+            else
+            {
+                // 아무것도 설정 안 했으면 끝 프레임 유지
+                m_fCurrentTime = m_pCurrentClip->duration;
+                return;
+            }
         }
     }
 
-    // 5) 최종 스키닝 행렬: Global * offsetMatrix(inverse bind pose)
-    for (size_t i = 0; i < boneCount; ++i)
-    {
-        XMMATRIX globalM = XMLoadFloat4x4(&m_GlobalPose[i]);
-        XMMATRIX offsetM = XMLoadFloat4x4(&m_Skeleton[i].offsetMatrix);
+    const int boneCount = (int)m_Skeleton.size();
+    if (boneCount <= 0) return;
 
-        XMMATRIX skinM = globalM * offsetM;
-        XMStoreFloat4x4(&m_FinalBoneMatrices[i], skinM);
+    
+    // 1) 로컬 포즈 계산
+    m_pCurrentClip->Evaluate(
+        m_fCurrentTime,
+        m_Skeleton,
+        m_LocalPose
+    );
+    
+
+    // 2) 글로벌 포즈 계산 (부모-자식 연결)
+    
+    for (int i = 0; i < boneCount; ++i)
+    {
+        int parent = m_Skeleton[i].parentIndex;
+
+        XMMATRIX local = XMLoadFloat4x4(&m_LocalPose[i]);
+
+        if (parent < 0)
+        {
+            // 루트
+            XMStoreFloat4x4(&m_GlobalPose[i], local);
+        }
+        else
+        {
+            XMMATRIX parentM = XMLoadFloat4x4(&m_GlobalPose[parent]);
+            XMMATRIX global = local * parentM;
+            XMStoreFloat4x4(&m_GlobalPose[i], global);
+        }
     }
+    
+    
+    // 3) 최종 본 행렬 = offsetMatrix * globalTransform
+    for (int i = 0; i < boneCount; ++i)
+    {
+        XMMATRIX global = XMLoadFloat4x4(&m_GlobalPose[i]);
+        XMMATRIX offset = XMLoadFloat4x4(&m_Skeleton[i].offsetMatrix);
+
+        XMMATRIX skin = offset * global;
+        XMStoreFloat4x4(&m_FinalBoneMatrices[i], skin);
+    }
+    
+    
 }
 
 

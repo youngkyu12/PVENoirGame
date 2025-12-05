@@ -18,6 +18,8 @@ public:
 
 public:
 	XMFLOAT4X4						m_xmf4x4World;
+	XMFLOAT3						m_xmf3Scale = XMFLOAT3(1.0f, 1.0f, 1.0f);
+
 	CMesh** m_ppMeshes = NULL;
 	int m_nMeshes = 0;
 
@@ -62,6 +64,8 @@ public:
 	virtual void Rotate(float fPitch = 0.0f, float fYaw = 0.0f, float fRoll = 0.0f);
 	virtual void Rotate(XMFLOAT3 *pxmf3Axis, float fAngle);
 
+	virtual void SetScale(float x, float y, float z);
+
 	int PickObjectByRayIntersection(XMVECTOR& xmvPickPosition, XMMATRIX& xmmtxView, float* pfHitDistance);
 	void GenerateRayForPicking(XMVECTOR& xmvPickPosition, XMMATRIX& xmmtxView, XMVECTOR& xmvPickRayOrigin, XMVECTOR& xmvPickRayDirection);
 
@@ -73,4 +77,6 @@ public:
 	UINT m_nSrvDescriptorIncrementSize = 0;
 
 	void SetSrvDescriptorInfo(ID3D12DescriptorHeap* heap, UINT inc);
+	void PlayAnimation(const std::string& name, bool loop = true, float start = 0.0f);
+	void SetNextAnimation(const std::string& clip);
 };

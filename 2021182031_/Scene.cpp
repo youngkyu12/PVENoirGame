@@ -256,29 +256,38 @@ void CTankScene::BuildObjects(ID3D12Device* pd3dDevice,
 	m_pPlayer->SetSrvDescriptorInfo(m_pd3dSrvDescriptorHeap, m_nSrvDescriptorIncrementSize);
 
 	//=====================================================================
-	// 2) UnityChan Mesh 로드
+	// 2) Mesh
 	//=====================================================================
-	CMesh* mesh = new CMesh(pd3dDevice, pd3dCommandList, "Models/unitychan.fbx", 2);
+	CMesh* UnitychanMesh = new CMesh(pd3dDevice, pd3dCommandList, "Models/unitychan.bin", 1);
+	//CMesh* UnitychanMesh = new CMesh(pd3dDevice, pd3dCommandList, "Models/orcGM.bin", 1);
+
+	int boneCount = UnitychanMesh->GetBoneCount();
+	if (boneCount > 0)
+		UnitychanMesh->EnableSkinning(boneCount);
+	
 
 	//=====================================================================
-	// 3) Player에 Mesh 장착
+	// 3) Player Mesh 
 	//=====================================================================
-	m_pPlayer->SetMesh(0, mesh);
+	m_pPlayer->SetMesh(0, UnitychanMesh);
 	m_pPlayer->SetSrvDescriptorInfo(m_pd3dSrvDescriptorHeap, m_nSrvDescriptorIncrementSize);
+
 
 	//=====================================================================
 	// 4) SubMesh 자동 텍스처 매핑
 	//=====================================================================
 	AssetType assetType = AssetType::UnityChan;
+	//AssetType assetType = AssetType::Orc;
 	UINT baseSRVIndex = 30;
 	int subIdx = 0;
 
-	for (auto& sm : mesh->m_SubMeshes)
+	for (auto& sm : UnitychanMesh->m_SubMeshes)
 	{
 		std::string texFile = GetTextureFileNameForSubMesh(sm, assetType);
-		std::wstring wpath = ToWstring(std::string("Models/Texture/") + texFile);
+		std::wstring wpath = ToWstring(std::string("Models/UnitychanTexture/") + texFile);
+		//std::wstring wpath = ToWstring(std::string("Models/OrcTexture/") + texFile);
 
-		mesh->LoadTextureFromFile(
+		UnitychanMesh->LoadTextureFromFile(
 			pd3dDevice,
 			pd3dCommandList,
 			m_pd3dSrvDescriptorHeap,
@@ -289,12 +298,11 @@ void CTankScene::BuildObjects(ID3D12Device* pd3dDevice,
 
 		subIdx++;
 	}
-
 	//=====================================================================
 	// 5) Player 설정
 	//=====================================================================
 	m_pPlayer->SetPosition(0.0f, 0.0f, 0.0f);
-	m_pPlayer->SetCameraOffset(XMFLOAT3(0.0f, -1.0f, -2.0f));
+	m_pPlayer->SetCameraOffset(XMFLOAT3(0.0f, 100.0f, 200.0f));
 	m_pPlayer->CreateShaderVariables(pd3dDevice, pd3dCommandList);
 	m_pPlayer->SetShader(pShader);
 
@@ -362,43 +370,36 @@ void CTankScene::BuildObjects(ID3D12Device* pd3dDevice,
 	//=====================================================================
 	// 7) UnityChan 애니메이션(JUMP00) 로드 & Animator에 등록 + 재생
 	//=====================================================================
+	
 	{
+		
 		AnimationClip jumpClip;
 
-		// 시그니처:
-		// bool CMesh::LoadAnimationFromFBX(const char* filename,
-		//                                  const std::string& clipName,
-		//                                  AnimationClip& outClip,
-		//                                  float timeScale);
-		bool animLoaded = mesh->LoadAnimationFromFBX(
-			"Models/unitychan_JUMP00.fbx", // 애니 FBX 경로
-			"Jump",                        // 클립 이름
-			jumpClip,                      // 결과 클립
-			1.0f                           // timeScale (필요하면 조정)
+		bool animLoaded = UnitychanMesh->LoadAnimationFromBIN(
+			"Models/unitychan_JUMP00.bin", "Jump", jumpClip, 1.0f
 		);
 
-		if (animLoaded)
+
+		AnimationClip idleClip;
+		bool idleLoaded = UnitychanMesh->LoadAnimationFromBIN(
+			"Models/unitychan_WAIT00.bin", "Idle", idleClip, 1.0f
+			//"Models/orcGA.bin", "Idle", idleClip, 1.0f
+		);
+
+
+		jumpClip.name = "Jump";
+		idleClip.name = "Idle";
+
+		CAnimator* pAnimator = UnitychanMesh->EnsureAnimator();
+		if (pAnimator)
 		{
-			// 혹시 로더에서 name 안 채우면 안전하게 한 번 더
-			jumpClip.name = "Jump";
-
-			CAnimator* pAnimator = mesh->EnsureAnimator();
-			if (pAnimator)
-			{
-				pAnimator->AddClip(jumpClip);
-
-				// 바로 이 자리에서 재생시킬 거면:
-				pAnimator->Play("Jump", true, 0.0f);
-
-				// 만약 Player::SetDefaultAnimation("Jump", ...) 를 써서
-				// 자동 Play 하게 할 거면 여기 Play는 빼도 됨.
-			}
+			pAnimator->AddClip(jumpClip);
+			pAnimator->AddClip(idleClip);
 		}
-		else
-		{
-			OutputDebugStringA("[TankScene] Failed to load animation: Models/unitychan_JUMP00.fbx\n");
-		}
+
 	}
+	m_pPlayer->PlayAnimation("Idle", true, 0.0f);
+	
 }
 
 
@@ -457,6 +458,8 @@ void CTankScene::OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPARAM 
 			if (m_pPlayer->move_x < 1)m_pPlayer->move_x += 1;
 			break;
 		default:
+			m_pPlayer->PlayAnimation("Jump", false, 0.0f);
+			m_pPlayer->SetNextAnimation("Idle");
 			break;
 		}
 		break;

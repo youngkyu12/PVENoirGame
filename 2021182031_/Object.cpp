@@ -144,7 +144,7 @@ void CGameObject::Render(ID3D12GraphicsCommandList* cmdList, CCamera* pCamera, C
 			CMesh* pMesh = m_ppMeshes[i];
 			if (!pMesh) continue;
 
-			// ★ 스키닝 메시이면 b4에 본 행렬 CBV 바인딩
+			// 스키닝 메시이면 b4에 본 행렬 CBV 바인딩
 			if (pMesh->IsSkinnedMesh() && pMesh->HasBoneCB())
 			{
 				D3D12_GPU_VIRTUAL_ADDRESS boneCB = pMesh->GetBoneCBAddress();
@@ -216,6 +216,7 @@ XMFLOAT3 CGameObject::GetRight()
 	return(Vector3::Normalize(XMFLOAT3(m_xmf4x4World._11, m_xmf4x4World._12, m_xmf4x4World._13)));
 }
 
+
 void CGameObject::MoveStrafe(float fDistance)
 {
 	XMFLOAT3 xmf3Position = GetPosition();
@@ -250,6 +251,11 @@ void CGameObject::Rotate(XMFLOAT3 *pxmf3Axis, float fAngle)
 {
 	XMMATRIX mtxRotate = XMMatrixRotationAxis(XMLoadFloat3(pxmf3Axis), XMConvertToRadians(fAngle));
 	m_xmf4x4World = Matrix4x4::Multiply(mtxRotate, m_xmf4x4World);
+}
+
+void CGameObject::SetScale(float x, float y, float z)
+{
+	m_xmf3Scale = XMFLOAT3(x, y, z);
 }
 
 void CGameObject::LookTo(XMFLOAT3& xmf3LookTo, XMFLOAT3& xmf3Up)
@@ -319,4 +325,82 @@ void CGameObject::SetRotationTransform(XMFLOAT4X4* pmxf4x4Transform)
 	m_xmf4x4World._11 = pmxf4x4Transform->_11; m_xmf4x4World._12 = pmxf4x4Transform->_12; m_xmf4x4World._13 = pmxf4x4Transform->_13;
 	m_xmf4x4World._21 = pmxf4x4Transform->_21; m_xmf4x4World._22 = pmxf4x4Transform->_22; m_xmf4x4World._23 = pmxf4x4Transform->_23;
 	m_xmf4x4World._31 = pmxf4x4Transform->_31; m_xmf4x4World._32 = pmxf4x4Transform->_32; m_xmf4x4World._33 = pmxf4x4Transform->_33;
+}
+
+void CGameObject::PlayAnimation(const std::string& clipName, bool loop, float start)
+{
+	if (!m_ppMeshes) return;
+
+	for (int i = 0; i < m_nMeshes; ++i)
+	{
+		CMesh* mesh = m_ppMeshes[i];
+		if (!mesh) continue;
+
+		CAnimator* anim = mesh->GetAnimator();
+		if (!anim) continue;
+
+		// ============================================================
+        // ★ mesh / anim 비교 출력
+        // ============================================================
+		/*
+        {
+            char buf[512];
+
+            sprintf_s(buf,
+                "[PlayAnimation] Mesh %d\n"
+                "  Mesh ptr : %p\n"
+                "  Animator : %p\n"
+                "  BoneCount(mesh) = %d, BoneCount(anim) = %d\n",
+                i,
+                mesh,
+                anim,
+                mesh->GetBoneCount(),
+                anim->GetBoneCount()
+            );
+            OutputDebugStringA(buf);
+
+            // 본 이름도 비교 출력 (최대 20개까지만)
+            const auto& bones = mesh->GetBones();
+            int bc = (int)bones.size();
+
+            for (int bi = 0; bi < bc && bi < 20; ++bi)
+            {
+                const auto& b = bones[bi];
+                sprintf_s(buf,
+                    "    Bone[%d]: %s (parent=%d)\n",
+                    bi, b.name.c_str(), b.parentIndex);
+                OutputDebugStringA(buf);
+            }
+        }
+		*/
+        // ============================================================
+
+		if (!anim->Play(clipName, loop, start))
+			continue;
+
+		// ★ Play() 안에서 이미 m_FinalBoneMatrices는
+		//    startTime 시점 포즈로 계산된 상태임
+
+		const auto& mats = anim->GetFinalBoneMatrices();
+		if (!mats.empty() && mesh->IsSkinnedMesh() && mesh->HasBoneCB())
+		{
+			mesh->UpdateBoneTransformsOnGPU(
+				nullptr,
+				mats.data(),
+				static_cast<int>(mats.size()));
+		}
+	}
+}
+
+
+void CGameObject::SetNextAnimation(const std::string& clip)
+{
+	if (!m_ppMeshes) return;
+	for (int i = 0; i < m_nMeshes; ++i)
+	{
+		CAnimator* anim = m_ppMeshes[i]->GetAnimator();
+		if (!anim) return;
+
+		anim->SetNextClipAfterEnd(clip);
+	}
 }
