@@ -26,6 +26,12 @@ std::string GetTextureFileNameForSubMesh_UnityChan(const SubMesh& sm)
     std::string mat = sm.materialName;
     std::string mesh = sm.meshName;
 
+    char buf[512];
+    _snprintf_s(buf, _TRUNCATE,
+        "[UnityChanTexRule] mesh='%s' material='%s'\n",
+        mesh.c_str(), mat.c_str());
+    OutputDebugStringA(buf);
+
     // 소문자로 변환
     auto lower = [](std::string s) {
         std::transform(s.begin(), s.end(), s.begin(), ::tolower);
@@ -61,11 +67,13 @@ std::string GetTextureFileNameForSubMesh_UnityChan(const SubMesh& sm)
     // eye
     // -----------------------------
     if (mat.find("eyeline") != std::string::npos ||
-        mesh.find("eyeline") != std::string::npos)
+        mesh.find("eyeline") != std::string::npos||
+        mat.find("eyebase") != std::string::npos ||
+        mesh.find("eye_base") != std::string::npos)
         return "eyeline_00.png";
 
-    if (mat.find("eye_R") != std::string::npos ||
-        mesh.find("eye_R") != std::string::npos)
+    if (mat.find("eye_r") != std::string::npos ||
+        mesh.find("eye_r") != std::string::npos)
         return "eye_iris_R_00.png";
 
     if (mat.find("eye") != std::string::npos  ||
@@ -82,7 +90,7 @@ std::string GetTextureFileNameForSubMesh_UnityChan(const SubMesh& sm)
     // Fallback
     return "skin_01.png";
 }
-std::string GetTextureFileNameForSubMesh_BoxMan(const SubMesh& sm)
+std::string GetTextureFileNameForSubMesh_BaseChan(const SubMesh& sm)
 {
     std::string mat = sm.materialName;
     std::string mesh = sm.meshName;
@@ -95,24 +103,32 @@ std::string GetTextureFileNameForSubMesh_BoxMan(const SubMesh& sm)
     mat = lower(mat);
     mesh = lower(mesh);
 
-    // ========= 1) Skin / Body =========
-    if (mat.find("body") != std::string::npos ||
-        mesh.find("body") != std::string::npos)
-        return "body.png";
+    if (mat.find("bikini") != std::string::npos ||
+        mesh.find("bikini") != std::string::npos)
+        return "Tex_underwear_1.png";
 
-    // ========= 2) Face / Eye =========
-    if (mat.find("eye") != std::string::npos ||
-        mesh.find("head") != std::string::npos)
-        return "face.png";
+    if (mat.find("Image_20.005") != std::string::npos ||
+        mesh.find("Hair1") != std::string::npos)
+        return "Tex_Hair1_hair.png";
 
-    // ========= 3) Clothes =========
-    if (mat.find("cloth") != std::string::npos ||
-        mesh.find("pants") != std::string::npos)
-        return "cloth.png";
-
-    // 기본값
-    return "default.png";
+    return "Tex_Body.png";
 }
+std::string GetTextureFileNameForSubMesh_Orc(const SubMesh& sm)
+{
+    std::string mat = sm.materialName;
+    std::string mesh = sm.meshName;
+
+    auto lower = [](std::string s) {
+        std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+        return s;
+        };
+
+    mat = lower(mat);
+    mesh = lower(mesh);
+
+    return "Orc_Orc_BaseColor.png";
+}
+
 
 std::string GetTextureFileNameForSubMesh(const SubMesh& sm, AssetType type)
 {
@@ -121,14 +137,14 @@ std::string GetTextureFileNameForSubMesh(const SubMesh& sm, AssetType type)
     case AssetType::UnityChan:
         return GetTextureFileNameForSubMesh_UnityChan(sm);
 
-    case AssetType::BoxMan:
-        return GetTextureFileNameForSubMesh_BoxMan(sm);
+    case AssetType::BaseChan:
+        return GetTextureFileNameForSubMesh_BaseChan(sm);
 
     //case AssetType::Robot:
     //    return GetTextureFileNameForSubMesh_Robot(sm);
 
-    //case AssetType::Orc:
-    //    return GetTextureFileNameForSubMesh_Orc(sm);
+    case AssetType::Orc:
+        return GetTextureFileNameForSubMesh_Orc(sm);
 
     default:
         return "default.png";
