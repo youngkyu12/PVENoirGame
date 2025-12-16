@@ -1,6 +1,17 @@
 #include "stdafx.h"
 #include "Mesh.h"
 
+CPolygon::CPolygon(int nVertices)
+{
+	m_nVertices = nVertices;
+	m_pVertices = new CVertex[nVertices];
+}
+
+CPolygon::~CPolygon()
+{
+	if (m_pVertices) delete[] m_pVertices;
+}
+
 CMesh::CMesh(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
 {
 	::ZeroMemory(&m_d3dVertexBufferView, sizeof(D3D12_VERTEX_BUFFER_VIEW));
