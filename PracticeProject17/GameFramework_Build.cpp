@@ -48,11 +48,13 @@ void CGameFramework::CreateDirect3DDevice()
 
 		if (dxgiAdapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) continue;
 
-		if (SUCCEEDED(D3D12CreateDevice(
+		if (SUCCEEDED(
+			D3D12CreateDevice(
 							pd3dAdapter.Get(),
 							D3D_FEATURE_LEVEL_12_0,
 							IID_PPV_ARGS(m_pd3dDevice.GetAddressOf())
-						))) break;
+						)
+		)) break;
 	}
 
 	if (!pd3dAdapter) {
@@ -260,7 +262,8 @@ void CGameFramework::BuildObjects()
 	m_pScene = make_unique<CScene>();
 	m_pScene->BuildObjects(m_pd3dDevice.Get(), m_pd3dCommandList.Get());
 
-	m_pScene->m_pPlayer = m_pPlayer = make_shared< CAirplanePlayer>(m_pd3dDevice.Get(), m_pd3dCommandList.Get(), m_pScene->GetGraphicsRootSignature().Get());
+	m_pPlayer = make_shared< CAirplanePlayer>(m_pd3dDevice.Get(), m_pd3dCommandList.Get(), m_pScene->GetGraphicsRootSignature().Get());
+	m_pScene->m_pPlayer = m_pPlayer;
 	m_pCamera = m_pPlayer->GetCamera();
 
 	m_pd3dCommandList->Close();

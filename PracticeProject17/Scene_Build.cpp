@@ -212,7 +212,7 @@ void CScene::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* p
 
 	m_ppShaders[0] = make_shared<CObjectsShader>();
 	m_ppShaders[0]->CreateShader(pd3dDevice, m_pd3dGraphicsRootSignature.Get());
-	m_ppShaders[0]->BuildObjects(pd3dDevice, pd3dCommandList);	
+	m_ppShaders[0]->BuildObjects(pd3dDevice, pd3dCommandList);
 
 	BuildLightsAndMaterials();
 
