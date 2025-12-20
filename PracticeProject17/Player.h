@@ -27,8 +27,6 @@ public:
 	//플레이어의 위치와 회전 정보를 경과 시간에 따라 갱신하는 함수이다.
 	void Update(float fTimeElapsed);
 
-	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList);
-
 	virtual CCamera* ChangeCamera(DWORD nNewCameraMode, float fTimeElapsed) { return(NULL); }
 
 	virtual void OnPrepareRender();
