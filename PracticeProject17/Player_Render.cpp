@@ -160,11 +160,6 @@ void CPlayer::Update(float fTimeElapsed)
 	m_xmf3Velocity = Vector3::Add(m_xmf3Velocity, Vector3::ScalarProduct(m_xmf3Velocity, -fDeceleration, true));
 }
 
-void CPlayer::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList)
-{
-	CGameObject::UpdateShaderVariables(pd3dCommandList);
-}
-
 // 플레이어의 위치와 회전축으로부터 월드 변환 행렬을 생성하는 함수이다. 
 // 플레이어의 Right 벡터가 월드 변환 행렬의 첫 번째 행 벡터, 
 // Up 벡터가 두 번째 행 벡터, 
