@@ -47,7 +47,7 @@ public:
 
 // Render
 public:
-	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList);
+	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList) {}
 
 	virtual void Animate(float fTimeElapsed) {}
 	virtual void OnPrepareRender() {}

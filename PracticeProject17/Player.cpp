@@ -48,10 +48,9 @@ unique_ptr<CCamera> CPlayer::OnChangeCamera(DWORD nNewCameraMode, DWORD nCurrent
 CAirplanePlayer::CAirplanePlayer(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList, ID3D12RootSignature* pd3dGraphicsRootSignature)
 {
 	//비행기 메쉬를 생성한다.
-	shared_ptr<CAirplaneMeshDiffused> pAirplaneMesh = make_shared<CAirplaneMeshDiffused>(pd3dDevice, pd3dCommandList, 20.0f, 20.0f, 4.0f, XMFLOAT4(0.0f, 0.5f, 0.0f, 0.0f));
+	shared_ptr<CAirplaneMeshDiffused> pAirplaneMesh = make_shared<CAirplaneMeshDiffused>(pd3dDevice, pd3dCommandList, 20.0f, 20.0f, 4.0f, XMFLOAT4(0.0f, 0.5f, 0.0f, 1.0f));
 
 	SetMesh(pAirplaneMesh);
-	//플레이어의 카메라를 스페이스-쉽 카메라로 변경(생성)한다.
 	m_pCamera = OnChangeCamera(THIRD_PERSON_CAMERA, 0x00);
 	switch (m_pCamera->GetMode())
 	{
@@ -114,5 +113,5 @@ void CPlayer::ReleaseObjects()
 {
 	if (m_pMaterial) m_pMaterial->ReleaseObjects();
 	if (m_pMesh) m_pMesh->ReleaseObjects();
-	if (m_pCamera) m_pCamera->ReleaseShaderVariables();
+	if(m_pCamera) m_pCamera->ReleaseShaderVariables();
 }
