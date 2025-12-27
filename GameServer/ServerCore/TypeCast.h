@@ -1,5 +1,4 @@
 #pragma once
-#include "pch.h"
 #include "Types.h"
 
 #pragma region TypeList

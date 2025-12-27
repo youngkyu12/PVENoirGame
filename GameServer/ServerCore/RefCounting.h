@@ -7,8 +7,8 @@
 class RefCountable
 {
 public:
-	RefCountable() : _refCount(1) {}
-	virtual ~RefCountable() {}
+	RefCountable() : _refCount(1) { }
+	virtual ~RefCountable() { }
 
 	int32 GetRefCount() { return _refCount; }
 
@@ -35,7 +35,7 @@ template<typename T>
 class TSharedPtr
 {
 public:
-	TSharedPtr() {}
+	TSharedPtr() { }
 	TSharedPtr(T* ptr) { Set(ptr); }
 
 	// บนป็
@@ -74,11 +74,11 @@ public:
 	bool		operator!=(const TSharedPtr& rhs) const { return _ptr != rhs._ptr; }
 	bool		operator!=(T* ptr) const { return _ptr != ptr; }
 	bool		operator<(const TSharedPtr& rhs) const { return _ptr < rhs._ptr; }
-	T* operator*() { return _ptr; }
-	const T* operator*() const { return _ptr; }
-	operator T* () const { return _ptr; }
-	T* operator->() { return _ptr; }
-	const T* operator->() const { return _ptr; }
+	T*			operator*() { return _ptr; }
+	const T*	operator*() const { return _ptr; }
+				operator T* () const { return _ptr; }
+	T*			operator->() { return _ptr; }
+	const T*	operator->() const { return _ptr; }
 
 	bool IsNull() { return _ptr == nullptr; }
 
