@@ -4,10 +4,7 @@
 #include <winsock2.h>
 #include <mswsock.h>
 #include <ws2tcpip.h>
-#include <chrono>
 #pragma comment(lib, "ws2_32.lib")
-
-using namespace std::chrono;
 
 void HandleError(const char* cause)
 {
@@ -69,7 +66,8 @@ int main()
 		DWORD flags = 0;
 		if (::WSASend(clientSocket, &wsaBuf, 1, &sendLen, flags, &overlapped, nullptr) == SOCKET_ERROR)
 		{
-			if (::WSAGetLastError() == WSA_IO_PENDING)
+			auto errorCode = ::WSAGetLastError();
+			if (errorCode == WSA_IO_PENDING)
 			{
 				// Pending
 				::WSAWaitForMultipleEvents(1, &wsaEvent, TRUE, WSA_INFINITE, FALSE);

@@ -8,7 +8,9 @@
 
 #include <windows.h>
 #include <iostream>
+#include <chrono>
 using namespace std;
+using namespace std::chrono;
 
 #include <winsock2.h>
 #include <mswsock.h>

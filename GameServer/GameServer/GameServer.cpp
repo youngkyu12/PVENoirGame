@@ -7,24 +7,34 @@
 #include <future>
 #include "ThreadManager.h"
 
+#include "Service.h"
+#include "Session.h"
 
-#include "SocketUtils.h"
+class GameSession : public Session
+{
+
+};
+
 
 int main()
 {
-	SOCKET socket = SocketUtils::CreateSocket();
+	ServerServiceRef service = MakeShared<ServerService>(
+		NetAddress(L"127.0.0.1", 7777),
+		MakeShared<IocpCore>(),
+		MakeShared<GameSession>, // TODO : SessionManager 등
+		100);
 
-	SocketUtils::BindAnyAddress(socket, 7777);
+	ASSERT_CRASH(service->Start());
 
-	SocketUtils::Listen(socket);
-
-	SOCKET clientSocket = ::accept(socket, nullptr, nullptr);
-
-	cout << "Client Connected!" << endl; 
-
-	while (true)
+	for (int32 i = 0; i < 5; i++)
 	{
-
+		GThreadManager->Launch([=]()
+			{
+				while (true)
+				{
+					service->GetIocpCore()->Dispatch();
+				}
+			});
 	}
 
 	GThreadManager->Join();
