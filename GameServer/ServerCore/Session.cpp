@@ -19,6 +19,15 @@ Session::~Session()
 
 void Session::Disconnect(const WCHAR* cause)
 {
+	if (_connected.exchange(false) == false)
+		return;
+
+	// TEMP
+	wcout << "Disconnect : " << cause << endl;
+
+	OnDisconnected(); // 컨텐츠 코드에서 오버로딩
+	SocketUtils::Close(_socket);
+	GetService()->ReleaseSession(GetSessionRef());
 }
 
 HANDLE Session::GetHandle()
@@ -50,29 +59,27 @@ void Session::RegisterConnect()
 
 void Session::RegisterRecv()
 {
-	if(IsConnected() == false)
+	if (IsConnected() == false)
 		return;
 
-
-	_recvEvent.owner = shared_from_this();
+	_recvEvent.Init();
+	_recvEvent.owner = shared_from_this(); // ADD_REF
 
 	WSABUF wsaBuf;
-	wsaBuf.buf = reinterpret_cast<CHAR*>(_recvBuffer); // Ref add
+	wsaBuf.buf = reinterpret_cast<char*>(_recvBuffer);
 	wsaBuf.len = len32(_recvBuffer);
 
 	DWORD numOfBytes = 0;
 	DWORD flags = 0;
-	if (SOCKET_ERROR == 
-		::WSARecv(_socket, &wsaBuf, 1, OUT & numOfBytes, OUT & flags, & _recvEvent, nullptr))
+	if (SOCKET_ERROR == ::WSARecv(_socket, &wsaBuf, 1, OUT &numOfBytes, OUT &flags, &_recvEvent, nullptr))
 	{
 		int32 errorCode = ::WSAGetLastError();
-		if(errorCode != WSA_IO_PENDING)
+		if (errorCode != WSA_IO_PENDING)
 		{
 			HandleError(errorCode);
 			_recvEvent.owner = nullptr; // RELEASE_REF
 		}
 	}
-
 }
 
 void Session::RegisterSend()
@@ -81,19 +88,16 @@ void Session::RegisterSend()
 
 void Session::ProcessConnect()
 {
-
-	_connected = true;
+	_connected.store(true);
 
 	// 세션 등록
 	GetService()->AddSession(GetSessionRef());
 
-	//컨텐츠 코드에서 오버로딩
+	// 컨텐츠 코드에서 오버로딩
 	OnConnected();
 
 	// 수신 등록
 	RegisterRecv();
-
-	
 }
 
 void Session::ProcessRecv(int32 numOfBytes)
@@ -106,10 +110,10 @@ void Session::ProcessRecv(int32 numOfBytes)
 		return;
 	}
 
-	//TODO: RecvBuffer
-	cout << "Recv Size : " << numOfBytes << endl;
+	// TODO
+	cout << "Recv Data Len = " << numOfBytes << endl;
 
-	//수신 등록
+	// 수신 등록
 	RegisterRecv();
 }
 
@@ -117,17 +121,17 @@ void Session::ProcessSend(int32 numOfBytes)
 {
 }
 
-void Session::HandleError(int32 errCode)
+void Session::HandleError(int32 errorCode)
 {
-	switch (errCode)
+	switch (errorCode)
 	{
 	case WSAECONNRESET:
 	case WSAECONNABORTED:
 		Disconnect(L"HandleError");
 		break;
 	default:
-		// TODO : 로그 찍기
-		cout << "Handle Error : " << errCode << endl;
+		// TODO : Log 만들기
+		cout << "Handle Error : " << errorCode << endl;
 		break;
 	}
 }
