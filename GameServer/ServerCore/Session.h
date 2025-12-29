@@ -2,6 +2,7 @@
 #include "IocpCore.h"
 #include "IocpEvent.h"
 #include "NetAddress.h"
+#include "RecvBuffer.h"
 
 class Service;
 
@@ -14,6 +15,11 @@ class Session : public IocpObject
 	friend class Listener;
 	friend class IocpCore;
 	friend class Service;
+
+	enum
+	{
+		BUFFER_SIZE = 0x10000, // 64KB
+	};
 
 public:
 	Session();
@@ -61,14 +67,6 @@ protected:
 	virtual void		OnSend(int32 len) { }
 	virtual void		OnDisconnected() { }
 
-public:
-	// TEMP
-	BYTE _recvBuffer[1000];
-
-	//// 순환 버퍼: 겹치지 않게 넣고, 끝에 오면 다시 처음으로
-	//// 세션의 send가 나올 때마다 계속 복사해줘야 한다
-	//char _sendBuffer[1000];
-	//int32 _sendLen = 0;
 
 private:
 	weak_ptr<Service>	_service;
@@ -80,6 +78,8 @@ private:
 	USE_LOCK;
 
 	/* 수신 관련 */
+
+	RecvBuffer			_recvBuffer;
 
 	/* 송신 관련 */
 
