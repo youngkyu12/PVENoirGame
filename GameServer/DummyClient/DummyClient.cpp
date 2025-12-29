@@ -4,7 +4,7 @@
 #include "Service.h"
 #include "Session.h"
 
-char sendBuffer[] = "Hello World";
+char sendData[] = "Hello World";
 
 class ServerSession : public Session
 {
@@ -17,7 +17,9 @@ public:
 	virtual void OnConnected() override
 	{
 		cout << "Connected to Server" << endl;
-		Send((BYTE*)sendBuffer, sizeof(sendBuffer));
+		SendBufferRef sendBuffer = MakeShared<SendBuffer>(4096);
+		sendBuffer->CopyData((BYTE*)sendData, sizeof(sendData));
+		Send(sendBuffer);
 
 	}
 
@@ -28,7 +30,9 @@ public:
 
 		this_thread::sleep_for(1s);
 
-		Send((BYTE*)sendBuffer, sizeof(sendBuffer));
+		SendBufferRef sendBuffer = MakeShared<SendBuffer>(4096);
+		sendBuffer->CopyData((BYTE*)sendData, sizeof(sendData));
+		Send(sendBuffer);
 		return len;
 	}
 
@@ -52,7 +56,7 @@ int main()
 		NetAddress(L"127.0.0.1", 7777),
 		MakeShared<IocpCore>(),
 		MakeShared<ServerSession>, // TODO : SessionManager 등
-		1);
+		5);
 
 	ASSERT_CRASH(service->Start());
 
