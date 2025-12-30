@@ -21,8 +21,8 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{8f62d974-c078-4249-8240-2a8105ac7b2a}</ProjectGuid>
-    <RootNamespace>PracticeProject17</RootNamespace>
+    <ProjectGuid>{8b9d914e-f4e9-4279-830b-48de0dc982c2}</ProjectGuid>
+    <RootNamespace>PracticeProject0891</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -101,13 +101,11 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
-      <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
       <CallingConvention>VectorCall</CallingConvention>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -119,7 +117,7 @@
       <WarningLevel>Level3</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>true</SDLCheck>
+      <SDLCheck>false</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
@@ -135,37 +133,37 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
-    <ClInclude Include="framework.h" />
+    <ClInclude Include="DDSTextureLoader12.h" />
+    <ClInclude Include="DescriptorHeap.h" />
     <ClInclude Include="GameFramework.h" />
+    <ClInclude Include="Material.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="Object.h" />
     <ClInclude Include="Player.h" />
-    <ClInclude Include="PracticeProject17.h" />
+    <ClInclude Include="PracticeProject08-9-1.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="Texture.h" />
     <ClInclude Include="Timer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
-    <ClCompile Include="Camera_Build.cpp" />
-    <ClCompile Include="Camera_Render.cpp" />
+    <ClCompile Include="DDSTextureLoader12.cpp" />
+    <ClCompile Include="DescriptorHeap.cpp" />
     <ClCompile Include="GameFramework.cpp" />
     <ClCompile Include="GameFramework_Build.cpp" />
     <ClCompile Include="GameFramework_Input.cpp" />
     <ClCompile Include="GameFramework_Render.cpp" />
+    <ClCompile Include="Material.cpp" />
     <ClCompile Include="Mesh.cpp" />
-    <ClCompile Include="Mesh_Build.cpp" />
-    <ClCompile Include="Mesh_Render.cpp" />
     <ClCompile Include="Object.cpp" />
     <ClCompile Include="Object_Build.cpp" />
     <ClCompile Include="Object_Render.cpp" />
     <ClCompile Include="Player.cpp" />
-    <ClCompile Include="Player_Build.cpp" />
-    <ClCompile Include="Player_Render.cpp" />
-    <ClCompile Include="PracticeProject17.cpp" />
+    <ClCompile Include="PracticeProject08-9-1.cpp" />
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="Scene_Build.cpp" />
     <ClCompile Include="Scene_Input.cpp" />
@@ -174,30 +172,28 @@
     <ClCompile Include="Shader_Build.cpp" />
     <ClCompile Include="Shader_Render.cpp" />
     <ClCompile Include="stdafx.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="Texture.cpp" />
     <ClCompile Include="Timer.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="PracticeProject17.rc" />
+    <ResourceCompile Include="PracticeProject08-9-1.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="PracticeProject17.ico" />
+    <Image Include="PracticeProject08-9-1.ico" />
     <Image Include="small.ico" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Shaders.hlsl">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-      <FileType>Document</FileType>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <None Include="Light.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <FileType>Document</FileType>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </None>
+    <None Include="Shaders.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+      <FileType>Document</FileType>
     </None>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -4,7 +4,7 @@ class CVertex {
 public:
 	CVertex() { m_xmf3Position = XMFLOAT3(0.0f, 0.0f, 0.0f); }
 	CVertex(XMFLOAT3 xmf3Position) { m_xmf3Position = xmf3Position; }
-	virtual ~CVertex() {}
+	 ~CVertex() {}
 
 protected:
 	//정점의 위치 벡터이다(모든 정점은 최소한 위치 벡터를 가져야 한다).
@@ -28,7 +28,7 @@ public:
 		m_xmf4Diffuse = xmf4Diffuse;
 	}
 
-	virtual ~CDiffusedVertex() {}
+	 ~CDiffusedVertex() {}
 
 protected:
 	//정점의 색상이다.
@@ -53,7 +53,7 @@ public:
 		m_xmf3Normal = xmf3Normal;
 	}
 
-	virtual ~CIlluminatedVertex() {}
+	 ~CIlluminatedVertex() {}
 
 protected:
 	XMFLOAT3 m_xmf3Normal;
