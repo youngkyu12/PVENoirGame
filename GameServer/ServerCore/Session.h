@@ -93,3 +93,25 @@ private:
 	SendEvent			_sendEvent;
 };
 
+/*----------------
+	PacketSession
+-----------------*/
+
+struct PacketHeader
+{
+	uint16 size;
+	uint16 id; //  프로토콜 id(id의 내용을 스포)
+};
+
+class PacketSession : public Session
+{
+public:
+	PacketSession();
+	virtual ~PacketSession();
+
+	PacketSessionRef GetPacketSessionRef() { return static_pointer_cast<PacketSession>(shared_from_this()); }
+
+protected:
+	virtual int32 OnRecv(BYTE* buffer, int32 len) final;
+	virtual int32 OnRecvPacket(BYTE* buffer, int32 len) abstract;
+};

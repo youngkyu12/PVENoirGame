@@ -2,6 +2,7 @@
 #include "GameSessionManager.h"
 #include "GameSession.h"
 
+GameSessionManager GSessionManager;
 
 void GameSessionManager::Add(GameSessionRef session)
 {
@@ -24,4 +25,3 @@ void GameSessionManager::Broadcast(SendBufferRef sendBuffer)
 	}
 }
 
-GameSessionManager GSessionManager;
