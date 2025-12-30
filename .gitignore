@@ -160,6 +160,8 @@ StyleCopReport.xml
 *.tmp_proj
 *_wpftmp.csproj
 *.log
+!Changes.log
+!회의록.log
 *.tlog
 *.vspscc
 *.vssscc
