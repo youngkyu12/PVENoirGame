@@ -263,6 +263,7 @@ void CGameFramework::BuildObjects()
 
 	m_pPlayer = make_shared< CAirplanePlayer>(m_pd3dDevice.Get(), m_pd3dCommandList.Get(), m_pScene->GetGraphicsRootSignature().Get());
 	m_pCamera = m_pPlayer->GetCamera();
+	
 
 	m_pd3dCommandList->Close();
 

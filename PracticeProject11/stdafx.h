@@ -14,11 +14,16 @@
 #include <malloc.h>
 #include <memory.h>
 #include <tchar.h>
-#include<vector>
+#include <vector>
+#include <unordered_map>
 
 #include <string>
 #include <wrl.h>
 #include <shellapi.h>
+
+#include <fstream>
+#include <stdio.h>
+#include <wchar.h>
 
 #include <Mmsystem.h>
 #pragma comment(lib, "winmm.lib")
@@ -34,6 +39,12 @@
 #include <DirectXCollision.h>
 
 #include <DXGIDebug.h>
+
+#include <D3d12SDKLayers.h>
+#include <filesystem>
+#include <wincodec.h>
+
+#include "d3dx12.h"
 
 using namespace DirectX;
 using namespace DirectX::PackedVector;
