@@ -15,6 +15,7 @@
 #include <memory>
 #include <tchar.h>
 #include <math.h>
+#include <fstream>
 
 #include <string>
 #include <shellapi.h>
@@ -39,6 +40,12 @@
 #include <array>
 #include <vector>
 #include <unordered_map>
+
+#include <wincodec.h>
+//#include <fmod.hpp>
+#include <cassert>
+
+#include "d3dx12.h"
 
 using namespace std;
 
