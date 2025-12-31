@@ -41,27 +41,10 @@ void CPlayerShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* 
 //
 void CObjectsShader::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext)
 {
-	UINT ncbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);
-	for (int j = 0; j < m_nObjects; j++)
-	{
-		CB_GAMEOBJECT_INFO* pbMappedcbGameObject = (CB_GAMEOBJECT_INFO*)((UINT8*)m_pcbMappedGameObjects + (j * ncbElementBytes));
-		XMStoreFloat4x4(&pbMappedcbGameObject->m_xmf4x4World, XMMatrixTranspose(XMLoadFloat4x4(&m_ppObjects[j]->m_xmf4x4World)));
-#ifdef _WITH_BATCH_MATERIAL
-		if (m_pMaterial)
-			pbMappedcbGameObject->m_nMaterialID = m_pMaterial->m_nReflection;
-
-		if (m_pMaterial)
-			pbMappedcbGameObject->m_nObjectID = j;
-#endif
-	}
 }
 
 void CObjectsShader::AnimateObjects(float fTimeElapsed)
 {
-	for (int j = 0; j < m_nObjects; j++)
-	{
-		m_ppObjects[j]->Animate(fTimeElapsed);
-	}
 }
 
 void CObjectsShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext)
@@ -72,12 +55,6 @@ void CObjectsShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera*
 	if (m_pMaterial)
 		m_pMaterial->UpdateShaderVariables(pd3dCommandList);
 #endif
-
-	for (int j = 0; j < m_nObjects; j++)
-	{
-		if (m_ppObjects[j])
-			m_ppObjects[j]->Render(pd3dCommandList, pCamera);
-	}
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

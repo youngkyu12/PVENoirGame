@@ -329,18 +329,7 @@ D3D12_SHADER_BYTECODE CObjectsShader::CreatePixelShader(ID3DBlob** ppd3dShaderBl
 
 void CObjectsShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	UINT ncbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255); //256ÀÇ ¹è¼ö
-	m_pd3dcbGameObjects = ::CreateBufferResource(
-		pd3dDevice,
-		pd3dCommandList,
-		nullptr,
-		ncbElementBytes * m_nObjects,
-		D3D12_HEAP_TYPE_UPLOAD,
-		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
-		nullptr
-	);
-
-	m_pd3dcbGameObjects->Map(0, nullptr, (void**)&m_pcbMappedGameObjects);
+	//m_pd3dcbGameObjects->Map(0, nullptr, (void**)&m_pcbMappedGameObjects);
 }
 
 void CObjectsShader::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList, void* pContext)
@@ -353,7 +342,6 @@ void CObjectsShader::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsComman
 
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
 	D3D12_GPU_DESCRIPTOR_HANDLE d3dCbvGPUDescriptorNextHandle = CScene::m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
-	CScene::m_pDescriptorHeap->CreateConstantBufferViews(pd3dDevice, m_nObjects, m_pd3dcbGameObjects.Get(), ncbElementBytes);
 
 #ifdef _WITH_BATCH_MATERIAL
 	m_pMaterial = make_shared<CMaterial>();
@@ -364,33 +352,6 @@ void CObjectsShader::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsComman
 	pCubeMaterial->SetTexture(pTexture.get());
 	pCubeMaterial->SetReflection(1);
 #endif
-
-	shared_ptr<CCubeMeshIlluminatedTextured> pCubeMesh = make_shared<CCubeMeshIlluminatedTextured>(pd3dDevice, pd3dCommandList, 12.0f, 12.0f, 12.0f);
-
-	m_ppObjects.resize(m_nObjects);
-
-	float fxPitch = 12.0f * 2.5f, fyPitch = 12.0f * 2.5f, fzPitch = 12.0f * 2.5f;
-
-	unique_ptr<CRotatingObject> pRotatingObject;
-	for (int i = 0, x = -m_xObjects; x <= m_xObjects; x++)
-	{
-		for (int y = -m_yObjects; y <= m_yObjects; y++)
-		{
-			for (int z = -m_zObjects; z <= m_zObjects; z++)
-			{
-				pRotatingObject = make_unique<CRotatingObject>(1);
-				pRotatingObject->SetMesh(0, pCubeMesh);
-#ifndef _WITH_BATCH_MATERIAL
-				pRotatingObject->SetMaterial(pCubeMaterial);
-#endif
-				pRotatingObject->SetPosition(fxPitch * x, fyPitch * y, fzPitch * z);
-				pRotatingObject->SetRotationAxis(XMFLOAT3(0.0f, 1.0f, 0.0f));
-				pRotatingObject->SetRotationSpeed(10.0f * (i % 10));
-				pRotatingObject->SetCbvGPUDescriptorHandlePtr(d3dCbvGPUDescriptorNextHandle.ptr + (::gnCbvSrvDescriptorIncrementSize * i));
-				m_ppObjects[i++].reset(pRotatingObject.release()); 
-			}
-		}
-	}	
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
