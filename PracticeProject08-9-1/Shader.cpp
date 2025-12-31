@@ -94,8 +94,6 @@ CIlluminatedTexturedShader::~CIlluminatedTexturedShader()
 //
 CObjectsShader::CObjectsShader()
 {
-	m_xObjects = 10, m_yObjects = 10, m_zObjects = 10;
-	m_nObjects = (m_xObjects * 2 + 1) * (m_yObjects * 2 + 1) * (m_zObjects * 2 + 1);
 }
 
 CObjectsShader::~CObjectsShader()
@@ -119,13 +117,7 @@ void CObjectsShader::ReleaseObjects()
 
 void CObjectsShader::ReleaseUploadBuffers()
 {
-	if (!m_ppObjects.empty())
-	{
-		for (int j = 0; j < m_nObjects; j++) 
-			if (m_ppObjects[j]) 
-				m_ppObjects[j]->ReleaseUploadBuffers();
-	}
-
+	
 #ifdef _WITH_BATCH_MATERIAL
 	if (m_pMaterial) 
 		m_pMaterial->ReleaseUploadBuffers();

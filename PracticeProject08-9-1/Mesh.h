@@ -1,9 +1,9 @@
 //------------------------------------------------------- ----------------------
 // File: Mesh.h
 //-----------------------------------------------------------------------------
-
 #pragma once
-
+#include "stdafx.h"
+#include "AnimatorData.h"
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 class CVertex
@@ -28,6 +28,33 @@ public:
 	CDiffusedVertex(float x, float y, float z, XMFLOAT4 xmf4Diffuse) { m_xmf3Position = XMFLOAT3(x, y, z); m_xmf4Diffuse = xmf4Diffuse; }
 	CDiffusedVertex(XMFLOAT3 xmf3Position, XMFLOAT4 xmf4Diffuse = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)) { m_xmf3Position = xmf3Position; m_xmf4Diffuse = xmf4Diffuse; }
 	~CDiffusedVertex() { }
+};
+
+struct SubMesh
+{
+	vector<XMFLOAT3> positions;
+	vector<XMFLOAT3> normals;
+	vector<XMFLOAT2> uvs;
+	vector<XMUINT4>  boneIndices;
+	vector<XMFLOAT4> boneWeights;
+	vector<UINT>     indices;
+
+	UINT textureIndex = UINT_MAX;       // 이 SubMesh가 사용할 텍스처의 SRV 인덱스
+
+	std::string meshName;
+	std::string materialName;
+
+	// GPU 리소스
+	ID3D12Resource* vb = nullptr;
+	ID3D12Resource* vbUpload = nullptr;
+	ID3D12Resource* ib = nullptr;
+	ID3D12Resource* ibUpload = nullptr;
+
+	ID3D12Resource* texture = nullptr;
+	ID3D12Resource* textureUpload = nullptr;
+
+	D3D12_VERTEX_BUFFER_VIEW vbView{};
+	D3D12_INDEX_BUFFER_VIEW  ibView{};
 };
 
 class CTexturedVertex : public CVertex
@@ -93,6 +120,7 @@ public:
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
+class CAnimator;
 class CMesh
 {
 public:
