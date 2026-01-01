@@ -10,6 +10,9 @@
 
 #define _WITH_SCENE_ROOT_SIGNATURE
 
+class CMaterial;
+struct CB_GAMEOBJECT_INFO;
+
 class CShader
 {
 public:
@@ -62,7 +65,7 @@ public:
 	CPlayerShader();
 	virtual ~CPlayerShader();
 
-	virtual D3D12_INPUT_LAYOUT_DESC CreateInputLayout();
+	//virtual D3D12_INPUT_LAYOUT_DESC CreateInputLayout();
 	virtual D3D12_DEPTH_STENCIL_DESC CreateDepthStencilState();
 
 	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob **ppd3dShaderBlob);

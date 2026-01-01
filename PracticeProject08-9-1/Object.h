@@ -14,6 +14,7 @@
 #define DIR_UP						0x10
 #define DIR_DOWN					0x20
 
+class CMesh;
 class CShader;
 class CMaterial;
 

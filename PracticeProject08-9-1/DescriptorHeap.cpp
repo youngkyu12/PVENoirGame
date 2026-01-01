@@ -74,29 +74,84 @@ D3D12_GPU_DESCRIPTOR_HANDLE CDescriptorHeap::CreateConstantBufferView(ID3D12Devi
 	return(d3dCbvGPUDescriptorHandle);
 }
 
-void CDescriptorHeap::CreateShaderResourceViews(ID3D12Device* pd3dDevice, CTexture* pTexture, UINT nDescriptorHeapIndex, UINT nRootParameterStartIndex)
+void CDescriptorHeap::CreateShaderResourceViews(
+	ID3D12Device* pd3dDevice,
+	CTexture* pTexture,
+	UINT nDescriptorHeapIndex,
+	UINT nRootParameterStartIndex)
 {
-	m_d3dSrvCPUDescriptorNextHandle.ptr += (::gnCbvSrvDescriptorIncrementSize * nDescriptorHeapIndex);
-	m_d3dSrvGPUDescriptorNextHandle.ptr += (::gnCbvSrvDescriptorIncrementSize * nDescriptorHeapIndex);
+	if (!pd3dDevice || !pTexture)
+	{
+		OutputDebugStringA("[DescriptorHeap] ERROR: pd3dDevice or pTexture is null\n");
+		return;
+	}
+	if (!m_pd3dCbvSrvDescriptorHeap)
+	{
+		OutputDebugStringA("[DescriptorHeap] ERROR: m_pd3dCbvSrvDescriptorHeap is null\n");
+		return;
+	}
+	if (m_d3dSrvCPUDescriptorStartHandle.ptr == 0 || m_d3dSrvGPUDescriptorStartHandle.ptr == 0)
+	{
+		OutputDebugStringA("[DescriptorHeap] ERROR: SRV start handle is null (heap not initialized?)\n");
+		return;
+	}
+
+	// 핵심: NextHandle을 절대 누적 이동시키지 말 것.
+	// StartHandle 기준으로 로컬 핸들을 계산해서 사용한다.
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = m_d3dSrvCPUDescriptorStartHandle;
+	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = m_d3dSrvGPUDescriptorStartHandle;
+
+	cpuHandle.ptr += (::gnCbvSrvDescriptorIncrementSize * nDescriptorHeapIndex);
+	gpuHandle.ptr += (::gnCbvSrvDescriptorIncrementSize * nDescriptorHeapIndex);
+
+	{
+		char buf[256];
+		sprintf_s(buf,
+			"[DescriptorHeap] SRV Create start: index=%u cpu=0x%llX gpu=0x%llX\n",
+			nDescriptorHeapIndex,
+			(unsigned long long)cpuHandle.ptr,
+			(unsigned long long)gpuHandle.ptr);
+		OutputDebugStringA(buf);
+	}
 
 	int nTextures = pTexture->GetTextures();
 	for (int i = 0; i < nTextures; i++)
 	{
 		ComPtr<ID3D12Resource> pShaderResource = pTexture->GetResource(i);
-		D3D12_SHADER_RESOURCE_VIEW_DESC d3dShaderResourceViewDesc = pTexture->GetShaderResourceViewDesc(i);
+		if (!pShaderResource)
+		{
+			char buf[256];
+			sprintf_s(buf, "[DescriptorHeap] ERROR: Texture resource is null (i=%d)\n", i);
+			OutputDebugStringA(buf);
+			// 로컬 핸들은 그대로 증가시키지 않는 편이 안전(슬롯 낭비 방지)
+			continue;
+		}
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = pTexture->GetShaderResourceViewDesc(i);
+
 		pd3dDevice->CreateShaderResourceView(
 			pShaderResource.Get(),
-			&d3dShaderResourceViewDesc,
-			m_d3dSrvCPUDescriptorNextHandle
+			&srvDesc,
+			cpuHandle
 		);
-		m_d3dSrvCPUDescriptorNextHandle.ptr += ::gnCbvSrvDescriptorIncrementSize;
 
-		pTexture->SetGpuDescriptorHandle(i, m_d3dSrvGPUDescriptorNextHandle);
-		m_d3dSrvGPUDescriptorNextHandle.ptr += ::gnCbvSrvDescriptorIncrementSize;
+		// 텍스처에 GPU 핸들 저장 (바인딩 시 사용)
+		pTexture->SetGpuDescriptorHandle(i, gpuHandle);
+
+		// 다음 슬롯 (로컬 핸들만 이동)
+		cpuHandle.ptr += ::gnCbvSrvDescriptorIncrementSize;
+		gpuHandle.ptr += ::gnCbvSrvDescriptorIncrementSize;
 	}
+
 	int nRootParameters = pTexture->GetRootParameters();
-	for (int i = 0; i < nRootParameters; i++) pTexture->SetRootParameterIndex(i, nRootParameterStartIndex + i);
+	for (int i = 0; i < nRootParameters; i++)
+	{
+		pTexture->SetRootParameterIndex(i, nRootParameterStartIndex + i);
+	}
 }
+
+
+
 
 void CDescriptorHeap::CreateShaderResourceViews(ID3D12Device* pd3dDevice, int nResources, ID3D12Resource** ppd3dResources, DXGI_FORMAT* pdxgiSrvFormats)
 {

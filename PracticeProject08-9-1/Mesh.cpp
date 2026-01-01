@@ -64,31 +64,23 @@ void CMesh::ReleaseUploadBuffers()
 	m_pd3dBoneWeightUploadBuffer = NULL;
 };
 
-void CMesh::Render(ID3D12GraphicsCommandList *pd3dCommandList)
+void CMesh::Render(ID3D12GraphicsCommandList* pd3dCommandList)
 {
     pd3dCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     for (auto& sm : m_SubMeshes)
     {
         // --------------------------------------------------------
-        // 1) SubMesh 텍스처 바인딩 (textureIndex가 유효한 경우)
+        // 1) Material 바인딩 (있다면)
+        //    ※ 텍스처/SRV 바인딩은 Material 책임
         // --------------------------------------------------------
-        if (m_pd3dSrvDescriptorHeap && sm.textureIndex != UINT_MAX)
+        if (sm.material)
         {
-            CD3DX12_GPU_DESCRIPTOR_HANDLE hGPU(
-                m_pd3dSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart(),
-                sm.textureIndex,
-                m_nSrvDescriptorIncrementSize
-            );
-
-            pd3dCommandList->SetGraphicsRootDescriptorTable(
-                m_nTextureRootParameterIndex, // 일반적으로 5
-                hGPU
-            );
+            sm.material->UpdateShaderVariables(pd3dCommandList);
         }
 
         // --------------------------------------------------------
-        // 2) VB/IB 바인딩
+        // 2) VB / IB 바인딩
         // --------------------------------------------------------
         pd3dCommandList->IASetVertexBuffers(0, 1, &sm.vbView);
         pd3dCommandList->IASetIndexBuffer(&sm.ibView);
@@ -97,11 +89,12 @@ void CMesh::Render(ID3D12GraphicsCommandList *pd3dCommandList)
         // 3) Draw
         // --------------------------------------------------------
         pd3dCommandList->DrawIndexedInstanced(
-            (UINT)sm.indices.size(),
+            static_cast<UINT>(sm.indices.size()),
             1, 0, 0, 0
         );
     }
 }
+
 
 void CMesh::LoadMeshFromBIN(ID3D12Device* device,
     ID3D12GraphicsCommandList* cmdList,
@@ -527,130 +520,6 @@ BOOL CMesh::RayIntersectionByTriangle(XMVECTOR& xmRayOrigin, XMVECTOR& xmRayDire
     return(bIntersected);
 }
 
-void CMesh::LoadTextureFromFile(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList,
-    ID3D12DescriptorHeap* srvHeap, UINT descriptorIndex, const wchar_t* fileName, int subMeshIndex)
-{
-    if (subMeshIndex < 0 || subMeshIndex >= (int)m_SubMeshes.size())
-        return;
-
-    SubMesh& sm = m_SubMeshes[subMeshIndex];
-
-    // ---- 기존 텍스처 해제 (SubMesh 전용) ----
-    if (sm.texture) { sm.texture->Release(); sm.texture = nullptr; }
-    if (sm.textureUpload) { sm.textureUpload->Release(); sm.textureUpload = nullptr; }
-
-    // ---- 1) WIC 로딩 ----
-    IWICImagingFactory* wicFactory = nullptr;
-    CoCreateInstance(CLSID_WICImagingFactory, nullptr,
-        CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&wicFactory));
-
-    IWICBitmapDecoder* decoder = nullptr;
-    wicFactory->CreateDecoderFromFilename(
-        fileName, nullptr, GENERIC_READ,
-        WICDecodeMetadataCacheOnLoad, &decoder);
-
-    if (!decoder) return;
-
-    IWICBitmapFrameDecode* frame = nullptr;
-    decoder->GetFrame(0, &frame);
-
-    UINT width = 0, height = 0;
-    frame->GetSize(&width, &height);
-
-    IWICFormatConverter* converter = nullptr;
-    wicFactory->CreateFormatConverter(&converter);
-
-    converter->Initialize(
-        frame,
-        GUID_WICPixelFormat32bppRGBA,
-        WICBitmapDitherTypeNone, nullptr, 0.0,
-        WICBitmapPaletteTypeCustom);
-
-    UINT stride = width * 4;
-    UINT imageSize = stride * height;
-    std::unique_ptr<BYTE[]> pixels(new BYTE[imageSize]);
-    converter->CopyPixels(0, stride, imageSize, pixels.get());
-
-    // ---- 2) GPU 텍스처 생성 (SubMesh 전용) ----
-    D3D12_RESOURCE_DESC texDesc = {};
-    texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-    texDesc.Width = width;
-    texDesc.Height = height;
-    texDesc.DepthOrArraySize = 1;
-    texDesc.MipLevels = 1;
-    texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    texDesc.SampleDesc.Count = 1;
-
-    auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-
-    device->CreateCommittedResource(
-        &heapProps,
-        D3D12_HEAP_FLAG_NONE,
-        &texDesc,
-        D3D12_RESOURCE_STATE_COPY_DEST,
-        nullptr,
-        IID_PPV_ARGS(&sm.texture));
-
-
-    UINT64 uploadSize = GetRequiredIntermediateSize(sm.texture, 0, 1);
-
-    //auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-    auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadSize);
-
-    device->CreateCommittedResource(
-        &heapProps,
-        D3D12_HEAP_FLAG_NONE,
-        &bufferDesc,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(&sm.textureUpload));
-
-    D3D12_SUBRESOURCE_DATA sub = {};
-    sub.pData = pixels.get();
-    sub.RowPitch = stride;
-    sub.SlicePitch = imageSize;
-
-    UpdateSubresources(cmdList, sm.texture, sm.textureUpload,
-        0, 0, 1, &sub);
-
-    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-        sm.texture,
-        D3D12_RESOURCE_STATE_COPY_DEST,
-        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-    cmdList->ResourceBarrier(1, &barrier);
-
-    // ---- 3) SRV 생성 ----
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-    srvDesc.Texture2D.MipLevels = 1;
-
-    UINT inc = device->GetDescriptorHandleIncrementSize(
-        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-    CD3DX12_CPU_DESCRIPTOR_HANDLE hCPU(
-        srvHeap->GetCPUDescriptorHandleForHeapStart(),
-        descriptorIndex, inc);
-
-    device->CreateShaderResourceView(sm.texture, &srvDesc, hCPU);
-
-    // ---- 4) 이 SubMesh가 사용할 SRV 인덱스 저장 ----
-    sm.textureIndex = descriptorIndex;
-
-    frame->Release();
-    decoder->Release();
-    converter->Release();
-    wicFactory->Release();
-}
-
-void CMesh::SetSrvDescriptorInfo(ID3D12DescriptorHeap* heap, UINT inc)
-{
-    m_pd3dSrvDescriptorHeap = heap;
-    m_nSrvDescriptorIncrementSize = inc;
-}
-
 //==========================================================================
 // Animator Helper Functions
 //==========================================================================
@@ -913,4 +782,40 @@ bool CMesh::LoadAnimationFromBIN(
     }
 
     return true;
+}
+
+void CMesh::LinkMaterials(
+    std::unordered_map<std::string, std::shared_ptr<CMaterial>>& materialCache,
+    const std::function<std::shared_ptr<CMaterial>(const std::string&)>& createMaterialIfMissing
+)
+{
+    for (auto& sm : m_SubMeshes)
+    {
+        // materialName이 비어있으면 연결 불가
+        if (sm.materialName.empty())
+        {
+            sm.material.reset();
+            continue;
+        }
+
+        auto it = materialCache.find(sm.materialName);
+        if (it != materialCache.end())
+        {
+            // 캐시 재사용
+            sm.material = it->second;
+            continue;
+        }
+
+        // 캐시에 없으면 생성 콜백으로 생성(없으면 null 유지)
+        if (createMaterialIfMissing)
+        {
+            auto mat = createMaterialIfMissing(sm.materialName);
+            materialCache.emplace(sm.materialName, mat);
+            sm.material = mat;
+        }
+        else
+        {
+            sm.material.reset();
+        }
+    }
 }
