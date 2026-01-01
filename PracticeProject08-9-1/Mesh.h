@@ -4,8 +4,13 @@
 #pragma once
 #include "stdafx.h"
 #include "AnimatorData.h"
+#include "Material.h"
+
 ////////////////////////////////////////////////////////////////...////////////////////////////////////////////////////////////////
-//
+
+class CAnimator;
+class CMaterial;
+
 class CVertex
 {
 public:
@@ -46,6 +51,7 @@ public:
 
 struct SubMesh
 {
+	// CPU (필요 시만 유지: 피킹/디버그)
 	vector<XMFLOAT3> positions;
 	vector<XMFLOAT3> normals;
 	vector<XMFLOAT2> uvs;
@@ -53,19 +59,15 @@ struct SubMesh
 	vector<XMFLOAT4> boneWeights;
 	vector<UINT>     indices;
 
-	UINT textureIndex = UINT_MAX;       // SubMesh별 SRV 인덱스
-
 	std::string meshName;
-	std::string materialName;
+	std::string materialName;              // 로딩용/디버그용
+	shared_ptr<CMaterial> material;         // (권장) 렌더용 연결
 
-	// GPU 리소스
+	// GPU
 	ID3D12Resource* vb = nullptr;
 	ID3D12Resource* vbUpload = nullptr;
 	ID3D12Resource* ib = nullptr;
 	ID3D12Resource* ibUpload = nullptr;
-
-	ID3D12Resource* texture = nullptr;
-	ID3D12Resource* textureUpload = nullptr;
 
 	D3D12_VERTEX_BUFFER_VIEW vbView{};
 	D3D12_INDEX_BUFFER_VIEW  ibView{};
@@ -73,7 +75,6 @@ struct SubMesh
 
 ////////////////////////////////////////////////////////////////...////////////////////////////////////////////////////////////////
 //
-class CAnimator;
 class CMesh
 {
 public:
@@ -81,8 +82,6 @@ public:
 	virtual ~CMesh();
 
 public:
-	void SetSrvDescriptorInfo(ID3D12DescriptorHeap* heap, UINT inc);
-
 	void ReleaseUploadBuffers();
 	void SetPolygon(int nIndex, CPolygon* pPolygon);
 	int CheckRayIntersection(XMVECTOR& xmvPickRayOrigin, XMVECTOR& xmvPickRayDirection, float* pfNearHitDistance = nullptr);
@@ -111,10 +110,6 @@ protected:
 
 	CAnimator*						m_pAnimator = nullptr;
 	bool							m_bSkinnedMesh = false;
-
-	ID3D12DescriptorHeap*			m_pd3dSrvDescriptorHeap = nullptr;
-	UINT							m_nSrvDescriptorIncrementSize = 0;
-	UINT							m_nTextureRootParameterIndex = 5;
 	ID3D12Device*					m_pd3dDevice = nullptr;
 
 public:
@@ -129,10 +124,11 @@ public:
 	void LoadMeshFromBIN(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, const char* filename);
 	void EnableSkinning(int nBones);
 
-	void LoadTextureFromFile(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList,
-		ID3D12DescriptorHeap* srvHeap, UINT descriptorIndex, const wchar_t* fileName, int subMeshIndex);
-
 	vector<SubMesh> m_SubMeshes;
+	void LinkMaterials(
+		std::unordered_map<std::string, std::shared_ptr<CMaterial>>& materialCache,
+		const std::function<std::shared_ptr<CMaterial>(const std::string&)>& createMaterialIfMissing = nullptr
+	);
 
 	// CAnimator 연동을 위한 헬퍼 함수들
 	int GetBoneCount() const;

@@ -28,12 +28,72 @@ D3D12_SHADER_BYTECODE CShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
 
 D3D12_INPUT_LAYOUT_DESC CShader::CreateInputLayout()
 {
-	D3D12_INPUT_LAYOUT_DESC d3dInputLayoutDesc;
-	d3dInputLayoutDesc.pInputElementDescs = nullptr;
-	d3dInputLayoutDesc.NumElements = 0;
+	UINT nInputElementDescs = 5;
+	D3D12_INPUT_ELEMENT_DESC* pd3dInputElementDescs =
+		new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
 
-	return(d3dInputLayoutDesc);
+	// POSITION (float3) : offset 0
+	pd3dInputElementDescs[0] = {
+		"POSITION",
+		0,
+		DXGI_FORMAT_R32G32B32_FLOAT,
+		0,
+		0,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0
+	};
+
+	// NORMAL (float3) : offset 12
+	pd3dInputElementDescs[1] = {
+		"NORMAL",
+		0,
+		DXGI_FORMAT_R32G32B32_FLOAT,
+		0,
+		12,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0
+	};
+
+	// TEXCOORD (float2) : offset 24
+	pd3dInputElementDescs[2] = {
+		"TEXCOORD",
+		0,
+		DXGI_FORMAT_R32G32_FLOAT,
+		0,
+		24,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0
+	};
+
+	// BLENDINDICES (uint4) : offset 32
+	pd3dInputElementDescs[3] = {
+		"BLENDINDICES",
+		0,
+		DXGI_FORMAT_R32G32B32A32_UINT,
+		0,
+		32,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0
+	};
+
+	// BLENDWEIGHT (float4) : offset 48
+	pd3dInputElementDescs[4] = {
+		"BLENDWEIGHT",
+		0,
+		DXGI_FORMAT_R32G32B32A32_FLOAT,
+		0,
+		48,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0
+	};
+
+	D3D12_INPUT_LAYOUT_DESC d3dInputLayoutDesc;
+	d3dInputLayoutDesc.pInputElementDescs = pd3dInputElementDescs;
+	d3dInputLayoutDesc.NumElements = nInputElementDescs;
+
+	return d3dInputLayoutDesc;
 }
+
 
 D3D12_RASTERIZER_DESC CShader::CreateRasterizerState()
 {
@@ -142,6 +202,7 @@ void CShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsComm
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
+/*
 D3D12_INPUT_LAYOUT_DESC CPlayerShader::CreateInputLayout()
 {
 	UINT nInputElementDescs = 2;
@@ -173,6 +234,7 @@ D3D12_INPUT_LAYOUT_DESC CPlayerShader::CreateInputLayout()
 
 	return(d3dInputLayoutDesc);
 }
+*/
 
 D3D12_DEPTH_STENCIL_DESC CPlayerShader::CreateDepthStencilState()
 {

@@ -72,7 +72,7 @@ void CPostProcessingShader::OnPrepareRenderTarget(
 	for (int i = 0; i < nRenderTargets; i++)
 	{
 		pd3dAllRtvCPUHandles[i] = pd3dRtvCPUHandles[i];
-		pd3dCommandList->ClearRenderTargetView(pd3dRtvCPUHandles[i], Colors::White, 0, nullptr);
+		pd3dCommandList->ClearRenderTargetView(pd3dRtvCPUHandles[i], Colors::Blue, 0, nullptr);
 	}
 
 	for (int i = 0; i < nResources; i++)

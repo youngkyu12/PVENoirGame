@@ -16,7 +16,9 @@
 #include <tchar.h>
 #include <math.h>
 #include <fstream>
+#include <functional>
 
+#include <sstream>
 #include <string>
 #include <shellapi.h>
 

@@ -55,24 +55,53 @@ float4 PSDiffused(VS_DIFFUSED_OUTPUT input): SV_TARGET
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-VS_DIFFUSED_OUTPUT VSPlayer(VS_DIFFUSED_INPUT input)
+
+
+struct VS_PLAYER_INPUT
 {
-	VS_DIFFUSED_OUTPUT output;
+    float3 position : POSITION;
+    float3 normal : NORMAL;
+    float2 uv : TEXCOORD;
+    uint4 blendIndices : BLENDINDICES; // 지금은 미사용이어도 OK
+    float4 blendWeights : BLENDWEIGHT; // 지금은 미사용이어도 OK
+};
 
-	output.position = mul(mul(mul(float4(input.position, 1.0f), gmtxPlayerWorld), gmtxView), gmtxProjection);
-	output.color = input.color;
+struct VS_PLAYER_OUTPUT
+{
+    float4 position : SV_POSITION;
+    float3 positionW : POSITION;
+    float3 normalW : NORMAL;
+    float2 uv : TEXCOORD;
+};
 
-	return(output);
+VS_PLAYER_OUTPUT VSPlayer(VS_PLAYER_INPUT input)
+{
+    VS_PLAYER_OUTPUT output;
+
+    float4 posW = mul(float4(input.position, 1.0f), gmtxPlayerWorld);
+    output.positionW = posW.xyz;
+    output.position = mul(mul(float4(output.positionW, 1.0f), gmtxView), gmtxProjection);
+
+    output.normalW = normalize(mul(input.normal, (float3x3) gmtxPlayerWorld));
+    output.uv = input.uv;
+
+    return output;
 }
 
-float4 PSPlayer(VS_DIFFUSED_OUTPUT input): SV_TARGET
+float4 PSPlayer(VS_PLAYER_OUTPUT input, uint nPrimitiveID : SV_PrimitiveID) : SV_TARGET
 {
-	return(input.color);
+    float3 uvw = float3(input.uv, nPrimitiveID / 2);
+    float4 cColor = gtxtTextureArray.Sample(gssDefaultSamplerState, uvw);
+
+    // 조명 안 쓰면 그대로 반환
+    // return cColor;
+
+    // 조명 쓰면:
+    float4 cIllumination = Lighting(input.positionW, input.normalW);
+    return cColor * cIllumination;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
 struct VS_TEXTURED_INPUT
 {
 	float3 position : POSITION;

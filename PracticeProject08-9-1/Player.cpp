@@ -6,6 +6,7 @@
 #include "Player.h"
 #include "Shader.h"
 #include "Scene.h"
+#include "AssetManager.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CPlayer
@@ -334,7 +335,7 @@ CAirplanePlayer::CAirplanePlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommand
 		SetMaxVelocityXZ(125.0f);
 		SetMaxVelocityY(400.0f);
 		m_pCamera->SetTimeLag(0.25f);
-		m_pCamera->SetOffset(XMFLOAT3(0.0f, 2.0f, -2.0f));
+		m_pCamera->SetOffset(XMFLOAT3(0.0f, 2.0f, 2.0f));
 		m_pCamera->GenerateProjectionMatrix(1.01f, 5000.0f, ASPECT_RATIO, 60.0f);
 		m_pCamera->SetViewport(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, 0.0f, 1.0f);
 		m_pCamera->SetScissorRect(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
@@ -354,6 +355,61 @@ CAirplanePlayer::CAirplanePlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommand
 		"Models/unitychan_min.bin"
 	);
 	SetMesh(0, pPlayerMesh);
+
+	// (1) 같은 materialName -> 같은 CMaterial 재사용
+	static std::unordered_map<std::string, std::shared_ptr<CMaterial>> materialCache;
+
+	// (2) 네 RootSignature에서 "SRV Descriptor Table"이 있는 Root Parameter Index
+	//     반드시 실제 값으로 맞춰야 함. (예: 5)
+	constexpr UINT ROOTPARAM_TEX_SRV_TABLE = 5;
+
+	// (3) materialName -> texture file 경로 매핑(임시: 전부 동일 텍스처로 테스트 가능)
+	auto ResolveTexturePath = [](const std::string& materialName) -> std::wstring
+		{
+			// TODO: materialName에 따라 실제 파일로 매핑
+			// 우선 파이프라인 검증용으로 고정 텍스처 1개 사용 권장
+			return L"Models/UnitychanTexture/skin_01.dds";
+		};
+	for (auto& sm : pPlayerMesh->m_SubMeshes)
+	{
+		// materialName이 비어있으면 일단 스킵(디폴트 머티리얼을 붙여도 됨)
+		if (sm.materialName.empty())
+			continue;
+
+		auto it = materialCache.find(sm.materialName);
+		if (it != materialCache.end())
+		{
+			// 캐시 재사용
+			sm.material = it->second;
+			continue;
+		}
+
+		// (4) CMaterial 생성
+		auto mat = std::make_shared<CMaterial>();
+
+		// (5) CTexture 생성 + 로드
+		auto tex = std::make_shared<CTexture>(
+			1,                  // nTextureResources
+			RESOURCE_TEXTURE2D,  // nResourceType
+			0,                  // nSamplers
+			1                   // nRootParameters (SRV 테이블 1개)
+		);
+
+		const std::wstring texPath = ResolveTexturePath(sm.materialName);
+		tex->LoadTextureFromFile(pd3dDevice, pd3dCommandList, texPath.c_str(), RESOURCE_TEXTURE2D, 0);
+
+		// (6) SRV 생성 + root param index 세팅
+		//     nDescriptorHeapIndex는 0으로 두면 "NextHandle" 기반으로 순차 할당됨(현재 구현 기준).
+		CScene::m_pDescriptorHeap->CreateShaderResourceViews(pd3dDevice, tex.get(), 0, ROOTPARAM_TEX_SRV_TABLE);
+
+		// (7) Material에 Texture 연결
+		mat->SetTexture(tex);
+
+		// (8) 캐시 등록 + SubMesh에 연결
+		materialCache.emplace(sm.materialName, mat);
+		sm.material = mat;
+	}
+
 
 	UINT ncbElementBytes = ((sizeof(CB_PLAYER_INFO)+ 255)& ~255); //256의 배수
 
@@ -416,7 +472,7 @@ CCamera *CAirplanePlayer::ChangeCamera(DWORD nNewCameraMode, float fTimeElapsed)
 			SetMaxVelocityY(400.0f);
 			m_pCamera = OnChangeCamera(THIRD_PERSON_CAMERA, nCurrentCameraMode);
 			m_pCamera->SetTimeLag(0.25f);
-			m_pCamera->SetOffset(XMFLOAT3(0.0f, 2.0f, -2.0f));
+			m_pCamera->SetOffset(XMFLOAT3(0.0f, 2.0f, 2.0f));
 			m_pCamera->GenerateProjectionMatrix(10.01f, 5000.0f, ASPECT_RATIO, 60.0f);
 			m_pCamera->SetViewport(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, 0.0f, 1.0f);
 			m_pCamera->SetScissorRect(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
