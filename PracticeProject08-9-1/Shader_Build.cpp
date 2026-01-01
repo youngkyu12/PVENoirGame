@@ -241,7 +241,7 @@ D3D12_DEPTH_STENCIL_DESC CPlayerShader::CreateDepthStencilState()
 
 	D3D12_DEPTH_STENCIL_DESC d3dDepthStencilDesc;
 	::ZeroMemory(&d3dDepthStencilDesc, sizeof(D3D12_DEPTH_STENCIL_DESC));
-	d3dDepthStencilDesc.DepthEnable = FALSE;
+	d3dDepthStencilDesc.DepthEnable = TRUE;
 	d3dDepthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 	d3dDepthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
 	d3dDepthStencilDesc.StencilEnable = FALSE;
@@ -391,7 +391,18 @@ D3D12_SHADER_BYTECODE CObjectsShader::CreatePixelShader(ID3DBlob** ppd3dShaderBl
 
 void CObjectsShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	//m_pd3dcbGameObjects->Map(0, nullptr, (void**)&m_pcbMappedGameObjects);
+	UINT ncbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255); //256의 배수
+	m_pd3dcbGameObjects = ::CreateBufferResource(
+		pd3dDevice,
+		pd3dCommandList,
+		nullptr,
+		ncbElementBytes * m_nObjects,
+		D3D12_HEAP_TYPE_UPLOAD,
+		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+		nullptr
+	);
+
+	m_pd3dcbGameObjects->Map(0, nullptr, (void**)&m_pcbMappedGameObjects);
 }
 
 void CObjectsShader::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList, void* pContext)
@@ -404,6 +415,7 @@ void CObjectsShader::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsComman
 
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
 	D3D12_GPU_DESCRIPTOR_HANDLE d3dCbvGPUDescriptorNextHandle = CScene::m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
+	CScene::m_pDescriptorHeap->CreateConstantBufferViews(pd3dDevice, m_nObjects, m_pd3dcbGameObjects.Get(), ncbElementBytes);
 
 #ifdef _WITH_BATCH_MATERIAL
 	m_pMaterial = make_shared<CMaterial>();
@@ -414,6 +426,89 @@ void CObjectsShader::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsComman
 	pCubeMaterial->SetTexture(pTexture.get());
 	pCubeMaterial->SetReflection(1);
 #endif
+
+	shared_ptr<CMesh> pHouseMesh = make_shared<CMesh>(pd3dDevice, pd3dCommandList);
+	pHouseMesh->LoadMeshFromBIN(
+		pd3dDevice,
+		pd3dCommandList,
+		"Models/unitychan.bin"
+	);
+
+	m_ppObjects.resize(m_nObjects);
+
+	// vector 구조는 유지, 실제 생성은 1개만
+	auto pRotatingObject = make_unique<CRotatingObject>(1);
+
+	// (1) 같은 materialName -> 같은 CMaterial 재사용
+	static std::unordered_map<std::string, std::shared_ptr<CMaterial>> materialCache;
+
+	// (2) 네 RootSignature에서 "SRV Descriptor Table"이 있는 Root Parameter Index
+	//     반드시 실제 값으로 맞춰야 함. (예: 5)
+	constexpr UINT ROOTPARAM_TEX_SRV_TABLE = 5;
+
+	// (3) materialName -> texture file 경로 매핑(임시: 전부 동일 텍스처로 테스트 가능)
+	auto ResolveTexturePath = [](const std::string& materialName) -> std::wstring
+		{
+			// TODO: materialName에 따라 실제 파일로 매핑
+			// 우선 파이프라인 검증용으로 고정 텍스처 1개 사용 권장
+			return L"Models/UnitychanTexture/skin_01.dds";
+		};
+	for (auto& sm : pHouseMesh->m_SubMeshes)
+	{
+		// materialName이 비어있으면 일단 스킵(디폴트 머티리얼을 붙여도 됨)
+		if (sm.materialName.empty())
+			continue;
+
+		auto it = materialCache.find(sm.materialName);
+		if (it != materialCache.end())
+		{
+			// 캐시 재사용
+			sm.material = it->second;
+			continue;
+		}
+
+		// (4) CMaterial 생성
+		auto mat = std::make_shared<CMaterial>();
+
+		// (5) CTexture 생성 + 로드
+		auto tex = std::make_shared<CTexture>(
+			1,                  // nTextureResources
+			RESOURCE_TEXTURE2D,  // nResourceType
+			0,                  // nSamplers
+			1                   // nRootParameters (SRV 테이블 1개)
+		);
+
+		const std::wstring texPath = ResolveTexturePath(sm.materialName);
+		tex->LoadTextureFromFile(pd3dDevice, pd3dCommandList, texPath.c_str(), RESOURCE_TEXTURE2D, 0);
+
+		// (6) SRV 생성 + root param index 세팅
+		//     nDescriptorHeapIndex는 0으로 두면 "NextHandle" 기반으로 순차 할당됨(현재 구현 기준).
+		CScene::m_pDescriptorHeap->CreateShaderResourceViews(pd3dDevice, tex.get(), 0, ROOTPARAM_TEX_SRV_TABLE);
+
+		// (7) Material에 Texture 연결
+		mat->SetTexture(tex);
+
+		// (8) 캐시 등록 + SubMesh에 연결
+		materialCache.emplace(sm.materialName, mat);
+		sm.material = mat;
+	}
+
+	pRotatingObject->SetMesh(0, pHouseMesh);
+
+#ifndef _WITH_BATCH_MATERIAL
+	pRotatingObject->SetMaterial(pCubeMaterial);
+#endif
+
+	pRotatingObject->SetPosition(0.0f, 0.0f, 0.0f);
+	pRotatingObject->SetRotationAxis(XMFLOAT3(0.0f, 1.0f, 0.0f));
+	pRotatingObject->SetRotationSpeed(10.0f);
+
+	// CBV도 첫 슬롯만 사용
+	pRotatingObject->SetCbvGPUDescriptorHandlePtr(
+		d3dCbvGPUDescriptorNextHandle.ptr
+	);
+
+	m_ppObjects[0] = std::move(pRotatingObject);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
