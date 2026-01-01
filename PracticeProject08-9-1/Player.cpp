@@ -354,7 +354,6 @@ CAirplanePlayer::CAirplanePlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommand
 		pd3dCommandList,
 		"Models/unitychan_min.bin"
 	);
-	SetMesh(0, pPlayerMesh);
 
 	// (1) 같은 materialName -> 같은 CMaterial 재사용
 	static std::unordered_map<std::string, std::shared_ptr<CMaterial>> materialCache;
@@ -410,6 +409,7 @@ CAirplanePlayer::CAirplanePlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommand
 		sm.material = mat;
 	}
 
+	SetMesh(0, pPlayerMesh);
 
 	UINT ncbElementBytes = ((sizeof(CB_PLAYER_INFO)+ 255)& ~255); //256의 배수
 

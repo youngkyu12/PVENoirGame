@@ -11,7 +11,9 @@
 #define _WITH_SCENE_ROOT_SIGNATURE
 
 class CMaterial;
+class CGameObject;
 struct CB_GAMEOBJECT_INFO;
+
 
 class CShader
 {
@@ -55,23 +57,6 @@ public:
 protected:
 	ComPtr<ID3D12PipelineState>				m_pd3dPipelineState;
 	ComPtr<ID3D12RootSignature>				m_pd3dGraphicsRootSignature;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-class CPlayerShader : public CShader
-{
-public:
-	CPlayerShader();
-	virtual ~CPlayerShader();
-
-	//virtual D3D12_INPUT_LAYOUT_DESC CreateInputLayout();
-	virtual D3D12_DEPTH_STENCIL_DESC CreateDepthStencilState();
-
-	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob **ppd3dShaderBlob);
-	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob **ppd3dShaderBlob);
-
-	virtual void Render(ID3D12GraphicsCommandList *pd3dCommandList, CCamera *pCamera, void *pContext);
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -128,17 +113,36 @@ public:
 
 	virtual void Render(ID3D12GraphicsCommandList *pd3dCommandList, CCamera *pCamera, void *pContext = nullptr);
 
-	int GetNumberOfObjects() { return(0); }
+	int GetNumberOfObjects() { return(m_nObjects); }
 
 protected:
+	vector<unique_ptr<CGameObject>> m_ppObjects;
+	int								m_nObjects = 0;
+
 	ComPtr<ID3D12Resource>			m_pd3dcbGameObjects;
-	CB_GAMEOBJECT_INFO				*m_pcbMappedGameObjects = nullptr;
+	CB_GAMEOBJECT_INFO* m_pcbMappedGameObjects = nullptr;
 
 #ifdef _WITH_BATCH_MATERIAL
 	shared_ptr<CMaterial>			m_pMaterial;
 #endif
 };
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+class CPlayerShader : public CShader
+{
+public:
+	CPlayerShader();
+	virtual ~CPlayerShader();
+
+	//virtual D3D12_INPUT_LAYOUT_DESC CreateInputLayout();
+	virtual D3D12_DEPTH_STENCIL_DESC CreateDepthStencilState();
+
+	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob);
+	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob);
+
+	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext);
+};
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 class CPostProcessingShader : public CShader
