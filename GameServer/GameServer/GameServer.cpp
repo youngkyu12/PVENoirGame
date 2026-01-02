@@ -11,7 +11,7 @@
 #include "Session.h"
 #include "GameSession.h"
 #include "GameSessionManager.h"
-
+#include "BufferWriter.h"
 
 int main()
 {
@@ -40,14 +40,19 @@ int main()
 	{
 		SendBufferRef sendBuffer = GSendBufferManager->Open(4096);
 
-		BYTE* buffer = sendBuffer->Buffer();
+		BufferWriter bw(sendBuffer->Buffer(), 4096);
 
-		((PacketHeader*)buffer)->size = (sizeof(sendData) + sizeof(PacketHeader));
-		((PacketHeader*)buffer)->id = 1;
+		PacketHeader* header = bw.Reserve<PacketHeader>();
 
+		//id(uint64), 체력(uint32, 공격력{uint16) ㄱㄱ
+		bw << (uint64)1001 << (uint32)100 << (uint16)10;
+		
+		bw.Write(sendData, sizeof(sendData));
 
-		::memcpy(&buffer[4], sendData, sizeof(sendData));
-		sendBuffer->Close(sizeof(sendData) + sizeof(PacketHeader));
+		header->size = bw.WriteSize();
+		header->id = 1;
+
+		sendBuffer->Close(bw.WriteSize());
 
 		GSessionManager.Broadcast(sendBuffer);
 

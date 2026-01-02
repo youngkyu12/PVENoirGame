@@ -7,34 +7,34 @@
     <Filter Include="Utils">
       <UniqueIdentifier>{84c0dcc9-6e4e-4531-b2d6-abae21942955}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Main">
-      <UniqueIdentifier>{61d7c722-445e-4fae-8e7a-509f86d6ad73}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Memory">
       <UniqueIdentifier>{d25e0704-31be-4e3e-b4e8-91c9b8e30a7a}</UniqueIdentifier>
     </Filter>
     <Filter Include="Thread">
       <UniqueIdentifier>{9f57c2d2-369b-4a45-aa87-10338b7c464c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Utils\Main">
+      <UniqueIdentifier>{61d7c722-445e-4fae-8e7a-509f86d6ad73}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CoreGlobal.h">
-      <Filter>Main</Filter>
+      <Filter>Utils\Main</Filter>
     </ClInclude>
     <ClInclude Include="CoreMacro.h">
-      <Filter>Main</Filter>
+      <Filter>Utils\Main</Filter>
     </ClInclude>
     <ClInclude Include="CoreTLS.h">
-      <Filter>Main</Filter>
+      <Filter>Utils\Main</Filter>
     </ClInclude>
     <ClInclude Include="Corepch.h">
-      <Filter>Main</Filter>
+      <Filter>Utils\Main</Filter>
     </ClInclude>
     <ClInclude Include="pch.h">
-      <Filter>Main</Filter>
+      <Filter>Utils\Main</Filter>
     </ClInclude>
     <ClInclude Include="Types.h">
-      <Filter>Main</Filter>
+      <Filter>Utils\Main</Filter>
     </ClInclude>
     <ClInclude Include="RefCounting.h">
       <Filter>Memory</Filter>
@@ -90,22 +90,28 @@
     <ClInclude Include="RecvBuffer.h">
       <Filter>Network</Filter>
     </ClInclude>
+    <ClInclude Include="BufferReader.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="BufferWriter.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
     <ClInclude Include="SendBuffer.h">
       <Filter>Network</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CoreGlobal.cpp">
-      <Filter>Main</Filter>
+      <Filter>Utils\Main</Filter>
     </ClCompile>
     <ClCompile Include="CoreTLS.cpp">
-      <Filter>Main</Filter>
+      <Filter>Utils\Main</Filter>
     </ClCompile>
     <ClCompile Include="Corepch.cpp">
-      <Filter>Main</Filter>
+      <Filter>Utils\Main</Filter>
     </ClCompile>
     <ClCompile Include="pch.cpp">
-      <Filter>Main</Filter>
+      <Filter>Utils\Main</Filter>
     </ClCompile>
     <ClCompile Include="RefCounting.cpp">
       <Filter>Memory</Filter>
@@ -151,6 +157,12 @@
     </ClCompile>
     <ClCompile Include="RecvBuffer.cpp">
       <Filter>Network</Filter>
+    </ClCompile>
+    <ClCompile Include="BufferReader.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="BufferWriter.cpp">
+      <Filter>Utils</Filter>
     </ClCompile>
     <ClCompile Include="SendBuffer.cpp">
       <Filter>Network</Filter>
