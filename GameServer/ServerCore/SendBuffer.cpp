@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "SendBuffer.h"
 
-SendBuffer::SendBuffer(SendBufferChunkRef owner, BYTE* buffer, int32 alloSize)
+SendBuffer::SendBuffer(SendBufferChunkRef owner, BYTE* buffer, uint32 alloSize)
 	: _owner(owner), _buffer(buffer), _allocSize(alloSize)
 {
 
