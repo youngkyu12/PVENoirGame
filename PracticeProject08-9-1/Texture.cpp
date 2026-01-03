@@ -60,22 +60,32 @@ void CTexture::SetSampler(int nIndex, D3D12_GPU_DESCRIPTOR_HANDLE d3dSamplerGpuD
 
 void CTexture::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	if (m_nRootParameters == m_nTextures)
+	/*
+	//글로벌 SRV 테이블 사용 중이면 per-texture 바인딩 금지
+	if (m_baseSrvIndex != UINT_MAX) return;
+
+	if (m_nRootParameters > 0)
 	{
 		for (int i = 0; i < m_nRootParameters; i++)
 		{
-			pd3dCommandList->SetGraphicsRootDescriptorTable(m_pnRootParameterIndices[i], m_pd3dSrvGpuDescriptorHandles[i]);
+			pd3dCommandList->SetGraphicsRootDescriptorTable(
+				m_pnRootParameterIndices[i],
+				m_pd3dSrvGpuDescriptorHandles[i]
+			);
 		}
 	}
-	else
-	{
-		pd3dCommandList->SetGraphicsRootDescriptorTable(m_pnRootParameterIndices[0], m_pd3dSrvGpuDescriptorHandles[0]);
-	}
+	*/
 }
 
 void CTexture::UpdateShaderVariable(ID3D12GraphicsCommandList* pd3dCommandList, int nParameterIndex, int nTextureIndex)
 {
-	pd3dCommandList->SetGraphicsRootDescriptorTable(m_pnRootParameterIndices[nParameterIndex], m_pd3dSrvGpuDescriptorHandles[nTextureIndex]);
+	//글로벌 SRV 테이블 사용 중이면 per-texture 바인딩 금지
+	if (m_baseSrvIndex != UINT_MAX) return;
+
+	pd3dCommandList->SetGraphicsRootDescriptorTable(
+		m_pnRootParameterIndices[nParameterIndex],
+		m_pd3dSrvGpuDescriptorHandles[nTextureIndex]
+	);
 }
 
 void CTexture::ReleaseShaderVariables()

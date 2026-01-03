@@ -113,6 +113,11 @@ void CScene::BuildLightsAndMaterials()
 		XMFLOAT4(1.0f, 1.0f, 1.0f, 40.0f),
 		XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f)
 	};
+	for (int i = 0; i < MAX_MATERIALS; ++i)
+	{
+		m_pMaterials->m_pReflections[i].m_xmn4TextureIndices = XMUINT4(0, 0, 0, 0);
+	}
+
 }
 
 void CScene::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
@@ -124,11 +129,13 @@ void CScene::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* p
 
 	shared_ptr<CObjectsShader> pObjectShader = make_shared<CObjectsShader>();
 	int nObjects = pObjectShader->GetNumberOfObjects();
+	constexpr int MAX_GLOBAL_SRVS = 1024;
+
 	m_pDescriptorHeap->CreateCbvSrvDescriptorHeaps(
 		pd3dDevice,
 		nObjects + 1 + 1 + 1,
-		1 + 5 + 3 + 3
-	); //Player(1), Skybox(1)
+		MAX_GLOBAL_SRVS
+	);
 
 	DXGI_FORMAT pdxgiRtvFormats[5] = {
 		DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -144,80 +151,81 @@ void CScene::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* p
 		pdxgiRtvFormats,
 		DXGI_FORMAT_D24_UNORM_S8_UINT/*DXGI_FORMAT_D32_FLOAT*/
 	);
-	pObjectShader->BuildObjects(pd3dDevice, pd3dCommandList, nullptr);
-	m_ppShaders[0] = pObjectShader;
-
 	BuildLightsAndMaterials();
+
+	pObjectShader->BuildObjects(pd3dDevice, pd3dCommandList, m_pMaterials.get());
+	m_ppShaders[0] = pObjectShader;
 
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
 }
 
 void CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevice)
 {
-	D3D12_DESCRIPTOR_RANGE pd3dDescriptorRanges[3];
+	// (1) Descriptor Ranges: CBV table 1개 + Global SRV table 1개만 남긴다.
+	D3D12_DESCRIPTOR_RANGE pd3dDescriptorRanges[2] = {};
 
+	// b2: Game Objects (CBV table)
 	pd3dDescriptorRanges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 	pd3dDescriptorRanges[0].NumDescriptors = 1;
-	pd3dDescriptorRanges[0].BaseShaderRegister = 2; //b2: Game Objects
+	pd3dDescriptorRanges[0].BaseShaderRegister = 2; // b2
 	pd3dDescriptorRanges[0].RegisterSpace = 0;
 	pd3dDescriptorRanges[0].OffsetInDescriptorsFromTableStart = 0;
 
+	// Global Texture2D pool: t1~t1024, space1 (SRV table)
+	constexpr UINT MAX_GLOBAL_SRVS = 1024;
 	pd3dDescriptorRanges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	pd3dDescriptorRanges[1].NumDescriptors = 1;
-	pd3dDescriptorRanges[1].BaseShaderRegister = 0; //t0: Texture2DArray
-	pd3dDescriptorRanges[1].RegisterSpace = 0;
+	pd3dDescriptorRanges[1].NumDescriptors = MAX_GLOBAL_SRVS;
+	pd3dDescriptorRanges[1].BaseShaderRegister = 1; // t1부터
+	pd3dDescriptorRanges[1].RegisterSpace = 1;      // space1
 	pd3dDescriptorRanges[1].OffsetInDescriptorsFromTableStart = 0;
 
-	pd3dDescriptorRanges[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	pd3dDescriptorRanges[2].NumDescriptors = 5; //Texture, Illumination, Normal, zDepth, Depth
-	pd3dDescriptorRanges[2].BaseShaderRegister = 1; //t1: Texture2D<float4>
-	pd3dDescriptorRanges[2].RegisterSpace = 0;
-	pd3dDescriptorRanges[2].OffsetInDescriptorsFromTableStart = 0;
+	// (2) Root Parameters: SRV 분리(5/6) 제거, Global SRV 하나만 유지
+	D3D12_ROOT_PARAMETER pd3dRootParameters[7] = {};
 
-	D3D12_ROOT_PARAMETER pd3dRootParameters[8];
-
+	// [0] b1: Camera
 	pd3dRootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-	pd3dRootParameters[0].Descriptor.ShaderRegister = 1; //b1: Camera
+	pd3dRootParameters[0].Descriptor.ShaderRegister = 1;
 	pd3dRootParameters[0].Descriptor.RegisterSpace = 0;
 	pd3dRootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
+	// [1] b0: Player
 	pd3dRootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-	pd3dRootParameters[1].Descriptor.ShaderRegister = 0; //b0: Player
+	pd3dRootParameters[1].Descriptor.ShaderRegister = 0;
 	pd3dRootParameters[1].Descriptor.RegisterSpace = 0;
-	pd3dRootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	pd3dRootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
+	// [2] (Table) b2: Game Objects
 	pd3dRootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	pd3dRootParameters[2].DescriptorTable.NumDescriptorRanges = 1;
-	pd3dRootParameters[2].DescriptorTable.pDescriptorRanges = &pd3dDescriptorRanges[0]; //Game Objects
+	pd3dRootParameters[2].DescriptorTable.pDescriptorRanges = &pd3dDescriptorRanges[0];
 	pd3dRootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
+	// [3] b3: Materials
 	pd3dRootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-	pd3dRootParameters[3].Descriptor.ShaderRegister = 3; //Materials
+	pd3dRootParameters[3].Descriptor.ShaderRegister = 3;
 	pd3dRootParameters[3].Descriptor.RegisterSpace = 0;
 	pd3dRootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
+	// [4] b4: Lights
 	pd3dRootParameters[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-	pd3dRootParameters[4].Descriptor.ShaderRegister = 4; //Lights
+	pd3dRootParameters[4].Descriptor.ShaderRegister = 4;
 	pd3dRootParameters[4].Descriptor.RegisterSpace = 0;
 	pd3dRootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-	pd3dRootParameters[5].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	pd3dRootParameters[5].DescriptorTable.NumDescriptorRanges = 1;
-	pd3dRootParameters[5].DescriptorTable.pDescriptorRanges = &pd3dDescriptorRanges[1]; //Texture2DArray
-	pd3dRootParameters[5].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	// [5] b5: DrawOptions (PostProcessing 옵션 + SRV 인덱스들)
+	pd3dRootParameters[5].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	pd3dRootParameters[5].Descriptor.ShaderRegister = 5;
+	pd3dRootParameters[5].Descriptor.RegisterSpace = 0;
+	pd3dRootParameters[5].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
+	// [6] (Table) Global SRV table (space1, t1~)
 	pd3dRootParameters[6].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	pd3dRootParameters[6].DescriptorTable.NumDescriptorRanges = 1;
-	pd3dRootParameters[6].DescriptorTable.pDescriptorRanges = &pd3dDescriptorRanges[2]; //Texture2D
+	pd3dRootParameters[6].DescriptorTable.pDescriptorRanges = &pd3dDescriptorRanges[1];
 	pd3dRootParameters[6].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
-	pd3dRootParameters[7].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-	pd3dRootParameters[7].Descriptor.ShaderRegister = 5; //DrawOptions
-	pd3dRootParameters[7].Descriptor.RegisterSpace = 0;
-	pd3dRootParameters[7].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-
-	D3D12_STATIC_SAMPLER_DESC d3dSamplerDesc;
-	::ZeroMemory(&d3dSamplerDesc, sizeof(D3D12_STATIC_SAMPLER_DESC));
+	// Static sampler (s0)
+	D3D12_STATIC_SAMPLER_DESC d3dSamplerDesc = {};
 	d3dSamplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 	d3dSamplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	d3dSamplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -237,8 +245,7 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevice)
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
-	D3D12_ROOT_SIGNATURE_DESC d3dRootSignatureDesc;
-	::ZeroMemory(&d3dRootSignatureDesc, sizeof(D3D12_ROOT_SIGNATURE_DESC));
+	D3D12_ROOT_SIGNATURE_DESC d3dRootSignatureDesc = {};
 	d3dRootSignatureDesc.NumParameters = _countof(pd3dRootParameters);
 	d3dRootSignatureDesc.pParameters = pd3dRootParameters;
 	d3dRootSignatureDesc.NumStaticSamplers = 1;
@@ -248,25 +255,35 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevice)
 	ComPtr<ID3DBlob> pd3dSignatureBlob;
 	ComPtr<ID3DBlob> pd3dErrorBlob;
 
-	D3D12SerializeRootSignature(
+	HRESULT hr = D3D12SerializeRootSignature(
 		&d3dRootSignatureDesc,
 		D3D_ROOT_SIGNATURE_VERSION_1,
 		&pd3dSignatureBlob,
 		&pd3dErrorBlob
 	);
 
-	pd3dDevice->CreateRootSignature(
+	if (FAILED(hr))
+	{
+		if (pd3dErrorBlob)
+			OutputDebugStringA((char*)pd3dErrorBlob->GetBufferPointer());
+		return;
+	}
+
+	hr = pd3dDevice->CreateRootSignature(
 		0,
 		pd3dSignatureBlob->GetBufferPointer(),
 		pd3dSignatureBlob->GetBufferSize(),
 		IID_PPV_ARGS(m_pd3dGraphicsRootSignature.ReleaseAndGetAddressOf())
 	);
 
-	if (pd3dSignatureBlob) 
-		pd3dSignatureBlob.Reset();
+	if (FAILED(hr))
+	{
+		OutputDebugStringA("CreateRootSignature failed.\n");
+		return;
+	}
 
-	if (pd3dErrorBlob) 
-		pd3dErrorBlob.Reset();
+	if (pd3dSignatureBlob) pd3dSignatureBlob.Reset();
+	if (pd3dErrorBlob) pd3dErrorBlob.Reset();
 }
 
 void CScene::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)

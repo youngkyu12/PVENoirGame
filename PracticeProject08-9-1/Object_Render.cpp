@@ -42,10 +42,8 @@ void CGameObject::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pC
 
 			UpdateShaderVariables(pd3dCommandList);
 		}
-		if (m_pMaterial->m_pTexture)
-		{
-			m_pMaterial->m_pTexture->UpdateShaderVariables(pd3dCommandList);
-		}
+		if (m_pMaterial->NeedsLegacyBinding())
+			m_pMaterial->UpdateShaderVariables(pd3dCommandList);
 	}
 
 	SetRootParameter(pd3dCommandList);
