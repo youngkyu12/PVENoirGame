@@ -1,7 +1,15 @@
+#define MAX_GLOBAL_SRVS 1024
+
+// Global Texture2D pool: t0 ~ t1023 in space0
+Texture2D gtxtGlobalTextures[MAX_GLOBAL_SRVS] : register(t0);
+
 cbuffer cbPlayerInfo : register(b0)
 {
-	matrix		gmtxPlayerWorld : packoffset(c0);
+    matrix gmtxPlayerWorld : packoffset(c0);
+    uint gnPlayerMaterialID : packoffset(c4.x);
+    uint3 _padPlayer : packoffset(c4.y);
 };
+
 
 cbuffer cbCameraInfo : register(b1)
 {
@@ -12,20 +20,31 @@ cbuffer cbCameraInfo : register(b1)
 
 cbuffer cbGameObjectInfo : register(b2)
 {
-	matrix		gmtxGameObject : packoffset(c0);
-	uint		gnObjectID : packoffset(c4);
-	uint		gnMaterialID : packoffset(c8);
+    matrix gmtxGameObject : packoffset(c0);
+    uint gnObjectID : packoffset(c4.x);
+    uint gnUnused0 : packoffset(c4.y); // (구)gnMaterialID 자리. 이제 안 씀.
+};
+
+// ==============================
+// Per-draw Material ID (Root Constants)
+// RootSig: RootConstants(num32BitConstants=1, b6)
+// ==============================
+cbuffer cbPerDrawMaterialId : register(b6)
+{
+    uint gnMaterialID;
 };
 
 #include "Light.hlsl"
 
-Texture2DArray gtxtTextureArray : register(t0);
 SamplerState gssDefaultSamplerState : register(s0);
 
 cbuffer cbDrawOptions : register(b5)
 {
-	int4 gvDrawOptions : packoffset(c0);
+    int4 gvDrawOptions; // x = 'T','L','N','D','Z'
+    uint4 gvPostSrvIdx0; // x=T, y=L, z=N, w=D
+    uint4 gvPostSrvIdx1; // x=Z, 나머지 패딩
 };
+
 
 struct VS_DIFFUSED_INPUT
 {
@@ -90,16 +109,21 @@ VS_PLAYER_OUTPUT VSPlayer(VS_PLAYER_INPUT input)
 
 float4 PSPlayer(VS_PLAYER_OUTPUT input, uint nPrimitiveID : SV_PrimitiveID) : SV_TARGET
 {
-    float3 uvw = float3(input.uv, nPrimitiveID / 2);
-    float4 cColor = gtxtTextureArray.Sample(gssDefaultSamplerState, uvw);
+    uint diffuseIndex = gMaterials[gnPlayerMaterialID].TextureIndices.x;
 
-    // 조명 안 쓰면 그대로 반환
-    // return cColor;
+    // 디버그 안전장치 (선택)
+    if (diffuseIndex >= MAX_GLOBAL_SRVS)
+        return float4(1, 0, 0, 1); // 잘못된 인덱스
 
-    // 조명 쓰면:
+    float4 cColor = gtxtGlobalTextures[diffuseIndex]
+                        .Sample(gssDefaultSamplerState, input.uv);
+
     float4 cIllumination = Lighting(input.positionW, input.normalW);
     return cColor * cIllumination;
 }
+
+
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct VS_TEXTURED_INPUT
@@ -124,12 +148,15 @@ VS_TEXTURED_OUTPUT VSTextured(VS_TEXTURED_INPUT input)
 	return(output);
 }
 
-float4 PSTextured(VS_TEXTURED_OUTPUT input, uint nPrimitiveID : SV_PrimitiveID): SV_TARGET
+float4 PSTextured(VS_TEXTURED_OUTPUT input, uint nPrimitiveID : SV_PrimitiveID) : SV_TARGET
 {
-	float3 uvw = float3(input.uv, nPrimitiveID / 2);
-	float4 cColor = gtxtTextureArray.Sample(gssDefaultSamplerState, uvw);
+    uint diffuseIndex = gMaterials[gnMaterialID].TextureIndices.x; // 또는 gnPlayerMaterialID
 
-	return(cColor);
+    if (diffuseIndex == 0xFFFFFFFF || diffuseIndex >= MAX_GLOBAL_SRVS)
+        return float4(1, 0, 1, 1); // 텍스처 없음/잘못된 인덱스
+    
+    return gtxtGlobalTextures[diffuseIndex].Sample(gssDefaultSamplerState, input.uv);
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -161,15 +188,21 @@ VS_TEXTURED_LIGHTING_OUTPUT VSTexturedLighting(VS_TEXTURED_LIGHTING_INPUT input)
 	return(output);
 }
 
-float4 PSTexturedLighting(VS_TEXTURED_LIGHTING_OUTPUT input, uint nPrimitiveID : SV_PrimitiveID): SV_TARGET
+float4 PSTexturedLighting(VS_TEXTURED_LIGHTING_OUTPUT input, uint nPrimitiveID : SV_PrimitiveID) : SV_TARGET
 {
-	float3 uvw = float3(input.uv, nPrimitiveID / 2);
-	float4 cColor = gtxtTextureArray.Sample(gssDefaultSamplerState, uvw);
-	input.normalW = normalize(input.normalW);
-	float4 cIllumination = Lighting(input.positionW, input.normalW);
+    uint diffuseIndex = gMaterials[gnMaterialID].TextureIndices.x;
 
-	return(cColor * cIllumination);
+    if (diffuseIndex >= MAX_GLOBAL_SRVS)
+        return float4(1, 0, 0, 1); // bad index
+
+    float4 cTexture = gtxtGlobalTextures[diffuseIndex].Sample(gssDefaultSamplerState, input.uv);
+
+    input.normalW = normalize(input.normalW);
+    float4 cIllumination = Lighting(input.positionW, input.normalW);
+
+    return (cTexture * cIllumination);
 }
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -183,24 +216,80 @@ struct PS_MULTIPLE_RENDER_TARGETS_OUTPUT
 	float zDepth : SV_TARGET4;
 };
 
+/*
 PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(VS_TEXTURED_LIGHTING_OUTPUT input, uint nPrimitiveID : SV_PrimitiveID)
 {
-	PS_MULTIPLE_RENDER_TARGETS_OUTPUT output;
+    PS_MULTIPLE_RENDER_TARGETS_OUTPUT output;
 
-	float3 uvw = float3(input.uv, nPrimitiveID / 2);
-	output.cTexture = gtxtTextureArray.Sample(gssDefaultSamplerState, uvw);
+    uint diffuseIndex = gMaterials[gnMaterialID].TextureIndices.x;
+    if (diffuseIndex >= MAX_GLOBAL_SRVS)
+    {
+        output.color = float4(1, 0, 0, 1);
+        output.cTexture = float4(1, 0, 0, 1);
+        output.cIllumination = float4(0, 0, 0, 0);
+        output.normal = float4(0, 0, 0, 1);
+        output.zDepth = input.position.z;
+        return output;
+    }
 
-	input.normalW = normalize(input.normalW);
-	output.cIllumination = Lighting(input.positionW, input.normalW);
+    output.cTexture = gtxtGlobalTextures[diffuseIndex].Sample(gssDefaultSamplerState, input.uv);
 
-	output.color = output.cIllumination * output.cTexture;
+    input.normalW = normalize(input.normalW);
+    output.cIllumination = Lighting(input.positionW, input.normalW);
 
-	output.normal = float4(input.normalW.xyz * 0.5f + 0.5f, 1.0f);
-
-	output.zDepth = input.position.z;
-
-	return(output);
+    output.color = output.cIllumination * output.cTexture;
+    output.normal = float4(input.normalW.xyz * 0.5f + 0.5f, 1.0f);
+    output.zDepth = input.position.z;
+    
+    return output;
 }
+*/
+PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
+    VS_TEXTURED_LIGHTING_OUTPUT input,
+    uint nPrimitiveID : SV_PrimitiveID)
+{
+    PS_MULTIPLE_RENDER_TARGETS_OUTPUT output;
+
+    uint diffuseIndex = gMaterials[gnMaterialID].TextureIndices.x;
+
+    // SRV 인덱스가 잘못되었을 때만 빨강
+    if (diffuseIndex >= MAX_GLOBAL_SRVS)
+    {
+        output.color = float4(1, 0, 0, 1);
+        output.cTexture = float4(1, 0, 0, 1);
+        output.cIllumination = float4(0, 0, 0, 0);
+        output.normal = float4(0, 0, 1, 1);
+        output.zDepth = input.position.z;
+        return output;
+    }
+
+    // ===============================
+    // 텍스처 샘플링
+    // ===============================
+    float4 texColor =
+        gtxtGlobalTextures[diffuseIndex]
+            .Sample(gssDefaultSamplerState, input.uv);
+
+    // ===============================
+    // ★ 테스트용: 조명 완전 무시
+    // ===============================
+    output.cTexture = texColor;
+    output.cIllumination = float4(1, 1, 1, 1); // 의미 없음
+    output.color = texColor; // ★ 핵심
+    output.normal = float4(0, 0, 1, 1);
+    output.zDepth = input.position.z;
+
+    /*
+    output.color = float4(
+    (gnMaterialID & 1) ? 1 : 0,
+    (gnMaterialID & 2) ? 1 : 0,
+    (gnMaterialID & 4) ? 1 : 0,
+    1);
+    */
+    return output;
+}
+
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -245,13 +334,6 @@ VS_SCREEN_RECT_TEXTURED_OUTPUT VSScreenRectSamplingTextured(uint nVertexID : SV_
 	return(output);
 }
 
-Texture2D<float4> gtxtTextureTexture : register(t1);
-Texture2D<float4> gtxtIlluminationTexture : register(t2);
-Texture2D<float4> gtxtNormalTexture : register(t3);
-
-Texture2D<float> gtxtzDepthTexture : register(t4);
-Texture2D<float> gtxtDepthTexture : register(t5);
-
 float4 GetColorFromDepth(float fDepth)
 {
 	float4 cColor = float4(0.0f, 0.0f, 0.0f, 1.0f);
@@ -272,41 +354,41 @@ float4 GetColorFromDepth(float fDepth)
 	return(cColor);
 }
 
-float4 PSScreenRectSamplingTextured(VS_TEXTURED_OUTPUT input): SV_Target
+float4 PSScreenRectSamplingTextured(VS_TEXTURED_OUTPUT input) : SV_Target
 {
-	float4 cColor = float4(0.0f, 0.0f, 0.0f, 1.0f);
+    uint idx = 0xFFFFFFFFu;
 
-	switch (gvDrawOptions.x)
-	{
-		case 84: //'T'
-		{
-			cColor = gtxtTextureTexture.Sample(gssDefaultSamplerState, input.uv);
-			break;
-		}
-		case 76: //'L'
-		{
-			cColor = gtxtIlluminationTexture.Sample(gssDefaultSamplerState, input.uv);
-			break;
-		}
-		case 78: //'N'
-		{
-			cColor = gtxtNormalTexture.Sample(gssDefaultSamplerState, input.uv);
-			break;
-		}
-		case 68: //'D'
-		{
-			float fDepth = gtxtDepthTexture.Load(uint3((uint)input.position.x, (uint)input.position.y, 0));
-			cColor = fDepth;
-//			cColor = GetColorFromDepth(fDepth);
-			break;
-		}
-		case 90: //'Z'
-		{
-			float fzDepth = gtxtzDepthTexture.Load(uint3((uint)input.position.x, (uint)input.position.y, 0));
-			cColor = fzDepth;
-//			cColor = GetColorFromDepth(fDepth);
-			break;
-		}
-	}
-	return(cColor);
+    switch (gvDrawOptions.x)
+    {
+        case 84:
+            idx = gvPostSrvIdx0.x;
+            break; // 'T'
+        case 76:
+            idx = gvPostSrvIdx0.y;
+            break; // 'L'
+        case 78:
+            idx = gvPostSrvIdx0.z;
+            break; // 'N'
+        case 68:
+            idx = gvPostSrvIdx0.w;
+            break; // 'D'
+        case 90:
+            idx = gvPostSrvIdx1.x;
+            break; // 'Z'
+        default:
+            return float4(0, 0, 0, 1);
+    }
+
+    if (idx == 0xFFFFFFFFu || idx >= MAX_GLOBAL_SRVS)
+        return float4(1, 0, 1, 1); // bad / missing
+
+    // Depth 계열은 Load로 읽고 x만 사용
+    if (gvDrawOptions.x == 68 || gvDrawOptions.x == 90)
+    {
+        float d = gtxtGlobalTextures[idx].Load(uint3((uint) input.position.x, (uint) input.position.y, 0)).x;
+        return float4(d, d, d, 1);
+    }
+
+    // 나머지는 샘플링
+    return gtxtGlobalTextures[idx].Sample(gssDefaultSamplerState, input.uv);
 }

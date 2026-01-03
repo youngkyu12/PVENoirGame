@@ -59,4 +59,20 @@ public:
 	D3D12_SHADER_RESOURCE_VIEW_DESC GetShaderResourceViewDesc(int nIndex);
 
 	void ReleaseUploadBuffers();
+
+private:
+	//±Û·Î¹ú SRV Ç® ½ÃÀÛ ½½·Ô
+	UINT m_baseSrvIndex = UINT_MAX; 
+
+public:
+	void SetBaseSrvIndex(UINT base) { m_baseSrvIndex = base; }
+	UINT GetBaseSrvIndex() const { return m_baseSrvIndex; }
+	UINT GetSrvIndex(int texIndex) const
+	{
+		return (m_baseSrvIndex == UINT_MAX) ? UINT_MAX : (m_baseSrvIndex + (UINT)texIndex);
+	}
 };
+
+std::wstring ResolveTexturePath(
+	const std::string& assetName,
+	const std::string& texBaseName);

@@ -32,6 +32,11 @@ void CDescriptorHeap::CreateCbvSrvDescriptorHeaps(ID3D12Device* pd3dDevice, int 
 	m_d3dCbvGPUDescriptorNextHandle = m_d3dCbvGPUDescriptorStartHandle;
 	m_d3dSrvCPUDescriptorNextHandle = m_d3dSrvCPUDescriptorStartHandle;
 	m_d3dSrvGPUDescriptorNextHandle = m_d3dSrvGPUDescriptorStartHandle;
+
+	m_nCbvDescriptors = (UINT)nConstantBufferViews;
+	m_nSrvDescriptors = (UINT)nShaderResourceViews;
+	m_nSrvAllocated = 0;
+
 }
 
 void CDescriptorHeap::CreateConstantBufferViews(ID3D12Device* pd3dDevice, int nConstantBufferViews, ID3D12Resource* pd3dConstantBuffers, UINT nStride)
@@ -103,16 +108,6 @@ void CDescriptorHeap::CreateShaderResourceViews(
 
 	cpuHandle.ptr += (::gnCbvSrvDescriptorIncrementSize * nDescriptorHeapIndex);
 	gpuHandle.ptr += (::gnCbvSrvDescriptorIncrementSize * nDescriptorHeapIndex);
-
-	{
-		char buf[256];
-		sprintf_s(buf,
-			"[DescriptorHeap] SRV Create start: index=%u cpu=0x%llX gpu=0x%llX\n",
-			nDescriptorHeapIndex,
-			(unsigned long long)cpuHandle.ptr,
-			(unsigned long long)gpuHandle.ptr);
-		OutputDebugStringA(buf);
-	}
 
 	int nTextures = pTexture->GetTextures();
 	for (int i = 0; i < nTextures; i++)
@@ -238,4 +233,51 @@ void CDescriptorHeap::CreateShaderResourceView(ID3D12Device* pd3dDevice, CTextur
 		pTexture->SetGpuDescriptorHandle(nIndex, m_d3dSrvGPUDescriptorNextHandle);
 		m_d3dSrvGPUDescriptorNextHandle.ptr += ::gnCbvSrvDescriptorIncrementSize;
 	}
+}
+
+UINT CDescriptorHeap::AllocateSrvRange(UINT count)
+{
+	if (count == 0) return m_nSrvAllocated;
+
+	if (m_nSrvAllocated + count > m_nSrvDescriptors)
+	{
+		OutputDebugStringA("[DescriptorHeap] ERROR: SRV heap overflow (AllocateSrvRange)\n");
+		return UINT_MAX;
+	}
+
+	UINT base = m_nSrvAllocated;
+	m_nSrvAllocated += count;
+	return base;
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE CDescriptorHeap::GetCPUSrvHandle(UINT srvIndex) const
+{
+	D3D12_CPU_DESCRIPTOR_HANDLE h = m_d3dSrvCPUDescriptorStartHandle;
+	h.ptr += (::gnCbvSrvDescriptorIncrementSize * srvIndex);
+	return h;
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE CDescriptorHeap::GetGPUSrvHandle(UINT srvIndex) const
+{
+	D3D12_GPU_DESCRIPTOR_HANDLE h = m_d3dSrvGPUDescriptorStartHandle;
+	h.ptr += (::gnCbvSrvDescriptorIncrementSize * srvIndex);
+	return h;
+}
+
+void CDescriptorHeap::CreateShaderResourceViews(
+	ID3D12Device* pd3dDevice,
+	CTexture* pTexture,
+	UINT nRootParameterStartIndex)
+{
+	if (!pTexture) return;
+
+	UINT baseIndex = AllocateSrvRange((UINT)pTexture->GetTextures());
+	if (baseIndex == UINT_MAX) return;
+
+	// 텍스처가 SRV 슬롯 시작 인덱스를 기억
+	pTexture->SetBaseSrvIndex(baseIndex);
+
+	// 실제 SRV 생성은 기존 레거시 함수에 위임(내부적으로 절대 위치 baseIndex 사용)
+	CreateShaderResourceViews(pd3dDevice, pTexture, baseIndex, nRootParameterStartIndex);
+
 }
