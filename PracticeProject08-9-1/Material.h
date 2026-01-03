@@ -1,8 +1,10 @@
 #pragma once
 
+#include "stdafx.h"
 #include "Texture.h"
 #include "Shader.h"
 
+class CShader;
 class CMaterial
 {
 public:

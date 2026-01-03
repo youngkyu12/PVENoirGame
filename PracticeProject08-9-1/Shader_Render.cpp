@@ -75,8 +75,8 @@ void CObjectsShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera*
 
 	for (int j = 0; j < m_nObjects; j++)
 	{
-		if (m_ppObjects[j])
-			m_ppObjects[j]->Render(pd3dCommandList, pCamera);
+		//if (m_ppObjects[j])
+			//m_ppObjects[j]->Render(pd3dCommandList, pCamera);
 	}
 }
 
@@ -95,7 +95,7 @@ void CPostProcessingShader::OnPrepareRenderTarget(
 	for (int i = 0; i < nRenderTargets; i++)
 	{
 		pd3dAllRtvCPUHandles[i] = pd3dRtvCPUHandles[i];
-		pd3dCommandList->ClearRenderTargetView(pd3dRtvCPUHandles[i], Colors::White, 0, nullptr);
+		pd3dCommandList->ClearRenderTargetView(pd3dRtvCPUHandles[i], Colors::Blue, 0, nullptr);
 	}
 
 	for (int i = 0; i < nResources; i++)
