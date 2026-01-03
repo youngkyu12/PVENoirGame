@@ -144,6 +144,7 @@ D3D12_BLEND_DESC CShader::CreateBlendState()
 	d3dBlendDesc.IndependentBlendEnable = FALSE;
 	d3dBlendDesc.RenderTarget[0].BlendEnable = FALSE;
 	d3dBlendDesc.RenderTarget[0].LogicOpEnable = FALSE;
+	d3dBlendDesc.RenderTarget[0].LogicOpEnable = FALSE;
 	d3dBlendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
 	d3dBlendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_ZERO;
 	d3dBlendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
@@ -185,6 +186,11 @@ void CShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGr
 		&d3dPipelineStateDesc,
 		IID_PPV_ARGS(&m_pd3dPipelineState)
 	);
+	if (FAILED(hResult))
+	{
+		OutputDebugStringA("CreateGraphicsPipelineState FAILED\n");
+		// assert(false); 또는 throw
+	}
 
 	if (pd3dVertexShaderBlob)
 		pd3dVertexShaderBlob.Reset();
@@ -407,25 +413,16 @@ void CObjectsShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12Graph
 
 void CObjectsShader::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList, void* pContext)
 {
-	shared_ptr<CTexture> pTexture = make_shared<CTexture>(1, RESOURCE_TEXTURE2DARRAY, 0, 1);
-	pTexture->LoadTextureFromFile(pd3dDevice, pd3dCommandList, L"Image/StonesArray.dds", RESOURCE_TEXTURE2DARRAY, 0);
-	CScene::m_pDescriptorHeap->CreateShaderResourceViews(pd3dDevice, pTexture.get(), 0, 5);
+	// [잔재 제거]
+	// - StonesArray.dds 로드/바인딩 코드 제거
+	// - pCubeMaterial / m_pMaterial (StonesArray 기반) 제거
+	// 이제 SubMesh.material(각 서브메시 머티리얼) + Materials CB(TextureIndices)만으로 샘플링한다.
 
 	UINT ncbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);
 
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
 	D3D12_GPU_DESCRIPTOR_HANDLE d3dCbvGPUDescriptorNextHandle = CScene::m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
 	CScene::m_pDescriptorHeap->CreateConstantBufferViews(pd3dDevice, m_nObjects, m_pd3dcbGameObjects.Get(), ncbElementBytes);
-
-#ifdef _WITH_BATCH_MATERIAL
-	m_pMaterial = make_shared<CMaterial>();
-	m_pMaterial->SetTexture(pTexture);
-	m_pMaterial->SetReflection(1);
-#else
-	shared_ptr<CMaterial> pCubeMaterial = make_shared<CMaterial>();
-	pCubeMaterial->SetTexture(pTexture.get());
-	pCubeMaterial->SetReflection(1);
-#endif
 
 	shared_ptr<CMesh> pHouseMesh = make_shared<CMesh>(pd3dDevice, pd3dCommandList);
 	pHouseMesh->LoadMeshFromBIN(
@@ -441,6 +438,7 @@ void CObjectsShader::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsComman
 
 	// (1) 같은 materialName -> 같은 CMaterial 재사용
 	static std::unordered_map<std::string, std::shared_ptr<CMaterial>> materialCache;
+	MATERIALS* pMaterials = reinterpret_cast<MATERIALS*>(pContext);
 
 	// (2) 네 RootSignature에서 "SRV Descriptor Table"이 있는 Root Parameter Index
 	//     반드시 실제 값으로 맞춰야 함. (예: 5)
@@ -449,20 +447,17 @@ void CObjectsShader::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsComman
 	// (3) materialName -> texture file 경로 매핑(임시: 전부 동일 텍스처로 테스트 가능)
 	auto ResolveTexturePath = [](const std::string& materialName) -> std::wstring
 		{
-			// TODO: materialName에 따라 실제 파일로 매핑
-			// 우선 파이프라인 검증용으로 고정 텍스처 1개 사용 권장
 			return L"Models/UnitychanTexture/skin_01.dds";
 		};
+
 	for (auto& sm : pHouseMesh->m_SubMeshes)
 	{
-		// materialName이 비어있으면 일단 스킵(디폴트 머티리얼을 붙여도 됨)
 		if (sm.materialName.empty())
 			continue;
 
 		auto it = materialCache.find(sm.materialName);
 		if (it != materialCache.end())
 		{
-			// 캐시 재사용
 			sm.material = it->second;
 			continue;
 		}
@@ -481,32 +476,37 @@ void CObjectsShader::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsComman
 		const std::wstring texPath = ResolveTexturePath(sm.materialName);
 		tex->LoadTextureFromFile(pd3dDevice, pd3dCommandList, texPath.c_str(), RESOURCE_TEXTURE2D, 0);
 
-		// (6) SRV 생성 + root param index 세팅
-		//     nDescriptorHeapIndex는 0으로 두면 "NextHandle" 기반으로 순차 할당됨(현재 구현 기준).
-		CScene::m_pDescriptorHeap->CreateShaderResourceViews(pd3dDevice, tex.get(), 0, ROOTPARAM_TEX_SRV_TABLE);
+		// (6) SRV 생성 (글로벌 SRV heap에 등록)
+		CScene::m_pDescriptorHeap->CreateShaderResourceViews(pd3dDevice, tex.get(), ROOTPARAM_TEX_SRV_TABLE);
 
 		// (7) Material에 Texture 연결
 		mat->SetTexture(tex);
 
-		// (8) 캐시 등록 + SubMesh에 연결
+		// (8) Materials CB에 "글로벌 SRV 인덱스" 기록
+		if (pMaterials)
+		{
+			const UINT materialId = mat->m_nReflection;      // 기존 구조 유지 (너 코드 기준)
+			const UINT srv = mat->GetDiffuseSrvIndex();      // SRV heap index (0-based)
+
+			pMaterials->m_pReflections[materialId].m_xmn4TextureIndices.x =
+				(srv == UINT_MAX) ? 0xFFFFFFFFu : srv;
+		}
+
+		// (9) 캐시 등록 + SubMesh에 연결
 		materialCache.emplace(sm.materialName, mat);
 		sm.material = mat;
 	}
 
 	pRotatingObject->SetMesh(0, pHouseMesh);
 
-#ifndef _WITH_BATCH_MATERIAL
-	pRotatingObject->SetMaterial(pCubeMaterial);
-#endif
+	// - pRotatingObject->SetMaterial(pCubeMaterial);  // 전체 오브젝트 단일 머티리얼 강제 바인딩 금지
 
 	pRotatingObject->SetPosition(0.0f, 0.0f, 0.0f);
 	pRotatingObject->SetRotationAxis(XMFLOAT3(0.0f, 1.0f, 0.0f));
 	pRotatingObject->SetRotationSpeed(10.0f);
 
 	// CBV도 첫 슬롯만 사용
-	pRotatingObject->SetCbvGPUDescriptorHandlePtr(
-		d3dCbvGPUDescriptorNextHandle.ptr
-	);
+	pRotatingObject->SetCbvGPUDescriptorHandlePtr(d3dCbvGPUDescriptorNextHandle.ptr);
 
 	m_ppObjects[0] = std::move(pRotatingObject);
 }
@@ -559,7 +559,7 @@ void CPostProcessingShader::CreateGraphicsRootSignature(ID3D12Device* pd3dDevice
 	pd3dRootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	pd3dRootParameters[0].DescriptorTable.NumDescriptorRanges = 1;
 	pd3dRootParameters[0].DescriptorTable.pDescriptorRanges = &pd3dDescriptorRanges[0]; //Texture
-	pd3dRootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	pd3dRootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	D3D12_STATIC_SAMPLER_DESC d3dSamplerDesc;
 	::ZeroMemory(&d3dSamplerDesc, sizeof(D3D12_STATIC_SAMPLER_DESC));
@@ -665,9 +665,9 @@ void CPostProcessingShader::CreateResourcesAndRtvsSrvs(ID3D12Device* pd3dDevice,
 
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
 #ifdef _WITH_SCENE_ROOT_SIGNATURE
-	CScene::m_pDescriptorHeap->CreateShaderResourceViews(pd3dDevice, m_pTexture.get(), 0, 6);
+	CScene::m_pDescriptorHeap->CreateShaderResourceViews(pd3dDevice, m_pTexture.get(), ROOT_PARAMETER_GLOBAL_SRV);
 #else
-	CScene::m_pDescriptorHeap->CreateShaderResourceViews(pd3dDevice, m_pTexture.get(), 0, 0);
+	CScene::m_pDescriptorHeap->CreateShaderResourceViews(pd3dDevice, m_pTexture.get(), 0);
 #endif
 
 	D3D12_RENDER_TARGET_VIEW_DESC d3dRenderTargetViewDesc;

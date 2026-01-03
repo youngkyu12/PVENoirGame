@@ -33,11 +33,12 @@ struct MATERIAL
 	float4				m_cDiffuse;
 	float4				m_cSpecular; //a = power
 	float4				m_cEmissive;
+    uint4				TextureIndices; // x=diffuse
 };
 
 cbuffer cbMaterial : register(b3)
 {
-	MATERIAL			gMaterials[MAX_MATERIALS];
+    MATERIAL			gMaterials[MAX_MATERIALS];
 };
 
 cbuffer cbLights : register(b4)

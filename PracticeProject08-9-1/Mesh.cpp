@@ -76,7 +76,9 @@ void CMesh::Render(ID3D12GraphicsCommandList* pd3dCommandList)
         // --------------------------------------------------------
         if (sm.material)
         {
-            sm.material->UpdateShaderVariables(pd3dCommandList);
+            // 레거시일 때만 per-texture 바인딩 허용
+            if (sm.material->NeedsLegacyBinding())
+                sm.material->UpdateShaderVariables(pd3dCommandList);
         }
 
         // --------------------------------------------------------
@@ -423,7 +425,7 @@ void CMesh::EnableSkinning(int nBones)
 
     m_bSkinnedMesh = true;
 
-    //  기존 코드 계속...
+    //  기존 코드 계속
     // 기존 m_pxmf4x4BoneTransforms 정리
     if (m_pxmf4x4BoneTransforms)
         delete[] m_pxmf4x4BoneTransforms;

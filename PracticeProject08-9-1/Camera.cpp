@@ -248,8 +248,15 @@ void CThirdPersonCamera::Update(XMFLOAT3& xmf3LookAt, float fTimeElapsed)
 
 void CThirdPersonCamera::SetLookAt(XMFLOAT3& xmf3LookAt)
 {
-	XMFLOAT4X4 mtxLookAt = Matrix4x4::LookAtLH(m_xmf3Position, xmf3LookAt, m_pPlayer->GetUpVector());
+	XMFLOAT3 at = xmf3LookAt;
+	at.y = m_xmf3Position.y;                 // 수평 시선: target 높이를 카메라 높이로
+
+	XMFLOAT3 up(0.0f, 1.0f, 0.0f);           // (선택) 월드 업 고정까지 같이 하면 더 안정적
+
+	XMFLOAT4X4 mtxLookAt = Matrix4x4::LookAtLH(m_xmf3Position, at, up);
 	m_xmf3Right = XMFLOAT3(mtxLookAt._11, mtxLookAt._21, mtxLookAt._31);
 	m_xmf3Up = XMFLOAT3(mtxLookAt._12, mtxLookAt._22, mtxLookAt._32);
 	m_xmf3Look = XMFLOAT3(mtxLookAt._13, mtxLookAt._23, mtxLookAt._33);
+
+	m_xmf3LookAtWorld = at;                  // (선택) 저장
 }

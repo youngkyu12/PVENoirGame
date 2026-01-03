@@ -35,6 +35,11 @@ void CScene::OnPrepareRender(ID3D12GraphicsCommandList* pd3dCommandList, CCamera
 	pd3dCommandList->SetGraphicsRootSignature(m_pd3dGraphicsRootSignature.Get());
 	pd3dCommandList->SetDescriptorHeaps(1, m_pDescriptorHeap->m_pd3dCbvSrvDescriptorHeap.GetAddressOf());
 
+	pd3dCommandList->SetGraphicsRootDescriptorTable(
+		ROOT_PARAMETER_GLOBAL_SRV,
+		m_pDescriptorHeap->GetGPUSrvDescriptorStartHandle()
+	);
+
 	pCamera->SetViewportsAndScissorRects(pd3dCommandList);
 	pCamera->UpdateShaderVariables(pd3dCommandList);
 

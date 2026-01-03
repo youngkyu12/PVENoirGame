@@ -8,6 +8,10 @@
 #include "Player.h"
 #include "DescriptorHeap.h"
 
+#define ROOT_PARAMETER_GLOBAL_SRV 6
+#define ROOT_PARAMETER_DRAW_OPTIONS 5
+constexpr UINT LEGACY_SRV_COUNT = 6; // t0(1) + t1~t5(5)
+
 struct LIGHT
 {
 	XMFLOAT4				m_xmf4Ambient;
@@ -37,6 +41,10 @@ struct MATERIAL
 	XMFLOAT4				m_xmf4Diffuse;
 	XMFLOAT4				m_xmf4Specular; //(r,g,b,a=power)
 	XMFLOAT4				m_xmf4Emissive;
+
+	//텍스처 인덱스: x=Diffuse, y=Normal, z=ORM, w=Emissive 등
+	XMUINT4  m_xmn4TextureIndices = XMUINT4(0, 0, 0, 0);
+
 };
 
 struct MATERIALS
@@ -101,4 +109,9 @@ protected:
 
 	ComPtr<ID3D12Resource>		m_pd3dcbMaterials;
 	MATERIAL					*m_pcbMappedMaterials = nullptr;
+public:
+	void SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex)
+	{
+		m_pMaterials->m_pReflections[materialId].m_xmn4TextureIndices.x = srvIndex;
+	}
 };

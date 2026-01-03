@@ -28,4 +28,9 @@ public:
 	void ReleaseShaderVariables();
 
 	void ReleaseUploadBuffers();
+
+	UINT m_nDiffuseSrvIndex = UINT_MAX;
+	void SetDiffuseSrvIndex(UINT idx) { m_nDiffuseSrvIndex = idx; }
+	UINT GetDiffuseSrvIndex() const { return m_nDiffuseSrvIndex; }
+	bool NeedsLegacyBinding() const;
 };
