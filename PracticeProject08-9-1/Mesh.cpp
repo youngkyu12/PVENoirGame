@@ -80,10 +80,10 @@ void CMesh::Render(ID3D12GraphicsCommandList* pd3dCommandList, CB_GAMEOBJECT_INF
         // =========================================================
         // ★ 핵심: 서브메시 Draw 직전에 b2(cbGameObjectInfo)의 materialId 갱신
         // =========================================================
-        if (pMappedGameObjectCB)
-        {
-            pMappedGameObjectCB->m_nMaterialID = sm.materialId;
-        }
+        // Root parameter index는 "Scene RootSignature"에서 추가한 위치와 반드시 일치해야 함.
+        // 아래는 "기존 0~6 사용 + 새로 [7] 추가"인 경우.
+        UINT mid = (sm.materialId == 0xFFFFFFFFu) ? 0u : sm.materialId;
+        pd3dCommandList->SetGraphicsRoot32BitConstant(ROOTPARAM_MATERIAL_ID, mid, 0);
 
         // --------------------------------------------------------
         // 1) (레거시) Material 바인딩이 필요한 경우에만
@@ -100,6 +100,9 @@ void CMesh::Render(ID3D12GraphicsCommandList* pd3dCommandList, CB_GAMEOBJECT_INF
         pd3dCommandList->IASetVertexBuffers(0, 1, &sm.vbView);
         pd3dCommandList->IASetIndexBuffer(&sm.ibView);
 
+        mid = (sm.materialId == 0xFFFFFFFFu) ? 0u : sm.materialId;
+        pd3dCommandList->SetGraphicsRoot32BitConstant(ROOTPARAM_MATERIAL_ID, mid, 0);
+
         // --------------------------------------------------------
         // 3) Draw
         // --------------------------------------------------------
@@ -107,18 +110,6 @@ void CMesh::Render(ID3D12GraphicsCommandList* pd3dCommandList, CB_GAMEOBJECT_INF
             static_cast<UINT>(sm.indices.size()),
             1, 0, 0, 0
         );
-
-        if (pMappedGameObjectCB)
-        {
-            char msg[256];
-            sprintf_s(msg, "[DRAW] submesh=%s sm.materialId=%u\n",
-                sm.materialName.c_str(), sm.materialId);
-            OutputDebugStringA(msg);
-        }
-        else
-        {
-            OutputDebugStringA("[DRAW] pMappedGameObjectCB == nullptr\n");
-        }
     }
 }
 
@@ -166,12 +157,15 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
     uint32_t version = 0;
     uint32_t flags = 0;
     uint32_t boneCount = 0;
+    uint32_t materialCount = 0;
     uint32_t subMeshCount = 0;
 
     if (!ReadUInt32(version)) return;
     if (!ReadUInt32(flags))   return;
     if (!ReadUInt32(boneCount)) return;
+    if (!ReadUInt32(materialCount)) return;
     if (!ReadUInt32(subMeshCount)) return;
+
 
     if (version != 1) return; // 버전 체크
 
@@ -179,6 +173,8 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
     m_Bones.clear();
     m_BoneNameToIndex.clear();
     m_SubMeshes.clear();
+    m_BinMaterials.clear();
+    m_BinMaterialNameToIndex.clear();
 
     // ----------------------------------------------------
     // 2) Skeleton 섹션 → m_Bones 채우기
@@ -220,6 +216,25 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
     }
 
     // ----------------------------------------------------
+    // (NEW) Material 섹션 → m_BinMaterials 채우기
+    // ----------------------------------------------------
+    m_BinMaterials.clear();
+    m_BinMaterialNameToIndex.clear();
+    m_BinMaterials.reserve(materialCount);
+
+    for (uint32_t i = 0; i < materialCount; ++i)
+    {
+        BinMaterial bm{};
+        if (!ReadString(bm.name)) return;
+        if (!ReadString(bm.diffuseTextureName)) return;
+
+        uint32_t idx = (uint32_t)m_BinMaterials.size();
+        m_BinMaterials.push_back(bm);
+        m_BinMaterialNameToIndex[m_BinMaterials.back().name] = idx; // 선택
+    }
+
+
+    // ----------------------------------------------------
     // 3) SubMesh 섹션 → m_SubMeshes 채우기
     // ----------------------------------------------------
     m_SubMeshes.reserve(subMeshCount);
@@ -228,9 +243,39 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
     {
         SubMesh sm{};
 
-        // 3-1) meshName / materialName
-        if (!ReadString(sm.meshName))     return;
-        if (!ReadString(sm.materialName)) return;
+        // 3-1) meshName / materialIndex
+        if (!ReadString(sm.meshName)) return;
+
+        uint32_t matIndex = 0;
+        if (!ReadUInt32(matIndex)) return;
+
+        sm.materialIndex = matIndex;
+        sm.materialId = matIndex; // 현재는 materialIndex == shader materialId로 사용
+
+        // materialName / diffuseTextureName 채우기
+        if (matIndex < m_BinMaterials.size())
+        {
+            sm.materialName = m_BinMaterials[matIndex].name;
+            sm.diffuseTextureName = m_BinMaterials[matIndex].diffuseTextureName;
+        }
+        else
+        {
+            sm.materialName.clear();
+            sm.diffuseTextureName.clear();
+
+            // 안전하게 0번으로 폴백하거나, 강하게 assert 걸어도 됨
+            // sm.materialIndex = 0;
+            // sm.materialId    = 0;
+            // assert(false && "SubMesh materialIndex out of range");
+        }
+
+
+        // 디버그/캐시 키용 materialName 채우기
+        if (matIndex < m_BinMaterials.size())
+            sm.materialName = m_BinMaterials[matIndex].name;
+        else
+            sm.materialName.clear();
+
 
         // 3-2) vertexCount / indexCount
         uint32_t vertexCount = 0;

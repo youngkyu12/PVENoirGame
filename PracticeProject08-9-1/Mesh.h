@@ -50,6 +50,12 @@ public:
 	~CDiffusedVertex() {}
 };
 
+struct BinMaterial
+{
+	std::string name;               // material 이름 (ex: "face")
+	std::string diffuseTextureName; // texture base (ex: "face_00")
+};
+
 struct SubMesh
 {
 	// CPU (필요 시만 유지: 피킹/디버그)
@@ -62,8 +68,11 @@ struct SubMesh
 
 	std::string meshName;
 	std::string materialName;              // 로딩용/디버그용
+	std::string diffuseTextureName;
 	shared_ptr<CMaterial> material;         // (권장) 렌더용 연결
-	UINT materialId = 0;
+	uint32_t materialIndex = 0xFFFFFFFFu; // BIN의 g_Materials 인덱스
+	UINT     materialId = 0xFFFFFFFFu; // 셰이더로 넘길 gnMaterialID (현재는 materialIndex와 동일)
+
 
 	// GPU
 	ID3D12Resource* vb = nullptr;
@@ -156,4 +165,12 @@ public:
 
 	CAnimator* GetAnimator() { return m_pAnimator; }
 	bool HasAnimator() const { return m_pAnimator != nullptr; }
+
+public:
+	const std::vector<BinMaterial>& GetBinMaterials() const { return m_BinMaterials; }
+
+private:
+	std::vector<BinMaterial> m_BinMaterials;
+	std::unordered_map<std::string, uint32_t> m_BinMaterialNameToIndex; // 있으면 편함(선택)
+
 };
