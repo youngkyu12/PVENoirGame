@@ -6,7 +6,6 @@
 #include "Player.h"
 #include "Shader.h"
 #include "Scene.h"
-#include "AssetManager.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CPlayer
@@ -70,6 +69,10 @@ void CPlayer::ReleaseShaderVariables()
 void CPlayer::UpdateShaderVariables(ID3D12GraphicsCommandList *pd3dCommandList)
 {
 	XMStoreFloat4x4(&m_pcbMappedPlayer->m_xmf4x4World, XMMatrixTranspose(XMLoadFloat4x4(&m_xmf4x4World)));
+
+	m_pcbMappedPlayer->m_nMaterialID = 0;
+	if (m_pMaterial) m_pcbMappedPlayer->m_nMaterialID = m_pMaterial->m_nReflection;
+
 }
 
 void CPlayer::Move(DWORD dwDirection, float fDistance, bool bUpdateVelocity)
@@ -295,8 +298,8 @@ void CPlayer::SetRootParameter(ID3D12GraphicsCommandList *pd3dCommandList)
 
 void CPlayer::Render(ID3D12GraphicsCommandList *pd3dCommandList, CCamera *pCamera)
 {
-	DWORD nCameraMode = (pCamera)? pCamera->GetMode(): 0x00;
-	if (nCameraMode == THIRD_PERSON_CAMERA)CGameObject::Render(pd3dCommandList, pCamera);
+	//DWORD nCameraMode = (pCamera)? pCamera->GetMode(): 0x00;
+	//if (nCameraMode == THIRD_PERSON_CAMERA)CGameObject::Render(pd3dCommandList, pCamera);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -335,7 +338,7 @@ CAirplanePlayer::CAirplanePlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommand
 		SetMaxVelocityXZ(125.0f);
 		SetMaxVelocityY(400.0f);
 		m_pCamera->SetTimeLag(0.25f);
-		m_pCamera->SetOffset(XMFLOAT3(0.0f, 2.0f, 2.0f));
+		m_pCamera->SetOffset(XMFLOAT3(0.0f, 1.0f, -2.0f));
 		m_pCamera->GenerateProjectionMatrix(1.01f, 5000.0f, ASPECT_RATIO, 60.0f);
 		m_pCamera->SetViewport(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, 0.0f, 1.0f);
 		m_pCamera->SetScissorRect(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
@@ -357,6 +360,7 @@ CAirplanePlayer::CAirplanePlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommand
 
 	// (1) 같은 materialName -> 같은 CMaterial 재사용
 	static std::unordered_map<std::string, std::shared_ptr<CMaterial>> materialCache;
+	MATERIALS* pMaterials = reinterpret_cast<MATERIALS*>(pContext);
 
 	// (2) 네 RootSignature에서 "SRV Descriptor Table"이 있는 Root Parameter Index
 	//     반드시 실제 값으로 맞춰야 함. (예: 5)
@@ -399,10 +403,26 @@ CAirplanePlayer::CAirplanePlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommand
 
 		// (6) SRV 생성 + root param index 세팅
 		//     nDescriptorHeapIndex는 0으로 두면 "NextHandle" 기반으로 순차 할당됨(현재 구현 기준).
-		CScene::m_pDescriptorHeap->CreateShaderResourceViews(pd3dDevice, tex.get(), 0, ROOTPARAM_TEX_SRV_TABLE);
+		CScene::m_pDescriptorHeap->CreateShaderResourceViews(pd3dDevice, tex.get(), ROOTPARAM_TEX_SRV_TABLE);
 
 		// (7) Material에 Texture 연결
 		mat->SetTexture(tex);
+
+		// 플레이어가 자기 CB(b0)에 material id를 싣는 경로가 m_pMaterial 기반이므로, 최소 1개는 잡아둠
+		if (!m_pMaterial) m_pMaterial = mat;
+
+		// ===== Materials(CB) : texture index 채우기 (0=none, 1..=valid) =====
+		if (pMaterials)
+		{
+			const UINT materialId = mat->m_nReflection;         // player가 쓰는 material id
+			const UINT srv = tex->GetBaseSrvIndex();            // 글로벌 SRV 슬롯 (0..)
+
+			pMaterials->m_pReflections[materialId].m_xmn4TextureIndices.x =
+				(srv == UINT_MAX) ? 0 : (srv + 1);              // HLSL에서 -1로 접근
+		}
+
+
+		UINT diffuseIdx = mat->GetDiffuseSrvIndex();
 
 		// (8) 캐시 등록 + SubMesh에 연결
 		materialCache.emplace(sm.materialName, mat);
@@ -472,7 +492,7 @@ CCamera *CAirplanePlayer::ChangeCamera(DWORD nNewCameraMode, float fTimeElapsed)
 			SetMaxVelocityY(400.0f);
 			m_pCamera = OnChangeCamera(THIRD_PERSON_CAMERA, nCurrentCameraMode);
 			m_pCamera->SetTimeLag(0.25f);
-			m_pCamera->SetOffset(XMFLOAT3(0.0f, 2.0f, 2.0f));
+			m_pCamera->SetOffset(XMFLOAT3(0.0f, 1.0f, -2.0f));
 			m_pCamera->GenerateProjectionMatrix(10.01f, 5000.0f, ASPECT_RATIO, 60.0f);
 			m_pCamera->SetViewport(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, 0.0f, 1.0f);
 			m_pCamera->SetScissorRect(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);

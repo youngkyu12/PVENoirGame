@@ -12,7 +12,9 @@
 
 struct CB_PLAYER_INFO
 {
-	XMFLOAT4X4					m_xmf4x4World;
+	XMFLOAT4X4 m_xmf4x4World;
+	UINT       m_nMaterialID;
+	UINT       _pad[3];
 };
 
 class CPlayer : public CGameObject

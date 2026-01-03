@@ -60,22 +60,32 @@ void CTexture::SetSampler(int nIndex, D3D12_GPU_DESCRIPTOR_HANDLE d3dSamplerGpuD
 
 void CTexture::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	if (m_nRootParameters == m_nTextures)
+	/*
+	//글로벌 SRV 테이블 사용 중이면 per-texture 바인딩 금지
+	if (m_baseSrvIndex != UINT_MAX) return;
+
+	if (m_nRootParameters > 0)
 	{
 		for (int i = 0; i < m_nRootParameters; i++)
 		{
-			pd3dCommandList->SetGraphicsRootDescriptorTable(m_pnRootParameterIndices[i], m_pd3dSrvGpuDescriptorHandles[i]);
+			pd3dCommandList->SetGraphicsRootDescriptorTable(
+				m_pnRootParameterIndices[i],
+				m_pd3dSrvGpuDescriptorHandles[i]
+			);
 		}
 	}
-	else
-	{
-		pd3dCommandList->SetGraphicsRootDescriptorTable(m_pnRootParameterIndices[0], m_pd3dSrvGpuDescriptorHandles[0]);
-	}
+	*/
 }
 
 void CTexture::UpdateShaderVariable(ID3D12GraphicsCommandList* pd3dCommandList, int nParameterIndex, int nTextureIndex)
 {
-	pd3dCommandList->SetGraphicsRootDescriptorTable(m_pnRootParameterIndices[nParameterIndex], m_pd3dSrvGpuDescriptorHandles[nTextureIndex]);
+	//글로벌 SRV 테이블 사용 중이면 per-texture 바인딩 금지
+	if (m_baseSrvIndex != UINT_MAX) return;
+
+	pd3dCommandList->SetGraphicsRootDescriptorTable(
+		m_pnRootParameterIndices[nParameterIndex],
+		m_pd3dSrvGpuDescriptorHandles[nTextureIndex]
+	);
 }
 
 void CTexture::ReleaseShaderVariables()
@@ -199,4 +209,34 @@ D3D12_SHADER_RESOURCE_VIEW_DESC CTexture::GetShaderResourceViewDesc(int nIndex)
 	}
 
 	return desc;
+}
+
+std::wstring ResolveTexturePath(
+	const std::string& assetName,
+	const std::string& texBaseName)
+{
+	// ---- string(UTF-8 가정) -> wstring 변환 람다 ----
+	auto Utf8ToWString = [](const std::string& s) -> std::wstring
+		{
+			if (s.empty()) return std::wstring();
+
+			int len = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
+			if (len <= 0) return std::wstring();
+
+			std::wstring ws;
+			ws.resize(static_cast<size_t>(len - 1)); // -1: null 제외
+			MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, ws.data(), len);
+			return ws;
+		};
+
+	std::wstring wAsset = Utf8ToWString(assetName);
+	std::wstring wTex = Utf8ToWString(texBaseName);
+
+	// "Assets/<assetName>/Texture/<texBaseName>.dds"
+	std::wstring out = L"Assets/";
+	out += wAsset;
+	out += L"/Texture/";
+	out += wTex;
+	out += L".dds";
+	return out;
 }
