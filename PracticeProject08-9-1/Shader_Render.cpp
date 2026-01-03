@@ -46,6 +46,8 @@ void CObjectsShader::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dComman
 	{
 		CB_GAMEOBJECT_INFO* pbMappedcbGameObject = (CB_GAMEOBJECT_INFO*)((UINT8*)m_pcbMappedGameObjects + (j * ncbElementBytes));
 		XMStoreFloat4x4(&pbMappedcbGameObject->m_xmf4x4World, XMMatrixTranspose(XMLoadFloat4x4(&m_ppObjects[j]->m_xmf4x4World)));
+		pbMappedcbGameObject->m_nObjectID = j;
+		pbMappedcbGameObject->m_nMaterialID = 0; // 최소한 쓰레기값 방지
 #ifdef _WITH_BATCH_MATERIAL
 		if (m_pMaterial)
 			pbMappedcbGameObject->m_nMaterialID = m_pMaterial->m_nReflection;
@@ -53,6 +55,7 @@ void CObjectsShader::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dComman
 		if (m_pMaterial)
 			pbMappedcbGameObject->m_nObjectID = j;
 #endif
+
 	}
 }
 

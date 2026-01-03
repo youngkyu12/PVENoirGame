@@ -411,19 +411,37 @@ void CObjectsShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12Graph
 	m_pd3dcbGameObjects->Map(0, nullptr, (void**)&m_pcbMappedGameObjects);
 }
 
-void CObjectsShader::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList, void* pContext)
+void CObjectsShader::BuildObjects(
+	ID3D12Device* pd3dDevice,
+	ID3D12GraphicsCommandList* pd3dCommandList,
+	void* pContext
+)
 {
-	// [잔재 제거]
-	// - StonesArray.dds 로드/바인딩 코드 제거
-	// - pCubeMaterial / m_pMaterial (StonesArray 기반) 제거
-	// 이제 SubMesh.material(각 서브메시 머티리얼) + Materials CB(TextureIndices)만으로 샘플링한다.
+	// ============================================================
+	// 0. Material ID 발급기 (씬 초기화 시 1회만 증가)
+	// ============================================================
+	UINT s_NextMaterialID = 0;
 
+	// ============================================================
+	// 1. GameObject CBV 준비
+	// ============================================================
 	UINT ncbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);
 
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
-	D3D12_GPU_DESCRIPTOR_HANDLE d3dCbvGPUDescriptorNextHandle = CScene::m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
-	CScene::m_pDescriptorHeap->CreateConstantBufferViews(pd3dDevice, m_nObjects, m_pd3dcbGameObjects.Get(), ncbElementBytes);
 
+	D3D12_GPU_DESCRIPTOR_HANDLE d3dCbvGPUDescriptorNextHandle =
+		CScene::m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
+
+	CScene::m_pDescriptorHeap->CreateConstantBufferViews(
+		pd3dDevice,
+		m_nObjects,
+		m_pd3dcbGameObjects.Get(),
+		ncbElementBytes
+	);
+
+	// ============================================================
+	// 2. Mesh 로드
+	// ============================================================
 	shared_ptr<CMesh> pHouseMesh = make_shared<CMesh>(pd3dDevice, pd3dCommandList);
 	pHouseMesh->LoadMeshFromBIN(
 		pd3dDevice,
@@ -433,80 +451,137 @@ void CObjectsShader::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsComman
 
 	m_ppObjects.resize(m_nObjects);
 
-	// vector 구조는 유지, 실제 생성은 1개만
 	auto pRotatingObject = make_unique<CRotatingObject>(1);
 
-	// (1) 같은 materialName -> 같은 CMaterial 재사용
-	static std::unordered_map<std::string, std::shared_ptr<CMaterial>> materialCache;
+	// ============================================================
+	// 3. Material 캐시 + Materials CB
+	// ============================================================
+	std::unordered_map<std::string, std::shared_ptr<CMaterial>> materialCache;
 	MATERIALS* pMaterials = reinterpret_cast<MATERIALS*>(pContext);
 
-	// (2) 네 RootSignature에서 "SRV Descriptor Table"이 있는 Root Parameter Index
-	//     반드시 실제 값으로 맞춰야 함. (예: 5)
-	constexpr UINT ROOTPARAM_TEX_SRV_TABLE = 5;
+	// RootSignature에서 Global SRV Table의 Root Parameter Index
+	constexpr UINT ROOTPARAM_TEX_SRV_TABLE = ROOT_PARAMETER_GLOBAL_SRV;
 
-	// (3) materialName -> texture file 경로 매핑(임시: 전부 동일 텍스처로 테스트 가능)
+	// materialName → texture 경로 (임시)
 	auto ResolveTexturePath = [](const std::string& materialName) -> std::wstring
 		{
 			return L"Models/UnitychanTexture/skin_01.dds";
 		};
 
+	// ============================================================
+	// 4. SubMesh 순회하며 Material 생성 / 재사용
+	// ============================================================
 	for (auto& sm : pHouseMesh->m_SubMeshes)
 	{
 		if (sm.materialName.empty())
 			continue;
 
+		// --------------------------------------------------------
+		// (4-1) 이미 존재하는 Material 재사용
+		// --------------------------------------------------------
 		auto it = materialCache.find(sm.materialName);
 		if (it != materialCache.end())
 		{
 			sm.material = it->second;
+			sm.materialId = it->second->GetMaterialID();
 			continue;
 		}
 
-		// (4) CMaterial 생성
+		// --------------------------------------------------------
+		// (4-2) 새로운 Material 생성
+		// --------------------------------------------------------
 		auto mat = std::make_shared<CMaterial>();
 
-		// (5) CTexture 생성 + 로드
+		// ★ 핵심: materialId 발급
+		const UINT materialId = s_NextMaterialID++;
+		mat->SetMaterialID(materialId);
+
+		// 안전장치
+		assert(materialId < MAX_MATERIALS);
+
+		// --------------------------------------------------------
+		// (4-3) Texture 생성 및 로드
+		// --------------------------------------------------------
 		auto tex = std::make_shared<CTexture>(
 			1,                  // nTextureResources
 			RESOURCE_TEXTURE2D,  // nResourceType
 			0,                  // nSamplers
-			1                   // nRootParameters (SRV 테이블 1개)
+			1                   // nRootParameters
 		);
 
 		const std::wstring texPath = ResolveTexturePath(sm.materialName);
-		tex->LoadTextureFromFile(pd3dDevice, pd3dCommandList, texPath.c_str(), RESOURCE_TEXTURE2D, 0);
+		tex->LoadTextureFromFile(
+			pd3dDevice,
+			pd3dCommandList,
+			texPath.c_str(),
+			RESOURCE_TEXTURE2D,
+			0
+		);
 
-		// (6) SRV 생성 (글로벌 SRV heap에 등록)
-		CScene::m_pDescriptorHeap->CreateShaderResourceViews(pd3dDevice, tex.get(), ROOTPARAM_TEX_SRV_TABLE);
+		// --------------------------------------------------------
+		// (4-4) 글로벌 SRV Heap에 SRV 등록
+		// --------------------------------------------------------
+		CScene::m_pDescriptorHeap->CreateShaderResourceViews(
+			pd3dDevice,
+			tex.get(),
+			ROOTPARAM_TEX_SRV_TABLE
+		);
 
-		// (7) Material에 Texture 연결
+		// --------------------------------------------------------
+		// (4-5) Material에 Texture 연결
+		// --------------------------------------------------------
 		mat->SetTexture(tex);
 
-		// (8) Materials CB에 "글로벌 SRV 인덱스" 기록
+		// --------------------------------------------------------
+		// (4-6) Materials CB에 SRV 인덱스 기록
+		// --------------------------------------------------------
 		if (pMaterials)
 		{
-			const UINT materialId = mat->m_nReflection;      // 기존 구조 유지 (너 코드 기준)
-			const UINT srv = mat->GetDiffuseSrvIndex();      // SRV heap index (0-based)
+			const UINT srvIndex = mat->GetDiffuseSrvIndex();
 
 			pMaterials->m_pReflections[materialId].m_xmn4TextureIndices.x =
-				(srv == UINT_MAX) ? 0xFFFFFFFFu : srv;
+				(srvIndex == UINT_MAX) ? 0xFFFFFFFFu : srvIndex;
+
+			char debugMsg[256];
+			sprintf_s(
+				debugMsg,
+				"[MATERIAL CREATE] name=%s materialId=%u srvIndex=%u\n",
+				sm.materialName.c_str(),
+				materialId,
+				srvIndex
+			);
+			OutputDebugStringA(debugMsg);
 		}
 
-		// (9) 캐시 등록 + SubMesh에 연결
+		// --------------------------------------------------------
+		// (4-7) 캐시 등록 + SubMesh 연결
+		// --------------------------------------------------------
 		materialCache.emplace(sm.materialName, mat);
 		sm.material = mat;
+		sm.materialId = materialId;
 	}
 
-	pRotatingObject->SetMesh(0, pHouseMesh);
+	// ============================================================
+	// 5. GameObject 구성
+	// ============================================================
+	// --- 배치 CB(Shader가 만든 m_pcbMappedGameObjects)에서 0번 오브젝트 슬롯 주소 계산
+	CB_GAMEOBJECT_INFO* pObjCB0 =
+		reinterpret_cast<CB_GAMEOBJECT_INFO*>(
+			reinterpret_cast<UINT8*>(m_pcbMappedGameObjects) + 0 * ncbElementBytes
+			);
 
-	// - pRotatingObject->SetMaterial(pCubeMaterial);  // 전체 오브젝트 단일 머티리얼 강제 바인딩 금지
+	// --- CGameObject 쪽에도 포인터를 꽂아준다(서브메시 Render에서 쓰려고)
+	pRotatingObject->SetMappedGameObjectCB(pObjCB0);
+	pRotatingObject->SetMesh(0, pHouseMesh);
 
 	pRotatingObject->SetPosition(0.0f, 0.0f, 0.0f);
 	pRotatingObject->SetRotationAxis(XMFLOAT3(0.0f, 1.0f, 0.0f));
 	pRotatingObject->SetRotationSpeed(10.0f);
 
-	// CBV도 첫 슬롯만 사용
-	pRotatingObject->SetCbvGPUDescriptorHandlePtr(d3dCbvGPUDescriptorNextHandle.ptr);
+	// CBV 첫 슬롯 사용
+	pRotatingObject->SetCbvGPUDescriptorHandlePtr(
+		d3dCbvGPUDescriptorNextHandle.ptr
+	);
 
 	m_ppObjects[0] = std::move(pRotatingObject);
 }

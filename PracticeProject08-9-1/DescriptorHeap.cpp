@@ -289,4 +289,14 @@ void CDescriptorHeap::CreateShaderResourceViews(
 
 	// 실제 SRV 생성은 기존 레거시 함수에 위임(내부적으로 절대 위치 baseIndex 사용)
 	CreateShaderResourceViews(pd3dDevice, pTexture, baseIndex, nRootParameterStartIndex);
+
+	char debugMsg[128];
+	sprintf_s(
+		debugMsg,
+		"[SRV CREATE] Texture ptr=%p, SRV Index=%u\n",
+		pTexture,
+		baseIndex
+	);
+	OutputDebugStringA(debugMsg);
+
 }

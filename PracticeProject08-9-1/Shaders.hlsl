@@ -1,7 +1,7 @@
 #define MAX_GLOBAL_SRVS 1024
 
-// Global Texture2D pool: t1 ~ t1024 in space1 (레거시와 충돌 방지)
-Texture2D gtxtGlobalTextures[MAX_GLOBAL_SRVS] : register(t1, space1);
+// Global Texture2D pool: t0 ~ t1023 in space0
+Texture2D gtxtGlobalTextures[MAX_GLOBAL_SRVS] : register(t0);
 
 cbuffer cbPlayerInfo : register(b0)
 {
@@ -208,7 +208,8 @@ struct PS_MULTIPLE_RENDER_TARGETS_OUTPUT
 
 PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(VS_TEXTURED_LIGHTING_OUTPUT input, uint nPrimitiveID : SV_PrimitiveID)
 {
-   
+
+    
     PS_MULTIPLE_RENDER_TARGETS_OUTPUT output;
 
     uint diffuseIndex = gMaterials[gnMaterialID].TextureIndices.x;
@@ -230,8 +231,13 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(VS_TEXTURED_LI
     output.color = output.cIllumination * output.cTexture;
     output.normal = float4(input.normalW.xyz * 0.5f + 0.5f, 1.0f);
     output.zDepth = input.position.z;
-
-    //output.color = float4(1, 0, 1, 1); // Magenta
+    
+    /*
+    if (gnMaterialID == 0)
+        output.color = float4(0, 1, 0, 1); // 초록
+    if (gnMaterialID == 1)
+        output.color = float4(0, 0, 1, 1); // 파랑
+    */
     return output;
 }
 

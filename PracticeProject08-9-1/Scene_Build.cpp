@@ -175,8 +175,8 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevice)
 	constexpr UINT MAX_GLOBAL_SRVS = 1024;
 	pd3dDescriptorRanges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	pd3dDescriptorRanges[1].NumDescriptors = MAX_GLOBAL_SRVS;
-	pd3dDescriptorRanges[1].BaseShaderRegister = 1; // t1부터
-	pd3dDescriptorRanges[1].RegisterSpace = 1;      // space1
+	pd3dDescriptorRanges[1].BaseShaderRegister = 0; // t0부터
+	pd3dDescriptorRanges[1].RegisterSpace = 0;      // space0
 	pd3dDescriptorRanges[1].OffsetInDescriptorsFromTableStart = 0;
 
 	// (2) Root Parameters: SRV 분리(5/6) 제거, Global SRV 하나만 유지
