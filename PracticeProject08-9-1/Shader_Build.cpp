@@ -420,7 +420,7 @@ void CObjectsShader::BuildObjects(
 	// ============================================================
 	// 0. Material ID 발급기 (씬 초기화 시 1회만 증가)
 	// ============================================================
-	UINT s_NextMaterialID = 0;
+	static UINT s_NextMaterialID = 0;
 
 	// ============================================================
 	// 1. GameObject CBV 준비
@@ -442,11 +442,11 @@ void CObjectsShader::BuildObjects(
 	// ============================================================
 	// 2. Mesh 로드
 	// ============================================================
-	shared_ptr<CMesh> pHouseMesh = make_shared<CMesh>(pd3dDevice, pd3dCommandList);
-	pHouseMesh->LoadMeshFromBIN(
+	shared_ptr<CMesh> pUCMesh = make_shared<CMesh>(pd3dDevice, pd3dCommandList);
+	pUCMesh->LoadMeshFromBIN(
 		pd3dDevice,
 		pd3dCommandList,
-		"Models/unitychan.bin"
+		"Assets/Unitychan/Mesh/unitychan.bin"
 	);
 
 	m_ppObjects.resize(m_nObjects);
@@ -456,22 +456,16 @@ void CObjectsShader::BuildObjects(
 	// ============================================================
 	// 3. Material 캐시 + Materials CB
 	// ============================================================
-	std::unordered_map<std::string, std::shared_ptr<CMaterial>> materialCache;
+	static std::unordered_map<std::string, std::shared_ptr<CMaterial>> materialCache;
 	MATERIALS* pMaterials = reinterpret_cast<MATERIALS*>(pContext);
 
 	// RootSignature에서 Global SRV Table의 Root Parameter Index
 	constexpr UINT ROOTPARAM_TEX_SRV_TABLE = ROOT_PARAMETER_GLOBAL_SRV;
 
-	// materialName → texture 경로 (임시)
-	auto ResolveTexturePath = [](const std::string& materialName) -> std::wstring
-		{
-			return L"Models/UnitychanTexture/skin_01.dds";
-		};
-
 	// ============================================================
 	// 4. SubMesh 순회하며 Material 생성 / 재사용
 	// ============================================================
-	for (auto& sm : pHouseMesh->m_SubMeshes)
+	for (auto& sm : pUCMesh->m_SubMeshes)
 	{
 		if (sm.materialName.empty())
 			continue;
@@ -509,7 +503,8 @@ void CObjectsShader::BuildObjects(
 			1                   // nRootParameters
 		);
 
-		const std::wstring texPath = ResolveTexturePath(sm.materialName);
+		const std::wstring texPath =
+			ResolveTexturePath("Unitychan", sm.diffuseTextureName);
 		tex->LoadTextureFromFile(
 			pd3dDevice,
 			pd3dCommandList,
@@ -517,6 +512,16 @@ void CObjectsShader::BuildObjects(
 			RESOURCE_TEXTURE2D,
 			0
 		);
+		{
+			char msg[256];
+			sprintf_s(msg,
+				"[TEXTURE LOAD] material=%s texBase=%s path=%ls\n",
+				sm.materialName.c_str(),
+				sm.diffuseTextureName.c_str(),
+				texPath.c_str()
+			);
+			OutputDebugStringA(msg);
+		}
 
 		// --------------------------------------------------------
 		// (4-4) 글로벌 SRV Heap에 SRV 등록
@@ -541,16 +546,6 @@ void CObjectsShader::BuildObjects(
 
 			pMaterials->m_pReflections[materialId].m_xmn4TextureIndices.x =
 				(srvIndex == UINT_MAX) ? 0xFFFFFFFFu : srvIndex;
-
-			char debugMsg[256];
-			sprintf_s(
-				debugMsg,
-				"[MATERIAL CREATE] name=%s materialId=%u srvIndex=%u\n",
-				sm.materialName.c_str(),
-				materialId,
-				srvIndex
-			);
-			OutputDebugStringA(debugMsg);
 		}
 
 		// --------------------------------------------------------
@@ -572,7 +567,7 @@ void CObjectsShader::BuildObjects(
 
 	// --- CGameObject 쪽에도 포인터를 꽂아준다(서브메시 Render에서 쓰려고)
 	pRotatingObject->SetMappedGameObjectCB(pObjCB0);
-	pRotatingObject->SetMesh(0, pHouseMesh);
+	pRotatingObject->SetMesh(0, pUCMesh);
 
 	pRotatingObject->SetPosition(0.0f, 0.0f, 0.0f);
 	pRotatingObject->SetRotationAxis(XMFLOAT3(0.0f, 1.0f, 0.0f));

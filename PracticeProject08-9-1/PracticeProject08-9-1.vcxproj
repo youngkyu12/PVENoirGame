@@ -135,7 +135,6 @@
   <ItemGroup>
     <ClInclude Include="Animator.h" />
     <ClInclude Include="AnimatorData.h" />
-    <ClInclude Include="AssetManager.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="DDSTextureLoader12.h" />
@@ -157,7 +156,6 @@
   <ItemGroup>
     <ClCompile Include="Animator.cpp" />
     <ClCompile Include="AnimatorData.cpp" />
-    <ClCompile Include="AssetManager.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="DDSTextureLoader12.cpp" />
     <ClCompile Include="DescriptorHeap.cpp" />

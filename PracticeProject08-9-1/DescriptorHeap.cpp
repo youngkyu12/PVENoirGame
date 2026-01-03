@@ -109,16 +109,6 @@ void CDescriptorHeap::CreateShaderResourceViews(
 	cpuHandle.ptr += (::gnCbvSrvDescriptorIncrementSize * nDescriptorHeapIndex);
 	gpuHandle.ptr += (::gnCbvSrvDescriptorIncrementSize * nDescriptorHeapIndex);
 
-	{
-		char buf[256];
-		sprintf_s(buf,
-			"[DescriptorHeap] SRV Create start: index=%u cpu=0x%llX gpu=0x%llX\n",
-			nDescriptorHeapIndex,
-			(unsigned long long)cpuHandle.ptr,
-			(unsigned long long)gpuHandle.ptr);
-		OutputDebugStringA(buf);
-	}
-
 	int nTextures = pTexture->GetTextures();
 	for (int i = 0; i < nTextures; i++)
 	{
@@ -289,14 +279,5 @@ void CDescriptorHeap::CreateShaderResourceViews(
 
 	// 실제 SRV 생성은 기존 레거시 함수에 위임(내부적으로 절대 위치 baseIndex 사용)
 	CreateShaderResourceViews(pd3dDevice, pTexture, baseIndex, nRootParameterStartIndex);
-
-	char debugMsg[128];
-	sprintf_s(
-		debugMsg,
-		"[SRV CREATE] Texture ptr=%p, SRV Index=%u\n",
-		pTexture,
-		baseIndex
-	);
-	OutputDebugStringA(debugMsg);
 
 }

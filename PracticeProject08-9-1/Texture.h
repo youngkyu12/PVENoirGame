@@ -72,3 +72,7 @@ public:
 		return (m_baseSrvIndex == UINT_MAX) ? UINT_MAX : (m_baseSrvIndex + (UINT)texIndex);
 	}
 };
+
+std::wstring ResolveTexturePath(
+	const std::string& assetName,
+	const std::string& texBaseName);

@@ -66,6 +66,7 @@ using Microsoft::WRL::ComPtr;
 #define SPOT_LIGHT				2
 #define DIRECTIONAL_LIGHT		3
 
+
 //#define _WITH_CB_GAMEOBJECT_32BIT_CONSTANTS
 //#define _WITH_CB_GAMEOBJECT_ROOT_DESCRIPTOR
 #define _WITH_CB_WORLD_MATRIX_DESCRIPTOR_TABLE
@@ -95,6 +96,7 @@ extern void SynchronizeResourceTransition(ID3D12GraphicsCommandList* pd3dCommand
 #define ROOT_PARAMETER_OBJECT			2
 #define ROOT_PARAMETER_MATERIAL			3
 #define ROOT_PARAMETER_LIGHT			4
+#define ROOTPARAM_MATERIAL_ID			7
 
 #define EPSILON							1.0e-10f
 
