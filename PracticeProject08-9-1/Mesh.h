@@ -10,6 +10,7 @@
 
 class CAnimator;
 class CMaterial;
+struct CB_GAMEOBJECT_INFO;
 
 class CVertex
 {
@@ -62,6 +63,7 @@ struct SubMesh
 	std::string meshName;
 	std::string materialName;              // 로딩용/디버그용
 	shared_ptr<CMaterial> material;         // (권장) 렌더용 연결
+	UINT materialId = 0;
 
 	// GPU
 	ID3D12Resource* vb = nullptr;
@@ -114,6 +116,7 @@ protected:
 
 public:
 	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList);
+	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CB_GAMEOBJECT_INFO* pMappedGameObjectCB);
 
 	D3D12_GPU_VIRTUAL_ADDRESS GetBoneCBAddress() const {
 		return m_pd3dcbBoneTransforms

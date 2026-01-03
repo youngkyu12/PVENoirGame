@@ -33,4 +33,10 @@ public:
 	void SetDiffuseSrvIndex(UINT idx) { m_nDiffuseSrvIndex = idx; }
 	UINT GetDiffuseSrvIndex() const { return m_nDiffuseSrvIndex; }
 	bool NeedsLegacyBinding() const;
+
+	UINT GetMaterialID() const { return m_nMaterialID; }
+	void SetMaterialID(UINT id) { m_nMaterialID = id; }
+
+private:
+	UINT m_nMaterialID = UINT_MAX;
 };

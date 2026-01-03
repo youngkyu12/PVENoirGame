@@ -99,6 +99,11 @@ public:
 protected:
 	ComPtr<ID3D12Resource>			m_pd3dcbGameObject;
 	CB_GAMEOBJECT_INFO* m_pcbMappedGameObject = nullptr;
+
+public:
+	void SetMappedGameObjectCB(CB_GAMEOBJECT_INFO* p) { m_pcbMappedGameObject = p; }
+	CB_GAMEOBJECT_INFO* GetMappedGameObjectCB() const { return m_pcbMappedGameObject; }
+
 };
 
 class CRotatingObject : public CGameObject

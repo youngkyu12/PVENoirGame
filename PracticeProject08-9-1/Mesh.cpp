@@ -7,6 +7,7 @@
 #include "stdafx.h"
 #include "Mesh.h"
 #include "Animator.h"
+#include "Object.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -66,17 +67,29 @@ void CMesh::ReleaseUploadBuffers()
 
 void CMesh::Render(ID3D12GraphicsCommandList* pd3dCommandList)
 {
+    // 기존 호출부 호환용 (materialId 갱신 없음)
+    Render(pd3dCommandList, nullptr);
+}
+
+void CMesh::Render(ID3D12GraphicsCommandList* pd3dCommandList, CB_GAMEOBJECT_INFO* pMappedGameObjectCB)
+{
     pd3dCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     for (auto& sm : m_SubMeshes)
     {
+        // =========================================================
+        // ★ 핵심: 서브메시 Draw 직전에 b2(cbGameObjectInfo)의 materialId 갱신
+        // =========================================================
+        if (pMappedGameObjectCB)
+        {
+            pMappedGameObjectCB->m_nMaterialID = sm.materialId;
+        }
+
         // --------------------------------------------------------
-        // 1) Material 바인딩 (있다면)
-        //    ※ 텍스처/SRV 바인딩은 Material 책임
+        // 1) (레거시) Material 바인딩이 필요한 경우에만
         // --------------------------------------------------------
         if (sm.material)
         {
-            // 레거시일 때만 per-texture 바인딩 허용
             if (sm.material->NeedsLegacyBinding())
                 sm.material->UpdateShaderVariables(pd3dCommandList);
         }
@@ -94,8 +107,21 @@ void CMesh::Render(ID3D12GraphicsCommandList* pd3dCommandList)
             static_cast<UINT>(sm.indices.size()),
             1, 0, 0, 0
         );
+
+        if (pMappedGameObjectCB)
+        {
+            char msg[256];
+            sprintf_s(msg, "[DRAW] submesh=%s sm.materialId=%u\n",
+                sm.materialName.c_str(), sm.materialId);
+            OutputDebugStringA(msg);
+        }
+        else
+        {
+            OutputDebugStringA("[DRAW] pMappedGameObjectCB == nullptr\n");
+        }
     }
 }
+
 
 
 void CMesh::LoadMeshFromBIN(ID3D12Device* device,
