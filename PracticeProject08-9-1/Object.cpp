@@ -195,7 +195,6 @@ CAnimator* CGameObject::EnsureAnimator()
 {
     if (!m_pAnimator)
     {
-        OutputDebugStringA("EnsureAnimator\n");
         m_pAnimator = std::make_unique<CAnimator>();
 
         // 메시(스켈레톤 메타) 기반으로 Animator 초기화
