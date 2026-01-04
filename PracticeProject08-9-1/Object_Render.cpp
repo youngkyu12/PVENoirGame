@@ -16,8 +16,17 @@ void CGameObject::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandLi
 		m_pcbMappedGameObject->m_nMaterialID = m_pMaterial->m_nReflection;
 }
 
-void CGameObject::Animate(float fTimeElapsed)
+void CGameObject::Animate(float dt)
 {
+	OutputDebugStringA("GameObject Animate1\n");
+	if (m_pAnimator)
+	{
+		OutputDebugStringA("GameObject Animate2\n");
+		m_pAnimator->Update(dt);
+
+		const auto& mats = m_pAnimator->GetFinalBoneMatrices();
+		UpdateBoneTransformsOnGPU(mats.data(), (int)mats.size());
+	}
 }
 
 void CGameObject::OnPrepareRender(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera)

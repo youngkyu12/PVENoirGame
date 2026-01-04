@@ -39,7 +39,7 @@ void CPlayerShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
-void CObjectsShader::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext)
+void CStaticObjectsShader::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext)
 {
 	UINT ncbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);
 	for (int j = 0; j < m_nObjects; j++)
@@ -59,7 +59,7 @@ void CObjectsShader::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dComman
 	}
 }
 
-void CObjectsShader::AnimateObjects(float fTimeElapsed)
+void CStaticObjectsShader::AnimateObjects(float fTimeElapsed)
 {
 	for (int j = 0; j < m_nObjects; j++)
 	{
@@ -67,8 +67,58 @@ void CObjectsShader::AnimateObjects(float fTimeElapsed)
 	}
 }
 
-void CObjectsShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext)
+void CStaticObjectsShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext)
 {
+	CIlluminatedTexturedShader::Render(pd3dCommandList, pCamera, pContext);
+
+#ifdef _WITH_BATCH_MATERIAL
+	if (m_pMaterial && m_pMaterial->NeedsLegacyBinding())
+		m_pMaterial->UpdateShaderVariables(pd3dCommandList);
+#endif
+
+	for (int j = 0; j < m_nObjects; j++)
+	{
+		//if (m_ppObjects[j])
+			//m_ppObjects[j]->Render(pd3dCommandList, pCamera);
+	}
+}
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+void CSkinnedObjectsShader::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext)
+{
+	UINT ncbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);
+	for (int j = 0; j < m_nObjects; j++)
+	{
+		CB_GAMEOBJECT_INFO* pbMappedcbGameObject = (CB_GAMEOBJECT_INFO*)((UINT8*)m_pcbMappedGameObjects + (j * ncbElementBytes));
+		XMStoreFloat4x4(&pbMappedcbGameObject->m_xmf4x4World, XMMatrixTranspose(XMLoadFloat4x4(&m_ppObjects[j]->m_xmf4x4World)));
+		pbMappedcbGameObject->m_nObjectID = j;
+		pbMappedcbGameObject->m_nMaterialID = 0; // 최소한 쓰레기값 방지
+#ifdef _WITH_BATCH_MATERIAL
+		if (m_pMaterial)
+			pbMappedcbGameObject->m_nMaterialID = m_pMaterial->m_nReflection;
+
+		if (m_pMaterial)
+			pbMappedcbGameObject->m_nObjectID = j;
+#endif
+
+	}
+}
+
+void CSkinnedObjectsShader::AnimateObjects(float fTimeElapsed)
+{
+	for (int j = 0; j < m_nObjects; j++)
+	{
+		m_ppObjects[j]->Animate(fTimeElapsed);
+	}
+}
+
+void CSkinnedObjectsShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext)
+{
+	pd3dCommandList->SetGraphicsRootConstantBufferView(
+		ROOT_PARAMETER_BONE_PALETTE,
+		m_pd3dcbBonePalette->GetGPUVirtualAddress()
+	);
+
 	CIlluminatedTexturedShader::Render(pd3dCommandList, pCamera, pContext);
 
 #ifdef _WITH_BATCH_MATERIAL

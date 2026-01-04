@@ -88,3 +88,8 @@ struct SkinnedVertex
     UINT  boneIndices[4];
     float boneWeights[4];
 };
+
+struct CB_BONE_PALETTE
+{
+    XMFLOAT4X4 gBoneTransforms[MAX_BONES];
+};

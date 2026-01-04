@@ -42,12 +42,10 @@ CMesh::~CMesh()
 {
     if (m_pd3dBoneIndexBuffer) m_pd3dBoneIndexBuffer->Release();
     if (m_pd3dBoneWeightBuffer) m_pd3dBoneWeightBuffer->Release();
-    if (m_pd3dcbBoneTransforms) m_pd3dcbBoneTransforms->Release();
-
+    
     if (m_pxu4BoneIndices) delete[] m_pxu4BoneIndices;
     if (m_pxmf4BoneWeights) delete[] m_pxmf4BoneWeights;
-    if (m_pxmf4x4BoneTransforms) delete[] m_pxmf4x4BoneTransforms;
-
+    
     if (m_ppPolygons) {
         for (int i = 0; i < m_nPolygons; ++i) {
             if (m_ppPolygons[i]) delete m_ppPolygons[i];
@@ -83,7 +81,7 @@ void CMesh::Render(ID3D12GraphicsCommandList* pd3dCommandList, CB_GAMEOBJECT_INF
         // Root parameter index는 "Scene RootSignature"에서 추가한 위치와 반드시 일치해야 함.
         // 아래는 "기존 0~6 사용 + 새로 [7] 추가"인 경우.
         UINT mid = (sm.materialId == 0xFFFFFFFFu) ? 0u : sm.materialId;
-        pd3dCommandList->SetGraphicsRoot32BitConstant(ROOTPARAM_MATERIAL_ID, mid, 0);
+        pd3dCommandList->SetGraphicsRoot32BitConstant(ROOT_PARAMETER_MATERIAL_ID, mid, 0);
 
         // --------------------------------------------------------
         // 1) (레거시) Material 바인딩이 필요한 경우에만
@@ -101,7 +99,7 @@ void CMesh::Render(ID3D12GraphicsCommandList* pd3dCommandList, CB_GAMEOBJECT_INF
         pd3dCommandList->IASetIndexBuffer(&sm.ibView);
 
         mid = (sm.materialId == 0xFFFFFFFFu) ? 0u : sm.materialId;
-        pd3dCommandList->SetGraphicsRoot32BitConstant(ROOTPARAM_MATERIAL_ID, mid, 0);
+        pd3dCommandList->SetGraphicsRoot32BitConstant(ROOT_PARAMETER_MATERIAL_ID, mid, 0);
 
         // --------------------------------------------------------
         // 3) Draw
@@ -486,63 +484,18 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
 
 void CMesh::EnableSkinning(int nBones)
 {
-    // [추가] 뼈가 없으면 스키닝 대상이 아님
+    // 메시는 "스키닝 여부 + 본 개수"만 기록 (팔레트/CB는 오브젝트가 소유)
     if (nBones <= 0)
     {
         m_bSkinnedMesh = false;
-        // 기존 버퍼는 그대로 두거나, 확실히 비우고 싶다면 Release 해도 됨
+        //m_nBones = 0;
         return;
     }
 
     m_bSkinnedMesh = true;
-
-    //  기존 코드 계속
-    // 기존 m_pxmf4x4BoneTransforms 정리
-    if (m_pxmf4x4BoneTransforms)
-        delete[] m_pxmf4x4BoneTransforms;
-
-    m_pxmf4x4BoneTransforms = new XMFLOAT4X4[nBones];
-
-    XMFLOAT4X4 identity;
-    XMStoreFloat4x4(&identity, XMMatrixIdentity());
-
-    for (int i = 0; i < nBones; ++i)
-        m_pxmf4x4BoneTransforms[i] = identity;
-
-    UINT cbSize = (UINT)(sizeof(XMFLOAT4X4) * nBones);
-
-    if (m_pd3dcbBoneTransforms)
-    {
-        m_pd3dcbBoneTransforms->Release();
-        m_pd3dcbBoneTransforms = nullptr;
-    }
-
-    CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
-    CD3DX12_RESOURCE_DESC bufferDesc =
-        CD3DX12_RESOURCE_DESC::Buffer((cbSize + 255) & ~255);
-
-    HRESULT hr = m_pd3dDevice->CreateCommittedResource(
-        &heapProps,
-        D3D12_HEAP_FLAG_NONE,
-        &bufferDesc,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(&m_pd3dcbBoneTransforms)
-    );
-
-    if (FAILED(hr))
-    {
-        OutputDebugStringA("[EnableSkinning] Failed to create bone CB.\n");
-        m_bSkinnedMesh = false;
-        return;
-    }
-
-    void* pMapped = nullptr;
-    m_pd3dcbBoneTransforms->Map(0, nullptr, &pMapped);
-    memcpy(pMapped, m_pxmf4x4BoneTransforms, cbSize);
-    m_pd3dcbBoneTransforms->Unmap(0, nullptr);
-
+    //m_nBones = nBones;
 }
+
 
 
 
@@ -620,65 +573,12 @@ int CMesh::GetBoneParentIndex(int boneIndex) const
     return m_Bones[boneIndex].parentIndex;
 }
 
-// 애니메이터가 없으면 생성하고 스켈레톤 전달
-CAnimator* CMesh::EnsureAnimator()
-{
-    if (!m_pAnimator)
-    {
-        m_pAnimator = new CAnimator();
-        m_pAnimator->SetSkeleton(m_Bones, m_BoneNameToIndex);
-    }
-    return m_pAnimator;
-}
+
 
 //---------------------------------------------------------------------------
 // Bone CBV 관련
 //---------------------------------------------------------------------------
 
-// 애니메이션 결과 본 행렬을 GPU 상수버퍼에 업로드
-void CMesh::UpdateBoneTransformsOnGPU(
-    ID3D12GraphicsCommandList* cmdList,
-    const XMFLOAT4X4* boneMatrices,
-    int nBones)
-{
-    (void)cmdList;
-
-    if (!m_bSkinnedMesh) return;
-    if (!m_pd3dcbBoneTransforms) return;
-    if (!boneMatrices) return;
-    if (nBones <= 0) return;
-
-    const int boneCount = static_cast<int>(m_Bones.size());
-    if (boneCount <= 0) return;
-    if (nBones > boneCount) nBones = boneCount;
-
-    const UINT copySize = sizeof(XMFLOAT4X4) * nBones;
-
-    // 1) Transpose 해서 월드와 같은 규약으로 맞춤
-    std::vector<XMFLOAT4X4> transposed(nBones);
-    for (int i = 0; i < nBones; ++i)
-    {
-        XMMATRIX m = XMLoadFloat4x4(&boneMatrices[i]);
-        XMMATRIX t = XMMatrixTranspose(m);
-        XMStoreFloat4x4(&transposed[i], t);
-    }
-
-    if (m_pxmf4x4BoneTransforms)
-        memcpy(m_pxmf4x4BoneTransforms, transposed.data(), copySize);
-
-    // 2) GPU 상수 버퍼에 업로드
-    void* pMapped = nullptr;
-    D3D12_RANGE readRange = { 0, 0 };
-    HRESULT hr = m_pd3dcbBoneTransforms->Map(0, &readRange, &pMapped);
-    if (FAILED(hr) || !pMapped)
-    {
-        OutputDebugStringA("[UpdateBoneTransformsOnGPU] Map failed.\n");
-        return;
-    }
-
-    memcpy(pMapped, transposed.data(), copySize);
-    m_pd3dcbBoneTransforms->Unmap(0, nullptr);
-}
 
 bool CMesh::LoadAnimationFromBIN(
     const char* filename,

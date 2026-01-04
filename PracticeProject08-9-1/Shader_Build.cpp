@@ -7,6 +7,7 @@
 #include "DDSTextureLoader12.h"
 #include "Scene.h"
 #include "Material.h"
+#include "AssetManager.h"
 
 D3D12_SHADER_BYTECODE CShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
 {
@@ -28,7 +29,7 @@ D3D12_SHADER_BYTECODE CShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
 
 D3D12_INPUT_LAYOUT_DESC CShader::CreateInputLayout()
 {
-	UINT nInputElementDescs = 5;
+	UINT nInputElementDescs = 3;
 	D3D12_INPUT_ELEMENT_DESC* pd3dInputElementDescs =
 		new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
 
@@ -61,28 +62,6 @@ D3D12_INPUT_LAYOUT_DESC CShader::CreateInputLayout()
 		DXGI_FORMAT_R32G32_FLOAT,
 		0,
 		24,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-		0
-	};
-
-	// BLENDINDICES (uint4) : offset 32
-	pd3dInputElementDescs[3] = {
-		"BLENDINDICES",
-		0,
-		DXGI_FORMAT_R32G32B32A32_UINT,
-		0,
-		32,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-		0
-	};
-
-	// BLENDWEIGHT (float4) : offset 48
-	pd3dInputElementDescs[4] = {
-		"BLENDWEIGHT",
-		0,
-		DXGI_FORMAT_R32G32B32A32_FLOAT,
-		0,
-		48,
 		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
 		0
 	};
@@ -208,12 +187,14 @@ void CShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsComm
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
-/*
+
 D3D12_INPUT_LAYOUT_DESC CPlayerShader::CreateInputLayout()
 {
-	UINT nInputElementDescs = 2;
-	D3D12_INPUT_ELEMENT_DESC* pd3dInputElementDescs = new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
+	UINT nInputElementDescs = 5;
+	D3D12_INPUT_ELEMENT_DESC* pd3dInputElementDescs =
+		new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
 
+	// POSITION (float3) : offset 0
 	pd3dInputElementDescs[0] = {
 		"POSITION",
 		0,
@@ -224,12 +205,46 @@ D3D12_INPUT_LAYOUT_DESC CPlayerShader::CreateInputLayout()
 		0
 	};
 
+	// NORMAL (float3) : offset 12
 	pd3dInputElementDescs[1] = {
-		"COLOR",
+		"NORMAL",
+		0,
+		DXGI_FORMAT_R32G32B32_FLOAT,
+		0,
+		12,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0
+	};
+
+	// TEXCOORD (float2) : offset 24
+	pd3dInputElementDescs[2] = {
+		"TEXCOORD",
+		0,
+		DXGI_FORMAT_R32G32_FLOAT,
+		0,
+		24,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0
+	};
+
+	// BLENDINDICES (uint4) : offset 32
+	pd3dInputElementDescs[3] = {
+		"BLENDINDICES",
+		0,
+		DXGI_FORMAT_R32G32B32A32_UINT,
+		0,
+		32,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0
+	};
+
+	// BLENDWEIGHT (float4) : offset 48
+	pd3dInputElementDescs[4] = {
+		"BLENDWEIGHT",
 		0,
 		DXGI_FORMAT_R32G32B32A32_FLOAT,
 		0,
-		12,
+		48,
 		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
 		0
 	};
@@ -238,9 +253,9 @@ D3D12_INPUT_LAYOUT_DESC CPlayerShader::CreateInputLayout()
 	d3dInputLayoutDesc.pInputElementDescs = pd3dInputElementDescs;
 	d3dInputLayoutDesc.NumElements = nInputElementDescs;
 
-	return(d3dInputLayoutDesc);
+	return d3dInputLayoutDesc;
 }
-*/
+
 
 D3D12_DEPTH_STENCIL_DESC CPlayerShader::CreateDepthStencilState()
 {
@@ -373,7 +388,7 @@ D3D12_SHADER_BYTECODE CIlluminatedTexturedShader::CreatePixelShader(ID3DBlob** p
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
-void CObjectsShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGraphicsRootSignature, UINT nRenderTargets, DXGI_FORMAT* pdxgiRtvFormats, DXGI_FORMAT dxgiDsvFormat)
+void CStaticObjectsShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGraphicsRootSignature, UINT nRenderTargets, DXGI_FORMAT* pdxgiRtvFormats, DXGI_FORMAT dxgiDsvFormat)
 {
 #ifdef _WITH_SCENE_ROOT_SIGNATURE
 	m_pd3dGraphicsRootSignature = pd3dGraphicsRootSignature;
@@ -390,12 +405,12 @@ void CObjectsShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature*
 	);
 }
 
-D3D12_SHADER_BYTECODE CObjectsShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
+D3D12_SHADER_BYTECODE CStaticObjectsShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
 {
 	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSTexturedLightingToMultipleRTs", "ps_5_1", ppd3dShaderBlob));
 }
 
-void CObjectsShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
+void CStaticObjectsShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
 {
 	UINT ncbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255); //256의 배수
 	m_pd3dcbGameObjects = ::CreateBufferResource(
@@ -411,17 +426,12 @@ void CObjectsShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12Graph
 	m_pd3dcbGameObjects->Map(0, nullptr, (void**)&m_pcbMappedGameObjects);
 }
 
-void CObjectsShader::BuildObjects(
+void CStaticObjectsShader::BuildObjects(
 	ID3D12Device* pd3dDevice,
 	ID3D12GraphicsCommandList* pd3dCommandList,
 	void* pContext
 )
 {
-	// ============================================================
-	// 0. Material ID 발급기 (씬 초기화 시 1회만 증가)
-	// ============================================================
-	static UINT s_NextMaterialID = 0;
-
 	// ============================================================
 	// 1. GameObject CBV 준비
 	// ============================================================
@@ -440,145 +450,273 @@ void CObjectsShader::BuildObjects(
 	);
 
 	// ============================================================
-	// 2. Mesh 로드
+	// 2. AssetManager로 에셋 빌드
 	// ============================================================
-	shared_ptr<CMesh> pUCMesh = make_shared<CMesh>(pd3dDevice, pd3dCommandList);
-	pUCMesh->LoadMeshFromBIN(
-		pd3dDevice,
-		pd3dCommandList,
-		"Assets/Unitychan/Mesh/unitychan.bin"
-	);
-
-	m_ppObjects.resize(m_nObjects);
-
-	auto pRotatingObject = make_unique<CRotatingObject>(1);
-
-	// ============================================================
-	// 3. Material 캐시 + Materials CB
-	// ============================================================
-	static std::unordered_map<std::string, std::shared_ptr<CMaterial>> materialCache;
 	MATERIALS* pMaterials = reinterpret_cast<MATERIALS*>(pContext);
 
-	// RootSignature에서 Global SRV Table의 Root Parameter Index
-	constexpr UINT ROOTPARAM_TEX_SRV_TABLE = ROOT_PARAMETER_GLOBAL_SRV;
-
-	// ============================================================
-	// 4. SubMesh 순회하며 Material 생성 / 재사용
-	// ============================================================
-	for (auto& sm : pUCMesh->m_SubMeshes)
+	AssetBuildDesc unitychanDesc =
 	{
-		if (sm.materialName.empty())
-			continue;
+		AssetType::Unitychan,
+		"Assets/Unitychan/Mesh/unitychan.bin",
+		"Assets/Unitychan/Texture"
+	};
 
-		// --------------------------------------------------------
-		// (4-1) 이미 존재하는 Material 재사용
-		// --------------------------------------------------------
-		auto it = materialCache.find(sm.materialName);
-		if (it != materialCache.end())
-		{
-			sm.material = it->second;
-			sm.materialId = it->second->GetMaterialID();
-			continue;
-		}
-
-		// --------------------------------------------------------
-		// (4-2) 새로운 Material 생성
-		// --------------------------------------------------------
-		auto mat = std::make_shared<CMaterial>();
-
-		// ★ 핵심: materialId 발급
-		const UINT materialId = s_NextMaterialID++;
-		mat->SetMaterialID(materialId);
-
-		// 안전장치
-		assert(materialId < MAX_MATERIALS);
-
-		// --------------------------------------------------------
-		// (4-3) Texture 생성 및 로드
-		// --------------------------------------------------------
-		auto tex = std::make_shared<CTexture>(
-			1,                  // nTextureResources
-			RESOURCE_TEXTURE2D,  // nResourceType
-			0,                  // nSamplers
-			1                   // nRootParameters
-		);
-
-		const std::wstring texPath =
-			ResolveTexturePath("Unitychan", sm.diffuseTextureName);
-		tex->LoadTextureFromFile(
+	BuiltAsset asset =
+		AssetManager::BuildAsset(
 			pd3dDevice,
 			pd3dCommandList,
-			texPath.c_str(),
-			RESOURCE_TEXTURE2D,
-			0
-		);
-		{
-			char msg[256];
-			sprintf_s(msg,
-				"[TEXTURE LOAD] material=%s texBase=%s path=%ls\n",
-				sm.materialName.c_str(),
-				sm.diffuseTextureName.c_str(),
-				texPath.c_str()
-			);
-			OutputDebugStringA(msg);
-		}
-
-		// --------------------------------------------------------
-		// (4-4) 글로벌 SRV Heap에 SRV 등록
-		// --------------------------------------------------------
-		CScene::m_pDescriptorHeap->CreateShaderResourceViews(
-			pd3dDevice,
-			tex.get(),
-			ROOTPARAM_TEX_SRV_TABLE
+			pMaterials,
+			unitychanDesc
 		);
 
-		// --------------------------------------------------------
-		// (4-5) Material에 Texture 연결
-		// --------------------------------------------------------
-		mat->SetTexture(tex);
-
-		// --------------------------------------------------------
-		// (4-6) Materials CB에 SRV 인덱스 기록
-		// --------------------------------------------------------
-		if (pMaterials)
-		{
-			const UINT srvIndex = mat->GetDiffuseSrvIndex();
-
-			pMaterials->m_pReflections[materialId].m_xmn4TextureIndices.x =
-				(srvIndex == UINT_MAX) ? 0xFFFFFFFFu : srvIndex;
-		}
-
-		// --------------------------------------------------------
-		// (4-7) 캐시 등록 + SubMesh 연결
-		// --------------------------------------------------------
-		materialCache.emplace(sm.materialName, mat);
-		sm.material = mat;
-		sm.materialId = materialId;
-	}
-
 	// ============================================================
-	// 5. GameObject 구성
+	// 3. GameObject 구성
 	// ============================================================
-	// --- 배치 CB(Shader가 만든 m_pcbMappedGameObjects)에서 0번 오브젝트 슬롯 주소 계산
+	m_ppObjects.resize(m_nObjects);
+
+	auto pRotatingObject = std::make_unique<CRotatingObject>(1);
+
 	CB_GAMEOBJECT_INFO* pObjCB0 =
 		reinterpret_cast<CB_GAMEOBJECT_INFO*>(
 			reinterpret_cast<UINT8*>(m_pcbMappedGameObjects) + 0 * ncbElementBytes
 			);
 
-	// --- CGameObject 쪽에도 포인터를 꽂아준다(서브메시 Render에서 쓰려고)
 	pRotatingObject->SetMappedGameObjectCB(pObjCB0);
-	pRotatingObject->SetMesh(0, pUCMesh);
+	pRotatingObject->SetMesh(0, asset.mesh);
 
 	pRotatingObject->SetPosition(0.0f, 0.0f, 0.0f);
 	pRotatingObject->SetRotationAxis(XMFLOAT3(0.0f, 1.0f, 0.0f));
 	pRotatingObject->SetRotationSpeed(10.0f);
 
-	// CBV 첫 슬롯 사용
 	pRotatingObject->SetCbvGPUDescriptorHandlePtr(
 		d3dCbvGPUDescriptorNextHandle.ptr
 	);
 
 	m_ppObjects[0] = std::move(pRotatingObject);
+}
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+void CSkinnedObjectsShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGraphicsRootSignature, UINT nRenderTargets, DXGI_FORMAT* pdxgiRtvFormats, DXGI_FORMAT dxgiDsvFormat)
+{
+#ifdef _WITH_SCENE_ROOT_SIGNATURE
+	m_pd3dGraphicsRootSignature = pd3dGraphicsRootSignature;
+#else
+	CreateGraphicsRootSignature(pd3dDevice);
+#endif
+
+	CShader::CreateShader(
+		pd3dDevice,
+		m_pd3dGraphicsRootSignature.Get(),
+		nRenderTargets,
+		pdxgiRtvFormats,
+		dxgiDsvFormat
+	);
+}
+
+
+D3D12_SHADER_BYTECODE CSkinnedObjectsShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "VSSkinned", "vs_5_1", ppd3dShaderBlob));
+}
+
+D3D12_SHADER_BYTECODE CSkinnedObjectsShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSTexturedLightingToMultipleRTs", "ps_5_1", ppd3dShaderBlob));
+}
+
+
+D3D12_INPUT_LAYOUT_DESC CSkinnedObjectsShader::CreateInputLayout()
+{
+	UINT nInputElementDescs = 5;
+	D3D12_INPUT_ELEMENT_DESC* pd3dInputElementDescs =
+		new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
+
+	// POSITION (float3) : offset 0
+	pd3dInputElementDescs[0] = {
+		"POSITION",
+		0,
+		DXGI_FORMAT_R32G32B32_FLOAT,
+		0,
+		0,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0
+	};
+
+	// NORMAL (float3) : offset 12
+	pd3dInputElementDescs[1] = {
+		"NORMAL",
+		0,
+		DXGI_FORMAT_R32G32B32_FLOAT,
+		0,
+		12,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0
+	};
+
+	// TEXCOORD (float2) : offset 24
+	pd3dInputElementDescs[2] = {
+		"TEXCOORD",
+		0,
+		DXGI_FORMAT_R32G32_FLOAT,
+		0,
+		24,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0
+	};
+
+	// BLENDINDICES (uint4) : offset 32
+	pd3dInputElementDescs[3] = {
+		"BLENDINDICES",
+		0,
+		DXGI_FORMAT_R32G32B32A32_UINT,
+		0,
+		32,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0
+	};
+
+	// BLENDWEIGHT (float4) : offset 48
+	pd3dInputElementDescs[4] = {
+		"BLENDWEIGHT",
+		0,
+		DXGI_FORMAT_R32G32B32A32_FLOAT,
+		0,
+		48,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0
+	};
+
+	D3D12_INPUT_LAYOUT_DESC d3dInputLayoutDesc;
+	d3dInputLayoutDesc.pInputElementDescs = pd3dInputElementDescs;
+	d3dInputLayoutDesc.NumElements = nInputElementDescs;
+
+	return d3dInputLayoutDesc;
+}
+
+void CSkinnedObjectsShader::CreateShaderVariables(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList)
+{
+	// 기존 Static과 동일하게 GameObjects CB 등 필요한 것 먼저 생성
+	UINT ncbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255); //256의 배수
+	m_pd3dcbGameObjects = ::CreateBufferResource(
+		device,
+		cmdList,
+		nullptr,
+		ncbElementBytes * m_nObjects,
+		D3D12_HEAP_TYPE_UPLOAD,
+		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+		nullptr
+	);
+
+	m_pd3dcbGameObjects->Map(0, nullptr, (void**)&m_pcbMappedGameObjects);
+
+	// Bone palette CB 생성
+	UINT cbBytes = (sizeof(CB_BONE_PALETTE) + 255) & ~255;
+
+	m_pd3dcbBonePalette = ::CreateBufferResource(
+		device,
+		cmdList,
+		nullptr,
+		cbBytes,
+		D3D12_HEAP_TYPE_UPLOAD,
+		D3D12_RESOURCE_STATE_GENERIC_READ
+	);
+
+	m_pd3dcbBonePalette->Map(0, nullptr, reinterpret_cast<void**>(&m_pcbMappedBonePalette));
+
+	// 임시(단계4): 일단 identity로 채움
+	XMFLOAT4X4 I;
+	XMStoreFloat4x4(&I, XMMatrixIdentity());
+	for (UINT i = 0; i < MAX_BONES; ++i)
+		m_pcbMappedBonePalette->gBoneTransforms[i] = I;
+}
+
+void CSkinnedObjectsShader::BuildObjects(
+	ID3D12Device* pd3dDevice,
+	ID3D12GraphicsCommandList* pd3dCommandList,
+	void* pContext
+)
+{
+	UINT ncbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);
+
+	CreateShaderVariables(pd3dDevice, pd3dCommandList);
+
+	D3D12_GPU_DESCRIPTOR_HANDLE d3dCbvGPUDescriptorNextHandle =
+		CScene::m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
+
+	CScene::m_pDescriptorHeap->CreateConstantBufferViews(
+		pd3dDevice,
+		m_nObjects,
+		m_pd3dcbGameObjects.Get(),
+		ncbElementBytes
+	);
+
+	// 2. AssetManager로 에셋 빌드
+	MATERIALS* pMaterials = reinterpret_cast<MATERIALS*>(pContext);
+
+	AssetBuildDesc unitychanDesc =
+	{
+		AssetType::Unitychan,
+		"Assets/Unitychan/Mesh/unitychan.bin",
+		"Assets/Unitychan/Texture"
+	};
+
+	BuiltAsset asset =
+		AssetManager::BuildAsset(
+			pd3dDevice,
+			pd3dCommandList,
+			pMaterials,
+			unitychanDesc
+		);
+
+	// 3. GameObject 구성
+	m_ppObjects.resize(m_nObjects);
+
+	auto pObj = std::make_unique<CGameObject>(1);
+
+	CB_GAMEOBJECT_INFO* pObjCB0 =
+		reinterpret_cast<CB_GAMEOBJECT_INFO*>(
+			reinterpret_cast<UINT8*>(m_pcbMappedGameObjects) + 0 * ncbElementBytes);
+
+	pObj->SetMappedGameObjectCB(pObjCB0);
+	pObj->SetMesh(0, asset.mesh);
+	pObj->SetPosition(2.0f, 0.0f, 0.0f);
+	pObj->SetCbvGPUDescriptorHandlePtr(d3dCbvGPUDescriptorNextHandle.ptr);
+
+	// (A) 스키닝 활성화 (CB 생성)
+	if (asset.mesh && asset.mesh->IsSkinnedMesh())
+	{
+		const int nBones = asset.mesh->GetBoneCount();
+		pObj->EnableSkinning(pd3dDevice, nBones);
+	}
+
+	// (C) 먼저 벡터에 넣기 (이후부터 "실제 오브젝트"만 다룸)
+	m_ppObjects[0] = std::move(pObj);
+
+	// =======================
+	// (B') 클립 로드 -> Animator 등록 -> Play (반드시 m_ppObjects[0]에 대해 수행)
+	// =======================
+	CGameObject* obj0 = m_ppObjects[0].get();
+	if (!obj0) return;
+
+	AnimationClip idleClip;
+	bool idleLoaded = false;
+
+	if (!obj0->m_ppMeshes.empty() && obj0->m_ppMeshes[0])
+	{
+		idleLoaded = obj0->m_ppMeshes[0]->LoadAnimationFromBIN(
+			"Assets/Unitychan/Animation/unitychan_RUN00_min.bin", "Idle", idleClip, 1.0f);
+	}
+
+	if (idleLoaded)
+	{
+		idleClip.name = "Idle";
+
+		CAnimator* anim = obj0->EnsureAnimator();
+		if (anim)
+			anim->AddClip(idleClip);
+
+		obj0->PlayAnimation("Idle", true, 0.0f);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

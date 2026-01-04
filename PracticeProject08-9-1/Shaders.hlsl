@@ -45,6 +45,16 @@ cbuffer cbDrawOptions : register(b5)
     uint4 gvPostSrvIdx1; // x=Z, 나머지 패딩
 };
 
+#define MAX_BONES 256
+
+cbuffer cbBonePalette : register(b7)
+{
+    float4x4 gBoneTransforms[MAX_BONES];
+};
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 struct VS_DIFFUSED_INPUT
 {
@@ -244,6 +254,7 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(VS_TEXTURED_LI
     return output;
 }
 */
+
 PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
     VS_TEXTURED_LIGHTING_OUTPUT input,
     uint nPrimitiveID : SV_PrimitiveID)
@@ -278,17 +289,46 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
     output.color = texColor; // ★ 핵심
     output.normal = float4(0, 0, 1, 1);
     output.zDepth = input.position.z;
-
-    /*
-    output.color = float4(
-    (gnMaterialID & 1) ? 1 : 0,
-    (gnMaterialID & 2) ? 1 : 0,
-    (gnMaterialID & 4) ? 1 : 0,
-    1);
-    */
+    
     return output;
 }
+//////////////////////////////////////////////////////////////////////////////////////////////////
 
+struct VS_SKINNED_INPUT
+{
+    float3 position : POSITION;
+    float3 normal : NORMAL;
+    float2 uv : TEXCOORD;
+    uint4 blendIndices : BLENDINDICES;
+    float4 blendWeights : BLENDWEIGHT;
+};
+
+struct VS_SKINNED_OUTPUT
+{
+    float4 position : SV_POSITION;
+    float3 positionW : POSITION;
+    float3 normalW : NORMAL;
+    float2 uv : TEXCOORD;
+};
+
+VS_SKINNED_OUTPUT VSSkinned(VS_SKINNED_INPUT input)
+{
+    VS_SKINNED_OUTPUT output;
+
+    uint bi = input.blendIndices.x;
+
+    float4 posL = float4(input.position, 1.0f);
+    float4 posSkinned = mul(posL, gBoneTransforms[bi]);
+    float4 posW = mul(posSkinned, gmtxGameObject);
+
+    output.positionW = posW.xyz;
+    output.position = mul(mul(posW, gmtxView), gmtxProjection);
+
+    output.normalW = normalize(mul(input.normal, (float3x3) gmtxGameObject));
+    output.uv = input.uv;
+
+    return output;
+}
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////

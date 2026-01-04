@@ -61,6 +61,7 @@ using Microsoft::WRL::ComPtr;
 
 #define MAX_LIGHTS				8 
 #define MAX_MATERIALS			256 
+#define MAX_BONES				256
 
 #define POINT_LIGHT				1
 #define SPOT_LIGHT				2
@@ -96,7 +97,8 @@ extern void SynchronizeResourceTransition(ID3D12GraphicsCommandList* pd3dCommand
 #define ROOT_PARAMETER_OBJECT			2
 #define ROOT_PARAMETER_MATERIAL			3
 #define ROOT_PARAMETER_LIGHT			4
-#define ROOTPARAM_MATERIAL_ID			7
+#define ROOT_PARAMETER_MATERIAL_ID			7
+#define ROOT_PARAMETER_BONE_PALETTE		8
 
 #define EPSILON							1.0e-10f
 
