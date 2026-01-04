@@ -120,44 +120,104 @@ void CScene::BuildLightsAndMaterials()
 
 }
 
-void CScene::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
+void CScene::BuildObjects(
+	ID3D12Device* pd3dDevice,
+	ID3D12GraphicsCommandList* pd3dCommandList)
 {
+	// ============================================================
+	// 1. Root Signature
+	// ============================================================
 	CreateGraphicsRootSignature(pd3dDevice);
 
-	m_nShaders = 1;
+	// ============================================================
+	// 2. Shader 개수 설정 (Static + Skinned)
+	// ============================================================
+	m_nShaders = 2;
 	m_ppShaders.resize(m_nShaders);
 
-	shared_ptr<CObjectsShader> pObjectShader = make_shared<CObjectsShader>();
-	int nObjects = pObjectShader->GetNumberOfObjects();
 	constexpr int MAX_GLOBAL_SRVS = 1024;
 
-	m_pDescriptorHeap->CreateCbvSrvDescriptorHeaps(
-		pd3dDevice,
-		nObjects + 1 + 1 + 1,
-		MAX_GLOBAL_SRVS
-	);
+	// ============================================================
+	// 3. Static Objects Shader
+	// ============================================================
+	{
+		auto pStaticShader = std::make_shared<CStaticObjectsShader>();
+		int nObjects = pStaticShader->GetNumberOfObjects();
 
-	DXGI_FORMAT pdxgiRtvFormats[5] = {
-		DXGI_FORMAT_R8G8B8A8_UNORM,
-		DXGI_FORMAT_R8G8B8A8_UNORM,
-		DXGI_FORMAT_R8G8B8A8_UNORM,
-		DXGI_FORMAT_R8G8B8A8_UNORM,
-		DXGI_FORMAT_R32_FLOAT
-	};
-	pObjectShader->CreateShader(
-		pd3dDevice,
-		m_pd3dGraphicsRootSignature.Get(),
-		5,
-		pdxgiRtvFormats,
-		DXGI_FORMAT_D24_UNORM_S8_UINT/*DXGI_FORMAT_D32_FLOAT*/
-	);
-	BuildLightsAndMaterials();
+		// DescriptorHeap (Scene에서 1회만 생성)
+		m_pDescriptorHeap->CreateCbvSrvDescriptorHeaps(
+			pd3dDevice,
+			nObjects + 1 + 1 + 1, // GameObject + Camera + Player + etc
+			MAX_GLOBAL_SRVS
+		);
 
-	pObjectShader->BuildObjects(pd3dDevice, pd3dCommandList, m_pMaterials.get());
-	m_ppShaders[0] = pObjectShader;
+		DXGI_FORMAT rtvFormats[5] =
+		{
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT_R32_FLOAT
+		};
 
+		pStaticShader->CreateShader(
+			pd3dDevice,
+			m_pd3dGraphicsRootSignature.Get(),
+			5,
+			rtvFormats,
+			DXGI_FORMAT_D24_UNORM_S8_UINT
+		);
+
+		BuildLightsAndMaterials();
+
+		pStaticShader->BuildObjects(
+			pd3dDevice,
+			pd3dCommandList,
+			m_pMaterials.get()
+		);
+
+		m_ppShaders[0] = pStaticShader;
+	}
+
+	// ============================================================
+	// 4. Skinned Objects Shader (현재는 Static과 동일 동작)
+	// ============================================================
+	{
+		auto pSkinnedShader = std::make_shared<CSkinnedObjectsShader>();
+
+		DXGI_FORMAT rtvFormats[5] =
+		{
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT_R32_FLOAT
+		};
+
+		pSkinnedShader->CreateShader(
+			pd3dDevice,
+			m_pd3dGraphicsRootSignature.Get(),
+			5,
+			rtvFormats,
+			DXGI_FORMAT_D24_UNORM_S8_UINT
+		);
+
+		// ★ 지금 단계에서는 동일한 Mesh를 그려도 OK
+		pSkinnedShader->BuildObjects(
+			pd3dDevice,
+			pd3dCommandList,
+			m_pMaterials.get()
+		);
+
+		m_ppShaders[1] = pSkinnedShader;
+	}
+
+	// ============================================================
+	// 5. Scene 공통 Shader Variables
+	// ============================================================
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
 }
+
 
 void CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevice)
 {
@@ -180,7 +240,7 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevice)
 	pd3dDescriptorRanges[1].OffsetInDescriptorsFromTableStart = 0;
 
 	// (2) Root Parameters: SRV 분리(5/6) 제거, Global SRV 하나만 유지
-	D3D12_ROOT_PARAMETER pd3dRootParameters[8] = {};
+	D3D12_ROOT_PARAMETER pd3dRootParameters[9] = {};
 
 	// [0] b1: Camera
 	pd3dRootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
@@ -230,6 +290,13 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevice)
 	pd3dRootParameters[7].Constants.ShaderRegister = 6; // b6
 	pd3dRootParameters[7].Constants.RegisterSpace = 0;
 	pd3dRootParameters[7].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	// [8] b7: Bones
+	pd3dRootParameters[8].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	pd3dRootParameters[8].Descriptor.ShaderRegister = 7; // b7
+	pd3dRootParameters[8].Descriptor.RegisterSpace = 0;
+	pd3dRootParameters[8].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+
 
 	// Static sampler (s0)
 	D3D12_STATIC_SAMPLER_DESC d3dSamplerDesc = {};

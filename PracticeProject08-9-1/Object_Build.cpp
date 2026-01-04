@@ -22,4 +22,14 @@ void CGameObject::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12Graphics
 	);
 
 	m_pd3dcbGameObject->Map(0, nullptr, (void**)&m_pcbMappedGameObject);
+
+	int nBones = 0;
+	for (auto& mesh : m_ppMeshes)
+	{
+		if (mesh && mesh->IsSkinnedMesh())
+			nBones = max(nBones, mesh->GetBoneCount());
+	}
+
+	if (nBones > 0)
+		EnableSkinning(pd3dDevice, nBones);
 }

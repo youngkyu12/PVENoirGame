@@ -111,15 +111,12 @@ protected:
 
 	XMUINT4*						m_pxu4BoneIndices = NULL;   // 정점별 본 인덱스(4)
 	XMFLOAT4* 						m_pxmf4BoneWeights = NULL;  // 정점별 본 가중치(4)
-	XMFLOAT4X4*						m_pxmf4x4BoneTransforms = NULL;  // CPU Bone Matrices
-	ID3D12Resource*					m_pd3dcbBoneTransforms = NULL; // GPU Bone CB
-
+	
 	ID3D12Resource*					m_pd3dBoneIndexBuffer = NULL;
 	ID3D12Resource*					m_pd3dBoneIndexUploadBuffer = NULL;
 	ID3D12Resource*					m_pd3dBoneWeightBuffer = NULL;
 	ID3D12Resource*					m_pd3dBoneWeightUploadBuffer = NULL;
 
-	CAnimator*						m_pAnimator = nullptr;
 	bool							m_bSkinnedMesh = false;
 	ID3D12Device*					m_pd3dDevice = nullptr;
 
@@ -127,11 +124,6 @@ public:
 	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList);
 	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CB_GAMEOBJECT_INFO* pMappedGameObjectCB);
 
-	D3D12_GPU_VIRTUAL_ADDRESS GetBoneCBAddress() const {
-		return m_pd3dcbBoneTransforms
-			? m_pd3dcbBoneTransforms->GetGPUVirtualAddress()
-			: 0;
-	}
 
 	void LoadMeshFromBIN(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, const char* filename);
 	void EnableSkinning(int nBones);
@@ -147,25 +139,16 @@ public:
 	int GetBoneIndexByName(const std::string& boneName) const;
 	int GetBoneParentIndex(int boneIndex) const;
 	const std::vector<Bone>& GetBones() const { return m_Bones; }
-
-	CAnimator* GetAnimator() const { return m_pAnimator; }
-	CAnimator* EnsureAnimator();
-
-	void UpdateBoneTransformsOnGPU(ID3D12GraphicsCommandList* cmdList,
-		const XMFLOAT4X4* boneMatrices,
-		int nBones);
+	const std::unordered_map<std::string, int>& GetBoneNameToIndex() const { return m_BoneNameToIndex; }
 
 	bool IsSkinnedMesh() const { return m_bSkinnedMesh; }
-	bool HasBoneCB() const { return (m_pd3dcbBoneTransforms != nullptr); }
-
+	
 	bool LoadAnimationFromBIN(const char* filename,
 		const std::string& clipName,
 		AnimationClip& outClip,
 		float timeScale = 1.0f);
-
-	CAnimator* GetAnimator() { return m_pAnimator; }
-	bool HasAnimator() const { return m_pAnimator != nullptr; }
-
+private:
+	int m_nBones;
 public:
 	const std::vector<BinMaterial>& GetBinMaterials() const { return m_BinMaterials; }
 
