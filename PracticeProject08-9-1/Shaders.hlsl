@@ -160,12 +160,18 @@ VS_TEXTURED_OUTPUT VSTextured(VS_TEXTURED_INPUT input)
 
 float4 PSTextured(VS_TEXTURED_OUTPUT input, uint nPrimitiveID : SV_PrimitiveID) : SV_TARGET
 {
-    uint diffuseIndex = gMaterials[gnMaterialID].TextureIndices.x; // 또는 gnPlayerMaterialID
+    uint packed = gMaterials[gnMaterialID].TextureIndices.x;
 
-    if (diffuseIndex == 0xFFFFFFFF || diffuseIndex >= MAX_GLOBAL_SRVS)
-        return float4(1, 0, 1, 1); // 텍스처 없음/잘못된 인덱스
-    
-    return gtxtGlobalTextures[diffuseIndex].Sample(gssDefaultSamplerState, input.uv);
+    if (packed == 0)
+        return float4(1, 0, 1, 1);
+
+    uint diffuseIndex = packed - 1;
+
+    if (diffuseIndex >= MAX_GLOBAL_SRVS)
+        return float4(1, 0, 0, 1);
+
+    return gtxtGlobalTextures[diffuseIndex]
+            .Sample(gssDefaultSamplerState, input.uv);
 
 }
 
@@ -200,12 +206,19 @@ VS_TEXTURED_LIGHTING_OUTPUT VSTexturedLighting(VS_TEXTURED_LIGHTING_INPUT input)
 
 float4 PSTexturedLighting(VS_TEXTURED_LIGHTING_OUTPUT input, uint nPrimitiveID : SV_PrimitiveID) : SV_TARGET
 {
-    uint diffuseIndex = gMaterials[gnMaterialID].TextureIndices.x;
+    uint packed = gMaterials[gnMaterialID].TextureIndices.x;
+
+    if (packed == 0)
+        return float4(1, 0, 1, 1);
+
+    uint diffuseIndex = packed - 1;
 
     if (diffuseIndex >= MAX_GLOBAL_SRVS)
-        return float4(1, 0, 0, 1); // bad index
+        return float4(1, 0, 0, 1);
 
-    float4 cTexture = gtxtGlobalTextures[diffuseIndex].Sample(gssDefaultSamplerState, input.uv);
+    float4 cTexture =
+    gtxtGlobalTextures[diffuseIndex]
+        .Sample(gssDefaultSamplerState, input.uv);
 
     input.normalW = normalize(input.normalW);
     float4 cIllumination = Lighting(input.positionW, input.normalW);
@@ -261,37 +274,65 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
 {
     PS_MULTIPLE_RENDER_TARGETS_OUTPUT output;
 
-    uint diffuseIndex = gMaterials[gnMaterialID].TextureIndices.x;
+    // =========================================
+    // 1) CB에서 packed SRV 인덱스 읽기
+    //    0      : 텍스처 없음
+    //    1..N   : 실제 SRV 인덱스 + 1
+    // =========================================
+    uint packed = gMaterials[gnMaterialID].TextureIndices.x;
 
-    // SRV 인덱스가 잘못되었을 때만 빨강
-    if (diffuseIndex >= MAX_GLOBAL_SRVS)
+    // 텍스처 없음
+    if (packed == 0)
     {
-        output.color = float4(1, 0, 0, 1);
-        output.cTexture = float4(1, 0, 0, 1);
+        output.color = float4(1, 0, 1, 1); // magenta (no texture)
+        output.cTexture = output.color;
         output.cIllumination = float4(0, 0, 0, 0);
         output.normal = float4(0, 0, 1, 1);
         output.zDepth = input.position.z;
         return output;
     }
 
-    // ===============================
-    // 텍스처 샘플링
-    // ===============================
+    // 실제 SRV 인덱스 복원
+    uint diffuseIndex = packed - 1;
+
+    // SRV 인덱스 범위 체크
+    if (diffuseIndex >= MAX_GLOBAL_SRVS)
+    {
+        output.color = float4(1, 0, 0, 1); // red (bad index)
+        output.cTexture = output.color;
+        output.cIllumination = float4(0, 0, 0, 0);
+        output.normal = float4(0, 0, 1, 1);
+        output.zDepth = input.position.z;
+        return output;
+    }
+
+    // =========================================
+    // 2) 텍스처 샘플링
+    // =========================================
     float4 texColor =
         gtxtGlobalTextures[diffuseIndex]
             .Sample(gssDefaultSamplerState, input.uv);
 
-    // ===============================
-    // ★ 테스트용: 조명 완전 무시
-    // ===============================
+    // =========================================
+    // 3) 출력 (현재는 조명 무시 테스트 모드)
+    // =========================================
     output.cTexture = texColor;
-    output.cIllumination = float4(1, 1, 1, 1); // 의미 없음
-    output.color = texColor; // ★ 핵심
+    output.cIllumination = float4(1, 1, 1, 1); // 테스트용
+    output.color = texColor; // ★ 최종 컬러
     output.normal = float4(0, 0, 1, 1);
     output.zDepth = input.position.z;
-    
+
+    // -----------------------------------------
+    // 디버그 색상 (packed 기준)
+    // -----------------------------------------
+    //if (packed == 1) // 실제 diffuseIndex == 0
+    //    output.color = float4(0, 1, 0, 1); // green
+    //if (packed == 2) // 실제 diffuseIndex == 1
+    //    output.color = float4(1, 1, 1, 1); // white
+
     return output;
 }
+
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct VS_SKINNED_INPUT

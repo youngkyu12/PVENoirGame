@@ -457,8 +457,8 @@ void CStaticObjectsShader::BuildObjects(
 	AssetBuildDesc unitychanDesc =
 	{
 		AssetType::Unitychan,
-		"Assets/Unitychan/Mesh/unitychan.bin",
-		"Assets/Unitychan/Texture"
+		"Assets/Zombie/Mesh/Zombie.bin",
+		"Assets/Zombie/Texture"
 	};
 
 	BuiltAsset asset =
@@ -474,25 +474,23 @@ void CStaticObjectsShader::BuildObjects(
 	// ============================================================
 	m_ppObjects.resize(m_nObjects);
 
-	auto pRotatingObject = std::make_unique<CRotatingObject>(1);
+	auto pPlaneObject = std::make_unique<CGameObject>(1);
 
 	CB_GAMEOBJECT_INFO* pObjCB0 =
 		reinterpret_cast<CB_GAMEOBJECT_INFO*>(
 			reinterpret_cast<UINT8*>(m_pcbMappedGameObjects) + 0 * ncbElementBytes
 			);
 
-	pRotatingObject->SetMappedGameObjectCB(pObjCB0);
-	pRotatingObject->SetMesh(0, asset.mesh);
+	pPlaneObject->SetMappedGameObjectCB(pObjCB0);
+	pPlaneObject->SetMesh(0, asset.mesh);
 
-	pRotatingObject->SetPosition(0.0f, 0.0f, 0.0f);
-	pRotatingObject->SetRotationAxis(XMFLOAT3(0.0f, 1.0f, 0.0f));
-	pRotatingObject->SetRotationSpeed(10.0f);
+	pPlaneObject->SetPosition(0.0f, 0.0f, 0.0f);
 
-	pRotatingObject->SetCbvGPUDescriptorHandlePtr(
+	pPlaneObject->SetCbvGPUDescriptorHandlePtr(
 		d3dCbvGPUDescriptorNextHandle.ptr
 	);
 
-	m_ppObjects[0] = std::move(pRotatingObject);
+	m_ppObjects[0] = std::move(pPlaneObject);
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -704,7 +702,7 @@ void CSkinnedObjectsShader::BuildObjects(
 	if (!obj0->m_ppMeshes.empty() && obj0->m_ppMeshes[0])
 	{
 		idleLoaded = obj0->m_ppMeshes[0]->LoadAnimationFromBIN(
-			"Assets/Unitychan/Animation/unitychan_RUN00_min.bin", "Idle", idleClip, 1.0f);
+			"Assets/Unitychan/Animation/unitychan_run.bin", "Idle", idleClip, 1.0f);
 	}
 
 	if (idleLoaded)
@@ -873,9 +871,19 @@ void CPostProcessingShader::CreateResourcesAndRtvsSrvs(ID3D12Device* pd3dDevice,
 
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
 #ifdef _WITH_SCENE_ROOT_SIGNATURE
-	CScene::m_pDescriptorHeap->CreateShaderResourceViews(pd3dDevice, m_pTexture.get(), ROOT_PARAMETER_GLOBAL_SRV);
+	CScene::m_pDescriptorHeap->CreateShaderResourceViewsOther(
+		pd3dDevice,
+		m_pTexture.get(),
+		ROOT_PARAMETER_GLOBAL_SRV
+	);
+
 #else
-	CScene::m_pDescriptorHeap->CreateShaderResourceViews(pd3dDevice, m_pTexture.get(), 0);
+	CScene::m_pDescriptorHeap->CreateShaderResourceViewsOther(
+		pd3dDevice,
+		m_pTexture.get(),
+		0
+	);
+
 #endif
 
 	D3D12_RENDER_TARGET_VIEW_DESC d3dRenderTargetViewDesc;
