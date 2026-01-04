@@ -56,4 +56,10 @@ private:
 	UINT m_nCbvDescriptors = 0;
 	UINT m_nSrvDescriptors = 0;
 	UINT m_nSrvAllocated = 0;
+	UINT m_nSrvBack = 0;
+
+public:
+	UINT AllocateSrvRangeBack(UINT count);
+	void CreateShaderResourceViewsOther(ID3D12Device* pd3dDevice, CTexture* pTexture, UINT nRootParameterStartIndex);
+
 };
