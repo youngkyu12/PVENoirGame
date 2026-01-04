@@ -11,30 +11,12 @@ cbuffer cbPlayerInfo : register(b0)
 };
 
 
-cbuffer cbCameraInfo : register(b1)
-{
-	matrix		gmtxView : packoffset(c0);
-	matrix		gmtxProjection : packoffset(c4);
-	float3		gvCameraPosition : packoffset(c8);
-};
-
 cbuffer cbGameObjectInfo : register(b2)
 {
     matrix gmtxGameObject : packoffset(c0);
     uint gnObjectID : packoffset(c4.x);
     uint gnUnused0 : packoffset(c4.y); // (구)gnMaterialID 자리. 이제 안 씀.
 };
-
-// ==============================
-// Per-draw Material ID (Root Constants)
-// RootSig: RootConstants(num32BitConstants=1, b6)
-// ==============================
-cbuffer cbPerDrawMaterialId : register(b6)
-{
-    uint gnMaterialID;
-};
-
-#include "Light.hlsl"
 
 SamplerState gssDefaultSamplerState : register(s0);
 
@@ -52,6 +34,7 @@ cbuffer cbBonePalette : register(b7)
     float4x4 gBoneTransforms[MAX_BONES];
 };
 
+#include "Light.hlsl"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -239,52 +222,21 @@ struct PS_MULTIPLE_RENDER_TARGETS_OUTPUT
 	float zDepth : SV_TARGET4;
 };
 
-/*
-PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(VS_TEXTURED_LIGHTING_OUTPUT input, uint nPrimitiveID : SV_PrimitiveID)
-{
-    PS_MULTIPLE_RENDER_TARGETS_OUTPUT output;
-
-    uint diffuseIndex = gMaterials[gnMaterialID].TextureIndices.x;
-    if (diffuseIndex >= MAX_GLOBAL_SRVS)
-    {
-        output.color = float4(1, 0, 0, 1);
-        output.cTexture = float4(1, 0, 0, 1);
-        output.cIllumination = float4(0, 0, 0, 0);
-        output.normal = float4(0, 0, 0, 1);
-        output.zDepth = input.position.z;
-        return output;
-    }
-
-    output.cTexture = gtxtGlobalTextures[diffuseIndex].Sample(gssDefaultSamplerState, input.uv);
-
-    input.normalW = normalize(input.normalW);
-    output.cIllumination = Lighting(input.positionW, input.normalW);
-
-    output.color = output.cIllumination * output.cTexture;
-    output.normal = float4(input.normalW.xyz * 0.5f + 0.5f, 1.0f);
-    output.zDepth = input.position.z;
-    
-    return output;
-}
-*/
-
 PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
     VS_TEXTURED_LIGHTING_OUTPUT input,
     uint nPrimitiveID : SV_PrimitiveID)
 {
     PS_MULTIPLE_RENDER_TARGETS_OUTPUT output;
 
-    // =========================================
-    // 1) CB에서 packed SRV 인덱스 읽기
-    //    0      : 텍스처 없음
-    //    1..N   : 실제 SRV 인덱스 + 1
-    // =========================================
+    // =========================================================
+    // 1. packed SRV index 해석
+    // =========================================================
     uint packed = gMaterials[gnMaterialID].TextureIndices.x;
 
     // 텍스처 없음
     if (packed == 0)
     {
-        output.color = float4(1, 0, 1, 1); // magenta (no texture)
+        output.color = float4(1, 0, 1, 1); // magenta
         output.cTexture = output.color;
         output.cIllumination = float4(0, 0, 0, 0);
         output.normal = float4(0, 0, 1, 1);
@@ -292,10 +244,8 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
         return output;
     }
 
-    // 실제 SRV 인덱스 복원
     uint diffuseIndex = packed - 1;
 
-    // SRV 인덱스 범위 체크
     if (diffuseIndex >= MAX_GLOBAL_SRVS)
     {
         output.color = float4(1, 0, 0, 1); // red (bad index)
@@ -306,32 +256,31 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
         return output;
     }
 
-    // =========================================
-    // 2) 텍스처 샘플링
-    // =========================================
+    // =========================================================
+    // 2. 텍스처 샘플링
+    // =========================================================
     float4 texColor =
         gtxtGlobalTextures[diffuseIndex]
             .Sample(gssDefaultSamplerState, input.uv);
 
-    // =========================================
-    // 3) 출력 (현재는 조명 무시 테스트 모드)
-    // =========================================
-    output.cTexture = texColor;
-    output.cIllumination = float4(1, 1, 1, 1); // 테스트용
-    output.color = texColor; // ★ 최종 컬러
-    output.normal = float4(0, 0, 1, 1);
-    output.zDepth = input.position.z;
+    // =========================================================
+    // 3. 조명 계산
+    // =========================================================
+    float3 normalW = normalize(input.normalW);
+    float4 illumination = Lighting(input.positionW, normalW);
 
-    // -----------------------------------------
-    // 디버그 색상 (packed 기준)
-    // -----------------------------------------
-    //if (packed == 1) // 실제 diffuseIndex == 0
-    //    output.color = float4(0, 1, 0, 1); // green
-    //if (packed == 2) // 실제 diffuseIndex == 1
-    //    output.color = float4(1, 1, 1, 1); // white
+    // =========================================================
+    // 4. MRT 출력
+    // =========================================================
+    output.cTexture = texColor;
+    output.cIllumination = illumination;
+    output.color = texColor * illumination;
+    output.normal = float4(normalW * 0.5f + 0.5f, 1.0f);
+    output.zDepth = input.position.z;
 
     return output;
 }
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 

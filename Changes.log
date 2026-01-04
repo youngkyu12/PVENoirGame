@@ -1,0 +1,18 @@
+2021182031 이현석 <오전 3:29 2026-01-05>
+1. Mesh 구조 변환
+	단일 Mesh 기반 -> 다중 SubMesh 기반으로 변경. 
+	서브메시마다 각자 자신의 Material을 갖음.
+
+2. SRV 관리 방식: 글로벌 SRV 힙 기반 인덱스 방식으로 변경
+
+	글로벌 SRV 힙에 Texture SRV들을 절대 인덱스로 관리하고,
+	Material은 해당 SRV 인덱스를 참조하는 방식으로 변경됨.
+	SebMesh별 Material 생성 시 글로벌 SRV 힙에 Marterial이 있으면 해당 Marterial 사용, 없으면 생성.
+
+	(글로벌 SRV 힙 Marterial 구간 가시성 예시)
+	|0. A1_head	|---|1. A1_arm|---|2. A1_body|---|3. B2_head|---|4. B2_arm| ...
+
+3. 오브젝트 Shader: CSkinned <-> CStatic 분리
+	CStaticObjectsShader는 정적 오브젝트, CSkinnedObjectsShader는 동적 오브젝트 소유.
+	CSkinnedObjectsShader 소유 오브젝트는 애니메이터용 변수들을 갖고, 상태에 따르게 애니메이션 클립 실행할 예정
+	※상태는 아직 구현X, 클립 실행까지만 구현됨.

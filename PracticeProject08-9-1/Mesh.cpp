@@ -401,12 +401,12 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
         CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
         CD3DX12_RESOURCE_DESC   vbDesc = CD3DX12_RESOURCE_DESC::Buffer(vbSize);
 
-        // Vertex Buffer (Default)
+        // Vertex Buffer (Default) - 버퍼는 초기 상태를 COMMON으로 두는 게 정석
         HRESULT hr = device->CreateCommittedResource(
             &heapProps,
             D3D12_HEAP_FLAG_NONE,
             &vbDesc,
-            D3D12_RESOURCE_STATE_COPY_DEST,
+            D3D12_RESOURCE_STATE_COMMON,   // ★ 변경
             nullptr,
             IID_PPV_ARGS(&sm.vb));
 
@@ -425,14 +425,28 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
         memcpy(mapped, vertices.data(), vbSize);
         sm.vbUpload->Unmap(0, nullptr);
 
+        // ★ Copy 전에 COMMON -> COPY_DEST 로 전이
+        {
+            CD3DX12_RESOURCE_BARRIER toCopy =
+                CD3DX12_RESOURCE_BARRIER::Transition(
+                    sm.vb,                       // sm.vb가 ComPtr이면 Get(), 포인터면 sm.vb
+                    D3D12_RESOURCE_STATE_COMMON,
+                    D3D12_RESOURCE_STATE_COPY_DEST);
+            cmdList->ResourceBarrier(1, &toCopy);
+        }
+
         cmdList->CopyBufferRegion(sm.vb, 0, sm.vbUpload, 0, vbSize);
 
-        CD3DX12_RESOURCE_BARRIER vbBarrier =
-            CD3DX12_RESOURCE_BARRIER::Transition(
-                sm.vb,
-                D3D12_RESOURCE_STATE_COPY_DEST,
-                D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-        cmdList->ResourceBarrier(1, &vbBarrier);
+        // Copy 후 COPY_DEST -> VERTEX
+        {
+            CD3DX12_RESOURCE_BARRIER toVB =
+                CD3DX12_RESOURCE_BARRIER::Transition(
+                    sm.vb,
+                    D3D12_RESOURCE_STATE_COPY_DEST,
+                    D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+            cmdList->ResourceBarrier(1, &toVB);
+        }
+
 
         sm.vbView.BufferLocation = sm.vb->GetGPUVirtualAddress();
         sm.vbView.SizeInBytes = vbSize;
@@ -448,7 +462,7 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
                 &heapProps,
                 D3D12_HEAP_FLAG_NONE,
                 &ibDesc,
-                D3D12_RESOURCE_STATE_COPY_DEST,
+                D3D12_RESOURCE_STATE_COMMON,    // ★ 변경
                 nullptr,
                 IID_PPV_ARGS(&sm.ib));
 
@@ -464,14 +478,28 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
             memcpy(mapped, indices.data(), ibSize);
             sm.ibUpload->Unmap(0, nullptr);
 
+            // ★ Copy 전에 COMMON -> COPY_DEST
+            {
+                CD3DX12_RESOURCE_BARRIER toCopy =
+                    CD3DX12_RESOURCE_BARRIER::Transition(
+                        sm.ib,
+                        D3D12_RESOURCE_STATE_COMMON,
+                        D3D12_RESOURCE_STATE_COPY_DEST);
+                cmdList->ResourceBarrier(1, &toCopy);
+            }
+
             cmdList->CopyBufferRegion(sm.ib, 0, sm.ibUpload, 0, ibSize);
 
-            CD3DX12_RESOURCE_BARRIER ibBarrier =
-                CD3DX12_RESOURCE_BARRIER::Transition(
-                    sm.ib,
-                    D3D12_RESOURCE_STATE_COPY_DEST,
-                    D3D12_RESOURCE_STATE_INDEX_BUFFER);
-            cmdList->ResourceBarrier(1, &ibBarrier);
+            // Copy 후 COPY_DEST -> INDEX
+            {
+                CD3DX12_RESOURCE_BARRIER toIB =
+                    CD3DX12_RESOURCE_BARRIER::Transition(
+                        sm.ib,
+                        D3D12_RESOURCE_STATE_COPY_DEST,
+                        D3D12_RESOURCE_STATE_INDEX_BUFFER);
+                cmdList->ResourceBarrier(1, &toIB);
+            }
+
 
             sm.ibView.BufferLocation = sm.ib->GetGPUVirtualAddress();
             sm.ibView.SizeInBytes = ibSize;
