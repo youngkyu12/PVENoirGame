@@ -92,18 +92,18 @@ CIlluminatedTexturedShader::~CIlluminatedTexturedShader()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
-CObjectsShader::CObjectsShader()
+CStaticObjectsShader::CStaticObjectsShader()
 {
 	//m_xObjects = 10, m_yObjects = 10, m_zObjects = 10;
 	//m_nObjects = (m_xObjects * 2 + 1) * (m_yObjects * 2 + 1) * (m_zObjects * 2 + 1);
 	m_nObjects = 1;
 }
 
-CObjectsShader::~CObjectsShader()
+CStaticObjectsShader::~CStaticObjectsShader()
 {
 }
 
-void CObjectsShader::ReleaseShaderVariables()
+void CStaticObjectsShader::ReleaseShaderVariables()
 {
 	if (m_pd3dcbGameObjects)
 	{
@@ -114,11 +114,54 @@ void CObjectsShader::ReleaseShaderVariables()
 	CIlluminatedTexturedShader::ReleaseShaderVariables();
 }
 
-void CObjectsShader::ReleaseObjects()
+void CStaticObjectsShader::ReleaseObjects()
 {
 }
 
-void CObjectsShader::ReleaseUploadBuffers()
+void CStaticObjectsShader::ReleaseUploadBuffers()
+{
+	if (!m_ppObjects.empty())
+	{
+		for (int j = 0; j < m_nObjects; j++)
+			if (m_ppObjects[j])
+				m_ppObjects[j]->ReleaseUploadBuffers();
+	}
+
+#ifdef _WITH_BATCH_MATERIAL
+	if (m_pMaterial)
+		m_pMaterial->ReleaseUploadBuffers();
+#endif
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+CSkinnedObjectsShader::CSkinnedObjectsShader()
+{
+	//m_xObjects = 10, m_yObjects = 10, m_zObjects = 10;
+	//m_nObjects = (m_xObjects * 2 + 1) * (m_yObjects * 2 + 1) * (m_zObjects * 2 + 1);
+	m_nObjects = 1;
+}
+
+CSkinnedObjectsShader::~CSkinnedObjectsShader()
+{
+}
+
+void CSkinnedObjectsShader::ReleaseShaderVariables()
+{
+	if (m_pd3dcbGameObjects)
+	{
+		m_pd3dcbGameObjects->Unmap(0, NULL);
+		m_pd3dcbGameObjects.Reset();
+	}
+
+	CIlluminatedTexturedShader::ReleaseShaderVariables();
+}
+
+void CSkinnedObjectsShader::ReleaseObjects()
+{
+}
+
+void CSkinnedObjectsShader::ReleaseUploadBuffers()
 {
 	if (!m_ppObjects.empty())
 	{
