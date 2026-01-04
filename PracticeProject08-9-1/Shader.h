@@ -7,6 +7,7 @@
 #include "Object.h"
 #include "Camera.h"
 #include "Texture.h"
+#include "AnimatorData.h"
 
 #define _WITH_SCENE_ROOT_SIGNATURE
 
@@ -61,6 +62,22 @@ protected:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
+class CPlayerShader : public CShader
+{
+public:
+	CPlayerShader();
+	virtual ~CPlayerShader();
+
+	virtual D3D12_INPUT_LAYOUT_DESC CreateInputLayout();
+	virtual D3D12_DEPTH_STENCIL_DESC CreateDepthStencilState();
+
+	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob);
+	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob);
+
+	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext);
+};
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
 class CTexturedShader : public CShader
 {
 public:
@@ -91,11 +108,11 @@ public:
 //
 #define _WITH_BATCH_MATERIAL
 
-class CObjectsShader : public CIlluminatedTexturedShader
+class CStaticObjectsShader : public CIlluminatedTexturedShader
 {
 public:
-	CObjectsShader();
-	virtual ~CObjectsShader();
+	CStaticObjectsShader();
+	virtual ~CStaticObjectsShader();
 
 	virtual void CreateShader(ID3D12Device *pd3dDevice, ID3D12RootSignature *pd3dGraphicsRootSignature, UINT nRenderTargets, DXGI_FORMAT *pdxgiRtvFormats, DXGI_FORMAT dxgiDsvFormat);
 
@@ -127,22 +144,48 @@ protected:
 #endif
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-class CPlayerShader : public CShader
+class CSkinnedObjectsShader : public CIlluminatedTexturedShader
 {
 public:
-	CPlayerShader();
-	virtual ~CPlayerShader();
+	CSkinnedObjectsShader();
+	virtual ~CSkinnedObjectsShader();
 
-	//virtual D3D12_INPUT_LAYOUT_DESC CreateInputLayout();
-	virtual D3D12_DEPTH_STENCIL_DESC CreateDepthStencilState();
+	virtual void CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGraphicsRootSignature, UINT nRenderTargets, DXGI_FORMAT* pdxgiRtvFormats, DXGI_FORMAT dxgiDsvFormat);
 
 	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob);
 	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob);
 
-	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext);
+	virtual D3D12_INPUT_LAYOUT_DESC CreateInputLayout();
+	virtual void BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList, void* pContext = nullptr);
+	virtual void AnimateObjects(float fTimeElapsed);
+	virtual void ReleaseObjects();
+
+	virtual void CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
+	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext);
+	virtual void ReleaseShaderVariables();
+
+	virtual void ReleaseUploadBuffers();
+
+	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext = nullptr);
+
+	int GetNumberOfObjects() { return(m_nObjects); }
+
+protected:
+	vector<unique_ptr<CGameObject>> m_ppObjects;
+	int								m_nObjects = 0;
+
+	ComPtr<ID3D12Resource>			m_pd3dcbGameObjects;
+	CB_GAMEOBJECT_INFO* m_pcbMappedGameObjects = nullptr;
+
+protected:
+	ComPtr<ID3D12Resource> m_pd3dcbBonePalette;
+	CB_BONE_PALETTE* m_pcbMappedBonePalette = nullptr;
+
+#ifdef _WITH_BATCH_MATERIAL
+	shared_ptr<CMaterial>			m_pMaterial;
+#endif
 };
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 class CPostProcessingShader : public CShader

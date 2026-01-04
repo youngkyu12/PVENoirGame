@@ -6,6 +6,7 @@
 
 #include "Mesh.h"
 #include "Camera.h"
+#include "Animator.h"
 
 #define DIR_FORWARD					0x01
 #define DIR_BACKWARD				0x02
@@ -17,6 +18,7 @@
 class CMesh;
 class CShader;
 class CMaterial;
+class CAnimator;
 
 struct CB_GAMEOBJECT_INFO
 {
@@ -67,8 +69,19 @@ public:
 	void SetCbvGPUDescriptorHandlePtr(UINT64 nCbvGPUDescriptorHandlePtr) { m_d3dCbvGPUDescriptorHandle.ptr = nCbvGPUDescriptorHandlePtr; }
 	D3D12_GPU_DESCRIPTOR_HANDLE GetCbvGPUDescriptorHandle() { return(m_d3dCbvGPUDescriptorHandle); }
 
-	virtual void SetRootParameter(ID3D12GraphicsCommandList* pd3dCommandList) {
-		pd3dCommandList->SetGraphicsRootDescriptorTable(ROOT_PARAMETER_OBJECT, m_d3dCbvGPUDescriptorHandle);
+	virtual void SetRootParameter(ID3D12GraphicsCommandList* cmd)
+	{
+		// 기존: per-object CBV descriptor table
+		cmd->SetGraphicsRootDescriptorTable(ROOT_PARAMETER_OBJECT, m_d3dCbvGPUDescriptorHandle);
+
+		// 추가: skinned면 b7(root param 7)에 bone palette CBV 바인딩
+		if (m_bSkinnedObject)
+		{
+			cmd->SetGraphicsRootConstantBufferView(
+				ROOT_PARAMETER_BONE_PALETTE,   // == b7
+				m_pd3dcbBoneTransforms->GetGPUVirtualAddress()
+			);
+		}
 	}
 
 	XMFLOAT3 GetPosition() const { return(XMFLOAT3(m_xmf4x4World._41, m_xmf4x4World._42, m_xmf4x4World._43)); }
@@ -85,7 +98,6 @@ public:
 		SetPosition(xmf3Position.x, xmf3Position.y, xmf3Position.z);
 	}
 
-
 public:
 	XMFLOAT4X4						m_xmf4x4World = Matrix4x4::Identity();
 
@@ -96,14 +108,59 @@ public:
 
 	D3D12_GPU_DESCRIPTOR_HANDLE		m_d3dCbvGPUDescriptorHandle = { 0 };
 
+	void SetWorldMatrix(const XMFLOAT4X4& xmf4x4World) { m_xmf4x4World = xmf4x4World; }
+	XMFLOAT4X4 GetWorldMatrix() { return(m_xmf4x4World); }
+
+	// ================================
+	// Animation / Skinning (per-object)
+	// ================================
+	void EnableSkinning(ID3D12Device* pd3dDevice, int nBones);
+	void DisableSkinning();
+
+	bool IsSkinnedObject() const { return m_bSkinnedObject; }
+	int  GetBoneCount()    const { return m_nBones; }
+
+	// Mesh가 들고 있는 "스켈레톤 메타데이터" 접근 (forward)
+	const std::vector<Bone>& GetBones() const;
+	const std::unordered_map<std::string, int>& GetBoneNameToIndex() const;
+
+	// Bone palette CB (b7 등에 바인딩할 GPU VA)
+	D3D12_GPU_VIRTUAL_ADDRESS GetBoneCBAddress() const;
+
+	// Animator는 오브젝트가 소유 (메시 공유 대비)
+	CAnimator* EnsureAnimator();
+	CAnimator* GetAnimator() const { return m_pAnimator.get(); }
+	void PlayAnimation(const std::string& name, bool loop = true, float start = 0.0f);
+
+	// CPU -> GPU 팔레트 업데이트 (Animator에서 만든 최종 본 행렬 업로드)
+	void UpdateBoneTransformsOnGPU(const XMFLOAT4X4* pxmf4x4BoneTransforms, int nBones);
+
 protected:
 	ComPtr<ID3D12Resource>			m_pd3dcbGameObject;
 	CB_GAMEOBJECT_INFO* m_pcbMappedGameObject = nullptr;
+
+	// --------------------
+	// Skinning (per-object)
+	// --------------------
+	bool                                m_bSkinnedObject = false;
+	int                                 m_nBones = 0;
+
+	ComPtr<ID3D12Resource>              m_pd3dcbBoneTransforms = NULL;   // Upload heap CB
+	
+	// Animator (per-object)
+	std::unique_ptr<CAnimator>          m_pAnimator;
 
 public:
 	void SetMappedGameObjectCB(CB_GAMEOBJECT_INFO* p) { m_pcbMappedGameObject = p; }
 	CB_GAMEOBJECT_INFO* GetMappedGameObjectCB() const { return m_pcbMappedGameObject; }
 
+protected:
+	XMFLOAT4X4* m_pcbMappedBoneTransforms = nullptr;
+
+public:
+	void CreateBonePaletteShaderVariables(ID3D12Device*);
+	void UpdateBonePaletteShaderVariables();
+	void ReleaseBonePaletteShaderVariables();
 };
 
 class CRotatingObject : public CGameObject
