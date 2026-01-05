@@ -220,12 +220,12 @@ std::wstring ResolveTexturePath(
 		{
 			if (s.empty()) return std::wstring();
 
-			int len = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
+			int len = MultiByteToWideChar(CP_UTF8,0,s.c_str(),-1,nullptr,0);
 			if (len <= 0) return std::wstring();
 
 			std::wstring ws;
-			ws.resize(static_cast<size_t>(len - 1)); // -1: null 제외
-			MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, ws.data(), len);
+			ws.resize(static_cast<size_t>(len - 1)); // null 제외
+			MultiByteToWideChar(CP_UTF8,0,s.c_str(),-1,&ws[0],len);
 			return ws;
 		};
 

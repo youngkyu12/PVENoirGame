@@ -140,7 +140,8 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
             if (len == 0) { s.clear(); return true; }
 
             s.resize(len);
-            if (!ReadRaw(s.data(), len)) return false;
+            //if (!ReadRaw(s.data(), len)) return false;
+            if (!ReadRaw(&s[0], len)) return false;
             return true;
         };
 
