@@ -8,7 +8,8 @@ struct MATERIALS;
 enum class AssetType
 {
     Unitychan,
-    Airplane
+    Castle,
+    Plane
 };
 
 // BuildAsset에 넘길 데이터 묶음
