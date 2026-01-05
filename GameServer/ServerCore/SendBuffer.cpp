@@ -1,7 +1,10 @@
 #include "pch.h"
 #include "SendBuffer.h"
 
-//SendBuffer
+/*----------------
+	SendBuffer
+-----------------*/
+
 SendBuffer::SendBuffer(SendBufferChunkRef owner, BYTE* buffer, uint32 allocSize)
 	: _owner(owner), _buffer(buffer), _allocSize(allocSize)
 {
@@ -18,7 +21,9 @@ void SendBuffer::Close(uint32 writeSize)
 	_owner->Close(writeSize);
 }
 
-//SendBufferChunk
+/*--------------------
+	SendBufferChunk
+--------------------*/
 
 SendBufferChunk::SendBufferChunk()
 {
@@ -53,7 +58,9 @@ void SendBufferChunk::Close(uint32 writeSize)
 	_usedSize += writeSize;
 }
 
-//SendBufferManager
+/*---------------------
+	SendBufferManager
+----------------------*/
 
 SendBufferRef SendBufferManager::Open(uint32 size)
 {

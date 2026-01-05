@@ -7,6 +7,7 @@
 #include "BufferWriter.h"
 #include "ServerPacketHandler.h"
 #include <tchar.h>
+#include "Protocol.pb.h"
 
 int main()
 {
@@ -33,8 +34,25 @@ int main()
 
 	while (true)
 	{
-		vector<BuffData> buffs{ BuffData {100, 1.5f}, BuffData{200, 2.3f}, BuffData {300, 0.7f } };
-		SendBufferRef sendBuffer = ServerPacketHandler::Make_S_TEST(1001, 100, 10, buffs, L"안녕하세요");
+		Protocol::S_TEST pkt;
+		pkt.set_id(1000);
+		pkt.set_hp(100);
+		pkt.set_attack(10);
+		{
+			Protocol::BuffData* data = pkt.add_buffs();
+			data->set_buffid(100);
+			data->set_remaintime(1.2f);
+			data->add_victims(4000);
+		}
+		{
+			Protocol::BuffData* data = pkt.add_buffs();
+			data->set_buffid(200);
+			data->set_remaintime(2.5f);
+			data->add_victims(1000);
+			data->add_victims(2000);
+		}
+
+		SendBufferRef sendBuffer = ServerPacketHandler::MakeSendBuffer(pkt);
 		GSessionManager.Broadcast(sendBuffer);
 
 		this_thread::sleep_for(250ms);
