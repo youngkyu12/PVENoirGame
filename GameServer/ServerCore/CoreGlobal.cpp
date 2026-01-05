@@ -6,10 +6,9 @@
 #include "SocketUtils.h"
 #include "SendBuffer.h"
 
-
 ThreadManager*		GThreadManager = nullptr;
 Memory*				GMemory = nullptr;
-SendBufferManager* GSendBufferManager = nullptr;
+SendBufferManager*	GSendBufferManager = nullptr;
 
 DeadLockProfiler*	GDeadLockProfiler = nullptr;
 
@@ -29,6 +28,7 @@ public:
 	{
 		delete GThreadManager;
 		delete GMemory;
+		delete GSendBufferManager;
 		delete GDeadLockProfiler;
 		SocketUtils::Clear();
 	}

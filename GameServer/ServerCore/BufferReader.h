@@ -1,6 +1,8 @@
 #pragma once
 
-//BufferReader
+/*----------------
+	BufferReader
+-----------------*/
 
 class BufferReader
 {
@@ -15,15 +17,15 @@ public:
 	uint32			FreeSize() { return _size - _pos; }
 
 	template<typename T>
-	bool			Peak(OUT T* dest) { return Peak(dest, sizeof(T)); }
-	bool			Peak(void* dest, uint32 len);
+	bool			Peek(T* dest) { return Peek(dest, sizeof(T)); }
+	bool			Peek(void* dest, uint32 len);
 
 	template<typename T>
-	bool			Read(OUT T* dest) { return Read(dest, sizeof(T)); }
+	bool			Read(T* dest) { return Read(dest, sizeof(T)); }
 	bool			Read(void* dest, uint32 len);
-		
+
 	template<typename T>
-	BufferReader& operator>>(OUT T& dest);
+	BufferReader&	operator>>(OUT T& dest);
 
 private:
 	BYTE*			_buffer = nullptr;
