@@ -1,6 +1,9 @@
 #include "pch.h"
 #include "BufferReader.h"
-#include "BufferWriter.h"
+
+/*----------------
+	BufferReader
+-----------------*/
 
 BufferReader::BufferReader()
 {
@@ -17,9 +20,7 @@ BufferReader::~BufferReader()
 
 }
 
-
-
-bool BufferReader::Peak(void* dest, uint32 len)
+bool BufferReader::Peek(void* dest, uint32 len)
 {
 	if (FreeSize() < len)
 		return false;
@@ -30,10 +31,9 @@ bool BufferReader::Peak(void* dest, uint32 len)
 
 bool BufferReader::Read(void* dest, uint32 len)
 {
-	if(Peak(dest, len) == false)
+	if (Peek(dest, len) == false)
 		return false;
 
 	_pos += len;
 	return true;
 }
-

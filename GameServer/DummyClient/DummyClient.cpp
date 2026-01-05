@@ -1,11 +1,11 @@
 ﻿#include "pch.h"
-#include <iostream>
 #include "ThreadManager.h"
 #include "Service.h"
 #include "Session.h"
 #include "BufferReader.h"
+#include "ClientPacketHandler.h"
 
-
+char sendData[] = "Hello World";
 
 class ServerSession : public PacketSession
 {
@@ -17,30 +17,12 @@ public:
 
 	virtual void OnConnected() override
 	{
-		//cout << "Connected to Server" << endl;
-
+		//cout << "Connected To Server" << endl;
 	}
 
-	virtual int32 OnRecvPacket(BYTE* buffer, int32 len) override
+	virtual void OnRecvPacket(BYTE* buffer, int32 len) override
 	{
-		BufferReader br(buffer, len);
-
-		PacketHeader header;
-		br >> header;
-
-		uint64 id;
-		uint32 hp;
-		uint16 attack;
-		br >> id >> hp >> attack;
-		cout << "Recv Packet : Id = " << id << ", Hp = " << hp << ", Attack = " << attack << endl;
-
-		char recvBuffer[4096];
-		br.Read(recvBuffer, header.size - sizeof(PacketHeader) - 8 - 4 - 2);
-
-		// Echo
-		cout << recvBuffer << endl;
-
-		return len;
+		ClientPacketHandler::HandlePacket(buffer, len);
 	}
 
 	virtual void OnSend(int32 len) override
@@ -52,7 +34,6 @@ public:
 	{
 		//cout << "Disconnected" << endl;
 	}
-
 };
 
 int main()
@@ -63,7 +44,7 @@ int main()
 		NetAddress(L"127.0.0.1", 7777),
 		MakeShared<IocpCore>(),
 		MakeShared<ServerSession>, // TODO : SessionManager 등
-		1000);
+		1);
 
 	ASSERT_CRASH(service->Start());
 

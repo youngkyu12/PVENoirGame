@@ -58,16 +58,17 @@ ClientService::ClientService(NetAddress targetAddress, IocpCoreRef core, Session
 
 bool ClientService::Start()
 {
-	if(CanStart() == false)
+	if (CanStart() == false)
 		return false;
 
 	const int32 sessionCount = GetMaxSessionCount();
-	for(int32 i = 0; i < sessionCount; i++)
+	for (int32 i = 0; i < sessionCount; i++)
 	{
 		SessionRef session = CreateSession();
-		if(session->Connect() == false)
+		if (session->Connect() == false)
 			return false;
 	}
+
 	return true;
 }
 
