@@ -206,3 +206,33 @@ protected:
 	ComPtr<ID3D12Resource>			m_pd3dcbDrawOptions;
 	PS_CB_DRAW_OPTIONS				*m_pcbMappedDrawOptions = nullptr;
 };
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+class CTerrainShader : public CTexturedShader
+{
+public:
+	CTerrainShader() {};
+	virtual ~CTerrainShader() {};
+
+	virtual D3D12_INPUT_LAYOUT_DESC CreateInputLayout();
+
+	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob);
+	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob);
+
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+class CTerrainWaterShader : public CTexturedShader
+{
+public:
+	CTerrainWaterShader() {};
+	virtual ~CTerrainWaterShader() {};
+
+	virtual D3D12_INPUT_LAYOUT_DESC CreateInputLayout();
+
+	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob);
+	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob);
+
+};

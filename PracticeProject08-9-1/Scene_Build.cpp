@@ -156,11 +156,24 @@ void CScene::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* p
 	pObjectShader->BuildObjects(pd3dDevice, pd3dCommandList, m_pMaterials.get());
 	m_ppShaders[0] = pObjectShader;
 
+	XMFLOAT3 xmf3Scale(8.0f, 2.0f, 8.0f);
+	XMFLOAT4 xmf4Color(0.0f, 0.5f, 0.0f, 0.0f);
+#ifdef _WITH_TERRAIN_PARTITION
+	m_pTerrain = make_unique<CHeightMapTerrain>(pd3dDevice, pd3dCommandList, m_pd3dGraphicsRootSignature,Get(), _T("Image/HeightMap.raw"), 257, 257, 17, 17, xmf3Scale, xmf4Color);
+#else
+	m_pTerrain = make_unique<CHeightMapTerrain>(pd3dDevice, pd3dCommandList, m_pd3dGraphicsRootSignature.Get(), _T("Image/HeightMap.raw"), 257, 257, 257, 257, xmf3Scale, xmf4Color);
+#endif
+
+	m_pTerrainWater = make_unique<CTerrainWater>(pd3dDevice, pd3dCommandList, m_pd3dGraphicsRootSignature.Get(), 257 * xmf3Scale.x, 257 * xmf3Scale.z);
+	m_pTerrainWater->SetPosition(+(257 * xmf3Scale.x * 0.5f), 155.0f, +(257 * xmf3Scale.z * 0.5f));
+
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
 }
 
 void CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevice)
 {
+	HRESULT hResult;
+
 	// (1) Descriptor Ranges: CBV table 1개 + Global SRV table 1개만 남긴다.
 	D3D12_DESCRIPTOR_RANGE pd3dDescriptorRanges[2] = {};
 
@@ -262,35 +275,32 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevice)
 	ComPtr<ID3DBlob> pd3dSignatureBlob;
 	ComPtr<ID3DBlob> pd3dErrorBlob;
 
-	HRESULT hr = D3D12SerializeRootSignature(
+	hResult = D3D12SerializeRootSignature(
 		&d3dRootSignatureDesc,
 		D3D_ROOT_SIGNATURE_VERSION_1,
 		&pd3dSignatureBlob,
 		&pd3dErrorBlob
 	);
 
-	if (FAILED(hr))
+	if (FAILED(hResult))
 	{
 		if (pd3dErrorBlob)
 			OutputDebugStringA((char*)pd3dErrorBlob->GetBufferPointer());
 		return;
 	}
 
-	hr = pd3dDevice->CreateRootSignature(
+	hResult = pd3dDevice->CreateRootSignature(
 		0,
 		pd3dSignatureBlob->GetBufferPointer(),
 		pd3dSignatureBlob->GetBufferSize(),
 		IID_PPV_ARGS(m_pd3dGraphicsRootSignature.ReleaseAndGetAddressOf())
 	);
 
-	if (FAILED(hr))
+	if (FAILED(hResult))
 	{
 		OutputDebugStringA("CreateRootSignature failed.\n");
 		return;
 	}
-
-	if (pd3dSignatureBlob) pd3dSignatureBlob.Reset();
-	if (pd3dErrorBlob) pd3dErrorBlob.Reset();
 }
 
 void CScene::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)

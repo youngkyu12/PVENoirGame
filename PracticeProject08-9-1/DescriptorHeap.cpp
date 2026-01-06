@@ -42,11 +42,11 @@ void CDescriptorHeap::CreateCbvSrvDescriptorHeaps(ID3D12Device* pd3dDevice, int 
 void CDescriptorHeap::CreateConstantBufferViews(ID3D12Device* pd3dDevice, int nConstantBufferViews, ID3D12Resource* pd3dConstantBuffers, UINT nStride)
 {
 	D3D12_GPU_VIRTUAL_ADDRESS d3dGpuVirtualAddress = pd3dConstantBuffers->GetGPUVirtualAddress();
-	D3D12_CONSTANT_BUFFER_VIEW_DESC d3dCBVDesc;
+	D3D12_CONSTANT_BUFFER_VIEW_DESC d3dCBVDesc = {};
 	d3dCBVDesc.SizeInBytes = nStride;
-	for (int j = 0; j < nConstantBufferViews; j++)
+	for (int i = 0; i < nConstantBufferViews; ++i)
 	{
-		d3dCBVDesc.BufferLocation = d3dGpuVirtualAddress + (nStride * j);
+		d3dCBVDesc.BufferLocation = d3dGpuVirtualAddress + (nStride * i);
 		pd3dDevice->CreateConstantBufferView(&d3dCBVDesc, m_d3dCbvCPUDescriptorNextHandle);
 		m_d3dCbvCPUDescriptorNextHandle.ptr += ::gnCbvSrvDescriptorIncrementSize;
 		m_d3dCbvGPUDescriptorNextHandle.ptr += ::gnCbvSrvDescriptorIncrementSize;
@@ -55,7 +55,7 @@ void CDescriptorHeap::CreateConstantBufferViews(ID3D12Device* pd3dDevice, int nC
 
 D3D12_GPU_DESCRIPTOR_HANDLE CDescriptorHeap::CreateConstantBufferView(ID3D12Device* pd3dDevice, ID3D12Resource* pd3dConstantBuffer, UINT nStride)
 {
-	D3D12_CONSTANT_BUFFER_VIEW_DESC d3dCBVDesc;
+	D3D12_CONSTANT_BUFFER_VIEW_DESC d3dCBVDesc = {};
 	d3dCBVDesc.SizeInBytes = nStride;
 	d3dCBVDesc.BufferLocation = pd3dConstantBuffer->GetGPUVirtualAddress();
 	pd3dDevice->CreateConstantBufferView(&d3dCBVDesc, m_d3dCbvCPUDescriptorNextHandle);
@@ -68,7 +68,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE CDescriptorHeap::CreateConstantBufferView(ID3D12Devi
 
 D3D12_GPU_DESCRIPTOR_HANDLE CDescriptorHeap::CreateConstantBufferView(ID3D12Device* pd3dDevice, D3D12_GPU_VIRTUAL_ADDRESS d3dGpuVirtualAddress, UINT nStride)
 {
-	D3D12_CONSTANT_BUFFER_VIEW_DESC d3dCBVDesc;
+	D3D12_CONSTANT_BUFFER_VIEW_DESC d3dCBVDesc = {};
 	d3dCBVDesc.SizeInBytes = nStride;
 	d3dCBVDesc.BufferLocation = d3dGpuVirtualAddress;
 	pd3dDevice->CreateConstantBufferView(&d3dCBVDesc, m_d3dCbvCPUDescriptorNextHandle);
@@ -110,7 +110,7 @@ void CDescriptorHeap::CreateShaderResourceViews(
 	gpuHandle.ptr += (::gnCbvSrvDescriptorIncrementSize * nDescriptorHeapIndex);
 
 	int nTextures = pTexture->GetTextures();
-	for (int i = 0; i < nTextures; i++)
+	for (int i = 0; i < nTextures; ++i)
 	{
 		ComPtr<ID3D12Resource> pShaderResource = pTexture->GetResource(i);
 		if (!pShaderResource)
@@ -139,7 +139,7 @@ void CDescriptorHeap::CreateShaderResourceViews(
 	}
 
 	int nRootParameters = pTexture->GetRootParameters();
-	for (int i = 0; i < nRootParameters; i++)
+	for (int i = 0; i < nRootParameters; ++i)
 	{
 		pTexture->SetRootParameterIndex(i, nRootParameterStartIndex + i);
 	}
@@ -150,11 +150,11 @@ void CDescriptorHeap::CreateShaderResourceViews(
 
 void CDescriptorHeap::CreateShaderResourceViews(ID3D12Device* pd3dDevice, int nResources, ID3D12Resource** ppd3dResources, DXGI_FORMAT* pdxgiSrvFormats)
 {
-	for (int i = 0; i < nResources; i++)
+	for (int i = 0; i < nResources; ++i)
 	{
 		if (ppd3dResources[i])
 		{
-			D3D12_SHADER_RESOURCE_VIEW_DESC d3dShaderResourceViewDesc;
+			D3D12_SHADER_RESOURCE_VIEW_DESC d3dShaderResourceViewDesc = {};
 			d3dShaderResourceViewDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 			d3dShaderResourceViewDesc.Format = pdxgiSrvFormats[i];
 			d3dShaderResourceViewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -175,7 +175,7 @@ void CDescriptorHeap::CreateShaderResourceViews(ID3D12Device* pd3dDevice, int nR
 
 D3D12_GPU_DESCRIPTOR_HANDLE CDescriptorHeap::CreateShaderResourceView(ID3D12Device* pd3dDevice, ID3D12Resource* pd3dResource, DXGI_FORMAT dxgiSrvFormat)
 {
-	D3D12_SHADER_RESOURCE_VIEW_DESC d3dShaderResourceViewDesc;
+	D3D12_SHADER_RESOURCE_VIEW_DESC d3dShaderResourceViewDesc = {};
 	d3dShaderResourceViewDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	d3dShaderResourceViewDesc.Format = dxgiSrvFormat;
 	d3dShaderResourceViewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -279,5 +279,4 @@ void CDescriptorHeap::CreateShaderResourceViews(
 
 	// 실제 SRV 생성은 기존 레거시 함수에 위임(내부적으로 절대 위치 baseIndex 사용)
 	CreateShaderResourceViews(pd3dDevice, pTexture, baseIndex, nRootParameterStartIndex);
-
 }

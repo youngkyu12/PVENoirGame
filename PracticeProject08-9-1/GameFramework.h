@@ -18,7 +18,7 @@
 class CGameFramework {
 public:
 	CGameFramework();
-	~CGameFramework();
+	virtual ~CGameFramework();
 
 	void OnDestroy();
 	void ReleaseObjects();

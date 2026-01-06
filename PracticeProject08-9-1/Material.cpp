@@ -1,9 +1,12 @@
 //-----------------------------------------------------------------------------
-// File: CTexture.cpp
+// File: CMaterial.cpp
 //-----------------------------------------------------------------------------
 
 #include "stdafx.h"
 #include "Material.h"
+#include "Shader.h"
+#include "Texture.h"
+#include "Mesh.h"
 
 CMaterial::CMaterial()
 {
