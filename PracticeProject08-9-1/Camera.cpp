@@ -246,7 +246,7 @@ void CThirdPersonCamera::Update(XMFLOAT3& xmf3LookAt, float fTimeElapsed)
 	}
 }
 
-void CThirdPersonCamera::SetLookAt(XMFLOAT3& xmf3LookAt)
+void CThirdPersonCamera::SetLookAt(const XMFLOAT3& xmf3LookAt)
 {
 	XMFLOAT3 at = xmf3LookAt;
 	at.y = m_xmf3Position.y;                 // 수평 시선: target 높이를 카메라 높이로

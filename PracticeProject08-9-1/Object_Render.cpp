@@ -4,9 +4,9 @@
 
 #include "stdafx.h"
 #include "Object.h"
-#include "Shader.h"
 #include "Texture.h"
 #include "Material.h"
+#include "Scene.h"
 
 void CGameObject::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList)
 {

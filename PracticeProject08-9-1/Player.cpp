@@ -441,6 +441,11 @@ CAirplanePlayer::CAirplanePlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommand
 	SetCbvGPUDescriptorHandle(d3dCbvGPUDescriptorHandle);
 
 	SetShader(pShader);
+
+	CHeightMapTerrain *pTerrain = (CHeightMapTerrain *)pContext;
+	SetPosition(XMFLOAT3(pTerrain->GetWidth()*0.5f, 2000.0f, pTerrain->GetLength()*0.5f));
+	SetPlayerUpdatedContext(pTerrain);
+	SetCameraUpdatedContext(pTerrain);
 }
 
 CAirplanePlayer::~CAirplanePlayer()
@@ -453,6 +458,44 @@ void CAirplanePlayer::OnPrepareRender(ID3D12GraphicsCommandList *pd3dCommandList
 
 	//XMMATRIX mtxRotate = XMMatrixRotationRollPitchYaw(XMConvertToRadians(90.0f), 0.0f, 0.0f);
 	//m_xmf4x4World = Matrix4x4::Multiply(mtxRotate, m_xmf4x4World);
+}
+
+void CAirplanePlayer::OnPlayerUpdateCallback(float fTimeElapsed)
+{
+	CHeightMapTerrain* pTerrain = (CHeightMapTerrain*)m_pPlayerUpdatedContext;
+	XMFLOAT3 xmf3Scale = pTerrain->GetScale();
+	XMFLOAT3 xmf3PlayerPosition = GetPosition();
+	int z = (int)(xmf3PlayerPosition.z / xmf3Scale.z);
+	bool bReverseQuad = ((z % 2) != 0);
+	float fHeight = pTerrain->GetHeight(xmf3PlayerPosition.x, xmf3PlayerPosition.z, bReverseQuad) + 6.0f;
+	if (xmf3PlayerPosition.y < fHeight)
+	{
+		XMFLOAT3 xmf3PlayerVelocity = GetVelocity();
+		xmf3PlayerVelocity.y = 0.0f;
+		SetVelocity(xmf3PlayerVelocity);
+		xmf3PlayerPosition.y = fHeight;
+		SetPosition(xmf3PlayerPosition);
+	}
+}
+
+void CAirplanePlayer::OnCameraUpdateCallback(float fTimeElapsed)
+{
+	CHeightMapTerrain* pTerrain = (CHeightMapTerrain*)m_pCameraUpdatedContext;
+	XMFLOAT3 xmf3Scale = pTerrain->GetScale();
+	XMFLOAT3 xmf3CameraPosition = m_pCamera->GetPosition();
+	int z = (int)(xmf3CameraPosition.z / xmf3Scale.z);
+	bool bReverseQuad = ((z % 2) != 0);
+	float fHeight = pTerrain->GetHeight(xmf3CameraPosition.x, xmf3CameraPosition.z, bReverseQuad) + 5.0f;
+	if (xmf3CameraPosition.y <= fHeight)
+	{
+		xmf3CameraPosition.y = fHeight;
+		m_pCamera->SetPosition(xmf3CameraPosition);
+		if (m_pCamera->GetMode() == THIRD_PERSON_CAMERA)
+		{
+			CThirdPersonCamera* p3rdPersonCamera = (CThirdPersonCamera*)m_pCamera.get();
+			p3rdPersonCamera->SetLookAt(GetPosition());
+		}
+	}
 }
 
 CCamera *CAirplanePlayer::ChangeCamera(DWORD nNewCameraMode, float fTimeElapsed)

@@ -69,6 +69,9 @@ void CGameFramework::ReleaseObjects()
 	if (m_pScene)
 		m_pScene->ReleaseObjects();
 
+	//if (m_pPlayer)
+	//	m_pPlayer->ReleaseObjects();
+
 	if (m_pPostProcessingShader)
 		m_pPostProcessingShader->ReleaseObjects();
 }

@@ -82,7 +82,7 @@ void CGameFramework::CreateDirect3DDevice()
 		return;
 	}
 
-	D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS d3dMsaaQualityLevels;
+	D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS d3dMsaaQualityLevels = {};
 	d3dMsaaQualityLevels.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	d3dMsaaQualityLevels.SampleCount = 4;
 	d3dMsaaQualityLevels.Flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
@@ -101,7 +101,7 @@ void CGameFramework::CreateDirect3DDevice()
 		IID_PPV_ARGS(&m_pd3dFence)
 	);
 
-	for (UINT i = 0; i < m_nSwapChainBuffers; i++)
+	for (UINT i = 0; i < m_nSwapChainBuffers; ++i)
 		m_nFenceValues[i] = 1;
 
 	m_hFenceEvent = ::CreateEvent(nullptr, FALSE, FALSE, nullptr);
@@ -115,8 +115,7 @@ void CGameFramework::CreateCommandQueueAndList()
 {
 	HRESULT hResult;
 
-	D3D12_COMMAND_QUEUE_DESC d3dCommandQueueDesc;
-	::ZeroMemory(&d3dCommandQueueDesc, sizeof(D3D12_COMMAND_QUEUE_DESC));
+	D3D12_COMMAND_QUEUE_DESC d3dCommandQueueDesc = {};
 	d3dCommandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	d3dCommandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
@@ -145,8 +144,7 @@ void CGameFramework::CreateRtvAndDsvDescriptorHeaps()
 {
 	HRESULT hResult;
 
-	D3D12_DESCRIPTOR_HEAP_DESC d3dDescriptorHeapDesc;
-	::ZeroMemory(&d3dDescriptorHeapDesc, sizeof(D3D12_DESCRIPTOR_HEAP_DESC));
+	D3D12_DESCRIPTOR_HEAP_DESC d3dDescriptorHeapDesc = {};
 	d3dDescriptorHeapDesc.NumDescriptors = m_nSwapChainBuffers + 5;
 	d3dDescriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	d3dDescriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
@@ -173,8 +171,7 @@ void CGameFramework::CreateSwapChain()
 	HRESULT hResult;
 
 #ifdef _WITH_CREATE_SWAPCHAIN_FOR_HWND
-	DXGI_SWAP_CHAIN_DESC1 dxgiSwapChainDesc;
-	::ZeroMemory(&dxgiSwapChainDesc, sizeof(DXGI_SWAP_CHAIN_DESC1));
+	DXGI_SWAP_CHAIN_DESC1 dxgiSwapChainDesc = {};
 	dxgiSwapChainDesc.Width = m_nWndClientWidth;
 	dxgiSwapChainDesc.Height = m_nWndClientHeight;
 	dxgiSwapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -191,8 +188,7 @@ void CGameFramework::CreateSwapChain()
 	dxgiSwapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 #endif
 
-	DXGI_SWAP_CHAIN_FULLSCREEN_DESC dxgiSwapChainFullScreenDesc;
-	::ZeroMemory(&dxgiSwapChainFullScreenDesc, sizeof(DXGI_SWAP_CHAIN_FULLSCREEN_DESC));
+	DXGI_SWAP_CHAIN_FULLSCREEN_DESC dxgiSwapChainFullScreenDesc = {};
 	dxgiSwapChainFullScreenDesc.RefreshRate.Numerator = 60;
 	dxgiSwapChainFullScreenDesc.RefreshRate.Denominator = 1;
 	dxgiSwapChainFullScreenDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
@@ -208,8 +204,7 @@ void CGameFramework::CreateSwapChain()
 		(IDXGISwapChain1**)m_pdxgiSwapChain.ReleaseAndGetAddressOf()
 	);
 #else
-	DXGI_SWAP_CHAIN_DESC dxgiSwapChainDesc;
-	::ZeroMemory(&dxgiSwapChainDesc, sizeof(dxgiSwapChainDesc));
+	DXGI_SWAP_CHAIN_DESC dxgiSwapChainDesc = {};
 	dxgiSwapChainDesc.BufferCount = m_nSwapChainBuffers;
 	dxgiSwapChainDesc.BufferDesc.Width = m_nWndClientWidth;
 	dxgiSwapChainDesc.BufferDesc.Height = m_nWndClientHeight;
@@ -241,7 +236,7 @@ void CGameFramework::CreateSwapChain()
 
 void CGameFramework::CreateSwapChainRenderTargetViews()
 {
-	D3D12_RENDER_TARGET_VIEW_DESC d3dRenderTargetViewDesc;
+	D3D12_RENDER_TARGET_VIEW_DESC d3dRenderTargetViewDesc = {};
 	d3dRenderTargetViewDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	d3dRenderTargetViewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 	d3dRenderTargetViewDesc.Texture2D.MipSlice = 0;
@@ -268,7 +263,7 @@ void CGameFramework::CreateSwapChainRenderTargetViews()
 
 void CGameFramework::CreateDepthStencilView()
 {
-	D3D12_RESOURCE_DESC d3dResourceDesc;
+	D3D12_RESOURCE_DESC d3dResourceDesc = {};
 	d3dResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 	d3dResourceDesc.Alignment = 0;
 	d3dResourceDesc.Width = m_nWndClientWidth;
@@ -281,15 +276,14 @@ void CGameFramework::CreateDepthStencilView()
 	d3dResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 	d3dResourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
-	D3D12_HEAP_PROPERTIES d3dHeapProperties;
-	::ZeroMemory(&d3dHeapProperties, sizeof(D3D12_HEAP_PROPERTIES));
+	D3D12_HEAP_PROPERTIES d3dHeapProperties = {};
 	d3dHeapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
 	d3dHeapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
 	d3dHeapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
 	d3dHeapProperties.CreationNodeMask = 1;
 	d3dHeapProperties.VisibleNodeMask = 1;
 
-	D3D12_CLEAR_VALUE d3dClearValue;
+	D3D12_CLEAR_VALUE d3dClearValue = {};
 	d3dClearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;//DXGI_FORMAT_D32_FLOAT;
 	d3dClearValue.DepthStencil.Depth = 1.0f;
 	d3dClearValue.DepthStencil.Stencil = 0;

@@ -13,9 +13,9 @@ cbuffer cbPlayerInfo : register(b0)
 
 cbuffer cbCameraInfo : register(b1)
 {
-	matrix		gmtxView : packoffset(c0);
-	matrix		gmtxProjection : packoffset(c4);
-	float3		gvCameraPosition : packoffset(c8);
+    matrix gmtxView : packoffset(c0);
+    matrix gmtxProjection : packoffset(c4);
+    float3 gvCameraPosition : packoffset(c8);
 };
 
 cbuffer cbGameObjectInfo : register(b2)
@@ -68,9 +68,14 @@ VS_DIFFUSED_OUTPUT VSDiffused(VS_DIFFUSED_INPUT input)
 	return(output);
 }
 
-float4 PSDiffused(VS_DIFFUSED_OUTPUT input): SV_TARGET
+float4 PSDiffused(VS_DIFFUSED_OUTPUT input) : SV_TARGET
 {
-	return(input.color);
+    float4 color = input.color;
+
+    // 감마 보정 적용
+    color.rgb = pow(color.rgb, 1.0 / 2.2);
+
+    return color;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -115,11 +120,23 @@ float4 PSPlayer(VS_PLAYER_OUTPUT input, uint nPrimitiveID : SV_PrimitiveID) : SV
     if (diffuseIndex >= MAX_GLOBAL_SRVS)
         return float4(1, 0, 0, 1); // 잘못된 인덱스
 
+    // 1. 텍스처 샘플 (감마 공간)
     float4 cColor = gtxtGlobalTextures[diffuseIndex]
                         .Sample(gssDefaultSamplerState, input.uv);
+    
+    // 2. 역감마 보정 (감마 → 선형)
+    
+    cColor.rgb = pow(cColor.rgb, 2.2);
 
+     // 3. 라이팅 (선형 공간)
     float4 cIllumination = Lighting(input.positionW, input.normalW);
-    return cColor * cIllumination;
+    
+    float3 linearColor = cColor * cIllumination;
+    
+     // 4. 감마 보정 (선형 → 감마)
+    float3 gammaColor = pow(linearColor, 1.0 / 2.2);
+    
+    return float4(gammaColor, cColor.a);
 }
 
 
@@ -155,6 +172,7 @@ float4 PSTextured(VS_TEXTURED_OUTPUT input, uint nPrimitiveID : SV_PrimitiveID) 
     if (diffuseIndex == 0xFFFFFFFF || diffuseIndex >= MAX_GLOBAL_SRVS)
         return float4(1, 0, 1, 1); // 텍스처 없음/잘못된 인덱스
     
+    // 텍스처 샘플
     return gtxtGlobalTextures[diffuseIndex].Sample(gssDefaultSamplerState, input.uv);
 
 }
@@ -195,12 +213,23 @@ float4 PSTexturedLighting(VS_TEXTURED_LIGHTING_OUTPUT input, uint nPrimitiveID :
     if (diffuseIndex >= MAX_GLOBAL_SRVS)
         return float4(1, 0, 0, 1); // bad index
 
+    // 1. 텍스처 샘플 (감마 공간)
     float4 cTexture = gtxtGlobalTextures[diffuseIndex].Sample(gssDefaultSamplerState, input.uv);
 
+    // 2. 역감마 보정 (감마 → 선형)
+    cTexture.rgb = pow(cTexture.rgb, 2.2);
+    
+    // 3. 라이팅 계산 (선형 공간)
     input.normalW = normalize(input.normalW);
     float4 cIllumination = Lighting(input.positionW, input.normalW);
 
-    return (cTexture * cIllumination);
+    // 4. 색상 계산 (선형 공간)
+    float3 linearColor = cTexture.rgb * cIllumination.rgb;
+    
+    // 5. 감마 보정 (선형 → 감마)
+    float3 gammaColor = pow(linearColor, 1.0 / 2.2);
+    
+    return float4(gammaColor, cTexture.a);
 }
 
 
@@ -391,4 +420,82 @@ float4 PSScreenRectSamplingTextured(VS_TEXTURED_OUTPUT input) : SV_Target
 
     // 나머지는 샘플링
     return gtxtGlobalTextures[idx].Sample(gssDefaultSamplerState, input.uv);
+}
+
+///////////////////////////////////////////////////////////////////////////
+// 지형(미완)
+
+struct VS_TERRAIN_INPUT
+{
+    float3 position : POSITION;
+    float4 color : COLOR;
+    float2 uv0 : TEXCOORD0;
+    float2 uv1 : TEXCOORD1;
+};
+
+struct VS_TERRAIN_OUTPUT
+{
+    float4 position : SV_POSITION;
+    float4 color : COLOR;
+    float2 uv0 : TEXCOORD0;
+    float2 uv1 : TEXCOORD1;
+};
+
+VS_TERRAIN_OUTPUT VSTerrain(VS_TERRAIN_INPUT input)
+{
+    VS_TERRAIN_OUTPUT output;
+
+    output.position = mul(mul(mul(float4(input.position, 1.0f), gmtxGameObject), gmtxView), gmtxProjection);
+    output.color = input.color;
+    output.uv0 = input.uv0;
+    output.uv1 = input.uv1;
+
+    return (output);
+}
+
+float4 PSTerrain(VS_TERRAIN_OUTPUT input) : SV_TARGET
+{
+    float4 cBaseTexColor = gtxtTerrainBaseTexture.Sample(gSamplerState, input.uv0);
+//	float fAlpha = gtxtTerrainAlphaTexture.Sample(gSamplerState, input.uv0);
+    float fAlpha = gtxtTerrainAlphaTexture.Sample(gSamplerState, input.uv0).w;
+
+    float4 cDetailTexColors[3];
+    cDetailTexColors[0] = gtxtTerrainDetailTextures[0].Sample(gSamplerState, input.uv1 * 2.0f);
+    cDetailTexColors[1] = gtxtTerrainDetailTextures[1].Sample(gSamplerState, input.uv1 * 0.125f);
+    cDetailTexColors[2] = gtxtTerrainDetailTextures[2].Sample(gSamplerState, input.uv1);
+
+    float4 cColor = cBaseTexColor * cDetailTexColors[0];
+    cColor += lerp(cDetailTexColors[1] * 0.25f, cDetailTexColors[2], 1.0f - fAlpha);
+/* 
+	cColor = lerp(cDetailTexColors[0], cDetailTexColors[2], 1.0f - fAlpha) ;
+	cColor = lerp(cBaseTexColor, cColor, 0.3f) + cDetailTexColors[1] * (1.0f - fAlpha);
+*/
+/*
+	if (fAlpha < 0.35f) cColor = cDetailTexColors[2];
+	else if (fAlpha > 0.8975f) cColor = cDetailTexColors[0];
+	else cColor = cDetailTexColors[1];
+*/
+    return (cColor);
+}
+
+struct VS_WATER_INPUT
+{
+    float3 position : POSITION;
+    float2 uv : TEXCOORD0;
+};
+
+struct VS_WATER_OUTPUT
+{
+    float4 position : SV_POSITION;
+    float2 uv : TEXCOORD0;
+};
+
+VS_WATER_OUTPUT VSTerrainWater(VS_WATER_INPUT input)
+{
+    VS_WATER_OUTPUT output;
+
+    output.position = mul(mul(mul(float4(input.position, 1.0f), gmtxGameObject), gmtxView), gmtxProjection);
+    output.uv = input.uv;
+
+    return (output);
 }

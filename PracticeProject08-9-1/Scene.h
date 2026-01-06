@@ -56,14 +56,13 @@ class CScene
 {
 public:
     CScene();
-    ~CScene();
+    virtual ~CScene();
 
 	void ReleaseObjects();
 	virtual void ReleaseShaderVariables();
 	void ReleaseUploadBuffers();
 
 // Build
-public:
 	void BuildObjects(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList);
 	void BuildLightsAndMaterials();
 
@@ -71,7 +70,6 @@ public:
 	virtual void CreateShaderVariables(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList);
 
 // Render
-public:
 	bool ProcessInput(UCHAR *pKeysBuffer);
     void AnimateObjects(float fTimeElapsed);
 
@@ -81,14 +79,8 @@ public:
 	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList);
 
 // Input
-public:
 	bool OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
 	bool OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
-
-// Get & Set Method
-public:
-	ID3D12RootSignature* GetGraphicsRootSignature() { return(m_pd3dGraphicsRootSignature.Get()); }
-	void SetGraphicsRootSignature(ID3D12GraphicsCommandList* pd3dCommandList) { pd3dCommandList->SetGraphicsRootSignature(m_pd3dGraphicsRootSignature.Get()); }
 
 public:
 	shared_ptr<CPlayer>		m_pPlayer;
@@ -103,15 +95,29 @@ protected:
 	unique_ptr<LIGHTS>			m_pLights;
 
 	ComPtr<ID3D12Resource>		m_pd3dcbLights;
-	LIGHTS						*m_pcbMappedLights = nullptr;
+	LIGHTS*						m_pcbMappedLights = nullptr;
 
 	unique_ptr<MATERIALS>		m_pMaterials;
 
 	ComPtr<ID3D12Resource>		m_pd3dcbMaterials;
-	MATERIAL					*m_pcbMappedMaterials = nullptr;
+	MATERIAL*					m_pcbMappedMaterials = nullptr;
+
+	unique_ptr<CHeightMapTerrain> m_pTerrain;
+
+	unique_ptr<CTerrainWater>	m_pTerrainWater;
+	XMFLOAT4X4					m_xmf4x4WaterAnimation;
+
+	// Get & Set Method
 public:
+	ID3D12RootSignature* GetGraphicsRootSignature() { return(m_pd3dGraphicsRootSignature.Get()); }
+	void SetGraphicsRootSignature(ID3D12GraphicsCommandList* pd3dCommandList)
+	{
+		pd3dCommandList->SetGraphicsRootSignature(m_pd3dGraphicsRootSignature.Get());
+	}
 	void SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex)
 	{
 		m_pMaterials->m_pReflections[materialId].m_xmn4TextureIndices.x = srvIndex;
 	}
+
+	CHeightMapTerrain* GetTerrain() { return(m_pTerrain.get()); }
 };

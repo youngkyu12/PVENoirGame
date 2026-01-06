@@ -192,12 +192,6 @@ void CShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGr
 		// assert(false); ¶Ç´Â throw
 	}
 
-	if (pd3dVertexShaderBlob)
-		pd3dVertexShaderBlob.Reset();
-
-	if (pd3dPixelShaderBlob)
-		pd3dPixelShaderBlob.Reset();
-
 	if (d3dPipelineStateDesc.InputLayout.pInputElementDescs)
 		delete[] d3dPipelineStateDesc.InputLayout.pInputElementDescs;
 }
