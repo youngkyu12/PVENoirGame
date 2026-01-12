@@ -196,14 +196,14 @@ struct VS_TEXTURED_LIGHTING_OUTPUT
 
 VS_TEXTURED_LIGHTING_OUTPUT VSTexturedLighting(VS_TEXTURED_LIGHTING_INPUT input)
 {
-	VS_TEXTURED_LIGHTING_OUTPUT output;
+    VS_TEXTURED_LIGHTING_OUTPUT output;
 
-	output.normalW = mul(input.normal, (float3x3)gmtxGameObject);
-	output.positionW = (float3)mul(float4(input.position, 1.0f), gmtxGameObject);
-	output.position = mul(mul(float4(output.positionW, 1.0f), gmtxView), gmtxProjection);
-	output.uv = input.uv;
+    output.normalW = mul(input.normal, (float3x3) gmtxGameObject);
+    output.positionW = (float3) mul(float4(input.position, 1.0f), gmtxGameObject);
+    output.position = mul(mul(float4(output.positionW, 1.0f), gmtxView), gmtxProjection);
+    output.uv = input.uv;
 
-	return(output);
+    return (output);
 }
 
 float4 PSTexturedLighting(VS_TEXTURED_LIGHTING_OUTPUT input, uint nPrimitiveID : SV_PrimitiveID) : SV_TARGET
@@ -455,14 +455,14 @@ VS_TERRAIN_OUTPUT VSTerrain(VS_TERRAIN_INPUT input)
 
 float4 PSTerrain(VS_TERRAIN_OUTPUT input) : SV_TARGET
 {
-    float4 cBaseTexColor = gtxtTerrainBaseTexture.Sample(gSamplerState, input.uv0);
+    float4 cBaseTexColor = gtxtTerrainBaseTexture.Sample(gssDefaultSamplerState, input.uv0);
 //	float fAlpha = gtxtTerrainAlphaTexture.Sample(gSamplerState, input.uv0);
-    float fAlpha = gtxtTerrainAlphaTexture.Sample(gSamplerState, input.uv0).w;
+    float fAlpha = gtxtTerrainAlphaTexture.Sample(gssDefaultSamplerState, input.uv0).w;
 
     float4 cDetailTexColors[3];
-    cDetailTexColors[0] = gtxtTerrainDetailTextures[0].Sample(gSamplerState, input.uv1 * 2.0f);
-    cDetailTexColors[1] = gtxtTerrainDetailTextures[1].Sample(gSamplerState, input.uv1 * 0.125f);
-    cDetailTexColors[2] = gtxtTerrainDetailTextures[2].Sample(gSamplerState, input.uv1);
+    cDetailTexColors[0] = gtxtGlobalTextures[0].Sample(gssDefaultSamplerState, input.uv1 * 2.0f);
+    cDetailTexColors[1] = gtxtGlobalTextures[1].Sample(gssDefaultSamplerState, input.uv1 * 0.125f);
+    cDetailTexColors[2] = gtxtGlobalTextures[2].Sample(gssDefaultSamplerState, input.uv1);
 
     float4 cColor = cBaseTexColor * cDetailTexColors[0];
     cColor += lerp(cDetailTexColors[1] * 0.25f, cDetailTexColors[2], 1.0f - fAlpha);

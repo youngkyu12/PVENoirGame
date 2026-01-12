@@ -37,9 +37,9 @@ D3D12_SHADER_BYTECODE CShader::CompileShaderFromFile(const WCHAR* pszFileName, L
 #if defined(_DEBUG)
 	nCompileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
-
+	D3D12_SHADER_BYTECODE d3dShaderByteCode = {};
 	ComPtr<ID3DBlob> pd3dErrorBlob;
-	::D3DCompileFromFile(
+	HRESULT hResult = ::D3DCompileFromFile(
 		pszFileName,
 		nullptr,
 		D3D_COMPILE_STANDARD_FILE_INCLUDE,
@@ -51,7 +51,22 @@ D3D12_SHADER_BYTECODE CShader::CompileShaderFromFile(const WCHAR* pszFileName, L
 		&pd3dErrorBlob
 	);
 
-	D3D12_SHADER_BYTECODE d3dShaderByteCode;
+	if (FAILED(hResult)) {
+#if defined(_DEBUG)
+		if (pd3dErrorBlob)
+		{
+			const char* msg = static_cast<const char*>(pd3dErrorBlob->GetBufferPointer());
+			::OutputDebugStringA("D3DCompileFromFile failed:\n");
+			::OutputDebugStringA(msg ? msg : "(no message)\n");
+		}
+		else
+		{
+			::OutputDebugStringA("D3DCompileFromFile failed (no error blob).\n");
+		}
+#endif
+		return (d3dShaderByteCode);
+	}
+
 	d3dShaderByteCode.BytecodeLength = (*ppd3dShaderBlob)->GetBufferSize();
 	d3dShaderByteCode.pShaderBytecode = (*ppd3dShaderBlob)->GetBufferPointer();
 
@@ -193,6 +208,8 @@ D3D12_SHADER_BYTECODE CTerrainShader::CreatePixelShader(ID3DBlob** ppd3dShaderBl
 	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSTerrain", "ps_5_1", ppd3dShaderBlob));
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
 D3D12_INPUT_LAYOUT_DESC CTerrainWaterShader::CreateInputLayout()
 {
 	UINT nInputElementDescs = 2;

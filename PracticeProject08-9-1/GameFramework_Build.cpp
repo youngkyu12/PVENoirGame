@@ -7,8 +7,8 @@
 
 bool CGameFramework::OnCreate(HINSTANCE hInstance, HWND hMainWnd)
 {
-	m_hInstance = hInstance;
 	m_hWnd = hMainWnd;
+	m_hInstance = hInstance;
 
 	CreateDirect3DDevice();
 	CreateCommandQueueAndList();

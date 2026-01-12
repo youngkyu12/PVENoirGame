@@ -6,6 +6,7 @@
 #include "Scene.h"
 
 unique_ptr<CDescriptorHeap> CScene::m_pDescriptorHeap = make_unique<CDescriptorHeap>();
+UINT CScene::s_NextMaterialID = 0;
 
 CScene::CScene()
 {

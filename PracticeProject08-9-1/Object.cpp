@@ -149,6 +149,7 @@ CHeightMapTerrain::CHeightMapTerrain(ID3D12Device* pd3dDevice, ID3D12GraphicsCom
 	}
 
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
+	constexpr UINT ROOTPARAM_TEX_SRV_TABLE = ROOT_PARAMETER_GLOBAL_SRV;
 
 	shared_ptr<CTexture> pTerrainTexture = make_shared<CTexture>(5, RESOURCE_TEXTURE2D, 0, 1);
 
@@ -158,7 +159,7 @@ CHeightMapTerrain::CHeightMapTerrain(ID3D12Device* pd3dDevice, ID3D12GraphicsCom
 	pTerrainTexture->LoadTextureFromFile(pd3dDevice, pd3dCommandList, L"Image/Lava(Diffuse).dds", RESOURCE_TEXTURE2D, 3);
 	//	pTerrainTexture->LoadTextureFromDDSFile(pd3dDevice, pd3dCommandList, L"Image/HeightMap-Alpha(Flipped).dds", RESOURCE_TEXTURE2D, 4);
 	pTerrainTexture->LoadTextureFromFile(pd3dDevice, pd3dCommandList, L"Image/HeightMap2(Flipped)Alpha.dds", RESOURCE_TEXTURE2D, 4);
-	CScene::m_pDescriptorHeap->CreateShaderResourceViews(pd3dDevice, pTerrainTexture.get(), 0, 4);
+	CScene::m_pDescriptorHeap->CreateShaderResourceViews(pd3dDevice, pTerrainTexture.get(), CScene::s_NextMaterialID++, ROOTPARAM_TEX_SRV_TABLE);
 	
 	UINT ncbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255); //256ÀÇ ¹è¼ö
 
@@ -171,7 +172,8 @@ CHeightMapTerrain::CHeightMapTerrain(ID3D12Device* pd3dDevice, ID3D12GraphicsCom
 
 	shared_ptr<CMaterial> pTerrainMaterial = make_shared<CMaterial>();
 	pTerrainMaterial->SetTexture(pTerrainTexture);
-
+	pTerrainMaterial->SetMaterialID(CScene::s_NextMaterialID);
+	
 	SetMaterial(pTerrainMaterial);
 	SetShader(pTerrainShader);
 }
