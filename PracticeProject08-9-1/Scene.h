@@ -85,11 +85,12 @@ public:
 public:
 	shared_ptr<CPlayer>		m_pPlayer;
 	static unique_ptr<CDescriptorHeap> m_pDescriptorHeap;
+	static UINT s_NextMaterialID;
 
 protected:
 	ComPtr<ID3D12RootSignature>	m_pd3dGraphicsRootSignature;
 
-	vector<shared_ptr<CShader>>	m_ppShaders;
+	vector<shared_ptr<CShader>>	m_ppShaders;	
 	int							m_nShaders = 0;
 
 	unique_ptr<LIGHTS>			m_pLights;
@@ -105,7 +106,7 @@ protected:
 	unique_ptr<CHeightMapTerrain> m_pTerrain;
 
 	unique_ptr<CTerrainWater>	m_pTerrainWater;
-	XMFLOAT4X4					m_xmf4x4WaterAnimation;
+	XMFLOAT4X4					m_xmf4x4WaterAnimation{};
 
 	// Get & Set Method
 public:

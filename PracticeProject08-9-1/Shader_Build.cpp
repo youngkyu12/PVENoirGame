@@ -97,8 +97,7 @@ D3D12_INPUT_LAYOUT_DESC CShader::CreateInputLayout()
 
 D3D12_RASTERIZER_DESC CShader::CreateRasterizerState()
 {
-	D3D12_RASTERIZER_DESC d3dRasterizerDesc;
-	::ZeroMemory(&d3dRasterizerDesc, sizeof(D3D12_RASTERIZER_DESC));
+	D3D12_RASTERIZER_DESC d3dRasterizerDesc = {};
 	d3dRasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
 	d3dRasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
 	d3dRasterizerDesc.FrontCounterClockwise = FALSE;
@@ -116,8 +115,7 @@ D3D12_RASTERIZER_DESC CShader::CreateRasterizerState()
 
 D3D12_DEPTH_STENCIL_DESC CShader::CreateDepthStencilState()
 {
-	D3D12_DEPTH_STENCIL_DESC d3dDepthStencilDesc;
-	::ZeroMemory(&d3dDepthStencilDesc, sizeof(D3D12_DEPTH_STENCIL_DESC));
+	D3D12_DEPTH_STENCIL_DESC d3dDepthStencilDesc = {};
 	d3dDepthStencilDesc.DepthEnable = TRUE;
 	d3dDepthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 	d3dDepthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
@@ -138,8 +136,7 @@ D3D12_DEPTH_STENCIL_DESC CShader::CreateDepthStencilState()
 
 D3D12_BLEND_DESC CShader::CreateBlendState()
 {
-	D3D12_BLEND_DESC d3dBlendDesc;
-	::ZeroMemory(&d3dBlendDesc, sizeof(D3D12_BLEND_DESC));
+	D3D12_BLEND_DESC d3dBlendDesc = {};
 	d3dBlendDesc.AlphaToCoverageEnable = FALSE;
 	d3dBlendDesc.IndependentBlendEnable = FALSE;
 	d3dBlendDesc.RenderTarget[0].BlendEnable = FALSE;
@@ -164,8 +161,7 @@ void CShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGr
 	ComPtr<ID3DBlob> pd3dVertexShaderBlob;
 	ComPtr<ID3DBlob> pd3dPixelShaderBlob;
 
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC d3dPipelineStateDesc;
-	::ZeroMemory(&d3dPipelineStateDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC d3dPipelineStateDesc = {};
 	d3dPipelineStateDesc.pRootSignature = pd3dGraphicsRootSignature;
 	d3dPipelineStateDesc.VS = CreateVertexShader(&pd3dVertexShaderBlob);
 	d3dPipelineStateDesc.PS = CreatePixelShader(&pd3dPixelShaderBlob);
@@ -176,7 +172,7 @@ void CShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGr
 	d3dPipelineStateDesc.SampleMask = UINT_MAX;
 	d3dPipelineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	d3dPipelineStateDesc.NumRenderTargets = nRenderTargets;
-	for (UINT i = 0; i < nRenderTargets; i++)
+	for (UINT i = 0; i < nRenderTargets; ++i)
 		d3dPipelineStateDesc.RTVFormats[i] = (pdxgiRtvFormats) ? pdxgiRtvFormats[i] : DXGI_FORMAT_R8G8B8A8_UNORM;
 	d3dPipelineStateDesc.DSVFormat = dxgiDsvFormat;
 	d3dPipelineStateDesc.SampleDesc.Count = 1;
@@ -408,13 +404,12 @@ void CObjectsShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12Graph
 void CObjectsShader::BuildObjects(
 	ID3D12Device* pd3dDevice,
 	ID3D12GraphicsCommandList* pd3dCommandList,
-	void* pContext
-)
+	void* pContext)
 {
 	// ============================================================
 	// 0. Material ID 발급기 (씬 초기화 시 1회만 증가)
 	// ============================================================
-	static UINT s_NextMaterialID = 0;
+	
 
 	// ============================================================
 	// 1. GameObject CBV 준비
@@ -445,12 +440,12 @@ void CObjectsShader::BuildObjects(
 
 	m_ppObjects.resize(m_nObjects);
 
-	auto pRotatingObject = make_unique<CRotatingObject>(1);
+	unique_ptr<CRotatingObject> pRotatingObject = make_unique<CRotatingObject>(1);
 
 	// ============================================================
 	// 3. Material 캐시 + Materials CB
 	// ============================================================
-	static std::unordered_map<std::string, std::shared_ptr<CMaterial>> materialCache;
+	static unordered_map<string, shared_ptr<CMaterial>> materialCache;
 	MATERIALS* pMaterials = reinterpret_cast<MATERIALS*>(pContext);
 
 	// RootSignature에서 Global SRV Table의 Root Parameter Index
@@ -478,10 +473,10 @@ void CObjectsShader::BuildObjects(
 		// --------------------------------------------------------
 		// (4-2) 새로운 Material 생성
 		// --------------------------------------------------------
-		auto mat = std::make_shared<CMaterial>();
+		shared_ptr<CMaterial> mat = make_shared<CMaterial>();
 
 		// ★ 핵심: materialId 발급
-		const UINT materialId = s_NextMaterialID++;
+		const UINT materialId = CScene::s_NextMaterialID++;
 		mat->SetMaterialID(materialId);
 
 		// 안전장치
@@ -490,22 +485,20 @@ void CObjectsShader::BuildObjects(
 		// --------------------------------------------------------
 		// (4-3) Texture 생성 및 로드
 		// --------------------------------------------------------
-		auto tex = std::make_shared<CTexture>(
+		shared_ptr<CTexture> tex = make_shared<CTexture>(
 			1,                  // nTextureResources
 			RESOURCE_TEXTURE2D,  // nResourceType
 			0,                  // nSamplers
 			1                   // nRootParameters
 		);
 
-		const std::wstring texPath =
-			ResolveTexturePath("Unitychan", sm.diffuseTextureName);
+		const wstring texPath =	ResolveTexturePath("Unitychan", sm.diffuseTextureName);
 		tex->LoadTextureFromFile(
 			pd3dDevice,
 			pd3dCommandList,
 			texPath.c_str(),
 			RESOURCE_TEXTURE2D,
-			0
-		);
+			0);
 		{
 			char msg[256];
 			sprintf_s(msg,

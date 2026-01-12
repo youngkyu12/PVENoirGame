@@ -442,10 +442,10 @@ CAirplanePlayer::CAirplanePlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommand
 
 	SetShader(pShader);
 
-	CHeightMapTerrain *pTerrain = (CHeightMapTerrain *)pContext;
+	/*CHeightMapTerrain *pTerrain = (CHeightMapTerrain *)pContext;
 	SetPosition(XMFLOAT3(pTerrain->GetWidth()*0.5f, 2000.0f, pTerrain->GetLength()*0.5f));
 	SetPlayerUpdatedContext(pTerrain);
-	SetCameraUpdatedContext(pTerrain);
+	SetCameraUpdatedContext(pTerrain);*/
 }
 
 CAirplanePlayer::~CAirplanePlayer()

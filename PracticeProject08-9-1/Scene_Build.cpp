@@ -151,12 +151,13 @@ void CScene::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* p
 		pdxgiRtvFormats,
 		DXGI_FORMAT_D24_UNORM_S8_UINT/*DXGI_FORMAT_D32_FLOAT*/
 	);
-	BuildLightsAndMaterials();
 
 	pObjectShader->BuildObjects(pd3dDevice, pd3dCommandList, m_pMaterials.get());
 	m_ppShaders[0] = pObjectShader;
 
-	XMFLOAT3 xmf3Scale(8.0f, 2.0f, 8.0f);
+	BuildLightsAndMaterials();
+
+	/*XMFLOAT3 xmf3Scale(8.0f, 2.0f, 8.0f);
 	XMFLOAT4 xmf4Color(0.0f, 0.5f, 0.0f, 0.0f);
 #ifdef _WITH_TERRAIN_PARTITION
 	m_pTerrain = make_unique<CHeightMapTerrain>(pd3dDevice, pd3dCommandList, m_pd3dGraphicsRootSignature,Get(), _T("Image/HeightMap.raw"), 257, 257, 17, 17, xmf3Scale, xmf4Color);
@@ -165,7 +166,7 @@ void CScene::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* p
 #endif
 
 	m_pTerrainWater = make_unique<CTerrainWater>(pd3dDevice, pd3dCommandList, m_pd3dGraphicsRootSignature.Get(), 257 * xmf3Scale.x, 257 * xmf3Scale.z);
-	m_pTerrainWater->SetPosition(+(257 * xmf3Scale.x * 0.5f), 155.0f, +(257 * xmf3Scale.z * 0.5f));
+	m_pTerrainWater->SetPosition(+(257 * xmf3Scale.x * 0.5f), 155.0f, +(257 * xmf3Scale.z * 0.5f));*/
 
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
 }
