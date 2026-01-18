@@ -448,12 +448,12 @@ void CStaticObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
 
 	MATERIALS* pMaterials = reinterpret_cast<MATERIALS*>(pContext);
 
-	// ---------- Object 0 : Plane ----------
+	// ---------- Object 0 : World ----------
 	{
 		const UINT i = 0;
 
 		AssetBuildDesc PlaneDesc = { AssetType::Castle,
-			"Assets/GroundPlane/Mesh/PlaneMiddle.bin", "Assets/GroundPlane/Texture" };
+			"Assets/World/Mesh/StartWorld.bin", "Assets/World/Texture" };
 			
 		BuiltAsset asset = AssetManager::BuildAsset(pd3dDevice, pd3dCommandList, pMaterials, PlaneDesc);
 
@@ -464,50 +464,6 @@ void CStaticObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
 		obj->SetMappedGameObjectCB(cb);
 		obj->SetMesh(0, asset.mesh);
 		obj->SetPosition(0.0f, 0.0f, 30.0f);
-		obj->SetCbvGPUDescriptorHandlePtr(baseCbvGpu.ptr + (UINT64)i * cbvInc);
-
-		m_ppObjects[i] = std::move(obj);
-	}
-
-	// ---------- Object 1 : SmallCastle ----------
-	{
-		const UINT i = 1;
-
-		AssetBuildDesc CastleDesc = { AssetType::Castle,
-			//"Assets/Castle/Mesh/CastleBig.bin", "Assets/Castle/Texture" };
-			"Assets/House39/Mesh/HouseB(39).bin", "Assets/House39/Texture" };
-
-		BuiltAsset asset = AssetManager::BuildAsset(pd3dDevice, pd3dCommandList, pMaterials, CastleDesc);
-
-		auto obj = std::make_unique<CGameObject>(1);
-
-		auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)m_pcbMappedGameObjects + i * ncbElementBytes);
-
-		obj->SetMappedGameObjectCB(cb);
-		obj->SetMesh(0, asset.mesh);
-		//obj->Rotate(-90.0f, 180.0f, 0.0f);
-		obj->SetPosition(0.0f, 7.0f, 30.0f);
-		obj->SetCbvGPUDescriptorHandlePtr(baseCbvGpu.ptr + (UINT64)i * cbvInc);
-
-		m_ppObjects[i] = std::move(obj);
-	}
-
-	// ---------- Object 2 : BigCastle ----------
-	{
-		const UINT i = 2;
-
-		AssetBuildDesc CastleDesc = { AssetType::Castle,
-			"Assets/Castle/Mesh/CastleTooBig.bin", "Assets/Castle/Texture" };
-
-		BuiltAsset asset = AssetManager::BuildAsset(pd3dDevice, pd3dCommandList, pMaterials, CastleDesc);
-
-		auto obj = std::make_unique<CGameObject>(1);
-
-		auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)m_pcbMappedGameObjects + i * ncbElementBytes);
-
-		obj->SetMappedGameObjectCB(cb);
-		obj->SetMesh(0, asset.mesh);
-		obj->SetPosition(0.0f, 3.0f, 30.0f);
 		obj->SetCbvGPUDescriptorHandlePtr(baseCbvGpu.ptr + (UINT64)i * cbvInc);
 
 		m_ppObjects[i] = std::move(obj);

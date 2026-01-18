@@ -94,7 +94,7 @@ CIlluminatedTexturedShader::~CIlluminatedTexturedShader()
 //
 CStaticObjectsShader::CStaticObjectsShader()
 {
-	m_nObjects = 3;
+	m_nObjects = 1;
 }
 
 CStaticObjectsShader::~CStaticObjectsShader()
