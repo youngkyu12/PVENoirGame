@@ -454,7 +454,7 @@ void CStaticObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
 
 		AssetBuildDesc PlaneDesc = { AssetType::Castle,
 			"Assets/GroundPlane/Mesh/PlaneMiddle.bin", "Assets/GroundPlane/Texture" };
-
+			
 		BuiltAsset asset = AssetManager::BuildAsset(pd3dDevice, pd3dCommandList, pMaterials, PlaneDesc);
 
 		auto obj = std::make_unique<CGameObject>(1);
@@ -474,7 +474,8 @@ void CStaticObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
 		const UINT i = 1;
 
 		AssetBuildDesc CastleDesc = { AssetType::Castle,
-			"Assets/Castle/Mesh/CastleBig.bin", "Assets/Castle/Texture" };
+			//"Assets/Castle/Mesh/CastleBig.bin", "Assets/Castle/Texture" };
+			"Assets/House39/Mesh/HouseB(39).bin", "Assets/House39/Texture" };
 
 		BuiltAsset asset = AssetManager::BuildAsset(pd3dDevice, pd3dCommandList, pMaterials, CastleDesc);
 
@@ -484,8 +485,8 @@ void CStaticObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
 
 		obj->SetMappedGameObjectCB(cb);
 		obj->SetMesh(0, asset.mesh);
-		obj->Rotate(-90.0f, 180.0f, 0.0f);
-		obj->SetPosition(0.0f, 3.0f, 30.0f);
+		//obj->Rotate(-90.0f, 180.0f, 0.0f);
+		obj->SetPosition(0.0f, 7.0f, 30.0f);
 		obj->SetCbvGPUDescriptorHandlePtr(baseCbvGpu.ptr + (UINT64)i * cbvInc);
 
 		m_ppObjects[i] = std::move(obj);
@@ -506,7 +507,6 @@ void CStaticObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
 
 		obj->SetMappedGameObjectCB(cb);
 		obj->SetMesh(0, asset.mesh);
-		obj->Rotate(-90.0f, 180.0f, 0.0f);
 		obj->SetPosition(0.0f, 3.0f, 30.0f);
 		obj->SetCbvGPUDescriptorHandlePtr(baseCbvGpu.ptr + (UINT64)i * cbvInc);
 
