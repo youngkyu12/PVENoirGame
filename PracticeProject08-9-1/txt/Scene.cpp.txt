@@ -1,0 +1,54 @@
+//-----------------------------------------------------------------------------
+// File: CScene.cpp
+//-----------------------------------------------------------------------------
+
+#include "stdafx.h"
+#include "Scene.h"
+
+unique_ptr<CDescriptorHeap> CScene::m_pDescriptorHeap = make_unique<CDescriptorHeap>();
+
+CScene::CScene()
+{
+}
+
+CScene::~CScene()
+{
+}
+
+void CScene::ReleaseObjects()
+{
+	if (m_pd3dGraphicsRootSignature) m_pd3dGraphicsRootSignature->Release();
+
+	if (!m_ppShaders.empty())
+	{
+		for (int i = 0; i < m_nShaders; i++)
+		{
+			m_ppShaders[i]->ReleaseShaderVariables();
+			m_ppShaders[i]->ReleaseObjects();
+		}
+	}
+
+	ReleaseShaderVariables();
+}
+
+void CScene::ReleaseUploadBuffers()
+{
+	for (int i = 0; i < m_nShaders; i++) m_ppShaders[i]->ReleaseUploadBuffers();
+}
+
+void CScene::ReleaseShaderVariables()
+{
+	if (m_pd3dcbLights)
+	{
+		m_pd3dcbLights->Unmap(0, NULL);
+		m_pd3dcbLights.Reset();
+	}
+	if (m_pd3dcbMaterials)
+	{
+		m_pd3dcbMaterials->Unmap(0, NULL);
+		m_pd3dcbMaterials.Reset();
+	}
+}
+
+
+
