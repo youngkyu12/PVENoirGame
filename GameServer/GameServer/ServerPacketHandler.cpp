@@ -1,23 +1,19 @@
 #include "pch.h"
 #include "ServerPacketHandler.h"
-#include "BufferReader.h"
-#include "BufferWriter.h"
 
-void ServerPacketHandler::HandlePacket(BYTE* buffer, int32 len)
+PacketHandlerFunc GPacketHandler[UINT16_MAX];
+
+// 컨텐츠 작업자가 직접
+
+bool Handle_INVALID(PacketSessionRef& session, BYTE* buffer, int32 len)
 {
-	BufferReader br(buffer, len);
-
-	PacketHeader header;
-	br.Peek(&header);
-
-	switch (header.id)
-	{
-	default:
-		break;
-	}
+	PacketHeader* header = reinterpret_cast<PacketHeader*>(buffer);
+	// TODO : 로그 남기기
+	return false;
 }
 
-SendBufferRef ServerPacketHandler::MakeSendBuffer(Protocol::S_TEST& pkt)
+bool Handle_S_TEST(PacketSessionRef& session, Protocol::S_TEST& pkt)
 {
-	return _MakeSendBuffer(pkt, S_TEST);
+	// TODO
+	return false;
 }
