@@ -644,8 +644,10 @@ void CSkinnedObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
 		AssetBuildDesc unitychanDesc =
 		{
 			AssetType::Unitychan,
-			"Assets/Zombie/Mesh/Zombie.bin",
-			"Assets/Zombie/Texture"
+			//"Assets/Zombie/Mesh/Zombie.bin",
+			//"Assets/Zombie/Texture"
+			"Assets/Fighter/Mesh/Fighter.bin",
+			"Assets/Fighter/Texture"
 		};
 
 		BuiltAsset asset = AssetManager::BuildAsset(
@@ -671,7 +673,7 @@ void CSkinnedObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
 			float y = rotY(rng);
 			float z = distZ(rng);
 			obj->SetPosition(x, 0.0f, z);
-			obj->Rotate(0.0f, y, 0.0f);
+			obj->Rotate(0.0f, 0.0f, 0.0f);
 
 			obj->SetCbvGPUDescriptorHandlePtr(
 				baseCbvGpu.ptr + (UINT64)i * cbvInc
@@ -689,7 +691,10 @@ void CSkinnedObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
 			if (!obj->m_ppMeshes.empty() && obj->m_ppMeshes[0])
 			{
 				idleLoaded = obj->m_ppMeshes[0]->LoadAnimationFromBIN(
-					"Assets/Zombie/Animation/Zombie_run.bin",
+					//"Assets/Zombie/Animation/ZombieAttack.bin",
+					//"Assets/Zombie/Mesh/Zombie.bin",
+					//"Assets/Fighter/Mesh/Fighter.bin",
+					"Assets/Fighter/Animation/FighterRun.bin",
 					"Idle", idleClip, 1.0f
 				);
 			}
