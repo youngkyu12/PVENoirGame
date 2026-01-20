@@ -644,10 +644,8 @@ void CSkinnedObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
 		AssetBuildDesc unitychanDesc =
 		{
 			AssetType::Unitychan,
-			//"Assets/Zombie/Mesh/Zombie.bin",
-			//"Assets/Zombie/Texture"
-			"Assets/Fighter/Mesh/Fighter.bin",
-			"Assets/Fighter/Texture"
+			"Assets/Zombie/Mesh/Zombie.bin",
+			"Assets/Zombie/Texture"
 		};
 
 		BuiltAsset asset = AssetManager::BuildAsset(
@@ -655,7 +653,7 @@ void CSkinnedObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
 			pMaterials, unitychanDesc
 		);
 
-		for (int i = 0; i < m_nObjects; i++) {
+		for (int i = 0; i < m_nObjects / 2; i++) {
 			//const UINT i = 0;
 			auto obj = std::make_unique<CGameObject>(1);
 
@@ -691,8 +689,79 @@ void CSkinnedObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
 			if (!obj->m_ppMeshes.empty() && obj->m_ppMeshes[0])
 			{
 				idleLoaded = obj->m_ppMeshes[0]->LoadAnimationFromBIN(
-					//"Assets/Zombie/Animation/ZombieAttack.bin",
+					"Assets/Zombie/Animation/ZombieAttack.bin",
 					//"Assets/Zombie/Mesh/Zombie.bin",
+					"Idle", idleClip, 1.0f
+				);
+			}
+
+			if (idleLoaded)
+			{
+				idleClip.name = "Idle";
+
+				CAnimator* anim = obj->EnsureAnimator();
+				if (anim)
+					anim->AddClip(idleClip);
+
+				obj->PlayAnimation("Idle", true, 0.0f);
+			}
+
+			m_ppObjects[i] = std::move(obj);
+		}
+	}
+	
+	// ---------- Object 1 : Fighter ----------
+	{
+
+		AssetBuildDesc unitychanDesc =
+		{
+			AssetType::Unitychan,
+			"Assets/Fighter/Mesh/Fighter.bin",
+			"Assets/Fighter/Texture"
+		};
+
+		BuiltAsset asset = AssetManager::BuildAsset(
+			pd3dDevice, pd3dCommandList,
+			pMaterials, unitychanDesc
+		);
+
+		//for (int i = 0 / 2; i < m_nObjects; i++) {
+		for (int i = m_nObjects / 2; i < m_nObjects; i++) {
+			//const UINT i = 0;
+			auto obj = std::make_unique<CGameObject>(1);
+
+			CB_GAMEOBJECT_INFO* cb =
+				reinterpret_cast<CB_GAMEOBJECT_INFO*>(
+					reinterpret_cast<UINT8*>(m_pcbMappedGameObjects)
+					+ i * ncbElementBytes
+					);
+
+			obj->SetMappedGameObjectCB(cb);
+			obj->SetMesh(0, asset.mesh);
+			//obj->SetPosition(2.0f * i, 0.0f, 0.0f);
+
+			float x = distX(rng);
+			float y = rotY(rng);
+			float z = distZ(rng);
+			obj->SetPosition(x, 0.0f, z);
+			obj->Rotate(0.0f, 0.0f, 0.0f);
+
+			obj->SetCbvGPUDescriptorHandlePtr(
+				baseCbvGpu.ptr + (UINT64)i * cbvInc
+			);
+
+			if (asset.mesh && asset.mesh->IsSkinnedMesh())
+			{
+				const int nBones = asset.mesh->GetBoneCount();
+				obj->EnableSkinning(pd3dDevice, nBones);
+			}
+
+			AnimationClip idleClip;
+			bool idleLoaded = false;
+
+			if (!obj->m_ppMeshes.empty() && obj->m_ppMeshes[0])
+			{
+				idleLoaded = obj->m_ppMeshes[0]->LoadAnimationFromBIN(
 					//"Assets/Fighter/Mesh/Fighter.bin",
 					"Assets/Fighter/Animation/FighterRun.bin",
 					"Idle", idleClip, 1.0f

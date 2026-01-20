@@ -699,6 +699,26 @@ bool CMesh::LoadAnimationFromBIN(
     uint32_t trackCount = 0;
     if (!ReadUInt32(trackCount)) return false;
 
+    DBG_PrintF("\n==== [LoadAnimationFromBIN] BEGIN ====\n");
+    DBG_PrintF("ABIN file='%s' clip='%s' duration(file)=%.6f timeScale=%.3f\n",
+        filename, outClip.name.c_str(), duration, timeScale);
+    DBG_PrintF("Skeleton bones=%zu, ABIN trackCount=%u\n",
+        m_Bones.size(), trackCount);
+
+    // 스켈레톤 루트 후보(부모=-1) 몇 개 출력
+    int rootPrinted = 0;
+    for (size_t i = 0; i < m_Bones.size(); ++i)
+    {
+        if (m_Bones[i].parentIndex < 0 && rootPrinted < 8)
+        {
+            DBG_PrintF("  RootBone[%zu] name='%s' bindY=%.6f offsetY=%.6f\n",
+                i, m_Bones[i].name.c_str(),
+                m_Bones[i].bindLocal._42,
+                m_Bones[i].offsetMatrix._42);
+            rootPrinted++;
+        }
+    }
+
     // AnimationClip 기본 세팅
     outClip.name = !clipName.empty() ? clipName : fileClipName;
     outClip.duration = duration * timeScale;
@@ -734,9 +754,24 @@ bool CMesh::LoadAnimationFromBIN(
         // skeleton 과 매칭
         auto itBone = m_BoneNameToIndex.find(binBoneName);
         bool mapped = (itBone != m_BoneNameToIndex.end());
+
         BoneKeyframes* pTrack = nullptr;
-        if (mapped)
+
+        if (!mapped && binBoneName == "Bind_Root")
+        {
+            outClip.hasBindRootTrack = true;
+            outClip.bindRootTrack.boneIndex = -1;
+            outClip.bindRootTrack.boneName = "Bind_Root";
+            pTrack = &outClip.bindRootTrack;
+            mapped = true; // 아래 키 루프에서 continue로 버리지 않게
+        }
+
+        if (mapped && !pTrack)
             pTrack = &outClip.boneTracks[itBone->second];
+
+        float first_ty = 0, last_ty = 0;
+        float first_t = 0, last_t = 0;
+        bool  hasAny = false;
 
         for (uint32_t k = 0; k < keyCount; ++k)
         {
@@ -756,6 +791,15 @@ bool CMesh::LoadAnimationFromBIN(
             if (!ReadFloat(sy)) return false;
             if (!ReadFloat(sz)) return false;
 
+            if (!hasAny)
+            {
+                first_t = timeSec * timeScale;
+                first_ty = ty;
+                hasAny = true;
+            }
+            last_t = timeSec * timeScale;
+            last_ty = ty;
+
             if (!mapped)
                 continue; // 데이터는 읽었지만, 스켈레톤에 없는 노드면 버림
 
@@ -767,6 +811,11 @@ bool CMesh::LoadAnimationFromBIN(
 
             pTrack->keyframes.push_back(kf);
         }
+        if (mapped)
+        {
+            DBG_PrintF("    KeyRange: t[%.6f .. %.6f]  ty[first=%.6f last=%.6f]\n",
+                first_t, last_t, first_ty, last_ty);
+        }
     }
 
     fin.close();
@@ -774,6 +823,26 @@ bool CMesh::LoadAnimationFromBIN(
     // --------------------------------------------------------
     // 4) 각 본별 키프레임 정렬 (안전용)
     // --------------------------------------------------------
+
+    int emptyCount = 0;
+    int printed = 0;
+    for (size_t i = 0; i < outClip.boneTracks.size(); ++i)
+    {
+        if (outClip.boneTracks[i].keyframes.empty())
+        {
+            emptyCount++;
+            if (printed < 12)
+            {
+                DBG_PrintF("  [EMPTY TRACK] Bone[%zu] '%s' -> will use bindLocal (bindY=%.6f)\n",
+                    i, m_Bones[i].name.c_str(), m_Bones[i].bindLocal._42);
+                printed++;
+            }
+        }
+    }
+    DBG_PrintF("EmptyTracks=%d / %zu\n", emptyCount, outClip.boneTracks.size());
+    DBG_PrintF("==== [LoadAnimationFromBIN] END ====\n\n");
+
+
     for (auto& track : outClip.boneTracks)
     {
         std::sort(track.keyframes.begin(), track.keyframes.end(),

@@ -135,7 +135,7 @@ void CStaticObjectsShader::ReleaseUploadBuffers()
 //
 CSkinnedObjectsShader::CSkinnedObjectsShader()
 {
-	m_nObjects = 30;
+	m_nObjects = 60;
 }
 
 CSkinnedObjectsShader::~CSkinnedObjectsShader()
