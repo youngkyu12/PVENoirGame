@@ -6,6 +6,7 @@
 #include "Player.h"
 #include "Shader.h"
 #include "Scene.h"
+#include "AssetManager.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CPlayer
@@ -298,8 +299,8 @@ void CPlayer::SetRootParameter(ID3D12GraphicsCommandList *pd3dCommandList)
 
 void CPlayer::Render(ID3D12GraphicsCommandList *pd3dCommandList, CCamera *pCamera)
 {
-	//DWORD nCameraMode = (pCamera)? pCamera->GetMode(): 0x00;
-	//if (nCameraMode == THIRD_PERSON_CAMERA)CGameObject::Render(pd3dCommandList, pCamera);
+	DWORD nCameraMode = (pCamera)? pCamera->GetMode(): 0x00;
+	if (nCameraMode == THIRD_PERSON_CAMERA)CGameObject::Render(pd3dCommandList, pCamera);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -351,85 +352,34 @@ CAirplanePlayer::CAirplanePlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommand
 
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
 
-	shared_ptr<CMesh> pPlayerMesh = make_shared<CMesh>(pd3dDevice, pd3dCommandList);
-	pPlayerMesh->LoadMeshFromBIN(
-		pd3dDevice,
-		pd3dCommandList,
-		"Models/unitychan_min.bin"
-	);
-
-	// (1) 같은 materialName -> 같은 CMaterial 재사용
-	static std::unordered_map<std::string, std::shared_ptr<CMaterial>> materialCache;
 	MATERIALS* pMaterials = reinterpret_cast<MATERIALS*>(pContext);
 
-	// (2) 네 RootSignature에서 "SRV Descriptor Table"이 있는 Root Parameter Index
-	//     반드시 실제 값으로 맞춰야 함. (예: 5)
-	constexpr UINT ROOTPARAM_TEX_SRV_TABLE = 5;
+	AssetBuildDesc desc = {
+		AssetType::Unitychan,
+		"Models/unitychan_min.bin",
+		"Models/UnitychanTexture" 
+	};
 
-	// (3) materialName -> texture file 경로 매핑(임시: 전부 동일 텍스처로 테스트 가능)
-	auto ResolveTexturePath = [](const std::string& materialName) -> std::wstring
-		{
-			// TODO: materialName에 따라 실제 파일로 매핑
-			// 우선 파이프라인 검증용으로 고정 텍스처 1개 사용 권장
-			return L"Models/UnitychanTexture/skin_01.dds";
-		};
-	for (auto& sm : pPlayerMesh->m_SubMeshes)
-	{
-		// materialName이 비어있으면 일단 스킵(디폴트 머티리얼을 붙여도 됨)
-		if (sm.materialName.empty())
-			continue;
+	BuiltAsset built = AssetManager::BuildAsset(
+		pd3dDevice,
+		pd3dCommandList,
+		pMaterials,
+		desc
+	);
 
-		auto it = materialCache.find(sm.materialName);
-		if (it != materialCache.end())
-		{
-			// 캐시 재사용
-			sm.material = it->second;
-			continue;
-		}
-
-		// (4) CMaterial 생성
-		auto mat = std::make_shared<CMaterial>();
-
-		// (5) CTexture 생성 + 로드
-		auto tex = std::make_shared<CTexture>(
-			1,                  // nTextureResources
-			RESOURCE_TEXTURE2D,  // nResourceType
-			0,                  // nSamplers
-			1                   // nRootParameters (SRV 테이블 1개)
-		);
-
-		const std::wstring texPath = ResolveTexturePath(sm.materialName);
-		tex->LoadTextureFromFile(pd3dDevice, pd3dCommandList, texPath.c_str(), RESOURCE_TEXTURE2D, 0);
-
-		// (6) SRV 생성 + root param index 세팅
-		//     nDescriptorHeapIndex는 0으로 두면 "NextHandle" 기반으로 순차 할당됨(현재 구현 기준).
-		CScene::m_pDescriptorHeap->CreateShaderResourceViews(pd3dDevice, tex.get(), ROOTPARAM_TEX_SRV_TABLE);
-
-		// (7) Material에 Texture 연결
-		mat->SetTexture(tex);
-
-		// 플레이어가 자기 CB(b0)에 material id를 싣는 경로가 m_pMaterial 기반이므로, 최소 1개는 잡아둠
-		if (!m_pMaterial) m_pMaterial = mat;
-
-		// ===== Materials(CB) : texture index 채우기 (0=none, 1..=valid) =====
-		if (pMaterials)
-		{
-			const UINT materialId = mat->m_nReflection;         // player가 쓰는 material id
-			const UINT srv = tex->GetBaseSrvIndex();            // 글로벌 SRV 슬롯 (0..)
-
-			pMaterials->m_pReflections[materialId].m_xmn4TextureIndices.x =
-				(srv == UINT_MAX) ? 0 : (srv + 1);              // HLSL에서 -1로 접근
-		}
-
-
-		UINT diffuseIdx = mat->GetDiffuseSrvIndex();
-
-		// (8) 캐시 등록 + SubMesh에 연결
-		materialCache.emplace(sm.materialName, mat);
-		sm.material = mat;
-	}
-
+	std::shared_ptr<CMesh> pPlayerMesh = built.mesh;
 	SetMesh(0, pPlayerMesh);
+
+	// 대표 materialId 선택
+    UINT playerMaterialId = 0;
+    for (auto& sm : pPlayerMesh->m_SubMeshes)
+    {
+        if (sm.materialName.empty()) continue;
+        if (sm.materialId == 0xFFFFFFFFu) continue;
+        playerMaterialId = sm.materialId;
+        break;
+    }
+    m_nPlayerMaterialID = playerMaterialId; // 멤버 변수(권장)
 
 	UINT ncbElementBytes = ((sizeof(CB_PLAYER_INFO)+ 255)& ~255); //256의 배수
 
@@ -456,8 +406,8 @@ void CAirplanePlayer::OnPrepareRender(ID3D12GraphicsCommandList *pd3dCommandList
 {
 	CPlayer::OnPrepareRender(pd3dCommandList, pCamera);
 
-	//XMMATRIX mtxRotate = XMMatrixRotationRollPitchYaw(XMConvertToRadians(90.0f), 0.0f, 0.0f);
-	//m_xmf4x4World = Matrix4x4::Multiply(mtxRotate, m_xmf4x4World);
+	XMMATRIX mtxRotate = XMMatrixRotationRollPitchYaw(XMConvertToRadians(90.0f), 0.0f, 0.0f);
+	m_xmf4x4World = Matrix4x4::Multiply(mtxRotate, m_xmf4x4World);
 }
 
 void CAirplanePlayer::OnPlayerUpdateCallback(float fTimeElapsed)

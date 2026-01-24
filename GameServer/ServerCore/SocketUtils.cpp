@@ -1,6 +1,5 @@
 #include "pch.h"
 #include "SocketUtils.h"
-#include "RecvBuffer.h"
 
 /*----------------
 	SocketUtils
@@ -27,8 +26,6 @@ void SocketUtils::Clear()
 {
 	::WSACleanup();
 }
-
-
 
 bool SocketUtils::BindWindowsFunction(SOCKET socket, GUID guid, LPVOID* fn)
 {
