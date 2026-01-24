@@ -36,6 +36,13 @@ struct MATERIAL
     uint4				TextureIndices; // x=diffuse
 };
 
+cbuffer cbCameraInfo : register(b1)
+{
+    matrix gmtxView : packoffset(c0);
+    matrix gmtxProjection : packoffset(c4);
+    float3 gvCameraPosition : packoffset(c8);
+};
+
 cbuffer cbMaterial : register(b3)
 {
     MATERIAL gMaterials[MAX_MATERIALS];
@@ -45,6 +52,15 @@ cbuffer cbLights : register(b4)
 {
     LIGHT gLights[MAX_LIGHTS];
     float4 gcGlobalAmbientLight;
+};
+
+// ==============================
+// Per-draw Material ID (Root Constants)
+// RootSig: RootConstants(num32BitConstants=1, b6)
+// ==============================
+cbuffer cbPerDrawMaterialId : register(b6)
+{
+    uint gnMaterialID;
 };
 
 float4 DirectionalLight(int nIndex, float3 vNormal, float3 vToCamera)

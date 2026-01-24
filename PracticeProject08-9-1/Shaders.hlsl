@@ -11,30 +11,12 @@ cbuffer cbPlayerInfo : register(b0)
 };
 
 
-cbuffer cbCameraInfo : register(b1)
-{
-    matrix gmtxView : packoffset(c0);
-    matrix gmtxProjection : packoffset(c4);
-    float3 gvCameraPosition : packoffset(c8);
-};
-
 cbuffer cbGameObjectInfo : register(b2)
 {
     matrix gmtxGameObject : packoffset(c0);
     uint gnObjectID : packoffset(c4.x);
-    uint gnUnused0 : packoffset(c4.y); // (±¸)gnMaterialID ÀÚ¸®. ÀÌÁ¦ ¾È ¾¸.
+    uint gnUnused0 : packoffset(c4.y); // (ï¿½ï¿½)gnMaterialID ï¿½Ú¸ï¿½. ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½.
 };
-
-// ==============================
-// Per-draw Material ID (Root Constants)
-// RootSig: RootConstants(num32BitConstants=1, b6)
-// ==============================
-cbuffer cbPerDrawMaterialId : register(b6)
-{
-    uint gnMaterialID;
-};
-
-#include "Light.hlsl"
 
 SamplerState gssDefaultSamplerState : register(s0);
 
@@ -42,8 +24,19 @@ cbuffer cbDrawOptions : register(b5)
 {
     int4 gvDrawOptions; // x = 'T','L','N','D','Z'
     uint4 gvPostSrvIdx0; // x=T, y=L, z=N, w=D
-    uint4 gvPostSrvIdx1; // x=Z, ³ª¸ÓÁö ÆÐµù
+    uint4 gvPostSrvIdx1; // x=Z, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ðµï¿½
 };
+
+#define MAX_BONES 256
+
+cbuffer cbBonePalette : register(b7)
+{
+    float4x4 gBoneTransforms[MAX_BONES];
+};
+
+#include "Light.hlsl"
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 struct VS_DIFFUSED_INPUT
@@ -72,7 +65,7 @@ float4 PSDiffused(VS_DIFFUSED_OUTPUT input) : SV_TARGET
 {
     float4 color = input.color;
 
-    // °¨¸¶ º¸Á¤ Àû¿ë
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     color.rgb = pow(color.rgb, 1.0 / 2.2);
 
     return color;
@@ -86,8 +79,8 @@ struct VS_PLAYER_INPUT
     float3 position : POSITION;
     float3 normal : NORMAL;
     float2 uv : TEXCOORD;
-    uint4 blendIndices : BLENDINDICES; // Áö±ÝÀº ¹Ì»ç¿ëÀÌ¾îµµ OK
-    float4 blendWeights : BLENDWEIGHT; // Áö±ÝÀº ¹Ì»ç¿ëÀÌ¾îµµ OK
+    uint4 blendIndices : BLENDINDICES; // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ì»ï¿½ï¿½ï¿½Ì¾îµµ OK
+    float4 blendWeights : BLENDWEIGHT; // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ì»ï¿½ï¿½ï¿½Ì¾îµµ OK
 };
 
 struct VS_PLAYER_OUTPUT
@@ -116,24 +109,24 @@ float4 PSPlayer(VS_PLAYER_OUTPUT input, uint nPrimitiveID : SV_PrimitiveID) : SV
 {
     uint diffuseIndex = gMaterials[gnPlayerMaterialID].TextureIndices.x;
 
-    // µð¹ö±× ¾ÈÀüÀåÄ¡ (¼±ÅÃ)
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¡ (ï¿½ï¿½ï¿½ï¿½)
     if (diffuseIndex >= MAX_GLOBAL_SRVS)
-        return float4(1, 0, 0, 1); // Àß¸øµÈ ÀÎµ¦½º
+        return float4(1, 0, 0, 1); // ï¿½ß¸ï¿½ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½
 
-    // 1. ÅØ½ºÃ³ »ùÇÃ (°¨¸¶ °ø°£)
+    // 1. ï¿½Ø½ï¿½Ã³ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
     float4 cColor = gtxtGlobalTextures[diffuseIndex]
                         .Sample(gssDefaultSamplerState, input.uv);
     
-    // 2. ¿ª°¨¸¶ º¸Á¤ (°¨¸¶ ¡æ ¼±Çü)
+    // 2. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
     
     cColor.rgb = pow(cColor.rgb, 2.2);
 
-     // 3. ¶óÀÌÆÃ (¼±Çü °ø°£)
+     // 3. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
     float4 cIllumination = Lighting(input.positionW, input.normalW);
     
     float3 linearColor = cColor * cIllumination;
     
-     // 4. °¨¸¶ º¸Á¤ (¼±Çü ¡æ °¨¸¶)
+     // 4. ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
     float3 gammaColor = pow(linearColor, 1.0 / 2.2);
     
     return float4(gammaColor, cColor.a);
@@ -167,13 +160,18 @@ VS_TEXTURED_OUTPUT VSTextured(VS_TEXTURED_INPUT input)
 
 float4 PSTextured(VS_TEXTURED_OUTPUT input, uint nPrimitiveID : SV_PrimitiveID) : SV_TARGET
 {
-    uint diffuseIndex = gMaterials[gnMaterialID].TextureIndices.x; // ¶Ç´Â gnPlayerMaterialID
+    uint packed = gMaterials[gnMaterialID].TextureIndices.x;
 
-    if (diffuseIndex == 0xFFFFFFFF || diffuseIndex >= MAX_GLOBAL_SRVS)
-        return float4(1, 0, 1, 1); // ÅØ½ºÃ³ ¾øÀ½/Àß¸øµÈ ÀÎµ¦½º
-    
-    // ÅØ½ºÃ³ »ùÇÃ
-    return gtxtGlobalTextures[diffuseIndex].Sample(gssDefaultSamplerState, input.uv);
+    if (packed == 0)
+        return float4(1, 0, 1, 1);
+
+    uint diffuseIndex = packed - 1;
+
+    if (diffuseIndex >= MAX_GLOBAL_SRVS)
+        return float4(1, 0, 0, 1);
+
+    return gtxtGlobalTextures[diffuseIndex]
+            .Sample(gssDefaultSamplerState, input.uv);
 
 }
 
@@ -208,25 +206,31 @@ VS_TEXTURED_LIGHTING_OUTPUT VSTexturedLighting(VS_TEXTURED_LIGHTING_INPUT input)
 
 float4 PSTexturedLighting(VS_TEXTURED_LIGHTING_OUTPUT input, uint nPrimitiveID : SV_PrimitiveID) : SV_TARGET
 {
-    uint diffuseIndex = gMaterials[gnMaterialID].TextureIndices.x;
+    uint packed = gMaterials[gnMaterialID].TextureIndices.x;
+
+    if (packed == 0)
+        return float4(1, 0, 1, 1);
+
+    uint diffuseIndex = packed - 1;
 
     if (diffuseIndex >= MAX_GLOBAL_SRVS)
-        return float4(1, 0, 0, 1); // bad index
+        return float4(1, 0, 0, 1);
 
-    // 1. ÅØ½ºÃ³ »ùÇÃ (°¨¸¶ °ø°£)
-    float4 cTexture = gtxtGlobalTextures[diffuseIndex].Sample(gssDefaultSamplerState, input.uv);
+    float4 cTexture =
+    gtxtGlobalTextures[diffuseIndex]
+        .Sample(gssDefaultSamplerState, input.uv);
 
-    // 2. ¿ª°¨¸¶ º¸Á¤ (°¨¸¶ ¡æ ¼±Çü)
+    // 2. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
     cTexture.rgb = pow(cTexture.rgb, 2.2);
     
-    // 3. ¶óÀÌÆÃ °è»ê (¼±Çü °ø°£)
+    // 3. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
     input.normalW = normalize(input.normalW);
     float4 cIllumination = Lighting(input.positionW, input.normalW);
 
-    // 4. »ö»ó °è»ê (¼±Çü °ø°£)
+    // 4. ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
     float3 linearColor = cTexture.rgb * cIllumination.rgb;
     
-    // 5. °¨¸¶ º¸Á¤ (¼±Çü ¡æ °¨¸¶)
+    // 5. ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
     float3 gammaColor = pow(linearColor, 1.0 / 2.2);
     
     return float4(gammaColor, cTexture.a);
@@ -245,79 +249,103 @@ struct PS_MULTIPLE_RENDER_TARGETS_OUTPUT
 	float zDepth : SV_TARGET4;
 };
 
-/*
-PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(VS_TEXTURED_LIGHTING_OUTPUT input, uint nPrimitiveID : SV_PrimitiveID)
-{
-    PS_MULTIPLE_RENDER_TARGETS_OUTPUT output;
-
-    uint diffuseIndex = gMaterials[gnMaterialID].TextureIndices.x;
-    if (diffuseIndex >= MAX_GLOBAL_SRVS)
-    {
-        output.color = float4(1, 0, 0, 1);
-        output.cTexture = float4(1, 0, 0, 1);
-        output.cIllumination = float4(0, 0, 0, 0);
-        output.normal = float4(0, 0, 0, 1);
-        output.zDepth = input.position.z;
-        return output;
-    }
-
-    output.cTexture = gtxtGlobalTextures[diffuseIndex].Sample(gssDefaultSamplerState, input.uv);
-
-    input.normalW = normalize(input.normalW);
-    output.cIllumination = Lighting(input.positionW, input.normalW);
-
-    output.color = output.cIllumination * output.cTexture;
-    output.normal = float4(input.normalW.xyz * 0.5f + 0.5f, 1.0f);
-    output.zDepth = input.position.z;
-    
-    return output;
-}
-*/
 PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
     VS_TEXTURED_LIGHTING_OUTPUT input,
     uint nPrimitiveID : SV_PrimitiveID)
 {
     PS_MULTIPLE_RENDER_TARGETS_OUTPUT output;
 
-    uint diffuseIndex = gMaterials[gnMaterialID].TextureIndices.x;
+    // =========================================================
+    // 1. packed SRV index ï¿½Ø¼ï¿½
+    // =========================================================
+    uint packed = gMaterials[gnMaterialID].TextureIndices.x;
 
-    // SRV ÀÎµ¦½º°¡ Àß¸øµÇ¾úÀ» ¶§¸¸ »¡°­
-    if (diffuseIndex >= MAX_GLOBAL_SRVS)
+    // ï¿½Ø½ï¿½Ã³ ï¿½ï¿½ï¿½ï¿½
+    if (packed == 0)
     {
-        output.color = float4(1, 0, 0, 1);
-        output.cTexture = float4(1, 0, 0, 1);
+        output.color = float4(1, 0, 1, 1); // magenta
+        output.cTexture = output.color;
         output.cIllumination = float4(0, 0, 0, 0);
         output.normal = float4(0, 0, 1, 1);
         output.zDepth = input.position.z;
         return output;
     }
 
-    // ===============================
-    // ÅØ½ºÃ³ »ùÇÃ¸µ
-    // ===============================
+    uint diffuseIndex = packed - 1;
+
+    if (diffuseIndex >= MAX_GLOBAL_SRVS)
+    {
+        output.color = float4(1, 0, 0, 1); // red (bad index)
+        output.cTexture = output.color;
+        output.cIllumination = float4(0, 0, 0, 0);
+        output.normal = float4(0, 0, 1, 1);
+        output.zDepth = input.position.z;
+        return output;
+    }
+
+    // =========================================================
+    // 2. ï¿½Ø½ï¿½Ã³ ï¿½ï¿½ï¿½Ã¸ï¿½
+    // =========================================================
     float4 texColor =
         gtxtGlobalTextures[diffuseIndex]
             .Sample(gssDefaultSamplerState, input.uv);
 
-    // ===============================
-    // ¡Ú Å×½ºÆ®¿ë: Á¶¸í ¿ÏÀü ¹«½Ã
-    // ===============================
+    // =========================================================
+    // 3. ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
+    // =========================================================
+    float3 normalW = normalize(input.normalW);
+    float4 illumination = Lighting(input.positionW, normalW);
+
+    // =========================================================
+    // 4. MRT ï¿½ï¿½ï¿½
+    // =========================================================
     output.cTexture = texColor;
-    output.cIllumination = float4(1, 1, 1, 1); // ÀÇ¹Ì ¾øÀ½
-    output.color = texColor; // ¡Ú ÇÙ½É
-    output.normal = float4(0, 0, 1, 1);
+    output.cIllumination = illumination;
+    output.color = texColor * illumination;
+    output.normal = float4(normalW * 0.5f + 0.5f, 1.0f);
     output.zDepth = input.position.z;
 
-    /*
-    output.color = float4(
-    (gnMaterialID & 1) ? 1 : 0,
-    (gnMaterialID & 2) ? 1 : 0,
-    (gnMaterialID & 4) ? 1 : 0,
-    1);
-    */
     return output;
 }
 
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct VS_SKINNED_INPUT
+{
+    float3 position : POSITION;
+    float3 normal : NORMAL;
+    float2 uv : TEXCOORD;
+    uint4 blendIndices : BLENDINDICES;
+    float4 blendWeights : BLENDWEIGHT;
+};
+
+struct VS_SKINNED_OUTPUT
+{
+    float4 position : SV_POSITION;
+    float3 positionW : POSITION;
+    float3 normalW : NORMAL;
+    float2 uv : TEXCOORD;
+};
+
+VS_SKINNED_OUTPUT VSSkinned(VS_SKINNED_INPUT input)
+{
+    VS_SKINNED_OUTPUT output;
+
+    uint bi = input.blendIndices.x;
+
+    float4 posL = float4(input.position, 1.0f);
+    float4 posSkinned = mul(posL, gBoneTransforms[bi]);
+    float4 posW = mul(posSkinned, gmtxGameObject);
+
+    output.positionW = posW.xyz;
+    output.position = mul(mul(posW, gmtxView), gmtxProjection);
+
+    output.normalW = normalize(mul(input.normal, (float3x3) gmtxGameObject));
+    output.uv = input.uv;
+
+    return output;
+}
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -411,19 +439,19 @@ float4 PSScreenRectSamplingTextured(VS_TEXTURED_OUTPUT input) : SV_Target
     if (idx == 0xFFFFFFFFu || idx >= MAX_GLOBAL_SRVS)
         return float4(1, 0, 1, 1); // bad / missing
 
-    // Depth °è¿­Àº Load·Î ÀÐ°í x¸¸ »ç¿ë
+    // Depth ï¿½è¿­ï¿½ï¿½ Loadï¿½ï¿½ ï¿½Ð°ï¿½ xï¿½ï¿½ ï¿½ï¿½ï¿½
     if (gvDrawOptions.x == 68 || gvDrawOptions.x == 90)
     {
         float d = gtxtGlobalTextures[idx].Load(uint3((uint) input.position.x, (uint) input.position.y, 0)).x;
         return float4(d, d, d, 1);
     }
 
-    // ³ª¸ÓÁö´Â »ùÇÃ¸µ
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ã¸ï¿½
     return gtxtGlobalTextures[idx].Sample(gssDefaultSamplerState, input.uv);
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// ÁöÇü(¹Ì¿Ï)
+// ï¿½ï¿½ï¿½ï¿½(ï¿½Ì¿ï¿½)
 
 struct VS_TERRAIN_INPUT
 {

@@ -7,6 +7,7 @@
 #include "DDSTextureLoader12.h"
 #include "Scene.h"
 #include "Material.h"
+#include "AssetManager.h"
 
 D3D12_SHADER_BYTECODE CShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
 {
@@ -28,7 +29,7 @@ D3D12_SHADER_BYTECODE CShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
 
 D3D12_INPUT_LAYOUT_DESC CShader::CreateInputLayout()
 {
-	UINT nInputElementDescs = 5;
+	UINT nInputElementDescs = 3;
 	D3D12_INPUT_ELEMENT_DESC* pd3dInputElementDescs =
 		new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
 
@@ -61,28 +62,6 @@ D3D12_INPUT_LAYOUT_DESC CShader::CreateInputLayout()
 		DXGI_FORMAT_R32G32_FLOAT,
 		0,
 		24,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-		0
-	};
-
-	// BLENDINDICES (uint4) : offset 32
-	pd3dInputElementDescs[3] = {
-		"BLENDINDICES",
-		0,
-		DXGI_FORMAT_R32G32B32A32_UINT,
-		0,
-		32,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-		0
-	};
-
-	// BLENDWEIGHT (float4) : offset 48
-	pd3dInputElementDescs[4] = {
-		"BLENDWEIGHT",
-		0,
-		DXGI_FORMAT_R32G32B32A32_FLOAT,
-		0,
-		48,
 		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
 		0
 	};
@@ -185,7 +164,7 @@ void CShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGr
 	if (FAILED(hResult))
 	{
 		OutputDebugStringA("CreateGraphicsPipelineState FAILED\n");
-		// assert(false); ¶Ç´Â throw
+		// assert(false); ï¿½Ç´ï¿½ throw
 	}
 
 	if (d3dPipelineStateDesc.InputLayout.pInputElementDescs)
@@ -198,12 +177,14 @@ void CShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsComm
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
-/*
+
 D3D12_INPUT_LAYOUT_DESC CPlayerShader::CreateInputLayout()
 {
-	UINT nInputElementDescs = 2;
-	D3D12_INPUT_ELEMENT_DESC* pd3dInputElementDescs = new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
+	UINT nInputElementDescs = 5;
+	D3D12_INPUT_ELEMENT_DESC* pd3dInputElementDescs =
+		new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
 
+	// POSITION (float3) : offset 0
 	pd3dInputElementDescs[0] = {
 		"POSITION",
 		0,
@@ -214,12 +195,46 @@ D3D12_INPUT_LAYOUT_DESC CPlayerShader::CreateInputLayout()
 		0
 	};
 
+	// NORMAL (float3) : offset 12
 	pd3dInputElementDescs[1] = {
-		"COLOR",
+		"NORMAL",
+		0,
+		DXGI_FORMAT_R32G32B32_FLOAT,
+		0,
+		12,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0
+	};
+
+	// TEXCOORD (float2) : offset 24
+	pd3dInputElementDescs[2] = {
+		"TEXCOORD",
+		0,
+		DXGI_FORMAT_R32G32_FLOAT,
+		0,
+		24,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0
+	};
+
+	// BLENDINDICES (uint4) : offset 32
+	pd3dInputElementDescs[3] = {
+		"BLENDINDICES",
+		0,
+		DXGI_FORMAT_R32G32B32A32_UINT,
+		0,
+		32,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0
+	};
+
+	// BLENDWEIGHT (float4) : offset 48
+	pd3dInputElementDescs[4] = {
+		"BLENDWEIGHT",
 		0,
 		DXGI_FORMAT_R32G32B32A32_FLOAT,
 		0,
-		12,
+		48,
 		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
 		0
 	};
@@ -228,9 +243,9 @@ D3D12_INPUT_LAYOUT_DESC CPlayerShader::CreateInputLayout()
 	d3dInputLayoutDesc.pInputElementDescs = pd3dInputElementDescs;
 	d3dInputLayoutDesc.NumElements = nInputElementDescs;
 
-	return(d3dInputLayoutDesc);
+	return d3dInputLayoutDesc;
 }
-*/
+
 
 D3D12_DEPTH_STENCIL_DESC CPlayerShader::CreateDepthStencilState()
 {
@@ -363,7 +378,7 @@ D3D12_SHADER_BYTECODE CIlluminatedTexturedShader::CreatePixelShader(ID3DBlob** p
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
-void CObjectsShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGraphicsRootSignature, UINT nRenderTargets, DXGI_FORMAT* pdxgiRtvFormats, DXGI_FORMAT dxgiDsvFormat)
+void CStaticObjectsShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGraphicsRootSignature, UINT nRenderTargets, DXGI_FORMAT* pdxgiRtvFormats, DXGI_FORMAT dxgiDsvFormat)
 {
 #ifdef _WITH_SCENE_ROOT_SIGNATURE
 	m_pd3dGraphicsRootSignature = pd3dGraphicsRootSignature;
@@ -380,14 +395,14 @@ void CObjectsShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature*
 	);
 }
 
-D3D12_SHADER_BYTECODE CObjectsShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
+D3D12_SHADER_BYTECODE CStaticObjectsShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
 {
 	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSTexturedLightingToMultipleRTs", "ps_5_1", ppd3dShaderBlob));
 }
 
-void CObjectsShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
+void CStaticObjectsShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	UINT ncbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255); //256ÀÇ ¹è¼ö
+	UINT ncbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255); //256ï¿½ï¿½ ï¿½ï¿½ï¿½
 	m_pd3dcbGameObjects = ::CreateBufferResource(
 		pd3dDevice,
 		pd3dCommandList,
@@ -401,18 +416,13 @@ void CObjectsShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12Graph
 	m_pd3dcbGameObjects->Map(0, nullptr, (void**)&m_pcbMappedGameObjects);
 }
 
-void CObjectsShader::BuildObjects(
+void CStaticObjectsShader::BuildObjects(
 	ID3D12Device* pd3dDevice,
 	ID3D12GraphicsCommandList* pd3dCommandList,
 	void* pContext)
 {
 	// ============================================================
-	// 0. Material ID ¹ß±Þ±â (¾À ÃÊ±âÈ­ ½Ã 1È¸¸¸ Áõ°¡)
-	// ============================================================
-	
-
-	// ============================================================
-	// 1. GameObject CBV ÁØºñ
+	// 1. GameObject CBV ï¿½Øºï¿½
 	// ============================================================
 	UINT ncbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);
 
@@ -429,143 +439,271 @@ void CObjectsShader::BuildObjects(
 	);
 
 	// ============================================================
-	// 2. Mesh ·Îµå
+	// 2. AssetManagerï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	// ============================================================
-	shared_ptr<CMesh> pUCMesh = make_shared<CMesh>(pd3dDevice, pd3dCommandList);
-	pUCMesh->LoadMeshFromBIN(
-		pd3dDevice,
-		pd3dCommandList,
-		"Assets/Unitychan/Mesh/unitychan.bin"
-	);
-
-	m_ppObjects.resize(m_nObjects);
-
-	unique_ptr<CRotatingObject> pRotatingObject = make_unique<CRotatingObject>(1);
-
-	// ============================================================
-	// 3. Material Ä³½Ã + Materials CB
-	// ============================================================
-	static unordered_map<string, shared_ptr<CMaterial>> materialCache;
 	MATERIALS* pMaterials = reinterpret_cast<MATERIALS*>(pContext);
 
-	// RootSignature¿¡¼­ Global SRV TableÀÇ Root Parameter Index
-	constexpr UINT ROOTPARAM_TEX_SRV_TABLE = ROOT_PARAMETER_GLOBAL_SRV;
-
-	// ============================================================
-	// 4. SubMesh ¼øÈ¸ÇÏ¸ç Material »ý¼º / Àç»ç¿ë
-	// ============================================================
-	for (auto& sm : pUCMesh->m_SubMeshes)
+	AssetBuildDesc unitychanDesc =
 	{
-		if (sm.materialName.empty())
-			continue;
+		AssetType::Unitychan,
+		"Assets/Zombie/Mesh/Zombie.bin",
+		"Assets/Zombie/Texture"
+	};
 
-		// --------------------------------------------------------
-		// (4-1) ÀÌ¹Ì Á¸ÀçÇÏ´Â Material Àç»ç¿ë
-		// --------------------------------------------------------
-		auto it = materialCache.find(sm.materialName);
-		if (it != materialCache.end())
-		{
-			sm.material = it->second;
-			sm.materialId = it->second->GetMaterialID();
-			continue;
-		}
-
-		// --------------------------------------------------------
-		// (4-2) »õ·Î¿î Material »ý¼º
-		// --------------------------------------------------------
-		shared_ptr<CMaterial> mat = make_shared<CMaterial>();
-
-		// ¡Ú ÇÙ½É: materialId ¹ß±Þ
-		const UINT materialId = CScene::s_NextMaterialID++;
-		mat->SetMaterialID(materialId);
-
-		// ¾ÈÀüÀåÄ¡
-		assert(materialId < MAX_MATERIALS);
-
-		// --------------------------------------------------------
-		// (4-3) Texture »ý¼º ¹× ·Îµå
-		// --------------------------------------------------------
-		shared_ptr<CTexture> tex = make_shared<CTexture>(
-			1,                  // nTextureResources
-			RESOURCE_TEXTURE2D,  // nResourceType
-			0,                  // nSamplers
-			1                   // nRootParameters
-		);
-
-		const wstring texPath =	ResolveTexturePath("Unitychan", sm.diffuseTextureName);
-		tex->LoadTextureFromFile(
+	BuiltAsset asset =
+		AssetManager::BuildAsset(
 			pd3dDevice,
 			pd3dCommandList,
-			texPath.c_str(),
-			RESOURCE_TEXTURE2D,
-			0);
-		{
-			char msg[256];
-			sprintf_s(msg,
-				"[TEXTURE LOAD] material=%s texBase=%s path=%ls\n",
-				sm.materialName.c_str(),
-				sm.diffuseTextureName.c_str(),
-				texPath.c_str()
-			);
-			OutputDebugStringA(msg);
-		}
-
-		// --------------------------------------------------------
-		// (4-4) ±Û·Î¹ú SRV Heap¿¡ SRV µî·Ï
-		// --------------------------------------------------------
-		CScene::m_pDescriptorHeap->CreateShaderResourceViews(
-			pd3dDevice,
-			tex.get(),
-			ROOTPARAM_TEX_SRV_TABLE
+			pMaterials,
+			unitychanDesc
 		);
 
-		// --------------------------------------------------------
-		// (4-5) Material¿¡ Texture ¿¬°á
-		// --------------------------------------------------------
-		mat->SetTexture(tex);
-
-		// --------------------------------------------------------
-		// (4-6) Materials CB¿¡ SRV ÀÎµ¦½º ±â·Ï
-		// --------------------------------------------------------
-		if (pMaterials)
-		{
-			const UINT srvIndex = mat->GetDiffuseSrvIndex();
-
-			pMaterials->m_pReflections[materialId].m_xmn4TextureIndices.x =
-				(srvIndex == UINT_MAX) ? 0xFFFFFFFFu : srvIndex;
-		}
-
-		// --------------------------------------------------------
-		// (4-7) Ä³½Ã µî·Ï + SubMesh ¿¬°á
-		// --------------------------------------------------------
-		materialCache.emplace(sm.materialName, mat);
-		sm.material = mat;
-		sm.materialId = materialId;
-	}
-
 	// ============================================================
-	// 5. GameObject ±¸¼º
+	// 3. GameObject ï¿½ï¿½ï¿½ï¿½
 	// ============================================================
-	// --- ¹èÄ¡ CB(Shader°¡ ¸¸µç m_pcbMappedGameObjects)¿¡¼­ 0¹ø ¿ÀºêÁ§Æ® ½½·Ô ÁÖ¼Ò °è»ê
+	m_ppObjects.resize(m_nObjects);
+
+	auto pPlaneObject = std::make_unique<CGameObject>(1);
+
 	CB_GAMEOBJECT_INFO* pObjCB0 =
 		reinterpret_cast<CB_GAMEOBJECT_INFO*>(
 			reinterpret_cast<UINT8*>(m_pcbMappedGameObjects) + 0 * ncbElementBytes
 			);
 
-	// --- CGameObject ÂÊ¿¡µµ Æ÷ÀÎÅÍ¸¦ ²È¾ÆÁØ´Ù(¼­ºê¸Þ½Ã Render¿¡¼­ ¾²·Á°í)
-	pRotatingObject->SetMappedGameObjectCB(pObjCB0);
-	pRotatingObject->SetMesh(0, pUCMesh);
+	pPlaneObject->SetMappedGameObjectCB(pObjCB0);
+	pPlaneObject->SetMesh(0, asset.mesh);
 
-	pRotatingObject->SetPosition(0.0f, 0.0f, 0.0f);
-	pRotatingObject->SetRotationAxis(XMFLOAT3(0.0f, 1.0f, 0.0f));
-	pRotatingObject->SetRotationSpeed(10.0f);
+	pPlaneObject->SetPosition(0.0f, 0.0f, 0.0f);
 
-	// CBV Ã¹ ½½·Ô »ç¿ë
-	pRotatingObject->SetCbvGPUDescriptorHandlePtr(
+	pPlaneObject->SetCbvGPUDescriptorHandlePtr(
 		d3dCbvGPUDescriptorNextHandle.ptr
 	);
 
-	m_ppObjects[0] = std::move(pRotatingObject);
+	m_ppObjects[0] = std::move(pPlaneObject);
+}
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+void CSkinnedObjectsShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGraphicsRootSignature, UINT nRenderTargets, DXGI_FORMAT* pdxgiRtvFormats, DXGI_FORMAT dxgiDsvFormat)
+{
+#ifdef _WITH_SCENE_ROOT_SIGNATURE
+	m_pd3dGraphicsRootSignature = pd3dGraphicsRootSignature;
+#else
+	CreateGraphicsRootSignature(pd3dDevice);
+#endif
+
+	CShader::CreateShader(
+		pd3dDevice,
+		m_pd3dGraphicsRootSignature.Get(),
+		nRenderTargets,
+		pdxgiRtvFormats,
+		dxgiDsvFormat
+	);
+}
+
+
+D3D12_SHADER_BYTECODE CSkinnedObjectsShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "VSSkinned", "vs_5_1", ppd3dShaderBlob));
+}
+
+D3D12_SHADER_BYTECODE CSkinnedObjectsShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSTexturedLightingToMultipleRTs", "ps_5_1", ppd3dShaderBlob));
+}
+
+
+D3D12_INPUT_LAYOUT_DESC CSkinnedObjectsShader::CreateInputLayout()
+{
+	UINT nInputElementDescs = 5;
+	D3D12_INPUT_ELEMENT_DESC* pd3dInputElementDescs =
+		new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
+
+	// POSITION (float3) : offset 0
+	pd3dInputElementDescs[0] = {
+		"POSITION",
+		0,
+		DXGI_FORMAT_R32G32B32_FLOAT,
+		0,
+		0,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0
+	};
+
+	// NORMAL (float3) : offset 12
+	pd3dInputElementDescs[1] = {
+		"NORMAL",
+		0,
+		DXGI_FORMAT_R32G32B32_FLOAT,
+		0,
+		12,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0
+	};
+
+	// TEXCOORD (float2) : offset 24
+	pd3dInputElementDescs[2] = {
+		"TEXCOORD",
+		0,
+		DXGI_FORMAT_R32G32_FLOAT,
+		0,
+		24,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0
+	};
+
+	// BLENDINDICES (uint4) : offset 32
+	pd3dInputElementDescs[3] = {
+		"BLENDINDICES",
+		0,
+		DXGI_FORMAT_R32G32B32A32_UINT,
+		0,
+		32,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0
+	};
+
+	// BLENDWEIGHT (float4) : offset 48
+	pd3dInputElementDescs[4] = {
+		"BLENDWEIGHT",
+		0,
+		DXGI_FORMAT_R32G32B32A32_FLOAT,
+		0,
+		48,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0
+	};
+
+	D3D12_INPUT_LAYOUT_DESC d3dInputLayoutDesc;
+	d3dInputLayoutDesc.pInputElementDescs = pd3dInputElementDescs;
+	d3dInputLayoutDesc.NumElements = nInputElementDescs;
+
+	return d3dInputLayoutDesc;
+}
+
+void CSkinnedObjectsShader::CreateShaderVariables(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList)
+{
+	// ï¿½ï¿½ï¿½ï¿½ Staticï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï°ï¿½ GameObjects CB ï¿½ï¿½ ï¿½Ê¿ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+	UINT ncbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255); //256ï¿½ï¿½ ï¿½ï¿½ï¿½
+	m_pd3dcbGameObjects = ::CreateBufferResource(
+		device,
+		cmdList,
+		nullptr,
+		ncbElementBytes * m_nObjects,
+		D3D12_HEAP_TYPE_UPLOAD,
+		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+		nullptr
+	);
+
+	m_pd3dcbGameObjects->Map(0, nullptr, (void**)&m_pcbMappedGameObjects);
+
+	// Bone palette CB ï¿½ï¿½ï¿½ï¿½
+	UINT cbBytes = (sizeof(CB_BONE_PALETTE) + 255) & ~255;
+
+	m_pd3dcbBonePalette = ::CreateBufferResource(
+		device,
+		cmdList,
+		nullptr,
+		cbBytes,
+		D3D12_HEAP_TYPE_UPLOAD,
+		D3D12_RESOURCE_STATE_GENERIC_READ
+	);
+
+	m_pd3dcbBonePalette->Map(0, nullptr, reinterpret_cast<void**>(&m_pcbMappedBonePalette));
+
+	// ï¿½Ó½ï¿½(ï¿½Ü°ï¿½4): ï¿½Ï´ï¿½ identityï¿½ï¿½ Ã¤ï¿½ï¿½
+	XMFLOAT4X4 I;
+	XMStoreFloat4x4(&I, XMMatrixIdentity());
+	for (UINT i = 0; i < MAX_BONES; ++i)
+		m_pcbMappedBonePalette->gBoneTransforms[i] = I;
+}
+
+void CSkinnedObjectsShader::BuildObjects(
+	ID3D12Device* pd3dDevice,
+	ID3D12GraphicsCommandList* pd3dCommandList,
+	void* pContext
+)
+{
+	UINT ncbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);
+
+	CreateShaderVariables(pd3dDevice, pd3dCommandList);
+
+	D3D12_GPU_DESCRIPTOR_HANDLE d3dCbvGPUDescriptorNextHandle =
+		CScene::m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
+
+	CScene::m_pDescriptorHeap->CreateConstantBufferViews(
+		pd3dDevice,
+		m_nObjects,
+		m_pd3dcbGameObjects.Get(),
+		ncbElementBytes
+	);
+
+	// 2. AssetManagerï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+	MATERIALS* pMaterials = reinterpret_cast<MATERIALS*>(pContext);
+
+	AssetBuildDesc unitychanDesc =
+	{
+		AssetType::Unitychan,
+		"Assets/Unitychan/Mesh/unitychan.bin",
+		"Assets/Unitychan/Texture"
+	};
+
+	BuiltAsset asset =
+		AssetManager::BuildAsset(
+			pd3dDevice,
+			pd3dCommandList,
+			pMaterials,
+			unitychanDesc
+		);
+
+	// 3. GameObject ï¿½ï¿½ï¿½ï¿½
+	m_ppObjects.resize(m_nObjects);
+
+	auto pObj = std::make_unique<CGameObject>(1);
+
+	CB_GAMEOBJECT_INFO* pObjCB0 =
+		reinterpret_cast<CB_GAMEOBJECT_INFO*>(
+			reinterpret_cast<UINT8*>(m_pcbMappedGameObjects) + 0 * ncbElementBytes);
+
+	pObj->SetMappedGameObjectCB(pObjCB0);
+	pObj->SetMesh(0, asset.mesh);
+	pObj->SetPosition(2.0f, 0.0f, 0.0f);
+	pObj->SetCbvGPUDescriptorHandlePtr(d3dCbvGPUDescriptorNextHandle.ptr);
+
+	// (A) ï¿½ï¿½Å°ï¿½ï¿½ È°ï¿½ï¿½È­ (CB ï¿½ï¿½ï¿½ï¿½)
+	if (asset.mesh && asset.mesh->IsSkinnedMesh())
+	{
+		const int nBones = asset.mesh->GetBoneCount();
+		pObj->EnableSkinning(pd3dDevice, nBones);
+	}
+
+	// (C) ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Í¿ï¿½ ï¿½Ö±ï¿½ (ï¿½ï¿½ï¿½Äºï¿½ï¿½ï¿½ "ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®"ï¿½ï¿½ ï¿½Ù·ï¿½)
+	m_ppObjects[0] = std::move(pObj);
+
+	// =======================
+	// (B') Å¬ï¿½ï¿½ ï¿½Îµï¿½ -> Animator ï¿½ï¿½ï¿½ -> Play (ï¿½Ýµï¿½ï¿½ m_ppObjects[0]ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
+	// =======================
+	CGameObject* obj0 = m_ppObjects[0].get();
+	if (!obj0) return;
+
+	AnimationClip idleClip;
+	bool idleLoaded = false;
+
+	if (!obj0->m_ppMeshes.empty() && obj0->m_ppMeshes[0])
+	{
+		idleLoaded = obj0->m_ppMeshes[0]->LoadAnimationFromBIN(
+			"Assets/Unitychan/Animation/unitychan_run.bin", "Idle", idleClip, 1.0f);
+	}
+
+	if (idleLoaded)
+	{
+		idleClip.name = "Idle";
+
+		CAnimator* anim = obj0->EnsureAnimator();
+		if (anim)
+			anim->AddClip(idleClip);
+
+		obj0->PlayAnimation("Idle", true, 0.0f);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -722,9 +860,19 @@ void CPostProcessingShader::CreateResourcesAndRtvsSrvs(ID3D12Device* pd3dDevice,
 
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
 #ifdef _WITH_SCENE_ROOT_SIGNATURE
-	CScene::m_pDescriptorHeap->CreateShaderResourceViews(pd3dDevice, m_pTexture.get(), ROOT_PARAMETER_GLOBAL_SRV);
+	CScene::m_pDescriptorHeap->CreateShaderResourceViewsOther(
+		pd3dDevice,
+		m_pTexture.get(),
+		ROOT_PARAMETER_GLOBAL_SRV
+	);
+
 #else
-	CScene::m_pDescriptorHeap->CreateShaderResourceViews(pd3dDevice, m_pTexture.get(), 0);
+	CScene::m_pDescriptorHeap->CreateShaderResourceViewsOther(
+		pd3dDevice,
+		m_pTexture.get(),
+		0
+	);
+
 #endif
 
 	D3D12_RENDER_TARGET_VIEW_DESC d3dRenderTargetViewDesc;
@@ -758,7 +906,7 @@ D3D12_SHADER_BYTECODE CTextureToFullScreenShader::CreatePixelShader(ID3DBlob** p
 
 void CTextureToFullScreenShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	UINT ncbElementBytes = ((sizeof(PS_CB_DRAW_OPTIONS) + 255) & ~255); //256ÀÇ ¹è¼ö
+	UINT ncbElementBytes = ((sizeof(PS_CB_DRAW_OPTIONS) + 255) & ~255); //256ï¿½ï¿½ ï¿½ï¿½ï¿½
 	m_pd3dcbDrawOptions = ::CreateBufferResource(
 		pd3dDevice,
 		pd3dCommandList,

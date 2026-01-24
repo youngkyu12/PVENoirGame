@@ -120,62 +120,110 @@ void CScene::BuildLightsAndMaterials()
 
 }
 
-void CScene::BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
+void CScene::BuildObjects(
+	ID3D12Device* pd3dDevice,
+	ID3D12GraphicsCommandList* pd3dCommandList)
 {
+	// ============================================================
+	// 1. Root Signature
+	// ============================================================
 	CreateGraphicsRootSignature(pd3dDevice);
 
-	m_nShaders = 1;
+	// ============================================================
+	// 2. Shader ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (Static + Skinned)
+	// ============================================================
+	m_nShaders = 2;
 	m_ppShaders.resize(m_nShaders);
 
-	shared_ptr<CObjectsShader> pObjectShader = make_shared<CObjectsShader>();
-	int nObjects = pObjectShader->GetNumberOfObjects();
 	constexpr int MAX_GLOBAL_SRVS = 1024;
 
-	m_pDescriptorHeap->CreateCbvSrvDescriptorHeaps(
-		pd3dDevice,
-		nObjects + 1 + 1 + 1,
-		MAX_GLOBAL_SRVS
-	);
+	// ============================================================
+	// 3. Static Objects Shader
+	// ============================================================
+	{
+		auto pStaticShader = std::make_shared<CStaticObjectsShader>();
+		int nObjects = pStaticShader->GetNumberOfObjects();
 
-	DXGI_FORMAT pdxgiRtvFormats[5] = {
-		DXGI_FORMAT_R8G8B8A8_UNORM,
-		DXGI_FORMAT_R8G8B8A8_UNORM,
-		DXGI_FORMAT_R8G8B8A8_UNORM,
-		DXGI_FORMAT_R8G8B8A8_UNORM,
-		DXGI_FORMAT_R32_FLOAT
-	};
-	pObjectShader->CreateShader(
-		pd3dDevice,
-		m_pd3dGraphicsRootSignature.Get(),
-		5,
-		pdxgiRtvFormats,
-		DXGI_FORMAT_D24_UNORM_S8_UINT/*DXGI_FORMAT_D32_FLOAT*/
-	);
+		// DescriptorHeap (Sceneï¿½ï¿½ï¿½ï¿½ 1È¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
+		m_pDescriptorHeap->CreateCbvSrvDescriptorHeaps(
+			pd3dDevice,
+			nObjects + 1 + 1 + 1, // GameObject + Camera + Player + etc
+			MAX_GLOBAL_SRVS
+		);
 
-	pObjectShader->BuildObjects(pd3dDevice, pd3dCommandList, m_pMaterials.get());
-	m_ppShaders[0] = pObjectShader;
+		DXGI_FORMAT rtvFormats[5] =
+		{
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT_R32_FLOAT
+		};
 
-	BuildLightsAndMaterials();
+		pStaticShader->CreateShader(
+			pd3dDevice,
+			m_pd3dGraphicsRootSignature.Get(),
+			5,
+			rtvFormats,
+			DXGI_FORMAT_D24_UNORM_S8_UINT
+		);
 
-	/*XMFLOAT3 xmf3Scale(8.0f, 2.0f, 8.0f);
-	XMFLOAT4 xmf4Color(0.0f, 0.5f, 0.0f, 0.0f);
-#ifdef _WITH_TERRAIN_PARTITION
-	m_pTerrain = make_unique<CHeightMapTerrain>(pd3dDevice, pd3dCommandList, m_pd3dGraphicsRootSignature,Get(), _T("Image/HeightMap.raw"), 257, 257, 17, 17, xmf3Scale, xmf4Color);
-#else
-	m_pTerrain = make_unique<CHeightMapTerrain>(pd3dDevice, pd3dCommandList, m_pd3dGraphicsRootSignature.Get(), _T("Image/HeightMap.raw"), 257, 257, 257, 257, xmf3Scale, xmf4Color);
-#endif
+		BuildLightsAndMaterials();
 
-	m_pTerrainWater = make_unique<CTerrainWater>(pd3dDevice, pd3dCommandList, m_pd3dGraphicsRootSignature.Get(), 257 * xmf3Scale.x, 257 * xmf3Scale.z);
-	m_pTerrainWater->SetPosition(+(257 * xmf3Scale.x * 0.5f), 155.0f, +(257 * xmf3Scale.z * 0.5f));*/
+		pStaticShader->BuildObjects(
+			pd3dDevice,
+			pd3dCommandList,
+			m_pMaterials.get()
+		);
 
+		m_ppShaders[0] = pStaticShader;
+	}
+
+	// ============================================================
+	// 4. Skinned Objects Shader (ï¿½ï¿½ï¿½ï¿½ï¿½ Staticï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
+	// ============================================================
+	{
+		auto pSkinnedShader = std::make_shared<CSkinnedObjectsShader>();
+
+		DXGI_FORMAT rtvFormats[5] =
+		{
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT_R32_FLOAT
+		};
+
+		pSkinnedShader->CreateShader(
+			pd3dDevice,
+			m_pd3dGraphicsRootSignature.Get(),
+			5,
+			rtvFormats,
+			DXGI_FORMAT_D24_UNORM_S8_UINT
+		);
+
+		// ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ü°è¿¡ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Meshï¿½ï¿½ ï¿½×·ï¿½ï¿½ï¿½ OK
+		pSkinnedShader->BuildObjects(
+			pd3dDevice,
+			pd3dCommandList,
+			m_pMaterials.get()
+		);
+
+		m_ppShaders[1] = pSkinnedShader;
+	}
+
+	// ============================================================
+	// 5. Scene ï¿½ï¿½ï¿½ï¿½ Shader Variables
+	// ============================================================
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
 }
+
 
 void CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevice)
 {
 	HRESULT hResult;
 
-	// (1) Descriptor Ranges: CBV table 1°³ + Global SRV table 1°³¸¸ ³²±ä´Ù.
+	// (1) Descriptor Ranges: CBV table 1ï¿½ï¿½ + Global SRV table 1ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½.
 	D3D12_DESCRIPTOR_RANGE pd3dDescriptorRanges[2] = {};
 
 	// b2: Game Objects (CBV table)
@@ -189,12 +237,12 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevice)
 	constexpr UINT MAX_GLOBAL_SRVS = 1024;
 	pd3dDescriptorRanges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	pd3dDescriptorRanges[1].NumDescriptors = MAX_GLOBAL_SRVS;
-	pd3dDescriptorRanges[1].BaseShaderRegister = 0; // t0ºÎÅÍ
+	pd3dDescriptorRanges[1].BaseShaderRegister = 0; // t0ï¿½ï¿½ï¿½ï¿½
 	pd3dDescriptorRanges[1].RegisterSpace = 0;      // space0
 	pd3dDescriptorRanges[1].OffsetInDescriptorsFromTableStart = 0;
 
-	// (2) Root Parameters: SRV ºÐ¸®(5/6) Á¦°Å, Global SRV ÇÏ³ª¸¸ À¯Áö
-	D3D12_ROOT_PARAMETER pd3dRootParameters[8] = {};
+	// (2) Root Parameters: SRV ï¿½Ð¸ï¿½(5/6) ï¿½ï¿½ï¿½ï¿½, Global SRV ï¿½Ï³ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+	D3D12_ROOT_PARAMETER pd3dRootParameters[9] = {};
 
 	// [0] b1: Camera
 	pd3dRootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
@@ -226,7 +274,7 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevice)
 	pd3dRootParameters[4].Descriptor.RegisterSpace = 0;
 	pd3dRootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-	// [5] b5: DrawOptions (PostProcessing ¿É¼Ç + SRV ÀÎµ¦½ºµé)
+	// [5] b5: DrawOptions (PostProcessing ï¿½É¼ï¿½ + SRV ï¿½Îµï¿½ï¿½ï¿½ï¿½ï¿½)
 	pd3dRootParameters[5].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	pd3dRootParameters[5].Descriptor.ShaderRegister = 5;
 	pd3dRootParameters[5].Descriptor.RegisterSpace = 0;
@@ -244,6 +292,13 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevice)
 	pd3dRootParameters[7].Constants.ShaderRegister = 6; // b6
 	pd3dRootParameters[7].Constants.RegisterSpace = 0;
 	pd3dRootParameters[7].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	// [8] b7: Bones
+	pd3dRootParameters[8].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	pd3dRootParameters[8].Descriptor.ShaderRegister = 7; // b7
+	pd3dRootParameters[8].Descriptor.RegisterSpace = 0;
+	pd3dRootParameters[8].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+
 
 	// Static sampler (s0)
 	D3D12_STATIC_SAMPLER_DESC d3dSamplerDesc = {};
@@ -306,7 +361,7 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevice)
 
 void CScene::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	UINT ncbElementBytes = ((sizeof(LIGHTS) + 255) & ~255); //256ÀÇ ¹è¼ö
+	UINT ncbElementBytes = ((sizeof(LIGHTS) + 255) & ~255); //256ï¿½ï¿½ ï¿½ï¿½ï¿½
 	m_pd3dcbLights = ::CreateBufferResource(
 		pd3dDevice,
 		pd3dCommandList,
@@ -319,7 +374,7 @@ void CScene::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsComma
 
 	m_pd3dcbLights->Map(0, nullptr, (void**)&m_pcbMappedLights);
 
-	UINT ncbMaterialBytes = ((sizeof(MATERIALS) + 255) & ~255); //256ÀÇ ¹è¼ö
+	UINT ncbMaterialBytes = ((sizeof(MATERIALS) + 255) & ~255); //256ï¿½ï¿½ ï¿½ï¿½ï¿½
 	m_pd3dcbMaterials = ::CreateBufferResource(
 		pd3dDevice,
 		pd3dCommandList,
