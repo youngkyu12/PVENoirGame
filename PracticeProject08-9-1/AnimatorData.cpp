@@ -22,6 +22,25 @@ static void BuildTRSMatrix(
     XMStoreFloat4x4(&outM, M);
 }
 
+static void DecomposeTRS(const XMFLOAT4X4& M, XMFLOAT3& outT, XMFLOAT4& outR, XMFLOAT3& outS)
+{
+    XMMATRIX m = XMLoadFloat4x4(&M);
+
+    XMVECTOR S, R, T;
+    if (!XMMatrixDecompose(&S, &R, &T, m))
+    {
+        // 실패 시 안전값
+        outT = XMFLOAT3(0, 0, 0);
+        outR = XMFLOAT4(0, 0, 0, 1);
+        outS = XMFLOAT3(1, 1, 1);
+        return;
+    }
+    XMStoreFloat3(&outS, S);
+    XMStoreFloat4(&outR, XMQuaternionNormalize(R));
+    XMStoreFloat3(&outT, T);
+}
+
+
 // 한 본의 키프레임 리스트에서 t에 해당하는 TRS를 보간해서 구함
 static void SampleBoneTrack(
     const std::vector<Keyframe>& keys,
@@ -112,54 +131,57 @@ void AnimationClip::Evaluate(
     const std::vector<Bone>& skeleton,
     std::vector<XMFLOAT4X4>& outLocalTransforms) const
 {
-    const size_t trackCount = boneTracks.size();
     const size_t skeletonCount = skeleton.size();
+    if (skeletonCount == 0) { outLocalTransforms.clear(); return; }
+    if (outLocalTransforms.size() < skeletonCount) outLocalTransforms.resize(skeletonCount);
 
-    if (skeletonCount == 0)
+    // 0) Bind_Root 트랙 샘플(있으면)
+    bool hasRoot = hasBindRootTrack && !bindRootTrack.keyframes.empty();
+    XMMATRIX rootM = XMMatrixIdentity();
+    if (hasRoot)
     {
-        outLocalTransforms.clear();
-        return;
+        XMFLOAT3 t; XMFLOAT4 r; XMFLOAT3 s;
+        SampleBoneTrack(bindRootTrack.keyframes, timeSec, t, r, s);
+        XMFLOAT4X4 rootLocal;
+        BuildTRSMatrix(t, r, s, rootLocal);
+        rootM = XMLoadFloat4x4(&rootLocal);
     }
 
-    // skeleton 크기에 맞춰 outLocalTransforms 준비
-    if (outLocalTransforms.size() < skeletonCount)
-        outLocalTransforms.resize(skeletonCount);
-
+    // 1) 본별 로컬 포즈
     for (size_t i = 0; i < skeletonCount; ++i)
     {
-        // 트랙 개수가 skeleton보다 적을 수도 있으니 체크
-        if (i >= trackCount)
+        const std::string& boneName = skeleton[i].name;
+
+        auto it = boneNameToTrack.find(boneName);
+        if (it == boneNameToTrack.end())
         {
-            // 이 본에 대한 트랙이 없으면 bindLocal 그대로
             outLocalTransforms[i] = skeleton[i].bindLocal;
             continue;
         }
 
-        const BoneKeyframes& track = boneTracks[i];
+        const int trackIndex = it->second;
+        const auto& track = boneTracks[trackIndex];
 
-        // 키가 없는 본 → 그대로 bindLocal (T포즈)
         if (track.keyframes.empty())
         {
             outLocalTransforms[i] = skeleton[i].bindLocal;
             continue;
         }
 
-        // ====================================================
-        //  새 로직: TRS를 "그대로 로컬 변환"으로 사용
-        //      - SampleBoneTrack: 이 시점의 t/r/s (bone local space)
-        //      - BuildTRSMatrix: t,r,s → local matrix
-        // ====================================================
-        XMFLOAT3 t;
-        XMFLOAT4 r;
-        XMFLOAT3 s;
-
+        XMFLOAT3 t; XMFLOAT4 r; XMFLOAT3 s;
         SampleBoneTrack(track.keyframes, timeSec, t, r, s);
 
         XMFLOAT4X4 localM;
         BuildTRSMatrix(t, r, s, localM);
 
-        outLocalTransforms[i] = localM;
+        // Bind_Root를 “부모”처럼 적용: 루트 본들(parent=-1)에만
+        if (hasRoot && skeleton[i].parentIndex < 0)
+        {
+            XMMATRIX L = XMLoadFloat4x4(&localM);
+            L = L * rootM; // (엔진 규칙: global = local * parent)
+            XMStoreFloat4x4(&localM, L);
+        }
 
+        outLocalTransforms[i] = localM;
     }
 }
-

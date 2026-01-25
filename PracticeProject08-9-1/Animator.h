@@ -81,4 +81,6 @@ private:
 
     string m_NextClipAfterEnd;
 
+    int m_iPelvis = -1;     // hips/pelvis 인덱스 캐시
+    int m_iSpineRoot = -1;  // 끊겨있는 spine root 인덱스 캐시(있으면)
 };

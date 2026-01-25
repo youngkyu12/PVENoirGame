@@ -9,6 +9,8 @@
 #include "Material.h"
 #include "AssetManager.h"
 
+#include <random>
+
 D3D12_SHADER_BYTECODE CShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
 {
 	D3D12_SHADER_BYTECODE d3dShaderByteCode;
@@ -426,71 +428,46 @@ void CStaticObjectsShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D1
 	m_pd3dcbGameObjects->Map(0, nullptr, (void**)&m_pcbMappedGameObjects);
 }
 
-void CStaticObjectsShader::BuildObjects(
-	ID3D12Device* pd3dDevice,
-	ID3D12GraphicsCommandList* pd3dCommandList,
-	void* pContext
-)
+void CStaticObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
+	ID3D12GraphicsCommandList* pd3dCommandList, void* pContext)
 {
-	// ============================================================
-	// 1. GameObject CBV 준비
-	// ============================================================
+
 	UINT ncbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);
 
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
 
-	D3D12_GPU_DESCRIPTOR_HANDLE d3dCbvGPUDescriptorNextHandle =
+	D3D12_GPU_DESCRIPTOR_HANDLE baseCbvGpu =
 		CScene::m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
 
 	CScene::m_pDescriptorHeap->CreateConstantBufferViews(
-		pd3dDevice,
-		m_nObjects,
-		m_pd3dcbGameObjects.Get(),
-		ncbElementBytes
-	);
+		pd3dDevice, m_nObjects, m_pd3dcbGameObjects.Get(), ncbElementBytes);
 
-	// ============================================================
-	// 2. AssetManager로 에셋 빌드
-	// ============================================================
+	m_ppObjects.resize(m_nObjects); // ★ 2) 한 번만
+
+	UINT cbvInc = ::gnCbvSrvDescriptorIncrementSize; // 프로젝트 값으로 교체
+
 	MATERIALS* pMaterials = reinterpret_cast<MATERIALS*>(pContext);
 
-	AssetBuildDesc unitychanDesc =
+	// ---------- Object 0 : World ----------
 	{
-		AssetType::Unitychan,
-		"Assets/Zombie/Mesh/Zombie.bin",
-		"Assets/Zombie/Texture"
-	};
+		const UINT i = 0;
 
-	BuiltAsset asset =
-		AssetManager::BuildAsset(
-			pd3dDevice,
-			pd3dCommandList,
-			pMaterials,
-			unitychanDesc
-		);
+		AssetBuildDesc PlaneDesc = { AssetType::Castle,
+			"Assets/World/Mesh/StartWorld.bin", "Assets/World/Texture" };
+			
+		BuiltAsset asset = AssetManager::BuildAsset(pd3dDevice, pd3dCommandList, pMaterials, PlaneDesc);
 
-	// ============================================================
-	// 3. GameObject 구성
-	// ============================================================
-	m_ppObjects.resize(m_nObjects);
+		auto obj = std::make_unique<CGameObject>(1);
 
-	auto pPlaneObject = std::make_unique<CGameObject>(1);
+		auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)m_pcbMappedGameObjects + i * ncbElementBytes);
 
-	CB_GAMEOBJECT_INFO* pObjCB0 =
-		reinterpret_cast<CB_GAMEOBJECT_INFO*>(
-			reinterpret_cast<UINT8*>(m_pcbMappedGameObjects) + 0 * ncbElementBytes
-			);
+		obj->SetMappedGameObjectCB(cb);
+		obj->SetMesh(0, asset.mesh);
+		obj->SetPosition(0.0f, 0.0f, 30.0f);
+		obj->SetCbvGPUDescriptorHandlePtr(baseCbvGpu.ptr + (UINT64)i * cbvInc);
 
-	pPlaneObject->SetMappedGameObjectCB(pObjCB0);
-	pPlaneObject->SetMesh(0, asset.mesh);
-
-	pPlaneObject->SetPosition(0.0f, 0.0f, 0.0f);
-
-	pPlaneObject->SetCbvGPUDescriptorHandlePtr(
-		d3dCbvGPUDescriptorNextHandle.ptr
-	);
-
-	m_ppObjects[0] = std::move(pPlaneObject);
+		m_ppObjects[i] = std::move(obj);
+	}
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -628,94 +605,186 @@ void CSkinnedObjectsShader::CreateShaderVariables(ID3D12Device* device, ID3D12Gr
 		m_pcbMappedBonePalette->gBoneTransforms[i] = I;
 }
 
-void CSkinnedObjectsShader::BuildObjects(
-	ID3D12Device* pd3dDevice,
-	ID3D12GraphicsCommandList* pd3dCommandList,
-	void* pContext
+void CSkinnedObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
+	ID3D12GraphicsCommandList* pd3dCommandList,void* pContext
 )
 {
 	UINT ncbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);
 
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
 
-	D3D12_GPU_DESCRIPTOR_HANDLE d3dCbvGPUDescriptorNextHandle =
+	D3D12_GPU_DESCRIPTOR_HANDLE baseCbvGpu =
 		CScene::m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
 
 	CScene::m_pDescriptorHeap->CreateConstantBufferViews(
-		pd3dDevice,
-		m_nObjects,
-		m_pd3dcbGameObjects.Get(),
-		ncbElementBytes
-	);
+		pd3dDevice,m_nObjects,m_pd3dcbGameObjects.Get(),ncbElementBytes);
 
-	// 2. AssetManager로 에셋 빌드
+
 	MATERIALS* pMaterials = reinterpret_cast<MATERIALS*>(pContext);
 
-	AssetBuildDesc unitychanDesc =
-	{
-		AssetType::Unitychan,
-		"Assets/Unitychan/Mesh/unitychan.bin",
-		"Assets/Unitychan/Texture"
-	};
+	m_ppObjects.resize(m_nObjects);
+	UINT cbvInc = ::gnCbvSrvDescriptorIncrementSize; // 프로젝트 값으로 교체
 
-	BuiltAsset asset =
-		AssetManager::BuildAsset(
-			pd3dDevice,
-			pd3dCommandList,
-			pMaterials,
-			unitychanDesc
+	constexpr float X_MIN = -43.0f;
+	constexpr float X_MAX = 43.0f;
+	constexpr float Y_MIN = 0.0f;
+	constexpr float Y_MAX = 359.0f;
+	constexpr float Z_MIN = -7.0f;
+	constexpr float Z_MAX = 78.0f;
+
+	// 랜덤 엔진 (한 번만 생성)
+	static std::mt19937 rng(std::random_device{}());
+	std::uniform_real_distribution<float> distX(X_MIN, X_MAX);
+	std::uniform_real_distribution<float> rotY(Y_MIN, Y_MAX);
+	std::uniform_real_distribution<float> distZ(Z_MIN, Z_MAX);
+
+	// ---------- Object 0 : Zombie ----------
+	{
+
+		AssetBuildDesc unitychanDesc =
+		{
+			AssetType::Unitychan,
+			"Assets/Zombie/Mesh/Zombie.bin",
+			"Assets/Zombie/Texture"
+		};
+
+		BuiltAsset asset = AssetManager::BuildAsset(
+			pd3dDevice, pd3dCommandList,
+			pMaterials, unitychanDesc
 		);
 
-	// 3. GameObject 구성
-	m_ppObjects.resize(m_nObjects);
+		for (int i = 0; i < m_nObjects / 2; i++) {
+			//const UINT i = 0;
+			auto obj = std::make_unique<CGameObject>(1);
 
-	auto pObj = std::make_unique<CGameObject>(1);
+			CB_GAMEOBJECT_INFO* cb =
+				reinterpret_cast<CB_GAMEOBJECT_INFO*>(
+					reinterpret_cast<UINT8*>(m_pcbMappedGameObjects)
+					+ i * ncbElementBytes
+					);
 
-	CB_GAMEOBJECT_INFO* pObjCB0 =
-		reinterpret_cast<CB_GAMEOBJECT_INFO*>(
-			reinterpret_cast<UINT8*>(m_pcbMappedGameObjects) + 0 * ncbElementBytes);
+			obj->SetMappedGameObjectCB(cb);
+			obj->SetMesh(0, asset.mesh);
+			//obj->SetPosition(2.0f * i, 0.0f, 0.0f);
 
-	pObj->SetMappedGameObjectCB(pObjCB0);
-	pObj->SetMesh(0, asset.mesh);
-	pObj->SetPosition(2.0f, 0.0f, 0.0f);
-	pObj->SetCbvGPUDescriptorHandlePtr(d3dCbvGPUDescriptorNextHandle.ptr);
+			float x = distX(rng);
+			float y = rotY(rng);
+			float z = distZ(rng);
+			obj->SetPosition(x, 0.0f, z);
+			obj->Rotate(0.0f, 0.0f, 0.0f);
 
-	// (A) 스키닝 활성화 (CB 생성)
-	if (asset.mesh && asset.mesh->IsSkinnedMesh())
-	{
-		const int nBones = asset.mesh->GetBoneCount();
-		pObj->EnableSkinning(pd3dDevice, nBones);
+			obj->SetCbvGPUDescriptorHandlePtr(
+				baseCbvGpu.ptr + (UINT64)i * cbvInc
+			);
+
+			if (asset.mesh && asset.mesh->IsSkinnedMesh())
+			{
+				const int nBones = asset.mesh->GetBoneCount();
+				obj->EnableSkinning(pd3dDevice, nBones);
+			}
+
+			AnimationClip idleClip;
+			bool idleLoaded = false;
+
+			if (!obj->m_ppMeshes.empty() && obj->m_ppMeshes[0])
+			{
+				idleLoaded = obj->m_ppMeshes[0]->LoadAnimationFromBIN(
+					"Assets/Zombie/Animation/ZombieAttack.bin",
+					//"Assets/Zombie/Mesh/Zombie.bin",
+					"Idle", idleClip, 1.0f
+				);
+			}
+
+			if (idleLoaded)
+			{
+				idleClip.name = "Idle";
+
+				CAnimator* anim = obj->EnsureAnimator();
+				if (anim)
+					anim->AddClip(idleClip);
+
+				obj->PlayAnimation("Idle", true, 0.0f);
+			}
+
+			m_ppObjects[i] = std::move(obj);
+		}
 	}
-
-	// (C) 먼저 벡터에 넣기 (이후부터 "실제 오브젝트"만 다룸)
-	m_ppObjects[0] = std::move(pObj);
-
-	// =======================
-	// (B') 클립 로드 -> Animator 등록 -> Play (반드시 m_ppObjects[0]에 대해 수행)
-	// =======================
-	CGameObject* obj0 = m_ppObjects[0].get();
-	if (!obj0) return;
-
-	AnimationClip idleClip;
-	bool idleLoaded = false;
-
-	if (!obj0->m_ppMeshes.empty() && obj0->m_ppMeshes[0])
+	
+	// ---------- Object 1 : Fighter ----------
 	{
-		idleLoaded = obj0->m_ppMeshes[0]->LoadAnimationFromBIN(
-			"Assets/Unitychan/Animation/unitychan_run.bin", "Idle", idleClip, 1.0f);
-	}
 
-	if (idleLoaded)
-	{
-		idleClip.name = "Idle";
+		AssetBuildDesc unitychanDesc =
+		{
+			AssetType::Unitychan,
+			"Assets/Fighter/Mesh/Fighter.bin",
+			"Assets/Fighter/Texture"
+		};
 
-		CAnimator* anim = obj0->EnsureAnimator();
-		if (anim)
-			anim->AddClip(idleClip);
+		BuiltAsset asset = AssetManager::BuildAsset(
+			pd3dDevice, pd3dCommandList,
+			pMaterials, unitychanDesc
+		);
 
-		obj0->PlayAnimation("Idle", true, 0.0f);
+		//for (int i = 0 / 2; i < m_nObjects; i++) {
+		for (int i = m_nObjects / 2; i < m_nObjects; i++) {
+			//const UINT i = 0;
+			auto obj = std::make_unique<CGameObject>(1);
+
+			CB_GAMEOBJECT_INFO* cb =
+				reinterpret_cast<CB_GAMEOBJECT_INFO*>(
+					reinterpret_cast<UINT8*>(m_pcbMappedGameObjects)
+					+ i * ncbElementBytes
+					);
+
+			obj->SetMappedGameObjectCB(cb);
+			obj->SetMesh(0, asset.mesh);
+			//obj->SetPosition(2.0f * i, 0.0f, 0.0f);
+
+			float x = distX(rng);
+			float y = rotY(rng);
+			float z = distZ(rng);
+			obj->SetPosition(x, 0.0f, z);
+			obj->Rotate(0.0f, 0.0f, 0.0f);
+
+			obj->SetCbvGPUDescriptorHandlePtr(
+				baseCbvGpu.ptr + (UINT64)i * cbvInc
+			);
+
+			if (asset.mesh && asset.mesh->IsSkinnedMesh())
+			{
+				const int nBones = asset.mesh->GetBoneCount();
+				obj->EnableSkinning(pd3dDevice, nBones);
+			}
+
+			AnimationClip idleClip;
+			bool idleLoaded = false;
+
+			if (!obj->m_ppMeshes.empty() && obj->m_ppMeshes[0])
+			{
+				idleLoaded = obj->m_ppMeshes[0]->LoadAnimationFromBIN(
+					//"Assets/Fighter/Mesh/Fighter.bin",
+					"Assets/Fighter/Animation/FighterRun.bin",
+					"Idle", idleClip, 1.0f
+				);
+			}
+
+			if (idleLoaded)
+			{
+				idleClip.name = "Idle";
+
+				CAnimator* anim = obj->EnsureAnimator();
+				if (anim)
+					anim->AddClip(idleClip);
+
+				obj->PlayAnimation("Idle", true, 0.0f);
+			}
+
+			m_ppObjects[i] = std::move(obj);
+		}
 	}
 }
+
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
