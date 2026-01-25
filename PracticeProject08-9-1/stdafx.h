@@ -42,6 +42,7 @@
 #include <array>
 #include <vector>
 #include <unordered_map>
+#include <random>
 
 #include <wincodec.h>
 //#include <fmod.hpp>
@@ -317,4 +318,15 @@ namespace Plane
 		XMStoreFloat4(&xmf4Result, XMPlaneNormalize(XMLoadFloat4(&xmf4Plane)));
 		return(xmf4Result);
 	}
+}
+
+
+static void DBG_PrintF(const char* fmt, ...)
+{
+	char buf[1024];
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf_s(buf, sizeof(buf), _TRUNCATE, fmt, ap);
+	va_end(ap);
+	OutputDebugStringA(buf);
 }

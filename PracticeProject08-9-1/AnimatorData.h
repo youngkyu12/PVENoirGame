@@ -78,6 +78,18 @@ struct AnimationClip
     void Evaluate(float timeSec,
         const std::vector<Bone>& skeleton,
         std::vector<XMFLOAT4X4>& outLocalTransforms) const;
+
+    mutable bool m_bRefPoseBuilt = false;
+    mutable std::vector<XMFLOAT4X4> m_RefLocalPose; // anim 기준 ref(local) at t=0
+
+    mutable bool m_refBuilt = false;
+    mutable std::vector<XMFLOAT3> m_refT;
+    mutable std::vector<XMFLOAT4> m_refR;
+    mutable std::vector<XMFLOAT3> m_refS;
+
+    bool hasBindRootTrack = false;
+    BoneKeyframes bindRootTrack;   // Bind_Root 전용(스켈레톤에 없어도 저장)
+
 };
 
 struct SkinnedVertex

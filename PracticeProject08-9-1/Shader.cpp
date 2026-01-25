@@ -94,8 +94,6 @@ CIlluminatedTexturedShader::~CIlluminatedTexturedShader()
 //
 CStaticObjectsShader::CStaticObjectsShader()
 {
-	//m_xObjects = 10, m_yObjects = 10, m_zObjects = 10;
-	//m_nObjects = (m_xObjects * 2 + 1) * (m_yObjects * 2 + 1) * (m_zObjects * 2 + 1);
 	m_nObjects = 1;
 }
 
@@ -137,9 +135,7 @@ void CStaticObjectsShader::ReleaseUploadBuffers()
 //
 CSkinnedObjectsShader::CSkinnedObjectsShader()
 {
-	//m_xObjects = 10, m_yObjects = 10, m_zObjects = 10;
-	//m_nObjects = (m_xObjects * 2 + 1) * (m_yObjects * 2 + 1) * (m_zObjects * 2 + 1);
-	m_nObjects = 1;
+	m_nObjects = 60;
 }
 
 CSkinnedObjectsShader::~CSkinnedObjectsShader()

@@ -1,6 +1,46 @@
 #include "stdafx.h"
 #include "Animator.h"
 
+// Animator.cpp 상단(또는 익명 namespace)에 추가
+static int FindByNameCandidates(
+    const std::unordered_map<std::string, int>& map,
+    std::initializer_list<const char*> names)
+{
+    for (auto n : names)
+    {
+        auto it = map.find(n);
+        if (it != map.end()) return it->second;
+    }
+    return -1;
+}
+
+static int FindPelvisFallbackByTopology(const std::vector<Bone>& skel)
+{
+    // parent=-1인 루트 후보 중, 자식/손자에 "Leg/Thigh/UpLeg" 같은 패턴이 있는 쪽을 골라본다.
+    auto hasLegHint = [&](int idx)->bool
+        {
+            const std::string& nm = skel[idx].name;
+            return (nm.find("Leg") != std::string::npos) ||
+                (nm.find("Thigh") != std::string::npos) ||
+                (nm.find("UpLeg") != std::string::npos);
+        };
+
+    for (int root = 0; root < (int)skel.size(); ++root)
+    {
+        if (skel[root].parentIndex != -1) continue;
+
+        // root의 직계 자식 중 다리 힌트가 2개 이상이면 pelvis로 간주
+        int legChildCount = 0;
+        for (int i = 0; i < (int)skel.size(); ++i)
+            if (skel[i].parentIndex == root && hasLegHint(i))
+                legChildCount++;
+
+        if (legChildCount >= 2) return root;
+    }
+    return -1;
+}
+
+
 // ============================================================
 // SetSkeleton
 //   - 메시에서 본 계층과 offsetMatrix를 가져와 저장
@@ -29,6 +69,25 @@ void CAnimator::SetSkeleton(const std::vector<Bone>& bones,
         m_GlobalPose[i] = identity;
         m_FinalBoneMatrices[i] = identity;
     }
+
+    // 1) Pelvis(=Hips) 찾기
+    m_iPelvis = FindByNameCandidates(m_BoneNameToIndex, {
+        "Bind_Hips", "Hips", "Pelvis",
+        "mixamorig:Hips",
+        "Base_HumanPelvis" // 너의 좀비 계열
+        });
+    if (m_iPelvis < 0)
+        m_iPelvis = FindPelvisFallbackByTopology(m_Skeleton);
+
+    // 2) Spine root 찾기(끊겨있는 루트 스파인)
+    m_iSpineRoot = FindByNameCandidates(m_BoneNameToIndex, {
+        "Bind_Spine", "Spine", "Spine1",
+        "Base_HumanSpine1"
+        });
+
+    // (선택) 로그
+    DBG_PrintF("[SetSkeleton] pelvis=%d spineRoot=%d\n", m_iPelvis, m_iSpineRoot);
+
 }
 
 // ============================================================
@@ -90,6 +149,7 @@ bool CAnimator::Play(const std::string& clipName, bool loop, float startTime)
             {
                 XMMATRIX parentM = XMLoadFloat4x4(&m_GlobalPose[parent]);
                 XMMATRIX global = local * parentM;
+
                 XMStoreFloat4x4(&m_GlobalPose[i], global);
             }
         }
@@ -200,6 +260,19 @@ void CAnimator::Update(float dt)
     const int boneCount = (int)m_Skeleton.size();
     if (boneCount <= 0) return;
 
+    DBG_PrintF("[Animator::Update] clip=%s bones=%d time=%.3f\n",
+        (m_pCurrentClip ? m_pCurrentClip->name.c_str() : "null"),
+        boneCount, m_fCurrentTime);
+
+    static bool once = false;
+    if (!once)
+    {
+        once = true;
+        for (int i = 0; i < boneCount && i < 40; ++i)
+            DBG_PrintF("  Bone[%d] '%s' parent=%d\n", i, m_Skeleton[i].name.c_str(), m_Skeleton[i].parentIndex);
+    }
+
+
 
     // 1) 로컬 포즈 계산
     m_pCurrentClip->Evaluate(
@@ -210,26 +283,74 @@ void CAnimator::Update(float dt)
 
 
     // 2) 글로벌 포즈 계산 (부모-자식 연결)
+    // Evaluate 직후, GlobalPose 계산 직전에 추가:
+    auto FindPrimaryRoot = [&]() -> int
+        {
+            // 루트 후보 수집
+            std::vector<int> roots;
+            for (int i = 0; i < boneCount; ++i)
+                if (m_Skeleton[i].parentIndex < 0)
+                    roots.push_back(i);
 
+            if (roots.empty()) return 0;
+            if (roots.size() == 1) return roots[0];
+
+            // 가장 “자식이 많은” 루트를 primary로 (이름 하드코딩 회피)
+            auto CountDesc = [&](int root) -> int
+                {
+                    int cnt = 0;
+                    for (int i = 0; i < boneCount; ++i)
+                    {
+                        int p = m_Skeleton[i].parentIndex;
+                        while (p >= 0)
+                        {
+                            if (p == root) { cnt++; break; }
+                            p = m_Skeleton[p].parentIndex;
+                        }
+                    }
+                    return cnt;
+                };
+
+            int best = roots[0], bestCnt = -1;
+            for (int r : roots)
+            {
+                int c = CountDesc(r);
+                if (c > bestCnt) { bestCnt = c; best = r; }
+            }
+            return best;
+        };
+
+    int primaryRoot = FindPrimaryRoot();
+
+    // (선택) RootDeltaFix는 “primaryRoot”에만 적용 (당신이 이미 해둔 방향 유지)
+    // -> 이 부분은 당신의 현재 코드 유지하되, 조건을 boneName==Bind_Hips가 아니라 i==primaryRoot로 바꾸면 됨.
+
+    // ---- GlobalPose 계산을 이 루프로 통일 ----
     for (int i = 0; i < boneCount; ++i)
     {
         int parent = m_Skeleton[i].parentIndex;
-
         XMMATRIX local = XMLoadFloat4x4(&m_LocalPose[i]);
 
+        if (i == primaryRoot)
+        {
+            XMStoreFloat4x4(&m_GlobalPose[i], local);
+            continue;
+        }
+
+        // secondary root면 primary에 붙이기
         if (parent < 0)
         {
-            // 루트
-            XMStoreFloat4x4(&m_GlobalPose[i], local);
+            // local(현재는 absolute처럼 들어온 것)을 primary 기준 상대 로컬로 변환
+            XMMATRIX primaryG = XMLoadFloat4x4(&m_GlobalPose[primaryRoot]);
+            XMMATRIX invPrimaryG = XMMatrixInverse(nullptr, primaryG);
+            local = local * invPrimaryG;
+            parent = primaryRoot;
         }
-        else
-        {
-            XMMATRIX parentM = XMLoadFloat4x4(&m_GlobalPose[parent]);
-            XMMATRIX global = local * parentM;
-            XMStoreFloat4x4(&m_GlobalPose[i], global);
-        }
-    }
 
+        XMMATRIX parentM = XMLoadFloat4x4(&m_GlobalPose[parent]);
+        XMMATRIX global = local * parentM;
+        XMStoreFloat4x4(&m_GlobalPose[i], global);
+    }
 
     // 3) 최종 본 행렬 = offsetMatrix * globalTransform
     for (int i = 0; i < boneCount; ++i)

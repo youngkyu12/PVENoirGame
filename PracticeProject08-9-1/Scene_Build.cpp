@@ -130,36 +130,49 @@ void CScene::BuildObjects(
 	CreateGraphicsRootSignature(pd3dDevice);
 
 	// ============================================================
-	// 2. Shader 개수 설정 (Static + Skinned)
+	// 2. Shader 인스턴스 생성 + 오브젝트 개수 선확보
 	// ============================================================
 	m_nShaders = 2;
 	m_ppShaders.resize(m_nShaders);
 
 	constexpr int MAX_GLOBAL_SRVS = 1024;
 
+	auto pStaticShader = std::make_shared<CStaticObjectsShader>();
+	auto pSkinnedShader = std::make_shared<CSkinnedObjectsShader>();
+
+	const UINT staticCount = static_cast<UINT>(pStaticShader->GetNumberOfObjects());
+	const UINT skinnedCount = static_cast<UINT>(pSkinnedShader->GetNumberOfObjects());
+
+	const UINT cbvTotal =
+		staticCount +
+		skinnedCount +
+		1 /*Camera*/ +
+		1 /*Player*/ +
+		1 /*etc*/;
+
 	// ============================================================
-	// 3. Static Objects Shader
+	// 3. DescriptorHeap은 "한 번만" 생성 (하드코딩 금지)
+	// ============================================================
+	m_pDescriptorHeap->CreateCbvSrvDescriptorHeaps(
+		pd3dDevice,
+		cbvTotal,
+		MAX_GLOBAL_SRVS
+	);
+
+	// 공통 RTV 포맷
+	DXGI_FORMAT rtvFormats[5] =
+	{
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		DXGI_FORMAT_R32_FLOAT
+	};
+
+	// ============================================================
+	// 4. Static Objects Shader
 	// ============================================================
 	{
-		auto pStaticShader = std::make_shared<CStaticObjectsShader>();
-		int nObjects = pStaticShader->GetNumberOfObjects();
-
-		// DescriptorHeap (Scene에서 1회만 생성)
-		m_pDescriptorHeap->CreateCbvSrvDescriptorHeaps(
-			pd3dDevice,
-			nObjects + 1 + 1 + 1, // GameObject + Camera + Player + etc
-			MAX_GLOBAL_SRVS
-		);
-
-		DXGI_FORMAT rtvFormats[5] =
-		{
-			DXGI_FORMAT_R8G8B8A8_UNORM,
-			DXGI_FORMAT_R8G8B8A8_UNORM,
-			DXGI_FORMAT_R8G8B8A8_UNORM,
-			DXGI_FORMAT_R8G8B8A8_UNORM,
-			DXGI_FORMAT_R32_FLOAT
-		};
-
 		pStaticShader->CreateShader(
 			pd3dDevice,
 			m_pd3dGraphicsRootSignature.Get(),
@@ -180,20 +193,9 @@ void CScene::BuildObjects(
 	}
 
 	// ============================================================
-	// 4. Skinned Objects Shader (현재는 Static과 동일 동작)
+	// 5. Skinned Objects Shader
 	// ============================================================
 	{
-		auto pSkinnedShader = std::make_shared<CSkinnedObjectsShader>();
-
-		DXGI_FORMAT rtvFormats[5] =
-		{
-			DXGI_FORMAT_R8G8B8A8_UNORM,
-			DXGI_FORMAT_R8G8B8A8_UNORM,
-			DXGI_FORMAT_R8G8B8A8_UNORM,
-			DXGI_FORMAT_R8G8B8A8_UNORM,
-			DXGI_FORMAT_R32_FLOAT
-		};
-
 		pSkinnedShader->CreateShader(
 			pd3dDevice,
 			m_pd3dGraphicsRootSignature.Get(),
@@ -202,7 +204,6 @@ void CScene::BuildObjects(
 			DXGI_FORMAT_D24_UNORM_S8_UINT
 		);
 
-		// ★ 지금 단계에서는 동일한 Mesh를 그려도 OK
 		pSkinnedShader->BuildObjects(
 			pd3dDevice,
 			pd3dCommandList,
@@ -213,10 +214,11 @@ void CScene::BuildObjects(
 	}
 
 	// ============================================================
-	// 5. Scene 공통 Shader Variables
+	// 6. Scene 공통 Shader Variables
 	// ============================================================
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
 }
+
 
 
 void CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevice)
