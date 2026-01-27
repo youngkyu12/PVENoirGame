@@ -37,6 +37,31 @@ cbuffer cbBonePalette : register(b7)
 #include "Light.hlsl"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+float3 GetNormalWFromMap(uint packedNormal, float3 normalW_in, float4 tangentW_in, float2 uv)
+{
+    float3 N = normalize(normalW_in);
+
+    if (packedNormal == 0)
+        return N;
+
+    uint normalIndex = packedNormal - 1;
+    if (normalIndex >= MAX_GLOBAL_SRVS)
+        return N;
+
+    float3 nTS = gtxtGlobalTextures[normalIndex].Sample(gssDefaultSamplerState, uv).xyz;
+    nTS = nTS * 2.0f - 1.0f;
+
+    float3 T = normalize(tangentW_in.xyz);
+    // N에 직교화(권장)
+    T = normalize(T - N * dot(T, N));
+
+    float3 B = normalize(cross(N, T) * tangentW_in.w);
+
+    // tangent-space -> world
+    float3 nW = normalize(T * nTS.x + B * nTS.y + N * nTS.z);
+    return nW;
+}
+
 
 
 struct VS_DIFFUSED_INPUT
@@ -165,6 +190,7 @@ struct VS_TEXTURED_LIGHTING_INPUT
 	float3 position : POSITION;
 	float3 normal : NORMAL;
 	float2 uv : TEXCOORD;
+    float4 tangent : TANGENT;
 };
 
 struct VS_TEXTURED_LIGHTING_OUTPUT
@@ -173,6 +199,7 @@ struct VS_TEXTURED_LIGHTING_OUTPUT
 	float3 positionW : POSITION;
 	float3 normalW : NORMAL;
 	float2 uv : TEXCOORD;
+    float4 tangentW : TANGENT;
 };
 
 VS_TEXTURED_LIGHTING_OUTPUT VSTexturedLighting(VS_TEXTURED_LIGHTING_INPUT input)
@@ -183,30 +210,28 @@ VS_TEXTURED_LIGHTING_OUTPUT VSTexturedLighting(VS_TEXTURED_LIGHTING_INPUT input)
 	output.positionW = (float3)mul(float4(input.position, 1.0f), gmtxGameObject);
 	output.position = mul(mul(float4(output.positionW, 1.0f), gmtxView), gmtxProjection);
 	output.uv = input.uv;
+    float3 tW = mul(input.tangent.xyz, (float3x3) gmtxGameObject);
+    output.tangentW = float4(tW, input.tangent.w);
 
 	return(output);
 }
 
 float4 PSTexturedLighting(VS_TEXTURED_LIGHTING_OUTPUT input, uint nPrimitiveID : SV_PrimitiveID) : SV_TARGET
 {
-    uint packed = gMaterials[gnMaterialID].TextureIndices.x;
-
-    if (packed == 0)
+    uint packedD = gMaterials[gnMaterialID].TextureIndices.x;
+    if (packedD == 0)
         return float4(1, 0, 1, 1);
-
-    uint diffuseIndex = packed - 1;
-
+    uint diffuseIndex = packedD - 1;
     if (diffuseIndex >= MAX_GLOBAL_SRVS)
         return float4(1, 0, 0, 1);
+    
+    float4 cTexture = gtxtGlobalTextures[diffuseIndex].Sample(gssDefaultSamplerState, input.uv);
+    
+    uint packedN = gMaterials[gnMaterialID].TextureIndices.y;
+    float3 normalW = GetNormalWFromMap(packedN, input.normalW, input.tangentW, input.uv);
 
-    float4 cTexture =
-    gtxtGlobalTextures[diffuseIndex]
-        .Sample(gssDefaultSamplerState, input.uv);
-
-    input.normalW = normalize(input.normalW);
-    float4 cIllumination = Lighting(input.positionW, input.normalW);
-
-    return (cTexture * cIllumination);
+    float4 cIllumination = Lighting(input.positionW, normalW);
+    return cTexture * cIllumination;
 }
 
 
@@ -245,7 +270,7 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
     }
 
     uint diffuseIndex = packed - 1;
-
+    
     if (diffuseIndex >= MAX_GLOBAL_SRVS)
     {
         output.color = float4(1, 0, 0, 1); // red (bad index)
@@ -266,7 +291,8 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
     // =========================================================
     // 3. 조명 계산
     // =========================================================
-    float3 normalW = normalize(input.normalW);
+    uint packedN = gMaterials[gnMaterialID].TextureIndices.y;
+    float3 normalW = GetNormalWFromMap(packedN, input.normalW, input.tangentW, input.uv);
     float4 illumination = Lighting(input.positionW, normalW);
 
     // =========================================================
@@ -290,6 +316,7 @@ struct VS_SKINNED_INPUT
     float3 position : POSITION;
     float3 normal : NORMAL;
     float2 uv : TEXCOORD;
+    float4 tangent : TANGENT;
     uint4 blendIndices : BLENDINDICES;
     float4 blendWeights : BLENDWEIGHT;
 };
@@ -300,6 +327,7 @@ struct VS_SKINNED_OUTPUT
     float3 positionW : POSITION;
     float3 normalW : NORMAL;
     float2 uv : TEXCOORD;
+    float4 tangentW : TANGENT;
 };
 
 VS_SKINNED_OUTPUT VSSkinned(VS_SKINNED_INPUT input)
@@ -308,15 +336,24 @@ VS_SKINNED_OUTPUT VSSkinned(VS_SKINNED_INPUT input)
 
     uint bi = input.blendIndices.x;
 
+// position
     float4 posL = float4(input.position, 1.0f);
     float4 posSkinned = mul(posL, gBoneTransforms[bi]);
     float4 posW = mul(posSkinned, gmtxGameObject);
 
     output.positionW = posW.xyz;
     output.position = mul(mul(posW, gmtxView), gmtxProjection);
-
-    output.normalW = normalize(mul(input.normal, (float3x3) gmtxGameObject));
     output.uv = input.uv;
+
+// normal (direction: w=0)
+    float3 nSkinned = mul(float4(input.normal, 0.0f), gBoneTransforms[bi]).xyz;
+    float3 nW = mul(nSkinned, (float3x3) gmtxGameObject);
+    output.normalW = nW;
+
+// tangent (direction: w=0)
+    float3 tSkinned = mul(float4(input.tangent.xyz, 0.0f), gBoneTransforms[bi]).xyz;
+    float3 tW = mul(tSkinned, (float3x3) gmtxGameObject);
+    output.tangentW = float4(tW, input.tangent.w);
 
     return output;
 }
