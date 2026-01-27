@@ -340,42 +340,18 @@ D3D12_SHADER_BYTECODE CTexturedShader::CreatePixelShader(ID3DBlob** ppd3dShaderB
 //
 D3D12_INPUT_LAYOUT_DESC CIlluminatedTexturedShader::CreateInputLayout()
 {
-	UINT nInputElementDescs = 3;
-	D3D12_INPUT_ELEMENT_DESC* pd3dInputElementDescs = new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
+	UINT nInputElementDescs = 4;
+	auto* desc = new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
 
-	pd3dInputElementDescs[0] = {
-		"POSITION",
-		0,
-		DXGI_FORMAT_R32G32B32_FLOAT,
-		0,
-		0,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-		0
-	};
-	pd3dInputElementDescs[1] = {
-		"NORMAL",
-		0,
-		DXGI_FORMAT_R32G32B32_FLOAT,
-		0,
-		12,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-		0
-	};
-	pd3dInputElementDescs[2] = {
-		"TEXCOORD",
-		0,
-		DXGI_FORMAT_R32G32_FLOAT,
-		0,
-		24,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-		0
-	};
+	desc[0] = { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
+	desc[1] = { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
+	desc[2] = { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
+	desc[3] = { "TANGENT",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
 
-	D3D12_INPUT_LAYOUT_DESC d3dInputLayoutDesc;
-	d3dInputLayoutDesc.pInputElementDescs = pd3dInputElementDescs;
-	d3dInputLayoutDesc.NumElements = nInputElementDescs;
-
-	return(d3dInputLayoutDesc);
+	D3D12_INPUT_LAYOUT_DESC layout{};
+	layout.pInputElementDescs = desc;
+	layout.NumElements = nInputElementDescs;
+	return layout;
 }
 
 D3D12_SHADER_BYTECODE CIlluminatedTexturedShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
@@ -453,8 +429,9 @@ void CStaticObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
 		const UINT i = 0;
 
 		AssetBuildDesc PlaneDesc = { AssetType::Castle,
-			"Assets/World/Mesh/StartWorld.bin", "Assets/World/Texture" };
-			
+		//	"Assets/World/Mesh/StartWorld.bin", "Assets/World/Texture" };
+			"Assets/Castle/Mesh/BigCastle.bin", "Assets/Castle/Texture" };
+
 		BuiltAsset asset = AssetManager::BuildAsset(pd3dDevice, pd3dCommandList, pMaterials, PlaneDesc);
 
 		auto obj = std::make_unique<CGameObject>(1);
@@ -502,71 +479,36 @@ D3D12_SHADER_BYTECODE CSkinnedObjectsShader::CreatePixelShader(ID3DBlob** ppd3dS
 
 D3D12_INPUT_LAYOUT_DESC CSkinnedObjectsShader::CreateInputLayout()
 {
-	UINT nInputElementDescs = 5;
+	UINT nInputElementDescs = 6;
 	D3D12_INPUT_ELEMENT_DESC* pd3dInputElementDescs =
 		new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
 
-	// POSITION (float3) : offset 0
-	pd3dInputElementDescs[0] = {
-		"POSITION",
-		0,
-		DXGI_FORMAT_R32G32B32_FLOAT,
-		0,
-		0,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-		0
-	};
+	pd3dInputElementDescs[0] = { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
 
-	// NORMAL (float3) : offset 12
-	pd3dInputElementDescs[1] = {
-		"NORMAL",
-		0,
-		DXGI_FORMAT_R32G32B32_FLOAT,
-		0,
-		12,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-		0
-	};
+	pd3dInputElementDescs[1] = { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
 
-	// TEXCOORD (float2) : offset 24
-	pd3dInputElementDescs[2] = {
-		"TEXCOORD",
-		0,
-		DXGI_FORMAT_R32G32_FLOAT,
-		0,
-		24,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-		0
-	};
+	pd3dInputElementDescs[2] = { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
 
-	// BLENDINDICES (uint4) : offset 32
-	pd3dInputElementDescs[3] = {
-		"BLENDINDICES",
-		0,
-		DXGI_FORMAT_R32G32B32A32_UINT,
-		0,
-		32,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-		0
-	};
+	// [ADD]
+	pd3dInputElementDescs[3] = { "TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 32,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
 
-	// BLENDWEIGHT (float4) : offset 48
-	pd3dInputElementDescs[4] = {
-		"BLENDWEIGHT",
-		0,
-		DXGI_FORMAT_R32G32B32A32_FLOAT,
-		0,
-		48,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-		0
-	};
+	// offsets changed
+	pd3dInputElementDescs[4] = { "BLENDINDICES", 0, DXGI_FORMAT_R32G32B32A32_UINT, 0, 48,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
+
+	pd3dInputElementDescs[5] = { "BLENDWEIGHT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 64,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
 
 	D3D12_INPUT_LAYOUT_DESC d3dInputLayoutDesc;
 	d3dInputLayoutDesc.pInputElementDescs = pd3dInputElementDescs;
 	d3dInputLayoutDesc.NumElements = nInputElementDescs;
-
 	return d3dInputLayoutDesc;
 }
+
 
 void CSkinnedObjectsShader::CreateShaderVariables(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList)
 {
