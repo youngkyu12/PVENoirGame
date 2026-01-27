@@ -11,7 +11,6 @@
 inline void DebugLogA(const std::string& msg) { OutputDebugStringA(msg.c_str()); }
 inline void DebugLogW(const std::wstring& msg) { OutputDebugStringW(msg.c_str()); }
 
-
 BuiltAsset AssetManager::BuildAsset(
     ID3D12Device* device,
     ID3D12GraphicsCommandList* cmd,
@@ -41,9 +40,7 @@ BuiltAsset AssetManager::BuildAsset(
         auto& sm = mesh->m_SubMeshes[si];
 
         if (sm.materialName.empty())
-        {
             continue;
-        }
 
         const std::string key = std::to_string((int)desc.type) + "|" + sm.materialName;
 
@@ -53,7 +50,6 @@ BuiltAsset AssetManager::BuildAsset(
         {
             sm.material = it->second;
             sm.materialId = it->second->GetMaterialID();
-
             continue;
         }
 
@@ -64,49 +60,85 @@ BuiltAsset AssetManager::BuildAsset(
 
         assert(materialId < MAX_MATERIALS);
 
-        // (3-3) Texture 생성 및 로드
-        auto tex = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
+        // ============================================================
+        // (3-3) Diffuse Texture 생성 및 로드
+        // ============================================================
+        auto diffuseTex = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
 
-        const std::wstring texPath = ResolveTexturePath(
+        const std::wstring diffusePath = ResolveTexturePath(
             desc.type,
             desc.textureRoot,
             sm.materialName,
             sm.diffuseTextureName
         );
 
-        tex->LoadTextureFromFile(device, cmd, texPath.c_str(), RESOURCE_TEXTURE2D, 0);
+        diffuseTex->LoadTextureFromFile(device, cmd, diffusePath.c_str(), RESOURCE_TEXTURE2D, 0);
 
-        // (3-4) Global SRV Heap 등록
+        // (3-4) Global SRV Heap 등록 (Diffuse)
         CScene::m_pDescriptorHeap->CreateShaderResourceViews(
             device,
-            tex.get(),
+            diffuseTex.get(),
             ROOTPARAM_TEX_SRV_TABLE
         );
 
-        // (3-5) Material에 Texture 연결
-        mat->SetTexture(tex);
+        // (3-5) Material에 Diffuse Texture 연결
+        mat->SetTexture(diffuseTex);
 
-        // (3-6) Materials CB에 SRV 인덱스 기록
-        const UINT srvIndex = mat->GetDiffuseSrvIndex();
+        // ============================================================
+        // [ADD] 여기(= mat->SetTexture(diffuseTex) 바로 다음)에 Normal Texture 블럭
+        // ============================================================
+        std::shared_ptr<CTexture> normalTex;
 
-        // 0 = no texture
-        // 1..N = valid SRV (actual index = packed - 1)
-        const UINT packedSrvIndex = (srvIndex == UINT_MAX) ? 0u : (srvIndex + 1u);
+        if (!sm.normalTextureName.empty())
+        {
+            normalTex = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
 
+            const std::wstring normalPath = ResolveTexturePath(
+                desc.type,
+                desc.textureRoot,
+                sm.materialName,
+                sm.normalTextureName
+            );
+
+            normalTex->LoadTextureFromFile(device, cmd, normalPath.c_str(), RESOURCE_TEXTURE2D, 0);
+
+            // Global SRV Heap 등록 (Normal)
+            CScene::m_pDescriptorHeap->CreateShaderResourceViews(
+                device,
+                normalTex.get(),
+                ROOTPARAM_TEX_SRV_TABLE
+            );
+
+            // Material에 Normal Texture 연결
+            mat->SetNormalTexture(normalTex);
+        }
+        else
+        {
+            // 노멀맵 없으면 null로 연결(인덱스 UINT_MAX로 세팅)
+            mat->SetNormalTexture(std::shared_ptr<CTexture>());
+        }
+
+        // ============================================================
+        // (3-6) Materials CB에 SRV 인덱스 기록 (x=diffuse, y=normal)
+        //   packed 규칙: 0 = no texture, 1..N = (srvIndex + 1)
+        // ============================================================
+        const UINT diffSrvIndex = mat->GetDiffuseSrvIndex();
+        const UINT normSrvIndex = mat->GetNormalSrvIndex();
+
+        const UINT packedDiff = (diffSrvIndex == UINT_MAX) ? 0u : (diffSrvIndex + 1u);
+        const UINT packedNorm = (normSrvIndex == UINT_MAX) ? 0u : (normSrvIndex + 1u);
 
         if (pMaterials)
         {
-            pMaterials->m_pReflections[materialId].m_xmn4TextureIndices.x =
-                packedSrvIndex;
-
+            pMaterials->m_pReflections[materialId].m_xmn4TextureIndices.x = packedDiff;
+            pMaterials->m_pReflections[materialId].m_xmn4TextureIndices.y = packedNorm;
         }
-        // (3-7) 캐시 등록 + SubMesh 연결  (★ 핵심 수정: key로 넣어야 함)
-        materialCache.emplace(key, mat);
 
+        // (3-7) 캐시 등록 + SubMesh 연결
+        materialCache.emplace(key, mat);
         sm.material = mat;
         sm.materialId = materialId;
     }
-
 
     return { mesh };
 }
@@ -118,10 +150,10 @@ std::wstring AssetManager::ResolveTexturePath(
     AssetType /*type*/,
     const std::string& textureRoot,
     const std::string& /*materialName*/,
-    const std::string& diffuseTextureName
+    const std::string& texName
 )
 {
     std::wstring rootW(textureRoot.begin(), textureRoot.end());
-    std::wstring texW(diffuseTextureName.begin(), diffuseTextureName.end());
+    std::wstring texW(texName.begin(), texName.end());
     return rootW + L"/" + texW + L".dds";
 }

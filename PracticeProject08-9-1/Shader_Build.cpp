@@ -429,8 +429,9 @@ void CStaticObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
 		const UINT i = 0;
 
 		AssetBuildDesc PlaneDesc = { AssetType::Castle,
-			"Assets/World/Mesh/StartWorld.bin", "Assets/World/Texture" };
-			
+		//	"Assets/World/Mesh/StartWorld.bin", "Assets/World/Texture" };
+			"Assets/Castle/Mesh/BigCastle.bin", "Assets/Castle/Texture" };
+
 		BuiltAsset asset = AssetManager::BuildAsset(pd3dDevice, pd3dCommandList, pMaterials, PlaneDesc);
 
 		auto obj = std::make_unique<CGameObject>(1);
