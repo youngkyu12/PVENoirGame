@@ -17,11 +17,13 @@ public:
 
 	UINT							m_nReflection = 0;
 	shared_ptr<CTexture> m_pTexture;
+	shared_ptr<CTexture> m_pNormalTexture;
 	shared_ptr<CShader> m_pShader;
 
 	void SetAlbedo(XMFLOAT4 xmf4Albedo) { m_xmf4Albedo = xmf4Albedo; }
 	void SetReflection(UINT nReflection) { m_nReflection = nReflection; }
 	void SetTexture(shared_ptr<CTexture> pTexture);
+	void SetNormalTexture(shared_ptr<CTexture> pTexture);
 	void SetShader(shared_ptr<CShader> pShader);
 
 	void UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList);
