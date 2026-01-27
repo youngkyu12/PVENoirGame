@@ -1,3 +1,7 @@
+//------------------------------------------------------- ----------------------
+// File: AnimatorData.h
+//-----------------------------------------------------------------------------
+
 #pragma once
 #include "stdafx.h"
 
@@ -97,6 +101,7 @@ struct SkinnedVertex
     XMFLOAT3 position;
     XMFLOAT3 normal;
     XMFLOAT2 uv;
+    XMFLOAT4 tangent;
     UINT  boneIndices[4];
     float boneWeights[4];
 };
