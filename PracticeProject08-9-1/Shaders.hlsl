@@ -290,6 +290,7 @@ struct VS_SKINNED_INPUT
     float3 position : POSITION;
     float3 normal : NORMAL;
     float2 uv : TEXCOORD;
+    float4 tangent : TANGENT;
     uint4 blendIndices : BLENDINDICES;
     float4 blendWeights : BLENDWEIGHT;
 };

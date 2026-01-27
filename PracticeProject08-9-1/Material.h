@@ -39,4 +39,19 @@ public:
 
 private:
 	UINT m_nMaterialID = UINT_MAX;
+
+	std::string m_diffuseTextureName;
+	std::string m_normalTextureName;
+
+	UINT m_nNormalSrvIndex = UINT_MAX;
+
+public:
+	void SetDiffuseTextureName(const std::string& s) { m_diffuseTextureName = s; }
+	void SetNormalTextureName(const std::string& s) { m_normalTextureName = s; }
+
+	const std::string& GetDiffuseTextureName() const { return m_diffuseTextureName; }
+	const std::string& GetNormalTextureName() const { return m_normalTextureName; }
+
+	void SetNormalSrvIndex(UINT idx) { m_nNormalSrvIndex = idx; }
+	UINT GetNormalSrvIndex() const { return m_nNormalSrvIndex; }
 };
