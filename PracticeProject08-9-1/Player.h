@@ -9,6 +9,7 @@
 
 #include "Object.h"
 #include "Camera.h"
+#include "AnimatorData.h"
 
 struct CB_PLAYER_INFO
 {
@@ -93,13 +94,14 @@ public:
 protected:
 	ComPtr<ID3D12Resource>			m_pd3dcbPlayer;
 	CB_PLAYER_INFO					*m_pcbMappedPlayer = nullptr;
+
 };
 
-class CAirplanePlayer : public CPlayer
+class CFighterPlayer : public CPlayer
 {
 public:
-	CAirplanePlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, ID3D12RootSignature *pd3dGraphicsRootSignature, void *pContext=NULL, int nMeshes=1);
-	virtual ~CAirplanePlayer();
+	CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, ID3D12RootSignature *pd3dGraphicsRootSignature, void *pContext=NULL, int nMeshes=1);
+	virtual ~CFighterPlayer();
 
 	virtual CCamera *ChangeCamera(DWORD nNewCameraMode, float fTimeElapsed);
 	virtual void OnPrepareRender(ID3D12GraphicsCommandList *pd3dCommandList, CCamera *pCamera);

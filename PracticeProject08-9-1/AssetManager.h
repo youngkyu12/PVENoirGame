@@ -8,12 +8,11 @@
 class CMesh;
 struct MATERIALS;
 
-// 에셋 타입 (지금은 2개만)
 enum class AssetType
 {
-    Unitychan,
-    Castle,
-    Plane
+    Zombie,
+    Fighter,
+    World
 };
 
 // BuildAsset에 넘길 데이터 묶음
