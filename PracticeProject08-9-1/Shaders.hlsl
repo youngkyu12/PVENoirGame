@@ -5,9 +5,7 @@ Texture2D gtxtGlobalTextures[MAX_GLOBAL_SRVS] : register(t0);
 
 cbuffer cbPlayerInfo : register(b0)
 {
-    matrix gmtxPlayerWorld : packoffset(c0);
-    uint gnPlayerMaterialID : packoffset(c4.x);
-    uint3 _padPlayer : packoffset(c4.y);
+    matrix gmtxPlayerWorld;
 };
 
 
@@ -110,37 +108,6 @@ struct VS_PLAYER_OUTPUT
     float3 normalW : NORMAL;
     float2 uv : TEXCOORD;
 };
-
-VS_PLAYER_OUTPUT VSPlayer(VS_PLAYER_INPUT input)
-{
-    VS_PLAYER_OUTPUT output;
-
-    float4 posW = mul(float4(input.position, 1.0f), gmtxPlayerWorld);
-    output.positionW = posW.xyz;
-    output.position = mul(mul(float4(output.positionW, 1.0f), gmtxView), gmtxProjection);
-
-    output.normalW = normalize(mul(input.normal, (float3x3) gmtxPlayerWorld));
-    output.uv = input.uv;
-
-    return output;
-}
-
-float4 PSPlayer(VS_PLAYER_OUTPUT input, uint nPrimitiveID : SV_PrimitiveID) : SV_TARGET
-{
-    uint diffuseIndex = gMaterials[gnPlayerMaterialID].TextureIndices.x;
-
-    // 디버그 안전장치 (선택)
-    if (diffuseIndex >= MAX_GLOBAL_SRVS)
-        return float4(1, 0, 0, 1); // 잘못된 인덱스
-
-    float4 cColor = gtxtGlobalTextures[diffuseIndex]
-                        .Sample(gssDefaultSamplerState, input.uv);
-
-    float4 cIllumination = Lighting(input.positionW, input.normalW);
-    return cColor * cIllumination;
-}
-
-
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -357,6 +324,32 @@ VS_SKINNED_OUTPUT VSSkinned(VS_SKINNED_INPUT input)
 
     return output;
 }
+
+// 플레이어용 스키닝 VS (cbPlayerInfo(b0) 사용)
+VS_SKINNED_OUTPUT VSSkinnedPlayer(VS_SKINNED_INPUT input)
+{
+    VS_SKINNED_OUTPUT output;
+
+    uint bi = input.blendIndices.x;
+
+    float4 posL = float4(input.position, 1.0f);
+    float4 posSkinned = mul(posL, gBoneTransforms[bi]);
+    float4 posW = mul(posSkinned, gmtxPlayerWorld); // b0의 월드 사용
+
+    output.positionW = posW.xyz;
+    output.position = mul(mul(posW, gmtxView), gmtxProjection);
+    output.uv = input.uv;
+
+    float3 nSkinned = mul(float4(input.normal, 0.0f), gBoneTransforms[bi]).xyz;
+    output.normalW = mul(nSkinned, (float3x3) gmtxPlayerWorld);
+
+    float3 tSkinned = mul(float4(input.tangent.xyz, 0.0f), gBoneTransforms[bi]).xyz;
+    float3 tW = mul(tSkinned, (float3x3) gmtxPlayerWorld);
+    output.tangentW = float4(tW, input.tangent.w);
+
+    return output;
+}
+
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
