@@ -7,6 +7,7 @@
 #include "Shader.h"
 #include "Scene.h"
 #include "AssetManager.h"
+#include "AnimController.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CPlayer
@@ -399,7 +400,7 @@ CFighterPlayer::CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandLi
 	}
 
 	// ------------------------------------------------------------
-	// 애니메이션 로드 + Animator 세팅 + 재생 (CSkinnedObjectsShader와 동일)
+	// 애니메이션 로드 + Animator 세팅 + 재생 
 	// ------------------------------------------------------------
 	AnimationClip idleClip;
 	bool idleLoaded = false;
@@ -407,11 +408,8 @@ CFighterPlayer::CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandLi
 	if (!m_ppMeshes.empty() && m_ppMeshes[0])
 	{
 		idleLoaded = m_ppMeshes[0]->LoadAnimationFromBIN(
-			"Assets/Fighter/Animation/FighterRun.bin",
-			"Idle",
-			idleClip,
-			1.0f
-		);
+			"Assets/Fighter/Animation/FighterIdle.bin", 
+			"Idle",	idleClip, 1.0f );
 	}
 
 	if (idleLoaded)
@@ -421,9 +419,33 @@ CFighterPlayer::CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandLi
 		CAnimator* anim = EnsureAnimator();
 		if (anim)
 			anim->AddClip(idleClip);
-
-		PlayAnimation("Idle", true, 0.0f);
 	}
+
+	AnimationClip RunClip;
+	bool RunLoaded = false;
+
+	if (!m_ppMeshes.empty() && m_ppMeshes[0])
+	{
+		RunLoaded = m_ppMeshes[0]->LoadAnimationFromBIN(
+			"Assets/Fighter/Animation/FighterRun.bin",
+			"Run", RunClip, 1.0f);
+	}
+	if (RunLoaded)
+	{
+		RunClip.name = "Run";
+
+		CAnimator* anim = EnsureAnimator();
+		if (anim)
+			anim->AddClip(RunClip);
+	}
+
+	auto* ctrl = EnsureAnimController();
+	ctrl->SetIdleClip("Idle");
+	ctrl->SetMoveClip("Run");
+	ctrl->SetSpeed(0.0f);
+	ctrl->Update(0.0f);
+
+
 
 	// ------------------------------------------------------------
 	// 대표 materialId 선택 (기존 로직 유지하되 Fighter 기준)
