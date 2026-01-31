@@ -64,7 +64,8 @@ private:
     std::unordered_map<std::string, AnimationClip> m_Clips;
 
     // 현재 재생 중인 클립
-    AnimationClip* m_pCurrentClip = nullptr;
+    //AnimationClip* m_pCurrentClip = nullptr;
+    std::string m_CurrentClipName;
 
     // 재생 시간 / 상태
     float m_fCurrentTime = 0.0f;
@@ -78,6 +79,17 @@ private:
     std::vector<XMFLOAT4X4> m_LocalPose;    // 각 본의 로컬 행렬
     std::vector<XMFLOAT4X4> m_GlobalPose;   // 각 본의 글로벌 행렬
 
+    bool  m_bBlending = false;
+    std::string m_NextClipName;
+    float m_fNextTime = 0.0f;
+    bool  m_bNextLoop = true;
+
+    float m_fBlendElapsed = 0.0f;
+    float m_fBlendDuration = 0.0f;
+
+    std::vector<XMFLOAT4X4> m_LocalPoseA; // current 평가 결과
+    std::vector<XMFLOAT4X4> m_LocalPoseB; // next 평가 결과
+
     // Animator.h (선언만, 구현은 이후 단계)
     bool LoadClipFromFBXAndAdd(const char* filename,
         const std::string& clipName,
@@ -87,4 +99,21 @@ private:
 
     int m_iPelvis = -1;     // hips/pelvis 인덱스 캐시
     int m_iSpineRoot = -1;  // 끊겨있는 spine root 인덱스 캐시(있으면)
+
+public:
+    bool CrossFade(const std::string& nextClipName, float blendTimeSec,
+        bool loop = true, float startTime = 0.0f);
+
+    bool IsBlending() const { return m_bBlending; }
+
+private:
+    AnimationClip* FindClipPtr(const std::string& name);
+
+    void AdvanceTime(AnimationClip* clip, float& time, float dt, bool loop);
+    void BuildGlobalAndFinalFromLocal(); // 기존 Update() 하단의 global/final 계산을 함수로 빼기
+
+    void BlendLocalPosesTRS(const std::vector<XMFLOAT4X4>& A,
+        const std::vector<XMFLOAT4X4>& B,
+        float alpha,
+        std::vector<XMFLOAT4X4>& out);
 };

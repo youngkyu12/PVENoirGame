@@ -445,7 +445,7 @@ CFighterPlayer::CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandLi
 	ctrl->SetSpeed(0.0f);
 	ctrl->Update(0.0f);
 
-
+	this->Animate(0.0f);
 
 	// ------------------------------------------------------------
 	// 대표 materialId 선택 (기존 로직 유지하되 Fighter 기준)
