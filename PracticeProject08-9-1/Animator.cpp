@@ -312,8 +312,33 @@ bool CAnimator::CrossFade(const std::string& nextClipName, float blendTimeSec, b
     if (!m_bPlaying || m_CurrentClipName.empty())
         return Play(nextClipName, loop, startTime);
 
-    if (m_CurrentClipName == nextClipName)
-        return true;
+    // ★ 블렌딩 중이면 "현재"가 아니라 "목표(next)" 기준으로 중복 판단해야 함
+    if (m_bBlending)
+    {
+        // 이미 그쪽으로 블렌딩 중이면 아무것도 안 함
+        if (m_NextClipName == nextClipName)
+            return true;
+
+        // ★ 블렌딩 도중 "현재 클립"으로 되돌아가라 = 블렌딩 취소
+        if (m_CurrentClipName == nextClipName)
+        {
+            m_bBlending = false;
+            m_NextClipName.clear();
+            m_fBlendElapsed = 0.0f;
+            m_fBlendDuration = 0.0f;
+            // 현재 포즈는 이미 m_LocalPose에 반영되어 있을 수 있으니,
+            // 안전하게 현재 클립 재평가해서 고정해도 됨(선택)
+            // FindClipPtr(m_CurrentClipName)->Evaluate(m_fCurrentTime, m_Skeleton, m_LocalPose);
+            // BuildGlobalAndFinalFromLocal();
+            return true;
+        }
+    }
+    else
+    {
+        // 블렌딩이 아닐 때만 "현재 == 요청"이면 무시
+        if (m_CurrentClipName == nextClipName)
+            return true;
+    }
 
     if (blendTimeSec <= 0.0f)
         return Play(nextClipName, loop, startTime);
