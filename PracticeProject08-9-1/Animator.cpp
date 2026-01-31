@@ -5,7 +5,6 @@
 #include "stdafx.h"
 #include "Animator.h"
 
-// Animator.cpp 상단(또는 익명 namespace)에 추가
 static int FindByNameCandidates(
     const std::unordered_map<std::string, int>& map,
     std::initializer_list<const char*> names)
@@ -43,6 +42,41 @@ static int FindPelvisFallbackByTopology(const std::vector<Bone>& skel)
     }
     return -1;
 }
+
+static void DecomposeTRS_M(const XMFLOAT4X4& M, XMFLOAT3& outT, XMFLOAT4& outR, XMFLOAT3& outS)
+{
+    XMMATRIX m = XMLoadFloat4x4(&M);
+    XMVECTOR S, R, T;
+    if (!XMMatrixDecompose(&S, &R, &T, m))
+    {
+        outT = { 0,0,0 };
+        outR = { 0,0,0,1 };
+        outS = { 1,1,1 };
+        return;
+    }
+    XMStoreFloat3(&outS, S);
+    XMStoreFloat4(&outR, XMQuaternionNormalize(R));
+    XMStoreFloat3(&outT, T);
+}
+
+static XMFLOAT4X4 ComposeTRS_M(const XMFLOAT3& t, const XMFLOAT4& r, const XMFLOAT3& s)
+{
+    XMVECTOR T = XMLoadFloat3(&t);
+    XMVECTOR R = XMLoadFloat4(&r);
+    XMVECTOR S = XMLoadFloat3(&s);
+
+    XMMATRIX mS = XMMatrixScalingFromVector(S);
+    XMMATRIX mR = XMMatrixRotationQuaternion(R);
+    XMMATRIX mT = XMMatrixTranslationFromVector(T);
+
+    // 너 Evaluate가 쓰는 규칙과 동일: S * R * T
+    XMMATRIX M = mS * mR * mT;
+
+    XMFLOAT4X4 out{};
+    XMStoreFloat4x4(&out, M);
+    return out;
+}
+
 
 
 // ============================================================
@@ -117,86 +151,25 @@ bool CAnimator::HasClip(const std::string& name) const
 // ============================================================
 bool CAnimator::Play(const std::string& clipName, bool loop, float startTime)
 {
-    auto it = m_Clips.find(clipName);
-    if (it == m_Clips.end())
-        return false;
+    AnimationClip* clip = FindClipPtr(clipName);
+    if (!clip) return false;
 
-    m_pCurrentClip = &it->second;
+    m_CurrentClipName = clipName;
     m_fCurrentTime = startTime;
     m_bLoop = loop;
     m_bPlaying = true;
 
-    // =====================================================
-    // ★ 첫 프레임 포즈 즉시 적용 (T-포즈 → 첫 키프레임 보간 제거)
-    // =====================================================
-    if (m_pCurrentClip)
-    {
-        // 1) Local pose 계산
-        m_pCurrentClip->Evaluate(
-            m_fCurrentTime,
-            m_Skeleton,
-            m_LocalPose
-        );
+    // 블렌딩 중이면 취소
+    m_bBlending = false;
+    m_NextClipName.clear();
+    m_fBlendElapsed = 0.0f;
+    m_fBlendDuration = 0.0f;
 
-        // 2) Global pose 계산
-        const int boneCount = (int)m_Skeleton.size();
-        for (int i = 0; i < boneCount; ++i)
-        {
-            int parent = m_Skeleton[i].parentIndex;
-            XMMATRIX local = XMLoadFloat4x4(&m_LocalPose[i]);
+    // 첫 포즈 즉시 적용
+    clip->Evaluate(m_fCurrentTime, m_Skeleton, m_LocalPose);
+    BuildGlobalAndFinalFromLocal();
 
-            if (parent < 0)
-            {
-                XMStoreFloat4x4(&m_GlobalPose[i], local);
-            }
-            else
-            {
-                XMMATRIX parentM = XMLoadFloat4x4(&m_GlobalPose[parent]);
-                XMMATRIX global = local * parentM;
-
-                XMStoreFloat4x4(&m_GlobalPose[i], global);
-            }
-        }
-
-        // 3) Final bone matrices
-        for (int i = 0; i < boneCount; ++i)
-        {
-            XMMATRIX global = XMLoadFloat4x4(&m_GlobalPose[i]);
-            XMMATRIX offset = XMLoadFloat4x4(&m_Skeleton[i].offsetMatrix);
-            XMMATRIX skin = offset * global;
-            XMStoreFloat4x4(&m_FinalBoneMatrices[i], skin);
-        }
-    }
     m_NextClipAfterEnd.clear();
-
-    /*
-    {
-        const int boneCount = (int)m_Skeleton.size();
-
-        for (int i = 0; i < boneCount; ++i)
-        {
-            const Bone& b = m_Skeleton[i];
-            const XMFLOAT4X4& g = m_GlobalPose[i];
-
-            char buf[256];
-            sprintf_s(buf,
-                "[Animator::Play] Bone[%d] '%s'\n"
-                "  Row0 = %.3f %.3f %.3f %.3f\n"
-                "  Row1 = %.3f %.3f %.3f %.3f\n"
-                "  Row2 = %.3f %.3f %.3f %.3f\n"
-                "  Row3 = %.3f %.3f %.3f %.3f\n",
-                i, b.name.c_str(),
-                g.m[0][0], g.m[0][1], g.m[0][2], g.m[0][3],
-                g.m[1][0], g.m[1][1], g.m[1][2], g.m[1][3],
-                g.m[2][0], g.m[2][1], g.m[2][2], g.m[2][3],
-                g.m[3][0], g.m[3][1], g.m[3][2], g.m[3][3]
-            );
-
-            OutputDebugStringA(buf);
-        }
-    }
-    */
-
     return true;
 }
 
@@ -227,80 +200,149 @@ void CAnimator::SetTime(float timeSec)
 // ============================================================
 void CAnimator::Update(float dt)
 {
-    if (!m_bPlaying || !m_pCurrentClip)
-        return;
+    if (!m_bPlaying) return;
 
-    // 시간 증가
-    m_fCurrentTime += dt;
-    //m_fCurrentTime += 0.001f;
-
-
-    // 1) 현재 클립이 끝났는지 검사
-    if (m_fCurrentTime >= m_pCurrentClip->duration)
-    {
-        if (m_bLoop)
-        {
-            // 루프 재생이면 0으로 되감기
-            m_fCurrentTime = fmodf(m_fCurrentTime, m_pCurrentClip->duration);
-        }
-        else
-        {
-            // loop = false → 더 이상 계속되지 않음
-            if (!m_NextClipAfterEnd.empty())
-            {
-                // 다음 클립으로 전환
-                Play(m_NextClipAfterEnd, true, 0.0f);
-                return;
-            }
-            else
-            {
-                // 아무것도 설정 안 했으면 끝 프레임 유지
-                m_fCurrentTime = m_pCurrentClip->duration;
-                return;
-            }
-        }
-    }
+    AnimationClip* cur = FindClipPtr(m_CurrentClipName);
+    if (!cur) return;
 
     const int boneCount = (int)m_Skeleton.size();
     if (boneCount <= 0) return;
 
-    DBG_PrintF("[Animator::Update] clip=%s bones=%d time=%.3f\n",
-        (m_pCurrentClip ? m_pCurrentClip->name.c_str() : "null"),
-        boneCount, m_fCurrentTime);
-
-    static bool once = false;
-    if (!once)
+    if (!m_bBlending)
     {
-        once = true;
-        for (int i = 0; i < boneCount && i < 40; ++i)
-            DBG_PrintF("  Bone[%d] '%s' parent=%d\n", i, m_Skeleton[i].name.c_str(), m_Skeleton[i].parentIndex);
+        // 기존 단일 재생
+        AdvanceTime(cur, m_fCurrentTime, dt, m_bLoop);
+
+        // (기존의 "끝 처리 + NextClipAfterEnd"는 유지하려면 여기서 따로 처리)
+        // 지금은 최소 패치라 loop=false면 끝 프레임 유지로만 둠.
+
+        cur->Evaluate(m_fCurrentTime, m_Skeleton, m_LocalPose);
+        BuildGlobalAndFinalFromLocal();
+        return;
     }
 
+    // ===== 블렌딩 중 =====
+    AnimationClip* nxt = FindClipPtr(m_NextClipName);
+    if (!nxt)
+    {
+        // next가 사라졌으면 블렌딩 취소
+        m_bBlending = false;
+        return;
+    }
 
+    // 두 클립 모두 시간 진행
+    AdvanceTime(cur, m_fCurrentTime, dt, m_bLoop);
+    AdvanceTime(nxt, m_fNextTime, dt, m_bNextLoop);
 
-    // 1) 로컬 포즈 계산
-    m_pCurrentClip->Evaluate(
-        m_fCurrentTime,
-        m_Skeleton,
-        m_LocalPose
-    );
+    // A/B 포즈 평가
+    cur->Evaluate(m_fCurrentTime, m_Skeleton, m_LocalPoseA);
+    nxt->Evaluate(m_fNextTime, m_Skeleton, m_LocalPoseB);
 
+    // alpha 계산
+    m_fBlendElapsed += dt;
+    float alpha = (m_fBlendDuration > 0.0f) ? (m_fBlendElapsed / m_fBlendDuration) : 1.0f;
+    if (alpha > 1.0f) alpha = 1.0f;
 
-    // 2) 글로벌 포즈 계산 (부모-자식 연결)
-    // Evaluate 직후, GlobalPose 계산 직전에 추가:
+    // 로컬 포즈 블렌딩
+    BlendLocalPosesTRS(m_LocalPoseA, m_LocalPoseB, alpha, m_LocalPose);
+
+    // 글로벌/스킨 계산
+    BuildGlobalAndFinalFromLocal();
+
+    // 블렌딩 종료 -> next를 current로 승격
+    if (alpha >= 1.0f)
+    {
+        m_bBlending = false;
+        m_CurrentClipName = m_NextClipName;
+        m_NextClipName.clear();
+
+        m_fCurrentTime = m_fNextTime;
+        m_bLoop = m_bNextLoop;
+
+        m_fBlendElapsed = 0.0f;
+        m_fBlendDuration = 0.0f;
+    }
+}
+
+AnimationClip* CAnimator::FindClipPtr(const std::string& name)
+{
+    auto it = m_Clips.find(name);
+    if (it == m_Clips.end()) return nullptr;
+    return &it->second;
+}
+
+void CAnimator::AdvanceTime(AnimationClip* clip, float& time, float dt, bool loop)
+{
+    if (!clip) return;
+    time += dt;
+
+    if (clip->duration <= 0.0f) { time = 0.0f; return; }
+
+    if (time >= clip->duration)
+    {
+        if (loop) time = fmodf(time, clip->duration);
+        else      time = clip->duration; // 끝 프레임 유지
+    }
+    if (time < 0.0f) time = 0.0f;
+}
+
+void CAnimator::BlendLocalPosesTRS(const std::vector<XMFLOAT4X4>& A,
+    const std::vector<XMFLOAT4X4>& B,
+    float alpha,
+    std::vector<XMFLOAT4X4>& out)
+{
+    const int n = (int)m_Skeleton.size();
+    if (n <= 0) return;
+    if ((int)out.size() != n) out.resize(n);
+
+    alpha = (alpha < 0.f) ? 0.f : (alpha > 1.f ? 1.f : alpha);
+
+    for (int i = 0; i < n; ++i)
+    {
+        XMFLOAT3 tA, sA, tB, sB;
+        XMFLOAT4 rA, rB;
+
+        DecomposeTRS_M(A[i], tA, rA, sA);
+        DecomposeTRS_M(B[i], tB, rB, sB);
+
+        XMVECTOR Ta = XMLoadFloat3(&tA);
+        XMVECTOR Tb = XMLoadFloat3(&tB);
+        XMVECTOR Sa = XMLoadFloat3(&sA);
+        XMVECTOR Sb = XMLoadFloat3(&sB);
+
+        XMVECTOR T = XMVectorLerp(Ta, Tb, alpha);
+        XMVECTOR S = XMVectorLerp(Sa, Sb, alpha);
+
+        XMVECTOR Ra = XMLoadFloat4(&rA);
+        XMVECTOR Rb = XMLoadFloat4(&rB);
+        XMVECTOR R = XMQuaternionSlerp(Ra, Rb, alpha);
+        R = XMQuaternionNormalize(R);
+
+        XMFLOAT3 t; XMFLOAT4 r; XMFLOAT3 s;
+        XMStoreFloat3(&t, T);
+        XMStoreFloat4(&r, R);
+        XMStoreFloat3(&s, S);
+
+        out[i] = ComposeTRS_M(t, r, s);
+    }
+}
+
+void CAnimator::BuildGlobalAndFinalFromLocal()
+{
+    const int boneCount = (int)m_Skeleton.size();
+    if (boneCount <= 0) return;
+
+    // --- 너의 primaryRoot 찾기 그대로 ---
     auto FindPrimaryRoot = [&]() -> int
         {
-            // 루트 후보 수집
             std::vector<int> roots;
             for (int i = 0; i < boneCount; ++i)
-                if (m_Skeleton[i].parentIndex < 0)
-                    roots.push_back(i);
+                if (m_Skeleton[i].parentIndex < 0) roots.push_back(i);
 
             if (roots.empty()) return 0;
             if (roots.size() == 1) return roots[0];
 
-            // 가장 “자식이 많은” 루트를 primary로 (이름 하드코딩 회피)
-            auto CountDesc = [&](int root) -> int
+            auto CountDesc = [&](int root)->int
                 {
                     int cnt = 0;
                     for (int i = 0; i < boneCount; ++i)
@@ -326,10 +368,7 @@ void CAnimator::Update(float dt)
 
     int primaryRoot = FindPrimaryRoot();
 
-    // (선택) RootDeltaFix는 “primaryRoot”에만 적용 (당신이 이미 해둔 방향 유지)
-    // -> 이 부분은 당신의 현재 코드 유지하되, 조건을 boneName==Bind_Hips가 아니라 i==primaryRoot로 바꾸면 됨.
-
-    // ---- GlobalPose 계산을 이 루프로 통일 ----
+    // ---- GlobalPose ----
     for (int i = 0; i < boneCount; ++i)
     {
         int parent = m_Skeleton[i].parentIndex;
@@ -341,10 +380,8 @@ void CAnimator::Update(float dt)
             continue;
         }
 
-        // secondary root면 primary에 붙이기
         if (parent < 0)
         {
-            // local(현재는 absolute처럼 들어온 것)을 primary 기준 상대 로컬로 변환
             XMMATRIX primaryG = XMLoadFloat4x4(&m_GlobalPose[primaryRoot]);
             XMMATRIX invPrimaryG = XMMatrixInverse(nullptr, primaryG);
             local = local * invPrimaryG;
@@ -356,18 +393,49 @@ void CAnimator::Update(float dt)
         XMStoreFloat4x4(&m_GlobalPose[i], global);
     }
 
-    // 3) 최종 본 행렬 = offsetMatrix * globalTransform
+    // ---- Final ----
     for (int i = 0; i < boneCount; ++i)
     {
         XMMATRIX global = XMLoadFloat4x4(&m_GlobalPose[i]);
         XMMATRIX offset = XMLoadFloat4x4(&m_Skeleton[i].offsetMatrix);
-
         XMMATRIX skin = offset * global;
         XMStoreFloat4x4(&m_FinalBoneMatrices[i], skin);
     }
-
-
 }
+
+bool CAnimator::CrossFade(const std::string& nextClipName, float blendTimeSec, bool loop, float startTime)
+{
+    AnimationClip* next = FindClipPtr(nextClipName);
+    if (!next) return false;
+
+    // current가 없으면 그냥 Play
+    if (!m_bPlaying || m_CurrentClipName.empty())
+        return Play(nextClipName, loop, startTime);
+
+    // 같은 클립이면 무시
+    if (m_CurrentClipName == nextClipName)
+        return true;
+
+    // blendTime <= 0 이면 스냅 전환
+    if (blendTimeSec <= 0.0f)
+        return Play(nextClipName, loop, startTime);
+
+    m_bBlending = true;
+    m_NextClipName = nextClipName;
+    m_fNextTime = startTime;
+    m_bNextLoop = loop;
+
+    m_fBlendElapsed = 0.0f;
+    m_fBlendDuration = blendTimeSec;
+
+    // 버퍼 크기 보장
+    const int n = (int)m_Skeleton.size();
+    if ((int)m_LocalPoseA.size() != n) m_LocalPoseA.resize(n);
+    if ((int)m_LocalPoseB.size() != n) m_LocalPoseB.resize(n);
+
+    return true;
+}
+
 
 
 // ============================================================
@@ -375,9 +443,7 @@ void CAnimator::Update(float dt)
 // ============================================================
 const std::string& CAnimator::GetCurrentClipName() const
 {
-    static std::string empty = "";
-    if (!m_pCurrentClip) return empty;
-    return m_pCurrentClip->name;
+    return m_CurrentClipName;
 }
 
 // ============================================================

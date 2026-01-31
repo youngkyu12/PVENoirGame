@@ -8,6 +8,7 @@
 #include "Scene.h"
 #include "Material.h"
 #include "AssetManager.h"
+#include "AnimController.h"
 
 #include <random>
 
@@ -664,8 +665,7 @@ void CSkinnedObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
 			if (!obj->m_ppMeshes.empty() && obj->m_ppMeshes[0])
 			{
 				idleLoaded = obj->m_ppMeshes[0]->LoadAnimationFromBIN(
-					"Assets/Zombie/Animation/ZombieAttack.bin",
-					//"Assets/Zombie/Mesh/Zombie.bin",
+					"Assets/Zombie/Animation/ZombieAttack.bin", //애니메이션이 부족해서 일단 이걸 Idle로 사용
 					"Idle", idleClip, 1.0f
 				);
 			}
@@ -678,7 +678,14 @@ void CSkinnedObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
 				if (anim)
 					anim->AddClip(idleClip);
 
-				obj->PlayAnimation("Idle", true, 0.0f);
+				//컨트롤러 기반: 지금은 Idle만 쓰게 강제
+				auto* ctrl = obj->EnsureAnimController();
+				ctrl->SetIdleClip("Idle");
+				ctrl->SetMoveClip("Idle");   // <- 핵심: Move도 Idle로 묶어서 전환 차단
+				ctrl->SetSpeed(0.0f);
+				ctrl->Update(0.0f);          // <- 여기서 Idle 1회 Play
+			
+				obj->Animate(0.0f);
 			}
 
 			m_ppObjects[i] = std::move(obj);
@@ -702,7 +709,6 @@ void CSkinnedObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
 
 		//for (int i = 0 / 2; i < m_nObjects; i++) {
 		for (int i = m_nObjects / 2; i < m_nObjects; i++) {
-			//const UINT i = 0;
 			auto obj = std::make_unique<CGameObject>(1);
 
 			CB_GAMEOBJECT_INFO* cb =
@@ -737,8 +743,7 @@ void CSkinnedObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
 			if (!obj->m_ppMeshes.empty() && obj->m_ppMeshes[0])
 			{
 				idleLoaded = obj->m_ppMeshes[0]->LoadAnimationFromBIN(
-					//"Assets/Fighter/Mesh/Fighter.bin",
-					"Assets/Fighter/Animation/FighterRun.bin",
+					"Assets/Fighter/Animation/FighterIdle.bin",
 					"Idle", idleClip, 1.0f
 				);
 			}
@@ -751,8 +756,16 @@ void CSkinnedObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
 				if (anim)
 					anim->AddClip(idleClip);
 
-				obj->PlayAnimation("Idle", true, 0.0f);
+				// 컨트롤러 기반: 지금은 Idle만 쓰게 강제
+				auto* ctrl = obj->EnsureAnimController();
+				ctrl->SetIdleClip("Idle");
+				ctrl->SetMoveClip("Idle");  // <- 핵심: Run/Walk 같은 전환을 아예 막음
+				ctrl->SetSpeed(0.0f);
+				ctrl->Update(0.0f);
+
+				obj->Animate(0.0f);
 			}
+
 
 			m_ppObjects[i] = std::move(obj);
 		}
