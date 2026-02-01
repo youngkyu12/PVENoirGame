@@ -1,5 +1,5 @@
 ///-----------------------------------------------------------------------------
-// File: Shader_Build.cpp
+// File: Shader_Render.cpp
 //-----------------------------------------------------------------------------
 
 #include "stdafx.h"
@@ -36,6 +36,22 @@ void CPlayerShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* 
 	if (pCamera)
 		pCamera->UpdateShaderVariables(pd3dCommandList);
 }
+
+void CPlayerShader::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext)
+{
+	// CShader::Render() 내부에서 OnPrepareRender(루트시그/PSO 설정) 후 호출되므로
+	// 여기서 BonePalette 루트 바인딩을 하면 순서가 안전함.
+	if (m_pd3dcbBonePalette)
+	{
+		pd3dCommandList->SetGraphicsRootConstantBufferView(
+			ROOT_PARAMETER_BONE_PALETTE,
+			m_pd3dcbBonePalette->GetGPUVirtualAddress()
+		);
+	}
+
+	CShader::UpdateShaderVariables(pd3dCommandList, pContext);
+}
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //

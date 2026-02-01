@@ -68,14 +68,30 @@ public:
 	CPlayerShader();
 	virtual ~CPlayerShader();
 
-	virtual D3D12_INPUT_LAYOUT_DESC CreateInputLayout();
-	virtual D3D12_DEPTH_STENCIL_DESC CreateDepthStencilState();
+	virtual D3D12_INPUT_LAYOUT_DESC CreateInputLayout() override;
+	virtual D3D12_DEPTH_STENCIL_DESC CreateDepthStencilState() override;
 
-	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob);
-	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob);
+	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob) override;
+	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
 
-	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext);
+	// [ADD] BonePalette(CB) 생성/해제
+	virtual void CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList) override;
+	virtual void ReleaseShaderVariables() override;
+
+	// [ADD] Render 루프에서 BonePalette 바인딩(루트파라미터)
+	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext) override;
+
+	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext) override;
+
+public:
+	// (나중에 애니메이션 본행렬 채울 때 쓰라고 제공)
+	void SetBonePalette(const XMFLOAT4X4* pBoneTransforms, UINT nBones);
+
+private:
+	ComPtr<ID3D12Resource> m_pd3dcbBonePalette;
+	CB_BONE_PALETTE* m_pcbMappedBonePalette = nullptr;
 };
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 class CTexturedShader : public CShader

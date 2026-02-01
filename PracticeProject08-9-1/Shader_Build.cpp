@@ -8,6 +8,7 @@
 #include "Scene.h"
 #include "Material.h"
 #include "AssetManager.h"
+#include "AnimController.h"
 
 #include <random>
 
@@ -192,64 +193,34 @@ void CShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsComm
 
 D3D12_INPUT_LAYOUT_DESC CPlayerShader::CreateInputLayout()
 {
-	UINT nInputElementDescs = 5;
+	// CSkinnedObjectsShader와 동일한 입력(탄젠트 포함)
+	UINT nInputElementDescs = 6;
 	D3D12_INPUT_ELEMENT_DESC* pd3dInputElementDescs =
 		new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
 
 	// POSITION (float3) : offset 0
-	pd3dInputElementDescs[0] = {
-		"POSITION",
-		0,
-		DXGI_FORMAT_R32G32B32_FLOAT,
-		0,
-		0,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-		0
-	};
+	pd3dInputElementDescs[0] = { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
 
 	// NORMAL (float3) : offset 12
-	pd3dInputElementDescs[1] = {
-		"NORMAL",
-		0,
-		DXGI_FORMAT_R32G32B32_FLOAT,
-		0,
-		12,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-		0
-	};
+	pd3dInputElementDescs[1] = { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
 
 	// TEXCOORD (float2) : offset 24
-	pd3dInputElementDescs[2] = {
-		"TEXCOORD",
-		0,
-		DXGI_FORMAT_R32G32_FLOAT,
-		0,
-		24,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-		0
-	};
+	pd3dInputElementDescs[2] = { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
 
-	// BLENDINDICES (uint4) : offset 32
-	pd3dInputElementDescs[3] = {
-		"BLENDINDICES",
-		0,
-		DXGI_FORMAT_R32G32B32A32_UINT,
-		0,
-		32,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-		0
-	};
+	// TANGENT (float4) : offset 32
+	pd3dInputElementDescs[3] = { "TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 32,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
 
-	// BLENDWEIGHT (float4) : offset 48
-	pd3dInputElementDescs[4] = {
-		"BLENDWEIGHT",
-		0,
-		DXGI_FORMAT_R32G32B32A32_FLOAT,
-		0,
-		48,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-		0
-	};
+	// BLENDINDICES (uint4) : offset 48
+	pd3dInputElementDescs[4] = { "BLENDINDICES", 0, DXGI_FORMAT_R32G32B32A32_UINT, 0, 48,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
+
+	// BLENDWEIGHT (float4) : offset 64
+	pd3dInputElementDescs[5] = { "BLENDWEIGHT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 64,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
 
 	D3D12_INPUT_LAYOUT_DESC d3dInputLayoutDesc;
 	d3dInputLayoutDesc.pInputElementDescs = pd3dInputElementDescs;
@@ -284,13 +255,76 @@ D3D12_DEPTH_STENCIL_DESC CPlayerShader::CreateDepthStencilState()
 
 D3D12_SHADER_BYTECODE CPlayerShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
 {
-	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "VSPlayer", "vs_5_1", ppd3dShaderBlob));
+	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "VSSkinnedPlayer", "vs_5_1", ppd3dShaderBlob));
 }
 
 D3D12_SHADER_BYTECODE CPlayerShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
 {
-	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSPlayer", "ps_5_1", ppd3dShaderBlob));
+	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSTexturedLightingToMultipleRTs", "ps_5_1", ppd3dShaderBlob));
 }
+void CPlayerShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
+{
+	// Bone palette CB 생성(Upload)
+	UINT cbBytes = (sizeof(CB_BONE_PALETTE) + 255) & ~255;
+
+	m_pd3dcbBonePalette = ::CreateBufferResource(
+		pd3dDevice,
+		pd3dCommandList,
+		nullptr,
+		cbBytes,
+		D3D12_HEAP_TYPE_UPLOAD,
+		D3D12_RESOURCE_STATE_GENERIC_READ
+	);
+
+	m_pd3dcbBonePalette->Map(0, nullptr, reinterpret_cast<void**>(&m_pcbMappedBonePalette));
+
+	// 초기값: identity로 채움
+	XMFLOAT4X4 I;
+	XMStoreFloat4x4(&I, XMMatrixIdentity());
+	for (UINT i = 0; i < MAX_BONES; ++i)
+		m_pcbMappedBonePalette->gBoneTransforms[i] = I;
+}
+
+void CPlayerShader::ReleaseShaderVariables()
+{
+	if (m_pd3dcbBonePalette)
+	{
+		if (m_pcbMappedBonePalette)
+		{
+			m_pd3dcbBonePalette->Unmap(0, nullptr);
+			m_pcbMappedBonePalette = nullptr;
+		}
+		m_pd3dcbBonePalette.Reset();
+	}
+
+	CShader::ReleaseShaderVariables();
+}
+
+void CPlayerShader::SetBonePalette(const XMFLOAT4X4* pBoneTransforms, UINT nBones)
+{
+	if (!m_pcbMappedBonePalette) return;
+
+	XMFLOAT4X4 I;
+	XMStoreFloat4x4(&I, XMMatrixIdentity());
+
+	// 넘어오는 본 수가 MAX_BONES보다 크면 잘라서 복사
+	UINT copyCount = (nBones > MAX_BONES) ? MAX_BONES : nBones;
+
+	if (pBoneTransforms && copyCount > 0)
+	{
+		for (UINT i = 0; i < copyCount; ++i)
+			m_pcbMappedBonePalette->gBoneTransforms[i] = pBoneTransforms[i];
+
+		for (UINT i = copyCount; i < MAX_BONES; ++i)
+			m_pcbMappedBonePalette->gBoneTransforms[i] = I;
+	}
+	else
+	{
+		for (UINT i = 0; i < MAX_BONES; ++i)
+			m_pcbMappedBonePalette->gBoneTransforms[i] = I;
+	}
+}
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -418,7 +452,7 @@ void CStaticObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
 	CScene::m_pDescriptorHeap->CreateConstantBufferViews(
 		pd3dDevice, m_nObjects, m_pd3dcbGameObjects.Get(), ncbElementBytes);
 
-	m_ppObjects.resize(m_nObjects); // ★ 2) 한 번만
+	m_ppObjects.resize(m_nObjects);
 
 	UINT cbvInc = ::gnCbvSrvDescriptorIncrementSize; // 프로젝트 값으로 교체
 
@@ -428,11 +462,11 @@ void CStaticObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
 	{
 		const UINT i = 0;
 
-		AssetBuildDesc PlaneDesc = { AssetType::Castle,
-		//	"Assets/World/Mesh/StartWorld.bin", "Assets/World/Texture" };
-			"Assets/Castle/Mesh/BigCastle.bin", "Assets/Castle/Texture" };
+		AssetBuildDesc WorldDesc = { AssetType::World,
+			"Assets/World/Mesh/StartWorld.bin", "Assets/World/Texture" };
+		//	"Assets/Castle/Mesh/BigCastle.bin", "Assets/Castle/Texture" };
 
-		BuiltAsset asset = AssetManager::BuildAsset(pd3dDevice, pd3dCommandList, pMaterials, PlaneDesc);
+		BuiltAsset asset = AssetManager::BuildAsset(pd3dDevice, pd3dCommandList, pMaterials, WorldDesc);
 
 		auto obj = std::make_unique<CGameObject>(1);
 
@@ -583,16 +617,16 @@ void CSkinnedObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
 	// ---------- Object 0 : Zombie ----------
 	{
 
-		AssetBuildDesc unitychanDesc =
+		AssetBuildDesc ZombieDesc =
 		{
-			AssetType::Unitychan,
+			AssetType::Zombie,
 			"Assets/Zombie/Mesh/Zombie.bin",
 			"Assets/Zombie/Texture"
 		};
 
 		BuiltAsset asset = AssetManager::BuildAsset(
 			pd3dDevice, pd3dCommandList,
-			pMaterials, unitychanDesc
+			pMaterials, ZombieDesc
 		);
 
 		for (int i = 0; i < m_nObjects / 2; i++) {
@@ -631,8 +665,7 @@ void CSkinnedObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
 			if (!obj->m_ppMeshes.empty() && obj->m_ppMeshes[0])
 			{
 				idleLoaded = obj->m_ppMeshes[0]->LoadAnimationFromBIN(
-					"Assets/Zombie/Animation/ZombieAttack.bin",
-					//"Assets/Zombie/Mesh/Zombie.bin",
+					"Assets/Zombie/Animation/ZombieAttack.bin", //애니메이션이 부족해서 일단 이걸 Idle로 사용
 					"Idle", idleClip, 1.0f
 				);
 			}
@@ -645,7 +678,14 @@ void CSkinnedObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
 				if (anim)
 					anim->AddClip(idleClip);
 
-				obj->PlayAnimation("Idle", true, 0.0f);
+				//컨트롤러 기반: 지금은 Idle만 쓰게 강제
+				auto* ctrl = obj->EnsureAnimController();
+				ctrl->SetIdleClip("Idle");
+				ctrl->SetMoveClip("Idle");   // <- 핵심: Move도 Idle로 묶어서 전환 차단
+				ctrl->SetSpeed(0.0f);
+				ctrl->Update(0.0f);          // <- 여기서 Idle 1회 Play
+			
+				obj->Animate(0.0f);
 			}
 
 			m_ppObjects[i] = std::move(obj);
@@ -655,21 +695,20 @@ void CSkinnedObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
 	// ---------- Object 1 : Fighter ----------
 	{
 
-		AssetBuildDesc unitychanDesc =
+		AssetBuildDesc FighterDesc =
 		{
-			AssetType::Unitychan,
+			AssetType::Fighter,
 			"Assets/Fighter/Mesh/Fighter.bin",
 			"Assets/Fighter/Texture"
 		};
 
 		BuiltAsset asset = AssetManager::BuildAsset(
 			pd3dDevice, pd3dCommandList,
-			pMaterials, unitychanDesc
+			pMaterials, FighterDesc
 		);
 
 		//for (int i = 0 / 2; i < m_nObjects; i++) {
 		for (int i = m_nObjects / 2; i < m_nObjects; i++) {
-			//const UINT i = 0;
 			auto obj = std::make_unique<CGameObject>(1);
 
 			CB_GAMEOBJECT_INFO* cb =
@@ -704,8 +743,7 @@ void CSkinnedObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
 			if (!obj->m_ppMeshes.empty() && obj->m_ppMeshes[0])
 			{
 				idleLoaded = obj->m_ppMeshes[0]->LoadAnimationFromBIN(
-					//"Assets/Fighter/Mesh/Fighter.bin",
-					"Assets/Fighter/Animation/FighterRun.bin",
+					"Assets/Fighter/Animation/FighterIdle.bin",
 					"Idle", idleClip, 1.0f
 				);
 			}
@@ -718,8 +756,16 @@ void CSkinnedObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
 				if (anim)
 					anim->AddClip(idleClip);
 
-				obj->PlayAnimation("Idle", true, 0.0f);
+				// 컨트롤러 기반: 지금은 Idle만 쓰게 강제
+				auto* ctrl = obj->EnsureAnimController();
+				ctrl->SetIdleClip("Idle");
+				ctrl->SetMoveClip("Idle");  // <- 핵심: Run/Walk 같은 전환을 아예 막음
+				ctrl->SetSpeed(0.0f);
+				ctrl->Update(0.0f);
+
+				obj->Animate(0.0f);
 			}
+
 
 			m_ppObjects[i] = std::move(obj);
 		}
