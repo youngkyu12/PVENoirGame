@@ -1,5 +1,5 @@
 //-----------------------------------------------------------------------------
-// File: CGameObject.cpp
+// File:Object.cpp
 //-----------------------------------------------------------------------------
 
 #include "stdafx.h"
@@ -10,6 +10,7 @@
 
 #include "Scene.h"
 #include "Animator.h"
+#include "AnimController.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -245,6 +246,17 @@ void CGameObject::UpdateBoneTransformsOnGPU(const XMFLOAT4X4* pxmf4x4BoneTransfo
         XMStoreFloat4x4(&m_pcbMappedBoneTransforms[i], m);
     }
 }
+
+CAnimController* CGameObject::EnsureAnimController()
+{
+    if (!m_pAnimController)
+    {
+        m_pAnimController = std::make_unique<CAnimController>();
+        m_pAnimController->Bind(this);
+    }
+    return m_pAnimController.get();
+}
+
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

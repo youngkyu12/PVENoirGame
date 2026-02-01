@@ -81,6 +81,12 @@
     <ClInclude Include="d3dx12.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="AssetManager.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="AnimController.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="PracticeProject08-9-1.cpp">
@@ -159,6 +165,12 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="AnimatorData.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="AssetManager.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="AnimController.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>
