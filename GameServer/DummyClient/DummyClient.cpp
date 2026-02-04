@@ -17,6 +17,7 @@ public:
 
 	virtual void OnConnected() override
 	{
+
 		//cout << "Connected To Server" << endl;
 	}
 
