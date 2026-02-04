@@ -4,6 +4,7 @@
 
 #include "stdafx.h"
 #include "GameFramework.h"
+#include "AnimController.h"
 
 void CGameFramework::ProcessInput()
 {
@@ -57,6 +58,8 @@ void CGameFramework::ProcessInput()
 			}
 			if (dwDirection)m_pPlayer->Move(dwDirection, 5.0f * m_GameTimer.GetTimeElapsed(), true);
 		}
+		if (auto* ctrl = m_pPlayer->GetAnimController())
+			ctrl->SetSpeed(dwDirection ? 1.0f : 0.0f);
 	}
 	m_pPlayer->Update(m_GameTimer.GetTimeElapsed());
 }

@@ -130,36 +130,49 @@ void CScene::BuildObjects(
 	CreateGraphicsRootSignature(pd3dDevice);
 
 	// ============================================================
-	// 2. Shader ���� ���� (Static + Skinned)
+	// 2. Shader �ν��Ͻ� ���� + ������Ʈ ���� ��Ȯ��
 	// ============================================================
 	m_nShaders = 2;
 	m_ppShaders.resize(m_nShaders);
 
 	constexpr int MAX_GLOBAL_SRVS = 1024;
 
+	auto pStaticShader = std::make_shared<CStaticObjectsShader>();
+	auto pSkinnedShader = std::make_shared<CSkinnedObjectsShader>();
+
+	const UINT staticCount = static_cast<UINT>(pStaticShader->GetNumberOfObjects());
+	const UINT skinnedCount = static_cast<UINT>(pSkinnedShader->GetNumberOfObjects());
+
+	const UINT cbvTotal =
+		staticCount +
+		skinnedCount +
+		1 /*Camera*/ +
+		1 /*Player*/ +
+		1 /*etc*/;
+
 	// ============================================================
-	// 3. Static Objects Shader
+	// 3. DescriptorHeap�� "�� ����" ���� (�ϵ��ڵ� ����)
+	// ============================================================
+	m_pDescriptorHeap->CreateCbvSrvDescriptorHeaps(
+		pd3dDevice,
+		cbvTotal,
+		MAX_GLOBAL_SRVS
+	);
+
+	// ���� RTV ����
+	DXGI_FORMAT rtvFormats[5] =
+	{
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		DXGI_FORMAT_R32_FLOAT
+	};
+
+	// ============================================================
+	// 4. Static Objects Shader
 	// ============================================================
 	{
-		auto pStaticShader = std::make_shared<CStaticObjectsShader>();
-		int nObjects = pStaticShader->GetNumberOfObjects();
-
-		// DescriptorHeap (Scene���� 1ȸ�� ����)
-		m_pDescriptorHeap->CreateCbvSrvDescriptorHeaps(
-			pd3dDevice,
-			nObjects + 1 + 1 + 1, // GameObject + Camera + Player + etc
-			MAX_GLOBAL_SRVS
-		);
-
-		DXGI_FORMAT rtvFormats[5] =
-		{
-			DXGI_FORMAT_R8G8B8A8_UNORM,
-			DXGI_FORMAT_R8G8B8A8_UNORM,
-			DXGI_FORMAT_R8G8B8A8_UNORM,
-			DXGI_FORMAT_R8G8B8A8_UNORM,
-			DXGI_FORMAT_R32_FLOAT
-		};
-
 		pStaticShader->CreateShader(
 			pd3dDevice,
 			m_pd3dGraphicsRootSignature.Get(),
@@ -180,20 +193,9 @@ void CScene::BuildObjects(
 	}
 
 	// ============================================================
-	// 4. Skinned Objects Shader (����� Static�� ���� ����)
+	// 5. Skinned Objects Shader
 	// ============================================================
 	{
-		auto pSkinnedShader = std::make_shared<CSkinnedObjectsShader>();
-
-		DXGI_FORMAT rtvFormats[5] =
-		{
-			DXGI_FORMAT_R8G8B8A8_UNORM,
-			DXGI_FORMAT_R8G8B8A8_UNORM,
-			DXGI_FORMAT_R8G8B8A8_UNORM,
-			DXGI_FORMAT_R8G8B8A8_UNORM,
-			DXGI_FORMAT_R32_FLOAT
-		};
-
 		pSkinnedShader->CreateShader(
 			pd3dDevice,
 			m_pd3dGraphicsRootSignature.Get(),
@@ -202,7 +204,6 @@ void CScene::BuildObjects(
 			DXGI_FORMAT_D24_UNORM_S8_UINT
 		);
 
-		// �� ���� �ܰ迡���� ������ Mesh�� �׷��� OK
 		pSkinnedShader->BuildObjects(
 			pd3dDevice,
 			pd3dCommandList,
@@ -213,10 +214,11 @@ void CScene::BuildObjects(
 	}
 
 	// ============================================================
-	// 5. Scene ���� Shader Variables
+	// 6. Scene ���� Shader Variables
 	// ============================================================
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
 }
+
 
 
 void CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevice)

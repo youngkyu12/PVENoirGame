@@ -313,7 +313,7 @@ void CGameFramework::BuildObjects()
 	m_pScene = make_unique<CScene>();
 	m_pScene->BuildObjects(m_pd3dDevice.Get(), m_pd3dCommandList.Get());
 
-	m_pPlayer = make_shared<CAirplanePlayer>(
+	m_pPlayer = make_shared<CFighterPlayer>(
 		m_pd3dDevice.Get(),
 		m_pd3dCommandList.Get(),
 		m_pScene->GetGraphicsRootSignature(),

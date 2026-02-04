@@ -79,6 +79,7 @@ struct BinMaterial
 {
 	std::string name;               // material 이름 (ex: "face")
 	std::string diffuseTextureName; // texture base (ex: "face_00")
+	std::string normalTextureName;  //v2: normal map texture stem
 };
 
 struct SubMesh
@@ -87,6 +88,7 @@ struct SubMesh
 	vector<XMFLOAT3> positions;
 	vector<XMFLOAT3> normals;
 	vector<XMFLOAT2> uvs;
+	vector<XMFLOAT4> tangents;
 	vector<XMUINT4>  boneIndices;
 	vector<XMFLOAT4> boneWeights;
 	vector<UINT>     indices;
@@ -94,6 +96,7 @@ struct SubMesh
 	std::string meshName;
 	std::string materialName;              // 로딩용/디버그용
 	std::string diffuseTextureName;
+	std::string normalTextureName;
 	shared_ptr<CMaterial> material;         // (권장) 렌더용 연결
 	uint32_t materialIndex = 0xFFFFFFFFu; // BIN의 g_Materials 인덱스
 	UINT     materialId = 0xFFFFFFFFu; // 셰이더로 넘길 gnMaterialID (현재는 materialIndex와 동일)

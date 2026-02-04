@@ -7,6 +7,7 @@
 #include "Shader.h"
 #include "Scene.h"
 #include "AssetManager.h"
+#include "AnimController.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CPlayer
@@ -35,45 +36,42 @@ CPlayer::~CPlayer()
 
 }
 
-void CPlayer::CreateShaderVariables(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList)
+void CPlayer::CreateShaderVariables(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
-	if (m_pCamera)
-		m_pCamera->CreateShaderVariables(pd3dDevice, pd3dCommandList);
+	if (m_pCamera) m_pCamera->CreateShaderVariables(dev, cmd);
 
-	UINT ncbElementBytes = ((sizeof(CB_PLAYER_INFO)+ 255)& ~255); //256ÀÇ ¹è¼ö
+	// Player CB(b0)ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+	UINT cbPlayerBytes = (sizeof(CB_PLAYER_INFO) + 255) & ~255;
 	m_pd3dcbPlayer = ::CreateBufferResource(
-		pd3dDevice, 
-		pd3dCommandList, 
-		nullptr, 
-		ncbElementBytes, 
-		D3D12_HEAP_TYPE_UPLOAD, 
+		dev, cmd,
+		nullptr,
+		cbPlayerBytes,
+		D3D12_HEAP_TYPE_UPLOAD,
 		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
 		nullptr
 	);
-
-	m_pd3dcbPlayer->Map(0, nullptr, (void **)&m_pcbMappedPlayer);
+	m_pd3dcbPlayer->Map(0, nullptr, (void**)&m_pcbMappedPlayer);
 }
 
 void CPlayer::ReleaseShaderVariables()
 {
-	if (m_pCamera)m_pCamera->ReleaseShaderVariables();
+	if (m_pCamera) m_pCamera->ReleaseShaderVariables();
 
 	if (m_pd3dcbPlayer)
 	{
 		m_pd3dcbPlayer->Unmap(0, nullptr);
 		m_pd3dcbPlayer.Reset();
+		m_pcbMappedPlayer = nullptr;
 	}
 
 	CGameObject::ReleaseShaderVariables();
 }
 
+
 void CPlayer::UpdateShaderVariables(ID3D12GraphicsCommandList *pd3dCommandList)
 {
-	XMStoreFloat4x4(&m_pcbMappedPlayer->m_xmf4x4World, XMMatrixTranspose(XMLoadFloat4x4(&m_xmf4x4World)));
-
-	m_pcbMappedPlayer->m_nMaterialID = 0;
-	if (m_pMaterial) m_pcbMappedPlayer->m_nMaterialID = m_pMaterial->m_nReflection;
-
+	XMStoreFloat4x4(&m_pcbMappedPlayer->m_xmf4x4World,
+		XMMatrixTranspose(XMLoadFloat4x4(&m_xmf4x4World)));
 }
 
 void CPlayer::Move(DWORD dwDirection, float fDistance, bool bUpdateVelocity)
@@ -239,6 +237,7 @@ void CPlayer::Update(float fTimeElapsed)
 		fDeceleration = fLength;
 
 	m_xmf3Velocity = Vector3::Add(m_xmf3Velocity, Vector3::ScalarProduct(m_xmf3Velocity, -fDeceleration, true));
+	this->Animate(fTimeElapsed);
 }
 
 unique_ptr<CCamera> CPlayer::OnChangeCamera(DWORD nNewCameraMode, DWORD nCurrentCameraMode)
@@ -291,10 +290,27 @@ void CPlayer::OnPrepareRender(ID3D12GraphicsCommandList *pd3dCommandList, CCamer
 	m_xmf4x4World._41 = m_xmf3Position.x; m_xmf4x4World._42 = m_xmf3Position.y; m_xmf4x4World._43 = m_xmf3Position.z;
 }
 
-void CPlayer::SetRootParameter(ID3D12GraphicsCommandList *pd3dCommandList)
+void CPlayer::SetRootParameter(ID3D12GraphicsCommandList* cmd)
 {
-	D3D12_GPU_VIRTUAL_ADDRESS d3dGpuVirtualAddress = m_pd3dcbPlayer->GetGPUVirtualAddress();
-	pd3dCommandList->SetGraphicsRootConstantBufferView(ROOT_PARAMETER_PLAYER, d3dGpuVirtualAddress);
+	cmd->SetGraphicsRootConstantBufferView(
+		ROOT_PARAMETER_PLAYER,
+		m_pd3dcbPlayer->GetGPUVirtualAddress()
+	);
+
+	// b7 bones
+	if (m_pd3dcbBoneTransforms)
+	{
+		cmd->SetGraphicsRootConstantBufferView(
+			ROOT_PARAMETER_BONE_PALETTE,
+			m_pd3dcbBoneTransforms->GetGPUVirtualAddress()
+		);
+	}
+
+	// b6 materialId
+	cmd->SetGraphicsRoot32BitConstants(
+		ROOT_PARAMETER_MATERIAL_ID,
+		1, &m_nPlayerMaterialID, 0
+	);
 }
 
 void CPlayer::Render(ID3D12GraphicsCommandList *pd3dCommandList, CCamera *pCamera)
@@ -304,9 +320,9 @@ void CPlayer::Render(ID3D12GraphicsCommandList *pd3dCommandList, CCamera *pCamer
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// CAirplanePlayer
+// CFighterPlayer
 
-CAirplanePlayer::CAirplanePlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, ID3D12RootSignature *pd3dGraphicsRootSignature, void *pContext, int nMeshes): CPlayer(pd3dDevice, pd3dCommandList, pd3dGraphicsRootSignature, pContext, nMeshes)
+CFighterPlayer::CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, ID3D12RootSignature *pd3dGraphicsRootSignature, void *pContext, int nMeshes): CPlayer(pd3dDevice, pd3dCommandList, pd3dGraphicsRootSignature, pContext, nMeshes)
 {
 	m_pCamera = OnChangeCamera(THIRD_PERSON_CAMERA, 0.0f);
 	switch (m_pCamera->GetMode())
@@ -354,101 +370,144 @@ CAirplanePlayer::CAirplanePlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommand
 
 	MATERIALS* pMaterials = reinterpret_cast<MATERIALS*>(pContext);
 
-	AssetBuildDesc desc = {
-		AssetType::Unitychan,
-		"Models/unitychan_min.bin",
-		"Models/UnitychanTexture" 
+	// ------------------------------------------------------------
+	// Fighter ï¿½ï¿½ï¿½ï¿½ ï¿½Îµï¿½ (CSkinnedObjectsShaderï¿½ï¿½ Fighterï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
+	// ------------------------------------------------------------
+	AssetBuildDesc FighterDesc =
+	{
+		AssetType::Fighter,
+		"Assets/Fighter/Mesh/Fighter.bin",
+		"Assets/Fighter/Texture"
 	};
 
 	BuiltAsset built = AssetManager::BuildAsset(
 		pd3dDevice,
 		pd3dCommandList,
 		pMaterials,
-		desc
+		FighterDesc
 	);
 
 	std::shared_ptr<CMesh> pPlayerMesh = built.mesh;
 	SetMesh(0, pPlayerMesh);
 
-	// ´ëÇ¥ materialId ¼±ÅÃ
-    UINT playerMaterialId = 0;
-    for (auto& sm : pPlayerMesh->m_SubMeshes)
-    {
-        if (sm.materialName.empty()) continue;
-        if (sm.materialId == 0xFFFFFFFFu) continue;
-        playerMaterialId = sm.materialId;
-        break;
-    }
-    m_nPlayerMaterialID = playerMaterialId; // ¸â¹ö º¯¼ö(±ÇÀå)
-
-	UINT ncbElementBytes = ((sizeof(CB_PLAYER_INFO)+ 255)& ~255); //256ÀÇ ¹è¼ö
-
-	shared_ptr<CPlayerShader> pShader = make_shared<CPlayerShader>();
-	pShader->CreateShader(pd3dDevice, pd3dGraphicsRootSignature, 1, NULL, DXGI_FORMAT_D24_UNORM_S8_UINT/*DXGI_FORMAT_D32_FLOAT*/);
-	pShader->CreateShaderVariables(pd3dDevice, pd3dCommandList);
-
-	D3D12_GPU_DESCRIPTOR_HANDLE d3dCbvGPUDescriptorHandle = CScene::m_pDescriptorHeap->CreateConstantBufferView(pd3dDevice, m_pd3dcbPlayer.Get(), ncbElementBytes);
-	SetCbvGPUDescriptorHandle(d3dCbvGPUDescriptorHandle);
-
-	SetShader(pShader);
-
-	/*CHeightMapTerrain *pTerrain = (CHeightMapTerrain *)pContext;
-	SetPosition(XMFLOAT3(pTerrain->GetWidth()*0.5f, 2000.0f, pTerrain->GetLength()*0.5f));
-	SetPlayerUpdatedContext(pTerrain);
-	SetCameraUpdatedContext(pTerrain);*/
-}
-
-CAirplanePlayer::~CAirplanePlayer()
-{
-}
-
-void CAirplanePlayer::OnPrepareRender(ID3D12GraphicsCommandList *pd3dCommandList, CCamera *pCamera)
-{
-	CPlayer::OnPrepareRender(pd3dCommandList, pCamera);
-
-	XMMATRIX mtxRotate = XMMatrixRotationRollPitchYaw(XMConvertToRadians(90.0f), 0.0f, 0.0f);
-	m_xmf4x4World = Matrix4x4::Multiply(mtxRotate, m_xmf4x4World);
-}
-
-void CAirplanePlayer::OnPlayerUpdateCallback(float fTimeElapsed)
-{
-	CHeightMapTerrain* pTerrain = (CHeightMapTerrain*)m_pPlayerUpdatedContext;
-	XMFLOAT3 xmf3Scale = pTerrain->GetScale();
-	XMFLOAT3 xmf3PlayerPosition = GetPosition();
-	int z = (int)(xmf3PlayerPosition.z / xmf3Scale.z);
-	bool bReverseQuad = ((z % 2) != 0);
-	float fHeight = pTerrain->GetHeight(xmf3PlayerPosition.x, xmf3PlayerPosition.z, bReverseQuad) + 6.0f;
-	if (xmf3PlayerPosition.y < fHeight)
+	// ------------------------------------------------------------
+	// ï¿½ï¿½Å°ï¿½ï¿½ È°ï¿½ï¿½È­ (CSkinnedObjectsShaderï¿½ï¿½ obj->EnableSkinningï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
+	// ------------------------------------------------------------
+	if (pPlayerMesh && pPlayerMesh->IsSkinnedMesh())
 	{
-		XMFLOAT3 xmf3PlayerVelocity = GetVelocity();
-		xmf3PlayerVelocity.y = 0.0f;
-		SetVelocity(xmf3PlayerVelocity);
-		xmf3PlayerPosition.y = fHeight;
-		SetPosition(xmf3PlayerPosition);
+		const int nBones = pPlayerMesh->GetBoneCount();
+		EnableSkinning(pd3dDevice, nBones);
 	}
-}
 
-void CAirplanePlayer::OnCameraUpdateCallback(float fTimeElapsed)
-{
-	CHeightMapTerrain* pTerrain = (CHeightMapTerrain*)m_pCameraUpdatedContext;
-	XMFLOAT3 xmf3Scale = pTerrain->GetScale();
-	XMFLOAT3 xmf3CameraPosition = m_pCamera->GetPosition();
-	int z = (int)(xmf3CameraPosition.z / xmf3Scale.z);
-	bool bReverseQuad = ((z % 2) != 0);
-	float fHeight = pTerrain->GetHeight(xmf3CameraPosition.x, xmf3CameraPosition.z, bReverseQuad) + 5.0f;
-	if (xmf3CameraPosition.y <= fHeight)
+	// ------------------------------------------------------------
+	// ï¿½Ö´Ï¸ï¿½ï¿½Ì¼ï¿½ ï¿½Îµï¿½ + Animator ï¿½ï¿½ï¿½ï¿½ + ï¿½ï¿½ï¿½ 
+	// ------------------------------------------------------------
+	AnimationClip idleClip;
+	bool idleLoaded = false;
+
+	if (!m_ppMeshes.empty() && m_ppMeshes[0])
 	{
-		xmf3CameraPosition.y = fHeight;
-		m_pCamera->SetPosition(xmf3CameraPosition);
-		if (m_pCamera->GetMode() == THIRD_PERSON_CAMERA)
+		idleLoaded = m_ppMeshes[0]->LoadAnimationFromBIN(
+			"Assets/Fighter/Animation/FighterIdle.bin", 
+			"Idle",	idleClip, 1.0f );
+	}
+
+	if (idleLoaded)
+	{
+		idleClip.name = "Idle";
+
+		CAnimator* anim = EnsureAnimator();
+		if (anim)
+			anim->AddClip(idleClip);
+	}
+
+	AnimationClip RunClip;
+	bool RunLoaded = false;
+
+	if (!m_ppMeshes.empty() && m_ppMeshes[0])
+	{
+		RunLoaded = m_ppMeshes[0]->LoadAnimationFromBIN(
+			"Assets/Fighter/Animation/FighterRun.bin",
+			"Run", RunClip, 1.0f);
+	}
+	if (RunLoaded)
+	{
+		RunClip.name = "Run";
+
+		CAnimator* anim = EnsureAnimator();
+		if (anim)
+			anim->AddClip(RunClip);
+	}
+
+	auto* ctrl = EnsureAnimController();
+	ctrl->SetIdleClip("Idle");
+	ctrl->SetMoveClip("Run");
+	ctrl->SetSpeed(0.0f);
+	ctrl->Update(0.0f);
+
+	this->Animate(0.0f);
+
+	// ------------------------------------------------------------
+	// ï¿½ï¿½Ç¥ materialId ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ïµï¿½ Fighter ï¿½ï¿½ï¿½ï¿½)
+	// ------------------------------------------------------------
+	UINT playerMaterialId = 0;
+	if (pPlayerMesh)
+	{
+		for (auto& sm : pPlayerMesh->m_SubMeshes)
 		{
-			CThirdPersonCamera* p3rdPersonCamera = (CThirdPersonCamera*)m_pCamera.get();
-			p3rdPersonCamera->SetLookAt(GetPosition());
+			if (sm.materialName.empty()) continue;
+			if (sm.materialId == 0xFFFFFFFFu) continue;
+			playerMaterialId = sm.materialId;
+			break;
 		}
 	}
+	m_nPlayerMaterialID = playerMaterialId;
+
+	// ------------------------------------------------------------
+	// Player CBV ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½Îµï¿½
+	// ------------------------------------------------------------
+	UINT ncbElementBytes = ((sizeof(CB_PLAYER_INFO) + 255) & ~255); // 256 align
+
+	// ------------------------------------------------------------
+	// CPlayerShader ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½â¼­ MRTï¿½ï¿½ ï¿½ï¿½ ï¿½Å¸ï¿½ RenderTarget 5ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ø¾ï¿½ ï¿½ï¿½)
+	// ------------------------------------------------------------
+	DXGI_FORMAT rtvFormats[5] =
+	{
+		DXGI_FORMAT_R8G8B8A8_UNORM, // SV_TARGET0 color
+		DXGI_FORMAT_R8G8B8A8_UNORM, // SV_TARGET1 cTexture
+		DXGI_FORMAT_R8G8B8A8_UNORM, // SV_TARGET2 cIllumination
+		DXGI_FORMAT_R8G8B8A8_UNORM, // SV_TARGET3 normal
+		DXGI_FORMAT_R32_FLOAT       // SV_TARGET4 zDepth
+	};
+
+	shared_ptr<CPlayerShader> pShader = make_shared<CPlayerShader>();
+	pShader->CreateShader(pd3dDevice, pd3dGraphicsRootSignature, 5, rtvFormats, DXGI_FORMAT_D24_UNORM_S8_UINT);
+
+	pShader->CreateShaderVariables(pd3dDevice, pd3dCommandList);
+
+	// Player CBV ï¿½Úµï¿½ ï¿½ï¿½ï¿½ï¿½
+	D3D12_GPU_DESCRIPTOR_HANDLE d3dCbvGPUDescriptorHandle =
+		CScene::m_pDescriptorHeap->CreateConstantBufferView(
+			pd3dDevice,
+			m_pd3dcbPlayer.Get(),
+			ncbElementBytes
+		);
+
+	SetCbvGPUDescriptorHandle(d3dCbvGPUDescriptorHandle);
+	SetShader(pShader);
+
 }
 
-CCamera *CAirplanePlayer::ChangeCamera(DWORD nNewCameraMode, float fTimeElapsed)
+CFighterPlayer::~CFighterPlayer()
+{
+}
+
+void CFighterPlayer::OnPrepareRender(ID3D12GraphicsCommandList *pd3dCommandList, CCamera *pCamera)
+{
+	CPlayer::OnPrepareRender(pd3dCommandList, pCamera);
+}
+
+CCamera * CFighterPlayer::ChangeCamera(DWORD nNewCameraMode, float fTimeElapsed)
 {
 	DWORD nCurrentCameraMode = (m_pCamera)? m_pCamera->GetMode(): 0x00;
 	if (nCurrentCameraMode == nNewCameraMode)return(m_pCamera.get());
