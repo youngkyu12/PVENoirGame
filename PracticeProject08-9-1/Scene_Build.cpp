@@ -1,9 +1,12 @@
 //-----------------------------------------------------------------------------
-// File: CScene_Build.cpp
+// File: Scene_Build.cpp
 //-----------------------------------------------------------------------------
 
 #include "stdafx.h"
 #include "Scene.h"
+#include "Material.h"
+#include "AssetManager.h"
+#include "AnimController.h"
 
 void CScene::BuildLightsAndMaterials()
 {
@@ -119,6 +122,299 @@ void CScene::BuildLightsAndMaterials()
 	}
 
 }
+void CScene::BuildStaticBatch(
+	ID3D12Device* pd3dDevice,
+	ID3D12GraphicsCommandList* pd3dCommandList,
+	const std::shared_ptr<CStaticObjectsShader>& pStaticShader,
+	UINT nRenderTargets,
+	DXGI_FORMAT* rtvFormats,
+	DXGI_FORMAT dsvFormat
+)
+{
+	auto* b = pStaticShader->GetBatch();
+	if (!b) return;
+
+	// PSO
+	pStaticShader->CreateShader(
+		pd3dDevice,
+		m_pd3dGraphicsRootSignature.Get(),
+		nRenderTargets,
+		rtvFormats,
+		dsvFormat
+	);
+
+	// ===== (기존 CStaticObjectsShader::CreateShaderVariables) =====
+	b->cbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);
+
+	b->cbGameObjects = ::CreateBufferResource(
+		pd3dDevice, pd3dCommandList, nullptr,
+		b->cbElementBytes * b->nObjects,
+		D3D12_HEAP_TYPE_UPLOAD,
+		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+		nullptr
+	);
+
+	b->cbGameObjects->Map(0, nullptr, (void**)&b->mappedGameObjects);
+
+	// ===== (기존 CStaticObjectsShader::BuildObjects) =====
+	b->baseCbvGpu = m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
+	b->cbvInc = ::gnCbvSrvDescriptorIncrementSize;
+
+	m_pDescriptorHeap->CreateConstantBufferViews(
+		pd3dDevice,
+		(UINT)b->nObjects,
+		b->cbGameObjects.Get(),
+		b->cbElementBytes
+	);
+
+	b->objects.resize(b->nObjects);
+
+	{
+		const UINT i = 0;
+
+		AssetBuildDesc WorldDesc = {
+			AssetType::World,
+			"Assets/World/Mesh/StartWorld.bin",
+			"Assets/World/Texture"
+		};
+
+		BuiltAsset asset = AssetManager::BuildAsset(pd3dDevice, pd3dCommandList, m_pMaterials.get(), WorldDesc);
+
+		auto obj = std::make_unique<CGameObject>(1);
+
+		auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+
+		obj->SetMappedGameObjectCB(cb);
+		obj->SetMesh(0, asset.mesh);
+		obj->SetPosition(0.0f, 0.0f, 30.0f);
+		obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+		b->objects[i] = std::move(obj);
+	}
+
+	// 등록
+	m_ppShaders[0] = pStaticShader;
+}
+
+
+void CScene::BuildSkinnedBatch(
+	ID3D12Device* pd3dDevice,
+	ID3D12GraphicsCommandList* pd3dCommandList,
+	const std::shared_ptr<CSkinnedObjectsShader>& pSkinnedShader,
+	UINT nRenderTargets,
+	DXGI_FORMAT* rtvFormats,
+	DXGI_FORMAT dsvFormat
+)
+{
+	auto* b = pSkinnedShader->GetBatch();
+	if (!b) return;
+
+	// PSO
+	pSkinnedShader->CreateShader(
+		pd3dDevice,
+		m_pd3dGraphicsRootSignature.Get(),
+		nRenderTargets,
+		rtvFormats,
+		dsvFormat
+	);
+
+	// ===== (기존 CSkinnedObjectsShader::CreateShaderVariables) =====
+	b->cbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);
+
+	b->cbGameObjects = ::CreateBufferResource(
+		pd3dDevice, pd3dCommandList, nullptr,
+		b->cbElementBytes * b->nObjects,
+		D3D12_HEAP_TYPE_UPLOAD,
+		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+		nullptr
+	);
+
+	b->cbGameObjects->Map(0, nullptr, (void**)&b->mappedGameObjects);
+
+	b->boneCbBytes = (sizeof(CB_BONE_PALETTE) + 255) & ~255;
+
+	b->cbBonePalette = ::CreateBufferResource(
+		pd3dDevice, pd3dCommandList, nullptr,
+		b->boneCbBytes,
+		D3D12_HEAP_TYPE_UPLOAD,
+		D3D12_RESOURCE_STATE_GENERIC_READ
+	);
+
+	b->cbBonePalette->Map(0, nullptr, reinterpret_cast<void**>(&b->mappedBonePalette));
+
+	{
+		XMFLOAT4X4 I;
+		XMStoreFloat4x4(&I, XMMatrixIdentity());
+		for (UINT i = 0; i < MAX_BONES; ++i)
+			b->mappedBonePalette->gBoneTransforms[i] = I;
+	}
+
+	// ===== (기존 CSkinnedObjectsShader::BuildObjects) =====
+	b->baseCbvGpu = m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
+	b->cbvInc = ::gnCbvSrvDescriptorIncrementSize;
+
+	m_pDescriptorHeap->CreateConstantBufferViews(
+		pd3dDevice,
+		(UINT)b->nObjects,
+		b->cbGameObjects.Get(),
+		b->cbElementBytes
+	);
+
+	b->objects.resize(b->nObjects);
+
+	constexpr float X_MIN = -43.0f;
+	constexpr float X_MAX = 43.0f;
+	constexpr float Y_MIN = 0.0f;
+	constexpr float Y_MAX = 359.0f;
+	constexpr float Z_MIN = -7.0f;
+	constexpr float Z_MAX = 78.0f;
+
+	static std::mt19937 rng(std::random_device{}());
+	std::uniform_real_distribution<float> distX(X_MIN, X_MAX);
+	std::uniform_real_distribution<float> rotY(Y_MIN, Y_MAX);
+	std::uniform_real_distribution<float> distZ(Z_MIN, Z_MAX);
+
+	// ---------- Object 0 : Zombie ----------
+	{
+		AssetBuildDesc ZombieDesc =
+		{
+			AssetType::Zombie,
+			"Assets/Zombie/Mesh/Zombie.bin",
+			"Assets/Zombie/Texture"
+		};
+
+		BuiltAsset asset = AssetManager::BuildAsset(pd3dDevice, pd3dCommandList, m_pMaterials.get(), ZombieDesc);
+
+		for (UINT i = 0; i < (UINT)b->nObjects / 2; i++)
+		{
+			auto obj = std::make_unique<CGameObject>(1);
+
+			CB_GAMEOBJECT_INFO* cb =
+				reinterpret_cast<CB_GAMEOBJECT_INFO*>(
+					reinterpret_cast<UINT8*>(b->mappedGameObjects)
+					+ i * b->cbElementBytes
+					);
+
+			obj->SetMappedGameObjectCB(cb);
+			obj->SetMesh(0, asset.mesh);
+
+			float x = distX(rng);
+			float y = rotY(rng);
+			float z = distZ(rng);
+			obj->SetPosition(x, 0.0f, z);
+			obj->Rotate(0.0f, 0.0f, 0.0f);
+
+			obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+			if (asset.mesh && asset.mesh->IsSkinnedMesh())
+			{
+				const int nBones = asset.mesh->GetBoneCount();
+				obj->EnableSkinning(pd3dDevice, nBones);
+			}
+
+			AnimationClip idleClip;
+			bool idleLoaded = false;
+
+			if (!obj->m_ppMeshes.empty() && obj->m_ppMeshes[0])
+			{
+				idleLoaded = obj->m_ppMeshes[0]->LoadAnimationFromBIN(
+					"Assets/Zombie/Animation/ZombieAttack.bin",
+					"Idle", idleClip, 1.0f
+				);
+			}
+
+			if (idleLoaded)
+			{
+				idleClip.name = "Idle";
+
+				CAnimator* anim = obj->EnsureAnimator();
+				if (anim) anim->AddClip(idleClip);
+
+				auto* ctrl = obj->EnsureAnimController();
+				ctrl->SetIdleClip("Idle");
+				ctrl->SetMoveClip("Idle");
+				ctrl->SetSpeed(0.0f);
+				ctrl->Update(0.0f);
+
+				obj->Animate(0.0f);
+			}
+
+			b->objects[i] = std::move(obj);
+		}
+	}
+
+	// ---------- Object 1 : Fighter ----------
+	{
+		AssetBuildDesc FighterDesc =
+		{
+			AssetType::Fighter,
+			"Assets/Fighter/Mesh/Fighter.bin",
+			"Assets/Fighter/Texture"
+		};
+
+		BuiltAsset asset = AssetManager::BuildAsset(pd3dDevice, pd3dCommandList, m_pMaterials.get(), FighterDesc);
+
+		for (UINT i = (UINT)b->nObjects / 2; i < (UINT)b->nObjects; i++)
+		{
+			auto obj = std::make_unique<CGameObject>(1);
+
+			CB_GAMEOBJECT_INFO* cb =
+				reinterpret_cast<CB_GAMEOBJECT_INFO*>(
+					reinterpret_cast<UINT8*>(b->mappedGameObjects)
+					+ i * b->cbElementBytes
+					);
+
+			obj->SetMappedGameObjectCB(cb);
+			obj->SetMesh(0, asset.mesh);
+
+			float x = distX(rng);
+			float y = rotY(rng);
+			float z = distZ(rng);
+			obj->SetPosition(x, 0.0f, z);
+			obj->Rotate(0.0f, 0.0f, 0.0f);
+
+			obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+			if (asset.mesh && asset.mesh->IsSkinnedMesh())
+			{
+				const int nBones = asset.mesh->GetBoneCount();
+				obj->EnableSkinning(pd3dDevice, nBones);
+			}
+
+			AnimationClip idleClip;
+			bool idleLoaded = false;
+
+			if (!obj->m_ppMeshes.empty() && obj->m_ppMeshes[0])
+			{
+				idleLoaded = obj->m_ppMeshes[0]->LoadAnimationFromBIN(
+					"Assets/Fighter/Animation/FighterIdle.bin",
+					"Idle", idleClip, 1.0f
+				);
+			}
+
+			if (idleLoaded)
+			{
+				idleClip.name = "Idle";
+
+				CAnimator* anim = obj->EnsureAnimator();
+				if (anim) anim->AddClip(idleClip);
+
+				auto* ctrl = obj->EnsureAnimController();
+				ctrl->SetIdleClip("Idle");
+				ctrl->SetMoveClip("Idle");
+				ctrl->SetSpeed(0.0f);
+				ctrl->Update(0.0f);
+
+				obj->Animate(0.0f);
+			}
+
+			b->objects[i] = std::move(obj);
+		}
+	}
+
+	// 등록
+	m_ppShaders[1] = pSkinnedShader;
+}
 
 void CScene::BuildObjects(
 	ID3D12Device* pd3dDevice,
@@ -140,18 +436,21 @@ void CScene::BuildObjects(
 	auto pStaticShader = std::make_shared<CStaticObjectsShader>();
 	auto pSkinnedShader = std::make_shared<CSkinnedObjectsShader>();
 
-	const UINT staticCount = static_cast<UINT>(pStaticShader->GetNumberOfObjects());
-	const UINT skinnedCount = static_cast<UINT>(pSkinnedShader->GetNumberOfObjects());
+	m_staticBatch.shader = pStaticShader;
+	m_skinnedBatch.shader = pSkinnedShader;
+
+	pStaticShader->SetBatch(&m_staticBatch);
+	pSkinnedShader->SetBatch(&m_skinnedBatch);
 
 	const UINT cbvTotal =
-		staticCount +
-		skinnedCount +
+		m_staticBatch.nObjects +
+		m_skinnedBatch.nObjects +
 		1 /*Camera*/ +
 		1 /*Player*/ +
 		1 /*etc*/;
 
 	// ============================================================
-	// 3. DescriptorHeap은 "한 번만" 생성 (하드코딩 금지)
+	// 3. DescriptorHeap은 "한 번만" 생성
 	// ============================================================
 	m_pDescriptorHeap->CreateCbvSrvDescriptorHeaps(
 		pd3dDevice,
@@ -170,48 +469,16 @@ void CScene::BuildObjects(
 	};
 
 	// ============================================================
-	// 4. Static Objects Shader
+	// 4/5. Materials + Batches
 	// ============================================================
-	{
-		pStaticShader->CreateShader(
-			pd3dDevice,
-			m_pd3dGraphicsRootSignature.Get(),
-			5,
-			rtvFormats,
-			DXGI_FORMAT_D24_UNORM_S8_UINT
-		);
+	BuildLightsAndMaterials();
 
-		BuildLightsAndMaterials();
+	constexpr UINT kRTCount = 5;
+	const DXGI_FORMAT kDsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
-		pStaticShader->BuildObjects(
-			pd3dDevice,
-			pd3dCommandList,
-			m_pMaterials.get()
-		);
+	BuildStaticBatch(pd3dDevice, pd3dCommandList, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
+	BuildSkinnedBatch(pd3dDevice, pd3dCommandList, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
 
-		m_ppShaders[0] = pStaticShader;
-	}
-
-	// ============================================================
-	// 5. Skinned Objects Shader
-	// ============================================================
-	{
-		pSkinnedShader->CreateShader(
-			pd3dDevice,
-			m_pd3dGraphicsRootSignature.Get(),
-			5,
-			rtvFormats,
-			DXGI_FORMAT_D24_UNORM_S8_UINT
-		);
-
-		pSkinnedShader->BuildObjects(
-			pd3dDevice,
-			pd3dCommandList,
-			m_pMaterials.get()
-		);
-
-		m_ppShaders[1] = pSkinnedShader;
-	}
 
 	// ============================================================
 	// 6. Scene 공통 Shader Variables
