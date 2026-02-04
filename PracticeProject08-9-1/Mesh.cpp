@@ -111,8 +111,6 @@ void CMesh::Render(ID3D12GraphicsCommandList* pd3dCommandList, CB_GAMEOBJECT_INF
     }
 }
 
-
-
 void CMesh::LoadMeshFromBIN(ID3D12Device* device,
     ID3D12GraphicsCommandList* cmdList,
     const char* filename)
@@ -140,7 +138,8 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
             if (len == 0) { s.clear(); return true; }
 
             s.resize(len);
-            if (!ReadRaw(s.data(), len)) return false;
+            //if (!ReadRaw(s.data(), len)) return false;
+            if (!ReadRaw(&s[0], len)) return false;
             return true;
         };
 
@@ -165,7 +164,7 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
     if (!ReadUInt32(subMeshCount)) return;
 
 
-    if (version != 1) return; // 버전 체크
+    if (version != 1 && version != 2) return;
 
     // 기존 데이터 정리
     m_Bones.clear();
@@ -225,6 +224,14 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
         BinMaterial bm{};
         if (!ReadString(bm.name)) return;
         if (!ReadString(bm.diffuseTextureName)) return;
+        if (version >= 2)
+        {
+            if (!ReadString(bm.normalTextureName)) return;
+        }
+        else
+        {
+            bm.normalTextureName.clear();
+        }
 
         uint32_t idx = (uint32_t)m_BinMaterials.size();
         m_BinMaterials.push_back(bm);
@@ -255,11 +262,13 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
         {
             sm.materialName = m_BinMaterials[matIndex].name;
             sm.diffuseTextureName = m_BinMaterials[matIndex].diffuseTextureName;
+            sm.normalTextureName = m_BinMaterials[matIndex].normalTextureName;
         }
         else
         {
             sm.materialName.clear();
             sm.diffuseTextureName.clear();
+            sm.normalTextureName.clear();
 
             // 안전하게 0번으로 폴백하거나, 강하게 assert 걸어도 됨
             // sm.materialIndex = 0;
@@ -284,6 +293,7 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
         sm.positions.reserve(vertexCount);
         sm.normals.reserve(vertexCount);
         sm.uvs.reserve(vertexCount);
+        sm.tangents.reserve(vertexCount);
         sm.boneIndices.reserve(vertexCount);
         sm.boneWeights.reserve(vertexCount);
         sm.indices.reserve(indexCount);
@@ -294,27 +304,31 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
             float pos[3];
             float nml[3];
             float uv[2];
+            float tan[4];
             uint32_t bi[4];
             float bw[4];
 
             if (!ReadRaw(pos, sizeof(pos)))       return;
             if (!ReadRaw(nml, sizeof(nml)))       return;
             if (!ReadRaw(uv, sizeof(uv)))        return;
-            if (!ReadRaw(bi, sizeof(bi)))        return;
-            if (!ReadRaw(bw, sizeof(bw)))        return;
+            if (version >= 2)
+            {
+                if (!ReadRaw(tan, sizeof(tan))) return;   // [ADD] v2 tangent
+            }
+            else
+            {
+                // v1 파일 호환: 기본값
+                tan[0] = 1.0f; tan[1] = 0.0f; tan[2] = 0.0f; tan[3] = 1.0f;
+            }
+            if (!ReadRaw(bi, sizeof(bi))) return;
+            if (!ReadRaw(bw, sizeof(bw))) return;
 
-            XMFLOAT3 p(pos[0], pos[1], pos[2]);
-            XMFLOAT3 n(nml[0], nml[1], nml[2]);
-            XMFLOAT2 t(uv[0], uv[1]);
-
-            XMUINT4  boneIdx(bi[0], bi[1], bi[2], bi[3]);
-            XMFLOAT4 boneW(bw[0], bw[1], bw[2], bw[3]);
-
-            sm.positions.push_back(p);
-            sm.normals.push_back(n);
-            sm.uvs.push_back(t);
-            sm.boneIndices.push_back(boneIdx);
-            sm.boneWeights.push_back(boneW);
+            sm.positions.emplace_back(pos[0], pos[1], pos[2]);
+            sm.normals.emplace_back(nml[0], nml[1], nml[2]);
+            sm.uvs.emplace_back(uv[0], uv[1]);
+            sm.tangents.emplace_back(tan[0], tan[1], tan[2], tan[3]); // [ADD]
+            sm.boneIndices.emplace_back(bi[0], bi[1], bi[2], bi[3]);
+            sm.boneWeights.emplace_back(bw[0], bw[1], bw[2], bw[3]);
         }
 
         // 3-4) 인덱스 데이터
@@ -348,6 +362,7 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
         const auto& positions = sm.positions;
         const auto& normals = sm.normals;
         const auto& uvs = sm.uvs;
+        const auto& tangents = sm.tangents;
         const auto& indices = sm.indices;
         const auto& boneIndices = sm.boneIndices;
         const auto& boneWeights = sm.boneWeights;
@@ -360,6 +375,7 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
             v.position = positions[i];
             v.normal = (i < normals.size() ? normals[i] : XMFLOAT3(0, 1, 0));
             v.uv = (i < uvs.size() ? uvs[i] : XMFLOAT2(0, 0));
+            v.tangent = (i < tangents.size() ? tangents[i] : XMFLOAT4(1, 0, 0, 1));
 
             if (i < boneIndices.size())
             {
@@ -508,8 +524,6 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
     }
 }
 
-
-
 void CMesh::EnableSkinning(int nBones)
 {
     // 메시는 "스키닝 여부 + 본 개수"만 기록 (팔레트/CB는 오브젝트가 소유)
@@ -523,9 +537,6 @@ void CMesh::EnableSkinning(int nBones)
     m_bSkinnedMesh = true;
     //m_nBones = nBones;
 }
-
-
-
 
 
 void CMesh::SetPolygon(int nIndex, CPolygon* pPolygon)
@@ -733,9 +744,24 @@ bool CMesh::LoadAnimationFromBIN(
         // skeleton 과 매칭
         auto itBone = m_BoneNameToIndex.find(binBoneName);
         bool mapped = (itBone != m_BoneNameToIndex.end());
+
         BoneKeyframes* pTrack = nullptr;
-        if (mapped)
+
+        if (!mapped && binBoneName == "Bind_Root")
+        {
+            outClip.hasBindRootTrack = true;
+            outClip.bindRootTrack.boneIndex = -1;
+            outClip.bindRootTrack.boneName = "Bind_Root";
+            pTrack = &outClip.bindRootTrack;
+            mapped = true; // 아래 키 루프에서 continue로 버리지 않게
+        }
+
+        if (mapped && !pTrack)
             pTrack = &outClip.boneTracks[itBone->second];
+
+        float first_ty = 0, last_ty = 0;
+        float first_t = 0, last_t = 0;
+        bool  hasAny = false;
 
         for (uint32_t k = 0; k < keyCount; ++k)
         {
@@ -755,6 +781,15 @@ bool CMesh::LoadAnimationFromBIN(
             if (!ReadFloat(sy)) return false;
             if (!ReadFloat(sz)) return false;
 
+            if (!hasAny)
+            {
+                first_t = timeSec * timeScale;
+                first_ty = ty;
+                hasAny = true;
+            }
+            last_t = timeSec * timeScale;
+            last_ty = ty;
+
             if (!mapped)
                 continue; // 데이터는 읽었지만, 스켈레톤에 없는 노드면 버림
 
@@ -773,6 +808,7 @@ bool CMesh::LoadAnimationFromBIN(
     // --------------------------------------------------------
     // 4) 각 본별 키프레임 정렬 (안전용)
     // --------------------------------------------------------
+
     for (auto& track : outClip.boneTracks)
     {
         std::sort(track.keyframes.begin(), track.keyframes.end(),
@@ -804,6 +840,13 @@ void CMesh::LinkMaterials(
         {
             // 캐시 재사용
             sm.material = it->second;
+
+            if (sm.material)
+            {
+                sm.material->SetDiffuseTextureName(sm.diffuseTextureName);
+                sm.material->SetNormalTextureName(sm.normalTextureName);
+                sm.material->SetMaterialID(sm.materialId); // 이미 쓰고 있으면 유지
+            }
             continue;
         }
 
@@ -813,6 +856,13 @@ void CMesh::LinkMaterials(
             auto mat = createMaterialIfMissing(sm.materialName);
             materialCache.emplace(sm.materialName, mat);
             sm.material = mat;
+
+            if (sm.material)
+            {
+                sm.material->SetDiffuseTextureName(sm.diffuseTextureName);
+                sm.material->SetNormalTextureName(sm.normalTextureName);
+                sm.material->SetMaterialID(sm.materialId);
+            }
         }
         else
         {

@@ -6,7 +6,7 @@
 #include "Object.h"
 #include "Texture.h"
 #include "Material.h"
-#include "Scene.h"
+#include "AnimController.h"
 
 void CGameObject::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList)
 {
@@ -18,12 +18,22 @@ void CGameObject::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandLi
 
 void CGameObject::Animate(float dt)
 {
+	// 1) ���� ����(Idle/Run)
+	if (m_pAnimController)
+		m_pAnimController->Update(dt);
+
+	// 2) ���� ���
 	if (m_pAnimator)
 	{
 		m_pAnimator->Update(dt);
 
-		const auto& mats = m_pAnimator->GetFinalBoneMatrices();
-		UpdateBoneTransformsOnGPU(mats.data(), (int)mats.size());
+		// 3) ��Ű���̸� GPU ���ε�
+		if (m_bSkinnedObject && m_pd3dcbBoneTransforms)
+		{
+			const auto& mats = m_pAnimator->GetFinalBoneMatrices();
+			if (!mats.empty())
+				UpdateBoneTransformsOnGPU(mats.data(), (int)mats.size());
+		}
 	}
 }
 

@@ -33,7 +33,7 @@ struct MATERIAL
 	float4				m_cDiffuse;
 	float4				m_cSpecular; //a = power
 	float4				m_cEmissive;
-    uint4				TextureIndices; // x=diffuse
+    uint4				TextureIndices; // x=diffuse y=normal
 };
 
 cbuffer cbCameraInfo : register(b1)

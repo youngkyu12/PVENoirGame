@@ -38,6 +38,16 @@ void CGameFramework::OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPA
 			::PostQuitMessage(0);
 			break;
 		case VK_RETURN:
+		{
+			XMFLOAT3 pos = m_pPlayer->GetPosition();
+			char buf[128];
+			sprintf_s(
+				buf,
+				"[Player] Pos = (%.2f, %.2f, %.2f)\n",
+				pos.x,pos.y,pos.z
+			);
+			OutputDebugStringA(buf);
+		}
 			break;
 		case VK_F1:
 		case VK_F2:

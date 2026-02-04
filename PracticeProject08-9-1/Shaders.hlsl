@@ -5,9 +5,7 @@ Texture2D gtxtGlobalTextures[MAX_GLOBAL_SRVS] : register(t0);
 
 cbuffer cbPlayerInfo : register(b0)
 {
-    matrix gmtxPlayerWorld : packoffset(c0);
-    uint gnPlayerMaterialID : packoffset(c4.x);
-    uint3 _padPlayer : packoffset(c4.y);
+    matrix gmtxPlayerWorld;
 };
 
 
@@ -37,6 +35,31 @@ cbuffer cbBonePalette : register(b7)
 #include "Light.hlsl"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+float3 GetNormalWFromMap(uint packedNormal, float3 normalW_in, float4 tangentW_in, float2 uv)
+{
+    float3 N = normalize(normalW_in);
+
+    if (packedNormal == 0)
+        return N;
+
+    uint normalIndex = packedNormal - 1;
+    if (normalIndex >= MAX_GLOBAL_SRVS)
+        return N;
+
+    float3 nTS = gtxtGlobalTextures[normalIndex].Sample(gssDefaultSamplerState, uv).xyz;
+    nTS = nTS * 2.0f - 1.0f;
+
+    float3 T = normalize(tangentW_in.xyz);
+    // N�� ����ȭ(����)
+    T = normalize(T - N * dot(T, N));
+
+    float3 B = normalize(cross(N, T) * tangentW_in.w);
+
+    // tangent-space -> world
+    float3 nW = normalize(T * nTS.x + B * nTS.y + N * nTS.z);
+    return nW;
+}
+
 
 
 struct VS_DIFFUSED_INPUT
@@ -91,49 +114,6 @@ struct VS_PLAYER_OUTPUT
     float2 uv : TEXCOORD;
 };
 
-VS_PLAYER_OUTPUT VSPlayer(VS_PLAYER_INPUT input)
-{
-    VS_PLAYER_OUTPUT output;
-
-    float4 posW = mul(float4(input.position, 1.0f), gmtxPlayerWorld);
-    output.positionW = posW.xyz;
-    output.position = mul(mul(float4(output.positionW, 1.0f), gmtxView), gmtxProjection);
-
-    output.normalW = normalize(mul(input.normal, (float3x3) gmtxPlayerWorld));
-    output.uv = input.uv;
-
-    return output;
-}
-
-float4 PSPlayer(VS_PLAYER_OUTPUT input, uint nPrimitiveID : SV_PrimitiveID) : SV_TARGET
-{
-    uint diffuseIndex = gMaterials[gnPlayerMaterialID].TextureIndices.x;
-
-    // ����� ������ġ (����)
-    if (diffuseIndex >= MAX_GLOBAL_SRVS)
-        return float4(1, 0, 0, 1); // �߸��� �ε���
-
-    // 1. �ؽ�ó ���� (���� ����)
-    float4 cColor = gtxtGlobalTextures[diffuseIndex]
-                        .Sample(gssDefaultSamplerState, input.uv);
-    
-    // 2. ������ ���� (���� �� ����)
-    
-    cColor.rgb = pow(cColor.rgb, 2.2);
-
-     // 3. ������ (���� ����)
-    float4 cIllumination = Lighting(input.positionW, input.normalW);
-    
-    float3 linearColor = cColor * cIllumination;
-    
-     // 4. ���� ���� (���� �� ����)
-    float3 gammaColor = pow(linearColor, 1.0 / 2.2);
-    
-    return float4(gammaColor, cColor.a);
-}
-
-
-
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct VS_TEXTURED_INPUT
@@ -182,6 +162,7 @@ struct VS_TEXTURED_LIGHTING_INPUT
 	float3 position : POSITION;
 	float3 normal : NORMAL;
 	float2 uv : TEXCOORD;
+    float4 tangent : TANGENT;
 };
 
 struct VS_TEXTURED_LIGHTING_OUTPUT
@@ -190,50 +171,39 @@ struct VS_TEXTURED_LIGHTING_OUTPUT
 	float3 positionW : POSITION;
 	float3 normalW : NORMAL;
 	float2 uv : TEXCOORD;
+    float4 tangentW : TANGENT;
 };
 
 VS_TEXTURED_LIGHTING_OUTPUT VSTexturedLighting(VS_TEXTURED_LIGHTING_INPUT input)
 {
     VS_TEXTURED_LIGHTING_OUTPUT output;
 
-    output.normalW = mul(input.normal, (float3x3) gmtxGameObject);
-    output.positionW = (float3) mul(float4(input.position, 1.0f), gmtxGameObject);
-    output.position = mul(mul(float4(output.positionW, 1.0f), gmtxView), gmtxProjection);
-    output.uv = input.uv;
+	output.normalW = mul(input.normal, (float3x3)gmtxGameObject);
+	output.positionW = (float3)mul(float4(input.position, 1.0f), gmtxGameObject);
+	output.position = mul(mul(float4(output.positionW, 1.0f), gmtxView), gmtxProjection);
+	output.uv = input.uv;
+    float3 tW = mul(input.tangent.xyz, (float3x3) gmtxGameObject);
+    output.tangentW = float4(tW, input.tangent.w);
 
     return (output);
 }
 
 float4 PSTexturedLighting(VS_TEXTURED_LIGHTING_OUTPUT input, uint nPrimitiveID : SV_PrimitiveID) : SV_TARGET
 {
-    uint packed = gMaterials[gnMaterialID].TextureIndices.x;
-
-    if (packed == 0)
+    uint packedD = gMaterials[gnMaterialID].TextureIndices.x;
+    if (packedD == 0)
         return float4(1, 0, 1, 1);
-
-    uint diffuseIndex = packed - 1;
-
+    uint diffuseIndex = packedD - 1;
     if (diffuseIndex >= MAX_GLOBAL_SRVS)
         return float4(1, 0, 0, 1);
-
-    float4 cTexture =
-    gtxtGlobalTextures[diffuseIndex]
-        .Sample(gssDefaultSamplerState, input.uv);
-
-    // 2. ������ ���� (���� �� ����)
-    cTexture.rgb = pow(cTexture.rgb, 2.2);
     
-    // 3. ������ ��� (���� ����)
-    input.normalW = normalize(input.normalW);
-    float4 cIllumination = Lighting(input.positionW, input.normalW);
+    float4 cTexture = gtxtGlobalTextures[diffuseIndex].Sample(gssDefaultSamplerState, input.uv);
+    
+    uint packedN = gMaterials[gnMaterialID].TextureIndices.y;
+    float3 normalW = GetNormalWFromMap(packedN, input.normalW, input.tangentW, input.uv);
 
-    // 4. ���� ��� (���� ����)
-    float3 linearColor = cTexture.rgb * cIllumination.rgb;
-    
-    // 5. ���� ���� (���� �� ����)
-    float3 gammaColor = pow(linearColor, 1.0 / 2.2);
-    
-    return float4(gammaColor, cTexture.a);
+    float4 cIllumination = Lighting(input.positionW, normalW);
+    return cTexture * cIllumination;
 }
 
 
@@ -272,7 +242,7 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
     }
 
     uint diffuseIndex = packed - 1;
-
+    
     if (diffuseIndex >= MAX_GLOBAL_SRVS)
     {
         output.color = float4(1, 0, 0, 1); // red (bad index)
@@ -293,7 +263,8 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
     // =========================================================
     // 3. ���� ���
     // =========================================================
-    float3 normalW = normalize(input.normalW);
+    uint packedN = gMaterials[gnMaterialID].TextureIndices.y;
+    float3 normalW = GetNormalWFromMap(packedN, input.normalW, input.tangentW, input.uv);
     float4 illumination = Lighting(input.positionW, normalW);
 
     // =========================================================
@@ -301,7 +272,8 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
     // =========================================================
     output.cTexture = texColor;
     output.cIllumination = illumination;
-    output.color = texColor * illumination;
+    //output.color = texColor * illumination;
+    output.color = texColor;
     output.normal = float4(normalW * 0.5f + 0.5f, 1.0f);
     output.zDepth = input.position.z;
 
@@ -316,6 +288,7 @@ struct VS_SKINNED_INPUT
     float3 position : POSITION;
     float3 normal : NORMAL;
     float2 uv : TEXCOORD;
+    float4 tangent : TANGENT;
     uint4 blendIndices : BLENDINDICES;
     float4 blendWeights : BLENDWEIGHT;
 };
@@ -326,6 +299,7 @@ struct VS_SKINNED_OUTPUT
     float3 positionW : POSITION;
     float3 normalW : NORMAL;
     float2 uv : TEXCOORD;
+    float4 tangentW : TANGENT;
 };
 
 VS_SKINNED_OUTPUT VSSkinned(VS_SKINNED_INPUT input)
@@ -334,18 +308,53 @@ VS_SKINNED_OUTPUT VSSkinned(VS_SKINNED_INPUT input)
 
     uint bi = input.blendIndices.x;
 
+// position
     float4 posL = float4(input.position, 1.0f);
     float4 posSkinned = mul(posL, gBoneTransforms[bi]);
     float4 posW = mul(posSkinned, gmtxGameObject);
 
     output.positionW = posW.xyz;
     output.position = mul(mul(posW, gmtxView), gmtxProjection);
-
-    output.normalW = normalize(mul(input.normal, (float3x3) gmtxGameObject));
     output.uv = input.uv;
+
+// normal (direction: w=0)
+    float3 nSkinned = mul(float4(input.normal, 0.0f), gBoneTransforms[bi]).xyz;
+    float3 nW = mul(nSkinned, (float3x3) gmtxGameObject);
+    output.normalW = nW;
+
+// tangent (direction: w=0)
+    float3 tSkinned = mul(float4(input.tangent.xyz, 0.0f), gBoneTransforms[bi]).xyz;
+    float3 tW = mul(tSkinned, (float3x3) gmtxGameObject);
+    output.tangentW = float4(tW, input.tangent.w);
 
     return output;
 }
+
+// �÷��̾�� ��Ű�� VS (cbPlayerInfo(b0) ���)
+VS_SKINNED_OUTPUT VSSkinnedPlayer(VS_SKINNED_INPUT input)
+{
+    VS_SKINNED_OUTPUT output;
+
+    uint bi = input.blendIndices.x;
+
+    float4 posL = float4(input.position, 1.0f);
+    float4 posSkinned = mul(posL, gBoneTransforms[bi]);
+    float4 posW = mul(posSkinned, gmtxPlayerWorld); // b0�� ���� ���
+
+    output.positionW = posW.xyz;
+    output.position = mul(mul(posW, gmtxView), gmtxProjection);
+    output.uv = input.uv;
+
+    float3 nSkinned = mul(float4(input.normal, 0.0f), gBoneTransforms[bi]).xyz;
+    output.normalW = mul(nSkinned, (float3x3) gmtxPlayerWorld);
+
+    float3 tSkinned = mul(float4(input.tangent.xyz, 0.0f), gBoneTransforms[bi]).xyz;
+    float3 tW = mul(tSkinned, (float3x3) gmtxPlayerWorld);
+    output.tangentW = float4(tW, input.tangent.w);
+
+    return output;
+}
+
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////

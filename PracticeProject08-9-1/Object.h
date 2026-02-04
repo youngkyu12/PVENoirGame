@@ -18,6 +18,7 @@
 class CShader;
 class CMaterial;
 class CAnimator;
+class CAnimController;
 
 struct CB_GAMEOBJECT_INFO
 {
@@ -162,6 +163,13 @@ public:
 	void CreateBonePaletteShaderVariables(ID3D12Device*);
 	void UpdateBonePaletteShaderVariables();
 	void ReleaseBonePaletteShaderVariables();
+
+	public:
+		CAnimController* EnsureAnimController();
+		CAnimController* GetAnimController() const { return m_pAnimController.get(); }
+
+protected:
+	std::unique_ptr<CAnimController> m_pAnimController;
 };
 
 class CRotatingObject : public CGameObject
