@@ -95,82 +95,20 @@ CIlluminatedTexturedShader::~CIlluminatedTexturedShader()
 //
 CStaticObjectsShader::CStaticObjectsShader()
 {
-	m_nObjects = 1;
 }
 
 CStaticObjectsShader::~CStaticObjectsShader()
 {
 }
 
-void CStaticObjectsShader::ReleaseShaderVariables()
-{
-	if (m_pd3dcbGameObjects)
-	{
-		m_pd3dcbGameObjects->Unmap(0, NULL);
-		m_pd3dcbGameObjects.Reset();
-	}
-
-	CIlluminatedTexturedShader::ReleaseShaderVariables();
-}
-
-void CStaticObjectsShader::ReleaseObjects()
-{
-}
-
-void CStaticObjectsShader::ReleaseUploadBuffers()
-{
-	if (!m_ppObjects.empty())
-	{
-		for (int j = 0; j < m_nObjects; j++)
-			if (m_ppObjects[j])
-				m_ppObjects[j]->ReleaseUploadBuffers();
-	}
-
-#ifdef _WITH_BATCH_MATERIAL
-	if (m_pMaterial)
-		m_pMaterial->ReleaseUploadBuffers();
-#endif
-}
-
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 CSkinnedObjectsShader::CSkinnedObjectsShader()
 {
-	m_nObjects = 60;
 }
 
 CSkinnedObjectsShader::~CSkinnedObjectsShader()
 {
-}
-
-void CSkinnedObjectsShader::ReleaseShaderVariables()
-{
-	if (m_pd3dcbGameObjects)
-	{
-		m_pd3dcbGameObjects->Unmap(0, NULL);
-		m_pd3dcbGameObjects.Reset();
-	}
-
-	CIlluminatedTexturedShader::ReleaseShaderVariables();
-}
-
-void CSkinnedObjectsShader::ReleaseObjects()
-{
-}
-
-void CSkinnedObjectsShader::ReleaseUploadBuffers()
-{
-	if (!m_ppObjects.empty())
-	{
-		for (int j = 0; j < m_nObjects; j++)
-			if (m_ppObjects[j])
-				m_ppObjects[j]->ReleaseUploadBuffers();
-	}
-
-#ifdef _WITH_BATCH_MATERIAL
-	if (m_pMaterial)
-		m_pMaterial->ReleaseUploadBuffers();
-#endif
 }
 
 
