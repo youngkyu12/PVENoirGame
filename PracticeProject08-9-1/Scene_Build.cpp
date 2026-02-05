@@ -131,8 +131,12 @@ void CScene::BuildStaticBatch(
 	DXGI_FORMAT dsvFormat
 )
 {
-	auto* b = pStaticShader->GetBatch();
+	//auto* b = pStaticShader->GetBatch();
+	auto* b = &m_staticBatch;
 	if (!b) return;
+
+	const UINT cap = b->capacity;
+	if (cap == 0) return;
 
 	// PSO
 	pStaticShader->CreateShader(
@@ -143,12 +147,12 @@ void CScene::BuildStaticBatch(
 		dsvFormat
 	);
 
-	// ===== (기존 CStaticObjectsShader::CreateShaderVariables) =====
+	// ===== CB (capacity 기준) =====
 	b->cbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);
 
 	b->cbGameObjects = ::CreateBufferResource(
 		pd3dDevice, pd3dCommandList, nullptr,
-		b->cbElementBytes * b->nObjects,
+		b->cbElementBytes * cap,
 		D3D12_HEAP_TYPE_UPLOAD,
 		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
 		nullptr
@@ -156,21 +160,27 @@ void CScene::BuildStaticBatch(
 
 	b->cbGameObjects->Map(0, nullptr, (void**)&b->mappedGameObjects);
 
-	// ===== (기존 CStaticObjectsShader::BuildObjects) =====
+	// ===== CBV (capacity 기준) =====
 	b->baseCbvGpu = m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
 	b->cbvInc = ::gnCbvSrvDescriptorIncrementSize;
 
 	m_pDescriptorHeap->CreateConstantBufferViews(
 		pd3dDevice,
-		(UINT)b->nObjects,
+		cap,
 		b->cbGameObjects.Get(),
 		b->cbElementBytes
 	);
 
-	b->objects.resize(b->nObjects);
+	// ===== objects: 고정 벡터 제거 =====
+	b->objects.clear();
+	b->objects.reserve(cap);
+	b->count = 0;
 
+	// ---- 실제 생성 ----
 	{
-		const UINT i = 0;
+		if (b->objects.size() >= b->capacity) return;
+
+		const UINT i = (UINT)b->objects.size();
 
 		AssetBuildDesc WorldDesc = {
 			AssetType::World,
@@ -183,19 +193,33 @@ void CScene::BuildStaticBatch(
 		auto obj = std::make_unique<CGameObject>(1);
 
 		auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
-
 		obj->SetMappedGameObjectCB(cb);
+
 		obj->SetMesh(0, asset.mesh);
+
+		UINT matId = 0;
+		if (asset.mesh)
+		{
+			for (auto& sm : asset.mesh->m_SubMeshes)
+			{
+				if (sm.materialId == 0xFFFFFFFFu) continue;
+				matId = sm.materialId;
+				break;
+			}
+		}
+
+		auto mat = std::make_shared<CMaterial>();
+		mat->m_nReflection = matId;
+		obj->SetMaterial(mat);
+
 		obj->SetPosition(0.0f, 0.0f, 30.0f);
+
 		obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
 
-		b->objects[i] = std::move(obj);
+		b->objects.push_back(std::move(obj));
+		b->count = (UINT)b->objects.size();
 	}
-
-	// 등록
-	m_ppShaders[0] = pStaticShader;
 }
-
 
 void CScene::BuildSkinnedBatch(
 	ID3D12Device* pd3dDevice,
@@ -206,8 +230,12 @@ void CScene::BuildSkinnedBatch(
 	DXGI_FORMAT dsvFormat
 )
 {
-	auto* b = pSkinnedShader->GetBatch();
+	//auto* b = pSkinnedShader->GetBatch();
+	auto* b = &m_skinnedBatch;
 	if (!b) return;
+
+	const UINT cap = b->capacity;
+	if (cap == 0) return;
 
 	// PSO
 	pSkinnedShader->CreateShader(
@@ -218,12 +246,12 @@ void CScene::BuildSkinnedBatch(
 		dsvFormat
 	);
 
-	// ===== (기존 CSkinnedObjectsShader::CreateShaderVariables) =====
+	// ===== CB (capacity 기준) =====
 	b->cbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);
 
 	b->cbGameObjects = ::CreateBufferResource(
 		pd3dDevice, pd3dCommandList, nullptr,
-		b->cbElementBytes * b->nObjects,
+		b->cbElementBytes * cap,
 		D3D12_HEAP_TYPE_UPLOAD,
 		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
 		nullptr
@@ -231,37 +259,23 @@ void CScene::BuildSkinnedBatch(
 
 	b->cbGameObjects->Map(0, nullptr, (void**)&b->mappedGameObjects);
 
-	b->boneCbBytes = (sizeof(CB_BONE_PALETTE) + 255) & ~255;
-
-	b->cbBonePalette = ::CreateBufferResource(
-		pd3dDevice, pd3dCommandList, nullptr,
-		b->boneCbBytes,
-		D3D12_HEAP_TYPE_UPLOAD,
-		D3D12_RESOURCE_STATE_GENERIC_READ
-	);
-
-	b->cbBonePalette->Map(0, nullptr, reinterpret_cast<void**>(&b->mappedBonePalette));
-
-	{
-		XMFLOAT4X4 I;
-		XMStoreFloat4x4(&I, XMMatrixIdentity());
-		for (UINT i = 0; i < MAX_BONES; ++i)
-			b->mappedBonePalette->gBoneTransforms[i] = I;
-	}
-
-	// ===== (기존 CSkinnedObjectsShader::BuildObjects) =====
+	// ===== CBV (capacity 기준) =====
 	b->baseCbvGpu = m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
 	b->cbvInc = ::gnCbvSrvDescriptorIncrementSize;
 
 	m_pDescriptorHeap->CreateConstantBufferViews(
 		pd3dDevice,
-		(UINT)b->nObjects,
+		cap,
 		b->cbGameObjects.Get(),
 		b->cbElementBytes
 	);
 
-	b->objects.resize(b->nObjects);
+	// ===== objects: 고정 벡터 제거 =====
+	b->objects.clear();
+	b->objects.reserve(cap);
+	b->count = 0;
 
+	// 랜덤
 	constexpr float X_MIN = -43.0f;
 	constexpr float X_MAX = 43.0f;
 	constexpr float Y_MIN = 0.0f;
@@ -274,7 +288,10 @@ void CScene::BuildSkinnedBatch(
 	std::uniform_real_distribution<float> rotY(Y_MIN, Y_MAX);
 	std::uniform_real_distribution<float> distZ(Z_MIN, Z_MAX);
 
-	// ---------- Object 0 : Zombie ----------
+	const UINT zombieCount = cap / 2;
+	const UINT fighterCount = cap - zombieCount;
+
+	// ---------- Zombie ----------
 	{
 		AssetBuildDesc ZombieDesc =
 		{
@@ -285,18 +302,33 @@ void CScene::BuildSkinnedBatch(
 
 		BuiltAsset asset = AssetManager::BuildAsset(pd3dDevice, pd3dCommandList, m_pMaterials.get(), ZombieDesc);
 
-		for (UINT i = 0; i < (UINT)b->nObjects / 2; i++)
+		for (UINT k = 0; k < zombieCount; ++k)
 		{
+			if (b->objects.size() >= b->capacity) break;
+
+			const UINT i = (UINT)b->objects.size();
+
 			auto obj = std::make_unique<CGameObject>(1);
 
-			CB_GAMEOBJECT_INFO* cb =
-				reinterpret_cast<CB_GAMEOBJECT_INFO*>(
-					reinterpret_cast<UINT8*>(b->mappedGameObjects)
-					+ i * b->cbElementBytes
-					);
-
+			auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
 			obj->SetMappedGameObjectCB(cb);
+
 			obj->SetMesh(0, asset.mesh);
+
+			UINT matId = 0;
+			if (asset.mesh)
+			{
+				for (auto& sm : asset.mesh->m_SubMeshes)
+				{
+					if (sm.materialId == 0xFFFFFFFFu) continue;
+					matId = sm.materialId;
+					break;
+				}
+			}
+
+			auto mat = std::make_shared<CMaterial>();
+			mat->m_nReflection = matId;
+			obj->SetMaterial(mat);
 
 			float x = distX(rng);
 			float y = rotY(rng);
@@ -308,8 +340,7 @@ void CScene::BuildSkinnedBatch(
 
 			if (asset.mesh && asset.mesh->IsSkinnedMesh())
 			{
-				const int nBones = asset.mesh->GetBoneCount();
-				obj->EnableSkinning(pd3dDevice, nBones);
+				obj->EnableSkinning(pd3dDevice, asset.mesh->GetBoneCount());
 			}
 
 			AnimationClip idleClip;
@@ -339,11 +370,12 @@ void CScene::BuildSkinnedBatch(
 				obj->Animate(0.0f);
 			}
 
-			b->objects[i] = std::move(obj);
+			b->objects.push_back(std::move(obj));
+			b->count = (UINT)b->objects.size();
 		}
 	}
 
-	// ---------- Object 1 : Fighter ----------
+	// ---------- Fighter ----------
 	{
 		AssetBuildDesc FighterDesc =
 		{
@@ -354,18 +386,33 @@ void CScene::BuildSkinnedBatch(
 
 		BuiltAsset asset = AssetManager::BuildAsset(pd3dDevice, pd3dCommandList, m_pMaterials.get(), FighterDesc);
 
-		for (UINT i = (UINT)b->nObjects / 2; i < (UINT)b->nObjects; i++)
+		for (UINT k = 0; k < fighterCount; ++k)
 		{
+			if (b->objects.size() >= b->capacity) break;
+
+			const UINT i = (UINT)b->objects.size();
+
 			auto obj = std::make_unique<CGameObject>(1);
 
-			CB_GAMEOBJECT_INFO* cb =
-				reinterpret_cast<CB_GAMEOBJECT_INFO*>(
-					reinterpret_cast<UINT8*>(b->mappedGameObjects)
-					+ i * b->cbElementBytes
-					);
-
+			auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
 			obj->SetMappedGameObjectCB(cb);
+
 			obj->SetMesh(0, asset.mesh);
+
+			UINT matId = 0;
+			if (asset.mesh)
+			{
+				for (auto& sm : asset.mesh->m_SubMeshes)
+				{
+					if (sm.materialId == 0xFFFFFFFFu) continue;
+					matId = sm.materialId;
+					break;
+				}
+			}
+
+			auto mat = std::make_shared<CMaterial>();
+			mat->m_nReflection = matId;
+			obj->SetMaterial(mat);
 
 			float x = distX(rng);
 			float y = rotY(rng);
@@ -377,8 +424,7 @@ void CScene::BuildSkinnedBatch(
 
 			if (asset.mesh && asset.mesh->IsSkinnedMesh())
 			{
-				const int nBones = asset.mesh->GetBoneCount();
-				obj->EnableSkinning(pd3dDevice, nBones);
+				obj->EnableSkinning(pd3dDevice, asset.mesh->GetBoneCount());
 			}
 
 			AnimationClip idleClip;
@@ -408,12 +454,10 @@ void CScene::BuildSkinnedBatch(
 				obj->Animate(0.0f);
 			}
 
-			b->objects[i] = std::move(obj);
+			b->objects.push_back(std::move(obj));
+			b->count = (UINT)b->objects.size();
 		}
 	}
-
-	// 등록
-	m_ppShaders[1] = pSkinnedShader;
 }
 
 void CScene::BuildObjects(
@@ -428,9 +472,6 @@ void CScene::BuildObjects(
 	// ============================================================
 	// 2. Shader 인스턴스 생성 + 오브젝트 개수 선확보
 	// ============================================================
-	m_nShaders = 2;
-	m_ppShaders.resize(m_nShaders);
-
 	constexpr int MAX_GLOBAL_SRVS = 1024;
 
 	auto pStaticShader = std::make_shared<CStaticObjectsShader>();
@@ -439,12 +480,12 @@ void CScene::BuildObjects(
 	m_staticBatch.shader = pStaticShader;
 	m_skinnedBatch.shader = pSkinnedShader;
 
-	pStaticShader->SetBatch(&m_staticBatch);
-	pSkinnedShader->SetBatch(&m_skinnedBatch);
+	//pStaticShader->SetBatch(&m_staticBatch);
+	//pSkinnedShader->SetBatch(&m_skinnedBatch);
 
 	const UINT cbvTotal =
-		m_staticBatch.nObjects +
-		m_skinnedBatch.nObjects +
+		m_staticBatch.capacity +
+		m_skinnedBatch.capacity +
 		1 /*Camera*/ +
 		1 /*Player*/ +
 		1 /*etc*/;

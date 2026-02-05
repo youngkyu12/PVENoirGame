@@ -81,20 +81,7 @@ void CSkinnedObjectsShader::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3
 
 void CSkinnedObjectsShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext)
 {
-	if (m_pBatch && m_pBatch->cbBonePalette)
-	{
-		pd3dCommandList->SetGraphicsRootConstantBufferView(
-			ROOT_PARAMETER_BONE_PALETTE,
-			m_pBatch->cbBonePalette->GetGPUVirtualAddress()
-		);
-	}
-
 	CIlluminatedTexturedShader::Render(pd3dCommandList, pCamera, pContext);
-
-#ifdef _WITH_BATCH_MATERIAL
-	if (m_pBatch && m_pBatch->material && m_pBatch->material->NeedsLegacyBinding())
-		m_pBatch->material->UpdateShaderVariables(pd3dCommandList);
-#endif
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -171,38 +171,3 @@ protected:
 	std::unique_ptr<CAnimController> m_pAnimController;
 };
 
-class CRotatingObject : public CGameObject
-{
-public:
-	CRotatingObject(int nMeshes=1);
-	virtual ~CRotatingObject();
-
-private:
-	XMFLOAT3					m_xmf3RotationAxis = XMFLOAT3(0.0f, 1.0f, 0.0f);
-	float						m_fRotationSpeed = 15.0f;
-
-public:
-	void SetRotationSpeed(float fRotationSpeed) { m_fRotationSpeed = fRotationSpeed; }
-	void SetRotationAxis(XMFLOAT3 xmf3RotationAxis) { m_xmf3RotationAxis = xmf3RotationAxis; }
-
-	virtual void Animate(float fTimeElapsed);
-	virtual void Render(ID3D12GraphicsCommandList *pd3dCommandList, CCamera *pCamera = NULL);
-};
-
-class CRevolvingObject : public CGameObject
-{
-public:
-	CRevolvingObject(int nMeshes=1);
-	virtual ~CRevolvingObject();
-
-private:
-	XMFLOAT3					m_xmf3RevolutionAxis = XMFLOAT3(1.0f, 0.0f, 0.0f);
-	float						m_fRevolutionSpeed = 0.0f;
-
-public:
-	void SetRevolutionSpeed(float fRevolutionSpeed) { m_fRevolutionSpeed = fRevolutionSpeed; }
-	void SetRevolutionAxis(XMFLOAT3 xmf3RevolutionAxis) { m_xmf3RevolutionAxis = xmf3RevolutionAxis; }
-
-	virtual void Animate(float fTimeElapsed);
-};
-
