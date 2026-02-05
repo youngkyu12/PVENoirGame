@@ -121,8 +121,7 @@ void CGameObject::EnableSkinning(ID3D12Device* pd3dDevice, int nBones)
     }
 
     // Bone palette CB 생성 (Upload heap, 256-byte align)
-    UINT cbSize = (UINT)(sizeof(XMFLOAT4X4) * m_nBones);
-    cbSize = (cbSize + 255) & ~255;
+    UINT cbSize = (sizeof(CB_BONE_PALETTE) + 255) & ~255;
 
     CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
     CD3DX12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(cbSize);
@@ -144,7 +143,7 @@ void CGameObject::EnableSkinning(ID3D12Device* pd3dDevice, int nBones)
     }
 
     // persistent map
-    m_pd3dcbBoneTransforms->Map(0, NULL, (void**)&m_pcbMappedBoneTransforms);
+    m_pd3dcbBoneTransforms->Map(0, nullptr, (void**)&m_pcbMappedBoneTransforms);
 
     // 초기값: identity(전치해서 저장: HLSL mul(pos, M) 패턴과 기존 코드 일관성)
     XMFLOAT4X4 identity;
@@ -256,27 +255,3 @@ CAnimController* CGameObject::EnsureAnimController()
     }
     return m_pAnimController.get();
 }
-
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-CRotatingObject::CRotatingObject(int nMeshes)
-{
-}
-
-CRotatingObject::~CRotatingObject()
-{
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-CRevolvingObject::CRevolvingObject(int nMeshes)
-{
-}
-
-CRevolvingObject::~CRevolvingObject()
-{
-}
-
-

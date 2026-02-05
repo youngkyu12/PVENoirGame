@@ -72,6 +72,7 @@ void CPlayer::UpdateShaderVariables(ID3D12GraphicsCommandList *pd3dCommandList)
 {
 	XMStoreFloat4x4(&m_pcbMappedPlayer->m_xmf4x4World,
 		XMMatrixTranspose(XMLoadFloat4x4(&m_xmf4x4World)));
+	m_pcbMappedPlayer->m_nMaterialID = m_nPlayerMaterialID;
 }
 
 void CPlayer::Move(DWORD dwDirection, float fDistance, bool bUpdateVelocity)

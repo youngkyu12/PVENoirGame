@@ -9,8 +9,11 @@ std::unique_ptr<CDescriptorHeap> CScene::m_pDescriptorHeap = std::make_unique<CD
 
 CScene::CScene()
 {
-	m_staticBatch.nObjects = 1;
-	m_skinnedBatch.nObjects = 60;
+	m_staticBatch.capacity = 1;
+	m_staticBatch.count = 0;
+
+	m_skinnedBatch.capacity = 60;
+	m_skinnedBatch.count = 0;
 }
 
 CScene::~CScene()
@@ -22,42 +25,37 @@ void CScene::ReleaseObjects()
 	if (m_pd3dGraphicsRootSignature)
 		m_pd3dGraphicsRootSignature.Reset();
 
-	if (!m_ppShaders.empty())
-	{
-		for (int i = 0; i < m_nShaders; i++)
-		{
-			m_ppShaders[i]->ReleaseShaderVariables();
-			m_ppShaders[i]->ReleaseObjects();
-		}
-	}
+	// shaders: shared_ptr reset만(필요하면)
+	m_staticBatch.shader.reset();
+	m_skinnedBatch.shader.reset();
+
+	// objects clear
 	m_staticBatch.objects.clear();
 	m_skinnedBatch.objects.clear();
+
+	// scene-owned CB/리소스 해제
 	ReleaseShaderVariables();
 }
 
 void CScene::ReleaseUploadBuffers()
 {
-	// ---- Static batch objects ----
-	for (UINT j = 0; j < m_staticBatch.nObjects; ++j)
+	for (UINT j = 0; j < (UINT)m_staticBatch.objects.size(); ++j)
 	{
-		if (j >= m_staticBatch.objects.size()) break;
 		if (!m_staticBatch.objects[j]) continue;
 		m_staticBatch.objects[j]->ReleaseUploadBuffers();
 	}
 
-	// ---- Skinned batch objects ----
-	for (UINT j = 0; j < m_skinnedBatch.nObjects; ++j)
+	for (UINT j = 0; j < (UINT)m_skinnedBatch.objects.size(); ++j)
 	{
-		if (j >= m_skinnedBatch.objects.size()) break;
 		if (!m_skinnedBatch.objects[j]) continue;
 		m_skinnedBatch.objects[j]->ReleaseUploadBuffers();
 	}
 
 #ifdef _WITH_BATCH_MATERIAL
 	if (m_staticBatch.material)  m_staticBatch.material->ReleaseUploadBuffers();
-	if (m_skinnedBatch.material) m_skinnedBatch.material->ReleaseUploadBuffers();
 #endif
 }
+
 
 
 void CScene::ReleaseShaderVariables()
@@ -84,15 +82,15 @@ void CScene::ReleaseShaderVariables()
 		m_skinnedBatch.cbGameObjects.Reset();
 	}
 
-	if (m_skinnedBatch.cbBonePalette)
-	{
-		if (m_skinnedBatch.mappedBonePalette)
-		{
-			m_skinnedBatch.cbBonePalette->Unmap(0, NULL);
-			m_skinnedBatch.mappedBonePalette = nullptr;
-		}
-		m_skinnedBatch.cbBonePalette.Reset();
-	}
+	//if (m_skinnedBatch.cbBonePalette)
+	//{
+	//	if (m_skinnedBatch.mappedBonePalette)
+	//	{
+	//		m_skinnedBatch.cbBonePalette->Unmap(0, NULL);
+	//		m_skinnedBatch.mappedBonePalette = nullptr;
+	//	}
+	//	m_skinnedBatch.cbBonePalette.Reset();
+	//}
 	if (m_pd3dcbLights)
 	{
 		m_pd3dcbLights->Unmap(0, NULL);

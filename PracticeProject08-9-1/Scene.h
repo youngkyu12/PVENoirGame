@@ -58,45 +58,46 @@ struct MATERIALS
 };
 
 // ============================================================================
-// [ADD] Scene-owned batches (members only; not wired yet)
+// Scene-owned batches
 // ============================================================================
 struct SCENE_STATIC_BATCH
 {
-	std::shared_ptr<CStaticObjectsShader>			shader;
-	std::vector<std::unique_ptr<CGameObject>>		objects;
-	UINT											nObjects = 0;
+	std::shared_ptr<CStaticObjectsShader>            shader;
 
-	ComPtr<ID3D12Resource>							cbGameObjects;
+	UINT                                             capacity = 0;   // 최대 수용
+	UINT                                             count = 0;      // 현재 수(=objects.size())
+
+	std::vector<std::unique_ptr<CGameObject>>        objects;
+
+	ComPtr<ID3D12Resource>                           cbGameObjects;
 	CB_GAMEOBJECT_INFO* mappedGameObjects = nullptr;
 
-	UINT											cbElementBytes = 0;
+	UINT                                             cbElementBytes = 0;
 
-	D3D12_GPU_DESCRIPTOR_HANDLE						baseCbvGpu = { 0 };
-	UINT											cbvInc = 0;
+	D3D12_GPU_DESCRIPTOR_HANDLE                      baseCbvGpu = { 0 };
+	UINT                                             cbvInc = 0;
 
-	std::shared_ptr<CMaterial>						material;		// legacy 있으면 사용
+	std::shared_ptr<CMaterial>                       material;       // legacy 있으면 사용
 };
 
 struct SCENE_SKINNED_BATCH
 {
-	std::shared_ptr<CSkinnedObjectsShader>			shader;
-	std::vector<std::unique_ptr<CGameObject>>		objects;
-	UINT											nObjects = 0;
+	std::shared_ptr<CSkinnedObjectsShader>           shader;
 
-	ComPtr<ID3D12Resource>							cbGameObjects;
+	UINT                                             capacity = 0;   // 최대 수용
+	UINT                                             count = 0;      // 현재 수(=objects.size())
+
+	UINT                                             cbElementBytes = 0;
+
+	ComPtr<ID3D12Resource>                           cbGameObjects;
 	CB_GAMEOBJECT_INFO* mappedGameObjects = nullptr;
 
-	UINT											cbElementBytes = 0;
+	D3D12_GPU_DESCRIPTOR_HANDLE                      baseCbvGpu = { 0 };
+	UINT                                             cbvInc = 0;
 
-	D3D12_GPU_DESCRIPTOR_HANDLE						baseCbvGpu = { 0 };
-	UINT											cbvInc = 0;
-
-	ComPtr<ID3D12Resource>							cbBonePalette;
-	CB_BONE_PALETTE* mappedBonePalette = nullptr;
-	UINT											boneCbBytes = 0;
-
-	std::shared_ptr<CMaterial>						material;		// legacy 있으면 사용
+	std::vector<std::unique_ptr<CGameObject>>        objects;
 };
+
 
 class CScene
 {
@@ -160,9 +161,6 @@ public:
 protected:
 	ComPtr<ID3D12RootSignature>				m_pd3dGraphicsRootSignature;
 
-	std::vector<std::shared_ptr<CShader>>	m_ppShaders;
-	int										m_nShaders = 0;
-
 	std::unique_ptr<LIGHTS>					m_pLights;
 
 	ComPtr<ID3D12Resource>					m_pd3dcbLights;
@@ -180,7 +178,6 @@ public:
 	}
 
 public:
-	// [ADD] batches (not used yet)
 	SCENE_STATIC_BATCH						m_staticBatch;
 	SCENE_SKINNED_BATCH						m_skinnedBatch;
 };
