@@ -463,6 +463,7 @@ class S_TEST final :
 
   enum : int {
     kBuffsFieldNumber = 4,
+    kNameFieldNumber = 5,
     kIdFieldNumber = 1,
     kHpFieldNumber = 2,
     kAttackFieldNumber = 3,
@@ -484,6 +485,20 @@ class S_TEST final :
   ::Protocol::BuffData* add_buffs();
   const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::BuffData >&
       buffs() const;
+
+  // string name = 5;
+  void clear_name();
+  const std::string& name() const;
+  template <typename ArgT0 = const std::string&, typename... ArgT>
+  void set_name(ArgT0&& arg0, ArgT... args);
+  std::string* mutable_name();
+  PROTOBUF_FUTURE_MUST_USE_RESULT std::string* release_name();
+  void set_allocated_name(std::string* name);
+  private:
+  const std::string& _internal_name() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_name(const std::string& value);
+  std::string* _internal_mutable_name();
+  public:
 
   // uint64 id = 1;
   void clear_id();
@@ -520,6 +535,7 @@ class S_TEST final :
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
   ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::BuffData > buffs_;
+  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr name_;
   ::PROTOBUF_NAMESPACE_ID::uint64 id_;
   ::PROTOBUF_NAMESPACE_ID::uint32 hp_;
   ::PROTOBUF_NAMESPACE_ID::uint32 attack_;
@@ -818,6 +834,51 @@ inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::BuffData >&
 S_TEST::buffs() const {
   // @@protoc_insertion_point(field_list:Protocol.S_TEST.buffs)
   return buffs_;
+}
+
+// string name = 5;
+inline void S_TEST::clear_name() {
+  name_.ClearToEmpty();
+}
+inline const std::string& S_TEST::name() const {
+  // @@protoc_insertion_point(field_get:Protocol.S_TEST.name)
+  return _internal_name();
+}
+template <typename ArgT0, typename... ArgT>
+inline PROTOBUF_ALWAYS_INLINE
+void S_TEST::set_name(ArgT0&& arg0, ArgT... args) {
+ 
+ name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, static_cast<ArgT0 &&>(arg0), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:Protocol.S_TEST.name)
+}
+inline std::string* S_TEST::mutable_name() {
+  // @@protoc_insertion_point(field_mutable:Protocol.S_TEST.name)
+  return _internal_mutable_name();
+}
+inline const std::string& S_TEST::_internal_name() const {
+  return name_.Get();
+}
+inline void S_TEST::_internal_set_name(const std::string& value) {
+  
+  name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, value, GetArenaForAllocation());
+}
+inline std::string* S_TEST::_internal_mutable_name() {
+  
+  return name_.Mutable(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, GetArenaForAllocation());
+}
+inline std::string* S_TEST::release_name() {
+  // @@protoc_insertion_point(field_release:Protocol.S_TEST.name)
+  return name_.Release(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArenaForAllocation());
+}
+inline void S_TEST::set_allocated_name(std::string* name) {
+  if (name != nullptr) {
+    
+  } else {
+    
+  }
+  name_.SetAllocated(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), name,
+      GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set_allocated:Protocol.S_TEST.name)
 }
 
 // -------------------------------------------------------------------

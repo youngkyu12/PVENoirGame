@@ -45,6 +45,7 @@ PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT C_MOVEDefaultTypeInternal _C_MO
 constexpr S_TEST::S_TEST(
   ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
   : buffs_()
+  , name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
   , id_(uint64_t{0u})
   , hp_(0u)
   , attack_(0u){}
@@ -96,6 +97,7 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_Protocol_2eproto::offsets[] PR
   PROTOBUF_FIELD_OFFSET(::Protocol::S_TEST, hp_),
   PROTOBUF_FIELD_OFFSET(::Protocol::S_TEST, attack_),
   PROTOBUF_FIELD_OFFSET(::Protocol::S_TEST, buffs_),
+  PROTOBUF_FIELD_OFFSET(::Protocol::S_TEST, name_),
   ~0u,  // no _has_bits_
   PROTOBUF_FIELD_OFFSET(::Protocol::S_LOGIN, _internal_metadata_),
   ~0u,  // no _extensions_
@@ -106,7 +108,7 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOB
   { 0, -1, sizeof(::Protocol::C_TEST)},
   { 6, -1, sizeof(::Protocol::C_MOVE)},
   { 13, -1, sizeof(::Protocol::S_TEST)},
-  { 22, -1, sizeof(::Protocol::S_LOGIN)},
+  { 23, -1, sizeof(::Protocol::S_LOGIN)},
 };
 
 static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] = {
@@ -119,10 +121,10 @@ static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] =
 const char descriptor_table_protodef_Protocol_2eproto[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) =
   "\n\016Protocol.proto\022\010Protocol\032\nEnum.proto\032\014"
   "Struct.proto\"\024\n\006C_TEST\022\n\n\002id\030\001 \001(\004\"!\n\006C_"
-  "MOVE\022\n\n\002id\030\001 \001(\004\022\013\n\003pos\030\002 \001(\r\"S\n\006S_TEST\022"
+  "MOVE\022\n\n\002id\030\001 \001(\004\022\013\n\003pos\030\002 \001(\r\"a\n\006S_TEST\022"
   "\n\n\002id\030\001 \001(\004\022\n\n\002hp\030\002 \001(\r\022\016\n\006attack\030\003 \001(\r\022"
-  "!\n\005buffs\030\004 \003(\0132\022.Protocol.BuffData\"\t\n\007S_"
-  "LOGINb\006proto3"
+  "!\n\005buffs\030\004 \003(\0132\022.Protocol.BuffData\022\014\n\004na"
+  "me\030\005 \001(\t\"\t\n\007S_LOGINb\006proto3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_Protocol_2eproto_deps[2] = {
   &::descriptor_table_Enum_2eproto,
@@ -130,7 +132,7 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor
 };
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_Protocol_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_Protocol_2eproto = {
-  false, false, 213, descriptor_table_protodef_Protocol_2eproto, "Protocol.proto", 
+  false, false, 227, descriptor_table_protodef_Protocol_2eproto, "Protocol.proto", 
   &descriptor_table_Protocol_2eproto_once, descriptor_table_Protocol_2eproto_deps, 2, 4,
   schemas, file_default_instances, TableStruct_Protocol_2eproto::offsets,
   file_level_metadata_Protocol_2eproto, file_level_enum_descriptors_Protocol_2eproto, file_level_service_descriptors_Protocol_2eproto,
@@ -578,6 +580,11 @@ S_TEST::S_TEST(const S_TEST& from)
   : ::PROTOBUF_NAMESPACE_ID::Message(),
       buffs_(from.buffs_) {
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  if (!from._internal_name().empty()) {
+    name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_name(), 
+      GetArenaForAllocation());
+  }
   ::memcpy(&id_, &from.id_,
     static_cast<size_t>(reinterpret_cast<char*>(&attack_) -
     reinterpret_cast<char*>(&id_)) + sizeof(attack_));
@@ -585,6 +592,7 @@ S_TEST::S_TEST(const S_TEST& from)
 }
 
 void S_TEST::SharedCtor() {
+name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 ::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
     reinterpret_cast<char*>(&id_) - reinterpret_cast<char*>(this)),
     0, static_cast<size_t>(reinterpret_cast<char*>(&attack_) -
@@ -599,6 +607,7 @@ S_TEST::~S_TEST() {
 
 void S_TEST::SharedDtor() {
   GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
+  name_.DestroyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 void S_TEST::ArenaDtor(void* object) {
@@ -618,6 +627,7 @@ void S_TEST::Clear() {
   (void) cached_has_bits;
 
   buffs_.Clear();
+  name_.ClearToEmpty();
   ::memset(&id_, 0, static_cast<size_t>(
       reinterpret_cast<char*>(&attack_) -
       reinterpret_cast<char*>(&id_)) + sizeof(attack_));
@@ -661,6 +671,15 @@ const char* S_TEST::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::int
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
           } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<34>(ptr));
+        } else goto handle_unusual;
+        continue;
+      // string name = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 42)) {
+          auto str = _internal_mutable_name();
+          ptr = ::PROTOBUF_NAMESPACE_ID::internal::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(::PROTOBUF_NAMESPACE_ID::internal::VerifyUTF8(str, "Protocol.S_TEST.name"));
+          CHK_(ptr);
         } else goto handle_unusual;
         continue;
       default: {
@@ -718,6 +737,16 @@ failure:
       InternalWriteMessage(4, this->_internal_buffs(i), target, stream);
   }
 
+  // string name = 5;
+  if (!this->name().empty()) {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+      this->_internal_name().data(), static_cast<int>(this->_internal_name().length()),
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE,
+      "Protocol.S_TEST.name");
+    target = stream->WriteStringMaybeAliased(
+        5, this->_internal_name(), target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -739,6 +768,13 @@ size_t S_TEST::ByteSizeLong() const {
   for (const auto& msg : this->buffs_) {
     total_size +=
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
+  }
+
+  // string name = 5;
+  if (!this->name().empty()) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+        this->_internal_name());
   }
 
   // uint64 id = 1;
@@ -794,6 +830,9 @@ void S_TEST::MergeFrom(const S_TEST& from) {
   (void) cached_has_bits;
 
   buffs_.MergeFrom(from.buffs_);
+  if (!from.name().empty()) {
+    _internal_set_name(from._internal_name());
+  }
   if (from.id() != 0) {
     _internal_set_id(from._internal_id());
   }
@@ -827,6 +866,11 @@ void S_TEST::InternalSwap(S_TEST* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   buffs_.InternalSwap(&other->buffs_);
+  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::InternalSwap(
+      &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
+      &name_, GetArenaForAllocation(),
+      &other->name_, other->GetArenaForAllocation()
+  );
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
       PROTOBUF_FIELD_OFFSET(S_TEST, attack_)
       + sizeof(S_TEST::attack_)
