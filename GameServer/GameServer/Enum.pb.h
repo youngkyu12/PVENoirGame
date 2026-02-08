@@ -58,7 +58,7 @@ namespace Protocol {
 
 enum PlayerType : int {
   PLAYER_TYPE_NONE = 0,
-  PLAYER_TYPE_KIGHT = 1,
+  PLAYER_TYPE_KNIGHT = 1,
   PLAYER_TYPE_MAGE = 2,
   PLAYER_TYPE_ARCHER = 3,
   PlayerType_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
