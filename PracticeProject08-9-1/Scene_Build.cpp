@@ -131,7 +131,6 @@ void CScene::BuildStaticBatch(
 	DXGI_FORMAT dsvFormat
 )
 {
-	//auto* b = pStaticShader->GetBatch();
 	auto* b = &m_staticBatch;
 	if (!b) return;
 
@@ -230,7 +229,6 @@ void CScene::BuildSkinnedBatch(
 	DXGI_FORMAT dsvFormat
 )
 {
-	//auto* b = pSkinnedShader->GetBatch();
 	auto* b = &m_skinnedBatch;
 	if (!b) return;
 
@@ -479,9 +477,6 @@ void CScene::BuildObjects(
 
 	m_staticBatch.shader = pStaticShader;
 	m_skinnedBatch.shader = pSkinnedShader;
-
-	//pStaticShader->SetBatch(&m_staticBatch);
-	//pSkinnedShader->SetBatch(&m_skinnedBatch);
 
 	const UINT cbvTotal =
 		m_staticBatch.capacity +

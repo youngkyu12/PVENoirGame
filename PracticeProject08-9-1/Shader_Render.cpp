@@ -66,10 +66,12 @@ void CStaticObjectsShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CC
 	CIlluminatedTexturedShader::Render(pd3dCommandList, pCamera, pContext);
 
 #ifdef _WITH_BATCH_MATERIAL
-	if (m_pBatch && m_pBatch->material && m_pBatch->material->NeedsLegacyBinding())
-		m_pBatch->material->UpdateShaderVariables(pd3dCommandList);
+	auto* b = reinterpret_cast<SCENE_STATIC_BATCH*>(pContext);
+	if (b && b->material && b->material->NeedsLegacyBinding())
+		b->material->UpdateShaderVariables(pd3dCommandList);
 #endif
 }
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //

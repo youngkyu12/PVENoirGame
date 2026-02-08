@@ -138,12 +138,6 @@ public:
 	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob **ppd3dShaderBlob);
 	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList *pd3dCommandList, void *pContext);
 	virtual void Render(ID3D12GraphicsCommandList *pd3dCommandList, CCamera *pCamera, void *pContext = nullptr);
-
-	void SetBatch(SCENE_STATIC_BATCH* pBatch) { m_pBatch = pBatch; }
-	SCENE_STATIC_BATCH* GetBatch() const { return m_pBatch; }
-
-protected:
-	SCENE_STATIC_BATCH* m_pBatch = nullptr;
 };
 
 class CSkinnedObjectsShader : public CIlluminatedTexturedShader
@@ -160,11 +154,6 @@ public:
 	virtual D3D12_INPUT_LAYOUT_DESC CreateInputLayout();
 	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext);
 	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext = nullptr);
-
-	void SetBatch(SCENE_SKINNED_BATCH* pBatch) { m_pBatch = pBatch; }
-	SCENE_SKINNED_BATCH* GetBatch() const { return m_pBatch; }
-protected:
-	SCENE_SKINNED_BATCH* m_pBatch = nullptr;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
