@@ -72,19 +72,19 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <IncludePath>$(SolutionDir)\Libraries\include\;$(SolutionDir)\ServerCore\;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SolutionDir)\Libraries\Libs\;$(SolutionDir)Libraries;$(LibraryPath)</LibraryPath>
+    <LibraryPath>$(SolutionDir)\Libraries\Libs\;$(SolutionDir)Libraries;$(SolutionDir)\Libraries\Libs\ServerCore\$(Configuration);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <IncludePath>$(SolutionDir)\Libraries\include\;$(SolutionDir)\ServerCore\;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SolutionDir)\Libraries\Libs\;$(SolutionDir)Libraries;$(LibraryPath)</LibraryPath>
+    <LibraryPath>$(SolutionDir)\Libraries\Libs\;$(SolutionDir)Libraries;$(SolutionDir)\Libraries\Libs\ServerCore\$(Configuration);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <IncludePath>$(SolutionDir)\Libraries\include\;$(SolutionDir)\ServerCore\;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SolutionDir)\Libraries\Libs\;$(SolutionDir)Libraries;$(LibraryPath)</LibraryPath>
+    <LibraryPath>$(SolutionDir)\Libraries\Libs\;$(SolutionDir)Libraries;$(SolutionDir)\Libraries\Libs\ServerCore\$(Configuration);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <IncludePath>$(SolutionDir)\Libraries\include\;$(SolutionDir)\ServerCore\;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SolutionDir)\Libraries\Libs\;$(SolutionDir)Libraries;$(LibraryPath)</LibraryPath>
+    <LibraryPath>$(SolutionDir)\Libraries\Libs\;$(SolutionDir)Libraries;$(SolutionDir)\Libraries\Libs\ServerCore\$(Configuration);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -94,6 +94,8 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <LanguageStandard_C>stdclatest</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -113,6 +115,8 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <LanguageStandard_C>stdclatest</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -132,6 +136,8 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <LanguageStandard_C>stdclatest</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -151,6 +157,8 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <LanguageStandard_C>stdclatest</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
