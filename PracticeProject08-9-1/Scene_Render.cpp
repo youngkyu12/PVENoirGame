@@ -24,9 +24,11 @@ void CScene::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList)
 
 			auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)m_staticBatch.mappedGameObjects + j * ncb);
 
+			const XMFLOAT4X4& W = obj->GetWorldMatrix(); // Transform에서 가져와야 함
+
 			XMStoreFloat4x4(
 				&cb->m_xmf4x4World,
-				XMMatrixTranspose(XMLoadFloat4x4(&obj->m_xmf4x4World))
+				XMMatrixTranspose(XMLoadFloat4x4(&W))
 			);
 
 			cb->m_nObjectID = j;
@@ -47,9 +49,11 @@ void CScene::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList)
 
 			auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)m_skinnedBatch.mappedGameObjects + j * ncb);
 
+			const XMFLOAT4X4& W = obj->GetWorldMatrix(); // Transform에서 가져와야 함
+
 			XMStoreFloat4x4(
 				&cb->m_xmf4x4World,
-				XMMatrixTranspose(XMLoadFloat4x4(&obj->m_xmf4x4World))
+				XMMatrixTranspose(XMLoadFloat4x4(&W))
 			);
 
 			cb->m_nObjectID = j;
