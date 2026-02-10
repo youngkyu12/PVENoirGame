@@ -8,10 +8,14 @@
 
 void CGameObject::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	XMStoreFloat4x4(&m_pcbMappedGameObject->m_xmf4x4World, XMMatrixTranspose(XMLoadFloat4x4(&m_xmf4x4World)));
+	if (!m_pcbMappedGameObject) return;
 
-	if (m_pMaterial)
-		m_pcbMappedGameObject->m_nMaterialID = m_pMaterial->m_nReflection;
+	XMStoreFloat4x4(
+		&m_pcbMappedGameObject->m_xmf4x4World,
+		XMMatrixTranspose(XMLoadFloat4x4(&m_xmf4x4World))
+	);
+
+	m_pcbMappedGameObject->m_nObjectID = 0;
 }
 
 void CGameObject::Animate(float dt)

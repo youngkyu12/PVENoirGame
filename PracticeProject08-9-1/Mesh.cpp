@@ -69,47 +69,25 @@ void CMesh::Render(ID3D12GraphicsCommandList* pd3dCommandList)
     Render(pd3dCommandList, nullptr);
 }
 
-void CMesh::Render(ID3D12GraphicsCommandList* pd3dCommandList, CB_GAMEOBJECT_INFO* pMappedGameObjectCB)
+void CMesh::Render(ID3D12GraphicsCommandList* cmd, CB_GAMEOBJECT_INFO* /*objCB*/)
 {
-    pd3dCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     for (auto& sm : m_SubMeshes)
     {
-        // =========================================================
-        // ★ 핵심: 서브메시 Draw 직전에 b2(cbGameObjectInfo)의 materialId 갱신
-        // =========================================================
-        // Root parameter index는 "Scene RootSignature"에서 추가한 위치와 반드시 일치해야 함.
-        // 아래는 "기존 0~6 사용 + 새로 [7] 추가"인 경우.
-        UINT mid = (sm.materialId == 0xFFFFFFFFu) ? 0u : sm.materialId;
-        pd3dCommandList->SetGraphicsRoot32BitConstant(ROOT_PARAMETER_MATERIAL_ID, mid, 0);
+        const UINT mid = (sm.materialId == 0xFFFFFFFFu) ? 0u : sm.materialId;
+        cmd->SetGraphicsRoot32BitConstant(ROOT_PARAMETER_MATERIAL_ID, mid, 0);
 
-        // --------------------------------------------------------
-        // 1) (레거시) Material 바인딩이 필요한 경우에만
-        // --------------------------------------------------------
-        if (sm.material)
-        {
-            if (sm.material->NeedsLegacyBinding())
-                sm.material->UpdateShaderVariables(pd3dCommandList);
-        }
+        if (sm.material && sm.material->NeedsLegacyBinding())
+            sm.material->UpdateShaderVariables(cmd);
 
-        // --------------------------------------------------------
-        // 2) VB / IB 바인딩
-        // --------------------------------------------------------
-        pd3dCommandList->IASetVertexBuffers(0, 1, &sm.vbView);
-        pd3dCommandList->IASetIndexBuffer(&sm.ibView);
+        cmd->IASetVertexBuffers(0, 1, &sm.vbView);
+        cmd->IASetIndexBuffer(&sm.ibView);
 
-        mid = (sm.materialId == 0xFFFFFFFFu) ? 0u : sm.materialId;
-        pd3dCommandList->SetGraphicsRoot32BitConstant(ROOT_PARAMETER_MATERIAL_ID, mid, 0);
-
-        // --------------------------------------------------------
-        // 3) Draw
-        // --------------------------------------------------------
-        pd3dCommandList->DrawIndexedInstanced(
-            static_cast<UINT>(sm.indices.size()),
-            1, 0, 0, 0
-        );
+        cmd->DrawIndexedInstanced((UINT)sm.indices.size(), 1, 0, 0, 0);
     }
 }
+
 
 void CMesh::LoadMeshFromBIN(ID3D12Device* device,
     ID3D12GraphicsCommandList* cmdList,

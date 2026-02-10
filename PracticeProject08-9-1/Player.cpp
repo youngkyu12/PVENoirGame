@@ -38,9 +38,12 @@ CPlayer::~CPlayer()
 
 void CPlayer::CreateShaderVariables(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
-	if (m_pCamera) m_pCamera->CreateShaderVariables(dev, cmd);
+	if (m_pCamera)
+		m_pCamera->CreateShaderVariables(dev, cmd);
 
-	// Player CB(b0)만 유지
+	// -------------------------
+	// (1) b0: Player CB 유지(남겨도 무방)
+	// -------------------------
 	UINT cbPlayerBytes = (sizeof(CB_PLAYER_INFO) + 255) & ~255;
 	m_pd3dcbPlayer = ::CreateBufferResource(
 		dev, cmd,
@@ -51,6 +54,20 @@ void CPlayer::CreateShaderVariables(ID3D12Device* dev, ID3D12GraphicsCommandList
 		nullptr
 	);
 	m_pd3dcbPlayer->Map(0, nullptr, (void**)&m_pcbMappedPlayer);
+
+	// -------------------------
+	// (2) b2: CB_GAMEOBJECT_INFO (CSkinnedObjectsShader가 읽는 CB)
+	// -------------------------
+	UINT cbObjBytes = (sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255;
+	m_pd3dcbGameObject = ::CreateBufferResource(
+		dev, cmd,
+		nullptr,
+		cbObjBytes,
+		D3D12_HEAP_TYPE_UPLOAD,
+		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+		nullptr
+	);
+	m_pd3dcbGameObject->Map(0, nullptr, (void**)&m_pcbMappedGameObject);
 }
 
 void CPlayer::ReleaseShaderVariables()
@@ -68,11 +85,31 @@ void CPlayer::ReleaseShaderVariables()
 }
 
 
-void CPlayer::UpdateShaderVariables(ID3D12GraphicsCommandList *pd3dCommandList)
+void CPlayer::UpdateShaderVariables(ID3D12GraphicsCommandList* cmd)
 {
-	XMStoreFloat4x4(&m_pcbMappedPlayer->m_xmf4x4World,
-		XMMatrixTranspose(XMLoadFloat4x4(&m_xmf4x4World)));
-	m_pcbMappedPlayer->m_nMaterialID = m_nPlayerMaterialID;
+	// -------------------------
+	// (1) b0: Player CB 갱신(유지)
+	// -------------------------
+	if (m_pcbMappedPlayer)
+	{
+		XMStoreFloat4x4(
+			&m_pcbMappedPlayer->m_xmf4x4World,
+			XMMatrixTranspose(XMLoadFloat4x4(&m_xmf4x4World))
+		);
+	}
+
+	// -------------------------
+	// (2) b2: GameObject CB 갱신 (CSkinnedObjectsShader가 실제로 읽는 값)
+	// -------------------------
+	if (m_pcbMappedGameObject)
+	{
+		XMStoreFloat4x4(
+			&m_pcbMappedGameObject->m_xmf4x4World,
+			XMMatrixTranspose(XMLoadFloat4x4(&m_xmf4x4World))
+		);
+
+		m_pcbMappedGameObject->m_nObjectID = 0;
+	}
 }
 
 void CPlayer::Move(DWORD dwDirection, float fDistance, bool bUpdateVelocity)
@@ -293,25 +330,20 @@ void CPlayer::OnPrepareRender(ID3D12GraphicsCommandList *pd3dCommandList, CCamer
 
 void CPlayer::SetRootParameter(ID3D12GraphicsCommandList* cmd)
 {
-	cmd->SetGraphicsRootConstantBufferView(
-		ROOT_PARAMETER_PLAYER,
-		m_pd3dcbPlayer->GetGPUVirtualAddress()
+	// 플레이어도 다른 스키닝 오브젝트와 동일하게 b2(OBJECT) 테이블을 바인딩한다.
+	cmd->SetGraphicsRootDescriptorTable(
+		ROOT_PARAMETER_OBJECT,
+		m_d3dCbvGPUDescriptorHandle
 	);
 
-	// b7 bones
-	if (m_pd3dcbBoneTransforms)
+	// 스키닝이면 b7(BonePalette)도 바인딩
+	if (m_bSkinnedObject && m_pd3dcbBoneTransforms)
 	{
 		cmd->SetGraphicsRootConstantBufferView(
 			ROOT_PARAMETER_BONE_PALETTE,
 			m_pd3dcbBoneTransforms->GetGPUVirtualAddress()
 		);
 	}
-
-	// b6 materialId
-	cmd->SetGraphicsRoot32BitConstants(
-		ROOT_PARAMETER_MATERIAL_ID,
-		1, &m_nPlayerMaterialID, 0
-	);
 }
 
 void CPlayer::Render(ID3D12GraphicsCommandList *pd3dCommandList, CCamera *pCamera)
@@ -449,22 +481,6 @@ CFighterPlayer::CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandLi
 	this->Animate(0.0f);
 
 	// ------------------------------------------------------------
-	// 대표 materialId 선택 (기존 로직 유지하되 Fighter 기준)
-	// ------------------------------------------------------------
-	UINT playerMaterialId = 0;
-	if (pPlayerMesh)
-	{
-		for (auto& sm : pPlayerMesh->m_SubMeshes)
-		{
-			if (sm.materialName.empty()) continue;
-			if (sm.materialId == 0xFFFFFFFFu) continue;
-			playerMaterialId = sm.materialId;
-			break;
-		}
-	}
-	m_nPlayerMaterialID = playerMaterialId;
-
-	// ------------------------------------------------------------
 	// Player CBV 생성/바인딩
 	// ------------------------------------------------------------
 	UINT ncbElementBytes = ((sizeof(CB_PLAYER_INFO) + 255) & ~255); // 256 align
@@ -481,22 +497,38 @@ CFighterPlayer::CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandLi
 		DXGI_FORMAT_R32_FLOAT       // SV_TARGET4 zDepth
 	};
 
-	shared_ptr<CPlayerShader> pShader = make_shared<CPlayerShader>();
-	pShader->CreateShader(pd3dDevice, pd3dGraphicsRootSignature, 5, rtvFormats, DXGI_FORMAT_D24_UNORM_S8_UINT);
+	// ------------------------------------------------------------
+// (1) 플레이어 셰이더를 CSkinnedObjectsShader로 생성
+// ------------------------------------------------------------
+	shared_ptr<CSkinnedObjectsShader> pShader = make_shared<CSkinnedObjectsShader>();
+	pShader->CreateShader(
+		pd3dDevice,
+		pd3dGraphicsRootSignature,
+		5,
+		rtvFormats,
+		DXGI_FORMAT_D24_UNORM_S8_UINT
+	);
 
-	pShader->CreateShaderVariables(pd3dDevice, pd3dCommandList);
+	// ------------------------------------------------------------
+	// (2) 플레이어는 b2(CB_GAMEOBJECT_INFO) 테이블을 사용해야 하므로
+	//     m_pd3dcbGameObject로 CBV 디스크립터를 만든다.
+	// ------------------------------------------------------------
+	UINT cbObjBytes = (sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255;
 
-	// Player CBV 핸들 생성
-	D3D12_GPU_DESCRIPTOR_HANDLE d3dCbvGPUDescriptorHandle =
+	D3D12_GPU_DESCRIPTOR_HANDLE hPlayerObjCbv =
 		CScene::m_pDescriptorHeap->CreateConstantBufferView(
 			pd3dDevice,
-			m_pd3dcbPlayer.Get(),
-			ncbElementBytes
+			m_pd3dcbGameObject.Get(),
+			cbObjBytes
 		);
 
-	SetCbvGPUDescriptorHandle(d3dCbvGPUDescriptorHandle);
-	SetShader(pShader);
+	// 이 핸들이 ROOT_PARAMETER_OBJECT(b2 테이블)에 들어간다.
+	SetCbvGPUDescriptorHandle(hPlayerObjCbv);
 
+	// ------------------------------------------------------------
+	// (3) Material에 Shader 연결
+	// ------------------------------------------------------------
+	SetShader(pShader);
 }
 
 CFighterPlayer::~CFighterPlayer()
