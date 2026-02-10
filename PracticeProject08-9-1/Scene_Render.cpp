@@ -1,5 +1,5 @@
 //-----------------------------------------------------------------------------
-// File: CScene_Input.cpp
+// File: Scene_Render.cpp
 //-----------------------------------------------------------------------------
 
 #include "stdafx.h"
@@ -9,6 +9,52 @@ void CScene::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList)
 {
 	::memcpy(m_pcbMappedLights, m_pLights.get(), sizeof(LIGHTS));
 	::memcpy(m_pcbMappedMaterials, m_pMaterials.get(), sizeof(MATERIALS));
+
+	// =========================
+	// Static batch per-object CB
+	// =========================
+	if (m_staticBatch.mappedGameObjects && !m_staticBatch.objectRefs.empty())
+	{
+		const UINT ncb = m_staticBatch.cbElementBytes;
+
+		for (UINT j = 0; j < (UINT)m_staticBatch.objectRefs.size(); ++j)
+		{
+			auto* obj = m_staticBatch.objectRefs[j];
+			if (!obj) continue;
+
+			auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)m_staticBatch.mappedGameObjects + j * ncb);
+
+			XMStoreFloat4x4(
+				&cb->m_xmf4x4World,
+				XMMatrixTranspose(XMLoadFloat4x4(&obj->m_xmf4x4World))
+			);
+
+			cb->m_nObjectID = j;
+		}
+	}
+
+	// =========================
+	// Skinned batch per-object CB
+	// =========================
+	if (m_skinnedBatch.mappedGameObjects && !m_skinnedBatch.objectRefs.empty())
+	{
+		const UINT ncb = m_skinnedBatch.cbElementBytes;
+
+		for (UINT j = 0; j < (UINT)m_skinnedBatch.objectRefs.size(); ++j)
+		{
+			auto* obj = m_skinnedBatch.objectRefs[j];
+			if (!obj) continue;
+
+			auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)m_skinnedBatch.mappedGameObjects + j * ncb);
+
+			XMStoreFloat4x4(
+				&cb->m_xmf4x4World,
+				XMMatrixTranspose(XMLoadFloat4x4(&obj->m_xmf4x4World))
+			);
+
+			cb->m_nObjectID = j;
+		}
+	}
 }
 
 bool CScene::ProcessInput(UCHAR* pKeysBuffer)
@@ -18,9 +64,16 @@ bool CScene::ProcessInput(UCHAR* pKeysBuffer)
 
 void CScene::AnimateObjects(float fTimeElapsed)
 {
-	for (int i = 0; i < m_nShaders; i++)
+	for (UINT j = 0; j < (UINT)m_staticObjects.size(); ++j)
 	{
-		m_ppShaders[i]->AnimateObjects(fTimeElapsed);
+		if (!m_staticObjects[j]) continue;
+		m_staticObjects[j]->Animate(fTimeElapsed);
+	}
+
+	for (UINT j = 0; j < (UINT)m_skinnedObjects.size(); ++j)
+	{
+		if (!m_skinnedObjects[j]) continue;
+		m_skinnedObjects[j]->Animate(fTimeElapsed);
 	}
 
 	if (m_pLights)
@@ -29,6 +82,7 @@ void CScene::AnimateObjects(float fTimeElapsed)
 		m_pLights->m_pLights[1].m_xmf3Direction = m_pPlayer->GetLookVector();
 	}
 }
+
 
 void CScene::OnPrepareRender(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera)
 {
@@ -54,8 +108,37 @@ void CScene::OnPrepareRender(ID3D12GraphicsCommandList* pd3dCommandList, CCamera
 
 void CScene::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera)
 {
-	for (int i = 0; i < m_nShaders; i++)
-	{
-		m_ppShaders[i]->Render(pd3dCommandList, pCamera);
-	}
+    // ---- Static batch ----
+    if (m_staticBatch.shader)
+    {
+		m_staticBatch.shader->Render(pd3dCommandList, pCamera, &m_staticBatch);
+		for (UINT j = 0; j < (UINT)m_staticObjects.size(); ++j)
+		{
+			if (!m_staticObjects[j]) continue;
+			m_staticObjects[j]->Render(pd3dCommandList, pCamera);
+		}
+    }
+
+    // ---- Skinned batch ----
+    if (m_skinnedBatch.shader)
+    {
+		m_skinnedBatch.shader->Render(pd3dCommandList, pCamera, &m_skinnedBatch);
+		for (UINT j = 0; j < (UINT)m_skinnedObjects.size(); ++j)
+		{
+			if (!m_skinnedObjects[j]) continue;
+			m_skinnedObjects[j]->Render(pd3dCommandList, pCamera);
+		}
+    }
+
+    // ---- Player ----
+    if (m_pPlayer)
+    {
+        m_pPlayer->OnPrepareRender(pd3dCommandList, pCamera);
+        m_pPlayer->UpdateShaderVariables(pd3dCommandList);
+
+		if (auto sh = m_pPlayer->GetShader())
+			sh->Render(pd3dCommandList, pCamera, nullptr);
+
+        m_pPlayer->CGameObject::Render(pd3dCommandList, pCamera);
+    }
 }

@@ -4,17 +4,18 @@
 
 #include "stdafx.h"
 #include "Object.h"
-#include "Shader.h"
-#include "Texture.h"
-#include "Material.h"
 #include "AnimController.h"
 
 void CGameObject::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	XMStoreFloat4x4(&m_pcbMappedGameObject->m_xmf4x4World, XMMatrixTranspose(XMLoadFloat4x4(&m_xmf4x4World)));
+	if (!m_pcbMappedGameObject) return;
 
-	if (m_pMaterial)
-		m_pcbMappedGameObject->m_nMaterialID = m_pMaterial->m_nReflection;
+	XMStoreFloat4x4(
+		&m_pcbMappedGameObject->m_xmf4x4World,
+		XMMatrixTranspose(XMLoadFloat4x4(&m_xmf4x4World))
+	);
+
+	m_pcbMappedGameObject->m_nObjectID = 0;
 }
 
 void CGameObject::Animate(float dt)
@@ -45,27 +46,12 @@ void CGameObject::OnPrepareRender(ID3D12GraphicsCommandList* pd3dCommandList, CC
 void CGameObject::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera)
 {
 	OnPrepareRender(pd3dCommandList, pCamera);
+	(void)pCamera; // 더 이상 여기서 카메라를 건드리지 않음
 
-	if (m_pMaterial)
-	{
-		if (m_pMaterial->m_pShader)
-		{
-			m_pMaterial->m_pShader->Render(pd3dCommandList, pCamera);
-
-			if (pCamera)
-				pCamera->SetViewportsAndScissorRects(pd3dCommandList);
-
-			if (pCamera)
-				pCamera->UpdateShaderVariables(pd3dCommandList);
-
-			UpdateShaderVariables(pd3dCommandList);
-		}
-		if (m_pMaterial->NeedsLegacyBinding())
-			m_pMaterial->UpdateShaderVariables(pd3dCommandList);
-	}
-
+	// Draw-only: per-object root binding만
 	SetRootParameter(pd3dCommandList);
 
+	// Draw-only: mesh draw만
 	if (!m_ppMeshes.empty())
 	{
 		for (int i = 0; i < m_nMeshes; i++)
@@ -110,24 +96,4 @@ void CGameObject::Rotate(XMFLOAT3* pxmf3Axis, float fAngle)
 {
 	XMMATRIX mtxRotate = XMMatrixRotationAxis(XMLoadFloat3(pxmf3Axis), XMConvertToRadians(fAngle));
 	m_xmf4x4World = Matrix4x4::Multiply(mtxRotate, m_xmf4x4World);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-void CRotatingObject::Animate(float fTimeElapsed)
-{
-	CGameObject::Rotate(&m_xmf3RotationAxis, m_fRotationSpeed * fTimeElapsed);
-}
-
-void CRotatingObject::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera)
-{
-	CGameObject::Render(pd3dCommandList, pCamera);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-void CRevolvingObject::Animate(float fTimeElapsed)
-{
-	XMMATRIX mtxRotate = XMMatrixRotationAxis(XMLoadFloat3(&m_xmf3RevolutionAxis), XMConvertToRadians(m_fRevolutionSpeed * fTimeElapsed));
-	m_xmf4x4World = Matrix4x4::Multiply(m_xmf4x4World, mtxRotate);
 }

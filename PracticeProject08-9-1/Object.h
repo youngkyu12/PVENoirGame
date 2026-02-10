@@ -17,15 +17,14 @@
 
 class CMesh;
 class CShader;
-class CMaterial;
 class CAnimator;
 class CAnimController;
 
 struct CB_GAMEOBJECT_INFO
 {
-	XMFLOAT4X4						m_xmf4x4World;
-	UINT							m_nObjectID;
-	UINT							m_nMaterialID;
+	XMFLOAT4X4  m_xmf4x4World;
+	UINT        m_nObjectID;
+	UINT        _pad[3];   // 16-byte align
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -63,8 +62,6 @@ public:
 // Get & Set Method
 public:
 	void SetMesh(int nIndex, shared_ptr<CMesh> pMesh);
-	void SetShader(shared_ptr<CShader> pShader);
-	void SetMaterial(shared_ptr<CMaterial> pMaterial);
 
 	void SetCbvGPUDescriptorHandle(D3D12_GPU_DESCRIPTOR_HANDLE d3dCbvGPUDescriptorHandle) { m_d3dCbvGPUDescriptorHandle = d3dCbvGPUDescriptorHandle; }
 	void SetCbvGPUDescriptorHandlePtr(UINT64 nCbvGPUDescriptorHandlePtr) { m_d3dCbvGPUDescriptorHandle.ptr = nCbvGPUDescriptorHandlePtr; }
@@ -104,8 +101,6 @@ public:
 
 	vector<shared_ptr<CMesh>>		m_ppMeshes;
 	int								m_nMeshes = 0;
-
-	shared_ptr<CMaterial>			m_pMaterial;
 
 	D3D12_GPU_DESCRIPTOR_HANDLE		m_d3dCbvGPUDescriptorHandle = { 0 };
 
@@ -159,50 +154,18 @@ protected:
 	XMFLOAT4X4* m_pcbMappedBoneTransforms = nullptr;
 
 public:
-	void CreateBonePaletteShaderVariables(ID3D12Device*);
-	void UpdateBonePaletteShaderVariables();
-	void ReleaseBonePaletteShaderVariables();
-
-	public:
 		CAnimController* EnsureAnimController();
 		CAnimController* GetAnimController() const { return m_pAnimController.get(); }
 
 protected:
 	std::unique_ptr<CAnimController> m_pAnimController;
-};
 
-class CRotatingObject : public CGameObject
-{
-public:
-	CRotatingObject(int nMeshes=1);
-	virtual ~CRotatingObject();
-
-private:
-	XMFLOAT3					m_xmf3RotationAxis = XMFLOAT3(0.0f, 1.0f, 0.0f);
-	float						m_fRotationSpeed = 15.0f;
+protected:
+	std::shared_ptr<CShader> m_pShader;
 
 public:
-	void SetRotationSpeed(float fRotationSpeed) { m_fRotationSpeed = fRotationSpeed; }
-	void SetRotationAxis(XMFLOAT3 xmf3RotationAxis) { m_xmf3RotationAxis = xmf3RotationAxis; }
+	void SetShader(std::shared_ptr<CShader> pShader) { m_pShader = std::move(pShader); }
+	std::shared_ptr<CShader> GetShader() const { return m_pShader; }
 
-	virtual void Animate(float fTimeElapsed);
-	virtual void Render(ID3D12GraphicsCommandList *pd3dCommandList, CCamera *pCamera = NULL);
-};
-
-class CRevolvingObject : public CGameObject
-{
-public:
-	CRevolvingObject(int nMeshes=1);
-	virtual ~CRevolvingObject();
-
-private:
-	XMFLOAT3					m_xmf3RevolutionAxis = XMFLOAT3(1.0f, 0.0f, 0.0f);
-	float						m_fRevolutionSpeed = 0.0f;
-
-public:
-	void SetRevolutionSpeed(float fRevolutionSpeed) { m_fRevolutionSpeed = fRevolutionSpeed; }
-	void SetRevolutionAxis(XMFLOAT3 xmf3RevolutionAxis) { m_xmf3RevolutionAxis = xmf3RevolutionAxis; }
-
-	virtual void Animate(float fTimeElapsed);
 };
 
