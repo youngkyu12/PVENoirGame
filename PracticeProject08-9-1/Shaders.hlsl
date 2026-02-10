@@ -11,10 +11,11 @@ cbuffer cbPlayerInfo : register(b0)
 
 cbuffer cbGameObjectInfo : register(b2)
 {
-    matrix gmtxGameObject : packoffset(c0);
-    uint gnObjectID : packoffset(c4.x);
-    uint gnUnused0 : packoffset(c4.y); // (구)gnMaterialID 자리. 이제 안 씀.
+    float4x4 gmtxGameObject;
+    uint gnObjectID;
+    uint3 _padObj;
 };
+
 
 SamplerState gssDefaultSamplerState : register(s0);
 

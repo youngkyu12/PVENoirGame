@@ -14,8 +14,6 @@
 struct CB_PLAYER_INFO
 {
 	XMFLOAT4X4 m_xmf4x4World;
-	UINT       m_nMaterialID;
-	UINT       _pad[3];
 };
 
 class CPlayer : public CGameObject
@@ -41,7 +39,6 @@ protected:
 	LPVOID						m_pCameraUpdatedContext = nullptr;
 
 	unique_ptr<CCamera>			m_pCamera;
-    UINT						m_nPlayerMaterialID = 0;
 
 public:
 	CPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, ID3D12RootSignature *pd3dGraphicsRootSignature, void *pContext=NULL, int nMeshes = 1);
@@ -107,15 +104,4 @@ public:
 	virtual void OnPrepareRender(ID3D12GraphicsCommandList *pd3dCommandList, CCamera *pCamera);
 };
 
-//class CTerrainPlayer : public CPlayer
-//{
-//public:
-//	CTerrainPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, ID3D12RootSignature *pd3dGraphicsRootSignature, void *pContext=NULL, int nMeshes = 1);
-//	virtual ~CTerrainPlayer();
-//
-//	virtual CCamera *ChangeCamera(DWORD nNewCameraMode, float fTimeElapsed);
-//
-//	virtual void OnPlayerUpdateCallback(float fTimeElapsed);
-//	virtual void OnCameraUpdateCallback(float fTimeElapsed);
-//};
 
