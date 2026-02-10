@@ -170,16 +170,20 @@ void CScene::BuildStaticBatch(
 		b->cbElementBytes
 	);
 
-	// ===== objects: 고정 벡터 제거 =====
-	b->objects.clear();
-	b->objects.reserve(cap);
+	// ===== scene-owned objects + batch refs =====
+	m_staticObjects.clear();
+	m_staticObjects.reserve(cap);
+
+	b->objectRefs.clear();
+	b->objectRefs.reserve(cap);
+
 	b->count = 0;
 
 	// ---- 실제 생성 ----
 	{
-		if (b->objects.size() >= b->capacity) return;
+		if (b->objectRefs.size() >= b->capacity) return;
 
-		const UINT i = (UINT)b->objects.size();
+		const UINT i = (UINT)b->objectRefs.size();
 
 		AssetBuildDesc WorldDesc = {
 			AssetType::World,
@@ -196,27 +200,14 @@ void CScene::BuildStaticBatch(
 
 		obj->SetMesh(0, asset.mesh);
 
-		UINT matId = 0;
-		if (asset.mesh)
-		{
-			for (auto& sm : asset.mesh->m_SubMeshes)
-			{
-				if (sm.materialId == 0xFFFFFFFFu) continue;
-				matId = sm.materialId;
-				break;
-			}
-		}
-
-		auto mat = std::make_shared<CMaterial>();
-		mat->m_nReflection = matId;
-		obj->SetMaterial(mat);
-
 		obj->SetPosition(0.0f, 0.0f, 30.0f);
 
 		obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
 
-		b->objects.push_back(std::move(obj));
-		b->count = (UINT)b->objects.size();
+		CGameObject* raw = obj.get();              // non-owning pointer for batch
+		m_staticObjects.push_back(std::move(obj)); // scene owns
+		b->objectRefs.push_back(raw);              // batch references
+		b->count = (UINT)b->objectRefs.size();
 	}
 }
 
@@ -268,9 +259,13 @@ void CScene::BuildSkinnedBatch(
 		b->cbElementBytes
 	);
 
-	// ===== objects: 고정 벡터 제거 =====
-	b->objects.clear();
-	b->objects.reserve(cap);
+	// ===== scene-owned objects + batch refs =====
+	m_skinnedObjects.clear();
+	m_skinnedObjects.reserve(cap);
+
+	b->objectRefs.clear();
+	b->objectRefs.reserve(cap);
+
 	b->count = 0;
 
 	// 랜덤
@@ -302,9 +297,9 @@ void CScene::BuildSkinnedBatch(
 
 		for (UINT k = 0; k < zombieCount; ++k)
 		{
-			if (b->objects.size() >= b->capacity) break;
+			if (b->objectRefs.size() >= b->capacity) break;
 
-			const UINT i = (UINT)b->objects.size();
+			const UINT i = (UINT)b->objectRefs.size();
 
 			auto obj = std::make_unique<CGameObject>(1);
 
@@ -312,21 +307,6 @@ void CScene::BuildSkinnedBatch(
 			obj->SetMappedGameObjectCB(cb);
 
 			obj->SetMesh(0, asset.mesh);
-
-			UINT matId = 0;
-			if (asset.mesh)
-			{
-				for (auto& sm : asset.mesh->m_SubMeshes)
-				{
-					if (sm.materialId == 0xFFFFFFFFu) continue;
-					matId = sm.materialId;
-					break;
-				}
-			}
-
-			auto mat = std::make_shared<CMaterial>();
-			mat->m_nReflection = matId;
-			obj->SetMaterial(mat);
 
 			float x = distX(rng);
 			float y = rotY(rng);
@@ -368,8 +348,10 @@ void CScene::BuildSkinnedBatch(
 				obj->Animate(0.0f);
 			}
 
-			b->objects.push_back(std::move(obj));
-			b->count = (UINT)b->objects.size();
+			CGameObject* raw = obj.get();
+			m_skinnedObjects.push_back(std::move(obj));
+			b->objectRefs.push_back(raw);
+			b->count = (UINT)b->objectRefs.size();
 		}
 	}
 
@@ -386,9 +368,9 @@ void CScene::BuildSkinnedBatch(
 
 		for (UINT k = 0; k < fighterCount; ++k)
 		{
-			if (b->objects.size() >= b->capacity) break;
+			if (b->objectRefs.size() >= b->capacity) break;
 
-			const UINT i = (UINT)b->objects.size();
+			const UINT i = (UINT)b->objectRefs.size();
 
 			auto obj = std::make_unique<CGameObject>(1);
 
@@ -410,7 +392,6 @@ void CScene::BuildSkinnedBatch(
 
 			auto mat = std::make_shared<CMaterial>();
 			mat->m_nReflection = matId;
-			obj->SetMaterial(mat);
 
 			float x = distX(rng);
 			float y = rotY(rng);
@@ -452,8 +433,10 @@ void CScene::BuildSkinnedBatch(
 				obj->Animate(0.0f);
 			}
 
-			b->objects.push_back(std::move(obj));
-			b->count = (UINT)b->objects.size();
+			CGameObject* raw = obj.get();
+			m_skinnedObjects.push_back(std::move(obj));
+			b->objectRefs.push_back(raw);
+			b->count = (UINT)b->objectRefs.size();
 		}
 	}
 }

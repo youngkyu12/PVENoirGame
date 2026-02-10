@@ -17,15 +17,14 @@
 
 class CMesh;
 class CShader;
-class CMaterial;
 class CAnimator;
 class CAnimController;
 
 struct CB_GAMEOBJECT_INFO
 {
-	XMFLOAT4X4						m_xmf4x4World;
-	UINT							m_nObjectID;
-	UINT							m_nMaterialID;
+	XMFLOAT4X4  m_xmf4x4World;
+	UINT        m_nObjectID;
+	UINT        _pad[3];   // 16-byte align
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -63,8 +62,6 @@ public:
 // Get & Set Method
 public:
 	void SetMesh(int nIndex, shared_ptr<CMesh> pMesh);
-	void SetShader(shared_ptr<CShader> pShader);
-	void SetMaterial(shared_ptr<CMaterial> pMaterial);
 
 	void SetCbvGPUDescriptorHandle(D3D12_GPU_DESCRIPTOR_HANDLE d3dCbvGPUDescriptorHandle) { m_d3dCbvGPUDescriptorHandle = d3dCbvGPUDescriptorHandle; }
 	void SetCbvGPUDescriptorHandlePtr(UINT64 nCbvGPUDescriptorHandlePtr) { m_d3dCbvGPUDescriptorHandle.ptr = nCbvGPUDescriptorHandlePtr; }
@@ -104,8 +101,6 @@ public:
 
 	vector<shared_ptr<CMesh>>		m_ppMeshes;
 	int								m_nMeshes = 0;
-
-	shared_ptr<CMaterial>			m_pMaterial;
 
 	D3D12_GPU_DESCRIPTOR_HANDLE		m_d3dCbvGPUDescriptorHandle = { 0 };
 
@@ -159,15 +154,18 @@ protected:
 	XMFLOAT4X4* m_pcbMappedBoneTransforms = nullptr;
 
 public:
-	void CreateBonePaletteShaderVariables(ID3D12Device*);
-	void UpdateBonePaletteShaderVariables();
-	void ReleaseBonePaletteShaderVariables();
-
-	public:
 		CAnimController* EnsureAnimController();
 		CAnimController* GetAnimController() const { return m_pAnimController.get(); }
 
 protected:
 	std::unique_ptr<CAnimController> m_pAnimController;
+
+protected:
+	std::shared_ptr<CShader> m_pShader;
+
+public:
+	void SetShader(std::shared_ptr<CShader> pShader) { m_pShader = std::move(pShader); }
+	std::shared_ptr<CShader> GetShader() const { return m_pShader; }
+
 };
 

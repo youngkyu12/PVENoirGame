@@ -30,8 +30,13 @@ void CScene::ReleaseObjects()
 	m_skinnedBatch.shader.reset();
 
 	// objects clear
-	m_staticBatch.objects.clear();
-	m_skinnedBatch.objects.clear();
+	m_staticObjects.clear();
+	m_skinnedObjects.clear();
+
+	// Batch ref lists clear
+	m_staticBatch.objectRefs.clear();
+	m_skinnedBatch.objectRefs.clear();
+
 
 	// scene-owned CB/리소스 해제
 	ReleaseShaderVariables();
@@ -39,16 +44,15 @@ void CScene::ReleaseObjects()
 
 void CScene::ReleaseUploadBuffers()
 {
-	for (UINT j = 0; j < (UINT)m_staticBatch.objects.size(); ++j)
+	for (UINT j = 0; j < (UINT)m_staticObjects.size(); ++j)
 	{
-		if (!m_staticBatch.objects[j]) continue;
-		m_staticBatch.objects[j]->ReleaseUploadBuffers();
+		if (!m_staticObjects[j]) continue;
+		m_staticObjects[j]->ReleaseUploadBuffers();
 	}
-
-	for (UINT j = 0; j < (UINT)m_skinnedBatch.objects.size(); ++j)
+	for (UINT j = 0; j < (UINT)m_skinnedObjects.size(); ++j)
 	{
-		if (!m_skinnedBatch.objects[j]) continue;
-		m_skinnedBatch.objects[j]->ReleaseUploadBuffers();
+		if (!m_skinnedObjects[j]) continue;
+		m_skinnedObjects[j]->ReleaseUploadBuffers();
 	}
 
 #ifdef _WITH_BATCH_MATERIAL
@@ -82,15 +86,6 @@ void CScene::ReleaseShaderVariables()
 		m_skinnedBatch.cbGameObjects.Reset();
 	}
 
-	//if (m_skinnedBatch.cbBonePalette)
-	//{
-	//	if (m_skinnedBatch.mappedBonePalette)
-	//	{
-	//		m_skinnedBatch.cbBonePalette->Unmap(0, NULL);
-	//		m_skinnedBatch.mappedBonePalette = nullptr;
-	//	}
-	//	m_skinnedBatch.cbBonePalette.Reset();
-	//}
 	if (m_pd3dcbLights)
 	{
 		m_pd3dcbLights->Unmap(0, NULL);

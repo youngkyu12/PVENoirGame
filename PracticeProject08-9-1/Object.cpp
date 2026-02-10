@@ -55,9 +55,6 @@ void CGameObject::ReleaseShaderVariables()
 
 	m_bSkinnedObject = false;
 	m_nBones = 0;
-
-	if (m_pMaterial)
-		m_pMaterial->ReleaseShaderVariables();
 }
 
 void CGameObject::ReleaseUploadBuffers()
@@ -69,8 +66,6 @@ void CGameObject::ReleaseUploadBuffers()
 			if (m_ppMeshes[i])m_ppMeshes[i]->ReleaseUploadBuffers();
 		}
 	}
-
-	if (m_pMaterial)m_pMaterial->ReleaseUploadBuffers();
 }
 
 void CGameObject::SetMesh(int nIndex, shared_ptr<CMesh> pMesh)
@@ -81,24 +76,6 @@ void CGameObject::SetMesh(int nIndex, shared_ptr<CMesh> pMesh)
 			m_ppMeshes[nIndex].reset();
 		m_ppMeshes[nIndex] = pMesh;
 	}
-}
-
-void CGameObject::SetShader(shared_ptr<CShader> pShader)
-{
-	if (!m_pMaterial)
-	{
-		shared_ptr<CMaterial> pMaterial = make_shared<CMaterial>();
-		SetMaterial(pMaterial);
-	}
-	if (m_pMaterial)
-		m_pMaterial->SetShader(pShader);
-}
-
-void CGameObject::SetMaterial(shared_ptr<CMaterial> pMaterial)
-{
-	if (m_pMaterial)
-		m_pMaterial.reset();
-	m_pMaterial = pMaterial;
 }
 
 void CGameObject::EnableSkinning(ID3D12Device* pd3dDevice, int nBones)

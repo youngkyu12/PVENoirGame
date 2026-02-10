@@ -13,13 +13,13 @@ void CScene::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList)
 	// =========================
 	// Static batch per-object CB
 	// =========================
-	if (m_staticBatch.mappedGameObjects && !m_staticBatch.objects.empty())
+	if (m_staticBatch.mappedGameObjects && !m_staticBatch.objectRefs.empty())
 	{
 		const UINT ncb = m_staticBatch.cbElementBytes;
 
-		for (UINT j = 0; j < (UINT)m_staticBatch.objects.size(); ++j)
+		for (UINT j = 0; j < (UINT)m_staticBatch.objectRefs.size(); ++j)
 		{
-			auto* obj = m_staticBatch.objects[j].get();
+			auto* obj = m_staticBatch.objectRefs[j];
 			if (!obj) continue;
 
 			auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)m_staticBatch.mappedGameObjects + j * ncb);
@@ -30,20 +30,19 @@ void CScene::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList)
 			);
 
 			cb->m_nObjectID = j;
-			cb->m_nMaterialID = (obj->m_pMaterial) ? obj->m_pMaterial->m_nReflection : 0;
 		}
 	}
 
 	// =========================
 	// Skinned batch per-object CB
 	// =========================
-	if (m_skinnedBatch.mappedGameObjects && !m_skinnedBatch.objects.empty())
+	if (m_skinnedBatch.mappedGameObjects && !m_skinnedBatch.objectRefs.empty())
 	{
 		const UINT ncb = m_skinnedBatch.cbElementBytes;
 
-		for (UINT j = 0; j < (UINT)m_skinnedBatch.objects.size(); ++j)
+		for (UINT j = 0; j < (UINT)m_skinnedBatch.objectRefs.size(); ++j)
 		{
-			auto* obj = m_skinnedBatch.objects[j].get();
+			auto* obj = m_skinnedBatch.objectRefs[j];
 			if (!obj) continue;
 
 			auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)m_skinnedBatch.mappedGameObjects + j * ncb);
@@ -54,7 +53,6 @@ void CScene::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList)
 			);
 
 			cb->m_nObjectID = j;
-			cb->m_nMaterialID = (obj->m_pMaterial) ? obj->m_pMaterial->m_nReflection : 0;
 		}
 	}
 }
@@ -66,16 +64,16 @@ bool CScene::ProcessInput(UCHAR* pKeysBuffer)
 
 void CScene::AnimateObjects(float fTimeElapsed)
 {
-	for (UINT j = 0; j < (UINT)m_staticBatch.objects.size(); ++j)
+	for (UINT j = 0; j < (UINT)m_staticObjects.size(); ++j)
 	{
-		if (!m_staticBatch.objects[j]) continue;
-		m_staticBatch.objects[j]->Animate(fTimeElapsed);
+		if (!m_staticObjects[j]) continue;
+		m_staticObjects[j]->Animate(fTimeElapsed);
 	}
 
-	for (UINT j = 0; j < (UINT)m_skinnedBatch.objects.size(); ++j)
+	for (UINT j = 0; j < (UINT)m_skinnedObjects.size(); ++j)
 	{
-		if (!m_skinnedBatch.objects[j]) continue;
-		m_skinnedBatch.objects[j]->Animate(fTimeElapsed);
+		if (!m_skinnedObjects[j]) continue;
+		m_skinnedObjects[j]->Animate(fTimeElapsed);
 	}
 
 	if (m_pLights)
@@ -114,22 +112,22 @@ void CScene::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera
     if (m_staticBatch.shader)
     {
 		m_staticBatch.shader->Render(pd3dCommandList, pCamera, &m_staticBatch);
-        for (UINT j = 0; j < (UINT)m_staticBatch.objects.size(); ++j)
-        {
-            if (!m_staticBatch.objects[j]) continue;
-            m_staticBatch.objects[j]->Render(pd3dCommandList, pCamera);
-        }
+		for (UINT j = 0; j < (UINT)m_staticObjects.size(); ++j)
+		{
+			if (!m_staticObjects[j]) continue;
+			m_staticObjects[j]->Render(pd3dCommandList, pCamera);
+		}
     }
 
     // ---- Skinned batch ----
     if (m_skinnedBatch.shader)
     {
 		m_skinnedBatch.shader->Render(pd3dCommandList, pCamera, &m_skinnedBatch);
-        for (UINT j = 0; j < (UINT)m_skinnedBatch.objects.size(); ++j)
-        {
-            if (!m_skinnedBatch.objects[j]) continue;
-            m_skinnedBatch.objects[j]->Render(pd3dCommandList, pCamera);
-        }
+		for (UINT j = 0; j < (UINT)m_skinnedObjects.size(); ++j)
+		{
+			if (!m_skinnedObjects[j]) continue;
+			m_skinnedObjects[j]->Render(pd3dCommandList, pCamera);
+		}
     }
 
     // ---- Player ----
@@ -138,8 +136,8 @@ void CScene::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera
         m_pPlayer->OnPrepareRender(pd3dCommandList, pCamera);
         m_pPlayer->UpdateShaderVariables(pd3dCommandList);
 
-        if (m_pPlayer->m_pMaterial && m_pPlayer->m_pMaterial->m_pShader)
-            m_pPlayer->m_pMaterial->m_pShader->Render(pd3dCommandList, pCamera, nullptr);
+		if (auto sh = m_pPlayer->GetShader())
+			sh->Render(pd3dCommandList, pCamera, nullptr);
 
         m_pPlayer->CGameObject::Render(pd3dCommandList, pCamera);
     }

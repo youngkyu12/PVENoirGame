@@ -11,8 +11,8 @@
 #include "Player.h"
 #include "DescriptorHeap.h"
 
-#define ROOT_PARAMETER_GLOBAL_SRV 6
 #define ROOT_PARAMETER_DRAW_OPTIONS 5
+#define ROOT_PARAMETER_GLOBAL_SRV 6
 constexpr UINT LEGACY_SRV_COUNT = 6; // t0(1) + t1~t5(5)
 
 class CMaterial;
@@ -67,7 +67,7 @@ struct SCENE_STATIC_BATCH
 	UINT                                             capacity = 0;   // 최대 수용
 	UINT                                             count = 0;      // 현재 수(=objects.size())
 
-	std::vector<std::unique_ptr<CGameObject>>        objects;
+	std::vector<CGameObject*>                        objectRefs; 
 
 	ComPtr<ID3D12Resource>                           cbGameObjects;
 	CB_GAMEOBJECT_INFO* mappedGameObjects = nullptr;
@@ -95,7 +95,7 @@ struct SCENE_SKINNED_BATCH
 	D3D12_GPU_DESCRIPTOR_HANDLE                      baseCbvGpu = { 0 };
 	UINT                                             cbvInc = 0;
 
-	std::vector<std::unique_ptr<CGameObject>>        objects;
+	std::vector<CGameObject*>                        objectRefs;
 };
 
 
@@ -180,4 +180,8 @@ public:
 public:
 	SCENE_STATIC_BATCH						m_staticBatch;
 	SCENE_SKINNED_BATCH						m_skinnedBatch;
+public:
+	std::vector<std::unique_ptr<CGameObject>>   m_staticObjects;
+	std::vector<std::unique_ptr<CGameObject>>   m_skinnedObjects;
+
 };
