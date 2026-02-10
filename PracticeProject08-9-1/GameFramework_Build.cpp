@@ -327,6 +327,9 @@ void CGameFramework::BuildObjects()
 		1
 	);
 
+	if (m_pPlayer)
+		m_pPlayer->CreateComponents(m_pd3dDevice.Get(), m_pd3dCommandList.Get());
+
 	m_pScene->m_pPlayer = m_pPlayer;
 	m_pCamera = m_pPlayer->GetCamera();
 

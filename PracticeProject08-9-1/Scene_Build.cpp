@@ -203,6 +203,7 @@ void CScene::BuildStaticBatch(
 		obj->SetPosition(0.0f, 0.0f, 30.0f);
 
 		obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+		obj->CreateComponents(pd3dDevice, pd3dCommandList);
 
 		CGameObject* raw = obj.get();              // non-owning pointer for batch
 		m_staticObjects.push_back(std::move(obj)); // scene owns
@@ -348,6 +349,7 @@ void CScene::BuildSkinnedBatch(
 				obj->Animate(0.0f);
 			}
 
+			obj->CreateComponents(pd3dDevice, pd3dCommandList);
 			CGameObject* raw = obj.get();
 			m_skinnedObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
@@ -433,6 +435,7 @@ void CScene::BuildSkinnedBatch(
 				obj->Animate(0.0f);
 			}
 
+			obj->CreateComponents(pd3dDevice, pd3dCommandList);
 			CGameObject* raw = obj.get();
 			m_skinnedObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);

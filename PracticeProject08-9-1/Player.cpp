@@ -14,10 +14,11 @@
 
 CPlayer::CPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, ID3D12RootSignature *pd3dGraphicsRootSignature, void *pContext, int nMeshes): CGameObject(nMeshes)
 {
-	m_xmf3Position = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	m_xmf3Right = XMFLOAT3(1.0f, 0.0f, 0.0f);
-	m_xmf3Up = XMFLOAT3(0.0f, 1.0f, 0.0f);
-	m_xmf3Look = XMFLOAT3(0.0f, 0.0f, 1.0f);
+	if (m_pTransform)
+	{
+		m_pTransform->SetPosition(XMFLOAT3(0.0f, 0.0f, 0.0f));
+		m_pTransform->SetYawDegrees(0.0f);
+	}
 
 	m_xmf3Velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
 	m_xmf3Gravity = XMFLOAT3(0.0f, 0.0f, 0.0f);
@@ -25,8 +26,6 @@ CPlayer::CPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dComman
 	m_fMaxVelocityY = 0.0f;
 	m_fFriction = 0.0f;
 
-	m_fPitch = 0.0f;
-	m_fRoll = 0.0f;
 	m_fYaw = 0.0f;
 }
 
@@ -87,53 +86,61 @@ void CPlayer::ReleaseShaderVariables()
 
 void CPlayer::UpdateShaderVariables(ID3D12GraphicsCommandList* cmd)
 {
-	// -------------------------
-	// (1) b0: Player CB 갱신(유지)
-	// -------------------------
+	(void)cmd;
+
+	const XMFLOAT4X4& W = m_pTransform->GetWorldMatrix();
+
+	// b0
 	if (m_pcbMappedPlayer)
 	{
 		XMStoreFloat4x4(
 			&m_pcbMappedPlayer->m_xmf4x4World,
-			XMMatrixTranspose(XMLoadFloat4x4(&m_xmf4x4World))
+			XMMatrixTranspose(XMLoadFloat4x4(&W))
 		);
 	}
 
-	// -------------------------
-	// (2) b2: GameObject CB 갱신 (CSkinnedObjectsShader가 실제로 읽는 값)
-	// -------------------------
+	// b2
 	if (m_pcbMappedGameObject)
 	{
 		XMStoreFloat4x4(
 			&m_pcbMappedGameObject->m_xmf4x4World,
-			XMMatrixTranspose(XMLoadFloat4x4(&m_xmf4x4World))
+			XMMatrixTranspose(XMLoadFloat4x4(&W))
 		);
-
 		m_pcbMappedGameObject->m_nObjectID = 0;
 	}
 }
 
-void CPlayer::Move(DWORD dwDirection, float fDistance, bool bUpdateVelocity)
+void CPlayer::Move(DWORD dwDirection, float fDistance, bool bUpdateVelocity,
+	CPlayer::EVerticalMoveSpace upSpace)
 {
+	XMFLOAT3 look = GetLookVector();
+	XMFLOAT3 right = GetRightVector();
+
+	// DIR_UP/DOWN은 옵션: 월드업 vs 로컬업
+	XMFLOAT3 up = (upSpace == EVerticalMoveSpace::LocalUp)
+		? GetUpVector()
+		: XMFLOAT3(0.0f, 1.0f, 0.0f);
+
 	if (dwDirection)
 	{
 		XMFLOAT3 xmf3Shift = XMFLOAT3(0, 0, 0);
 		if (dwDirection & DIR_FORWARD)
-			xmf3Shift = Vector3::Add(xmf3Shift, m_xmf3Look, fDistance);
+			xmf3Shift = Vector3::Add(xmf3Shift, look, fDistance);
 
 		if (dwDirection & DIR_BACKWARD)
-			xmf3Shift = Vector3::Add(xmf3Shift, m_xmf3Look, -fDistance);
+			xmf3Shift = Vector3::Add(xmf3Shift, look, -fDistance);
 
 		if (dwDirection & DIR_RIGHT)
-			xmf3Shift = Vector3::Add(xmf3Shift, m_xmf3Right, fDistance);
+			xmf3Shift = Vector3::Add(xmf3Shift, right, fDistance);
 
 		if (dwDirection & DIR_LEFT)
-			xmf3Shift = Vector3::Add(xmf3Shift, m_xmf3Right, -fDistance);
+			xmf3Shift = Vector3::Add(xmf3Shift, right, -fDistance);
 
 		if (dwDirection & DIR_UP)
-			xmf3Shift = Vector3::Add(xmf3Shift, m_xmf3Up, fDistance);
+			xmf3Shift = Vector3::Add(xmf3Shift, up, fDistance);
 
 		if (dwDirection & DIR_DOWN)
-			xmf3Shift = Vector3::Add(xmf3Shift, m_xmf3Up, -fDistance);
+			xmf3Shift = Vector3::Add(xmf3Shift, up, -fDistance);
 
 		Move(xmf3Shift, bUpdateVelocity);
 	}
@@ -147,90 +154,58 @@ void CPlayer::Move(const XMFLOAT3& xmf3Shift, bool bUpdateVelocity)
 	}
 	else
 	{
-		m_xmf3Position = Vector3::Add(m_xmf3Position, xmf3Shift);
+		if (m_pTransform)
+			m_pTransform->Translate(xmf3Shift);
+
 		m_pCamera->Move(xmf3Shift);
 	}
+
 }
 
 void CPlayer::Rotate(float x, float y, float z)
 {
 	DWORD nCurrentCameraMode = m_pCamera->GetMode();
-	if ((nCurrentCameraMode == FIRST_PERSON_CAMERA)|| (nCurrentCameraMode == THIRD_PERSON_CAMERA))
-	{
-		if (x != 0.0f)
-		{
-			m_fPitch += x;
-			if (m_fPitch > +89.0f)
-			{ 
-				x -= (m_fPitch - 89.0f); 
-				m_fPitch = +89.0f; 
-			}
 
-			if (m_fPitch < -89.0f)
-			{ 
-				x -= (m_fPitch + 89.0f);
-				m_fPitch = -89.0f; 
-			}
-		}
+	if ((nCurrentCameraMode == FIRST_PERSON_CAMERA) || (nCurrentCameraMode == THIRD_PERSON_CAMERA))
+	{
 		if (y != 0.0f)
 		{
 			m_fYaw += y;
-			if (m_fYaw > 360.0f)
-				m_fYaw -= 360.0f;
-
-			if (m_fYaw < 0.0f)
-				m_fYaw += 360.0f;
+			if (m_fYaw > 360.0f) m_fYaw -= 360.0f;
+			if (m_fYaw < 0.0f)   m_fYaw += 360.0f;
 		}
-		if (z != 0.0f)
-		{
-			m_fRoll += z;
-			if (m_fRoll > +20.0f)
-			{ 
-				z -= (m_fRoll - 20.0f); 
-				m_fRoll = +20.0f; 
-			}
 
-			if (m_fRoll < -20.0f)
-			{ 
-				z -= (m_fRoll + 20.0f); 
-				m_fRoll = -20.0f; 
-			}
-		}
+		// 카메라 회전은 기존대로
 		m_pCamera->Rotate(x, y, z);
 
-		if (y != 0.0f)
-		{
-			XMMATRIX xmmtxRotate = XMMatrixRotationAxis(XMLoadFloat3(&m_xmf3Up), XMConvertToRadians(y));
-			m_xmf3Look = Vector3::TransformNormal(m_xmf3Look, xmmtxRotate);
-			m_xmf3Right = Vector3::TransformNormal(m_xmf3Right, xmmtxRotate);
-		}
+		// Player 바디는 “yaw만” Transform으로 반영 (기존 코드와 동일한 의미)
+		if (m_pTransform)
+			m_pTransform->SetYawDegrees(m_fYaw);
 	}
 	else if (nCurrentCameraMode == SPACESHIP_CAMERA)
 	{
+		// 스페이스쉽 모드: 카메라도, 바디도 자유 회전
 		m_pCamera->Rotate(x, y, z);
-		if (x != 0.0f)
+
+		if (m_pTransform)
 		{
-			XMMATRIX xmmtxRotate = XMMatrixRotationAxis(XMLoadFloat3(&m_xmf3Right), XMConvertToRadians(x));
-			m_xmf3Look = Vector3::TransformNormal(m_xmf3Look, xmmtxRotate);
-			m_xmf3Up = Vector3::TransformNormal(m_xmf3Up, xmmtxRotate);
-		}
-		if (y != 0.0f)
-		{
-			XMMATRIX xmmtxRotate = XMMatrixRotationAxis(XMLoadFloat3(&m_xmf3Up), XMConvertToRadians(y));
-			m_xmf3Look = Vector3::TransformNormal(m_xmf3Look, xmmtxRotate);
-			m_xmf3Right = Vector3::TransformNormal(m_xmf3Right, xmmtxRotate);
-		}
-		if (z != 0.0f)
-		{
-			XMMATRIX xmmtxRotate = XMMatrixRotationAxis(XMLoadFloat3(&m_xmf3Look), XMConvertToRadians(z));
-			m_xmf3Up = Vector3::TransformNormal(m_xmf3Up, xmmtxRotate);
-			m_xmf3Right = Vector3::TransformNormal(m_xmf3Right, xmmtxRotate);
+			if (x != 0.0f)
+			{
+				XMFLOAT3 axis = m_pTransform->GetRight();
+				m_pTransform->RotateWorldAxisDegrees(axis, x);
+			}
+			if (y != 0.0f)
+			{
+				XMFLOAT3 axis = m_pTransform->GetUp();
+				m_pTransform->RotateWorldAxisDegrees(axis, y);
+			}
+			if (z != 0.0f)
+			{
+				XMFLOAT3 axis = m_pTransform->GetLook();
+				m_pTransform->RotateWorldAxisDegrees(axis, z);
+			}
 		}
 	}
-
-	m_xmf3Look = Vector3::Normalize(m_xmf3Look);
-	m_xmf3Right = Vector3::CrossProduct(m_xmf3Up, m_xmf3Look, true);
-	m_xmf3Up = Vector3::CrossProduct(m_xmf3Look, m_xmf3Right, true);
 }
 
 void CPlayer::Update(float fTimeElapsed)
@@ -257,14 +232,16 @@ void CPlayer::Update(float fTimeElapsed)
 
 	DWORD nCurrentCameraMode = m_pCamera->GetMode();
 
+	XMFLOAT3 pos = GetPosition();
+
 	if (nCurrentCameraMode == THIRD_PERSON_CAMERA)
-		m_pCamera->Update(m_xmf3Position, fTimeElapsed);
+		m_pCamera->Update(pos, fTimeElapsed);
 
 	if (m_pCameraUpdatedContext)
 		OnCameraUpdateCallback(fTimeElapsed);
 
 	if (nCurrentCameraMode == THIRD_PERSON_CAMERA)
-		m_pCamera->SetLookAt(m_xmf3Position);
+		m_pCamera->SetLookAt(pos);
 
 	m_pCamera->RegenerateViewMatrix();
 
@@ -295,20 +272,25 @@ unique_ptr<CCamera> CPlayer::OnChangeCamera(DWORD nNewCameraMode, DWORD nCurrent
 	}
 	if (nCurrentCameraMode == SPACESHIP_CAMERA)
 	{
-		m_xmf3Right = Vector3::Normalize(XMFLOAT3(m_xmf3Right.x, 0.0f, m_xmf3Right.z));
-		m_xmf3Up = Vector3::Normalize(XMFLOAT3(0.0f, 1.0f, 0.0f));
-		m_xmf3Look = Vector3::Normalize(XMFLOAT3(m_xmf3Look.x, 0.0f, m_xmf3Look.z));
+		XMFLOAT3 look = GetLookVector();
+		look.y = 0.0f;
+		look = Vector3::Normalize(look);
 
-		m_fPitch = 0.0f;
-		m_fRoll = 0.0f;
-		m_fYaw = Vector3::Angle(XMFLOAT3(0.0f, 0.0f, 1.0f), m_xmf3Look);
-		if (m_xmf3Look.x < 0.0f)m_fYaw = -m_fYaw;
+		m_fYaw = Vector3::Angle(XMFLOAT3(0.0f, 0.0f, 1.0f), look);
+		if (look.x < 0.0f) m_fYaw = -m_fYaw;
+
+		if (m_pTransform)
+			m_pTransform->SetYawDegrees(m_fYaw);
 	}
-	else if ((nNewCameraMode == SPACESHIP_CAMERA)&& m_pCamera)
+	else if ((nNewCameraMode == SPACESHIP_CAMERA) && m_pCamera)
 	{
-		m_xmf3Right = m_pCamera->GetRightVector();
-		m_xmf3Up = m_pCamera->GetUpVector();
-		m_xmf3Look = m_pCamera->GetLookVector();
+		if (m_pTransform)
+		{
+			XMFLOAT3 r = m_pCamera->GetRightVector();
+			XMFLOAT3 u = m_pCamera->GetUpVector();
+			XMFLOAT3 l = m_pCamera->GetLookVector();
+			m_pTransform->SetRotationFromBasis(r, u, l);
+		}
 	}
 
 	if (pNewCamera)
@@ -320,13 +302,12 @@ unique_ptr<CCamera> CPlayer::OnChangeCamera(DWORD nNewCameraMode, DWORD nCurrent
 	return(move(pNewCamera));
 }
 
-void CPlayer::OnPrepareRender(ID3D12GraphicsCommandList *pd3dCommandList, CCamera *pCamera)
+void CPlayer::OnPrepareRender(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera)
 {
-	m_xmf4x4World._11 = m_xmf3Right.x; m_xmf4x4World._12 = m_xmf3Right.y; m_xmf4x4World._13 = m_xmf3Right.z;
-	m_xmf4x4World._21 = m_xmf3Up.x; m_xmf4x4World._22 = m_xmf3Up.y; m_xmf4x4World._23 = m_xmf3Up.z;
-	m_xmf4x4World._31 = m_xmf3Look.x; m_xmf4x4World._32 = m_xmf3Look.y; m_xmf4x4World._33 = m_xmf3Look.z;
-	m_xmf4x4World._41 = m_xmf3Position.x; m_xmf4x4World._42 = m_xmf3Position.y; m_xmf4x4World._43 = m_xmf3Position.z;
+	(void)pd3dCommandList;
+	(void)pCamera;
 }
+
 
 void CPlayer::SetRootParameter(ID3D12GraphicsCommandList* cmd)
 {
@@ -396,7 +377,7 @@ CFighterPlayer::CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandLi
 	default:
 		break;
 	}
-	m_pCamera->SetPosition(Vector3::Add(m_xmf3Position, m_pCamera->GetOffset()));
+	m_pCamera->SetPosition(Vector3::Add(GetPosition(), m_pCamera->GetOffset()));
 	Update(0.0f);
 
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
@@ -585,7 +566,7 @@ CCamera * CFighterPlayer::ChangeCamera(DWORD nNewCameraMode, float fTimeElapsed)
 		default:
 			break;
 	}
-	m_pCamera->SetPosition(Vector3::Add(m_xmf3Position, m_pCamera->GetOffset()));
+	m_pCamera->SetPosition(Vector3::Add(GetPosition(), m_pCamera->GetOffset()));
 	Update(fTimeElapsed);
 
 	return(m_pCamera.get());

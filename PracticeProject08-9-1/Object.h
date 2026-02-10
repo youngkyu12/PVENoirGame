@@ -4,9 +4,15 @@
 
 #pragma once
 
+#include <memory>
+#include <vector>
+#include <type_traits>
+
 #include "Mesh.h"
 #include "Camera.h"
 #include "Animator.h"
+#include "Component.h"
+
 
 #define DIR_FORWARD					0x01
 #define DIR_BACKWARD				0x02
@@ -19,6 +25,7 @@ class CMesh;
 class CShader;
 class CAnimator;
 class CAnimController;
+class CComponent;
 
 struct CB_GAMEOBJECT_INFO
 {
@@ -59,6 +66,17 @@ public:
 	void Rotate(float fPitch = 10.0f, float fYaw = 10.0f, float fRoll = 10.0f);
 	void Rotate(XMFLOAT3 *pxmf3Axis, float fAngle);
 
+public:
+	void CreateComponents(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
+	void DestroyComponents();
+	void UpdateComponents(float fTimeElapsed);
+
+	template<typename T, typename... Args>
+	T* AddComponent(Args&&... args);
+
+	template<typename T>
+	T* GetComponent() const;
+
 // Get & Set Method
 public:
 	void SetMesh(int nIndex, shared_ptr<CMesh> pMesh);
@@ -82,30 +100,31 @@ public:
 		}
 	}
 
-	XMFLOAT3 GetPosition() const { return(XMFLOAT3(m_xmf4x4World._41, m_xmf4x4World._42, m_xmf4x4World._43)); }
-	XMFLOAT3 GetLook() const { return(Vector3::Normalize(XMFLOAT3(m_xmf4x4World._31, m_xmf4x4World._32, m_xmf4x4World._33))); }
-	XMFLOAT3 GetUp() const { return(Vector3::Normalize(XMFLOAT3(m_xmf4x4World._21, m_xmf4x4World._22, m_xmf4x4World._23))); }
-	XMFLOAT3 GetRight() const { return(Vector3::Normalize(XMFLOAT3(m_xmf4x4World._11, m_xmf4x4World._12, m_xmf4x4World._13))); }
+	// ===== Transform authoritative getters =====
+	XMFLOAT3 GetPosition() const { return m_pTransform->position; }
+	XMFLOAT3 GetLook()     const { return m_pTransform->GetLook(); }
+	XMFLOAT3 GetUp()       const { return m_pTransform->GetUp(); }
+	XMFLOAT3 GetRight()    const { return m_pTransform->GetRight(); }
 
-	void SetPosition(float x, float y, float z) {
-		m_xmf4x4World._41 = x;
-		m_xmf4x4World._42 = y;
-		m_xmf4x4World._43 = z;
+	const XMFLOAT4X4& GetWorldMatrix() const { return m_pTransform->GetWorldMatrix(); }
+
+	void SetPosition(float x, float y, float z)
+	{
+		m_pTransform->SetPosition(XMFLOAT3(x, y, z));
 	}
-	void SetPosition(XMFLOAT3 xmf3Position) {
-		SetPosition(xmf3Position.x, xmf3Position.y, xmf3Position.z);
+	void SetPosition(XMFLOAT3 p) { SetPosition(p.x, p.y, p.z); }
+
+	// 호환용: 외부 월드행렬 입력이 필요할 때도 Transform만 변경(권위 유지)
+	void SetWorldMatrix(const XMFLOAT4X4& W)
+	{
+		m_pTransform->SetWorldMatrixFromMatrix(W);
 	}
 
 public:
-	XMFLOAT4X4						m_xmf4x4World = Matrix4x4::Identity();
-
 	vector<shared_ptr<CMesh>>		m_ppMeshes;
 	int								m_nMeshes = 0;
 
 	D3D12_GPU_DESCRIPTOR_HANDLE		m_d3dCbvGPUDescriptorHandle = { 0 };
-
-	void SetWorldMatrix(const XMFLOAT4X4& xmf4x4World) { m_xmf4x4World = xmf4x4World; }
-	XMFLOAT4X4 GetWorldMatrix() { return(m_xmf4x4World); }
 
 	// ================================
 	// Animation / Skinning (per-object)
@@ -132,6 +151,17 @@ public:
 	void UpdateBoneTransformsOnGPU(const XMFLOAT4X4* pxmf4x4BoneTransforms, int nBones);
 
 protected:
+	// --------------------
+	// Components (owned)
+	// --------------------
+	CTransformComponent* m_pTransform = nullptr;
+	CTransformComponent* GetTransform() const { return m_pTransform; }
+	std::vector<std::unique_ptr<CComponent>> m_components;
+
+	bool m_bComponentsCreated = false;
+	ID3D12Device* m_pd3dDeviceForComponents = nullptr;
+	ID3D12GraphicsCommandList* m_pd3dCmdForComponents = nullptr;
+
 	ComPtr<ID3D12Resource>			m_pd3dcbGameObject;
 	CB_GAMEOBJECT_INFO* m_pcbMappedGameObject = nullptr;
 
@@ -169,3 +199,35 @@ public:
 
 };
 
+// ============================================================================
+// CGameObject - Component templates (header-only)
+// ============================================================================
+template<typename T, typename... Args>
+T* CGameObject::AddComponent(Args&&... args)
+{
+	static_assert(std::is_base_of<CComponent, T>::value, "T must derive from CComponent");
+
+	auto comp = std::make_unique<T>(this, std::forward<Args>(args)...);
+	T* raw = comp.get();
+
+	m_components.emplace_back(std::move(comp));
+
+	// 이미 CreateComponents가 끝난 상태면 즉시 OnCreate 호출
+	if (m_bComponentsCreated && raw)
+		raw->OnCreate(m_pd3dDeviceForComponents, m_pd3dCmdForComponents);
+
+	return raw;
+}
+
+template<typename T>
+T* CGameObject::GetComponent() const
+{
+	const auto want = CComponent::StaticTypeId<T>();
+
+	for (const auto& c : m_components)
+	{
+		if (c && c->GetTypeId() == want)
+			return static_cast<T*>(c.get());
+	}
+	return nullptr;
+}

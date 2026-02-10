@@ -16,26 +16,31 @@
 //
 CGameObject::CGameObject(int nMeshes)
 {
-	m_nMeshes = nMeshes;
-	if (m_nMeshes > 0)
-	{
-		m_ppMeshes.resize(m_nMeshes);
-	}
+    m_nMeshes = nMeshes;
+    if (m_nMeshes > 0)
+    {
+        m_ppMeshes.resize(m_nMeshes);
+    }
+    m_components.reserve(8);
+    m_pTransform = AddComponent<CTransformComponent>();
 }
 
 CGameObject::~CGameObject()
 {
-	ReleaseShaderVariables();
+   DestroyComponents();
 
-	if (!m_ppMeshes.empty())
-	{
-		for (int i = 0; i < m_nMeshes; i++)
-		{
-			if (m_ppMeshes[i])
-				m_ppMeshes[i].reset();
-		}
-	}
+    ReleaseShaderVariables();
+
+    if (!m_ppMeshes.empty())
+    {
+        for (int i = 0; i < m_nMeshes; i++)
+        {
+            if (m_ppMeshes[i])
+                m_ppMeshes[i].reset();
+        }
+    }
 }
+
 
 void CGameObject::ReleaseShaderVariables()
 {
@@ -77,6 +82,59 @@ void CGameObject::SetMesh(int nIndex, shared_ptr<CMesh> pMesh)
 		m_ppMeshes[nIndex] = pMesh;
 	}
 }
+
+// ============================================================================
+// Components
+// ============================================================================
+void CGameObject::CreateComponents(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
+{
+    if (m_bComponentsCreated) return;
+
+    m_bComponentsCreated = true;
+    m_pd3dDeviceForComponents = pd3dDevice;
+    m_pd3dCmdForComponents = pd3dCommandList;
+
+    for (auto& c : m_components)
+    {
+        if (c && c->IsEnabled())
+            c->OnCreate(pd3dDevice, pd3dCommandList);
+    }
+}
+
+void CGameObject::DestroyComponents()
+{
+    if (!m_bComponentsCreated && m_components.empty())
+        return;
+
+    // 역순 파괴(의존 관계 대비)
+    for (int i = (int)m_components.size() - 1; i >= 0; --i)
+    {
+        if (m_components[i])
+            m_components[i]->OnDestroy();
+    }
+
+    m_components.clear();
+    m_bComponentsCreated = false;
+    m_pd3dDeviceForComponents = nullptr;
+    m_pd3dCmdForComponents = nullptr;
+}
+
+void CGameObject::UpdateComponents(float dt)
+{
+    if (!m_bComponentsCreated) return;
+
+    for (auto& c : m_components)
+    {
+        if (c && c->IsEnabled())
+            c->OnUpdate(dt);
+    }
+    for (auto& c : m_components)
+    {
+        if (c && c->IsEnabled())
+            c->OnLateUpdate(dt);
+    }
+}
+
 
 void CGameObject::EnableSkinning(ID3D12Device* pd3dDevice, int nBones)
 {

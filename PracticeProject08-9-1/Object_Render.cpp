@@ -8,18 +8,30 @@
 
 void CGameObject::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList)
 {
+	(void)pd3dCommandList;
 	if (!m_pcbMappedGameObject) return;
+
+	// Transform이 WorldMatrix의 유일 권위
+	const XMFLOAT4X4& W = m_pTransform->GetWorldMatrix();
 
 	XMStoreFloat4x4(
 		&m_pcbMappedGameObject->m_xmf4x4World,
-		XMMatrixTranspose(XMLoadFloat4x4(&m_xmf4x4World))
+		XMMatrixTranspose(XMLoadFloat4x4(&W))
 	);
 
 	m_pcbMappedGameObject->m_nObjectID = 0;
+
+	// (옵션) 캐시를 쓰는 경우에만 동기화
+	// m_cachedWorld = W;
 }
+
+
+
 
 void CGameObject::Animate(float dt)
 {
+	UpdateComponents(dt);
+
 	// 1) 상태 결정(Idle/Run)
 	if (m_pAnimController)
 		m_pAnimController->Update(dt);
@@ -64,36 +76,30 @@ void CGameObject::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pC
 
 void CGameObject::MoveStrafe(float fDistance)
 {
-	XMFLOAT3 xmf3Position = GetPosition();
-	XMFLOAT3 xmf3Right = GetRight();
-	xmf3Position = Vector3::Add(xmf3Position, xmf3Right, fDistance);
-	CGameObject::SetPosition(xmf3Position);
+	XMFLOAT3 delta = Vector3::ScalarProduct(GetRight(), fDistance, false);
+	m_pTransform->Translate(delta);
 }
 
 void CGameObject::MoveUp(float fDistance)
 {
-	XMFLOAT3 xmf3Position = GetPosition();
-	XMFLOAT3 xmf3Up = GetUp();
-	xmf3Position = Vector3::Add(xmf3Position, xmf3Up, fDistance);
-	CGameObject::SetPosition(xmf3Position);
+	XMFLOAT3 delta = Vector3::ScalarProduct(GetUp(), fDistance, false); // 로컬업
+	m_pTransform->Translate(delta);
 }
 
 void CGameObject::MoveForward(float fDistance)
 {
-	XMFLOAT3 xmf3Position = GetPosition();
-	XMFLOAT3 xmf3Look = GetLook();
-	xmf3Position = Vector3::Add(xmf3Position, xmf3Look, fDistance);
-	CGameObject::SetPosition(xmf3Position);
+	XMFLOAT3 delta = Vector3::ScalarProduct(GetLook(), fDistance, false);
+	m_pTransform->Translate(delta);
 }
 
 void CGameObject::Rotate(float fPitch, float fYaw, float fRoll)
 {
-	XMMATRIX mtxRotate = XMMatrixRotationRollPitchYaw(XMConvertToRadians(fPitch), XMConvertToRadians(fYaw), XMConvertToRadians(fRoll));
-	m_xmf4x4World = Matrix4x4::Multiply(mtxRotate, m_xmf4x4World);
+	// Transform이 회전의 유일 권위
+	m_pTransform->RotateWorldEulerDegrees(fPitch, fYaw, fRoll);
 }
 
 void CGameObject::Rotate(XMFLOAT3* pxmf3Axis, float fAngle)
 {
-	XMMATRIX mtxRotate = XMMatrixRotationAxis(XMLoadFloat3(pxmf3Axis), XMConvertToRadians(fAngle));
-	m_xmf4x4World = Matrix4x4::Multiply(mtxRotate, m_xmf4x4World);
+	if (!pxmf3Axis) return;
+	m_pTransform->RotateWorldAxisDegrees(*pxmf3Axis, fAngle);
 }
