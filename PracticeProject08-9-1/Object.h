@@ -13,6 +13,7 @@
 #include "Animator.h"
 #include "Component.h"
 #include "RendererComponent.h"
+#include "ModelComponent.h"
 
 #define DIR_FORWARD					0x01
 #define DIR_BACKWARD				0x02
@@ -79,6 +80,31 @@ public:
 
 	// Get & Set Method
 public:
+	// ===== Model (Meshes) accessors =====
+	CModelComponent* GetModel() const { return m_pModel; }
+
+	int GetMeshCount() const
+	{
+		return (m_pModel) ? m_pModel->GetMeshCount() : 0;
+	}
+
+	std::shared_ptr<CMesh> GetMeshShared(int idx) const
+	{
+		return (m_pModel) ? m_pModel->GetMeshShared(idx) : nullptr;
+	}
+
+	std::vector<std::shared_ptr<CMesh>>& GetMeshes()
+	{
+		static std::vector<std::shared_ptr<CMesh>> dummy;
+		return (m_pModel) ? m_pModel->GetMeshes() : dummy;
+	}
+
+	const std::vector<std::shared_ptr<CMesh>>& GetMeshes() const
+	{
+		static std::vector<std::shared_ptr<CMesh>> dummy;
+		return (m_pModel) ? m_pModel->GetMeshes() : dummy;
+	}
+
 	void SetMesh(int nIndex, shared_ptr<CMesh> pMesh);
 
 	void SetCbvGPUDescriptorHandle(D3D12_GPU_DESCRIPTOR_HANDLE d3dCbvGPUDescriptorHandle) { m_d3dCbvGPUDescriptorHandle = d3dCbvGPUDescriptorHandle; }
@@ -121,9 +147,6 @@ public:
 	}
 
 public:
-	vector<shared_ptr<CMesh>>		m_ppMeshes;
-	int								m_nMeshes = 0;
-
 	D3D12_GPU_DESCRIPTOR_HANDLE		m_d3dCbvGPUDescriptorHandle = { 0 };
 
 	// ================================
@@ -157,6 +180,7 @@ protected:
 	CTransformComponent* m_pTransform = nullptr;
 	CTransformComponent* GetTransform() const { return m_pTransform; }
 	CRendererComponent* m_pRenderer = nullptr;
+	CModelComponent* m_pModel = nullptr;
 	std::vector<std::unique_ptr<CComponent>> m_components;
 
 	bool m_bComponentsCreated = false;
