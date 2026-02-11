@@ -118,6 +118,8 @@ void CGameObject::DestroyComponents()
     }
 
     m_components.clear();
+    m_pRenderer = nullptr;
+    m_pTransform = nullptr;
     m_bComponentsCreated = false;
     m_pd3dDeviceForComponents = nullptr;
     m_pd3dCmdForComponents = nullptr;

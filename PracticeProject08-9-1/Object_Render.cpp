@@ -5,6 +5,7 @@
 #include "stdafx.h"
 #include "Object.h"
 #include "AnimController.h"
+#include "AnimatorComponent.h"
 
 void CGameObject::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList)
 {
@@ -32,16 +33,23 @@ void CGameObject::Animate(float dt)
 {
 	UpdateComponents(dt);
 
-	// 1) 상태 결정(Idle/Run)
+	// AnimatorComponent가 있고, CreateComponents() 이후라면
+	// 애니메이션 갱신은 컴포넌트가 담당한다 (중복 방지)
+	if (m_bComponentsCreated && GetComponent<CAnimatorComponent>())
+		return;
+
+	// --------------------
+	// Legacy path:
+	//  - AnimatorComponent 없거나
+	//  - 아직 CreateComponents() 전(ctor 단계 등)
+	// --------------------
 	if (m_pAnimController)
 		m_pAnimController->Update(dt);
 
-	// 2) 포즈 계산
 	if (m_pAnimator)
 	{
 		m_pAnimator->Update(dt);
 
-		// 3) 스키닝이면 GPU 업로드
 		if (m_bSkinnedObject && m_pd3dcbBoneTransforms)
 		{
 			const auto& mats = m_pAnimator->GetFinalBoneMatrices();
