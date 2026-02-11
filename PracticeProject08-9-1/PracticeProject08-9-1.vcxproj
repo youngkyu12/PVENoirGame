@@ -148,6 +148,7 @@
     <ClInclude Include="Object.h" />
     <ClInclude Include="Player.h" />
     <ClInclude Include="PracticeProject08-9-1.h" />
+    <ClInclude Include="RendererComponent.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="Shader.h" />
@@ -175,6 +176,7 @@
     <ClCompile Include="Object_Render.cpp" />
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="PracticeProject08-9-1.cpp" />
+    <ClCompile Include="RendererComponent.cpp" />
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="Scene_Build.cpp" />
     <ClCompile Include="Scene_Input.cpp" />

@@ -12,7 +12,7 @@
 #include "Camera.h"
 #include "Animator.h"
 #include "Component.h"
-
+#include "RendererComponent.h"
 
 #define DIR_FORWARD					0x01
 #define DIR_BACKWARD				0x02
@@ -39,18 +39,18 @@ struct CB_GAMEOBJECT_INFO
 class CGameObject
 {
 public:
-	CGameObject(int nMeshes=1);
+	CGameObject(int nMeshes = 1);
 	virtual ~CGameObject();
 
 	virtual void ReleaseShaderVariables();
 	virtual void ReleaseUploadBuffers();
 
-// Build
+	// Build
 public:
-	virtual void CreateShaderVariables(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList);
+	virtual void CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
 	virtual void BuildMaterials(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList) {}
 
-// Render
+	// Render
 public:
 	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList);
 
@@ -64,7 +64,7 @@ public:
 	void MoveForward(float fDistance = 1.0f);
 
 	void Rotate(float fPitch = 10.0f, float fYaw = 10.0f, float fRoll = 10.0f);
-	void Rotate(XMFLOAT3 *pxmf3Axis, float fAngle);
+	void Rotate(XMFLOAT3* pxmf3Axis, float fAngle);
 
 public:
 	void CreateComponents(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
@@ -77,7 +77,7 @@ public:
 	template<typename T>
 	T* GetComponent() const;
 
-// Get & Set Method
+	// Get & Set Method
 public:
 	void SetMesh(int nIndex, shared_ptr<CMesh> pMesh);
 
@@ -156,14 +156,40 @@ protected:
 	// --------------------
 	CTransformComponent* m_pTransform = nullptr;
 	CTransformComponent* GetTransform() const { return m_pTransform; }
+	CRendererComponent* m_pRenderer = nullptr;
 	std::vector<std::unique_ptr<CComponent>> m_components;
 
 	bool m_bComponentsCreated = false;
 	ID3D12Device* m_pd3dDeviceForComponents = nullptr;
 	ID3D12GraphicsCommandList* m_pd3dCmdForComponents = nullptr;
 
+public:
+	// ★ Renderer 조회: 캐시 우선, 없으면 스캔
+	CRendererComponent* GetRenderer()
+	{
+		if (m_pRenderer) return m_pRenderer;
+
+		for (auto& c : m_components)
+		{
+			if (c && c->IsRenderer())
+			{
+				m_pRenderer = static_cast<CRendererComponent*>(c.get());
+				return m_pRenderer;
+			}
+		}
+		return nullptr;
+	}
+
+protected:
+	const CRendererComponent* GetRenderer() const
+	{
+		return const_cast<CGameObject*>(this)->GetRenderer();
+	}
 	ComPtr<ID3D12Resource>			m_pd3dcbGameObject;
 	CB_GAMEOBJECT_INFO* m_pcbMappedGameObject = nullptr;
+
+	void PreRenderComponents(ID3D12GraphicsCommandList* cmd);
+	void PostRenderComponents(ID3D12GraphicsCommandList* cmd);
 
 	// --------------------
 	// Skinning (per-object)
@@ -172,7 +198,7 @@ protected:
 	int                                 m_nBones = 0;
 
 	ComPtr<ID3D12Resource>              m_pd3dcbBoneTransforms = NULL;   // Upload heap CB
-	
+
 	// Animator (per-object)
 	std::unique_ptr<CAnimator>          m_pAnimator;
 
@@ -184,8 +210,8 @@ protected:
 	XMFLOAT4X4* m_pcbMappedBoneTransforms = nullptr;
 
 public:
-		CAnimController* EnsureAnimController();
-		CAnimController* GetAnimController() const { return m_pAnimController.get(); }
+	CAnimController* EnsureAnimController();
+	CAnimController* GetAnimController() const { return m_pAnimController.get(); }
 
 protected:
 	std::unique_ptr<CAnimController> m_pAnimController;
@@ -210,14 +236,22 @@ T* CGameObject::AddComponent(Args&&... args)
 	auto comp = std::make_unique<T>(this, std::forward<Args>(args)...);
 	T* raw = comp.get();
 
+	// ★ Renderer면 캐시 갱신 (빈오브젝트면 안 붙이면 됨)
+	if (raw)
+	{
+		CComponent* base = raw; // 업캐스트는 항상 안전/가능
+		if (base->IsRenderer())
+			m_pRenderer = static_cast<CRendererComponent*>(base); // base->derived 다운캐스트 (IsRenderer로 논리 보증)
+	}
+
 	m_components.emplace_back(std::move(comp));
 
-	// 이미 CreateComponents가 끝난 상태면 즉시 OnCreate 호출
 	if (m_bComponentsCreated && raw)
 		raw->OnCreate(m_pd3dDeviceForComponents, m_pd3dCmdForComponents);
 
 	return raw;
 }
+
 
 template<typename T>
 T* CGameObject::GetComponent() const

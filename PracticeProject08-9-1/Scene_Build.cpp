@@ -197,11 +197,9 @@ void CScene::BuildStaticBatch(
 
 		auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
 		obj->SetMappedGameObjectCB(cb);
-
 		obj->SetMesh(0, asset.mesh);
-
+		obj->AddComponent<CStaticMeshRendererComponent>();
 		obj->SetPosition(0.0f, 0.0f, 30.0f);
-
 		obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
 		obj->CreateComponents(pd3dDevice, pd3dCommandList);
 
@@ -306,9 +304,8 @@ void CScene::BuildSkinnedBatch(
 
 			auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
 			obj->SetMappedGameObjectCB(cb);
-
 			obj->SetMesh(0, asset.mesh);
-
+			obj->AddComponent<CStaticMeshRendererComponent>();
 			float x = distX(rng);
 			float y = rotY(rng);
 			float z = distZ(rng);
@@ -378,9 +375,8 @@ void CScene::BuildSkinnedBatch(
 
 			auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
 			obj->SetMappedGameObjectCB(cb);
-
 			obj->SetMesh(0, asset.mesh);
-
+			obj->AddComponent<CStaticMeshRendererComponent>();
 			UINT matId = 0;
 			if (asset.mesh)
 			{

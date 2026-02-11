@@ -55,24 +55,31 @@ void CGameObject::OnPrepareRender(ID3D12GraphicsCommandList* pd3dCommandList, CC
 {
 }
 
-void CGameObject::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera)
+void CGameObject::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
-	OnPrepareRender(pd3dCommandList, pCamera);
-	(void)pCamera; // 더 이상 여기서 카메라를 건드리지 않음
+	OnPrepareRender(cmd, camera);
 
-	// Draw-only: per-object root binding만
-	SetRootParameter(pd3dCommandList);
+	// ★ (1) 매 프레임 per-object CB 갱신 (Player는 override 버전이 호출됨)
+	UpdateShaderVariables(cmd);
 
-	// Draw-only: mesh draw만
-	if (!m_ppMeshes.empty())
-	{
-		for (int i = 0; i < m_nMeshes; i++)
-		{
-			if (m_ppMeshes[i])
-				m_ppMeshes[i]->Render(pd3dCommandList, m_pcbMappedGameObject);
-		}
-	}
+	// ★ (2) PSO/RootSig/Shader 변수 세팅 (카메라 CB 포함)
+	if (auto sh = GetShader())
+		sh->Render(cmd, camera, nullptr);
+
+	// PreRender hooks
+	for (auto& c : m_components)
+		if (c && c->IsEnabled()) c->OnPreRender(cmd);
+
+	// Draw
+	if (auto* r = GetRenderer())
+		if (r->IsEnabled())
+			r->Render(cmd, camera);
+
+	// PostRender hooks
+	for (auto& c : m_components)
+		if (c && c->IsEnabled()) c->OnPostRender(cmd);
 }
+
 
 void CGameObject::MoveStrafe(float fDistance)
 {
@@ -102,4 +109,26 @@ void CGameObject::Rotate(XMFLOAT3* pxmf3Axis, float fAngle)
 {
 	if (!pxmf3Axis) return;
 	m_pTransform->RotateWorldAxisDegrees(*pxmf3Axis, fAngle);
+}
+
+void CGameObject::PreRenderComponents(ID3D12GraphicsCommandList* cmd)
+{
+	if (!m_bComponentsCreated) return;
+
+	for (auto& c : m_components)
+	{
+		if (c && c->IsEnabled())
+			c->OnPreRender(cmd);
+	}
+}
+
+void CGameObject::PostRenderComponents(ID3D12GraphicsCommandList* cmd)
+{
+	if (!m_bComponentsCreated) return;
+
+	for (auto& c : m_components)
+	{
+		if (c && c->IsEnabled())
+			c->OnPostRender(cmd);
+	}
 }
