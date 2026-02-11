@@ -428,21 +428,21 @@ CFighterPlayer::CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandLi
 	// ------------------------------------------------------------
 	// 애니메이션 로드 + AnimatorComponent 세팅 + 초기 포즈 적용
 	// ------------------------------------------------------------
+	auto mesh0 = GetMeshShared(0); // ★ ModelComponent 경유
+
 	AnimationClip idleClip;
-	if (!m_ppMeshes.empty() && m_ppMeshes[0] &&
-		m_ppMeshes[0]->LoadAnimationFromBIN(
-			"Assets/Fighter/Animation/FighterIdle.bin",
-			"Idle", idleClip, 1.0f))
+	if (mesh0 && mesh0->LoadAnimationFromBIN(
+		"Assets/Fighter/Animation/FighterIdle.bin",
+		"Idle", idleClip, 1.0f))
 	{
 		idleClip.name = "Idle";
 		if (animComp) animComp->AddClip(idleClip);
 	}
 
 	AnimationClip runClip;
-	if (!m_ppMeshes.empty() && m_ppMeshes[0] &&
-		m_ppMeshes[0]->LoadAnimationFromBIN(
-			"Assets/Fighter/Animation/FighterRun.bin",
-			"Run", runClip, 1.0f))
+	if (mesh0 && mesh0->LoadAnimationFromBIN(
+		"Assets/Fighter/Animation/FighterRun.bin",
+		"Run", runClip, 1.0f))
 	{
 		runClip.name = "Run";
 		if (animComp) animComp->AddClip(runClip);
@@ -457,6 +457,7 @@ CFighterPlayer::CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandLi
 		// ctor 단계에서도 바로 포즈 계산 + bone palette 업로드
 		animComp->EvaluatePose(0.0f);
 	}
+
 
 	// ------------------------------------------------------------
 	// Player CBV 생성/바인딩
@@ -506,10 +507,10 @@ CFighterPlayer::CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandLi
 	// (3) Material에 Shader 연결
 	// ------------------------------------------------------------
 	SetShader(pShader);
-	if (pPlayerMesh && pPlayerMesh->IsSkinnedMesh())
-	{
-		if (!GetRenderer()) AddComponent<CSkinnedMeshRendererComponent>();
-	}
+	//if (pPlayerMesh && pPlayerMesh->IsSkinnedMesh())
+	//{
+	//	if (!GetRenderer()) AddComponent<CSkinnedMeshRendererComponent>();
+	//}
 }
 
 CFighterPlayer::~CFighterPlayer()

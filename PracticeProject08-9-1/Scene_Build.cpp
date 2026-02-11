@@ -322,9 +322,10 @@ void CScene::BuildSkinnedBatch(
 			AnimationClip idleClip;
 			bool idleLoaded = false;
 
-			if (!obj->m_ppMeshes.empty() && obj->m_ppMeshes[0])
+			auto mesh0 = obj->GetMeshShared(0);
+			if (mesh0)
 			{
-				idleLoaded = obj->m_ppMeshes[0]->LoadAnimationFromBIN(
+				idleLoaded = mesh0->LoadAnimationFromBIN(
 					"Assets/Zombie/Animation/ZombieAttack.bin",
 					"Idle", idleClip, 1.0f
 				);
@@ -407,9 +408,10 @@ void CScene::BuildSkinnedBatch(
 			AnimationClip idleClip;
 			bool idleLoaded = false;
 
-			if (!obj->m_ppMeshes.empty() && obj->m_ppMeshes[0])
+			auto mesh0 = obj->GetMeshShared(0);
+			if (mesh0)
 			{
-				idleLoaded = obj->m_ppMeshes[0]->LoadAnimationFromBIN(
+				idleLoaded = mesh0->LoadAnimationFromBIN(
 					"Assets/Fighter/Animation/FighterIdle.bin",
 					"Idle", idleClip, 1.0f
 				);

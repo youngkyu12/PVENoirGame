@@ -16,14 +16,14 @@ void CStaticMeshRendererComponent::Render(ID3D12GraphicsCommandList* cmd, CCamer
 
     owner->SetRootParameter(cmd);
 
-    if (!owner->m_ppMeshes.empty())
+    const int n = owner->GetMeshCount();
+    for (int i = 0; i < n; ++i)
     {
-        for (int i = 0; i < owner->m_nMeshes; ++i)
-        {
-            if (owner->m_ppMeshes[i])
-                owner->m_ppMeshes[i]->Render(cmd, owner->GetMappedGameObjectCB());
-        }
+        auto mesh = owner->GetMeshShared(i);
+        if (mesh)
+            mesh->Render(cmd, owner->GetMappedGameObjectCB());
     }
+
 }
 
 void CSkinnedMeshRendererComponent::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
@@ -34,7 +34,12 @@ void CSkinnedMeshRendererComponent::Render(ID3D12GraphicsCommandList* cmd, CCame
 
     owner->SetRootParameter(cmd);
 
-    for (int i = 0; i < owner->m_nMeshes; ++i)
-        if (owner->m_ppMeshes[i])
-            owner->m_ppMeshes[i]->Render(cmd, owner->GetMappedGameObjectCB());
+    const int n = owner->GetMeshCount();
+    for (int i = 0; i < n; ++i)
+    {
+        auto mesh = owner->GetMeshShared(i);
+        if (mesh)
+            mesh->Render(cmd, owner->GetMappedGameObjectCB());
+    }
+
 }

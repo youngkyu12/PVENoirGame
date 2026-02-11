@@ -16,17 +16,15 @@
 //
 CGameObject::CGameObject(int nMeshes)
 {
-    m_nMeshes = nMeshes;
-    if (m_nMeshes > 0)
-    {
-        m_ppMeshes.resize(m_nMeshes);
-    }
     m_components.reserve(8);
 
     m_pTransform = AddComponent<CTransformComponent>();
 
+    m_pModel = AddComponent<CModelComponent>(nMeshes);
+
     m_pRenderer = nullptr;
 }
+
 
 
 CGameObject::~CGameObject()
@@ -34,15 +32,6 @@ CGameObject::~CGameObject()
    DestroyComponents();
 
     ReleaseShaderVariables();
-
-    if (!m_ppMeshes.empty())
-    {
-        for (int i = 0; i < m_nMeshes; i++)
-        {
-            if (m_ppMeshes[i])
-                m_ppMeshes[i].reset();
-        }
-    }
 }
 
 
@@ -68,24 +57,16 @@ void CGameObject::ReleaseShaderVariables()
 
 void CGameObject::ReleaseUploadBuffers()
 {
-	if (!m_ppMeshes.empty())
-	{
-		for (int i = 0; i < m_nMeshes; i++)
-		{
-			if (m_ppMeshes[i])m_ppMeshes[i]->ReleaseUploadBuffers();
-		}
-	}
+    if (m_pModel)
+        m_pModel->ReleaseUploadBuffers();
 }
 
 void CGameObject::SetMesh(int nIndex, shared_ptr<CMesh> pMesh)
 {
-	if (!m_ppMeshes.empty())
-	{
-		if (m_ppMeshes[nIndex])
-			m_ppMeshes[nIndex].reset();
-		m_ppMeshes[nIndex] = pMesh;
-	}
+    if (!m_pModel) return;
+    m_pModel->SetMesh(nIndex, std::move(pMesh));
 }
+
 
 // ============================================================================
 // Components
@@ -210,22 +191,15 @@ void CGameObject::DisableSkinning()
 const std::vector<Bone>& CGameObject::GetBones() const
 {
     static const std::vector<Bone> empty;
-
-    if (m_ppMeshes.empty() || !m_ppMeshes[0])
-        return empty;
-
-    return m_ppMeshes[0]->GetBones();
+    return (m_pModel) ? m_pModel->GetBones() : empty;
 }
 
 const std::unordered_map<std::string, int>& CGameObject::GetBoneNameToIndex() const
 {
     static const std::unordered_map<std::string, int> empty;
-
-    if (m_ppMeshes.empty() || !m_ppMeshes[0])
-        return empty;
-
-    return m_ppMeshes[0]->GetBoneNameToIndex();
+    return (m_pModel) ? m_pModel->GetBoneNameToIndex() : empty;
 }
+
 
 D3D12_GPU_VIRTUAL_ADDRESS CGameObject::GetBoneCBAddress() const
 {
