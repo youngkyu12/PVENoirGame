@@ -39,6 +39,7 @@ public:
 	virtual TypeId GetTypeId() const = 0;
 
 	CGameObject* GetOwner() const { return m_pOwner; }
+	virtual bool IsRenderer() const { return false; }
 
 	bool IsEnabled() const { return m_bEnabled; }
 	void SetEnabled(bool b) { m_bEnabled = b; }

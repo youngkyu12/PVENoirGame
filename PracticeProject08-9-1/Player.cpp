@@ -311,13 +311,11 @@ void CPlayer::OnPrepareRender(ID3D12GraphicsCommandList* pd3dCommandList, CCamer
 
 void CPlayer::SetRootParameter(ID3D12GraphicsCommandList* cmd)
 {
-	// 플레이어도 다른 스키닝 오브젝트와 동일하게 b2(OBJECT) 테이블을 바인딩한다.
 	cmd->SetGraphicsRootDescriptorTable(
 		ROOT_PARAMETER_OBJECT,
 		m_d3dCbvGPUDescriptorHandle
 	);
 
-	// 스키닝이면 b7(BonePalette)도 바인딩
 	if (m_bSkinnedObject && m_pd3dcbBoneTransforms)
 	{
 		cmd->SetGraphicsRootConstantBufferView(
@@ -326,10 +324,9 @@ void CPlayer::SetRootParameter(ID3D12GraphicsCommandList* cmd)
 		);
 	}
 }
-
-void CPlayer::Render(ID3D12GraphicsCommandList *pd3dCommandList, CCamera *pCamera)
+void CPlayer::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera)
 {
-	DWORD nCameraMode = (pCamera)? pCamera->GetMode(): 0x00;
+	DWORD nCameraMode = (pCamera) ? pCamera->GetMode() : 0x00;
 	if (nCameraMode == THIRD_PERSON_CAMERA)CGameObject::Render(pd3dCommandList, pCamera);
 }
 
@@ -479,8 +476,8 @@ CFighterPlayer::CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandLi
 	};
 
 	// ------------------------------------------------------------
-// (1) 플레이어 셰이더를 CSkinnedObjectsShader로 생성
-// ------------------------------------------------------------
+	// (1) 플레이어 셰이더를 CSkinnedObjectsShader로 생성
+	// ------------------------------------------------------------
 	shared_ptr<CSkinnedObjectsShader> pShader = make_shared<CSkinnedObjectsShader>();
 	pShader->CreateShader(
 		pd3dDevice,
@@ -503,13 +500,16 @@ CFighterPlayer::CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandLi
 			cbObjBytes
 		);
 
-	// 이 핸들이 ROOT_PARAMETER_OBJECT(b2 테이블)에 들어간다.
 	SetCbvGPUDescriptorHandle(hPlayerObjCbv);
 
 	// ------------------------------------------------------------
 	// (3) Material에 Shader 연결
 	// ------------------------------------------------------------
 	SetShader(pShader);
+	if (pPlayerMesh && pPlayerMesh->IsSkinnedMesh())
+	{
+		if (!GetRenderer()) AddComponent<CSkinnedMeshRendererComponent>();
+	}
 }
 
 CFighterPlayer::~CFighterPlayer()

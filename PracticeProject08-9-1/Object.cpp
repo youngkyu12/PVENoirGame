@@ -22,8 +22,12 @@ CGameObject::CGameObject(int nMeshes)
         m_ppMeshes.resize(m_nMeshes);
     }
     m_components.reserve(8);
+
     m_pTransform = AddComponent<CTransformComponent>();
+
+    m_pRenderer = nullptr;
 }
+
 
 CGameObject::~CGameObject()
 {
