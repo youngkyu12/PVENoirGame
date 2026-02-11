@@ -12,16 +12,18 @@
 #include "Animator.h"
 #include "AnimController.h"
 #include "AnimatorComponent.h"
+#include "RenderObjectComponent.h"
+#include "SkinningComponent.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 CGameObject::CGameObject(int nMeshes)
 {
     m_components.reserve(8);
-
     m_pTransform = AddComponent<CTransformComponent>();
-
     m_pModel = AddComponent<CModelComponent>(nMeshes);
+    m_pRenderObject = AddComponent<CRenderObjectComponent>();
+    m_pSkinning = AddComponent<CSkinningComponent>();
 
     m_pRenderer = nullptr;
 }
@@ -70,6 +72,34 @@ void CGameObject::SetMesh(int nIndex, shared_ptr<CMesh> pMesh)
         ac->InvalidateSkeleton();
 }
 
+void CGameObject::SetCbvGPUDescriptorHandle(D3D12_GPU_DESCRIPTOR_HANDLE h)
+{
+    if (!m_pRenderObject) m_pRenderObject = AddComponent<CRenderObjectComponent>();
+    m_pRenderObject->SetCbvHandle(h);
+}
+
+void CGameObject::SetCbvGPUDescriptorHandlePtr(UINT64 ptr)
+{
+    if (!m_pRenderObject) m_pRenderObject = AddComponent<CRenderObjectComponent>();
+    m_pRenderObject->SetCbvHandlePtr(ptr);
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE CGameObject::GetCbvGPUDescriptorHandle()
+{
+    return m_pRenderObject ? m_pRenderObject->GetCbvHandle() : D3D12_GPU_DESCRIPTOR_HANDLE{ 0 };
+}
+
+void CGameObject::SetRootParameter(ID3D12GraphicsCommandList* cmd)
+{
+    // b2 table: per-object CBV
+    if (m_pRenderObject)
+        cmd->SetGraphicsRootDescriptorTable(ROOT_PARAMETER_OBJECT, m_pRenderObject->GetCbvHandle());
+
+    // b7: bone palette
+    if (m_pSkinning && m_pSkinning->IsSkinned())
+        cmd->SetGraphicsRootConstantBufferView(ROOT_PARAMETER_BONE_PALETTE, m_pSkinning->GetBoneCBAddress());
+}
+
 
 // ============================================================================
 // Components
@@ -106,6 +136,8 @@ void CGameObject::DestroyComponents()
     m_pTransform = nullptr;
     m_pAnimatorComponent = nullptr;
     m_pModel = nullptr;
+    m_pRenderObject = nullptr;
+    m_pSkinning = nullptr;
     m_bComponentsCreated = false;
     m_pd3dDeviceForComponents = nullptr;
     m_pd3dCmdForComponents = nullptr;
@@ -128,69 +160,25 @@ void CGameObject::UpdateComponents(float dt)
 }
 
 
-void CGameObject::EnableSkinning(ID3D12Device* pd3dDevice, int nBones)
+void CGameObject::EnableSkinning(ID3D12Device* dev, int nBones)
 {
-    if (nBones <= 0)
-    {
-        DisableSkinning();
-        return;
-    }
-
-    m_bSkinnedObject = true;
-    m_nBones = nBones;
-
-    // 이미 생성되어 있으면 정리
-    if (m_pd3dcbBoneTransforms)
-    {
-        m_pd3dcbBoneTransforms->Unmap(0, NULL);
-        m_pcbMappedBoneTransforms = NULL;
-        m_pd3dcbBoneTransforms.Reset();
-    }
-
-    // Bone palette CB 생성 (Upload heap, 256-byte align)
-    UINT cbSize = (sizeof(CB_BONE_PALETTE) + 255) & ~255;
-
-    CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
-    CD3DX12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(cbSize);
-
-    HRESULT hr = pd3dDevice->CreateCommittedResource(
-        &heapProps,
-        D3D12_HEAP_FLAG_NONE,
-        &bufferDesc,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(m_pd3dcbBoneTransforms.GetAddressOf())
-    );
-
-    if (FAILED(hr))
-    {
-        OutputDebugStringA("[CGameObject::EnableSkinning] Failed to create bone CB.\n");
-        DisableSkinning();
-        return;
-    }
-
-    // persistent map
-    m_pd3dcbBoneTransforms->Map(0, nullptr, (void**)&m_pcbMappedBoneTransforms);
-
-    // 초기값: identity(전치해서 저장: HLSL mul(pos, M) 패턴과 기존 코드 일관성)
-    XMFLOAT4X4 identity;
-    XMStoreFloat4x4(&identity, XMMatrixTranspose(XMMatrixIdentity()));
-
-    for (int i = 0; i < m_nBones; ++i)
-        m_pcbMappedBoneTransforms[i] = identity;
+    if (!m_pSkinning) m_pSkinning = AddComponent<CSkinningComponent>();
+    m_pSkinning->Enable(dev, nBones);
 }
 
 void CGameObject::DisableSkinning()
 {
-    m_bSkinnedObject = false;
-    m_nBones = 0;
+    if (m_pSkinning) m_pSkinning->Disable();
+}
 
-    if (m_pd3dcbBoneTransforms)
-    {
-        m_pd3dcbBoneTransforms->Unmap(0, NULL);
-        m_pcbMappedBoneTransforms = NULL;
-        m_pd3dcbBoneTransforms.Reset();
-    }
+bool CGameObject::IsSkinnedObject() const
+{
+    return m_pSkinning && m_pSkinning->IsSkinned();
+}
+
+int CGameObject::GetBoneCount() const
+{
+    return m_pSkinning ? m_pSkinning->GetBoneCount() : 0;
 }
 
 const std::vector<Bone>& CGameObject::GetBones() const
@@ -208,7 +196,7 @@ const std::unordered_map<std::string, int>& CGameObject::GetBoneNameToIndex() co
 
 D3D12_GPU_VIRTUAL_ADDRESS CGameObject::GetBoneCBAddress() const
 {
-    return (m_pd3dcbBoneTransforms) ? m_pd3dcbBoneTransforms->GetGPUVirtualAddress() : 0;
+    return m_pSkinning ? m_pSkinning->GetBoneCBAddress() : 0;
 }
 
 CAnimatorComponent* CGameObject::EnsureAnimatorComponent()
@@ -245,20 +233,21 @@ void CGameObject::PlayAnimation(const std::string& clipName, bool loop, float st
 
 
 
-void CGameObject::UpdateBoneTransformsOnGPU(const XMFLOAT4X4* pxmf4x4BoneTransforms, int nBones)
+void CGameObject::UpdateBoneTransformsOnGPU(const XMFLOAT4X4* mats, int nBones)
 {
-    if (!m_bSkinnedObject || !m_pcbMappedBoneTransforms || !pxmf4x4BoneTransforms)
-        return;
+    if (m_pSkinning) m_pSkinning->Upload(mats, nBones);
+}
 
-    int count = (nBones < m_nBones) ? nBones : m_nBones;
+void CGameObject::SetMappedGameObjectCB(CB_GAMEOBJECT_INFO* p)
+{
+    if (!m_pRenderObject) m_pRenderObject = AddComponent<CRenderObjectComponent>();
+    // 외부 CB만 바인딩할 수도 있으니 handle은 유지
+    m_pRenderObject->BindExternal(p, m_pRenderObject->GetCbvHandle());
+}
 
-    // 기존 Mesh.cpp 로직과 동일: 전치해서 업로드
-    for (int i = 0; i < count; ++i)
-    {
-        XMMATRIX m = XMLoadFloat4x4(&pxmf4x4BoneTransforms[i]);
-        m = XMMatrixTranspose(m);
-        XMStoreFloat4x4(&m_pcbMappedBoneTransforms[i], m);
-    }
+CB_GAMEOBJECT_INFO* CGameObject::GetMappedGameObjectCB() const
+{
+    return m_pRenderObject ? m_pRenderObject->GetMappedCB() : nullptr;
 }
 
 CAnimController* CGameObject::EnsureAnimController()

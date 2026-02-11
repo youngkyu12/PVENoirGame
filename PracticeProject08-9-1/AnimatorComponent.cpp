@@ -7,6 +7,7 @@
 #include "Object.h"
 #include "Animator.h"
 #include "AnimController.h"
+#include "SkinningComponent.h"
 
 CAnimatorComponent::CAnimatorComponent(CGameObject* owner)
     : CComponentT<CAnimatorComponent>(owner)
@@ -122,20 +123,14 @@ void CAnimatorComponent::SyncSkeletonIfPossible()
 void CAnimatorComponent::UploadIfSkinned()
 {
     CGameObject* owner = GetOwner();
-    if (!owner) return;
+    if (!owner || !m_pAnimator) return;
 
-    if (!owner->IsSkinnedObject())
-        return;
-
-    if (!owner->GetBoneCBAddress())
-        return;
-
-    if (!m_pAnimator)
-        return;
+    auto* skin = owner->GetComponent<CSkinningComponent>();
+    if (!skin || !skin->IsSkinned()) return;
 
     const auto& mats = m_pAnimator->GetFinalBoneMatrices();
     if (!mats.empty())
-        owner->UpdateBoneTransformsOnGPU(mats.data(), (int)mats.size());
+        skin->Upload(mats.data(), (int)mats.size());
 }
 
 bool CAnimatorComponent::Play(const std::string& name, bool loop, float start)

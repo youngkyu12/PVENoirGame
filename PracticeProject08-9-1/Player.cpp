@@ -9,6 +9,7 @@
 #include "AssetManager.h"
 #include "AnimController.h"
 #include "AnimatorComponent.h"
+#include "RenderObjectComponent.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CPlayer
@@ -38,37 +39,28 @@ CPlayer::~CPlayer()
 
 void CPlayer::CreateShaderVariables(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
-	if (m_pCamera)
-		m_pCamera->CreateShaderVariables(dev, cmd);
+	if (m_pCamera) m_pCamera->CreateShaderVariables(dev, cmd);
 
-	// -------------------------
-	// (1) b0: Player CB 유지(남겨도 무방)
-	// -------------------------
+	CreateComponents(dev, cmd);
+
+	// 안전장치: 플레이어는 로컬 CB가 필요
+	if (auto* ro = GetComponent<CRenderObjectComponent>())
+		ro->CreateLocalCB(dev, cmd);
+
+	// (1) b0: Player CB 유지
 	UINT cbPlayerBytes = (sizeof(CB_PLAYER_INFO) + 255) & ~255;
 	m_pd3dcbPlayer = ::CreateBufferResource(
-		dev, cmd,
-		nullptr,
-		cbPlayerBytes,
+		dev, cmd, nullptr, cbPlayerBytes,
 		D3D12_HEAP_TYPE_UPLOAD,
 		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
 		nullptr
 	);
 	m_pd3dcbPlayer->Map(0, nullptr, (void**)&m_pcbMappedPlayer);
 
-	// -------------------------
-	// (2) b2: CB_GAMEOBJECT_INFO (CSkinnedObjectsShader가 읽는 CB)
-	// -------------------------
-	UINT cbObjBytes = (sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255;
-	m_pd3dcbGameObject = ::CreateBufferResource(
-		dev, cmd,
-		nullptr,
-		cbObjBytes,
-		D3D12_HEAP_TYPE_UPLOAD,
-		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
-		nullptr
-	);
-	m_pd3dcbGameObject->Map(0, nullptr, (void**)&m_pcbMappedGameObject);
+	// (2) b2: CB_GAMEOBJECT_INFO 는 RenderObjectComponent가 이미 생성/맵핑했어야 함
+	//     -> 여기서 직접 만들지 않는다.
 }
+
 
 void CPlayer::ReleaseShaderVariables()
 {
@@ -81,35 +73,37 @@ void CPlayer::ReleaseShaderVariables()
 		m_pcbMappedPlayer = nullptr;
 	}
 
-	CGameObject::ReleaseShaderVariables();
+	// b2/bone 은 컴포넌트가 소유/정리
+	CGameObject::ReleaseShaderVariables(); // 여기서도 레거시 해제가 없도록 정리돼 있어야 함
 }
+
 
 
 void CPlayer::UpdateShaderVariables(ID3D12GraphicsCommandList* cmd)
 {
 	(void)cmd;
-
 	const XMFLOAT4X4& W = m_pTransform->GetWorldMatrix();
 
 	// b0
 	if (m_pcbMappedPlayer)
 	{
-		XMStoreFloat4x4(
-			&m_pcbMappedPlayer->m_xmf4x4World,
-			XMMatrixTranspose(XMLoadFloat4x4(&W))
-		);
+		XMStoreFloat4x4(&m_pcbMappedPlayer->m_xmf4x4World,
+			XMMatrixTranspose(XMLoadFloat4x4(&W)));
 	}
 
-	// b2
-	if (m_pcbMappedGameObject)
+	// b2 (RenderObjectComponent 로컬 CB)
+	if (auto* ro = GetComponent<CRenderObjectComponent>())
 	{
-		XMStoreFloat4x4(
-			&m_pcbMappedGameObject->m_xmf4x4World,
-			XMMatrixTranspose(XMLoadFloat4x4(&W))
-		);
-		m_pcbMappedGameObject->m_nObjectID = 0;
+		if (auto* cb = ro->GetMappedCB())
+		{
+			XMStoreFloat4x4(&cb->m_xmf4x4World,
+				XMMatrixTranspose(XMLoadFloat4x4(&W)));
+			cb->m_nObjectID = ro->GetObjectID();
+		}
 	}
 }
+
+
 
 void CPlayer::Move(DWORD dwDirection, float fDistance, bool bUpdateVelocity,
 	CPlayer::EVerticalMoveSpace upSpace)
@@ -312,19 +306,9 @@ void CPlayer::OnPrepareRender(ID3D12GraphicsCommandList* pd3dCommandList, CCamer
 
 void CPlayer::SetRootParameter(ID3D12GraphicsCommandList* cmd)
 {
-	cmd->SetGraphicsRootDescriptorTable(
-		ROOT_PARAMETER_OBJECT,
-		m_d3dCbvGPUDescriptorHandle
-	);
-
-	if (m_bSkinnedObject && m_pd3dcbBoneTransforms)
-	{
-		cmd->SetGraphicsRootConstantBufferView(
-			ROOT_PARAMETER_BONE_PALETTE,
-			m_pd3dcbBoneTransforms->GetGPUVirtualAddress()
-		);
-	}
+	CGameObject::SetRootParameter(cmd); // RenderObject+Skinning 기반 바인딩
 }
+
 void CPlayer::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera)
 {
 	DWORD nCameraMode = (pCamera) ? pCamera->GetMode() : 0x00;
@@ -492,16 +476,24 @@ CFighterPlayer::CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandLi
 	// (2) 플레이어는 b2(CB_GAMEOBJECT_INFO) 테이블을 사용해야 하므로
 	//     m_pd3dcbGameObject로 CBV 디스크립터를 만든다.
 	// ------------------------------------------------------------
-	UINT cbObjBytes = (sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255;
+	auto* ro = GetComponent<CRenderObjectComponent>();
+	// ro는 GameObject ctor에서 기본으로 붙였다고 했으니 null이면 구조가 흔들린 것.
+	if (ro)
+	{
+		if (!ro->GetCBResource())
+			ro->CreateLocalCB(pd3dDevice, pd3dCommandList);
 
-	D3D12_GPU_DESCRIPTOR_HANDLE hPlayerObjCbv =
-		CScene::m_pDescriptorHeap->CreateConstantBufferView(
-			pd3dDevice,
-			m_pd3dcbGameObject.Get(),
-			cbObjBytes
-		);
+		const UINT cbObjBytes = (sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255;
 
-	SetCbvGPUDescriptorHandle(hPlayerObjCbv);
+		D3D12_GPU_DESCRIPTOR_HANDLE hPlayerObjCbv =
+			CScene::m_pDescriptorHeap->CreateConstantBufferView(
+				pd3dDevice,
+				ro->GetCBResource(),
+				cbObjBytes
+			);
+
+		SetCbvGPUDescriptorHandle(hPlayerObjCbv);
+	}
 
 	// ------------------------------------------------------------
 	// (3) Material에 Shader 연결
