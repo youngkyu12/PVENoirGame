@@ -26,37 +26,9 @@ void CGameObject::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandLi
 	// m_cachedWorld = W;
 }
 
-
-
-
 void CGameObject::Animate(float dt)
 {
 	UpdateComponents(dt);
-
-	// AnimatorComponent가 있고, CreateComponents() 이후라면
-	// 애니메이션 갱신은 컴포넌트가 담당한다 (중복 방지)
-	if (m_bComponentsCreated && GetComponent<CAnimatorComponent>())
-		return;
-
-	// --------------------
-	// Legacy path:
-	//  - AnimatorComponent 없거나
-	//  - 아직 CreateComponents() 전(ctor 단계 등)
-	// --------------------
-	if (m_pAnimController)
-		m_pAnimController->Update(dt);
-
-	if (m_pAnimator)
-	{
-		m_pAnimator->Update(dt);
-
-		if (m_bSkinnedObject && m_pd3dcbBoneTransforms)
-		{
-			const auto& mats = m_pAnimator->GetFinalBoneMatrices();
-			if (!mats.empty())
-				UpdateBoneTransformsOnGPU(mats.data(), (int)mats.size());
-		}
-	}
 }
 
 void CGameObject::OnPrepareRender(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera)

@@ -1,60 +1,125 @@
-//------------------------------------------------------- ----------------------
+//-----------------------------------------------------------------------------
 // File: AnimatorComponent.cpp
 //-----------------------------------------------------------------------------
 
 #include "stdafx.h"
 #include "AnimatorComponent.h"
-
 #include "Object.h"
 #include "Animator.h"
 #include "AnimController.h"
-#include "AnimatorData.h"
+
+CAnimatorComponent::CAnimatorComponent(CGameObject* owner)
+    : CComponentT<CAnimatorComponent>(owner)
+{
+}
+
+void CAnimatorComponent::OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*)
+{
+    // 메시는 보통 ctor에서 SetMesh가 끝난 뒤 CreateComponents가 호출되므로
+    // 여기서 스켈레톤 바인딩을 시도한다.
+    EnsureAnimator();
+    EnsureController();
+    SyncSkeletonIfPossible();
+}
+
+void CAnimatorComponent::OnUpdate(float dt)
+{
+    // 1) controller/state update + anim update까지만
+    CGameObject* owner = GetOwner();
+    if (!owner) return;
+
+    CAnimator* anim = EnsureAnimator();
+    if (!anim) return;
+
+    EnsureController();
+    SyncSkeletonIfPossible();
+
+    if (m_pController) m_pController->Update(dt);
+    anim->Update(dt);
+}
+
+void CAnimatorComponent::OnLateUpdate(float /*dt*/)
+{
+    // 2) 최종 결과 업로드만
+    UploadIfSkinned();
+}
+
 
 CAnimator* CAnimatorComponent::EnsureAnimator()
 {
-    CGameObject* owner = GetOwner();
-    return owner ? owner->EnsureAnimator() : nullptr;
+    if (!m_pAnimator)
+        m_pAnimator = std::make_unique<CAnimator>();
+
+    // 스켈레톤은 메시 준비 이후에만 성공하므로, 필요할 때마다 시도
+    SyncSkeletonIfPossible();
+    return m_pAnimator.get();
 }
 
 CAnimController* CAnimatorComponent::EnsureController()
 {
-    CGameObject* owner = GetOwner();
-    return owner ? owner->EnsureAnimController() : nullptr;
+    if (!m_pController)
+        m_pController = std::make_unique<CAnimController>(GetOwner());
+    return m_pController.get();
 }
 
 void CAnimatorComponent::AddClip(const AnimationClip& clip)
 {
-    if (CAnimator* anim = EnsureAnimator())
-        anim->AddClip(clip);
+    CAnimator* anim = EnsureAnimator();
+    if (!anim) return;
+
+    // bones/map 준비된 경우에만 SetSkeleton 성공
+    SyncSkeletonIfPossible();
+    anim->AddClip(clip);
 }
 
-void CAnimatorComponent::Play(const std::string& clipName, bool loop, float start)
+bool CAnimatorComponent::HasClip(const char* name) const
 {
-    CGameObject* owner = GetOwner();
-    if (!owner) return;
-
-    owner->PlayAnimation(clipName, loop, start);
-}
-
-void CAnimatorComponent::SetIdleClip(const std::string& name)
-{
-    if (CAnimController* ctrl = EnsureController())
-        ctrl->SetIdleClip(name);
-}
-
-void CAnimatorComponent::SetMoveClip(const std::string& name)
-{
-    if (CAnimController* ctrl = EnsureController())
-        ctrl->SetMoveClip(name);
+    if (!m_pAnimator) return false;
+    return m_pAnimator->HasClip(name);
 }
 
 void CAnimatorComponent::SetSpeed(float s)
 {
-    if (CAnimController* ctrl = EnsureController())
-        ctrl->SetSpeed(s);
+    EnsureController();
+    if (m_pController) m_pController->SetSpeed(s);
 }
 
-void CAnimatorComponent::UploadBonePaletteIfSkinned()
+void CAnimatorComponent::SetIdleClip(const char* name)
+{
+    EnsureController();
+    if (m_pController) m_pController->SetIdleClip(name);
+}
+
+void CAnimatorComponent::SetMoveClip(const char* name)
+{
+    EnsureController();
+    if (m_pController) m_pController->SetMoveClip(name);
+}
+
+void CAnimatorComponent::EvaluatePose(float dt)
+{
+    OnUpdate(dt);
+    OnLateUpdate(dt);
+}
+
+void CAnimatorComponent::SyncSkeletonIfPossible()
+{
+    if (m_bSkeletonBound) return;
+    if (!m_pAnimator) return;
+
+    CGameObject* owner = GetOwner();
+    if (!owner) return;
+
+    const auto& bones = owner->GetBones();
+    const auto& map = owner->GetBoneNameToIndex();
+    if (!bones.empty() && !map.empty())
+    {
+        m_pAnimator->SetSkeleton(bones, map);
+        m_bSkeletonBound = true;
+    }
+}
+
+void CAnimatorComponent::UploadIfSkinned()
 {
     CGameObject* owner = GetOwner();
     if (!owner) return;
@@ -62,46 +127,37 @@ void CAnimatorComponent::UploadBonePaletteIfSkinned()
     if (!owner->IsSkinnedObject())
         return;
 
-    CAnimator* anim = owner->GetAnimator();
-    if (!anim) return;
-
-    const auto& mats = anim->GetFinalBoneMatrices();
-    if (mats.empty())
+    if (!owner->GetBoneCBAddress())
         return;
 
-    owner->UpdateBoneTransformsOnGPU(mats.data(), (int)mats.size());
+    if (!m_pAnimator)
+        return;
+
+    const auto& mats = m_pAnimator->GetFinalBoneMatrices();
+    if (!mats.empty())
+        owner->UpdateBoneTransformsOnGPU(mats.data(), (int)mats.size());
 }
 
-void CAnimatorComponent::EvaluatePose(float dt)
+bool CAnimatorComponent::Play(const std::string& name, bool loop, float start)
 {
-    CGameObject* owner = GetOwner();
-    if (!owner) return;
+    CAnimator* anim = EnsureAnimator();
+    if (!anim) return false;
 
-    // 1) 상태 결정(Idle/Run)
-    if (CAnimController* ctrl = owner->GetAnimController())
-        ctrl->Update(dt);
-
-    // 2) 포즈 계산
-    if (CAnimator* anim = owner->GetAnimator())
-    {
-        anim->Update(dt);
-
-        // 3) 스키닝이면 GPU 업로드
-        UploadBonePaletteIfSkinned();
-    }
+    SyncSkeletonIfPossible();
+    return anim->Play(name, loop, start);
 }
 
-void CAnimatorComponent::OnCreate(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
+bool CAnimatorComponent::CrossFade(const std::string& name, float blendTime, bool loop, float start)
 {
-    (void)dev; (void)cmd;
+    CAnimator* anim = EnsureAnimator();
+    if (!anim) return false;
 
-    // skeleton/ctrl이 아직 없을 수도 있으니 준비만 해둠
-    EnsureAnimator();
-    EnsureController();
+    SyncSkeletonIfPossible();
+    return anim->CrossFade(name.c_str(), blendTime, loop, start); // 네 Animator 시그니처에 맞춰 조정
 }
 
-void CAnimatorComponent::OnUpdate(float dt)
+void CAnimatorComponent::InvalidateSkeleton()
 {
-    // 매 프레임 애니 갱신은 여기서 책임진다
-    EvaluatePose(dt);
+    m_bSkeletonBound = false;
+    // anim이 있으면 다음 SyncSkeletonIfPossible에서 다시 SetSkeleton 시도
 }

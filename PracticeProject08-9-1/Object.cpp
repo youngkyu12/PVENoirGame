@@ -11,6 +11,7 @@
 #include "Scene.h"
 #include "Animator.h"
 #include "AnimController.h"
+#include "AnimatorComponent.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -65,6 +66,8 @@ void CGameObject::SetMesh(int nIndex, shared_ptr<CMesh> pMesh)
 {
     if (!m_pModel) return;
     m_pModel->SetMesh(nIndex, std::move(pMesh));
+    if (auto* ac = GetAnimatorComponent())
+        ac->InvalidateSkeleton();
 }
 
 
@@ -101,6 +104,8 @@ void CGameObject::DestroyComponents()
     m_components.clear();
     m_pRenderer = nullptr;
     m_pTransform = nullptr;
+    m_pAnimatorComponent = nullptr;
+    m_pModel = nullptr;
     m_bComponentsCreated = false;
     m_pd3dDeviceForComponents = nullptr;
     m_pd3dCmdForComponents = nullptr;
@@ -206,43 +211,38 @@ D3D12_GPU_VIRTUAL_ADDRESS CGameObject::GetBoneCBAddress() const
     return (m_pd3dcbBoneTransforms) ? m_pd3dcbBoneTransforms->GetGPUVirtualAddress() : 0;
 }
 
+CAnimatorComponent* CGameObject::EnsureAnimatorComponent()
+{
+    if (auto* ac = GetAnimatorComponent())
+        return ac;
+
+    // AnimatorComponent는 기본 컴포넌트가 아니므로 "필요할 때만" 붙인다.
+    auto* ac = AddComponent<CAnimatorComponent>();
+    m_pAnimatorComponent = ac;
+    return ac;
+}
+
 CAnimator* CGameObject::EnsureAnimator()
 {
-    if (!m_pAnimator)
-    {
-        m_pAnimator = std::make_unique<CAnimator>();
+    auto* ac = EnsureAnimatorComponent();
+    return ac ? ac->EnsureAnimator() : nullptr;
+}
 
-        // 메시(스켈레톤 메타) 기반으로 Animator 초기화
-        const auto& bones = GetBones();
-        const auto& map = GetBoneNameToIndex();
-        if (!bones.empty() && !map.empty())
-            m_pAnimator->SetSkeleton(bones, map);
-    }
-    return m_pAnimator.get();
+CAnimator* CGameObject::GetAnimator() const
+{
+    auto* ac = GetAnimatorComponent();
+    return ac ? ac->GetAnimator() : nullptr;
 }
 
 void CGameObject::PlayAnimation(const std::string& clipName, bool loop, float start)
 {
-    // 1) Animator는 오브젝트 소유
-    CAnimator* anim = EnsureAnimator();
-    if (!anim) return;
+    auto* ac = EnsureAnimatorComponent();
+    if (!ac) return;
 
-    // 2) 재생 (여기서 start 시점 포즈 계산/세팅을 한다는 전제는 네 Animator 구현에 따름)
-    if (!anim->Play(clipName, loop, start))
-        return;
-
-    // 3) 스키닝 오브젝트가 아니거나, bone CB가 아직 없으면 여기서는 할 수 있는 게 없음
-    //    (EnableSkinning(pd3dDevice, nBones)는 외부에서 이미 호출돼 있어야 함)
-    if (!m_bSkinnedObject || !m_pd3dcbBoneTransforms)
-        return;
-
-    // 4) Animator가 만든 최종 본 행렬을 "오브젝트의" b7 CB에 업로드
-    const auto& mats = anim->GetFinalBoneMatrices();
-    if (mats.empty())
-        return;
-
-    UpdateBoneTransformsOnGPU(mats.data(), static_cast<int>(mats.size()));
+    // 재생 명령만 내린다 (업로드/평가 흐름은 컴포넌트가 담당)
+    ac->Play(clipName, loop, start);
 }
+
 
 
 void CGameObject::UpdateBoneTransformsOnGPU(const XMFLOAT4X4* pxmf4x4BoneTransforms, int nBones)
@@ -263,10 +263,33 @@ void CGameObject::UpdateBoneTransformsOnGPU(const XMFLOAT4X4* pxmf4x4BoneTransfo
 
 CAnimController* CGameObject::EnsureAnimController()
 {
-    if (!m_pAnimController)
+    auto* ac = EnsureAnimatorComponent();
+    return ac ? ac->EnsureController() : nullptr;
+}
+
+CAnimController* CGameObject::GetAnimController() const
+{
+    auto* ac = GetAnimatorComponent();
+    return ac ? ac->GetController() : nullptr;
+}
+
+CAnimatorComponent* CGameObject::GetAnimatorComponent()
+{
+    if (m_pAnimatorComponent) return m_pAnimatorComponent;
+
+    const auto want = CComponent::StaticTypeId<CAnimatorComponent>();
+    for (auto& c : m_components)
     {
-        m_pAnimController = std::make_unique<CAnimController>();
-        m_pAnimController->Bind(this);
+        if (c && c->GetTypeId() == want)
+        {
+            m_pAnimatorComponent = static_cast<CAnimatorComponent*>(c.get());
+            return m_pAnimatorComponent;
+        }
     }
-    return m_pAnimController.get();
+    return nullptr;
+}
+
+const CAnimatorComponent* CGameObject::GetAnimatorComponent() const
+{
+    return const_cast<CGameObject*>(this)->GetAnimatorComponent();
 }
