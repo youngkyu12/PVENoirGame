@@ -8,6 +8,7 @@
 #include "Scene.h"
 #include "AssetManager.h"
 #include "AnimController.h"
+#include "AnimatorComponent.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CPlayer
@@ -413,50 +414,49 @@ CFighterPlayer::CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandLi
 	// ------------------------------------------------------------
 	// 애니메이션 로드 + Animator 세팅 + 재생 
 	// ------------------------------------------------------------
+	// ------------------------------------------------------------
+	// Components: Renderer + Animator
+	// (이미 추가돼있다면 중복 생성 방지)
+	// ------------------------------------------------------------
+	if (!GetRenderer())
+		AddComponent<CSkinnedMeshRendererComponent>();
+
+	CAnimatorComponent* animComp = GetComponent<CAnimatorComponent>();
+	if (!animComp)
+		animComp = AddComponent<CAnimatorComponent>();
+
+	// ------------------------------------------------------------
+	// 애니메이션 로드 + AnimatorComponent 세팅 + 초기 포즈 적용
+	// ------------------------------------------------------------
 	AnimationClip idleClip;
-	bool idleLoaded = false;
-
-	if (!m_ppMeshes.empty() && m_ppMeshes[0])
-	{
-		idleLoaded = m_ppMeshes[0]->LoadAnimationFromBIN(
-			"Assets/Fighter/Animation/FighterIdle.bin", 
-			"Idle",	idleClip, 1.0f );
-	}
-
-	if (idleLoaded)
+	if (!m_ppMeshes.empty() && m_ppMeshes[0] &&
+		m_ppMeshes[0]->LoadAnimationFromBIN(
+			"Assets/Fighter/Animation/FighterIdle.bin",
+			"Idle", idleClip, 1.0f))
 	{
 		idleClip.name = "Idle";
-
-		CAnimator* anim = EnsureAnimator();
-		if (anim)
-			anim->AddClip(idleClip);
+		if (animComp) animComp->AddClip(idleClip);
 	}
 
-	AnimationClip RunClip;
-	bool RunLoaded = false;
-
-	if (!m_ppMeshes.empty() && m_ppMeshes[0])
-	{
-		RunLoaded = m_ppMeshes[0]->LoadAnimationFromBIN(
+	AnimationClip runClip;
+	if (!m_ppMeshes.empty() && m_ppMeshes[0] &&
+		m_ppMeshes[0]->LoadAnimationFromBIN(
 			"Assets/Fighter/Animation/FighterRun.bin",
-			"Run", RunClip, 1.0f);
-	}
-	if (RunLoaded)
+			"Run", runClip, 1.0f))
 	{
-		RunClip.name = "Run";
-
-		CAnimator* anim = EnsureAnimator();
-		if (anim)
-			anim->AddClip(RunClip);
+		runClip.name = "Run";
+		if (animComp) animComp->AddClip(runClip);
 	}
 
-	auto* ctrl = EnsureAnimController();
-	ctrl->SetIdleClip("Idle");
-	ctrl->SetMoveClip("Run");
-	ctrl->SetSpeed(0.0f);
-	ctrl->Update(0.0f);
+	if (animComp)
+	{
+		animComp->SetIdleClip("Idle");
+		animComp->SetMoveClip("Run");
+		animComp->SetSpeed(0.0f);
 
-	this->Animate(0.0f);
+		// ctor 단계에서도 바로 포즈 계산 + bone palette 업로드
+		animComp->EvaluatePose(0.0f);
+	}
 
 	// ------------------------------------------------------------
 	// Player CBV 생성/바인딩

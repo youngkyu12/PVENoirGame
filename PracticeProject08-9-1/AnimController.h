@@ -22,6 +22,8 @@ public:
 
     void SetIdleClip(const char* name) { m_idleClip = name; }
     void SetMoveClip(const char* name) { m_moveClip = name; }
+    void SetIdleClip(const std::string& name) { m_idleClip = name; }
+    void SetMoveClip(const std::string& name) { m_moveClip = name; }
 
     void Update(float dt);
 
