@@ -27,6 +27,8 @@ class CAnimator;
 class CComponent;
 class CAnimatorComponent;
 class CAnimController;
+class CRenderObjectComponent;
+class CSkinningComponent;
 
 struct CB_GAMEOBJECT_INFO
 {
@@ -107,24 +109,11 @@ public:
 
 	void SetMesh(int nIndex, shared_ptr<CMesh> pMesh);
 
-	void SetCbvGPUDescriptorHandle(D3D12_GPU_DESCRIPTOR_HANDLE d3dCbvGPUDescriptorHandle) { m_d3dCbvGPUDescriptorHandle = d3dCbvGPUDescriptorHandle; }
-	void SetCbvGPUDescriptorHandlePtr(UINT64 nCbvGPUDescriptorHandlePtr) { m_d3dCbvGPUDescriptorHandle.ptr = nCbvGPUDescriptorHandlePtr; }
-	D3D12_GPU_DESCRIPTOR_HANDLE GetCbvGPUDescriptorHandle() { return(m_d3dCbvGPUDescriptorHandle); }
+	void SetCbvGPUDescriptorHandle(D3D12_GPU_DESCRIPTOR_HANDLE d3dCbvGPUDescriptorHandle);
+	void SetCbvGPUDescriptorHandlePtr(UINT64 nCbvGPUDescriptorHandlePtr);
+	D3D12_GPU_DESCRIPTOR_HANDLE GetCbvGPUDescriptorHandle();
 
-	virtual void SetRootParameter(ID3D12GraphicsCommandList* cmd)
-	{
-		// 기존: per-object CBV descriptor table
-		cmd->SetGraphicsRootDescriptorTable(ROOT_PARAMETER_OBJECT, m_d3dCbvGPUDescriptorHandle);
-
-		// 추가: skinned면 b7(root param 7)에 bone palette CBV 바인딩
-		if (m_bSkinnedObject)
-		{
-			cmd->SetGraphicsRootConstantBufferView(
-				ROOT_PARAMETER_BONE_PALETTE,   // == b7
-				m_pd3dcbBoneTransforms->GetGPUVirtualAddress()
-			);
-		}
-	}
+	virtual void SetRootParameter(ID3D12GraphicsCommandList* cmd);
 
 	// ===== Transform authoritative getters =====
 	XMFLOAT3 GetPosition() const { return m_pTransform->position; }
@@ -155,8 +144,8 @@ public:
 	void EnableSkinning(ID3D12Device* pd3dDevice, int nBones);
 	void DisableSkinning();
 
-	bool IsSkinnedObject() const { return m_bSkinnedObject; }
-	int  GetBoneCount()    const { return m_nBones; }
+	bool IsSkinnedObject() const;
+	int  GetBoneCount()    const;
 
 	// Mesh가 들고 있는 "스켈레톤 메타데이터" 접근 (forward)
 	const std::vector<Bone>& GetBones() const;
@@ -182,6 +171,8 @@ protected:
 	CRendererComponent* m_pRenderer = nullptr;
 	CModelComponent* m_pModel = nullptr;
 	CAnimatorComponent* m_pAnimatorComponent = nullptr;
+	CRenderObjectComponent* m_pRenderObject = nullptr;
+	CSkinningComponent* m_pSkinning = nullptr;
 	std::vector<std::unique_ptr<CComponent>> m_components;
 
 	bool m_bComponentsCreated = false;
@@ -229,8 +220,8 @@ protected:
 
 
 public:
-	void SetMappedGameObjectCB(CB_GAMEOBJECT_INFO* p) { m_pcbMappedGameObject = p; }
-	CB_GAMEOBJECT_INFO* GetMappedGameObjectCB() const { return m_pcbMappedGameObject; }
+	void SetMappedGameObjectCB(CB_GAMEOBJECT_INFO* p);
+	CB_GAMEOBJECT_INFO* GetMappedGameObjectCB() const;
 
 protected:
 	XMFLOAT4X4* m_pcbMappedBoneTransforms = nullptr;
