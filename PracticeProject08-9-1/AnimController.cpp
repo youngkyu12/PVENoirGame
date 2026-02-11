@@ -11,7 +11,7 @@ void CAnimController::Update(float /*dt*/)
 {
     if (!m_pOwner) return;
 
-    CAnimator* anim = m_pOwner->EnsureAnimator();
+    CAnimator* anim = m_pOwner->GetAnimator();
     if (!anim) return;
 
     // 1) target state ∞·¡§ (Idle/Move only)

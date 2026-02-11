@@ -22,11 +22,11 @@
 #define DIR_UP						0x10
 #define DIR_DOWN					0x20
 
-class CMesh;
 class CShader;
 class CAnimator;
-class CAnimController;
 class CComponent;
+class CAnimatorComponent;
+class CAnimController;
 
 struct CB_GAMEOBJECT_INFO
 {
@@ -167,7 +167,7 @@ public:
 
 	// Animator는 오브젝트가 소유 (메시 공유 대비)
 	CAnimator* EnsureAnimator();
-	CAnimator* GetAnimator() const { return m_pAnimator.get(); }
+	CAnimator* GetAnimator() const;
 	void PlayAnimation(const std::string& name, bool loop = true, float start = 0.0f);
 
 	// CPU -> GPU 팔레트 업데이트 (Animator에서 만든 최종 본 행렬 업로드)
@@ -181,6 +181,7 @@ protected:
 	CTransformComponent* GetTransform() const { return m_pTransform; }
 	CRendererComponent* m_pRenderer = nullptr;
 	CModelComponent* m_pModel = nullptr;
+	CAnimatorComponent* m_pAnimatorComponent = nullptr;
 	std::vector<std::unique_ptr<CComponent>> m_components;
 
 	bool m_bComponentsCreated = false;
@@ -188,7 +189,6 @@ protected:
 	ID3D12GraphicsCommandList* m_pd3dCmdForComponents = nullptr;
 
 public:
-	// ★ Renderer 조회: 캐시 우선, 없으면 스캔
 	CRendererComponent* GetRenderer()
 	{
 		if (m_pRenderer) return m_pRenderer;
@@ -203,6 +203,10 @@ public:
 		}
 		return nullptr;
 	}
+	CAnimatorComponent* GetAnimatorComponent();
+	const CAnimatorComponent* GetAnimatorComponent() const;
+
+	CAnimatorComponent* EnsureAnimatorComponent();
 
 protected:
 	const CRendererComponent* GetRenderer() const
@@ -223,8 +227,6 @@ protected:
 
 	ComPtr<ID3D12Resource>              m_pd3dcbBoneTransforms = NULL;   // Upload heap CB
 
-	// Animator (per-object)
-	std::unique_ptr<CAnimator>          m_pAnimator;
 
 public:
 	void SetMappedGameObjectCB(CB_GAMEOBJECT_INFO* p) { m_pcbMappedGameObject = p; }
@@ -235,10 +237,7 @@ protected:
 
 public:
 	CAnimController* EnsureAnimController();
-	CAnimController* GetAnimController() const { return m_pAnimController.get(); }
-
-protected:
-	std::unique_ptr<CAnimController> m_pAnimController;
+	CAnimController* GetAnimController() const;
 
 protected:
 	std::shared_ptr<CShader> m_pShader;
