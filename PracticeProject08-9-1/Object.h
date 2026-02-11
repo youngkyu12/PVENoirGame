@@ -4,9 +4,16 @@
 
 #pragma once
 
+#include <memory>
+#include <vector>
+#include <type_traits>
+
 #include "Mesh.h"
 #include "Camera.h"
 #include "Animator.h"
+#include "Component.h"
+#include "RendererComponent.h"
+#include "ModelComponent.h"
 
 #define DIR_FORWARD					0x01
 #define DIR_BACKWARD				0x02
@@ -15,10 +22,13 @@
 #define DIR_UP						0x10
 #define DIR_DOWN					0x20
 
-class CMesh;
 class CShader;
 class CAnimator;
+class CComponent;
+class CAnimatorComponent;
 class CAnimController;
+class CRenderObjectComponent;
+class CSkinningComponent;
 
 struct CB_GAMEOBJECT_INFO
 {
@@ -32,18 +42,18 @@ struct CB_GAMEOBJECT_INFO
 class CGameObject
 {
 public:
-	CGameObject(int nMeshes=1);
+	CGameObject(int nMeshes = 1);
 	virtual ~CGameObject();
 
 	virtual void ReleaseShaderVariables();
 	virtual void ReleaseUploadBuffers();
 
-// Build
+	// Build
 public:
-	virtual void CreateShaderVariables(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList);
+	virtual void CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
 	virtual void BuildMaterials(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList) {}
 
-// Render
+	// Render
 public:
 	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList);
 
@@ -57,55 +67,76 @@ public:
 	void MoveForward(float fDistance = 1.0f);
 
 	void Rotate(float fPitch = 10.0f, float fYaw = 10.0f, float fRoll = 10.0f);
-	void Rotate(XMFLOAT3 *pxmf3Axis, float fAngle);
+	void Rotate(XMFLOAT3* pxmf3Axis, float fAngle);
 
-// Get & Set Method
 public:
+	void CreateComponents(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
+	void DestroyComponents();
+	void UpdateComponents(float fTimeElapsed);
+
+	template<typename T, typename... Args>
+	T* AddComponent(Args&&... args);
+
+	template<typename T>
+	T* GetComponent() const;
+
+	// Get & Set Method
+public:
+	// ===== Model (Meshes) accessors =====
+	CModelComponent* GetModel() const { return m_pModel; }
+
+	int GetMeshCount() const
+	{
+		return (m_pModel) ? m_pModel->GetMeshCount() : 0;
+	}
+
+	std::shared_ptr<CMesh> GetMeshShared(int idx) const
+	{
+		return (m_pModel) ? m_pModel->GetMeshShared(idx) : nullptr;
+	}
+
+	std::vector<std::shared_ptr<CMesh>>& GetMeshes()
+	{
+		static std::vector<std::shared_ptr<CMesh>> dummy;
+		return (m_pModel) ? m_pModel->GetMeshes() : dummy;
+	}
+
+	const std::vector<std::shared_ptr<CMesh>>& GetMeshes() const
+	{
+		static std::vector<std::shared_ptr<CMesh>> dummy;
+		return (m_pModel) ? m_pModel->GetMeshes() : dummy;
+	}
+
 	void SetMesh(int nIndex, shared_ptr<CMesh> pMesh);
 
-	void SetCbvGPUDescriptorHandle(D3D12_GPU_DESCRIPTOR_HANDLE d3dCbvGPUDescriptorHandle) { m_d3dCbvGPUDescriptorHandle = d3dCbvGPUDescriptorHandle; }
-	void SetCbvGPUDescriptorHandlePtr(UINT64 nCbvGPUDescriptorHandlePtr) { m_d3dCbvGPUDescriptorHandle.ptr = nCbvGPUDescriptorHandlePtr; }
-	D3D12_GPU_DESCRIPTOR_HANDLE GetCbvGPUDescriptorHandle() { return(m_d3dCbvGPUDescriptorHandle); }
+	void SetCbvGPUDescriptorHandle(D3D12_GPU_DESCRIPTOR_HANDLE d3dCbvGPUDescriptorHandle);
+	void SetCbvGPUDescriptorHandlePtr(UINT64 nCbvGPUDescriptorHandlePtr);
+	D3D12_GPU_DESCRIPTOR_HANDLE GetCbvGPUDescriptorHandle();
 
-	virtual void SetRootParameter(ID3D12GraphicsCommandList* cmd)
+	virtual void SetRootParameter(ID3D12GraphicsCommandList* cmd);
+
+	// ===== Transform authoritative getters =====
+	XMFLOAT3 GetPosition() const { return m_pTransform->position; }
+	XMFLOAT3 GetLook()     const { return m_pTransform->GetLook(); }
+	XMFLOAT3 GetUp()       const { return m_pTransform->GetUp(); }
+	XMFLOAT3 GetRight()    const { return m_pTransform->GetRight(); }
+
+	const XMFLOAT4X4& GetWorldMatrix() const { return m_pTransform->GetWorldMatrix(); }
+
+	void SetPosition(float x, float y, float z)
 	{
-		// 기존: per-object CBV descriptor table
-		cmd->SetGraphicsRootDescriptorTable(ROOT_PARAMETER_OBJECT, m_d3dCbvGPUDescriptorHandle);
-
-		// 추가: skinned면 b7(root param 7)에 bone palette CBV 바인딩
-		if (m_bSkinnedObject)
-		{
-			cmd->SetGraphicsRootConstantBufferView(
-				ROOT_PARAMETER_BONE_PALETTE,   // == b7
-				m_pd3dcbBoneTransforms->GetGPUVirtualAddress()
-			);
-		}
+		m_pTransform->SetPosition(XMFLOAT3(x, y, z));
 	}
+	void SetPosition(XMFLOAT3 p) { SetPosition(p.x, p.y, p.z); }
 
-	XMFLOAT3 GetPosition() const { return(XMFLOAT3(m_xmf4x4World._41, m_xmf4x4World._42, m_xmf4x4World._43)); }
-	XMFLOAT3 GetLook() const { return(Vector3::Normalize(XMFLOAT3(m_xmf4x4World._31, m_xmf4x4World._32, m_xmf4x4World._33))); }
-	XMFLOAT3 GetUp() const { return(Vector3::Normalize(XMFLOAT3(m_xmf4x4World._21, m_xmf4x4World._22, m_xmf4x4World._23))); }
-	XMFLOAT3 GetRight() const { return(Vector3::Normalize(XMFLOAT3(m_xmf4x4World._11, m_xmf4x4World._12, m_xmf4x4World._13))); }
-
-	void SetPosition(float x, float y, float z) {
-		m_xmf4x4World._41 = x;
-		m_xmf4x4World._42 = y;
-		m_xmf4x4World._43 = z;
-	}
-	void SetPosition(XMFLOAT3 xmf3Position) {
-		SetPosition(xmf3Position.x, xmf3Position.y, xmf3Position.z);
+	// 호환용: 외부 월드행렬 입력이 필요할 때도 Transform만 변경(권위 유지)
+	void SetWorldMatrix(const XMFLOAT4X4& W)
+	{
+		m_pTransform->SetWorldMatrixFromMatrix(W);
 	}
 
 public:
-	XMFLOAT4X4						m_xmf4x4World = Matrix4x4::Identity();
-
-	vector<shared_ptr<CMesh>>		m_ppMeshes;
-	int								m_nMeshes = 0;
-
 	D3D12_GPU_DESCRIPTOR_HANDLE		m_d3dCbvGPUDescriptorHandle = { 0 };
-
-	void SetWorldMatrix(const XMFLOAT4X4& xmf4x4World) { m_xmf4x4World = xmf4x4World; }
-	XMFLOAT4X4 GetWorldMatrix() { return(m_xmf4x4World); }
 
 	// ================================
 	// Animation / Skinning (per-object)
@@ -113,8 +144,8 @@ public:
 	void EnableSkinning(ID3D12Device* pd3dDevice, int nBones);
 	void DisableSkinning();
 
-	bool IsSkinnedObject() const { return m_bSkinnedObject; }
-	int  GetBoneCount()    const { return m_nBones; }
+	bool IsSkinnedObject() const;
+	int  GetBoneCount()    const;
 
 	// Mesh가 들고 있는 "스켈레톤 메타데이터" 접근 (forward)
 	const std::vector<Bone>& GetBones() const;
@@ -125,15 +156,59 @@ public:
 
 	// Animator는 오브젝트가 소유 (메시 공유 대비)
 	CAnimator* EnsureAnimator();
-	CAnimator* GetAnimator() const { return m_pAnimator.get(); }
+	CAnimator* GetAnimator() const;
 	void PlayAnimation(const std::string& name, bool loop = true, float start = 0.0f);
 
 	// CPU -> GPU 팔레트 업데이트 (Animator에서 만든 최종 본 행렬 업로드)
 	void UpdateBoneTransformsOnGPU(const XMFLOAT4X4* pxmf4x4BoneTransforms, int nBones);
 
 protected:
+	// --------------------
+	// Components (owned)
+	// --------------------
+	CTransformComponent* m_pTransform = nullptr;
+	CTransformComponent* GetTransform() const { return m_pTransform; }
+	CRendererComponent* m_pRenderer = nullptr;
+	CModelComponent* m_pModel = nullptr;
+	CAnimatorComponent* m_pAnimatorComponent = nullptr;
+	CRenderObjectComponent* m_pRenderObject = nullptr;
+	CSkinningComponent* m_pSkinning = nullptr;
+	std::vector<std::unique_ptr<CComponent>> m_components;
+
+	bool m_bComponentsCreated = false;
+	ID3D12Device* m_pd3dDeviceForComponents = nullptr;
+	ID3D12GraphicsCommandList* m_pd3dCmdForComponents = nullptr;
+
+public:
+	CRendererComponent* GetRenderer()
+	{
+		if (m_pRenderer) return m_pRenderer;
+
+		for (auto& c : m_components)
+		{
+			if (c && c->IsRenderer())
+			{
+				m_pRenderer = static_cast<CRendererComponent*>(c.get());
+				return m_pRenderer;
+			}
+		}
+		return nullptr;
+	}
+	CAnimatorComponent* GetAnimatorComponent();
+	const CAnimatorComponent* GetAnimatorComponent() const;
+
+	CAnimatorComponent* EnsureAnimatorComponent();
+
+protected:
+	const CRendererComponent* GetRenderer() const
+	{
+		return const_cast<CGameObject*>(this)->GetRenderer();
+	}
 	ComPtr<ID3D12Resource>			m_pd3dcbGameObject;
 	CB_GAMEOBJECT_INFO* m_pcbMappedGameObject = nullptr;
+
+	void PreRenderComponents(ID3D12GraphicsCommandList* cmd);
+	void PostRenderComponents(ID3D12GraphicsCommandList* cmd);
 
 	// --------------------
 	// Skinning (per-object)
@@ -142,23 +217,18 @@ protected:
 	int                                 m_nBones = 0;
 
 	ComPtr<ID3D12Resource>              m_pd3dcbBoneTransforms = NULL;   // Upload heap CB
-	
-	// Animator (per-object)
-	std::unique_ptr<CAnimator>          m_pAnimator;
+
 
 public:
-	void SetMappedGameObjectCB(CB_GAMEOBJECT_INFO* p) { m_pcbMappedGameObject = p; }
-	CB_GAMEOBJECT_INFO* GetMappedGameObjectCB() const { return m_pcbMappedGameObject; }
+	void SetMappedGameObjectCB(CB_GAMEOBJECT_INFO* p);
+	CB_GAMEOBJECT_INFO* GetMappedGameObjectCB() const;
 
 protected:
 	XMFLOAT4X4* m_pcbMappedBoneTransforms = nullptr;
 
 public:
-		CAnimController* EnsureAnimController();
-		CAnimController* GetAnimController() const { return m_pAnimController.get(); }
-
-protected:
-	std::unique_ptr<CAnimController> m_pAnimController;
+	CAnimController* EnsureAnimController();
+	CAnimController* GetAnimController() const;
 
 protected:
 	std::shared_ptr<CShader> m_pShader;
@@ -169,3 +239,43 @@ public:
 
 };
 
+// ============================================================================
+// CGameObject - Component templates (header-only)
+// ============================================================================
+template<typename T, typename... Args>
+T* CGameObject::AddComponent(Args&&... args)
+{
+	static_assert(std::is_base_of<CComponent, T>::value, "T must derive from CComponent");
+
+	auto comp = std::make_unique<T>(this, std::forward<Args>(args)...);
+	T* raw = comp.get();
+
+	// ★ Renderer면 캐시 갱신 (빈오브젝트면 안 붙이면 됨)
+	if (raw)
+	{
+		CComponent* base = raw; // 업캐스트는 항상 안전/가능
+		if (base->IsRenderer())
+			m_pRenderer = static_cast<CRendererComponent*>(base); // base->derived 다운캐스트 (IsRenderer로 논리 보증)
+	}
+
+	m_components.emplace_back(std::move(comp));
+
+	if (m_bComponentsCreated && raw)
+		raw->OnCreate(m_pd3dDeviceForComponents, m_pd3dCmdForComponents);
+
+	return raw;
+}
+
+
+template<typename T>
+T* CGameObject::GetComponent() const
+{
+	const auto want = CComponent::StaticTypeId<T>();
+
+	for (const auto& c : m_components)
+	{
+		if (c && c->GetTypeId() == want)
+			return static_cast<T*>(c.get());
+	}
+	return nullptr;
+}

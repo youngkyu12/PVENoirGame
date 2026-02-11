@@ -197,12 +197,11 @@ void CScene::BuildStaticBatch(
 
 		auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
 		obj->SetMappedGameObjectCB(cb);
-
 		obj->SetMesh(0, asset.mesh);
-
+		obj->AddComponent<CStaticMeshRendererComponent>();
 		obj->SetPosition(0.0f, 0.0f, 30.0f);
-
 		obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+		obj->CreateComponents(pd3dDevice, pd3dCommandList);
 
 		CGameObject* raw = obj.get();              // non-owning pointer for batch
 		m_staticObjects.push_back(std::move(obj)); // scene owns
@@ -305,9 +304,8 @@ void CScene::BuildSkinnedBatch(
 
 			auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
 			obj->SetMappedGameObjectCB(cb);
-
 			obj->SetMesh(0, asset.mesh);
-
+			obj->AddComponent<CStaticMeshRendererComponent>();
 			float x = distX(rng);
 			float y = rotY(rng);
 			float z = distZ(rng);
@@ -324,9 +322,10 @@ void CScene::BuildSkinnedBatch(
 			AnimationClip idleClip;
 			bool idleLoaded = false;
 
-			if (!obj->m_ppMeshes.empty() && obj->m_ppMeshes[0])
+			auto mesh0 = obj->GetMeshShared(0);
+			if (mesh0)
 			{
-				idleLoaded = obj->m_ppMeshes[0]->LoadAnimationFromBIN(
+				idleLoaded = mesh0->LoadAnimationFromBIN(
 					"Assets/Zombie/Animation/ZombieAttack.bin",
 					"Idle", idleClip, 1.0f
 				);
@@ -348,6 +347,7 @@ void CScene::BuildSkinnedBatch(
 				obj->Animate(0.0f);
 			}
 
+			obj->CreateComponents(pd3dDevice, pd3dCommandList);
 			CGameObject* raw = obj.get();
 			m_skinnedObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
@@ -376,9 +376,8 @@ void CScene::BuildSkinnedBatch(
 
 			auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
 			obj->SetMappedGameObjectCB(cb);
-
 			obj->SetMesh(0, asset.mesh);
-
+			obj->AddComponent<CStaticMeshRendererComponent>();
 			UINT matId = 0;
 			if (asset.mesh)
 			{
@@ -409,9 +408,10 @@ void CScene::BuildSkinnedBatch(
 			AnimationClip idleClip;
 			bool idleLoaded = false;
 
-			if (!obj->m_ppMeshes.empty() && obj->m_ppMeshes[0])
+			auto mesh0 = obj->GetMeshShared(0);
+			if (mesh0)
 			{
-				idleLoaded = obj->m_ppMeshes[0]->LoadAnimationFromBIN(
+				idleLoaded = mesh0->LoadAnimationFromBIN(
 					"Assets/Fighter/Animation/FighterIdle.bin",
 					"Idle", idleClip, 1.0f
 				);
@@ -433,6 +433,7 @@ void CScene::BuildSkinnedBatch(
 				obj->Animate(0.0f);
 			}
 
+			obj->CreateComponents(pd3dDevice, pd3dCommandList);
 			CGameObject* raw = obj.get();
 			m_skinnedObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);

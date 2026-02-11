@@ -176,12 +176,11 @@ public:
 	{
 		m_pMaterials->m_pReflections[materialId].m_xmn4TextureIndices.x = srvIndex;
 	}
-
+	
 public:
 	SCENE_STATIC_BATCH						m_staticBatch;
 	SCENE_SKINNED_BATCH						m_skinnedBatch;
 public:
 	std::vector<std::unique_ptr<CGameObject>>   m_staticObjects;
 	std::vector<std::unique_ptr<CGameObject>>   m_skinnedObjects;
-
 };

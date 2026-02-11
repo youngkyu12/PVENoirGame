@@ -8,16 +8,19 @@
 #include "Scene.h"
 #include "AssetManager.h"
 #include "AnimController.h"
+#include "AnimatorComponent.h"
+#include "RenderObjectComponent.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CPlayer
 
 CPlayer::CPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, ID3D12RootSignature *pd3dGraphicsRootSignature, void *pContext, int nMeshes): CGameObject(nMeshes)
 {
-	m_xmf3Position = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	m_xmf3Right = XMFLOAT3(1.0f, 0.0f, 0.0f);
-	m_xmf3Up = XMFLOAT3(0.0f, 1.0f, 0.0f);
-	m_xmf3Look = XMFLOAT3(0.0f, 0.0f, 1.0f);
+	if (m_pTransform)
+	{
+		m_pTransform->SetPosition(XMFLOAT3(0.0f, 0.0f, 0.0f));
+		m_pTransform->SetYawDegrees(0.0f);
+	}
 
 	m_xmf3Velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
 	m_xmf3Gravity = XMFLOAT3(0.0f, 0.0f, 0.0f);
@@ -25,8 +28,6 @@ CPlayer::CPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dComman
 	m_fMaxVelocityY = 0.0f;
 	m_fFriction = 0.0f;
 
-	m_fPitch = 0.0f;
-	m_fRoll = 0.0f;
 	m_fYaw = 0.0f;
 }
 
@@ -38,37 +39,28 @@ CPlayer::~CPlayer()
 
 void CPlayer::CreateShaderVariables(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
-	if (m_pCamera)
-		m_pCamera->CreateShaderVariables(dev, cmd);
+	if (m_pCamera) m_pCamera->CreateShaderVariables(dev, cmd);
 
-	// -------------------------
-	// (1) b0: Player CB 유지(남겨도 무방)
-	// -------------------------
+	CreateComponents(dev, cmd);
+
+	// 안전장치: 플레이어는 로컬 CB가 필요
+	if (auto* ro = GetComponent<CRenderObjectComponent>())
+		ro->CreateLocalCB(dev, cmd);
+
+	// (1) b0: Player CB 유지
 	UINT cbPlayerBytes = (sizeof(CB_PLAYER_INFO) + 255) & ~255;
 	m_pd3dcbPlayer = ::CreateBufferResource(
-		dev, cmd,
-		nullptr,
-		cbPlayerBytes,
+		dev, cmd, nullptr, cbPlayerBytes,
 		D3D12_HEAP_TYPE_UPLOAD,
 		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
 		nullptr
 	);
 	m_pd3dcbPlayer->Map(0, nullptr, (void**)&m_pcbMappedPlayer);
 
-	// -------------------------
-	// (2) b2: CB_GAMEOBJECT_INFO (CSkinnedObjectsShader가 읽는 CB)
-	// -------------------------
-	UINT cbObjBytes = (sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255;
-	m_pd3dcbGameObject = ::CreateBufferResource(
-		dev, cmd,
-		nullptr,
-		cbObjBytes,
-		D3D12_HEAP_TYPE_UPLOAD,
-		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
-		nullptr
-	);
-	m_pd3dcbGameObject->Map(0, nullptr, (void**)&m_pcbMappedGameObject);
+	// (2) b2: CB_GAMEOBJECT_INFO 는 RenderObjectComponent가 이미 생성/맵핑했어야 함
+	//     -> 여기서 직접 만들지 않는다.
 }
+
 
 void CPlayer::ReleaseShaderVariables()
 {
@@ -81,59 +73,69 @@ void CPlayer::ReleaseShaderVariables()
 		m_pcbMappedPlayer = nullptr;
 	}
 
-	CGameObject::ReleaseShaderVariables();
+	// b2/bone 은 컴포넌트가 소유/정리
+	CGameObject::ReleaseShaderVariables(); // 여기서도 레거시 해제가 없도록 정리돼 있어야 함
 }
+
 
 
 void CPlayer::UpdateShaderVariables(ID3D12GraphicsCommandList* cmd)
 {
-	// -------------------------
-	// (1) b0: Player CB 갱신(유지)
-	// -------------------------
+	(void)cmd;
+	const XMFLOAT4X4& W = m_pTransform->GetWorldMatrix();
+
+	// b0
 	if (m_pcbMappedPlayer)
 	{
-		XMStoreFloat4x4(
-			&m_pcbMappedPlayer->m_xmf4x4World,
-			XMMatrixTranspose(XMLoadFloat4x4(&m_xmf4x4World))
-		);
+		XMStoreFloat4x4(&m_pcbMappedPlayer->m_xmf4x4World,
+			XMMatrixTranspose(XMLoadFloat4x4(&W)));
 	}
 
-	// -------------------------
-	// (2) b2: GameObject CB 갱신 (CSkinnedObjectsShader가 실제로 읽는 값)
-	// -------------------------
-	if (m_pcbMappedGameObject)
+	// b2 (RenderObjectComponent 로컬 CB)
+	if (auto* ro = GetComponent<CRenderObjectComponent>())
 	{
-		XMStoreFloat4x4(
-			&m_pcbMappedGameObject->m_xmf4x4World,
-			XMMatrixTranspose(XMLoadFloat4x4(&m_xmf4x4World))
-		);
-
-		m_pcbMappedGameObject->m_nObjectID = 0;
+		if (auto* cb = ro->GetMappedCB())
+		{
+			XMStoreFloat4x4(&cb->m_xmf4x4World,
+				XMMatrixTranspose(XMLoadFloat4x4(&W)));
+			cb->m_nObjectID = ro->GetObjectID();
+		}
 	}
 }
 
-void CPlayer::Move(DWORD dwDirection, float fDistance, bool bUpdateVelocity)
+
+
+void CPlayer::Move(DWORD dwDirection, float fDistance, bool bUpdateVelocity,
+	CPlayer::EVerticalMoveSpace upSpace)
 {
+	XMFLOAT3 look = GetLookVector();
+	XMFLOAT3 right = GetRightVector();
+
+	// DIR_UP/DOWN은 옵션: 월드업 vs 로컬업
+	XMFLOAT3 up = (upSpace == EVerticalMoveSpace::LocalUp)
+		? GetUpVector()
+		: XMFLOAT3(0.0f, 1.0f, 0.0f);
+
 	if (dwDirection)
 	{
 		XMFLOAT3 xmf3Shift = XMFLOAT3(0, 0, 0);
 		if (dwDirection & DIR_FORWARD)
-			xmf3Shift = Vector3::Add(xmf3Shift, m_xmf3Look, fDistance);
+			xmf3Shift = Vector3::Add(xmf3Shift, look, fDistance);
 
 		if (dwDirection & DIR_BACKWARD)
-			xmf3Shift = Vector3::Add(xmf3Shift, m_xmf3Look, -fDistance);
+			xmf3Shift = Vector3::Add(xmf3Shift, look, -fDistance);
 
 		if (dwDirection & DIR_RIGHT)
-			xmf3Shift = Vector3::Add(xmf3Shift, m_xmf3Right, fDistance);
+			xmf3Shift = Vector3::Add(xmf3Shift, right, fDistance);
 
 		if (dwDirection & DIR_LEFT)
-			xmf3Shift = Vector3::Add(xmf3Shift, m_xmf3Right, -fDistance);
+			xmf3Shift = Vector3::Add(xmf3Shift, right, -fDistance);
 
 		if (dwDirection & DIR_UP)
-			xmf3Shift = Vector3::Add(xmf3Shift, m_xmf3Up, fDistance);
+			xmf3Shift = Vector3::Add(xmf3Shift, up, fDistance);
 
 		if (dwDirection & DIR_DOWN)
-			xmf3Shift = Vector3::Add(xmf3Shift, m_xmf3Up, -fDistance);
+			xmf3Shift = Vector3::Add(xmf3Shift, up, -fDistance);
 
 		Move(xmf3Shift, bUpdateVelocity);
 	}
@@ -147,90 +149,58 @@ void CPlayer::Move(const XMFLOAT3& xmf3Shift, bool bUpdateVelocity)
 	}
 	else
 	{
-		m_xmf3Position = Vector3::Add(m_xmf3Position, xmf3Shift);
+		if (m_pTransform)
+			m_pTransform->Translate(xmf3Shift);
+
 		m_pCamera->Move(xmf3Shift);
 	}
+
 }
 
 void CPlayer::Rotate(float x, float y, float z)
 {
 	DWORD nCurrentCameraMode = m_pCamera->GetMode();
-	if ((nCurrentCameraMode == FIRST_PERSON_CAMERA)|| (nCurrentCameraMode == THIRD_PERSON_CAMERA))
-	{
-		if (x != 0.0f)
-		{
-			m_fPitch += x;
-			if (m_fPitch > +89.0f)
-			{ 
-				x -= (m_fPitch - 89.0f); 
-				m_fPitch = +89.0f; 
-			}
 
-			if (m_fPitch < -89.0f)
-			{ 
-				x -= (m_fPitch + 89.0f);
-				m_fPitch = -89.0f; 
-			}
-		}
+	if ((nCurrentCameraMode == FIRST_PERSON_CAMERA) || (nCurrentCameraMode == THIRD_PERSON_CAMERA))
+	{
 		if (y != 0.0f)
 		{
 			m_fYaw += y;
-			if (m_fYaw > 360.0f)
-				m_fYaw -= 360.0f;
-
-			if (m_fYaw < 0.0f)
-				m_fYaw += 360.0f;
+			if (m_fYaw > 360.0f) m_fYaw -= 360.0f;
+			if (m_fYaw < 0.0f)   m_fYaw += 360.0f;
 		}
-		if (z != 0.0f)
-		{
-			m_fRoll += z;
-			if (m_fRoll > +20.0f)
-			{ 
-				z -= (m_fRoll - 20.0f); 
-				m_fRoll = +20.0f; 
-			}
 
-			if (m_fRoll < -20.0f)
-			{ 
-				z -= (m_fRoll + 20.0f); 
-				m_fRoll = -20.0f; 
-			}
-		}
+		// 카메라 회전은 기존대로
 		m_pCamera->Rotate(x, y, z);
 
-		if (y != 0.0f)
-		{
-			XMMATRIX xmmtxRotate = XMMatrixRotationAxis(XMLoadFloat3(&m_xmf3Up), XMConvertToRadians(y));
-			m_xmf3Look = Vector3::TransformNormal(m_xmf3Look, xmmtxRotate);
-			m_xmf3Right = Vector3::TransformNormal(m_xmf3Right, xmmtxRotate);
-		}
+		// Player 바디는 “yaw만” Transform으로 반영 (기존 코드와 동일한 의미)
+		if (m_pTransform)
+			m_pTransform->SetYawDegrees(m_fYaw);
 	}
 	else if (nCurrentCameraMode == SPACESHIP_CAMERA)
 	{
+		// 스페이스쉽 모드: 카메라도, 바디도 자유 회전
 		m_pCamera->Rotate(x, y, z);
-		if (x != 0.0f)
+
+		if (m_pTransform)
 		{
-			XMMATRIX xmmtxRotate = XMMatrixRotationAxis(XMLoadFloat3(&m_xmf3Right), XMConvertToRadians(x));
-			m_xmf3Look = Vector3::TransformNormal(m_xmf3Look, xmmtxRotate);
-			m_xmf3Up = Vector3::TransformNormal(m_xmf3Up, xmmtxRotate);
-		}
-		if (y != 0.0f)
-		{
-			XMMATRIX xmmtxRotate = XMMatrixRotationAxis(XMLoadFloat3(&m_xmf3Up), XMConvertToRadians(y));
-			m_xmf3Look = Vector3::TransformNormal(m_xmf3Look, xmmtxRotate);
-			m_xmf3Right = Vector3::TransformNormal(m_xmf3Right, xmmtxRotate);
-		}
-		if (z != 0.0f)
-		{
-			XMMATRIX xmmtxRotate = XMMatrixRotationAxis(XMLoadFloat3(&m_xmf3Look), XMConvertToRadians(z));
-			m_xmf3Up = Vector3::TransformNormal(m_xmf3Up, xmmtxRotate);
-			m_xmf3Right = Vector3::TransformNormal(m_xmf3Right, xmmtxRotate);
+			if (x != 0.0f)
+			{
+				XMFLOAT3 axis = m_pTransform->GetRight();
+				m_pTransform->RotateWorldAxisDegrees(axis, x);
+			}
+			if (y != 0.0f)
+			{
+				XMFLOAT3 axis = m_pTransform->GetUp();
+				m_pTransform->RotateWorldAxisDegrees(axis, y);
+			}
+			if (z != 0.0f)
+			{
+				XMFLOAT3 axis = m_pTransform->GetLook();
+				m_pTransform->RotateWorldAxisDegrees(axis, z);
+			}
 		}
 	}
-
-	m_xmf3Look = Vector3::Normalize(m_xmf3Look);
-	m_xmf3Right = Vector3::CrossProduct(m_xmf3Up, m_xmf3Look, true);
-	m_xmf3Up = Vector3::CrossProduct(m_xmf3Look, m_xmf3Right, true);
 }
 
 void CPlayer::Update(float fTimeElapsed)
@@ -257,14 +227,16 @@ void CPlayer::Update(float fTimeElapsed)
 
 	DWORD nCurrentCameraMode = m_pCamera->GetMode();
 
+	XMFLOAT3 pos = GetPosition();
+
 	if (nCurrentCameraMode == THIRD_PERSON_CAMERA)
-		m_pCamera->Update(m_xmf3Position, fTimeElapsed);
+		m_pCamera->Update(pos, fTimeElapsed);
 
 	if (m_pCameraUpdatedContext)
 		OnCameraUpdateCallback(fTimeElapsed);
 
 	if (nCurrentCameraMode == THIRD_PERSON_CAMERA)
-		m_pCamera->SetLookAt(m_xmf3Position);
+		m_pCamera->SetLookAt(pos);
 
 	m_pCamera->RegenerateViewMatrix();
 
@@ -295,20 +267,25 @@ unique_ptr<CCamera> CPlayer::OnChangeCamera(DWORD nNewCameraMode, DWORD nCurrent
 	}
 	if (nCurrentCameraMode == SPACESHIP_CAMERA)
 	{
-		m_xmf3Right = Vector3::Normalize(XMFLOAT3(m_xmf3Right.x, 0.0f, m_xmf3Right.z));
-		m_xmf3Up = Vector3::Normalize(XMFLOAT3(0.0f, 1.0f, 0.0f));
-		m_xmf3Look = Vector3::Normalize(XMFLOAT3(m_xmf3Look.x, 0.0f, m_xmf3Look.z));
+		XMFLOAT3 look = GetLookVector();
+		look.y = 0.0f;
+		look = Vector3::Normalize(look);
 
-		m_fPitch = 0.0f;
-		m_fRoll = 0.0f;
-		m_fYaw = Vector3::Angle(XMFLOAT3(0.0f, 0.0f, 1.0f), m_xmf3Look);
-		if (m_xmf3Look.x < 0.0f)m_fYaw = -m_fYaw;
+		m_fYaw = Vector3::Angle(XMFLOAT3(0.0f, 0.0f, 1.0f), look);
+		if (look.x < 0.0f) m_fYaw = -m_fYaw;
+
+		if (m_pTransform)
+			m_pTransform->SetYawDegrees(m_fYaw);
 	}
-	else if ((nNewCameraMode == SPACESHIP_CAMERA)&& m_pCamera)
+	else if ((nNewCameraMode == SPACESHIP_CAMERA) && m_pCamera)
 	{
-		m_xmf3Right = m_pCamera->GetRightVector();
-		m_xmf3Up = m_pCamera->GetUpVector();
-		m_xmf3Look = m_pCamera->GetLookVector();
+		if (m_pTransform)
+		{
+			XMFLOAT3 r = m_pCamera->GetRightVector();
+			XMFLOAT3 u = m_pCamera->GetUpVector();
+			XMFLOAT3 l = m_pCamera->GetLookVector();
+			m_pTransform->SetRotationFromBasis(r, u, l);
+		}
 	}
 
 	if (pNewCamera)
@@ -320,35 +297,21 @@ unique_ptr<CCamera> CPlayer::OnChangeCamera(DWORD nNewCameraMode, DWORD nCurrent
 	return(move(pNewCamera));
 }
 
-void CPlayer::OnPrepareRender(ID3D12GraphicsCommandList *pd3dCommandList, CCamera *pCamera)
+void CPlayer::OnPrepareRender(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera)
 {
-	m_xmf4x4World._11 = m_xmf3Right.x; m_xmf4x4World._12 = m_xmf3Right.y; m_xmf4x4World._13 = m_xmf3Right.z;
-	m_xmf4x4World._21 = m_xmf3Up.x; m_xmf4x4World._22 = m_xmf3Up.y; m_xmf4x4World._23 = m_xmf3Up.z;
-	m_xmf4x4World._31 = m_xmf3Look.x; m_xmf4x4World._32 = m_xmf3Look.y; m_xmf4x4World._33 = m_xmf3Look.z;
-	m_xmf4x4World._41 = m_xmf3Position.x; m_xmf4x4World._42 = m_xmf3Position.y; m_xmf4x4World._43 = m_xmf3Position.z;
+	(void)pd3dCommandList;
+	(void)pCamera;
 }
+
 
 void CPlayer::SetRootParameter(ID3D12GraphicsCommandList* cmd)
 {
-	// 플레이어도 다른 스키닝 오브젝트와 동일하게 b2(OBJECT) 테이블을 바인딩한다.
-	cmd->SetGraphicsRootDescriptorTable(
-		ROOT_PARAMETER_OBJECT,
-		m_d3dCbvGPUDescriptorHandle
-	);
-
-	// 스키닝이면 b7(BonePalette)도 바인딩
-	if (m_bSkinnedObject && m_pd3dcbBoneTransforms)
-	{
-		cmd->SetGraphicsRootConstantBufferView(
-			ROOT_PARAMETER_BONE_PALETTE,
-			m_pd3dcbBoneTransforms->GetGPUVirtualAddress()
-		);
-	}
+	CGameObject::SetRootParameter(cmd); // RenderObject+Skinning 기반 바인딩
 }
 
-void CPlayer::Render(ID3D12GraphicsCommandList *pd3dCommandList, CCamera *pCamera)
+void CPlayer::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera)
 {
-	DWORD nCameraMode = (pCamera)? pCamera->GetMode(): 0x00;
+	DWORD nCameraMode = (pCamera) ? pCamera->GetMode() : 0x00;
 	if (nCameraMode == THIRD_PERSON_CAMERA)CGameObject::Render(pd3dCommandList, pCamera);
 }
 
@@ -396,7 +359,7 @@ CFighterPlayer::CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandLi
 	default:
 		break;
 	}
-	m_pCamera->SetPosition(Vector3::Add(m_xmf3Position, m_pCamera->GetOffset()));
+	m_pCamera->SetPosition(Vector3::Add(GetPosition(), m_pCamera->GetOffset()));
 	Update(0.0f);
 
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
@@ -435,50 +398,50 @@ CFighterPlayer::CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandLi
 	// ------------------------------------------------------------
 	// 애니메이션 로드 + Animator 세팅 + 재생 
 	// ------------------------------------------------------------
+	// ------------------------------------------------------------
+	// Components: Renderer + Animator
+	// (이미 추가돼있다면 중복 생성 방지)
+	// ------------------------------------------------------------
+	if (!GetRenderer())
+		AddComponent<CSkinnedMeshRendererComponent>();
+
+	CAnimatorComponent* animComp = GetComponent<CAnimatorComponent>();
+	if (!animComp)
+		animComp = AddComponent<CAnimatorComponent>();
+
+	// ------------------------------------------------------------
+	// 애니메이션 로드 + AnimatorComponent 세팅 + 초기 포즈 적용
+	// ------------------------------------------------------------
+	auto mesh0 = GetMeshShared(0); // ★ ModelComponent 경유
+
 	AnimationClip idleClip;
-	bool idleLoaded = false;
-
-	if (!m_ppMeshes.empty() && m_ppMeshes[0])
-	{
-		idleLoaded = m_ppMeshes[0]->LoadAnimationFromBIN(
-			"Assets/Fighter/Animation/FighterIdle.bin", 
-			"Idle",	idleClip, 1.0f );
-	}
-
-	if (idleLoaded)
+	if (mesh0 && mesh0->LoadAnimationFromBIN(
+		"Assets/Fighter/Animation/FighterIdle.bin",
+		"Idle", idleClip, 1.0f))
 	{
 		idleClip.name = "Idle";
-
-		CAnimator* anim = EnsureAnimator();
-		if (anim)
-			anim->AddClip(idleClip);
+		if (animComp) animComp->AddClip(idleClip);
 	}
 
-	AnimationClip RunClip;
-	bool RunLoaded = false;
-
-	if (!m_ppMeshes.empty() && m_ppMeshes[0])
+	AnimationClip runClip;
+	if (mesh0 && mesh0->LoadAnimationFromBIN(
+		"Assets/Fighter/Animation/FighterRun.bin",
+		"Run", runClip, 1.0f))
 	{
-		RunLoaded = m_ppMeshes[0]->LoadAnimationFromBIN(
-			"Assets/Fighter/Animation/FighterRun.bin",
-			"Run", RunClip, 1.0f);
+		runClip.name = "Run";
+		if (animComp) animComp->AddClip(runClip);
 	}
-	if (RunLoaded)
+
+	if (animComp)
 	{
-		RunClip.name = "Run";
+		animComp->SetIdleClip("Idle");
+		animComp->SetMoveClip("Run");
+		animComp->SetSpeed(0.0f);
 
-		CAnimator* anim = EnsureAnimator();
-		if (anim)
-			anim->AddClip(RunClip);
+		// ctor 단계에서도 바로 포즈 계산 + bone palette 업로드
+		animComp->EvaluatePose(0.0f);
 	}
 
-	auto* ctrl = EnsureAnimController();
-	ctrl->SetIdleClip("Idle");
-	ctrl->SetMoveClip("Run");
-	ctrl->SetSpeed(0.0f);
-	ctrl->Update(0.0f);
-
-	this->Animate(0.0f);
 
 	// ------------------------------------------------------------
 	// Player CBV 생성/바인딩
@@ -498,8 +461,8 @@ CFighterPlayer::CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandLi
 	};
 
 	// ------------------------------------------------------------
-// (1) 플레이어 셰이더를 CSkinnedObjectsShader로 생성
-// ------------------------------------------------------------
+	// (1) 플레이어 셰이더를 CSkinnedObjectsShader로 생성
+	// ------------------------------------------------------------
 	shared_ptr<CSkinnedObjectsShader> pShader = make_shared<CSkinnedObjectsShader>();
 	pShader->CreateShader(
 		pd3dDevice,
@@ -513,22 +476,33 @@ CFighterPlayer::CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandLi
 	// (2) 플레이어는 b2(CB_GAMEOBJECT_INFO) 테이블을 사용해야 하므로
 	//     m_pd3dcbGameObject로 CBV 디스크립터를 만든다.
 	// ------------------------------------------------------------
-	UINT cbObjBytes = (sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255;
+	auto* ro = GetComponent<CRenderObjectComponent>();
+	// ro는 GameObject ctor에서 기본으로 붙였다고 했으니 null이면 구조가 흔들린 것.
+	if (ro)
+	{
+		if (!ro->GetCBResource())
+			ro->CreateLocalCB(pd3dDevice, pd3dCommandList);
 
-	D3D12_GPU_DESCRIPTOR_HANDLE hPlayerObjCbv =
-		CScene::m_pDescriptorHeap->CreateConstantBufferView(
-			pd3dDevice,
-			m_pd3dcbGameObject.Get(),
-			cbObjBytes
-		);
+		const UINT cbObjBytes = (sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255;
 
-	// 이 핸들이 ROOT_PARAMETER_OBJECT(b2 테이블)에 들어간다.
-	SetCbvGPUDescriptorHandle(hPlayerObjCbv);
+		D3D12_GPU_DESCRIPTOR_HANDLE hPlayerObjCbv =
+			CScene::m_pDescriptorHeap->CreateConstantBufferView(
+				pd3dDevice,
+				ro->GetCBResource(),
+				cbObjBytes
+			);
+
+		SetCbvGPUDescriptorHandle(hPlayerObjCbv);
+	}
 
 	// ------------------------------------------------------------
 	// (3) Material에 Shader 연결
 	// ------------------------------------------------------------
 	SetShader(pShader);
+	//if (pPlayerMesh && pPlayerMesh->IsSkinnedMesh())
+	//{
+	//	if (!GetRenderer()) AddComponent<CSkinnedMeshRendererComponent>();
+	//}
 }
 
 CFighterPlayer::~CFighterPlayer()
@@ -585,7 +559,7 @@ CCamera * CFighterPlayer::ChangeCamera(DWORD nNewCameraMode, float fTimeElapsed)
 		default:
 			break;
 	}
-	m_pCamera->SetPosition(Vector3::Add(m_xmf3Position, m_pCamera->GetOffset()));
+	m_pCamera->SetPosition(Vector3::Add(GetPosition(), m_pCamera->GetOffset()));
 	Update(fTimeElapsed);
 
 	return(m_pCamera.get());
