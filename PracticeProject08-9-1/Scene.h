@@ -10,6 +10,7 @@
 #include "Shader.h"
 #include "Player.h"
 #include "DescriptorHeap.h"
+#include "LightTypes.h"
 
 #define ROOT_PARAMETER_DRAW_OPTIONS 5
 #define ROOT_PARAMETER_GLOBAL_SRV 6
@@ -17,31 +18,9 @@ constexpr UINT LEGACY_SRV_COUNT = 6; // t0(1) + t1~t5(5)
 
 class CMaterial;
 class CGameObject;
+class CFollowTransformComponent;
 struct CB_GAMEOBJECT_INFO;
 struct CB_BONE_PALETTE;
-
-struct LIGHT
-{
-	XMFLOAT4				m_xmf4Ambient;
-	XMFLOAT4				m_xmf4Diffuse;
-	XMFLOAT4				m_xmf4Specular;
-	XMFLOAT3				m_xmf3Position;
-	float 					m_fFalloff;
-	XMFLOAT3				m_xmf3Direction;
-	float 					m_fTheta; //cos(m_fTheta)
-	XMFLOAT3				m_xmf3Attenuation;
-	float					m_fPhi; //cos(m_fPhi)
-	bool					m_bEnable;
-	int						m_nType;
-	float					m_fRange;
-	float					padding;
-};
-
-struct LIGHTS
-{
-	LIGHT					m_pLights[MAX_LIGHTS];
-	XMFLOAT4				m_xmf4GlobalAmbient;
-};
 
 struct MATERIAL
 {
@@ -183,4 +162,8 @@ public:
 public:
 	std::vector<std::unique_ptr<CGameObject>>   m_staticObjects;
 	std::vector<std::unique_ptr<CGameObject>>   m_skinnedObjects;
+
+	std::vector<std::unique_ptr<CGameObject>>   m_lightObjects;
+	CFollowTransformComponent* m_pPlayerSpotFollower = nullptr;
+
 };

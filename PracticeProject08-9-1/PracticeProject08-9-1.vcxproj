@@ -144,6 +144,8 @@
     <ClInclude Include="DDSTextureLoader12.h" />
     <ClInclude Include="DescriptorHeap.h" />
     <ClInclude Include="GameFramework.h" />
+    <ClInclude Include="LightComponent.h" />
+    <ClInclude Include="LightTypes.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="ModelComponent.h" />

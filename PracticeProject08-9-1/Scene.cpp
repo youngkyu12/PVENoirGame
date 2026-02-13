@@ -33,6 +33,9 @@ void CScene::ReleaseObjects()
 	m_staticObjects.clear();
 	m_skinnedObjects.clear();
 
+	m_lightObjects.clear();
+	m_pPlayerSpotFollower = nullptr;
+
 	// Batch ref lists clear
 	m_staticBatch.objectRefs.clear();
 	m_skinnedBatch.objectRefs.clear();
