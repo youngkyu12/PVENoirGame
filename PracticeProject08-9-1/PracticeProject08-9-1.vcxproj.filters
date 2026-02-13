@@ -22,6 +22,12 @@
     <Filter Include="소스 파일\Render">
       <UniqueIdentifier>{03116e53-1bbb-4315-a963-c0ed1e320326}</UniqueIdentifier>
     </Filter>
+    <Filter Include="헤더 파일\Components">
+      <UniqueIdentifier>{eb72dd7c-99b3-4646-b182-72a8fbb66e00}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="소스 파일\Components">
+      <UniqueIdentifier>{f8ac7add-fdee-4d8a-a1d2-4a45486e51d8}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="targetver.h">
@@ -86,6 +92,30 @@
     </ClInclude>
     <ClInclude Include="AnimController.h">
       <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="AnimatorComponent.h">
+      <Filter>헤더 파일\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Component.h">
+      <Filter>헤더 파일\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="ModelComponent.h">
+      <Filter>헤더 파일\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="RendererComponent.h">
+      <Filter>헤더 파일\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderObjectComponent.h">
+      <Filter>헤더 파일\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="SkinningComponent.h">
+      <Filter>헤더 파일\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="LightTypes.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="LightComponent.h">
+      <Filter>헤더 파일\Components</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -172,6 +202,21 @@
     </ClCompile>
     <ClCompile Include="AnimController.cpp">
       <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="AnimatorComponent.cpp">
+      <Filter>소스 파일\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="SkinningComponent.cpp">
+      <Filter>소스 파일\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderObjectComponent.cpp">
+      <Filter>소스 파일\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="RendererComponent.cpp">
+      <Filter>소스 파일\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="ModelComponent.cpp">
+      <Filter>소스 파일\Components</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

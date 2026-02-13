@@ -4,9 +4,32 @@
 
 #include "stdafx.h"
 #include "Scene.h"
+#include "LightComponent.h"
 
 void CScene::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList)
 {
+	// ============================================================
+	// Pack LightComponents -> LIGHTS (scene CB)
+	// ============================================================
+	if (m_pLights)
+	{
+		::ZeroMemory(m_pLights.get(), sizeof(LIGHTS));
+		m_pLights->m_xmf4GlobalAmbient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+
+		UINT li = 0;
+		for (auto& obj : m_lightObjects)
+		{
+			if (!obj) continue;
+			auto* lc = obj->GetComponent<CLightComponent>();
+			if (!lc) continue;
+			if (!lc->IsEnabled()) continue;
+			if (li >= MAX_LIGHTS) break;
+
+			lc->Fill(m_pLights->m_pLights[li]);
+			++li;
+		}
+	}
+
 	::memcpy(m_pcbMappedLights, m_pLights.get(), sizeof(LIGHTS));
 	::memcpy(m_pcbMappedMaterials, m_pMaterials.get(), sizeof(MATERIALS));
 
@@ -80,11 +103,19 @@ void CScene::AnimateObjects(float fTimeElapsed)
 		m_skinnedObjects[j]->Animate(fTimeElapsed);
 	}
 
-	if (m_pLights)
+	// Player spot light follower target set (once)
+	if (m_pPlayer && m_pPlayerSpotFollower && (m_pPlayerSpotFollower->GetTarget() == nullptr))
 	{
-		m_pLights->m_pLights[1].m_xmf3Position = m_pPlayer->GetPosition();
-		m_pLights->m_pLights[1].m_xmf3Direction = m_pPlayer->GetLookVector();
+		m_pPlayerSpotFollower->SetTarget(m_pPlayer.get());
 	}
+
+	// Update light objects (FollowTransformComponent Æ÷ÇÔ)
+	for (UINT j = 0; j < (UINT)m_lightObjects.size(); ++j)
+	{
+		if (!m_lightObjects[j]) continue;
+		m_lightObjects[j]->Animate(fTimeElapsed);
+	}
+
 }
 
 

@@ -7,6 +7,7 @@
 #include "Material.h"
 #include "AssetManager.h"
 #include "AnimController.h"
+#include "LightComponent.h"
 
 void CScene::BuildLightsAndMaterials()
 {
@@ -15,49 +16,89 @@ void CScene::BuildLightsAndMaterials()
 
 	m_pLights->m_xmf4GlobalAmbient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
 
-	m_pLights->m_pLights[0].m_bEnable = true;
-	m_pLights->m_pLights[0].m_nType = POINT_LIGHT;
-	m_pLights->m_pLights[0].m_fRange = 100.0f;
-	m_pLights->m_pLights[0].m_xmf4Ambient = XMFLOAT4(0.1f, 0.0f, 0.0f, 1.0f);
-	m_pLights->m_pLights[0].m_xmf4Diffuse = XMFLOAT4(0.8f, 0.0f, 0.0f, 1.0f);
-	m_pLights->m_pLights[0].m_xmf4Specular = XMFLOAT4(0.1f, 0.1f, 0.1f, 0.0f);
-	m_pLights->m_pLights[0].m_xmf3Position = XMFLOAT3(1.0f, 0.0f, 0.0f);
-	m_pLights->m_pLights[0].m_xmf3Direction = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	m_pLights->m_pLights[0].m_xmf3Attenuation = XMFLOAT3(1.0f, 0.001f, 0.0001f);
+	// ============================================================
+// Light Objects (Empty GameObjects + Components)
+// ============================================================
+	m_lightObjects.clear();
+	m_lightObjects.reserve(4);
+	m_pPlayerSpotFollower = nullptr;
 
-	m_pLights->m_pLights[1].m_bEnable = true;
-	m_pLights->m_pLights[1].m_nType = SPOT_LIGHT;
-	m_pLights->m_pLights[1].m_fRange = 50.0f;
-	m_pLights->m_pLights[1].m_xmf4Ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
-	m_pLights->m_pLights[1].m_xmf4Diffuse = XMFLOAT4(0.4f, 0.4f, 0.4f, 1.0f);
-	m_pLights->m_pLights[1].m_xmf4Specular = XMFLOAT4(0.1f, 0.1f, 0.1f, 0.0f);
-	m_pLights->m_pLights[1].m_xmf3Position = XMFLOAT3(-50.0f, 20.0f, -5.0f);
-	m_pLights->m_pLights[1].m_xmf3Direction = XMFLOAT3(0.0f, 0.0f, 1.0f);
-	m_pLights->m_pLights[1].m_xmf3Attenuation = XMFLOAT3(1.0f, 0.01f, 0.0001f);
-	m_pLights->m_pLights[1].m_fFalloff = 8.0f;
-	m_pLights->m_pLights[1].m_fPhi = (float)cos(XMConvertToRadians(40.0f));
-	m_pLights->m_pLights[1].m_fTheta = (float)cos(XMConvertToRadians(20.0f));
+	// [0] Point Light (기존 lights[0])
+	{
+		auto obj = std::make_unique<CGameObject>(0); // empty
+		obj->SetPosition(1.0f, 0.0f, 0.0f);
 
-	m_pLights->m_pLights[2].m_bEnable = true;
-	m_pLights->m_pLights[2].m_nType = DIRECTIONAL_LIGHT;
-	m_pLights->m_pLights[2].m_xmf4Ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
-	m_pLights->m_pLights[2].m_xmf4Diffuse = XMFLOAT4(0.3f, 0.3f, 0.3f, 1.0f);
-	m_pLights->m_pLights[2].m_xmf4Specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
-	m_pLights->m_pLights[2].m_xmf3Direction = XMFLOAT3(1.0f, 0.0f, 0.0f);
+		auto* lc = obj->AddComponent<CLightComponent>();
+		lc->type = ELightType::Point;
+		lc->range = 100.0f;
+		lc->ambient = XMFLOAT4(0.1f, 0.0f, 0.0f, 1.0f);
+		lc->diffuse = XMFLOAT4(0.8f, 0.0f, 0.0f, 1.0f);
+		lc->specular = XMFLOAT4(0.1f, 0.1f, 0.1f, 0.0f);
+		lc->attenuation = XMFLOAT3(1.0f, 0.001f, 0.0001f);
 
-	m_pLights->m_pLights[3].m_bEnable = true;
-	m_pLights->m_pLights[3].m_nType = SPOT_LIGHT;
-	m_pLights->m_pLights[3].m_fRange = 60.0f;
-	m_pLights->m_pLights[3].m_xmf4Ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
-	m_pLights->m_pLights[3].m_xmf4Diffuse = XMFLOAT4(0.5f, 0.0f, 0.0f, 1.0f);
-	m_pLights->m_pLights[3].m_xmf4Specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
-	m_pLights->m_pLights[3].m_xmf3Position = XMFLOAT3(-150.0f, 30.0f, 30.0f);
-	m_pLights->m_pLights[3].m_xmf3Direction = XMFLOAT3(0.0f, 1.0f, 1.0f);
-	m_pLights->m_pLights[3].m_xmf3Attenuation = XMFLOAT3(1.0f, 0.01f, 0.0001f);
-	m_pLights->m_pLights[3].m_fFalloff = 8.0f;
-	m_pLights->m_pLights[3].m_fPhi = (float)cos(XMConvertToRadians(90.0f));
-	m_pLights->m_pLights[3].m_fTheta = (float)cos(XMConvertToRadians(30.0f));
+		m_lightObjects.push_back(std::move(obj));
+	}
 
+	// [1] Spot Light (플레이어 추적, 기존 lights[1])
+	{
+		auto obj = std::make_unique<CGameObject>(0); // empty
+
+		auto* lc = obj->AddComponent<CLightComponent>();
+		lc->type = ELightType::Spot;
+		lc->range = 50.0f;
+		lc->ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+		lc->diffuse = XMFLOAT4(0.4f, 0.4f, 0.4f, 1.0f);
+		lc->specular = XMFLOAT4(0.1f, 0.1f, 0.1f, 0.0f);
+		lc->attenuation = XMFLOAT3(1.0f, 0.01f, 0.0001f);
+		lc->falloff = 8.0f;
+		lc->cosPhi = (float)cos(XMConvertToRadians(40.0f));
+		lc->cosTheta = (float)cos(XMConvertToRadians(20.0f));
+
+		auto* follow = obj->AddComponent<CFollowTransformComponent>();
+		// 여기서는 target을 바로 못 잡을 수도 있으니 Animate에서 세팅한다.
+		m_pPlayerSpotFollower = follow;
+
+		m_lightObjects.push_back(std::move(obj));
+	}
+
+	// [2] Directional Light (기존 lights[2])
+	{
+		auto obj = std::make_unique<CGameObject>(0); // empty
+		// 방향만 의미 있음
+		if (auto* tr = obj->GetComponent<CTransformComponent>())
+			tr->SetLookDirection(XMFLOAT3(1.0f, 0.0f, 0.0f));
+
+		auto* lc = obj->AddComponent<CLightComponent>();
+		lc->type = ELightType::Directional;
+		lc->ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+		lc->diffuse = XMFLOAT4(0.3f, 0.3f, 0.3f, 1.0f);
+		lc->specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+
+		m_lightObjects.push_back(std::move(obj));
+	}
+
+	// [3] Spot Light (기존 lights[3])
+	{
+		auto obj = std::make_unique<CGameObject>(0); // empty
+		obj->SetPosition(-150.0f, 30.0f, 30.0f);
+		if (auto* tr = obj->GetComponent<CTransformComponent>())
+			tr->SetLookDirection(XMFLOAT3(0.0f, 1.0f, 1.0f));
+
+		auto* lc = obj->AddComponent<CLightComponent>();
+		lc->type = ELightType::Spot;
+		lc->range = 60.0f;
+		lc->ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+		lc->diffuse = XMFLOAT4(0.5f, 0.0f, 0.0f, 1.0f);
+		lc->specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+		lc->attenuation = XMFLOAT3(1.0f, 0.01f, 0.0001f);
+		lc->falloff = 8.0f;
+		lc->cosPhi = (float)cos(XMConvertToRadians(90.0f));
+		lc->cosTheta = (float)cos(XMConvertToRadians(30.0f));
+
+		m_lightObjects.push_back(std::move(obj));
+	}
+
+	
 	m_pMaterials = make_unique<MATERIALS>();
 	::ZeroMemory(m_pMaterials.get(), sizeof(MATERIALS));
 
@@ -492,6 +533,12 @@ void CScene::BuildObjects(
 	// 4/5. Materials + Batches
 	// ============================================================
 	BuildLightsAndMaterials();
+
+	// Light objects components create
+	for (auto& lo : m_lightObjects)
+	{
+		if (lo) lo->CreateComponents(pd3dDevice, pd3dCommandList);
+	}
 
 	constexpr UINT kRTCount = 5;
 	const DXGI_FORMAT kDsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
