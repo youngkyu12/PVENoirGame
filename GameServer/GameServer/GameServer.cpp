@@ -8,9 +8,28 @@
 #include "ClientPacketHandler.h"
 #include <tchar.h>
 #include "Protocol.pb.h"
+#include "Job.h"
+#include "Room.h"
 
 int main()
 {
+	//TEST JOB
+	{
+		//[일] 1번 유저한테 10만큼 힐
+		HealJob healJob;
+		healJob._target = 1;
+		healJob._healValue = 10;
+
+
+
+		healJob.Execute();
+	}
+
+	//JOB
+
+
+
+
 	ClientPacketHandler::Init();
 
 	ServerServiceRef service = MakeShared<ServerService>(
@@ -31,6 +50,12 @@ int main()
 				}				
 			});
 	}	
+
+	while (true)
+	{
+		GRoom.FlushJob();
+		this_thread::sleep_for(1ms);
+	}
 
 	GThreadManager->Join();
 }
