@@ -6,6 +6,8 @@
 #include "GameFramework.h"
 #include "AnimController.h"
 #include "AnimatorComponent.h"
+#include "PlayerControllerComponent.h"
+
 
 void CGameFramework::ProcessInput()
 {
@@ -59,10 +61,8 @@ void CGameFramework::ProcessInput()
 			}
 			if (dwDirection)m_pPlayer->Move(dwDirection, 5.0f * m_GameTimer.GetTimeElapsed(), true);
 		}
-		if (auto* animComp = m_pPlayer->GetComponent<CAnimatorComponent>())
-			animComp->SetSpeed(dwDirection ? 1.0f : 0.0f);
-		else if (auto* ctrl = m_pPlayer->GetAnimController())
-			ctrl->SetSpeed(dwDirection ? 1.0f : 0.0f);
+		if (auto* pc = m_pPlayer->GetComponent<CPlayerControllerComponent>())
+			pc->SetInputDirection(dwDirection);
 	}
 	const float dt = m_GameTimer.GetTimeElapsed();
 
