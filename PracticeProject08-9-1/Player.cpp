@@ -173,16 +173,19 @@ void CPlayer::Update(float fTimeElapsed)
 	float fLength = sqrtf(m_xmf3Velocity.x * m_xmf3Velocity.x + m_xmf3Velocity.z * m_xmf3Velocity.z);
 	float fMaxVelocityXZ = m_fMaxVelocityXZ * fTimeElapsed;
 
-	if (fLength > m_fMaxVelocityXZ)
+	if (fMaxVelocityXZ > 0.0f && fLength > fMaxVelocityXZ)
 	{
-		m_xmf3Velocity.x *= (fMaxVelocityXZ / fLength);
-		m_xmf3Velocity.z *= (fMaxVelocityXZ / fLength);
+		float s = (fMaxVelocityXZ / fLength);
+		m_xmf3Velocity.x *= s;
+		m_xmf3Velocity.z *= s;
 	}
+
 	float fMaxVelocityY = m_fMaxVelocityY * fTimeElapsed;
 	fLength = sqrtf(m_xmf3Velocity.y * m_xmf3Velocity.y);
 
-	if (fLength > m_fMaxVelocityY)
+	if (fMaxVelocityY > 0.0f && fLength > fMaxVelocityY)
 		m_xmf3Velocity.y *= (fMaxVelocityY / fLength);
+
 
 	Move(m_xmf3Velocity, false);
 
@@ -222,6 +225,13 @@ void CPlayer::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamer
 
 CFighterPlayer::CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, ID3D12RootSignature *pd3dGraphicsRootSignature, void *pContext, int nMeshes): CPlayer(pd3dDevice, pd3dCommandList, pd3dGraphicsRootSignature, pContext, nMeshes)
 {
+	// ---- movement tuning (필수) ----
+	SetMaxVelocityXZ(50.0f);   // 값은 취향 (클수록 빨라짐)
+	SetMaxVelocityY(50.0f);    // 점프/상하 이동 안 쓰면 커도 무방
+	SetFriction(20.0f);        // 키 떼면 멈추게 하려면 0보다 크게
+	// SetGravity(XMFLOAT3(0.0f, -9.8f, 0.0f)); // 지금 중력 원치 않으면 주석 유지
+
+
 	Update(0.0f);
 
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
