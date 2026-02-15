@@ -332,7 +332,9 @@ void CGameFramework::BuildObjects()
 		m_pPlayer->CreateComponents(m_pd3dDevice.Get(), m_pd3dCommandList.Get());
 
 	m_pScene->m_pPlayer = m_pPlayer;
-	m_pCamera = m_pPlayer->GetCamera();
+
+	m_pScene->CreateMainCamera(m_pd3dDevice.Get(), m_pd3dCommandList.Get(), m_pPlayer.get());
+	m_pCamera = m_pScene->GetMainCamera();
 
 	m_pPostProcessingShader = make_shared<CTextureToFullScreenShader>();
 	m_pPostProcessingShader->CreateShader(

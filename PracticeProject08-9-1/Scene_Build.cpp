@@ -483,6 +483,35 @@ void CScene::BuildSkinnedBatch(
 	}
 }
 
+void CScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CPlayer* targetPlayer)
+{
+	// THIRD_PERSON only
+	m_pMainCamera = std::make_unique<CThirdPersonCamera>(nullptr);
+	m_pMainCamera->SetMode(THIRD_PERSON_CAMERA);
+	m_pMainCamera->SetPlayer(targetPlayer);
+
+	// 동일 파라미터(기존 CFighterPlayer ctor에서 설정하던 값)
+	m_pMainCamera->SetTimeLag(0.25f);
+	m_pMainCamera->SetOffset(XMFLOAT3(0.0f, 1.0f, -2.0f));
+	m_pMainCamera->GenerateProjectionMatrix(1.01f, 5000.0f, ASPECT_RATIO, 60.0f);
+	m_pMainCamera->SetViewport(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, 0.0f, 1.0f);
+	m_pMainCamera->SetScissorRect(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
+
+	// b1 카메라 CB 생성
+	m_pMainCamera->CreateShaderVariables(dev, cmd);
+
+	// 초기 위치/뷰 세팅
+	if (targetPlayer)
+	{
+		XMFLOAT3 pos = targetPlayer->GetPosition();
+		m_pMainCamera->SetPosition(Vector3::Add(pos, m_pMainCamera->GetOffset()));
+		m_pMainCamera->Update(pos, 0.0f);
+		m_pMainCamera->SetLookAt(pos);
+		m_pMainCamera->RegenerateViewMatrix();
+	}
+}
+
+
 void CScene::BuildObjects(
 	ID3D12Device* pd3dDevice,
 	ID3D12GraphicsCommandList* pd3dCommandList)
