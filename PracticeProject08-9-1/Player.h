@@ -10,6 +10,7 @@
 #include "Object.h"
 #include "Camera.h"
 #include "AnimatorData.h"
+#include "PlayerControllerComponent.h"
 
 struct CB_PLAYER_INFO
 {
@@ -30,6 +31,7 @@ protected:
 
 	LPVOID						m_pPlayerUpdatedContext = nullptr;
 	LPVOID						m_pCameraUpdatedContext = nullptr;
+	CPlayerControllerComponent* m_pPlayerController = nullptr;
 
 public:
 	CPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, ID3D12RootSignature *pd3dGraphicsRootSignature, void *pContext=NULL, int nMeshes = 1);
@@ -40,19 +42,52 @@ public:
 	XMFLOAT3 GetUpVector() { return (m_pTransform ? m_pTransform->GetUp() : XMFLOAT3(0, 1, 0)); }
 	XMFLOAT3 GetRightVector() { return (m_pTransform ? m_pTransform->GetRight() : XMFLOAT3(1, 0, 0)); }
 
-	void SetFriction(float fFriction) { m_fFriction = fFriction; }
-	void SetGravity(const XMFLOAT3& xmf3Gravity) { m_xmf3Gravity = xmf3Gravity; }
-	void SetMaxVelocityXZ(float fMaxVelocity) { m_fMaxVelocityXZ = fMaxVelocity; }
-	void SetMaxVelocityY(float fMaxVelocity) { m_fMaxVelocityY = fMaxVelocity; }
-	void SetVelocity(const XMFLOAT3& xmf3Velocity) { m_xmf3Velocity = xmf3Velocity; }
+	void SetFriction(float fFriction)
+	{
+		m_fFriction = fFriction;
+		if (m_pPlayerController) m_pPlayerController->SetFriction(fFriction);
+	}
+	void SetGravity(const XMFLOAT3& xmf3Gravity)
+	{
+		m_xmf3Gravity = xmf3Gravity;
+		if (m_pPlayerController) m_pPlayerController->SetGravity(xmf3Gravity);
+	}
+	void SetMaxVelocityXZ(float fMaxVelocity)
+	{
+		m_fMaxVelocityXZ = fMaxVelocity;
+		if (m_pPlayerController) m_pPlayerController->SetMaxVelocityXZ(fMaxVelocity);
+	}
+	void SetMaxVelocityY(float fMaxVelocity)
+	{
+		m_fMaxVelocityY = fMaxVelocity;
+		if (m_pPlayerController) m_pPlayerController->SetMaxVelocityY(fMaxVelocity);
+	}
+	void SetVelocity(const XMFLOAT3& xmf3Velocity)
+	{
+		m_xmf3Velocity = xmf3Velocity;
+		if (m_pPlayerController) m_pPlayerController->SetVelocity(xmf3Velocity);
+	}
+
+	// 입력 상태를 컨트롤러에게 전달(애니 speed 제어 포함)
+	void SetInputDirection(DWORD dwDirection)
+	{
+		if (m_pPlayerController) m_pPlayerController->SetInputDirection(dwDirection);
+	}
+
+	const XMFLOAT3& GetVelocity() const
+	{
+		return (m_pPlayerController) ? m_pPlayerController->GetVelocity() : m_xmf3Velocity;
+	}
+	float GetYaw() const
+	{
+		return (m_pPlayerController) ? m_pPlayerController->GetYawDegrees() : m_fYaw;
+	}
+	
 	void SetPosition(const XMFLOAT3& xmf3Position)
 	{
 		XMFLOAT3 cur = GetPosition();
 		Move(XMFLOAT3(xmf3Position.x - cur.x, xmf3Position.y - cur.y, xmf3Position.z - cur.z), false);
 	}
-
-	const XMFLOAT3& GetVelocity() const { return(m_xmf3Velocity); }
-	float GetYaw() const { return(m_fYaw); }
 
 	enum class EVerticalMoveSpace : uint8_t
 	{

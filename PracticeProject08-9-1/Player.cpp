@@ -10,6 +10,8 @@
 #include "AnimController.h"
 #include "AnimatorComponent.h"
 #include "RenderObjectComponent.h"
+#include "PlayerControllerComponent.h"
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CPlayer
@@ -29,6 +31,21 @@ CPlayer::CPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dComman
 	m_fFriction = 0.0f;
 
 	m_fYaw = 0.0f;
+	// =====================================================
+	// Movement/Physics/Input/AnimSpeed 권위: PlayerControllerComponent
+	// =====================================================
+	m_pPlayerController = AddComponent<CPlayerControllerComponent>();
+
+	if (m_pPlayerController)
+	{
+		m_pPlayerController->SetVelocity(m_xmf3Velocity);
+		m_pPlayerController->SetGravity(m_xmf3Gravity);
+		m_pPlayerController->SetMaxVelocityXZ(m_fMaxVelocityXZ);
+		m_pPlayerController->SetMaxVelocityY(m_fMaxVelocityY);
+		m_pPlayerController->SetFriction(m_fFriction);
+		m_pPlayerController->SetYawDegrees(m_fYaw);
+	}
+
 }
 
 CPlayer::~CPlayer()
@@ -100,107 +117,50 @@ void CPlayer::UpdateShaderVariables(ID3D12GraphicsCommandList* cmd)
 }
 
 
-
 void CPlayer::Move(DWORD dwDirection, float fDistance, bool bUpdateVelocity,
 	CPlayer::EVerticalMoveSpace upSpace)
 {
-	XMFLOAT3 look = GetLookVector();
-	XMFLOAT3 right = GetRightVector();
+	if (!m_pPlayerController)
+		return;
 
-	// DIR_UP/DOWN은 옵션: 월드업 vs 로컬업
-	XMFLOAT3 up = (upSpace == EVerticalMoveSpace::LocalUp)
-		? GetUpVector()
-		: XMFLOAT3(0.0f, 1.0f, 0.0f);
+	const auto space =
+		(upSpace == CPlayer::EVerticalMoveSpace::LocalUp)
+		? CPlayerControllerComponent::EVerticalMoveSpace::LocalUp
+		: CPlayerControllerComponent::EVerticalMoveSpace::WorldUp;
 
-	if (dwDirection)
-	{
-		XMFLOAT3 xmf3Shift = XMFLOAT3(0, 0, 0);
-		if (dwDirection & DIR_FORWARD)
-			xmf3Shift = Vector3::Add(xmf3Shift, look, fDistance);
-
-		if (dwDirection & DIR_BACKWARD)
-			xmf3Shift = Vector3::Add(xmf3Shift, look, -fDistance);
-
-		if (dwDirection & DIR_RIGHT)
-			xmf3Shift = Vector3::Add(xmf3Shift, right, fDistance);
-
-		if (dwDirection & DIR_LEFT)
-			xmf3Shift = Vector3::Add(xmf3Shift, right, -fDistance);
-
-		if (dwDirection & DIR_UP)
-			xmf3Shift = Vector3::Add(xmf3Shift, up, fDistance);
-
-		if (dwDirection & DIR_DOWN)
-			xmf3Shift = Vector3::Add(xmf3Shift, up, -fDistance);
-
-		Move(xmf3Shift, bUpdateVelocity);
-	}
+	m_pPlayerController->Move(dwDirection, fDistance, bUpdateVelocity, space);
 }
+
 
 void CPlayer::Move(const XMFLOAT3& xmf3Shift, bool bUpdateVelocity)
 {
-	if (bUpdateVelocity)
-	{
-		m_xmf3Velocity = Vector3::Add(m_xmf3Velocity, xmf3Shift);
-	}
-	else
-	{
-		if (m_pTransform)
-			m_pTransform->Translate(xmf3Shift);
-	}
+	if (!m_pPlayerController)
+		return;
 
+	m_pPlayerController->MoveShift(xmf3Shift, bUpdateVelocity);
 }
+
 
 void CPlayer::Rotate(float x, float y, float z)
 {
-	(void)x; (void)z;
+	if (!m_pPlayerController)
+		return;
 
-	if (y != 0.0f)
-	{
-		m_fYaw += y;
-		if (m_fYaw > 360.0f) m_fYaw -= 360.0f;
-		if (m_fYaw < 0.0f)   m_fYaw += 360.0f;
-	}
-
-	if (m_pTransform)
-		m_pTransform->SetYawDegrees(m_fYaw);
+	m_pPlayerController->Rotate(x, y, z);
 }
+
 
 
 void CPlayer::Update(float fTimeElapsed)
 {
-	m_xmf3Velocity = Vector3::Add(m_xmf3Velocity, Vector3::ScalarProduct(m_xmf3Gravity, fTimeElapsed, false));
-	float fLength = sqrtf(m_xmf3Velocity.x * m_xmf3Velocity.x + m_xmf3Velocity.z * m_xmf3Velocity.z);
-	float fMaxVelocityXZ = m_fMaxVelocityXZ * fTimeElapsed;
-
-	if (fMaxVelocityXZ > 0.0f && fLength > fMaxVelocityXZ)
-	{
-		float s = (fMaxVelocityXZ / fLength);
-		m_xmf3Velocity.x *= s;
-		m_xmf3Velocity.z *= s;
-	}
-
-	float fMaxVelocityY = m_fMaxVelocityY * fTimeElapsed;
-	fLength = sqrtf(m_xmf3Velocity.y * m_xmf3Velocity.y);
-
-	if (fMaxVelocityY > 0.0f && fLength > fMaxVelocityY)
-		m_xmf3Velocity.y *= (fMaxVelocityY / fLength);
-
-
-	Move(m_xmf3Velocity, false);
+	// movement/physics 는 CPlayerControllerComponent::OnUpdate(dt) 에서 처리됨
+	// (CGameObject::Animate -> UpdateComponents -> OnUpdate 호출)
+	this->Animate(fTimeElapsed);
 
 	if (m_pPlayerUpdatedContext)
 		OnPlayerUpdateCallback(fTimeElapsed);
-
-	fLength = Vector3::Length(m_xmf3Velocity);
-	float fDeceleration = (m_fFriction * fTimeElapsed);
-
-	if (fDeceleration > fLength)
-		fDeceleration = fLength;
-
-	m_xmf3Velocity = Vector3::Add(m_xmf3Velocity, Vector3::ScalarProduct(m_xmf3Velocity, -fDeceleration, true));
-	this->Animate(fTimeElapsed);
 }
+
 
 void CPlayer::OnPrepareRender(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera)
 {
