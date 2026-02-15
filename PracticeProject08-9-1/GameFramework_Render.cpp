@@ -17,26 +17,18 @@ void CGameFramework::ProcessInput()
 	if (GetKeyboardState(pKeysBuffer) && m_pScene)
 		bProcessedByScene = m_pScene->ProcessInput(pKeysBuffer);
 
+	CPlayer* pPlayer = (m_pScene ? m_pScene->GetPlayer() : nullptr);
+	if (!pPlayer) return;
+
 	if (!bProcessedByScene)
 	{
 		DWORD dwDirection = 0;
-		if (pKeysBuffer[VK_UP] & 0xF0)
-			dwDirection |= DIR_FORWARD;
-
-		if (pKeysBuffer[VK_DOWN] & 0xF0)
-			dwDirection |= DIR_BACKWARD;
-
-		if (pKeysBuffer[VK_LEFT] & 0xF0)
-			dwDirection |= DIR_LEFT;
-
-		if (pKeysBuffer[VK_RIGHT] & 0xF0)
-			dwDirection |= DIR_RIGHT;
-
-		if (pKeysBuffer[VK_PRIOR] & 0xF0)
-			dwDirection |= DIR_UP;
-
-		if (pKeysBuffer[VK_NEXT] & 0xF0)
-			dwDirection |= DIR_DOWN;
+		if (pKeysBuffer[VK_UP] & 0xF0)    dwDirection |= DIR_FORWARD;
+		if (pKeysBuffer[VK_DOWN] & 0xF0)  dwDirection |= DIR_BACKWARD;
+		if (pKeysBuffer[VK_LEFT] & 0xF0)  dwDirection |= DIR_LEFT;
+		if (pKeysBuffer[VK_RIGHT] & 0xF0) dwDirection |= DIR_RIGHT;
+		if (pKeysBuffer[VK_PRIOR] & 0xF0) dwDirection |= DIR_UP;
+		if (pKeysBuffer[VK_NEXT] & 0xF0)  dwDirection |= DIR_DOWN;
 
 		float cxDelta = 0.0f, cyDelta = 0.0f;
 		POINT ptCursorPos;
@@ -55,35 +47,35 @@ void CGameFramework::ProcessInput()
 			if (cxDelta || cyDelta)
 			{
 				if (pKeysBuffer[VK_RBUTTON] & 0xF0)
-					m_pPlayer->Rotate(cyDelta, 0.0f, -cxDelta);
+					pPlayer->Rotate(cyDelta, 0.0f, -cxDelta);
 				else
-					m_pPlayer->Rotate(cyDelta, cxDelta, 0.0f);
+					pPlayer->Rotate(cyDelta, cxDelta, 0.0f);
 			}
-			if (dwDirection)m_pPlayer->Move(dwDirection, 5.0f * m_GameTimer.GetTimeElapsed(), true);
+			if (dwDirection)
+				pPlayer->Move(dwDirection, 5.0f * m_GameTimer.GetTimeElapsed(), true);
 		}
-		if (auto* pc = m_pPlayer->GetComponent<CPlayerControllerComponent>())
+
+		if (auto* pc = pPlayer->GetComponent<CPlayerControllerComponent>())
 			pc->SetInputDirection(dwDirection);
 	}
+
 	const float dt = m_GameTimer.GetTimeElapsed();
 
-	XMFLOAT3 oldPos = m_pPlayer->GetPosition();
-	m_pPlayer->Update(dt);
-	XMFLOAT3 newPos = m_pPlayer->GetPosition();
+	XMFLOAT3 oldPos = pPlayer->GetPosition();
+	pPlayer->Update(dt);
+	XMFLOAT3 newPos = pPlayer->GetPosition();
 
 	if (m_pCamera)
 	{
-		// 예전에는 Player::Move(false)에서 camera->Move(shift)를 했었음
-		// 동일 효과를 위해 프레임워크에서 delta만큼 카메라를 같이 이동
 		XMFLOAT3 delta = Vector3::Subtract(newPos, oldPos);
 		m_pCamera->Move(delta);
 
-		// Third person follow
 		m_pCamera->Update(newPos, dt);
 		m_pCamera->SetLookAt(newPos);
 		m_pCamera->RegenerateViewMatrix();
 	}
-
 }
+
 
 void CGameFramework::AnimateObjects()
 {
@@ -149,7 +141,11 @@ void CGameFramework::FrameAdvance()
 
 		m_pScene->Render(m_pd3dCommandList.Get(), m_pCamera);
 
-		m_pPlayer->Render(m_pd3dCommandList.Get(), m_pCamera);
+		if (CPlayer* pPlayer = (m_pScene ? m_pScene->GetPlayer() : nullptr))
+		{
+			pPlayer->Render(m_pd3dCommandList.Get(), m_pCamera);
+		}
+
 
 		m_pPostProcessingShader->OnPostRenderTarget(m_pd3dCommandList.Get());
 	}

@@ -134,13 +134,18 @@ public:
 	void SetGraphicsRootSignature(ID3D12GraphicsCommandList* pd3dCommandList) { pd3dCommandList->SetGraphicsRootSignature(m_pd3dGraphicsRootSignature.Get()); }
 
 public:
-	std::shared_ptr<CPlayer>					m_pPlayer;
-	std::unique_ptr<CCamera>                 m_pMainCamera;
+	std::shared_ptr<CPlayer>				m_pPlayer;
+	std::unique_ptr<CCamera>                m_pMainCamera;
 	CCamera* GetMainCamera() const { return m_pMainCamera.get(); }
 
 	void CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CPlayer* targetPlayer);
 
 	static std::unique_ptr<CDescriptorHeap>		m_pDescriptorHeap;
+public:
+	CPlayer* GetPlayer() const { return m_pPlayer.get(); }
+
+public:
+	void BuildPlayer(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
 
 protected:
 	ComPtr<ID3D12RootSignature>				m_pd3dGraphicsRootSignature;

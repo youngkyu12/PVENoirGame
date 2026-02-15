@@ -89,7 +89,6 @@ private:
 	CGameTimer							m_GameTimer;
 
 	unique_ptr<CScene>					m_pScene;
-	shared_ptr<CPlayer>					m_pPlayer;
 	CCamera*							m_pCamera = nullptr;
 
 	shared_ptr<CPostProcessingShader>	m_pPostProcessingShader;

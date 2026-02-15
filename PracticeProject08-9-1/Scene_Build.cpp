@@ -511,6 +511,18 @@ void CScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd,
 	}
 }
 
+void CScene::BuildPlayer(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
+{
+	m_pPlayer = std::make_shared<CFighterPlayer>(
+		pd3dDevice,
+		pd3dCommandList,
+		GetGraphicsRootSignature(),
+		nullptr,
+		1
+	);
+}
+
+
 
 void CScene::BuildObjects(
 	ID3D12Device* pd3dDevice,
@@ -574,12 +586,13 @@ void CScene::BuildObjects(
 
 	BuildStaticBatch(pd3dDevice, pd3dCommandList, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
 	BuildSkinnedBatch(pd3dDevice, pd3dCommandList, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
-
-
+	
 	// ============================================================
 	// 6. Scene °øÅë Shader Variables
 	// ============================================================
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
+	BuildPlayer(pd3dDevice, pd3dCommandList);
+
 }
 
 

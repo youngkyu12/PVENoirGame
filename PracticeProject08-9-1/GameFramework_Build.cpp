@@ -319,17 +319,7 @@ void CGameFramework::BuildObjects()
 	m_pScene = make_unique<CScene>();
 	m_pScene->BuildObjects(m_pd3dDevice.Get(), m_pd3dCommandList.Get());
 
-	m_pPlayer = make_shared<CFighterPlayer>(
-		m_pd3dDevice.Get(),
-		m_pd3dCommandList.Get(),
-		m_pScene->GetGraphicsRootSignature(),
-		nullptr,
-		1
-	);
-
-	m_pScene->m_pPlayer = m_pPlayer;
-
-	m_pScene->CreateMainCamera(m_pd3dDevice.Get(), m_pd3dCommandList.Get(), m_pPlayer.get());
+	m_pScene->CreateMainCamera(m_pd3dDevice.Get(), m_pd3dCommandList.Get(), m_pScene->GetPlayer());
 	m_pCamera = m_pScene->GetMainCamera();
 
 	m_pPostProcessingShader = make_shared<CTextureToFullScreenShader>();
