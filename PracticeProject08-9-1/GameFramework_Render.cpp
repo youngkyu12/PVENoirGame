@@ -64,7 +64,25 @@ void CGameFramework::ProcessInput()
 		else if (auto* ctrl = m_pPlayer->GetAnimController())
 			ctrl->SetSpeed(dwDirection ? 1.0f : 0.0f);
 	}
-	m_pPlayer->Update(m_GameTimer.GetTimeElapsed());
+	const float dt = m_GameTimer.GetTimeElapsed();
+
+	XMFLOAT3 oldPos = m_pPlayer->GetPosition();
+	m_pPlayer->Update(dt);
+	XMFLOAT3 newPos = m_pPlayer->GetPosition();
+
+	if (m_pCamera)
+	{
+		// 예전에는 Player::Move(false)에서 camera->Move(shift)를 했었음
+		// 동일 효과를 위해 프레임워크에서 delta만큼 카메라를 같이 이동
+		XMFLOAT3 delta = Vector3::Subtract(newPos, oldPos);
+		m_pCamera->Move(delta);
+
+		// Third person follow
+		m_pCamera->Update(newPos, dt);
+		m_pCamera->SetLookAt(newPos);
+		m_pCamera->RegenerateViewMatrix();
+	}
+
 }
 
 void CGameFramework::AnimateObjects()

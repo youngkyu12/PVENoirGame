@@ -31,8 +31,6 @@ protected:
 	LPVOID						m_pPlayerUpdatedContext = nullptr;
 	LPVOID						m_pCameraUpdatedContext = nullptr;
 
-	unique_ptr<CCamera>			m_pCamera;
-
 public:
 	CPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, ID3D12RootSignature *pd3dGraphicsRootSignature, void *pContext=NULL, int nMeshes = 1);
 	virtual ~CPlayer();
@@ -56,9 +54,6 @@ public:
 	const XMFLOAT3& GetVelocity() const { return(m_xmf3Velocity); }
 	float GetYaw() const { return(m_fYaw); }
 
-	CCamera *GetCamera() { return(m_pCamera.get()); }
-	void SetCamera(unique_ptr<CCamera> pCamera) { m_pCamera = move(pCamera); }
-
 	enum class EVerticalMoveSpace : uint8_t
 	{
 		WorldUp,
@@ -81,9 +76,6 @@ public:
 	virtual void ReleaseShaderVariables();
 	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList *pd3dCommandList);
 
-	unique_ptr<CCamera> OnChangeCamera(DWORD nNewCameraMode, DWORD nCurrentCameraMode);
-
-	virtual CCamera *ChangeCamera(DWORD nNewCameraMode, float fTimeElapsed) { return(NULL); }
 	virtual void OnPrepareRender(ID3D12GraphicsCommandList *pd3dCommandList, CCamera *pCamera);
 	virtual void SetRootParameter(ID3D12GraphicsCommandList *pd3dCommandList);
 	virtual void Render(ID3D12GraphicsCommandList *pd3dCommandList, CCamera *pCamera = NULL);
@@ -100,7 +92,6 @@ public:
 	CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, ID3D12RootSignature *pd3dGraphicsRootSignature, void *pContext=NULL, int nMeshes=1);
 	virtual ~CFighterPlayer();
 
-	virtual CCamera *ChangeCamera(DWORD nNewCameraMode, float fTimeElapsed);
 	virtual void OnPrepareRender(ID3D12GraphicsCommandList *pd3dCommandList, CCamera *pCamera);
 };
 

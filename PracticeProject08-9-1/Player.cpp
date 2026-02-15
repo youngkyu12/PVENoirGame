@@ -39,8 +39,6 @@ CPlayer::~CPlayer()
 
 void CPlayer::CreateShaderVariables(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
-	if (m_pCamera) m_pCamera->CreateShaderVariables(dev, cmd);
-
 	CreateComponents(dev, cmd);
 
 	// 안전장치: 플레이어는 로컬 CB가 필요
@@ -64,8 +62,6 @@ void CPlayer::CreateShaderVariables(ID3D12Device* dev, ID3D12GraphicsCommandList
 
 void CPlayer::ReleaseShaderVariables()
 {
-	if (m_pCamera) m_pCamera->ReleaseShaderVariables();
-
 	if (m_pd3dcbPlayer)
 	{
 		m_pd3dcbPlayer->Unmap(0, nullptr);
@@ -151,57 +147,25 @@ void CPlayer::Move(const XMFLOAT3& xmf3Shift, bool bUpdateVelocity)
 	{
 		if (m_pTransform)
 			m_pTransform->Translate(xmf3Shift);
-
-		m_pCamera->Move(xmf3Shift);
 	}
 
 }
 
 void CPlayer::Rotate(float x, float y, float z)
 {
-	DWORD nCurrentCameraMode = m_pCamera->GetMode();
+	(void)x; (void)z;
 
-	if ((nCurrentCameraMode == FIRST_PERSON_CAMERA) || (nCurrentCameraMode == THIRD_PERSON_CAMERA))
+	if (y != 0.0f)
 	{
-		if (y != 0.0f)
-		{
-			m_fYaw += y;
-			if (m_fYaw > 360.0f) m_fYaw -= 360.0f;
-			if (m_fYaw < 0.0f)   m_fYaw += 360.0f;
-		}
-
-		// 카메라 회전은 기존대로
-		m_pCamera->Rotate(x, y, z);
-
-		// Player 바디는 “yaw만” Transform으로 반영 (기존 코드와 동일한 의미)
-		if (m_pTransform)
-			m_pTransform->SetYawDegrees(m_fYaw);
+		m_fYaw += y;
+		if (m_fYaw > 360.0f) m_fYaw -= 360.0f;
+		if (m_fYaw < 0.0f)   m_fYaw += 360.0f;
 	}
-	else if (nCurrentCameraMode == SPACESHIP_CAMERA)
-	{
-		// 스페이스쉽 모드: 카메라도, 바디도 자유 회전
-		m_pCamera->Rotate(x, y, z);
 
-		if (m_pTransform)
-		{
-			if (x != 0.0f)
-			{
-				XMFLOAT3 axis = m_pTransform->GetRight();
-				m_pTransform->RotateWorldAxisDegrees(axis, x);
-			}
-			if (y != 0.0f)
-			{
-				XMFLOAT3 axis = m_pTransform->GetUp();
-				m_pTransform->RotateWorldAxisDegrees(axis, y);
-			}
-			if (z != 0.0f)
-			{
-				XMFLOAT3 axis = m_pTransform->GetLook();
-				m_pTransform->RotateWorldAxisDegrees(axis, z);
-			}
-		}
-	}
+	if (m_pTransform)
+		m_pTransform->SetYawDegrees(m_fYaw);
 }
+
 
 void CPlayer::Update(float fTimeElapsed)
 {
@@ -225,21 +189,6 @@ void CPlayer::Update(float fTimeElapsed)
 	if (m_pPlayerUpdatedContext)
 		OnPlayerUpdateCallback(fTimeElapsed);
 
-	DWORD nCurrentCameraMode = m_pCamera->GetMode();
-
-	XMFLOAT3 pos = GetPosition();
-
-	if (nCurrentCameraMode == THIRD_PERSON_CAMERA)
-		m_pCamera->Update(pos, fTimeElapsed);
-
-	if (m_pCameraUpdatedContext)
-		OnCameraUpdateCallback(fTimeElapsed);
-
-	if (nCurrentCameraMode == THIRD_PERSON_CAMERA)
-		m_pCamera->SetLookAt(pos);
-
-	m_pCamera->RegenerateViewMatrix();
-
 	fLength = Vector3::Length(m_xmf3Velocity);
 	float fDeceleration = (m_fFriction * fTimeElapsed);
 
@@ -248,53 +197,6 @@ void CPlayer::Update(float fTimeElapsed)
 
 	m_xmf3Velocity = Vector3::Add(m_xmf3Velocity, Vector3::ScalarProduct(m_xmf3Velocity, -fDeceleration, true));
 	this->Animate(fTimeElapsed);
-}
-
-unique_ptr<CCamera> CPlayer::OnChangeCamera(DWORD nNewCameraMode, DWORD nCurrentCameraMode)
-{
-	unique_ptr<CCamera> pNewCamera;
-	switch (nNewCameraMode)
-	{
-		case FIRST_PERSON_CAMERA:
-			pNewCamera = make_unique<CFirstPersonCamera>(m_pCamera.get());
-			break;
-		case THIRD_PERSON_CAMERA:
-			pNewCamera = make_unique<CThirdPersonCamera>(m_pCamera.get());
-			break;
-		case SPACESHIP_CAMERA:
-			pNewCamera = make_unique<CSpaceShipCamera>(m_pCamera.get());
-			break;
-	}
-	if (nCurrentCameraMode == SPACESHIP_CAMERA)
-	{
-		XMFLOAT3 look = GetLookVector();
-		look.y = 0.0f;
-		look = Vector3::Normalize(look);
-
-		m_fYaw = Vector3::Angle(XMFLOAT3(0.0f, 0.0f, 1.0f), look);
-		if (look.x < 0.0f) m_fYaw = -m_fYaw;
-
-		if (m_pTransform)
-			m_pTransform->SetYawDegrees(m_fYaw);
-	}
-	else if ((nNewCameraMode == SPACESHIP_CAMERA) && m_pCamera)
-	{
-		if (m_pTransform)
-		{
-			XMFLOAT3 r = m_pCamera->GetRightVector();
-			XMFLOAT3 u = m_pCamera->GetUpVector();
-			XMFLOAT3 l = m_pCamera->GetLookVector();
-			m_pTransform->SetRotationFromBasis(r, u, l);
-		}
-	}
-
-	if (pNewCamera)
-	{
-		pNewCamera->SetMode(nNewCameraMode);
-		pNewCamera->SetPlayer(this);
-	}
-
-	return(move(pNewCamera));
 }
 
 void CPlayer::OnPrepareRender(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera)
@@ -320,46 +222,6 @@ void CPlayer::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamer
 
 CFighterPlayer::CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, ID3D12RootSignature *pd3dGraphicsRootSignature, void *pContext, int nMeshes): CPlayer(pd3dDevice, pd3dCommandList, pd3dGraphicsRootSignature, pContext, nMeshes)
 {
-	m_pCamera = OnChangeCamera(THIRD_PERSON_CAMERA, 0.0f);
-	switch (m_pCamera->GetMode())
-	{
-	case FIRST_PERSON_CAMERA:
-		SetFriction(200.0f);
-		SetGravity(XMFLOAT3(0.0f, 0.0f, 0.0f));
-		SetMaxVelocityXZ(125.0f);
-		SetMaxVelocityY(400.0f);
-		m_pCamera->SetTimeLag(0.0f);
-		m_pCamera->SetOffset(XMFLOAT3(0.0f, 20.0f, 0.0f));
-		m_pCamera->GenerateProjectionMatrix(1.01f, 5000.0f, ASPECT_RATIO, 60.0f);
-		m_pCamera->SetViewport(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, 0.0f, 1.0f);
-		m_pCamera->SetScissorRect(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
-		break;
-	case SPACESHIP_CAMERA:
-		SetFriction(125.0f);
-		SetGravity(XMFLOAT3(0.0f, 0.0f, 0.0f));
-		SetMaxVelocityXZ(400.0f);
-		SetMaxVelocityY(400.0f);
-		m_pCamera->SetTimeLag(0.0f);
-		m_pCamera->SetOffset(XMFLOAT3(0.0f, 0.0f, 0.0f));
-		m_pCamera->GenerateProjectionMatrix(1.01f, 5000.0f, ASPECT_RATIO, 60.0f);
-		m_pCamera->SetViewport(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, 0.0f, 1.0f);
-		m_pCamera->SetScissorRect(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
-		break;
-	case THIRD_PERSON_CAMERA:
-		SetFriction(250.0f);
-		SetGravity(XMFLOAT3(0.0f, 0.0f, 0.0f));
-		SetMaxVelocityXZ(125.0f);
-		SetMaxVelocityY(400.0f);
-		m_pCamera->SetTimeLag(0.25f);
-		m_pCamera->SetOffset(XMFLOAT3(0.0f, 1.0f, -2.0f));
-		m_pCamera->GenerateProjectionMatrix(1.01f, 5000.0f, ASPECT_RATIO, 60.0f);
-		m_pCamera->SetViewport(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, 0.0f, 1.0f);
-		m_pCamera->SetScissorRect(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
-		break;
-	default:
-		break;
-	}
-	m_pCamera->SetPosition(Vector3::Add(GetPosition(), m_pCamera->GetOffset()));
 	Update(0.0f);
 
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
@@ -512,55 +374,4 @@ CFighterPlayer::~CFighterPlayer()
 void CFighterPlayer::OnPrepareRender(ID3D12GraphicsCommandList *pd3dCommandList, CCamera *pCamera)
 {
 	CPlayer::OnPrepareRender(pd3dCommandList, pCamera);
-}
-
-CCamera * CFighterPlayer::ChangeCamera(DWORD nNewCameraMode, float fTimeElapsed)
-{
-	DWORD nCurrentCameraMode = (m_pCamera)? m_pCamera->GetMode(): 0x00;
-	if (nCurrentCameraMode == nNewCameraMode)return(m_pCamera.get());
-	switch (nNewCameraMode)
-	{
-		case FIRST_PERSON_CAMERA:
-			SetFriction(200.0f);
-			SetGravity(XMFLOAT3(0.0f, 0.0f, 0.0f));
-			SetMaxVelocityXZ(125.0f);
-			SetMaxVelocityY(400.0f);
-			m_pCamera = OnChangeCamera(FIRST_PERSON_CAMERA, nCurrentCameraMode);
-			m_pCamera->SetTimeLag(0.0f);
-			m_pCamera->SetOffset(XMFLOAT3(0.0f, 20.0f, 0.0f));
-			m_pCamera->GenerateProjectionMatrix(10.01f, 5000.0f, ASPECT_RATIO, 60.0f);
-			m_pCamera->SetViewport(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, 0.0f, 1.0f);
-			m_pCamera->SetScissorRect(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
-			break;
-		case SPACESHIP_CAMERA:
-			SetFriction(125.0f);
-			SetGravity(XMFLOAT3(0.0f, 0.0f, 0.0f));
-			SetMaxVelocityXZ(400.0f);
-			SetMaxVelocityY(400.0f);
-			m_pCamera = OnChangeCamera(SPACESHIP_CAMERA, nCurrentCameraMode);
-			m_pCamera->SetTimeLag(0.0f);
-			m_pCamera->SetOffset(XMFLOAT3(0.0f, 0.0f, 0.0f));
-			m_pCamera->GenerateProjectionMatrix(10.01f, 5000.0f, ASPECT_RATIO, 60.0f);
-			m_pCamera->SetViewport(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, 0.0f, 1.0f);
-			m_pCamera->SetScissorRect(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
-			break;
-		case THIRD_PERSON_CAMERA:
-			SetFriction(250.0f);
-			SetGravity(XMFLOAT3(0.0f, 0.0f, 0.0f));
-			SetMaxVelocityXZ(125.0f);
-			SetMaxVelocityY(400.0f);
-			m_pCamera = OnChangeCamera(THIRD_PERSON_CAMERA, nCurrentCameraMode);
-			m_pCamera->SetTimeLag(0.25f);
-			m_pCamera->SetOffset(XMFLOAT3(0.0f, 1.0f, -2.0f));
-			m_pCamera->GenerateProjectionMatrix(10.01f, 5000.0f, ASPECT_RATIO, 60.0f);
-			m_pCamera->SetViewport(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, 0.0f, 1.0f);
-			m_pCamera->SetScissorRect(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
-			break;
-		default:
-			break;
-	}
-	m_pCamera->SetPosition(Vector3::Add(GetPosition(), m_pCamera->GetOffset()));
-	Update(fTimeElapsed);
-
-	return(m_pCamera.get());
 }

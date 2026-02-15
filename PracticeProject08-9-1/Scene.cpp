@@ -36,6 +36,14 @@ void CScene::ReleaseObjects()
 	m_lightObjects.clear();
 	m_pPlayerSpotFollower = nullptr;
 
+	// ---- Main Camera ----
+	if (m_pMainCamera)
+	{
+		m_pMainCamera->ReleaseShaderVariables();
+		m_pMainCamera.reset();
+	}
+
+
 	// Batch ref lists clear
 	m_staticBatch.objectRefs.clear();
 	m_skinnedBatch.objectRefs.clear();

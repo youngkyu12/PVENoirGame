@@ -135,6 +135,11 @@ public:
 
 public:
 	std::shared_ptr<CPlayer>					m_pPlayer;
+	std::unique_ptr<CCamera>                 m_pMainCamera;
+	CCamera* GetMainCamera() const { return m_pMainCamera.get(); }
+
+	void CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CPlayer* targetPlayer);
+
 	static std::unique_ptr<CDescriptorHeap>		m_pDescriptorHeap;
 
 protected:
