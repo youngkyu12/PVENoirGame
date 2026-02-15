@@ -39,16 +39,21 @@ void CGameFramework::OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPA
 			break;
 		case VK_RETURN:
 		{
-			XMFLOAT3 pos = m_pPlayer->GetPosition();
-			char buf[128];
-			sprintf_s(
-				buf,
-				"[Player] Pos = (%.2f, %.2f, %.2f)\n",
-				pos.x,pos.y,pos.z
-			);
-			OutputDebugStringA(buf);
+			CPlayer* pPlayer = (m_pScene ? m_pScene->GetPlayer() : nullptr);
+			if (pPlayer)
+			{
+				XMFLOAT3 pos = pPlayer->GetPosition();
+				char buf[128];
+				sprintf_s(
+					buf,
+					"[Player] Pos = (%.2f, %.2f, %.2f)\n",
+					pos.x, pos.y, pos.z
+				);
+				OutputDebugStringA(buf);
+			}
 		}
-			break;
+		break;
+
 		case VK_F9:
 			ChangeSwapChainState();
 			break;
