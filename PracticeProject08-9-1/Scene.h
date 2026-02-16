@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "Shader.h"
-#include "Player.h"
 #include "DescriptorHeap.h"
 #include "LightTypes.h"
 
@@ -134,15 +133,16 @@ public:
 	void SetGraphicsRootSignature(ID3D12GraphicsCommandList* pd3dCommandList) { pd3dCommandList->SetGraphicsRootSignature(m_pd3dGraphicsRootSignature.Get()); }
 
 public:
-	std::shared_ptr<CPlayer>				m_pPlayer;
+	std::shared_ptr<CGameObject>			m_pPlayer;
 	std::unique_ptr<CCamera>                m_pMainCamera;
 	CCamera* GetMainCamera() const { return m_pMainCamera.get(); }
 
-	void CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CPlayer* targetPlayer);
+	void CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target);
 
 	static std::unique_ptr<CDescriptorHeap>		m_pDescriptorHeap;
 public:
-	CPlayer* GetPlayer() const { return m_pPlayer.get(); }
+	CGameObject* GetPlayer() const { return m_pPlayer.get(); }
+	std::shared_ptr<CGameObject> GetPlayerShared() const { return m_pPlayer; }
 
 public:
 	void BuildPlayer(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
@@ -159,6 +159,12 @@ protected:
 
 	ComPtr<ID3D12Resource>					m_pd3dcbMaterials;
 	MATERIAL* m_pcbMappedMaterials = nullptr;
+
+	ComPtr<ID3D12Resource>					m_pd3dcbPlayerGameObject;
+	CB_GAMEOBJECT_INFO* m_pcbMappedPlayerGameObject = nullptr;
+	D3D12_GPU_DESCRIPTOR_HANDLE				m_playerCbvGpu = { 0 };
+	UINT									m_playerCbElementBytes = 0;
+
 
 public:
 	void SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex)

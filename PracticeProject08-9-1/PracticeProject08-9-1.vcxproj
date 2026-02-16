@@ -150,7 +150,6 @@
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="ModelComponent.h" />
     <ClInclude Include="Object.h" />
-    <ClInclude Include="Player.h" />
     <ClInclude Include="PlayerControllerComponent.h" />
     <ClInclude Include="PracticeProject08-9-1.h" />
     <ClInclude Include="RendererComponent.h" />
@@ -183,7 +182,6 @@
     <ClCompile Include="Object.cpp" />
     <ClCompile Include="Object_Build.cpp" />
     <ClCompile Include="Object_Render.cpp" />
-    <ClCompile Include="Player.cpp" />
     <ClCompile Include="PlayerControllerComponent.cpp" />
     <ClCompile Include="PracticeProject08-9-1.cpp" />
     <ClCompile Include="RendererComponent.cpp" />

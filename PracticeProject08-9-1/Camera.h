@@ -11,7 +11,7 @@ struct VS_CB_CAMERA_INFO
 	XMFLOAT3						m_xmf3Position;
 };
 
-class CPlayer;
+class CGameObject;
 
 class CCamera
 {
@@ -37,7 +37,7 @@ protected:
 	D3D12_VIEWPORT					m_d3dViewport = { 0, 0, FRAME_BUFFER_WIDTH , FRAME_BUFFER_HEIGHT, 0.0f, 1.0f };
 	D3D12_RECT						m_d3dScissorRect = { 0, 0, FRAME_BUFFER_WIDTH , FRAME_BUFFER_HEIGHT };
 
-	CPlayer							*m_pPlayer = nullptr;
+	CGameObject*					m_pTarget = nullptr;
 
 	ComPtr<ID3D12Resource>			m_pd3dcbCamera;
 	VS_CB_CAMERA_INFO				*m_pcbMappedCamera = nullptr;
@@ -62,8 +62,9 @@ public:
 	void SetViewport(int xTopLeft, int yTopLeft, int nWidth, int nHeight, float fMinZ = 0.0f, float fMaxZ = 1.0f);
 	void SetScissorRect(LONG xLeft, LONG yTop, LONG xRight, LONG yBottom);
 
-	void SetPlayer(CPlayer *pPlayer) { m_pPlayer = pPlayer; }
-	CPlayer *GetPlayer() { return(m_pPlayer); }
+	void SetTarget(CGameObject* target) { m_pTarget = target; }
+	CGameObject* GetTarget() const { return m_pTarget; }
+	
 
 	void SetMode(DWORD nMode) { m_nMode = nMode; }
 	DWORD GetMode() { return(m_nMode); }
