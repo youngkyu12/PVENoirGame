@@ -4,7 +4,6 @@
 #define FRAME_BUFFER_HEIGHT		480
 
 #include "Timer.h"
-#include "Player.h"
 #include "Scene.h"
 
 #define DRAW_SCENE_COLOR				'S'

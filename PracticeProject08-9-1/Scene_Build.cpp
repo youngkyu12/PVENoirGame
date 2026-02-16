@@ -8,6 +8,7 @@
 #include "AssetManager.h"
 #include "AnimController.h"
 #include "LightComponent.h"
+#include "PlayerControllerComponent.h"
 
 void CScene::BuildLightsAndMaterials()
 {
@@ -407,6 +408,28 @@ void CScene::BuildSkinnedBatch(
 
 		BuiltAsset asset = AssetManager::BuildAsset(pd3dDevice, pd3dCommandList, m_pMaterials.get(), FighterDesc);
 
+		// ---- Player per-object CB + CBV (b2 table 용) ----
+		m_playerCbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);
+
+		m_pd3dcbPlayerGameObject = ::CreateBufferResource(
+			pd3dDevice, pd3dCommandList, nullptr,
+			m_playerCbElementBytes,
+			D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+			nullptr
+		);
+
+		m_pd3dcbPlayerGameObject->Map(0, nullptr, (void**)&m_pcbMappedPlayerGameObject);
+
+		m_playerCbvGpu = m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
+		m_pDescriptorHeap->CreateConstantBufferViews(
+			pd3dDevice,
+			1,
+			m_pd3dcbPlayerGameObject.Get(),
+			m_playerCbElementBytes
+		);
+
+
 		for (UINT k = 0; k < fighterCount; ++k)
 		{
 			if (b->objectRefs.size() >= b->capacity) break;
@@ -483,12 +506,12 @@ void CScene::BuildSkinnedBatch(
 	}
 }
 
-void CScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CPlayer* targetPlayer)
+void CScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target)
 {
 	// THIRD_PERSON only
 	m_pMainCamera = std::make_unique<CThirdPersonCamera>(nullptr);
 	m_pMainCamera->SetMode(THIRD_PERSON_CAMERA);
-	m_pMainCamera->SetPlayer(targetPlayer);
+	m_pMainCamera->SetTarget(target);
 
 	// 동일 파라미터(기존 CFighterPlayer ctor에서 설정하던 값)
 	m_pMainCamera->SetTimeLag(0.25f);
@@ -501,26 +524,107 @@ void CScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd,
 	m_pMainCamera->CreateShaderVariables(dev, cmd);
 
 	// 초기 위치/뷰 세팅
-	if (targetPlayer)
+	if (target)
 	{
-		XMFLOAT3 pos = targetPlayer->GetPosition();
+		XMFLOAT3 pos = target->GetPosition();
 		m_pMainCamera->SetPosition(Vector3::Add(pos, m_pMainCamera->GetOffset()));
 		m_pMainCamera->Update(pos, 0.0f);
 		m_pMainCamera->SetLookAt(pos);
 		m_pMainCamera->RegenerateViewMatrix();
 	}
+
 }
 
 void CScene::BuildPlayer(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	m_pPlayer = std::make_shared<CFighterPlayer>(
-		pd3dDevice,
-		pd3dCommandList,
-		GetGraphicsRootSignature(),
-		nullptr,
-		1
-	);
+	// 1) Fighter 에셋 빌드 (BuildSkinnedBatch의 Fighter와 동일)
+	AssetBuildDesc FighterDesc =
+	{
+		AssetType::Fighter,
+		"Assets/Fighter/Mesh/Fighter.bin",
+		"Assets/Fighter/Texture"
+	};
+
+	BuiltAsset asset = AssetManager::BuildAsset(pd3dDevice, pd3dCommandList, m_pMaterials.get(), FighterDesc);
+
+	// 2) CGameObject 생성
+	auto obj = std::make_shared<CGameObject>(1);
+	obj->SetMappedGameObjectCB(m_pcbMappedPlayerGameObject);
+	obj->SetCbvGPUDescriptorHandlePtr(m_playerCbvGpu.ptr);
+
+
+	// 3) 메시/렌더러/머티리얼(현재 코드 스타일 그대로)
+	obj->SetMesh(0, asset.mesh);
+	obj->AddComponent<CStaticMeshRendererComponent>();
+
+	// 4) 트랜스폼 초기값(원하는 값으로 고정)
+	obj->SetPosition(0.0f, 0.0f, 0.0f);
+	obj->Rotate(0.0f, 0.0f, 0.0f);
+
+	// 5) 스키닝 켜기 (skinned mesh면)
+	if (asset.mesh && asset.mesh->IsSkinnedMesh())
+	{
+		obj->EnableSkinning(pd3dDevice, asset.mesh->GetBoneCount());
+	}
+
+	// 6) 애니메이션(Idle) 로드/세팅 (BuildSkinnedBatch Fighter와 동일)
+	AnimationClip idleClip;
+	bool idleLoaded = false;
+
+	auto mesh0 = obj->GetMeshShared(0);
+	if (mesh0)
+	{
+		idleLoaded = mesh0->LoadAnimationFromBIN(
+			"Assets/Fighter/Animation/FighterIdle.bin",
+			"Idle", idleClip, 1.0f
+		);
+	}
+
+	if (idleLoaded)
+	{
+		idleClip.name = "Idle";
+
+		CAnimator* anim = obj->EnsureAnimator();
+		if (anim) anim->AddClip(idleClip);
+
+		// === Move clip 추가 로드 ===
+		AnimationClip moveClip;
+		bool moveLoaded = false;
+
+		if (mesh0)
+		{
+			moveLoaded = mesh0->LoadAnimationFromBIN(
+				"Assets/Fighter/Animation/FighterRun.bin",
+				"Run", moveClip, 1.0f
+			);
+		}
+
+		if (moveLoaded)
+		{
+			moveClip.name = "Run";
+			if (anim) anim->AddClip(moveClip);
+		}
+
+		auto* ctrl = obj->EnsureAnimController();
+		ctrl->SetIdleClip("Idle");
+		ctrl->SetMoveClip(moveLoaded ? "Run" : "Idle");
+		ctrl->SetSpeed(0.0f);
+		ctrl->Update(0.0f);
+
+		obj->Animate(0.0f);
+	}
+
+
+	// 7) 플레이어 컨트롤러 컴포넌트 부착
+	obj->AddComponent<CPlayerControllerComponent>();
+
+	// 8) 컴포넌트 생성(기존 패턴)
+	obj->CreateComponents(pd3dDevice, pd3dCommandList);
+
+	// 9) Scene이 소유
+	m_pPlayer = obj;
 }
+
 
 
 

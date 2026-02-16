@@ -35,6 +35,7 @@ public:
 
     void Rotate(float pitchDeg, float yawDeg, float rollDeg); // legacy: yaw-only
 
+    void Update(float dt);
     // ----------------------------
     // Tuning / State accessors
     // ----------------------------
@@ -67,4 +68,7 @@ private:
     float    m_friction = 0.0f;
 
     DWORD    m_inputDir = 0;    // 마지막 입력 방향(애니 speed 제어용)
+public:
+    void SetInputDirection(uint32_t dir) { m_inputDir = dir; }
+
 };

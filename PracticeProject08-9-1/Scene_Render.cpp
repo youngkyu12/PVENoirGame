@@ -82,6 +82,21 @@ void CScene::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList)
 			cb->m_nObjectID = j;
 		}
 	}
+	// =========================
+	// Player per-object CB (single)
+	// =========================
+	if (m_pPlayer && m_pcbMappedPlayerGameObject)
+	{
+		const XMFLOAT4X4& W = m_pPlayer->GetWorldMatrix();
+
+		XMStoreFloat4x4(
+			&m_pcbMappedPlayerGameObject->m_xmf4x4World,
+			XMMatrixTranspose(XMLoadFloat4x4(&W))
+		);
+
+		m_pcbMappedPlayerGameObject->m_nObjectID = 0; // 필요하면 플레이어 ID로
+	}
+
 }
 
 bool CScene::ProcessInput(UCHAR* pKeysBuffer)
@@ -102,6 +117,8 @@ void CScene::AnimateObjects(float fTimeElapsed)
 		if (!m_skinnedObjects[j]) continue;
 		m_skinnedObjects[j]->Animate(fTimeElapsed);
 	}
+	if (m_pPlayer)
+		m_pPlayer->Animate(fTimeElapsed);
 
 	// Player spot light follower target set (once)
 	if (m_pPlayer && m_pPlayerSpotFollower && (m_pPlayerSpotFollower->GetTarget() == nullptr))
@@ -166,14 +183,6 @@ void CScene::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera
     }
 
     // ---- Player ----
-    if (m_pPlayer)
-    {
-        m_pPlayer->OnPrepareRender(pd3dCommandList, pCamera);
-        m_pPlayer->UpdateShaderVariables(pd3dCommandList);
-
-		if (auto sh = m_pPlayer->GetShader())
-			sh->Render(pd3dCommandList, pCamera, nullptr);
-
-        m_pPlayer->CGameObject::Render(pd3dCommandList, pCamera);
-    }
+	if (m_pPlayer)
+		m_pPlayer->Render(pd3dCommandList, pCamera);
 }

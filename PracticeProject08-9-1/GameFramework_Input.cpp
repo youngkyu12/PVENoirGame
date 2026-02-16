@@ -37,21 +37,6 @@ void CGameFramework::OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPA
 		case VK_ESCAPE:
 			::PostQuitMessage(0);
 			break;
-		case VK_RETURN:
-		{
-			CPlayer* pPlayer = (m_pScene ? m_pScene->GetPlayer() : nullptr);
-			if (pPlayer)
-			{
-				XMFLOAT3 pos = pPlayer->GetPosition();
-				char buf[128];
-				sprintf_s(
-					buf,
-					"[Player] Pos = (%.2f, %.2f, %.2f)\n",
-					pos.x, pos.y, pos.z
-				);
-				OutputDebugStringA(buf);
-			}
-		}
 		break;
 
 		case VK_F9:

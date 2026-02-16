@@ -167,4 +167,18 @@ void CPlayerControllerComponent::OnUpdate(float dt)
         m_velocity,
         Vector3::ScalarProduct(m_velocity, -decel, true) // normalize
     );
+
+    CGameObject* owner = GetOwner();
+    if (!owner) return;
+
+    if (auto* ctrl = owner->GetAnimController())
+    {
+        const float speed = (m_inputDir != 0) ? 1.0f : 0.0f; // 또는 실제 이동속도
+        ctrl->SetSpeed(speed);
+    }
+}
+
+
+void CPlayerControllerComponent::Update(float dt)
+{
 }
