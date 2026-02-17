@@ -72,10 +72,7 @@ bool Handle_C_ENTER_GAME(PacketSessionRef& session, Protocol::C_ENTER_GAME& pkt)
 	// TODO: Validation Check
 
 	PlayerRef player = gameSession->_players[index];
-	//GRoom.Enter(player);
-	//GRoom.PushJob(MakeShared<EnterJob>(GRoom, player));
-	GRoom.PushJob(&Room::Enter, player);
-
+	GRoom->PushJob(&Room::Enter, player);
 
 	Protocol::S_ENTER_GAME enterGamePkt;
 	enterGamePkt.set_success(true);
@@ -93,8 +90,7 @@ bool Handle_C_CHAT(PacketSessionRef& session, Protocol::C_CHAT& pkt)
 	chatPkt.set_msg(pkt.msg());
 	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(chatPkt);
 
-	//GRoom.PushJob(MakeShared<BroadCastJob>(GRoom, sendBuffer));
-	GRoom.PushJob(&Room::BroadCast, sendBuffer);
+	GRoom->PushJob(&Room::BroadCast, sendBuffer);
 
 	return true;
 }
