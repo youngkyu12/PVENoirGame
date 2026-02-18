@@ -12,6 +12,25 @@
 #include "Room.h"
 #include "Player.h"
 
+enum
+{
+	WORKER_TICK = 64
+};
+
+void DoWorkerJob(ServerServiceRef service)
+{
+	while (true)
+	{
+		LEndTickCount = ::GetTickCount64() + WORKER_TICK;
+
+		// 네트워크 입출력 처리 -> 인게임 로직까지
+		service->GetIocpCore()->Dispatch(10);
+
+		// 글로벌 큐
+		ThreadManager::DoGlobalQueueWork();
+	}
+}
+
 
 int main()
 {
@@ -31,10 +50,13 @@ int main()
 			{
 				while (true)
 				{
-					service->GetIocpCore()->Dispatch();
+					DoWorkerJob(service);
 				}				
 			});
 	}	
+
+	// Main Thread도 일단 일꾼
+	DoWorkerJob(service);
 
 	GThreadManager->Join();
 }
