@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "JobQueue.h"
+#include "GlobalQueue.h"
 
 void JobQueue::Push(JobRef job)
 {
@@ -9,12 +10,22 @@ void JobQueue::Push(JobRef job)
 	// 첫번째 Job을 넣은 쓰레드가 실행
 	if(prevCount == 0)
 	{
-		Execute();
+		if (LCurrentJobQueue == nullptr)
+		{
+			Execute();
+		}
+		else
+		{
+			// 여유 있는 다른 쓰레드가 실행하도록
+			GGlobalQueue->Push(shared_from_this());
+		}
 	}
 }
 
 void JobQueue::Execute()
 {
+	LCurrentJobQueue = this;
+
 	while (true)
 	{
 		Vector<JobRef> jobs;
@@ -27,7 +38,18 @@ void JobQueue::Execute()
 		// 남은게 없다면 종료
 		if (_jobCount.fetch_sub(jobCount) == jobCount)
 		{
+			LCurrentJobQueue = nullptr;
 			return;
 		}
+
+		const uint64 now = ::GetTickCount64();
+		if (now >= LEndTickCount)
+		{
+			LCurrentJobQueue = nullptr;
+			// 시간이 다 됐으면 다른 쓰레드가 실행하도록
+			GGlobalQueue->Push(shared_from_this());
+			return;
+		}
+
 	}
 }
