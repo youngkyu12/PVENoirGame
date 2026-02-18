@@ -26,6 +26,9 @@ void DoWorkerJob(ServerServiceRef service)
 		// 네트워크 입출력 처리 -> 인게임 로직까지
 		service->GetIocpCore()->Dispatch(10);
 
+		// 예약된 Job 처리
+		ThreadManager::DistributeReservedJobs();
+
 		// 글로벌 큐
 		ThreadManager::DoGlobalQueueWork();
 	}
@@ -34,6 +37,8 @@ void DoWorkerJob(ServerServiceRef service)
 
 int main()
 {
+
+
 	ClientPacketHandler::Init();
 
 	ServerServiceRef service = MakeShared<ServerService>(
