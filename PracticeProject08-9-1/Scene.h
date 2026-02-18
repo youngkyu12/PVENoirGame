@@ -150,8 +150,6 @@ public:
 protected:
 	ComPtr<ID3D12RootSignature>				m_pd3dGraphicsRootSignature;
 
-	std::unique_ptr<LIGHTS>					m_pLights;
-
 	ComPtr<ID3D12Resource>					m_pd3dcbLights;
 	LIGHTS* m_pcbMappedLights = nullptr;
 
