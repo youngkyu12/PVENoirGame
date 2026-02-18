@@ -2,7 +2,7 @@
 #include "JobQueue.h"
 #include "GlobalQueue.h"
 
-void JobQueue::Push(JobRef job)
+void JobQueue::Push(JobRef job, bool pushOnly)
 {
 	const int32 prevCount = _jobCount.fetch_add(1);
 	_jobs.Push(job);
@@ -10,7 +10,7 @@ void JobQueue::Push(JobRef job)
 	// 첫번째 Job을 넣은 쓰레드가 실행
 	if(prevCount == 0)
 	{
-		if (LCurrentJobQueue == nullptr)
+		if (LCurrentJobQueue == nullptr && pushOnly == false)
 		{
 			Execute();
 		}
