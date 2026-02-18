@@ -12,14 +12,9 @@
 
 void CScene::BuildLightsAndMaterials()
 {
-	m_pLights = make_unique<LIGHTS>();
-	::ZeroMemory(m_pLights.get(), sizeof(LIGHTS));
-
-	m_pLights->m_xmf4GlobalAmbient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
-
 	// ============================================================
-// Light Objects (Empty GameObjects + Components)
-// ============================================================
+	// Light Objects (Empty GameObjects + Components)
+	// ============================================================
 	m_lightObjects.clear();
 	m_lightObjects.reserve(4);
 	m_pPlayerSpotFollower = nullptr;

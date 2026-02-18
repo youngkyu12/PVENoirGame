@@ -106,6 +106,8 @@ void CScene::ReleaseShaderVariables()
 		m_pd3dcbLights->Unmap(0, NULL);
 		m_pd3dcbLights.Reset();
 	}
+	m_pcbMappedLights = nullptr;
+
 	if (m_pd3dcbMaterials)
 	{
 		m_pd3dcbMaterials->Unmap(0, NULL);
