@@ -19,6 +19,9 @@ void CGameFramework::ProcessInput()
 
 	CGameObject* playerObj = (m_pScene ? m_pScene->GetPlayer() : nullptr);
 	if (!playerObj) return;
+	if (m_ptOldCursorPos.x == 0 && m_ptOldCursorPos.y == 0)
+		::GetCursorPos(&m_ptOldCursorPos);
+
 
 	auto* pc = playerObj->GetComponent<CPlayerControllerComponent>();
 	if (!pc) return;
@@ -36,14 +39,13 @@ void CGameFramework::ProcessInput()
 		if (pKeysBuffer[VK_NEXT] & 0xF0)  dwDirection |= DIR_DOWN;
 
 		POINT ptCursorPos;
-		if (GetCapture() == m_hWnd)
-		{
-			SetCursor(NULL);
-			GetCursorPos(&ptCursorPos);
-			cxDelta = (float)(ptCursorPos.x - m_ptOldCursorPos.x) / 3.0f;
-			cyDelta = (float)(ptCursorPos.y - m_ptOldCursorPos.y) / 3.0f;
-			SetCursorPos(m_ptOldCursorPos.x, m_ptOldCursorPos.y);
-		}
+		GetCursorPos(&ptCursorPos);
+
+		cxDelta = (float)(ptCursorPos.x - m_ptOldCursorPos.x) / 3.0f;
+		cyDelta = (float)(ptCursorPos.y - m_ptOldCursorPos.y) / 3.0f;
+
+		m_ptOldCursorPos = ptCursorPos;
+
 	}
 
 	const float dt = m_GameTimer.GetTimeElapsed();
