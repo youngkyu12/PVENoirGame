@@ -7,57 +7,94 @@
 #include "Material.h"
 #include "AssetManager.h"
 #include "AnimController.h"
+#include "LightComponent.h"
+#include "PlayerControllerComponent.h"
 
 void CScene::BuildLightsAndMaterials()
 {
-	m_pLights = make_unique<LIGHTS>();
-	::ZeroMemory(m_pLights.get(), sizeof(LIGHTS));
+	// ============================================================
+	// Light Objects (Empty GameObjects + Components)
+	// ============================================================
+	m_lightObjects.clear();
+	m_lightObjects.reserve(4);
+	m_pPlayerSpotFollower = nullptr;
 
-	m_pLights->m_xmf4GlobalAmbient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+	// [0] Point Light (기존 lights[0])
+	{
+		auto obj = std::make_unique<CGameObject>(0); // empty
+		obj->SetPosition(1.0f, 0.0f, 0.0f);
 
-	m_pLights->m_pLights[0].m_bEnable = true;
-	m_pLights->m_pLights[0].m_nType = POINT_LIGHT;
-	m_pLights->m_pLights[0].m_fRange = 100.0f;
-	m_pLights->m_pLights[0].m_xmf4Ambient = XMFLOAT4(0.1f, 0.0f, 0.0f, 1.0f);
-	m_pLights->m_pLights[0].m_xmf4Diffuse = XMFLOAT4(0.8f, 0.0f, 0.0f, 1.0f);
-	m_pLights->m_pLights[0].m_xmf4Specular = XMFLOAT4(0.1f, 0.1f, 0.1f, 0.0f);
-	m_pLights->m_pLights[0].m_xmf3Position = XMFLOAT3(1.0f, 0.0f, 0.0f);
-	m_pLights->m_pLights[0].m_xmf3Direction = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	m_pLights->m_pLights[0].m_xmf3Attenuation = XMFLOAT3(1.0f, 0.001f, 0.0001f);
+		auto* lc = obj->AddComponent<CLightComponent>();
+		lc->type = ELightType::Point;
+		lc->range = 100.0f;
+		lc->ambient = XMFLOAT4(0.1f, 0.0f, 0.0f, 1.0f);
+		lc->diffuse = XMFLOAT4(0.8f, 0.0f, 0.0f, 1.0f);
+		lc->specular = XMFLOAT4(0.1f, 0.1f, 0.1f, 0.0f);
+		lc->attenuation = XMFLOAT3(1.0f, 0.001f, 0.0001f);
 
-	m_pLights->m_pLights[1].m_bEnable = true;
-	m_pLights->m_pLights[1].m_nType = SPOT_LIGHT;
-	m_pLights->m_pLights[1].m_fRange = 50.0f;
-	m_pLights->m_pLights[1].m_xmf4Ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
-	m_pLights->m_pLights[1].m_xmf4Diffuse = XMFLOAT4(0.4f, 0.4f, 0.4f, 1.0f);
-	m_pLights->m_pLights[1].m_xmf4Specular = XMFLOAT4(0.1f, 0.1f, 0.1f, 0.0f);
-	m_pLights->m_pLights[1].m_xmf3Position = XMFLOAT3(-50.0f, 20.0f, -5.0f);
-	m_pLights->m_pLights[1].m_xmf3Direction = XMFLOAT3(0.0f, 0.0f, 1.0f);
-	m_pLights->m_pLights[1].m_xmf3Attenuation = XMFLOAT3(1.0f, 0.01f, 0.0001f);
-	m_pLights->m_pLights[1].m_fFalloff = 8.0f;
-	m_pLights->m_pLights[1].m_fPhi = (float)cos(XMConvertToRadians(40.0f));
-	m_pLights->m_pLights[1].m_fTheta = (float)cos(XMConvertToRadians(20.0f));
+		m_lightObjects.push_back(std::move(obj));
+	}
 
-	m_pLights->m_pLights[2].m_bEnable = true;
-	m_pLights->m_pLights[2].m_nType = DIRECTIONAL_LIGHT;
-	m_pLights->m_pLights[2].m_xmf4Ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
-	m_pLights->m_pLights[2].m_xmf4Diffuse = XMFLOAT4(0.3f, 0.3f, 0.3f, 1.0f);
-	m_pLights->m_pLights[2].m_xmf4Specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
-	m_pLights->m_pLights[2].m_xmf3Direction = XMFLOAT3(1.0f, 0.0f, 0.0f);
+	// [1] Spot Light (플레이어 추적, 기존 lights[1])
+	{
+		auto obj = std::make_unique<CGameObject>(0); // empty
 
-	m_pLights->m_pLights[3].m_bEnable = true;
-	m_pLights->m_pLights[3].m_nType = SPOT_LIGHT;
-	m_pLights->m_pLights[3].m_fRange = 60.0f;
-	m_pLights->m_pLights[3].m_xmf4Ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
-	m_pLights->m_pLights[3].m_xmf4Diffuse = XMFLOAT4(0.5f, 0.0f, 0.0f, 1.0f);
-	m_pLights->m_pLights[3].m_xmf4Specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
-	m_pLights->m_pLights[3].m_xmf3Position = XMFLOAT3(-150.0f, 30.0f, 30.0f);
-	m_pLights->m_pLights[3].m_xmf3Direction = XMFLOAT3(0.0f, 1.0f, 1.0f);
-	m_pLights->m_pLights[3].m_xmf3Attenuation = XMFLOAT3(1.0f, 0.01f, 0.0001f);
-	m_pLights->m_pLights[3].m_fFalloff = 8.0f;
-	m_pLights->m_pLights[3].m_fPhi = (float)cos(XMConvertToRadians(90.0f));
-	m_pLights->m_pLights[3].m_fTheta = (float)cos(XMConvertToRadians(30.0f));
+		auto* lc = obj->AddComponent<CLightComponent>();
+		lc->type = ELightType::Spot;
+		lc->range = 50.0f;
+		lc->ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+		lc->diffuse = XMFLOAT4(0.4f, 0.4f, 0.4f, 1.0f);
+		lc->specular = XMFLOAT4(0.1f, 0.1f, 0.1f, 0.0f);
+		lc->attenuation = XMFLOAT3(1.0f, 0.01f, 0.0001f);
+		lc->falloff = 8.0f;
+		lc->cosPhi = (float)cos(XMConvertToRadians(40.0f));
+		lc->cosTheta = (float)cos(XMConvertToRadians(20.0f));
 
+		auto* follow = obj->AddComponent<CFollowTransformComponent>();
+		// 여기서는 target을 바로 못 잡을 수도 있으니 Animate에서 세팅한다.
+		m_pPlayerSpotFollower = follow;
+
+		m_lightObjects.push_back(std::move(obj));
+	}
+
+	// [2] Directional Light (기존 lights[2])
+	{
+		auto obj = std::make_unique<CGameObject>(0); // empty
+		// 방향만 의미 있음
+		if (auto* tr = obj->GetComponent<CTransformComponent>())
+			tr->SetLookDirection(XMFLOAT3(1.0f, 0.0f, 0.0f));
+
+		auto* lc = obj->AddComponent<CLightComponent>();
+		lc->type = ELightType::Directional;
+		lc->ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+		lc->diffuse = XMFLOAT4(0.3f, 0.3f, 0.3f, 1.0f);
+		lc->specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+
+		m_lightObjects.push_back(std::move(obj));
+	}
+
+	// [3] Spot Light (기존 lights[3])
+	{
+		auto obj = std::make_unique<CGameObject>(0); // empty
+		obj->SetPosition(-150.0f, 30.0f, 30.0f);
+		if (auto* tr = obj->GetComponent<CTransformComponent>())
+			tr->SetLookDirection(XMFLOAT3(0.0f, 1.0f, 1.0f));
+
+		auto* lc = obj->AddComponent<CLightComponent>();
+		lc->type = ELightType::Spot;
+		lc->range = 60.0f;
+		lc->ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+		lc->diffuse = XMFLOAT4(0.5f, 0.0f, 0.0f, 1.0f);
+		lc->specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+		lc->attenuation = XMFLOAT3(1.0f, 0.01f, 0.0001f);
+		lc->falloff = 8.0f;
+		lc->cosPhi = (float)cos(XMConvertToRadians(90.0f));
+		lc->cosTheta = (float)cos(XMConvertToRadians(30.0f));
+
+		m_lightObjects.push_back(std::move(obj));
+	}
+
+	
 	m_pMaterials = make_unique<MATERIALS>();
 	::ZeroMemory(m_pMaterials.get(), sizeof(MATERIALS));
 
@@ -366,6 +403,28 @@ void CScene::BuildSkinnedBatch(
 
 		BuiltAsset asset = AssetManager::BuildAsset(pd3dDevice, pd3dCommandList, m_pMaterials.get(), FighterDesc);
 
+		// ---- Player per-object CB + CBV (b2 table 용) ----
+		m_playerCbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);
+
+		m_pd3dcbPlayerGameObject = ::CreateBufferResource(
+			pd3dDevice, pd3dCommandList, nullptr,
+			m_playerCbElementBytes,
+			D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+			nullptr
+		);
+
+		m_pd3dcbPlayerGameObject->Map(0, nullptr, (void**)&m_pcbMappedPlayerGameObject);
+
+		m_playerCbvGpu = m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
+		m_pDescriptorHeap->CreateConstantBufferViews(
+			pd3dDevice,
+			1,
+			m_pd3dcbPlayerGameObject.Get(),
+			m_playerCbElementBytes
+		);
+
+
 		for (UINT k = 0; k < fighterCount; ++k)
 		{
 			if (b->objectRefs.size() >= b->capacity) break;
@@ -442,6 +501,133 @@ void CScene::BuildSkinnedBatch(
 	}
 }
 
+void CScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target)
+{
+	// 1) 빈 오브젝트 생성 (Scene 소유)
+	m_pMainCameraObject = std::make_unique<CGameObject>(0);
+
+	// 2) 카메라 컴포넌트 부착
+	auto* cam = m_pMainCameraObject->AddComponent<CThirdPersonCamera>();
+	m_pMainCamera = cam;
+
+	// 3) 기존과 동일 파라미터 세팅
+	cam->SetMode(THIRD_PERSON_CAMERA);
+	cam->SetTarget(target);
+
+	cam->SetTimeLag(0.25f);
+	cam->SetOffset(XMFLOAT3(0.0f, 1.0f, -2.0f));
+	cam->GenerateProjectionMatrix(1.01f, 5000.0f, ASPECT_RATIO, 60.0f);
+	cam->SetViewport(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, 0.0f, 1.0f);
+	cam->SetScissorRect(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
+
+	// 4) 컴포넌트 GPU 리소스 생성 (b1 카메라 CB)
+	//    기존 m_pMainCamera->CreateShaderVariables(dev, cmd) 호출을 이 한 줄로 대체
+	m_pMainCameraObject->CreateComponents(dev, cmd);
+
+	// 5) 초기 위치/뷰 세팅(기존과 동일)
+	if (target)
+	{
+		XMFLOAT3 pos = target->GetPosition();
+		cam->SetPosition(Vector3::Add(pos, cam->GetOffset()));
+		cam->Update(pos, 0.0f);
+		cam->SetLookAt(pos);
+		cam->RegenerateViewMatrix();
+	}
+}
+
+void CScene::BuildPlayer(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
+{
+	// 1) Fighter 에셋 빌드 (BuildSkinnedBatch의 Fighter와 동일)
+	AssetBuildDesc FighterDesc =
+	{
+		AssetType::Fighter,
+		"Assets/Fighter/Mesh/Fighter.bin",
+		"Assets/Fighter/Texture"
+	};
+
+	BuiltAsset asset = AssetManager::BuildAsset(pd3dDevice, pd3dCommandList, m_pMaterials.get(), FighterDesc);
+
+	// 2) CGameObject 생성
+	auto obj = std::make_shared<CGameObject>(1);
+	obj->SetMappedGameObjectCB(m_pcbMappedPlayerGameObject);
+	obj->SetCbvGPUDescriptorHandlePtr(m_playerCbvGpu.ptr);
+
+
+	// 3) 메시/렌더러/머티리얼(현재 코드 스타일 그대로)
+	obj->SetMesh(0, asset.mesh);
+	obj->AddComponent<CStaticMeshRendererComponent>();
+
+	// 4) 트랜스폼 초기값(원하는 값으로 고정)
+	obj->SetPosition(0.0f, 0.0f, 0.0f);
+	obj->Rotate(0.0f, 0.0f, 0.0f);
+
+	// 5) 스키닝 켜기 (skinned mesh면)
+	if (asset.mesh && asset.mesh->IsSkinnedMesh())
+	{
+		obj->EnableSkinning(pd3dDevice, asset.mesh->GetBoneCount());
+	}
+
+	// 6) 애니메이션(Idle) 로드/세팅 (BuildSkinnedBatch Fighter와 동일)
+	AnimationClip idleClip;
+	bool idleLoaded = false;
+
+	auto mesh0 = obj->GetMeshShared(0);
+	if (mesh0)
+	{
+		idleLoaded = mesh0->LoadAnimationFromBIN(
+			"Assets/Fighter/Animation/FighterIdle.bin",
+			"Idle", idleClip, 1.0f
+		);
+	}
+
+	if (idleLoaded)
+	{
+		idleClip.name = "Idle";
+
+		CAnimator* anim = obj->EnsureAnimator();
+		if (anim) anim->AddClip(idleClip);
+
+		// === Move clip 추가 로드 ===
+		AnimationClip moveClip;
+		bool moveLoaded = false;
+
+		if (mesh0)
+		{
+			moveLoaded = mesh0->LoadAnimationFromBIN(
+				"Assets/Fighter/Animation/FighterRun.bin",
+				"Run", moveClip, 1.0f
+			);
+		}
+
+		if (moveLoaded)
+		{
+			moveClip.name = "Run";
+			if (anim) anim->AddClip(moveClip);
+		}
+
+		auto* ctrl = obj->EnsureAnimController();
+		ctrl->SetIdleClip("Idle");
+		ctrl->SetMoveClip(moveLoaded ? "Run" : "Idle");
+		ctrl->SetSpeed(0.0f);
+		ctrl->Update(0.0f);
+
+		obj->Animate(0.0f);
+	}
+
+
+	// 7) 플레이어 컨트롤러 컴포넌트 부착
+	obj->AddComponent<CPlayerControllerComponent>();
+
+	// 8) 컴포넌트 생성(기존 패턴)
+	obj->CreateComponents(pd3dDevice, pd3dCommandList);
+
+	// 9) Scene이 소유
+	m_pPlayer = obj;
+}
+
+
+
+
 void CScene::BuildObjects(
 	ID3D12Device* pd3dDevice,
 	ID3D12GraphicsCommandList* pd3dCommandList)
@@ -493,17 +679,24 @@ void CScene::BuildObjects(
 	// ============================================================
 	BuildLightsAndMaterials();
 
+	// Light objects components create
+	for (auto& lo : m_lightObjects)
+	{
+		if (lo) lo->CreateComponents(pd3dDevice, pd3dCommandList);
+	}
+
 	constexpr UINT kRTCount = 5;
 	const DXGI_FORMAT kDsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
 	BuildStaticBatch(pd3dDevice, pd3dCommandList, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
 	BuildSkinnedBatch(pd3dDevice, pd3dCommandList, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
-
-
+	
 	// ============================================================
 	// 6. Scene 공통 Shader Variables
 	// ============================================================
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
+	BuildPlayer(pd3dDevice, pd3dCommandList);
+	CreateMainCamera(pd3dDevice, pd3dCommandList, m_pPlayer.get());
 }
 
 

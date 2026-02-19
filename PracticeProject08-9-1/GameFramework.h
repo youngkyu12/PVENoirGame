@@ -4,7 +4,6 @@
 #define FRAME_BUFFER_HEIGHT		480
 
 #include "Timer.h"
-#include "Player.h"
 #include "Scene.h"
 
 #define DRAW_SCENE_COLOR				'S'
@@ -89,7 +88,6 @@ private:
 	CGameTimer							m_GameTimer;
 
 	unique_ptr<CScene>					m_pScene;
-	shared_ptr<CPlayer>					m_pPlayer;
 	CCamera*							m_pCamera = nullptr;
 
 	shared_ptr<CPostProcessingShader>	m_pPostProcessingShader;

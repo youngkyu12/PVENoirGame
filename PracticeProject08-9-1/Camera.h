@@ -1,9 +1,8 @@
 #pragma once
+#include "Component.h"
 
 #define ASPECT_RATIO				(float(FRAME_BUFFER_WIDTH) / float(FRAME_BUFFER_HEIGHT))
 
-#define FIRST_PERSON_CAMERA			0x01
-#define SPACESHIP_CAMERA			0x02
 #define THIRD_PERSON_CAMERA			0x03
 
 struct VS_CB_CAMERA_INFO
@@ -13,9 +12,9 @@ struct VS_CB_CAMERA_INFO
 	XMFLOAT3						m_xmf3Position;
 };
 
-class CPlayer;
+class CGameObject;
 
-class CCamera
+class CCamera : public CComponentT<CCamera>
 {
 protected:
 	XMFLOAT3						m_xmf3Position = XMFLOAT3(0.0f, 0.0f, 0.0f);
@@ -39,15 +38,14 @@ protected:
 	D3D12_VIEWPORT					m_d3dViewport = { 0, 0, FRAME_BUFFER_WIDTH , FRAME_BUFFER_HEIGHT, 0.0f, 1.0f };
 	D3D12_RECT						m_d3dScissorRect = { 0, 0, FRAME_BUFFER_WIDTH , FRAME_BUFFER_HEIGHT };
 
-	CPlayer							*m_pPlayer = nullptr;
+	CGameObject*					m_pTarget = nullptr;
 
 	ComPtr<ID3D12Resource>			m_pd3dcbCamera;
 	VS_CB_CAMERA_INFO				*m_pcbMappedCamera = nullptr;
 
 public:
-	CCamera();
-	CCamera(CCamera *pCamera);
-	virtual ~CCamera();
+	explicit CCamera(CGameObject* owner);
+	virtual ~CCamera() override;
 
 	virtual void CreateShaderVariables(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList);
 	virtual void ReleaseShaderVariables();
@@ -64,8 +62,9 @@ public:
 	void SetViewport(int xTopLeft, int yTopLeft, int nWidth, int nHeight, float fMinZ = 0.0f, float fMaxZ = 1.0f);
 	void SetScissorRect(LONG xLeft, LONG yTop, LONG xRight, LONG yBottom);
 
-	void SetPlayer(CPlayer *pPlayer) { m_pPlayer = pPlayer; }
-	CPlayer *GetPlayer() { return(m_pPlayer); }
+	void SetTarget(CGameObject* target) { m_pTarget = target; }
+	CGameObject* GetTarget() const { return m_pTarget; }
+	
 
 	void SetMode(DWORD nMode) { m_nMode = nMode; }
 	DWORD GetMode() { return(m_nMode); }
@@ -100,30 +99,16 @@ public:
 	virtual void Rotate(float fPitch = 0.0f, float fYaw = 0.0f, float fRoll = 0.0f) { }
 	virtual void Update(XMFLOAT3& xmf3LookAt, float fTimeElapsed) { }
 	virtual void SetLookAt(XMFLOAT3& xmf3LookAt) { }
-};
 
-class CSpaceShipCamera : public CCamera
-{
 public:
-	CSpaceShipCamera(CCamera *pCamera);
-	virtual ~CSpaceShipCamera() { }
-
-	virtual void Rotate(float fPitch = 0.0f, float fYaw = 0.0f, float fRoll = 0.0f);
-};
-
-class CFirstPersonCamera : public CCamera
-{
-public:
-	CFirstPersonCamera(CCamera *pCamera);
-	virtual ~CFirstPersonCamera() { }
-
-	virtual void Rotate(float fPitch = 0.0f, float fYaw = 0.0f, float fRoll = 0.0f);
+	virtual void OnCreate(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd) override;
+	virtual void OnDestroy() override;
 };
 
 class CThirdPersonCamera : public CCamera
 {
 public:
-	CThirdPersonCamera(CCamera *pCamera);
+	explicit CThirdPersonCamera(CGameObject* owner);
 	virtual ~CThirdPersonCamera() { }
 
 	virtual void Update(XMFLOAT3& xmf3LookAt, float fTimeElapsed);

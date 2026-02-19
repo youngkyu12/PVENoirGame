@@ -6,7 +6,7 @@
 #include "Scene.h"
 
 std::unique_ptr<CDescriptorHeap> CScene::m_pDescriptorHeap = std::make_unique<CDescriptorHeap>();
-
+;
 CScene::CScene()
 {
 	m_staticBatch.capacity = 1;
@@ -32,6 +32,19 @@ void CScene::ReleaseObjects()
 	// objects clear
 	m_staticObjects.clear();
 	m_skinnedObjects.clear();
+	m_pPlayer.reset();
+
+	m_lightObjects.clear();
+	m_pPlayerSpotFollower = nullptr;
+
+	// Main Camera (GameObject + Camera Component)
+	if (m_pMainCamera)
+	{
+		m_pMainCamera->ReleaseShaderVariables();
+		m_pMainCamera = nullptr;
+	}
+	m_pMainCameraObject.reset();
+
 
 	// Batch ref lists clear
 	m_staticBatch.objectRefs.clear();
@@ -54,6 +67,9 @@ void CScene::ReleaseUploadBuffers()
 		if (!m_skinnedObjects[j]) continue;
 		m_skinnedObjects[j]->ReleaseUploadBuffers();
 	}
+	if (m_pPlayer)
+		m_pPlayer->ReleaseUploadBuffers();
+
 
 #ifdef _WITH_BATCH_MATERIAL
 	if (m_staticBatch.material)  m_staticBatch.material->ReleaseUploadBuffers();
@@ -75,8 +91,7 @@ void CScene::ReleaseShaderVariables()
 		m_staticBatch.cbGameObjects.Reset();
 	}
 
-	// ---- Skinned batch CBs ----
-	if (m_skinnedBatch.cbGameObjects)
+	// ---- Skinned batch CBs ----	if (m_skinnedBatch.cbGameObjects)
 	{
 		if (m_skinnedBatch.mappedGameObjects)
 		{
@@ -91,9 +106,22 @@ void CScene::ReleaseShaderVariables()
 		m_pd3dcbLights->Unmap(0, NULL);
 		m_pd3dcbLights.Reset();
 	}
+	m_pcbMappedLights = nullptr;
+
 	if (m_pd3dcbMaterials)
 	{
 		m_pd3dcbMaterials->Unmap(0, NULL);
 		m_pd3dcbMaterials.Reset();
 	}
+
+	if (m_pd3dcbPlayerGameObject)
+	{
+		if (m_pcbMappedPlayerGameObject)
+		{
+			m_pd3dcbPlayerGameObject->Unmap(0, NULL);
+			m_pcbMappedPlayerGameObject = nullptr;
+		}
+		m_pd3dcbPlayerGameObject.Reset();
+	}
+
 }

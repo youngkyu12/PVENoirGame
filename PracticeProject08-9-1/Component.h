@@ -136,6 +136,26 @@ public:
 		return out;
 	}
 
+	void SetLookDirection(const XMFLOAT3& lookWorld, const XMFLOAT3& upHintWorld = XMFLOAT3(0, 1, 0))
+	{
+		XMVECTOR f = XMVector3Normalize(XMLoadFloat3(&lookWorld));
+		XMVECTOR up = XMVector3Normalize(XMLoadFloat3(&upHintWorld));
+
+		// up과 f가 거의 평행이면 다른 up을 사용
+		const float d = fabsf(XMVectorGetX(XMVector3Dot(f, up)));
+		if (d > 0.99f) up = XMVectorSet(0, 0, 1, 0);
+
+		XMVECTOR r = XMVector3Normalize(XMVector3Cross(up, f));
+		XMVECTOR u = XMVector3Normalize(XMVector3Cross(f, r));
+
+		XMFLOAT3 right, upv, look;
+		XMStoreFloat3(&right, r);
+		XMStoreFloat3(&upv, u);
+		XMStoreFloat3(&look, f);
+
+		SetRotationFromBasis(right, upv, look);
+	}
+
 	// yaw only (Player 바디 회전용): world up 기준 절대 yaw
 	void SetYawDegrees(float yawDeg)
 	{
