@@ -47,6 +47,16 @@ public:
 
     bool IsBlending() const { return m_bBlending; }
 
+    // --- query helpers ---
+    float GetCurrentTime() const { return m_fCurrentTime; }
+    float GetCurrentClipDuration() const;
+    bool  IsPlaying() const { return m_bPlaying; }
+    bool  IsLooping() const { return m_bLoop; }
+
+    // 현재 클립이 "non-loop"로 재생 중이고 끝에 도달했는지
+    bool  IsCurrentClipFinished(float eps = 1e-4f) const;
+
+
 private:
     AnimationClip* FindClipPtr(const std::string& name);
 

@@ -5,6 +5,7 @@
 #include "PlayerControllerComponent.h"
 
 #include "Object.h"
+#include "Animator.h"
 #include "AnimatorComponent.h"
 #include "AnimController.h"
 
@@ -48,8 +49,17 @@ void CPlayerControllerComponent::ApplyYawToOwnerTransform()
 void CPlayerControllerComponent::SetInputDirection(DWORD dwDirection)
 {
     m_inputDir = dwDirection;
+
+    // Attack 중이면 "상태 전환/이동"을 유발하는 speed 반영을 막는다.
+    if (auto* anim = GetOwner() ? GetOwner()->GetAnimator() : nullptr)
+    {
+        if (anim->GetCurrentClipName() == "Attack" && !anim->IsCurrentClipFinished())
+            return;
+    }
+
     SyncAnimatorSpeed();
 }
+
 
 void CPlayerControllerComponent::SyncAnimatorSpeed()
 {
@@ -73,6 +83,11 @@ void CPlayerControllerComponent::Move(
     CGameObject* owner = GetOwner();
     if (!owner) return;
 
+    if (auto* anim = owner->GetAnimator())
+    {
+        if (anim->GetCurrentClipName() == "Attack" && !anim->IsCurrentClipFinished())
+            return;
+    }
     if (!dwDirection) return;
 
     const XMFLOAT3 look = owner->GetLook();
@@ -123,6 +138,16 @@ void CPlayerControllerComponent::MoveShift(const XMFLOAT3& shift, bool bUpdateVe
 
 void CPlayerControllerComponent::Rotate(float /*pitchDeg*/, float yawDeg, float /*rollDeg*/)
 {
+    CGameObject* owner = GetOwner();
+    if (owner)
+    {
+        if (auto* anim = owner->GetAnimator())
+        {
+            if (anim->GetCurrentClipName() == "Attack" && !anim->IsCurrentClipFinished())
+                return;
+        }
+    }
+
     if (yawDeg != 0.0f)
         SetYawDegrees(m_yawDeg + yawDeg);
 }

@@ -9,7 +9,7 @@ std::unique_ptr<CDescriptorHeap> CScene::m_pDescriptorHeap = std::make_unique<CD
 ;
 CScene::CScene()
 {
-	m_staticBatch.capacity = 1;
+	m_staticBatch.capacity = 4;
 	m_staticBatch.count = 0;
 
 	m_skinnedBatch.capacity = 60;
