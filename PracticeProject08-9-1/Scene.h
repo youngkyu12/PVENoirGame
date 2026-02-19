@@ -8,8 +8,8 @@
 #include <vector>
 
 #include "Shader.h"
-#include "Player.h"
 #include "DescriptorHeap.h"
+#include "LightTypes.h"
 
 #define ROOT_PARAMETER_DRAW_OPTIONS 5
 #define ROOT_PARAMETER_GLOBAL_SRV 6
@@ -17,31 +17,9 @@ constexpr UINT LEGACY_SRV_COUNT = 6; // t0(1) + t1~t5(5)
 
 class CMaterial;
 class CGameObject;
+class CFollowTransformComponent;
 struct CB_GAMEOBJECT_INFO;
 struct CB_BONE_PALETTE;
-
-struct LIGHT
-{
-	XMFLOAT4				m_xmf4Ambient;
-	XMFLOAT4				m_xmf4Diffuse;
-	XMFLOAT4				m_xmf4Specular;
-	XMFLOAT3				m_xmf3Position;
-	float 					m_fFalloff;
-	XMFLOAT3				m_xmf3Direction;
-	float 					m_fTheta; //cos(m_fTheta)
-	XMFLOAT3				m_xmf3Attenuation;
-	float					m_fPhi; //cos(m_fPhi)
-	bool					m_bEnable;
-	int						m_nType;
-	float					m_fRange;
-	float					padding;
-};
-
-struct LIGHTS
-{
-	LIGHT					m_pLights[MAX_LIGHTS];
-	XMFLOAT4				m_xmf4GlobalAmbient;
-};
 
 struct MATERIAL
 {
@@ -155,13 +133,25 @@ public:
 	void SetGraphicsRootSignature(ID3D12GraphicsCommandList* pd3dCommandList) { pd3dCommandList->SetGraphicsRootSignature(m_pd3dGraphicsRootSignature.Get()); }
 
 public:
-	std::shared_ptr<CPlayer>					m_pPlayer;
+	std::shared_ptr<CGameObject>			m_pPlayer;
+	std::unique_ptr<CGameObject>            m_pMainCameraObject;  // Scene이 소유하는 빈 오브젝트
+	CCamera* m_pMainCamera = nullptr; // 오브젝트 내 카메라 컴포넌트 캐시
+
+	CCamera* GetMainCamera() const { return m_pMainCamera; }
+	CGameObject* GetMainCameraObject() const { return m_pMainCameraObject.get(); }
+
+	void CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target);
+
 	static std::unique_ptr<CDescriptorHeap>		m_pDescriptorHeap;
+public:
+	CGameObject* GetPlayer() const { return m_pPlayer.get(); }
+	std::shared_ptr<CGameObject> GetPlayerShared() const { return m_pPlayer; }
+
+public:
+	void BuildPlayer(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
 
 protected:
 	ComPtr<ID3D12RootSignature>				m_pd3dGraphicsRootSignature;
-
-	std::unique_ptr<LIGHTS>					m_pLights;
 
 	ComPtr<ID3D12Resource>					m_pd3dcbLights;
 	LIGHTS* m_pcbMappedLights = nullptr;
@@ -170,6 +160,12 @@ protected:
 
 	ComPtr<ID3D12Resource>					m_pd3dcbMaterials;
 	MATERIAL* m_pcbMappedMaterials = nullptr;
+
+	ComPtr<ID3D12Resource>					m_pd3dcbPlayerGameObject;
+	CB_GAMEOBJECT_INFO* m_pcbMappedPlayerGameObject = nullptr;
+	D3D12_GPU_DESCRIPTOR_HANDLE				m_playerCbvGpu = { 0 };
+	UINT									m_playerCbElementBytes = 0;
+
 
 public:
 	void SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex)
@@ -183,4 +179,8 @@ public:
 public:
 	std::vector<std::unique_ptr<CGameObject>>   m_staticObjects;
 	std::vector<std::unique_ptr<CGameObject>>   m_skinnedObjects;
+
+	std::vector<std::unique_ptr<CGameObject>>   m_lightObjects;
+	CFollowTransformComponent* m_pPlayerSpotFollower = nullptr;
+
 };

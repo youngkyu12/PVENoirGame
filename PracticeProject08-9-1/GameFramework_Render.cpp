@@ -6,6 +6,8 @@
 #include "GameFramework.h"
 #include "AnimController.h"
 #include "AnimatorComponent.h"
+#include "PlayerControllerComponent.h"
+
 
 void CGameFramework::ProcessInput()
 {
@@ -15,30 +17,25 @@ void CGameFramework::ProcessInput()
 	if (GetKeyboardState(pKeysBuffer) && m_pScene)
 		bProcessedByScene = m_pScene->ProcessInput(pKeysBuffer);
 
+	CGameObject* playerObj = (m_pScene ? m_pScene->GetPlayer() : nullptr);
+	if (!playerObj) return;
+
+	auto* pc = playerObj->GetComponent<CPlayerControllerComponent>();
+	if (!pc) return;
+
+	DWORD dwDirection = 0;
+	float cxDelta = 0.0f, cyDelta = 0.0f;
+
 	if (!bProcessedByScene)
 	{
-		DWORD dwDirection = 0;
-		if (pKeysBuffer[VK_UP] & 0xF0)
-			dwDirection |= DIR_FORWARD;
+		if (pKeysBuffer[VK_UP] & 0xF0)    dwDirection |= DIR_FORWARD;
+		if (pKeysBuffer[VK_DOWN] & 0xF0)  dwDirection |= DIR_BACKWARD;
+		if (pKeysBuffer[VK_LEFT] & 0xF0)  dwDirection |= DIR_LEFT;
+		if (pKeysBuffer[VK_RIGHT] & 0xF0) dwDirection |= DIR_RIGHT;
+		if (pKeysBuffer[VK_PRIOR] & 0xF0) dwDirection |= DIR_UP;
+		if (pKeysBuffer[VK_NEXT] & 0xF0)  dwDirection |= DIR_DOWN;
 
-		if (pKeysBuffer[VK_DOWN] & 0xF0)
-			dwDirection |= DIR_BACKWARD;
-
-		if (pKeysBuffer[VK_LEFT] & 0xF0)
-			dwDirection |= DIR_LEFT;
-
-		if (pKeysBuffer[VK_RIGHT] & 0xF0)
-			dwDirection |= DIR_RIGHT;
-
-		if (pKeysBuffer[VK_PRIOR] & 0xF0)
-			dwDirection |= DIR_UP;
-
-		if (pKeysBuffer[VK_NEXT] & 0xF0)
-			dwDirection |= DIR_DOWN;
-
-		float cxDelta = 0.0f, cyDelta = 0.0f;
 		POINT ptCursorPos;
-
 		if (GetCapture() == m_hWnd)
 		{
 			SetCursor(NULL);
@@ -47,25 +44,41 @@ void CGameFramework::ProcessInput()
 			cyDelta = (float)(ptCursorPos.y - m_ptOldCursorPos.y) / 3.0f;
 			SetCursorPos(m_ptOldCursorPos.x, m_ptOldCursorPos.y);
 		}
-
-		if ((dwDirection != 0) || (cxDelta != 0.0f) || (cyDelta != 0.0f))
-		{
-			if (cxDelta || cyDelta)
-			{
-				if (pKeysBuffer[VK_RBUTTON] & 0xF0)
-					m_pPlayer->Rotate(cyDelta, 0.0f, -cxDelta);
-				else
-					m_pPlayer->Rotate(cyDelta, cxDelta, 0.0f);
-			}
-			if (dwDirection)m_pPlayer->Move(dwDirection, 5.0f * m_GameTimer.GetTimeElapsed(), true);
-		}
-		if (auto* animComp = m_pPlayer->GetComponent<CAnimatorComponent>())
-			animComp->SetSpeed(dwDirection ? 1.0f : 0.0f);
-		else if (auto* ctrl = m_pPlayer->GetAnimController())
-			ctrl->SetSpeed(dwDirection ? 1.0f : 0.0f);
 	}
-	m_pPlayer->Update(m_GameTimer.GetTimeElapsed());
+
+	const float dt = m_GameTimer.GetTimeElapsed();
+
+	// === delta 계산을 위해 이동 전 위치 저장 ===
+	XMFLOAT3 oldPos = playerObj->GetPosition();
+
+	// === Rotate/Move: "Player 전용 호출" 금지, 컨트롤러로만 ===
+	if (cxDelta || cyDelta)
+	{
+		if (pKeysBuffer[VK_RBUTTON] & 0xF0)
+			pc->Rotate(cyDelta, 0.0f, -cxDelta);
+		else
+			pc->Rotate(cyDelta, cxDelta, 0.0f);
+	}
+
+	if (dwDirection)
+		pc->Move(dwDirection, 5.0f * dt, false);
+
+	pc->SetInputDirection(static_cast<uint32_t>(dwDirection));
+
+	XMFLOAT3 newPos = playerObj->GetPosition();
+
+	if (m_pCamera)
+	{
+		XMFLOAT3 delta = Vector3::Subtract(newPos, oldPos);
+		m_pCamera->Move(delta);
+
+		m_pCamera->Update(newPos, dt);
+		m_pCamera->SetLookAt(newPos);
+		m_pCamera->RegenerateViewMatrix();
+	}
 }
+
+
 
 void CGameFramework::AnimateObjects()
 {
@@ -130,8 +143,6 @@ void CGameFramework::FrameAdvance()
 		);
 
 		m_pScene->Render(m_pd3dCommandList.Get(), m_pCamera);
-
-		m_pPlayer->Render(m_pd3dCommandList.Get(), m_pCamera);
 
 		m_pPostProcessingShader->OnPostRenderTarget(m_pd3dCommandList.Get());
 	}
