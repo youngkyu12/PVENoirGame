@@ -47,7 +47,7 @@ struct TableStruct_Struct_2eproto {
     PROTOBUF_SECTION_VARIABLE(protodesc_cold);
   static const ::PROTOBUF_NAMESPACE_ID::internal::AuxiliaryParseTableField aux[]
     PROTOBUF_SECTION_VARIABLE(protodesc_cold);
-  static const ::PROTOBUF_NAMESPACE_ID::internal::ParseTable schema[1]
+  static const ::PROTOBUF_NAMESPACE_ID::internal::ParseTable schema[3]
     PROTOBUF_SECTION_VARIABLE(protodesc_cold);
   static const ::PROTOBUF_NAMESPACE_ID::internal::FieldMetadata field_metadata[];
   static const ::PROTOBUF_NAMESPACE_ID::internal::SerializationTable serialization_table[];
@@ -55,11 +55,19 @@ struct TableStruct_Struct_2eproto {
 };
 extern const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_Struct_2eproto;
 namespace Protocol {
+class Building;
+struct BuildingDefaultTypeInternal;
+extern BuildingDefaultTypeInternal _Building_default_instance_;
+class Enemy;
+struct EnemyDefaultTypeInternal;
+extern EnemyDefaultTypeInternal _Enemy_default_instance_;
 class Player;
 struct PlayerDefaultTypeInternal;
 extern PlayerDefaultTypeInternal _Player_default_instance_;
 }  // namespace Protocol
 PROTOBUF_NAMESPACE_OPEN
+template<> ::Protocol::Building* Arena::CreateMaybeMessage<::Protocol::Building>(Arena*);
+template<> ::Protocol::Enemy* Arena::CreateMaybeMessage<::Protocol::Enemy>(Arena*);
 template<> ::Protocol::Player* Arena::CreateMaybeMessage<::Protocol::Player>(Arena*);
 PROTOBUF_NAMESPACE_CLOSE
 namespace Protocol {
@@ -174,10 +182,80 @@ class Player final :
   // accessors -------------------------------------------------------
 
   enum : int {
+    kPositionFieldNumber = 5,
+    kRotationFieldNumber = 6,
+    kScaleFieldNumber = 7,
     kNameFieldNumber = 2,
     kIdFieldNumber = 1,
     kPlayerTypeFieldNumber = 3,
+    kPlayerStateFieldNumber = 4,
   };
+  // repeated float position = 5;
+  int position_size() const;
+  private:
+  int _internal_position_size() const;
+  public:
+  void clear_position();
+  private:
+  float _internal_position(int index) const;
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+      _internal_position() const;
+  void _internal_add_position(float value);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+      _internal_mutable_position();
+  public:
+  float position(int index) const;
+  void set_position(int index, float value);
+  void add_position(float value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+      position() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+      mutable_position();
+
+  // repeated float rotation = 6;
+  int rotation_size() const;
+  private:
+  int _internal_rotation_size() const;
+  public:
+  void clear_rotation();
+  private:
+  float _internal_rotation(int index) const;
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+      _internal_rotation() const;
+  void _internal_add_rotation(float value);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+      _internal_mutable_rotation();
+  public:
+  float rotation(int index) const;
+  void set_rotation(int index, float value);
+  void add_rotation(float value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+      rotation() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+      mutable_rotation();
+
+  // repeated float scale = 7;
+  int scale_size() const;
+  private:
+  int _internal_scale_size() const;
+  public:
+  void clear_scale();
+  private:
+  float _internal_scale(int index) const;
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+      _internal_scale() const;
+  void _internal_add_scale(float value);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+      _internal_mutable_scale();
+  public:
+  float scale(int index) const;
+  void set_scale(int index, float value);
+  void add_scale(float value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+      scale() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+      mutable_scale();
+
   // string name = 2;
   void clear_name();
   const std::string& name() const;
@@ -210,6 +288,15 @@ class Player final :
   void _internal_set_playertype(::Protocol::PlayerType value);
   public:
 
+  // .Protocol.PlayerState playerState = 4;
+  void clear_playerstate();
+  ::Protocol::PlayerState playerstate() const;
+  void set_playerstate(::Protocol::PlayerState value);
+  private:
+  ::Protocol::PlayerState _internal_playerstate() const;
+  void _internal_set_playerstate(::Protocol::PlayerState value);
+  public:
+
   // @@protoc_insertion_point(class_scope:Protocol.Player)
  private:
   class _Internal;
@@ -217,9 +304,443 @@ class Player final :
   template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< float > position_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< float > rotation_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< float > scale_;
   ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr name_;
   ::PROTOBUF_NAMESPACE_ID::uint64 id_;
   int playertype_;
+  int playerstate_;
+  mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  friend struct ::TableStruct_Struct_2eproto;
+};
+// -------------------------------------------------------------------
+
+class Enemy final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:Protocol.Enemy) */ {
+ public:
+  inline Enemy() : Enemy(nullptr) {}
+  ~Enemy() override;
+  explicit constexpr Enemy(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  Enemy(const Enemy& from);
+  Enemy(Enemy&& from) noexcept
+    : Enemy() {
+    *this = ::std::move(from);
+  }
+
+  inline Enemy& operator=(const Enemy& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline Enemy& operator=(Enemy&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const Enemy& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const Enemy* internal_default_instance() {
+    return reinterpret_cast<const Enemy*>(
+               &_Enemy_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    1;
+
+  friend void swap(Enemy& a, Enemy& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(Enemy* other) {
+    if (other == this) return;
+    if (GetOwningArena() == other->GetOwningArena()) {
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(Enemy* other) {
+    if (other == this) return;
+    GOOGLE_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  inline Enemy* New() const final {
+    return new Enemy();
+  }
+
+  Enemy* New(::PROTOBUF_NAMESPACE_ID::Arena* arena) const final {
+    return CreateMaybeMessage<Enemy>(arena);
+  }
+  void CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) final;
+  void MergeFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) final;
+  void CopyFrom(const Enemy& from);
+  void MergeFrom(const Enemy& from);
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::PROTOBUF_NAMESPACE_ID::uint8* _InternalSerialize(
+      ::PROTOBUF_NAMESPACE_ID::uint8* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _cached_size_.Get(); }
+
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(Enemy* other);
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
+    return "Protocol.Enemy";
+  }
+  protected:
+  explicit Enemy(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  private:
+  static void ArenaDtor(void* object);
+  inline void RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kPositionFieldNumber = 4,
+    kRotationFieldNumber = 5,
+    kScaleFieldNumber = 6,
+    kIdFieldNumber = 1,
+    kEnemyTypeFieldNumber = 2,
+    kEnemyStateFieldNumber = 3,
+  };
+  // repeated float position = 4;
+  int position_size() const;
+  private:
+  int _internal_position_size() const;
+  public:
+  void clear_position();
+  private:
+  float _internal_position(int index) const;
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+      _internal_position() const;
+  void _internal_add_position(float value);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+      _internal_mutable_position();
+  public:
+  float position(int index) const;
+  void set_position(int index, float value);
+  void add_position(float value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+      position() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+      mutable_position();
+
+  // repeated float rotation = 5;
+  int rotation_size() const;
+  private:
+  int _internal_rotation_size() const;
+  public:
+  void clear_rotation();
+  private:
+  float _internal_rotation(int index) const;
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+      _internal_rotation() const;
+  void _internal_add_rotation(float value);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+      _internal_mutable_rotation();
+  public:
+  float rotation(int index) const;
+  void set_rotation(int index, float value);
+  void add_rotation(float value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+      rotation() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+      mutable_rotation();
+
+  // repeated float scale = 6;
+  int scale_size() const;
+  private:
+  int _internal_scale_size() const;
+  public:
+  void clear_scale();
+  private:
+  float _internal_scale(int index) const;
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+      _internal_scale() const;
+  void _internal_add_scale(float value);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+      _internal_mutable_scale();
+  public:
+  float scale(int index) const;
+  void set_scale(int index, float value);
+  void add_scale(float value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+      scale() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+      mutable_scale();
+
+  // uint64 id = 1;
+  void clear_id();
+  ::PROTOBUF_NAMESPACE_ID::uint64 id() const;
+  void set_id(::PROTOBUF_NAMESPACE_ID::uint64 value);
+  private:
+  ::PROTOBUF_NAMESPACE_ID::uint64 _internal_id() const;
+  void _internal_set_id(::PROTOBUF_NAMESPACE_ID::uint64 value);
+  public:
+
+  // .Protocol.EnemyType enemyType = 2;
+  void clear_enemytype();
+  ::Protocol::EnemyType enemytype() const;
+  void set_enemytype(::Protocol::EnemyType value);
+  private:
+  ::Protocol::EnemyType _internal_enemytype() const;
+  void _internal_set_enemytype(::Protocol::EnemyType value);
+  public:
+
+  // .Protocol.EnemyState enemyState = 3;
+  void clear_enemystate();
+  ::Protocol::EnemyState enemystate() const;
+  void set_enemystate(::Protocol::EnemyState value);
+  private:
+  ::Protocol::EnemyState _internal_enemystate() const;
+  void _internal_set_enemystate(::Protocol::EnemyState value);
+  public:
+
+  // @@protoc_insertion_point(class_scope:Protocol.Enemy)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< float > position_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< float > rotation_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< float > scale_;
+  ::PROTOBUF_NAMESPACE_ID::uint64 id_;
+  int enemytype_;
+  int enemystate_;
+  mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  friend struct ::TableStruct_Struct_2eproto;
+};
+// -------------------------------------------------------------------
+
+class Building final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:Protocol.Building) */ {
+ public:
+  inline Building() : Building(nullptr) {}
+  ~Building() override;
+  explicit constexpr Building(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  Building(const Building& from);
+  Building(Building&& from) noexcept
+    : Building() {
+    *this = ::std::move(from);
+  }
+
+  inline Building& operator=(const Building& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline Building& operator=(Building&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const Building& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const Building* internal_default_instance() {
+    return reinterpret_cast<const Building*>(
+               &_Building_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    2;
+
+  friend void swap(Building& a, Building& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(Building* other) {
+    if (other == this) return;
+    if (GetOwningArena() == other->GetOwningArena()) {
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(Building* other) {
+    if (other == this) return;
+    GOOGLE_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  inline Building* New() const final {
+    return new Building();
+  }
+
+  Building* New(::PROTOBUF_NAMESPACE_ID::Arena* arena) const final {
+    return CreateMaybeMessage<Building>(arena);
+  }
+  void CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) final;
+  void MergeFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) final;
+  void CopyFrom(const Building& from);
+  void MergeFrom(const Building& from);
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::PROTOBUF_NAMESPACE_ID::uint8* _InternalSerialize(
+      ::PROTOBUF_NAMESPACE_ID::uint8* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _cached_size_.Get(); }
+
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(Building* other);
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
+    return "Protocol.Building";
+  }
+  protected:
+  explicit Building(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  private:
+  static void ArenaDtor(void* object);
+  inline void RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kPositionFieldNumber = 2,
+    kRotationFieldNumber = 3,
+    kScaleFieldNumber = 4,
+    kIdFieldNumber = 1,
+  };
+  // repeated float position = 2;
+  int position_size() const;
+  private:
+  int _internal_position_size() const;
+  public:
+  void clear_position();
+  private:
+  float _internal_position(int index) const;
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+      _internal_position() const;
+  void _internal_add_position(float value);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+      _internal_mutable_position();
+  public:
+  float position(int index) const;
+  void set_position(int index, float value);
+  void add_position(float value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+      position() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+      mutable_position();
+
+  // repeated float rotation = 3;
+  int rotation_size() const;
+  private:
+  int _internal_rotation_size() const;
+  public:
+  void clear_rotation();
+  private:
+  float _internal_rotation(int index) const;
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+      _internal_rotation() const;
+  void _internal_add_rotation(float value);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+      _internal_mutable_rotation();
+  public:
+  float rotation(int index) const;
+  void set_rotation(int index, float value);
+  void add_rotation(float value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+      rotation() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+      mutable_rotation();
+
+  // repeated float scale = 4;
+  int scale_size() const;
+  private:
+  int _internal_scale_size() const;
+  public:
+  void clear_scale();
+  private:
+  float _internal_scale(int index) const;
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+      _internal_scale() const;
+  void _internal_add_scale(float value);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+      _internal_mutable_scale();
+  public:
+  float scale(int index) const;
+  void set_scale(int index, float value);
+  void add_scale(float value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+      scale() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+      mutable_scale();
+
+  // uint64 id = 1;
+  void clear_id();
+  ::PROTOBUF_NAMESPACE_ID::uint64 id() const;
+  void set_id(::PROTOBUF_NAMESPACE_ID::uint64 value);
+  private:
+  ::PROTOBUF_NAMESPACE_ID::uint64 _internal_id() const;
+  void _internal_set_id(::PROTOBUF_NAMESPACE_ID::uint64 value);
+  public:
+
+  // @@protoc_insertion_point(class_scope:Protocol.Building)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< float > position_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< float > rotation_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< float > scale_;
+  ::PROTOBUF_NAMESPACE_ID::uint64 id_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_Struct_2eproto;
 };
@@ -319,9 +840,544 @@ inline void Player::set_playertype(::Protocol::PlayerType value) {
   // @@protoc_insertion_point(field_set:Protocol.Player.playerType)
 }
 
+// .Protocol.PlayerState playerState = 4;
+inline void Player::clear_playerstate() {
+  playerstate_ = 0;
+}
+inline ::Protocol::PlayerState Player::_internal_playerstate() const {
+  return static_cast< ::Protocol::PlayerState >(playerstate_);
+}
+inline ::Protocol::PlayerState Player::playerstate() const {
+  // @@protoc_insertion_point(field_get:Protocol.Player.playerState)
+  return _internal_playerstate();
+}
+inline void Player::_internal_set_playerstate(::Protocol::PlayerState value) {
+  
+  playerstate_ = value;
+}
+inline void Player::set_playerstate(::Protocol::PlayerState value) {
+  _internal_set_playerstate(value);
+  // @@protoc_insertion_point(field_set:Protocol.Player.playerState)
+}
+
+// repeated float position = 5;
+inline int Player::_internal_position_size() const {
+  return position_.size();
+}
+inline int Player::position_size() const {
+  return _internal_position_size();
+}
+inline void Player::clear_position() {
+  position_.Clear();
+}
+inline float Player::_internal_position(int index) const {
+  return position_.Get(index);
+}
+inline float Player::position(int index) const {
+  // @@protoc_insertion_point(field_get:Protocol.Player.position)
+  return _internal_position(index);
+}
+inline void Player::set_position(int index, float value) {
+  position_.Set(index, value);
+  // @@protoc_insertion_point(field_set:Protocol.Player.position)
+}
+inline void Player::_internal_add_position(float value) {
+  position_.Add(value);
+}
+inline void Player::add_position(float value) {
+  _internal_add_position(value);
+  // @@protoc_insertion_point(field_add:Protocol.Player.position)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+Player::_internal_position() const {
+  return position_;
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+Player::position() const {
+  // @@protoc_insertion_point(field_list:Protocol.Player.position)
+  return _internal_position();
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+Player::_internal_mutable_position() {
+  return &position_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+Player::mutable_position() {
+  // @@protoc_insertion_point(field_mutable_list:Protocol.Player.position)
+  return _internal_mutable_position();
+}
+
+// repeated float rotation = 6;
+inline int Player::_internal_rotation_size() const {
+  return rotation_.size();
+}
+inline int Player::rotation_size() const {
+  return _internal_rotation_size();
+}
+inline void Player::clear_rotation() {
+  rotation_.Clear();
+}
+inline float Player::_internal_rotation(int index) const {
+  return rotation_.Get(index);
+}
+inline float Player::rotation(int index) const {
+  // @@protoc_insertion_point(field_get:Protocol.Player.rotation)
+  return _internal_rotation(index);
+}
+inline void Player::set_rotation(int index, float value) {
+  rotation_.Set(index, value);
+  // @@protoc_insertion_point(field_set:Protocol.Player.rotation)
+}
+inline void Player::_internal_add_rotation(float value) {
+  rotation_.Add(value);
+}
+inline void Player::add_rotation(float value) {
+  _internal_add_rotation(value);
+  // @@protoc_insertion_point(field_add:Protocol.Player.rotation)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+Player::_internal_rotation() const {
+  return rotation_;
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+Player::rotation() const {
+  // @@protoc_insertion_point(field_list:Protocol.Player.rotation)
+  return _internal_rotation();
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+Player::_internal_mutable_rotation() {
+  return &rotation_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+Player::mutable_rotation() {
+  // @@protoc_insertion_point(field_mutable_list:Protocol.Player.rotation)
+  return _internal_mutable_rotation();
+}
+
+// repeated float scale = 7;
+inline int Player::_internal_scale_size() const {
+  return scale_.size();
+}
+inline int Player::scale_size() const {
+  return _internal_scale_size();
+}
+inline void Player::clear_scale() {
+  scale_.Clear();
+}
+inline float Player::_internal_scale(int index) const {
+  return scale_.Get(index);
+}
+inline float Player::scale(int index) const {
+  // @@protoc_insertion_point(field_get:Protocol.Player.scale)
+  return _internal_scale(index);
+}
+inline void Player::set_scale(int index, float value) {
+  scale_.Set(index, value);
+  // @@protoc_insertion_point(field_set:Protocol.Player.scale)
+}
+inline void Player::_internal_add_scale(float value) {
+  scale_.Add(value);
+}
+inline void Player::add_scale(float value) {
+  _internal_add_scale(value);
+  // @@protoc_insertion_point(field_add:Protocol.Player.scale)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+Player::_internal_scale() const {
+  return scale_;
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+Player::scale() const {
+  // @@protoc_insertion_point(field_list:Protocol.Player.scale)
+  return _internal_scale();
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+Player::_internal_mutable_scale() {
+  return &scale_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+Player::mutable_scale() {
+  // @@protoc_insertion_point(field_mutable_list:Protocol.Player.scale)
+  return _internal_mutable_scale();
+}
+
+// -------------------------------------------------------------------
+
+// Enemy
+
+// uint64 id = 1;
+inline void Enemy::clear_id() {
+  id_ = uint64_t{0u};
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint64 Enemy::_internal_id() const {
+  return id_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint64 Enemy::id() const {
+  // @@protoc_insertion_point(field_get:Protocol.Enemy.id)
+  return _internal_id();
+}
+inline void Enemy::_internal_set_id(::PROTOBUF_NAMESPACE_ID::uint64 value) {
+  
+  id_ = value;
+}
+inline void Enemy::set_id(::PROTOBUF_NAMESPACE_ID::uint64 value) {
+  _internal_set_id(value);
+  // @@protoc_insertion_point(field_set:Protocol.Enemy.id)
+}
+
+// .Protocol.EnemyType enemyType = 2;
+inline void Enemy::clear_enemytype() {
+  enemytype_ = 0;
+}
+inline ::Protocol::EnemyType Enemy::_internal_enemytype() const {
+  return static_cast< ::Protocol::EnemyType >(enemytype_);
+}
+inline ::Protocol::EnemyType Enemy::enemytype() const {
+  // @@protoc_insertion_point(field_get:Protocol.Enemy.enemyType)
+  return _internal_enemytype();
+}
+inline void Enemy::_internal_set_enemytype(::Protocol::EnemyType value) {
+  
+  enemytype_ = value;
+}
+inline void Enemy::set_enemytype(::Protocol::EnemyType value) {
+  _internal_set_enemytype(value);
+  // @@protoc_insertion_point(field_set:Protocol.Enemy.enemyType)
+}
+
+// .Protocol.EnemyState enemyState = 3;
+inline void Enemy::clear_enemystate() {
+  enemystate_ = 0;
+}
+inline ::Protocol::EnemyState Enemy::_internal_enemystate() const {
+  return static_cast< ::Protocol::EnemyState >(enemystate_);
+}
+inline ::Protocol::EnemyState Enemy::enemystate() const {
+  // @@protoc_insertion_point(field_get:Protocol.Enemy.enemyState)
+  return _internal_enemystate();
+}
+inline void Enemy::_internal_set_enemystate(::Protocol::EnemyState value) {
+  
+  enemystate_ = value;
+}
+inline void Enemy::set_enemystate(::Protocol::EnemyState value) {
+  _internal_set_enemystate(value);
+  // @@protoc_insertion_point(field_set:Protocol.Enemy.enemyState)
+}
+
+// repeated float position = 4;
+inline int Enemy::_internal_position_size() const {
+  return position_.size();
+}
+inline int Enemy::position_size() const {
+  return _internal_position_size();
+}
+inline void Enemy::clear_position() {
+  position_.Clear();
+}
+inline float Enemy::_internal_position(int index) const {
+  return position_.Get(index);
+}
+inline float Enemy::position(int index) const {
+  // @@protoc_insertion_point(field_get:Protocol.Enemy.position)
+  return _internal_position(index);
+}
+inline void Enemy::set_position(int index, float value) {
+  position_.Set(index, value);
+  // @@protoc_insertion_point(field_set:Protocol.Enemy.position)
+}
+inline void Enemy::_internal_add_position(float value) {
+  position_.Add(value);
+}
+inline void Enemy::add_position(float value) {
+  _internal_add_position(value);
+  // @@protoc_insertion_point(field_add:Protocol.Enemy.position)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+Enemy::_internal_position() const {
+  return position_;
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+Enemy::position() const {
+  // @@protoc_insertion_point(field_list:Protocol.Enemy.position)
+  return _internal_position();
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+Enemy::_internal_mutable_position() {
+  return &position_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+Enemy::mutable_position() {
+  // @@protoc_insertion_point(field_mutable_list:Protocol.Enemy.position)
+  return _internal_mutable_position();
+}
+
+// repeated float rotation = 5;
+inline int Enemy::_internal_rotation_size() const {
+  return rotation_.size();
+}
+inline int Enemy::rotation_size() const {
+  return _internal_rotation_size();
+}
+inline void Enemy::clear_rotation() {
+  rotation_.Clear();
+}
+inline float Enemy::_internal_rotation(int index) const {
+  return rotation_.Get(index);
+}
+inline float Enemy::rotation(int index) const {
+  // @@protoc_insertion_point(field_get:Protocol.Enemy.rotation)
+  return _internal_rotation(index);
+}
+inline void Enemy::set_rotation(int index, float value) {
+  rotation_.Set(index, value);
+  // @@protoc_insertion_point(field_set:Protocol.Enemy.rotation)
+}
+inline void Enemy::_internal_add_rotation(float value) {
+  rotation_.Add(value);
+}
+inline void Enemy::add_rotation(float value) {
+  _internal_add_rotation(value);
+  // @@protoc_insertion_point(field_add:Protocol.Enemy.rotation)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+Enemy::_internal_rotation() const {
+  return rotation_;
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+Enemy::rotation() const {
+  // @@protoc_insertion_point(field_list:Protocol.Enemy.rotation)
+  return _internal_rotation();
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+Enemy::_internal_mutable_rotation() {
+  return &rotation_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+Enemy::mutable_rotation() {
+  // @@protoc_insertion_point(field_mutable_list:Protocol.Enemy.rotation)
+  return _internal_mutable_rotation();
+}
+
+// repeated float scale = 6;
+inline int Enemy::_internal_scale_size() const {
+  return scale_.size();
+}
+inline int Enemy::scale_size() const {
+  return _internal_scale_size();
+}
+inline void Enemy::clear_scale() {
+  scale_.Clear();
+}
+inline float Enemy::_internal_scale(int index) const {
+  return scale_.Get(index);
+}
+inline float Enemy::scale(int index) const {
+  // @@protoc_insertion_point(field_get:Protocol.Enemy.scale)
+  return _internal_scale(index);
+}
+inline void Enemy::set_scale(int index, float value) {
+  scale_.Set(index, value);
+  // @@protoc_insertion_point(field_set:Protocol.Enemy.scale)
+}
+inline void Enemy::_internal_add_scale(float value) {
+  scale_.Add(value);
+}
+inline void Enemy::add_scale(float value) {
+  _internal_add_scale(value);
+  // @@protoc_insertion_point(field_add:Protocol.Enemy.scale)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+Enemy::_internal_scale() const {
+  return scale_;
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+Enemy::scale() const {
+  // @@protoc_insertion_point(field_list:Protocol.Enemy.scale)
+  return _internal_scale();
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+Enemy::_internal_mutable_scale() {
+  return &scale_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+Enemy::mutable_scale() {
+  // @@protoc_insertion_point(field_mutable_list:Protocol.Enemy.scale)
+  return _internal_mutable_scale();
+}
+
+// -------------------------------------------------------------------
+
+// Building
+
+// uint64 id = 1;
+inline void Building::clear_id() {
+  id_ = uint64_t{0u};
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint64 Building::_internal_id() const {
+  return id_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint64 Building::id() const {
+  // @@protoc_insertion_point(field_get:Protocol.Building.id)
+  return _internal_id();
+}
+inline void Building::_internal_set_id(::PROTOBUF_NAMESPACE_ID::uint64 value) {
+  
+  id_ = value;
+}
+inline void Building::set_id(::PROTOBUF_NAMESPACE_ID::uint64 value) {
+  _internal_set_id(value);
+  // @@protoc_insertion_point(field_set:Protocol.Building.id)
+}
+
+// repeated float position = 2;
+inline int Building::_internal_position_size() const {
+  return position_.size();
+}
+inline int Building::position_size() const {
+  return _internal_position_size();
+}
+inline void Building::clear_position() {
+  position_.Clear();
+}
+inline float Building::_internal_position(int index) const {
+  return position_.Get(index);
+}
+inline float Building::position(int index) const {
+  // @@protoc_insertion_point(field_get:Protocol.Building.position)
+  return _internal_position(index);
+}
+inline void Building::set_position(int index, float value) {
+  position_.Set(index, value);
+  // @@protoc_insertion_point(field_set:Protocol.Building.position)
+}
+inline void Building::_internal_add_position(float value) {
+  position_.Add(value);
+}
+inline void Building::add_position(float value) {
+  _internal_add_position(value);
+  // @@protoc_insertion_point(field_add:Protocol.Building.position)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+Building::_internal_position() const {
+  return position_;
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+Building::position() const {
+  // @@protoc_insertion_point(field_list:Protocol.Building.position)
+  return _internal_position();
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+Building::_internal_mutable_position() {
+  return &position_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+Building::mutable_position() {
+  // @@protoc_insertion_point(field_mutable_list:Protocol.Building.position)
+  return _internal_mutable_position();
+}
+
+// repeated float rotation = 3;
+inline int Building::_internal_rotation_size() const {
+  return rotation_.size();
+}
+inline int Building::rotation_size() const {
+  return _internal_rotation_size();
+}
+inline void Building::clear_rotation() {
+  rotation_.Clear();
+}
+inline float Building::_internal_rotation(int index) const {
+  return rotation_.Get(index);
+}
+inline float Building::rotation(int index) const {
+  // @@protoc_insertion_point(field_get:Protocol.Building.rotation)
+  return _internal_rotation(index);
+}
+inline void Building::set_rotation(int index, float value) {
+  rotation_.Set(index, value);
+  // @@protoc_insertion_point(field_set:Protocol.Building.rotation)
+}
+inline void Building::_internal_add_rotation(float value) {
+  rotation_.Add(value);
+}
+inline void Building::add_rotation(float value) {
+  _internal_add_rotation(value);
+  // @@protoc_insertion_point(field_add:Protocol.Building.rotation)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+Building::_internal_rotation() const {
+  return rotation_;
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+Building::rotation() const {
+  // @@protoc_insertion_point(field_list:Protocol.Building.rotation)
+  return _internal_rotation();
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+Building::_internal_mutable_rotation() {
+  return &rotation_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+Building::mutable_rotation() {
+  // @@protoc_insertion_point(field_mutable_list:Protocol.Building.rotation)
+  return _internal_mutable_rotation();
+}
+
+// repeated float scale = 4;
+inline int Building::_internal_scale_size() const {
+  return scale_.size();
+}
+inline int Building::scale_size() const {
+  return _internal_scale_size();
+}
+inline void Building::clear_scale() {
+  scale_.Clear();
+}
+inline float Building::_internal_scale(int index) const {
+  return scale_.Get(index);
+}
+inline float Building::scale(int index) const {
+  // @@protoc_insertion_point(field_get:Protocol.Building.scale)
+  return _internal_scale(index);
+}
+inline void Building::set_scale(int index, float value) {
+  scale_.Set(index, value);
+  // @@protoc_insertion_point(field_set:Protocol.Building.scale)
+}
+inline void Building::_internal_add_scale(float value) {
+  scale_.Add(value);
+}
+inline void Building::add_scale(float value) {
+  _internal_add_scale(value);
+  // @@protoc_insertion_point(field_add:Protocol.Building.scale)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+Building::_internal_scale() const {
+  return scale_;
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >&
+Building::scale() const {
+  // @@protoc_insertion_point(field_list:Protocol.Building.scale)
+  return _internal_scale();
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+Building::_internal_mutable_scale() {
+  return &scale_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< float >*
+Building::mutable_scale() {
+  // @@protoc_insertion_point(field_mutable_list:Protocol.Building.scale)
+  return _internal_mutable_scale();
+}
+
 #ifdef __GNUC__
   #pragma GCC diagnostic pop
 #endif  // __GNUC__
+// -------------------------------------------------------------------
+
+// -------------------------------------------------------------------
+
 
 // @@protoc_insertion_point(namespace_scope)
 
