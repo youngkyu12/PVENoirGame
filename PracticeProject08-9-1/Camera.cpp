@@ -2,20 +2,13 @@
 #include "Camera.h"
 #include "Object.h"
 
-CCamera::CCamera()
+CCamera::CCamera(CGameObject* owner) : CComponentT(owner)
 {
-}
-
-CCamera::CCamera(CCamera *pCamera)
-{
-	if (pCamera)
-	{
-		*this = *pCamera;
-	}
 }
 
 CCamera::~CCamera()
 { 
+	ReleaseShaderVariables();
 }
 
 void CCamera::SetViewport(int xTopLeft, int yTopLeft, int nWidth, int nHeight, float fMinZ, float fMaxZ)
@@ -104,13 +97,25 @@ void CCamera::SetViewportsAndScissorRects(ID3D12GraphicsCommandList *pd3dCommand
 	pd3dCommandList->RSSetScissorRects(1, &m_d3dScissorRect);
 }
 
+void CCamera::OnCreate(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
+{
+	CreateShaderVariables(dev, cmd);
+}
+
+void CCamera::OnDestroy()
+{
+	ReleaseShaderVariables();
+}
+
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CThirdPersonCamera
 
-CThirdPersonCamera::CThirdPersonCamera(CCamera* pCamera) : CCamera(pCamera)
+CThirdPersonCamera::CThirdPersonCamera(CGameObject* owner) : CCamera(owner)
 {
 	m_nMode = THIRD_PERSON_CAMERA;
 }
+
 
 void CThirdPersonCamera::Update(XMFLOAT3& xmf3LookAt, float fTimeElapsed)
 {

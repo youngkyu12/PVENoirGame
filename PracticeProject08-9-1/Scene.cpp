@@ -6,7 +6,7 @@
 #include "Scene.h"
 
 std::unique_ptr<CDescriptorHeap> CScene::m_pDescriptorHeap = std::make_unique<CDescriptorHeap>();
-
+;
 CScene::CScene()
 {
 	m_staticBatch.capacity = 1;
@@ -37,12 +37,13 @@ void CScene::ReleaseObjects()
 	m_lightObjects.clear();
 	m_pPlayerSpotFollower = nullptr;
 
-	// ---- Main Camera ----
+	// Main Camera (GameObject + Camera Component)
 	if (m_pMainCamera)
 	{
 		m_pMainCamera->ReleaseShaderVariables();
-		m_pMainCamera.reset();
+		m_pMainCamera = nullptr;
 	}
+	m_pMainCameraObject.reset();
 
 
 	// Batch ref lists clear
@@ -90,8 +91,7 @@ void CScene::ReleaseShaderVariables()
 		m_staticBatch.cbGameObjects.Reset();
 	}
 
-	// ---- Skinned batch CBs ----
-	if (m_skinnedBatch.cbGameObjects)
+	// ---- Skinned batch CBs ----	if (m_skinnedBatch.cbGameObjects)
 	{
 		if (m_skinnedBatch.mappedGameObjects)
 		{

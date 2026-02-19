@@ -503,31 +503,36 @@ void CScene::BuildSkinnedBatch(
 
 void CScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target)
 {
-	// THIRD_PERSON only
-	m_pMainCamera = std::make_unique<CThirdPersonCamera>(nullptr);
-	m_pMainCamera->SetMode(THIRD_PERSON_CAMERA);
-	m_pMainCamera->SetTarget(target);
+	// 1) 빈 오브젝트 생성 (Scene 소유)
+	m_pMainCameraObject = std::make_unique<CGameObject>(0);
 
-	// 동일 파라미터(기존 CFighterPlayer ctor에서 설정하던 값)
-	m_pMainCamera->SetTimeLag(0.25f);
-	m_pMainCamera->SetOffset(XMFLOAT3(0.0f, 1.0f, -2.0f));
-	m_pMainCamera->GenerateProjectionMatrix(1.01f, 5000.0f, ASPECT_RATIO, 60.0f);
-	m_pMainCamera->SetViewport(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, 0.0f, 1.0f);
-	m_pMainCamera->SetScissorRect(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
+	// 2) 카메라 컴포넌트 부착
+	auto* cam = m_pMainCameraObject->AddComponent<CThirdPersonCamera>();
+	m_pMainCamera = cam;
 
-	// b1 카메라 CB 생성
-	m_pMainCamera->CreateShaderVariables(dev, cmd);
+	// 3) 기존과 동일 파라미터 세팅
+	cam->SetMode(THIRD_PERSON_CAMERA);
+	cam->SetTarget(target);
 
-	// 초기 위치/뷰 세팅
+	cam->SetTimeLag(0.25f);
+	cam->SetOffset(XMFLOAT3(0.0f, 1.0f, -2.0f));
+	cam->GenerateProjectionMatrix(1.01f, 5000.0f, ASPECT_RATIO, 60.0f);
+	cam->SetViewport(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, 0.0f, 1.0f);
+	cam->SetScissorRect(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
+
+	// 4) 컴포넌트 GPU 리소스 생성 (b1 카메라 CB)
+	//    기존 m_pMainCamera->CreateShaderVariables(dev, cmd) 호출을 이 한 줄로 대체
+	m_pMainCameraObject->CreateComponents(dev, cmd);
+
+	// 5) 초기 위치/뷰 세팅(기존과 동일)
 	if (target)
 	{
 		XMFLOAT3 pos = target->GetPosition();
-		m_pMainCamera->SetPosition(Vector3::Add(pos, m_pMainCamera->GetOffset()));
-		m_pMainCamera->Update(pos, 0.0f);
-		m_pMainCamera->SetLookAt(pos);
-		m_pMainCamera->RegenerateViewMatrix();
+		cam->SetPosition(Vector3::Add(pos, cam->GetOffset()));
+		cam->Update(pos, 0.0f);
+		cam->SetLookAt(pos);
+		cam->RegenerateViewMatrix();
 	}
-
 }
 
 void CScene::BuildPlayer(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
@@ -691,7 +696,7 @@ void CScene::BuildObjects(
 	// ============================================================
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
 	BuildPlayer(pd3dDevice, pd3dCommandList);
-
+	CreateMainCamera(pd3dDevice, pd3dCommandList, m_pPlayer.get());
 }
 
 
