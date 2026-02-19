@@ -1,4 +1,5 @@
 #pragma once
+#include "Component.h"
 
 #define ASPECT_RATIO				(float(FRAME_BUFFER_WIDTH) / float(FRAME_BUFFER_HEIGHT))
 
@@ -13,7 +14,7 @@ struct VS_CB_CAMERA_INFO
 
 class CGameObject;
 
-class CCamera
+class CCamera : public CComponentT<CCamera>
 {
 protected:
 	XMFLOAT3						m_xmf3Position = XMFLOAT3(0.0f, 0.0f, 0.0f);
@@ -43,9 +44,8 @@ protected:
 	VS_CB_CAMERA_INFO				*m_pcbMappedCamera = nullptr;
 
 public:
-	CCamera();
-	CCamera(CCamera *pCamera);
-	virtual ~CCamera();
+	explicit CCamera(CGameObject* owner);
+	virtual ~CCamera() override;
 
 	virtual void CreateShaderVariables(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList);
 	virtual void ReleaseShaderVariables();
@@ -99,12 +99,16 @@ public:
 	virtual void Rotate(float fPitch = 0.0f, float fYaw = 0.0f, float fRoll = 0.0f) { }
 	virtual void Update(XMFLOAT3& xmf3LookAt, float fTimeElapsed) { }
 	virtual void SetLookAt(XMFLOAT3& xmf3LookAt) { }
+
+public:
+	virtual void OnCreate(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd) override;
+	virtual void OnDestroy() override;
 };
 
 class CThirdPersonCamera : public CCamera
 {
 public:
-	CThirdPersonCamera(CCamera *pCamera);
+	explicit CThirdPersonCamera(CGameObject* owner);
 	virtual ~CThirdPersonCamera() { }
 
 	virtual void Update(XMFLOAT3& xmf3LookAt, float fTimeElapsed);

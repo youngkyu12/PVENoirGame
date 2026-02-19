@@ -134,8 +134,11 @@ public:
 
 public:
 	std::shared_ptr<CGameObject>			m_pPlayer;
-	std::unique_ptr<CCamera>                m_pMainCamera;
-	CCamera* GetMainCamera() const { return m_pMainCamera.get(); }
+	std::unique_ptr<CGameObject>            m_pMainCameraObject;  // Scene이 소유하는 빈 오브젝트
+	CCamera* m_pMainCamera = nullptr; // 오브젝트 내 카메라 컴포넌트 캐시
+
+	CCamera* GetMainCamera() const { return m_pMainCamera; }
+	CGameObject* GetMainCameraObject() const { return m_pMainCameraObject.get(); }
 
 	void CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target);
 
