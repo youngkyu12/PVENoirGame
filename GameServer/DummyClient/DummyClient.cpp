@@ -53,7 +53,7 @@ int main()
 		NetAddress(L"127.0.0.1", 7777),
 		MakeShared<IocpCore>(),
 		MakeShared<ServerSession>, // TODO : SessionManager 등
-		100);
+		1);
 
 	ASSERT_CRASH(service->Start());
 
@@ -68,9 +68,13 @@ int main()
 			});
 	}
 
-	Protocol::C_CHAT chatPkt;
-	chatPkt.set_msg(u8"Hello World!!");
-	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(chatPkt);
+	Protocol::C_INPUT inputPkt;
+
+	inputPkt.set_playerid(1);
+	inputPkt.add_keycodes(1);
+	inputPkt.add_keycodes(2);
+
+	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(inputPkt);
 
 	while (true)
 	{

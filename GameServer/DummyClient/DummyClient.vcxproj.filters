@@ -30,6 +30,9 @@
     <ClCompile Include="Struct.pb.cc">
       <Filter>Protocol</Filter>
     </ClCompile>
+    <ClCompile Include="InitStruct.pb.cc">
+      <Filter>Protocol</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -47,6 +50,9 @@
     <ClInclude Include="Struct.pb.h">
       <Filter>Protocol</Filter>
     </ClInclude>
+    <ClInclude Include="InitStruct.pb.h">
+      <Filter>Protocol</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Common\ProtoBuf\bin\Protocol.proto">
@@ -59,6 +65,9 @@
       <Filter>Protocol</Filter>
     </None>
     <None Include="..\Common\ProtoBuf\bin\GenPackets.bat">
+      <Filter>Protocol</Filter>
+    </None>
+    <None Include="..\Common\Protobuf\bin\InitStruct.proto">
       <Filter>Protocol</Filter>
     </None>
   </ItemGroup>

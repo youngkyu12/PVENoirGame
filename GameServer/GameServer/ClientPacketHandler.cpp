@@ -71,27 +71,35 @@ bool Handle_C_ENTER_GAME(PacketSessionRef& session, Protocol::C_ENTER_GAME& pkt)
 	uint64 index = pkt.playerindex();
 	// TODO: Validation Check
 
-	PlayerRef player = gameSession->_players[index];
-	GRoom.Enter(player);
+	gameSession->_currentPlayer= gameSession->_players[index];
+	gameSession->_room = GRoom;
+
+	GRoom->DoAsync(&Room::Enter, gameSession->_currentPlayer);
 
 	Protocol::S_ENTER_GAME enterGamePkt;
 	enterGamePkt.set_success(true);
 	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(enterGamePkt);
-	player->ownerSession->Send(sendBuffer);
+	gameSession->_currentPlayer->ownerSession->Send(sendBuffer);
 
 	return true;
 }
 
-bool Handle_C_CHAT(PacketSessionRef& session, Protocol::C_CHAT& pkt)
+bool Handle_C_GAME_START(PacketSessionRef& session, Protocol::C_GAME_START& pkt)
 {
-	std::cout << "C_CHAT:" << pkt.msg() << std::endl;
+	cout << "Send World Info..." << endl;
 
-	Protocol::S_CHAT chatPkt;
-	chatPkt.set_msg(pkt.msg());
-	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(chatPkt);
 
-	GRoom.BroadCast(sendBuffer); // WRITE_LOCK 잡은 상태
+	Protocol::S_GAME_START gameStartPkt;
 
-	return true;
+	gameStartPkt.initstruct();
+	return false;
 }
+
+bool Handle_C_INPUT(PacketSessionRef& session, Protocol::C_INPUT& pkt)
+{
+	cout << "Player Input: " << pkt.keycodes().size() << " keys" << endl;
+
+	return false;
+}
+
 

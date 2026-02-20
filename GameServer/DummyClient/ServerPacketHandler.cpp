@@ -42,8 +42,13 @@ bool Handle_S_ENTER_GAME(PacketSessionRef& session, Protocol::S_ENTER_GAME& pkt)
 	return true;
 }
 
-bool Handle_S_CHAT(PacketSessionRef& session, Protocol::S_CHAT& pkt)
+bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
 {
-	cout << pkt.msg() << std::endl;
-	return true;
+	return false;
 }
+
+bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pkt)
+{
+	return false;
+}
+
