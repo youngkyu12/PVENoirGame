@@ -79,8 +79,8 @@
     <LibraryPath>$(SolutionDir)\Libraries\Libs\;$(SolutionDir)Libraries;$(SolutionDir)\Libraries\Libs\ServerCore\$(Configuration);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>$(SolutionDir)\Libraries\include\;$(SolutionDir)\ServerCore\;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SolutionDir)\Libraries\Libs\;$(SolutionDir)Libraries;$(SolutionDir)\Libraries\Libs\ServerCore\$(Configuration);$(LibraryPath)</LibraryPath>
+    <IncludePath>$(SolutionDir)..\Libraries\include\;$(SolutionDir)\ServerCore\;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)..\Libraries\Libs\;$(SolutionDir)..\Libraries;$(SolutionDir)..\Libraries\Libs\ServerCore\$(Configuration);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <IncludePath>$(SolutionDir)\Libraries\include\;$(SolutionDir)\ServerCore\;$(IncludePath)</IncludePath>
@@ -141,7 +141,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PreBuildEvent>
-      <Command>CALL $(SolutionDir)Common\Protobuf\bin\GenPackets.bat</Command>
+      <Command>CALL $(SolutionDir)..\Common\Protobuf\bin\GenPackets.bat</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -209,17 +209,17 @@
     <ClInclude Include="Struct.pb.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\Common\ProtoBuf\bin\Enum.proto" />
-    <None Include="..\Common\ProtoBuf\bin\GenPackets.bat" />
-    <None Include="..\Common\Protobuf\bin\InitStruct.proto" />
-    <None Include="..\Common\ProtoBuf\bin\Protocol.proto" />
-    <None Include="..\Common\ProtoBuf\bin\Struct.proto" />
-  </ItemGroup>
-  <ItemGroup>
     <UpToDateCheckInput Include="..\Common\ProtoBuf\bin\Enum.proto" />
     <UpToDateCheckInput Include="..\Common\ProtoBuf\bin\GenPackets.bat" />
     <UpToDateCheckInput Include="..\Common\ProtoBuf\bin\Protocol.proto" />
     <UpToDateCheckInput Include="..\Common\ProtoBuf\bin\Struct.proto" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Common\Protobuf\bin\Enum.proto" />
+    <None Include="..\..\Common\Protobuf\bin\GenPackets.bat" />
+    <None Include="..\..\Common\Protobuf\bin\InitStruct.proto" />
+    <None Include="..\..\Common\Protobuf\bin\Protocol.proto" />
+    <None Include="..\..\Common\Protobuf\bin\Struct.proto" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
