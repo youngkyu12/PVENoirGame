@@ -59,6 +59,8 @@ public:
 };
 
 
+void NetworkLoop();
+
 int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow)
 {
 	UNREFERENCED_PARAMETER(hPrevInstance);
@@ -94,7 +96,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 		}
 	}
 	gGameFramework.OnDestroy();
-
+	GThreadManager->Join();
 	return((int)msg.wParam);
 }
 
@@ -144,13 +146,43 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow, CGameFramework& gGameFramew
 		return(FALSE);
 
 
-
+	NetworkLoop();
 	gGameFramework.OnCreate(hInstance, hMainWnd);
 
 	::ShowWindow(hMainWnd, nCmdShow);
 	::UpdateWindow(hMainWnd);
 
 	return(TRUE);
+}
+
+
+void NetworkLoop()
+{
+	ServerPacketHandler::Init();
+
+	this_thread::sleep_for(1s);
+
+	g_clientService = MakeShared<ClientService>(
+		NetAddress(L"127.0.0.1", 7777),
+		MakeShared<IocpCore>(),
+		MakeShared<ServerSession>, // TODO : SessionManager 등
+		1);
+
+	ASSERT_CRASH(g_clientService->Start());
+
+	for (int32 i = 0; i < 2; i++)
+	{
+		GThreadManager->Launch([=]()
+			{
+				while (true)
+				{
+					g_clientService->GetIocpCore()->Dispatch();
+				}
+			});
+	}
+
+
+
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
