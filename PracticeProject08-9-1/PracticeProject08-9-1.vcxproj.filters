@@ -13,20 +13,71 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="소스 파일\Build">
-      <UniqueIdentifier>{99ac6410-0de4-4b25-8bf3-b4e3366cbec0}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="소스 파일\Input">
-      <UniqueIdentifier>{d38baf0d-2a22-4ea8-aaa7-8cc1d5178322}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="소스 파일\Render">
-      <UniqueIdentifier>{03116e53-1bbb-4315-a963-c0ed1e320326}</UniqueIdentifier>
-    </Filter>
     <Filter Include="헤더 파일\Components">
       <UniqueIdentifier>{eb72dd7c-99b3-4646-b182-72a8fbb66e00}</UniqueIdentifier>
     </Filter>
-    <Filter Include="소스 파일\Components">
+    <Filter Include="Animator">
+      <UniqueIdentifier>{c046715a-b142-4b7f-b764-fa27e23f4d4f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Camera">
+      <UniqueIdentifier>{9282e6cd-8c1a-4326-a4bf-50b49cfe20a7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Object">
+      <UniqueIdentifier>{085c273d-3fe5-4dd2-acbe-bd5ae28ab5bb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GameFramework">
+      <UniqueIdentifier>{c8335ad3-5639-4ac2-9ba4-46d62780a0a5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Texture">
+      <UniqueIdentifier>{1d6972ed-727f-4cc1-9f10-aec6c5c7c97c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Mesh">
+      <UniqueIdentifier>{573695f2-ecb0-49fc-bd2a-a104246dcd73}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Material">
+      <UniqueIdentifier>{e0fe32e7-3df3-4dfa-b429-1e36880a7cca}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource">
+      <UniqueIdentifier>{311b96df-ad0b-4a7e-b958-4e4cb4719e8a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource\Descripter">
+      <UniqueIdentifier>{e564243f-ba48-41a6-86d6-76d9d66f1ae6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource\HLSL">
+      <UniqueIdentifier>{cb85daa4-62cc-42b0-b2e2-7d51e32858d8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource\RootSignature">
+      <UniqueIdentifier>{5b1441aa-dfd4-4128-9c96-d37025287a28}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Entry">
+      <UniqueIdentifier>{0fb2ba1f-2660-4a08-a496-dcece0954177}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="PCH">
+      <UniqueIdentifier>{296f3ed4-45f7-455e-a949-ab05dda23bf8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene">
+      <UniqueIdentifier>{7c85db47-eb38-4512-9f68-aa7b076c5258}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shader">
+      <UniqueIdentifier>{056ac248-6a9a-4e55-b5ef-153978ac73bd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Timer">
+      <UniqueIdentifier>{cd491f0c-d5ee-4948-aebe-c26bb49b4b48}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Light">
+      <UniqueIdentifier>{763ca1ce-e88b-4db3-8ee0-67e62b575a25}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Build">
+      <UniqueIdentifier>{99ac6410-0de4-4b25-8bf3-b4e3366cbec0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Components">
       <UniqueIdentifier>{f8ac7add-fdee-4d8a-a1d2-4a45486e51d8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Input">
+      <UniqueIdentifier>{d38baf0d-2a22-4ea8-aaa7-8cc1d5178322}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render">
+      <UniqueIdentifier>{03116e53-1bbb-4315-a963-c0ed1e320326}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -49,9 +100,6 @@
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="Object.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="Player.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="Scene.h">
@@ -117,6 +165,9 @@
     <ClInclude Include="LightComponent.h">
       <Filter>헤더 파일\Components</Filter>
     </ClInclude>
+    <ClInclude Include="PlayerControllerComponent.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="PracticeProject08-9-1.cpp">
@@ -132,9 +183,6 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="Object.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="Player.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="Scene.cpp">
@@ -153,31 +201,31 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="GameFramework_Build.cpp">
-      <Filter>소스 파일\Build</Filter>
+      <Filter>Build</Filter>
     </ClCompile>
     <ClCompile Include="GameFramework_Input.cpp">
-      <Filter>소스 파일\Input</Filter>
+      <Filter>Input</Filter>
     </ClCompile>
     <ClCompile Include="GameFramework_Render.cpp">
-      <Filter>소스 파일\Render</Filter>
+      <Filter>Render</Filter>
     </ClCompile>
     <ClCompile Include="DescriptorHeap.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="Scene_Build.cpp">
-      <Filter>소스 파일\Build</Filter>
+      <Filter>Build</Filter>
     </ClCompile>
     <ClCompile Include="Scene_Input.cpp">
-      <Filter>소스 파일\Input</Filter>
+      <Filter>Input</Filter>
     </ClCompile>
     <ClCompile Include="Scene_Render.cpp">
-      <Filter>소스 파일\Render</Filter>
+      <Filter>Render</Filter>
     </ClCompile>
     <ClCompile Include="Shader_Build.cpp">
-      <Filter>소스 파일\Build</Filter>
+      <Filter>Build</Filter>
     </ClCompile>
     <ClCompile Include="Shader_Render.cpp">
-      <Filter>소스 파일\Render</Filter>
+      <Filter>Render</Filter>
     </ClCompile>
     <ClCompile Include="Texture.cpp">
       <Filter>소스 파일</Filter>
@@ -186,10 +234,10 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="Object_Build.cpp">
-      <Filter>소스 파일\Build</Filter>
+      <Filter>Build</Filter>
     </ClCompile>
     <ClCompile Include="Object_Render.cpp">
-      <Filter>소스 파일\Render</Filter>
+      <Filter>Render</Filter>
     </ClCompile>
     <ClCompile Include="Animator.cpp">
       <Filter>소스 파일</Filter>
@@ -204,19 +252,22 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="AnimatorComponent.cpp">
-      <Filter>소스 파일\Components</Filter>
+      <Filter>Components</Filter>
     </ClCompile>
     <ClCompile Include="SkinningComponent.cpp">
-      <Filter>소스 파일\Components</Filter>
+      <Filter>Components</Filter>
     </ClCompile>
     <ClCompile Include="RenderObjectComponent.cpp">
-      <Filter>소스 파일\Components</Filter>
+      <Filter>Components</Filter>
     </ClCompile>
     <ClCompile Include="RendererComponent.cpp">
-      <Filter>소스 파일\Components</Filter>
+      <Filter>Components</Filter>
     </ClCompile>
     <ClCompile Include="ModelComponent.cpp">
-      <Filter>소스 파일\Components</Filter>
+      <Filter>Components</Filter>
+    </ClCompile>
+    <ClCompile Include="PlayerControllerComponent.cpp">
+      <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
