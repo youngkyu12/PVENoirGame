@@ -167,6 +167,12 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="InitStruct.pb.cc">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="ServerPacketHandler.cpp" />
     <ClCompile Include="DummyClient.cpp" />
     <ClCompile Include="Enum.pb.cc">
@@ -195,6 +201,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="InitStruct.pb.h" />
     <ClInclude Include="ServerPacketHandler.h" />
     <ClInclude Include="Enum.pb.h" />
     <ClInclude Include="pch.h" />
@@ -204,6 +211,7 @@
   <ItemGroup>
     <None Include="..\Common\ProtoBuf\bin\Enum.proto" />
     <None Include="..\Common\ProtoBuf\bin\GenPackets.bat" />
+    <None Include="..\Common\Protobuf\bin\InitStruct.proto" />
     <None Include="..\Common\ProtoBuf\bin\Protocol.proto" />
     <None Include="..\Common\ProtoBuf\bin\Struct.proto" />
   </ItemGroup>
