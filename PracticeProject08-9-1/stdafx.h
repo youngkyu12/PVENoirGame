@@ -25,6 +25,9 @@
 #include "CorePch.h"
 
 
+
+extern ClientServiceRef g_clientService;
+
 // C의 런타임 헤더 파일입니다.
 #include <stdlib.h>
 #include <malloc.h>
