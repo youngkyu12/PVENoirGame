@@ -377,7 +377,7 @@ void CScene::BuildSkinnedBatch(
 			obj->SetMappedGameObjectCB(cb);
 
 			obj->SetMesh(0, asset.mesh);
-			obj->AddComponent<CStaticMeshRendererComponent>();
+			obj->AddComponent<CSkinnedMeshRendererComponent>();
 
 			const float x = playerBase.x + 2.0f * (float)k;
 			const float z = playerBase.z + 2.0f;
@@ -465,7 +465,7 @@ void CScene::BuildSkinnedBatch(
 			m_playerCbElementBytes
 		);
 
-		for (UINT k = 1; k < fighterCount + 2; ++k)
+		for (UINT k = 1; k < fighterCount + 1; ++k)
 		{
 			if (b->objectRefs.size() >= b->capacity) break;
 
@@ -477,7 +477,7 @@ void CScene::BuildSkinnedBatch(
 			obj->SetMappedGameObjectCB(cb);
 
 			obj->SetMesh(0, asset.mesh);
-			obj->AddComponent<CStaticMeshRendererComponent>();
+			obj->AddComponent<CSkinnedMeshRendererComponent>();
 
 			// matId √ﬂ√‚
 			UINT matId = 0;
