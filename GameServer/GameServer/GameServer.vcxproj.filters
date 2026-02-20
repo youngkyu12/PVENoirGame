@@ -48,6 +48,9 @@
     <ClCompile Include="Room.cpp">
       <Filter>GameContents</Filter>
     </ClCompile>
+    <ClCompile Include="InitStruct.pb.cc">
+      <Filter>Protocol</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -77,6 +80,9 @@
     <ClInclude Include="Room.h">
       <Filter>GameContents</Filter>
     </ClInclude>
+    <ClInclude Include="InitStruct.pb.h">
+      <Filter>Protocol</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Common\ProtoBuf\bin\Protocol.proto">
@@ -89,6 +95,9 @@
       <Filter>Protocol</Filter>
     </None>
     <None Include="..\Common\ProtoBuf\bin\GenPackets.bat">
+      <Filter>Protocol</Filter>
+    </None>
+    <None Include="..\Common\Protobuf\bin\InitStruct.proto">
       <Filter>Protocol</Filter>
     </None>
   </ItemGroup>

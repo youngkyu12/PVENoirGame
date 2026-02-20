@@ -84,16 +84,22 @@ bool Handle_C_ENTER_GAME(PacketSessionRef& session, Protocol::C_ENTER_GAME& pkt)
 	return true;
 }
 
-bool Handle_C_CHAT(PacketSessionRef& session, Protocol::C_CHAT& pkt)
+bool Handle_C_GAME_START(PacketSessionRef& session, Protocol::C_GAME_START& pkt)
 {
-	std::cout << "C_CHAT:" << pkt.msg() << std::endl;
+	cout << "Send World Info..." << endl;
 
-	Protocol::S_CHAT chatPkt;
-	chatPkt.set_msg(pkt.msg());
-	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(chatPkt);
 
-	GRoom->DoAsync(&Room::BroadCast, sendBuffer);
+	Protocol::S_GAME_START gameStartPkt;
 
-	return true;
+	gameStartPkt.initstruct();
+	return false;
 }
+
+bool Handle_C_INPUT(PacketSessionRef& session, Protocol::C_INPUT& pkt)
+{
+	cout << "Player Input: " << pkt.keycodes().size() << " keys" << endl;
+
+	return false;
+}
+
 

@@ -68,9 +68,13 @@ int main()
 			});
 	}
 
-	Protocol::C_CHAT chatPkt;
-	chatPkt.set_msg(u8"Hello World!!");
-	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(chatPkt);
+	Protocol::C_INPUT inputPkt;
+
+	inputPkt.set_playerid(1);
+	inputPkt.add_keycodes(1);
+	inputPkt.add_keycodes(2);
+
+	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(inputPkt);
 
 	while (true)
 	{

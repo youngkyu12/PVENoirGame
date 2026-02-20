@@ -11,8 +11,8 @@ enum : uint16
 	PKT_S_LOGIN = 1001,
 	PKT_C_ENTER_GAME = 1002,
 	PKT_S_ENTER_GAME = 1003,
-	PKT_C_CHAT = 1004,
-	PKT_S_CHAT = 1005,
+	PKT_C_GAME_START = 1004,
+	PKT_S_GAME_START = 1005,
 	PKT_C_INPUT = 1006,
 	PKT_S_FRAME_STATE = 1007,
 };
@@ -22,7 +22,7 @@ enum : uint16
 bool Handle_INVALID(PacketSessionRef& session, BYTE* buffer, int32 len);
 bool Handle_C_LOGIN(PacketSessionRef& session, Protocol::C_LOGIN& pkt);
 bool Handle_C_ENTER_GAME(PacketSessionRef& session, Protocol::C_ENTER_GAME& pkt);
-bool Handle_C_CHAT(PacketSessionRef& session, Protocol::C_CHAT& pkt);
+bool Handle_C_GAME_START(PacketSessionRef& session, Protocol::C_GAME_START& pkt);
 bool Handle_C_INPUT(PacketSessionRef& session, Protocol::C_INPUT& pkt);
 
 
@@ -36,7 +36,7 @@ public:
 			GPacketHandler[i] = Handle_INVALID;
 		GPacketHandler[PKT_C_LOGIN] = [](PacketSessionRef& session, BYTE* buffer, int32 len){return HandlePacket<Protocol::C_LOGIN>(Handle_C_LOGIN, session, buffer, len);};
 		GPacketHandler[PKT_C_ENTER_GAME] = [](PacketSessionRef& session, BYTE* buffer, int32 len){return HandlePacket<Protocol::C_ENTER_GAME>(Handle_C_ENTER_GAME, session, buffer, len);};
-		GPacketHandler[PKT_C_CHAT] = [](PacketSessionRef& session, BYTE* buffer, int32 len){return HandlePacket<Protocol::C_CHAT>(Handle_C_CHAT, session, buffer, len);};
+		GPacketHandler[PKT_C_GAME_START] = [](PacketSessionRef& session, BYTE* buffer, int32 len){return HandlePacket<Protocol::C_GAME_START>(Handle_C_GAME_START, session, buffer, len);};
 		GPacketHandler[PKT_C_INPUT] = [](PacketSessionRef& session, BYTE* buffer, int32 len){return HandlePacket<Protocol::C_INPUT>(Handle_C_INPUT, session, buffer, len);};
 
 	}
@@ -47,7 +47,7 @@ public:
 	}
 	static SendBufferRef MakeSendBuffer(Protocol::S_LOGIN& pkt) { return _MakeSendBuffer(pkt, PKT_S_LOGIN); }
 	static SendBufferRef MakeSendBuffer(Protocol::S_ENTER_GAME& pkt) { return _MakeSendBuffer(pkt, PKT_S_ENTER_GAME); }
-	static SendBufferRef MakeSendBuffer(Protocol::S_CHAT& pkt) { return _MakeSendBuffer(pkt, PKT_S_CHAT); }
+	static SendBufferRef MakeSendBuffer(Protocol::S_GAME_START& pkt) { return _MakeSendBuffer(pkt, PKT_S_GAME_START); }
 	static SendBufferRef MakeSendBuffer(Protocol::S_FRAME_STATE& pkt) { return _MakeSendBuffer(pkt, PKT_S_FRAME_STATE); }
 
 private:
