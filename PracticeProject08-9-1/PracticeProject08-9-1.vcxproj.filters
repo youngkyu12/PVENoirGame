@@ -89,6 +89,9 @@
     <Filter Include="Network">
       <UniqueIdentifier>{86870037-e956-4ff9-93b3-5e8550418e2b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Network\Protocol">
+      <UniqueIdentifier>{a610d31b-d592-4413-912e-cc7185de8bae}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animator.h">
