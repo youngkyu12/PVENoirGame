@@ -108,7 +108,7 @@
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <CallingConvention>VectorCall</CallingConvention>
+      <CallingConvention>Cdecl</CallingConvention>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
@@ -182,7 +182,9 @@
     <ClCompile Include="AnimController.cpp" />
     <ClCompile Include="AssetManager.cpp" />
     <ClCompile Include="Camera.cpp" />
-    <ClCompile Include="DDSTextureLoader12.cpp" />
+    <ClCompile Include="DDSTextureLoader12.cpp">
+      <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">VectorCall</CallingConvention>
+    </ClCompile>
     <ClCompile Include="DescriptorHeap.cpp" />
     <ClCompile Include="Enum.pb.cc">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
@@ -214,7 +216,9 @@
     <ClCompile Include="Scene_Build.cpp" />
     <ClCompile Include="Scene_Input.cpp" />
     <ClCompile Include="Scene_Render.cpp" />
-    <ClCompile Include="ServerPacketHandler.cpp" />
+    <ClCompile Include="ServerPacketHandler.cpp">
+      <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
+    </ClCompile>
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="Shader_Build.cpp" />
     <ClCompile Include="Shader_Render.cpp" />
