@@ -6,8 +6,24 @@
 #pragma once
 
 #define WIN32_LEAN_AND_MEAN             // 거의 사용되지 않는 내용은 Windows 헤더에서 제외합니다.
+
+
+//ServerCore
+#ifdef _DEBUG
+#pragma comment(lib, "ServerCore\\Debug\\ServerCore.lib")
+#pragma comment(lib, "Protobuf\\Debug\\libprotobufd.lib")
+#else
+#pragma comment(lib, "ServerCore\\Release\\ServerCore.lib")
+#pragma comment(lib, "Protobuf\\Release\\libprotobuf.lib")
+#endif
+
+
+
 // Windows 헤더 파일:
-#include <windows.h>
+//#include <windows.h>
+#define _HAS_STD_BYTE 0  
+#include "CorePch.h"
+
 
 // C의 런타임 헤더 파일입니다.
 #include <stdlib.h>
@@ -50,7 +66,11 @@
 
 #include "d3dx12.h"
 
-using namespace std;
+
+//using namespace std;
+
+
+
 
 using namespace DirectX;
 using namespace DirectX::PackedVector;
