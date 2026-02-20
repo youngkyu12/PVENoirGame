@@ -4,6 +4,11 @@
 #include "stdafx.h"
 #include "PracticeProject08-9-1.h"
 #include "GameFramework.h"
+#include "ThreadManager.h"
+#include "Service.h"
+#include "Session.h"
+#include "BufferReader.h"
+#include "ServerPacketHandler.h"
 
 #define MAX_LOADSTRING 100
 
@@ -15,6 +20,44 @@ ATOM MyRegisterClass(HINSTANCE hInstance);
 BOOL InitInstance(HINSTANCE, int, CGameFramework&);
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK About(HWND, UINT, WPARAM, LPARAM);
+
+
+class ServerSession : public PacketSession
+{
+public:
+	~ServerSession()
+	{
+		cout << "~ServerSession" << endl;
+	}
+
+	virtual void OnConnected() override
+	{
+		Protocol::C_LOGIN loginPkt;
+		auto sendBuffer = ServerPacketHandler::MakeSendBuffer(loginPkt);
+		Send(sendBuffer);
+		//cout << "Connected To Server" << endl;
+	}
+
+	virtual void OnRecvPacket(BYTE* buffer, int32 len) override
+	{
+		PacketSessionRef session = GetPacketSessionRef();
+		PacketHeader* header = reinterpret_cast<PacketHeader*>(buffer);
+
+
+		ServerPacketHandler::HandlePacket(session, buffer, len);
+	}
+
+	virtual void OnSend(int32 len) override
+	{
+		//cout << "OnSend Len = " << len << endl;
+	}
+
+	virtual void OnDisconnected() override
+	{
+		//cout << "Disconnected" << endl;
+	}
+};
+
 
 int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow)
 {
@@ -99,6 +142,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow, CGameFramework& gGameFramew
 
 	if (!hMainWnd) 
 		return(FALSE);
+
+
 
 	gGameFramework.OnCreate(hInstance, hMainWnd);
 
