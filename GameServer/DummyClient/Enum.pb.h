@@ -83,6 +83,117 @@ inline bool PlayerType_Parse(
   return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<PlayerType>(
     PlayerType_descriptor(), name, value);
 }
+enum EnemyType : int {
+  ENEMY_TYPE_NONE = 0,
+  ENEMY_TYPE_BASIC = 1,
+  ENEMY_TYPE_ARCHER = 2,
+  ENEMY_TYPE_WARRIOR = 3,
+  ENEMY_TYPE_BOSS = 4,
+  EnemyType_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
+  EnemyType_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
+};
+bool EnemyType_IsValid(int value);
+constexpr EnemyType EnemyType_MIN = ENEMY_TYPE_NONE;
+constexpr EnemyType EnemyType_MAX = ENEMY_TYPE_BOSS;
+constexpr int EnemyType_ARRAYSIZE = EnemyType_MAX + 1;
+
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* EnemyType_descriptor();
+template<typename T>
+inline const std::string& EnemyType_Name(T enum_t_value) {
+  static_assert(::std::is_same<T, EnemyType>::value ||
+    ::std::is_integral<T>::value,
+    "Incorrect type passed to function EnemyType_Name.");
+  return ::PROTOBUF_NAMESPACE_ID::internal::NameOfEnum(
+    EnemyType_descriptor(), enum_t_value);
+}
+inline bool EnemyType_Parse(
+    ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, EnemyType* value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<EnemyType>(
+    EnemyType_descriptor(), name, value);
+}
+enum PlayerState : int {
+  PLAYER_STATE_NONE = 0,
+  PLAYER_STATE_IDLE = 1,
+  PLAYER_STATE_MOVE = 2,
+  PLAYER_STATE_ATTACK = 3,
+  PLAYER_STATE_DIE = 4,
+  PlayerState_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
+  PlayerState_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
+};
+bool PlayerState_IsValid(int value);
+constexpr PlayerState PlayerState_MIN = PLAYER_STATE_NONE;
+constexpr PlayerState PlayerState_MAX = PLAYER_STATE_DIE;
+constexpr int PlayerState_ARRAYSIZE = PlayerState_MAX + 1;
+
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* PlayerState_descriptor();
+template<typename T>
+inline const std::string& PlayerState_Name(T enum_t_value) {
+  static_assert(::std::is_same<T, PlayerState>::value ||
+    ::std::is_integral<T>::value,
+    "Incorrect type passed to function PlayerState_Name.");
+  return ::PROTOBUF_NAMESPACE_ID::internal::NameOfEnum(
+    PlayerState_descriptor(), enum_t_value);
+}
+inline bool PlayerState_Parse(
+    ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, PlayerState* value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<PlayerState>(
+    PlayerState_descriptor(), name, value);
+}
+enum EnemyState : int {
+  ENEMY_STATE_NONE = 0,
+  ENEMY_STATE_IDLE = 1,
+  ENEMY_STATE_MOVE = 2,
+  ENEMY_STATE_ATTACK = 3,
+  ENEMY_STATE_DIE = 4,
+  EnemyState_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
+  EnemyState_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
+};
+bool EnemyState_IsValid(int value);
+constexpr EnemyState EnemyState_MIN = ENEMY_STATE_NONE;
+constexpr EnemyState EnemyState_MAX = ENEMY_STATE_DIE;
+constexpr int EnemyState_ARRAYSIZE = EnemyState_MAX + 1;
+
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* EnemyState_descriptor();
+template<typename T>
+inline const std::string& EnemyState_Name(T enum_t_value) {
+  static_assert(::std::is_same<T, EnemyState>::value ||
+    ::std::is_integral<T>::value,
+    "Incorrect type passed to function EnemyState_Name.");
+  return ::PROTOBUF_NAMESPACE_ID::internal::NameOfEnum(
+    EnemyState_descriptor(), enum_t_value);
+}
+inline bool EnemyState_Parse(
+    ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, EnemyState* value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<EnemyState>(
+    EnemyState_descriptor(), name, value);
+}
+enum GameState : int {
+  GAME_STATE_NONE = 0,
+  GAME_STATE_LOBBY = 1,
+  GAME_STATE_PLAYING = 2,
+  GAME_STATE_END = 3,
+  GameState_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
+  GameState_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
+};
+bool GameState_IsValid(int value);
+constexpr GameState GameState_MIN = GAME_STATE_NONE;
+constexpr GameState GameState_MAX = GAME_STATE_END;
+constexpr int GameState_ARRAYSIZE = GameState_MAX + 1;
+
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* GameState_descriptor();
+template<typename T>
+inline const std::string& GameState_Name(T enum_t_value) {
+  static_assert(::std::is_same<T, GameState>::value ||
+    ::std::is_integral<T>::value,
+    "Incorrect type passed to function GameState_Name.");
+  return ::PROTOBUF_NAMESPACE_ID::internal::NameOfEnum(
+    GameState_descriptor(), enum_t_value);
+}
+inline bool GameState_Parse(
+    ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, GameState* value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<GameState>(
+    GameState_descriptor(), name, value);
+}
 // ===================================================================
 
 
@@ -109,6 +220,26 @@ template <> struct is_proto_enum< ::Protocol::PlayerType> : ::std::true_type {};
 template <>
 inline const EnumDescriptor* GetEnumDescriptor< ::Protocol::PlayerType>() {
   return ::Protocol::PlayerType_descriptor();
+}
+template <> struct is_proto_enum< ::Protocol::EnemyType> : ::std::true_type {};
+template <>
+inline const EnumDescriptor* GetEnumDescriptor< ::Protocol::EnemyType>() {
+  return ::Protocol::EnemyType_descriptor();
+}
+template <> struct is_proto_enum< ::Protocol::PlayerState> : ::std::true_type {};
+template <>
+inline const EnumDescriptor* GetEnumDescriptor< ::Protocol::PlayerState>() {
+  return ::Protocol::PlayerState_descriptor();
+}
+template <> struct is_proto_enum< ::Protocol::EnemyState> : ::std::true_type {};
+template <>
+inline const EnumDescriptor* GetEnumDescriptor< ::Protocol::EnemyState>() {
+  return ::Protocol::EnemyState_descriptor();
+}
+template <> struct is_proto_enum< ::Protocol::GameState> : ::std::true_type {};
+template <>
+inline const EnumDescriptor* GetEnumDescriptor< ::Protocol::GameState>() {
+  return ::Protocol::GameState_descriptor();
 }
 
 PROTOBUF_NAMESPACE_CLOSE

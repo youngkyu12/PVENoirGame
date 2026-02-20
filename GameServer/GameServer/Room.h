@@ -1,14 +1,19 @@
 #pragma once
-class Room
+#include "JobQueue.h"
+
+class Room : public JobQueue
 {
+
+
 public:
+	// 싱글쓰레드 환경인 것처럼 코딩
 	void Enter(PlayerRef player);
 	void Leave(PlayerRef player);
-	void BroadCast(SendBufferRef sendBuffer);
+	void BroadCast(SendBufferRef sendBuffer); 
 
 private:
-	USE_LOCK;
 	map<uint64, PlayerRef> _players;
 };
 
-extern Room GRoom;
+extern shared_ptr<Room> GRoom;
+
