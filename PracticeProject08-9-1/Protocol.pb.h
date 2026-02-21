@@ -740,6 +740,7 @@ class C_GAME_START final :
 
   enum : int {
     kPlayerWeaponFieldNumber = 1,
+    kReadyFieldNumber = 2,
   };
   // uint32 playerWeapon = 1;
   void clear_playerweapon();
@@ -750,6 +751,15 @@ class C_GAME_START final :
   void _internal_set_playerweapon(::PROTOBUF_NAMESPACE_ID::uint32 value);
   public:
 
+  // bool ready = 2;
+  void clear_ready();
+  bool ready() const;
+  void set_ready(bool value);
+  private:
+  bool _internal_ready() const;
+  void _internal_set_ready(bool value);
+  public:
+
   // @@protoc_insertion_point(class_scope:Protocol.C_GAME_START)
  private:
   class _Internal;
@@ -758,6 +768,7 @@ class C_GAME_START final :
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
   ::PROTOBUF_NAMESPACE_ID::uint32 playerweapon_;
+  bool ready_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_Protocol_2eproto;
 };
@@ -1023,31 +1034,11 @@ class C_INPUT final :
   // accessors -------------------------------------------------------
 
   enum : int {
-    kKeyCodesFieldNumber = 2,
     kPlayeridFieldNumber = 1,
+    kKeyCodesFieldNumber = 2,
+    kDeltaXFieldNumber = 3,
+    kDeltaYFieldNumber = 4,
   };
-  // repeated int32 keyCodes = 2;
-  int keycodes_size() const;
-  private:
-  int _internal_keycodes_size() const;
-  public:
-  void clear_keycodes();
-  private:
-  ::PROTOBUF_NAMESPACE_ID::int32 _internal_keycodes(int index) const;
-  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< ::PROTOBUF_NAMESPACE_ID::int32 >&
-      _internal_keycodes() const;
-  void _internal_add_keycodes(::PROTOBUF_NAMESPACE_ID::int32 value);
-  ::PROTOBUF_NAMESPACE_ID::RepeatedField< ::PROTOBUF_NAMESPACE_ID::int32 >*
-      _internal_mutable_keycodes();
-  public:
-  ::PROTOBUF_NAMESPACE_ID::int32 keycodes(int index) const;
-  void set_keycodes(int index, ::PROTOBUF_NAMESPACE_ID::int32 value);
-  void add_keycodes(::PROTOBUF_NAMESPACE_ID::int32 value);
-  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< ::PROTOBUF_NAMESPACE_ID::int32 >&
-      keycodes() const;
-  ::PROTOBUF_NAMESPACE_ID::RepeatedField< ::PROTOBUF_NAMESPACE_ID::int32 >*
-      mutable_keycodes();
-
   // uint64 playerid = 1;
   void clear_playerid();
   ::PROTOBUF_NAMESPACE_ID::uint64 playerid() const;
@@ -1057,6 +1048,33 @@ class C_INPUT final :
   void _internal_set_playerid(::PROTOBUF_NAMESPACE_ID::uint64 value);
   public:
 
+  // int32 keyCodes = 2;
+  void clear_keycodes();
+  ::PROTOBUF_NAMESPACE_ID::int32 keycodes() const;
+  void set_keycodes(::PROTOBUF_NAMESPACE_ID::int32 value);
+  private:
+  ::PROTOBUF_NAMESPACE_ID::int32 _internal_keycodes() const;
+  void _internal_set_keycodes(::PROTOBUF_NAMESPACE_ID::int32 value);
+  public:
+
+  // float deltaX = 3;
+  void clear_deltax();
+  float deltax() const;
+  void set_deltax(float value);
+  private:
+  float _internal_deltax() const;
+  void _internal_set_deltax(float value);
+  public:
+
+  // float deltaY = 4;
+  void clear_deltay();
+  float deltay() const;
+  void set_deltay(float value);
+  private:
+  float _internal_deltay() const;
+  void _internal_set_deltay(float value);
+  public:
+
   // @@protoc_insertion_point(class_scope:Protocol.C_INPUT)
  private:
   class _Internal;
@@ -1064,9 +1082,10 @@ class C_INPUT final :
   template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
-  ::PROTOBUF_NAMESPACE_ID::RepeatedField< ::PROTOBUF_NAMESPACE_ID::int32 > keycodes_;
-  mutable std::atomic<int> _keycodes_cached_byte_size_;
   ::PROTOBUF_NAMESPACE_ID::uint64 playerid_;
+  ::PROTOBUF_NAMESPACE_ID::int32 keycodes_;
+  float deltax_;
+  float deltay_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_Protocol_2eproto;
 };
@@ -1394,6 +1413,26 @@ inline void C_GAME_START::set_playerweapon(::PROTOBUF_NAMESPACE_ID::uint32 value
   // @@protoc_insertion_point(field_set:Protocol.C_GAME_START.playerWeapon)
 }
 
+// bool ready = 2;
+inline void C_GAME_START::clear_ready() {
+  ready_ = false;
+}
+inline bool C_GAME_START::_internal_ready() const {
+  return ready_;
+}
+inline bool C_GAME_START::ready() const {
+  // @@protoc_insertion_point(field_get:Protocol.C_GAME_START.ready)
+  return _internal_ready();
+}
+inline void C_GAME_START::_internal_set_ready(bool value) {
+  
+  ready_ = value;
+}
+inline void C_GAME_START::set_ready(bool value) {
+  _internal_set_ready(value);
+  // @@protoc_insertion_point(field_set:Protocol.C_GAME_START.ready)
+}
+
 // -------------------------------------------------------------------
 
 // S_GAME_START
@@ -1521,51 +1560,64 @@ inline void C_INPUT::set_playerid(::PROTOBUF_NAMESPACE_ID::uint64 value) {
   // @@protoc_insertion_point(field_set:Protocol.C_INPUT.playerid)
 }
 
-// repeated int32 keyCodes = 2;
-inline int C_INPUT::_internal_keycodes_size() const {
-  return keycodes_.size();
-}
-inline int C_INPUT::keycodes_size() const {
-  return _internal_keycodes_size();
-}
+// int32 keyCodes = 2;
 inline void C_INPUT::clear_keycodes() {
-  keycodes_.Clear();
+  keycodes_ = 0;
 }
-inline ::PROTOBUF_NAMESPACE_ID::int32 C_INPUT::_internal_keycodes(int index) const {
-  return keycodes_.Get(index);
-}
-inline ::PROTOBUF_NAMESPACE_ID::int32 C_INPUT::keycodes(int index) const {
-  // @@protoc_insertion_point(field_get:Protocol.C_INPUT.keyCodes)
-  return _internal_keycodes(index);
-}
-inline void C_INPUT::set_keycodes(int index, ::PROTOBUF_NAMESPACE_ID::int32 value) {
-  keycodes_.Set(index, value);
-  // @@protoc_insertion_point(field_set:Protocol.C_INPUT.keyCodes)
-}
-inline void C_INPUT::_internal_add_keycodes(::PROTOBUF_NAMESPACE_ID::int32 value) {
-  keycodes_.Add(value);
-}
-inline void C_INPUT::add_keycodes(::PROTOBUF_NAMESPACE_ID::int32 value) {
-  _internal_add_keycodes(value);
-  // @@protoc_insertion_point(field_add:Protocol.C_INPUT.keyCodes)
-}
-inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< ::PROTOBUF_NAMESPACE_ID::int32 >&
-C_INPUT::_internal_keycodes() const {
+inline ::PROTOBUF_NAMESPACE_ID::int32 C_INPUT::_internal_keycodes() const {
   return keycodes_;
 }
-inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< ::PROTOBUF_NAMESPACE_ID::int32 >&
-C_INPUT::keycodes() const {
-  // @@protoc_insertion_point(field_list:Protocol.C_INPUT.keyCodes)
+inline ::PROTOBUF_NAMESPACE_ID::int32 C_INPUT::keycodes() const {
+  // @@protoc_insertion_point(field_get:Protocol.C_INPUT.keyCodes)
   return _internal_keycodes();
 }
-inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< ::PROTOBUF_NAMESPACE_ID::int32 >*
-C_INPUT::_internal_mutable_keycodes() {
-  return &keycodes_;
+inline void C_INPUT::_internal_set_keycodes(::PROTOBUF_NAMESPACE_ID::int32 value) {
+  
+  keycodes_ = value;
 }
-inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< ::PROTOBUF_NAMESPACE_ID::int32 >*
-C_INPUT::mutable_keycodes() {
-  // @@protoc_insertion_point(field_mutable_list:Protocol.C_INPUT.keyCodes)
-  return _internal_mutable_keycodes();
+inline void C_INPUT::set_keycodes(::PROTOBUF_NAMESPACE_ID::int32 value) {
+  _internal_set_keycodes(value);
+  // @@protoc_insertion_point(field_set:Protocol.C_INPUT.keyCodes)
+}
+
+// float deltaX = 3;
+inline void C_INPUT::clear_deltax() {
+  deltax_ = 0;
+}
+inline float C_INPUT::_internal_deltax() const {
+  return deltax_;
+}
+inline float C_INPUT::deltax() const {
+  // @@protoc_insertion_point(field_get:Protocol.C_INPUT.deltaX)
+  return _internal_deltax();
+}
+inline void C_INPUT::_internal_set_deltax(float value) {
+  
+  deltax_ = value;
+}
+inline void C_INPUT::set_deltax(float value) {
+  _internal_set_deltax(value);
+  // @@protoc_insertion_point(field_set:Protocol.C_INPUT.deltaX)
+}
+
+// float deltaY = 4;
+inline void C_INPUT::clear_deltay() {
+  deltay_ = 0;
+}
+inline float C_INPUT::_internal_deltay() const {
+  return deltay_;
+}
+inline float C_INPUT::deltay() const {
+  // @@protoc_insertion_point(field_get:Protocol.C_INPUT.deltaY)
+  return _internal_deltay();
+}
+inline void C_INPUT::_internal_set_deltay(float value) {
+  
+  deltay_ = value;
+}
+inline void C_INPUT::set_deltay(float value) {
+  _internal_set_deltay(value);
+  // @@protoc_insertion_point(field_set:Protocol.C_INPUT.deltaY)
 }
 
 // -------------------------------------------------------------------

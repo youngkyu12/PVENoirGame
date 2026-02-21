@@ -43,20 +43,6 @@ bool Handle_C_LOGIN(PacketSessionRef& session, Protocol::C_LOGIN& pkt)
 		gameSession->_players.push_back(playerRef);
 	}
 
-	{
-		auto player = loginPkt.add_players();
-		player->set_name(u8"DB에서가져왓서요2");
-		player->set_playertype(Protocol::PLAYER_TYPE_MAGE);
-
-		PlayerRef playerRef = make_shared<Player>();
-		playerRef->playerId = idGenerator++;
-		playerRef->name = player->name();
-		playerRef->type = player->playertype();
-		playerRef->ownerSession = gameSession;
-
-		gameSession->_players.push_back(playerRef);
-	}
-
 
 	auto SendBuffer = ClientPacketHandler::MakeSendBuffer(loginPkt);
 	session->Send(SendBuffer);
@@ -97,7 +83,26 @@ bool Handle_C_GAME_START(PacketSessionRef& session, Protocol::C_GAME_START& pkt)
 
 bool Handle_C_INPUT(PacketSessionRef& session, Protocol::C_INPUT& pkt)
 {
-	cout << "Player Input: " << pkt.keycodes().size() << " keys" << endl;
+	cout << "Receive Input..." << endl;
+
+	// KeyCode를 받아서 게임에 적용하기
+	// 0: Up, 1: Down, 2: Left, 3: Right
+
+	enum KEY_CODE
+	{
+		UP = 0,
+		DOWN = 1,
+		LEFT = 2,
+		RIGHT = 3,
+	};
+
+	int id = pkt.playerid();
+	int keyCode = pkt.keycodes();
+
+	KEY_CODE key = static_cast<KEY_CODE>(keyCode);
+
+	cout << "PlayerId: " << id << endl;
+	cout << "KeyCodes: " << key << endl;
 
 	return false;
 }
