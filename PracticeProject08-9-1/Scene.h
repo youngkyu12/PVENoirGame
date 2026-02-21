@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <vector>
+#include <array>
 
 #include "Shader.h"
 #include "DescriptorHeap.h"
@@ -179,6 +180,10 @@ public:
 public:
 	std::vector<std::unique_ptr<CGameObject>>   m_staticObjects;
 	std::vector<std::unique_ptr<CGameObject>>   m_skinnedObjects;
+	std::array<CGameObject*, 3> m_demoFighters = { nullptr, nullptr, nullptr };
+
+	CGameObject* GetDemoFighter(int index) const;
+	void RequestDemoFighterAttack(int index);
 
 	std::vector<std::unique_ptr<CGameObject>>   m_lightObjects;
 	CFollowTransformComponent* m_pPlayerSpotFollower = nullptr;
