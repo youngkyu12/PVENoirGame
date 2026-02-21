@@ -180,12 +180,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="GameFramework_Input.cpp">
-      <Filter>Input</Filter>
-    </ClCompile>
-    <ClCompile Include="Scene_Input.cpp">
-      <Filter>Input</Filter>
-    </ClCompile>
     <ClCompile Include="Animator.cpp">
       <Filter>Animator</Filter>
     </ClCompile>
@@ -278,6 +272,12 @@
     </ClCompile>
     <ClCompile Include="DescriptorHeap.cpp">
       <Filter>Resource\Descripter</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene_Input.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="GameFramework_Input.cpp">
+      <Filter>GameFramework</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

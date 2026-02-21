@@ -7,6 +7,7 @@
 #include "Material.h"
 #include "AssetManager.h"
 #include "AnimController.h"
+#include "AnimatorComponent.h"
 #include "LightComponent.h"
 #include "PlayerControllerComponent.h"
 
@@ -425,14 +426,19 @@ void CScene::BuildSkinnedBatch(
 			obj->CreateComponents(pd3dDevice, pd3dCommandList);
 
 			CGameObject* raw = obj.get();
+			if ((k - 1) < (UINT)m_demoFighters.size())
+				m_demoFighters[k - 1] = raw;
+
 			m_skinnedObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			b->count = (UINT)b->objectRefs.size();
+
 		}
 	}
 
 	// ---------- Fighter ----------
 	{
+		m_demoFighters.fill(nullptr);
 		AssetBuildDesc FighterDesc =
 		{
 			AssetType::Fighter,
@@ -479,6 +485,9 @@ void CScene::BuildSkinnedBatch(
 			obj->SetMesh(0, asset.mesh);
 			obj->AddComponent<CSkinnedMeshRendererComponent>();
 
+			// (추후 서버/상태기반 전환을 고려) 애니메이션은 컴포넌트로 운용
+			auto* animComp = obj->AddComponent<CAnimatorComponent>();
+
 			// matId 추출
 			UINT matId = 0;
 			if (asset.mesh)
@@ -506,38 +515,60 @@ void CScene::BuildSkinnedBatch(
 				obj->EnableSkinning(pd3dDevice, asset.mesh->GetBoneCount());
 			}
 
-			// 애니메이션 로드/세팅 
-			AnimationClip idleClip;
-			bool idleLoaded = false;
-
+			// 애니메이션 로드/세팅 (Idle + Run + Attack) - Player와 동일 구성
 			auto mesh0 = obj->GetMeshShared(0);
+
+			AnimationClip idleClip{};
+			AnimationClip runClip{};
+			AnimationClip atkClip{};
+			bool idleLoaded = false;
+			bool runLoaded = false;
+			bool atkLoaded = false;
+
 			if (mesh0)
 			{
 				idleLoaded = mesh0->LoadAnimationFromBIN(
 					"Assets/Fighter/Animation/FighterIdle.bin",
 					"Idle", idleClip, 1.0f
 				);
+
+				runLoaded = mesh0->LoadAnimationFromBIN(
+					"Assets/Fighter/Animation/FighterRun.bin",
+					"Run", runClip, 1.0f
+				);
+
+				atkLoaded = mesh0->LoadAnimationFromBIN(
+					"Assets/Fighter/Animation/FighterAttack.bin",
+					"Attack", atkClip, 1.0f
+				);
 			}
 
-			if (idleLoaded)
+			if (animComp)
 			{
-				idleClip.name = "Idle";
+				if (idleLoaded) { idleClip.name = "Idle";   animComp->AddClip(idleClip); }
+				if (runLoaded) { runClip.name = "Run";    animComp->AddClip(runClip); }
+				if (atkLoaded) { atkClip.name = "Attack"; animComp->AddClip(atkClip); }
 
-				CAnimator* anim = obj->EnsureAnimator();
-				if (anim) anim->AddClip(idleClip);
+				animComp->SetIdleClip("Idle");
+				animComp->SetMoveClip(runLoaded ? "Run" : "Idle");
 
-				auto* ctrl = obj->EnsureAnimController();
-				ctrl->SetIdleClip("Idle");
-				ctrl->SetMoveClip("Idle");
-				ctrl->SetSpeed(0.0f);
-				ctrl->Update(0.0f);
-
-				obj->Animate(0.0f);
+				auto* ctrl = animComp->EnsureController();
+				if (ctrl)
+				{
+					ctrl->SetAttackClip("Attack");
+					ctrl->SetSpeed(0.0f);
+					ctrl->Update(0.0f);
+				}
 			}
 
 			obj->CreateComponents(pd3dDevice, pd3dCommandList);
+			if (animComp) animComp->EvaluatePose(0.0f);
 
 			CGameObject* raw = obj.get();
+
+			if ((k >= 1) && (k <= 3))
+				m_demoFighters[k - 1] = raw;
+
 			m_skinnedObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			b->count = (UINT)b->objectRefs.size();
