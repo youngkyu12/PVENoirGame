@@ -70,6 +70,10 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IncludePath>$(SolutionDir)..\Libraries\include\;$(SolutionDir)..\GameServer\ServerCore\;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)..\Libraries\Libs\;$(SolutionDir)..\Libraries;$(SolutionDir)..\Libraries\Libs\ServerCore\$(Configuration);$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -102,9 +106,9 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>true</ConformanceMode>
+      <ConformanceMode>false</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <CallingConvention>VectorCall</CallingConvention>
+      <CallingConvention>Cdecl</CallingConvention>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
@@ -112,6 +116,9 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <PreBuildEvent>
+      <Command>CALL $(SolutionDir)..\Common\Protobuf\bin\GenPackets.bat</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -143,7 +150,9 @@
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="DDSTextureLoader12.h" />
     <ClInclude Include="DescriptorHeap.h" />
+    <ClInclude Include="Enum.pb.h" />
     <ClInclude Include="GameFramework.h" />
+    <ClInclude Include="InitStruct.pb.h" />
     <ClInclude Include="LightComponent.h" />
     <ClInclude Include="LightTypes.h" />
     <ClInclude Include="Material.h" />
@@ -152,13 +161,16 @@
     <ClInclude Include="Object.h" />
     <ClInclude Include="PlayerControllerComponent.h" />
     <ClInclude Include="PracticeProject08-9-1.h" />
+    <ClInclude Include="Protocol.pb.h" />
     <ClInclude Include="RendererComponent.h" />
     <ClInclude Include="RenderObjectComponent.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="Scene.h" />
+    <ClInclude Include="ServerPacketHandler.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="SkinningComponent.h" />
     <ClInclude Include="stdafx.h" />
+    <ClInclude Include="Struct.pb.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="Texture.h" />
     <ClInclude Include="Timer.h" />
@@ -170,12 +182,22 @@
     <ClCompile Include="AnimController.cpp" />
     <ClCompile Include="AssetManager.cpp" />
     <ClCompile Include="Camera.cpp" />
-    <ClCompile Include="DDSTextureLoader12.cpp" />
+    <ClCompile Include="DDSTextureLoader12.cpp">
+      <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">VectorCall</CallingConvention>
+    </ClCompile>
     <ClCompile Include="DescriptorHeap.cpp" />
+    <ClCompile Include="Enum.pb.cc">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
+    </ClCompile>
     <ClCompile Include="GameFramework.cpp" />
     <ClCompile Include="GameFramework_Build.cpp" />
     <ClCompile Include="GameFramework_Input.cpp" />
     <ClCompile Include="GameFramework_Render.cpp" />
+    <ClCompile Include="InitStruct.pb.cc">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
+    </ClCompile>
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="ModelComponent.cpp" />
@@ -184,12 +206,19 @@
     <ClCompile Include="Object_Render.cpp" />
     <ClCompile Include="PlayerControllerComponent.cpp" />
     <ClCompile Include="PracticeProject08-9-1.cpp" />
+    <ClCompile Include="Protocol.pb.cc">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
+    </ClCompile>
     <ClCompile Include="RendererComponent.cpp" />
     <ClCompile Include="RenderObjectComponent.cpp" />
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="Scene_Build.cpp" />
     <ClCompile Include="Scene_Input.cpp" />
     <ClCompile Include="Scene_Render.cpp" />
+    <ClCompile Include="ServerPacketHandler.cpp">
+      <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
+    </ClCompile>
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="Shader_Build.cpp" />
     <ClCompile Include="Shader_Render.cpp" />
@@ -197,6 +226,10 @@
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="Struct.pb.cc">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
     </ClCompile>
     <ClCompile Include="Texture.cpp" />
     <ClCompile Include="Timer.cpp" />
@@ -209,6 +242,11 @@
     <Image Include="small.ico" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\Common\Protobuf\bin\Enum.proto" />
+    <None Include="..\Common\Protobuf\bin\GenPackets.bat" />
+    <None Include="..\Common\Protobuf\bin\InitStruct.proto" />
+    <None Include="..\Common\Protobuf\bin\Protocol.proto" />
+    <None Include="..\Common\Protobuf\bin\Struct.proto" />
     <None Include="Light.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <FileType>Document</FileType>

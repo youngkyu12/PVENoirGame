@@ -89,6 +89,12 @@
     <Filter Include="Network">
       <UniqueIdentifier>{86870037-e956-4ff9-93b3-5e8550418e2b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Network\Protocol">
+      <UniqueIdentifier>{a610d31b-d592-4413-912e-cc7185de8bae}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="PacketHandler">
+      <UniqueIdentifier>{68eba5ac-4fc8-43a3-be24-29bc741f88e0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animator.h">
@@ -178,8 +184,29 @@
     <ClInclude Include="Resource.h">
       <Filter>Resource</Filter>
     </ClInclude>
+    <ClInclude Include="Enum.pb.h">
+      <Filter>Network\Protocol</Filter>
+    </ClInclude>
+    <ClInclude Include="InitStruct.pb.h">
+      <Filter>Network\Protocol</Filter>
+    </ClInclude>
+    <ClInclude Include="Protocol.pb.h">
+      <Filter>Network\Protocol</Filter>
+    </ClInclude>
+    <ClInclude Include="Struct.pb.h">
+      <Filter>Network\Protocol</Filter>
+    </ClInclude>
+    <ClInclude Include="ServerPacketHandler.h">
+      <Filter>PacketHandler</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="GameFramework_Input.cpp">
+      <Filter>Input</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene_Input.cpp">
+      <Filter>Input</Filter>
+    </ClCompile>
     <ClCompile Include="Animator.cpp">
       <Filter>Animator</Filter>
     </ClCompile>
@@ -221,6 +248,9 @@
     </ClCompile>
     <ClCompile Include="Object.cpp">
       <Filter>Object</Filter>
+    </ClCompile>
+    <ClCompile Include="DescriptorHeap.cpp">
+      <Filter>Resource\HLSL</Filter>
     </ClCompile>
     <ClCompile Include="Material.cpp">
       <Filter>Mesh\Material</Filter>
@@ -270,14 +300,20 @@
     <ClCompile Include="Shader_Build.cpp">
       <Filter>Shader</Filter>
     </ClCompile>
-    <ClCompile Include="DescriptorHeap.cpp">
-      <Filter>Resource\Descripter</Filter>
+    <ClCompile Include="Enum.pb.cc">
+      <Filter>Network\Protocol</Filter>
     </ClCompile>
-    <ClCompile Include="Scene_Input.cpp">
-      <Filter>Scene</Filter>
+    <ClCompile Include="InitStruct.pb.cc">
+      <Filter>Network\Protocol</Filter>
     </ClCompile>
-    <ClCompile Include="GameFramework_Input.cpp">
-      <Filter>GameFramework</Filter>
+    <ClCompile Include="Protocol.pb.cc">
+      <Filter>Network\Protocol</Filter>
+    </ClCompile>
+    <ClCompile Include="Struct.pb.cc">
+      <Filter>Network\Protocol</Filter>
+    </ClCompile>
+    <ClCompile Include="ServerPacketHandler.cpp">
+      <Filter>PacketHandler</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -299,6 +335,21 @@
     </None>
     <None Include="Shaders.hlsl">
       <Filter>Resource\HLSL</Filter>
+    </None>
+    <None Include="..\Common\Protobuf\bin\Enum.proto">
+      <Filter>Network\Protocol</Filter>
+    </None>
+    <None Include="..\Common\Protobuf\bin\GenPackets.bat">
+      <Filter>Network\Protocol</Filter>
+    </None>
+    <None Include="..\Common\Protobuf\bin\InitStruct.proto">
+      <Filter>Network\Protocol</Filter>
+    </None>
+    <None Include="..\Common\Protobuf\bin\Protocol.proto">
+      <Filter>Network\Protocol</Filter>
+    </None>
+    <None Include="..\Common\Protobuf\bin\Struct.proto">
+      <Filter>Network\Protocol</Filter>
     </None>
   </ItemGroup>
 </Project>
