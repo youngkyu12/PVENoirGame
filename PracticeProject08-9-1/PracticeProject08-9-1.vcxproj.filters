@@ -92,7 +92,7 @@
     <Filter Include="Network\Protocol">
       <UniqueIdentifier>{a610d31b-d592-4413-912e-cc7185de8bae}</UniqueIdentifier>
     </Filter>
-    <Filter Include="PacketHandler">
+    <Filter Include="Network\PacketHandler">
       <UniqueIdentifier>{68eba5ac-4fc8-43a3-be24-29bc741f88e0}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -197,7 +197,7 @@
       <Filter>Network\Protocol</Filter>
     </ClInclude>
     <ClInclude Include="ServerPacketHandler.h">
-      <Filter>PacketHandler</Filter>
+      <Filter>Network\PacketHandler</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -313,7 +313,7 @@
       <Filter>Network\Protocol</Filter>
     </ClCompile>
     <ClCompile Include="ServerPacketHandler.cpp">
-      <Filter>PacketHandler</Filter>
+      <Filter>Network\PacketHandler</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
