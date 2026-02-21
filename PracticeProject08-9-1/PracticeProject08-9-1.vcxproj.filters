@@ -228,9 +228,6 @@
     <ClCompile Include="Object.cpp">
       <Filter>Object</Filter>
     </ClCompile>
-    <ClCompile Include="DescriptorHeap.cpp">
-      <Filter>Resource\HLSL</Filter>
-    </ClCompile>
     <ClCompile Include="Material.cpp">
       <Filter>Mesh\Material</Filter>
     </ClCompile>
@@ -278,6 +275,9 @@
     </ClCompile>
     <ClCompile Include="Shader_Build.cpp">
       <Filter>Shader</Filter>
+    </ClCompile>
+    <ClCompile Include="DescriptorHeap.cpp">
+      <Filter>Resource\Descripter</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
