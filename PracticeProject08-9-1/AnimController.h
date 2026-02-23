@@ -8,6 +8,7 @@ enum class EAnimState : uint8_t
 {
     Idle = 0,
     Move,
+    Attack,
 };
 
 class CAnimController
@@ -22,8 +23,17 @@ public:
 
     void SetIdleClip(const char* name) { m_idleClip = name; }
     void SetMoveClip(const char* name) { m_moveClip = name; }
+    void SetIdleClip(const std::string& name) { m_idleClip = name; }
+    void SetMoveClip(const std::string& name) { m_moveClip = name; }
 
     void Update(float dt);
+
+    void SetAttackClip(const char* name) { m_attackClip = name; }
+    void SetAttackClip(const std::string& name) { m_attackClip = name; }
+
+    // 마우스 클릭 등으로 "공격 1회" 요청
+    void RequestAttack();
+
 
 private:
     const char* ClipFor(EAnimState s) const
@@ -38,5 +48,7 @@ private:
     EAnimState m_state = EAnimState::Idle;
 
     std::string m_idleClip = "Idle";
-    std::string m_moveClip = "Walk"; // 기본값
+    std::string m_moveClip = "Walk";
+    std::string m_attackClip = "Attack";
+    bool m_attackQueued = false;
 };

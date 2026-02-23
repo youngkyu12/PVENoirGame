@@ -37,23 +37,8 @@ void CGameFramework::OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPA
 		case VK_ESCAPE:
 			::PostQuitMessage(0);
 			break;
-		case VK_RETURN:
-		{
-			XMFLOAT3 pos = m_pPlayer->GetPosition();
-			char buf[128];
-			sprintf_s(
-				buf,
-				"[Player] Pos = (%.2f, %.2f, %.2f)\n",
-				pos.x,pos.y,pos.z
-			);
-			OutputDebugStringA(buf);
-		}
-			break;
-		case VK_F1:
-		case VK_F2:
-		case VK_F3:
-			m_pCamera = m_pPlayer->ChangeCamera((DWORD)(wParam - VK_F1 + 1), m_GameTimer.GetTimeElapsed());
-			break;
+		break;
+
 		case VK_F9:
 			ChangeSwapChainState();
 			break;

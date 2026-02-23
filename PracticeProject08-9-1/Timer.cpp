@@ -12,6 +12,13 @@ CGameTimer::CGameTimer()
 	m_fTimeScale = 1.0 / (double)m_nPerformanceFrequencyPerSec;
 
 	m_nBasePerformanceCounter = m_nLastPerformanceCounter;
+	m_nPausedPerformanceCounter = 0;
+	m_nStopPerformanceCounter = 0;
+
+	m_nSampleCount = 0;
+	m_nCurrentFrameRate = 0;
+	m_nFramesPerSecond = 0;
+	m_fFPSTimeElapsed = 0.0f;
 }
 
 CGameTimer::~CGameTimer()

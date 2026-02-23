@@ -4,129 +4,111 @@
 
 #include "stdafx.h"
 #include "Object.h"
-#include "Texture.h"
-#include "Material.h"
 #include "AnimController.h"
+#include "AnimatorComponent.h"
 
 void CGameObject::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	XMStoreFloat4x4(&m_pcbMappedGameObject->m_xmf4x4World, XMMatrixTranspose(XMLoadFloat4x4(&m_xmf4x4World)));
+	(void)pd3dCommandList;
+	if (!m_pcbMappedGameObject) return;
 
-	if (m_pMaterial)
-		m_pcbMappedGameObject->m_nMaterialID = m_pMaterial->m_nReflection;
+	// TransformÀÌ WorldMatrixÀÇ À¯ÀÏ ±ÇÀ§
+	const XMFLOAT4X4& W = m_pTransform->GetWorldMatrix();
+
+	XMStoreFloat4x4(
+		&m_pcbMappedGameObject->m_xmf4x4World,
+		XMMatrixTranspose(XMLoadFloat4x4(&W))
+	);
+
+	m_pcbMappedGameObject->m_nObjectID = 0;
+
+	// (¿É¼Ç) Ä³½Ã¸¦ ¾²´Â °æ¿ì¿¡¸¸ µ¿±âÈ­
+	// m_cachedWorld = W;
 }
 
 void CGameObject::Animate(float dt)
 {
-	// 1) ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½(Idle/Run)
-	if (m_pAnimController)
-		m_pAnimController->Update(dt);
-
-	// 2) ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
-	if (m_pAnimator)
-	{
-		m_pAnimator->Update(dt);
-
-		// 3) ï¿½ï¿½Å°ï¿½ï¿½ï¿½Ì¸ï¿½ GPU ï¿½ï¿½ï¿½Îµï¿½
-		if (m_bSkinnedObject && m_pd3dcbBoneTransforms)
-		{
-			const auto& mats = m_pAnimator->GetFinalBoneMatrices();
-			if (!mats.empty())
-				UpdateBoneTransformsOnGPU(mats.data(), (int)mats.size());
-		}
-	}
+	UpdateComponents(dt);
 }
 
 void CGameObject::OnPrepareRender(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera)
 {
 }
 
-void CGameObject::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera)
+void CGameObject::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
-	OnPrepareRender(pd3dCommandList, pCamera);
+	OnPrepareRender(cmd, camera);
 
-	if (m_pMaterial)
-	{
-		if (m_pMaterial->m_pShader)
-		{
-			m_pMaterial->m_pShader->Render(pd3dCommandList, pCamera);
+	// ¡Ú (1) ¸Å ÇÁ·¹ÀÓ per-object CB °»½Å (Player´Â override ¹öÀüÀÌ È£ÃâµÊ)
+	UpdateShaderVariables(cmd);
 
-			if (pCamera)
-				pCamera->SetViewportsAndScissorRects(pd3dCommandList);
+	// ¡Ú (2) PSO/RootSig/Shader º¯¼ö ¼¼ÆÃ (Ä«¸Þ¶ó CB Æ÷ÇÔ)
+	if (auto sh = GetShader())
+		sh->Render(cmd, camera, nullptr);
 
-			if (pCamera)
-				pCamera->UpdateShaderVariables(pd3dCommandList);
+	// PreRender hooks
+	for (auto& c : m_components)
+		if (c && c->IsEnabled()) c->OnPreRender(cmd);
 
-			UpdateShaderVariables(pd3dCommandList);
-		}
-		if (m_pMaterial->NeedsLegacyBinding())
-			m_pMaterial->UpdateShaderVariables(pd3dCommandList);
-	}
+	// Draw
+	if (auto* r = GetRenderer())
+		if (r->IsEnabled())
+			r->Render(cmd, camera);
 
-	SetRootParameter(pd3dCommandList);
-
-	if (!m_ppMeshes.empty())
-	{
-		for (int i = 0; i < m_nMeshes; i++)
-		{
-			if (m_ppMeshes[i])
-				m_ppMeshes[i]->Render(pd3dCommandList, m_pcbMappedGameObject);
-		}
-	}
+	// PostRender hooks
+	for (auto& c : m_components)
+		if (c && c->IsEnabled()) c->OnPostRender(cmd);
 }
+
 
 void CGameObject::MoveStrafe(float fDistance)
 {
-	XMFLOAT3 xmf3Position = GetPosition();
-	XMFLOAT3 xmf3Right = GetRight();
-	xmf3Position = Vector3::Add(xmf3Position, xmf3Right, fDistance);
-	CGameObject::SetPosition(xmf3Position);
+	XMFLOAT3 delta = Vector3::ScalarProduct(GetRight(), fDistance, false);
+	m_pTransform->Translate(delta);
 }
 
 void CGameObject::MoveUp(float fDistance)
 {
-	XMFLOAT3 xmf3Position = GetPosition();
-	XMFLOAT3 xmf3Up = GetUp();
-	xmf3Position = Vector3::Add(xmf3Position, xmf3Up, fDistance);
-	CGameObject::SetPosition(xmf3Position);
+	XMFLOAT3 delta = Vector3::ScalarProduct(GetUp(), fDistance, false); // ·ÎÄÃ¾÷
+	m_pTransform->Translate(delta);
 }
 
 void CGameObject::MoveForward(float fDistance)
 {
-	XMFLOAT3 xmf3Position = GetPosition();
-	XMFLOAT3 xmf3Look = GetLook();
-	xmf3Position = Vector3::Add(xmf3Position, xmf3Look, fDistance);
-	CGameObject::SetPosition(xmf3Position);
+	XMFLOAT3 delta = Vector3::ScalarProduct(GetLook(), fDistance, false);
+	m_pTransform->Translate(delta);
 }
 
 void CGameObject::Rotate(float fPitch, float fYaw, float fRoll)
 {
-	XMMATRIX mtxRotate = XMMatrixRotationRollPitchYaw(XMConvertToRadians(fPitch), XMConvertToRadians(fYaw), XMConvertToRadians(fRoll));
-	m_xmf4x4World = Matrix4x4::Multiply(mtxRotate, m_xmf4x4World);
+	// TransformÀÌ È¸ÀüÀÇ À¯ÀÏ ±ÇÀ§
+	m_pTransform->RotateWorldEulerDegrees(fPitch, fYaw, fRoll);
 }
 
 void CGameObject::Rotate(XMFLOAT3* pxmf3Axis, float fAngle)
 {
-	XMMATRIX mtxRotate = XMMatrixRotationAxis(XMLoadFloat3(pxmf3Axis), XMConvertToRadians(fAngle));
-	m_xmf4x4World = Matrix4x4::Multiply(mtxRotate, m_xmf4x4World);
+	if (!pxmf3Axis) return;
+	m_pTransform->RotateWorldAxisDegrees(*pxmf3Axis, fAngle);
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-void CRotatingObject::Animate(float fTimeElapsed)
+void CGameObject::PreRenderComponents(ID3D12GraphicsCommandList* cmd)
 {
-	CGameObject::Rotate(&m_xmf3RotationAxis, m_fRotationSpeed * fTimeElapsed);
+	if (!m_bComponentsCreated) return;
+
+	for (auto& c : m_components)
+	{
+		if (c && c->IsEnabled())
+			c->OnPreRender(cmd);
+	}
 }
 
-void CRotatingObject::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera)
+void CGameObject::PostRenderComponents(ID3D12GraphicsCommandList* cmd)
 {
-	CGameObject::Render(pd3dCommandList, pCamera);
-}
+	if (!m_bComponentsCreated) return;
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-void CRevolvingObject::Animate(float fTimeElapsed)
-{
-	XMMATRIX mtxRotate = XMMatrixRotationAxis(XMLoadFloat3(&m_xmf3RevolutionAxis), XMConvertToRadians(m_fRevolutionSpeed * fTimeElapsed));
-	m_xmf4x4World = Matrix4x4::Multiply(m_xmf4x4World, mtxRotate);
+	for (auto& c : m_components)
+	{
+		if (c && c->IsEnabled())
+			c->OnPostRender(cmd);
+	}
 }

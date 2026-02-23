@@ -40,7 +40,7 @@ void CPlayer::CreateShaderVariables(ID3D12Device* dev, ID3D12GraphicsCommandList
 {
 	if (m_pCamera) m_pCamera->CreateShaderVariables(dev, cmd);
 
-	// Player CB(b0)ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+	// Player CB(b0)¸¸ À¯Áö
 	UINT cbPlayerBytes = (sizeof(CB_PLAYER_INFO) + 255) & ~255;
 	m_pd3dcbPlayer = ::CreateBufferResource(
 		dev, cmd,
@@ -371,7 +371,7 @@ CFighterPlayer::CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandLi
 	MATERIALS* pMaterials = reinterpret_cast<MATERIALS*>(pContext);
 
 	// ------------------------------------------------------------
-	// Fighter ï¿½ï¿½ï¿½ï¿½ ï¿½Îµï¿½ (CSkinnedObjectsShaderï¿½ï¿½ Fighterï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
+	// Fighter ¿¡¼Â ·Îµå (CSkinnedObjectsShaderÀÇ Fighter¿Í µ¿ÀÏ)
 	// ------------------------------------------------------------
 	AssetBuildDesc FighterDesc =
 	{
@@ -391,7 +391,7 @@ CFighterPlayer::CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandLi
 	SetMesh(0, pPlayerMesh);
 
 	// ------------------------------------------------------------
-	// ï¿½ï¿½Å°ï¿½ï¿½ È°ï¿½ï¿½È­ (CSkinnedObjectsShaderï¿½ï¿½ obj->EnableSkinningï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
+	// ½ºÅ°´× È°¼ºÈ­ (CSkinnedObjectsShaderÀÇ obj->EnableSkinning°ú µ¿ÀÏ)
 	// ------------------------------------------------------------
 	if (pPlayerMesh && pPlayerMesh->IsSkinnedMesh())
 	{
@@ -400,7 +400,7 @@ CFighterPlayer::CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandLi
 	}
 
 	// ------------------------------------------------------------
-	// ï¿½Ö´Ï¸ï¿½ï¿½Ì¼ï¿½ ï¿½Îµï¿½ + Animator ï¿½ï¿½ï¿½ï¿½ + ï¿½ï¿½ï¿½ 
+	// ¾Ö´Ï¸ÞÀÌ¼Ç ·Îµå + Animator ¼¼ÆÃ + Àç»ý 
 	// ------------------------------------------------------------
 	AnimationClip idleClip;
 	bool idleLoaded = false;
@@ -448,7 +448,7 @@ CFighterPlayer::CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandLi
 	this->Animate(0.0f);
 
 	// ------------------------------------------------------------
-	// ï¿½ï¿½Ç¥ materialId ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ïµï¿½ Fighter ï¿½ï¿½ï¿½ï¿½)
+	// ´ëÇ¥ materialId ¼±ÅÃ (±âÁ¸ ·ÎÁ÷ À¯ÁöÇÏµÇ Fighter ±âÁØ)
 	// ------------------------------------------------------------
 	UINT playerMaterialId = 0;
 	if (pPlayerMesh)
@@ -464,12 +464,12 @@ CFighterPlayer::CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandLi
 	m_nPlayerMaterialID = playerMaterialId;
 
 	// ------------------------------------------------------------
-	// Player CBV ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½Îµï¿½
+	// Player CBV »ý¼º/¹ÙÀÎµù
 	// ------------------------------------------------------------
 	UINT ncbElementBytes = ((sizeof(CB_PLAYER_INFO) + 255) & ~255); // 256 align
 
 	// ------------------------------------------------------------
-	// CPlayerShader ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½â¼­ MRTï¿½ï¿½ ï¿½ï¿½ ï¿½Å¸ï¿½ RenderTarget 5ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ø¾ï¿½ ï¿½ï¿½)
+	// CPlayerShader »ý¼º (¿©±â¼­ MRT¸¦ ¾µ °Å¸é RenderTarget 5°³·Î »ý¼ºÇØ¾ß ÇÔ)
 	// ------------------------------------------------------------
 	DXGI_FORMAT rtvFormats[5] =
 	{
@@ -485,7 +485,7 @@ CFighterPlayer::CFighterPlayer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandLi
 
 	pShader->CreateShaderVariables(pd3dDevice, pd3dCommandList);
 
-	// Player CBV ï¿½Úµï¿½ ï¿½ï¿½ï¿½ï¿½
+	// Player CBV ÇÚµé »ý¼º
 	D3D12_GPU_DESCRIPTOR_HANDLE d3dCbvGPUDescriptorHandle =
 		CScene::m_pDescriptorHeap->CreateConstantBufferView(
 			pd3dDevice,
