@@ -367,3 +367,26 @@ const std::vector<XMFLOAT4X4>& CAnimator::GetFinalBoneMatrices() const
 {
     return m_FinalBoneMatrices;
 }
+
+float CAnimator::GetCurrentClipDuration() const
+{
+    auto it = m_Clips.find(m_CurrentClipName);
+    if (it == m_Clips.end()) return 0.0f;
+    return it->second.duration;
+}
+
+bool CAnimator::IsCurrentClipFinished(float eps) const
+{
+    if (!m_bPlaying) return false;
+    if (m_bLoop) return false; // loop면 "끝" 개념 없음
+
+    auto it = m_Clips.find(m_CurrentClipName);
+    if (it == m_Clips.end()) return false;
+
+    const float dur = it->second.duration;
+    if (dur <= 0.0f) return true;
+
+    // AdvanceTime에서 non-loop는 time을 duration으로 clamp하므로,
+    // duration - eps 이상이면 끝으로 본다.
+    return (m_fCurrentTime >= (dur - eps));
+}

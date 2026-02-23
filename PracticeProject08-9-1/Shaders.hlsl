@@ -11,10 +11,11 @@ cbuffer cbPlayerInfo : register(b0)
 
 cbuffer cbGameObjectInfo : register(b2)
 {
-    matrix gmtxGameObject : packoffset(c0);
-    uint gnObjectID : packoffset(c4.x);
-    uint gnUnused0 : packoffset(c4.y); // (ï¿½ï¿½)gnMaterialID ï¿½Ú¸ï¿½. ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½.
+    float4x4 gmtxGameObject;
+    uint gnObjectID;
+    uint3 _padObj;
 };
+
 
 SamplerState gssDefaultSamplerState : register(s0);
 
@@ -22,7 +23,7 @@ cbuffer cbDrawOptions : register(b5)
 {
     int4 gvDrawOptions; // x = 'T','L','N','D','Z'
     uint4 gvPostSrvIdx0; // x=T, y=L, z=N, w=D
-    uint4 gvPostSrvIdx1; // x=Z, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ðµï¿½
+    uint4 gvPostSrvIdx1; // x=Z, ³ª¸ÓÁö ÆÐµù
 };
 
 #define MAX_BONES 256
@@ -50,7 +51,7 @@ float3 GetNormalWFromMap(uint packedNormal, float3 normalW_in, float4 tangentW_i
     nTS = nTS * 2.0f - 1.0f;
 
     float3 T = normalize(tangentW_in.xyz);
-    // Nï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½È­(ï¿½ï¿½ï¿½ï¿½)
+    // N¿¡ Á÷±³È­(±ÇÀå)
     T = normalize(T - N * dot(T, N));
 
     float3 B = normalize(cross(N, T) * tangentW_in.w);
@@ -84,14 +85,9 @@ VS_DIFFUSED_OUTPUT VSDiffused(VS_DIFFUSED_INPUT input)
 	return(output);
 }
 
-float4 PSDiffused(VS_DIFFUSED_OUTPUT input) : SV_TARGET
+float4 PSDiffused(VS_DIFFUSED_OUTPUT input): SV_TARGET
 {
-    float4 color = input.color;
-
-    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
-    color.rgb = pow(color.rgb, 1.0 / 2.2);
-
-    return color;
+	return(input.color);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -102,8 +98,8 @@ struct VS_PLAYER_INPUT
     float3 position : POSITION;
     float3 normal : NORMAL;
     float2 uv : TEXCOORD;
-    uint4 blendIndices : BLENDINDICES; // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ì»ï¿½ï¿½ï¿½Ì¾îµµ OK
-    float4 blendWeights : BLENDWEIGHT; // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ì»ï¿½ï¿½ï¿½Ì¾îµµ OK
+    uint4 blendIndices : BLENDINDICES; // Áö±ÝÀº ¹Ì»ç¿ëÀÌ¾îµµ OK
+    float4 blendWeights : BLENDWEIGHT; // Áö±ÝÀº ¹Ì»ç¿ëÀÌ¾îµµ OK
 };
 
 struct VS_PLAYER_OUTPUT
@@ -176,7 +172,7 @@ struct VS_TEXTURED_LIGHTING_OUTPUT
 
 VS_TEXTURED_LIGHTING_OUTPUT VSTexturedLighting(VS_TEXTURED_LIGHTING_INPUT input)
 {
-    VS_TEXTURED_LIGHTING_OUTPUT output;
+	VS_TEXTURED_LIGHTING_OUTPUT output;
 
 	output.normalW = mul(input.normal, (float3x3)gmtxGameObject);
 	output.positionW = (float3)mul(float4(input.position, 1.0f), gmtxGameObject);
@@ -185,7 +181,7 @@ VS_TEXTURED_LIGHTING_OUTPUT VSTexturedLighting(VS_TEXTURED_LIGHTING_INPUT input)
     float3 tW = mul(input.tangent.xyz, (float3x3) gmtxGameObject);
     output.tangentW = float4(tW, input.tangent.w);
 
-    return (output);
+	return(output);
 }
 
 float4 PSTexturedLighting(VS_TEXTURED_LIGHTING_OUTPUT input, uint nPrimitiveID : SV_PrimitiveID) : SV_TARGET
@@ -226,11 +222,11 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
     PS_MULTIPLE_RENDER_TARGETS_OUTPUT output;
 
     // =========================================================
-    // 1. packed SRV index ï¿½Ø¼ï¿½
+    // 1. packed SRV index ÇØ¼®
     // =========================================================
     uint packed = gMaterials[gnMaterialID].TextureIndices.x;
 
-    // ï¿½Ø½ï¿½Ã³ ï¿½ï¿½ï¿½ï¿½
+    // ÅØ½ºÃ³ ¾øÀ½
     if (packed == 0)
     {
         output.color = float4(1, 0, 1, 1); // magenta
@@ -254,21 +250,21 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
     }
 
     // =========================================================
-    // 2. ï¿½Ø½ï¿½Ã³ ï¿½ï¿½ï¿½Ã¸ï¿½
+    // 2. ÅØ½ºÃ³ »ùÇÃ¸µ
     // =========================================================
     float4 texColor =
         gtxtGlobalTextures[diffuseIndex]
             .Sample(gssDefaultSamplerState, input.uv);
 
     // =========================================================
-    // 3. ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
+    // 3. Á¶¸í °è»ê
     // =========================================================
     uint packedN = gMaterials[gnMaterialID].TextureIndices.y;
     float3 normalW = GetNormalWFromMap(packedN, input.normalW, input.tangentW, input.uv);
     float4 illumination = Lighting(input.positionW, normalW);
 
     // =========================================================
-    // 4. MRT ï¿½ï¿½ï¿½
+    // 4. MRT Ãâ·Â
     // =========================================================
     output.cTexture = texColor;
     output.cIllumination = illumination;
@@ -330,7 +326,7 @@ VS_SKINNED_OUTPUT VSSkinned(VS_SKINNED_INPUT input)
     return output;
 }
 
-// ï¿½Ã·ï¿½ï¿½Ì¾ï¿½ï¿½ ï¿½ï¿½Å°ï¿½ï¿½ VS (cbPlayerInfo(b0) ï¿½ï¿½ï¿½)
+// ÇÃ·¹ÀÌ¾î¿ë ½ºÅ°´× VS (cbPlayerInfo(b0) »ç¿ë)
 VS_SKINNED_OUTPUT VSSkinnedPlayer(VS_SKINNED_INPUT input)
 {
     VS_SKINNED_OUTPUT output;
@@ -339,7 +335,7 @@ VS_SKINNED_OUTPUT VSSkinnedPlayer(VS_SKINNED_INPUT input)
 
     float4 posL = float4(input.position, 1.0f);
     float4 posSkinned = mul(posL, gBoneTransforms[bi]);
-    float4 posW = mul(posSkinned, gmtxPlayerWorld); // b0ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
+    float4 posW = mul(posSkinned, gmtxPlayerWorld); // b0ÀÇ ¿ùµå »ç¿ë
 
     output.positionW = posW.xyz;
     output.position = mul(mul(posW, gmtxView), gmtxProjection);
@@ -448,91 +444,13 @@ float4 PSScreenRectSamplingTextured(VS_TEXTURED_OUTPUT input) : SV_Target
     if (idx == 0xFFFFFFFFu || idx >= MAX_GLOBAL_SRVS)
         return float4(1, 0, 1, 1); // bad / missing
 
-    // Depth ï¿½è¿­ï¿½ï¿½ Loadï¿½ï¿½ ï¿½Ð°ï¿½ xï¿½ï¿½ ï¿½ï¿½ï¿½
+    // Depth °è¿­Àº Load·Î ÀÐ°í x¸¸ »ç¿ë
     if (gvDrawOptions.x == 68 || gvDrawOptions.x == 90)
     {
         float d = gtxtGlobalTextures[idx].Load(uint3((uint) input.position.x, (uint) input.position.y, 0)).x;
         return float4(d, d, d, 1);
     }
 
-    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ã¸ï¿½
+    // ³ª¸ÓÁö´Â »ùÇÃ¸µ
     return gtxtGlobalTextures[idx].Sample(gssDefaultSamplerState, input.uv);
-}
-
-///////////////////////////////////////////////////////////////////////////
-// ï¿½ï¿½ï¿½ï¿½(ï¿½Ì¿ï¿½)
-
-struct VS_TERRAIN_INPUT
-{
-    float3 position : POSITION;
-    float4 color : COLOR;
-    float2 uv0 : TEXCOORD0;
-    float2 uv1 : TEXCOORD1;
-};
-
-struct VS_TERRAIN_OUTPUT
-{
-    float4 position : SV_POSITION;
-    float4 color : COLOR;
-    float2 uv0 : TEXCOORD0;
-    float2 uv1 : TEXCOORD1;
-};
-
-VS_TERRAIN_OUTPUT VSTerrain(VS_TERRAIN_INPUT input)
-{
-    VS_TERRAIN_OUTPUT output;
-
-    output.position = mul(mul(mul(float4(input.position, 1.0f), gmtxGameObject), gmtxView), gmtxProjection);
-    output.color = input.color;
-    output.uv0 = input.uv0;
-    output.uv1 = input.uv1;
-
-    return (output);
-}
-
-float4 PSTerrain(VS_TERRAIN_OUTPUT input) : SV_TARGET
-{
-    float4 cBaseTexColor = gtxtTerrainBaseTexture.Sample(gssDefaultSamplerState, input.uv0);
-//	float fAlpha = gtxtTerrainAlphaTexture.Sample(gSamplerState, input.uv0);
-    float fAlpha = gtxtTerrainAlphaTexture.Sample(gssDefaultSamplerState, input.uv0).w;
-
-    float4 cDetailTexColors[3];
-    cDetailTexColors[0] = gtxtGlobalTextures[0].Sample(gssDefaultSamplerState, input.uv1 * 2.0f);
-    cDetailTexColors[1] = gtxtGlobalTextures[1].Sample(gssDefaultSamplerState, input.uv1 * 0.125f);
-    cDetailTexColors[2] = gtxtGlobalTextures[2].Sample(gssDefaultSamplerState, input.uv1);
-
-    float4 cColor = cBaseTexColor * cDetailTexColors[0];
-    cColor += lerp(cDetailTexColors[1] * 0.25f, cDetailTexColors[2], 1.0f - fAlpha);
-/* 
-	cColor = lerp(cDetailTexColors[0], cDetailTexColors[2], 1.0f - fAlpha) ;
-	cColor = lerp(cBaseTexColor, cColor, 0.3f) + cDetailTexColors[1] * (1.0f - fAlpha);
-*/
-/*
-	if (fAlpha < 0.35f) cColor = cDetailTexColors[2];
-	else if (fAlpha > 0.8975f) cColor = cDetailTexColors[0];
-	else cColor = cDetailTexColors[1];
-*/
-    return (cColor);
-}
-
-struct VS_WATER_INPUT
-{
-    float3 position : POSITION;
-    float2 uv : TEXCOORD0;
-};
-
-struct VS_WATER_OUTPUT
-{
-    float4 position : SV_POSITION;
-    float2 uv : TEXCOORD0;
-};
-
-VS_WATER_OUTPUT VSTerrainWater(VS_WATER_INPUT input)
-{
-    VS_WATER_OUTPUT output;
-
-    output.position = mul(mul(mul(float4(input.position, 1.0f), gmtxGameObject), gmtxView), gmtxProjection);
-    output.uv = input.uv;
-
-    return (output);
 }

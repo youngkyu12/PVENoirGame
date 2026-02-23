@@ -45,13 +45,13 @@ cbuffer cbCameraInfo : register(b1)
 
 cbuffer cbMaterial : register(b3)
 {
-    MATERIAL gMaterials[MAX_MATERIALS];
+    MATERIAL			gMaterials[MAX_MATERIALS];
 };
 
 cbuffer cbLights : register(b4)
 {
-    LIGHT gLights[MAX_LIGHTS];
-    float4 gcGlobalAmbientLight;
+	LIGHT				gLights[MAX_LIGHTS];
+	float4				gcGlobalAmbientLight;
 };
 
 // ==============================

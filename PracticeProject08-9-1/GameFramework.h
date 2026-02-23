@@ -4,7 +4,6 @@
 #define FRAME_BUFFER_HEIGHT		480
 
 #include "Timer.h"
-#include "Player.h"
 #include "Scene.h"
 
 #define DRAW_SCENE_COLOR				'S'
@@ -18,7 +17,7 @@
 class CGameFramework {
 public:
 	CGameFramework();
-	virtual ~CGameFramework();
+	~CGameFramework();
 
 	void OnDestroy();
 	void ReleaseObjects();
@@ -54,25 +53,25 @@ public:
 	LRESULT CALLBACK OnProcessingWindowMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
 
 private:
-	HINSTANCE							m_hInstance{ nullptr };
-	HWND								m_hWnd{ nullptr };
+	HINSTANCE							m_hInstance = nullptr;
+	HWND								m_hWnd = nullptr;
 
-	int									m_nWndClientWidth{ FRAME_BUFFER_WIDTH };
-	int									m_nWndClientHeight{ FRAME_BUFFER_HEIGHT };
+	int									m_nWndClientWidth = FRAME_BUFFER_WIDTH;
+	int									m_nWndClientHeight = FRAME_BUFFER_HEIGHT;
         
 	ComPtr<IDXGIFactory4>				m_pdxgiFactory;
 	ComPtr<IDXGISwapChain3>				m_pdxgiSwapChain;
 	ComPtr<ID3D12Device>				m_pd3dDevice;
 
-	bool								m_bMsaa4xEnable{ false };
-	UINT								m_nMsaa4xQualityLevels{ 0 };
+	bool								m_bMsaa4xEnable = false;
+	UINT								m_nMsaa4xQualityLevels = 0;
 
-	static const UINT					m_nSwapChainBuffers{ 2 };
-	UINT								m_nSwapChainBufferIndex{ 0 };
+	static const UINT					m_nSwapChainBuffers = 2;
+	UINT								m_nSwapChainBufferIndex = 0;
 
 	array<ComPtr<ID3D12Resource>, m_nSwapChainBuffers>			m_ppd3dSwapChainBackBuffers;
 	ComPtr<ID3D12DescriptorHeap>								m_pd3dRtvDescriptorHeap;
-	array<D3D12_CPU_DESCRIPTOR_HANDLE, m_nSwapChainBuffers>		m_pd3dSwapChainBackBufferRTVCPUHandles{};
+	array<D3D12_CPU_DESCRIPTOR_HANDLE, m_nSwapChainBuffers>		m_pd3dSwapChainBackBufferRTVCPUHandles;
 
 	ComPtr<ID3D12Resource>				m_pd3dDepthStencilBuffer;
 	ComPtr<ID3D12DescriptorHeap>		m_pd3dDsvDescriptorHeap;
@@ -83,21 +82,20 @@ private:
 	ComPtr<ID3D12GraphicsCommandList>	m_pd3dCommandList;
 
 	ComPtr<ID3D12Fence>					m_pd3dFence;
-	array<UINT64, m_nSwapChainBuffers>	m_nFenceValues{ 0 };
-	HANDLE								m_hFenceEvent{ nullptr };
+	array<UINT64, m_nSwapChainBuffers>	m_nFenceValues;
+	HANDLE								m_hFenceEvent = nullptr;
 
 	CGameTimer							m_GameTimer;
 
 	unique_ptr<CScene>					m_pScene;
-	shared_ptr<CPlayer>					m_pPlayer;
-	CCamera*							m_pCamera{ nullptr };
+	CCamera*							m_pCamera = nullptr;
 
 	shared_ptr<CPostProcessingShader>	m_pPostProcessingShader;
 
 	int								m_nDrawOption = DRAW_SCENE_COLOR;
 
-	POINT							m_ptOldCursorPos{};
+	POINT							m_ptOldCursorPos;
 
-	_TCHAR							m_pszFrameRate[50]{};
+	_TCHAR							m_pszFrameRate[50];
 };
 

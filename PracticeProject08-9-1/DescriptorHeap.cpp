@@ -13,7 +13,7 @@ CDescriptorHeap::~CDescriptorHeap()
 
 void CDescriptorHeap::CreateCbvSrvDescriptorHeaps(ID3D12Device* pd3dDevice, int nConstantBufferViews, int nShaderResourceViews)
 {
-	D3D12_DESCRIPTOR_HEAP_DESC d3dDescriptorHeapDesc = {};
+	D3D12_DESCRIPTOR_HEAP_DESC d3dDescriptorHeapDesc;
 	d3dDescriptorHeapDesc.NumDescriptors = nConstantBufferViews + nShaderResourceViews; //CBVs + SRVs 
 	d3dDescriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	d3dDescriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
@@ -37,18 +37,18 @@ void CDescriptorHeap::CreateCbvSrvDescriptorHeaps(ID3D12Device* pd3dDevice, int 
 	m_nSrvDescriptors = (UINT)nShaderResourceViews;
 	m_nSrvAllocated = 0;
 
-	m_nSrvAllocated = 0;            // ï¿½ï¿½ï¿½ï¿½(ï¿½ï¿½Æ¼ï¿½ï¿½ï¿½ï¿½) Ä¿ï¿½ï¿½
-	m_nSrvBack = m_nSrvDescriptors; // ï¿½ï¿½ï¿½ï¿½(ï¿½ï¿½Å¸) Ä¿ï¿½ï¿½ (exclusive)
+	m_nSrvAllocated = 0;            // ¾ÕÂÊ(¸ÓÆ¼¸®¾ó) Ä¿¼­
+	m_nSrvBack = m_nSrvDescriptors; // µÚÂÊ(±âÅ¸) Ä¿¼­ (exclusive)
 }
 
 void CDescriptorHeap::CreateConstantBufferViews(ID3D12Device* pd3dDevice, int nConstantBufferViews, ID3D12Resource* pd3dConstantBuffers, UINT nStride)
 {
 	D3D12_GPU_VIRTUAL_ADDRESS d3dGpuVirtualAddress = pd3dConstantBuffers->GetGPUVirtualAddress();
-	D3D12_CONSTANT_BUFFER_VIEW_DESC d3dCBVDesc = {};
+	D3D12_CONSTANT_BUFFER_VIEW_DESC d3dCBVDesc;
 	d3dCBVDesc.SizeInBytes = nStride;
-	for (int i = 0; i < nConstantBufferViews; ++i)
+	for (int j = 0; j < nConstantBufferViews; j++)
 	{
-		d3dCBVDesc.BufferLocation = d3dGpuVirtualAddress + (nStride * i);
+		d3dCBVDesc.BufferLocation = d3dGpuVirtualAddress + (nStride * j);
 		pd3dDevice->CreateConstantBufferView(&d3dCBVDesc, m_d3dCbvCPUDescriptorNextHandle);
 		m_d3dCbvCPUDescriptorNextHandle.ptr += ::gnCbvSrvDescriptorIncrementSize;
 		m_d3dCbvGPUDescriptorNextHandle.ptr += ::gnCbvSrvDescriptorIncrementSize;
@@ -57,7 +57,7 @@ void CDescriptorHeap::CreateConstantBufferViews(ID3D12Device* pd3dDevice, int nC
 
 D3D12_GPU_DESCRIPTOR_HANDLE CDescriptorHeap::CreateConstantBufferView(ID3D12Device* pd3dDevice, ID3D12Resource* pd3dConstantBuffer, UINT nStride)
 {
-	D3D12_CONSTANT_BUFFER_VIEW_DESC d3dCBVDesc = {};
+	D3D12_CONSTANT_BUFFER_VIEW_DESC d3dCBVDesc;
 	d3dCBVDesc.SizeInBytes = nStride;
 	d3dCBVDesc.BufferLocation = pd3dConstantBuffer->GetGPUVirtualAddress();
 	pd3dDevice->CreateConstantBufferView(&d3dCBVDesc, m_d3dCbvCPUDescriptorNextHandle);
@@ -70,7 +70,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE CDescriptorHeap::CreateConstantBufferView(ID3D12Devi
 
 D3D12_GPU_DESCRIPTOR_HANDLE CDescriptorHeap::CreateConstantBufferView(ID3D12Device* pd3dDevice, D3D12_GPU_VIRTUAL_ADDRESS d3dGpuVirtualAddress, UINT nStride)
 {
-	D3D12_CONSTANT_BUFFER_VIEW_DESC d3dCBVDesc = {};
+	D3D12_CONSTANT_BUFFER_VIEW_DESC d3dCBVDesc;
 	d3dCBVDesc.SizeInBytes = nStride;
 	d3dCBVDesc.BufferLocation = d3dGpuVirtualAddress;
 	pd3dDevice->CreateConstantBufferView(&d3dCBVDesc, m_d3dCbvCPUDescriptorNextHandle);
@@ -103,8 +103,8 @@ void CDescriptorHeap::CreateShaderResourceViews(
 		return;
 	}
 
-	// ï¿½Ù½ï¿½: NextHandleï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ï¿½ï¿½Å°ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½.
-	// StartHandle ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Úµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ø¼ï¿½ ï¿½ï¿½ï¿½ï¿½Ñ´ï¿½.
+	// ÇÙ½É: NextHandleÀ» Àý´ë ´©Àû ÀÌµ¿½ÃÅ°Áö ¸» °Í.
+	// StartHandle ±âÁØÀ¸·Î ·ÎÄÃ ÇÚµéÀ» °è»êÇØ¼­ »ç¿ëÇÑ´Ù.
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = m_d3dSrvCPUDescriptorStartHandle;
 	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = m_d3dSrvGPUDescriptorStartHandle;
 
@@ -112,7 +112,7 @@ void CDescriptorHeap::CreateShaderResourceViews(
 	gpuHandle.ptr += (::gnCbvSrvDescriptorIncrementSize * nDescriptorHeapIndex);
 
 	int nTextures = pTexture->GetTextures();
-	for (int i = 0; i < nTextures; ++i)
+	for (int i = 0; i < nTextures; i++)
 	{
 		ComPtr<ID3D12Resource> pShaderResource = pTexture->GetResource(i);
 		if (!pShaderResource)
@@ -120,7 +120,7 @@ void CDescriptorHeap::CreateShaderResourceViews(
 			char buf[256];
 			sprintf_s(buf, "[DescriptorHeap] ERROR: Texture resource is null (i=%d)\n", i);
 			OutputDebugStringA(buf);
-			// ï¿½ï¿½ï¿½ï¿½ ï¿½Úµï¿½ï¿½ï¿½ ï¿½×´ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å°ï¿½ï¿½ ï¿½Ê´ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½(ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
+			// ·ÎÄÃ ÇÚµéÀº ±×´ë·Î Áõ°¡½ÃÅ°Áö ¾Ê´Â ÆíÀÌ ¾ÈÀü(½½·Ô ³¶ºñ ¹æÁö)
 			continue;
 		}
 
@@ -132,16 +132,16 @@ void CDescriptorHeap::CreateShaderResourceViews(
 			cpuHandle
 		);
 
-		// ï¿½Ø½ï¿½Ã³ï¿½ï¿½ GPU ï¿½Úµï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½Îµï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½)
+		// ÅØ½ºÃ³¿¡ GPU ÇÚµé ÀúÀå (¹ÙÀÎµù ½Ã »ç¿ë)
 		pTexture->SetGpuDescriptorHandle(i, gpuHandle);
 
-		// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ ï¿½Úµé¸¸ ï¿½Ìµï¿½)
+		// ´ÙÀ½ ½½·Ô (·ÎÄÃ ÇÚµé¸¸ ÀÌµ¿)
 		cpuHandle.ptr += ::gnCbvSrvDescriptorIncrementSize;
 		gpuHandle.ptr += ::gnCbvSrvDescriptorIncrementSize;
 	}
 
 	int nRootParameters = pTexture->GetRootParameters();
-	for (int i = 0; i < nRootParameters; ++i)
+	for (int i = 0; i < nRootParameters; i++)
 	{
 		pTexture->SetRootParameterIndex(i, nRootParameterStartIndex + i);
 	}
@@ -215,7 +215,7 @@ void CDescriptorHeap::CreateShaderResourceView(
 	ComPtr<ID3D12Resource> res = pTexture->GetResource(nIndex);
 	if (!res) return;
 
-	// ï¿½Ì¹ï¿½ ï¿½Úµï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Åµ(ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
+	// ÀÌ¹Ì ÇÚµé ÀÖÀ¸¸é ½ºÅµ(±âÁ¸ ·ÎÁ÷ À¯Áö)
 	if (pTexture->GetGpuDescriptorHandle(nIndex).ptr) return;
 
 	const UINT idx = AllocateSrvRangeBack(1);
@@ -254,7 +254,7 @@ void CDescriptorHeap::CreateShaderResourceView(
 UINT CDescriptorHeap::AllocateSrvRange(UINT count)
 {
 	if (count == 0) return UINT_MAX;
-	if (m_nSrvAllocated + count > m_nSrvBack) return UINT_MAX; // <-- ï¿½Ù½ï¿½: ï¿½ï¿½ï¿½Ê°ï¿½ ï¿½æµ¹ ï¿½ï¿½ï¿½ï¿½
+	if (m_nSrvAllocated + count > m_nSrvBack) return UINT_MAX; // <-- ÇÙ½É: µÚÂÊ°ú Ãæµ¹ ¹æÁö
 	UINT base = m_nSrvAllocated;
 	m_nSrvAllocated += count;
 	return base;
@@ -285,11 +285,12 @@ void CDescriptorHeap::CreateShaderResourceViews(
 	UINT baseIndex = AllocateSrvRange((UINT)pTexture->GetTextures());
 	if (baseIndex == UINT_MAX) return;
 
-	// ï¿½Ø½ï¿½Ã³ï¿½ï¿½ SRV ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
+	// ÅØ½ºÃ³°¡ SRV ½½·Ô ½ÃÀÛ ÀÎµ¦½º¸¦ ±â¾ï
 	pTexture->SetBaseSrvIndex(baseIndex);
 
-	// ï¿½ï¿½ï¿½ï¿½ SRV ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Å½ï¿½ ï¿½Ô¼ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½(ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ baseIndex ï¿½ï¿½ï¿½)
+	// ½ÇÁ¦ SRV »ý¼ºÀº ±âÁ¸ ·¹°Å½Ã ÇÔ¼ö¿¡ À§ÀÓ(³»ºÎÀûÀ¸·Î Àý´ë À§Ä¡ baseIndex »ç¿ë)
 	CreateShaderResourceViews(pd3dDevice, pTexture, baseIndex, nRootParameterStartIndex);
+
 }
 
 UINT CDescriptorHeap::AllocateSrvRangeBack(UINT count)
@@ -298,7 +299,7 @@ UINT CDescriptorHeap::AllocateSrvRangeBack(UINT count)
     if (count > m_nSrvBack) return UINT_MAX;
 
     UINT newBase = m_nSrvBack - count;
-    if (newBase < m_nSrvAllocated) return UINT_MAX; // <-- ï¿½ï¿½ï¿½ï¿½(ï¿½ï¿½Æ¼ï¿½ï¿½ï¿½ï¿½)ï¿½ï¿½ ï¿½æµ¹ ï¿½ï¿½ï¿½ï¿½
+    if (newBase < m_nSrvAllocated) return UINT_MAX; // <-- ¾ÕÂÊ(¸ÓÆ¼¸®¾ó)°ú Ãæµ¹ ¹æÁö
 
     m_nSrvBack = newBase;
     return newBase;

@@ -1,60 +1,101 @@
 //-----------------------------------------------------------------------------
-// File: CScene_Build.cpp
+// File: Scene_Build.cpp
 //-----------------------------------------------------------------------------
 
 #include "stdafx.h"
 #include "Scene.h"
+#include "Material.h"
+#include "AssetManager.h"
+#include "AnimController.h"
+#include "LightComponent.h"
+#include "PlayerControllerComponent.h"
+#include "ColliderComponent.h"
 
 void CScene::BuildLightsAndMaterials()
 {
-	m_pLights = make_unique<LIGHTS>();
-	::ZeroMemory(m_pLights.get(), sizeof(LIGHTS));
+	// ============================================================
+	// Light Objects (Empty GameObjects + Components)
+	// ============================================================
+	m_lightObjects.clear();
+	m_lightObjects.reserve(4);
+	m_pPlayerSpotFollower = nullptr;
 
-	m_pLights->m_xmf4GlobalAmbient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+	// [0] Point Light (±âÁ¸ lights[0])
+	{
+		auto obj = std::make_unique<CGameObject>(0); // empty
+		obj->SetPosition(1.0f, 0.0f, 0.0f);
 
-	m_pLights->m_pLights[0].m_bEnable = true;
-	m_pLights->m_pLights[0].m_nType = POINT_LIGHT;
-	m_pLights->m_pLights[0].m_fRange = 100.0f;
-	m_pLights->m_pLights[0].m_xmf4Ambient = XMFLOAT4(0.1f, 0.0f, 0.0f, 1.0f);
-	m_pLights->m_pLights[0].m_xmf4Diffuse = XMFLOAT4(0.8f, 0.0f, 0.0f, 1.0f);
-	m_pLights->m_pLights[0].m_xmf4Specular = XMFLOAT4(0.1f, 0.1f, 0.1f, 0.0f);
-	m_pLights->m_pLights[0].m_xmf3Position = XMFLOAT3(1.0f, 0.0f, 0.0f);
-	m_pLights->m_pLights[0].m_xmf3Direction = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	m_pLights->m_pLights[0].m_xmf3Attenuation = XMFLOAT3(1.0f, 0.001f, 0.0001f);
+		auto* lc = obj->AddComponent<CLightComponent>();
+		lc->type = ELightType::Point;
+		lc->range = 100.0f;
+		lc->ambient = XMFLOAT4(0.1f, 0.0f, 0.0f, 1.0f);
+		lc->diffuse = XMFLOAT4(0.8f, 0.0f, 0.0f, 1.0f);
+		lc->specular = XMFLOAT4(0.1f, 0.1f, 0.1f, 0.0f);
+		lc->attenuation = XMFLOAT3(1.0f, 0.001f, 0.0001f);
 
-	m_pLights->m_pLights[1].m_bEnable = true;
-	m_pLights->m_pLights[1].m_nType = SPOT_LIGHT;
-	m_pLights->m_pLights[1].m_fRange = 50.0f;
-	m_pLights->m_pLights[1].m_xmf4Ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
-	m_pLights->m_pLights[1].m_xmf4Diffuse = XMFLOAT4(0.4f, 0.4f, 0.4f, 1.0f);
-	m_pLights->m_pLights[1].m_xmf4Specular = XMFLOAT4(0.1f, 0.1f, 0.1f, 0.0f);
-	m_pLights->m_pLights[1].m_xmf3Position = XMFLOAT3(-50.0f, 20.0f, -5.0f);
-	m_pLights->m_pLights[1].m_xmf3Direction = XMFLOAT3(0.0f, 0.0f, 1.0f);
-	m_pLights->m_pLights[1].m_xmf3Attenuation = XMFLOAT3(1.0f, 0.01f, 0.0001f);
-	m_pLights->m_pLights[1].m_fFalloff = 8.0f;
-	m_pLights->m_pLights[1].m_fPhi = (float)cos(XMConvertToRadians(40.0f));
-	m_pLights->m_pLights[1].m_fTheta = (float)cos(XMConvertToRadians(20.0f));
+		m_lightObjects.push_back(std::move(obj));
+	}
 
-	m_pLights->m_pLights[2].m_bEnable = true;
-	m_pLights->m_pLights[2].m_nType = DIRECTIONAL_LIGHT;
-	m_pLights->m_pLights[2].m_xmf4Ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
-	m_pLights->m_pLights[2].m_xmf4Diffuse = XMFLOAT4(0.3f, 0.3f, 0.3f, 1.0f);
-	m_pLights->m_pLights[2].m_xmf4Specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
-	m_pLights->m_pLights[2].m_xmf3Direction = XMFLOAT3(1.0f, 0.0f, 0.0f);
+	// [1] Spot Light (ÇÃ·¹ÀÌ¾î ÃßÀû, ±âÁ¸ lights[1])
+	{
+		auto obj = std::make_unique<CGameObject>(0); // empty
 
-	m_pLights->m_pLights[3].m_bEnable = true;
-	m_pLights->m_pLights[3].m_nType = SPOT_LIGHT;
-	m_pLights->m_pLights[3].m_fRange = 60.0f;
-	m_pLights->m_pLights[3].m_xmf4Ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
-	m_pLights->m_pLights[3].m_xmf4Diffuse = XMFLOAT4(0.5f, 0.0f, 0.0f, 1.0f);
-	m_pLights->m_pLights[3].m_xmf4Specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
-	m_pLights->m_pLights[3].m_xmf3Position = XMFLOAT3(-150.0f, 30.0f, 30.0f);
-	m_pLights->m_pLights[3].m_xmf3Direction = XMFLOAT3(0.0f, 1.0f, 1.0f);
-	m_pLights->m_pLights[3].m_xmf3Attenuation = XMFLOAT3(1.0f, 0.01f, 0.0001f);
-	m_pLights->m_pLights[3].m_fFalloff = 8.0f;
-	m_pLights->m_pLights[3].m_fPhi = (float)cos(XMConvertToRadians(90.0f));
-	m_pLights->m_pLights[3].m_fTheta = (float)cos(XMConvertToRadians(30.0f));
+		auto* lc = obj->AddComponent<CLightComponent>();
+		lc->type = ELightType::Spot;
+		lc->range = 50.0f;
+		lc->ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+		lc->diffuse = XMFLOAT4(0.4f, 0.4f, 0.4f, 1.0f);
+		lc->specular = XMFLOAT4(0.1f, 0.1f, 0.1f, 0.0f);
+		lc->attenuation = XMFLOAT3(1.0f, 0.01f, 0.0001f);
+		lc->falloff = 8.0f;
+		lc->cosPhi = (float)cos(XMConvertToRadians(40.0f));
+		lc->cosTheta = (float)cos(XMConvertToRadians(20.0f));
 
+		auto* follow = obj->AddComponent<CFollowTransformComponent>();
+		// ¿©±â¼­´Â targetÀ» ¹Ù·Î ¸ø ÀâÀ» ¼öµµ ÀÖÀ¸´Ï Animate¿¡¼­ ¼¼ÆÃÇÑ´Ù.
+		m_pPlayerSpotFollower = follow;
+
+		m_lightObjects.push_back(std::move(obj));
+	}
+
+	// [2] Directional Light (±âÁ¸ lights[2])
+	{
+		auto obj = std::make_unique<CGameObject>(0); // empty
+		// ¹æÇâ¸¸ ÀÇ¹Ì ÀÖÀ½
+		if (auto* tr = obj->GetComponent<CTransformComponent>())
+			tr->SetLookDirection(XMFLOAT3(1.0f, 0.0f, 0.0f));
+
+		auto* lc = obj->AddComponent<CLightComponent>();
+		lc->type = ELightType::Directional;
+		lc->ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+		lc->diffuse = XMFLOAT4(0.3f, 0.3f, 0.3f, 1.0f);
+		lc->specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+
+		m_lightObjects.push_back(std::move(obj));
+	}
+
+	// [3] Spot Light (±âÁ¸ lights[3])
+	{
+		auto obj = std::make_unique<CGameObject>(0); // empty
+		obj->SetPosition(-150.0f, 30.0f, 30.0f);
+		if (auto* tr = obj->GetComponent<CTransformComponent>())
+			tr->SetLookDirection(XMFLOAT3(0.0f, 1.0f, 1.0f));
+
+		auto* lc = obj->AddComponent<CLightComponent>();
+		lc->type = ELightType::Spot;
+		lc->range = 60.0f;
+		lc->ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+		lc->diffuse = XMFLOAT4(0.5f, 0.0f, 0.0f, 1.0f);
+		lc->specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+		lc->attenuation = XMFLOAT3(1.0f, 0.01f, 0.0001f);
+		lc->falloff = 8.0f;
+		lc->cosPhi = (float)cos(XMConvertToRadians(90.0f));
+		lc->cosTheta = (float)cos(XMConvertToRadians(30.0f));
+
+		m_lightObjects.push_back(std::move(obj));
+	}
+
+	
 	m_pMaterials = make_unique<MATERIALS>();
 	::ZeroMemory(m_pMaterials.get(), sizeof(MATERIALS));
 
@@ -119,6 +160,540 @@ void CScene::BuildLightsAndMaterials()
 	}
 
 }
+void CScene::BuildStaticBatch(
+	ID3D12Device* pd3dDevice,
+	ID3D12GraphicsCommandList* pd3dCommandList,
+	const std::shared_ptr<CStaticObjectsShader>& pStaticShader,
+	UINT nRenderTargets,
+	DXGI_FORMAT* rtvFormats,
+	DXGI_FORMAT dsvFormat
+)
+{
+	auto* b = &m_staticBatch;
+	if (!b) return;
+
+	if (b->capacity < 4) b->capacity = 4;
+	const UINT cap = b->capacity;
+	if (cap == 0) return;
+
+
+	// PSO
+	pStaticShader->CreateShader(
+		pd3dDevice,
+		m_pd3dGraphicsRootSignature.Get(),
+		nRenderTargets,
+		rtvFormats,
+		dsvFormat
+	);
+
+	// ===== CB (capacity ±âÁØ) =====
+	b->cbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);
+
+	b->cbGameObjects = ::CreateBufferResource(
+		pd3dDevice, pd3dCommandList, nullptr,
+		b->cbElementBytes * cap,
+		D3D12_HEAP_TYPE_UPLOAD,
+		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+		nullptr
+	);
+
+	b->cbGameObjects->Map(0, nullptr, (void**)&b->mappedGameObjects);
+
+	// ===== CBV (capacity ±âÁØ) =====
+	b->baseCbvGpu = m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
+	b->cbvInc = ::gnCbvSrvDescriptorIncrementSize;
+
+	m_pDescriptorHeap->CreateConstantBufferViews(
+		pd3dDevice,
+		cap,
+		b->cbGameObjects.Get(),
+		b->cbElementBytes
+	);
+
+	// ===== scene-owned objects + batch refs =====
+	m_staticObjects.clear();
+	m_staticObjects.reserve(cap);
+
+	b->objectRefs.clear();
+	b->objectRefs.reserve(cap);
+
+	b->count = 0;
+
+	// ---- ½ÇÁ¦ »ý¼º ----
+	// AssetBuildDesc WorldDesc = {
+	//     AssetType::World,
+	//     "Assets/World/Mesh/StartWorld.bin",
+	//     "Assets/World/Texture"
+	// };
+	// BuiltAsset worldAsset = AssetManager::BuildAsset(pd3dDevice, pd3dCommandList, m_pMaterials.get(), WorldDesc);
+
+	struct StaticAssetDesc
+	{
+		AssetType type;
+		const char* meshBin;
+		const char* texDir;
+	};
+
+	StaticAssetDesc descs[4] =
+	{
+		{ AssetType::Plane, "Assets/GroundPlane/Mesh/Plane.bin", "Assets/GroundPlane/Texture" },
+		{ AssetType::House, "Assets/House/Mesh/Barn1.bin", "Assets/House/Texture" },
+		{ AssetType::House, "Assets/House/Mesh/Barn2.bin", "Assets/House/Texture" },
+		{ AssetType::House, "Assets/House/Mesh/Cabin1.bin", "Assets/House/Texture" },
+	};
+	XMFLOAT3 positions[4] =
+	{
+		XMFLOAT3(0.0f, 0.0f, 0.0f),
+		XMFLOAT3(22.0f, 0.0f, 12.0f),
+		XMFLOAT3(-20.0f, 0.0f, 0.0f),
+		XMFLOAT3(0.0f, 0.0f, -20.0f),
+	};
+
+	for (UINT k = 0; k < 4; ++k)
+	{
+		if (b->objectRefs.size() >= b->capacity) break;
+
+		const UINT i = (UINT)b->objectRefs.size();
+
+		AssetBuildDesc Desc =
+		{
+			descs[k].type,
+			descs[k].meshBin,
+			descs[k].texDir
+		};
+
+		BuiltAsset asset = AssetManager::BuildAsset(
+			pd3dDevice, pd3dCommandList,
+			m_pMaterials.get(),
+			Desc
+		);
+
+		auto obj = std::make_unique<CGameObject>(1);
+
+		// ===== per-object CB ¸ÅÇÎ =====
+		auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+		obj->SetMappedGameObjectCB(cb);
+
+		// ===== ¸Þ½Ã/·»´õ·¯/Æ®·£½ºÆû/ÇÚµé =====
+		obj->SetMesh(0, asset.mesh);
+		obj->AddComponent<CStaticMeshRendererComponent>();
+
+		obj->SetPosition(positions[k]);
+
+		obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+		obj->CreateComponents(pd3dDevice, pd3dCommandList);
+
+		CGameObject* raw = obj.get();
+		m_staticObjects.push_back(std::move(obj));
+		b->objectRefs.push_back(raw);
+		b->count = (UINT)b->objectRefs.size();
+	}
+
+}
+
+void CScene::BuildSkinnedBatch(
+	ID3D12Device* pd3dDevice,
+	ID3D12GraphicsCommandList* pd3dCommandList,
+	const std::shared_ptr<CSkinnedObjectsShader>& pSkinnedShader,
+	UINT nRenderTargets,
+	DXGI_FORMAT* rtvFormats,
+	DXGI_FORMAT dsvFormat
+)
+{
+	auto* b = &m_skinnedBatch;
+	if (!b) return;
+
+	const UINT cap = b->capacity;
+	if (cap == 0) return;
+
+	// PSO
+	pSkinnedShader->CreateShader(
+		pd3dDevice,
+		m_pd3dGraphicsRootSignature.Get(),
+		nRenderTargets,
+		rtvFormats,
+		dsvFormat
+	);
+
+	// ===== CB (capacity ±âÁØ) =====
+	b->cbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);
+
+	b->cbGameObjects = ::CreateBufferResource(
+		pd3dDevice, pd3dCommandList, nullptr,
+		b->cbElementBytes * cap,
+		D3D12_HEAP_TYPE_UPLOAD,
+		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+		nullptr
+	);
+
+	b->cbGameObjects->Map(0, nullptr, (void**)&b->mappedGameObjects);
+
+	// ===== CBV (capacity ±âÁØ) =====
+	b->baseCbvGpu = m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
+	b->cbvInc = ::gnCbvSrvDescriptorIncrementSize;
+
+	m_pDescriptorHeap->CreateConstantBufferViews(
+		pd3dDevice,
+		cap,
+		b->cbGameObjects.Get(),
+		b->cbElementBytes
+	);
+
+	// ===== scene-owned objects + batch refs =====
+	m_skinnedObjects.clear();
+	m_skinnedObjects.reserve(cap);
+
+	b->objectRefs.clear();
+	b->objectRefs.reserve(cap);
+
+	b->count = 0;
+
+	const UINT fighterCount = 3;
+	const UINT zombieCount = 3;
+
+	// "ÇÃ·¹ÀÌ¾î ±âÁØ" À§Ä¡ (BuildSkinnedBatch ½ÃÁ¡¿¡ player°¡ ¾øÀ¸´Ï ±âº» ¿øÁ¡ ±âÁØ)
+	const XMFLOAT3 playerBase(0.0f, 0.0f, 0.0f);
+
+	// ---------- Zombie ----------
+	{
+		AssetBuildDesc ZombieDesc =
+		{
+			AssetType::Zombie,
+			"Assets/Zombie/Mesh/Zombie.bin",
+			"Assets/Zombie/Texture"
+		};
+
+		BuiltAsset asset = AssetManager::BuildAsset(pd3dDevice, pd3dCommandList, m_pMaterials.get(), ZombieDesc);
+
+		for (UINT k = 0; k < zombieCount; ++k)
+		{
+			if (b->objectRefs.size() >= b->capacity) break;
+
+			const UINT i = (UINT)b->objectRefs.size();
+
+			auto obj = std::make_unique<CGameObject>(1);
+
+			auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+			obj->SetMappedGameObjectCB(cb);
+
+			obj->SetMesh(0, asset.mesh);
+			obj->AddComponent<CSkinnedMeshRendererComponent>();
+
+			const float x = playerBase.x + 2.0f * (float)k;
+			const float z = playerBase.z + 2.0f;
+
+			obj->SetPosition(x, playerBase.y, z);
+
+			obj->Rotate(0.0f, 180.0f, 0.0f);
+
+			obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+			if (asset.mesh && asset.mesh->IsSkinnedMesh())
+			{
+				obj->EnableSkinning(pd3dDevice, asset.mesh->GetBoneCount());
+			}
+
+			// ¾Ö´Ï¸ÞÀÌ¼Ç ·Îµå/¼¼ÆÃ (¿ø·¡ ÄÚµå ±×´ë·Î)
+			AnimationClip idleClip;
+			bool idleLoaded = false;
+
+			auto mesh0 = obj->GetMeshShared(0);
+			if (mesh0)
+			{
+				idleLoaded = mesh0->LoadAnimationFromBIN(
+					"Assets/Zombie/Animation/ZombieIdle.bin",
+					"Idle", idleClip, 1.0f
+				);
+			}
+
+			if (idleLoaded)
+			{
+				idleClip.name = "Idle";
+
+				CAnimator* anim = obj->EnsureAnimator();
+				if (anim) anim->AddClip(idleClip);
+
+				auto* ctrl = obj->EnsureAnimController();
+				ctrl->SetIdleClip("Idle");
+				ctrl->SetMoveClip("Idle");
+				ctrl->SetSpeed(0.0f);
+				ctrl->Update(0.0f);
+
+				obj->Animate(0.0f);
+			}
+
+			obj->CreateComponents(pd3dDevice, pd3dCommandList);
+
+			CGameObject* raw = obj.get();
+			m_skinnedObjects.push_back(std::move(obj));
+			b->objectRefs.push_back(raw);
+			b->count = (UINT)b->objectRefs.size();
+		}
+	}
+
+	// ---------- Fighter ----------
+	{
+		AssetBuildDesc FighterDesc =
+		{
+			AssetType::Fighter,
+			"Assets/Fighter/Mesh/Fighter.bin",
+			"Assets/Fighter/Texture"
+		};
+
+		BuiltAsset asset = AssetManager::BuildAsset(pd3dDevice, pd3dCommandList, m_pMaterials.get(), FighterDesc);
+
+		// (±âÁ¸ ÄÚµå ±×´ë·Î) Player CB »ý¼º ÆÄÆ®´Â ±×´ë·Î µÎµÇ,
+		// ¿©±â¼­ »ý¼ºµÇ´Â fighterµéÀº "ÀÏ¹Ý skinned object"ÀÌ¹Ç·Î ±âÁ¸ ·ÎÁ÷ À¯Áö
+		// ---- Player per-object CB + CBV (b2 table ¿ë) ----
+		m_playerCbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);
+
+		m_pd3dcbPlayerGameObject = ::CreateBufferResource(
+			pd3dDevice, pd3dCommandList, nullptr,
+			m_playerCbElementBytes,
+			D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+			nullptr
+		);
+
+		m_pd3dcbPlayerGameObject->Map(0, nullptr, (void**)&m_pcbMappedPlayerGameObject);
+
+		m_playerCbvGpu = m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
+		m_pDescriptorHeap->CreateConstantBufferViews(
+			pd3dDevice,
+			1,
+			m_pd3dcbPlayerGameObject.Get(),
+			m_playerCbElementBytes
+		);
+
+		for (UINT k = 1; k < fighterCount + 1; ++k)
+		{
+			if (b->objectRefs.size() >= b->capacity) break;
+
+			const UINT i = (UINT)b->objectRefs.size();
+
+			auto obj = std::make_unique<CGameObject>(1);
+
+			auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+			obj->SetMappedGameObjectCB(cb);
+
+			obj->SetMesh(0, asset.mesh);
+			obj->AddComponent<CSkinnedMeshRendererComponent>();
+
+			// matId ÃßÃâ
+			UINT matId = 0;
+			if (asset.mesh)
+			{
+				for (auto& sm : asset.mesh->m_SubMeshes)
+				{
+					if (sm.materialId == 0xFFFFFFFFu) continue;
+					matId = sm.materialId;
+					break;
+				}
+			}
+
+			auto mat = std::make_shared<CMaterial>();
+			mat->m_nReflection = matId;
+
+			const float x = playerBase.x + 2.0f * (float)k;
+			obj->SetPosition(x, playerBase.y, playerBase.z);
+
+			obj->Rotate(0.0f, 0.0f, 0.0f);
+
+			obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+			if (asset.mesh && asset.mesh->IsSkinnedMesh())
+			{
+				obj->EnableSkinning(pd3dDevice, asset.mesh->GetBoneCount());
+			}
+
+			// ¾Ö´Ï¸ÞÀÌ¼Ç ·Îµå/¼¼ÆÃ 
+			AnimationClip idleClip;
+			bool idleLoaded = false;
+
+			auto mesh0 = obj->GetMeshShared(0);
+			if (mesh0)
+			{
+				idleLoaded = mesh0->LoadAnimationFromBIN(
+					"Assets/Fighter/Animation/FighterIdle.bin",
+					"Idle", idleClip, 1.0f
+				);
+			}
+
+			if (idleLoaded)
+			{
+				idleClip.name = "Idle";
+
+				CAnimator* anim = obj->EnsureAnimator();
+				if (anim) anim->AddClip(idleClip);
+
+				auto* ctrl = obj->EnsureAnimController();
+				ctrl->SetIdleClip("Idle");
+				ctrl->SetMoveClip("Idle");
+				ctrl->SetSpeed(0.0f);
+				ctrl->Update(0.0f);
+
+				obj->Animate(0.0f);
+			}
+
+			obj->CreateComponents(pd3dDevice, pd3dCommandList);
+
+			CGameObject* raw = obj.get();
+			m_skinnedObjects.push_back(std::move(obj));
+			b->objectRefs.push_back(raw);
+			b->count = (UINT)b->objectRefs.size();
+		}
+	}
+}
+
+
+void CScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target)
+{
+	// 1) ºó ¿ÀºêÁ§Æ® »ý¼º (Scene ¼ÒÀ¯)
+	m_pMainCameraObject = std::make_unique<CGameObject>(0);
+
+	// 2) Ä«¸Þ¶ó ÄÄÆ÷³ÍÆ® ºÎÂø
+	auto* cam = m_pMainCameraObject->AddComponent<CThirdPersonCamera>();
+	m_pMainCamera = cam;
+
+	// 3) ±âÁ¸°ú µ¿ÀÏ ÆÄ¶ó¹ÌÅÍ ¼¼ÆÃ
+	cam->SetMode(THIRD_PERSON_CAMERA);
+	cam->SetTarget(target);
+
+	cam->SetTimeLag(0.25f);
+	cam->SetOffset(XMFLOAT3(0.0f, 1.0f, -2.0f));
+	cam->GenerateProjectionMatrix(1.01f, 5000.0f, ASPECT_RATIO, 60.0f);
+	cam->SetViewport(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, 0.0f, 1.0f);
+	cam->SetScissorRect(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
+
+	// 4) ÄÄÆ÷³ÍÆ® GPU ¸®¼Ò½º »ý¼º (b1 Ä«¸Þ¶ó CB)
+	//    ±âÁ¸ m_pMainCamera->CreateShaderVariables(dev, cmd) È£ÃâÀ» ÀÌ ÇÑ ÁÙ·Î ´ëÃ¼
+	m_pMainCameraObject->CreateComponents(dev, cmd);
+
+	// 5) ÃÊ±â À§Ä¡/ºä ¼¼ÆÃ(±âÁ¸°ú µ¿ÀÏ)
+	if (target)
+	{
+		XMFLOAT3 pos = target->GetPosition();
+		cam->SetPosition(Vector3::Add(pos, cam->GetOffset()));
+		cam->Update(pos, 0.0f);
+		cam->SetLookAt(pos);
+		cam->RegenerateViewMatrix();
+	}
+}
+
+void CScene::BuildPlayer(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
+{
+	// 1) Fighter ¿¡¼Â ºôµå (BuildSkinnedBatchÀÇ Fighter¿Í µ¿ÀÏ)
+	AssetBuildDesc FighterDesc =
+	{
+		AssetType::Fighter,
+		"Assets/Fighter/Mesh/Fighter.bin",
+		"Assets/Fighter/Texture"
+	};
+
+	BuiltAsset asset = AssetManager::BuildAsset(pd3dDevice, pd3dCommandList, m_pMaterials.get(), FighterDesc);
+
+	// 2) CGameObject »ý¼º
+	auto obj = std::make_shared<CGameObject>(1);
+	obj->SetMappedGameObjectCB(m_pcbMappedPlayerGameObject);
+	obj->SetCbvGPUDescriptorHandlePtr(m_playerCbvGpu.ptr);
+
+
+	// 3) ¸Þ½Ã/·»´õ·¯/¸ÓÆ¼¸®¾ó(ÇöÀç ÄÚµå ½ºÅ¸ÀÏ ±×´ë·Î)
+	obj->SetMesh(0, asset.mesh);
+	obj->AddComponent<CStaticMeshRendererComponent>();
+
+	// 4) Æ®·£½ºÆû ÃÊ±â°ª(¿øÇÏ´Â °ªÀ¸·Î °íÁ¤)
+	obj->SetPosition(0.0f, 0.0f, 0.0f);
+	obj->Rotate(0.0f, 0.0f, 0.0f);
+
+	// 5) ½ºÅ°´× ÄÑ±â (skinned mesh¸é)
+	if (asset.mesh && asset.mesh->IsSkinnedMesh())
+	{
+		obj->EnableSkinning(pd3dDevice, asset.mesh->GetBoneCount());
+	}
+
+	// 6) ¾Ö´Ï¸ÞÀÌ¼Ç(Idle) ·Îµå/¼¼ÆÃ (BuildSkinnedBatch Fighter¿Í µ¿ÀÏ)
+	AnimationClip idleClip;
+	bool idleLoaded = false;
+
+	auto mesh0 = obj->GetMeshShared(0);
+	if (mesh0)
+	{
+		idleLoaded = mesh0->LoadAnimationFromBIN(
+			"Assets/Fighter/Animation/FighterIdle.bin",
+			"Idle", idleClip, 1.0f
+		);
+	}
+
+	if (idleLoaded)
+	{
+		idleClip.name = "Idle";
+
+		CAnimator* anim = obj->EnsureAnimator();
+		if (anim) anim->AddClip(idleClip);
+
+		// === Move clip Ãß°¡ ·Îµå ===
+		AnimationClip moveClip;
+		bool moveLoaded = false;
+
+		if (mesh0)
+		{
+			moveLoaded = mesh0->LoadAnimationFromBIN(
+				"Assets/Fighter/Animation/FighterRun.bin",
+				"Run", moveClip, 1.0f
+			);
+		}
+
+		if (moveLoaded)
+		{
+			moveClip.name = "Run";
+			if (anim) anim->AddClip(moveClip);
+		}
+
+		// === Attack clip Ãß°¡ ·Îµå ===
+		AnimationClip attackClip;
+		bool attackLoaded = false;
+
+		if (mesh0)
+		{
+			attackLoaded = mesh0->LoadAnimationFromBIN(
+				"Assets/Fighter/Animation/FighterAttack.bin",
+				"Attack", attackClip, 1.0f
+			);
+		}
+
+		if (attackLoaded)
+		{
+			attackClip.name = "Attack";
+			if (anim) anim->AddClip(attackClip);
+		}
+
+
+		auto* ctrl = obj->EnsureAnimController();
+		ctrl->SetIdleClip("Idle");
+		ctrl->SetMoveClip(moveLoaded ? "Run" : "Idle");
+		ctrl->SetAttackClip("Attack");
+
+		ctrl->SetSpeed(0.0f);
+		ctrl->Update(0.0f);
+
+		obj->Animate(0.0f);
+	}
+
+
+	// 7) ÇÃ·¹ÀÌ¾î ÄÁÆ®·Ñ·¯ ÄÄÆ÷³ÍÆ® ºÎÂø
+	obj->AddComponent<CPlayerControllerComponent>();
+
+	// 8) ÄÄÆ÷³ÍÆ® »ý¼º(±âÁ¸ ÆÐÅÏ)
+	obj->CreateComponents(pd3dDevice, pd3dCommandList);
+
+	// 9) SceneÀÌ ¼ÒÀ¯
+	m_pPlayer = obj;
+}
+
+
+
 
 void CScene::BuildObjects(
 	ID3D12Device* pd3dDevice,
@@ -130,28 +705,25 @@ void CScene::BuildObjects(
 	CreateGraphicsRootSignature(pd3dDevice);
 
 	// ============================================================
-	// 2. Shader ï¿½Î½ï¿½ï¿½Ï½ï¿½ ï¿½ï¿½ï¿½ï¿½ + ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È®ï¿½ï¿½
+	// 2. Shader ÀÎ½ºÅÏ½º »ý¼º + ¿ÀºêÁ§Æ® °³¼ö ¼±È®º¸
 	// ============================================================
-	m_nShaders = 2;
-	m_ppShaders.resize(m_nShaders);
-
 	constexpr int MAX_GLOBAL_SRVS = 1024;
 
 	auto pStaticShader = std::make_shared<CStaticObjectsShader>();
 	auto pSkinnedShader = std::make_shared<CSkinnedObjectsShader>();
 
-	const UINT staticCount = static_cast<UINT>(pStaticShader->GetNumberOfObjects());
-	const UINT skinnedCount = static_cast<UINT>(pSkinnedShader->GetNumberOfObjects());
+	m_staticBatch.shader = pStaticShader;
+	m_skinnedBatch.shader = pSkinnedShader;
 
 	const UINT cbvTotal =
-		staticCount +
-		skinnedCount +
+		m_staticBatch.capacity +
+		m_skinnedBatch.capacity +
 		1 /*Camera*/ +
 		1 /*Player*/ +
 		1 /*etc*/;
 
 	// ============================================================
-	// 3. DescriptorHeapï¿½ï¿½ "ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½" ï¿½ï¿½ï¿½ï¿½ (ï¿½Ïµï¿½ï¿½Úµï¿½ ï¿½ï¿½ï¿½ï¿½)
+	// 3. DescriptorHeapÀº "ÇÑ ¹ø¸¸" »ý¼º
 	// ============================================================
 	m_pDescriptorHeap->CreateCbvSrvDescriptorHeaps(
 		pd3dDevice,
@@ -159,7 +731,7 @@ void CScene::BuildObjects(
 		MAX_GLOBAL_SRVS
 	);
 
-	// ï¿½ï¿½ï¿½ï¿½ RTV ï¿½ï¿½ï¿½ï¿½
+	// °øÅë RTV Æ÷¸Ë
 	DXGI_FORMAT rtvFormats[5] =
 	{
 		DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -170,62 +742,35 @@ void CScene::BuildObjects(
 	};
 
 	// ============================================================
-	// 4. Static Objects Shader
+	// 4/5. Materials + Batches
 	// ============================================================
+	BuildLightsAndMaterials();
+
+	// Light objects components create
+	for (auto& lo : m_lightObjects)
 	{
-		pStaticShader->CreateShader(
-			pd3dDevice,
-			m_pd3dGraphicsRootSignature.Get(),
-			5,
-			rtvFormats,
-			DXGI_FORMAT_D24_UNORM_S8_UINT
-		);
-
-		BuildLightsAndMaterials();
-
-		pStaticShader->BuildObjects(
-			pd3dDevice,
-			pd3dCommandList,
-			m_pMaterials.get()
-		);
-
-		m_ppShaders[0] = pStaticShader;
+		if (lo) lo->CreateComponents(pd3dDevice, pd3dCommandList);
 	}
 
-	// ============================================================
-	// 5. Skinned Objects Shader
-	// ============================================================
-	{
-		pSkinnedShader->CreateShader(
-			pd3dDevice,
-			m_pd3dGraphicsRootSignature.Get(),
-			5,
-			rtvFormats,
-			DXGI_FORMAT_D24_UNORM_S8_UINT
-		);
+	constexpr UINT kRTCount = 5;
+	const DXGI_FORMAT kDsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
-		pSkinnedShader->BuildObjects(
-			pd3dDevice,
-			pd3dCommandList,
-			m_pMaterials.get()
-		);
-
-		m_ppShaders[1] = pSkinnedShader;
-	}
-
+	BuildStaticBatch(pd3dDevice, pd3dCommandList, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
+	BuildSkinnedBatch(pd3dDevice, pd3dCommandList, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
+	
 	// ============================================================
-	// 6. Scene ï¿½ï¿½ï¿½ï¿½ Shader Variables
+	// 6. Scene °øÅë Shader Variables
 	// ============================================================
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
+	BuildPlayer(pd3dDevice, pd3dCommandList);
+	CreateMainCamera(pd3dDevice, pd3dCommandList, m_pPlayer.get());
 }
 
 
 
 void CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevice)
 {
-	HRESULT hResult;
-
-	// (1) Descriptor Ranges: CBV table 1ï¿½ï¿½ + Global SRV table 1ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½.
+	// (1) Descriptor Ranges: CBV table 1°³ + Global SRV table 1°³¸¸ ³²±ä´Ù.
 	D3D12_DESCRIPTOR_RANGE pd3dDescriptorRanges[2] = {};
 
 	// b2: Game Objects (CBV table)
@@ -239,11 +784,11 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevice)
 	constexpr UINT MAX_GLOBAL_SRVS = 1024;
 	pd3dDescriptorRanges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	pd3dDescriptorRanges[1].NumDescriptors = MAX_GLOBAL_SRVS;
-	pd3dDescriptorRanges[1].BaseShaderRegister = 0; // t0ï¿½ï¿½ï¿½ï¿½
+	pd3dDescriptorRanges[1].BaseShaderRegister = 0; // t0ºÎÅÍ
 	pd3dDescriptorRanges[1].RegisterSpace = 0;      // space0
 	pd3dDescriptorRanges[1].OffsetInDescriptorsFromTableStart = 0;
 
-	// (2) Root Parameters: SRV ï¿½Ð¸ï¿½(5/6) ï¿½ï¿½ï¿½ï¿½, Global SRV ï¿½Ï³ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+	// (2) Root Parameters: SRV ºÐ¸®(5/6) Á¦°Å, Global SRV ÇÏ³ª¸¸ À¯Áö
 	D3D12_ROOT_PARAMETER pd3dRootParameters[9] = {};
 
 	// [0] b1: Camera
@@ -276,7 +821,7 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevice)
 	pd3dRootParameters[4].Descriptor.RegisterSpace = 0;
 	pd3dRootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-	// [5] b5: DrawOptions (PostProcessing ï¿½É¼ï¿½ + SRV ï¿½Îµï¿½ï¿½ï¿½ï¿½ï¿½)
+	// [5] b5: DrawOptions (PostProcessing ¿É¼Ç + SRV ÀÎµ¦½ºµé)
 	pd3dRootParameters[5].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	pd3dRootParameters[5].Descriptor.ShaderRegister = 5;
 	pd3dRootParameters[5].Descriptor.RegisterSpace = 0;
@@ -333,37 +878,40 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevice)
 	ComPtr<ID3DBlob> pd3dSignatureBlob;
 	ComPtr<ID3DBlob> pd3dErrorBlob;
 
-	hResult = D3D12SerializeRootSignature(
+	HRESULT hr = D3D12SerializeRootSignature(
 		&d3dRootSignatureDesc,
 		D3D_ROOT_SIGNATURE_VERSION_1,
 		&pd3dSignatureBlob,
 		&pd3dErrorBlob
 	);
 
-	if (FAILED(hResult))
+	if (FAILED(hr))
 	{
 		if (pd3dErrorBlob)
 			OutputDebugStringA((char*)pd3dErrorBlob->GetBufferPointer());
 		return;
 	}
 
-	hResult = pd3dDevice->CreateRootSignature(
+	hr = pd3dDevice->CreateRootSignature(
 		0,
 		pd3dSignatureBlob->GetBufferPointer(),
 		pd3dSignatureBlob->GetBufferSize(),
 		IID_PPV_ARGS(m_pd3dGraphicsRootSignature.ReleaseAndGetAddressOf())
 	);
 
-	if (FAILED(hResult))
+	if (FAILED(hr))
 	{
 		OutputDebugStringA("CreateRootSignature failed.\n");
 		return;
 	}
+
+	if (pd3dSignatureBlob) pd3dSignatureBlob.Reset();
+	if (pd3dErrorBlob) pd3dErrorBlob.Reset();
 }
 
 void CScene::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	UINT ncbElementBytes = ((sizeof(LIGHTS) + 255) & ~255); //256ï¿½ï¿½ ï¿½ï¿½ï¿½
+	UINT ncbElementBytes = ((sizeof(LIGHTS) + 255) & ~255); //256ÀÇ ¹è¼ö
 	m_pd3dcbLights = ::CreateBufferResource(
 		pd3dDevice,
 		pd3dCommandList,
@@ -376,7 +924,7 @@ void CScene::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsComma
 
 	m_pd3dcbLights->Map(0, nullptr, (void**)&m_pcbMappedLights);
 
-	UINT ncbMaterialBytes = ((sizeof(MATERIALS) + 255) & ~255); //256ï¿½ï¿½ ï¿½ï¿½ï¿½
+	UINT ncbMaterialBytes = ((sizeof(MATERIALS) + 255) & ~255); //256ÀÇ ¹è¼ö
 	m_pd3dcbMaterials = ::CreateBufferResource(
 		pd3dDevice,
 		pd3dCommandList,

@@ -79,7 +79,8 @@ D3D12_INPUT_LAYOUT_DESC CShader::CreateInputLayout()
 
 D3D12_RASTERIZER_DESC CShader::CreateRasterizerState()
 {
-	D3D12_RASTERIZER_DESC d3dRasterizerDesc = {};
+	D3D12_RASTERIZER_DESC d3dRasterizerDesc;
+	::ZeroMemory(&d3dRasterizerDesc, sizeof(D3D12_RASTERIZER_DESC));
 	d3dRasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
 	d3dRasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
 	d3dRasterizerDesc.FrontCounterClockwise = FALSE;
@@ -97,7 +98,8 @@ D3D12_RASTERIZER_DESC CShader::CreateRasterizerState()
 
 D3D12_DEPTH_STENCIL_DESC CShader::CreateDepthStencilState()
 {
-	D3D12_DEPTH_STENCIL_DESC d3dDepthStencilDesc = {};
+	D3D12_DEPTH_STENCIL_DESC d3dDepthStencilDesc;
+	::ZeroMemory(&d3dDepthStencilDesc, sizeof(D3D12_DEPTH_STENCIL_DESC));
 	d3dDepthStencilDesc.DepthEnable = TRUE;
 	d3dDepthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 	d3dDepthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
@@ -118,7 +120,8 @@ D3D12_DEPTH_STENCIL_DESC CShader::CreateDepthStencilState()
 
 D3D12_BLEND_DESC CShader::CreateBlendState()
 {
-	D3D12_BLEND_DESC d3dBlendDesc = {};
+	D3D12_BLEND_DESC d3dBlendDesc;
+	::ZeroMemory(&d3dBlendDesc, sizeof(D3D12_BLEND_DESC));
 	d3dBlendDesc.AlphaToCoverageEnable = FALSE;
 	d3dBlendDesc.IndependentBlendEnable = FALSE;
 	d3dBlendDesc.RenderTarget[0].BlendEnable = FALSE;
@@ -143,7 +146,8 @@ void CShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGr
 	ComPtr<ID3DBlob> pd3dVertexShaderBlob;
 	ComPtr<ID3DBlob> pd3dPixelShaderBlob;
 
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC d3dPipelineStateDesc = {};
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC d3dPipelineStateDesc;
+	::ZeroMemory(&d3dPipelineStateDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
 	d3dPipelineStateDesc.pRootSignature = pd3dGraphicsRootSignature;
 	d3dPipelineStateDesc.VS = CreateVertexShader(&pd3dVertexShaderBlob);
 	d3dPipelineStateDesc.PS = CreatePixelShader(&pd3dPixelShaderBlob);
@@ -154,7 +158,7 @@ void CShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGr
 	d3dPipelineStateDesc.SampleMask = UINT_MAX;
 	d3dPipelineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	d3dPipelineStateDesc.NumRenderTargets = nRenderTargets;
-	for (UINT i = 0; i < nRenderTargets; ++i)
+	for (UINT i = 0; i < nRenderTargets; i++)
 		d3dPipelineStateDesc.RTVFormats[i] = (pdxgiRtvFormats) ? pdxgiRtvFormats[i] : DXGI_FORMAT_R8G8B8A8_UNORM;
 	d3dPipelineStateDesc.DSVFormat = dxgiDsvFormat;
 	d3dPipelineStateDesc.SampleDesc.Count = 1;
@@ -167,8 +171,14 @@ void CShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGr
 	if (FAILED(hResult))
 	{
 		OutputDebugStringA("CreateGraphicsPipelineState FAILED\n");
-		// assert(false); ï¿½Ç´ï¿½ throw
+		// assert(false); ¶Ç´Â throw
 	}
+
+	if (pd3dVertexShaderBlob)
+		pd3dVertexShaderBlob.Reset();
+
+	if (pd3dPixelShaderBlob)
+		pd3dPixelShaderBlob.Reset();
 
 	if (d3dPipelineStateDesc.InputLayout.pInputElementDescs)
 		delete[] d3dPipelineStateDesc.InputLayout.pInputElementDescs;
@@ -183,7 +193,7 @@ void CShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsComm
 
 D3D12_INPUT_LAYOUT_DESC CPlayerShader::CreateInputLayout()
 {
-	// CSkinnedObjectsShaderï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ô·ï¿½(Åºï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½)
+	// CSkinnedObjectsShader¿Í µ¿ÀÏÇÑ ÀÔ·Â(ÅºÁ¨Æ® Æ÷ÇÔ)
 	UINT nInputElementDescs = 6;
 	D3D12_INPUT_ELEMENT_DESC* pd3dInputElementDescs =
 		new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
@@ -254,7 +264,7 @@ D3D12_SHADER_BYTECODE CPlayerShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlo
 }
 void CPlayerShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	// Bone palette CB ï¿½ï¿½ï¿½ï¿½(Upload)
+	// Bone palette CB »ý¼º(Upload)
 	UINT cbBytes = (sizeof(CB_BONE_PALETTE) + 255) & ~255;
 
 	m_pd3dcbBonePalette = ::CreateBufferResource(
@@ -268,7 +278,7 @@ void CPlayerShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12Graphi
 
 	m_pd3dcbBonePalette->Map(0, nullptr, reinterpret_cast<void**>(&m_pcbMappedBonePalette));
 
-	// ï¿½Ê±â°ª: identityï¿½ï¿½ Ã¤ï¿½ï¿½
+	// ÃÊ±â°ª: identity·Î Ã¤¿ò
 	XMFLOAT4X4 I;
 	XMStoreFloat4x4(&I, XMMatrixIdentity());
 	for (UINT i = 0; i < MAX_BONES; ++i)
@@ -297,7 +307,7 @@ void CPlayerShader::SetBonePalette(const XMFLOAT4X4* pBoneTransforms, UINT nBone
 	XMFLOAT4X4 I;
 	XMStoreFloat4x4(&I, XMMatrixIdentity());
 
-	// ï¿½Ñ¾ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ MAX_BONESï¿½ï¿½ï¿½ï¿½ Å©ï¿½ï¿½ ï¿½ß¶ï¿½ ï¿½ï¿½ï¿½ï¿½
+	// ³Ñ¾î¿À´Â º» ¼ö°¡ MAX_BONESº¸´Ù Å©¸é Àß¶ó¼­ º¹»ç
 	UINT copyCount = (nBones > MAX_BONES) ? MAX_BONES : nBones;
 
 	if (pBoneTransforms && copyCount > 0)
@@ -412,64 +422,6 @@ D3D12_SHADER_BYTECODE CStaticObjectsShader::CreatePixelShader(ID3DBlob** ppd3dSh
 	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSTexturedLightingToMultipleRTs", "ps_5_1", ppd3dShaderBlob));
 }
 
-void CStaticObjectsShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
-{
-	UINT ncbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255); //256ï¿½ï¿½ ï¿½ï¿½ï¿½
-	m_pd3dcbGameObjects = ::CreateBufferResource(
-		pd3dDevice,
-		pd3dCommandList,
-		nullptr,
-		ncbElementBytes * m_nObjects,
-		D3D12_HEAP_TYPE_UPLOAD,
-		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
-		nullptr
-	);
-
-	m_pd3dcbGameObjects->Map(0, nullptr, (void**)&m_pcbMappedGameObjects);
-}
-
-void CStaticObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
-	ID3D12GraphicsCommandList* pd3dCommandList, void* pContext)
-{
-
-	UINT ncbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);
-
-	CreateShaderVariables(pd3dDevice, pd3dCommandList);
-
-	D3D12_GPU_DESCRIPTOR_HANDLE baseCbvGpu =
-		CScene::m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
-
-	CScene::m_pDescriptorHeap->CreateConstantBufferViews(
-		pd3dDevice, m_nObjects, m_pd3dcbGameObjects.Get(), ncbElementBytes);
-
-	m_ppObjects.resize(m_nObjects);
-
-	UINT cbvInc = ::gnCbvSrvDescriptorIncrementSize; // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã¼
-
-	MATERIALS* pMaterials = reinterpret_cast<MATERIALS*>(pContext);
-
-	// ---------- Object 0 : World ----------
-	{
-		const UINT i = 0;
-
-		AssetBuildDesc WorldDesc = { AssetType::World,
-			"Assets/World/Mesh/StartWorld.bin", "Assets/World/Texture" };
-		//	"Assets/Castle/Mesh/BigCastle.bin", "Assets/Castle/Texture" };
-
-		BuiltAsset asset = AssetManager::BuildAsset(pd3dDevice, pd3dCommandList, pMaterials, WorldDesc);
-
-		auto obj = std::make_unique<CGameObject>(1);
-
-		auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)m_pcbMappedGameObjects + i * ncbElementBytes);
-
-		obj->SetMappedGameObjectCB(cb);
-		obj->SetMesh(0, asset.mesh);
-		obj->SetPosition(0.0f, 0.0f, 30.0f);
-		obj->SetCbvGPUDescriptorHandlePtr(baseCbvGpu.ptr + (UINT64)i * cbvInc);
-
-		m_ppObjects[i] = std::move(obj);
-	}
-}
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 void CSkinnedObjectsShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGraphicsRootSignature, UINT nRenderTargets, DXGI_FORMAT* pdxgiRtvFormats, DXGI_FORMAT dxgiDsvFormat)
@@ -532,237 +484,6 @@ D3D12_INPUT_LAYOUT_DESC CSkinnedObjectsShader::CreateInputLayout()
 	d3dInputLayoutDesc.NumElements = nInputElementDescs;
 	return d3dInputLayoutDesc;
 }
-
-
-void CSkinnedObjectsShader::CreateShaderVariables(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList)
-{
-	// ï¿½ï¿½ï¿½ï¿½ Staticï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï°ï¿½ GameObjects CB ï¿½ï¿½ ï¿½Ê¿ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
-	UINT ncbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255); //256ï¿½ï¿½ ï¿½ï¿½ï¿½
-	m_pd3dcbGameObjects = ::CreateBufferResource(
-		device,
-		cmdList,
-		nullptr,
-		ncbElementBytes * m_nObjects,
-		D3D12_HEAP_TYPE_UPLOAD,
-		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
-		nullptr
-	);
-
-	m_pd3dcbGameObjects->Map(0, nullptr, (void**)&m_pcbMappedGameObjects);
-
-	// Bone palette CB ï¿½ï¿½ï¿½ï¿½
-	UINT cbBytes = (sizeof(CB_BONE_PALETTE) + 255) & ~255;
-
-	m_pd3dcbBonePalette = ::CreateBufferResource(
-		device,
-		cmdList,
-		nullptr,
-		cbBytes,
-		D3D12_HEAP_TYPE_UPLOAD,
-		D3D12_RESOURCE_STATE_GENERIC_READ
-	);
-
-	m_pd3dcbBonePalette->Map(0, nullptr, reinterpret_cast<void**>(&m_pcbMappedBonePalette));
-
-	// ï¿½Ó½ï¿½(ï¿½Ü°ï¿½4): ï¿½Ï´ï¿½ identityï¿½ï¿½ Ã¤ï¿½ï¿½
-	XMFLOAT4X4 I;
-	XMStoreFloat4x4(&I, XMMatrixIdentity());
-	for (UINT i = 0; i < MAX_BONES; ++i)
-		m_pcbMappedBonePalette->gBoneTransforms[i] = I;
-}
-
-void CSkinnedObjectsShader::BuildObjects(ID3D12Device* pd3dDevice,
-	ID3D12GraphicsCommandList* pd3dCommandList,void* pContext
-)
-{
-	UINT ncbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);
-
-	CreateShaderVariables(pd3dDevice, pd3dCommandList);
-
-	D3D12_GPU_DESCRIPTOR_HANDLE baseCbvGpu =
-		CScene::m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
-
-	CScene::m_pDescriptorHeap->CreateConstantBufferViews(
-		pd3dDevice,m_nObjects,m_pd3dcbGameObjects.Get(),ncbElementBytes);
-
-
-	MATERIALS* pMaterials = reinterpret_cast<MATERIALS*>(pContext);
-
-	m_ppObjects.resize(m_nObjects);
-	UINT cbvInc = ::gnCbvSrvDescriptorIncrementSize; // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã¼
-
-	constexpr float X_MIN = -43.0f;
-	constexpr float X_MAX = 43.0f;
-	constexpr float Y_MIN = 0.0f;
-	constexpr float Y_MAX = 359.0f;
-	constexpr float Z_MIN = -7.0f;
-	constexpr float Z_MAX = 78.0f;
-
-	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
-	static std::mt19937 rng(std::random_device{}());
-	std::uniform_real_distribution<float> distX(X_MIN, X_MAX);
-	std::uniform_real_distribution<float> rotY(Y_MIN, Y_MAX);
-	std::uniform_real_distribution<float> distZ(Z_MIN, Z_MAX);
-
-	// ---------- Object 0 : Zombie ----------
-	{
-
-		AssetBuildDesc ZombieDesc =
-		{
-			AssetType::Zombie,
-			"Assets/Zombie/Mesh/Zombie.bin",
-			"Assets/Zombie/Texture"
-		};
-
-		BuiltAsset asset = AssetManager::BuildAsset(
-			pd3dDevice, pd3dCommandList,
-			pMaterials, ZombieDesc
-		);
-
-		for (int i = 0; i < m_nObjects / 2; i++) {
-			//const UINT i = 0;
-			auto obj = std::make_unique<CGameObject>(1);
-
-			CB_GAMEOBJECT_INFO* cb =
-				reinterpret_cast<CB_GAMEOBJECT_INFO*>(
-					reinterpret_cast<UINT8*>(m_pcbMappedGameObjects)
-					+ i * ncbElementBytes
-					);
-
-			obj->SetMappedGameObjectCB(cb);
-			obj->SetMesh(0, asset.mesh);
-			//obj->SetPosition(2.0f * i, 0.0f, 0.0f);
-
-			float x = distX(rng);
-			float y = rotY(rng);
-			float z = distZ(rng);
-			obj->SetPosition(x, 0.0f, z);
-			obj->Rotate(0.0f, 0.0f, 0.0f);
-
-			obj->SetCbvGPUDescriptorHandlePtr(
-				baseCbvGpu.ptr + (UINT64)i * cbvInc
-			);
-
-			if (asset.mesh && asset.mesh->IsSkinnedMesh())
-			{
-				const int nBones = asset.mesh->GetBoneCount();
-				obj->EnableSkinning(pd3dDevice, nBones);
-			}
-
-			AnimationClip idleClip;
-			bool idleLoaded = false;
-
-			if (!obj->m_ppMeshes.empty() && obj->m_ppMeshes[0])
-			{
-				idleLoaded = obj->m_ppMeshes[0]->LoadAnimationFromBIN(
-					"Assets/Zombie/Animation/ZombieAttack.bin", //ï¿½Ö´Ï¸ï¿½ï¿½Ì¼ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ø¼ï¿½ ï¿½Ï´ï¿½ ï¿½Ì°ï¿½ Idleï¿½ï¿½ ï¿½ï¿½ï¿½
-					"Idle", idleClip, 1.0f
-				);
-			}
-
-			if (idleLoaded)
-			{
-				idleClip.name = "Idle";
-
-				CAnimator* anim = obj->EnsureAnimator();
-				if (anim)
-					anim->AddClip(idleClip);
-
-				//ï¿½ï¿½Æ®ï¿½Ñ·ï¿½ ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Idleï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
-				auto* ctrl = obj->EnsureAnimController();
-				ctrl->SetIdleClip("Idle");
-				ctrl->SetMoveClip("Idle");   // <- ï¿½Ù½ï¿½: Moveï¿½ï¿½ Idleï¿½ï¿½ ï¿½ï¿½ï¿½î¼­ ï¿½ï¿½È¯ ï¿½ï¿½ï¿½ï¿½
-				ctrl->SetSpeed(0.0f);
-				ctrl->Update(0.0f);          // <- ï¿½ï¿½ï¿½â¼­ Idle 1È¸ Play
-			
-				obj->Animate(0.0f);
-			}
-
-			m_ppObjects[i] = std::move(obj);
-		}
-	}
-	
-	// ---------- Object 1 : Fighter ----------
-	{
-
-		AssetBuildDesc FighterDesc =
-		{
-			AssetType::Fighter,
-			"Assets/Fighter/Mesh/Fighter.bin",
-			"Assets/Fighter/Texture"
-		};
-
-		BuiltAsset asset = AssetManager::BuildAsset(
-			pd3dDevice, pd3dCommandList,
-			pMaterials, FighterDesc
-		);
-
-		//for (int i = 0 / 2; i < m_nObjects; i++) {
-		for (int i = m_nObjects / 2; i < m_nObjects; i++) {
-			auto obj = std::make_unique<CGameObject>(1);
-
-			CB_GAMEOBJECT_INFO* cb =
-				reinterpret_cast<CB_GAMEOBJECT_INFO*>(
-					reinterpret_cast<UINT8*>(m_pcbMappedGameObjects)
-					+ i * ncbElementBytes
-					);
-
-			obj->SetMappedGameObjectCB(cb);
-			obj->SetMesh(0, asset.mesh);
-			//obj->SetPosition(2.0f * i, 0.0f, 0.0f);
-
-			float x = distX(rng);
-			float y = rotY(rng);
-			float z = distZ(rng);
-			obj->SetPosition(x, 0.0f, z);
-			obj->Rotate(0.0f, 0.0f, 0.0f);
-
-			obj->SetCbvGPUDescriptorHandlePtr(
-				baseCbvGpu.ptr + (UINT64)i * cbvInc
-			);
-
-			if (asset.mesh && asset.mesh->IsSkinnedMesh())
-			{
-				const int nBones = asset.mesh->GetBoneCount();
-				obj->EnableSkinning(pd3dDevice, nBones);
-			}
-
-			AnimationClip idleClip;
-			bool idleLoaded = false;
-
-			if (!obj->m_ppMeshes.empty() && obj->m_ppMeshes[0])
-			{
-				idleLoaded = obj->m_ppMeshes[0]->LoadAnimationFromBIN(
-					"Assets/Fighter/Animation/FighterIdle.bin",
-					"Idle", idleClip, 1.0f
-				);
-			}
-
-			if (idleLoaded)
-			{
-				idleClip.name = "Idle";
-
-				CAnimator* anim = obj->EnsureAnimator();
-				if (anim)
-					anim->AddClip(idleClip);
-
-				// ï¿½ï¿½Æ®ï¿½Ñ·ï¿½ ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Idleï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
-				auto* ctrl = obj->EnsureAnimController();
-				ctrl->SetIdleClip("Idle");
-				ctrl->SetMoveClip("Idle");  // <- ï¿½Ù½ï¿½: Run/Walk ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¯ï¿½ï¿½ ï¿½Æ¿ï¿½ ï¿½ï¿½ï¿½ï¿½
-				ctrl->SetSpeed(0.0f);
-				ctrl->Update(0.0f);
-
-				obj->Animate(0.0f);
-			}
-
-
-			m_ppObjects[i] = std::move(obj);
-		}
-	}
-}
-
-
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -964,7 +685,7 @@ D3D12_SHADER_BYTECODE CTextureToFullScreenShader::CreatePixelShader(ID3DBlob** p
 
 void CTextureToFullScreenShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	UINT ncbElementBytes = ((sizeof(PS_CB_DRAW_OPTIONS) + 255) & ~255); //256ï¿½ï¿½ ï¿½ï¿½ï¿½
+	UINT ncbElementBytes = ((sizeof(PS_CB_DRAW_OPTIONS) + 255) & ~255); //256ÀÇ ¹è¼ö
 	m_pd3dcbDrawOptions = ::CreateBufferResource(
 		pd3dDevice,
 		pd3dCommandList,
