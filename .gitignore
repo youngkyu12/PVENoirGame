@@ -105,6 +105,7 @@ bld/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
+!Common/Protobuf/bin/
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/
@@ -162,7 +163,6 @@ StyleCopReport.xml
 *.log
 !Changes.log
 !회의록.log
-!./Common/Protobuf/bin/protoChanges.log
 *.tlog
 *.vspscc
 *.vssscc
