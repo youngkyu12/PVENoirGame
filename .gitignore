@@ -162,6 +162,7 @@ StyleCopReport.xml
 *.log
 !Changes.log
 !회의록.log
+!./Common/Protobuf/bin/protoChanges.log
 *.tlog
 *.vspscc
 *.vssscc
