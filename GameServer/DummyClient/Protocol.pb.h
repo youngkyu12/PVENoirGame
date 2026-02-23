@@ -607,9 +607,19 @@ class S_ENTER_GAME final :
   // accessors -------------------------------------------------------
 
   enum : int {
-    kSuccessFieldNumber = 1,
+    kPlayerIdFieldNumber = 1,
+    kSuccessFieldNumber = 2,
   };
-  // bool success = 1;
+  // uint32 playerId = 1;
+  void clear_playerid();
+  ::PROTOBUF_NAMESPACE_ID::uint32 playerid() const;
+  void set_playerid(::PROTOBUF_NAMESPACE_ID::uint32 value);
+  private:
+  ::PROTOBUF_NAMESPACE_ID::uint32 _internal_playerid() const;
+  void _internal_set_playerid(::PROTOBUF_NAMESPACE_ID::uint32 value);
+  public:
+
+  // bool success = 2;
   void clear_success();
   bool success() const;
   void set_success(bool value);
@@ -625,6 +635,7 @@ class S_ENTER_GAME final :
   template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
+  ::PROTOBUF_NAMESPACE_ID::uint32 playerid_;
   bool success_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_Protocol_2eproto;
@@ -739,10 +750,20 @@ class C_GAME_START final :
   // accessors -------------------------------------------------------
 
   enum : int {
-    kPlayerWeaponFieldNumber = 1,
-    kReadyFieldNumber = 2,
+    kPlayerIdFieldNumber = 1,
+    kPlayerWeaponFieldNumber = 2,
+    kReadyFieldNumber = 3,
   };
-  // uint32 playerWeapon = 1;
+  // uint32 playerId = 1;
+  void clear_playerid();
+  ::PROTOBUF_NAMESPACE_ID::uint32 playerid() const;
+  void set_playerid(::PROTOBUF_NAMESPACE_ID::uint32 value);
+  private:
+  ::PROTOBUF_NAMESPACE_ID::uint32 _internal_playerid() const;
+  void _internal_set_playerid(::PROTOBUF_NAMESPACE_ID::uint32 value);
+  public:
+
+  // uint32 playerWeapon = 2;
   void clear_playerweapon();
   ::PROTOBUF_NAMESPACE_ID::uint32 playerweapon() const;
   void set_playerweapon(::PROTOBUF_NAMESPACE_ID::uint32 value);
@@ -751,7 +772,7 @@ class C_GAME_START final :
   void _internal_set_playerweapon(::PROTOBUF_NAMESPACE_ID::uint32 value);
   public:
 
-  // bool ready = 2;
+  // bool ready = 3;
   void clear_ready();
   bool ready() const;
   void set_ready(bool value);
@@ -767,6 +788,7 @@ class C_GAME_START final :
   template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
+  ::PROTOBUF_NAMESPACE_ID::uint32 playerid_;
   ::PROTOBUF_NAMESPACE_ID::uint32 playerweapon_;
   bool ready_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
@@ -1369,7 +1391,27 @@ inline void C_ENTER_GAME::set_playerindex(::PROTOBUF_NAMESPACE_ID::uint64 value)
 
 // S_ENTER_GAME
 
-// bool success = 1;
+// uint32 playerId = 1;
+inline void S_ENTER_GAME::clear_playerid() {
+  playerid_ = 0u;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint32 S_ENTER_GAME::_internal_playerid() const {
+  return playerid_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint32 S_ENTER_GAME::playerid() const {
+  // @@protoc_insertion_point(field_get:Protocol.S_ENTER_GAME.playerId)
+  return _internal_playerid();
+}
+inline void S_ENTER_GAME::_internal_set_playerid(::PROTOBUF_NAMESPACE_ID::uint32 value) {
+  
+  playerid_ = value;
+}
+inline void S_ENTER_GAME::set_playerid(::PROTOBUF_NAMESPACE_ID::uint32 value) {
+  _internal_set_playerid(value);
+  // @@protoc_insertion_point(field_set:Protocol.S_ENTER_GAME.playerId)
+}
+
+// bool success = 2;
 inline void S_ENTER_GAME::clear_success() {
   success_ = false;
 }
@@ -1393,7 +1435,27 @@ inline void S_ENTER_GAME::set_success(bool value) {
 
 // C_GAME_START
 
-// uint32 playerWeapon = 1;
+// uint32 playerId = 1;
+inline void C_GAME_START::clear_playerid() {
+  playerid_ = 0u;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint32 C_GAME_START::_internal_playerid() const {
+  return playerid_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint32 C_GAME_START::playerid() const {
+  // @@protoc_insertion_point(field_get:Protocol.C_GAME_START.playerId)
+  return _internal_playerid();
+}
+inline void C_GAME_START::_internal_set_playerid(::PROTOBUF_NAMESPACE_ID::uint32 value) {
+  
+  playerid_ = value;
+}
+inline void C_GAME_START::set_playerid(::PROTOBUF_NAMESPACE_ID::uint32 value) {
+  _internal_set_playerid(value);
+  // @@protoc_insertion_point(field_set:Protocol.C_GAME_START.playerId)
+}
+
+// uint32 playerWeapon = 2;
 inline void C_GAME_START::clear_playerweapon() {
   playerweapon_ = 0u;
 }
@@ -1413,7 +1475,7 @@ inline void C_GAME_START::set_playerweapon(::PROTOBUF_NAMESPACE_ID::uint32 value
   // @@protoc_insertion_point(field_set:Protocol.C_GAME_START.playerWeapon)
 }
 
-// bool ready = 2;
+// bool ready = 3;
 inline void C_GAME_START::clear_ready() {
   ready_ = false;
 }
