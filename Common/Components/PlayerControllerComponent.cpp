@@ -1,6 +1,7 @@
 //-----------------------------------------------------------------------------
 // File: PlayerControllerComponent.cpp
 //-----------------------------------------------------------------------------
+#include "..\..\PracticeProject08-9-1\stdafx.h"
 #include "stdafx.h"
 #include "PlayerControllerComponent.h"
 

@@ -55,7 +55,8 @@ struct C_ENTER_GAMEDefaultTypeInternal {
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT C_ENTER_GAMEDefaultTypeInternal _C_ENTER_GAME_default_instance_;
 constexpr S_ENTER_GAME::S_ENTER_GAME(
   ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
-  : success_(false){}
+  : playerid_(0u)
+  , success_(false){}
 struct S_ENTER_GAMEDefaultTypeInternal {
   constexpr S_ENTER_GAMEDefaultTypeInternal()
     : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
@@ -67,7 +68,8 @@ struct S_ENTER_GAMEDefaultTypeInternal {
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT S_ENTER_GAMEDefaultTypeInternal _S_ENTER_GAME_default_instance_;
 constexpr C_GAME_START::C_GAME_START(
   ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
-  : playerweapon_(0u)
+  : playerid_(0u)
+  , playerweapon_(0u)
   , ready_(false){}
 struct C_GAME_STARTDefaultTypeInternal {
   constexpr C_GAME_STARTDefaultTypeInternal()
@@ -149,12 +151,14 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_Protocol_2eproto::offsets[] PR
   ~0u,  // no _extensions_
   ~0u,  // no _oneof_case_
   ~0u,  // no _weak_field_map_
+  PROTOBUF_FIELD_OFFSET(::Protocol::S_ENTER_GAME, playerid_),
   PROTOBUF_FIELD_OFFSET(::Protocol::S_ENTER_GAME, success_),
   ~0u,  // no _has_bits_
   PROTOBUF_FIELD_OFFSET(::Protocol::C_GAME_START, _internal_metadata_),
   ~0u,  // no _extensions_
   ~0u,  // no _oneof_case_
   ~0u,  // no _weak_field_map_
+  PROTOBUF_FIELD_OFFSET(::Protocol::C_GAME_START, playerid_),
   PROTOBUF_FIELD_OFFSET(::Protocol::C_GAME_START, playerweapon_),
   PROTOBUF_FIELD_OFFSET(::Protocol::C_GAME_START, ready_),
   ~0u,  // no _has_bits_
@@ -187,10 +191,10 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOB
   { 5, -1, sizeof(::Protocol::S_LOGIN)},
   { 12, -1, sizeof(::Protocol::C_ENTER_GAME)},
   { 18, -1, sizeof(::Protocol::S_ENTER_GAME)},
-  { 24, -1, sizeof(::Protocol::C_GAME_START)},
-  { 31, -1, sizeof(::Protocol::S_GAME_START)},
-  { 38, -1, sizeof(::Protocol::C_INPUT)},
-  { 47, -1, sizeof(::Protocol::S_FRAME_STATE)},
+  { 25, -1, sizeof(::Protocol::C_GAME_START)},
+  { 33, -1, sizeof(::Protocol::S_GAME_START)},
+  { 40, -1, sizeof(::Protocol::C_INPUT)},
+  { 49, -1, sizeof(::Protocol::S_FRAME_STATE)},
 };
 
 static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] = {
@@ -209,16 +213,17 @@ const char descriptor_table_protodef_Protocol_2eproto[] PROTOBUF_SECTION_VARIABL
   "Struct.proto\032\020InitStruct.proto\"\t\n\007C_LOGI"
   "N\"=\n\007S_LOGIN\022\017\n\007success\030\001 \001(\010\022!\n\007players"
   "\030\002 \003(\0132\020.Protocol.Player\"#\n\014C_ENTER_GAME"
-  "\022\023\n\013playerIndex\030\001 \001(\004\"\037\n\014S_ENTER_GAME\022\017\n"
-  "\007success\030\001 \001(\010\"3\n\014C_GAME_START\022\024\n\014player"
-  "Weapon\030\001 \001(\r\022\r\n\005ready\030\002 \001(\010\"J\n\014S_GAME_ST"
-  "ART\022\020\n\010playerId\030\001 \001(\r\022(\n\ninitStruct\030\002 \001("
-  "\0132\024.Protocol.InitStruct\"M\n\007C_INPUT\022\020\n\010pl"
-  "ayerid\030\001 \001(\004\022\020\n\010keyCodes\030\002 \001(\005\022\016\n\006deltaX"
-  "\030\003 \001(\002\022\016\n\006deltaY\030\004 \001(\002\"{\n\rS_FRAME_STATE\022"
-  "!\n\007players\030\001 \003(\0132\020.Protocol.Player\022 \n\007en"
-  "emies\030\002 \003(\0132\017.Protocol.Enemy\022%\n\tbuilding"
-  "s\030\003 \003(\0132\022.Protocol.Buildingb\006proto3"
+  "\022\023\n\013playerIndex\030\001 \001(\004\"1\n\014S_ENTER_GAME\022\020\n"
+  "\010playerId\030\001 \001(\r\022\017\n\007success\030\002 \001(\010\"E\n\014C_GA"
+  "ME_START\022\020\n\010playerId\030\001 \001(\r\022\024\n\014playerWeap"
+  "on\030\002 \001(\r\022\r\n\005ready\030\003 \001(\010\"J\n\014S_GAME_START\022"
+  "\020\n\010playerId\030\001 \001(\r\022(\n\ninitStruct\030\002 \001(\0132\024."
+  "Protocol.InitStruct\"M\n\007C_INPUT\022\020\n\010player"
+  "id\030\001 \001(\004\022\020\n\010keyCodes\030\002 \001(\005\022\016\n\006deltaX\030\003 \001"
+  "(\002\022\016\n\006deltaY\030\004 \001(\002\"{\n\rS_FRAME_STATE\022!\n\007p"
+  "layers\030\001 \003(\0132\020.Protocol.Player\022 \n\007enemie"
+  "s\030\002 \003(\0132\017.Protocol.Enemy\022%\n\tbuildings\030\003 "
+  "\003(\0132\022.Protocol.Buildingb\006proto3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_Protocol_2eproto_deps[3] = {
   &::descriptor_table_Enum_2eproto,
@@ -227,7 +232,7 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor
 };
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_Protocol_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_Protocol_2eproto = {
-  false, false, 555, descriptor_table_protodef_Protocol_2eproto, "Protocol.proto", 
+  false, false, 591, descriptor_table_protodef_Protocol_2eproto, "Protocol.proto", 
   &descriptor_table_Protocol_2eproto_once, descriptor_table_Protocol_2eproto_deps, 3, 8,
   schemas, file_default_instances, TableStruct_Protocol_2eproto::offsets,
   file_level_metadata_Protocol_2eproto, file_level_enum_descriptors_Protocol_2eproto, file_level_service_descriptors_Protocol_2eproto,
@@ -826,12 +831,17 @@ S_ENTER_GAME::S_ENTER_GAME(::PROTOBUF_NAMESPACE_ID::Arena* arena)
 S_ENTER_GAME::S_ENTER_GAME(const S_ENTER_GAME& from)
   : ::PROTOBUF_NAMESPACE_ID::Message() {
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
-  success_ = from.success_;
+  ::memcpy(&playerid_, &from.playerid_,
+    static_cast<size_t>(reinterpret_cast<char*>(&success_) -
+    reinterpret_cast<char*>(&playerid_)) + sizeof(success_));
   // @@protoc_insertion_point(copy_constructor:Protocol.S_ENTER_GAME)
 }
 
 void S_ENTER_GAME::SharedCtor() {
-success_ = false;
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&playerid_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&success_) -
+    reinterpret_cast<char*>(&playerid_)) + sizeof(success_));
 }
 
 S_ENTER_GAME::~S_ENTER_GAME() {
@@ -860,7 +870,9 @@ void S_ENTER_GAME::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  success_ = false;
+  ::memset(&playerid_, 0, static_cast<size_t>(
+      reinterpret_cast<char*>(&success_) -
+      reinterpret_cast<char*>(&playerid_)) + sizeof(success_));
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
@@ -870,9 +882,16 @@ const char* S_ENTER_GAME::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_I
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
     switch (tag >> 3) {
-      // bool success = 1;
+      // uint32 playerId = 1;
       case 1:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 8)) {
+          playerid_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      // bool success = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 16)) {
           success_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
           CHK_(ptr);
         } else goto handle_unusual;
@@ -906,10 +925,16 @@ failure:
   ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
   (void) cached_has_bits;
 
-  // bool success = 1;
+  // uint32 playerId = 1;
+  if (this->playerid() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteUInt32ToArray(1, this->_internal_playerid(), target);
+  }
+
+  // bool success = 2;
   if (this->success() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteBoolToArray(1, this->_internal_success(), target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteBoolToArray(2, this->_internal_success(), target);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
@@ -928,7 +953,14 @@ size_t S_ENTER_GAME::ByteSizeLong() const {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  // bool success = 1;
+  // uint32 playerId = 1;
+  if (this->playerid() != 0) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::UInt32Size(
+        this->_internal_playerid());
+  }
+
+  // bool success = 2;
   if (this->success() != 0) {
     total_size += 1 + 1;
   }
@@ -964,6 +996,9 @@ void S_ENTER_GAME::MergeFrom(const S_ENTER_GAME& from) {
   ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
   (void) cached_has_bits;
 
+  if (from.playerid() != 0) {
+    _internal_set_playerid(from._internal_playerid());
+  }
   if (from.success() != 0) {
     _internal_set_success(from._internal_success());
   }
@@ -990,7 +1025,12 @@ bool S_ENTER_GAME::IsInitialized() const {
 void S_ENTER_GAME::InternalSwap(S_ENTER_GAME* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
-  swap(success_, other->success_);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(S_ENTER_GAME, success_)
+      + sizeof(S_ENTER_GAME::success_)
+      - PROTOBUF_FIELD_OFFSET(S_ENTER_GAME, playerid_)>(
+          reinterpret_cast<char*>(&playerid_),
+          reinterpret_cast<char*>(&other->playerid_));
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata S_ENTER_GAME::GetMetadata() const {
@@ -1014,17 +1054,17 @@ C_GAME_START::C_GAME_START(::PROTOBUF_NAMESPACE_ID::Arena* arena)
 C_GAME_START::C_GAME_START(const C_GAME_START& from)
   : ::PROTOBUF_NAMESPACE_ID::Message() {
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
-  ::memcpy(&playerweapon_, &from.playerweapon_,
+  ::memcpy(&playerid_, &from.playerid_,
     static_cast<size_t>(reinterpret_cast<char*>(&ready_) -
-    reinterpret_cast<char*>(&playerweapon_)) + sizeof(ready_));
+    reinterpret_cast<char*>(&playerid_)) + sizeof(ready_));
   // @@protoc_insertion_point(copy_constructor:Protocol.C_GAME_START)
 }
 
 void C_GAME_START::SharedCtor() {
 ::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
-    reinterpret_cast<char*>(&playerweapon_) - reinterpret_cast<char*>(this)),
+    reinterpret_cast<char*>(&playerid_) - reinterpret_cast<char*>(this)),
     0, static_cast<size_t>(reinterpret_cast<char*>(&ready_) -
-    reinterpret_cast<char*>(&playerweapon_)) + sizeof(ready_));
+    reinterpret_cast<char*>(&playerid_)) + sizeof(ready_));
 }
 
 C_GAME_START::~C_GAME_START() {
@@ -1053,9 +1093,9 @@ void C_GAME_START::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  ::memset(&playerweapon_, 0, static_cast<size_t>(
+  ::memset(&playerid_, 0, static_cast<size_t>(
       reinterpret_cast<char*>(&ready_) -
-      reinterpret_cast<char*>(&playerweapon_)) + sizeof(ready_));
+      reinterpret_cast<char*>(&playerid_)) + sizeof(ready_));
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
@@ -1065,16 +1105,23 @@ const char* C_GAME_START::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_I
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
     switch (tag >> 3) {
-      // uint32 playerWeapon = 1;
+      // uint32 playerId = 1;
       case 1:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 8)) {
+          playerid_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      // uint32 playerWeapon = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 16)) {
           playerweapon_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
           CHK_(ptr);
         } else goto handle_unusual;
         continue;
-      // bool ready = 2;
-      case 2:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 16)) {
+      // bool ready = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 24)) {
           ready_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
           CHK_(ptr);
         } else goto handle_unusual;
@@ -1108,16 +1155,22 @@ failure:
   ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
   (void) cached_has_bits;
 
-  // uint32 playerWeapon = 1;
-  if (this->playerweapon() != 0) {
+  // uint32 playerId = 1;
+  if (this->playerid() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteUInt32ToArray(1, this->_internal_playerweapon(), target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteUInt32ToArray(1, this->_internal_playerid(), target);
   }
 
-  // bool ready = 2;
+  // uint32 playerWeapon = 2;
+  if (this->playerweapon() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteUInt32ToArray(2, this->_internal_playerweapon(), target);
+  }
+
+  // bool ready = 3;
   if (this->ready() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteBoolToArray(2, this->_internal_ready(), target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteBoolToArray(3, this->_internal_ready(), target);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
@@ -1136,14 +1189,21 @@ size_t C_GAME_START::ByteSizeLong() const {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  // uint32 playerWeapon = 1;
+  // uint32 playerId = 1;
+  if (this->playerid() != 0) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::UInt32Size(
+        this->_internal_playerid());
+  }
+
+  // uint32 playerWeapon = 2;
   if (this->playerweapon() != 0) {
     total_size += 1 +
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::UInt32Size(
         this->_internal_playerweapon());
   }
 
-  // bool ready = 2;
+  // bool ready = 3;
   if (this->ready() != 0) {
     total_size += 1 + 1;
   }
@@ -1179,6 +1239,9 @@ void C_GAME_START::MergeFrom(const C_GAME_START& from) {
   ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
   (void) cached_has_bits;
 
+  if (from.playerid() != 0) {
+    _internal_set_playerid(from._internal_playerid());
+  }
   if (from.playerweapon() != 0) {
     _internal_set_playerweapon(from._internal_playerweapon());
   }
@@ -1211,9 +1274,9 @@ void C_GAME_START::InternalSwap(C_GAME_START* other) {
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
       PROTOBUF_FIELD_OFFSET(C_GAME_START, ready_)
       + sizeof(C_GAME_START::ready_)
-      - PROTOBUF_FIELD_OFFSET(C_GAME_START, playerweapon_)>(
-          reinterpret_cast<char*>(&playerweapon_),
-          reinterpret_cast<char*>(&other->playerweapon_));
+      - PROTOBUF_FIELD_OFFSET(C_GAME_START, playerid_)>(
+          reinterpret_cast<char*>(&playerid_),
+          reinterpret_cast<char*>(&other->playerid_));
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata C_GAME_START::GetMetadata() const {
