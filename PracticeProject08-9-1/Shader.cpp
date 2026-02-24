@@ -12,17 +12,16 @@
 
 #include <random>
 
-
 CShader::CShader()
 {
 }
 
 CShader::~CShader()
 {
-	if (m_pd3dPipelineState) 
+	if (m_pd3dPipelineState)
 		m_pd3dPipelineState.Reset();
 
-	if (m_pd3dGraphicsRootSignature) 
+	if (m_pd3dGraphicsRootSignature)
 		m_pd3dGraphicsRootSignature.Reset();
 }
 
@@ -61,81 +60,6 @@ D3D12_SHADER_BYTECODE CShader::CompileShaderFromFile(const WCHAR* pszFileName, L
 	return(d3dShaderByteCode);
 }
 
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-CTexturedShader::CTexturedShader()
-{
-}
-
-CTexturedShader::~CTexturedShader()
-{
-}
-
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-CIlluminatedTexturedShader::CIlluminatedTexturedShader()
-{
-}
-
-CIlluminatedTexturedShader::~CIlluminatedTexturedShader()
-{
-}
-
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-CStaticObjectsShader::CStaticObjectsShader()
-{
-}
-
-CStaticObjectsShader::~CStaticObjectsShader()
-{
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-CSkinnedObjectsShader::CSkinnedObjectsShader()
-{
-}
-
-CSkinnedObjectsShader::~CSkinnedObjectsShader()
-{
-}
-
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-CPostProcessingShader::CPostProcessingShader()
-{
-}
-
-CPostProcessingShader::~CPostProcessingShader()
-{
-
-}
-
-
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-CTextureToFullScreenShader::CTextureToFullScreenShader()
-{
-}
-
-CTextureToFullScreenShader::~CTextureToFullScreenShader()
-{
-	ReleaseShaderVariables();
-}
-
-void CTextureToFullScreenShader::ReleaseShaderVariables()
-{
-	if (m_pd3dcbDrawOptions) 
-		m_pd3dcbDrawOptions.Reset();
-}
-
-
 D3D12_SHADER_BYTECODE CShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
 {
 	D3D12_SHADER_BYTECODE d3dShaderByteCode;
@@ -160,7 +84,6 @@ D3D12_INPUT_LAYOUT_DESC CShader::CreateInputLayout()
 	D3D12_INPUT_ELEMENT_DESC* pd3dInputElementDescs =
 		new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
 
-	// POSITION (float3) : offset 0
 	pd3dInputElementDescs[0] = {
 		"POSITION",
 		0,
@@ -171,7 +94,6 @@ D3D12_INPUT_LAYOUT_DESC CShader::CreateInputLayout()
 		0
 	};
 
-	// NORMAL (float3) : offset 12
 	pd3dInputElementDescs[1] = {
 		"NORMAL",
 		0,
@@ -182,7 +104,6 @@ D3D12_INPUT_LAYOUT_DESC CShader::CreateInputLayout()
 		0
 	};
 
-	// TEXCOORD (float2) : offset 24
 	pd3dInputElementDescs[2] = {
 		"TEXCOORD",
 		0,
@@ -199,7 +120,6 @@ D3D12_INPUT_LAYOUT_DESC CShader::CreateInputLayout()
 
 	return d3dInputLayoutDesc;
 }
-
 
 D3D12_RASTERIZER_DESC CShader::CreateRasterizerState()
 {
@@ -295,7 +215,6 @@ void CShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGr
 	if (FAILED(hResult))
 	{
 		OutputDebugStringA("CreateGraphicsPipelineState FAILED\n");
-		// assert(false); 또는 throw
 	}
 
 	if (pd3dVertexShaderBlob)
@@ -312,8 +231,35 @@ void CShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsComm
 {
 }
 
+void CShader::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext)
+{
+}
+
+void CShader::OnPrepareRender(ID3D12GraphicsCommandList* pd3dCommandList)
+{
+	if (m_pd3dGraphicsRootSignature)
+		pd3dCommandList->SetGraphicsRootSignature(m_pd3dGraphicsRootSignature.Get());
+
+	if (m_pd3dPipelineState)
+		pd3dCommandList->SetPipelineState(m_pd3dPipelineState.Get());
+}
+
+void CShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext)
+{
+	OnPrepareRender(pd3dCommandList);
+	UpdateShaderVariables(pd3dCommandList, pContext);
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
+CTexturedShader::CTexturedShader()
+{
+}
+
+CTexturedShader::~CTexturedShader()
+{
+}
+
 D3D12_INPUT_LAYOUT_DESC CTexturedShader::CreateInputLayout()
 {
 	UINT nInputElementDescs = 2;
@@ -358,6 +304,14 @@ D3D12_SHADER_BYTECODE CTexturedShader::CreatePixelShader(ID3DBlob** ppd3dShaderB
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
+CIlluminatedTexturedShader::CIlluminatedTexturedShader()
+{
+}
+
+CIlluminatedTexturedShader::~CIlluminatedTexturedShader()
+{
+}
+
 D3D12_INPUT_LAYOUT_DESC CIlluminatedTexturedShader::CreateInputLayout()
 {
 	UINT nInputElementDescs = 4;
@@ -386,6 +340,14 @@ D3D12_SHADER_BYTECODE CIlluminatedTexturedShader::CreatePixelShader(ID3DBlob** p
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
+CStaticObjectsShader::CStaticObjectsShader()
+{
+}
+
+CStaticObjectsShader::~CStaticObjectsShader()
+{
+}
+
 void CStaticObjectsShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGraphicsRootSignature, UINT nRenderTargets, DXGI_FORMAT* pdxgiRtvFormats, DXGI_FORMAT dxgiDsvFormat)
 {
 #ifdef _WITH_SCENE_ROOT_SIGNATURE
@@ -408,8 +370,33 @@ D3D12_SHADER_BYTECODE CStaticObjectsShader::CreatePixelShader(ID3DBlob** ppd3dSh
 	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSTexturedLightingToMultipleRTs", "ps_5_1", ppd3dShaderBlob));
 }
 
+void CStaticObjectsShader::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext)
+{
+	(void)pd3dCommandList;
+	(void)pContext;
+}
+
+void CStaticObjectsShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext)
+{
+	CIlluminatedTexturedShader::Render(pd3dCommandList, pCamera, pContext);
+
+#ifdef _WITH_BATCH_MATERIAL
+	auto* b = reinterpret_cast<SCENE_STATIC_BATCH*>(pContext);
+	if (b && b->material && b->material->NeedsLegacyBinding())
+		b->material->UpdateShaderVariables(pd3dCommandList);
+#endif
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
+CSkinnedObjectsShader::CSkinnedObjectsShader()
+{
+}
+
+CSkinnedObjectsShader::~CSkinnedObjectsShader()
+{
+}
+
 void CSkinnedObjectsShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGraphicsRootSignature, UINT nRenderTargets, DXGI_FORMAT* pdxgiRtvFormats, DXGI_FORMAT dxgiDsvFormat)
 {
 #ifdef _WITH_SCENE_ROOT_SIGNATURE
@@ -427,7 +414,6 @@ void CSkinnedObjectsShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSig
 	);
 }
 
-
 D3D12_SHADER_BYTECODE CSkinnedObjectsShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
 {
 	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "VSSkinned", "vs_5_1", ppd3dShaderBlob));
@@ -437,7 +423,6 @@ D3D12_SHADER_BYTECODE CSkinnedObjectsShader::CreatePixelShader(ID3DBlob** ppd3dS
 {
 	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSTexturedLightingToMultipleRTs", "ps_5_1", ppd3dShaderBlob));
 }
-
 
 D3D12_INPUT_LAYOUT_DESC CSkinnedObjectsShader::CreateInputLayout()
 {
@@ -454,11 +439,9 @@ D3D12_INPUT_LAYOUT_DESC CSkinnedObjectsShader::CreateInputLayout()
 	pd3dInputElementDescs[2] = { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24,
 		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
 
-	// [ADD]
 	pd3dInputElementDescs[3] = { "TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 32,
 		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
 
-	// offsets changed
 	pd3dInputElementDescs[4] = { "BLENDINDICES", 0, DXGI_FORMAT_R32G32B32A32_UINT, 0, 48,
 		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
 
@@ -471,8 +454,27 @@ D3D12_INPUT_LAYOUT_DESC CSkinnedObjectsShader::CreateInputLayout()
 	return d3dInputLayoutDesc;
 }
 
+void CSkinnedObjectsShader::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext)
+{
+	(void)pd3dCommandList;
+	(void)pContext;
+}
+
+void CSkinnedObjectsShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext)
+{
+	CIlluminatedTexturedShader::Render(pd3dCommandList, pCamera, pContext);
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
+CPostProcessingShader::CPostProcessingShader()
+{
+}
+
+CPostProcessingShader::~CPostProcessingShader()
+{
+}
+
 D3D12_INPUT_LAYOUT_DESC CPostProcessingShader::CreateInputLayout()
 {
 	D3D12_INPUT_LAYOUT_DESC d3dInputLayoutDesc;
@@ -657,89 +659,6 @@ void CPostProcessingShader::CreateResourcesAndRtvsSrvs(ID3D12Device* pd3dDevice,
 	}
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-D3D12_SHADER_BYTECODE CTextureToFullScreenShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
-{
-	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "VSScreenRectSamplingTextured", "vs_5_1", ppd3dShaderBlob));
-}
-
-D3D12_SHADER_BYTECODE CTextureToFullScreenShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
-{
-	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSScreenRectSamplingTextured", "ps_5_1", ppd3dShaderBlob));
-}
-
-void CTextureToFullScreenShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
-{
-	UINT ncbElementBytes = ((sizeof(PS_CB_DRAW_OPTIONS) + 255) & ~255); //256의 배수
-	m_pd3dcbDrawOptions = ::CreateBufferResource(
-		pd3dDevice,
-		pd3dCommandList,
-		nullptr,
-		ncbElementBytes,
-		D3D12_HEAP_TYPE_UPLOAD,
-		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
-		nullptr
-	);
-	m_pd3dcbDrawOptions->Map(0, nullptr, (void**)&m_pcbMappedDrawOptions);
-
-	CPostProcessingShader::CreateShaderVariables(pd3dDevice, pd3dCommandList);
-}
-
-
-void CShader::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext)
-{
-}
-
-void CShader::OnPrepareRender(ID3D12GraphicsCommandList* pd3dCommandList)
-{
-	if (m_pd3dGraphicsRootSignature)
-		pd3dCommandList->SetGraphicsRootSignature(m_pd3dGraphicsRootSignature.Get());
-
-	if (m_pd3dPipelineState)
-		pd3dCommandList->SetPipelineState(m_pd3dPipelineState.Get());
-}
-
-void CShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext)
-{
-	OnPrepareRender(pd3dCommandList);
-	UpdateShaderVariables(pd3dCommandList, pContext);
-}
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-void CStaticObjectsShader::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext)
-{
-	(void)pd3dCommandList;
-	(void)pContext;
-}
-
-void CStaticObjectsShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext)
-{
-	CIlluminatedTexturedShader::Render(pd3dCommandList, pCamera, pContext);
-
-#ifdef _WITH_BATCH_MATERIAL
-	auto* b = reinterpret_cast<SCENE_STATIC_BATCH*>(pContext);
-	if (b && b->material && b->material->NeedsLegacyBinding())
-		b->material->UpdateShaderVariables(pd3dCommandList);
-#endif
-}
-
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-void CSkinnedObjectsShader::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext)
-{
-	(void)pd3dCommandList;
-	(void)pContext;
-}
-
-void CSkinnedObjectsShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext)
-{
-	CIlluminatedTexturedShader::Render(pd3dCommandList, pCamera, pContext);
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
 void CPostProcessingShader::OnPrepareRenderTarget(
 	ID3D12GraphicsCommandList* pd3dCommandList,
 	int nRenderTargets,
@@ -790,15 +709,54 @@ void CPostProcessingShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, C
 {
 	CShader::Render(pd3dCommandList, pCamera, pContext);
 
-	//if (m_pTexture)
-	//	m_pTexture->UpdateShaderVariables(pd3dCommandList);
-
 	pd3dCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	pd3dCommandList->DrawInstanced(6, 1, 0, 0);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
+CTextureToFullScreenShader::CTextureToFullScreenShader()
+{
+}
+
+CTextureToFullScreenShader::~CTextureToFullScreenShader()
+{
+	ReleaseShaderVariables();
+}
+
+void CTextureToFullScreenShader::ReleaseShaderVariables()
+{
+	if (m_pd3dcbDrawOptions)
+		m_pd3dcbDrawOptions.Reset();
+}
+
+D3D12_SHADER_BYTECODE CTextureToFullScreenShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "VSScreenRectSamplingTextured", "vs_5_1", ppd3dShaderBlob));
+}
+
+D3D12_SHADER_BYTECODE CTextureToFullScreenShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSScreenRectSamplingTextured", "ps_5_1", ppd3dShaderBlob));
+}
+
+void CTextureToFullScreenShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
+{
+	UINT ncbElementBytes = ((sizeof(PS_CB_DRAW_OPTIONS) + 255) & ~255); //256의 배수
+	m_pd3dcbDrawOptions = ::CreateBufferResource(
+		pd3dDevice,
+		pd3dCommandList,
+		nullptr,
+		ncbElementBytes,
+		D3D12_HEAP_TYPE_UPLOAD,
+		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+		nullptr
+	);
+	m_pd3dcbDrawOptions->Map(0, nullptr, (void**)&m_pcbMappedDrawOptions);
+
+	CPostProcessingShader::CreateShaderVariables(pd3dDevice, pd3dCommandList);
+}
+
 void CTextureToFullScreenShader::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext)
 {
 	m_pcbMappedDrawOptions->m_xmn4DrawOptions.x = *((int*)pContext);
