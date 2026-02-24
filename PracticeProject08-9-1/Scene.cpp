@@ -4,6 +4,8 @@
 
 #include "stdafx.h"
 #include "Scene.h"
+#include "AnimatorComponent.h"
+#include "AnimController.h"
 
 std::unique_ptr<CDescriptorHeap> CScene::m_pDescriptorHeap = std::make_unique<CDescriptorHeap>();
 ;
@@ -12,12 +14,38 @@ CScene::CScene()
 	m_staticBatch.capacity = 4;
 	m_staticBatch.count = 0;
 
-	m_skinnedBatch.capacity = 60;
+	m_skinnedBatch.capacity = 10;
 	m_skinnedBatch.count = 0;
+
+	m_demoFighters.fill(nullptr);
 }
 
 CScene::~CScene()
 {
+}
+
+CGameObject* CScene::GetDemoFighter(int index) const
+{
+	if (index < 0 || index >= (int)m_demoFighters.size()) return nullptr;
+	return m_demoFighters[(size_t)index];
+}
+
+void CScene::RequestDemoFighterAttack(int index)
+{
+	CGameObject* obj = GetDemoFighter(index);
+	if (!obj) return;
+
+	// 1) 컴포넌트 기반(향후 서버/상태동기화 확장용)
+	if (auto* animComp = obj->GetComponent<CAnimatorComponent>())
+	{
+		if (auto* ctrl = animComp->EnsureController())
+			ctrl->RequestAttack();
+		return;
+	}
+
+	// 2) 레거시 기반(혼용/호환)
+	if (auto* ctrl = obj->GetAnimController())
+		ctrl->RequestAttack();
 }
 
 void CScene::ReleaseObjects()
@@ -36,6 +64,8 @@ void CScene::ReleaseObjects()
 
 	m_lightObjects.clear();
 	m_pPlayerSpotFollower = nullptr;
+
+	m_demoFighters.fill(nullptr);
 
 	// Main Camera (GameObject + Camera Component)
 	if (m_pMainCamera)

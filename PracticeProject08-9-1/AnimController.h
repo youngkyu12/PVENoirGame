@@ -31,7 +31,7 @@ public:
     void SetAttackClip(const char* name) { m_attackClip = name; }
     void SetAttackClip(const std::string& name) { m_attackClip = name; }
 
-    // 마우스 클릭 등으로 "공격 1회" 요청
+    // 마우스/키 입력 등으로 "공격 1회" 요청
     void RequestAttack();
 
 
