@@ -1,0 +1,12 @@
+syntax = "proto3";
+package Protocol;
+
+import "Enum.proto";
+import "Struct.proto";
+
+message InitStruct
+{
+	repeated Player players = 1;
+	repeated Enemy enemies = 2;
+	repeated Building buildings = 3;
+}

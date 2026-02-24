@@ -7,14 +7,35 @@
     <Filter Include="Utils">
       <UniqueIdentifier>{8a883c42-a592-4dcd-8872-14d383bf88b2}</UniqueIdentifier>
     </Filter>
-    <Filter Include="LockContainer">
-      <UniqueIdentifier>{7120396d-80ad-48f0-8330-18b1c718336e}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Protocol">
       <UniqueIdentifier>{2c040a95-9c60-4096-9085-3f08c24b7e07}</UniqueIdentifier>
     </Filter>
     <Filter Include="GameContents">
       <UniqueIdentifier>{6e8a88b2-2a6a-42a4-9c2f-c56f8256bc92}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GameObject">
+      <UniqueIdentifier>{9281ed45-fd7c-4034-b1fb-0c6769576fcd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GameObject\Player">
+      <UniqueIdentifier>{97ff4d9a-69d7-4a40-96c1-73affffe80b3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GameObject\Enemy">
+      <UniqueIdentifier>{5a5890ce-85fa-4dc4-9641-1054564e329c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GameObject\Item">
+      <UniqueIdentifier>{5af15b16-7446-4ad9-b56d-16bafe447275}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GameObject\Building">
+      <UniqueIdentifier>{246bf656-f626-423c-8316-fb5ff0dd3f9f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GameObject\Tile">
+      <UniqueIdentifier>{cbcae36e-e040-4df4-a287-65d06b85573b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Area">
+      <UniqueIdentifier>{b7333371-f081-4d66-89b7-d9209da5c40b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GameContents\Map">
+      <UniqueIdentifier>{904f68e5-ae2d-4e3a-93a5-363f8870335a}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -33,9 +54,6 @@
     <ClCompile Include="ClientPacketHandler.cpp">
       <Filter>Main</Filter>
     </ClCompile>
-    <ClCompile Include="Player.cpp">
-      <Filter>GameContents</Filter>
-    </ClCompile>
     <ClCompile Include="Room.cpp">
       <Filter>GameContents</Filter>
     </ClCompile>
@@ -51,6 +69,21 @@
     <ClCompile Include="Enum.pb.cc">
       <Filter>Protocol</Filter>
     </ClCompile>
+    <ClCompile Include="Player.cpp">
+      <Filter>GameObject\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="Enemy.cpp">
+      <Filter>GameObject\Enemy</Filter>
+    </ClCompile>
+    <ClCompile Include="Building.cpp">
+      <Filter>GameObject\Building</Filter>
+    </ClCompile>
+    <ClCompile Include="GameArea.cpp">
+      <Filter>Area</Filter>
+    </ClCompile>
+    <ClCompile Include="ServerMap.cpp">
+      <Filter>GameContents\Map</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -64,9 +97,6 @@
     </ClInclude>
     <ClInclude Include="ClientPacketHandler.h">
       <Filter>Main</Filter>
-    </ClInclude>
-    <ClInclude Include="Player.h">
-      <Filter>GameContents</Filter>
     </ClInclude>
     <ClInclude Include="Room.h">
       <Filter>GameContents</Filter>
@@ -82,6 +112,18 @@
     </ClInclude>
     <ClInclude Include="Enum.pb.h">
       <Filter>Protocol</Filter>
+    </ClInclude>
+    <ClInclude Include="Player.h">
+      <Filter>GameObject\Player</Filter>
+    </ClInclude>
+    <ClInclude Include="Enemy.h">
+      <Filter>GameObject\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="Building.h">
+      <Filter>GameObject\Building</Filter>
+    </ClInclude>
+    <ClInclude Include="GameArea.h">
+      <Filter>Area</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

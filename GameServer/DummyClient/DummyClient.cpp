@@ -71,8 +71,7 @@ int main()
 	Protocol::C_INPUT inputPkt;
 
 	inputPkt.set_playerid(1);
-	inputPkt.add_keycodes(1);
-	inputPkt.add_keycodes(2);
+	inputPkt.set_keycodes(0xF);
 
 	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(inputPkt);
 
