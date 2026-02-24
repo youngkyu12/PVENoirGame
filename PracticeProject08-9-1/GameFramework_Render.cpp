@@ -8,6 +8,9 @@
 #include "AnimatorComponent.h"
 #include "PlayerControllerComponent.h"
 
+#include "Service.h"
+#include "ServerPacketHandler.h"
+
 
 void CGameFramework::ProcessInput()
 {
@@ -38,7 +41,34 @@ void CGameFramework::ProcessInput()
 		if (pKeysBuffer[VK_PRIOR] & 0xF0) dwDirection |= DIR_UP;
 		if (pKeysBuffer[VK_NEXT] & 0xF0)  dwDirection |= DIR_DOWN;
 
+		// === keyBuffer 값을 int32 안에 넣기
+
+		int32 keyCodes = 0;
+		if (pKeysBuffer[VK_UP] & 0xF0)    keyCodes |= (1 << 0);
+		if (pKeysBuffer[VK_DOWN] & 0xF0)  keyCodes |= (1 << 1);
+		if (pKeysBuffer[VK_LEFT] & 0xF0)  keyCodes |= (1 << 2);
+		if (pKeysBuffer[VK_RIGHT] & 0xF0) keyCodes |= (1 << 3);
+		if (pKeysBuffer[VK_PRIOR] & 0xF0) keyCodes |= (1 << 4);
+		if (pKeysBuffer[VK_NEXT] & 0xF0)  keyCodes |= (1 << 5);
+
+		// == Protocol::C_INPUT 패킷 생성 및 값 설정 ===
+
+		Protocol::C_INPUT inputPkt;
+		inputPkt.set_playerid(0);
+		inputPkt.set_keycodes(keyCodes);
+
 		POINT ptCursorPos;
+		if (GetCapture() == m_hWnd)
+		{
+			SetCursor(NULL);
+			GetCursorPos(&ptCursorPos);
+			cxDelta = (float)(ptCursorPos.x - m_ptOldCursorPos.x) / 3.0f;
+			cyDelta = (float)(ptCursorPos.y - m_ptOldCursorPos.y) / 3.0f;
+			SetCursorPos(m_ptOldCursorPos.x, m_ptOldCursorPos.y);
+		}
+
+		auto sendBuffer = ServerPacketHandler::MakeSendBuffer(inputPkt);
+		g_clientService->BroadCast(sendBuffer);
 		GetCursorPos(&ptCursorPos);
 
 		cxDelta = (float)(ptCursorPos.x - m_ptOldCursorPos.x) / 3.0f;

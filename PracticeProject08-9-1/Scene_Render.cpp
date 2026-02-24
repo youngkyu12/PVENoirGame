@@ -139,16 +139,7 @@ void CScene::AnimateObjects(float fTimeElapsed)
 		m_lightObjects[j]->Animate(fTimeElapsed);
 	}
 
-	Protocol::C_INPUT inputPkt;
-
-	inputPkt.set_playerid(1);
-	inputPkt.add_keycodes(1);
-	inputPkt.add_keycodes(2);
-
-	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(inputPkt);
-
-
-	g_clientService->BroadCast(sendBuffer);
+	
 }
 
 

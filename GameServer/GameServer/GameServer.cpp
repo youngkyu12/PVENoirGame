@@ -40,6 +40,7 @@ int main()
 
 
 	ClientPacketHandler::Init();
+	GRoom->BuildRoom();
 
 	ServerServiceRef service = MakeShared<ServerService>(
 		NetAddress(L"127.0.0.1", 7777),
