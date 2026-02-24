@@ -87,6 +87,12 @@ struct SubMesh
 	D3D12_INDEX_BUFFER_VIEW  ibView{};
 };
 
+struct MeshBounds
+{
+	XMFLOAT3 min = XMFLOAT3(+FLT_MAX, +FLT_MAX, +FLT_MAX);
+	XMFLOAT3 max = XMFLOAT3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+};
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 class CMesh
@@ -159,4 +165,6 @@ private:
 	std::vector<BinMaterial> m_BinMaterials;
 	std::unordered_map<std::string, uint32_t> m_BinMaterialNameToIndex; // 있으면 편함(선택)
 
+	bool mHasBounds = false;
+	MeshBounds mBounds;
 };
