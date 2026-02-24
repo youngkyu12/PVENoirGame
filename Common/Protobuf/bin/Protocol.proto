@@ -1,0 +1,61 @@
+syntax = "proto3";
+package Protocol;
+
+import "Enum.proto";
+import "Struct.proto";
+import "InitStruct.proto";
+
+message C_LOGIN
+{
+
+}
+
+message S_LOGIN
+{
+	bool success = 1;
+	repeated Player players = 2;	// id 발급 이전
+}
+
+message C_ENTER_GAME
+{
+	uint64 playerIndex = 1;
+}
+
+message S_ENTER_GAME
+{
+	uint32 playerId = 1;
+	bool success = 2;
+}
+
+message C_GAME_START
+{
+	uint32 playerId = 1;
+	uint32 playerWeapon = 2;
+	bool ready = 3;
+}
+
+message S_GAME_START
+{
+	uint32 playerId = 1;
+	InitStruct initStruct = 2;
+}
+
+message C_INPUT
+{
+	// 1. 키보드 입력
+	// 0: up, 1: down, 2: left, 3: right, 4: attack
+	// 2. 마우스 입력
+	// deltaX, deltaY
+
+	uint64 playerid = 1;
+	int32 keyCodes = 2; 
+	float deltaX = 3;
+	float deltaY = 4;
+}
+
+message S_FRAME_STATE
+{
+	repeated Player players = 1;
+	repeated Enemy enemies = 2;
+	repeated Building buildings = 3;
+}

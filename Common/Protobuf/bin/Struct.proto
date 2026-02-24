@@ -1,0 +1,60 @@
+syntax = "proto3";
+package Protocol;
+
+import "Enum.proto";
+
+message Vec3f
+{
+	float x = 1;
+	float y = 2;
+	float z = 3;
+}
+
+message Transform
+{
+	Vec3f position = 1;	// x, y, z
+	float yaw = 2;	// x, y, z
+	Vec3f scale = 3;		// x, y, z
+}
+
+message ObjectStatus
+{
+	uint32 hp = 1;
+	uint32 attack = 2;
+	uint32 defense = 3;
+	uint32 speed = 4;
+	
+}
+
+message Bullet
+{
+	uint64 id = 1;
+	uint64 ownerId = 2;
+	Vec3f position = 3;
+	Vec3f velocity = 4;
+}
+
+message Player
+{
+	uint64 id = 1;
+	string name = 2;
+	PlayerType playerType = 3;
+	PlayerState playerState = 4;
+	Transform transform = 5;
+	// stats
+}
+
+message Enemy
+{
+	uint64 id = 1;
+	EnemyType enemyType = 2;
+	EnemyState enemyState = 3;
+	Transform transform = 4;
+}
+
+message Building
+{
+	uint64 id = 1;
+	Transform transform = 2;
+}
+
