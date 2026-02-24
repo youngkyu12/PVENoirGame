@@ -207,9 +207,6 @@
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
     </ClCompile>
     <ClCompile Include="GameFramework.cpp" />
-    <ClCompile Include="GameFramework_Build.cpp" />
-    <ClCompile Include="GameFramework_Input.cpp" />
-    <ClCompile Include="GameFramework_Render.cpp" />
     <ClCompile Include="InitStruct.pb.cc">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
@@ -228,15 +225,10 @@
     <ClCompile Include="RendererComponent.cpp" />
     <ClCompile Include="RenderObjectComponent.cpp" />
     <ClCompile Include="Scene.cpp" />
-    <ClCompile Include="Scene_Build.cpp" />
-    <ClCompile Include="Scene_Input.cpp" />
-    <ClCompile Include="Scene_Render.cpp" />
     <ClCompile Include="ServerPacketHandler.cpp">
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
     </ClCompile>
     <ClCompile Include="Shader.cpp" />
-    <ClCompile Include="Shader_Build.cpp" />
-    <ClCompile Include="Shader_Render.cpp" />
     <ClCompile Include="SkinningComponent.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
