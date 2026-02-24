@@ -261,12 +261,6 @@
     <ClCompile Include="stdafx.cpp">
       <Filter>PCH</Filter>
     </ClCompile>
-    <ClCompile Include="Object_Build.cpp">
-      <Filter>Object</Filter>
-    </ClCompile>
-    <ClCompile Include="Object_Render.cpp">
-      <Filter>Object</Filter>
-    </ClCompile>
     <ClCompile Include="Enum.pb.cc">
       <Filter>Network\Protocol</Filter>
     </ClCompile>
