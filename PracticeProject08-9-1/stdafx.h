@@ -3,6 +3,10 @@
 // 들어 있는 포함 파일입니다.
 //
 
+#ifndef COMMON_OWNER_TYPE
+#define COMMON_OWNER_TYPE CGameObject
+#endif
+
 #pragma once
 
 #define WIN32_LEAN_AND_MEAN             // 거의 사용되지 않는 내용은 Windows 헤더에서 제외합니다.
@@ -16,7 +20,6 @@
 #pragma comment(lib, "ServerCore\\Release\\ServerCore.lib")
 #pragma comment(lib, "Protobuf\\Release\\libprotobuf.lib")
 #endif
-
 
 
 // Windows 헤더 파일:

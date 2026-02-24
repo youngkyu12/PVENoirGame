@@ -22,7 +22,7 @@ void CPlayerControllerComponent::ApplyYawToOwnerTransform()
     CServerObject* owner = GetOwner();
     if (!owner) return;
 
-    if (auto* tr = owner->GetComponent<CTransformComponent>())
+    if (auto* tr = owner->GetComponent<CCommonTransformComponent>())
         tr->SetYawDegrees(m_yawDeg);
 }
 
@@ -64,7 +64,7 @@ void CPlayerControllerComponent::MoveShift(const GameMath::Vec3& shift, bool bUp
     }
     else
     {
-        if (auto* tr = owner->GetComponent<CTransformComponent>())
+        if (auto* tr = owner->GetComponent<CCommonTransformComponent>())
             tr->Translate(shift);
     }
 }
@@ -80,7 +80,7 @@ void CPlayerControllerComponent::OnUpdate(float dt)
     CServerObject* owner = GetOwner();
     if (!owner) return;
 
-    auto* tr = owner->GetComponent<CTransformComponent>();
+    auto* tr = owner->GetComponent<CCommonTransformComponent>();
     if (!tr) return;
 
     // 현재 위치 가져오기
@@ -108,7 +108,7 @@ NetworkPlayerState CPlayerControllerComponent::ToNetworkState(uint64_t playerId)
     
     if (owner)
     {
-        if (auto* tr = owner->GetComponent<CTransformComponent>())
+        if (auto* tr = owner->GetComponent<CCommonTransformComponent>())
             pos = tr->GetPosition();
     }
 
@@ -123,7 +123,7 @@ void CPlayerControllerComponent::ApplyNetworkState(const NetworkPlayerState& sta
     CServerObject* owner = GetOwner();
     if (!owner) return;
 
-    if (auto* tr = owner->GetComponent<CTransformComponent>())
+    if (auto* tr = owner->GetComponent<CCommonTransformComponent>())
     {
         tr->SetPosition(state.transform.ToVec3());
         tr->SetYawDegrees(state.transform.yaw);

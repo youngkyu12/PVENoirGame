@@ -5,7 +5,9 @@
 // DirectX 의존성 없음
 //-----------------------------------------------------------------------------
 
-#pragma once
+#ifndef COMMON_OWNER_TYPE
+#define COMMON_OWNER_TYPE CServerObject
+#endif
 
 #include <vector>
 #include <memory>
@@ -108,7 +110,7 @@ public:
 
 protected:
     // Transform 컴포넌트 (항상 존재)
-    CTransformComponent* m_pTransform = nullptr;
+    CCommonTransformComponent* m_pTransform = nullptr;
 
     // Physics (컴포넌트 없이 직접 관리할 때 사용)
     GameMath::Vec3 m_velocity = GameMath::Vec3::Zero();

@@ -12,7 +12,7 @@
 CServerObject::CServerObject()
 {
     m_components.reserve(4);
-    m_pTransform = AddComponent<CTransformComponent>();
+    m_pTransform = AddComponent<CCommonTransformComponent>();
 }
 
 CServerObject::~CServerObject()
