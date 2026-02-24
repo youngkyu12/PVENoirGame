@@ -1,0 +1,78 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Main">
+      <UniqueIdentifier>{af9b65a8-7d3d-4bed-ad39-58705e14948d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Base">
+      <UniqueIdentifier>{45f4132e-ade3-418e-853b-bf7c57a6f6ce}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Transform">
+      <UniqueIdentifier>{0a0b7548-9d6b-4b92-8a0b-222647e3f241}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="PlayerController">
+      <UniqueIdentifier>{509cbbf3-d7c1-45e3-8bf0-9e14625db8d0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Collider">
+      <UniqueIdentifier>{086c0548-9883-443d-8d5f-21d35b3ba99d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Object">
+      <UniqueIdentifier>{58b25f24-ff79-4c3d-83e4-d4bac1fe78cc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Map">
+      <UniqueIdentifier>{3af05a39-1aba-41b3-9f32-cded22e7048f}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="pch.h">
+      <Filter>Main</Filter>
+    </ClInclude>
+    <ClInclude Include="ComponentPch.h">
+      <Filter>Main</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseComponent.h">
+      <Filter>Base</Filter>
+    </ClInclude>
+    <ClInclude Include="CTransformComponent.h">
+      <Filter>Transform</Filter>
+    </ClInclude>
+    <ClInclude Include="PlayerController.h">
+      <Filter>PlayerController</Filter>
+    </ClInclude>
+    <ClInclude Include="ServerObject.h">
+      <Filter>Object</Filter>
+    </ClInclude>
+    <ClInclude Include="GameMath.h">
+      <Filter>Main</Filter>
+    </ClInclude>
+    <ClInclude Include="GameTypes.h">
+      <Filter>Main</Filter>
+    </ClInclude>
+    <ClInclude Include="PlayerLogic.h">
+      <Filter>Main</Filter>
+    </ClInclude>
+    <ClInclude Include="MapData.h">
+      <Filter>Map</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="pch.cpp">
+      <Filter>Main</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseComponent.cpp">
+      <Filter>Base</Filter>
+    </ClCompile>
+    <ClCompile Include="CTransformComponent.cpp">
+      <Filter>Transform</Filter>
+    </ClCompile>
+    <ClCompile Include="PlayerController.cpp">
+      <Filter>PlayerController</Filter>
+    </ClCompile>
+    <ClCompile Include="ServerObject.cpp">
+      <Filter>Object</Filter>
+    </ClCompile>
+    <ClCompile Include="MapData.cpp">
+      <Filter>Map</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

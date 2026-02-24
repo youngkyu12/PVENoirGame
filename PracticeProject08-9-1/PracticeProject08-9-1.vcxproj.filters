@@ -92,7 +92,7 @@
     <Filter Include="Network\Protocol">
       <UniqueIdentifier>{a610d31b-d592-4413-912e-cc7185de8bae}</UniqueIdentifier>
     </Filter>
-    <Filter Include="PacketHandler">
+    <Filter Include="Network\PacketHandler">
       <UniqueIdentifier>{68eba5ac-4fc8-43a3-be24-29bc741f88e0}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -106,9 +106,6 @@
     <ClInclude Include="AnimController.h">
       <Filter>Animator</Filter>
     </ClInclude>
-    <ClInclude Include="Component.h">
-      <Filter>Components</Filter>
-    </ClInclude>
     <ClInclude Include="AnimatorComponent.h">
       <Filter>Components\Animator</Filter>
     </ClInclude>
@@ -117,9 +114,6 @@
     </ClInclude>
     <ClInclude Include="RenderObjectComponent.h">
       <Filter>Components\RenderObject</Filter>
-    </ClInclude>
-    <ClInclude Include="PlayerControllerComponent.h">
-      <Filter>Components\PlayerController</Filter>
     </ClInclude>
     <ClInclude Include="PracticeProject08-9-1.h">
       <Filter>Entry</Filter>
@@ -197,7 +191,13 @@
       <Filter>Network\Protocol</Filter>
     </ClInclude>
     <ClInclude Include="ServerPacketHandler.h">
-      <Filter>PacketHandler</Filter>
+      <Filter>Network\PacketHandler</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\Components\Component.h">
+      <Filter>Components</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\Components\PlayerControllerComponent.h">
+      <Filter>Components\PlayerController</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -224,9 +224,6 @@
     </ClCompile>
     <ClCompile Include="RenderObjectComponent.cpp">
       <Filter>Components\RenderObject</Filter>
-    </ClCompile>
-    <ClCompile Include="PlayerControllerComponent.cpp">
-      <Filter>Components\PlayerController</Filter>
     </ClCompile>
     <ClCompile Include="PracticeProject08-9-1.cpp">
       <Filter>Entry</Filter>
@@ -313,7 +310,10 @@
       <Filter>Network\Protocol</Filter>
     </ClCompile>
     <ClCompile Include="ServerPacketHandler.cpp">
-      <Filter>PacketHandler</Filter>
+      <Filter>Network\PacketHandler</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\Components\PlayerControllerComponent.cpp">
+      <Filter>Components\PlayerController</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

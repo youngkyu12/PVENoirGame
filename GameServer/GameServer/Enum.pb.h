@@ -56,6 +56,34 @@ PROTOBUF_NAMESPACE_OPEN
 PROTOBUF_NAMESPACE_CLOSE
 namespace Protocol {
 
+enum ObjectType : int {
+  OBJECT_TYPE_NONE = 0,
+  OBJECT_TYPE_PLAYER = 1,
+  OBJECT_TYPE_ENEMY = 2,
+  OBJECT_TYPE_BUILDING = 3,
+  OBJECT_TYPE_BULLET = 4,
+  ObjectType_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
+  ObjectType_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
+};
+bool ObjectType_IsValid(int value);
+constexpr ObjectType ObjectType_MIN = OBJECT_TYPE_NONE;
+constexpr ObjectType ObjectType_MAX = OBJECT_TYPE_BULLET;
+constexpr int ObjectType_ARRAYSIZE = ObjectType_MAX + 1;
+
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* ObjectType_descriptor();
+template<typename T>
+inline const std::string& ObjectType_Name(T enum_t_value) {
+  static_assert(::std::is_same<T, ObjectType>::value ||
+    ::std::is_integral<T>::value,
+    "Incorrect type passed to function ObjectType_Name.");
+  return ::PROTOBUF_NAMESPACE_ID::internal::NameOfEnum(
+    ObjectType_descriptor(), enum_t_value);
+}
+inline bool ObjectType_Parse(
+    ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, ObjectType* value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<ObjectType>(
+    ObjectType_descriptor(), name, value);
+}
 enum PlayerType : int {
   PLAYER_TYPE_NONE = 0,
   PLAYER_TYPE_KNIGHT = 1,
@@ -110,6 +138,34 @@ inline bool EnemyType_Parse(
     ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, EnemyType* value) {
   return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<EnemyType>(
     EnemyType_descriptor(), name, value);
+}
+enum BuildingType : int {
+  BUILDING_TYPE_NONE = 0,
+  BUILDING_TYPE_WALL = 1,
+  BUILDING_TYPE_TOWER = 2,
+  BUILDING_TYPE_BASE = 3,
+  BUILDING_TYPE_TREE = 4,
+  BuildingType_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
+  BuildingType_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
+};
+bool BuildingType_IsValid(int value);
+constexpr BuildingType BuildingType_MIN = BUILDING_TYPE_NONE;
+constexpr BuildingType BuildingType_MAX = BUILDING_TYPE_TREE;
+constexpr int BuildingType_ARRAYSIZE = BuildingType_MAX + 1;
+
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* BuildingType_descriptor();
+template<typename T>
+inline const std::string& BuildingType_Name(T enum_t_value) {
+  static_assert(::std::is_same<T, BuildingType>::value ||
+    ::std::is_integral<T>::value,
+    "Incorrect type passed to function BuildingType_Name.");
+  return ::PROTOBUF_NAMESPACE_ID::internal::NameOfEnum(
+    BuildingType_descriptor(), enum_t_value);
+}
+inline bool BuildingType_Parse(
+    ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, BuildingType* value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<BuildingType>(
+    BuildingType_descriptor(), name, value);
 }
 enum PlayerState : int {
   PLAYER_STATE_NONE = 0,
@@ -216,6 +272,11 @@ inline bool GameState_Parse(
 
 PROTOBUF_NAMESPACE_OPEN
 
+template <> struct is_proto_enum< ::Protocol::ObjectType> : ::std::true_type {};
+template <>
+inline const EnumDescriptor* GetEnumDescriptor< ::Protocol::ObjectType>() {
+  return ::Protocol::ObjectType_descriptor();
+}
 template <> struct is_proto_enum< ::Protocol::PlayerType> : ::std::true_type {};
 template <>
 inline const EnumDescriptor* GetEnumDescriptor< ::Protocol::PlayerType>() {
@@ -225,6 +286,11 @@ template <> struct is_proto_enum< ::Protocol::EnemyType> : ::std::true_type {};
 template <>
 inline const EnumDescriptor* GetEnumDescriptor< ::Protocol::EnemyType>() {
   return ::Protocol::EnemyType_descriptor();
+}
+template <> struct is_proto_enum< ::Protocol::BuildingType> : ::std::true_type {};
+template <>
+inline const EnumDescriptor* GetEnumDescriptor< ::Protocol::BuildingType>() {
+  return ::Protocol::BuildingType_descriptor();
 }
 template <> struct is_proto_enum< ::Protocol::PlayerState> : ::std::true_type {};
 template <>
