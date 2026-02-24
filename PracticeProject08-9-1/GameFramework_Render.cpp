@@ -22,6 +22,9 @@ void CGameFramework::ProcessInput()
 
 	CGameObject* playerObj = (m_pScene ? m_pScene->GetPlayer() : nullptr);
 	if (!playerObj) return;
+	if (m_ptOldCursorPos.x == 0 && m_ptOldCursorPos.y == 0)
+		::GetCursorPos(&m_ptOldCursorPos);
+
 
 	auto* pc = playerObj->GetComponent<CPlayerControllerComponent>();
 	if (!pc) return;
@@ -65,9 +68,14 @@ void CGameFramework::ProcessInput()
 		}
 
 		auto sendBuffer = ServerPacketHandler::MakeSendBuffer(inputPkt);
-
-
 		g_clientService->BroadCast(sendBuffer);
+		GetCursorPos(&ptCursorPos);
+
+		cxDelta = (float)(ptCursorPos.x - m_ptOldCursorPos.x) / 3.0f;
+		cyDelta = (float)(ptCursorPos.y - m_ptOldCursorPos.y) / 3.0f;
+
+		m_ptOldCursorPos = ptCursorPos;
+
 	}
 
 	const float dt = m_GameTimer.GetTimeElapsed();

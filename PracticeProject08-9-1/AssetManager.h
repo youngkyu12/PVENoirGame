@@ -12,7 +12,9 @@ enum class AssetType
 {
     Zombie,
     Fighter,
-    World
+    World,
+    Plane,
+    House
 };
 
 // BuildAsset에 넘길 데이터 묶음

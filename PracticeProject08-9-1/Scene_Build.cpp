@@ -171,8 +171,10 @@ void CScene::BuildStaticBatch(
 	auto* b = &m_staticBatch;
 	if (!b) return;
 
+	if (b->capacity < 4) b->capacity = 4;
 	const UINT cap = b->capacity;
 	if (cap == 0) return;
+
 
 	// PSO
 	pStaticShader->CreateShader(
@@ -217,34 +219,76 @@ void CScene::BuildStaticBatch(
 	b->count = 0;
 
 	// ---- 실제 생성 ----
+	// AssetBuildDesc WorldDesc = {
+	//     AssetType::World,
+	//     "Assets/World/Mesh/StartWorld.bin",
+	//     "Assets/World/Texture"
+	// };
+	// BuiltAsset worldAsset = AssetManager::BuildAsset(pd3dDevice, pd3dCommandList, m_pMaterials.get(), WorldDesc);
+
+	struct StaticAssetDesc
 	{
-		if (b->objectRefs.size() >= b->capacity) return;
+		AssetType type;
+		const char* meshBin;
+		const char* texDir;
+	};
+
+	StaticAssetDesc descs[4] =
+	{
+		{ AssetType::Plane, "Assets/GroundPlane/Mesh/Plane.bin", "Assets/GroundPlane/Texture" },
+		{ AssetType::House, "Assets/House/Mesh/Barn1.bin", "Assets/House/Texture" },
+		{ AssetType::House, "Assets/House/Mesh/Barn2.bin", "Assets/House/Texture" },
+		{ AssetType::House, "Assets/House/Mesh/Cabin1.bin", "Assets/House/Texture" },
+	};
+	XMFLOAT3 positions[4] =
+	{
+		XMFLOAT3(0.0f, 0.0f, 0.0f),
+		XMFLOAT3(22.0f, 0.0f, 12.0f),
+		XMFLOAT3(-20.0f, 0.0f, 0.0f),
+		XMFLOAT3(0.0f, 0.0f, -20.0f),
+	};
+
+	for (UINT k = 0; k < 4; ++k)
+	{
+		if (b->objectRefs.size() >= b->capacity) break;
 
 		const UINT i = (UINT)b->objectRefs.size();
 
-		AssetBuildDesc WorldDesc = {
-			AssetType::World,
-			"Assets/World/Mesh/StartWorld.bin",
-			"Assets/World/Texture"
+		AssetBuildDesc Desc =
+		{
+			descs[k].type,
+			descs[k].meshBin,
+			descs[k].texDir
 		};
 
-		BuiltAsset asset = AssetManager::BuildAsset(pd3dDevice, pd3dCommandList, m_pMaterials.get(), WorldDesc);
+		BuiltAsset asset = AssetManager::BuildAsset(
+			pd3dDevice, pd3dCommandList,
+			m_pMaterials.get(),
+			Desc
+		);
 
 		auto obj = std::make_unique<CGameObject>(1);
 
+		// ===== per-object CB 매핑 =====
 		auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
 		obj->SetMappedGameObjectCB(cb);
+
+		// ===== 메시/렌더러/트랜스폼/핸들 =====
 		obj->SetMesh(0, asset.mesh);
 		obj->AddComponent<CStaticMeshRendererComponent>();
-		obj->SetPosition(0.0f, 0.0f, 30.0f);
+
+		obj->SetPosition(positions[k]);
+
 		obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
 		obj->CreateComponents(pd3dDevice, pd3dCommandList);
 
-		CGameObject* raw = obj.get();              // non-owning pointer for batch
-		m_staticObjects.push_back(std::move(obj)); // scene owns
-		b->objectRefs.push_back(raw);              // batch references
+		CGameObject* raw = obj.get();
+		m_staticObjects.push_back(std::move(obj));
+		b->objectRefs.push_back(raw);
 		b->count = (UINT)b->objectRefs.size();
 	}
+
 }
 
 void CScene::BuildSkinnedBatch(
@@ -304,21 +348,11 @@ void CScene::BuildSkinnedBatch(
 
 	b->count = 0;
 
-	// 랜덤
-	constexpr float X_MIN = -43.0f;
-	constexpr float X_MAX = 43.0f;
-	constexpr float Y_MIN = 0.0f;
-	constexpr float Y_MAX = 359.0f;
-	constexpr float Z_MIN = -7.0f;
-	constexpr float Z_MAX = 78.0f;
+	const UINT fighterCount = 3;
+	const UINT zombieCount = 3;
 
-	static std::mt19937 rng(std::random_device{}());
-	std::uniform_real_distribution<float> distX(X_MIN, X_MAX);
-	std::uniform_real_distribution<float> rotY(Y_MIN, Y_MAX);
-	std::uniform_real_distribution<float> distZ(Z_MIN, Z_MAX);
-
-	const UINT zombieCount = cap / 2;
-	const UINT fighterCount = cap - zombieCount;
+	// "플레이어 기준" 위치 (BuildSkinnedBatch 시점에 player가 없으니 기본 원점 기준)
+	const XMFLOAT3 playerBase(0.0f, 0.0f, 0.0f);
 
 	// ---------- Zombie ----------
 	{
@@ -341,13 +375,16 @@ void CScene::BuildSkinnedBatch(
 
 			auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
 			obj->SetMappedGameObjectCB(cb);
+
 			obj->SetMesh(0, asset.mesh);
-			obj->AddComponent<CStaticMeshRendererComponent>();
-			float x = distX(rng);
-			float y = rotY(rng);
-			float z = distZ(rng);
-			obj->SetPosition(x, 0.0f, z);
-			obj->Rotate(0.0f, 0.0f, 0.0f);
+			obj->AddComponent<CSkinnedMeshRendererComponent>();
+
+			const float x = playerBase.x + 2.0f * (float)k;
+			const float z = playerBase.z + 2.0f;
+
+			obj->SetPosition(x, playerBase.y, z);
+
+			obj->Rotate(0.0f, 180.0f, 0.0f);
 
 			obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
 
@@ -356,6 +393,7 @@ void CScene::BuildSkinnedBatch(
 				obj->EnableSkinning(pd3dDevice, asset.mesh->GetBoneCount());
 			}
 
+			// 애니메이션 로드/세팅 (원래 코드 그대로)
 			AnimationClip idleClip;
 			bool idleLoaded = false;
 
@@ -363,7 +401,7 @@ void CScene::BuildSkinnedBatch(
 			if (mesh0)
 			{
 				idleLoaded = mesh0->LoadAnimationFromBIN(
-					"Assets/Zombie/Animation/ZombieAttack.bin",
+					"Assets/Zombie/Animation/ZombieIdle.bin",
 					"Idle", idleClip, 1.0f
 				);
 			}
@@ -385,6 +423,7 @@ void CScene::BuildSkinnedBatch(
 			}
 
 			obj->CreateComponents(pd3dDevice, pd3dCommandList);
+
 			CGameObject* raw = obj.get();
 			m_skinnedObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
@@ -403,6 +442,8 @@ void CScene::BuildSkinnedBatch(
 
 		BuiltAsset asset = AssetManager::BuildAsset(pd3dDevice, pd3dCommandList, m_pMaterials.get(), FighterDesc);
 
+		// (기존 코드 그대로) Player CB 생성 파트는 그대로 두되,
+		// 여기서 생성되는 fighter들은 "일반 skinned object"이므로 기존 로직 유지
 		// ---- Player per-object CB + CBV (b2 table 용) ----
 		m_playerCbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);
 
@@ -424,8 +465,7 @@ void CScene::BuildSkinnedBatch(
 			m_playerCbElementBytes
 		);
 
-
-		for (UINT k = 0; k < fighterCount; ++k)
+		for (UINT k = 1; k < fighterCount + 1; ++k)
 		{
 			if (b->objectRefs.size() >= b->capacity) break;
 
@@ -435,8 +475,11 @@ void CScene::BuildSkinnedBatch(
 
 			auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
 			obj->SetMappedGameObjectCB(cb);
+
 			obj->SetMesh(0, asset.mesh);
-			obj->AddComponent<CStaticMeshRendererComponent>();
+			obj->AddComponent<CSkinnedMeshRendererComponent>();
+
+			// matId 추출
 			UINT matId = 0;
 			if (asset.mesh)
 			{
@@ -451,10 +494,9 @@ void CScene::BuildSkinnedBatch(
 			auto mat = std::make_shared<CMaterial>();
 			mat->m_nReflection = matId;
 
-			float x = distX(rng);
-			float y = rotY(rng);
-			float z = distZ(rng);
-			obj->SetPosition(x, 0.0f, z);
+			const float x = playerBase.x + 2.0f * (float)k;
+			obj->SetPosition(x, playerBase.y, playerBase.z);
+
 			obj->Rotate(0.0f, 0.0f, 0.0f);
 
 			obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
@@ -464,6 +506,7 @@ void CScene::BuildSkinnedBatch(
 				obj->EnableSkinning(pd3dDevice, asset.mesh->GetBoneCount());
 			}
 
+			// 애니메이션 로드/세팅 
 			AnimationClip idleClip;
 			bool idleLoaded = false;
 
@@ -493,6 +536,7 @@ void CScene::BuildSkinnedBatch(
 			}
 
 			obj->CreateComponents(pd3dDevice, pd3dCommandList);
+
 			CGameObject* raw = obj.get();
 			m_skinnedObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
@@ -500,6 +544,7 @@ void CScene::BuildSkinnedBatch(
 		}
 	}
 }
+
 
 void CScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target)
 {
@@ -605,9 +650,30 @@ void CScene::BuildPlayer(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd
 			if (anim) anim->AddClip(moveClip);
 		}
 
+		// === Attack clip 추가 로드 ===
+		AnimationClip attackClip;
+		bool attackLoaded = false;
+
+		if (mesh0)
+		{
+			attackLoaded = mesh0->LoadAnimationFromBIN(
+				"Assets/Fighter/Animation/FighterAttack.bin",
+				"Attack", attackClip, 1.0f
+			);
+		}
+
+		if (attackLoaded)
+		{
+			attackClip.name = "Attack";
+			if (anim) anim->AddClip(attackClip);
+		}
+
+
 		auto* ctrl = obj->EnsureAnimController();
 		ctrl->SetIdleClip("Idle");
 		ctrl->SetMoveClip(moveLoaded ? "Run" : "Idle");
+		ctrl->SetAttackClip("Attack");
+
 		ctrl->SetSpeed(0.0f);
 		ctrl->Update(0.0f);
 
