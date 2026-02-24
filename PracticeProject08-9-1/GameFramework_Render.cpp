@@ -20,6 +20,27 @@ void CGameFramework::ProcessInput()
 	if (GetKeyboardState(pKeysBuffer) && m_pScene)
 		bProcessedByScene = m_pScene->ProcessInput(pKeysBuffer);
 
+	// =========================================================
+	// Demo: 숫자키 1/2/3 -> 각각 Demo Fighter 0/1/2 Attack 1회
+	//  - Attack은 non-loop, 종료 직후 Idle 복귀(AnimController 로직)
+	//  - 엣지 트리거(눌림 1회만)로 처리
+	// =========================================================
+	static bool s_prevNum1 = false;
+	static bool s_prevNum2 = false;
+	static bool s_prevNum3 = false;
+
+	const bool num1Down = (pKeysBuffer['1'] & 0xF0) != 0;
+	const bool num2Down = (pKeysBuffer['2'] & 0xF0) != 0;
+	const bool num3Down = (pKeysBuffer['3'] & 0xF0) != 0;
+
+	if (num1Down && !s_prevNum1) { if (m_pScene) m_pScene->RequestDemoFighterAttack(0); }
+	if (num2Down && !s_prevNum2) { if (m_pScene) m_pScene->RequestDemoFighterAttack(1); }
+	if (num3Down && !s_prevNum3) { if (m_pScene) m_pScene->RequestDemoFighterAttack(2); }
+
+	s_prevNum1 = num1Down;
+	s_prevNum2 = num2Down;
+	s_prevNum3 = num3Down;
+
 	CGameObject* playerObj = (m_pScene ? m_pScene->GetPlayer() : nullptr);
 	if (!playerObj) return;
 	if (m_ptOldCursorPos.x == 0 && m_ptOldCursorPos.y == 0)

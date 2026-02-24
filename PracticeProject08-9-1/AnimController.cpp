@@ -4,6 +4,7 @@
 
 #include "stdafx.h"
 #include "AnimController.h"
+#include "AnimatorComponent.h"
 #include "Object.h"
 #include "Animator.h"
 
@@ -11,8 +12,13 @@ void CAnimController::Update(float /*dt*/)
 {
     if (!m_pOwner) return;
 
-    CAnimator* anim = m_pOwner->GetAnimator();
-    if (!anim) return;
+    CAnimator* anim = nullptr;
+
+    if (auto* animComp = m_pOwner->GetComponent<CAnimatorComponent>())
+        anim = animComp->GetAnimator();
+
+    if (!anim)
+        anim = m_pOwner->GetAnimator();
 
     // ------------------------------------------------------------
     // 0) Attack queued 贸府 (楷加 努腐 公矫)

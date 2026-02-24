@@ -14,6 +14,8 @@ CAnimatorComponent::CAnimatorComponent(CGameObject* owner)
 {
 }
 
+CAnimatorComponent::~CAnimatorComponent() = default;
+
 void CAnimatorComponent::OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*)
 {
     // 메시는 보통 ctor에서 SetMesh가 끝난 뒤 CreateComponents가 호출되므로

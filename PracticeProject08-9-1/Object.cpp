@@ -68,7 +68,7 @@ void CGameObject::SetMesh(int nIndex, shared_ptr<CMesh> pMesh)
 {
     if (!m_pModel) return;
     m_pModel->SetMesh(nIndex, std::move(pMesh));
-    if (auto* ac = GetAnimatorComponent())
+    if (CAnimatorComponent* ac = GetAnimatorComponent())
         ac->InvalidateSkeleton();
 }
 
@@ -112,7 +112,7 @@ void CGameObject::CreateComponents(ID3D12Device* pd3dDevice, ID3D12GraphicsComma
     m_pd3dDeviceForComponents = pd3dDevice;
     m_pd3dCmdForComponents = pd3dCommandList;
 
-    for (auto& c : m_components)
+    for (std::unique_ptr<CComponent>& c : m_components)
     {
         if (c && c->IsEnabled())
             c->OnCreate(pd3dDevice, pd3dCommandList);
@@ -147,12 +147,12 @@ void CGameObject::UpdateComponents(float dt)
 {
     if (!m_bComponentsCreated) return;
 
-    for (auto& c : m_components)
+    for (std::unique_ptr<CComponent>& c : m_components)
     {
         if (c && c->IsEnabled())
             c->OnUpdate(dt);
     }
-    for (auto& c : m_components)
+    for (std::unique_ptr<CComponent>& c : m_components)
     {
         if (c && c->IsEnabled())
             c->OnLateUpdate(dt);
@@ -201,30 +201,30 @@ D3D12_GPU_VIRTUAL_ADDRESS CGameObject::GetBoneCBAddress() const
 
 CAnimatorComponent* CGameObject::EnsureAnimatorComponent()
 {
-    if (auto* ac = GetAnimatorComponent())
+    if (CAnimatorComponent* ac = GetAnimatorComponent())
         return ac;
 
     // AnimatorComponent는 기본 컴포넌트가 아니므로 "필요할 때만" 붙인다.
-    auto* ac = AddComponent<CAnimatorComponent>();
+    CAnimatorComponent* ac = AddComponent<CAnimatorComponent>();
     m_pAnimatorComponent = ac;
     return ac;
 }
 
 CAnimator* CGameObject::EnsureAnimator()
 {
-    auto* ac = EnsureAnimatorComponent();
+    CAnimatorComponent* ac = EnsureAnimatorComponent();
     return ac ? ac->EnsureAnimator() : nullptr;
 }
 
 CAnimator* CGameObject::GetAnimator() const
 {
-    auto* ac = GetAnimatorComponent();
+    const CAnimatorComponent* ac = GetAnimatorComponent();
     return ac ? ac->GetAnimator() : nullptr;
 }
 
 void CGameObject::PlayAnimation(const std::string& clipName, bool loop, float start)
 {
-    auto* ac = EnsureAnimatorComponent();
+    CAnimatorComponent* ac = EnsureAnimatorComponent();
     if (!ac) return;
 
     // 재생 명령만 내린다 (업로드/평가 흐름은 컴포넌트가 담당)
@@ -252,13 +252,13 @@ CB_GAMEOBJECT_INFO* CGameObject::GetMappedGameObjectCB() const
 
 CAnimController* CGameObject::EnsureAnimController()
 {
-    auto* ac = EnsureAnimatorComponent();
+    CAnimatorComponent* ac = EnsureAnimatorComponent();
     return ac ? ac->EnsureController() : nullptr;
 }
 
 CAnimController* CGameObject::GetAnimController() const
 {
-    auto* ac = GetAnimatorComponent();
+    const CAnimatorComponent* ac = GetAnimatorComponent();
     return ac ? ac->GetController() : nullptr;
 }
 
@@ -266,8 +266,8 @@ CAnimatorComponent* CGameObject::GetAnimatorComponent()
 {
     if (m_pAnimatorComponent) return m_pAnimatorComponent;
 
-    const auto want = CComponent::StaticTypeId<CAnimatorComponent>();
-    for (auto& c : m_components)
+    const CComponent::TypeId want = CComponent::StaticTypeId<CAnimatorComponent>();
+    for (std::unique_ptr<CComponent>& c : m_components)
     {
         if (c && c->GetTypeId() == want)
         {

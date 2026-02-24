@@ -39,24 +39,16 @@ void CGameObject::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	OnPrepareRender(cmd, camera);
 
-	// ★ (1) 매 프레임 per-object CB 갱신 (Player는 override 버전이 호출됨)
 	UpdateShaderVariables(cmd);
 
-	// ★ (2) PSO/RootSig/Shader 변수 세팅 (카메라 CB 포함)
-	if (auto sh = GetShader())
-		sh->Render(cmd, camera, nullptr);
-
-	// PreRender hooks
-	for (auto& c : m_components)
+	for (std::unique_ptr<CComponent>& c : m_components)
 		if (c && c->IsEnabled()) c->OnPreRender(cmd);
 
-	// Draw
-	if (auto* r = GetRenderer())
-		if (r->IsEnabled())
-			r->Render(cmd, camera);
+	CRendererComponent* renderer = GetRenderer();
+	if (renderer && renderer->IsEnabled())
+		renderer->Render(cmd, camera);
 
-	// PostRender hooks
-	for (auto& c : m_components)
+	for (std::unique_ptr<CComponent>& c : m_components)
 		if (c && c->IsEnabled()) c->OnPostRender(cmd);
 }
 
@@ -95,7 +87,7 @@ void CGameObject::PreRenderComponents(ID3D12GraphicsCommandList* cmd)
 {
 	if (!m_bComponentsCreated) return;
 
-	for (auto& c : m_components)
+	for (std::unique_ptr<CComponent>& c : m_components)
 	{
 		if (c && c->IsEnabled())
 			c->OnPreRender(cmd);
