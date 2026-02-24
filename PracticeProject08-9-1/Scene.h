@@ -46,7 +46,7 @@ struct SCENE_STATIC_BATCH
 	UINT                                             capacity = 0;   // 최대 수용
 	UINT                                             count = 0;      // 현재 수(=objects.size())
 
-	std::vector<CGameObject*>                        objectRefs; 
+	std::vector<CGameObject*>                        objectRefs;
 
 	ComPtr<ID3D12Resource>                           cbGameObjects;
 	CB_GAMEOBJECT_INFO* mappedGameObjects = nullptr;
@@ -77,13 +77,14 @@ struct SCENE_SKINNED_BATCH
 	std::vector<CGameObject*>                        objectRefs;
 };
 
-
 class CScene
 {
 public:
 	CScene();
 	~CScene();
 
+	// Lifecycle / Release
+public:
 	void ReleaseObjects();
 	virtual void ReleaseShaderVariables();
 	void ReleaseUploadBuffers();
@@ -95,6 +96,10 @@ public:
 
 	void CreateGraphicsRootSignature(ID3D12Device* pd3dDevice);
 	virtual void CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
+
+	void BuildPlayer(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
+	void CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target);
+
 protected:
 	void BuildStaticBatch(
 		ID3D12Device* pd3dDevice,
@@ -113,7 +118,8 @@ protected:
 		DXGI_FORMAT* rtvFormats,
 		DXGI_FORMAT dsvFormat
 	);
-	// Render
+
+	// Frame / Render
 public:
 	bool ProcessInput(UCHAR* pKeysBuffer);
 	void AnimateObjects(float fTimeElapsed);
@@ -123,69 +129,66 @@ public:
 
 	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList);
 
-	// Input
+	// Input (messages)
 public:
 	bool OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
 	bool OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
 
-	// Get & Set Method
+	// Get / Set
 public:
 	ID3D12RootSignature* GetGraphicsRootSignature() { return(m_pd3dGraphicsRootSignature.Get()); }
 	void SetGraphicsRootSignature(ID3D12GraphicsCommandList* pd3dCommandList) { pd3dCommandList->SetGraphicsRootSignature(m_pd3dGraphicsRootSignature.Get()); }
 
-public:
-	std::shared_ptr<CGameObject>			m_pPlayer;
-	std::unique_ptr<CGameObject>            m_pMainCameraObject;  // Scene이 소유하는 빈 오브젝트
-	CCamera* m_pMainCamera = nullptr; // 오브젝트 내 카메라 컴포넌트 캐시
-
 	CCamera* GetMainCamera() const { return m_pMainCamera; }
 	CGameObject* GetMainCameraObject() const { return m_pMainCameraObject.get(); }
 
-	void CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target);
-
-	static std::unique_ptr<CDescriptorHeap>		m_pDescriptorHeap;
-public:
 	CGameObject* GetPlayer() const { return m_pPlayer.get(); }
 	std::shared_ptr<CGameObject> GetPlayerShared() const { return m_pPlayer; }
 
-public:
-	void BuildPlayer(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
-
-protected:
-	ComPtr<ID3D12RootSignature>				m_pd3dGraphicsRootSignature;
-
-	ComPtr<ID3D12Resource>					m_pd3dcbLights;
-	LIGHTS* m_pcbMappedLights = nullptr;
-
-	std::unique_ptr<MATERIALS>				m_pMaterials;
-
-	ComPtr<ID3D12Resource>					m_pd3dcbMaterials;
-	MATERIAL* m_pcbMappedMaterials = nullptr;
-
-	ComPtr<ID3D12Resource>					m_pd3dcbPlayerGameObject;
-	CB_GAMEOBJECT_INFO* m_pcbMappedPlayerGameObject = nullptr;
-	D3D12_GPU_DESCRIPTOR_HANDLE				m_playerCbvGpu = { 0 };
-	UINT									m_playerCbElementBytes = 0;
-
-
-public:
 	void SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex)
 	{
 		m_pMaterials->m_pReflections[materialId].m_xmn4TextureIndices.x = srvIndex;
 	}
-	
-public:
-	SCENE_STATIC_BATCH						m_staticBatch;
-	SCENE_SKINNED_BATCH						m_skinnedBatch;
-public:
-	std::vector<std::unique_ptr<CGameObject>>   m_staticObjects;
-	std::vector<std::unique_ptr<CGameObject>>   m_skinnedObjects;
-	std::array<CGameObject*, 3> m_demoFighters = { nullptr, nullptr, nullptr };
 
 	CGameObject* GetDemoFighter(int index) const;
 	void RequestDemoFighterAttack(int index);
 
-	std::vector<std::unique_ptr<CGameObject>>   m_lightObjects;
+	// Static
+public:
+	static std::unique_ptr<CDescriptorHeap>		m_pDescriptorHeap;
+
+	// Scene State / Owned Objects
+public:
+	std::shared_ptr<CGameObject>					m_pPlayer;
+
+	std::unique_ptr<CGameObject>					m_pMainCameraObject;  // Scene이 소유하는 빈 오브젝트
+	CCamera* m_pMainCamera = nullptr; // 오브젝트 내 카메라 컴포넌트 캐시
+
+	SCENE_STATIC_BATCH								m_staticBatch;
+	SCENE_SKINNED_BATCH								m_skinnedBatch;
+
+	std::vector<std::unique_ptr<CGameObject>>		m_staticObjects;
+	std::vector<std::unique_ptr<CGameObject>>		m_skinnedObjects;
+
+	std::array<CGameObject*, 3>						m_demoFighters = { nullptr, nullptr, nullptr };
+
+	std::vector<std::unique_ptr<CGameObject>>		m_lightObjects;
 	CFollowTransformComponent* m_pPlayerSpotFollower = nullptr;
 
+	// GPU / Shader Variables (Scene-owned)
+protected:
+	ComPtr<ID3D12RootSignature>						m_pd3dGraphicsRootSignature;
+
+	ComPtr<ID3D12Resource>							m_pd3dcbLights;
+	LIGHTS* m_pcbMappedLights = nullptr;
+
+	std::unique_ptr<MATERIALS>						m_pMaterials;
+
+	ComPtr<ID3D12Resource>							m_pd3dcbMaterials;
+	MATERIAL* m_pcbMappedMaterials = nullptr;
+
+	ComPtr<ID3D12Resource>							m_pd3dcbPlayerGameObject;
+	CB_GAMEOBJECT_INFO* m_pcbMappedPlayerGameObject = nullptr;
+	D3D12_GPU_DESCRIPTOR_HANDLE						m_playerCbvGpu = { 0 };
+	UINT											m_playerCbElementBytes = 0;
 };

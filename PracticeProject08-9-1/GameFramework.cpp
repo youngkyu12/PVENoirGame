@@ -20,9 +20,29 @@ CGameFramework::~CGameFramework()
 {
 }
 
+bool CGameFramework::OnCreate(HINSTANCE hInstance, HWND hMainWnd)
+{
+	m_hInstance = hInstance;
+	m_hWnd = hMainWnd;
+
+	CreateDirect3DDevice();
+	CreateCommandQueueAndList();
+	CreateRtvAndDsvDescriptorHeaps();
+
+	CreateSwapChain();
+#ifndef _WITH_SWAPCHAIN_FULLSCREEN_STATE
+	CreateSwapChainRenderTargetViews();
+#endif
+	CreateDepthStencilView();
+
+	BuildObjects();
+
+	return(true);
+}
+
 void CGameFramework::OnDestroy()
 {
-    ReleaseObjects();
+	ReleaseObjects();
 
 	::CloseHandle(m_hFenceEvent);
 
@@ -56,7 +76,7 @@ void CGameFramework::OnDestroy()
 	if (m_pdxgiSwapChain)
 		m_pdxgiSwapChain.Reset();
 
-    if (m_pd3dDevice)
+	if (m_pd3dDevice)
 		m_pd3dDevice.Reset();
 
 	if (m_pdxgiFactory)
@@ -89,28 +109,6 @@ void CGameFramework::WaitForGpuComplete()
 		hResult = m_pd3dFence->SetEventOnCompletion(nFenceValue, m_hFenceEvent);
 		::WaitForSingleObject(m_hFenceEvent, INFINITE);
 	}
-}
-
-
-
-bool CGameFramework::OnCreate(HINSTANCE hInstance, HWND hMainWnd)
-{
-	m_hInstance = hInstance;
-	m_hWnd = hMainWnd;
-
-	CreateDirect3DDevice();
-	CreateCommandQueueAndList();
-	CreateRtvAndDsvDescriptorHeaps();
-
-	CreateSwapChain();
-#ifndef _WITH_SWAPCHAIN_FULLSCREEN_STATE
-	CreateSwapChainRenderTargetViews();
-#endif
-	CreateDepthStencilView();
-
-	BuildObjects();
-
-	return(true);
 }
 
 void CGameFramework::CreateDirect3DDevice()
@@ -436,7 +434,7 @@ void CGameFramework::BuildObjects()
 		4,
 		pdxgiResourceFormats,
 		d3dRtvCPUDescriptorHandle
-	); //SRV to (Render Targets) + (Depth Buffer)
+	); // RT(SRV) + Depth(SRV)
 
 	D3D12_GPU_DESCRIPTOR_HANDLE d3dDsvGPUDescriptorHandle = CScene::m_pDescriptorHeap->CreateShaderResourceView(
 		m_pd3dDevice.Get(),
@@ -456,10 +454,9 @@ void CGameFramework::BuildObjects()
 	m_GameTimer.Reset();
 }
 
-
 void CGameFramework::OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam)
 {
-	if (m_pScene)m_pScene->OnProcessingMouseMessage(hWnd, nMessageID, wParam, lParam);
+	if (m_pScene) m_pScene->OnProcessingMouseMessage(hWnd, nMessageID, wParam, lParam);
 	switch (nMessageID)
 	{
 	case WM_LBUTTONDOWN:
@@ -480,7 +477,7 @@ void CGameFramework::OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM
 
 void CGameFramework::OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam)
 {
-	if (m_pScene)m_pScene->OnProcessingKeyboardMessage(hWnd, nMessageID, wParam, lParam);
+	if (m_pScene) m_pScene->OnProcessingKeyboardMessage(hWnd, nMessageID, wParam, lParam);
 	switch (nMessageID)
 	{
 	case WM_KEYUP:
@@ -590,7 +587,6 @@ void CGameFramework::ChangeSwapChainState()
 	CreateSwapChainRenderTargetViews();
 }
 
-
 void CGameFramework::ProcessInput()
 {
 	static UCHAR pKeysBuffer[256];
@@ -599,11 +595,7 @@ void CGameFramework::ProcessInput()
 	if (GetKeyboardState(pKeysBuffer) && m_pScene)
 		bProcessedByScene = m_pScene->ProcessInput(pKeysBuffer);
 
-	// =========================================================
-	// Demo: 숫자키 1/2/3 -> 각각 Demo Fighter 0/1/2 Attack 1회
-	//  - Attack은 non-loop, 종료 직후 Idle 복귀(AnimController 로직)
-	//  - 엣지 트리거(눌림 1회만)로 처리
-	// =========================================================
+	// Demo: 1/2/3 -> DemoFighter(0/1/2) Attack (edge trigger)
 	static bool s_prevNum1 = false;
 	static bool s_prevNum2 = false;
 	static bool s_prevNum3 = false;
@@ -625,7 +617,6 @@ void CGameFramework::ProcessInput()
 	if (m_ptOldCursorPos.x == 0 && m_ptOldCursorPos.y == 0)
 		::GetCursorPos(&m_ptOldCursorPos);
 
-
 	auto* pc = playerObj->GetComponent<CPlayerControllerComponent>();
 	if (!pc) return;
 
@@ -641,8 +632,7 @@ void CGameFramework::ProcessInput()
 		if (pKeysBuffer[VK_PRIOR] & 0xF0) dwDirection |= DIR_UP;
 		if (pKeysBuffer[VK_NEXT] & 0xF0)  dwDirection |= DIR_DOWN;
 
-		// === keyBuffer 값을 int32 안에 넣기
-
+		// Pack keyBuffer into int32
 		int32 keyCodes = 0;
 		if (pKeysBuffer[VK_UP] & 0xF0)    keyCodes |= (1 << 0);
 		if (pKeysBuffer[VK_DOWN] & 0xF0)  keyCodes |= (1 << 1);
@@ -651,8 +641,7 @@ void CGameFramework::ProcessInput()
 		if (pKeysBuffer[VK_PRIOR] & 0xF0) keyCodes |= (1 << 4);
 		if (pKeysBuffer[VK_NEXT] & 0xF0)  keyCodes |= (1 << 5);
 
-		// == Protocol::C_INPUT 패킷 생성 및 값 설정 ===
-
+		// Build Protocol::C_INPUT
 		Protocol::C_INPUT inputPkt;
 		inputPkt.set_playerid(0);
 		inputPkt.set_keycodes(keyCodes);
@@ -675,15 +664,14 @@ void CGameFramework::ProcessInput()
 		cyDelta = (float)(ptCursorPos.y - m_ptOldCursorPos.y) / 3.0f;
 
 		m_ptOldCursorPos = ptCursorPos;
-
 	}
 
 	const float dt = m_GameTimer.GetTimeElapsed();
 
-	// === delta 계산을 위해 이동 전 위치 저장 ===
+	// Save pre-move position for camera delta
 	XMFLOAT3 oldPos = playerObj->GetPosition();
 
-	// === Rotate/Move: "Player 전용 호출" 금지, 컨트롤러로만 ===
+	// Rotate/Move via controller only
 	if (cxDelta || cyDelta)
 	{
 		if (pKeysBuffer[VK_RBUTTON] & 0xF0)
@@ -710,13 +698,10 @@ void CGameFramework::ProcessInput()
 	}
 }
 
-
-
 void CGameFramework::AnimateObjects()
 {
-	if (m_pScene)m_pScene->AnimateObjects(m_GameTimer.GetTimeElapsed());
+	if (m_pScene) m_pScene->AnimateObjects(m_GameTimer.GetTimeElapsed());
 }
-
 
 void CGameFramework::MoveToNextFrame()
 {
