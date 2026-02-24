@@ -282,6 +282,9 @@
     <ClCompile Include="DescriptorHeap.cpp">
       <Filter>Resource\Descripter</Filter>
     </ClCompile>
+    <ClCompile Include="CommonPlayerControllerComponent_Client.cpp">
+      <Filter>Components\PlayerController</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PracticeProject08-9-1.rc">
