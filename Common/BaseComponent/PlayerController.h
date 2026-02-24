@@ -1,15 +1,13 @@
-#pragma once
-#include "BaseComponent.h"
-#include "CTransformComponent.h"
-#include "PlayerLogic.h"
-#include "GameTypes.h"
-
 //-----------------------------------------------------------------------------
 // File: PlayerController.h
 // 서버/클라 공용 플레이어 컨트롤러 컴포넌트
 // DirectX 의존성 없음 - PlayerLogic 사용
 //-----------------------------------------------------------------------------
-
+#pragma once
+#include "BaseComponent.h"
+#include "CTransformComponent.h"
+#include "PlayerLogic.h"
+#include "GameTypes.h"
 
 class CServerObject;
 
