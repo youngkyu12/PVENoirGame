@@ -1,61 +1,59 @@
 //-----------------------------------------------------------------------------
-// File: PlayerController.cpp
-// 서버/클라 공용 플레이어 컨트롤러 구현
+// File: CommonPlayerControllerComponent_Client.cpp
+// 클라이언트용 구현(OwnerT = CGameObject)
+// - Object.h를 include 해서 GetComponent<T>() 템플릿이 보이게 함
 //-----------------------------------------------------------------------------
-#include "pch.h"
-#include "PlayerController.h"
-#include "ServerObject.h"
 
-CPlayerControllerComponent::CPlayerControllerComponent(CServerObject* owner)
-    : CComponentT<CPlayerControllerComponent>(owner)
+#include "stdafx.h"
+#include "CommonPlayerControllerComponent.h"
+#include "Object.h"
+
+CCommonPlayerControllerComponent::CCommonPlayerControllerComponent(OwnerT* owner)
+    : CComponentT<CCommonPlayerControllerComponent>(owner)
 {
 }
 
-void CPlayerControllerComponent::SetYawDegrees(float yawDeg)
+void CCommonPlayerControllerComponent::SetYawDegrees(float yawDeg)
 {
     m_yawDeg = GameMath::NormalizeYaw(yawDeg);
     ApplyYawToOwnerTransform();
 }
 
-void CPlayerControllerComponent::ApplyYawToOwnerTransform()
+void CCommonPlayerControllerComponent::ApplyYawToOwnerTransform()
 {
-    CServerObject* owner = GetOwner();
+    OwnerT* owner = GetOwner();
     if (!owner) return;
 
     if (auto* tr = owner->GetComponent<CCommonTransformComponent>())
         tr->SetYawDegrees(m_yawDeg);
 }
 
-void CPlayerControllerComponent::SetInputDirection(int32_t direction)
+void CCommonPlayerControllerComponent::SetInputDirection(int32_t direction)
 {
     m_inputDir = direction;
 }
 
-void CPlayerControllerComponent::Move(
+void CCommonPlayerControllerComponent::Move(
     int32_t direction,
     float distance,
     bool bUpdateVelocity,
     EVerticalMoveSpace /*upSpace*/)
 {
-    CServerObject* owner = GetOwner();
+    OwnerT* owner = GetOwner();
     if (!owner || !direction) return;
 
-    // PlayerLogic으로 이동 방향 계산
     GameMath::Vec3 moveDir = PlayerLogic::ComputeMoveDirection(direction, m_yawDeg);
     GameMath::Vec3 shift = moveDir * distance;
 
-    // 수직 이동
-    if (direction & PlayerLogic::DIR_UP)
-        shift.y += distance;
-    if (direction & PlayerLogic::DIR_DOWN)
-        shift.y -= distance;
+    if (direction & PlayerLogic::PL_DIR_UP)   shift.y += distance;
+    if (direction & PlayerLogic::PL_DIR_DOWN) shift.y -= distance;
 
     MoveShift(shift, bUpdateVelocity);
 }
 
-void CPlayerControllerComponent::MoveShift(const GameMath::Vec3& shift, bool bUpdateVelocity)
+void CCommonPlayerControllerComponent::MoveShift(const GameMath::Vec3& shift, bool bUpdateVelocity)
 {
-    CServerObject* owner = GetOwner();
+    OwnerT* owner = GetOwner();
     if (!owner) return;
 
     if (bUpdateVelocity)
@@ -69,24 +67,22 @@ void CPlayerControllerComponent::MoveShift(const GameMath::Vec3& shift, bool bUp
     }
 }
 
-void CPlayerControllerComponent::Rotate(float /*pitchDeg*/, float yawDeg, float /*rollDeg*/)
+void CCommonPlayerControllerComponent::Rotate(float /*pitchDeg*/, float yawDeg, float /*rollDeg*/)
 {
     if (yawDeg != 0.0f)
         SetYawDegrees(m_yawDeg + yawDeg);
 }
 
-void CPlayerControllerComponent::OnUpdate(float dt)
+void CCommonPlayerControllerComponent::OnUpdate(float dt)
 {
-    CServerObject* owner = GetOwner();
+    OwnerT* owner = GetOwner();
     if (!owner) return;
 
     auto* tr = owner->GetComponent<CCommonTransformComponent>();
     if (!tr) return;
 
-    // 현재 위치 가져오기
     GameMath::Vec3 pos = tr->GetPosition();
 
-    // ★ 공유 로직 호출 ★
     PlayerLogic::ApplyPhysics(
         pos,
         m_velocity,
@@ -97,30 +93,27 @@ void CPlayerControllerComponent::OnUpdate(float dt)
         dt
     );
 
-    // 위치 적용
     tr->SetPosition(pos);
 }
 
-NetworkPlayerState CPlayerControllerComponent::ToNetworkState(uint64_t playerId) const
+NetworkPlayerState CCommonPlayerControllerComponent::ToNetworkState(uint64_t playerId) const
 {
-    CServerObject* owner = GetOwner();
+    OwnerT* owner = GetOwner();
     GameMath::Vec3 pos = GameMath::Vec3::Zero();
-    
+
     if (owner)
     {
         if (auto* tr = owner->GetComponent<CCommonTransformComponent>())
             pos = tr->GetPosition();
     }
 
-    // 애니메이션 상태: 이동 중이면 Run, 아니면 Idle
     uint8_t animState = (m_inputDir != 0) ? AnimStateType::Run : AnimStateType::Idle;
-
     return NetworkPlayerState::FromGameMath(playerId, pos, m_yawDeg, animState, 0.f);
 }
 
-void CPlayerControllerComponent::ApplyNetworkState(const NetworkPlayerState& state)
+void CCommonPlayerControllerComponent::ApplyNetworkState(const NetworkPlayerState& state)
 {
-    CServerObject* owner = GetOwner();
+    OwnerT* owner = GetOwner();
     if (!owner) return;
 
     if (auto* tr = owner->GetComponent<CCommonTransformComponent>())

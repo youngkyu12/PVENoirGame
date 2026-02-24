@@ -6,7 +6,7 @@
 #include "GameSession.h"
 #include "GameArea.h"
 
-#include "PlayerController.h"
+#include "CommonPlayerControllerComponent.h"
 
 #include "Protocol.pb.h"
 #include "ClientPacketHandler.h"

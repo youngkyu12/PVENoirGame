@@ -199,6 +199,7 @@
     <ClCompile Include="AnimController.cpp" />
     <ClCompile Include="AssetManager.cpp" />
     <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="CommonPlayerControllerComponent_Client.cpp" />
     <ClCompile Include="DDSTextureLoader12.cpp">
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">VectorCall</CallingConvention>
     </ClCompile>

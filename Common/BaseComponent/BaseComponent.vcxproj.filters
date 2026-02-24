@@ -36,7 +36,7 @@
     <ClInclude Include="CTransformComponent.h">
       <Filter>Transform</Filter>
     </ClInclude>
-    <ClInclude Include="PlayerController.h">
+    <ClInclude Include="CommonPlayerControllerComponent.h">
       <Filter>PlayerController</Filter>
     </ClInclude>
     <ClInclude Include="ServerObject.h">
@@ -64,9 +64,6 @@
     </ClCompile>
     <ClCompile Include="CTransformComponent.cpp">
       <Filter>Transform</Filter>
-    </ClCompile>
-    <ClCompile Include="PlayerController.cpp">
-      <Filter>PlayerController</Filter>
     </ClCompile>
     <ClCompile Include="ServerObject.cpp">
       <Filter>Object</Filter>
