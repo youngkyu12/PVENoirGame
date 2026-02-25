@@ -4,6 +4,7 @@
 
 #include "stdafx.h"
 #include "PlayerControllerComponent.h"
+#include "ActorTagComponent.h"
 
 #include "Object.h"
 #include "Animator.h"
@@ -143,6 +144,13 @@ void CPlayerControllerComponent::Move(
     bool bUpdateVelocity,
     EVerticalMoveSpace /*upSpace*/)
 {
+    auto* owner = GetOwner();
+    if (!owner) return;
+
+    auto* tag = owner->GetComponent<CActorTagComponent>();
+    if (tag && tag->kind == EActorKind::Player && tag->control != EPlayerControl::Local)
+        return;
+
     if (IsAttackBlocking())
         return;
 
@@ -161,6 +169,13 @@ void CPlayerControllerComponent::Move(
 
 void CPlayerControllerComponent::MoveShift(const XMFLOAT3& shift, bool bUpdateVelocity)
 {
+    auto* owner = GetOwner();
+    if (!owner) return;
+
+    auto* tag = owner->GetComponent<CActorTagComponent>();
+    if (tag && tag->kind == EActorKind::Player && tag->control != EPlayerControl::Local)
+        return;
+
     if (IsAttackBlocking())
         return;
 
@@ -170,6 +185,13 @@ void CPlayerControllerComponent::MoveShift(const XMFLOAT3& shift, bool bUpdateVe
 
 void CPlayerControllerComponent::Rotate(float /*pitchDeg*/, float yawDeg, float /*rollDeg*/)
 {
+    auto* owner = GetOwner();
+    if (!owner) return;
+
+    auto* tag = owner->GetComponent<CActorTagComponent>();
+    if (tag && tag->kind == EActorKind::Player && tag->control != EPlayerControl::Local)
+
+        return;
     if (IsAttackBlocking())
         return;
 

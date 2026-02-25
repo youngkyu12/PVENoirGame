@@ -12,6 +12,8 @@
 #include "CommonPlayerControllerComponent.h"
 #include "PlayerControllerComponent.h"
 #include "Object.h"
+#include "ActorTagComponent.h"
+
 #include "ThreadManager.h"
 #include "Service.h"
 #include "Session.h"
@@ -673,7 +675,9 @@ void CScene::BuildSkinnedBatch(
 
 	const XMFLOAT3 playerBase(0.0f, 0.0f, 0.0f);
 
-	// ---------- Zombie ----------
+	// ------------------------------------------------------------------------
+	// Zombie (NPC)
+	// ------------------------------------------------------------------------
 	{
 		AssetBuildDesc ZombieDesc =
 		{
@@ -698,11 +702,18 @@ void CScene::BuildSkinnedBatch(
 			obj->SetMesh(0, asset.mesh);
 			obj->AddComponent<CSkinnedMeshRendererComponent>();
 
+			// [ADD] Tag: NPC
+			{
+				auto* tag = obj->AddComponent<CActorTagComponent>();
+				tag->kind = EActorKind::NPC;
+				tag->control = EPlayerControl::None;
+				tag->playerSlot = -1;
+			}
+
 			const float x = playerBase.x + 2.0f * (float)k;
 			const float z = playerBase.z + 2.0f;
 
 			obj->SetPosition(x, playerBase.y, z);
-
 			obj->Rotate(0.0f, 180.0f, 0.0f);
 
 			obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
@@ -743,8 +754,6 @@ void CScene::BuildSkinnedBatch(
 			obj->CreateComponents(pd3dDevice, pd3dCommandList);
 
 			CGameObject* raw = obj.get();
-			if ((k - 1) < (UINT)m_demoFighters.size())
-				m_demoFighters[k - 1] = raw;
 
 			m_skinnedObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
@@ -752,9 +761,12 @@ void CScene::BuildSkinnedBatch(
 		}
 	}
 
-	// ---------- Fighter ----------
+	// ------------------------------------------------------------------------
+	// Fighter (Remote Player 1..3)  +  m_demoFighters[0..2]
+	// ------------------------------------------------------------------------
 	{
 		m_demoFighters.fill(nullptr);
+
 		AssetBuildDesc FighterDesc =
 		{
 			AssetType::Fighter,
@@ -799,6 +811,14 @@ void CScene::BuildSkinnedBatch(
 			obj->AddComponent<CSkinnedMeshRendererComponent>();
 
 			auto* animComp = obj->AddComponent<CAnimatorComponent>();
+
+			// [ADD] Tag: Remote Player (slot = 1..3)
+			{
+				auto* tag = obj->AddComponent<CActorTagComponent>();
+				tag->kind = EActorKind::Player;
+				tag->control = EPlayerControl::Remote;
+				tag->playerSlot = (int32_t)k; // k=1..3
+			}
 
 			UINT matId = 0;
 			if (asset.mesh)
@@ -902,7 +922,15 @@ void CScene::BuildPlayer(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd
 	obj->SetCbvGPUDescriptorHandlePtr(m_playerCbvGpu.ptr);
 
 	obj->SetMesh(0, asset.mesh);
-	obj->AddComponent<CStaticMeshRendererComponent>();
+	obj->AddComponent<CSkinnedMeshRendererComponent>();
+
+	// [ADD] Tag: Local Player (slot = 0)
+	{
+		auto* tag = obj->AddComponent<CActorTagComponent>();
+		tag->kind = EActorKind::Player;
+		tag->control = EPlayerControl::Local;
+		tag->playerSlot = 0;
+	}
 
 	obj->SetPosition(0.0f, 0.0f, 0.0f);
 	obj->Rotate(0.0f, 0.0f, 0.0f);
@@ -1022,32 +1050,62 @@ CGameObject* CScene::GetDemoFighter(int index) const
 
 void CScene::RequestDemoFighterAttack(int index)
 {
-	CGameObject* obj = GetDemoFighter(index);
+	// 기존 API 유지: index(0..2) -> slot(1..3)
+	const int slot = index + 1;
+	RequestPlayerAttackBySlot(slot);
+}
+
+void CScene::RequestPlayerAttackBySlot(int slot)
+{
+	CGameObject* obj = GetPlayerBySlot(slot);
 	if (!obj) return;
 
+	// AnimatorComponent 기반
 	if (auto* animComp = obj->GetComponent<CAnimatorComponent>())
 	{
 		if (auto* ctrl = animComp->EnsureController())
+		{
 			ctrl->RequestAttack();
+			return;
+		}
+	}
+
+	// 레거시 AnimController 기반
+	if (auto* ctrl = obj->GetAnimController())
+	{
+		ctrl->RequestAttack();
 		return;
 	}
 
-	if (auto* ctrl = obj->GetAnimController())
-		ctrl->RequestAttack();
+	// Animator만 있는 경우(클립 직접 전환 로직이 없다면 여기서는 할 게 없음)
+}
+
+CGameObject* CScene::GetPlayerBySlot(int slot) const
+{
+	if (slot < 0 || slot > 3) return nullptr;
+
+	// slot 0은 m_pPlayer로 고정
+	if (slot == 0) return m_pPlayer.get();
+
+	// slot 1..3은 태그 or m_demoFighters 사용
+	// (4명 고정이면 m_demoFighters가 가장 빠름)
+	return m_demoFighters[(size_t)(slot - 1)];
+}
+
+bool CScene::IsLocalPlayer(const CGameObject* obj) const
+{
+	if (!obj) return false;
+	auto* tag = obj->GetComponent<CActorTagComponent>();
+	return tag && tag->kind == EActorKind::Player && tag->control == EPlayerControl::Local;
 }
 
 bool CScene::OnProcessingMouseMessage(HWND /*hWnd*/, UINT nMessageID, WPARAM /*wParam*/, LPARAM /*lParam*/)
 {
 	if (nMessageID == WM_LBUTTONDOWN)
 	{
-		if (m_pPlayer)
-		{
-			if (auto* ctrl = m_pPlayer->GetAnimController())
-			{
-				ctrl->RequestAttack();
-				return true;
-			}
-		}
+		// slot 0 = 로컬 플레이어
+		RequestPlayerAttackBySlot(0);
+		return true;
 	}
 	return false;
 }

@@ -151,6 +151,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="ActorTagComponent.h" />
     <ClInclude Include="BaseComponent.h" />
     <ClInclude Include="ComponentPch.h" />
     <ClInclude Include="CTransformComponent.h" />
@@ -163,6 +164,7 @@
     <ClInclude Include="CommonPlayerControllerComponent.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ActorTagComponent.cpp" />
     <ClCompile Include="BaseComponent.cpp" />
     <ClCompile Include="CTransformComponent.cpp" />
     <ClCompile Include="MapData.cpp" />

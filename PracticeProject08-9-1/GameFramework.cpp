@@ -595,7 +595,7 @@ void CGameFramework::ProcessInput()
 	if (GetKeyboardState(pKeysBuffer) && m_pScene)
 		bProcessedByScene = m_pScene->ProcessInput(pKeysBuffer);
 
-	// Demo: 1/2/3 -> DemoFighter(0/1/2) Attack (edge trigger)
+	// Demo: 1/2/3 -> Player slot(1/2/3) Attack (edge trigger)
 	static bool s_prevNum1 = false;
 	static bool s_prevNum2 = false;
 	static bool s_prevNum3 = false;
@@ -604,9 +604,9 @@ void CGameFramework::ProcessInput()
 	const bool num2Down = (pKeysBuffer['2'] & 0xF0) != 0;
 	const bool num3Down = (pKeysBuffer['3'] & 0xF0) != 0;
 
-	if (num1Down && !s_prevNum1) { if (m_pScene) m_pScene->RequestDemoFighterAttack(0); }
-	if (num2Down && !s_prevNum2) { if (m_pScene) m_pScene->RequestDemoFighterAttack(1); }
-	if (num3Down && !s_prevNum3) { if (m_pScene) m_pScene->RequestDemoFighterAttack(2); }
+	if (num1Down && !s_prevNum1) { if (m_pScene) m_pScene->RequestPlayerAttackBySlot(1); }
+	if (num2Down && !s_prevNum2) { if (m_pScene) m_pScene->RequestPlayerAttackBySlot(2); }
+	if (num3Down && !s_prevNum3) { if (m_pScene) m_pScene->RequestPlayerAttackBySlot(3); }
 
 	s_prevNum1 = num1Down;
 	s_prevNum2 = num2Down;
