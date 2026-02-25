@@ -67,6 +67,9 @@ void CGameFramework::ProcessInput()
 			SetCursorPos(m_ptOldCursorPos.x, m_ptOldCursorPos.y);
 		}
 
+		inputPkt.set_deltax(cxDelta);
+		inputPkt.set_deltay(cyDelta);
+
 		auto sendBuffer = ServerPacketHandler::MakeSendBuffer(inputPkt);
 		g_clientService->BroadCast(sendBuffer);
 		GetCursorPos(&ptCursorPos);

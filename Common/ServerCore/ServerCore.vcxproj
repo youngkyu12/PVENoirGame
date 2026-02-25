@@ -197,7 +197,9 @@
     <ClCompile Include="CoreGlobal.cpp" />
     <ClCompile Include="Corepch.cpp" />
     <ClCompile Include="CoreTLS.cpp" />
-    <ClCompile Include="DeadLockProfiler.cpp" />
+    <ClCompile Include="DeadLockProfiler.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="GlobalQueue.cpp" />
     <ClCompile Include="IocpCore.cpp" />
     <ClCompile Include="IocpEvent.cpp" />
