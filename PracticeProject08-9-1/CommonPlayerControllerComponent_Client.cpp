@@ -6,7 +6,11 @@
 
 #include "stdafx.h"
 #include "CommonPlayerControllerComponent.h"
-#include "Object.h"
+#include "Object.h"       
+#include "Component.h" 
+
+static GameMath::Vec3 ToGM(const XMFLOAT3& v) { return GameMath::Vec3(v.x, v.y, v.z); }
+static XMFLOAT3 ToDX(const GameMath::Vec3& v) { return XMFLOAT3(v.x, v.y, v.z); }
 
 CCommonPlayerControllerComponent::CCommonPlayerControllerComponent(OwnerT* owner)
     : CComponentT<CCommonPlayerControllerComponent>(owner)
@@ -24,7 +28,7 @@ void CCommonPlayerControllerComponent::ApplyYawToOwnerTransform()
     OwnerT* owner = GetOwner();
     if (!owner) return;
 
-    if (auto* tr = owner->GetComponent<CCommonTransformComponent>())
+    if (auto* tr = owner->GetComponent<CTransformComponent>())
         tr->SetYawDegrees(m_yawDeg);
 }
 
@@ -62,8 +66,8 @@ void CCommonPlayerControllerComponent::MoveShift(const GameMath::Vec3& shift, bo
     }
     else
     {
-        if (auto* tr = owner->GetComponent<CCommonTransformComponent>())
-            tr->Translate(shift);
+        if (auto* tr = owner->GetComponent<CTransformComponent>())
+            tr->Translate(ToDX(shift));
     }
 }
 
@@ -78,10 +82,10 @@ void CCommonPlayerControllerComponent::OnUpdate(float dt)
     OwnerT* owner = GetOwner();
     if (!owner) return;
 
-    auto* tr = owner->GetComponent<CCommonTransformComponent>();
+    auto* tr = owner->GetComponent<CTransformComponent>();
     if (!tr) return;
 
-    GameMath::Vec3 pos = tr->GetPosition();
+    GameMath::Vec3 pos = ToGM(tr->position);
 
     PlayerLogic::ApplyPhysics(
         pos,
@@ -93,7 +97,7 @@ void CCommonPlayerControllerComponent::OnUpdate(float dt)
         dt
     );
 
-    tr->SetPosition(pos);
+    tr->SetPosition(ToDX(pos));
 }
 
 NetworkPlayerState CCommonPlayerControllerComponent::ToNetworkState(uint64_t playerId) const
