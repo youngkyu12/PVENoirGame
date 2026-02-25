@@ -153,7 +153,10 @@ public:
 	CGameObject* GetDemoFighter(int index) const;
 	void RequestDemoFighterAttack(int index);
 
-	// Static
+	CGameObject* GetPlayerBySlot(int slot) const; // slot: 0..3
+	bool IsLocalPlayer(const CGameObject* obj) const;
+	void RequestPlayerAttackBySlot(int slot); // slot: 0..3
+
 public:
 	static std::unique_ptr<CDescriptorHeap>		m_pDescriptorHeap;
 
