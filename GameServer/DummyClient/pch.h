@@ -5,7 +5,7 @@
 #ifdef _DEBUG
 #pragma comment(lib, "ServerCore\\Debug\\ServerCore.lib")
 #pragma comment(lib, "Protobuf\\Debug\\libprotobufd.lib")
-#pragma comment(lib, "BaseComponent\\Debug\\BaseComponent.lib"))
+#pragma comment(lib, "BaseComponent\\Debug\\BaseComponent.lib")
 #else
 #pragma comment(lib, "ServerCore\\Release\\ServerCore.lib")
 #pragma comment(lib, "Protobuf\\Release\\libprotobuf.lib")
