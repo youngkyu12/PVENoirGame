@@ -9,7 +9,7 @@
 #include "GameMath.h"
 
 // forward declarations
-class CServerObject;
+class CBaseObject;
 class ID3D12Device;
 class ID3D12GraphicsCommandList;
 
@@ -32,12 +32,12 @@ public:
 	}
 
 public:
-	explicit CComponent(CServerObject* owner) : m_pOwner(owner) {}
+	explicit CComponent(CBaseObject* owner) : m_pOwner(owner) {}
 	virtual ~CComponent() = default;
 
 	virtual TypeId GetTypeId() const = 0;
 
-	CServerObject* GetOwner() const { return m_pOwner; }
+	CBaseObject* GetOwner() const { return m_pOwner; }
 
 	bool IsEnabled() const { return m_bEnabled; }
 	void SetEnabled(bool b) { m_bEnabled = b; }
@@ -52,7 +52,7 @@ public:
 	virtual void OnLateUpdate(float dt) {}
 
 protected:
-	CServerObject* m_pOwner = nullptr;
+	CBaseObject* m_pOwner = nullptr;
 	bool           m_bEnabled = true;
 };
 
