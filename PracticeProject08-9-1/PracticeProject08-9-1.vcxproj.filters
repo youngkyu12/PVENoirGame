@@ -92,6 +92,9 @@
     <Filter Include="Network\PacketHandler">
       <UniqueIdentifier>{68eba5ac-4fc8-43a3-be24-29bc741f88e0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Components\Arrow">
+      <UniqueIdentifier>{22421a35-4530-4e8d-b848-e2d4d9cfb516}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animator.h">
@@ -196,6 +199,9 @@
     <ClInclude Include="..\Common\Components\PlayerControllerComponent.h">
       <Filter>Components\PlayerController</Filter>
     </ClInclude>
+    <ClInclude Include="ArrowComponent.h">
+      <Filter>Components\Arrow</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -284,6 +290,9 @@
     </ClCompile>
     <ClCompile Include="CommonPlayerControllerComponent_Client.cpp">
       <Filter>Components\PlayerController</Filter>
+    </ClCompile>
+    <ClCompile Include="ArrowComponent.cpp">
+      <Filter>Components\Arrow</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

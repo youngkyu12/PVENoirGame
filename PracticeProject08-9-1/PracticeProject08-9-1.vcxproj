@@ -162,6 +162,7 @@
     <ClInclude Include="AnimatorComponent.h" />
     <ClInclude Include="AnimatorData.h" />
     <ClInclude Include="AnimController.h" />
+    <ClInclude Include="ArrowComponent.h" />
     <ClInclude Include="AssetManager.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="d3dx12.h" />
@@ -197,6 +198,7 @@
     <ClCompile Include="AnimatorComponent.cpp" />
     <ClCompile Include="AnimatorData.cpp" />
     <ClCompile Include="AnimController.cpp" />
+    <ClCompile Include="ArrowComponent.cpp" />
     <ClCompile Include="AssetManager.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="CommonPlayerControllerComponent_Client.cpp" />

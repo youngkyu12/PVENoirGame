@@ -14,7 +14,8 @@ enum class AssetType
     Fighter,
     World,
     Plane,
-    House
+    House,
+    Arrow
 };
 
 // BuildAsset에 넘길 데이터 묶음
