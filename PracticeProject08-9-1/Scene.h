@@ -19,6 +19,8 @@ constexpr UINT LEGACY_SRV_COUNT = 6; // t0(1) + t1~t5(5)
 class CMaterial;
 class CGameObject;
 class CFollowTransformComponent;
+class CArrowComponent;
+
 struct CB_GAMEOBJECT_INFO;
 struct CB_BONE_PALETTE;
 
@@ -156,6 +158,7 @@ public:
 	CGameObject* GetPlayerBySlot(int slot) const; // slot: 0..3
 	bool IsLocalPlayer(const CGameObject* obj) const;
 	void RequestPlayerAttackBySlot(int slot); // slot: 0..3
+	void RequestFireArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f, float yOffset = 0.0f);
 
 public:
 	static std::unique_ptr<CDescriptorHeap>		m_pDescriptorHeap;
@@ -172,6 +175,9 @@ public:
 
 	std::vector<std::unique_ptr<CGameObject>>		m_staticObjects;
 	std::vector<std::unique_ptr<CGameObject>>		m_skinnedObjects;
+	
+	static constexpr UINT							kArrowPoolSize = 32;
+	std::vector<CGameObject*>						m_arrowRefs; // size = kArrowPoolSize, raw pointers (owned by m_staticObjects)
 
 	std::array<CGameObject*, 3>						m_demoFighters = { nullptr, nullptr, nullptr };
 

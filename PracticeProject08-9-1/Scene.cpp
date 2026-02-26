@@ -13,6 +13,7 @@
 #include "PlayerControllerComponent.h"
 #include "Object.h"
 #include "ActorTagComponent.h"
+#include "ArrowComponent.h"
 
 #include "ThreadManager.h"
 #include "Service.h"
@@ -25,13 +26,15 @@ std::unique_ptr<CDescriptorHeap> CScene::m_pDescriptorHeap = std::make_unique<CD
 
 CScene::CScene()
 {
-	m_staticBatch.capacity = 4;
+	m_staticBatch.capacity = 4 + kArrowPoolSize;
 	m_staticBatch.count = 0;
 
 	m_skinnedBatch.capacity = 10;
 	m_skinnedBatch.count = 0;
 
 	m_demoFighters.fill(nullptr);
+	m_arrowRefs.clear();
+	m_arrowRefs.shrink_to_fit();
 }
 
 CScene::~CScene()
@@ -615,6 +618,60 @@ void CScene::BuildStaticBatch(
 		b->objectRefs.push_back(raw);
 		b->count = (UINT)b->objectRefs.size();
 	}
+	// ------------------------------------------------------------------------
+	// Arrow pool (Static) : same mesh, multiple instances, transform-only move
+	// ------------------------------------------------------------------------
+	{
+		// 화살 메시는 하나만 빌드해서 모든 화살이 공유한다.
+		AssetBuildDesc ArrowDesc =
+		{
+			AssetType::Arrow,                   
+			"Assets/Arrow/Mesh/Arrow.bin",
+			"Assets/Arrow/Texture"
+		};
+
+		BuiltAsset arrowAsset = AssetManager::BuildAsset(
+			pd3dDevice, pd3dCommandList,
+			m_pMaterials.get(),
+			ArrowDesc
+		);
+
+		m_arrowRefs.clear();
+		m_arrowRefs.reserve(kArrowPoolSize);
+
+		for (UINT k = 0; k < kArrowPoolSize; ++k)
+		{
+			if (b->objectRefs.size() >= b->capacity) break;
+
+			const UINT i = (UINT)b->objectRefs.size();
+
+			auto obj = std::make_unique<CGameObject>(1);
+
+			auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+			obj->SetMappedGameObjectCB(cb);
+
+			obj->SetMesh(0, arrowAsset.mesh);
+			obj->AddComponent<CStaticMeshRendererComponent>();
+
+			// 화살 이동/수명 컴포넌트
+			auto* arrow = obj->AddComponent<CArrowComponent>();
+			(void)arrow;
+
+			// 풀 초기 상태: 바닥 아래로 내려서 숨김
+			obj->SetPosition(0.0f, -10000.0f, 0.0f);
+
+			obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+			obj->CreateComponents(pd3dDevice, pd3dCommandList);
+
+			CGameObject* raw = obj.get();
+			m_staticObjects.push_back(std::move(obj));
+			b->objectRefs.push_back(raw);
+			b->count = (UINT)b->objectRefs.size();
+
+			m_arrowRefs.push_back(raw);
+		}
+	}
 }
 
 void CScene::BuildSkinnedBatch(
@@ -1060,12 +1117,20 @@ void CScene::RequestPlayerAttackBySlot(int slot)
 	CGameObject* obj = GetPlayerBySlot(slot);
 	if (!obj) return;
 
+	// 화살 파라미터(원하면 여기만 조절)
+	const float kArrowSpeed = 3.0f;
+	const float kArrowLife = 6.0f;
+	const float kArrowYOffset = 1.0f; // 발사 시 pos.y += yOffset
+
 	// AnimatorComponent 기반
 	if (auto* animComp = obj->GetComponent<CAnimatorComponent>())
 	{
 		if (auto* ctrl = animComp->EnsureController())
 		{
 			ctrl->RequestAttack();
+
+			// 공격 요청과 동시에 화살 발사(슬롯 0..3 공통)
+			RequestFireArrow(obj, kArrowSpeed, kArrowLife, kArrowYOffset);
 			return;
 		}
 	}
@@ -1074,10 +1139,13 @@ void CScene::RequestPlayerAttackBySlot(int slot)
 	if (auto* ctrl = obj->GetAnimController())
 	{
 		ctrl->RequestAttack();
+
+		// 레거시도 동일하게 화살 발사
+		RequestFireArrow(obj, kArrowSpeed, kArrowLife, kArrowYOffset);
 		return;
 	}
 
-	// Animator만 있는 경우(클립 직접 전환 로직이 없다면 여기서는 할 게 없음)
+	// Animator만 있는 경우: 공격도/화살도 여기서는 수행 불가
 }
 
 CGameObject* CScene::GetPlayerBySlot(int slot) const
@@ -1103,16 +1171,75 @@ bool CScene::OnProcessingMouseMessage(HWND /*hWnd*/, UINT nMessageID, WPARAM /*w
 {
 	if (nMessageID == WM_LBUTTONDOWN)
 	{
-		// slot 0 = 로컬 플레이어
 		RequestPlayerAttackBySlot(0);
 		return true;
 	}
 	return false;
 }
-
 bool CScene::OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam)
 {
 	return(false);
+}
+
+void CScene::RequestFireArrow(CGameObject* shooter, float speed, float lifeSec, float yOffset)
+{
+	if (!shooter) return;
+
+	// 1) 발사 방향 = shooter의 Look 방향(월드행렬 basis에서 추출)
+	const XMFLOAT4X4& W = shooter->GetWorldMatrix();
+
+	// 이 프로젝트는 CPU에서 row-major로 들고 있고 셰이더에 넘길 때 Transpose 하고 있으므로,
+	// Look(Forward) 벡터는 보통 3번째 행(_31,_32,_33)에 들어있다.
+	XMFLOAT3 dir = { W._31, W._32, W._33 };
+
+	XMVECTOR dirV = XMLoadFloat3(&dir);
+	const float lenSq = XMVectorGetX(XMVector3LengthSq(dirV));
+	if (lenSq < 1e-8f)
+	{
+		// 비정상(영벡터)이면 기본 전방
+		dir = XMFLOAT3(0.0f, 0.0f, 1.0f);
+		dirV = XMLoadFloat3(&dir);
+	}
+
+	dirV = XMVector3Normalize(dirV);
+
+	XMFLOAT3 dirN{};
+	XMStoreFloat3(&dirN, dirV);
+
+	// 2) 시작 위치 = shooter 위치 + yOffset
+	XMFLOAT3 startPos = shooter->GetPosition();
+	startPos.y += yOffset;
+
+	// 3) 속도 벡터 = Look * speed
+	const XMFLOAT3 vel =
+	{
+		dirN.x * speed,
+		dirN.y * speed,
+		dirN.z * speed
+	};
+
+	// 4) 풀에서 비활성 화살 찾아 Activate + Look 방향으로 회전 적용
+	for (CGameObject* arrowObj : m_arrowRefs)
+	{
+		if (!arrowObj) continue;
+
+		auto* arrow = arrowObj->GetComponent<CArrowComponent>();
+		if (!arrow) continue;
+
+		if (arrow->IsActive()) continue;
+
+		// (A) 트랜스폼 회전: Look 방향 정렬
+		if (auto* tr = arrowObj->GetComponent<CTransformComponent>())
+		{
+			tr->SetLookDirection(dirN);
+		}
+
+		// (B) 이동방향(vel) + 위치(startPos) 적용
+		arrow->Activate(startPos, vel, lifeSec);
+		return;
+	}
+
+	// 풀 부족이면 무시(원하면 여기서 동적 확장 가능)
 }
 
 bool CScene::ProcessInput(UCHAR* pKeysBuffer)
