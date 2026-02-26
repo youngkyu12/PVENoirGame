@@ -22,6 +22,9 @@
     <Filter Include="Map">
       <UniqueIdentifier>{3af05a39-1aba-41b3-9f32-cded22e7048f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ActorTag">
+      <UniqueIdentifier>{0755ab8b-b616-4ff7-a5a9-e8784d1d01a3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -36,7 +39,7 @@
     <ClInclude Include="CTransformComponent.h">
       <Filter>Transform</Filter>
     </ClInclude>
-    <ClInclude Include="PlayerController.h">
+    <ClInclude Include="CommonPlayerControllerComponent.h">
       <Filter>PlayerController</Filter>
     </ClInclude>
     <ClInclude Include="ServerObject.h">
@@ -54,6 +57,9 @@
     <ClInclude Include="MapData.h">
       <Filter>Map</Filter>
     </ClInclude>
+    <ClInclude Include="ActorTagComponent.h">
+      <Filter>ActorTag</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -65,14 +71,14 @@
     <ClCompile Include="CTransformComponent.cpp">
       <Filter>Transform</Filter>
     </ClCompile>
-    <ClCompile Include="PlayerController.cpp">
-      <Filter>PlayerController</Filter>
-    </ClCompile>
     <ClCompile Include="ServerObject.cpp">
       <Filter>Object</Filter>
     </ClCompile>
     <ClCompile Include="MapData.cpp">
       <Filter>Map</Filter>
+    </ClCompile>
+    <ClCompile Include="ActorTagComponent.cpp">
+      <Filter>ActorTag</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

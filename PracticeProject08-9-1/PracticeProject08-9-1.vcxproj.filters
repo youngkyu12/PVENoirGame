@@ -56,9 +56,6 @@
     <Filter Include="Components">
       <UniqueIdentifier>{f8ac7add-fdee-4d8a-a1d2-4a45486e51d8}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Input">
-      <UniqueIdentifier>{d38baf0d-2a22-4ea8-aaa7-8cc1d5178322}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Components\Animator">
       <UniqueIdentifier>{3af4f22d-c3db-4de2-979b-2ae6d4122c0d}</UniqueIdentifier>
     </Filter>
@@ -94,6 +91,9 @@
     </Filter>
     <Filter Include="Network\PacketHandler">
       <UniqueIdentifier>{68eba5ac-4fc8-43a3-be24-29bc741f88e0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Components\Arrow">
+      <UniqueIdentifier>{22421a35-4530-4e8d-b848-e2d4d9cfb516}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -199,14 +199,11 @@
     <ClInclude Include="..\Common\Components\PlayerControllerComponent.h">
       <Filter>Components\PlayerController</Filter>
     </ClInclude>
+    <ClInclude Include="ArrowComponent.h">
+      <Filter>Components\Arrow</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="GameFramework_Input.cpp">
-      <Filter>Input</Filter>
-    </ClCompile>
-    <ClCompile Include="Scene_Input.cpp">
-      <Filter>Input</Filter>
-    </ClCompile>
     <ClCompile Include="Animator.cpp">
       <Filter>Animator</Filter>
     </ClCompile>
@@ -246,9 +243,6 @@
     <ClCompile Include="Object.cpp">
       <Filter>Object</Filter>
     </ClCompile>
-    <ClCompile Include="DescriptorHeap.cpp">
-      <Filter>Resource\HLSL</Filter>
-    </ClCompile>
     <ClCompile Include="Material.cpp">
       <Filter>Mesh\Material</Filter>
     </ClCompile>
@@ -273,30 +267,6 @@
     <ClCompile Include="stdafx.cpp">
       <Filter>PCH</Filter>
     </ClCompile>
-    <ClCompile Include="GameFramework_Render.cpp">
-      <Filter>GameFramework</Filter>
-    </ClCompile>
-    <ClCompile Include="GameFramework_Build.cpp">
-      <Filter>GameFramework</Filter>
-    </ClCompile>
-    <ClCompile Include="Object_Build.cpp">
-      <Filter>Object</Filter>
-    </ClCompile>
-    <ClCompile Include="Object_Render.cpp">
-      <Filter>Object</Filter>
-    </ClCompile>
-    <ClCompile Include="Scene_Render.cpp">
-      <Filter>Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="Scene_Build.cpp">
-      <Filter>Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="Shader_Render.cpp">
-      <Filter>Shader</Filter>
-    </ClCompile>
-    <ClCompile Include="Shader_Build.cpp">
-      <Filter>Shader</Filter>
-    </ClCompile>
     <ClCompile Include="Enum.pb.cc">
       <Filter>Network\Protocol</Filter>
     </ClCompile>
@@ -314,6 +284,15 @@
     </ClCompile>
     <ClCompile Include="..\Common\Components\PlayerControllerComponent.cpp">
       <Filter>Components\PlayerController</Filter>
+    </ClCompile>
+    <ClCompile Include="DescriptorHeap.cpp">
+      <Filter>Resource\Descripter</Filter>
+    </ClCompile>
+    <ClCompile Include="CommonPlayerControllerComponent_Client.cpp">
+      <Filter>Components\PlayerController</Filter>
+    </ClCompile>
+    <ClCompile Include="ArrowComponent.cpp">
+      <Filter>Components\Arrow</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

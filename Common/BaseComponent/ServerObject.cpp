@@ -1,3 +1,7 @@
+//===========================================================================
+// ServerObject.cpp
+//============================================================================
+
 #include "pch.h"
 #include "ServerObject.h"
 #include "PlayerLogic.h"
@@ -8,7 +12,7 @@
 CServerObject::CServerObject()
 {
     m_components.reserve(4);
-    m_pTransform = AddComponent<CTransformComponent>();
+    m_pTransform = AddComponent<CCommonTransformComponent>();
 }
 
 CServerObject::~CServerObject()
