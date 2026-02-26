@@ -2,7 +2,7 @@
 // File: RenderObjectComponent.h
 //-----------------------------------------------------------------------------
 #pragma once
-#include "Component.h"
+#include "BaseComponent.h"
 #include <wrl.h>
 using Microsoft::WRL::ComPtr;
 

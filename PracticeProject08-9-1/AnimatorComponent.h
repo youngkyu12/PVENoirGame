@@ -6,7 +6,7 @@
 
 #include <memory>
 #include <string>
-#include "Component.h"
+#include "BaseComponent.h"
 
 // forward
 class CGameObject;

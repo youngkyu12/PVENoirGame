@@ -71,19 +71,19 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>$(SolutionDir)..\Libraries\include\;$(SolutionDir)..\Common\ServerCore\;$(SolutionDir)..\Common\Components;$(SolutionDir);$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)..\Libraries\include\;$(SolutionDir)..\Common\ServerCore\;$(SolutionDir)..\Common\BaseComponent;$(SolutionDir);$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)..\Libraries\Libs\;$(SolutionDir)..\Libraries;$(SolutionDir)..\Libraries\Libs\ServerCore\$(Configuration);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>$(SolutionDir)..\Libraries\include\;$(SolutionDir)..\Common\ServerCore\;$(SolutionDir)..\Common\Components;$(SolutionDir);$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)..\Libraries\include\;$(SolutionDir)..\Common\ServerCore\;$(SolutionDir)..\Common\BaseComponent;$(SolutionDir);$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)..\Libraries\Libs\;$(SolutionDir)..\Libraries;$(SolutionDir)..\Libraries\Libs\ServerCore\$(Configuration);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>$(SolutionDir)..\Libraries\include\;$(SolutionDir)..\Common\ServerCore\;$(SolutionDir)..\Common\Components;$(SolutionDir);$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)..\Libraries\include\;$(SolutionDir)..\Common\ServerCore\;$(SolutionDir)..\Common\BaseComponent;$(SolutionDir);$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)..\Libraries\Libs\;$(SolutionDir)..\Libraries;$(SolutionDir)..\Libraries\Libs\ServerCore\$(Configuration);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>$(SolutionDir)..\Libraries\include\;$(SolutionDir)..\Common\ServerCore\;$(SolutionDir)..\Common\Components;$(SolutionDir);$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)..\Libraries\include\;$(SolutionDir)..\Common\ServerCore\;$(SolutionDir)..\Common\BaseComponent;$(SolutionDir);$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)..\Libraries\Libs\;$(SolutionDir)..\Libraries;$(SolutionDir)..\Libraries\Libs\ServerCore\$(Configuration);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -163,6 +163,7 @@
     <ClInclude Include="AnimController.h" />
     <ClInclude Include="AssetManager.h" />
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="CTransformComponent.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="DDSTextureLoader12.h" />
     <ClInclude Include="DescriptorHeap.h" />

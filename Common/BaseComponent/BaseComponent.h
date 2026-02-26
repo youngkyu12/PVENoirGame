@@ -10,6 +10,8 @@
 
 // forward declarations
 class CServerObject;
+class ID3D12Device;
+class ID3D12GraphicsCommandList;
 
 // ============================================================================
 // Base Component (Unity-style)
@@ -42,6 +44,7 @@ public:
 
 	// Lifecycle
 	virtual void OnCreate() {}
+	virtual void OnCreate(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd) { OnCreate(); }
 	virtual void OnDestroy() {}
 
 	// Per-frame tick

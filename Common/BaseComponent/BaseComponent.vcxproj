@@ -153,9 +153,9 @@
   <ItemGroup>
     <ClInclude Include="BaseComponent.h" />
     <ClInclude Include="ComponentPch.h" />
-    <ClInclude Include="CTransformComponent.h" />
     <ClInclude Include="GameMath.h" />
     <ClInclude Include="GameTypes.h" />
+    <ClInclude Include="GlobalValues.h" />
     <ClInclude Include="MapData.h" />
     <ClInclude Include="PlayerLogic.h" />
     <ClInclude Include="ServerObject.h" />
@@ -164,7 +164,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BaseComponent.cpp" />
-    <ClCompile Include="CTransformComponent.cpp" />
+    <ClCompile Include="GlobalValues.cpp" />
     <ClCompile Include="MapData.cpp" />
     <ClCompile Include="ServerObject.cpp" />
     <ClCompile Include="pch.cpp">

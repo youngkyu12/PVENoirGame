@@ -11,7 +11,7 @@
 #include "Mesh.h"
 #include "Camera.h"
 #include "Animator.h"
-#include "Component.h"
+#include "BaseComponent.h"
 #include "RendererComponent.h"
 #include "ModelComponent.h"
 

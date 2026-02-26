@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <string>
 
-#include "Component.h"
+#include "BaseComponent.h"
 
 class CMesh;
 struct Bone;
