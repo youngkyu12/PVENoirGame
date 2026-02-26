@@ -125,6 +125,7 @@
       <CallingConvention>Cdecl</CallingConvention>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\Common\BaseComponent</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -161,6 +162,7 @@
     <ClInclude Include="AnimatorComponent.h" />
     <ClInclude Include="AnimatorData.h" />
     <ClInclude Include="AnimController.h" />
+    <ClInclude Include="ArrowComponent.h" />
     <ClInclude Include="AssetManager.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="d3dx12.h" />
@@ -196,8 +198,10 @@
     <ClCompile Include="AnimatorComponent.cpp" />
     <ClCompile Include="AnimatorData.cpp" />
     <ClCompile Include="AnimController.cpp" />
+    <ClCompile Include="ArrowComponent.cpp" />
     <ClCompile Include="AssetManager.cpp" />
     <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="CommonPlayerControllerComponent_Client.cpp" />
     <ClCompile Include="DDSTextureLoader12.cpp">
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">VectorCall</CallingConvention>
     </ClCompile>
@@ -208,9 +212,6 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="GameFramework.cpp" />
-    <ClCompile Include="GameFramework_Build.cpp" />
-    <ClCompile Include="GameFramework_Input.cpp" />
-    <ClCompile Include="GameFramework_Render.cpp" />
     <ClCompile Include="InitStruct.pb.cc">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
@@ -220,8 +221,6 @@
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="ModelComponent.cpp" />
     <ClCompile Include="Object.cpp" />
-    <ClCompile Include="Object_Build.cpp" />
-    <ClCompile Include="Object_Render.cpp" />
     <ClCompile Include="PracticeProject08-9-1.cpp" />
     <ClCompile Include="Protocol.pb.cc">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
@@ -231,15 +230,10 @@
     <ClCompile Include="RendererComponent.cpp" />
     <ClCompile Include="RenderObjectComponent.cpp" />
     <ClCompile Include="Scene.cpp" />
-    <ClCompile Include="Scene_Build.cpp" />
-    <ClCompile Include="Scene_Input.cpp" />
-    <ClCompile Include="Scene_Render.cpp" />
     <ClCompile Include="ServerPacketHandler.cpp">
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
     </ClCompile>
     <ClCompile Include="Shader.cpp" />
-    <ClCompile Include="Shader_Build.cpp" />
-    <ClCompile Include="Shader_Render.cpp" />
     <ClCompile Include="SkinningComponent.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>

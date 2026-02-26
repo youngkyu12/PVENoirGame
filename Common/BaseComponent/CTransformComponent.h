@@ -7,13 +7,11 @@
 #include "BaseComponent.h"
 #include "GameMath.h"
 
-class CTransformComponent final : public CComponentT<CTransformComponent>
+class CCommonTransformComponent : public CComponentT<CCommonTransformComponent> 
 {
 public:
-    explicit CTransformComponent(CServerObject* owner)
-        : CComponentT(owner)
-    {
-    }
+    using OwnerT = CComponent::OwnerT;
+    explicit CCommonTransformComponent(OwnerT* owner) : CComponentT(owner) {}
 
     // À§Ä¡
     GameMath::Vec3 position = GameMath::Vec3::Zero();
