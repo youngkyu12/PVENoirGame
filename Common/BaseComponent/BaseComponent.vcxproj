@@ -158,7 +158,6 @@
     <ClInclude Include="GlobalValues.h" />
     <ClInclude Include="MapData.h" />
     <ClInclude Include="PlayerLogic.h" />
-    <ClInclude Include="ServerObject.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="PlayerController.h" />
   </ItemGroup>
@@ -166,7 +165,6 @@
     <ClCompile Include="BaseComponent.cpp" />
     <ClCompile Include="GlobalValues.cpp" />
     <ClCompile Include="MapData.cpp" />
-    <ClCompile Include="ServerObject.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

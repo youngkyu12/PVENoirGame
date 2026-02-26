@@ -36,9 +36,6 @@
     <ClInclude Include="PlayerController.h">
       <Filter>PlayerController</Filter>
     </ClInclude>
-    <ClInclude Include="ServerObject.h">
-      <Filter>Object</Filter>
-    </ClInclude>
     <ClInclude Include="GameMath.h">
       <Filter>Main</Filter>
     </ClInclude>
@@ -64,9 +61,6 @@
     </ClCompile>
     <ClCompile Include="PlayerController.cpp">
       <Filter>PlayerController</Filter>
-    </ClCompile>
-    <ClCompile Include="ServerObject.cpp">
-      <Filter>Object</Filter>
     </ClCompile>
     <ClCompile Include="MapData.cpp">
       <Filter>Map</Filter>

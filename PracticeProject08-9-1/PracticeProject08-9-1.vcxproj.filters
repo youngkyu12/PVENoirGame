@@ -321,6 +321,9 @@
     <ClCompile Include="..\Common\Components\PlayerControllerComponent.cpp">
       <Filter>Components\PlayerController</Filter>
     </ClCompile>
+    <ClCompile Include="CTransformComponent.cpp">
+      <Filter>Components\Transform</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PracticeProject08-9-1.rc">

@@ -27,7 +27,6 @@
 #include "CorePch.h"
 #include "ComponentPch.h"
 
-
 extern ClientServiceRef g_clientService;
 
 // C의 런타임 헤더 파일입니다.
