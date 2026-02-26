@@ -1,6 +1,9 @@
 #pragma once
 #include "JobQueue.h"
 
+class Protocol::S_GAME_START;
+class Protocol::S_ENTER_GAME;
+
 class Room : public JobQueue
 {
 public:
@@ -8,10 +11,17 @@ public:
     void Leave(PlayerRef player);
     void BroadCastAll(SendBufferRef sendBuffer); // 전체 공지용
 
-	void BuildRoom(); // 방 초기화 (게임 시작 전)
-    void StartGame(uint32 index);
+public:
+    void BuildRoom(); // 방 초기화 (게임 시작 전)
+    void StartGame(bool ready, uint32 index);
     void EndGame();
 
+public:
+public:
+	void MakeInitStruct(Protocol::S_GAME_START gameStartPkt);
+	void MakeEnterGameStruct(Protocol::S_ENTER_GAME enterGamePkt);
+
+public:
     GameAreaRef GetArea(uint32 areaId);
     void TransferPlayer(PlayerRef player, uint32 fromAreaId, uint32 toAreaId);
 

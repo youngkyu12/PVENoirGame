@@ -325,6 +325,7 @@ class S_LOGIN final :
   enum : int {
     kPlayersFieldNumber = 2,
     kSuccessFieldNumber = 1,
+    kPlayerIdFieldNumber = 3,
   };
   // repeated .Protocol.Player players = 2;
   int players_size() const;
@@ -353,6 +354,15 @@ class S_LOGIN final :
   void _internal_set_success(bool value);
   public:
 
+  // uint32 playerId = 3;
+  void clear_playerid();
+  ::PROTOBUF_NAMESPACE_ID::uint32 playerid() const;
+  void set_playerid(::PROTOBUF_NAMESPACE_ID::uint32 value);
+  private:
+  ::PROTOBUF_NAMESPACE_ID::uint32 _internal_playerid() const;
+  void _internal_set_playerid(::PROTOBUF_NAMESPACE_ID::uint32 value);
+  public:
+
   // @@protoc_insertion_point(class_scope:Protocol.S_LOGIN)
  private:
   class _Internal;
@@ -362,6 +372,7 @@ class S_LOGIN final :
   typedef void DestructorSkippable_;
   ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Player > players_;
   bool success_;
+  ::PROTOBUF_NAMESPACE_ID::uint32 playerid_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_Protocol_2eproto;
 };
@@ -475,15 +486,35 @@ class C_ENTER_GAME final :
   // accessors -------------------------------------------------------
 
   enum : int {
-    kPlayerIndexFieldNumber = 1,
+    kPlayerIdFieldNumber = 1,
+    kPlayerWeaponFieldNumber = 2,
+    kReadyFieldNumber = 3,
   };
-  // uint64 playerIndex = 1;
-  void clear_playerindex();
-  ::PROTOBUF_NAMESPACE_ID::uint64 playerindex() const;
-  void set_playerindex(::PROTOBUF_NAMESPACE_ID::uint64 value);
+  // uint64 playerId = 1;
+  void clear_playerid();
+  ::PROTOBUF_NAMESPACE_ID::uint64 playerid() const;
+  void set_playerid(::PROTOBUF_NAMESPACE_ID::uint64 value);
   private:
-  ::PROTOBUF_NAMESPACE_ID::uint64 _internal_playerindex() const;
-  void _internal_set_playerindex(::PROTOBUF_NAMESPACE_ID::uint64 value);
+  ::PROTOBUF_NAMESPACE_ID::uint64 _internal_playerid() const;
+  void _internal_set_playerid(::PROTOBUF_NAMESPACE_ID::uint64 value);
+  public:
+
+  // uint32 playerWeapon = 2;
+  void clear_playerweapon();
+  ::PROTOBUF_NAMESPACE_ID::uint32 playerweapon() const;
+  void set_playerweapon(::PROTOBUF_NAMESPACE_ID::uint32 value);
+  private:
+  ::PROTOBUF_NAMESPACE_ID::uint32 _internal_playerweapon() const;
+  void _internal_set_playerweapon(::PROTOBUF_NAMESPACE_ID::uint32 value);
+  public:
+
+  // bool ready = 3;
+  void clear_ready();
+  bool ready() const;
+  void set_ready(bool value);
+  private:
+  bool _internal_ready() const;
+  void _internal_set_ready(bool value);
   public:
 
   // @@protoc_insertion_point(class_scope:Protocol.C_ENTER_GAME)
@@ -493,7 +524,9 @@ class C_ENTER_GAME final :
   template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
-  ::PROTOBUF_NAMESPACE_ID::uint64 playerindex_;
+  ::PROTOBUF_NAMESPACE_ID::uint64 playerid_;
+  ::PROTOBUF_NAMESPACE_ID::uint32 playerweapon_;
+  bool ready_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_Protocol_2eproto;
 };
@@ -607,26 +640,48 @@ class S_ENTER_GAME final :
   // accessors -------------------------------------------------------
 
   enum : int {
-    kPlayerIdFieldNumber = 1,
-    kSuccessFieldNumber = 2,
+    kPlayersFieldNumber = 1,
+    kReadyFieldNumber = 2,
   };
-  // uint32 playerId = 1;
-  void clear_playerid();
-  ::PROTOBUF_NAMESPACE_ID::uint32 playerid() const;
-  void set_playerid(::PROTOBUF_NAMESPACE_ID::uint32 value);
+  // repeated .Protocol.Player players = 1;
+  int players_size() const;
   private:
-  ::PROTOBUF_NAMESPACE_ID::uint32 _internal_playerid() const;
-  void _internal_set_playerid(::PROTOBUF_NAMESPACE_ID::uint32 value);
+  int _internal_players_size() const;
   public:
+  void clear_players();
+  ::Protocol::Player* mutable_players(int index);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Player >*
+      mutable_players();
+  private:
+  const ::Protocol::Player& _internal_players(int index) const;
+  ::Protocol::Player* _internal_add_players();
+  public:
+  const ::Protocol::Player& players(int index) const;
+  ::Protocol::Player* add_players();
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Player >&
+      players() const;
 
-  // bool success = 2;
-  void clear_success();
-  bool success() const;
-  void set_success(bool value);
+  // repeated bool ready = 2;
+  int ready_size() const;
   private:
-  bool _internal_success() const;
-  void _internal_set_success(bool value);
+  int _internal_ready_size() const;
   public:
+  void clear_ready();
+  private:
+  bool _internal_ready(int index) const;
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< bool >&
+      _internal_ready() const;
+  void _internal_add_ready(bool value);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< bool >*
+      _internal_mutable_ready();
+  public:
+  bool ready(int index) const;
+  void set_ready(int index, bool value);
+  void add_ready(bool value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< bool >&
+      ready() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< bool >*
+      mutable_ready();
 
   // @@protoc_insertion_point(class_scope:Protocol.S_ENTER_GAME)
  private:
@@ -635,8 +690,8 @@ class S_ENTER_GAME final :
   template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
-  ::PROTOBUF_NAMESPACE_ID::uint32 playerid_;
-  bool success_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Player > players_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< bool > ready_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_Protocol_2eproto;
 };
@@ -904,10 +959,9 @@ class S_GAME_START final :
   // accessors -------------------------------------------------------
 
   enum : int {
-    kInitStructFieldNumber = 2,
-    kPlayerIdFieldNumber = 1,
+    kInitStructFieldNumber = 1,
   };
-  // .Protocol.InitStruct initStruct = 2;
+  // .Protocol.InitStruct initStruct = 1;
   bool has_initstruct() const;
   private:
   bool _internal_has_initstruct() const;
@@ -925,15 +979,6 @@ class S_GAME_START final :
       ::Protocol::InitStruct* initstruct);
   ::Protocol::InitStruct* unsafe_arena_release_initstruct();
 
-  // uint32 playerId = 1;
-  void clear_playerid();
-  ::PROTOBUF_NAMESPACE_ID::uint32 playerid() const;
-  void set_playerid(::PROTOBUF_NAMESPACE_ID::uint32 value);
-  private:
-  ::PROTOBUF_NAMESPACE_ID::uint32 _internal_playerid() const;
-  void _internal_set_playerid(::PROTOBUF_NAMESPACE_ID::uint32 value);
-  public:
-
   // @@protoc_insertion_point(class_scope:Protocol.S_GAME_START)
  private:
   class _Internal;
@@ -942,7 +987,6 @@ class S_GAME_START final :
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
   ::Protocol::InitStruct* initstruct_;
-  ::PROTOBUF_NAMESPACE_ID::uint32 playerid_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_Protocol_2eproto;
 };
@@ -1223,7 +1267,6 @@ class S_FRAME_STATE final :
   enum : int {
     kPlayersFieldNumber = 1,
     kEnemiesFieldNumber = 2,
-    kBuildingsFieldNumber = 3,
   };
   // repeated .Protocol.Player players = 1;
   int players_size() const;
@@ -1261,24 +1304,6 @@ class S_FRAME_STATE final :
   const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Enemy >&
       enemies() const;
 
-  // repeated .Protocol.Building buildings = 3;
-  int buildings_size() const;
-  private:
-  int _internal_buildings_size() const;
-  public:
-  void clear_buildings();
-  ::Protocol::Building* mutable_buildings(int index);
-  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Building >*
-      mutable_buildings();
-  private:
-  const ::Protocol::Building& _internal_buildings(int index) const;
-  ::Protocol::Building* _internal_add_buildings();
-  public:
-  const ::Protocol::Building& buildings(int index) const;
-  ::Protocol::Building* add_buildings();
-  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Building >&
-      buildings() const;
-
   // @@protoc_insertion_point(class_scope:Protocol.S_FRAME_STATE)
  private:
   class _Internal;
@@ -1288,7 +1313,6 @@ class S_FRAME_STATE final :
   typedef void DestructorSkippable_;
   ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Player > players_;
   ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Enemy > enemies_;
-  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Building > buildings_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_Protocol_2eproto;
 };
@@ -1363,72 +1387,175 @@ S_LOGIN::players() const {
   return players_;
 }
 
+// uint32 playerId = 3;
+inline void S_LOGIN::clear_playerid() {
+  playerid_ = 0u;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint32 S_LOGIN::_internal_playerid() const {
+  return playerid_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint32 S_LOGIN::playerid() const {
+  // @@protoc_insertion_point(field_get:Protocol.S_LOGIN.playerId)
+  return _internal_playerid();
+}
+inline void S_LOGIN::_internal_set_playerid(::PROTOBUF_NAMESPACE_ID::uint32 value) {
+  
+  playerid_ = value;
+}
+inline void S_LOGIN::set_playerid(::PROTOBUF_NAMESPACE_ID::uint32 value) {
+  _internal_set_playerid(value);
+  // @@protoc_insertion_point(field_set:Protocol.S_LOGIN.playerId)
+}
+
 // -------------------------------------------------------------------
 
 // C_ENTER_GAME
 
-// uint64 playerIndex = 1;
-inline void C_ENTER_GAME::clear_playerindex() {
-  playerindex_ = uint64_t{0u};
+// uint64 playerId = 1;
+inline void C_ENTER_GAME::clear_playerid() {
+  playerid_ = uint64_t{0u};
 }
-inline ::PROTOBUF_NAMESPACE_ID::uint64 C_ENTER_GAME::_internal_playerindex() const {
-  return playerindex_;
+inline ::PROTOBUF_NAMESPACE_ID::uint64 C_ENTER_GAME::_internal_playerid() const {
+  return playerid_;
 }
-inline ::PROTOBUF_NAMESPACE_ID::uint64 C_ENTER_GAME::playerindex() const {
-  // @@protoc_insertion_point(field_get:Protocol.C_ENTER_GAME.playerIndex)
-  return _internal_playerindex();
+inline ::PROTOBUF_NAMESPACE_ID::uint64 C_ENTER_GAME::playerid() const {
+  // @@protoc_insertion_point(field_get:Protocol.C_ENTER_GAME.playerId)
+  return _internal_playerid();
 }
-inline void C_ENTER_GAME::_internal_set_playerindex(::PROTOBUF_NAMESPACE_ID::uint64 value) {
+inline void C_ENTER_GAME::_internal_set_playerid(::PROTOBUF_NAMESPACE_ID::uint64 value) {
   
-  playerindex_ = value;
+  playerid_ = value;
 }
-inline void C_ENTER_GAME::set_playerindex(::PROTOBUF_NAMESPACE_ID::uint64 value) {
-  _internal_set_playerindex(value);
-  // @@protoc_insertion_point(field_set:Protocol.C_ENTER_GAME.playerIndex)
+inline void C_ENTER_GAME::set_playerid(::PROTOBUF_NAMESPACE_ID::uint64 value) {
+  _internal_set_playerid(value);
+  // @@protoc_insertion_point(field_set:Protocol.C_ENTER_GAME.playerId)
+}
+
+// uint32 playerWeapon = 2;
+inline void C_ENTER_GAME::clear_playerweapon() {
+  playerweapon_ = 0u;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint32 C_ENTER_GAME::_internal_playerweapon() const {
+  return playerweapon_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint32 C_ENTER_GAME::playerweapon() const {
+  // @@protoc_insertion_point(field_get:Protocol.C_ENTER_GAME.playerWeapon)
+  return _internal_playerweapon();
+}
+inline void C_ENTER_GAME::_internal_set_playerweapon(::PROTOBUF_NAMESPACE_ID::uint32 value) {
+  
+  playerweapon_ = value;
+}
+inline void C_ENTER_GAME::set_playerweapon(::PROTOBUF_NAMESPACE_ID::uint32 value) {
+  _internal_set_playerweapon(value);
+  // @@protoc_insertion_point(field_set:Protocol.C_ENTER_GAME.playerWeapon)
+}
+
+// bool ready = 3;
+inline void C_ENTER_GAME::clear_ready() {
+  ready_ = false;
+}
+inline bool C_ENTER_GAME::_internal_ready() const {
+  return ready_;
+}
+inline bool C_ENTER_GAME::ready() const {
+  // @@protoc_insertion_point(field_get:Protocol.C_ENTER_GAME.ready)
+  return _internal_ready();
+}
+inline void C_ENTER_GAME::_internal_set_ready(bool value) {
+  
+  ready_ = value;
+}
+inline void C_ENTER_GAME::set_ready(bool value) {
+  _internal_set_ready(value);
+  // @@protoc_insertion_point(field_set:Protocol.C_ENTER_GAME.ready)
 }
 
 // -------------------------------------------------------------------
 
 // S_ENTER_GAME
 
-// uint32 playerId = 1;
-inline void S_ENTER_GAME::clear_playerid() {
-  playerid_ = 0u;
+// repeated .Protocol.Player players = 1;
+inline int S_ENTER_GAME::_internal_players_size() const {
+  return players_.size();
 }
-inline ::PROTOBUF_NAMESPACE_ID::uint32 S_ENTER_GAME::_internal_playerid() const {
-  return playerid_;
+inline int S_ENTER_GAME::players_size() const {
+  return _internal_players_size();
 }
-inline ::PROTOBUF_NAMESPACE_ID::uint32 S_ENTER_GAME::playerid() const {
-  // @@protoc_insertion_point(field_get:Protocol.S_ENTER_GAME.playerId)
-  return _internal_playerid();
+inline ::Protocol::Player* S_ENTER_GAME::mutable_players(int index) {
+  // @@protoc_insertion_point(field_mutable:Protocol.S_ENTER_GAME.players)
+  return players_.Mutable(index);
 }
-inline void S_ENTER_GAME::_internal_set_playerid(::PROTOBUF_NAMESPACE_ID::uint32 value) {
-  
-  playerid_ = value;
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Player >*
+S_ENTER_GAME::mutable_players() {
+  // @@protoc_insertion_point(field_mutable_list:Protocol.S_ENTER_GAME.players)
+  return &players_;
 }
-inline void S_ENTER_GAME::set_playerid(::PROTOBUF_NAMESPACE_ID::uint32 value) {
-  _internal_set_playerid(value);
-  // @@protoc_insertion_point(field_set:Protocol.S_ENTER_GAME.playerId)
+inline const ::Protocol::Player& S_ENTER_GAME::_internal_players(int index) const {
+  return players_.Get(index);
+}
+inline const ::Protocol::Player& S_ENTER_GAME::players(int index) const {
+  // @@protoc_insertion_point(field_get:Protocol.S_ENTER_GAME.players)
+  return _internal_players(index);
+}
+inline ::Protocol::Player* S_ENTER_GAME::_internal_add_players() {
+  return players_.Add();
+}
+inline ::Protocol::Player* S_ENTER_GAME::add_players() {
+  // @@protoc_insertion_point(field_add:Protocol.S_ENTER_GAME.players)
+  return _internal_add_players();
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Player >&
+S_ENTER_GAME::players() const {
+  // @@protoc_insertion_point(field_list:Protocol.S_ENTER_GAME.players)
+  return players_;
 }
 
-// bool success = 2;
-inline void S_ENTER_GAME::clear_success() {
-  success_ = false;
+// repeated bool ready = 2;
+inline int S_ENTER_GAME::_internal_ready_size() const {
+  return ready_.size();
 }
-inline bool S_ENTER_GAME::_internal_success() const {
-  return success_;
+inline int S_ENTER_GAME::ready_size() const {
+  return _internal_ready_size();
 }
-inline bool S_ENTER_GAME::success() const {
-  // @@protoc_insertion_point(field_get:Protocol.S_ENTER_GAME.success)
-  return _internal_success();
+inline void S_ENTER_GAME::clear_ready() {
+  ready_.Clear();
 }
-inline void S_ENTER_GAME::_internal_set_success(bool value) {
-  
-  success_ = value;
+inline bool S_ENTER_GAME::_internal_ready(int index) const {
+  return ready_.Get(index);
 }
-inline void S_ENTER_GAME::set_success(bool value) {
-  _internal_set_success(value);
-  // @@protoc_insertion_point(field_set:Protocol.S_ENTER_GAME.success)
+inline bool S_ENTER_GAME::ready(int index) const {
+  // @@protoc_insertion_point(field_get:Protocol.S_ENTER_GAME.ready)
+  return _internal_ready(index);
+}
+inline void S_ENTER_GAME::set_ready(int index, bool value) {
+  ready_.Set(index, value);
+  // @@protoc_insertion_point(field_set:Protocol.S_ENTER_GAME.ready)
+}
+inline void S_ENTER_GAME::_internal_add_ready(bool value) {
+  ready_.Add(value);
+}
+inline void S_ENTER_GAME::add_ready(bool value) {
+  _internal_add_ready(value);
+  // @@protoc_insertion_point(field_add:Protocol.S_ENTER_GAME.ready)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< bool >&
+S_ENTER_GAME::_internal_ready() const {
+  return ready_;
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< bool >&
+S_ENTER_GAME::ready() const {
+  // @@protoc_insertion_point(field_list:Protocol.S_ENTER_GAME.ready)
+  return _internal_ready();
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< bool >*
+S_ENTER_GAME::_internal_mutable_ready() {
+  return &ready_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< bool >*
+S_ENTER_GAME::mutable_ready() {
+  // @@protoc_insertion_point(field_mutable_list:Protocol.S_ENTER_GAME.ready)
+  return _internal_mutable_ready();
 }
 
 // -------------------------------------------------------------------
@@ -1499,27 +1626,7 @@ inline void C_GAME_START::set_ready(bool value) {
 
 // S_GAME_START
 
-// uint32 playerId = 1;
-inline void S_GAME_START::clear_playerid() {
-  playerid_ = 0u;
-}
-inline ::PROTOBUF_NAMESPACE_ID::uint32 S_GAME_START::_internal_playerid() const {
-  return playerid_;
-}
-inline ::PROTOBUF_NAMESPACE_ID::uint32 S_GAME_START::playerid() const {
-  // @@protoc_insertion_point(field_get:Protocol.S_GAME_START.playerId)
-  return _internal_playerid();
-}
-inline void S_GAME_START::_internal_set_playerid(::PROTOBUF_NAMESPACE_ID::uint32 value) {
-  
-  playerid_ = value;
-}
-inline void S_GAME_START::set_playerid(::PROTOBUF_NAMESPACE_ID::uint32 value) {
-  _internal_set_playerid(value);
-  // @@protoc_insertion_point(field_set:Protocol.S_GAME_START.playerId)
-}
-
-// .Protocol.InitStruct initStruct = 2;
+// .Protocol.InitStruct initStruct = 1;
 inline bool S_GAME_START::_internal_has_initstruct() const {
   return this != internal_default_instance() && initstruct_ != nullptr;
 }
@@ -1756,42 +1863,6 @@ inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Enemy >&
 S_FRAME_STATE::enemies() const {
   // @@protoc_insertion_point(field_list:Protocol.S_FRAME_STATE.enemies)
   return enemies_;
-}
-
-// repeated .Protocol.Building buildings = 3;
-inline int S_FRAME_STATE::_internal_buildings_size() const {
-  return buildings_.size();
-}
-inline int S_FRAME_STATE::buildings_size() const {
-  return _internal_buildings_size();
-}
-inline ::Protocol::Building* S_FRAME_STATE::mutable_buildings(int index) {
-  // @@protoc_insertion_point(field_mutable:Protocol.S_FRAME_STATE.buildings)
-  return buildings_.Mutable(index);
-}
-inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Building >*
-S_FRAME_STATE::mutable_buildings() {
-  // @@protoc_insertion_point(field_mutable_list:Protocol.S_FRAME_STATE.buildings)
-  return &buildings_;
-}
-inline const ::Protocol::Building& S_FRAME_STATE::_internal_buildings(int index) const {
-  return buildings_.Get(index);
-}
-inline const ::Protocol::Building& S_FRAME_STATE::buildings(int index) const {
-  // @@protoc_insertion_point(field_get:Protocol.S_FRAME_STATE.buildings)
-  return _internal_buildings(index);
-}
-inline ::Protocol::Building* S_FRAME_STATE::_internal_add_buildings() {
-  return buildings_.Add();
-}
-inline ::Protocol::Building* S_FRAME_STATE::add_buildings() {
-  // @@protoc_insertion_point(field_add:Protocol.S_FRAME_STATE.buildings)
-  return _internal_add_buildings();
-}
-inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Building >&
-S_FRAME_STATE::buildings() const {
-  // @@protoc_insertion_point(field_list:Protocol.S_FRAME_STATE.buildings)
-  return buildings_;
 }
 
 #ifdef __GNUC__

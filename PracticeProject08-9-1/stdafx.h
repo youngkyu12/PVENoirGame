@@ -12,9 +12,11 @@
 #ifdef _DEBUG
 #pragma comment(lib, "ServerCore\\Debug\\ServerCore.lib")
 #pragma comment(lib, "Protobuf\\Debug\\libprotobufd.lib")
+#pragma comment(lib, "BaseComponent\\Debug\\BaseComponent.lib")
 #else
 #pragma comment(lib, "ServerCore\\Release\\ServerCore.lib")
 #pragma comment(lib, "Protobuf\\Release\\libprotobuf.lib")
+#pragma comment(lib, "BaseComponent\\Release\\BaseComponent.lib")
 #endif
 
 
@@ -23,7 +25,7 @@
 //#include <windows.h>
 #define _HAS_STD_BYTE 0  
 #include "CorePch.h"
-
+#include "ComponentPch.h"
 
 
 extern ClientServiceRef g_clientService;

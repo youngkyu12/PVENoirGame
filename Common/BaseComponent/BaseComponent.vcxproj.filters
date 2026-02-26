@@ -33,9 +33,6 @@
     <ClInclude Include="BaseComponent.h">
       <Filter>Base</Filter>
     </ClInclude>
-    <ClInclude Include="CTransformComponent.h">
-      <Filter>Transform</Filter>
-    </ClInclude>
     <ClInclude Include="PlayerController.h">
       <Filter>PlayerController</Filter>
     </ClInclude>
@@ -54,6 +51,9 @@
     <ClInclude Include="MapData.h">
       <Filter>Map</Filter>
     </ClInclude>
+    <ClInclude Include="GlobalValues.h">
+      <Filter>Main</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -61,9 +61,6 @@
     </ClCompile>
     <ClCompile Include="BaseComponent.cpp">
       <Filter>Base</Filter>
-    </ClCompile>
-    <ClCompile Include="CTransformComponent.cpp">
-      <Filter>Transform</Filter>
     </ClCompile>
     <ClCompile Include="PlayerController.cpp">
       <Filter>PlayerController</Filter>
@@ -73,6 +70,9 @@
     </ClCompile>
     <ClCompile Include="MapData.cpp">
       <Filter>Map</Filter>
+    </ClCompile>
+    <ClCompile Include="GlobalValues.cpp">
+      <Filter>Main</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

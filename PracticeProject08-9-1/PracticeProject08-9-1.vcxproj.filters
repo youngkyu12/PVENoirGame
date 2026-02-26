@@ -95,6 +95,9 @@
     <Filter Include="Network\PacketHandler">
       <UniqueIdentifier>{68eba5ac-4fc8-43a3-be24-29bc741f88e0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Components\Transform">
+      <UniqueIdentifier>{93298895-39a8-4279-b736-f9076f09ee30}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animator.h">
@@ -198,6 +201,9 @@
     </ClInclude>
     <ClInclude Include="..\Common\Components\PlayerControllerComponent.h">
       <Filter>Components\PlayerController</Filter>
+    </ClInclude>
+    <ClInclude Include="CTransformComponent.h">
+      <Filter>Components\Transform</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
