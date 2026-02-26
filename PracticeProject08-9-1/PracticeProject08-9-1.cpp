@@ -10,6 +10,9 @@
 #include "BufferReader.h"
 #include "ServerPacketHandler.h"
 
+#include "CoreTLS.h"
+
+
 #define MAX_LOADSTRING 100
 
 HINSTANCE						ghAppInstance;
@@ -97,6 +100,8 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 	}
 	gGameFramework.OnDestroy();
 	GThreadManager->Join();
+
+	
 	return((int)msg.wParam);
 }
 
@@ -155,6 +160,17 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow, CGameFramework& gGameFramew
 	return(TRUE);
 }
 
+Atomic<bool> g_End = false;
+
+bool CheckEnd()
+{
+	if (GetAsyncKeyState(VK_ESCAPE) & 0x8000)
+	{
+		g_End = true;
+	}
+
+	return g_End.load();
+}
 
 void NetworkLoop()
 {
@@ -176,8 +192,16 @@ void NetworkLoop()
 			{
 				while (true)
 				{
-					g_clientService->GetIocpCore()->Dispatch();
+					g_clientService->GetIocpCore()->Dispatch(100);
+					if (CheckEnd())
+					{
+						// ESC 키가 눌렸다면 네트워크 루프 종료
+						
+						break;
+					}
+
 				}
+
 			});
 	}
 
