@@ -125,7 +125,6 @@
       <CallingConvention>Cdecl</CallingConvention>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\Common\BaseComponent</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -158,6 +157,7 @@
   <ItemGroup>
     <ClInclude Include="..\Common\Components\Component.h" />
     <ClInclude Include="..\Common\Components\PlayerControllerComponent.h" />
+    <ClInclude Include="ActorTagComponent.h" />
     <ClInclude Include="Animator.h" />
     <ClInclude Include="AnimatorComponent.h" />
     <ClInclude Include="AnimatorData.h" />
@@ -194,6 +194,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Common\Components\PlayerControllerComponent.cpp" />
+    <ClCompile Include="ActorTagComponent.cpp" />
     <ClCompile Include="Animator.cpp" />
     <ClCompile Include="AnimatorComponent.cpp" />
     <ClCompile Include="AnimatorData.cpp" />
@@ -201,7 +202,6 @@
     <ClCompile Include="ArrowComponent.cpp" />
     <ClCompile Include="AssetManager.cpp" />
     <ClCompile Include="Camera.cpp" />
-    <ClCompile Include="CommonPlayerControllerComponent_Client.cpp" />
     <ClCompile Include="DDSTextureLoader12.cpp">
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">VectorCall</CallingConvention>
     </ClCompile>
