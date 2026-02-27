@@ -67,7 +67,7 @@ private:
     float    m_maxVelY = 0.0f;
     float    m_friction = 0.0f;
 
-    DWORD    m_inputDir = 0;    // ¸¶Áö¸· ÀÔ·Â ¹æÇâ(¾Ö´Ï speed Á¦¾î¿ë)
+    DWORD    m_inputDir = 0;    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ô·ï¿½ ï¿½ï¿½ï¿½ï¿½(ï¿½Ö´ï¿½ speed ï¿½ï¿½ï¿½ï¿½ï¿½)
 public:
     void SetInputDirection(uint32_t dir) { m_inputDir = dir; }
 

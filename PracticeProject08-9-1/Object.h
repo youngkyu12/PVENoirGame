@@ -228,12 +228,12 @@ T* CGameObject::AddComponent(Args&&... args)
 	auto comp = std::make_unique<T>(this, std::forward<Args>(args)...);
 	T* raw = comp.get();
 
-	// ¡Ú Renderer¸é Ä³½Ã °»½Å (ºó¿ÀºêÁ§Æ®¸é ¾È ºÙÀÌ¸é µÊ)
+	// ï¿½ï¿½ Rendererï¿½ï¿½ Ä³ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½Ì¸ï¿½ ï¿½ï¿½)
 	if (raw)
 	{
-		CComponent* base = raw; // ¾÷Ä³½ºÆ®´Â Ç×»ó ¾ÈÀü/°¡´É
+		CComponent* base = raw; // ï¿½ï¿½Ä³ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½×»ï¿½ ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½
 		if (base->IsRenderer())
-			m_pRenderer = static_cast<CRendererComponent*>(base); // base->derived ´Ù¿îÄ³½ºÆ® (IsRenderer·Î ³í¸® º¸Áõ)
+			m_pRenderer = static_cast<CRendererComponent*>(base); // base->derived ï¿½Ù¿ï¿½Ä³ï¿½ï¿½Æ® (IsRendererï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
 	}
 
 	m_components.emplace_back(std::move(comp));
