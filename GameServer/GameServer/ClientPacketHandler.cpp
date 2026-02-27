@@ -41,6 +41,7 @@ bool Handle_C_LOGIN(PacketSessionRef& session, Protocol::C_LOGIN& pkt)
 		playerRef->name = player->name();
 		playerRef->type = player->playertype();
 		playerRef->ownerSession = gameSession;
+		playerRef->Build();
 
 		gameSession->_players.push_back(playerRef);
 	}
@@ -60,7 +61,7 @@ bool Handle_C_ENTER_GAME(PacketSessionRef& session, Protocol::C_ENTER_GAME& pkt)
 {
 	GameSessionRef gameSession = static_pointer_cast<GameSession>(session);
 
-	uint64 index = pkt.playerindex();
+	uint64 index = pkt.playerid();
 	// TODO: Validation Check
 
 	gameSession->_currentPlayer= gameSession->_players[index];
@@ -69,7 +70,7 @@ bool Handle_C_ENTER_GAME(PacketSessionRef& session, Protocol::C_ENTER_GAME& pkt)
 	GRoom->DoAsync(&Room::Enter, gameSession->_currentPlayer);
 
 	Protocol::S_ENTER_GAME enterGamePkt;
-	enterGamePkt.set_success(true);
+	//enterGamePkt.set_success(true);
 	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(enterGamePkt);
 	gameSession->_currentPlayer->ownerSession->Send(sendBuffer);
 
@@ -79,10 +80,9 @@ bool Handle_C_ENTER_GAME(PacketSessionRef& session, Protocol::C_ENTER_GAME& pkt)
 bool Handle_C_GAME_START(PacketSessionRef& session, Protocol::C_GAME_START& pkt)
 {
 	GameSessionRef gameSession = static_pointer_cast<GameSession>(session);
-	cout << "Send World Info..." << endl;
-
+	cout << "Send World Info..." << endl;		
 	
-	GRoom->DoAsync(&Room::StartGame, pkt.playerid());
+	GRoom->DoAsync(&Room::StartGame, pkt.ready(), pkt.playerid());
 
 	return true;
 }

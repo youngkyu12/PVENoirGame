@@ -59,79 +59,106 @@ void Room::BuildRoom()
 	}
 }
 
-void Room::StartGame(uint32 index)
+void Room::StartGame(bool ready, uint32 index)
 {
 	// 모든 플레이어가 Ready를 보냈음을 확인하면 시작
+	if(players.find(index) == players.end())
+		return;
 
+	WRITE_LOCK;
 	static Atomic<uint32> readyCount = 0;
+	if(ready != players[index]->IsActive())
+	{
+		players[index]->SetActive(ready);
+		readyCount += ready ? 1 : -1;
+	}
+
 	static Atomic<bool> gameStarted = false;
 
 	if(readyCount >= 4)
 	{
 		if (gameStarted.exchange(true) == false)
 		{
-			// 최초로 들어온 스레드가 패킷 작성 후 전송
-			Protocol::InitStruct initStruct;
-			for (auto playerMap : players)
-			{
-				PlayerRef& player = playerMap.second;
-
-				auto p = initStruct.add_players();
-				p->set_id(player->playerId);
-				p->set_name(player->name);
-				p->set_playertype(player->type);
-
-
-				Protocol::Vec3f* position = new Protocol::Vec3f();
-				position->set_x(player->GetPosition().x);
-				position->set_y(player->GetPosition().y);
-				position->set_z(player->GetPosition().z);
-
-
-				Protocol::Transform transform = p->transform();
-
-				transform.set_allocated_position(position);
-				transform.set_yaw(player->GetYaw());
-			}
-
-
-			for (auto enemyMap : enemies)
-			{
-				EnemyRef& enemy = enemyMap.second;
-				auto e = initStruct.add_enemies();
-				e->set_id(enemyMap.first);
-				e->set_enemytype(enemy->type);
-
-
-				Protocol::Transform transform = e->transform();
-				Protocol::Vec3f position = transform.position();
-				position.set_x(enemy->GetPosition().x);
-				position.set_y(enemy->GetPosition().y);
-				position.set_z(enemy->GetPosition().z);
-
-				transform.set_allocated_position(&position);
-
-
-			}
-
-			Protocol::S_GAME_START gameStartPkt;
-
-			gameStartPkt.set_allocated_initstruct(&initStruct);
-
-			
-
-			auto sendBuffer = ClientPacketHandler::MakeSendBuffer(gameStartPkt);
-			BroadCastAll(sendBuffer);
-
-			cout << "Game Started!" << endl;
+			GRoom->DoAsync(&Room::MakeInitStruct, Protocol::S_GAME_START());
 		}
 	}
+	else
+	{
+		// 아직 모든 플레이어가 Ready를 보내지 않았다면 S_ENTER_GAME 패킷을 보내서 Ready를 요청한다.
+		Protocol::S_ENTER_GAME enterGamePkt;
+		GRoom->DoAsync(&Room::MakeEnterGameStruct, enterGamePkt);
 
+	}
 	
 }
 
 void Room::EndGame()
 {
+}
+
+
+
+void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
+{
+	// 최초로 들어온 스레드가 패킷 작성 후 전송
+	Protocol::InitStruct initStruct;
+	for (auto playerMap : players)
+	{
+		PlayerRef& player = playerMap.second;
+
+		auto p = initStruct.add_players();
+		p->set_id(player->playerId);
+		p->set_name(player->name);
+		p->set_playertype(player->type);
+
+
+		Protocol::Vec3f* position = new Protocol::Vec3f();
+		position->set_x(player->GetPosition().x);
+		position->set_y(player->GetPosition().y);
+		position->set_z(player->GetPosition().z);
+
+
+		Protocol::Transform transform = p->transform();
+
+		transform.set_allocated_position(position);
+		transform.set_yaw(player->GetYaw());
+	}
+
+
+	for (auto enemyMap : enemies)
+	{
+		EnemyRef& enemy = enemyMap.second;
+		auto e = initStruct.add_enemies();
+		e->set_id(enemyMap.first);
+		e->set_enemytype(enemy->type);
+
+
+		Protocol::Transform transform = e->transform();
+		Protocol::Vec3f position = transform.position();
+		position.set_x(enemy->GetPosition().x);
+		position.set_y(enemy->GetPosition().y);
+		position.set_z(enemy->GetPosition().z);
+
+		transform.set_allocated_position(&position);
+
+
+	}
+
+
+	gameStartPkt.set_allocated_initstruct(&initStruct);
+
+
+
+	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(gameStartPkt);
+	GRoom->DoAsync(&Room::BroadCastAll, sendBuffer);
+
+	cout << "Game Started!" << endl;
+}
+
+void Room::MakeEnterGameStruct(Protocol::S_ENTER_GAME enterGamePkt)
+{
+	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(enterGamePkt);
+	BroadCastAll(sendBuffer);
 }
 
 GameAreaRef Room::GetArea(uint32 areaId)
