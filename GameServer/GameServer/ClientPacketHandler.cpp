@@ -33,15 +33,17 @@ bool Handle_C_LOGIN(PacketSessionRef& session, Protocol::C_LOGIN& pkt)
 	if(idGenerator < 4) // 4명만 받는다
 	{
 		auto player = loginPkt.add_players();
-		player->set_name(u8"DB에서가져왓서요1");
+		player->set_id(idGenerator++);
+		player->set_name(u8"Player");
 		player->set_playertype(Protocol::PLAYER_TYPE_KNIGHT);
 
 		PlayerRef playerRef = make_shared<Player>();
-		playerRef->playerId = idGenerator++;
+		playerRef->playerId = player->id();
 		playerRef->name = player->name();
 		playerRef->type = player->playertype();
 		playerRef->ownerSession = gameSession;
 		playerRef->Build();
+
 
 		gameSession->_players.push_back(playerRef);
 	}
@@ -74,13 +76,14 @@ bool Handle_C_ENTER_GAME(PacketSessionRef& session, Protocol::C_ENTER_GAME& pkt)
 	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(enterGamePkt);
 	gameSession->_currentPlayer->ownerSession->Send(sendBuffer);
 
+	cout << "Player" << index << " Entered Game..." << endl;
 	return true;
 }
 
 bool Handle_C_GAME_START(PacketSessionRef& session, Protocol::C_GAME_START& pkt)
 {
 	GameSessionRef gameSession = static_pointer_cast<GameSession>(session);
-	cout << "Send World Info..." << endl;		
+	//cout << "Send World Info..." << endl;		
 	
 	GRoom->DoAsync(&Room::StartGame, pkt.ready(), pkt.playerid());
 

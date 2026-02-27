@@ -95,6 +95,9 @@
     <Filter Include="Components\Arrow">
       <UniqueIdentifier>{22421a35-4530-4e8d-b848-e2d4d9cfb516}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Network\NetworkEntry">
+      <UniqueIdentifier>{076be12e-11b3-429d-b725-d571e44b0277}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animator.h">
@@ -202,6 +205,9 @@
     <ClInclude Include="PlayerControllerComponent.h">
       <Filter>Components\PlayerController</Filter>
     </ClInclude>
+    <ClInclude Include="GlobalValues.h">
+      <Filter>Network\NetworkEntry</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -293,6 +299,9 @@
     </ClCompile>
     <ClCompile Include="PlayerControllerComponent.cpp">
       <Filter>Components\PlayerController</Filter>
+    </ClCompile>
+    <ClCompile Include="GlobalValues.cpp">
+      <Filter>Network\NetworkEntry</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
