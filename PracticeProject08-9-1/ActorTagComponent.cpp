@@ -2,4 +2,5 @@
 // File: ActorTagComponent.cpp
 //-----------------------------------------------------------------------------
 
+#include "stdafx.h"
 #include "ActorTagComponent.h"
