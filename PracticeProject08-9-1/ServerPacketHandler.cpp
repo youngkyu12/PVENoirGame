@@ -13,6 +13,8 @@ bool Handle_INVALID(PacketSessionRef& session, BYTE* buffer, int32 len)
 	return false;
 }
 
+#include <string>
+
 bool Handle_S_LOGIN(PacketSessionRef& session, Protocol::S_LOGIN& pkt)
 {
 	if (pkt.success() == false)
@@ -20,6 +22,10 @@ bool Handle_S_LOGIN(PacketSessionRef& session, Protocol::S_LOGIN& pkt)
 		// 로그인 실패 처리
 		return true;
 	}
+
+	std::string pktDebug = pkt.DebugString();
+	pktDebug += "\n";
+	OutputDebugStringA(pktDebug.c_str());
 
 	g_myPlayerId = pkt.playerid();
 
