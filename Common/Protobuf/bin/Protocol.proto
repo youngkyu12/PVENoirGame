@@ -7,24 +7,27 @@ import "InitStruct.proto";
 
 message C_LOGIN
 {
-
+	
 }
 
 message S_LOGIN
 {
 	bool success = 1;
 	repeated Player players = 2;	// id 발급 이전
+	uint32 playerId = 3;	// id 발급 이후
 }
 
 message C_ENTER_GAME
 {
-	uint64 playerIndex = 1;
+	uint64 playerId = 1;
+	uint32 playerWeapon = 2;
+	bool ready = 3;
 }
 
 message S_ENTER_GAME
 {
-	uint32 playerId = 1;
-	bool success = 2;
+	repeated Player players = 1;
+	repeated bool ready = 2;
 }
 
 message C_GAME_START
@@ -36,9 +39,12 @@ message C_GAME_START
 
 message S_GAME_START
 {
-	uint32 playerId = 1;
-	InitStruct initStruct = 2;
+	// 월드의 초기 상태를 전달
+	InitStruct initStruct = 1;
 }
+
+
+
 
 message C_INPUT
 {
@@ -57,5 +63,4 @@ message S_FRAME_STATE
 {
 	repeated Player players = 1;
 	repeated Enemy enemies = 2;
-	repeated Building buildings = 3;
 }
