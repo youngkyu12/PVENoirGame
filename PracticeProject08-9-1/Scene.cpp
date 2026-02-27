@@ -9,7 +9,6 @@
 #include "Material.h"
 #include "AssetManager.h"
 #include "LightComponent.h"
-#include "CommonPlayerControllerComponent.h"
 #include "PlayerControllerComponent.h"
 #include "Object.h"
 #include "ActorTagComponent.h"
@@ -1061,9 +1060,6 @@ void CScene::BuildPlayer(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd
 		obj->Animate(0.0f);
 	}
 
-	// 1) 공용 이동/물리 컨트롤러 (이게 실제로 움직인다)
-	obj->AddComponent<CCommonPlayerControllerComponent>();
-	// 2) 클라 전용 브리지(애니/입력 + common으로 위임)
 	obj->AddComponent<CPlayerControllerComponent>();
 
 	obj->CreateComponents(pd3dDevice, pd3dCommandList);
