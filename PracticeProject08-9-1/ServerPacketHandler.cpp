@@ -27,7 +27,7 @@ bool Handle_S_LOGIN(PacketSessionRef& session, Protocol::S_LOGIN& pkt)
 
 	// 입장 UI 버튼을 눌러서 게임에 입장
 	Protocol::C_ENTER_GAME enterGamePkt;
-	enterGamePkt.set_playerindex(0); // 첫번째 캐릭터로 입장
+	//enterGamePkt.set_playerindex(0); // 첫번째 캐릭터로 입장
 	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(enterGamePkt);
 	session->Send(sendBuffer);
 
