@@ -4,6 +4,7 @@
 
 #include "stdafx.h"
 #include "AnimController.h"
+#include "AnimatorComponent.h"
 #include "Object.h"
 #include "Animator.h"
 
@@ -11,11 +12,16 @@ void CAnimController::Update(float /*dt*/)
 {
     if (!m_pOwner) return;
 
-    CAnimator* anim = m_pOwner->GetAnimator();
-    if (!anim) return;
+    CAnimator* anim = nullptr;
+
+    if (auto* animComp = m_pOwner->GetComponent<CAnimatorComponent>())
+        anim = animComp->GetAnimator();
+
+    if (!anim)
+        anim = m_pOwner->GetAnimator();
 
     // ------------------------------------------------------------
-    // 0) Attack queued Ã³¸® (¿¬¼Ó Å¬¸¯ ¹«½Ã)
+    // 0) Attack queued Ã³ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ Å¬ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
     // ------------------------------------------------------------
     if (m_attackQueued)
     {
@@ -24,10 +30,10 @@ void CAnimController::Update(float /*dt*/)
         const char* atk = m_attackClip.c_str();
         if (atk && anim->HasClip(atk))
         {
-            // Attack ÁøÀÔµµ ºí·»µù Àû¿ë
+            // Attack ï¿½ï¿½ï¿½Ôµï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
             constexpr float kAtkBlendTime = 0.12f;
 
-            // ÇöÀç Àç»ý ÁßÀÌ¸é CrossFade, ¾Æ´Ï¸é Play
+            // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì¸ï¿½ CrossFade, ï¿½Æ´Ï¸ï¿½ Play
             if (!anim->GetCurrentClipName().empty())
             {
                 if (!anim->CrossFade(atk, kAtkBlendTime, false, 0.0f))
@@ -45,15 +51,15 @@ void CAnimController::Update(float /*dt*/)
 
 
     // ------------------------------------------------------------
-    // 1) Attack »óÅÂ¸é: ³¡³¯ ¶§±îÁö À¯Áö, ³¡³ª¸é Idle/Move·Î º¹±Í
+    // 1) Attack ï¿½ï¿½ï¿½Â¸ï¿½: ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Idle/Moveï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     // ------------------------------------------------------------
     if (m_state == EAnimState::Attack)
     {
-        // °ø°Ý Å¬¸³ÀÌ ³¡³µÀ¸¸é (non-loop finished) -> ÀÔ·Â ¼Óµµ¿¡ µû¶ó º¹±Í
+        // ï¿½ï¿½ï¿½ï¿½ Å¬ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ (non-loop finished) -> ï¿½Ô·ï¿½ ï¿½Óµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         if (anim->IsCurrentClipFinished())
         {
-            // ¿©±â¼­ "ÀÌµ¿Å° ÀÔ·ÂÁßÀÌ¸é Run" ÆÇÁ¤Àº speed·Î °£Á¢ ÆÇÁ¤
-            // (speed > eps)¸é Move, ¾Æ´Ï¸é Idle
+            // ï¿½ï¿½ï¿½â¼­ "ï¿½Ìµï¿½Å° ï¿½Ô·ï¿½ï¿½ï¿½ï¿½Ì¸ï¿½ Run" ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ speedï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+            // (speed > eps)ï¿½ï¿½ Move, ï¿½Æ´Ï¸ï¿½ Idle
             const EAnimState target = (m_speed > m_moveEps) ? EAnimState::Move : EAnimState::Idle;
             const char* targetClip = ClipFor(target);
 
@@ -70,11 +76,11 @@ void CAnimController::Update(float /*dt*/)
             m_state = target;
 
         }
-        return; // Attack Áß¿¡´Â Idle/Move ·ÎÁ÷ ÁøÀÔ ±ÝÁö
+        return; // Attack ï¿½ß¿ï¿½ï¿½ï¿½ Idle/Move ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     }
 
     // ------------------------------------------------------------
-    // 2) ±âº» Idle/Move »óÅÂ¸Ó½Å
+    // 2) ï¿½âº» Idle/Move ï¿½ï¿½ï¿½Â¸Ó½ï¿½
     // ------------------------------------------------------------
     EAnimState target = (m_speed > m_moveEps) ? EAnimState::Move : EAnimState::Idle;
 

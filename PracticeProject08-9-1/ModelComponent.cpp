@@ -50,7 +50,7 @@ const std::vector<std::shared_ptr<CMesh>>& CModelComponent::GetMeshes() const
 
 void CModelComponent::ReleaseUploadBuffers()
 {
-    for (auto& m : m_meshes)
+    for (std::shared_ptr<CMesh>& m : m_meshes)
         if (m) m->ReleaseUploadBuffers();
 }
 
@@ -58,7 +58,7 @@ int CModelComponent::GetMaxBoneCount() const
 {
     int nBones = 0;
 
-    for (const auto& m : m_meshes)
+    for (const std::shared_ptr<CMesh>& m : m_meshes)
     {
         if (!m) continue;
         if (!m->IsSkinnedMesh()) continue;
@@ -72,13 +72,13 @@ int CModelComponent::GetMaxBoneCount() const
 const std::vector<Bone>& CModelComponent::GetBones() const
 {
     static const std::vector<Bone> empty;
-    auto m0 = GetMeshShared(0);
+    std::shared_ptr<CMesh> m0 = GetMeshShared(0);
     return m0 ? m0->GetBones() : empty;
 }
 
 const std::unordered_map<std::string, int>& CModelComponent::GetBoneNameToIndex() const
 {
     static const std::unordered_map<std::string, int> empty;
-    auto m0 = GetMeshShared(0);
+    std::shared_ptr<CMesh> m0 = GetMeshShared(0);
     return m0 ? m0->GetBoneNameToIndex() : empty;
 }

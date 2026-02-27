@@ -1,250 +1,178 @@
-//------------------------------------------------------- ----------------------
-// File: Component.h
-//-----------------------------------------------------------------------------
-
+//=============================================================================
+// Component.h
+//=============================================================================
 #pragma once
 
 #include <cstdint>
 #include "stdafx.h"
+#include "BaseComponent.h"   // ï¿½ï¿½ï¿½â¼­ CComponent/CComponentTï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Â´ï¿½
 
 using namespace DirectX;
 
-// forward declarations (include ÃÖ¼ÒÈ­)
 class CGameObject;
-struct ID3D12Device;
-struct ID3D12GraphicsCommandList;
 
-// ============================================================================
-// Base Component (Unity-style)
-//  - Owner(GameObject) Æ÷ÀÎÅÍ º¸À¯
-//  - ¶óÀÌÇÁ»çÀÌÅ¬: OnCreate/OnDestroy/OnUpdate µî
-//  - RTTI ¾øÀÌ Å¸ÀÔ ½Äº°: StaticTypeId<T>()
-// ============================================================================
-class CComponent
-{
-public:
-	using TypeId = const void*;
-
-	template<typename T>
-	static TypeId StaticTypeId()
-	{
-		static int s_tag;
-		return &s_tag;
-	}
-
-public:
-	explicit CComponent(CGameObject* owner) : m_pOwner(owner) {}
-	virtual ~CComponent() = default;
-
-	virtual TypeId GetTypeId() const = 0;
-
-	CGameObject* GetOwner() const { return m_pOwner; }
-	virtual bool IsRenderer() const { return false; }
-
-	bool IsEnabled() const { return m_bEnabled; }
-	void SetEnabled(bool b) { m_bEnabled = b; }
-
-	// Build-time init (GPU ¸®¼Ò½º »ý¼º µî °¡´É)
-	virtual void OnCreate(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd) {}
-
-	virtual void OnDestroy() {}
-
-	// Per-frame tick
-	virtual void OnUpdate(float dt) {}
-	virtual void OnLateUpdate(float dt) {}
-
-	virtual void OnPreRender(ID3D12GraphicsCommandList* cmd) {}
-	virtual void OnPostRender(ID3D12GraphicsCommandList* cmd) {}
-
-protected:
-	CGameObject* m_pOwner = nullptr;
-	bool         m_bEnabled = true;
-};
-
-// ----------------------------------------------------------------------------
-// CRTP helper: class MyComp : public CComponentT<MyComp>
-// ----------------------------------------------------------------------------
-template<typename TDerived>
-class CComponentT : public CComponent
-{
-public:
-	using CComponent::CComponent;
-
-	TypeId GetTypeId() const override
-	{
-		return CComponent::StaticTypeId<TDerived>();
-	}
-};
+// Å¬ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ DX Transformï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ ï¿½Úµï¿½ ï¿½×´ï¿½ï¿½)
+//-----------------------------------------------------------------------------
+// Client DX Transform Component (Object.h / PlayerControllerComponent ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ï´ï¿½ API ï¿½ï¿½ï¿½ï¿½)
+//-----------------------------------------------------------------------------
 
 class CTransformComponent final : public CComponentT<CTransformComponent>
 {
 public:
-	explicit CTransformComponent(CGameObject* owner)
-		: CComponentT(owner)
-	{
-		// OnCreate ÀÌÀü¿¡µµ ¾ÈÀüÇÏ°Ô °ªÀÌ À¯È¿ÇÏµµ·Ï ±âº»°ª ¼¼ÆÃ
-		XMStoreFloat4x4(&worldMatrix, XMMatrixIdentity());
-		rotation = XMFLOAT4(0, 0, 0, 1);
-		position = XMFLOAT3(0, 0, 0);
-		direction = XMFLOAT3(0, 0, 1);
-		scale = XMFLOAT3(1, 1, 1);
-	}
+    explicit CTransformComponent(CGameObject* owner)
+        : CComponentT(owner)
+    {
+        XMStoreFloat4x4(&worldMatrix, XMMatrixIdentity());
+        rotation = XMFLOAT4(0, 0, 0, 1);   // quaternion
+        position = XMFLOAT3(0, 0, 0);
+        direction = XMFLOAT3(0, 0, 1);
+        scale = XMFLOAT3(1, 1, 1);
+    }
 
-	// ¿ä±¸µÈ µ¥ÀÌÅÍ
-	XMFLOAT3  position = XMFLOAT3(0, 0, 0);
-	XMFLOAT3  direction = XMFLOAT3(0, 0, 1);   // look(forward)
-	XMFLOAT3  scale = XMFLOAT3(1, 1, 1);
-	XMFLOAT4X4 worldMatrix = {};
+    // authoritative state
+    XMFLOAT3   position = XMFLOAT3(0, 0, 0);
+    XMFLOAT3   direction = XMFLOAT3(0, 0, 1);   // forward (cached)
+    XMFLOAT3   scale = XMFLOAT3(1, 1, 1);
+    XMFLOAT4X4 worldMatrix = {};
+    XMFLOAT4   rotation = XMFLOAT4(0, 0, 0, 1); // quaternion (x,y,z,w)
 
-	// ³»ºÎ È¸Àü(ÄõÅÍ´Ï¾ð) - ±ÔÄ¢¿¡ ¾øÁö¸¸ ±¸ÇöÀ» À§ÇØ ³»ºÎ º¸À¯
-	XMFLOAT4 rotation = XMFLOAT4(0, 0, 0, 1);  // (x,y,z,w)
+    // lifecycle
+    void OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*) override
+    {
+        RebuildWorld();
+    }
 
-	// --------------------
-	// Lifecycle
-	// --------------------
-	void OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*) override
-	{
-		RebuildWorld();
-	}
+    // basic setters
+    void SetPosition(const XMFLOAT3& p) { position = p; RebuildWorld(); }
+    void Translate(const XMFLOAT3& d) { position.x += d.x; position.y += d.y; position.z += d.z; RebuildWorld(); }
+    void SetScale(const XMFLOAT3& s) { scale = s; RebuildWorld(); }
 
-	// --------------------
-	// Basic setters
-	// --------------------
-	void SetPosition(const XMFLOAT3& p) { position = p; RebuildWorld(); }
-	void Translate(const XMFLOAT3& d) { position.x += d.x; position.y += d.y; position.z += d.z; RebuildWorld(); }
-	void SetScale(const XMFLOAT3& s) { scale = s; RebuildWorld(); }
-	const XMFLOAT4X4& GetWorldMatrix() const { return worldMatrix; }
+    const XMFLOAT4X4& GetWorldMatrix() const { return worldMatrix; }
 
-	// --------------------
-	// Orientation API
-	// --------------------
-	XMFLOAT3 GetLook() const { return direction; }
+    // --------------------
+    // Orientation API
+    // --------------------
+    XMFLOAT3 GetLook() const { return direction; }
 
-	XMFLOAT3 GetRight() const
-	{
-		XMMATRIX R = XMMatrixRotationQuaternion(XMLoadFloat4(&rotation));
-		XMVECTOR v = XMVector3TransformNormal(XMVectorSet(1, 0, 0, 0), R);
-		XMFLOAT3 out; XMStoreFloat3(&out, XMVector3Normalize(v));
-		return out;
-	}
+    XMFLOAT3 GetRight() const
+    {
+        XMMATRIX R = XMMatrixRotationQuaternion(XMLoadFloat4(&rotation));
+        XMVECTOR v = XMVector3TransformNormal(XMVectorSet(1, 0, 0, 0), R);
+        XMFLOAT3 out; XMStoreFloat3(&out, XMVector3Normalize(v));
+        return out;
+    }
 
-	XMFLOAT3 GetUp() const
-	{
-		XMMATRIX R = XMMatrixRotationQuaternion(XMLoadFloat4(&rotation));
-		XMVECTOR v = XMVector3TransformNormal(XMVectorSet(0, 1, 0, 0), R);
-		XMFLOAT3 out; XMStoreFloat3(&out, XMVector3Normalize(v));
-		return out;
-	}
+    XMFLOAT3 GetUp() const
+    {
+        XMMATRIX R = XMMatrixRotationQuaternion(XMLoadFloat4(&rotation));
+        XMVECTOR v = XMVector3TransformNormal(XMVectorSet(0, 1, 0, 0), R);
+        XMFLOAT3 out; XMStoreFloat3(&out, XMVector3Normalize(v));
+        return out;
+    }
 
-	void SetLookDirection(const XMFLOAT3& lookWorld, const XMFLOAT3& upHintWorld = XMFLOAT3(0, 1, 0))
-	{
-		XMVECTOR f = XMVector3Normalize(XMLoadFloat3(&lookWorld));
-		XMVECTOR up = XMVector3Normalize(XMLoadFloat3(&upHintWorld));
+    // yaw only (absolute)
+    void SetYawDegrees(float yawDeg)
+    {
+        const float yaw = XMConvertToRadians(yawDeg);
+        XMVECTOR q = XMQuaternionRotationAxis(XMVectorSet(0, 1, 0, 0), yaw);
+        XMStoreFloat4(&rotation, XMQuaternionNormalize(q));
+        RebuildWorld();
+    }
 
-		// up°ú f°¡ °ÅÀÇ ÆòÇàÀÌ¸é ´Ù¸¥ upÀ» »ç¿ë
-		const float d = fabsf(XMVectorGetX(XMVector3Dot(f, up)));
-		if (d > 0.99f) up = XMVectorSet(0, 0, 1, 0);
+    // world axis incremental rotation (pre-multiply)
+    void RotateWorldAxisDegrees(const XMFLOAT3& axisWorld, float deg)
+    {
+        XMVECTOR axis = XMVector3Normalize(XMLoadFloat3(&axisWorld));
+        XMVECTOR dq = XMQuaternionRotationAxis(axis, XMConvertToRadians(deg));
+        XMVECTOR q = XMQuaternionMultiply(dq, XMLoadFloat4(&rotation)); // dq * q
+        XMStoreFloat4(&rotation, XMQuaternionNormalize(q));
+        RebuildWorld();
+    }
 
-		XMVECTOR r = XMVector3Normalize(XMVector3Cross(up, f));
-		XMVECTOR u = XMVector3Normalize(XMVector3Cross(f, r));
+    // world euler incremental rotation (pre-multiply)
+    void RotateWorldEulerDegrees(float pitchDeg, float yawDeg, float rollDeg)
+    {
+        XMVECTOR dq = XMQuaternionRotationRollPitchYaw(
+            XMConvertToRadians(pitchDeg),
+            XMConvertToRadians(yawDeg),
+            XMConvertToRadians(rollDeg)
+        );
 
-		XMFLOAT3 right, upv, look;
-		XMStoreFloat3(&right, r);
-		XMStoreFloat3(&upv, u);
-		XMStoreFloat3(&look, f);
+        XMVECTOR q = XMQuaternionMultiply(dq, XMLoadFloat4(&rotation)); // dq * q
+        XMStoreFloat4(&rotation, XMQuaternionNormalize(q));
+        RebuildWorld();
+    }
 
-		SetRotationFromBasis(right, upv, look);
-	}
+    // look ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ È¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+    void SetLookDirection(const XMFLOAT3& lookWorld, const XMFLOAT3& upHintWorld = XMFLOAT3(0, 1, 0))
+    {
+        XMVECTOR f = XMVector3Normalize(XMLoadFloat3(&lookWorld));
+        XMVECTOR up = XMVector3Normalize(XMLoadFloat3(&upHintWorld));
 
-	// yaw only (Player ¹Ùµð È¸Àü¿ë): world up ±âÁØ Àý´ë yaw
-	void SetYawDegrees(float yawDeg)
-	{
-		const float yaw = XMConvertToRadians(yawDeg);
-		XMVECTOR q = XMQuaternionRotationAxis(XMVectorSet(0, 1, 0, 0), yaw);
-		XMStoreFloat4(&rotation, XMQuaternionNormalize(q));
-		RebuildWorld();
-	}
+        // upï¿½ï¿½ forwardï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï¸ï¿½ ï¿½Ù¸ï¿½ upï¿½ï¿½ ï¿½ï¿½ï¿½
+        const float d = fabsf(XMVectorGetX(XMVector3Dot(f, up)));
+        if (d > 0.99f) up = XMVectorSet(0, 0, 1, 0);
 
-	// world axis ±âÁØ È¸Àü(ÁõºÐ)
-	void RotateWorldAxisDegrees(const XMFLOAT3& axisWorld, float deg)
-	{
-		XMVECTOR axis = XMVector3Normalize(XMLoadFloat3(&axisWorld));
-		XMVECTOR dq = XMQuaternionRotationAxis(axis, XMConvertToRadians(deg));
-		XMVECTOR q = XMQuaternionMultiply(dq, XMLoadFloat4(&rotation)); // pre-multiply
-		XMStoreFloat4(&rotation, XMQuaternionNormalize(q));
-		RebuildWorld();
-	}
+        XMVECTOR r = XMVector3Normalize(XMVector3Cross(up, f));
+        XMVECTOR u = XMVector3Normalize(XMVector3Cross(f, r));
 
-	void RotateWorldEulerDegrees(float pitchDeg, float yawDeg, float rollDeg)
-	{
-		XMVECTOR dq = XMQuaternionRotationRollPitchYaw(
-			XMConvertToRadians(pitchDeg),
-			XMConvertToRadians(yawDeg),
-			XMConvertToRadians(rollDeg)
-		);
+        XMFLOAT3 right, upv, look;
+        XMStoreFloat3(&right, r);
+        XMStoreFloat3(&upv, u);
+        XMStoreFloat3(&look, f);
 
-		// world-pre-multiply: dq * q
-		XMVECTOR q = XMQuaternionMultiply(dq, XMLoadFloat4(&rotation));
-		XMStoreFloat4(&rotation, XMQuaternionNormalize(q));
-		RebuildWorld();
-	}
+        SetRotationFromBasis(right, upv, look);
+    }
 
-	// Ä«¸Þ¶ó basis¸¦ Æ®·£½ºÆû È¸ÀüÀ¸·Î ¼¼ÆÃ(½ºÆäÀÌ½º½± ¸ðµå ÁøÀÔ ½Ã)
-	void SetRotationFromBasis(const XMFLOAT3& right, const XMFLOAT3& up, const XMFLOAT3& look)
-	{
-		// row-major/column-major ÀÌ½´¸¦ ÇÇÇÏ·Á°í ¡°ÃàÀ» Çà¡±À¸·Î ±¸¼º (DirectXMath´Â row-major ÀúÀåÀÌÁö¸¸ XMÀº Çà·Ä ÀÇ¹Ì ÀÏ°ü)
-		XMMATRIX M =
-			XMMATRIX(
-				right.x, right.y, right.z, 0.0f,
-				up.x, up.y, up.z, 0.0f,
-				look.x, look.y, look.z, 0.0f,
-				0.0f, 0.0f, 0.0f, 1.0f
-			);
+    // basis(right/up/look)ï¿½ï¿½ È¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+    void SetRotationFromBasis(const XMFLOAT3& right, const XMFLOAT3& up, const XMFLOAT3& look)
+    {
+        // DirectXMath: ï¿½ï¿½ï¿½ ï¿½Ç¹Ì´ï¿½ row-majorï¿½ï¿½ ï¿½Ï°ï¿½ï¿½Ç°ï¿½ ï¿½ï¿½ï¿½
+        XMMATRIX M(
+            right.x, right.y, right.z, 0.0f,
+            up.x, up.y, up.z, 0.0f,
+            look.x, look.y, look.z, 0.0f,
+            0.0f, 0.0f, 0.0f, 1.0f
+        );
 
-		XMVECTOR q = XMQuaternionRotationMatrix(M);
-		XMStoreFloat4(&rotation, XMQuaternionNormalize(q));
-		RebuildWorld();
-	}
+        XMVECTOR q = XMQuaternionRotationMatrix(M);
+        XMStoreFloat4(&rotation, XMQuaternionNormalize(q));
+        RebuildWorld();
+    }
 
-	// ¿ÜºÎ¿¡¼­ WorldMatrix¸¦ Á÷Á¢ ³Ö¾î¾ß ÇÒ ¶§(È£È¯¿ë)
-	void SetWorldMatrixFromMatrix(const XMFLOAT4X4& m)
-	{
-		XMMATRIX W = XMLoadFloat4x4(&m);
+    // external world matrix -> decompose and apply
+    void SetWorldMatrixFromMatrix(const XMFLOAT4X4& m)
+    {
+        XMMATRIX W = XMLoadFloat4x4(&m);
 
-		XMVECTOR S, R, T;
-		if (XMMatrixDecompose(&S, &R, &T, W))
-		{
-			XMFLOAT3 s; XMStoreFloat3(&s, S);
-			XMFLOAT4 r; XMStoreFloat4(&r, R);
-			XMFLOAT3 t; XMStoreFloat3(&t, T);
-
-			scale = s;
-			rotation = r;
-			position = t;
-
-			RebuildWorld();
-		}
-		else
-		{
-			// ºÐÇØ ½ÇÆÐ ½Ã ÃÖ¼ÒÇÑ Çà·Ä¸¸ º¸°ü
-			worldMatrix = m;
-			// directionÀº ±×´ë·Î µÒ
-		}
-	}
+        XMVECTOR S, R, T;
+        if (XMMatrixDecompose(&S, &R, &T, W))
+        {
+            XMStoreFloat3(&scale, S);
+            XMStoreFloat4(&rotation, R);
+            XMStoreFloat3(&position, T);
+            RebuildWorld();
+        }
+        else
+        {
+            worldMatrix = m; // fallback: store only
+            // directionï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½(ï¿½ï¿½ï¿½Ï¸ï¿½ ï¿½ï¿½ï¿½â¼­ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
+        }
+    }
 
 private:
-	void RebuildWorld()
-	{
-		XMMATRIX S = XMMatrixScaling(scale.x, scale.y, scale.z);
-		XMMATRIX R = XMMatrixRotationQuaternion(XMLoadFloat4(&rotation));
-		XMMATRIX T = XMMatrixTranslation(position.x, position.y, position.z);
+    void RebuildWorld()
+    {
+        XMMATRIX S = XMMatrixScaling(scale.x, scale.y, scale.z);
+        XMMATRIX R = XMMatrixRotationQuaternion(XMLoadFloat4(&rotation));
+        XMMATRIX T = XMMatrixTranslation(position.x, position.y, position.z);
 
-		XMMATRIX W = S * R * T;
-		XMStoreFloat4x4(&worldMatrix, W);
+        XMMATRIX W = S * R * T;
+        XMStoreFloat4x4(&worldMatrix, W);
 
-		// direction °»½Å (forward)
-		XMVECTOR f = XMVector3TransformNormal(XMVectorSet(0, 0, 1, 0), R);
-		XMFLOAT3 d; XMStoreFloat3(&d, XMVector3Normalize(f));
-		direction = d;
-	}
+        // cached forward(direction)
+        XMVECTOR f = XMVector3TransformNormal(XMVectorSet(0, 0, 1, 0), R);
+        XMFLOAT3 d; XMStoreFloat3(&d, XMVector3Normalize(f));
+        direction = d;
+    }
 };

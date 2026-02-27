@@ -19,7 +19,7 @@ void CStaticMeshRendererComponent::Render(ID3D12GraphicsCommandList* cmd, CCamer
     const int n = owner->GetMeshCount();
     for (int i = 0; i < n; ++i)
     {
-        auto mesh = owner->GetMeshShared(i);
+        std::shared_ptr<CMesh> mesh = owner->GetMeshShared(i);
         if (mesh)
             mesh->Render(cmd, owner->GetMappedGameObjectCB());
     }
@@ -37,7 +37,7 @@ void CSkinnedMeshRendererComponent::Render(ID3D12GraphicsCommandList* cmd, CCame
     const int n = owner->GetMeshCount();
     for (int i = 0; i < n; ++i)
     {
-        auto mesh = owner->GetMeshShared(i);
+        std::shared_ptr<CMesh> mesh = owner->GetMeshShared(i);
         if (mesh)
             mesh->Render(cmd, owner->GetMappedGameObjectCB());
     }

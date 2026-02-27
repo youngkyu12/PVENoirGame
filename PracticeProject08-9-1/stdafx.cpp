@@ -4,6 +4,8 @@
 
 #include "stdafx.h"
 
+ClientServiceRef g_clientService = nullptr;
+
 #include "DDSTextureLoader12.h"
 
 UINT gnCbvSrvDescriptorIncrementSize = 0;

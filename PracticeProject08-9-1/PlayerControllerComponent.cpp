@@ -1,32 +1,93 @@
 //-----------------------------------------------------------------------------
 // File: PlayerControllerComponent.cpp
 //-----------------------------------------------------------------------------
+
 #include "stdafx.h"
 #include "PlayerControllerComponent.h"
+#include "ActorTagComponent.h"
 
 #include "Object.h"
 #include "Animator.h"
 #include "AnimatorComponent.h"
 #include "AnimController.h"
 
-// legacy DIR_* °ª°ú µ¿ÀÏÇÑ »ó¼ö(¸ÅÅ©·Î¿¡ ÀÇÁ¸ÇÏÁö ¾Ê±â À§ÇØ ·ÎÄÃ »ó¼ö·Î µÒ)
-static constexpr DWORD kDirForward = 0x01;
-static constexpr DWORD kDirBackward = 0x02;
-static constexpr DWORD kDirLeft = 0x04;
-static constexpr DWORD kDirRight = 0x08;
-static constexpr DWORD kDirUp = 0x10;
-static constexpr DWORD kDirDown = 0x20;
+// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Æ®ï¿½Ñ·ï¿½ + ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+#include "CommonPlayerControllerComponent.h"
+#include "GameMath.h"
+
+static GameMath::Vec3 ToGM(const XMFLOAT3& v)
+{
+    return GameMath::Vec3(v.x, v.y, v.z);
+}
 
 CPlayerControllerComponent::CPlayerControllerComponent(CGameObject* owner)
     : CComponentT<CPlayerControllerComponent>(owner)
 {
+    PushTuningToCommon();
+}
+
+CCommonPlayerControllerComponent* CPlayerControllerComponent::GetCommon() const
+{
+    CGameObject* owner = GetOwner();
+    if (!owner) return nullptr;
+    return owner->GetComponent<CCommonPlayerControllerComponent>();
+}
+
+bool CPlayerControllerComponent::IsAttackBlocking() const
+{
+    CGameObject* owner = GetOwner();
+    if (!owner) return false;
+
+    if (auto* anim = owner->GetAnimator())
+    {
+        if (anim->GetCurrentClipName() == "Attack" && !anim->IsCurrentClipFinished())
+            return true;
+    }
+    return false;
+}
+
+void CPlayerControllerComponent::PushTuningToCommon()
+{
+    auto* common = GetCommon();
+    if (!common) return;
+
+    common->SetFriction(m_friction);
+    common->SetMaxVelocityXZ(m_maxVelXZ);
+    common->SetMaxVelocityY(m_maxVelY);
+    common->SetGravity(ToGM(m_gravity));
+
+    // yawï¿½ï¿½ ï¿½Ý¿ï¿½
+    common->SetYawDegrees(m_yawDeg);
+}
+
+void CPlayerControllerComponent::SetFriction(float f)
+{
+    m_friction = f;
+    PushTuningToCommon();
+}
+
+void CPlayerControllerComponent::SetGravity(const XMFLOAT3& g)
+{
+    m_gravity = g;
+    PushTuningToCommon();
+}
+
+void CPlayerControllerComponent::SetMaxVelocityXZ(float v)
+{
+    m_maxVelXZ = v;
+    PushTuningToCommon();
+}
+
+void CPlayerControllerComponent::SetMaxVelocityY(float v)
+{
+    m_maxVelY = v;
+    PushTuningToCommon();
 }
 
 void CPlayerControllerComponent::SetYawDegrees(float yawDeg)
 {
+    // 0~360 wrap (legacy ï¿½ï¿½ï¿½ï¿½)
     m_yawDeg = yawDeg;
-
-    // 0~360 wrap
     if (m_yawDeg > 360.0f) m_yawDeg = fmodf(m_yawDeg, 360.0f);
     if (m_yawDeg < 0.0f)
     {
@@ -34,176 +95,113 @@ void CPlayerControllerComponent::SetYawDegrees(float yawDeg)
         if (m_yawDeg < 0.0f) m_yawDeg += 360.0f;
     }
 
-    ApplyYawToOwnerTransform();
-}
+    if (IsAttackBlocking())
+        return;
 
-void CPlayerControllerComponent::ApplyYawToOwnerTransform()
-{
-    CGameObject* owner = GetOwner();
-    if (!owner) return;
-
-    if (auto* tr = owner->GetComponent<CTransformComponent>())
-        tr->SetYawDegrees(m_yawDeg);
+    if (auto* common = GetCommon())
+        common->SetYawDegrees(m_yawDeg);
 }
 
 void CPlayerControllerComponent::SetInputDirection(DWORD dwDirection)
 {
     m_inputDir = dwDirection;
 
-    // Attack ÁßÀÌ¸é "»óÅÂ ÀüÈ¯/ÀÌµ¿"À» À¯¹ßÇÏ´Â speed ¹Ý¿µÀ» ¸·´Â´Ù.
-    if (auto* anim = GetOwner() ? GetOwner()->GetAnimator() : nullptr)
+    if (!IsAttackBlocking())
     {
-        if (anim->GetCurrentClipName() == "Attack" && !anim->IsCurrentClipFinished())
-            return;
+        if (auto* common = GetCommon())
+            common->SetInputDirection(static_cast<int32_t>(m_inputDir));
     }
 
     SyncAnimatorSpeed();
 }
-
 
 void CPlayerControllerComponent::SyncAnimatorSpeed()
 {
     CGameObject* owner = GetOwner();
     if (!owner) return;
 
+    if (IsAttackBlocking())
+        return;
+
     const float speed = (m_inputDir ? 1.0f : 0.0f);
 
     if (auto* animComp = owner->GetComponent<CAnimatorComponent>())
+    {
         animComp->SetSpeed(speed);
-    else if (auto* ctrl = owner->GetAnimController())
+        return;
+    }
+
+    if (auto* ctrl = owner->GetAnimController())
+    {
         ctrl->SetSpeed(speed);
+        return;
+    }
 }
 
 void CPlayerControllerComponent::Move(
     DWORD dwDirection,
     float fDistance,
     bool bUpdateVelocity,
-    EVerticalMoveSpace upSpace)
+    EVerticalMoveSpace /*upSpace*/)
 {
-    CGameObject* owner = GetOwner();
+    auto* owner = GetOwner();
     if (!owner) return;
 
-    if (auto* anim = owner->GetAnimator())
-    {
-        if (anim->GetCurrentClipName() == "Attack" && !anim->IsCurrentClipFinished())
-            return;
-    }
+    auto* tag = owner->GetComponent<CActorTagComponent>();
+    if (tag && tag->kind == EActorKind::Player && tag->control != EPlayerControl::Local)
+        return;
+
+    if (IsAttackBlocking())
+        return;
+
     if (!dwDirection) return;
 
-    const XMFLOAT3 look = owner->GetLook();
-    const XMFLOAT3 right = owner->GetRight();
-
-    const XMFLOAT3 up = (upSpace == EVerticalMoveSpace::LocalUp)
-        ? owner->GetUp()
-        : XMFLOAT3(0.0f, 1.0f, 0.0f);
-
-    XMFLOAT3 shift = XMFLOAT3(0.0f, 0.0f, 0.0f);
-
-    if (dwDirection & kDirForward)
-        shift = Vector3::Add(shift, look, fDistance);
-
-    if (dwDirection & kDirBackward)
-        shift = Vector3::Add(shift, look, -fDistance);
-
-    if (dwDirection & kDirRight)
-        shift = Vector3::Add(shift, right, fDistance);
-
-    if (dwDirection & kDirLeft)
-        shift = Vector3::Add(shift, right, -fDistance);
-
-    if (dwDirection & kDirUp)
-        shift = Vector3::Add(shift, up, fDistance);
-
-    if (dwDirection & kDirDown)
-        shift = Vector3::Add(shift, up, -fDistance);
-
-    MoveShift(shift, bUpdateVelocity);
+    if (auto* common = GetCommon())
+    {
+        common->Move(
+            static_cast<int32_t>(dwDirection),
+            fDistance,
+            bUpdateVelocity,
+            CCommonPlayerControllerComponent::EVerticalMoveSpace::WorldUp
+        );
+    }
 }
 
 void CPlayerControllerComponent::MoveShift(const XMFLOAT3& shift, bool bUpdateVelocity)
 {
-    CGameObject* owner = GetOwner();
+    auto* owner = GetOwner();
     if (!owner) return;
 
-    if (bUpdateVelocity)
-    {
-        m_velocity = Vector3::Add(m_velocity, shift);
-    }
-    else
-    {
-        if (auto* tr = owner->GetComponent<CTransformComponent>())
-            tr->Translate(shift);
-    }
+    auto* tag = owner->GetComponent<CActorTagComponent>();
+    if (tag && tag->kind == EActorKind::Player && tag->control != EPlayerControl::Local)
+        return;
+
+    if (IsAttackBlocking())
+        return;
+
+    if (auto* common = GetCommon())
+        common->MoveShift(ToGM(shift), bUpdateVelocity);
 }
 
 void CPlayerControllerComponent::Rotate(float /*pitchDeg*/, float yawDeg, float /*rollDeg*/)
 {
-    CGameObject* owner = GetOwner();
-    if (owner)
-    {
-        if (auto* anim = owner->GetAnimator())
-        {
-            if (anim->GetCurrentClipName() == "Attack" && !anim->IsCurrentClipFinished())
-                return;
-        }
-    }
+    auto* owner = GetOwner();
+    if (!owner) return;
+
+    auto* tag = owner->GetComponent<CActorTagComponent>();
+    if (tag && tag->kind == EActorKind::Player && tag->control != EPlayerControl::Local)
+
+        return;
+    if (IsAttackBlocking())
+        return;
 
     if (yawDeg != 0.0f)
         SetYawDegrees(m_yawDeg + yawDeg);
 }
 
-void CPlayerControllerComponent::OnUpdate(float dt)
+void CPlayerControllerComponent::OnUpdate(float /*dt*/)
 {
-    // legacy CPlayer::Update ·ÎÁ÷À» ÄÄÆ÷³ÍÆ®·Î ÀÌµ¿
-    // (velocity´Â ¡°ÇÁ·¹ÀÓ º¯À§¡±Ã³·³ ¾²´Â ±âÁ¸ ¹æ½ÄÀ» ±×´ë·Î À¯Áö)
-
-    // gravity
-    m_velocity = Vector3::Add(
-        m_velocity,
-        Vector3::ScalarProduct(m_gravity, dt, false)
-    );
-
-    // clamp XZ
-    float lenXZ = sqrtf(m_velocity.x * m_velocity.x + m_velocity.z * m_velocity.z);
-    float maxXZ = m_maxVelXZ * dt;
-    if (maxXZ > 0.0f && lenXZ > maxXZ)
-    {
-        float s = (maxXZ / lenXZ);
-        m_velocity.x *= s;
-        m_velocity.z *= s;
-    }
-
-    // clamp Y
-    float lenY = fabsf(m_velocity.y);
-    float maxY = m_maxVelY * dt;
-    if (maxY > 0.0f && lenY > maxY)
-        m_velocity.y *= (maxY / lenY);
-
-    // apply displacement
-    MoveShift(m_velocity, false);
-
-    // friction / deceleration
-    float len = Vector3::Length(m_velocity);
-    float decel = (m_friction * dt);
-
-    if (decel > len) decel = len;
-
-    m_velocity = Vector3::Add(
-        m_velocity,
-        Vector3::ScalarProduct(m_velocity, -decel, true) // normalize
-    );
-
-    CGameObject* owner = GetOwner();
-    if (!owner) return;
-
-    if (auto* ctrl = owner->GetAnimController())
-    {
-        const float speed = (m_inputDir != 0) ? 1.0f : 0.0f; // ¶Ç´Â ½ÇÁ¦ ÀÌµ¿¼Óµµ
-        ctrl->SetSpeed(speed);
-    }
-}
-
-
-void CPlayerControllerComponent::Update(float dt)
-{
+    // ï¿½Ìµï¿½/ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ common ï¿½ï¿½Æ®ï¿½Ñ·ï¿½ï¿½ï¿½ ï¿½Ñ´ï¿½.
+    // Å¬ï¿½ï¿½ ï¿½ê¸®ï¿½ï¿½ï¿½ï¿½ ï¿½Ö´ï¿½ speedï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½.
+    SyncAnimatorSpeed();
 }
