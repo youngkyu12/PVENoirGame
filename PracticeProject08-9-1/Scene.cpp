@@ -45,11 +45,9 @@ void CScene::ReleaseObjects()
 	if (m_pd3dGraphicsRootSignature)
 		m_pd3dGraphicsRootSignature.Reset();
 
-	// shaders: shared_ptr reset��(�ʿ��ϸ�)
 	m_staticBatch.shader.reset();
 	m_skinnedBatch.shader.reset();
 
-	// objects clear
 	m_staticObjects.clear();
 	m_skinnedObjects.clear();
 	m_pPlayer.reset();
@@ -59,7 +57,6 @@ void CScene::ReleaseObjects()
 
 	m_demoFighters.fill(nullptr);
 
-	// Main Camera (GameObject + Camera Component)
 	if (m_pMainCamera)
 	{
 		m_pMainCamera->ReleaseShaderVariables();
@@ -67,11 +64,9 @@ void CScene::ReleaseObjects()
 	}
 	m_pMainCameraObject.reset();
 
-	// Batch ref lists clear
 	m_staticBatch.objectRefs.clear();
 	m_skinnedBatch.objectRefs.clear();
 
-	// scene-owned CB/���ҽ� ����
 	ReleaseShaderVariables();
 }
 
@@ -148,10 +143,8 @@ void CScene::BuildObjects(
 	ID3D12Device* pd3dDevice,
 	ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	// 1. Root Signature
 	CreateGraphicsRootSignature(pd3dDevice);
 
-	// 2. Shader �ν��Ͻ� ���� + ������Ʈ ���� ��Ȯ��
 	constexpr int MAX_GLOBAL_SRVS = 1024;
 
 	auto pStaticShader = std::make_shared<CStaticObjectsShader>();
@@ -167,14 +160,12 @@ void CScene::BuildObjects(
 		1 /*Player*/ +
 		1 /*etc*/;
 
-	// 3. DescriptorHeap�� "�� ����" ����
 	m_pDescriptorHeap->CreateCbvSrvDescriptorHeaps(
 		pd3dDevice,
 		cbvTotal,
 		MAX_GLOBAL_SRVS
 	);
 
-	// ���� RTV ����
 	DXGI_FORMAT rtvFormats[5] =
 	{
 		DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -184,10 +175,8 @@ void CScene::BuildObjects(
 		DXGI_FORMAT_R32_FLOAT
 	};
 
-	// 4/5. Materials + Batches
 	BuildLightsAndMaterials();
 
-	// Light objects components create
 	for (auto& lo : m_lightObjects)
 	{
 		if (lo) lo->CreateComponents(pd3dDevice, pd3dCommandList);
@@ -199,7 +188,6 @@ void CScene::BuildObjects(
 	BuildStaticBatch(pd3dDevice, pd3dCommandList, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
 	BuildSkinnedBatch(pd3dDevice, pd3dCommandList, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
 
-	// 6. Scene ���� Shader Variables
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
 	BuildPlayer(pd3dDevice, pd3dCommandList);
 	CreateMainCamera(pd3dDevice, pd3dCommandList, m_pPlayer.get());
@@ -363,7 +351,7 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevice)
 	constexpr UINT MAX_GLOBAL_SRVS = 1024;
 	pd3dDescriptorRanges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	pd3dDescriptorRanges[1].NumDescriptors = MAX_GLOBAL_SRVS;
-	pd3dDescriptorRanges[1].BaseShaderRegister = 0; // t0����
+	pd3dDescriptorRanges[1].BaseShaderRegister = 0; // t0
 	pd3dDescriptorRanges[1].RegisterSpace = 0;      // space0
 	pd3dDescriptorRanges[1].OffsetInDescriptorsFromTableStart = 0;
 
@@ -623,7 +611,6 @@ void CScene::BuildStaticBatch(
 	// Arrow pool (Static) : same mesh, multiple instances, transform-only move
 	// ------------------------------------------------------------------------
 	{
-		// ȭ�� �޽ô� �ϳ��� �����ؼ� ��� ȭ���� �����Ѵ�.
 		AssetBuildDesc ArrowDesc =
 		{
 			AssetType::Arrow,                   
@@ -654,11 +641,9 @@ void CScene::BuildStaticBatch(
 			obj->SetMesh(0, arrowAsset.mesh);
 			obj->AddComponent<CStaticMeshRendererComponent>();
 
-			// ȭ�� �̵�/���� ������Ʈ
 			auto* arrow = obj->AddComponent<CArrowComponent>();
 			(void)arrow;
 
-			// Ǯ �ʱ� ����: �ٴ� �Ʒ��� ������ ����
 			obj->SetPosition(0.0f, -10000.0f, 0.0f);
 
 			obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
@@ -760,7 +745,6 @@ void CScene::BuildSkinnedBatch(
 			obj->SetMesh(0, asset.mesh);
 			obj->AddComponent<CSkinnedMeshRendererComponent>();
 
-			// [ADD] Tag: NPC
 			{
 				auto* tag = obj->AddComponent<CActorTagComponent>();
 				tag->kind = EActorKind::NPC;
@@ -982,7 +966,6 @@ void CScene::BuildPlayer(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd
 	obj->SetMesh(0, asset.mesh);
 	obj->AddComponent<CSkinnedMeshRendererComponent>();
 
-	// [ADD] Tag: Local Player (slot = 0)
 	{
 		auto* tag = obj->AddComponent<CActorTagComponent>();
 		tag->kind = EActorKind::Player;
@@ -1105,7 +1088,6 @@ CGameObject* CScene::GetDemoFighter(int index) const
 
 void CScene::RequestDemoFighterAttack(int index)
 {
-	// ���� API ����: index(0..2) -> slot(1..3)
 	const int slot = index + 1;
 	RequestPlayerAttackBySlot(slot);
 }
@@ -1115,46 +1097,37 @@ void CScene::RequestPlayerAttackBySlot(int slot)
 	CGameObject* obj = GetPlayerBySlot(slot);
 	if (!obj) return;
 
-	// ȭ�� �Ķ����(���ϸ� ���⸸ ����)
 	const float kArrowSpeed = 3.0f;
 	const float kArrowLife = 6.0f;
-	const float kArrowYOffset = 1.0f; // �߻� �� pos.y += yOffset
+	const float kArrowYOffset = 1.0f; 
 
-	// AnimatorComponent ���
 	if (auto* animComp = obj->GetComponent<CAnimatorComponent>())
 	{
 		if (auto* ctrl = animComp->EnsureController())
 		{
 			ctrl->RequestAttack();
 
-			// ���� ��û�� ���ÿ� ȭ�� �߻�(���� 0..3 ����)
 			RequestFireArrow(obj, kArrowSpeed, kArrowLife, kArrowYOffset);
 			return;
 		}
 	}
 
-	// ���Ž� AnimController ���
 	if (auto* ctrl = obj->GetAnimController())
 	{
 		ctrl->RequestAttack();
 
-		// ���Žõ� �����ϰ� ȭ�� �߻�
 		RequestFireArrow(obj, kArrowSpeed, kArrowLife, kArrowYOffset);
 		return;
 	}
 
-	// Animator�� �ִ� ���: ���ݵ�/ȭ�쵵 ���⼭�� ���� �Ұ�
 }
 
 CGameObject* CScene::GetPlayerBySlot(int slot) const
 {
 	if (slot < 0 || slot > 3) return nullptr;
 
-	// slot 0�� m_pPlayer�� ����
 	if (slot == 0) return m_pPlayer.get();
 
-	// slot 1..3�� �±� or m_demoFighters ���
-	// (4�� �����̸� m_demoFighters�� ���� ����)
 	return m_demoFighters[(size_t)(slot - 1)];
 }
 
@@ -1183,18 +1156,14 @@ void CScene::RequestFireArrow(CGameObject* shooter, float speed, float lifeSec, 
 {
 	if (!shooter) return;
 
-	// 1) �߻� ���� = shooter�� Look ����(������� basis���� ����)
 	const XMFLOAT4X4& W = shooter->GetWorldMatrix();
 
-	// �� ������Ʈ�� CPU���� row-major�� ��� �ְ� ���̴��� �ѱ� �� Transpose �ϰ� �����Ƿ�,
-	// Look(Forward) ���ʹ� ���� 3��° ��(_31,_32,_33)�� ����ִ�.
 	XMFLOAT3 dir = { W._31, W._32, W._33 };
 
 	XMVECTOR dirV = XMLoadFloat3(&dir);
 	const float lenSq = XMVectorGetX(XMVector3LengthSq(dirV));
 	if (lenSq < 1e-8f)
 	{
-		// ������(������)�̸� �⺻ ����
 		dir = XMFLOAT3(0.0f, 0.0f, 1.0f);
 		dirV = XMLoadFloat3(&dir);
 	}
@@ -1204,11 +1173,9 @@ void CScene::RequestFireArrow(CGameObject* shooter, float speed, float lifeSec, 
 	XMFLOAT3 dirN{};
 	XMStoreFloat3(&dirN, dirV);
 
-	// 2) ���� ��ġ = shooter ��ġ + yOffset
 	XMFLOAT3 startPos = shooter->GetPosition();
 	startPos.y += yOffset;
 
-	// 3) �ӵ� ���� = Look * speed
 	const XMFLOAT3 vel =
 	{
 		dirN.x * speed,
@@ -1216,7 +1183,6 @@ void CScene::RequestFireArrow(CGameObject* shooter, float speed, float lifeSec, 
 		dirN.z * speed
 	};
 
-	// 4) Ǯ���� ��Ȱ�� ȭ�� ã�� Activate + Look �������� ȸ�� ����
 	for (CGameObject* arrowObj : m_arrowRefs)
 	{
 		if (!arrowObj) continue;
@@ -1226,18 +1192,14 @@ void CScene::RequestFireArrow(CGameObject* shooter, float speed, float lifeSec, 
 
 		if (arrow->IsActive()) continue;
 
-		// (A) Ʈ������ ȸ��: Look ���� ����
 		if (auto* tr = arrowObj->GetComponent<CTransformComponent>())
 		{
 			tr->SetLookDirection(dirN);
 		}
 
-		// (B) �̵�����(vel) + ��ġ(startPos) ����
 		arrow->Activate(startPos, vel, lifeSec);
 		return;
 	}
-
-	// Ǯ �����̸� ����(���ϸ� ���⼭ ���� Ȯ�� ����)
 }
 
 bool CScene::ProcessInput(UCHAR* pKeysBuffer)

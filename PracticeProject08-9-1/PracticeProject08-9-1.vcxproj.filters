@@ -196,9 +196,6 @@
     <ClInclude Include="ServerPacketHandler.h">
       <Filter>Network\PacketHandler</Filter>
     </ClInclude>
-    <ClInclude Include="..\Common\Components\Component.h">
-      <Filter>Components</Filter>
-    </ClInclude>
     <ClInclude Include="ArrowComponent.h">
       <Filter>Components\Arrow</Filter>
     </ClInclude>
@@ -207,6 +204,9 @@
     </ClInclude>
     <ClInclude Include="PlayerControllerComponent.h">
       <Filter>Components\PlayerController</Filter>
+    </ClInclude>
+    <ClInclude Include="Component.h">
+      <Filter>Components</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

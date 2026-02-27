@@ -106,7 +106,6 @@ void CGameObject::SetRootParameter(ID3D12GraphicsCommandList* cmd)
 void CGameObject::SetMappedGameObjectCB(CB_GAMEOBJECT_INFO* p)
 {
 	if (!m_pRenderObject) m_pRenderObject = AddComponent<CRenderObjectComponent>();
-	// �ܺ� CB�� ���ε��� ���� ������ handle�� ����
 	m_pRenderObject->BindExternal(p, m_pRenderObject->GetCbvHandle());
 }
 
@@ -138,7 +137,6 @@ void CGameObject::DestroyComponents()
 	if (!m_bComponentsCreated && m_components.empty())
 		return;
 
-	// ���� �ı�(���� ���� ���)
 	for (int i = (int)m_components.size() - 1; i >= 0; --i)
 	{
 		if (m_components[i])
@@ -219,7 +217,6 @@ CAnimatorComponent* CGameObject::EnsureAnimatorComponent()
 	if (CAnimatorComponent* ac = GetAnimatorComponent())
 		return ac;
 
-	// AnimatorComponent�� �⺻ ������Ʈ�� �ƴϹǷ� "�ʿ��� ����" ���δ�.
 	CAnimatorComponent* ac = AddComponent<CAnimatorComponent>();
 	m_pAnimatorComponent = ac;
 	return ac;
@@ -284,7 +281,6 @@ void CGameObject::PlayAnimation(const std::string& clipName, bool loop, float st
 	CAnimatorComponent* ac = EnsureAnimatorComponent();
 	if (!ac) return;
 
-	// ��� ���ɸ� ������ (���ε�/�� �帧�� ������Ʈ�� ���)
 	ac->Play(clipName, loop, start);
 }
 
@@ -310,7 +306,7 @@ CAnimController* CGameObject::GetAnimController() const
 // ============================================================================
 void CGameObject::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	UINT ncbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255); //256�� ���
+	UINT ncbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);
 	m_pd3dcbGameObject = ::CreateBufferResource(
 		pd3dDevice,
 		pd3dCommandList,
@@ -334,7 +330,6 @@ void CGameObject::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandLi
 	(void)pd3dCommandList;
 	if (!m_pcbMappedGameObject) return;
 
-	// Transform�� WorldMatrix�� ���� ����
 	const XMFLOAT4X4& W = m_pTransform->GetWorldMatrix();
 
 	XMStoreFloat4x4(
@@ -397,7 +392,6 @@ void CGameObject::MoveForward(float fDistance)
 
 void CGameObject::Rotate(float fPitch, float fYaw, float fRoll)
 {
-	// Transform�� ȸ���� ���� ����
 	m_pTransform->RotateWorldEulerDegrees(fPitch, fYaw, fRoll);
 }
 

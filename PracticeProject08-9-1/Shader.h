@@ -224,7 +224,7 @@ struct PS_CB_DRAW_OPTIONS
 {
 	XMINT4  m_xmn4DrawOptions;     // x='T','L','N','D','Z'
 	XMUINT4 m_xmu4PostSrvIdx0;     // x=T, y=L, z=N, w=D
-	XMUINT4 m_xmu4PostSrvIdx1;     // x=Z, ������ �е�
+	XMUINT4 m_xmu4PostSrvIdx1;     // x=Z
 };
 
 class CTextureToFullScreenShader : public CPostProcessingShader

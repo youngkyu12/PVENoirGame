@@ -45,8 +45,8 @@ struct SCENE_STATIC_BATCH
 {
 	std::shared_ptr<CStaticObjectsShader>            shader;
 
-	UINT                                             capacity = 0;   // �ִ� ����
-	UINT                                             count = 0;      // ���� ��(=objects.size())
+	UINT                                             capacity = 0;
+	UINT                                             count = 0;
 
 	std::vector<CGameObject*>                        objectRefs;
 
@@ -58,15 +58,15 @@ struct SCENE_STATIC_BATCH
 	D3D12_GPU_DESCRIPTOR_HANDLE                      baseCbvGpu = { 0 };
 	UINT                                             cbvInc = 0;
 
-	std::shared_ptr<CMaterial>                       material;       // legacy ������ ���
+	std::shared_ptr<CMaterial>                       material;
 };
 
 struct SCENE_SKINNED_BATCH
 {
 	std::shared_ptr<CSkinnedObjectsShader>           shader;
 
-	UINT                                             capacity = 0;   // �ִ� ����
-	UINT                                             count = 0;      // ���� ��(=objects.size())
+	UINT                                             capacity = 0;
+	UINT                                             count = 0;
 
 	UINT                                             cbElementBytes = 0;
 
@@ -167,8 +167,8 @@ public:
 public:
 	std::shared_ptr<CGameObject>					m_pPlayer;
 
-	std::unique_ptr<CGameObject>					m_pMainCameraObject;  // Scene�� �����ϴ� �� ������Ʈ
-	CCamera* m_pMainCamera = nullptr; // ������Ʈ �� ī�޶� ������Ʈ ĳ��
+	std::unique_ptr<CGameObject>					m_pMainCameraObject;
+	CCamera* m_pMainCamera = nullptr;
 
 	SCENE_STATIC_BATCH								m_staticBatch;
 	SCENE_SKINNED_BATCH								m_skinnedBatch;
