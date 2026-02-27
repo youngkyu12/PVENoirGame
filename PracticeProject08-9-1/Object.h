@@ -45,6 +45,8 @@ public:
 	CGameObject(int nMeshes = 1);
 	virtual ~CGameObject();
 
+	// Lifecycle / Release
+public:
 	virtual void ReleaseShaderVariables();
 	virtual void ReleaseUploadBuffers();
 
@@ -52,6 +54,10 @@ public:
 public:
 	virtual void CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
 	virtual void BuildMaterials(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList) {}
+
+	void CreateComponents(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
+	void DestroyComponents();
+	void UpdateComponents(float fTimeElapsed);
 
 	// Render
 public:
@@ -62,6 +68,8 @@ public:
 	virtual void OnPrepareRender(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera);
 	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera = nullptr);
 
+	// Movement helpers (legacy convenience)
+public:
 	void MoveStrafe(float fDistance = 1.0f);
 	void MoveUp(float fDistance = 1.0f);
 	void MoveForward(float fDistance = 1.0f);
@@ -69,20 +77,23 @@ public:
 	void Rotate(float fPitch = 10.0f, float fYaw = 10.0f, float fRoll = 10.0f);
 	void Rotate(XMFLOAT3* pxmf3Axis, float fAngle);
 
+	// Components API
 public:
-	void CreateComponents(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
-	void DestroyComponents();
-	void UpdateComponents(float fTimeElapsed);
-
 	template<typename T, typename... Args>
 	T* AddComponent(Args&&... args);
 
 	template<typename T>
 	T* GetComponent() const;
 
-	// Get & Set Method
+	CRendererComponent* GetRenderer();
+	const CRendererComponent* GetRenderer() const;
+
+	CAnimatorComponent* GetAnimatorComponent();
+	const CAnimatorComponent* GetAnimatorComponent() const;
+	CAnimatorComponent* EnsureAnimatorComponent();
+
+	// Model (Meshes)
 public:
-	// ===== Model (Meshes) accessors =====
 	CModelComponent* GetModel() const { return m_pModel; }
 
 	int GetMeshCount() const
@@ -109,13 +120,19 @@ public:
 
 	void SetMesh(int nIndex, shared_ptr<CMesh> pMesh);
 
+	// RenderObject / Root Binding
+public:
 	void SetCbvGPUDescriptorHandle(D3D12_GPU_DESCRIPTOR_HANDLE d3dCbvGPUDescriptorHandle);
 	void SetCbvGPUDescriptorHandlePtr(UINT64 nCbvGPUDescriptorHandlePtr);
 	D3D12_GPU_DESCRIPTOR_HANDLE GetCbvGPUDescriptorHandle();
 
 	virtual void SetRootParameter(ID3D12GraphicsCommandList* cmd);
 
-	// ===== Transform authoritative getters =====
+	void SetMappedGameObjectCB(CB_GAMEOBJECT_INFO* p);
+	CB_GAMEOBJECT_INFO* GetMappedGameObjectCB() const;
+
+	// Transform (authoritative)
+public:
 	XMFLOAT3 GetPosition() const { return m_pTransform->position; }
 	XMFLOAT3 GetLook()     const { return m_pTransform->GetLook(); }
 	XMFLOAT3 GetUp()       const { return m_pTransform->GetUp(); }
@@ -129,45 +146,44 @@ public:
 	}
 	void SetPosition(XMFLOAT3 p) { SetPosition(p.x, p.y, p.z); }
 
-	// È£È¯¿ë: ¿ÜºÎ ¿ùµåÇà·Ä ÀÔ·ÂÀÌ ÇÊ¿äÇÒ ¶§µµ Transform¸¸ º¯°æ(±ÇÀ§ À¯Áö)
 	void SetWorldMatrix(const XMFLOAT4X4& W)
 	{
 		m_pTransform->SetWorldMatrixFromMatrix(W);
 	}
 
-public:
-	D3D12_GPU_DESCRIPTOR_HANDLE		m_d3dCbvGPUDescriptorHandle = { 0 };
-
-	// ================================
 	// Animation / Skinning (per-object)
-	// ================================
+public:
 	void EnableSkinning(ID3D12Device* pd3dDevice, int nBones);
 	void DisableSkinning();
 
 	bool IsSkinnedObject() const;
 	int  GetBoneCount()    const;
 
-	// Mesh°¡ µé°í ÀÖ´Â "½ºÄÌ·¹Åæ ¸ÞÅ¸µ¥ÀÌÅÍ" Á¢±Ù (forward)
 	const std::vector<Bone>& GetBones() const;
 	const std::unordered_map<std::string, int>& GetBoneNameToIndex() const;
 
-	// Bone palette CB (b7 µî¿¡ ¹ÙÀÎµùÇÒ GPU VA)
 	D3D12_GPU_VIRTUAL_ADDRESS GetBoneCBAddress() const;
 
-	// Animator´Â ¿ÀºêÁ§Æ®°¡ ¼ÒÀ¯ (¸Þ½Ã °øÀ¯ ´ëºñ)
 	CAnimator* EnsureAnimator();
 	CAnimator* GetAnimator() const;
 	void PlayAnimation(const std::string& name, bool loop = true, float start = 0.0f);
 
-	// CPU -> GPU ÆÈ·¹Æ® ¾÷µ¥ÀÌÆ® (Animator¿¡¼­ ¸¸µç ÃÖÁ¾ º» Çà·Ä ¾÷·Îµå)
 	void UpdateBoneTransformsOnGPU(const XMFLOAT4X4* pxmf4x4BoneTransforms, int nBones);
 
-	void SetColliderType(EColliderType Type);
+	CAnimController* EnsureAnimController();
+	CAnimController* GetAnimController() const;
+
+	// Shader
+public:
+	void SetShader(std::shared_ptr<CShader> pShader) { m_pShader = std::move(pShader); }
+	std::shared_ptr<CShader> GetShader() const { return m_pShader; }
+
+	// Public state (legacy)
+public:
+	D3D12_GPU_DESCRIPTOR_HANDLE		m_d3dCbvGPUDescriptorHandle = { 0 };
 
 protected:
-	// --------------------
 	// Components (owned)
-	// --------------------
 	CTransformComponent* m_pTransform = nullptr;
 	CTransformComponent* GetTransform() const { return m_pTransform; }
 	CRendererComponent* m_pRenderer = nullptr;
@@ -180,67 +196,26 @@ protected:
 	bool m_bComponentsCreated = false;
 	ID3D12Device* m_pd3dDeviceForComponents = nullptr;
 	ID3D12GraphicsCommandList* m_pd3dCmdForComponents = nullptr;
-	EColliderType mColliderType = EColliderType::None;
 
-public:
-	CRendererComponent* GetRenderer()
-	{
-		if (m_pRenderer) return m_pRenderer;
-
-		for (auto& c : m_components)
-		{
-			if (c && c->IsRenderer())
-			{
-				m_pRenderer = static_cast<CRendererComponent*>(c.get());
-				return m_pRenderer;
-			}
-		}
-		return nullptr;
-	}
-	CAnimatorComponent* GetAnimatorComponent();
-	const CAnimatorComponent* GetAnimatorComponent() const;
-
-	CAnimatorComponent* EnsureAnimatorComponent();
-
-protected:
-	const CRendererComponent* GetRenderer() const
-	{
-		return const_cast<CGameObject*>(this)->GetRenderer();
-	}
+	// Legacy / fallback resources (kept as-is)
 	ComPtr<ID3D12Resource>			m_pd3dcbGameObject;
 	CB_GAMEOBJECT_INFO* m_pcbMappedGameObject = nullptr;
 
 	void PreRenderComponents(ID3D12GraphicsCommandList* cmd);
 	void PostRenderComponents(ID3D12GraphicsCommandList* cmd);
 
-	// --------------------
-	// Skinning (per-object)
-	// --------------------
+	// Skinning (legacy fields kept)
 	bool                                m_bSkinnedObject = false;
 	int                                 m_nBones = 0;
 
 	ComPtr<ID3D12Resource>              m_pd3dcbBoneTransforms = NULL;   // Upload heap CB
-
-
-public:
-	void SetMappedGameObjectCB(CB_GAMEOBJECT_INFO* p);
-	CB_GAMEOBJECT_INFO* GetMappedGameObjectCB() const;
-
-protected:
 	XMFLOAT4X4* m_pcbMappedBoneTransforms = nullptr;
 
-public:
-	CAnimController* EnsureAnimController();
-	CAnimController* GetAnimController() const;
-
-protected:
+	// Shader (per-object)
 	std::shared_ptr<CShader> m_pShader;
-
-public:
-	void SetShader(std::shared_ptr<CShader> pShader) { m_pShader = std::move(pShader); }
-	std::shared_ptr<CShader> GetShader() const { return m_pShader; }
-
 };
+
+
 
 // ============================================================================
 // CGameObject - Component templates (header-only)
@@ -253,12 +228,12 @@ T* CGameObject::AddComponent(Args&&... args)
 	auto comp = std::make_unique<T>(this, std::forward<Args>(args)...);
 	T* raw = comp.get();
 
-	// ¡Ú Renderer¸é Ä³½Ã °»½Å (ºó¿ÀºêÁ§Æ®¸é ¾È ºÙÀÌ¸é µÊ)
+	// ï¿½ï¿½ Rendererï¿½ï¿½ Ä³ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½Ì¸ï¿½ ï¿½ï¿½)
 	if (raw)
 	{
-		CComponent* base = raw; // ¾÷Ä³½ºÆ®´Â Ç×»ó ¾ÈÀü/°¡´É
+		CComponent* base = raw; // ï¿½ï¿½Ä³ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½×»ï¿½ ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½
 		if (base->IsRenderer())
-			m_pRenderer = static_cast<CRendererComponent*>(base); // base->derived ´Ù¿îÄ³½ºÆ® (IsRenderer·Î ³í¸® º¸Áõ)
+			m_pRenderer = static_cast<CRendererComponent*>(base); // base->derived ï¿½Ù¿ï¿½Ä³ï¿½ï¿½Æ® (IsRendererï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
 	}
 
 	m_components.emplace_back(std::move(comp));
@@ -268,7 +243,6 @@ T* CGameObject::AddComponent(Args&&... args)
 
 	return raw;
 }
-
 
 template<typename T>
 T* CGameObject::GetComponent() const

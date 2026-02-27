@@ -4,6 +4,14 @@
 #include "stdafx.h"
 #include "PracticeProject08-9-1.h"
 #include "GameFramework.h"
+#include "ThreadManager.h"
+#include "Service.h"
+#include "Session.h"
+#include "BufferReader.h"
+#include "ServerPacketHandler.h"
+
+#include "CoreTLS.h"
+
 
 #define MAX_LOADSTRING 100
 
@@ -15,6 +23,46 @@ ATOM MyRegisterClass(HINSTANCE hInstance);
 BOOL InitInstance(HINSTANCE, int, CGameFramework&);
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK About(HWND, UINT, WPARAM, LPARAM);
+
+
+class ServerSession : public PacketSession
+{
+public:
+	~ServerSession()
+	{
+		cout << "~ServerSession" << endl;
+	}
+
+	virtual void OnConnected() override
+	{
+		Protocol::C_LOGIN loginPkt;
+		auto sendBuffer = ServerPacketHandler::MakeSendBuffer(loginPkt);
+		Send(sendBuffer);
+		//cout << "Connected To Server" << endl;
+	}
+
+	virtual void OnRecvPacket(BYTE* buffer, int32 len) override
+	{
+		PacketSessionRef session = GetPacketSessionRef();
+		PacketHeader* header = reinterpret_cast<PacketHeader*>(buffer);
+
+
+		ServerPacketHandler::HandlePacket(session, buffer, len);
+	}
+
+	virtual void OnSend(int32 len) override
+	{
+		//cout << "OnSend Len = " << len << endl;
+	}
+
+	virtual void OnDisconnected() override
+	{
+		//cout << "Disconnected" << endl;
+	}
+};
+
+
+void NetworkLoop();
 
 int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow)
 {
@@ -51,7 +99,9 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 		}
 	}
 	gGameFramework.OnDestroy();
+	GThreadManager->Join();
 
+	
 	return((int)msg.wParam);
 }
 
@@ -100,12 +150,63 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow, CGameFramework& gGameFramew
 	if (!hMainWnd) 
 		return(FALSE);
 
+
+	NetworkLoop();
 	gGameFramework.OnCreate(hInstance, hMainWnd);
 
 	::ShowWindow(hMainWnd, nCmdShow);
 	::UpdateWindow(hMainWnd);
 
 	return(TRUE);
+}
+
+Atomic<bool> g_End = false;
+
+bool CheckEnd()
+{
+	if (GetAsyncKeyState(VK_ESCAPE) & 0x8000)
+	{
+		g_End = true;
+	}
+
+	return g_End.load();
+}
+
+void NetworkLoop()
+{
+	ServerPacketHandler::Init();
+
+	this_thread::sleep_for(1s);
+
+	g_clientService = MakeShared<ClientService>(
+		NetAddress(L"127.0.0.1", 7777),
+		MakeShared<IocpCore>(),
+		MakeShared<ServerSession>, // TODO : SessionManager 등
+		1);
+
+	ASSERT_CRASH(g_clientService->Start());
+
+	for (int32 i = 0; i < 2; i++)
+	{
+		GThreadManager->Launch([=]()
+			{
+				while (true)
+				{
+					g_clientService->GetIocpCore()->Dispatch(100);
+					if (CheckEnd())
+					{
+						// ESC 키가 눌렸다면 네트워크 루프 종료
+						
+						break;
+					}
+
+				}
+
+			});
+	}
+
+
+
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)

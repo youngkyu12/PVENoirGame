@@ -1,0 +1,173 @@
+#include "pch.h"
+#include "Room.h"
+#include "Player.h"
+#include "Enemy.h"
+#include "Building.h"
+#include "GameSession.h"
+#include "GameArea.h"
+
+#include "CommonPlayerControllerComponent.h"
+
+#include "Protocol.pb.h"
+#include "ClientPacketHandler.h"
+
+shared_ptr<Room> GRoom = make_shared<Room>();
+
+void Room::Enter(PlayerRef player)
+{
+	players[player->playerId] = player;
+}
+
+void Room::Leave(PlayerRef player)
+{
+	players.erase(player->playerId);
+}
+
+void Room::BroadCastAll(SendBufferRef sendBuffer)
+{
+	//for(auto& area : gameAreas)
+	//{
+	//	area->BroadCast(sendBuffer);
+	//}
+
+	for (auto& p : players)
+	{
+		p.second->ownerSession->Send(sendBuffer);
+	}
+}
+
+
+
+void Room::BuildRoom()
+{
+	for (int i = 0; i < 10; ++i)
+	{
+		auto enemy = make_shared<CEnemy>(i, u8"Zombie", Protocol::ENEMY_TYPE_BASIC, nullptr);
+		enemy->Build(GameMath::Vec3(i * 10.0f, 0, 0), GameMath::Vec3(0, 0, 0));
+		//enemies[i]->AddComponent<CTransformComponent>();
+		//enemies[i]->CreateComponents();
+		enemies[i] = enemy;
+	}
+
+	for (int i = 0; i < 30; ++i)
+	{
+		auto enemy = make_shared<CEnemy>(i + 10, u8"FIghter", Protocol::ENEMY_TYPE_ARCHER, nullptr);
+		enemy->Build(GameMath::Vec3((i + 10) * 10.0f, 0, 10), GameMath::Vec3(0, 0, 0));
+		//enemies[i]->AddComponent<CTransformComponent>();
+		//enemies[i]->CreateComponents();
+		enemies[i] = enemy;
+	}
+}
+
+void Room::StartGame(bool ready, uint32 index)
+{
+	// 모든 플레이어가 Ready를 보냈음을 확인하면 시작
+	if(players.find(index) == players.end())
+		return;
+
+	WRITE_LOCK;
+	static Atomic<uint32> readyCount = 0;
+	if(ready != players[index]->IsActive())
+	{
+		players[index]->SetActive(ready);
+		readyCount += ready ? 1 : -1;
+	}
+
+	static Atomic<bool> gameStarted = false;
+
+	if(readyCount >= 4)
+	{
+		if (gameStarted.exchange(true) == false)
+		{
+			GRoom->DoAsync(&Room::MakeInitStruct, Protocol::S_GAME_START());
+		}
+	}
+	else
+	{
+		// 아직 모든 플레이어가 Ready를 보내지 않았다면 S_ENTER_GAME 패킷을 보내서 Ready를 요청한다.
+		Protocol::S_ENTER_GAME enterGamePkt;
+		GRoom->DoAsync(&Room::MakeEnterGameStruct, enterGamePkt);
+
+	}
+	
+}
+
+void Room::EndGame()
+{
+}
+
+
+
+void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
+{
+	// 최초로 들어온 스레드가 패킷 작성 후 전송
+	Protocol::InitStruct initStruct;
+	for (auto playerMap : players)
+	{
+		PlayerRef& player = playerMap.second;
+
+		auto p = initStruct.add_players();
+		p->set_id(player->playerId);
+		p->set_name(player->name);
+		p->set_playertype(player->type);
+
+
+		Protocol::Vec3f* position = new Protocol::Vec3f();
+		position->set_x(player->GetPosition().x);
+		position->set_y(player->GetPosition().y);
+		position->set_z(player->GetPosition().z);
+
+
+		Protocol::Transform transform = p->transform();
+
+		transform.set_allocated_position(position);
+		transform.set_yaw(player->GetYaw());
+	}
+
+
+	for (auto enemyMap : enemies)
+	{
+		EnemyRef& enemy = enemyMap.second;
+		auto e = initStruct.add_enemies();
+		e->set_id(enemyMap.first);
+		e->set_enemytype(enemy->type);
+
+
+		Protocol::Transform transform = e->transform();
+		Protocol::Vec3f position = transform.position();
+		position.set_x(enemy->GetPosition().x);
+		position.set_y(enemy->GetPosition().y);
+		position.set_z(enemy->GetPosition().z);
+
+		transform.set_allocated_position(&position);
+
+
+	}
+
+
+	gameStartPkt.set_allocated_initstruct(&initStruct);
+
+
+
+	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(gameStartPkt);
+	GRoom->DoAsync(&Room::BroadCastAll, sendBuffer);
+
+	cout << "Game Started!" << endl;
+}
+
+void Room::MakeEnterGameStruct(Protocol::S_ENTER_GAME enterGamePkt)
+{
+	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(enterGamePkt);
+	BroadCastAll(sendBuffer);
+}
+
+GameAreaRef Room::GetArea(uint32 areaId)
+{
+	return GameAreaRef();
+}
+
+void Room::TransferPlayer(PlayerRef player, uint32 fromAreaId, uint32 toAreaId)
+{
+	//gameAreas[fromAreaId]->Leave(player);
+	//gameAreas[toAreaId]->Enter(player);
+}

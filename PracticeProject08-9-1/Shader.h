@@ -18,43 +18,62 @@ struct CB_GAMEOBJECT_INFO;
 struct SCENE_STATIC_BATCH;
 struct SCENE_SKINNED_BATCH;
 
-
 class CShader
 {
 public:
 	CShader();
 	virtual ~CShader();
 
+	// Release
+public:
 	virtual void ReleaseShaderVariables();
 	virtual void ReleaseObjects() {}
 	virtual void ReleaseUploadBuffers();
 
-	D3D12_SHADER_BYTECODE CompileShaderFromFile(const WCHAR* pszFileName, LPCSTR pszShaderName, LPCSTR pszShaderProfile, ID3DBlob** ppd3dShaderBlob);
+	// Util
+public:
+	D3D12_SHADER_BYTECODE CompileShaderFromFile(
+		const WCHAR* pszFileName,
+		LPCSTR pszShaderName,
+		LPCSTR pszShaderProfile,
+		ID3DBlob** ppd3dShaderBlob
+	);
 
-// Build
+	// Build
 public:
 	virtual D3D12_INPUT_LAYOUT_DESC CreateInputLayout();
 	virtual D3D12_RASTERIZER_DESC CreateRasterizerState();
 	virtual D3D12_BLEND_DESC CreateBlendState();
 	virtual D3D12_DEPTH_STENCIL_DESC CreateDepthStencilState();
 
-	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob **ppd3dShaderBlob);
-	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob **ppd3dShaderBlob);
+	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob);
+	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob);
 
-	virtual void CreateShader(ID3D12Device *pd3dDevice, ID3D12RootSignature *pd3dGraphicsRootSignature, UINT nRenderTargets, DXGI_FORMAT *pdxgiRtvFormats, DXGI_FORMAT dxgiDsvFormat);
+	virtual void CreateShader(
+		ID3D12Device* pd3dDevice,
+		ID3D12RootSignature* pd3dGraphicsRootSignature,
+		UINT nRenderTargets,
+		DXGI_FORMAT* pdxgiRtvFormats,
+		DXGI_FORMAT dxgiDsvFormat
+	);
 
-	virtual void CreateShaderVariables(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList);
+	virtual void CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
 
-	virtual void BuildObjects(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, void *pContext = nullptr) { }
+	virtual void BuildObjects(
+		ID3D12Device* pd3dDevice,
+		ID3D12GraphicsCommandList* pd3dCommandList,
+		void* pContext = nullptr
+	) {
+	}
 
-	virtual void CreateGraphicsRootSignature(ID3D12Device* pd3dDevice) { }
+	virtual void CreateGraphicsRootSignature(ID3D12Device* pd3dDevice) {}
 	ID3D12RootSignature* GetGraphicsRootSignature() { return(m_pd3dGraphicsRootSignature.Get()); }
 
-// Render
+	// Render
 public:
-	virtual void AnimateObjects(float fTimeElapsed) { }
-	virtual void OnPrepareRender(ID3D12GraphicsCommandList *pd3dCommandList);
-	virtual void Render(ID3D12GraphicsCommandList *pd3dCommandList, CCamera *pCamera, void *pContext = nullptr);
+	virtual void AnimateObjects(float fTimeElapsed) {}
+	virtual void OnPrepareRender(ID3D12GraphicsCommandList* pd3dCommandList);
+	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext = nullptr);
 
 	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext);
 
@@ -65,48 +84,17 @@ protected:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
-class CPlayerShader : public CShader
-{
-public:
-	CPlayerShader();
-	virtual ~CPlayerShader();
-
-	virtual D3D12_INPUT_LAYOUT_DESC CreateInputLayout() override;
-	virtual D3D12_DEPTH_STENCIL_DESC CreateDepthStencilState() override;
-
-	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob) override;
-	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
-
-	// [ADD] BonePalette(CB) »ý¼º/ÇØÁ¦
-	virtual void CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList) override;
-	virtual void ReleaseShaderVariables() override;
-
-	// [ADD] Render ·çÇÁ¿¡¼­ BonePalette ¹ÙÀÎµù(·çÆ®ÆÄ¶ó¹ÌÅÍ)
-	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext) override;
-
-	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext) override;
-
-public:
-	// (³ªÁß¿¡ ¾Ö´Ï¸ÞÀÌ¼Ç º»Çà·Ä Ã¤¿ï ¶§ ¾²¶ó°í Á¦°ø)
-	void SetBonePalette(const XMFLOAT4X4* pBoneTransforms, UINT nBones);
-
-private:
-	ComPtr<ID3D12Resource> m_pd3dcbBonePalette;
-	CB_BONE_PALETTE* m_pcbMappedBonePalette = nullptr;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
 class CTexturedShader : public CShader
 {
 public:
 	CTexturedShader();
 	virtual ~CTexturedShader();
 
+public:
 	virtual D3D12_INPUT_LAYOUT_DESC CreateInputLayout();
 
-	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob **ppd3dShaderBlob);
-	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob **ppd3dShaderBlob);
+	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob);
+	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob);
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -117,10 +105,11 @@ public:
 	CIlluminatedTexturedShader();
 	virtual ~CIlluminatedTexturedShader();
 
+public:
 	virtual D3D12_INPUT_LAYOUT_DESC CreateInputLayout();
 
-	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob **ppd3dShaderBlob);
-	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob **ppd3dShaderBlob);
+	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob);
+	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob);
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -133,11 +122,18 @@ public:
 	CStaticObjectsShader();
 	virtual ~CStaticObjectsShader();
 
-	virtual void CreateShader(ID3D12Device *pd3dDevice, ID3D12RootSignature *pd3dGraphicsRootSignature, UINT nRenderTargets, DXGI_FORMAT *pdxgiRtvFormats, DXGI_FORMAT dxgiDsvFormat);
+public:
+	virtual void CreateShader(
+		ID3D12Device* pd3dDevice,
+		ID3D12RootSignature* pd3dGraphicsRootSignature,
+		UINT nRenderTargets,
+		DXGI_FORMAT* pdxgiRtvFormats,
+		DXGI_FORMAT dxgiDsvFormat
+	);
 
-	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob **ppd3dShaderBlob);
-	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList *pd3dCommandList, void *pContext);
-	virtual void Render(ID3D12GraphicsCommandList *pd3dCommandList, CCamera *pCamera, void *pContext = nullptr);
+	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob);
+	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext);
+	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext = nullptr);
 };
 
 class CSkinnedObjectsShader : public CIlluminatedTexturedShader
@@ -146,7 +142,14 @@ public:
 	CSkinnedObjectsShader();
 	virtual ~CSkinnedObjectsShader();
 
-	virtual void CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGraphicsRootSignature, UINT nRenderTargets, DXGI_FORMAT* pdxgiRtvFormats, DXGI_FORMAT dxgiDsvFormat);
+public:
+	virtual void CreateShader(
+		ID3D12Device* pd3dDevice,
+		ID3D12RootSignature* pd3dGraphicsRootSignature,
+		UINT nRenderTargets,
+		DXGI_FORMAT* pdxgiRtvFormats,
+		DXGI_FORMAT dxgiDsvFormat
+	);
 
 	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob);
 	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob);
@@ -164,41 +167,65 @@ public:
 	CPostProcessingShader();
 	virtual ~CPostProcessingShader();
 
+	// Build
+public:
 	virtual D3D12_INPUT_LAYOUT_DESC CreateInputLayout();
 	virtual D3D12_DEPTH_STENCIL_DESC CreateDepthStencilState();
 
-	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob **ppd3dShaderBlob);
-	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob **ppd3dShaderBlob);
+	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob);
+	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob);
 
-	virtual void CreateGraphicsRootSignature(ID3D12Device *pd3dDevice);
+	virtual void CreateGraphicsRootSignature(ID3D12Device* pd3dDevice);
 
-	virtual void CreateShader(ID3D12Device *pd3dDevice, ID3D12RootSignature *pd3dGraphicsRootSignature, UINT nRenderTargets, DXGI_FORMAT *pdxgiRtvFormats, DXGI_FORMAT dxgiDsvFormat);
-	virtual void CreateResourcesAndRtvsSrvs(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList, UINT nRenderTargets, DXGI_FORMAT* pdxgiFormats, D3D12_CPU_DESCRIPTOR_HANDLE d3dRtvCPUDescriptorHandle);
+	virtual void CreateShader(
+		ID3D12Device* pd3dDevice,
+		ID3D12RootSignature* pd3dGraphicsRootSignature,
+		UINT nRenderTargets,
+		DXGI_FORMAT* pdxgiRtvFormats,
+		DXGI_FORMAT dxgiDsvFormat
+	);
 
-	virtual void OnPrepareRenderTarget(ID3D12GraphicsCommandList* pd3dCommandList, int nRenderTargets, D3D12_CPU_DESCRIPTOR_HANDLE* pd3dRtvCPUHandles, D3D12_CPU_DESCRIPTOR_HANDLE* pd3dDsvCPUHandle);
-	virtual void OnPostRenderTarget(ID3D12GraphicsCommandList *pd3dCommandList);
+	virtual void CreateResourcesAndRtvsSrvs(
+		ID3D12Device* pd3dDevice,
+		ID3D12GraphicsCommandList* pd3dCommandList,
+		UINT nRenderTargets,
+		DXGI_FORMAT* pdxgiFormats,
+		D3D12_CPU_DESCRIPTOR_HANDLE d3dRtvCPUDescriptorHandle
+	);
 
-	virtual void Render(ID3D12GraphicsCommandList *pd3dCommandList, CCamera *pCamera, void *pContext);
+	// RenderTarget
+public:
+	virtual void OnPrepareRenderTarget(
+		ID3D12GraphicsCommandList* pd3dCommandList,
+		int nRenderTargets,
+		D3D12_CPU_DESCRIPTOR_HANDLE* pd3dRtvCPUHandles,
+		D3D12_CPU_DESCRIPTOR_HANDLE* pd3dDsvCPUHandle
+	);
 
-protected:
-	shared_ptr<CTexture>			m_pTexture;
+	virtual void OnPostRenderTarget(ID3D12GraphicsCommandList* pd3dCommandList);
 
-	unique_ptr<D3D12_CPU_DESCRIPTOR_HANDLE[]>		m_pd3dRtvCPUDescriptorHandles;
+	// Render
+public:
+	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext);
 
+	// Resource Getters
 public:
 	CTexture* GetTexture() { return(m_pTexture.get()); }
 	ID3D12Resource* GetTextureResource(UINT nIndex) { return(m_pTexture->GetResource(nIndex)); }
 
 	D3D12_CPU_DESCRIPTOR_HANDLE GetRtvCPUDescriptorHandle(UINT nIndex) { return(m_pd3dRtvCPUDescriptorHandles[nIndex]); }
+
+protected:
+	shared_ptr<CTexture>						m_pTexture;
+	unique_ptr<D3D12_CPU_DESCRIPTOR_HANDLE[]>	m_pd3dRtvCPUDescriptorHandles;
 };
 
 struct PS_CB_DRAW_OPTIONS
 {
 	XMINT4  m_xmn4DrawOptions;     // x='T','L','N','D','Z'
 	XMUINT4 m_xmu4PostSrvIdx0;     // x=T, y=L, z=N, w=D
-	XMUINT4 m_xmu4PostSrvIdx1;     // x=Z, ³ª¸ÓÁö ÆÐµù
+	XMUINT4 m_xmu4PostSrvIdx1;     // x=Z, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ðµï¿½
 };
-
 
 class CTextureToFullScreenShader : public CPostProcessingShader
 {
@@ -206,16 +233,17 @@ public:
 	CTextureToFullScreenShader();
 	virtual ~CTextureToFullScreenShader();
 
-	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob **ppd3dShaderBlob);
-	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob **ppd3dShaderBlob);
+public:
+	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob);
+	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob);
 
-	virtual void CreateShaderVariables(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList);
-	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList *pd3dCommandList, void *pContext);
+	virtual void CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
+	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext);
 	virtual void ReleaseShaderVariables();
 
-	virtual void Render(ID3D12GraphicsCommandList *pd3dCommandList, CCamera *pCamera, void *pContext = nullptr);
+	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext = nullptr);
 
 protected:
 	ComPtr<ID3D12Resource>			m_pd3dcbDrawOptions;
-	PS_CB_DRAW_OPTIONS				*m_pcbMappedDrawOptions = nullptr;
+	PS_CB_DRAW_OPTIONS* m_pcbMappedDrawOptions = nullptr;
 };

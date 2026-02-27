@@ -14,19 +14,20 @@ enum class AssetType
     Fighter,
     World,
     Plane,
-    House
+    House,
+    Arrow
 };
 
-// BuildAsset¿¡ ³Ñ±æ µ¥ÀÌÅÍ ¹­À½
+// BuildAssetï¿½ï¿½ ï¿½Ñ±ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 struct AssetBuildDesc
 {
     AssetType type;
-    std::string meshBinPath;   // BIN ÆÄÀÏ °æ·Î
-    std::string textureRoot;   // ÅØ½ºÃ³ ·çÆ® µð·ºÅä¸®
+    std::string meshBinPath;   // BIN ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
+    std::string textureRoot;   // ï¿½Ø½ï¿½Ã³ ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ä¸®
 };
 
-// ºôµå °á°ú¹° (ÇöÀç´Â Mesh¸¸)
-// ¡Ø ³ªÁß¿¡ Skeleton, Animation Ãß°¡ °¡´É
+// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ï¿½ Meshï¿½ï¿½)
+// ï¿½ï¿½ ï¿½ï¿½ï¿½ß¿ï¿½ Skeleton, Animation ï¿½ß°ï¿½ ï¿½ï¿½ï¿½ï¿½
 struct BuiltAsset
 {
     std::shared_ptr<CMesh> mesh;
@@ -35,7 +36,7 @@ struct BuiltAsset
 class AssetManager
 {
 public:
-    // ¿¡¼Â ºôµåÀÇ À¯ÀÏÇÑ °ø°³ ÁøÀÔÁ¡
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     static BuiltAsset BuildAsset(
         ID3D12Device* device,
         ID3D12GraphicsCommandList* cmd,
@@ -44,7 +45,7 @@ public:
     );
 
 private:
-    // materialName + Á¤Ã¥(type) ¡æ ½ÇÁ¦ ÅØ½ºÃ³ ÆÄÀÏ °æ·Î
+    // materialName + ï¿½ï¿½Ã¥(type) ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ø½ï¿½Ã³ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
     static std::wstring ResolveTexturePath(
         AssetType type,
         const std::string& textureRoot,
