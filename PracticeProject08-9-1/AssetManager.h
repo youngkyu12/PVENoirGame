@@ -4,6 +4,7 @@
 
 #pragma once
 #include "stdafx.h"
+#include "SceneRenderTypes.h"
 
 class CMesh;
 struct MATERIALS;

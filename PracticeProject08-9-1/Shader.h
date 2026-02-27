@@ -8,15 +8,13 @@
 #include "Camera.h"
 #include "Texture.h"
 #include "AnimatorData.h"
+#include "SceneRenderTypes.h"
 
 #define _WITH_SCENE_ROOT_SIGNATURE
 
 class CMaterial;
 class CGameObject;
 struct CB_GAMEOBJECT_INFO;
-
-struct SCENE_STATIC_BATCH;
-struct SCENE_SKINNED_BATCH;
 
 class CShader
 {
