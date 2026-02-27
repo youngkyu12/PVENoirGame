@@ -8,9 +8,6 @@
     <Filter Include="Animator">
       <UniqueIdentifier>{c046715a-b142-4b7f-b764-fa27e23f4d4f}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Camera">
-      <UniqueIdentifier>{9282e6cd-8c1a-4326-a4bf-50b49cfe20a7}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Object">
       <UniqueIdentifier>{085c273d-3fe5-4dd2-acbe-bd5ae28ab5bb}</UniqueIdentifier>
     </Filter>
@@ -98,6 +95,12 @@
     <Filter Include="Components\ActorTag">
       <UniqueIdentifier>{38199f9c-9ca3-420a-87f9-ba3629104b65}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Components\Camera">
+      <UniqueIdentifier>{9282e6cd-8c1a-4326-a4bf-50b49cfe20a7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SceneManager">
+      <UniqueIdentifier>{8aa4149d-0def-49ad-837e-fc2348b3f423}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animator.h">
@@ -131,7 +134,7 @@
       <Filter>Components\Skinning</Filter>
     </ClInclude>
     <ClInclude Include="Camera.h">
-      <Filter>Camera</Filter>
+      <Filter>Components\Camera</Filter>
     </ClInclude>
     <ClInclude Include="d3dx12.h">
       <Filter>Texture</Filter>
@@ -208,6 +211,15 @@
     <ClInclude Include="Component.h">
       <Filter>Components</Filter>
     </ClInclude>
+    <ClInclude Include="GameScene.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="MenuScene.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneManager.h">
+      <Filter>SceneManager</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -238,7 +250,7 @@
       <Filter>Components\Skinning</Filter>
     </ClCompile>
     <ClCompile Include="Camera.cpp">
-      <Filter>Camera</Filter>
+      <Filter>Components\Camera</Filter>
     </ClCompile>
     <ClCompile Include="Texture.cpp">
       <Filter>Texture</Filter>
@@ -299,6 +311,12 @@
     </ClCompile>
     <ClCompile Include="PlayerControllerComponent.cpp">
       <Filter>Components\PlayerController</Filter>
+    </ClCompile>
+    <ClCompile Include="MenuScene.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneManager.cpp">
+      <Filter>SceneManager</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

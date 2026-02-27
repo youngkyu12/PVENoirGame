@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 #include <array>
+#include <cstdint>
 
 #include "Shader.h"
 #include "DescriptorHeap.h"
@@ -83,7 +84,7 @@ class CScene
 {
 public:
 	CScene();
-	~CScene();
+	virtual ~CScene();
 
 	// Lifecycle / Release
 public:
@@ -93,14 +94,14 @@ public:
 
 	// Build
 public:
-	void BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
+	virtual void BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
 	void BuildLightsAndMaterials();
 
 	void CreateGraphicsRootSignature(ID3D12Device* pd3dDevice);
 	virtual void CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
 
 	void BuildPlayer(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
-	void CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target);
+	virtual void CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target);
 
 protected:
 	void BuildStaticBatch(
@@ -123,19 +124,32 @@ protected:
 
 	// Frame / Render
 public:
-	bool ProcessInput(UCHAR* pKeysBuffer);
-	void AnimateObjects(float fTimeElapsed);
+	virtual bool ProcessInput(UCHAR* pKeysBuffer);
+	virtual void AnimateObjects(float fTimeElapsed);
 
-	void OnPrepareRender(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera);
-	void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera = NULL);
+	virtual void OnPrepareRender(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera);
+	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera = NULL);
 
 	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList);
 
 	// Input (messages)
 public:
-	bool OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
-	bool OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
+	virtual bool OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
+	virtual bool OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
 
+public:
+	enum class ESceneRequest : uint8_t
+	{
+		None = 0,
+		SwitchToGame,
+	};
+
+	// 기본은 요청 없음
+	virtual bool ConsumeSceneRequest(ESceneRequest& outReq)
+	{
+		outReq = ESceneRequest::None;
+		return false;
+	}
 	// Get / Set
 public:
 	ID3D12RootSignature* GetGraphicsRootSignature() { return(m_pd3dGraphicsRootSignature.Get()); }
