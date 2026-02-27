@@ -162,6 +162,8 @@ public:
 	// CPU -> GPU 팔레트 업데이트 (Animator에서 만든 최종 본 행렬 업로드)
 	void UpdateBoneTransformsOnGPU(const XMFLOAT4X4* pxmf4x4BoneTransforms, int nBones);
 
+	void SetColliderType(EColliderType Type);
+
 protected:
 	// --------------------
 	// Components (owned)
@@ -178,6 +180,7 @@ protected:
 	bool m_bComponentsCreated = false;
 	ID3D12Device* m_pd3dDeviceForComponents = nullptr;
 	ID3D12GraphicsCommandList* m_pd3dCmdForComponents = nullptr;
+	EColliderType mColliderType = EColliderType::None;
 
 public:
 	CRendererComponent* GetRenderer()

@@ -330,3 +330,11 @@ static void DBG_PrintF(const char* fmt, ...)
 	va_end(ap);
 	OutputDebugStringA(buf);
 }
+
+enum class EColliderType : uint8_t
+{
+	None = 0,
+	AABB,
+	OOBB,
+	BSphere
+};

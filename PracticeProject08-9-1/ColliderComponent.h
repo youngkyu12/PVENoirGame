@@ -1,22 +1,22 @@
 #pragma once
 #include "Component.h"
+#include "ModelComponent.h"
 #include <cstdint>
 #include <unordered_set>
 #include <vector>
 
 class CTransformComponent;
 
-struct AABB
+struct Capsule
 {
-    XMFLOAT3 min = XMFLOAT3(0, 0, 0);
-    XMFLOAT3 max = XMFLOAT3(0, 0, 0);
-};
+    DirectX::XMFLOAT3 p0{ 0.f, 0.f, 0.f }; // segment start
+    DirectX::XMFLOAT3 p1{ 0.f, 0.f, 0.f }; // segment end
+    float radius{ 0.1f };
 
-enum class EColliderType : uint8_t
-{
-    None = 0,
-    Sphere,
-    AABB
+    Capsule() = default;
+    Capsule(const DirectX::XMFLOAT3& a, const DirectX::XMFLOAT3& b, float r)
+        : p0(a), p1(b), radius(r) {
+    }
 };
 
 class CColliderComponent final : public CComponentT<CColliderComponent>
@@ -28,10 +28,9 @@ public:
     void OnUpdate(float dt) override;
 
     // Shape setup
-    void SetSphere(float radius, const XMFLOAT3& localCenter = XMFLOAT3(0, 0, 0));
-    void SetAABB(const XMFLOAT3& halfExtents, const XMFLOAT3& localCenter = XMFLOAT3(0, 0, 0));
+    void SetAABB(const XMFLOAT3& Min, const XMFLOAT3& Max);
 
-    EColliderType GetType() const { return mType; }
+    EColliderType GetType() const { return mColliderType; }
 
     // Filtering
     void SetLayer(uint32_t layer) { mLayer = layer; }
@@ -43,9 +42,9 @@ public:
     bool IsTrigger() const { return mIsTrigger; }
 
     // World data
-    const XMFLOAT3& GetWorldCenter() const { return mWorldCenter; }
-    float GetWorldRadius() const { return mWorldRadius; }
-    const AABB& GetWorldAABB() const { return mWorldAABB; }
+    const XMFLOAT3& GetWorldCenter() const { return Center; }
+    float GetWorldRadius() const { return Radius; }
+    const BoundingBox& GetWorldAABB() const { return AABB; }
 
     // Pair test (MVP)
     bool Intersects(const CColliderComponent& other) const;
@@ -67,21 +66,19 @@ private:
 
 private:
     CTransformComponent* mTransform = nullptr;
+    CModelComponent* mModel = nullptr;
 
-    // Shape (local)
-    EColliderType mType = EColliderType::None;
-    XMFLOAT3      mLocalCenter = XMFLOAT3(0, 0, 0);
+    EColliderType mColliderType = EColliderType::None;
 
-    // Sphere
-    float         mRadius = 0.5f;
-
-    // AABB (rotation 없는 axis-aligned)
-    XMFLOAT3      mHalfExtents = XMFLOAT3(0.5f, 0.5f, 0.5f);
+    XMFLOAT3      Extents = XMFLOAT3(0.5f, 0.5f, 0.5f);
 
     // World cache
-    XMFLOAT3      mWorldCenter = XMFLOAT3(0, 0, 0);
-    float         mWorldRadius = 0.5f;
-    AABB          mWorldAABB;
+    XMFLOAT3      Center = XMFLOAT3(0, 0, 0);
+    float         Radius = 0.5f;
+    BoundingBox AABB;
+    BoundingOrientedBox OOBB;
+    BoundingSphere BSphere;
+
 
     // Filtering
     uint32_t      mLayer = 0;                // 0..31 권장
