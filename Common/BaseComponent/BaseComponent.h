@@ -5,9 +5,6 @@
 #pragma once
 #include <cstdint>
 
-#ifndef COMMON_OWNER_TYPE
-#error "COMMON_OWNER_TYPE must be defined in each target project (e.g. CGameObject or CServerObject)."
-#endif
 
 // Owner forward declare
 class COMMON_OWNER_TYPE;

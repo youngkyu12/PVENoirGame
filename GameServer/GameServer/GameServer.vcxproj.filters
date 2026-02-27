@@ -37,6 +37,9 @@
     <Filter Include="GameContents\Map">
       <UniqueIdentifier>{904f68e5-ae2d-4e3a-93a5-363f8870335a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="GameObject\BaseObject">
+      <UniqueIdentifier>{0b0e9ca0-6418-4a4e-b0ff-d956e7ca8a53}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GameServer.cpp">
@@ -87,6 +90,9 @@
     <ClCompile Include="CommonPlayerControllerComponent_Server.cpp">
       <Filter>GameContents</Filter>
     </ClCompile>
+    <ClCompile Include="ServerObject.cpp">
+      <Filter>GameObject\BaseObject</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -127,6 +133,9 @@
     </ClInclude>
     <ClInclude Include="GameArea.h">
       <Filter>Area</Filter>
+    </ClInclude>
+    <ClInclude Include="ServerObject.h">
+      <Filter>GameObject\BaseObject</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
