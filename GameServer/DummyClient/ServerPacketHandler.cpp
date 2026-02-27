@@ -21,7 +21,7 @@ bool Handle_S_LOGIN(PacketSessionRef& session, Protocol::S_LOGIN& pkt)
 		return true;
 	}
 
-	g_myPlayerId = pkt.playerid();
+	//g_myPlayerId = pkt.playerid();
 
 
 	if (pkt.players().size() == 0)
@@ -31,7 +31,7 @@ bool Handle_S_LOGIN(PacketSessionRef& session, Protocol::S_LOGIN& pkt)
 
 	// 입장 UI 버튼을 눌러서 게임에 입장
 	Protocol::C_ENTER_GAME enterGamePkt;
-	enterGamePkt.set_playerid(g_myPlayerId);
+	//enterGamePkt.set_playerid(g_myPlayerId);
 	enterGamePkt.set_ready(true);
 	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(enterGamePkt);
 	session->Send(sendBuffer);
@@ -44,7 +44,7 @@ bool Handle_S_ENTER_GAME(PacketSessionRef& session, Protocol::S_ENTER_GAME& pkt)
 {
 	// GAME_START 패킷을 계속 전송함
 	Protocol::C_GAME_START startPkt;
-	startPkt.set_playerid(g_myPlayerId);
+	//startPkt.set_playerid(g_myPlayerId);
 	startPkt.set_playerweapon(0x1010);
 	startPkt.set_ready(true);
 

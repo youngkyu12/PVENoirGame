@@ -1,73 +1,72 @@
-//------------------------------------------------------- ----------------------
-// File: BaseComponent.h
-// 기본 컴포넌트 클래스 - DirectX 의존성 없음
+//-----------------------------------------------------------------------------
+// File: BaseComponent.h  (COMMON)
 //-----------------------------------------------------------------------------
 
 #pragma once
-
 #include <cstdint>
-#include "GameMath.h"
 
-// forward declarations
-class CBaseObject;
-class ID3D12Device;
-class ID3D12GraphicsCommandList;
 
-// ============================================================================
-// Base Component (Unity-style)
-//  - Owner(ServerObject) 포인터 보유
-//  - 오버라이드: OnCreate/OnDestroy/OnUpdate 등
-//  - RTTI 대용 타입 식별: StaticTypeId<T>
-// ============================================================================
+// Owner forward declare
+class COMMON_OWNER_TYPE;
+
+// D3D forward declare (헤더 include 없이 선언만; 서버에서도 문제 없음)
+struct ID3D12Device;
+struct ID3D12GraphicsCommandList;
+
 class CComponent
 {
 public:
-	using TypeId = const void*;
+    using TypeId = const void*;
+    using OwnerT = COMMON_OWNER_TYPE;
 
-	template<typename T>
-	static TypeId StaticTypeId()
-	{
-		static int s_tag;
-		return &s_tag;
-	}
+    template<typename T>
+    static TypeId StaticTypeId()
+    {
+        static int s_tag;
+        return &s_tag;
+    }
 
 public:
-	explicit CComponent(CBaseObject* owner) : m_pOwner(owner) {}
-	virtual ~CComponent() = default;
+    explicit CComponent(OwnerT* owner) : m_pOwner(owner) {}
+    virtual ~CComponent() = default;
 
-	virtual TypeId GetTypeId() const = 0;
+    virtual TypeId GetTypeId() const = 0;
 
-	CBaseObject* GetOwner() const { return m_pOwner; }
+    OwnerT* GetOwner() const { return m_pOwner; }
 
-	bool IsEnabled() const { return m_bEnabled; }
-	void SetEnabled(bool b) { m_bEnabled = b; }
+    // 클라에서 Renderer 캐시용으로 쓰던 훅(서버는 무시)
+    virtual bool IsRenderer() const { return false; }
 
-	// Lifecycle
-	virtual void OnCreate() {}
-	virtual void OnCreate(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd) { OnCreate(); }
-	virtual void OnDestroy() {}
+    bool IsEnabled() const { return m_bEnabled; }
+    void SetEnabled(bool b) { m_bEnabled = b; }
 
-	// Per-frame tick
-	virtual void OnUpdate(float dt) {}
-	virtual void OnLateUpdate(float dt) {}
+    // 서버 공용 init
+    virtual void OnCreate() {}
+
+    // 클라 init (기본은 OnCreate()로 위임)
+    virtual void OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*) { OnCreate(); }
+
+    virtual void OnDestroy() {}
+
+    virtual void OnUpdate(float) {}
+    virtual void OnLateUpdate(float) {}
+
+    virtual void OnPreRender(ID3D12GraphicsCommandList*) {}
+    virtual void OnPostRender(ID3D12GraphicsCommandList*) {}
 
 protected:
-	CBaseObject* m_pOwner = nullptr;
-	bool           m_bEnabled = true;
+    OwnerT* m_pOwner = nullptr;
+    bool    m_bEnabled = true;
 };
 
-// ----------------------------------------------------------------------------
-// CRTP helper: class MyComp : public CComponentT<MyComp>
-// ----------------------------------------------------------------------------
 template<typename TDerived>
 class CComponentT : public CComponent
 {
 public:
-	using CComponent::CComponent;
+    using CComponent::CComponent;
 
-	TypeId GetTypeId() const override
-	{
-		return CComponent::StaticTypeId<TDerived>();
-	}
+    TypeId GetTypeId() const override
+    {
+        return CComponent::StaticTypeId<TDerived>();
+    }
 };
-

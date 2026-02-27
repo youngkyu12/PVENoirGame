@@ -1,5 +1,5 @@
 #pragma once
-#include "BaseComponent.h"
+#include "Component.h"
 
 #define ASPECT_RATIO				(float(FRAME_BUFFER_WIDTH) / float(FRAME_BUFFER_HEIGHT))
 

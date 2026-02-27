@@ -1,21 +1,25 @@
+//-----------------------------------------------------------------------------
+// File: CommonPlayerControllerComponent.h
+// 공용 플레이어 컨트롤러(로직/물리/네트워크 상태)
+// - DirectX 의존성 없음
+// - Owner 타입은 BaseComponent.h의 COMMON_OWNER_TYPE로 결정됨
+// - Owner의 GetComponent<T>() 구현은 각 타깃(.cpp)에서 Owner 헤더를 include 해서 해결
+//-----------------------------------------------------------------------------
+
 #pragma once
+
+#include <cstdint>
+
 #include "BaseComponent.h"
-#include "CTransformComponent.h"
+#include "CTransformComponent.h"  // CCommonTransformComponent
 #include "PlayerLogic.h"
 #include "GameTypes.h"
 
-//-----------------------------------------------------------------------------
-// File: PlayerController.h
-// 서버/클라 공용 플레이어 컨트롤러 컴포넌트
-// DirectX 의존성 없음 - PlayerLogic 사용
-//-----------------------------------------------------------------------------
-
-
-class CServerObject;
-
-class CPlayerControllerComponent final : public CComponentT<CPlayerControllerComponent>
+class CCommonPlayerControllerComponent final : public CComponentT<CCommonPlayerControllerComponent>
 {
 public:
+    using OwnerT = CComponent::OwnerT;
+
     enum class EVerticalMoveSpace : uint8_t
     {
         WorldUp,
@@ -23,23 +27,21 @@ public:
     };
 
 public:
-    explicit CPlayerControllerComponent(CServerObject* owner);
+    explicit CCommonPlayerControllerComponent(OwnerT* owner);
 
     // ----------------------------
     // Input
     // ----------------------------
     void SetInputDirection(int32_t direction);
-    void SetInputDirection(uint32_t direction) { SetInputDirection(static_cast<int32_t>(direction)); }
     int32_t GetInputDirection() const { return m_inputDir; }
 
     // ----------------------------
     // Movement API
     // ----------------------------
     void Move(int32_t direction, float distance, bool bUpdateVelocity = false,
-              EVerticalMoveSpace upSpace = EVerticalMoveSpace::WorldUp);
+        EVerticalMoveSpace upSpace = EVerticalMoveSpace::WorldUp);
 
     void MoveShift(const GameMath::Vec3& shift, bool bUpdateVelocity = false);
-
     void Rotate(float pitchDeg, float yawDeg, float rollDeg);
 
     // ----------------------------

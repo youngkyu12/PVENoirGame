@@ -8,12 +8,16 @@
 #include <cmath>
 #include <cstdint>
 
+#ifdef EPSILON
+#undef EPSILON
+#endif
+
 namespace GameMath
 {
     constexpr float PI = 3.14159265358979f;
     constexpr float DEG_TO_RAD = PI / 180.f;
     constexpr float RAD_TO_DEG = 180.f / PI;
-    constexpr float EPSILON = 1e-6f;
+    constexpr float kEpsilon = 1e-6f;
 
     //-------------------------------------------------------------------------
     // Vec3: 3D บคลอ
@@ -48,13 +52,13 @@ namespace GameMath
         Vec3 Normalized() const
         {
             float len = Length();
-            return (len > EPSILON) ? Vec3(x / len, y / len, z / len) : Vec3();
+            return (len > kEpsilon) ? Vec3(x / len, y / len, z / len) : Vec3();
         }
 
         void Normalize()
         {
             float len = Length();
-            if (len > EPSILON) { x /= len; y /= len; z /= len; }
+            if (len > kEpsilon) { x /= len; y /= len; z /= len; }
         }
 
         static Vec3 Zero() { return { 0.f, 0.f, 0.f }; }

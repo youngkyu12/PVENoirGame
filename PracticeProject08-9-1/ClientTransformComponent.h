@@ -11,10 +11,10 @@ struct ID3D12Device;
 struct ID3D12GraphicsCommandList;
 
 
-class CTransformComponent final : public CComponentT<CTransformComponent>
+class ClientTransformComponent final : public CComponentT<ClientTransformComponent>
 {
 public:
-	explicit CTransformComponent(CGameObject* owner)
+	explicit ClientTransformComponent(CGameObject* owner)
 		: CComponentT(owner)
 	{
 		// OnCreate 이전에도 안전하게 값이 유효하도록 기본값 세팅

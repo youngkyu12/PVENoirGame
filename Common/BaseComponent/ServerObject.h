@@ -108,21 +108,6 @@ public:
     NetworkPlayerState ToNetworkState() const;
     void ApplyNetworkState(const NetworkPlayerState& state);
 
-
-	// ========================================
-	// Active State (옵션)
-private:
-	bool active = false; // 활성화 여부 (옵션)
-public:
-    bool IsActive() const { return active; }
-	void SetActive(bool b) { active = b; }
-    // ========================================
-
-
-
-	// ========================================
-	// Transform Component (항상 존재)
-	// ========================================
 protected:
     // Transform 컴포넌트 (항상 존재)
     CCommonTransformComponent* m_pTransform = nullptr;
