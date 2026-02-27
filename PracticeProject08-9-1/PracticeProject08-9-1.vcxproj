@@ -157,7 +157,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\Common\Components\Component.h" />
-    <ClInclude Include="..\Common\Components\PlayerControllerComponent.h" />
     <ClInclude Include="ActorTagComponent.h" />
     <ClInclude Include="Animator.h" />
     <ClInclude Include="AnimatorComponent.h" />
@@ -178,6 +177,7 @@
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="ModelComponent.h" />
     <ClInclude Include="Object.h" />
+    <ClInclude Include="PlayerControllerComponent.h" />
     <ClInclude Include="PracticeProject08-9-1.h" />
     <ClInclude Include="Protocol.pb.h" />
     <ClInclude Include="RendererComponent.h" />
@@ -194,7 +194,6 @@
     <ClInclude Include="Timer.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\Common\Components\PlayerControllerComponent.cpp" />
     <ClCompile Include="ActorTagComponent.cpp" />
     <ClCompile Include="Animator.cpp" />
     <ClCompile Include="AnimatorComponent.cpp" />
@@ -222,6 +221,7 @@
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="ModelComponent.cpp" />
     <ClCompile Include="Object.cpp" />
+    <ClCompile Include="PlayerControllerComponent.cpp" />
     <ClCompile Include="PracticeProject08-9-1.cpp" />
     <ClCompile Include="Protocol.pb.cc">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
