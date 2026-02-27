@@ -238,6 +238,11 @@ void CGameObject::UpdateBoneTransformsOnGPU(const XMFLOAT4X4* mats, int nBones)
     if (m_pSkinning) m_pSkinning->Upload(mats, nBones);
 }
 
+void CGameObject::SetColliderType(const EColliderType Type)
+{
+    mColliderType = Type;
+}
+
 void CGameObject::SetMappedGameObjectCB(CB_GAMEOBJECT_INFO* p)
 {
     if (!m_pRenderObject) m_pRenderObject = AddComponent<CRenderObjectComponent>();

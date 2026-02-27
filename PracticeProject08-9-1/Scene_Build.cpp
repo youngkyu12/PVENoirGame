@@ -207,8 +207,7 @@ void CScene::BuildStaticBatch(
 		pd3dDevice,
 		cap,
 		b->cbGameObjects.Get(),
-		b->cbElementBytes
-	);
+		b->cbElementBytes);
 
 	// ===== scene-owned objects + batch refs =====
 	m_staticObjects.clear();
@@ -276,8 +275,11 @@ void CScene::BuildStaticBatch(
 
 		// ===== 메시/렌더러/트랜스폼/핸들 =====
 		obj->SetMesh(0, asset.mesh);
-		obj->AddComponent<CStaticMeshRendererComponent>();
+		obj->SetColliderType(EColliderType::AABB);
+		obj->AddComponent<CColliderComponent>();
 
+		obj->AddComponent<CStaticMeshRendererComponent>();
+		
 		obj->SetPosition(positions[k]);
 
 		obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);

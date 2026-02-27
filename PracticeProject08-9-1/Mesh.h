@@ -67,6 +67,8 @@ struct SubMesh
 	vector<XMUINT4>  boneIndices;
 	vector<XMFLOAT4> boneWeights;
 	vector<UINT>     indices;
+	XMFLOAT3 subMeshMin{ FLT_MAX,  FLT_MAX,  FLT_MAX };
+	XMFLOAT3 subMeshMax{ -FLT_MAX, -FLT_MAX, -FLT_MAX };
 
 	std::string meshName;
 	std::string materialName;              // 로딩용/디버그용
@@ -87,12 +89,6 @@ struct SubMesh
 	D3D12_INDEX_BUFFER_VIEW  ibView{};
 };
 
-struct MeshBounds
-{
-	XMFLOAT3 min = XMFLOAT3(+FLT_MAX, +FLT_MAX, +FLT_MAX);
-	XMFLOAT3 max = XMFLOAT3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
-};
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 class CMesh
@@ -106,7 +102,8 @@ public:
 	void SetPolygon(int nIndex, CPolygon* pPolygon);
 	int CheckRayIntersection(XMVECTOR& xmvPickRayOrigin, XMVECTOR& xmvPickRayDirection, float* pfNearHitDistance = nullptr);
 	BOOL RayIntersectionByTriangle(XMVECTOR& xmRayOrigin, XMVECTOR& xmRayDirection, XMVECTOR v0, XMVECTOR v1, XMVECTOR v2, float* pfNearHitDistance);
-
+	XMFLOAT3 GetMeshMin() const;
+	XMFLOAT3 GetMeshMax() const;
 
 protected:
 	D3D12_PRIMITIVE_TOPOLOGY		m_d3dPrimitiveTopology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -128,6 +125,9 @@ protected:
 
 	bool							m_bSkinnedMesh = false;
 	ID3D12Device*					m_pd3dDevice = nullptr;
+
+	XMFLOAT3 MeshMin{ FLT_MAX,  FLT_MAX,  FLT_MAX };
+	XMFLOAT3 MeshMax{ -FLT_MAX, -FLT_MAX, -FLT_MAX };
 
 public:
 	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList);
@@ -164,7 +164,4 @@ public:
 private:
 	std::vector<BinMaterial> m_BinMaterials;
 	std::unordered_map<std::string, uint32_t> m_BinMaterialNameToIndex; // 있으면 편함(선택)
-
-	bool mHasBounds = false;
-	MeshBounds mBounds;
 };

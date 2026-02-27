@@ -5,39 +5,6 @@
 #include "ColliderComponent.h"
 #include "Object.h" // CGameObject
 
-static inline float ClampFloat(float v, float lo, float hi)
-{
-    return (v < lo) ? lo : (v > hi) ? hi : v;
-}
-
-static inline bool AABBOverlap(const AABB& a, const AABB& b)
-{
-    return (a.min.x <= b.max.x && a.max.x >= b.min.x) &&
-        (a.min.y <= b.max.y && a.max.y >= b.min.y) &&
-        (a.min.z <= b.max.z && a.max.z >= b.min.z);
-}
-
-static inline bool SphereSphere(const XMFLOAT3& ca, float ra, const XMFLOAT3& cb, float rb)
-{
-    const float dx = ca.x - cb.x;
-    const float dy = ca.y - cb.y;
-    const float dz = ca.z - cb.z;
-    const float r = ra + rb;
-    return (dx * dx + dy * dy + dz * dz) <= (r * r);
-}
-
-static inline bool SphereAABB(const XMFLOAT3& c, float r, const AABB& b)
-{
-    const float cx = ClampFloat(c.x, b.min.x, b.max.x);
-    const float cy = ClampFloat(c.y, b.min.y, b.max.y);
-    const float cz = ClampFloat(c.z, b.min.z, b.max.z);
-
-    const float dx = c.x - cx;
-    const float dy = c.y - cy;
-    const float dz = c.z - cz;
-    return (dx * dx + dy * dy + dz * dz) <= (r * r);
-}
-
 CColliderComponent::CColliderComponent(CGameObject* owner)
     : CComponentT<CColliderComponent>(owner)
 {
@@ -47,6 +14,43 @@ void CColliderComponent::OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*)
 {
     mTransform = GetOwner()->GetComponent<CTransformComponent>();
     assert(mTransform && "CColliderComponent requires CTransformComponent");
+
+    mModel = GetOwner()->GetComponent<CModelComponent>();
+    assert(mModel && "CColliderComponent requires CModelComponent");
+
+    const vector<shared_ptr<CMesh>>& meshes = mModel->GetMeshes();
+
+    if (meshes.empty())
+        return;
+
+    switch (mColliderType)
+    {
+    case EColliderType::AABB:
+        XMFLOAT3 objMin(FLT_MAX, FLT_MAX, FLT_MAX);
+        XMFLOAT3 objMax(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+        for (const shared_ptr<CMesh>& mesh : meshes)
+        {
+            if (!mesh) continue;
+
+            objMin.x = min(objMin.x, mesh->GetMeshMin().x);
+            objMin.y = min(objMin.y, mesh->GetMeshMin().y);
+            objMin.z = min(objMin.z, mesh->GetMeshMin().z);
+
+            objMax.x = max(objMax.x, mesh->GetMeshMax().x);
+            objMax.y = max(objMax.y, mesh->GetMeshMax().y);
+            objMax.z = max(objMax.z, mesh->GetMeshMax().z);
+
+            SetAABB(objMin, objMax);
+        }
+    case EColliderType::OOBB:
+        break;
+    case EColliderType::BSphere:
+        break;
+    default:
+        break;
+    }
+    
     UpdateWorldBounds();
 }
 
@@ -56,87 +60,91 @@ void CColliderComponent::OnUpdate(float)
     UpdateWorldBounds();
 }
 
-void CColliderComponent::SetSphere(float radius, const XMFLOAT3& localCenter)
+void CColliderComponent::SetAABB(const XMFLOAT3& Min, const XMFLOAT3& Max)
 {
-    mType = EColliderType::Sphere;
-    mRadius = radius;
-    mLocalCenter = localCenter;
-    UpdateWorldBounds();
-}
+    AABB.Center = XMFLOAT3(
+        (Min.x + Max.x) * 0.5f,
+        (Min.y + Max.y) * 0.5f,
+        (Min.z + Max.z) * 0.5f);
 
-void CColliderComponent::SetAABB(const XMFLOAT3& halfExtents, const XMFLOAT3& localCenter)
-{
-    mType = EColliderType::AABB;
-    mHalfExtents = halfExtents;
-    mLocalCenter = localCenter;
-    UpdateWorldBounds();
+    AABB.Extents = XMFLOAT3(
+        (Max.x - Min.x) * 0.5f,
+        (Max.y - Min.y) * 0.5f,
+        (Max.z - Min.z) * 0.5f);
 }
 
 void CColliderComponent::UpdateWorldBounds()
 {
     if (!mTransform) return;
 
-    // 간단 버전: position + localCenter
-    const XMFLOAT3 pos = mTransform->position;
-    mWorldCenter = XMFLOAT3(pos.x + mLocalCenter.x, pos.y + mLocalCenter.y, pos.z + mLocalCenter.z);
+    // 1) 월드 행렬 준비 (엔진 함수에 맞게 바꿔)
+    // XMMATRIX W = mTransform->GetWorldMatrixXM();
+    XMMATRIX W =
+        XMMatrixScaling(mTransform->scale.x, mTransform->scale.y, mTransform->scale.z) *
+        XMMatrixRotationRollPitchYaw(mTransform->rotation.x, mTransform->rotation.y, mTransform->rotation.z) *
+        XMMatrixTranslation(mTransform->position.x, mTransform->position.y, mTransform->position.z);
 
-    const float sx = mTransform->scale.x;
-    const float sy = mTransform->scale.y;
-    const float sz = mTransform->scale.z;
-    const float smax = max(sx, max(sy, sz));
-
-    if (mType == EColliderType::Sphere)
+    switch (mColliderType)
     {
-        mWorldRadius = mRadius * smax;
+    case EColliderType::AABB:
+    {
+        // 로컬 AABB -> 월드 AABB (회전 포함하면 자동으로 "월드 AABB"로 감싸줌)
+        BoundingBox worldBB;
+        AABB.Transform(worldBB, W);
 
-        mWorldAABB.min = XMFLOAT3(mWorldCenter.x - mWorldRadius,
-            mWorldCenter.y - mWorldRadius,
-            mWorldCenter.z - mWorldRadius);
-        mWorldAABB.max = XMFLOAT3(mWorldCenter.x + mWorldRadius,
-            mWorldCenter.y + mWorldRadius,
-            mWorldCenter.z + mWorldRadius);
+        // 월드 캐시 업데이트
+        Center = worldBB.Center;
+
+        const XMFLOAT3& e = worldBB.Extents;
+        Radius = std::sqrt(e.x * e.x + e.y * e.y + e.z * e.z);
+
+        break;
     }
-    else if (mType == EColliderType::AABB)
+
+    case EColliderType::OOBB:
     {
-        // 회전 없는 AABB: halfExtents에 scale 반영
-        const XMFLOAT3 he(mHalfExtents.x * sx, mHalfExtents.y * sy, mHalfExtents.z * sz);
+        break;
+    }
 
-        mWorldAABB.min = XMFLOAT3(mWorldCenter.x - he.x,
-            mWorldCenter.y - he.y,
-            mWorldCenter.z - he.z);
-        mWorldAABB.max = XMFLOAT3(mWorldCenter.x + he.x,
-            mWorldCenter.y + he.y,
-            mWorldCenter.z + he.z);
+    case EColliderType::BSphere:
+    {
+        break;
+    }
 
-        // broadphase 참고용(선택)
-        mWorldRadius = sqrtf(he.x * he.x + he.y * he.y + he.z * he.z);
+    default:
+        // None이면 캐시만 리셋하거나 무시
+        break;
     }
 }
 
 bool CColliderComponent::Intersects(const CColliderComponent& other) const
 {
-    // layer/mask 필터: (mask에 상대 layer bit가 켜져 있어야 충돌)
-    if (((mMask & (1u << other.mLayer)) == 0) || ((other.mMask & (1u << mLayer)) == 0))
+    // AABB only
+    if (mColliderType != EColliderType::AABB || other.mColliderType != EColliderType::AABB)
         return false;
 
-    // broadphase
-    if (!AABBOverlap(mWorldAABB, other.mWorldAABB))
+    // Both colliders must have transforms
+    if (!mTransform || !other.mTransform)
         return false;
 
-    // narrowphase
-    if (mType == EColliderType::Sphere && other.mType == EColliderType::Sphere)
-        return SphereSphere(mWorldCenter, mWorldRadius, other.mWorldCenter, other.mWorldRadius);
+    // Build world matrices (match your transform representation: position/rotation/scale)
+    const XMMATRIX W0 =
+        XMMatrixScaling(mTransform->scale.x, mTransform->scale.y, mTransform->scale.z) *
+        XMMatrixRotationRollPitchYaw(mTransform->rotation.x, mTransform->rotation.y, mTransform->rotation.z) *
+        XMMatrixTranslation(mTransform->position.x, mTransform->position.y, mTransform->position.z);
 
-    if (mType == EColliderType::AABB && other.mType == EColliderType::AABB)
-        return true; // 회전 없는 AABB면 broadphase로 충분
+    const XMMATRIX W1 =
+        XMMatrixScaling(other.mTransform->scale.x, other.mTransform->scale.y, other.mTransform->scale.z) *
+        XMMatrixRotationRollPitchYaw(other.mTransform->rotation.x, other.mTransform->rotation.y, other.mTransform->rotation.z) *
+        XMMatrixTranslation(other.mTransform->position.x, other.mTransform->position.y, other.mTransform->position.z);
 
-    if (mType == EColliderType::Sphere && other.mType == EColliderType::AABB)
-        return SphereAABB(mWorldCenter, mWorldRadius, other.mWorldAABB);
+    // Transform local AABBs to world AABBs
+    BoundingBox aWorld, bWorld;
+    AABB.Transform(aWorld, W0);
+    other.AABB.Transform(bWorld, W1);
 
-    if (mType == EColliderType::AABB && other.mType == EColliderType::Sphere)
-        return SphereAABB(other.mWorldCenter, other.mWorldRadius, mWorldAABB);
-
-    return false;
+    // AABB vs AABB test (DirectXCollision)
+    return aWorld.Intersects(bWorld);
 }
 
 bool CColliderComponent::WasOverlapping(CColliderComponent* other) const
