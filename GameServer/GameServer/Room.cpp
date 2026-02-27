@@ -66,16 +66,13 @@ void Room::StartGame(bool ready, uint32 index)
 		return;
 
 	WRITE_LOCK;
-	static Atomic<uint32> readyCount = 0;
-	if(ready != players[index]->IsActive())
-	{
-		players[index]->SetActive(ready);
-		readyCount += ready ? 1 : -1;
-	}
+	static bool p_ready[4] = { false, false, false, false };
+	p_ready[index] = ready;
 
 	static Atomic<bool> gameStarted = false;
 
-	if(readyCount >= 4)
+
+	if(p_ready[0] && p_ready[1] && p_ready[2] && p_ready[3])
 	{
 		if (gameStarted.exchange(true) == false)
 		{
