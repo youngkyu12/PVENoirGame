@@ -71,19 +71,19 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>$(SolutionDir)..\Libraries\include\;$(SolutionDir)..\Common\ServerCore\;$(SolutionDir)..\Common\BaseComponent;$(SolutionDir);$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)..\Libraries\include\;$(SolutionDir)..\Common\ServerCore\;$(SolutionDir)..\Common\Components;$(SolutionDir);$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)..\Libraries\Libs\;$(SolutionDir)..\Libraries;$(SolutionDir)..\Libraries\Libs\ServerCore\$(Configuration);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>$(SolutionDir)..\Libraries\include\;$(SolutionDir)..\Common\ServerCore\;$(SolutionDir)..\Common\BaseComponent;$(SolutionDir);$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)..\Libraries\include\;$(SolutionDir)..\Common\ServerCore\;$(SolutionDir)..\Common\Components;$(SolutionDir);$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)..\Libraries\Libs\;$(SolutionDir)..\Libraries;$(SolutionDir)..\Libraries\Libs\ServerCore\$(Configuration);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>$(SolutionDir)..\Libraries\include\;$(SolutionDir)..\Common\ServerCore\;$(SolutionDir)..\Common\BaseComponent;$(SolutionDir);$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)..\Libraries\include\;$(SolutionDir)..\Common\ServerCore\;$(SolutionDir)..\Common\Components;$(SolutionDir);$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)..\Libraries\Libs\;$(SolutionDir)..\Libraries;$(SolutionDir)..\Libraries\Libs\ServerCore\$(Configuration);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>$(SolutionDir)..\Libraries\include\;$(SolutionDir)..\Common\ServerCore\;$(SolutionDir)..\Common\BaseComponent;$(SolutionDir);$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)..\Libraries\include\;$(SolutionDir)..\Common\ServerCore\;$(SolutionDir)..\Common\Components;$(SolutionDir);$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)..\Libraries\Libs\;$(SolutionDir)..\Libraries;$(SolutionDir)..\Libraries\Libs\ServerCore\$(Configuration);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -145,7 +145,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
-      <CallingConvention>Cdecl</CallingConvention>
+      <CallingConvention>VectorCall</CallingConvention>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
@@ -156,6 +156,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\Common\Components\Component.h" />
+    <ClInclude Include="ActorTagComponent.h" />
     <ClInclude Include="Animator.h" />
     <ClInclude Include="AnimatorComponent.h" />
     <ClInclude Include="AnimatorData.h" />
@@ -163,7 +165,6 @@
     <ClInclude Include="ArrowComponent.h" />
     <ClInclude Include="AssetManager.h" />
     <ClInclude Include="Camera.h" />
-    <ClInclude Include="Component.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="DDSTextureLoader12.h" />
     <ClInclude Include="DescriptorHeap.h" />
@@ -193,6 +194,7 @@
     <ClInclude Include="Timer.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ActorTagComponent.cpp" />
     <ClCompile Include="Animator.cpp" />
     <ClCompile Include="AnimatorComponent.cpp" />
     <ClCompile Include="AnimatorData.cpp" />
@@ -200,12 +202,8 @@
     <ClCompile Include="ArrowComponent.cpp" />
     <ClCompile Include="AssetManager.cpp" />
     <ClCompile Include="Camera.cpp" />
-    <ClCompile Include="CommonPlayerControllerComponent_Client.cpp" />
     <ClCompile Include="DDSTextureLoader12.cpp">
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">VectorCall</CallingConvention>
-      <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">VectorCall</CallingConvention>
-      <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">VectorCall</CallingConvention>
-      <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Release|x64'">VectorCall</CallingConvention>
     </ClCompile>
     <ClCompile Include="DescriptorHeap.cpp" />
     <ClCompile Include="Enum.pb.cc">

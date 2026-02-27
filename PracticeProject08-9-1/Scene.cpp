@@ -9,7 +9,6 @@
 #include "Material.h"
 #include "AssetManager.h"
 #include "LightComponent.h"
-#include "CommonPlayerControllerComponent.h"
 #include "PlayerControllerComponent.h"
 #include "Object.h"
 #include "ActorTagComponent.h"
@@ -1063,9 +1062,6 @@ void CScene::BuildPlayer(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd
 		obj->Animate(0.0f);
 	}
 
-	// 1) ���� �̵�/���� ��Ʈ�ѷ� (�̰� ������ �����δ�)
-	obj->AddComponent<CCommonPlayerControllerComponent>();
-	// 2) Ŭ�� ���� �긮��(�ִ�/�Է� + common���� ����)
 	obj->AddComponent<CPlayerControllerComponent>();
 
 	obj->CreateComponents(pd3dDevice, pd3dCommandList);
