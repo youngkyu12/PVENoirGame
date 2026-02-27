@@ -220,6 +220,9 @@
     <ClInclude Include="SceneManager.h">
       <Filter>SceneManager</Filter>
     </ClInclude>
+    <ClInclude Include="SceneRenderTypes.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -317,6 +320,9 @@
     </ClCompile>
     <ClCompile Include="SceneManager.cpp">
       <Filter>SceneManager</Filter>
+    </ClCompile>
+    <ClCompile Include="GameScene.cpp">
+      <Filter>Scene</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
