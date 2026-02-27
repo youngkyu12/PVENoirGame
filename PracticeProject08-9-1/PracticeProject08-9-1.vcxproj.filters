@@ -199,14 +199,14 @@
     <ClInclude Include="..\Common\Components\Component.h">
       <Filter>Components</Filter>
     </ClInclude>
-    <ClInclude Include="..\Common\Components\PlayerControllerComponent.h">
-      <Filter>Components\PlayerController</Filter>
-    </ClInclude>
     <ClInclude Include="ArrowComponent.h">
       <Filter>Components\Arrow</Filter>
     </ClInclude>
     <ClInclude Include="ActorTagComponent.h">
       <Filter>Components\ActorTag</Filter>
+    </ClInclude>
+    <ClInclude Include="PlayerControllerComponent.h">
+      <Filter>Components\PlayerController</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -288,9 +288,6 @@
     <ClCompile Include="ServerPacketHandler.cpp">
       <Filter>Network\PacketHandler</Filter>
     </ClCompile>
-    <ClCompile Include="..\Common\Components\PlayerControllerComponent.cpp">
-      <Filter>Components\PlayerController</Filter>
-    </ClCompile>
     <ClCompile Include="DescriptorHeap.cpp">
       <Filter>Resource\Descripter</Filter>
     </ClCompile>
@@ -299,6 +296,9 @@
     </ClCompile>
     <ClCompile Include="ActorTagComponent.cpp">
       <Filter>Components\ActorTag</Filter>
+    </ClCompile>
+    <ClCompile Include="PlayerControllerComponent.cpp">
+      <Filter>Components\PlayerController</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
