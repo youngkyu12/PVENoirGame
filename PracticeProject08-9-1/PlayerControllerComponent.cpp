@@ -10,7 +10,7 @@
 #include "AnimatorComponent.h"
 #include "AnimController.h"
 
-// legacy DIR_* °ª°ú µ¿ÀÏÇÑ »ó¼ö(¸ÅÅ©·Î¿¡ ÀÇÁ¸ÇÏÁö ¾Ê±â À§ÇØ ·ÎÄÃ »ó¼ö·Î µÒ)
+// legacy DIR_* ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½(ï¿½ï¿½Å©ï¿½Î¿ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½)
 static constexpr DWORD kDirForward = 0x01;
 static constexpr DWORD kDirBackward = 0x02;
 static constexpr DWORD kDirLeft = 0x04;
@@ -51,7 +51,7 @@ void CPlayerControllerComponent::SetInputDirection(DWORD dwDirection)
 {
     m_inputDir = dwDirection;
 
-    // Attack ÁßÀÌ¸é "»óÅÂ ÀüÈ¯/ÀÌµ¿"À» À¯¹ßÇÏ´Â speed ¹Ý¿µÀ» ¸·´Â´Ù.
+    // Attack ï¿½ï¿½ï¿½Ì¸ï¿½ "ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¯/ï¿½Ìµï¿½"ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½ speed ï¿½Ý¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â´ï¿½.
     if (auto* anim = GetOwner() ? GetOwner()->GetAnimator() : nullptr)
     {
         if (anim->GetCurrentClipName() == "Attack" && !anim->IsCurrentClipFinished())
@@ -155,8 +155,8 @@ void CPlayerControllerComponent::Rotate(float /*pitchDeg*/, float yawDeg, float 
 
 void CPlayerControllerComponent::OnUpdate(float dt)
 {
-    // legacy CPlayer::Update ·ÎÁ÷À» ÄÄÆ÷³ÍÆ®·Î ÀÌµ¿
-    // (velocity´Â ¡°ÇÁ·¹ÀÓ º¯À§¡±Ã³·³ ¾²´Â ±âÁ¸ ¹æ½ÄÀ» ±×´ë·Î À¯Áö)
+    // legacy CPlayer::Update ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½Ìµï¿½
+    // (velocityï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã³ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½×´ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
 
     // gravity
     m_velocity = Vector3::Add(
@@ -199,7 +199,7 @@ void CPlayerControllerComponent::OnUpdate(float dt)
 
     if (auto* ctrl = owner->GetAnimController())
     {
-        const float speed = (m_inputDir != 0) ? 1.0f : 0.0f; // ¶Ç´Â ½ÇÁ¦ ÀÌµ¿¼Óµµ
+        const float speed = (m_inputDir != 0) ? 1.0f : 0.0f; // ï¿½Ç´ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ï¿½Óµï¿½
         ctrl->SetSpeed(speed);
     }
 }

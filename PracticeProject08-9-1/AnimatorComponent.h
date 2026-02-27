@@ -36,7 +36,7 @@ public:
     void SetIdleClip(const char* name);
     void SetMoveClip(const char* name);
 
-    // ctor/PreCreateComponents ´Ü°è¿¡¼­µµ °­Á¦ Æò°¡ °¡´É
+    // ctor/PreCreateComponents ï¿½Ü°è¿¡ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     void EvaluatePose(float dt);
 
     // lifecycle
@@ -48,7 +48,7 @@ public:
     bool Play(const std::string& name, bool loop = true, float start = 0.0f);
     bool CrossFade(const std::string& name, float blendTime, bool loop = true, float start = 0.0f);
 
-    // mesh º¯°æ µîÀ¸·Î skeleton Àç¹ÙÀÎµùÀÌ ÇÊ¿äÇÒ ¶§
+    // mesh ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ skeleton ï¿½ï¿½ï¿½ï¿½Îµï¿½ï¿½ï¿½ ï¿½Ê¿ï¿½ï¿½ï¿½ ï¿½ï¿½
     void InvalidateSkeleton();
 
 private:

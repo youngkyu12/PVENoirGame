@@ -15,8 +15,7 @@ BuiltAsset AssetManager::BuildAsset(
     ID3D12Device* device,
     ID3D12GraphicsCommandList* cmd,
     MATERIALS* pMaterials,
-    const AssetBuildDesc& desc
-)
+    const AssetBuildDesc& desc)
 {
     // ============================================================
     // 1. Mesh ·Îµå

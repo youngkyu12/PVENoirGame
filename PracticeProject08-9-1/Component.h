@@ -9,16 +9,16 @@
 
 using namespace DirectX;
 
-// forward declarations (include ÃÖ¼ÒÈ­)
+// forward declarations (include ï¿½Ö¼ï¿½È­)
 class CGameObject;
 struct ID3D12Device;
 struct ID3D12GraphicsCommandList;
 
 // ============================================================================
 // Base Component (Unity-style)
-//  - Owner(GameObject) Æ÷ÀÎÅÍ º¸À¯
-//  - ¶óÀÌÇÁ»çÀÌÅ¬: OnCreate/OnDestroy/OnUpdate µî
-//  - RTTI ¾øÀÌ Å¸ÀÔ ½Äº°: StaticTypeId<T>()
+//  - Owner(GameObject) ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+//  - ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å¬: OnCreate/OnDestroy/OnUpdate ï¿½ï¿½
+//  - RTTI ï¿½ï¿½ï¿½ï¿½ Å¸ï¿½ï¿½ ï¿½Äºï¿½: StaticTypeId<T>()
 // ============================================================================
 class CComponent
 {
@@ -44,7 +44,7 @@ public:
 	bool IsEnabled() const { return m_bEnabled; }
 	void SetEnabled(bool b) { m_bEnabled = b; }
 
-	// Build-time init (GPU ¸®¼Ò½º »ý¼º µî °¡´É)
+	// Build-time init (GPU ï¿½ï¿½ï¿½Ò½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
 	virtual void OnCreate(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd) {}
 
 	virtual void OnDestroy() {}
@@ -82,7 +82,7 @@ public:
 	explicit CTransformComponent(CGameObject* owner)
 		: CComponentT(owner)
 	{
-		// OnCreate ÀÌÀü¿¡µµ ¾ÈÀüÇÏ°Ô °ªÀÌ À¯È¿ÇÏµµ·Ï ±âº»°ª ¼¼ÆÃ
+		// OnCreate ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï°ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¿ï¿½Ïµï¿½ï¿½ï¿½ ï¿½âº»ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 		XMStoreFloat4x4(&worldMatrix, XMMatrixIdentity());
 		rotation = XMFLOAT4(0, 0, 0, 1);
 		position = XMFLOAT3(0, 0, 0);
@@ -90,13 +90,13 @@ public:
 		scale = XMFLOAT3(1, 1, 1);
 	}
 
-	// ¿ä±¸µÈ µ¥ÀÌÅÍ
+	// ï¿½ä±¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	XMFLOAT3  position = XMFLOAT3(0, 0, 0);
 	XMFLOAT3  direction = XMFLOAT3(0, 0, 1);   // look(forward)
 	XMFLOAT3  scale = XMFLOAT3(1, 1, 1);
 	XMFLOAT4X4 worldMatrix = {};
 
-	// ³»ºÎ È¸Àü(ÄõÅÍ´Ï¾ð) - ±ÔÄ¢¿¡ ¾øÁö¸¸ ±¸ÇöÀ» À§ÇØ ³»ºÎ º¸À¯
+	// ï¿½ï¿½ï¿½ï¿½ È¸ï¿½ï¿½(ï¿½ï¿½ï¿½Í´Ï¾ï¿½) - ï¿½ï¿½Ä¢ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	XMFLOAT4 rotation = XMFLOAT4(0, 0, 0, 1);  // (x,y,z,w)
 
 	// --------------------
@@ -141,7 +141,7 @@ public:
 		XMVECTOR f = XMVector3Normalize(XMLoadFloat3(&lookWorld));
 		XMVECTOR up = XMVector3Normalize(XMLoadFloat3(&upHintWorld));
 
-		// up°ú f°¡ °ÅÀÇ ÆòÇàÀÌ¸é ´Ù¸¥ upÀ» »ç¿ë
+		// upï¿½ï¿½ fï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ì¸ï¿½ ï¿½Ù¸ï¿½ upï¿½ï¿½ ï¿½ï¿½ï¿½
 		const float d = fabsf(XMVectorGetX(XMVector3Dot(f, up)));
 		if (d > 0.99f) up = XMVectorSet(0, 0, 1, 0);
 
@@ -156,7 +156,7 @@ public:
 		SetRotationFromBasis(right, upv, look);
 	}
 
-	// yaw only (Player ¹Ùµð È¸Àü¿ë): world up ±âÁØ Àý´ë yaw
+	// yaw only (Player ï¿½Ùµï¿½ È¸ï¿½ï¿½ï¿½ï¿½): world up ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ yaw
 	void SetYawDegrees(float yawDeg)
 	{
 		const float yaw = XMConvertToRadians(yawDeg);
@@ -165,7 +165,7 @@ public:
 		RebuildWorld();
 	}
 
-	// world axis ±âÁØ È¸Àü(ÁõºÐ)
+	// world axis ï¿½ï¿½ï¿½ï¿½ È¸ï¿½ï¿½(ï¿½ï¿½ï¿½ï¿½)
 	void RotateWorldAxisDegrees(const XMFLOAT3& axisWorld, float deg)
 	{
 		XMVECTOR axis = XMVector3Normalize(XMLoadFloat3(&axisWorld));
@@ -189,10 +189,10 @@ public:
 		RebuildWorld();
 	}
 
-	// Ä«¸Þ¶ó basis¸¦ Æ®·£½ºÆû È¸ÀüÀ¸·Î ¼¼ÆÃ(½ºÆäÀÌ½º½± ¸ðµå ÁøÀÔ ½Ã)
+	// Ä«ï¿½Þ¶ï¿½ basisï¿½ï¿½ Æ®ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ È¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½(ï¿½ï¿½ï¿½ï¿½ï¿½Ì½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½)
 	void SetRotationFromBasis(const XMFLOAT3& right, const XMFLOAT3& up, const XMFLOAT3& look)
 	{
-		// row-major/column-major ÀÌ½´¸¦ ÇÇÇÏ·Á°í ¡°ÃàÀ» Çà¡±À¸·Î ±¸¼º (DirectXMath´Â row-major ÀúÀåÀÌÁö¸¸ XMÀº Çà·Ä ÀÇ¹Ì ÀÏ°ü)
+		// row-major/column-major ï¿½Ì½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ï·ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½à¡±ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (DirectXMathï¿½ï¿½ row-major ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ XMï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½Ç¹ï¿½ ï¿½Ï°ï¿½)
 		XMMATRIX M =
 			XMMATRIX(
 				right.x, right.y, right.z, 0.0f,
@@ -206,7 +206,7 @@ public:
 		RebuildWorld();
 	}
 
-	// ¿ÜºÎ¿¡¼­ WorldMatrix¸¦ Á÷Á¢ ³Ö¾î¾ß ÇÒ ¶§(È£È¯¿ë)
+	// ï¿½ÜºÎ¿ï¿½ï¿½ï¿½ WorldMatrixï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ö¾ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½(È£È¯ï¿½ï¿½)
 	void SetWorldMatrixFromMatrix(const XMFLOAT4X4& m)
 	{
 		XMMATRIX W = XMLoadFloat4x4(&m);
@@ -226,9 +226,9 @@ public:
 		}
 		else
 		{
-			// ºÐÇØ ½ÇÆÐ ½Ã ÃÖ¼ÒÇÑ Çà·Ä¸¸ º¸°ü
+			// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ö¼ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¸ï¿½ ï¿½ï¿½ï¿½ï¿½
 			worldMatrix = m;
-			// directionÀº ±×´ë·Î µÒ
+			// directionï¿½ï¿½ ï¿½×´ï¿½ï¿½ ï¿½ï¿½
 		}
 	}
 
@@ -242,7 +242,7 @@ private:
 		XMMATRIX W = S * R * T;
 		XMStoreFloat4x4(&worldMatrix, W);
 
-		// direction °»½Å (forward)
+		// direction ï¿½ï¿½ï¿½ï¿½ (forward)
 		XMVECTOR f = XMVector3TransformNormal(XMVectorSet(0, 0, 1, 0), R);
 		XMFLOAT3 d; XMStoreFloat3(&d, XMVector3Normalize(f));
 		direction = d;
