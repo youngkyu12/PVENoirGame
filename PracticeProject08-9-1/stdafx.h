@@ -3,6 +3,14 @@
 // 들어 있는 포함 파일입니다.
 //
 
+#ifndef COMMON_OWNER_TYPE
+#define COMMON_OWNER_TYPE CGameObject
+#endif
+
+#ifndef COMMON_OWNER_HEADER
+#define COMMON_OWNER_HEADER "Object.h"
+#endif
+
 #pragma once
 
 #define WIN32_LEAN_AND_MEAN             // 거의 사용되지 않는 내용은 Windows 헤더에서 제외합니다.
@@ -12,20 +20,18 @@
 #ifdef _DEBUG
 #pragma comment(lib, "ServerCore\\Debug\\ServerCore.lib")
 #pragma comment(lib, "Protobuf\\Debug\\libprotobufd.lib")
-#pragma comment(lib, "BaseComponent\\Debug\\BaseComponent.lib")
 #else
 #pragma comment(lib, "ServerCore\\Release\\ServerCore.lib")
 #pragma comment(lib, "Protobuf\\Release\\libprotobuf.lib")
-#pragma comment(lib, "BaseComponent\\Release\\BaseComponent.lib")
 #endif
-
 
 
 // Windows 헤더 파일:
 //#include <windows.h>
 #define _HAS_STD_BYTE 0  
 #include "CorePch.h"
-#include "ComponentPch.h"
+
+
 
 extern ClientServiceRef g_clientService;
 

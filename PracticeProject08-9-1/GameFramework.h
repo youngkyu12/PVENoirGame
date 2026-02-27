@@ -1,3 +1,6 @@
+//-----------------------------------------------------------------------------
+// File: CGameFramework.h
+//-----------------------------------------------------------------------------
 #pragma once
 
 #define FRAME_BUFFER_WIDTH		640
@@ -19,12 +22,13 @@ public:
 	CGameFramework();
 	~CGameFramework();
 
+	// Lifecycle
+public:
 	void OnDestroy();
 	void ReleaseObjects();
-
 	void WaitForGpuComplete();
 
-// Build
+	// Build
 public:
 	bool OnCreate(HINSTANCE hInstance, HWND hMainWnd);
 
@@ -36,29 +40,31 @@ public:
 	void CreateDepthStencilView();
 	void BuildObjects();
 
-// Render
+	// Frame / Render
 public:
 	void ChangeSwapChainState();
 
-    void ProcessInput();
-    void AnimateObjects();
-    void FrameAdvance();
+	void ProcessInput();
+	void AnimateObjects();
+	void FrameAdvance();
 
 	void MoveToNextFrame();
 
-// Input
+	// Window / Input
 public:
 	void OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
 	void OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
 	LRESULT CALLBACK OnProcessingWindowMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
 
 private:
+	// Window
 	HINSTANCE							m_hInstance = nullptr;
 	HWND								m_hWnd = nullptr;
 
 	int									m_nWndClientWidth = FRAME_BUFFER_WIDTH;
 	int									m_nWndClientHeight = FRAME_BUFFER_HEIGHT;
-        
+
+	// DXGI / Device
 	ComPtr<IDXGIFactory4>				m_pdxgiFactory;
 	ComPtr<IDXGISwapChain3>				m_pdxgiSwapChain;
 	ComPtr<ID3D12Device>				m_pd3dDevice;
@@ -66,6 +72,7 @@ private:
 	bool								m_bMsaa4xEnable = false;
 	UINT								m_nMsaa4xQualityLevels = 0;
 
+	// SwapChain Buffers / RTV
 	static const UINT					m_nSwapChainBuffers = 2;
 	UINT								m_nSwapChainBufferIndex = 0;
 
@@ -73,29 +80,37 @@ private:
 	ComPtr<ID3D12DescriptorHeap>								m_pd3dRtvDescriptorHeap;
 	array<D3D12_CPU_DESCRIPTOR_HANDLE, m_nSwapChainBuffers>		m_pd3dSwapChainBackBufferRTVCPUHandles;
 
+	// DSV
 	ComPtr<ID3D12Resource>				m_pd3dDepthStencilBuffer;
 	ComPtr<ID3D12DescriptorHeap>		m_pd3dDsvDescriptorHeap;
 	D3D12_CPU_DESCRIPTOR_HANDLE			m_d3dDsvDescriptorCPUHandle;
 
+	// Command
 	ComPtr<ID3D12CommandAllocator>		m_pd3dCommandAllocator;
 	ComPtr<ID3D12CommandQueue>			m_pd3dCommandQueue;
 	ComPtr<ID3D12GraphicsCommandList>	m_pd3dCommandList;
 
+	// Sync
 	ComPtr<ID3D12Fence>					m_pd3dFence;
 	array<UINT64, m_nSwapChainBuffers>	m_nFenceValues;
 	HANDLE								m_hFenceEvent = nullptr;
 
+	// Timer
 	CGameTimer							m_GameTimer;
 
+	// Scene / Camera
 	unique_ptr<CScene>					m_pScene;
-	CCamera*							m_pCamera = nullptr;
+	CCamera* m_pCamera = nullptr;
 
+	// Post Processing
 	shared_ptr<CPostProcessingShader>	m_pPostProcessingShader;
 
-	int								m_nDrawOption = DRAW_SCENE_COLOR;
+	// Render Option
+	int									m_nDrawOption = DRAW_SCENE_COLOR;
 
-	POINT							m_ptOldCursorPos;
+	// Input State
+	POINT								m_ptOldCursorPos;
 
-	_TCHAR							m_pszFrameRate[50];
+	// UI Text
+	_TCHAR								m_pszFrameRate[50];
 };
-

@@ -1,8 +1,11 @@
 #pragma once
 #include "JobQueue.h"
 
-class Protocol::S_GAME_START;
-class Protocol::S_ENTER_GAME;
+namespace Protocol
+{
+    struct S_GAME_START;
+    struct S_ENTER_GAME;
+}
 
 class Room : public JobQueue
 {

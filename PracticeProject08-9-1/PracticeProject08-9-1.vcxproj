@@ -125,6 +125,7 @@
       <CallingConvention>Cdecl</CallingConvention>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\Common\BaseComponent</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -144,7 +145,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
-      <CallingConvention>VectorCall</CallingConvention>
+      <CallingConvention>Cdecl</CallingConvention>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
@@ -155,15 +156,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\Common\Components\Component.h" />
-    <ClInclude Include="..\Common\Components\PlayerControllerComponent.h" />
     <ClInclude Include="Animator.h" />
     <ClInclude Include="AnimatorComponent.h" />
     <ClInclude Include="AnimatorData.h" />
     <ClInclude Include="AnimController.h" />
+    <ClInclude Include="ArrowComponent.h" />
     <ClInclude Include="AssetManager.h" />
     <ClInclude Include="Camera.h" />
-    <ClInclude Include="CTransformComponent.h" />
+    <ClInclude Include="Component.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="DDSTextureLoader12.h" />
     <ClInclude Include="DescriptorHeap.h" />
@@ -176,6 +176,7 @@
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="ModelComponent.h" />
     <ClInclude Include="Object.h" />
+    <ClInclude Include="PlayerControllerComponent.h" />
     <ClInclude Include="PracticeProject08-9-1.h" />
     <ClInclude Include="Protocol.pb.h" />
     <ClInclude Include="RendererComponent.h" />
@@ -192,16 +193,19 @@
     <ClInclude Include="Timer.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\Common\Components\PlayerControllerComponent.cpp" />
     <ClCompile Include="Animator.cpp" />
     <ClCompile Include="AnimatorComponent.cpp" />
     <ClCompile Include="AnimatorData.cpp" />
     <ClCompile Include="AnimController.cpp" />
+    <ClCompile Include="ArrowComponent.cpp" />
     <ClCompile Include="AssetManager.cpp" />
     <ClCompile Include="Camera.cpp" />
-    <ClCompile Include="CTransformComponent.cpp" />
+    <ClCompile Include="CommonPlayerControllerComponent_Client.cpp" />
     <ClCompile Include="DDSTextureLoader12.cpp">
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">VectorCall</CallingConvention>
+      <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">VectorCall</CallingConvention>
+      <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">VectorCall</CallingConvention>
+      <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Release|x64'">VectorCall</CallingConvention>
     </ClCompile>
     <ClCompile Include="DescriptorHeap.cpp" />
     <ClCompile Include="Enum.pb.cc">
@@ -210,9 +214,6 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="GameFramework.cpp" />
-    <ClCompile Include="GameFramework_Build.cpp" />
-    <ClCompile Include="GameFramework_Input.cpp" />
-    <ClCompile Include="GameFramework_Render.cpp" />
     <ClCompile Include="InitStruct.pb.cc">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
@@ -222,8 +223,7 @@
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="ModelComponent.cpp" />
     <ClCompile Include="Object.cpp" />
-    <ClCompile Include="Object_Build.cpp" />
-    <ClCompile Include="Object_Render.cpp" />
+    <ClCompile Include="PlayerControllerComponent.cpp" />
     <ClCompile Include="PracticeProject08-9-1.cpp" />
     <ClCompile Include="Protocol.pb.cc">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
@@ -233,15 +233,10 @@
     <ClCompile Include="RendererComponent.cpp" />
     <ClCompile Include="RenderObjectComponent.cpp" />
     <ClCompile Include="Scene.cpp" />
-    <ClCompile Include="Scene_Build.cpp" />
-    <ClCompile Include="Scene_Input.cpp" />
-    <ClCompile Include="Scene_Render.cpp" />
     <ClCompile Include="ServerPacketHandler.cpp">
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
     </ClCompile>
     <ClCompile Include="Shader.cpp" />
-    <ClCompile Include="Shader_Build.cpp" />
-    <ClCompile Include="Shader_Render.cpp" />
     <ClCompile Include="SkinningComponent.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>

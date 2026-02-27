@@ -87,6 +87,9 @@
     <ClCompile Include="ServerMap.cpp">
       <Filter>GameContents\Map</Filter>
     </ClCompile>
+    <ClCompile Include="CommonPlayerControllerComponent_Server.cpp">
+      <Filter>GameContents</Filter>
+    </ClCompile>
     <ClCompile Include="ServerObject.cpp">
       <Filter>GameObject\BaseObject</Filter>
     </ClCompile>

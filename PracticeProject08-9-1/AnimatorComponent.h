@@ -6,7 +6,7 @@
 
 #include <memory>
 #include <string>
-#include "BaseComponent.h"
+#include "Component.h"
 
 // forward
 class CGameObject;
@@ -18,6 +18,7 @@ class CAnimatorComponent final : public CComponentT<CAnimatorComponent>
 {
 public:
     explicit CAnimatorComponent(CGameObject* owner);
+    ~CAnimatorComponent() override;
 
     // ---- accessors ----
     CAnimator* GetAnimator() const { return m_pAnimator.get(); }

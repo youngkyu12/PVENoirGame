@@ -16,6 +16,14 @@
 #include "ComponentPch.h"
 #include "Enum.pb.h"
 
+#ifndef COMMON_OWNER_TYPE
+#define COMMON_OWNER_TYPE CServerObject
+#endif
+
+#ifndef COMMON_OWNER_HEADER
+#define COMMON_OWNER_HEADER "ServerObject.h"
+
+#endif
 using GameSessionRef = shared_ptr<class GameSession>;
 using GameAreaRef = shared_ptr<class GameArea>;
 
