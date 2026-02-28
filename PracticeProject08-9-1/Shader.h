@@ -158,6 +158,26 @@ public:
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// -----------------------------------------------------------------------------
+// UI Shader (2D)
+//  - Reuse VSTextured/PSTextured
+//  - Alpha blending enabled
+//  - Depth test disabled
+//  - Cull disabled
+// -----------------------------------------------------------------------------
+class CUIShader : public CTexturedShader
+{
+public:
+	CUIShader();
+	virtual ~CUIShader();
+
+public:
+	virtual D3D12_RASTERIZER_DESC CreateRasterizerState() override;
+	virtual D3D12_BLEND_DESC CreateBlendState() override;
+	virtual D3D12_DEPTH_STENCIL_DESC CreateDepthStencilState() override;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 class CPostProcessingShader : public CShader
 {
