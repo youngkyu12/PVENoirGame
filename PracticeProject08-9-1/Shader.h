@@ -265,3 +265,30 @@ protected:
 	ComPtr<ID3D12Resource>			m_pd3dcbDrawOptions;
 	PS_CB_DRAW_OPTIONS* m_pcbMappedDrawOptions = nullptr;
 };
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Menu UI (fullscreen image) Shader
+// - Uses existing VSScreenRectSamplingTextured / PSScreenRectSamplingTextured
+// - Alpha blending enabled
+// - Depth disabled (inherits from CPostProcessingShader)
+// - Uses cbDrawOptions(b5) to pass SRV index
+class CMenuImageShader final : public CTextureToFullScreenShader
+{
+public:
+	CMenuImageShader() = default;
+	~CMenuImageShader() override = default;
+
+public:
+	// 중요: Scene이 이미 RootSig/DescriptorTable을 세팅하므로
+	// Shader가 RootSig를 다시 Set하지 않게(= 파라미터 무효화 방지) CreateShader를 재정의한다.
+	void CreateShader(
+		ID3D12Device* dev,
+		ID3D12RootSignature* sceneRootSig,
+		UINT nRenderTargets,
+		DXGI_FORMAT* rtvFormats,
+		DXGI_FORMAT dsvFormat
+	) override;
+
+	D3D12_BLEND_DESC CreateBlendState() override;
+	void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd, void* pContext) override;
+};
