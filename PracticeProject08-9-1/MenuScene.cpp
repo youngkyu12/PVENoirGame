@@ -22,6 +22,41 @@ void CMenuScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     );
 
     CreateMainCamera(dev, cmd, nullptr);
+
+    // ------------------------------------------------------------
+    // Menu UI texture (1장) 로드 + Global SRV 등록
+    // ------------------------------------------------------------
+    {
+        constexpr const wchar_t* kMenuDDS = L"Assets/UI/Test.dds";
+
+        m_menuTex = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 0);
+        m_menuTex->LoadTextureFromFile(dev, cmd, kMenuDDS, RESOURCE_TEXTURE2D, 0);
+
+        // Global SRV pool(t0~)에 올린다.
+        CScene::m_pDescriptorHeap->CreateShaderResourceViewsOther(
+            dev,
+            m_menuTex.get(),
+            ROOT_PARAMETER_GLOBAL_SRV
+        );
+
+        m_menuSrvIndex = m_menuTex->GetSrvIndex(0);
+    }
+
+    // ------------------------------------------------------------
+    // Menu UI shader 생성 (Screen-rect + alpha blend)
+    // ------------------------------------------------------------
+    {
+        m_menuShader = std::make_shared<CMenuImageShader>();
+
+        // RTV 포맷은 네 swapchain 백버퍼 포맷에 맞춰라.
+        DXGI_FORMAT rtv = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+        // Depth는 안 쓰므로 UNKNOWN으로 생성해도 됨(DepthEnable=FALSE)
+        DXGI_FORMAT dsv = DXGI_FORMAT_UNKNOWN;
+
+        m_menuShader->CreateShader(dev, GetGraphicsRootSignature(), 1, &rtv, dsv);
+        m_menuShader->CreateShaderVariables(dev, cmd);
+    }
 }
 
 // MenuScene 카메라: "아무 위치에서 아무대나" 보는 임시 카메라
@@ -60,9 +95,24 @@ void CMenuScene::OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera
     CScene::OnPrepareRender(cmd, camera);
 }
 
-void CMenuScene::Render(ID3D12GraphicsCommandList* /*pd3dCommandList*/, CCamera* /*pCamera*/)
+void CMenuScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
-    // 의도적으로 아무 것도 그리지 않음
+    if (!cmd) return;
+    if (!camera) camera = m_pMainCamera;
+
+    // Scene 공통 준비: RootSig + DescriptorHeap + Global SRV table + Camera CB
+    CScene::OnPrepareRender(cmd, camera);
+
+    if (!m_menuShader) return;
+    if (m_menuSrvIndex == UINT_MAX) return;
+
+    PS_CB_DRAW_OPTIONS opt{};
+    opt.m_xmn4DrawOptions = XMINT4('T', 0, 0, 0);                // 'T' = gvPostSrvIdx0.x
+    opt.m_xmu4PostSrvIdx0 = XMUINT4(m_menuSrvIndex, 0, 0, 0);    // T 슬롯에 메뉴 텍스처 SRV index
+    opt.m_xmu4PostSrvIdx1 = XMUINT4(0, 0, 0, 0);
+
+    // Shader.Render()가 내부에서 DrawInstanced(6,1) 호출함
+    m_menuShader->Render(cmd, camera, &opt);
 }
 
 bool CMenuScene::OnProcessingMouseMessage(HWND /*hWnd*/, UINT nMessageID, WPARAM /*wParam*/, LPARAM /*lParam*/)
