@@ -466,6 +466,74 @@ void CSkinnedObjectsShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, C
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+CUIShader::CUIShader()
+{
+}
+
+CUIShader::~CUIShader()
+{
+}
+
+D3D12_RASTERIZER_DESC CUIShader::CreateRasterizerState()
+{
+	D3D12_RASTERIZER_DESC rs = CTexturedShader::CreateRasterizerState();
+	rs.CullMode = D3D12_CULL_MODE_NONE;      // UI는 양면/쿼드가 많아서 Cull OFF가 안전
+	rs.DepthClipEnable = TRUE;
+	return rs;
+}
+
+D3D12_BLEND_DESC CUIShader::CreateBlendState()
+{
+	D3D12_BLEND_DESC bs{};
+	::ZeroMemory(&bs, sizeof(D3D12_BLEND_DESC));
+
+	bs.AlphaToCoverageEnable = FALSE;
+	bs.IndependentBlendEnable = FALSE;
+
+	auto& rt0 = bs.RenderTarget[0];
+	rt0.BlendEnable = TRUE;
+	rt0.LogicOpEnable = FALSE;
+
+	// Standard alpha blending:
+	// out.rgb = src.rgb * src.a + dst.rgb * (1 - src.a)
+	rt0.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	rt0.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	rt0.BlendOp = D3D12_BLEND_OP_ADD;
+
+	// alpha channel blending (보통 이대로면 충분)
+	rt0.SrcBlendAlpha = D3D12_BLEND_ONE;
+	rt0.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+	rt0.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+
+	rt0.LogicOp = D3D12_LOGIC_OP_NOOP;
+	rt0.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+	return bs;
+}
+
+D3D12_DEPTH_STENCIL_DESC CUIShader::CreateDepthStencilState()
+{
+	D3D12_DEPTH_STENCIL_DESC ds{};
+	::ZeroMemory(&ds, sizeof(D3D12_DEPTH_STENCIL_DESC));
+
+	ds.DepthEnable = FALSE;                          // UI는 depth test 자체를 끈다
+	ds.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO; // (의미는 거의 없지만 명시)
+	ds.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+
+	ds.StencilEnable = FALSE;
+	ds.StencilReadMask = 0x00;
+	ds.StencilWriteMask = 0x00;
+
+	ds.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	ds.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	ds.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+	ds.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_NEVER;
+
+	ds.BackFace = ds.FrontFace;
+
+	return ds;
+}
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 CPostProcessingShader::CPostProcessingShader()
 {
