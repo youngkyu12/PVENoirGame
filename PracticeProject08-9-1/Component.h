@@ -9,17 +9,11 @@
 
 using namespace DirectX;
 
-// forward declarations (include �ּ�ȭ)
+// forward declarations
 class CGameObject;
 struct ID3D12Device;
 struct ID3D12GraphicsCommandList;
 
-// ============================================================================
-// Base Component (Unity-style)
-//  - Owner(GameObject) ������ ����
-//  - ����������Ŭ: OnCreate/OnDestroy/OnUpdate ��
-//  - RTTI ���� Ÿ�� �ĺ�: StaticTypeId<T>()
-// ============================================================================
 class CComponent
 {
 public:
@@ -44,12 +38,10 @@ public:
 	bool IsEnabled() const { return m_bEnabled; }
 	void SetEnabled(bool b) { m_bEnabled = b; }
 
-	// Build-time init (GPU ���ҽ� ���� �� ����)
 	virtual void OnCreate(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd) {}
 
 	virtual void OnDestroy() {}
 
-	// Per-frame tick
 	virtual void OnUpdate(float dt) {}
 	virtual void OnLateUpdate(float dt) {}
 
@@ -82,7 +74,6 @@ public:
 	explicit CTransformComponent(CGameObject* owner)
 		: CComponentT(owner)
 	{
-		// OnCreate �������� �����ϰ� ���� ��ȿ�ϵ��� �⺻�� ����
 		XMStoreFloat4x4(&worldMatrix, XMMatrixIdentity());
 		rotation = XMFLOAT4(0, 0, 0, 1);
 		position = XMFLOAT3(0, 0, 0);
@@ -90,13 +81,11 @@ public:
 		scale = XMFLOAT3(1, 1, 1);
 	}
 
-	// �䱸�� ������
 	XMFLOAT3  position = XMFLOAT3(0, 0, 0);
-	XMFLOAT3  direction = XMFLOAT3(0, 0, 1);   // look(forward)
+	XMFLOAT3  direction = XMFLOAT3(0, 0, 1);
 	XMFLOAT3  scale = XMFLOAT3(1, 1, 1);
 	XMFLOAT4X4 worldMatrix = {};
 
-	// ���� ȸ��(���ʹϾ�) - ��Ģ�� ������ ������ ���� ���� ����
 	XMFLOAT4 rotation = XMFLOAT4(0, 0, 0, 1);  // (x,y,z,w)
 
 	// --------------------
@@ -141,7 +130,6 @@ public:
 		XMVECTOR f = XMVector3Normalize(XMLoadFloat3(&lookWorld));
 		XMVECTOR up = XMVector3Normalize(XMLoadFloat3(&upHintWorld));
 
-		// up�� f�� ���� �����̸� �ٸ� up�� ���
 		const float d = fabsf(XMVectorGetX(XMVector3Dot(f, up)));
 		if (d > 0.99f) up = XMVectorSet(0, 0, 1, 0);
 
@@ -156,7 +144,7 @@ public:
 		SetRotationFromBasis(right, upv, look);
 	}
 
-	// yaw only (Player �ٵ� ȸ����): world up ���� ���� yaw
+	// yaw only
 	void SetYawDegrees(float yawDeg)
 	{
 		const float yaw = XMConvertToRadians(yawDeg);
@@ -165,7 +153,7 @@ public:
 		RebuildWorld();
 	}
 
-	// world axis ���� ȸ��(����)
+	// world axis
 	void RotateWorldAxisDegrees(const XMFLOAT3& axisWorld, float deg)
 	{
 		XMVECTOR axis = XMVector3Normalize(XMLoadFloat3(&axisWorld));
@@ -189,10 +177,8 @@ public:
 		RebuildWorld();
 	}
 
-	// ī�޶� basis�� Ʈ������ ȸ������ ����(�����̽��� ��� ���� ��)
 	void SetRotationFromBasis(const XMFLOAT3& right, const XMFLOAT3& up, const XMFLOAT3& look)
 	{
-		// row-major/column-major �̽��� ���Ϸ��� ������ �ࡱ���� ���� (DirectXMath�� row-major ���������� XM�� ��� �ǹ� �ϰ�)
 		XMMATRIX M =
 			XMMATRIX(
 				right.x, right.y, right.z, 0.0f,
@@ -206,7 +192,6 @@ public:
 		RebuildWorld();
 	}
 
-	// �ܺο��� WorldMatrix�� ���� �־�� �� ��(ȣȯ��)
 	void SetWorldMatrixFromMatrix(const XMFLOAT4X4& m)
 	{
 		XMMATRIX W = XMLoadFloat4x4(&m);
@@ -226,9 +211,7 @@ public:
 		}
 		else
 		{
-			// ���� ���� �� �ּ��� ��ĸ� ����
 			worldMatrix = m;
-			// direction�� �״�� ��
 		}
 	}
 
@@ -242,7 +225,7 @@ private:
 		XMMATRIX W = S * R * T;
 		XMStoreFloat4x4(&worldMatrix, W);
 
-		// direction ���� (forward)
+		// direction (forward)
 		XMVECTOR f = XMVector3TransformNormal(XMVectorSet(0, 0, 1, 0), R);
 		XMFLOAT3 d; XMStoreFloat3(&d, XMVector3Normalize(f));
 		direction = d;

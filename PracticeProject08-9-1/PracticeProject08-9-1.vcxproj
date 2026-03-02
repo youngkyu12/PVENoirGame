@@ -156,7 +156,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\Common\Components\Component.h" />
     <ClInclude Include="ActorTagComponent.h" />
     <ClInclude Include="Animator.h" />
     <ClInclude Include="AnimatorComponent.h" />
@@ -165,16 +164,19 @@
     <ClInclude Include="ArrowComponent.h" />
     <ClInclude Include="AssetManager.h" />
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="Component.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="DDSTextureLoader12.h" />
     <ClInclude Include="DescriptorHeap.h" />
     <ClInclude Include="Enum.pb.h" />
     <ClInclude Include="GameFramework.h" />
+    <ClInclude Include="GameScene.h" />
     <ClInclude Include="GlobalValues.h" />
     <ClInclude Include="InitStruct.pb.h" />
     <ClInclude Include="LightComponent.h" />
     <ClInclude Include="LightTypes.h" />
     <ClInclude Include="Material.h" />
+    <ClInclude Include="MenuScene.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="ModelComponent.h" />
     <ClInclude Include="NetworkQueue.h" />
@@ -186,6 +188,8 @@
     <ClInclude Include="RenderObjectComponent.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="Scene.h" />
+    <ClInclude Include="SceneManager.h" />
+    <ClInclude Include="SceneRenderTypes.h" />
     <ClInclude Include="ServerPacketHandler.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="SkinningComponent.h" />
@@ -215,6 +219,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="GameFramework.cpp" />
+    <ClCompile Include="GameScene.cpp" />
     <ClCompile Include="GlobalValues.cpp" />
     <ClCompile Include="InitStruct.pb.cc">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
@@ -222,6 +227,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="Material.cpp" />
+    <ClCompile Include="MenuScene.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="ModelComponent.cpp" />
     <ClCompile Include="NetworkQueue.cpp" />
@@ -236,6 +242,7 @@
     <ClCompile Include="RendererComponent.cpp" />
     <ClCompile Include="RenderObjectComponent.cpp" />
     <ClCompile Include="Scene.cpp" />
+    <ClCompile Include="SceneManager.cpp" />
     <ClCompile Include="ServerPacketHandler.cpp">
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
     </ClCompile>

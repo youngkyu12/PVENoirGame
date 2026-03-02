@@ -466,6 +466,131 @@ void CSkinnedObjectsShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, C
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+CUIShader::CUIShader()
+{
+}
+
+CUIShader::~CUIShader()
+{
+}
+
+D3D12_RASTERIZER_DESC CUIShader::CreateRasterizerState()
+{
+	D3D12_RASTERIZER_DESC rs = CTexturedShader::CreateRasterizerState();
+	rs.CullMode = D3D12_CULL_MODE_NONE;      // UI는 양면/쿼드가 많아서 Cull OFF가 안전
+	rs.DepthClipEnable = TRUE;
+	return rs;
+}
+
+D3D12_BLEND_DESC CUIShader::CreateBlendState()
+{
+	D3D12_BLEND_DESC bs{};
+	::ZeroMemory(&bs, sizeof(D3D12_BLEND_DESC));
+
+	bs.AlphaToCoverageEnable = FALSE;
+	bs.IndependentBlendEnable = FALSE;
+
+	auto& rt0 = bs.RenderTarget[0];
+	rt0.BlendEnable = TRUE;
+	rt0.LogicOpEnable = FALSE;
+
+	// Standard alpha blending:
+	// out.rgb = src.rgb * src.a + dst.rgb * (1 - src.a)
+	rt0.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	rt0.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	rt0.BlendOp = D3D12_BLEND_OP_ADD;
+
+	// alpha channel blending (보통 이대로면 충분)
+	rt0.SrcBlendAlpha = D3D12_BLEND_ONE;
+	rt0.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+	rt0.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+
+	rt0.LogicOp = D3D12_LOGIC_OP_NOOP;
+	rt0.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+	return bs;
+}
+
+D3D12_DEPTH_STENCIL_DESC CUIShader::CreateDepthStencilState()
+{
+	D3D12_DEPTH_STENCIL_DESC ds{};
+	::ZeroMemory(&ds, sizeof(D3D12_DEPTH_STENCIL_DESC));
+
+	ds.DepthEnable = FALSE;                          // UI는 depth test 자체를 끈다
+	ds.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO; // (의미는 거의 없지만 명시)
+	ds.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+
+	ds.StencilEnable = FALSE;
+	ds.StencilReadMask = 0x00;
+	ds.StencilWriteMask = 0x00;
+
+	ds.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	ds.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	ds.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+	ds.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_NEVER;
+
+	ds.BackFace = ds.FrontFace;
+
+	return ds;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// CMenuImageShader
+void CMenuImageShader::CreateShader(
+	ID3D12Device* dev,
+	ID3D12RootSignature* sceneRootSig,
+	UINT nRenderTargets,
+	DXGI_FORMAT* rtvFormats,
+	DXGI_FORMAT dsvFormat)
+{
+	// ★ m_pd3dGraphicsRootSignature에 저장하지 않는다.
+	//    (CShader::OnPrepareRender가 RootSig를 다시 Set하면,
+	//     Scene에서 잡아둔 DescriptorTable이 무효화될 여지가 있어서)
+	CShader::CreateShader(dev, sceneRootSig, nRenderTargets, rtvFormats, dsvFormat);
+}
+
+D3D12_BLEND_DESC CMenuImageShader::CreateBlendState()
+{
+	D3D12_BLEND_DESC bs{};
+	::ZeroMemory(&bs, sizeof(bs));
+
+	bs.AlphaToCoverageEnable = FALSE;
+	bs.IndependentBlendEnable = FALSE;
+
+	auto& rt0 = bs.RenderTarget[0];
+	rt0.BlendEnable = TRUE;
+	rt0.LogicOpEnable = FALSE;
+
+	// Standard alpha blend
+	rt0.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	rt0.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	rt0.BlendOp = D3D12_BLEND_OP_ADD;
+
+	rt0.SrcBlendAlpha = D3D12_BLEND_ONE;
+	rt0.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+	rt0.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+
+	rt0.LogicOp = D3D12_LOGIC_OP_NOOP;
+	rt0.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+	return bs;
+}
+
+void CMenuImageShader::UpdateShaderVariables(ID3D12GraphicsCommandList* cmd, void* pContext)
+{
+	if (!cmd) return;
+	if (!m_pd3dcbDrawOptions || !m_pcbMappedDrawOptions) return;
+	if (!pContext) return;
+
+	// pContext는 PS_CB_DRAW_OPTIONS* 로 받는다.
+	const PS_CB_DRAW_OPTIONS* opt = reinterpret_cast<const PS_CB_DRAW_OPTIONS*>(pContext);
+	*m_pcbMappedDrawOptions = *opt;
+
+	// RootParam #5 == CBV(b5) : 기존 코드와 동일하게 5에 바인딩
+	cmd->SetGraphicsRootConstantBufferView(5, m_pd3dcbDrawOptions->GetGPUVirtualAddress());
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 CPostProcessingShader::CPostProcessingShader()
 {
@@ -742,7 +867,7 @@ D3D12_SHADER_BYTECODE CTextureToFullScreenShader::CreatePixelShader(ID3DBlob** p
 
 void CTextureToFullScreenShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	UINT ncbElementBytes = ((sizeof(PS_CB_DRAW_OPTIONS) + 255) & ~255); //256占쏙옙 占쏙옙占�
+	UINT ncbElementBytes = ((sizeof(PS_CB_DRAW_OPTIONS) + 255) & ~255);
 	m_pd3dcbDrawOptions = ::CreateBufferResource(
 		pd3dDevice,
 		pd3dCommandList,

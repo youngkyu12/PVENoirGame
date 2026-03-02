@@ -20,9 +20,6 @@ void CAnimController::Update(float /*dt*/)
     if (!anim)
         anim = m_pOwner->GetAnimator();
 
-    // ------------------------------------------------------------
-    // 0) Attack queued ó�� (���� Ŭ�� ����)
-    // ------------------------------------------------------------
     if (m_attackQueued)
     {
         m_attackQueued = false;
@@ -30,10 +27,8 @@ void CAnimController::Update(float /*dt*/)
         const char* atk = m_attackClip.c_str();
         if (atk && anim->HasClip(atk))
         {
-            // Attack ���Ե� ������ ����
             constexpr float kAtkBlendTime = 0.12f;
 
-            // ���� ��� ���̸� CrossFade, �ƴϸ� Play
             if (!anim->GetCurrentClipName().empty())
             {
                 if (!anim->CrossFade(atk, kAtkBlendTime, false, 0.0f))
@@ -50,16 +45,10 @@ void CAnimController::Update(float /*dt*/)
     }
 
 
-    // ------------------------------------------------------------
-    // 1) Attack ���¸�: ���� ������ ����, ������ Idle/Move�� ����
-    // ------------------------------------------------------------
     if (m_state == EAnimState::Attack)
     {
-        // ���� Ŭ���� �������� (non-loop finished) -> �Է� �ӵ��� ���� ����
         if (anim->IsCurrentClipFinished())
         {
-            // ���⼭ "�̵�Ű �Է����̸� Run" ������ speed�� ���� ����
-            // (speed > eps)�� Move, �ƴϸ� Idle
             const EAnimState target = (m_speed > m_moveEps) ? EAnimState::Move : EAnimState::Idle;
             const char* targetClip = ClipFor(target);
 
@@ -76,12 +65,9 @@ void CAnimController::Update(float /*dt*/)
             m_state = target;
 
         }
-        return; // Attack �߿��� Idle/Move ���� ���� ����
+        return; 
     }
 
-    // ------------------------------------------------------------
-    // 2) �⺻ Idle/Move ���¸ӽ�
-    // ------------------------------------------------------------
     EAnimState target = (m_speed > m_moveEps) ? EAnimState::Move : EAnimState::Idle;
 
     const char* targetClip = ClipFor(target);
