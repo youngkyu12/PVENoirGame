@@ -225,6 +225,7 @@
     </ClInclude>
     <ClInclude Include="SceneRenderTypes.h">
       <Filter>Scene</Filter>
+	</ClInclude>
     <ClInclude Include="GlobalValues.h">
       <Filter>Network\NetworkGlobal</Filter>
     </ClInclude>
@@ -334,6 +335,7 @@
     </ClCompile>
     <ClCompile Include="GameScene.cpp">
       <Filter>Scene</Filter>
+	</ClCompile>
     <ClCompile Include="GlobalValues.cpp">
       <Filter>Network\NetworkGlobal</Filter>
     </ClCompile>
