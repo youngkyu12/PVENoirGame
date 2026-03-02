@@ -28,12 +28,15 @@ CGameObject::CGameObject(int nMeshes)
 	m_pRenderer = nullptr;
 }
 
+
+
 CGameObject::~CGameObject()
 {
 	DestroyComponents();
 
 	ReleaseShaderVariables();
 }
+
 
 void CGameObject::ReleaseShaderVariables()
 {
@@ -103,7 +106,7 @@ void CGameObject::SetRootParameter(ID3D12GraphicsCommandList* cmd)
 void CGameObject::SetMappedGameObjectCB(CB_GAMEOBJECT_INFO* p)
 {
 	if (!m_pRenderObject) m_pRenderObject = AddComponent<CRenderObjectComponent>();
-	// ¿ÜºÎ CB¸¸ ¹ÙÀÎµùÇÒ ¼öµµ ÀÖÀ¸´Ï handleÀº À¯Áö
+	// ï¿½Üºï¿½ CBï¿½ï¿½ ï¿½ï¿½ï¿½Îµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ handleï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	m_pRenderObject->BindExternal(p, m_pRenderObject->GetCbvHandle());
 }
 
@@ -135,7 +138,7 @@ void CGameObject::DestroyComponents()
 	if (!m_bComponentsCreated && m_components.empty())
 		return;
 
-	// ¿ª¼ø ÆÄ±«(ÀÇÁ¸ °ü°è ´ëºñ)
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½Ä±ï¿½(ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½)
 	for (int i = (int)m_components.size() - 1; i >= 0; --i)
 	{
 		if (m_components[i])
@@ -216,7 +219,7 @@ CAnimatorComponent* CGameObject::EnsureAnimatorComponent()
 	if (CAnimatorComponent* ac = GetAnimatorComponent())
 		return ac;
 
-	// AnimatorComponent´Â ±âº» ÄÄÆ÷³ÍÆ®°¡ ¾Æ´Ï¹Ç·Î "ÇÊ¿äÇÒ ¶§¸¸" ºÙÀÎ´Ù.
+	// AnimatorComponentï¿½ï¿½ ï¿½âº» ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½Æ´Ï¹Ç·ï¿½ "ï¿½Ê¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½" ï¿½ï¿½ï¿½Î´ï¿½.
 	CAnimatorComponent* ac = AddComponent<CAnimatorComponent>();
 	m_pAnimatorComponent = ac;
 	return ac;
@@ -258,6 +261,7 @@ const std::unordered_map<std::string, int>& CGameObject::GetBoneNameToIndex() co
 	return (m_pModel) ? m_pModel->GetBoneNameToIndex() : empty;
 }
 
+
 D3D12_GPU_VIRTUAL_ADDRESS CGameObject::GetBoneCBAddress() const
 {
 	return m_pSkinning ? m_pSkinning->GetBoneCBAddress() : 0;
@@ -280,7 +284,7 @@ void CGameObject::PlayAnimation(const std::string& clipName, bool loop, float st
 	CAnimatorComponent* ac = EnsureAnimatorComponent();
 	if (!ac) return;
 
-	// Àç»ý ¸í·É¸¸ ³»¸°´Ù (¾÷·Îµå/Æò°¡ Èå¸§Àº ÄÄÆ÷³ÍÆ®°¡ ´ã´ç)
+	// ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½É¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½Îµï¿½/ï¿½ï¿½ ï¿½å¸§ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½)
 	ac->Play(clipName, loop, start);
 }
 
@@ -306,7 +310,7 @@ CAnimController* CGameObject::GetAnimController() const
 // ============================================================================
 void CGameObject::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	UINT ncbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255); //256ÀÇ ¹è¼ö
+	UINT ncbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255); //256ï¿½ï¿½ ï¿½ï¿½ï¿½
 	m_pd3dcbGameObject = ::CreateBufferResource(
 		pd3dDevice,
 		pd3dCommandList,
@@ -330,7 +334,7 @@ void CGameObject::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandLi
 	(void)pd3dCommandList;
 	if (!m_pcbMappedGameObject) return;
 
-	// TransformÀÌ WorldMatrixÀÇ À¯ÀÏ ±ÇÀ§
+	// Transformï¿½ï¿½ WorldMatrixï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	const XMFLOAT4X4& W = m_pTransform->GetWorldMatrix();
 
 	XMStoreFloat4x4(
@@ -393,7 +397,7 @@ void CGameObject::MoveForward(float fDistance)
 
 void CGameObject::Rotate(float fPitch, float fYaw, float fRoll)
 {
-	// TransformÀÌ È¸ÀüÀÇ À¯ÀÏ ±ÇÀ§
+	// Transformï¿½ï¿½ È¸ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	m_pTransform->RotateWorldEulerDegrees(fPitch, fYaw, fRoll);
 }
 

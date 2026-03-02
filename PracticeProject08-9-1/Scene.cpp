@@ -9,7 +9,6 @@
 #include "Material.h"
 #include "AssetManager.h"
 #include "LightComponent.h"
-#include "CommonPlayerControllerComponent.h"
 #include "PlayerControllerComponent.h"
 #include "Object.h"
 #include "ActorTagComponent.h"
@@ -46,7 +45,7 @@ void CScene::ReleaseObjects()
 	if (m_pd3dGraphicsRootSignature)
 		m_pd3dGraphicsRootSignature.Reset();
 
-	// shaders: shared_ptr reset¸¸(ÇÊ¿äÇÏ¸é)
+	// shaders: shared_ptr resetï¿½ï¿½(ï¿½Ê¿ï¿½ï¿½Ï¸ï¿½)
 	m_staticBatch.shader.reset();
 	m_skinnedBatch.shader.reset();
 
@@ -72,7 +71,7 @@ void CScene::ReleaseObjects()
 	m_staticBatch.objectRefs.clear();
 	m_skinnedBatch.objectRefs.clear();
 
-	// scene-owned CB/¸®¼Ò½º ÇØÁ¦
+	// scene-owned CB/ï¿½ï¿½ï¿½Ò½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	ReleaseShaderVariables();
 }
 
@@ -95,6 +94,8 @@ void CScene::ReleaseUploadBuffers()
 	if (m_staticBatch.material)  m_staticBatch.material->ReleaseUploadBuffers();
 #endif
 }
+
+
 
 void CScene::ReleaseShaderVariables()
 {
@@ -150,7 +151,7 @@ void CScene::BuildObjects(
 	// 1. Root Signature
 	CreateGraphicsRootSignature(pd3dDevice);
 
-	// 2. Shader ÀÎ½ºÅÏ½º »ý¼º + ¿ÀºêÁ§Æ® °³¼ö ¼±È®º¸
+	// 2. Shader ï¿½Î½ï¿½ï¿½Ï½ï¿½ ï¿½ï¿½ï¿½ï¿½ + ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È®ï¿½ï¿½
 	constexpr int MAX_GLOBAL_SRVS = 1024;
 
 	auto pStaticShader = std::make_shared<CStaticObjectsShader>();
@@ -166,14 +167,14 @@ void CScene::BuildObjects(
 		1 /*Player*/ +
 		1 /*etc*/;
 
-	// 3. DescriptorHeapÀº "ÇÑ ¹ø¸¸" »ý¼º
+	// 3. DescriptorHeapï¿½ï¿½ "ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½" ï¿½ï¿½ï¿½ï¿½
 	m_pDescriptorHeap->CreateCbvSrvDescriptorHeaps(
 		pd3dDevice,
 		cbvTotal,
 		MAX_GLOBAL_SRVS
 	);
 
-	// °øÅë RTV Æ÷¸Ë
+	// ï¿½ï¿½ï¿½ï¿½ RTV ï¿½ï¿½ï¿½ï¿½
 	DXGI_FORMAT rtvFormats[5] =
 	{
 		DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -198,7 +199,7 @@ void CScene::BuildObjects(
 	BuildStaticBatch(pd3dDevice, pd3dCommandList, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
 	BuildSkinnedBatch(pd3dDevice, pd3dCommandList, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
 
-	// 6. Scene °øÅë Shader Variables
+	// 6. Scene ï¿½ï¿½ï¿½ï¿½ Shader Variables
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
 	BuildPlayer(pd3dDevice, pd3dCommandList);
 	CreateMainCamera(pd3dDevice, pd3dCommandList, m_pPlayer.get());
@@ -362,7 +363,7 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevice)
 	constexpr UINT MAX_GLOBAL_SRVS = 1024;
 	pd3dDescriptorRanges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	pd3dDescriptorRanges[1].NumDescriptors = MAX_GLOBAL_SRVS;
-	pd3dDescriptorRanges[1].BaseShaderRegister = 0; // t0ºÎÅÍ
+	pd3dDescriptorRanges[1].BaseShaderRegister = 0; // t0ï¿½ï¿½ï¿½ï¿½
 	pd3dDescriptorRanges[1].RegisterSpace = 0;      // space0
 	pd3dDescriptorRanges[1].OffsetInDescriptorsFromTableStart = 0;
 
@@ -622,7 +623,7 @@ void CScene::BuildStaticBatch(
 	// Arrow pool (Static) : same mesh, multiple instances, transform-only move
 	// ------------------------------------------------------------------------
 	{
-		// È­»ì ¸Þ½Ã´Â ÇÏ³ª¸¸ ºôµåÇØ¼­ ¸ðµç È­»ìÀÌ °øÀ¯ÇÑ´Ù.
+		// È­ï¿½ï¿½ ï¿½Þ½Ã´ï¿½ ï¿½Ï³ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ø¼ï¿½ ï¿½ï¿½ï¿½ È­ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ñ´ï¿½.
 		AssetBuildDesc ArrowDesc =
 		{
 			AssetType::Arrow,                   
@@ -653,11 +654,11 @@ void CScene::BuildStaticBatch(
 			obj->SetMesh(0, arrowAsset.mesh);
 			obj->AddComponent<CStaticMeshRendererComponent>();
 
-			// È­»ì ÀÌµ¿/¼ö¸í ÄÄÆ÷³ÍÆ®
+			// È­ï¿½ï¿½ ï¿½Ìµï¿½/ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®
 			auto* arrow = obj->AddComponent<CArrowComponent>();
 			(void)arrow;
 
-			// Ç® ÃÊ±â »óÅÂ: ¹Ù´Ú ¾Æ·¡·Î ³»·Á¼­ ¼û±è
+			// Ç® ï¿½Ê±ï¿½ ï¿½ï¿½ï¿½ï¿½: ï¿½Ù´ï¿½ ï¿½Æ·ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 			obj->SetPosition(0.0f, -10000.0f, 0.0f);
 
 			obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
@@ -1061,9 +1062,6 @@ void CScene::BuildPlayer(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd
 		obj->Animate(0.0f);
 	}
 
-	// 1) °ø¿ë ÀÌµ¿/¹°¸® ÄÁÆ®·Ñ·¯ (ÀÌ°Ô ½ÇÁ¦·Î ¿òÁ÷ÀÎ´Ù)
-	obj->AddComponent<CCommonPlayerControllerComponent>();
-	// 2) Å¬¶ó Àü¿ë ºê¸®Áö(¾Ö´Ï/ÀÔ·Â + commonÀ¸·Î À§ÀÓ)
 	obj->AddComponent<CPlayerControllerComponent>();
 
 	obj->CreateComponents(pd3dDevice, pd3dCommandList);
@@ -1107,7 +1105,7 @@ CGameObject* CScene::GetDemoFighter(int index) const
 
 void CScene::RequestDemoFighterAttack(int index)
 {
-	// ±âÁ¸ API À¯Áö: index(0..2) -> slot(1..3)
+	// ï¿½ï¿½ï¿½ï¿½ API ï¿½ï¿½ï¿½ï¿½: index(0..2) -> slot(1..3)
 	const int slot = index + 1;
 	RequestPlayerAttackBySlot(slot);
 }
@@ -1117,46 +1115,46 @@ void CScene::RequestPlayerAttackBySlot(int slot)
 	CGameObject* obj = GetPlayerBySlot(slot);
 	if (!obj) return;
 
-	// È­»ì ÆÄ¶ó¹ÌÅÍ(¿øÇÏ¸é ¿©±â¸¸ Á¶Àý)
+	// È­ï¿½ï¿½ ï¿½Ä¶ï¿½ï¿½ï¿½ï¿½(ï¿½ï¿½ï¿½Ï¸ï¿½ ï¿½ï¿½ï¿½â¸¸ ï¿½ï¿½ï¿½ï¿½)
 	const float kArrowSpeed = 3.0f;
 	const float kArrowLife = 6.0f;
-	const float kArrowYOffset = 1.0f; // ¹ß»ç ½Ã pos.y += yOffset
+	const float kArrowYOffset = 1.0f; // ï¿½ß»ï¿½ ï¿½ï¿½ pos.y += yOffset
 
-	// AnimatorComponent ±â¹Ý
+	// AnimatorComponent ï¿½ï¿½ï¿½
 	if (auto* animComp = obj->GetComponent<CAnimatorComponent>())
 	{
 		if (auto* ctrl = animComp->EnsureController())
 		{
 			ctrl->RequestAttack();
 
-			// °ø°Ý ¿äÃ»°ú µ¿½Ã¿¡ È­»ì ¹ß»ç(½½·Ô 0..3 °øÅë)
+			// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã»ï¿½ï¿½ ï¿½ï¿½ï¿½Ã¿ï¿½ È­ï¿½ï¿½ ï¿½ß»ï¿½(ï¿½ï¿½ï¿½ï¿½ 0..3 ï¿½ï¿½ï¿½ï¿½)
 			RequestFireArrow(obj, kArrowSpeed, kArrowLife, kArrowYOffset);
 			return;
 		}
 	}
 
-	// ·¹°Å½Ã AnimController ±â¹Ý
+	// ï¿½ï¿½ï¿½Å½ï¿½ AnimController ï¿½ï¿½ï¿½
 	if (auto* ctrl = obj->GetAnimController())
 	{
 		ctrl->RequestAttack();
 
-		// ·¹°Å½Ãµµ µ¿ÀÏÇÏ°Ô È­»ì ¹ß»ç
+		// ï¿½ï¿½ï¿½Å½Ãµï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï°ï¿½ È­ï¿½ï¿½ ï¿½ß»ï¿½
 		RequestFireArrow(obj, kArrowSpeed, kArrowLife, kArrowYOffset);
 		return;
 	}
 
-	// Animator¸¸ ÀÖ´Â °æ¿ì: °ø°Ýµµ/È­»ìµµ ¿©±â¼­´Â ¼öÇà ºÒ°¡
+	// Animatorï¿½ï¿½ ï¿½Ö´ï¿½ ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½Ýµï¿½/È­ï¿½ìµµ ï¿½ï¿½ï¿½â¼­ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ò°ï¿½
 }
 
 CGameObject* CScene::GetPlayerBySlot(int slot) const
 {
 	if (slot < 0 || slot > 3) return nullptr;
 
-	// slot 0Àº m_pPlayer·Î °íÁ¤
+	// slot 0ï¿½ï¿½ m_pPlayerï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	if (slot == 0) return m_pPlayer.get();
 
-	// slot 1..3Àº ÅÂ±× or m_demoFighters »ç¿ë
-	// (4¸í °íÁ¤ÀÌ¸é m_demoFighters°¡ °¡Àå ºü¸§)
+	// slot 1..3ï¿½ï¿½ ï¿½Â±ï¿½ or m_demoFighters ï¿½ï¿½ï¿½
+	// (4ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ì¸ï¿½ m_demoFightersï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
 	return m_demoFighters[(size_t)(slot - 1)];
 }
 
@@ -1185,18 +1183,18 @@ void CScene::RequestFireArrow(CGameObject* shooter, float speed, float lifeSec, 
 {
 	if (!shooter) return;
 
-	// 1) ¹ß»ç ¹æÇâ = shooterÀÇ Look ¹æÇâ(¿ùµåÇà·Ä basis¿¡¼­ ÃßÃâ)
+	// 1) ï¿½ß»ï¿½ ï¿½ï¿½ï¿½ï¿½ = shooterï¿½ï¿½ Look ï¿½ï¿½ï¿½ï¿½(ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ basisï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
 	const XMFLOAT4X4& W = shooter->GetWorldMatrix();
 
-	// ÀÌ ÇÁ·ÎÁ§Æ®´Â CPU¿¡¼­ row-major·Î µé°í ÀÖ°í ¼ÎÀÌ´õ¿¡ ³Ñ±æ ¶§ Transpose ÇÏ°í ÀÖÀ¸¹Ç·Î,
-	// Look(Forward) º¤ÅÍ´Â º¸Åë 3¹øÂ° Çà(_31,_32,_33)¿¡ µé¾îÀÖ´Ù.
+	// ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ CPUï¿½ï¿½ï¿½ï¿½ row-majorï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½Ö°ï¿½ ï¿½ï¿½ï¿½Ì´ï¿½ï¿½ï¿½ ï¿½Ñ±ï¿½ ï¿½ï¿½ Transpose ï¿½Ï°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ç·ï¿½,
+	// Look(Forward) ï¿½ï¿½ï¿½Í´ï¿½ ï¿½ï¿½ï¿½ï¿½ 3ï¿½ï¿½Â° ï¿½ï¿½(_31,_32,_33)ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ö´ï¿½.
 	XMFLOAT3 dir = { W._31, W._32, W._33 };
 
 	XMVECTOR dirV = XMLoadFloat3(&dir);
 	const float lenSq = XMVectorGetX(XMVector3LengthSq(dirV));
 	if (lenSq < 1e-8f)
 	{
-		// ºñÁ¤»ó(¿µº¤ÅÍ)ÀÌ¸é ±âº» Àü¹æ
+		// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½)ï¿½Ì¸ï¿½ ï¿½âº» ï¿½ï¿½ï¿½ï¿½
 		dir = XMFLOAT3(0.0f, 0.0f, 1.0f);
 		dirV = XMLoadFloat3(&dir);
 	}
@@ -1206,11 +1204,11 @@ void CScene::RequestFireArrow(CGameObject* shooter, float speed, float lifeSec, 
 	XMFLOAT3 dirN{};
 	XMStoreFloat3(&dirN, dirV);
 
-	// 2) ½ÃÀÛ À§Ä¡ = shooter À§Ä¡ + yOffset
+	// 2) ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ = shooter ï¿½ï¿½Ä¡ + yOffset
 	XMFLOAT3 startPos = shooter->GetPosition();
 	startPos.y += yOffset;
 
-	// 3) ¼Óµµ º¤ÅÍ = Look * speed
+	// 3) ï¿½Óµï¿½ ï¿½ï¿½ï¿½ï¿½ = Look * speed
 	const XMFLOAT3 vel =
 	{
 		dirN.x * speed,
@@ -1218,7 +1216,7 @@ void CScene::RequestFireArrow(CGameObject* shooter, float speed, float lifeSec, 
 		dirN.z * speed
 	};
 
-	// 4) Ç®¿¡¼­ ºñÈ°¼º È­»ì Ã£¾Æ Activate + Look ¹æÇâÀ¸·Î È¸Àü Àû¿ë
+	// 4) Ç®ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È°ï¿½ï¿½ È­ï¿½ï¿½ Ã£ï¿½ï¿½ Activate + Look ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ È¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	for (CGameObject* arrowObj : m_arrowRefs)
 	{
 		if (!arrowObj) continue;
@@ -1228,18 +1226,18 @@ void CScene::RequestFireArrow(CGameObject* shooter, float speed, float lifeSec, 
 
 		if (arrow->IsActive()) continue;
 
-		// (A) Æ®·£½ºÆû È¸Àü: Look ¹æÇâ Á¤·Ä
+		// (A) Æ®ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ È¸ï¿½ï¿½: Look ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 		if (auto* tr = arrowObj->GetComponent<CTransformComponent>())
 		{
 			tr->SetLookDirection(dirN);
 		}
 
-		// (B) ÀÌµ¿¹æÇâ(vel) + À§Ä¡(startPos) Àû¿ë
+		// (B) ï¿½Ìµï¿½ï¿½ï¿½ï¿½ï¿½(vel) + ï¿½ï¿½Ä¡(startPos) ï¿½ï¿½ï¿½ï¿½
 		arrow->Activate(startPos, vel, lifeSec);
 		return;
 	}
 
-	// Ç® ºÎÁ·ÀÌ¸é ¹«½Ã(¿øÇÏ¸é ¿©±â¼­ µ¿Àû È®Àå °¡´É)
+	// Ç® ï¿½ï¿½ï¿½ï¿½ï¿½Ì¸ï¿½ ï¿½ï¿½ï¿½ï¿½(ï¿½ï¿½ï¿½Ï¸ï¿½ ï¿½ï¿½ï¿½â¼­ ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
 }
 
 bool CScene::ProcessInput(UCHAR* pKeysBuffer)

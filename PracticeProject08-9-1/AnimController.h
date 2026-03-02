@@ -31,7 +31,7 @@ public:
     void SetAttackClip(const char* name) { m_attackClip = name; }
     void SetAttackClip(const std::string& name) { m_attackClip = name; }
 
-    // ¸¶¿ì½º/Å° ÀÔ·Â µîÀ¸·Î "°ø°Ý 1È¸" ¿äÃ»
+    // ï¿½ï¿½ï¿½ì½º/Å° ï¿½Ô·ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ "ï¿½ï¿½ï¿½ï¿½ 1È¸" ï¿½ï¿½Ã»
     void RequestAttack();
 
 

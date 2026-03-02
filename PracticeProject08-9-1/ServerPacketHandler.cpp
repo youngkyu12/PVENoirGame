@@ -11,7 +11,7 @@ PacketHandlerFunc GPacketHandler[UINT16_MAX];
 bool Handle_INVALID(PacketSessionRef& session, BYTE* buffer, int32 len)
 {
 	PacketHeader* header = reinterpret_cast<PacketHeader*>(buffer);
-	// TODO : ·Î±× ³²±â±â
+	// TODO : ë¡œê·¸ ë‚¨ê¸°ê¸°
 	return false;
 }
 
@@ -21,7 +21,7 @@ bool Handle_S_LOGIN(PacketSessionRef& session, Protocol::S_LOGIN& pkt)
 {
 	if (pkt.success() == false)
 	{
-		// ·Î±×ÀÎ ½ÇÆĞ Ã³¸®
+		// ë¡œê·¸ì¸ ì‹¤íŒ¨ ì²˜ë¦¬
 		return true;
 	}
 
@@ -34,13 +34,14 @@ bool Handle_S_LOGIN(PacketSessionRef& session, Protocol::S_LOGIN& pkt)
 
 	if (pkt.players().size() == 0)
 	{
-		//Ä³¸¯ÅÍ »ı¼º È­¸é
+		//ìºë¦­í„° ìƒì„± í™”ë©´
 	}
 
-	// ÀÔÀå UI ¹öÆ°À» ´­·¯¼­ °ÔÀÓ¿¡ ÀÔÀå
+	// ì…ì¥ UI ë²„íŠ¼ì„ ëˆŒëŸ¬ì„œ ê²Œì„ì— ì…ì¥
 	Protocol::C_ENTER_GAME enterGamePkt;
 	enterGamePkt.set_playerid(g_myPlayerId);
 	enterGamePkt.set_ready(true);
+	//enterGamePkt.set_playerindex(0); // ì²«ë²ˆì§¸ ìºë¦­í„°ë¡œ ì…ì¥
 	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(enterGamePkt);
 	session->Send(sendBuffer);
 
@@ -50,7 +51,7 @@ bool Handle_S_LOGIN(PacketSessionRef& session, Protocol::S_LOGIN& pkt)
 
 bool Handle_S_ENTER_GAME(PacketSessionRef& session, Protocol::S_ENTER_GAME& pkt)
 {
-	// GAME_START ÆĞÅ¶À» °è¼Ó Àü¼ÛÇÔ
+	// GAME_START íŒ¨í‚·ì„ ê³„ì† ì „ì†¡í•¨
 	Protocol::C_GAME_START startPkt;
 	startPkt.set_playerid(g_myPlayerId);
 	startPkt.set_playerweapon(0x1010);
@@ -66,7 +67,7 @@ bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
 {
 	GameStartData data;
 
-	// ÃÊ±â Á¤º¸¸¦ ¼ö½Å¹Ş¾Æ Àû¿ë
+	// ì´ˆê¸° ì •ë³´ë¥¼ ìˆ˜ì‹ ë°›ì•„ ì ìš©
 
 	Protocol::InitStruct worldInit = pkt.initstruct();
 	auto players = worldInit.players();
@@ -78,7 +79,7 @@ bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
 
 	for (auto& player : players)
 	{
-		// ÇÃ·¹ÀÌ¾î Á¤º¸¸¦ ¿Å±ä´Ù
+		// í”Œë ˆì´ì–´ ì •ë³´ë¥¼ ì˜®ê¸´ë‹¤
 		auto transform = player.transform();
 		auto position = transform.position();
 		auto yaw = transform.yaw();
@@ -92,7 +93,7 @@ bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
 
 	for (auto& enemy : enemies)
 	{
-		// Àû Á¤º¸¸¦ ¿Å±ä´Ù
+		// ì  ì •ë³´ë¥¼ ì˜®ê¸´ë‹¤
 		auto transform = enemy.transform();
 		auto position = transform.position();
 		auto yaw = transform.yaw();
@@ -104,7 +105,7 @@ bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
 		data.enemies.push_back({ enemy.id(), {position.x(), position.y(), position.z()}, yaw });
 	}
 
-	// networkQueue¿¡ °ÔÀÓ ½ÃÀÛ ÆĞÅ¶ push
+	// networkQueueì— ê²Œì„ ì‹œì‘ íŒ¨í‚· push
 	g_NetworkQueue.PushGameStart(std::move(data));
 
 	
@@ -115,13 +116,13 @@ bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
 
 bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pkt)
 {
-	// ÇÁ·¹ÀÓ¸¶´Ù ÀûÀÇ À§Ä¡, ÇÃ·¹ÀÌ¾îÀÇ À§Ä¡, ÇÃ·¹ÀÌ¾îÀÇ HP µîµîÀ» ¼ö½Å¹Ş¾Æ Àû¿ë
+	// í”„ë ˆì„ë§ˆë‹¤ ì ì˜ ìœ„ì¹˜, í”Œë ˆì´ì–´ì˜ ìœ„ì¹˜, í”Œë ˆì´ì–´ì˜ HP ë“±ë“±ì„ ìˆ˜ì‹ ë°›ì•„ ì ìš©
 	auto players = pkt.players();
 	auto enemies = pkt.enemies();
 
 	for (auto& player : players)
 	{
-		// ÇÃ·¹ÀÌ¾î Á¤º¸¸¦ ¿Å±ä´Ù
+		// í”Œë ˆì´ì–´ ì •ë³´ë¥¼ ì˜®ê¸´ë‹¤
 		auto transform = player.transform();
 		auto position = transform.position();
 		auto yaw = transform.yaw();
@@ -129,7 +130,7 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 
 	for (auto& enemy : enemies)
 	{
-		// Àû Á¤º¸¸¦ ¿Å±ä´Ù
+		// ì  ì •ë³´ë¥¼ ì˜®ê¸´ë‹¤
 		auto transform = enemy.transform();
 		auto position = transform.position();
 		auto yaw = transform.yaw();

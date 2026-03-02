@@ -18,6 +18,7 @@ cbuffer cbGameObjectInfo : register(b2)
     uint3 _padObj;
 };
 
+
 SamplerState gssDefaultSamplerState : register(s0);
 
 cbuffer cbDrawOptions : register(b5)
