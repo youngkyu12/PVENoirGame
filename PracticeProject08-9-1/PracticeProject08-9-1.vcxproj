@@ -176,6 +176,7 @@
     <ClInclude Include="Material.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="ModelComponent.h" />
+    <ClInclude Include="NetworkQueue.h" />
     <ClInclude Include="Object.h" />
     <ClInclude Include="PlayerControllerComponent.h" />
     <ClInclude Include="PracticeProject08-9-1.h" />
@@ -189,6 +190,7 @@
     <ClInclude Include="SkinningComponent.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="Struct.pb.h" />
+    <ClInclude Include="StructGenerator.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="Texture.h" />
     <ClInclude Include="Timer.h" />
@@ -224,6 +226,7 @@
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="ModelComponent.cpp" />
+    <ClCompile Include="NetworkQueue.cpp" />
     <ClCompile Include="Object.cpp" />
     <ClCompile Include="PlayerControllerComponent.cpp" />
     <ClCompile Include="PracticeProject08-9-1.cpp" />
