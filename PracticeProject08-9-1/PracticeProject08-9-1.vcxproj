@@ -171,6 +171,7 @@
     <ClInclude Include="Enum.pb.h" />
     <ClInclude Include="GameFramework.h" />
     <ClInclude Include="GameScene.h" />
+    <ClInclude Include="GlobalValues.h" />
     <ClInclude Include="InitStruct.pb.h" />
     <ClInclude Include="LightComponent.h" />
     <ClInclude Include="LightTypes.h" />
@@ -178,6 +179,7 @@
     <ClInclude Include="MenuScene.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="ModelComponent.h" />
+    <ClInclude Include="NetworkQueue.h" />
     <ClInclude Include="Object.h" />
     <ClInclude Include="PlayerControllerComponent.h" />
     <ClInclude Include="PracticeProject08-9-1.h" />
@@ -193,6 +195,7 @@
     <ClInclude Include="SkinningComponent.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="Struct.pb.h" />
+    <ClInclude Include="StructGenerator.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="Texture.h" />
     <ClInclude Include="Timer.h" />
@@ -217,6 +220,7 @@
     </ClCompile>
     <ClCompile Include="GameFramework.cpp" />
     <ClCompile Include="GameScene.cpp" />
+    <ClCompile Include="GlobalValues.cpp" />
     <ClCompile Include="InitStruct.pb.cc">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
@@ -226,6 +230,7 @@
     <ClCompile Include="MenuScene.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="ModelComponent.cpp" />
+    <ClCompile Include="NetworkQueue.cpp" />
     <ClCompile Include="Object.cpp" />
     <ClCompile Include="PlayerControllerComponent.cpp" />
     <ClCompile Include="PracticeProject08-9-1.cpp" />

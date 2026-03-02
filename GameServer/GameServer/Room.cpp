@@ -66,16 +66,13 @@ void Room::StartGame(bool ready, uint32 index)
 		return;
 
 	WRITE_LOCK;
-	static Atomic<uint32> readyCount = 0;
-	if(ready != players[index]->IsActive())
-	{
-		players[index]->SetActive(ready);
-		readyCount += ready ? 1 : -1;
-	}
+	static bool p_ready[4] = { false, false, false, false };
+	p_ready[index] = ready;
 
 	static Atomic<bool> gameStarted = false;
 
-	if(readyCount >= 4)
+
+	if(p_ready[0] && p_ready[1] && p_ready[2] && p_ready[3])
 	{
 		if (gameStarted.exchange(true) == false)
 		{
@@ -101,51 +98,44 @@ void Room::EndGame()
 void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
 {
 	// 최초로 들어온 스레드가 패킷 작성 후 전송
-	Protocol::InitStruct initStruct;
+	Protocol::InitStruct* initStruct = gameStartPkt.mutable_initstruct();
 	for (auto playerMap : players)
 	{
 		PlayerRef& player = playerMap.second;
 
-		auto p = initStruct.add_players();
+		auto p = initStruct->add_players();
 		p->set_id(player->playerId);
 		p->set_name(player->name);
 		p->set_playertype(player->type);
 
-
-		Protocol::Vec3f* position = new Protocol::Vec3f();
+		Protocol::Transform* transform = p->mutable_transform();
+		Protocol::Vec3f* position = transform->mutable_position();
 		position->set_x(player->GetPosition().x);
 		position->set_y(player->GetPosition().y);
 		position->set_z(player->GetPosition().z);
 
-
-		Protocol::Transform transform = p->transform();
-
-		transform.set_allocated_position(position);
-		transform.set_yaw(player->GetYaw());
+		transform->set_yaw(player->GetYaw());
 	}
 
 
 	for (auto enemyMap : enemies)
 	{
 		EnemyRef& enemy = enemyMap.second;
-		auto e = initStruct.add_enemies();
+		auto e = initStruct->add_enemies();
 		e->set_id(enemyMap.first);
 		e->set_enemytype(enemy->type);
 
 
-		Protocol::Transform transform = e->transform();
-		Protocol::Vec3f position = transform.position();
-		position.set_x(enemy->GetPosition().x);
-		position.set_y(enemy->GetPosition().y);
-		position.set_z(enemy->GetPosition().z);
-
-		transform.set_allocated_position(&position);
+		Protocol::Transform* transform = e->mutable_transform();
+		Protocol::Vec3f* position = transform->mutable_position();
+		position->set_x(enemy->GetPosition().x);
+		position->set_y(enemy->GetPosition().y);
+		position->set_z(enemy->GetPosition().z);
 
 
 	}
 
 
-	gameStartPkt.set_allocated_initstruct(&initStruct);
 
 
 

@@ -12,6 +12,7 @@
 
 #include "Service.h"
 #include "ServerPacketHandler.h"
+#include "GlobalValues.h"
 
 
 CGameFramework::CGameFramework()
@@ -368,7 +369,7 @@ void CGameFramework::CreateDepthStencilView()
 	);
 }
 
-// ÃÊ±â¿¡´Â MenuSceneÀ» ºôµåÇÑ´Ù.
+// ï¿½Ê±â¿¡ï¿½ï¿½ MenuSceneï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ñ´ï¿½.
 void CGameFramework::BuildObjects()
 {
 	BuildSceneInternal(ESceneId::Menu, true);
@@ -378,7 +379,7 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 {
 	WaitForGpuComplete();
 
-	// ÀÌÀü Scene/PP Á¤¸®
+	// ï¿½ï¿½ï¿½ï¿½ Scene/PP ï¿½ï¿½ï¿½ï¿½
 	m_SceneManager.ReleaseCurrent();
 	m_pCamera = nullptr;
 
@@ -388,13 +389,13 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 		m_pPostProcessingShader.reset();
 	}
 
-	// ºôµå Ä¿¸Çµå ±â·Ï ½ÃÀÛ
+	// ï¿½ï¿½ï¿½ï¿½ Ä¿ï¿½Çµï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	HRESULT hr = m_pd3dCommandAllocator->Reset();
 	(void)hr;
 	hr = m_pd3dCommandList->Reset(m_pd3dCommandAllocator.Get(), nullptr);
 	(void)hr;
 
-	// 1) Scene ºôµå (Menu/Game)
+	// 1) Scene ï¿½ï¿½ï¿½ï¿½ (Menu/Game)
 	m_SceneManager.BuildScene(id, m_pd3dDevice.Get(), m_pd3dCommandList.Get());
 
 	CScene* scene = m_SceneManager.GetScene();
@@ -406,7 +407,7 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 
 	m_pCamera = scene->GetMainCamera();
 
-	// 2) PostProcess Àç»ý¼º (Scene ÀüÈ¯ ½Ã SRV ÈüÀÌ »õ·Î ¸¸µé¾îÁö¹Ç·Î ¹Ýµå½Ã Àçºôµå)
+	// 2) PostProcess ï¿½ï¿½ï¿½ï¿½ï¿½ (Scene ï¿½ï¿½È¯ ï¿½ï¿½ SRV ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç·ï¿½ ï¿½Ýµï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½)
 	m_pPostProcessingShader = make_shared<CTextureToFullScreenShader>();
 	m_pPostProcessingShader->CreateShader(
 		m_pd3dDevice.Get(),
@@ -417,7 +418,7 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 	);
 	m_pPostProcessingShader->BuildObjects(m_pd3dDevice.Get(), m_pd3dCommandList.Get(), &m_nDrawOption);
 
-	// RTV heap¿¡¼­ swapchain µÚ¿¡ ºÙ¿©¼­ postprocess RTµéÀ» ¸¸µç´Ù.
+	// RTV heapï¿½ï¿½ï¿½ï¿½ swapchain ï¿½Ú¿ï¿½ ï¿½Ù¿ï¿½ï¿½ï¿½ postprocess RTï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½.
 	D3D12_CPU_DESCRIPTOR_HANDLE d3dRtvCPUDescriptorHandle = m_pd3dRtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	d3dRtvCPUDescriptorHandle.ptr += (::gnRtvDescriptorIncrementSize * m_nSwapChainBuffers);
 
@@ -436,7 +437,7 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 		d3dRtvCPUDescriptorHandle
 	);
 
-	// Depth SRVµµ »õ SceneÀÇ SRV Èü¿¡ ´Ù½Ã ¸¸µç´Ù.
+	// Depth SRVï¿½ï¿½ ï¿½ï¿½ Sceneï¿½ï¿½ SRV ï¿½ï¿½ï¿½ï¿½ ï¿½Ù½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½.
 	D3D12_GPU_DESCRIPTOR_HANDLE d3dDsvGPUDescriptorHandle = CScene::m_pDescriptorHeap->CreateShaderResourceView(
 		m_pd3dDevice.Get(),
 		m_pd3dDepthStencilBuffer.Get(),
@@ -444,7 +445,7 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 	);
 	(void)d3dDsvGPUDescriptorHandle;
 
-	// Ä¿¸Çµå Á¦Ãâ
+	// Ä¿ï¿½Çµï¿½ ï¿½ï¿½ï¿½ï¿½
 	hr = m_pd3dCommandList->Close();
 	(void)hr;
 
@@ -452,7 +453,7 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 	m_pd3dCommandQueue->ExecuteCommandLists(1, ppd3dCommandLists);
 	WaitForGpuComplete();
 
-	// ¾÷·Îµå ¹öÆÛ ÇØÁ¦
+	// ï¿½ï¿½ï¿½Îµï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	if (scene)
 		scene->ReleaseUploadBuffers();
 
@@ -484,7 +485,7 @@ void CGameFramework::OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM
 	CScene* scene = m_SceneManager.GetScene();
 	if (scene) scene->OnProcessingMouseMessage(hWnd, nMessageID, wParam, lParam);
 
-	// MenuSceneÀÌ ¿äÃ»À» ¿Ã¸®¸é ¿©±â¼­ ¹Þ¾Æ¼­ ´ÙÀ½ ÇÁ·¹ÀÓ¿¡ Scene ÀüÈ¯
+	// MenuSceneï¿½ï¿½ ï¿½ï¿½Ã»ï¿½ï¿½ ï¿½Ã¸ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½â¼­ ï¿½Þ¾Æ¼ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ó¿ï¿½ Scene ï¿½ï¿½È¯
 	if (scene)
 	{
 		CScene::ESceneRequest req;
@@ -751,7 +752,7 @@ void CGameFramework::FrameAdvance()
 
 	m_GameTimer.Tick(0.0f);
 
-	// ¡Ú MenuScene Å¬¸¯ ¿äÃ»ÀÌ ÀÖÀ¸¸é ¿©±â¼­ GameSceneÀ» lazy build ÈÄ ÀüÈ¯
+	// ï¿½ï¿½ MenuScene Å¬ï¿½ï¿½ ï¿½ï¿½Ã»ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½â¼­ GameSceneï¿½ï¿½ lazy build ï¿½ï¿½ ï¿½ï¿½È¯
 	ApplyPendingSceneSwitch();
 
 	ProcessInput();
