@@ -10,6 +10,7 @@
 
 #include "Service.h"
 #include "ServerPacketHandler.h"
+#include "GlobalValues.h"
 
 CGameFramework::CGameFramework()
 {
@@ -400,6 +401,10 @@ void CGameFramework::CreateDepthStencilView()
 
 void CGameFramework::BuildObjects()
 {
+	while (g_GameStarted == false)
+	{
+		cout << "Waiting for game to start..." << endl;
+	}
 	m_pd3dCommandList->Reset(m_pd3dCommandAllocator.Get(), nullptr);
 
 	m_pScene = make_unique<CScene>();
