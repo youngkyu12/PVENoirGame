@@ -276,6 +276,9 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
         sm.boneWeights.reserve(vertexCount);
         sm.indices.reserve(indexCount);
 
+        sm.subMeshMin = XMFLOAT3(FLT_MAX, FLT_MAX, FLT_MAX);
+        sm.subMeshMax = XMFLOAT3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
         // 3-3) 정점 데이터
         for (uint32_t v = 0; v < vertexCount; ++v)
         {
@@ -307,7 +310,23 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
             sm.tangents.emplace_back(tan[0], tan[1], tan[2], tan[3]); // [ADD]
             sm.boneIndices.emplace_back(bi[0], bi[1], bi[2], bi[3]);
             sm.boneWeights.emplace_back(bw[0], bw[1], bw[2], bw[3]);
+
+            sm.subMeshMin.x = min(sm.subMeshMin.x, pos[0]);
+            sm.subMeshMin.y = min(sm.subMeshMin.y, pos[1]);
+            sm.subMeshMin.z = min(sm.subMeshMin.z, pos[2]);
+
+            sm.subMeshMax.x = max(sm.subMeshMax.x, pos[0]);
+            sm.subMeshMax.y = max(sm.subMeshMax.y, pos[1]);
+            sm.subMeshMax.z = max(sm.subMeshMax.z, pos[2]);
         }
+       
+        MeshMin.x = min(MeshMin.x, sm.subMeshMin.x);
+        MeshMin.y = min(MeshMin.y, sm.subMeshMin.y);
+        MeshMin.z = min(MeshMin.z, sm.subMeshMin.z);
+
+        MeshMax.x = max(MeshMax.x, sm.subMeshMax.x);
+        MeshMax.y = max(MeshMax.y, sm.subMeshMax.y);
+        MeshMax.z = max(MeshMax.z, sm.subMeshMax.z);
 
         // 3-4) 인덱스 데이터
         for (uint32_t ii = 0; ii < indexCount; ++ii)
@@ -561,6 +580,16 @@ BOOL CMesh::RayIntersectionByTriangle(XMVECTOR& xmRayOrigin, XMVECTOR& xmRayDire
     if (bIntersected && (fHitDistance < *pfNearHitDistance)) *pfNearHitDistance = fHitDistance;
 
     return(bIntersected);
+}
+
+XMFLOAT3 CMesh::GetMeshMin() const
+{
+    return MeshMin;
+}
+
+XMFLOAT3 CMesh::GetMeshMax() const
+{
+    return MeshMax;
 }
 
 //==========================================================================

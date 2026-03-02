@@ -1,17 +1,11 @@
 //-----------------------------------------------------------------------------
 // File: PlayerControllerComponent.h
-// Å¬¶óÀÌ¾ðÆ® Àü¿ë "ºê¸®Áö" ÄÄÆ÷³ÍÆ®
-// - ÀÌµ¿/¹°¸®/±ÇÀ§ »óÅÂ: CCommonPlayerControllerComponent·Î À§ÀÓ
-// - Å¬¶ó Àü¿ë: Animator/AnimController speed °»½Å, Attack Áß ÀÔ·Â/ÀÌµ¿/È¸Àü Â÷´Ü
 //-----------------------------------------------------------------------------
-
 #pragma once
 
-#include <cstdint>
 #include "Component.h"
 
 class CGameObject;
-class CCommonPlayerControllerComponent;
 
 class CPlayerControllerComponent final : public CComponentT<CPlayerControllerComponent>
 {
@@ -25,48 +19,56 @@ public:
 public:
     explicit CPlayerControllerComponent(CGameObject* owner);
 
-    // Input
+    // ----------------------------
+    // Input -> (Animator speed)
+    // ----------------------------
     void SetInputDirection(DWORD dwDirection);
     DWORD GetInputDirection() const { return m_inputDir; }
 
-    // Movement API (legacy signature À¯Áö) - ½ÇÁ¦ ÀÌµ¿Àº common ÄÁÆ®·Ñ·¯·Î À§ÀÓ
+    // ----------------------------
+    // API (legacy CPlayer mirror)
+    // ----------------------------
     void Move(DWORD dwDirection, float fDistance, bool bUpdateVelocity = false,
         EVerticalMoveSpace upSpace = EVerticalMoveSpace::WorldUp);
 
     void MoveShift(const XMFLOAT3& shift, bool bUpdateVelocity = false);
 
     void Rotate(float pitchDeg, float yawDeg, float rollDeg); // legacy: yaw-only
+
+    void Update(float dt);
+    // ----------------------------
+    // Tuning / State accessors
+    // ----------------------------
+    void SetFriction(float f) { m_friction = f; }
+    void SetGravity(const XMFLOAT3& g) { m_gravity = g; }
+    void SetMaxVelocityXZ(float v) { m_maxVelXZ = v; }
+    void SetMaxVelocityY(float v) { m_maxVelY = v; }
+    void SetVelocity(const XMFLOAT3& v) { m_velocity = v; }
     void SetYawDegrees(float yawDeg);
+
+    const XMFLOAT3& GetVelocity() const { return m_velocity; }
     float GetYawDegrees() const { return m_yawDeg; }
 
-    // Tuning (commonÀ¸·Î Àü´Þ)
-    void SetFriction(float f);
-    void SetGravity(const XMFLOAT3& g);
-    void SetMaxVelocityXZ(float v);
-    void SetMaxVelocityY(float v);
-
-    // legacy À¯Áö¿ë
-    void SetVelocity(const XMFLOAT3& v) { m_velocity = v; }
-    const XMFLOAT3& GetVelocity() const { return m_velocity; }
-
+    // ----------------------------
     // Lifecycle
+    // ----------------------------
     void OnUpdate(float dt) override;
 
 private:
-    bool IsAttackBlocking() const;
+    void ApplyYawToOwnerTransform();
     void SyncAnimatorSpeed();
 
-    CCommonPlayerControllerComponent* GetCommon() const;
-    void PushTuningToCommon();
-
 private:
-    DWORD    m_inputDir = 0;
-    float    m_yawDeg = 0.0f;
-
     XMFLOAT3 m_velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
     XMFLOAT3 m_gravity = XMFLOAT3(0.0f, 0.0f, 0.0f);
 
+    float    m_yawDeg = 0.0f; // degrees
     float    m_maxVelXZ = 0.0f;
     float    m_maxVelY = 0.0f;
     float    m_friction = 0.0f;
+
+    DWORD    m_inputDir = 0;    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ô·ï¿½ ï¿½ï¿½ï¿½ï¿½(ï¿½Ö´ï¿½ speed ï¿½ï¿½ï¿½ï¿½ï¿½)
+public:
+    void SetInputDirection(uint32_t dir) { m_inputDir = dir; }
+
 };

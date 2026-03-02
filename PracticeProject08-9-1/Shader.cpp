@@ -742,7 +742,7 @@ D3D12_SHADER_BYTECODE CTextureToFullScreenShader::CreatePixelShader(ID3DBlob** p
 
 void CTextureToFullScreenShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	UINT ncbElementBytes = ((sizeof(PS_CB_DRAW_OPTIONS) + 255) & ~255); //256ÀÇ ¹è¼ö
+	UINT ncbElementBytes = ((sizeof(PS_CB_DRAW_OPTIONS) + 255) & ~255); //256ï¿½ï¿½ ï¿½ï¿½ï¿½
 	m_pd3dcbDrawOptions = ::CreateBufferResource(
 		pd3dDevice,
 		pd3dCommandList,
