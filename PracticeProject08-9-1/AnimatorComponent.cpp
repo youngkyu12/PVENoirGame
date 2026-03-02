@@ -18,8 +18,6 @@ CAnimatorComponent::~CAnimatorComponent() = default;
 
 void CAnimatorComponent::OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*)
 {
-    // �޽ô� ���� ctor���� SetMesh�� ���� �� CreateComponents�� ȣ��ǹǷ�
-    // ���⼭ ���̷��� ���ε��� �õ��Ѵ�.
     EnsureAnimator();
     EnsureController();
     SyncSkeletonIfPossible();
@@ -27,7 +25,7 @@ void CAnimatorComponent::OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*)
 
 void CAnimatorComponent::OnUpdate(float dt)
 {
-    // 1) controller/state update + anim update������
+    // 1) controller/state update + anim update
     CGameObject* owner = GetOwner();
     if (!owner) return;
 
@@ -43,7 +41,6 @@ void CAnimatorComponent::OnUpdate(float dt)
 
 void CAnimatorComponent::OnLateUpdate(float /*dt*/)
 {
-    // 2) ���� ��� ���ε常
     UploadIfSkinned();
 }
 
@@ -53,7 +50,6 @@ CAnimator* CAnimatorComponent::EnsureAnimator()
     if (!m_pAnimator)
         m_pAnimator = std::make_unique<CAnimator>();
 
-    // ���̷����� �޽� �غ� ���Ŀ��� �����ϹǷ�, �ʿ��� ������ �õ�
     SyncSkeletonIfPossible();
     return m_pAnimator.get();
 }
@@ -70,7 +66,6 @@ void CAnimatorComponent::AddClip(const AnimationClip& clip)
     CAnimator* anim = EnsureAnimator();
     if (!anim) return;
 
-    // bones/map �غ�� ��쿡�� SetSkeleton ����
     SyncSkeletonIfPossible();
     anim->AddClip(clip);
 }
@@ -150,11 +145,10 @@ bool CAnimatorComponent::CrossFade(const std::string& name, float blendTime, boo
     if (!anim) return false;
 
     SyncSkeletonIfPossible();
-    return anim->CrossFade(name.c_str(), blendTime, loop, start); // �� Animator �ñ״�ó�� ���� ����
+    return anim->CrossFade(name.c_str(), blendTime, loop, start);
 }
 
 void CAnimatorComponent::InvalidateSkeleton()
 {
     m_bSkeletonBound = false;
-    // anim�� ������ ���� SyncSkeletonIfPossible���� �ٽ� SetSkeleton �õ�
 }
