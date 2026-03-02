@@ -3,6 +3,8 @@
 #include "BufferReader.h"
 #include "Protocol.pb.h"
 #include "GlobalValues.h"
+#include "NetworkQueue.h"
+
 
 PacketHandlerFunc GPacketHandler[UINT16_MAX];
 
@@ -62,6 +64,8 @@ bool Handle_S_ENTER_GAME(PacketSessionRef& session, Protocol::S_ENTER_GAME& pkt)
 
 bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
 {
+	GameStartData data;
+
 	// 초기 정보를 수신받아 적용
 
 	Protocol::InitStruct worldInit = pkt.initstruct();
@@ -69,18 +73,44 @@ bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
 	auto enemies = worldInit.enemies();
 	//auto buildings = worldInit.buildings();
 
+	data.players.reserve(players.size());
+	data.enemies.reserve(enemies.size());
+
 	for (auto& player : players)
 	{
 		// 플레이어 정보를 옮긴다
+		auto transform = player.transform();
+		auto position = transform.position();
+		auto yaw = transform.yaw();
+
+		std::string s = player.DebugString();
+		s += "\n";
+		OutputDebugStringA(s.c_str());
+
+		data.players.push_back({ player.id(), {position.x(), position.y(), position.z()}, yaw });
 	}
 
 	for (auto& enemy : enemies)
 	{
 		// 적 정보를 옮긴다
+		auto transform = enemy.transform();
+		auto position = transform.position();
+		auto yaw = transform.yaw();
+
+		std::string s = enemy.DebugString();
+		s += "\n";
+		OutputDebugStringA(s.c_str());
+
+		data.enemies.push_back({ enemy.id(), {position.x(), position.y(), position.z()}, yaw });
 	}
 
+	// networkQueue에 게임 시작 패킷 push
+	g_NetworkQueue.PushGameStart(std::move(data));
+
+	
+
 	g_GameStarted = true;
-	return false;
+	return true;
 }
 
 bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pkt)
@@ -92,11 +122,17 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 	for (auto& player : players)
 	{
 		// 플레이어 정보를 옮긴다
+		auto transform = player.transform();
+		auto position = transform.position();
+		auto yaw = transform.yaw();
 	}
 
 	for (auto& enemy : enemies)
 	{
 		// 적 정보를 옮긴다
+		auto transform = enemy.transform();
+		auto position = transform.position();
+		auto yaw = transform.yaw();
 	}
 
 	return false;

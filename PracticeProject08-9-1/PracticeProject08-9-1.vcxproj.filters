@@ -95,7 +95,7 @@
     <Filter Include="Components\Arrow">
       <UniqueIdentifier>{22421a35-4530-4e8d-b848-e2d4d9cfb516}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Network\NetworkEntry">
+    <Filter Include="Network\NetworkGlobal">
       <UniqueIdentifier>{076be12e-11b3-429d-b725-d571e44b0277}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -206,7 +206,13 @@
       <Filter>Components\PlayerController</Filter>
     </ClInclude>
     <ClInclude Include="GlobalValues.h">
-      <Filter>Network\NetworkEntry</Filter>
+      <Filter>Network\NetworkGlobal</Filter>
+    </ClInclude>
+    <ClInclude Include="StructGenerator.h">
+      <Filter>Network\NetworkGlobal</Filter>
+    </ClInclude>
+    <ClInclude Include="NetworkQueue.h">
+      <Filter>Network\NetworkGlobal</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -301,7 +307,10 @@
       <Filter>Components\PlayerController</Filter>
     </ClCompile>
     <ClCompile Include="GlobalValues.cpp">
-      <Filter>Network\NetworkEntry</Filter>
+      <Filter>Network\NetworkGlobal</Filter>
+    </ClCompile>
+    <ClCompile Include="NetworkQueue.cpp">
+      <Filter>Network\NetworkGlobal</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
