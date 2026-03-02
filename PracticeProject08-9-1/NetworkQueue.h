@@ -18,6 +18,18 @@ struct ActorState
 };
 
 // ============================================================
+// 총알 상태
+// ============================================================
+
+struct BulletState
+{
+    uint64_t    id;
+    XMFLOAT3    position;
+    XMFLOAT3    velocity;
+    // 필요시 추가 정보
+};
+
+// ============================================================
 // S_GAME_START용 초기화 데이터
 // ============================================================
 struct GameStartData
@@ -35,6 +47,7 @@ struct FrameSnapshot
     uint64_t frameId;
     std::vector<ActorState> players;
     std::vector<ActorState> enemies;
+    std::vector<BulletState> bullets;
 };
 
 // ============================================================
