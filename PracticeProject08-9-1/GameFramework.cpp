@@ -625,22 +625,14 @@ void CGameFramework::ProcessInput()
 	if (GetKeyboardState(pKeysBuffer) && scene)
 		bProcessedByScene = scene->ProcessInput(pKeysBuffer);
 
-	// Demo: 1/2/3 -> Player slot(1/2/3) Attack (edge trigger)
-	static bool s_prevNum1 = false;
-	static bool s_prevNum2 = false;
-	static bool s_prevNum3 = false;
-
-	const bool num1Down = (pKeysBuffer['1'] & 0xF0) != 0;
-	const bool num2Down = (pKeysBuffer['2'] & 0xF0) != 0;
-	const bool num3Down = (pKeysBuffer['3'] & 0xF0) != 0;
-
-	if (num1Down && !s_prevNum1) { if (scene) scene->RequestPlayerAttackBySlot(1); }
-	if (num2Down && !s_prevNum2) { if (scene) scene->RequestPlayerAttackBySlot(2); }
-	if (num3Down && !s_prevNum3) { if (scene) scene->RequestPlayerAttackBySlot(3); }
-
-	s_prevNum1 = num1Down;
-	s_prevNum2 = num2Down;
-	s_prevNum3 = num3Down;
+	// Demo: 0/1/2/3 -> Player slot(0/1/2/3) Attack (edge trigger)
+	static bool s_prevDown[4] = { false, false, false, false };
+	for (int slot = 0; slot < 4; ++slot)
+	{
+		const bool down = (pKeysBuffer['0' + slot] & 0xF0) != 0;
+		if (down && !s_prevDown[slot]) { if (scene) scene->RequestPlayerAttackBySlot(slot); }
+		s_prevDown[slot] = down;
+	}
 
 	CGameObject* playerObj = (scene ? scene->GetPlayer() : nullptr);
 	if (!playerObj) return;

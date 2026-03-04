@@ -59,7 +59,6 @@ private:
         DXGI_FORMAT dsvFormat
     );
 
-    void BuildPlayer(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
     void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd);
 
     // Frame / Render
@@ -77,7 +76,8 @@ public:
 
     // Framework 호환: 플레이어 제공
 public:
-    CGameObject* GetPlayer() const override { return m_pPlayer.get(); }
+    CGameObject* GetPlayer() const override { return GetPlayerBySlot(m_localPlayerSlot); }
+    int GetLocalPlayerSlot() const { return m_localPlayerSlot; }
 
     // Framework 숫자키 공격(슬롯 0..3)
 public:
@@ -96,8 +96,10 @@ public:
     void RequestFireArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f, float yOffset = 0.0f);
 
 private:
-    // Scene State / Owned Objects (Game 전용)
-    std::shared_ptr<CGameObject> m_pPlayer;
+    // slot 0..3 플레이어 포인터(소유는 m_skinnedObjects가 함)
+    std::array<CGameObject*, 4> m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
+
+    int m_localPlayerSlot;
 
     SCENE_STATIC_BATCH  m_staticBatch;
     SCENE_SKINNED_BATCH m_skinnedBatch;
@@ -121,9 +123,4 @@ private:
 
     ComPtr<ID3D12Resource> m_pd3dcbMaterials;
     MATERIAL* m_pcbMappedMaterials = nullptr;
-
-    ComPtr<ID3D12Resource> m_pd3dcbPlayerGameObject;
-    CB_GAMEOBJECT_INFO* m_pcbMappedPlayerGameObject = nullptr;
-    D3D12_GPU_DESCRIPTOR_HANDLE m_playerCbvGpu = { 0 };
-    UINT m_playerCbElementBytes = 0;
 };
