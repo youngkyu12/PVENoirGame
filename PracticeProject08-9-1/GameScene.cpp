@@ -32,7 +32,9 @@ CGameScene::CGameScene()
     m_skinnedBatch.capacity = 10;
     m_skinnedBatch.count = 0;
 
-    m_demoFighters.fill(nullptr);
+    m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
+    m_localPlayerSlot = 0;
+
     m_arrowRefs.clear();
     m_arrowRefs.shrink_to_fit();
 }
@@ -48,12 +50,11 @@ void CGameScene::ReleaseObjects()
 
     m_staticObjects.clear();
     m_skinnedObjects.clear();
-    m_pPlayer.reset();
 
     m_lightObjects.clear();
     m_pPlayerSpotFollower = nullptr;
 
-    m_demoFighters.fill(nullptr);
+    m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
 
     m_staticBatch.objectRefs.clear();
     m_skinnedBatch.objectRefs.clear();
@@ -75,8 +76,6 @@ void CGameScene::ReleaseUploadBuffers()
         if (!m_skinnedObjects[j]) continue;
         m_skinnedObjects[j]->ReleaseUploadBuffers();
     }
-    if (m_pPlayer)
-        m_pPlayer->ReleaseUploadBuffers();
 
 #ifdef _WITH_BATCH_MATERIAL
     if (m_staticBatch.material)  m_staticBatch.material->ReleaseUploadBuffers();
@@ -120,23 +119,13 @@ void CGameScene::ReleaseShaderVariables()
         m_pd3dcbMaterials.Reset();
     }
     m_pcbMappedMaterials = nullptr;
-
-    if (m_pd3dcbPlayerGameObject)
-    {
-        if (m_pcbMappedPlayerGameObject)
-        {
-            m_pd3dcbPlayerGameObject->Unmap(0, NULL);
-            m_pcbMappedPlayerGameObject = nullptr;
-        }
-        m_pd3dcbPlayerGameObject.Reset();
-    }
-
-    m_playerCbvGpu = { 0 };
-    m_playerCbElementBytes = 0;
 }
 
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
+    // 지금은 하드코딩: 로컬 슬롯 = 2
+    m_localPlayerSlot = 2;
+
     CreateGraphicsRootSignature(dev);
 
     constexpr int MAX_GLOBAL_SRVS = 1024;
@@ -151,7 +140,6 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
         m_staticBatch.capacity +
         m_skinnedBatch.capacity +
         1 /*Camera*/ +
-        1 /*Player*/ +
         1 /*etc*/;
 
     m_pDescriptorHeap->CreateCbvSrvDescriptorHeaps(
@@ -183,8 +171,11 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
 
     CreateShaderVariables(dev, cmd);
-    BuildPlayer(dev, cmd);
-    CreateMainCamera(dev, cmd, m_pPlayer.get());
+
+    CGameObject* local = GetPlayer();
+    if (!local) local = GetPlayerBySlot(0);
+
+    CreateMainCamera(dev, cmd, local);
 }
 
 void CGameScene::BuildLightsAndMaterials()
@@ -573,7 +564,9 @@ void CGameScene::BuildSkinnedBatch(
 
     b->count = 0;
 
-    const UINT fighterCount = 3;
+    m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
+
+    const UINT fighterCount = 4;
     const UINT zombieCount = 3;
 
     const XMFLOAT3 playerBase(0.0f, 0.0f, 0.0f);
@@ -664,11 +657,10 @@ void CGameScene::BuildSkinnedBatch(
     }
 
     // ------------------------------------------------------------------------
-    // Fighter (Remote Player 1..3)  +  m_demoFighters[0..2]
+    // Fighter (Players slot 0..3) : 전원 m_skinnedObjects에 포함
+    //  - m_localPlayerSlot(현재 2)만 Local + PlayerControllerComponent 부착
     // ------------------------------------------------------------------------
     {
-        m_demoFighters.fill(nullptr);
-
         AssetBuildDesc FighterDesc =
         {
             AssetType::Fighter,
@@ -678,31 +670,14 @@ void CGameScene::BuildSkinnedBatch(
 
         BuiltAsset asset = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), FighterDesc);
 
-        m_playerCbElementBytes = ((sizeof(CB_GAMEOBJECT_INFO) + 255) & ~255);
-
-        m_pd3dcbPlayerGameObject = ::CreateBufferResource(
-            dev, cmd, nullptr,
-            m_playerCbElementBytes,
-            D3D12_HEAP_TYPE_UPLOAD,
-            D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
-            nullptr
-        );
-
-        m_pd3dcbPlayerGameObject->Map(0, nullptr, (void**)&m_pcbMappedPlayerGameObject);
-
-        m_playerCbvGpu = m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
-        m_pDescriptorHeap->CreateConstantBufferViews(
-            dev,
-            1,
-            m_pd3dcbPlayerGameObject.Get(),
-            m_playerCbElementBytes
-        );
-
-        for (UINT k = 1; k < fighterCount + 1; ++k)
+        for (UINT k = 0; k < fighterCount; ++k)
         {
             if (b->objectRefs.size() >= b->capacity) break;
 
             const UINT i = (UINT)b->objectRefs.size();
+
+            const int slot = (int)k;
+            const bool isLocal = (slot == m_localPlayerSlot);
 
             auto obj = std::make_unique<CGameObject>(1);
 
@@ -717,8 +692,13 @@ void CGameScene::BuildSkinnedBatch(
             {
                 auto* tag = obj->AddComponent<CActorTagComponent>();
                 tag->kind = EActorKind::Player;
-                tag->control = EPlayerControl::Remote;
-                tag->playerSlot = (int32_t)k;
+                tag->control = isLocal ? EPlayerControl::Local : EPlayerControl::Remote;
+                tag->playerSlot = slot;
+            }
+
+            if (isLocal)
+            {
+                obj->AddComponent<CPlayerControllerComponent>();
             }
 
             UINT matId = 0;
@@ -735,7 +715,7 @@ void CGameScene::BuildSkinnedBatch(
             auto mat = std::make_shared<CMaterial>();
             mat->m_nReflection = matId;
 
-            const float x = playerBase.x + 2.0f * (float)k;
+            const float x = playerBase.x + 2.0f * (float)slot;
             obj->SetPosition(x, playerBase.y, playerBase.z);
             obj->Rotate(0.0f, 0.0f, 0.0f);
 
@@ -796,8 +776,8 @@ void CGameScene::BuildSkinnedBatch(
 
             CGameObject* raw = obj.get();
 
-            if ((k >= 1) && (k <= 3))
-                m_demoFighters[k - 1] = raw;
+            if (slot >= 0 && slot <= 3)
+                m_playersBySlot[(size_t)slot] = raw;
 
             m_skinnedObjects.push_back(std::move(obj));
             b->objectRefs.push_back(raw);
@@ -806,109 +786,6 @@ void CGameScene::BuildSkinnedBatch(
     }
 }
 
-void CGameScene::BuildPlayer(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
-{
-    AssetBuildDesc FighterDesc =
-    {
-        AssetType::Fighter,
-        "Assets/Fighter/Mesh/Fighter.bin",
-        "Assets/Fighter/Texture"
-    };
-
-    BuiltAsset asset = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), FighterDesc);
-
-    auto obj = std::make_shared<CGameObject>(1);
-    obj->SetMappedGameObjectCB(m_pcbMappedPlayerGameObject);
-    obj->SetCbvGPUDescriptorHandlePtr(m_playerCbvGpu.ptr);
-
-    obj->SetMesh(0, asset.mesh);
-    obj->AddComponent<CSkinnedMeshRendererComponent>();
-
-    {
-        auto* tag = obj->AddComponent<CActorTagComponent>();
-        tag->kind = EActorKind::Player;
-        tag->control = EPlayerControl::Local;
-        tag->playerSlot = 0;
-    }
-
-    obj->SetPosition(0.0f, 0.0f, 0.0f);
-    obj->Rotate(0.0f, 0.0f, 0.0f);
-
-    if (asset.mesh && asset.mesh->IsSkinnedMesh())
-    {
-        obj->EnableSkinning(dev, asset.mesh->GetBoneCount());
-    }
-
-    AnimationClip idleClip;
-    bool idleLoaded = false;
-
-    auto mesh0 = obj->GetMeshShared(0);
-    if (mesh0)
-    {
-        idleLoaded = mesh0->LoadAnimationFromBIN(
-            "Assets/Fighter/Animation/FighterIdle.bin",
-            "Idle", idleClip, 1.0f
-        );
-    }
-
-    if (idleLoaded)
-    {
-        idleClip.name = "Idle";
-
-        CAnimator* anim = obj->EnsureAnimator();
-        if (anim) anim->AddClip(idleClip);
-
-        AnimationClip moveClip;
-        bool moveLoaded = false;
-
-        if (mesh0)
-        {
-            moveLoaded = mesh0->LoadAnimationFromBIN(
-                "Assets/Fighter/Animation/FighterRun.bin",
-                "Run", moveClip, 1.0f
-            );
-        }
-
-        if (moveLoaded)
-        {
-            moveClip.name = "Run";
-            if (anim) anim->AddClip(moveClip);
-        }
-
-        AnimationClip attackClip;
-        bool attackLoaded = false;
-
-        if (mesh0)
-        {
-            attackLoaded = mesh0->LoadAnimationFromBIN(
-                "Assets/Fighter/Animation/FighterAttack.bin",
-                "Attack", attackClip, 1.0f
-            );
-        }
-
-        if (attackLoaded)
-        {
-            attackClip.name = "Attack";
-            if (anim) anim->AddClip(attackClip);
-        }
-
-        auto* ctrl = obj->EnsureAnimController();
-        ctrl->SetIdleClip("Idle");
-        ctrl->SetMoveClip(moveLoaded ? "Run" : "Idle");
-        ctrl->SetAttackClip("Attack");
-
-        ctrl->SetSpeed(0.0f);
-        ctrl->Update(0.0f);
-
-        obj->Animate(0.0f);
-    }
-
-    obj->AddComponent<CPlayerControllerComponent>();
-
-    obj->CreateComponents(dev, cmd);
-
-    m_pPlayer = obj;
-}
 
 void CGameScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target)
 {
@@ -947,14 +824,14 @@ void CGameScene::SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex)
 
 CGameObject* CGameScene::GetDemoFighter(int index) const
 {
-    if (index < 0 || index >= (int)m_demoFighters.size()) return nullptr;
-    return m_demoFighters[(size_t)index];
+    if (index < 0 || index >= 3) return nullptr;
+    return GetPlayerBySlot(index + 1);
 }
 
 void CGameScene::RequestDemoFighterAttack(int index)
 {
-    const int slot = index + 1;
-    RequestPlayerAttackBySlot(slot);
+    if (index < 0 || index >= 3) return;
+    RequestPlayerAttackBySlot(index + 1);
 }
 
 void CGameScene::RequestPlayerAttackBySlot(int slot)
@@ -987,10 +864,7 @@ void CGameScene::RequestPlayerAttackBySlot(int slot)
 CGameObject* CGameScene::GetPlayerBySlot(int slot) const
 {
     if (slot < 0 || slot > 3) return nullptr;
-
-    if (slot == 0) return m_pPlayer.get();
-
-    return m_demoFighters[(size_t)(slot - 1)];
+    return m_playersBySlot[(size_t)slot];
 }
 
 bool CGameScene::IsLocalPlayer(const CGameObject* obj) const
@@ -1004,7 +878,7 @@ bool CGameScene::OnProcessingMouseMessage(HWND /*hWnd*/, UINT msg, WPARAM /*wPar
 {
     if (msg == WM_LBUTTONDOWN)
     {
-        RequestPlayerAttackBySlot(0);
+        RequestPlayerAttackBySlot(m_localPlayerSlot);
         return true;
     }
     return false;
@@ -1083,12 +957,10 @@ void CGameScene::AnimateObjects(float dt)
         m_skinnedObjects[j]->Animate(dt);
     }
 
-    if (m_pPlayer)
-        m_pPlayer->Animate(dt);
-
-    if (m_pPlayer && m_pPlayerSpotFollower && (m_pPlayerSpotFollower->GetTarget() == nullptr))
+    CGameObject* local = GetPlayer();
+    if (local && m_pPlayerSpotFollower && (m_pPlayerSpotFollower->GetTarget() == nullptr))
     {
-        m_pPlayerSpotFollower->SetTarget(m_pPlayer.get());
+        m_pPlayerSpotFollower->SetTarget(local);
     }
 
     for (UINT j = 0; j < (UINT)m_lightObjects.size(); ++j)
@@ -1166,18 +1038,6 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
             cb->m_nObjectID = j;
         }
     }
-
-    if (m_pPlayer && m_pcbMappedPlayerGameObject)
-    {
-        const XMFLOAT4X4& W = m_pPlayer->GetWorldMatrix();
-
-        XMStoreFloat4x4(
-            &m_pcbMappedPlayerGameObject->m_xmf4x4World,
-            XMMatrixTranspose(XMLoadFloat4x4(&W))
-        );
-
-        m_pcbMappedPlayerGameObject->m_nObjectID = 0;
-    }
 }
 
 void CGameScene::OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera)
@@ -1220,7 +1080,4 @@ void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
             m_skinnedObjects[j]->Render(cmd, camera);
         }
     }
-
-    if (m_pPlayer)
-        m_pPlayer->Render(cmd, camera);
 }
