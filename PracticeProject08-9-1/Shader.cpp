@@ -170,7 +170,6 @@ D3D12_BLEND_DESC CShader::CreateBlendState()
 	d3dBlendDesc.IndependentBlendEnable = FALSE;
 	d3dBlendDesc.RenderTarget[0].BlendEnable = FALSE;
 	d3dBlendDesc.RenderTarget[0].LogicOpEnable = FALSE;
-	d3dBlendDesc.RenderTarget[0].LogicOpEnable = FALSE;
 	d3dBlendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
 	d3dBlendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_ZERO;
 	d3dBlendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
@@ -183,7 +182,12 @@ D3D12_BLEND_DESC CShader::CreateBlendState()
 	return(d3dBlendDesc);
 }
 
-void CShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGraphicsRootSignature, UINT nRenderTargets, DXGI_FORMAT* pdxgiRtvFormats, DXGI_FORMAT dxgiDsvFormat)
+void CShader::CreateShader(
+	ID3D12Device* pd3dDevice, 
+	ID3D12RootSignature* pd3dGraphicsRootSignature, 
+	UINT nRenderTargets,
+	DXGI_FORMAT* pdxgiRtvFormats, 
+	DXGI_FORMAT dxgiDsvFormat)
 {
 	HRESULT hResult;
 
@@ -210,8 +214,7 @@ void CShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGr
 
 	hResult = pd3dDevice->CreateGraphicsPipelineState(
 		&d3dPipelineStateDesc,
-		IID_PPV_ARGS(&m_pd3dPipelineState)
-	);
+		IID_PPV_ARGS(&m_pd3dPipelineState));
 	if (FAILED(hResult))
 	{
 		OutputDebugStringA("CreateGraphicsPipelineState FAILED\n");
@@ -361,8 +364,7 @@ void CStaticObjectsShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSign
 		m_pd3dGraphicsRootSignature.Get(),
 		nRenderTargets,
 		pdxgiRtvFormats,
-		dxgiDsvFormat
-	);
+		dxgiDsvFormat);
 }
 
 D3D12_SHADER_BYTECODE CStaticObjectsShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)

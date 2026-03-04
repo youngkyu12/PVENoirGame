@@ -29,6 +29,7 @@ class CAnimatorComponent;
 class CAnimController;
 class CRenderObjectComponent;
 class CSkinningComponent;
+class CColliderComponent;
 
 struct CB_GAMEOBJECT_INFO
 {

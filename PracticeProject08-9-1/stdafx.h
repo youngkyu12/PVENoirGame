@@ -358,5 +358,6 @@ enum class EColliderType : uint8_t
 	None = 0,
 	AABB,
 	OOBB,
-	BSphere
+	BSphere,
+	Humanoid
 };
