@@ -98,6 +98,15 @@
     <Filter Include="Components\ActorTag">
       <UniqueIdentifier>{38199f9c-9ca3-420a-87f9-ba3629104b65}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Components\Collider">
+      <UniqueIdentifier>{cb3633a4-5644-4271-8ba0-44b8c1569eac}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Components\CollisionSystem">
+      <UniqueIdentifier>{45e3d850-ee98-4f27-8a42-147472a02af0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Components\RigidBody">
+      <UniqueIdentifier>{2e05af4e-9d8f-4ac9-8651-75d54d657c0f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animator.h">
@@ -208,6 +217,15 @@
     <ClInclude Include="PlayerControllerComponent.h">
       <Filter>Components\PlayerController</Filter>
     </ClInclude>
+    <ClInclude Include="ColliderComponent.h">
+      <Filter>Components\Collider</Filter>
+    </ClInclude>
+    <ClInclude Include="CollisionSystem.h">
+      <Filter>Components\CollisionSystem</Filter>
+    </ClInclude>
+    <ClInclude Include="RigidBody.h">
+      <Filter>Components\RigidBody</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -299,6 +317,15 @@
     </ClCompile>
     <ClCompile Include="PlayerControllerComponent.cpp">
       <Filter>Components\PlayerController</Filter>
+    </ClCompile>
+    <ClCompile Include="ColliderComponent.cpp">
+      <Filter>Components\Collider</Filter>
+    </ClCompile>
+    <ClCompile Include="CollisionSystem.cpp">
+      <Filter>Components\CollisionSystem</Filter>
+    </ClCompile>
+    <ClCompile Include="RigidBody.cpp">
+      <Filter>Components\RigidBody</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -13,6 +13,7 @@
 #include "Object.h"
 #include "ActorTagComponent.h"
 #include "ArrowComponent.h"
+#include "ColliderComponent.h"
 
 #include "ThreadManager.h"
 #include "Service.h"
@@ -21,7 +22,7 @@
 #include "ServerPacketHandler.h"
 
 std::unique_ptr<CDescriptorHeap> CScene::m_pDescriptorHeap = std::make_unique<CDescriptorHeap>();
-;
+
 
 CScene::CScene()
 {
@@ -151,7 +152,7 @@ void CScene::BuildObjects(
 	// 1. Root Signature
 	CreateGraphicsRootSignature(pd3dDevice);
 
-	// 2. Shader �ν��Ͻ� ���� + ������Ʈ ���� ��Ȯ��
+	// 2. Shader 인스턴스 생성 + 오브젝트 개수 선확보
 	constexpr int MAX_GLOBAL_SRVS = 1024;
 
 	auto pStaticShader = std::make_shared<CStaticObjectsShader>();
@@ -167,14 +168,14 @@ void CScene::BuildObjects(
 		1 /*Player*/ +
 		1 /*etc*/;
 
-	// 3. DescriptorHeap�� "�� ����" ����
+	// 3. DescriptorHeap은 "한 번만" 생성
 	m_pDescriptorHeap->CreateCbvSrvDescriptorHeaps(
 		pd3dDevice,
 		cbvTotal,
 		MAX_GLOBAL_SRVS
 	);
 
-	// ���� RTV ����
+	// 공통 RTV 포맷
 	DXGI_FORMAT rtvFormats[5] =
 	{
 		DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -199,7 +200,7 @@ void CScene::BuildObjects(
 	BuildStaticBatch(pd3dDevice, pd3dCommandList, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
 	BuildSkinnedBatch(pd3dDevice, pd3dCommandList, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
 
-	// 6. Scene ���� Shader Variables
+	// 6. Scene 공통 Shader Variables
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
 	BuildPlayer(pd3dDevice, pd3dCommandList);
 	CreateMainCamera(pd3dDevice, pd3dCommandList, m_pPlayer.get());
@@ -363,7 +364,7 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevice)
 	constexpr UINT MAX_GLOBAL_SRVS = 1024;
 	pd3dDescriptorRanges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	pd3dDescriptorRanges[1].NumDescriptors = MAX_GLOBAL_SRVS;
-	pd3dDescriptorRanges[1].BaseShaderRegister = 0; // t0����
+	pd3dDescriptorRanges[1].BaseShaderRegister = 0; // t0부터
 	pd3dDescriptorRanges[1].RegisterSpace = 0;      // space0
 	pd3dDescriptorRanges[1].OffsetInDescriptorsFromTableStart = 0;
 
@@ -536,8 +537,7 @@ void CScene::BuildStaticBatch(
 		b->cbElementBytes * cap,
 		D3D12_HEAP_TYPE_UPLOAD,
 		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
-		nullptr
-	);
+		nullptr);
 
 	b->cbGameObjects->Map(0, nullptr, (void**)&b->mappedGameObjects);
 
@@ -608,11 +608,16 @@ void CScene::BuildStaticBatch(
 		obj->SetMesh(0, asset.mesh);
 		obj->AddComponent<CStaticMeshRendererComponent>();
 
+		obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
+
 		obj->SetPosition(positions[k]);
 
 		obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
 
 		obj->CreateComponents(pd3dDevice, pd3dCommandList);
+
+		CColliderComponent* collider = obj->GetComponent<CColliderComponent>();
+		m_ColliderBoxes.push_back(*collider);
 
 		CGameObject* raw = obj.get();
 		m_staticObjects.push_back(std::move(obj));
@@ -653,6 +658,8 @@ void CScene::BuildStaticBatch(
 
 			obj->SetMesh(0, arrowAsset.mesh);
 			obj->AddComponent<CStaticMeshRendererComponent>();
+
+			obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
 
 			// ȭ�� �̵�/���� ������Ʈ
 			auto* arrow = obj->AddComponent<CArrowComponent>();
@@ -759,6 +766,8 @@ void CScene::BuildSkinnedBatch(
 
 			obj->SetMesh(0, asset.mesh);
 			obj->AddComponent<CSkinnedMeshRendererComponent>();
+			obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
+
 
 			// [ADD] Tag: NPC
 			{
@@ -867,6 +876,7 @@ void CScene::BuildSkinnedBatch(
 
 			obj->SetMesh(0, asset.mesh);
 			obj->AddComponent<CSkinnedMeshRendererComponent>();
+			obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
 
 			auto* animComp = obj->AddComponent<CAnimatorComponent>();
 
@@ -981,6 +991,7 @@ void CScene::BuildPlayer(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd
 
 	obj->SetMesh(0, asset.mesh);
 	obj->AddComponent<CSkinnedMeshRendererComponent>();
+	obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
 
 	// [ADD] Tag: Local Player (slot = 0)
 	{

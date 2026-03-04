@@ -5,9 +5,10 @@
 #include "ColliderComponent.h"
 #include "Object.h" // CGameObject
 
-CColliderComponent::CColliderComponent(CGameObject* owner)
+CColliderComponent::CColliderComponent(CGameObject* owner, EColliderType Type)
     : CComponentT<CColliderComponent>(owner)
 {
+    mColliderType = Type;
 }
 
 void CColliderComponent::OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*)
@@ -22,13 +23,12 @@ void CColliderComponent::OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*)
 
     if (meshes.empty())
         return;
+    XMFLOAT3 objMin = XMFLOAT3(FLT_MAX, FLT_MAX, FLT_MAX);
+    XMFLOAT3 objMax = XMFLOAT3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
     switch (mColliderType)
     {
     case EColliderType::AABB:
-        XMFLOAT3 objMin(FLT_MAX, FLT_MAX, FLT_MAX);
-        XMFLOAT3 objMax(-FLT_MAX, -FLT_MAX, -FLT_MAX);
-
         for (const shared_ptr<CMesh>& mesh : meshes)
         {
             if (!mesh) continue;
@@ -40,12 +40,49 @@ void CColliderComponent::OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*)
             objMax.x = max(objMax.x, mesh->GetMeshMax().x);
             objMax.y = max(objMax.y, mesh->GetMeshMax().y);
             objMax.z = max(objMax.z, mesh->GetMeshMax().z);
-
-            SetAABB(objMin, objMax);
         }
+        SetAABB(objMin, objMax);
+        break;
     case EColliderType::OOBB:
+        for (const shared_ptr<CMesh>& mesh : meshes)
+        {
+            if (!mesh) continue;
+
+            for (const vector<SubMesh>::iterator::value_type& submesh : mesh->m_SubMeshes)
+            {
+                objMin.x = min(objMin.x, submesh.subMeshMin.x);
+                objMin.y = min(objMin.y, submesh.subMeshMin.y);
+                objMin.z = min(objMin.z, submesh.subMeshMin.z);
+
+                objMax.x = max(objMax.x, submesh.subMeshMax.x);
+                objMax.y = max(objMax.y, submesh.subMeshMax.y);
+                objMax.z = max(objMax.z, submesh.subMeshMax.z);
+            }
+            SetOOBB(objMin, objMax);
+        }
+        
         break;
     case EColliderType::BSphere:
+
+        break;
+    case EColliderType::Humanoid:
+        for (const shared_ptr<CMesh>& mesh : meshes)
+        {
+            if (!mesh) continue;
+
+            for (const vector<SubMesh>::iterator::value_type& submesh : mesh->m_SubMeshes)
+            {
+                objMin.x = min(objMin.x, submesh.subMeshMin.x);
+                objMin.y = min(objMin.y, submesh.subMeshMin.y);
+                objMin.z = min(objMin.z, submesh.subMeshMin.z);
+
+                objMax.x = max(objMax.x, submesh.subMeshMax.x);
+                objMax.y = max(objMax.y, submesh.subMeshMax.y);
+                objMax.z = max(objMax.z, submesh.subMeshMax.z);
+            }
+            SetOOBB(objMin, objMax);
+        }
+
         break;
     default:
         break;
@@ -68,6 +105,19 @@ void CColliderComponent::SetAABB(const XMFLOAT3& Min, const XMFLOAT3& Max)
         (Min.z + Max.z) * 0.5f);
 
     AABB.Extents = XMFLOAT3(
+        (Max.x - Min.x) * 0.5f,
+        (Max.y - Min.y) * 0.5f,
+        (Max.z - Min.z) * 0.5f);
+}
+
+void CColliderComponent::SetOOBB(const XMFLOAT3& Min, const XMFLOAT3& Max)
+{
+    OOBB.Center = XMFLOAT3(
+        (Min.x + Max.x) * 0.5f,
+        (Min.y + Max.y) * 0.5f,
+        (Min.z + Max.z) * 0.5f);
+
+    OOBB.Extents = XMFLOAT3(
         (Max.x - Min.x) * 0.5f,
         (Max.y - Min.y) * 0.5f,
         (Max.z - Min.z) * 0.5f);

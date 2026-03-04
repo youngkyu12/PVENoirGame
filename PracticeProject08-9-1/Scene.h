@@ -20,6 +20,7 @@ class CMaterial;
 class CGameObject;
 class CFollowTransformComponent;
 class CArrowComponent;
+class CColliderComponent;
 
 struct CB_GAMEOBJECT_INFO;
 struct CB_BONE_PALETTE;
@@ -131,6 +132,8 @@ public:
 
 	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList);
 
+	void CollisionUpdate();
+
 	// Input (messages)
 public:
 	bool OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
@@ -183,6 +186,8 @@ public:
 
 	std::vector<std::unique_ptr<CGameObject>>		m_lightObjects;
 	CFollowTransformComponent* m_pPlayerSpotFollower = nullptr;
+
+	std::vector<CColliderComponent> m_ColliderBoxes;
 
 	// GPU / Shader Variables (Scene-owned)
 protected:

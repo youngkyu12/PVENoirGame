@@ -21,7 +21,10 @@ BuiltAsset AssetManager::BuildAsset(
     // 1. Mesh 로드
     // ============================================================
     auto mesh = std::make_shared<CMesh>(device, cmd);
-    mesh->LoadMeshFromBIN(device, cmd, desc.meshBinPath.c_str());
+    mesh->LoadMeshFromBIN(
+        device, 
+        cmd, 
+        desc.meshBinPath.c_str());
 
     // ============================================================
     // 2. Material ID 발급기 + 캐시 (씬 단위)

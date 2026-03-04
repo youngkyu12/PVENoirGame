@@ -1,20 +1,20 @@
 #pragma once
 #include "Component.h"
 #include "ModelComponent.h"
-#include <cstdint>
-#include <unordered_set>
 #include <vector>
+#include <unordered_map>
+#include <string>
 
 class CTransformComponent;
 
-struct Capsule
+struct BoundingCapsule
 {
     DirectX::XMFLOAT3 p0{ 0.f, 0.f, 0.f }; // segment start
     DirectX::XMFLOAT3 p1{ 0.f, 0.f, 0.f }; // segment end
     float radius{ 0.1f };
 
-    Capsule() = default;
-    Capsule(const DirectX::XMFLOAT3& a, const DirectX::XMFLOAT3& b, float r)
+    BoundingCapsule() = default;
+    BoundingCapsule(const DirectX::XMFLOAT3& a, const DirectX::XMFLOAT3& b, float r)
         : p0(a), p1(b), radius(r) {
     }
 };
@@ -22,13 +22,14 @@ struct Capsule
 class CColliderComponent final : public CComponentT<CColliderComponent>
 {
 public:
-    explicit CColliderComponent(CGameObject* owner);
+    explicit CColliderComponent(CGameObject* owner, EColliderType Type);
 
     void OnCreate(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd) override;
     void OnUpdate(float dt) override;
 
     // Shape setup
     void SetAABB(const XMFLOAT3& Min, const XMFLOAT3& Max);
+    void SetOOBB(const XMFLOAT3& Min, const XMFLOAT3& Max);
 
     EColliderType GetType() const { return mColliderType; }
 
@@ -75,9 +76,12 @@ private:
     // World cache
     XMFLOAT3      Center = XMFLOAT3(0, 0, 0);
     float         Radius = 0.5f;
+
+    // Bounding Box
     BoundingBox AABB;
     BoundingOrientedBox OOBB;
     BoundingSphere BSphere;
+    vector<BoundingCapsule> BCapsules;
 
 
     // Filtering
