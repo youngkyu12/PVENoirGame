@@ -586,9 +586,9 @@ void CGameScene::BuildSkinnedBatch(
 
             AssetBuildDesc EnemyWDesc =
             {
-                AssetType::Zombie,                    // 지금은 임시로 Zombie 타입 그대로
-                "Assets/Zombie/Mesh/Zombie.bin",      // 지금은 원본 파일명 유지(추후 변경)
-                "Assets/Zombie/Texture"               // 지금은 원본 파일명 유지(추후 변경)
+                AssetType::Ghoul,
+                "Assets/Ghoul/Mesh/Ghoul_Mesh2.bin",
+                "Assets/Ghoul/Texture"
             };
 
             BuiltAsset assetW = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyWDesc);
@@ -617,14 +617,14 @@ void CGameScene::BuildSkinnedBatch(
                 const float x = enemyBase.x + 2.0f * (float)k;
                 const float z = enemyBase.z + 0.0f;
                 obj->SetPosition(x, enemyBase.y, z);
-                obj->Rotate(0.0f, 180.0f, 0.0f);
+                //어째선지 구울은 앞으로 90도 드러누워버림. 일단 세우긴 하는데...음;;
+                obj->Rotate(-90.0f, 180.0f, 0.0f);
 
                 obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
 
                 if (assetW.mesh && assetW.mesh->IsSkinnedMesh())
                     obj->EnableSkinning(dev, assetW.mesh->GetBoneCount());
 
-                // 애니(지금은 전부 동일 파일명 유지)
                 AnimationClip idleClip{};
                 bool idleLoaded = false;
 
@@ -632,7 +632,7 @@ void CGameScene::BuildSkinnedBatch(
                 if (mesh0)
                 {
                     idleLoaded = mesh0->LoadAnimationFromBIN(
-                        "Assets/Zombie/Animation/ZombieIdle.bin",
+                        "Assets/Ghoul/Animation/Ghoul_Anim_Idle1.bin",
                         "Idle", idleClip, 1.0f
                     );
                 }
