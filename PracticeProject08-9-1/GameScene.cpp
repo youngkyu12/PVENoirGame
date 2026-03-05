@@ -29,7 +29,7 @@ CGameScene::CGameScene()
     m_staticBatch.capacity = 4 + kArrowPoolSize;
     m_staticBatch.count = 0;
 
-    m_skinnedBatch.capacity = 10;
+    m_skinnedBatch.capacity = 100;
     m_skinnedBatch.count = 0;
 
     m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
@@ -572,218 +572,584 @@ void CGameScene::BuildSkinnedBatch(
     const XMFLOAT3 playerBase(0.0f, 0.0f, 0.0f);
 
     // ------------------------------------------------------------------------
-    // Zombie (NPC)
+    // Enemies
     // ------------------------------------------------------------------------
     {
-        AssetBuildDesc ZombieDesc =
+        const XMFLOAT3 enemyBase = XMFLOAT3(playerBase.x, playerBase.y, playerBase.z + 2.0f);
+
+        // ----------------------------
+        // Enemy Type: Ghoul
+        // ----------------------------
         {
-            AssetType::Zombie,
-            "Assets/Zombie/Mesh/Zombie.bin",
-            "Assets/Zombie/Texture"
-        };
+            //일단은 하드코딩
+            const UINT countW = 4;
 
-        BuiltAsset asset = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), ZombieDesc);
+            AssetBuildDesc EnemyWDesc =
+            {
+                AssetType::Zombie,                    // 지금은 임시로 Zombie 타입 그대로
+                "Assets/Zombie/Mesh/Zombie.bin",      // 지금은 원본 파일명 유지(추후 변경)
+                "Assets/Zombie/Texture"               // 지금은 원본 파일명 유지(추후 변경)
+            };
 
-        for (UINT k = 0; k < zombieCount; ++k)
+            BuiltAsset assetW = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyWDesc);
+
+            for (UINT k = 0; k < countW; ++k)
+            {
+                if (b->objectRefs.size() >= b->capacity) break;
+
+                const UINT i = (UINT)b->objectRefs.size();
+
+                auto obj = std::make_unique<CGameObject>(1);
+
+                auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+                obj->SetMappedGameObjectCB(cb);
+
+                obj->SetMesh(0, assetW.mesh);
+                obj->AddComponent<CSkinnedMeshRendererComponent>();
+
+                {
+                    auto* tag = obj->AddComponent<CActorTagComponent>();
+                    tag->kind = EActorKind::NPC;
+                    tag->control = EPlayerControl::None;
+                    tag->playerSlot = -1;
+                }
+
+                const float x = enemyBase.x + 2.0f * (float)k;
+                const float z = enemyBase.z + 0.0f;
+                obj->SetPosition(x, enemyBase.y, z);
+                obj->Rotate(0.0f, 180.0f, 0.0f);
+
+                obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+                if (assetW.mesh && assetW.mesh->IsSkinnedMesh())
+                    obj->EnableSkinning(dev, assetW.mesh->GetBoneCount());
+
+                // 애니(지금은 전부 동일 파일명 유지)
+                AnimationClip idleClip{};
+                bool idleLoaded = false;
+
+                auto mesh0 = obj->GetMeshShared(0);
+                if (mesh0)
+                {
+                    idleLoaded = mesh0->LoadAnimationFromBIN(
+                        "Assets/Zombie/Animation/ZombieIdle.bin",
+                        "Idle", idleClip, 1.0f
+                    );
+                }
+
+                if (idleLoaded)
+                {
+                    idleClip.name = "Idle";
+
+                    CAnimator* anim = obj->EnsureAnimator();
+                    if (anim) anim->AddClip(idleClip);
+
+                    auto* ctrl = obj->EnsureAnimController();
+                    ctrl->SetIdleClip("Idle");
+                    ctrl->SetMoveClip("Idle");
+                    ctrl->SetSpeed(0.0f);
+                    ctrl->Update(0.0f);
+
+                    obj->Animate(0.0f);
+                }
+
+                obj->CreateComponents(dev, cmd);
+
+                CGameObject* raw = obj.get();
+                m_skinnedObjects.push_back(std::move(obj));
+                b->objectRefs.push_back(raw);
+                b->count = (UINT)b->objectRefs.size();
+            }
+        }
+
+        // ----------------------------
+        // Enemy Type: SwordMan
+        // ----------------------------
         {
-            if (b->objectRefs.size() >= b->capacity) break;
+			//일단은 하드코딩
+            const UINT countX = 3;
 
-            const UINT i = (UINT)b->objectRefs.size();
-
-            auto obj = std::make_unique<CGameObject>(1);
-
-            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
-            obj->SetMappedGameObjectCB(cb);
-
-            obj->SetMesh(0, asset.mesh);
-            obj->AddComponent<CSkinnedMeshRendererComponent>();
-
+            AssetBuildDesc EnemyXDesc =
             {
-                auto* tag = obj->AddComponent<CActorTagComponent>();
-                tag->kind = EActorKind::NPC;
-                tag->control = EPlayerControl::None;
-                tag->playerSlot = -1;
-            }
+                AssetType::Zombie,
+                "Assets/Zombie/Mesh/Zombie.bin",
+                "Assets/Zombie/Texture"
+            };
 
-            const float x = playerBase.x + 2.0f * (float)k;
-            const float z = playerBase.z + 2.0f;
+            BuiltAsset assetX = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyXDesc);
 
-            obj->SetPosition(x, playerBase.y, z);
-            obj->Rotate(0.0f, 180.0f, 0.0f);
-
-            obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
-
-            if (asset.mesh && asset.mesh->IsSkinnedMesh())
+            for (UINT k = 0; k < countX; ++k)
             {
-                obj->EnableSkinning(dev, asset.mesh->GetBoneCount());
+                if (b->objectRefs.size() >= b->capacity) break;
+
+                const UINT i = (UINT)b->objectRefs.size();
+
+                auto obj = std::make_unique<CGameObject>(1);
+
+                auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+                obj->SetMappedGameObjectCB(cb);
+
+                obj->SetMesh(0, assetX.mesh);
+                obj->AddComponent<CSkinnedMeshRendererComponent>();
+
+                {
+                    auto* tag = obj->AddComponent<CActorTagComponent>();
+                    tag->kind = EActorKind::NPC;
+                    tag->control = EPlayerControl::None;
+                    tag->playerSlot = -1;
+                }
+
+                const float x = enemyBase.x + 2.0f * (float)k;
+                const float z = enemyBase.z + 3.0f;
+                obj->SetPosition(x, enemyBase.y, z);
+                obj->Rotate(0.0f, 180.0f, 0.0f);
+
+                obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+                if (assetX.mesh && assetX.mesh->IsSkinnedMesh())
+                    obj->EnableSkinning(dev, assetX.mesh->GetBoneCount());
+
+                AnimationClip idleClip{};
+                bool idleLoaded = false;
+
+                auto mesh0 = obj->GetMeshShared(0);
+                if (mesh0)
+                {
+                    idleLoaded = mesh0->LoadAnimationFromBIN(
+                        "Assets/Zombie/Animation/ZombieIdle.bin",
+                        "Idle", idleClip, 1.0f
+                    );
+                }
+
+                if (idleLoaded)
+                {
+                    idleClip.name = "Idle";
+
+                    CAnimator* anim = obj->EnsureAnimator();
+                    if (anim) anim->AddClip(idleClip);
+
+                    auto* ctrl = obj->EnsureAnimController();
+                    ctrl->SetIdleClip("Idle");
+                    ctrl->SetMoveClip("Idle");
+                    ctrl->SetSpeed(0.0f);
+                    ctrl->Update(0.0f);
+
+                    obj->Animate(0.0f);
+                }
+
+                obj->CreateComponents(dev, cmd);
+
+                CGameObject* raw = obj.get();
+                m_skinnedObjects.push_back(std::move(obj));
+                b->objectRefs.push_back(raw);
+                b->count = (UINT)b->objectRefs.size();
             }
+        }
 
-            AnimationClip idleClip;
-            bool idleLoaded = false;
+        // ----------------------------
+		// Enemy Type BowMan
+        // ----------------------------
+        {
+			//일단은 하드코딩
+            const UINT countY = 3;
 
-            auto mesh0 = obj->GetMeshShared(0);
-            if (mesh0)
+            AssetBuildDesc EnemyYDesc =
             {
-                idleLoaded = mesh0->LoadAnimationFromBIN(
-                    "Assets/Zombie/Animation/ZombieIdle.bin",
-                    "Idle", idleClip, 1.0f
-                );
-            }
+                AssetType::Zombie,
+                "Assets/Zombie/Mesh/Zombie.bin",
+                "Assets/Zombie/Texture"
+            };
 
-            if (idleLoaded)
+            BuiltAsset assetY = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyYDesc);
+
+            for (UINT k = 0; k < countY; ++k)
             {
-                idleClip.name = "Idle";
+                if (b->objectRefs.size() >= b->capacity) break;
 
-                CAnimator* anim = obj->EnsureAnimator();
-                if (anim) anim->AddClip(idleClip);
+                const UINT i = (UINT)b->objectRefs.size();
 
-                auto* ctrl = obj->EnsureAnimController();
-                ctrl->SetIdleClip("Idle");
-                ctrl->SetMoveClip("Idle");
-                ctrl->SetSpeed(0.0f);
-                ctrl->Update(0.0f);
+                auto obj = std::make_unique<CGameObject>(1);
 
-                obj->Animate(0.0f);
+                auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+                obj->SetMappedGameObjectCB(cb);
+
+                obj->SetMesh(0, assetY.mesh);
+                obj->AddComponent<CSkinnedMeshRendererComponent>();
+
+                {
+                    auto* tag = obj->AddComponent<CActorTagComponent>();
+                    tag->kind = EActorKind::NPC;
+                    tag->control = EPlayerControl::None;
+                    tag->playerSlot = -1;
+                }
+
+                const float x = enemyBase.x + 2.0f * (float)k;
+                const float z = enemyBase.z + 6.0f;
+                obj->SetPosition(x, enemyBase.y, z);
+                obj->Rotate(0.0f, 180.0f, 0.0f);
+
+                obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+                if (assetY.mesh && assetY.mesh->IsSkinnedMesh())
+                    obj->EnableSkinning(dev, assetY.mesh->GetBoneCount());
+
+                AnimationClip idleClip{};
+                bool idleLoaded = false;
+
+                auto mesh0 = obj->GetMeshShared(0);
+                if (mesh0)
+                {
+                    idleLoaded = mesh0->LoadAnimationFromBIN(
+                        "Assets/Zombie/Animation/ZombieIdle.bin",
+                        "Idle", idleClip, 1.0f
+                    );
+                }
+
+                if (idleLoaded)
+                {
+                    idleClip.name = "Idle";
+
+                    CAnimator* anim = obj->EnsureAnimator();
+                    if (anim) anim->AddClip(idleClip);
+
+                    auto* ctrl = obj->EnsureAnimController();
+                    ctrl->SetIdleClip("Idle");
+                    ctrl->SetMoveClip("Idle");
+                    ctrl->SetSpeed(0.0f);
+                    ctrl->Update(0.0f);
+
+                    obj->Animate(0.0f);
+                }
+
+                obj->CreateComponents(dev, cmd);
+
+                CGameObject* raw = obj.get();
+                m_skinnedObjects.push_back(std::move(obj));
+                b->objectRefs.push_back(raw);
+                b->count = (UINT)b->objectRefs.size();
             }
+        }
 
-            obj->CreateComponents(dev, cmd);
+        // ----------------------------
+        // Enemy Type ExMan
+        // ----------------------------
+        {
+			//일단은 하드코딩
+            const UINT countZ = 2;
 
-            CGameObject* raw = obj.get();
+            AssetBuildDesc EnemyZDesc =
+            {
+                AssetType::Zombie,
+                "Assets/Zombie/Mesh/Zombie.bin",
+                "Assets/Zombie/Texture"
+            };
 
-            m_skinnedObjects.push_back(std::move(obj));
-            b->objectRefs.push_back(raw);
-            b->count = (UINT)b->objectRefs.size();
+            BuiltAsset assetZ = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyZDesc);
+
+            for (UINT k = 0; k < countZ; ++k)
+            {
+                if (b->objectRefs.size() >= b->capacity) break;
+
+                const UINT i = (UINT)b->objectRefs.size();
+
+                auto obj = std::make_unique<CGameObject>(1);
+
+                auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+                obj->SetMappedGameObjectCB(cb);
+
+                obj->SetMesh(0, assetZ.mesh);
+                obj->AddComponent<CSkinnedMeshRendererComponent>();
+
+                {
+                    auto* tag = obj->AddComponent<CActorTagComponent>();
+                    tag->kind = EActorKind::NPC;
+                    tag->control = EPlayerControl::None;
+                    tag->playerSlot = -1;
+                }
+
+                const float x = enemyBase.x + 2.0f * (float)k;
+                const float z = enemyBase.z + 9.0f;
+                obj->SetPosition(x, enemyBase.y, z);
+                obj->Rotate(0.0f, 180.0f, 0.0f);
+
+                obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+                if (assetZ.mesh && assetZ.mesh->IsSkinnedMesh())
+                    obj->EnableSkinning(dev, assetZ.mesh->GetBoneCount());
+
+                AnimationClip idleClip{};
+                bool idleLoaded = false;
+
+                auto mesh0 = obj->GetMeshShared(0);
+                if (mesh0)
+                {
+                    idleLoaded = mesh0->LoadAnimationFromBIN(
+                        "Assets/Zombie/Animation/ZombieIdle.bin",
+                        "Idle", idleClip, 1.0f
+                    );
+                }
+
+                if (idleLoaded)
+                {
+                    idleClip.name = "Idle";
+
+                    CAnimator* anim = obj->EnsureAnimator();
+                    if (anim) anim->AddClip(idleClip);
+
+                    auto* ctrl = obj->EnsureAnimController();
+                    ctrl->SetIdleClip("Idle");
+                    ctrl->SetMoveClip("Idle");
+                    ctrl->SetSpeed(0.0f);
+                    ctrl->Update(0.0f);
+
+                    obj->Animate(0.0f);
+                }
+
+                obj->CreateComponents(dev, cmd);
+
+                CGameObject* raw = obj.get();
+                m_skinnedObjects.push_back(std::move(obj));
+                b->objectRefs.push_back(raw);
+                b->count = (UINT)b->objectRefs.size();
+            }
+        }
+
+        // ----------------------------
+        // Enemy Type: Boss
+        // ----------------------------
+        {
+			//확정이긴 한데 일단 하드코딩
+            const UINT countOne = 1;
+
+            AssetBuildDesc EnemyOneDesc =
+            {
+                AssetType::Boss,
+                "Assets/Boss/Mesh/Boss_Mesh.bin",
+                "Assets/Boss/Texture"
+            };
+
+            BuiltAsset assetOne = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyOneDesc);
+
+            for (UINT k = 0; k < countOne; ++k)
+            {
+                if (b->objectRefs.size() >= b->capacity) break;
+
+                const UINT i = (UINT)b->objectRefs.size();
+
+                auto obj = std::make_unique<CGameObject>(1);
+
+                auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+                obj->SetMappedGameObjectCB(cb);
+
+                obj->SetMesh(0, assetOne.mesh);
+                obj->AddComponent<CSkinnedMeshRendererComponent>();
+
+                {
+                    auto* tag = obj->AddComponent<CActorTagComponent>();
+                    tag->kind = EActorKind::NPC;
+                    tag->control = EPlayerControl::None;
+                    tag->playerSlot = -1;
+                }
+
+                const float x = enemyBase.x + 0.0f;
+                const float z = enemyBase.z + 12.0f;
+                obj->SetPosition(x, enemyBase.y, z);
+                obj->Rotate(0.0f, 180.0f, 0.0f);
+
+                obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+                if (assetOne.mesh && assetOne.mesh->IsSkinnedMesh())
+                    obj->EnableSkinning(dev, assetOne.mesh->GetBoneCount());
+
+                AnimationClip idleClip{};
+                bool idleLoaded = false;
+
+                auto mesh0 = obj->GetMeshShared(0);
+                if (mesh0)
+                {
+                    idleLoaded = mesh0->LoadAnimationFromBIN(
+                        "Assets/Boss/Animation/Boss_Anim_Idle.bin",
+                        "Idle", idleClip, 1.0f
+                    );
+                }
+
+                if (idleLoaded)
+                {
+                    idleClip.name = "Idle";
+
+                    CAnimator* anim = obj->EnsureAnimator();
+                    if (anim) anim->AddClip(idleClip);
+
+                    auto* ctrl = obj->EnsureAnimController();
+                    ctrl->SetIdleClip("Idle");
+                    ctrl->SetMoveClip("Idle");
+                    ctrl->SetSpeed(0.0f);
+                    ctrl->Update(0.0f);
+
+                    obj->Animate(0.0f);
+                }
+
+                obj->CreateComponents(dev, cmd);
+
+                CGameObject* raw = obj.get();
+                m_skinnedObjects.push_back(std::move(obj));
+                b->objectRefs.push_back(raw);
+                b->count = (UINT)b->objectRefs.size();
+            }
         }
     }
 
     // ------------------------------------------------------------------------
     // Fighter (Players slot 0..3) : 전원 m_skinnedObjects에 포함
-    //  - m_localPlayerSlot(현재 2)만 Local + PlayerControllerComponent 부착
+    //  - m_localPlayerSlot만 Local + PlayerControllerComponent 부착
     // ------------------------------------------------------------------------
+{
+    AssetBuildDesc FighterDesc0 =
     {
-        AssetBuildDesc FighterDesc =
+        AssetType::Fighter,
+        "Assets/Fighter/Mesh/Fighter.bin",
+        "Assets/Fighter/Texture"
+    };
+    AssetBuildDesc FighterDesc1 =
+    {
+        AssetType::Fighter,
+        "Assets/Fighter/Mesh/Fighter.bin",
+        "Assets/Fighter/Texture"
+    };
+    AssetBuildDesc FighterDesc2 =
+    {
+        AssetType::Fighter,
+        "Assets/Fighter/Mesh/Fighter.bin",
+        "Assets/Fighter/Texture"
+    };
+    AssetBuildDesc FighterDesc3 =
+    {
+        AssetType::Fighter,
+        "Assets/Fighter/Mesh/Fighter.bin",
+        "Assets/Fighter/Texture"
+    };
+
+    for (UINT k = 0; k < fighterCount; ++k)
+    {
+        if (b->objectRefs.size() >= b->capacity) break;
+
+        const UINT i = (UINT)b->objectRefs.size();
+
+        const int slot = (int)k;
+        const bool isLocal = (slot == m_localPlayerSlot);
+
+        // 슬롯별 BuildAsset 분리(파일명은 지금은 동일)
+        BuiltAsset asset{};
+        if (slot == 0) asset = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), FighterDesc0);
+        else if (slot == 1) asset = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), FighterDesc1);
+        else if (slot == 2) asset = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), FighterDesc2);
+        else /*slot==3*/ asset = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), FighterDesc3);
+
+        auto obj = std::make_unique<CGameObject>(1);
+
+        auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+        obj->SetMappedGameObjectCB(cb);
+
+        obj->SetMesh(0, asset.mesh);
+        obj->AddComponent<CSkinnedMeshRendererComponent>();
+
+        auto* animComp = obj->AddComponent<CAnimatorComponent>();
+
         {
-            AssetType::Fighter,
-            "Assets/Fighter/Mesh/Fighter.bin",
-            "Assets/Fighter/Texture"
-        };
-
-        BuiltAsset asset = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), FighterDesc);
-
-        for (UINT k = 0; k < fighterCount; ++k)
-        {
-            if (b->objectRefs.size() >= b->capacity) break;
-
-            const UINT i = (UINT)b->objectRefs.size();
-
-            const int slot = (int)k;
-            const bool isLocal = (slot == m_localPlayerSlot);
-
-            auto obj = std::make_unique<CGameObject>(1);
-
-            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
-            obj->SetMappedGameObjectCB(cb);
-
-            obj->SetMesh(0, asset.mesh);
-            obj->AddComponent<CSkinnedMeshRendererComponent>();
-
-            auto* animComp = obj->AddComponent<CAnimatorComponent>();
-
-            {
-                auto* tag = obj->AddComponent<CActorTagComponent>();
-                tag->kind = EActorKind::Player;
-                tag->control = isLocal ? EPlayerControl::Local : EPlayerControl::Remote;
-                tag->playerSlot = slot;
-            }
-
-            if (isLocal)
-            {
-                obj->AddComponent<CPlayerControllerComponent>();
-            }
-
-            UINT matId = 0;
-            if (asset.mesh)
-            {
-                for (auto& sm : asset.mesh->m_SubMeshes)
-                {
-                    if (sm.materialId == 0xFFFFFFFFu) continue;
-                    matId = sm.materialId;
-                    break;
-                }
-            }
-
-            auto mat = std::make_shared<CMaterial>();
-            mat->m_nReflection = matId;
-
-            const float x = playerBase.x + 2.0f * (float)slot;
-            obj->SetPosition(x, playerBase.y, playerBase.z);
-            obj->Rotate(0.0f, 0.0f, 0.0f);
-
-            obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
-
-            if (asset.mesh && asset.mesh->IsSkinnedMesh())
-            {
-                obj->EnableSkinning(dev, asset.mesh->GetBoneCount());
-            }
-
-            auto mesh0 = obj->GetMeshShared(0);
-
-            AnimationClip idleClip{};
-            AnimationClip runClip{};
-            AnimationClip atkClip{};
-            bool idleLoaded = false;
-            bool runLoaded = false;
-            bool atkLoaded = false;
-
-            if (mesh0)
-            {
-                idleLoaded = mesh0->LoadAnimationFromBIN(
-                    "Assets/Fighter/Animation/FighterIdle.bin",
-                    "Idle", idleClip, 1.0f
-                );
-
-                runLoaded = mesh0->LoadAnimationFromBIN(
-                    "Assets/Fighter/Animation/FighterRun.bin",
-                    "Run", runClip, 1.0f
-                );
-
-                atkLoaded = mesh0->LoadAnimationFromBIN(
-                    "Assets/Fighter/Animation/FighterAttack.bin",
-                    "Attack", atkClip, 1.0f
-                );
-            }
-
-            if (animComp)
-            {
-                if (idleLoaded) { idleClip.name = "Idle";   animComp->AddClip(idleClip); }
-                if (runLoaded) { runClip.name = "Run";    animComp->AddClip(runClip); }
-                if (atkLoaded) { atkClip.name = "Attack"; animComp->AddClip(atkClip); }
-
-                animComp->SetIdleClip("Idle");
-                animComp->SetMoveClip(runLoaded ? "Run" : "Idle");
-
-                auto* ctrl = animComp->EnsureController();
-                if (ctrl)
-                {
-                    ctrl->SetAttackClip("Attack");
-                    ctrl->SetSpeed(0.0f);
-                    ctrl->Update(0.0f);
-                }
-            }
-
-            obj->CreateComponents(dev, cmd);
-            if (animComp) animComp->EvaluatePose(0.0f);
-
-            CGameObject* raw = obj.get();
-
-            if (slot >= 0 && slot <= 3)
-                m_playersBySlot[(size_t)slot] = raw;
-
-            m_skinnedObjects.push_back(std::move(obj));
-            b->objectRefs.push_back(raw);
-            b->count = (UINT)b->objectRefs.size();
+            auto* tag = obj->AddComponent<CActorTagComponent>();
+            tag->kind = EActorKind::Player;
+            tag->control = isLocal ? EPlayerControl::Local : EPlayerControl::Remote;
+            tag->playerSlot = slot;
         }
+
+        if (isLocal)
+        {
+            obj->AddComponent<CPlayerControllerComponent>();
+        }
+
+        UINT matId = 0;
+        if (asset.mesh)
+        {
+            for (auto& sm : asset.mesh->m_SubMeshes)
+            {
+                if (sm.materialId == 0xFFFFFFFFu) continue;
+                matId = sm.materialId;
+                break;
+            }
+        }
+
+        auto mat = std::make_shared<CMaterial>();
+        mat->m_nReflection = matId;
+
+        const float x = playerBase.x + 2.0f * (float)slot;
+        obj->SetPosition(x, playerBase.y, playerBase.z);
+        obj->Rotate(0.0f, 0.0f, 0.0f);
+
+        obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+        if (asset.mesh && asset.mesh->IsSkinnedMesh())
+        {
+            obj->EnableSkinning(dev, asset.mesh->GetBoneCount());
+        }
+
+        auto mesh0 = obj->GetMeshShared(0);
+
+        AnimationClip idleClip{};
+        AnimationClip runClip{};
+        AnimationClip atkClip{};
+        bool idleLoaded = false;
+        bool runLoaded = false;
+        bool atkLoaded = false;
+
+        if (mesh0)
+        {
+            idleLoaded = mesh0->LoadAnimationFromBIN(
+                "Assets/Fighter/Animation/FighterIdle.bin",
+                "Idle", idleClip, 1.0f
+            );
+
+            runLoaded = mesh0->LoadAnimationFromBIN(
+                "Assets/Fighter/Animation/FighterRun.bin",
+                "Run", runClip, 1.0f
+            );
+
+            atkLoaded = mesh0->LoadAnimationFromBIN(
+                "Assets/Fighter/Animation/FighterAttack.bin",
+                "Attack", atkClip, 1.0f
+            );
+        }
+
+        if (animComp)
+        {
+            if (idleLoaded) { idleClip.name = "Idle";   animComp->AddClip(idleClip); }
+            if (runLoaded) { runClip.name = "Run";    animComp->AddClip(runClip); }
+            if (atkLoaded) { atkClip.name = "Attack"; animComp->AddClip(atkClip); }
+
+            animComp->SetIdleClip("Idle");
+            animComp->SetMoveClip(runLoaded ? "Run" : "Idle");
+
+            auto* ctrl = animComp->EnsureController();
+            if (ctrl)
+            {
+                ctrl->SetAttackClip("Attack");
+                ctrl->SetSpeed(0.0f);
+                ctrl->Update(0.0f);
+            }
+        }
+
+        obj->CreateComponents(dev, cmd);
+        if (animComp) animComp->EvaluatePose(0.0f);
+
+        CGameObject* raw = obj.get();
+
+        if (slot >= 0 && slot <= 3)
+            m_playersBySlot[(size_t)slot] = raw;
+
+        m_skinnedObjects.push_back(std::move(obj));
+        b->objectRefs.push_back(raw);
+        b->count = (UINT)b->objectRefs.size();
     }
+}
 }
 
 

@@ -13,6 +13,7 @@ enum class AssetType
 {
     Zombie,
     Fighter,
+    Boss,
     World,
     Plane,
     House,
