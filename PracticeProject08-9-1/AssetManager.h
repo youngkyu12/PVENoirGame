@@ -14,6 +14,7 @@ enum class AssetType
     Zombie,
     Fighter,
     Ghoul,
+    AxeMan,
     Boss,
     World,
     Plane,
