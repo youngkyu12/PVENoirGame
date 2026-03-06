@@ -839,9 +839,9 @@ void CGameScene::BuildSkinnedBatch(
 
             AssetBuildDesc EnemyZDesc =
             {
-                AssetType::Zombie,
-                "Assets/Mutant/Mesh/Mutant_Mesh.bin",
-                "Assets/Mutant/Texture"
+                AssetType::AxeMan,
+                "Assets/AxeMan/Mesh/AxeMan_Mesh.bin",
+                "Assets/AxeMan/Texture"
             };
 
             BuiltAsset assetZ = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyZDesc);
@@ -884,7 +884,7 @@ void CGameScene::BuildSkinnedBatch(
                 if (mesh0)
                 {
                     idleLoaded = mesh0->LoadAnimationFromBIN(
-                        "Assets/Mutant/Animation/Mutant_Anim_Idle.bin",
+                        "Assets/AxeMan/Animation/AxeMan_Anim_Idle.bin",
                         "Idle", idleClip, 1.0f
                     );
                 }
