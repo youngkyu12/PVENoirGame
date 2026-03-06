@@ -831,7 +831,7 @@ void CGameScene::BuildSkinnedBatch(
         }
 
         // ----------------------------
-        // Enemy Type ExMan
+        // Enemy Type: AxeMan
         // ----------------------------
         {
 			//일단은 하드코딩
@@ -840,8 +840,8 @@ void CGameScene::BuildSkinnedBatch(
             AssetBuildDesc EnemyZDesc =
             {
                 AssetType::Zombie,
-                "Assets/Zombie/Mesh/Zombie.bin",
-                "Assets/Zombie/Texture"
+                "Assets/Mutant/Mesh/Mutant_Mesh.bin",
+                "Assets/Mutant/Texture"
             };
 
             BuiltAsset assetZ = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyZDesc);
@@ -884,7 +884,7 @@ void CGameScene::BuildSkinnedBatch(
                 if (mesh0)
                 {
                     idleLoaded = mesh0->LoadAnimationFromBIN(
-                        "Assets/Zombie/Animation/ZombieIdle.bin",
+                        "Assets/Mutant/Animation/Mutant_Anim_Idle.bin",
                         "Idle", idleClip, 1.0f
                     );
                 }
