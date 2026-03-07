@@ -94,7 +94,7 @@
     </Filter>
     <Filter Include="Network\NetworkGlobal">
       <UniqueIdentifier>{076be12e-11b3-429d-b725-d571e44b0277}</UniqueIdentifier>
-	</Filter>
+    </Filter>
     <Filter Include="Components\ActorTag">
       <UniqueIdentifier>{38199f9c-9ca3-420a-87f9-ba3629104b65}</UniqueIdentifier>
     </Filter>
@@ -103,6 +103,9 @@
     </Filter>
     <Filter Include="SceneManager">
       <UniqueIdentifier>{8aa4149d-0def-49ad-837e-fc2348b3f423}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Components\FollowBoneComponent">
+      <UniqueIdentifier>{4ea87f93-3294-4dc5-924c-1762d261c0e4}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -225,7 +228,7 @@
     </ClInclude>
     <ClInclude Include="SceneRenderTypes.h">
       <Filter>Scene</Filter>
-	</ClInclude>
+    </ClInclude>
     <ClInclude Include="GlobalValues.h">
       <Filter>Network\NetworkGlobal</Filter>
     </ClInclude>
@@ -234,6 +237,9 @@
     </ClInclude>
     <ClInclude Include="NetworkQueue.h">
       <Filter>Network\NetworkGlobal</Filter>
+    </ClInclude>
+    <ClInclude Include="FollowBoneComponent.h">
+      <Filter>Components\FollowBoneComponent</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -335,12 +341,15 @@
     </ClCompile>
     <ClCompile Include="GameScene.cpp">
       <Filter>Scene</Filter>
-	</ClCompile>
+    </ClCompile>
     <ClCompile Include="GlobalValues.cpp">
       <Filter>Network\NetworkGlobal</Filter>
     </ClCompile>
     <ClCompile Include="NetworkQueue.cpp">
       <Filter>Network\NetworkGlobal</Filter>
+    </ClCompile>
+    <ClCompile Include="FollowBoneComponent.cpp">
+      <Filter>Components\FollowBoneComponent</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

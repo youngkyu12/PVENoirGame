@@ -43,12 +43,8 @@ public:
 
     const std::vector<XMFLOAT4X4>& GetGlobalBoneMatrices() const { return m_GlobalPose; }
 
-    bool GetBoneGlobalMatrix(int boneIndex, XMFLOAT4X4& out) const
-    {
-        if (boneIndex < 0 || boneIndex >= (int)m_GlobalPose.size()) return false;
-        out = m_GlobalPose[boneIndex];
-        return true;
-    }
+    bool GetGlobalBoneMatrix(int boneIndex, XMFLOAT4X4& outMatrix) const;
+
 public:
     bool CrossFade(const std::string& nextClipName, float blendTimeSec,
         bool loop = true, float startTime = 0.0f);
