@@ -100,6 +100,19 @@ private:
     std::array<CGameObject*, 4> m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
 
     int m_localPlayerSlot;
+    // ------------------------------------------------------------------------
+    // Build counts (현재는 BuildObjects()에서 결정, 추후 서버 동기화 값으로 대체)
+    // ------------------------------------------------------------------------
+    UINT m_planeCount = 1;
+    UINT m_houseCount = 3;
+
+    UINT m_ghoulCount = 4;
+    UINT m_swordManCount = 3;
+    UINT m_bowManCount = 3;
+    UINT m_axeManCount = 2;
+    UINT m_bossCount = 1;
+
+    UINT m_fighterCount = 4;
 
     SCENE_STATIC_BATCH  m_staticBatch;
     SCENE_SKINNED_BATCH m_skinnedBatch;

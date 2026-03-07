@@ -26,14 +26,25 @@
 
 CGameScene::CGameScene()
 {
-    m_staticBatch.capacity = 4 + kArrowPoolSize;
-    m_staticBatch.count = 0;
-
-    m_skinnedBatch.capacity = 100;
-    m_skinnedBatch.count = 0;
-
     m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
     m_localPlayerSlot = 0;
+
+    m_planeCount = 1;
+    m_houseCount = 3;
+
+    m_ghoulCount = 4;
+    m_swordManCount = 3;
+    m_bowManCount = 3;
+    m_axeManCount = 2;
+    m_bossCount = 1;
+
+    m_fighterCount = 4;
+
+    m_staticBatch.capacity = 0;
+    m_staticBatch.count = 0;
+
+    m_skinnedBatch.capacity = 0;
+    m_skinnedBatch.count = 0;
 
     m_arrowRefs.clear();
     m_arrowRefs.shrink_to_fit();
@@ -123,8 +134,38 @@ void CGameScene::ReleaseShaderVariables()
 
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
-    // 지금은 하드코딩: 로컬 슬롯 = 2
+    // ------------------------------------------------------------------------
+    // Build parameters
+    // ------------------------------------------------------------------------
     m_localPlayerSlot = 2;
+
+    m_planeCount = 1;
+    m_houseCount = 3;
+
+    m_ghoulCount = 4;
+    m_swordManCount = 3;
+    m_bowManCount = 3;
+    m_axeManCount = 2;
+    m_bossCount = 1;
+
+    m_fighterCount = 4;
+
+    m_staticBatch.capacity =
+        m_planeCount +
+        m_houseCount +
+        kArrowPoolSize;
+
+    m_staticBatch.count = 0;
+
+    m_skinnedBatch.capacity =
+        m_ghoulCount +
+        m_swordManCount +
+        m_bowManCount +
+        m_axeManCount +
+        m_bossCount +
+        m_fighterCount;
+
+    m_skinnedBatch.count = 0;
 
     CreateGraphicsRootSignature(dev);
 
@@ -177,7 +218,6 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
     CreateMainCamera(dev, cmd, local);
 }
-
 void CGameScene::BuildLightsAndMaterials()
 {
     m_lightObjects.clear();
@@ -404,22 +444,57 @@ void CGameScene::BuildStaticBatch(
         const char* texDir;
     };
 
-    StaticAssetDesc descs[4] =
-    {
-        { AssetType::Plane, "Assets/GroundPlane/Mesh/Plane.bin", "Assets/GroundPlane/Texture" },
-        { AssetType::House, "Assets/House/Mesh/Barn1.bin", "Assets/House/Texture" },
-        { AssetType::House, "Assets/House/Mesh/Barn2.bin", "Assets/House/Texture" },
-        { AssetType::House, "Assets/House/Mesh/Cabin1.bin", "Assets/House/Texture" },
-    };
-    XMFLOAT3 positions[4] =
-    {
-        XMFLOAT3(0.0f, 0.0f, 0.0f),
-        XMFLOAT3(22.0f, 0.0f, 12.0f),
-        XMFLOAT3(-20.0f, 0.0f, 0.0f),
-        XMFLOAT3(0.0f, 0.0f, -20.0f),
-    };
+    std::vector<StaticAssetDesc> staticDescs;
+    std::vector<XMFLOAT3> staticPositions;
 
-    for (UINT k = 0; k < 4; ++k)
+    staticDescs.reserve(m_planeCount + m_houseCount);
+    staticPositions.reserve(m_planeCount + m_houseCount);
+
+    // Plane
+    for (UINT i = 0; i < m_planeCount; ++i)
+    {
+        staticDescs.push_back({
+            AssetType::Plane,
+            "Assets/GroundPlane/Mesh/Plane.bin",
+            "Assets/GroundPlane/Texture"
+            });
+
+        // 지금은 기존 값 유지
+        staticPositions.push_back(XMFLOAT3(0.0f, 0.0f, 0.0f));
+    }
+
+    // House
+    if (m_houseCount >= 1)
+    {
+        staticDescs.push_back({
+            AssetType::House,
+            "Assets/House/Mesh/Barn1.bin",
+            "Assets/House/Texture"
+            });
+        staticPositions.push_back(XMFLOAT3(22.0f, 0.0f, 12.0f));
+    }
+    if (m_houseCount >= 2)
+    {
+        staticDescs.push_back({
+            AssetType::House,
+            "Assets/House/Mesh/Barn2.bin",
+            "Assets/House/Texture"
+            });
+        staticPositions.push_back(XMFLOAT3(-20.0f, 0.0f, 0.0f));
+    }
+    if (m_houseCount >= 3)
+    {
+        staticDescs.push_back({
+            AssetType::House,
+            "Assets/House/Mesh/Cabin1.bin",
+            "Assets/House/Texture"
+            });
+        staticPositions.push_back(XMFLOAT3(0.0f, 0.0f, -20.0f));
+    }
+
+    const UINT staticCount = (UINT)staticDescs.size();
+
+    for (UINT k = 0; k < staticCount; ++k)
     {
         if (b->objectRefs.size() >= b->capacity) break;
 
@@ -427,9 +502,9 @@ void CGameScene::BuildStaticBatch(
 
         AssetBuildDesc Desc =
         {
-            descs[k].type,
-            descs[k].meshBin,
-            descs[k].texDir
+            staticDescs[k].type,
+            staticDescs[k].meshBin,
+            staticDescs[k].texDir
         };
 
         BuiltAsset asset = AssetManager::BuildAsset(
@@ -446,7 +521,7 @@ void CGameScene::BuildStaticBatch(
         obj->SetMesh(0, asset.mesh);
         obj->AddComponent<CStaticMeshRendererComponent>();
 
-        obj->SetPosition(positions[k]);
+        obj->SetPosition(staticPositions[k]);
 
         obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
 
@@ -566,8 +641,7 @@ void CGameScene::BuildSkinnedBatch(
 
     m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
 
-    const UINT fighterCount = 4;
-    const UINT zombieCount = 3;
+    const UINT fighterCount = m_fighterCount;
 
     const XMFLOAT3 playerBase(0.0f, 0.0f, 0.0f);
 
@@ -582,7 +656,7 @@ void CGameScene::BuildSkinnedBatch(
         // ----------------------------
         {
             //일단은 하드코딩
-            const UINT countW = 4;
+            const UINT countW = m_ghoulCount;
 
             AssetBuildDesc EnemyWDesc =
             {
@@ -667,7 +741,7 @@ void CGameScene::BuildSkinnedBatch(
         // ----------------------------
         {
 			//일단은 하드코딩
-            const UINT countX = 3;
+            const UINT countX = m_swordManCount;
 
             AssetBuildDesc EnemyXDesc =
             {
@@ -751,7 +825,7 @@ void CGameScene::BuildSkinnedBatch(
         // ----------------------------
         {
 			//일단은 하드코딩
-            const UINT countY = 3;
+            const UINT countY = m_bowManCount;
 
             AssetBuildDesc EnemyYDesc =
             {
@@ -835,7 +909,7 @@ void CGameScene::BuildSkinnedBatch(
         // ----------------------------
         {
 			//일단은 하드코딩
-            const UINT countZ = 2;
+            const UINT countZ = m_axeManCount;
 
             AssetBuildDesc EnemyZDesc =
             {
@@ -919,7 +993,7 @@ void CGameScene::BuildSkinnedBatch(
         // ----------------------------
         {
 			//확정이긴 한데 일단 하드코딩
-            const UINT countOne = 1;
+            const UINT countOne = m_bossCount;
 
             AssetBuildDesc EnemyOneDesc =
             {
