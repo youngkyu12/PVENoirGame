@@ -1364,20 +1364,11 @@ void CGameScene::LinkSceneObjects()
         if (!spec.follower || !spec.target || spec.boneName.empty())
             continue;
 
-        const auto& boneMap = spec.target->GetBoneNameToIndex();
-        auto it = boneMap.find(spec.boneName);
-        if (it == boneMap.end())
-        {
-            std::string msg = "[LinkSceneObjects] Bone not found: " + spec.boneName + "\n";
-            OutputDebugStringA(msg.c_str());
-            continue;
-        }
-
         CFollowBoneComponent* follow = spec.follower->GetComponent<CFollowBoneComponent>();
         if (!follow)
             follow = spec.follower->AddComponent<CFollowBoneComponent>();
 
-        follow->Bind(spec.target, it->second, spec.localOffset);
+        follow->Bind(spec.target, spec.boneName, spec.localOffset);
         follow->SnapNow();
     }
 }
