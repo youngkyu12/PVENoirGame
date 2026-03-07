@@ -16,10 +16,12 @@ enum class AssetType
     Ghoul,
     AxeMan,
     Boss,
+
     World,
     Plane,
     House,
-    Arrow
+    Arrow,
+    Helmet
 };
 
 // BuildAsset

@@ -304,6 +304,15 @@ void CAnimator::BuildGlobalAndFinalFromLocal()
     }
 }
 
+bool CAnimator::GetGlobalBoneMatrix(int boneIndex, XMFLOAT4X4& outMatrix) const
+{
+    if (boneIndex < 0 || boneIndex >= (int)m_GlobalPose.size())
+        return false;
+
+    outMatrix = m_GlobalPose[(size_t)boneIndex];
+    return true;
+}
+
 bool CAnimator::CrossFade(const std::string& nextClipName, float blendTimeSec, bool loop, float startTime)
 {
     AnimationClip* next = FindClipPtr(nextClipName);

@@ -17,6 +17,7 @@
 #include "ActorTagComponent.h"
 #include "ArrowComponent.h"
 #include "Camera.h"
+#include "FollowBoneComponent.h"
 
 #include "ThreadManager.h"
 #include "Service.h"
@@ -69,6 +70,10 @@ void CGameScene::ReleaseObjects()
 
     m_staticBatch.objectRefs.clear();
     m_skinnedBatch.objectRefs.clear();
+
+    m_axeManRefs.clear();
+    m_helmetRefs.clear();
+    m_attachmentBinds.clear();
 
     ReleaseShaderVariables();
 
@@ -150,10 +155,14 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
     m_fighterCount = 4;
 
+    // 현재는 AxeMan 1명당 헬멧 1개
+    m_helmetCount = m_axeManCount;
+
     m_staticBatch.capacity =
         m_planeCount +
         m_houseCount +
-        kArrowPoolSize;
+        kArrowPoolSize +
+        m_helmetCount;
 
     m_staticBatch.count = 0;
 
@@ -211,6 +220,8 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
     BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
 
+    LinkSceneObjects();
+
     CreateShaderVariables(dev, cmd);
 
     CGameObject* local = GetPlayer();
@@ -218,6 +229,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
     CreateMainCamera(dev, cmd, local);
 }
+
 void CGameScene::BuildLightsAndMaterials()
 {
     m_lightObjects.clear();
@@ -584,6 +596,55 @@ void CGameScene::BuildStaticBatch(
             m_arrowRefs.push_back(raw);
         }
     }
+    // ------------------------------------------------------------------------
+    // Helmet pool (Static attachment)
+    // ------------------------------------------------------------------------
+    {
+        AssetBuildDesc HelmetDesc =
+        {
+            AssetType::Helmet,
+            "Assets/Helmet/Mesh/Helmet.bin",
+            "Assets/Helmet/Texture"
+        };
+
+        BuiltAsset helmetAsset = AssetManager::BuildAsset(
+            dev, cmd,
+            m_pMaterials.get(),
+            HelmetDesc
+        );
+
+        m_helmetRefs.clear();
+        m_helmetRefs.reserve(m_helmetCount);
+
+        for (UINT k = 0; k < m_helmetCount; ++k)
+        {
+            if (b->objectRefs.size() >= b->capacity) break;
+
+            const UINT i = (UINT)b->objectRefs.size();
+
+            auto obj = std::make_unique<CGameObject>(1);
+
+            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+            obj->SetMappedGameObjectCB(cb);
+
+            obj->SetMesh(0, helmetAsset.mesh);
+            obj->AddComponent<CStaticMeshRendererComponent>();
+
+            // 링크 전까지는 화면 밖에 둠
+            obj->SetPosition(0.0f, -10000.0f, 0.0f);
+
+            obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+            obj->CreateComponents(dev, cmd);
+
+            CGameObject* raw = obj.get();
+            m_staticObjects.push_back(std::move(obj));
+            b->objectRefs.push_back(raw);
+            b->count = (UINT)b->objectRefs.size();
+
+            m_helmetRefs.push_back(raw);
+        }
+    }
 }
 
 void CGameScene::BuildSkinnedBatch(
@@ -644,6 +705,9 @@ void CGameScene::BuildSkinnedBatch(
     const UINT fighterCount = m_fighterCount;
 
     const XMFLOAT3 playerBase(0.0f, 0.0f, 0.0f);
+
+    m_axeManRefs.clear();
+    m_axeManRefs.reserve(m_axeManCount);
 
     // ------------------------------------------------------------------------
     // Enemies
@@ -740,7 +804,7 @@ void CGameScene::BuildSkinnedBatch(
         // Enemy Type: SwordMan
         // ----------------------------
         {
-			//일단은 하드코딩
+            //일단은 하드코딩
             const UINT countX = m_swordManCount;
 
             AssetBuildDesc EnemyXDesc =
@@ -821,10 +885,10 @@ void CGameScene::BuildSkinnedBatch(
         }
 
         // ----------------------------
-		// Enemy Type BowMan
+        // Enemy Type BowMan
         // ----------------------------
         {
-			//일단은 하드코딩
+            //일단은 하드코딩
             const UINT countY = m_bowManCount;
 
             AssetBuildDesc EnemyYDesc =
@@ -908,7 +972,7 @@ void CGameScene::BuildSkinnedBatch(
         // Enemy Type: AxeMan
         // ----------------------------
         {
-			//일단은 하드코딩
+            //일단은 하드코딩
             const UINT countZ = m_axeManCount;
 
             AssetBuildDesc EnemyZDesc =
@@ -985,6 +1049,8 @@ void CGameScene::BuildSkinnedBatch(
                 m_skinnedObjects.push_back(std::move(obj));
                 b->objectRefs.push_back(raw);
                 b->count = (UINT)b->objectRefs.size();
+
+                m_axeManRefs.push_back(raw);
             }
         }
 
@@ -992,7 +1058,7 @@ void CGameScene::BuildSkinnedBatch(
         // Enemy Type: Boss
         // ----------------------------
         {
-			//확정이긴 한데 일단 하드코딩
+            //확정이긴 한데 일단 하드코딩
             const UINT countOne = m_bossCount;
 
             AssetBuildDesc EnemyOneDesc =
@@ -1077,155 +1143,244 @@ void CGameScene::BuildSkinnedBatch(
     // Fighter (Players slot 0..3) : 전원 m_skinnedObjects에 포함
     //  - m_localPlayerSlot만 Local + PlayerControllerComponent 부착
     // ------------------------------------------------------------------------
-{
-    AssetBuildDesc FighterDesc0 =
     {
-        AssetType::Fighter,
-        "Assets/Fighter/Mesh/Fighter.bin",
-        "Assets/Fighter/Texture"
-    };
-    AssetBuildDesc FighterDesc1 =
-    {
-        AssetType::Fighter,
-        "Assets/Fighter/Mesh/Fighter.bin",
-        "Assets/Fighter/Texture"
-    };
-    AssetBuildDesc FighterDesc2 =
-    {
-        AssetType::Fighter,
-        "Assets/Fighter/Mesh/Fighter.bin",
-        "Assets/Fighter/Texture"
-    };
-    AssetBuildDesc FighterDesc3 =
-    {
-        AssetType::Fighter,
-        "Assets/Fighter/Mesh/Fighter.bin",
-        "Assets/Fighter/Texture"
-    };
-
-    for (UINT k = 0; k < fighterCount; ++k)
-    {
-        if (b->objectRefs.size() >= b->capacity) break;
-
-        const UINT i = (UINT)b->objectRefs.size();
-
-        const int slot = (int)k;
-        const bool isLocal = (slot == m_localPlayerSlot);
-
-        // 슬롯별 BuildAsset 분리(파일명은 지금은 동일)
-        BuiltAsset asset{};
-        if (slot == 0) asset = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), FighterDesc0);
-        else if (slot == 1) asset = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), FighterDesc1);
-        else if (slot == 2) asset = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), FighterDesc2);
-        else /*slot==3*/ asset = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), FighterDesc3);
-
-        auto obj = std::make_unique<CGameObject>(1);
-
-        auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
-        obj->SetMappedGameObjectCB(cb);
-
-        obj->SetMesh(0, asset.mesh);
-        obj->AddComponent<CSkinnedMeshRendererComponent>();
-
-        auto* animComp = obj->AddComponent<CAnimatorComponent>();
-
+        AssetBuildDesc FighterDesc0 =
         {
-            auto* tag = obj->AddComponent<CActorTagComponent>();
-            tag->kind = EActorKind::Player;
-            tag->control = isLocal ? EPlayerControl::Local : EPlayerControl::Remote;
-            tag->playerSlot = slot;
-        }
-
-        if (isLocal)
+            AssetType::Fighter,
+            "Assets/Fighter/Mesh/Fighter.bin",
+            "Assets/Fighter/Texture"
+        };
+        AssetBuildDesc FighterDesc1 =
         {
-            obj->AddComponent<CPlayerControllerComponent>();
-        }
-
-        UINT matId = 0;
-        if (asset.mesh)
+            AssetType::Fighter,
+            "Assets/Fighter/Mesh/Fighter.bin",
+            "Assets/Fighter/Texture"
+        };
+        AssetBuildDesc FighterDesc2 =
         {
-            for (auto& sm : asset.mesh->m_SubMeshes)
+            AssetType::Fighter,
+            "Assets/Fighter/Mesh/Fighter.bin",
+            "Assets/Fighter/Texture"
+        };
+        AssetBuildDesc FighterDesc3 =
+        {
+            AssetType::Fighter,
+            "Assets/Fighter/Mesh/Fighter.bin",
+            "Assets/Fighter/Texture"
+        };
+
+        for (UINT k = 0; k < fighterCount; ++k)
+        {
+            if (b->objectRefs.size() >= b->capacity) break;
+
+            const UINT i = (UINT)b->objectRefs.size();
+
+            const int slot = (int)k;
+            const bool isLocal = (slot == m_localPlayerSlot);
+
+            // 슬롯별 BuildAsset 분리(파일명은 지금은 동일)
+            BuiltAsset asset{};
+            if (slot == 0) asset = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), FighterDesc0);
+            else if (slot == 1) asset = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), FighterDesc1);
+            else if (slot == 2) asset = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), FighterDesc2);
+            else /*slot==3*/ asset = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), FighterDesc3);
+
+            auto obj = std::make_unique<CGameObject>(1);
+
+            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+            obj->SetMappedGameObjectCB(cb);
+
+            obj->SetMesh(0, asset.mesh);
+            obj->AddComponent<CSkinnedMeshRendererComponent>();
+
+            auto* animComp = obj->AddComponent<CAnimatorComponent>();
+
             {
-                if (sm.materialId == 0xFFFFFFFFu) continue;
-                matId = sm.materialId;
-                break;
+                auto* tag = obj->AddComponent<CActorTagComponent>();
+                tag->kind = EActorKind::Player;
+                tag->control = isLocal ? EPlayerControl::Local : EPlayerControl::Remote;
+                tag->playerSlot = slot;
             }
-        }
 
-        auto mat = std::make_shared<CMaterial>();
-        mat->m_nReflection = matId;
-
-        const float x = playerBase.x + 2.0f * (float)slot;
-        obj->SetPosition(x, playerBase.y, playerBase.z);
-        obj->Rotate(0.0f, 0.0f, 0.0f);
-
-        obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
-
-        if (asset.mesh && asset.mesh->IsSkinnedMesh())
-        {
-            obj->EnableSkinning(dev, asset.mesh->GetBoneCount());
-        }
-
-        auto mesh0 = obj->GetMeshShared(0);
-
-        AnimationClip idleClip{};
-        AnimationClip runClip{};
-        AnimationClip atkClip{};
-        bool idleLoaded = false;
-        bool runLoaded = false;
-        bool atkLoaded = false;
-
-        if (mesh0)
-        {
-            idleLoaded = mesh0->LoadAnimationFromBIN(
-                "Assets/Fighter/Animation/FighterIdle.bin",
-                "Idle", idleClip, 1.0f
-            );
-
-            runLoaded = mesh0->LoadAnimationFromBIN(
-                "Assets/Fighter/Animation/FighterRun.bin",
-                "Run", runClip, 1.0f
-            );
-
-            atkLoaded = mesh0->LoadAnimationFromBIN(
-                "Assets/Fighter/Animation/FighterAttack.bin",
-                "Attack", atkClip, 1.0f
-            );
-        }
-
-        if (animComp)
-        {
-            if (idleLoaded) { idleClip.name = "Idle";   animComp->AddClip(idleClip); }
-            if (runLoaded) { runClip.name = "Run";    animComp->AddClip(runClip); }
-            if (atkLoaded) { atkClip.name = "Attack"; animComp->AddClip(atkClip); }
-
-            animComp->SetIdleClip("Idle");
-            animComp->SetMoveClip(runLoaded ? "Run" : "Idle");
-
-            auto* ctrl = animComp->EnsureController();
-            if (ctrl)
+            if (isLocal)
             {
-                ctrl->SetAttackClip("Attack");
-                ctrl->SetSpeed(0.0f);
-                ctrl->Update(0.0f);
+                obj->AddComponent<CPlayerControllerComponent>();
             }
+
+            UINT matId = 0;
+            if (asset.mesh)
+            {
+                for (auto& sm : asset.mesh->m_SubMeshes)
+                {
+                    if (sm.materialId == 0xFFFFFFFFu) continue;
+                    matId = sm.materialId;
+                    break;
+                }
+            }
+
+            auto mat = std::make_shared<CMaterial>();
+            mat->m_nReflection = matId;
+
+            const float x = playerBase.x + 2.0f * (float)slot;
+            obj->SetPosition(x, playerBase.y, playerBase.z);
+            obj->Rotate(0.0f, 0.0f, 0.0f);
+
+            obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+            if (asset.mesh && asset.mesh->IsSkinnedMesh())
+            {
+                obj->EnableSkinning(dev, asset.mesh->GetBoneCount());
+            }
+
+            auto mesh0 = obj->GetMeshShared(0);
+
+            AnimationClip idleClip{};
+            AnimationClip runClip{};
+            AnimationClip atkClip{};
+            bool idleLoaded = false;
+            bool runLoaded = false;
+            bool atkLoaded = false;
+
+            if (mesh0)
+            {
+                idleLoaded = mesh0->LoadAnimationFromBIN(
+                    "Assets/Fighter/Animation/FighterIdle.bin",
+                    "Idle", idleClip, 1.0f
+                );
+
+                runLoaded = mesh0->LoadAnimationFromBIN(
+                    "Assets/Fighter/Animation/FighterRun.bin",
+                    "Run", runClip, 1.0f
+                );
+
+                atkLoaded = mesh0->LoadAnimationFromBIN(
+                    "Assets/Fighter/Animation/FighterAttack.bin",
+                    "Attack", atkClip, 1.0f
+                );
+            }
+
+            if (animComp)
+            {
+                if (idleLoaded) { idleClip.name = "Idle";   animComp->AddClip(idleClip); }
+                if (runLoaded) { runClip.name = "Run";    animComp->AddClip(runClip); }
+                if (atkLoaded) { atkClip.name = "Attack"; animComp->AddClip(atkClip); }
+
+                animComp->SetIdleClip("Idle");
+                animComp->SetMoveClip(runLoaded ? "Run" : "Idle");
+
+                auto* ctrl = animComp->EnsureController();
+                if (ctrl)
+                {
+                    ctrl->SetAttackClip("Attack");
+                    ctrl->SetSpeed(0.0f);
+                    ctrl->Update(0.0f);
+                }
+            }
+
+            obj->CreateComponents(dev, cmd);
+            if (animComp) animComp->EvaluatePose(0.0f);
+
+            CGameObject* raw = obj.get();
+
+            if (slot >= 0 && slot <= 3)
+                m_playersBySlot[(size_t)slot] = raw;
+
+            m_skinnedObjects.push_back(std::move(obj));
+            b->objectRefs.push_back(raw);
+            b->count = (UINT)b->objectRefs.size();
         }
-
-        obj->CreateComponents(dev, cmd);
-        if (animComp) animComp->EvaluatePose(0.0f);
-
-        CGameObject* raw = obj.get();
-
-        if (slot >= 0 && slot <= 3)
-            m_playersBySlot[(size_t)slot] = raw;
-
-        m_skinnedObjects.push_back(std::move(obj));
-        b->objectRefs.push_back(raw);
-        b->count = (UINT)b->objectRefs.size();
     }
 }
+
+XMFLOAT4X4 CGameScene::BuildAttachmentOffsetMatrix(
+    const XMFLOAT3& pos,
+    const XMFLOAT3& rotDeg,
+    const XMFLOAT3& scale)
+{
+    XMMATRIX S = XMMatrixScaling(scale.x, scale.y, scale.z);
+    XMMATRIX R = XMMatrixRotationRollPitchYaw(
+        XMConvertToRadians(rotDeg.x),
+        XMConvertToRadians(rotDeg.y),
+        XMConvertToRadians(rotDeg.z)
+    );
+    XMMATRIX T = XMMatrixTranslation(pos.x, pos.y, pos.z);
+
+    XMFLOAT4X4 out{};
+    XMStoreFloat4x4(&out, S * R * T);
+    return out;
 }
 
+void CGameScene::LinkSceneObjects()
+{
+    // ------------------------------------------------------------------------
+    // Light follow target
+    // ------------------------------------------------------------------------
+    if (m_pPlayerSpotFollower)
+    {
+        CGameObject* local = GetPlayer();
+        if (!local) local = GetPlayerBySlot(0);
+        if (local) m_pPlayerSpotFollower->SetTarget(local);
+    }
+
+    // ------------------------------------------------------------------------
+    // AxeMan Helmet Attachment
+    //  - 1:1 매칭: helmet[i] -> axeMan[i]
+    //  - bone: CATRigHub002
+    //  - authored local offset (Unity values given by user)
+    // ------------------------------------------------------------------------
+    m_attachmentBinds.clear();
+
+    size_t helmetCount = m_helmetRefs.size();
+    size_t axeCount = m_axeManRefs.size();
+
+    size_t pairCount = helmetCount;
+    if (axeCount < pairCount)
+    {
+        pairCount = axeCount;
+    }
+
+    m_attachmentBinds.reserve(pairCount);
+
+    const XMFLOAT4X4 helmetOffset = BuildAttachmentOffsetMatrix(
+        //XMFLOAT3(61.0f, 6.0f, 0.0f),
+        XMFLOAT3(3.8f, 0.35f, 0.0f),
+        XMFLOAT3(-90.0f, 0.0f, 90.0f),
+        XMFLOAT3(1.0f, 1.0f, 1.0f)
+    );
+
+    for (size_t i = 0; i < pairCount; ++i)
+    {
+        AttachmentBindSpec spec{};
+        spec.follower = m_helmetRefs[i];
+        spec.target = m_axeManRefs[i];
+        spec.boneName = "CATRigHub002";
+        spec.localOffset = helmetOffset;
+
+        m_attachmentBinds.push_back(spec);
+    }
+
+    for (AttachmentBindSpec& spec : m_attachmentBinds)
+    {
+        if (!spec.follower || !spec.target || spec.boneName.empty())
+            continue;
+
+        const auto& boneMap = spec.target->GetBoneNameToIndex();
+        auto it = boneMap.find(spec.boneName);
+        if (it == boneMap.end())
+        {
+            std::string msg = "[LinkSceneObjects] Bone not found: " + spec.boneName + "\n";
+            OutputDebugStringA(msg.c_str());
+            continue;
+        }
+
+        CFollowBoneComponent* follow = spec.follower->GetComponent<CFollowBoneComponent>();
+        if (!follow)
+            follow = spec.follower->AddComponent<CFollowBoneComponent>();
+
+        follow->Bind(spec.target, it->second, spec.localOffset);
+        follow->SnapNow();
+    }
+}
 
 void CGameScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target)
 {
@@ -1385,16 +1540,16 @@ bool CGameScene::ProcessInput(UCHAR* /*pKeysBuffer*/)
 
 void CGameScene::AnimateObjects(float dt)
 {
-    for (UINT j = 0; j < (UINT)m_staticObjects.size(); ++j)
-    {
-        if (!m_staticObjects[j]) continue;
-        m_staticObjects[j]->Animate(dt);
-    }
-
     for (UINT j = 0; j < (UINT)m_skinnedObjects.size(); ++j)
     {
         if (!m_skinnedObjects[j]) continue;
         m_skinnedObjects[j]->Animate(dt);
+    }
+
+    for (UINT j = 0; j < (UINT)m_staticObjects.size(); ++j)
+    {
+        if (!m_staticObjects[j]) continue;
+        m_staticObjects[j]->Animate(dt);
     }
 
     CGameObject* local = GetPlayer();
