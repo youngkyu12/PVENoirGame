@@ -37,45 +37,6 @@ bool CCollisionSystem::PassFilter(const CColliderComponent* a, const CColliderCo
 
 void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 {
-    // 실제 겹침 판정 (네 collider가 이미 Intersects 제공)
-    const bool overlapping = a->Intersects(*b);
-
-    const bool was = a->WasOverlapping(b); // a쪽 set만 봐도 됨(대칭으로 관리할 거라서)
-
-    if (overlapping && !was)
-    {
-        // Enter
-        a->MarkOverlapping(b);
-        b->MarkOverlapping(a);
-
-        if (a->IsTrigger() || b->IsTrigger())
-        {
-            a->OnTriggerEnter(b);
-            b->OnTriggerEnter(a);
-        }
-        else
-        {
-            a->OnCollisionEnter(b);
-            b->OnCollisionEnter(a);
-        }
-    }
-    else if (!overlapping && was)
-    {
-        // Exit
-        a->UnmarkOverlapping(b);
-        b->UnmarkOverlapping(a);
-
-        if (a->IsTrigger() || b->IsTrigger())
-        {
-            a->OnTriggerExit(b);
-            b->OnTriggerExit(a);
-        }
-        else
-        {
-            a->OnCollisionExit(b);
-            b->OnCollisionExit(a);
-        }
-    }
 
     // overlapping && was : 유지 상태 -> 필요하면 OnStay 같은 이벤트 추가
 }
