@@ -23,6 +23,7 @@ public:
     void TickAdvance();
 
 public:
+    void MakeFrameState();
 	void MakeInitStruct(Protocol::S_GAME_START gameStartPkt);
 	void MakeEnterGameStruct(Protocol::S_ENTER_GAME enterGamePkt);
 

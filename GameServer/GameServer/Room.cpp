@@ -95,15 +95,22 @@ void Room::EndGame()
 
 void Room::TickAdvance()
 {
+	MakeFrameState();
+}
+
+
+
+void Room::MakeFrameState()
+{
 	// 게임 로직 업데이트 (예: 적 이동, 충돌 검사 등)
-	Protocol::S_FRAME_STATE* frameStatePkt;
+	Protocol::S_FRAME_STATE frameStatePkt;
 	// 프레임 상태 패킷 작성 (예: 플레이어 위치, 적 상태 등)
 
 	for (auto playerMap : players)
 	{
 		PlayerRef& player = playerMap.second;
 
-		auto p = frameStatePkt->add_players();
+		auto p = frameStatePkt.add_players();
 		p->set_id(player->playerId);
 		p->set_name(player->name);
 		p->set_playertype(player->type);
@@ -121,7 +128,7 @@ void Room::TickAdvance()
 	for (auto enemyMap : enemies)
 	{
 		EnemyRef& enemy = enemyMap.second;
-		auto e = frameStatePkt->add_enemies();
+		auto e = frameStatePkt.add_enemies();
 		e->set_id(enemyMap.first);
 		e->set_enemytype(enemy->type);
 
@@ -139,15 +146,13 @@ void Room::TickAdvance()
 
 
 
-	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(*frameStatePkt);
+	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(frameStatePkt);
 	GRoom->DoAsync(&Room::BroadCastAll, sendBuffer);
 
 
 	// 다음 업데이트 예약
 	GRoom->DoTimer(30, &Room::TickAdvance);
 }
-
-
 
 void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
 {
