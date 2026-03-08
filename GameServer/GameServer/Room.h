@@ -21,6 +21,7 @@ public:
 
 public:
     void TickAdvance();
+    void ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float deltaY);
 
 public:
     void MakeFrameState();
