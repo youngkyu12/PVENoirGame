@@ -11,9 +11,18 @@
 
 class CMaterial;
 class CFollowTransformComponent;
+class CFollowBoneComponent;
 class CArrowComponent;
+class CGameObject;
 
 struct CB_GAMEOBJECT_INFO;
+struct AttachmentBindSpec
+{
+    CGameObject* follower = nullptr;
+    CGameObject* target = nullptr;
+    std::string  boneName;
+    XMFLOAT4X4   localOffset{};
+};
 
 // ============================================================================
 // GameScene
@@ -59,6 +68,13 @@ private:
         DXGI_FORMAT dsvFormat
     );
 
+    void LinkSceneObjects();
+    static XMFLOAT4X4 BuildAttachmentOffsetMatrix(
+        const XMFLOAT3& pos,
+        const XMFLOAT3& rotDeg,
+        const XMFLOAT3& scale = XMFLOAT3(1.0f, 1.0f, 1.0f)
+    );
+
     void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd);
 
     // Frame / Render
@@ -100,6 +116,26 @@ private:
     std::array<CGameObject*, 4> m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
 
     int m_localPlayerSlot;
+    // ------------------------------------------------------------------------
+    // Build counts (현재는 BuildObjects()에서 결정, 추후 서버 동기화 값으로 대체)
+    // ------------------------------------------------------------------------
+    UINT m_planeCount = 1;
+    UINT m_houseCount = 3;
+
+    UINT m_ghoulCount = 4;
+    UINT m_swordManCount = 3;
+    UINT m_bowManCount = 3;
+    UINT m_axeManCount = 2;
+    UINT m_bossCount = 1;
+
+    UINT m_fighterCount = 4;
+
+    UINT m_helmetCount = 0;
+
+    std::vector<CGameObject*> m_axeManRefs;   // raw ptrs owned by m_skinnedObjects
+    std::vector<CGameObject*> m_helmetRefs;   // raw ptrs owned by m_staticObjects
+
+    std::vector<AttachmentBindSpec> m_attachmentBinds;
 
     SCENE_STATIC_BATCH  m_staticBatch;
     SCENE_SKINNED_BATCH m_skinnedBatch;
