@@ -116,6 +116,7 @@ bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
 
 bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pkt)
 {
+	FrameSnapshot data;
 	// 프레임마다 적의 위치, 플레이어의 위치, 플레이어의 HP 등등을 수신받아 적용
 	auto players = pkt.players();
 	auto enemies = pkt.enemies();
@@ -126,6 +127,8 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 		auto transform = player.transform();
 		auto position = transform.position();
 		auto yaw = transform.yaw();
+
+		data.players.push_back({ player.id(), {position.x(), position.y(), position.z()}, yaw });
 	}
 
 	for (auto& enemy : enemies)
@@ -134,8 +137,11 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 		auto transform = enemy.transform();
 		auto position = transform.position();
 		auto yaw = transform.yaw();
+
+		data.enemies.push_back({ enemy.id(), {position.x(), position.y(), position.z()}, yaw });
 	}
 
+	g_NetworkQueue.PushFrameState(std::move(data));
 	return false;
 }
 
