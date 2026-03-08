@@ -20,9 +20,12 @@ public:
     void EndGame();
 
 public:
+    void TickAdvance();
+
 public:
 	void MakeInitStruct(Protocol::S_GAME_START gameStartPkt);
 	void MakeEnterGameStruct(Protocol::S_ENTER_GAME enterGamePkt);
+
 
 public:
     GameAreaRef GetArea(uint32 areaId);
