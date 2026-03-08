@@ -64,7 +64,11 @@ public:
 
 void NetworkLoop();
 
-int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow)
+int APIENTRY _tWinMain(
+	HINSTANCE hInstance,
+	HINSTANCE hPrevInstance, 
+	LPTSTR lpCmdLine, 
+	int nCmdShow)
 {
 	UNREFERENCED_PARAMETER(hPrevInstance);
 	UNREFERENCED_PARAMETER(lpCmdLine);
@@ -86,7 +90,8 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 	{
 		if (::PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 		{
-			if (msg.message == WM_QUIT) break;
+			if (msg.message == WM_QUIT) 
+				break;
 			if (!::TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
 			{
 				::TranslateMessage(&msg);

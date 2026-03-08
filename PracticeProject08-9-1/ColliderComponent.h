@@ -9,14 +9,28 @@ class CTransformComponent;
 
 struct BoundingCapsule
 {
-    DirectX::XMFLOAT3 p0{ 0.f, 0.f, 0.f }; // segment start
-    DirectX::XMFLOAT3 p1{ 0.f, 0.f, 0.f }; // segment end
-    float radius{ 0.1f };
+    XMFLOAT3 p0;
+    XMFLOAT3 p1;
+    XMFLOAT3 Center;
+    float Radius;
+    float Height;
 
-    BoundingCapsule() = default;
-    BoundingCapsule(const DirectX::XMFLOAT3& a, const DirectX::XMFLOAT3& b, float r)
-        : p0(a), p1(b), radius(r) {
+    // Creators
+    BoundingCapsule() noexcept : p0(0.0f, 0.0f, 0.0f), p1(0.0f, 0.0f, 0.0f), Center(0.0f, 0.0f, 0.0f), Radius(0.1f), Height(0.0f) {}
+
+    BoundingCapsule(const BoundingCapsule&) = default;
+    BoundingCapsule& operator=(const BoundingCapsule&) = default;
+
+    BoundingCapsule(BoundingCapsule&&) = default;
+    BoundingCapsule& operator=(BoundingCapsule&&) = default;
+
+    constexpr BoundingCapsule(const XMFLOAT3& q0, const XMFLOAT3& q1, const XMFLOAT3& center, const float& radius, const float& height) noexcept
+        : p0(q0), p1(q1), Center(center), Radius(radius), Height(height) {
     }
+
+    // Methods
+    void Transform(BoundingCapsule& Out, FXMMATRIX M) const noexcept;
+    void Transform(BoundingCapsule& Out, float Scale, FXMVECTOR Rotation, FXMVECTOR Translation) const noexcept;
 };
 
 class CColliderComponent final : public CComponentT<CColliderComponent>
@@ -30,7 +44,10 @@ public:
     // Shape setup
     void SetAABB(const XMFLOAT3& Min, const XMFLOAT3& Max);
     void SetOOBB(const XMFLOAT3& Min, const XMFLOAT3& Max);
-
+    void SetBSphere(const XMFLOAT3& Min, const XMFLOAT3& Max);
+    void SetBCapsule(const XMFLOAT3& Min, const XMFLOAT3& Max);
+    void SetSubBCapsule(const XMFLOAT3& Min, const XMFLOAT3& Max);
+    
     EColliderType GetType() const { return mColliderType; }
 
     // Filtering
@@ -38,29 +55,6 @@ public:
     void SetMask(uint32_t mask) { mMask = mask; }
     uint32_t GetLayer() const { return mLayer; }
     uint32_t GetMask() const { return mMask; }
-
-    void SetTrigger(bool v) { mIsTrigger = v; }
-    bool IsTrigger() const { return mIsTrigger; }
-
-    // World data
-    const XMFLOAT3& GetWorldCenter() const { return Center; }
-    float GetWorldRadius() const { return Radius; }
-    const BoundingBox& GetWorldAABB() const { return AABB; }
-
-    // Pair test (MVP)
-    bool Intersects(const CColliderComponent& other) const;
-
-    // Collision events (Scene에서 호출)
-    virtual void OnCollisionEnter(CColliderComponent* other) {}
-    virtual void OnCollisionExit(CColliderComponent* other) {}
-
-    virtual void OnTriggerEnter(CColliderComponent* other) {}
-    virtual void OnTriggerExit(CColliderComponent* other) {}
-
-    // 내부용: 접촉상태 관리
-    bool WasOverlapping(CColliderComponent* other) const;
-    void MarkOverlapping(CColliderComponent* other);
-    void UnmarkOverlapping(CColliderComponent* other);
 
 private:
     void UpdateWorldBounds();
@@ -71,24 +65,22 @@ private:
 
     EColliderType mColliderType = EColliderType::None;
 
-    XMFLOAT3      Extents = XMFLOAT3(0.5f, 0.5f, 0.5f);
+    // Local Bounding Box
+    BoundingBox LocalAABB;
+    BoundingOrientedBox LocalOOBB;
+    BoundingSphere LocalBSphere;
+    BoundingCapsule LocalBCapsule;
+    vector<BoundingCapsule> LocalSubBCapsules;
 
-    // World cache
-    XMFLOAT3      Center = XMFLOAT3(0, 0, 0);
-    float         Radius = 0.5f;
-
-    // Bounding Box
-    BoundingBox AABB;
-    BoundingOrientedBox OOBB;
-    BoundingSphere BSphere;
-    vector<BoundingCapsule> BCapsules;
-
+    // World Bounding Box
+    BoundingBox WorldAABB;
+    BoundingOrientedBox WorldOOBB;
+    BoundingSphere WorldBSphere;
+    BoundingCapsule WorldBCapsule;
+    vector<BoundingCapsule> WorldSubBCapsules;
 
     // Filtering
     uint32_t      mLayer = 0;                // 0..31 권장
     uint32_t      mMask = 0xFFFFFFFFu;      // 허용 레이어 bitmask
     bool          mIsTrigger = false;
-
-    // overlap tracking (Enter/Exit 판정용)
-    std::unordered_set<CColliderComponent*> mOverlaps;
 };

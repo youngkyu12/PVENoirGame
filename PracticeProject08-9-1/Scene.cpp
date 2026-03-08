@@ -172,8 +172,7 @@ void CScene::BuildObjects(
 	m_pDescriptorHeap->CreateCbvSrvDescriptorHeaps(
 		pd3dDevice,
 		cbvTotal,
-		MAX_GLOBAL_SRVS
-	);
+		MAX_GLOBAL_SRVS);
 
 	// 공통 RTV 포맷
 	DXGI_FORMAT rtvFormats[5] =
@@ -597,8 +596,7 @@ void CScene::BuildStaticBatch(
 		BuiltAsset asset = AssetManager::BuildAsset(
 			pd3dDevice, pd3dCommandList,
 			m_pMaterials.get(),
-			Desc
-		);
+			Desc);
 
 		auto obj = std::make_unique<CGameObject>(1);
 
