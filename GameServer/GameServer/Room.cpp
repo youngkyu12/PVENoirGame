@@ -93,6 +93,60 @@ void Room::EndGame()
 {
 }
 
+void Room::TickAdvance()
+{
+	// 게임 로직 업데이트 (예: 적 이동, 충돌 검사 등)
+	Protocol::S_FRAME_STATE* frameStatePkt;
+	// 프레임 상태 패킷 작성 (예: 플레이어 위치, 적 상태 등)
+
+	for (auto playerMap : players)
+	{
+		PlayerRef& player = playerMap.second;
+
+		auto p = frameStatePkt->add_players();
+		p->set_id(player->playerId);
+		p->set_name(player->name);
+		p->set_playertype(player->type);
+
+		Protocol::Transform* transform = p->mutable_transform();
+		Protocol::Vec3f* position = transform->mutable_position();
+		position->set_x(player->GetPosition().x);
+		position->set_y(player->GetPosition().y);
+		position->set_z(player->GetPosition().z);
+
+		transform->set_yaw(player->GetYaw());
+	}
+
+
+	for (auto enemyMap : enemies)
+	{
+		EnemyRef& enemy = enemyMap.second;
+		auto e = frameStatePkt->add_enemies();
+		e->set_id(enemyMap.first);
+		e->set_enemytype(enemy->type);
+
+
+		Protocol::Transform* transform = e->mutable_transform();
+		Protocol::Vec3f* position = transform->mutable_position();
+		position->set_x(enemy->GetPosition().x);
+		position->set_y(enemy->GetPosition().y);
+		position->set_z(enemy->GetPosition().z);
+
+
+	}
+
+
+
+
+
+	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(*frameStatePkt);
+	GRoom->DoAsync(&Room::BroadCastAll, sendBuffer);
+
+
+	// 다음 업데이트 예약
+	GRoom->DoTimer(30, &Room::TickAdvance);
+}
+
 
 
 void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
@@ -143,6 +197,9 @@ void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
 	GRoom->DoAsync(&Room::BroadCastAll, sendBuffer);
 
 	cout << "Game Started!" << endl;
+
+	// 게임 시작 로직 (예: 타이머 시작, 적 스폰 등)
+	GRoom->DoTimer(100, &Room::TickAdvance);
 }
 
 void Room::MakeEnterGameStruct(Protocol::S_ENTER_GAME enterGamePkt)
