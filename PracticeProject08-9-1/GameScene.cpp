@@ -1641,8 +1641,65 @@ bool CGameScene::ProcessInput(UCHAR* /*pKeysBuffer*/)
 
 void CGameScene::AnimateObjects(float dt)
 {
-	DequeueNetworkMessage(NetworkMessageType::FrameState);
+    // ------------------------------------------------------------------------
+    // FrameSnapshot에서 좌표 업데이트
+    // ------------------------------------------------------------------------
+    DequeueNetworkMessage(NetworkMessageType::FrameState);
 
+    if (std::holds_alternative<FrameSnapshot>(m_pendingNetworkMessage.data))
+    {
+        const FrameSnapshot& snapshot = std::get<FrameSnapshot>(m_pendingNetworkMessage.data);
+
+        // Player 좌표 업데이트
+        for (const auto& state : snapshot.players)
+        {
+            // id를 slot으로 사용 (0~3)
+            int slot = static_cast<int>(state.id);
+            CGameObject* player = GetPlayerBySlot(slot);
+            if (!player) continue;
+
+            // 로컬 플레이어는 서버 좌표로 덮어쓰지 않음 (선택적)
+            // if (slot == m_localPlayerSlot) continue;
+
+            player->SetPosition(state.position.x, state.position.y, state.position.z);
+            
+            // yaw 회전 적용
+            if (auto* tr = player->GetComponent<CTransformComponent>())
+            {
+                tr->SetYawDegrees(state.yaw);
+            }
+        }
+
+        // Enemy 좌표 업데이트
+        // skinnedObjects에서 NPC만 순회 (Fighter 제외)
+        UINT enemyIndex = 0;
+        const UINT totalEnemies = m_ghoulCount + m_swordManCount + m_bowManCount + m_axeManCount + m_bossCount;
+
+        for (UINT j = 0; j < totalEnemies && j < (UINT)m_skinnedObjects.size(); ++j)
+        {
+            auto* obj = m_skinnedObjects[j].get();
+            if (!obj) continue;
+
+            auto* tag = obj->GetComponent<CActorTagComponent>();
+            if (!tag || tag->kind != EActorKind::NPC) continue;
+
+            if (enemyIndex < (UINT)snapshot.enemies.size())
+            {
+                const auto& state = snapshot.enemies[enemyIndex];
+                obj->SetPosition(state.position.x, state.position.y, state.position.z);
+
+                if (auto* tr = obj->GetComponent<CTransformComponent>())
+                {
+                    tr->SetYawDegrees(state.yaw);
+                }
+            }
+            ++enemyIndex;
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // 기존 애니메이션 로직
+    // ------------------------------------------------------------------------
     for (UINT j = 0; j < (UINT)m_skinnedObjects.size(); ++j)
     {
         if (!m_skinnedObjects[j]) continue;
