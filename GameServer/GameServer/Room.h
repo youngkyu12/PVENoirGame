@@ -24,7 +24,7 @@ public:
     void ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float deltaY);
 
 public:
-    void MakeFrameState();
+    void MakeFrameState(Atomic<uint32> tick);
 	void MakeInitStruct(Protocol::S_GAME_START gameStartPkt);
 	void MakeEnterGameStruct(Protocol::S_ENTER_GAME enterGamePkt);
 

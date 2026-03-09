@@ -95,7 +95,8 @@ void Room::EndGame()
 
 void Room::TickAdvance()
 {
-	MakeFrameState();
+	static Atomic<uint32> tick = 0;
+	MakeFrameState(tick++);
 }
 
 void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float deltaY)
@@ -153,10 +154,12 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 
 
 
-void Room::MakeFrameState()
+void Room::MakeFrameState(Atomic<uint32> tick)
 {
 	// 게임 로직 업데이트 (예: 적 이동, 충돌 검사 등)
 	Protocol::S_FRAME_STATE frameStatePkt;
+	frameStatePkt.set_servertick(tick);
+
 	// 프레임 상태 패킷 작성 (예: 플레이어 위치, 적 상태 등)
 
 	for (auto playerMap : players)
@@ -167,6 +170,10 @@ void Room::MakeFrameState()
 		p->set_id(player->playerId);
 		p->set_name(player->name);
 		p->set_playertype(player->type);
+
+		Protocol::Animation* anim = p->mutable_animation();
+		anim->set_animationtick(player->GetAnimTick());
+		anim->set_animationtype(player->GetAnimState());
 
 		Protocol::Transform* transform = p->mutable_transform();
 		Protocol::Vec3f* position = transform->mutable_position();

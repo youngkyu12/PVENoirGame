@@ -77,8 +77,8 @@ public:
     void SetAnimState(uint8_t state) { m_animState = state; }
     uint8_t GetAnimState() const { return m_animState; }
 
-    void SetAnimTime(float t) { m_animTime = t; }
-    float GetAnimTime() const { return m_animTime; }
+    void SetAnimTick(int t) { m_animTick = t; }
+    int GetAnimTick() const { return m_animTick; }
 
     // ========================================
     // ID / Type
@@ -136,7 +136,7 @@ protected:
 
     // Animation state
     uint8_t m_animState = AnimStateType::Idle;
-    float m_animTime = 0.f;
+    int m_animTick = 0;
 
     // Identity
     uint64_t m_objectId = 0;

@@ -60,6 +60,20 @@ struct ObjectStatusDefaultTypeInternal {
   };
 };
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ObjectStatusDefaultTypeInternal _ObjectStatus_default_instance_;
+constexpr Animation::Animation(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : animationtype_(0)
+
+  , animationtick_(0u){}
+struct AnimationDefaultTypeInternal {
+  constexpr AnimationDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~AnimationDefaultTypeInternal() {}
+  union {
+    Animation _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT AnimationDefaultTypeInternal _Animation_default_instance_;
 constexpr Bullet::Bullet(
   ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
   : position_(nullptr)
@@ -79,6 +93,7 @@ constexpr Player::Player(
   ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
   : name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
   , transform_(nullptr)
+  , animation_(nullptr)
   , id_(uint64_t{0u})
   , playertype_(0)
 
@@ -96,6 +111,7 @@ PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PlayerDefaultTypeInternal _Play
 constexpr Enemy::Enemy(
   ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
   : transform_(nullptr)
+  , animation_(nullptr)
   , id_(uint64_t{0u})
   , enemytype_(0)
 
@@ -124,7 +140,7 @@ struct BuildingDefaultTypeInternal {
 };
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT BuildingDefaultTypeInternal _Building_default_instance_;
 }  // namespace Protocol
-static ::PROTOBUF_NAMESPACE_ID::Metadata file_level_metadata_Struct_2eproto[7];
+static ::PROTOBUF_NAMESPACE_ID::Metadata file_level_metadata_Struct_2eproto[8];
 static constexpr ::PROTOBUF_NAMESPACE_ID::EnumDescriptor const** file_level_enum_descriptors_Struct_2eproto = nullptr;
 static constexpr ::PROTOBUF_NAMESPACE_ID::ServiceDescriptor const** file_level_service_descriptors_Struct_2eproto = nullptr;
 
@@ -155,6 +171,13 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_Struct_2eproto::offsets[] PROT
   PROTOBUF_FIELD_OFFSET(::Protocol::ObjectStatus, defense_),
   PROTOBUF_FIELD_OFFSET(::Protocol::ObjectStatus, speed_),
   ~0u,  // no _has_bits_
+  PROTOBUF_FIELD_OFFSET(::Protocol::Animation, _internal_metadata_),
+  ~0u,  // no _extensions_
+  ~0u,  // no _oneof_case_
+  ~0u,  // no _weak_field_map_
+  PROTOBUF_FIELD_OFFSET(::Protocol::Animation, animationtype_),
+  PROTOBUF_FIELD_OFFSET(::Protocol::Animation, animationtick_),
+  ~0u,  // no _has_bits_
   PROTOBUF_FIELD_OFFSET(::Protocol::Bullet, _internal_metadata_),
   ~0u,  // no _extensions_
   ~0u,  // no _oneof_case_
@@ -173,6 +196,7 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_Struct_2eproto::offsets[] PROT
   PROTOBUF_FIELD_OFFSET(::Protocol::Player, playertype_),
   PROTOBUF_FIELD_OFFSET(::Protocol::Player, playerstate_),
   PROTOBUF_FIELD_OFFSET(::Protocol::Player, transform_),
+  PROTOBUF_FIELD_OFFSET(::Protocol::Player, animation_),
   ~0u,  // no _has_bits_
   PROTOBUF_FIELD_OFFSET(::Protocol::Enemy, _internal_metadata_),
   ~0u,  // no _extensions_
@@ -182,6 +206,7 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_Struct_2eproto::offsets[] PROT
   PROTOBUF_FIELD_OFFSET(::Protocol::Enemy, enemytype_),
   PROTOBUF_FIELD_OFFSET(::Protocol::Enemy, enemystate_),
   PROTOBUF_FIELD_OFFSET(::Protocol::Enemy, transform_),
+  PROTOBUF_FIELD_OFFSET(::Protocol::Enemy, animation_),
   ~0u,  // no _has_bits_
   PROTOBUF_FIELD_OFFSET(::Protocol::Building, _internal_metadata_),
   ~0u,  // no _extensions_
@@ -194,16 +219,18 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOB
   { 0, -1, sizeof(::Protocol::Vec3f)},
   { 8, -1, sizeof(::Protocol::Transform)},
   { 16, -1, sizeof(::Protocol::ObjectStatus)},
-  { 25, -1, sizeof(::Protocol::Bullet)},
-  { 34, -1, sizeof(::Protocol::Player)},
-  { 44, -1, sizeof(::Protocol::Enemy)},
-  { 53, -1, sizeof(::Protocol::Building)},
+  { 25, -1, sizeof(::Protocol::Animation)},
+  { 32, -1, sizeof(::Protocol::Bullet)},
+  { 41, -1, sizeof(::Protocol::Player)},
+  { 52, -1, sizeof(::Protocol::Enemy)},
+  { 62, -1, sizeof(::Protocol::Building)},
 };
 
 static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] = {
   reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::Protocol::_Vec3f_default_instance_),
   reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::Protocol::_Transform_default_instance_),
   reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::Protocol::_ObjectStatus_default_instance_),
+  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::Protocol::_Animation_default_instance_),
   reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::Protocol::_Bullet_default_instance_),
   reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::Protocol::_Player_default_instance_),
   reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::Protocol::_Enemy_default_instance_),
@@ -217,27 +244,31 @@ const char descriptor_table_protodef_Struct_2eproto[] PROTOBUF_SECTION_VARIABLE(
   ".Vec3f\022\013\n\003yaw\030\002 \001(\002\022\036\n\005scale\030\003 \001(\0132\017.Pro"
   "tocol.Vec3f\"J\n\014ObjectStatus\022\n\n\002hp\030\001 \001(\r\022"
   "\016\n\006attack\030\002 \001(\r\022\017\n\007defense\030\003 \001(\r\022\r\n\005spee"
-  "d\030\004 \001(\r\"k\n\006Bullet\022\n\n\002id\030\001 \001(\004\022\017\n\007ownerId"
-  "\030\002 \001(\004\022!\n\010position\030\003 \001(\0132\017.Protocol.Vec3"
-  "f\022!\n\010velocity\030\004 \001(\0132\017.Protocol.Vec3f\"\240\001\n"
-  "\006Player\022\n\n\002id\030\001 \001(\004\022\014\n\004name\030\002 \001(\t\022(\n\npla"
-  "yerType\030\003 \001(\0162\024.Protocol.PlayerType\022*\n\013p"
-  "layerState\030\004 \001(\0162\025.Protocol.PlayerState\022"
-  "&\n\ttransform\030\005 \001(\0132\023.Protocol.Transform\""
-  "\215\001\n\005Enemy\022\n\n\002id\030\001 \001(\004\022&\n\tenemyType\030\002 \001(\016"
-  "2\023.Protocol.EnemyType\022(\n\nenemyState\030\003 \001("
-  "\0162\024.Protocol.EnemyState\022&\n\ttransform\030\004 \001"
-  "(\0132\023.Protocol.Transform\">\n\010Building\022\n\n\002i"
-  "d\030\001 \001(\004\022&\n\ttransform\030\002 \001(\0132\023.Protocol.Tr"
-  "ansformb\006proto3"
+  "d\030\004 \001(\r\"R\n\tAnimation\022.\n\ranimationType\030\001 "
+  "\001(\0162\027.Protocol.AnimationType\022\025\n\ranimatio"
+  "nTick\030\002 \001(\r\"k\n\006Bullet\022\n\n\002id\030\001 \001(\004\022\017\n\007own"
+  "erId\030\002 \001(\004\022!\n\010position\030\003 \001(\0132\017.Protocol."
+  "Vec3f\022!\n\010velocity\030\004 \001(\0132\017.Protocol.Vec3f"
+  "\"\310\001\n\006Player\022\n\n\002id\030\001 \001(\004\022\014\n\004name\030\002 \001(\t\022(\n"
+  "\nplayerType\030\003 \001(\0162\024.Protocol.PlayerType\022"
+  "*\n\013playerState\030\004 \001(\0162\025.Protocol.PlayerSt"
+  "ate\022&\n\ttransform\030\005 \001(\0132\023.Protocol.Transf"
+  "orm\022&\n\tanimation\030\006 \001(\0132\023.Protocol.Animat"
+  "ion\"\265\001\n\005Enemy\022\n\n\002id\030\001 \001(\004\022&\n\tenemyType\030\002"
+  " \001(\0162\023.Protocol.EnemyType\022(\n\nenemyState\030"
+  "\003 \001(\0162\024.Protocol.EnemyState\022&\n\ttransform"
+  "\030\004 \001(\0132\023.Protocol.Transform\022&\n\tanimation"
+  "\030\005 \001(\0132\023.Protocol.Animation\">\n\010Building\022"
+  "\n\n\002id\030\001 \001(\004\022&\n\ttransform\030\002 \001(\0132\023.Protoco"
+  "l.Transformb\006proto3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_Struct_2eproto_deps[1] = {
   &::descriptor_table_Enum_2eproto,
 };
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_Struct_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_Struct_2eproto = {
-  false, false, 735, descriptor_table_protodef_Struct_2eproto, "Struct.proto", 
-  &descriptor_table_Struct_2eproto_once, descriptor_table_Struct_2eproto_deps, 1, 7,
+  false, false, 899, descriptor_table_protodef_Struct_2eproto, "Struct.proto", 
+  &descriptor_table_Struct_2eproto_once, descriptor_table_Struct_2eproto_deps, 1, 8,
   schemas, file_default_instances, TableStruct_Struct_2eproto::offsets,
   file_level_metadata_Struct_2eproto, file_level_enum_descriptors_Struct_2eproto, file_level_service_descriptors_Struct_2eproto,
 };
@@ -1040,6 +1071,232 @@ void ObjectStatus::InternalSwap(ObjectStatus* other) {
 
 // ===================================================================
 
+class Animation::_Internal {
+ public:
+};
+
+Animation::Animation(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor();
+  RegisterArenaDtor(arena);
+  // @@protoc_insertion_point(arena_constructor:Protocol.Animation)
+}
+Animation::Animation(const Animation& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  ::memcpy(&animationtype_, &from.animationtype_,
+    static_cast<size_t>(reinterpret_cast<char*>(&animationtick_) -
+    reinterpret_cast<char*>(&animationtype_)) + sizeof(animationtick_));
+  // @@protoc_insertion_point(copy_constructor:Protocol.Animation)
+}
+
+void Animation::SharedCtor() {
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&animationtype_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&animationtick_) -
+    reinterpret_cast<char*>(&animationtype_)) + sizeof(animationtick_));
+}
+
+Animation::~Animation() {
+  // @@protoc_insertion_point(destructor:Protocol.Animation)
+  SharedDtor();
+  _internal_metadata_.Delete<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+void Animation::SharedDtor() {
+  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
+}
+
+void Animation::ArenaDtor(void* object) {
+  Animation* _this = reinterpret_cast< Animation* >(object);
+  (void)_this;
+}
+void Animation::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
+}
+void Animation::SetCachedSize(int size) const {
+  _cached_size_.Set(size);
+}
+
+void Animation::Clear() {
+// @@protoc_insertion_point(message_clear_start:Protocol.Animation)
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  ::memset(&animationtype_, 0, static_cast<size_t>(
+      reinterpret_cast<char*>(&animationtick_) -
+      reinterpret_cast<char*>(&animationtype_)) + sizeof(animationtick_));
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* Animation::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::PROTOBUF_NAMESPACE_ID::uint32 tag;
+    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // .Protocol.AnimationType animationType = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 8)) {
+          ::PROTOBUF_NAMESPACE_ID::uint64 val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+          _internal_set_animationtype(static_cast<::Protocol::AnimationType>(val));
+        } else goto handle_unusual;
+        continue;
+      // uint32 animationTick = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 16)) {
+          animationtick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      default: {
+      handle_unusual:
+        if ((tag == 0) || ((tag & 7) == 4)) {
+          CHK_(ptr);
+          ctx->SetLastTag(tag);
+          goto success;
+        }
+        ptr = UnknownFieldParse(tag,
+            _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+            ptr, ctx);
+        CHK_(ptr != nullptr);
+        continue;
+      }
+    }  // switch
+  }  // while
+success:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto success;
+#undef CHK_
+}
+
+::PROTOBUF_NAMESPACE_ID::uint8* Animation::_InternalSerialize(
+    ::PROTOBUF_NAMESPACE_ID::uint8* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:Protocol.Animation)
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // .Protocol.AnimationType animationType = 1;
+  if (this->animationtype() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteEnumToArray(
+      1, this->_internal_animationtype(), target);
+  }
+
+  // uint32 animationTick = 2;
+  if (this->animationtick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteUInt32ToArray(2, this->_internal_animationtick(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:Protocol.Animation)
+  return target;
+}
+
+size_t Animation::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:Protocol.Animation)
+  size_t total_size = 0;
+
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // .Protocol.AnimationType animationType = 1;
+  if (this->animationtype() != 0) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::EnumSize(this->_internal_animationtype());
+  }
+
+  // uint32 animationTick = 2;
+  if (this->animationtick() != 0) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::UInt32Size(
+        this->_internal_animationtick());
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    return ::PROTOBUF_NAMESPACE_ID::internal::ComputeUnknownFieldsSize(
+        _internal_metadata_, total_size, &_cached_size_);
+  }
+  int cached_size = ::PROTOBUF_NAMESPACE_ID::internal::ToCachedSize(total_size);
+  SetCachedSize(cached_size);
+  return total_size;
+}
+
+void Animation::MergeFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) {
+// @@protoc_insertion_point(generalized_merge_from_start:Protocol.Animation)
+  GOOGLE_DCHECK_NE(&from, this);
+  const Animation* source =
+      ::PROTOBUF_NAMESPACE_ID::DynamicCastToGenerated<Animation>(
+          &from);
+  if (source == nullptr) {
+  // @@protoc_insertion_point(generalized_merge_from_cast_fail:Protocol.Animation)
+    ::PROTOBUF_NAMESPACE_ID::internal::ReflectionOps::Merge(from, this);
+  } else {
+  // @@protoc_insertion_point(generalized_merge_from_cast_success:Protocol.Animation)
+    MergeFrom(*source);
+  }
+}
+
+void Animation::MergeFrom(const Animation& from) {
+// @@protoc_insertion_point(class_specific_merge_from_start:Protocol.Animation)
+  GOOGLE_DCHECK_NE(&from, this);
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (from.animationtype() != 0) {
+    _internal_set_animationtype(from._internal_animationtype());
+  }
+  if (from.animationtick() != 0) {
+    _internal_set_animationtick(from._internal_animationtick());
+  }
+}
+
+void Animation::CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) {
+// @@protoc_insertion_point(generalized_copy_from_start:Protocol.Animation)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+void Animation::CopyFrom(const Animation& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:Protocol.Animation)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool Animation::IsInitialized() const {
+  return true;
+}
+
+void Animation::InternalSwap(Animation* other) {
+  using std::swap;
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(Animation, animationtick_)
+      + sizeof(Animation::animationtick_)
+      - PROTOBUF_FIELD_OFFSET(Animation, animationtype_)>(
+          reinterpret_cast<char*>(&animationtype_),
+          reinterpret_cast<char*>(&other->animationtype_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata Animation::GetMetadata() const {
+  return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
+      &descriptor_table_Struct_2eproto_getter, &descriptor_table_Struct_2eproto_once,
+      file_level_metadata_Struct_2eproto[3]);
+}
+
+// ===================================================================
+
 class Bullet::_Internal {
  public:
   static const ::Protocol::Vec3f& position(const Bullet* msg);
@@ -1340,7 +1597,7 @@ void Bullet::InternalSwap(Bullet* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata Bullet::GetMetadata() const {
   return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
       &descriptor_table_Struct_2eproto_getter, &descriptor_table_Struct_2eproto_once,
-      file_level_metadata_Struct_2eproto[3]);
+      file_level_metadata_Struct_2eproto[4]);
 }
 
 // ===================================================================
@@ -1348,11 +1605,16 @@ void Bullet::InternalSwap(Bullet* other) {
 class Player::_Internal {
  public:
   static const ::Protocol::Transform& transform(const Player* msg);
+  static const ::Protocol::Animation& animation(const Player* msg);
 };
 
 const ::Protocol::Transform&
 Player::_Internal::transform(const Player* msg) {
   return *msg->transform_;
+}
+const ::Protocol::Animation&
+Player::_Internal::animation(const Player* msg) {
+  return *msg->animation_;
 }
 Player::Player(::PROTOBUF_NAMESPACE_ID::Arena* arena)
   : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
@@ -1372,6 +1634,11 @@ Player::Player(const Player& from)
     transform_ = new ::Protocol::Transform(*from.transform_);
   } else {
     transform_ = nullptr;
+  }
+  if (from._internal_has_animation()) {
+    animation_ = new ::Protocol::Animation(*from.animation_);
+  } else {
+    animation_ = nullptr;
   }
   ::memcpy(&id_, &from.id_,
     static_cast<size_t>(reinterpret_cast<char*>(&playerstate_) -
@@ -1397,6 +1664,7 @@ void Player::SharedDtor() {
   GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
   name_.DestroyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (this != internal_default_instance()) delete transform_;
+  if (this != internal_default_instance()) delete animation_;
 }
 
 void Player::ArenaDtor(void* object) {
@@ -1420,6 +1688,10 @@ void Player::Clear() {
     delete transform_;
   }
   transform_ = nullptr;
+  if (GetArenaForAllocation() == nullptr && animation_ != nullptr) {
+    delete animation_;
+  }
+  animation_ = nullptr;
   ::memset(&id_, 0, static_cast<size_t>(
       reinterpret_cast<char*>(&playerstate_) -
       reinterpret_cast<char*>(&id_)) + sizeof(playerstate_));
@@ -1468,6 +1740,13 @@ const char* Player::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::int
       case 5:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 42)) {
           ptr = ctx->ParseMessage(_internal_mutable_transform(), ptr);
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      // .Protocol.Animation animation = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 50)) {
+          ptr = ctx->ParseMessage(_internal_mutable_animation(), ptr);
           CHK_(ptr);
         } else goto handle_unusual;
         continue;
@@ -1538,6 +1817,14 @@ failure:
         5, _Internal::transform(this), target, stream);
   }
 
+  // .Protocol.Animation animation = 6;
+  if (this->has_animation()) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(
+        6, _Internal::animation(this), target, stream);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -1566,6 +1853,13 @@ size_t Player::ByteSizeLong() const {
     total_size += 1 +
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
         *transform_);
+  }
+
+  // .Protocol.Animation animation = 6;
+  if (this->has_animation()) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+        *animation_);
   }
 
   // uint64 id = 1;
@@ -1624,6 +1918,9 @@ void Player::MergeFrom(const Player& from) {
   if (from.has_transform()) {
     _internal_mutable_transform()->::Protocol::Transform::MergeFrom(from._internal_transform());
   }
+  if (from.has_animation()) {
+    _internal_mutable_animation()->::Protocol::Animation::MergeFrom(from._internal_animation());
+  }
   if (from.id() != 0) {
     _internal_set_id(from._internal_id());
   }
@@ -1672,7 +1969,7 @@ void Player::InternalSwap(Player* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata Player::GetMetadata() const {
   return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
       &descriptor_table_Struct_2eproto_getter, &descriptor_table_Struct_2eproto_once,
-      file_level_metadata_Struct_2eproto[4]);
+      file_level_metadata_Struct_2eproto[5]);
 }
 
 // ===================================================================
@@ -1680,11 +1977,16 @@ void Player::InternalSwap(Player* other) {
 class Enemy::_Internal {
  public:
   static const ::Protocol::Transform& transform(const Enemy* msg);
+  static const ::Protocol::Animation& animation(const Enemy* msg);
 };
 
 const ::Protocol::Transform&
 Enemy::_Internal::transform(const Enemy* msg) {
   return *msg->transform_;
+}
+const ::Protocol::Animation&
+Enemy::_Internal::animation(const Enemy* msg) {
+  return *msg->animation_;
 }
 Enemy::Enemy(::PROTOBUF_NAMESPACE_ID::Arena* arena)
   : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
@@ -1699,6 +2001,11 @@ Enemy::Enemy(const Enemy& from)
     transform_ = new ::Protocol::Transform(*from.transform_);
   } else {
     transform_ = nullptr;
+  }
+  if (from._internal_has_animation()) {
+    animation_ = new ::Protocol::Animation(*from.animation_);
+  } else {
+    animation_ = nullptr;
   }
   ::memcpy(&id_, &from.id_,
     static_cast<size_t>(reinterpret_cast<char*>(&enemystate_) -
@@ -1722,6 +2029,7 @@ Enemy::~Enemy() {
 void Enemy::SharedDtor() {
   GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
   if (this != internal_default_instance()) delete transform_;
+  if (this != internal_default_instance()) delete animation_;
 }
 
 void Enemy::ArenaDtor(void* object) {
@@ -1744,6 +2052,10 @@ void Enemy::Clear() {
     delete transform_;
   }
   transform_ = nullptr;
+  if (GetArenaForAllocation() == nullptr && animation_ != nullptr) {
+    delete animation_;
+  }
+  animation_ = nullptr;
   ::memset(&id_, 0, static_cast<size_t>(
       reinterpret_cast<char*>(&enemystate_) -
       reinterpret_cast<char*>(&id_)) + sizeof(enemystate_));
@@ -1783,6 +2095,13 @@ const char* Enemy::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::inte
       case 4:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 34)) {
           ptr = ctx->ParseMessage(_internal_mutable_transform(), ptr);
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      // .Protocol.Animation animation = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 42)) {
+          ptr = ctx->ParseMessage(_internal_mutable_animation(), ptr);
           CHK_(ptr);
         } else goto handle_unusual;
         continue;
@@ -1843,6 +2162,14 @@ failure:
         4, _Internal::transform(this), target, stream);
   }
 
+  // .Protocol.Animation animation = 5;
+  if (this->has_animation()) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(
+        5, _Internal::animation(this), target, stream);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -1864,6 +2191,13 @@ size_t Enemy::ByteSizeLong() const {
     total_size += 1 +
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
         *transform_);
+  }
+
+  // .Protocol.Animation animation = 5;
+  if (this->has_animation()) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+        *animation_);
   }
 
   // uint64 id = 1;
@@ -1919,6 +2253,9 @@ void Enemy::MergeFrom(const Enemy& from) {
   if (from.has_transform()) {
     _internal_mutable_transform()->::Protocol::Transform::MergeFrom(from._internal_transform());
   }
+  if (from.has_animation()) {
+    _internal_mutable_animation()->::Protocol::Animation::MergeFrom(from._internal_animation());
+  }
   if (from.id() != 0) {
     _internal_set_id(from._internal_id());
   }
@@ -1962,7 +2299,7 @@ void Enemy::InternalSwap(Enemy* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata Enemy::GetMetadata() const {
   return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
       &descriptor_table_Struct_2eproto_getter, &descriptor_table_Struct_2eproto_once,
-      file_level_metadata_Struct_2eproto[5]);
+      file_level_metadata_Struct_2eproto[6]);
 }
 
 // ===================================================================
@@ -2200,7 +2537,7 @@ void Building::InternalSwap(Building* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata Building::GetMetadata() const {
   return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
       &descriptor_table_Struct_2eproto_getter, &descriptor_table_Struct_2eproto_once,
-      file_level_metadata_Struct_2eproto[6]);
+      file_level_metadata_Struct_2eproto[7]);
 }
 
 // @@protoc_insertion_point(namespace_scope)
@@ -2214,6 +2551,9 @@ template<> PROTOBUF_NOINLINE ::Protocol::Transform* Arena::CreateMaybeMessage< :
 }
 template<> PROTOBUF_NOINLINE ::Protocol::ObjectStatus* Arena::CreateMaybeMessage< ::Protocol::ObjectStatus >(Arena* arena) {
   return Arena::CreateMessageInternal< ::Protocol::ObjectStatus >(arena);
+}
+template<> PROTOBUF_NOINLINE ::Protocol::Animation* Arena::CreateMaybeMessage< ::Protocol::Animation >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::Protocol::Animation >(arena);
 }
 template<> PROTOBUF_NOINLINE ::Protocol::Bullet* Arena::CreateMaybeMessage< ::Protocol::Bullet >(Arena* arena) {
   return Arena::CreateMessageInternal< ::Protocol::Bullet >(arena);
