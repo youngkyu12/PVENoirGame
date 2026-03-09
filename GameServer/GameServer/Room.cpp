@@ -71,8 +71,8 @@ void Room::StartGame(bool ready, uint32 index)
 
 	static Atomic<bool> gameStarted = false;
 
-	// if(p_ready[0] && p_ready[1] && p_ready[2] && p_ready[3])
-	if(p_ready[0] && p_ready[1])
+	 if(p_ready[0] && p_ready[1] && p_ready[2] && p_ready[3])
+	//if(p_ready[0] && p_ready[1])
 	{
 		if (gameStarted.exchange(true) == false)
 		{
@@ -95,9 +95,11 @@ void Room::EndGame()
 
 void Room::TickAdvance()
 {
-	static Atomic<uint32> tick = 0;
 	MakeFrameState(tick++);
 }
+
+
+// TODO: ProcessInput을 TickAdvance에서 처리할 수 있게 바꿔야 함
 
 void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float deltaY)
 {
@@ -121,8 +123,13 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	constexpr int kDirLeft     = 1 << 2;
 	constexpr int kDirRight    = 1 << 3;
 
-	if (keyCodes == 0)
-		return;
+
+	player->SetAnimState(!keyCodes ? 
+		Protocol::ANIMATION_TYPE_IDLE : 
+		Protocol::ANIMATION_TYPE_WALK);
+
+	//if (keyCodes & (kDirForward | kDirBackward))
+	//	player->SetAnimState(Protocol::ANIMATION_TYPE_WALK);
 
 	// Look/Right 벡터 (GameMath 사용)
 	GameMath::Vec3 look  = player->GetLook();
@@ -192,6 +199,9 @@ void Room::MakeFrameState(Atomic<uint32> tick)
 		e->set_id(enemyMap.first);
 		e->set_enemytype(enemy->type);
 
+		Protocol::Animation* anim = e->mutable_animation();
+		anim->set_animationtick(enemy->GetAnimTick());
+		anim->set_animationtype(enemy->GetAnimState());
 
 		Protocol::Transform* transform = e->mutable_transform();
 		Protocol::Vec3f* position = transform->mutable_position();
