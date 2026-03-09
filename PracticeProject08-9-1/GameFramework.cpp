@@ -696,6 +696,8 @@ void CGameFramework::ProcessInput()
 
 	const float dt = m_GameTimer.GetTimeElapsed();
 
+	// 만약 서버로부터 좌표를 입력받는 구조라면, 카메라가 서버의 틱에 따라 반응속도가 불규칙적일 것
+
 	XMFLOAT3 oldPos = playerObj->GetPosition();
 
 	if (cxDelta || cyDelta)
@@ -713,7 +715,7 @@ void CGameFramework::ProcessInput()
 
 	XMFLOAT3 newPos = playerObj->GetPosition();
 
-	/*if (m_pCamera)
+	if (m_pCamera)
 	{
 		XMFLOAT3 delta = Vector3::Subtract(newPos, oldPos);
 		m_pCamera->Move(delta);
@@ -721,7 +723,7 @@ void CGameFramework::ProcessInput()
 		m_pCamera->Update(newPos, dt);
 		m_pCamera->SetLookAt(newPos);
 		m_pCamera->RegenerateViewMatrix();
-	}*/
+	}
 }
 
 void CGameFramework::AnimateObjects()
