@@ -7,6 +7,26 @@
 using namespace DirectX;
 
 // ============================================================
+// Animation 상태
+// ============================================================
+
+enum AnimationId : uint16_t
+{
+    Idle,
+    Walk,
+    Attack,
+    Die,
+    // 필요시 추가
+};
+
+struct AnimationState
+{
+    //uint64_t    actorId;
+    AnimationId    animationId;
+	int         animTick; // 애니메이션 진행 정도 (0 ~ maxTick)
+};
+
+// ============================================================
 // 공통 Actor 상태
 // ============================================================
 struct ActorState
@@ -14,6 +34,7 @@ struct ActorState
     uint64_t    id;
     XMFLOAT3    position;
     float       yaw;
+	AnimationState animation;
     // 필요시 HP, 상태 등 추가
 };
 
@@ -44,7 +65,7 @@ struct GameStartData
 // ============================================================
 struct FrameSnapshot
 {
-    uint64_t frameId;
+	uint64_t frameId; // serverTick과 동일한 값
     std::vector<ActorState> players;
     std::vector<ActorState> enemies;
     std::vector<BulletState> bullets;

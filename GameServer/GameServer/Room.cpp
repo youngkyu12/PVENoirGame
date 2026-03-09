@@ -95,7 +95,9 @@ void Room::EndGame()
 
 void Room::TickAdvance()
 {
-	MakeFrameState(tick++);
+	MakeFrameState(tick.load());
+
+	tick++;
 }
 
 
@@ -130,7 +132,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		Protocol::ANIMATION_TYPE_WALK);
 
 	if(player->GetAnimState() != prevAnimState)
-		player->SetAnimTick(tick); // 애니메이션 상태가 바뀌면 tick 초기화
+		player->SetAnimTick(tick); // 애니메이션 상태가 바뀌면 현재의 server tick을 넣어줌
 
 	//if (keyCodes & (kDirForward | kDirBackward))
 	//	player->SetAnimState(Protocol::ANIMATION_TYPE_WALK);
@@ -165,7 +167,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 
 
 
-void Room::MakeFrameState(Atomic<uint32> tick)
+void Room::MakeFrameState(uint32 tick)
 {
 	// 게임 로직 업데이트 (예: 적 이동, 충돌 검사 등)
 	Protocol::S_FRAME_STATE frameStatePkt;
