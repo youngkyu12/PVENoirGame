@@ -713,7 +713,7 @@ void CGameFramework::ProcessInput()
 
 	XMFLOAT3 newPos = playerObj->GetPosition();
 
-	if (m_pCamera)
+	/*if (m_pCamera)
 	{
 		XMFLOAT3 delta = Vector3::Subtract(newPos, oldPos);
 		m_pCamera->Move(delta);
@@ -721,7 +721,7 @@ void CGameFramework::ProcessInput()
 		m_pCamera->Update(newPos, dt);
 		m_pCamera->SetLookAt(newPos);
 		m_pCamera->RegenerateViewMatrix();
-	}
+	}*/
 }
 
 void CGameFramework::AnimateObjects()
