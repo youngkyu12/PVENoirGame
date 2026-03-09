@@ -56,6 +56,34 @@ PROTOBUF_NAMESPACE_OPEN
 PROTOBUF_NAMESPACE_CLOSE
 namespace Protocol {
 
+enum AnimationType : int {
+  ANIMATION_TYPE_NONE = 0,
+  ANIMATION_TYPE_IDLE = 1,
+  ANIMATION_TYPE_WALK = 2,
+  ANIMATION_TYPE_ATTACK = 3,
+  ANIMATION_TYPE_DIE = 4,
+  AnimationType_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
+  AnimationType_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
+};
+bool AnimationType_IsValid(int value);
+constexpr AnimationType AnimationType_MIN = ANIMATION_TYPE_NONE;
+constexpr AnimationType AnimationType_MAX = ANIMATION_TYPE_DIE;
+constexpr int AnimationType_ARRAYSIZE = AnimationType_MAX + 1;
+
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* AnimationType_descriptor();
+template<typename T>
+inline const std::string& AnimationType_Name(T enum_t_value) {
+  static_assert(::std::is_same<T, AnimationType>::value ||
+    ::std::is_integral<T>::value,
+    "Incorrect type passed to function AnimationType_Name.");
+  return ::PROTOBUF_NAMESPACE_ID::internal::NameOfEnum(
+    AnimationType_descriptor(), enum_t_value);
+}
+inline bool AnimationType_Parse(
+    ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, AnimationType* value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<AnimationType>(
+    AnimationType_descriptor(), name, value);
+}
 enum ObjectType : int {
   OBJECT_TYPE_NONE = 0,
   OBJECT_TYPE_PLAYER = 1,
@@ -272,6 +300,11 @@ inline bool GameState_Parse(
 
 PROTOBUF_NAMESPACE_OPEN
 
+template <> struct is_proto_enum< ::Protocol::AnimationType> : ::std::true_type {};
+template <>
+inline const EnumDescriptor* GetEnumDescriptor< ::Protocol::AnimationType>() {
+  return ::Protocol::AnimationType_descriptor();
+}
 template <> struct is_proto_enum< ::Protocol::ObjectType> : ::std::true_type {};
 template <>
 inline const EnumDescriptor* GetEnumDescriptor< ::Protocol::ObjectType>() {
