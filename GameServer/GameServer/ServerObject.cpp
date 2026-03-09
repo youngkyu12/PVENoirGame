@@ -133,7 +133,12 @@ void CServerObject::Update(float dt)
 
 void CServerObject::Animate(float dt)
 {
-    m_animTime += dt;
+    m_animTick += dt;
+}
+
+void CServerObject::SetAnimState(Protocol::AnimationType state)
+{
+	m_animState = state;
 }
 
 // ============================================================================
@@ -190,7 +195,7 @@ NetworkPlayerState CServerObject::ToNetworkState() const
         GetPosition(),
         GetYaw(),
         m_animState,
-        m_animTime
+        m_animTick
     );
 }
 
@@ -199,6 +204,6 @@ void CServerObject::ApplyNetworkState(const NetworkPlayerState& state)
     m_objectId = state.playerId;
     SetPosition(state.transform.ToVec3());
     SetYaw(state.transform.yaw);
-    m_animState = state.anim.state;
-    m_animTime = state.anim.time;
+    //m_animState = state.anim.state;
+    /*m_animTick = state.anim.time;*/
 }

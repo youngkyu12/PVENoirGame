@@ -41,6 +41,8 @@ private:
 	map<uint64, EnemyRef> fighters; //  특수 적 참조 (옵션)
 	map<uint64, EnemyRef> enemies; // 전체 적 참조 (옵션)
     //array<GameAreaRef, 9> gameAreas; // 9개 구역
+
+    Atomic<uint32> tick = 0;
 };
 
 extern shared_ptr<Room> GRoom;

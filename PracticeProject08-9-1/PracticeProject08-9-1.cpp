@@ -186,7 +186,7 @@ void NetworkLoop()
 
 	ASSERT_CRASH(g_clientService->Start());
 
-	for (int32 i = 0; i < 4; i++)
+	for (int32 i = 0; i < 2; i++)
 	{
 		GThreadManager->Launch([=]()
 			{
