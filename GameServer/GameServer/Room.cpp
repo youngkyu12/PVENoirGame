@@ -107,49 +107,48 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 
 	PlayerRef& player = it->second;
 
-	// ========== 1. 회전 처리 (deltaX로 Yaw 회전) ==========
+	// ========== 1. 회전 처리 (클라이언트 Rotate 함수와 동일) ==========
 	if (deltaX != 0.0f)
 	{
 		float currentYaw = player->GetYaw();
-		float sensitivity = 1.0f;  // 클라이언트와 동일하게 조정
-		player->SetYaw(currentYaw + deltaX * sensitivity);
+		player->SetYaw(GameMath::NormalizeYaw(currentYaw + deltaX));
 	}
-	// 참고: deltaY는 pitch(상하 회전)인데, 서버에서 필요시 추가 처리
 
-	// ========== 2. 이동 처리 ==========
-	// 비트 플래그에서 키 상태 추출
-	bool up    = (keyCodes & (1 << 0)) != 0;
-	bool down  = (keyCodes & (1 << 1)) != 0;
-	bool left  = (keyCodes & (1 << 2)) != 0;
-	bool right = (keyCodes & (1 << 3)) != 0;
+	// ========== 2. 이동 처리 (클라이언트 Move 함수와 동일) ==========
+	constexpr int kDirForward  = 1 << 0;
+	constexpr int kDirBackward = 1 << 1;
+	constexpr int kDirLeft     = 1 << 2;
+	constexpr int kDirRight    = 1 << 3;
 
-	// 로컬 방향 계산 (플레이어 기준)
-	float localX = 0.0f, localZ = 0.0f;
-	if (up)    localZ += 1.0f;
-	if (down)  localZ -= 1.0f;
-	if (left)  localX -= 1.0f;
-	if (right) localX += 1.0f;
-
-	if (localX == 0.0f && localZ == 0.0f)
+	if (keyCodes == 0)
 		return;
 
-	// Yaw 기반 월드 방향 변환
-	float yawRad = player->GetYaw() * (3.14159265f / 180.0f);
-	float cosYaw = cosf(yawRad);
-	float sinYaw = sinf(yawRad);
+	// Look/Right 벡터 (GameMath 사용)
+	GameMath::Vec3 look  = player->GetLook();
+	GameMath::Vec3 right = player->GetRight();
 
-	float worldX = localX * cosYaw - localZ * sinYaw;
-	float worldZ = localX * sinYaw + localZ * cosYaw;
-
-	// 이동 적용
+	// 이동 거리 계산
 	const float speed = 5.0f;
 	const float dt = 0.03f;
+	float fDistance = speed * dt;
 
-	GameMath::Vec3 currentPos = player->GetPosition();
-	currentPos.x += worldX * speed * dt;
-	currentPos.z += worldZ * speed * dt;
+	// 방향별 shift 누적 (클라이언트 Move 함수와 동일한 로직)
+	GameMath::Vec3 shift = GameMath::Vec3::Zero();
 
-	player->SetPosition(currentPos);
+	if (keyCodes & kDirForward)
+		shift += look * fDistance;
+
+	if (keyCodes & kDirBackward)
+		shift += look * (-fDistance);
+
+	if (keyCodes & kDirRight)
+		shift += right * fDistance;
+
+	if (keyCodes & kDirLeft)
+		shift += right * (-fDistance);
+
+	// 위치 적용
+	player->Move(shift);
 }
 
 
