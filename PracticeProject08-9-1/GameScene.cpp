@@ -142,7 +142,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     // ------------------------------------------------------------------------
     // Build parameters
     // ------------------------------------------------------------------------
-    m_localPlayerSlot = 2;
+    m_localPlayerSlot = 0;
 
     m_planeCount = 1;
     m_houseCount = 3;
@@ -1147,26 +1147,26 @@ void CGameScene::BuildSkinnedBatch(
         AssetBuildDesc FighterDesc0 =
         {
             AssetType::Fighter,
-            "Assets/Fighter/Mesh/Fighter.bin",
-            "Assets/Fighter/Texture"
+            "Assets/Player/Mesh/Player_Mesh1-4.bin",
+            "Assets/Player/Texture"
         };
         AssetBuildDesc FighterDesc1 =
         {
             AssetType::Fighter,
-            "Assets/Fighter/Mesh/Fighter.bin",
-            "Assets/Fighter/Texture"
+            "Assets/Player/Mesh/Player_Mesh1-4.bin",
+            "Assets/Player/Texture"
         };
         AssetBuildDesc FighterDesc2 =
         {
             AssetType::Fighter,
-            "Assets/Fighter/Mesh/Fighter.bin",
-            "Assets/Fighter/Texture"
+            "Assets/Player/Mesh/Player_Mesh1-4.bin",
+            "Assets/Player/Texture"
         };
         AssetBuildDesc FighterDesc3 =
         {
             AssetType::Fighter,
-            "Assets/Fighter/Mesh/Fighter.bin",
-            "Assets/Fighter/Texture"
+            "Assets/Player/Mesh/Player_Mesh1-4.bin",
+            "Assets/Player/Texture"
         };
 
         for (UINT k = 0; k < fighterCount; ++k)
@@ -1178,7 +1178,6 @@ void CGameScene::BuildSkinnedBatch(
             const int slot = (int)k;
             const bool isLocal = (slot == m_localPlayerSlot);
 
-            // 슬롯별 BuildAsset 분리(파일명은 지금은 동일)
             BuiltAsset asset{};
             if (slot == 0) asset = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), FighterDesc0);
             else if (slot == 1) asset = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), FighterDesc1);
@@ -1223,7 +1222,8 @@ void CGameScene::BuildSkinnedBatch(
 
             const float x = playerBase.x + 2.0f * (float)slot;
             obj->SetPosition(x, playerBase.y, playerBase.z);
-            obj->Rotate(0.0f, 0.0f, 0.0f);
+            //obj->Rotate(0.0f, 0.0f, 0.0f);
+            //obj->Rotate(-90.0f, 180.0f, 0.0f);
 
             obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
 
@@ -1244,17 +1244,17 @@ void CGameScene::BuildSkinnedBatch(
             if (mesh0)
             {
                 idleLoaded = mesh0->LoadAnimationFromBIN(
-                    "Assets/Fighter/Animation/FighterIdle.bin",
+                    "Assets/Player/Animation/Player_Normal_Idle.bin",
                     "Idle", idleClip, 1.0f
                 );
 
                 runLoaded = mesh0->LoadAnimationFromBIN(
-                    "Assets/Fighter/Animation/FighterRun.bin",
+                    "Assets/Player/Animation/Player_Run_F.bin",
                     "Run", runClip, 1.0f
                 );
 
                 atkLoaded = mesh0->LoadAnimationFromBIN(
-                    "Assets/Fighter/Animation/FighterAttack.bin",
+                    "Assets/Player/Animation/Player_Sword_Attack.bin",
                     "Attack", atkClip, 1.0f
                 );
             }
