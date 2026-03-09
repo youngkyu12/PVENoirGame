@@ -123,10 +123,14 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	constexpr int kDirLeft     = 1 << 2;
 	constexpr int kDirRight    = 1 << 3;
 
+	Protocol::AnimationType prevAnimState = player->GetAnimState();
 
-	player->SetAnimState(!keyCodes ? 
+	player->SetAnimState(keyCodes == 0 ? 
 		Protocol::ANIMATION_TYPE_IDLE : 
 		Protocol::ANIMATION_TYPE_WALK);
+
+	if(player->GetAnimState() != prevAnimState)
+		player->SetAnimTick(tick); // 애니메이션 상태가 바뀌면 tick 초기화
 
 	//if (keyCodes & (kDirForward | kDirBackward))
 	//	player->SetAnimState(Protocol::ANIMATION_TYPE_WALK);
