@@ -665,7 +665,7 @@ void CGameFramework::ProcessInput()
 		if (pKeysBuffer[VK_NEXT] & 0xF0)  keyCodes |= (1 << 5);
 
 		Protocol::C_INPUT inputPkt;
-		inputPkt.set_playerid(0);
+		inputPkt.set_playerid(g_myPlayerId);
 		inputPkt.set_keycodes(keyCodes);
 
 		POINT ptCursorPos;
@@ -678,17 +678,25 @@ void CGameFramework::ProcessInput()
 			SetCursorPos(m_ptOldCursorPos.x, m_ptOldCursorPos.y);
 		}
 
-		auto sendBuffer = ServerPacketHandler::MakeSendBuffer(inputPkt);
-		g_clientService->BroadCast(sendBuffer);
+
 		GetCursorPos(&ptCursorPos);
 
 		cxDelta = (float)(ptCursorPos.x - m_ptOldCursorPos.x) / 3.0f;
 		cyDelta = (float)(ptCursorPos.y - m_ptOldCursorPos.y) / 3.0f;
 
 		m_ptOldCursorPos = ptCursorPos;
+
+		inputPkt.set_deltax(cxDelta);
+		inputPkt.set_deltay(cyDelta);
+
+		auto sendBuffer = ServerPacketHandler::MakeSendBuffer(inputPkt);
+		g_clientService->BroadCast(sendBuffer);
+
 	}
 
 	const float dt = m_GameTimer.GetTimeElapsed();
+
+	// 만약 서버로부터 좌표를 입력받는 구조라면, 카메라가 서버의 틱에 따라 반응속도가 불규칙적일 것
 
 	XMFLOAT3 oldPos = playerObj->GetPosition();
 

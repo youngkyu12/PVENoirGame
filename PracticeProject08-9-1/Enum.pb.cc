@@ -18,40 +18,43 @@
 PROTOBUF_PRAGMA_INIT_SEG
 namespace Protocol {
 }  // namespace Protocol
-static const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* file_level_enum_descriptors_Enum_2eproto[7];
+static const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* file_level_enum_descriptors_Enum_2eproto[8];
 static constexpr ::PROTOBUF_NAMESPACE_ID::ServiceDescriptor const** file_level_service_descriptors_Enum_2eproto = nullptr;
 const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_Enum_2eproto::offsets[1] = {};
 static constexpr ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema* schemas = nullptr;
 static constexpr ::PROTOBUF_NAMESPACE_ID::Message* const* file_default_instances = nullptr;
 
 const char descriptor_table_protodef_Enum_2eproto[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) =
-  "\n\nEnum.proto\022\010Protocol*\203\001\n\nObjectType\022\024\n"
-  "\020OBJECT_TYPE_NONE\020\000\022\026\n\022OBJECT_TYPE_PLAYE"
-  "R\020\001\022\025\n\021OBJECT_TYPE_ENEMY\020\002\022\030\n\024OBJECT_TYP"
-  "E_BUILDING\020\003\022\026\n\022OBJECT_TYPE_BULLET\020\004*h\n\n"
-  "PlayerType\022\024\n\020PLAYER_TYPE_NONE\020\000\022\026\n\022PLAY"
-  "ER_TYPE_KNIGHT\020\001\022\024\n\020PLAYER_TYPE_MAGE\020\002\022\026"
-  "\n\022PLAYER_TYPE_ARCHER\020\003*z\n\tEnemyType\022\023\n\017E"
-  "NEMY_TYPE_NONE\020\000\022\024\n\020ENEMY_TYPE_BASIC\020\001\022\025"
-  "\n\021ENEMY_TYPE_ARCHER\020\002\022\026\n\022ENEMY_TYPE_WARR"
-  "IOR\020\003\022\023\n\017ENEMY_TYPE_BOSS\020\004*\207\001\n\014BuildingT"
-  "ype\022\026\n\022BUILDING_TYPE_NONE\020\000\022\026\n\022BUILDING_"
-  "TYPE_WALL\020\001\022\027\n\023BUILDING_TYPE_TOWER\020\002\022\026\n\022"
-  "BUILDING_TYPE_BASE\020\003\022\026\n\022BUILDING_TYPE_TR"
-  "EE\020\004*\201\001\n\013PlayerState\022\025\n\021PLAYER_STATE_NON"
-  "E\020\000\022\025\n\021PLAYER_STATE_IDLE\020\001\022\025\n\021PLAYER_STA"
-  "TE_MOVE\020\002\022\027\n\023PLAYER_STATE_ATTACK\020\003\022\024\n\020PL"
-  "AYER_STATE_DIE\020\004*{\n\nEnemyState\022\024\n\020ENEMY_"
-  "STATE_NONE\020\000\022\024\n\020ENEMY_STATE_IDLE\020\001\022\024\n\020EN"
-  "EMY_STATE_MOVE\020\002\022\026\n\022ENEMY_STATE_ATTACK\020\003"
-  "\022\023\n\017ENEMY_STATE_DIE\020\004*b\n\tGameState\022\023\n\017GA"
-  "ME_STATE_NONE\020\000\022\024\n\020GAME_STATE_LOBBY\020\001\022\026\n"
-  "\022GAME_STATE_PLAYING\020\002\022\022\n\016GAME_STATE_END\020"
-  "\003b\006proto3"
+  "\n\nEnum.proto\022\010Protocol*\215\001\n\rAnimationType"
+  "\022\027\n\023ANIMATION_TYPE_NONE\020\000\022\027\n\023ANIMATION_T"
+  "YPE_IDLE\020\001\022\027\n\023ANIMATION_TYPE_WALK\020\002\022\031\n\025A"
+  "NIMATION_TYPE_ATTACK\020\003\022\026\n\022ANIMATION_TYPE"
+  "_DIE\020\004*\203\001\n\nObjectType\022\024\n\020OBJECT_TYPE_NON"
+  "E\020\000\022\026\n\022OBJECT_TYPE_PLAYER\020\001\022\025\n\021OBJECT_TY"
+  "PE_ENEMY\020\002\022\030\n\024OBJECT_TYPE_BUILDING\020\003\022\026\n\022"
+  "OBJECT_TYPE_BULLET\020\004*h\n\nPlayerType\022\024\n\020PL"
+  "AYER_TYPE_NONE\020\000\022\026\n\022PLAYER_TYPE_KNIGHT\020\001"
+  "\022\024\n\020PLAYER_TYPE_MAGE\020\002\022\026\n\022PLAYER_TYPE_AR"
+  "CHER\020\003*z\n\tEnemyType\022\023\n\017ENEMY_TYPE_NONE\020\000"
+  "\022\024\n\020ENEMY_TYPE_BASIC\020\001\022\025\n\021ENEMY_TYPE_ARC"
+  "HER\020\002\022\026\n\022ENEMY_TYPE_WARRIOR\020\003\022\023\n\017ENEMY_T"
+  "YPE_BOSS\020\004*\207\001\n\014BuildingType\022\026\n\022BUILDING_"
+  "TYPE_NONE\020\000\022\026\n\022BUILDING_TYPE_WALL\020\001\022\027\n\023B"
+  "UILDING_TYPE_TOWER\020\002\022\026\n\022BUILDING_TYPE_BA"
+  "SE\020\003\022\026\n\022BUILDING_TYPE_TREE\020\004*\201\001\n\013PlayerS"
+  "tate\022\025\n\021PLAYER_STATE_NONE\020\000\022\025\n\021PLAYER_ST"
+  "ATE_IDLE\020\001\022\025\n\021PLAYER_STATE_MOVE\020\002\022\027\n\023PLA"
+  "YER_STATE_ATTACK\020\003\022\024\n\020PLAYER_STATE_DIE\020\004"
+  "*{\n\nEnemyState\022\024\n\020ENEMY_STATE_NONE\020\000\022\024\n\020"
+  "ENEMY_STATE_IDLE\020\001\022\024\n\020ENEMY_STATE_MOVE\020\002"
+  "\022\026\n\022ENEMY_STATE_ATTACK\020\003\022\023\n\017ENEMY_STATE_"
+  "DIE\020\004*b\n\tGameState\022\023\n\017GAME_STATE_NONE\020\000\022"
+  "\024\n\020GAME_STATE_LOBBY\020\001\022\026\n\022GAME_STATE_PLAY"
+  "ING\020\002\022\022\n\016GAME_STATE_END\020\003b\006proto3"
   ;
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_Enum_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_Enum_2eproto = {
-  false, false, 889, descriptor_table_protodef_Enum_2eproto, "Enum.proto", 
+  false, false, 1033, descriptor_table_protodef_Enum_2eproto, "Enum.proto", 
   &descriptor_table_Enum_2eproto_once, nullptr, 0, 0,
   schemas, file_default_instances, TableStruct_Enum_2eproto::offsets,
   nullptr, file_level_enum_descriptors_Enum_2eproto, file_level_service_descriptors_Enum_2eproto,
@@ -63,9 +66,26 @@ PROTOBUF_ATTRIBUTE_WEAK const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable
 // Force running AddDescriptors() at dynamic initialization time.
 PROTOBUF_ATTRIBUTE_INIT_PRIORITY static ::PROTOBUF_NAMESPACE_ID::internal::AddDescriptorsRunner dynamic_init_dummy_Enum_2eproto(&descriptor_table_Enum_2eproto);
 namespace Protocol {
-const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* ObjectType_descriptor() {
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* AnimationType_descriptor() {
   ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_Enum_2eproto);
   return file_level_enum_descriptors_Enum_2eproto[0];
+}
+bool AnimationType_IsValid(int value) {
+  switch (value) {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+      return true;
+    default:
+      return false;
+  }
+}
+
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* ObjectType_descriptor() {
+  ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_Enum_2eproto);
+  return file_level_enum_descriptors_Enum_2eproto[1];
 }
 bool ObjectType_IsValid(int value) {
   switch (value) {
@@ -82,7 +102,7 @@ bool ObjectType_IsValid(int value) {
 
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* PlayerType_descriptor() {
   ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_Enum_2eproto);
-  return file_level_enum_descriptors_Enum_2eproto[1];
+  return file_level_enum_descriptors_Enum_2eproto[2];
 }
 bool PlayerType_IsValid(int value) {
   switch (value) {
@@ -98,7 +118,7 @@ bool PlayerType_IsValid(int value) {
 
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* EnemyType_descriptor() {
   ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_Enum_2eproto);
-  return file_level_enum_descriptors_Enum_2eproto[2];
+  return file_level_enum_descriptors_Enum_2eproto[3];
 }
 bool EnemyType_IsValid(int value) {
   switch (value) {
@@ -115,7 +135,7 @@ bool EnemyType_IsValid(int value) {
 
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* BuildingType_descriptor() {
   ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_Enum_2eproto);
-  return file_level_enum_descriptors_Enum_2eproto[3];
+  return file_level_enum_descriptors_Enum_2eproto[4];
 }
 bool BuildingType_IsValid(int value) {
   switch (value) {
@@ -132,7 +152,7 @@ bool BuildingType_IsValid(int value) {
 
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* PlayerState_descriptor() {
   ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_Enum_2eproto);
-  return file_level_enum_descriptors_Enum_2eproto[4];
+  return file_level_enum_descriptors_Enum_2eproto[5];
 }
 bool PlayerState_IsValid(int value) {
   switch (value) {
@@ -149,7 +169,7 @@ bool PlayerState_IsValid(int value) {
 
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* EnemyState_descriptor() {
   ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_Enum_2eproto);
-  return file_level_enum_descriptors_Enum_2eproto[5];
+  return file_level_enum_descriptors_Enum_2eproto[6];
 }
 bool EnemyState_IsValid(int value) {
   switch (value) {
@@ -166,7 +186,7 @@ bool EnemyState_IsValid(int value) {
 
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* GameState_descriptor() {
   ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_Enum_2eproto);
-  return file_level_enum_descriptors_Enum_2eproto[6];
+  return file_level_enum_descriptors_Enum_2eproto[7];
 }
 bool GameState_IsValid(int value) {
   switch (value) {

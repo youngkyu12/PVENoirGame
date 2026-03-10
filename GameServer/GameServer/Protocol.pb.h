@@ -1265,10 +1265,11 @@ class S_FRAME_STATE final :
   // accessors -------------------------------------------------------
 
   enum : int {
-    kPlayersFieldNumber = 1,
-    kEnemiesFieldNumber = 2,
+    kPlayersFieldNumber = 2,
+    kEnemiesFieldNumber = 3,
+    kServerTickFieldNumber = 1,
   };
-  // repeated .Protocol.Player players = 1;
+  // repeated .Protocol.Player players = 2;
   int players_size() const;
   private:
   int _internal_players_size() const;
@@ -1286,7 +1287,7 @@ class S_FRAME_STATE final :
   const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Player >&
       players() const;
 
-  // repeated .Protocol.Enemy enemies = 2;
+  // repeated .Protocol.Enemy enemies = 3;
   int enemies_size() const;
   private:
   int _internal_enemies_size() const;
@@ -1304,6 +1305,15 @@ class S_FRAME_STATE final :
   const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Enemy >&
       enemies() const;
 
+  // uint32 serverTick = 1;
+  void clear_servertick();
+  ::PROTOBUF_NAMESPACE_ID::uint32 servertick() const;
+  void set_servertick(::PROTOBUF_NAMESPACE_ID::uint32 value);
+  private:
+  ::PROTOBUF_NAMESPACE_ID::uint32 _internal_servertick() const;
+  void _internal_set_servertick(::PROTOBUF_NAMESPACE_ID::uint32 value);
+  public:
+
   // @@protoc_insertion_point(class_scope:Protocol.S_FRAME_STATE)
  private:
   class _Internal;
@@ -1313,6 +1323,7 @@ class S_FRAME_STATE final :
   typedef void DestructorSkippable_;
   ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Player > players_;
   ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Enemy > enemies_;
+  ::PROTOBUF_NAMESPACE_ID::uint32 servertick_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_Protocol_2eproto;
 };
@@ -1793,7 +1804,27 @@ inline void C_INPUT::set_deltay(float value) {
 
 // S_FRAME_STATE
 
-// repeated .Protocol.Player players = 1;
+// uint32 serverTick = 1;
+inline void S_FRAME_STATE::clear_servertick() {
+  servertick_ = 0u;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint32 S_FRAME_STATE::_internal_servertick() const {
+  return servertick_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint32 S_FRAME_STATE::servertick() const {
+  // @@protoc_insertion_point(field_get:Protocol.S_FRAME_STATE.serverTick)
+  return _internal_servertick();
+}
+inline void S_FRAME_STATE::_internal_set_servertick(::PROTOBUF_NAMESPACE_ID::uint32 value) {
+  
+  servertick_ = value;
+}
+inline void S_FRAME_STATE::set_servertick(::PROTOBUF_NAMESPACE_ID::uint32 value) {
+  _internal_set_servertick(value);
+  // @@protoc_insertion_point(field_set:Protocol.S_FRAME_STATE.serverTick)
+}
+
+// repeated .Protocol.Player players = 2;
 inline int S_FRAME_STATE::_internal_players_size() const {
   return players_.size();
 }
@@ -1829,7 +1860,7 @@ S_FRAME_STATE::players() const {
   return players_;
 }
 
-// repeated .Protocol.Enemy enemies = 2;
+// repeated .Protocol.Enemy enemies = 3;
 inline int S_FRAME_STATE::_internal_enemies_size() const {
   return enemies_.size();
 }

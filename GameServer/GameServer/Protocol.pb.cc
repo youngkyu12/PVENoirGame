@@ -113,7 +113,8 @@ PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT C_INPUTDefaultTypeInternal _C_I
 constexpr S_FRAME_STATE::S_FRAME_STATE(
   ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
   : players_()
-  , enemies_(){}
+  , enemies_()
+  , servertick_(0u){}
 struct S_FRAME_STATEDefaultTypeInternal {
   constexpr S_FRAME_STATEDefaultTypeInternal()
     : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
@@ -185,6 +186,7 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_Protocol_2eproto::offsets[] PR
   ~0u,  // no _extensions_
   ~0u,  // no _oneof_case_
   ~0u,  // no _weak_field_map_
+  PROTOBUF_FIELD_OFFSET(::Protocol::S_FRAME_STATE, servertick_),
   PROTOBUF_FIELD_OFFSET(::Protocol::S_FRAME_STATE, players_),
   PROTOBUF_FIELD_OFFSET(::Protocol::S_FRAME_STATE, enemies_),
 };
@@ -223,10 +225,10 @@ const char descriptor_table_protodef_Protocol_2eproto[] PROTOBUF_SECTION_VARIABL
   "eady\030\003 \001(\010\"8\n\014S_GAME_START\022(\n\ninitStruct"
   "\030\001 \001(\0132\024.Protocol.InitStruct\"M\n\007C_INPUT\022"
   "\020\n\010playerid\030\001 \001(\004\022\020\n\010keyCodes\030\002 \001(\005\022\016\n\006d"
-  "eltaX\030\003 \001(\002\022\016\n\006deltaY\030\004 \001(\002\"T\n\rS_FRAME_S"
-  "TATE\022!\n\007players\030\001 \003(\0132\020.Protocol.Player\022"
-  " \n\007enemies\030\002 \003(\0132\017.Protocol.Enemyb\006proto"
-  "3"
+  "eltaX\030\003 \001(\002\022\016\n\006deltaY\030\004 \001(\002\"h\n\rS_FRAME_S"
+  "TATE\022\022\n\nserverTick\030\001 \001(\r\022!\n\007players\030\002 \003("
+  "\0132\020.Protocol.Player\022 \n\007enemies\030\003 \003(\0132\017.P"
+  "rotocol.Enemyb\006proto3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_Protocol_2eproto_deps[3] = {
   &::descriptor_table_Enum_2eproto,
@@ -235,7 +237,7 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor
 };
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_Protocol_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_Protocol_2eproto = {
-  false, false, 601, descriptor_table_protodef_Protocol_2eproto, "Protocol.proto", 
+  false, false, 621, descriptor_table_protodef_Protocol_2eproto, "Protocol.proto", 
   &descriptor_table_Protocol_2eproto_once, descriptor_table_Protocol_2eproto_deps, 3, 8,
   schemas, file_default_instances, TableStruct_Protocol_2eproto::offsets,
   file_level_metadata_Protocol_2eproto, file_level_enum_descriptors_Protocol_2eproto, file_level_service_descriptors_Protocol_2eproto,
@@ -1889,10 +1891,12 @@ S_FRAME_STATE::S_FRAME_STATE(const S_FRAME_STATE& from)
       players_(from.players_),
       enemies_(from.enemies_) {
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  servertick_ = from.servertick_;
   // @@protoc_insertion_point(copy_constructor:Protocol.S_FRAME_STATE)
 }
 
 void S_FRAME_STATE::SharedCtor() {
+servertick_ = 0u;
 }
 
 S_FRAME_STATE::~S_FRAME_STATE() {
@@ -1923,6 +1927,7 @@ void S_FRAME_STATE::Clear() {
 
   players_.Clear();
   enemies_.Clear();
+  servertick_ = 0u;
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
@@ -1932,28 +1937,35 @@ const char* S_FRAME_STATE::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
     switch (tag >> 3) {
-      // repeated .Protocol.Player players = 1;
+      // uint32 serverTick = 1;
       case 1:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 10)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 8)) {
+          servertick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      // repeated .Protocol.Player players = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 18)) {
           ptr -= 1;
           do {
             ptr += 1;
             ptr = ctx->ParseMessage(_internal_add_players(), ptr);
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
-          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<10>(ptr));
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<18>(ptr));
         } else goto handle_unusual;
         continue;
-      // repeated .Protocol.Enemy enemies = 2;
-      case 2:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 18)) {
+      // repeated .Protocol.Enemy enemies = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 26)) {
           ptr -= 1;
           do {
             ptr += 1;
             ptr = ctx->ParseMessage(_internal_add_enemies(), ptr);
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
-          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<18>(ptr));
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<26>(ptr));
         } else goto handle_unusual;
         continue;
       default: {
@@ -1985,20 +1997,26 @@ failure:
   ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
   (void) cached_has_bits;
 
-  // repeated .Protocol.Player players = 1;
+  // uint32 serverTick = 1;
+  if (this->servertick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteUInt32ToArray(1, this->_internal_servertick(), target);
+  }
+
+  // repeated .Protocol.Player players = 2;
   for (unsigned int i = 0,
       n = static_cast<unsigned int>(this->_internal_players_size()); i < n; i++) {
     target = stream->EnsureSpace(target);
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(1, this->_internal_players(i), target, stream);
+      InternalWriteMessage(2, this->_internal_players(i), target, stream);
   }
 
-  // repeated .Protocol.Enemy enemies = 2;
+  // repeated .Protocol.Enemy enemies = 3;
   for (unsigned int i = 0,
       n = static_cast<unsigned int>(this->_internal_enemies_size()); i < n; i++) {
     target = stream->EnsureSpace(target);
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      InternalWriteMessage(2, this->_internal_enemies(i), target, stream);
+      InternalWriteMessage(3, this->_internal_enemies(i), target, stream);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
@@ -2017,18 +2035,25 @@ size_t S_FRAME_STATE::ByteSizeLong() const {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  // repeated .Protocol.Player players = 1;
+  // repeated .Protocol.Player players = 2;
   total_size += 1UL * this->_internal_players_size();
   for (const auto& msg : this->players_) {
     total_size +=
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
   }
 
-  // repeated .Protocol.Enemy enemies = 2;
+  // repeated .Protocol.Enemy enemies = 3;
   total_size += 1UL * this->_internal_enemies_size();
   for (const auto& msg : this->enemies_) {
     total_size +=
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
+  }
+
+  // uint32 serverTick = 1;
+  if (this->servertick() != 0) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::UInt32Size(
+        this->_internal_servertick());
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
@@ -2064,6 +2089,9 @@ void S_FRAME_STATE::MergeFrom(const S_FRAME_STATE& from) {
 
   players_.MergeFrom(from.players_);
   enemies_.MergeFrom(from.enemies_);
+  if (from.servertick() != 0) {
+    _internal_set_servertick(from._internal_servertick());
+  }
 }
 
 void S_FRAME_STATE::CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) {
@@ -2089,6 +2117,7 @@ void S_FRAME_STATE::InternalSwap(S_FRAME_STATE* other) {
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   players_.InternalSwap(&other->players_);
   enemies_.InternalSwap(&other->enemies_);
+  swap(servertick_, other->servertick_);
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata S_FRAME_STATE::GetMetadata() const {

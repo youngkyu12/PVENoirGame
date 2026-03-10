@@ -21,8 +21,10 @@ public:
 
 public:
     void TickAdvance();
+    void ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float deltaY);
 
 public:
+    void MakeFrameState(uint32 tick);
 	void MakeInitStruct(Protocol::S_GAME_START gameStartPkt);
 	void MakeEnterGameStruct(Protocol::S_ENTER_GAME enterGamePkt);
 
@@ -39,6 +41,8 @@ private:
 	map<uint64, EnemyRef> fighters; //  특수 적 참조 (옵션)
 	map<uint64, EnemyRef> enemies; // 전체 적 참조 (옵션)
     //array<GameAreaRef, 9> gameAreas; // 9개 구역
+
+    Atomic<uint32> tick = 0;
 };
 
 extern shared_ptr<Room> GRoom;

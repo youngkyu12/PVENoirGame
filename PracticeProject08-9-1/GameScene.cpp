@@ -25,6 +25,8 @@
 #include "BufferReader.h"
 #include "ServerPacketHandler.h"
 
+#include "GlobalValues.h"
+
 CGameScene::CGameScene()
 {
     m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
@@ -139,6 +141,9 @@ void CGameScene::ReleaseShaderVariables()
 
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
+    //while (false == g_GameStarted);
+
+
     // ------------------------------------------------------------------------
     // Build parameters
     // ------------------------------------------------------------------------
@@ -217,8 +222,13 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     constexpr UINT kRTCount = 5;
     const DXGI_FORMAT kDsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
+    // 게임 초기 정보를 뽑자
+    DequeueNetworkMessage(NetworkMessageType::GameStart);
+    m_localPlayerSlot = g_myPlayerId;
+
     BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
     BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
+
 
     LinkSceneObjects();
 
@@ -228,7 +238,11 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     if (!local) local = GetPlayerBySlot(0);
 
     CreateMainCamera(dev, cmd, local);
+
+   
 }
+
+
 
 void CGameScene::BuildLightsAndMaterials()
 {
@@ -461,6 +475,7 @@ void CGameScene::BuildStaticBatch(
 
     staticDescs.reserve(m_planeCount + m_houseCount);
     staticPositions.reserve(m_planeCount + m_houseCount);
+    //m_pendingNetworkMessage.data.index();
 
     // Plane
     for (UINT i = 0; i < m_planeCount; ++i)
@@ -710,6 +725,18 @@ void CGameScene::BuildSkinnedBatch(
     m_axeManRefs.reserve(m_axeManCount);
 
     // ------------------------------------------------------------------------
+    // GameStartData에서 초기 좌표 추출
+    // ------------------------------------------------------------------------
+    GameStartData gameStartData{};
+    if (std::holds_alternative<GameStartData>(m_pendingNetworkMessage.data))
+    {
+        gameStartData = std::get<GameStartData>(m_pendingNetworkMessage.data);
+    }
+
+    // enemy 인덱스 카운터 (모든 적 타입에 걸쳐 순차 증가)
+    UINT enemyIndex = 0;
+
+    // ------------------------------------------------------------------------
     // Enemies
     // ------------------------------------------------------------------------
     {
@@ -719,7 +746,6 @@ void CGameScene::BuildSkinnedBatch(
         // Enemy Type: Ghoul
         // ----------------------------
         {
-            //일단은 하드코딩
             const UINT countW = m_ghoulCount;
 
             AssetBuildDesc EnemyWDesc =
@@ -752,11 +778,26 @@ void CGameScene::BuildSkinnedBatch(
                     tag->playerSlot = -1;
                 }
 
-                const float x = enemyBase.x + 2.0f * (float)k;
-                const float z = enemyBase.z + 0.0f;
-                obj->SetPosition(x, enemyBase.y, z);
-                //어째선지 구울은 앞으로 90도 드러누워버림. 일단 세우긴 하는데...음;;
-                obj->Rotate(-90.0f, 180.0f, 0.0f);
+                // GameStartData에서 좌표 가져오기
+                XMFLOAT3 pos;
+                float yaw = 180.0f;
+                if (enemyIndex < (UINT)gameStartData.enemies.size())
+                {
+                    const auto& state = gameStartData.enemies[enemyIndex];
+                    pos = state.position;
+                    yaw = state.yaw;
+                }
+                else
+                {
+                    // fallback: 기존 하드코딩 좌표
+                    pos.x = enemyBase.x + 2.0f * (float)k;
+                    pos.y = enemyBase.y;
+                    pos.z = enemyBase.z + 0.0f;
+                }
+                obj->SetPosition(pos.x, pos.y, pos.z);
+                obj->Rotate(-90.0f, yaw, 0.0f); // Ghoul은 -90도 보정 필요
+
+                ++enemyIndex;
 
                 obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
 
@@ -804,7 +845,6 @@ void CGameScene::BuildSkinnedBatch(
         // Enemy Type: SwordMan
         // ----------------------------
         {
-            //일단은 하드코딩
             const UINT countX = m_swordManCount;
 
             AssetBuildDesc EnemyXDesc =
@@ -837,10 +877,25 @@ void CGameScene::BuildSkinnedBatch(
                     tag->playerSlot = -1;
                 }
 
-                const float x = enemyBase.x + 2.0f * (float)k;
-                const float z = enemyBase.z + 3.0f;
-                obj->SetPosition(x, enemyBase.y, z);
-                obj->Rotate(0.0f, 180.0f, 0.0f);
+                // GameStartData에서 좌표 가져오기
+                XMFLOAT3 pos;
+                float yaw = 180.0f;
+                if (enemyIndex < (UINT)gameStartData.enemies.size())
+                {
+                    const auto& state = gameStartData.enemies[enemyIndex];
+                    pos = state.position;
+                    yaw = state.yaw;
+                }
+                else
+                {
+                    pos.x = enemyBase.x + 2.0f * (float)k;
+                    pos.y = enemyBase.y;
+                    pos.z = enemyBase.z + 3.0f;
+                }
+                obj->SetPosition(pos.x, pos.y, pos.z);
+                obj->Rotate(0.0f, yaw, 0.0f);
+
+                ++enemyIndex;
 
                 obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
 
@@ -888,7 +943,6 @@ void CGameScene::BuildSkinnedBatch(
         // Enemy Type BowMan
         // ----------------------------
         {
-            //일단은 하드코딩
             const UINT countY = m_bowManCount;
 
             AssetBuildDesc EnemyYDesc =
@@ -921,10 +975,25 @@ void CGameScene::BuildSkinnedBatch(
                     tag->playerSlot = -1;
                 }
 
-                const float x = enemyBase.x + 2.0f * (float)k;
-                const float z = enemyBase.z + 6.0f;
-                obj->SetPosition(x, enemyBase.y, z);
-                obj->Rotate(0.0f, 180.0f, 0.0f);
+                // GameStartData에서 좌표 가져오기
+                XMFLOAT3 pos;
+                float yaw = 180.0f;
+                if (enemyIndex < (UINT)gameStartData.enemies.size())
+                {
+                    const auto& state = gameStartData.enemies[enemyIndex];
+                    pos = state.position;
+                    yaw = state.yaw;
+                }
+                else
+                {
+                    pos.x = enemyBase.x + 2.0f * (float)k;
+                    pos.y = enemyBase.y;
+                    pos.z = enemyBase.z + 6.0f;
+                }
+                obj->SetPosition(pos.x, pos.y, pos.z);
+                obj->Rotate(0.0f, yaw, 0.0f);
+
+                ++enemyIndex;
 
                 obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
 
@@ -972,7 +1041,6 @@ void CGameScene::BuildSkinnedBatch(
         // Enemy Type: AxeMan
         // ----------------------------
         {
-            //일단은 하드코딩
             const UINT countZ = m_axeManCount;
 
             AssetBuildDesc EnemyZDesc =
@@ -1005,10 +1073,25 @@ void CGameScene::BuildSkinnedBatch(
                     tag->playerSlot = -1;
                 }
 
-                const float x = enemyBase.x + 2.0f * (float)k;
-                const float z = enemyBase.z + 9.0f;
-                obj->SetPosition(x, enemyBase.y, z);
-                obj->Rotate(0.0f, 180.0f, 0.0f);
+                // GameStartData에서 좌표 가져오기
+                XMFLOAT3 pos;
+                float yaw = 180.0f;
+                if (enemyIndex < (UINT)gameStartData.enemies.size())
+                {
+                    const auto& state = gameStartData.enemies[enemyIndex];
+                    pos = state.position;
+                    yaw = state.yaw;
+                }
+                else
+                {
+                    pos.x = enemyBase.x + 2.0f * (float)k;
+                    pos.y = enemyBase.y;
+                    pos.z = enemyBase.z + 9.0f;
+                }
+                obj->SetPosition(pos.x, pos.y, pos.z);
+                obj->Rotate(0.0f, yaw, 0.0f);
+
+                ++enemyIndex;
 
                 obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
 
@@ -1058,7 +1141,6 @@ void CGameScene::BuildSkinnedBatch(
         // Enemy Type: Boss
         // ----------------------------
         {
-            //확정이긴 한데 일단 하드코딩
             const UINT countOne = m_bossCount;
 
             AssetBuildDesc EnemyOneDesc =
@@ -1091,10 +1173,25 @@ void CGameScene::BuildSkinnedBatch(
                     tag->playerSlot = -1;
                 }
 
-                const float x = enemyBase.x + 0.0f;
-                const float z = enemyBase.z + 12.0f;
-                obj->SetPosition(x, enemyBase.y, z);
-                obj->Rotate(0.0f, 180.0f, 0.0f);
+                // GameStartData에서 좌표 가져오기
+                XMFLOAT3 pos;
+                float yaw = 180.0f;
+                if (enemyIndex < (UINT)gameStartData.enemies.size())
+                {
+                    const auto& state = gameStartData.enemies[enemyIndex];
+                    pos = state.position;
+                    yaw = state.yaw;
+                }
+                else
+                {
+                    pos.x = enemyBase.x + 0.0f;
+                    pos.y = enemyBase.y;
+                    pos.z = enemyBase.z + 12.0f;
+                }
+                obj->SetPosition(pos.x, pos.y, pos.z);
+                obj->Rotate(0.0f, yaw, 0.0f);
+
+                ++enemyIndex;
 
                 obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
 
@@ -1140,8 +1237,7 @@ void CGameScene::BuildSkinnedBatch(
     }
 
     // ------------------------------------------------------------------------
-    // Fighter (Players slot 0..3) : 전원 m_skinnedObjects에 포함
-    //  - m_localPlayerSlot만 Local + PlayerControllerComponent 부착
+    // Fighter (Players slot 0..3)
     // ------------------------------------------------------------------------
     {
         AssetBuildDesc FighterDesc0 =
@@ -1178,7 +1274,6 @@ void CGameScene::BuildSkinnedBatch(
             const int slot = (int)k;
             const bool isLocal = (slot == m_localPlayerSlot);
 
-            // 슬롯별 BuildAsset 분리(파일명은 지금은 동일)
             BuiltAsset asset{};
             if (slot == 0) asset = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), FighterDesc0);
             else if (slot == 1) asset = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), FighterDesc1);
@@ -1221,9 +1316,24 @@ void CGameScene::BuildSkinnedBatch(
             auto mat = std::make_shared<CMaterial>();
             mat->m_nReflection = matId;
 
-            const float x = playerBase.x + 2.0f * (float)slot;
-            obj->SetPosition(x, playerBase.y, playerBase.z);
-            obj->Rotate(0.0f, 0.0f, 0.0f);
+            // GameStartData에서 플레이어 좌표 가져오기
+            XMFLOAT3 pos;
+            float yaw = 0.0f;
+            if (k < (UINT)gameStartData.players.size())
+            {
+                const auto& state = gameStartData.players[k];
+                pos = state.position;
+                yaw = state.yaw;
+            }
+            else
+            {
+                // fallback: 기존 하드코딩 좌표
+                pos.x = playerBase.x + 2.0f * (float)slot;
+                pos.y = playerBase.y;
+                pos.z = playerBase.z;
+            }
+            obj->SetPosition(pos.x, pos.y, pos.z);
+            obj->Rotate(0.0f, yaw, 0.0f);
 
             obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
 
@@ -1531,6 +1641,65 @@ bool CGameScene::ProcessInput(UCHAR* /*pKeysBuffer*/)
 
 void CGameScene::AnimateObjects(float dt)
 {
+    // ------------------------------------------------------------------------
+    // FrameSnapshot에서 좌표 업데이트
+    // ------------------------------------------------------------------------
+    DequeueNetworkMessage(NetworkMessageType::FrameState);
+
+    if (std::holds_alternative<FrameSnapshot>(m_pendingNetworkMessage.data))
+    {
+        const FrameSnapshot& snapshot = std::get<FrameSnapshot>(m_pendingNetworkMessage.data);
+
+        // Player 좌표 업데이트
+        for (const auto& state : snapshot.players)
+        {
+            // id를 slot으로 사용 (0~3)
+            int slot = static_cast<int>(state.id);
+            CGameObject* player = GetPlayerBySlot(slot);
+            if (!player) continue;
+
+            // 로컬 플레이어는 서버 좌표로 덮어쓰지 않음 (선택적)
+            // if (slot == m_localPlayerSlot) continue;
+
+            player->SetPosition(state.position.x, state.position.y, state.position.z);
+            
+            // yaw 회전 적용
+            if (auto* tr = player->GetComponent<CTransformComponent>())
+            {
+                tr->SetYawDegrees(state.yaw);
+            }
+        }
+
+        // Enemy 좌표 업데이트
+        // skinnedObjects에서 NPC만 순회 (Fighter 제외)
+        UINT enemyIndex = 0;
+        const UINT totalEnemies = m_ghoulCount + m_swordManCount + m_bowManCount + m_axeManCount + m_bossCount;
+
+        for (UINT j = 0; j < totalEnemies && j < (UINT)m_skinnedObjects.size(); ++j)
+        {
+            auto* obj = m_skinnedObjects[j].get();
+            if (!obj) continue;
+
+            auto* tag = obj->GetComponent<CActorTagComponent>();
+            if (!tag || tag->kind != EActorKind::NPC) continue;
+
+            if (enemyIndex < (UINT)snapshot.enemies.size())
+            {
+                const auto& state = snapshot.enemies[enemyIndex];
+                obj->SetPosition(state.position.x, state.position.y, state.position.z);
+
+                if (auto* tr = obj->GetComponent<CTransformComponent>())
+                {
+                    tr->SetYawDegrees(state.yaw);
+                }
+            }
+            ++enemyIndex;
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // 기존 애니메이션 로직
+    // ------------------------------------------------------------------------
     for (UINT j = 0; j < (UINT)m_skinnedObjects.size(); ++j)
     {
         if (!m_skinnedObjects[j]) continue;
