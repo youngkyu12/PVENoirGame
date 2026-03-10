@@ -1243,26 +1243,26 @@ void CGameScene::BuildSkinnedBatch(
         AssetBuildDesc FighterDesc0 =
         {
             AssetType::Fighter,
-            "Assets/Fighter/Mesh/Fighter.bin",
-            "Assets/Fighter/Texture"
+            "Assets/Player/Mesh/Player_Mesh1.bin",
+            "Assets/Player/Texture"
         };
         AssetBuildDesc FighterDesc1 =
         {
             AssetType::Fighter,
-            "Assets/Fighter/Mesh/Fighter.bin",
-            "Assets/Fighter/Texture"
+            "Assets/Player/Mesh/Player_Mesh2.bin",
+            "Assets/Player/Texture"
         };
         AssetBuildDesc FighterDesc2 =
         {
             AssetType::Fighter,
-            "Assets/Fighter/Mesh/Fighter.bin",
-            "Assets/Fighter/Texture"
+            "Assets/Player/Mesh/Player_Mesh3.bin",
+            "Assets/Player/Texture"
         };
         AssetBuildDesc FighterDesc3 =
         {
             AssetType::Fighter,
-            "Assets/Fighter/Mesh/Fighter.bin",
-            "Assets/Fighter/Texture"
+            "Assets/Player/Mesh/Player_Mesh4.bin",
+            "Assets/Player/Texture"
         };
 
         for (UINT k = 0; k < fighterCount; ++k)
@@ -1354,17 +1354,17 @@ void CGameScene::BuildSkinnedBatch(
             if (mesh0)
             {
                 idleLoaded = mesh0->LoadAnimationFromBIN(
-                    "Assets/Fighter/Animation/FighterIdle.bin",
+                    "Assets/Player/Animation/Player_Normal_Idle.bin",
                     "Idle", idleClip, 1.0f
                 );
 
                 runLoaded = mesh0->LoadAnimationFromBIN(
-                    "Assets/Fighter/Animation/FighterRun.bin",
+                    "Assets/Player/Animation/Player_Run_F.bin",
                     "Run", runClip, 1.0f
                 );
 
                 atkLoaded = mesh0->LoadAnimationFromBIN(
-                    "Assets/Fighter/Animation/FighterAttack.bin",
+                    "Assets/Player/Animation/Player_Sword_Attack.bin",
                     "Attack", atkClip, 1.0f
                 );
             }
