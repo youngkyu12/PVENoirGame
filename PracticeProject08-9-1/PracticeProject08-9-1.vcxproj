@@ -176,6 +176,7 @@
     <ClInclude Include="FollowBoneComponent.h" />
     <ClInclude Include="GameFramework.h" />
     <ClInclude Include="GameScene.h" />
+    <ClInclude Include="GlobalEnum.h" />
     <ClInclude Include="GlobalValues.h" />
     <ClInclude Include="InitStruct.pb.h" />
     <ClInclude Include="LightComponent.h" />

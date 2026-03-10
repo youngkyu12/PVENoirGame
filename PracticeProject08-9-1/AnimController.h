@@ -1,15 +1,11 @@
 #pragma once
 #include "stdafx.h"
+#include "GlobalEnum.h"
 
 class CGameObject;
 class CAnimator;
 
-enum class EAnimState : uint8_t
-{
-    Idle = 0,
-    Move,
-    Attack,
-};
+
 
 class CAnimController
 {

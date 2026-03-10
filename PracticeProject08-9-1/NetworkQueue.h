@@ -4,6 +4,9 @@
 #include <variant>
 #include <DirectXMath.h>
 
+#include "GlobalEnum.h"
+
+
 using namespace DirectX;
 
 // ============================================================
@@ -12,7 +15,7 @@ using namespace DirectX;
 
 enum AnimationId : uint16_t
 {
-    Idle,
+    Idle = 0,
     Walk,
     Attack,
     Die,
@@ -22,7 +25,7 @@ enum AnimationId : uint16_t
 struct AnimationState
 {
     //uint64_t    actorId;
-    AnimationId    animationId;
+    EAnimState    animationId;
 	int         animTick; // 애니메이션 진행 정도 (0 ~ maxTick)
 };
 

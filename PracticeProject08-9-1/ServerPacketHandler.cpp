@@ -6,6 +6,8 @@
 #include "NetworkQueue.h"
 
 
+#include "GlobalEnum.h"
+
 PacketHandlerFunc GPacketHandler[UINT16_MAX];
 
 bool Handle_INVALID(PacketSessionRef& session, BYTE* buffer, int32 len)
@@ -139,8 +141,9 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 		AnimationState animState;
 
 		// 애니메이션 상태를 옮긴다
-		animState.animationId = static_cast<AnimationId>(animation.animationtype());
+		animState.animationId = static_cast<EAnimState>(animation.animationtype());
 		animState.animTick = animation.animationtick();
+		
 
 		data.players.push_back({ player.id(), {position.x(), position.y(), position.z()}, yaw, animState });
 	}
@@ -157,7 +160,7 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 		AnimationState animState;
 
 		// 애니메이션 상태를 옮긴다
-		animState.animationId = static_cast<AnimationId>(animation.animationtype());
+		animState.animationId = static_cast<EAnimState>(animation.animationtype());
 		animState.animTick = animation.animationtick();
 
 		data.enemies.push_back({ enemy.id(), {position.x(), position.y(), position.z()}, yaw, animState });
