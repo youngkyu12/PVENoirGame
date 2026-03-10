@@ -6,6 +6,8 @@
 #include "NetworkQueue.h"
 
 
+#include "GlobalEnum.h"
+
 PacketHandlerFunc GPacketHandler[UINT16_MAX];
 
 bool Handle_INVALID(PacketSessionRef& session, BYTE* buffer, int32 len)
@@ -116,6 +118,10 @@ bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
 
 bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pkt)
 {
+	FrameSnapshot data;
+
+	data.frameId = pkt.servertick();
+
 	// 프레임마다 적의 위치, 플레이어의 위치, 플레이어의 HP 등등을 수신받아 적용
 	auto players = pkt.players();
 	auto enemies = pkt.enemies();
@@ -126,6 +132,20 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 		auto transform = player.transform();
 		auto position = transform.position();
 		auto yaw = transform.yaw();
+		auto animation = player.animation();
+
+		std::string s = player.DebugString();
+		s += "\n";
+		OutputDebugStringA(s.c_str());
+
+		AnimationState animState;
+
+		// 애니메이션 상태를 옮긴다
+		animState.animationId = static_cast<EAnimState>(animation.animationtype());
+		animState.animTick = animation.animationtick();
+		
+
+		data.players.push_back({ player.id(), {position.x(), position.y(), position.z()}, yaw, animState });
 	}
 
 	for (auto& enemy : enemies)
@@ -134,8 +154,19 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 		auto transform = enemy.transform();
 		auto position = transform.position();
 		auto yaw = transform.yaw();
+		auto animation = enemy.animation();
+		//std::string s = enemy.DebugString();
+
+		AnimationState animState;
+
+		// 애니메이션 상태를 옮긴다
+		animState.animationId = static_cast<EAnimState>(animation.animationtype());
+		animState.animTick = animation.animationtick();
+
+		data.enemies.push_back({ enemy.id(), {position.x(), position.y(), position.z()}, yaw, animState });
 	}
 
+	g_NetworkQueue.PushFrameState(std::move(data));
 	return false;
 }
 

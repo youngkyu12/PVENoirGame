@@ -97,28 +97,12 @@ bool Handle_C_GAME_START(PacketSessionRef& session, Protocol::C_GAME_START& pkt)
 bool Handle_C_INPUT(PacketSessionRef& session, Protocol::C_INPUT& pkt)
 {
 	GameSessionRef gameSession = static_pointer_cast<GameSession>(session);
-	cout << "Receive Input..." << endl;
 
-	// KeyCode를 받아서 게임에 적용하기
-	// 0: Up, 1: Down, 2: Left, 3: Right
+	// TODO: 해당 플레이어의 id에 위치 업데이트 적용
+	GRoom->DoAsync(&Room::ProcessInput, pkt.playerid(), pkt.keycodes(), 
+		pkt.deltax(), pkt.deltay());
 
-	enum KEY_CODE
-	{
-		UP = 0,
-		DOWN = 1,
-		LEFT = 2,
-		RIGHT = 3,
-	};
-
-	int id = pkt.playerid();
-	int keyCode = pkt.keycodes();
-
-	KEY_CODE key = static_cast<KEY_CODE>(keyCode);
-
-	cout << "PlayerId: " << id << endl;
-	cout << "KeyCodes: " << key << endl;
-
-	return false;
+	return true;
 }
 
 
