@@ -47,7 +47,7 @@ struct TableStruct_Struct_2eproto {
     PROTOBUF_SECTION_VARIABLE(protodesc_cold);
   static const ::PROTOBUF_NAMESPACE_ID::internal::AuxiliaryParseTableField aux[]
     PROTOBUF_SECTION_VARIABLE(protodesc_cold);
-  static const ::PROTOBUF_NAMESPACE_ID::internal::ParseTable schema[7]
+  static const ::PROTOBUF_NAMESPACE_ID::internal::ParseTable schema[8]
     PROTOBUF_SECTION_VARIABLE(protodesc_cold);
   static const ::PROTOBUF_NAMESPACE_ID::internal::FieldMetadata field_metadata[];
   static const ::PROTOBUF_NAMESPACE_ID::internal::SerializationTable serialization_table[];
@@ -55,6 +55,9 @@ struct TableStruct_Struct_2eproto {
 };
 extern const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_Struct_2eproto;
 namespace Protocol {
+class Animation;
+struct AnimationDefaultTypeInternal;
+extern AnimationDefaultTypeInternal _Animation_default_instance_;
 class Building;
 struct BuildingDefaultTypeInternal;
 extern BuildingDefaultTypeInternal _Building_default_instance_;
@@ -78,6 +81,7 @@ struct Vec3fDefaultTypeInternal;
 extern Vec3fDefaultTypeInternal _Vec3f_default_instance_;
 }  // namespace Protocol
 PROTOBUF_NAMESPACE_OPEN
+template<> ::Protocol::Animation* Arena::CreateMaybeMessage<::Protocol::Animation>(Arena*);
 template<> ::Protocol::Building* Arena::CreateMaybeMessage<::Protocol::Building>(Arena*);
 template<> ::Protocol::Bullet* Arena::CreateMaybeMessage<::Protocol::Bullet>(Arena*);
 template<> ::Protocol::Enemy* Arena::CreateMaybeMessage<::Protocol::Enemy>(Arena*);
@@ -581,6 +585,149 @@ class ObjectStatus final :
 };
 // -------------------------------------------------------------------
 
+class Animation final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:Protocol.Animation) */ {
+ public:
+  inline Animation() : Animation(nullptr) {}
+  ~Animation() override;
+  explicit constexpr Animation(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  Animation(const Animation& from);
+  Animation(Animation&& from) noexcept
+    : Animation() {
+    *this = ::std::move(from);
+  }
+
+  inline Animation& operator=(const Animation& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline Animation& operator=(Animation&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const Animation& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const Animation* internal_default_instance() {
+    return reinterpret_cast<const Animation*>(
+               &_Animation_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    3;
+
+  friend void swap(Animation& a, Animation& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(Animation* other) {
+    if (other == this) return;
+    if (GetOwningArena() == other->GetOwningArena()) {
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(Animation* other) {
+    if (other == this) return;
+    GOOGLE_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  inline Animation* New() const final {
+    return new Animation();
+  }
+
+  Animation* New(::PROTOBUF_NAMESPACE_ID::Arena* arena) const final {
+    return CreateMaybeMessage<Animation>(arena);
+  }
+  void CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) final;
+  void MergeFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) final;
+  void CopyFrom(const Animation& from);
+  void MergeFrom(const Animation& from);
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::PROTOBUF_NAMESPACE_ID::uint8* _InternalSerialize(
+      ::PROTOBUF_NAMESPACE_ID::uint8* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _cached_size_.Get(); }
+
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(Animation* other);
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
+    return "Protocol.Animation";
+  }
+  protected:
+  explicit Animation(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  private:
+  static void ArenaDtor(void* object);
+  inline void RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kAnimationTypeFieldNumber = 1,
+    kAnimationTickFieldNumber = 2,
+  };
+  // .Protocol.AnimationType animationType = 1;
+  void clear_animationtype();
+  ::Protocol::AnimationType animationtype() const;
+  void set_animationtype(::Protocol::AnimationType value);
+  private:
+  ::Protocol::AnimationType _internal_animationtype() const;
+  void _internal_set_animationtype(::Protocol::AnimationType value);
+  public:
+
+  // uint32 animationTick = 2;
+  void clear_animationtick();
+  ::PROTOBUF_NAMESPACE_ID::uint32 animationtick() const;
+  void set_animationtick(::PROTOBUF_NAMESPACE_ID::uint32 value);
+  private:
+  ::PROTOBUF_NAMESPACE_ID::uint32 _internal_animationtick() const;
+  void _internal_set_animationtick(::PROTOBUF_NAMESPACE_ID::uint32 value);
+  public:
+
+  // @@protoc_insertion_point(class_scope:Protocol.Animation)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  int animationtype_;
+  ::PROTOBUF_NAMESPACE_ID::uint32 animationtick_;
+  mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  friend struct ::TableStruct_Struct_2eproto;
+};
+// -------------------------------------------------------------------
+
 class Bullet final :
     public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:Protocol.Bullet) */ {
  public:
@@ -625,7 +772,7 @@ class Bullet final :
                &_Bullet_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    3;
+    4;
 
   friend void swap(Bullet& a, Bullet& b) {
     a.Swap(&b);
@@ -808,7 +955,7 @@ class Player final :
                &_Player_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    4;
+    5;
 
   friend void swap(Player& a, Player& b) {
     a.Swap(&b);
@@ -874,6 +1021,7 @@ class Player final :
   enum : int {
     kNameFieldNumber = 2,
     kTransformFieldNumber = 5,
+    kAnimationFieldNumber = 6,
     kIdFieldNumber = 1,
     kPlayerTypeFieldNumber = 3,
     kPlayerStateFieldNumber = 4,
@@ -909,6 +1057,24 @@ class Player final :
   void unsafe_arena_set_allocated_transform(
       ::Protocol::Transform* transform);
   ::Protocol::Transform* unsafe_arena_release_transform();
+
+  // .Protocol.Animation animation = 6;
+  bool has_animation() const;
+  private:
+  bool _internal_has_animation() const;
+  public:
+  void clear_animation();
+  const ::Protocol::Animation& animation() const;
+  PROTOBUF_FUTURE_MUST_USE_RESULT ::Protocol::Animation* release_animation();
+  ::Protocol::Animation* mutable_animation();
+  void set_allocated_animation(::Protocol::Animation* animation);
+  private:
+  const ::Protocol::Animation& _internal_animation() const;
+  ::Protocol::Animation* _internal_mutable_animation();
+  public:
+  void unsafe_arena_set_allocated_animation(
+      ::Protocol::Animation* animation);
+  ::Protocol::Animation* unsafe_arena_release_animation();
 
   // uint64 id = 1;
   void clear_id();
@@ -946,6 +1112,7 @@ class Player final :
   typedef void DestructorSkippable_;
   ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr name_;
   ::Protocol::Transform* transform_;
+  ::Protocol::Animation* animation_;
   ::PROTOBUF_NAMESPACE_ID::uint64 id_;
   int playertype_;
   int playerstate_;
@@ -998,7 +1165,7 @@ class Enemy final :
                &_Enemy_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    5;
+    6;
 
   friend void swap(Enemy& a, Enemy& b) {
     a.Swap(&b);
@@ -1063,6 +1230,7 @@ class Enemy final :
 
   enum : int {
     kTransformFieldNumber = 4,
+    kAnimationFieldNumber = 5,
     kIdFieldNumber = 1,
     kEnemyTypeFieldNumber = 2,
     kEnemyStateFieldNumber = 3,
@@ -1084,6 +1252,24 @@ class Enemy final :
   void unsafe_arena_set_allocated_transform(
       ::Protocol::Transform* transform);
   ::Protocol::Transform* unsafe_arena_release_transform();
+
+  // .Protocol.Animation animation = 5;
+  bool has_animation() const;
+  private:
+  bool _internal_has_animation() const;
+  public:
+  void clear_animation();
+  const ::Protocol::Animation& animation() const;
+  PROTOBUF_FUTURE_MUST_USE_RESULT ::Protocol::Animation* release_animation();
+  ::Protocol::Animation* mutable_animation();
+  void set_allocated_animation(::Protocol::Animation* animation);
+  private:
+  const ::Protocol::Animation& _internal_animation() const;
+  ::Protocol::Animation* _internal_mutable_animation();
+  public:
+  void unsafe_arena_set_allocated_animation(
+      ::Protocol::Animation* animation);
+  ::Protocol::Animation* unsafe_arena_release_animation();
 
   // uint64 id = 1;
   void clear_id();
@@ -1120,6 +1306,7 @@ class Enemy final :
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
   ::Protocol::Transform* transform_;
+  ::Protocol::Animation* animation_;
   ::PROTOBUF_NAMESPACE_ID::uint64 id_;
   int enemytype_;
   int enemystate_;
@@ -1172,7 +1359,7 @@ class Building final :
                &_Building_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    6;
+    7;
 
   friend void swap(Building& a, Building& b) {
     a.Swap(&b);
@@ -1625,6 +1812,50 @@ inline void ObjectStatus::set_speed(::PROTOBUF_NAMESPACE_ID::uint32 value) {
 
 // -------------------------------------------------------------------
 
+// Animation
+
+// .Protocol.AnimationType animationType = 1;
+inline void Animation::clear_animationtype() {
+  animationtype_ = 0;
+}
+inline ::Protocol::AnimationType Animation::_internal_animationtype() const {
+  return static_cast< ::Protocol::AnimationType >(animationtype_);
+}
+inline ::Protocol::AnimationType Animation::animationtype() const {
+  // @@protoc_insertion_point(field_get:Protocol.Animation.animationType)
+  return _internal_animationtype();
+}
+inline void Animation::_internal_set_animationtype(::Protocol::AnimationType value) {
+  
+  animationtype_ = value;
+}
+inline void Animation::set_animationtype(::Protocol::AnimationType value) {
+  _internal_set_animationtype(value);
+  // @@protoc_insertion_point(field_set:Protocol.Animation.animationType)
+}
+
+// uint32 animationTick = 2;
+inline void Animation::clear_animationtick() {
+  animationtick_ = 0u;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint32 Animation::_internal_animationtick() const {
+  return animationtick_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint32 Animation::animationtick() const {
+  // @@protoc_insertion_point(field_get:Protocol.Animation.animationTick)
+  return _internal_animationtick();
+}
+inline void Animation::_internal_set_animationtick(::PROTOBUF_NAMESPACE_ID::uint32 value) {
+  
+  animationtick_ = value;
+}
+inline void Animation::set_animationtick(::PROTOBUF_NAMESPACE_ID::uint32 value) {
+  _internal_set_animationtick(value);
+  // @@protoc_insertion_point(field_set:Protocol.Animation.animationTick)
+}
+
+// -------------------------------------------------------------------
+
 // Bullet
 
 // uint64 id = 1;
@@ -2025,6 +2256,89 @@ inline void Player::set_allocated_transform(::Protocol::Transform* transform) {
   // @@protoc_insertion_point(field_set_allocated:Protocol.Player.transform)
 }
 
+// .Protocol.Animation animation = 6;
+inline bool Player::_internal_has_animation() const {
+  return this != internal_default_instance() && animation_ != nullptr;
+}
+inline bool Player::has_animation() const {
+  return _internal_has_animation();
+}
+inline void Player::clear_animation() {
+  if (GetArenaForAllocation() == nullptr && animation_ != nullptr) {
+    delete animation_;
+  }
+  animation_ = nullptr;
+}
+inline const ::Protocol::Animation& Player::_internal_animation() const {
+  const ::Protocol::Animation* p = animation_;
+  return p != nullptr ? *p : reinterpret_cast<const ::Protocol::Animation&>(
+      ::Protocol::_Animation_default_instance_);
+}
+inline const ::Protocol::Animation& Player::animation() const {
+  // @@protoc_insertion_point(field_get:Protocol.Player.animation)
+  return _internal_animation();
+}
+inline void Player::unsafe_arena_set_allocated_animation(
+    ::Protocol::Animation* animation) {
+  if (GetArenaForAllocation() == nullptr) {
+    delete reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(animation_);
+  }
+  animation_ = animation;
+  if (animation) {
+    
+  } else {
+    
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:Protocol.Player.animation)
+}
+inline ::Protocol::Animation* Player::release_animation() {
+  
+  ::Protocol::Animation* temp = animation_;
+  animation_ = nullptr;
+  if (GetArenaForAllocation() != nullptr) {
+    temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+  }
+  return temp;
+}
+inline ::Protocol::Animation* Player::unsafe_arena_release_animation() {
+  // @@protoc_insertion_point(field_release:Protocol.Player.animation)
+  
+  ::Protocol::Animation* temp = animation_;
+  animation_ = nullptr;
+  return temp;
+}
+inline ::Protocol::Animation* Player::_internal_mutable_animation() {
+  
+  if (animation_ == nullptr) {
+    auto* p = CreateMaybeMessage<::Protocol::Animation>(GetArenaForAllocation());
+    animation_ = p;
+  }
+  return animation_;
+}
+inline ::Protocol::Animation* Player::mutable_animation() {
+  // @@protoc_insertion_point(field_mutable:Protocol.Player.animation)
+  return _internal_mutable_animation();
+}
+inline void Player::set_allocated_animation(::Protocol::Animation* animation) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  if (message_arena == nullptr) {
+    delete animation_;
+  }
+  if (animation) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper<::Protocol::Animation>::GetOwningArena(animation);
+    if (message_arena != submessage_arena) {
+      animation = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, animation, submessage_arena);
+    }
+    
+  } else {
+    
+  }
+  animation_ = animation;
+  // @@protoc_insertion_point(field_set_allocated:Protocol.Player.animation)
+}
+
 // -------------------------------------------------------------------
 
 // Enemy
@@ -2172,6 +2486,89 @@ inline void Enemy::set_allocated_transform(::Protocol::Transform* transform) {
   // @@protoc_insertion_point(field_set_allocated:Protocol.Enemy.transform)
 }
 
+// .Protocol.Animation animation = 5;
+inline bool Enemy::_internal_has_animation() const {
+  return this != internal_default_instance() && animation_ != nullptr;
+}
+inline bool Enemy::has_animation() const {
+  return _internal_has_animation();
+}
+inline void Enemy::clear_animation() {
+  if (GetArenaForAllocation() == nullptr && animation_ != nullptr) {
+    delete animation_;
+  }
+  animation_ = nullptr;
+}
+inline const ::Protocol::Animation& Enemy::_internal_animation() const {
+  const ::Protocol::Animation* p = animation_;
+  return p != nullptr ? *p : reinterpret_cast<const ::Protocol::Animation&>(
+      ::Protocol::_Animation_default_instance_);
+}
+inline const ::Protocol::Animation& Enemy::animation() const {
+  // @@protoc_insertion_point(field_get:Protocol.Enemy.animation)
+  return _internal_animation();
+}
+inline void Enemy::unsafe_arena_set_allocated_animation(
+    ::Protocol::Animation* animation) {
+  if (GetArenaForAllocation() == nullptr) {
+    delete reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(animation_);
+  }
+  animation_ = animation;
+  if (animation) {
+    
+  } else {
+    
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:Protocol.Enemy.animation)
+}
+inline ::Protocol::Animation* Enemy::release_animation() {
+  
+  ::Protocol::Animation* temp = animation_;
+  animation_ = nullptr;
+  if (GetArenaForAllocation() != nullptr) {
+    temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+  }
+  return temp;
+}
+inline ::Protocol::Animation* Enemy::unsafe_arena_release_animation() {
+  // @@protoc_insertion_point(field_release:Protocol.Enemy.animation)
+  
+  ::Protocol::Animation* temp = animation_;
+  animation_ = nullptr;
+  return temp;
+}
+inline ::Protocol::Animation* Enemy::_internal_mutable_animation() {
+  
+  if (animation_ == nullptr) {
+    auto* p = CreateMaybeMessage<::Protocol::Animation>(GetArenaForAllocation());
+    animation_ = p;
+  }
+  return animation_;
+}
+inline ::Protocol::Animation* Enemy::mutable_animation() {
+  // @@protoc_insertion_point(field_mutable:Protocol.Enemy.animation)
+  return _internal_mutable_animation();
+}
+inline void Enemy::set_allocated_animation(::Protocol::Animation* animation) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  if (message_arena == nullptr) {
+    delete animation_;
+  }
+  if (animation) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper<::Protocol::Animation>::GetOwningArena(animation);
+    if (message_arena != submessage_arena) {
+      animation = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, animation, submessage_arena);
+    }
+    
+  } else {
+    
+  }
+  animation_ = animation;
+  // @@protoc_insertion_point(field_set_allocated:Protocol.Enemy.animation)
+}
+
 // -------------------------------------------------------------------
 
 // Building
@@ -2282,6 +2679,8 @@ inline void Building::set_allocated_transform(::Protocol::Transform* transform) 
 #ifdef __GNUC__
   #pragma GCC diagnostic pop
 #endif  // __GNUC__
+// -------------------------------------------------------------------
+
 // -------------------------------------------------------------------
 
 // -------------------------------------------------------------------

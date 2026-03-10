@@ -7,6 +7,8 @@
 #include "Camera.h"
 #include "Object.h"
 
+#include "GlobalValues.h"
+
 std::unique_ptr<CDescriptorHeap> CScene::m_pDescriptorHeap = std::make_unique<CDescriptorHeap>();
 
 CScene::CScene()
@@ -53,6 +55,18 @@ void CScene::OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera)
         camera->UpdateShaderVariables(cmd);
     }
 }
+
+void CScene::DequeueNetworkMessage(const NetworkMessageType& type)
+{
+    m_pendingNetworkMessage.type = type;	
+    while(false == g_NetworkQueue.TryPop(m_pendingNetworkMessage)); // 기존 메시지 처리
+}
+
+void CScene::SetNetworkMessageType(NetworkMessageType type)
+{
+	
+}
+
 
 void CScene::CreateGraphicsRootSignature(ID3D12Device* dev)
 {
