@@ -71,8 +71,8 @@ void Room::StartGame(bool ready, uint32 index)
 
 	static Atomic<bool> gameStarted = false;
 
-
-	if(p_ready[0] && p_ready[1] && p_ready[2] && p_ready[3])
+	 if(p_ready[0] && p_ready[1] && p_ready[2] && p_ready[3])
+	//if(p_ready[0] && p_ready[1])
 	{
 		if (gameStarted.exchange(true) == false)
 		{
@@ -93,7 +93,142 @@ void Room::EndGame()
 {
 }
 
+void Room::TickAdvance()
+{
+	MakeFrameState(tick.load());
 
+	tick++;
+}
+
+
+// TODO: ProcessInput을 TickAdvance에서 처리할 수 있게 바꿔야 함
+
+void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float deltaY)
+{
+	// 플레이어 찾기
+	auto it = players.find(playerId);
+	if (it == players.end())
+		return;
+
+	PlayerRef& player = it->second;
+
+	// ========== 1. 회전 처리 (클라이언트 Rotate 함수와 동일) ==========
+	if (deltaX != 0.0f)
+	{
+		float currentYaw = player->GetYaw();
+		player->SetYaw(GameMath::NormalizeYaw(currentYaw + deltaX));
+	}
+
+	// ========== 2. 이동 처리 (클라이언트 Move 함수와 동일) ==========
+	constexpr int kDirForward  = 1 << 0;
+	constexpr int kDirBackward = 1 << 1;
+	constexpr int kDirLeft     = 1 << 2;
+	constexpr int kDirRight    = 1 << 3;
+
+	Protocol::AnimationType prevAnimState = player->GetAnimState();
+
+	player->SetAnimState(keyCodes == 0 ? 
+		Protocol::ANIMATION_TYPE_IDLE : 
+		Protocol::ANIMATION_TYPE_WALK);
+
+	if(player->GetAnimState() != prevAnimState)
+		player->SetAnimTick(tick); // 애니메이션 상태가 바뀌면 현재의 server tick을 넣어줌
+
+	//if (keyCodes & (kDirForward | kDirBackward))
+	//	player->SetAnimState(Protocol::ANIMATION_TYPE_WALK);
+
+	// Look/Right 벡터 (GameMath 사용)
+	GameMath::Vec3 look  = player->GetLook();
+	GameMath::Vec3 right = player->GetRight();
+
+	// 이동 거리 계산
+	const float speed = 5.0f;
+	const float dt = 0.03f;
+	float fDistance = speed * dt;
+
+	// 방향별 shift 누적 (클라이언트 Move 함수와 동일한 로직)
+	GameMath::Vec3 shift = GameMath::Vec3::Zero();
+
+	if (keyCodes & kDirForward)
+		shift += look * fDistance;
+
+	if (keyCodes & kDirBackward)
+		shift += look * (-fDistance);
+
+	if (keyCodes & kDirRight)
+		shift += right * fDistance;
+
+	if (keyCodes & kDirLeft)
+		shift += right * (-fDistance);
+
+	// 위치 적용
+	player->Move(shift);
+}
+
+
+
+void Room::MakeFrameState(uint32 tick)
+{
+	// 게임 로직 업데이트 (예: 적 이동, 충돌 검사 등)
+	Protocol::S_FRAME_STATE frameStatePkt;
+	frameStatePkt.set_servertick(tick);
+
+	// 프레임 상태 패킷 작성 (예: 플레이어 위치, 적 상태 등)
+
+	for (auto playerMap : players)
+	{
+		PlayerRef& player = playerMap.second;
+
+		auto p = frameStatePkt.add_players();
+		p->set_id(player->playerId);
+		p->set_name(player->name);
+		p->set_playertype(player->type);
+
+		Protocol::Animation* anim = p->mutable_animation();
+		anim->set_animationtick(player->GetAnimTick());
+		anim->set_animationtype(player->GetAnimState());
+
+		Protocol::Transform* transform = p->mutable_transform();
+		Protocol::Vec3f* position = transform->mutable_position();
+		position->set_x(player->GetPosition().x);
+		position->set_y(player->GetPosition().y);
+		position->set_z(player->GetPosition().z);
+
+		transform->set_yaw(player->GetYaw());
+	}
+
+
+	for (auto enemyMap : enemies)
+	{
+		EnemyRef& enemy = enemyMap.second;
+		auto e = frameStatePkt.add_enemies();
+		e->set_id(enemyMap.first);
+		e->set_enemytype(enemy->type);
+
+		Protocol::Animation* anim = e->mutable_animation();
+		anim->set_animationtick(enemy->GetAnimTick());
+		anim->set_animationtype(enemy->GetAnimState());
+
+		Protocol::Transform* transform = e->mutable_transform();
+		Protocol::Vec3f* position = transform->mutable_position();
+		position->set_x(enemy->GetPosition().x);
+		position->set_y(enemy->GetPosition().y);
+		position->set_z(enemy->GetPosition().z);
+
+
+	}
+
+
+
+
+
+	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(frameStatePkt);
+	GRoom->DoAsync(&Room::BroadCastAll, sendBuffer);
+
+
+	// 다음 업데이트 예약
+	GRoom->DoTimer(30, &Room::TickAdvance);
+}
 
 void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
 {
@@ -143,6 +278,9 @@ void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
 	GRoom->DoAsync(&Room::BroadCastAll, sendBuffer);
 
 	cout << "Game Started!" << endl;
+
+	// 게임 시작 로직 (예: 타이머 시작, 적 스폰 등)
+	GRoom->DoTimer(100, &Room::TickAdvance);
 }
 
 void Room::MakeEnterGameStruct(Protocol::S_ENTER_GAME enterGamePkt)

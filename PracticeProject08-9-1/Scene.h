@@ -10,6 +10,7 @@
 #include <cstdint>
 
 #include "DescriptorHeap.h"
+#include "NetworkQueue.h"
 
 #define ROOT_PARAMETER_DRAW_OPTIONS 5
 #define ROOT_PARAMETER_GLOBAL_SRV 6
@@ -42,7 +43,7 @@ public:
     // Build
 public:
     virtual void BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd) = 0;
-
+   
 protected:
     void CreateGraphicsRootSignature(ID3D12Device* dev);
 
@@ -100,4 +101,11 @@ protected:
 
     std::unique_ptr<CGameObject> m_pMainCameraObject;
     CCamera* m_pMainCamera = nullptr;
+
+protected:
+	NetworkMessage m_pendingNetworkMessage;
+public:
+    virtual void DequeueNetworkMessage(const NetworkMessageType& type);
+    virtual void SetNetworkMessageType(NetworkMessageType type);
+
 };

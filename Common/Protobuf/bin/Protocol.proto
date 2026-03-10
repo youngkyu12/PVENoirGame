@@ -61,6 +61,8 @@ message C_INPUT
 
 message S_FRAME_STATE
 {
-	repeated Player players = 1;
-	repeated Enemy enemies = 2;
+	// 서버의 Tick을 같이 전송
+	uint32 serverTick = 1;
+	repeated Player players = 2;
+	repeated Enemy enemies = 3;
 }
