@@ -754,7 +754,7 @@ void CGameScene::BuildSkinnedBatch(
             AssetBuildDesc EnemyWDesc =
             {
                 AssetType::Ghoul,
-                "Assets/Ghoul/Mesh/Ghoul_Mesh2.bin",
+                "Assets/Ghoul/Mesh/Ghoul_Mesh.bin",
                 "Assets/Ghoul/Texture"
             };
 
@@ -798,7 +798,7 @@ void CGameScene::BuildSkinnedBatch(
                     pos.z = enemyBase.z + 0.0f;
                 }
                 obj->SetPosition(pos.x, pos.y, pos.z);
-                obj->Rotate(-90.0f, yaw, 0.0f); // Ghoul은 -90도 보정 필요
+                //obj->Rotate(-90.0f, yaw, 0.0f); // Ghoul은 -90도 보정 필요
 
                 ++enemyIndex;
 
@@ -814,7 +814,7 @@ void CGameScene::BuildSkinnedBatch(
                 if (mesh0)
                 {
                     idleLoaded = mesh0->LoadAnimationFromBIN(
-                        "Assets/Ghoul/Animation/Ghoul_Anim_Idle1.bin",
+                        "Assets/Ghoul/Animation/Ghoul_Anim_Idle.bin",
                         "Idle", idleClip, 1.0f
                     );
                 }
