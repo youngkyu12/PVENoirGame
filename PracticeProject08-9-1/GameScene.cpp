@@ -570,8 +570,8 @@ void CGameScene::BuildStaticBatch(
         AssetBuildDesc ArrowDesc =
         {
             AssetType::Arrow,
-            "Assets/Arrow/Mesh/Arrow.bin",
-            "Assets/Arrow/Texture"
+            "Assets/Weapon/Arrow/Mesh/Arrow_Mesh.bin",
+            "Assets/Weapon/Arrow/Texture"
         };
 
         BuiltAsset arrowAsset = AssetManager::BuildAsset(
