@@ -694,7 +694,13 @@ void CGameFramework::ProcessInput()
 		auto sendBuffer = ServerPacketHandler::MakeSendBuffer(inputPkt);
 		g_clientService->BroadCast(sendBuffer);
 #else
-
+		if (cxDelta || cyDelta)
+		{
+			if (pKeysBuffer[VK_RBUTTON] & 0xF0)
+				pc->Rotate(cyDelta, 0.0f, -cxDelta);
+			else
+				pc->Rotate(cyDelta, cxDelta, 0.0f);
+		}
 #endif
 
 	}
