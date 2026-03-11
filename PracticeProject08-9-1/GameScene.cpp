@@ -849,9 +849,9 @@ void CGameScene::BuildSkinnedBatch(
 
             AssetBuildDesc EnemyXDesc =
             {
-                AssetType::Zombie,
-                "Assets/Zombie/Mesh/Zombie.bin",
-                "Assets/Zombie/Texture"
+                AssetType::SwordMan,
+                "Assets/Enemy/Mesh/Enemy_Mesh1.bin",
+                "Assets/Enemy/Texture"
             };
 
             BuiltAsset assetX = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyXDesc);
@@ -909,7 +909,7 @@ void CGameScene::BuildSkinnedBatch(
                 if (mesh0)
                 {
                     idleLoaded = mesh0->LoadAnimationFromBIN(
-                        "Assets/Zombie/Animation/ZombieIdle.bin",
+                        "Assets/Enemy/Animation/Enemy_Sword_Idle.bin",
                         "Idle", idleClip, 1.0f
                     );
                 }
@@ -947,9 +947,9 @@ void CGameScene::BuildSkinnedBatch(
 
             AssetBuildDesc EnemyYDesc =
             {
-                AssetType::Zombie,
-                "Assets/Zombie/Mesh/Zombie.bin",
-                "Assets/Zombie/Texture"
+                AssetType::BowMan,
+                "Assets/Enemy/Mesh/Enemy_Mesh2.bin",
+                "Assets/Enemy/Texture"
             };
 
             BuiltAsset assetY = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyYDesc);
@@ -1007,7 +1007,7 @@ void CGameScene::BuildSkinnedBatch(
                 if (mesh0)
                 {
                     idleLoaded = mesh0->LoadAnimationFromBIN(
-                        "Assets/Zombie/Animation/ZombieIdle.bin",
+                        "Assets/Enemy/Animation/Enemy_Bow_Idle.bin",
                         "Idle", idleClip, 1.0f
                     );
                 }
@@ -1237,30 +1237,30 @@ void CGameScene::BuildSkinnedBatch(
     }
 
     // ------------------------------------------------------------------------
-    // Fighter (Players slot 0..3)
+    // Player (Players slot 0..3)
     // ------------------------------------------------------------------------
     {
         AssetBuildDesc FighterDesc0 =
         {
-            AssetType::Fighter,
+            AssetType::Player,
             "Assets/Player/Mesh/Player_Mesh1.bin",
             "Assets/Player/Texture"
         };
         AssetBuildDesc FighterDesc1 =
         {
-            AssetType::Fighter,
+            AssetType::Player,
             "Assets/Player/Mesh/Player_Mesh2.bin",
             "Assets/Player/Texture"
         };
         AssetBuildDesc FighterDesc2 =
         {
-            AssetType::Fighter,
+            AssetType::Player,
             "Assets/Player/Mesh/Player_Mesh3.bin",
             "Assets/Player/Texture"
         };
         AssetBuildDesc FighterDesc3 =
         {
-            AssetType::Fighter,
+            AssetType::Player,
             "Assets/Player/Mesh/Player_Mesh4.bin",
             "Assets/Player/Texture"
         };
