@@ -59,7 +59,7 @@ void CScene::OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 void CScene::DequeueNetworkMessage(const NetworkMessageType& type)
 {
     m_pendingNetworkMessage.type = type;	
-    while(false == g_NetworkQueue.TryPop(m_pendingNetworkMessage)); // 기존 메시지 처리
+    g_NetworkQueue.TryPop(m_pendingNetworkMessage); // 기존 메시지 처리
 }
 
 void CScene::SetNetworkMessageType(NetworkMessageType type)
