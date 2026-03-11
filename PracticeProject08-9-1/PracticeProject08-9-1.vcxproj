@@ -164,6 +164,7 @@
     <ClInclude Include="AnimController.h" />
     <ClInclude Include="ArrowComponent.h" />
     <ClInclude Include="AssetManager.h" />
+    <ClInclude Include="BoundingCapsule.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="ColliderComponent.h" />
     <ClInclude Include="CollisionSystem.h" />
@@ -204,6 +205,7 @@
     <ClCompile Include="AnimController.cpp" />
     <ClCompile Include="ArrowComponent.cpp" />
     <ClCompile Include="AssetManager.cpp" />
+    <ClCompile Include="BoundingCapsule.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="ColliderComponent.cpp" />
     <ClCompile Include="CollisionSystem.cpp" />

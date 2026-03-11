@@ -226,6 +226,9 @@
     <ClInclude Include="RigidBody.h">
       <Filter>Components\RigidBody</Filter>
     </ClInclude>
+    <ClInclude Include="BoundingCapsule.h">
+      <Filter>Resource</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -326,6 +329,9 @@
     </ClCompile>
     <ClCompile Include="RigidBody.cpp">
       <Filter>Components\RigidBody</Filter>
+    </ClCompile>
+    <ClCompile Include="BoundingCapsule.cpp">
+      <Filter>Resource</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -150,26 +150,55 @@ void CColliderComponent::SetBCapsule(const XMFLOAT3& Min, const XMFLOAT3& Max)
         (Min.y + Max.y) * 0.5f,
         (Min.z + Max.z) * 0.5f);
 
-    XMFLOAT3 Extents = XMFLOAT3(
-        (Max.x - Min.x) * 0.5f,
-        (Max.y - Min.y) * 0.5f,
-        (Max.z - Min.z) * 0.5f);
-
     const float dx = Max.x - Min.x;
     const float dy = Max.y - Min.y;
     const float dz = Max.z - Min.z;
 
     if (dx >= dy && dx >= dz) {
         LocalBCapsule.Height = dx;
-        LocalBCapsule.Radius = max(Extents.y, Extents.z);
+        LocalBCapsule.Radius = max(dy, dz) * 0.5f;
+
+        const float halfSegment = max(0.0f, dx * 0.5f - LocalBCapsule.Radius);
+
+        LocalBCapsule.p0 = XMFLOAT3(
+            LocalBCapsule.Center.x + halfSegment,
+            LocalBCapsule.Center.y,
+            LocalBCapsule.Center.z);
+
+        LocalBCapsule.p1 = XMFLOAT3(
+            LocalBCapsule.Center.x - halfSegment,
+            LocalBCapsule.Center.y,
+            LocalBCapsule.Center.z);
     }
     else if (dy >= dx && dy >= dz) {
         LocalBCapsule.Height = dy;
-        LocalBCapsule.Radius = max(Extents.x, Extents.z);
+        LocalBCapsule.Radius = max(dx, dz) * 0.5f;
+
+        const float halfSegment = max(0.0f, dy * 0.5f - LocalBCapsule.Radius);
+
+        LocalBCapsule.p0 = XMFLOAT3(
+            LocalBCapsule.Center.x,
+            LocalBCapsule.Center.y + halfSegment,
+            LocalBCapsule.Center.z);
+
+        LocalBCapsule.p1 = XMFLOAT3(
+            LocalBCapsule.Center.x,
+            LocalBCapsule.Center.y - halfSegment,
+            LocalBCapsule.Center.z);
     }
     else {
         LocalBCapsule.Height = dz;
-        LocalBCapsule.Radius = max(Extents.x, Extents.y);
+        const float halfSegment = max(0.0f, dz * 0.5f - LocalBCapsule.Radius);
+
+        LocalBCapsule.p0 = XMFLOAT3(
+            LocalBCapsule.Center.x,
+            LocalBCapsule.Center.y,
+            LocalBCapsule.Center.z + halfSegment);
+
+        LocalBCapsule.p1 = XMFLOAT3(
+            LocalBCapsule.Center.x,
+            LocalBCapsule.Center.y,
+            LocalBCapsule.Center.z - halfSegment);
     }
    
 }
@@ -231,10 +260,3 @@ void CColliderComponent::UpdateWorldBounds()
     }
 }
 
-void BoundingCapsule::Transform(BoundingCapsule& Out, FXMMATRIX M) const noexcept
-{
-}
-
-void BoundingCapsule::Transform(BoundingCapsule& Out, float Scale, FXMVECTOR Rotation, FXMVECTOR Translation) const noexcept
-{
-}
