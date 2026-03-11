@@ -648,25 +648,27 @@ void CGameFramework::ProcessInput()
 
 	if (!bProcessedByScene)
 	{
-		if (pKeysBuffer[VK_UP] & 0xF0)    dwDirection |= DIR_FORWARD;
-		if (pKeysBuffer[VK_DOWN] & 0xF0)  dwDirection |= DIR_BACKWARD;
-		if (pKeysBuffer[VK_LEFT] & 0xF0)  dwDirection |= DIR_LEFT;
-		if (pKeysBuffer[VK_RIGHT] & 0xF0) dwDirection |= DIR_RIGHT;
-		if (pKeysBuffer[VK_PRIOR] & 0xF0) dwDirection |= DIR_UP;
-		if (pKeysBuffer[VK_NEXT] & 0xF0)  dwDirection |= DIR_DOWN;
+		Protocol::C_INPUT inputPkt;
 
+#ifdef USING_NETWORK
 		// Pack keyBuffer into int32
-		int32 keyCodes = 0;
+		int keyCodes = 0;
 		if (pKeysBuffer[VK_UP] & 0xF0)    keyCodes |= (1 << 0);
 		if (pKeysBuffer[VK_DOWN] & 0xF0)  keyCodes |= (1 << 1);
 		if (pKeysBuffer[VK_LEFT] & 0xF0)  keyCodes |= (1 << 2);
 		if (pKeysBuffer[VK_RIGHT] & 0xF0) keyCodes |= (1 << 3);
 		if (pKeysBuffer[VK_PRIOR] & 0xF0) keyCodes |= (1 << 4);
 		if (pKeysBuffer[VK_NEXT] & 0xF0)  keyCodes |= (1 << 5);
-
-		Protocol::C_INPUT inputPkt;
 		inputPkt.set_playerid(g_myPlayerId);
 		inputPkt.set_keycodes(keyCodes);
+#else
+		if (pKeysBuffer[VK_UP] & 0xF0)    dwDirection |= DIR_FORWARD;
+		if (pKeysBuffer[VK_DOWN] & 0xF0)  dwDirection |= DIR_BACKWARD;
+		if (pKeysBuffer[VK_LEFT] & 0xF0)  dwDirection |= DIR_LEFT;
+		if (pKeysBuffer[VK_RIGHT] & 0xF0) dwDirection |= DIR_RIGHT;
+		if (pKeysBuffer[VK_PRIOR] & 0xF0) dwDirection |= DIR_UP;
+		if (pKeysBuffer[VK_NEXT] & 0xF0)  dwDirection |= DIR_DOWN;
+#endif
 
 		POINT ptCursorPos;
 		if (GetCapture() == m_hWnd)
@@ -679,6 +681,7 @@ void CGameFramework::ProcessInput()
 		}
 
 
+
 		GetCursorPos(&ptCursorPos);
 
 		cxDelta = (float)(ptCursorPos.x - m_ptOldCursorPos.x) / 3.0f;
@@ -686,12 +689,22 @@ void CGameFramework::ProcessInput()
 
 		m_ptOldCursorPos = ptCursorPos;
 
+
+#ifdef USING_NETWORK
 		inputPkt.set_deltax(cxDelta);
 		inputPkt.set_deltay(cyDelta);
 
 		auto sendBuffer = ServerPacketHandler::MakeSendBuffer(inputPkt);
 		g_clientService->BroadCast(sendBuffer);
-
+#else
+		if (cxDelta || cyDelta)
+		{
+			if (pKeysBuffer[VK_RBUTTON] & 0xF0)
+				pc->Rotate(cyDelta, 0.0f, -cxDelta);
+			else
+				pc->Rotate(cyDelta, cxDelta, 0.0f);
+		}
+#endif
 	}
 
 	const float dt = m_GameTimer.GetTimeElapsed();

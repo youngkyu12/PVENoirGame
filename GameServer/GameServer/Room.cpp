@@ -72,7 +72,8 @@ void Room::StartGame(bool ready, uint32 index)
 	static Atomic<bool> gameStarted = false;
 
 	 //if(p_ready[0] && p_ready[1] && p_ready[2] && p_ready[3])
-	if(p_ready[0])
+	if(p_ready[0] && p_ready[1])
+	//if(p_ready[0])
 	{
 		if (gameStarted.exchange(true) == false)
 		{
@@ -109,6 +110,12 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	auto it = players.find(playerId);
 	if (it == players.end())
 		return;
+
+	//std::cout << "ProcessInput: playerId=" << playerId << 
+	//	", keyCodes=" << keyCodes << 
+	//	", deltaX=" << deltaX << 
+	//	", deltaY=" << deltaY << 
+	//	std::endl;
 
 	PlayerRef& player = it->second;
 
@@ -187,7 +194,7 @@ void Room::MakeFrameState(uint32 tick)
 		Protocol::Animation* anim = p->mutable_animation();
 		anim->set_animationtick(player->GetAnimTick());
 		anim->set_animationtype(player->GetAnimState());
-
+		
 		Protocol::Transform* transform = p->mutable_transform();
 		Protocol::Vec3f* position = transform->mutable_position();
 		position->set_x(player->GetPosition().x);
