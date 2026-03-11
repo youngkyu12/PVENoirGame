@@ -152,7 +152,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     // ------------------------------------------------------------------------
     // Build parameters
     // ------------------------------------------------------------------------
-    m_localPlayerSlot = 2;
+    //m_localPlayerSlot = 2;
 
     m_planeCount = 1;
     m_houseCount = 3;
@@ -1647,10 +1647,39 @@ void CGameScene::AnimateObjects(float dt)
     // ------------------------------------------------------------------------
     // FrameSnapshot에서 좌표 업데이트
     // ------------------------------------------------------------------------
+
+
+   
+
+    // ------------------------------------------------------------------------
+    // 기존 애니메이션 로직
+    // ------------------------------------------------------------------------
+    for (UINT j = 0; j < (UINT)m_skinnedObjects.size(); ++j)
+    {
+        if (!m_skinnedObjects[j]) continue;
+        m_skinnedObjects[j]->Animate(dt);
+    }
+
+    for (UINT j = 0; j < (UINT)m_staticObjects.size(); ++j)
+    {
+        if (!m_staticObjects[j]) continue;
+        m_staticObjects[j]->Animate(dt);
+    }
+
+    CGameObject* local = GetPlayer();
+    if (local && m_pPlayerSpotFollower && (m_pPlayerSpotFollower->GetTarget() == nullptr))
+    {
+        m_pPlayerSpotFollower->SetTarget(local);
+    }
+
+    for (UINT j = 0; j < (UINT)m_lightObjects.size(); ++j)
+    {
+        if (!m_lightObjects[j]) continue;
+        m_lightObjects[j]->Animate(dt);
+    }
+
 #ifdef USING_NETWORK
     DequeueNetworkMessage(NetworkMessageType::FrameState);
-#endif
-
     if (std::holds_alternative<FrameSnapshot>(m_pendingNetworkMessage.data))
     {
         const FrameSnapshot& snapshot = std::get<FrameSnapshot>(m_pendingNetworkMessage.data);
@@ -1663,16 +1692,24 @@ void CGameScene::AnimateObjects(float dt)
             CGameObject* player = GetPlayerBySlot(slot);
             if (!player) continue;
 
+
             // 로컬 플레이어는 서버 좌표로 덮어쓰지 않음 (선택적)
             // if (slot == m_localPlayerSlot) continue;
 
             player->SetPosition(state.position.x, state.position.y, state.position.z);
-            
+
             // yaw 회전 적용
             if (auto* tr = player->GetComponent<CTransformComponent>())
             {
                 tr->SetYawDegrees(state.yaw);
             }
+
+            // 데모: animation state 강제 적용
+            if (auto ac = player->GetAnimController())
+            {
+				ac->SetAnimState(state.animation.animationId);
+            }
+            
         }
 
         // Enemy 좌표 업데이트
@@ -1701,33 +1738,8 @@ void CGameScene::AnimateObjects(float dt)
             ++enemyIndex;
         }
     }
+#endif
 
-    // ------------------------------------------------------------------------
-    // 기존 애니메이션 로직
-    // ------------------------------------------------------------------------
-    for (UINT j = 0; j < (UINT)m_skinnedObjects.size(); ++j)
-    {
-        if (!m_skinnedObjects[j]) continue;
-        m_skinnedObjects[j]->Animate(dt);
-    }
-
-    for (UINT j = 0; j < (UINT)m_staticObjects.size(); ++j)
-    {
-        if (!m_staticObjects[j]) continue;
-        m_staticObjects[j]->Animate(dt);
-    }
-
-    CGameObject* local = GetPlayer();
-    if (local && m_pPlayerSpotFollower && (m_pPlayerSpotFollower->GetTarget() == nullptr))
-    {
-        m_pPlayerSpotFollower->SetTarget(local);
-    }
-
-    for (UINT j = 0; j < (UINT)m_lightObjects.size(); ++j)
-    {
-        if (!m_lightObjects[j]) continue;
-        m_lightObjects[j]->Animate(dt);
-    }
 }
 
 void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)

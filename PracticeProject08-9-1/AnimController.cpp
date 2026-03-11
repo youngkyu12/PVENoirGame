@@ -8,6 +8,9 @@
 #include "Object.h"
 #include "Animator.h"
 
+#include "GlobalEnum.h"
+#include "GlobalValues.h"
+
 void CAnimController::Update(float /*dt*/)
 {
     if (!m_pOwner) return;
@@ -65,9 +68,22 @@ void CAnimController::Update(float /*dt*/)
             m_state = target;
 
         }
-        return; 
+        return;
+    }
+#ifdef USING_NETWORK
+    // 데모: play만 열심히 하자
+    constexpr float kBlendTime = 0.15f;
+
+    if (m_state != animPrevState) {
+        const char* targetClip = ClipFor(m_state);
+        if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
+        {
+            anim->Play(targetClip, true, 0.0f);
+        }
     }
 
+
+#else
     EAnimState target = (m_speed > m_moveEps) ? EAnimState::Move : EAnimState::Idle;
 
     const char* targetClip = ClipFor(target);
@@ -101,6 +117,9 @@ void CAnimController::Update(float /*dt*/)
         m_state = target;
         return;
     }
+#endif
+
+    animPrevState = m_state;
 }
 
 
