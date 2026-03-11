@@ -116,6 +116,23 @@ bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
 	return true;
 }
 
+EAnimState GetEAnimState(Protocol::AnimationType animType)
+{
+	switch (animType)
+	{
+	case Protocol::ANIMATION_TYPE_IDLE:
+		return EAnimState::Idle;
+	case Protocol::ANIMATION_TYPE_WALK:
+		return EAnimState::Move;
+	case Protocol::ANIMATION_TYPE_ATTACK:
+		return EAnimState::Attack;
+	case Protocol::ANIMATION_TYPE_DIE:
+		return EAnimState::Idle;
+	default:
+		return EAnimState::Idle; // 기본값
+	}
+}
+
 bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pkt)
 {
 	FrameSnapshot data;
@@ -141,7 +158,7 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 		AnimationState animState;
 
 		// 애니메이션 상태를 옮긴다
-		animState.animationId = static_cast<EAnimState>(animation.animationtype());
+		animState.animationId = GetEAnimState(animation.animationtype());
 		animState.animTick = animation.animationtick();
 		
 
