@@ -141,7 +141,12 @@ void CGameScene::ReleaseShaderVariables()
 
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
-    //while (false == g_GameStarted);
+    // 게임 초기 정보를 뽑자
+#ifdef USING_NETWORK
+    while (false == g_GameStarted);
+    DequeueNetworkMessage(NetworkMessageType::GameStart);
+    m_localPlayerSlot = g_myPlayerId;
+#endif
 
 
     // ------------------------------------------------------------------------
@@ -222,9 +227,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     constexpr UINT kRTCount = 5;
     const DXGI_FORMAT kDsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
-    // 게임 초기 정보를 뽑자
-    DequeueNetworkMessage(NetworkMessageType::GameStart);
-    m_localPlayerSlot = g_myPlayerId;
+
 
     BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
     BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
@@ -1644,7 +1647,9 @@ void CGameScene::AnimateObjects(float dt)
     // ------------------------------------------------------------------------
     // FrameSnapshot에서 좌표 업데이트
     // ------------------------------------------------------------------------
+#ifdef USING_NETWORK
     DequeueNetworkMessage(NetworkMessageType::FrameState);
+#endif
 
     if (std::holds_alternative<FrameSnapshot>(m_pendingNetworkMessage.data))
     {
