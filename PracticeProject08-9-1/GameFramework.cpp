@@ -659,6 +659,8 @@ void CGameFramework::ProcessInput()
 		if (pKeysBuffer[VK_RIGHT] & 0xF0) keyCodes |= (1 << 3);
 		if (pKeysBuffer[VK_PRIOR] & 0xF0) keyCodes |= (1 << 4);
 		if (pKeysBuffer[VK_NEXT] & 0xF0)  keyCodes |= (1 << 5);
+		if (GetAsyncKeyState(VK_RBUTTON) & 0x8000) keyCodes |= (1 << 6);
+		if (GetAsyncKeyState(VK_LBUTTON) & 0x8000) keyCodes |= (1 << 7);
 		inputPkt.set_playerid(g_myPlayerId);
 		inputPkt.set_keycodes(keyCodes);
 #else
@@ -713,7 +715,7 @@ void CGameFramework::ProcessInput()
 
 	XMFLOAT3 oldPos = playerObj->GetPosition();
 
-	if (cxDelta || cyDelta)
+	/*if (cxDelta || cyDelta)
 	{
 		if (pKeysBuffer[VK_RBUTTON] & 0xF0)
 			pc->Rotate(cyDelta, 0.0f, -cxDelta);
@@ -724,7 +726,7 @@ void CGameFramework::ProcessInput()
 	if (dwDirection)
 		pc->Move(dwDirection, 5.0f * dt, false);
 
-	pc->SetInputDirection(static_cast<uint32_t>(dwDirection));
+	pc->SetInputDirection(static_cast<uint32_t>(dwDirection));*/
 
 	XMFLOAT3 newPos = playerObj->GetPosition();
 
