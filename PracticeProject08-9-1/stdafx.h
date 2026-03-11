@@ -68,7 +68,6 @@ extern ClientServiceRef g_clientService;
 
 #include "d3dx12.h"
 
-
 //using namespace std;
 
 
