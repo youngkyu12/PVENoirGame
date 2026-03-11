@@ -17,8 +17,10 @@ public:
 	}
 
 public:
-	//void Update(float dt) override;
+	virtual void Update(uint32 serverTick) override;
 	void Build();
+
+
 
 };
 

@@ -96,6 +96,17 @@ void Room::EndGame()
 
 void Room::TickAdvance()
 {
+	for (auto player : players)
+	{
+		player.second->Update(tick); // dt는 30ms로 고정 (옵션)
+		// 위치 적용
+	}
+
+	for(auto enemy : enemies)
+	{
+		enemy.second->Update(tick);
+	}
+
 	MakeFrameState(tick.load());
 
 	tick++;
@@ -111,11 +122,11 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	if (it == players.end())
 		return;
 
-	//std::cout << "ProcessInput: playerId=" << playerId << 
-	//	", keyCodes=" << keyCodes << 
-	//	", deltaX=" << deltaX << 
-	//	", deltaY=" << deltaY << 
-	//	std::endl;
+	std::cout << "ProcessInput: playerId=" << playerId << 
+		", keyCodes=" << keyCodes << 
+		", deltaX=" << deltaX << 
+		", deltaY=" << deltaY << 
+		std::endl;
 
 	PlayerRef& player = it->second;
 
@@ -127,16 +138,22 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	}
 
 	// ========== 2. 이동 처리 (클라이언트 Move 함수와 동일) ==========
-	constexpr int kDirForward  = 1 << 0;
-	constexpr int kDirBackward = 1 << 1;
-	constexpr int kDirLeft     = 1 << 2;
-	constexpr int kDirRight    = 1 << 3;
+	constexpr int kDirForward	= 1 << 0;
+	constexpr int kDirBackward	= 1 << 1;
+	constexpr int kDirLeft		= 1 << 2;
+	constexpr int kDirRight		= 1 << 3;
+	constexpr int kDirRButton	= 1 << 6; // 옵션
+	constexpr int kDirLButton	= 1 << 7; // 옵션
 
 	Protocol::AnimationType prevAnimState = player->GetAnimState();
 
-	player->SetAnimState(keyCodes == 0 ? 
-		Protocol::ANIMATION_TYPE_IDLE : 
-		Protocol::ANIMATION_TYPE_WALK);
+	if ((keyCodes & kDirLButton) != 0)
+		player->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
+	else if (prevAnimState != Protocol::ANIMATION_TYPE_ATTACK)
+		player->SetAnimState(keyCodes & (kDirForward | kDirBackward | kDirLeft | kDirRight) ?
+			Protocol::ANIMATION_TYPE_WALK :
+			Protocol::ANIMATION_TYPE_IDLE);
+
 
 	if(player->GetAnimState() != prevAnimState)
 		player->SetAnimTick(tick); // 애니메이션 상태가 바뀌면 현재의 server tick을 넣어줌
@@ -163,13 +180,15 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		shift += look * (-fDistance);
 
 	if (keyCodes & kDirRight)
-		shift += right * fDistance;
+		shift += right * fDistance * 0.5f;
 
 	if (keyCodes & kDirLeft)
-		shift += right * (-fDistance);
+		shift += right * (-fDistance) * 0.5f;
+
+	player->SetVelocity(shift);
 
 	// 위치 적용
-	player->Move(shift);
+	//player->Move(shift);
 }
 
 
