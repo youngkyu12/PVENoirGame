@@ -664,9 +664,7 @@ void CGameFramework::ProcessInput()
 		if (pKeysBuffer[VK_PRIOR] & 0xF0) keyCodes |= (1 << 4);
 		if (pKeysBuffer[VK_NEXT] & 0xF0)  keyCodes |= (1 << 5);
 
-		Protocol::C_INPUT inputPkt;
-		inputPkt.set_playerid(g_myPlayerId);
-		inputPkt.set_keycodes(keyCodes);
+
 
 		POINT ptCursorPos;
 		if (GetCapture() == m_hWnd)
@@ -686,11 +684,18 @@ void CGameFramework::ProcessInput()
 
 		m_ptOldCursorPos = ptCursorPos;
 
+#ifdef USING_NETWORK
+		Protocol::C_INPUT inputPkt;
+		inputPkt.set_playerid(g_myPlayerId);
+		inputPkt.set_keycodes(keyCodes);
 		inputPkt.set_deltax(cxDelta);
 		inputPkt.set_deltay(cyDelta);
 
 		auto sendBuffer = ServerPacketHandler::MakeSendBuffer(inputPkt);
 		g_clientService->BroadCast(sendBuffer);
+#else
+
+#endif
 
 	}
 
