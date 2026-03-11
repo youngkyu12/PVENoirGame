@@ -36,6 +36,17 @@ private:
         return (s == EAnimState::Move) ? m_moveClip.c_str() : m_idleClip.c_str();
     }
 
+public:
+    // DEMO: status °­Á¦ SEt
+    void SetAnimState(EAnimState s)
+    {
+        m_state = s;
+        m_attackQueued = false;
+	}
+
+private:
+    EAnimState animPrevState;
+
 private:
     CGameObject* m_pOwner = nullptr;
     float m_speed = 0.0f;
