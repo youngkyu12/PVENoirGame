@@ -153,7 +153,7 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 
 		std::string s = player.DebugString();
 		s += "\n";
-		OutputDebugStringA(s.c_str());
+		//OutputDebugStringA(s.c_str());
 
 		AnimationState animState;
 
