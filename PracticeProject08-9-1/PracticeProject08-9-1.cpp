@@ -150,8 +150,10 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow, CGameFramework& gGameFramew
 	if (!hMainWnd) 
 		return(FALSE);
 
-
+#ifdef USING_NETWORK
 	NetworkLoop();
+#endif
+
 	gGameFramework.OnCreate(hInstance, hMainWnd);
 
 	::ShowWindow(hMainWnd, nCmdShow);
