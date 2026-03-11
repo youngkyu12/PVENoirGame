@@ -47,6 +47,7 @@ void CAnimController::Update(float /*dt*/)
         }
     }
 
+#ifndef USING_NETWORK
 
     if (m_state == EAnimState::Attack)
     {
@@ -70,7 +71,15 @@ void CAnimController::Update(float /*dt*/)
         }
         return;
     }
+#endif 
+
+
 #ifdef USING_NETWORK
+    if (m_state == EAnimState::Attack) {
+        animPrevState = m_state;
+        return;
+    }
+
     // 데모: play만 열심히 하자
     constexpr float kBlendTime = 0.15f;
 
@@ -78,10 +87,12 @@ void CAnimController::Update(float /*dt*/)
         const char* targetClip = ClipFor(m_state);
         if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
         {
-            anim->Play(targetClip, true, 0.0f);
+            
+            anim->Play(targetClip, true, m_startTime);
         }
     }
 
+	   
 
 #else
     EAnimState target = (m_speed > m_moveEps) ? EAnimState::Move : EAnimState::Idle;

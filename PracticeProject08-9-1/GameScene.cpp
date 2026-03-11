@@ -1648,36 +1648,6 @@ void CGameScene::AnimateObjects(float dt)
     // FrameSnapshot에서 좌표 업데이트
     // ------------------------------------------------------------------------
 
-
-   
-
-    // ------------------------------------------------------------------------
-    // 기존 애니메이션 로직
-    // ------------------------------------------------------------------------
-    for (UINT j = 0; j < (UINT)m_skinnedObjects.size(); ++j)
-    {
-        if (!m_skinnedObjects[j]) continue;
-        m_skinnedObjects[j]->Animate(dt);
-    }
-
-    for (UINT j = 0; j < (UINT)m_staticObjects.size(); ++j)
-    {
-        if (!m_staticObjects[j]) continue;
-        m_staticObjects[j]->Animate(dt);
-    }
-
-    CGameObject* local = GetPlayer();
-    if (local && m_pPlayerSpotFollower && (m_pPlayerSpotFollower->GetTarget() == nullptr))
-    {
-        m_pPlayerSpotFollower->SetTarget(local);
-    }
-
-    for (UINT j = 0; j < (UINT)m_lightObjects.size(); ++j)
-    {
-        if (!m_lightObjects[j]) continue;
-        m_lightObjects[j]->Animate(dt);
-    }
-
 #ifdef USING_NETWORK
     DequeueNetworkMessage(NetworkMessageType::FrameState);
     if (std::holds_alternative<FrameSnapshot>(m_pendingNetworkMessage.data))
@@ -1707,9 +1677,16 @@ void CGameScene::AnimateObjects(float dt)
             // 데모: animation state 강제 적용
             if (auto ac = player->GetAnimController())
             {
-				ac->SetAnimState(state.animation.animationId);
+                if (state.animation.animationId == EAnimState::Attack)
+                    ac->RequestAttack();
+
+                ac->SetAnimState(state.animation.animationId);
+
+
             }
-            
+
+
+
         }
 
         // Enemy 좌표 업데이트
@@ -1739,6 +1716,36 @@ void CGameScene::AnimateObjects(float dt)
         }
     }
 #endif
+   
+
+    // ------------------------------------------------------------------------
+    // 기존 애니메이션 로직
+    // ------------------------------------------------------------------------
+    for (UINT j = 0; j < (UINT)m_skinnedObjects.size(); ++j)
+    {
+        if (!m_skinnedObjects[j]) continue;
+        m_skinnedObjects[j]->Animate(dt);
+    }
+
+    for (UINT j = 0; j < (UINT)m_staticObjects.size(); ++j)
+    {
+        if (!m_staticObjects[j]) continue;
+        m_staticObjects[j]->Animate(dt);
+    }
+
+    CGameObject* local = GetPlayer();
+    if (local && m_pPlayerSpotFollower && (m_pPlayerSpotFollower->GetTarget() == nullptr))
+    {
+        m_pPlayerSpotFollower->SetTarget(local);
+    }
+
+    for (UINT j = 0; j < (UINT)m_lightObjects.size(); ++j)
+    {
+        if (!m_lightObjects[j]) continue;
+        m_lightObjects[j]->Animate(dt);
+    }
+
+
 
 }
 
