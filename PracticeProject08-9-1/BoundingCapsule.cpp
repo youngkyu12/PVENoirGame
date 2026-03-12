@@ -66,4 +66,6 @@ bool BoundingCapsule::Intersects(FXMVECTOR V0, FXMVECTOR V1, FXMVECTOR V2) const
     float distA = XMVectorGetX(XMVector3Dot(A - V0, N));
     float distB = XMVectorGetX(XMVector3Dot(B - V0, N));
 
+    return true;
+
  }
