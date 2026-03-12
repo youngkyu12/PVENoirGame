@@ -161,12 +161,12 @@ void CColliderComponent::SetBCapsule(const XMFLOAT3& Min, const XMFLOAT3& Max)
         const float halfSegment = max(0.0f, dx * 0.5f - LocalBCapsule.Radius);
 
         LocalBCapsule.p0 = XMFLOAT3(
-            LocalBCapsule.Center.x + halfSegment,
+            LocalBCapsule.Center.x - halfSegment,
             LocalBCapsule.Center.y,
             LocalBCapsule.Center.z);
 
         LocalBCapsule.p1 = XMFLOAT3(
-            LocalBCapsule.Center.x - halfSegment,
+            LocalBCapsule.Center.x + halfSegment,
             LocalBCapsule.Center.y,
             LocalBCapsule.Center.z);
     }
@@ -178,12 +178,12 @@ void CColliderComponent::SetBCapsule(const XMFLOAT3& Min, const XMFLOAT3& Max)
 
         LocalBCapsule.p0 = XMFLOAT3(
             LocalBCapsule.Center.x,
-            LocalBCapsule.Center.y + halfSegment,
+            LocalBCapsule.Center.y - halfSegment,
             LocalBCapsule.Center.z);
 
         LocalBCapsule.p1 = XMFLOAT3(
             LocalBCapsule.Center.x,
-            LocalBCapsule.Center.y - halfSegment,
+            LocalBCapsule.Center.y + halfSegment,
             LocalBCapsule.Center.z);
     }
     else {
@@ -193,12 +193,12 @@ void CColliderComponent::SetBCapsule(const XMFLOAT3& Min, const XMFLOAT3& Max)
         LocalBCapsule.p0 = XMFLOAT3(
             LocalBCapsule.Center.x,
             LocalBCapsule.Center.y,
-            LocalBCapsule.Center.z + halfSegment);
+            LocalBCapsule.Center.z - halfSegment);
 
         LocalBCapsule.p1 = XMFLOAT3(
             LocalBCapsule.Center.x,
             LocalBCapsule.Center.y,
-            LocalBCapsule.Center.z - halfSegment);
+            LocalBCapsule.Center.z + halfSegment);
     }
    
 }
