@@ -7,7 +7,7 @@
 #define FRAME_BUFFER_HEIGHT		480
 
 #include "Timer.h"
-#include "Scene.h"
+#include "SceneManager.h"
 
 #define DRAW_SCENE_COLOR				'S'
 
@@ -16,6 +16,10 @@
 #define DRAW_SCENE_NORMAL				'N'
 #define DRAW_SCENE_Z_DEPTH				'Z'
 #define DRAW_SCENE_DEPTH				'D'
+
+class CScene;
+class CCamera;
+class CPostProcessingShader;
 
 class CGameFramework {
 public:
@@ -38,6 +42,8 @@ public:
 	void CreateSwapChain();
 	void CreateSwapChainRenderTargetViews();
 	void CreateDepthStencilView();
+
+	// 초기에는 MenuScene을 빌드
 	void BuildObjects();
 
 	// Frame / Render
@@ -55,6 +61,12 @@ public:
 	void OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
 	void OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
 	LRESULT CALLBACK OnProcessingWindowMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
+
+private:
+	// Scene switching (Menu -> Game)
+	void RequestSceneSwitch(ESceneId next);
+	void ApplyPendingSceneSwitch();
+	void BuildSceneInternal(ESceneId id, bool resetTimer);
 
 private:
 	// Window
@@ -98,8 +110,8 @@ private:
 	// Timer
 	CGameTimer							m_GameTimer;
 
-	// Scene / Camera
-	unique_ptr<CScene>					m_pScene;
+	// Scene Manager / Camera
+	CSceneManager						m_SceneManager;
 	CCamera* m_pCamera = nullptr;
 
 	// Post Processing
@@ -113,4 +125,8 @@ private:
 
 	// UI Text
 	_TCHAR								m_pszFrameRate[50];
+
+	// Pending scene switch
+	bool								m_sceneSwitchPending = false;
+	ESceneId								m_pendingScene = ESceneId::Menu;
 };

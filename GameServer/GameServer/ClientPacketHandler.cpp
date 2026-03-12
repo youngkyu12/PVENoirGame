@@ -32,16 +32,20 @@ bool Handle_C_LOGIN(PacketSessionRef& session, Protocol::C_LOGIN& pkt)
 	static Atomic<uint64> idGenerator = 0;
 	if(idGenerator < 4) // 4명만 받는다
 	{
+		loginPkt.set_playerid(idGenerator);
 		auto player = loginPkt.add_players();
-		player->set_name(u8"DB에서가져왓서요1");
+		player->set_id(idGenerator++);
+		player->set_name(u8"Player");
 		player->set_playertype(Protocol::PLAYER_TYPE_KNIGHT);
 
 		PlayerRef playerRef = make_shared<Player>();
-		playerRef->playerId = idGenerator++;
+		playerRef->playerId = player->id();
 		playerRef->name = player->name();
 		playerRef->type = player->playertype();
 		playerRef->ownerSession = gameSession;
 		playerRef->Build();
+
+		player->set_allocated_transform(new Protocol::Transform());
 
 		gameSession->_players.push_back(playerRef);
 	}
@@ -50,7 +54,8 @@ bool Handle_C_LOGIN(PacketSessionRef& session, Protocol::C_LOGIN& pkt)
 		loginPkt.set_success(false);
 	}
 
-
+	std::cout << loginPkt.DebugString() << "\n";
+	std::cout << "ByteSizeLong=" << loginPkt.ByteSizeLong() << "\n";
 	auto SendBuffer = ClientPacketHandler::MakeSendBuffer(loginPkt);
 	session->Send(SendBuffer);
 
@@ -64,7 +69,7 @@ bool Handle_C_ENTER_GAME(PacketSessionRef& session, Protocol::C_ENTER_GAME& pkt)
 	uint64 index = pkt.playerid();
 	// TODO: Validation Check
 
-	gameSession->_currentPlayer= gameSession->_players[index];
+	gameSession->_currentPlayer= gameSession->_players[0];
 	gameSession->_room = GRoom;
 
 	GRoom->DoAsync(&Room::Enter, gameSession->_currentPlayer);
@@ -74,15 +79,17 @@ bool Handle_C_ENTER_GAME(PacketSessionRef& session, Protocol::C_ENTER_GAME& pkt)
 	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(enterGamePkt);
 	gameSession->_currentPlayer->ownerSession->Send(sendBuffer);
 
+	cout << "Player" << index << " Entered Game..." << endl;
 	return true;
 }
 
 bool Handle_C_GAME_START(PacketSessionRef& session, Protocol::C_GAME_START& pkt)
 {
 	GameSessionRef gameSession = static_pointer_cast<GameSession>(session);
-	cout << "Send World Info..." << endl;		
+	//cout << "Send World Info..." << endl;		
 	
-	GRoom->DoAsync(&Room::StartGame, pkt.ready(), pkt.playerid());
+	//GRoom->DoAsync(&Room::StartGame, pkt.ready(), pkt.playerid());
+	GRoom->DoTimer(1000, &Room::StartGame, pkt.ready(), pkt.playerid());
 
 	return true;
 }
@@ -90,28 +97,12 @@ bool Handle_C_GAME_START(PacketSessionRef& session, Protocol::C_GAME_START& pkt)
 bool Handle_C_INPUT(PacketSessionRef& session, Protocol::C_INPUT& pkt)
 {
 	GameSessionRef gameSession = static_pointer_cast<GameSession>(session);
-	cout << "Receive Input..." << endl;
 
-	// KeyCode를 받아서 게임에 적용하기
-	// 0: Up, 1: Down, 2: Left, 3: Right
+	// TODO: 해당 플레이어의 id에 위치 업데이트 적용
+	GRoom->DoAsync(&Room::ProcessInput, pkt.playerid(), pkt.keycodes(), 
+		pkt.deltax(), pkt.deltay());
 
-	enum KEY_CODE
-	{
-		UP = 0,
-		DOWN = 1,
-		LEFT = 2,
-		RIGHT = 3,
-	};
-
-	int id = pkt.playerid();
-	int keyCode = pkt.keycodes();
-
-	KEY_CODE key = static_cast<KEY_CODE>(keyCode);
-
-	cout << "PlayerId: " << id << endl;
-	cout << "KeyCodes: " << key << endl;
-
-	return false;
+	return true;
 }
 
 

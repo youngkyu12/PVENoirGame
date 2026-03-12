@@ -8,9 +8,6 @@
     <Filter Include="Animator">
       <UniqueIdentifier>{c046715a-b142-4b7f-b764-fa27e23f4d4f}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Camera">
-      <UniqueIdentifier>{9282e6cd-8c1a-4326-a4bf-50b49cfe20a7}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Object">
       <UniqueIdentifier>{085c273d-3fe5-4dd2-acbe-bd5ae28ab5bb}</UniqueIdentifier>
     </Filter>
@@ -95,6 +92,9 @@
     <Filter Include="Components\Arrow">
       <UniqueIdentifier>{22421a35-4530-4e8d-b848-e2d4d9cfb516}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Network\NetworkGlobal">
+      <UniqueIdentifier>{076be12e-11b3-429d-b725-d571e44b0277}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Components\ActorTag">
       <UniqueIdentifier>{38199f9c-9ca3-420a-87f9-ba3629104b65}</UniqueIdentifier>
     </Filter>
@@ -106,6 +106,17 @@
     </Filter>
     <Filter Include="Components\RigidBody">
       <UniqueIdentifier>{2e05af4e-9d8f-4ac9-8651-75d54d657c0f}</UniqueIdentifier>
+    <Filter Include="Components\Camera">
+      <UniqueIdentifier>{9282e6cd-8c1a-4326-a4bf-50b49cfe20a7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SceneManager">
+      <UniqueIdentifier>{8aa4149d-0def-49ad-837e-fc2348b3f423}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Components\FollowBoneComponent">
+      <UniqueIdentifier>{4ea87f93-3294-4dc5-924c-1762d261c0e4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Global">
+      <UniqueIdentifier>{6e4c0b33-06f8-47fd-9adc-ea78390121c3}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -140,7 +151,7 @@
       <Filter>Components\Skinning</Filter>
     </ClInclude>
     <ClInclude Include="Camera.h">
-      <Filter>Camera</Filter>
+      <Filter>Components\Camera</Filter>
     </ClInclude>
     <ClInclude Include="d3dx12.h">
       <Filter>Texture</Filter>
@@ -205,9 +216,6 @@
     <ClInclude Include="ServerPacketHandler.h">
       <Filter>Network\PacketHandler</Filter>
     </ClInclude>
-    <ClInclude Include="..\Common\Components\Component.h">
-      <Filter>Components</Filter>
-    </ClInclude>
     <ClInclude Include="ArrowComponent.h">
       <Filter>Components\Arrow</Filter>
     </ClInclude>
@@ -228,6 +236,35 @@
     </ClInclude>
     <ClInclude Include="BoundingCapsule.h">
       <Filter>Resource</Filter>
+    <ClInclude Include="Component.h">
+      <Filter>Components</Filter>
+    </ClInclude>
+    <ClInclude Include="GameScene.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="MenuScene.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneManager.h">
+      <Filter>SceneManager</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneRenderTypes.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="StructGenerator.h">
+      <Filter>Network\NetworkGlobal</Filter>
+    </ClInclude>
+    <ClInclude Include="NetworkQueue.h">
+      <Filter>Network\NetworkGlobal</Filter>
+    </ClInclude>
+    <ClInclude Include="FollowBoneComponent.h">
+      <Filter>Components\FollowBoneComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="GlobalValues.h">
+      <Filter>Global</Filter>
+    </ClInclude>
+    <ClInclude Include="GlobalEnum.h">
+      <Filter>Global</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -259,7 +296,7 @@
       <Filter>Components\Skinning</Filter>
     </ClCompile>
     <ClCompile Include="Camera.cpp">
-      <Filter>Camera</Filter>
+      <Filter>Components\Camera</Filter>
     </ClCompile>
     <ClCompile Include="Texture.cpp">
       <Filter>Texture</Filter>
@@ -332,6 +369,23 @@
     </ClCompile>
     <ClCompile Include="BoundingCapsule.cpp">
       <Filter>Resource</Filter>
+    <ClCompile Include="MenuScene.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneManager.cpp">
+      <Filter>SceneManager</Filter>
+    </ClCompile>
+    <ClCompile Include="GameScene.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="NetworkQueue.cpp">
+      <Filter>Network\NetworkGlobal</Filter>
+    </ClCompile>
+    <ClCompile Include="FollowBoneComponent.cpp">
+      <Filter>Components\FollowBoneComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="GlobalValues.cpp">
+      <Filter>Global</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

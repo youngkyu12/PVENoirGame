@@ -1,15 +1,11 @@
 #pragma once
 #include "stdafx.h"
+#include "GlobalEnum.h"
 
 class CGameObject;
 class CAnimator;
 
-enum class EAnimState : uint8_t
-{
-    Idle = 0,
-    Move,
-    Attack,
-};
+
 
 class CAnimController
 {
@@ -31,7 +27,6 @@ public:
     void SetAttackClip(const char* name) { m_attackClip = name; }
     void SetAttackClip(const std::string& name) { m_attackClip = name; }
 
-    // ï¿½ï¿½ï¿½ì½º/Å° ï¿½Ô·ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ "ï¿½ï¿½ï¿½ï¿½ 1È¸" ï¿½ï¿½Ã»
     void RequestAttack();
 
 
@@ -40,6 +35,17 @@ private:
     {
         return (s == EAnimState::Move) ? m_moveClip.c_str() : m_idleClip.c_str();
     }
+
+public:
+    // DEMO: status °­Á¦ SEt
+    void SetAnimState(EAnimState s)
+    {
+        m_state = s;
+        m_attackQueued = false;
+	}
+
+private:
+    EAnimState animPrevState;
 
 private:
     CGameObject* m_pOwner = nullptr;
