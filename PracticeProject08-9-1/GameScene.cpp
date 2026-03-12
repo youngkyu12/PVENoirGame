@@ -1610,9 +1610,7 @@ void CGameScene::BuildSkinnedBatch(
 
             auto* animComp = obj->AddComponent<CAnimatorComponent>();
 
-            // 링크 전까지는 화면 밖
             obj->SetPosition(0.0f, -10000.0f, 0.0f);
-
             obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
 
             if (bowAsset.mesh && bowAsset.mesh->IsSkinnedMesh())
@@ -1620,8 +1618,6 @@ void CGameScene::BuildSkinnedBatch(
                 obj->EnableSkinning(dev, bowAsset.mesh->GetBoneCount());
             }
 
-            // 활 발사 애니메이션 로드만 수행
-            // - 시작 시 자동 재생하지 않음
             if (animComp)
             {
                 auto mesh0 = obj->GetMeshShared(0);
@@ -1642,6 +1638,7 @@ void CGameScene::BuildSkinnedBatch(
             }
 
             obj->CreateComponents(dev, cmd);
+            if (animComp) animComp->EvaluatePose(0.0f);
 
             CGameObject* raw = obj.get();
             m_skinnedObjects.push_back(std::move(obj));
@@ -1700,8 +1697,8 @@ void CGameScene::LinkSceneObjects()
     );
 
     const XMFLOAT4X4 bowOffset = BuildAttachmentOffsetMatrix(
-        XMFLOAT3(0.1143013f, 0.108948f, 0.2759315f),
-        XMFLOAT3(111.972f, -190.377f, -7.029999f),
+        XMFLOAT3(-0.1f, 0.0f, 0.0f),
+        XMFLOAT3(0.0f, 180.0f, 0.0f),
         XMFLOAT3(1.0f, 1.0f, 1.0f)
     );
 
