@@ -192,9 +192,9 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
         m_houseCount +
         kArrowPoolSize +
         m_helmetCount +
-        m_PlayerSwordCount + m_PlayerAxeCount + m_PlayerBowCount + m_PlayerGunCount;
-
-    m_staticBatch.count = 0;
+        m_PlayerSwordCount +
+        m_PlayerAxeCount +
+        m_PlayerGunCount;
 
     m_skinnedBatch.capacity =
         m_ghoulCount +
@@ -202,8 +202,10 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
         m_bowManCount +
         m_axeManCount +
         m_bossCount +
-        m_PlayerCount;
-		
+        m_PlayerCount +
+        m_PlayerBowCount;
+
+    m_staticBatch.count = 0;
 
     m_skinnedBatch.count = 0;
 
@@ -729,55 +731,6 @@ void CGameScene::BuildStaticBatch(
             b->count = (UINT)b->objectRefs.size();
 
             m_PlayerSwordRefs.push_back(raw);
-        }
-    }
-    // ------------------------------------------------------------------------
-    // PlayerBow pool
-    // ------------------------------------------------------------------------
-    {
-        AssetBuildDesc BowDesc =
-        {
-            AssetType::Bow,
-            "Assets/Weapon/BowP/Mesh/Bow_Mesh.bin",
-            "Assets/Weapon/BowP/Texture"
-        };
-
-        BuiltAsset BowAsset = AssetManager::BuildAsset(
-            dev, cmd,
-            m_pMaterials.get(),
-            BowDesc
-        );
-
-        m_PlayerBowRefs.clear();
-        m_PlayerBowRefs.reserve(m_PlayerBowCount);
-
-        for (UINT k = 0; k < m_PlayerBowCount; ++k)
-        {
-            if (b->objectRefs.size() >= b->capacity) break;
-
-            const UINT i = (UINT)b->objectRefs.size();
-
-            auto obj = std::make_unique<CGameObject>(1);
-
-            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
-            obj->SetMappedGameObjectCB(cb);
-
-            obj->SetMesh(0, BowAsset.mesh);
-            obj->AddComponent<CStaticMeshRendererComponent>();
-
-            // 링크 전까지는 화면 밖에 둠
-            obj->SetPosition(0.0f, -10000.0f, 0.0f);
-
-            obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
-
-            obj->CreateComponents(dev, cmd);
-
-            CGameObject* raw = obj.get();
-            m_staticObjects.push_back(std::move(obj));
-            b->objectRefs.push_back(raw);
-            b->count = (UINT)b->objectRefs.size();
-
-            m_PlayerBowRefs.push_back(raw);
         }
     }
     // ------------------------------------------------------------------------
@@ -1617,6 +1570,85 @@ void CGameScene::BuildSkinnedBatch(
             m_skinnedObjects.push_back(std::move(obj));
             b->objectRefs.push_back(raw);
             b->count = (UINT)b->objectRefs.size();
+        }
+    }
+    // ------------------------------------------------------------------------
+    // PlayerBow pool (Skinned attachment)
+    // - 활 자체가 스키닝 오브젝트
+    // - Bow_Anim.bin은 로드만 하고 시작 시 자동 재생하지 않음
+    // ------------------------------------------------------------------------
+    {
+        AssetBuildDesc BowDesc =
+        {
+            AssetType::Bow,
+            "Assets/Weapon/BowP/Mesh/Bow_Mesh.bin",
+            "Assets/Weapon/BowP/Texture"
+        };
+
+        BuiltAsset bowAsset = AssetManager::BuildAsset(
+            dev, cmd,
+            m_pMaterials.get(),
+            BowDesc
+        );
+
+        m_PlayerBowRefs.clear();
+        m_PlayerBowRefs.reserve(m_PlayerBowCount);
+
+        for (UINT k = 0; k < m_PlayerBowCount; ++k)
+        {
+            if (b->objectRefs.size() >= b->capacity) break;
+
+            const UINT i = (UINT)b->objectRefs.size();
+
+            auto obj = std::make_unique<CGameObject>(1);
+
+            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+            obj->SetMappedGameObjectCB(cb);
+
+            obj->SetMesh(0, bowAsset.mesh);
+            obj->AddComponent<CSkinnedMeshRendererComponent>();
+
+            auto* animComp = obj->AddComponent<CAnimatorComponent>();
+
+            // 링크 전까지는 화면 밖
+            obj->SetPosition(0.0f, -10000.0f, 0.0f);
+
+            obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+            if (bowAsset.mesh && bowAsset.mesh->IsSkinnedMesh())
+            {
+                obj->EnableSkinning(dev, bowAsset.mesh->GetBoneCount());
+            }
+
+            // 활 발사 애니메이션 로드만 수행
+            // - 시작 시 자동 재생하지 않음
+            if (animComp)
+            {
+                auto mesh0 = obj->GetMeshShared(0);
+                if (mesh0)
+                {
+                    AnimationClip bowClip{};
+                    bool bowLoaded = mesh0->LoadAnimationFromBIN(
+                        "Assets/Weapon/BowP/Animation/Bow_Anim.bin",
+                        "Fire", bowClip, 1.0f
+                    );
+
+                    if (bowLoaded)
+                    {
+                        bowClip.name = "Fire";
+                        animComp->AddClip(bowClip);
+                    }
+                }
+            }
+
+            obj->CreateComponents(dev, cmd);
+
+            CGameObject* raw = obj.get();
+            m_skinnedObjects.push_back(std::move(obj));
+            b->objectRefs.push_back(raw);
+            b->count = (UINT)b->objectRefs.size();
+
+            m_PlayerBowRefs.push_back(raw);
         }
     }
 }
