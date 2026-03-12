@@ -2,6 +2,15 @@ syntax = "proto3";
 package Protocol;
 
 
+enum AnimationType
+{
+	ANIMATION_TYPE_NONE = 0;
+	ANIMATION_TYPE_IDLE = 1;
+	ANIMATION_TYPE_WALK = 2;
+	ANIMATION_TYPE_ATTACK = 3;
+	ANIMATION_TYPE_DIE = 4;
+}
+
 enum ObjectType
 {
 	OBJECT_TYPE_NONE = 0;

@@ -9,6 +9,11 @@
 #define COMMON_OWNER_TYPE CServerObject
 #endif
 
+namespace Protocol
+{
+    enum AnimationType;
+}
+
 #include <vector>
 #include <memory>
 #include <cstdint>
@@ -74,11 +79,11 @@ public:
     // ========================================
     // Animation State
     // ========================================
-    void SetAnimState(uint8_t state) { m_animState = state; }
-    uint8_t GetAnimState() const { return m_animState; }
+    void SetAnimState(Protocol::AnimationType state);
+    Protocol::AnimationType GetAnimState() const { return m_animState; }
 
-    void SetAnimTime(float t) { m_animTime = t; }
-    float GetAnimTime() const { return m_animTime; }
+    void SetAnimTick(int t) { m_animTick = t; }
+    int GetAnimTick() const { return m_animTick; }
 
     // ========================================
     // ID / Type
@@ -123,6 +128,12 @@ public:
 	// ========================================
 	// Transform Component (항상 존재)
 	// ========================================
+
+public:
+    // Animation state
+    Protocol::AnimationType m_animState = Protocol::ANIMATION_TYPE_IDLE;
+    int m_animTick = 0;
+
 protected:
     // Transform 컴포넌트 (항상 존재)
     CCommonTransformComponent* m_pTransform = nullptr;
@@ -134,9 +145,7 @@ protected:
     float m_maxVelXZ = 0.f;
     float m_maxVelY = 0.f;
 
-    // Animation state
-    uint8_t m_animState = AnimStateType::Idle;
-    float m_animTime = 0.f;
+
 
     // Identity
     uint64_t m_objectId = 0;

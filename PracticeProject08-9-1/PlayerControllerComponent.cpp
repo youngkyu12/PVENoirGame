@@ -10,7 +10,6 @@
 #include "AnimatorComponent.h"
 #include "AnimController.h"
 
-// legacy DIR_* ���� ������ ���(��ũ�ο� �������� �ʱ� ���� ���� ����� ��)
 static constexpr DWORD kDirForward = 0x01;
 static constexpr DWORD kDirBackward = 0x02;
 static constexpr DWORD kDirLeft = 0x04;
@@ -51,7 +50,6 @@ void CPlayerControllerComponent::SetInputDirection(DWORD dwDirection)
 {
     m_inputDir = dwDirection;
 
-    // Attack ���̸� "���� ��ȯ/�̵�"�� �����ϴ� speed �ݿ��� ���´�.
     if (auto* anim = GetOwner() ? GetOwner()->GetAnimator() : nullptr)
     {
         if (anim->GetCurrentClipName() == "Attack" && !anim->IsCurrentClipFinished())
@@ -155,9 +153,6 @@ void CPlayerControllerComponent::Rotate(float /*pitchDeg*/, float yawDeg, float 
 
 void CPlayerControllerComponent::OnUpdate(float dt)
 {
-    // legacy CPlayer::Update ������ ������Ʈ�� �̵�
-    // (velocity�� �������� ������ó�� ���� ���� ����� �״�� ����)
-
     // gravity
     m_velocity = Vector3::Add(
         m_velocity,
@@ -199,7 +194,7 @@ void CPlayerControllerComponent::OnUpdate(float dt)
 
     if (auto* ctrl = owner->GetAnimController())
     {
-        const float speed = (m_inputDir != 0) ? 1.0f : 0.0f; // �Ǵ� ���� �̵��ӵ�
+        const float speed = (m_inputDir != 0) ? 1.0f : 0.0f;
         ctrl->SetSpeed(speed);
     }
 }

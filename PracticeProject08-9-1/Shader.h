@@ -8,15 +8,13 @@
 #include "Camera.h"
 #include "Texture.h"
 #include "AnimatorData.h"
+#include "SceneRenderTypes.h"
 
 #define _WITH_SCENE_ROOT_SIGNATURE
 
 class CMaterial;
 class CGameObject;
 struct CB_GAMEOBJECT_INFO;
-
-struct SCENE_STATIC_BATCH;
-struct SCENE_SKINNED_BATCH;
 
 class CShader
 {
@@ -160,6 +158,26 @@ public:
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// -----------------------------------------------------------------------------
+// UI Shader (2D)
+//  - Reuse VSTextured/PSTextured
+//  - Alpha blending enabled
+//  - Depth test disabled
+//  - Cull disabled
+// -----------------------------------------------------------------------------
+class CUIShader : public CTexturedShader
+{
+public:
+	CUIShader();
+	virtual ~CUIShader();
+
+public:
+	virtual D3D12_RASTERIZER_DESC CreateRasterizerState() override;
+	virtual D3D12_BLEND_DESC CreateBlendState() override;
+	virtual D3D12_DEPTH_STENCIL_DESC CreateDepthStencilState() override;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 class CPostProcessingShader : public CShader
 {
@@ -224,7 +242,7 @@ struct PS_CB_DRAW_OPTIONS
 {
 	XMINT4  m_xmn4DrawOptions;     // x='T','L','N','D','Z'
 	XMUINT4 m_xmu4PostSrvIdx0;     // x=T, y=L, z=N, w=D
-	XMUINT4 m_xmu4PostSrvIdx1;     // x=Z, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ðµï¿½
+	XMUINT4 m_xmu4PostSrvIdx1;     // x=Z
 };
 
 class CTextureToFullScreenShader : public CPostProcessingShader
@@ -246,4 +264,31 @@ public:
 protected:
 	ComPtr<ID3D12Resource>			m_pd3dcbDrawOptions;
 	PS_CB_DRAW_OPTIONS* m_pcbMappedDrawOptions = nullptr;
+};
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Menu UI (fullscreen image) Shader
+// - Uses existing VSScreenRectSamplingTextured / PSScreenRectSamplingTextured
+// - Alpha blending enabled
+// - Depth disabled (inherits from CPostProcessingShader)
+// - Uses cbDrawOptions(b5) to pass SRV index
+class CMenuImageShader final : public CTextureToFullScreenShader
+{
+public:
+	CMenuImageShader() = default;
+	~CMenuImageShader() override = default;
+
+public:
+	// Áß¿ä: SceneÀÌ ÀÌ¹Ì RootSig/DescriptorTableÀ» ¼¼ÆÃÇÏ¹Ç·Î
+	// Shader°¡ RootSig¸¦ ´Ù½Ã SetÇÏÁö ¾Ê°Ô(= ÆÄ¶ó¹ÌÅÍ ¹«È¿È­ ¹æÁö) CreateShader¸¦ ÀçÁ¤ÀÇÇÑ´Ù.
+	void CreateShader(
+		ID3D12Device* dev,
+		ID3D12RootSignature* sceneRootSig,
+		UINT nRenderTargets,
+		DXGI_FORMAT* rtvFormats,
+		DXGI_FORMAT dsvFormat
+	) override;
+
+	D3D12_BLEND_DESC CreateBlendState() override;
+	void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd, void* pContext) override;
 };
