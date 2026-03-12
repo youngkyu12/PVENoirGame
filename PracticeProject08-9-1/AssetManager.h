@@ -21,8 +21,13 @@ enum class AssetType
     World,
     Plane,
     House,
+
     Arrow,
-    Helmet
+    Helmet,
+    Sword,
+    Bow,
+    Axe,
+    Gun
 };
 
 // BuildAsset
