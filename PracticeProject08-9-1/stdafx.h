@@ -238,6 +238,98 @@ namespace Vector3
 		XMMATRIX mtxTransform = XMLoadFloat4x4(&xmmtx4x4Matrix);
 		return(TransformCoord(xmf3Vector, mtxTransform));
 	}
+
+	inline XMVECTOR ClosestPointOnSegment(FXMVECTOR A, FXMVECTOR B, FXMVECTOR P)
+	{
+		XMVECTOR AB = B - A;
+		XMVECTOR AP = P - A;
+
+		float abLenSq = XMVectorGetX(XMVector3Dot(AB, AB));
+		float t = 0.0f;
+
+		if (abLenSq > 0.0f)
+		{
+			t = XMVectorGetX(XMVector3Dot(AP, AB)) / abLenSq;
+			t = std::clamp(t, 0.0f, 1.0f);
+		}
+
+		return XMVectorAdd(A, XMVectorScale(AB, t));
+	}
+
+	inline float ClosestSegmentSegment(FXMVECTOR A, FXMVECTOR B, FXMVECTOR V0, FXMVECTOR V1,
+		XMVECTOR& OutP, XMVECTOR& OutQ)
+	{
+		XMVECTOR AB = B - A;
+		XMVECTOR V0V1 = V1 - V0;
+		XMVECTOR AV0 = A - V0;
+
+		float a = XMVectorGetX(XMVector3Dot(AB, AB)); // AB의 길이 제곱
+		float b = XMVectorGetX(XMVector3Dot(AB, V0V1)); // AB와 V0V1의 방향 관계를 나타내는 내적값
+		float c = XMVectorGetX(XMVector3Dot(V0V1, V0V1)); // V0V1의 길이 제곱
+		float d = XMVectorGetX(XMVector3Dot(AB, AV0)); // AV0를 AB 방향으로 본 내적값
+		float e = XMVectorGetX(XMVector3Dot(V0V1, AV0)); // AV0를 V0V1 방향으로 본 내적값
+
+		float denom = a * c - b * b;
+		float s = 0.0f;
+		float t = 0.0f;
+
+		if (a <= EPSILON && c <= EPSILON)
+		{
+			OutP = A;
+			OutQ = V0;
+			return XMVectorGetX(XMVector3LengthSq(OutP - OutQ));
+		}
+
+		if (a <= EPSILON)
+		{
+			s = 0.0f;
+			t = std::clamp(e / c, 0.0f, 1.0f);
+		}
+		else if (c <= EPSILON)
+		{
+			t = 0.0f;
+			s = std::clamp(-d / a, 0.0f, 1.0f);
+		}
+		else
+		{
+			if (denom > EPSILON)
+				s = std::clamp((b * e - c * d) / denom, 0.0f, 1.0f);
+			else
+				s = 0.0f;
+
+			t = (b * s + e) / c;
+
+			if (t < 0.0f)
+			{
+				t = 0.0f;
+				s = std::clamp(-d / a, 0.0f, 1.0f);
+			}
+			else if (t > 1.0f)
+			{
+				t = 1.0f;
+				s = std::clamp((b - d) / a, 0.0f, 1.0f);
+			}
+		}
+
+		OutP = A + AB * s;
+		OutQ = V0 + V0V1 * t;
+
+		return XMVectorGetX(XMVector3LengthSq(OutP - OutQ));
+	}
+	
+	inline bool PointInTriangle(FXMVECTOR P, FXMVECTOR V0, FXMVECTOR V1, FXMVECTOR V2, FXMVECTOR N)
+	{
+		XMVECTOR C0 = XMVector3Cross(V1 - V0, P - V0);
+		XMVECTOR C1 = XMVector3Cross(V2 - V1, P - V1);
+		XMVECTOR C2 = XMVector3Cross(V0 - V2, P - V2);
+
+		float d0 = XMVectorGetX(XMVector3Dot(C0, N));
+		float d1 = XMVectorGetX(XMVector3Dot(C1, N));
+		float d2 = XMVectorGetX(XMVector3Dot(C2, N));
+
+		return (d0 >= 0.0f && d1 >= 0.0f && d2 >= 0.0f) ||
+			(d0 <= 0.0f && d1 <= 0.0f && d2 <= 0.0f);
+	}
 }
 
 namespace Vector4
