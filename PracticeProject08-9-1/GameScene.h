@@ -128,12 +128,22 @@ private:
     UINT m_axeManCount = 2;
     UINT m_bossCount = 1;
 
-    UINT m_fighterCount = 4;
+    UINT m_PlayerCount = 4;
 
     UINT m_helmetCount = 0;
 
+	UINT m_PlayerSwordCount = 4;
+	UINT m_PlayerBowCount = 4;
+	UINT m_PlayerAxeCount = 4;
+	UINT m_PlayerGunCount = 4;
+
     std::vector<CGameObject*> m_axeManRefs;   // raw ptrs owned by m_skinnedObjects
     std::vector<CGameObject*> m_helmetRefs;   // raw ptrs owned by m_staticObjects
+
+    std::vector<CGameObject*> m_PlayerSwordRefs;
+	std::vector<CGameObject*> m_PlayerBowRefs;
+	std::vector<CGameObject*> m_PlayerAxeRefs;
+	std::vector<CGameObject*> m_PlayerGunRefs;
 
     std::vector<AttachmentBindSpec> m_attachmentBinds;
 

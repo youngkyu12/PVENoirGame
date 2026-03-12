@@ -41,7 +41,7 @@ CGameScene::CGameScene()
     m_axeManCount = 2;
     m_bossCount = 1;
 
-    m_fighterCount = 4;
+    m_PlayerCount = 4;
 
     m_staticBatch.capacity = 0;
     m_staticBatch.count = 0;
@@ -76,6 +76,11 @@ void CGameScene::ReleaseObjects()
     m_axeManRefs.clear();
     m_helmetRefs.clear();
     m_attachmentBinds.clear();
+
+	m_PlayerSwordRefs.clear();
+	m_PlayerBowRefs.clear();
+	m_PlayerAxeRefs.clear();
+	m_PlayerGunRefs.clear();
 
     ReleaseShaderVariables();
 
@@ -163,16 +168,25 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     m_axeManCount = 2;
     m_bossCount = 1;
 
-    m_fighterCount = 4;
+    m_PlayerCount = 4;
 
-    // 현재는 AxeMan 1명당 헬멧 1개
+    //Player 액세서리
+    m_PlayerSwordCount = m_PlayerCount;
+	m_PlayerBowCount = m_PlayerCount;
+	m_PlayerAxeCount = m_PlayerCount;
+	m_PlayerGunCount = m_PlayerCount;
+
+    //AxeMan 액세서리
     m_helmetCount = m_axeManCount;
+
+    
 
     m_staticBatch.capacity =
         m_planeCount +
         m_houseCount +
         kArrowPoolSize +
-        m_helmetCount;
+        m_helmetCount +
+        m_PlayerSwordCount + m_PlayerAxeCount + m_PlayerBowCount + m_PlayerGunCount;
 
     m_staticBatch.count = 0;
 
@@ -182,7 +196,8 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
         m_bowManCount +
         m_axeManCount +
         m_bossCount +
-        m_fighterCount;
+        m_PlayerCount;
+		
 
     m_skinnedBatch.count = 0;
 
@@ -244,8 +259,6 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
    
 }
-
-
 
 void CGameScene::BuildLightsAndMaterials()
 {
@@ -663,6 +676,202 @@ void CGameScene::BuildStaticBatch(
             m_helmetRefs.push_back(raw);
         }
     }
+    // ------------------------------------------------------------------------
+    // PlayerSword pool
+    // ------------------------------------------------------------------------
+    {
+        AssetBuildDesc SwordDesc =
+        {
+            AssetType::Sword,
+            "Assets/Weapon/SwordP/Mesh/Sword_mesh.bin",
+            "Assets/Weapon/SwordP/Texture"
+        };
+
+        BuiltAsset SwordAsset = AssetManager::BuildAsset(
+            dev, cmd,
+            m_pMaterials.get(),
+            SwordDesc
+        );
+
+        m_PlayerSwordRefs.clear();
+        m_PlayerSwordRefs.reserve(m_PlayerSwordCount);
+
+        for (UINT k = 0; k < m_PlayerSwordCount; ++k)
+        {
+            if (b->objectRefs.size() >= b->capacity) break;
+
+            const UINT i = (UINT)b->objectRefs.size();
+
+            auto obj = std::make_unique<CGameObject>(1);
+
+            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+            obj->SetMappedGameObjectCB(cb);
+
+            obj->SetMesh(0, SwordAsset.mesh);
+            obj->AddComponent<CStaticMeshRendererComponent>();
+
+            // 링크 전까지는 화면 밖에 둠
+            obj->SetPosition(0.0f, -10000.0f, 0.0f);
+
+            obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+            obj->CreateComponents(dev, cmd);
+
+            CGameObject* raw = obj.get();
+            m_staticObjects.push_back(std::move(obj));
+            b->objectRefs.push_back(raw);
+            b->count = (UINT)b->objectRefs.size();
+
+            m_PlayerSwordRefs.push_back(raw);
+        }
+    }
+    // ------------------------------------------------------------------------
+    // PlayerBow pool
+    // ------------------------------------------------------------------------
+    {
+        AssetBuildDesc BowDesc =
+        {
+            AssetType::Bow,
+            "Assets/Weapon/BowP/Mesh/Bow_mesh.bin",
+            "Assets/Weapon/BowP/Texture"
+        };
+
+        BuiltAsset BowAsset = AssetManager::BuildAsset(
+            dev, cmd,
+            m_pMaterials.get(),
+            BowDesc
+        );
+
+        m_PlayerBowRefs.clear();
+        m_PlayerBowRefs.reserve(m_PlayerBowCount);
+
+        for (UINT k = 0; k < m_PlayerBowCount; ++k)
+        {
+            if (b->objectRefs.size() >= b->capacity) break;
+
+            const UINT i = (UINT)b->objectRefs.size();
+
+            auto obj = std::make_unique<CGameObject>(1);
+
+            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+            obj->SetMappedGameObjectCB(cb);
+
+            obj->SetMesh(0, BowAsset.mesh);
+            obj->AddComponent<CStaticMeshRendererComponent>();
+
+            // 링크 전까지는 화면 밖에 둠
+            obj->SetPosition(0.0f, -10000.0f, 0.0f);
+
+            obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+            obj->CreateComponents(dev, cmd);
+
+            CGameObject* raw = obj.get();
+            m_staticObjects.push_back(std::move(obj));
+            b->objectRefs.push_back(raw);
+            b->count = (UINT)b->objectRefs.size();
+
+            m_PlayerBowRefs.push_back(raw);
+        }
+    }
+    // ------------------------------------------------------------------------
+    // PlayerAxe pool
+    // ------------------------------------------------------------------------
+    {
+        AssetBuildDesc AxeDesc =
+        {
+            AssetType::Axe,
+            "Assets/Weapon/AxeP/Mesh/Axe_mesh.bin",
+            "Assets/Weapon/AxeP/Texture"
+        };
+
+        BuiltAsset AxeAsset = AssetManager::BuildAsset(
+            dev, cmd,
+            m_pMaterials.get(),
+            AxeDesc
+        );
+
+        m_PlayerAxeRefs.clear();
+        m_PlayerAxeRefs.reserve(m_PlayerAxeCount);
+
+        for (UINT k = 0; k < m_PlayerAxeCount; ++k)
+        {
+            if (b->objectRefs.size() >= b->capacity) break;
+
+            const UINT i = (UINT)b->objectRefs.size();
+
+            auto obj = std::make_unique<CGameObject>(1);
+
+            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+            obj->SetMappedGameObjectCB(cb);
+
+            obj->SetMesh(0, AxeAsset.mesh);
+            obj->AddComponent<CStaticMeshRendererComponent>();
+
+            // 링크 전까지는 화면 밖에 둠
+            obj->SetPosition(0.0f, -10000.0f, 0.0f);
+
+            obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+            obj->CreateComponents(dev, cmd);
+
+            CGameObject* raw = obj.get();
+            m_staticObjects.push_back(std::move(obj));
+            b->objectRefs.push_back(raw);
+            b->count = (UINT)b->objectRefs.size();
+
+            m_PlayerAxeRefs.push_back(raw);
+        }
+    }
+    // ------------------------------------------------------------------------
+    // PlayerGun pool
+    // ------------------------------------------------------------------------
+    {
+        AssetBuildDesc GunDesc =
+        {
+            AssetType::Gun,
+            "Assets/Weapon/GunP/Mesh/Gun_mesh.bin",
+            "Assets/Weapon/GunP/Texture"
+        };
+
+        BuiltAsset GunAsset = AssetManager::BuildAsset(
+            dev, cmd,
+            m_pMaterials.get(),
+            GunDesc
+        );
+
+        m_PlayerGunRefs.clear();
+        m_PlayerGunRefs.reserve(m_PlayerGunCount);
+
+        for (UINT k = 0; k < m_PlayerGunCount; ++k)
+        {
+            if (b->objectRefs.size() >= b->capacity) break;
+
+            const UINT i = (UINT)b->objectRefs.size();
+
+            auto obj = std::make_unique<CGameObject>(1);
+
+            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+            obj->SetMappedGameObjectCB(cb);
+
+            obj->SetMesh(0, GunAsset.mesh);
+            obj->AddComponent<CStaticMeshRendererComponent>();
+
+            // 링크 전까지는 화면 밖에 둠
+            obj->SetPosition(0.0f, -10000.0f, 0.0f);
+
+            obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+            obj->CreateComponents(dev, cmd);
+
+            CGameObject* raw = obj.get();
+            m_staticObjects.push_back(std::move(obj));
+            b->objectRefs.push_back(raw);
+            b->count = (UINT)b->objectRefs.size();
+
+            m_PlayerGunRefs.push_back(raw);
+        }
+    }
 }
 
 void CGameScene::BuildSkinnedBatch(
@@ -720,7 +929,7 @@ void CGameScene::BuildSkinnedBatch(
 
     m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
 
-    const UINT fighterCount = m_fighterCount;
+    const UINT fighterCount = m_PlayerCount;
 
     const XMFLOAT3 playerBase(0.0f, 0.0f, 0.0f);
 
