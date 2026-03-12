@@ -18,6 +18,7 @@
 #include "ArrowComponent.h"
 #include "Camera.h"
 #include "FollowBoneComponent.h"
+#include "PlayerEquipmentComponent.h"
 
 #include "ThreadManager.h"
 #include "Service.h"
@@ -75,12 +76,17 @@ void CGameScene::ReleaseObjects()
 
     m_axeManRefs.clear();
     m_helmetRefs.clear();
+    m_arrowRefs.clear();
     m_attachmentBinds.clear();
 
-	m_PlayerSwordRefs.clear();
-	m_PlayerBowRefs.clear();
-	m_PlayerAxeRefs.clear();
-	m_PlayerGunRefs.clear();
+    m_PlayerSwordRefs.clear();
+    m_PlayerBowRefs.clear();
+    m_PlayerAxeRefs.clear();
+    m_PlayerGunRefs.clear();
+
+    m_EnemySwordRefs.clear();
+    m_EnemyBowRefs.clear();
+    m_EnemyAxeRefs.clear();
 
     ReleaseShaderVariables();
 
@@ -732,7 +738,7 @@ void CGameScene::BuildStaticBatch(
         AssetBuildDesc BowDesc =
         {
             AssetType::Bow,
-            "Assets/Weapon/BowP/Mesh/Bow_mesh.bin",
+            "Assets/Weapon/BowP/Mesh/Bow_Mesh.bin",
             "Assets/Weapon/BowP/Texture"
         };
 
@@ -781,8 +787,8 @@ void CGameScene::BuildStaticBatch(
         AssetBuildDesc AxeDesc =
         {
             AssetType::Axe,
-            "Assets/Weapon/AxeP/Mesh/Axe_mesh.bin",
-            "Assets/Weapon/AxeP/Texture"
+            "Assets/Weapon/Axe/Mesh/Axe_Mesh.bin",
+            "Assets/Weapon/Axe/Texture"
         };
 
         BuiltAsset AxeAsset = AssetManager::BuildAsset(
@@ -830,8 +836,8 @@ void CGameScene::BuildStaticBatch(
         AssetBuildDesc GunDesc =
         {
             AssetType::Gun,
-            "Assets/Weapon/GunP/Mesh/Gun_mesh.bin",
-            "Assets/Weapon/GunP/Texture"
+            "Assets/Weapon/Gun/Mesh/Gun_Mesh.bin",
+            "Assets/Weapon/Gun/Texture"
         };
 
         BuiltAsset GunAsset = AssetManager::BuildAsset(
@@ -1501,6 +1507,7 @@ void CGameScene::BuildSkinnedBatch(
             obj->AddComponent<CSkinnedMeshRendererComponent>();
 
             auto* animComp = obj->AddComponent<CAnimatorComponent>();
+            auto* equipComp = obj->AddComponent<CPlayerEquipmentComponent>();
 
             {
                 auto* tag = obj->AddComponent<CActorTagComponent>();
@@ -1645,42 +1652,135 @@ void CGameScene::LinkSceneObjects()
     }
 
     // ------------------------------------------------------------------------
-    // AxeMan Helmet Attachment
-    //  - 1:1 매칭: helmet[i] -> axeMan[i]
-    //  - bone: CATRigHub002
-    //  - authored local offset (Unity values given by user)
+    // Player weapon offsets (authoring LOCAL transform)
+    // - world 값은 검산용, 실제 FollowBone에는 local 값 사용
     // ------------------------------------------------------------------------
-    m_attachmentBinds.clear();
-
-    size_t helmetCount = m_helmetRefs.size();
-    size_t axeCount = m_axeManRefs.size();
-
-    size_t pairCount = helmetCount;
-    if (axeCount < pairCount)
-    {
-        pairCount = axeCount;
-    }
-
-    m_attachmentBinds.reserve(pairCount);
-
-    const XMFLOAT4X4 helmetOffset = BuildAttachmentOffsetMatrix(
-        //XMFLOAT3(61.0f, 6.0f, 0.0f),
-        XMFLOAT3(3.8f, 0.35f, 0.0f),
-        XMFLOAT3(-90.0f, 0.0f, 90.0f),
+    const XMFLOAT4X4 swordOffset = BuildAttachmentOffsetMatrix(
+        XMFLOAT3(0.09635256f, -0.02604572f, -0.008439302f),
+        XMFLOAT3(-15.925f, 0.919f, -7.3f),
         XMFLOAT3(1.0f, 1.0f, 1.0f)
     );
 
-    for (size_t i = 0; i < pairCount; ++i)
-    {
-        AttachmentBindSpec spec{};
-        spec.follower = m_helmetRefs[i];
-        spec.target = m_axeManRefs[i];
-        spec.boneName = "CATRigHub002";
-        spec.localOffset = helmetOffset;
+    const XMFLOAT4X4 axeOffset = BuildAttachmentOffsetMatrix(
+        XMFLOAT3(0.099f, 0.025f, 0.166f),
+        XMFLOAT3(-15.925f, 0.919f, 172.7f),
+        XMFLOAT3(1.0f, 1.0f, 1.0f)
+    );
 
-        m_attachmentBinds.push_back(spec);
+    const XMFLOAT4X4 bowOffset = BuildAttachmentOffsetMatrix(
+        XMFLOAT3(0.1143013f, 0.108948f, 0.2759315f),
+        XMFLOAT3(111.972f, -190.377f, -7.029999f),
+        XMFLOAT3(1.0f, 1.0f, 1.0f)
+    );
+
+    const XMFLOAT4X4 gunOffset = BuildAttachmentOffsetMatrix(
+        XMFLOAT3(-0.00403512f, 0.00763781f, 0.04897089f),
+        XMFLOAT3(-2.441f, 75.104f, 80.119f),
+        XMFLOAT3(1.0f, 1.0f, 1.0f)
+    );
+
+    // ------------------------------------------------------------------------
+    // Generic attachment list reset
+    // ------------------------------------------------------------------------
+    m_attachmentBinds.clear();
+
+    // helmet + player weapons(4 per player)까지 감안해서 대략 reserve
+    {
+        const size_t helmetPairCount = (m_helmetRefs.size() < m_axeManRefs.size()) ? m_helmetRefs.size() : m_axeManRefs.size();
+        const size_t playerWeaponBindCount = static_cast<size_t>(m_PlayerCount) * 4;
+        m_attachmentBinds.reserve(helmetPairCount + playerWeaponBindCount);
     }
 
+    // ------------------------------------------------------------------------
+    // Player weapon refs / test loadout / follow-bone binding
+    // - test:
+    //   slot0 = Sword
+    //   slot1 = Bow
+    //   slot2 = Axe
+    //   slot3 = Gun
+    // ------------------------------------------------------------------------
+    for (int slot = 0; slot < static_cast<int>(m_PlayerCount); ++slot)
+    {
+        CGameObject* player = GetPlayerBySlot(slot);
+        if (!player) continue;
+
+        auto* equip = player->GetComponent<CPlayerEquipmentComponent>();
+        if (!equip) continue;
+
+        // 1) 장비 컴포넌트에 무기 오브젝트 포인터 등록
+        if ((size_t)slot < m_PlayerSwordRefs.size())
+            equip->SetWeaponObject(EWeaponType::Sword, m_PlayerSwordRefs[slot]);
+
+        if ((size_t)slot < m_PlayerBowRefs.size())
+            equip->SetWeaponObject(EWeaponType::Bow, m_PlayerBowRefs[slot]);
+
+        if ((size_t)slot < m_PlayerAxeRefs.size())
+            equip->SetWeaponObject(EWeaponType::Axe, m_PlayerAxeRefs[slot]);
+
+        if ((size_t)slot < m_PlayerGunRefs.size())
+            equip->SetWeaponObject(EWeaponType::Gun, m_PlayerGunRefs[slot]);
+
+        // 2) 테스트용 로드아웃 지정
+        switch (slot)
+        {
+        case 0: equip->SetLoadout(EWeaponType::Sword); break;
+        case 1: equip->SetLoadout(EWeaponType::Bow);   break;
+        case 2: equip->SetLoadout(EWeaponType::Axe);   break;
+        case 3: equip->SetLoadout(EWeaponType::Gun);   break;
+        default: equip->ClearOwnedWeapons();           break;
+        }
+
+        // 3) 이 플레이어의 4종 무기 모두 각 본에 미리 바인드
+        //    실제 렌더는 equipment component가 현재 장착 무기만 켠다.
+        auto AddWeaponBind = [this](CGameObject* follower, CGameObject* target, const char* boneName, const XMFLOAT4X4& localOffset)
+            {
+                if (!follower || !target || !boneName || !boneName[0])
+                    return;
+
+                AttachmentBindSpec spec{};
+                spec.follower = follower;
+                spec.target = target;
+                spec.boneName = boneName;
+                spec.localOffset = localOffset;
+                m_attachmentBinds.push_back(spec);
+            };
+
+        AddWeaponBind(equip->GetWeaponObject(EWeaponType::Sword), player, "hand_r", swordOffset);
+        AddWeaponBind(equip->GetWeaponObject(EWeaponType::Bow), player, "hand_l", bowOffset);
+        AddWeaponBind(equip->GetWeaponObject(EWeaponType::Axe), player, "hand_r", axeOffset);
+        AddWeaponBind(equip->GetWeaponObject(EWeaponType::Gun), player, "hand_r", gunOffset);
+    }
+
+    // ------------------------------------------------------------------------
+    // AxeMan Helmet Attachment
+    //  - 1:1 매칭: helmet[i] -> axeMan[i]
+    //  - bone: CATRigHub002
+    // ------------------------------------------------------------------------
+    {
+        const size_t helmetCount = m_helmetRefs.size();
+        const size_t axeCount = m_axeManRefs.size();
+        const size_t pairCount = (helmetCount < axeCount) ? helmetCount : axeCount;
+
+        const XMFLOAT4X4 helmetOffset = BuildAttachmentOffsetMatrix(
+            XMFLOAT3(3.8f, 0.35f, 0.0f),
+            XMFLOAT3(-90.0f, 0.0f, 90.0f),
+            XMFLOAT3(1.0f, 1.0f, 1.0f)
+        );
+
+        for (size_t i = 0; i < pairCount; ++i)
+        {
+            AttachmentBindSpec spec{};
+            spec.follower = m_helmetRefs[i];
+            spec.target = m_axeManRefs[i];
+            spec.boneName = "CATRigHub002";
+            spec.localOffset = helmetOffset;
+            m_attachmentBinds.push_back(spec);
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // Apply all binds
+    // ------------------------------------------------------------------------
     for (AttachmentBindSpec& spec : m_attachmentBinds)
     {
         if (!spec.follower || !spec.target || spec.boneName.empty())

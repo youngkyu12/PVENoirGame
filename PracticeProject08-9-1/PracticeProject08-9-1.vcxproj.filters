@@ -110,6 +110,9 @@
     <Filter Include="Global">
       <UniqueIdentifier>{6e4c0b33-06f8-47fd-9adc-ea78390121c3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Components\PlayerEquipmentComponent">
+      <UniqueIdentifier>{62d5f888-2e6c-4738-b362-84ec00609cfd}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animator.h">
@@ -247,6 +250,9 @@
     <ClInclude Include="GlobalEnum.h">
       <Filter>Global</Filter>
     </ClInclude>
+    <ClInclude Include="PlayerEquipmentComponent.h">
+      <Filter>Components\PlayerEquipmentComponent</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -356,6 +362,9 @@
     </ClCompile>
     <ClCompile Include="GlobalValues.cpp">
       <Filter>Global</Filter>
+    </ClCompile>
+    <ClCompile Include="PlayerEquipmentComponent.cpp">
+      <Filter>Components\PlayerEquipmentComponent</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
