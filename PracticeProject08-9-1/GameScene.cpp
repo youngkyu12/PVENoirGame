@@ -1626,45 +1626,98 @@ void CGameScene::BuildSkinnedBatch(
 
             auto mesh0 = obj->GetMeshShared(0);
 
-            AnimationClip idleClip{};
-            AnimationClip runClip{};
-            AnimationClip atkClip{};
-            bool idleLoaded = false;
-            bool runLoaded = false;
-            bool atkLoaded = false;
+            bool hasIdleNormal = false;
+            bool hasRunF = false;
+            bool hasAttackSword = false;
 
-            if (mesh0)
+            if (mesh0 && animComp)
             {
-                idleLoaded = mesh0->LoadAnimationFromBIN(
-                    "Assets/Player/Animation/Player_Normal_Idle.bin",
-                    "Idle", idleClip, 1.0f
-                );
+                auto LoadAndAddClip =
+                    [&](const char* filePath, const char* clipName, bool* loadedFlag = nullptr)
+                    {
+                        AnimationClip clip{};
+                        bool loaded = mesh0->LoadAnimationFromBIN(
+                            filePath,
+                            clipName,
+                            clip,
+                            1.0f
+                        );
 
-                runLoaded = mesh0->LoadAnimationFromBIN(
-                    "Assets/Player/Animation/Player_Run_F.bin",
-                    "Run", runClip, 1.0f
-                );
+                        if (loaded)
+                        {
+                            clip.name = clipName;
+                            animComp->AddClip(clip);
+                        }
 
-                atkLoaded = mesh0->LoadAnimationFromBIN(
-                    "Assets/Player/Animation/Player_Sword_Attack.bin",
-                    "Attack", atkClip, 1.0f
-                );
+                        if (loadedFlag) *loadedFlag = loaded;
+                        return loaded;
+                    };
+
+                // --------------------------------------------------------------------
+                // Idle / Hit / Death
+                // --------------------------------------------------------------------
+                LoadAndAddClip("Assets/Player/Animation/Player_Normal_Idle.bin", "Idle_Normal", &hasIdleNormal);
+                LoadAndAddClip("Assets/Player/Animation/Player_Sword_Idle.bin", "Idle_Sword");
+                LoadAndAddClip("Assets/Player/Animation/Player_Axe_Idle.bin", "Idle_Axe");
+                LoadAndAddClip("Assets/Player/Animation/Player_Bow_Idle.bin", "Idle_Bow");
+                LoadAndAddClip("Assets/Player/Animation/Player_Bow_Hold.bin", "Hold_Bow");
+                LoadAndAddClip("Assets/Player/Animation/Player_Gun_Idle.bin", "Idle_Gun");
+
+                LoadAndAddClip("Assets/Player/Animation/Player_Normal_Hit.bin", "Hit_Normal");
+                LoadAndAddClip("Assets/Player/Animation/Player_Sword_Hit.bin", "Hit_Sword");
+                LoadAndAddClip("Assets/Player/Animation/Player_Death.bin", "Death");
+
+                // --------------------------------------------------------------------
+                // Attack / Action
+                // --------------------------------------------------------------------
+                LoadAndAddClip("Assets/Player/Animation/Player_Sword_Attack.bin", "Attack_Sword", &hasAttackSword);
+                LoadAndAddClip("Assets/Player/Animation/Player_Axe_Attack.bin", "Attack_Axe");
+                LoadAndAddClip("Assets/Player/Animation/Player_Bow_Load.bin", "Bow_Load");
+                LoadAndAddClip("Assets/Player/Animation/Player_Bow_Release.bin", "Bow_Release");
+                LoadAndAddClip("Assets/Player/Animation/Player_Gun_Shoot.bin", "Gun_Shoot");
+                LoadAndAddClip("Assets/Player/Animation/Player_Gun_Reload.bin", "Gun_Reload");
+
+                // --------------------------------------------------------------------
+                // Walk
+                // --------------------------------------------------------------------
+                LoadAndAddClip("Assets/Player/Animation/Player_Walk_F.bin", "Walk_F");
+                LoadAndAddClip("Assets/Player/Animation/Player_Walk_B.bin", "Walk_B");
+                LoadAndAddClip("Assets/Player/Animation/Player_Walk_L.bin", "Walk_L");
+                LoadAndAddClip("Assets/Player/Animation/Player_Walk_R.bin", "Walk_R");
+                LoadAndAddClip("Assets/Player/Animation/Player_Walk_FL.bin", "Walk_FL");
+                LoadAndAddClip("Assets/Player/Animation/Player_Walk_FR.bin", "Walk_FR");
+                LoadAndAddClip("Assets/Player/Animation/Player_Walk_BL.bin", "Walk_BL");
+                LoadAndAddClip("Assets/Player/Animation/Player_Walk_BR.bin", "Walk_BR");
+
+                // --------------------------------------------------------------------
+                // Run
+                // --------------------------------------------------------------------
+                LoadAndAddClip("Assets/Player/Animation/Player_Run_F.bin", "Run_F", &hasRunF);
+                LoadAndAddClip("Assets/Player/Animation/Player_Run_B.bin", "Run_B");
+                LoadAndAddClip("Assets/Player/Animation/Player_Run_L.bin", "Run_L");
+                LoadAndAddClip("Assets/Player/Animation/Player_Run_R.bin", "Run_R");
+                LoadAndAddClip("Assets/Player/Animation/Player_Run_FL.bin", "Run_FL");
+                LoadAndAddClip("Assets/Player/Animation/Player_Run_FR.bin", "Run_FR");
+                LoadAndAddClip("Assets/Player/Animation/Player_Run_BL.bin", "Run_BL");
+                LoadAndAddClip("Assets/Player/Animation/Player_Run_BR.bin", "Run_BR");
             }
 
             if (animComp)
             {
-                if (idleLoaded) { idleClip.name = "Idle";   animComp->AddClip(idleClip); }
-                if (runLoaded) { runClip.name = "Run";    animComp->AddClip(runClip); }
-                if (atkLoaded) { atkClip.name = "Attack"; animComp->AddClip(atkClip); }
-
-                animComp->SetIdleClip("Idle");
-                animComp->SetMoveClip(runLoaded ? "Run" : "Idle");
-
                 auto* ctrl = animComp->EnsureController();
                 if (ctrl)
                 {
-                    ctrl->SetAttackClip("Attack");
+                    ctrl->EnablePlayerClipSet(true);
+
+                    // fallback °ª
+                    ctrl->SetIdleClip("Idle_Normal");
+                    ctrl->SetMoveClip("Walk_F");
+                    ctrl->SetHitClip("Hit_Normal");
+                    ctrl->SetAttackClip("Attack_Sword");
+
                     ctrl->SetSpeed(0.0f);
+                    ctrl->SetMoveDirection(0);
+                    ctrl->SetRunRequested(false);
                     ctrl->Update(0.0f);
                 }
             }
