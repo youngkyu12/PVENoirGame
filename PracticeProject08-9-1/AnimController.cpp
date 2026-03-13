@@ -1,3 +1,7 @@
+//------------------------------------------------------- ----------------------
+// File: AnimatorController.cpp
+//-----------------------------------------------------------------------------
+
 #include "stdafx.h"
 #include "AnimController.h"
 #include "AnimatorComponent.h"
