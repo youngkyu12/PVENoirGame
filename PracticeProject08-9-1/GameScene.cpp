@@ -512,7 +512,7 @@ void CGameScene::BuildStaticBatch(
     {
         staticDescs.push_back({
             AssetType::Plane,
-            "Assets/GroundPlane/Mesh/Plane.bin",
+            "Assets/GroundPlane/Mesh/Gound.bin",
             "Assets/GroundPlane/Texture"
             });
 
@@ -1918,9 +1918,6 @@ void CGameScene::LinkSceneObjects()
         XMFLOAT3(-0.291642f, 0.05957366f, -0.7133077f),
         XMFLOAT3(-6.057f, -159.16f, 55.789f),
         XMFLOAT3(1.0f, 1.0f, 1.0f)
-        //XMFLOAT3(-8.887014f, 0.8898252f, -1.28715f),
-        //XMFLOAT3(-72.114f, -115.709f, -27.139f),
-        //XMFLOAT3(20.0f, 20.0f, 20.0f)
     );
 
     // ------------------------------------------------------------------------
