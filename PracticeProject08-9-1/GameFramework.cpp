@@ -645,6 +645,7 @@ void CGameFramework::ProcessInput()
 
 	DWORD dwDirection = 0;
 	float cxDelta = 0.0f, cyDelta = 0.0f;
+	bool bRunRequested = false;
 
 	if (!bProcessedByScene)
 	{
@@ -668,6 +669,9 @@ void CGameFramework::ProcessInput()
 		if (pKeysBuffer[VK_RIGHT] & 0xF0) dwDirection |= DIR_RIGHT;
 		if (pKeysBuffer[VK_PRIOR] & 0xF0) dwDirection |= DIR_UP;
 		if (pKeysBuffer[VK_NEXT] & 0xF0)  dwDirection |= DIR_DOWN;
+		bRunRequested =
+			((pKeysBuffer[VK_LSHIFT] & 0xF0) != 0) ||
+			((pKeysBuffer[VK_SHIFT] & 0xF0) != 0);
 #endif
 
 		POINT ptCursorPos;
@@ -720,6 +724,8 @@ void CGameFramework::ProcessInput()
 		else
 			pc->Rotate(cyDelta, cxDelta, 0.0f);
 	}
+
+	pc->SetRunRequested(bRunRequested);
 
 	if (dwDirection)
 		pc->Move(dwDirection, 5.0f * dt, false);
