@@ -144,17 +144,20 @@ private:
     SCENE_STATIC_BATCH  m_staticBatch;
     SCENE_SKINNED_BATCH m_skinnedBatch;
 
+    std::vector<CGameObject*> m_swordManRefs;
+    std::vector<CGameObject*> m_bowManRefs;
     std::vector<CGameObject*> m_axeManRefs;
+
     std::vector<CGameObject*> m_helmetRefs;
 
     std::vector<CGameObject*> m_PlayerSwordRefs;
-	std::vector<CGameObject*> m_PlayerBowRefs;
-	std::vector<CGameObject*> m_PlayerAxeRefs;
-	std::vector<CGameObject*> m_PlayerGunRefs;
+    std::vector<CGameObject*> m_PlayerBowRefs;
+    std::vector<CGameObject*> m_PlayerAxeRefs;
+    std::vector<CGameObject*> m_PlayerGunRefs;
 
-	std::vector<CGameObject*> m_EnemySwordRefs;
-	std::vector<CGameObject*> m_EnemyBowRefs;
-	std::vector<CGameObject*> m_EnemyAxeRefs;
+    std::vector<CGameObject*> m_EnemySwordRefs;
+    std::vector<CGameObject*> m_EnemyBowRefs;
+    std::vector<CGameObject*> m_EnemyAxeRefs;
 
     std::vector<AttachmentBindSpec> m_attachmentBinds;
 
