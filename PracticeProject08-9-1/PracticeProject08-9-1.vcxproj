@@ -191,6 +191,7 @@
     <ClInclude Include="NetworkQueue.h" />
     <ClInclude Include="Object.h" />
     <ClInclude Include="PlayerControllerComponent.h" />
+    <ClInclude Include="PlayerEquipmentComponent.h" />
     <ClInclude Include="PracticeProject08-9-1.h" />
     <ClInclude Include="Protocol.pb.h" />
     <ClInclude Include="RendererComponent.h" />
@@ -250,6 +251,7 @@
     <ClCompile Include="NetworkQueue.cpp" />
     <ClCompile Include="Object.cpp" />
     <ClCompile Include="PlayerControllerComponent.cpp" />
+    <ClCompile Include="PlayerEquipmentComponent.cpp" />
     <ClCompile Include="PracticeProject08-9-1.cpp" />
     <ClCompile Include="Protocol.pb.cc">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>

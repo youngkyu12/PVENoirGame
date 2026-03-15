@@ -11,17 +11,23 @@ struct MATERIALS;
 
 enum class AssetType
 {
-    Zombie,
-    Fighter,
+    Player,
     Ghoul,
+	SwordMan,
+	BowMan,
     AxeMan,
     Boss,
 
     World,
     Plane,
     House,
+
     Arrow,
-    Helmet
+    Helmet,
+    Sword,
+    Bow,
+    Axe,
+    Gun
 };
 
 // BuildAsset

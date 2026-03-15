@@ -17,6 +17,24 @@ static constexpr DWORD kDirRight = 0x08;
 static constexpr DWORD kDirUp = 0x10;
 static constexpr DWORD kDirDown = 0x20;
 
+
+
+static bool IsOwnerActionLocked(CGameObject* owner)
+{
+    if (!owner) return false;
+
+    if (auto* animComp = owner->GetComponent<CAnimatorComponent>())
+    {
+        if (auto* ctrl = animComp->GetController())
+            return ctrl->IsActionLocked();
+    }
+
+    if (auto* ctrl = owner->GetAnimController())
+        return ctrl->IsActionLocked();
+
+    return false;
+}
+
 CPlayerControllerComponent::CPlayerControllerComponent(CGameObject* owner)
     : CComponentT<CPlayerControllerComponent>(owner)
 {
@@ -49,28 +67,34 @@ void CPlayerControllerComponent::ApplyYawToOwnerTransform()
 void CPlayerControllerComponent::SetInputDirection(DWORD dwDirection)
 {
     m_inputDir = dwDirection;
-
-    if (auto* anim = GetOwner() ? GetOwner()->GetAnimator() : nullptr)
-    {
-        if (anim->GetCurrentClipName() == "Attack" && !anim->IsCurrentClipFinished())
-            return;
-    }
-
-    SyncAnimatorSpeed();
+    SyncAnimatorLocomotion();
 }
 
 
-void CPlayerControllerComponent::SyncAnimatorSpeed()
+void CPlayerControllerComponent::SyncAnimatorLocomotion()
 {
     CGameObject* owner = GetOwner();
     if (!owner) return;
 
     const float speed = (m_inputDir ? 1.0f : 0.0f);
+    const bool runRequested = (m_inputDir != 0) && m_isRunRequested;
 
     if (auto* animComp = owner->GetComponent<CAnimatorComponent>())
-        animComp->SetSpeed(speed);
+    {
+        auto* ctrl = animComp->EnsureController();
+        if (ctrl)
+        {
+            ctrl->SetSpeed(speed);
+            ctrl->SetMoveDirection(static_cast<uint32_t>(m_inputDir));
+            ctrl->SetRunRequested(runRequested);
+        }
+    }
     else if (auto* ctrl = owner->GetAnimController())
+    {
         ctrl->SetSpeed(speed);
+        ctrl->SetMoveDirection(static_cast<uint32_t>(m_inputDir));
+        ctrl->SetRunRequested(runRequested);
+    }
 }
 
 void CPlayerControllerComponent::Move(
@@ -82,11 +106,7 @@ void CPlayerControllerComponent::Move(
     CGameObject* owner = GetOwner();
     if (!owner) return;
 
-    if (auto* anim = owner->GetAnimator())
-    {
-        if (anim->GetCurrentClipName() == "Attack" && !anim->IsCurrentClipFinished())
-            return;
-    }
+    if (IsOwnerActionLocked(owner)) return;
     if (!dwDirection) return;
 
     const XMFLOAT3 look = owner->GetLook();
@@ -138,15 +158,7 @@ void CPlayerControllerComponent::MoveShift(const XMFLOAT3& shift, bool bUpdateVe
 void CPlayerControllerComponent::Rotate(float /*pitchDeg*/, float yawDeg, float /*rollDeg*/)
 {
     CGameObject* owner = GetOwner();
-    if (owner)
-    {
-        if (auto* anim = owner->GetAnimator())
-        {
-            if (anim->GetCurrentClipName() == "Attack" && !anim->IsCurrentClipFinished())
-                return;
-        }
-    }
-
+    if (IsOwnerActionLocked(owner)) return;
     if (yawDeg != 0.0f)
         SetYawDegrees(m_yawDeg + yawDeg);
 }
@@ -191,15 +203,11 @@ void CPlayerControllerComponent::OnUpdate(float dt)
 
     CGameObject* owner = GetOwner();
     if (!owner) return;
-
-    if (auto* ctrl = owner->GetAnimController())
-    {
-        const float speed = (m_inputDir != 0) ? 1.0f : 0.0f;
-        ctrl->SetSpeed(speed);
-    }
+    SyncAnimatorLocomotion();
 }
 
-
-void CPlayerControllerComponent::Update(float dt)
+void CPlayerControllerComponent::SetRunRequested(bool run)
 {
+    m_isRunRequested = run;
+    SyncAnimatorLocomotion();
 }
