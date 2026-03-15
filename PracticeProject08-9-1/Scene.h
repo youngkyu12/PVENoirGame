@@ -43,7 +43,8 @@ public:
     // Build
 public:
     virtual void BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd) = 0;
-   
+    virtual void BuildObjectsCollider() {}
+
 protected:
     void CreateGraphicsRootSignature(ID3D12Device* dev);
 
@@ -54,6 +55,7 @@ protected:
 public:
     virtual bool ProcessInput(UCHAR* /*pKeysBuffer*/) { return false; }
     virtual void AnimateObjects(float /*dt*/) {}
+    virtual void CollisionObjects() {}
 
     // 공통: RS/Heap/SRVTable/Camera 세팅까지만 수행
     virtual void OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera);

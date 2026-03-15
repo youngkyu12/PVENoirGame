@@ -745,6 +745,12 @@ void CGameFramework::AnimateObjects()
 	if (scene) scene->AnimateObjects(m_GameTimer.GetTimeElapsed());
 }
 
+void CGameFramework::CollisionSystem()
+{
+	CScene* scene = m_SceneManager.GetScene();
+	if (scene) scene->CollisionObjects();
+}
+
 void CGameFramework::MoveToNextFrame()
 {
 	m_nSwapChainBufferIndex = m_pdxgiSwapChain->GetCurrentBackBufferIndex();
@@ -770,6 +776,8 @@ void CGameFramework::FrameAdvance()
 
 	ProcessInput();
 	AnimateObjects();
+	CollisionSystem();
+	// 충돌체크 함수 필요
 
 	hResult = m_pd3dCommandAllocator->Reset();
 	hResult = m_pd3dCommandList->Reset(m_pd3dCommandAllocator.Get(), nullptr);

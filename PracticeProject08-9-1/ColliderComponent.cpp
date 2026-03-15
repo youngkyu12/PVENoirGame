@@ -68,7 +68,7 @@ void CColliderComponent::OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*)
     case EColliderType::BSphere:
 
         break;
-    case EColliderType::Humanoid:
+    case EColliderType::BCapsule:
         for (const shared_ptr<CMesh>& mesh : meshes)
         {
             if (!mesh) continue;
@@ -95,7 +95,7 @@ void CColliderComponent::OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*)
     UpdateWorldBounds();
 }
 
-void CColliderComponent::OnUpdate(float)
+void CColliderComponent::OnUpdate(float dt)
 {
     // MVP: 매 프레임 갱신
     UpdateWorldBounds();
@@ -169,6 +169,7 @@ void CColliderComponent::SetBCapsule(const XMFLOAT3& Min, const XMFLOAT3& Max)
             LocalBCapsule.Center.x + halfSegment,
             LocalBCapsule.Center.y,
             LocalBCapsule.Center.z);
+        LocalBCapsule.Direction = EDirection::X;
     }
     else if (dy >= dx && dy >= dz) {
         LocalBCapsule.Height = dy;
@@ -185,6 +186,7 @@ void CColliderComponent::SetBCapsule(const XMFLOAT3& Min, const XMFLOAT3& Max)
             LocalBCapsule.Center.x,
             LocalBCapsule.Center.y + halfSegment,
             LocalBCapsule.Center.z);
+        LocalBCapsule.Direction = EDirection::Y;
     }
     else {
         LocalBCapsule.Height = dz;
@@ -199,6 +201,7 @@ void CColliderComponent::SetBCapsule(const XMFLOAT3& Min, const XMFLOAT3& Max)
             LocalBCapsule.Center.x,
             LocalBCapsule.Center.y,
             LocalBCapsule.Center.z + halfSegment);
+        LocalBCapsule.Direction = EDirection::Z;
     }
    
 }
@@ -211,13 +214,59 @@ void CColliderComponent::SetSubBCapsule(const XMFLOAT3& Min, const XMFLOAT3& Max
         (Min.y + Max.y) * 0.5f,
         (Min.z + Max.z) * 0.5f);
 
-    Capsule.Height = Max.y - Min.y;
+    const float dx = Max.x - Min.x;
+    const float dy = Max.y - Min.y;
+    const float dz = Max.z - Min.z;
 
-    XMFLOAT3 Extents = XMFLOAT3(
-        (Max.x - Min.x) * 0.5f,
-        (Max.y - Min.y) * 0.5f,
-        (Max.z - Min.z) * 0.5f);
-    Capsule.Radius = max(Extents.x, Extents.z);
+    if (dx >= dy && dx >= dz) {
+        Capsule.Height = dx;
+        Capsule.Radius = max(dy, dz) * 0.5f;
+
+        const float halfSegment = max(0.0f, dx * 0.5f - Capsule.Radius);
+
+        Capsule.p0 = XMFLOAT3(
+            Capsule.Center.x - halfSegment,
+            Capsule.Center.y,
+            Capsule.Center.z);
+
+        Capsule.p1 = XMFLOAT3(
+            Capsule.Center.x + halfSegment,
+            Capsule.Center.y,
+            Capsule.Center.z);
+        Capsule.Direction = EDirection::X;
+    }
+    else if (dy >= dx && dy >= dz) {
+        Capsule.Height = dy;
+        Capsule.Radius = max(dx, dz) * 0.5f;
+
+        const float halfSegment = max(0.0f, dy * 0.5f - Capsule.Radius);
+
+        Capsule.p0 = XMFLOAT3(
+            Capsule.Center.x,
+            Capsule.Center.y - halfSegment,
+            Capsule.Center.z);
+
+        Capsule.p1 = XMFLOAT3(
+            Capsule.Center.x,
+            Capsule.Center.y + halfSegment,
+            Capsule.Center.z);
+        Capsule.Direction = EDirection::Y;
+    }
+    else {
+        Capsule.Height = dz;
+        const float halfSegment = max(0.0f, dz * 0.5f - Capsule.Radius);
+
+        Capsule.p0 = XMFLOAT3(
+            Capsule.Center.x,
+            Capsule.Center.y,
+            Capsule.Center.z - halfSegment);
+
+        Capsule.p1 = XMFLOAT3(
+            Capsule.Center.x,
+            Capsule.Center.y,
+            Capsule.Center.z + halfSegment);
+        Capsule.Direction = EDirection::Z;
+    }
 
     LocalSubBCapsules.push_back(Capsule);
 }
@@ -249,9 +298,9 @@ void CColliderComponent::UpdateWorldBounds()
         LocalBSphere.Transform(WorldBSphere, W);
         break;
     }
-    case EColliderType::Humanoid:
+    case EColliderType::BCapsule:
     {
-        
+        LocalBCapsule.Transform(WorldBCapsule, W);
         break;
     }
     default:

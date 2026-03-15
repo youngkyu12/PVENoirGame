@@ -18,6 +18,8 @@
 #include "ArrowComponent.h"
 #include "Camera.h"
 #include "FollowBoneComponent.h"
+#include "CollisionSystem.h"
+#include "ColliderComponent.h"
 
 #include "ThreadManager.h"
 #include "Service.h"
@@ -231,7 +233,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
     BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
     BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
-
+    BuildObjectsCollider();
 
     LinkSceneObjects();
 
@@ -773,6 +775,7 @@ void CGameScene::BuildSkinnedBatch(
 
                 obj->SetMesh(0, assetW.mesh);
                 obj->AddComponent<CSkinnedMeshRendererComponent>();
+                obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
 
                 {
                     auto* tag = obj->AddComponent<CActorTagComponent>();
@@ -872,6 +875,7 @@ void CGameScene::BuildSkinnedBatch(
 
                 obj->SetMesh(0, assetX.mesh);
                 obj->AddComponent<CSkinnedMeshRendererComponent>();
+                obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
 
                 {
                     auto* tag = obj->AddComponent<CActorTagComponent>();
@@ -970,6 +974,7 @@ void CGameScene::BuildSkinnedBatch(
 
                 obj->SetMesh(0, assetY.mesh);
                 obj->AddComponent<CSkinnedMeshRendererComponent>();
+                obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
 
                 {
                     auto* tag = obj->AddComponent<CActorTagComponent>();
@@ -1068,6 +1073,7 @@ void CGameScene::BuildSkinnedBatch(
 
                 obj->SetMesh(0, assetZ.mesh);
                 obj->AddComponent<CSkinnedMeshRendererComponent>();
+                obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
 
                 {
                     auto* tag = obj->AddComponent<CActorTagComponent>();
@@ -1168,6 +1174,7 @@ void CGameScene::BuildSkinnedBatch(
 
                 obj->SetMesh(0, assetOne.mesh);
                 obj->AddComponent<CSkinnedMeshRendererComponent>();
+                obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
 
                 {
                     auto* tag = obj->AddComponent<CActorTagComponent>();
@@ -1290,6 +1297,7 @@ void CGameScene::BuildSkinnedBatch(
 
             obj->SetMesh(0, asset.mesh);
             obj->AddComponent<CSkinnedMeshRendererComponent>();
+            obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
 
             auto* animComp = obj->AddComponent<CAnimatorComponent>();
 
@@ -1742,6 +1750,11 @@ void CGameScene::AnimateObjects(float dt)
 
 }
 
+void CGameScene::CollisionObjects()
+{
+    m_Collision->OnUpdate();
+}
+
 void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
 {
     if (m_pcbMappedLights)
@@ -1851,5 +1864,21 @@ void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
             if (!m_skinnedObjects[j]) continue;
             m_skinnedObjects[j]->Render(cmd, camera);
         }
+    }
+    if (m_Collision)
+    {
+    }
+}
+
+void CGameScene::BuildObjectsCollider()
+{
+    m_Collision = make_unique<CCollisionSystem>();
+    for (auto& obj : m_staticObjects)
+    {
+        m_Collision->RegisterCollider(obj->GetComponent<CColliderComponent>());
+    }
+    for (auto& obj : m_skinnedObjects)
+    {
+        m_Collision->RegisterCollider(obj->GetComponent<CColliderComponent>());
     }
 }

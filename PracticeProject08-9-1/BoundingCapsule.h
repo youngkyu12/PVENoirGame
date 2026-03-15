@@ -7,6 +7,7 @@ struct BoundingCapsule
     XMFLOAT3 Center;
     float Radius;
     float Height;
+    EDirection Direction;
 
     // Creators
     BoundingCapsule() noexcept : p0(0.0f, 0.0f, 0.0f), p1(0.0f, 0.0f, 0.0f), Center(0.0f, 0.0f, 0.0f), Radius(0.1f), Height(0.0f) {}
@@ -17,8 +18,8 @@ struct BoundingCapsule
     BoundingCapsule(BoundingCapsule&&) = default;
     BoundingCapsule& operator=(BoundingCapsule&&) = default;
 
-    constexpr BoundingCapsule(const XMFLOAT3& q0, const XMFLOAT3& q1, const XMFLOAT3& center, const float& radius, const float& height) noexcept
-        : p0(q0), p1(q1), Center(center), Radius(radius), Height(height) {
+    constexpr BoundingCapsule(const XMFLOAT3& q0, const XMFLOAT3& q1, const XMFLOAT3& center, const float& radius, const float& height, const EDirection& direction) noexcept
+        : p0(q0), p1(q1), Center(center), Radius(radius), Height(height), Direction(direction) {
     }
 
     // Methods

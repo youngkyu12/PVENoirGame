@@ -3,8 +3,7 @@
 #include "ColliderComponent.h"
 #include "Object.h"
 
-CCollisionSystem::CCollisionSystem(CGameObject* owner)
-	: CComponentT<CCollisionSystem>(owner)
+CCollisionSystem::CCollisionSystem()
 {
 }
 
@@ -37,11 +36,55 @@ bool CCollisionSystem::PassFilter(const CColliderComponent* a, const CColliderCo
 
 void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 {
+    if (!a || !b)
+        return;
 
-    // overlapping && was : 유지 상태 -> 필요하면 OnStay 같은 이벤트 추가
+    bool isHit = false;
+
+    // 타입별 narrow phase
+    if (a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::BCapsule)
+    {
+        isHit = a->GetBCapsule().Intersects(b->GetBCapsule());
+    }
+    else if (a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::OOBB)
+    {
+        isHit = a->GetBCapsule().Intersects(b->GetOOBB());
+    }
+    else if (a->GetType() == EColliderType::OOBB && b->GetType() == EColliderType::BCapsule)
+    {
+        isHit = b->GetBCapsule().Intersects(a->GetOOBB());
+    }
+
+    if (!isHit)
+        return;
+
+    if (a->IsTrigger() || b->IsTrigger())
+    {
+        // Trigger 이벤트 처리
+        return;
+    }
+
+    auto* ownerA = a->GetOwner();
+    if (!ownerA)
+        return;
+
+    auto* transformA = ownerA->GetComponent<CTransformComponent>();
+    if (!transformA)
+        return;
+
+    const float pushBackDistance = 0.1f;
+
+    XMFLOAT3 forward = transformA->direction;
+    XMFLOAT3 pos = transformA->position;
+
+    pos.x -= forward.x * pushBackDistance;
+    pos.y -= forward.y * pushBackDistance;
+    pos.z -= forward.z * pushBackDistance;
+
+    transformA->Translate(pos);
 }
 
-void CCollisionSystem::OnUpdate(float /*dt*/)
+void CCollisionSystem::OnUpdate()
 {
     // 전수검사: i<j
     const size_t n = mColliders.size();
