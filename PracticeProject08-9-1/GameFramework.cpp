@@ -711,7 +711,7 @@ void CGameFramework::ProcessInput()
 
 	XMFLOAT3 oldPos = playerObj->GetPosition();
 
-	/*if (cxDelta || cyDelta)
+	if (cxDelta || cyDelta)
 	{
 		if (pKeysBuffer[VK_RBUTTON] & 0xF0)
 			pc->Rotate(cyDelta, 0.0f, -cxDelta);
@@ -724,7 +724,7 @@ void CGameFramework::ProcessInput()
 	if (dwDirection)
 		pc->Move(dwDirection, 5.0f * dt, false);
 
-	pc->SetInputDirection(static_cast<uint32_t>(dwDirection));*/
+	pc->SetInputDirection(static_cast<uint32_t>(dwDirection));
 
 	XMFLOAT3 newPos = playerObj->GetPosition();
 
