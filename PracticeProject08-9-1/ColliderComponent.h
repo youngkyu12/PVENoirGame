@@ -25,12 +25,18 @@ public:
     void SetSubBCapsule(const XMFLOAT3& Min, const XMFLOAT3& Max);
     
     EColliderType GetType() const { return mColliderType; }
+    BoundingBox GetAABB() const { return WorldAABB; }
+    BoundingOrientedBox GetOOBB() const { return WorldOOBB; }
+    BoundingSphere GetBSphere() const { return WorldBSphere; }
+    BoundingCapsule GetBCapsule() const { return WorldBCapsule; }
+    vector<BoundingCapsule> GetSubBCapsules() const { return WorldSubBCapsules; }
 
     // Filtering
     void SetLayer(uint32_t layer) { mLayer = layer; }
     void SetMask(uint32_t mask) { mMask = mask; }
     uint32_t GetLayer() const { return mLayer; }
     uint32_t GetMask() const { return mMask; }
+    bool IsTrigger() const { return mIsTrigger; }
 
 private:
     void UpdateWorldBounds();

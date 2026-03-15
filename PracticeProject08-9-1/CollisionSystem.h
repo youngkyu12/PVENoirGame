@@ -6,12 +6,12 @@
 
 class CColliderComponent;
 
-class CCollisionSystem final : public CComponentT<CCollisionSystem>
+class CCollisionSystem
 {
 public:
-    explicit CCollisionSystem(CGameObject* owner);
+    explicit CCollisionSystem();
 
-    void OnUpdate(float dt) override;
+    void OnUpdate();
 
     // Scene/오브젝트 생성/삭제 시 호출해주면 됨
     void RegisterCollider(CColliderComponent* c);
