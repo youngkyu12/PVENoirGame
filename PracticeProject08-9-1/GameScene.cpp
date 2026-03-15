@@ -19,6 +19,8 @@
 #include "Camera.h"
 #include "FollowBoneComponent.h"
 #include "PlayerEquipmentComponent.h"
+#include "CollisionSystem.h"
+#include "ColliderComponent.h"
 
 #include "ThreadManager.h"
 #include "Service.h"
@@ -155,7 +157,7 @@ void CGameScene::ReleaseShaderVariables()
 
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
-    // °ÔÀÓ ÃÊ±â Á¤º¸¸¦ »ÌÀÚ
+    // ê²Œì„ ì´ˆê¸° ì •ë³´ë¥¼ ë½‘ì
 #ifdef USING_NETWORK
     while (false == g_GameStarted);
     DequeueNetworkMessage(NetworkMessageType::GameStart);
@@ -179,13 +181,13 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
     m_PlayerCount = 4;
 
-    //Player ¾×¼¼¼­¸®
+    //Player ì•¡ì„¸ì„œë¦¬
     m_PlayerSwordCount = m_PlayerCount;
 	m_PlayerBowCount = m_PlayerCount;
 	m_PlayerAxeCount = m_PlayerCount;
 	m_PlayerGunCount = m_PlayerCount;
 
-    //AxeMan ¾×¼¼¼­¸®
+    //AxeMan ì•¡ì„¸ì„œë¦¬
     m_helmetCount = m_axeManCount;
 
     
@@ -260,7 +262,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
     BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
     BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
-
+    BuildObjectsCollider();
 
     LinkSceneObjects();
 
@@ -516,7 +518,7 @@ void CGameScene::BuildStaticBatch(
             "Assets/GroundPlane/Texture"
             });
 
-        // Áö±İÀº ±âÁ¸ °ª À¯Áö
+        // ì§€ê¸ˆì€ ê¸°ì¡´ ê°’ ìœ ì§€
         staticPositions.push_back(XMFLOAT3(0.0f, 0.0f, 0.0f));
     }
 
@@ -675,7 +677,7 @@ void CGameScene::BuildStaticBatch(
             obj->SetMesh(0, helmetAsset.mesh);
             obj->AddComponent<CStaticMeshRendererComponent>();
 
-            // ¸µÅ© Àü±îÁö´Â È­¸é ¹Û¿¡ µÒ
+            // ë§í¬ ì „ê¹Œì§€ëŠ” í™”ë©´ ë°–ì— ë‘ 
             obj->SetPosition(0.0f, -10000.0f, 0.0f);
 
             obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
@@ -724,7 +726,7 @@ void CGameScene::BuildStaticBatch(
             obj->SetMesh(0, SwordAsset.mesh);
             obj->AddComponent<CStaticMeshRendererComponent>();
 
-            // ¸µÅ© Àü±îÁö´Â È­¸é ¹Û¿¡ µÒ
+            // ë§í¬ ì „ê¹Œì§€ëŠ” í™”ë©´ ë°–ì— ë‘ 
             obj->SetPosition(0.0f, -10000.0f, 0.0f);
 
             obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
@@ -773,7 +775,7 @@ void CGameScene::BuildStaticBatch(
             obj->SetMesh(0, AxeAsset.mesh);
             obj->AddComponent<CStaticMeshRendererComponent>();
 
-            // ¸µÅ© Àü±îÁö´Â È­¸é ¹Û¿¡ µÒ
+            // ë§í¬ ì „ê¹Œì§€ëŠ” í™”ë©´ ë°–ì— ë‘ 
             obj->SetPosition(0.0f, -10000.0f, 0.0f);
 
             obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
@@ -822,7 +824,7 @@ void CGameScene::BuildStaticBatch(
             obj->SetMesh(0, GunAsset.mesh);
             obj->AddComponent<CStaticMeshRendererComponent>();
 
-            // ¸µÅ© Àü±îÁö´Â È­¸é ¹Û¿¡ µÒ
+            // ë§í¬ ì „ê¹Œì§€ëŠ” í™”ë©´ ë°–ì— ë‘ 
             obj->SetPosition(0.0f, -10000.0f, 0.0f);
 
             obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
@@ -1002,7 +1004,7 @@ void CGameScene::BuildSkinnedBatch(
     m_axeManRefs.reserve(m_axeManCount);
 
     // ------------------------------------------------------------------------
-    // GameStartData¿¡¼­ ÃÊ±â ÁÂÇ¥ ÃßÃâ
+    // GameStartDataì—ì„œ ì´ˆê¸° ì¢Œí‘œ ì¶”ì¶œ
     // ------------------------------------------------------------------------
     GameStartData gameStartData{};
     if (std::holds_alternative<GameStartData>(m_pendingNetworkMessage.data))
@@ -1010,7 +1012,7 @@ void CGameScene::BuildSkinnedBatch(
         gameStartData = std::get<GameStartData>(m_pendingNetworkMessage.data);
     }
 
-    // enemy ÀÎµ¦½º Ä«¿îÅÍ (¸ğµç Àû Å¸ÀÔ¿¡ °ÉÃÄ ¼øÂ÷ Áõ°¡)
+    // enemy ì¸ë±ìŠ¤ ì¹´ìš´í„° (ëª¨ë“  ì  íƒ€ì…ì— ê±¸ì³ ìˆœì°¨ ì¦ê°€)
     UINT enemyIndex = 0;
 
     // ------------------------------------------------------------------------
@@ -1047,6 +1049,7 @@ void CGameScene::BuildSkinnedBatch(
 
                 obj->SetMesh(0, assetW.mesh);
                 obj->AddComponent<CSkinnedMeshRendererComponent>();
+                obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
 
                 {
                     auto* tag = obj->AddComponent<CActorTagComponent>();
@@ -1055,7 +1058,7 @@ void CGameScene::BuildSkinnedBatch(
                     tag->playerSlot = -1;
                 }
 
-                // GameStartData¿¡¼­ ÁÂÇ¥ °¡Á®¿À±â
+                // GameStartDataì—ì„œ ì¢Œí‘œ ê°€ì ¸ì˜¤ê¸°
                 XMFLOAT3 pos;
                 float yaw = 180.0f;
                 if (enemyIndex < (UINT)gameStartData.enemies.size())
@@ -1066,13 +1069,13 @@ void CGameScene::BuildSkinnedBatch(
                 }
                 else
                 {
-                    // fallback: ±âÁ¸ ÇÏµåÄÚµù ÁÂÇ¥
+                    // fallback: ê¸°ì¡´ í•˜ë“œì½”ë”© ì¢Œí‘œ
                     pos.x = enemyBase.x + 2.0f * (float)k;
                     pos.y = enemyBase.y;
                     pos.z = enemyBase.z + 0.0f;
                 }
                 obj->SetPosition(pos.x, pos.y, pos.z);
-                //obj->Rotate(-90.0f, yaw, 0.0f); // GhoulÀº -90µµ º¸Á¤ ÇÊ¿ä
+                //obj->Rotate(-90.0f, yaw, 0.0f); // Ghoulì€ -90ë„ ë³´ì • í•„ìš”
 
                 ++enemyIndex;
 
@@ -1146,6 +1149,7 @@ void CGameScene::BuildSkinnedBatch(
 
                 obj->SetMesh(0, assetX.mesh);
                 obj->AddComponent<CSkinnedMeshRendererComponent>();
+                obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
 
                 {
                     auto* tag = obj->AddComponent<CActorTagComponent>();
@@ -1154,7 +1158,7 @@ void CGameScene::BuildSkinnedBatch(
                     tag->playerSlot = -1;
                 }
 
-                // GameStartData¿¡¼­ ÁÂÇ¥ °¡Á®¿À±â
+                // GameStartDataì—ì„œ ì¢Œí‘œ ê°€ì ¸ì˜¤ê¸°
                 XMFLOAT3 pos;
                 float yaw = 180.0f;
                 if (enemyIndex < (UINT)gameStartData.enemies.size())
@@ -1246,6 +1250,7 @@ void CGameScene::BuildSkinnedBatch(
 
                 obj->SetMesh(0, assetY.mesh);
                 obj->AddComponent<CSkinnedMeshRendererComponent>();
+                obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
 
                 {
                     auto* tag = obj->AddComponent<CActorTagComponent>();
@@ -1254,7 +1259,7 @@ void CGameScene::BuildSkinnedBatch(
                     tag->playerSlot = -1;
                 }
 
-                // GameStartData¿¡¼­ ÁÂÇ¥ °¡Á®¿À±â
+                // GameStartDataì—ì„œ ì¢Œí‘œ ê°€ì ¸ì˜¤ê¸°
                 XMFLOAT3 pos;
                 float yaw = 180.0f;
                 if (enemyIndex < (UINT)gameStartData.enemies.size())
@@ -1346,6 +1351,7 @@ void CGameScene::BuildSkinnedBatch(
 
                 obj->SetMesh(0, assetZ.mesh);
                 obj->AddComponent<CSkinnedMeshRendererComponent>();
+                obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
 
                 {
                     auto* tag = obj->AddComponent<CActorTagComponent>();
@@ -1354,7 +1360,7 @@ void CGameScene::BuildSkinnedBatch(
                     tag->playerSlot = -1;
                 }
 
-                // GameStartData¿¡¼­ ÁÂÇ¥ °¡Á®¿À±â
+                // GameStartDataì—ì„œ ì¢Œí‘œ ê°€ì ¸ì˜¤ê¸°
                 XMFLOAT3 pos;
                 float yaw = 180.0f;
                 if (enemyIndex < (UINT)gameStartData.enemies.size())
@@ -1446,6 +1452,7 @@ void CGameScene::BuildSkinnedBatch(
 
                 obj->SetMesh(0, assetOne.mesh);
                 obj->AddComponent<CSkinnedMeshRendererComponent>();
+                obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
 
                 {
                     auto* tag = obj->AddComponent<CActorTagComponent>();
@@ -1454,7 +1461,7 @@ void CGameScene::BuildSkinnedBatch(
                     tag->playerSlot = -1;
                 }
 
-                // GameStartData¿¡¼­ ÁÂÇ¥ °¡Á®¿À±â
+                // GameStartDataì—ì„œ ì¢Œí‘œ ê°€ì ¸ì˜¤ê¸°
                 XMFLOAT3 pos;
                 float yaw = 180.0f;
                 if (enemyIndex < (UINT)gameStartData.enemies.size())
@@ -1568,6 +1575,7 @@ void CGameScene::BuildSkinnedBatch(
 
             obj->SetMesh(0, asset.mesh);
             obj->AddComponent<CSkinnedMeshRendererComponent>();
+            obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
 
             auto* animComp = obj->AddComponent<CAnimatorComponent>();
             auto* equipComp = obj->AddComponent<CPlayerEquipmentComponent>();
@@ -1598,7 +1606,7 @@ void CGameScene::BuildSkinnedBatch(
             auto mat = std::make_shared<CMaterial>();
             mat->m_nReflection = matId;
 
-            // GameStartData¿¡¼­ ÇÃ·¹ÀÌ¾î ÁÂÇ¥ °¡Á®¿À±â
+            // GameStartDataì—ì„œ í”Œë ˆì´ì–´ ì¢Œí‘œ ê°€ì ¸ì˜¤ê¸°
             XMFLOAT3 pos;
             float yaw = 0.0f;
             if (k < (UINT)gameStartData.players.size())
@@ -1609,7 +1617,7 @@ void CGameScene::BuildSkinnedBatch(
             }
             else
             {
-                // fallback: ±âÁ¸ ÇÏµåÄÚµù ÁÂÇ¥
+                // fallback: ê¸°ì¡´ í•˜ë“œì½”ë”© ì¢Œí‘œ
                 pos.x = playerBase.x + 2.0f * (float)slot;
                 pos.y = playerBase.y;
                 pos.z = playerBase.z;
@@ -1709,7 +1717,7 @@ void CGameScene::BuildSkinnedBatch(
                 {
                     ctrl->EnablePlayerClipSet(true);
 
-                    // fallback °ª
+                    // fallback ê°’
                     ctrl->SetIdleClip("Idle_Normal");
                     ctrl->SetMoveClip("Walk_F");
                     ctrl->SetHitClip("Hit_Normal");
@@ -2020,7 +2028,7 @@ void CGameScene::LinkSceneObjects()
         auto* equip = player->GetComponent<CPlayerEquipmentComponent>();
         if (!equip) continue;
 
-        // 1) Àåºñ ÄÄÆ÷³ÍÆ®¿¡ ¹«±â ¿ÀºêÁ§Æ® Æ÷ÀÎÅÍ µî·Ï
+        // 1) ì¥ë¹„ ì»´í¬ë„ŒíŠ¸ì— ë¬´ê¸° ì˜¤ë¸Œì íŠ¸ í¬ì¸í„° ë“±ë¡
         if ((size_t)slot < m_PlayerSwordRefs.size())
             equip->SetWeaponObject(EWeaponType::Sword, m_PlayerSwordRefs[slot]);
 
@@ -2033,7 +2041,7 @@ void CGameScene::LinkSceneObjects()
         if ((size_t)slot < m_PlayerGunRefs.size())
             equip->SetWeaponObject(EWeaponType::Gun, m_PlayerGunRefs[slot]);
 
-        // 2) Å×½ºÆ®¿ë ·Îµå¾Æ¿ô ÁöÁ¤
+        // 2) í…ŒìŠ¤íŠ¸ìš© ë¡œë“œì•„ì›ƒ ì§€ì •
         switch (slot)
         {
         case 0: equip->SetLoadout(EWeaponType::Sword); break;
@@ -2043,7 +2051,7 @@ void CGameScene::LinkSceneObjects()
         default: equip->ClearOwnedWeapons();           break;
         }
 
-        // 3) ÇÃ·¹ÀÌ¾î ¹«±â ¹ÙÀÎµå
+        // 3) í”Œë ˆì´ì–´ ë¬´ê¸° ë°”ì¸ë“œ
         AddWeaponBind(equip->GetWeaponObject(EWeaponType::Sword), player, "hand_r", swordOffset);
         AddWeaponBind(equip->GetWeaponObject(EWeaponType::Bow), player, "hand_l", bowOffset);
         AddWeaponBind(equip->GetWeaponObject(EWeaponType::Axe), player, "hand_r", axeOffset);
@@ -2092,7 +2100,7 @@ void CGameScene::LinkSceneObjects()
 
     // ------------------------------------------------------------------------
     // AxeMan Helmet Attachment
-    //  - 1:1 ¸ÅÄª: helmet[i] -> axeMan[i]
+    //  - 1:1 ë§¤ì¹­: helmet[i] -> axeMan[i]
     //  - bone: CATRigHub002
     // ------------------------------------------------------------------------
     {
@@ -2293,38 +2301,8 @@ bool CGameScene::ProcessInput(UCHAR* /*pKeysBuffer*/)
 void CGameScene::AnimateObjects(float dt)
 {
     // ------------------------------------------------------------------------
-    // FrameSnapshot¿¡¼­ ÁÂÇ¥ ¾÷µ¥ÀÌÆ®
+    // FrameSnapshotì—ì„œ ì¢Œí‘œ ì—…ë°ì´íŠ¸
     // ------------------------------------------------------------------------
-
-
-   
-
-    // ------------------------------------------------------------------------
-    // ±âÁ¸ ¾Ö´Ï¸ŞÀÌ¼Ç ·ÎÁ÷
-    // ------------------------------------------------------------------------
-    for (UINT j = 0; j < (UINT)m_skinnedObjects.size(); ++j)
-    {
-        if (!m_skinnedObjects[j]) continue;
-        m_skinnedObjects[j]->Animate(dt);
-    }
-
-    for (UINT j = 0; j < (UINT)m_staticObjects.size(); ++j)
-    {
-        if (!m_staticObjects[j]) continue;
-        m_staticObjects[j]->Animate(dt);
-    }
-
-    CGameObject* local = GetPlayer();
-    if (local && m_pPlayerSpotFollower && (m_pPlayerSpotFollower->GetTarget() == nullptr))
-    {
-        m_pPlayerSpotFollower->SetTarget(local);
-    }
-
-    for (UINT j = 0; j < (UINT)m_lightObjects.size(); ++j)
-    {
-        if (!m_lightObjects[j]) continue;
-        m_lightObjects[j]->Animate(dt);
-    }
 
 #ifdef USING_NETWORK
     DequeueNetworkMessage(NetworkMessageType::FrameState);
@@ -2332,36 +2310,43 @@ void CGameScene::AnimateObjects(float dt)
     {
         const FrameSnapshot& snapshot = std::get<FrameSnapshot>(m_pendingNetworkMessage.data);
 
-        // Player ÁÂÇ¥ ¾÷µ¥ÀÌÆ®
+        // Player ì¢Œí‘œ ì—…ë°ì´íŠ¸
         for (const auto& state : snapshot.players)
         {
-            // id¸¦ slotÀ¸·Î »ç¿ë (0~3)
+            // idë¥¼ slotìœ¼ë¡œ ì‚¬ìš© (0~3)
             int slot = static_cast<int>(state.id);
             CGameObject* player = GetPlayerBySlot(slot);
             if (!player) continue;
 
 
-            // ·ÎÄÃ ÇÃ·¹ÀÌ¾î´Â ¼­¹ö ÁÂÇ¥·Î µ¤¾î¾²Áö ¾ÊÀ½ (¼±ÅÃÀû)
+            // ë¡œì»¬ í”Œë ˆì´ì–´ëŠ” ì„œë²„ ì¢Œí‘œë¡œ ë®ì–´ì“°ì§€ ì•ŠìŒ (ì„ íƒì )
             // if (slot == m_localPlayerSlot) continue;
 
             player->SetPosition(state.position.x, state.position.y, state.position.z);
 
-            // yaw È¸Àü Àû¿ë
+            // yaw íšŒì „ ì ìš©
             if (auto* tr = player->GetComponent<CTransformComponent>())
             {
                 tr->SetYawDegrees(state.yaw);
             }
 
-            // µ¥¸ğ: animation state °­Á¦ Àû¿ë
+            // ë°ëª¨: animation state ê°•ì œ ì ìš©
             if (auto ac = player->GetAnimController())
             {
-				ac->SetAnimState(state.animation.animationId);
+                if (state.animation.animationId == EAnimState::Attack)
+                    ac->RequestAttack();
+
+                ac->SetAnimState(state.animation.animationId);
+
+
             }
-            
+
+
+
         }
 
-        // Enemy ÁÂÇ¥ ¾÷µ¥ÀÌÆ®
-        // skinnedObjects¿¡¼­ NPC¸¸ ¼øÈ¸ (Fighter Á¦¿Ü)
+        // Enemy ì¢Œí‘œ ì—…ë°ì´íŠ¸
+        // skinnedObjectsì—ì„œ NPCë§Œ ìˆœíšŒ (Fighter ì œì™¸)
         UINT enemyIndex = 0;
         const UINT totalEnemies = m_ghoulCount + m_swordManCount + m_bowManCount + m_axeManCount + m_bossCount;
 
@@ -2387,7 +2372,42 @@ void CGameScene::AnimateObjects(float dt)
         }
     }
 #endif
+   
 
+    // ------------------------------------------------------------------------
+    // ê¸°ì¡´ ì• ë‹ˆë©”ì´ì…˜ ë¡œì§
+    // ------------------------------------------------------------------------
+    for (UINT j = 0; j < (UINT)m_skinnedObjects.size(); ++j)
+    {
+        if (!m_skinnedObjects[j]) continue;
+        m_skinnedObjects[j]->Animate(dt);
+    }
+
+    for (UINT j = 0; j < (UINT)m_staticObjects.size(); ++j)
+    {
+        if (!m_staticObjects[j]) continue;
+        m_staticObjects[j]->Animate(dt);
+    }
+
+    CGameObject* local = GetPlayer();
+    if (local && m_pPlayerSpotFollower && (m_pPlayerSpotFollower->GetTarget() == nullptr))
+    {
+        m_pPlayerSpotFollower->SetTarget(local);
+    }
+
+    for (UINT j = 0; j < (UINT)m_lightObjects.size(); ++j)
+    {
+        if (!m_lightObjects[j]) continue;
+        m_lightObjects[j]->Animate(dt);
+    }
+
+
+
+}
+
+void CGameScene::CollisionObjects()
+{
+    m_Collision->OnUpdate();
 }
 
 void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
@@ -2499,5 +2519,21 @@ void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
             if (!m_skinnedObjects[j]) continue;
             m_skinnedObjects[j]->Render(cmd, camera);
         }
+    }
+    if (m_Collision)
+    {
+    }
+}
+
+void CGameScene::BuildObjectsCollider()
+{
+    m_Collision = make_unique<CCollisionSystem>();
+    for (auto& obj : m_staticObjects)
+    {
+        m_Collision->RegisterCollider(obj->GetComponent<CColliderComponent>());
+    }
+    for (auto& obj : m_skinnedObjects)
+    {
+        m_Collision->RegisterCollider(obj->GetComponent<CColliderComponent>());
     }
 }

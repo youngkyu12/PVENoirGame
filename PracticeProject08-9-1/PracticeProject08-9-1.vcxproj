@@ -167,7 +167,10 @@
     <ClInclude Include="AnimController.h" />
     <ClInclude Include="ArrowComponent.h" />
     <ClInclude Include="AssetManager.h" />
+    <ClInclude Include="BoundingCapsule.h" />
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="ColliderComponent.h" />
+    <ClInclude Include="CollisionSystem.h" />
     <ClInclude Include="Component.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="DDSTextureLoader12.h" />
@@ -194,6 +197,7 @@
     <ClInclude Include="RendererComponent.h" />
     <ClInclude Include="RenderObjectComponent.h" />
     <ClInclude Include="Resource.h" />
+    <ClInclude Include="RigidBody.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="SceneManager.h" />
     <ClInclude Include="SceneRenderTypes.h" />
@@ -215,7 +219,10 @@
     <ClCompile Include="AnimController.cpp" />
     <ClCompile Include="ArrowComponent.cpp" />
     <ClCompile Include="AssetManager.cpp" />
+    <ClCompile Include="BoundingCapsule.cpp" />
     <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="ColliderComponent.cpp" />
+    <ClCompile Include="CollisionSystem.cpp" />
     <ClCompile Include="DDSTextureLoader12.cpp">
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">VectorCall</CallingConvention>
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">VectorCall</CallingConvention>
@@ -253,6 +260,7 @@
     </ClCompile>
     <ClCompile Include="RendererComponent.cpp" />
     <ClCompile Include="RenderObjectComponent.cpp" />
+    <ClCompile Include="RigidBody.cpp" />
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="SceneManager.cpp" />
     <ClCompile Include="ServerPacketHandler.cpp">
