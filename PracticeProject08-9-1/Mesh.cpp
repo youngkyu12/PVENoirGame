@@ -89,7 +89,8 @@ void CMesh::Render(ID3D12GraphicsCommandList* cmd, CB_GAMEOBJECT_INFO* /*objCB*/
 }
 
 
-void CMesh::LoadMeshFromBIN(ID3D12Device* device,
+void CMesh::LoadMeshFromBIN(
+    ID3D12Device* device,
     ID3D12GraphicsCommandList* cmdList,
     const char* filename)
 {
@@ -112,12 +113,14 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
     auto ReadString = [&](std::string& s) -> bool
         {
             uint16_t len = 0;
-            if (!ReadUInt16(len)) return false;
+            if (!ReadUInt16(len)) 
+                return false;
             if (len == 0) { s.clear(); return true; }
 
             s.resize(len);
             //if (!ReadRaw(s.data(), len)) return false;
-            if (!ReadRaw(&s[0], len)) return false;
+            if (!ReadRaw(&s[0], len)) 
+                return false;
             return true;
         };
 
@@ -125,7 +128,8 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
     // 1) 헤더 읽기
     // ----------------------------------------------------
     char magic[4] = {};
-    if (!ReadRaw(magic, 4)) return;
+    if (!ReadRaw(magic, 4)) 
+        return;
     if (!(magic[0] == 'M' && magic[1] == 'B' && magic[2] == 'I' && magic[3] == 'N'))
         return;
 
@@ -142,7 +146,8 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
     if (!ReadUInt32(subMeshCount)) return;
 
 
-    if (version != 1 && version != 2) return;
+    if (version != 1 && version != 2) 
+        return;
 
     // 기존 데이터 정리
     m_Bones.clear();
@@ -159,15 +164,19 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
     for (uint32_t i = 0; i < boneCount; ++i)
     {
         std::string name;
-        if (!ReadString(name)) return;
+        if (!ReadString(name)) 
+            return;
 
         int32_t parentIndex = -1;
-        if (!ReadInt32(parentIndex)) return;
+        if (!ReadInt32(parentIndex)) 
+            return;
 
         float bindLocalArr[16];
         float offsetArr[16];
-        if (!ReadRaw(bindLocalArr, sizeof(bindLocalArr)))  return;
-        if (!ReadRaw(offsetArr, sizeof(offsetArr)))     return;
+        if (!ReadRaw(bindLocalArr, sizeof(bindLocalArr)))  
+            return;
+        if (!ReadRaw(offsetArr, sizeof(offsetArr)))     
+            return;
 
         Bone b{};
         b.name = name;
@@ -200,11 +209,14 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
     for (uint32_t i = 0; i < materialCount; ++i)
     {
         BinMaterial bm{};
-        if (!ReadString(bm.name)) return;
-        if (!ReadString(bm.diffuseTextureName)) return;
+        if (!ReadString(bm.name)) 
+            return;
+        if (!ReadString(bm.diffuseTextureName)) 
+            return;
         if (version >= 2)
         {
-            if (!ReadString(bm.normalTextureName)) return;
+            if (!ReadString(bm.normalTextureName)) 
+                return;
         }
         else
         {
@@ -227,10 +239,12 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
         SubMesh sm{};
 
         // 3-1) meshName / materialIndex
-        if (!ReadString(sm.meshName)) return;
+        if (!ReadString(sm.meshName)) 
+            return;
 
         uint32_t matIndex = 0;
-        if (!ReadUInt32(matIndex)) return;
+        if (!ReadUInt32(matIndex)) 
+            return;
 
         sm.materialIndex = matIndex;
         sm.materialId = matIndex; // 현재는 materialIndex == shader materialId로 사용
@@ -265,8 +279,10 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
         // 3-2) vertexCount / indexCount
         uint32_t vertexCount = 0;
         uint32_t indexCount = 0;
-        if (!ReadUInt32(vertexCount)) return;
-        if (!ReadUInt32(indexCount))  return;
+        if (!ReadUInt32(vertexCount)) 
+            return;
+        if (!ReadUInt32(indexCount))  
+            return;
 
         sm.positions.reserve(vertexCount);
         sm.normals.reserve(vertexCount);
@@ -289,20 +305,26 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
             uint32_t bi[4];
             float bw[4];
 
-            if (!ReadRaw(pos, sizeof(pos)))       return;
-            if (!ReadRaw(nml, sizeof(nml)))       return;
-            if (!ReadRaw(uv, sizeof(uv)))        return;
+            if (!ReadRaw(pos, sizeof(pos)))       
+                return;
+            if (!ReadRaw(nml, sizeof(nml)))       
+                return;
+            if (!ReadRaw(uv, sizeof(uv)))        
+                return;
             if (version >= 2)
             {
-                if (!ReadRaw(tan, sizeof(tan))) return;   // [ADD] v2 tangent
+                if (!ReadRaw(tan, sizeof(tan))) 
+                    return;   // [ADD] v2 tangent
             }
             else
             {
                 // v1 파일 호환: 기본값
                 tan[0] = 1.0f; tan[1] = 0.0f; tan[2] = 0.0f; tan[3] = 1.0f;
             }
-            if (!ReadRaw(bi, sizeof(bi))) return;
-            if (!ReadRaw(bw, sizeof(bw))) return;
+            if (!ReadRaw(bi, sizeof(bi))) 
+                return;
+            if (!ReadRaw(bw, sizeof(bw))) 
+                return;
 
             sm.positions.emplace_back(pos[0], pos[1], pos[2]);
             sm.normals.emplace_back(nml[0], nml[1], nml[2]);
@@ -332,7 +354,8 @@ void CMesh::LoadMeshFromBIN(ID3D12Device* device,
         for (uint32_t ii = 0; ii < indexCount; ++ii)
         {
             uint32_t idx = 0;
-            if (!ReadUInt32(idx)) return;
+            if (!ReadUInt32(idx)) 
+                return;
             sm.indices.push_back(idx);
         }
 

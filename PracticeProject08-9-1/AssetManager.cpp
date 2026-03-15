@@ -21,7 +21,10 @@ BuiltAsset AssetManager::BuildAsset(
     // 1. Mesh 로드
     // ============================================================
     auto mesh = std::make_shared<CMesh>(device, cmd);
-    mesh->LoadMeshFromBIN(device, cmd, desc.meshBinPath.c_str());
+    mesh->LoadMeshFromBIN(
+        device, 
+        cmd, 
+        desc.meshBinPath.c_str());
 
     // ============================================================
     // 2. Material ID 발급기 + 캐시 (씬 단위)
@@ -68,17 +71,20 @@ BuiltAsset AssetManager::BuildAsset(
             desc.type,
             desc.textureRoot,
             sm.materialName,
-            sm.diffuseTextureName
-        );
+            sm.diffuseTextureName);
 
-        diffuseTex->LoadTextureFromFile(device, cmd, diffusePath.c_str(), RESOURCE_TEXTURE2D, 0);
+        diffuseTex->LoadTextureFromFile(
+            device, 
+            cmd, 
+            diffusePath.c_str(), 
+            RESOURCE_TEXTURE2D, 
+            0);
 
         // (3-4) Global SRV Heap 등록 (Diffuse)
         CScene::m_pDescriptorHeap->CreateShaderResourceViews(
             device,
             diffuseTex.get(),
-            ROOTPARAM_TEX_SRV_TABLE
-        );
+            ROOTPARAM_TEX_SRV_TABLE);
 
         // (3-5) Material에 Diffuse Texture 연결
         mat->SetTexture(diffuseTex);
@@ -149,8 +155,7 @@ std::wstring AssetManager::ResolveTexturePath(
     AssetType /*type*/,
     const std::string& textureRoot,
     const std::string& /*materialName*/,
-    const std::string& texName
-)
+    const std::string& texName)
 {
     std::wstring rootW(textureRoot.begin(), textureRoot.end());
     std::wstring texW(texName.begin(), texName.end());

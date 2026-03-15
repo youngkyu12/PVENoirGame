@@ -367,6 +367,7 @@ void CGameObject::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 
 	for (std::unique_ptr<CComponent>& c : m_components)
 		if (c && c->IsEnabled()) c->OnPostRender(cmd);
+
 }
 
 // ============================================================================
