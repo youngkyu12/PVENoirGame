@@ -13,14 +13,6 @@ using namespace DirectX;
 // Animation 상태
 // ============================================================
 
-enum AnimationId : uint16_t
-{
-    Idle = 0,
-    Walk,
-    Attack,
-    Die,
-    // 필요시 추가
-};
 
 struct AnimationState
 {

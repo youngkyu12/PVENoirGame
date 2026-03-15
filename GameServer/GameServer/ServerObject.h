@@ -73,7 +73,7 @@ public:
     // ========================================
     // Update
     // ========================================
-    virtual void Update(float dt);
+    virtual void Update(uint32 serverTick);
     virtual void Animate(float dt);
 
     // ========================================
@@ -156,7 +156,8 @@ protected:
     bool m_bComponentsCreated = false;
 
     // Physics helper
-    void ApplyPhysics(float dt);
+    void ApplyPhysics(float dt);    
+
 };
 
 //-----------------------------------------------------------------------------
