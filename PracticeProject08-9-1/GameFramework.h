@@ -52,6 +52,7 @@ public:
 
 	void ProcessInput();
 	void AnimateObjects();
+	void CollisionSystem();
 	void FrameAdvance();
 
 	void MoveToNextFrame();
