@@ -124,7 +124,8 @@ private:
     // ------------------------------------------------------------------------
     // Build counts (현재는 BuildObjects()에서 결정, 추후 서버 동기화 값으로 대체)
     // ------------------------------------------------------------------------
-    UINT m_planeCount = 1;
+    UINT m_grassCount = 1;
+    UINT m_groundCount = 1;
     UINT m_houseCount = 3;
 
     UINT m_ghoulCount = 4;

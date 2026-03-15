@@ -35,7 +35,8 @@ CGameScene::CGameScene()
     m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
     m_localPlayerSlot = 0;
 
-    m_planeCount = 1;
+	m_grassCount = 1;
+    m_groundCount = 1;
     m_houseCount = 3;
 
     m_ghoulCount = 4;
@@ -170,7 +171,8 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     // ------------------------------------------------------------------------
     //m_localPlayerSlot = 2;
 
-    m_planeCount = 1;
+	m_grassCount = 1;
+    m_groundCount = 1;
     m_houseCount = 3;
 
     m_ghoulCount = 4;
@@ -193,7 +195,8 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     
 
     m_staticBatch.capacity =
-        m_planeCount +
+        m_grassCount +
+        m_groundCount +
         m_houseCount +
         kArrowPoolSize +
         m_helmetCount +
@@ -505,22 +508,30 @@ void CGameScene::BuildStaticBatch(
     std::vector<StaticAssetDesc> staticDescs;
     std::vector<XMFLOAT3> staticPositions;
 
-    staticDescs.reserve(m_planeCount + m_houseCount);
-    staticPositions.reserve(m_planeCount + m_houseCount);
+    staticDescs.reserve(m_grassCount + m_groundCount + m_houseCount);
+    staticPositions.reserve(m_grassCount + m_groundCount + m_houseCount);
     //m_pendingNetworkMessage.data.index();
 
-    // Plane
-    for (UINT i = 0; i < m_planeCount; ++i)
+    // Grass
+    for (UINT i = 0; i < m_grassCount; ++i)
     {
         staticDescs.push_back({
-            AssetType::Plane,
-            "Assets/GroundPlane/Mesh/Gound.bin",
+            AssetType::Grass,
+            "Assets/GroundPlane/Mesh/Grass.bin",
             "Assets/GroundPlane/Texture"
             });
-
-        // 지금은 기존 값 유지
-        staticPositions.push_back(XMFLOAT3(0.0f, 0.0f, 0.0f));
+        staticPositions.push_back(XMFLOAT3(0.0f, -0.01f, 0.0f));
     }
+	// Ground
+    for (UINT j = 0; j < m_groundCount; ++j)
+    {
+        staticDescs.push_back({
+            AssetType::Ground,
+            "Assets/GroundPlane/Mesh/Ground.bin",
+            "Assets/GroundPlane/Texture"
+            });
+        staticPositions.push_back(XMFLOAT3(0.0f, 0.0f, 0.0f));
+	}
 
     // House
     if (m_houseCount >= 1)

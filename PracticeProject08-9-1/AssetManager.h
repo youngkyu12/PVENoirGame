@@ -19,7 +19,8 @@ enum class AssetType
     Boss,
 
     World,
-    Plane,
+    Grass,
+    Ground,
     House,
 
     Arrow,
