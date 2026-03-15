@@ -57,4 +57,6 @@ private:
     std::string m_moveClip = "Walk";
     std::string m_attackClip = "Attack";
     bool m_attackQueued = false;
+
+	float m_startTime = 0.0f;
 };
