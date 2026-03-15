@@ -527,7 +527,7 @@ void CGameScene::BuildStaticBatch(
     {
         staticDescs.push_back({
             AssetType::House,
-            "Assets/House/Mesh/Barn1.bin",
+            "Assets/House/Mesh/Building1.bin",
             "Assets/House/Texture"
             });
         staticPositions.push_back(XMFLOAT3(22.0f, 0.0f, 12.0f));
@@ -536,7 +536,7 @@ void CGameScene::BuildStaticBatch(
     {
         staticDescs.push_back({
             AssetType::House,
-            "Assets/House/Mesh/Barn2.bin",
+            "Assets/House/Mesh/Building2.bin",
             "Assets/House/Texture"
             });
         staticPositions.push_back(XMFLOAT3(-20.0f, 0.0f, 0.0f));
@@ -545,7 +545,7 @@ void CGameScene::BuildStaticBatch(
     {
         staticDescs.push_back({
             AssetType::House,
-            "Assets/House/Mesh/Cabin1.bin",
+            "Assets/House/Mesh/Building3.bin",
             "Assets/House/Texture"
             });
         staticPositions.push_back(XMFLOAT3(0.0f, 0.0f, -20.0f));
