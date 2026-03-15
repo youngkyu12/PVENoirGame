@@ -29,6 +29,7 @@ class CAnimatorComponent;
 class CAnimController;
 class CRenderObjectComponent;
 class CSkinningComponent;
+class CColliderComponent;
 
 struct CB_GAMEOBJECT_INFO
 {
@@ -191,6 +192,7 @@ protected:
 	CAnimatorComponent* m_pAnimatorComponent = nullptr;
 	CRenderObjectComponent* m_pRenderObject = nullptr;
 	CSkinningComponent* m_pSkinning = nullptr;
+	CColliderComponent* m_pCollider = nullptr;
 	std::vector<std::unique_ptr<CComponent>> m_components;
 
 	bool m_bComponentsCreated = false;

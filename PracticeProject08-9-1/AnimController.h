@@ -105,4 +105,6 @@ private:
     bool m_usePlayerClipSet = false;
 
     EActionPhase m_actionPhase = EActionPhase::None;
+
+	float m_startTime = 0.0f;
 };

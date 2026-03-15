@@ -157,6 +157,35 @@ void CAnimController::Update(float /*dt*/)
     // ------------------------------------------------------------
     // Attack request
     // ------------------------------------------------------------
+#ifdef USING_NETWORK
+
+    // µ¥¸ð: play¸¸ ¿­½ÉÈ÷ ÇÏÀÚ
+    constexpr float kBlendTime = 0.15f;
+
+    if (m_state != animPrevState) {
+        const char* targetClip = ClipFor(m_state);
+
+
+        if(m_state == EAnimState::Attack)
+        {
+            if (!anim->CrossFade(m_attackClip, kBlendTime, false, m_startTime))
+            {
+                anim->Play(m_attackClip, false, m_startTime);
+            }
+            return;
+		}
+
+
+        if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
+        {
+            
+            anim->Play(targetClip, true, m_startTime);
+        }
+    }
+
+	   
+
+#else
     if (m_attackQueued)
     {
         m_attackQueued = false;
@@ -282,6 +311,7 @@ void CAnimController::Update(float /*dt*/)
     const bool wantsMove =
         m_usePlayerClipSet ? (m_moveDirBits != 0)
         : (m_speed > m_moveEps);
+    EAnimState target = (m_speed > m_moveEps) ? EAnimState::Move : EAnimState::Idle;
 
     const EAnimState targetState = wantsMove ? EAnimState::Move : EAnimState::Idle;
 

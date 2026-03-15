@@ -69,7 +69,6 @@ extern ClientServiceRef g_clientService;
 
 #include "d3dx12.h"
 
-
 //using namespace std;
 
 
@@ -240,6 +239,220 @@ namespace Vector3
 		XMMATRIX mtxTransform = XMLoadFloat4x4(&xmmtx4x4Matrix);
 		return(TransformCoord(xmf3Vector, mtxTransform));
 	}
+
+	inline XMVECTOR ClosestPointOnSegment(FXMVECTOR A, FXMVECTOR B, FXMVECTOR P)
+	{
+		XMVECTOR AB = B - A;	// A->B 방향과 길이를 가진 벡터
+		XMVECTOR AP = P - A;	// A->P 방향과 길이를 가진 벡터
+
+		float abLenSq = XMVectorGetX(XMVector3Dot(AB, AB));	 // AB를 AB로 내적한 것은 A->B 길이의 제곱과 같은 의미
+		float t = 0.0f;
+
+		if (abLenSq > 0.0f)
+		{
+			t = XMVectorGetX(XMVector3Dot(AP, AB)) / abLenSq;
+			t = std::clamp(t, 0.0f, 1.0f);
+		}
+
+		return XMVectorAdd(A, XMVectorScale(AB, t));
+	}
+
+	inline float distPointToSegment(FXMVECTOR A, FXMVECTOR B, FXMVECTOR P)
+	{
+		XMVECTOR AB = B - A;	// A->B 방향과 길이를 가진 벡터
+		XMVECTOR AP = P - A;	// A->P 방향과 길이를 가진 벡터
+
+		float abLenSq = XMVectorGetX(XMVector3Dot(AB, AB));	 // AB를 AB로 내적한 것은 A->B 길이의 제곱과 같은 의미
+		float t = 0.0f;
+
+		if (abLenSq > 0.0f)
+		{
+			t = XMVectorGetX(XMVector3Dot(AP, AB)) / abLenSq;
+			t = std::clamp(t, 0.0f, 1.0f);
+		}
+		XMVECTOR closest = XMVectorAdd(A, XMVectorScale(AB, t));
+		
+		return XMVectorGetX(XMVector3LengthSq(closest - P));
+	}
+
+	inline float distSegmentToSegment(FXMVECTOR A, FXMVECTOR B, FXMVECTOR V0, FXMVECTOR V1)
+	{
+		XMVECTOR AB = B - A;
+		XMVECTOR V0V1 = V1 - V0;
+		XMVECTOR AV0 = V0 - A;
+		XMVECTOR P;
+		XMVECTOR Q;
+
+		float ABLensq = XMVectorGetX(XMVector3Dot(AB, AB)); // |AB|^2 
+		float ABProjV0V1 = XMVectorGetX(XMVector3Dot(V0V1, AB)); //V0V1 . AB = |V0V1||AB|cos(theta)
+		float V0V1Lensq = XMVectorGetX(XMVector3Dot(V0V1, V0V1)); // |V0V1|^2 
+		float ABProjAV0 = XMVectorGetX(XMVector3Dot(AV0, AB)); // AV0 . AB = |AV0||AB|cos(theta)
+		float V0V1ProjAV0 = XMVectorGetX(XMVector3Dot(AV0, V0V1)); // AV0 . V0V1 = |AV0||V0V1|cos(theta)
+
+		float denom = ABLensq * V0V1Lensq - ABProjV0V1 * ABProjV0V1;
+				// |AB|^2 * |V0V1|^2 - |V0V1|^2 * |AB|^2 * cos^2(theta)
+				// |AB|^2 |V0V1|^2 (1 - cos^2(theta))
+				// |AB|^2 |V0V1|^2 sin^2(theta) = (|AB||V0V1|sin(theta))^2
+		float s = 0.0f;
+		float t = 0.0f;
+
+		if (ABLensq <= EPSILON && V0V1Lensq <= EPSILON) // AB = 점, V0V1 = 점
+		{
+			P = A;
+			Q = V0;
+			return XMVectorGetX(XMVector3LengthSq(P - Q));	// 따라서 그 점과 점까지의 거리 반환
+		}
+
+		if (ABLensq <= EPSILON) // AB = 점 V0V1 = 선분
+		{
+			s = 0.0f;
+			t = std::clamp(-V0V1ProjAV0 / V0V1Lensq, 0.0f, 1.0f);
+		}
+		else if (V0V1Lensq <= EPSILON) // V0V1 = 점 AB = 선분
+		{
+			t = 0.0f;
+			s = std::clamp(ABProjAV0 / ABLensq, 0.0f, 1.0f);
+		}
+		else
+		{
+			if (denom > EPSILON)
+				s = std::clamp((ABProjV0V1 * V0V1ProjAV0 - V0V1Lensq * ABProjAV0) / denom, 0.0f, 1.0f);
+				// |V0V1||AB|cos(theta) * |AV0||V0V1|cos(alpha) - |V0V1|^2 * |AV0||AB|cos(beta)
+				// |V0V1|^2 |AB| |AV0| cos(theta) * cos(alpha) - |V0V1|^2 |AB| |AV0| cos(beta)
+				// |V0V1|^2 |AB| |AV0| (cos(theta) * cos(alpha) - cos(beta))
+				// |V0V1|^2 |AB| |AV0|cos(theta) * cos(alpha) - cos(beta) / |V0V1|^2 |AB|^2  (1 - cos^2(theta))
+				// |AV0| cos(theta) * cos(alpha) - cos(beta) / |AB|(1 - cos^2(theta))
+				// cos(beta): AV0 가 AB 방향으로 얼마나 놓여 있나
+				// cos(alpha): AV0 가 V0V1 방향으로 얼마나 놓여 있나
+				// cos(theta): 두 선분 방향 AB, V0V1 가 얼마나 비슷한가(평행한가?)
+				// 1 - cos^2(theta): 두 방향이 얼마나 평행하지 않은가
+				// AB 위 최근접점
+			else
+				s = 0.0f;
+
+			t = (ABProjV0V1 * s + V0V1ProjAV0) / V0V1Lensq;
+				// |AV0| (cos(alpha) - cos(theta)cos(beta))	/ (| V0V1 | (1 - cos ^ 2(theta)))
+				// V0V1 위 최근접점
+			if (t < 0.0f) // V0가 최근접점
+			{
+				t = 0.0f;
+				s = std::clamp(ABProjAV0 / ABLensq, 0.0f, 1.0f);
+			}
+			else if (t > 1.0f)	// V1이 최근접점
+			{
+				t = 1.0f;
+				s = std::clamp((ABProjV0V1 + ABProjAV0) / ABLensq, 0.0f, 1.0f);
+			}
+		}
+
+		P = A + AB * s;
+		Q = V0 + V0V1 * t;
+
+		return XMVectorGetX(XMVector3LengthSq(P - Q));
+	}
+
+	inline bool PointInTriangle(FXMVECTOR P, FXMVECTOR V0, FXMVECTOR V1, FXMVECTOR V2)
+	{
+		XMVECTOR v0 = V2 - V0;
+		XMVECTOR v1 = V1 - V0;
+		XMVECTOR v2 = P - V0;
+
+		float dot00 = XMVectorGetX(XMVector3Dot(v0, v0));
+		float dot01 = XMVectorGetX(XMVector3Dot(v0, v1));
+		float dot02 = XMVectorGetX(XMVector3Dot(v0, v2));
+		float dot11 = XMVectorGetX(XMVector3Dot(v1, v1));
+		float dot12 = XMVectorGetX(XMVector3Dot(v1, v2));
+
+		float denom = dot00 * dot11 - dot01 * dot01;
+		if (fabsf(denom) <= EPSILON)
+			return false;
+
+		float invDenom = 1.0f / denom;
+		float u = (dot11 * dot02 - dot01 * dot12) * invDenom;
+		float v = (dot00 * dot12 - dot01 * dot02) * invDenom;
+
+		return (u >= 0.0f) && (v >= 0.0f) && (u + v <= 1.0f);
+	}
+	
+	inline float distSegmentToFace(FXMVECTOR A, FXMVECTOR B, FXMVECTOR V0, FXMVECTOR V1, FXMVECTOR V2)
+	{
+		XMVECTOR AB = B - A;
+		XMVECTOR E0 = V1 - V0;
+		XMVECTOR E1 = V2 - V0;
+		XMVECTOR N = XMVector3Cross(E0, E1);	// 삼각형 평면 법선 구하기
+												// |E0||E1|sin(theta)
+		float nLenSq = XMVectorGetX(XMVector3Dot(N, N));
+
+		if (nLenSq <= EPSILON)
+			return FLT_MAX; // degenerate triangle
+
+		N = XMVector3Normalize(N);
+		float f0 = XMVectorGetX(XMVector3Dot(A - V0, N));	// A가 평면에서 얼마나 멀어져 있는지 구하기
+															// |A - V0|cos(alpha)
+		float f1 = XMVectorGetX(XMVector3Dot(B - V0, N));	// B가 평면에서 얼마나 멀어져 있는지 구하기
+															// |B - V0|cos(beta)
+
+		float t = 0.0f;
+		float denom = f0 - f1;
+		if (fabsf(denom) > EPSILON)
+			t = std::clamp(f0 / denom, 0.0f, 1.0f);
+		else
+			t = (fabsf(f0) < fabsf(f1)) ? 0.0f : 1.0f;
+
+		XMVECTOR closest = A + AB * t;
+		float signedDist = XMVectorGetX(XMVector3Dot(closest - V0, N));	// 캡슐 선분 위 최근접점이 평면에서 얼마나 멀어져 있는지 구하기
+																		// |closest - V0|cos(gamma)
+		XMVECTOR Q = closest - N * signedDist;	// 캡슐 선분 위 최근접점을 삼각형 평면에 수직으로 내린 점
+												// closest - N * |closest - V0|cos(gamma)
+
+		if (!PointInTriangle(Q, V0, V1, V2))
+			return FLT_MAX; // 투영점이 면 내부가 아님
+
+		return signedDist * signedDist; // 선분-삼각형 면 거리 제곱
+	}
+	inline bool distSegmentToAABB(FXMVECTOR A, FXMVECTOR B, FXMVECTOR Extents)
+	{
+		float ax = XMVectorGetX(A);
+		float ay = XMVectorGetY(A);
+		float az = XMVectorGetZ(A);
+
+		float bx = XMVectorGetX(B);
+		float by = XMVectorGetY(B);
+		float bz = XMVectorGetZ(B);
+
+		float ex = XMVectorGetX(Extents);
+		float ey = XMVectorGetY(Extents);
+		float ez = XMVectorGetZ(Extents);
+
+		float dx = bx - ax;
+		float dy = by - ay;
+		float dz = bz - az;
+
+		float tmin = 0.0f;
+		float tmax = 1.0f;
+
+		auto slab = [&](float a, float d, float e) -> bool
+			{
+				if (fabsf(d) <= EPSILON)
+				{
+					return (a >= -e && a <= e);
+				}
+
+				float invD = 1.0f / d;
+				float t1 = (-e - a) * invD;
+				float t2 = (e - a) * invD;
+
+				if (t1 > t2)
+					std::swap(t1, t2);
+
+				tmin = max(tmin, t1);
+				tmax = min(tmax, t2);
+
+				return tmin <= tmax;
+			};
+
+		return slab(ax, dx, ex) && slab(ay, dy, ey) && slab(az, dz, ez);
+	}
 }
 
 namespace Vector4
@@ -359,5 +572,13 @@ enum class EColliderType : uint8_t
 	None = 0,
 	AABB,
 	OOBB,
-	BSphere
+	BSphere,
+	BCapsule
+};
+
+enum class EDirection : uint8_t
+{
+	X = 0,
+	Y,
+	Z
 };

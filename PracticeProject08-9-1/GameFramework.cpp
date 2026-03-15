@@ -645,13 +645,19 @@ void CGameFramework::ProcessInput()
 #ifdef USING_NETWORK
 		// Pack keyBuffer into int32 (WASD 기준)
 		int keyCodes = 0;
-		if (pKeysBuffer['W'] & 0xF0) keyCodes |= (1 << 0); // Forward
-		if (pKeysBuffer['S'] & 0xF0) keyCodes |= (1 << 1); // Backward
-		if (pKeysBuffer['A'] & 0xF0) keyCodes |= (1 << 2); // Left
-		if (pKeysBuffer['D'] & 0xF0) keyCodes |= (1 << 3); // Right
+		if (pKeysBuffer['W'] & 0xF0)      keyCodes |= (1 << 0); // Forward
+		if (pKeysBuffer[VK_UP] & 0xF0)    keyCodes |= (1 << 0);
+		if (pKeysBuffer['S'] & 0xF0)      keyCodes |= (1 << 1); // Backward
+		if (pKeysBuffer[VK_DOWN] & 0xF0)  keyCodes |= (1 << 1);
+		if (pKeysBuffer['A'] & 0xF0)      keyCodes |= (1 << 2); // Left
+		if (pKeysBuffer[VK_LEFT] & 0xF0)  keyCodes |= (1 << 2);
+		if (pKeysBuffer['D'] & 0xF0)      keyCodes |= (1 << 3); // Right
+		if (pKeysBuffer[VK_RIGHT] & 0xF0) keyCodes |= (1 << 3);
 		if (pKeysBuffer[VK_PRIOR] & 0xF0) keyCodes |= (1 << 4); // Up
 		if (pKeysBuffer[VK_NEXT] & 0xF0)  keyCodes |= (1 << 5); // Down
 
+		if (GetAsyncKeyState(VK_RBUTTON) & 0x8000) keyCodes |= (1 << 6);
+		if (GetAsyncKeyState(VK_LBUTTON) & 0x8000) keyCodes |= (1 << 7);
 		inputPkt.set_playerid(g_myPlayerId);
 		inputPkt.set_keycodes(keyCodes);
 #else
@@ -705,7 +711,7 @@ void CGameFramework::ProcessInput()
 
 	XMFLOAT3 oldPos = playerObj->GetPosition();
 
-	if (cxDelta || cyDelta)
+	/*if (cxDelta || cyDelta)
 	{
 		if (pKeysBuffer[VK_RBUTTON] & 0xF0)
 			pc->Rotate(cyDelta, 0.0f, -cxDelta);
@@ -718,7 +724,7 @@ void CGameFramework::ProcessInput()
 	if (dwDirection)
 		pc->Move(dwDirection, 5.0f * dt, false);
 
-	pc->SetInputDirection(static_cast<uint32_t>(dwDirection));
+	pc->SetInputDirection(static_cast<uint32_t>(dwDirection));*/
 
 	XMFLOAT3 newPos = playerObj->GetPosition();
 
@@ -737,6 +743,12 @@ void CGameFramework::AnimateObjects()
 {
 	CScene* scene = m_SceneManager.GetScene();
 	if (scene) scene->AnimateObjects(m_GameTimer.GetTimeElapsed());
+}
+
+void CGameFramework::CollisionSystem()
+{
+	CScene* scene = m_SceneManager.GetScene();
+	if (scene) scene->CollisionObjects();
 }
 
 void CGameFramework::MoveToNextFrame()
@@ -764,6 +776,8 @@ void CGameFramework::FrameAdvance()
 
 	ProcessInput();
 	AnimateObjects();
+	CollisionSystem();
+	// 충돌체크 함수 필요
 
 	hResult = m_pd3dCommandAllocator->Reset();
 	hResult = m_pd3dCommandList->Reset(m_pd3dCommandAllocator.Get(), nullptr);

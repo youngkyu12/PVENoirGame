@@ -14,6 +14,7 @@ class CFollowTransformComponent;
 class CFollowBoneComponent;
 class CArrowComponent;
 class CGameObject;
+class CCollisionSystem;
 
 struct CB_GAMEOBJECT_INFO;
 struct AttachmentBindSpec
@@ -48,6 +49,8 @@ protected:
 
 private:
     void BuildLightsAndMaterials();
+    void BuildObjectsCollider() override;
+
     void CreateShaderVariables(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
 
     void BuildStaticBatch(
@@ -81,9 +84,11 @@ private:
 public:
     bool ProcessInput(UCHAR* pKeysBuffer) override;
     void AnimateObjects(float dt) override;
+    void CollisionObjects() override;
 
     void OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera) override;
     void Render(ID3D12GraphicsCommandList* cmd, CCamera* camera = nullptr) override;
+
 
     // Input (messages) : 게임에서는 좌클릭 공격
 public:
@@ -177,4 +182,6 @@ private:
 
     ComPtr<ID3D12Resource> m_pd3dcbMaterials;
     MATERIAL* m_pcbMappedMaterials = nullptr;
+
+    unique_ptr<CCollisionSystem> m_Collision;
 };

@@ -4,6 +4,6 @@
 enum class EAnimState : uint8_t
 {
     Idle = 0,
-    Move,
-    Attack,
+    Move = 1,
+    Attack = 2,
 };
