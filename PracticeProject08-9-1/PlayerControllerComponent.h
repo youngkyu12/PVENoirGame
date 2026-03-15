@@ -35,7 +35,7 @@ public:
 
     void Rotate(float pitchDeg, float yawDeg, float rollDeg); // legacy: yaw-only
 
-    void Update(float dt);
+    void Update(float dt) {}
     // ----------------------------
     // Tuning / State accessors
     // ----------------------------
@@ -54,9 +54,13 @@ public:
     // ----------------------------
     void OnUpdate(float dt) override;
 
+public:
+    void SetRunRequested(bool run);
+    bool IsRunRequested() const { return m_isRunRequested; }
 private:
+
     void ApplyYawToOwnerTransform();
-    void SyncAnimatorSpeed();
+    void SyncAnimatorLocomotion();
 
 private:
     XMFLOAT3 m_velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
@@ -68,6 +72,7 @@ private:
     float    m_friction = 0.0f;
 
     DWORD    m_inputDir = 0;
+    bool     m_isRunRequested = false;
 public:
     void SetInputDirection(uint32_t dir) { m_inputDir = dir; }
 

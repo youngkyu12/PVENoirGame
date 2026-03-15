@@ -531,16 +531,7 @@ void CGameFramework::OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPA
 		case VK_F9:
 			ChangeSwapChainState();
 			break;
-		case 'S':
-		case 'T':
-		case 'D':
-		case 'Z':
-		case 'N':
-		case 'L':
-		{
-			m_nDrawOption = (int)wParam;
-			break;
-		}
+
 		default:
 			break;
 		}
@@ -645,31 +636,41 @@ void CGameFramework::ProcessInput()
 
 	DWORD dwDirection = 0;
 	float cxDelta = 0.0f, cyDelta = 0.0f;
+	bool bRunRequested = false;
 
 	if (!bProcessedByScene)
 	{
 		Protocol::C_INPUT inputPkt;
 
 #ifdef USING_NETWORK
-		// Pack keyBuffer into int32
+		// Pack keyBuffer into int32 (WASD 기준)
 		int keyCodes = 0;
+		if (pKeysBuffer['W'] & 0xF0)      keyCodes |= (1 << 0); // Forward
 		if (pKeysBuffer[VK_UP] & 0xF0)    keyCodes |= (1 << 0);
+		if (pKeysBuffer['S'] & 0xF0)      keyCodes |= (1 << 1); // Backward
 		if (pKeysBuffer[VK_DOWN] & 0xF0)  keyCodes |= (1 << 1);
+		if (pKeysBuffer['A'] & 0xF0)      keyCodes |= (1 << 2); // Left
 		if (pKeysBuffer[VK_LEFT] & 0xF0)  keyCodes |= (1 << 2);
+		if (pKeysBuffer['D'] & 0xF0)      keyCodes |= (1 << 3); // Right
 		if (pKeysBuffer[VK_RIGHT] & 0xF0) keyCodes |= (1 << 3);
-		if (pKeysBuffer[VK_PRIOR] & 0xF0) keyCodes |= (1 << 4);
-		if (pKeysBuffer[VK_NEXT] & 0xF0)  keyCodes |= (1 << 5);
+		if (pKeysBuffer[VK_PRIOR] & 0xF0) keyCodes |= (1 << 4); // Up
+		if (pKeysBuffer[VK_NEXT] & 0xF0)  keyCodes |= (1 << 5); // Down
+
 		if (GetAsyncKeyState(VK_RBUTTON) & 0x8000) keyCodes |= (1 << 6);
 		if (GetAsyncKeyState(VK_LBUTTON) & 0x8000) keyCodes |= (1 << 7);
 		inputPkt.set_playerid(g_myPlayerId);
 		inputPkt.set_keycodes(keyCodes);
 #else
-		if (pKeysBuffer[VK_UP] & 0xF0)    dwDirection |= DIR_FORWARD;
-		if (pKeysBuffer[VK_DOWN] & 0xF0)  dwDirection |= DIR_BACKWARD;
-		if (pKeysBuffer[VK_LEFT] & 0xF0)  dwDirection |= DIR_LEFT;
-		if (pKeysBuffer[VK_RIGHT] & 0xF0) dwDirection |= DIR_RIGHT;
+		if (pKeysBuffer['W'] & 0xF0) dwDirection |= DIR_FORWARD;
+		if (pKeysBuffer['S'] & 0xF0) dwDirection |= DIR_BACKWARD;
+		if (pKeysBuffer['A'] & 0xF0) dwDirection |= DIR_LEFT;
+		if (pKeysBuffer['D'] & 0xF0) dwDirection |= DIR_RIGHT;
 		if (pKeysBuffer[VK_PRIOR] & 0xF0) dwDirection |= DIR_UP;
 		if (pKeysBuffer[VK_NEXT] & 0xF0)  dwDirection |= DIR_DOWN;
+
+		bRunRequested =
+			((pKeysBuffer[VK_LSHIFT] & 0xF0) != 0) ||
+			((pKeysBuffer[VK_SHIFT] & 0xF0) != 0);
 #endif
 
 		POINT ptCursorPos;
@@ -682,15 +683,12 @@ void CGameFramework::ProcessInput()
 			SetCursorPos(m_ptOldCursorPos.x, m_ptOldCursorPos.y);
 		}
 
-
-
 		GetCursorPos(&ptCursorPos);
 
 		cxDelta = (float)(ptCursorPos.x - m_ptOldCursorPos.x) / 3.0f;
 		cyDelta = (float)(ptCursorPos.y - m_ptOldCursorPos.y) / 3.0f;
 
 		m_ptOldCursorPos = ptCursorPos;
-
 
 #ifdef USING_NETWORK
 		inputPkt.set_deltax(cxDelta);
@@ -711,8 +709,6 @@ void CGameFramework::ProcessInput()
 
 	const float dt = m_GameTimer.GetTimeElapsed();
 
-	// 만약 서버로부터 좌표를 입력받는 구조라면, 카메라가 서버의 틱에 따라 반응속도가 불규칙적일 것
-
 	XMFLOAT3 oldPos = playerObj->GetPosition();
 
 	/*if (cxDelta || cyDelta)
@@ -722,6 +718,8 @@ void CGameFramework::ProcessInput()
 		else
 			pc->Rotate(cyDelta, cxDelta, 0.0f);
 	}
+
+	pc->SetRunRequested(bRunRequested);
 
 	if (dwDirection)
 		pc->Move(dwDirection, 5.0f * dt, false);

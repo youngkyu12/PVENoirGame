@@ -133,23 +133,41 @@ private:
     UINT m_axeManCount = 2;
     UINT m_bossCount = 1;
 
-    UINT m_fighterCount = 4;
+    UINT m_PlayerCount = 4;
 
     UINT m_helmetCount = 0;
 
-    std::vector<CGameObject*> m_axeManRefs;   // raw ptrs owned by m_skinnedObjects
-    std::vector<CGameObject*> m_helmetRefs;   // raw ptrs owned by m_staticObjects
+	UINT m_PlayerSwordCount = 4;
+	UINT m_PlayerBowCount = 4;
+	UINT m_PlayerAxeCount = 4;
+	UINT m_PlayerGunCount = 4;
 
-    std::vector<AttachmentBindSpec> m_attachmentBinds;
-
-    SCENE_STATIC_BATCH  m_staticBatch;
-    SCENE_SKINNED_BATCH m_skinnedBatch;
 
     std::vector<std::unique_ptr<CGameObject>> m_staticObjects;
     std::vector<std::unique_ptr<CGameObject>> m_skinnedObjects;
 
+    SCENE_STATIC_BATCH  m_staticBatch;
+    SCENE_SKINNED_BATCH m_skinnedBatch;
+
+    std::vector<CGameObject*> m_swordManRefs;
+    std::vector<CGameObject*> m_bowManRefs;
+    std::vector<CGameObject*> m_axeManRefs;
+
+    std::vector<CGameObject*> m_helmetRefs;
+
+    std::vector<CGameObject*> m_PlayerSwordRefs;
+    std::vector<CGameObject*> m_PlayerBowRefs;
+    std::vector<CGameObject*> m_PlayerAxeRefs;
+    std::vector<CGameObject*> m_PlayerGunRefs;
+
+    std::vector<CGameObject*> m_EnemySwordRefs;
+    std::vector<CGameObject*> m_EnemyBowRefs;
+    std::vector<CGameObject*> m_EnemyAxeRefs;
+
+    std::vector<AttachmentBindSpec> m_attachmentBinds;
+
     static constexpr UINT kArrowPoolSize = 32;
-    std::vector<CGameObject*> m_arrowRefs; // raw pointers owned by m_staticObjects
+    std::vector<CGameObject*> m_arrowRefs;
 
     std::array<CGameObject*, 3> m_demoFighters = { nullptr, nullptr, nullptr };
 

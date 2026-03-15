@@ -18,6 +18,7 @@
 #include "ArrowComponent.h"
 #include "Camera.h"
 #include "FollowBoneComponent.h"
+#include "PlayerEquipmentComponent.h"
 #include "CollisionSystem.h"
 #include "ColliderComponent.h"
 
@@ -43,7 +44,7 @@ CGameScene::CGameScene()
     m_axeManCount = 2;
     m_bossCount = 1;
 
-    m_fighterCount = 4;
+    m_PlayerCount = 4;
 
     m_staticBatch.capacity = 0;
     m_staticBatch.count = 0;
@@ -75,9 +76,22 @@ void CGameScene::ReleaseObjects()
     m_staticBatch.objectRefs.clear();
     m_skinnedBatch.objectRefs.clear();
 
+    m_swordManRefs.clear();
+    m_bowManRefs.clear();
     m_axeManRefs.clear();
+
     m_helmetRefs.clear();
+    m_arrowRefs.clear();
     m_attachmentBinds.clear();
+
+    m_PlayerSwordRefs.clear();
+    m_PlayerBowRefs.clear();
+    m_PlayerAxeRefs.clear();
+    m_PlayerGunRefs.clear();
+
+    m_EnemySwordRefs.clear();
+    m_EnemyBowRefs.clear();
+    m_EnemyAxeRefs.clear();
 
     ReleaseShaderVariables();
 
@@ -143,7 +157,7 @@ void CGameScene::ReleaseShaderVariables()
 
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
-    // ∞‘¿” √ ±‚ ¡§∫∏∏¶ ªÃ¿⁄
+    // Í≤åÏûÑ Ï¥àÍ∏∞ Ï†ïÎ≥¥Î•º ÎΩëÏûê
 #ifdef USING_NETWORK
     while (false == g_GameStarted);
     DequeueNetworkMessage(NetworkMessageType::GameStart);
@@ -165,18 +179,29 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     m_axeManCount = 2;
     m_bossCount = 1;
 
-    m_fighterCount = 4;
+    m_PlayerCount = 4;
 
-    // «ˆ¿Á¥¬ AxeMan 1∏Ì¥Á «Ô∏‰ 1∞≥
+    //Player Ïï°ÏÑ∏ÏÑúÎ¶¨
+    m_PlayerSwordCount = m_PlayerCount;
+	m_PlayerBowCount = m_PlayerCount;
+	m_PlayerAxeCount = m_PlayerCount;
+	m_PlayerGunCount = m_PlayerCount;
+
+    //AxeMan Ïï°ÏÑ∏ÏÑúÎ¶¨
     m_helmetCount = m_axeManCount;
+
+    
 
     m_staticBatch.capacity =
         m_planeCount +
         m_houseCount +
         kArrowPoolSize +
-        m_helmetCount;
-
-    m_staticBatch.count = 0;
+        m_helmetCount +
+        m_PlayerSwordCount +
+        m_PlayerAxeCount +
+        m_PlayerGunCount +
+        m_swordManCount +
+        m_axeManCount;
 
     m_skinnedBatch.capacity =
         m_ghoulCount +
@@ -184,7 +209,11 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
         m_bowManCount +
         m_axeManCount +
         m_bossCount +
-        m_fighterCount;
+        m_PlayerCount +
+        m_PlayerBowCount +
+        m_bowManCount;
+
+    m_staticBatch.count = 0;
 
     m_skinnedBatch.count = 0;
 
@@ -246,8 +275,6 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
    
 }
-
-
 
 void CGameScene::BuildLightsAndMaterials()
 {
@@ -487,11 +514,11 @@ void CGameScene::BuildStaticBatch(
     {
         staticDescs.push_back({
             AssetType::Plane,
-            "Assets/GroundPlane/Mesh/Plane.bin",
+            "Assets/GroundPlane/Mesh/Gound.bin",
             "Assets/GroundPlane/Texture"
             });
 
-        // ¡ˆ±›¿∫ ±‚¡∏ ∞™ ¿Ø¡ˆ
+        // ÏßÄÍ∏àÏùÄ Í∏∞Ï°¥ Í∞í Ïú†ÏßÄ
         staticPositions.push_back(XMFLOAT3(0.0f, 0.0f, 0.0f));
     }
 
@@ -572,8 +599,8 @@ void CGameScene::BuildStaticBatch(
         AssetBuildDesc ArrowDesc =
         {
             AssetType::Arrow,
-            "Assets/Arrow/Mesh/Arrow.bin",
-            "Assets/Arrow/Texture"
+            "Assets/Weapon/Arrow/Mesh/Arrow_Mesh.bin",
+            "Assets/Weapon/Arrow/Texture"
         };
 
         BuiltAsset arrowAsset = AssetManager::BuildAsset(
@@ -650,7 +677,7 @@ void CGameScene::BuildStaticBatch(
             obj->SetMesh(0, helmetAsset.mesh);
             obj->AddComponent<CStaticMeshRendererComponent>();
 
-            // ∏µ≈© ¿¸±Ó¡ˆ¥¬ »≠∏È π€ø° µ“
+            // ÎßÅÌÅ¨ Ï†ÑÍπåÏßÄÎäî ÌôîÎ©¥ Î∞ñÏóê Îë†
             obj->SetPosition(0.0f, -10000.0f, 0.0f);
 
             obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
@@ -663,6 +690,247 @@ void CGameScene::BuildStaticBatch(
             b->count = (UINT)b->objectRefs.size();
 
             m_helmetRefs.push_back(raw);
+        }
+    }
+    // ------------------------------------------------------------------------
+    // PlayerSword pool
+    // ------------------------------------------------------------------------
+    {
+        AssetBuildDesc SwordDesc =
+        {
+            AssetType::Sword,
+            "Assets/Weapon/SwordP/Mesh/Sword_Mesh.bin",
+            "Assets/Weapon/SwordP/Texture"
+        };
+
+        BuiltAsset SwordAsset = AssetManager::BuildAsset(
+            dev, cmd,
+            m_pMaterials.get(),
+            SwordDesc
+        );
+
+        m_PlayerSwordRefs.clear();
+        m_PlayerSwordRefs.reserve(m_PlayerSwordCount);
+
+        for (UINT k = 0; k < m_PlayerSwordCount; ++k)
+        {
+            if (b->objectRefs.size() >= b->capacity) break;
+
+            const UINT i = (UINT)b->objectRefs.size();
+
+            auto obj = std::make_unique<CGameObject>(1);
+
+            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+            obj->SetMappedGameObjectCB(cb);
+
+            obj->SetMesh(0, SwordAsset.mesh);
+            obj->AddComponent<CStaticMeshRendererComponent>();
+
+            // ÎßÅÌÅ¨ Ï†ÑÍπåÏßÄÎäî ÌôîÎ©¥ Î∞ñÏóê Îë†
+            obj->SetPosition(0.0f, -10000.0f, 0.0f);
+
+            obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+            obj->CreateComponents(dev, cmd);
+
+            CGameObject* raw = obj.get();
+            m_staticObjects.push_back(std::move(obj));
+            b->objectRefs.push_back(raw);
+            b->count = (UINT)b->objectRefs.size();
+
+            m_PlayerSwordRefs.push_back(raw);
+        }
+    }
+    // ------------------------------------------------------------------------
+    // PlayerAxe pool
+    // ------------------------------------------------------------------------
+    {
+        AssetBuildDesc AxeDesc =
+        {
+            AssetType::Axe,
+            "Assets/Weapon/Axe/Mesh/Axe_Mesh.bin",
+            "Assets/Weapon/Axe/Texture"
+        };
+
+        BuiltAsset AxeAsset = AssetManager::BuildAsset(
+            dev, cmd,
+            m_pMaterials.get(),
+            AxeDesc
+        );
+
+        m_PlayerAxeRefs.clear();
+        m_PlayerAxeRefs.reserve(m_PlayerAxeCount);
+
+        for (UINT k = 0; k < m_PlayerAxeCount; ++k)
+        {
+            if (b->objectRefs.size() >= b->capacity) break;
+
+            const UINT i = (UINT)b->objectRefs.size();
+
+            auto obj = std::make_unique<CGameObject>(1);
+
+            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+            obj->SetMappedGameObjectCB(cb);
+
+            obj->SetMesh(0, AxeAsset.mesh);
+            obj->AddComponent<CStaticMeshRendererComponent>();
+
+            // ÎßÅÌÅ¨ Ï†ÑÍπåÏßÄÎäî ÌôîÎ©¥ Î∞ñÏóê Îë†
+            obj->SetPosition(0.0f, -10000.0f, 0.0f);
+
+            obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+            obj->CreateComponents(dev, cmd);
+
+            CGameObject* raw = obj.get();
+            m_staticObjects.push_back(std::move(obj));
+            b->objectRefs.push_back(raw);
+            b->count = (UINT)b->objectRefs.size();
+
+            m_PlayerAxeRefs.push_back(raw);
+        }
+    }
+    // ------------------------------------------------------------------------
+    // PlayerGun pool
+    // ------------------------------------------------------------------------
+    {
+        AssetBuildDesc GunDesc =
+        {
+            AssetType::Gun,
+            "Assets/Weapon/Gun/Mesh/Gun_Mesh.bin",
+            "Assets/Weapon/Gun/Texture"
+        };
+
+        BuiltAsset GunAsset = AssetManager::BuildAsset(
+            dev, cmd,
+            m_pMaterials.get(),
+            GunDesc
+        );
+
+        m_PlayerGunRefs.clear();
+        m_PlayerGunRefs.reserve(m_PlayerGunCount);
+
+        for (UINT k = 0; k < m_PlayerGunCount; ++k)
+        {
+            if (b->objectRefs.size() >= b->capacity) break;
+
+            const UINT i = (UINT)b->objectRefs.size();
+
+            auto obj = std::make_unique<CGameObject>(1);
+
+            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+            obj->SetMappedGameObjectCB(cb);
+
+            obj->SetMesh(0, GunAsset.mesh);
+            obj->AddComponent<CStaticMeshRendererComponent>();
+
+            // ÎßÅÌÅ¨ Ï†ÑÍπåÏßÄÎäî ÌôîÎ©¥ Î∞ñÏóê Îë†
+            obj->SetPosition(0.0f, -10000.0f, 0.0f);
+
+            obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+            obj->CreateComponents(dev, cmd);
+
+            CGameObject* raw = obj.get();
+            m_staticObjects.push_back(std::move(obj));
+            b->objectRefs.push_back(raw);
+            b->count = (UINT)b->objectRefs.size();
+
+            m_PlayerGunRefs.push_back(raw);
+        }
+    }
+    // ------------------------------------------------------------------------
+    // EnemySword pool
+    // ------------------------------------------------------------------------
+    {
+        AssetBuildDesc SwordDesc =
+        {
+            AssetType::Sword,
+            "Assets/Weapon/SwordE/Mesh/Sword_Mesh.bin",
+            "Assets/Weapon/SwordE/Texture"
+        };
+
+        BuiltAsset swordAsset = AssetManager::BuildAsset(
+            dev, cmd,
+            m_pMaterials.get(),
+            SwordDesc
+        );
+
+        m_EnemySwordRefs.clear();
+        m_EnemySwordRefs.reserve(m_swordManCount);
+
+        for (UINT k = 0; k < m_swordManCount; ++k)
+        {
+            if (b->objectRefs.size() >= b->capacity) break;
+
+            const UINT i = (UINT)b->objectRefs.size();
+
+            auto obj = std::make_unique<CGameObject>(1);
+
+            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+            obj->SetMappedGameObjectCB(cb);
+
+            obj->SetMesh(0, swordAsset.mesh);
+            obj->AddComponent<CStaticMeshRendererComponent>();
+
+            obj->SetPosition(0.0f, -10000.0f, 0.0f);
+            obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+            obj->CreateComponents(dev, cmd);
+
+            CGameObject* raw = obj.get();
+            m_staticObjects.push_back(std::move(obj));
+            b->objectRefs.push_back(raw);
+            b->count = (UINT)b->objectRefs.size();
+
+            m_EnemySwordRefs.push_back(raw);
+        }
+    }
+    // ------------------------------------------------------------------------
+    // EnemyAxe pool
+    // ------------------------------------------------------------------------
+    {
+        AssetBuildDesc AxeDesc =
+        {
+            AssetType::Axe,
+            "Assets/Weapon/Axe/Mesh/Axe_Mesh.bin",
+            "Assets/Weapon/Axe/Texture"
+        };
+
+        BuiltAsset axeAsset = AssetManager::BuildAsset(
+            dev, cmd,
+            m_pMaterials.get(),
+            AxeDesc
+        );
+
+        m_EnemyAxeRefs.clear();
+        m_EnemyAxeRefs.reserve(m_axeManCount);
+
+        for (UINT k = 0; k < m_axeManCount; ++k)
+        {
+            if (b->objectRefs.size() >= b->capacity) break;
+
+            const UINT i = (UINT)b->objectRefs.size();
+
+            auto obj = std::make_unique<CGameObject>(1);
+
+            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+            obj->SetMappedGameObjectCB(cb);
+
+            obj->SetMesh(0, axeAsset.mesh);
+            obj->AddComponent<CStaticMeshRendererComponent>();
+
+            obj->SetPosition(0.0f, -10000.0f, 0.0f);
+            obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+            obj->CreateComponents(dev, cmd);
+
+            CGameObject* raw = obj.get();
+            m_staticObjects.push_back(std::move(obj));
+            b->objectRefs.push_back(raw);
+            b->count = (UINT)b->objectRefs.size();
+
+            m_EnemyAxeRefs.push_back(raw);
         }
     }
 }
@@ -722,15 +990,21 @@ void CGameScene::BuildSkinnedBatch(
 
     m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
 
-    const UINT fighterCount = m_fighterCount;
+    const UINT fighterCount = m_PlayerCount;
 
     const XMFLOAT3 playerBase(0.0f, 0.0f, 0.0f);
+
+    m_swordManRefs.clear();
+    m_swordManRefs.reserve(m_swordManCount);
+
+    m_bowManRefs.clear();
+    m_bowManRefs.reserve(m_bowManCount);
 
     m_axeManRefs.clear();
     m_axeManRefs.reserve(m_axeManCount);
 
     // ------------------------------------------------------------------------
-    // GameStartDataø°º≠ √ ±‚ ¡¬«• √ﬂ√‚
+    // GameStartDataÏóêÏÑú Ï¥àÍ∏∞ Ï¢åÌëú Ï∂îÏ∂ú
     // ------------------------------------------------------------------------
     GameStartData gameStartData{};
     if (std::holds_alternative<GameStartData>(m_pendingNetworkMessage.data))
@@ -738,7 +1012,7 @@ void CGameScene::BuildSkinnedBatch(
         gameStartData = std::get<GameStartData>(m_pendingNetworkMessage.data);
     }
 
-    // enemy ¿Œµ¶Ω∫ ƒ´øÓ≈Õ (∏µÁ ¿˚ ≈∏¿‘ø° ∞…√ƒ º¯¬˜ ¡ı∞°)
+    // enemy Ïù∏Îç±Ïä§ Ïπ¥Ïö¥ÌÑ∞ (Î™®Îì† Ï†Å ÌÉÄÏûÖÏóê Í±∏Ï≥ê ÏàúÏ∞® Ï¶ùÍ∞Ä)
     UINT enemyIndex = 0;
 
     // ------------------------------------------------------------------------
@@ -756,7 +1030,7 @@ void CGameScene::BuildSkinnedBatch(
             AssetBuildDesc EnemyWDesc =
             {
                 AssetType::Ghoul,
-                "Assets/Ghoul/Mesh/Ghoul_Mesh2.bin",
+                "Assets/Ghoul/Mesh/Ghoul_Mesh.bin",
                 "Assets/Ghoul/Texture"
             };
 
@@ -784,7 +1058,7 @@ void CGameScene::BuildSkinnedBatch(
                     tag->playerSlot = -1;
                 }
 
-                // GameStartDataø°º≠ ¡¬«• ∞°¡Æø¿±‚
+                // GameStartDataÏóêÏÑú Ï¢åÌëú Í∞ÄÏ†∏Ïò§Í∏∞
                 XMFLOAT3 pos;
                 float yaw = 180.0f;
                 if (enemyIndex < (UINT)gameStartData.enemies.size())
@@ -795,13 +1069,13 @@ void CGameScene::BuildSkinnedBatch(
                 }
                 else
                 {
-                    // fallback: ±‚¡∏ «œµÂƒ⁄µ˘ ¡¬«•
+                    // fallback: Í∏∞Ï°¥ ÌïòÎìúÏΩîÎî© Ï¢åÌëú
                     pos.x = enemyBase.x + 2.0f * (float)k;
                     pos.y = enemyBase.y;
                     pos.z = enemyBase.z + 0.0f;
                 }
                 obj->SetPosition(pos.x, pos.y, pos.z);
-                obj->Rotate(-90.0f, yaw, 0.0f); // Ghoul¿∫ -90µµ ∫∏¡§ « ø‰
+                //obj->Rotate(-90.0f, yaw, 0.0f); // GhoulÏùÄ -90ÎèÑ Î≥¥Ï†ï ÌïÑÏöî
 
                 ++enemyIndex;
 
@@ -817,7 +1091,7 @@ void CGameScene::BuildSkinnedBatch(
                 if (mesh0)
                 {
                     idleLoaded = mesh0->LoadAnimationFromBIN(
-                        "Assets/Ghoul/Animation/Ghoul_Anim_Idle1.bin",
+                        "Assets/Ghoul/Animation/Ghoul_Anim_Idle.bin",
                         "Idle", idleClip, 1.0f
                     );
                 }
@@ -855,9 +1129,9 @@ void CGameScene::BuildSkinnedBatch(
 
             AssetBuildDesc EnemyXDesc =
             {
-                AssetType::Zombie,
-                "Assets/Zombie/Mesh/Zombie.bin",
-                "Assets/Zombie/Texture"
+                AssetType::SwordMan,
+                "Assets/Enemy/Mesh/Enemy_Mesh1.bin",
+                "Assets/Enemy/Texture"
             };
 
             BuiltAsset assetX = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyXDesc);
@@ -884,7 +1158,7 @@ void CGameScene::BuildSkinnedBatch(
                     tag->playerSlot = -1;
                 }
 
-                // GameStartDataø°º≠ ¡¬«• ∞°¡Æø¿±‚
+                // GameStartDataÏóêÏÑú Ï¢åÌëú Í∞ÄÏ†∏Ïò§Í∏∞
                 XMFLOAT3 pos;
                 float yaw = 180.0f;
                 if (enemyIndex < (UINT)gameStartData.enemies.size())
@@ -916,7 +1190,7 @@ void CGameScene::BuildSkinnedBatch(
                 if (mesh0)
                 {
                     idleLoaded = mesh0->LoadAnimationFromBIN(
-                        "Assets/Zombie/Animation/ZombieIdle.bin",
+                        "Assets/Enemy/Animation/Enemy_Sword_Idle.bin",
                         "Idle", idleClip, 1.0f
                     );
                 }
@@ -943,6 +1217,8 @@ void CGameScene::BuildSkinnedBatch(
                 m_skinnedObjects.push_back(std::move(obj));
                 b->objectRefs.push_back(raw);
                 b->count = (UINT)b->objectRefs.size();
+
+                m_swordManRefs.push_back(raw);
             }
         }
 
@@ -954,9 +1230,9 @@ void CGameScene::BuildSkinnedBatch(
 
             AssetBuildDesc EnemyYDesc =
             {
-                AssetType::Zombie,
-                "Assets/Zombie/Mesh/Zombie.bin",
-                "Assets/Zombie/Texture"
+                AssetType::BowMan,
+                "Assets/Enemy/Mesh/Enemy_Mesh2.bin",
+                "Assets/Enemy/Texture"
             };
 
             BuiltAsset assetY = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyYDesc);
@@ -983,7 +1259,7 @@ void CGameScene::BuildSkinnedBatch(
                     tag->playerSlot = -1;
                 }
 
-                // GameStartDataø°º≠ ¡¬«• ∞°¡Æø¿±‚
+                // GameStartDataÏóêÏÑú Ï¢åÌëú Í∞ÄÏ†∏Ïò§Í∏∞
                 XMFLOAT3 pos;
                 float yaw = 180.0f;
                 if (enemyIndex < (UINT)gameStartData.enemies.size())
@@ -1015,7 +1291,7 @@ void CGameScene::BuildSkinnedBatch(
                 if (mesh0)
                 {
                     idleLoaded = mesh0->LoadAnimationFromBIN(
-                        "Assets/Zombie/Animation/ZombieIdle.bin",
+                        "Assets/Enemy/Animation/Enemy_Bow_Idle.bin",
                         "Idle", idleClip, 1.0f
                     );
                 }
@@ -1042,6 +1318,8 @@ void CGameScene::BuildSkinnedBatch(
                 m_skinnedObjects.push_back(std::move(obj));
                 b->objectRefs.push_back(raw);
                 b->count = (UINT)b->objectRefs.size();
+
+                m_bowManRefs.push_back(raw);
             }
         }
 
@@ -1082,7 +1360,7 @@ void CGameScene::BuildSkinnedBatch(
                     tag->playerSlot = -1;
                 }
 
-                // GameStartDataø°º≠ ¡¬«• ∞°¡Æø¿±‚
+                // GameStartDataÏóêÏÑú Ï¢åÌëú Í∞ÄÏ†∏Ïò§Í∏∞
                 XMFLOAT3 pos;
                 float yaw = 180.0f;
                 if (enemyIndex < (UINT)gameStartData.enemies.size())
@@ -1183,7 +1461,7 @@ void CGameScene::BuildSkinnedBatch(
                     tag->playerSlot = -1;
                 }
 
-                // GameStartDataø°º≠ ¡¬«• ∞°¡Æø¿±‚
+                // GameStartDataÏóêÏÑú Ï¢åÌëú Í∞ÄÏ†∏Ïò§Í∏∞
                 XMFLOAT3 pos;
                 float yaw = 180.0f;
                 if (enemyIndex < (UINT)gameStartData.enemies.size())
@@ -1247,32 +1525,32 @@ void CGameScene::BuildSkinnedBatch(
     }
 
     // ------------------------------------------------------------------------
-    // Fighter (Players slot 0..3)
+    // Player (Players slot 0..3)
     // ------------------------------------------------------------------------
     {
         AssetBuildDesc FighterDesc0 =
         {
-            AssetType::Fighter,
-            "Assets/Fighter/Mesh/Fighter.bin",
-            "Assets/Fighter/Texture"
+            AssetType::Player,
+            "Assets/Player/Mesh/Player_Mesh1.bin",
+            "Assets/Player/Texture"
         };
         AssetBuildDesc FighterDesc1 =
         {
-            AssetType::Fighter,
-            "Assets/Fighter/Mesh/Fighter.bin",
-            "Assets/Fighter/Texture"
+            AssetType::Player,
+            "Assets/Player/Mesh/Player_Mesh2.bin",
+            "Assets/Player/Texture"
         };
         AssetBuildDesc FighterDesc2 =
         {
-            AssetType::Fighter,
-            "Assets/Fighter/Mesh/Fighter.bin",
-            "Assets/Fighter/Texture"
+            AssetType::Player,
+            "Assets/Player/Mesh/Player_Mesh3.bin",
+            "Assets/Player/Texture"
         };
         AssetBuildDesc FighterDesc3 =
         {
-            AssetType::Fighter,
-            "Assets/Fighter/Mesh/Fighter.bin",
-            "Assets/Fighter/Texture"
+            AssetType::Player,
+            "Assets/Player/Mesh/Player_Mesh4.bin",
+            "Assets/Player/Texture"
         };
 
         for (UINT k = 0; k < fighterCount; ++k)
@@ -1300,6 +1578,7 @@ void CGameScene::BuildSkinnedBatch(
             obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
 
             auto* animComp = obj->AddComponent<CAnimatorComponent>();
+            auto* equipComp = obj->AddComponent<CPlayerEquipmentComponent>();
 
             {
                 auto* tag = obj->AddComponent<CActorTagComponent>();
@@ -1327,7 +1606,7 @@ void CGameScene::BuildSkinnedBatch(
             auto mat = std::make_shared<CMaterial>();
             mat->m_nReflection = matId;
 
-            // GameStartDataø°º≠ «√∑π¿ÃæÓ ¡¬«• ∞°¡Æø¿±‚
+            // GameStartDataÏóêÏÑú ÌîåÎ†àÏù¥Ïñ¥ Ï¢åÌëú Í∞ÄÏ†∏Ïò§Í∏∞
             XMFLOAT3 pos;
             float yaw = 0.0f;
             if (k < (UINT)gameStartData.players.size())
@@ -1338,7 +1617,7 @@ void CGameScene::BuildSkinnedBatch(
             }
             else
             {
-                // fallback: ±‚¡∏ «œµÂƒ⁄µ˘ ¡¬«•
+                // fallback: Í∏∞Ï°¥ ÌïòÎìúÏΩîÎî© Ï¢åÌëú
                 pos.x = playerBase.x + 2.0f * (float)slot;
                 pos.y = playerBase.y;
                 pos.z = playerBase.z;
@@ -1355,45 +1634,98 @@ void CGameScene::BuildSkinnedBatch(
 
             auto mesh0 = obj->GetMeshShared(0);
 
-            AnimationClip idleClip{};
-            AnimationClip runClip{};
-            AnimationClip atkClip{};
-            bool idleLoaded = false;
-            bool runLoaded = false;
-            bool atkLoaded = false;
+            bool hasIdleNormal = false;
+            bool hasRunF = false;
+            bool hasAttackSword = false;
 
-            if (mesh0)
+            if (mesh0 && animComp)
             {
-                idleLoaded = mesh0->LoadAnimationFromBIN(
-                    "Assets/Fighter/Animation/FighterIdle.bin",
-                    "Idle", idleClip, 1.0f
-                );
+                auto LoadAndAddClip =
+                    [&](const char* filePath, const char* clipName, bool* loadedFlag = nullptr)
+                    {
+                        AnimationClip clip{};
+                        bool loaded = mesh0->LoadAnimationFromBIN(
+                            filePath,
+                            clipName,
+                            clip,
+                            1.0f
+                        );
 
-                runLoaded = mesh0->LoadAnimationFromBIN(
-                    "Assets/Fighter/Animation/FighterRun.bin",
-                    "Run", runClip, 1.0f
-                );
+                        if (loaded)
+                        {
+                            clip.name = clipName;
+                            animComp->AddClip(clip);
+                        }
 
-                atkLoaded = mesh0->LoadAnimationFromBIN(
-                    "Assets/Fighter/Animation/FighterAttack.bin",
-                    "Attack", atkClip, 1.0f
-                );
+                        if (loadedFlag) *loadedFlag = loaded;
+                        return loaded;
+                    };
+
+                // --------------------------------------------------------------------
+                // Idle / Hit / Death
+                // --------------------------------------------------------------------
+                LoadAndAddClip("Assets/Player/Animation/Player_Normal_Idle.bin", "Idle_Normal", &hasIdleNormal);
+                LoadAndAddClip("Assets/Player/Animation/Player_Sword_Idle.bin", "Idle_Sword");
+                LoadAndAddClip("Assets/Player/Animation/Player_Axe_Idle.bin", "Idle_Axe");
+                LoadAndAddClip("Assets/Player/Animation/Player_Bow_Idle.bin", "Idle_Bow");
+                LoadAndAddClip("Assets/Player/Animation/Player_Bow_Hold.bin", "Hold_Bow");
+                LoadAndAddClip("Assets/Player/Animation/Player_Gun_Idle.bin", "Idle_Gun");
+
+                LoadAndAddClip("Assets/Player/Animation/Player_Normal_Hit.bin", "Hit_Normal");
+                LoadAndAddClip("Assets/Player/Animation/Player_Sword_Hit.bin", "Hit_Sword");
+                LoadAndAddClip("Assets/Player/Animation/Player_Death.bin", "Death");
+
+                // --------------------------------------------------------------------
+                // Attack / Action
+                // --------------------------------------------------------------------
+                LoadAndAddClip("Assets/Player/Animation/Player_Sword_Attack.bin", "Attack_Sword", &hasAttackSword);
+                LoadAndAddClip("Assets/Player/Animation/Player_Axe_Attack.bin", "Attack_Axe");
+                LoadAndAddClip("Assets/Player/Animation/Player_Bow_Load.bin", "Bow_Load");
+                LoadAndAddClip("Assets/Player/Animation/Player_Bow_Release.bin", "Bow_Release");
+                LoadAndAddClip("Assets/Player/Animation/Player_Gun_Shoot.bin", "Gun_Shoot");
+                LoadAndAddClip("Assets/Player/Animation/Player_Gun_Reload.bin", "Gun_Reload");
+
+                // --------------------------------------------------------------------
+                // Walk
+                // --------------------------------------------------------------------
+                LoadAndAddClip("Assets/Player/Animation/Player_Walk_F.bin", "Walk_F");
+                LoadAndAddClip("Assets/Player/Animation/Player_Walk_B.bin", "Walk_B");
+                LoadAndAddClip("Assets/Player/Animation/Player_Walk_L.bin", "Walk_L");
+                LoadAndAddClip("Assets/Player/Animation/Player_Walk_R.bin", "Walk_R");
+                LoadAndAddClip("Assets/Player/Animation/Player_Walk_FL.bin", "Walk_FL");
+                LoadAndAddClip("Assets/Player/Animation/Player_Walk_FR.bin", "Walk_FR");
+                LoadAndAddClip("Assets/Player/Animation/Player_Walk_BL.bin", "Walk_BL");
+                LoadAndAddClip("Assets/Player/Animation/Player_Walk_BR.bin", "Walk_BR");
+
+                // --------------------------------------------------------------------
+                // Run
+                // --------------------------------------------------------------------
+                LoadAndAddClip("Assets/Player/Animation/Player_Run_F.bin", "Run_F", &hasRunF);
+                LoadAndAddClip("Assets/Player/Animation/Player_Run_B.bin", "Run_B");
+                LoadAndAddClip("Assets/Player/Animation/Player_Run_L.bin", "Run_L");
+                LoadAndAddClip("Assets/Player/Animation/Player_Run_R.bin", "Run_R");
+                LoadAndAddClip("Assets/Player/Animation/Player_Run_FL.bin", "Run_FL");
+                LoadAndAddClip("Assets/Player/Animation/Player_Run_FR.bin", "Run_FR");
+                LoadAndAddClip("Assets/Player/Animation/Player_Run_BL.bin", "Run_BL");
+                LoadAndAddClip("Assets/Player/Animation/Player_Run_BR.bin", "Run_BR");
             }
 
             if (animComp)
             {
-                if (idleLoaded) { idleClip.name = "Idle";   animComp->AddClip(idleClip); }
-                if (runLoaded) { runClip.name = "Run";    animComp->AddClip(runClip); }
-                if (atkLoaded) { atkClip.name = "Attack"; animComp->AddClip(atkClip); }
-
-                animComp->SetIdleClip("Idle");
-                animComp->SetMoveClip(runLoaded ? "Run" : "Idle");
-
                 auto* ctrl = animComp->EnsureController();
                 if (ctrl)
                 {
-                    ctrl->SetAttackClip("Attack");
+                    ctrl->EnablePlayerClipSet(true);
+
+                    // fallback Í∞í
+                    ctrl->SetIdleClip("Idle_Normal");
+                    ctrl->SetMoveClip("Walk_F");
+                    ctrl->SetHitClip("Hit_Normal");
+                    ctrl->SetAttackClip("Attack_Sword");
+
                     ctrl->SetSpeed(0.0f);
+                    ctrl->SetMoveDirection(0);
+                    ctrl->SetRunRequested(false);
                     ctrl->Update(0.0f);
                 }
             }
@@ -1409,6 +1741,156 @@ void CGameScene::BuildSkinnedBatch(
             m_skinnedObjects.push_back(std::move(obj));
             b->objectRefs.push_back(raw);
             b->count = (UINT)b->objectRefs.size();
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // PlayerBow pool (Skinned attachment)
+    // ------------------------------------------------------------------------
+    {
+        AssetBuildDesc BowDesc =
+        {
+            AssetType::Bow,
+            "Assets/Weapon/BowP/Mesh/Bow_Mesh.bin",
+            "Assets/Weapon/BowP/Texture"
+        };
+
+        BuiltAsset bowAsset = AssetManager::BuildAsset(
+            dev, cmd,
+            m_pMaterials.get(),
+            BowDesc
+        );
+
+        m_PlayerBowRefs.clear();
+        m_PlayerBowRefs.reserve(m_PlayerBowCount);
+
+        for (UINT k = 0; k < m_PlayerBowCount; ++k)
+        {
+            if (b->objectRefs.size() >= b->capacity) break;
+
+            const UINT i = (UINT)b->objectRefs.size();
+
+            auto obj = std::make_unique<CGameObject>(1);
+
+            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+            obj->SetMappedGameObjectCB(cb);
+
+            obj->SetMesh(0, bowAsset.mesh);
+            obj->AddComponent<CSkinnedMeshRendererComponent>();
+
+            auto* animComp = obj->AddComponent<CAnimatorComponent>();
+
+            obj->SetPosition(0.0f, -10000.0f, 0.0f);
+            obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+            if (bowAsset.mesh && bowAsset.mesh->IsSkinnedMesh())
+            {
+                obj->EnableSkinning(dev, bowAsset.mesh->GetBoneCount());
+            }
+
+            if (animComp)
+            {
+                auto mesh0 = obj->GetMeshShared(0);
+                if (mesh0)
+                {
+                    AnimationClip bowClip{};
+                    bool bowLoaded = mesh0->LoadAnimationFromBIN(
+                        "Assets/Weapon/BowP/Animation/Bow_Anim.bin",
+                        "Fire", bowClip, 1.0f
+                    );
+
+                    if (bowLoaded)
+                    {
+                        bowClip.name = "Fire";
+                        animComp->AddClip(bowClip);
+                    }
+                }
+            }
+
+            obj->CreateComponents(dev, cmd);
+            if (animComp) animComp->EvaluatePose(0.0f);
+
+            CGameObject* raw = obj.get();
+            m_skinnedObjects.push_back(std::move(obj));
+            b->objectRefs.push_back(raw);
+            b->count = (UINT)b->objectRefs.size();
+
+            m_PlayerBowRefs.push_back(raw);
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // EnemyBow pool (Skinned attachment)
+    // ------------------------------------------------------------------------
+    {
+        AssetBuildDesc BowDesc =
+        {
+            AssetType::Bow,
+            "Assets/Weapon/BowE/Mesh/Bow_Mesh.bin",
+            "Assets/Weapon/BowE/Texture"
+        };
+
+        BuiltAsset bowAsset = AssetManager::BuildAsset(
+            dev, cmd,
+            m_pMaterials.get(),
+            BowDesc
+        );
+
+        m_EnemyBowRefs.clear();
+        m_EnemyBowRefs.reserve(m_bowManCount);
+
+        for (UINT k = 0; k < m_bowManCount; ++k)
+        {
+            if (b->objectRefs.size() >= b->capacity) break;
+
+            const UINT i = (UINT)b->objectRefs.size();
+
+            auto obj = std::make_unique<CGameObject>(1);
+
+            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+            obj->SetMappedGameObjectCB(cb);
+
+            obj->SetMesh(0, bowAsset.mesh);
+            obj->AddComponent<CSkinnedMeshRendererComponent>();
+
+            auto* animComp = obj->AddComponent<CAnimatorComponent>();
+
+            obj->SetPosition(0.0f, -10000.0f, 0.0f);
+            obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+            if (bowAsset.mesh && bowAsset.mesh->IsSkinnedMesh())
+            {
+                obj->EnableSkinning(dev, bowAsset.mesh->GetBoneCount());
+            }
+
+            if (animComp)
+            {
+                auto mesh0 = obj->GetMeshShared(0);
+                if (mesh0)
+                {
+                    AnimationClip bowClip{};
+                    bool bowLoaded = mesh0->LoadAnimationFromBIN(
+                        "Assets/Weapon/BowE/Animation/Bow_Anim.bin",
+                        "Fire", bowClip, 1.0f
+                    );
+
+                    if (bowLoaded)
+                    {
+                        bowClip.name = "Fire";
+                        animComp->AddClip(bowClip);
+                    }
+                }
+            }
+
+            obj->CreateComponents(dev, cmd);
+            if (animComp) animComp->EvaluatePose(0.0f);
+
+            CGameObject* raw = obj.get();
+            m_skinnedObjects.push_back(std::move(obj));
+            b->objectRefs.push_back(raw);
+            b->count = (UINT)b->objectRefs.size();
+
+            m_EnemyBowRefs.push_back(raw);
         }
     }
 }
@@ -1444,42 +1926,208 @@ void CGameScene::LinkSceneObjects()
     }
 
     // ------------------------------------------------------------------------
-    // AxeMan Helmet Attachment
-    //  - 1:1 ∏≈ƒ™: helmet[i] -> axeMan[i]
-    //  - bone: CATRigHub002
-    //  - authored local offset (Unity values given by user)
+    // Player weapon offsets (authoring LOCAL transform)
     // ------------------------------------------------------------------------
-    m_attachmentBinds.clear();
-
-    size_t helmetCount = m_helmetRefs.size();
-    size_t axeCount = m_axeManRefs.size();
-
-    size_t pairCount = helmetCount;
-    if (axeCount < pairCount)
-    {
-        pairCount = axeCount;
-    }
-
-    m_attachmentBinds.reserve(pairCount);
-
-    const XMFLOAT4X4 helmetOffset = BuildAttachmentOffsetMatrix(
-        //XMFLOAT3(61.0f, 6.0f, 0.0f),
-        XMFLOAT3(3.8f, 0.35f, 0.0f),
-        XMFLOAT3(-90.0f, 0.0f, 90.0f),
+    const XMFLOAT4X4 swordOffset = BuildAttachmentOffsetMatrix(
+        XMFLOAT3(0.09635256f, -0.02604572f, -0.008439302f),
+        XMFLOAT3(-15.925f, 0.919f, -7.3f),
         XMFLOAT3(1.0f, 1.0f, 1.0f)
     );
 
-    for (size_t i = 0; i < pairCount; ++i)
-    {
-        AttachmentBindSpec spec{};
-        spec.follower = m_helmetRefs[i];
-        spec.target = m_axeManRefs[i];
-        spec.boneName = "CATRigHub002";
-        spec.localOffset = helmetOffset;
+    const XMFLOAT4X4 axeOffset = BuildAttachmentOffsetMatrix(
+        XMFLOAT3(0.099f, 0.025f, 0.166f),
+        XMFLOAT3(-15.925f, 0.919f, 172.7f),
+        XMFLOAT3(1.0f, 1.0f, 1.0f)
+    );
 
-        m_attachmentBinds.push_back(spec);
+    const XMFLOAT4X4 bowOffset = BuildAttachmentOffsetMatrix(
+        XMFLOAT3(-0.1f, 0.0f, 0.0f),
+        XMFLOAT3(0.0f, 180.0f, 0.0f),
+        XMFLOAT3(2.0f, 1.0f, 1.0f)
+    );
+
+    const XMFLOAT4X4 gunOffset = BuildAttachmentOffsetMatrix(
+        XMFLOAT3(-0.00403512f, 0.00763781f, 0.04897089f),
+        XMFLOAT3(-2.441f, 75.104f, 80.119f),
+        XMFLOAT3(1.0f, 1.0f, 1.0f)
+    );
+
+    // ------------------------------------------------------------------------
+    // Enemy weapon offsets
+    // ------------------------------------------------------------------------
+    const XMFLOAT4X4 enemySwordOffset = BuildAttachmentOffsetMatrix(
+        XMFLOAT3(
+            0.09635256f * 1.5f,
+            -0.02604572f * 1.5f,
+            -0.008439302f * 1.5f
+        ),
+        XMFLOAT3(-15.925f, 0.919f, -7.3f),
+        XMFLOAT3(1.0f, 1.0f, 1.0f)
+    );
+
+    const XMFLOAT4X4 enemyBowOffset = BuildAttachmentOffsetMatrix(
+        XMFLOAT3(
+            -0.1f * 1.5f,
+            0.0f * 1.5f,
+            0.0f * 1.5f
+        ),
+        XMFLOAT3(0.0f, 180.0f, 0.0f),
+        XMFLOAT3(2.0f, 1.0f, 1.0f)
+    );
+
+    const XMFLOAT4X4 enemyAxeOffset = BuildAttachmentOffsetMatrix(
+        XMFLOAT3(-0.291642f, 0.05957366f, -0.7133077f),
+        XMFLOAT3(-6.057f, -159.16f, 55.789f),
+        XMFLOAT3(1.0f, 1.0f, 1.0f)
+    );
+
+    // ------------------------------------------------------------------------
+    // Generic attachment list reset
+    // ------------------------------------------------------------------------
+    m_attachmentBinds.clear();
+
+    {
+        const size_t helmetPairCount =
+            (m_helmetRefs.size() < m_axeManRefs.size()) ? m_helmetRefs.size() : m_axeManRefs.size();
+
+        const size_t playerWeaponBindCount = static_cast<size_t>(m_PlayerCount) * 4;
+
+        const size_t enemyWeaponBindCount =
+            m_EnemySwordRefs.size() +
+            m_EnemyBowRefs.size() +
+            m_EnemyAxeRefs.size();
+
+        m_attachmentBinds.reserve(helmetPairCount + playerWeaponBindCount + enemyWeaponBindCount);
     }
 
+    auto AddWeaponBind = [this](CGameObject* follower, CGameObject* target, const char* boneName, const XMFLOAT4X4& localOffset)
+        {
+            if (!follower || !target || !boneName || !boneName[0])
+                return;
+
+            AttachmentBindSpec spec{};
+            spec.follower = follower;
+            spec.target = target;
+            spec.boneName = boneName;
+            spec.localOffset = localOffset;
+            m_attachmentBinds.push_back(spec);
+        };
+
+    // ------------------------------------------------------------------------
+    // Player weapon refs / test loadout / follow-bone binding
+    // - slot0 = Sword
+    // - slot1 = Bow
+    // - slot2 = Axe
+    // - slot3 = Gun
+    // ------------------------------------------------------------------------
+    for (int slot = 0; slot < static_cast<int>(m_PlayerCount); ++slot)
+    {
+        CGameObject* player = GetPlayerBySlot(slot);
+        if (!player) continue;
+
+        auto* equip = player->GetComponent<CPlayerEquipmentComponent>();
+        if (!equip) continue;
+
+        // 1) Ïû•ÎπÑ Ïª¥Ìè¨ÎÑåÌä∏Ïóê Î¨¥Í∏∞ Ïò§Î∏åÏ†ùÌä∏ Ìè¨Ïù∏ÌÑ∞ Îì±Î°ù
+        if ((size_t)slot < m_PlayerSwordRefs.size())
+            equip->SetWeaponObject(EWeaponType::Sword, m_PlayerSwordRefs[slot]);
+
+        if ((size_t)slot < m_PlayerBowRefs.size())
+            equip->SetWeaponObject(EWeaponType::Bow, m_PlayerBowRefs[slot]);
+
+        if ((size_t)slot < m_PlayerAxeRefs.size())
+            equip->SetWeaponObject(EWeaponType::Axe, m_PlayerAxeRefs[slot]);
+
+        if ((size_t)slot < m_PlayerGunRefs.size())
+            equip->SetWeaponObject(EWeaponType::Gun, m_PlayerGunRefs[slot]);
+
+        // 2) ÌÖåÏä§Ìä∏Ïö© Î°úÎìúÏïÑÏõÉ ÏßÄÏ†ï
+        switch (slot)
+        {
+        case 0: equip->SetLoadout(EWeaponType::Sword); break;
+        case 1: equip->SetLoadout(EWeaponType::Bow);   break;
+        case 2: equip->SetLoadout(EWeaponType::Axe);   break;
+        case 3: equip->SetLoadout(EWeaponType::Gun);   break;
+        default: equip->ClearOwnedWeapons();           break;
+        }
+
+        // 3) ÌîåÎ†àÏù¥Ïñ¥ Î¨¥Í∏∞ Î∞îÏù∏Îìú
+        AddWeaponBind(equip->GetWeaponObject(EWeaponType::Sword), player, "hand_r", swordOffset);
+        AddWeaponBind(equip->GetWeaponObject(EWeaponType::Bow), player, "hand_l", bowOffset);
+        AddWeaponBind(equip->GetWeaponObject(EWeaponType::Axe), player, "hand_r", axeOffset);
+        AddWeaponBind(equip->GetWeaponObject(EWeaponType::Gun), player, "hand_r", gunOffset);
+    }
+
+    // ------------------------------------------------------------------------
+    // Enemy weapon binding
+    // - SwordMan : sword only
+    // - BowMan   : bow only
+    // - AxeMan   : axe only
+    // ------------------------------------------------------------------------
+
+    // SwordMan <-> EnemySword
+    {
+        const size_t pairCount =
+            (m_swordManRefs.size() < m_EnemySwordRefs.size()) ? m_swordManRefs.size() : m_EnemySwordRefs.size();
+
+        for (size_t i = 0; i < pairCount; ++i)
+        {
+            AddWeaponBind(m_EnemySwordRefs[i], m_swordManRefs[i], "hand_r", enemySwordOffset);
+        }
+    }
+
+    // BowMan <-> EnemyBow
+    {
+        const size_t pairCount =
+            (m_bowManRefs.size() < m_EnemyBowRefs.size()) ? m_bowManRefs.size() : m_EnemyBowRefs.size();
+
+        for (size_t i = 0; i < pairCount; ++i)
+        {
+            AddWeaponBind(m_EnemyBowRefs[i], m_bowManRefs[i], "hand_l", enemyBowOffset);
+        }
+    }
+
+    // AxeMan <-> EnemyAxe
+    {
+        const size_t pairCount =
+            (m_axeManRefs.size() < m_EnemyAxeRefs.size()) ? m_axeManRefs.size() : m_EnemyAxeRefs.size();
+
+        for (size_t i = 0; i < pairCount; ++i)
+        {
+            AddWeaponBind(m_EnemyAxeRefs[i], m_axeManRefs[i], "CATRigRArmPalm", enemyAxeOffset);
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // AxeMan Helmet Attachment
+    //  - 1:1 Îß§Ïπ≠: helmet[i] -> axeMan[i]
+    //  - bone: CATRigHub002
+    // ------------------------------------------------------------------------
+    {
+        const size_t helmetCount = m_helmetRefs.size();
+        const size_t axeCount = m_axeManRefs.size();
+        const size_t pairCount = (helmetCount < axeCount) ? helmetCount : axeCount;
+
+        const XMFLOAT4X4 helmetOffset = BuildAttachmentOffsetMatrix(
+            XMFLOAT3(3.8f, 0.35f, 0.0f),
+            XMFLOAT3(-90.0f, 0.0f, 90.0f),
+            XMFLOAT3(1.0f, 1.0f, 1.0f)
+        );
+
+        for (size_t i = 0; i < pairCount; ++i)
+        {
+            AttachmentBindSpec spec{};
+            spec.follower = m_helmetRefs[i];
+            spec.target = m_axeManRefs[i];
+            spec.boneName = "CATRigHub002";
+            spec.localOffset = helmetOffset;
+            m_attachmentBinds.push_back(spec);
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // Apply all binds
+    // ------------------------------------------------------------------------
     for (AttachmentBindSpec& spec : m_attachmentBinds)
     {
         if (!spec.follower || !spec.target || spec.boneName.empty())
@@ -1653,7 +2301,7 @@ bool CGameScene::ProcessInput(UCHAR* /*pKeysBuffer*/)
 void CGameScene::AnimateObjects(float dt)
 {
     // ------------------------------------------------------------------------
-    // FrameSnapshotø°º≠ ¡¬«• æ˜µ•¿Ã∆Æ
+    // FrameSnapshotÏóêÏÑú Ï¢åÌëú ÏóÖÎç∞Ïù¥Ìä∏
     // ------------------------------------------------------------------------
 
 #ifdef USING_NETWORK
@@ -1662,27 +2310,27 @@ void CGameScene::AnimateObjects(float dt)
     {
         const FrameSnapshot& snapshot = std::get<FrameSnapshot>(m_pendingNetworkMessage.data);
 
-        // Player ¡¬«• æ˜µ•¿Ã∆Æ
+        // Player Ï¢åÌëú ÏóÖÎç∞Ïù¥Ìä∏
         for (const auto& state : snapshot.players)
         {
-            // id∏¶ slot¿∏∑Œ ªÁøÎ (0~3)
+            // idÎ•º slotÏúºÎ°ú ÏÇ¨Ïö© (0~3)
             int slot = static_cast<int>(state.id);
             CGameObject* player = GetPlayerBySlot(slot);
             if (!player) continue;
 
 
-            // ∑Œƒ√ «√∑π¿ÃæÓ¥¬ º≠πˆ ¡¬«•∑Œ µ§æÓæ≤¡ˆ æ ¿Ω (º±≈√¿˚)
+            // Î°úÏª¨ ÌîåÎ†àÏù¥Ïñ¥Îäî ÏÑúÎ≤Ñ Ï¢åÌëúÎ°ú ÎçÆÏñ¥Ïì∞ÏßÄ ÏïäÏùå (ÏÑ†ÌÉùÏ†Å)
             // if (slot == m_localPlayerSlot) continue;
 
             player->SetPosition(state.position.x, state.position.y, state.position.z);
 
-            // yaw »∏¿¸ ¿˚øÎ
+            // yaw ÌöåÏ†Ñ Ï†ÅÏö©
             if (auto* tr = player->GetComponent<CTransformComponent>())
             {
                 tr->SetYawDegrees(state.yaw);
             }
 
-            // µ•∏: animation state ∞≠¡¶ ¿˚øÎ
+            // Îç∞Î™®: animation state Í∞ïÏ†ú Ï†ÅÏö©
             if (auto ac = player->GetAnimController())
             {
                 if (state.animation.animationId == EAnimState::Attack)
@@ -1697,8 +2345,8 @@ void CGameScene::AnimateObjects(float dt)
 
         }
 
-        // Enemy ¡¬«• æ˜µ•¿Ã∆Æ
-        // skinnedObjectsø°º≠ NPC∏∏ º¯»∏ (Fighter ¡¶ø‹)
+        // Enemy Ï¢åÌëú ÏóÖÎç∞Ïù¥Ìä∏
+        // skinnedObjectsÏóêÏÑú NPCÎßå ÏàúÌöå (Fighter Ï†úÏô∏)
         UINT enemyIndex = 0;
         const UINT totalEnemies = m_ghoulCount + m_swordManCount + m_bowManCount + m_axeManCount + m_bossCount;
 
@@ -1727,7 +2375,7 @@ void CGameScene::AnimateObjects(float dt)
    
 
     // ------------------------------------------------------------------------
-    // ±‚¡∏ æ÷¥œ∏ﬁ¿Ãº« ∑Œ¡˜
+    // Í∏∞Ï°¥ Ïï†ÎãàÎ©îÏù¥ÏÖò Î°úÏßÅ
     // ------------------------------------------------------------------------
     for (UINT j = 0; j < (UINT)m_skinnedObjects.size(); ++j)
     {
