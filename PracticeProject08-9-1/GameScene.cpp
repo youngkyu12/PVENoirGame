@@ -37,7 +37,16 @@ CGameScene::CGameScene()
 
 	m_grassCount = 1;
     m_groundCount = 1;
-    m_houseCount = 3;
+    
+    m_building1Count = 1;
+    m_building2Count = 1;
+    m_building3Count = 1;
+    m_building4Count = 1;
+    m_building5Count = 1;
+    m_building6Count = 1;
+    m_building7Count = 1;
+    m_building8Count = 1;
+    m_building9Count = 1;
 
     m_ghoulCount = 4;
     m_swordManCount = 3;
@@ -173,7 +182,16 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
 	m_grassCount = 1;
     m_groundCount = 1;
-    m_houseCount = 3;
+    
+    m_building1Count = 1;
+    m_building2Count = 1;
+    m_building3Count = 1;
+    m_building4Count = 1;
+    m_building5Count = 1;
+    m_building6Count = 1;
+    m_building7Count = 1;
+    m_building8Count = 1;
+    m_building9Count = 1;
 
     m_ghoulCount = 4;
     m_swordManCount = 3;
@@ -197,7 +215,15 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     m_staticBatch.capacity =
         m_grassCount +
         m_groundCount +
-        m_houseCount +
+        m_building1Count +
+        m_building2Count +
+        m_building3Count +
+        m_building4Count +
+        m_building5Count +
+        m_building6Count +
+        m_building7Count +
+        m_building8Count +
+        m_building9Count +
         kArrowPoolSize +
         m_helmetCount +
         m_PlayerSwordCount +
@@ -508,8 +534,13 @@ void CGameScene::BuildStaticBatch(
     std::vector<StaticAssetDesc> staticDescs;
     std::vector<XMFLOAT3> staticPositions;
 
-    staticDescs.reserve(m_grassCount + m_groundCount + m_houseCount);
-    staticPositions.reserve(m_grassCount + m_groundCount + m_houseCount);
+    const UINT totalBuildingCount =
+        m_building1Count + m_building2Count + m_building3Count +
+        m_building4Count + m_building5Count + m_building6Count +
+        m_building7Count + m_building8Count + m_building9Count;
+
+    staticDescs.reserve(m_grassCount + m_groundCount + totalBuildingCount);
+    staticPositions.reserve(m_grassCount + m_groundCount + totalBuildingCount);
     //m_pendingNetworkMessage.data.index();
 
     // Grass
@@ -534,7 +565,8 @@ void CGameScene::BuildStaticBatch(
 	}
 
     // House
-    if (m_houseCount >= 1)
+    // Building1
+    for (UINT i = 0; i < m_building1Count; ++i)
     {
         staticDescs.push_back({
             AssetType::House,
@@ -543,7 +575,9 @@ void CGameScene::BuildStaticBatch(
             });
         staticPositions.push_back(XMFLOAT3(22.0f, 0.0f, 12.0f));
     }
-    if (m_houseCount >= 2)
+
+    // Building2
+    for (UINT i = 0; i < m_building2Count; ++i)
     {
         staticDescs.push_back({
             AssetType::House,
@@ -552,7 +586,9 @@ void CGameScene::BuildStaticBatch(
             });
         staticPositions.push_back(XMFLOAT3(-20.0f, 0.0f, 0.0f));
     }
-    if (m_houseCount >= 3)
+
+    // Building3
+    for (UINT i = 0; i < m_building3Count; ++i)
     {
         staticDescs.push_back({
             AssetType::House,
@@ -560,6 +596,72 @@ void CGameScene::BuildStaticBatch(
             "Assets/House/Texture"
             });
         staticPositions.push_back(XMFLOAT3(0.0f, 0.0f, -20.0f));
+    }
+
+    // Building4
+    for (UINT i = 0; i < m_building4Count; ++i)
+    {
+        staticDescs.push_back({
+            AssetType::House,
+            "Assets/House/Mesh/Building4.bin",
+            "Assets/House/Texture"
+            });
+        staticPositions.push_back(XMFLOAT3(200.0f, 0.0f, 0.0f));
+    }
+
+    // Building5
+    for (UINT i = 0; i < m_building5Count; ++i)
+    {
+        staticDescs.push_back({
+            AssetType::House,
+            "Assets/House/Mesh/Building5.bin",
+            "Assets/House/Texture"
+            });
+        staticPositions.push_back(XMFLOAT3(200.0f, 0.0f, 0.0f));
+    }
+
+    // Building6
+    for (UINT i = 0; i < m_building6Count; ++i)
+    {
+        staticDescs.push_back({
+            AssetType::House,
+            "Assets/House/Mesh/Building6.bin",
+            "Assets/House/Texture"
+            });
+        staticPositions.push_back(XMFLOAT3(200.0f, 0.0f, 0.0f));
+    }
+
+    // Building7
+    for (UINT i = 0; i < m_building7Count; ++i)
+    {
+        staticDescs.push_back({
+            AssetType::House,
+            "Assets/House/Mesh/Building7.bin",
+            "Assets/House/Texture"
+            });
+        staticPositions.push_back(XMFLOAT3(200.0f, 0.0f, 0.0f));
+    }
+
+    // Building8
+    for (UINT i = 0; i < m_building8Count; ++i)
+    {
+        staticDescs.push_back({
+            AssetType::House,
+            "Assets/House/Mesh/Building8.bin",
+            "Assets/House/Texture"
+            });
+        staticPositions.push_back(XMFLOAT3(200.0f, 0.0f, 0.0f));
+    }
+
+    // Building9
+    for (UINT i = 0; i < m_building9Count; ++i)
+    {
+        staticDescs.push_back({
+            AssetType::House,
+            "Assets/House/Mesh/Building9.bin",
+            "Assets/House/Texture"
+            });
+        staticPositions.push_back(XMFLOAT3(200.0f, 0.0f, 0.0f));
     }
 
     const UINT staticCount = (UINT)staticDescs.size();
