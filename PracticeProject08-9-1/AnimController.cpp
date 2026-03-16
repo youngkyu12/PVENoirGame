@@ -296,7 +296,7 @@ void CAnimController::Update(float /*dt*/)
             return;
     }
 
-    constexpr float kBlendTime = 0.15f;
+    //constexpr float kBlendTime = 0.15f;
 
     if (anim->GetCurrentClipName().empty())
     {
