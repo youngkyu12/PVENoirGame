@@ -126,7 +126,16 @@ private:
     // ------------------------------------------------------------------------
     UINT m_grassCount = 1;
     UINT m_groundCount = 1;
-    UINT m_houseCount = 3;
+
+    UINT m_building1Count = 1;
+    UINT m_building2Count = 1;
+    UINT m_building3Count = 1;
+    UINT m_building4Count = 1;
+    UINT m_building5Count = 1;
+    UINT m_building6Count = 1;
+    UINT m_building7Count = 1;
+    UINT m_building8Count = 1;
+    UINT m_building9Count = 1;
 
     UINT m_ghoulCount = 4;
     UINT m_swordManCount = 3;
