@@ -21,7 +21,10 @@ enum class AssetType
     World,
     Grass,
     Ground,
+    DirtRoad,
+    VillageWall,
     House,
+    Tower,
 
     Arrow,
     Helmet,

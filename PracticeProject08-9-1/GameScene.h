@@ -126,6 +126,8 @@ private:
     // ------------------------------------------------------------------------
     UINT m_grassCount = 1;
     UINT m_groundCount = 1;
+    UINT m_villagewallCount = 1;
+	UINT m_dirtRoadCount = 1;
 
     UINT m_building1Count = 1;
     UINT m_building2Count = 1;
@@ -136,6 +138,7 @@ private:
     UINT m_building7Count = 1;
     UINT m_building8Count = 1;
     UINT m_building9Count = 1;
+	UINT m_towerCount = 1;
 
     UINT m_ghoulCount = 4;
     UINT m_swordManCount = 3;
