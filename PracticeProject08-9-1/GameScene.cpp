@@ -6,6 +6,8 @@
 #include "GameScene.h"
 
 #include <cmath>
+#include <fstream>
+#include <cstdio>
 
 #include "AnimatorComponent.h"
 #include "AnimController.h"
@@ -29,6 +31,111 @@
 #include "ServerPacketHandler.h"
 
 #include "GlobalValues.h"
+
+namespace
+{
+    bool ParsePlacementEntryLine(const std::string& line, StaticPlacementEntry& outEntry)
+    {
+        char asset[64] = {};
+        char objectName[128] = {};
+
+        float px = 0.0f, py = 0.0f, pz = 0.0f;
+        float qx = 0.0f, qy = 0.0f, qz = 0.0f, qw = 1.0f;
+
+        const int matched = sscanf_s(
+            line.c_str(),
+            "ENTRY|asset=\"%63[^\"]\"|object=\"%127[^\"]\"|pos=(%f,%f,%f)|rot=(%f,%f,%f,%f)",
+            asset, (unsigned)_countof(asset),
+            objectName, (unsigned)_countof(objectName),
+            &px, &py, &pz,
+            &qx, &qy, &qz, &qw
+        );
+
+        if (matched != 9) return false;
+
+        outEntry.assetName = asset;
+        outEntry.objectName = objectName;
+        outEntry.pos = XMFLOAT3(px, py, pz);
+        outEntry.rot = XMFLOAT4(qx, qy, qz, qw);
+        return true;
+    }
+
+    bool ResolveStaticAssetDesc(const std::string& assetName, AssetBuildDesc& outDesc)
+    {
+        if (assetName == "Grass")
+        {
+            outDesc = { AssetType::Grass, "Assets/GroundPlane/Mesh/Grass.bin", "Assets/GroundPlane/Texture" };
+            return true;
+        }
+        if (assetName == "Ground")
+        {
+            outDesc = { AssetType::Ground, "Assets/GroundPlane/Mesh/Ground.bin", "Assets/GroundPlane/Texture" };
+            return true;
+        }
+        if (assetName == "VillageWall")
+        {
+            outDesc = { AssetType::VillageWall, "Assets/VillageWall/Mesh/VillageWall.bin", "Assets/VillageWall/Texture" };
+            return true;
+        }
+        if (assetName == "DirtRoad")
+        {
+            outDesc = { AssetType::DirtRoad, "Assets/GroundPlane/Mesh/DirtRoad.bin", "Assets/GroundPlane/Texture" };
+            return true;
+        }
+        if (assetName == "Building1")
+        {
+            outDesc = { AssetType::House, "Assets/House/Mesh/Building1.bin", "Assets/House/Texture" };
+            return true;
+        }
+        if (assetName == "Building2")
+        {
+            outDesc = { AssetType::House, "Assets/House/Mesh/Building2.bin", "Assets/House/Texture" };
+            return true;
+        }
+        if (assetName == "Building3")
+        {
+            outDesc = { AssetType::House, "Assets/House/Mesh/Building3.bin", "Assets/House/Texture" };
+            return true;
+        }
+        if (assetName == "Building4")
+        {
+            outDesc = { AssetType::House, "Assets/House/Mesh/Building4.bin", "Assets/House/Texture" };
+            return true;
+        }
+        if (assetName == "Building5")
+        {
+            outDesc = { AssetType::House, "Assets/House/Mesh/Building5.bin", "Assets/House/Texture" };
+            return true;
+        }
+        if (assetName == "Building6")
+        {
+            outDesc = { AssetType::House, "Assets/House/Mesh/Building6.bin", "Assets/House/Texture" };
+            return true;
+        }
+        if (assetName == "Building7")
+        {
+            outDesc = { AssetType::House, "Assets/House/Mesh/Building7.bin", "Assets/House/Texture" };
+            return true;
+        }
+        if (assetName == "Building8")
+        {
+            outDesc = { AssetType::House, "Assets/House/Mesh/Building8.bin", "Assets/House/Texture" };
+            return true;
+        }
+        if (assetName == "Building9")
+        {
+            outDesc = { AssetType::House, "Assets/House/Mesh/Building9.bin", "Assets/House/Texture" };
+            return true;
+        }
+        if (assetName == "Tower")
+        {
+            outDesc = { AssetType::Tower, "Assets/Tower/Mesh/Tower.bin", "Assets/Tower/Texture" };
+            return true;
+        }
+
+        return false;
+    }
+}
 
 CGameScene::CGameScene()
 {
@@ -183,27 +290,13 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     // ------------------------------------------------------------------------
     //m_localPlayerSlot = 2;
 
-	m_grassCount = 1;
-    m_groundCount = 1;
-    m_villagewallCount = 1;
-    m_dirtRoadCount = 1;
-    
-    m_building1Count = 1;
-    m_building2Count = 1;
-    m_building3Count = 1;
-    m_building4Count = 1;
-    m_building5Count = 1;
-    m_building6Count = 1;
-    m_building7Count = 1;
-    m_building8Count = 1;
-    m_building9Count = 1;
-    m_towerCount = 1;
+    const std::string placementFilePath = "Assets/placement_export.txt";
 
-    m_ghoulCount = 4;
-    m_swordManCount = 3;
-    m_bowManCount = 3;
-    m_axeManCount = 2;
-    m_bossCount = 1;
+    if (!LoadStaticPlacementFile(placementFilePath))
+    {
+        assert(false && "Failed to load placement_export.txt");
+        return;
+    }
 
     m_PlayerCount = 4;
 
@@ -218,21 +311,10 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
     
 
+    const UINT worldStaticCount = static_cast<UINT>(m_staticPlacementEntries.size());
+
     m_staticBatch.capacity =
-        m_grassCount +
-        m_groundCount +
-        m_building1Count +
-        m_building2Count +
-        m_building3Count +
-        m_building4Count +
-        m_building5Count +
-        m_building6Count +
-        m_building7Count +
-        m_building8Count +
-        m_building9Count +
-        m_towerCount +
-        m_villagewallCount +
-        m_dirtRoadCount +
+        worldStaticCount +
         kArrowPoolSize +
         m_helmetCount +
         m_PlayerSwordCount +
@@ -312,6 +394,87 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     CreateMainCamera(dev, cmd, local);
 
    
+}
+float CGameScene::QuaternionToYawDegrees(const XMFLOAT4& q)
+{
+    // yaw(heading) only
+    const float siny_cosp = 2.0f * (q.w * q.y + q.x * q.z);
+    const float cosy_cosp = 1.0f - 2.0f * (q.y * q.y + q.z * q.z);
+
+    const float yawRad = std::atan2(siny_cosp, cosy_cosp);
+    return XMConvertToDegrees(yawRad);
+}
+
+void CGameScene::ResetStaticPlacementCounts()
+{
+    m_grassCount = 0;
+    m_groundCount = 0;
+    m_villagewallCount = 0;
+    m_dirtRoadCount = 0;
+
+    m_building1Count = 0;
+    m_building2Count = 0;
+    m_building3Count = 0;
+    m_building4Count = 0;
+    m_building5Count = 0;
+    m_building6Count = 0;
+    m_building7Count = 0;
+    m_building8Count = 0;
+    m_building9Count = 0;
+    m_towerCount = 0;
+}
+
+void CGameScene::ApplyStaticPlacementCounts()
+{
+    ResetStaticPlacementCounts();
+
+    for (const auto& e : m_staticPlacementEntries)
+    {
+        if (e.assetName == "Grass")       ++m_grassCount;
+        else if (e.assetName == "Ground")      ++m_groundCount;
+        else if (e.assetName == "VillageWall") ++m_villagewallCount;
+        else if (e.assetName == "DirtRoad")    ++m_dirtRoadCount;
+        else if (e.assetName == "Building1")   ++m_building1Count;
+        else if (e.assetName == "Building2")   ++m_building2Count;
+        else if (e.assetName == "Building3")   ++m_building3Count;
+        else if (e.assetName == "Building4")   ++m_building4Count;
+        else if (e.assetName == "Building5")   ++m_building5Count;
+        else if (e.assetName == "Building6")   ++m_building6Count;
+        else if (e.assetName == "Building7")   ++m_building7Count;
+        else if (e.assetName == "Building8")   ++m_building8Count;
+        else if (e.assetName == "Building9")   ++m_building9Count;
+        else if (e.assetName == "Tower")       ++m_towerCount;
+    }
+}
+
+bool CGameScene::LoadStaticPlacementFile(const std::string& filePath)
+{
+    m_staticPlacementEntries.clear();
+    ResetStaticPlacementCounts();
+
+    std::ifstream fin(filePath);
+    if (!fin.is_open())
+        return false;
+
+    std::string line;
+    while (std::getline(fin, line))
+    {
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
+
+        if (line.rfind("ENTRY|", 0) != 0)
+            continue;
+
+        StaticPlacementEntry entry{};
+        if (!ParsePlacementEntryLine(line, entry))
+            continue;
+
+        entry.yawDeg = QuaternionToYawDegrees(entry.rot);
+        m_staticPlacementEntries.push_back(std::move(entry));
+    }
+
+    ApplyStaticPlacementCounts();
+    return !m_staticPlacementEntries.empty();
 }
 
 void CGameScene::BuildLightsAndMaterials()
@@ -533,208 +696,85 @@ void CGameScene::BuildStaticBatch(
 
     b->count = 0;
 
-    struct StaticAssetDesc
+    // ------------------------------------------------------------------------
+// Static world objects from placement file
+// ------------------------------------------------------------------------
+    for (UINT k = 0; k < (UINT)m_staticPlacementEntries.size(); ++k)
     {
-        AssetType type;
-        const char* meshBin;
-        const char* texDir;
-    };
+        if (b->objectRefs.size() >= b->capacity) break;
 
-    std::vector<StaticAssetDesc> staticDescs;
-    std::vector<XMFLOAT3> staticPositions;
+        const UINT i = (UINT)b->objectRefs.size();
+        const StaticPlacementEntry& placement = m_staticPlacementEntries[k];
 
-    const UINT totalPlaneCount =
-        m_grassCount + m_groundCount + m_dirtRoadCount;
-    const UINT totalBuildingCount =
-        m_building1Count + m_building2Count + m_building3Count +
-        m_building4Count + m_building5Count + m_building6Count +
-        m_building7Count + m_building8Count + m_building9Count + m_villagewallCount + m_towerCount;
+        AssetBuildDesc desc{};
+        if (!ResolveStaticAssetDesc(placement.assetName, desc))
+            continue;
 
-    staticDescs.reserve(totalPlaneCount + totalBuildingCount);
-    staticPositions.reserve(totalPlaneCount + totalBuildingCount);
-    //m_pendingNetworkMessage.data.index();
+        BuiltAsset asset = AssetManager::BuildAsset(
+            dev, cmd,
+            m_pMaterials.get(),
+            desc
+        );
 
-    // Grass
-    for (UINT i = 0; i < m_grassCount; ++i)
-    {
-        staticDescs.push_back({
-            AssetType::Grass,
-            "Assets/GroundPlane/Mesh/Grass.bin",
-            "Assets/GroundPlane/Texture"
-            });
-        staticPositions.push_back(XMFLOAT3(0.0f, -0.01f, 0.0f));
+        auto obj = std::make_unique<CGameObject>(1);
+
+        auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+        obj->SetMappedGameObjectCB(cb);
+
+        obj->SetMesh(0, asset.mesh);
+        obj->AddComponent<CStaticMeshRendererComponent>();
+
+        obj->SetPosition(placement.pos);
+        obj->Rotate(0.0f, placement.yawDeg, 0.0f);
+
+        obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+        obj->CreateComponents(dev, cmd);
+
+        CGameObject* raw = obj.get();
+        m_staticObjects.push_back(std::move(obj));
+        b->objectRefs.push_back(raw);
+        b->count = (UINT)b->objectRefs.size();
     }
-    // Ground
-    for (UINT j = 0; j < m_groundCount; ++j)
+
+    // ------------------------------------------------------------------------
+    // Arrow pool (Static)
+    // ------------------------------------------------------------------------
     {
-        staticDescs.push_back({
-            AssetType::Ground,
-            "Assets/GroundPlane/Mesh/Ground.bin",
-            "Assets/GroundPlane/Texture"
-            });
-        staticPositions.push_back(XMFLOAT3(0.0f, 0.0f, 0.0f));
-    }
-    // Village Wall
-    for (UINT j = 0; j < m_villagewallCount; ++j)
-    {
-        staticDescs.push_back({
-            AssetType::VillageWall,
-            "Assets/VillageWall/Mesh/VillageWall.bin",
-            "Assets/VillageWall/Texture"
-            });
-        staticPositions.push_back(XMFLOAT3(0.0f, 0.0f, 0.0f));
-    }
-    // Dirt Road
-    for (UINT j = 0; j < m_dirtRoadCount; ++j)
-    {
-        staticDescs.push_back({
-            AssetType::DirtRoad,
-            "Assets/GroundPlane/Mesh/DirtRoad.bin",
-            "Assets/GroundPlane/Texture"
-            });
-        staticPositions.push_back(XMFLOAT3(0.0f, 0.0f, 0.0f));
-    }
-        // House
-        // Building1
-        for (UINT i = 0; i < m_building1Count; ++i)
+        AssetBuildDesc ArrowDesc =
         {
-            staticDescs.push_back({
-                AssetType::House,
-                "Assets/House/Mesh/Building1.bin",
-                "Assets/House/Texture"
-                });
-            staticPositions.push_back(XMFLOAT3(22.0f, 0.0f, 12.0f));
-        }
+            AssetType::Arrow,
+            "Assets/Weapon/Arrow/Mesh/Arrow_Mesh.bin",
+            "Assets/Weapon/Arrow/Texture"
+        };
 
-        // Building2
-        for (UINT i = 0; i < m_building2Count; ++i)
-        {
-            staticDescs.push_back({
-                AssetType::House,
-                "Assets/House/Mesh/Building2.bin",
-                "Assets/House/Texture"
-                });
-            staticPositions.push_back(XMFLOAT3(-20.0f, 0.0f, 0.0f));
-        }
+        BuiltAsset arrowAsset = AssetManager::BuildAsset(
+            dev, cmd,
+            m_pMaterials.get(),
+            ArrowDesc
+        );
 
-        // Building3
-        for (UINT i = 0; i < m_building3Count; ++i)
-        {
-            staticDescs.push_back({
-                AssetType::House,
-                "Assets/House/Mesh/Building3.bin",
-                "Assets/House/Texture"
-                });
-            staticPositions.push_back(XMFLOAT3(0.0f, 0.0f, -20.0f));
-        }
+        m_arrowRefs.clear();
+        m_arrowRefs.reserve(kArrowPoolSize);
 
-        // Building4
-        for (UINT i = 0; i < m_building4Count; ++i)
-        {
-            staticDescs.push_back({
-                AssetType::House,
-                "Assets/House/Mesh/Building4.bin",
-                "Assets/House/Texture"
-                });
-            staticPositions.push_back(XMFLOAT3(200.0f, 0.0f, 0.0f));
-        }
-
-        // Building5
-        for (UINT i = 0; i < m_building5Count; ++i)
-        {
-            staticDescs.push_back({
-                AssetType::House,
-                "Assets/House/Mesh/Building5.bin",
-                "Assets/House/Texture"
-                });
-            staticPositions.push_back(XMFLOAT3(200.0f, 0.0f, 0.0f));
-        }
-
-        // Building6
-        for (UINT i = 0; i < m_building6Count; ++i)
-        {
-            staticDescs.push_back({
-                AssetType::House,
-                "Assets/House/Mesh/Building6.bin",
-                "Assets/House/Texture"
-                });
-            staticPositions.push_back(XMFLOAT3(200.0f, 0.0f, 0.0f));
-        }
-
-        // Building7
-        for (UINT i = 0; i < m_building7Count; ++i)
-        {
-            staticDescs.push_back({
-                AssetType::House,
-                "Assets/House/Mesh/Building7.bin",
-                "Assets/House/Texture"
-                });
-            staticPositions.push_back(XMFLOAT3(200.0f, 0.0f, 0.0f));
-        }
-
-        // Building8
-        for (UINT i = 0; i < m_building8Count; ++i)
-        {
-            staticDescs.push_back({
-                AssetType::House,
-                "Assets/House/Mesh/Building8.bin",
-                "Assets/House/Texture"
-                });
-            staticPositions.push_back(XMFLOAT3(200.0f, 0.0f, 0.0f));
-        }
-
-        // Building9
-        for (UINT i = 0; i < m_building9Count; ++i)
-        {
-            staticDescs.push_back({
-                AssetType::House,
-                "Assets/House/Mesh/Building9.bin",
-                "Assets/House/Texture"
-                });
-            staticPositions.push_back(XMFLOAT3(200.0f, 0.0f, 0.0f));
-        }
-
-		// Tower
-        for (UINT i = 0; i < m_towerCount; ++i)
-        {
-            staticDescs.push_back({
-                AssetType::Tower,
-                "Assets/Tower/Mesh/Tower.bin",
-                "Assets/Tower/Texture"
-                });
-			staticPositions.push_back(XMFLOAT3(10.0f, 0.0f, 0.0f));
-        }
-
-        const UINT staticCount = (UINT)staticDescs.size();
-
-        for (UINT k = 0; k < staticCount; ++k)
+        for (UINT k = 0; k < kArrowPoolSize; ++k)
         {
             if (b->objectRefs.size() >= b->capacity) break;
 
             const UINT i = (UINT)b->objectRefs.size();
-
-            AssetBuildDesc Desc =
-            {
-                staticDescs[k].type,
-                staticDescs[k].meshBin,
-                staticDescs[k].texDir
-            };
-
-            BuiltAsset asset = AssetManager::BuildAsset(
-                dev, cmd,
-                m_pMaterials.get(),
-                Desc
-            );
 
             auto obj = std::make_unique<CGameObject>(1);
 
             auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
             obj->SetMappedGameObjectCB(cb);
 
-            obj->SetMesh(0, asset.mesh);
+            obj->SetMesh(0, arrowAsset.mesh);
             obj->AddComponent<CStaticMeshRendererComponent>();
 
-            obj->SetPosition(staticPositions[k]);
+            auto* arrow = obj->AddComponent<CArrowComponent>();
+            (void)arrow;
+
+            obj->SetPosition(0.0f, -10000.0f, 0.0f);
 
             obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
 
@@ -744,350 +784,301 @@ void CGameScene::BuildStaticBatch(
             m_staticObjects.push_back(std::move(obj));
             b->objectRefs.push_back(raw);
             b->count = (UINT)b->objectRefs.size();
-        }
 
-        // ------------------------------------------------------------------------
-        // Arrow pool (Static)
-        // ------------------------------------------------------------------------
-        {
-            AssetBuildDesc ArrowDesc =
-            {
-                AssetType::Arrow,
-                "Assets/Weapon/Arrow/Mesh/Arrow_Mesh.bin",
-                "Assets/Weapon/Arrow/Texture"
-            };
-
-            BuiltAsset arrowAsset = AssetManager::BuildAsset(
-                dev, cmd,
-                m_pMaterials.get(),
-                ArrowDesc
-            );
-
-            m_arrowRefs.clear();
-            m_arrowRefs.reserve(kArrowPoolSize);
-
-            for (UINT k = 0; k < kArrowPoolSize; ++k)
-            {
-                if (b->objectRefs.size() >= b->capacity) break;
-
-                const UINT i = (UINT)b->objectRefs.size();
-
-                auto obj = std::make_unique<CGameObject>(1);
-
-                auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
-                obj->SetMappedGameObjectCB(cb);
-
-                obj->SetMesh(0, arrowAsset.mesh);
-                obj->AddComponent<CStaticMeshRendererComponent>();
-
-                auto* arrow = obj->AddComponent<CArrowComponent>();
-                (void)arrow;
-
-                obj->SetPosition(0.0f, -10000.0f, 0.0f);
-
-                obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
-
-                obj->CreateComponents(dev, cmd);
-
-                CGameObject* raw = obj.get();
-                m_staticObjects.push_back(std::move(obj));
-                b->objectRefs.push_back(raw);
-                b->count = (UINT)b->objectRefs.size();
-
-                m_arrowRefs.push_back(raw);
-            }
-        }
-        // ------------------------------------------------------------------------
-        // Helmet pool (Static attachment)
-        // ------------------------------------------------------------------------
-        {
-            AssetBuildDesc HelmetDesc =
-            {
-                AssetType::Helmet,
-                "Assets/Helmet/Mesh/Helmet.bin",
-                "Assets/Helmet/Texture"
-            };
-
-            BuiltAsset helmetAsset = AssetManager::BuildAsset(
-                dev, cmd,
-                m_pMaterials.get(),
-                HelmetDesc
-            );
-
-            m_helmetRefs.clear();
-            m_helmetRefs.reserve(m_helmetCount);
-
-            for (UINT k = 0; k < m_helmetCount; ++k)
-            {
-                if (b->objectRefs.size() >= b->capacity) break;
-
-                const UINT i = (UINT)b->objectRefs.size();
-
-                auto obj = std::make_unique<CGameObject>(1);
-
-                auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
-                obj->SetMappedGameObjectCB(cb);
-
-                obj->SetMesh(0, helmetAsset.mesh);
-                obj->AddComponent<CStaticMeshRendererComponent>();
-
-                // 링크 전까지는 화면 밖에 둠
-                obj->SetPosition(0.0f, -10000.0f, 0.0f);
-
-                obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
-
-                obj->CreateComponents(dev, cmd);
-
-                CGameObject* raw = obj.get();
-                m_staticObjects.push_back(std::move(obj));
-                b->objectRefs.push_back(raw);
-                b->count = (UINT)b->objectRefs.size();
-
-                m_helmetRefs.push_back(raw);
-            }
-        }
-        // ------------------------------------------------------------------------
-        // PlayerSword pool
-        // ------------------------------------------------------------------------
-        {
-            AssetBuildDesc SwordDesc =
-            {
-                AssetType::Sword,
-                "Assets/Weapon/SwordP/Mesh/Sword_Mesh.bin",
-                "Assets/Weapon/SwordP/Texture"
-            };
-
-            BuiltAsset SwordAsset = AssetManager::BuildAsset(
-                dev, cmd,
-                m_pMaterials.get(),
-                SwordDesc
-            );
-
-            m_PlayerSwordRefs.clear();
-            m_PlayerSwordRefs.reserve(m_PlayerSwordCount);
-
-            for (UINT k = 0; k < m_PlayerSwordCount; ++k)
-            {
-                if (b->objectRefs.size() >= b->capacity) break;
-
-                const UINT i = (UINT)b->objectRefs.size();
-
-                auto obj = std::make_unique<CGameObject>(1);
-
-                auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
-                obj->SetMappedGameObjectCB(cb);
-
-                obj->SetMesh(0, SwordAsset.mesh);
-                obj->AddComponent<CStaticMeshRendererComponent>();
-
-                // 링크 전까지는 화면 밖에 둠
-                obj->SetPosition(0.0f, -10000.0f, 0.0f);
-
-                obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
-
-                obj->CreateComponents(dev, cmd);
-
-                CGameObject* raw = obj.get();
-                m_staticObjects.push_back(std::move(obj));
-                b->objectRefs.push_back(raw);
-                b->count = (UINT)b->objectRefs.size();
-
-                m_PlayerSwordRefs.push_back(raw);
-            }
-        }
-        // ------------------------------------------------------------------------
-        // PlayerAxe pool
-        // ------------------------------------------------------------------------
-        {
-            AssetBuildDesc AxeDesc =
-            {
-                AssetType::Axe,
-                "Assets/Weapon/Axe/Mesh/Axe_Mesh.bin",
-                "Assets/Weapon/Axe/Texture"
-            };
-
-            BuiltAsset AxeAsset = AssetManager::BuildAsset(
-                dev, cmd,
-                m_pMaterials.get(),
-                AxeDesc
-            );
-
-            m_PlayerAxeRefs.clear();
-            m_PlayerAxeRefs.reserve(m_PlayerAxeCount);
-
-            for (UINT k = 0; k < m_PlayerAxeCount; ++k)
-            {
-                if (b->objectRefs.size() >= b->capacity) break;
-
-                const UINT i = (UINT)b->objectRefs.size();
-
-                auto obj = std::make_unique<CGameObject>(1);
-
-                auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
-                obj->SetMappedGameObjectCB(cb);
-
-                obj->SetMesh(0, AxeAsset.mesh);
-                obj->AddComponent<CStaticMeshRendererComponent>();
-
-                // 링크 전까지는 화면 밖에 둠
-                obj->SetPosition(0.0f, -10000.0f, 0.0f);
-
-                obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
-
-                obj->CreateComponents(dev, cmd);
-
-                CGameObject* raw = obj.get();
-                m_staticObjects.push_back(std::move(obj));
-                b->objectRefs.push_back(raw);
-                b->count = (UINT)b->objectRefs.size();
-
-                m_PlayerAxeRefs.push_back(raw);
-            }
-        }
-        // ------------------------------------------------------------------------
-        // PlayerGun pool
-        // ------------------------------------------------------------------------
-        {
-            AssetBuildDesc GunDesc =
-            {
-                AssetType::Gun,
-                "Assets/Weapon/Gun/Mesh/Gun_Mesh.bin",
-                "Assets/Weapon/Gun/Texture"
-            };
-
-            BuiltAsset GunAsset = AssetManager::BuildAsset(
-                dev, cmd,
-                m_pMaterials.get(),
-                GunDesc
-            );
-
-            m_PlayerGunRefs.clear();
-            m_PlayerGunRefs.reserve(m_PlayerGunCount);
-
-            for (UINT k = 0; k < m_PlayerGunCount; ++k)
-            {
-                if (b->objectRefs.size() >= b->capacity) break;
-
-                const UINT i = (UINT)b->objectRefs.size();
-
-                auto obj = std::make_unique<CGameObject>(1);
-
-                auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
-                obj->SetMappedGameObjectCB(cb);
-
-                obj->SetMesh(0, GunAsset.mesh);
-                obj->AddComponent<CStaticMeshRendererComponent>();
-
-                // 링크 전까지는 화면 밖에 둠
-                obj->SetPosition(0.0f, -10000.0f, 0.0f);
-
-                obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
-
-                obj->CreateComponents(dev, cmd);
-
-                CGameObject* raw = obj.get();
-                m_staticObjects.push_back(std::move(obj));
-                b->objectRefs.push_back(raw);
-                b->count = (UINT)b->objectRefs.size();
-
-                m_PlayerGunRefs.push_back(raw);
-            }
-        }
-        // ------------------------------------------------------------------------
-        // EnemySword pool
-        // ------------------------------------------------------------------------
-        {
-            AssetBuildDesc SwordDesc =
-            {
-                AssetType::Sword,
-                "Assets/Weapon/SwordE/Mesh/Sword_Mesh.bin",
-                "Assets/Weapon/SwordE/Texture"
-            };
-
-            BuiltAsset swordAsset = AssetManager::BuildAsset(
-                dev, cmd,
-                m_pMaterials.get(),
-                SwordDesc
-            );
-
-            m_EnemySwordRefs.clear();
-            m_EnemySwordRefs.reserve(m_swordManCount);
-
-            for (UINT k = 0; k < m_swordManCount; ++k)
-            {
-                if (b->objectRefs.size() >= b->capacity) break;
-
-                const UINT i = (UINT)b->objectRefs.size();
-
-                auto obj = std::make_unique<CGameObject>(1);
-
-                auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
-                obj->SetMappedGameObjectCB(cb);
-
-                obj->SetMesh(0, swordAsset.mesh);
-                obj->AddComponent<CStaticMeshRendererComponent>();
-
-                obj->SetPosition(0.0f, -10000.0f, 0.0f);
-                obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
-
-                obj->CreateComponents(dev, cmd);
-
-                CGameObject* raw = obj.get();
-                m_staticObjects.push_back(std::move(obj));
-                b->objectRefs.push_back(raw);
-                b->count = (UINT)b->objectRefs.size();
-
-                m_EnemySwordRefs.push_back(raw);
-            }
-        }
-        // ------------------------------------------------------------------------
-        // EnemyAxe pool
-        // ------------------------------------------------------------------------
-        {
-            AssetBuildDesc AxeDesc =
-            {
-                AssetType::Axe,
-                "Assets/Weapon/Axe/Mesh/Axe_Mesh.bin",
-                "Assets/Weapon/Axe/Texture"
-            };
-
-            BuiltAsset axeAsset = AssetManager::BuildAsset(
-                dev, cmd,
-                m_pMaterials.get(),
-                AxeDesc
-            );
-
-            m_EnemyAxeRefs.clear();
-            m_EnemyAxeRefs.reserve(m_axeManCount);
-
-            for (UINT k = 0; k < m_axeManCount; ++k)
-            {
-                if (b->objectRefs.size() >= b->capacity) break;
-
-                const UINT i = (UINT)b->objectRefs.size();
-
-                auto obj = std::make_unique<CGameObject>(1);
-
-                auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
-                obj->SetMappedGameObjectCB(cb);
-
-                obj->SetMesh(0, axeAsset.mesh);
-                obj->AddComponent<CStaticMeshRendererComponent>();
-
-                obj->SetPosition(0.0f, -10000.0f, 0.0f);
-                obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
-
-                obj->CreateComponents(dev, cmd);
-
-                CGameObject* raw = obj.get();
-                m_staticObjects.push_back(std::move(obj));
-                b->objectRefs.push_back(raw);
-                b->count = (UINT)b->objectRefs.size();
-
-                m_EnemyAxeRefs.push_back(raw);
-            }
+            m_arrowRefs.push_back(raw);
         }
     }
+    // ------------------------------------------------------------------------
+    // Helmet pool (Static attachment)
+    // ------------------------------------------------------------------------
+    {
+        AssetBuildDesc HelmetDesc =
+        {
+            AssetType::Helmet,
+            "Assets/Helmet/Mesh/Helmet.bin",
+            "Assets/Helmet/Texture"
+        };
+
+        BuiltAsset helmetAsset = AssetManager::BuildAsset(
+            dev, cmd,
+            m_pMaterials.get(),
+            HelmetDesc
+        );
+
+        m_helmetRefs.clear();
+        m_helmetRefs.reserve(m_helmetCount);
+
+        for (UINT k = 0; k < m_helmetCount; ++k)
+        {
+            if (b->objectRefs.size() >= b->capacity) break;
+
+            const UINT i = (UINT)b->objectRefs.size();
+
+            auto obj = std::make_unique<CGameObject>(1);
+
+            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+            obj->SetMappedGameObjectCB(cb);
+
+            obj->SetMesh(0, helmetAsset.mesh);
+            obj->AddComponent<CStaticMeshRendererComponent>();
+
+            // 링크 전까지는 화면 밖에 둠
+            obj->SetPosition(0.0f, -10000.0f, 0.0f);
+
+            obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+            obj->CreateComponents(dev, cmd);
+
+            CGameObject* raw = obj.get();
+            m_staticObjects.push_back(std::move(obj));
+            b->objectRefs.push_back(raw);
+            b->count = (UINT)b->objectRefs.size();
+
+            m_helmetRefs.push_back(raw);
+        }
+    }
+    // ------------------------------------------------------------------------
+    // PlayerSword pool
+    // ------------------------------------------------------------------------
+    {
+        AssetBuildDesc SwordDesc =
+        {
+            AssetType::Sword,
+            "Assets/Weapon/SwordP/Mesh/Sword_Mesh.bin",
+            "Assets/Weapon/SwordP/Texture"
+        };
+
+        BuiltAsset SwordAsset = AssetManager::BuildAsset(
+            dev, cmd,
+            m_pMaterials.get(),
+            SwordDesc
+        );
+
+        m_PlayerSwordRefs.clear();
+        m_PlayerSwordRefs.reserve(m_PlayerSwordCount);
+
+        for (UINT k = 0; k < m_PlayerSwordCount; ++k)
+        {
+            if (b->objectRefs.size() >= b->capacity) break;
+
+            const UINT i = (UINT)b->objectRefs.size();
+
+            auto obj = std::make_unique<CGameObject>(1);
+
+            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+            obj->SetMappedGameObjectCB(cb);
+
+            obj->SetMesh(0, SwordAsset.mesh);
+            obj->AddComponent<CStaticMeshRendererComponent>();
+
+            // 링크 전까지는 화면 밖에 둠
+            obj->SetPosition(0.0f, -10000.0f, 0.0f);
+
+            obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+            obj->CreateComponents(dev, cmd);
+
+            CGameObject* raw = obj.get();
+            m_staticObjects.push_back(std::move(obj));
+            b->objectRefs.push_back(raw);
+            b->count = (UINT)b->objectRefs.size();
+
+            m_PlayerSwordRefs.push_back(raw);
+        }
+    }
+    // ------------------------------------------------------------------------
+    // PlayerAxe pool
+    // ------------------------------------------------------------------------
+    {
+        AssetBuildDesc AxeDesc =
+        {
+            AssetType::Axe,
+            "Assets/Weapon/Axe/Mesh/Axe_Mesh.bin",
+            "Assets/Weapon/Axe/Texture"
+        };
+
+        BuiltAsset AxeAsset = AssetManager::BuildAsset(
+            dev, cmd,
+            m_pMaterials.get(),
+            AxeDesc
+        );
+
+        m_PlayerAxeRefs.clear();
+        m_PlayerAxeRefs.reserve(m_PlayerAxeCount);
+
+        for (UINT k = 0; k < m_PlayerAxeCount; ++k)
+        {
+            if (b->objectRefs.size() >= b->capacity) break;
+
+            const UINT i = (UINT)b->objectRefs.size();
+
+            auto obj = std::make_unique<CGameObject>(1);
+
+            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+            obj->SetMappedGameObjectCB(cb);
+
+            obj->SetMesh(0, AxeAsset.mesh);
+            obj->AddComponent<CStaticMeshRendererComponent>();
+
+            // 링크 전까지는 화면 밖에 둠
+            obj->SetPosition(0.0f, -10000.0f, 0.0f);
+
+            obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+            obj->CreateComponents(dev, cmd);
+
+            CGameObject* raw = obj.get();
+            m_staticObjects.push_back(std::move(obj));
+            b->objectRefs.push_back(raw);
+            b->count = (UINT)b->objectRefs.size();
+
+            m_PlayerAxeRefs.push_back(raw);
+        }
+    }
+    // ------------------------------------------------------------------------
+    // PlayerGun pool
+    // ------------------------------------------------------------------------
+    {
+        AssetBuildDesc GunDesc =
+        {
+            AssetType::Gun,
+            "Assets/Weapon/Gun/Mesh/Gun_Mesh.bin",
+            "Assets/Weapon/Gun/Texture"
+        };
+
+        BuiltAsset GunAsset = AssetManager::BuildAsset(
+            dev, cmd,
+            m_pMaterials.get(),
+            GunDesc
+        );
+
+        m_PlayerGunRefs.clear();
+        m_PlayerGunRefs.reserve(m_PlayerGunCount);
+
+        for (UINT k = 0; k < m_PlayerGunCount; ++k)
+        {
+            if (b->objectRefs.size() >= b->capacity) break;
+
+            const UINT i = (UINT)b->objectRefs.size();
+
+            auto obj = std::make_unique<CGameObject>(1);
+
+            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+            obj->SetMappedGameObjectCB(cb);
+
+            obj->SetMesh(0, GunAsset.mesh);
+            obj->AddComponent<CStaticMeshRendererComponent>();
+
+            // 링크 전까지는 화면 밖에 둠
+            obj->SetPosition(0.0f, -10000.0f, 0.0f);
+
+            obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+            obj->CreateComponents(dev, cmd);
+
+            CGameObject* raw = obj.get();
+            m_staticObjects.push_back(std::move(obj));
+            b->objectRefs.push_back(raw);
+            b->count = (UINT)b->objectRefs.size();
+
+            m_PlayerGunRefs.push_back(raw);
+        }
+    }
+    // ------------------------------------------------------------------------
+    // EnemySword pool
+    // ------------------------------------------------------------------------
+    {
+        AssetBuildDesc SwordDesc =
+        {
+            AssetType::Sword,
+            "Assets/Weapon/SwordE/Mesh/Sword_Mesh.bin",
+            "Assets/Weapon/SwordE/Texture"
+        };
+
+        BuiltAsset swordAsset = AssetManager::BuildAsset(
+            dev, cmd,
+            m_pMaterials.get(),
+            SwordDesc
+        );
+
+        m_EnemySwordRefs.clear();
+        m_EnemySwordRefs.reserve(m_swordManCount);
+
+        for (UINT k = 0; k < m_swordManCount; ++k)
+        {
+            if (b->objectRefs.size() >= b->capacity) break;
+
+            const UINT i = (UINT)b->objectRefs.size();
+
+            auto obj = std::make_unique<CGameObject>(1);
+
+            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+            obj->SetMappedGameObjectCB(cb);
+
+            obj->SetMesh(0, swordAsset.mesh);
+            obj->AddComponent<CStaticMeshRendererComponent>();
+
+            obj->SetPosition(0.0f, -10000.0f, 0.0f);
+            obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+            obj->CreateComponents(dev, cmd);
+
+            CGameObject* raw = obj.get();
+            m_staticObjects.push_back(std::move(obj));
+            b->objectRefs.push_back(raw);
+            b->count = (UINT)b->objectRefs.size();
+
+            m_EnemySwordRefs.push_back(raw);
+        }
+    }
+    // ------------------------------------------------------------------------
+    // EnemyAxe pool
+    // ------------------------------------------------------------------------
+    {
+        AssetBuildDesc AxeDesc =
+        {
+            AssetType::Axe,
+            "Assets/Weapon/Axe/Mesh/Axe_Mesh.bin",
+            "Assets/Weapon/Axe/Texture"
+        };
+
+        BuiltAsset axeAsset = AssetManager::BuildAsset(
+            dev, cmd,
+            m_pMaterials.get(),
+            AxeDesc
+        );
+
+        m_EnemyAxeRefs.clear();
+        m_EnemyAxeRefs.reserve(m_axeManCount);
+
+        for (UINT k = 0; k < m_axeManCount; ++k)
+        {
+            if (b->objectRefs.size() >= b->capacity) break;
+
+            const UINT i = (UINT)b->objectRefs.size();
+
+            auto obj = std::make_unique<CGameObject>(1);
+
+            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
+            obj->SetMappedGameObjectCB(cb);
+
+            obj->SetMesh(0, axeAsset.mesh);
+            obj->AddComponent<CStaticMeshRendererComponent>();
+
+            obj->SetPosition(0.0f, -10000.0f, 0.0f);
+            obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+
+            obj->CreateComponents(dev, cmd);
+
+            CGameObject* raw = obj.get();
+            m_staticObjects.push_back(std::move(obj));
+            b->objectRefs.push_back(raw);
+            b->count = (UINT)b->objectRefs.size();
+
+            m_EnemyAxeRefs.push_back(raw);
+        }
+    }
+}
 
 void CGameScene::BuildSkinnedBatch(
     ID3D12Device* dev,

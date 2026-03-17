@@ -24,6 +24,16 @@ struct AttachmentBindSpec
     std::string  boneName;
     XMFLOAT4X4   localOffset{};
 };
+struct StaticPlacementEntry
+{
+    std::string assetName;
+    std::string objectName;
+
+    XMFLOAT3 pos = XMFLOAT3(0.0f, 0.0f, 0.0f);
+    XMFLOAT4 rot = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+
+    float yawDeg = 0.0f;
+};
 
 // ============================================================================
 // GameScene
@@ -197,4 +207,13 @@ private:
     MATERIAL* m_pcbMappedMaterials = nullptr;
 
     unique_ptr<CCollisionSystem> m_Collision;
+
+    //클라 맵 하드리딩용
+    private:
+        bool LoadStaticPlacementFile(const std::string& filePath);
+        void ResetStaticPlacementCounts();
+        void ApplyStaticPlacementCounts();
+        static float QuaternionToYawDegrees(const XMFLOAT4& q);
+    private:
+        std::vector<StaticPlacementEntry> m_staticPlacementEntries;
 };
