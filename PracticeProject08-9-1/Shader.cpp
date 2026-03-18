@@ -548,7 +548,12 @@ void CMenuImageShader::CreateShader(
 	// ★ m_pd3dGraphicsRootSignature에 저장하지 않는다.
 	//    (CShader::OnPrepareRender가 RootSig를 다시 Set하면,
 	//     Scene에서 잡아둔 DescriptorTable이 무효화될 여지가 있어서)
-	CShader::CreateShader(dev, sceneRootSig, nRenderTargets, rtvFormats, dsvFormat);
+	CShader::CreateShader(
+		dev, 
+		sceneRootSig,
+		nRenderTargets, 
+		rtvFormats, 
+		dsvFormat);
 }
 
 D3D12_BLEND_DESC CMenuImageShader::CreateBlendState()
@@ -877,8 +882,7 @@ void CTextureToFullScreenShader::CreateShaderVariables(ID3D12Device* pd3dDevice,
 		ncbElementBytes,
 		D3D12_HEAP_TYPE_UPLOAD,
 		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
-		nullptr
-	);
+		nullptr);
 	m_pd3dcbDrawOptions->Map(0, nullptr, (void**)&m_pcbMappedDrawOptions);
 
 	CPostProcessingShader::CreateShaderVariables(pd3dDevice, pd3dCommandList);

@@ -19,17 +19,18 @@ public:
 
     ELightType type = ELightType::Point;
 
-    XMFLOAT4 ambient = { 0.1f, 0.1f, 0.1f, 1.0f };
-    XMFLOAT4 diffuse = { 1.0f, 1.0f, 1.0f, 1.0f };
-    XMFLOAT4 specular = { 0.1f, 0.1f, 0.1f, 0.0f };
+    XMFLOAT4 ambient = { 0.0f, 0.0f, 0.0f, 0.0f };
+    XMFLOAT4 diffuse = { 0.0f, 0.0f, 0.0f, 0.0f };
+    XMFLOAT4 specular = { 0.0f, 0.0f, 0.0f, 0.0f };
+    XMFLOAT4 Emmision = { 0.0f, 0.0f, 0.0f, 0.0f };;
 
-    float    range = 50.0f;
+    float    range{};
     XMFLOAT3 attenuation = { 1.0f, 0.01f, 0.0001f };
-    float    falloff = 8.0f;
+    float    falloff{};
 
     // Spot only: cos(theta), cos(phi)
-    float cosTheta = (float)cos(XMConvertToRadians(20.0f));
-    float cosPhi = (float)cos(XMConvertToRadians(40.0f));
+    float cosTheta{};
+    float cosPhi{};
 
     void Fill(LIGHT& out) const
     {

@@ -113,7 +113,7 @@ private:
 
 	// Scene Manager / Camera
 	CSceneManager						m_SceneManager;
-	CCamera* m_pCamera = nullptr;
+	CCamera*							m_pCamera = nullptr;
 
 	// Post Processing
 	shared_ptr<CPostProcessingShader>	m_pPostProcessingShader;
@@ -129,5 +129,5 @@ private:
 
 	// Pending scene switch
 	bool								m_sceneSwitchPending = false;
-	ESceneId								m_pendingScene = ESceneId::Menu;
+	ESceneId							m_pendingScene = ESceneId::Menu;
 };

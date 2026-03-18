@@ -51,11 +51,13 @@ float3 GetNormalWFromMap(uint packedNormal, float3 normalW_in, float4 tangentW_i
 
     float3 nTS = gtxtGlobalTextures[normalIndex].Sample(gssDefaultSamplerState, uv).xyz;
     nTS = nTS * 2.0f - 1.0f;
+    //nTS.y = -nTS.y;
 
     float3 T = normalize(tangentW_in.xyz);
     T = normalize(T - N * dot(T, N));
 
     float3 B = normalize(cross(N, T) * tangentW_in.w);
+    //float3 B = normalize(cross(T, N) * tangentW_in.w);
 
     float3 nW = normalize(T * nTS.x + B * nTS.y + N * nTS.z);
     return nW;
@@ -185,6 +187,7 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
     output.cIllumination = illumination;
     output.color = texColor;
     //output.color = texColor * illumination;
+    //output.color = float4(normalW * 0.5f + 0.5f, 1.0f);
     output.normal = float4(normalW * 0.5f + 0.5f, 1.0f);
     output.zDepth = input.position.z;
 

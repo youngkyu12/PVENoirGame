@@ -129,8 +129,7 @@ void CDescriptorHeap::CreateShaderResourceViews(
 		pd3dDevice->CreateShaderResourceView(
 			pShaderResource.Get(),
 			&srvDesc,
-			cpuHandle
-		);
+			cpuHandle);
 
 		// 텍스처에 GPU 핸들 저장 (바인딩 시 사용)
 		pTexture->SetGpuDescriptorHandle(i, gpuHandle);
@@ -313,7 +312,8 @@ void CDescriptorHeap::CreateShaderResourceViewsOther(
     if (!pTexture) return;
 
     UINT baseIndex = AllocateSrvRangeBack((UINT)pTexture->GetTextures());
-    if (baseIndex == UINT_MAX) return;
+    if (baseIndex == UINT_MAX) 
+		return;
 
     pTexture->SetBaseSrvIndex(baseIndex);
     CreateShaderResourceViews(pd3dDevice, pTexture, baseIndex, nRootParameterStartIndex);
