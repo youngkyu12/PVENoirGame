@@ -2341,14 +2341,24 @@ void CGameScene::RequestPlayerAttackBySlot(int slot)
 
     const float kArrowSpeed = 3.0f;
     const float kArrowLife = 6.0f;
-    const float kArrowYOffset = 1.0f;
+    const float kArrowYOffset = 0.0f;
+
+    bool shouldFireArrow = false;
+
+    if (auto* equip = obj->GetComponent<CPlayerEquipmentComponent>())
+    {
+        shouldFireArrow = (equip->GetEquippedWeapon() == EWeaponType::Bow);
+    }
 
     if (auto* animComp = obj->GetComponent<CAnimatorComponent>())
     {
         if (auto* ctrl = animComp->EnsureController())
         {
             ctrl->RequestAttack();
-            RequestFireArrow(obj, kArrowSpeed, kArrowLife, kArrowYOffset);
+
+            if (shouldFireArrow)
+                RequestFireArrow(obj, kArrowSpeed, kArrowLife, kArrowYOffset);
+
             return;
         }
     }
@@ -2356,7 +2366,10 @@ void CGameScene::RequestPlayerAttackBySlot(int slot)
     if (auto* ctrl = obj->GetAnimController())
     {
         ctrl->RequestAttack();
-        RequestFireArrow(obj, kArrowSpeed, kArrowLife, kArrowYOffset);
+
+        if (shouldFireArrow)
+            RequestFireArrow(obj, kArrowSpeed, kArrowLife, kArrowYOffset);
+
         return;
     }
 }
@@ -2393,6 +2406,18 @@ void CGameScene::RequestFireArrow(CGameObject* shooter, float speed, float lifeS
 {
     if (!shooter) return;
 
+    CGameObject* bowObj = nullptr;
+
+    if (auto* equip = shooter->GetComponent<CPlayerEquipmentComponent>())
+    {
+        // 장비 컴포넌트가 있는 플레이어라면 Bow 장착시에만 발사 허용
+        if (equip->GetEquippedWeapon() != EWeaponType::Bow)
+            return;
+
+        bowObj = equip->GetWeaponObject(EWeaponType::Bow);
+    }
+
+    // 방향/회전은 기존 로직 유지: shooter의 forward 사용
     const XMFLOAT4X4& W = shooter->GetWorldMatrix();
     XMFLOAT3 dir = { W._31, W._32, W._33 };
 
@@ -2409,8 +2434,17 @@ void CGameScene::RequestFireArrow(CGameObject* shooter, float speed, float lifeS
     XMFLOAT3 dirN{};
     XMStoreFloat3(&dirN, dirV);
 
-    XMFLOAT3 startPos = shooter->GetPosition();
-    startPos.y += yOffset;
+    // 시작 위치는 활 위치 사용, 없으면 기존 fallback
+    XMFLOAT3 startPos{};
+    if (bowObj)
+    {
+        startPos = bowObj->GetPosition();
+    }
+    else
+    {
+        startPos = shooter->GetPosition();
+        startPos.y += yOffset;
+    }
 
     const XMFLOAT3 vel =
     {
