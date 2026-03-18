@@ -12,26 +12,14 @@ void CMenuScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
     CreateGraphicsRootSignature(dev);
 
-    constexpr UINT MAX_GLOBAL_SRVS = 1024;
-    const UINT cbvTotal = 32;
-
-    CScene::m_pDescriptorHeap->CreateCbvSrvDescriptorHeaps(
-        dev,
-        cbvTotal,
-        MAX_GLOBAL_SRVS);
-
     CreateMainCamera(dev, cmd, nullptr);
 
-    // ------------------------------------------------------------
-    // Menu UI texture (1Àå) ·Îµå + Global SRV µî·Ï
-    // ------------------------------------------------------------
     {
         constexpr const wchar_t* kMenuDDS = L"Assets/UI/Test.dds";
 
         m_menuTex = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 0);
         m_menuTex->LoadTextureFromFile(dev, cmd, kMenuDDS, RESOURCE_TEXTURE2D, 0);
 
-        // Global SRV pool(t0~)¿¡ ¿Ã¸°´Ù.
         CScene::m_pDescriptorHeap->CreateShaderResourceViewsOther(
             dev,
             m_menuTex.get(),
@@ -40,16 +28,10 @@ void CMenuScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
         m_menuSrvIndex = m_menuTex->GetSrvIndex(0);
     }
 
-    // ------------------------------------------------------------
-    // Menu UI shader »ý¼º (Screen-rect + alpha blend)
-    // ------------------------------------------------------------
     {
         m_menuShader = std::make_shared<CMenuImageShader>();
 
-        // RTV Æ÷¸ËÀº ³× swapchain ¹é¹öÆÛ Æ÷¸Ë¿¡ ¸ÂÃç¶ó.
         DXGI_FORMAT rtv = DXGI_FORMAT_R8G8B8A8_UNORM;
-
-        // Depth´Â ¾È ¾²¹Ç·Î UNKNOWNÀ¸·Î »ý¼ºÇØµµ µÊ(DepthEnable=FALSE)
         DXGI_FORMAT dsv = DXGI_FORMAT_UNKNOWN;
 
         m_menuShader->CreateShader(
@@ -61,8 +43,7 @@ void CMenuScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
         m_menuShader->CreateShaderVariables(dev, cmd);
     }
 }
-
-// MenuScene Ä«¸Þ¶ó: "¾Æ¹« À§Ä¡¿¡¼­ ¾Æ¹«´ë³ª" º¸´Â ÀÓ½Ã Ä«¸Þ¶ó
+// MenuScene Ä«ï¿½Þ¶ï¿½: "ï¿½Æ¹ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ï¿½ï¿½ ï¿½Æ¹ï¿½ï¿½ë³ª" ï¿½ï¿½ï¿½ï¿½ ï¿½Ó½ï¿½ Ä«ï¿½Þ¶ï¿½
 void CMenuScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* /*target*/)
 {
     m_pMainCameraObject = std::make_unique<CGameObject>(0);
@@ -82,8 +63,8 @@ void CMenuScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* 
 
     m_pMainCameraObject->CreateComponents(dev, cmd);
 
-    // Update/SetLookAtÀº XMFLOAT3& ¿ä±¸(ºñ const) + Å¸°Ù ¾øÀ¸¸é ÀÇ¹Ìµµ ¾øÀ½
-    // ´ë½Å ViewMatrix¸¦ Á÷Á¢ ¸¸µç´Ù.
+    // Update/SetLookAtï¿½ï¿½ XMFLOAT3& ï¿½ä±¸(ï¿½ï¿½ const) + Å¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ç¹Ìµï¿½ ï¿½ï¿½ï¿½ï¿½
+    // ï¿½ï¿½ï¿½ ViewMatrixï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½.
     XMFLOAT3 pos(0.0f, 2.0f, -5.0f);
     XMFLOAT3 lookAt(0.0f, 0.5f, 0.0f);
     XMFLOAT3 up(0.0f, 1.0f, 0.0f);
@@ -103,7 +84,7 @@ void CMenuScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
     if (!cmd) return;
     if (!camera) camera = m_pMainCamera;
 
-    // Scene °øÅë ÁØºñ: RootSig + DescriptorHeap + Global SRV table + Camera CB
+    // Scene ï¿½ï¿½ï¿½ï¿½ ï¿½Øºï¿½: RootSig + DescriptorHeap + Global SRV table + Camera CB
     CScene::OnPrepareRender(cmd, camera);
 
     if (!m_menuShader) return;
@@ -111,10 +92,10 @@ void CMenuScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 
     PS_CB_DRAW_OPTIONS opt{};
     opt.m_xmn4DrawOptions = XMINT4('T', 0, 0, 0);                // 'T' = gvPostSrvIdx0.x
-    opt.m_xmu4PostSrvIdx0 = XMUINT4(m_menuSrvIndex, 0, 0, 0);    // T ½½·Ô¿¡ ¸Þ´º ÅØ½ºÃ³ SRV index
+    opt.m_xmu4PostSrvIdx0 = XMUINT4(m_menuSrvIndex, 0, 0, 0);    // T ï¿½ï¿½ï¿½Ô¿ï¿½ ï¿½Þ´ï¿½ ï¿½Ø½ï¿½Ã³ SRV index
     opt.m_xmu4PostSrvIdx1 = XMUINT4(0, 0, 0, 0);
 
-    // Shader.Render()°¡ ³»ºÎ¿¡¼­ DrawInstanced(6,1) È£ÃâÇÔ
+    // Shader.Render()ï¿½ï¿½ ï¿½ï¿½ï¿½Î¿ï¿½ï¿½ï¿½ DrawInstanced(6,1) È£ï¿½ï¿½ï¿½ï¿½
     m_menuShader->Render(cmd, camera, &opt);
 }
 
