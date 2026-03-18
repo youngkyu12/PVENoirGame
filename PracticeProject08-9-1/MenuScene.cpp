@@ -18,8 +18,7 @@ void CMenuScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     CScene::m_pDescriptorHeap->CreateCbvSrvDescriptorHeaps(
         dev,
         cbvTotal,
-        MAX_GLOBAL_SRVS
-    );
+        MAX_GLOBAL_SRVS);
 
     CreateMainCamera(dev, cmd, nullptr);
 
@@ -36,8 +35,7 @@ void CMenuScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
         CScene::m_pDescriptorHeap->CreateShaderResourceViewsOther(
             dev,
             m_menuTex.get(),
-            ROOT_PARAMETER_GLOBAL_SRV
-        );
+            ROOT_PARAMETER_GLOBAL_SRV);
 
         m_menuSrvIndex = m_menuTex->GetSrvIndex(0);
     }
@@ -54,7 +52,12 @@ void CMenuScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
         // Depth는 안 쓰므로 UNKNOWN으로 생성해도 됨(DepthEnable=FALSE)
         DXGI_FORMAT dsv = DXGI_FORMAT_UNKNOWN;
 
-        m_menuShader->CreateShader(dev, GetGraphicsRootSignature(), 1, &rtv, dsv);
+        m_menuShader->CreateShader(
+            dev, 
+            GetGraphicsRootSignature(), 
+            1, 
+            &rtv, 
+            dsv);
         m_menuShader->CreateShaderVariables(dev, cmd);
     }
 }

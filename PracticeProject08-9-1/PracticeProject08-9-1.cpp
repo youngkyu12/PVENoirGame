@@ -149,8 +149,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow, CGameFramework& gGameFramew
 		NULL,
 		NULL,
 		hInstance,
-		(LPVOID)&gGameFramework
-	);
+		(LPVOID)&gGameFramework);
 
 	if (!hMainWnd) 
 		return(FALSE);

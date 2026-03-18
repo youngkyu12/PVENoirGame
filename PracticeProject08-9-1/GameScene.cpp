@@ -322,14 +322,20 @@ void CGameScene::BuildLightsAndMaterials()
     // [2] Directional Light
     {
         auto obj = std::make_unique<CGameObject>(0);
+
         if (auto* tr = obj->GetComponent<CTransformComponent>())
+        {
+            // 태양광 방향
             tr->SetLookDirection(XMFLOAT3(1.0f, 0.0f, 0.0f));
+        }
 
         auto* lc = obj->AddComponent<CLightComponent>();
         lc->type = ELightType::Directional;
+
         lc->ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
         lc->diffuse = XMFLOAT4(0.3f, 0.3f, 0.3f, 1.0f);
         lc->specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+   
 
         m_lightObjects.push_back(std::move(obj));
     }
@@ -2401,7 +2407,7 @@ void CGameScene::AnimateObjects(float dt)
         m_lightObjects[j]->Animate(dt);
     }
 
-
+    
 
 }
 
