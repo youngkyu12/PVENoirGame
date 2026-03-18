@@ -1,20 +1,26 @@
-//------------------------------------------------------- ----------------------
+//-----------------------------------------------------------------------------
 // File: AssetManager.h
 //-----------------------------------------------------------------------------
-
 #pragma once
+
 #include "stdafx.h"
 #include "SceneRenderTypes.h"
 
+#include <string>
+#include <unordered_map>
+#include <memory>
+
 class CMesh;
+class CTexture;
+class CMaterial;
 struct MATERIALS;
 
 enum class AssetType
 {
     Player,
     Ghoul,
-	SwordMan,
-	BowMan,
+    SwordMan,
+    BowMan,
     AxeMan,
     Boss,
 
@@ -34,7 +40,6 @@ enum class AssetType
     Gun
 };
 
-// BuildAsset
 struct AssetBuildDesc
 {
     AssetType type;
@@ -57,11 +62,39 @@ public:
         const AssetBuildDesc& desc
     );
 
+    static void ClearCache();
+
 private:
+    static BuiltAsset BuildAssetInternal(
+        ID3D12Device* device,
+        ID3D12GraphicsCommandList* cmd,
+        const AssetBuildDesc& desc
+    );
+
+    static void ApplyBuiltAssetToSceneMaterials(
+        const BuiltAsset& asset,
+        MATERIALS* pMaterials
+    );
+
+    static std::string MakeAssetKey(const AssetBuildDesc& desc);
+    static std::string MakeMaterialKey(
+        AssetType type,
+        const std::string& textureRoot,
+        const std::string& materialName,
+        const std::string& diffuseTextureName,
+        const std::string& normalTextureName
+    );
+
     static std::wstring ResolveTexturePath(
         AssetType type,
         const std::string& textureRoot,
         const std::string& materialName,
         const std::string& diffuseTextureName
     );
+
+private:
+    static std::unordered_map<std::string, BuiltAsset> s_assetCache;
+    static std::unordered_map<std::string, std::shared_ptr<CMaterial>> s_materialCache;
+    static std::unordered_map<std::string, std::shared_ptr<CTexture>> s_textureCache;
+    static UINT s_nextMaterialID;
 };

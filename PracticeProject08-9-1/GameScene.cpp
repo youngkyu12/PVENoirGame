@@ -277,18 +277,11 @@ void CGameScene::ReleaseShaderVariables()
 
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
-    // 게임 초기 정보를 뽑자
 #ifdef USING_NETWORK
     while (false == g_GameStarted);
     DequeueNetworkMessage(NetworkMessageType::GameStart);
     m_localPlayerSlot = g_myPlayerId;
 #endif
-
-
-    // ------------------------------------------------------------------------
-    // Build parameters
-    // ------------------------------------------------------------------------
-    //m_localPlayerSlot = 2;
 
     const std::string placementFilePath = "Assets/placement_export.txt";
 
@@ -300,16 +293,12 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
     m_PlayerCount = 4;
 
-    //Player 액세서리
     m_PlayerSwordCount = m_PlayerCount;
-	m_PlayerBowCount = m_PlayerCount;
-	m_PlayerAxeCount = m_PlayerCount;
-	m_PlayerGunCount = m_PlayerCount;
+    m_PlayerBowCount = m_PlayerCount;
+    m_PlayerAxeCount = m_PlayerCount;
+    m_PlayerGunCount = m_PlayerCount;
 
-    //AxeMan 액세서리
     m_helmetCount = m_axeManCount;
-
-    
 
     const UINT worldStaticCount = static_cast<UINT>(m_staticPlacementEntries.size());
 
@@ -334,30 +323,15 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
         m_bowManCount;
 
     m_staticBatch.count = 0;
-
     m_skinnedBatch.count = 0;
 
     CreateGraphicsRootSignature(dev);
-
-    constexpr int MAX_GLOBAL_SRVS = 1024;
 
     auto pStaticShader = std::make_shared<CStaticObjectsShader>();
     auto pSkinnedShader = std::make_shared<CSkinnedObjectsShader>();
 
     m_staticBatch.shader = pStaticShader;
     m_skinnedBatch.shader = pSkinnedShader;
-
-    const UINT cbvTotal =
-        m_staticBatch.capacity +
-        m_skinnedBatch.capacity +
-        1 /*Camera*/ +
-        1 /*etc*/;
-
-    m_pDescriptorHeap->CreateCbvSrvDescriptorHeaps(
-        dev,
-        cbvTotal,
-        MAX_GLOBAL_SRVS
-    );
 
     DXGI_FORMAT rtvFormats[5] =
     {
@@ -378,8 +352,6 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     constexpr UINT kRTCount = 5;
     const DXGI_FORMAT kDsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
-
-
     BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
     BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
     BuildObjectsCollider();
@@ -392,9 +364,8 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     if (!local) local = GetPlayerBySlot(0);
 
     CreateMainCamera(dev, cmd, local);
-
-   
 }
+
 float CGameScene::QuaternionToYawDegrees(const XMFLOAT4& q)
 {
     // yaw(heading) only

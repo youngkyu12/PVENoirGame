@@ -12,27 +12,14 @@ void CMenuScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
     CreateGraphicsRootSignature(dev);
 
-    constexpr UINT MAX_GLOBAL_SRVS = 1024;
-    const UINT cbvTotal = 32;
-
-    CScene::m_pDescriptorHeap->CreateCbvSrvDescriptorHeaps(
-        dev,
-        cbvTotal,
-        MAX_GLOBAL_SRVS
-    );
-
     CreateMainCamera(dev, cmd, nullptr);
 
-    // ------------------------------------------------------------
-    // Menu UI texture (1장) 로드 + Global SRV 등록
-    // ------------------------------------------------------------
     {
         constexpr const wchar_t* kMenuDDS = L"Assets/UI/Test.dds";
 
         m_menuTex = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 0);
         m_menuTex->LoadTextureFromFile(dev, cmd, kMenuDDS, RESOURCE_TEXTURE2D, 0);
 
-        // Global SRV pool(t0~)에 올린다.
         CScene::m_pDescriptorHeap->CreateShaderResourceViewsOther(
             dev,
             m_menuTex.get(),
@@ -42,23 +29,16 @@ void CMenuScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
         m_menuSrvIndex = m_menuTex->GetSrvIndex(0);
     }
 
-    // ------------------------------------------------------------
-    // Menu UI shader 생성 (Screen-rect + alpha blend)
-    // ------------------------------------------------------------
     {
         m_menuShader = std::make_shared<CMenuImageShader>();
 
-        // RTV 포맷은 네 swapchain 백버퍼 포맷에 맞춰라.
         DXGI_FORMAT rtv = DXGI_FORMAT_R8G8B8A8_UNORM;
-
-        // Depth는 안 쓰므로 UNKNOWN으로 생성해도 됨(DepthEnable=FALSE)
         DXGI_FORMAT dsv = DXGI_FORMAT_UNKNOWN;
 
         m_menuShader->CreateShader(dev, GetGraphicsRootSignature(), 1, &rtv, dsv);
         m_menuShader->CreateShaderVariables(dev, cmd);
     }
 }
-
 // MenuScene 카메라: "아무 위치에서 아무대나" 보는 임시 카메라
 void CMenuScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* /*target*/)
 {
