@@ -6,6 +6,7 @@
 #include "GameFramework.h"
 
 #include "Scene.h"
+#include "AssetManager.h"
 #include "AnimController.h"
 #include "AnimatorComponent.h"
 #include "PlayerControllerComponent.h"
@@ -39,6 +40,14 @@ bool CGameFramework::OnCreate(HINSTANCE hInstance, HWND hMainWnd)
 #endif
 	CreateDepthStencilView();
 
+	constexpr UINT GLOBAL_CBV_CAPACITY = 8192;
+
+	CScene::m_pDescriptorHeap->CreateCbvSrvDescriptorHeaps(
+		m_pd3dDevice.Get(),
+		GLOBAL_CBV_CAPACITY,
+		GLOBAL_SRV_CAPACITY
+	);
+
 	BuildObjects();
 
 	return(true);
@@ -47,6 +56,8 @@ bool CGameFramework::OnCreate(HINSTANCE hInstance, HWND hMainWnd)
 void CGameFramework::OnDestroy()
 {
 	ReleaseObjects();
+
+	AssetManager::ClearCache();
 
 	::CloseHandle(m_hFenceEvent);
 

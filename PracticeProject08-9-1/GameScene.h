@@ -24,6 +24,16 @@ struct AttachmentBindSpec
     std::string  boneName;
     XMFLOAT4X4   localOffset{};
 };
+struct StaticPlacementEntry
+{
+    std::string assetName;
+    std::string objectName;
+
+    XMFLOAT3 pos = XMFLOAT3(0.0f, 0.0f, 0.0f);
+    XMFLOAT4 rot = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+
+    float yawDeg = 0.0f;
+};
 
 // ============================================================================
 // GameScene
@@ -124,8 +134,21 @@ private:
     // ------------------------------------------------------------------------
     // Build counts (현재는 BuildObjects()에서 결정, 추후 서버 동기화 값으로 대체)
     // ------------------------------------------------------------------------
-    UINT m_planeCount = 1;
-    UINT m_houseCount = 3;
+    UINT m_grassCount = 1;
+    UINT m_groundCount = 1;
+    UINT m_villagewallCount = 1;
+	UINT m_dirtRoadCount = 1;
+
+    UINT m_building1Count = 1;
+    UINT m_building2Count = 1;
+    UINT m_building3Count = 1;
+    UINT m_building4Count = 1;
+    UINT m_building5Count = 1;
+    UINT m_building6Count = 1;
+    UINT m_building7Count = 1;
+    UINT m_building8Count = 1;
+    UINT m_building9Count = 1;
+	UINT m_towerCount = 1;
 
     UINT m_ghoulCount = 4;
     UINT m_swordManCount = 3;
@@ -184,4 +207,13 @@ private:
     MATERIAL* m_pcbMappedMaterials = nullptr;
 
     unique_ptr<CCollisionSystem> m_Collision;
+
+    //클라 맵 하드리딩용
+    private:
+        bool LoadStaticPlacementFile(const std::string& filePath);
+        void ResetStaticPlacementCounts();
+        void ApplyStaticPlacementCounts();
+        static float QuaternionToYawDegrees(const XMFLOAT4& q);
+    private:
+        std::vector<StaticPlacementEntry> m_staticPlacementEntries;
 };

@@ -1,9 +1,9 @@
 //-----------------------------------------------------------------------------
 // File: Shaders.hlsl
 //-----------------------------------------------------------------------------
-#define MAX_GLOBAL_SRVS 1024
+#define MAX_GLOBAL_SRVS 8192
 
-// Global Texture2D pool: t0 ~ t1023 in space0
+// Global Texture2D pool: t0 ~ t8191 in space0
 Texture2D gtxtGlobalTextures[MAX_GLOBAL_SRVS] : register(t0);
 
 cbuffer cbPlayerInfo : register(b0)
