@@ -19,6 +19,8 @@ constexpr UINT LEGACY_SRV_COUNT = 6; // t0(1) + t1~t5(5)
 class CGameObject;
 class CCamera;
 
+constexpr UINT GLOBAL_SRV_CAPACITY = 8192;
+
 // ============================================================================
 // Base Scene
 // - 공통 인프라(루트시그니처/디스크립터힙/카메라) + 인터페이스만 제공
