@@ -8,6 +8,7 @@
 #include "Object.h"
 #include "Animator.h"
 #include "PlayerEquipmentComponent.h"
+#include "PlayerControllerComponent.h"
 #include "GlobalEnum.h"
 #include "GlobalValues.h"
 
@@ -77,7 +78,7 @@ std::string CAnimController::ResolveMoveClip() const
 
     const std::string suffix = BuildDirectionSuffix(m_moveDirBits);
     if (suffix.empty())
-        return m_bRunRequested ? "Run_F" : "Walk_F";
+        return ResolveIdleClip();
 
     const char* prefix = m_bRunRequested ? "Run_" : "Walk_";
     return std::string(prefix) + suffix;
@@ -178,10 +179,27 @@ void CAnimController::Update(float /*dt*/)
 
     auto WantsMoveNow = [&]() -> bool
         {
-            if (m_usePlayerClipSet)
-                return (m_moveDirBits != 0) || (m_state == EAnimState::Move);
+            const bool hasLocalPlayerController =
+                (m_pOwner->GetComponent<CPlayerControllerComponent>() != nullptr);
 
-            return (m_speed > m_moveEps) || (m_state == EAnimState::Move);
+            if (m_usePlayerClipSet)
+            {
+                if (m_moveDirBits != 0)
+                    return true;
+
+                if (!hasLocalPlayerController && m_state == EAnimState::Move)
+                    return true;
+
+                return false;
+            }
+
+            if (m_speed > m_moveEps)
+                return true;
+
+            if (!hasLocalPlayerController && m_state == EAnimState::Move)
+                return true;
+
+            return false;
         };
 
     auto ResolveSafeLocomotionClip = [&]() -> std::string
