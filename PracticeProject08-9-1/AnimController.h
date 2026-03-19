@@ -40,7 +40,7 @@ public:
     void EnablePlayerClipSet(bool enable = true) { m_usePlayerClipSet = enable; }
     bool IsUsingPlayerClipSet() const { return m_usePlayerClipSet; }
 
-    bool IsActionLocked() const { return m_actionPhase != EActionPhase::None; }
+    bool IsActionLocked() const;
 
     void Update(float dt);
 
