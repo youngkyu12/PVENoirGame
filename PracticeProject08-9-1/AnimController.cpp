@@ -346,18 +346,19 @@ void CAnimController::Update(float /*dt*/)
     animPrevState = m_state;
 }
 
-void CAnimController::RequestAttack()
+bool CAnimController::RequestAttack()
 {
     if (m_actionPhase != EActionPhase::None)
-        return;
+        return false;
 
     EActionPhase phase = EActionPhase::None;
     const std::string atkClip = ResolveAttackStartClip(phase);
 
     if (atkClip.empty())
-        return;
+        return false;
 
     m_attackQueued = true;
+    return true;
 }
 
 void CAnimController::RequestHit()

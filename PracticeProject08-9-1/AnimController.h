@@ -44,7 +44,10 @@ public:
 
     void Update(float dt);
 
-    void RequestAttack();
+    bool RequestAttack();
+    bool IsBowLoadPhase() const { return m_actionPhase == EActionPhase::AttackBowLoad; }
+    bool IsBowReleasePhase() const { return m_actionPhase == EActionPhase::AttackBowRelease; }
+
     void RequestHit();
 
 private:
