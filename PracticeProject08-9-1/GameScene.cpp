@@ -213,6 +213,9 @@ void CGameScene::ReleaseObjects()
     m_EnemyBowRefs.clear();
     m_EnemyAxeRefs.clear();
 
+    m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr };
+    m_prevBowReleasePhase = { false, false, false, false };
+
     ReleaseShaderVariables();
 
     CScene::ReleaseObjects();
@@ -281,6 +284,8 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     while (false == g_GameStarted);
     DequeueNetworkMessage(NetworkMessageType::GameStart);
     m_localPlayerSlot = g_myPlayerId;
+#else
+    m_localPlayerSlot = 0;
 #endif
 
     const std::string placementFilePath = "Assets/placement_export.txt";
@@ -668,8 +673,8 @@ void CGameScene::BuildStaticBatch(
     b->count = 0;
 
     // ------------------------------------------------------------------------
-// Static world objects from placement file
-// ------------------------------------------------------------------------
+    // Static world objects from placement file
+    // ------------------------------------------------------------------------
     for (UINT k = 0; k < (UINT)m_staticPlacementEntries.size(); ++k)
     {
         if (b->objectRefs.size() >= b->capacity) break;
@@ -2310,25 +2315,23 @@ void CGameScene::RequestPlayerAttackBySlot(int slot)
     CGameObject* obj = GetPlayerBySlot(slot);
     if (!obj) return;
 
-    const float kArrowSpeed = 3.0f;
-    const float kArrowLife = 6.0f;
-    const float kArrowYOffset = 0.0f;
+    constexpr float kArrowPullBackDistance = 0.35f;
 
-    bool shouldFireArrow = false;
+    bool shouldPrepareArrow = false;
 
     if (auto* equip = obj->GetComponent<CPlayerEquipmentComponent>())
     {
-        shouldFireArrow = (equip->GetEquippedWeapon() == EWeaponType::Bow);
+        shouldPrepareArrow = (equip->GetEquippedWeapon() == EWeaponType::Bow);
     }
 
     if (auto* animComp = obj->GetComponent<CAnimatorComponent>())
     {
         if (auto* ctrl = animComp->EnsureController())
         {
-            ctrl->RequestAttack();
+            const bool accepted = ctrl->RequestAttack();
 
-            if (shouldFireArrow)
-                RequestFireArrow(obj, kArrowSpeed, kArrowLife, kArrowYOffset);
+            if (accepted && shouldPrepareArrow)
+                RequestPrepareArrow(obj, kArrowPullBackDistance);
 
             return;
         }
@@ -2336,12 +2339,160 @@ void CGameScene::RequestPlayerAttackBySlot(int slot)
 
     if (auto* ctrl = obj->GetAnimController())
     {
-        ctrl->RequestAttack();
+        const bool accepted = ctrl->RequestAttack();
 
-        if (shouldFireArrow)
-            RequestFireArrow(obj, kArrowSpeed, kArrowLife, kArrowYOffset);
+        if (accepted && shouldPrepareArrow)
+            RequestPrepareArrow(obj, kArrowPullBackDistance);
 
         return;
+    }
+}
+
+int CGameScene::GetPlayerSlotFromObject(const CGameObject* obj) const
+{
+    if (!obj) return -1;
+
+    auto* tag = obj->GetComponent<CActorTagComponent>();
+    if (!tag) return -1;
+    if (tag->kind != EActorKind::Player) return -1;
+    if (tag->playerSlot < 0 || tag->playerSlot > 3) return -1;
+
+    return tag->playerSlot;
+}
+
+void CGameScene::RequestPrepareArrow(CGameObject* shooter, float pullBackDistance)
+{
+    if (!shooter) return;
+
+    auto* equip = shooter->GetComponent<CPlayerEquipmentComponent>();
+    if (!equip) return;
+    if (equip->GetEquippedWeapon() != EWeaponType::Bow) return;
+
+    CGameObject* bowObj = equip->GetWeaponObject(EWeaponType::Bow);
+    if (!bowObj) return;
+
+    const int slot = GetPlayerSlotFromObject(shooter);
+    if (slot < 0 || slot > 3) return;
+
+    // 이미 준비된 화살이 있으면 중복 생성 안 함
+    if (m_preparedPlayerArrows[(size_t)slot])
+        return;
+
+    for (CGameObject* arrowObj : m_arrowRefs)
+    {
+        if (!arrowObj) continue;
+
+        auto* arrow = arrowObj->GetComponent<CArrowComponent>();
+        if (!arrow) continue;
+        if (arrow->IsActive()) continue;
+
+        arrow->Prepare(bowObj, shooter, pullBackDistance);
+        m_preparedPlayerArrows[(size_t)slot] = arrowObj;
+        return;
+    }
+}
+
+void CGameScene::RequestReleasePreparedArrow(CGameObject* shooter, float speed, float lifeSec)
+{
+    if (!shooter) return;
+
+    const int slot = GetPlayerSlotFromObject(shooter);
+    if (slot < 0 || slot > 3) return;
+
+    CGameObject* arrowObj = m_preparedPlayerArrows[(size_t)slot];
+    if (!arrowObj) return;
+
+    auto* arrow = arrowObj->GetComponent<CArrowComponent>();
+    if (!arrow || !arrow->IsPrepared())
+    {
+        m_preparedPlayerArrows[(size_t)slot] = nullptr;
+        return;
+    }
+
+    const XMFLOAT4X4& W = shooter->GetWorldMatrix();
+    XMFLOAT3 dir = { W._31, W._32, W._33 };
+
+    XMVECTOR dirV = XMLoadFloat3(&dir);
+    const float lenSq = XMVectorGetX(XMVector3LengthSq(dirV));
+    if (lenSq < 1e-8f)
+    {
+        dir = XMFLOAT3(0.0f, 0.0f, 1.0f);
+        dirV = XMLoadFloat3(&dir);
+    }
+
+    dirV = XMVector3Normalize(dirV);
+
+    XMFLOAT3 dirN{};
+    XMStoreFloat3(&dirN, dirV);
+
+    if (auto* tr = arrowObj->GetComponent<CTransformComponent>())
+    {
+        tr->SetLookDirection(dirN);
+    }
+
+    const XMFLOAT3 vel =
+    {
+        dirN.x * speed,
+        dirN.y * speed,
+        dirN.z * speed
+    };
+
+    arrow->Launch(vel, lifeSec);
+    m_preparedPlayerArrows[(size_t)slot] = nullptr;
+}
+
+void CGameScene::UpdatePreparedBowArrows()
+{
+    constexpr float kArrowSpeed = 3.0f;
+    constexpr float kArrowLife = 6.0f;
+
+    for (int slot = 0; slot < 4; ++slot)
+    {
+        CGameObject* player = GetPlayerBySlot(slot);
+
+        bool isBowLoad = false;
+        bool isBowRelease = false;
+        bool hasBowEquipped = false;
+
+        if (player)
+        {
+            if (auto* equip = player->GetComponent<CPlayerEquipmentComponent>())
+            {
+                hasBowEquipped = (equip->GetEquippedWeapon() == EWeaponType::Bow);
+            }
+
+            if (auto* animComp = player->GetComponent<CAnimatorComponent>())
+            {
+                if (auto* ctrl = animComp->EnsureController())
+                {
+                    isBowLoad = ctrl->IsBowLoadPhase();
+                    isBowRelease = ctrl->IsBowReleasePhase();
+                }
+            }
+            else if (auto* ctrl = player->GetAnimController())
+            {
+                isBowLoad = ctrl->IsBowLoadPhase();
+                isBowRelease = ctrl->IsBowReleasePhase();
+            }
+        }
+
+        // Bow_Release 진입 순간에만 발사
+        if (isBowRelease && !m_prevBowReleasePhase[(size_t)slot])
+        {
+            RequestReleasePreparedArrow(player, kArrowSpeed, kArrowLife);
+        }
+
+        // 공격이 끝났거나 장비가 바뀌면 준비 화살 정리
+        if ((!hasBowEquipped || (!isBowLoad && !isBowRelease)) && m_preparedPlayerArrows[(size_t)slot])
+        {
+            if (auto* arrow = m_preparedPlayerArrows[(size_t)slot]->GetComponent<CArrowComponent>())
+            {
+                arrow->Deactivate();
+            }
+            m_preparedPlayerArrows[(size_t)slot] = nullptr;
+        }
+
+        m_prevBowReleasePhase[(size_t)slot] = isBowRelease;
     }
 }
 
@@ -2538,6 +2689,7 @@ void CGameScene::AnimateObjects(float dt)
         if (!m_staticObjects[j]) continue;
         m_staticObjects[j]->Animate(dt);
     }
+    UpdatePreparedBowArrows();
 
     CGameObject* local = GetPlayer();
     if (local && m_pPlayerSpotFollower && (m_pPlayerSpotFollower->GetTarget() == nullptr))

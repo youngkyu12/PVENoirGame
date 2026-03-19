@@ -191,6 +191,13 @@ private:
 
     static constexpr UINT kArrowPoolSize = 32;
     std::vector<CGameObject*> m_arrowRefs;
+    std::array<CGameObject*, 4> m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr };
+    std::array<bool, 4> m_prevBowReleasePhase = { false, false, false, false };
+    int GetPlayerSlotFromObject(const CGameObject* obj) const;
+
+    void RequestPrepareArrow(CGameObject* shooter, float pullBackDistance);
+    void RequestReleasePreparedArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f);
+    void UpdatePreparedBowArrows();
 
     std::array<CGameObject*, 3> m_demoFighters = { nullptr, nullptr, nullptr };
 
