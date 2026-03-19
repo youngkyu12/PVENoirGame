@@ -61,7 +61,7 @@ void CAnimator::SetSkeleton(const std::vector<Bone>& bones,
         m_GlobalPose[i] = identity;
         m_FinalBoneMatrices[i] = identity;
     }
-
+    BuildUpperBodyBoneWeights("spine_01");
     // (pelvis/spine 캐시 및 로그 제거)
 }
 
@@ -103,6 +103,7 @@ void CAnimator::Stop()
 {
     m_bPlaying = false;
     m_fCurrentTime = 0.0f;
+    StopUpperBodyOverlay();
 }
 
 void CAnimator::SetTime(float timeSec)
@@ -125,6 +126,7 @@ void CAnimator::Update(float dt)
         AdvanceTime(cur, m_fCurrentTime, dt, m_bLoop);
 
         cur->Evaluate(m_fCurrentTime, m_Skeleton, m_LocalPose);
+        UpdateUpperBodyOverlay(dt);
         BuildGlobalAndFinalFromLocal();
         return;
     }
@@ -133,10 +135,14 @@ void CAnimator::Update(float dt)
     if (!nxt)
     {
         m_bBlending = false;
+
+        AdvanceTime(cur, m_fCurrentTime, dt, m_bLoop);
+        cur->Evaluate(m_fCurrentTime, m_Skeleton, m_LocalPose);
+        UpdateUpperBodyOverlay(dt);
+        BuildGlobalAndFinalFromLocal();
         return;
     }
 
-    // 블렌딩 구간에서는 두 클립을 각각 진행시키고, 로컬 포즈를 평가 후 혼합한다.
     AdvanceTime(cur, m_fCurrentTime, dt, m_bLoop);
     AdvanceTime(nxt, m_fNextTime, dt, m_bNextLoop);
 
@@ -149,6 +155,7 @@ void CAnimator::Update(float dt)
 
     BlendLocalPosesTRS(m_LocalPoseA, m_LocalPoseB, alpha, m_LocalPose);
 
+    UpdateUpperBodyOverlay(dt);
     BuildGlobalAndFinalFromLocal();
 
     if (alpha >= 1.0f)
@@ -226,6 +233,160 @@ void CAnimator::BlendLocalPosesTRS(const std::vector<XMFLOAT4X4>& A,
 
         out[i] = ComposeTRS_M(t, r, s);
     }
+}
+
+void CAnimator::BlendLocalPosesMaskedTRS(const std::vector<XMFLOAT4X4>& A,
+    const std::vector<XMFLOAT4X4>& B,
+    const std::vector<float>& boneWeights,
+    std::vector<XMFLOAT4X4>& out)
+{
+    const int n = (int)m_Skeleton.size();
+    if (n <= 0) return;
+    if ((int)out.size() != n) out.resize(n);
+
+    for (int i = 0; i < n; ++i)
+    {
+        float alpha = 0.0f;
+        if (i < (int)boneWeights.size())
+            alpha = boneWeights[i];
+
+        if (alpha <= 0.0f)
+        {
+            out[i] = A[i];
+            continue;
+        }
+
+        if (alpha >= 1.0f)
+        {
+            out[i] = B[i];
+            continue;
+        }
+
+        XMFLOAT3 tA, sA, tB, sB;
+        XMFLOAT4 rA, rB;
+
+        DecomposeTRS_M(A[i], tA, rA, sA);
+        DecomposeTRS_M(B[i], tB, rB, sB);
+
+        XMVECTOR Ta = XMLoadFloat3(&tA);
+        XMVECTOR Tb = XMLoadFloat3(&tB);
+        XMVECTOR Sa = XMLoadFloat3(&sA);
+        XMVECTOR Sb = XMLoadFloat3(&sB);
+
+        XMVECTOR T = XMVectorLerp(Ta, Tb, alpha);
+        XMVECTOR S = XMVectorLerp(Sa, Sb, alpha);
+
+        XMVECTOR Ra = XMLoadFloat4(&rA);
+        XMVECTOR Rb = XMLoadFloat4(&rB);
+        XMVECTOR R = XMQuaternionSlerp(Ra, Rb, alpha);
+        R = XMQuaternionNormalize(R);
+
+        XMFLOAT3 t;
+        XMFLOAT4 r;
+        XMFLOAT3 s;
+
+        XMStoreFloat3(&t, T);
+        XMStoreFloat4(&r, R);
+        XMStoreFloat3(&s, S);
+
+        out[i] = ComposeTRS_M(t, r, s);
+    }
+}
+
+void CAnimator::BuildUpperBodyBoneWeights(const std::string& rootBoneName)
+{
+    const int boneCount = (int)m_Skeleton.size();
+    m_UpperBodyBoneWeights.assign(boneCount, 0.0f);
+
+    if (boneCount <= 0)
+        return;
+
+    int rootIndex = -1;
+    for (int i = 0; i < boneCount; ++i)
+    {
+        if (m_Skeleton[i].name == rootBoneName)
+        {
+            rootIndex = i;
+            break;
+        }
+    }
+
+    if (rootIndex < 0)
+        return;
+
+    std::vector<int> stack;
+    std::vector<int> depth(boneCount, -1);
+
+    stack.push_back(rootIndex);
+    depth[rootIndex] = 0;
+
+    while (!stack.empty())
+    {
+        const int boneIndex = stack.back();
+        stack.pop_back();
+
+        const int d = depth[boneIndex];
+
+        if (d == 0)      m_UpperBodyBoneWeights[boneIndex] = 0.35f;
+        else if (d == 1) m_UpperBodyBoneWeights[boneIndex] = 0.70f;
+        else             m_UpperBodyBoneWeights[boneIndex] = 1.00f;
+
+        for (int i = 0; i < boneCount; ++i)
+        {
+            if (m_Skeleton[i].parentIndex == boneIndex)
+            {
+                depth[i] = d + 1;
+                stack.push_back(i);
+            }
+        }
+    }
+}
+
+bool CAnimator::PlayUpperBodyOverlay(const std::string& clipName, bool loop, float startTime)
+{
+    AnimationClip* clip = FindClipPtr(clipName);
+    if (!clip) return false;
+    if (m_Skeleton.empty()) return false;
+
+    m_bUpperBodyOverlay = true;
+    m_UpperBodyClipName = clipName;
+    m_fUpperBodyTime = startTime;
+    m_bUpperBodyLoop = loop;
+
+    if ((int)m_LocalPoseUpperBody.size() != (int)m_Skeleton.size())
+        m_LocalPoseUpperBody.resize(m_Skeleton.size());
+
+    clip->Evaluate(m_fUpperBodyTime, m_Skeleton, m_LocalPoseUpperBody);
+    return true;
+}
+
+void CAnimator::StopUpperBodyOverlay()
+{
+    m_bUpperBodyOverlay = false;
+    m_UpperBodyClipName.clear();
+    m_fUpperBodyTime = 0.0f;
+    m_bUpperBodyLoop = false;
+}
+
+void CAnimator::UpdateUpperBodyOverlay(float dt)
+{
+    if (!m_bUpperBodyOverlay)
+        return;
+
+    AnimationClip* overlay = FindClipPtr(m_UpperBodyClipName);
+    if (!overlay)
+    {
+        StopUpperBodyOverlay();
+        return;
+    }
+
+    if ((int)m_LocalPoseUpperBody.size() != (int)m_Skeleton.size())
+        m_LocalPoseUpperBody.resize(m_Skeleton.size());
+
+    AdvanceTime(overlay, m_fUpperBodyTime, dt, m_bUpperBodyLoop);
+    overlay->Evaluate(m_fUpperBodyTime, m_Skeleton, m_LocalPoseUpperBody);
+
+    BlendLocalPosesMaskedTRS(m_LocalPose, m_LocalPoseUpperBody, m_UpperBodyBoneWeights, m_LocalPose);
 }
 
 void CAnimator::BuildGlobalAndFinalFromLocal()
@@ -384,6 +545,13 @@ float CAnimator::GetCurrentClipDuration() const
     return it->second.duration;
 }
 
+float CAnimator::GetUpperBodyOverlayDuration() const
+{
+    auto it = m_Clips.find(m_UpperBodyClipName);
+    if (it == m_Clips.end()) return 0.0f;
+    return it->second.duration;
+}
+
 bool CAnimator::IsCurrentClipFinished(float eps) const
 {
     if (!m_bPlaying) return false;
@@ -398,4 +566,18 @@ bool CAnimator::IsCurrentClipFinished(float eps) const
     // AdvanceTime에서 non-loop는 time을 duration으로 clamp하므로,
     // duration - eps 이상이면 끝으로 본다.
     return (m_fCurrentTime >= (dur - eps));
+}
+
+bool CAnimator::IsUpperBodyOverlayFinished(float eps) const
+{
+    if (!m_bUpperBodyOverlay) return false;
+    if (m_bUpperBodyLoop) return false;
+
+    auto it = m_Clips.find(m_UpperBodyClipName);
+    if (it == m_Clips.end()) return false;
+
+    const float dur = it->second.duration;
+    if (dur <= 0.0f) return true;
+
+    return (m_fUpperBodyTime >= (dur - eps));
 }

@@ -39,6 +39,11 @@ public:
     int GetBoneCount() const { return (int)m_Skeleton.size(); }
     bool HasClip(const std::string& name) const;
 
+    bool PlayUpperBodyOverlay(const std::string& clipName, bool loop = false, float startTime = 0.0f);
+    void StopUpperBodyOverlay();
+    bool IsUpperBodyOverlayActive() const { return m_bUpperBodyOverlay; }
+    const std::string& GetUpperBodyOverlayClipName() const { return m_UpperBodyClipName; }
+
     void SetNextClipAfterEnd(const std::string& clip) { m_NextClipAfterEnd = clip; }
 
     const std::vector<XMFLOAT4X4>& GetGlobalBoneMatrices() const { return m_GlobalPose; }
@@ -60,6 +65,9 @@ public:
     // 현재 클립이 "non-loop"로 재생 중이고 끝에 도달했는지
     bool  IsCurrentClipFinished(float eps = 1e-4f) const;
 
+    float GetUpperBodyOverlayDuration() const;
+    bool  IsUpperBodyOverlayFinished(float eps = 1e-4f) const;
+
 
 private:
     AnimationClip* FindClipPtr(const std::string& name);
@@ -71,6 +79,14 @@ private:
     void BlendLocalPosesTRS(const std::vector<XMFLOAT4X4>& A,
         const std::vector<XMFLOAT4X4>& B,
         float alpha,
+        std::vector<XMFLOAT4X4>& out);
+
+    void BuildUpperBodyBoneWeights(const std::string& rootBoneName);
+    void UpdateUpperBodyOverlay(float dt);
+
+    void BlendLocalPosesMaskedTRS(const std::vector<XMFLOAT4X4>& A,
+        const std::vector<XMFLOAT4X4>& B,
+        const std::vector<float>& boneWeights,
         std::vector<XMFLOAT4X4>& out);
 
 private:
@@ -102,4 +118,13 @@ private:
     std::vector<XMFLOAT4X4> m_LocalPoseB;
 
     std::string m_NextClipAfterEnd;
+
+    std::vector<float> m_UpperBodyBoneWeights;
+
+    bool  m_bUpperBodyOverlay = false;
+    std::string m_UpperBodyClipName;
+    float m_fUpperBodyTime = 0.0f;
+    bool  m_bUpperBodyLoop = false;
+
+    std::vector<XMFLOAT4X4> m_LocalPoseUpperBody;
 };
