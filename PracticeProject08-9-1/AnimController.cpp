@@ -242,7 +242,7 @@ void CAnimController::Update(float /*dt*/)
             if (!locomotionClip.empty() && anim->HasClip(locomotionClip))
                 StartLocomotionClip(locomotionClip);
 
-            if (!anim->PlayUpperBodyOverlay(clipName, false, 0.0f))
+            if (!anim->PlayUpperBodyOverlay(clipName, false, 0.0f, 0.12f))
                 return false;
 
             m_actionPhase = phase;
@@ -254,7 +254,7 @@ void CAnimController::Update(float /*dt*/)
             if (clipName.empty() || !anim->HasClip(clipName))
                 return false;
 
-            anim->StopUpperBodyOverlay();
+            anim->StopUpperBodyOverlay(true);
 
             if (!anim->GetCurrentClipName().empty())
             {
@@ -302,7 +302,7 @@ void CAnimController::Update(float /*dt*/)
         const std::string hitClip = ResolveHitClip();
         if (!hitClip.empty() && anim->HasClip(hitClip))
         {
-            anim->StopUpperBodyOverlay();
+            anim->StopUpperBodyOverlay(true);
 
             if (!anim->GetCurrentClipName().empty())
             {
@@ -331,7 +331,7 @@ void CAnimController::Update(float /*dt*/)
             {
                 if (anim->HasClip("Bow_Release"))
                 {
-                    if (anim->PlayUpperBodyOverlay("Bow_Release", false, 0.0f))
+                    if (anim->PlayUpperBodyOverlay("Bow_Release", false, 0.0f, 0.05f))
                         m_actionPhase = EActionPhase::AttackBowRelease;
                     else
                     {
