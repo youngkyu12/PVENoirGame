@@ -346,6 +346,43 @@ void CAnimController::Update(float /*dt*/)
     animPrevState = m_state;
 }
 
+bool CAnimController::IsActionLocked() const
+{
+    if (m_actionPhase == EActionPhase::None)
+        return false;
+
+    // Hit은 그대로 잠금 유지
+    if (m_actionPhase == EActionPhase::Hit)
+        return true;
+
+    const EWeaponType weapon = GetEquippedWeaponType(m_pOwner);
+
+    switch (m_actionPhase)
+    {
+    case EActionPhase::AttackBowLoad:
+    case EActionPhase::AttackBowRelease:
+        // 활은 공격 중 이동/회전 허용
+        return false;
+
+    case EActionPhase::AttackGeneric:
+        // AttackGeneric은 Sword / Axe / Gun에서 사용
+        switch (weapon)
+        {
+        case EWeaponType::Gun:
+            return false; // 총은 공격 중 이동/회전 허용
+
+        case EWeaponType::Sword:
+        case EWeaponType::Axe:
+        case EWeaponType::None:
+        default:
+            return true;  // 검/도끼/기타는 기존처럼 잠금
+        }
+
+    default:
+        return true;
+    }
+}
+
 bool CAnimController::RequestAttack()
 {
     if (m_actionPhase != EActionPhase::None)

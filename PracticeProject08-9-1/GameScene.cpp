@@ -285,7 +285,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     DequeueNetworkMessage(NetworkMessageType::GameStart);
     m_localPlayerSlot = g_myPlayerId;
 #else
-    m_localPlayerSlot = 0;
+    m_localPlayerSlot = 1;
 #endif
 
     const std::string placementFilePath = "Assets/placement_export.txt";
@@ -1789,7 +1789,6 @@ void CGameScene::BuildSkinnedBatch(
                 LoadAndAddClip("Assets/Player/Animation/Player_Sword_Idle.bin", "Idle_Sword");
                 LoadAndAddClip("Assets/Player/Animation/Player_Axe_Idle.bin", "Idle_Axe");
                 LoadAndAddClip("Assets/Player/Animation/Player_Bow_Idle.bin", "Idle_Bow");
-                LoadAndAddClip("Assets/Player/Animation/Player_Bow_Hold.bin", "Hold_Bow");
                 LoadAndAddClip("Assets/Player/Animation/Player_Gun_Idle.bin", "Idle_Gun");
 
                 LoadAndAddClip("Assets/Player/Animation/Player_Normal_Hit.bin", "Hit_Normal");
