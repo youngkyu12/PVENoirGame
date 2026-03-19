@@ -327,8 +327,8 @@ void CAnimator::BuildUpperBodyBoneWeights(const std::string& rootBoneName)
 
         const int d = depth[boneIndex];
 
-        if (d == 0)      m_UpperBodyBoneWeights[boneIndex] = 0.35f;
-        else if (d == 1) m_UpperBodyBoneWeights[boneIndex] = 0.70f;
+        if (d == 0)      m_UpperBodyBoneWeights[boneIndex] = 0.60f;
+        else if (d == 1) m_UpperBodyBoneWeights[boneIndex] = 0.85f;
         else             m_UpperBodyBoneWeights[boneIndex] = 1.00f;
 
         for (int i = 0; i < boneCount; ++i)
@@ -339,6 +339,18 @@ void CAnimator::BuildUpperBodyBoneWeights(const std::string& rootBoneName)
                 stack.push_back(i);
             }
         }
+    }
+
+    int ancestor = m_Skeleton[rootIndex].parentIndex;
+    float ancestorWeight = 0.30f;
+
+    while (ancestor >= 0)
+    {
+        if (m_UpperBodyBoneWeights[ancestor] < ancestorWeight)
+            m_UpperBodyBoneWeights[ancestor] = ancestorWeight;
+
+        ancestorWeight *= 0.5f;
+        ancestor = m_Skeleton[ancestor].parentIndex;
     }
 }
 
