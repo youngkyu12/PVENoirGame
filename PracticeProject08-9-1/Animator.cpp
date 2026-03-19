@@ -293,10 +293,131 @@ void CAnimator::BlendLocalPosesMaskedTRS(const std::vector<XMFLOAT4X4>& A,
     }
 }
 
+void CAnimator::BuildGlobalPoseFromLocal(const std::vector<XMFLOAT4X4>& localPose,
+    std::vector<XMFLOAT4X4>& outGlobalPose) const
+{
+    const int boneCount = (int)m_Skeleton.size();
+    if (boneCount <= 0)
+    {
+        outGlobalPose.clear();
+        return;
+    }
+
+    if ((int)outGlobalPose.size() != boneCount)
+        outGlobalPose.resize(boneCount);
+
+    auto FindPrimaryRoot = [&]() -> int
+        {
+            std::vector<int> roots;
+            for (int i = 0; i < boneCount; ++i)
+            {
+                if (m_Skeleton[i].parentIndex < 0)
+                    roots.push_back(i);
+            }
+
+            if (roots.empty()) return 0;
+            if (roots.size() == 1) return roots[0];
+
+            auto CountDesc = [&](int root) -> int
+                {
+                    int cnt = 0;
+                    for (int i = 0; i < boneCount; ++i)
+                    {
+                        int p = m_Skeleton[i].parentIndex;
+                        while (p >= 0)
+                        {
+                            if (p == root)
+                            {
+                                cnt++;
+                                break;
+                            }
+                            p = m_Skeleton[p].parentIndex;
+                        }
+                    }
+                    return cnt;
+                };
+
+            int best = roots[0];
+            int bestCnt = -1;
+
+            for (int r : roots)
+            {
+                const int c = CountDesc(r);
+                if (c > bestCnt)
+                {
+                    bestCnt = c;
+                    best = r;
+                }
+            }
+
+            return best;
+        };
+
+    const int primaryRoot = FindPrimaryRoot();
+
+    {
+        XMMATRIX localRoot = XMLoadFloat4x4(&localPose[primaryRoot]);
+        XMStoreFloat4x4(&outGlobalPose[primaryRoot], localRoot);
+    }
+
+    for (int i = 0; i < boneCount; ++i)
+    {
+        if (i == primaryRoot)
+            continue;
+
+        int parent = m_Skeleton[i].parentIndex;
+        XMMATRIX local = XMLoadFloat4x4(&localPose[i]);
+
+        if (parent < 0)
+        {
+            XMMATRIX primaryG = XMLoadFloat4x4(&outGlobalPose[primaryRoot]);
+            XMMATRIX invPrimaryG = XMMatrixInverse(nullptr, primaryG);
+            local = local * invPrimaryG;
+            parent = primaryRoot;
+        }
+
+        XMMATRIX parentM = XMLoadFloat4x4(&outGlobalPose[parent]);
+        XMMATRIX global = local * parentM;
+        XMStoreFloat4x4(&outGlobalPose[i], global);
+    }
+}
+
+void CAnimator::RetargetUpperBodyOverlayRootToCurrentParent()
+{
+    if (!m_bUpperBodyOverlay)
+        return;
+
+    if (m_UpperBodyRootBoneIndex < 0)
+        return;
+
+    const int rootIndex = m_UpperBodyRootBoneIndex;
+    const int parentIndex = m_Skeleton[rootIndex].parentIndex;
+
+    if (parentIndex < 0)
+        return;
+
+    if ((int)m_LocalPose.size() != (int)m_Skeleton.size())
+        return;
+
+    if ((int)m_LocalPoseUpperBody.size() != (int)m_Skeleton.size())
+        return;
+
+    BuildGlobalPoseFromLocal(m_LocalPose, m_GlobalPoseScratchBase);
+    BuildGlobalPoseFromLocal(m_LocalPoseUpperBody, m_GlobalPoseScratchUpper);
+
+    XMMATRIX attackRootGlobal = XMLoadFloat4x4(&m_GlobalPoseScratchUpper[rootIndex]);
+    XMMATRIX baseParentGlobal = XMLoadFloat4x4(&m_GlobalPoseScratchBase[parentIndex]);
+    XMMATRIX invBaseParentGlobal = XMMatrixInverse(nullptr, baseParentGlobal);
+
+    XMMATRIX correctedRootLocal = attackRootGlobal * invBaseParentGlobal;
+    XMStoreFloat4x4(&m_LocalPoseUpperBody[rootIndex], correctedRootLocal);
+}
+
 void CAnimator::BuildUpperBodyBoneWeights(const std::string& rootBoneName)
 {
     const int boneCount = (int)m_Skeleton.size();
     m_UpperBodyBoneWeights.assign(boneCount, 0.0f);
+    m_UpperBodyRootBoneIndex = -1;
 
     if (boneCount <= 0)
         return;
@@ -313,6 +434,8 @@ void CAnimator::BuildUpperBodyBoneWeights(const std::string& rootBoneName)
 
     if (rootIndex < 0)
         return;
+
+    m_UpperBodyRootBoneIndex = rootIndex;
 
     std::vector<int> stack;
     std::vector<int> depth(boneCount, -1);
@@ -397,6 +520,7 @@ void CAnimator::UpdateUpperBodyOverlay(float dt)
 
     AdvanceTime(overlay, m_fUpperBodyTime, dt, m_bUpperBodyLoop);
     overlay->Evaluate(m_fUpperBodyTime, m_Skeleton, m_LocalPoseUpperBody);
+    RetargetUpperBodyOverlayRootToCurrentParent();
 
     BlendLocalPosesMaskedTRS(m_LocalPose, m_LocalPoseUpperBody, m_UpperBodyBoneWeights, m_LocalPose);
 }
