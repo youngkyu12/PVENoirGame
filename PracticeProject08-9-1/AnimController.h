@@ -60,11 +60,6 @@ public:
     void SetAnimState(EAnimState s)
     {
         m_state = s;
-        m_attackQueued = false;
-        m_hitQueued = false;
-
-        if (s != EAnimState::Attack)
-            m_actionPhase = EActionPhase::None;
     }
 
 private:

@@ -49,6 +49,10 @@ namespace
 
         return equip->GetEquippedWeapon();
     }
+    static bool ShouldUseUpperBodyAttackOverlay(EWeaponType weapon)
+    {
+        return (weapon == EWeaponType::Bow) || (weapon == EWeaponType::Gun);
+    }
 }
 
 std::string CAnimController::ResolveIdleClip() const
@@ -73,7 +77,7 @@ std::string CAnimController::ResolveMoveClip() const
 
     const std::string suffix = BuildDirectionSuffix(m_moveDirBits);
     if (suffix.empty())
-        return ResolveIdleClip();
+        return m_bRunRequested ? "Run_F" : "Walk_F";
 
     const char* prefix = m_bRunRequested ? "Run_" : "Walk_";
     return std::string(prefix) + suffix;
@@ -154,39 +158,102 @@ void CAnimController::Update(float /*dt*/)
 
     if (!anim) return;
 
-    // ------------------------------------------------------------
-    // Attack request
-    // ------------------------------------------------------------
-#ifdef USING_NETWORK
+    const EWeaponType weapon = GetEquippedWeaponType(m_pOwner);
 
-    // µ¥¸ð: play¸¸ ¿­½ÉÈ÷ ÇÏÀÚ
-    constexpr float kBlendTime = 0.15f;
-
-    if (m_state != animPrevState) {
-        const char* targetClip = ClipFor(m_state);
-
-
-        if(m_state == EAnimState::Attack)
+    auto IsOverlayActionPhase = [&](EActionPhase phase) -> bool
         {
-            if (!anim->CrossFade(m_attackClip, kBlendTime, false, m_startTime))
+            switch (phase)
             {
-                anim->Play(m_attackClip, false, m_startTime);
+            case EActionPhase::AttackBowLoad:
+            case EActionPhase::AttackBowRelease:
+                return true;
+
+            case EActionPhase::AttackGeneric:
+                return ShouldUseUpperBodyAttackOverlay(weapon);
+
+            default:
+                return false;
             }
-            return;
-		}
+        };
 
-
-        if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
+    auto WantsMoveNow = [&]() -> bool
         {
-            
-            anim->Play(targetClip, true, m_startTime);
-        }
-    }
+            if (m_usePlayerClipSet)
+                return (m_moveDirBits != 0) || (m_state == EAnimState::Move);
 
-	   
+            return (m_speed > m_moveEps) || (m_state == EAnimState::Move);
+        };
 
-#else
-    if (m_attackQueued)
+    auto ResolveSafeLocomotionClip = [&]() -> std::string
+        {
+            const EAnimState targetState = WantsMoveNow() ? EAnimState::Move : EAnimState::Idle;
+
+            std::string clip = ResolveLocomotionClip(targetState);
+            if (clip.empty() || !anim->HasClip(clip))
+                clip = ResolveIdleClip();
+
+            return clip;
+        };
+
+    auto StartLocomotionClip = [&](const std::string& clipName)
+        {
+            if (clipName.empty() || !anim->HasClip(clipName))
+                return;
+
+            constexpr float kBlendTime = 0.15f;
+
+            if (anim->GetCurrentClipName().empty())
+            {
+                anim->Play(clipName, true, 0.0f);
+                return;
+            }
+
+            if (anim->GetCurrentClipName() != clipName)
+            {
+                if (!anim->CrossFade(clipName, kBlendTime, true, 0.0f))
+                    anim->Play(clipName, true, 0.0f);
+            }
+        };
+
+    auto StartUpperBodyAttack = [&](const std::string& clipName, EActionPhase phase) -> bool
+        {
+            if (clipName.empty() || !anim->HasClip(clipName))
+                return false;
+
+            const std::string locomotionClip = ResolveSafeLocomotionClip();
+            if (!locomotionClip.empty() && anim->HasClip(locomotionClip))
+                StartLocomotionClip(locomotionClip);
+
+            if (!anim->PlayUpperBodyOverlay(clipName, false, 0.0f))
+                return false;
+
+            m_actionPhase = phase;
+            return true;
+        };
+
+    auto StartFullBodyAction = [&](const std::string& clipName, EActionPhase phase, float blendTimeSec) -> bool
+        {
+            if (clipName.empty() || !anim->HasClip(clipName))
+                return false;
+
+            anim->StopUpperBodyOverlay();
+
+            if (!anim->GetCurrentClipName().empty())
+            {
+                if (!anim->CrossFade(clipName, blendTimeSec, false, 0.0f))
+                    anim->Play(clipName, false, 0.0f);
+            }
+            else
+            {
+                anim->Play(clipName, false, 0.0f);
+            }
+
+            m_actionPhase = phase;
+            m_state = EAnimState::Attack;
+            return true;
+        };
+
+    if (m_attackQueued && m_actionPhase == EActionPhase::None)
     {
         m_attackQueued = false;
 
@@ -195,39 +262,33 @@ void CAnimController::Update(float /*dt*/)
 
         if (!atkClip.empty() && anim->HasClip(atkClip))
         {
-            constexpr float kAtkBlendTime = 0.12f;
-
-            if (!anim->GetCurrentClipName().empty())
+            if (IsOverlayActionPhase(nextPhase))
             {
-                if (!anim->CrossFade(atkClip, kAtkBlendTime, false, 0.0f))
-                    anim->Play(atkClip, false, 0.0f);
+                StartUpperBodyAttack(atkClip, nextPhase);
             }
             else
             {
-                anim->Play(atkClip, false, 0.0f);
+                if (StartFullBodyAction(atkClip, nextPhase, 0.12f))
+                {
+                    animPrevState = m_state;
+                    return;
+                }
             }
-
-            m_actionPhase = nextPhase;
-            m_state = EAnimState::Attack;
-            return;
         }
     }
-#endif
-    // ------------------------------------------------------------
-    // Hit request
-    // ------------------------------------------------------------
-    if (m_hitQueued)
+
+    if (m_hitQueued && m_actionPhase == EActionPhase::None)
     {
         m_hitQueued = false;
 
         const std::string hitClip = ResolveHitClip();
         if (!hitClip.empty() && anim->HasClip(hitClip))
         {
-            constexpr float kHitBlendTime = 0.08f;
+            anim->StopUpperBodyOverlay();
 
             if (!anim->GetCurrentClipName().empty())
             {
-                if (!anim->CrossFade(hitClip, kHitBlendTime, false, 0.0f))
+                if (!anim->CrossFade(hitClip, 0.08f, false, 0.0f))
                     anim->Play(hitClip, false, 0.0f);
             }
             else
@@ -236,83 +297,74 @@ void CAnimController::Update(float /*dt*/)
             }
 
             m_actionPhase = EActionPhase::Hit;
+            animPrevState = m_state;
             return;
         }
     }
 
-    // ------------------------------------------------------------
-    // Action progression
-    // ------------------------------------------------------------
     if (m_actionPhase != EActionPhase::None)
     {
-        if (anim->IsCurrentClipFinished())
+        const bool overlayAction = IsOverlayActionPhase(m_actionPhase);
+        const bool actionFinished = overlayAction ? anim->IsUpperBodyOverlayFinished() : anim->IsCurrentClipFinished();
+
+        if (actionFinished)
         {
             if (m_actionPhase == EActionPhase::AttackBowLoad)
             {
                 if (anim->HasClip("Bow_Release"))
                 {
-                    constexpr float kBowChainBlendTime = 0.05f;
-
-                    if (!anim->CrossFade("Bow_Release", kBowChainBlendTime, false, 0.0f))
-                        anim->Play("Bow_Release", false, 0.0f);
-
-                    m_actionPhase = EActionPhase::AttackBowRelease;
-                    return;
+                    if (anim->PlayUpperBodyOverlay("Bow_Release", false, 0.0f))
+                        m_actionPhase = EActionPhase::AttackBowRelease;
+                    else
+                    {
+                        anim->StopUpperBodyOverlay();
+                        m_actionPhase = EActionPhase::None;
+                    }
+                }
+                else
+                {
+                    anim->StopUpperBodyOverlay();
+                    m_actionPhase = EActionPhase::None;
                 }
             }
-
-            const bool wantsMove =
-                m_usePlayerClipSet ? (m_moveDirBits != 0)
-                : (m_speed > m_moveEps);
-
-            const EAnimState targetState = wantsMove ? EAnimState::Move : EAnimState::Idle;
-            std::string targetClip = ResolveLocomotionClip(targetState);
-
-            if (targetClip.empty() || !anim->HasClip(targetClip))
+            else
             {
-                targetClip = ResolveIdleClip();
+                if (overlayAction)
+                    anim->StopUpperBodyOverlay();
+
+                const bool wantsMove = WantsMoveNow();
+                const EAnimState targetState = wantsMove ? EAnimState::Move : EAnimState::Idle;
+                std::string targetClip = ResolveLocomotionClip(targetState);
+
+                if (targetClip.empty() || !anim->HasClip(targetClip))
+                    targetClip = ResolveIdleClip();
+
+                if (!targetClip.empty() && anim->HasClip(targetClip))
+                {
+                    if (!overlayAction)
+                    {
+                        if (!anim->CrossFade(targetClip, 0.12f, true, 0.0f))
+                            anim->Play(targetClip, true, 0.0f);
+                    }
+                    else if (anim->GetCurrentClipName().empty())
+                    {
+                        anim->Play(targetClip, true, 0.0f);
+                    }
+                }
+
+                m_actionPhase = EActionPhase::None;
+                m_state = targetState;
             }
-
-            if (!targetClip.empty() && anim->HasClip(targetClip))
-            {
-                constexpr float kOutBlendTime = 0.12f;
-
-                if (!anim->CrossFade(targetClip, kOutBlendTime, true, 0.0f))
-                    anim->Play(targetClip, true, 0.0f);
-            }
-
-            m_actionPhase = EActionPhase::None;
-            m_state = targetState;
         }
-        return;
-    }
 
-#ifdef USING_NETWORK
-    std::string targetClip = ResolveLocomotionClip(m_state);
-    if (targetClip.empty() || !anim->HasClip(targetClip))
-    {
-        targetClip = ResolveIdleClip();
-        if (targetClip.empty() || !anim->HasClip(targetClip))
+        if (!overlayAction)
+        {
+            animPrevState = m_state;
             return;
+        }
     }
 
-    constexpr float kBlendTime = 0.15f;
-
-    if (anim->GetCurrentClipName().empty())
-    {
-        anim->Play(targetClip, true, 0.0f);
-    }
-    else if (m_state != animPrevState || anim->GetCurrentClipName() != targetClip)
-    {
-        if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
-            anim->Play(targetClip, true, 0.0f);
-    }
-#else
-    const bool wantsMove =
-        m_usePlayerClipSet ? (m_moveDirBits != 0)
-        : (m_speed > m_moveEps);
-    EAnimState target = (m_speed > m_moveEps) ? EAnimState::Move : EAnimState::Idle;
-
+    const bool wantsMove = WantsMoveNow();
     const EAnimState targetState = wantsMove ? EAnimState::Move : EAnimState::Idle;
 
     std::string targetClip = ResolveLocomotionClip(targetState);
@@ -320,7 +372,10 @@ void CAnimController::Update(float /*dt*/)
     {
         targetClip = ResolveIdleClip();
         if (targetClip.empty() || !anim->HasClip(targetClip))
+        {
+            animPrevState = m_state;
             return;
+        }
     }
 
     constexpr float kBlendTime = 0.15f;
@@ -328,20 +383,15 @@ void CAnimController::Update(float /*dt*/)
     if (anim->GetCurrentClipName().empty())
     {
         anim->Play(targetClip, true, 0.0f);
-        m_state = targetState;
     }
-    else if (targetState != m_state || anim->GetCurrentClipName() != targetClip)
+    else if (anim->GetCurrentClipName() != targetClip)
     {
         if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
             anim->Play(targetClip, true, 0.0f);
+    }
 
+    if (m_actionPhase == EActionPhase::None)
         m_state = targetState;
-    }
-    else
-    {
-        m_state = targetState;
-    }
-#endif
 
     animPrevState = m_state;
 }
