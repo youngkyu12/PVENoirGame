@@ -89,6 +89,10 @@ private:
         const std::vector<float>& boneWeights,
         std::vector<XMFLOAT4X4>& out);
 
+    void BuildGlobalPoseFromLocal(const std::vector<XMFLOAT4X4>& localPose,
+        std::vector<XMFLOAT4X4>& outGlobalPose) const;
+    void RetargetUpperBodyOverlayRootToCurrentParent();
+
 private:
     std::vector<Bone> m_Skeleton;
 
@@ -127,4 +131,7 @@ private:
     bool  m_bUpperBodyLoop = false;
 
     std::vector<XMFLOAT4X4> m_LocalPoseUpperBody;
+    std::vector<XMFLOAT4X4> m_GlobalPoseScratchBase;
+    std::vector<XMFLOAT4X4> m_GlobalPoseScratchUpper;
+    int m_UpperBodyRootBoneIndex = -1;
 };
