@@ -39,8 +39,8 @@ public:
     int GetBoneCount() const { return (int)m_Skeleton.size(); }
     bool HasClip(const std::string& name) const;
 
-    bool PlayUpperBodyOverlay(const std::string& clipName, bool loop = false, float startTime = 0.0f);
-    void StopUpperBodyOverlay();
+    bool PlayUpperBodyOverlay(const std::string& clipName, bool loop = false, float startTime = 0.0f, float blendTimeSec = 0.12f);
+    void StopUpperBodyOverlay(bool immediate = false);
     bool IsUpperBodyOverlayActive() const { return m_bUpperBodyOverlay; }
     const std::string& GetUpperBodyOverlayClipName() const { return m_UpperBodyClipName; }
 
@@ -131,6 +131,16 @@ private:
     bool  m_bUpperBodyLoop = false;
 
     std::vector<XMFLOAT4X4> m_LocalPoseUpperBody;
+
+    std::vector<float> m_UpperBodyBlendWeights;
+
+    float m_fUpperBodyBlendAlpha = 0.0f;
+    float m_fUpperBodyBlendStartAlpha = 0.0f;
+    float m_fUpperBodyBlendTargetAlpha = 0.0f;
+    float m_fUpperBodyBlendElapsed = 0.0f;
+    float m_fUpperBodyBlendDuration = 0.0f;
+    float m_fUpperBodyFadeOutDuration = 0.10f;
+
     std::vector<XMFLOAT4X4> m_GlobalPoseScratchBase;
     std::vector<XMFLOAT4X4> m_GlobalPoseScratchUpper;
     int m_UpperBodyRootBoneIndex = -1;

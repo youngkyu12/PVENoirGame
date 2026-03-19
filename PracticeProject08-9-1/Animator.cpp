@@ -103,7 +103,7 @@ void CAnimator::Stop()
 {
     m_bPlaying = false;
     m_fCurrentTime = 0.0f;
-    StopUpperBodyOverlay();
+    StopUpperBodyOverlay(true);
 }
 
 void CAnimator::SetTime(float timeSec)
@@ -477,11 +477,14 @@ void CAnimator::BuildUpperBodyBoneWeights(const std::string& rootBoneName)
     }
 }
 
-bool CAnimator::PlayUpperBodyOverlay(const std::string& clipName, bool loop, float startTime)
+bool CAnimator::PlayUpperBodyOverlay(const std::string& clipName, bool loop, float startTime, float blendTimeSec)
 {
     AnimationClip* clip = FindClipPtr(clipName);
     if (!clip) return false;
     if (m_Skeleton.empty()) return false;
+
+    const bool wasActive = m_bUpperBodyOverlay;
+    const float startAlpha = wasActive ? m_fUpperBodyBlendAlpha : 0.0f;
 
     m_bUpperBodyOverlay = true;
     m_UpperBodyClipName = clipName;
@@ -492,15 +495,54 @@ bool CAnimator::PlayUpperBodyOverlay(const std::string& clipName, bool loop, flo
         m_LocalPoseUpperBody.resize(m_Skeleton.size());
 
     clip->Evaluate(m_fUpperBodyTime, m_Skeleton, m_LocalPoseUpperBody);
+
+    m_fUpperBodyBlendAlpha = startAlpha;
+    m_fUpperBodyBlendStartAlpha = startAlpha;
+    m_fUpperBodyBlendTargetAlpha = 1.0f;
+    m_fUpperBodyBlendElapsed = 0.0f;
+    m_fUpperBodyBlendDuration = blendTimeSec;
+
+    if (m_fUpperBodyBlendDuration <= 0.0f)
+    {
+        m_fUpperBodyBlendAlpha = 1.0f;
+        m_fUpperBodyBlendStartAlpha = 1.0f;
+        m_fUpperBodyBlendTargetAlpha = 1.0f;
+        m_fUpperBodyBlendElapsed = 0.0f;
+        m_fUpperBodyBlendDuration = 0.0f;
+    }
+
     return true;
 }
 
-void CAnimator::StopUpperBodyOverlay()
+void CAnimator::StopUpperBodyOverlay(bool immediate)
 {
+    if (!m_bUpperBodyOverlay)
+        return;
+
+    if (!immediate)
+    {
+        if (m_fUpperBodyBlendTargetAlpha <= 0.0f)
+            return;
+
+        m_fUpperBodyBlendStartAlpha = m_fUpperBodyBlendAlpha;
+        m_fUpperBodyBlendTargetAlpha = 0.0f;
+        m_fUpperBodyBlendElapsed = 0.0f;
+        m_fUpperBodyBlendDuration = m_fUpperBodyFadeOutDuration;
+
+        if (m_fUpperBodyBlendDuration > 0.0f)
+            return;
+    }
+
     m_bUpperBodyOverlay = false;
     m_UpperBodyClipName.clear();
     m_fUpperBodyTime = 0.0f;
     m_bUpperBodyLoop = false;
+
+    m_fUpperBodyBlendAlpha = 0.0f;
+    m_fUpperBodyBlendStartAlpha = 0.0f;
+    m_fUpperBodyBlendTargetAlpha = 0.0f;
+    m_fUpperBodyBlendElapsed = 0.0f;
+    m_fUpperBodyBlendDuration = 0.0f;
 }
 
 void CAnimator::UpdateUpperBodyOverlay(float dt)
@@ -511,18 +553,50 @@ void CAnimator::UpdateUpperBodyOverlay(float dt)
     AnimationClip* overlay = FindClipPtr(m_UpperBodyClipName);
     if (!overlay)
     {
-        StopUpperBodyOverlay();
+        StopUpperBodyOverlay(true);
         return;
     }
 
     if ((int)m_LocalPoseUpperBody.size() != (int)m_Skeleton.size())
         m_LocalPoseUpperBody.resize(m_Skeleton.size());
 
+    if ((int)m_UpperBodyBlendWeights.size() != (int)m_UpperBodyBoneWeights.size())
+        m_UpperBodyBlendWeights.resize(m_UpperBodyBoneWeights.size());
+
     AdvanceTime(overlay, m_fUpperBodyTime, dt, m_bUpperBodyLoop);
     overlay->Evaluate(m_fUpperBodyTime, m_Skeleton, m_LocalPoseUpperBody);
     RetargetUpperBodyOverlayRootToCurrentParent();
 
-    BlendLocalPosesMaskedTRS(m_LocalPose, m_LocalPoseUpperBody, m_UpperBodyBoneWeights, m_LocalPose);
+    if (m_fUpperBodyBlendDuration <= 0.0f)
+    {
+        m_fUpperBodyBlendAlpha = m_fUpperBodyBlendTargetAlpha;
+    }
+    else
+    {
+        m_fUpperBodyBlendElapsed += dt;
+
+        float t = m_fUpperBodyBlendElapsed / m_fUpperBodyBlendDuration;
+        if (t < 0.0f) t = 0.0f;
+        if (t > 1.0f) t = 1.0f;
+
+        m_fUpperBodyBlendAlpha =
+            m_fUpperBodyBlendStartAlpha +
+            (m_fUpperBodyBlendTargetAlpha - m_fUpperBodyBlendStartAlpha) * t;
+    }
+
+    if (m_fUpperBodyBlendAlpha < 0.0f) m_fUpperBodyBlendAlpha = 0.0f;
+    if (m_fUpperBodyBlendAlpha > 1.0f) m_fUpperBodyBlendAlpha = 1.0f;
+
+    if ((m_fUpperBodyBlendTargetAlpha <= 0.0f) && (m_fUpperBodyBlendAlpha <= 0.0f))
+    {
+        StopUpperBodyOverlay(true);
+        return;
+    }
+
+    for (size_t i = 0; i < m_UpperBodyBoneWeights.size(); ++i)
+        m_UpperBodyBlendWeights[i] = m_UpperBodyBoneWeights[i] * m_fUpperBodyBlendAlpha;
+
+    BlendLocalPosesMaskedTRS(m_LocalPose, m_LocalPoseUpperBody, m_UpperBodyBlendWeights, m_LocalPose);
 }
 
 void CAnimator::BuildGlobalAndFinalFromLocal()
