@@ -9,7 +9,7 @@
 #else
 #pragma comment(lib, "ServerCore\\Release\\ServerCore.lib")
 #pragma comment(lib, "Protobuf\\Release\\libprotobuf.lib")
-#pragma comment(lib, "BaseComponent\\Release\\BaseComponent.lib"))
+#pragma comment(lib, "BaseComponent\\Release\\BaseComponent.lib")
 #endif
 
 #include "CorePch.h"

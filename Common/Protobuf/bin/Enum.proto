@@ -80,3 +80,10 @@ enum WeaponType
 	WEAPON_TYPE_AXE = 3;
 	WEAPON_TYPE_CANON = 4;
 }
+
+enum BulletType
+{
+	BULLET_TYPE_NONE = 0;
+	BULLET_TYPE_ARROW = 1;
+	BULLET_TYPE_CANNONBALL = 2;
+}
