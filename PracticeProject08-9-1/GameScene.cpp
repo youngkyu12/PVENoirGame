@@ -2324,6 +2324,57 @@ void CGameScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* 
     }
 }
 
+bool CGameScene::GetPauseOverlayRect(XMFLOAT4& outRect) const
+{
+    if (!m_inactiveOverlayTex || (m_inactiveOverlaySrvIndex == UINT_MAX))
+        return false;
+
+    float drawW = static_cast<float>(m_inactiveOverlayTex->GetTextureWidth(0));
+    float drawH = static_cast<float>(m_inactiveOverlayTex->GetTextureHeight(0));
+
+    if (drawW <= 0.0f || drawH <= 0.0f)
+    {
+        drawW = 512.0f;
+        drawH = 512.0f;
+    }
+
+    float fitScale = 1.0f;
+    const float scaleX = (drawW > 0.0f) ? (static_cast<float>(FRAME_BUFFER_WIDTH) / drawW) : 1.0f;
+    const float scaleY = (drawH > 0.0f) ? (static_cast<float>(FRAME_BUFFER_HEIGHT) / drawH) : 1.0f;
+
+    if (scaleX < fitScale) fitScale = scaleX;
+    if (scaleY < fitScale) fitScale = scaleY;
+    if (fitScale > 1.0f) fitScale = 1.0f;
+
+    drawW *= fitScale;
+    drawH *= fitScale;
+
+    outRect = XMFLOAT4(
+        FRAME_BUFFER_WIDTH * 0.5f,
+        FRAME_BUFFER_HEIGHT * 0.5f,
+        drawW,
+        drawH
+    );
+    return true;
+}
+
+bool CGameScene::IsPointInPauseOverlay(POINT clientPt) const
+{
+    XMFLOAT4 rect{};
+    if (!GetPauseOverlayRect(rect))
+        return false;
+
+    const float left = rect.x - rect.z * 0.5f;
+    const float right = rect.x + rect.z * 0.5f;
+    const float top = rect.y - rect.w * 0.5f;
+    const float bottom = rect.y + rect.w * 0.5f;
+
+    const float px = static_cast<float>(clientPt.x);
+    const float py = static_cast<float>(clientPt.y);
+
+    return (px >= left && px <= right && py >= top && py <= bottom);
+}
+
 void CGameScene::SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex)
 {
     if (!m_pMaterials) return;
@@ -2858,36 +2909,22 @@ void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 
     if (m_bInactiveOverlayVisible && m_inactiveOverlayShader && (m_inactiveOverlaySrvIndex != UINT_MAX))
     {
-        float drawW = static_cast<float>(m_inactiveOverlayTex ? m_inactiveOverlayTex->GetTextureWidth(0) : 0);
-        float drawH = static_cast<float>(m_inactiveOverlayTex ? m_inactiveOverlayTex->GetTextureHeight(0) : 0);
-
-        if (drawW <= 0.0f || drawH <= 0.0f)
+        XMFLOAT4 uiRect{};
+        if (!GetPauseOverlayRect(uiRect))
         {
-            drawW = 512.0f;
-            drawH = 512.0f;
+            uiRect = XMFLOAT4(
+                FRAME_BUFFER_WIDTH * 0.5f,
+                FRAME_BUFFER_HEIGHT * 0.5f,
+                512.0f,
+                512.0f
+            );
         }
-
-        float fitScale = 1.0f;
-        const float scaleX = (drawW > 0.0f) ? (static_cast<float>(FRAME_BUFFER_WIDTH) / drawW) : 1.0f;
-        const float scaleY = (drawH > 0.0f) ? (static_cast<float>(FRAME_BUFFER_HEIGHT) / drawH) : 1.0f;
-
-        if (scaleX < fitScale) fitScale = scaleX;
-        if (scaleY < fitScale) fitScale = scaleY;
-        if (fitScale > 1.0f) fitScale = 1.0f;
-
-        drawW *= fitScale;
-        drawH *= fitScale;
 
         PS_CB_DRAW_OPTIONS opt{};
         opt.m_xmn4DrawOptions = XMINT4('T', 0, 0, 0);
         opt.m_xmu4PostSrvIdx0 = XMUINT4(m_inactiveOverlaySrvIndex, 0, 0, 0);
         opt.m_xmu4PostSrvIdx1 = XMUINT4(0, 0, 0, 0);
-        opt.m_xmf4UiRect = XMFLOAT4(
-            FRAME_BUFFER_WIDTH * 0.5f,
-            FRAME_BUFFER_HEIGHT * 0.5f,
-            drawW,
-            drawH
-        );
+        opt.m_xmf4UiRect = uiRect;
         opt.m_xmf4Viewport = XMFLOAT4(
             static_cast<float>(FRAME_BUFFER_WIDTH),
             static_cast<float>(FRAME_BUFFER_HEIGHT),

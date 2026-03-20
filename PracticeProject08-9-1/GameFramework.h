@@ -138,4 +138,7 @@ private:
 	bool								m_bWindowActive = true;
 	bool								m_bConsumeNextMouseClick = false;
 	bool								m_bUserPaused = false;
+	
+	bool HandlePauseClick(UINT nMessageID, LPARAM lParam);
+	void ClearInputPause();
 };

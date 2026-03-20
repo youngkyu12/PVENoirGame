@@ -399,6 +399,41 @@ void CGameFramework::SyncGameSceneInactiveOverlay()
 	gameScene->SetInactiveOverlayVisible(IsInputPauseActive());
 }
 
+void CGameFramework::ClearInputPause()
+{
+	m_bUserPaused = false;
+	m_bConsumeNextMouseClick = false;
+
+	::GetCursorPos(&m_ptOldCursorPos);
+	SyncGameSceneInactiveOverlay();
+}
+
+bool CGameFramework::HandlePauseClick(UINT nMessageID, LPARAM lParam)
+{
+	if ((nMessageID != WM_LBUTTONDOWN) && (nMessageID != WM_RBUTTONDOWN))
+		return false;
+
+	if (!IsInputPauseActive())
+		return false;
+
+	CGameScene* gameScene = dynamic_cast<CGameScene*>(m_SceneManager.GetScene());
+
+	POINT ptClient = {};
+	ptClient.x = GET_X_LPARAM(lParam);
+	ptClient.y = GET_Y_LPARAM(lParam);
+
+	// GameScene이고 Pause UI 위를 클릭했으면 종료
+	if (gameScene && gameScene->IsPointInPauseOverlay(ptClient))
+	{
+		::PostQuitMessage(0);
+		return true;
+	}
+
+	// Pause UI 바깥 클릭이면 입력정지 해제
+	ClearInputPause();
+	return true;
+}
+
 bool CGameFramework::IsWindowActuallyActive() const
 {
 	return (m_hWnd != nullptr) && (::GetForegroundWindow() == m_hWnd);
@@ -406,7 +441,7 @@ bool CGameFramework::IsWindowActuallyActive() const
 
 bool CGameFramework::IsInputPauseActive() const
 {
-	return (!m_bWindowActive) || m_bUserPaused;
+	return m_bUserPaused;
 }
 
 void CGameFramework::UpdateWindowActivationState()
@@ -421,13 +456,19 @@ void CGameFramework::UpdateWindowActivationState()
 	if (!m_bWindowActive)
 	{
 		::ReleaseCapture();
+
+		// 비활성화 = ESC pause와 동일하게 처리
+		if (dynamic_cast<CGameScene*>(m_SceneManager.GetScene()))
+			m_bUserPaused = true;
+
 		SyncGameSceneInactiveOverlay();
 	}
 	else
 	{
 		::GetCursorPos(&m_ptOldCursorPos);
 
-		// 비활성 상태에서 클릭으로 다시 활성화된 직후 첫 클릭은 먹는다.
+		// 다시 클릭해서 활성화될 때 첫 클릭은
+		// 오직 활성화만 하고 어떤 pause 처리도 하지 않음
 		m_bConsumeNextMouseClick = true;
 
 		SyncGameSceneInactiveOverlay();
@@ -460,6 +501,9 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 		m_pd3dCommandList->Close();
 		return;
 	}
+
+	m_bUserPaused = false;
+	m_bConsumeNextMouseClick = false;
 
 	m_pCamera = scene->GetMainCamera();
 	SyncGameSceneInactiveOverlay();
@@ -538,22 +582,27 @@ void CGameFramework::OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM
 	if (!m_bWindowActive)
 		return;
 
-	if (m_bConsumeNextMouseClick)
+	const bool isButtonMsg =
+		(nMessageID == WM_LBUTTONDOWN) ||
+		(nMessageID == WM_RBUTTONDOWN) ||
+		(nMessageID == WM_LBUTTONUP) ||
+		(nMessageID == WM_RBUTTONUP);
+
+	// 비활성 -> 활성 직후 첫 클릭은 무조건 버린다.
+	// (활성화만 하고, pause 해제/종료 판정도 하지 않음)
+	if (m_bConsumeNextMouseClick && isButtonMsg)
 	{
-		if ((nMessageID == WM_LBUTTONDOWN) ||
-			(nMessageID == WM_RBUTTONDOWN) ||
-			(nMessageID == WM_LBUTTONUP) ||
-			(nMessageID == WM_RBUTTONUP))
-		{
-			m_bConsumeNextMouseClick = false;
-			::GetCursorPos(&m_ptOldCursorPos);
-			return;
-		}
+		m_bConsumeNextMouseClick = false;
+		::GetCursorPos(&m_ptOldCursorPos);
+		return;
 	}
 
-	if (m_bUserPaused)
+	// pause 상태면 scene 입력보다 pause 클릭 처리가 먼저다.
+	if (IsInputPauseActive())
 	{
-		// TODO: 추후 일시정지 상태에서 마우스 클릭으로 resume / menu exit 등을 처리
+		if (HandlePauseClick(nMessageID, lParam))
+			return;
+
 		return;
 	}
 
@@ -609,7 +658,7 @@ void CGameFramework::OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPA
 		}
 	}
 
-	if (m_bUserPaused)
+	if (IsInputPauseActive())
 		return;
 
 	CScene* scene = m_SceneManager.GetScene();
@@ -623,7 +672,6 @@ void CGameFramework::OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPA
 		case VK_F9:
 			ChangeSwapChainState();
 			break;
-
 		default:
 			break;
 		}
