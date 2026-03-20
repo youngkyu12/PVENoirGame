@@ -25,14 +25,21 @@ private:
 	//PlayerControllerComponentRef controller;
 	CWeapon weapon;
 public:
-	void SetWeapon(WeaponType& type, uint32& currentBullets)
+	void SetWeapon(Protocol::WeaponType& type, uint32& currentBullets)
 	{
-		weapon.SetWeapon(type, currentBullets);
+		weapon.SetWeapon(std::move(type), std::move(currentBullets));
+	}
+	void SetWeapon(Protocol::WeaponType&& type, uint32&& currentBullets)
+	{
+		weapon.SetWeapon(std::move(type), std::move(currentBullets));
 	}
 
-	void SetBullet(BulletType& type, uint32& currentBullets)
+	Protocol::WeaponType GetWeaponState() const { return weapon.GetWeaponState(); }
+	Protocol::BulletType GetBulletState() const { return weapon.GetBulletState(); }
+
+	void SetBullet(Protocol::BulletType&& type, uint32& currentBullets)
 	{
-		weapon.SetBullet(type, currentBullets);
+		weapon.SetBullet(std::move(type), currentBullets);
 	}
 
 };
