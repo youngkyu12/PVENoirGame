@@ -6,6 +6,7 @@
 #include "GameFramework.h"
 
 #include "Scene.h"
+#include "GameScene.h"
 #include "AssetManager.h"
 #include "AnimController.h"
 #include "AnimatorComponent.h"
@@ -29,6 +30,8 @@ bool CGameFramework::OnCreate(HINSTANCE hInstance, HWND hMainWnd)
 {
 	m_hInstance = hInstance;
 	m_hWnd = hMainWnd;
+	m_bWindowActive = IsWindowActuallyActive();
+	m_bUserPaused = false;
 
 	CreateDirect3DDevice();
 	CreateCommandQueueAndList();
@@ -380,17 +383,61 @@ void CGameFramework::CreateDepthStencilView()
 	);
 }
 
-// �ʱ⿡�� MenuScene�� �����Ѵ�.
 void CGameFramework::BuildObjects()
 {
 	BuildSceneInternal(ESceneId::Menu, true);
+}
+
+void CGameFramework::SyncGameSceneInactiveOverlay()
+{
+	CScene* scene = m_SceneManager.GetScene();
+	if (!scene) return;
+
+	CGameScene* gameScene = dynamic_cast<CGameScene*>(scene);
+	if (!gameScene) return;
+
+	gameScene->SetInactiveOverlayVisible(IsInputPauseActive());
+}
+
+bool CGameFramework::IsWindowActuallyActive() const
+{
+	return (m_hWnd != nullptr) && (::GetForegroundWindow() == m_hWnd);
+}
+
+bool CGameFramework::IsInputPauseActive() const
+{
+	return (!m_bWindowActive) || m_bUserPaused;
+}
+
+void CGameFramework::UpdateWindowActivationState()
+{
+	const bool isActiveNow = IsWindowActuallyActive();
+
+	if (isActiveNow == m_bWindowActive)
+		return;
+
+	m_bWindowActive = isActiveNow;
+
+	if (!m_bWindowActive)
+	{
+		::ReleaseCapture();
+		SyncGameSceneInactiveOverlay();
+	}
+	else
+	{
+		::GetCursorPos(&m_ptOldCursorPos);
+
+		// 비활성 상태에서 클릭으로 다시 활성화된 직후 첫 클릭은 먹는다.
+		m_bConsumeNextMouseClick = true;
+
+		SyncGameSceneInactiveOverlay();
+	}
 }
 
 void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 {
 	WaitForGpuComplete();
 
-	// ���� Scene/PP ����
 	m_SceneManager.ReleaseCurrent();
 	m_pCamera = nullptr;
 
@@ -400,13 +447,11 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 		m_pPostProcessingShader.reset();
 	}
 
-	// ���� Ŀ�ǵ� ��� ����
 	HRESULT hr = m_pd3dCommandAllocator->Reset();
 	(void)hr;
 	hr = m_pd3dCommandList->Reset(m_pd3dCommandAllocator.Get(), nullptr);
 	(void)hr;
 
-	// 1) Scene ���� (Menu/Game)
 	m_SceneManager.BuildScene(id, m_pd3dDevice.Get(), m_pd3dCommandList.Get());
 
 	CScene* scene = m_SceneManager.GetScene();
@@ -417,9 +462,9 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 	}
 
 	m_pCamera = scene->GetMainCamera();
+	SyncGameSceneInactiveOverlay();
 
-	// 2) PostProcess ����� (Scene ��ȯ �� SRV ���� ���� ��������Ƿ� �ݵ�� �����)
-	m_pPostProcessingShader = make_shared<CTextureToFullScreenShader>();
+	m_pPostProcessingShader = make_shared<CTextureToFullScreenShader>(); 
 	m_pPostProcessingShader->CreateShader(
 		m_pd3dDevice.Get(),
 		scene->GetGraphicsRootSignature(),
@@ -429,7 +474,6 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 	);
 	m_pPostProcessingShader->BuildObjects(m_pd3dDevice.Get(), m_pd3dCommandList.Get(), &m_nDrawOption);
 
-	// RTV heap���� swapchain �ڿ� �ٿ��� postprocess RT���� �����.
 	D3D12_CPU_DESCRIPTOR_HANDLE d3dRtvCPUDescriptorHandle = m_pd3dRtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	d3dRtvCPUDescriptorHandle.ptr += (::gnRtvDescriptorIncrementSize * m_nSwapChainBuffers);
 
@@ -448,7 +492,6 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 		d3dRtvCPUDescriptorHandle
 	);
 
-	// Depth SRV�� �� Scene�� SRV ���� �ٽ� �����.
 	D3D12_GPU_DESCRIPTOR_HANDLE d3dDsvGPUDescriptorHandle = CScene::m_pDescriptorHeap->CreateShaderResourceView(
 		m_pd3dDevice.Get(),
 		m_pd3dDepthStencilBuffer.Get(),
@@ -456,7 +499,6 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 	);
 	(void)d3dDsvGPUDescriptorHandle;
 
-	// Ŀ�ǵ� ����
 	hr = m_pd3dCommandList->Close();
 	(void)hr;
 
@@ -464,7 +506,6 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 	m_pd3dCommandQueue->ExecuteCommandLists(1, ppd3dCommandLists);
 	WaitForGpuComplete();
 
-	// ���ε� ���� ����
 	if (scene)
 		scene->ReleaseUploadBuffers();
 
@@ -493,10 +534,32 @@ void CGameFramework::ApplyPendingSceneSwitch()
 
 void CGameFramework::OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam)
 {
+	UpdateWindowActivationState();
+	if (!m_bWindowActive)
+		return;
+
+	if (m_bConsumeNextMouseClick)
+	{
+		if ((nMessageID == WM_LBUTTONDOWN) ||
+			(nMessageID == WM_RBUTTONDOWN) ||
+			(nMessageID == WM_LBUTTONUP) ||
+			(nMessageID == WM_RBUTTONUP))
+		{
+			m_bConsumeNextMouseClick = false;
+			::GetCursorPos(&m_ptOldCursorPos);
+			return;
+		}
+	}
+
+	if (m_bUserPaused)
+	{
+		// TODO: 추후 일시정지 상태에서 마우스 클릭으로 resume / menu exit 등을 처리
+		return;
+	}
+
 	CScene* scene = m_SceneManager.GetScene();
 	if (scene) scene->OnProcessingMouseMessage(hWnd, nMessageID, wParam, lParam);
 
-	// MenuScene�� ��û�� �ø��� ���⼭ �޾Ƽ� ���� �����ӿ� Scene ��ȯ
 	if (scene)
 	{
 		CScene::ESceneRequest req;
@@ -527,6 +590,28 @@ void CGameFramework::OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM
 
 void CGameFramework::OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam)
 {
+	UpdateWindowActivationState();
+	if (!m_bWindowActive)
+		return;
+
+	if (nMessageID == WM_KEYUP)
+	{
+		if (wParam == VK_ESCAPE)
+		{
+			if (dynamic_cast<CGameScene*>(m_SceneManager.GetScene()))
+			{
+				m_bUserPaused = !m_bUserPaused;
+				SyncGameSceneInactiveOverlay();
+			}
+
+			// ::PostQuitMessage(0);
+			return;
+		}
+	}
+
+	if (m_bUserPaused)
+		return;
+
 	CScene* scene = m_SceneManager.GetScene();
 	if (scene) scene->OnProcessingKeyboardMessage(hWnd, nMessageID, wParam, lParam);
 
@@ -535,10 +620,6 @@ void CGameFramework::OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPA
 	case WM_KEYUP:
 		switch (wParam)
 		{
-		case VK_ESCAPE:
-			::PostQuitMessage(0);
-			break;
-
 		case VK_F9:
 			ChangeSwapChainState();
 			break;
@@ -558,10 +639,12 @@ LRESULT CALLBACK CGameFramework::OnProcessingWindowMessage(HWND hWnd, UINT nMess
 	{
 	case WM_ACTIVATE:
 	{
-		if (LOWORD(wParam) == WA_INACTIVE)
-			m_GameTimer.Stop();
-		else
-			m_GameTimer.Start();
+		UpdateWindowActivationState();
+		break;
+	}
+	case WM_ACTIVATEAPP:
+	{
+		UpdateWindowActivationState();
 		break;
 	}
 	case WM_SIZE:
@@ -620,6 +703,10 @@ void CGameFramework::ChangeSwapChainState()
 
 void CGameFramework::ProcessInput()
 {
+	UpdateWindowActivationState();
+	if (IsInputPauseActive())
+		return;
+
 	static UCHAR pKeysBuffer[256];
 	bool bProcessedByScene = false;
 
@@ -733,7 +820,7 @@ void CGameFramework::ProcessInput()
 	pc->SetRunRequested(bRunRequested);
 
 	if (dwDirection)
-		pc->Move(dwDirection, 5.0f * dt, false);
+		pc->Move(dwDirection, 50.0f * dt, false);
 
 	pc->SetInputDirection(static_cast<uint32_t>(dwDirection));
 
@@ -781,8 +868,8 @@ void CGameFramework::FrameAdvance()
 	HRESULT hResult;
 
 	m_GameTimer.Tick(0.0f);
+	UpdateWindowActivationState();
 
-	// �� MenuScene Ŭ�� ��û�� ������ ���⼭ GameScene�� lazy build �� ��ȯ
 	ApplyPendingSceneSwitch();
 
 	ProcessInput();

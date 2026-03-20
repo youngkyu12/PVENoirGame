@@ -13,6 +13,7 @@
 #include "AnimController.h"
 #include "Material.h"
 #include "AssetManager.h"
+#include "Texture.h"
 #include "LightComponent.h"
 #include "PlayerControllerComponent.h"
 #include "Object.h"
@@ -216,6 +217,11 @@ void CGameScene::ReleaseObjects()
     m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr };
     m_prevBowReleasePhase = { false, false, false, false };
 
+    m_inactiveOverlayShader.reset();
+    m_inactiveOverlayTex.reset();
+    m_inactiveOverlaySrvIndex = UINT_MAX;
+    m_bInactiveOverlayVisible = false;
+
     ReleaseShaderVariables();
 
     CScene::ReleaseObjects();
@@ -348,6 +354,35 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     };
 
     BuildLightsAndMaterials();
+
+    {
+        constexpr const wchar_t* kInactiveOverlayDDS = L"Assets/UI/Pause.dds";
+
+        m_inactiveOverlayTex = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 0);
+        m_inactiveOverlayTex->LoadTextureFromFile(dev, cmd, kInactiveOverlayDDS, RESOURCE_TEXTURE2D, 0);
+
+        CScene::m_pDescriptorHeap->CreateShaderResourceViewsOther(
+            dev,
+            m_inactiveOverlayTex.get(),
+            ROOT_PARAMETER_GLOBAL_SRV
+        );
+
+        m_inactiveOverlaySrvIndex = m_inactiveOverlayTex->GetSrvIndex(0);
+
+        m_inactiveOverlayShader = std::make_shared<CMenuImageShader>();
+
+        DXGI_FORMAT overlayRtv = DXGI_FORMAT_R8G8B8A8_UNORM;
+        DXGI_FORMAT overlayDsv = DXGI_FORMAT_UNKNOWN;
+
+        m_inactiveOverlayShader->CreateShader(
+            dev,
+            GetGraphicsRootSignature(),
+            1,
+            &overlayRtv,
+            overlayDsv
+        );
+        m_inactiveOverlayShader->CreateShaderVariables(dev, cmd);
+    }
 
     for (auto& lo : m_lightObjects)
     {
@@ -2820,6 +2855,17 @@ void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
             m_skinnedObjects[j]->Render(cmd, camera);
         }
     }
+
+    if (m_bInactiveOverlayVisible && m_inactiveOverlayShader && (m_inactiveOverlaySrvIndex != UINT_MAX))
+    {
+        PS_CB_DRAW_OPTIONS opt{};
+        opt.m_xmn4DrawOptions = XMINT4('T', 0, 0, 0);
+        opt.m_xmu4PostSrvIdx0 = XMUINT4(m_inactiveOverlaySrvIndex, 0, 0, 0);
+        opt.m_xmu4PostSrvIdx1 = XMUINT4(0, 0, 0, 0);
+
+        m_inactiveOverlayShader->Render(cmd, camera, &opt);
+    }
+
     if (m_Collision)
     {
     }

@@ -15,6 +15,7 @@ class CFollowBoneComponent;
 class CArrowComponent;
 class CGameObject;
 class CCollisionSystem;
+class CTexture;
 
 struct CB_GAMEOBJECT_INFO;
 struct AttachmentBindSpec
@@ -117,6 +118,7 @@ public:
     // Game-only API
 public:
     void SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex);
+    void SetInactiveOverlayVisible(bool visible) { m_bInactiveOverlayVisible = visible; }
 
     CGameObject* GetDemoFighter(int index) const;
     void RequestDemoFighterAttack(int index);
@@ -216,11 +218,17 @@ private:
     unique_ptr<CCollisionSystem> m_Collision;
 
     //클라 맵 하드리딩용
-    private:
-        bool LoadStaticPlacementFile(const std::string& filePath);
-        void ResetStaticPlacementCounts();
-        void ApplyStaticPlacementCounts();
-        static float QuaternionToYawDegrees(const XMFLOAT4& q);
-    private:
-        std::vector<StaticPlacementEntry> m_staticPlacementEntries;
+private:
+    bool LoadStaticPlacementFile(const std::string& filePath);
+    void ResetStaticPlacementCounts();
+    void ApplyStaticPlacementCounts();
+    static float QuaternionToYawDegrees(const XMFLOAT4& q);
+
+private:
+    std::vector<StaticPlacementEntry> m_staticPlacementEntries;
+    
+    std::shared_ptr<CMenuImageShader> m_inactiveOverlayShader;
+    std::shared_ptr<CTexture>         m_inactiveOverlayTex;
+    UINT                              m_inactiveOverlaySrvIndex = UINT_MAX;
+    bool                              m_bInactiveOverlayVisible = false;
 };
