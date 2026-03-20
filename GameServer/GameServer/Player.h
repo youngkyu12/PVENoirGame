@@ -1,5 +1,6 @@
 #pragma once
 #include "ServerObject.h"
+#include "CWeapon.h"
 
 class Player : public CServerObject
 {
@@ -20,7 +21,19 @@ public:
 	virtual void Update(uint32 serverTick) override;
 	void Build();
 
+private:
+	//PlayerControllerComponentRef controller;
+	CWeapon weapon;
+public:
+	void SetWeapon(WeaponType& type, uint32& currentBullets)
+	{
+		weapon.SetWeapon(type, currentBullets);
+	}
 
+	void SetBullet(BulletType& type, uint32& currentBullets)
+	{
+		weapon.SetBullet(type, currentBullets);
+	}
 
 };
 

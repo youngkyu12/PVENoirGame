@@ -278,6 +278,34 @@ inline bool GameState_Parse(
   return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<GameState>(
     GameState_descriptor(), name, value);
 }
+enum WeaponType : int {
+  WEAPON_TYPE_NONE = 0,
+  WEAPON_TYPE_SWORD = 1,
+  WEAPON_TYPE_BOW = 2,
+  WEAPON_TYPE_AXE = 3,
+  WEAPON_TYPE_CANON = 4,
+  WeaponType_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
+  WeaponType_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
+};
+bool WeaponType_IsValid(int value);
+constexpr WeaponType WeaponType_MIN = WEAPON_TYPE_NONE;
+constexpr WeaponType WeaponType_MAX = WEAPON_TYPE_CANON;
+constexpr int WeaponType_ARRAYSIZE = WeaponType_MAX + 1;
+
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* WeaponType_descriptor();
+template<typename T>
+inline const std::string& WeaponType_Name(T enum_t_value) {
+  static_assert(::std::is_same<T, WeaponType>::value ||
+    ::std::is_integral<T>::value,
+    "Incorrect type passed to function WeaponType_Name.");
+  return ::PROTOBUF_NAMESPACE_ID::internal::NameOfEnum(
+    WeaponType_descriptor(), enum_t_value);
+}
+inline bool WeaponType_Parse(
+    ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, WeaponType* value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<WeaponType>(
+    WeaponType_descriptor(), name, value);
+}
 // ===================================================================
 
 
@@ -339,6 +367,11 @@ template <> struct is_proto_enum< ::Protocol::GameState> : ::std::true_type {};
 template <>
 inline const EnumDescriptor* GetEnumDescriptor< ::Protocol::GameState>() {
   return ::Protocol::GameState_descriptor();
+}
+template <> struct is_proto_enum< ::Protocol::WeaponType> : ::std::true_type {};
+template <>
+inline const EnumDescriptor* GetEnumDescriptor< ::Protocol::WeaponType>() {
+  return ::Protocol::WeaponType_descriptor();
 }
 
 PROTOBUF_NAMESPACE_CLOSE

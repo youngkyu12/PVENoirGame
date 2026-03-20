@@ -48,6 +48,7 @@ message Player
 	PlayerState playerState = 4;
 	Transform transform = 5;
 	Animation animation = 6;
+	WeaponType weaponType = 7;
 	// stats
 }
 
@@ -58,6 +59,8 @@ message Enemy
 	EnemyState enemyState = 3;
 	Transform transform = 4;
 	Animation animation = 5;
+	WeaponType weaponType = 6;
+	//stats
 }
 
 message Building
