@@ -225,10 +225,10 @@ private:
     static float QuaternionToYawDegrees(const XMFLOAT4& q);
 
 private:
-    std::vector<StaticPlacementEntry> m_staticPlacementEntries;
+    std::vector<StaticPlacementEntry>   m_staticPlacementEntries;
     
-    std::shared_ptr<CMenuImageShader> m_inactiveOverlayShader;
-    std::shared_ptr<CTexture>         m_inactiveOverlayTex;
-    UINT                              m_inactiveOverlaySrvIndex = UINT_MAX;
-    bool                              m_bInactiveOverlayVisible = false;
+    std::shared_ptr<CRectUIShader>      m_inactiveOverlayShader;
+    std::shared_ptr<CTexture>           m_inactiveOverlayTex;
+    UINT                                m_inactiveOverlaySrvIndex = UINT_MAX;
+    bool                                m_bInactiveOverlayVisible = false;
 };

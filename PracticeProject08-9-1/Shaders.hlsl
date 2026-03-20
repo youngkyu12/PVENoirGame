@@ -26,6 +26,15 @@ cbuffer cbDrawOptions : register(b5)
     int4 gvDrawOptions; // x = 'T','L','N','D','Z'
     uint4 gvPostSrvIdx0; // x=T, y=L, z=N, w=D
     uint4 gvPostSrvIdx1; // x=Z, 나머지 패딩
+
+    // UI rectangle in pixels
+    // x = centerX, y = centerY, z = width, w = height
+    float4 gvUiRect;
+
+    // viewport info
+    // x = viewportWidth, y = viewportHeight
+    // z = 1/viewportWidth, w = 1/viewportHeight
+    float4 gvViewport;
 };
 
 #define MAX_BONES 256
@@ -273,43 +282,50 @@ struct VS_SCREEN_RECT_TEXTURED_OUTPUT
 
 VS_SCREEN_RECT_TEXTURED_OUTPUT VSScreenRectSamplingTextured(uint nVertexID : SV_VertexID)
 {
-    VS_SCREEN_RECT_TEXTURED_OUTPUT output = (VS_TEXTURED_OUTPUT) 0;
+    static const float2 kLocalPos[6] =
+    {
+        float2(-0.5f, -0.5f),
+        float2(-0.5f, +0.5f),
+        float2(+0.5f, -0.5f),
 
-    if (nVertexID == 0)
-    {
-        output.position = float4(-1.0f, +1.0f, 0.0f, 1.0f);
-        output.uv = float2(0.0f, 0.0f);
-    }
-    else if (nVertexID == 1)
-    {
-        output.position = float4(+1.0f, +1.0f, 0.0f, 1.0f);
-        output.uv = float2(1.0f, 0.0f);
-    }
-    else if (nVertexID == 2)
-    {
-        output.position = float4(+1.0f, -1.0f, 0.0f, 1.0f);
-        output.uv = float2(1.0f, 1.0f);
-    }
-    else if (nVertexID == 3)
-    {
-        output.position = float4(-1.0f, +1.0f, 0.0f, 1.0f);
-        output.uv = float2(0.0f, 0.0f);
-    }
-    else if (nVertexID == 4)
-    {
-        output.position = float4(+1.0f, -1.0f, 0.0f, 1.0f);
-        output.uv = float2(1.0f, 1.0f);
-    }
-    else if (nVertexID == 5)
-    {
-        output.position = float4(-1.0f, -1.0f, 0.0f, 1.0f);
-        output.uv = float2(0.0f, 1.0f);
-    }
+        float2(+0.5f, -0.5f),
+        float2(-0.5f, +0.5f),
+        float2(+0.5f, +0.5f)
+    };
 
-    return (output);
+    static const float2 kUV[6] =
+    {
+        float2(0.0f, 0.0f),
+        float2(0.0f, 1.0f),
+        float2(1.0f, 0.0f),
+
+        float2(1.0f, 0.0f),
+        float2(0.0f, 1.0f),
+        float2(1.0f, 1.0f)
+    };
+
+    float2 centerPx = gvUiRect.xy;
+    float2 sizePx = gvUiRect.zw;
+    float2 invVp = gvViewport.zw;
+
+    // 픽셀 단위 사각형 좌표
+    float2 pixelPos = centerPx + kLocalPos[nVertexID] * sizePx;
+
+    VS_SCREEN_RECT_TEXTURED_OUTPUT output = (VS_SCREEN_RECT_TEXTURED_OUTPUT) 0;
+
+    // pixel -> NDC
+    output.position = float4(
+        pixelPos.x * invVp.x * 2.0f - 1.0f,
+        1.0f - pixelPos.y * invVp.y * 2.0f,
+        0.0f,
+        1.0f
+    );
+
+    output.uv = kUV[nVertexID];
+    return output;
 }
 
-float4 PSScreenRectSamplingTextured(VS_TEXTURED_OUTPUT input) : SV_Target
+float4 PSScreenRectSamplingTextured(VS_SCREEN_RECT_TEXTURED_OUTPUT input) : SV_Target
 {
     uint idx = 0xFFFFFFFFu;
 
