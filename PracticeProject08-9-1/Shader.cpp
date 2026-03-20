@@ -537,21 +537,27 @@ D3D12_DEPTH_STENCIL_DESC CUIShader::CreateDepthStencilState()
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// CMenuImageShader
-void CMenuImageShader::CreateShader(
+// CRectUIShader
+void CRectUIShader::CreateShader(
 	ID3D12Device* dev,
 	ID3D12RootSignature* sceneRootSig,
 	UINT nRenderTargets,
 	DXGI_FORMAT* rtvFormats,
 	DXGI_FORMAT dsvFormat)
 {
-	// ★ m_pd3dGraphicsRootSignature에 저장하지 않는다.
-	//    (CShader::OnPrepareRender가 RootSig를 다시 Set하면,
-	//     Scene에서 잡아둔 DescriptorTable이 무효화될 여지가 있어서)
+	// m_pd3dGraphicsRootSignature에 저장하지 않는다.
+	// Scene이 이미 RootSig/DescriptorTable을 세팅한 상태를 그대로 사용한다.
 	CShader::CreateShader(dev, sceneRootSig, nRenderTargets, rtvFormats, dsvFormat);
 }
 
-D3D12_BLEND_DESC CMenuImageShader::CreateBlendState()
+D3D12_RASTERIZER_DESC CRectUIShader::CreateRasterizerState()
+{
+	D3D12_RASTERIZER_DESC rs = CTextureToFullScreenShader::CreateRasterizerState();
+	rs.CullMode = D3D12_CULL_MODE_NONE;
+	return rs;
+}
+
+D3D12_BLEND_DESC CRectUIShader::CreateBlendState()
 {
 	D3D12_BLEND_DESC bs{};
 	::ZeroMemory(&bs, sizeof(bs));
@@ -563,7 +569,6 @@ D3D12_BLEND_DESC CMenuImageShader::CreateBlendState()
 	rt0.BlendEnable = TRUE;
 	rt0.LogicOpEnable = FALSE;
 
-	// Standard alpha blend
 	rt0.SrcBlend = D3D12_BLEND_SRC_ALPHA;
 	rt0.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
 	rt0.BlendOp = D3D12_BLEND_OP_ADD;
@@ -578,18 +583,19 @@ D3D12_BLEND_DESC CMenuImageShader::CreateBlendState()
 	return bs;
 }
 
-void CMenuImageShader::UpdateShaderVariables(ID3D12GraphicsCommandList* cmd, void* pContext)
+void CRectUIShader::UpdateShaderVariables(ID3D12GraphicsCommandList* cmd, void* pContext)
 {
 	if (!cmd) return;
 	if (!m_pd3dcbDrawOptions || !m_pcbMappedDrawOptions) return;
 	if (!pContext) return;
 
-	// pContext는 PS_CB_DRAW_OPTIONS* 로 받는다.
 	const PS_CB_DRAW_OPTIONS* opt = reinterpret_cast<const PS_CB_DRAW_OPTIONS*>(pContext);
 	*m_pcbMappedDrawOptions = *opt;
 
-	// RootParam #5 == CBV(b5) : 기존 코드와 동일하게 5에 바인딩
-	cmd->SetGraphicsRootConstantBufferView(5, m_pd3dcbDrawOptions->GetGPUVirtualAddress());
+	cmd->SetGraphicsRootConstantBufferView(
+		ROOT_PARAMETER_DRAW_OPTIONS,
+		m_pd3dcbDrawOptions->GetGPUVirtualAddress()
+	);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -886,9 +892,27 @@ void CTextureToFullScreenShader::CreateShaderVariables(ID3D12Device* pd3dDevice,
 
 void CTextureToFullScreenShader::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext)
 {
+	::ZeroMemory(m_pcbMappedDrawOptions, sizeof(PS_CB_DRAW_OPTIONS));
+
 	m_pcbMappedDrawOptions->m_xmn4DrawOptions.x = *((int*)pContext);
+
+	// Fullscreen default rect
+	m_pcbMappedDrawOptions->m_xmf4UiRect = XMFLOAT4(
+		FRAME_BUFFER_WIDTH * 0.5f,
+		FRAME_BUFFER_HEIGHT * 0.5f,
+		static_cast<float>(FRAME_BUFFER_WIDTH),
+		static_cast<float>(FRAME_BUFFER_HEIGHT)
+	);
+
+	m_pcbMappedDrawOptions->m_xmf4Viewport = XMFLOAT4(
+		static_cast<float>(FRAME_BUFFER_WIDTH),
+		static_cast<float>(FRAME_BUFFER_HEIGHT),
+		1.0f / static_cast<float>(FRAME_BUFFER_WIDTH),
+		1.0f / static_cast<float>(FRAME_BUFFER_HEIGHT)
+	);
+
 	D3D12_GPU_VIRTUAL_ADDRESS d3dGpuVirtualAddress = m_pd3dcbDrawOptions->GetGPUVirtualAddress();
-	pd3dCommandList->SetGraphicsRootConstantBufferView(5, d3dGpuVirtualAddress);
+	pd3dCommandList->SetGraphicsRootConstantBufferView(ROOT_PARAMETER_DRAW_OPTIONS, d3dGpuVirtualAddress);
 
 	CPostProcessingShader::UpdateShaderVariables(pd3dCommandList, pContext);
 }
