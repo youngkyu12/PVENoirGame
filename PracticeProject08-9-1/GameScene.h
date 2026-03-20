@@ -217,7 +217,6 @@ private:
 
     unique_ptr<CCollisionSystem> m_Collision;
 
-    //클라 맵 하드리딩용
 private:
     bool LoadStaticPlacementFile(const std::string& filePath);
     void ResetStaticPlacementCounts();
@@ -231,4 +230,9 @@ private:
     std::shared_ptr<CTexture>           m_inactiveOverlayTex;
     UINT                                m_inactiveOverlaySrvIndex = UINT_MAX;
     bool                                m_bInactiveOverlayVisible = false;
+    bool GetPauseOverlayRect(XMFLOAT4& outRect) const;
+
+public:
+    bool IsPointInPauseOverlay(POINT clientPt) const;
+
 };
