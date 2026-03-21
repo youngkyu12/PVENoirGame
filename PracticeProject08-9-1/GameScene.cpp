@@ -1881,6 +1881,8 @@ void CGameScene::BuildSkinnedBatch(
                     ctrl->SetSpeed(0.0f);
                     ctrl->SetMoveDirection(0);
                     ctrl->SetRunRequested(false);
+                    ctrl->SetRollMoveSpeed(5.0f);
+                    ctrl->SetRollMoveWindow(0.08f, 0.55f);
                     ctrl->Update(0.0f);
                 }
             }

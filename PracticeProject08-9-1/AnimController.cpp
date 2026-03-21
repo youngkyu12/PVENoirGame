@@ -54,6 +54,53 @@ namespace
     {
         return (weapon == EWeaponType::Bow) || (weapon == EWeaponType::Gun);
     }
+    static float Clamp01(float v)
+    {
+        if (v < 0.0f) return 0.0f;
+        if (v > 1.0f) return 1.0f;
+        return v;
+    }
+
+    static XMFLOAT3 BuildRollMoveDirection(const CGameObject* owner, uint32_t dirBits)
+    {
+        if (!owner)
+            return XMFLOAT3(0.0f, 0.0f, 1.0f);
+
+        XMFLOAT3 look = owner->GetLook();
+        XMFLOAT3 right = owner->GetRight();
+
+        look.y = 0.0f;
+        right.y = 0.0f;
+
+        XMVECTOR lookV = XMLoadFloat3(&look);
+        XMVECTOR rightV = XMLoadFloat3(&right);
+
+        if (XMVectorGetX(XMVector3LengthSq(lookV)) <= 1e-8f)
+            lookV = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+        else
+            lookV = XMVector3Normalize(lookV);
+
+        if (XMVectorGetX(XMVector3LengthSq(rightV)) <= 1e-8f)
+            rightV = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+        else
+            rightV = XMVector3Normalize(rightV);
+
+        XMVECTOR moveV = XMVectorZero();
+
+        if (dirBits & DIR_FORWARD)  moveV += lookV;
+        if (dirBits & DIR_BACKWARD) moveV -= lookV;
+        if (dirBits & DIR_RIGHT)    moveV += rightV;
+        if (dirBits & DIR_LEFT)     moveV -= rightV;
+
+        if (XMVectorGetX(XMVector3LengthSq(moveV)) <= 1e-8f)
+            moveV = lookV;
+        else
+            moveV = XMVector3Normalize(moveV);
+
+        XMFLOAT3 out{};
+        XMStoreFloat3(&out, moveV);
+        return out;
+    }
 }
 
 std::string CAnimController::ResolveIdleClip() const
@@ -206,7 +253,7 @@ std::string CAnimController::ResolveLocomotionClip(EAnimState state) const
     return ResolveIdleClip();
 }
 
-void CAnimController::Update(float /*dt*/)
+void CAnimController::Update(float dt)
 {
     if (!m_pOwner) return;
 
@@ -473,6 +520,49 @@ void CAnimController::Update(float /*dt*/)
                 m_state = targetState;
             }
         }
+        if ((m_actionPhase == EActionPhase::Roll) && !actionFinished)
+        {
+            const float clipDuration = anim->GetCurrentClipDuration();
+
+            if ((clipDuration > 1e-6f) && (m_rollMoveSpeed != 0.0f))
+            {
+                float startN = Clamp01(m_rollMoveStartNormalized);
+                float endN = Clamp01(m_rollMoveEndNormalized);
+
+                if (endN < startN)
+                {
+                    const float t = startN;
+                    startN = endN;
+                    endN = t;
+                }
+
+                const float curTime = anim->GetCurrentTime();
+                float nextTime = curTime + dt;
+                if (nextTime > clipDuration)
+                    nextTime = clipDuration;
+
+                const float moveStartTime = clipDuration * startN;
+                const float moveEndTime = clipDuration * endN;
+
+                const float activeBegin = (curTime > moveStartTime) ? curTime : moveStartTime;
+                const float activeEnd = (nextTime < moveEndTime) ? nextTime : moveEndTime;
+                const float activeDt = activeEnd - activeBegin;
+
+                if (activeDt > 0.0f)
+                {
+                    const XMFLOAT3 moveDir = BuildRollMoveDirection(m_pOwner, m_rollMoveDirBits);
+
+                    if (auto* tr = m_pOwner->GetComponent<CTransformComponent>())
+                    {
+                        tr->Translate(XMFLOAT3(
+                            moveDir.x * m_rollMoveSpeed * activeDt,
+                            moveDir.y * m_rollMoveSpeed * activeDt,
+                            moveDir.z * m_rollMoveSpeed * activeDt
+                        ));
+                    }
+                }
+            }
+        }
 
         if (!overlayAction)
         {
@@ -571,14 +661,18 @@ bool CAnimController::RequestRoll(uint32_t dirBits)
     if (m_actionPhase != EActionPhase::None)
         return false;
 
+    const uint32_t horizontalDirBits =
+        dirBits & (DIR_FORWARD | DIR_BACKWARD | DIR_LEFT | DIR_RIGHT);
+
     float visualYawDeg = 0.0f;
-    const std::string rollClip = ResolveRollClip(dirBits, visualYawDeg);
+    const std::string rollClip = ResolveRollClip(horizontalDirBits, visualYawDeg);
 
     if (rollClip.empty())
         return false;
 
     m_rollQueuedClipName = rollClip;
     m_rollQueuedVisualYawDeg = visualYawDeg;
+    m_rollMoveDirBits = (horizontalDirBits != 0) ? horizontalDirBits : DIR_FORWARD;
     m_rollQueued = true;
 
     return true;

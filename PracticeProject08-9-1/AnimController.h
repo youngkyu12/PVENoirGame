@@ -7,6 +7,8 @@
 #include "stdafx.h"
 #include "GlobalEnum.h"
 
+#define DIR_FORWARD					0x01
+
 class CGameObject;
 class CAnimator;
 
@@ -46,6 +48,9 @@ public:
 
     bool RequestAttack();
     bool RequestRoll(uint32_t dirBits);
+    void SetRollMoveSpeed(float speed) { m_rollMoveSpeed = speed; }
+    void SetRollMoveWindow(float startNormalized, float endNormalized) { m_rollMoveStartNormalized = startNormalized; m_rollMoveEndNormalized = endNormalized; }
+   
     bool IsBowLoadPhase() const { return m_actionPhase == EActionPhase::AttackBowLoad; }
     bool IsBowReleasePhase() const { return m_actionPhase == EActionPhase::AttackBowRelease; }
 
@@ -104,6 +109,11 @@ private:
     bool m_rollQueued = false;
     std::string m_rollQueuedClipName;
     float m_rollQueuedVisualYawDeg = 0.0f;
+
+    uint32_t m_rollMoveDirBits = DIR_FORWARD;
+    float m_rollMoveSpeed = 5.0f;
+    float m_rollMoveStartNormalized = 0.08f;
+    float m_rollMoveEndNormalized = 0.55f;
 
     uint32_t m_moveDirBits = 0;
     bool m_bRunRequested = false;
