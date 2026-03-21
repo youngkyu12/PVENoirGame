@@ -1614,6 +1614,9 @@ void CGameScene::BuildSkinnedBatch(
                 const auto& state = gameStartData.players[k];
                 pos = state.position;
                 yaw = state.yaw;
+
+				// 플레이어별 초기 장비 세팅
+                equipComp->SetLoadout(state.weaponType);
             }
             else
             {
@@ -2341,8 +2344,10 @@ void CGameScene::AnimateObjects(float dt)
 
             }
 
-
-
+            if (auto wc = player->GetComponent<CPlayerEquipmentComponent>())
+            {
+                wc->SetLoadout(state.weaponType);
+            }
         }
 
         // Enemy 좌표 업데이트

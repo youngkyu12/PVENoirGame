@@ -159,31 +159,38 @@ void CAnimController::Update(float /*dt*/)
     // ------------------------------------------------------------
 #ifdef USING_NETWORK
 
-    // µ¥¸ð: play¸¸ ¿­½ÉÈ÷ ÇÏÀÚ
     constexpr float kBlendTime = 0.15f;
 
-    if (m_state != animPrevState) {
-        const char* targetClip = ClipFor(m_state);
-
-
-        if(m_state == EAnimState::Attack)
+    if (m_state != animPrevState)
+    {
+        if (m_state == EAnimState::Attack)
         {
-            if (!anim->CrossFade(m_attackClip, kBlendTime, false, m_startTime))
+            EActionPhase nextPhase = EActionPhase::None;
+            std::string atkClip = ResolveAttackStartClip(nextPhase);
+
+            if (atkClip.empty() || !anim->HasClip(atkClip))
+                atkClip = m_attackClip;
+
+            if (!atkClip.empty() && anim->HasClip(atkClip))
             {
-                anim->Play(m_attackClip, false, m_startTime);
+                if (!anim->CrossFade(atkClip, kBlendTime, false, m_startTime))
+                    anim->Play(atkClip, false, m_startTime);
+
+                m_actionPhase = nextPhase;
             }
             return;
-		}
+        }
 
+        std::string targetClip = ResolveLocomotionClip(m_state);
+        if (targetClip.empty() || !anim->HasClip(targetClip))
+            targetClip = ResolveIdleClip();
 
-        if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
+        if (!targetClip.empty() && anim->HasClip(targetClip))
         {
-            
-            anim->Play(targetClip, true, m_startTime);
+            if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
+                anim->Play(targetClip, true, 0.0f);
         }
     }
-
-	   
 
 #else
     if (m_attackQueued)
@@ -261,17 +268,26 @@ void CAnimController::Update(float /*dt*/)
                 }
             }
 
+#ifdef USING_NETWORK
+            const EAnimState targetState =
+                (m_state == EAnimState::Move) ? EAnimState::Move : EAnimState::Idle;
+#else
             const bool wantsMove =
                 m_usePlayerClipSet ? (m_moveDirBits != 0)
                 : (m_speed > m_moveEps);
 
             const EAnimState targetState = wantsMove ? EAnimState::Move : EAnimState::Idle;
+#endif
+
             std::string targetClip = ResolveLocomotionClip(targetState);
 
+#ifdef USING_NETWORK
+            if (targetState == EAnimState::Move && (targetClip.empty() || !anim->HasClip(targetClip)))
+                targetClip = m_moveClip; // 네트워크에서는 방향비트 의존 최소화
+#endif
+
             if (targetClip.empty() || !anim->HasClip(targetClip))
-            {
                 targetClip = ResolveIdleClip();
-            }
 
             if (!targetClip.empty() && anim->HasClip(targetClip))
             {
@@ -282,21 +298,33 @@ void CAnimController::Update(float /*dt*/)
             }
 
             m_actionPhase = EActionPhase::None;
+#ifndef USING_NETWORK
             m_state = targetState;
+#endif
         }
         return;
     }
 
 #ifdef USING_NETWORK
-    std::string targetClip = ResolveLocomotionClip(m_state);
+    std::string targetClip;
+
+    if (m_state == EAnimState::Move)
+    {
+        targetClip = m_moveClip;
+        if ((targetClip.empty() || !anim->HasClip(targetClip)) && m_usePlayerClipSet)
+            targetClip = "Walk_F";
+    }
+    else
+    {
+        targetClip = ResolveIdleClip();
+    }
+
     if (targetClip.empty() || !anim->HasClip(targetClip))
     {
         targetClip = ResolveIdleClip();
         if (targetClip.empty() || !anim->HasClip(targetClip))
             return;
     }
-
-    //constexpr float kBlendTime = 0.15f;
 
     if (anim->GetCurrentClipName().empty())
     {
