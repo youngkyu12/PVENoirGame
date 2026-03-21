@@ -817,6 +817,24 @@ void CGameFramework::ProcessInput()
 		bRunRequested =
 			((pKeysBuffer[VK_LSHIFT] & 0xF0) != 0) ||
 			((pKeysBuffer[VK_SHIFT] & 0xF0) != 0);
+
+		static bool s_prevSpaceDown = false;
+		const bool spaceDown = (pKeysBuffer[VK_SPACE] & 0xF0) != 0;
+
+		if (spaceDown && !s_prevSpaceDown)
+		{
+			if (auto* animComp = playerObj->GetComponent<CAnimatorComponent>())
+			{
+				if (auto* ctrl = animComp->EnsureController())
+					ctrl->RequestRoll(static_cast<uint32_t>(dwDirection));
+			}
+			else if (auto* ctrl = playerObj->GetAnimController())
+			{
+				ctrl->RequestRoll(static_cast<uint32_t>(dwDirection));
+			}
+		}
+
+		s_prevSpaceDown = spaceDown;
 #endif
 
 		POINT ptCursorPos;
@@ -868,7 +886,7 @@ void CGameFramework::ProcessInput()
 	pc->SetRunRequested(bRunRequested);
 
 	if (dwDirection)
-		pc->Move(dwDirection, 50.0f * dt, false);
+		pc->Move(dwDirection, 5.0f * dt, false);
 
 	pc->SetInputDirection(static_cast<uint32_t>(dwDirection));
 

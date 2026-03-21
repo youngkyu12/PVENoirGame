@@ -1838,7 +1838,8 @@ void CGameScene::BuildSkinnedBatch(
                 LoadAndAddClip("Assets/Player/Animation/Player_Bow_Load.bin", "Bow_Load");
                 LoadAndAddClip("Assets/Player/Animation/Player_Bow_Release.bin", "Bow_Release");
                 LoadAndAddClip("Assets/Player/Animation/Player_Gun_Shoot.bin", "Gun_Shoot");
-
+                LoadAndAddClip("Assets/Player/Animation/Player_Roll_F.bin", "Roll_F");
+                LoadAndAddClip("Assets/Player/Animation/Player_Roll_B.bin", "Roll_B");
                 // --------------------------------------------------------------------
                 // Walk
                 // --------------------------------------------------------------------

@@ -45,6 +45,7 @@ public:
     void Update(float dt);
 
     bool RequestAttack();
+    bool RequestRoll(uint32_t dirBits);
     bool IsBowLoadPhase() const { return m_actionPhase == EActionPhase::AttackBowLoad; }
     bool IsBowReleasePhase() const { return m_actionPhase == EActionPhase::AttackBowRelease; }
 
@@ -69,7 +70,8 @@ private:
         AttackGeneric,
         AttackBowLoad,
         AttackBowRelease,
-        Hit
+        Hit,
+        Roll
     };
 
 private:
@@ -77,6 +79,7 @@ private:
     std::string ResolveMoveClip() const;
     std::string ResolveHitClip() const;
     std::string ResolveAttackStartClip(EActionPhase& outPhase) const;
+    std::string ResolveRollClip(uint32_t dirBits, float& outVisualYawDeg) const;
     std::string ResolveLocomotionClip(EAnimState state) const;
 
 private:
@@ -97,6 +100,10 @@ private:
 
     bool m_attackQueued = false;
     bool m_hitQueued = false;
+
+    bool m_rollQueued = false;
+    std::string m_rollQueuedClipName;
+    float m_rollQueuedVisualYawDeg = 0.0f;
 
     uint32_t m_moveDirBits = 0;
     bool m_bRunRequested = false;

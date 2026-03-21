@@ -68,6 +68,8 @@ public:
     float GetUpperBodyOverlayDuration() const;
     bool  IsUpperBodyOverlayFinished(float eps = 1e-4f) const;
 
+    void SetVisualYawOffset(float targetYawDeg, float blendInEndNormalized, float blendOutStartNormalized);
+    void ClearVisualYawOffset();
 
 private:
     AnimationClip* FindClipPtr(const std::string& name);
@@ -92,6 +94,7 @@ private:
     void BuildGlobalPoseFromLocal(const std::vector<XMFLOAT4X4>& localPose,
         std::vector<XMFLOAT4X4>& outGlobalPose) const;
     void RetargetUpperBodyOverlayRootToCurrentParent();
+    void ApplyVisualYawOffsetToLocalPose();
 
 private:
     std::vector<Bone> m_Skeleton;
@@ -144,4 +147,9 @@ private:
     std::vector<XMFLOAT4X4> m_GlobalPoseScratchBase;
     std::vector<XMFLOAT4X4> m_GlobalPoseScratchUpper;
     int m_UpperBodyRootBoneIndex = -1;
+
+    bool  m_bVisualYawOffset = false;
+    float m_fVisualYawTargetDeg = 0.0f;
+    float m_fVisualYawBlendInEndNormalized = 0.0f;
+    float m_fVisualYawBlendOutStartNormalized = 1.0f;
 };

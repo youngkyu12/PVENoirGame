@@ -104,6 +104,7 @@ void CAnimator::Stop()
     m_bPlaying = false;
     m_fCurrentTime = 0.0f;
     StopUpperBodyOverlay(true);
+    ClearVisualYawOffset();
 }
 
 void CAnimator::SetTime(float timeSec)
@@ -127,6 +128,7 @@ void CAnimator::Update(float dt)
 
         cur->Evaluate(m_fCurrentTime, m_Skeleton, m_LocalPose);
         UpdateUpperBodyOverlay(dt);
+        ApplyVisualYawOffsetToLocalPose();
         BuildGlobalAndFinalFromLocal();
         return;
     }
@@ -139,6 +141,7 @@ void CAnimator::Update(float dt)
         AdvanceTime(cur, m_fCurrentTime, dt, m_bLoop);
         cur->Evaluate(m_fCurrentTime, m_Skeleton, m_LocalPose);
         UpdateUpperBodyOverlay(dt);
+        ApplyVisualYawOffsetToLocalPose();
         BuildGlobalAndFinalFromLocal();
         return;
     }
@@ -156,6 +159,7 @@ void CAnimator::Update(float dt)
     BlendLocalPosesTRS(m_LocalPoseA, m_LocalPoseB, alpha, m_LocalPose);
 
     UpdateUpperBodyOverlay(dt);
+    ApplyVisualYawOffsetToLocalPose();
     BuildGlobalAndFinalFromLocal();
 
     if (alpha >= 1.0f)
@@ -597,6 +601,146 @@ void CAnimator::UpdateUpperBodyOverlay(float dt)
         m_UpperBodyBlendWeights[i] = m_UpperBodyBoneWeights[i] * m_fUpperBodyBlendAlpha;
 
     BlendLocalPosesMaskedTRS(m_LocalPose, m_LocalPoseUpperBody, m_UpperBodyBlendWeights, m_LocalPose);
+}
+
+void CAnimator::SetVisualYawOffset(float targetYawDeg, float blendInEndNormalized, float blendOutStartNormalized)
+{
+    m_bVisualYawOffset = true;
+    m_fVisualYawTargetDeg = targetYawDeg;
+
+    m_fVisualYawBlendInEndNormalized = blendInEndNormalized;
+    if (m_fVisualYawBlendInEndNormalized < 0.0f)
+        m_fVisualYawBlendInEndNormalized = 0.0f;
+    if (m_fVisualYawBlendInEndNormalized > 1.0f)
+        m_fVisualYawBlendInEndNormalized = 1.0f;
+
+    m_fVisualYawBlendOutStartNormalized = blendOutStartNormalized;
+    if (m_fVisualYawBlendOutStartNormalized < 0.0f)
+        m_fVisualYawBlendOutStartNormalized = 0.0f;
+    if (m_fVisualYawBlendOutStartNormalized > 1.0f)
+        m_fVisualYawBlendOutStartNormalized = 1.0f;
+
+    if (m_fVisualYawBlendInEndNormalized > m_fVisualYawBlendOutStartNormalized)
+    {
+        const float t = m_fVisualYawBlendInEndNormalized;
+        m_fVisualYawBlendInEndNormalized = m_fVisualYawBlendOutStartNormalized;
+        m_fVisualYawBlendOutStartNormalized = t;
+    }
+}
+
+void CAnimator::ClearVisualYawOffset()
+{
+    m_bVisualYawOffset = false;
+    m_fVisualYawTargetDeg = 0.0f;
+    m_fVisualYawBlendInEndNormalized = 0.0f;
+    m_fVisualYawBlendOutStartNormalized = 1.0f;
+}
+
+void CAnimator::ApplyVisualYawOffsetToLocalPose()
+{
+    if (!m_bVisualYawOffset)
+        return;
+
+    const int boneCount = (int)m_Skeleton.size();
+    if (boneCount <= 0)
+        return;
+
+    if ((int)m_LocalPose.size() != boneCount)
+        return;
+
+    auto FindPrimaryRoot = [&]() -> int
+        {
+            std::vector<int> roots;
+            for (int i = 0; i < boneCount; ++i)
+            {
+                if (m_Skeleton[i].parentIndex < 0)
+                    roots.push_back(i);
+            }
+
+            if (roots.empty()) return 0;
+            if (roots.size() == 1) return roots[0];
+
+            auto CountDesc = [&](int root) -> int
+                {
+                    int cnt = 0;
+                    for (int i = 0; i < boneCount; ++i)
+                    {
+                        int p = m_Skeleton[i].parentIndex;
+                        while (p >= 0)
+                        {
+                            if (p == root)
+                            {
+                                cnt++;
+                                break;
+                            }
+                            p = m_Skeleton[p].parentIndex;
+                        }
+                    }
+                    return cnt;
+                };
+
+            int best = roots[0];
+            int bestCnt = -1;
+
+            for (int r : roots)
+            {
+                const int c = CountDesc(r);
+                if (c > bestCnt)
+                {
+                    bestCnt = c;
+                    best = r;
+                }
+            }
+
+            return best;
+        };
+
+    const int primaryRoot = FindPrimaryRoot();
+    if (primaryRoot < 0 || primaryRoot >= boneCount)
+        return;
+
+    float alpha = 1.0f;
+
+    const float duration = GetCurrentClipDuration();
+    if (duration > 1e-6f)
+    {
+        float t = m_fCurrentTime / duration;
+        if (t < 0.0f) t = 0.0f;
+        if (t > 1.0f) t = 1.0f;
+
+        if ((m_fVisualYawBlendInEndNormalized > 0.0f) && (t < m_fVisualYawBlendInEndNormalized))
+        {
+            alpha = t / m_fVisualYawBlendInEndNormalized;
+        }
+        else if (t > m_fVisualYawBlendOutStartNormalized)
+        {
+            const float denom = 1.0f - m_fVisualYawBlendOutStartNormalized;
+            if (denom > 1e-6f)
+                alpha = 1.0f - ((t - m_fVisualYawBlendOutStartNormalized) / denom);
+            else
+                alpha = 0.0f;
+        }
+    }
+
+    if (alpha <= 0.0f)
+        return;
+
+    const float yawRad = XMConvertToRadians(m_fVisualYawTargetDeg * alpha);
+    if (fabsf(yawRad) <= 1e-6f)
+        return;
+
+    XMFLOAT3 tRoot, sRoot;
+    XMFLOAT4 rRoot;
+    DecomposeTRS_M(m_LocalPose[primaryRoot], tRoot, rRoot, sRoot);
+
+    const XMMATRIX baseR = XMMatrixRotationQuaternion(XMLoadFloat4(&rRoot));
+    const XMMATRIX extraR = XMMatrixRotationY(yawRad);
+    const XMMATRIX combinedR = baseR * extraR;
+
+    XMFLOAT4 rNew{};
+    XMStoreFloat4(&rNew, XMQuaternionNormalize(XMQuaternionRotationMatrix(combinedR)));
+
+    m_LocalPose[primaryRoot] = ComposeTRS_M(tRoot, rNew, sRoot);
 }
 
 void CAnimator::BuildGlobalAndFinalFromLocal()

@@ -137,6 +137,67 @@ std::string CAnimController::ResolveAttackStartClip(EActionPhase& outPhase) cons
     }
 }
 
+std::string CAnimController::ResolveRollClip(uint32_t dirBits, float& outVisualYawDeg) const
+{
+    outVisualYawDeg = 0.0f;
+
+    if (!m_usePlayerClipSet)
+        return "";
+
+    const std::string suffix = BuildDirectionSuffix(dirBits);
+
+    if (suffix == "L")
+    {
+        outVisualYawDeg = -90.0f;
+        return "Roll_F";
+    }
+
+    if (suffix == "FL")
+    {
+        outVisualYawDeg = -45.0f;
+        return "Roll_F";
+    }
+
+    if (suffix == "F" || suffix.empty())
+    {
+        outVisualYawDeg = 0.0f;
+        return "Roll_F";
+    }
+
+    if (suffix == "FR")
+    {
+        outVisualYawDeg = 45.0f;
+        return "Roll_F";
+    }
+
+    if (suffix == "R")
+    {
+        outVisualYawDeg = 90.0f;
+        return "Roll_F";
+    }
+
+    if (suffix == "BL")
+    {
+        outVisualYawDeg = 45.0f;
+        return "Roll_B";
+    }
+
+    if (suffix == "B")
+    {
+        outVisualYawDeg = 0.0f;
+        return "Roll_B";
+    }
+
+    if (suffix == "BR")
+    {
+        outVisualYawDeg = -45.0f;
+        return "Roll_B";
+    }
+
+    outVisualYawDeg = 0.0f;
+    return "Roll_F";
+}
+
 std::string CAnimController::ResolveLocomotionClip(EAnimState state) const
 {
     if (state == EAnimState::Move)
@@ -255,6 +316,7 @@ void CAnimController::Update(float /*dt*/)
                 return false;
 
             anim->StopUpperBodyOverlay(true);
+            anim->ClearVisualYawOffset();
 
             if (!anim->GetCurrentClipName().empty())
             {
@@ -270,6 +332,40 @@ void CAnimController::Update(float /*dt*/)
             m_state = EAnimState::Attack;
             return true;
         };
+    auto StartFullBodyRoll = [&](const std::string& clipName, float visualYawDeg) -> bool
+        {
+            if (clipName.empty() || !anim->HasClip(clipName))
+                return false;
+
+            anim->StopUpperBodyOverlay(true);
+            anim->ClearVisualYawOffset();
+
+            // 구르기는 즉시 시작한다. CrossFade를 사용하지 않는다.
+            anim->Play(clipName, false, 0.0f);
+
+            // 45프레임 기준:
+            // 0~3프레임 동안 회전, 42~45프레임 동안 원복
+            anim->SetVisualYawOffset(
+                visualYawDeg,
+                3.0f / 45.0f,
+                42.0f / 45.0f
+            );
+
+            m_actionPhase = EActionPhase::Roll;
+            m_state = EAnimState::Attack;
+            return true;
+        };
+
+    if (m_rollQueued && m_actionPhase == EActionPhase::None)
+    {
+        m_rollQueued = false;
+
+        if (StartFullBodyRoll(m_rollQueuedClipName, m_rollQueuedVisualYawDeg))
+        {
+            animPrevState = m_state;
+            return;
+        }
+    }
 
     if (m_attackQueued && m_actionPhase == EActionPhase::None)
     {
@@ -303,6 +399,7 @@ void CAnimController::Update(float /*dt*/)
         if (!hitClip.empty() && anim->HasClip(hitClip))
         {
             anim->StopUpperBodyOverlay(true);
+            anim->ClearVisualYawOffset();
 
             if (!anim->GetCurrentClipName().empty())
             {
@@ -349,6 +446,8 @@ void CAnimController::Update(float /*dt*/)
             {
                 if (overlayAction)
                     anim->StopUpperBodyOverlay();
+                if (m_actionPhase == EActionPhase::Roll)
+                    anim->ClearVisualYawOffset();
 
                 const bool wantsMove = WantsMoveNow();
                 const EAnimState targetState = wantsMove ? EAnimState::Move : EAnimState::Idle;
@@ -431,7 +530,8 @@ bool CAnimController::IsActionLocked() const
     case EActionPhase::AttackBowRelease:
         // 활은 공격 중 이동/회전 허용
         return false;
-
+    case EActionPhase::Roll:
+        return true;
     case EActionPhase::AttackGeneric:
         // AttackGeneric은 Sword / Axe / Gun에서 사용
         switch (weapon)
@@ -463,6 +563,24 @@ bool CAnimController::RequestAttack()
         return false;
 
     m_attackQueued = true;
+    return true;
+}
+
+bool CAnimController::RequestRoll(uint32_t dirBits)
+{
+    if (m_actionPhase != EActionPhase::None)
+        return false;
+
+    float visualYawDeg = 0.0f;
+    const std::string rollClip = ResolveRollClip(dirBits, visualYawDeg);
+
+    if (rollClip.empty())
+        return false;
+
+    m_rollQueuedClipName = rollClip;
+    m_rollQueuedVisualYawDeg = visualYawDeg;
+    m_rollQueued = true;
+
     return true;
 }
 
