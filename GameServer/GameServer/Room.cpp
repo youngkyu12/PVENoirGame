@@ -17,7 +17,7 @@ void Room::Enter(PlayerRef player)
 {
 	player->Build();
 	player->SetWeapon(
-		static_cast<Protocol::WeaponType>(player->playerId+ 1), 0); // 예시: 모든 플레이어가 검으로 시작
+		static_cast<Protocol::WeaponType>(player->playerId + 2), 0); // 예시: 모든 플레이어가 검으로 시작
 
 	players[player->playerId] = player;
 }
@@ -44,6 +44,7 @@ void Room::BroadCastAll(SendBufferRef sendBuffer)
 
 void Room::BuildRoom()
 {
+	MakeFireRateMap();
 	for (int i = 0; i < 10; ++i)
 	{
 		auto enemy = make_shared<CEnemy>(i, u8"Zombie", Protocol::ENEMY_TYPE_BASIC, nullptr);
@@ -75,9 +76,9 @@ void Room::StartGame(bool ready, uint32 index)
 
 	static Atomic<bool> gameStarted = false;
 
-	 //if(p_ready[0] && p_ready[1] && p_ready[2] && p_ready[3])
-	//if(p_ready[0] && p_ready[1])
-	if(p_ready[0])
+	 //if(p_ready[0] && p_ready[1] && p_ready[2] && p_ready[3])1
+	if(p_ready[0] && p_ready[1])
+	//if(p_ready[0])
 	{
 		if (gameStarted.exchange(true) == false)
 		{
