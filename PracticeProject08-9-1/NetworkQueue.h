@@ -6,6 +6,7 @@
 
 #include "GlobalEnum.h"
 
+#include "PlayerEquipmentComponent.h"
 
 using namespace DirectX;
 
@@ -30,6 +31,7 @@ struct ActorState
     XMFLOAT3    position;
     float       yaw;
 	AnimationState animation;
+	EWeaponType weaponType;
     // 필요시 HP, 상태 등 추가
 };
 

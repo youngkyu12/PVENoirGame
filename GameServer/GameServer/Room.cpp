@@ -15,6 +15,10 @@ shared_ptr<Room> GRoom = make_shared<Room>();
 
 void Room::Enter(PlayerRef player)
 {
+	player->Build();
+	player->SetWeapon(
+		static_cast<Protocol::WeaponType>(player->playerId + 2), 0); // 예시: 모든 플레이어가 검으로 시작
+
 	players[player->playerId] = player;
 }
 
@@ -40,6 +44,7 @@ void Room::BroadCastAll(SendBufferRef sendBuffer)
 
 void Room::BuildRoom()
 {
+	MakeFireRateMap();
 	for (int i = 0; i < 10; ++i)
 	{
 		auto enemy = make_shared<CEnemy>(i, u8"Zombie", Protocol::ENEMY_TYPE_BASIC, nullptr);
@@ -71,9 +76,9 @@ void Room::StartGame(bool ready, uint32 index)
 
 	static Atomic<bool> gameStarted = false;
 
-	 if(p_ready[0] && p_ready[1] && p_ready[2] && p_ready[3])
+	 //if(p_ready[0] && p_ready[1] && p_ready[2] && p_ready[3])1
 	//if(p_ready[0] && p_ready[1])
-	//if(p_ready[0])
+	if(p_ready[0])
 	{
 		if (gameStarted.exchange(true) == false)
 		{
@@ -213,12 +218,18 @@ void Room::MakeFrameState(uint32 tick)
 		Protocol::Animation* anim = p->mutable_animation();
 		anim->set_animationtick(player->GetAnimTick());
 		anim->set_animationtype(player->GetAnimState());
+
+		p->set_weapontype(player->GetWeaponState());
+
 		
 		Protocol::Transform* transform = p->mutable_transform();
 		Protocol::Vec3f* position = transform->mutable_position();
 		position->set_x(player->GetPosition().x);
 		position->set_y(player->GetPosition().y);
 		position->set_z(player->GetPosition().z);
+
+
+
 
 		transform->set_yaw(player->GetYaw());
 	}
@@ -230,6 +241,7 @@ void Room::MakeFrameState(uint32 tick)
 		auto e = frameStatePkt.add_enemies();
 		e->set_id(enemyMap.first);
 		e->set_enemytype(enemy->type);
+		e->set_weapontype(enemy->GetWeaponState());
 
 		Protocol::Animation* anim = e->mutable_animation();
 		anim->set_animationtick(enemy->GetAnimTick());
