@@ -12,27 +12,14 @@ void CMenuScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
     CreateGraphicsRootSignature(dev);
 
-    constexpr UINT MAX_GLOBAL_SRVS = 1024;
-    const UINT cbvTotal = 32;
-
-    CScene::m_pDescriptorHeap->CreateCbvSrvDescriptorHeaps(
-        dev,
-        cbvTotal,
-        MAX_GLOBAL_SRVS
-    );
-
     CreateMainCamera(dev, cmd, nullptr);
 
-    // ------------------------------------------------------------
-    // Menu UI texture (1장) 로드 + Global SRV 등록
-    // ------------------------------------------------------------
     {
         constexpr const wchar_t* kMenuDDS = L"Assets/UI/Test.dds";
 
         m_menuTex = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 0);
         m_menuTex->LoadTextureFromFile(dev, cmd, kMenuDDS, RESOURCE_TEXTURE2D, 0);
 
-        // Global SRV pool(t0~)에 올린다.
         CScene::m_pDescriptorHeap->CreateShaderResourceViewsOther(
             dev,
             m_menuTex.get(),
@@ -42,23 +29,16 @@ void CMenuScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
         m_menuSrvIndex = m_menuTex->GetSrvIndex(0);
     }
 
-    // ------------------------------------------------------------
-    // Menu UI shader 생성 (Screen-rect + alpha blend)
-    // ------------------------------------------------------------
     {
-        m_menuShader = std::make_shared<CMenuImageShader>();
+        m_menuShader = std::make_shared<CRectUIShader>();
 
-        // RTV 포맷은 네 swapchain 백버퍼 포맷에 맞춰라.
         DXGI_FORMAT rtv = DXGI_FORMAT_R8G8B8A8_UNORM;
-
-        // Depth는 안 쓰므로 UNKNOWN으로 생성해도 됨(DepthEnable=FALSE)
         DXGI_FORMAT dsv = DXGI_FORMAT_UNKNOWN;
 
         m_menuShader->CreateShader(dev, GetGraphicsRootSignature(), 1, &rtv, dsv);
         m_menuShader->CreateShaderVariables(dev, cmd);
     }
 }
-
 // MenuScene 카메라: "아무 위치에서 아무대나" 보는 임시 카메라
 void CMenuScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* /*target*/)
 {
@@ -106,12 +86,43 @@ void CMenuScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
     if (!m_menuShader) return;
     if (m_menuSrvIndex == UINT_MAX) return;
 
-    PS_CB_DRAW_OPTIONS opt{};
-    opt.m_xmn4DrawOptions = XMINT4('T', 0, 0, 0);                // 'T' = gvPostSrvIdx0.x
-    opt.m_xmu4PostSrvIdx0 = XMUINT4(m_menuSrvIndex, 0, 0, 0);    // T 슬롯에 메뉴 텍스처 SRV index
-    opt.m_xmu4PostSrvIdx1 = XMUINT4(0, 0, 0, 0);
+    float drawW = static_cast<float>(m_menuTex ? m_menuTex->GetTextureWidth(0) : 0);
+    float drawH = static_cast<float>(m_menuTex ? m_menuTex->GetTextureHeight(0) : 0);
 
-    // Shader.Render()가 내부에서 DrawInstanced(6,1) 호출함
+    if (drawW <= 0.0f || drawH <= 0.0f)
+    {
+        drawW = 512.0f;
+        drawH = 512.0f;
+    }
+
+    float fitScale = 1.0f;
+    const float scaleX = (drawW > 0.0f) ? (static_cast<float>(FRAME_BUFFER_WIDTH) / drawW) : 1.0f;
+    const float scaleY = (drawH > 0.0f) ? (static_cast<float>(FRAME_BUFFER_HEIGHT) / drawH) : 1.0f;
+
+    if (scaleX < fitScale) fitScale = scaleX;
+    if (scaleY < fitScale) fitScale = scaleY;
+    if (fitScale > 1.0f) fitScale = 1.0f;
+
+    drawW *= fitScale;
+    drawH *= fitScale;
+
+    PS_CB_DRAW_OPTIONS opt{};
+    opt.m_xmn4DrawOptions = XMINT4('T', 0, 0, 0);
+    opt.m_xmu4PostSrvIdx0 = XMUINT4(m_menuSrvIndex, 0, 0, 0);
+    opt.m_xmu4PostSrvIdx1 = XMUINT4(0, 0, 0, 0);
+    opt.m_xmf4UiRect = XMFLOAT4(
+        FRAME_BUFFER_WIDTH * 0.5f,
+        FRAME_BUFFER_HEIGHT * 0.5f,
+        drawW,
+        drawH
+    );
+    opt.m_xmf4Viewport = XMFLOAT4(
+        static_cast<float>(FRAME_BUFFER_WIDTH),
+        static_cast<float>(FRAME_BUFFER_HEIGHT),
+        1.0f / static_cast<float>(FRAME_BUFFER_WIDTH),
+        1.0f / static_cast<float>(FRAME_BUFFER_HEIGHT)
+    );
+
     m_menuShader->Render(cmd, camera, &opt);
 }
 

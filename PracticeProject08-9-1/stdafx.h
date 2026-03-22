@@ -64,6 +64,7 @@ extern ClientServiceRef g_clientService;
 #include <random>
 
 #include <wincodec.h>
+#include <windowsx.h>
 //#include <fmod.hpp>
 #include <cassert>
 

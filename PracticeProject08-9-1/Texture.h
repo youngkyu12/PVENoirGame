@@ -60,6 +60,20 @@ public:
 
 	void ReleaseUploadBuffers();
 
+	UINT GetTextureWidth(int nIndex) const
+	{
+		if (nIndex < 0 || nIndex >= m_nTextures) return 0;
+		if (!m_ppd3dTextures[nIndex]) return 0;
+		return static_cast<UINT>(m_ppd3dTextures[nIndex]->GetDesc().Width);
+	}
+
+	UINT GetTextureHeight(int nIndex) const
+	{
+		if (nIndex < 0 || nIndex >= m_nTextures) return 0;
+		if (!m_ppd3dTextures[nIndex]) return 0;
+		return static_cast<UINT>(m_ppd3dTextures[nIndex]->GetDesc().Height);
+	}
+
 private:
 	//±Û·Î¹ú SRV Ç® ½ÃÀÛ ½½·Ô
 	UINT m_baseSrvIndex = UINT_MAX; 
