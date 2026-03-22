@@ -3,7 +3,7 @@
 //-----------------------------------------------------------------------------
 #include "stdafx.h"
 #include "RenderObjectComponent.h"
-#include "Object.h"          // CB_GAMEOBJECT_INFO Á¤ÀÇ ÇÊ¿ä(=sizeof ¶§¹®¿¡)
+#include "Object.h"          // CB_GAMEOBJECT_INFO ì •ì˜ í•„ìš”(=sizeof ë•Œë¬¸ì—)
 #include "d3dx12.h"
 
 CRenderObjectComponent::CRenderObjectComponent(CGameObject* owner)
@@ -15,14 +15,14 @@ void CRenderObjectComponent::OnCreate(ID3D12Device* dev, ID3D12GraphicsCommandLi
 {
     (void)cmd;
 
-    // ¿ÜºÎ ¹ÙÀÎµùÀÌ ¾ÆÁ÷ ¾È µÆÀ¸¸é(ÇÃ·¹ÀÌ¾î µî) ·ÎÄÃ CB¸¦ ¸¸µç´Ù.
+    // ì™¸ë¶€ ë°”ì¸ë”©ì´ ì•„ì§ ì•ˆ ëìœ¼ë©´(í”Œë ˆì´ì–´ ë“±) ë¡œì»¬ CBë¥¼ ë§Œë“ ë‹¤.
     if (!m_mapped)
         CreateLocalCB(dev, cmd);
 }
 
 void CRenderObjectComponent::OnDestroy()
 {
-    // ·ÎÄÃ ¼ÒÀ¯ºÐ¸¸ Á¤¸®
+    // ë¡œì»¬ ì†Œìœ ë¶„ë§Œ ì •ë¦¬
     if (m_localCB)
     {
         m_localCB->Unmap(0, nullptr);
@@ -35,7 +35,7 @@ void CRenderObjectComponent::OnDestroy()
 
 void CRenderObjectComponent::BindExternal(CB_GAMEOBJECT_INFO* mapped, D3D12_GPU_DESCRIPTOR_HANDLE cbvGpu)
 {
-    // ·ÎÄÃÀÌ ÀÖ¾ú´Ù¸é ÇØÁ¦(¿ÜºÎ·Î ÀüÈ¯)
+    // ë¡œì»¬ì´ ìžˆì—ˆë‹¤ë©´ í•´ì œ(ì™¸ë¶€ë¡œ ì „í™˜)
     if (m_localCB)
     {
         m_localCB->Unmap(0, nullptr);
@@ -44,19 +44,22 @@ void CRenderObjectComponent::BindExternal(CB_GAMEOBJECT_INFO* mapped, D3D12_GPU_
 
     m_mapped = mapped;
     m_cbvGpu = cbvGpu;
-    m_cbSizeBytes = 0;     // ¿ÜºÎ´Â »çÀÌÁî¸¦ ¿©±â¼­ ±»ÀÌ À¯Áö ¾È ÇØµµ µÊ
+    m_cbSizeBytes = 0;     // ì™¸ë¶€ëŠ” ì‚¬ì´ì¦ˆë¥¼ ì—¬ê¸°ì„œ êµ³ì´ ìœ ì§€ ì•ˆ í•´ë„ ë¨
     m_isExternal = true;
 }
 
 void CRenderObjectComponent::CreateLocalCB(ID3D12Device* dev, ID3D12GraphicsCommandList* /*cmd*/)
 {
-    if (!dev) return;
+    if (!dev) 
+		return;
 
-    // ÀÌ¹Ì ·ÎÄÃÀÌ ÀÖÀ¸¸é ½ºÅµ
-    if (m_localCB && m_mapped) return;
+    // ì´ë¯¸ ë¡œì»¬ì´ ìžˆìœ¼ë©´ ìŠ¤í‚µ
+    if (m_localCB && m_mapped) 
+		return;
 
-    // ¿ÜºÎ·Î ÀÌ¹Ì ¹ÙÀÎµù µÇ¾î ÀÖ´Ù¸é ·ÎÄÃ ¸¸µé¸é ¾È µÊ
-    if (m_isExternal && m_mapped) return;
+    // ì™¸ë¶€ë¡œ ì´ë¯¸ ë°”ì¸ë”© ë˜ì–´ ìžˆë‹¤ë©´ ë¡œì»¬ ë§Œë“¤ë©´ ì•ˆ ë¨
+    if (m_isExternal && m_mapped) 
+		return;
 
     m_cbSizeBytes = Align256((UINT)sizeof(CB_GAMEOBJECT_INFO));
 
@@ -68,8 +71,7 @@ void CRenderObjectComponent::CreateLocalCB(ID3D12Device* dev, ID3D12GraphicsComm
         &bufDesc,
         D3D12_RESOURCE_STATE_GENERIC_READ,
         nullptr,
-        IID_PPV_ARGS(m_localCB.GetAddressOf())
-    );
+        IID_PPV_ARGS(m_localCB.GetAddressOf()));
     if (FAILED(hr))
     {
         m_localCB.Reset();
@@ -80,7 +82,7 @@ void CRenderObjectComponent::CreateLocalCB(ID3D12Device* dev, ID3D12GraphicsComm
 
     m_localCB->Map(0, nullptr, (void**)&m_mapped);
 
-    // ÃÊ±â°ª: identity
+    // ì´ˆê¸°ê°’: identity
     if (m_mapped)
     {
         XMStoreFloat4x4(&m_mapped->m_xmf4x4World, XMMatrixTranspose(XMMatrixIdentity()));

@@ -181,13 +181,13 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
 
     uint packedN = gMaterials[gnMaterialID].TextureIndices.y;
     float3 normalW = GetNormalWFromMap(packedN, input.normalW, input.tangentW, input.uv);
-    float4 illumination = Lighting(input.positionW, normalW);
+    float4 illumination = Lighting(input.positionW, normalW, texColor);
 
     output.cTexture = texColor;
     output.cIllumination = illumination;
-    output.color = texColor;
-    //output.color = texColor * illumination;
-    //output.color = float4(normalW * 0.5f + 0.5f, 1.0f);
+    //output.color = texColor;  // 조명 X
+    output.color = illumination;    // 조명 O
+    //output.color = float4(normalW * 0.5f + 0.5f, 1.0f); // 노멀값 색상으로 출력
     output.normal = float4(normalW * 0.5f + 0.5f, 1.0f);
     output.zDepth = input.position.z;
 

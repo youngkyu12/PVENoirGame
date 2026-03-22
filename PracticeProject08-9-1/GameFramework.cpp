@@ -45,8 +45,7 @@ bool CGameFramework::OnCreate(HINSTANCE hInstance, HWND hMainWnd)
 	CScene::m_pDescriptorHeap->CreateCbvSrvDescriptorHeaps(
 		m_pd3dDevice.Get(),
 		GLOBAL_CBV_CAPACITY,
-		GLOBAL_SRV_CAPACITY
-	);
+		GLOBAL_SRV_CAPACITY);
 
 	BuildObjects();
 
@@ -291,8 +290,7 @@ void CGameFramework::CreateSwapChain()
 	hResult = m_pdxgiFactory->CreateSwapChain(
 		m_pd3dCommandQueue.Get(),
 		&dxgiSwapChainDesc,
-		(IDXGISwapChain**)m_pdxgiSwapChain.ReleaseAndGetAddressOf()
-	);
+		(IDXGISwapChain**)m_pdxgiSwapChain.ReleaseAndGetAddressOf());
 
 	hResult = m_pdxgiFactory->MakeWindowAssociation(m_hWnd, DXGI_MWA_NO_ALT_ENTER);
 	m_nSwapChainBufferIndex = m_pdxgiSwapChain->GetCurrentBackBufferIndex();
@@ -311,14 +309,12 @@ void CGameFramework::CreateSwapChainRenderTargetViews()
 	{
 		m_pdxgiSwapChain->GetBuffer(
 			i,
-			IID_PPV_ARGS(m_ppd3dSwapChainBackBuffers[i].ReleaseAndGetAddressOf())
-		);
+			IID_PPV_ARGS(m_ppd3dSwapChainBackBuffers[i].ReleaseAndGetAddressOf()));
 
 		m_pd3dDevice->CreateRenderTargetView(
 			m_ppd3dSwapChainBackBuffers[i].Get(),
 			&d3dRenderTargetViewDesc,
-			d3dRtvCPUDescriptorHandle
-		);
+			d3dRtvCPUDescriptorHandle);
 
 		m_pd3dSwapChainBackBufferRTVCPUHandles[i] = d3dRtvCPUDescriptorHandle;
 		d3dRtvCPUDescriptorHandle.ptr += ::gnRtvDescriptorIncrementSize;
@@ -417,7 +413,10 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 		1,
 		nullptr,
 		DXGI_FORMAT_D24_UNORM_S8_UINT);
-	m_pPostProcessingShader->BuildObjects(m_pd3dDevice.Get(), m_pd3dCommandList.Get(), &m_nDrawOption);
+	m_pPostProcessingShader->BuildObjects(
+		m_pd3dDevice.Get(), 
+		m_pd3dCommandList.Get(),
+		&m_nDrawOption);
 
 	// RTV heap���� swapchain �ڿ� �ٿ��� postprocess RT���� �����.
 	D3D12_CPU_DESCRIPTOR_HANDLE d3dRtvCPUDescriptorHandle = m_pd3dRtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
@@ -435,15 +434,13 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 		m_pd3dCommandList.Get(),
 		4,
 		pdxgiResourceFormats,
-		d3dRtvCPUDescriptorHandle
-	);
+		d3dRtvCPUDescriptorHandle);
 
 	// Depth SRV�� �� Scene�� SRV ���� �ٽ� �����.
 	D3D12_GPU_DESCRIPTOR_HANDLE d3dDsvGPUDescriptorHandle = CScene::m_pDescriptorHeap->CreateShaderResourceView(
 		m_pd3dDevice.Get(),
 		m_pd3dDepthStencilBuffer.Get(),
-		DXGI_FORMAT_R24_UNORM_X8_TYPELESS
-	);
+		DXGI_FORMAT_R24_UNORM_X8_TYPELESS);
 	(void)d3dDsvGPUDescriptorHandle;
 
 	// Ŀ�ǵ� ����

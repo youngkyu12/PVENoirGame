@@ -541,6 +541,10 @@ void CGameScene::BuildLightsAndMaterials()
         XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),
         XMFLOAT4(1.0f, 1.0f, 1.0f, 5.0f),
         XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f)
+		/*XMFLOAT4(1,1,1,1),
+	XMFLOAT4(1,1,1,1),
+	XMFLOAT4(1,1,1,16),
+	XMFLOAT4(0,0,0,1)*/
     };
 
     m_pMaterials->m_pReflections[1] = {

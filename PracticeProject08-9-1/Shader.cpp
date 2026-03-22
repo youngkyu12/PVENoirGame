@@ -479,7 +479,7 @@ CUIShader::~CUIShader()
 D3D12_RASTERIZER_DESC CUIShader::CreateRasterizerState()
 {
 	D3D12_RASTERIZER_DESC rs = CTexturedShader::CreateRasterizerState();
-	rs.CullMode = D3D12_CULL_MODE_NONE;      // UI´Â ¾ç¸é/Äõµå°¡ ¸¹¾Æ¼­ Cull OFF°¡ ¾ÈÀü
+	rs.CullMode = D3D12_CULL_MODE_NONE;      // UIëŠ” ì–‘ë©´/ì¿¼ë“œê°€ ë§ì•„ì„œ Cull OFFê°€ ì•ˆì „
 	rs.DepthClipEnable = TRUE;
 	return rs;
 }
@@ -502,7 +502,7 @@ D3D12_BLEND_DESC CUIShader::CreateBlendState()
 	rt0.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
 	rt0.BlendOp = D3D12_BLEND_OP_ADD;
 
-	// alpha channel blending (º¸Åë ÀÌ´ë·Î¸é ÃæºĞ)
+	// alpha channel blending (ë³´í†µ ì´ëŒ€ë¡œë©´ ì¶©ë¶„)
 	rt0.SrcBlendAlpha = D3D12_BLEND_ONE;
 	rt0.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
 	rt0.BlendOpAlpha = D3D12_BLEND_OP_ADD;
@@ -518,8 +518,8 @@ D3D12_DEPTH_STENCIL_DESC CUIShader::CreateDepthStencilState()
 	D3D12_DEPTH_STENCIL_DESC ds{};
 	::ZeroMemory(&ds, sizeof(D3D12_DEPTH_STENCIL_DESC));
 
-	ds.DepthEnable = FALSE;                          // UI´Â depth test ÀÚÃ¼¸¦ ²ö´Ù
-	ds.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO; // (ÀÇ¹Ì´Â °ÅÀÇ ¾øÁö¸¸ ¸í½Ã)
+	ds.DepthEnable = FALSE;                          // UIëŠ” depth test ìì²´ë¥¼ ëˆë‹¤
+	ds.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO; // (ì˜ë¯¸ëŠ” ê±°ì˜ ì—†ì§€ë§Œ ëª…ì‹œ)
 	ds.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
 
 	ds.StencilEnable = FALSE;
@@ -545,9 +545,9 @@ void CMenuImageShader::CreateShader(
 	DXGI_FORMAT* rtvFormats,
 	DXGI_FORMAT dsvFormat)
 {
-	// ¡Ú m_pd3dGraphicsRootSignature¿¡ ÀúÀåÇÏÁö ¾Ê´Â´Ù.
-	//    (CShader::OnPrepareRender°¡ RootSig¸¦ ´Ù½Ã SetÇÏ¸é,
-	//     Scene¿¡¼­ Àâ¾ÆµĞ DescriptorTableÀÌ ¹«È¿È­µÉ ¿©Áö°¡ ÀÖ¾î¼­)
+	// â˜… m_pd3dGraphicsRootSignatureì— ì €ì¥í•˜ì§€ ì•ŠëŠ”ë‹¤.
+	//    (CShader::OnPrepareRenderê°€ RootSigë¥¼ ë‹¤ì‹œ Setí•˜ë©´,
+	//     Sceneì—ì„œ ì¡ì•„ë‘” DescriptorTableì´ ë¬´íš¨í™”ë  ì—¬ì§€ê°€ ìˆì–´ì„œ)
 	CShader::CreateShader(
 		dev, 
 		sceneRootSig,
@@ -589,11 +589,11 @@ void CMenuImageShader::UpdateShaderVariables(ID3D12GraphicsCommandList* cmd, voi
 	if (!m_pd3dcbDrawOptions || !m_pcbMappedDrawOptions) return;
 	if (!pContext) return;
 
-	// pContext´Â PS_CB_DRAW_OPTIONS* ·Î ¹Ş´Â´Ù.
+	// pContextëŠ” PS_CB_DRAW_OPTIONS* ë¡œ ë°›ëŠ”ë‹¤.
 	const PS_CB_DRAW_OPTIONS* opt = reinterpret_cast<const PS_CB_DRAW_OPTIONS*>(pContext);
 	*m_pcbMappedDrawOptions = *opt;
 
-	// RootParam #5 == CBV(b5) : ±âÁ¸ ÄÚµå¿Í µ¿ÀÏÇÏ°Ô 5¿¡ ¹ÙÀÎµù
+	// RootParam #5 == CBV(b5) : ê¸°ì¡´ ì½”ë“œì™€ ë™ì¼í•˜ê²Œ 5ì— ë°”ì¸ë”©
 	cmd->SetGraphicsRootConstantBufferView(5, m_pd3dcbDrawOptions->GetGPUVirtualAddress());
 }
 
@@ -719,7 +719,12 @@ D3D12_SHADER_BYTECODE CPostProcessingShader::CreatePixelShader(ID3DBlob** ppd3dS
 	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSPostProcessing", "ps_5_1", ppd3dShaderBlob));
 }
 
-void CPostProcessingShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSignature* pd3dGraphicsRootSignature, UINT nRenderTargets, DXGI_FORMAT* pdxgiRtvFormats, DXGI_FORMAT dxgiDsvFormat)
+void CPostProcessingShader::CreateShader(
+	ID3D12Device* pd3dDevice, 
+	ID3D12RootSignature* pd3dGraphicsRootSignature, 
+	UINT nRenderTargets, 
+	DXGI_FORMAT* pdxgiRtvFormats, 
+	DXGI_FORMAT dxgiDsvFormat)
 {
 #ifdef _WITH_SCENE_ROOT_SIGNATURE
 	m_pd3dGraphicsRootSignature = pd3dGraphicsRootSignature;
@@ -732,11 +737,15 @@ void CPostProcessingShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSig
 		m_pd3dGraphicsRootSignature.Get(),
 		nRenderTargets,
 		pdxgiRtvFormats,
-		dxgiDsvFormat
-	);
+		dxgiDsvFormat);
 }
 
-void CPostProcessingShader::CreateResourcesAndRtvsSrvs(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList, UINT nRenderTargets, DXGI_FORMAT* pdxgiFormats, D3D12_CPU_DESCRIPTOR_HANDLE d3dRtvCPUDescriptorHandle)
+void CPostProcessingShader::CreateResourcesAndRtvsSrvs(
+	ID3D12Device* pd3dDevice, 
+	ID3D12GraphicsCommandList* pd3dCommandList, 
+	UINT nRenderTargets, 
+	DXGI_FORMAT* pdxgiFormats, 
+	D3D12_CPU_DESCRIPTOR_HANDLE d3dRtvCPUDescriptorHandle)
 {
 	m_pTexture = make_shared<CTexture>(nRenderTargets, RESOURCE_TEXTURE2D, 0, 1);
 
@@ -753,8 +762,7 @@ void CPostProcessingShader::CreateResourcesAndRtvsSrvs(ID3D12Device* pd3dDevice,
 			D3D12_RESOURCE_STATE_COMMON,
 			&d3dClearValue,
 			RESOURCE_TEXTURE2D,
-			i
-		);
+			i);
 	}
 
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
@@ -762,19 +770,17 @@ void CPostProcessingShader::CreateResourcesAndRtvsSrvs(ID3D12Device* pd3dDevice,
 	CScene::m_pDescriptorHeap->CreateShaderResourceViewsOther(
 		pd3dDevice,
 		m_pTexture.get(),
-		ROOT_PARAMETER_GLOBAL_SRV
-	);
+		ROOT_PARAMETER_GLOBAL_SRV);
 
 #else
 	CScene::m_pDescriptorHeap->CreateShaderResourceViewsOther(
 		pd3dDevice,
 		m_pTexture.get(),
-		0
-	);
+		0);
 
 #endif
 
-	D3D12_RENDER_TARGET_VIEW_DESC d3dRenderTargetViewDesc;
+	D3D12_RENDER_TARGET_VIEW_DESC d3dRenderTargetViewDesc{};
 	d3dRenderTargetViewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 	d3dRenderTargetViewDesc.Texture2D.MipSlice = 0;
 	d3dRenderTargetViewDesc.Texture2D.PlaneSlice = 0;

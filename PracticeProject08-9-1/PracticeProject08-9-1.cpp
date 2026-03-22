@@ -1,4 +1,4 @@
-﻿// LabProject08-9-1.cpp : 응용 프로그램에 대한 진입점을 정의합니다.
+// LabProject08-9-1.cpp : 응용 프로그램에 대한 진입점을 정의합니다.
 //
 
 #include "stdafx.h"
