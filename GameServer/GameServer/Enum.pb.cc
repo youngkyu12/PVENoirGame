@@ -18,7 +18,7 @@
 PROTOBUF_PRAGMA_INIT_SEG
 namespace Protocol {
 }  // namespace Protocol
-static const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* file_level_enum_descriptors_Enum_2eproto[8];
+static const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* file_level_enum_descriptors_Enum_2eproto[10];
 static constexpr ::PROTOBUF_NAMESPACE_ID::ServiceDescriptor const** file_level_service_descriptors_Enum_2eproto = nullptr;
 const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_Enum_2eproto::offsets[1] = {};
 static constexpr ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema* schemas = nullptr;
@@ -50,11 +50,17 @@ const char descriptor_table_protodef_Enum_2eproto[] PROTOBUF_SECTION_VARIABLE(pr
   "\022\026\n\022ENEMY_STATE_ATTACK\020\003\022\023\n\017ENEMY_STATE_"
   "DIE\020\004*b\n\tGameState\022\023\n\017GAME_STATE_NONE\020\000\022"
   "\024\n\020GAME_STATE_LOBBY\020\001\022\026\n\022GAME_STATE_PLAY"
-  "ING\020\002\022\022\n\016GAME_STATE_END\020\003b\006proto3"
+  "ING\020\002\022\022\n\016GAME_STATE_END\020\003*z\n\nWeaponType\022"
+  "\024\n\020WEAPON_TYPE_NONE\020\000\022\025\n\021WEAPON_TYPE_SWO"
+  "RD\020\001\022\023\n\017WEAPON_TYPE_BOW\020\002\022\023\n\017WEAPON_TYPE"
+  "_AXE\020\003\022\025\n\021WEAPON_TYPE_CANON\020\004*U\n\nBulletT"
+  "ype\022\024\n\020BULLET_TYPE_NONE\020\000\022\025\n\021BULLET_TYPE"
+  "_ARROW\020\001\022\032\n\026BULLET_TYPE_CANNONBALL\020\002b\006pr"
+  "oto3"
   ;
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_Enum_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_Enum_2eproto = {
-  false, false, 1033, descriptor_table_protodef_Enum_2eproto, "Enum.proto", 
+  false, false, 1244, descriptor_table_protodef_Enum_2eproto, "Enum.proto", 
   &descriptor_table_Enum_2eproto_once, nullptr, 0, 0,
   schemas, file_default_instances, TableStruct_Enum_2eproto::offsets,
   nullptr, file_level_enum_descriptors_Enum_2eproto, file_level_service_descriptors_Enum_2eproto,
@@ -194,6 +200,38 @@ bool GameState_IsValid(int value) {
     case 1:
     case 2:
     case 3:
+      return true;
+    default:
+      return false;
+  }
+}
+
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* WeaponType_descriptor() {
+  ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_Enum_2eproto);
+  return file_level_enum_descriptors_Enum_2eproto[8];
+}
+bool WeaponType_IsValid(int value) {
+  switch (value) {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+      return true;
+    default:
+      return false;
+  }
+}
+
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* BulletType_descriptor() {
+  ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_Enum_2eproto);
+  return file_level_enum_descriptors_Enum_2eproto[9];
+}
+bool BulletType_IsValid(int value) {
+  switch (value) {
+    case 0:
+    case 1:
+    case 2:
       return true;
     default:
       return false;
