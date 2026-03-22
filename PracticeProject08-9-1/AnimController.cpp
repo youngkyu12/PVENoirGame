@@ -391,7 +391,6 @@ void CAnimController::NetworkUpdate(float dt)
         return;
     }
 
-#ifdef USING_NETWORK
     std::string targetClip;
 
     if (m_state == EAnimState::Move)
@@ -421,41 +420,7 @@ void CAnimController::NetworkUpdate(float dt)
         if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
             anim->Play(targetClip, true, 0.0f);
     }
-#else
-    const bool wantsMove =
-        m_usePlayerClipSet ? (m_moveDirBits != 0)
-        : (m_speed > m_moveEps);
-    EAnimState target = (m_speed > m_moveEps) ? EAnimState::Move : EAnimState::Idle;
 
-    const EAnimState targetState = wantsMove ? EAnimState::Move : EAnimState::Idle;
-
-    std::string targetClip = ResolveLocomotionClip(targetState);
-    if (targetClip.empty() || !anim->HasClip(targetClip))
-    {
-        targetClip = ResolveIdleClip();
-        if (targetClip.empty() || !anim->HasClip(targetClip))
-            return;
-    }
-
-    constexpr float kBlendTime = 0.15f;
-
-    if (anim->GetCurrentClipName().empty())
-    {
-        anim->Play(targetClip, true, 0.0f);
-        m_state = targetState;
-    }
-    else if (targetState != m_state || anim->GetCurrentClipName() != targetClip)
-    {
-        if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
-            anim->Play(targetClip, true, 0.0f);
-
-        m_state = targetState;
-    }
-    else
-    {
-        m_state = targetState;
-    }
-#endif
 
 }
 
