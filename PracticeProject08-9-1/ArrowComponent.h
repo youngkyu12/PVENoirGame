@@ -1,7 +1,3 @@
-//-----------------------------------------------------------------------------
-// File: ArrowComponent.h
-//-----------------------------------------------------------------------------
-
 #pragma once
 
 #include "Component.h"
@@ -11,24 +7,46 @@ using namespace DirectX;
 
 class CGameObject;
 
-// Transform만으로 이동/수명 관리하는 단순 화살 컴포넌트
 class CArrowComponent final : public CComponentT<CArrowComponent>
 {
 public:
     explicit CArrowComponent(CGameObject* owner);
 
-    // 활성화(발사)
+    // 즉시 발사 상태로 활성화(기존 호환)
     void Activate(const XMFLOAT3& position, const XMFLOAT3& velocity, float lifeSec);
 
-    // 비활성화(풀로 복귀)
+    // 활에 걸린 상태로 준비
+    void Prepare(CGameObject* bowObject, CGameObject* directionSource, float pullBackDistance);
+
+    // 준비된 화살을 실제 발사
+    void Launch(const XMFLOAT3& velocity, float lifeSec);
+
     void Deactivate();
 
-    bool IsActive() const { return m_active; }
+    bool IsActive() const { return m_state != EState::Inactive; }
+    bool IsPrepared() const { return m_state == EState::Prepared; }
+    bool IsFlying() const { return m_state == EState::Flying; }
 
     void OnUpdate(float dt) override;
 
 private:
-    bool     m_active = false;
+    enum class EState : uint8_t
+    {
+        Inactive = 0,
+        Prepared,
+        Flying
+    };
+
+private:
+    static XMFLOAT3 GetForwardFromObject(const CGameObject* obj);
+    static XMFLOAT3 NormalizeSafe(const XMFLOAT3& v);
+
+private:
+    EState   m_state = EState::Inactive;
     float    m_lifeRemaining = 0.0f;
     XMFLOAT3 m_velocity = { 0.0f, 0.0f, 0.0f };
+
+    CGameObject* m_bowObject = nullptr;         // 따라갈 활
+    CGameObject* m_directionSource = nullptr;   // 방향 기준(플레이어)
+    float        m_pullBackDistance = 0.0f;
 };

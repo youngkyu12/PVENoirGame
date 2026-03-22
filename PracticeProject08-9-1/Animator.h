@@ -39,6 +39,11 @@ public:
     int GetBoneCount() const { return (int)m_Skeleton.size(); }
     bool HasClip(const std::string& name) const;
 
+    bool PlayUpperBodyOverlay(const std::string& clipName, bool loop = false, float startTime = 0.0f, float blendTimeSec = 0.12f);
+    void StopUpperBodyOverlay(bool immediate = false);
+    bool IsUpperBodyOverlayActive() const { return m_bUpperBodyOverlay; }
+    const std::string& GetUpperBodyOverlayClipName() const { return m_UpperBodyClipName; }
+
     void SetNextClipAfterEnd(const std::string& clip) { m_NextClipAfterEnd = clip; }
 
     const std::vector<XMFLOAT4X4>& GetGlobalBoneMatrices() const { return m_GlobalPose; }
@@ -60,6 +65,11 @@ public:
     // 현재 클립이 "non-loop"로 재생 중이고 끝에 도달했는지
     bool  IsCurrentClipFinished(float eps = 1e-4f) const;
 
+    float GetUpperBodyOverlayDuration() const;
+    bool  IsUpperBodyOverlayFinished(float eps = 1e-4f) const;
+
+    void SetVisualYawOffset(float targetYawDeg, float blendInEndNormalized, float blendOutStartNormalized);
+    void ClearVisualYawOffset();
 
 private:
     AnimationClip* FindClipPtr(const std::string& name);
@@ -72,6 +82,19 @@ private:
         const std::vector<XMFLOAT4X4>& B,
         float alpha,
         std::vector<XMFLOAT4X4>& out);
+
+    void BuildUpperBodyBoneWeights(const std::string& rootBoneName);
+    void UpdateUpperBodyOverlay(float dt);
+
+    void BlendLocalPosesMaskedTRS(const std::vector<XMFLOAT4X4>& A,
+        const std::vector<XMFLOAT4X4>& B,
+        const std::vector<float>& boneWeights,
+        std::vector<XMFLOAT4X4>& out);
+
+    void BuildGlobalPoseFromLocal(const std::vector<XMFLOAT4X4>& localPose,
+        std::vector<XMFLOAT4X4>& outGlobalPose) const;
+    void RetargetUpperBodyOverlayRootToCurrentParent();
+    void ApplyVisualYawOffsetToLocalPose();
 
 private:
     std::vector<Bone> m_Skeleton;
@@ -102,4 +125,31 @@ private:
     std::vector<XMFLOAT4X4> m_LocalPoseB;
 
     std::string m_NextClipAfterEnd;
+
+    std::vector<float> m_UpperBodyBoneWeights;
+
+    bool  m_bUpperBodyOverlay = false;
+    std::string m_UpperBodyClipName;
+    float m_fUpperBodyTime = 0.0f;
+    bool  m_bUpperBodyLoop = false;
+
+    std::vector<XMFLOAT4X4> m_LocalPoseUpperBody;
+
+    std::vector<float> m_UpperBodyBlendWeights;
+
+    float m_fUpperBodyBlendAlpha = 0.0f;
+    float m_fUpperBodyBlendStartAlpha = 0.0f;
+    float m_fUpperBodyBlendTargetAlpha = 0.0f;
+    float m_fUpperBodyBlendElapsed = 0.0f;
+    float m_fUpperBodyBlendDuration = 0.0f;
+    float m_fUpperBodyFadeOutDuration = 0.10f;
+
+    std::vector<XMFLOAT4X4> m_GlobalPoseScratchBase;
+    std::vector<XMFLOAT4X4> m_GlobalPoseScratchUpper;
+    int m_UpperBodyRootBoneIndex = -1;
+
+    bool  m_bVisualYawOffset = false;
+    float m_fVisualYawTargetDeg = 0.0f;
+    float m_fVisualYawBlendInEndNormalized = 0.0f;
+    float m_fVisualYawBlendOutStartNormalized = 1.0f;
 };
