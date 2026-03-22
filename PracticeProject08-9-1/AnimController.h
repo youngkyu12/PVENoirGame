@@ -45,6 +45,8 @@ public:
     bool IsActionLocked() const;
 
     void Update(float dt);
+	void NetworkUpdate(float dt);
+	void LocalUpdate(float dt);
 
     bool RequestAttack();
     bool RequestRoll(uint32_t dirBits);
