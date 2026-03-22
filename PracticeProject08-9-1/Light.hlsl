@@ -12,6 +12,8 @@
 #define _WITH_THETA_PHI_CONES
 //#define _WITH_REFLECT
 
+#define MAX_GLOBAL_SRVS 8192
+
 struct LIGHT
 {
 	float4				m_cAmbient;
@@ -65,8 +67,43 @@ cbuffer cbPerDrawMaterialId : register(b6)
     uint gnMaterialID;
 };
 
-float4 DirectionalLight(int nIndex, float3 vNormal, float3 vToCamera)
+float3 SchlickFresnel(float3 R0, float3 vNormal, float3 vToLight)
 {
+    float cosIncidentAngle = saturate(dot(vNormal, vToLight));
+
+    float f0 = 1.0f - cosIncidentAngle;
+    float3 reflectPercent = R0 + (1.0f - R0) * (f0 * f0 * f0 * f0 * f0);
+
+    return reflectPercent;
+}
+
+float3 BlinnPhong(float3 fDiffuseFactor, float3 vToLight, float3 vNormal, float3 vToCamera, float4 texColor)
+{
+    const float m = gMaterials[0].m_cSpecular.a;
+    float3 vHalf = normalize(vToCamera + vToLight);
+	
+    float roughnessFactor = (m + 8.0f) * pow(max(dot(vHalf, vNormal), 0.0f), m) / 8.0f;
+    float3 fresnelFactor = SchlickFresnel(gMaterials[0].m_cSpecular.rgb, vHalf, vToLight);
+	
+    float3 specAlbedo = fresnelFactor * roughnessFactor;
+	
+    specAlbedo = specAlbedo / (specAlbedo + 1.0f);
+	
+    return (texColor.rgb + specAlbedo) * fDiffuseFactor;
+}
+
+float4 DirectionalLight(int nIndex, float3 vNormal, float3 vToCamera, float4 texColor)
+{
+    float3 vToLight = -gLights[nIndex].m_vDirection;
+
+    float ndotl = max(dot(vToLight, vNormal), 0.0f);
+    float3 lightStrength = gLights[nIndex].m_cDiffuse.rgb * ndotl;
+
+    float3 color = BlinnPhong(lightStrength, vToLight, vNormal, vToCamera, texColor);
+	
+    return float4(color, 0.0f);
+	
+	// 원래 코드
 //    float3 vToLight = -gLights[nIndex].m_vDirection;
 //    float fDiffuseFactor = dot(vToLight, vNormal);
 //    float fSpecularFactor = 0.0f;
@@ -81,7 +118,7 @@ float4 DirectionalLight(int nIndex, float3 vNormal, float3 vToCamera)
 //#ifdef _WITH_LOCAL_VIEWER_HIGHLIGHTING
 //            float3 vHalf = normalize(vToCamera + vToLight);
 //#else
-//			float3 vHalf = float3(0.0f, 1.0f, 0.0f);
+//				float3 vHalf = float3(0.0f, 1.0f, 0.0f);
 //#endif
 //            fSpecularFactor = pow(max(dot(vHalf, vNormal), 0.0f), gMaterials[gnMaterialID].m_cSpecular.a);
 //#endif
@@ -89,16 +126,6 @@ float4 DirectionalLight(int nIndex, float3 vNormal, float3 vToCamera)
 //    }
 
 //    return ((gLights[nIndex].m_cAmbient * gMaterials[gnMaterialID].m_cAmbient) + (gLights[nIndex].m_cDiffuse * fDiffuseFactor * gMaterials[gnMaterialID].m_cDiffuse) + (gLights[nIndex].m_cSpecular * fSpecularFactor * gMaterials[gnMaterialID].m_cSpecular));
- 
-    float3 N = normalize(vNormal);
-    float3 L = normalize(-gLights[nIndex].m_vDirection);
-
-    float d = dot(L, N);
-
-	  // -1 ~ 1 을 0 ~ 1로 보기 좋게 변환
-    float v = d * 0.5f + 0.5f;
-
-    return float4(v, v, v, 1.0f);
 }
 
 float4 PointLight(int nIndex, float3 vPosition, float3 vNormal, float3 vToCamera)
@@ -173,7 +200,7 @@ float4 SpotLight(int nIndex, float3 vPosition, float3 vNormal, float3 vToCamera)
 	return(float4(0.0f, 0.0f, 0.0f, 0.0f));
 }
 
-float4 Lighting(float3 vPosition, float3 vNormal)
+float4 Lighting(float3 vPosition, float3 vNormal, float4 texColor)
 {
 	float3 vCameraPosition = float3(gvCameraPosition.x, gvCameraPosition.y, gvCameraPosition.z);
 	float3 vToCamera = normalize(vCameraPosition - vPosition);
@@ -185,16 +212,16 @@ float4 Lighting(float3 vPosition, float3 vNormal)
 		{
 			if (gLights[i].m_nType == DIRECTIONAL_LIGHT)
 			{
-				cColor += DirectionalLight(i, vNormal, vToCamera);
-			}
-            else if (gLights[i].m_nType == POINT_LIGHT)
-            {
-                cColor += PointLight(i, vPosition, vNormal, vToCamera);
+                cColor += DirectionalLight(i, vNormal, vToCamera, texColor);
             }
-            else if (gLights[i].m_nType == SPOT_LIGHT)
-            {
-                cColor += SpotLight(i, vPosition, vNormal, vToCamera);
-            }
+            //else if (gLights[i].m_nType == POINT_LIGHT)
+            //{
+            //    cColor += PointLight(i, vPosition, vNormal, vToCamera);
+            //}
+            //else if (gLights[i].m_nType == SPOT_LIGHT)
+            //{
+            //    cColor += SpotLight(i, vPosition, vNormal, vToCamera);
+            //}
         }
 	}
 	cColor += (gcGlobalAmbientLight * gMaterials[gnMaterialID].m_cAmbient);

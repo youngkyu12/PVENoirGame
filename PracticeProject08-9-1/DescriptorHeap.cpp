@@ -11,7 +11,10 @@ CDescriptorHeap::~CDescriptorHeap()
 		m_pd3dCbvSrvDescriptorHeap.Reset();
 }
 
-void CDescriptorHeap::CreateCbvSrvDescriptorHeaps(ID3D12Device* pd3dDevice, int nConstantBufferViews, int nShaderResourceViews)
+void CDescriptorHeap::CreateCbvSrvDescriptorHeaps(
+	ID3D12Device* pd3dDevice, 
+	int nConstantBufferViews, 
+	int nShaderResourceViews)
 {
 	D3D12_DESCRIPTOR_HEAP_DESC d3dDescriptorHeapDesc;
 	d3dDescriptorHeapDesc.NumDescriptors = nConstantBufferViews + nShaderResourceViews; //CBVs + SRVs 
@@ -20,8 +23,7 @@ void CDescriptorHeap::CreateCbvSrvDescriptorHeaps(ID3D12Device* pd3dDevice, int 
 	d3dDescriptorHeapDesc.NodeMask = 0;
 	pd3dDevice->CreateDescriptorHeap(
 		&d3dDescriptorHeapDesc,
-		IID_PPV_ARGS(m_pd3dCbvSrvDescriptorHeap.ReleaseAndGetAddressOf())
-	);
+		IID_PPV_ARGS(m_pd3dCbvSrvDescriptorHeap.ReleaseAndGetAddressOf()));
 
 	m_d3dCbvCPUDescriptorStartHandle = m_pd3dCbvSrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	m_d3dCbvGPUDescriptorStartHandle = m_pd3dCbvSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
