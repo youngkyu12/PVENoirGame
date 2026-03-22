@@ -243,6 +243,14 @@ struct PS_CB_DRAW_OPTIONS
 	XMINT4  m_xmn4DrawOptions;     // x='T','L','N','D','Z'
 	XMUINT4 m_xmu4PostSrvIdx0;     // x=T, y=L, z=N, w=D
 	XMUINT4 m_xmu4PostSrvIdx1;     // x=Z
+
+	// UI rect in pixels
+	// x=centerX, y=centerY, z=width, w=height
+	XMFLOAT4 m_xmf4UiRect;
+
+	// viewport
+	// x=width, y=height, z=1/width, w=1/height
+	XMFLOAT4 m_xmf4Viewport;
 };
 
 class CTextureToFullScreenShader : public CPostProcessingShader
@@ -267,20 +275,15 @@ protected:
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Menu UI (fullscreen image) Shader
-// - Uses existing VSScreenRectSamplingTextured / PSScreenRectSamplingTextured
-// - Alpha blending enabled
-// - Depth disabled (inherits from CPostProcessingShader)
-// - Uses cbDrawOptions(b5) to pass SRV index
-class CMenuImageShader final : public CTextureToFullScreenShader
+class CRectUIShader final : public CTextureToFullScreenShader
 {
 public:
-	CMenuImageShader() = default;
-	~CMenuImageShader() override = default;
+	CRectUIShader() = default;
+	~CRectUIShader() override = default;
 
 public:
-	// 중요: Scene이 이미 RootSig/DescriptorTable을 세팅하므로
-	// Shader가 RootSig를 다시 Set하지 않게(= 파라미터 무효화 방지) CreateShader를 재정의한다.
+	// Scene이 이미 RootSig/DescriptorTable을 세팅하므로
+	// Shader가 RootSig를 다시 Set하지 않게 CreateShader를 재정의한다.
 	void CreateShader(
 		ID3D12Device* dev,
 		ID3D12RootSignature* sceneRootSig,
@@ -289,6 +292,7 @@ public:
 		DXGI_FORMAT dsvFormat
 	) override;
 
+	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
 	D3D12_BLEND_DESC CreateBlendState() override;
 	void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd, void* pContext) override;
 };

@@ -6,6 +6,8 @@
 #include "GameFramework.h"
 
 #include "Scene.h"
+#include "GameScene.h"
+#include "AssetManager.h"
 #include "AnimController.h"
 #include "AnimatorComponent.h"
 #include "PlayerControllerComponent.h"
@@ -28,6 +30,8 @@ bool CGameFramework::OnCreate(HINSTANCE hInstance, HWND hMainWnd)
 {
 	m_hInstance = hInstance;
 	m_hWnd = hMainWnd;
+	m_bWindowActive = IsWindowActuallyActive();
+	m_bUserPaused = false;
 
 	CreateDirect3DDevice();
 	CreateCommandQueueAndList();
@@ -39,6 +43,14 @@ bool CGameFramework::OnCreate(HINSTANCE hInstance, HWND hMainWnd)
 #endif
 	CreateDepthStencilView();
 
+	constexpr UINT GLOBAL_CBV_CAPACITY = 8192;
+
+	CScene::m_pDescriptorHeap->CreateCbvSrvDescriptorHeaps(
+		m_pd3dDevice.Get(),
+		GLOBAL_CBV_CAPACITY,
+		GLOBAL_SRV_CAPACITY
+	);
+
 	BuildObjects();
 
 	return(true);
@@ -47,6 +59,8 @@ bool CGameFramework::OnCreate(HINSTANCE hInstance, HWND hMainWnd)
 void CGameFramework::OnDestroy()
 {
 	ReleaseObjects();
+
+	AssetManager::ClearCache();
 
 	::CloseHandle(m_hFenceEvent);
 
@@ -369,17 +383,102 @@ void CGameFramework::CreateDepthStencilView()
 	);
 }
 
-// �ʱ⿡�� MenuScene�� �����Ѵ�.
 void CGameFramework::BuildObjects()
 {
 	BuildSceneInternal(ESceneId::Menu, true);
+}
+
+void CGameFramework::SyncGameSceneInactiveOverlay()
+{
+	CScene* scene = m_SceneManager.GetScene();
+	if (!scene) return;
+
+	CGameScene* gameScene = dynamic_cast<CGameScene*>(scene);
+	if (!gameScene) return;
+
+	gameScene->SetInactiveOverlayVisible(IsInputPauseActive());
+}
+
+void CGameFramework::ClearInputPause()
+{
+	m_bUserPaused = false;
+	m_bConsumeNextMouseClick = false;
+
+	::GetCursorPos(&m_ptOldCursorPos);
+	SyncGameSceneInactiveOverlay();
+}
+
+bool CGameFramework::HandlePauseClick(UINT nMessageID, LPARAM lParam)
+{
+	if ((nMessageID != WM_LBUTTONDOWN) && (nMessageID != WM_RBUTTONDOWN))
+		return false;
+
+	if (!IsInputPauseActive())
+		return false;
+
+	CGameScene* gameScene = dynamic_cast<CGameScene*>(m_SceneManager.GetScene());
+
+	POINT ptClient = {};
+	ptClient.x = GET_X_LPARAM(lParam);
+	ptClient.y = GET_Y_LPARAM(lParam);
+
+	// GameScene이고 Pause UI 위를 클릭했으면 종료
+	if (gameScene && gameScene->IsPointInPauseOverlay(ptClient))
+	{
+		::PostQuitMessage(0);
+		return true;
+	}
+
+	// Pause UI 바깥 클릭이면 입력정지 해제
+	ClearInputPause();
+	return true;
+}
+
+bool CGameFramework::IsWindowActuallyActive() const
+{
+	return (m_hWnd != nullptr) && (::GetForegroundWindow() == m_hWnd);
+}
+
+bool CGameFramework::IsInputPauseActive() const
+{
+	return m_bUserPaused;
+}
+
+void CGameFramework::UpdateWindowActivationState()
+{
+	const bool isActiveNow = IsWindowActuallyActive();
+
+	if (isActiveNow == m_bWindowActive)
+		return;
+
+	m_bWindowActive = isActiveNow;
+
+	if (!m_bWindowActive)
+	{
+		::ReleaseCapture();
+
+		// 비활성화 = ESC pause와 동일하게 처리
+		if (dynamic_cast<CGameScene*>(m_SceneManager.GetScene()))
+			m_bUserPaused = true;
+
+		SyncGameSceneInactiveOverlay();
+	}
+	else
+	{
+		::GetCursorPos(&m_ptOldCursorPos);
+
+		// 다시 클릭해서 활성화될 때 첫 클릭은
+		// 오직 활성화만 하고 어떤 pause 처리도 하지 않음
+		m_bConsumeNextMouseClick = true;
+
+		SyncGameSceneInactiveOverlay();
+	}
 }
 
 void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 {
 	WaitForGpuComplete();
 
-	// ���� Scene/PP ����
 	m_SceneManager.ReleaseCurrent();
 	m_pCamera = nullptr;
 
@@ -389,13 +488,11 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 		m_pPostProcessingShader.reset();
 	}
 
-	// ���� Ŀ�ǵ� ��� ����
 	HRESULT hr = m_pd3dCommandAllocator->Reset();
 	(void)hr;
 	hr = m_pd3dCommandList->Reset(m_pd3dCommandAllocator.Get(), nullptr);
 	(void)hr;
 
-	// 1) Scene ���� (Menu/Game)
 	m_SceneManager.BuildScene(id, m_pd3dDevice.Get(), m_pd3dCommandList.Get());
 
 	CScene* scene = m_SceneManager.GetScene();
@@ -405,10 +502,13 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 		return;
 	}
 
-	m_pCamera = scene->GetMainCamera();
+	m_bUserPaused = false;
+	m_bConsumeNextMouseClick = false;
 
-	// 2) PostProcess ����� (Scene ��ȯ �� SRV ���� ���� ��������Ƿ� �ݵ�� �����)
-	m_pPostProcessingShader = make_shared<CTextureToFullScreenShader>();
+	m_pCamera = scene->GetMainCamera();
+	SyncGameSceneInactiveOverlay();
+
+	m_pPostProcessingShader = make_shared<CTextureToFullScreenShader>(); 
 	m_pPostProcessingShader->CreateShader(
 		m_pd3dDevice.Get(),
 		scene->GetGraphicsRootSignature(),
@@ -418,7 +518,6 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 	);
 	m_pPostProcessingShader->BuildObjects(m_pd3dDevice.Get(), m_pd3dCommandList.Get(), &m_nDrawOption);
 
-	// RTV heap���� swapchain �ڿ� �ٿ��� postprocess RT���� �����.
 	D3D12_CPU_DESCRIPTOR_HANDLE d3dRtvCPUDescriptorHandle = m_pd3dRtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	d3dRtvCPUDescriptorHandle.ptr += (::gnRtvDescriptorIncrementSize * m_nSwapChainBuffers);
 
@@ -437,7 +536,6 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 		d3dRtvCPUDescriptorHandle
 	);
 
-	// Depth SRV�� �� Scene�� SRV ���� �ٽ� �����.
 	D3D12_GPU_DESCRIPTOR_HANDLE d3dDsvGPUDescriptorHandle = CScene::m_pDescriptorHeap->CreateShaderResourceView(
 		m_pd3dDevice.Get(),
 		m_pd3dDepthStencilBuffer.Get(),
@@ -445,7 +543,6 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 	);
 	(void)d3dDsvGPUDescriptorHandle;
 
-	// Ŀ�ǵ� ����
 	hr = m_pd3dCommandList->Close();
 	(void)hr;
 
@@ -453,7 +550,6 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 	m_pd3dCommandQueue->ExecuteCommandLists(1, ppd3dCommandLists);
 	WaitForGpuComplete();
 
-	// ���ε� ���� ����
 	if (scene)
 		scene->ReleaseUploadBuffers();
 
@@ -482,10 +578,37 @@ void CGameFramework::ApplyPendingSceneSwitch()
 
 void CGameFramework::OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam)
 {
+	UpdateWindowActivationState();
+	if (!m_bWindowActive)
+		return;
+
+	const bool isButtonMsg =
+		(nMessageID == WM_LBUTTONDOWN) ||
+		(nMessageID == WM_RBUTTONDOWN) ||
+		(nMessageID == WM_LBUTTONUP) ||
+		(nMessageID == WM_RBUTTONUP);
+
+	// 비활성 -> 활성 직후 첫 클릭은 무조건 버린다.
+	// (활성화만 하고, pause 해제/종료 판정도 하지 않음)
+	if (m_bConsumeNextMouseClick && isButtonMsg)
+	{
+		m_bConsumeNextMouseClick = false;
+		::GetCursorPos(&m_ptOldCursorPos);
+		return;
+	}
+
+	// pause 상태면 scene 입력보다 pause 클릭 처리가 먼저다.
+	if (IsInputPauseActive())
+	{
+		if (HandlePauseClick(nMessageID, lParam))
+			return;
+
+		return;
+	}
+
 	CScene* scene = m_SceneManager.GetScene();
 	if (scene) scene->OnProcessingMouseMessage(hWnd, nMessageID, wParam, lParam);
 
-	// MenuScene�� ��û�� �ø��� ���⼭ �޾Ƽ� ���� �����ӿ� Scene ��ȯ
 	if (scene)
 	{
 		CScene::ESceneRequest req;
@@ -516,6 +639,28 @@ void CGameFramework::OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM
 
 void CGameFramework::OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam)
 {
+	UpdateWindowActivationState();
+	if (!m_bWindowActive)
+		return;
+
+	if (nMessageID == WM_KEYUP)
+	{
+		if (wParam == VK_ESCAPE)
+		{
+			if (dynamic_cast<CGameScene*>(m_SceneManager.GetScene()))
+			{
+				m_bUserPaused = !m_bUserPaused;
+				SyncGameSceneInactiveOverlay();
+			}
+
+			// ::PostQuitMessage(0);
+			return;
+		}
+	}
+
+	if (IsInputPauseActive())
+		return;
+
 	CScene* scene = m_SceneManager.GetScene();
 	if (scene) scene->OnProcessingKeyboardMessage(hWnd, nMessageID, wParam, lParam);
 
@@ -524,14 +669,9 @@ void CGameFramework::OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPA
 	case WM_KEYUP:
 		switch (wParam)
 		{
-		case VK_ESCAPE:
-			::PostQuitMessage(0);
-			break;
-
 		case VK_F9:
 			ChangeSwapChainState();
 			break;
-
 		default:
 			break;
 		}
@@ -547,10 +687,12 @@ LRESULT CALLBACK CGameFramework::OnProcessingWindowMessage(HWND hWnd, UINT nMess
 	{
 	case WM_ACTIVATE:
 	{
-		if (LOWORD(wParam) == WA_INACTIVE)
-			m_GameTimer.Stop();
-		else
-			m_GameTimer.Start();
+		UpdateWindowActivationState();
+		break;
+	}
+	case WM_ACTIVATEAPP:
+	{
+		UpdateWindowActivationState();
 		break;
 	}
 	case WM_SIZE:
@@ -609,6 +751,10 @@ void CGameFramework::ChangeSwapChainState()
 
 void CGameFramework::ProcessInput()
 {
+	UpdateWindowActivationState();
+	if (IsInputPauseActive())
+		return;
+
 	static UCHAR pKeysBuffer[256];
 	bool bProcessedByScene = false;
 
@@ -671,6 +817,24 @@ void CGameFramework::ProcessInput()
 		bRunRequested =
 			((pKeysBuffer[VK_LSHIFT] & 0xF0) != 0) ||
 			((pKeysBuffer[VK_SHIFT] & 0xF0) != 0);
+
+		static bool s_prevSpaceDown = false;
+		const bool spaceDown = (pKeysBuffer[VK_SPACE] & 0xF0) != 0;
+
+		if (spaceDown && !s_prevSpaceDown)
+		{
+			if (auto* animComp = playerObj->GetComponent<CAnimatorComponent>())
+			{
+				if (auto* ctrl = animComp->EnsureController())
+					ctrl->RequestRoll(static_cast<uint32_t>(dwDirection));
+			}
+			else if (auto* ctrl = playerObj->GetAnimController())
+			{
+				ctrl->RequestRoll(static_cast<uint32_t>(dwDirection));
+			}
+		}
+
+		s_prevSpaceDown = spaceDown;
 #endif
 
 		POINT ptCursorPos;
@@ -778,8 +942,8 @@ void CGameFramework::FrameAdvance()
 	HRESULT hResult;
 
 	m_GameTimer.Tick(0.0f);
+	UpdateWindowActivationState();
 
-	// �� MenuScene Ŭ�� ��û�� ������ ���⼭ GameScene�� lazy build �� ��ȯ
 	ApplyPendingSceneSwitch();
 
 	ProcessInput();

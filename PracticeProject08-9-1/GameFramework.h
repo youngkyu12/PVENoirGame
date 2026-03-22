@@ -68,6 +68,10 @@ private:
 	void RequestSceneSwitch(ESceneId next);
 	void ApplyPendingSceneSwitch();
 	void BuildSceneInternal(ESceneId id, bool resetTimer);
+	void SyncGameSceneInactiveOverlay();
+	bool IsWindowActuallyActive() const;
+	void UpdateWindowActivationState();
+	bool IsInputPauseActive() const;
 
 private:
 	// Window
@@ -129,5 +133,12 @@ private:
 
 	// Pending scene switch
 	bool								m_sceneSwitchPending = false;
-	ESceneId								m_pendingScene = ESceneId::Menu;
+	ESceneId							m_pendingScene = ESceneId::Menu;
+	
+	bool								m_bWindowActive = true;
+	bool								m_bConsumeNextMouseClick = false;
+	bool								m_bUserPaused = false;
+	
+	bool HandlePauseClick(UINT nMessageID, LPARAM lParam);
+	void ClearInputPause();
 };
