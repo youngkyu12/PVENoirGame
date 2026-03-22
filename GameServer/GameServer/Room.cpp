@@ -71,8 +71,9 @@ void Room::StartGame(bool ready, uint32 index)
 
 	static Atomic<bool> gameStarted = false;
 
-	 if(p_ready[0] && p_ready[1] && p_ready[2] && p_ready[3])
-	//if(p_ready[0] && p_ready[1])
+
+	 //if(p_ready[0] && p_ready[1] && p_ready[2] && p_ready[3])1
+	if(p_ready[0] && p_ready[1])
 	//if(p_ready[0])
 	{
 		if (gameStarted.exchange(true) == false)

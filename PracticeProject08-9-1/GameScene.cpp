@@ -2342,7 +2342,10 @@ void CGameScene::AnimateObjects(float dt)
             }
 
 
-
+            if (auto wc = player->GetComponent<CPlayerEquipmentComponent>())
+            {
+                wc->SetLoadout(state.weaponType);
+            }
         }
 
         // Enemy 좌표 업데이트
