@@ -65,7 +65,7 @@ void CMesh::ReleaseUploadBuffers()
 
 void CMesh::Render(ID3D12GraphicsCommandList* pd3dCommandList)
 {
-    // ±âÁ¸ È£ÃâºÎ È£È¯¿ë (materialId °»½Å ¾øÀ½)
+    // ê¸°ì¡´ í˜¸ì¶œë¶€ í˜¸í™˜ìš© (materialId ê°±ì‹  ì—†ìŒ)
     Render(pd3dCommandList, nullptr);
 }
 
@@ -95,7 +95,7 @@ void CMesh::LoadMeshFromBIN(
     const char* filename)
 {
     // ----------------------------------------------------
-    // 0) ÆÄÀÏ ¿­±â
+    // 0) íŒŒì¼ ì—´ê¸°
     // ----------------------------------------------------
     std::ifstream fin(filename, std::ios::binary);
     if (!fin.is_open()) return;
@@ -124,8 +124,24 @@ void CMesh::LoadMeshFromBIN(
             return true;
         };
 
+	auto ReadBinMaterialTexTransform = [ & ] (BinMaterialTexTransform& t) -> bool
+		{
+			float scale[2];
+			float offset[2];
+			uint32_t wrap[2];
+
+			if ( !ReadRaw(scale, sizeof(scale)) ) return false;
+			if ( !ReadRaw(offset, sizeof(offset)) ) return false;
+			if ( !ReadRaw(wrap, sizeof(wrap)) ) return false;
+
+			t.uvST = XMFLOAT4(scale[0], scale[1], offset[0], offset[1]);
+			t.wrapModeU = wrap[0];
+			t.wrapModeV = wrap[1];
+			return true;
+		};
+
     // ----------------------------------------------------
-    // 1) Çì´õ ÀĞ±â
+    // 1) í—¤ë” ì½ê¸°
     // ----------------------------------------------------
     char magic[4] = {};
     if (!ReadRaw(magic, 4)) 
@@ -146,10 +162,10 @@ void CMesh::LoadMeshFromBIN(
     if (!ReadUInt32(subMeshCount)) return;
 
 
-    if (version != 1 && version != 2) 
-        return;
+	if ( version != 1 && version != 2 && version != 3 )
+		return;
 
-    // ±âÁ¸ µ¥ÀÌÅÍ Á¤¸®
+    // ê¸°ì¡´ ë°ì´í„° ì •ë¦¬
     m_Bones.clear();
     m_BoneNameToIndex.clear();
     m_SubMeshes.clear();
@@ -157,7 +173,7 @@ void CMesh::LoadMeshFromBIN(
     m_BinMaterialNameToIndex.clear();
 
     // ----------------------------------------------------
-    // 2) Skeleton ¼½¼Ç ¡æ m_Bones Ã¤¿ì±â
+    // 2) Skeleton ì„¹ì…˜ â†’ m_Bones ì±„ìš°ê¸°
     // ----------------------------------------------------
     m_Bones.reserve(boneCount);
 
@@ -182,7 +198,7 @@ void CMesh::LoadMeshFromBIN(
         b.name = name;
         b.parentIndex = parentIndex;
 
-        // float[16] ¡æ XMFLOAT4X4
+        // float[16] â†’ XMFLOAT4X4
         for (int r = 0; r < 4; ++r)
         {
             for (int c = 0; c < 4; ++c)
@@ -200,37 +216,84 @@ void CMesh::LoadMeshFromBIN(
     }
 
     // ----------------------------------------------------
-    // (NEW) Material ¼½¼Ç ¡æ m_BinMaterials Ã¤¿ì±â
+    // (NEW) Material ì„¹ì…˜ â†’ m_BinMaterials ì±„ìš°ê¸°
     // ----------------------------------------------------
     m_BinMaterials.clear();
     m_BinMaterialNameToIndex.clear();
     m_BinMaterials.reserve(materialCount);
 
-    for (uint32_t i = 0; i < materialCount; ++i)
-    {
-        BinMaterial bm{};
-        if (!ReadString(bm.name)) 
-            return;
-        if (!ReadString(bm.diffuseTextureName)) 
-            return;
-        if (version >= 2)
-        {
-            if (!ReadString(bm.normalTextureName)) 
-                return;
-        }
-        else
-        {
-            bm.normalTextureName.clear();
-        }
+	for ( uint32_t i = 0; i < materialCount; ++i )
+	{
+		BinMaterial bm{};
 
-        uint32_t idx = (uint32_t)m_BinMaterials.size();
-        m_BinMaterials.push_back(bm);
-        m_BinMaterialNameToIndex[m_BinMaterials.back().name] = idx; // ¼±ÅÃ
-    }
+		if ( !ReadString(bm.name) )
+			return;
 
+		if ( !ReadString(bm.diffuseTextureName) )
+			return;
+
+		if ( version >= 2 )
+		{
+			if ( !ReadString(bm.normalTextureName) )
+				return;
+		}
+		else
+		{
+			bm.normalTextureName.clear();
+		}
+
+		if ( version >= 3 )
+		{
+			if ( !ReadString(bm.emissiveTextureName) )
+				return;
+
+			if ( !ReadString(bm.specularTextureName) )
+				return;
+
+			float diffuseColor[4];
+			float emissiveColor[4];
+			float specularColor[4];
+
+			if ( !ReadRaw(diffuseColor, sizeof(diffuseColor)) )
+				return;
+			if ( !ReadRaw(emissiveColor, sizeof(emissiveColor)) )
+				return;
+			if ( !ReadRaw(specularColor, sizeof(specularColor)) )
+				return;
+
+			bm.diffuseColor = XMFLOAT4(diffuseColor[0], diffuseColor[1], diffuseColor[2], diffuseColor[3]);
+			bm.emissiveColor = XMFLOAT4(emissiveColor[0], emissiveColor[1], emissiveColor[2], emissiveColor[3]);
+			bm.specularColor = XMFLOAT4(specularColor[0], specularColor[1], specularColor[2], specularColor[3]);
+
+			if ( !ReadBinMaterialTexTransform(bm.diffuseTransform) )
+				return;
+			if ( !ReadBinMaterialTexTransform(bm.normalTransform) )
+				return;
+			if ( !ReadBinMaterialTexTransform(bm.emissiveTransform) )
+				return;
+			if ( !ReadBinMaterialTexTransform(bm.specularTransform) )
+				return;
+		}
+		else
+		{
+			bm.emissiveTextureName.clear();
+			bm.specularTextureName.clear();
+			bm.diffuseColor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+			bm.emissiveColor = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+			bm.specularColor = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+			bm.diffuseTransform = BinMaterialTexTransform{};
+			bm.normalTransform = BinMaterialTexTransform{};
+			bm.emissiveTransform = BinMaterialTexTransform{};
+			bm.specularTransform = BinMaterialTexTransform{};
+		}
+
+		uint32_t idx = ( uint32_t ) m_BinMaterials.size();
+		m_BinMaterials.push_back(bm);
+		m_BinMaterialNameToIndex[m_BinMaterials.back().name] = idx;
+	}
 
     // ----------------------------------------------------
-    // 3) SubMesh ¼½¼Ç ¡æ m_SubMeshes Ã¤¿ì±â
+    // 3) SubMesh ì„¹ì…˜ â†’ m_SubMeshes ì±„ìš°ê¸°
     // ----------------------------------------------------
     m_SubMeshes.reserve(subMeshCount);
 
@@ -247,29 +310,46 @@ void CMesh::LoadMeshFromBIN(
             return;
 
         sm.materialIndex = matIndex;
-        sm.materialId = matIndex; // ÇöÀç´Â materialIndex == shader materialId·Î »ç¿ë
+        sm.materialId = matIndex; // í˜„ì¬ëŠ” materialIndex == shader materialIdë¡œ ì‚¬ìš©
 
-        // materialName / diffuseTextureName Ã¤¿ì±â
-        if (matIndex < m_BinMaterials.size())
-        {
-            sm.materialName = m_BinMaterials[matIndex].name;
-            sm.diffuseTextureName = m_BinMaterials[matIndex].diffuseTextureName;
-            sm.normalTextureName = m_BinMaterials[matIndex].normalTextureName;
-        }
-        else
-        {
-            sm.materialName.clear();
-            sm.diffuseTextureName.clear();
-            sm.normalTextureName.clear();
+        // materialName / diffuseTextureName ì±„ìš°ê¸°
+		if ( matIndex < m_BinMaterials.size() )
+		{
+			sm.materialName = m_BinMaterials[matIndex].name;
+			sm.diffuseTextureName = m_BinMaterials[matIndex].diffuseTextureName;
+			sm.normalTextureName = m_BinMaterials[matIndex].normalTextureName;
+			sm.emissiveTextureName = m_BinMaterials[matIndex].emissiveTextureName;
+			sm.specularTextureName = m_BinMaterials[matIndex].specularTextureName;
 
-            // ¾ÈÀüÇÏ°Ô 0¹øÀ¸·Î Æú¹éÇÏ°Å³ª, °­ÇÏ°Ô assert °É¾îµµ µÊ
-            // sm.materialIndex = 0;
-            // sm.materialId    = 0;
-            // assert(false && "SubMesh materialIndex out of range");
-        }
+			sm.diffuseColor = m_BinMaterials[matIndex].diffuseColor;
+			sm.emissiveColor = m_BinMaterials[matIndex].emissiveColor;
+			sm.specularColor = m_BinMaterials[matIndex].specularColor;
+
+			sm.diffuseTransform = m_BinMaterials[matIndex].diffuseTransform;
+			sm.normalTransform = m_BinMaterials[matIndex].normalTransform;
+			sm.emissiveTransform = m_BinMaterials[matIndex].emissiveTransform;
+			sm.specularTransform = m_BinMaterials[matIndex].specularTransform;
+		}
+		else
+		{
+			sm.materialName.clear();
+			sm.diffuseTextureName.clear();
+			sm.normalTextureName.clear();
+			sm.emissiveTextureName.clear();
+			sm.specularTextureName.clear();
+
+			sm.diffuseColor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+			sm.emissiveColor = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+			sm.specularColor = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+
+			sm.diffuseTransform = BinMaterialTexTransform{};
+			sm.normalTransform = BinMaterialTexTransform{};
+			sm.emissiveTransform = BinMaterialTexTransform{};
+			sm.specularTransform = BinMaterialTexTransform{};
+		}
 
 
-        // µğ¹ö±×/Ä³½Ã Å°¿ë materialName Ã¤¿ì±â
+        // ë””ë²„ê·¸/ìºì‹œ í‚¤ìš© materialName ì±„ìš°ê¸°
         if (matIndex < m_BinMaterials.size())
             sm.materialName = m_BinMaterials[matIndex].name;
         else
@@ -295,7 +375,7 @@ void CMesh::LoadMeshFromBIN(
         sm.subMeshMin = XMFLOAT3(FLT_MAX, FLT_MAX, FLT_MAX);
         sm.subMeshMax = XMFLOAT3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
-        // 3-3) Á¤Á¡ µ¥ÀÌÅÍ
+        // 3-3) ì •ì  ë°ì´í„°
         for (uint32_t v = 0; v < vertexCount; ++v)
         {
             float pos[3];
@@ -318,7 +398,7 @@ void CMesh::LoadMeshFromBIN(
             }
             else
             {
-                // v1 ÆÄÀÏ È£È¯: ±âº»°ª
+                // v1 íŒŒì¼ í˜¸í™˜: ê¸°ë³¸ê°’
                 tan[0] = 1.0f; tan[1] = 0.0f; tan[2] = 0.0f; tan[3] = 1.0f;
             }
             if (!ReadRaw(bi, sizeof(bi))) 
@@ -350,7 +430,7 @@ void CMesh::LoadMeshFromBIN(
         MeshMax.y = max(MeshMax.y, sm.subMeshMax.y);
         MeshMax.z = max(MeshMax.z, sm.subMeshMax.z);
 
-        // 3-4) ÀÎµ¦½º µ¥ÀÌÅÍ
+        // 3-4) ì¸ë±ìŠ¤ ë°ì´í„°
         for (uint32_t ii = 0; ii < indexCount; ++ii)
         {
             uint32_t idx = 0;
@@ -365,17 +445,17 @@ void CMesh::LoadMeshFromBIN(
     fin.close();
 
     // ----------------------------------------------------
-    // 4) ½ºÅ°´× ¿©ºÎ ÆÇ´Ü
+    // 4) ìŠ¤í‚¤ë‹ ì—¬ë¶€ íŒë‹¨
     // ----------------------------------------------------
     if (!m_Bones.empty())
     {
-        // FBX ·Î´õ¿¡¼­ ÇÏ´ø °ÍÃ³·³ º» °³¼ö¸¸ ³Ñ°Ü¼­ CBV »ı¼º
+        // FBX ë¡œë”ì—ì„œ í•˜ë˜ ê²ƒì²˜ëŸ¼ ë³¸ ê°œìˆ˜ë§Œ ë„˜ê²¨ì„œ CBV ìƒì„±
         EnableSkinning(static_cast<int>(m_Bones.size()));
     }
 
     // ----------------------------------------------------
-    // 5) GPU Vertex/Index Buffer »ı¼º
-    //     ¡æ LoadMeshFromFBX()ÀÇ 10) ºÎºĞ ±×´ë·Î Àç»ç¿ë
+    // 5) GPU Vertex/Index Buffer ìƒì„±
+    //     â†’ LoadMeshFromFBX()ì˜ 10) ë¶€ë¶„ ê·¸ëŒ€ë¡œ ì¬ì‚¬ìš©
     // ----------------------------------------------------
     for (auto& sm : m_SubMeshes)
     {
@@ -437,12 +517,12 @@ void CMesh::LoadMeshFromBIN(
         CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
         CD3DX12_RESOURCE_DESC   vbDesc = CD3DX12_RESOURCE_DESC::Buffer(vbSize);
 
-        // Vertex Buffer (Default) - ¹öÆÛ´Â ÃÊ±â »óÅÂ¸¦ COMMONÀ¸·Î µÎ´Â °Ô Á¤¼®
+        // Vertex Buffer (Default) - ë²„í¼ëŠ” ì´ˆê¸° ìƒíƒœë¥¼ COMMONìœ¼ë¡œ ë‘ëŠ” ê²Œ ì •ì„
         HRESULT hr = device->CreateCommittedResource(
             &heapProps,
             D3D12_HEAP_FLAG_NONE,
             &vbDesc,
-            D3D12_RESOURCE_STATE_COMMON,   // ¡Ú º¯°æ
+            D3D12_RESOURCE_STATE_COMMON,   // â˜… ë³€ê²½
             nullptr,
             IID_PPV_ARGS(&sm.vb));
 
@@ -461,11 +541,11 @@ void CMesh::LoadMeshFromBIN(
         memcpy(mapped, vertices.data(), vbSize);
         sm.vbUpload->Unmap(0, nullptr);
 
-        // ¡Ú Copy Àü¿¡ COMMON -> COPY_DEST ·Î ÀüÀÌ
+        // â˜… Copy ì „ì— COMMON -> COPY_DEST ë¡œ ì „ì´
         {
             CD3DX12_RESOURCE_BARRIER toCopy =
                 CD3DX12_RESOURCE_BARRIER::Transition(
-                    sm.vb,                       // sm.vb°¡ ComPtrÀÌ¸é Get(), Æ÷ÀÎÅÍ¸é sm.vb
+                    sm.vb,                       // sm.vbê°€ ComPtrì´ë©´ Get(), í¬ì¸í„°ë©´ sm.vb
                     D3D12_RESOURCE_STATE_COMMON,
                     D3D12_RESOURCE_STATE_COPY_DEST);
             cmdList->ResourceBarrier(1, &toCopy);
@@ -473,7 +553,7 @@ void CMesh::LoadMeshFromBIN(
 
         cmdList->CopyBufferRegion(sm.vb, 0, sm.vbUpload, 0, vbSize);
 
-        // Copy ÈÄ COPY_DEST -> VERTEX
+        // Copy í›„ COPY_DEST -> VERTEX
         {
             CD3DX12_RESOURCE_BARRIER toVB =
                 CD3DX12_RESOURCE_BARRIER::Transition(
@@ -498,7 +578,7 @@ void CMesh::LoadMeshFromBIN(
                 &heapProps,
                 D3D12_HEAP_FLAG_NONE,
                 &ibDesc,
-                D3D12_RESOURCE_STATE_COMMON,    // ¡Ú º¯°æ
+                D3D12_RESOURCE_STATE_COMMON,    // â˜… ë³€ê²½
                 nullptr,
                 IID_PPV_ARGS(&sm.ib));
 
@@ -514,7 +594,7 @@ void CMesh::LoadMeshFromBIN(
             memcpy(mapped, indices.data(), ibSize);
             sm.ibUpload->Unmap(0, nullptr);
 
-            // ¡Ú Copy Àü¿¡ COMMON -> COPY_DEST
+            // â˜… Copy ì „ì— COMMON -> COPY_DEST
             {
                 CD3DX12_RESOURCE_BARRIER toCopy =
                     CD3DX12_RESOURCE_BARRIER::Transition(
@@ -526,7 +606,7 @@ void CMesh::LoadMeshFromBIN(
 
             cmdList->CopyBufferRegion(sm.ib, 0, sm.ibUpload, 0, ibSize);
 
-            // Copy ÈÄ COPY_DEST -> INDEX
+            // Copy í›„ COPY_DEST -> INDEX
             {
                 CD3DX12_RESOURCE_BARRIER toIB =
                     CD3DX12_RESOURCE_BARRIER::Transition(
@@ -546,7 +626,7 @@ void CMesh::LoadMeshFromBIN(
 
 void CMesh::EnableSkinning(int nBones)
 {
-    // ¸Ş½Ã´Â "½ºÅ°´× ¿©ºÎ + º» °³¼ö"¸¸ ±â·Ï (ÆÈ·¹Æ®/CB´Â ¿ÀºêÁ§Æ®°¡ ¼ÒÀ¯)
+    // ë©”ì‹œëŠ” "ìŠ¤í‚¤ë‹ ì—¬ë¶€ + ë³¸ ê°œìˆ˜"ë§Œ ê¸°ë¡ (íŒ”ë ˆíŠ¸/CBëŠ” ì˜¤ë¸Œì íŠ¸ê°€ ì†Œìœ )
     if (nBones <= 0)
     {
         m_bSkinnedMesh = false;
@@ -619,13 +699,13 @@ XMFLOAT3 CMesh::GetMeshMax() const
 // Animator Helper Functions
 //==========================================================================
 
-// º» °³¼ö ¹İÈ¯
+// ë³¸ ê°œìˆ˜ ë°˜í™˜
 int CMesh::GetBoneCount() const
 {
     return static_cast<int>(m_Bones.size());
 }
 
-// º» ÀÌ¸§À¸·Î ÀÎµ¦½º °Ë»ö
+// ë³¸ ì´ë¦„ìœ¼ë¡œ ì¸ë±ìŠ¤ ê²€ìƒ‰
 int CMesh::GetBoneIndexByName(const std::string& boneName) const
 {
     auto it = m_BoneNameToIndex.find(boneName);
@@ -633,7 +713,7 @@ int CMesh::GetBoneIndexByName(const std::string& boneName) const
     return it->second;
 }
 
-// º»ÀÇ ºÎ¸ğ ÀÎµ¦½º ¹İÈ¯
+// ë³¸ì˜ ë¶€ëª¨ ì¸ë±ìŠ¤ ë°˜í™˜
 int CMesh::GetBoneParentIndex(int boneIndex) const
 {
     if (boneIndex < 0 || boneIndex >= static_cast<int>(m_Bones.size()))
@@ -645,7 +725,7 @@ int CMesh::GetBoneParentIndex(int boneIndex) const
 
 
 //---------------------------------------------------------------------------
-// Bone CBV °ü·Ã
+// Bone CBV ê´€ë ¨
 //---------------------------------------------------------------------------
 
 
@@ -739,7 +819,7 @@ bool CMesh::LoadAnimationFromBIN(
     uint32_t trackCount = 0;
     if (!ReadUInt32(trackCount)) return false;
 
-    // AnimationClip ±âº» ¼¼ÆÃ
+    // AnimationClip ê¸°ë³¸ ì„¸íŒ…
     outClip.name = !clipName.empty() ? clipName : fileClipName;
     outClip.duration = duration * timeScale;
 
@@ -756,9 +836,9 @@ bool CMesh::LoadAnimationFromBIN(
     }
 
     // --------------------------------------------------------
-    // 3) Tracks ·Îµå
-    //    BIN¿¡´Â "Å°°¡ ÀÖ´Â ³ëµå"¸¸ ÀúÀåµÇ¾î ÀÖÀ¸¹Ç·Î
-    //    boneNameÀ¸·Î CMeshÀÇ m_BoneNameToIndex ¿¡ ¸ÅÇÎÇÑ´Ù.
+    // 3) Tracks ë¡œë“œ
+    //    BINì—ëŠ” "í‚¤ê°€ ìˆëŠ” ë…¸ë“œ"ë§Œ ì €ì¥ë˜ì–´ ìˆìœ¼ë¯€ë¡œ
+    //    boneNameìœ¼ë¡œ CMeshì˜ m_BoneNameToIndex ì— ë§¤í•‘í•œë‹¤.
     // --------------------------------------------------------
     for (uint32_t t = 0; t < trackCount; ++t)
     {
@@ -766,12 +846,12 @@ bool CMesh::LoadAnimationFromBIN(
         if (!ReadString(binBoneName)) return false;
 
         int32_t binBoneIndex = -1;
-        if (!ReadInt32(binBoneIndex)) return false; // ÇöÀç´Â »ç¿ëÇÏÁö ¾ÊÀ½
+        if (!ReadInt32(binBoneIndex)) return false; // í˜„ì¬ëŠ” ì‚¬ìš©í•˜ì§€ ì•ŠìŒ
 
         uint32_t keyCount = 0;
         if (!ReadUInt32(keyCount)) return false;
 
-        // skeleton °ú ¸ÅÄª
+        // skeleton ê³¼ ë§¤ì¹­
         auto itBone = m_BoneNameToIndex.find(binBoneName);
         bool mapped = (itBone != m_BoneNameToIndex.end());
 
@@ -783,7 +863,7 @@ bool CMesh::LoadAnimationFromBIN(
             outClip.bindRootTrack.boneIndex = -1;
             outClip.bindRootTrack.boneName = "Bind_Root";
             pTrack = &outClip.bindRootTrack;
-            mapped = true; // ¾Æ·¡ Å° ·çÇÁ¿¡¼­ continue·Î ¹ö¸®Áö ¾Ê°Ô
+            mapped = true; // ì•„ë˜ í‚¤ ë£¨í”„ì—ì„œ continueë¡œ ë²„ë¦¬ì§€ ì•Šê²Œ
         }
 
         if (mapped && !pTrack)
@@ -821,7 +901,7 @@ bool CMesh::LoadAnimationFromBIN(
             last_ty = ty;
 
             if (!mapped)
-                continue; // µ¥ÀÌÅÍ´Â ÀĞ¾úÁö¸¸, ½ºÄÌ·¹Åæ¿¡ ¾ø´Â ³ëµå¸é ¹ö¸²
+                continue; // ë°ì´í„°ëŠ” ì½ì—ˆì§€ë§Œ, ìŠ¤ì¼ˆë ˆí†¤ì— ì—†ëŠ” ë…¸ë“œë©´ ë²„ë¦¼
 
             Keyframe kf;
             kf.timeSec = timeSec * timeScale;
@@ -836,7 +916,7 @@ bool CMesh::LoadAnimationFromBIN(
     fin.close();
 
     // --------------------------------------------------------
-    // 4) °¢ º»º° Å°ÇÁ·¹ÀÓ Á¤·Ä (¾ÈÀü¿ë)
+    // 4) ê° ë³¸ë³„ í‚¤í”„ë ˆì„ ì •ë ¬ (ì•ˆì „ìš©)
     // --------------------------------------------------------
 
     for (auto& track : outClip.boneTracks)
@@ -858,7 +938,7 @@ void CMesh::LinkMaterials(
 {
     for (auto& sm : m_SubMeshes)
     {
-        // materialNameÀÌ ºñ¾îÀÖÀ¸¸é ¿¬°á ºÒ°¡
+        // materialNameì´ ë¹„ì–´ìˆìœ¼ë©´ ì—°ê²° ë¶ˆê°€
         if (sm.materialName.empty())
         {
             sm.material.reset();
@@ -868,19 +948,19 @@ void CMesh::LinkMaterials(
         auto it = materialCache.find(sm.materialName);
         if (it != materialCache.end())
         {
-            // Ä³½Ã Àç»ç¿ë
+            // ìºì‹œ ì¬ì‚¬ìš©
             sm.material = it->second;
 
             if (sm.material)
             {
                 sm.material->SetDiffuseTextureName(sm.diffuseTextureName);
                 sm.material->SetNormalTextureName(sm.normalTextureName);
-                sm.material->SetMaterialID(sm.materialId); // ÀÌ¹Ì ¾²°í ÀÖÀ¸¸é À¯Áö
+                sm.material->SetMaterialID(sm.materialId); // ì´ë¯¸ ì“°ê³  ìˆìœ¼ë©´ ìœ ì§€
             }
             continue;
         }
 
-        // Ä³½Ã¿¡ ¾øÀ¸¸é »ı¼º Äİ¹éÀ¸·Î »ı¼º(¾øÀ¸¸é null À¯Áö)
+        // ìºì‹œì— ì—†ìœ¼ë©´ ìƒì„± ì½œë°±ìœ¼ë¡œ ìƒì„±(ì—†ìœ¼ë©´ null ìœ ì§€)
         if (createMaterialIfMissing)
         {
             auto mat = createMaterialIfMissing(sm.materialName);
