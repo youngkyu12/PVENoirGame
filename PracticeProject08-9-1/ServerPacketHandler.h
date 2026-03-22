@@ -13,8 +13,9 @@ enum : uint16
 	PKT_S_ENTER_GAME = 1003,
 	PKT_C_GAME_START = 1004,
 	PKT_S_GAME_START = 1005,
-	PKT_C_INPUT = 1006,
-	PKT_S_FRAME_STATE = 1007,
+	PKT_C_CLIENT_READY = 1006,
+	PKT_C_INPUT = 1007,
+	PKT_S_FRAME_STATE = 1008,
 };
 
 // 자동화 예정
@@ -48,6 +49,7 @@ public:
 	static SendBufferRef MakeSendBuffer(Protocol::C_LOGIN& pkt) { return _MakeSendBuffer(pkt, PKT_C_LOGIN); }
 	static SendBufferRef MakeSendBuffer(Protocol::C_ENTER_GAME& pkt) { return _MakeSendBuffer(pkt, PKT_C_ENTER_GAME); }
 	static SendBufferRef MakeSendBuffer(Protocol::C_GAME_START& pkt) { return _MakeSendBuffer(pkt, PKT_C_GAME_START); }
+	static SendBufferRef MakeSendBuffer(Protocol::C_CLIENT_READY& pkt) { return _MakeSendBuffer(pkt, PKT_C_CLIENT_READY); }
 	static SendBufferRef MakeSendBuffer(Protocol::C_INPUT& pkt) { return _MakeSendBuffer(pkt, PKT_C_INPUT); }
 
 private:

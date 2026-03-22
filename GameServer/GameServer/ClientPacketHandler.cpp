@@ -94,6 +94,14 @@ bool Handle_C_GAME_START(PacketSessionRef& session, Protocol::C_GAME_START& pkt)
 	return true;
 }
 
+bool Handle_C_CLIENT_READY(PacketSessionRef& session, Protocol::C_CLIENT_READY& pkt)
+{
+	pkt.ready();
+	pkt.playerid();
+
+	return false;
+}
+
 bool Handle_C_INPUT(PacketSessionRef& session, Protocol::C_INPUT& pkt)
 {
 	GameSessionRef gameSession = static_pointer_cast<GameSession>(session);

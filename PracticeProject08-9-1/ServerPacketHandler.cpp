@@ -110,8 +110,6 @@ bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
 	// networkQueue에 게임 시작 패킷 push
 	g_NetworkQueue.PushGameStart(std::move(data));
 
-	
-
 	g_GameStarted = true;
 	return true;
 }
@@ -126,8 +124,10 @@ EAnimState GetEAnimState(Protocol::AnimationType animType)
 		return EAnimState::Move;
 	case Protocol::ANIMATION_TYPE_ATTACK:
 		return EAnimState::Attack;
+	//case Protocol::ANIMATION_TYPE_HIT:
+	//	return EAnimState::Hit;
 	case Protocol::ANIMATION_TYPE_DIE:
-		return EAnimState::Idle;
+		return EAnimState::Die;
 	default:
 		return EAnimState::Idle; // 기본값
 	}
