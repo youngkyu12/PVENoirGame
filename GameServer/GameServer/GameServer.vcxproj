@@ -181,7 +181,6 @@
   <ItemGroup>
     <ClCompile Include="Building.cpp" />
     <ClCompile Include="CommonPlayerControllerComponent_Server.cpp" />
-    <ClCompile Include="CWeapon.cpp" />
     <ClCompile Include="Enemy.cpp" />
     <ClCompile Include="Enum.pb.cc">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
@@ -225,7 +224,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Building.h" />
-    <ClInclude Include="CWeapon.h" />
     <ClInclude Include="Enemy.h" />
     <ClInclude Include="Enum.pb.h" />
     <ClInclude Include="GameArea.h" />

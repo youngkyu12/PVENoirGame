@@ -98,8 +98,6 @@ constexpr Player::Player(
   , playertype_(0)
 
   , playerstate_(0)
-
-  , weapontype_(0)
 {}
 struct PlayerDefaultTypeInternal {
   constexpr PlayerDefaultTypeInternal()
@@ -118,8 +116,6 @@ constexpr Enemy::Enemy(
   , enemytype_(0)
 
   , enemystate_(0)
-
-  , weapontype_(0)
 {}
 struct EnemyDefaultTypeInternal {
   constexpr EnemyDefaultTypeInternal()
@@ -201,7 +197,6 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_Struct_2eproto::offsets[] PROT
   PROTOBUF_FIELD_OFFSET(::Protocol::Player, playerstate_),
   PROTOBUF_FIELD_OFFSET(::Protocol::Player, transform_),
   PROTOBUF_FIELD_OFFSET(::Protocol::Player, animation_),
-  PROTOBUF_FIELD_OFFSET(::Protocol::Player, weapontype_),
   ~0u,  // no _has_bits_
   PROTOBUF_FIELD_OFFSET(::Protocol::Enemy, _internal_metadata_),
   ~0u,  // no _extensions_
@@ -212,7 +207,6 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_Struct_2eproto::offsets[] PROT
   PROTOBUF_FIELD_OFFSET(::Protocol::Enemy, enemystate_),
   PROTOBUF_FIELD_OFFSET(::Protocol::Enemy, transform_),
   PROTOBUF_FIELD_OFFSET(::Protocol::Enemy, animation_),
-  PROTOBUF_FIELD_OFFSET(::Protocol::Enemy, weapontype_),
   ~0u,  // no _has_bits_
   PROTOBUF_FIELD_OFFSET(::Protocol::Building, _internal_metadata_),
   ~0u,  // no _extensions_
@@ -228,8 +222,8 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOB
   { 25, -1, sizeof(::Protocol::Animation)},
   { 32, -1, sizeof(::Protocol::Bullet)},
   { 41, -1, sizeof(::Protocol::Player)},
-  { 53, -1, sizeof(::Protocol::Enemy)},
-  { 64, -1, sizeof(::Protocol::Building)},
+  { 52, -1, sizeof(::Protocol::Enemy)},
+  { 62, -1, sizeof(::Protocol::Building)},
 };
 
 static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] = {
@@ -255,27 +249,25 @@ const char descriptor_table_protodef_Struct_2eproto[] PROTOBUF_SECTION_VARIABLE(
   "nTick\030\002 \001(\r\"k\n\006Bullet\022\n\n\002id\030\001 \001(\004\022\017\n\007own"
   "erId\030\002 \001(\004\022!\n\010position\030\003 \001(\0132\017.Protocol."
   "Vec3f\022!\n\010velocity\030\004 \001(\0132\017.Protocol.Vec3f"
-  "\"\362\001\n\006Player\022\n\n\002id\030\001 \001(\004\022\014\n\004name\030\002 \001(\t\022(\n"
+  "\"\310\001\n\006Player\022\n\n\002id\030\001 \001(\004\022\014\n\004name\030\002 \001(\t\022(\n"
   "\nplayerType\030\003 \001(\0162\024.Protocol.PlayerType\022"
   "*\n\013playerState\030\004 \001(\0162\025.Protocol.PlayerSt"
   "ate\022&\n\ttransform\030\005 \001(\0132\023.Protocol.Transf"
   "orm\022&\n\tanimation\030\006 \001(\0132\023.Protocol.Animat"
-  "ion\022(\n\nweaponType\030\007 \001(\0162\024.Protocol.Weapo"
-  "nType\"\337\001\n\005Enemy\022\n\n\002id\030\001 \001(\004\022&\n\tenemyType"
-  "\030\002 \001(\0162\023.Protocol.EnemyType\022(\n\nenemyStat"
-  "e\030\003 \001(\0162\024.Protocol.EnemyState\022&\n\ttransfo"
-  "rm\030\004 \001(\0132\023.Protocol.Transform\022&\n\tanimati"
-  "on\030\005 \001(\0132\023.Protocol.Animation\022(\n\nweaponT"
-  "ype\030\006 \001(\0162\024.Protocol.WeaponType\">\n\010Build"
-  "ing\022\n\n\002id\030\001 \001(\004\022&\n\ttransform\030\002 \001(\0132\023.Pro"
-  "tocol.Transformb\006proto3"
+  "ion\"\265\001\n\005Enemy\022\n\n\002id\030\001 \001(\004\022&\n\tenemyType\030\002"
+  " \001(\0162\023.Protocol.EnemyType\022(\n\nenemyState\030"
+  "\003 \001(\0162\024.Protocol.EnemyState\022&\n\ttransform"
+  "\030\004 \001(\0132\023.Protocol.Transform\022&\n\tanimation"
+  "\030\005 \001(\0132\023.Protocol.Animation\">\n\010Building\022"
+  "\n\n\002id\030\001 \001(\004\022&\n\ttransform\030\002 \001(\0132\023.Protoco"
+  "l.Transformb\006proto3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_Struct_2eproto_deps[1] = {
   &::descriptor_table_Enum_2eproto,
 };
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_Struct_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_Struct_2eproto = {
-  false, false, 983, descriptor_table_protodef_Struct_2eproto, "Struct.proto", 
+  false, false, 899, descriptor_table_protodef_Struct_2eproto, "Struct.proto", 
   &descriptor_table_Struct_2eproto_once, descriptor_table_Struct_2eproto_deps, 1, 8,
   schemas, file_default_instances, TableStruct_Struct_2eproto::offsets,
   file_level_metadata_Struct_2eproto, file_level_enum_descriptors_Struct_2eproto, file_level_service_descriptors_Struct_2eproto,
@@ -1649,8 +1641,8 @@ Player::Player(const Player& from)
     animation_ = nullptr;
   }
   ::memcpy(&id_, &from.id_,
-    static_cast<size_t>(reinterpret_cast<char*>(&weapontype_) -
-    reinterpret_cast<char*>(&id_)) + sizeof(weapontype_));
+    static_cast<size_t>(reinterpret_cast<char*>(&playerstate_) -
+    reinterpret_cast<char*>(&id_)) + sizeof(playerstate_));
   // @@protoc_insertion_point(copy_constructor:Protocol.Player)
 }
 
@@ -1658,8 +1650,8 @@ void Player::SharedCtor() {
 name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 ::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
     reinterpret_cast<char*>(&transform_) - reinterpret_cast<char*>(this)),
-    0, static_cast<size_t>(reinterpret_cast<char*>(&weapontype_) -
-    reinterpret_cast<char*>(&transform_)) + sizeof(weapontype_));
+    0, static_cast<size_t>(reinterpret_cast<char*>(&playerstate_) -
+    reinterpret_cast<char*>(&transform_)) + sizeof(playerstate_));
 }
 
 Player::~Player() {
@@ -1701,8 +1693,8 @@ void Player::Clear() {
   }
   animation_ = nullptr;
   ::memset(&id_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&weapontype_) -
-      reinterpret_cast<char*>(&id_)) + sizeof(weapontype_));
+      reinterpret_cast<char*>(&playerstate_) -
+      reinterpret_cast<char*>(&id_)) + sizeof(playerstate_));
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
@@ -1756,14 +1748,6 @@ const char* Player::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::int
         if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 50)) {
           ptr = ctx->ParseMessage(_internal_mutable_animation(), ptr);
           CHK_(ptr);
-        } else goto handle_unusual;
-        continue;
-      // .Protocol.WeaponType weaponType = 7;
-      case 7:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 56)) {
-          ::PROTOBUF_NAMESPACE_ID::uint64 val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
-          CHK_(ptr);
-          _internal_set_weapontype(static_cast<::Protocol::WeaponType>(val));
         } else goto handle_unusual;
         continue;
       default: {
@@ -1841,13 +1825,6 @@ failure:
         6, _Internal::animation(this), target, stream);
   }
 
-  // .Protocol.WeaponType weaponType = 7;
-  if (this->weapontype() != 0) {
-    target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteEnumToArray(
-      7, this->_internal_weapontype(), target);
-  }
-
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -1904,12 +1881,6 @@ size_t Player::ByteSizeLong() const {
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::EnumSize(this->_internal_playerstate());
   }
 
-  // .Protocol.WeaponType weaponType = 7;
-  if (this->weapontype() != 0) {
-    total_size += 1 +
-      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::EnumSize(this->_internal_weapontype());
-  }
-
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     return ::PROTOBUF_NAMESPACE_ID::internal::ComputeUnknownFieldsSize(
         _internal_metadata_, total_size, &_cached_size_);
@@ -1959,9 +1930,6 @@ void Player::MergeFrom(const Player& from) {
   if (from.playerstate() != 0) {
     _internal_set_playerstate(from._internal_playerstate());
   }
-  if (from.weapontype() != 0) {
-    _internal_set_weapontype(from._internal_weapontype());
-  }
 }
 
 void Player::CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) {
@@ -1991,8 +1959,8 @@ void Player::InternalSwap(Player* other) {
       &other->name_, other->GetArenaForAllocation()
   );
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(Player, weapontype_)
-      + sizeof(Player::weapontype_)
+      PROTOBUF_FIELD_OFFSET(Player, playerstate_)
+      + sizeof(Player::playerstate_)
       - PROTOBUF_FIELD_OFFSET(Player, transform_)>(
           reinterpret_cast<char*>(&transform_),
           reinterpret_cast<char*>(&other->transform_));
@@ -2040,16 +2008,16 @@ Enemy::Enemy(const Enemy& from)
     animation_ = nullptr;
   }
   ::memcpy(&id_, &from.id_,
-    static_cast<size_t>(reinterpret_cast<char*>(&weapontype_) -
-    reinterpret_cast<char*>(&id_)) + sizeof(weapontype_));
+    static_cast<size_t>(reinterpret_cast<char*>(&enemystate_) -
+    reinterpret_cast<char*>(&id_)) + sizeof(enemystate_));
   // @@protoc_insertion_point(copy_constructor:Protocol.Enemy)
 }
 
 void Enemy::SharedCtor() {
 ::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
     reinterpret_cast<char*>(&transform_) - reinterpret_cast<char*>(this)),
-    0, static_cast<size_t>(reinterpret_cast<char*>(&weapontype_) -
-    reinterpret_cast<char*>(&transform_)) + sizeof(weapontype_));
+    0, static_cast<size_t>(reinterpret_cast<char*>(&enemystate_) -
+    reinterpret_cast<char*>(&transform_)) + sizeof(enemystate_));
 }
 
 Enemy::~Enemy() {
@@ -2089,8 +2057,8 @@ void Enemy::Clear() {
   }
   animation_ = nullptr;
   ::memset(&id_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&weapontype_) -
-      reinterpret_cast<char*>(&id_)) + sizeof(weapontype_));
+      reinterpret_cast<char*>(&enemystate_) -
+      reinterpret_cast<char*>(&id_)) + sizeof(enemystate_));
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
@@ -2135,14 +2103,6 @@ const char* Enemy::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::inte
         if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 42)) {
           ptr = ctx->ParseMessage(_internal_mutable_animation(), ptr);
           CHK_(ptr);
-        } else goto handle_unusual;
-        continue;
-      // .Protocol.WeaponType weaponType = 6;
-      case 6:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 48)) {
-          ::PROTOBUF_NAMESPACE_ID::uint64 val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
-          CHK_(ptr);
-          _internal_set_weapontype(static_cast<::Protocol::WeaponType>(val));
         } else goto handle_unusual;
         continue;
       default: {
@@ -2210,13 +2170,6 @@ failure:
         5, _Internal::animation(this), target, stream);
   }
 
-  // .Protocol.WeaponType weaponType = 6;
-  if (this->weapontype() != 0) {
-    target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteEnumToArray(
-      6, this->_internal_weapontype(), target);
-  }
-
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -2266,12 +2219,6 @@ size_t Enemy::ByteSizeLong() const {
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::EnumSize(this->_internal_enemystate());
   }
 
-  // .Protocol.WeaponType weaponType = 6;
-  if (this->weapontype() != 0) {
-    total_size += 1 +
-      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::EnumSize(this->_internal_weapontype());
-  }
-
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     return ::PROTOBUF_NAMESPACE_ID::internal::ComputeUnknownFieldsSize(
         _internal_metadata_, total_size, &_cached_size_);
@@ -2318,9 +2265,6 @@ void Enemy::MergeFrom(const Enemy& from) {
   if (from.enemystate() != 0) {
     _internal_set_enemystate(from._internal_enemystate());
   }
-  if (from.weapontype() != 0) {
-    _internal_set_weapontype(from._internal_weapontype());
-  }
 }
 
 void Enemy::CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) {
@@ -2345,8 +2289,8 @@ void Enemy::InternalSwap(Enemy* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(Enemy, weapontype_)
-      + sizeof(Enemy::weapontype_)
+      PROTOBUF_FIELD_OFFSET(Enemy, enemystate_)
+      + sizeof(Enemy::enemystate_)
       - PROTOBUF_FIELD_OFFSET(Enemy, transform_)>(
           reinterpret_cast<char*>(&transform_),
           reinterpret_cast<char*>(&other->transform_));

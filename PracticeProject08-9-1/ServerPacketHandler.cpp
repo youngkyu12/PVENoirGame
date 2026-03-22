@@ -150,7 +150,6 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 		auto position = transform.position();
 		auto yaw = transform.yaw();
 		auto animation = player.animation();
-		auto weaponType = player.weapontype();
 
 		std::string s = player.DebugString();
 		s += "\n";
@@ -162,9 +161,8 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 		animState.animationId = GetEAnimState(animation.animationtype());
 		animState.animTick = animation.animationtick();
 		
-		EWeaponType eweaponType = static_cast<EWeaponType>(weaponType - 1);
 
-		data.players.push_back({ player.id(), {position.x(), position.y(), position.z()}, yaw, animState, eweaponType });
+		data.players.push_back({ player.id(), {position.x(), position.y(), position.z()}, yaw, animState });
 	}
 
 	for (auto& enemy : enemies)
@@ -174,7 +172,6 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 		auto position = transform.position();
 		auto yaw = transform.yaw();
 		auto animation = enemy.animation();
-		auto weaponType = enemy.weapontype();
 		//std::string s = enemy.DebugString();
 
 		AnimationState animState;
@@ -183,9 +180,7 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 		animState.animationId = static_cast<EAnimState>(animation.animationtype());
 		animState.animTick = animation.animationtick();
 
-		EWeaponType eweaponType = static_cast<EWeaponType>(weaponType - 1);
-
-		data.enemies.push_back({ enemy.id(), {position.x(), position.y(), position.z()}, yaw, animState, eweaponType });
+		data.enemies.push_back({ enemy.id(), {position.x(), position.y(), position.z()}, yaw, animState });
 	}
 
 	g_NetworkQueue.PushFrameState(std::move(data));

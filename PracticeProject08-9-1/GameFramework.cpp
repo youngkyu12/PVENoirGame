@@ -707,12 +707,6 @@ void CGameFramework::ProcessInput()
 #endif
 	}
 
-#ifdef USING_NETWORK
-	// 서버로 부터 받은 현재 좌표를 기반으로 카메라 회전
-
-
-
-#else
 	const float dt = m_GameTimer.GetTimeElapsed();
 
 	XMFLOAT3 oldPos = playerObj->GetPosition();
@@ -743,8 +737,6 @@ void CGameFramework::ProcessInput()
 		m_pCamera->SetLookAt(newPos);
 		m_pCamera->RegenerateViewMatrix();
 	}
-#endif
-	
 }
 
 void CGameFramework::AnimateObjects()

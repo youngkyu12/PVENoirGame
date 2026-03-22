@@ -1025,7 +1025,6 @@ class Player final :
     kIdFieldNumber = 1,
     kPlayerTypeFieldNumber = 3,
     kPlayerStateFieldNumber = 4,
-    kWeaponTypeFieldNumber = 7,
   };
   // string name = 2;
   void clear_name();
@@ -1104,15 +1103,6 @@ class Player final :
   void _internal_set_playerstate(::Protocol::PlayerState value);
   public:
 
-  // .Protocol.WeaponType weaponType = 7;
-  void clear_weapontype();
-  ::Protocol::WeaponType weapontype() const;
-  void set_weapontype(::Protocol::WeaponType value);
-  private:
-  ::Protocol::WeaponType _internal_weapontype() const;
-  void _internal_set_weapontype(::Protocol::WeaponType value);
-  public:
-
   // @@protoc_insertion_point(class_scope:Protocol.Player)
  private:
   class _Internal;
@@ -1126,7 +1116,6 @@ class Player final :
   ::PROTOBUF_NAMESPACE_ID::uint64 id_;
   int playertype_;
   int playerstate_;
-  int weapontype_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_Struct_2eproto;
 };
@@ -1245,7 +1234,6 @@ class Enemy final :
     kIdFieldNumber = 1,
     kEnemyTypeFieldNumber = 2,
     kEnemyStateFieldNumber = 3,
-    kWeaponTypeFieldNumber = 6,
   };
   // .Protocol.Transform transform = 4;
   bool has_transform() const;
@@ -1310,15 +1298,6 @@ class Enemy final :
   void _internal_set_enemystate(::Protocol::EnemyState value);
   public:
 
-  // .Protocol.WeaponType weaponType = 6;
-  void clear_weapontype();
-  ::Protocol::WeaponType weapontype() const;
-  void set_weapontype(::Protocol::WeaponType value);
-  private:
-  ::Protocol::WeaponType _internal_weapontype() const;
-  void _internal_set_weapontype(::Protocol::WeaponType value);
-  public:
-
   // @@protoc_insertion_point(class_scope:Protocol.Enemy)
  private:
   class _Internal;
@@ -1331,7 +1310,6 @@ class Enemy final :
   ::PROTOBUF_NAMESPACE_ID::uint64 id_;
   int enemytype_;
   int enemystate_;
-  int weapontype_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_Struct_2eproto;
 };
@@ -2361,26 +2339,6 @@ inline void Player::set_allocated_animation(::Protocol::Animation* animation) {
   // @@protoc_insertion_point(field_set_allocated:Protocol.Player.animation)
 }
 
-// .Protocol.WeaponType weaponType = 7;
-inline void Player::clear_weapontype() {
-  weapontype_ = 0;
-}
-inline ::Protocol::WeaponType Player::_internal_weapontype() const {
-  return static_cast< ::Protocol::WeaponType >(weapontype_);
-}
-inline ::Protocol::WeaponType Player::weapontype() const {
-  // @@protoc_insertion_point(field_get:Protocol.Player.weaponType)
-  return _internal_weapontype();
-}
-inline void Player::_internal_set_weapontype(::Protocol::WeaponType value) {
-  
-  weapontype_ = value;
-}
-inline void Player::set_weapontype(::Protocol::WeaponType value) {
-  _internal_set_weapontype(value);
-  // @@protoc_insertion_point(field_set:Protocol.Player.weaponType)
-}
-
 // -------------------------------------------------------------------
 
 // Enemy
@@ -2609,26 +2567,6 @@ inline void Enemy::set_allocated_animation(::Protocol::Animation* animation) {
   }
   animation_ = animation;
   // @@protoc_insertion_point(field_set_allocated:Protocol.Enemy.animation)
-}
-
-// .Protocol.WeaponType weaponType = 6;
-inline void Enemy::clear_weapontype() {
-  weapontype_ = 0;
-}
-inline ::Protocol::WeaponType Enemy::_internal_weapontype() const {
-  return static_cast< ::Protocol::WeaponType >(weapontype_);
-}
-inline ::Protocol::WeaponType Enemy::weapontype() const {
-  // @@protoc_insertion_point(field_get:Protocol.Enemy.weaponType)
-  return _internal_weapontype();
-}
-inline void Enemy::_internal_set_weapontype(::Protocol::WeaponType value) {
-  
-  weapontype_ = value;
-}
-inline void Enemy::set_weapontype(::Protocol::WeaponType value) {
-  _internal_set_weapontype(value);
-  // @@protoc_insertion_point(field_set:Protocol.Enemy.weaponType)
 }
 
 // -------------------------------------------------------------------

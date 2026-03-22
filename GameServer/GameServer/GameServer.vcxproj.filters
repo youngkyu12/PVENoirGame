@@ -93,9 +93,6 @@
     <ClCompile Include="ServerObject.cpp">
       <Filter>GameObject\BaseObject</Filter>
     </ClCompile>
-    <ClCompile Include="CWeapon.cpp">
-      <Filter>GameObject\Player</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -139,9 +136,6 @@
     </ClInclude>
     <ClInclude Include="ServerObject.h">
       <Filter>GameObject\BaseObject</Filter>
-    </ClInclude>
-    <ClInclude Include="CWeapon.h">
-      <Filter>GameObject\Player</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
