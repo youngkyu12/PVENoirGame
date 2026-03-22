@@ -93,30 +93,40 @@ float3 SchlickFresnel(float3 R0, float3 vNormal, float3 vToLight)
 
 float3 BlinnPhong(float3 fDiffuseFactor, float3 vToLight, float3 vNormal, float3 vToCamera, float4 texColor)
 {
-    const float m = gMaterials[0].m_cSpecular.a;
+    MATERIAL mat = gMaterials[gnMaterialID];
+
+    const float shininess = mat.m_cSpecular.a;
+    const float3 specularColor = mat.m_cSpecular.rgb;
+
+    if (shininess <= 0.0f)
+        return texColor.rgb * fDiffuseFactor;
+
     float3 vHalf = normalize(vToCamera + vToLight);
-	
-    float roughnessFactor = (m + 8.0f) * pow(max(dot(vHalf, vNormal), 0.0f), m) / 8.0f;
-    float3 fresnelFactor = SchlickFresnel(gMaterials[0].m_cSpecular.rgb, vHalf, vToLight);
-	
+
+    float roughnessFactor =
+        (shininess + 8.0f) *
+        pow(max(dot(vHalf, vNormal), 0.0f), shininess) / 8.0f;
+
+    float3 fresnelFactor = SchlickFresnel(specularColor, vHalf, vToLight);
     float3 specAlbedo = fresnelFactor * roughnessFactor;
-	
     specAlbedo = specAlbedo / (specAlbedo + 1.0f);
-	
+
     return (texColor.rgb + specAlbedo) * fDiffuseFactor;
 }
 
 float4 DirectionalLight(int nIndex, float3 vNormal, float3 vToCamera, float4 texColor)
 {
+    MATERIAL mat = gMaterials[gnMaterialID];
+
     float3 vToLight = -gLights[nIndex].m_vDirection;
-
     float ndotl = max(dot(vToLight, vNormal), 0.0f);
-    float3 lightStrength = gLights[nIndex].m_cDiffuse.rgb * ndotl;
 
-    float3 color = BlinnPhong(lightStrength, vToLight, vNormal, vToCamera, texColor);
-	
-    return float4(color, 0.0f);
-	
+    float3 lightStrength = gLights[nIndex].m_cDiffuse.rgb * ndotl;
+    float3 litColor = BlinnPhong(lightStrength, vToLight, vNormal, vToCamera, texColor);
+
+    float3 ambientColor = gLights[nIndex].m_cAmbient.rgb * mat.m_cAmbient.rgb;
+
+    return float4(ambientColor + litColor, 0.0f);
 	// 원래 코드
 //    float3 vToLight = -gLights[nIndex].m_vDirection;
 //    float fDiffuseFactor = dot(vToLight, vNormal);
@@ -216,16 +226,19 @@ float4 SpotLight(int nIndex, float3 vPosition, float3 vNormal, float3 vToCamera)
 
 float4 Lighting(float3 vPosition, float3 vNormal, float4 texColor)
 {
-	float3 vCameraPosition = float3(gvCameraPosition.x, gvCameraPosition.y, gvCameraPosition.z);
-	float3 vToCamera = normalize(vCameraPosition - vPosition);
+    MATERIAL mat = gMaterials[gnMaterialID];
 
-	float4 cColor = float4(0.0f, 0.0f, 0.0f, 0.0f);
-	for (int i = 0; i < MAX_LIGHTS; i++)
-	{
-		if (gLights[i].m_bEnable)
-		{
-			if (gLights[i].m_nType == DIRECTIONAL_LIGHT)
-			{
+    float3 vCameraPosition = float3(gvCameraPosition.x, gvCameraPosition.y, gvCameraPosition.z);
+    float3 vToCamera = normalize(vCameraPosition - vPosition);
+
+    float4 cColor = float4(0.0f, 0.0f, 0.0f, 0.0f);
+
+    for (int i = 0; i < MAX_LIGHTS; i++)
+    {
+        if (gLights[i].m_bEnable)
+        {
+            if (gLights[i].m_nType == DIRECTIONAL_LIGHT)
+            {
                 cColor += DirectionalLight(i, vNormal, vToCamera, texColor);
             }
             //else if (gLights[i].m_nType == POINT_LIGHT)
@@ -237,10 +250,11 @@ float4 Lighting(float3 vPosition, float3 vNormal, float4 texColor)
             //    cColor += SpotLight(i, vPosition, vNormal, vToCamera);
             //}
         }
-	}
-	cColor += (gcGlobalAmbientLight * gMaterials[gnMaterialID].m_cAmbient);
-	cColor.a = gMaterials[gnMaterialID].m_cDiffuse.a;
+    }
 
-	return(cColor);
+    cColor += (gcGlobalAmbientLight * mat.m_cAmbient);
+    cColor.a = mat.m_cDiffuse.a;
+
+    return cColor;
 }
 
