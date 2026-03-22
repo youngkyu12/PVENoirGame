@@ -43,7 +43,7 @@ public:
 	void CreateSwapChainRenderTargetViews();
 	void CreateDepthStencilView();
 
-	// ÃÊ±â¿¡´Â MenuSceneÀ» ºôµå
+	// ï¿½Ê±â¿¡ï¿½ï¿½ MenuSceneï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	void BuildObjects();
 
 	// Frame / Render
@@ -68,6 +68,10 @@ private:
 	void RequestSceneSwitch(ESceneId next);
 	void ApplyPendingSceneSwitch();
 	void BuildSceneInternal(ESceneId id, bool resetTimer);
+	void SyncGameSceneInactiveOverlay();
+	bool IsWindowActuallyActive() const;
+	void UpdateWindowActivationState();
+	bool IsInputPauseActive() const;
 
 private:
 	// Window
@@ -130,4 +134,11 @@ private:
 	// Pending scene switch
 	bool								m_sceneSwitchPending = false;
 	ESceneId							m_pendingScene = ESceneId::Menu;
+	
+	bool								m_bWindowActive = true;
+	bool								m_bConsumeNextMouseClick = false;
+	bool								m_bUserPaused = false;
+	
+	bool HandlePauseClick(UINT nMessageID, LPARAM lParam);
+	void ClearInputPause();
 };

@@ -15,6 +15,7 @@ class CFollowBoneComponent;
 class CArrowComponent;
 class CGameObject;
 class CCollisionSystem;
+class CTexture;
 
 struct CB_GAMEOBJECT_INFO;
 struct AttachmentBindSpec
@@ -117,6 +118,7 @@ public:
     // Game-only API
 public:
     void SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex);
+    void SetInactiveOverlayVisible(bool visible) { m_bInactiveOverlayVisible = visible; }
 
     CGameObject* GetDemoFighter(int index) const;
     void RequestDemoFighterAttack(int index);
@@ -191,6 +193,13 @@ private:
 
     static constexpr UINT kArrowPoolSize = 32;
     std::vector<CGameObject*> m_arrowRefs;
+    std::array<CGameObject*, 4> m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr };
+    std::array<bool, 4> m_prevBowReleasePhase = { false, false, false, false };
+    int GetPlayerSlotFromObject(const CGameObject* obj) const;
+
+    void RequestPrepareArrow(CGameObject* shooter, float pullBackDistance);
+    void RequestReleasePreparedArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f);
+    void UpdatePreparedBowArrows();
 
     std::array<CGameObject*, 3> m_demoFighters = { nullptr, nullptr, nullptr };
 
@@ -208,12 +217,22 @@ private:
 
     unique_ptr<CCollisionSystem> m_Collision;
 
-    //클라 맵 하드리딩용
-    private:
-        bool LoadStaticPlacementFile(const std::string& filePath);
-        void ResetStaticPlacementCounts();
-        void ApplyStaticPlacementCounts();
-        static float QuaternionToYawDegrees(const XMFLOAT4& q);
-    private:
-        std::vector<StaticPlacementEntry> m_staticPlacementEntries;
+private:
+    bool LoadStaticPlacementFile(const std::string& filePath);
+    void ResetStaticPlacementCounts();
+    void ApplyStaticPlacementCounts();
+    static float QuaternionToYawDegrees(const XMFLOAT4& q);
+
+private:
+    std::vector<StaticPlacementEntry>   m_staticPlacementEntries;
+    
+    std::shared_ptr<CRectUIShader>      m_inactiveOverlayShader;
+    std::shared_ptr<CTexture>           m_inactiveOverlayTex;
+    UINT                                m_inactiveOverlaySrvIndex = UINT_MAX;
+    bool                                m_bInactiveOverlayVisible = false;
+    bool GetPauseOverlayRect(XMFLOAT4& outRect) const;
+
+public:
+    bool IsPointInPauseOverlay(POINT clientPt) const;
+
 };

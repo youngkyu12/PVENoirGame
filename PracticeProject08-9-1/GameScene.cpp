@@ -13,6 +13,7 @@
 #include "AnimController.h"
 #include "Material.h"
 #include "AssetManager.h"
+#include "Texture.h"
 #include "LightComponent.h"
 #include "PlayerControllerComponent.h"
 #include "Object.h"
@@ -213,6 +214,14 @@ void CGameScene::ReleaseObjects()
     m_EnemyBowRefs.clear();
     m_EnemyAxeRefs.clear();
 
+    m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr };
+    m_prevBowReleasePhase = { false, false, false, false };
+
+    m_inactiveOverlayShader.reset();
+    m_inactiveOverlayTex.reset();
+    m_inactiveOverlaySrvIndex = UINT_MAX;
+    m_bInactiveOverlayVisible = false;
+
     ReleaseShaderVariables();
 
     CScene::ReleaseObjects();
@@ -281,6 +290,8 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     while (false == g_GameStarted);
     DequeueNetworkMessage(NetworkMessageType::GameStart);
     m_localPlayerSlot = g_myPlayerId;
+#else
+    m_localPlayerSlot = 1;
 #endif
 
     const std::string placementFilePath = "Assets/placement_export.txt";
@@ -343,6 +354,35 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     };
 
     BuildLightsAndMaterials();
+
+    {
+        constexpr const wchar_t* kInactiveOverlayDDS = L"Assets/UI/Pause.dds";
+
+        m_inactiveOverlayTex = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 0);
+        m_inactiveOverlayTex->LoadTextureFromFile(dev, cmd, kInactiveOverlayDDS, RESOURCE_TEXTURE2D, 0);
+
+        CScene::m_pDescriptorHeap->CreateShaderResourceViewsOther(
+            dev,
+            m_inactiveOverlayTex.get(),
+            ROOT_PARAMETER_GLOBAL_SRV
+        );
+
+        m_inactiveOverlaySrvIndex = m_inactiveOverlayTex->GetSrvIndex(0);
+
+        m_inactiveOverlayShader = std::make_shared<CRectUIShader>();
+
+        DXGI_FORMAT overlayRtv = DXGI_FORMAT_R8G8B8A8_UNORM;
+        DXGI_FORMAT overlayDsv = DXGI_FORMAT_UNKNOWN;
+
+        m_inactiveOverlayShader->CreateShader(
+            dev,
+            GetGraphicsRootSignature(),
+            1,
+            &overlayRtv,
+            overlayDsv
+        );
+        m_inactiveOverlayShader->CreateShaderVariables(dev, cmd);
+    }
 
     for (auto& lo : m_lightObjects)
     {
@@ -678,8 +718,8 @@ void CGameScene::BuildStaticBatch(
     b->count = 0;
 
     // ------------------------------------------------------------------------
-// Static world objects from placement file
-// ------------------------------------------------------------------------
+    // Static world objects from placement file
+    // ------------------------------------------------------------------------
     for (UINT k = 0; k < (UINT)m_staticPlacementEntries.size(); ++k)
     {
         if (b->objectRefs.size() >= b->capacity) break;
@@ -1740,6 +1780,9 @@ void CGameScene::BuildSkinnedBatch(
                 const auto& state = gameStartData.players[k];
                 pos = state.position;
                 yaw = state.yaw;
+
+				// 플레이어별 초기 장비 세팅
+                equipComp->SetLoadout(state.weaponType);
             }
             else
             {
@@ -1794,7 +1837,6 @@ void CGameScene::BuildSkinnedBatch(
                 LoadAndAddClip("Assets/Player/Animation/Player_Sword_Idle.bin", "Idle_Sword");
                 LoadAndAddClip("Assets/Player/Animation/Player_Axe_Idle.bin", "Idle_Axe");
                 LoadAndAddClip("Assets/Player/Animation/Player_Bow_Idle.bin", "Idle_Bow");
-                LoadAndAddClip("Assets/Player/Animation/Player_Bow_Hold.bin", "Hold_Bow");
                 LoadAndAddClip("Assets/Player/Animation/Player_Gun_Idle.bin", "Idle_Gun");
 
                 LoadAndAddClip("Assets/Player/Animation/Player_Normal_Hit.bin", "Hit_Normal");
@@ -1809,8 +1851,8 @@ void CGameScene::BuildSkinnedBatch(
                 LoadAndAddClip("Assets/Player/Animation/Player_Bow_Load.bin", "Bow_Load");
                 LoadAndAddClip("Assets/Player/Animation/Player_Bow_Release.bin", "Bow_Release");
                 LoadAndAddClip("Assets/Player/Animation/Player_Gun_Shoot.bin", "Gun_Shoot");
-                LoadAndAddClip("Assets/Player/Animation/Player_Gun_Reload.bin", "Gun_Reload");
-
+                LoadAndAddClip("Assets/Player/Animation/Player_Roll_F.bin", "Roll_F");
+                LoadAndAddClip("Assets/Player/Animation/Player_Roll_B.bin", "Roll_B");
                 // --------------------------------------------------------------------
                 // Walk
                 // --------------------------------------------------------------------
@@ -1852,6 +1894,8 @@ void CGameScene::BuildSkinnedBatch(
                     ctrl->SetSpeed(0.0f);
                     ctrl->SetMoveDirection(0);
                     ctrl->SetRunRequested(false);
+                    ctrl->SetRollMoveSpeed(5.0f);
+                    ctrl->SetRollMoveWindow(0.08f, 0.55f);
                     ctrl->Update(0.0f);
                 }
             }
@@ -2296,6 +2340,57 @@ void CGameScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* 
     }
 }
 
+bool CGameScene::GetPauseOverlayRect(XMFLOAT4& outRect) const
+{
+    if (!m_inactiveOverlayTex || (m_inactiveOverlaySrvIndex == UINT_MAX))
+        return false;
+
+    float drawW = static_cast<float>(m_inactiveOverlayTex->GetTextureWidth(0));
+    float drawH = static_cast<float>(m_inactiveOverlayTex->GetTextureHeight(0));
+
+    if (drawW <= 0.0f || drawH <= 0.0f)
+    {
+        drawW = 512.0f;
+        drawH = 512.0f;
+    }
+
+    float fitScale = 1.0f;
+    const float scaleX = (drawW > 0.0f) ? (static_cast<float>(FRAME_BUFFER_WIDTH) / drawW) : 1.0f;
+    const float scaleY = (drawH > 0.0f) ? (static_cast<float>(FRAME_BUFFER_HEIGHT) / drawH) : 1.0f;
+
+    if (scaleX < fitScale) fitScale = scaleX;
+    if (scaleY < fitScale) fitScale = scaleY;
+    if (fitScale > 1.0f) fitScale = 1.0f;
+
+    drawW *= fitScale;
+    drawH *= fitScale;
+
+    outRect = XMFLOAT4(
+        FRAME_BUFFER_WIDTH * 0.5f,
+        FRAME_BUFFER_HEIGHT * 0.5f,
+        drawW,
+        drawH
+    );
+    return true;
+}
+
+bool CGameScene::IsPointInPauseOverlay(POINT clientPt) const
+{
+    XMFLOAT4 rect{};
+    if (!GetPauseOverlayRect(rect))
+        return false;
+
+    const float left = rect.x - rect.z * 0.5f;
+    const float right = rect.x + rect.z * 0.5f;
+    const float top = rect.y - rect.w * 0.5f;
+    const float bottom = rect.y + rect.w * 0.5f;
+
+    const float px = static_cast<float>(clientPt.x);
+    const float py = static_cast<float>(clientPt.y);
+
+    return (px >= left && px <= right && py >= top && py <= bottom);
+}
+
 void CGameScene::SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex)
 {
     if (!m_pMaterials) return;
@@ -2320,25 +2415,23 @@ void CGameScene::RequestPlayerAttackBySlot(int slot)
     CGameObject* obj = GetPlayerBySlot(slot);
     if (!obj) return;
 
-    const float kArrowSpeed = 3.0f;
-    const float kArrowLife = 6.0f;
-    const float kArrowYOffset = 0.0f;
+    constexpr float kArrowPullBackDistance = 0.35f;
 
-    bool shouldFireArrow = false;
+    bool shouldPrepareArrow = false;
 
     if (auto* equip = obj->GetComponent<CPlayerEquipmentComponent>())
     {
-        shouldFireArrow = (equip->GetEquippedWeapon() == EWeaponType::Bow);
+        shouldPrepareArrow = (equip->GetEquippedWeapon() == EWeaponType::Bow);
     }
 
     if (auto* animComp = obj->GetComponent<CAnimatorComponent>())
     {
         if (auto* ctrl = animComp->EnsureController())
         {
-            ctrl->RequestAttack();
+            const bool accepted = ctrl->RequestAttack();
 
-            if (shouldFireArrow)
-                RequestFireArrow(obj, kArrowSpeed, kArrowLife, kArrowYOffset);
+            if (accepted && shouldPrepareArrow)
+                RequestPrepareArrow(obj, kArrowPullBackDistance);
 
             return;
         }
@@ -2346,12 +2439,160 @@ void CGameScene::RequestPlayerAttackBySlot(int slot)
 
     if (auto* ctrl = obj->GetAnimController())
     {
-        ctrl->RequestAttack();
+        const bool accepted = ctrl->RequestAttack();
 
-        if (shouldFireArrow)
-            RequestFireArrow(obj, kArrowSpeed, kArrowLife, kArrowYOffset);
+        if (accepted && shouldPrepareArrow)
+            RequestPrepareArrow(obj, kArrowPullBackDistance);
 
         return;
+    }
+}
+
+int CGameScene::GetPlayerSlotFromObject(const CGameObject* obj) const
+{
+    if (!obj) return -1;
+
+    auto* tag = obj->GetComponent<CActorTagComponent>();
+    if (!tag) return -1;
+    if (tag->kind != EActorKind::Player) return -1;
+    if (tag->playerSlot < 0 || tag->playerSlot > 3) return -1;
+
+    return tag->playerSlot;
+}
+
+void CGameScene::RequestPrepareArrow(CGameObject* shooter, float pullBackDistance)
+{
+    if (!shooter) return;
+
+    auto* equip = shooter->GetComponent<CPlayerEquipmentComponent>();
+    if (!equip) return;
+    if (equip->GetEquippedWeapon() != EWeaponType::Bow) return;
+
+    CGameObject* bowObj = equip->GetWeaponObject(EWeaponType::Bow);
+    if (!bowObj) return;
+
+    const int slot = GetPlayerSlotFromObject(shooter);
+    if (slot < 0 || slot > 3) return;
+
+    // 이미 준비된 화살이 있으면 중복 생성 안 함
+    if (m_preparedPlayerArrows[(size_t)slot])
+        return;
+
+    for (CGameObject* arrowObj : m_arrowRefs)
+    {
+        if (!arrowObj) continue;
+
+        auto* arrow = arrowObj->GetComponent<CArrowComponent>();
+        if (!arrow) continue;
+        if (arrow->IsActive()) continue;
+
+        arrow->Prepare(bowObj, shooter, pullBackDistance);
+        m_preparedPlayerArrows[(size_t)slot] = arrowObj;
+        return;
+    }
+}
+
+void CGameScene::RequestReleasePreparedArrow(CGameObject* shooter, float speed, float lifeSec)
+{
+    if (!shooter) return;
+
+    const int slot = GetPlayerSlotFromObject(shooter);
+    if (slot < 0 || slot > 3) return;
+
+    CGameObject* arrowObj = m_preparedPlayerArrows[(size_t)slot];
+    if (!arrowObj) return;
+
+    auto* arrow = arrowObj->GetComponent<CArrowComponent>();
+    if (!arrow || !arrow->IsPrepared())
+    {
+        m_preparedPlayerArrows[(size_t)slot] = nullptr;
+        return;
+    }
+
+    const XMFLOAT4X4& W = shooter->GetWorldMatrix();
+    XMFLOAT3 dir = { W._31, W._32, W._33 };
+
+    XMVECTOR dirV = XMLoadFloat3(&dir);
+    const float lenSq = XMVectorGetX(XMVector3LengthSq(dirV));
+    if (lenSq < 1e-8f)
+    {
+        dir = XMFLOAT3(0.0f, 0.0f, 1.0f);
+        dirV = XMLoadFloat3(&dir);
+    }
+
+    dirV = XMVector3Normalize(dirV);
+
+    XMFLOAT3 dirN{};
+    XMStoreFloat3(&dirN, dirV);
+
+    if (auto* tr = arrowObj->GetComponent<CTransformComponent>())
+    {
+        tr->SetLookDirection(dirN);
+    }
+
+    const XMFLOAT3 vel =
+    {
+        dirN.x * speed,
+        dirN.y * speed,
+        dirN.z * speed
+    };
+
+    arrow->Launch(vel, lifeSec);
+    m_preparedPlayerArrows[(size_t)slot] = nullptr;
+}
+
+void CGameScene::UpdatePreparedBowArrows()
+{
+    constexpr float kArrowSpeed = 3.0f;
+    constexpr float kArrowLife = 6.0f;
+
+    for (int slot = 0; slot < 4; ++slot)
+    {
+        CGameObject* player = GetPlayerBySlot(slot);
+
+        bool isBowLoad = false;
+        bool isBowRelease = false;
+        bool hasBowEquipped = false;
+
+        if (player)
+        {
+            if (auto* equip = player->GetComponent<CPlayerEquipmentComponent>())
+            {
+                hasBowEquipped = (equip->GetEquippedWeapon() == EWeaponType::Bow);
+            }
+
+            if (auto* animComp = player->GetComponent<CAnimatorComponent>())
+            {
+                if (auto* ctrl = animComp->EnsureController())
+                {
+                    isBowLoad = ctrl->IsBowLoadPhase();
+                    isBowRelease = ctrl->IsBowReleasePhase();
+                }
+            }
+            else if (auto* ctrl = player->GetAnimController())
+            {
+                isBowLoad = ctrl->IsBowLoadPhase();
+                isBowRelease = ctrl->IsBowReleasePhase();
+            }
+        }
+
+        // Bow_Release 진입 순간에만 발사
+        if (isBowRelease && !m_prevBowReleasePhase[(size_t)slot])
+        {
+            RequestReleasePreparedArrow(player, kArrowSpeed, kArrowLife);
+        }
+
+        // 공격이 끝났거나 장비가 바뀌면 준비 화살 정리
+        if ((!hasBowEquipped || (!isBowLoad && !isBowRelease)) && m_preparedPlayerArrows[(size_t)slot])
+        {
+            if (auto* arrow = m_preparedPlayerArrows[(size_t)slot]->GetComponent<CArrowComponent>())
+            {
+                arrow->Deactivate();
+            }
+            m_preparedPlayerArrows[(size_t)slot] = nullptr;
+        }
+
+        m_prevBowReleasePhase[(size_t)slot] = isBowRelease;
     }
 }
 
@@ -2501,8 +2742,23 @@ void CGameScene::AnimateObjects(float dt)
 
             }
 
+            if (auto wc = player->GetComponent<CPlayerEquipmentComponent>())
+            {
+                wc->SetLoadout(state.weaponType);
+            }
 
-
+            if (slot == m_localPlayerSlot)
+            {
+                // 로컬 플레이어로 카메라 동기화
+				auto pCamera = GetMainCamera();
+                if (pCamera)
+                {
+                    XMFLOAT3 pos = player->GetPosition();
+                    pCamera->Update(pos, dt);
+                    pCamera->SetLookAt(pos);
+                    pCamera->RegenerateViewMatrix();
+                }
+            }
         }
 
         // Enemy 좌표 업데이트
@@ -2548,6 +2804,7 @@ void CGameScene::AnimateObjects(float dt)
         if (!m_staticObjects[j]) continue;
         m_staticObjects[j]->Animate(dt);
     }
+    UpdatePreparedBowArrows();
 
     CGameObject* local = GetPlayer();
     if (local && m_pPlayerSpotFollower && (m_pPlayerSpotFollower->GetTarget() == nullptr))
@@ -2680,6 +2937,35 @@ void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
             m_skinnedObjects[j]->Render(cmd, camera);
         }
     }
+
+    if (m_bInactiveOverlayVisible && m_inactiveOverlayShader && (m_inactiveOverlaySrvIndex != UINT_MAX))
+    {
+        XMFLOAT4 uiRect{};
+        if (!GetPauseOverlayRect(uiRect))
+        {
+            uiRect = XMFLOAT4(
+                FRAME_BUFFER_WIDTH * 0.5f,
+                FRAME_BUFFER_HEIGHT * 0.5f,
+                512.0f,
+                512.0f
+            );
+        }
+
+        PS_CB_DRAW_OPTIONS opt{};
+        opt.m_xmn4DrawOptions = XMINT4('T', 0, 0, 0);
+        opt.m_xmu4PostSrvIdx0 = XMUINT4(m_inactiveOverlaySrvIndex, 0, 0, 0);
+        opt.m_xmu4PostSrvIdx1 = XMUINT4(0, 0, 0, 0);
+        opt.m_xmf4UiRect = uiRect;
+        opt.m_xmf4Viewport = XMFLOAT4(
+            static_cast<float>(FRAME_BUFFER_WIDTH),
+            static_cast<float>(FRAME_BUFFER_HEIGHT),
+            1.0f / static_cast<float>(FRAME_BUFFER_WIDTH),
+            1.0f / static_cast<float>(FRAME_BUFFER_HEIGHT)
+        );
+
+        m_inactiveOverlayShader->Render(cmd, camera, &opt);
+    }
+
     if (m_Collision)
     {
     }

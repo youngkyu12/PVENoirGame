@@ -29,7 +29,7 @@ void CMenuScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     }
 
     {
-        m_menuShader = std::make_shared<CMenuImageShader>();
+        m_menuShader = std::make_shared<CRectUIShader>();
 
         DXGI_FORMAT rtv = DXGI_FORMAT_R8G8B8A8_UNORM;
         DXGI_FORMAT dsv = DXGI_FORMAT_UNKNOWN;
@@ -90,12 +90,43 @@ void CMenuScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
     if (!m_menuShader) return;
     if (m_menuSrvIndex == UINT_MAX) return;
 
-    PS_CB_DRAW_OPTIONS opt{};
-    opt.m_xmn4DrawOptions = XMINT4('T', 0, 0, 0);                // 'T' = gvPostSrvIdx0.x
-    opt.m_xmu4PostSrvIdx0 = XMUINT4(m_menuSrvIndex, 0, 0, 0);    // T ���Կ� �޴� �ؽ�ó SRV index
-    opt.m_xmu4PostSrvIdx1 = XMUINT4(0, 0, 0, 0);
+    float drawW = static_cast<float>(m_menuTex ? m_menuTex->GetTextureWidth(0) : 0);
+    float drawH = static_cast<float>(m_menuTex ? m_menuTex->GetTextureHeight(0) : 0);
 
-    // Shader.Render()�� ���ο��� DrawInstanced(6,1) ȣ����
+    if (drawW <= 0.0f || drawH <= 0.0f)
+    {
+        drawW = 512.0f;
+        drawH = 512.0f;
+    }
+
+    float fitScale = 1.0f;
+    const float scaleX = (drawW > 0.0f) ? (static_cast<float>(FRAME_BUFFER_WIDTH) / drawW) : 1.0f;
+    const float scaleY = (drawH > 0.0f) ? (static_cast<float>(FRAME_BUFFER_HEIGHT) / drawH) : 1.0f;
+
+    if (scaleX < fitScale) fitScale = scaleX;
+    if (scaleY < fitScale) fitScale = scaleY;
+    if (fitScale > 1.0f) fitScale = 1.0f;
+
+    drawW *= fitScale;
+    drawH *= fitScale;
+
+    PS_CB_DRAW_OPTIONS opt{};
+    opt.m_xmn4DrawOptions = XMINT4('T', 0, 0, 0);
+    opt.m_xmu4PostSrvIdx0 = XMUINT4(m_menuSrvIndex, 0, 0, 0);
+    opt.m_xmu4PostSrvIdx1 = XMUINT4(0, 0, 0, 0);
+    opt.m_xmf4UiRect = XMFLOAT4(
+        FRAME_BUFFER_WIDTH * 0.5f,
+        FRAME_BUFFER_HEIGHT * 0.5f,
+        drawW,
+        drawH
+    );
+    opt.m_xmf4Viewport = XMFLOAT4(
+        static_cast<float>(FRAME_BUFFER_WIDTH),
+        static_cast<float>(FRAME_BUFFER_HEIGHT),
+        1.0f / static_cast<float>(FRAME_BUFFER_WIDTH),
+        1.0f / static_cast<float>(FRAME_BUFFER_HEIGHT)
+    );
+
     m_menuShader->Render(cmd, camera, &opt);
 }
 
