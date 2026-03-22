@@ -7,6 +7,8 @@
 #include "stdafx.h"
 #include "GlobalEnum.h"
 
+#define DIR_FORWARD					0x01
+
 class CGameObject;
 class CAnimator;
 
@@ -40,11 +42,18 @@ public:
     void EnablePlayerClipSet(bool enable = true) { m_usePlayerClipSet = enable; }
     bool IsUsingPlayerClipSet() const { return m_usePlayerClipSet; }
 
-    bool IsActionLocked() const { return m_actionPhase != EActionPhase::None; }
+    bool IsActionLocked() const;
 
     void Update(float dt);
 
-    void RequestAttack();
+    bool RequestAttack();
+    bool RequestRoll(uint32_t dirBits);
+    void SetRollMoveSpeed(float speed) { m_rollMoveSpeed = speed; }
+    void SetRollMoveWindow(float startNormalized, float endNormalized) { m_rollMoveStartNormalized = startNormalized; m_rollMoveEndNormalized = endNormalized; }
+   
+    bool IsBowLoadPhase() const { return m_actionPhase == EActionPhase::AttackBowLoad; }
+    bool IsBowReleasePhase() const { return m_actionPhase == EActionPhase::AttackBowRelease; }
+
     void RequestHit();
 
 private:
@@ -57,11 +66,6 @@ public:
     void SetAnimState(EAnimState s)
     {
         m_state = s;
-        m_attackQueued = false;
-        m_hitQueued = false;
-
-        if (s != EAnimState::Attack)
-            m_actionPhase = EActionPhase::None;
     }
 
 private:
@@ -71,7 +75,8 @@ private:
         AttackGeneric,
         AttackBowLoad,
         AttackBowRelease,
-        Hit
+        Hit,
+        Roll
     };
 
 private:
@@ -79,6 +84,7 @@ private:
     std::string ResolveMoveClip() const;
     std::string ResolveHitClip() const;
     std::string ResolveAttackStartClip(EActionPhase& outPhase) const;
+    std::string ResolveRollClip(uint32_t dirBits, float& outVisualYawDeg) const;
     std::string ResolveLocomotionClip(EAnimState state) const;
 
 private:
@@ -99,6 +105,15 @@ private:
 
     bool m_attackQueued = false;
     bool m_hitQueued = false;
+
+    bool m_rollQueued = false;
+    std::string m_rollQueuedClipName;
+    float m_rollQueuedVisualYawDeg = 0.0f;
+
+    uint32_t m_rollMoveDirBits = DIR_FORWARD;
+    float m_rollMoveSpeed = 5.0f;
+    float m_rollMoveStartNormalized = 0.08f;
+    float m_rollMoveEndNormalized = 0.55f;
 
     uint32_t m_moveDirBits = 0;
     bool m_bRunRequested = false;

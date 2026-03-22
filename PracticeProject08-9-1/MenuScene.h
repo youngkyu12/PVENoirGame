@@ -14,9 +14,9 @@ public:
     ~CMenuScene() override = default;
 
 private:
-    std::shared_ptr<CMenuImageShader> m_menuShader;
-    std::shared_ptr<CTexture>         m_menuTex;
-    UINT                              m_menuSrvIndex = UINT_MAX;
+    std::shared_ptr<CRectUIShader>      m_menuShader;
+    std::shared_ptr<CTexture>           m_menuTex;
+    UINT                                m_menuSrvIndex = UINT_MAX;
 
 public:
     void BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList) override;

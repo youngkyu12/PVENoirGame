@@ -15,6 +15,7 @@ class CFollowBoneComponent;
 class CArrowComponent;
 class CGameObject;
 class CCollisionSystem;
+class CTexture;
 
 struct CB_GAMEOBJECT_INFO;
 struct AttachmentBindSpec
@@ -23,6 +24,16 @@ struct AttachmentBindSpec
     CGameObject* target = nullptr;
     std::string  boneName;
     XMFLOAT4X4   localOffset{};
+};
+struct StaticPlacementEntry
+{
+    std::string assetName;
+    std::string objectName;
+
+    XMFLOAT3 pos = XMFLOAT3(0.0f, 0.0f, 0.0f);
+    XMFLOAT4 rot = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+
+    float yawDeg = 0.0f;
 };
 
 // ============================================================================
@@ -107,6 +118,7 @@ public:
     // Game-only API
 public:
     void SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex);
+    void SetInactiveOverlayVisible(bool visible) { m_bInactiveOverlayVisible = visible; }
 
     CGameObject* GetDemoFighter(int index) const;
     void RequestDemoFighterAttack(int index);
@@ -124,8 +136,21 @@ private:
     // ------------------------------------------------------------------------
     // Build counts (현재는 BuildObjects()에서 결정, 추후 서버 동기화 값으로 대체)
     // ------------------------------------------------------------------------
-    UINT m_planeCount = 1;
-    UINT m_houseCount = 3;
+    UINT m_grassCount = 1;
+    UINT m_groundCount = 1;
+    UINT m_villagewallCount = 1;
+	UINT m_dirtRoadCount = 1;
+
+    UINT m_building1Count = 1;
+    UINT m_building2Count = 1;
+    UINT m_building3Count = 1;
+    UINT m_building4Count = 1;
+    UINT m_building5Count = 1;
+    UINT m_building6Count = 1;
+    UINT m_building7Count = 1;
+    UINT m_building8Count = 1;
+    UINT m_building9Count = 1;
+	UINT m_towerCount = 1;
 
     UINT m_ghoulCount = 4;
     UINT m_swordManCount = 3;
@@ -168,6 +193,13 @@ private:
 
     static constexpr UINT kArrowPoolSize = 32;
     std::vector<CGameObject*> m_arrowRefs;
+    std::array<CGameObject*, 4> m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr };
+    std::array<bool, 4> m_prevBowReleasePhase = { false, false, false, false };
+    int GetPlayerSlotFromObject(const CGameObject* obj) const;
+
+    void RequestPrepareArrow(CGameObject* shooter, float pullBackDistance);
+    void RequestReleasePreparedArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f);
+    void UpdatePreparedBowArrows();
 
     std::array<CGameObject*, 3> m_demoFighters = { nullptr, nullptr, nullptr };
 
@@ -184,4 +216,23 @@ private:
     MATERIAL* m_pcbMappedMaterials = nullptr;
 
     unique_ptr<CCollisionSystem> m_Collision;
+
+private:
+    bool LoadStaticPlacementFile(const std::string& filePath);
+    void ResetStaticPlacementCounts();
+    void ApplyStaticPlacementCounts();
+    static float QuaternionToYawDegrees(const XMFLOAT4& q);
+
+private:
+    std::vector<StaticPlacementEntry>   m_staticPlacementEntries;
+    
+    std::shared_ptr<CRectUIShader>      m_inactiveOverlayShader;
+    std::shared_ptr<CTexture>           m_inactiveOverlayTex;
+    UINT                                m_inactiveOverlaySrvIndex = UINT_MAX;
+    bool                                m_bInactiveOverlayVisible = false;
+    bool GetPauseOverlayRect(XMFLOAT4& outRect) const;
+
+public:
+    bool IsPointInPauseOverlay(POINT clientPt) const;
+
 };

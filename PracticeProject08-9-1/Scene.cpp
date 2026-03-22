@@ -80,11 +80,10 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* dev)
     pd3dDescriptorRanges[0].RegisterSpace = 0;
     pd3dDescriptorRanges[0].OffsetInDescriptorsFromTableStart = 0;
 
-    constexpr UINT MAX_GLOBAL_SRVS = 1024;
     pd3dDescriptorRanges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-    pd3dDescriptorRanges[1].NumDescriptors = MAX_GLOBAL_SRVS;
-    pd3dDescriptorRanges[1].BaseShaderRegister = 0; // t0
-    pd3dDescriptorRanges[1].RegisterSpace = 0;      // space0
+    pd3dDescriptorRanges[1].NumDescriptors = GLOBAL_SRV_CAPACITY;
+    pd3dDescriptorRanges[1].BaseShaderRegister = 0;
+    pd3dDescriptorRanges[1].RegisterSpace = 0;
     pd3dDescriptorRanges[1].OffsetInDescriptorsFromTableStart = 0;
 
     D3D12_ROOT_PARAMETER pd3dRootParameters[9] = {};
