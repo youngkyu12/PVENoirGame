@@ -43,7 +43,7 @@ public:
 	void CreateSwapChainRenderTargetViews();
 	void CreateDepthStencilView();
 
-	// ÃÊ±â¿¡´Â MenuSceneÀ» ºôµå
+	// ï¿½Ê±â¿¡ï¿½ï¿½ MenuSceneï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	void BuildObjects();
 
 	// Frame / Render
@@ -117,7 +117,7 @@ private:
 
 	// Scene Manager / Camera
 	CSceneManager						m_SceneManager;
-	CCamera* m_pCamera = nullptr;
+	CCamera*							m_pCamera = nullptr;
 
 	// Post Processing
 	shared_ptr<CPostProcessingShader>	m_pPostProcessingShader;

@@ -60,8 +60,8 @@ public:
 	virtual void BuildObjects(
 		ID3D12Device* pd3dDevice,
 		ID3D12GraphicsCommandList* pd3dCommandList,
-		void* pContext = nullptr
-	) {
+		void* pContext = nullptr) 
+	{
 	}
 
 	virtual void CreateGraphicsRootSignature(ID3D12Device* pd3dDevice) {}
@@ -282,8 +282,8 @@ public:
 	~CRectUIShader() override = default;
 
 public:
-	// SceneÀÌ ÀÌ¹Ì RootSig/DescriptorTableÀ» ¼¼ÆÃÇÏ¹Ç·Î
-	// Shader°¡ RootSig¸¦ ´Ù½Ã SetÇÏÁö ¾Ê°Ô CreateShader¸¦ ÀçÁ¤ÀÇÇÑ´Ù.
+	// ì¤‘ìš”: Sceneì´ ì´ë¯¸ RootSig/DescriptorTableì„ ì„¸íŒ…í•˜ë¯€ë¡œ
+	// Shaderê°€ RootSigë¥¼ ë‹¤ì‹œ Setí•˜ì§€ ì•Šê²Œ(= íŒŒë¼ë¯¸í„° ë¬´íš¨í™” ë°©ì§€) CreateShaderë¥¼ ì¬ì •ì˜í•œë‹¤.
 	void CreateShader(
 		ID3D12Device* dev,
 		ID3D12RootSignature* sceneRootSig,
