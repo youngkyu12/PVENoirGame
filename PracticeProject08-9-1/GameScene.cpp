@@ -1770,6 +1770,9 @@ void CGameScene::BuildSkinnedBatch(
                 const auto& state = gameStartData.players[k];
                 pos = state.position;
                 yaw = state.yaw;
+
+				// 플레이어별 초기 장비 세팅
+                equipComp->SetLoadout(state.weaponType);
             }
             else
             {
@@ -2729,8 +2732,23 @@ void CGameScene::AnimateObjects(float dt)
 
             }
 
+            if (auto wc = player->GetComponent<CPlayerEquipmentComponent>())
+            {
+                wc->SetLoadout(state.weaponType);
+            }
 
-
+            if (slot == m_localPlayerSlot)
+            {
+                // 로컬 플레이어로 카메라 동기화
+				auto pCamera = GetMainCamera();
+                if (pCamera)
+                {
+                    XMFLOAT3 pos = player->GetPosition();
+                    pCamera->Update(pos, dt);
+                    pCamera->SetLookAt(pos);
+                    pCamera->RegenerateViewMatrix();
+                }
+            }
         }
 
         // Enemy 좌표 업데이트
