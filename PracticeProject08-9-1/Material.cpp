@@ -23,8 +23,20 @@ void CMaterial::SetNormalTexture(shared_ptr<CTexture> pTexture)
 {
 	m_pNormalTexture = pTexture;
 	m_nNormalSrvIndex = (pTexture ? pTexture->GetBaseSrvIndex() : UINT_MAX);
-
 }
+
+void CMaterial::SetEmissiveTexture(shared_ptr<CTexture> pTexture)
+{
+	m_pEmissiveTexture = pTexture;
+	m_nEmissiveSrvIndex = ( pTexture ? pTexture->GetBaseSrvIndex() : UINT_MAX );
+}
+
+void CMaterial::SetSpecularTexture(shared_ptr<CTexture> pTexture)
+{
+	m_pSpecularTexture = pTexture;
+	m_nSpecularSrvIndex = ( pTexture ? pTexture->GetBaseSrvIndex() : UINT_MAX );
+}
+
 void CMaterial::SetShader(shared_ptr<CShader> pShader)
 {
 	if (m_pShader)
@@ -35,7 +47,7 @@ void CMaterial::SetShader(shared_ptr<CShader> pShader)
 void CMaterial::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList)
 {
 	/*
-	// ±Û·Î¹ú SRV ÀÎµ¦½º ±â¹ÝÀÌ¸é ¿©±â¼­ ¹ÙÀÎµùÇÒ °Ô ¾ø´Ù.
+	// ê¸€ë¡œë²Œ SRV ì¸ë±ìŠ¤ ê¸°ë°˜ì´ë©´ ì—¬ê¸°ì„œ ë°”ì¸ë”©í•  ê²Œ ì—†ë‹¤.
 	if (!NeedsLegacyBinding()) return;
 
 	m_pTexture->UpdateShaderVariables(pd3dCommandList);
@@ -44,20 +56,24 @@ void CMaterial::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList
 
 void CMaterial::ReleaseShaderVariables()
 {
-	if (m_pShader) m_pShader->ReleaseShaderVariables();
+	if ( m_pShader ) m_pShader->ReleaseShaderVariables();
 
-	if (m_pTexture)       m_pTexture->ReleaseShaderVariables();
-	if (m_pNormalTexture) m_pNormalTexture->ReleaseShaderVariables();
+	if ( m_pTexture )          m_pTexture->ReleaseShaderVariables();
+	if ( m_pNormalTexture )    m_pNormalTexture->ReleaseShaderVariables();
+	if ( m_pEmissiveTexture )  m_pEmissiveTexture->ReleaseShaderVariables();
+	if ( m_pSpecularTexture )  m_pSpecularTexture->ReleaseShaderVariables();
 }
 
 void CMaterial::ReleaseUploadBuffers()
 {
-	if (m_pTexture)       m_pTexture->ReleaseUploadBuffers();
-	if (m_pNormalTexture) m_pNormalTexture->ReleaseUploadBuffers();
+	if ( m_pTexture )          m_pTexture->ReleaseUploadBuffers();
+	if ( m_pNormalTexture )    m_pNormalTexture->ReleaseUploadBuffers();
+	if ( m_pEmissiveTexture )  m_pEmissiveTexture->ReleaseUploadBuffers();
+	if ( m_pSpecularTexture )  m_pSpecularTexture->ReleaseUploadBuffers();
 }
 
 bool CMaterial::NeedsLegacyBinding() const
 {
-	// baseSrvIndex°¡ ¾øÀ¸¸é(=UINT_MAX) ·¹°Å½Ã ¹ÙÀÎµù °æ·Î¸¦ ¾²´Â ÅØ½ºÃ³
+	// baseSrvIndexê°€ ì—†ìœ¼ë©´(=UINT_MAX) ë ˆê±°ì‹œ ë°”ì¸ë”© ê²½ë¡œë¥¼ ì“°ëŠ” í…ìŠ¤ì²˜
 	return (m_pTexture && m_pTexture->GetBaseSrvIndex() == UINT_MAX);
 }

@@ -62,6 +62,44 @@ BuiltAsset AssetManager::BuildAssetInternal(
 
     constexpr UINT ROOTPARAM_TEX_SRV_TABLE = ROOT_PARAMETER_GLOBAL_SRV;
 
+	auto LoadSharedTexture =
+		[ & ] (const std::string& texName) -> std::shared_ptr<CTexture>
+		{
+			if ( texName.empty() )
+				return std::shared_ptr<CTexture>();
+
+			const std::wstring texPath = ResolveTexturePath(
+				desc.type,
+				desc.textureRoot,
+				"",
+				texName
+			);
+
+			const std::string texKey(texPath.begin(), texPath.end());
+
+			auto texIt = s_textureCache.find(texKey);
+			if ( texIt != s_textureCache.end() )
+				return texIt->second;
+
+			auto tex = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
+			tex->LoadTextureFromFile(
+				device,
+				cmd,
+				texPath.c_str(),
+				RESOURCE_TEXTURE2D,
+				0
+			);
+
+			CScene::m_pDescriptorHeap->CreateShaderResourceViews(
+				device,
+				tex.get(),
+				ROOTPARAM_TEX_SRV_TABLE
+			);
+
+			s_textureCache.emplace(texKey, tex);
+			return tex;
+		};
+
     for (size_t si = 0; si < mesh->m_SubMeshes.size(); ++si)
     {
         auto& sm = mesh->m_SubMeshes[si];
@@ -91,90 +129,30 @@ BuiltAsset AssetManager::BuildAssetInternal(
         assert(materialId < MAX_MATERIALS);
 
         mat->SetMaterialID(materialId);
+		mat->SetDiffuseTextureName(sm.diffuseTextureName);
+		mat->SetNormalTextureName(sm.normalTextureName);
+		mat->SetEmissiveTextureName(sm.emissiveTextureName);
+		mat->SetSpecularTextureName(sm.specularTextureName);
 
-        std::shared_ptr<CTexture> diffuseTex;
-        {
-            const std::wstring diffusePath = ResolveTexturePath(
-                desc.type,
-                desc.textureRoot,
-                sm.materialName,
-                sm.diffuseTextureName
-            );
+		{
+			auto diffuseTex = LoadSharedTexture(sm.diffuseTextureName);
+			mat->SetTexture(diffuseTex);
+		}
 
-            const std::string diffuseKey(diffusePath.begin(), diffusePath.end());
+		{
+			auto normalTex = LoadSharedTexture(sm.normalTextureName);
+			mat->SetNormalTexture(normalTex);
+		}
 
-            auto texIt = s_textureCache.find(diffuseKey);
-            if (texIt != s_textureCache.end())
-            {
-                diffuseTex = texIt->second;
-            }
-            else
-            {
-                diffuseTex = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
-                diffuseTex->LoadTextureFromFile(
-                    device,
-                    cmd,
-                    diffusePath.c_str(),
-                    RESOURCE_TEXTURE2D,
-                    0
-                );
+		{
+			auto emissiveTex = LoadSharedTexture(sm.emissiveTextureName);
+			mat->SetEmissiveTexture(emissiveTex);
+		}
 
-                CScene::m_pDescriptorHeap->CreateShaderResourceViews(
-                    device,
-                    diffuseTex.get(),
-                    ROOTPARAM_TEX_SRV_TABLE
-                );
-
-                s_textureCache.emplace(diffuseKey, diffuseTex);
-            }
-
-            mat->SetTexture(diffuseTex);
-        }
-
-        if (!sm.normalTextureName.empty())
-        {
-            std::shared_ptr<CTexture> normalTex;
-
-            const std::wstring normalPath = ResolveTexturePath(
-                desc.type,
-                desc.textureRoot,
-                sm.materialName,
-                sm.normalTextureName
-            );
-
-            const std::string normalKey(normalPath.begin(), normalPath.end());
-
-            auto texIt = s_textureCache.find(normalKey);
-            if (texIt != s_textureCache.end())
-            {
-                normalTex = texIt->second;
-            }
-            else
-            {
-                normalTex = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
-                normalTex->LoadTextureFromFile(
-                    device,
-                    cmd,
-                    normalPath.c_str(),
-                    RESOURCE_TEXTURE2D,
-                    0
-                );
-
-                CScene::m_pDescriptorHeap->CreateShaderResourceViews(
-                    device,
-                    normalTex.get(),
-                    ROOTPARAM_TEX_SRV_TABLE
-                );
-
-                s_textureCache.emplace(normalKey, normalTex);
-            }
-
-            mat->SetNormalTexture(normalTex);
-        }
-        else
-        {
-            mat->SetNormalTexture(std::shared_ptr<CTexture>());
-        }
+		{
+			auto specularTex = LoadSharedTexture(sm.specularTextureName);
+			mat->SetSpecularTexture(specularTex);
+		}
 
         sm.material = mat;
         sm.materialId = materialId;
@@ -186,29 +164,63 @@ BuiltAsset AssetManager::BuildAssetInternal(
 }
 
 void AssetManager::ApplyBuiltAssetToSceneMaterials(
-    const BuiltAsset& asset,
-    MATERIALS* pMaterials)
+	const BuiltAsset& asset,
+	MATERIALS* pMaterials)
 {
-    if (!pMaterials) return;
-    if (!asset.mesh) return;
+	if ( !pMaterials ) return;
+	if ( !asset.mesh ) return;
 
-    for (size_t si = 0; si < asset.mesh->m_SubMeshes.size(); ++si)
-    {
-        const auto& sm = asset.mesh->m_SubMeshes[si];
-        if (!sm.material) continue;
+	for ( size_t si = 0; si < asset.mesh->m_SubMeshes.size(); ++si )
+	{
+		const auto& sm = asset.mesh->m_SubMeshes[si];
+		if ( !sm.material ) continue;
 
-        const UINT materialId = sm.materialId;
-        if (materialId >= MAX_MATERIALS) continue;
+		const UINT materialId = sm.materialId;
+		if ( materialId >= MAX_MATERIALS ) continue;
 
-        const UINT diffSrvIndex = sm.material->GetDiffuseSrvIndex();
-        const UINT normSrvIndex = sm.material->GetNormalSrvIndex();
+		const UINT diffSrvIndex = sm.material->GetDiffuseSrvIndex();
+		const UINT normSrvIndex = sm.material->GetNormalSrvIndex();
+		const UINT emisSrvIndex = sm.material->GetEmissiveSrvIndex();
+		const UINT specSrvIndex = sm.material->GetSpecularSrvIndex();
 
-        const UINT packedDiff = (diffSrvIndex == UINT_MAX) ? 0u : (diffSrvIndex + 1u);
-        const UINT packedNorm = (normSrvIndex == UINT_MAX) ? 0u : (normSrvIndex + 1u);
+		const UINT packedDiff = ( diffSrvIndex == UINT_MAX ) ? 0u : ( diffSrvIndex + 1u );
+		const UINT packedNorm = ( normSrvIndex == UINT_MAX ) ? 0u : ( normSrvIndex + 1u );
+		const UINT packedEmis = ( emisSrvIndex == UINT_MAX ) ? 0u : ( emisSrvIndex + 1u );
+		const UINT packedSpec = ( specSrvIndex == UINT_MAX ) ? 0u : ( specSrvIndex + 1u );
 
-        pMaterials->m_pReflections[materialId].m_xmn4TextureIndices.x = packedDiff;
-        pMaterials->m_pReflections[materialId].m_xmn4TextureIndices.y = packedNorm;
-    }
+		MATERIAL& dst = pMaterials->m_pReflections[materialId];
+
+		dst.m_xmf4Ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+		dst.m_xmf4Diffuse = sm.diffuseColor;
+		dst.m_xmf4Specular = sm.specularColor;
+		dst.m_xmf4Emissive = sm.emissiveColor;
+
+		dst.m_xmn4TextureIndices = XMUINT4(
+			packedDiff,
+			packedNorm,
+			packedEmis,
+			packedSpec
+		);
+
+		dst.m_xmf4DiffuseUVST = sm.diffuseTransform.uvST;
+		dst.m_xmf4NormalUVST = sm.normalTransform.uvST;
+		dst.m_xmf4EmissiveUVST = sm.emissiveTransform.uvST;
+		dst.m_xmf4SpecularUVST = sm.specularTransform.uvST;
+
+		dst.m_xmn4WrapModes0 = XMUINT4(
+			sm.diffuseTransform.wrapModeU,
+			sm.diffuseTransform.wrapModeV,
+			sm.normalTransform.wrapModeU,
+			sm.normalTransform.wrapModeV
+		);
+
+		dst.m_xmn4WrapModes1 = XMUINT4(
+			sm.emissiveTransform.wrapModeU,
+			sm.emissiveTransform.wrapModeV,
+			sm.specularTransform.wrapModeU,
+			sm.specularTransform.wrapModeV
+		);
+	}
 }
 
 std::string AssetManager::MakeAssetKey(const AssetBuildDesc& desc)
