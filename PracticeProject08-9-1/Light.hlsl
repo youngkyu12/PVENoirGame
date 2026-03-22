@@ -91,15 +91,24 @@ float3 SchlickFresnel(float3 R0, float3 vNormal, float3 vToLight)
     return reflectPercent;
 }
 
-float3 BlinnPhong(float3 fDiffuseFactor, float3 vToLight, float3 vNormal, float3 vToCamera, float4 texColor)
+float3 BlinnPhong(
+    float3 fDiffuseFactor,
+    float3 vToLight,
+    float3 vNormal,
+    float3 vToCamera,
+    float4 texColor,
+    float3 specularColor,
+    float shininess)
 {
-    MATERIAL mat = gMaterials[gnMaterialID];
-
-    const float shininess = mat.m_cSpecular.a;
-    const float3 specularColor = mat.m_cSpecular.rgb;
-
     if (shininess <= 0.0f)
         return texColor.rgb * fDiffuseFactor;
+
+    if (specularColor.r <= 0.0f &&
+        specularColor.g <= 0.0f &&
+        specularColor.b <= 0.0f)
+    {
+        return texColor.rgb * fDiffuseFactor;
+    }
 
     float3 vHalf = normalize(vToCamera + vToLight);
 
@@ -114,7 +123,13 @@ float3 BlinnPhong(float3 fDiffuseFactor, float3 vToLight, float3 vNormal, float3
     return (texColor.rgb + specAlbedo) * fDiffuseFactor;
 }
 
-float4 DirectionalLight(int nIndex, float3 vNormal, float3 vToCamera, float4 texColor)
+float4 DirectionalLight(
+    int nIndex,
+    float3 vNormal,
+    float3 vToCamera,
+    float4 texColor,
+    float3 specularColor,
+    float shininess)
 {
     MATERIAL mat = gMaterials[gnMaterialID];
 
@@ -122,7 +137,15 @@ float4 DirectionalLight(int nIndex, float3 vNormal, float3 vToCamera, float4 tex
     float ndotl = max(dot(vToLight, vNormal), 0.0f);
 
     float3 lightStrength = gLights[nIndex].m_cDiffuse.rgb * ndotl;
-    float3 litColor = BlinnPhong(lightStrength, vToLight, vNormal, vToCamera, texColor);
+    float3 litColor = BlinnPhong(
+        lightStrength,
+        vToLight,
+        vNormal,
+        vToCamera,
+        texColor,
+        specularColor,
+        shininess
+    );
 
     float3 ambientColor = gLights[nIndex].m_cAmbient.rgb * mat.m_cAmbient.rgb;
 
@@ -152,79 +175,105 @@ float4 DirectionalLight(int nIndex, float3 vNormal, float3 vToCamera, float4 tex
 //    return ((gLights[nIndex].m_cAmbient * gMaterials[gnMaterialID].m_cAmbient) + (gLights[nIndex].m_cDiffuse * fDiffuseFactor * gMaterials[gnMaterialID].m_cDiffuse) + (gLights[nIndex].m_cSpecular * fSpecularFactor * gMaterials[gnMaterialID].m_cSpecular));
 }
 
-float4 PointLight(int nIndex, float3 vPosition, float3 vNormal, float3 vToCamera)
+float4 PointLight(
+    int nIndex,
+    float3 vPosition,
+    float3 vNormal,
+    float3 vToCamera,
+    float4 texColor,
+    float3 specularColor,
+    float shininess)
 {
-	float3 vToLight = gLights[nIndex].m_vPosition - vPosition;
-	float fDistance = length(vToLight);
-	if (fDistance <= gLights[nIndex].m_fRange)
-	{
-		float fSpecularFactor = 0.0f;
-		vToLight /= fDistance;
-		float fDiffuseFactor = dot(vToLight, vNormal);
-		if (fDiffuseFactor > 0.0f)
-		{
-			if (gMaterials[gnMaterialID].m_cSpecular.a != 0.0f)
-			{
-#ifdef _WITH_REFLECT
-				float3 vReflect = reflect(-vToLight, vNormal);
-				fSpecularFactor = pow(max(dot(vReflect, vToCamera), 0.0f), gMaterials[gnMaterialID].m_cSpecular.a);
-#else
-#ifdef _WITH_LOCAL_VIEWER_HIGHLIGHTING
-				float3 vHalf = normalize(vToCamera + vToLight);
-#else
-				float3 vHalf = float3(0.0f, 1.0f, 0.0f);
-#endif
-				fSpecularFactor = pow(max(dot(vHalf, vNormal), 0.0f), gMaterials[gnMaterialID].m_cSpecular.a);
-#endif
-			}
-		}
-		float fAttenuationFactor = 1.0f / dot(gLights[nIndex].m_vAttenuation, float3(1.0f, fDistance, fDistance*fDistance));
+    MATERIAL mat = gMaterials[gnMaterialID];
 
-		return(((gLights[nIndex].m_cAmbient * gMaterials[gnMaterialID].m_cAmbient) + (gLights[nIndex].m_cDiffuse * fDiffuseFactor * gMaterials[gnMaterialID].m_cDiffuse) + (gLights[nIndex].m_cSpecular * fSpecularFactor * gMaterials[gnMaterialID].m_cSpecular)) * fAttenuationFactor);
-	}
-	return(float4(0.0f, 0.0f, 0.0f, 0.0f));
+    float3 vToLight = gLights[nIndex].m_vPosition - vPosition;
+    float fDistance = length(vToLight);
+
+    if (fDistance <= gLights[nIndex].m_fRange)
+    {
+        vToLight /= fDistance;
+
+        float fDiffuseFactor = max(dot(vToLight, vNormal), 0.0f);
+        float3 lightStrength = gLights[nIndex].m_cDiffuse.rgb * fDiffuseFactor;
+
+        float3 litColor = BlinnPhong(
+            lightStrength,
+            vToLight,
+            vNormal,
+            vToCamera,
+            texColor,
+            specularColor,
+            shininess
+        );
+
+        float3 ambientColor = gLights[nIndex].m_cAmbient.rgb * mat.m_cAmbient.rgb;
+        float fAttenuationFactor =
+            1.0f / dot(gLights[nIndex].m_vAttenuation, float3(1.0f, fDistance, fDistance * fDistance));
+
+        return float4(ambientColor + litColor, 0.0f) * fAttenuationFactor;
+    }
+
+    return float4(0.0f, 0.0f, 0.0f, 0.0f);
 }
 
-float4 SpotLight(int nIndex, float3 vPosition, float3 vNormal, float3 vToCamera)
+float4 SpotLight(
+    int nIndex,
+    float3 vPosition,
+    float3 vNormal,
+    float3 vToCamera,
+    float4 texColor,
+    float3 specularColor,
+    float shininess)
 {
-	float3 vToLight = gLights[nIndex].m_vPosition - vPosition;
-	float fDistance = length(vToLight);
-	if (fDistance <= gLights[nIndex].m_fRange)
-	{
-		float fSpecularFactor = 0.0f;
-		vToLight /= fDistance;
-		float fDiffuseFactor = dot(vToLight, vNormal);
-		if (fDiffuseFactor > 0.0f)
-		{
-			if (gMaterials[gnMaterialID].m_cSpecular.a != 0.0f)
-			{
-#ifdef _WITH_REFLECT
-				float3 vReflect = reflect(-vToLight, vNormal);
-				fSpecularFactor = pow(max(dot(vReflect, vToCamera), 0.0f), gMaterials[gnMaterialID].m_cSpecular.a);
-#else
-#ifdef _WITH_LOCAL_VIEWER_HIGHLIGHTING
-				float3 vHalf = normalize(vToCamera + vToLight);
-#else
-				float3 vHalf = float3(0.0f, 1.0f, 0.0f);
-#endif
-				fSpecularFactor = pow(max(dot(vHalf, vNormal), 0.0f), gMaterials[gnMaterialID].m_cSpecular.a);
-#endif
-			}
-		}
+    MATERIAL mat = gMaterials[gnMaterialID];
+
+    float3 vToLight = gLights[nIndex].m_vPosition - vPosition;
+    float fDistance = length(vToLight);
+
+    if (fDistance <= gLights[nIndex].m_fRange)
+    {
+        vToLight /= fDistance;
+
+        float fDiffuseFactor = max(dot(vToLight, vNormal), 0.0f);
+        float3 lightStrength = gLights[nIndex].m_cDiffuse.rgb * fDiffuseFactor;
+
+        float3 litColor = BlinnPhong(
+            lightStrength,
+            vToLight,
+            vNormal,
+            vToCamera,
+            texColor,
+            specularColor,
+            shininess
+        );
+
 #ifdef _WITH_THETA_PHI_CONES
-		float fAlpha = max(dot(-vToLight, gLights[nIndex].m_vDirection), 0.0f);
-		float fSpotFactor = pow(max(((fAlpha - gLights[nIndex].m_fPhi) / (gLights[nIndex].m_fTheta - gLights[nIndex].m_fPhi)), 0.0f), gLights[nIndex].m_fFalloff);
+        float fAlpha = max(dot(-vToLight, gLights[nIndex].m_vDirection), 0.0f);
+        float fSpotFactor = pow(
+            max(((fAlpha - gLights[nIndex].m_fPhi) / (gLights[nIndex].m_fTheta - gLights[nIndex].m_fPhi)), 0.0f),
+            gLights[nIndex].m_fFalloff
+        );
 #else
-		float fSpotFactor = pow(max(dot(-vToLight, gLights[i].m_vDirection), 0.0f), gLights[i].m_fFalloff);
+        float fSpotFactor = pow(max(dot(-vToLight, gLights[nIndex].m_vDirection), 0.0f), gLights[nIndex].m_fFalloff);
 #endif
-		float fAttenuationFactor = 1.0f / dot(gLights[nIndex].m_vAttenuation, float3(1.0f, fDistance, fDistance*fDistance));
 
-		return(((gLights[nIndex].m_cAmbient * gMaterials[gnMaterialID].m_cAmbient) + (gLights[nIndex].m_cDiffuse * fDiffuseFactor * gMaterials[gnMaterialID].m_cDiffuse) + (gLights[nIndex].m_cSpecular * fSpecularFactor * gMaterials[gnMaterialID].m_cSpecular)) * fAttenuationFactor * fSpotFactor);
-	}
-	return(float4(0.0f, 0.0f, 0.0f, 0.0f));
+        float3 ambientColor = gLights[nIndex].m_cAmbient.rgb * mat.m_cAmbient.rgb;
+        float fAttenuationFactor =
+            1.0f / dot(gLights[nIndex].m_vAttenuation, float3(1.0f, fDistance, fDistance * fDistance));
+
+        return float4(ambientColor + litColor, 0.0f) * fAttenuationFactor * fSpotFactor;
+    }
+
+    return float4(0.0f, 0.0f, 0.0f, 0.0f);
 }
 
-float4 Lighting(float3 vPosition, float3 vNormal, float4 texColor, float3 emissiveColor)
+float4 Lighting(
+    float3 vPosition,
+    float3 vNormal,
+    float4 texColor,
+    float3 emissiveColor,
+    float3 specularColor,
+    float shininess)
 {
     MATERIAL mat = gMaterials[gnMaterialID];
 
@@ -239,15 +288,38 @@ float4 Lighting(float3 vPosition, float3 vNormal, float4 texColor, float3 emissi
         {
             if (gLights[i].m_nType == DIRECTIONAL_LIGHT)
             {
-                cColor += DirectionalLight(i, vNormal, vToCamera, texColor);
+                cColor += DirectionalLight(
+                    i,
+                    vNormal,
+                    vToCamera,
+                    texColor,
+                    specularColor,
+                    shininess
+                );
             }
             //else if (gLights[i].m_nType == POINT_LIGHT)
             //{
-            //    cColor += PointLight(i, vPosition, vNormal, vToCamera);
+            //    cColor += PointLight(
+            //        i,
+            //        vPosition,
+            //        vNormal,
+            //        vToCamera,
+            //        texColor,
+            //        specularColor,
+            //        shininess
+            //    );
             //}
             //else if (gLights[i].m_nType == SPOT_LIGHT)
             //{
-            //    cColor += SpotLight(i, vPosition, vNormal, vToCamera);
+            //    cColor += SpotLight(
+            //        i,
+            //        vPosition,
+            //        vNormal,
+            //        vToCamera,
+            //        texColor,
+            //        specularColor,
+            //        shininess
+            //    );
             //}
         }
     }

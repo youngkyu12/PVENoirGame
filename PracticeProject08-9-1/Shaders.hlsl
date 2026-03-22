@@ -240,6 +240,7 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
     float2 diffuseUV = GetDiffuseUV(input.uv);
     float2 normalUV = GetNormalUV(input.uv);
     float2 emissiveUV = GetEmissiveUV(input.uv);
+    float2 specularUV = GetSpecularUV(input.uv);
 
     float4 diffuseSample = SampleTextureRGBA(
         mat.TextureIndices.x,
@@ -252,13 +253,28 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
         emissiveUV,
         float4(1.0f, 1.0f, 1.0f, 1.0f)
     );
+    float4 specularSample = SampleTextureRGBA(
+        mat.TextureIndices.w,
+        specularUV,
+        float4(1.0f, 1.0f, 1.0f, 1.0f)
+    );
 
     float4 texColor = diffuseSample * mat.m_cDiffuse;
     float3 normalW = GetNormalWFromMap(mat.TextureIndices.y, input.normalW, input.tangentW, normalUV);
     float3 emissiveColor = emissiveSample.rgb * mat.m_cEmissive.rgb;
 
-    float4 illumination = Lighting(input.positionW, normalW, texColor, emissiveColor);
+    float3 specularColor = specularSample.rgb * mat.m_cSpecular.rgb;
+    float shininess = mat.m_cSpecular.a;
 
+    float4 illumination = Lighting(
+        input.positionW,
+        normalW,
+        texColor,
+        emissiveColor,
+        specularColor,
+        shininess
+    );
+    
     output.cTexture = texColor;
     output.cIllumination = illumination;
     output.color = illumination;
