@@ -74,6 +74,14 @@ void Room::StartGame(bool ready, uint32 index)
 	static bool p_ready[4] = { false, false, false, false };
 	p_ready[index] = ready;
 
+
+	players[index]->SetActive(ready);
+	bool readyCount = 1;
+	for(auto& p : players)
+	{
+		readyCount &= p.second->IsActive();
+	}
+
 	static Atomic<bool> gameStarted = false;
 
 	 //if(p_ready[0] && p_ready[1] && p_ready[2] && p_ready[3])1
@@ -315,16 +323,23 @@ void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
 	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(gameStartPkt);
 	GRoom->DoAsync(&Room::BroadCastAll, sendBuffer);
 
-	cout << "Game Started!" << endl;
 
-	// 게임 시작 로직 (예: 타이머 시작, 적 스폰 등)
-	GRoom->DoTimer(100, &Room::TickAdvance);
+	CheckClientReady();
 }
 
 void Room::MakeEnterGameStruct(Protocol::S_ENTER_GAME enterGamePkt)
 {
 	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(enterGamePkt);
 	BroadCastAll(sendBuffer);
+}
+
+void Room::CheckClientReady()
+{
+	//TODO: 모든 플레이어가 ready를 보냈는지 확인하는 함수 정의
+	cout << "Game Started!" << endl;
+
+	// 게임 시작 로직 (예: 타이머 시작, 적 스폰 등)
+	GRoom->DoTimer(100, &Room::TickAdvance);
 }
 
 GameAreaRef Room::GetArea(uint32 areaId)
