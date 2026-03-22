@@ -16,6 +16,51 @@ std::unordered_map<std::string, BuiltAsset> AssetManager::s_assetCache;
 std::unordered_map<std::string, std::shared_ptr<CMaterial>> AssetManager::s_materialCache;
 std::unordered_map<std::string, std::shared_ptr<CTexture>> AssetManager::s_textureCache;
 UINT AssetManager::s_nextMaterialID = 0;
+namespace
+{
+	void AppendFloatToKey(std::string& out, float v)
+	{
+		out += std::to_string(v);
+		out += "|";
+	}
+
+	void AppendUIntToKey(std::string& out, UINT v)
+	{
+		out += std::to_string(v);
+		out += "|";
+	}
+
+	void AppendFloat4ToKey(std::string& out, const XMFLOAT4& v)
+	{
+		AppendFloatToKey(out, v.x);
+		AppendFloatToKey(out, v.y);
+		AppendFloatToKey(out, v.z);
+		AppendFloatToKey(out, v.w);
+	}
+
+	void AppendTexTransformToKey(std::string& out, const BinMaterialTexTransform& t)
+	{
+		AppendFloat4ToKey(out, t.uvST);
+		AppendUIntToKey(out, t.wrapModeU);
+		AppendUIntToKey(out, t.wrapModeV);
+	}
+
+	std::string BuildMaterialFingerprint(const SubMesh& sm)
+	{
+		std::string key;
+
+		AppendFloat4ToKey(key, sm.diffuseColor);
+		AppendFloat4ToKey(key, sm.emissiveColor);
+		AppendFloat4ToKey(key, sm.specularColor);
+
+		AppendTexTransformToKey(key, sm.diffuseTransform);
+		AppendTexTransformToKey(key, sm.normalTransform);
+		AppendTexTransformToKey(key, sm.emissiveTransform);
+		AppendTexTransformToKey(key, sm.specularTransform);
+
+		return key;
+	}
+}
 
 BuiltAsset AssetManager::BuildAsset(
     ID3D12Device* device,
@@ -107,14 +152,13 @@ BuiltAsset AssetManager::BuildAssetInternal(
         if (sm.materialName.empty())
             continue;
 
+		const std::string materialFingerprint = BuildMaterialFingerprint(sm);
+
 		const std::string materialKey = MakeMaterialKey(
-	desc.type,
-	desc.textureRoot,
-	sm.materialName,
-	sm.diffuseTextureName,
-	sm.normalTextureName,
-	sm.emissiveTextureName,
-	sm.specularTextureName
+			desc.type,
+			desc.textureRoot,
+			sm.materialName,
+			materialFingerprint
 		);
 
         auto matIt = s_materialCache.find(materialKey);
@@ -237,19 +281,13 @@ std::string AssetManager::MakeMaterialKey(
 	AssetType type,
 	const std::string& textureRoot,
 	const std::string& materialName,
-	const std::string& diffuseTextureName,
-	const std::string& normalTextureName,
-	const std::string& emissiveTextureName,
-	const std::string& specularTextureName)
+	const std::string& materialFingerprint)
 {
 	return
 		std::to_string(( int ) type) + "|" +
 		textureRoot + "|" +
 		materialName + "|" +
-		diffuseTextureName + "|" +
-		normalTextureName + "|" +
-		emissiveTextureName + "|" +
-		specularTextureName;
+		materialFingerprint;
 }
 
 std::wstring AssetManager::ResolveTexturePath(

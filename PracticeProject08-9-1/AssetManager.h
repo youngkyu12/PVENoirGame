@@ -78,13 +78,10 @@ private:
 
     static std::string MakeAssetKey(const AssetBuildDesc& desc);
 	static std::string MakeMaterialKey(
-	 AssetType type,
-	 const std::string& textureRoot,
-	 const std::string& materialName,
-	 const std::string& diffuseTextureName,
-	 const std::string& normalTextureName,
-	 const std::string& emissiveTextureName,
-	 const std::string& specularTextureName);
+	AssetType type,
+	const std::string& textureRoot,
+	const std::string& materialName,
+	const std::string& materialFingerprint);
 
     static std::wstring ResolveTexturePath(
         AssetType type,
