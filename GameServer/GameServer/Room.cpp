@@ -157,10 +157,24 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	constexpr int kDirRight		= 1 << 3;
 	constexpr int kDirRButton	= 1 << 6; // 옵션
 	constexpr int kDirLButton	= 1 << 7; // 옵션
+	constexpr int kDirRun		= 1 << 8; // 옵션
+	constexpr int kDirRoll		= 1 << 9; // 옵션
+
 
 	Protocol::AnimationType prevAnimState = player->GetAnimState();
 
-	if ((keyCodes & kDirLButton) != 0)
+	const int isRolling = player->GetAnimState() == Protocol::ANIMATION_TYPE_ROLL;
+
+	int notPassive = kDirRoll & (keyCodes & (kDirForward | kDirBackward | kDirLeft | kDirRight))
+		^ isRolling;
+
+	notPassive ^= (player->GetAnimState() == Protocol::ANIMATION_TYPE_ATTACK) &
+		(player->GetWeaponState() % 2 == 0);
+
+	if (player->GetAnimState() != prevAnimState)
+		player->SetAnimTick(tick); // 애니메이션 상태가 바뀌면 현재의 server tick을 넣어줌
+
+	if (((keyCodes & kDirLButton) ^ notPassive) != 0)
 		player->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
 	else if (prevAnimState != Protocol::ANIMATION_TYPE_ATTACK)
 		player->SetAnimState(keyCodes & (kDirForward | kDirBackward | kDirLeft | kDirRight) ?
@@ -168,8 +182,8 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 			Protocol::ANIMATION_TYPE_IDLE);
 
 
-	if(player->GetAnimState() != prevAnimState)
-		player->SetAnimTick(tick); // 애니메이션 상태가 바뀌면 현재의 server tick을 넣어줌
+
+
 
 	//if (keyCodes & (kDirForward | kDirBackward))
 	//	player->SetAnimState(Protocol::ANIMATION_TYPE_WALK);
