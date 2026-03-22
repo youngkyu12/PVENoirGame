@@ -46,27 +46,103 @@ cbuffer cbBonePalette : register(b7)
 
 #include "Light.hlsl"
 
+static const uint INVALID_TEXTURE_INDEX = 0xffffffffu;
+
+uint DecodePackedTextureIndex(uint packedIndex)
+{
+    return (packedIndex == 0u) ? INVALID_TEXTURE_INDEX : (packedIndex - 1u);
+}
+
+float ApplyWrap1D(float value, uint wrapMode)
+{
+    return (wrapMode == 1u) ? saturate(value) : frac(value);
+}
+
+float2 ApplyWrap2D(float2 uv, uint wrapModeU, uint wrapModeV)
+{
+    return float2(
+        ApplyWrap1D(uv.x, wrapModeU),
+        ApplyWrap1D(uv.y, wrapModeV)
+    );
+}
+
+float2 ApplyUVST(float2 uv, float4 uvST)
+{
+    return uv * uvST.xy + uvST.zw;
+}
+
+float2 GetDiffuseUV(float2 baseUV)
+{
+    MATERIAL mat = gMaterials[gnMaterialID];
+    return ApplyWrap2D(
+        ApplyUVST(baseUV, mat.DiffuseUVST),
+        mat.WrapModes0.x,
+        mat.WrapModes0.y
+    );
+}
+
+float2 GetNormalUV(float2 baseUV)
+{
+    MATERIAL mat = gMaterials[gnMaterialID];
+    return ApplyWrap2D(
+        ApplyUVST(baseUV, mat.NormalUVST),
+        mat.WrapModes0.z,
+        mat.WrapModes0.w
+    );
+}
+
+float2 GetEmissiveUV(float2 baseUV)
+{
+    MATERIAL mat = gMaterials[gnMaterialID];
+    return ApplyWrap2D(
+        ApplyUVST(baseUV, mat.EmissiveUVST),
+        mat.WrapModes1.x,
+        mat.WrapModes1.y
+    );
+}
+
+float2 GetSpecularUV(float2 baseUV)
+{
+    MATERIAL mat = gMaterials[gnMaterialID];
+    return ApplyWrap2D(
+        ApplyUVST(baseUV, mat.SpecularUVST),
+        mat.WrapModes1.z,
+        mat.WrapModes1.w
+    );
+}
+
+float4 SampleTextureRGBA(uint packedIndex, float2 uv, float4 fallbackColor)
+{
+    uint textureIndex = DecodePackedTextureIndex(packedIndex);
+
+    if (textureIndex == INVALID_TEXTURE_INDEX)
+        return fallbackColor;
+
+    if (textureIndex >= MAX_GLOBAL_SRVS)
+        return fallbackColor;
+
+    return gtxtGlobalTextures[textureIndex].Sample(gssDefaultSamplerState, uv);
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 float3 GetNormalWFromMap(uint packedNormal, float3 normalW_in, float4 tangentW_in, float2 uv)
 {
     float3 N = normalize(normalW_in);
 
-    if (packedNormal == 0)
+    uint normalIndex = DecodePackedTextureIndex(packedNormal);
+    if (normalIndex == INVALID_TEXTURE_INDEX)
         return N;
 
-    uint normalIndex = packedNormal - 1;
     if (normalIndex >= MAX_GLOBAL_SRVS)
         return N;
 
     float3 nTS = gtxtGlobalTextures[normalIndex].Sample(gssDefaultSamplerState, uv).xyz;
     nTS = nTS * 2.0f - 1.0f;
-    //nTS.y = -nTS.y;
 
     float3 T = normalize(tangentW_in.xyz);
     T = normalize(T - N * dot(T, N));
 
     float3 B = normalize(cross(N, T) * tangentW_in.w);
-    //float3 B = normalize(cross(T, N) * tangentW_in.w);
 
     float3 nW = normalize(T * nTS.x + B * nTS.y + N * nTS.z);
     return nW;
@@ -98,18 +174,17 @@ VS_TEXTURED_OUTPUT VSTextured(VS_TEXTURED_INPUT input)
 
 float4 PSTextured(VS_TEXTURED_OUTPUT input, uint nPrimitiveID : SV_PrimitiveID) : SV_TARGET
 {
-    uint packed = gMaterials[gnMaterialID].TextureIndices.x;
+    MATERIAL mat = gMaterials[gnMaterialID];
 
-    if (packed == 0)
-        return float4(1, 0, 1, 1);
+    float2 diffuseUV = GetDiffuseUV(input.uv);
 
-    uint diffuseIndex = packed - 1;
+    float4 diffuseSample = SampleTextureRGBA(
+        mat.TextureIndices.x,
+        diffuseUV,
+        float4(1.0f, 1.0f, 1.0f, 1.0f)
+    );
 
-    if (diffuseIndex >= MAX_GLOBAL_SRVS)
-        return float4(1, 0, 0, 1);
-
-    return gtxtGlobalTextures[diffuseIndex]
-            .Sample(gssDefaultSamplerState, input.uv);
+    return diffuseSample * mat.m_cDiffuse;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -160,43 +235,33 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
 {
     PS_MULTIPLE_RENDER_TARGETS_OUTPUT output;
 
-    uint packed = gMaterials[gnMaterialID].TextureIndices.x;
+    MATERIAL mat = gMaterials[gnMaterialID];
 
-    if (packed == 0)
-    {
-        output.color = float4(1, 0, 1, 1);
-        output.cTexture = output.color;
-        output.cIllumination = float4(0, 0, 0, 0);
-        output.normal = float4(0, 0, 1, 1);
-        output.zDepth = input.position.z;
-        return output;
-    }
+    float2 diffuseUV = GetDiffuseUV(input.uv);
+    float2 normalUV = GetNormalUV(input.uv);
+    float2 emissiveUV = GetEmissiveUV(input.uv);
 
-    uint diffuseIndex = packed - 1;
-    
-    if (diffuseIndex >= MAX_GLOBAL_SRVS)
-    {
-        output.color = float4(1, 0, 0, 1);
-        output.cTexture = output.color;
-        output.cIllumination = float4(0, 0, 0, 0);
-        output.normal = float4(0, 0, 1, 1);
-        output.zDepth = input.position.z;
-        return output;
-    }
+    float4 diffuseSample = SampleTextureRGBA(
+        mat.TextureIndices.x,
+        diffuseUV,
+        float4(1.0f, 1.0f, 1.0f, 1.0f)
+    );
 
-    float4 texColor =
-        gtxtGlobalTextures[diffuseIndex]
-            .Sample(gssDefaultSamplerState, input.uv);
+    float4 emissiveSample = SampleTextureRGBA(
+        mat.TextureIndices.z,
+        emissiveUV,
+        float4(1.0f, 1.0f, 1.0f, 1.0f)
+    );
 
-    uint packedN = gMaterials[gnMaterialID].TextureIndices.y;
-    float3 normalW = GetNormalWFromMap(packedN, input.normalW, input.tangentW, input.uv);
-    float4 illumination = Lighting(input.positionW, normalW, texColor);
+    float4 texColor = diffuseSample * mat.m_cDiffuse;
+    float3 normalW = GetNormalWFromMap(mat.TextureIndices.y, input.normalW, input.tangentW, normalUV);
+    float3 emissiveColor = emissiveSample.rgb * mat.m_cEmissive.rgb;
+
+    float4 illumination = Lighting(input.positionW, normalW, texColor, emissiveColor);
 
     output.cTexture = texColor;
     output.cIllumination = illumination;
-    //output.color = texColor;  // 조명 X
-    output.color = illumination;    // 조명 O
-    //output.color = float4(normalW * 0.5f + 0.5f, 1.0f); // 노멀값 색상으로 출력
+    output.color = illumination;
     output.normal = float4(normalW * 0.5f + 0.5f, 1.0f);
     output.zDepth = input.position.z;
 
