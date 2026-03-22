@@ -269,7 +269,196 @@ void CAnimController::Update(float dt)
 
 void CAnimController::NetworkUpdate(float dt)
 {
+    CAnimator* anim = nullptr;
+
+    if (auto* animComp = m_pOwner->GetComponent<CAnimatorComponent>())
+        anim = animComp->GetAnimator();
+
+    if (!anim)
+        anim = m_pOwner->GetAnimator();
+
+    if (!anim) return;
+
+    // ------------------------------------------------------------
+    // Attack request
+    // ------------------------------------------------------------
+
+    constexpr float kBlendTime = 0.15f;
+
+    if (m_state != animPrevState)
+    {
+        if (m_state == EAnimState::Attack)
+        {
+            EActionPhase nextPhase = EActionPhase::None;
+            std::string atkClip = ResolveAttackStartClip(nextPhase);
+
+            if (atkClip.empty() || !anim->HasClip(atkClip))
+                atkClip = m_attackClip;
+
+            if (!atkClip.empty() && anim->HasClip(atkClip))
+            {
+                if (!anim->CrossFade(atkClip, kBlendTime, false, m_startTime))
+                    anim->Play(atkClip, false, m_startTime);
+
+                m_actionPhase = nextPhase;
+            }
+            return;
+        }
+
+        std::string targetClip = ResolveLocomotionClip(m_state);
+        if (targetClip.empty() || !anim->HasClip(targetClip))
+            targetClip = ResolveIdleClip();
+
+        if (!targetClip.empty() && anim->HasClip(targetClip))
+        {
+            if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
+                anim->Play(targetClip, true, 0.0f);
+        }
+    }
+
+
+    // ------------------------------------------------------------
+    // Hit request
+    // ------------------------------------------------------------
+    if (m_hitQueued)
+    {
+        m_hitQueued = false;
+
+        const std::string hitClip = ResolveHitClip();
+        if (!hitClip.empty() && anim->HasClip(hitClip))
+        {
+            constexpr float kHitBlendTime = 0.08f;
+
+            if (!anim->GetCurrentClipName().empty())
+            {
+                if (!anim->CrossFade(hitClip, kHitBlendTime, false, 0.0f))
+                    anim->Play(hitClip, false, 0.0f);
+            }
+            else
+            {
+                anim->Play(hitClip, false, 0.0f);
+            }
+
+            m_actionPhase = EActionPhase::Hit;
+            return;
+        }
+    }
+
+    // ------------------------------------------------------------
+    // Action progression
+    // ------------------------------------------------------------
+    if (m_actionPhase != EActionPhase::None)
+    {
+        if (anim->IsCurrentClipFinished())
+        {
+            if (m_actionPhase == EActionPhase::AttackBowLoad)
+            {
+                if (anim->HasClip("Bow_Release"))
+                {
+                    constexpr float kBowChainBlendTime = 0.05f;
+
+                    if (!anim->CrossFade("Bow_Release", kBowChainBlendTime, false, 0.0f))
+                        anim->Play("Bow_Release", false, 0.0f);
+
+                    m_actionPhase = EActionPhase::AttackBowRelease;
+                    return;
+                }
+            }
+
+            const EAnimState targetState =
+                (m_state == EAnimState::Move) ? EAnimState::Move : EAnimState::Idle;
+
+
+            std::string targetClip = ResolveLocomotionClip(targetState);
+
+            if (targetState == EAnimState::Move && (targetClip.empty() || !anim->HasClip(targetClip)))
+                targetClip = m_moveClip; // 네트워크에서는 방향비트 의존 최소화
+
+            if (targetClip.empty() || !anim->HasClip(targetClip))
+                targetClip = ResolveIdleClip();
+
+            if (!targetClip.empty() && anim->HasClip(targetClip))
+            {
+                constexpr float kOutBlendTime = 0.12f;
+
+                if (!anim->CrossFade(targetClip, kOutBlendTime, true, 0.0f))
+                    anim->Play(targetClip, true, 0.0f);
+            }
+
+            m_actionPhase = EActionPhase::None;
+            m_state = targetState;
+        }
+        return;
+    }
+
+#ifdef USING_NETWORK
+    std::string targetClip;
+
+    if (m_state == EAnimState::Move)
+    {
+        targetClip = m_moveClip;
+        if ((targetClip.empty() || !anim->HasClip(targetClip)) && m_usePlayerClipSet)
+            targetClip = "Walk_F";
+    }
+    else
+    {
+        targetClip = ResolveIdleClip();
+    }
+
+    if (targetClip.empty() || !anim->HasClip(targetClip))
+    {
+        targetClip = ResolveIdleClip();
+        if (targetClip.empty() || !anim->HasClip(targetClip))
+            return;
+    }
+
+    if (anim->GetCurrentClipName().empty())
+    {
+        anim->Play(targetClip, true, 0.0f);
+    }
+    else if (m_state != animPrevState || anim->GetCurrentClipName() != targetClip)
+    {
+        if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
+            anim->Play(targetClip, true, 0.0f);
+    }
+#else
+    const bool wantsMove =
+        m_usePlayerClipSet ? (m_moveDirBits != 0)
+        : (m_speed > m_moveEps);
+    EAnimState target = (m_speed > m_moveEps) ? EAnimState::Move : EAnimState::Idle;
+
+    const EAnimState targetState = wantsMove ? EAnimState::Move : EAnimState::Idle;
+
+    std::string targetClip = ResolveLocomotionClip(targetState);
+    if (targetClip.empty() || !anim->HasClip(targetClip))
+    {
+        targetClip = ResolveIdleClip();
+        if (targetClip.empty() || !anim->HasClip(targetClip))
+            return;
+    }
+
+    constexpr float kBlendTime = 0.15f;
+
+    if (anim->GetCurrentClipName().empty())
+    {
+        anim->Play(targetClip, true, 0.0f);
+        m_state = targetState;
+    }
+    else if (targetState != m_state || anim->GetCurrentClipName() != targetClip)
+    {
+        if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
+            anim->Play(targetClip, true, 0.0f);
+
+        m_state = targetState;
+    }
+    else
+    {
+        m_state = targetState;
+    }
+#endif
+
 }
+
 
 void CAnimController::LocalUpdate(float dt)
 {
