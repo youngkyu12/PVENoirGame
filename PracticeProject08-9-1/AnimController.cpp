@@ -257,6 +257,22 @@ void CAnimController::Update(float dt)
 {
     if (!m_pOwner) return;
 
+#ifdef USING_NETWORK
+	NetworkUpdate(dt);
+#else
+	LocalUpdate(dt);
+#endif
+
+   
+    animPrevState = m_state;
+}
+
+void CAnimController::NetworkUpdate(float dt)
+{
+}
+
+void CAnimController::LocalUpdate(float dt)
+{
     CAnimator* anim = nullptr;
 
     if (auto* animComp = m_pOwner->GetComponent<CAnimatorComponent>())
@@ -600,7 +616,6 @@ void CAnimController::Update(float dt)
     if (m_actionPhase == EActionPhase::None)
         m_state = targetState;
 
-    animPrevState = m_state;
 }
 
 bool CAnimController::IsActionLocked() const
