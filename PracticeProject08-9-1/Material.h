@@ -25,6 +25,8 @@ public:
 	void SetTexture(shared_ptr<CTexture> pTexture);
 	void SetNormalTexture(shared_ptr<CTexture> pTexture);
 	void SetShader(shared_ptr<CShader> pShader);
+	void SetEmissiveTexture(shared_ptr<CTexture> pTexture);
+	void SetSpecularTexture(shared_ptr<CTexture> pTexture);
 
 	void UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList);
 	void ReleaseShaderVariables();
@@ -44,16 +46,33 @@ private:
 
 	std::string m_diffuseTextureName;
 	std::string m_normalTextureName;
+	std::string m_emissiveTextureName;
+	std::string m_specularTextureName;
 
 	UINT m_nNormalSrvIndex = UINT_MAX;
+	UINT m_nEmissiveSrvIndex = UINT_MAX;
+	UINT m_nSpecularSrvIndex = UINT_MAX;
+
+	shared_ptr<CTexture> m_pEmissiveTexture;
+	shared_ptr<CTexture> m_pSpecularTexture;
 
 public:
 	void SetDiffuseTextureName(const std::string& s) { m_diffuseTextureName = s; }
 	void SetNormalTextureName(const std::string& s) { m_normalTextureName = s; }
+	void SetEmissiveTextureName(const std::string& s) { m_emissiveTextureName = s; }
+	void SetSpecularTextureName(const std::string& s) { m_specularTextureName = s; }
 
 	const std::string& GetDiffuseTextureName() const { return m_diffuseTextureName; }
 	const std::string& GetNormalTextureName() const { return m_normalTextureName; }
+	const std::string& GetEmissiveTextureName() const { return m_emissiveTextureName; }
+	const std::string& GetSpecularTextureName() const { return m_specularTextureName; }
 
 	void SetNormalSrvIndex(UINT idx) { m_nNormalSrvIndex = idx; }
 	UINT GetNormalSrvIndex() const { return m_nNormalSrvIndex; }
+
+	void SetEmissiveSrvIndex(UINT idx) { m_nEmissiveSrvIndex = idx; }
+	UINT GetEmissiveSrvIndex() const { return m_nEmissiveSrvIndex; }
+
+	void SetSpecularSrvIndex(UINT idx) { m_nSpecularSrvIndex = idx; }
+	UINT GetSpecularSrvIndex() const { return m_nSpecularSrvIndex; }
 };

@@ -171,6 +171,8 @@ void CMesh::LoadMeshFromBIN(
     m_SubMeshes.clear();
     m_BinMaterials.clear();
     m_BinMaterialNameToIndex.clear();
+	MeshMin = XMFLOAT3(FLT_MAX, FLT_MAX, FLT_MAX);
+	MeshMax = XMFLOAT3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
     // ----------------------------------------------------
     // 2) Skeleton 섹션 → m_Bones 채우기
@@ -946,19 +948,21 @@ void CMesh::LinkMaterials(
         }
 
         auto it = materialCache.find(sm.materialName);
-        if (it != materialCache.end())
-        {
-            // 캐시 재사용
-            sm.material = it->second;
+		if ( it != materialCache.end() )
+		{
+			// 캐시 재사용
+			sm.material = it->second;
 
-            if (sm.material)
-            {
-                sm.material->SetDiffuseTextureName(sm.diffuseTextureName);
-                sm.material->SetNormalTextureName(sm.normalTextureName);
-                sm.material->SetMaterialID(sm.materialId); // 이미 쓰고 있으면 유지
-            }
-            continue;
-        }
+			if ( sm.material )
+			{
+				sm.material->SetDiffuseTextureName(sm.diffuseTextureName);
+				sm.material->SetNormalTextureName(sm.normalTextureName);
+				sm.material->SetEmissiveTextureName(sm.emissiveTextureName);
+				sm.material->SetSpecularTextureName(sm.specularTextureName);
+				sm.material->SetMaterialID(sm.materialId);
+			}
+			continue;
+		}
 
         // 캐시에 없으면 생성 콜백으로 생성(없으면 null 유지)
         if (createMaterialIfMissing)
@@ -967,12 +971,14 @@ void CMesh::LinkMaterials(
             materialCache.emplace(sm.materialName, mat);
             sm.material = mat;
 
-            if (sm.material)
-            {
-                sm.material->SetDiffuseTextureName(sm.diffuseTextureName);
-                sm.material->SetNormalTextureName(sm.normalTextureName);
-                sm.material->SetMaterialID(sm.materialId);
-            }
+			if ( sm.material )
+			{
+				sm.material->SetDiffuseTextureName(sm.diffuseTextureName);
+				sm.material->SetNormalTextureName(sm.normalTextureName);
+				sm.material->SetEmissiveTextureName(sm.emissiveTextureName);
+				sm.material->SetSpecularTextureName(sm.specularTextureName);
+				sm.material->SetMaterialID(sm.materialId);
+			}
         }
         else
         {

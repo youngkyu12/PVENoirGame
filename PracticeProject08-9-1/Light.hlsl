@@ -33,11 +33,25 @@ struct LIGHT
 
 struct MATERIAL
 {
-	float4				m_cAmbient;
-	float4				m_cDiffuse;
-	float4				m_cSpecular; //a = power
-	float4				m_cEmissive;
-    uint4				TextureIndices; // x=diffuse y=normal
+    float4 m_cAmbient;
+    float4 m_cDiffuse;
+    float4 m_cSpecular; // rgb=specular, a=shininess
+    float4 m_cEmissive;
+
+    // x=diffuse, y=normal, z=emissive, w=specular
+    uint4 TextureIndices;
+
+    // x=scaleU, y=scaleV, z=offsetU, w=offsetV
+    float4 DiffuseUVST;
+    float4 NormalUVST;
+    float4 EmissiveUVST;
+    float4 SpecularUVST;
+
+    // x=diffuseU, y=diffuseV, z=normalU, w=normalV
+    uint4 WrapModes0;
+
+    // x=emissiveU, y=emissiveV, z=specularU, w=specularV
+    uint4 WrapModes1;
 };
 
 cbuffer cbCameraInfo : register(b1)
