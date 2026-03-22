@@ -2348,6 +2348,19 @@ void CGameScene::AnimateObjects(float dt)
             {
                 wc->SetLoadout(state.weaponType);
             }
+
+            if (slot == m_localPlayerSlot)
+            {
+                // 로컬 플레이어로 카메라 동기화
+				auto pCamera = GetMainCamera();
+                if (pCamera)
+                {
+                    XMFLOAT3 pos = player->GetPosition();
+                    pCamera->Update(pos, dt);
+                    pCamera->SetLookAt(pos);
+                    pCamera->RegenerateViewMatrix();
+                }
+            }
         }
 
         // Enemy 좌표 업데이트
