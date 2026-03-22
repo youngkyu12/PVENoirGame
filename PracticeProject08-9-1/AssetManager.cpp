@@ -107,13 +107,15 @@ BuiltAsset AssetManager::BuildAssetInternal(
         if (sm.materialName.empty())
             continue;
 
-        const std::string materialKey = MakeMaterialKey(
-            desc.type,
-            desc.textureRoot,
-            sm.materialName,
-            sm.diffuseTextureName,
-            sm.normalTextureName
-        );
+		const std::string materialKey = MakeMaterialKey(
+	desc.type,
+	desc.textureRoot,
+	sm.materialName,
+	sm.diffuseTextureName,
+	sm.normalTextureName,
+	sm.emissiveTextureName,
+	sm.specularTextureName
+		);
 
         auto matIt = s_materialCache.find(materialKey);
         if (matIt != s_materialCache.end())
@@ -232,18 +234,22 @@ std::string AssetManager::MakeAssetKey(const AssetBuildDesc& desc)
 }
 
 std::string AssetManager::MakeMaterialKey(
-    AssetType type,
-    const std::string& textureRoot,
-    const std::string& materialName,
-    const std::string& diffuseTextureName,
-    const std::string& normalTextureName)
+	AssetType type,
+	const std::string& textureRoot,
+	const std::string& materialName,
+	const std::string& diffuseTextureName,
+	const std::string& normalTextureName,
+	const std::string& emissiveTextureName,
+	const std::string& specularTextureName)
 {
-    return
-        std::to_string((int)type) + "|" +
-        textureRoot + "|" +
-        materialName + "|" +
-        diffuseTextureName + "|" +
-        normalTextureName;
+	return
+		std::to_string(( int ) type) + "|" +
+		textureRoot + "|" +
+		materialName + "|" +
+		diffuseTextureName + "|" +
+		normalTextureName + "|" +
+		emissiveTextureName + "|" +
+		specularTextureName;
 }
 
 std::wstring AssetManager::ResolveTexturePath(
