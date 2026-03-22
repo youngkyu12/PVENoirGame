@@ -224,7 +224,7 @@ float4 SpotLight(int nIndex, float3 vPosition, float3 vNormal, float3 vToCamera)
 	return(float4(0.0f, 0.0f, 0.0f, 0.0f));
 }
 
-float4 Lighting(float3 vPosition, float3 vNormal, float4 texColor)
+float4 Lighting(float3 vPosition, float3 vNormal, float4 texColor, float3 emissiveColor)
 {
     MATERIAL mat = gMaterials[gnMaterialID];
 
@@ -253,8 +253,8 @@ float4 Lighting(float3 vPosition, float3 vNormal, float4 texColor)
     }
 
     cColor += (gcGlobalAmbientLight * mat.m_cAmbient);
-    cColor.a = mat.m_cDiffuse.a;
+    cColor.rgb += emissiveColor;
+    cColor.a = texColor.a;
 
     return cColor;
 }
-
