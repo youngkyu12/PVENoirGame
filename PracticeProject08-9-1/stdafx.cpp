@@ -1,6 +1,6 @@
-// stdafx.cpp : Ç¥ÁØ Æ÷ÇÔ ÆÄÀÏ¸¸ µé¾î ÀÖ´Â ¼Ò½º ÆÄÀÏÀÔ´Ï´Ù.
-// LabProject03-1.pch´Â ¹Ì¸® ÄÄÆÄÀÏµÈ Çì´õ°¡ µË´Ï´Ù.
-// stdafx.obj¿¡´Â ¹Ì¸® ÄÄÆÄÀÏµÈ Çü½Ä Á¤º¸°¡ Æ÷ÇÔµË´Ï´Ù.
+// stdafx.cpp : í‘œì¤€ í¬í•¨ íŒŒì¼ë§Œ ë“¤ì–´ ìžˆëŠ” ì†ŒìŠ¤ íŒŒì¼ìž…ë‹ˆë‹¤.
+// LabProject03-1.pchëŠ” ë¯¸ë¦¬ ì»´íŒŒì¼ëœ í—¤ë”ê°€ ë©ë‹ˆë‹¤.
+// stdafx.objì—ëŠ” ë¯¸ë¦¬ ì»´íŒŒì¼ëœ í˜•ì‹ ì •ë³´ê°€ í¬í•¨ë©ë‹ˆë‹¤.
 
 #include "stdafx.h"
 
@@ -11,8 +11,8 @@ ClientServiceRef g_clientService = nullptr;
 UINT gnCbvSrvDescriptorIncrementSize = 0;
 UINT gnRtvDescriptorIncrementSize = 0;
 
-// TODO: ÇÊ¿äÇÑ Ãß°¡ Çì´õ´Â
-// ÀÌ ÆÄÀÏÀÌ ¾Æ´Ñ STDAFX.H¿¡¼­ ÂüÁ¶ÇÕ´Ï´Ù.
+// TODO: í•„ìš”í•œ ì¶”ê°€ í—¤ë”ëŠ”
+// ì´ íŒŒì¼ì´ ì•„ë‹Œ STDAFX.Hì—ì„œ ì°¸ì¡°í•©ë‹ˆë‹¤.
 
 ID3D12Resource *CreateBufferResource(
 	ID3D12Device *pd3dDevice, 
@@ -158,7 +158,7 @@ ID3D12Resource *CreateTextureResourceFromDDSFile(
 
 	D3D12_RESOURCE_DESC d3dBufferResourceDesc;
 	::ZeroMemory(&d3dBufferResourceDesc, sizeof(D3D12_RESOURCE_DESC));
-	d3dBufferResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER; //Upload Heap¿¡´Â ÅØ½ºÃÄ¸¦ »ý¼ºÇÒ ¼ö ¾øÀ½
+	d3dBufferResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER; //Upload Heapì—ëŠ” í…ìŠ¤ì³ë¥¼ ìƒì„±í•  ìˆ˜ ì—†ìŒ
 	d3dBufferResourceDesc.Alignment = 0;
 	d3dBufferResourceDesc.Width = nBytes;
 	d3dBufferResourceDesc.Height = 1;
@@ -208,7 +208,16 @@ ID3D12Resource *CreateTextureResourceFromDDSFile(
 	return(pd3dTexture);
 }
 
-ID3D12Resource *CreateTexture2DResource(ID3D12Device *pd3dDevice, UINT nWidth, UINT nHeight, UINT nElements, UINT nMipLevels, DXGI_FORMAT dxgiFormat, D3D12_RESOURCE_FLAGS d3dResourceFlags, D3D12_RESOURCE_STATES d3dResourceStates, D3D12_CLEAR_VALUE *pd3dClearValue)
+ID3D12Resource *CreateTexture2DResource(
+	ID3D12Device *pd3dDevice, 
+	UINT nWidth, 
+	UINT nHeight, 
+	UINT nElements, 
+	UINT nMipLevels, 
+	DXGI_FORMAT dxgiFormat, 
+	D3D12_RESOURCE_FLAGS d3dResourceFlags, 
+	D3D12_RESOURCE_STATES d3dResourceStates, 
+	D3D12_CLEAR_VALUE *pd3dClearValue)
 {
 	ID3D12Resource *pd3dTexture = NULL;
 
@@ -234,7 +243,14 @@ ID3D12Resource *CreateTexture2DResource(ID3D12Device *pd3dDevice, UINT nWidth, U
 	d3dTextureResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 	d3dTextureResourceDesc.Flags = d3dResourceFlags;
 
-	HRESULT hResult = pd3dDevice->CreateCommittedResource(&d3dHeapPropertiesDesc, D3D12_HEAP_FLAG_NONE, &d3dTextureResourceDesc, d3dResourceStates, pd3dClearValue, __uuidof(ID3D12Resource), (void **)&pd3dTexture);
+	HRESULT hResult = pd3dDevice->CreateCommittedResource(
+		&d3dHeapPropertiesDesc, 
+		D3D12_HEAP_FLAG_NONE, 
+		&d3dTextureResourceDesc,
+		d3dResourceStates, 
+		pd3dClearValue, 
+		__uuidof(ID3D12Resource),
+		(void **)&pd3dTexture);
 
 	return(pd3dTexture);
 }

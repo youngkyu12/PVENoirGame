@@ -61,7 +61,7 @@ void CTexture::SetSampler(int nIndex, D3D12_GPU_DESCRIPTOR_HANDLE d3dSamplerGpuD
 void CTexture::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList)
 {
 	/*
-	//±Û·Î¹ú SRV Å×ÀÌºí »ç¿ë ÁßÀÌ¸é per-texture ¹ÙÀÎµù ±ÝÁö
+	//ê¸€ë¡œë²Œ SRV í…Œì´ë¸” ì‚¬ìš© ì¤‘ì´ë©´ per-texture ë°”ì¸ë”© ê¸ˆì§€
 	if (m_baseSrvIndex != UINT_MAX) return;
 
 	if (m_nRootParameters > 0)
@@ -79,7 +79,7 @@ void CTexture::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList)
 
 void CTexture::UpdateShaderVariable(ID3D12GraphicsCommandList* pd3dCommandList, int nParameterIndex, int nTextureIndex)
 {
-	//±Û·Î¹ú SRV Å×ÀÌºí »ç¿ë ÁßÀÌ¸é per-texture ¹ÙÀÎµù ±ÝÁö
+	//ê¸€ë¡œë²Œ SRV í…Œì´ë¸” ì‚¬ìš© ì¤‘ì´ë©´ per-texture ë°”ì¸ë”© ê¸ˆì§€
 	if (m_baseSrvIndex != UINT_MAX) return;
 
 	pd3dCommandList->SetGraphicsRootDescriptorTable(
@@ -118,7 +118,16 @@ void CTexture::LoadTextureFromFile(
 		D3D12_RESOURCE_STATE_GENERIC_READ/*D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE*/);
 }
 
-ID3D12Resource* CTexture::CreateTexture(ID3D12Device* pd3dDevice, UINT nWidth, UINT nHeight, DXGI_FORMAT dxgiFormat, D3D12_RESOURCE_FLAGS d3dResourceFlags, D3D12_RESOURCE_STATES d3dResourceStates, D3D12_CLEAR_VALUE* pd3dClearValue, UINT nResourceType, UINT nIndex)
+ID3D12Resource* CTexture::CreateTexture(
+	ID3D12Device* pd3dDevice,
+	UINT nWidth,
+	UINT nHeight, 
+	DXGI_FORMAT dxgiFormat, 
+	D3D12_RESOURCE_FLAGS d3dResourceFlags, 
+	D3D12_RESOURCE_STATES d3dResourceStates, 
+	D3D12_CLEAR_VALUE* pd3dClearValue, 
+	UINT nResourceType, 
+	UINT nIndex)
 {
 	m_pnResourceTypes[nIndex] = nResourceType;
 	m_ppd3dTextures[nIndex] = ::CreateTexture2DResource(
@@ -130,8 +139,7 @@ ID3D12Resource* CTexture::CreateTexture(ID3D12Device* pd3dDevice, UINT nWidth, U
 		dxgiFormat,
 		d3dResourceFlags,
 		d3dResourceStates,
-		pd3dClearValue
-	);
+		pd3dClearValue);
 	return(m_ppd3dTextures[nIndex].Get());
 }
 
@@ -219,7 +227,7 @@ std::wstring ResolveTexturePath(
 	const std::string& assetName,
 	const std::string& texBaseName)
 {
-	// ---- string(UTF-8 °¡Á¤) -> wstring º¯È¯ ¶÷´Ù ----
+	// ---- string(UTF-8 ê°€ì •) -> wstring ë³€í™˜ ëžŒë‹¤ ----
 	auto Utf8ToWString = [](const std::string& s) -> std::wstring
 		{
 			if (s.empty()) return std::wstring();
@@ -228,7 +236,7 @@ std::wstring ResolveTexturePath(
 			if (len <= 0) return std::wstring();
 
 			std::wstring ws;
-			ws.resize(static_cast<size_t>(len - 1)); // null Á¦¿Ü
+			ws.resize(static_cast<size_t>(len - 1)); // null ì œì™¸
 			MultiByteToWideChar(CP_UTF8,0,s.c_str(),-1,&ws[0],len);
 			return ws;
 		};

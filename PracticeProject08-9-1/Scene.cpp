@@ -175,8 +175,7 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* dev)
         0,
         sigBlob->GetBufferPointer(),
         sigBlob->GetBufferSize(),
-        IID_PPV_ARGS(m_pd3dGraphicsRootSignature.ReleaseAndGetAddressOf())
-    );
+        IID_PPV_ARGS(m_pd3dGraphicsRootSignature.ReleaseAndGetAddressOf()));
 
     if (FAILED(hr))
         OutputDebugStringA("CreateRootSignature failed.\n");

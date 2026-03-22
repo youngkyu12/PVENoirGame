@@ -66,8 +66,15 @@ void CCamera::RegenerateViewMatrix()
 
 void CCamera::CreateShaderVariables(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList)
 {
-	UINT ncbElementBytes = ((sizeof(VS_CB_CAMERA_INFO) + 255) & ~255); //256ÀÇ ¹è¼ö
-	m_pd3dcbCamera = ::CreateBufferResource(pd3dDevice, pd3dCommandList, NULL, ncbElementBytes, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, NULL);
+	UINT ncbElementBytes = ((sizeof(VS_CB_CAMERA_INFO) + 255) & ~255); //256ì˜ ë°°ìˆ˜
+	m_pd3dcbCamera = ::CreateBufferResource(
+		pd3dDevice, 
+		pd3dCommandList, 
+		NULL, 
+		ncbElementBytes, 
+		D3D12_HEAP_TYPE_UPLOAD, 
+		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, 
+		NULL);
 
 	m_pd3dcbCamera->Map(0, NULL, (void **)&m_pcbMappedCamera);
 }
@@ -121,7 +128,7 @@ void CThirdPersonCamera::Update(XMFLOAT3& xmf3LookAt, float fTimeElapsed)
 {
 	if (!m_pTarget) return;
 
-	// Å¸°ÙÀÇ ¿ùµåÇà·Ä¿¡¼­ basis ÃßÃâ (row = right/up/look, _41~_43 = pos ¶ó´Â ±âÁ¸ ½ºÅ¸ÀÏ ÀüÁ¦)
+	// íƒ€ê²Ÿì˜ ì›”ë“œí–‰ë ¬ì—ì„œ basis ì¶”ì¶œ (row = right/up/look, _41~_43 = pos ë¼ëŠ” ê¸°ì¡´ ìŠ¤íƒ€ì¼ ì „ì œ)
 	const XMFLOAT4X4& W = m_pTarget->GetWorldMatrix();
 	XMFLOAT3 right(W._11, W._12, W._13);
 	XMFLOAT3 up(W._21, W._22, W._23);
@@ -156,14 +163,14 @@ void CThirdPersonCamera::Update(XMFLOAT3& xmf3LookAt, float fTimeElapsed)
 void CThirdPersonCamera::SetLookAt(XMFLOAT3& xmf3LookAt)
 {
 	XMFLOAT3 at = xmf3LookAt;
-	at.y = m_xmf3Position.y;                 // ¼öÆò ½Ã¼±: target ³ôÀÌ¸¦ Ä«¸Ş¶ó ³ôÀÌ·Î
+	at.y = m_xmf3Position.y;                 // ìˆ˜í‰ ì‹œì„ : target ë†’ì´ë¥¼ ì¹´ë©”ë¼ ë†’ì´ë¡œ
 
-	XMFLOAT3 up(0.0f, 1.0f, 0.0f);           // (¼±ÅÃ) ¿ùµå ¾÷ °íÁ¤±îÁö °°ÀÌ ÇÏ¸é ´õ ¾ÈÁ¤Àû
+	XMFLOAT3 up(0.0f, 1.0f, 0.0f);           // (ì„ íƒ) ì›”ë“œ ì—… ê³ ì •ê¹Œì§€ ê°™ì´ í•˜ë©´ ë” ì•ˆì •ì 
 
 	XMFLOAT4X4 mtxLookAt = Matrix4x4::LookAtLH(m_xmf3Position, at, up);
 	m_xmf3Right = XMFLOAT3(mtxLookAt._11, mtxLookAt._21, mtxLookAt._31);
 	m_xmf3Up = XMFLOAT3(mtxLookAt._12, mtxLookAt._22, mtxLookAt._32);
 	m_xmf3Look = XMFLOAT3(mtxLookAt._13, mtxLookAt._23, mtxLookAt._33);
 
-	m_xmf3LookAtWorld = at;                  // (¼±ÅÃ) ÀúÀå
+	m_xmf3LookAtWorld = at;                  // (ì„ íƒ) ì €ì¥
 }
