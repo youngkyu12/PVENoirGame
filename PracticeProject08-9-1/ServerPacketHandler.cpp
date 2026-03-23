@@ -166,6 +166,12 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 		animState.animTick = animation.animationtick();
 		animState.isRoll = (animation.animationtype() == Protocol::ANIMATION_TYPE_ROLL);
 
+		if (animState.isRoll)
+		{
+			
+			std::cout << animState.isRoll << std::endl;
+		}
+
 		EWeaponType eweaponType = static_cast<EWeaponType>(weaponType - 1);
 
 		data.players.push_back({ player.id(), {position.x(), position.y(), position.z()}, yaw, animState, eweaponType });

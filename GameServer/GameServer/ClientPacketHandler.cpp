@@ -30,7 +30,7 @@ bool Handle_C_LOGIN(PacketSessionRef& session, Protocol::C_LOGIN& pkt)
 
 	// ID 발급
 	static Atomic<uint64> idGenerator = 0;
-	if(idGenerator < 4) // 4명만 받는다
+	if(idGenerator < MaxPlayers) // 인원수 제한
 	{
 		loginPkt.set_playerid(idGenerator);
 		auto player = loginPkt.add_players();
@@ -87,7 +87,7 @@ bool Handle_C_GAME_START(PacketSessionRef& session, Protocol::C_GAME_START& pkt)
 {
 	GameSessionRef gameSession = static_pointer_cast<GameSession>(session);
 	//cout << "Send World Info..." << endl;		
-	
+
 	//GRoom->DoAsync(&Room::StartGame, pkt.ready(), pkt.playerid());
 	GRoom->DoTimer(1000, &Room::StartGame, pkt.ready(), pkt.playerid());
 
@@ -96,8 +96,9 @@ bool Handle_C_GAME_START(PacketSessionRef& session, Protocol::C_GAME_START& pkt)
 
 bool Handle_C_CLIENT_READY(PacketSessionRef& session, Protocol::C_CLIENT_READY& pkt)
 {
-	pkt.ready();
-	pkt.playerid();
+	uint32 local_playerId = pkt.playerid();
+
+	GRoom->SetPlayerReady(pkt.ready(), local_playerId);
 
 	return false;
 }

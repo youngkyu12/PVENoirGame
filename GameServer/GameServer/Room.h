@@ -31,6 +31,8 @@ public:
 	// TODO: 모든 플레이어가 ready를 보냈는지 확인하는 함수
     void CheckClientReady();
 
+public:
+    void SetPlayerReady(bool ready, uint32& playerId);
 
 public:
     GameAreaRef GetArea(uint32 areaId);
@@ -49,4 +51,5 @@ private:
 };
 
 extern shared_ptr<Room> GRoom;
+constexpr int MaxPlayers = 1;
 
