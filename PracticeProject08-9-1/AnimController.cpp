@@ -324,7 +324,7 @@ void CAnimController::NetworkUpdate(float dt)
             std::string clip = ResolveLocomotionClip(state);
 
             if (state == EAnimState::Move && (clip.empty() || !anim->HasClip(clip)))
-                clip = m_moveClip; // 네트워크에서는 방향비트 의존 최소화
+                clip = m_moveClip;
 
             if (clip.empty() || !anim->HasClip(clip))
                 clip = ResolveIdleClip();
@@ -370,9 +370,43 @@ void CAnimController::NetworkUpdate(float dt)
             return true;
         };
 
-    // 서버 권위 경로에서는 큐 기반 시작(로컬 입력 기반)을 사용하지 않는다.
+    auto StartFullBodyRoll = [&](const std::string& clipName, float visualYawDeg, float startTime) -> bool
+        {
+            if (clipName.empty() || !anim->HasClip(clipName))
+                return false;
+
+            anim->StopUpperBodyOverlay(true);
+            anim->ClearVisualYawOffset();
+            anim->Play(clipName, false, startTime);
+
+            anim->SetVisualYawOffset(
+                visualYawDeg,
+                3.0f / 45.0f,
+                42.0f / 45.0f
+            );
+
+            m_actionPhase = EActionPhase::Roll;
+            m_state = EAnimState::Attack;
+            return true;
+        };
+
+    // 서버 권위 경로에서는 로컬 공격 큐는 사용하지 않는다.
     m_attackQueued = false;
-    m_rollQueued = false;
+
+    // Protocol Roll 이벤트 우선 처리
+    if (m_rollQueued && m_actionPhase == EActionPhase::None)
+    {
+        m_rollQueued = false;
+
+        std::string rollClip = m_rollQueuedClipName;
+        float visualYawDeg = m_rollQueuedVisualYawDeg;
+
+        if (rollClip.empty() || !anim->HasClip(rollClip))
+            rollClip = ResolveRollClip(m_rollMoveDirBits, visualYawDeg);
+
+        if (StartFullBodyRoll(rollClip, visualYawDeg, m_startTime))
+            return;
+    }
 
     // ------------------------------------------------------------
     // State change (network authoritative)

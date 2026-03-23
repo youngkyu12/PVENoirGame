@@ -122,10 +122,13 @@ EAnimState GetEAnimState(Protocol::AnimationType animType)
 		return EAnimState::Idle;
 	case Protocol::ANIMATION_TYPE_WALK:
 		return EAnimState::Move;
+	case Protocol::ANIMATION_TYPE_RUN:
+		return EAnimState::Move;
 	case Protocol::ANIMATION_TYPE_ATTACK:
 		return EAnimState::Attack;
-	//case Protocol::ANIMATION_TYPE_HIT:
-	//	return EAnimState::Hit;
+	case Protocol::ANIMATION_TYPE_ROLL:
+		// 현재 클라 enum에는 Roll 상태가 없으므로 Attack 상태 트랙으로 태운다.
+		return EAnimState::Attack;
 	case Protocol::ANIMATION_TYPE_DIE:
 		return EAnimState::Die;
 	default:
@@ -161,7 +164,8 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 		// 애니메이션 상태를 옮긴다
 		animState.animationId = GetEAnimState(animation.animationtype());
 		animState.animTick = animation.animationtick();
-		
+		animState.isRoll = (animation.animationtype() == Protocol::ANIMATION_TYPE_ROLL);
+
 		EWeaponType eweaponType = static_cast<EWeaponType>(weaponType - 1);
 
 		data.players.push_back({ player.id(), {position.x(), position.y(), position.z()}, yaw, animState, eweaponType });

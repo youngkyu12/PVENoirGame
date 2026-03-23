@@ -2724,8 +2724,20 @@ void CGameScene::AnimateObjects(float dt)
             // 데모: animation state 강제 적용
             if (auto ac = player->GetAnimController())
             {
-                if (state.animation.animationId == EAnimState::Attack)
+                if (state.animation.isRoll)
+                {
+                    uint32_t rollDirBits = ac->GetMoveDirection();
+                    const uint32_t horizontalMask = (DIR_FORWARD | DIR_BACKWARD | DIR_LEFT | DIR_RIGHT);
+
+                    if ((rollDirBits & horizontalMask) == 0)
+                        rollDirBits = DIR_FORWARD;
+
+                    ac->RequestRoll(rollDirBits);
+                }
+                else if (state.animation.animationId == EAnimState::Attack)
+                {
                     ac->RequestAttack();
+                }
 
                 ac->SetAnimState(state.animation.animationId);
 
