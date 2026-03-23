@@ -174,15 +174,15 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	if (player->GetAnimState() != prevAnimState)
 		player->SetAnimTick(tick); // 애니메이션 상태가 바뀌면 현재의 server tick을 넣어줌
 
-	if (((keyCodes & kDirLButton) ^ notPassive) != 0)
+	if ((keyCodes & kDirLButton) != 0)
 		player->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
-	else if (prevAnimState != Protocol::ANIMATION_TYPE_ATTACK)
+	else if (prevAnimState != Protocol::ANIMATION_TYPE_ATTACK &&
+		prevAnimState != Protocol::ANIMATION_TYPE_ROLL)
+	{
 		player->SetAnimState(keyCodes & (kDirForward | kDirBackward | kDirLeft | kDirRight) ?
-			Protocol::ANIMATION_TYPE_WALK :
+			(keyCodes & kDirRun ? Protocol::ANIMATION_TYPE_RUN : Protocol::ANIMATION_TYPE_WALK) :
 			Protocol::ANIMATION_TYPE_IDLE);
-
-
-
+	}
 
 
 	//if (keyCodes & (kDirForward | kDirBackward))
