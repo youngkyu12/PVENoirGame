@@ -11,6 +11,8 @@
 #include "Protocol.pb.h"
 #include "ClientPacketHandler.h"
 
+#include <algorithm>
+
 shared_ptr<Room> GRoom = make_shared<Room>();
 
 void Room::Enter(PlayerRef player)
@@ -71,22 +73,24 @@ void Room::StartGame(bool ready, uint32 index)
 		return;
 
 	WRITE_LOCK;
-	static bool p_ready[4] = { false, false, false, false };
+	static Vector<bool> p_ready(4);
 	p_ready[index] = ready;
 
 
 	players[index]->SetActive(ready);
-	bool readyCount = 1;
-	for(auto& p : players)
-	{
-		readyCount &= p.second->IsActive();
-	}
-
+	
 	static Atomic<bool> gameStarted = false;
 
 	 //if(p_ready[0] && p_ready[1] && p_ready[2] && p_ready[3])1
 	//if(p_ready[0] && p_ready[1])
-	if(p_ready[0])
+	//if(p_ready[0])
+	if(
+		std::all_of(players.begin(), players.end(), 
+		[&](const auto& player)
+		{
+			return player.second && player.second->IsActive();
+		})
+		)
 	{
 		if (gameStarted.exchange(true) == false)
 		{
@@ -163,16 +167,16 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 
 	Protocol::AnimationType prevAnimState = player->GetAnimState();
 
-	const int isRolling = player->GetAnimState() == Protocol::ANIMATION_TYPE_ROLL;
+	//const int isRolling = player->GetAnimState() == Protocol::ANIMATION_TYPE_ROLL;
 
-	int notPassive = kDirRoll & (keyCodes & (kDirForward | kDirBackward | kDirLeft | kDirRight))
-		^ isRolling;
+	//int notPassive = kDirRoll & (keyCodes & (kDirForward | kDirBackward | kDirLeft | kDirRight))
+	//	^ isRolling;
 
-	notPassive ^= (player->GetAnimState() == Protocol::ANIMATION_TYPE_ATTACK) &
-		(player->GetWeaponState() % 2 == 0);
+	//notPassive ^= (player->GetAnimState() == Protocol::ANIMATION_TYPE_ATTACK) &
+	//	(player->GetWeaponState() % 2 == 0);
 
-	if (player->GetAnimState() != prevAnimState)
-		player->SetAnimTick(tick); // 애니메이션 상태가 바뀌면 현재의 server tick을 넣어줌
+
+
 
 	if ((keyCodes & kDirLButton) != 0)
 		player->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
@@ -183,6 +187,14 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 			(keyCodes & kDirRun ? Protocol::ANIMATION_TYPE_RUN : Protocol::ANIMATION_TYPE_WALK) :
 			Protocol::ANIMATION_TYPE_IDLE);
 	}
+
+	player->SetAnimState(keyCodes & (kDirForward | kDirBackward | kDirLeft | kDirRight) & kDirRoll
+		&& (prevAnimState != Protocol::ANIMATION_TYPE_ROLL)
+		? Protocol::ANIMATION_TYPE_ROLL : player->GetAnimState());
+
+	if (player->GetAnimState() != prevAnimState)
+		player->SetAnimTick(tick); // 애니메이션 상태가 바뀌면 현재의 server tick을 넣어줌
+
 
 
 	//if (keyCodes & (kDirForward | kDirBackward))
@@ -338,6 +350,11 @@ void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
 	GRoom->DoAsync(&Room::BroadCastAll, sendBuffer);
 
 
+	// 최초 시작 전, 모든 플레이어의 active를 비활성화
+	for (auto& player : players)
+	{
+		player.second->SetActive(false);
+	}
 	CheckClientReady();
 }
 
@@ -350,10 +367,32 @@ void Room::MakeEnterGameStruct(Protocol::S_ENTER_GAME enterGamePkt)
 void Room::CheckClientReady()
 {
 	//TODO: 모든 플레이어가 ready를 보냈는지 확인하는 함수 정의
-	cout << "Game Started!" << endl;
 
-	// 게임 시작 로직 (예: 타이머 시작, 적 스폰 등)
-	GRoom->DoTimer(100, &Room::TickAdvance);
+	bool allPlayerBuilt = !players.empty();
+	for (auto& player : players)
+	{
+		allPlayerBuilt = allPlayerBuilt && player.second->IsActive();
+	}
+
+
+	if (allPlayerBuilt)
+	{
+		cout << "Game Started!" << endl;
+
+		// 게임 시작 로직 (예: 타이머 시작, 적 스폰 등)
+		GRoom->DoTimer(100, &Room::TickAdvance);
+	}
+	else
+	{
+		// 아직 준비가 안 끝났다면 체크를 다른 쓰레드에게 떠넘긴다
+		GRoom->DoTimer(100, &Room::CheckClientReady);
+	}
+
+}
+
+void Room::SetPlayerReady(bool ready, uint32& playerId)
+{
+	players[playerId]->SetActive(true);
 }
 
 GameAreaRef Room::GetArea(uint32 areaId)

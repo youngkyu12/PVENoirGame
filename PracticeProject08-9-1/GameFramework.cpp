@@ -557,6 +557,9 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 		m_GameTimer.Reset();
 	else
 		m_GameTimer.Reset();
+
+
+	
 }
 
 void CGameFramework::RequestSceneSwitch(ESceneId next)

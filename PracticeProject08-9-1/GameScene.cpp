@@ -404,6 +404,15 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     if (!local) local = GetPlayerBySlot(0);
 
     CreateMainCamera(dev, cmd, local);
+
+#ifdef USING_NETWORK
+    Protocol::C_CLIENT_READY iamReady;
+
+    iamReady.set_ready(true);
+    iamReady.set_playerid(g_myPlayerId);
+    auto sendBuffer = ServerPacketHandler::MakeSendBuffer(iamReady);
+    g_clientService->BroadCast(sendBuffer);
+#endif
 }
 
 float CGameScene::QuaternionToYawDegrees(const XMFLOAT4& q)
