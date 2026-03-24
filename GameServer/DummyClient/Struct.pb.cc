@@ -62,8 +62,7 @@ struct ObjectStatusDefaultTypeInternal {
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT ObjectStatusDefaultTypeInternal _ObjectStatus_default_instance_;
 constexpr Animation::Animation(
   ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
-  : animationtype_(0)
-
+  : statecode_(0u)
   , animationtick_(0u){}
 struct AnimationDefaultTypeInternal {
   constexpr AnimationDefaultTypeInternal()
@@ -179,7 +178,7 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_Struct_2eproto::offsets[] PROT
   ~0u,  // no _extensions_
   ~0u,  // no _oneof_case_
   ~0u,  // no _weak_field_map_
-  PROTOBUF_FIELD_OFFSET(::Protocol::Animation, animationtype_),
+  PROTOBUF_FIELD_OFFSET(::Protocol::Animation, statecode_),
   PROTOBUF_FIELD_OFFSET(::Protocol::Animation, animationtick_),
   ~0u,  // no _has_bits_
   PROTOBUF_FIELD_OFFSET(::Protocol::Bullet, _internal_metadata_),
@@ -250,32 +249,31 @@ const char descriptor_table_protodef_Struct_2eproto[] PROTOBUF_SECTION_VARIABLE(
   ".Vec3f\022\013\n\003yaw\030\002 \001(\002\022\036\n\005scale\030\003 \001(\0132\017.Pro"
   "tocol.Vec3f\"J\n\014ObjectStatus\022\n\n\002hp\030\001 \001(\r\022"
   "\016\n\006attack\030\002 \001(\r\022\017\n\007defense\030\003 \001(\r\022\r\n\005spee"
-  "d\030\004 \001(\r\"R\n\tAnimation\022.\n\ranimationType\030\001 "
-  "\001(\0162\027.Protocol.AnimationType\022\025\n\ranimatio"
-  "nTick\030\002 \001(\r\"k\n\006Bullet\022\n\n\002id\030\001 \001(\004\022\017\n\007own"
-  "erId\030\002 \001(\004\022!\n\010position\030\003 \001(\0132\017.Protocol."
-  "Vec3f\022!\n\010velocity\030\004 \001(\0132\017.Protocol.Vec3f"
-  "\"\362\001\n\006Player\022\n\n\002id\030\001 \001(\004\022\014\n\004name\030\002 \001(\t\022(\n"
-  "\nplayerType\030\003 \001(\0162\024.Protocol.PlayerType\022"
-  "*\n\013playerState\030\004 \001(\0162\025.Protocol.PlayerSt"
-  "ate\022&\n\ttransform\030\005 \001(\0132\023.Protocol.Transf"
-  "orm\022&\n\tanimation\030\006 \001(\0132\023.Protocol.Animat"
-  "ion\022(\n\nweaponType\030\007 \001(\0162\024.Protocol.Weapo"
-  "nType\"\337\001\n\005Enemy\022\n\n\002id\030\001 \001(\004\022&\n\tenemyType"
-  "\030\002 \001(\0162\023.Protocol.EnemyType\022(\n\nenemyStat"
-  "e\030\003 \001(\0162\024.Protocol.EnemyState\022&\n\ttransfo"
-  "rm\030\004 \001(\0132\023.Protocol.Transform\022&\n\tanimati"
-  "on\030\005 \001(\0132\023.Protocol.Animation\022(\n\nweaponT"
-  "ype\030\006 \001(\0162\024.Protocol.WeaponType\">\n\010Build"
-  "ing\022\n\n\002id\030\001 \001(\004\022&\n\ttransform\030\002 \001(\0132\023.Pro"
-  "tocol.Transformb\006proto3"
+  "d\030\004 \001(\r\"5\n\tAnimation\022\021\n\tstateCode\030\001 \001(\r\022"
+  "\025\n\ranimationTick\030\002 \001(\r\"k\n\006Bullet\022\n\n\002id\030\001"
+  " \001(\004\022\017\n\007ownerId\030\002 \001(\004\022!\n\010position\030\003 \001(\0132"
+  "\017.Protocol.Vec3f\022!\n\010velocity\030\004 \001(\0132\017.Pro"
+  "tocol.Vec3f\"\362\001\n\006Player\022\n\n\002id\030\001 \001(\004\022\014\n\004na"
+  "me\030\002 \001(\t\022(\n\nplayerType\030\003 \001(\0162\024.Protocol."
+  "PlayerType\022*\n\013playerState\030\004 \001(\0162\025.Protoc"
+  "ol.PlayerState\022&\n\ttransform\030\005 \001(\0132\023.Prot"
+  "ocol.Transform\022&\n\tanimation\030\006 \001(\0132\023.Prot"
+  "ocol.Animation\022(\n\nweaponType\030\007 \001(\0162\024.Pro"
+  "tocol.WeaponType\"\337\001\n\005Enemy\022\n\n\002id\030\001 \001(\004\022&"
+  "\n\tenemyType\030\002 \001(\0162\023.Protocol.EnemyType\022("
+  "\n\nenemyState\030\003 \001(\0162\024.Protocol.EnemyState"
+  "\022&\n\ttransform\030\004 \001(\0132\023.Protocol.Transform"
+  "\022&\n\tanimation\030\005 \001(\0132\023.Protocol.Animation"
+  "\022(\n\nweaponType\030\006 \001(\0162\024.Protocol.WeaponTy"
+  "pe\">\n\010Building\022\n\n\002id\030\001 \001(\004\022&\n\ttransform\030"
+  "\002 \001(\0132\023.Protocol.Transformb\006proto3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_Struct_2eproto_deps[1] = {
   &::descriptor_table_Enum_2eproto,
 };
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_Struct_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_Struct_2eproto = {
-  false, false, 983, descriptor_table_protodef_Struct_2eproto, "Struct.proto", 
+  false, false, 954, descriptor_table_protodef_Struct_2eproto, "Struct.proto", 
   &descriptor_table_Struct_2eproto_once, descriptor_table_Struct_2eproto_deps, 1, 8,
   schemas, file_default_instances, TableStruct_Struct_2eproto::offsets,
   file_level_metadata_Struct_2eproto, file_level_enum_descriptors_Struct_2eproto, file_level_service_descriptors_Struct_2eproto,
@@ -1092,17 +1090,17 @@ Animation::Animation(::PROTOBUF_NAMESPACE_ID::Arena* arena)
 Animation::Animation(const Animation& from)
   : ::PROTOBUF_NAMESPACE_ID::Message() {
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
-  ::memcpy(&animationtype_, &from.animationtype_,
+  ::memcpy(&statecode_, &from.statecode_,
     static_cast<size_t>(reinterpret_cast<char*>(&animationtick_) -
-    reinterpret_cast<char*>(&animationtype_)) + sizeof(animationtick_));
+    reinterpret_cast<char*>(&statecode_)) + sizeof(animationtick_));
   // @@protoc_insertion_point(copy_constructor:Protocol.Animation)
 }
 
 void Animation::SharedCtor() {
 ::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
-    reinterpret_cast<char*>(&animationtype_) - reinterpret_cast<char*>(this)),
+    reinterpret_cast<char*>(&statecode_) - reinterpret_cast<char*>(this)),
     0, static_cast<size_t>(reinterpret_cast<char*>(&animationtick_) -
-    reinterpret_cast<char*>(&animationtype_)) + sizeof(animationtick_));
+    reinterpret_cast<char*>(&statecode_)) + sizeof(animationtick_));
 }
 
 Animation::~Animation() {
@@ -1131,9 +1129,9 @@ void Animation::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  ::memset(&animationtype_, 0, static_cast<size_t>(
+  ::memset(&statecode_, 0, static_cast<size_t>(
       reinterpret_cast<char*>(&animationtick_) -
-      reinterpret_cast<char*>(&animationtype_)) + sizeof(animationtick_));
+      reinterpret_cast<char*>(&statecode_)) + sizeof(animationtick_));
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
@@ -1143,12 +1141,11 @@ const char* Animation::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::
     ::PROTOBUF_NAMESPACE_ID::uint32 tag;
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
     switch (tag >> 3) {
-      // .Protocol.AnimationType animationType = 1;
+      // uint32 stateCode = 1;
       case 1:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 8)) {
-          ::PROTOBUF_NAMESPACE_ID::uint64 val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          statecode_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
           CHK_(ptr);
-          _internal_set_animationtype(static_cast<::Protocol::AnimationType>(val));
         } else goto handle_unusual;
         continue;
       // uint32 animationTick = 2;
@@ -1187,11 +1184,10 @@ failure:
   ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
   (void) cached_has_bits;
 
-  // .Protocol.AnimationType animationType = 1;
-  if (this->animationtype() != 0) {
+  // uint32 stateCode = 1;
+  if (this->statecode() != 0) {
     target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteEnumToArray(
-      1, this->_internal_animationtype(), target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteUInt32ToArray(1, this->_internal_statecode(), target);
   }
 
   // uint32 animationTick = 2;
@@ -1216,10 +1212,11 @@ size_t Animation::ByteSizeLong() const {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  // .Protocol.AnimationType animationType = 1;
-  if (this->animationtype() != 0) {
+  // uint32 stateCode = 1;
+  if (this->statecode() != 0) {
     total_size += 1 +
-      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::EnumSize(this->_internal_animationtype());
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::UInt32Size(
+        this->_internal_statecode());
   }
 
   // uint32 animationTick = 2;
@@ -1260,8 +1257,8 @@ void Animation::MergeFrom(const Animation& from) {
   ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
   (void) cached_has_bits;
 
-  if (from.animationtype() != 0) {
-    _internal_set_animationtype(from._internal_animationtype());
+  if (from.statecode() != 0) {
+    _internal_set_statecode(from._internal_statecode());
   }
   if (from.animationtick() != 0) {
     _internal_set_animationtick(from._internal_animationtick());
@@ -1292,9 +1289,9 @@ void Animation::InternalSwap(Animation* other) {
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
       PROTOBUF_FIELD_OFFSET(Animation, animationtick_)
       + sizeof(Animation::animationtick_)
-      - PROTOBUF_FIELD_OFFSET(Animation, animationtype_)>(
-          reinterpret_cast<char*>(&animationtype_),
-          reinterpret_cast<char*>(&other->animationtype_));
+      - PROTOBUF_FIELD_OFFSET(Animation, statecode_)>(
+          reinterpret_cast<char*>(&statecode_),
+          reinterpret_cast<char*>(&other->statecode_));
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata Animation::GetMetadata() const {

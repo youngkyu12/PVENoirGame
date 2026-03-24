@@ -815,6 +815,7 @@ void CGameFramework::ProcessInput()
 		inputPkt.set_keycodes(keyCodes);
 #else
 		if (pKeysBuffer['W'] & 0xF0) dwDirection |= DIR_FORWARD;
+
 		if (pKeysBuffer['S'] & 0xF0) dwDirection |= DIR_BACKWARD;
 		if (pKeysBuffer['A'] & 0xF0) dwDirection |= DIR_LEFT;
 		if (pKeysBuffer['D'] & 0xF0) dwDirection |= DIR_RIGHT;

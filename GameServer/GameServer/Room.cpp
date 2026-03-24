@@ -15,6 +15,62 @@
 
 shared_ptr<Room> GRoom = make_shared<Room>();
 
+
+namespace
+{
+	// [die][hit][run][roll][attack][up][down][left][right][move]
+	// LSB부터 move로 배치 (전송/해석 시 동일 규약만 지키면 됨)
+	enum : uint32
+	{
+		kStateMove = 1u << 0,
+		kStateRight = 1u << 1,
+		kStateLeft = 1u << 2,
+		kStateDown = 1u << 3, // backward
+		kStateUp = 1u << 4, // forward
+		kStateAttack = 1u << 5,
+		kStateRoll = 1u << 6,
+		kStateRun = 1u << 7,
+		kStateHit = 1u << 8, // 현재 서버 소스에 Hit 상태 근거가 없으면 0 유지
+		kStateDie = 1u << 9
+	};
+
+	static uint32 BuildStateCode(const CServerObject& obj)
+	{
+		uint32 code = 0;
+		const auto anim = obj.GetAnimState();
+
+		// 상위 액션 비트
+		if (anim == Protocol::ANIMATION_TYPE_DIE)    code |= kStateDie;
+		if (anim == Protocol::ANIMATION_TYPE_ATTACK) code |= kStateAttack;
+		if (anim == Protocol::ANIMATION_TYPE_ROLL)   code |= kStateRoll;
+		if (anim == Protocol::ANIMATION_TYPE_RUN)    code |= kStateRun;
+
+		// TODO: Hit 상태 소스 추가 시 반영
+		// if (anim == Protocol::ANIMATION_TYPE_HIT) code |= kStateHit;
+
+		// 이동/방향 비트
+		const GameMath::Vec3 v = obj.GetVelocity();
+		constexpr float kEps = 1e-4f;
+
+		if (v.LengthSq() > kEps)
+		{
+			code |= kStateMove;
+
+			const float fwd = GameMath::Vec3::Dot(v, obj.GetLook());   // +forward, -backward
+			const float str = GameMath::Vec3::Dot(v, obj.GetRight());  // +right,   -left
+
+			if (fwd > kEps) code |= kStateUp;
+			if (fwd < -kEps) code |= kStateDown;
+			if (str > kEps) code |= kStateRight;
+			if (str < -kEps) code |= kStateLeft;
+		}
+
+		return code;
+	}
+}
+
+
+
 void Room::Enter(PlayerRef player)
 {
 	player->Build();
@@ -250,8 +306,8 @@ void Room::MakeFrameState(uint32 tick)
 		p->set_playertype(player->type);
 
 		Protocol::Animation* anim = p->mutable_animation();
+		anim->set_statecode(BuildStateCode(*player));
 		anim->set_animationtick(player->GetAnimTick());
-		anim->set_animationtype(player->GetAnimState());
 
 		p->set_weapontype(player->GetWeaponState());
 
@@ -278,8 +334,8 @@ void Room::MakeFrameState(uint32 tick)
 		e->set_weapontype(enemy->GetWeaponState());
 
 		Protocol::Animation* anim = e->mutable_animation();
+		anim->set_statecode(BuildStateCode(*enemy));
 		anim->set_animationtick(enemy->GetAnimTick());
-		anim->set_animationtype(enemy->GetAnimState());
 
 		Protocol::Transform* transform = e->mutable_transform();
 		Protocol::Vec3f* position = transform->mutable_position();
