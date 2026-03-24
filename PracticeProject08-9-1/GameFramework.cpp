@@ -32,7 +32,7 @@ bool CGameFramework::OnCreate(HINSTANCE hInstance, HWND hMainWnd)
 	m_hWnd = hMainWnd;
 	m_bWindowActive = IsWindowActuallyActive();
 	m_bUserPaused = false;
-
+	
 	CreateDirect3DDevice();
 	CreateCommandQueueAndList();
 	CreateRtvAndDsvDescriptorHeaps();
@@ -156,12 +156,27 @@ void CGameFramework::CreateDirect3DDevice()
 		IID_PPV_ARGS(&m_pdxgiFactory));
 
 	ComPtr<IDXGIAdapter1> pd3dAdapter;
+	if ( FAILED(hResult) )
+		return;
 
-	for (UINT i = 0; DXGI_ERROR_NOT_FOUND != m_pdxgiFactory->EnumAdapters1(i, &pd3dAdapter); i++)
+	for ( UINT i = 0; ; ++i )
 	{
-		DXGI_ADAPTER_DESC1 dxgiAdapterDesc;
-		pd3dAdapter->GetDesc1(&dxgiAdapterDesc);
-		if (dxgiAdapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+		
+		hResult = m_pdxgiFactory->EnumAdapterByGpuPreference(
+			i,
+			DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
+			IID_PPV_ARGS(&pd3dAdapter));
+
+		if ( hResult == DXGI_ERROR_NOT_FOUND )
+			break;
+
+		if ( FAILED(hResult) )
+			continue;
+
+		DXGI_ADAPTER_DESC1 desc = {};
+		pd3dAdapter->GetDesc1(&desc);
+
+		if ( desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE )
 			continue;
 
 		hResult = D3D12CreateDevice(
@@ -169,10 +184,10 @@ void CGameFramework::CreateDirect3DDevice()
 			D3D_FEATURE_LEVEL_12_0,
 			IID_PPV_ARGS(&m_pd3dDevice));
 
-		if (SUCCEEDED(hResult))
+		if ( SUCCEEDED(hResult) )
 			break;
 	}
-
+	
 	if (!m_pd3dDevice)
 	{
 		hResult = m_pdxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&pd3dAdapter));
