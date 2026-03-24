@@ -21,6 +21,7 @@
 #include "Object.h"
 #include "ActorTagComponent.h"
 #include "ArrowComponent.h"
+#include "BulletComponent.h"
 #include "Camera.h"
 #include "FollowBoneComponent.h"
 #include "PlayerEquipmentComponent.h"
@@ -191,6 +192,9 @@ CGameScene::CGameScene()
 
     m_arrowRefs.clear();
     m_arrowRefs.shrink_to_fit();
+
+	m_bulletRefs.clear();
+	m_bulletRefs.shrink_to_fit();
 }
 
 CGameScene::~CGameScene()
@@ -217,9 +221,10 @@ void CGameScene::ReleaseObjects()
     m_bowManRefs.clear();
     m_MutantRefs.clear();
 
-    m_helmetRefs.clear();
-    m_arrowRefs.clear();
-    m_attachmentBinds.clear();
+	m_helmetRefs.clear();
+	m_arrowRefs.clear();
+	m_bulletRefs.clear();
+	m_attachmentBinds.clear();
 
     m_PlayerSwordRefs.clear();
     m_PlayerBowRefs.clear();
@@ -333,6 +338,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_staticBatch.capacity =
 		worldStaticCount +
 		kArrowPoolSize +
+		kBulletPoolSize +
 		m_helmetCount +
 		m_PlayerSwordCount +
 		m_PlayerAxeCount +
@@ -825,7 +831,58 @@ void CGameScene::BuildStaticBatch(
             m_arrowRefs.push_back(raw);
         }
     }
-    // ------------------------------------------------------------------------
+	// ------------------------------------------------------------------------
+// Bullet pool (Static)
+// ------------------------------------------------------------------------
+	{
+		AssetBuildDesc BulletDesc =
+		{
+			AssetType::Bullet, // 별도 타입이 없으면 일단 임시로 동일 enum 사용
+			"Assets/Weapon/Bullet/Mesh/Bullet_Mesh.bin",
+			"Assets/Weapon/Bullet/Texture"
+		};
+
+		BuiltAsset bulletAsset = AssetManager::BuildAsset(
+			dev, cmd,
+			m_pMaterials.get(),
+			BulletDesc
+		);
+
+		m_bulletRefs.clear();
+		m_bulletRefs.reserve(kBulletPoolSize);
+
+		for ( UINT k = 0; k < kBulletPoolSize; ++k )
+		{
+			if ( b->objectRefs.size() >= b->capacity ) break;
+
+			const UINT i = ( UINT ) b->objectRefs.size();
+
+			auto obj = std::make_unique<CGameObject>(1);
+
+			auto* cb = ( CB_GAMEOBJECT_INFO* ) ( ( UINT8* ) b->mappedGameObjects + i * b->cbElementBytes );
+			obj->SetMappedGameObjectCB(cb);
+
+			obj->SetMesh(0, bulletAsset.mesh);
+			obj->AddComponent<CStaticMeshRendererComponent>();
+
+			auto* bullet = obj->AddComponent<CBulletComponent>();
+			( void ) bullet;
+
+			obj->SetPosition(0.0f, -10000.0f, 0.0f);
+
+			obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + ( UINT64 ) i * b->cbvInc);
+
+			obj->CreateComponents(dev, cmd);
+
+			CGameObject* raw = obj.get();
+			m_staticObjects.push_back(std::move(obj));
+			b->objectRefs.push_back(raw);
+			b->count = ( UINT ) b->objectRefs.size();
+
+			m_bulletRefs.push_back(raw);
+		}
+	}
+	// ------------------------------------------------------------------------
     // Helmet pool (Static attachment)
     // ------------------------------------------------------------------------
     {
@@ -2448,41 +2505,53 @@ void CGameScene::RequestDemoFighterAttack(int index)
 
 void CGameScene::RequestPlayerAttackBySlot(int slot)
 {
-    CGameObject* obj = GetPlayerBySlot(slot);
-    if (!obj) return;
+	CGameObject* obj = GetPlayerBySlot(slot);
+	if ( !obj ) return;
 
-    constexpr float kArrowPullBackDistance = 0.35f;
+	constexpr float kArrowPullBackDistance = 0.35f;
+	constexpr float kBulletSpeed = 10.0f;
+	constexpr float kBulletLife = 3.0f;
 
-    bool shouldPrepareArrow = false;
+	bool shouldPrepareArrow = false;
+	bool shouldFireBullet = false;
 
-    if (auto* equip = obj->GetComponent<CPlayerEquipmentComponent>())
-    {
-        shouldPrepareArrow = (equip->GetEquippedWeapon() == EWeaponType::Bow);
-    }
+	if ( auto* equip = obj->GetComponent<CPlayerEquipmentComponent>() )
+	{
+		const EWeaponType weapon = equip->GetEquippedWeapon();
+		shouldPrepareArrow = ( weapon == EWeaponType::Bow );
+		shouldFireBullet = ( weapon == EWeaponType::Gun );
+	}
 
-    if (auto* animComp = obj->GetComponent<CAnimatorComponent>())
-    {
-        if (auto* ctrl = animComp->EnsureController())
-        {
-            const bool accepted = ctrl->RequestAttack();
+	if ( auto* animComp = obj->GetComponent<CAnimatorComponent>() )
+	{
+		if ( auto* ctrl = animComp->EnsureController() )
+		{
+			const bool accepted = ctrl->RequestAttack();
 
-            if (accepted && shouldPrepareArrow)
-                RequestPrepareArrow(obj, kArrowPullBackDistance);
+			if ( accepted && shouldPrepareArrow )
+				RequestPrepareArrow(obj, kArrowPullBackDistance);
 
-            return;
-        }
-    }
+			if ( accepted && shouldFireBullet )
+				RequestFireBullet(obj, kBulletSpeed, kBulletLife);
 
-    if (auto* ctrl = obj->GetAnimController())
-    {
-        const bool accepted = ctrl->RequestAttack();
+			return;
+		}
+	}
 
-        if (accepted && shouldPrepareArrow)
-            RequestPrepareArrow(obj, kArrowPullBackDistance);
+	if ( auto* ctrl = obj->GetAnimController() )
+	{
+		const bool accepted = ctrl->RequestAttack();
 
-        return;
-    }
+		if ( accepted && shouldPrepareArrow )
+			RequestPrepareArrow(obj, kArrowPullBackDistance);
+
+		if ( accepted && shouldFireBullet )
+			RequestFireBullet(obj, kBulletSpeed, kBulletLife);
+
+		return;
+	}
 }
+
 
 int CGameScene::GetPlayerSlotFromObject(const CGameObject* obj) const
 {
@@ -2938,6 +3007,71 @@ void CGameScene::RequestFireArrow(CGameObject* shooter, float speed, float lifeS
         arrow->Activate(startPos, vel, lifeSec);
         return;
     }
+}
+
+void CGameScene::RequestFireBullet(CGameObject* shooter, float speed, float lifeSec)
+{
+	if ( !shooter ) return;
+
+	CGameObject* gunObj = nullptr;
+
+	if ( auto* equip = shooter->GetComponent<CPlayerEquipmentComponent>() )
+	{
+		if ( equip->GetEquippedWeapon() != EWeaponType::Gun )
+			return;
+
+		gunObj = equip->GetWeaponObject(EWeaponType::Gun);
+	}
+
+	const XMFLOAT4X4& W = shooter->GetWorldMatrix();
+	XMFLOAT3 dir = { W._31, W._32, W._33 };
+
+	XMVECTOR dirV = XMLoadFloat3(&dir);
+	const float lenSq = XMVectorGetX(XMVector3LengthSq(dirV));
+	if ( lenSq < 1e-8f )
+	{
+		dir = XMFLOAT3(0.0f, 0.0f, 1.0f);
+		dirV = XMLoadFloat3(&dir);
+	}
+
+	dirV = XMVector3Normalize(dirV);
+
+	XMFLOAT3 dirN{};
+	XMStoreFloat3(&dirN, dirV);
+
+	XMFLOAT3 startPos{};
+	if ( gunObj )
+	{
+		startPos = gunObj->GetPosition();
+	}
+	else
+	{
+		startPos = shooter->GetPosition();
+	}
+
+	const XMFLOAT3 vel =
+	{
+		dirN.x * speed,
+		dirN.y * speed,
+		dirN.z * speed
+	};
+
+	for ( CGameObject* bulletObj : m_bulletRefs )
+	{
+		if ( !bulletObj ) continue;
+
+		auto* bullet = bulletObj->GetComponent<CBulletComponent>();
+		if ( !bullet ) continue;
+		if ( bullet->IsActive() ) continue;
+
+		if ( auto* tr = bulletObj->GetComponent<CTransformComponent>() )
+		{
+			tr->SetLookDirection(dirN);
+		}
+
+		bullet->Activate(startPos, vel, lifeSec);
+		return;
+	}
 }
 
 bool CGameScene::ProcessInput(UCHAR* /*pKeysBuffer*/)
