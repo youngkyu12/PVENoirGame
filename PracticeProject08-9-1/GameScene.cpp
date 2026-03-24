@@ -138,6 +138,20 @@ namespace
 
         return false;
     }
+
+	void TriggerMonsterTestCommand(CGameObject* obj, EMonsterAnimCommand cmd, EMonsterAnimState locomotion = EMonsterAnimState::Idle)
+	{
+		if ( !obj ) return;
+
+		auto* animComp = obj->GetComponent<CAnimatorComponent>();
+		if ( !animComp ) return;
+
+		auto* ctrl = animComp->EnsureMonsterController();
+		if ( !ctrl ) return;
+
+		ctrl->SetLocomotionState(locomotion);
+		ctrl->RequestCommand(cmd);
+	}
 }
 
 CGameScene::CGameScene()
@@ -1681,15 +1695,15 @@ void CGameScene::BuildSkinnedBatch(
 							}
 						};
 
-					LoadAndAddClip("Assets/Boss_Anim_Appear.bin", "Appear");
-					LoadAndAddClip("Assets/Boss_Anim_AttackLeft.bin", "AttackLeft");
-					LoadAndAddClip("Assets/Boss_Anim_AttackRight.bin", "AttackRight");
-					LoadAndAddClip("Assets/Boss_Anim_Call.bin", "Call");
-					LoadAndAddClip("Assets/Boss_Anim_Death.bin", "Death");
-					LoadAndAddClip("Assets/Boss_Anim_Hit.bin", "Hit");
-					LoadAndAddClip("Assets/Boss_Anim_Idle.bin", "Idle");
-					LoadAndAddClip("Assets/Boss_Anim_Spell.bin", "Spell");
-					LoadAndAddClip("Assets/Boss_Anim_Walk.bin", "Walk");
+					LoadAndAddClip("Assets/Boss/Animation/Boss_Anim_Appear.bin", "Appear");
+					LoadAndAddClip("Assets/Boss/Animation/Boss_Anim_AttackLeft.bin", "AttackLeft");
+					LoadAndAddClip("Assets/Boss/Animation/Boss_Anim_AttackRight.bin", "AttackRight");
+					LoadAndAddClip("Assets/Boss/Animation/Boss_Anim_Call.bin", "Call");
+					LoadAndAddClip("Assets/Boss/Animation/Boss_Anim_Death.bin", "Death");
+					LoadAndAddClip("Assets/Boss/Animation/Boss_Anim_Hit.bin", "Hit");
+					LoadAndAddClip("Assets/Boss/Animation/Boss_Anim_Idle.bin", "Idle");
+					LoadAndAddClip("Assets/Boss/Animation/Boss_Anim_Spell.bin", "Spell");
+					LoadAndAddClip("Assets/Boss/Animation/Boss_Anim_Walk.bin", "Walk");
 				}
 
 				if ( animComp )
@@ -2636,9 +2650,62 @@ bool CGameScene::OnProcessingMouseMessage(HWND /*hWnd*/, UINT msg, WPARAM /*wPar
     return false;
 }
 
-bool CGameScene::OnProcessingKeyboardMessage(HWND /*hWnd*/, UINT /*msg*/, WPARAM /*wParam*/, LPARAM /*lParam*/)
+bool CGameScene::OnProcessingKeyboardMessage(HWND /*hWnd*/, UINT msg, WPARAM wParam, LPARAM /*lParam*/)
 {
-    return false;
+#ifdef USING_NETWORK
+	return false;
+#else
+	if ( msg != WM_KEYDOWN )
+		return false;
+
+	switch ( ( int ) wParam )
+	{
+	case 'Y':
+		if ( !m_ghoulCount ) return true;
+		if ( !m_skinnedObjects.empty() )
+		{
+			// Ghoul 테스트: Attack
+			TriggerMonsterTestCommand(m_skinnedObjects[0].get(), EMonsterAnimCommand::Attack);
+		}
+		return true;
+
+	case 'U':
+		if ( !m_swordManRefs.empty() )
+		{
+			// SwordMan 테스트: Attack
+			TriggerMonsterTestCommand(m_swordManRefs[0], EMonsterAnimCommand::Attack);
+		}
+		return true;
+
+	case 'I':
+		if ( !m_bowManRefs.empty() )
+		{
+			// BowMan 테스트: Attack (Bow_Load -> Bow_Release)
+			TriggerMonsterTestCommand(m_bowManRefs[0], EMonsterAnimCommand::Attack);
+		}
+		return true;
+
+	case 'O':
+		if ( !m_MutantRefs.empty() )
+		{
+			// Mutant 테스트: Attack
+			TriggerMonsterTestCommand(m_MutantRefs[0], EMonsterAnimCommand::Attack);
+		}
+		return true;
+
+	case 'P':
+	{
+		const UINT bossIndex = m_ghoulCount + m_swordManCount + m_bowManCount + m_MutantCount;
+		if ( bossIndex < ( UINT ) m_skinnedObjects.size() )
+		{
+			// Boss 테스트: Spell
+			TriggerMonsterTestCommand(m_skinnedObjects[bossIndex].get(), EMonsterAnimCommand::Spell);
+		}
+		return true;
+	}
+	}
+#endif
+	return false;
 }
 
 void CGameScene::RequestFireArrow(CGameObject* shooter, float speed, float lifeSec, float yOffset)
