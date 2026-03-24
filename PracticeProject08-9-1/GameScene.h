@@ -13,6 +13,7 @@ class CMaterial;
 class CFollowTransformComponent;
 class CFollowBoneComponent;
 class CArrowComponent;
+class CBulletComponent;
 class CGameObject;
 class CCollisionSystem;
 class CTexture;
@@ -191,11 +192,12 @@ private:
     std::vector<AttachmentBindSpec> m_attachmentBinds;
 
 	static constexpr UINT kArrowPoolSize = 32;
+	static constexpr UINT kBulletPoolSize = 64;
 	std::vector<CGameObject*> m_arrowRefs;
+	std::vector<CGameObject*> m_bulletRefs;
 
 	std::array<CGameObject*, 4> m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr };
 	std::array<bool, 4> m_prevBowReleasePhase = { false, false, false, false };
-
 	std::vector<CGameObject*> m_preparedBowmanArrows;
 	std::vector<bool> m_prevEnemyBowReleasePhase;
 
@@ -207,6 +209,7 @@ private:
 
 	void RequestPrepareBowmanArrow(CGameObject* bowman, float pullBackDistance);
 	void RequestReleasePreparedBowmanArrow(CGameObject* bowman, float speed, float lifeSec = 3.0f);
+	void RequestFireBullet(CGameObject* shooter, float speed, float lifeSec = 3.0f);
 
 	void UpdatePreparedBowArrows();
 

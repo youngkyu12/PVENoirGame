@@ -113,6 +113,9 @@
     <Filter Include="Components\PlayerEquipmentComponent">
       <UniqueIdentifier>{62d5f888-2e6c-4738-b362-84ec00609cfd}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Components\Bullet">
+      <UniqueIdentifier>{4ee5f8ae-15fa-4df4-bd07-0e898df3f8ef}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animator.h">
@@ -263,6 +266,9 @@
     <ClInclude Include="MonsterAnimController.h">
       <Filter>Animator</Filter>
     </ClInclude>
+    <ClInclude Include="BulletComponent.h">
+      <Filter>Components\Bullet</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -382,6 +388,9 @@
     </ClCompile>
     <ClCompile Include="MonsterAnimController.cpp">
       <Filter>Animator</Filter>
+    </ClCompile>
+    <ClCompile Include="BulletComponent.cpp">
+      <Filter>Components\Bullet</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

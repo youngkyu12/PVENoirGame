@@ -33,6 +33,7 @@ enum class AssetType
     Tower,
 
     Arrow,
+	Bullet,
     Helmet,
     Sword,
     Bow,
