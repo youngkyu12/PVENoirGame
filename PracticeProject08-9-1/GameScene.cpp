@@ -294,11 +294,11 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     m_localPlayerSlot = 1;
 #endif
 
-    const std::string placementFilePath = "Assets/placement_export.txt";
+    const std::string placementFilePath = "Assets/placement_export_st1.txt";
 
     if (!LoadStaticPlacementFile(placementFilePath))
     {
-        assert(false && "Failed to load placement_export.txt");
+        assert(false && "Failed to load placement_export");
         return;
     }
 

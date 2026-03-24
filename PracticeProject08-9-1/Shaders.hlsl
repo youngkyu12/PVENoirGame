@@ -277,7 +277,8 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
     
     output.cTexture = texColor;
     output.cIllumination = illumination;
-    output.color = illumination;
+    //output.color = illumination;
+    output.color = texColor;
     output.normal = float4(normalW * 0.5f + 0.5f, 1.0f);
     output.zDepth = input.position.z;
 
