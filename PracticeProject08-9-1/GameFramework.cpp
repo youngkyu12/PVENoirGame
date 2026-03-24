@@ -894,7 +894,7 @@ void CGameFramework::ProcessInput()
 	pc->SetRunRequested(bRunRequested);
 
 	if (dwDirection)
-		pc->Move(dwDirection, 50.0f * dt, false);
+		pc->Move(dwDirection, 5.0f * dt, false);
 
 	pc->SetInputDirection(static_cast<uint32_t>(dwDirection));
 

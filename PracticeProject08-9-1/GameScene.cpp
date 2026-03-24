@@ -162,7 +162,7 @@ CGameScene::CGameScene()
     m_ghoulCount = 4;
     m_swordManCount = 3;
     m_bowManCount = 3;
-    m_axeManCount = 2;
+    m_MutantCount = 2;
     m_bossCount = 1;
 
     m_PlayerCount = 4;
@@ -199,7 +199,7 @@ void CGameScene::ReleaseObjects()
 
     m_swordManRefs.clear();
     m_bowManRefs.clear();
-    m_axeManRefs.clear();
+    m_MutantRefs.clear();
 
     m_helmetRefs.clear();
     m_arrowRefs.clear();
@@ -212,7 +212,6 @@ void CGameScene::ReleaseObjects()
 
     m_EnemySwordRefs.clear();
     m_EnemyBowRefs.clear();
-    m_EnemyAxeRefs.clear();
 
     m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr };
     m_prevBowReleasePhase = { false, false, false, false };
@@ -309,25 +308,24 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     m_PlayerAxeCount = m_PlayerCount;
     m_PlayerGunCount = m_PlayerCount;
 
-    m_helmetCount = m_axeManCount;
+    m_helmetCount = m_MutantCount;
 
     const UINT worldStaticCount = static_cast<UINT>(m_staticPlacementEntries.size());
 
-    m_staticBatch.capacity =
-        worldStaticCount +
-        kArrowPoolSize +
-        m_helmetCount +
-        m_PlayerSwordCount +
-        m_PlayerAxeCount +
-        m_PlayerGunCount +
-        m_swordManCount +
-        m_axeManCount;
+	m_staticBatch.capacity =
+		worldStaticCount +
+		kArrowPoolSize +
+		m_helmetCount +
+		m_PlayerSwordCount +
+		m_PlayerAxeCount +
+		m_PlayerGunCount +
+		m_swordManCount;
 
     m_skinnedBatch.capacity =
         m_ghoulCount +
         m_swordManCount +
         m_bowManCount +
-        m_axeManCount +
+        m_MutantCount +
         m_bossCount +
         m_PlayerCount +
         m_PlayerBowCount +
@@ -1052,53 +1050,6 @@ void CGameScene::BuildStaticBatch(
             m_EnemySwordRefs.push_back(raw);
         }
     }
-    // ------------------------------------------------------------------------
-    // EnemyAxe pool
-    // ------------------------------------------------------------------------
-    {
-        AssetBuildDesc AxeDesc =
-        {
-            AssetType::Axe,
-            "Assets/Weapon/Axe/Mesh/Axe_Mesh.bin",
-            "Assets/Weapon/Axe/Texture"
-        };
-
-        BuiltAsset axeAsset = AssetManager::BuildAsset(
-            dev, cmd,
-            m_pMaterials.get(),
-            AxeDesc
-        );
-
-        m_EnemyAxeRefs.clear();
-        m_EnemyAxeRefs.reserve(m_axeManCount);
-
-        for (UINT k = 0; k < m_axeManCount; ++k)
-        {
-            if (b->objectRefs.size() >= b->capacity) break;
-
-            const UINT i = (UINT)b->objectRefs.size();
-
-            auto obj = std::make_unique<CGameObject>(1);
-
-            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
-            obj->SetMappedGameObjectCB(cb);
-
-            obj->SetMesh(0, axeAsset.mesh);
-            obj->AddComponent<CStaticMeshRendererComponent>();
-
-            obj->SetPosition(0.0f, -10000.0f, 0.0f);
-            obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
-
-            obj->CreateComponents(dev, cmd);
-
-            CGameObject* raw = obj.get();
-            m_staticObjects.push_back(std::move(obj));
-            b->objectRefs.push_back(raw);
-            b->count = (UINT)b->objectRefs.size();
-
-            m_EnemyAxeRefs.push_back(raw);
-        }
-    }
 }
 
 void CGameScene::BuildSkinnedBatch(
@@ -1166,8 +1117,8 @@ void CGameScene::BuildSkinnedBatch(
     m_bowManRefs.clear();
     m_bowManRefs.reserve(m_bowManCount);
 
-    m_axeManRefs.clear();
-    m_axeManRefs.reserve(m_axeManCount);
+    m_MutantRefs.clear();
+    m_MutantRefs.reserve(m_MutantCount);
 
     // ------------------------------------------------------------------------
     // GameStartData에서 초기 좌표 추출
@@ -1490,16 +1441,16 @@ void CGameScene::BuildSkinnedBatch(
         }
 
         // ----------------------------
-        // Enemy Type: AxeMan
+        // Enemy Type: Mutant
         // ----------------------------
         {
-            const UINT countZ = m_axeManCount;
+            const UINT countZ = m_MutantCount;
 
             AssetBuildDesc EnemyZDesc =
             {
-                AssetType::AxeMan,
-                "Assets/AxeMan/Mesh/AxeMan_Mesh.bin",
-                "Assets/AxeMan/Texture"
+                AssetType::Mutant,
+                "Assets/Mutant/Mesh/Mutant_Mesh.bin",
+                "Assets/Mutant/Texture"
             };
 
             BuiltAsset assetZ = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyZDesc);
@@ -1558,7 +1509,7 @@ void CGameScene::BuildSkinnedBatch(
                 if (mesh0)
                 {
                     idleLoaded = mesh0->LoadAnimationFromBIN(
-                        "Assets/AxeMan/Animation/AxeMan_Anim_Idle.bin",
+                        "Assets/Mutant/Animation/Mutant_Anim_Idle.bin",
                         "Idle", idleClip, 1.0f
                     );
                 }
@@ -1586,7 +1537,7 @@ void CGameScene::BuildSkinnedBatch(
                 b->objectRefs.push_back(raw);
                 b->count = (UINT)b->objectRefs.size();
 
-                m_axeManRefs.push_back(raw);
+                m_MutantRefs.push_back(raw);
             }
         }
 
@@ -2145,12 +2096,6 @@ void CGameScene::LinkSceneObjects()
         XMFLOAT3(2.0f, 1.0f, 1.0f)
     );
 
-    const XMFLOAT4X4 enemyAxeOffset = BuildAttachmentOffsetMatrix(
-        XMFLOAT3(-0.291642f, 0.05957366f, -0.7133077f),
-        XMFLOAT3(-6.057f, -159.16f, 55.789f),
-        XMFLOAT3(1.0f, 1.0f, 1.0f)
-    );
-
     // ------------------------------------------------------------------------
     // Generic attachment list reset
     // ------------------------------------------------------------------------
@@ -2158,14 +2103,13 @@ void CGameScene::LinkSceneObjects()
 
     {
         const size_t helmetPairCount =
-            (m_helmetRefs.size() < m_axeManRefs.size()) ? m_helmetRefs.size() : m_axeManRefs.size();
+            (m_helmetRefs.size() < m_MutantRefs.size()) ? m_helmetRefs.size() : m_MutantRefs.size();
 
         const size_t playerWeaponBindCount = static_cast<size_t>(m_PlayerCount) * 4;
 
-        const size_t enemyWeaponBindCount =
-            m_EnemySwordRefs.size() +
-            m_EnemyBowRefs.size() +
-            m_EnemyAxeRefs.size();
+		const size_t enemyWeaponBindCount =
+			m_EnemySwordRefs.size() +
+			m_EnemyBowRefs.size();
 
         m_attachmentBinds.reserve(helmetPairCount + playerWeaponBindCount + enemyWeaponBindCount);
     }
@@ -2232,7 +2176,7 @@ void CGameScene::LinkSceneObjects()
     // Enemy weapon binding
     // - SwordMan : sword only
     // - BowMan   : bow only
-    // - AxeMan   : axe only
+    // - Mutant   : axe only
     // ------------------------------------------------------------------------
 
     // SwordMan <-> EnemySword
@@ -2257,25 +2201,14 @@ void CGameScene::LinkSceneObjects()
         }
     }
 
-    // AxeMan <-> EnemyAxe
-    {
-        const size_t pairCount =
-            (m_axeManRefs.size() < m_EnemyAxeRefs.size()) ? m_axeManRefs.size() : m_EnemyAxeRefs.size();
-
-        for (size_t i = 0; i < pairCount; ++i)
-        {
-            AddWeaponBind(m_EnemyAxeRefs[i], m_axeManRefs[i], "CATRigRArmPalm", enemyAxeOffset);
-        }
-    }
-
     // ------------------------------------------------------------------------
-    // AxeMan Helmet Attachment
-    //  - 1:1 매칭: helmet[i] -> axeMan[i]
+    // Mutant Helmet Attachment
+    //  - 1:1 매칭: helmet[i] -> Mutant[i]
     //  - bone: CATRigHub002
     // ------------------------------------------------------------------------
     {
         const size_t helmetCount = m_helmetRefs.size();
-        const size_t axeCount = m_axeManRefs.size();
+        const size_t axeCount = m_MutantRefs.size();
         const size_t pairCount = (helmetCount < axeCount) ? helmetCount : axeCount;
 
         const XMFLOAT4X4 helmetOffset = BuildAttachmentOffsetMatrix(
@@ -2288,7 +2221,7 @@ void CGameScene::LinkSceneObjects()
         {
             AttachmentBindSpec spec{};
             spec.follower = m_helmetRefs[i];
-            spec.target = m_axeManRefs[i];
+            spec.target = m_MutantRefs[i];
             spec.boneName = "CATRigHub002";
             spec.localOffset = helmetOffset;
             m_attachmentBinds.push_back(spec);
@@ -2764,7 +2697,7 @@ void CGameScene::AnimateObjects(float dt)
         // Enemy 좌표 업데이트
         // skinnedObjects에서 NPC만 순회 (Fighter 제외)
         UINT enemyIndex = 0;
-        const UINT totalEnemies = m_ghoulCount + m_swordManCount + m_bowManCount + m_axeManCount + m_bossCount;
+        const UINT totalEnemies = m_ghoulCount + m_swordManCount + m_bowManCount + m_MutantCount + m_bossCount;
 
         for (UINT j = 0; j < totalEnemies && j < (UINT)m_skinnedObjects.size(); ++j)
         {
