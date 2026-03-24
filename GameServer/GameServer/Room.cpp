@@ -75,7 +75,7 @@ void Room::Enter(PlayerRef player)
 {
 	player->Build();
 	player->SetWeapon(
-		static_cast<Protocol::WeaponType>(player->playerId + 2), 0); // 예시: 모든 플레이어가 검으로 시작
+		static_cast<Protocol::WeaponType>(player->playerId + 1), 0); // 예시: 모든 플레이어가 검으로 시작
 
 	players[player->playerId] = player;
 }
@@ -196,11 +196,11 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	if (it == players.end())
 		return;
 
-	std::cout << "ProcessInput: playerId=" << playerId << 
-		", keyCodes=" << keyCodes << 
-		", deltaX=" << deltaX << 
-		", deltaY=" << deltaY << 
-		std::endl;
+	//std::cout << "ProcessInput: playerId=" << playerId << 
+	//	", keyCodes=" << keyCodes << 
+	//	", deltaX=" << deltaX << 
+	//	", deltaY=" << deltaY << 
+	//	std::endl;
 
 	PlayerRef& player = it->second;
 
@@ -245,7 +245,8 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 			Protocol::ANIMATION_TYPE_IDLE);
 	}
 
-	player->SetAnimState(keyCodes & (kDirForward | kDirBackward | kDirLeft | kDirRight) & kDirRoll
+	player->SetAnimState(keyCodes & (kDirForward | kDirBackward | kDirLeft | kDirRight) && 
+		keyCodes & kDirRoll
 		&& (prevAnimState != Protocol::ANIMATION_TYPE_ROLL)
 		? Protocol::ANIMATION_TYPE_ROLL : player->GetAnimState());
 
