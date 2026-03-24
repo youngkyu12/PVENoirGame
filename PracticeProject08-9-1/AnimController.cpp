@@ -556,25 +556,10 @@ void CAnimController::NetworkUpdate(float dt)
     // ------------------------------------------------------------
     // Keep locomotion in sync with network state
     // ------------------------------------------------------------
-    std::string targetClip;
-
-    if (m_state == EAnimState::Move)
-    {
-        targetClip = m_moveClip;
-        if ((targetClip.empty() || !anim->HasClip(targetClip)) && m_usePlayerClipSet)
-            targetClip = "Walk_F";
-    }
-    else
-    {
-        targetClip = ResolveIdleClip();
-    }
+    std::string targetClip = ResolveSafeLocomotionClipFromState(m_state);
 
     if (targetClip.empty() || !anim->HasClip(targetClip))
-    {
-        targetClip = ResolveIdleClip();
-        if (targetClip.empty() || !anim->HasClip(targetClip))
-            return;
-    }
+        return;
 
     constexpr float kBlendTime = 0.15f;
 
@@ -582,7 +567,7 @@ void CAnimController::NetworkUpdate(float dt)
     {
         anim->Play(targetClip, true, 0.0f);
     }
-    else if (m_state != animPrevState || anim->GetCurrentClipName() != targetClip)
+    else if (anim->GetCurrentClipName() != targetClip)
     {
         if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
             anim->Play(targetClip, true, 0.0f);
