@@ -21,7 +21,7 @@ enum class AssetType
     Ghoul,
     SwordMan,
     BowMan,
-    AxeMan,
+    Mutant,
     Boss,
 
     World,
