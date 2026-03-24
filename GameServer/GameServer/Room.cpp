@@ -169,6 +169,8 @@ void Room::EndGame()
 
 void Room::TickAdvance()
 {
+	MakeFrameState(tick.load());
+
 	for (auto player : players)
 	{
 		player.second->Update(tick); // dt는 30ms로 고정 (옵션)
@@ -180,7 +182,6 @@ void Room::TickAdvance()
 		enemy.second->Update(tick);
 	}
 
-	MakeFrameState(tick.load());
 
 	tick++;
 }
