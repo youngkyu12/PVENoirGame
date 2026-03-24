@@ -231,6 +231,8 @@ void CGameScene::ReleaseObjects()
 
     m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr };
     m_prevBowReleasePhase = { false, false, false, false };
+	m_preparedBowmanArrows.clear();
+	m_prevEnemyBowReleasePhase.clear();
 
     m_inactiveOverlayShader.reset();
     m_inactiveOverlayTex.reset();
@@ -2112,6 +2114,9 @@ void CGameScene::BuildSkinnedBatch(
             m_EnemyBowRefs.push_back(raw);
         }
     }
+
+	m_preparedBowmanArrows.assign(m_bowManRefs.size(), nullptr);
+	m_prevEnemyBowReleasePhase.assign(m_bowManRefs.size(), false);
 }
 
 XMFLOAT4X4 CGameScene::BuildAttachmentOffsetMatrix(
@@ -2491,6 +2496,19 @@ int CGameScene::GetPlayerSlotFromObject(const CGameObject* obj) const
     return tag->playerSlot;
 }
 
+int CGameScene::GetBowManIndexFromObject(const CGameObject* obj) const
+{
+	if ( !obj ) return -1;
+
+	for ( size_t i = 0; i < m_bowManRefs.size(); ++i )
+	{
+		if ( m_bowManRefs[i] == obj )
+			return static_cast< int >(i);
+	}
+
+	return -1;
+}
+
 void CGameScene::RequestPrepareArrow(CGameObject* shooter, float pullBackDistance)
 {
     if (!shooter) return;
@@ -2521,6 +2539,91 @@ void CGameScene::RequestPrepareArrow(CGameObject* shooter, float pullBackDistanc
         m_preparedPlayerArrows[(size_t)slot] = arrowObj;
         return;
     }
+}
+
+void CGameScene::RequestPrepareBowmanArrow(CGameObject* bowman, float pullBackDistance)
+{
+	if ( !bowman ) return;
+
+	const int bowmanIndex = GetBowManIndexFromObject(bowman);
+	if ( bowmanIndex < 0 ) return;
+
+	const size_t idx = static_cast< size_t >(bowmanIndex);
+
+	if ( idx >= m_preparedBowmanArrows.size() ) return;
+	if ( idx >= m_EnemyBowRefs.size() ) return;
+
+	// 이미 준비된 화살이 있으면 중복 생성 안 함
+	if ( m_preparedBowmanArrows[idx] )
+		return;
+
+	CGameObject* bowObj = m_EnemyBowRefs[idx];
+	if ( !bowObj ) return;
+
+	for ( CGameObject* arrowObj : m_arrowRefs )
+	{
+		if ( !arrowObj ) continue;
+
+		auto* arrow = arrowObj->GetComponent<CArrowComponent>();
+		if ( !arrow ) continue;
+		if ( arrow->IsActive() ) continue;
+
+		arrow->Prepare(bowObj, bowman, pullBackDistance);
+		m_preparedBowmanArrows[idx] = arrowObj;
+		return;
+	}
+}
+
+void CGameScene::RequestReleasePreparedBowmanArrow(CGameObject* bowman, float speed, float lifeSec)
+{
+	if ( !bowman ) return;
+
+	const int bowmanIndex = GetBowManIndexFromObject(bowman);
+	if ( bowmanIndex < 0 ) return;
+
+	const size_t idx = static_cast< size_t >(bowmanIndex);
+	if ( idx >= m_preparedBowmanArrows.size() ) return;
+
+	CGameObject* arrowObj = m_preparedBowmanArrows[idx];
+	if ( !arrowObj ) return;
+
+	auto* arrow = arrowObj->GetComponent<CArrowComponent>();
+	if ( !arrow || !arrow->IsPrepared() )
+	{
+		m_preparedBowmanArrows[idx] = nullptr;
+		return;
+	}
+
+	const XMFLOAT4X4& W = bowman->GetWorldMatrix();
+	XMFLOAT3 dir = { W._31, W._32, W._33 };
+
+	XMVECTOR dirV = XMLoadFloat3(&dir);
+	const float lenSq = XMVectorGetX(XMVector3LengthSq(dirV));
+	if ( lenSq < 1e-8f )
+	{
+		dir = XMFLOAT3(0.0f, 0.0f, 1.0f);
+		dirV = XMLoadFloat3(&dir);
+	}
+
+	dirV = XMVector3Normalize(dirV);
+
+	XMFLOAT3 dirN{};
+	XMStoreFloat3(&dirN, dirV);
+
+	if ( auto* tr = arrowObj->GetComponent<CTransformComponent>() )
+	{
+		tr->SetLookDirection(dirN);
+	}
+
+	const XMFLOAT3 vel =
+	{
+		dirN.x * speed,
+		dirN.y * speed,
+		dirN.z * speed
+	};
+
+	arrow->Launch(vel, lifeSec);
+	m_preparedBowmanArrows[idx] = nullptr;
 }
 
 void CGameScene::RequestReleasePreparedArrow(CGameObject* shooter, float speed, float lifeSec)
@@ -2574,8 +2677,12 @@ void CGameScene::RequestReleasePreparedArrow(CGameObject* shooter, float speed, 
 
 void CGameScene::UpdatePreparedBowArrows()
 {
-    constexpr float kArrowSpeed = 3.0f;
-    constexpr float kArrowLife = 6.0f;
+	constexpr float kArrowSpeed = 3.0f;
+	constexpr float kArrowLife = 6.0f;
+
+	constexpr float kEnemyArrowPullBackDistance = 0.35f * 1.5f;
+	constexpr float kEnemyArrowSpeed = 3.0f;
+	constexpr float kEnemyArrowLife = 6.0f;
 
     for (int slot = 0; slot < 4; ++slot)
     {
@@ -2625,7 +2732,62 @@ void CGameScene::UpdatePreparedBowArrows()
 
         m_prevBowReleasePhase[(size_t)slot] = isBowRelease;
     }
+	for ( size_t i = 0; i < m_bowManRefs.size(); ++i )
+	{
+		CGameObject* bowman = m_bowManRefs[i];
+
+		bool isBowLoad = false;
+		bool isBowRelease = false;
+
+		if ( bowman )
+		{
+			if ( auto* animComp = bowman->GetComponent<CAnimatorComponent>() )
+			{
+				if ( auto* ctrl = animComp->EnsureMonsterController() )
+				{
+					isBowLoad = ctrl->IsAttackPrimaryPhase();   // Bow_Load
+					isBowRelease = ctrl->IsAttackChainPhase();  // Bow_Release
+				}
+			}
+		}
+
+		// Bow_Load 상태이면 준비 화살 생성
+		if ( isBowLoad )
+		{
+			if ( i < m_preparedBowmanArrows.size() && m_preparedBowmanArrows[i] == nullptr )
+			{
+				RequestPrepareBowmanArrow(bowman, kEnemyArrowPullBackDistance);
+			}
+		}
+
+		// Bow_Release 진입 순간에만 발사
+		if ( i < m_prevEnemyBowReleasePhase.size() )
+		{
+			if ( isBowRelease && !m_prevEnemyBowReleasePhase[i] )
+			{
+				RequestReleasePreparedBowmanArrow(bowman, kEnemyArrowSpeed, kEnemyArrowLife);
+			}
+		}
+
+		// 공격이 끝났거나 다른 액션으로 빠지면 준비 화살 정리
+		if ( ( !isBowLoad && !isBowRelease ) &&
+			i < m_preparedBowmanArrows.size() &&
+			m_preparedBowmanArrows[i] )
+		{
+			if ( auto* arrow = m_preparedBowmanArrows[i]->GetComponent<CArrowComponent>() )
+			{
+				arrow->Deactivate();
+			}
+			m_preparedBowmanArrows[i] = nullptr;
+		}
+
+		if ( i < m_prevEnemyBowReleasePhase.size() )
+		{
+			m_prevEnemyBowReleasePhase[i] = isBowRelease;
+		}
+	}
 }
+
 
 CGameObject* CGameScene::GetPlayerBySlot(int slot) const
 {
