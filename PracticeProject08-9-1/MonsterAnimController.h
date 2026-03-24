@@ -23,6 +23,8 @@ public:
 	void Update(float dt);
 
 	bool IsBusy() const { return m_actionPhase != EActionPhase::None; }
+	bool IsAttackPrimaryPhase() const { return m_actionPhase == EActionPhase::Attack; }
+	bool IsAttackChainPhase() const { return m_actionPhase == EActionPhase::AttackChainNext; }
 
 private:
 	enum class EActionPhase : uint8_t
