@@ -257,6 +257,12 @@
     <ClInclude Include="ActorTagComponent.h">
       <Filter>Components\ActorTag</Filter>
     </ClInclude>
+    <ClInclude Include="MonsterAnimTypes.h">
+      <Filter>Animator</Filter>
+    </ClInclude>
+    <ClInclude Include="MonsterAnimController.h">
+      <Filter>Animator</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -373,6 +379,9 @@
     <ClCompile Include="RigidBody.cpp" />
     <ClCompile Include="ActorTagComponent.cpp">
       <Filter>Components\ActorTag</Filter>
+    </ClCompile>
+    <ClCompile Include="MonsterAnimController.cpp">
+      <Filter>Animator</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
