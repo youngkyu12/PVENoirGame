@@ -545,7 +545,7 @@ void CGameScene::BuildLightsAndMaterials()
         lc->type = ELightType::Directional;
 
         lc->ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
-        lc->diffuse = XMFLOAT4(0.3f, 0.3f, 0.3f, 1.0f);
+        lc->diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
         lc->specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
    
 
