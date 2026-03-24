@@ -8,6 +8,7 @@
 #include "Animator.h"
 #include "AnimController.h"
 #include "SkinningComponent.h"
+#include "MonsterAnimController.h"
 
 CAnimatorComponent::CAnimatorComponent(CGameObject* owner)
     : CComponentT<CAnimatorComponent>(owner)
@@ -35,8 +36,9 @@ void CAnimatorComponent::OnUpdate(float dt)
     EnsureController();
     SyncSkeletonIfPossible();
 
-    if (m_pController) m_pController->Update(dt);
-    anim->Update(dt);
+	if ( m_pController ) m_pController->Update(dt);
+	if ( m_pMonsterController ) m_pMonsterController->Update(dt);
+	anim->Update(dt);
 }
 
 void CAnimatorComponent::OnLateUpdate(float /*dt*/)
@@ -59,6 +61,12 @@ CAnimController* CAnimatorComponent::EnsureController()
     if (!m_pController)
         m_pController = std::make_unique<CAnimController>(GetOwner());
     return m_pController.get();
+}
+CMonsterAnimController* CAnimatorComponent::EnsureMonsterController()
+{
+	if ( !m_pMonsterController )
+		m_pMonsterController = std::make_unique<CMonsterAnimController>(GetOwner());
+	return m_pMonsterController.get();
 }
 
 void CAnimatorComponent::AddClip(const AnimationClip& clip)

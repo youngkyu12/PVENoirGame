@@ -11,6 +11,8 @@
 
 #include "AnimatorComponent.h"
 #include "AnimController.h"
+#include "MonsterAnimController.h"
+#include "MonsterAnimTypes.h"
 #include "Material.h"
 #include "AssetManager.h"
 #include "Texture.h"
@@ -1167,6 +1169,7 @@ void CGameScene::BuildSkinnedBatch(
                 obj->SetMesh(0, assetW.mesh);
                 obj->AddComponent<CSkinnedMeshRendererComponent>();
                 obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				auto* animComp = obj->AddComponent<CAnimatorComponent>();
 
                 {
                     auto* tag = obj->AddComponent<CActorTagComponent>();
@@ -1201,35 +1204,49 @@ void CGameScene::BuildSkinnedBatch(
                 if (assetW.mesh && assetW.mesh->IsSkinnedMesh())
                     obj->EnableSkinning(dev, assetW.mesh->GetBoneCount());
 
-                AnimationClip idleClip{};
-                bool idleLoaded = false;
+				auto mesh0 = obj->GetMeshShared(0);
+				if ( mesh0 && animComp )
+				{
+					auto LoadAndAddClip = [ & ] (const char* filePath, const char* clipName)
+						{
+							AnimationClip clip{};
+							if ( mesh0->LoadAnimationFromBIN(filePath, clipName, clip, 1.0f) )
+							{
+								clip.name = clipName;
+								animComp->AddClip(clip);
+							}
+						};
 
-                auto mesh0 = obj->GetMeshShared(0);
-                if (mesh0)
-                {
-                    idleLoaded = mesh0->LoadAnimationFromBIN(
-                        "Assets/Ghoul/Animation/Ghoul_Anim_Idle.bin",
-                        "Idle", idleClip, 1.0f
-                    );
-                }
+					LoadAndAddClip("Assets/Ghoul/Animation/Ghoul_Anim_Idle.bin", "Idle");
+					LoadAndAddClip("Assets/Ghoul/Animation/Ghoul_Anim_Walk.bin", "Walk");
+					LoadAndAddClip("Assets/Ghoul/Animation/Ghoul_Anim_Run.bin", "Run");
+					LoadAndAddClip("Assets/Ghoul/Animation/Ghoul_Anim_Hit.bin", "Hit");
+					LoadAndAddClip("Assets/Ghoul/Animation/Ghoul_Anim_Attack.bin", "Attack");
+					LoadAndAddClip("Assets/Ghoul/Animation/Ghoul_Anim_Death.bin", "Death");
+				}
 
-                if (idleLoaded)
-                {
-                    idleClip.name = "Idle";
+				if ( animComp )
+				{
+					auto* ctrl = animComp->EnsureMonsterController();
+					if ( ctrl )
+					{
+						MonsterAnimProfile p{};
+						p.idleClip = "Idle";
+						p.moveClip = "Walk";
+						p.hitClip = "Hit";
+						p.attackClip = "Attack";
+						p.deathClip = "Death";
 
-                    CAnimator* anim = obj->EnsureAnimator();
-                    if (anim) anim->AddClip(idleClip);
+						ctrl->SetProfile(p);
+						ctrl->SetLocomotionState(EMonsterAnimState::Idle);
+						ctrl->Update(0.0f);
+					}
+				}
 
-                    auto* ctrl = obj->EnsureAnimController();
-                    ctrl->SetIdleClip("Idle");
-                    ctrl->SetMoveClip("Idle");
-                    ctrl->SetSpeed(0.0f);
-                    ctrl->Update(0.0f);
+				obj->Animate(0.0f);
 
-                    obj->Animate(0.0f);
-                }
-
-                obj->CreateComponents(dev, cmd);
+				obj->CreateComponents(dev, cmd);
+				if ( animComp ) animComp->EvaluatePose(0.0f);
 
                 CGameObject* raw = obj.get();
                 m_skinnedObjects.push_back(std::move(obj));
@@ -1264,9 +1281,10 @@ void CGameScene::BuildSkinnedBatch(
                 auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
                 obj->SetMappedGameObjectCB(cb);
 
-                obj->SetMesh(0, assetX.mesh);
-                obj->AddComponent<CSkinnedMeshRendererComponent>();
-                obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				obj->SetMesh(0, assetX.mesh);
+				obj->AddComponent<CSkinnedMeshRendererComponent>();
+				obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				auto* animComp = obj->AddComponent<CAnimatorComponent>();
 
                 {
                     auto* tag = obj->AddComponent<CActorTagComponent>();
@@ -1300,35 +1318,49 @@ void CGameScene::BuildSkinnedBatch(
                 if (assetX.mesh && assetX.mesh->IsSkinnedMesh())
                     obj->EnableSkinning(dev, assetX.mesh->GetBoneCount());
 
-                AnimationClip idleClip{};
-                bool idleLoaded = false;
+				auto mesh0 = obj->GetMeshShared(0);
+				if ( mesh0 && animComp )
+				{
+					auto LoadAndAddClip = [ & ] (const char* filePath, const char* clipName)
+						{
+							AnimationClip clip{};
+							if ( mesh0->LoadAnimationFromBIN(filePath, clipName, clip, 1.0f) )
+							{
+								clip.name = clipName;
+								animComp->AddClip(clip);
+							}
+						};
 
-                auto mesh0 = obj->GetMeshShared(0);
-                if (mesh0)
-                {
-                    idleLoaded = mesh0->LoadAnimationFromBIN(
-                        "Assets/Enemy/Animation/Enemy_Sword_Idle.bin",
-                        "Idle", idleClip, 1.0f
-                    );
-                }
+					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Normal_Idle.bin", "Idle_Common");
+					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Sword_Idle.bin", "Idle");
+					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Walk_F.bin", "Walk");
+					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Run_F.bin", "Run");
+					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Normal_Hit.bin", "Hit_Common");
+					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Sword_Hit.bin", "Hit");
+					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Sword_Attack.bin", "Attack");
+					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Death.bin", "Death");
+				}
 
-                if (idleLoaded)
-                {
-                    idleClip.name = "Idle";
+				if ( animComp )
+				{
+					auto* ctrl = animComp->EnsureMonsterController();
+					if ( ctrl )
+					{
+						MonsterAnimProfile p{};
+						p.idleClip = "Idle";
+						p.moveClip = "Walk";
+						p.hitClip = "Hit";
+						p.attackClip = "Attack";
+						p.deathClip = "Death";
 
-                    CAnimator* anim = obj->EnsureAnimator();
-                    if (anim) anim->AddClip(idleClip);
+						ctrl->SetProfile(p);
+						ctrl->SetLocomotionState(EMonsterAnimState::Idle);
+						ctrl->Update(0.0f);
+					}
+				}
 
-                    auto* ctrl = obj->EnsureAnimController();
-                    ctrl->SetIdleClip("Idle");
-                    ctrl->SetMoveClip("Idle");
-                    ctrl->SetSpeed(0.0f);
-                    ctrl->Update(0.0f);
-
-                    obj->Animate(0.0f);
-                }
-
-                obj->CreateComponents(dev, cmd);
+				obj->CreateComponents(dev, cmd);
+				if ( animComp ) animComp->EvaluatePose(0.0f);
 
                 CGameObject* raw = obj.get();
                 m_skinnedObjects.push_back(std::move(obj));
@@ -1365,9 +1397,10 @@ void CGameScene::BuildSkinnedBatch(
                 auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
                 obj->SetMappedGameObjectCB(cb);
 
-                obj->SetMesh(0, assetY.mesh);
-                obj->AddComponent<CSkinnedMeshRendererComponent>();
-                obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				obj->SetMesh(0, assetY.mesh);
+				obj->AddComponent<CSkinnedMeshRendererComponent>();
+				obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				auto* animComp = obj->AddComponent<CAnimatorComponent>();
 
                 {
                     auto* tag = obj->AddComponent<CActorTagComponent>();
@@ -1401,35 +1434,53 @@ void CGameScene::BuildSkinnedBatch(
                 if (assetY.mesh && assetY.mesh->IsSkinnedMesh())
                     obj->EnableSkinning(dev, assetY.mesh->GetBoneCount());
 
-                AnimationClip idleClip{};
-                bool idleLoaded = false;
+				auto mesh0 = obj->GetMeshShared(0);
+				if ( mesh0 && animComp )
+				{
+					auto LoadAndAddClip = [ & ] (const char* filePath, const char* clipName)
+						{
+							AnimationClip clip{};
+							if ( mesh0->LoadAnimationFromBIN(filePath, clipName, clip, 1.0f) )
+							{
+								clip.name = clipName;
+								animComp->AddClip(clip);
+							}
+						};
 
-                auto mesh0 = obj->GetMeshShared(0);
-                if (mesh0)
-                {
-                    idleLoaded = mesh0->LoadAnimationFromBIN(
-                        "Assets/Enemy/Animation/Enemy_Bow_Idle.bin",
-                        "Idle", idleClip, 1.0f
-                    );
-                }
+					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Normal_Idle.bin", "Idle_Common");
+					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Bow_Idle.bin", "Idle");
+					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Walk_F.bin", "Walk");
+					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Run_F.bin", "Run");
+					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Normal_Hit.bin", "Hit");
+					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Bow_Hold.bin", "Bow_Hold");
+					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Bow_Load.bin", "Bow_Load");
+					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Bow_Release.bin", "Bow_Release");
+					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Death.bin", "Death");
+				}
 
-                if (idleLoaded)
-                {
-                    idleClip.name = "Idle";
+				if ( animComp )
+				{
+					auto* ctrl = animComp->EnsureMonsterController();
+					if ( ctrl )
+					{
+						MonsterAnimProfile p{};
+						p.idleClip = "Idle";
+						p.moveClip = "Walk";
+						p.hitClip = "Hit";
+						p.deathClip = "Death";
 
-                    CAnimator* anim = obj->EnsureAnimator();
-                    if (anim) anim->AddClip(idleClip);
+						p.attackClip = "Bow_Load";
+						p.attackNextClip = "Bow_Release";
+						p.attackHasChain = true;
 
-                    auto* ctrl = obj->EnsureAnimController();
-                    ctrl->SetIdleClip("Idle");
-                    ctrl->SetMoveClip("Idle");
-                    ctrl->SetSpeed(0.0f);
-                    ctrl->Update(0.0f);
+						ctrl->SetProfile(p);
+						ctrl->SetLocomotionState(EMonsterAnimState::Idle);
+						ctrl->Update(0.0f);
+					}
+				}
 
-                    obj->Animate(0.0f);
-                }
-
-                obj->CreateComponents(dev, cmd);
+				obj->CreateComponents(dev, cmd);
+				if ( animComp ) animComp->EvaluatePose(0.0f);
 
                 CGameObject* raw = obj.get();
                 m_skinnedObjects.push_back(std::move(obj));
@@ -1466,9 +1517,10 @@ void CGameScene::BuildSkinnedBatch(
                 auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
                 obj->SetMappedGameObjectCB(cb);
 
-                obj->SetMesh(0, assetZ.mesh);
-                obj->AddComponent<CSkinnedMeshRendererComponent>();
-                obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				obj->SetMesh(0, assetZ.mesh);
+				obj->AddComponent<CSkinnedMeshRendererComponent>();
+				obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				auto* animComp = obj->AddComponent<CAnimatorComponent>();
 
                 {
                     auto* tag = obj->AddComponent<CActorTagComponent>();
@@ -1502,35 +1554,47 @@ void CGameScene::BuildSkinnedBatch(
                 if (assetZ.mesh && assetZ.mesh->IsSkinnedMesh())
                     obj->EnableSkinning(dev, assetZ.mesh->GetBoneCount());
 
-                AnimationClip idleClip{};
-                bool idleLoaded = false;
+				auto mesh0 = obj->GetMeshShared(0);
+				if ( mesh0 && animComp )
+				{
+					auto LoadAndAddClip = [ & ] (const char* filePath, const char* clipName)
+						{
+							AnimationClip clip{};
+							if ( mesh0->LoadAnimationFromBIN(filePath, clipName, clip, 1.0f) )
+							{
+								clip.name = clipName;
+								animComp->AddClip(clip);
+							}
+						};
 
-                auto mesh0 = obj->GetMeshShared(0);
-                if (mesh0)
-                {
-                    idleLoaded = mesh0->LoadAnimationFromBIN(
-                        "Assets/Mutant/Animation/Mutant_Anim_Idle.bin",
-                        "Idle", idleClip, 1.0f
-                    );
-                }
+					LoadAndAddClip("Assets/Mutant/Animation/Mutant_Anim_Idle.bin", "Idle");
+					LoadAndAddClip("Assets/Mutant/Animation/Mutant_Anim_Walk.bin", "Walk");
+					LoadAndAddClip("Assets/Mutant/Animation/Mutant_Anim_Run.bin", "Run");
+					LoadAndAddClip("Assets/Mutant/Animation/Mutant_Anim_Hit.bin", "Hit");
+					LoadAndAddClip("Assets/Mutant/Animation/Mutant_Anim_Attack.bin", "Attack");
+					LoadAndAddClip("Assets/Mutant/Animation/Mutant_Anim_Dead.bin", "Death");
+				}
 
-                if (idleLoaded)
-                {
-                    idleClip.name = "Idle";
+				if ( animComp )
+				{
+					auto* ctrl = animComp->EnsureMonsterController();
+					if ( ctrl )
+					{
+						MonsterAnimProfile p{};
+						p.idleClip = "Idle";
+						p.moveClip = "Walk";
+						p.hitClip = "Hit";
+						p.attackClip = "Attack";
+						p.deathClip = "Death";
 
-                    CAnimator* anim = obj->EnsureAnimator();
-                    if (anim) anim->AddClip(idleClip);
+						ctrl->SetProfile(p);
+						ctrl->SetLocomotionState(EMonsterAnimState::Idle);
+						ctrl->Update(0.0f);
+					}
+				}
 
-                    auto* ctrl = obj->EnsureAnimController();
-                    ctrl->SetIdleClip("Idle");
-                    ctrl->SetMoveClip("Idle");
-                    ctrl->SetSpeed(0.0f);
-                    ctrl->Update(0.0f);
-
-                    obj->Animate(0.0f);
-                }
-
-                obj->CreateComponents(dev, cmd);
+				obj->CreateComponents(dev, cmd);
+				if ( animComp ) animComp->EvaluatePose(0.0f);
 
                 CGameObject* raw = obj.get();
                 m_skinnedObjects.push_back(std::move(obj));
@@ -1567,9 +1631,10 @@ void CGameScene::BuildSkinnedBatch(
                 auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
                 obj->SetMappedGameObjectCB(cb);
 
-                obj->SetMesh(0, assetOne.mesh);
-                obj->AddComponent<CSkinnedMeshRendererComponent>();
-                obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				obj->SetMesh(0, assetOne.mesh);
+				obj->AddComponent<CSkinnedMeshRendererComponent>();
+				obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				auto* animComp = obj->AddComponent<CAnimatorComponent>();
 
                 {
                     auto* tag = obj->AddComponent<CActorTagComponent>();
@@ -1603,35 +1668,54 @@ void CGameScene::BuildSkinnedBatch(
                 if (assetOne.mesh && assetOne.mesh->IsSkinnedMesh())
                     obj->EnableSkinning(dev, assetOne.mesh->GetBoneCount());
 
-                AnimationClip idleClip{};
-                bool idleLoaded = false;
+				auto mesh0 = obj->GetMeshShared(0);
+				if ( mesh0 && animComp )
+				{
+					auto LoadAndAddClip = [ & ] (const char* filePath, const char* clipName)
+						{
+							AnimationClip clip{};
+							if ( mesh0->LoadAnimationFromBIN(filePath, clipName, clip, 1.0f) )
+							{
+								clip.name = clipName;
+								animComp->AddClip(clip);
+							}
+						};
 
-                auto mesh0 = obj->GetMeshShared(0);
-                if (mesh0)
-                {
-                    idleLoaded = mesh0->LoadAnimationFromBIN(
-                        "Assets/Boss/Animation/Boss_Anim_Idle.bin",
-                        "Idle", idleClip, 1.0f
-                    );
-                }
+					LoadAndAddClip("Assets/Boss_Anim_Appear.bin", "Appear");
+					LoadAndAddClip("Assets/Boss_Anim_AttackLeft.bin", "AttackLeft");
+					LoadAndAddClip("Assets/Boss_Anim_AttackRight.bin", "AttackRight");
+					LoadAndAddClip("Assets/Boss_Anim_Call.bin", "Call");
+					LoadAndAddClip("Assets/Boss_Anim_Death.bin", "Death");
+					LoadAndAddClip("Assets/Boss_Anim_Hit.bin", "Hit");
+					LoadAndAddClip("Assets/Boss_Anim_Idle.bin", "Idle");
+					LoadAndAddClip("Assets/Boss_Anim_Spell.bin", "Spell");
+					LoadAndAddClip("Assets/Boss_Anim_Walk.bin", "Walk");
+				}
 
-                if (idleLoaded)
-                {
-                    idleClip.name = "Idle";
+				if ( animComp )
+				{
+					auto* ctrl = animComp->EnsureMonsterController();
+					if ( ctrl )
+					{
+						MonsterAnimProfile p{};
+						p.idleClip = "Idle";
+						p.moveClip = "Walk";
+						p.hitClip = "Hit";
+						p.deathClip = "Death";
 
-                    CAnimator* anim = obj->EnsureAnimator();
-                    if (anim) anim->AddClip(idleClip);
+						p.attackClip = "AttackLeft";
+						p.appearClip = "Appear";
+						p.callClip = "Call";
+						p.spellClip = "Spell";
 
-                    auto* ctrl = obj->EnsureAnimController();
-                    ctrl->SetIdleClip("Idle");
-                    ctrl->SetMoveClip("Idle");
-                    ctrl->SetSpeed(0.0f);
-                    ctrl->Update(0.0f);
+						ctrl->SetProfile(p);
+						ctrl->SetLocomotionState(EMonsterAnimState::Idle);
+						ctrl->Update(0.0f);
+					}
+				}
 
-                    obj->Animate(0.0f);
-                }
-
-                obj->CreateComponents(dev, cmd);
+				obj->CreateComponents(dev, cmd);
+				if ( animComp ) animComp->EvaluatePose(0.0f);
 
                 CGameObject* raw = obj.get();
                 m_skinnedObjects.push_back(std::move(obj));
