@@ -9,6 +9,41 @@
 #include "Animator.h"
 #include "Object.h"
 
+static void RecomputeVertexNormals(SubMesh& sm)
+{
+	sm.normals.assign(sm.positions.size(), XMFLOAT3(0, 0, 0));
+
+	for ( size_t i = 0; i + 2 < sm.indices.size(); i += 3 )
+	{
+		uint32_t i0 = sm.indices[i + 0];
+		uint32_t i1 = sm.indices[i + 1];
+		uint32_t i2 = sm.indices[i + 2];
+
+		XMVECTOR p0 = XMLoadFloat3(&sm.positions[i0]);
+		XMVECTOR p1 = XMLoadFloat3(&sm.positions[i1]);
+		XMVECTOR p2 = XMLoadFloat3(&sm.positions[i2]);
+
+		XMVECTOR e1 = XMVectorSubtract(p1, p0);
+		XMVECTOR e2 = XMVectorSubtract(p2, p0);
+
+		XMVECTOR fn = XMVector3Cross(e1, e2);
+
+		XMFLOAT3 f;
+		XMStoreFloat3(&f, fn);
+
+		sm.normals[i0].x += f.x; sm.normals[i0].y += f.y; sm.normals[i0].z += f.z;
+		sm.normals[i1].x += f.x; sm.normals[i1].y += f.y; sm.normals[i1].z += f.z;
+		sm.normals[i2].x += f.x; sm.normals[i2].y += f.y; sm.normals[i2].z += f.z;
+	}
+
+	for ( auto& n : sm.normals )
+	{
+		XMVECTOR v = XMLoadFloat3(&n);
+		v = XMVector3Normalize(v);
+		XMStoreFloat3(&n, v);
+	}
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
 CPolygon::CPolygon(int nVertices)
@@ -478,6 +513,15 @@ void CMesh::LoadMeshFromBIN(
             v.normal = (i < normals.size() ? normals[i] : XMFLOAT3(0, 1, 0));
             v.uv = (i < uvs.size() ? uvs[i] : XMFLOAT2(0, 0));
             v.tangent = (i < tangents.size() ? tangents[i] : XMFLOAT4(1, 0, 0, 1));
+
+			if ( sm.meshName == "Toga" || 
+				sm.meshName == "Toga_Front" || 
+				sm.meshName == "BreastShield2" || 
+				sm.meshName == "Bracers" ||
+				sm.meshName == "Helm" )
+			{
+				RecomputeVertexNormals(sm);
+			}
 
             if (i < boneIndices.size())
             {
