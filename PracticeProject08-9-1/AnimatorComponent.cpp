@@ -19,25 +19,32 @@ CAnimatorComponent::~CAnimatorComponent() = default;
 
 void CAnimatorComponent::OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*)
 {
-    EnsureAnimator();
-    EnsureController();
-    SyncSkeletonIfPossible();
+	EnsureAnimator();
+	SyncSkeletonIfPossible();
 }
 
 void CAnimatorComponent::OnUpdate(float dt)
 {
-    // 1) controller/state update + anim update
-    CGameObject* owner = GetOwner();
-    if (!owner) return;
+	CGameObject* owner = GetOwner();
+	if ( !owner ) return;
 
-    CAnimator* anim = EnsureAnimator();
-    if (!anim) return;
+	CAnimator* anim = EnsureAnimator();
+	if ( !anim ) return;
 
-    EnsureController();
-    SyncSkeletonIfPossible();
+	SyncSkeletonIfPossible();
 
-	if ( m_pController ) m_pController->Update(dt);
-	if ( m_pMonsterController ) m_pMonsterController->Update(dt);
+	// 둘 다 동시에 돌리면 같은 Animator를 서로 덮어쓴다.
+	// 몬스터 컨트롤러가 있으면 그것만,
+	// 아니면 플레이어 컨트롤러만 갱신한다.
+	if ( m_pMonsterController )
+	{
+		m_pMonsterController->Update(dt);
+	}
+	else if ( m_pController )
+	{
+		m_pController->Update(dt);
+	}
+
 	anim->Update(dt);
 }
 
