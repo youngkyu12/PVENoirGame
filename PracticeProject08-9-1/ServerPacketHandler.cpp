@@ -114,63 +114,26 @@ bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
 	return true;
 }
 
-EAnimState GetEAnimState(Protocol::AnimationType animType)
-{
-	switch (animType)
-	{
-	case Protocol::ANIMATION_TYPE_IDLE:
-		return EAnimState::Idle;
-	case Protocol::ANIMATION_TYPE_WALK:
-		return EAnimState::Move;
-	case Protocol::ANIMATION_TYPE_RUN:
-		return EAnimState::Move;
-	case Protocol::ANIMATION_TYPE_ATTACK:
-		return EAnimState::Attack;
-	case Protocol::ANIMATION_TYPE_ROLL:
-		// 현재 클라 enum에는 Roll 상태가 없으므로 Attack 상태 트랙으로 태운다.
-		return EAnimState::Attack;
-	case Protocol::ANIMATION_TYPE_DIE:
-		return EAnimState::Die;
-	default:
-		return EAnimState::Idle; // 기본값
-	}
-}
-
 bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pkt)
 {
 	FrameSnapshot data;
 
 	data.frameId = pkt.servertick();
 
-	// 프레임마다 적의 위치, 플레이어의 위치, 플레이어의 HP 등등을 수신받아 적용
 	auto players = pkt.players();
 	auto enemies = pkt.enemies();
 
 	for (auto& player : players)
 	{
-		// 플레이어 정보를 옮긴다
 		auto transform = player.transform();
 		auto position = transform.position();
 		auto yaw = transform.yaw();
 		auto animation = player.animation();
 		auto weaponType = player.weapontype();
 
-		std::string s = player.DebugString();
-		s += "\n";
-		//OutputDebugStringA(s.c_str());
-
 		AnimationState animState;
-
-		// 애니메이션 상태를 옮긴다
-		animState.animationId = GetEAnimState(animation.animationtype());
-		animState.animTick = animation.animationtick();
-		animState.isRoll = (animation.animationtype() == Protocol::ANIMATION_TYPE_ROLL);
-
-		if (animState.isRoll)
-		{
-			
-			std::cout << animState.isRoll << std::endl;
-		}
+		animState.stateCode = animation.statecode(); // 변환 없이 저장
+		animState.animTick = static_cast<int>(animation.animationtick());
 
 		EWeaponType eweaponType = static_cast<EWeaponType>(weaponType - 1);
 
@@ -179,19 +142,15 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 
 	for (auto& enemy : enemies)
 	{
-		// 적 정보를 옮긴다
 		auto transform = enemy.transform();
 		auto position = transform.position();
 		auto yaw = transform.yaw();
 		auto animation = enemy.animation();
 		auto weaponType = enemy.weapontype();
-		//std::string s = enemy.DebugString();
 
 		AnimationState animState;
-
-		// 애니메이션 상태를 옮긴다
-		animState.animationId = static_cast<EAnimState>(animation.animationtype());
-		animState.animTick = animation.animationtick();
+		animState.stateCode = animation.statecode(); // 변환 없이 저장
+		animState.animTick = static_cast<int>(animation.animationtick());
 
 		EWeaponType eweaponType = static_cast<EWeaponType>(weaponType - 1);
 

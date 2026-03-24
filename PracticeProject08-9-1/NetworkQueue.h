@@ -17,9 +17,8 @@ using namespace DirectX;
 
 struct AnimationState
 {
-    EAnimState    animationId;
+    uint32_t      stateCode = 0;
     int           animTick; // 애니메이션 현재 틱 (0 ~ maxTick)
-    bool          isRoll = false; // Protocol::ANIMATION_TYPE_ROLL 구분용
 };
 
 // ============================================================
