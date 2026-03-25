@@ -197,6 +197,20 @@ struct VS_TEXTURED_LIGHTING_INPUT
     float4 tangent : TANGENT;
 };
 
+struct VS_TEXTURED_LIGHTING_INSTANCED_INPUT
+{
+    float3 position : POSITION;
+    float3 normal : NORMAL;
+    float2 uv : TEXCOORD;
+    float4 tangent : TANGENT;
+
+    float4 instWorld0 : INSTANCE_WORLD0;
+    float4 instWorld1 : INSTANCE_WORLD1;
+    float4 instWorld2 : INSTANCE_WORLD2;
+    float4 instWorld3 : INSTANCE_WORLD3;
+    uint instObjectId : INSTANCE_OBJECT_ID0;
+};
+
 struct VS_TEXTURED_LIGHTING_OUTPUT
 {
     float4 position : SV_POSITION;
@@ -215,6 +229,28 @@ VS_TEXTURED_LIGHTING_OUTPUT VSTexturedLighting(VS_TEXTURED_LIGHTING_INPUT input)
     output.position = mul(mul(float4(output.positionW, 1.0f), gmtxView), gmtxProjection);
     output.uv = input.uv;
     float3 tW = mul(input.tangent.xyz, (float3x3) gmtxGameObject);
+    output.tangentW = float4(tW, input.tangent.w);
+
+    return (output);
+}
+
+VS_TEXTURED_LIGHTING_OUTPUT VSTexturedLightingInstanced(VS_TEXTURED_LIGHTING_INSTANCED_INPUT input)
+{
+    VS_TEXTURED_LIGHTING_OUTPUT output;
+
+    float4x4 mtxInstanceWorld = float4x4(
+        input.instWorld0,
+        input.instWorld1,
+        input.instWorld2,
+        input.instWorld3
+    );
+
+    output.normalW = mul(input.normal, (float3x3) mtxInstanceWorld);
+    output.positionW = (float3) mul(float4(input.position, 1.0f), mtxInstanceWorld);
+    output.position = mul(mul(float4(output.positionW, 1.0f), gmtxView), gmtxProjection);
+    output.uv = input.uv;
+
+    float3 tW = mul(input.tangent.xyz, (float3x3) mtxInstanceWorld);
     output.tangentW = float4(tW, input.tangent.w);
 
     return (output);

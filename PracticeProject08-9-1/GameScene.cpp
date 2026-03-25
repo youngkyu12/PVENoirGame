@@ -225,6 +225,7 @@ void CGameScene::ReleaseObjects()
 	m_arrowRefs.clear();
 	m_bulletRefs.clear();
 	m_attachmentBinds.clear();
+	m_staticInstanceGroups.clear();
 
     m_PlayerSwordRefs.clear();
     m_PlayerBowRefs.clear();
@@ -269,16 +270,28 @@ void CGameScene::ReleaseUploadBuffers()
 
 void CGameScene::ReleaseShaderVariables()
 {
-    // ---- Static batch CB ----
-    if (m_staticBatch.cbGameObjects)
-    {
-        if (m_staticBatch.mappedGameObjects)
-        {
-            m_staticBatch.cbGameObjects->Unmap(0, NULL);
-            m_staticBatch.mappedGameObjects = nullptr;
-        }
-        m_staticBatch.cbGameObjects.Reset();
-    }
+	if ( m_pd3dStaticInstanceBuffer )
+	{
+		if ( m_pMappedStaticInstanceBuffer )
+		{
+			m_pd3dStaticInstanceBuffer->Unmap(0, NULL);
+			m_pMappedStaticInstanceBuffer = nullptr;
+		}
+		m_pd3dStaticInstanceBuffer.Reset();
+	}
+	m_staticInstanceBufferCapacity = 0;
+
+	// ---- Static batch CB ----
+	if ( m_staticBatch.cbGameObjects )
+	{
+		if ( m_staticBatch.mappedGameObjects )
+		{
+			m_staticBatch.cbGameObjects->Unmap(0, NULL);
+			m_staticBatch.mappedGameObjects = nullptr;
+		}
+		m_staticBatch.cbGameObjects.Reset();
+	}
+
 
     // ---- Skinned batch CB ----
     if (m_skinnedBatch.cbGameObjects)
@@ -720,7 +733,7 @@ void CGameScene::BuildStaticBatch(
     );
 
     b->cbGameObjects->Map(0, nullptr, (void**)&b->mappedGameObjects);
-
+	
     b->baseCbvGpu = m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
     b->cbvInc = ::gnCbvSrvDescriptorIncrementSize;
 
@@ -1125,6 +1138,156 @@ void CGameScene::BuildStaticBatch(
             m_EnemySwordRefs.push_back(raw);
         }
     }
+	BuildStaticInstanceGroups();
+	if ( m_pd3dStaticInstanceBuffer )
+	{
+		if ( m_pMappedStaticInstanceBuffer )
+		{
+			m_pd3dStaticInstanceBuffer->Unmap(0, NULL);
+			m_pMappedStaticInstanceBuffer = nullptr;
+		}
+		m_pd3dStaticInstanceBuffer.Reset();
+	}
+
+	if ( m_staticInstanceBufferCapacity > 0 )
+	{
+		const UINT instanceBufferBytes = sizeof(StaticInstanceVertex) * m_staticInstanceBufferCapacity;
+
+		m_pd3dStaticInstanceBuffer = ::CreateBufferResource(
+			dev, cmd, nullptr,
+			instanceBufferBytes,
+			D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr
+		);
+
+		m_pd3dStaticInstanceBuffer->Map(0, nullptr, ( void** ) &m_pMappedStaticInstanceBuffer);
+	}
+}
+
+void CGameScene::BuildStaticInstanceGroups()
+{
+	m_staticInstanceGroups.clear();
+
+	for ( UINT objectIndex = 0; objectIndex < ( UINT ) m_staticBatch.objectRefs.size(); ++objectIndex )
+	{
+		CGameObject* obj = m_staticBatch.objectRefs[objectIndex];
+		if ( !obj ) continue;
+
+		const int meshCount = obj->GetMeshCount();
+		for ( int meshIndex = 0; meshIndex < meshCount; ++meshIndex )
+		{
+			std::shared_ptr<CMesh> mesh = obj->GetMeshShared(meshIndex);
+			if ( !mesh ) continue;
+
+			for ( UINT subMeshIndex = 0; subMeshIndex < ( UINT ) mesh->m_SubMeshes.size(); ++subMeshIndex )
+			{
+				StaticInstanceGroup* targetGroup = nullptr;
+
+				for ( StaticInstanceGroup& group : m_staticInstanceGroups )
+				{
+					if ( group.mesh.get() == mesh.get() && group.subMeshIndex == subMeshIndex )
+					{
+						targetGroup = &group;
+						break;
+					}
+				}
+
+				if ( !targetGroup )
+				{
+					StaticInstanceGroup newGroup{};
+					newGroup.mesh = mesh;
+					newGroup.subMeshIndex = subMeshIndex;
+					m_staticInstanceGroups.push_back(std::move(newGroup));
+					targetGroup = &m_staticInstanceGroups.back();
+				}
+
+				targetGroup->objectIndices.push_back(objectIndex);
+			}
+		}
+	}
+
+	UINT runningStart = 0;
+	for ( StaticInstanceGroup& group : m_staticInstanceGroups )
+	{
+		group.instanceBufferStart = runningStart;
+		runningStart += ( UINT ) group.objectIndices.size();
+	}
+
+	m_staticInstanceBufferCapacity = runningStart;
+}
+
+void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd)
+{
+	if ( !cmd ) return;
+	if ( !m_pd3dStaticInstanceBuffer ) return;
+	if ( !m_pMappedStaticInstanceBuffer ) return;
+
+	for ( const StaticInstanceGroup& group : m_staticInstanceGroups )
+	{
+		if ( !group.mesh ) continue;
+		if ( group.subMeshIndex >= group.mesh->m_SubMeshes.size() ) continue;
+
+		const SubMesh& sm = group.mesh->m_SubMeshes[group.subMeshIndex];
+		if ( sm.indices.empty() ) continue;
+
+		const UINT maxInstanceCount = ( UINT ) group.objectIndices.size();
+		if ( maxInstanceCount == 0 ) continue;
+
+		const UINT instanceBase = group.instanceBufferStart;
+		if ( ( instanceBase + maxInstanceCount ) > m_staticInstanceBufferCapacity ) continue;
+
+		UINT visibleInstanceCount = 0;
+
+		for ( UINT i = 0; i < maxInstanceCount; ++i )
+		{
+			const UINT objectIndex = group.objectIndices[i];
+			if ( objectIndex >= ( UINT ) m_staticBatch.objectRefs.size() ) continue;
+
+			CGameObject* obj = m_staticBatch.objectRefs[objectIndex];
+			if ( !obj ) continue;
+
+			auto* renderer = obj->GetComponent<CStaticMeshRendererComponent>();
+			if ( !renderer ) continue;
+			if ( !renderer->IsEnabled() ) continue;
+
+			StaticInstanceVertex& dst = m_pMappedStaticInstanceBuffer[instanceBase + visibleInstanceCount];
+			ZeroMemory(&dst, sizeof(dst));
+
+			const XMFLOAT4X4& W = obj->GetWorldMatrix();
+
+			dst.world0 = XMFLOAT4(W._11, W._12, W._13, W._14);
+			dst.world1 = XMFLOAT4(W._21, W._22, W._23, W._24);
+			dst.world2 = XMFLOAT4(W._31, W._32, W._33, W._34);
+			dst.world3 = XMFLOAT4(W._41, W._42, W._43, W._44);
+			dst.objectId = objectIndex;
+
+			++visibleInstanceCount;
+		}
+
+		if ( visibleInstanceCount == 0 ) continue;
+
+		D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
+		vbViews[0] = sm.vbView;
+		vbViews[1].BufferLocation =
+			m_pd3dStaticInstanceBuffer->GetGPUVirtualAddress() +
+			( UINT64 ) ( sizeof(StaticInstanceVertex) * instanceBase );
+		vbViews[1].SizeInBytes = sizeof(StaticInstanceVertex) * visibleInstanceCount;
+		vbViews[1].StrideInBytes = sizeof(StaticInstanceVertex);
+
+		cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		const UINT mid = ( sm.materialId == 0xFFFFFFFFu ) ? 0u : sm.materialId;
+		cmd->SetGraphicsRoot32BitConstant(ROOT_PARAMETER_MATERIAL_ID, mid, 0);
+
+		if ( sm.material && sm.material->NeedsLegacyBinding() )
+			sm.material->UpdateShaderVariables(cmd);
+
+		cmd->IASetVertexBuffers(0, 2, vbViews);
+		cmd->IASetIndexBuffer(&sm.ibView);
+
+		cmd->DrawIndexedInstanced(( UINT ) sm.indices.size(), visibleInstanceCount, 0, 0, 0);
+	}
 }
 
 void CGameScene::BuildSkinnedBatch(
@@ -3298,15 +3461,11 @@ void CGameScene::OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera
 
 void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
-    if (m_staticBatch.shader)
-    {
-        m_staticBatch.shader->Render(cmd, camera, &m_staticBatch);
-        for (UINT j = 0; j < (UINT)m_staticObjects.size(); ++j)
-        {
-            if (!m_staticObjects[j]) continue;
-            m_staticObjects[j]->Render(cmd, camera);
-        }
-    }
+	if ( m_staticBatch.shader )
+	{
+		m_staticBatch.shader->Render(cmd, camera, &m_staticBatch);
+		RenderStaticInstanceGroups(cmd);
+	}
 
     if (m_skinnedBatch.shader)
     {
