@@ -479,8 +479,9 @@ void CGameFramework::UpdateWindowActivationState()
 
 void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 {
-	WaitForGpuComplete();
 
+	WaitForGpuComplete();
+	
 	m_SceneManager.ReleaseCurrent();
 	m_pCamera = nullptr;
 
@@ -947,7 +948,7 @@ void CGameFramework::FrameAdvance()
 	UpdateWindowActivationState();
 
 	ApplyPendingSceneSwitch();
-
+	
 	ProcessInput();
 	AnimateObjects();
 	CollisionSystem();

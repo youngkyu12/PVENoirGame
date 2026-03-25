@@ -1,4 +1,4 @@
-﻿#include "stdafx.h"
+#include "stdafx.h"
 #include "BoundingCapsule.h"
 
 void BoundingCapsule::Transform(BoundingCapsule& Out, FXMMATRIX M) const noexcept
@@ -76,21 +76,61 @@ ContainmentType BoundingCapsule::Contains(FXMVECTOR V0, FXMVECTOR V1, FXMVECTOR 
 
 bool BoundingCapsule::Intersects(const BoundingOrientedBox& box) const noexcept
 {
-    XMVECTOR A = XMLoadFloat3(&p0);
-    XMVECTOR B = XMLoadFloat3(&p1);
+    XMVECTOR A = XMLoadFloat3(&p0);	// p0
+    XMVECTOR B = XMLoadFloat3(&p1);	// p1
 
-    XMVECTOR center = XMLoadFloat3(&box.Center);
-    XMVECTOR extents = XMLoadFloat3(&box.Extents);
-    XMVECTOR q = XMLoadFloat4(&box.Orientation);
+    XMVECTOR center = XMLoadFloat3(&box.Center);	// OBB Center
+    XMVECTOR extents = XMLoadFloat3(&box.Extents);	// OBB Extents
+    XMVECTOR q = XMLoadFloat4(&box.Orientation);	// OBB 회전 상태
 
-    XMMATRIX R = XMMatrixRotationQuaternion(q);
-    XMMATRIX InvR = XMMatrixTranspose(R);
+    XMMATRIX R = XMMatrixRotationQuaternion(q);	// OBB 회전 상태를 회전행렬로 바꿔서 반환
+    XMMATRIX InvR = XMMatrixTranspose(R);	// OBB 회전행렬의 역행렬
 
-    XMVECTOR ALocal = XMVector3Transform(A - center, InvR);
-    XMVECTOR BLocal = XMVector3Transform(B - center, InvR);
+    XMVECTOR ALocal = XMVector3Transform(A - center, InvR);	// A - center는 center에서 A로 향하는 벡터
+															// 즉, center를 원점으로 하는 좌표계에서 본 A의 상대 위치를 말한다.
+															// A - center와 InvR을 곱하여 OBB의 회전을 제거
+    XMVECTOR BLocal = XMVector3Transform(B - center, InvR);	// B - center는 center에서 B로 향하는 벡터
+															// 즉, center를 원점으로 하는 좌표계에서 본 B의 상대 위치를 말한다.
+															// B - center와 InvR을 곱하여 OBB의 회전을 제거
 
     float distSq = Vector3::distSegmentToAABB(ALocal, BLocal, extents);
+	// ALocal, BLocal은 OBB 중심을 원점으로 하고 회전을 제거한 로컬 공간에서의 캡슐 축 끝점이다.
+	// 이 공간에서 OBB는 extents를 반크기로 가지는 AABB가 된다.
+	// 이후 선분 ALocal-BLocal과 AABB 사이의 최단거리를 구하고,
+	// 그 거리가 캡슐 반지름 이하이면 충돌로 판단한다.
+
     return distSq <= Radius * Radius;
+}
+
+bool BoundingCapsule::Intersects(const BoundingFrustum& fr) const noexcept
+{
+	XMVECTOR A = XMLoadFloat3(&p0);
+	XMVECTOR B = XMLoadFloat3(&p1);
+
+	XMVECTOR nearPlane, farPlane, rightPlane, leftPlane, topPlane, bottomPlane;
+	fr.GetPlanes(&nearPlane, &farPlane, &rightPlane, &leftPlane, &topPlane, &bottomPlane);
+
+	XMVECTOR planes[6] =
+	{
+		nearPlane, farPlane, rightPlane,
+		leftPlane, topPlane, bottomPlane
+	};
+
+	for ( int i = 0; i < 6; ++i )
+	{
+		float da = XMVectorGetX(XMPlaneDotCoord(planes[i], A));
+		float db = XMVectorGetX(XMPlaneDotCoord(planes[i], B));
+
+		float dmax = max(da, db);
+
+		// 선분 AB에서 평면에 가장 가까운 쪽 거리(dmax)에
+		// 캡슐 반지름을 더해도 평면 안쪽으로 들어오지 못하면
+		// 캡슐 전체는 해당 평면 바깥에 있으므로 교차하지 않는다.
+		if ( dmax < -Radius )
+			return false;
+	}
+
+	return true;
 }
 
 bool BoundingCapsule::Intersects(const BoundingCapsule& ca) const noexcept
@@ -183,6 +223,39 @@ ContainmentType BoundingCapsule::Contains(const BoundingOrientedBox& box) const 
     }
 
     return CONTAINS;
+}
+ContainmentType BoundingCapsule::Contains(const BoundingFrustum& fr) const noexcept
+{
+	XMVECTOR A = XMLoadFloat3(&p0);
+	XMVECTOR B = XMLoadFloat3(&p1);
+
+	XMVECTOR nearPlane, farPlane, rightPlane, leftPlane, topPlane, bottomPlane;
+	fr.GetPlanes(&nearPlane, &farPlane, &rightPlane, &leftPlane, &topPlane, &bottomPlane);
+
+	XMVECTOR planes[6] =
+	{
+		nearPlane, farPlane, rightPlane,
+		leftPlane, topPlane, bottomPlane
+	};
+
+	bool allInside = true;
+
+	for ( int i = 0; i < 6; ++i )
+	{
+		float da = XMVectorGetX(XMPlaneDotCoord(planes[i], A));
+		float db = XMVectorGetX(XMPlaneDotCoord(planes[i], B));
+
+		float dmin = min(da, db);
+		float dmax = max(da, db);
+
+		if ( dmax < -Radius )
+			return DISJOINT;
+
+		if ( dmin < Radius )
+			allInside = false;
+	}
+
+	return allInside ? CONTAINS : INTERSECTS;
 }
 
 ContainmentType BoundingCapsule::Contains(const BoundingCapsule& ca) const noexcept

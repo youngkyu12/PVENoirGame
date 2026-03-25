@@ -412,7 +412,93 @@ namespace Vector3
 
 		return signedDist * signedDist; // 선분-삼각형 면 거리 제곱
 	}
-	inline bool distSegmentToAABB(FXMVECTOR A, FXMVECTOR B, FXMVECTOR Extents)
+	
+	inline XMVECTOR ClosestPointOnAABB(FXMVECTOR p, FXMVECTOR extents)
+	{
+		XMFLOAT3 pf, ef;
+		XMStoreFloat3(&pf, p);
+		XMStoreFloat3(&ef, extents);
+
+		return XMVectorSet(
+			std::clamp(pf.x, -ef.x, ef.x),
+			std::clamp(pf.y, -ef.y, ef.y),
+			std::clamp(pf.z, -ef.z, ef.z),
+			0.0f);
+	}
+
+	inline float DistPointToAABBSq(FXMVECTOR p, FXMVECTOR extents)
+	{
+		XMVECTOR P = p;
+		XMVECTOR Q = ClosestPointOnAABB(p, extents);
+		return XMVectorGetX(XMVector3LengthSq(P - Q));
+	}
+
+	// 선분-선분 최단거리 제곱
+	inline float DistSegmentToSegmentSq(FXMVECTOR p1, FXMVECTOR q1, FXMVECTOR p2, FXMVECTOR q2)
+	{
+		const float EPS = 1e-6f;
+
+		XMVECTOR d1 = q1 - p1; // S1 방향
+		XMVECTOR d2 = q2 - p2; // S2 방향
+		XMVECTOR r = p1 - p2;
+
+		float a = XMVectorGetX(XMVector3Dot(d1, d1));
+		float e = XMVectorGetX(XMVector3Dot(d2, d2));
+		float f = XMVectorGetX(XMVector3Dot(d2, r));
+
+		float s, t;
+
+		if ( a <= EPS && e <= EPS )
+		{
+			return XMVectorGetX(XMVector3LengthSq(p1 - p2));
+		}
+
+		if ( a <= EPS )
+		{
+			s = 0.0f;
+			t = std::clamp(f / e, 0.0f, 1.0f);
+		}
+		else
+		{
+			float c = XMVectorGetX(XMVector3Dot(d1, r));
+
+			if ( e <= EPS )
+			{
+				t = 0.0f;
+				s = std::clamp(-c / a, 0.0f, 1.0f);
+			}
+			else
+			{
+				float b = XMVectorGetX(XMVector3Dot(d1, d2));
+				float denom = a * e - b * b;
+
+				if ( denom != 0.0f )
+					s = std::clamp(( b * f - c * e ) / denom, 0.0f, 1.0f);
+				else
+					s = 0.0f;
+
+				t = ( b * s + f ) / e;
+
+				if ( t < 0.0f )
+				{
+					t = 0.0f;
+					s = std::clamp(-c / a, 0.0f, 1.0f);
+				}
+				else if ( t > 1.0f )
+				{
+					t = 1.0f;
+					s = std::clamp(( b - c ) / a, 0.0f, 1.0f);
+				}
+			}
+		}
+
+		XMVECTOR c1 = p1 + d1 * s;
+		XMVECTOR c2 = p2 + d2 * t;
+		return XMVectorGetX(XMVector3LengthSq(c1 - c2));
+	}
+
+	// slab 방식으로 선분이 AABB와 교차하는지 검사
+	inline bool IntersectSegmentAABB(FXMVECTOR A, FXMVECTOR B, FXMVECTOR Extents)
 	{
 		float ax = XMVectorGetX(A);
 		float ay = XMVectorGetY(A);
@@ -426,34 +512,85 @@ namespace Vector3
 		float ey = XMVectorGetY(Extents);
 		float ez = XMVectorGetZ(Extents);
 
-		float dx = bx - ax;
-		float dy = by - ay;
-		float dz = bz - az;
+		float d[3] = { bx - ax, by - ay, bz - az };
+		float p0[3] = { ax, ay, az };
+		float minEx[3] = { -ex, -ey, -ez };
+		float maxEx[3] = { ex, ey, ez };
 
 		float tmin = 0.0f;
 		float tmax = 1.0f;
 
-		auto slab = [&](float a, float d, float e) -> bool
-			{
-				if (fabsf(d) <= EPSILON)
-				{
-					return (a >= -e && a <= e);
-				}
+		for ( int i = 0; i < 3; ++i ) {
+			if ( fabsf(d[i]) <= EPSILON ) {	// 선분이 점이 될만큼 작은 경우
+				if ( p0[i] < minEx[i] || p0[i] > maxEx[i] )
+					return false;
+			}
+			else {
+				float ood = 1.0f / d[i];
+				float t1 = ( minEx[i] - p0[i] ) * ood;	// P(t) = A + t(B - A)
+				// minEx[i] = p0[i] + t1 * d[i]
+				// t1 =(minEx[i] - p0[i]) / d[i] 
+				float t2 = ( maxEx[i] - p0[i] ) * ood;	// maxEx[i] = p0[i] + t2 * d[i]
+				// t2 =(maxEx[i] - p0[i]) / d[i] 
 
-				float invD = 1.0f / d;
-				float t1 = (-e - a) * invD;
-				float t2 = (e - a) * invD;
-
-				if (t1 > t2)
+				if ( t1 > t2 )	// 선분 방향이 음수일 수도 있기 때문에
 					std::swap(t1, t2);
 
 				tmin = max(tmin, t1);
 				tmax = min(tmax, t2);
 
-				return tmin <= tmax;
-			};
+				if ( tmin > tmax )
+					return false;
+			}
+		}
 
-		return slab(ax, dx, ex) && slab(ay, dy, ey) && slab(az, dz, ez);
+		return true;
+	}
+
+	inline float distSegmentToAABB(FXMVECTOR A, FXMVECTOR B, FXMVECTOR Extents)
+	{
+		// 1) 선분이 박스를 통과하면 거리 0
+		if(IntersectSegmentAABB(A, B, Extents))
+			return 0.0f;
+
+		float minDistSq = FLT_MAX;
+
+
+		// 2) 끝점 A, B 에서 AABB까지 거리도 후보
+		minDistSq = min(minDistSq, DistPointToAABBSq(A, Extents));
+		minDistSq = min(minDistSq, DistPointToAABBSq(B, Extents));
+
+		// 3) AABB의 8개 꼭짓점
+		XMFLOAT3 e;
+		XMStoreFloat3(&e, Extents);
+
+		XMVECTOR v[8] =
+		{
+			XMVectorSet(-e.x, -e.y, -e.z, 0.0f),
+			XMVectorSet(e.x, -e.y, -e.z, 0.0f),
+			XMVectorSet(-e.x,  e.y, -e.z, 0.0f),
+			XMVectorSet(e.x,  e.y, -e.z, 0.0f),
+			XMVectorSet(-e.x, -e.y,  e.z, 0.0f),
+			XMVectorSet(e.x, -e.y,  e.z, 0.0f),
+			XMVectorSet(-e.x,  e.y,  e.z, 0.0f),
+			XMVectorSet(e.x,  e.y,  e.z, 0.0f)
+		};
+
+		// 4) AABB의 12개 모서리
+		const int edges[12][2] =
+		{
+			{0,1}, {2,3}, {4,5}, {6,7}, // X 방향
+			{0,2}, {1,3}, {4,6}, {5,7}, // Y 방향
+			{0,4}, {1,5}, {2,6}, {3,7}  // Z 방향
+		};
+
+		for ( int i = 0; i < 12; ++i )
+		{
+			float d = DistSegmentToSegmentSq(A, B, v[edges[i][0]], v[edges[i][1]]);
+			minDistSq = ( std::min ) ( minDistSq, d );
+		}
+
+		return minDistSq;
 	}
 }
 

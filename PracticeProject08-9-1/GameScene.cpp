@@ -394,7 +394,6 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
     BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
     BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
-    BuildObjectsCollider();
 
     LinkSceneObjects();
 
@@ -404,6 +403,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     if (!local) local = GetPlayerBySlot(0);
 
     CreateMainCamera(dev, cmd, local);
+	BuildObjectsCollider();
 }
 
 float CGameScene::QuaternionToYawDegrees(const XMFLOAT4& q)
@@ -2982,4 +2982,5 @@ void CGameScene::BuildObjectsCollider()
     {
         m_Collision->RegisterCollider(obj->GetComponent<CColliderComponent>());
     }
+	m_Collision->SetBoundingFrustum(m_pMainCamera->GetBoundingFrustum());
 }

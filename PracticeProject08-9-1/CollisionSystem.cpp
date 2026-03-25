@@ -22,10 +22,15 @@ void CCollisionSystem::UnregisterCollider(CColliderComponent* c)
     mColliders.erase(it, mColliders.end());
 }
 
+void CCollisionSystem::SetBoundingFrustum(const BoundingFrustum& BFrustum)
+{
+	mCameraCollider = BFrustum;
+}
+
 bool CCollisionSystem::PassFilter(const CColliderComponent* a, const CColliderComponent* b) const
 {
-    // ·¹ÀÌ¾î/¸¶½ºÅ©: ¼­·Î Çã¿ëÇØ¾ß Ãæµ¹(´ëÄª)
-    // bÀÇ layer bit°¡ aÀÇ mask¿¡ Æ÷ÇÔ && aÀÇ layer bit°¡ bÀÇ mask¿¡ Æ÷ÇÔ
+    // ë ˆì´ì–´/ë§ˆìŠ¤í¬: ì„œë¡œ í—ˆìš©í•´ì•¼ ì¶©ëŒ(ëŒ€ì¹­)
+    // bì˜ layer bitê°€ aì˜ maskì— í¬í•¨ && aì˜ layer bitê°€ bì˜ maskì— í¬í•¨
     const uint32_t bitA = (1u << a->GetLayer());
     const uint32_t bitB = (1u << b->GetLayer());
 
@@ -41,7 +46,7 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 
     bool isHit = false;
 
-    // Å¸ÀÔº° narrow phase
+    // íƒ€ì…ë³„ narrow phase
     if (a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::BCapsule)
     {
         isHit = a->GetBCapsule().Intersects(b->GetBCapsule());
@@ -60,7 +65,7 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 
     if (a->IsTrigger() || b->IsTrigger())
     {
-        // Trigger ÀÌº¥Æ® Ã³¸®
+        // Trigger ì´ë²¤íŠ¸ ì²˜ë¦¬
         return;
     }
 
@@ -84,14 +89,30 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
     transformA->Translate(pos);
 }
 
+bool CCollisionSystem::IsVisible(const BoundingFrustum& frustum, const CColliderComponent* collider)
+{
+	if ( collider->GetType() == EColliderType::BCapsule )
+	{
+		return collider->GetBCapsule().Intersects(frustum);
+	}
+	else if ( collider->GetType() == EColliderType::OOBB )
+	{
+		return collider->GetOOBB().Intersects(frustum);
+	}
+}
+
 void CCollisionSystem::OnUpdate()
 {
-    // Àü¼ö°Ë»ç: i<j
+    // ì „ìˆ˜ê²€ì‚¬: i<j
     const size_t n = mColliders.size();
     for (size_t i = 0; i < n; ++i)
     {
         auto* a = mColliders[i];
         if (!a) continue;
+
+		/*if ( !IsVisible(mCameraCollider, a) )
+			a->DisabledRender();
+			continue;*/
 
         for (size_t j = i + 1; j < n; ++j)
         {
@@ -100,6 +121,8 @@ void CCollisionSystem::OnUpdate()
 
             if (!PassFilter(a, b))
                 continue;
+
+			
 
             HandlePair(a, b);
         }

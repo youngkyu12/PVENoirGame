@@ -34,6 +34,7 @@ void CCamera::GenerateProjectionMatrix(float fNearPlaneDistance, float fFarPlane
 	m_xmf4x4Projection = Matrix4x4::PerspectiveFovLH(XMConvertToRadians(fFOVAngle), fAspectRatio, fNearPlaneDistance, fFarPlaneDistance);
 //	XMMATRIX xmmtxProjection = XMMatrixPerspectiveFovLH(XMConvertToRadians(fFOVAngle), fAspectRatio, fNearPlaneDistance, fFarPlaneDistance);
 //	XMStoreFloat4x4(&m_xmf4x4Projection, xmmtxProjection);
+	UpdateBoundingFrustum();
 }
 
 void CCamera::GenerateViewMatrix(XMFLOAT3 xmf3Position, XMFLOAT3 xmf3LookAt, XMFLOAT3 xmf3Up)
@@ -62,6 +63,8 @@ void CCamera::RegenerateViewMatrix()
 	m_xmf4x4View._41 = -Vector3::DotProduct(m_xmf3Position, m_xmf3Right);
 	m_xmf4x4View._42 = -Vector3::DotProduct(m_xmf3Position, m_xmf3Up);
 	m_xmf4x4View._43 = -Vector3::DotProduct(m_xmf3Position, m_xmf3Look);
+
+	UpdateBoundingFrustum();
 }
 
 void CCamera::CreateShaderVariables(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList)
@@ -102,6 +105,40 @@ void CCamera::SetViewportsAndScissorRects(ID3D12GraphicsCommandList *pd3dCommand
 {
 	pd3dCommandList->RSSetViewports(1, &m_d3dViewport);
 	pd3dCommandList->RSSetScissorRects(1, &m_d3dScissorRect);
+}
+
+void CCamera::UpdateBoundingFrustum()
+{
+	// 1. Projection 기준의 로컬 프러스텀 생성
+	BoundingFrustum localFrustum;
+
+	XMMATRIX proj = XMLoadFloat4x4(&m_xmf4x4Projection);
+	BoundingFrustum::CreateFromMatrix(localFrustum, proj);
+
+	// 2. 카메라 회전행렬 생성
+	XMVECTOR right = XMLoadFloat3(&m_xmf3Right);
+	XMVECTOR up = XMLoadFloat3(&m_xmf3Up);
+	XMVECTOR look = XMLoadFloat3(&m_xmf3Look);
+	XMVECTOR pos = XMLoadFloat3(&m_xmf3Position);
+
+	right = XMVector3Normalize(right);
+	up = XMVector3Normalize(up);
+	look = XMVector3Normalize(look);
+
+	// DirectXMath의 XMMATRIX는 row-major 생성 형태로 많이 다루니까
+	// 축벡터를 행으로 넣어서 회전행렬을 만든다.
+	XMMATRIX rot(
+		XMVectorSetW(right, 0.0f),
+		XMVectorSetW(up, 0.0f),
+		XMVectorSetW(look, 0.0f),
+		XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f)
+	);
+
+	// 3. 회전행렬에서 쿼터니언 생성
+	XMVECTOR orientation = XMQuaternionRotationMatrix(rot);
+
+	// 4. 로컬 프러스텀을 월드 공간으로 변환
+	localFrustum.Transform(m_xmBoundingFrustum, 1.0f, orientation, pos);
 }
 
 void CCamera::OnCreate(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)

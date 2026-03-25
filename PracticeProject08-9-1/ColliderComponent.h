@@ -1,6 +1,7 @@
 #pragma once
 #include "Component.h"
 #include "ModelComponent.h"
+#include "RendererComponent.h"
 #include <vector>
 #include <unordered_map>
 #include <string>
@@ -22,7 +23,7 @@ public:
     void SetOOBB(const XMFLOAT3& Min, const XMFLOAT3& Max);
     void SetBSphere(const XMFLOAT3& Min, const XMFLOAT3& Max);
     void SetBCapsule(const XMFLOAT3& Min, const XMFLOAT3& Max);
-    void SetSubBCapsule(const XMFLOAT3& Min, const XMFLOAT3& Max);
+	void SetSubBCapsule(const XMFLOAT3& Min, const XMFLOAT3& Max);
     
     EColliderType GetType() const { return mColliderType; }
     BoundingBox GetAABB() const { return WorldAABB; }
@@ -37,13 +38,14 @@ public:
     uint32_t GetLayer() const { return mLayer; }
     uint32_t GetMask() const { return mMask; }
     bool IsTrigger() const { return mIsTrigger; }
-
+	void DisabledRender();
 private:
     void UpdateWorldBounds();
 
 private:
     CTransformComponent* mTransform = nullptr;
     CModelComponent* mModel = nullptr;
+	CRendererComponent* mRender = nullptr;
 
     EColliderType mColliderType = EColliderType::None;
 
@@ -62,7 +64,7 @@ private:
     vector<BoundingCapsule> WorldSubBCapsules;
 
     // Filtering
-    uint32_t      mLayer = 0;                // 0..31 ±«¿Â
-    uint32_t      mMask = 0xFFFFFFFFu;      // «„øÎ ∑π¿ÃæÓ bitmask
+    uint32_t      mLayer = 0;                // 0..31 Í∂åÏû•
+    uint32_t      mMask = 0xFFFFFFFFu;      // ÌóàÏö© Î†àÏù¥Ïñ¥ bitmask
     bool          mIsTrigger = false;
 };
