@@ -36,6 +36,25 @@ struct StaticPlacementEntry
 
     float yawDeg = 0.0f;
 };
+struct StaticInstanceVertex
+{
+	XMFLOAT4 world0 = XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f);
+	XMFLOAT4 world1 = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
+	XMFLOAT4 world2 = XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f);
+	XMFLOAT4 world3 = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+
+	UINT objectId = 0;
+	UINT pad[3] = { 0, 0, 0 };
+};
+
+struct StaticInstanceGroup
+{
+	std::shared_ptr<CMesh> mesh;
+	UINT subMeshIndex = 0;
+	std::vector<UINT> objectIndices;
+
+	UINT instanceBufferStart = 0;
+};
 
 // ============================================================================
 // GameScene
@@ -91,6 +110,8 @@ private:
     );
 
     void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd);
+	void BuildStaticInstanceGroups();
+	void RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd);
 
     // Frame / Render
 public:
@@ -192,7 +213,7 @@ private:
     std::vector<AttachmentBindSpec> m_attachmentBinds;
 
 	static constexpr UINT kArrowPoolSize = 32;
-	static constexpr UINT kBulletPoolSize = 64;
+	static constexpr UINT kBulletPoolSize = 32;
 	std::vector<CGameObject*> m_arrowRefs;
 	std::vector<CGameObject*> m_bulletRefs;
 
@@ -238,6 +259,11 @@ private:
 private:
     std::vector<StaticPlacementEntry>   m_staticPlacementEntries;
     
+	std::vector<StaticInstanceGroup>    m_staticInstanceGroups;
+	ComPtr<ID3D12Resource>              m_pd3dStaticInstanceBuffer;
+	StaticInstanceVertex* m_pMappedStaticInstanceBuffer = nullptr;
+	UINT                                m_staticInstanceBufferCapacity = 0;
+
     std::shared_ptr<CRectUIShader>      m_inactiveOverlayShader;
     std::shared_ptr<CTexture>           m_inactiveOverlayTex;
     UINT                                m_inactiveOverlaySrvIndex = UINT_MAX;
