@@ -43,6 +43,8 @@ protected:
 	ComPtr<ID3D12Resource>			m_pd3dcbCamera;
 	VS_CB_CAMERA_INFO				*m_pcbMappedCamera = nullptr;
 
+	BoundingFrustum					m_xmBoundingFrustum;
+
 public:
 	explicit CCamera(CGameObject* owner);
 	virtual ~CCamera() override;
@@ -94,11 +96,13 @@ public:
 	XMFLOAT4X4 GetProjectionMatrix() { return(m_xmf4x4Projection); }
 	D3D12_VIEWPORT GetViewport() { return(m_d3dViewport); }
 	D3D12_RECT GetScissorRect() { return(m_d3dScissorRect); }
+	const BoundingFrustum& GetBoundingFrustum() const { return m_xmBoundingFrustum; }
 
 	virtual void Move(const XMFLOAT3& xmf3Shift) { m_xmf3Position.x += xmf3Shift.x; m_xmf3Position.y += xmf3Shift.y; m_xmf3Position.z += xmf3Shift.z; }
 	virtual void Rotate(float fPitch = 0.0f, float fYaw = 0.0f, float fRoll = 0.0f) { }
 	virtual void Update(XMFLOAT3& xmf3LookAt, float fTimeElapsed) { }
 	virtual void SetLookAt(XMFLOAT3& xmf3LookAt) { }
+	virtual void UpdateBoundingFrustum();
 
 public:
 	virtual void OnCreate(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd) override;
