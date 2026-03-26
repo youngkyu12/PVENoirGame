@@ -10,6 +10,7 @@
 #include <cstdio>
 
 #include "AnimatorComponent.h"
+#include "AnimatorData.h"
 #include "AnimController.h"
 #include "MonsterAnimController.h"
 #include "MonsterAnimTypes.h"
@@ -152,6 +153,51 @@ namespace
 
 		ctrl->SetLocomotionState(locomotion);
 		ctrl->RequestCommand(cmd);
+	}
+
+	void PreloadCachedClipSet(
+	CMesh* mesh,
+	const char* skeletonKey,
+	std::initializer_list<std::pair<const char*, const char*>> clipList)
+	{
+		if ( !mesh || !skeletonKey ) return;
+
+		for ( const auto& clipInfo : clipList )
+		{
+			AnimationClip clip{};
+			AssetManager::LoadCachedClip(
+				mesh,
+				skeletonKey,
+				clipInfo.first,
+				clipInfo.second,
+				clip,
+				1.0f
+			);
+		}
+	}
+
+	void AddCachedClipSetToAnimator(
+		CAnimatorComponent* animComp,
+		CMesh* mesh,
+		const char* skeletonKey,
+		std::initializer_list<std::pair<const char*, const char*>> clipList)
+	{
+		if ( !animComp || !mesh || !skeletonKey ) return;
+
+		for ( const auto& clipInfo : clipList )
+		{
+			AnimationClip clip{};
+			if ( AssetManager::LoadCachedClip(
+				mesh,
+				skeletonKey,
+				clipInfo.first,
+				clipInfo.second,
+				clip,
+				1.0f) )
+			{
+				animComp->AddClip(clip);
+			}
+		}
 	}
 }
 
@@ -1391,6 +1437,19 @@ void CGameScene::BuildSkinnedBatch(
 
             BuiltAsset assetW = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyWDesc);
 
+			PreloadCachedClipSet(
+                assetW.mesh.get(),
+                "Ghoul",
+                {
+                    { "Assets/Ghoul/Animation/Ghoul_Anim_Idle.bin",   "Idle" },
+                    { "Assets/Ghoul/Animation/Ghoul_Anim_Walk.bin",   "Walk" },
+                    { "Assets/Ghoul/Animation/Ghoul_Anim_Run.bin",    "Run" },
+                    { "Assets/Ghoul/Animation/Ghoul_Anim_Hit.bin",    "Hit" },
+                    { "Assets/Ghoul/Animation/Ghoul_Anim_Attack.bin", "Attack" },
+                    { "Assets/Ghoul/Animation/Ghoul_Anim_Death.bin",  "Death" }
+                }
+            );
+
             for (UINT k = 0; k < countW; ++k)
             {
                 if (b->objectRefs.size() >= b->capacity) break;
@@ -1443,22 +1502,19 @@ void CGameScene::BuildSkinnedBatch(
 				auto mesh0 = obj->GetMeshShared(0);
 				if ( mesh0 && animComp )
 				{
-					auto LoadAndAddClip = [ & ] (const char* filePath, const char* clipName)
+					AddCachedClipSetToAnimator(
+						animComp,
+						mesh0.get(),
+						"Ghoul",
 						{
-							AnimationClip clip{};
-							if ( mesh0->LoadAnimationFromBIN(filePath, clipName, clip, 1.0f) )
-							{
-								clip.name = clipName;
-								animComp->AddClip(clip);
-							}
-						};
-
-					LoadAndAddClip("Assets/Ghoul/Animation/Ghoul_Anim_Idle.bin", "Idle");
-					LoadAndAddClip("Assets/Ghoul/Animation/Ghoul_Anim_Walk.bin", "Walk");
-					LoadAndAddClip("Assets/Ghoul/Animation/Ghoul_Anim_Run.bin", "Run");
-					LoadAndAddClip("Assets/Ghoul/Animation/Ghoul_Anim_Hit.bin", "Hit");
-					LoadAndAddClip("Assets/Ghoul/Animation/Ghoul_Anim_Attack.bin", "Attack");
-					LoadAndAddClip("Assets/Ghoul/Animation/Ghoul_Anim_Death.bin", "Death");
+							{ "Assets/Ghoul/Animation/Ghoul_Anim_Idle.bin",   "Idle" },
+							{ "Assets/Ghoul/Animation/Ghoul_Anim_Walk.bin",   "Walk" },
+							{ "Assets/Ghoul/Animation/Ghoul_Anim_Run.bin",    "Run" },
+							{ "Assets/Ghoul/Animation/Ghoul_Anim_Hit.bin",    "Hit" },
+							{ "Assets/Ghoul/Animation/Ghoul_Anim_Attack.bin", "Attack" },
+							{ "Assets/Ghoul/Animation/Ghoul_Anim_Death.bin",  "Death" }
+						}
+					);
 				}
 
 				if ( animComp )
@@ -1505,6 +1561,21 @@ void CGameScene::BuildSkinnedBatch(
             };
 
             BuiltAsset assetX = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyXDesc);
+
+			PreloadCachedClipSet(
+                assetX.mesh.get(),
+                "EnemySword",
+                {
+                    { "Assets/Enemy/Animation/Enemy_Normal_Idle.bin", "Idle_Common" },
+                    { "Assets/Enemy/Animation/Enemy_Sword_Idle.bin",  "Idle" },
+                    { "Assets/Enemy/Animation/Enemy_Walk_F.bin",      "Walk" },
+                    { "Assets/Enemy/Animation/Enemy_Run_F.bin",       "Run" },
+                    { "Assets/Enemy/Animation/Enemy_Normal_Hit.bin",  "Hit_Common" },
+                    { "Assets/Enemy/Animation/Enemy_Sword_Hit.bin",   "Hit" },
+                    { "Assets/Enemy/Animation/Enemy_Sword_Attack.bin","Attack" },
+                    { "Assets/Enemy/Animation/Enemy_Death.bin",       "Death" }
+                }
+            );
 
             for (UINT k = 0; k < countX; ++k)
             {
@@ -1557,24 +1628,21 @@ void CGameScene::BuildSkinnedBatch(
 				auto mesh0 = obj->GetMeshShared(0);
 				if ( mesh0 && animComp )
 				{
-					auto LoadAndAddClip = [ & ] (const char* filePath, const char* clipName)
+					AddCachedClipSetToAnimator(
+						animComp,
+						mesh0.get(),
+						"EnemySword",
 						{
-							AnimationClip clip{};
-							if ( mesh0->LoadAnimationFromBIN(filePath, clipName, clip, 1.0f) )
-							{
-								clip.name = clipName;
-								animComp->AddClip(clip);
-							}
-						};
-
-					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Normal_Idle.bin", "Idle_Common");
-					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Sword_Idle.bin", "Idle");
-					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Walk_F.bin", "Walk");
-					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Run_F.bin", "Run");
-					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Normal_Hit.bin", "Hit_Common");
-					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Sword_Hit.bin", "Hit");
-					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Sword_Attack.bin", "Attack");
-					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Death.bin", "Death");
+							{ "Assets/Enemy/Animation/Enemy_Normal_Idle.bin", "Idle_Common" },
+							{ "Assets/Enemy/Animation/Enemy_Sword_Idle.bin",  "Idle" },
+							{ "Assets/Enemy/Animation/Enemy_Walk_F.bin",      "Walk" },
+							{ "Assets/Enemy/Animation/Enemy_Run_F.bin",       "Run" },
+							{ "Assets/Enemy/Animation/Enemy_Normal_Hit.bin",  "Hit_Common" },
+							{ "Assets/Enemy/Animation/Enemy_Sword_Hit.bin",   "Hit" },
+							{ "Assets/Enemy/Animation/Enemy_Sword_Attack.bin","Attack" },
+							{ "Assets/Enemy/Animation/Enemy_Death.bin",       "Death" }
+						}
+					);
 				}
 
 				if ( animComp )
@@ -1621,6 +1689,22 @@ void CGameScene::BuildSkinnedBatch(
             };
 
             BuiltAsset assetY = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyYDesc);
+
+			PreloadCachedClipSet(
+                assetY.mesh.get(),
+                "EnemyBow",
+                {
+                    { "Assets/Enemy/Animation/Enemy_Normal_Idle.bin", "Idle_Common" },
+                    { "Assets/Enemy/Animation/Enemy_Bow_Idle.bin",    "Idle" },
+                    { "Assets/Enemy/Animation/Enemy_Walk_F.bin",      "Walk" },
+                    { "Assets/Enemy/Animation/Enemy_Run_F.bin",       "Run" },
+                    { "Assets/Enemy/Animation/Enemy_Normal_Hit.bin",  "Hit" },
+                    { "Assets/Enemy/Animation/Enemy_Bow_Hold.bin",    "Bow_Hold" },
+                    { "Assets/Enemy/Animation/Enemy_Bow_Load.bin",    "Bow_Load" },
+                    { "Assets/Enemy/Animation/Enemy_Bow_Release.bin", "Bow_Release" },
+                    { "Assets/Enemy/Animation/Enemy_Death.bin",       "Death" }
+                }
+            );
 
             for (UINT k = 0; k < countY; ++k)
             {
@@ -1673,25 +1757,22 @@ void CGameScene::BuildSkinnedBatch(
 				auto mesh0 = obj->GetMeshShared(0);
 				if ( mesh0 && animComp )
 				{
-					auto LoadAndAddClip = [ & ] (const char* filePath, const char* clipName)
+					AddCachedClipSetToAnimator(
+						animComp,
+						mesh0.get(),
+						"EnemyBow",
 						{
-							AnimationClip clip{};
-							if ( mesh0->LoadAnimationFromBIN(filePath, clipName, clip, 1.0f) )
-							{
-								clip.name = clipName;
-								animComp->AddClip(clip);
-							}
-						};
-
-					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Normal_Idle.bin", "Idle_Common");
-					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Bow_Idle.bin", "Idle");
-					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Walk_F.bin", "Walk");
-					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Run_F.bin", "Run");
-					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Normal_Hit.bin", "Hit");
-					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Bow_Hold.bin", "Bow_Hold");
-					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Bow_Load.bin", "Bow_Load");
-					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Bow_Release.bin", "Bow_Release");
-					LoadAndAddClip("Assets/Enemy/Animation/Enemy_Death.bin", "Death");
+							{ "Assets/Enemy/Animation/Enemy_Normal_Idle.bin", "Idle_Common" },
+							{ "Assets/Enemy/Animation/Enemy_Bow_Idle.bin",    "Idle" },
+							{ "Assets/Enemy/Animation/Enemy_Walk_F.bin",      "Walk" },
+							{ "Assets/Enemy/Animation/Enemy_Run_F.bin",       "Run" },
+							{ "Assets/Enemy/Animation/Enemy_Normal_Hit.bin",  "Hit" },
+							{ "Assets/Enemy/Animation/Enemy_Bow_Hold.bin",    "Bow_Hold" },
+							{ "Assets/Enemy/Animation/Enemy_Bow_Load.bin",    "Bow_Load" },
+							{ "Assets/Enemy/Animation/Enemy_Bow_Release.bin", "Bow_Release" },
+							{ "Assets/Enemy/Animation/Enemy_Death.bin",       "Death" }
+						}
+					);
 				}
 
 				if ( animComp )
@@ -1741,6 +1822,19 @@ void CGameScene::BuildSkinnedBatch(
             };
 
             BuiltAsset assetZ = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyZDesc);
+
+			PreloadCachedClipSet(
+                assetZ.mesh.get(),
+                "Mutant",
+                {
+                    { "Assets/Mutant/Animation/Mutant_Anim_Idle.bin",   "Idle" },
+                    { "Assets/Mutant/Animation/Mutant_Anim_Walk.bin",   "Walk" },
+                    { "Assets/Mutant/Animation/Mutant_Anim_Run.bin",    "Run" },
+                    { "Assets/Mutant/Animation/Mutant_Anim_Hit.bin",    "Hit" },
+                    { "Assets/Mutant/Animation/Mutant_Anim_Attack.bin", "Attack" },
+                    { "Assets/Mutant/Animation/Mutant_Anim_Dead.bin",   "Death" }
+                }
+            );
 
             for (UINT k = 0; k < countZ; ++k)
             {
@@ -1793,22 +1887,19 @@ void CGameScene::BuildSkinnedBatch(
 				auto mesh0 = obj->GetMeshShared(0);
 				if ( mesh0 && animComp )
 				{
-					auto LoadAndAddClip = [ & ] (const char* filePath, const char* clipName)
+					AddCachedClipSetToAnimator(
+						animComp,
+						mesh0.get(),
+						"Mutant",
 						{
-							AnimationClip clip{};
-							if ( mesh0->LoadAnimationFromBIN(filePath, clipName, clip, 1.0f) )
-							{
-								clip.name = clipName;
-								animComp->AddClip(clip);
-							}
-						};
-
-					LoadAndAddClip("Assets/Mutant/Animation/Mutant_Anim_Idle.bin", "Idle");
-					LoadAndAddClip("Assets/Mutant/Animation/Mutant_Anim_Walk.bin", "Walk");
-					LoadAndAddClip("Assets/Mutant/Animation/Mutant_Anim_Run.bin", "Run");
-					LoadAndAddClip("Assets/Mutant/Animation/Mutant_Anim_Hit.bin", "Hit");
-					LoadAndAddClip("Assets/Mutant/Animation/Mutant_Anim_Attack.bin", "Attack");
-					LoadAndAddClip("Assets/Mutant/Animation/Mutant_Anim_Dead.bin", "Death");
+							{ "Assets/Mutant/Animation/Mutant_Anim_Idle.bin",   "Idle" },
+							{ "Assets/Mutant/Animation/Mutant_Anim_Walk.bin",   "Walk" },
+							{ "Assets/Mutant/Animation/Mutant_Anim_Run.bin",    "Run" },
+							{ "Assets/Mutant/Animation/Mutant_Anim_Hit.bin",    "Hit" },
+							{ "Assets/Mutant/Animation/Mutant_Anim_Attack.bin", "Attack" },
+							{ "Assets/Mutant/Animation/Mutant_Anim_Dead.bin",   "Death" }
+						}
+					);
 				}
 
 				if ( animComp )
@@ -1855,6 +1946,22 @@ void CGameScene::BuildSkinnedBatch(
             };
 
             BuiltAsset assetOne = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyOneDesc);
+
+			PreloadCachedClipSet(
+                assetOne.mesh.get(),
+                "Boss",
+                {
+                    { "Assets/Boss/Animation/Boss_Anim_Appear.bin",      "Appear" },
+                    { "Assets/Boss/Animation/Boss_Anim_AttackLeft.bin",  "AttackLeft" },
+                    { "Assets/Boss/Animation/Boss_Anim_AttackRight.bin", "AttackRight" },
+                    { "Assets/Boss/Animation/Boss_Anim_Call.bin",        "Call" },
+                    { "Assets/Boss/Animation/Boss_Anim_Death.bin",       "Death" },
+                    { "Assets/Boss/Animation/Boss_Anim_Hit.bin",         "Hit" },
+                    { "Assets/Boss/Animation/Boss_Anim_Idle.bin",        "Idle" },
+                    { "Assets/Boss/Animation/Boss_Anim_Spell.bin",       "Spell" },
+                    { "Assets/Boss/Animation/Boss_Anim_Walk.bin",        "Walk" }
+                }
+            );
 
             for (UINT k = 0; k < countOne; ++k)
             {
@@ -1907,25 +2014,22 @@ void CGameScene::BuildSkinnedBatch(
 				auto mesh0 = obj->GetMeshShared(0);
 				if ( mesh0 && animComp )
 				{
-					auto LoadAndAddClip = [ & ] (const char* filePath, const char* clipName)
+					AddCachedClipSetToAnimator(
+						animComp,
+						mesh0.get(),
+						"Boss",
 						{
-							AnimationClip clip{};
-							if ( mesh0->LoadAnimationFromBIN(filePath, clipName, clip, 1.0f) )
-							{
-								clip.name = clipName;
-								animComp->AddClip(clip);
-							}
-						};
-
-					LoadAndAddClip("Assets/Boss/Animation/Boss_Anim_Appear.bin", "Appear");
-					LoadAndAddClip("Assets/Boss/Animation/Boss_Anim_AttackLeft.bin", "AttackLeft");
-					LoadAndAddClip("Assets/Boss/Animation/Boss_Anim_AttackRight.bin", "AttackRight");
-					LoadAndAddClip("Assets/Boss/Animation/Boss_Anim_Call.bin", "Call");
-					LoadAndAddClip("Assets/Boss/Animation/Boss_Anim_Death.bin", "Death");
-					LoadAndAddClip("Assets/Boss/Animation/Boss_Anim_Hit.bin", "Hit");
-					LoadAndAddClip("Assets/Boss/Animation/Boss_Anim_Idle.bin", "Idle");
-					LoadAndAddClip("Assets/Boss/Animation/Boss_Anim_Spell.bin", "Spell");
-					LoadAndAddClip("Assets/Boss/Animation/Boss_Anim_Walk.bin", "Walk");
+							{ "Assets/Boss/Animation/Boss_Anim_Appear.bin",      "Appear" },
+							{ "Assets/Boss/Animation/Boss_Anim_AttackLeft.bin",  "AttackLeft" },
+							{ "Assets/Boss/Animation/Boss_Anim_AttackRight.bin", "AttackRight" },
+							{ "Assets/Boss/Animation/Boss_Anim_Call.bin",        "Call" },
+							{ "Assets/Boss/Animation/Boss_Anim_Death.bin",       "Death" },
+							{ "Assets/Boss/Animation/Boss_Anim_Hit.bin",         "Hit" },
+							{ "Assets/Boss/Animation/Boss_Anim_Idle.bin",        "Idle" },
+							{ "Assets/Boss/Animation/Boss_Anim_Spell.bin",       "Spell" },
+							{ "Assets/Boss/Animation/Boss_Anim_Walk.bin",        "Walk" }
+						}
+					);
 				}
 
 				if ( animComp )
@@ -2074,80 +2178,51 @@ void CGameScene::BuildSkinnedBatch(
 
             auto mesh0 = obj->GetMeshShared(0);
 
-            bool hasIdleNormal = false;
-            bool hasRunF = false;
-            bool hasAttackSword = false;
+			if ( mesh0 && animComp )
+			{
+				AddCachedClipSetToAnimator(
+					animComp,
+					mesh0.get(),
+					"Player",
+					{
+						{ "Assets/Player/Animation/Player_Normal_Idle.bin", "Idle_Normal" },
+						{ "Assets/Player/Animation/Player_Sword_Idle.bin",  "Idle_Sword" },
+						{ "Assets/Player/Animation/Player_Axe_Idle.bin",    "Idle_Axe" },
+						{ "Assets/Player/Animation/Player_Bow_Idle.bin",    "Idle_Bow" },
+						{ "Assets/Player/Animation/Player_Gun_Idle.bin",    "Idle_Gun" },
 
-            if (mesh0 && animComp)
-            {
-                auto LoadAndAddClip =
-                    [&](const char* filePath, const char* clipName, bool* loadedFlag = nullptr)
-                    {
-                        AnimationClip clip{};
-                        bool loaded = mesh0->LoadAnimationFromBIN(
-                            filePath,
-                            clipName,
-                            clip,
-                            1.0f
-                        );
+						{ "Assets/Player/Animation/Player_Normal_Hit.bin",  "Hit_Normal" },
+						{ "Assets/Player/Animation/Player_Sword_Hit.bin",   "Hit_Sword" },
+						{ "Assets/Player/Animation/Player_Death.bin",       "Death" },
 
-                        if (loaded)
-                        {
-                            clip.name = clipName;
-                            animComp->AddClip(clip);
-                        }
+						{ "Assets/Player/Animation/Player_Sword_Attack.bin","Attack_Sword" },
+						{ "Assets/Player/Animation/Player_Axe_Attack.bin",  "Attack_Axe" },
+						{ "Assets/Player/Animation/Player_Bow_Load.bin",    "Bow_Load" },
+						{ "Assets/Player/Animation/Player_Bow_Release.bin", "Bow_Release" },
+						{ "Assets/Player/Animation/Player_Gun_Shoot.bin",   "Gun_Shoot" },
+						{ "Assets/Player/Animation/Player_Roll_F.bin",      "Roll_F" },
+						{ "Assets/Player/Animation/Player_Roll_B.bin",      "Roll_B" },
 
-                        if (loadedFlag) *loadedFlag = loaded;
-                        return loaded;
-                    };
+						{ "Assets/Player/Animation/Player_Walk_F.bin",      "Walk_F" },
+						{ "Assets/Player/Animation/Player_Walk_B.bin",      "Walk_B" },
+						{ "Assets/Player/Animation/Player_Walk_L.bin",      "Walk_L" },
+						{ "Assets/Player/Animation/Player_Walk_R.bin",      "Walk_R" },
+						{ "Assets/Player/Animation/Player_Walk_FL.bin",     "Walk_FL" },
+						{ "Assets/Player/Animation/Player_Walk_FR.bin",     "Walk_FR" },
+						{ "Assets/Player/Animation/Player_Walk_BL.bin",     "Walk_BL" },
+						{ "Assets/Player/Animation/Player_Walk_BR.bin",     "Walk_BR" },
 
-                // --------------------------------------------------------------------
-                // Idle / Hit / Death
-                // --------------------------------------------------------------------
-                LoadAndAddClip("Assets/Player/Animation/Player_Normal_Idle.bin", "Idle_Normal", &hasIdleNormal);
-                LoadAndAddClip("Assets/Player/Animation/Player_Sword_Idle.bin", "Idle_Sword");
-                LoadAndAddClip("Assets/Player/Animation/Player_Axe_Idle.bin", "Idle_Axe");
-                LoadAndAddClip("Assets/Player/Animation/Player_Bow_Idle.bin", "Idle_Bow");
-                LoadAndAddClip("Assets/Player/Animation/Player_Gun_Idle.bin", "Idle_Gun");
-
-                LoadAndAddClip("Assets/Player/Animation/Player_Normal_Hit.bin", "Hit_Normal");
-                LoadAndAddClip("Assets/Player/Animation/Player_Sword_Hit.bin", "Hit_Sword");
-                LoadAndAddClip("Assets/Player/Animation/Player_Death.bin", "Death");
-
-                // --------------------------------------------------------------------
-                // Attack / Action
-                // --------------------------------------------------------------------
-                LoadAndAddClip("Assets/Player/Animation/Player_Sword_Attack.bin", "Attack_Sword", &hasAttackSword);
-                LoadAndAddClip("Assets/Player/Animation/Player_Axe_Attack.bin", "Attack_Axe");
-                LoadAndAddClip("Assets/Player/Animation/Player_Bow_Load.bin", "Bow_Load");
-                LoadAndAddClip("Assets/Player/Animation/Player_Bow_Release.bin", "Bow_Release");
-                LoadAndAddClip("Assets/Player/Animation/Player_Gun_Shoot.bin", "Gun_Shoot");
-                LoadAndAddClip("Assets/Player/Animation/Player_Roll_F.bin", "Roll_F");
-                LoadAndAddClip("Assets/Player/Animation/Player_Roll_B.bin", "Roll_B");
-                // --------------------------------------------------------------------
-                // Walk
-                // --------------------------------------------------------------------
-                LoadAndAddClip("Assets/Player/Animation/Player_Walk_F.bin", "Walk_F");
-                LoadAndAddClip("Assets/Player/Animation/Player_Walk_B.bin", "Walk_B");
-                LoadAndAddClip("Assets/Player/Animation/Player_Walk_L.bin", "Walk_L");
-                LoadAndAddClip("Assets/Player/Animation/Player_Walk_R.bin", "Walk_R");
-                LoadAndAddClip("Assets/Player/Animation/Player_Walk_FL.bin", "Walk_FL");
-                LoadAndAddClip("Assets/Player/Animation/Player_Walk_FR.bin", "Walk_FR");
-                LoadAndAddClip("Assets/Player/Animation/Player_Walk_BL.bin", "Walk_BL");
-                LoadAndAddClip("Assets/Player/Animation/Player_Walk_BR.bin", "Walk_BR");
-
-                // --------------------------------------------------------------------
-                // Run
-                // --------------------------------------------------------------------
-                LoadAndAddClip("Assets/Player/Animation/Player_Run_F.bin", "Run_F", &hasRunF);
-                LoadAndAddClip("Assets/Player/Animation/Player_Run_B.bin", "Run_B");
-                LoadAndAddClip("Assets/Player/Animation/Player_Run_L.bin", "Run_L");
-                LoadAndAddClip("Assets/Player/Animation/Player_Run_R.bin", "Run_R");
-                LoadAndAddClip("Assets/Player/Animation/Player_Run_FL.bin", "Run_FL");
-                LoadAndAddClip("Assets/Player/Animation/Player_Run_FR.bin", "Run_FR");
-                LoadAndAddClip("Assets/Player/Animation/Player_Run_BL.bin", "Run_BL");
-                LoadAndAddClip("Assets/Player/Animation/Player_Run_BR.bin", "Run_BR");
-            }
+						{ "Assets/Player/Animation/Player_Run_F.bin",       "Run_F" },
+						{ "Assets/Player/Animation/Player_Run_B.bin",       "Run_B" },
+						{ "Assets/Player/Animation/Player_Run_L.bin",       "Run_L" },
+						{ "Assets/Player/Animation/Player_Run_R.bin",       "Run_R" },
+						{ "Assets/Player/Animation/Player_Run_FL.bin",      "Run_FL" },
+						{ "Assets/Player/Animation/Player_Run_FR.bin",      "Run_FR" },
+						{ "Assets/Player/Animation/Player_Run_BL.bin",      "Run_BL" },
+						{ "Assets/Player/Animation/Player_Run_BR.bin",      "Run_BR" }
+					}
+				);
+			}
 
             if (animComp)
             {
@@ -2202,6 +2277,14 @@ void CGameScene::BuildSkinnedBatch(
             BowDesc
         );
 
+		PreloadCachedClipSet(
+            bowAsset.mesh.get(),
+            "BowP",
+            {
+                { "Assets/Weapon/BowP/Animation/Bow_Anim.bin", "Fire" }
+            }
+        );
+
         m_PlayerBowRefs.clear();
         m_PlayerBowRefs.reserve(m_PlayerBowCount);
 
@@ -2229,24 +2312,21 @@ void CGameScene::BuildSkinnedBatch(
                 obj->EnableSkinning(dev, bowAsset.mesh->GetBoneCount());
             }
 
-            if (animComp)
-            {
-                auto mesh0 = obj->GetMeshShared(0);
-                if (mesh0)
-                {
-                    AnimationClip bowClip{};
-                    bool bowLoaded = mesh0->LoadAnimationFromBIN(
-                        "Assets/Weapon/BowP/Animation/Bow_Anim.bin",
-                        "Fire", bowClip, 1.0f
-                    );
-
-                    if (bowLoaded)
-                    {
-                        bowClip.name = "Fire";
-                        animComp->AddClip(bowClip);
-                    }
-                }
-            }
+			if ( animComp )
+			{
+				auto mesh0 = obj->GetMeshShared(0);
+				if ( mesh0 )
+				{
+					AddCachedClipSetToAnimator(
+						animComp,
+						mesh0.get(),
+						"BowP",
+						{
+							{ "Assets/Weapon/BowP/Animation/Bow_Anim.bin", "Fire" }
+						}
+					);
+				}
+			}
 
             obj->CreateComponents(dev, cmd);
             if (animComp) animComp->EvaluatePose(0.0f);
@@ -2277,6 +2357,14 @@ void CGameScene::BuildSkinnedBatch(
             BowDesc
         );
 
+		PreloadCachedClipSet(
+            bowAsset.mesh.get(),
+            "BowE",
+            {
+                { "Assets/Weapon/BowE/Animation/Bow_Anim.bin", "Fire" }
+            }
+        );
+
         m_EnemyBowRefs.clear();
         m_EnemyBowRefs.reserve(m_bowManCount);
 
@@ -2304,24 +2392,21 @@ void CGameScene::BuildSkinnedBatch(
                 obj->EnableSkinning(dev, bowAsset.mesh->GetBoneCount());
             }
 
-            if (animComp)
-            {
-                auto mesh0 = obj->GetMeshShared(0);
-                if (mesh0)
-                {
-                    AnimationClip bowClip{};
-                    bool bowLoaded = mesh0->LoadAnimationFromBIN(
-                        "Assets/Weapon/BowE/Animation/Bow_Anim.bin",
-                        "Fire", bowClip, 1.0f
-                    );
-
-                    if (bowLoaded)
-                    {
-                        bowClip.name = "Fire";
-                        animComp->AddClip(bowClip);
-                    }
-                }
-            }
+			if ( animComp )
+			{
+				auto mesh0 = obj->GetMeshShared(0);
+				if ( mesh0 )
+				{
+					AddCachedClipSetToAnimator(
+						animComp,
+						mesh0.get(),
+						"BowE",
+						{
+							{ "Assets/Weapon/BowE/Animation/Bow_Anim.bin", "Fire" }
+						}
+					);
+				}
+			}
 
             obj->CreateComponents(dev, cmd);
             if (animComp) animComp->EvaluatePose(0.0f);
