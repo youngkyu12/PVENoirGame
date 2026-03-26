@@ -10,6 +10,7 @@
 #include "SceneRenderTypes.h"
 
 class CMaterial;
+class CMesh;
 class CFollowTransformComponent;
 class CFollowBoneComponent;
 class CArrowComponent;
@@ -50,6 +51,29 @@ struct StaticInstanceVertex
 struct StaticInstanceGroup
 {
 	std::shared_ptr<CMesh> mesh;
+	UINT subMeshIndex = 0;
+	std::vector<UINT> objectIndices;
+
+	UINT instanceBufferStart = 0;
+};
+
+struct SkinnedInstanceVertex
+{
+	XMFLOAT4 world0 = XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f);
+	XMFLOAT4 world1 = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
+	XMFLOAT4 world2 = XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f);
+	XMFLOAT4 world3 = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+
+	UINT materialId = 0;
+	UINT bonePaletteBase = 0;
+	UINT pad[2] = { 0, 0 };
+};
+
+struct SkinnedInstanceGroup
+{
+	std::string geometryKey;
+	std::shared_ptr<CMesh> mesh;
+	UINT meshIndex = 0;
 	UINT subMeshIndex = 0;
 	std::vector<UINT> objectIndices;
 
@@ -112,6 +136,8 @@ private:
     void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd);
 	void BuildStaticInstanceGroups();
 	void RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd);
+	void BuildSkinnedInstanceGroups();
+	void RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd);
 
     // Frame / Render
 public:
@@ -270,6 +296,16 @@ private:
     bool                                m_bInactiveOverlayVisible = false;
     bool GetPauseOverlayRect(XMFLOAT4& outRect) const;
 
+	std::vector<SkinnedInstanceGroup>   m_skinnedInstanceGroups;
+
+	ComPtr<ID3D12Resource>              m_pd3dSkinnedInstanceBuffer;
+	SkinnedInstanceVertex* m_pMappedSkinnedInstanceBuffer = nullptr;
+	UINT                                m_skinnedInstanceBufferCapacity = 0;
+
+	ComPtr<ID3D12Resource>              m_pd3dSkinnedBonePaletteBuffer;
+	XMFLOAT4X4* m_pMappedSkinnedBonePaletteBuffer = nullptr;
+	UINT                                m_skinnedBonePaletteStride = 0;
+	UINT                                m_skinnedBonePaletteCapacity = 0;
 public:
     bool IsPointInPauseOverlay(POINT clientPt) const;
 
