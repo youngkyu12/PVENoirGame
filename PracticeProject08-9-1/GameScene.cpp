@@ -2350,7 +2350,7 @@ void CGameScene::BuildSkinnedBatch(
                 yaw = state.yaw;
 
 				// 플레이어별 초기 장비 세팅
-                //equipComp->SetLoadout(state.weaponType);
+                equipComp->SetLoadout(state.weaponType);
             }
             else
             {

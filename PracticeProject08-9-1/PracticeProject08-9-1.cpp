@@ -170,10 +170,10 @@ Atomic<bool> g_End = false;
 
 bool CheckEnd()
 {
-	if (GetAsyncKeyState(VK_ESCAPE) & 0x8000)
-	{
-		g_End = true;
-	}
+	//if (GetAsyncKeyState(VK_ESCAPE) & 0x8000)
+	//{
+	//	g_End = true;
+	//}
 
 	return g_End.load();
 }
