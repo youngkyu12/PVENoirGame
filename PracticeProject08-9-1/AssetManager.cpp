@@ -15,7 +15,9 @@
 std::unordered_map<std::string, BuiltAsset> AssetManager::s_assetCache;
 std::unordered_map<std::string, std::shared_ptr<CMaterial>> AssetManager::s_materialCache;
 std::unordered_map<std::string, std::shared_ptr<CTexture>> AssetManager::s_textureCache;
+std::unordered_map<std::string, AnimationClip> AssetManager::s_clipCache;
 UINT AssetManager::s_nextMaterialID = 0;
+
 namespace
 {
 	void AppendFloatToKey(std::string& out, float v)
@@ -90,6 +92,7 @@ void AssetManager::ClearCache()
     s_assetCache.clear();
     s_materialCache.clear();
     s_textureCache.clear();
+	s_clipCache.clear();
     s_nextMaterialID = 0;
 }
 
@@ -289,6 +292,55 @@ std::string AssetManager::MakeMaterialKey(
 		materialName + "|" +
 		materialFingerprint;
 }
+
+std::string AssetManager::MakeClipKey(
+	const std::string& skeletonKey,
+	const std::string& animBinPath,
+	const std::string& clipName,
+	float timeScale)
+{
+	return
+		skeletonKey + "|" +
+		animBinPath + "|" +
+		clipName + "|" +
+		std::to_string(timeScale);
+}
+
+bool AssetManager::LoadCachedClip(
+	CMesh* mesh,
+	const std::string& skeletonKey,
+	const char* animBinPath,
+	const char* clipName,
+	AnimationClip& outClip,
+	float timeScale)
+{
+	if ( !mesh ) return false;
+	if ( !animBinPath || !clipName ) return false;
+
+	const std::string key = MakeClipKey(
+		skeletonKey,
+		animBinPath,
+		clipName,
+		timeScale
+	);
+
+	auto it = s_clipCache.find(key);
+	if ( it != s_clipCache.end() )
+	{
+		outClip = it->second;
+		return true;
+	}
+
+	AnimationClip clip{};
+	if ( !mesh->LoadAnimationFromBIN(animBinPath, clipName, clip, timeScale) )
+		return false;
+
+	clip.name = clipName;
+	s_clipCache.emplace(key, clip);
+	outClip = clip;
+	return true;
+}
+
 
 std::wstring AssetManager::ResolveTexturePath(
     AssetType /*type*/,
