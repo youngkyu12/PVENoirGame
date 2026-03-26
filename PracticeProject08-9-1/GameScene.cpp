@@ -20,6 +20,7 @@
 #include "LightComponent.h"
 #include "PlayerControllerComponent.h"
 #include "Object.h"
+#include "SkinningComponent.h"
 #include "ActorTagComponent.h"
 #include "ArrowComponent.h"
 #include "BulletComponent.h"
@@ -272,6 +273,7 @@ void CGameScene::ReleaseObjects()
 	m_bulletRefs.clear();
 	m_attachmentBinds.clear();
 	m_staticInstanceGroups.clear();
+	m_skinnedInstanceGroups.clear();
 
     m_PlayerSwordRefs.clear();
     m_PlayerBowRefs.clear();
@@ -326,6 +328,29 @@ void CGameScene::ReleaseShaderVariables()
 		m_pd3dStaticInstanceBuffer.Reset();
 	}
 	m_staticInstanceBufferCapacity = 0;
+
+	if ( m_pd3dSkinnedInstanceBuffer )
+	{
+		if ( m_pMappedSkinnedInstanceBuffer )
+		{
+			m_pd3dSkinnedInstanceBuffer->Unmap(0, NULL);
+			m_pMappedSkinnedInstanceBuffer = nullptr;
+		}
+		m_pd3dSkinnedInstanceBuffer.Reset();
+	}
+	m_skinnedInstanceBufferCapacity = 0;
+
+	if ( m_pd3dSkinnedBonePaletteBuffer )
+	{
+		if ( m_pMappedSkinnedBonePaletteBuffer )
+		{
+			m_pd3dSkinnedBonePaletteBuffer->Unmap(0, NULL);
+			m_pMappedSkinnedBonePaletteBuffer = nullptr;
+		}
+		m_pd3dSkinnedBonePaletteBuffer.Reset();
+	}
+	m_skinnedBonePaletteStride = 0;
+	m_skinnedBonePaletteCapacity = 0;
 
 	// ---- Static batch CB ----
 	if ( m_staticBatch.cbGameObjects )
@@ -1263,6 +1288,70 @@ void CGameScene::BuildStaticInstanceGroups()
 	m_staticInstanceBufferCapacity = runningStart;
 }
 
+void CGameScene::BuildSkinnedInstanceGroups()
+{
+	m_skinnedInstanceGroups.clear();
+
+	for ( UINT objectIndex = 0; objectIndex < ( UINT ) m_skinnedBatch.objectRefs.size(); ++objectIndex )
+	{
+		CGameObject* obj = m_skinnedBatch.objectRefs[objectIndex];
+		if ( !obj ) continue;
+
+		const int meshCount = obj->GetMeshCount();
+		for ( int meshIndex = 0; meshIndex < meshCount; ++meshIndex )
+		{
+			std::shared_ptr<CMesh> mesh = obj->GetMeshShared(meshIndex);
+			if ( !mesh ) continue;
+
+			std::string geometryKey = mesh->GetSourceMeshPath();
+			if ( geometryKey.empty() )
+			{
+				char buf[64];
+				sprintf_s(buf, "meshptr_%p", mesh.get());
+				geometryKey = buf;
+			}
+
+			for ( UINT subMeshIndex = 0; subMeshIndex < ( UINT ) mesh->m_SubMeshes.size(); ++subMeshIndex )
+			{
+				SkinnedInstanceGroup* targetGroup = nullptr;
+
+				for ( SkinnedInstanceGroup& group : m_skinnedInstanceGroups )
+				{
+					if ( group.geometryKey == geometryKey &&
+						group.meshIndex == ( UINT ) meshIndex &&
+						group.subMeshIndex == subMeshIndex )
+					{
+						targetGroup = &group;
+						break;
+					}
+				}
+
+				if ( !targetGroup )
+				{
+					SkinnedInstanceGroup newGroup{};
+					newGroup.geometryKey = geometryKey;
+					newGroup.mesh = mesh; // representative mesh
+					newGroup.subMeshIndex = subMeshIndex;
+					newGroup.meshIndex = ( UINT ) meshIndex;
+					m_skinnedInstanceGroups.push_back(std::move(newGroup));
+					targetGroup = &m_skinnedInstanceGroups.back();
+				}
+
+				targetGroup->objectIndices.push_back(objectIndex);
+			}
+		}
+	}
+
+	UINT runningStart = 0;
+	for ( SkinnedInstanceGroup& group : m_skinnedInstanceGroups )
+	{
+		group.instanceBufferStart = runningStart;
+		runningStart += ( UINT ) group.objectIndices.size();
+	}
+
+	m_skinnedInstanceBufferCapacity = runningStart;
+}
+
 void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd)
 {
 	if ( !cmd ) return;
@@ -1333,6 +1422,110 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd)
 		cmd->IASetIndexBuffer(&sm.ibView);
 
 		cmd->DrawIndexedInstanced(( UINT ) sm.indices.size(), visibleInstanceCount, 0, 0, 0);
+	}
+}
+
+void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd)
+{
+	if ( !cmd ) return;
+	if ( !m_pd3dSkinnedInstanceBuffer ) return;
+	if ( !m_pMappedSkinnedInstanceBuffer ) return;
+	if ( !m_pd3dSkinnedBonePaletteBuffer ) return;
+	if ( !m_pMappedSkinnedBonePaletteBuffer ) return;
+
+	cmd->SetGraphicsRootShaderResourceView(
+		ROOT_PARAMETER_BONE_PALETTE,
+		m_pd3dSkinnedBonePaletteBuffer->GetGPUVirtualAddress()
+	);
+
+	for ( const SkinnedInstanceGroup& group : m_skinnedInstanceGroups )
+	{
+		if ( !group.mesh ) continue;
+		if ( group.subMeshIndex >= group.mesh->m_SubMeshes.size() ) continue;
+
+		const SubMesh& repSm = group.mesh->m_SubMeshes[group.subMeshIndex];
+		if ( repSm.indices.empty() ) continue;
+
+		const UINT maxInstanceCount = ( UINT ) group.objectIndices.size();
+		if ( maxInstanceCount == 0 ) continue;
+
+		const UINT instanceBase = group.instanceBufferStart;
+		if ( ( instanceBase + maxInstanceCount ) > m_skinnedInstanceBufferCapacity ) continue;
+
+		UINT visibleInstanceCount = 0;
+
+		for ( UINT i = 0; i < maxInstanceCount; ++i )
+		{
+			const UINT objectIndex = group.objectIndices[i];
+			if ( objectIndex >= ( UINT ) m_skinnedBatch.objectRefs.size() ) continue;
+
+			CGameObject* obj = m_skinnedBatch.objectRefs[objectIndex];
+			if ( !obj ) continue;
+
+			auto* renderer = obj->GetComponent<CSkinnedMeshRendererComponent>();
+			if ( !renderer ) continue;
+			if ( !renderer->IsEnabled() ) continue;
+
+			auto* skin = obj->GetComponent<CSkinningComponent>();
+			if ( !skin ) continue;
+			if ( !skin->IsSkinned() ) continue;
+
+			std::shared_ptr<CMesh> objMesh = obj->GetMeshShared(( int ) group.meshIndex); 
+			if ( !objMesh ) continue;
+			if ( group.subMeshIndex >= objMesh->m_SubMeshes.size() ) continue;
+
+			const SubMesh& objSm = objMesh->m_SubMeshes[group.subMeshIndex];
+
+			SkinnedInstanceVertex& dst =
+				m_pMappedSkinnedInstanceBuffer[instanceBase + visibleInstanceCount];
+			ZeroMemory(&dst, sizeof(dst));
+
+			const XMFLOAT4X4& W = obj->GetWorldMatrix();
+
+			dst.world0 = XMFLOAT4(W._11, W._12, W._13, W._14);
+			dst.world1 = XMFLOAT4(W._21, W._22, W._23, W._24);
+			dst.world2 = XMFLOAT4(W._31, W._32, W._33, W._34);
+			dst.world3 = XMFLOAT4(W._41, W._42, W._43, W._44);
+
+			dst.materialId = ( objSm.materialId == 0xFFFFFFFFu ) ? 0u : objSm.materialId;
+			dst.bonePaletteBase = objectIndex * m_skinnedBonePaletteStride;
+
+			const XMFLOAT4X4* srcBoneMats = skin->GetMappedBoneMatrices();
+			const UINT boneCount = ( UINT ) skin->GetBoneCount();
+
+			if ( srcBoneMats && boneCount > 0 )
+			{
+				memcpy(
+					m_pMappedSkinnedBonePaletteBuffer + dst.bonePaletteBase,
+					srcBoneMats,
+					sizeof(XMFLOAT4X4) * boneCount
+				);
+			}
+
+			++visibleInstanceCount;
+		}
+
+		if ( visibleInstanceCount == 0 ) continue;
+
+		D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
+		vbViews[0] = repSm.vbView;
+		vbViews[1].BufferLocation =
+			m_pd3dSkinnedInstanceBuffer->GetGPUVirtualAddress() +
+			( UINT64 ) ( sizeof(SkinnedInstanceVertex) * instanceBase );
+		vbViews[1].SizeInBytes = sizeof(SkinnedInstanceVertex) * visibleInstanceCount;
+		vbViews[1].StrideInBytes = sizeof(SkinnedInstanceVertex);
+
+		cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		cmd->IASetVertexBuffers(0, 2, vbViews);
+		cmd->IASetIndexBuffer(&repSm.ibView);
+
+		cmd->DrawIndexedInstanced(
+			( UINT ) repSm.indices.size(),
+			visibleInstanceCount,
+			0,
+			0,
+			0
+		);
 	}
 }
 
@@ -2157,7 +2350,7 @@ void CGameScene::BuildSkinnedBatch(
                 yaw = state.yaw;
 
 				// 플레이어별 초기 장비 세팅
-                equipComp->SetLoadout(state.weaponType);
+                //equipComp->SetLoadout(state.weaponType);
             }
             else
             {
@@ -2422,6 +2615,76 @@ void CGameScene::BuildSkinnedBatch(
 
 	m_preparedBowmanArrows.assign(m_bowManRefs.size(), nullptr);
 	m_prevEnemyBowReleasePhase.assign(m_bowManRefs.size(), false);
+	
+	BuildSkinnedInstanceGroups();
+
+	if ( m_pd3dSkinnedInstanceBuffer )
+	{
+		if ( m_pMappedSkinnedInstanceBuffer )
+		{
+			m_pd3dSkinnedInstanceBuffer->Unmap(0, NULL);
+			m_pMappedSkinnedInstanceBuffer = nullptr;
+		}
+		m_pd3dSkinnedInstanceBuffer.Reset();
+	}
+
+	if ( m_pd3dSkinnedBonePaletteBuffer )
+	{
+		if ( m_pMappedSkinnedBonePaletteBuffer )
+		{
+			m_pd3dSkinnedBonePaletteBuffer->Unmap(0, NULL);
+			m_pMappedSkinnedBonePaletteBuffer = nullptr;
+		}
+		m_pd3dSkinnedBonePaletteBuffer.Reset();
+	}
+
+	m_skinnedBonePaletteStride = 1;
+	for ( UINT i = 0; i < ( UINT ) m_skinnedBatch.objectRefs.size(); ++i )
+	{
+		CGameObject* obj = m_skinnedBatch.objectRefs[i];
+		if ( !obj ) continue;
+
+		const UINT boneCount = ( UINT ) obj->GetBoneCount();
+		if ( boneCount > m_skinnedBonePaletteStride )
+			m_skinnedBonePaletteStride = boneCount;
+	}
+
+	m_skinnedBonePaletteCapacity =
+		m_skinnedBonePaletteStride * ( UINT ) m_skinnedBatch.objectRefs.size();
+
+	if ( m_skinnedInstanceBufferCapacity > 0 )
+	{
+		const UINT instanceBufferBytes =
+			sizeof(SkinnedInstanceVertex) * m_skinnedInstanceBufferCapacity;
+
+		m_pd3dSkinnedInstanceBuffer = ::CreateBufferResource(
+			dev, cmd, nullptr,
+			instanceBufferBytes,
+			D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr
+		);
+
+		m_pd3dSkinnedInstanceBuffer->Map(
+			0, nullptr, ( void** ) &m_pMappedSkinnedInstanceBuffer);
+	}
+
+	if ( m_skinnedBonePaletteCapacity > 0 )
+	{
+		const UINT bonePaletteBufferBytes =
+			sizeof(XMFLOAT4X4) * m_skinnedBonePaletteCapacity;
+
+		m_pd3dSkinnedBonePaletteBuffer = ::CreateBufferResource(
+			dev, cmd, nullptr,
+			bonePaletteBufferBytes,
+			D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr
+		);
+
+		m_pd3dSkinnedBonePaletteBuffer->Map(
+			0, nullptr, ( void** ) &m_pMappedSkinnedBonePaletteBuffer);
+	}
 }
 
 XMFLOAT4X4 CGameScene::BuildAttachmentOffsetMatrix(
@@ -3552,15 +3815,11 @@ void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 		RenderStaticInstanceGroups(cmd);
 	}
 
-    if (m_skinnedBatch.shader)
-    {
-        m_skinnedBatch.shader->Render(cmd, camera, &m_skinnedBatch);
-        for (UINT j = 0; j < (UINT)m_skinnedObjects.size(); ++j)
-        {
-            if (!m_skinnedObjects[j]) continue;
-            m_skinnedObjects[j]->Render(cmd, camera);
-        }
-    }
+	if ( m_skinnedBatch.shader )
+	{
+		m_skinnedBatch.shader->Render(cmd, camera, &m_skinnedBatch);
+		RenderSkinnedInstanceGroups(cmd);
+	}
 
     if (m_bInactiveOverlayVisible && m_inactiveOverlayShader && (m_inactiveOverlaySrvIndex != UINT_MAX))
     {

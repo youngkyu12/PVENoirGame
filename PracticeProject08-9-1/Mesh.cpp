@@ -129,6 +129,7 @@ void CMesh::LoadMeshFromBIN(
     ID3D12GraphicsCommandList* cmdList,
     const char* filename)
 {
+	m_sourceMeshPath = ( filename ? filename : "" );
     // ----------------------------------------------------
     // 0) 파일 열기
     // ----------------------------------------------------
