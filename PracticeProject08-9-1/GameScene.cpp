@@ -2918,30 +2918,46 @@ void CGameScene::LinkSceneObjects()
 
 void CGameScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target)
 {
-    m_pMainCameraObject = std::make_unique<CGameObject>(0);
+	m_pMainCameraObject = std::make_unique<CGameObject>(0);
 
-    auto* cam = m_pMainCameraObject->AddComponent<CThirdPersonCamera>();
-    m_pMainCamera = cam;
+	auto* cam = m_pMainCameraObject->AddComponent<CThirdPersonCamera>();
+	m_pMainCamera = cam;
 
-    cam->SetMode(THIRD_PERSON_CAMERA);
-    cam->SetTarget(target);
+	cam->SetMode(THIRD_PERSON_CAMERA);
+	cam->SetTarget(target);
 
-    cam->SetTimeLag(0.25f);
-    cam->SetOffset(XMFLOAT3(0.0f, 1.0f, -2.0f));
-    cam->GenerateProjectionMatrix(1.01f, 5000.0f, ASPECT_RATIO, 60.0f);
-    cam->SetViewport(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, 0.0f, 1.0f);
-    cam->SetScissorRect(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
+	cam->SetTimeLag(0.0f);
 
-    m_pMainCameraObject->CreateComponents(dev, cmd);
+	cam->SetOffset(XMFLOAT3(0.0f, 0.0f, -2.0f));
 
-    if (target)
-    {
-        XMFLOAT3 pos = target->GetPosition();
-        cam->SetPosition(Vector3::Add(pos, cam->GetOffset()));
-        cam->Update(pos, 0.0f);
-        cam->SetLookAt(pos);
-        cam->RegenerateViewMatrix();
-    }
+	cam->GetPitch() = 12.0f;
+
+	if ( target )
+	{
+		const XMFLOAT4X4& W = target->GetWorldMatrix();
+		cam->GetYaw() = XMConvertToDegrees(std::atan2f(W._31, W._33));
+	}
+	else
+	{
+		cam->GetYaw() = 0.0f;
+	}
+
+	cam->GenerateProjectionMatrix(1.01f, 5000.0f, ASPECT_RATIO, 60.0f);
+	cam->SetViewport(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, 0.0f, 1.0f);
+	cam->SetScissorRect(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
+
+	m_pMainCameraObject->CreateComponents(dev, cmd);
+
+	if ( target )
+	{
+		XMFLOAT3 lookAt = target->GetPosition();
+		static constexpr float kCameraLookAtHeight = 1.7f;
+		lookAt.y += kCameraLookAtHeight;
+
+		cam->Update(lookAt, 0.0f);
+		cam->SetLookAt(lookAt);
+		cam->RegenerateViewMatrix();
+	}
 }
 
 bool CGameScene::GetPauseOverlayRect(XMFLOAT4& outRect) const
