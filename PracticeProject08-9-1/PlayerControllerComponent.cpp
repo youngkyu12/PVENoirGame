@@ -17,7 +17,12 @@ static constexpr DWORD kDirRight = 0x08;
 static constexpr DWORD kDirUp = 0x10;
 static constexpr DWORD kDirDown = 0x20;
 
-
+static float WrapAngle180(float deg)
+{
+	while ( deg > 180.0f ) deg -= 360.0f;
+	while ( deg < -180.0f ) deg += 360.0f;
+	return deg;
+}
 
 static bool IsOwnerActionLocked(CGameObject* owner)
 {
@@ -98,45 +103,78 @@ void CPlayerControllerComponent::SyncAnimatorLocomotion()
 }
 
 void CPlayerControllerComponent::Move(
-    DWORD dwDirection,
-    float fDistance,
-    bool bUpdateVelocity,
-    EVerticalMoveSpace upSpace)
+	DWORD dwDirection,
+	float fDistance,
+	bool bUpdateVelocity,
+	EVerticalMoveSpace upSpace)
 {
-    CGameObject* owner = GetOwner();
-    if (!owner) return;
+	MoveByYaw(dwDirection, fDistance, m_yawDeg, bUpdateVelocity, upSpace);
+}
 
-    if (IsOwnerActionLocked(owner)) return;
-    if (!dwDirection) return;
+void CPlayerControllerComponent::MoveByYaw(
+	DWORD dwDirection,
+	float fDistance,
+	float yawDeg,
+	bool bUpdateVelocity,
+	EVerticalMoveSpace upSpace)
+{
+	CGameObject* owner = GetOwner();
+	if ( !owner ) return;
 
-    const XMFLOAT3 look = owner->GetLook();
-    const XMFLOAT3 right = owner->GetRight();
+	if ( IsOwnerActionLocked(owner) ) return;
+	if ( !dwDirection ) return;
 
-    const XMFLOAT3 up = (upSpace == EVerticalMoveSpace::LocalUp)
-        ? owner->GetUp()
-        : XMFLOAT3(0.0f, 1.0f, 0.0f);
+	const XMMATRIX yawM = XMMatrixRotationY(XMConvertToRadians(yawDeg));
 
-    XMFLOAT3 shift = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMVECTOR lookV = XMVector3Normalize(
+		XMVector3TransformNormal(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), yawM)
+	);
 
-    if (dwDirection & kDirForward)
-        shift = Vector3::Add(shift, look, fDistance);
+	XMVECTOR rightV = XMVector3Normalize(
+		XMVector3TransformNormal(XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), yawM)
+	);
 
-    if (dwDirection & kDirBackward)
-        shift = Vector3::Add(shift, look, -fDistance);
+	XMFLOAT3 ownerUp = owner->GetUp();
+	XMVECTOR upV =
+		( upSpace == EVerticalMoveSpace::LocalUp )
+		? XMVector3Normalize(XMLoadFloat3(&ownerUp))
+		: XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
-    if (dwDirection & kDirRight)
-        shift = Vector3::Add(shift, right, fDistance);
+	XMVECTOR horizontalMoveV = XMVectorZero();
+	XMVECTOR verticalMoveV = XMVectorZero();
 
-    if (dwDirection & kDirLeft)
-        shift = Vector3::Add(shift, right, -fDistance);
+	if ( dwDirection & kDirForward )  horizontalMoveV += lookV;
+	if ( dwDirection & kDirBackward ) horizontalMoveV -= lookV;
+	if ( dwDirection & kDirRight )    horizontalMoveV += rightV;
+	if ( dwDirection & kDirLeft )     horizontalMoveV -= rightV;
 
-    if (dwDirection & kDirUp)
-        shift = Vector3::Add(shift, up, fDistance);
+	if ( dwDirection & kDirUp )       verticalMoveV += upV;
+	if ( dwDirection & kDirDown )     verticalMoveV -= upV;
 
-    if (dwDirection & kDirDown)
-        shift = Vector3::Add(shift, up, -fDistance);
+	if ( XMVectorGetX(XMVector3LengthSq(horizontalMoveV)) > 1e-8f )
+	{
+		horizontalMoveV = XMVector3Normalize(horizontalMoveV) * fDistance;
+	}
+	else
+	{
+		horizontalMoveV = XMVectorZero();
+	}
 
-    MoveShift(shift, bUpdateVelocity);
+	if ( XMVectorGetX(XMVector3LengthSq(verticalMoveV)) > 1e-8f )
+	{
+		verticalMoveV = XMVector3Normalize(verticalMoveV) * fDistance;
+	}
+	else
+	{
+		verticalMoveV = XMVectorZero();
+	}
+
+	XMVECTOR shiftV = horizontalMoveV + verticalMoveV;
+
+	XMFLOAT3 shift{};
+	XMStoreFloat3(&shift, shiftV);
+
+	MoveShift(shift, bUpdateVelocity);
 }
 
 void CPlayerControllerComponent::MoveShift(const XMFLOAT3& shift, bool bUpdateVelocity)
@@ -155,12 +193,45 @@ void CPlayerControllerComponent::MoveShift(const XMFLOAT3& shift, bool bUpdateVe
     }
 }
 
+void CPlayerControllerComponent::RotateTowardYawDegrees(float targetYawDeg, float turnSpeed, float dt)
+{
+	float delta = WrapAngle180(targetYawDeg - m_yawDeg);
+
+	float alpha = turnSpeed * dt;
+	if ( alpha < 0.0f ) alpha = 0.0f;
+	if ( alpha > 1.0f ) alpha = 1.0f;
+
+	SetYawDegrees(m_yawDeg + delta * alpha);
+}
+
 void CPlayerControllerComponent::Rotate(float /*pitchDeg*/, float yawDeg, float /*rollDeg*/)
 {
     CGameObject* owner = GetOwner();
     if (IsOwnerActionLocked(owner)) return;
     if (yawDeg != 0.0f)
         SetYawDegrees(m_yawDeg + yawDeg);
+}
+
+bool CPlayerControllerComponent::IsActionLockedByAnimation() const
+{
+	return IsOwnerActionLocked(GetOwner());
+}
+
+bool CPlayerControllerComponent::ShouldFaceCameraWhileActionActive() const
+{
+	CGameObject* owner = GetOwner();
+	if ( !owner ) return false;
+
+	if ( auto* animComp = owner->GetComponent<CAnimatorComponent>() )
+	{
+		if ( auto* ctrl = animComp->GetController() )
+			return ctrl->IsActionActive() && !ctrl->IsActionLocked();
+	}
+
+	if ( auto* ctrl = owner->GetAnimController() )
+		return ctrl->IsActionActive() && !ctrl->IsActionLocked();
+
+	return false;
 }
 
 void CPlayerControllerComponent::OnUpdate(float dt)
