@@ -19,15 +19,30 @@ class CSkinnedObjectsShader;
 struct CB_GAMEOBJECT_INFO;
 
 // -----------------------------------------------------------------------------
-// Materials (GPU constant bufferøÎ)
+// Materials (GPU constant bufferÏö©)
 // -----------------------------------------------------------------------------
 struct MATERIAL
 {
-    DirectX::XMFLOAT4  m_xmf4Ambient;
-    DirectX::XMFLOAT4  m_xmf4Diffuse;
-    DirectX::XMFLOAT4  m_xmf4Specular; // (r,g,b,a=power)
-    DirectX::XMFLOAT4  m_xmf4Emissive;
-    DirectX::XMUINT4   m_xmn4TextureIndices = DirectX::XMUINT4(0, 0, 0, 0);
+	DirectX::XMFLOAT4  m_xmf4Ambient = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	DirectX::XMFLOAT4  m_xmf4Diffuse = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	DirectX::XMFLOAT4  m_xmf4Specular = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f); // rgb=specular, a=shininess
+	DirectX::XMFLOAT4  m_xmf4Emissive = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+
+	// x=diffuse, y=normal, z=emissive, w=specular
+	// 0 = not bound, n+1 = global SRV index
+	DirectX::XMUINT4   m_xmn4TextureIndices = DirectX::XMUINT4(0, 0, 0, 0);
+
+	// x=scaleU, y=scaleV, z=offsetU, w=offsetV
+	DirectX::XMFLOAT4  m_xmf4DiffuseUVST = DirectX::XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+	DirectX::XMFLOAT4  m_xmf4NormalUVST = DirectX::XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+	DirectX::XMFLOAT4  m_xmf4EmissiveUVST = DirectX::XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+	DirectX::XMFLOAT4  m_xmf4SpecularUVST = DirectX::XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+
+	// wrap packed
+	// m_xmn4WrapModes0: x=diffuseU, y=diffuseV, z=normalU, w=normalV
+	// m_xmn4WrapModes1: x=emissiveU, y=emissiveV, z=specularU, w=specularV
+	DirectX::XMUINT4   m_xmn4WrapModes0 = DirectX::XMUINT4(0, 0, 0, 0);
+	DirectX::XMUINT4   m_xmn4WrapModes1 = DirectX::XMUINT4(0, 0, 0, 0);
 };
 
 struct MATERIALS
@@ -36,7 +51,7 @@ struct MATERIALS
 };
 
 // -----------------------------------------------------------------------------
-// Scene-owned batches (Shader::Render()ø°º≠ ¬¸¡∂)
+// Scene-owned batches (Shader::Render()ÏóêÏÑú Ï∞∏Ï°∞)
 // -----------------------------------------------------------------------------
 struct SCENE_STATIC_BATCH
 {

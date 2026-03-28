@@ -1,4 +1,4 @@
-﻿// LabProject08-9-1.cpp : 응용 프로그램에 대한 진입점을 정의합니다.
+// LabProject08-9-1.cpp : 응용 프로그램에 대한 진입점을 정의합니다.
 //
 
 #include "stdafx.h"
@@ -149,8 +149,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow, CGameFramework& gGameFramew
 		NULL,
 		NULL,
 		hInstance,
-		(LPVOID)&gGameFramework
-	);
+		(LPVOID)&gGameFramework);
 
 	if (!hMainWnd) 
 		return(FALSE);
@@ -171,10 +170,10 @@ Atomic<bool> g_End = false;
 
 bool CheckEnd()
 {
-	if (GetAsyncKeyState(VK_ESCAPE) & 0x8000)
-	{
-		g_End = true;
-	}
+	//if (GetAsyncKeyState(VK_ESCAPE) & 0x8000)
+	//{
+	//	g_End = true;
+	//}
 
 	return g_End.load();
 }
