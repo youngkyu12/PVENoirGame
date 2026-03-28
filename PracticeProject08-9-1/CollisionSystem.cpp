@@ -24,8 +24,8 @@ void CCollisionSystem::UnregisterCollider(CColliderComponent* c)
 
 bool CCollisionSystem::PassFilter(const CColliderComponent* a, const CColliderComponent* b) const
 {
-    // ·¹ÀÌ¾î/¸¶½ºÅ©: ¼­·Î Çã¿ëÇØ¾ß Ãæµ¹(´ëÄª)
-    // bÀÇ layer bit°¡ aÀÇ mask¿¡ Æ÷ÇÔ && aÀÇ layer bit°¡ bÀÇ mask¿¡ Æ÷ÇÔ
+    // ë ˆì´ì–´/ë§ˆìŠ¤í¬: ì„œë¡œ í—ˆìš©í•´ì•¼ ì¶©ëŒ(ëŒ€ì¹­)
+    // bì˜ layer bitê°€ aì˜ maskì— í¬í•¨ && aì˜ layer bitê°€ bì˜ maskì— í¬í•¨
     const uint32_t bitA = (1u << a->GetLayer());
     const uint32_t bitB = (1u << b->GetLayer());
 
@@ -36,57 +36,69 @@ bool CCollisionSystem::PassFilter(const CColliderComponent* a, const CColliderCo
 
 void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 {
-    if (!a || !b)
-        return;
+	if ( !a || !b )
+		return;
 
-    bool isHit = false;
+	bool isHit = false;
+	CColliderComponent* pushedCollider = nullptr;
 
-    // Å¸ÀÔº° narrow phase
-    if (a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::BCapsule)
-    {
-        isHit = a->GetBCapsule().Intersects(b->GetBCapsule());
-    }
-    else if (a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::OOBB)
-    {
-        isHit = a->GetBCapsule().Intersects(b->GetOOBB());
-    }
-    else if (a->GetType() == EColliderType::OOBB && b->GetType() == EColliderType::BCapsule)
-    {
-        isHit = b->GetBCapsule().Intersects(a->GetOOBB());
-    }
+	// íƒ€ì…ë³„ narrow phase
+	if ( a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::BCapsule )
+	{
+		isHit = a->GetBCapsule().Intersects(b->GetBCapsule());
+		pushedCollider = a;
+	}
+	else if ( a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::OOBB )
+	{
+		isHit = b->IntersectsCapsuleHierarchical(a->GetBCapsule());
+		pushedCollider = a;
+	}
+	else if ( a->GetType() == EColliderType::OOBB && b->GetType() == EColliderType::BCapsule )
+	{
+		isHit = a->IntersectsCapsuleHierarchical(b->GetBCapsule());
+		pushedCollider = b;
+	}
 
-    if (!isHit)
-        return;
+	if ( !isHit )
+		return;
 
-    if (a->IsTrigger() || b->IsTrigger())
-    {
-        // Trigger ÀÌº¥Æ® Ã³¸®
-        return;
-    }
+	if ( a->IsTrigger() || b->IsTrigger() )
+	{
+		// Trigger ì´ë²¤íŠ¸ ì²˜ë¦¬
+		return;
+	}
 
-    auto* ownerA = a->GetOwner();
-    if (!ownerA)
-        return;
+	if ( !pushedCollider )
+		return;
 
-    auto* transformA = ownerA->GetComponent<CTransformComponent>();
-    if (!transformA)
-        return;
+	auto* owner = pushedCollider->GetOwner();
+	if ( !owner )
+		return;
 
-    const float pushBackDistance = 0.1f;
+	auto* transform = owner->GetComponent<CTransformComponent>();
+	if ( !transform )
+		return;
 
-    XMFLOAT3 forward = transformA->direction;
-    XMFLOAT3 pos = transformA->position;
+	const float pushBackDistance = 0.1f;
 
-    pos.x -= forward.x * pushBackDistance;
-    pos.y -= forward.y * pushBackDistance;
-    pos.z -= forward.z * pushBackDistance;
+	XMFLOAT3 forward = transform->direction;
+	XMVECTOR fwdV = XMLoadFloat3(&forward);
 
-    transformA->Translate(pos);
+	if ( XMVectorGetX(XMVector3LengthSq(fwdV)) < 1e-8f )
+		forward = XMFLOAT3(0.0f, 0.0f, 1.0f);
+
+	XMFLOAT3 pos = transform->position;
+
+	pos.x -= forward.x * pushBackDistance;
+	pos.y -= forward.y * pushBackDistance;
+	pos.z -= forward.z * pushBackDistance;
+
+	transform->Translate(pos);
 }
 
 void CCollisionSystem::OnUpdate()
 {
-    // Àü¼ö°Ë»ç: i<j
+    // ì „ìˆ˜ê²€ì‚¬: i<j
     const size_t n = mColliders.size();
     for (size_t i = 0; i < n; ++i)
     {
