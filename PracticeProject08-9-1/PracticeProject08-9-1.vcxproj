@@ -168,6 +168,7 @@
     <ClInclude Include="ArrowComponent.h" />
     <ClInclude Include="AssetManager.h" />
     <ClInclude Include="BoundingCapsule.h" />
+    <ClInclude Include="BulletComponent.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="ColliderComponent.h" />
     <ClInclude Include="CollisionSystem.h" />
@@ -188,6 +189,8 @@
     <ClInclude Include="MenuScene.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="ModelComponent.h" />
+    <ClInclude Include="MonsterAnimController.h" />
+    <ClInclude Include="MonsterAnimTypes.h" />
     <ClInclude Include="NetworkQueue.h" />
     <ClInclude Include="Object.h" />
     <ClInclude Include="PlayerControllerComponent.h" />
@@ -220,6 +223,7 @@
     <ClCompile Include="ArrowComponent.cpp" />
     <ClCompile Include="AssetManager.cpp" />
     <ClCompile Include="BoundingCapsule.cpp" />
+    <ClCompile Include="BulletComponent.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="ColliderComponent.cpp" />
     <ClCompile Include="CollisionSystem.cpp" />
@@ -248,6 +252,7 @@
     <ClCompile Include="MenuScene.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="ModelComponent.cpp" />
+    <ClCompile Include="MonsterAnimController.cpp" />
     <ClCompile Include="NetworkQueue.cpp" />
     <ClCompile Include="Object.cpp" />
     <ClCompile Include="PlayerControllerComponent.cpp" />

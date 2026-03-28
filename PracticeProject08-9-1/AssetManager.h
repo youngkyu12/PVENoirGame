@@ -4,6 +4,7 @@
 #pragma once
 
 #include "stdafx.h"
+#include "AnimatorData.h"
 #include "SceneRenderTypes.h"
 
 #include <string>
@@ -21,7 +22,7 @@ enum class AssetType
     Ghoul,
     SwordMan,
     BowMan,
-    AxeMan,
+    Mutant,
     Boss,
 
     World,
@@ -33,6 +34,7 @@ enum class AssetType
     Tower,
 
     Arrow,
+	Bullet,
     Helmet,
     Sword,
     Bow,
@@ -55,14 +57,23 @@ struct BuiltAsset
 class AssetManager
 {
 public:
-    static BuiltAsset BuildAsset(
-        ID3D12Device* device,
-        ID3D12GraphicsCommandList* cmd,
-        MATERIALS* pMaterials,
-        const AssetBuildDesc& desc
-    );
+	static BuiltAsset BuildAsset(
+		ID3D12Device* device,
+		ID3D12GraphicsCommandList* cmd,
+		MATERIALS* pMaterials,
+		const AssetBuildDesc& desc
+	);
 
-    static void ClearCache();
+	static bool LoadCachedClip(
+		CMesh* mesh,
+		const std::string& skeletonKey,
+		const char* animBinPath,
+		const char* clipName,
+		AnimationClip& outClip,
+		float timeScale = 1.0f
+	);
+
+	static void ClearCache();
 
 private:
     static BuiltAsset BuildAssetInternal(
@@ -76,25 +87,31 @@ private:
         MATERIALS* pMaterials
     );
 
-    static std::string MakeAssetKey(const AssetBuildDesc& desc);
-    static std::string MakeMaterialKey(
-        AssetType type,
-        const std::string& textureRoot,
-        const std::string& materialName,
-        const std::string& diffuseTextureName,
-        const std::string& normalTextureName
-    );
+	static std::string MakeAssetKey(const AssetBuildDesc& desc);
+	static std::string MakeMaterialKey(
+		AssetType type,
+		const std::string& textureRoot,
+		const std::string& materialName,
+		const std::string& materialFingerprint);
 
-    static std::wstring ResolveTexturePath(
-        AssetType type,
-        const std::string& textureRoot,
-        const std::string& materialName,
-        const std::string& diffuseTextureName
-    );
+	static std::string MakeClipKey(
+		const std::string& skeletonKey,
+		const std::string& animBinPath,
+		const std::string& clipName,
+		float timeScale
+	);
+
+	static std::wstring ResolveTexturePath(
+		AssetType type,
+		const std::string& textureRoot,
+		const std::string& materialName,
+		const std::string& diffuseTextureName
+	);
 
 private:
     static std::unordered_map<std::string, BuiltAsset> s_assetCache;
     static std::unordered_map<std::string, std::shared_ptr<CMaterial>> s_materialCache;
     static std::unordered_map<std::string, std::shared_ptr<CTexture>> s_textureCache;
+	static std::unordered_map<std::string, AnimationClip> s_clipCache;
     static UINT s_nextMaterialID;
 };

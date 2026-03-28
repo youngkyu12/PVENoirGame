@@ -49,6 +49,18 @@ public:
     const XMFLOAT3& GetVelocity() const { return m_velocity; }
     float GetYawDegrees() const { return m_yawDeg; }
 
+	void MoveByYaw(
+	DWORD dwDirection,
+	float fDistance,
+	float yawDeg,
+	bool bUpdateVelocity = false,
+	EVerticalMoveSpace upSpace = EVerticalMoveSpace::WorldUp);
+
+	void RotateTowardYawDegrees(float targetYawDeg, float turnSpeed, float dt);
+
+	bool IsActionLockedByAnimation() const;
+	bool ShouldFaceCameraWhileActionActive() const;
+
     // ----------------------------
     // Lifecycle
     // ----------------------------

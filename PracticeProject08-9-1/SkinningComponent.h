@@ -30,6 +30,8 @@ public:
 
     void OnDestroy() override { Disable(); }
 
+	const XMFLOAT4X4* GetMappedBoneMatrices() const { return m_mapped; }
+
 private:
     static UINT Align256(UINT x) { return (x + 255u) & ~255u; }
 
