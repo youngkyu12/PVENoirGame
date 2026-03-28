@@ -56,6 +56,18 @@ namespace
         kStateDieBit = 1u << 9,
     };
 
+	enum : uint32_t
+	{
+		kCollisionLayerCharacter = 0, // 적 / 원격 플레이어 / 일반 캐릭터
+		kCollisionLayerWorldStatic = 1, // 월드 정적 오브젝트
+		kCollisionLayerLocalPlayer = 2  // 로컬 플레이어만 별도 분리
+	};
+
+	static constexpr uint32_t CollisionBit(uint32_t layer)
+	{
+		return ( 1u << layer );
+	}
+
     struct DecodedAnimStateCode
     {
         bool hasMove = false;
@@ -200,6 +212,14 @@ namespace
 
         return false;
     }
+
+	bool ShouldCreateWorldStaticCollider(const std::string& assetName)
+	{
+		if ( assetName == "Grass" )    return false;
+		if ( assetName == "Ground" )   return false;
+		if ( assetName == "DirtRoad" ) return false;
+		return true;
+	}
 
 	void TriggerMonsterTestCommand(CGameObject* obj, EMonsterAnimCommand cmd, EMonsterAnimState locomotion = EMonsterAnimState::Idle)
 	{
@@ -919,11 +939,15 @@ void CGameScene::BuildStaticBatch(
 		obj->SetMesh(0, asset.mesh);
 		obj->AddComponent<CStaticMeshRendererComponent>();
 
-		auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
-		if ( collider )
+		if ( ShouldCreateWorldStaticCollider(placement.assetName) )
 		{
-			collider->SetLayer(1);
-			collider->SetMask(0u);
+			auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
+			if ( collider )
+			{
+				collider->SetLayer(kCollisionLayerWorldStatic);
+				// 월드 정적물은 로컬 플레이어만 받는다.
+				collider->SetMask(CollisionBit(kCollisionLayerLocalPlayer));
+			}
 		}
 
         obj->SetPosition(placement.pos);
@@ -1658,6 +1682,34 @@ void CGameScene::BuildSkinnedBatch(
     b->count = 0;
 
     m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
+	auto ConfigureCharacterCollider = [ ] (CColliderComponent* collider, bool isLocalPlayer)
+		{
+			if ( !collider ) return;
+
+			if ( isLocalPlayer )
+			{
+				collider->SetLayer(kCollisionLayerLocalPlayer);
+
+				// 로컬 플레이어는
+				// - 월드 정적 오브젝트와 충돌
+				// - 일반 캐릭터들과도 충돌 가능
+				collider->SetMask(
+					CollisionBit(kCollisionLayerWorldStatic) |
+					CollisionBit(kCollisionLayerCharacter) |
+					CollisionBit(kCollisionLayerLocalPlayer)
+				);
+			}
+			else
+			{
+				collider->SetLayer(kCollisionLayerCharacter);
+
+				// 적 / 원격 플레이어는 월드 정적물과는 충돌하지 않게 둔다.
+				collider->SetMask(
+					CollisionBit(kCollisionLayerCharacter) |
+					CollisionBit(kCollisionLayerLocalPlayer)
+				);
+			}
+		};
 
     const UINT fighterCount = m_PlayerCount;
 
@@ -1731,7 +1783,8 @@ void CGameScene::BuildSkinnedBatch(
 
                 obj->SetMesh(0, assetW.mesh);
                 obj->AddComponent<CSkinnedMeshRendererComponent>();
-                obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				ConfigureCharacterCollider(collider, false); 
 				auto* animComp = obj->AddComponent<CAnimatorComponent>();
 
                 {
@@ -1858,7 +1911,8 @@ void CGameScene::BuildSkinnedBatch(
 
 				obj->SetMesh(0, assetX.mesh);
 				obj->AddComponent<CSkinnedMeshRendererComponent>();
-				obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				ConfigureCharacterCollider(collider, false); 
 				auto* animComp = obj->AddComponent<CAnimatorComponent>();
 
                 {
@@ -1987,7 +2041,8 @@ void CGameScene::BuildSkinnedBatch(
 
 				obj->SetMesh(0, assetY.mesh);
 				obj->AddComponent<CSkinnedMeshRendererComponent>();
-				obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				ConfigureCharacterCollider(collider, false); 
 				auto* animComp = obj->AddComponent<CAnimatorComponent>();
 
                 {
@@ -2117,7 +2172,8 @@ void CGameScene::BuildSkinnedBatch(
 
 				obj->SetMesh(0, assetZ.mesh);
 				obj->AddComponent<CSkinnedMeshRendererComponent>();
-				obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				ConfigureCharacterCollider(collider, false); 
 				auto* animComp = obj->AddComponent<CAnimatorComponent>();
 
                 {
@@ -2244,7 +2300,8 @@ void CGameScene::BuildSkinnedBatch(
 
 				obj->SetMesh(0, assetOne.mesh);
 				obj->AddComponent<CSkinnedMeshRendererComponent>();
-				obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				ConfigureCharacterCollider(collider, false); 
 				auto* animComp = obj->AddComponent<CAnimatorComponent>();
 
                 {
@@ -2382,12 +2439,14 @@ void CGameScene::BuildSkinnedBatch(
             auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
             obj->SetMappedGameObjectCB(cb);
 
-            obj->SetMesh(0, asset.mesh);
-            obj->AddComponent<CSkinnedMeshRendererComponent>();
-            obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+			obj->SetMesh(0, asset.mesh);
+			obj->AddComponent<CSkinnedMeshRendererComponent>();
 
-            auto* animComp = obj->AddComponent<CAnimatorComponent>();
-            auto* equipComp = obj->AddComponent<CPlayerEquipmentComponent>();
+			auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+			ConfigureCharacterCollider(collider, isLocal);
+
+			auto* animComp = obj->AddComponent<CAnimatorComponent>(); 
+			auto* equipComp = obj->AddComponent<CPlayerEquipmentComponent>();
 
             {
                 auto* tag = obj->AddComponent<CActorTagComponent>();

@@ -911,7 +911,7 @@ void CGameFramework::ProcessInput()
 
 		if ( dwDirection && !pc->IsActionLockedByAnimation() )
 		{
-			pc->MoveByYaw(dwDirection, 5.0f * dt, cameraYawDeg, false);
+			pc->MoveByYaw(dwDirection, 50.0f * dt, cameraYawDeg, false);
 		}
 
 		// 애니메이터 방향 비트는 항상 갱신

@@ -181,6 +181,13 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 		return;
 	}
 
+	const bool isCapsuleVsOOBB =
+		( a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::OOBB ) ||
+		( a->GetType() == EColliderType::OOBB && b->GetType() == EColliderType::BCapsule );
+
+	if ( isCapsuleVsOOBB )
+		return;
+
 	if ( !pushedCollider )
 		return;
 
