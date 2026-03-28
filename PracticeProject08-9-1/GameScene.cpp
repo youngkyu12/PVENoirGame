@@ -3541,18 +3541,63 @@ bool CGameScene::RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& p
 	auto* collider = localPlayer->GetComponent<CColliderComponent>();
 	if ( !collider ) return false;
 
-	// 방금 이동한 좌표 기준으로 월드 캡슐 갱신
-	collider->OnUpdate(0.0f);
+	const XMFLOAT3 currentPos = localPlayer->GetPosition();
 
-	if ( !m_Collision->HasCollisionWithWorldStatic(collider) )
+	auto TestPositionAgainstWorldStatic = [ this, localPlayer, collider ] (const XMFLOAT3& testPos) -> bool
+		{
+			localPlayer->SetPosition(testPos);
+			collider->OnUpdate(0.0f);
+			return m_Collision->HasCollisionWithWorldStatic(collider);
+		};
+
+	// 현재 위치가 애초에 안 겹치면 아무 것도 안 함
+	if ( !TestPositionAgainstWorldStatic(currentPos) )
 		return false;
 
-	// 충돌이면 이번 이동만 롤백
+	// 후보 1: X만 롤백 (Z 이동은 살림)
+	XMFLOAT3 candidateRollbackX = currentPos;
+	candidateRollbackX.x = previousPos.x;
+
+	// 후보 2: Z만 롤백 (X 이동은 살림)
+	XMFLOAT3 candidateRollbackZ = currentPos;
+	candidateRollbackZ.z = previousPos.z;
+
+	const bool xResolved = !TestPositionAgainstWorldStatic(candidateRollbackX);
+	const bool zResolved = !TestPositionAgainstWorldStatic(candidateRollbackZ);
+
+	if ( xResolved && zResolved )
+	{
+		const float keepDistSqX =
+			( candidateRollbackX.x - previousPos.x ) * ( candidateRollbackX.x - previousPos.x ) +
+			( candidateRollbackX.z - previousPos.z ) * ( candidateRollbackX.z - previousPos.z );
+
+		const float keepDistSqZ =
+			( candidateRollbackZ.x - previousPos.x ) * ( candidateRollbackZ.x - previousPos.x ) +
+			( candidateRollbackZ.z - previousPos.z ) * ( candidateRollbackZ.z - previousPos.z );
+
+		const XMFLOAT3 resolvedPos = ( keepDistSqX >= keepDistSqZ ) ? candidateRollbackX : candidateRollbackZ;
+		localPlayer->SetPosition(resolvedPos);
+		collider->OnUpdate(0.0f);
+		return true;
+	}
+
+	if ( xResolved )
+	{
+		localPlayer->SetPosition(candidateRollbackX);
+		collider->OnUpdate(0.0f);
+		return true;
+	}
+
+	if ( zResolved )
+	{
+		localPlayer->SetPosition(candidateRollbackZ);
+		collider->OnUpdate(0.0f);
+		return true;
+	}
+
+	// 둘 다 안 되면 전체 롤백
 	localPlayer->SetPosition(previousPos);
-
-	// 롤백된 좌표로 다시 월드 캡슐 갱신
 	collider->OnUpdate(0.0f);
-
 	return true;
 }
 
