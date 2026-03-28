@@ -456,7 +456,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     DequeueNetworkMessage(NetworkMessageType::GameStart);
     m_localPlayerSlot = g_myPlayerId;
 #else
-    m_localPlayerSlot = 1;
+    m_localPlayerSlot = 0;
 #endif
 
     const std::string placementFilePath = "Assets/placement_export_st1.txt";
@@ -916,8 +916,15 @@ void CGameScene::BuildStaticBatch(
         auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
         obj->SetMappedGameObjectCB(cb);
 
-        obj->SetMesh(0, asset.mesh);
-        obj->AddComponent<CStaticMeshRendererComponent>();
+		obj->SetMesh(0, asset.mesh);
+		obj->AddComponent<CStaticMeshRendererComponent>();
+
+		auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
+		if ( collider )
+		{
+			collider->SetLayer(1);
+			collider->SetMask(0u);
+		}
 
         obj->SetPosition(placement.pos);
         obj->Rotate(0.0f, placement.yawDeg, 0.0f);
@@ -984,8 +991,8 @@ void CGameScene::BuildStaticBatch(
         }
     }
 	// ------------------------------------------------------------------------
-// Bullet pool (Static)
-// ------------------------------------------------------------------------
+	// Bullet pool (Static)
+	// ------------------------------------------------------------------------
 	{
 		AssetBuildDesc BulletDesc =
 		{

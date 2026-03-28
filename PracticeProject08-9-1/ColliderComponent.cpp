@@ -5,6 +5,53 @@
 #include "ColliderComponent.h"
 #include "Object.h" // CGameObject
 
+BoundingOrientedBox CColliderComponent::MakeLocalOOBB(const XMFLOAT3& Min, const XMFLOAT3& Max)
+{
+	BoundingOrientedBox box{};
+
+	box.Center = XMFLOAT3(
+		( Min.x + Max.x ) * 0.5f,
+		( Min.y + Max.y ) * 0.5f,
+		( Min.z + Max.z ) * 0.5f
+	);
+
+	box.Extents = XMFLOAT3(
+		( Max.x - Min.x ) * 0.5f,
+		( Max.y - Min.y ) * 0.5f,
+		( Max.z - Min.z ) * 0.5f
+	);
+
+	box.Orientation = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+	return box;
+}
+
+void CColliderComponent::BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>& meshes)
+{
+	mMeshOOBBSets.clear();
+	mMeshOOBBSets.reserve(meshes.size());
+
+	for ( const shared_ptr<CMesh>& mesh : meshes )
+	{
+		if ( !mesh ) continue;
+
+		MeshOOBBSet set{};
+		set.LocalMeshOOBB = MakeLocalOOBB(mesh->GetMeshMin(), mesh->GetMeshMax());
+		set.WorldMeshOOBB = set.LocalMeshOOBB;
+
+		set.LocalSubOOBBs.reserve(mesh->m_SubMeshes.size());
+		set.WorldSubOOBBs.reserve(mesh->m_SubMeshes.size());
+
+		for ( const auto& submesh : mesh->m_SubMeshes )
+		{
+			BoundingOrientedBox subBox = MakeLocalOOBB(submesh.subMeshMin, submesh.subMeshMax);
+			set.LocalSubOOBBs.push_back(subBox);
+			set.WorldSubOOBBs.push_back(subBox);
+		}
+
+		mMeshOOBBSets.push_back(std::move(set));
+	}
+}
+
 CColliderComponent::CColliderComponent(CGameObject* owner, EColliderType Type)
     : CComponentT<CColliderComponent>(owner)
 {
@@ -46,25 +93,35 @@ void CColliderComponent::OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*)
             SetAABB(objMin, objMax);
         }
         break;
-    case EColliderType::OOBB:
-        for (const shared_ptr<CMesh>& mesh : meshes)
-        {
-            if (!mesh) continue;
+	case EColliderType::OOBB:
+	{
+		BuildHierarchicalOOBBs(meshes);
 
-            for (const auto& submesh : mesh->m_SubMeshes)
-            {
-                objMin.x = min(objMin.x, submesh.subMeshMin.x);
-                objMin.y = min(objMin.y, submesh.subMeshMin.y);
-                objMin.z = min(objMin.z, submesh.subMeshMin.z);
+		for ( const shared_ptr<CMesh>& mesh : meshes )
+		{
+			if ( !mesh ) continue;
 
-                objMax.x = max(objMax.x, submesh.subMeshMax.x);
-                objMax.y = max(objMax.y, submesh.subMeshMax.y);
-                objMax.z = max(objMax.z, submesh.subMeshMax.z);
-            }
-            SetOOBB(objMin, objMax);
-        }
-        
-        break;
+			const XMFLOAT3 meshMin = mesh->GetMeshMin();
+			const XMFLOAT3 meshMax = mesh->GetMeshMax();
+
+			objMin.x = min(objMin.x, meshMin.x);
+			objMin.y = min(objMin.y, meshMin.y);
+			objMin.z = min(objMin.z, meshMin.z);
+
+			objMax.x = max(objMax.x, meshMax.x);
+			objMax.y = max(objMax.y, meshMax.y);
+			objMax.z = max(objMax.z, meshMax.z);
+		}
+
+		if ( objMin.x <= objMax.x &&
+			objMin.y <= objMax.y &&
+			objMin.z <= objMax.z )
+		{
+			SetOOBB(objMin, objMax);
+		}
+
+		break;
+	}
     case EColliderType::BSphere:
 
         break;
@@ -97,7 +154,7 @@ void CColliderComponent::OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*)
 
 void CColliderComponent::OnUpdate(float dt)
 {
-    // MVP: �� ������ ����
+    // MVP: 매 프레임 갱신
     UpdateWorldBounds();
 }
 
@@ -116,15 +173,17 @@ void CColliderComponent::SetAABB(const XMFLOAT3& Min, const XMFLOAT3& Max)
 
 void CColliderComponent::SetOOBB(const XMFLOAT3& Min, const XMFLOAT3& Max)
 {
-    LocalOOBB.Center = XMFLOAT3(
-        (Min.x + Max.x) * 0.5f,
-        (Min.y + Max.y) * 0.5f,
-        (Min.z + Max.z) * 0.5f);
+	LocalOOBB.Center = XMFLOAT3(
+		( Min.x + Max.x ) * 0.5f,
+		( Min.y + Max.y ) * 0.5f,
+		( Min.z + Max.z ) * 0.5f);
 
-    LocalOOBB.Extents = XMFLOAT3(
-        (Max.x - Min.x) * 0.5f,
-        (Max.y - Min.y) * 0.5f,
-        (Max.z - Min.z) * 0.5f);
+	LocalOOBB.Extents = XMFLOAT3(
+		( Max.x - Min.x ) * 0.5f,
+		( Max.y - Min.y ) * 0.5f,
+		( Max.z - Min.z ) * 0.5f);
+
+	LocalOOBB.Orientation = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
 }
 
 void CColliderComponent::SetBSphere(const XMFLOAT3& Min, const XMFLOAT3& Max)
@@ -288,11 +347,23 @@ void CColliderComponent::UpdateWorldBounds()
         LocalAABB.Transform(WorldAABB, W);
         break;
     }
-    case EColliderType::OOBB:
-    {
-        LocalOOBB.Transform(WorldOOBB, W);
-        break;
-    }
+	case EColliderType::OOBB:
+	{
+		LocalOOBB.Transform(WorldOOBB, W);
+
+		for ( MeshOOBBSet& set : mMeshOOBBSets )
+		{
+			set.LocalMeshOOBB.Transform(set.WorldMeshOOBB, W);
+
+			set.WorldSubOOBBs.resize(set.LocalSubOOBBs.size());
+			for ( size_t i = 0; i < set.LocalSubOOBBs.size(); ++i )
+			{
+				set.LocalSubOOBBs[i].Transform(set.WorldSubOOBBs[i], W);
+			}
+		}
+
+		break;
+	}
     case EColliderType::BSphere:
     {
         LocalBSphere.Transform(WorldBSphere, W);
@@ -304,8 +375,37 @@ void CColliderComponent::UpdateWorldBounds()
         break;
     }
     default:
-        // None�̸� ĳ�ø� �����ϰų� ����
+        // None이면 캐시만 리셋하거나 무시
         break;
     }
 }
 
+bool CColliderComponent::IntersectsCapsuleHierarchical(const BoundingCapsule& capsule) const
+{
+	if ( mColliderType != EColliderType::OOBB )
+		return false;
+
+	// 계층형 데이터가 없으면 기존 단일 OOBB로 fallback
+	if ( mMeshOOBBSets.empty() )
+		return capsule.Intersects(WorldOOBB);
+
+	for ( const MeshOOBBSet& set : mMeshOOBBSets )
+	{
+		// 1차: mesh 단위 OOBB
+		if ( !capsule.Intersects(set.WorldMeshOOBB) )
+			continue;
+
+		// submesh가 없으면 mesh hit만으로도 true
+		if ( set.WorldSubOOBBs.empty() )
+			return true;
+
+		// 2차: submesh 단위 OOBB
+		for ( const BoundingOrientedBox& subBox : set.WorldSubOOBBs )
+		{
+			if ( capsule.Intersects(subBox) )
+				return true;
+		}
+	}
+
+	return false;
+}
