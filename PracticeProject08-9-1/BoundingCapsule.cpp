@@ -1,5 +1,6 @@
-﻿#include "stdafx.h"
+#include "stdafx.h"
 #include "BoundingCapsule.h"
+#include <sstream>
 
 void BoundingCapsule::Transform(BoundingCapsule& Out, FXMMATRIX M) const noexcept
 {
@@ -76,21 +77,23 @@ ContainmentType BoundingCapsule::Contains(FXMVECTOR V0, FXMVECTOR V1, FXMVECTOR 
 
 bool BoundingCapsule::Intersects(const BoundingOrientedBox& box) const noexcept
 {
-    XMVECTOR A = XMLoadFloat3(&p0);
-    XMVECTOR B = XMLoadFloat3(&p1);
+	XMVECTOR A = XMLoadFloat3(&p0);
+	XMVECTOR B = XMLoadFloat3(&p1);
 
-    XMVECTOR center = XMLoadFloat3(&box.Center);
-    XMVECTOR extents = XMLoadFloat3(&box.Extents);
-    XMVECTOR q = XMLoadFloat4(&box.Orientation);
+	XMVECTOR center = XMLoadFloat3(&box.Center);
+	XMVECTOR extents = XMLoadFloat3(&box.Extents);
+	XMVECTOR q = XMLoadFloat4(&box.Orientation);
 
-    XMMATRIX R = XMMatrixRotationQuaternion(q);
-    XMMATRIX InvR = XMMatrixTranspose(R);
+	XMMATRIX R = XMMatrixRotationQuaternion(q);
+	XMMATRIX InvR = XMMatrixTranspose(R);
 
-    XMVECTOR ALocal = XMVector3Transform(A - center, InvR);
-    XMVECTOR BLocal = XMVector3Transform(B - center, InvR);
+	XMVECTOR ALocal = XMVector3Transform(A - center, InvR);
+	XMVECTOR BLocal = XMVector3Transform(B - center, InvR);
 
-    float distSq = Vector3::distSegmentToAABB(ALocal, BLocal, extents);
-    return distSq <= Radius * Radius;
+	// 캡슐 반지름만큼 박스를 확장
+	XMVECTOR expandedExtents = extents + XMVectorReplicate(Radius);
+
+	return Vector3::IntersectsSegmentAABB(ALocal, BLocal, expandedExtents);
 }
 
 bool BoundingCapsule::Intersects(const BoundingCapsule& ca) const noexcept
