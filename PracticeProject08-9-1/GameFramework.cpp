@@ -911,7 +911,14 @@ void CGameFramework::ProcessInput()
 
 		if ( dwDirection && !pc->IsActionLockedByAnimation() )
 		{
-			pc->MoveByYaw(dwDirection, 50.0f * dt, cameraYawDeg, false);
+			const XMFLOAT3 prevPos = playerObj->GetPosition();
+
+			pc->MoveByYaw(dwDirection, 5.0f * dt, cameraYawDeg, false);
+
+			if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
+			{
+				gameScene->RollbackLocalPlayerMoveIfCollidingWorldStatic(prevPos);
+			}
 		}
 
 		// 애니메이터 방향 비트는 항상 갱신
