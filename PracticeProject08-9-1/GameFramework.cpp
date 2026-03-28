@@ -975,10 +975,34 @@ void CGameFramework::FrameAdvance()
 
 	ApplyPendingSceneSwitch();
 
+#ifndef USING_NETWORK
+	XMFLOAT3 localPlayerPrevPos = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	bool hasLocalPlayerPrevPos = false;
+
+	if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( m_SceneManager.GetScene() ) )
+	{
+		if ( CGameObject* localPlayer = gameScene->GetPlayer() )
+		{
+			localPlayerPrevPos = localPlayer->GetPosition();
+			hasLocalPlayerPrevPos = true;
+		}
+	}
+#endif
+
 	ProcessInput();
 	AnimateObjects();
+
+#ifndef USING_NETWORK
+	if ( hasLocalPlayerPrevPos )
+	{
+		if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( m_SceneManager.GetScene() ) )
+		{
+			gameScene->RollbackLocalPlayerMoveIfCollidingWorldStatic(localPlayerPrevPos);
+		}
+	}
+#endif
+
 	CollisionSystem();
-	// 충돌체크 함수 필요
 
 	hResult = m_pd3dCommandAllocator->Reset();
 	hResult = m_pd3dCommandList->Reset(m_pd3dCommandAllocator.Get(), nullptr);
