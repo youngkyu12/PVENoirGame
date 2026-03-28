@@ -3,6 +3,117 @@
 #include "ColliderComponent.h"
 #include "Object.h"
 
+#include "ActorTagComponent.h"
+#include "Mesh.h"
+#include <string>
+#include <sstream>
+
+namespace
+{
+	const char* ColliderTypeToString(EColliderType type)
+	{
+		switch ( type )
+		{
+		case EColliderType::AABB:     return "AABB";
+		case EColliderType::OOBB:     return "OOBB";
+		case EColliderType::BSphere:  return "BSphere";
+		case EColliderType::BCapsule: return "BCapsule";
+		default:                      return "None";
+		}
+	}
+
+	bool IsLocalPlayerObject(const CGameObject* obj)
+	{
+		if ( !obj ) return false;
+
+		auto* tag = obj->GetComponent<CActorTagComponent>();
+		if ( !tag ) return false;
+
+		return ( tag->kind == EActorKind::Player &&
+				tag->control == EPlayerControl::Local );
+	}
+
+	std::string BuildObjectDebugName(const CGameObject* obj, const CColliderComponent* collider)
+	{
+		std::ostringstream oss;
+
+		if ( !obj )
+		{
+			oss << "null";
+			return oss.str();
+		}
+
+		auto* tag = obj->GetComponent<CActorTagComponent>();
+		if ( tag )
+		{
+			if ( tag->kind == EActorKind::Player )
+			{
+				if ( tag->control == EPlayerControl::Local )
+					oss << "LocalPlayer";
+				else
+					oss << "RemotePlayer";
+
+				oss << "(slot=" << tag->playerSlot << ")";
+			}
+			else if ( tag->kind == EActorKind::NPC )
+			{
+				oss << "NPC";
+			}
+			else
+			{
+				oss << "Actor";
+			}
+		}
+		else
+		{
+			oss << "StaticObject";
+		}
+
+		if ( collider )
+		{
+			oss << "[";
+			oss << ColliderTypeToString(collider->GetType());
+			oss << "]";
+		}
+
+		std::shared_ptr<CMesh> mesh = obj->GetMeshShared(0);
+		if ( mesh )
+		{
+			const std::string& src = mesh->GetSourceMeshPath();
+			if ( !src.empty() )
+			{
+				oss << " mesh=" << src;
+			}
+		}
+
+		oss << " ptr=" << obj;
+		return oss.str();
+	}
+
+	void DebugPrintCollision(CColliderComponent* a, CColliderComponent* b)
+	{
+		if ( !a || !b ) return;
+
+		CGameObject* ownerA = a->GetOwner();
+		CGameObject* ownerB = b->GetOwner();
+
+		if ( !ownerA || !ownerB ) return;
+
+		// 로컬 플레이어가 포함된 충돌만 출력
+		if ( !IsLocalPlayerObject(ownerA) && !IsLocalPlayerObject(ownerB) )
+			return;
+
+		std::ostringstream oss;
+		oss << "[Collision] "
+			<< BuildObjectDebugName(ownerA, a)
+			<< " <-> "
+			<< BuildObjectDebugName(ownerB, b)
+			<< "\n";
+
+		OutputDebugStringA(oss.str().c_str());
+	}
+}
+
 CCollisionSystem::CCollisionSystem()
 {
 }
@@ -61,6 +172,8 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 
 	if ( !isHit )
 		return;
+
+	DebugPrintCollision(a, b);
 
 	if ( a->IsTrigger() || b->IsTrigger() )
 	{
