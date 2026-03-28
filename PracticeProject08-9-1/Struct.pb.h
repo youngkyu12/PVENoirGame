@@ -693,16 +693,16 @@ class Animation final :
   // accessors -------------------------------------------------------
 
   enum : int {
-    kAnimationTypeFieldNumber = 1,
+    kStateCodeFieldNumber = 1,
     kAnimationTickFieldNumber = 2,
   };
-  // .Protocol.AnimationType animationType = 1;
-  void clear_animationtype();
-  ::Protocol::AnimationType animationtype() const;
-  void set_animationtype(::Protocol::AnimationType value);
+  // uint32 stateCode = 1;
+  void clear_statecode();
+  ::PROTOBUF_NAMESPACE_ID::uint32 statecode() const;
+  void set_statecode(::PROTOBUF_NAMESPACE_ID::uint32 value);
   private:
-  ::Protocol::AnimationType _internal_animationtype() const;
-  void _internal_set_animationtype(::Protocol::AnimationType value);
+  ::PROTOBUF_NAMESPACE_ID::uint32 _internal_statecode() const;
+  void _internal_set_statecode(::PROTOBUF_NAMESPACE_ID::uint32 value);
   public:
 
   // uint32 animationTick = 2;
@@ -721,7 +721,7 @@ class Animation final :
   template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
-  int animationtype_;
+  ::PROTOBUF_NAMESPACE_ID::uint32 statecode_;
   ::PROTOBUF_NAMESPACE_ID::uint32 animationtick_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_Struct_2eproto;
@@ -1836,24 +1836,24 @@ inline void ObjectStatus::set_speed(::PROTOBUF_NAMESPACE_ID::uint32 value) {
 
 // Animation
 
-// .Protocol.AnimationType animationType = 1;
-inline void Animation::clear_animationtype() {
-  animationtype_ = 0;
+// uint32 stateCode = 1;
+inline void Animation::clear_statecode() {
+  statecode_ = 0u;
 }
-inline ::Protocol::AnimationType Animation::_internal_animationtype() const {
-  return static_cast< ::Protocol::AnimationType >(animationtype_);
+inline ::PROTOBUF_NAMESPACE_ID::uint32 Animation::_internal_statecode() const {
+  return statecode_;
 }
-inline ::Protocol::AnimationType Animation::animationtype() const {
-  // @@protoc_insertion_point(field_get:Protocol.Animation.animationType)
-  return _internal_animationtype();
+inline ::PROTOBUF_NAMESPACE_ID::uint32 Animation::statecode() const {
+  // @@protoc_insertion_point(field_get:Protocol.Animation.stateCode)
+  return _internal_statecode();
 }
-inline void Animation::_internal_set_animationtype(::Protocol::AnimationType value) {
+inline void Animation::_internal_set_statecode(::PROTOBUF_NAMESPACE_ID::uint32 value) {
   
-  animationtype_ = value;
+  statecode_ = value;
 }
-inline void Animation::set_animationtype(::Protocol::AnimationType value) {
-  _internal_set_animationtype(value);
-  // @@protoc_insertion_point(field_set:Protocol.Animation.animationType)
+inline void Animation::set_statecode(::PROTOBUF_NAMESPACE_ID::uint32 value) {
+  _internal_set_statecode(value);
+  // @@protoc_insertion_point(field_set:Protocol.Animation.stateCode)
 }
 
 // uint32 animationTick = 2;

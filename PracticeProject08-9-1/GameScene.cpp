@@ -40,6 +40,65 @@
 
 namespace
 {
+    // [die][hit][run][roll][attack][up][down][left][right][move]
+    // move를 bit0(LSB)로 가정
+    enum : uint32_t
+    {
+        kStateMoveBit = 1u << 0,
+        kStateRightBit = 1u << 1,
+        kStateLeftBit = 1u << 2,
+        kStateDownBit = 1u << 3,
+        kStateUpBit = 1u << 4,
+        kStateAttackBit = 1u << 5,
+        kStateRollBit = 1u << 6,
+        kStateRunBit = 1u << 7,
+        kStateHitBit = 1u << 8,
+        kStateDieBit = 1u << 9,
+    };
+
+    struct DecodedAnimStateCode
+    {
+        bool hasMove = false;
+        bool run = false;
+        uint32_t moveDirBits = 0;
+
+        bool die = false;
+        bool hit = false;
+        bool roll = false;
+        bool attack = false;
+    };
+
+    static DecodedAnimStateCode DecodeStateCode(uint32_t stateCode)
+    {
+        DecodedAnimStateCode out{};
+
+        const bool moveBit = (stateCode & kStateMoveBit) != 0;
+
+        if (moveBit)
+        {
+            if (stateCode & kStateUpBit) out.moveDirBits |= DIR_FORWARD;
+            if (stateCode & kStateDownBit) out.moveDirBits |= DIR_BACKWARD;
+            if (stateCode & kStateLeftBit) out.moveDirBits |= DIR_LEFT;
+            if (stateCode & kStateRightBit) out.moveDirBits |= DIR_RIGHT;
+
+            // 규칙:
+            // isMove=1이어도 방향 4비트가 모두 0이면 Move/Run 아님
+            out.hasMove = (out.moveDirBits != 0);
+            out.run = out.hasMove && ((stateCode & kStateRunBit) != 0);
+        }
+
+        // 우선순위: die > hit > roll > attack
+        out.die = (stateCode & kStateDieBit) != 0;
+        out.hit = !out.die && ((stateCode & kStateHitBit) != 0);
+        out.roll = !out.die && !out.hit && ((stateCode & kStateRollBit) != 0);
+        out.attack = !out.die && !out.hit && !out.roll && ((stateCode & kStateAttackBit) != 0);
+
+        return out;
+    }
+}
+
+namespace
+{
     bool ParsePlacementEntryLine(const std::string& line, StaticPlacementEntry& outEntry)
     {
         char asset[64] = {};
@@ -510,6 +569,15 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     if (!local) local = GetPlayerBySlot(0);
 
     CreateMainCamera(dev, cmd, local);
+
+#ifdef USING_NETWORK
+    Protocol::C_CLIENT_READY iamReady;
+
+    iamReady.set_ready(true);
+    iamReady.set_playerid(g_myPlayerId);
+    auto sendBuffer = ServerPacketHandler::MakeSendBuffer(iamReady);
+    g_clientService->BroadCast(sendBuffer);
+#endif
 }
 
 float CGameScene::QuaternionToYawDegrees(const XMFLOAT4& q)
@@ -1049,7 +1117,7 @@ void CGameScene::BuildStaticBatch(
             obj->SetMesh(0, SwordAsset.mesh);
             obj->AddComponent<CStaticMeshRendererComponent>();
 
-            // 링크 전까지는 화면 밖에 둠
+            // 링크 전까진 화면 밖에 둠
             obj->SetPosition(0.0f, -10000.0f, 0.0f);
 
             obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
@@ -3641,12 +3709,34 @@ void CGameScene::AnimateObjects(float dt)
             // 데모: animation state 강제 적용
             if (auto ac = player->GetAnimController())
             {
-                if (state.animation.animationId == EAnimState::Attack)
-                    ac->RequestAttack();
+                const DecodedAnimStateCode decoded = DecodeStateCode(state.animation.stateCode);
 
-                ac->SetAnimState(state.animation.animationId);
+                ac->SetMoveDirection(decoded.hasMove ? decoded.moveDirBits : 0u);
+                ac->SetRunRequested(decoded.run);
 
-
+                if (decoded.die)
+                {
+                    ac->SetAnimState(EAnimState::Die);
+                }
+                else if (decoded.hit)
+                {
+                    ac->RequestHit();
+                    ac->SetAnimState(decoded.hasMove ? EAnimState::Move : EAnimState::Idle);
+                }
+                else if (decoded.roll)
+                {
+                    uint32_t rollDirBits = decoded.hasMove ? decoded.moveDirBits : DIR_FORWARD;
+                    ac->RequestRoll(rollDirBits);
+                    ac->SetAnimState(EAnimState::Attack);
+                }
+                else if (decoded.attack)
+                {
+                    ac->SetAnimState(EAnimState::Attack);
+                }
+                else
+                {
+                    ac->SetAnimState(decoded.hasMove ? EAnimState::Move : EAnimState::Idle);
+                }
             }
 
             if (auto wc = player->GetComponent<CPlayerEquipmentComponent>())

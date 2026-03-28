@@ -9,7 +9,6 @@ public:
 	string					name;
 	Protocol::PlayerType	type = Protocol::PLAYER_TYPE_NONE;
 	GameSessionRef			ownerSession;
-
 public:
 	Player() = default;
 	Player(uint64 id, const string& name, Protocol::PlayerType type, GameSessionRef session)
@@ -24,6 +23,7 @@ public:
 private:
 	//PlayerControllerComponentRef controller;
 	CWeapon weapon;
+
 public:
 	void SetWeapon(Protocol::WeaponType& type, uint32& currentBullets)
 	{

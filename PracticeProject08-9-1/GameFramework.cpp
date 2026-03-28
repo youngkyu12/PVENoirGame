@@ -559,6 +559,9 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 		m_GameTimer.Reset();
 	else
 		m_GameTimer.Reset();
+
+
+	
 }
 
 void CGameFramework::RequestSceneSwitch(ESceneId next)
@@ -794,28 +797,33 @@ void CGameFramework::ProcessInput()
 #ifdef USING_NETWORK
 		// Pack keyBuffer into int32 (WASD 기준)
 		int keyCodes = 0;
-		if ( pKeysBuffer['W'] & 0xF0 )      keyCodes |= ( 1 << 0 ); // Forward
-		if ( pKeysBuffer[VK_UP] & 0xF0 )    keyCodes |= ( 1 << 0 );
-		if ( pKeysBuffer['S'] & 0xF0 )      keyCodes |= ( 1 << 1 ); // Backward
-		if ( pKeysBuffer[VK_DOWN] & 0xF0 )  keyCodes |= ( 1 << 1 );
-		if ( pKeysBuffer['A'] & 0xF0 )      keyCodes |= ( 1 << 2 ); // Left
-		if ( pKeysBuffer[VK_LEFT] & 0xF0 )  keyCodes |= ( 1 << 2 );
-		if ( pKeysBuffer['D'] & 0xF0 )      keyCodes |= ( 1 << 3 ); // Right
-		if ( pKeysBuffer[VK_RIGHT] & 0xF0 ) keyCodes |= ( 1 << 3 );
-		if ( pKeysBuffer[VK_PRIOR] & 0xF0 ) keyCodes |= ( 1 << 4 ); // Up
-		if ( pKeysBuffer[VK_NEXT] & 0xF0 )  keyCodes |= ( 1 << 5 ); // Down
+		if (pKeysBuffer['W'] & 0xF0)      keyCodes |= (1 << 0); // Forward
+		if (pKeysBuffer[VK_UP] & 0xF0)    keyCodes |= (1 << 0);
+		if (pKeysBuffer['S'] & 0xF0)      keyCodes |= (1 << 1); // Backward
+		if (pKeysBuffer[VK_DOWN] & 0xF0)  keyCodes |= (1 << 1);
+		if (pKeysBuffer['A'] & 0xF0)      keyCodes |= (1 << 2); // Left
+		if (pKeysBuffer[VK_LEFT] & 0xF0)  keyCodes |= (1 << 2);
+		if (pKeysBuffer['D'] & 0xF0)      keyCodes |= (1 << 3); // Right
+		if (pKeysBuffer[VK_RIGHT] & 0xF0) keyCodes |= (1 << 3);
+		if (pKeysBuffer[VK_PRIOR] & 0xF0) keyCodes |= (1 << 4); // Up
+		if (pKeysBuffer[VK_NEXT] & 0xF0)  keyCodes |= (1 << 5); // Down
 
-		if ( GetAsyncKeyState(VK_RBUTTON) & 0x8000 ) keyCodes |= ( 1 << 6 );
-		if ( GetAsyncKeyState(VK_LBUTTON) & 0x8000 ) keyCodes |= ( 1 << 7 );
+		if (GetAsyncKeyState(VK_RBUTTON) & 0x8000) keyCodes |= (1 << 6);
+		if (GetAsyncKeyState(VK_LBUTTON) & 0x8000) keyCodes |= (1 << 7);
+
+		if (pKeysBuffer[VK_LSHIFT] & 0xF0 || pKeysBuffer[VK_SHIFT] & 0xF0)    keyCodes |= (1 << 8); // Run
+		if (pKeysBuffer[VK_SPACE] & 0xF0) keyCodes |= (1 << 9); // Roll
+
 		inputPkt.set_playerid(g_myPlayerId);
 		inputPkt.set_keycodes(keyCodes);
 #else
-		if ( pKeysBuffer['W'] & 0xF0 ) dwDirection |= DIR_FORWARD;
-		if ( pKeysBuffer['S'] & 0xF0 ) dwDirection |= DIR_BACKWARD;
-		if ( pKeysBuffer['A'] & 0xF0 ) dwDirection |= DIR_LEFT;
-		if ( pKeysBuffer['D'] & 0xF0 ) dwDirection |= DIR_RIGHT;
-		if ( pKeysBuffer[VK_PRIOR] & 0xF0 ) dwDirection |= DIR_UP;
-		if ( pKeysBuffer[VK_NEXT] & 0xF0 )  dwDirection |= DIR_DOWN;
+		if (pKeysBuffer['W'] & 0xF0) dwDirection |= DIR_FORWARD;
+
+		if (pKeysBuffer['S'] & 0xF0) dwDirection |= DIR_BACKWARD;
+		if (pKeysBuffer['A'] & 0xF0) dwDirection |= DIR_LEFT;
+		if (pKeysBuffer['D'] & 0xF0) dwDirection |= DIR_RIGHT;
+		if (pKeysBuffer[VK_PRIOR] & 0xF0) dwDirection |= DIR_UP;
+		if (pKeysBuffer[VK_NEXT] & 0xF0)  dwDirection |= DIR_DOWN;
 
 		bRunRequested =
 			( ( pKeysBuffer[VK_LSHIFT] & 0xF0 ) != 0 ) ||
