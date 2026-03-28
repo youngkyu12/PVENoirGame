@@ -82,7 +82,7 @@ private:
 	int									m_nWndClientHeight = FRAME_BUFFER_HEIGHT;
 
 	// DXGI / Device
-	ComPtr<IDXGIFactory4>				m_pdxgiFactory;
+	ComPtr<IDXGIFactory6>				m_pdxgiFactory;
 	ComPtr<IDXGISwapChain3>				m_pdxgiSwapChain;
 	ComPtr<ID3D12Device>				m_pd3dDevice;
 

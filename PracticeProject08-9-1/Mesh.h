@@ -50,16 +50,34 @@ public:
 	~CDiffusedVertex() {}
 };
 
+struct BinMaterialTexTransform
+{
+	XMFLOAT4 uvST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f); // x=scaleU, y=scaleV, z=offsetU, w=offsetV
+	UINT wrapModeU = 0; // 0=Repeat, 1=Clamp
+	UINT wrapModeV = 0; // 0=Repeat, 1=Clamp
+};
+
 struct BinMaterial
 {
-	std::string name;               // material ÀÌ¸§ (ex: "face")
-	std::string diffuseTextureName; // texture base (ex: "face_00")
-	std::string normalTextureName;  //v2: normal map texture stem
+	std::string name;
+	std::string diffuseTextureName;
+	std::string normalTextureName;
+	std::string emissiveTextureName;
+	std::string specularTextureName;
+
+	XMFLOAT4 diffuseColor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	XMFLOAT4 emissiveColor = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+	XMFLOAT4 specularColor = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f); // a=shininess
+
+	BinMaterialTexTransform diffuseTransform{};
+	BinMaterialTexTransform normalTransform{};
+	BinMaterialTexTransform emissiveTransform{};
+	BinMaterialTexTransform specularTransform{};
 };
 
 struct SubMesh
 {
-	// CPU (ÇÊ¿ä ½Ã¸¸ À¯Áö: ÇÇÅ·/µğ¹ö±×)
+	// CPU (í•„ìš” ì‹œë§Œ ìœ ì§€: í”¼í‚¹/ë””ë²„ê·¸)
 	vector<XMFLOAT3> positions;
 	vector<XMFLOAT3> normals;
 	vector<XMFLOAT2> uvs;
@@ -71,13 +89,24 @@ struct SubMesh
 	XMFLOAT3 subMeshMax{ -FLT_MAX, -FLT_MAX, -FLT_MAX };
 
 	std::string meshName;
-	std::string materialName;              // ·Îµù¿ë/µğ¹ö±×¿ë
+	std::string materialName;
 	std::string diffuseTextureName;
 	std::string normalTextureName;
-	shared_ptr<CMaterial> material;         // (±ÇÀå) ·»´õ¿ë ¿¬°á
-	uint32_t materialIndex = 0xFFFFFFFFu; // BINÀÇ g_Materials ÀÎµ¦½º
-	UINT     materialId = 0xFFFFFFFFu; // ¼ÎÀÌ´õ·Î ³Ñ±æ gnMaterialID (ÇöÀç´Â materialIndex¿Í µ¿ÀÏ)
+	std::string emissiveTextureName;
+	std::string specularTextureName;
 
+	XMFLOAT4 diffuseColor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	XMFLOAT4 emissiveColor = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+	XMFLOAT4 specularColor = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+
+	BinMaterialTexTransform diffuseTransform{};
+	BinMaterialTexTransform normalTransform{};
+	BinMaterialTexTransform emissiveTransform{};
+	BinMaterialTexTransform specularTransform{};
+
+	shared_ptr<CMaterial> material;
+	uint32_t materialIndex = 0xFFFFFFFFu;
+	UINT     materialId = 0xFFFFFFFFu;
 
 	// GPU
 	ID3D12Resource* vb = nullptr;
@@ -112,11 +141,11 @@ protected:
 	int							    m_nPolygons = 0;
 	CPolygon**						m_ppPolygons = NULL;
 
-	vector<Bone>					m_Bones;            // º» ¹è¿­
-	unordered_map<string, int>		m_BoneNameToIndex;  // º» ÀÌ¸§ -> ÀÎµ¦½º
+	vector<Bone>					m_Bones;            // ë³¸ ë°°ì—´
+	unordered_map<string, int>		m_BoneNameToIndex;  // ë³¸ ì´ë¦„ -> ì¸ë±ìŠ¤
 
-	XMUINT4*						m_pxu4BoneIndices = NULL;   // Á¤Á¡º° º» ÀÎµ¦½º(4)
-	XMFLOAT4* 						m_pxmf4BoneWeights = NULL;  // Á¤Á¡º° º» °¡ÁßÄ¡(4)
+	XMUINT4*						m_pxu4BoneIndices = NULL;   // ì •ì ë³„ ë³¸ ì¸ë±ìŠ¤(4)
+	XMFLOAT4* 						m_pxmf4BoneWeights = NULL;  // ì •ì ë³„ ë³¸ ê°€ì¤‘ì¹˜(4)
 	
 	ID3D12Resource*					m_pd3dBoneIndexBuffer = NULL;
 	ID3D12Resource*					m_pd3dBoneIndexUploadBuffer = NULL;
@@ -143,7 +172,7 @@ public:
 		const std::function<std::shared_ptr<CMaterial>(const std::string&)>& createMaterialIfMissing = nullptr
 	);
 
-	// CAnimator ¿¬µ¿À» À§ÇÑ ÇïÆÛ ÇÔ¼öµé
+	// CAnimator ì—°ë™ì„ ìœ„í•œ í—¬í¼ í•¨ìˆ˜ë“¤
 	int GetBoneCount() const;
 	int GetBoneIndexByName(const std::string& boneName) const;
 	int GetBoneParentIndex(int boneIndex) const;
@@ -158,10 +187,14 @@ public:
 		float timeScale = 1.0f);
 private:
 	int m_nBones;
+	std::string m_sourceMeshPath;
+
 public:
 	const std::vector<BinMaterial>& GetBinMaterials() const { return m_BinMaterials; }
+	const std::string& GetSourceMeshPath() const { return m_sourceMeshPath; }
 
 private:
 	std::vector<BinMaterial> m_BinMaterials;
-	std::unordered_map<std::string, uint32_t> m_BinMaterialNameToIndex; // ÀÖÀ¸¸é ÆíÇÔ(¼±ÅÃ)
+	std::unordered_map<std::string, uint32_t> m_BinMaterialNameToIndex; // ìˆìœ¼ë©´ í¸í•¨(ì„ íƒ)
+
 };

@@ -99,8 +99,8 @@ void CGameObject::SetRootParameter(ID3D12GraphicsCommandList* cmd)
 		cmd->SetGraphicsRootDescriptorTable(ROOT_PARAMETER_OBJECT, m_pRenderObject->GetCbvHandle());
 
 	// b7: bone palette
-	if (m_pSkinning && m_pSkinning->IsSkinned())
-		cmd->SetGraphicsRootConstantBufferView(ROOT_PARAMETER_BONE_PALETTE, m_pSkinning->GetBoneCBAddress());
+	if ( m_pSkinning && m_pSkinning->IsSkinned() )
+		cmd->SetGraphicsRootShaderResourceView(ROOT_PARAMETER_BONE_PALETTE, m_pSkinning->GetBoneCBAddress());
 }
 
 void CGameObject::SetMappedGameObjectCB(CB_GAMEOBJECT_INFO* p)

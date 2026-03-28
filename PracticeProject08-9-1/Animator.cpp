@@ -31,7 +31,7 @@ static XMFLOAT4X4 ComposeTRS_M(const XMFLOAT3& t, const XMFLOAT4& r, const XMFLO
     XMMATRIX mR = XMMatrixRotationQuaternion(R);
     XMMATRIX mT = XMMatrixTranslationFromVector(T);
 
-    // (ÁÖÀÇ) ÀÌ ÆÄÀÏÀº ·ÎÄÃ º¯È¯À» S*R*T ¼ø¼­·Î ±¸¼ºÇÑ´Ù°í °¡Á¤ÇÑ´Ù.
+    // (ì£¼ì˜) ì´ íŒŒì¼ì€ ë¡œì»¬ ë³€í™˜ì„ S*R*T ìˆœì„œë¡œ êµ¬ì„±í•œë‹¤ê³  ê°€ì •í•œë‹¤.
     XMMATRIX M = mS * mR * mT;
 
     XMFLOAT4X4 out{};
@@ -42,7 +42,7 @@ static XMFLOAT4X4 ComposeTRS_M(const XMFLOAT3& t, const XMFLOAT4& r, const XMFLO
 void CAnimator::SetSkeleton(const std::vector<Bone>& bones,
     const std::unordered_map<std::string, int>& boneNameToIndex)
 {
-    (void)boneNameToIndex; // ÇöÀç ÆÄÀÏ¿¡¼± »ç¿ëÇÏÁö ¾ÊÀ½
+    (void)boneNameToIndex; // í˜„ì¬ íŒŒì¼ì—ì„  ì‚¬ìš©í•˜ì§€ ì•ŠìŒ
 
     m_Skeleton = bones;
 
@@ -62,7 +62,7 @@ void CAnimator::SetSkeleton(const std::vector<Bone>& bones,
         m_FinalBoneMatrices[i] = identity;
     }
     BuildUpperBodyBoneWeights("spine_01");
-    // (pelvis/spine Ä³½Ã ¹× ·Î±× Á¦°Å)
+    // (pelvis/spine ìºì‹œ ë° ë¡œê·¸ ì œê±°)
 }
 
 void CAnimator::AddClip(const AnimationClip& clip)
@@ -85,13 +85,13 @@ bool CAnimator::Play(const std::string& clipName, bool loop, float startTime)
     m_bLoop = loop;
     m_bPlaying = true;
 
-    // ÁøÇà ÁßÀÎ Å©·Î½ºÆäÀÌµå´Â Áï½Ã Á¾·áÇÏ°í, ¿äÃ» Å¬¸³À¸·Î ½º³À ÀüÈ¯ÇÑ´Ù.
+    // ì§„í–‰ ì¤‘ì¸ í¬ë¡œìŠ¤í˜ì´ë“œëŠ” ì¦‰ì‹œ ì¢…ë£Œí•˜ê³ , ìš”ì²­ í´ë¦½ìœ¼ë¡œ ìŠ¤ëƒ… ì „í™˜í•œë‹¤.
     m_bBlending = false;
     m_NextClipName.clear();
     m_fBlendElapsed = 0.0f;
     m_fBlendDuration = 0.0f;
 
-    // startTime ½ÃÁ¡ÀÇ ·ÎÄÃ Æ÷Áî¸¦ Áï½Ã Æò°¡ÇÏ¿© Ã¹ ÇÁ·¹ÀÓºÎÅÍ T-Æ÷Áî¸¦ ÇÇÇÑ´Ù.
+    // startTime ì‹œì ì˜ ë¡œì»¬ í¬ì¦ˆë¥¼ ì¦‰ì‹œ í‰ê°€í•˜ì—¬ ì²« í”„ë ˆì„ë¶€í„° T-í¬ì¦ˆë¥¼ í”¼í•œë‹¤.
     clip->Evaluate(m_fCurrentTime, m_Skeleton, m_LocalPose);
     BuildGlobalAndFinalFromLocal();
 
@@ -748,7 +748,7 @@ void CAnimator::BuildGlobalAndFinalFromLocal()
     const int boneCount = (int)m_Skeleton.size();
     if (boneCount <= 0) return;
 
-    // ¿©·¯ ·çÆ®°¡ Á¸ÀçÇÒ °æ¿ì, °¡Àå ¸¹Àº ÇÏÀ§ º»À» °¡Áø ·çÆ®¸¦ primary·Î ¼±ÅÃÇÑ´Ù.
+    // ì—¬ëŸ¬ ë£¨íŠ¸ê°€ ì¡´ì¬í•  ê²½ìš°, ê°€ì¥ ë§ì€ í•˜ìœ„ ë³¸ì„ ê°€ì§„ ë£¨íŠ¸ë¥¼ primaryë¡œ ì„ íƒí•œë‹¤.
     auto FindPrimaryRoot = [&]() -> int
         {
             std::vector<int> roots;
@@ -789,7 +789,7 @@ void CAnimator::BuildGlobalAndFinalFromLocal()
         XMStoreFloat4x4(&m_GlobalPose[primaryRoot], localRoot);
     }
 
-    // ·ÎÄÃ ¡æ ±Û·Î¹ú ´©Àû. secondary root´Â primaryRoot¿¡ ºÙ¿© ÇÏ³ªÀÇ Æ®¸®Ã³·³ Ãë±ŞÇÑ´Ù.
+    // ë¡œì»¬ â†’ ê¸€ë¡œë²Œ ëˆ„ì . secondary rootëŠ” primaryRootì— ë¶™ì—¬ í•˜ë‚˜ì˜ íŠ¸ë¦¬ì²˜ëŸ¼ ì·¨ê¸‰í•œë‹¤.
     for (int i = 0; i < boneCount; ++i)
     {
         if (i == primaryRoot) continue;
@@ -836,22 +836,22 @@ bool CAnimator::CrossFade(const std::string& nextClipName, float blendTimeSec, b
     if (!m_bPlaying || m_CurrentClipName.empty())
         return Play(nextClipName, loop, startTime);
 
-    // ¡Ú ºí·»µù ÁßÀÌ¸é "ÇöÀç"°¡ ¾Æ´Ï¶ó "¸ñÇ¥(next)" ±âÁØÀ¸·Î Áßº¹ ÆÇ´ÜÇØ¾ß ÇÔ
+    // â˜… ë¸”ë Œë”© ì¤‘ì´ë©´ "í˜„ì¬"ê°€ ì•„ë‹ˆë¼ "ëª©í‘œ(next)" ê¸°ì¤€ìœ¼ë¡œ ì¤‘ë³µ íŒë‹¨í•´ì•¼ í•¨
     if (m_bBlending)
     {
-        // ÀÌ¹Ì ±×ÂÊÀ¸·Î ºí·»µù ÁßÀÌ¸é ¾Æ¹«°Íµµ ¾È ÇÔ
+        // ì´ë¯¸ ê·¸ìª½ìœ¼ë¡œ ë¸”ë Œë”© ì¤‘ì´ë©´ ì•„ë¬´ê²ƒë„ ì•ˆ í•¨
         if (m_NextClipName == nextClipName)
             return true;
 
-        // ¡Ú ºí·»µù µµÁß "ÇöÀç Å¬¸³"À¸·Î µÇµ¹¾Æ°¡¶ó = ºí·»µù Ãë¼Ò
+        // â˜… ë¸”ë Œë”© ë„ì¤‘ "í˜„ì¬ í´ë¦½"ìœ¼ë¡œ ë˜ëŒì•„ê°€ë¼ = ë¸”ë Œë”© ì·¨ì†Œ
         if (m_CurrentClipName == nextClipName)
         {
             m_bBlending = false;
             m_NextClipName.clear();
             m_fBlendElapsed = 0.0f;
             m_fBlendDuration = 0.0f;
-            // ÇöÀç Æ÷Áî´Â ÀÌ¹Ì m_LocalPose¿¡ ¹İ¿µµÇ¾î ÀÖÀ» ¼ö ÀÖÀ¸´Ï,
-            // ¾ÈÀüÇÏ°Ô ÇöÀç Å¬¸³ ÀçÆò°¡ÇØ¼­ °íÁ¤ÇØµµ µÊ(¼±ÅÃ)
+            // í˜„ì¬ í¬ì¦ˆëŠ” ì´ë¯¸ m_LocalPoseì— ë°˜ì˜ë˜ì–´ ìˆì„ ìˆ˜ ìˆìœ¼ë‹ˆ,
+            // ì•ˆì „í•˜ê²Œ í˜„ì¬ í´ë¦½ ì¬í‰ê°€í•´ì„œ ê³ ì •í•´ë„ ë¨(ì„ íƒ)
             // FindClipPtr(m_CurrentClipName)->Evaluate(m_fCurrentTime, m_Skeleton, m_LocalPose);
             // BuildGlobalAndFinalFromLocal();
             return true;
@@ -859,7 +859,7 @@ bool CAnimator::CrossFade(const std::string& nextClipName, float blendTimeSec, b
     }
     else
     {
-        // ºí·»µùÀÌ ¾Æ´Ò ¶§¸¸ "ÇöÀç == ¿äÃ»"ÀÌ¸é ¹«½Ã
+        // ë¸”ë Œë”©ì´ ì•„ë‹ ë•Œë§Œ "í˜„ì¬ == ìš”ì²­"ì´ë©´ ë¬´ì‹œ
         if (m_CurrentClipName == nextClipName)
             return true;
     }
@@ -892,6 +892,13 @@ const std::vector<XMFLOAT4X4>& CAnimator::GetFinalBoneMatrices() const
     return m_FinalBoneMatrices;
 }
 
+float CAnimator::GetClipDuration(const std::string& clipName) const
+{
+	auto it = m_Clips.find(clipName);
+	if ( it == m_Clips.end() ) return 0.0f;
+	return it->second.duration;
+}
+
 float CAnimator::GetCurrentClipDuration() const
 {
     auto it = m_Clips.find(m_CurrentClipName);
@@ -909,7 +916,7 @@ float CAnimator::GetUpperBodyOverlayDuration() const
 bool CAnimator::IsCurrentClipFinished(float eps) const
 {
     if (!m_bPlaying) return false;
-    if (m_bLoop) return false; // loop¸é "³¡" °³³ä ¾øÀ½
+    if (m_bLoop) return false; // loopë©´ "ë" ê°œë… ì—†ìŒ
 
     auto it = m_Clips.find(m_CurrentClipName);
     if (it == m_Clips.end()) return false;
@@ -917,8 +924,8 @@ bool CAnimator::IsCurrentClipFinished(float eps) const
     const float dur = it->second.duration;
     if (dur <= 0.0f) return true;
 
-    // AdvanceTime¿¡¼­ non-loop´Â timeÀ» durationÀ¸·Î clampÇÏ¹Ç·Î,
-    // duration - eps ÀÌ»óÀÌ¸é ³¡À¸·Î º»´Ù.
+    // AdvanceTimeì—ì„œ non-loopëŠ” timeì„ durationìœ¼ë¡œ clampí•˜ë¯€ë¡œ,
+    // duration - eps ì´ìƒì´ë©´ ëìœ¼ë¡œ ë³¸ë‹¤.
     return (m_fCurrentTime >= (dur - eps));
 }
 

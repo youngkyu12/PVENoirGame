@@ -32,7 +32,7 @@ bool CGameFramework::OnCreate(HINSTANCE hInstance, HWND hMainWnd)
 	m_hWnd = hMainWnd;
 	m_bWindowActive = IsWindowActuallyActive();
 	m_bUserPaused = false;
-
+	
 	CreateDirect3DDevice();
 	CreateCommandQueueAndList();
 	CreateRtvAndDsvDescriptorHeaps();
@@ -156,12 +156,27 @@ void CGameFramework::CreateDirect3DDevice()
 		IID_PPV_ARGS(&m_pdxgiFactory));
 
 	ComPtr<IDXGIAdapter1> pd3dAdapter;
+	if ( FAILED(hResult) )
+		return;
 
-	for (UINT i = 0; DXGI_ERROR_NOT_FOUND != m_pdxgiFactory->EnumAdapters1(i, &pd3dAdapter); i++)
+	for ( UINT i = 0; ; ++i )
 	{
-		DXGI_ADAPTER_DESC1 dxgiAdapterDesc;
-		pd3dAdapter->GetDesc1(&dxgiAdapterDesc);
-		if (dxgiAdapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+		
+		hResult = m_pdxgiFactory->EnumAdapterByGpuPreference(
+			i,
+			DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
+			IID_PPV_ARGS(&pd3dAdapter));
+
+		if ( hResult == DXGI_ERROR_NOT_FOUND )
+			break;
+
+		if ( FAILED(hResult) )
+			continue;
+
+		DXGI_ADAPTER_DESC1 desc = {};
+		pd3dAdapter->GetDesc1(&desc);
+
+		if ( desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE )
 			continue;
 
 		hResult = D3D12CreateDevice(
@@ -169,10 +184,10 @@ void CGameFramework::CreateDirect3DDevice()
 			D3D_FEATURE_LEVEL_12_0,
 			IID_PPV_ARGS(&m_pd3dDevice));
 
-		if (SUCCEEDED(hResult))
+		if ( SUCCEEDED(hResult) )
 			break;
 	}
-
+	
 	if (!m_pd3dDevice)
 	{
 		hResult = m_pdxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&pd3dAdapter));
@@ -739,107 +754,112 @@ void CGameFramework::ChangeSwapChainState()
 void CGameFramework::ProcessInput()
 {
 	UpdateWindowActivationState();
-	if (IsInputPauseActive())
+	if ( IsInputPauseActive() )
 		return;
 
 	static UCHAR pKeysBuffer[256];
 	bool bProcessedByScene = false;
 
 	CScene* scene = m_SceneManager.GetScene();
-	if (GetKeyboardState(pKeysBuffer) && scene)
+	if ( GetKeyboardState(pKeysBuffer) && scene )
 		bProcessedByScene = scene->ProcessInput(pKeysBuffer);
 
 	// Demo: 0/1/2/3 -> Player slot(0/1/2/3) Attack (edge trigger)
 	static bool s_prevDown[4] = { false, false, false, false };
-	for (int slot = 0; slot < 4; ++slot)
+	for ( int slot = 0; slot < 4; ++slot )
 	{
-		const bool down = (pKeysBuffer['0' + slot] & 0xF0) != 0;
-		if (down && !s_prevDown[slot]) { if (scene) scene->RequestPlayerAttackBySlot(slot); }
+		const bool down = ( pKeysBuffer['0' + slot] & 0xF0 ) != 0;
+		if ( down && !s_prevDown[slot] )
+		{
+			if ( scene ) scene->RequestPlayerAttackBySlot(slot);
+		}
 		s_prevDown[slot] = down;
 	}
 
-	CGameObject* playerObj = (scene ? scene->GetPlayer() : nullptr);
-	if (!playerObj) return;
-
-	if (m_ptOldCursorPos.x == 0 && m_ptOldCursorPos.y == 0)
-		::GetCursorPos(&m_ptOldCursorPos);
+	CGameObject* playerObj = ( scene ? scene->GetPlayer() : nullptr );
+	if ( !playerObj ) return;
 
 	auto* pc = playerObj->GetComponent<CPlayerControllerComponent>();
-	if (!pc) return;
+	if ( !pc ) return;
 
 	DWORD dwDirection = 0;
-	float cxDelta = 0.0f, cyDelta = 0.0f;
+	float cxDelta = 0.0f;
+	float cyDelta = 0.0f;
 	bool bRunRequested = false;
 
-	if (!bProcessedByScene)
+	if ( !bProcessedByScene )
 	{
 		Protocol::C_INPUT inputPkt;
 
 #ifdef USING_NETWORK
 		// Pack keyBuffer into int32 (WASD 기준)
 		int keyCodes = 0;
-		if (pKeysBuffer['W'] & 0xF0)      keyCodes |= (1 << 0); // Forward
-		if (pKeysBuffer[VK_UP] & 0xF0)    keyCodes |= (1 << 0);
-		if (pKeysBuffer['S'] & 0xF0)      keyCodes |= (1 << 1); // Backward
-		if (pKeysBuffer[VK_DOWN] & 0xF0)  keyCodes |= (1 << 1);
-		if (pKeysBuffer['A'] & 0xF0)      keyCodes |= (1 << 2); // Left
-		if (pKeysBuffer[VK_LEFT] & 0xF0)  keyCodes |= (1 << 2);
-		if (pKeysBuffer['D'] & 0xF0)      keyCodes |= (1 << 3); // Right
-		if (pKeysBuffer[VK_RIGHT] & 0xF0) keyCodes |= (1 << 3);
-		if (pKeysBuffer[VK_PRIOR] & 0xF0) keyCodes |= (1 << 4); // Up
-		if (pKeysBuffer[VK_NEXT] & 0xF0)  keyCodes |= (1 << 5); // Down
+		if ( pKeysBuffer['W'] & 0xF0 )      keyCodes |= ( 1 << 0 ); // Forward
+		if ( pKeysBuffer[VK_UP] & 0xF0 )    keyCodes |= ( 1 << 0 );
+		if ( pKeysBuffer['S'] & 0xF0 )      keyCodes |= ( 1 << 1 ); // Backward
+		if ( pKeysBuffer[VK_DOWN] & 0xF0 )  keyCodes |= ( 1 << 1 );
+		if ( pKeysBuffer['A'] & 0xF0 )      keyCodes |= ( 1 << 2 ); // Left
+		if ( pKeysBuffer[VK_LEFT] & 0xF0 )  keyCodes |= ( 1 << 2 );
+		if ( pKeysBuffer['D'] & 0xF0 )      keyCodes |= ( 1 << 3 ); // Right
+		if ( pKeysBuffer[VK_RIGHT] & 0xF0 ) keyCodes |= ( 1 << 3 );
+		if ( pKeysBuffer[VK_PRIOR] & 0xF0 ) keyCodes |= ( 1 << 4 ); // Up
+		if ( pKeysBuffer[VK_NEXT] & 0xF0 )  keyCodes |= ( 1 << 5 ); // Down
 
-		if (GetAsyncKeyState(VK_RBUTTON) & 0x8000) keyCodes |= (1 << 6);
-		if (GetAsyncKeyState(VK_LBUTTON) & 0x8000) keyCodes |= (1 << 7);
+		if ( GetAsyncKeyState(VK_RBUTTON) & 0x8000 ) keyCodes |= ( 1 << 6 );
+		if ( GetAsyncKeyState(VK_LBUTTON) & 0x8000 ) keyCodes |= ( 1 << 7 );
 		inputPkt.set_playerid(g_myPlayerId);
 		inputPkt.set_keycodes(keyCodes);
 #else
-		if (pKeysBuffer['W'] & 0xF0) dwDirection |= DIR_FORWARD;
-		if (pKeysBuffer['S'] & 0xF0) dwDirection |= DIR_BACKWARD;
-		if (pKeysBuffer['A'] & 0xF0) dwDirection |= DIR_LEFT;
-		if (pKeysBuffer['D'] & 0xF0) dwDirection |= DIR_RIGHT;
-		if (pKeysBuffer[VK_PRIOR] & 0xF0) dwDirection |= DIR_UP;
-		if (pKeysBuffer[VK_NEXT] & 0xF0)  dwDirection |= DIR_DOWN;
+		if ( pKeysBuffer['W'] & 0xF0 ) dwDirection |= DIR_FORWARD;
+		if ( pKeysBuffer['S'] & 0xF0 ) dwDirection |= DIR_BACKWARD;
+		if ( pKeysBuffer['A'] & 0xF0 ) dwDirection |= DIR_LEFT;
+		if ( pKeysBuffer['D'] & 0xF0 ) dwDirection |= DIR_RIGHT;
+		if ( pKeysBuffer[VK_PRIOR] & 0xF0 ) dwDirection |= DIR_UP;
+		if ( pKeysBuffer[VK_NEXT] & 0xF0 )  dwDirection |= DIR_DOWN;
 
 		bRunRequested =
-			((pKeysBuffer[VK_LSHIFT] & 0xF0) != 0) ||
-			((pKeysBuffer[VK_SHIFT] & 0xF0) != 0);
+			( ( pKeysBuffer[VK_LSHIFT] & 0xF0 ) != 0 ) ||
+			( ( pKeysBuffer[VK_SHIFT] & 0xF0 ) != 0 );
 
 		static bool s_prevSpaceDown = false;
-		const bool spaceDown = (pKeysBuffer[VK_SPACE] & 0xF0) != 0;
+		const bool spaceDown = ( pKeysBuffer[VK_SPACE] & 0xF0 ) != 0;
 
-		if (spaceDown && !s_prevSpaceDown)
+		if ( spaceDown && !s_prevSpaceDown )
 		{
-			if (auto* animComp = playerObj->GetComponent<CAnimatorComponent>())
+			if ( auto* animComp = playerObj->GetComponent<CAnimatorComponent>() )
 			{
-				if (auto* ctrl = animComp->EnsureController())
-					ctrl->RequestRoll(static_cast<uint32_t>(dwDirection));
+				if ( auto* ctrl = animComp->EnsureController() )
+					ctrl->RequestRoll(static_cast< uint32_t >( dwDirection ));
 			}
-			else if (auto* ctrl = playerObj->GetAnimController())
+			else if ( auto* ctrl = playerObj->GetAnimController() )
 			{
-				ctrl->RequestRoll(static_cast<uint32_t>(dwDirection));
+				ctrl->RequestRoll(static_cast< uint32_t >( dwDirection ));
 			}
 		}
 
 		s_prevSpaceDown = spaceDown;
 #endif
 
-		POINT ptCursorPos;
-		if (GetCapture() == m_hWnd)
+		POINT ptCursorPos{};
+		if ( GetCapture() == m_hWnd )
 		{
 			SetCursor(NULL);
 			GetCursorPos(&ptCursorPos);
-			cxDelta = (float)(ptCursorPos.x - m_ptOldCursorPos.x) / 3.0f;
-			cyDelta = (float)(ptCursorPos.y - m_ptOldCursorPos.y) / 3.0f;
+
+			cxDelta = ( float ) ( ptCursorPos.x - m_ptOldCursorPos.x ) / 3.0f;
+			cyDelta = ( float ) ( ptCursorPos.y - m_ptOldCursorPos.y ) / 3.0f;
+
 			SetCursorPos(m_ptOldCursorPos.x, m_ptOldCursorPos.y);
 		}
+		else
+		{
+			GetCursorPos(&ptCursorPos);
 
-		GetCursorPos(&ptCursorPos);
+			cxDelta = ( float ) ( ptCursorPos.x - m_ptOldCursorPos.x ) / 3.0f;
+			cyDelta = ( float ) ( ptCursorPos.y - m_ptOldCursorPos.y ) / 3.0f;
 
-		cxDelta = (float)(ptCursorPos.x - m_ptOldCursorPos.x) / 3.0f;
-		cyDelta = (float)(ptCursorPos.y - m_ptOldCursorPos.y) / 3.0f;
-
-		m_ptOldCursorPos = ptCursorPos;
+			m_ptOldCursorPos = ptCursorPos;
+		}
 
 #ifdef USING_NETWORK
 		inputPkt.set_deltax(cxDelta);
@@ -848,54 +868,61 @@ void CGameFramework::ProcessInput()
 		auto sendBuffer = ServerPacketHandler::MakeSendBuffer(inputPkt);
 		g_clientService->BroadCast(sendBuffer);
 #else
-		if (cxDelta || cyDelta)
+		const float dt = m_GameTimer.GetTimeElapsed();
+
+		// --------------------------------------------------------------------
+		// 1) 카메라는 항상 마우스로 회전한다. (공격/구르기 중에도 가능)
+		// --------------------------------------------------------------------
+		if ( m_pCamera && ( cxDelta != 0.0f || cyDelta != 0.0f ) )
 		{
-			if (pKeysBuffer[VK_RBUTTON] & 0xF0)
-				pc->Rotate(cyDelta, 0.0f, -cxDelta);
-			else
-				pc->Rotate(cyDelta, cxDelta, 0.0f);
+			m_pCamera->Rotate(cyDelta, cxDelta, 0.0f);
+		}
+
+		const float cameraYawDeg = m_pCamera ? m_pCamera->GetYaw() : pc->GetYawDegrees();
+
+		// --------------------------------------------------------------------
+		// 2) 플레이어 회전 규칙
+		//    - 일반 상태: 이동 중일 때만 카메라 yaw를 향해 회전
+		//    - Sword/Axe 공격, Roll: 회전 금지
+		//    - Bow/Gun 공격: 현행 유지 -> 공격 중에도 카메라 yaw를 따라감
+		// --------------------------------------------------------------------
+		if ( pc->ShouldFaceCameraWhileActionActive() )
+		{
+			pc->SetYawDegrees(cameraYawDeg);
+		}
+		else if ( ( dwDirection & ( DIR_FORWARD | DIR_BACKWARD | DIR_LEFT | DIR_RIGHT ) ) &&
+				 !pc->IsActionLockedByAnimation() )
+		{
+			pc->RotateTowardYawDegrees(cameraYawDeg, 12.0f, dt);
+		}
+
+		// --------------------------------------------------------------------
+		// 3) 이동은 카메라 yaw 기준으로 계산
+		// --------------------------------------------------------------------
+		pc->SetRunRequested(bRunRequested);
+
+		if ( dwDirection && !pc->IsActionLockedByAnimation() )
+		{
+			pc->MoveByYaw(dwDirection, 5.0f * dt, cameraYawDeg, false);
+		}
+
+		// 애니메이터 방향 비트는 항상 갱신
+		pc->SetInputDirection(static_cast< uint32_t >( dwDirection ));
+
+		XMFLOAT3 cameraTarget = playerObj->GetPosition();
+		cameraTarget.y += 1.7f;
+
+		// --------------------------------------------------------------------
+		// 4) 카메라는 항상 현재 target 위치 기준으로 다시 계산
+		// --------------------------------------------------------------------
+		if ( m_pCamera )
+		{
+			m_pCamera->Update(cameraTarget, dt);
+			m_pCamera->SetLookAt(cameraTarget);
+			m_pCamera->RegenerateViewMatrix();
 		}
 #endif
 	}
-
-#ifdef USING_NETWORK
-	// 서버로 부터 받은 현재 좌표를 기반으로 카메라 회전
-
-
-
-#else
-	const float dt = m_GameTimer.GetTimeElapsed();
-
-	XMFLOAT3 oldPos = playerObj->GetPosition();
-
-	if (cxDelta || cyDelta)
-	{
-		if (pKeysBuffer[VK_RBUTTON] & 0xF0)
-			pc->Rotate(cyDelta, 0.0f, -cxDelta);
-		else
-			pc->Rotate(cyDelta, cxDelta, 0.0f);
-	}
-
-	pc->SetRunRequested(bRunRequested);
-
-	if (dwDirection)
-		pc->Move(dwDirection, 5.0f * dt, false);
-
-	pc->SetInputDirection(static_cast<uint32_t>(dwDirection));
-
-	XMFLOAT3 newPos = playerObj->GetPosition();
-
-	if (m_pCamera)
-	{
-		XMFLOAT3 delta = Vector3::Subtract(newPos, oldPos);
-		m_pCamera->Move(delta);
-
-		m_pCamera->Update(newPos, dt);
-		m_pCamera->SetLookAt(newPos);
-		m_pCamera->RegenerateViewMatrix();
-	}
-#endif
-	
 }
 
 void CGameFramework::AnimateObjects()
