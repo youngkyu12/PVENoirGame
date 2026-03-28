@@ -61,6 +61,68 @@ namespace
         return v;
     }
 
+	static bool IsLocomotionClipName(const std::string& clipName)
+	{
+		if ( clipName.empty() )
+			return false;
+
+		return
+			( clipName.rfind("Walk_", 0) == 0 ) ||
+			( clipName.rfind("Run_", 0) == 0 );
+	}
+
+	static float ComputeLocomotionPhaseMatchedStartTime(CAnimator* anim, const std::string& targetClip)
+	{
+		if ( !anim )
+			return 0.0f;
+
+		const std::string& currentClip = anim->GetCurrentClipName();
+
+		if ( !IsLocomotionClipName(currentClip) )
+			return 0.0f;
+
+		if ( !IsLocomotionClipName(targetClip) )
+			return 0.0f;
+
+		const float currentDuration = anim->GetCurrentClipDuration();
+		const float targetDuration = anim->GetClipDuration(targetClip);
+
+		if ( currentDuration <= 1e-6f || targetDuration <= 1e-6f )
+			return 0.0f;
+
+		float normalizedTime = anim->GetCurrentTime() / currentDuration;
+
+		if ( normalizedTime < 0.0f ) normalizedTime = 0.0f;
+		if ( normalizedTime > 1.0f ) normalizedTime = 1.0f;
+
+		return normalizedTime * targetDuration;
+	}
+
+	static void StartLocomotionClipPreservePhase(CAnimator* anim, const std::string& targetClip, float blendTimeSec)
+	{
+		if ( !anim )
+			return;
+
+		if ( targetClip.empty() || !anim->HasClip(targetClip) )
+			return;
+
+		const std::string& currentClip = anim->GetCurrentClipName();
+
+		if ( currentClip.empty() )
+		{
+			anim->Play(targetClip, true, 0.0f);
+			return;
+		}
+
+		if ( currentClip == targetClip )
+			return;
+
+		const float startTime = ComputeLocomotionPhaseMatchedStartTime(anim, targetClip);
+
+		if ( !anim->CrossFade(targetClip, blendTimeSec, true, startTime) )
+			anim->Play(targetClip, true, startTime);
+	}
+
     static XMFLOAT3 BuildRollMoveDirection(const CGameObject* owner, uint32_t dirBits)
     {
         if (!owner)
@@ -449,6 +511,11 @@ void CAnimController::NetworkUpdate(float dt)
 
             if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
                 anim->Play(targetClip, true, 0.0f);
+			//	이현석: 이동 상태 전환 시 normalized time을 새 클립 duration에 맞게 환산해서 넘김
+			//	if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
+			//		anim->Play(targetClip, true, 0.0f);
+			//	위의 2줄 지우고 밑으로 교체
+			//	StartLocomotionClipPreservePhase(anim, targetClip, kBlendTime);
         }
     }
 
@@ -571,6 +638,12 @@ void CAnimController::NetworkUpdate(float dt)
     {
         if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
             anim->Play(targetClip, true, 0.0f);
+		//	이현석: 이동 상태 전환 시 normalized time을 새 클립 duration에 맞게 환산해서 넘김
+		//	if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
+		//		anim->Play(targetClip, true, 0.0f);
+		//	위의 2줄 지우고 밑으로 교체
+		//	StartLocomotionClipPreservePhase(anim, targetClip, kBlendTime);
+
     }
 }
 
@@ -640,25 +713,11 @@ void CAnimController::LocalUpdate(float dt)
             return clip;
         };
 
-    auto StartLocomotionClip = [&](const std::string& clipName)
-        {
-            if (clipName.empty() || !anim->HasClip(clipName))
-                return;
-
-            constexpr float kBlendTime = 0.15f;
-
-            if (anim->GetCurrentClipName().empty())
-            {
-                anim->Play(clipName, true, 0.0f);
-                return;
-            }
-
-            if (anim->GetCurrentClipName() != clipName)
-            {
-                if (!anim->CrossFade(clipName, kBlendTime, true, 0.0f))
-                    anim->Play(clipName, true, 0.0f);
-            }
-        };
+	auto StartLocomotionClip = [ & ] (const std::string& clipName)
+		{
+			constexpr float kBlendTime = 0.15f;
+			StartLocomotionClipPreservePhase(anim, clipName, kBlendTime);
+		};
 
     auto StartUpperBodyAttack = [&](const std::string& clipName, EActionPhase phase) -> bool
         {
@@ -904,20 +963,11 @@ void CAnimController::LocalUpdate(float dt)
         }
     }
 
-    constexpr float kBlendTime = 0.15f;
+	constexpr float kBlendTime = 0.15f;
+	StartLocomotionClipPreservePhase(anim, targetClip, kBlendTime);
 
-    if (anim->GetCurrentClipName().empty())
-    {
-        anim->Play(targetClip, true, 0.0f);
-    }
-    else if (anim->GetCurrentClipName() != targetClip)
-    {
-        if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
-            anim->Play(targetClip, true, 0.0f);
-    }
-
-    if (m_actionPhase == EActionPhase::None)
-        m_state = targetState;
+	if ( m_actionPhase == EActionPhase::None )
+		m_state = targetState;
 
 }
 

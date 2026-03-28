@@ -1,13 +1,13 @@
-// stdafx.h : ÀÚÁÖ »ç¿ëÇÏÁö¸¸ ÀÚÁÖ º¯°æµÇÁö´Â ¾Ê´Â
-// Ç¥ÁØ ½Ã½ºÅÛ Æ÷ÇÔ ÆÄÀÏ ¹× ÇÁ·ÎÁ§Æ® °ü·Ã Æ÷ÇÔ ÆÄÀÏÀÌ
-// µé¾î ÀÖ´Â Æ÷ÇÔ ÆÄÀÏÀÔ´Ï´Ù.
+// stdafx.h : ìì£¼ ì‚¬ìš©í•˜ì§€ë§Œ ìì£¼ ë³€ê²½ë˜ì§€ëŠ” ì•ŠëŠ”
+// í‘œì¤€ ì‹œìŠ¤í…œ í¬í•¨ íŒŒì¼ ë° í”„ë¡œì íŠ¸ ê´€ë ¨ í¬í•¨ íŒŒì¼ì´
+// ë“¤ì–´ ìˆëŠ” í¬í•¨ íŒŒì¼ì…ë‹ˆë‹¤.
 //
 
 #pragma once
 
-#define WIN32_LEAN_AND_MEAN             // °ÅÀÇ »ç¿ëµÇÁö ¾Ê´Â ³»¿ëÀº Windows Çì´õ¿¡¼­ Á¦¿ÜÇÕ´Ï´Ù.
+#define WIN32_LEAN_AND_MEAN             // ê±°ì˜ ì‚¬ìš©ë˜ì§€ ì•ŠëŠ” ë‚´ìš©ì€ Windows í—¤ë”ì—ì„œ ì œì™¸í•©ë‹ˆë‹¤.
 
-#define USING_NETWORK					// ³×Æ®¿öÅ© »ç¿ë ¿©ºÎ
+//#define USING_NETWORK					// ë„¤íŠ¸ì›Œí¬ ì‚¬ìš© ì—¬ë¶€
 
 //ServerCore
 #ifdef _DEBUG
@@ -19,7 +19,7 @@
 #endif
 
 
-// Windows Çì´õ ÆÄÀÏ:
+// Windows í—¤ë” íŒŒì¼:
 //#include <windows.h>
 #define _HAS_STD_BYTE 0  
 #include "CorePch.h"
@@ -28,7 +28,7 @@
 
 extern ClientServiceRef g_clientService;
 
-// CÀÇ ·±Å¸ÀÓ Çì´õ ÆÄÀÏÀÔ´Ï´Ù.
+// Cì˜ ëŸ°íƒ€ì„ í—¤ë” íŒŒì¼ì…ë‹ˆë‹¤.
 #include <stdlib.h>
 #include <malloc.h>
 #include <memory>
@@ -43,6 +43,7 @@ extern ClientServiceRef g_clientService;
 
 #include <d3d12.h>
 #include <dxgi1_4.h>
+#include <dxgi1_6.h>
 #include <D3Dcompiler.h>
 #include <DirectXMath.h>
 #include <DirectXPackedVector.h>
@@ -103,7 +104,7 @@ using Microsoft::WRL::ComPtr;
 
 /*#pragma comment(lib, "DirectXTex.lib")*/
 
-// TODO: ÇÁ·Î±×·¥¿¡ ÇÊ¿äÇÑ Ãß°¡ Çì´õ´Â ¿©±â¿¡¼­ ÂüÁ¶ÇÕ´Ï´Ù.
+// TODO: í”„ë¡œê·¸ë¨ì— í•„ìš”í•œ ì¶”ê°€ í—¤ë”ëŠ” ì—¬ê¸°ì—ì„œ ì°¸ì¡°í•©ë‹ˆë‹¤.
 
 extern UINT	gnCbvSrvDescriptorIncrementSize;
 extern UINT gnRtvDescriptorIncrementSize;
@@ -243,10 +244,10 @@ namespace Vector3
 
 	inline XMVECTOR ClosestPointOnSegment(FXMVECTOR A, FXMVECTOR B, FXMVECTOR P)
 	{
-		XMVECTOR AB = B - A;	// A->B ¹æÇâ°ú ±æÀÌ¸¦ °¡Áø º¤ÅÍ
-		XMVECTOR AP = P - A;	// A->P ¹æÇâ°ú ±æÀÌ¸¦ °¡Áø º¤ÅÍ
+		XMVECTOR AB = B - A;	// A->B ë°©í–¥ê³¼ ê¸¸ì´ë¥¼ ê°€ì§„ ë²¡í„°
+		XMVECTOR AP = P - A;	// A->P ë°©í–¥ê³¼ ê¸¸ì´ë¥¼ ê°€ì§„ ë²¡í„°
 
-		float abLenSq = XMVectorGetX(XMVector3Dot(AB, AB));	 // AB¸¦ AB·Î ³»ÀûÇÑ °ÍÀº A->B ±æÀÌÀÇ Á¦°ö°ú °°Àº ÀÇ¹Ì
+		float abLenSq = XMVectorGetX(XMVector3Dot(AB, AB));	 // ABë¥¼ ABë¡œ ë‚´ì í•œ ê²ƒì€ A->B ê¸¸ì´ì˜ ì œê³±ê³¼ ê°™ì€ ì˜ë¯¸
 		float t = 0.0f;
 
 		if (abLenSq > 0.0f)
@@ -260,10 +261,10 @@ namespace Vector3
 
 	inline float distPointToSegment(FXMVECTOR A, FXMVECTOR B, FXMVECTOR P)
 	{
-		XMVECTOR AB = B - A;	// A->B ¹æÇâ°ú ±æÀÌ¸¦ °¡Áø º¤ÅÍ
-		XMVECTOR AP = P - A;	// A->P ¹æÇâ°ú ±æÀÌ¸¦ °¡Áø º¤ÅÍ
+		XMVECTOR AB = B - A;	// A->B ë°©í–¥ê³¼ ê¸¸ì´ë¥¼ ê°€ì§„ ë²¡í„°
+		XMVECTOR AP = P - A;	// A->P ë°©í–¥ê³¼ ê¸¸ì´ë¥¼ ê°€ì§„ ë²¡í„°
 
-		float abLenSq = XMVectorGetX(XMVector3Dot(AB, AB));	 // AB¸¦ AB·Î ³»ÀûÇÑ °ÍÀº A->B ±æÀÌÀÇ Á¦°ö°ú °°Àº ÀÇ¹Ì
+		float abLenSq = XMVectorGetX(XMVector3Dot(AB, AB));	 // ABë¥¼ ABë¡œ ë‚´ì í•œ ê²ƒì€ A->B ê¸¸ì´ì˜ ì œê³±ê³¼ ê°™ì€ ì˜ë¯¸
 		float t = 0.0f;
 
 		if (abLenSq > 0.0f)
@@ -297,19 +298,19 @@ namespace Vector3
 		float s = 0.0f;
 		float t = 0.0f;
 
-		if (ABLensq <= EPSILON && V0V1Lensq <= EPSILON) // AB = Á¡, V0V1 = Á¡
+		if (ABLensq <= EPSILON && V0V1Lensq <= EPSILON) // AB = ì , V0V1 = ì 
 		{
 			P = A;
 			Q = V0;
-			return XMVectorGetX(XMVector3LengthSq(P - Q));	// µû¶ó¼­ ±× Á¡°ú Á¡±îÁöÀÇ °Å¸® ¹İÈ¯
+			return XMVectorGetX(XMVector3LengthSq(P - Q));	// ë”°ë¼ì„œ ê·¸ ì ê³¼ ì ê¹Œì§€ì˜ ê±°ë¦¬ ë°˜í™˜
 		}
 
-		if (ABLensq <= EPSILON) // AB = Á¡ V0V1 = ¼±ºĞ
+		if (ABLensq <= EPSILON) // AB = ì  V0V1 = ì„ ë¶„
 		{
 			s = 0.0f;
 			t = std::clamp(-V0V1ProjAV0 / V0V1Lensq, 0.0f, 1.0f);
 		}
-		else if (V0V1Lensq <= EPSILON) // V0V1 = Á¡ AB = ¼±ºĞ
+		else if (V0V1Lensq <= EPSILON) // V0V1 = ì  AB = ì„ ë¶„
 		{
 			t = 0.0f;
 			s = std::clamp(ABProjAV0 / ABLensq, 0.0f, 1.0f);
@@ -323,23 +324,23 @@ namespace Vector3
 				// |V0V1|^2 |AB| |AV0| (cos(theta) * cos(alpha) - cos(beta))
 				// |V0V1|^2 |AB| |AV0|cos(theta) * cos(alpha) - cos(beta) / |V0V1|^2 |AB|^2  (1 - cos^2(theta))
 				// |AV0| cos(theta) * cos(alpha) - cos(beta) / |AB|(1 - cos^2(theta))
-				// cos(beta): AV0 °¡ AB ¹æÇâÀ¸·Î ¾ó¸¶³ª ³õ¿© ÀÖ³ª
-				// cos(alpha): AV0 °¡ V0V1 ¹æÇâÀ¸·Î ¾ó¸¶³ª ³õ¿© ÀÖ³ª
-				// cos(theta): µÎ ¼±ºĞ ¹æÇâ AB, V0V1 °¡ ¾ó¸¶³ª ºñ½ÁÇÑ°¡(ÆòÇàÇÑ°¡?)
-				// 1 - cos^2(theta): µÎ ¹æÇâÀÌ ¾ó¸¶³ª ÆòÇàÇÏÁö ¾ÊÀº°¡
-				// AB À§ ÃÖ±ÙÁ¢Á¡
+				// cos(beta): AV0 ê°€ AB ë°©í–¥ìœ¼ë¡œ ì–¼ë§ˆë‚˜ ë†“ì—¬ ìˆë‚˜
+				// cos(alpha): AV0 ê°€ V0V1 ë°©í–¥ìœ¼ë¡œ ì–¼ë§ˆë‚˜ ë†“ì—¬ ìˆë‚˜
+				// cos(theta): ë‘ ì„ ë¶„ ë°©í–¥ AB, V0V1 ê°€ ì–¼ë§ˆë‚˜ ë¹„ìŠ·í•œê°€(í‰í–‰í•œê°€?)
+				// 1 - cos^2(theta): ë‘ ë°©í–¥ì´ ì–¼ë§ˆë‚˜ í‰í–‰í•˜ì§€ ì•Šì€ê°€
+				// AB ìœ„ ìµœê·¼ì ‘ì 
 			else
 				s = 0.0f;
 
 			t = (ABProjV0V1 * s + V0V1ProjAV0) / V0V1Lensq;
 				// |AV0| (cos(alpha) - cos(theta)cos(beta))	/ (| V0V1 | (1 - cos ^ 2(theta)))
-				// V0V1 À§ ÃÖ±ÙÁ¢Á¡
-			if (t < 0.0f) // V0°¡ ÃÖ±ÙÁ¢Á¡
+				// V0V1 ìœ„ ìµœê·¼ì ‘ì 
+			if (t < 0.0f) // V0ê°€ ìµœê·¼ì ‘ì 
 			{
 				t = 0.0f;
 				s = std::clamp(ABProjAV0 / ABLensq, 0.0f, 1.0f);
 			}
-			else if (t > 1.0f)	// V1ÀÌ ÃÖ±ÙÁ¢Á¡
+			else if (t > 1.0f)	// V1ì´ ìµœê·¼ì ‘ì 
 			{
 				t = 1.0f;
 				s = std::clamp((ABProjV0V1 + ABProjAV0) / ABLensq, 0.0f, 1.0f);
@@ -380,7 +381,7 @@ namespace Vector3
 		XMVECTOR AB = B - A;
 		XMVECTOR E0 = V1 - V0;
 		XMVECTOR E1 = V2 - V0;
-		XMVECTOR N = XMVector3Cross(E0, E1);	// »ï°¢Çü Æò¸é ¹ı¼± ±¸ÇÏ±â
+		XMVECTOR N = XMVector3Cross(E0, E1);	// ì‚¼ê°í˜• í‰ë©´ ë²•ì„  êµ¬í•˜ê¸°
 												// |E0||E1|sin(theta)
 		float nLenSq = XMVectorGetX(XMVector3Dot(N, N));
 
@@ -388,9 +389,9 @@ namespace Vector3
 			return FLT_MAX; // degenerate triangle
 
 		N = XMVector3Normalize(N);
-		float f0 = XMVectorGetX(XMVector3Dot(A - V0, N));	// A°¡ Æò¸é¿¡¼­ ¾ó¸¶³ª ¸Ö¾îÁ® ÀÖ´ÂÁö ±¸ÇÏ±â
+		float f0 = XMVectorGetX(XMVector3Dot(A - V0, N));	// Aê°€ í‰ë©´ì—ì„œ ì–¼ë§ˆë‚˜ ë©€ì–´ì ¸ ìˆëŠ”ì§€ êµ¬í•˜ê¸°
 															// |A - V0|cos(alpha)
-		float f1 = XMVectorGetX(XMVector3Dot(B - V0, N));	// B°¡ Æò¸é¿¡¼­ ¾ó¸¶³ª ¸Ö¾îÁ® ÀÖ´ÂÁö ±¸ÇÏ±â
+		float f1 = XMVectorGetX(XMVector3Dot(B - V0, N));	// Bê°€ í‰ë©´ì—ì„œ ì–¼ë§ˆë‚˜ ë©€ì–´ì ¸ ìˆëŠ”ì§€ êµ¬í•˜ê¸°
 															// |B - V0|cos(beta)
 
 		float t = 0.0f;
@@ -401,15 +402,15 @@ namespace Vector3
 			t = (fabsf(f0) < fabsf(f1)) ? 0.0f : 1.0f;
 
 		XMVECTOR closest = A + AB * t;
-		float signedDist = XMVectorGetX(XMVector3Dot(closest - V0, N));	// Ä¸½¶ ¼±ºĞ À§ ÃÖ±ÙÁ¢Á¡ÀÌ Æò¸é¿¡¼­ ¾ó¸¶³ª ¸Ö¾îÁ® ÀÖ´ÂÁö ±¸ÇÏ±â
+		float signedDist = XMVectorGetX(XMVector3Dot(closest - V0, N));	// ìº¡ìŠ ì„ ë¶„ ìœ„ ìµœê·¼ì ‘ì ì´ í‰ë©´ì—ì„œ ì–¼ë§ˆë‚˜ ë©€ì–´ì ¸ ìˆëŠ”ì§€ êµ¬í•˜ê¸°
 																		// |closest - V0|cos(gamma)
-		XMVECTOR Q = closest - N * signedDist;	// Ä¸½¶ ¼±ºĞ À§ ÃÖ±ÙÁ¢Á¡À» »ï°¢Çü Æò¸é¿¡ ¼öÁ÷À¸·Î ³»¸° Á¡
+		XMVECTOR Q = closest - N * signedDist;	// ìº¡ìŠ ì„ ë¶„ ìœ„ ìµœê·¼ì ‘ì ì„ ì‚¼ê°í˜• í‰ë©´ì— ìˆ˜ì§ìœ¼ë¡œ ë‚´ë¦° ì 
 												// closest - N * |closest - V0|cos(gamma)
 
 		if (!PointInTriangle(Q, V0, V1, V2))
-			return FLT_MAX; // Åõ¿µÁ¡ÀÌ ¸é ³»ºÎ°¡ ¾Æ´Ô
+			return FLT_MAX; // íˆ¬ì˜ì ì´ ë©´ ë‚´ë¶€ê°€ ì•„ë‹˜
 
-		return signedDist * signedDist; // ¼±ºĞ-»ï°¢Çü ¸é °Å¸® Á¦°ö
+		return signedDist * signedDist; // ì„ ë¶„-ì‚¼ê°í˜• ë©´ ê±°ë¦¬ ì œê³±
 	}
 	inline bool distSegmentToAABB(FXMVECTOR A, FXMVECTOR B, FXMVECTOR Extents)
 	{

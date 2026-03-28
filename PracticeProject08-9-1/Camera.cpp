@@ -66,8 +66,15 @@ void CCamera::RegenerateViewMatrix()
 
 void CCamera::CreateShaderVariables(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList)
 {
-	UINT ncbElementBytes = ((sizeof(VS_CB_CAMERA_INFO) + 255) & ~255); //256¿« πËºˆ
-	m_pd3dcbCamera = ::CreateBufferResource(pd3dDevice, pd3dCommandList, NULL, ncbElementBytes, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, NULL);
+	UINT ncbElementBytes = ((sizeof(VS_CB_CAMERA_INFO) + 255) & ~255); //256Ïùò Î∞∞Ïàò
+	m_pd3dcbCamera = ::CreateBufferResource(
+		pd3dDevice, 
+		pd3dCommandList, 
+		NULL, 
+		ncbElementBytes, 
+		D3D12_HEAP_TYPE_UPLOAD, 
+		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, 
+		NULL);
 
 	m_pd3dcbCamera->Map(0, NULL, (void **)&m_pcbMappedCamera);
 }
@@ -116,54 +123,85 @@ CThirdPersonCamera::CThirdPersonCamera(CGameObject* owner) : CCamera(owner)
 	m_nMode = THIRD_PERSON_CAMERA;
 }
 
+void CThirdPersonCamera::Rotate(float fPitch, float fYaw, float /*fRoll*/)
+{
+	m_fYaw += fYaw;
+	if ( m_fYaw >= 360.0f || m_fYaw <= -360.0f )
+		m_fYaw = fmodf(m_fYaw, 360.0f);
+
+	m_fPitch += fPitch;
+
+	if ( m_fPitch < -30.0f ) m_fPitch = -30.0f;
+	if ( m_fPitch > 60.0f )  m_fPitch = 60.0f;
+}
 
 void CThirdPersonCamera::Update(XMFLOAT3& xmf3LookAt, float fTimeElapsed)
 {
-	if (!m_pTarget) return;
+	if ( !m_pTarget ) return;
 
-	// ≈∏∞Ÿ¿« ø˘µÂ«‡∑ƒø°º≠ basis √ﬂ√‚ (row = right/up/look, _41~_43 = pos ∂Û¥¬ ±‚¡∏ Ω∫≈∏¿œ ¿¸¡¶)
-	const XMFLOAT4X4& W = m_pTarget->GetWorldMatrix();
-	XMFLOAT3 right(W._11, W._12, W._13);
-	XMFLOAT3 up(W._21, W._22, W._23);
-	XMFLOAT3 look(W._31, W._32, W._33);
+	m_xmf3LookAtWorld = xmf3LookAt;
 
-	XMFLOAT4X4 R = Matrix4x4::Identity();
-	R._11 = right.x; R._21 = up.x;   R._31 = look.x;
-	R._12 = right.y; R._22 = up.y;   R._32 = look.y;
-	R._13 = right.z; R._23 = up.z;   R._33 = look.z;
+	const XMMATRIX rotM = XMMatrixRotationRollPitchYaw(
+		XMConvertToRadians(m_fPitch),
+		XMConvertToRadians(m_fYaw),
+		0.0f
+	);
 
-	XMFLOAT3 offsetW = Vector3::TransformCoord(m_xmf3Offset, R);
+	XMFLOAT3 offsetW{};
+	XMStoreFloat3(
+		&offsetW,
+		XMVector3TransformCoord(XMLoadFloat3(&m_xmf3Offset), rotM)
+	);
 
-	XMFLOAT3 targetPos = m_pTarget->GetPosition();
-	XMFLOAT3 desiredPos = Vector3::Add(targetPos, offsetW);
+	const XMFLOAT3 desiredPos = Vector3::Add(xmf3LookAt, offsetW);
 
-	XMFLOAT3 dir = Vector3::Subtract(desiredPos, m_xmf3Position);
-	float len = Vector3::Length(dir);
-	dir = Vector3::Normalize(dir);
-
-	float lagScale = (m_fTimeLag) ? fTimeElapsed * (1.0f / m_fTimeLag) : 1.0f;
-	float dist = len * lagScale;
-	if (dist > len) dist = len;
-	if (len < 0.01f) dist = len;
-
-	if (dist > 0.0f)
+	if ( m_fTimeLag > 0.0f )
 	{
-		m_xmf3Position = Vector3::Add(m_xmf3Position, dir, dist);
-		SetLookAt(xmf3LookAt);
+		XMFLOAT3 dir = Vector3::Subtract(desiredPos, m_xmf3Position);
+		const float len = Vector3::Length(dir);
+
+		if ( len > 1e-6f )
+		{
+			dir = Vector3::Normalize(dir);
+
+			float moveDist = len * ( fTimeElapsed / m_fTimeLag );
+			if ( moveDist > len ) moveDist = len;
+
+			m_xmf3Position = Vector3::Add(m_xmf3Position, dir, moveDist);
+		}
+		else
+		{
+			m_xmf3Position = desiredPos;
+		}
 	}
+	else
+	{
+		m_xmf3Position = desiredPos;
+	}
+
+	XMStoreFloat3(
+		&m_xmf3Right,
+		XMVector3Normalize(
+			XMVector3TransformNormal(XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), rotM)
+		)
+	);
+
+	XMStoreFloat3(
+		&m_xmf3Up,
+		XMVector3Normalize(
+			XMVector3TransformNormal(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), rotM)
+		)
+	);
+
+	XMStoreFloat3(
+		&m_xmf3Look,
+		XMVector3Normalize(
+			XMVector3TransformNormal(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), rotM)
+		)
+	);
 }
 
-void CThirdPersonCamera::SetLookAt(XMFLOAT3& xmf3LookAt)
+void CThirdPersonCamera::SetLookAt(XMFLOAT3& vLookAt)
 {
-	XMFLOAT3 at = xmf3LookAt;
-	at.y = m_xmf3Position.y;                 // ºˆ∆Ú Ω√º±: target ≥Ù¿Ã∏¶ ƒ´∏ﬁ∂Û ≥Ù¿Ã∑Œ
-
-	XMFLOAT3 up(0.0f, 1.0f, 0.0f);           // (º±≈√) ø˘µÂ æ˜ ∞Ì¡§±Ó¡ˆ ∞∞¿Ã «œ∏È ¥ı æ»¡§¿˚
-
-	XMFLOAT4X4 mtxLookAt = Matrix4x4::LookAtLH(m_xmf3Position, at, up);
-	m_xmf3Right = XMFLOAT3(mtxLookAt._11, mtxLookAt._21, mtxLookAt._31);
-	m_xmf3Up = XMFLOAT3(mtxLookAt._12, mtxLookAt._22, mtxLookAt._32);
-	m_xmf3Look = XMFLOAT3(mtxLookAt._13, mtxLookAt._23, mtxLookAt._33);
-
-	m_xmf3LookAtWorld = at;                  // (º±≈√) ¿˙¿Â
+	m_xmf3LookAtWorld = vLookAt;
 }

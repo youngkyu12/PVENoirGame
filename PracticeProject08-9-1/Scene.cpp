@@ -129,10 +129,10 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* dev)
     pd3dRootParameters[7].Constants.RegisterSpace = 0;
     pd3dRootParameters[7].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-    pd3dRootParameters[8].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-    pd3dRootParameters[8].Descriptor.ShaderRegister = 7; // b7
-    pd3dRootParameters[8].Descriptor.RegisterSpace = 0;
-    pd3dRootParameters[8].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	pd3dRootParameters[8].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+	pd3dRootParameters[8].Descriptor.ShaderRegister = 0; // t0
+	pd3dRootParameters[8].Descriptor.RegisterSpace = 1;  // space1
+	pd3dRootParameters[8].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 
     D3D12_STATIC_SAMPLER_DESC d3dSamplerDesc = {};
     d3dSamplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -175,8 +175,7 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* dev)
         0,
         sigBlob->GetBufferPointer(),
         sigBlob->GetBufferSize(),
-        IID_PPV_ARGS(m_pd3dGraphicsRootSignature.ReleaseAndGetAddressOf())
-    );
+        IID_PPV_ARGS(m_pd3dGraphicsRootSignature.ReleaseAndGetAddressOf()));
 
     if (FAILED(hr))
         OutputDebugStringA("CreateRootSignature failed.\n");

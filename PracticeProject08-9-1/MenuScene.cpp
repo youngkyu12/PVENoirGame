@@ -23,8 +23,7 @@ void CMenuScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
         CScene::m_pDescriptorHeap->CreateShaderResourceViewsOther(
             dev,
             m_menuTex.get(),
-            ROOT_PARAMETER_GLOBAL_SRV
-        );
+            ROOT_PARAMETER_GLOBAL_SRV);
 
         m_menuSrvIndex = m_menuTex->GetSrvIndex(0);
     }
@@ -35,11 +34,16 @@ void CMenuScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
         DXGI_FORMAT rtv = DXGI_FORMAT_R8G8B8A8_UNORM;
         DXGI_FORMAT dsv = DXGI_FORMAT_UNKNOWN;
 
-        m_menuShader->CreateShader(dev, GetGraphicsRootSignature(), 1, &rtv, dsv);
+        m_menuShader->CreateShader(
+            dev, 
+            GetGraphicsRootSignature(), 
+            1, 
+            &rtv, 
+            dsv);
         m_menuShader->CreateShaderVariables(dev, cmd);
     }
 }
-// MenuScene Ä«¸Þ¶ó: "¾Æ¹« À§Ä¡¿¡¼­ ¾Æ¹«´ë³ª" º¸´Â ÀÓ½Ã Ä«¸Þ¶ó
+// MenuScene Ä«ï¿½Þ¶ï¿½: "ï¿½Æ¹ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ï¿½ï¿½ ï¿½Æ¹ï¿½ï¿½ë³ª" ï¿½ï¿½ï¿½ï¿½ ï¿½Ó½ï¿½ Ä«ï¿½Þ¶ï¿½
 void CMenuScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* /*target*/)
 {
     m_pMainCameraObject = std::make_unique<CGameObject>(0);
@@ -59,8 +63,8 @@ void CMenuScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* 
 
     m_pMainCameraObject->CreateComponents(dev, cmd);
 
-    // Update/SetLookAtÀº XMFLOAT3& ¿ä±¸(ºñ const) + Å¸°Ù ¾øÀ¸¸é ÀÇ¹Ìµµ ¾øÀ½
-    // ´ë½Å ViewMatrix¸¦ Á÷Á¢ ¸¸µç´Ù.
+    // Update/SetLookAtï¿½ï¿½ XMFLOAT3& ï¿½ä±¸(ï¿½ï¿½ const) + Å¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ç¹Ìµï¿½ ï¿½ï¿½ï¿½ï¿½
+    // ï¿½ï¿½ï¿½ ViewMatrixï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½.
     XMFLOAT3 pos(0.0f, 2.0f, -5.0f);
     XMFLOAT3 lookAt(0.0f, 0.5f, 0.0f);
     XMFLOAT3 up(0.0f, 1.0f, 0.0f);
@@ -80,7 +84,7 @@ void CMenuScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
     if (!cmd) return;
     if (!camera) camera = m_pMainCamera;
 
-    // Scene °øÅë ÁØºñ: RootSig + DescriptorHeap + Global SRV table + Camera CB
+    // Scene ï¿½ï¿½ï¿½ï¿½ ï¿½Øºï¿½: RootSig + DescriptorHeap + Global SRV table + Camera CB
     CScene::OnPrepareRender(cmd, camera);
 
     if (!m_menuShader) return;
