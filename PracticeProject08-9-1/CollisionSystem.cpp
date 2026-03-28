@@ -10,6 +10,13 @@
 
 namespace
 {
+	enum : uint32_t
+	{
+		kCollisionLayerCharacter = 0,
+		kCollisionLayerWorldStatic = 1,
+		kCollisionLayerLocalPlayer = 2
+	};
+
 	const char* ColliderTypeToString(EColliderType type)
 	{
 		switch ( type )
@@ -145,35 +152,75 @@ bool CCollisionSystem::PassFilter(const CColliderComponent* a, const CColliderCo
     return true;
 }
 
+bool CCollisionSystem::IsPairIntersecting(const CColliderComponent* a, const CColliderComponent* b) const
+{
+	if ( !a || !b )
+		return false;
+
+	if ( !PassFilter(a, b) )
+		return false;
+
+	if ( a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::BCapsule )
+	{
+		return a->GetBCapsule().Intersects(b->GetBCapsule());
+	}
+	else if ( a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::OOBB )
+	{
+		return b->IntersectsCapsuleHierarchical(a->GetBCapsule());
+	}
+	else if ( a->GetType() == EColliderType::OOBB && b->GetType() == EColliderType::BCapsule )
+	{
+		return a->IntersectsCapsuleHierarchical(b->GetBCapsule());
+	}
+
+	return false;
+}
+
+bool CCollisionSystem::HasCollisionWithWorldStatic(const CColliderComponent* subject) const
+{
+	if ( !subject )
+		return false;
+
+	for ( CColliderComponent* other : mColliders )
+	{
+		if ( !other ) continue;
+		if ( other == subject ) continue;
+
+		if ( other->GetLayer() != kCollisionLayerWorldStatic )
+			continue;
+
+		if ( IsPairIntersecting(subject, other) )
+			return true;
+	}
+
+	return false;
+}
+
 void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 {
 	if ( !a || !b )
 		return;
 
-	bool isHit = false;
+	bool isHit = IsPairIntersecting(a, b);
+	if ( !isHit )
+		return;
+
 	CColliderComponent* pushedCollider = nullptr;
 
-	// 타입별 narrow phase
 	if ( a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::BCapsule )
 	{
-		isHit = a->GetBCapsule().Intersects(b->GetBCapsule());
 		pushedCollider = a;
 	}
 	else if ( a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::OOBB )
 	{
-		isHit = b->IntersectsCapsuleHierarchical(a->GetBCapsule());
 		pushedCollider = a;
 	}
 	else if ( a->GetType() == EColliderType::OOBB && b->GetType() == EColliderType::BCapsule )
 	{
-		isHit = a->IntersectsCapsuleHierarchical(b->GetBCapsule());
 		pushedCollider = b;
 	}
 
-	if ( !isHit )
-		return;
-
-	DebugPrintCollision(a, b);
+	//DebugPrintCollision(a, b);
 
 	if ( a->IsTrigger() || b->IsTrigger() )
 	{

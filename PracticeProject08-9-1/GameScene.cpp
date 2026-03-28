@@ -3532,6 +3532,30 @@ bool CGameScene::IsLocalPlayer(const CGameObject* obj) const
     return tag && tag->kind == EActorKind::Player && tag->control == EPlayerControl::Local;
 }
 
+bool CGameScene::RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& previousPos)
+{
+	CGameObject* localPlayer = GetPlayer();
+	if ( !localPlayer ) return false;
+	if ( !m_Collision ) return false;
+
+	auto* collider = localPlayer->GetComponent<CColliderComponent>();
+	if ( !collider ) return false;
+
+	// 방금 이동한 좌표 기준으로 월드 캡슐 갱신
+	collider->OnUpdate(0.0f);
+
+	if ( !m_Collision->HasCollisionWithWorldStatic(collider) )
+		return false;
+
+	// 충돌이면 이번 이동만 롤백
+	localPlayer->SetPosition(previousPos);
+
+	// 롤백된 좌표로 다시 월드 캡슐 갱신
+	collider->OnUpdate(0.0f);
+
+	return true;
+}
+
 bool CGameScene::OnProcessingMouseMessage(HWND /*hWnd*/, UINT msg, WPARAM /*wParam*/, LPARAM /*lParam*/)
 {
     if (msg == WM_LBUTTONDOWN)
