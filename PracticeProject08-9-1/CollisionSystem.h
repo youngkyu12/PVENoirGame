@@ -13,14 +13,19 @@ public:
 
     void OnUpdate();
 
-    // Scene/¿ÀºêÁ§Æ® »ı¼º/»èÁ¦ ½Ã È£ÃâÇØÁÖ¸é µÊ
+    // Scene/ì˜¤ë¸Œì íŠ¸ ìƒì„±/ì‚­ì œ ì‹œ í˜¸ì¶œí•´ì£¼ë©´ ë¨
     void RegisterCollider(CColliderComponent* c);
     void UnregisterCollider(CColliderComponent* c);
+	void SetBoundingFrustum(const BoundingFrustum& mCameraCollider);
 
+	size_t GetColiidersNum() const;
+	const std::vector<CColliderComponent*>& GetColliders() const;
 private:
     bool PassFilter(const CColliderComponent* a, const CColliderComponent* b) const;
     void HandlePair(CColliderComponent* a, CColliderComponent* b);
+	bool IsVisible(const BoundingFrustum& frustum, const CColliderComponent* collider);
 
 private:
     std::vector<CColliderComponent*> mColliders;
+	BoundingFrustum mCameraCollider;
 };
