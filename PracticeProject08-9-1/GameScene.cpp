@@ -493,7 +493,11 @@ void CGameScene::ReleaseShaderVariables()
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
 #ifdef USING_NETWORK
-    while (false == g_GameStarted);
+	while ( false == g_GameStarted )
+	{
+		OutputDebugStringA("Waiting for game start message...\n");
+	}
+
     DequeueNetworkMessage(NetworkMessageType::GameStart);
     m_localPlayerSlot = g_myPlayerId;
 
@@ -508,9 +512,6 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     ApplyStaticPlacementCounts();
 #else
 	m_localPlayerSlot = 0;
-#endif
-
-#ifndef USING_NETWORK
 	const std::string placementFilePath = "Assets/placement_export_st1.txt";
 
 	if ( !LoadStaticPlacementFile(placementFilePath) )
@@ -518,10 +519,14 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		assert(false && "Failed to load placement_export");
 		return;
 	}
-#else
-	m_staticPlacementEntries.clear();
-	ResetStaticPlacementCounts();
 #endif
+
+//#ifndef USING_NETWORK
+//
+//#else
+//	m_staticPlacementEntries.clear();
+//	ResetStaticPlacementCounts();
+//#endif
 
 #ifdef USING_NETWORK
 	if ( std::holds_alternative<GameStartData>(m_pendingNetworkMessage.data) )
@@ -540,7 +545,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_helmetCount = m_MutantCount;
 
 #ifdef USING_NETWORK
-	const UINT worldStaticCount = 0;
+	const UINT worldStaticCount = static_cast< UINT >( m_staticPlacementEntries.size() );
 #else
 	const UINT worldStaticCount = static_cast< UINT >( m_staticPlacementEntries.size() );
 #endif
@@ -967,7 +972,7 @@ void CGameScene::BuildStaticBatch(
 
     b->count = 0;
 
-#ifndef USING_NETWORK
+//#ifndef USING_NETWORK
 	// ------------------------------------------------------------------------
 	// Static world objects from placement file
 	// ------------------------------------------------------------------------
@@ -1018,7 +1023,7 @@ void CGameScene::BuildStaticBatch(
 		b->objectRefs.push_back(raw);
 		b->count = ( UINT ) b->objectRefs.size();
 	}
-#endif
+//#endif
 
     // ------------------------------------------------------------------------
     // Arrow pool (Static)
@@ -4043,7 +4048,7 @@ void CGameScene::AnimateObjects(float dt)
                 }
 				else if ( decoded.attack )
 				{
-					ac->SetAnimState(EAnimState::Attack);
+					ac->RequestAttack();
 				}
                 else
                 {
