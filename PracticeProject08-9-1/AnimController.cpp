@@ -320,7 +320,7 @@ void CAnimController::Update(float dt)
     if (!m_pOwner) return;
 
 #ifdef USING_NETWORK
-	NetworkUpdate(dt);
+	LocalUpdate(dt);
 #else
 	LocalUpdate(dt);
 #endif

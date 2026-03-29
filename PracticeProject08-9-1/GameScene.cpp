@@ -125,6 +125,27 @@ namespace
         return true;
     }
 
+    static void BuildStaticPlacementsFromNetworkGameStart(
+        const GameStartData& gameStartData,
+        std::vector<StaticPlacementEntry>& outEntries)
+    {
+        outEntries.clear();
+        outEntries.reserve(gameStartData.buildings.size());
+
+        for (const auto& b : gameStartData.buildings)
+        {
+            if (b.assetName.empty())
+                continue;
+
+            StaticPlacementEntry entry{};
+            entry.assetName = b.assetName;
+            entry.objectName = "NetBuilding_" + std::to_string(b.id);
+            entry.pos = b.position;
+            entry.yawDeg = b.yaw;
+            outEntries.push_back(std::move(entry));
+        }
+    }
+
     bool ResolveStaticAssetDesc(const std::string& assetName, AssetBuildDesc& outDesc)
     {
         if (assetName == "Grass")
@@ -455,9 +476,18 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     while (false == g_GameStarted);
     DequeueNetworkMessage(NetworkMessageType::GameStart);
     m_localPlayerSlot = g_myPlayerId;
+
+    if (!std::holds_alternative<GameStartData>(m_pendingNetworkMessage.data))
+    {
+        assert(false && "Missing GameStartData in network mode");
+        return;
+    }
+
+    const GameStartData& gameStartData = std::get<GameStartData>(m_pendingNetworkMessage.data);
+    BuildStaticPlacementsFromNetworkGameStart(gameStartData, m_staticPlacementEntries);
+    ApplyStaticPlacementCounts();
 #else
     m_localPlayerSlot = 1;
-#endif
 
     const std::string placementFilePath = "Assets/placement_export_st1.txt";
 
@@ -466,6 +496,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
         assert(false && "Failed to load placement_export");
         return;
     }
+#endif
 
     m_PlayerCount = 4;
 
@@ -3197,6 +3228,7 @@ void CGameScene::RequestPrepareArrow(CGameObject* shooter, float pullBackDistanc
 
         auto* arrow = arrowObj->GetComponent<CArrowComponent>();
         if (!arrow) continue;
+
         if (arrow->IsActive()) continue;
 
         arrow->Prepare(bowObj, shooter, pullBackDistance);
