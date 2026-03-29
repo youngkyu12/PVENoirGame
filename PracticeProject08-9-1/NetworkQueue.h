@@ -2,6 +2,7 @@
 #include <queue>
 #include <mutex>
 #include <variant>
+#include <string>
 #include <DirectXMath.h>
 
 #include "GlobalEnum.h"
@@ -11,31 +12,40 @@
 using namespace DirectX;
 
 // ============================================================
-// Animation »óÅÂ
+// Animation ìƒíƒœ
 // ============================================================
 
 
 struct AnimationState
 {
     uint32_t      stateCode = 0;
-    int           animTick; // ¾Ö´Ï¸ŞÀÌ¼Ç ÇöÀç Æ½ (0 ~ maxTick)
+    int           animTick; // ì• ë‹ˆë©”ì´ì…˜ í˜„ì¬ í‹± (0 ~ maxTick)
 };
 
 // ============================================================
-// °øÅë Actor »óÅÂ
+// ê³µí†µ Actor ìƒíƒœ
 // ============================================================
 struct ActorState
 {
-    uint64_t    id;
-    XMFLOAT3    position;
-    float       yaw;
-	AnimationState animation;
-	EWeaponType weaponType;
-    // ÇÊ¿ä½Ã HP, »óÅÂ µî Ãß°¡
+    uint64_t    id = 0;
+    XMFLOAT3    position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+    float       yaw = 0.0f;
+	AnimationState animation{};
+	EWeaponType weaponType = EWeaponType::None;
+    // í•„ìš”í•˜ë©´ HP, ìƒíƒœ ë“± ì¶”ê°€
+};
+
+struct BuildingState
+{
+    uint64_t    id = 0;
+    XMFLOAT3    position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+    float       yaw = 0.0f;
+    uint32_t    buildingType = 0;
+    std::string assetName;
 };
 
 // ============================================================
-// ÃÑ¾Ë »óÅÂ
+// ì´ì•Œ ìƒíƒœ
 // ============================================================
 
 struct BulletState
@@ -43,11 +53,11 @@ struct BulletState
     uint64_t    id;
     XMFLOAT3    position;
     XMFLOAT3    velocity;
-    // ÇÊ¿ä½Ã Ãß°¡ Á¤º¸
+    // í•„ìš”ì‹œ ì¶”ê°€ ì •ë³´
 };
 
 // ============================================================
-// Ä³¸¯ÅÍ ¹«±â ¼±ÅÃ¿ë ÃÊ±âÈ­ µ¥ÀÌÅÍ
+// ìºë¦­í„° ë¬´ê¸° ì„ íƒìš© ì´ˆê¸°í™” ë°ì´í„°
 // ============================================================
 
 struct LoadoutData
@@ -57,28 +67,28 @@ struct LoadoutData
 };
 
 // ============================================================
-// S_GAME_START¿ë ÃÊ±âÈ­ µ¥ÀÌÅÍ
+// S_GAME_STARTìš© ì´ˆê¸°í™” ë°ì´í„°
 // ============================================================
 struct GameStartData
 {
     std::vector<ActorState> players;
     std::vector<ActorState> enemies;
-	std::vector<ActorState> buildings; // ÇÊ¿ä½Ã Ãß°¡
+	std::vector<BuildingState> buildings; // í•„ìš”ì‹œ ì¶”ê°€
 };
 
 // ============================================================
-// S_FRAME_STATE¿ë ÇÁ·¹ÀÓ ½º³À¼¦
+// S_FRAME_STATEìš© í”„ë ˆì„ ìŠ¤ëƒ…ìƒ·
 // ============================================================
 struct FrameSnapshot
 {
-	uint64_t frameId; // serverTick°ú µ¿ÀÏÇÑ °ª
+	uint64_t frameId; // serverTickê³¼ ë™ì¼í•œ ê°’
     std::vector<ActorState> players;
     std::vector<ActorState> enemies;
     std::vector<BulletState> bullets;
 };
 
 // ============================================================
-// ³×Æ®¿öÅ© ¸Ş½ÃÁö (variant·Î Å¸ÀÔ ±¸ºĞ)
+// ë„¤íŠ¸ì›Œí¬ ë©”ì‹œì§€ (variantë¡œ íƒ€ì… êµ¬ë¶„)
 // ============================================================
 enum class NetworkMessageType
 {
@@ -106,7 +116,7 @@ public:
         m_messages.push({ NetworkMessageType::Loadout, std::move(loadout) });
     }
 
-    // ³×Æ®¿öÅ© ½º·¹µå¿¡¼­ È£Ãâ
+    // ë„¤íŠ¸ì›Œí¬ ìŠ¤ë ˆë“œì—ì„œ í˜¸ì¶œ
     void PushGameStart(GameStartData&& data)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
@@ -127,7 +137,7 @@ public:
         std::swap(m_messages, empty);
 	}
 
-    // °ÔÀÓ ½º·¹µå¿¡¼­ È£Ãâ
+    // ê²Œì„ ìŠ¤ë ˆë“œì—ì„œ í˜¸ì¶œ
     bool TryPop(NetworkMessage& out)
     {
         std::lock_guard<std::mutex> lock(m_mutex);

@@ -320,7 +320,7 @@ void CAnimController::Update(float dt)
     if (!m_pOwner) return;
 
 #ifdef USING_NETWORK
-	NetworkUpdate(dt);
+	LocalUpdate(dt);
 #else
 	LocalUpdate(dt);
 #endif
@@ -473,48 +473,48 @@ void CAnimController::NetworkUpdate(float dt)
     // ------------------------------------------------------------
     // State change (network authoritative)
     // ------------------------------------------------------------
-    if (m_state != animPrevState)
-    {
-        if (m_state == EAnimState::Attack)
-        {
-            EActionPhase nextPhase = EActionPhase::None;
-            std::string atkClip = ResolveAttackStartClip(nextPhase);
+   // if (m_state != animPrevState)
+   // {
+   //     if (m_state == EAnimState::Attack)
+   //     {
+   //         EActionPhase nextPhase = EActionPhase::None;
+   //         std::string atkClip = ResolveAttackStartClip(nextPhase);
 
-            if (atkClip.empty() || !anim->HasClip(atkClip))
-            {
-                atkClip = m_attackClip;
-                nextPhase = EActionPhase::AttackGeneric;
-            }
+   //         if (atkClip.empty() || !anim->HasClip(atkClip))
+   //         {
+   //             atkClip = m_attackClip;
+   //             nextPhase = EActionPhase::AttackGeneric;
+   //         }
 
-            if (!atkClip.empty() && anim->HasClip(atkClip))
-            {
-                const bool overlayAttack = IsOverlayActionPhase(nextPhase);
-                const EAnimState baseState = (animPrevState == EAnimState::Move) ? EAnimState::Move : EAnimState::Idle;
+   //         if (!atkClip.empty() && anim->HasClip(atkClip))
+   //         {
+   //             const bool overlayAttack = IsOverlayActionPhase(nextPhase);
+   //             const EAnimState baseState = (animPrevState == EAnimState::Move) ? EAnimState::Move : EAnimState::Idle;
 
-                if (overlayAttack)
-                {
-                    StartUpperBodyAttack(atkClip, nextPhase, baseState);
-                }
-                else
-                {
-                    constexpr float kBlendTime = 0.15f;
-                    StartFullBodyAction(atkClip, nextPhase, kBlendTime, m_startTime);
-                }
-            }
-            return;
-        }
+   //             if (overlayAttack)
+   //             {
+   //                 StartUpperBodyAttack(atkClip, nextPhase, baseState);
+   //             }
+   //             else
+   //             {
+   //                 constexpr float kBlendTime = 0.15f;
+   //                 StartFullBodyAction(atkClip, nextPhase, kBlendTime, m_startTime);
+   //             }
+   //         }
+   //         return;
+   //     }
 
-        std::string targetClip = ResolveSafeLocomotionClipFromState(m_state);
-        if (!targetClip.empty() && anim->HasClip(targetClip))
-        {
-            constexpr float kBlendTime = 0.15f;
+   //     std::string targetClip = ResolveSafeLocomotionClipFromState(m_state);
+   //     if (!targetClip.empty() && anim->HasClip(targetClip))
+   //     {
+   //         constexpr float kBlendTime = 0.15f;
 
-            //if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
-            //    anim->Play(targetClip, true, 0.0f);
-			//	이현석: 이동 상태 전환 시 normalized time을 새 클립 duration에 맞게 환산해서 넘김
-			StartLocomotionClipPreservePhase(anim, targetClip, kBlendTime);
-        }
-    }
+   //         //if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
+   //         //    anim->Play(targetClip, true, 0.0f);
+			////	이현석: 이동 상태 전환 시 normalized time을 새 클립 duration에 맞게 환산해서 넘김
+			//StartLocomotionClipPreservePhase(anim, targetClip, kBlendTime);
+   //     }
+   // }
 
     if (m_attackQueued && m_actionPhase == EActionPhase::None)
     {
@@ -663,7 +663,7 @@ void CAnimController::NetworkUpdate(float dt)
 		//	if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
 		//		anim->Play(targetClip, true, 0.0f);
 		//	위의 2줄 지우고 밑으로 교체
-		//	StartLocomotionClipPreservePhase(anim, targetClip, kBlendTime);
+		StartLocomotionClipPreservePhase(anim, targetClip, kBlendTime);
 
     }
 }
