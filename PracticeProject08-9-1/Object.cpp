@@ -151,9 +151,8 @@ void CGameObject::DestroyComponents()
 	m_pModel = nullptr;
 	m_pRenderObject = nullptr;
 	m_pSkinning = nullptr;
+	m_pCollider = nullptr;
 	m_bComponentsCreated = false;
-	m_pd3dDeviceForComponents = nullptr;
-	m_pd3dCmdForComponents = nullptr;
 }
 
 void CGameObject::UpdateComponents(float dt)
