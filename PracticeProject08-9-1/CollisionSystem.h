@@ -17,12 +17,18 @@ public:
 	void UnregisterCollider(CColliderComponent* c);
 
 	bool HasCollisionWithWorldStatic(const CColliderComponent* subject) const;
+	void SetBoundingFrustum(const BoundingFrustum& mCameraCollider);
+
+	size_t GetColiidersNum() const;
+	const std::vector<CColliderComponent*>& GetColliders() const;
 
 private:
 	bool PassFilter(const CColliderComponent* a, const CColliderComponent* b) const;
 	bool IsPairIntersecting(const CColliderComponent* a, const CColliderComponent* b) const;
 	void HandlePair(CColliderComponent* a, CColliderComponent* b);
+	bool IsVisible(const BoundingFrustum& frustum, const CColliderComponent* collider);
 
 private:
 	std::vector<CColliderComponent*> mColliders;
+	BoundingFrustum mCameraCollider;
 };

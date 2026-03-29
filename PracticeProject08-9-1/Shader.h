@@ -80,6 +80,21 @@ protected:
 	ComPtr<ID3D12RootSignature>				m_pd3dGraphicsRootSignature;
 };
 
+class CDiffusedShader : public CShader
+{
+public:
+	CDiffusedShader() {};
+	virtual ~CDiffusedShader() {};
+
+public:
+	virtual D3D12_INPUT_LAYOUT_DESC CreateInputLayout();
+
+	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob);
+	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob);
+
+	virtual D3D12_RASTERIZER_DESC CreateRasterizerState();
+};
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 class CTexturedShader : public CShader
