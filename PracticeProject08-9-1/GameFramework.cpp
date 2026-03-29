@@ -875,6 +875,29 @@ void CGameFramework::ProcessInput()
 
 		auto sendBuffer = ServerPacketHandler::MakeSendBuffer(inputPkt);
 		g_clientService->BroadCast(sendBuffer);
+
+		const float dt = m_GameTimer.GetTimeElapsed();
+
+		// --------------------------------------------------------------------
+		// 1) 카메라는 항상 마우스로 회전한다. (공격/구르기 중에도 가능)
+		// --------------------------------------------------------------------
+		if ( m_pCamera && ( cxDelta != 0.0f || cyDelta != 0.0f ) )
+		{
+			m_pCamera->Rotate(cyDelta, cxDelta, 0.0f);
+		}
+
+		XMFLOAT3 cameraTarget = playerObj->GetPosition();
+		cameraTarget.y += 1.7f;
+
+		// --------------------------------------------------------------------
+		// 2) 카메라는 항상 현재 target 위치 기준으로 다시 계산
+		// --------------------------------------------------------------------
+		if ( m_pCamera )
+		{
+			m_pCamera->Update(cameraTarget, dt);
+			m_pCamera->SetLookAt(cameraTarget);
+			m_pCamera->RegenerateViewMatrix();
+		}
 #else
 		const float dt = m_GameTimer.GetTimeElapsed();
 
