@@ -171,16 +171,25 @@ inline bool EnemyType_Parse(
 }
 enum BuildingType : int {
   BUILDING_TYPE_NONE = 0,
-  BUILDING_TYPE_WALL = 1,
-  BUILDING_TYPE_TOWER = 2,
-  BUILDING_TYPE_BASE = 3,
-  BUILDING_TYPE_TREE = 4,
+  BUILDING_TYPE_GRASS = 1,
+  BUILDING_TYPE_GROUND = 2,
+  BUILDING_TYPE_BUILDING1 = 3,
+  BUILDING_TYPE_BUILDING2 = 4,
+  BUILDING_TYPE_BUILDING3 = 5,
+  BUILDING_TYPE_BUILDING4 = 6,
+  BUILDING_TYPE_BUILDING5 = 7,
+  BUILDING_TYPE_BUILDING6 = 8,
+  BUILDING_TYPE_BUILDING7 = 9,
+  BUILDING_TYPE_BUILDING8 = 10,
+  BUILDING_TYPE_BUILDING9 = 11,
+  BUILDING_TYPE_VILLAGE_WALL = 12,
+  BUILDING_TYPE_DIRT_ROAD = 13,
   BuildingType_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
   BuildingType_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
 };
 bool BuildingType_IsValid(int value);
 constexpr BuildingType BuildingType_MIN = BUILDING_TYPE_NONE;
-constexpr BuildingType BuildingType_MAX = BUILDING_TYPE_TREE;
+constexpr BuildingType BuildingType_MAX = BUILDING_TYPE_DIRT_ROAD;
 constexpr int BuildingType_ARRAYSIZE = BuildingType_MAX + 1;
 
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* BuildingType_descriptor();

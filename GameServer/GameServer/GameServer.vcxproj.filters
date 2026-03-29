@@ -40,6 +40,9 @@
     <Filter Include="GameObject\BaseObject">
       <UniqueIdentifier>{0b0e9ca0-6418-4a4e-b0ff-d956e7ca8a53}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Area\MapData">
+      <UniqueIdentifier>{bd8ffbbb-4783-49a5-8f35-20cf5d4f8398}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GameServer.cpp">
@@ -160,5 +163,13 @@
     <None Include="..\..\Common\Protobuf\bin\Struct.proto">
       <Filter>Protocol</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="MapFIle\placement_export_full.txt">
+      <Filter>Area\MapData</Filter>
+    </Text>
+    <Text Include="MapFIle\placement_export_st1.txt">
+      <Filter>Area\MapData</Filter>
+    </Text>
   </ItemGroup>
 </Project>
