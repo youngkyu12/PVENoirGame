@@ -75,7 +75,7 @@ void Room::Enter(PlayerRef player)
 {
 	player->Build();
 	player->SetWeapon(
-		static_cast<Protocol::WeaponType>(player->playerId + 1), 0); // 예시: 모든 플레이어가 검으로 시작
+		static_cast<Protocol::WeaponType>(player->playerId + 2), 0); // 예시: 모든 플레이어가 검으로 시작
 
 	players[player->playerId] = player;
 }

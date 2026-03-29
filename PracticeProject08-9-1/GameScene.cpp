@@ -3970,7 +3970,8 @@ void CGameScene::AnimateObjects(float dt)
                 }
                 else if (decoded.attack)
                 {
-                    ac->SetAnimState(EAnimState::Attack);
+					RequestPlayerAttackBySlot(slot);
+                    //ac->SetAnimState(EAnimState::Attack);
                 }
                 else
                 {
@@ -3983,6 +3984,7 @@ void CGameScene::AnimateObjects(float dt)
                 wc->SetLoadout(state.weaponType);
             }
 
+
             if (slot == m_localPlayerSlot)
             {
                 // 로컬 플레이어로 카메라 동기화
@@ -3990,6 +3992,7 @@ void CGameScene::AnimateObjects(float dt)
                 if (pCamera)
                 {
                     XMFLOAT3 pos = player->GetPosition();
+					pos.y += 1.7f; // 카메라 높이 보정 (플레이어 중심에서 약간 위)
                     pCamera->Update(pos, dt);
                     pCamera->SetLookAt(pos);
                     pCamera->RegenerateViewMatrix();
