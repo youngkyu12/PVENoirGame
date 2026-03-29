@@ -472,31 +472,47 @@ void CGameScene::ReleaseShaderVariables()
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
 #ifdef USING_NETWORK
-    while (false == g_GameStarted);
-    DequeueNetworkMessage(NetworkMessageType::GameStart);
-    m_localPlayerSlot = g_myPlayerId;
+	while ( false == g_GameStarted );
+	DequeueNetworkMessage(NetworkMessageType::GameStart);
+	m_localPlayerSlot = g_myPlayerId;
 #else
-    m_localPlayerSlot = 0;
+	m_localPlayerSlot = 0;
 #endif
 
-    const std::string placementFilePath = "Assets/placement_export_st1.txt";
+#ifndef USING_NETWORK
+	const std::string placementFilePath = "Assets/placement_export_st1.txt";
 
-    if (!LoadStaticPlacementFile(placementFilePath))
-    {
-        assert(false && "Failed to load placement_export");
-        return;
-    }
+	if ( !LoadStaticPlacementFile(placementFilePath) )
+	{
+		assert(false && "Failed to load placement_export");
+		return;
+	}
+#else
+	m_staticPlacementEntries.clear();
+	ResetStaticPlacementCounts();
+#endif
 
-    m_PlayerCount = 4;
+#ifdef USING_NETWORK
+	if ( std::holds_alternative<GameStartData>(m_pendingNetworkMessage.data) )
+		m_PlayerCount = static_cast< UINT >( std::get<GameStartData>(m_pendingNetworkMessage.data).players.size() );
+	else
+		m_PlayerCount = 4;
+#else
+	m_PlayerCount = 4;
+#endif
 
-    m_PlayerSwordCount = m_PlayerCount;
-    m_PlayerBowCount = m_PlayerCount;
-    m_PlayerAxeCount = m_PlayerCount;
-    m_PlayerGunCount = m_PlayerCount;
+	m_PlayerSwordCount = m_PlayerCount;
+	m_PlayerBowCount = m_PlayerCount;
+	m_PlayerAxeCount = m_PlayerCount;
+	m_PlayerGunCount = m_PlayerCount;
 
-    m_helmetCount = m_MutantCount;
+	m_helmetCount = m_MutantCount;
 
-    const UINT worldStaticCount = static_cast<UINT>(m_staticPlacementEntries.size());
+#ifdef USING_NETWORK
+	const UINT worldStaticCount = 0;
+#else
+	const UINT worldStaticCount = static_cast< UINT >( m_staticPlacementEntries.size() );
+#endif
 
 	m_staticBatch.capacity =
 		worldStaticCount +
@@ -508,97 +524,101 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		m_PlayerGunCount +
 		m_swordManCount;
 
-    m_skinnedBatch.capacity =
-        m_ghoulCount +
-        m_swordManCount +
-        m_bowManCount +
-        m_MutantCount +
-        m_bossCount +
-        m_PlayerCount +
-        m_PlayerBowCount +
-        m_bowManCount;
+	m_skinnedBatch.capacity =
+		m_ghoulCount +
+		m_swordManCount +
+		m_bowManCount +
+		m_MutantCount +
+		m_bossCount +
+		m_PlayerCount +
+		m_PlayerBowCount +
+		m_bowManCount;
 
-    m_staticBatch.count = 0;
-    m_skinnedBatch.count = 0;
+	m_staticBatch.count = 0;
+	m_skinnedBatch.count = 0;
 
-    CreateGraphicsRootSignature(dev);
+	CreateGraphicsRootSignature(dev);
 
-    auto pStaticShader = std::make_shared<CStaticObjectsShader>();
-    auto pSkinnedShader = std::make_shared<CSkinnedObjectsShader>();
+	auto pStaticShader = std::make_shared<CStaticObjectsShader>();
+	auto pSkinnedShader = std::make_shared<CSkinnedObjectsShader>();
 	auto pColliderShader = std::make_shared<CDiffusedShader>();
 
-    m_staticBatch.shader = pStaticShader;
-    m_skinnedBatch.shader = pSkinnedShader;
+	m_staticBatch.shader = pStaticShader;
+	m_skinnedBatch.shader = pSkinnedShader;
 	m_colliderbatch.shader = pColliderShader;
 
-    DXGI_FORMAT rtvFormats[5] =
-    {
-        DXGI_FORMAT_R8G8B8A8_UNORM,
-        DXGI_FORMAT_R8G8B8A8_UNORM,
-        DXGI_FORMAT_R8G8B8A8_UNORM,
-        DXGI_FORMAT_R8G8B8A8_UNORM,
-        DXGI_FORMAT_R32_FLOAT
-    };
+	DXGI_FORMAT rtvFormats[5] =
+	{
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		DXGI_FORMAT_R32_FLOAT
+	};
 
-    BuildLightsAndMaterials();
+	BuildLightsAndMaterials();
 
-    {
-        constexpr const wchar_t* kInactiveOverlayDDS = L"Assets/UI/Pause.dds";
+	{
+		constexpr const wchar_t* kInactiveOverlayDDS = L"Assets/UI/Pause.dds";
 
-        m_inactiveOverlayTex = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 0);
-        m_inactiveOverlayTex->LoadTextureFromFile(dev, cmd, kInactiveOverlayDDS, RESOURCE_TEXTURE2D, 0);
+		m_inactiveOverlayTex = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 0);
+		m_inactiveOverlayTex->LoadTextureFromFile(dev, cmd, kInactiveOverlayDDS, RESOURCE_TEXTURE2D, 0);
 
-        CScene::m_pDescriptorHeap->CreateShaderResourceViewsOther(
-            dev,
-            m_inactiveOverlayTex.get(),
-            ROOT_PARAMETER_GLOBAL_SRV
-        );
+		CScene::m_pDescriptorHeap->CreateShaderResourceViewsOther(
+			dev,
+			m_inactiveOverlayTex.get(),
+			ROOT_PARAMETER_GLOBAL_SRV
+		);
 
-        m_inactiveOverlaySrvIndex = m_inactiveOverlayTex->GetSrvIndex(0);
+		m_inactiveOverlaySrvIndex = m_inactiveOverlayTex->GetSrvIndex(0);
 
-        m_inactiveOverlayShader = std::make_shared<CRectUIShader>();
+		m_inactiveOverlayShader = std::make_shared<CRectUIShader>();
 
-        DXGI_FORMAT overlayRtv = DXGI_FORMAT_R8G8B8A8_UNORM;
-        DXGI_FORMAT overlayDsv = DXGI_FORMAT_UNKNOWN;
+		DXGI_FORMAT overlayRtv = DXGI_FORMAT_R8G8B8A8_UNORM;
+		DXGI_FORMAT overlayDsv = DXGI_FORMAT_UNKNOWN;
 
-        m_inactiveOverlayShader->CreateShader(
-            dev,
-            GetGraphicsRootSignature(),
-            1,
-            &overlayRtv,
-            overlayDsv
-        );
-        m_inactiveOverlayShader->CreateShaderVariables(dev, cmd);
-    }
+		m_inactiveOverlayShader->CreateShader(
+			dev,
+			GetGraphicsRootSignature(),
+			1,
+			&overlayRtv,
+			overlayDsv
+		);
+		m_inactiveOverlayShader->CreateShaderVariables(dev, cmd);
+	}
 
-    for (auto& lo : m_lightObjects)
-    {
-        if (lo) lo->CreateComponents(dev, cmd);
-    }
+	for ( auto& lo : m_lightObjects )
+	{
+		if ( lo ) lo->CreateComponents(dev, cmd);
+	}
 
-    constexpr UINT kRTCount = 5;
-    const DXGI_FORMAT kDsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	constexpr UINT kRTCount = 5;
+	const DXGI_FORMAT kDsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+#ifndef USING_NETWORK
 	BuildColliderBatch(dev, cmd, pColliderShader, kRTCount, rtvFormats, kDsvFormat);
-    BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
-    BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
+#endif
 
-    LinkSceneObjects();
+	BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
+	BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
 
-    CreateShaderVariables(dev, cmd);
+	LinkSceneObjects();
 
-    CGameObject* local = GetPlayer();
-    if (!local) local = GetPlayerBySlot(0);
+	CreateShaderVariables(dev, cmd);
 
-    CreateMainCamera(dev, cmd, local);
+	CGameObject* local = GetPlayer();
+	if ( !local ) local = GetPlayerBySlot(0);
+
+	CreateMainCamera(dev, cmd, local);
 	BuildObjectsCollider();
 
 #ifdef USING_NETWORK
-    Protocol::C_CLIENT_READY iamReady;
+	Protocol::C_CLIENT_READY iamReady;
 
-    iamReady.set_ready(true);
-    iamReady.set_playerid(g_myPlayerId);
-    auto sendBuffer = ServerPacketHandler::MakeSendBuffer(iamReady);
-    g_clientService->BroadCast(sendBuffer);
+	iamReady.set_ready(true);
+	iamReady.set_playerid(g_myPlayerId);
+	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(iamReady);
+	g_clientService->BroadCast(sendBuffer);
 #endif
 }
 
@@ -916,30 +936,31 @@ void CGameScene::BuildStaticBatch(
 
     b->count = 0;
 
-    // ------------------------------------------------------------------------
-    // Static world objects from placement file
-    // ------------------------------------------------------------------------
-    for (UINT k = 0; k < (UINT)m_staticPlacementEntries.size(); ++k)
-    {
-        if (b->objectRefs.size() >= b->capacity) break;
+#ifndef USING_NETWORK
+	// ------------------------------------------------------------------------
+	// Static world objects from placement file
+	// ------------------------------------------------------------------------
+	for ( UINT k = 0; k < ( UINT ) m_staticPlacementEntries.size(); ++k )
+	{
+		if ( b->objectRefs.size() >= b->capacity ) break;
 
-        const UINT i = (UINT)b->objectRefs.size();
-        const StaticPlacementEntry& placement = m_staticPlacementEntries[k];
+		const UINT i = ( UINT ) b->objectRefs.size();
+		const StaticPlacementEntry& placement = m_staticPlacementEntries[k];
 
-        AssetBuildDesc desc{};
-        if (!ResolveStaticAssetDesc(placement.assetName, desc))
-            continue;
+		AssetBuildDesc desc{};
+		if ( !ResolveStaticAssetDesc(placement.assetName, desc) )
+			continue;
 
-        BuiltAsset asset = AssetManager::BuildAsset(
-            dev, cmd,
-            m_pMaterials.get(),
-            desc
-        );
+		BuiltAsset asset = AssetManager::BuildAsset(
+			dev, cmd,
+			m_pMaterials.get(),
+			desc
+		);
 
-        auto obj = std::make_unique<CGameObject>(1);
+		auto obj = std::make_unique<CGameObject>(1);
 
-        auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
-        obj->SetMappedGameObjectCB(cb);
+		auto* cb = ( CB_GAMEOBJECT_INFO* ) ( ( UINT8* ) b->mappedGameObjects + i * b->cbElementBytes );
+		obj->SetMappedGameObjectCB(cb);
 
 		obj->SetMesh(0, asset.mesh);
 		obj->AddComponent<CStaticMeshRendererComponent>();
@@ -950,25 +971,23 @@ void CGameScene::BuildStaticBatch(
 			if ( collider )
 			{
 				collider->SetLayer(kCollisionLayerWorldStatic);
-				// 월드 정적물은 로컬 플레이어만 받는다.
 				collider->SetMask(CollisionBit(kCollisionLayerLocalPlayer));
 			}
 		}
 
-        obj->SetPosition(placement.pos);
-        obj->Rotate(0.0f, placement.yawDeg, 0.0f);
+		obj->SetPosition(placement.pos);
+		obj->Rotate(0.0f, placement.yawDeg, 0.0f);
 
-        obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+		obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + ( UINT64 ) i * b->cbvInc);
 
-        obj->CreateComponents(dev, cmd);
+		obj->CreateComponents(dev, cmd);
 
-
-        CGameObject* raw = obj.get();
-        m_staticObjects.push_back(std::move(obj));
-        b->objectRefs.push_back(raw);
-        b->count = (UINT)b->objectRefs.size();
-		
+		CGameObject* raw = obj.get();
+		m_staticObjects.push_back(std::move(obj));
+		b->objectRefs.push_back(raw);
+		b->count = ( UINT ) b->objectRefs.size();
 	}
+#endif
 
     // ------------------------------------------------------------------------
     // Arrow pool (Static)
@@ -1757,11 +1776,36 @@ void CGameScene::BuildSkinnedBatch(
     // ------------------------------------------------------------------------
     // GameStartData에서 초기 좌표 추출
     // ------------------------------------------------------------------------
-    GameStartData gameStartData{};
-    if (std::holds_alternative<GameStartData>(m_pendingNetworkMessage.data))
-    {
-        gameStartData = std::get<GameStartData>(m_pendingNetworkMessage.data);
-    }
+#ifdef USING_NETWORK
+	GameStartData gameStartData{};
+	if ( std::holds_alternative<GameStartData>(m_pendingNetworkMessage.data) )
+	{
+		gameStartData = std::get<GameStartData>(m_pendingNetworkMessage.data);
+	}
+
+	auto GetNetworkEnemySpawn = [ & ] (UINT index, XMFLOAT3& outPos, float& outYaw) -> bool
+		{
+			if ( index >= static_cast< UINT >( gameStartData.enemies.size() ) )
+				return false;
+
+			const auto& state = gameStartData.enemies[index];
+			outPos = state.position;
+			outYaw = state.yaw;
+			return true;
+		};
+
+	auto GetNetworkPlayerSpawn = [ & ] (UINT index, XMFLOAT3& outPos, float& outYaw, EWeaponType& outWeapon) -> bool
+		{
+			if ( index >= static_cast< UINT >( gameStartData.players.size() ) )
+				return false;
+
+			const auto& state = gameStartData.players[index];
+			outPos = state.position;
+			outYaw = state.yaw;
+			outWeapon = state.weaponType;
+			return true;
+		};
+#endif
 
     // enemy 인덱스 카운터 (모든 적 타입에 걸쳐 순차 증가)
     UINT enemyIndex = 0;
@@ -1775,80 +1819,76 @@ void CGameScene::BuildSkinnedBatch(
         // ----------------------------
         // Enemy Type: Ghoul
         // ----------------------------
-        {
-            const UINT countW = m_ghoulCount;
+		{
+			const UINT countW = m_ghoulCount;
 
-            AssetBuildDesc EnemyWDesc =
-            {
-                AssetType::Ghoul,
-                "Assets/Ghoul/Mesh/Ghoul_Mesh.bin",
-                "Assets/Ghoul/Texture"
-            };
+			AssetBuildDesc EnemyWDesc =
+			{
+				AssetType::Ghoul,
+				"Assets/Ghoul/Mesh/Ghoul_Mesh.bin",
+				"Assets/Ghoul/Texture"
+			};
 
-            BuiltAsset assetW = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyWDesc);
+			BuiltAsset assetW = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyWDesc);
 
 			PreloadCachedClipSet(
-                assetW.mesh.get(),
-                "Ghoul",
-                {
-                    { "Assets/Ghoul/Animation/Ghoul_Anim_Idle.bin",   "Idle" },
-                    { "Assets/Ghoul/Animation/Ghoul_Anim_Walk.bin",   "Walk" },
-                    { "Assets/Ghoul/Animation/Ghoul_Anim_Run.bin",    "Run" },
-                    { "Assets/Ghoul/Animation/Ghoul_Anim_Hit.bin",    "Hit" },
-                    { "Assets/Ghoul/Animation/Ghoul_Anim_Attack.bin", "Attack" },
-                    { "Assets/Ghoul/Animation/Ghoul_Anim_Death.bin",  "Death" }
-                }
-            );
+				assetW.mesh.get(),
+				"Ghoul",
+				{
+					{ "Assets/Ghoul/Animation/Ghoul_Anim_Idle.bin",   "Idle" },
+					{ "Assets/Ghoul/Animation/Ghoul_Anim_Walk.bin",   "Walk" },
+					{ "Assets/Ghoul/Animation/Ghoul_Anim_Run.bin",    "Run" },
+					{ "Assets/Ghoul/Animation/Ghoul_Anim_Hit.bin",    "Hit" },
+					{ "Assets/Ghoul/Animation/Ghoul_Anim_Attack.bin", "Attack" },
+					{ "Assets/Ghoul/Animation/Ghoul_Anim_Death.bin",  "Death" }
+				}
+			);
 
-            for (UINT k = 0; k < countW; ++k)
-            {
-                if (b->objectRefs.size() >= b->capacity) break;
+			for ( UINT k = 0; k < countW; ++k )
+			{
+				if ( b->objectRefs.size() >= b->capacity ) break;
 
-                const UINT i = (UINT)b->objectRefs.size();
+				const UINT i = ( UINT ) b->objectRefs.size();
 
-                auto obj = std::make_unique<CGameObject>(1);
+				auto obj = std::make_unique<CGameObject>(1);
 
-                auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
-                obj->SetMappedGameObjectCB(cb);
+				auto* cb = ( CB_GAMEOBJECT_INFO* ) ( ( UINT8* ) b->mappedGameObjects + i * b->cbElementBytes );
+				obj->SetMappedGameObjectCB(cb);
 
-                obj->SetMesh(0, assetW.mesh);
-                obj->AddComponent<CSkinnedMeshRendererComponent>();
+				obj->SetMesh(0, assetW.mesh);
+				obj->AddComponent<CSkinnedMeshRendererComponent>();
 				auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
-				ConfigureCharacterCollider(collider, false); 
+				ConfigureCharacterCollider(collider, false);
 				auto* animComp = obj->AddComponent<CAnimatorComponent>();
 
-                {
-                    auto* tag = obj->AddComponent<CActorTagComponent>();
-                    tag->kind = EActorKind::NPC;
-                    tag->control = EPlayerControl::None;
-                    tag->playerSlot = -1;
-                }
+				{
+					auto* tag = obj->AddComponent<CActorTagComponent>();
+					tag->kind = EActorKind::NPC;
+					tag->control = EPlayerControl::None;
+					tag->playerSlot = -1;
+				}
 
-                // GameStartData에서 좌표 가져오기
-                XMFLOAT3 pos;
-                float yaw = 180.0f;
-                if (enemyIndex < (UINT)gameStartData.enemies.size())
-                {
-                    const auto& state = gameStartData.enemies[enemyIndex];
-                    pos = state.position;
-                    yaw = state.yaw;
-                }
-                else
-                {
-                    // fallback: 기존 하드코딩 좌표
-                    pos.x = enemyBase.x + 2.0f * (float)k;
-                    pos.y = enemyBase.y;
-                    pos.z = enemyBase.z + 0.0f;
-                }
-                obj->SetPosition(pos.x, pos.y, pos.z);
-                //obj->Rotate(-90.0f, yaw, 0.0f); // Ghoul은 -90도 보정 필요
+				// GameStartData에서 좌표 가져오기
+				XMFLOAT3 pos{};
+				float yaw = 180.0f;
 
-                ++enemyIndex;
+#ifdef USING_NETWORK
+				if ( !GetNetworkEnemySpawn(enemyIndex, pos, yaw) )
+					break;
+#else
+				pos.x = enemyBase.x + 2.0f * ( float ) k;
+				pos.y = enemyBase.y;
+				pos.z = enemyBase.z + 0.0f;
+#endif
 
-                obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
+				obj->SetPosition(pos.x, pos.y, pos.z);
 
-                if (assetW.mesh && assetW.mesh->IsSkinnedMesh())
-                    obj->EnableSkinning(dev, assetW.mesh->GetBoneCount());
+				++enemyIndex;
+
+				obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + ( UINT64 ) i * b->cbvInc);
+
+				if ( assetW.mesh && assetW.mesh->IsSkinnedMesh() )
+					obj->EnableSkinning(dev, assetW.mesh->GetBoneCount());
 
 				auto mesh0 = obj->GetMeshShared(0);
 				if ( mesh0 && animComp )
@@ -1893,10 +1933,10 @@ void CGameScene::BuildSkinnedBatch(
 
 				auto mesh = std::make_shared<CBoxMeshDiffused>(dev, cmd, obj->GetComponent<CColliderComponent>());
 
-                CGameObject* raw = obj.get();
-                m_skinnedObjects.push_back(std::move(obj));
-                b->objectRefs.push_back(raw);
-                b->count = (UINT)b->objectRefs.size();
+				CGameObject* raw = obj.get();
+				m_skinnedObjects.push_back(std::move(obj));
+				b->objectRefs.push_back(raw);
+				b->count = ( UINT ) b->objectRefs.size();
 
 				auto colliderobj = std::make_unique<CGameObject>(1);
 				auto* collidercb = ( CB_GAMEOBJECT_INFO* ) ( ( UINT8* ) coliiderbatch->mappedGameObjects + m_ColliderCount * coliiderbatch->cbElementBytes );
@@ -1913,8 +1953,10 @@ void CGameScene::BuildSkinnedBatch(
 				m_colliderObjects.push_back(std::move(colliderobj));
 				coliiderbatch->objectRefs.push_back(rawcollider);
 				coliiderbatch->count = ( UINT ) coliiderbatch->objectRefs.size();
-            }
-        }
+
+				++m_ColliderCount;
+			}
+		}
 
         // ----------------------------
         // Enemy Type: SwordMan
@@ -1971,22 +2013,20 @@ void CGameScene::BuildSkinnedBatch(
                 }
 
                 // GameStartData에서 좌표 가져오기
-                XMFLOAT3 pos;
-                float yaw = 180.0f;
-                if (enemyIndex < (UINT)gameStartData.enemies.size())
-                {
-                    const auto& state = gameStartData.enemies[enemyIndex];
-                    pos = state.position;
-                    yaw = state.yaw;
-                }
-                else
-                {
-                    pos.x = enemyBase.x + 2.0f * (float)k;
-                    pos.y = enemyBase.y;
-                    pos.z = enemyBase.z + 3.0f;
-                }
-                obj->SetPosition(pos.x, pos.y, pos.z);
-                obj->Rotate(0.0f, yaw, 0.0f);
+				XMFLOAT3 pos{};
+				float yaw = 180.0f;
+
+#ifdef USING_NETWORK
+				if ( !GetNetworkEnemySpawn(enemyIndex, pos, yaw) )
+					break;
+#else
+				pos.x = enemyBase.x + 2.0f * ( float ) k;
+				pos.y = enemyBase.y;
+				pos.z = enemyBase.z + 3.0f;
+#endif
+
+				obj->SetPosition(pos.x, pos.y, pos.z);
+				obj->Rotate(0.0f, yaw, 0.0f);
 
                 ++enemyIndex;
 
@@ -2101,22 +2141,20 @@ void CGameScene::BuildSkinnedBatch(
                 }
 
                 // GameStartData에서 좌표 가져오기
-                XMFLOAT3 pos;
-                float yaw = 180.0f;
-                if (enemyIndex < (UINT)gameStartData.enemies.size())
-                {
-                    const auto& state = gameStartData.enemies[enemyIndex];
-                    pos = state.position;
-                    yaw = state.yaw;
-                }
-                else
-                {
-                    pos.x = enemyBase.x + 2.0f * (float)k;
-                    pos.y = enemyBase.y;
-                    pos.z = enemyBase.z + 6.0f;
-                }
-                obj->SetPosition(pos.x, pos.y, pos.z);
-                obj->Rotate(0.0f, yaw, 0.0f);
+				XMFLOAT3 pos{};
+				float yaw = 180.0f;
+
+#ifdef USING_NETWORK
+				if ( !GetNetworkEnemySpawn(enemyIndex, pos, yaw) )
+					break;
+#else
+				pos.x = enemyBase.x + 2.0f * ( float ) k;
+				pos.y = enemyBase.y;
+				pos.z = enemyBase.z + 6.0f;
+#endif
+
+				obj->SetPosition(pos.x, pos.y, pos.z);
+				obj->Rotate(0.0f, yaw, 0.0f);
 
                 ++enemyIndex;
 
@@ -2232,22 +2270,20 @@ void CGameScene::BuildSkinnedBatch(
                 }
 
                 // GameStartData에서 좌표 가져오기
-                XMFLOAT3 pos;
-                float yaw = 180.0f;
-                if (enemyIndex < (UINT)gameStartData.enemies.size())
-                {
-                    const auto& state = gameStartData.enemies[enemyIndex];
-                    pos = state.position;
-                    yaw = state.yaw;
-                }
-                else
-                {
-                    pos.x = enemyBase.x + 2.0f * (float)k;
-                    pos.y = enemyBase.y;
-                    pos.z = enemyBase.z + 9.0f;
-                }
-                obj->SetPosition(pos.x, pos.y, pos.z);
-                obj->Rotate(0.0f, yaw, 0.0f);
+				XMFLOAT3 pos{};
+				float yaw = 180.0f;
+
+#ifdef USING_NETWORK
+				if ( !GetNetworkEnemySpawn(enemyIndex, pos, yaw) )
+					break;
+#else
+				pos.x = enemyBase.x + 2.0f * ( float ) k;
+				pos.y = enemyBase.y;
+				pos.z = enemyBase.z + 9.0f;
+#endif
+
+				obj->SetPosition(pos.x, pos.y, pos.z);
+				obj->Rotate(0.0f, yaw, 0.0f);
 
                 ++enemyIndex;
 
@@ -2360,22 +2396,20 @@ void CGameScene::BuildSkinnedBatch(
                 }
 
                 // GameStartData에서 좌표 가져오기
-                XMFLOAT3 pos;
-                float yaw = 180.0f;
-                if (enemyIndex < (UINT)gameStartData.enemies.size())
-                {
-                    const auto& state = gameStartData.enemies[enemyIndex];
-                    pos = state.position;
-                    yaw = state.yaw;
-                }
-                else
-                {
-                    pos.x = enemyBase.x + 0.0f;
-                    pos.y = enemyBase.y;
-                    pos.z = enemyBase.z + 12.0f;
-                }
-                obj->SetPosition(pos.x, pos.y, pos.z);
-                obj->Rotate(0.0f, yaw, 0.0f);
+				XMFLOAT3 pos{};
+				float yaw = 180.0f;
+
+#ifdef USING_NETWORK
+				if ( !GetNetworkEnemySpawn(enemyIndex, pos, yaw) )
+					break;
+#else
+				pos.x = enemyBase.x + 0.0f;
+				pos.y = enemyBase.y;
+				pos.z = enemyBase.z + 12.0f;
+#endif
+
+				obj->SetPosition(pos.x, pos.y, pos.z);
+				obj->Rotate(0.0f, yaw, 0.0f);
 
                 ++enemyIndex;
 
@@ -2523,24 +2557,20 @@ void CGameScene::BuildSkinnedBatch(
             mat->m_nReflection = matId;
 
             // GameStartData에서 플레이어 좌표 가져오기
-            XMFLOAT3 pos;
-            float yaw = 0.0f;
-            if (k < (UINT)gameStartData.players.size())
-            {
-                const auto& state = gameStartData.players[k];
-                pos = state.position;
-                yaw = state.yaw;
+			XMFLOAT3 pos{};
+			float yaw = 0.0f;
 
-				// 플레이어별 초기 장비 세팅
-                equipComp->SetLoadout(state.weaponType);
-            }
-            else
-            {
-                // fallback: 기존 하드코딩 좌표
-                pos.x = playerBase.x + 2.0f * (float)slot;
-                pos.y = playerBase.y;
-                pos.z = playerBase.z;
-            }
+#ifdef USING_NETWORK
+			EWeaponType initialWeapon = EWeaponType::Sword;
+			if ( !GetNetworkPlayerSpawn(k, pos, yaw, initialWeapon) )
+				break;
+
+			equipComp->SetLoadout(initialWeapon);
+#else
+			pos.x = playerBase.x + 2.0f * ( float ) slot;
+			pos.y = playerBase.y;
+			pos.z = playerBase.z;
+#endif
             obj->SetPosition(pos.x, pos.y, pos.z);
             obj->Rotate(0.0f, yaw, 0.0f);
 
@@ -2921,8 +2951,11 @@ void CGameScene::BuildColliderBatch(
 	b->objectRefs.clear();
 	b->objectRefs.reserve(cap);
 
+	m_colliderObjects.clear();
+	m_colliderObjects.reserve(cap);
+
 	b->count = 0;
-	m_ColliderCount = -1;
+	m_ColliderCount = 0;
 }
 
 XMFLOAT4X4 CGameScene::BuildAttachmentOffsetMatrix(
@@ -3065,14 +3098,16 @@ void CGameScene::LinkSceneObjects()
             equip->SetWeaponObject(EWeaponType::Gun, m_PlayerGunRefs[slot]);
 
         // 2) 테스트용 로드아웃 지정
-        switch (slot)
-        {
-        case 0: equip->SetLoadout(EWeaponType::Sword); break;
-        case 1: equip->SetLoadout(EWeaponType::Bow);   break;
-        case 2: equip->SetLoadout(EWeaponType::Axe);   break;
-        case 3: equip->SetLoadout(EWeaponType::Gun);   break;
-        default: equip->ClearOwnedWeapons();           break;
-        }
+#ifndef USING_NETWORK
+		switch ( slot )
+		{
+		case 0: equip->SetLoadout(EWeaponType::Sword); break;
+		case 1: equip->SetLoadout(EWeaponType::Bow);   break;
+		case 2: equip->SetLoadout(EWeaponType::Axe);   break;
+		case 3: equip->SetLoadout(EWeaponType::Gun);   break;
+		default: equip->ClearOwnedWeapons();           break;
+		}
+#endif
 
         // 3) 플레이어 무기 바인드
         AddWeaponBind(equip->GetWeaponObject(EWeaponType::Sword), player, "hand_r", swordOffset);
@@ -3270,6 +3305,10 @@ void CGameScene::RequestDemoFighterAttack(int index)
 
 void CGameScene::RequestPlayerAttackBySlot(int slot)
 {
+#ifdef USING_NETWORK
+	UNREFERENCED_PARAMETER(slot);
+	return;
+#else
 	CGameObject* obj = GetPlayerBySlot(slot);
 	if ( !obj ) return;
 
@@ -3315,8 +3354,8 @@ void CGameScene::RequestPlayerAttackBySlot(int slot)
 
 		return;
 	}
+#endif
 }
-
 
 int CGameScene::GetPlayerSlotFromObject(const CGameObject* obj) const
 {
@@ -3707,12 +3746,14 @@ bool CGameScene::RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& p
 
 bool CGameScene::OnProcessingMouseMessage(HWND /*hWnd*/, UINT msg, WPARAM /*wParam*/, LPARAM /*lParam*/)
 {
-    if (msg == WM_LBUTTONDOWN)
-    {
-        RequestPlayerAttackBySlot(m_localPlayerSlot);
-        return true;
-    }
-    return false;
+	if ( msg == WM_LBUTTONDOWN )
+	{
+#ifndef USING_NETWORK
+		RequestPlayerAttackBySlot(m_localPlayerSlot);
+#endif
+		return true;
+	}
+	return false;
 }
 
 bool CGameScene::OnProcessingKeyboardMessage(HWND /*hWnd*/, UINT msg, WPARAM wParam, LPARAM /*lParam*/)
@@ -3968,11 +4009,10 @@ void CGameScene::AnimateObjects(float dt)
                     ac->RequestRoll(rollDirBits);
                     ac->SetAnimState(EAnimState::Attack);
                 }
-                else if (decoded.attack)
-                {
-					RequestPlayerAttackBySlot(slot);
-                    //ac->SetAnimState(EAnimState::Attack);
-                }
+				else if ( decoded.attack )
+				{
+					ac->SetAnimState(EAnimState::Attack);
+				}
                 else
                 {
                     ac->SetAnimState(decoded.hasMove ? EAnimState::Move : EAnimState::Idle);
@@ -4063,7 +4103,8 @@ void CGameScene::AnimateObjects(float dt)
 
 void CGameScene::CollisionObjects()
 {
-    m_Collision->OnUpdate();
+	if ( !m_Collision ) return;
+	m_Collision->OnUpdate();
 }
 
 void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
@@ -4191,6 +4232,7 @@ void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 		RenderSkinnedInstanceGroups(cmd);
 	}
     
+#ifndef USING_NETWORK
 	if ( m_colliderbatch.shader )
 	{
 		m_colliderbatch.shader->Render(cmd, camera, &m_colliderbatch);
@@ -4200,6 +4242,7 @@ void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 			m_colliderObjects[j]->Render(cmd, camera);
 		}
 	}
+#endif
 
     if (m_bInactiveOverlayVisible && m_inactiveOverlayShader && (m_inactiveOverlaySrvIndex != UINT_MAX))
     {
