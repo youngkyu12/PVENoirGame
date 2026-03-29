@@ -144,10 +144,12 @@ public:
 		DXGI_FORMAT dxgiDsvFormat
 	);
 
+	virtual D3D12_INPUT_LAYOUT_DESC CreateInputLayout() override;
+	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob) override;
 	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob);
 	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext);
 	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext = nullptr);
-};
+}; 
 
 class CSkinnedObjectsShader : public CIlluminatedTexturedShader
 {

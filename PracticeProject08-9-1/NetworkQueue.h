@@ -17,9 +17,8 @@ using namespace DirectX;
 
 struct AnimationState
 {
-    //uint64_t    actorId;
-    EAnimState    animationId;
-	int         animTick; // 애니메이션 진행 정도 (0 ~ maxTick)
+    uint32_t      stateCode = 0;
+    int           animTick; // 애니메이션 현재 틱 (0 ~ maxTick)
 };
 
 // ============================================================
@@ -48,6 +47,16 @@ struct BulletState
 };
 
 // ============================================================
+// 캐릭터 무기 선택용 초기화 데이터
+// ============================================================
+
+struct LoadoutData
+{
+    uint64_t playerId;
+    EWeaponType weaponType;
+};
+
+// ============================================================
 // S_GAME_START용 초기화 데이터
 // ============================================================
 struct GameStartData
@@ -73,6 +82,7 @@ struct FrameSnapshot
 // ============================================================
 enum class NetworkMessageType
 {
+    Loadout,
     GameStart,
     FrameState
 };
@@ -80,7 +90,7 @@ enum class NetworkMessageType
 struct NetworkMessage
 {
     NetworkMessageType type;
-    std::variant<GameStartData, FrameSnapshot> data;
+    std::variant<LoadoutData, GameStartData, FrameSnapshot> data;
 };
 
 // ============================================================
@@ -89,6 +99,13 @@ struct NetworkMessage
 class NetworkQueue
 {
 public:
+
+    void PushLoadout(LoadoutData&& loadout)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_messages.push({ NetworkMessageType::Loadout, std::move(loadout) });
+    }
+
     // 네트워크 스레드에서 호출
     void PushGameStart(GameStartData&& data)
     {
@@ -101,6 +118,14 @@ public:
         std::lock_guard<std::mutex> lock(m_mutex);
         m_messages.push({ NetworkMessageType::FrameState, std::move(snapshot) });
     }
+
+
+    void Clear()
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        std::queue<NetworkMessage> empty;
+        std::swap(m_messages, empty);
+	}
 
     // 게임 스레드에서 호출
     bool TryPop(NetworkMessage& out)

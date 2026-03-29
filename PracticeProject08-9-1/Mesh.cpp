@@ -129,6 +129,7 @@ void CMesh::LoadMeshFromBIN(
     ID3D12GraphicsCommandList* cmdList,
     const char* filename)
 {
+	m_sourceMeshPath = ( filename ? filename : "" );
     // ----------------------------------------------------
     // 0) 파일 열기
     // ----------------------------------------------------
@@ -504,6 +505,16 @@ void CMesh::LoadMeshFromBIN(
         const auto& boneIndices = sm.boneIndices;
         const auto& boneWeights = sm.boneWeights;
 
+		const bool needRecomputeNormals =
+			( sm.meshName == "Toga" ) ||
+			( sm.meshName == "Toga_Front" ) ||
+			( sm.meshName == "BreastShield2" ) ||
+			( sm.meshName == "Bracers" ) ||
+			( sm.meshName == "Helm" );
+
+		if ( needRecomputeNormals )
+			RecomputeVertexNormals(sm);
+
         std::vector<SkinnedVertex> vertices(positions.size());
 
         for (size_t i = 0; i < positions.size(); ++i)
@@ -513,15 +524,6 @@ void CMesh::LoadMeshFromBIN(
             v.normal = (i < normals.size() ? normals[i] : XMFLOAT3(0, 1, 0));
             v.uv = (i < uvs.size() ? uvs[i] : XMFLOAT2(0, 0));
             v.tangent = (i < tangents.size() ? tangents[i] : XMFLOAT4(1, 0, 0, 1));
-
-			if ( sm.meshName == "Toga" || 
-				sm.meshName == "Toga_Front" || 
-				sm.meshName == "BreastShield2" || 
-				sm.meshName == "Bracers" ||
-				sm.meshName == "Helm" )
-			{
-				RecomputeVertexNormals(sm);
-			}
 
             if (i < boneIndices.size())
             {

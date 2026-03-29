@@ -113,8 +113,10 @@
     <Filter Include="Components\PlayerEquipmentComponent">
       <UniqueIdentifier>{62d5f888-2e6c-4738-b362-84ec00609cfd}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Components\Bullet">
+      <UniqueIdentifier>{4ee5f8ae-15fa-4df4-bd07-0e898df3f8ef}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
-
   <ItemGroup>
     <ClInclude Include="Animator.h">
       <Filter>Animator</Filter>
@@ -215,9 +217,6 @@
     <ClInclude Include="ArrowComponent.h">
       <Filter>Components\Arrow</Filter>
     </ClInclude>
-    <ClInclude Include="ActorTagComponent.h">
-      <Filter>Components\ActorTag</Filter>
-    </ClInclude>
     <ClInclude Include="PlayerControllerComponent.h">
       <Filter>Components\PlayerController</Filter>
     </ClInclude>
@@ -254,8 +253,23 @@
     <ClInclude Include="PlayerEquipmentComponent.h">
       <Filter>Components\PlayerEquipmentComponent</Filter>
     </ClInclude>
+    <ClInclude Include="BoundingCapsule.h" />
+    <ClInclude Include="ColliderComponent.h" />
+    <ClInclude Include="CollisionSystem.h" />
+    <ClInclude Include="RigidBody.h" />
+    <ClInclude Include="ActorTagComponent.h">
+      <Filter>Components\ActorTag</Filter>
+    </ClInclude>
+    <ClInclude Include="MonsterAnimTypes.h">
+      <Filter>Animator</Filter>
+    </ClInclude>
+    <ClInclude Include="MonsterAnimController.h">
+      <Filter>Animator</Filter>
+    </ClInclude>
+    <ClInclude Include="BulletComponent.h">
+      <Filter>Components\Bullet</Filter>
+    </ClInclude>
   </ItemGroup>
-
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
       <Filter>Animator</Filter>
@@ -341,9 +355,6 @@
     <ClCompile Include="ArrowComponent.cpp">
       <Filter>Components\Arrow</Filter>
     </ClCompile>
-    <ClCompile Include="ActorTagComponent.cpp">
-      <Filter>Components\ActorTag</Filter>
-    </ClCompile>
     <ClCompile Include="PlayerControllerComponent.cpp">
       <Filter>Components\PlayerController</Filter>
     </ClCompile>
@@ -368,14 +379,25 @@
     <ClCompile Include="PlayerEquipmentComponent.cpp">
       <Filter>Components\PlayerEquipmentComponent</Filter>
     </ClCompile>
+    <ClCompile Include="BoundingCapsule.cpp" />
+    <ClCompile Include="ColliderComponent.cpp" />
+    <ClCompile Include="CollisionSystem.cpp" />
+    <ClCompile Include="RigidBody.cpp" />
+    <ClCompile Include="ActorTagComponent.cpp">
+      <Filter>Components\ActorTag</Filter>
+    </ClCompile>
+    <ClCompile Include="MonsterAnimController.cpp">
+      <Filter>Animator</Filter>
+    </ClCompile>
+    <ClCompile Include="BulletComponent.cpp">
+      <Filter>Components\Bullet</Filter>
+    </ClCompile>
   </ItemGroup>
-
   <ItemGroup>
     <ResourceCompile Include="PracticeProject08-9-1.rc">
       <Filter>리소스 파일</Filter>
     </ResourceCompile>
   </ItemGroup>
-
   <ItemGroup>
     <Image Include="small.ico">
       <Filter>리소스 파일</Filter>
@@ -384,7 +406,6 @@
       <Filter>리소스 파일</Filter>
     </Image>
   </ItemGroup>
-
   <ItemGroup>
     <None Include="Light.hlsl">
       <Filter>Resource\HLSL</Filter>

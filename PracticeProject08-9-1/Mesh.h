@@ -188,12 +188,16 @@ public:
 		float timeScale = 1.0f);
 private:
 	int m_nBones;
+	std::string m_sourceMeshPath;
+
 public:
 	const std::vector<BinMaterial>& GetBinMaterials() const { return m_BinMaterials; }
+	const std::string& GetSourceMeshPath() const { return m_sourceMeshPath; }
 
 private:
 	std::vector<BinMaterial> m_BinMaterials;
 	std::unordered_map<std::string, uint32_t> m_BinMaterialNameToIndex; // 있으면 편함(선택)
+
 };
 
 class CBoxMeshDiffused : public CMesh

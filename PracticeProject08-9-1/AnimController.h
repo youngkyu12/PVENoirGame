@@ -43,6 +43,7 @@ public:
     bool IsUsingPlayerClipSet() const { return m_usePlayerClipSet; }
 
     bool IsActionLocked() const;
+	bool IsActionActive() const { return m_actionPhase != EActionPhase::None; }
 
     void Update(float dt);
 	void NetworkUpdate(float dt);
