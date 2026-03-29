@@ -37,10 +37,12 @@ void CGameTimer::Tick(float fLockFPS)
 	::QueryPerformanceCounter((LARGE_INTEGER *)&m_nCurrentPerformanceCounter);
 	fTimeElapsed = float((m_nCurrentPerformanceCounter - m_nLastPerformanceCounter) * m_fTimeScale);
 
+	// 프레임 제한용
     if (fLockFPS > 0.0f)
     {
         while (fTimeElapsed < (1.0f / fLockFPS))
         {
+			// 현재 성능 카운터 틱 수만 갱신하여 변화량 증가(시간 증가) -> 프레임 제한
 	        ::QueryPerformanceCounter((LARGE_INTEGER *)&m_nCurrentPerformanceCounter);
 	        fTimeElapsed = float((m_nCurrentPerformanceCounter - m_nLastPerformanceCounter) * m_fTimeScale);
         }
@@ -52,7 +54,8 @@ void CGameTimer::Tick(float fLockFPS)
     {
         ::memmove(&m_fFrameTime[1], m_fFrameTime, (MAX_SAMPLE_COUNT - 1) * sizeof(float));
         m_fFrameTime[0] = fTimeElapsed;
-        if (m_nSampleCount < MAX_SAMPLE_COUNT) m_nSampleCount++;
+        if (m_nSampleCount < MAX_SAMPLE_COUNT) 
+			m_nSampleCount++;
     }
 
 	m_nFramesPerSecond++;
@@ -65,8 +68,10 @@ void CGameTimer::Tick(float fLockFPS)
 	} 
 
     m_fTimeElapsed = 0.0f;
-    for (ULONG i = 0; i < m_nSampleCount; i++) m_fTimeElapsed += m_fFrameTime[i];
-    if (m_nSampleCount > 0) m_fTimeElapsed /= m_nSampleCount;
+    for (ULONG i = 0; i < m_nSampleCount; i++)
+		m_fTimeElapsed += m_fFrameTime[i];
+    if (m_nSampleCount > 0) 
+		m_fTimeElapsed /= m_nSampleCount;
 }
 
 unsigned long CGameTimer::GetFrameRate(LPTSTR lpszString, int nCharacters) 

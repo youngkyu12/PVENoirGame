@@ -82,6 +82,15 @@ private:
         DXGI_FORMAT dsvFormat
     );
 
+	void BuildColliderBatch(
+		ID3D12Device* dev,
+		ID3D12GraphicsCommandList* cmd,
+		const std::shared_ptr<CDiffusedShader>& shader,
+		UINT rtCount,
+		DXGI_FORMAT* rtvFormats,
+		DXGI_FORMAT dsvFormat
+	);
+
     void LinkSceneObjects();
     static XMFLOAT4X4 BuildAttachmentOffsetMatrix(
         const XMFLOAT3& pos,
@@ -101,17 +110,17 @@ public:
     void Render(ID3D12GraphicsCommandList* cmd, CCamera* camera = nullptr) override;
 
 
-    // Input (messages) : °ÔÀÓ¿¡¼­´Â ÁÂÅ¬¸¯ °ø°İ
+    // Input (messages) : ê²Œì„ì—ì„œëŠ” ì¢Œí´ë¦­ ê³µê²©
 public:
     bool OnProcessingMouseMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) override;
     bool OnProcessingKeyboardMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) override;
 
-    // Framework È£È¯: ÇÃ·¹ÀÌ¾î Á¦°ø
+    // Framework í˜¸í™˜: í”Œë ˆì´ì–´ ì œê³µ
 public:
     CGameObject* GetPlayer() const override { return GetPlayerBySlot(m_localPlayerSlot); }
     int GetLocalPlayerSlot() const { return m_localPlayerSlot; }
 
-    // Framework ¼ıÀÚÅ° °ø°İ(½½·Ô 0..3)
+    // Framework ìˆ«ìí‚¤ ê³µê²©(ìŠ¬ë¡¯ 0..3)
 public:
     void RequestPlayerAttackBySlot(int slot) override;
 
@@ -129,12 +138,12 @@ public:
     void RequestFireArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f, float yOffset = 0.0f);
 
 private:
-    // slot 0..3 ÇÃ·¹ÀÌ¾î Æ÷ÀÎÅÍ(¼ÒÀ¯´Â m_skinnedObjects°¡ ÇÔ)
+    // slot 0..3 í”Œë ˆì´ì–´ í¬ì¸í„°(ì†Œìœ ëŠ” m_skinnedObjectsê°€ í•¨)
     std::array<CGameObject*, 4> m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
 
     int m_localPlayerSlot;
     // ------------------------------------------------------------------------
-    // Build counts (ÇöÀç´Â BuildObjects()¿¡¼­ °áÁ¤, ÃßÈÄ ¼­¹ö µ¿±âÈ­ °ªÀ¸·Î ´ëÃ¼)
+    // Build counts (í˜„ì¬ëŠ” BuildObjects()ì—ì„œ ê²°ì •, ì¶”í›„ ì„œë²„ ë™ê¸°í™” ê°’ìœ¼ë¡œ ëŒ€ì²´)
     // ------------------------------------------------------------------------
     UINT m_grassCount = 1;
     UINT m_groundCount = 1;
@@ -166,13 +175,15 @@ private:
 	UINT m_PlayerBowCount = 4;
 	UINT m_PlayerAxeCount = 4;
 	UINT m_PlayerGunCount = 4;
-
+	UINT m_ColliderCount = 0;
 
     std::vector<std::unique_ptr<CGameObject>> m_staticObjects;
     std::vector<std::unique_ptr<CGameObject>> m_skinnedObjects;
+	std::vector<std::unique_ptr<CGameObject>> m_colliderObjects;
 
     SCENE_STATIC_BATCH  m_staticBatch;
     SCENE_SKINNED_BATCH m_skinnedBatch;
+	SCENE_COLLIDER_BATCH m_colliderbatch;
 
     std::vector<CGameObject*> m_swordManRefs;
     std::vector<CGameObject*> m_bowManRefs;
@@ -206,7 +217,7 @@ private:
     std::vector<std::unique_ptr<CGameObject>> m_lightObjects;
     CFollowTransformComponent* m_pPlayerSpotFollower = nullptr;
 
-    // GPU / Shader Variables (Game Àü¿ë)
+    // GPU / Shader Variables (Game ì „ìš©)
     ComPtr<ID3D12Resource> m_pd3dcbLights;
     LIGHTS* m_pcbMappedLights = nullptr;
 

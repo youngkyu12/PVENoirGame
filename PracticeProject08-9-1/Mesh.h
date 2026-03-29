@@ -5,6 +5,7 @@
 #include "stdafx.h"
 #include "AnimatorData.h"
 #include "Material.h"
+#include "ColliderComponent.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -193,4 +194,18 @@ public:
 private:
 	std::vector<BinMaterial> m_BinMaterials;
 	std::unordered_map<std::string, uint32_t> m_BinMaterialNameToIndex; // 있으면 편함(선택)
+};
+
+class CBoxMeshDiffused : public CMesh
+{
+public:
+	CBoxMeshDiffused(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList, CColliderComponent* Collider);
+	virtual ~CBoxMeshDiffused() {}
+};
+
+class CCapsuleMeshDiffused : public CMesh
+{
+public:
+	CCapsuleMeshDiffused(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList, CColliderComponent* Collider);
+	virtual ~CCapsuleMeshDiffused() {}
 };

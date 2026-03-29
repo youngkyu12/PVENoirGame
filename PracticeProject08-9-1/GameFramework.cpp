@@ -393,10 +393,12 @@ void CGameFramework::BuildObjects()
 void CGameFramework::SyncGameSceneInactiveOverlay()
 {
 	CScene* scene = m_SceneManager.GetScene();
-	if (!scene) return;
+	if (!scene) 
+		return;
 
 	CGameScene* gameScene = dynamic_cast<CGameScene*>(scene);
-	if (!gameScene) return;
+	if (!gameScene) 
+		return;
 
 	gameScene->SetInactiveOverlayVisible(IsInputPauseActive());
 }
@@ -944,7 +946,7 @@ void CGameFramework::FrameAdvance()
 {
 	HRESULT hResult;
 
-	m_GameTimer.Tick(0.0f);
+	m_GameTimer.Tick(60.0f);
 	UpdateWindowActivationState();
 
 	ApplyPendingSceneSwitch();

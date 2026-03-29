@@ -39,7 +39,7 @@ public:
     uint32_t GetMask() const { return mMask; }
     bool IsTrigger() const { return mIsTrigger; }
 	void DisabledRender();
-private:
+
     void UpdateWorldBounds();
 
 private:

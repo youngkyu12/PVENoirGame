@@ -81,21 +81,21 @@ bool BoundingCapsule::Intersects(const BoundingOrientedBox& box) const noexcept
 
     XMVECTOR center = XMLoadFloat3(&box.Center);	// OBB Center
     XMVECTOR extents = XMLoadFloat3(&box.Extents);	// OBB Extents
-    XMVECTOR q = XMLoadFloat4(&box.Orientation);	// OBB 회전 상태
+    XMVECTOR OBB_quat = XMLoadFloat4(&box.Orientation);	// OBB 회전 상태
 
-    XMMATRIX R = XMMatrixRotationQuaternion(q);	// OBB 회전 상태를 회전행렬로 바꿔서 반환
-    XMMATRIX InvR = XMMatrixTranspose(R);	// OBB 회전행렬의 역행렬
+    XMMATRIX R = XMMatrixRotationQuaternion(OBB_quat);	// OBB 회전 상태를 회전행렬로 바꿔서 반환
 
-    XMVECTOR ALocal = XMVector3Transform(A - center, InvR);	// A - center는 center에서 A로 향하는 벡터
-															// 즉, center를 원점으로 하는 좌표계에서 본 A의 상대 위치를 말한다.
-															// A - center와 InvR을 곱하여 OBB의 회전을 제거
-    XMVECTOR BLocal = XMVector3Transform(B - center, InvR);	// B - center는 center에서 B로 향하는 벡터
-															// 즉, center를 원점으로 하는 좌표계에서 본 B의 상대 위치를 말한다.
-															// B - center와 InvR을 곱하여 OBB의 회전을 제거
+	XMVECTOR ALocal = XMVector3InverseRotate(XMVectorSubtract(A, center), OBB_quat); 
+	// A - center : OBB 중심을 원점으로 봤을 때 A의 상대 위치
+	// InverseRotate : OBB의 회전을 역으로 적용해서 월드 좌표를 OBB 로컬 좌표로 변환
 
+	XMVECTOR BLocal = XMVector3InverseRotate(XMVectorSubtract(B, center), OBB_quat);	
+	// B - center : OBB 중심을 원점으로 봤을 때 B의 상대 위치
+	// InverseRotate : OBB의 회전을 역으로 적용해서 월드 좌표를 OBB 로컬 좌표로 변환
+	
     float distSq = Vector3::distSegmentToAABB(ALocal, BLocal, extents);
-	// ALocal, BLocal은 OBB 중심을 원점으로 하고 회전을 제거한 로컬 공간에서의 캡슐 축 끝점이다.
-	// 이 공간에서 OBB는 extents를 반크기로 가지는 AABB가 된다.
+	// ALocal, BLocal은 OBB 중심을 원점으로 하고 회전을 제거한 로컬 공간에서의 캡슐 축 양끝점이다.
+	// 이 공간에서 OBB는 extents를 절반크기로 가지는 AABB가 된다.
 	// 이후 선분 ALocal-BLocal과 AABB 사이의 최단거리를 구하고,
 	// 그 거리가 캡슐 반지름 이하이면 충돌로 판단한다.
 
@@ -176,7 +176,7 @@ bool BoundingCapsule::Intersects(FXMVECTOR V0, FXMVECTOR V1, FXMVECTOR V2) const
     Intersection = XMVectorOrInt(Intersection, IntersectionE);
 
     // 캡슐 선분 - 삼각형 면 최단거리
-    float f0 = Vector3::distSegmentToFace(A, B, V0, V1, V2);
+    float f0 = Vector3::distSegmentToTriangle(A, B, V0, V1, V2);
 
     XMVECTOR faceDistSq = XMVectorReplicate(f0);
 
