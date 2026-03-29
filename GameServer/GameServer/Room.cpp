@@ -78,6 +78,7 @@ void Room::Enter(PlayerRef player)
 		static_cast<Protocol::WeaponType>(player->playerId + 2), 0); // 예시: 모든 플레이어가 검으로 시작
 
 	players[player->playerId] = player;
+	player->SetActive(false); // 초기에는 비활성화 상태로 시작 (Ready 신호 대기)
 }
 
 void Room::Leave(PlayerRef player)
@@ -253,7 +254,11 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	if (player->GetAnimState() != prevAnimState)
 		player->SetAnimTick(tick); // 애니메이션 상태가 바뀌면 현재의 server tick을 넣어줌
 
-
+	if (prevAnimState == Protocol::ANIMATION_TYPE_ROLL
+		&& player->GetAnimState() == Protocol::ANIMATION_TYPE_ATTACK)
+	{
+		std::cout << "Transition from ROLL to ATTACK detected for player " << playerId << std::endl;
+	}
 
 	//if (keyCodes & (kDirForward | kDirBackward))
 	//	player->SetAnimState(Protocol::ANIMATION_TYPE_WALK);
