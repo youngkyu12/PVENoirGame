@@ -18,6 +18,9 @@ void CColliderComponent::OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*)
 
     mModel = GetOwner()->GetComponent<CModelComponent>();
     assert(mModel && "CColliderComponent requires CModelComponent");
+	
+	mRender = GetOwner()->GetRenderer();
+	assert(mRender && "CColliderComponent requires CRendererComponent");
 
     const vector<shared_ptr<CMesh>>& meshes = mModel->GetMeshes();
 
@@ -97,7 +100,7 @@ void CColliderComponent::OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*)
 
 void CColliderComponent::OnUpdate(float dt)
 {
-    // MVP: ¸Å ÇÁ·¹ÀÓ °»½Å
+    // MVP: ë§¤ í”„ë ˆì„ ê°±ì‹ 
     UpdateWorldBounds();
 }
 
@@ -271,6 +274,11 @@ void CColliderComponent::SetSubBCapsule(const XMFLOAT3& Min, const XMFLOAT3& Max
     LocalSubBCapsules.push_back(Capsule);
 }
 
+void CColliderComponent::DisabledRender()
+{
+	mRender->SetEnabled(false);
+}
+
 void CColliderComponent::UpdateWorldBounds()
 {
     if (!mTransform) return;
@@ -304,7 +312,7 @@ void CColliderComponent::UpdateWorldBounds()
         break;
     }
     default:
-        // NoneÀÌ¸é Ä³½Ã¸¸ ¸®¼ÂÇÏ°Å³ª ¹«½Ã
+        // Noneì´ë©´ ìºì‹œë§Œ ë¦¬ì…‹í•˜ê±°ë‚˜ ë¬´ì‹œ
         break;
     }
 }
