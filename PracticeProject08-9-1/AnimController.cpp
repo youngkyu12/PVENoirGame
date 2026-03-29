@@ -509,13 +509,10 @@ void CAnimController::NetworkUpdate(float dt)
         {
             constexpr float kBlendTime = 0.15f;
 
-            if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
-                anim->Play(targetClip, true, 0.0f);
+            //if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
+            //    anim->Play(targetClip, true, 0.0f);
 			//	이현석: 이동 상태 전환 시 normalized time을 새 클립 duration에 맞게 환산해서 넘김
-			//	if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
-			//		anim->Play(targetClip, true, 0.0f);
-			//	위의 2줄 지우고 밑으로 교체
-			//	StartLocomotionClipPreservePhase(anim, targetClip, kBlendTime);
+			StartLocomotionClipPreservePhase(anim, targetClip, kBlendTime);
         }
     }
 
