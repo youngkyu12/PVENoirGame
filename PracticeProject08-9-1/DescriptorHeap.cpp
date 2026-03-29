@@ -39,8 +39,8 @@ void CDescriptorHeap::CreateCbvSrvDescriptorHeaps(
 	m_nSrvDescriptors = (UINT)nShaderResourceViews;
 	m_nSrvAllocated = 0;
 
-	m_nSrvAllocated = 0;            // ¾ÕÂÊ(¸ÓÆ¼¸®¾ó) Ä¿¼­
-	m_nSrvBack = m_nSrvDescriptors; // µÚÂÊ(±âÅ¸) Ä¿¼­ (exclusive)
+	m_nSrvAllocated = 0;            // ì•žìª½(ë¨¸í‹°ë¦¬ì–¼) ì»¤ì„œ
+	m_nSrvBack = m_nSrvDescriptors; // ë’¤ìª½(ê¸°íƒ€) ì»¤ì„œ (exclusive)
 }
 
 void CDescriptorHeap::CreateConstantBufferViews(ID3D12Device* pd3dDevice, int nConstantBufferViews, ID3D12Resource* pd3dConstantBuffers, UINT nStride)
@@ -105,8 +105,8 @@ void CDescriptorHeap::CreateShaderResourceViews(
 		return;
 	}
 
-	// ÇÙ½É: NextHandleÀ» Àý´ë ´©Àû ÀÌµ¿½ÃÅ°Áö ¸» °Í.
-	// StartHandle ±âÁØÀ¸·Î ·ÎÄÃ ÇÚµéÀ» °è»êÇØ¼­ »ç¿ëÇÑ´Ù.
+	// í•µì‹¬: NextHandleì„ ì ˆëŒ€ ëˆ„ì  ì´ë™ì‹œí‚¤ì§€ ë§ ê²ƒ.
+	// StartHandle ê¸°ì¤€ìœ¼ë¡œ ë¡œì»¬ í•¸ë“¤ì„ ê³„ì‚°í•´ì„œ ì‚¬ìš©í•œë‹¤.
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = m_d3dSrvCPUDescriptorStartHandle;
 	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = m_d3dSrvGPUDescriptorStartHandle;
 
@@ -122,7 +122,7 @@ void CDescriptorHeap::CreateShaderResourceViews(
 			char buf[256];
 			sprintf_s(buf, "[DescriptorHeap] ERROR: Texture resource is null (i=%d)\n", i);
 			OutputDebugStringA(buf);
-			// ·ÎÄÃ ÇÚµéÀº ±×´ë·Î Áõ°¡½ÃÅ°Áö ¾Ê´Â ÆíÀÌ ¾ÈÀü(½½·Ô ³¶ºñ ¹æÁö)
+			// ë¡œì»¬ í•¸ë“¤ì€ ê·¸ëŒ€ë¡œ ì¦ê°€ì‹œí‚¤ì§€ ì•ŠëŠ” íŽ¸ì´ ì•ˆì „(ìŠ¬ë¡¯ ë‚­ë¹„ ë°©ì§€)
 			continue;
 		}
 
@@ -133,10 +133,10 @@ void CDescriptorHeap::CreateShaderResourceViews(
 			&srvDesc,
 			cpuHandle);
 
-		// ÅØ½ºÃ³¿¡ GPU ÇÚµé ÀúÀå (¹ÙÀÎµù ½Ã »ç¿ë)
+		// í…ìŠ¤ì²˜ì— GPU í•¸ë“¤ ì €ìž¥ (ë°”ì¸ë”© ì‹œ ì‚¬ìš©)
 		pTexture->SetGpuDescriptorHandle(i, gpuHandle);
 
-		// ´ÙÀ½ ½½·Ô (·ÎÄÃ ÇÚµé¸¸ ÀÌµ¿)
+		// ë‹¤ìŒ ìŠ¬ë¡¯ (ë¡œì»¬ í•¸ë“¤ë§Œ ì´ë™)
 		cpuHandle.ptr += ::gnCbvSrvDescriptorIncrementSize;
 		gpuHandle.ptr += ::gnCbvSrvDescriptorIncrementSize;
 	}
@@ -186,10 +186,12 @@ D3D12_GPU_DESCRIPTOR_HANDLE CDescriptorHeap::CreateShaderResourceView(
 	DXGI_FORMAT dxgiSrvFormat)
 {
 	D3D12_GPU_DESCRIPTOR_HANDLE nullH = { 0 };
-	if (!pd3dDevice || !pd3dResource) return nullH;
+	if (!pd3dDevice || !pd3dResource) 
+		return nullH;
 
 	const UINT idx = AllocateSrvRangeBack(1);
-	if (idx == UINT_MAX) return nullH;
+	if (idx == UINT_MAX) 
+		return nullH;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC desc = {};
 	desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -200,7 +202,11 @@ D3D12_GPU_DESCRIPTOR_HANDLE CDescriptorHeap::CreateShaderResourceView(
 	desc.Texture2D.PlaneSlice = 0;
 	desc.Texture2D.ResourceMinLODClamp = 0.0f;
 
-	pd3dDevice->CreateShaderResourceView(pd3dResource, &desc, GetCPUSrvHandle(idx));
+	pd3dDevice->CreateShaderResourceView(
+		pd3dResource, 
+		&desc, 
+		GetCPUSrvHandle(idx));
+
 	return GetGPUSrvHandle(idx);
 }
 
@@ -216,7 +222,7 @@ void CDescriptorHeap::CreateShaderResourceView(
 	ComPtr<ID3D12Resource> res = pTexture->GetResource(nIndex);
 	if (!res) return;
 
-	// ÀÌ¹Ì ÇÚµé ÀÖÀ¸¸é ½ºÅµ(±âÁ¸ ·ÎÁ÷ À¯Áö)
+	// ì´ë¯¸ í•¸ë“¤ ìžˆìœ¼ë©´ ìŠ¤í‚µ(ê¸°ì¡´ ë¡œì§ ìœ ì§€)
 	if (pTexture->GetGpuDescriptorHandle(nIndex).ptr) return;
 
 	const UINT idx = AllocateSrvRangeBack(1);
@@ -255,7 +261,7 @@ void CDescriptorHeap::CreateShaderResourceView(
 UINT CDescriptorHeap::AllocateSrvRange(UINT count)
 {
 	if (count == 0) return UINT_MAX;
-	if (m_nSrvAllocated + count > m_nSrvBack) return UINT_MAX; // <-- ÇÙ½É: µÚÂÊ°ú Ãæµ¹ ¹æÁö
+	if (m_nSrvAllocated + count > m_nSrvBack) return UINT_MAX; // <-- í•µì‹¬: ë’¤ìª½ê³¼ ì¶©ëŒ ë°©ì§€
 	UINT base = m_nSrvAllocated;
 	m_nSrvAllocated += count;
 	return base;
@@ -286,21 +292,24 @@ void CDescriptorHeap::CreateShaderResourceViews(
 	UINT baseIndex = AllocateSrvRange((UINT)pTexture->GetTextures());
 	if (baseIndex == UINT_MAX) return;
 
-	// ÅØ½ºÃ³°¡ SRV ½½·Ô ½ÃÀÛ ÀÎµ¦½º¸¦ ±â¾ï
+	// í…ìŠ¤ì²˜ê°€ SRV ìŠ¬ë¡¯ ì‹œìž‘ ì¸ë±ìŠ¤ë¥¼ ê¸°ì–µ
 	pTexture->SetBaseSrvIndex(baseIndex);
 
-	// ½ÇÁ¦ SRV »ý¼ºÀº ±âÁ¸ ·¹°Å½Ã ÇÔ¼ö¿¡ À§ÀÓ(³»ºÎÀûÀ¸·Î Àý´ë À§Ä¡ baseIndex »ç¿ë)
+	// ì‹¤ì œ SRV ìƒì„±ì€ ê¸°ì¡´ ë ˆê±°ì‹œ í•¨ìˆ˜ì— ìœ„ìž„(ë‚´ë¶€ì ìœ¼ë¡œ ì ˆëŒ€ ìœ„ì¹˜ baseIndex ì‚¬ìš©)
 	CreateShaderResourceViews(pd3dDevice, pTexture, baseIndex, nRootParameterStartIndex);
 
 }
 
 UINT CDescriptorHeap::AllocateSrvRangeBack(UINT count)
 {
-    if (count == 0) return UINT_MAX;
-    if (count > m_nSrvBack) return UINT_MAX;
+    if (count == 0) 
+		return UINT_MAX;
+    if (count > m_nSrvBack) 
+		return UINT_MAX;
 
     UINT newBase = m_nSrvBack - count;
-    if (newBase < m_nSrvAllocated) return UINT_MAX; // <-- ¾ÕÂÊ(¸ÓÆ¼¸®¾ó)°ú Ãæµ¹ ¹æÁö
+    if (newBase < m_nSrvAllocated) 
+		return UINT_MAX; // <-- ì•žìª½(ë¨¸í‹°ë¦¬ì–¼)ê³¼ ì¶©ëŒ ë°©ì§€
 
     m_nSrvBack = newBase;
     return newBase;

@@ -126,6 +126,15 @@ private:
         DXGI_FORMAT dsvFormat
     );
 
+	void BuildColliderBatch(
+		ID3D12Device* dev,
+		ID3D12GraphicsCommandList* cmd,
+		const std::shared_ptr<CDiffusedShader>& shader,
+		UINT rtCount,
+		DXGI_FORMAT* rtvFormats,
+		DXGI_FORMAT dsvFormat
+	);
+
     void LinkSceneObjects();
     static XMFLOAT4X4 BuildAttachmentOffsetMatrix(
         const XMFLOAT3& pos,
@@ -173,8 +182,9 @@ public:
 
     CGameObject* GetPlayerBySlot(int slot) const; // slot: 0..3
     bool IsLocalPlayer(const CGameObject* obj) const;
-
-    void RequestFireArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f, float yOffset = 0.0f);
+	bool RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& previousPos);
+    
+	void RequestFireArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f, float yOffset = 0.0f);
 
 private:
     // slot 0..3 플레이어 포인터(소유는 m_skinnedObjects가 함)
@@ -214,13 +224,15 @@ private:
 	UINT m_PlayerBowCount = 4;
 	UINT m_PlayerAxeCount = 4;
 	UINT m_PlayerGunCount = 4;
-
+	UINT m_ColliderCount = 0;
 
     std::vector<std::unique_ptr<CGameObject>> m_staticObjects;
     std::vector<std::unique_ptr<CGameObject>> m_skinnedObjects;
+	std::vector<std::unique_ptr<CGameObject>> m_colliderObjects;
 
     SCENE_STATIC_BATCH  m_staticBatch;
     SCENE_SKINNED_BATCH m_skinnedBatch;
+	SCENE_COLLIDER_BATCH m_colliderbatch;
 
     std::vector<CGameObject*> m_swordManRefs;
     std::vector<CGameObject*> m_bowManRefs;

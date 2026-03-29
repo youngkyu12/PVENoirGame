@@ -14,6 +14,7 @@
 #include "AnimatorComponent.h"
 #include "RenderObjectComponent.h"
 #include "SkinningComponent.h"
+#include "ColliderComponent.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -150,6 +151,7 @@ void CGameObject::DestroyComponents()
 	m_pModel = nullptr;
 	m_pRenderObject = nullptr;
 	m_pSkinning = nullptr;
+	m_pCollider = nullptr;
 	m_bComponentsCreated = false;
 	m_pd3dDeviceForComponents = nullptr;
 	m_pd3dCmdForComponents = nullptr;
@@ -377,29 +379,39 @@ void CGameObject::MoveStrafe(float fDistance)
 {
 	XMFLOAT3 delta = Vector3::ScalarProduct(GetRight(), fDistance, false);
 	m_pTransform->Translate(delta);
+	if ( m_pCollider )
+		m_pCollider->UpdateWorldBounds();
 }
 
 void CGameObject::MoveUp(float fDistance)
 {
 	XMFLOAT3 delta = Vector3::ScalarProduct(GetUp(), fDistance, false);
 	m_pTransform->Translate(delta);
+	if ( m_pCollider )
+		m_pCollider->UpdateWorldBounds();
 }
 
 void CGameObject::MoveForward(float fDistance)
 {
 	XMFLOAT3 delta = Vector3::ScalarProduct(GetLook(), fDistance, false);
 	m_pTransform->Translate(delta);
+	if ( m_pCollider )
+		m_pCollider->UpdateWorldBounds();
 }
 
 void CGameObject::Rotate(float fPitch, float fYaw, float fRoll)
 {
 	m_pTransform->RotateWorldEulerDegrees(fPitch, fYaw, fRoll);
+	if ( m_pCollider )
+		m_pCollider->UpdateWorldBounds();
 }
 
 void CGameObject::Rotate(XMFLOAT3* pxmf3Axis, float fAngle)
 {
 	if (!pxmf3Axis) return;
 	m_pTransform->RotateWorldAxisDegrees(*pxmf3Axis, fAngle);
+	if ( m_pCollider )
+		m_pCollider->UpdateWorldBounds();
 }
 
 // ============================================================================

@@ -15,6 +15,7 @@ class CMaterial;
 class CGameObject;
 class CStaticObjectsShader;
 class CSkinnedObjectsShader;
+class CShader;
 
 struct CB_GAMEOBJECT_INFO;
 
@@ -89,4 +90,22 @@ struct SCENE_SKINNED_BATCH
     UINT cbvInc = 0;
 
     std::vector<CGameObject*> objectRefs;
+};
+
+struct SCENE_COLLIDER_BATCH
+{
+	std::shared_ptr<CShader> shader;
+
+	UINT capacity = 0;
+	UINT count = 0;
+
+	UINT cbElementBytes = 0;
+
+	ComPtr<ID3D12Resource> cbGameObjects;
+	CB_GAMEOBJECT_INFO* mappedGameObjects = nullptr;
+
+	D3D12_GPU_DESCRIPTOR_HANDLE baseCbvGpu = { 0 };
+	UINT cbvInc = 0;
+
+	std::vector<CGameObject*> objectRefs;
 };
