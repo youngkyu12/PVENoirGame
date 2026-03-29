@@ -116,9 +116,9 @@ namespace
 		outEntries.clear();
 
 		const std::vector<std::string> candidates = {
-			"MapFIle/placement_export_st1.txt",
-			"GameServer/MapFIle/placement_export_st1.txt",
-			"../GameServer/MapFIle/placement_export_st1.txt"
+			"MapFIle/placement_export_full.txt",
+			"GameServer/MapFIle/placement_export_full.txt",
+			"../GameServer/MapFIle/placement_export_full.txt"
 		};
 
 		std::ifstream fin;
@@ -539,7 +539,7 @@ void Room::CheckClientReady()
 {
 	//TODO: 모든 플레이어가 ready를 보냈는지 확인하는 함수 정의
 
-	bool allPlayerBuilt = false;
+	bool allPlayerBuilt = !players.empty();
 	for (auto& player : players)
 	{
 		allPlayerBuilt = allPlayerBuilt && player.second->IsActive();
