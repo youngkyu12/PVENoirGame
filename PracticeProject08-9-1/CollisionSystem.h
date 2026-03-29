@@ -18,6 +18,8 @@ public:
     void UnregisterCollider(CColliderComponent* c);
 	void SetBoundingFrustum(const BoundingFrustum& mCameraCollider);
 
+	size_t GetColiidersNum() const;
+	const std::vector<CColliderComponent*>& GetColliders() const;
 private:
     bool PassFilter(const CColliderComponent* a, const CColliderComponent* b) const;
     void HandlePair(CColliderComponent* a, CColliderComponent* b);

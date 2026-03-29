@@ -27,6 +27,16 @@ void CCollisionSystem::SetBoundingFrustum(const BoundingFrustum& BFrustum)
 	mCameraCollider = BFrustum;
 }
 
+size_t CCollisionSystem::GetColiidersNum() const
+{
+	return mColliders.size();
+}
+
+const std::vector<CColliderComponent*>& CCollisionSystem::GetColliders() const
+{
+	return mColliders;
+}
+
 bool CCollisionSystem::PassFilter(const CColliderComponent* a, const CColliderComponent* b) const
 {
     // 레이어/마스크: 서로 허용해야 충돌(대칭)

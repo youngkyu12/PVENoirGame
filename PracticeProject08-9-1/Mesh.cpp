@@ -1030,3 +1030,368 @@ void CMesh::LinkMaterials(
         }
     }
 }
+
+CBoxMeshDiffused::CBoxMeshDiffused(
+	ID3D12Device* pd3dDevice,
+	ID3D12GraphicsCommandList* pd3dCommandList,
+	CColliderComponent* Collider)
+	: CMesh(pd3dDevice, pd3dCommandList)
+{
+	if ( !pd3dDevice || !pd3dCommandList || !Collider )
+		return;
+
+	struct DEBUG_VERTEX
+	{
+		XMFLOAT3 position;
+		XMFLOAT4 color;
+		XMFLOAT3 normal;
+	};
+
+	std::vector<DEBUG_VERTEX> vertices;
+	std::vector<UINT> indices;
+
+	vertices.reserve(8);
+	indices.reserve(24);
+
+	XMFLOAT3 corners[8]{};
+
+	const EColliderType colliderType = Collider->GetType();
+
+	if ( colliderType == EColliderType::OOBB )
+	{
+		const BoundingOrientedBox obb = Collider->GetOOBB();
+
+		const XMVECTOR vCenter = XMLoadFloat3(&obb.Center);
+		const XMVECTOR vExtent = XMLoadFloat3(&obb.Extents);
+		const XMVECTOR qRot = XMLoadFloat4(&obb.Orientation);
+
+		const XMMATRIX R = XMMatrixRotationQuaternion(qRot);
+
+		const XMFLOAT3 localOffsets[8] =
+		{
+			XMFLOAT3(-obb.Extents.x, -obb.Extents.y, -obb.Extents.z),
+			XMFLOAT3(-obb.Extents.x, +obb.Extents.y, -obb.Extents.z),
+			XMFLOAT3(+obb.Extents.x, +obb.Extents.y, -obb.Extents.z),
+			XMFLOAT3(+obb.Extents.x, -obb.Extents.y, -obb.Extents.z),
+
+			XMFLOAT3(-obb.Extents.x, -obb.Extents.y, +obb.Extents.z),
+			XMFLOAT3(-obb.Extents.x, +obb.Extents.y, +obb.Extents.z),
+			XMFLOAT3(+obb.Extents.x, +obb.Extents.y, +obb.Extents.z),
+			XMFLOAT3(+obb.Extents.x, -obb.Extents.y, +obb.Extents.z)
+		};
+
+		for ( int i = 0; i < 8; ++i )
+		{
+			XMVECTOR vLocal = XMLoadFloat3(&localOffsets[i]);
+			XMVECTOR vWorld = XMVector3TransformCoord(vLocal, R) + vCenter;
+			XMStoreFloat3(&corners[i], vWorld);
+		}
+	}
+	else
+	{
+		const BoundingBox aabb = Collider->GetAABB();
+
+		corners[0] = XMFLOAT3(aabb.Center.x - aabb.Extents.x, aabb.Center.y - aabb.Extents.y, aabb.Center.z - aabb.Extents.z);
+		corners[1] = XMFLOAT3(aabb.Center.x - aabb.Extents.x, aabb.Center.y + aabb.Extents.y, aabb.Center.z - aabb.Extents.z);
+		corners[2] = XMFLOAT3(aabb.Center.x + aabb.Extents.x, aabb.Center.y + aabb.Extents.y, aabb.Center.z - aabb.Extents.z);
+		corners[3] = XMFLOAT3(aabb.Center.x + aabb.Extents.x, aabb.Center.y - aabb.Extents.y, aabb.Center.z - aabb.Extents.z);
+
+		corners[4] = XMFLOAT3(aabb.Center.x - aabb.Extents.x, aabb.Center.y - aabb.Extents.y, aabb.Center.z + aabb.Extents.z);
+		corners[5] = XMFLOAT3(aabb.Center.x - aabb.Extents.x, aabb.Center.y + aabb.Extents.y, aabb.Center.z + aabb.Extents.z);
+		corners[6] = XMFLOAT3(aabb.Center.x + aabb.Extents.x, aabb.Center.y + aabb.Extents.y, aabb.Center.z + aabb.Extents.z);
+		corners[7] = XMFLOAT3(aabb.Center.x + aabb.Extents.x, aabb.Center.y - aabb.Extents.y, aabb.Center.z + aabb.Extents.z);
+	}
+
+	const XMFLOAT4 boxColor = XMFLOAT4(1.f, 0.f, 0.f, 1.f);
+
+	for ( int i = 0; i < 8; ++i )
+	{
+		DEBUG_VERTEX v{};
+		v.position = corners[i];
+		v.color = boxColor;
+		v.normal = XMFLOAT3(0.f, 0.f, 0.f);
+		vertices.push_back(v);
+	}
+
+	// Wire box edges
+	const UINT lineIndices[24] =
+	{
+		0,1, 1,2, 2,3, 3,0,   // front
+		4,5, 5,6, 6,7, 7,4,   // back
+		0,4, 1,5, 2,6, 3,7    // side connections
+	};
+
+	indices.assign(std::begin(lineIndices), std::end(lineIndices));
+
+	m_d3dPrimitiveTopology = D3D_PRIMITIVE_TOPOLOGY_LINELIST;
+	m_nSlot = 0;
+
+	m_SubMeshes.resize(1);
+	SubMesh& sm = m_SubMeshes[0];
+
+	sm.positions.reserve(vertices.size());
+	sm.indices = indices;
+
+	for ( const auto& v : vertices )
+		sm.positions.push_back(v.position);
+
+	sm.subMeshMin = XMFLOAT3(FLT_MAX, FLT_MAX, FLT_MAX);
+	sm.subMeshMax = XMFLOAT3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+	for ( const auto& p : sm.positions )
+	{
+		sm.subMeshMin.x = min(sm.subMeshMin.x, p.x);
+		sm.subMeshMin.y = min(sm.subMeshMin.y, p.y);
+		sm.subMeshMin.z = min(sm.subMeshMin.z, p.z);
+
+		sm.subMeshMax.x = max(sm.subMeshMax.x, p.x);
+		sm.subMeshMax.y = max(sm.subMeshMax.y, p.y);
+		sm.subMeshMax.z = max(sm.subMeshMax.z, p.z);
+	}
+
+	MeshMin = sm.subMeshMin;
+	MeshMax = sm.subMeshMax;
+
+	const UINT vertexBufferSize = static_cast< UINT >( sizeof(DEBUG_VERTEX) * vertices.size() );
+	const UINT indexBufferSize = static_cast< UINT >( sizeof(UINT) * indices.size() );
+
+	sm.vb = ::CreateBufferResource(
+		pd3dDevice,
+		pd3dCommandList,
+		vertices.data(),
+		vertexBufferSize,
+		D3D12_HEAP_TYPE_DEFAULT,
+		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+		&sm.vbUpload
+	);
+
+	sm.ib = ::CreateBufferResource(
+		pd3dDevice,
+		pd3dCommandList,
+		indices.data(),
+		indexBufferSize,
+		D3D12_HEAP_TYPE_DEFAULT,
+		D3D12_RESOURCE_STATE_INDEX_BUFFER,
+		&sm.ibUpload
+	);
+
+	sm.vbView.BufferLocation = sm.vb->GetGPUVirtualAddress();
+	sm.vbView.StrideInBytes = sizeof(DEBUG_VERTEX);
+	sm.vbView.SizeInBytes = vertexBufferSize;
+
+	sm.ibView.BufferLocation = sm.ib->GetGPUVirtualAddress();
+	sm.ibView.Format = DXGI_FORMAT_R32_UINT;
+	sm.ibView.SizeInBytes = indexBufferSize;
+}
+
+CCapsuleMeshDiffused::CCapsuleMeshDiffused(
+	ID3D12Device* pd3dDevice,
+	ID3D12GraphicsCommandList* pd3dCommandList,
+	CColliderComponent* Collider)
+	: CMesh(pd3dDevice, pd3dCommandList)
+{
+	if ( !pd3dDevice || !pd3dCommandList )
+		return;
+
+	struct DEBUG_VERTEX
+	{
+		XMFLOAT3 position;
+		XMFLOAT4 color;
+		XMFLOAT3 normal;
+	};
+
+	std::vector<DEBUG_VERTEX> vertices;
+	std::vector<UINT> indices;
+
+	const UINT segments = 16;
+	const UINT arcSegments = segments / 2;
+
+	const float radius = 0.5f;
+	const float halfBody = 0.5f;   // hemisphere center offset from origin
+	const float topY = +halfBody;
+	const float bottomY = -halfBody;
+
+	const XMFLOAT4 color = XMFLOAT4(0.f, 1.f, 0.f, 1.f);
+
+	auto AddVertex = [ & ] (float x, float y, float z) -> UINT
+		{
+			DEBUG_VERTEX v{};
+			v.position = XMFLOAT3(x, y, z);
+			v.color = color;
+			v.normal = XMFLOAT3(0.f, 0.f, 0.f);
+			vertices.push_back(v);
+			return static_cast< UINT >( vertices.size() - 1 );
+		};
+
+	const float kTwoPi = XM_PI * 2.0f;
+
+	std::vector<UINT> topRing;
+	std::vector<UINT> bottomRing;
+	topRing.reserve(segments);
+	bottomRing.reserve(segments);
+
+	// top / bottom circle rings
+	for ( UINT i = 0; i < segments; ++i )
+	{
+		const float t = kTwoPi * ( static_cast< float >(i) / static_cast< float >(segments) );
+		const float c = cosf(t);
+		const float s = sinf(t);
+
+		topRing.push_back(AddVertex(c * radius, topY, s * radius));
+		bottomRing.push_back(AddVertex(c * radius, bottomY, s * radius));
+	}
+
+	// ring line indices
+	for ( UINT i = 0; i < segments; ++i )
+	{
+		const UINT ni = ( i + 1 ) % segments;
+
+		indices.push_back(topRing[i]);
+		indices.push_back(topRing[ni]);
+
+		indices.push_back(bottomRing[i]);
+		indices.push_back(bottomRing[ni]);
+	}
+
+	// cylinder side lines: 4 directions
+	const UINT quarter = segments / 4;
+	const UINT sideIds[4] =
+	{
+		0,
+		quarter,
+		quarter * 2,
+		quarter * 3
+	};
+
+	for ( UINT k = 0; k < 4; ++k )
+	{
+		const UINT idx = sideIds[k] % segments;
+		indices.push_back(topRing[idx]);
+		indices.push_back(bottomRing[idx]);
+	}
+
+	// arc builder
+	auto BuildArcXZ = [ & ] (bool topHemisphere, bool alongX)
+		{
+			UINT prev = UINT_MAX;
+
+			for ( UINT i = 0; i <= arcSegments; ++i )
+			{
+				const float a = XM_PI * ( static_cast< float >( i ) / static_cast< float >( arcSegments ) );
+				const float sy = sinf(a);
+				const float cy = cosf(a);
+
+				float x = 0.f;
+				float y = 0.f;
+				float z = 0.f;
+
+				if ( topHemisphere )
+				{
+					y = topY + sy * radius;
+
+					if ( alongX )
+					{
+						x = cy * radius;
+						z = 0.f;
+					}
+					else
+					{
+						x = 0.f;
+						z = cy * radius;
+					}
+				}
+				else
+				{
+					y = bottomY - sy * radius;
+
+					if ( alongX )
+					{
+						x = cy * radius;
+						z = 0.f;
+					}
+					else
+					{
+						x = 0.f;
+						z = cy * radius;
+					}
+				}
+
+				const UINT cur = AddVertex(x, y, z);
+
+				if ( prev != UINT_MAX )
+				{
+					indices.push_back(prev);
+					indices.push_back(cur);
+				}
+
+				prev = cur;
+			}
+		};
+
+	// top hemisphere arcs
+	BuildArcXZ(true, true);   // X-Y plane
+	BuildArcXZ(true, false);  // Z-Y plane
+
+	// bottom hemisphere arcs
+	BuildArcXZ(false, true);  // X-Y plane
+	BuildArcXZ(false, false); // Z-Y plane
+
+	m_d3dPrimitiveTopology = D3D_PRIMITIVE_TOPOLOGY_LINELIST;
+	m_nSlot = 0;
+
+	m_SubMeshes.resize(1);
+	SubMesh& sm = m_SubMeshes[0];
+
+	sm.positions.reserve(vertices.size());
+	sm.indices = indices;
+
+	sm.subMeshMin = XMFLOAT3(FLT_MAX, FLT_MAX, FLT_MAX);
+	sm.subMeshMax = XMFLOAT3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+	for ( const auto& v : vertices )
+	{
+		sm.positions.push_back(v.position);
+
+		sm.subMeshMin.x = min(sm.subMeshMin.x, v.position.x);
+		sm.subMeshMin.y = min(sm.subMeshMin.y, v.position.y);
+		sm.subMeshMin.z = min(sm.subMeshMin.z, v.position.z);
+
+		sm.subMeshMax.x = max(sm.subMeshMax.x, v.position.x);
+		sm.subMeshMax.y = max(sm.subMeshMax.y, v.position.y);
+		sm.subMeshMax.z = max(sm.subMeshMax.z, v.position.z);
+	}
+
+	MeshMin = sm.subMeshMin;
+	MeshMax = sm.subMeshMax;
+
+	const UINT vbSize = static_cast< UINT >( sizeof(DEBUG_VERTEX) * vertices.size() );
+	const UINT ibSize = static_cast< UINT >( sizeof(UINT) * indices.size() );
+
+	sm.vb = ::CreateBufferResource(
+		pd3dDevice,
+		pd3dCommandList,
+		vertices.data(),
+		vbSize,
+		D3D12_HEAP_TYPE_DEFAULT,
+		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+		&sm.vbUpload
+	);
+
+	sm.ib = ::CreateBufferResource(
+		pd3dDevice,
+		pd3dCommandList,
+		indices.data(),
+		ibSize,
+		D3D12_HEAP_TYPE_DEFAULT,
+		D3D12_RESOURCE_STATE_INDEX_BUFFER,
+		&sm.ibUpload
+	);
+
+	sm.vbView.BufferLocation = sm.vb->GetGPUVirtualAddress();
+	sm.vbView.StrideInBytes = sizeof(DEBUG_VERTEX);
+	sm.vbView.SizeInBytes = vbSize;
+
+	sm.ibView.BufferLocation = sm.ib->GetGPUVirtualAddress();
+	sm.ibView.Format = DXGI_FORMAT_R32_UINT;
+	sm.ibView.SizeInBytes = ibSize;
+}

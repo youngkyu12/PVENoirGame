@@ -376,7 +376,7 @@ namespace Vector3
 		return (u >= 0.0f) && (v >= 0.0f) && (u + v <= 1.0f);
 	}
 	
-	inline float distSegmentToFace(FXMVECTOR A, FXMVECTOR B, FXMVECTOR V0, FXMVECTOR V1, FXMVECTOR V2)
+	inline float distSegmentToTriangle(FXMVECTOR A, FXMVECTOR B, FXMVECTOR V0, FXMVECTOR V1, FXMVECTOR V2)
 	{
 		XMVECTOR AB = B - A;
 		XMVECTOR E0 = V1 - V0;
@@ -527,18 +527,31 @@ namespace Vector3
 			}
 			else {
 				float ood = 1.0f / d[i];
-				float t1 = ( minEx[i] - p0[i] ) * ood;	// P(t) = A + t(B - A)
+				float t1 = ( minEx[i] - p0[i] ) * ood;	
+				// P(t) = A + t(B - A), 
 				// minEx[i] = p0[i] + t1 * d[i]
 				// t1 =(minEx[i] - p0[i]) / d[i] 
-				float t2 = ( maxEx[i] - p0[i] ) * ood;	// maxEx[i] = p0[i] + t2 * d[i]
+				// 선분 P(t)=A+t(B-A)가 축 i의 최소 경계면(minEx[i])과 만나는 t1
+				// 만약 AB 선분 위에 minEx[i]가 존재한다면 0.0~1.0 사이 값이 나온다.
+				// 만약 AB 선분 위에 minEx[i]가 존재하지 않는다면 0.0보다 작거나 1.0보다 큰 값이 나온다.
+				
+				float t2 = ( maxEx[i] - p0[i] ) * ood;	
+				// P(t) = A + t(B - A), 
+				// maxEx[i] = p0[i] + t2 * d[i]
 				// t2 =(maxEx[i] - p0[i]) / d[i] 
+				// 선분 P(t)=A+t(B-A)가 축 i의 최대 경계면(maxEx[i])과 만나는 t2
+				// 만약 AB 선분 위에 maxEx[i]가 존재한다면 0.0~1.0 사이 값이 나온다.
+				// 만약 AB 선분 위에 maxEx[i]가 존재하지 않는다면 0.0보다 작거나 1.0보다 큰 값이 나온다.
+				// [t1, t2]은 각 축의 slab 공간([-ex, ex]) 사이를 만족하는 P(t)점의 허용 범위이다.
+				// 다른 말로 t1은 각 축의 slab 공간 진입 시점(-ex) 중 P(t)점의 허용 범위이다.
+				// t2는 각 축의 slab 공간 이탈 시점(ex) 중 P(t)점의 허용 범위이다.
 
-				if ( t1 > t2 )	// 선분 방향이 음수일 수도 있기 때문에
-					std::swap(t1, t2);
+				if ( t1 > t2 )	
+					std::swap(t1, t2); // 현재 축에서 slab 진입/이탈 시점 순서를 정리
 
-				tmin = max(tmin, t1);
-				tmax = min(tmax, t2);
-
+				tmin = max(tmin, t1);	// 현재까지의 유효 구간 시작과, 이번 축의 진입 시점 중 더 큰 값
+				tmax = min(tmax, t2);	// 현재까지의 유효 구간 끝과, 이번 축의 이탈 시점 중 더 작은 값
+				
 				if ( tmin > tmax )
 					return false;
 			}
@@ -549,12 +562,11 @@ namespace Vector3
 
 	inline float distSegmentToAABB(FXMVECTOR A, FXMVECTOR B, FXMVECTOR Extents)
 	{
-		// 1) 선분이 박스를 통과하면 거리 0
+		// 1) 로컬공간에서의 캡슐 축 양끝점이 박스를 통과하면 거리 0 == 충돌
 		if(IntersectSegmentAABB(A, B, Extents))
 			return 0.0f;
 
 		float minDistSq = FLT_MAX;
-
 
 		// 2) 끝점 A, B 에서 AABB까지 거리도 후보
 		minDistSq = min(minDistSq, DistPointToAABBSq(A, Extents));

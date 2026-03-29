@@ -14,6 +14,7 @@
 #include "Component.h"
 #include "RendererComponent.h"
 #include "ModelComponent.h"
+#include "ColliderComponent.h"
 
 #define DIR_FORWARD					0x01
 #define DIR_BACKWARD				0x02
@@ -144,12 +145,16 @@ public:
 	void SetPosition(float x, float y, float z)
 	{
 		m_pTransform->SetPosition(XMFLOAT3(x, y, z));
+		if ( m_pCollider )
+			m_pCollider->UpdateWorldBounds();
 	}
 	void SetPosition(XMFLOAT3 p) { SetPosition(p.x, p.y, p.z); }
 
 	void SetWorldMatrix(const XMFLOAT4X4& W)
 	{
 		m_pTransform->SetWorldMatrixFromMatrix(W);
+		if ( m_pCollider )
+			m_pCollider->UpdateWorldBounds();
 	}
 
 	// Animation / Skinning (per-object)

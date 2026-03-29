@@ -22,7 +22,7 @@ public:
 
 private:
 	double							m_fTimeScale;						
-	float							m_fTimeElapsed;		
+	float							m_fTimeElapsed = 0;		
 
 	__int64							m_nBasePerformanceCounter;
 	__int64							m_nPausedPerformanceCounter;
