@@ -335,7 +335,8 @@ void CColliderComponent::SetSubBCapsule(const XMFLOAT3& Min, const XMFLOAT3& Max
 
 void CColliderComponent::DisabledRender()
 {
-	mRender->SetEnabled(false);
+	if ( mRender )
+		mRender->SetEnabled(false);
 }
 
 void CColliderComponent::UpdateWorldBounds()

@@ -50,15 +50,18 @@ public:
 	uint32_t GetMask() const { return mMask; }
 	bool IsTrigger() const { return mIsTrigger; }
 
-private:
+	// external helpers
 	void UpdateWorldBounds();
+	void DisabledRender();
 
+private:
 	static BoundingOrientedBox MakeLocalOOBB(const XMFLOAT3& Min, const XMFLOAT3& Max);
 	void BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>& meshes);
 
 private:
 	CTransformComponent* mTransform = nullptr;
 	CModelComponent* mModel = nullptr;
+	CRendererComponent* mRender = nullptr;
 
 	EColliderType mColliderType = EColliderType::None;
 
