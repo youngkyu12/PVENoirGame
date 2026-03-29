@@ -45,11 +45,12 @@ private:
     map<uint64, PlayerRef> players; // 전체 플레이어 참조
 	map<uint64, EnemyRef> fighters; //  특수 적 참조 (옵션)
 	map<uint64, EnemyRef> enemies; // 전체 적 참조 (옵션)
+	map<uint64, BuildingRef> buildings; // 맵 파일 기반 정적 오브젝트
     //array<GameAreaRef, 9> gameAreas; // 9개 구역
 
     Atomic<uint32> tick = 0;
 };
 
 extern shared_ptr<Room> GRoom;
-constexpr int MaxPlayers = 1;
+constexpr int MaxPlayers = 2;
 

@@ -12,6 +12,8 @@
 #include "ClientPacketHandler.h"
 
 #include <algorithm>
+#include <fstream>
+#include <cstdio>
 
 shared_ptr<Room> GRoom = make_shared<Room>();
 
@@ -67,6 +69,99 @@ namespace
 
 		return code;
 	}
+
+	struct PlacementEntry
+	{
+		std::string asset;
+		std::string objectName;
+		GameMath::Vec3 position = GameMath::Vec3::Zero();
+		float yawDeg = 0.0f;
+	};
+
+	static float QuaternionToYawDegrees(float x, float y, float z, float w)
+	{
+		const float siny_cosp = 2.0f * (w * y + x * z);
+		const float cosy_cosp = 1.0f - 2.0f * (y * y + z * z);
+		return atan2f(siny_cosp, cosy_cosp) * GameMath::RAD_TO_DEG;
+	}
+
+	static bool ParsePlacementEntryLine(const std::string& line, PlacementEntry& out)
+	{
+		char asset[64] = {};
+		char objectName[128] = {};
+		float px = 0.0f, py = 0.0f, pz = 0.0f;
+		float qx = 0.0f, qy = 0.0f, qz = 0.0f, qw = 1.0f;
+
+		const int matched = ::sscanf_s(
+			line.c_str(),
+			"ENTRY|asset=\"%63[^\"]\"|object=\"%127[^\"]\"|pos=(%f,%f,%f)|rot=(%f,%f,%f,%f)",
+			asset, static_cast<unsigned>(_countof(asset)),
+			objectName, static_cast<unsigned>(_countof(objectName)),
+			&px, &py, &pz,
+			&qx, &qy, &qz, &qw
+		);
+
+		if (matched != 9)
+			return false;
+
+		out.asset = asset;
+		out.objectName = objectName;
+		out.position = GameMath::Vec3(px, py, pz);
+		out.yawDeg = QuaternionToYawDegrees(qx, qy, qz, qw);
+		return true;
+	}
+
+	static bool LoadPlacementEntries(std::vector<PlacementEntry>& outEntries)
+	{
+		outEntries.clear();
+
+		const std::vector<std::string> candidates = {
+			"MapFIle/placement_export_st1.txt",
+			"GameServer/MapFIle/placement_export_st1.txt",
+			"../GameServer/MapFIle/placement_export_st1.txt"
+		};
+
+		std::ifstream fin;
+		for (const auto& path : candidates)
+		{
+			fin.open(path);
+			if (fin.is_open())
+				break;
+			fin.clear();
+		}
+
+		if (!fin.is_open())
+			return false;
+
+		std::string line;
+		while (std::getline(fin, line))
+		{
+			PlacementEntry entry;
+			if (!ParsePlacementEntryLine(line, entry))
+				continue;
+			outEntries.push_back(std::move(entry));
+		}
+
+		return !outEntries.empty();
+	}
+
+	static Protocol::BuildingType AssetToBuildingType(const std::string& asset)
+	{
+		if (asset == "Grass") return Protocol::BUILDING_TYPE_GRASS;
+		if (asset == "Ground") return Protocol::BUILDING_TYPE_GROUND;
+		if (asset == "Building1") return Protocol::BUILDING_TYPE_BUILDING1;
+		if (asset == "Building2") return Protocol::BUILDING_TYPE_BUILDING2;
+		if (asset == "Building3") return Protocol::BUILDING_TYPE_BUILDING3;
+		if (asset == "Building4") return Protocol::BUILDING_TYPE_BUILDING4;
+		if (asset == "Building5") return Protocol::BUILDING_TYPE_BUILDING5;
+		if (asset == "Building6") return Protocol::BUILDING_TYPE_BUILDING6;
+		if (asset == "Building7") return Protocol::BUILDING_TYPE_BUILDING7;
+		if (asset == "Building8") return Protocol::BUILDING_TYPE_BUILDING8;
+		if (asset == "Building9") return Protocol::BUILDING_TYPE_BUILDING9;
+		if (asset == "VillageWall") return Protocol::BUILDING_TYPE_VILLAGE_WALL;
+		if (asset == "DirtRoad") return Protocol::BUILDING_TYPE_DIRT_ROAD;
+		return Protocol::BUILDING_TYPE_NONE;
+	}
 }
 
 
@@ -78,6 +173,7 @@ void Room::Enter(PlayerRef player)
 		static_cast<Protocol::WeaponType>(player->playerId + 2), 0); // 예시: 모든 플레이어가 검으로 시작
 
 	players[player->playerId] = player;
+	player->SetActive(false); // 초기에는 비활성화 상태로 시작 (Ready 신호 대기)
 }
 
 void Room::Leave(PlayerRef player)
@@ -102,6 +198,26 @@ void Room::BroadCastAll(SendBufferRef sendBuffer)
 
 void Room::BuildRoom()
 {
+	buildings.clear();
+
+	std::vector<PlacementEntry> entries;
+	if (LoadPlacementEntries(entries))
+	{
+		uint64 buildingId = 1;
+		for (const auto& e : entries)
+		{
+			auto building = std::make_shared<CBuilding>();
+			building->SetObjectId(buildingId);
+			building->SetPosition(e.position);
+			building->SetYaw(GameMath::NormalizeYaw(e.yawDeg));
+			building->SetBuildingType(AssetToBuildingType(e.asset));
+			building->SetActive(true);
+
+			buildings[buildingId] = building;
+			++buildingId;
+		}
+	}
+
 	MakeFireRateMap();
 	for (int i = 0; i < 10; ++i)
 	{
@@ -146,7 +262,8 @@ void Room::StartGame(bool ready, uint32 index)
 		{
 			return player.second && player.second->IsActive();
 		})
-		)
+		&& 
+		players.size() == MaxPlayers)
 	{
 		if (gameStarted.exchange(true) == false)
 		{
@@ -254,7 +371,6 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		player->SetAnimTick(tick); // 애니메이션 상태가 바뀌면 현재의 server tick을 넣어줌
 
 
-
 	//if (keyCodes & (kDirForward | kDirBackward))
 	//	player->SetAnimState(Protocol::ANIMATION_TYPE_WALK);
 
@@ -319,10 +435,6 @@ void Room::MakeFrameState(uint32 tick)
 		position->set_x(player->GetPosition().x);
 		position->set_y(player->GetPosition().y);
 		position->set_z(player->GetPosition().z);
-
-
-
-
 		transform->set_yaw(player->GetYaw());
 	}
 
@@ -344,17 +456,10 @@ void Room::MakeFrameState(uint32 tick)
 		position->set_x(enemy->GetPosition().x);
 		position->set_y(enemy->GetPosition().y);
 		position->set_z(enemy->GetPosition().z);
-
-
 	}
-
-
-
-
 
 	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(frameStatePkt);
 	GRoom->DoAsync(&Room::BroadCastAll, sendBuffer);
-
 
 	// 다음 업데이트 예약
 	GRoom->DoTimer(30, &Room::TickAdvance);
@@ -396,17 +501,25 @@ void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
 		position->set_x(enemy->GetPosition().x);
 		position->set_y(enemy->GetPosition().y);
 		position->set_z(enemy->GetPosition().z);
-
-
 	}
 
+	for (auto buildingMap : buildings)
+	{
+		BuildingRef& building = buildingMap.second;
+		auto b = initStruct->add_buildings();
+		b->set_id(buildingMap.first);
+		b->set_buildingtype(building->GetBuildingType());
 
-
-
+		Protocol::Transform* transform = b->mutable_transform();
+		Protocol::Vec3f* position = transform->mutable_position();
+		position->set_x(building->GetPosition().x);
+		position->set_y(building->GetPosition().y);
+		position->set_z(building->GetPosition().z);
+		transform->set_yaw(building->GetYaw());
+	}
 
 	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(gameStartPkt);
 	GRoom->DoAsync(&Room::BroadCastAll, sendBuffer);
-
 
 	// 최초 시작 전, 모든 플레이어의 active를 비활성화
 	for (auto& player : players)
@@ -426,7 +539,7 @@ void Room::CheckClientReady()
 {
 	//TODO: 모든 플레이어가 ready를 보냈는지 확인하는 함수 정의
 
-	bool allPlayerBuilt = !players.empty();
+	bool allPlayerBuilt = false;
 	for (auto& player : players)
 	{
 		allPlayerBuilt = allPlayerBuilt && player.second->IsActive();
