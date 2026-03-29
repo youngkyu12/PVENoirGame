@@ -11,8 +11,8 @@ class CCamera;
 
 // ============================================================================
 // Renderer Component Base
-//  - CComponent¸¦ "ÇÑ ¹ø¸¸" »ó¼Ó (´ÙÁß»ó¼Ó/¸ğÈ£¼º Á¦°Å)
-//  - Render()¸¸ ¼ø¼ö °¡»óÀ¸·Î Á¦°ø
+//  - CComponentë¥¼ "í•œ ë²ˆë§Œ" ìƒì† (ë‹¤ì¤‘ìƒì†/ëª¨í˜¸ì„± ì œê±°)
+//  - Render()ë§Œ ìˆœìˆ˜ ê°€ìƒìœ¼ë¡œ ì œê³µ
 // ============================================================================
 class CRendererComponent : public CComponent
 {
@@ -26,7 +26,7 @@ public:
 };
 
 // ----------------------------------------------------------------------------
-// CRTP helper: renderer¿ë TypeId Á¦°ø
+// CRTP helper: rendererìš© TypeId ì œê³µ
 // ----------------------------------------------------------------------------
 template<typename TDerived>
 class CRendererComponentT : public CRendererComponent
@@ -61,4 +61,14 @@ public:
     }
 
     void Render(ID3D12GraphicsCommandList* cmd, CCamera* camera) override;
+};
+
+class CColliderMeshRendererComponent final : public CRendererComponentT<CColliderMeshRendererComponent>
+{
+public:
+	explicit CColliderMeshRendererComponent(CGameObject* owner)
+		: CRendererComponentT(owner) {
+	}
+
+	void Render(ID3D12GraphicsCommandList* cmd, CCamera* camera) override;
 };

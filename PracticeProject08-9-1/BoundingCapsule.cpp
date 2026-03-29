@@ -77,23 +77,49 @@ ContainmentType BoundingCapsule::Contains(FXMVECTOR V0, FXMVECTOR V1, FXMVECTOR 
 
 bool BoundingCapsule::Intersects(const BoundingOrientedBox& box) const noexcept
 {
+    XMVECTOR A = XMLoadFloat3(&p0);
+    XMVECTOR B = XMLoadFloat3(&p1);
+
+    XMVECTOR center = XMLoadFloat3(&box.Center);
+    XMVECTOR extents = XMLoadFloat3(&box.Extents);
+    XMVECTOR q = XMLoadFloat4(&box.Orientation);
+
+    XMVECTOR ALocal = XMVector3InverseRotate(XMVectorSubtract(A, center), q);
+    XMVECTOR BLocal = XMVector3InverseRotate(XMVectorSubtract(B, center), q);
+
+    float distSq = Vector3::distSegmentToAABB(ALocal, BLocal, extents);
+    return distSq <= Radius * Radius;
+}
+
+bool BoundingCapsule::Intersects(const BoundingFrustum& fr) const noexcept
+{
 	XMVECTOR A = XMLoadFloat3(&p0);
 	XMVECTOR B = XMLoadFloat3(&p1);
 
-	XMVECTOR center = XMLoadFloat3(&box.Center);
-	XMVECTOR extents = XMLoadFloat3(&box.Extents);
-	XMVECTOR q = XMLoadFloat4(&box.Orientation);
+	XMVECTOR nearPlane, farPlane, rightPlane, leftPlane, topPlane, bottomPlane;
+	fr.GetPlanes(&nearPlane, &farPlane, &rightPlane, &leftPlane, &topPlane, &bottomPlane);
 
-	XMMATRIX R = XMMatrixRotationQuaternion(q);
-	XMMATRIX InvR = XMMatrixTranspose(R);
+	XMVECTOR planes[6] =
+	{
+		nearPlane, farPlane, rightPlane,
+		leftPlane, topPlane, bottomPlane
+	};
 
-	XMVECTOR ALocal = XMVector3Transform(A - center, InvR);
-	XMVECTOR BLocal = XMVector3Transform(B - center, InvR);
+	for ( int i = 0; i < 6; ++i )
+	{
+		float da = XMVectorGetX(XMPlaneDotCoord(planes[i], A));
+		float db = XMVectorGetX(XMPlaneDotCoord(planes[i], B));
 
-	// 캡슐 반지름만큼 박스를 확장
-	XMVECTOR expandedExtents = extents + XMVectorReplicate(Radius);
+		float dmax = max(da, db);
 
-	return Vector3::IntersectsSegmentAABB(ALocal, BLocal, expandedExtents);
+		// 선분 AB에서 평면에 가장 가까운 쪽 거리(dmax)에
+		// 캡슐 반지름을 더해도 평면 안쪽으로 들어오지 못하면
+		// 캡슐 전체는 해당 평면 바깥에 있으므로 교차하지 않는다.
+		if ( dmax < -Radius )
+			return false;
+	}
+
+	return true;
 }
 
 bool BoundingCapsule::Intersects(const BoundingCapsule& ca) const noexcept
@@ -139,7 +165,7 @@ bool BoundingCapsule::Intersects(FXMVECTOR V0, FXMVECTOR V1, FXMVECTOR V2) const
     Intersection = XMVectorOrInt(Intersection, IntersectionE);
 
     // 캡슐 선분 - 삼각형 면 최단거리
-    float f0 = Vector3::distSegmentToFace(A, B, V0, V1, V2);
+    float f0 = Vector3::distSegmentToTriangle(A, B, V0, V1, V2);
 
     XMVECTOR faceDistSq = XMVectorReplicate(f0);
 
@@ -186,6 +212,39 @@ ContainmentType BoundingCapsule::Contains(const BoundingOrientedBox& box) const 
     }
 
     return CONTAINS;
+}
+ContainmentType BoundingCapsule::Contains(const BoundingFrustum& fr) const noexcept
+{
+	XMVECTOR A = XMLoadFloat3(&p0);
+	XMVECTOR B = XMLoadFloat3(&p1);
+
+	XMVECTOR nearPlane, farPlane, rightPlane, leftPlane, topPlane, bottomPlane;
+	fr.GetPlanes(&nearPlane, &farPlane, &rightPlane, &leftPlane, &topPlane, &bottomPlane);
+
+	XMVECTOR planes[6] =
+	{
+		nearPlane, farPlane, rightPlane,
+		leftPlane, topPlane, bottomPlane
+	};
+
+	bool allInside = true;
+
+	for ( int i = 0; i < 6; ++i )
+	{
+		float da = XMVectorGetX(XMPlaneDotCoord(planes[i], A));
+		float db = XMVectorGetX(XMPlaneDotCoord(planes[i], B));
+
+		float dmin = min(da, db);
+		float dmax = max(da, db);
+
+		if ( dmax < -Radius )
+			return DISJOINT;
+
+		if ( dmin < Radius )
+			allInside = false;
+	}
+
+	return allInside ? CONTAINS : INTERSECTS;
 }
 
 ContainmentType BoundingCapsule::Contains(const BoundingCapsule& ca) const noexcept

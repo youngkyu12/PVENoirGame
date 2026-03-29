@@ -1,6 +1,7 @@
 #pragma once
 #include "Component.h"
 #include "ModelComponent.h"
+#include "RendererComponent.h"
 #include <vector>
 #include <unordered_map>
 #include <string>
@@ -75,11 +76,11 @@ private:
 	BoundingCapsule WorldBCapsule;
 	vector<BoundingCapsule> WorldSubBCapsules;
 
-	// NEW: mesh/submesh 계층형 OOBB
+	// mesh/submesh 계층형 OOBB
 	vector<MeshOOBBSet> mMeshOOBBSets;
 
 	// Filtering
-	uint32_t      mLayer = 0;
-	uint32_t      mMask = 0xFFFFFFFFu;
-	bool          mIsTrigger = false;
+	uint32_t mLayer = 0;
+	uint32_t mMask = 0xFFFFFFFFu;
+	bool mIsTrigger = false;
 };

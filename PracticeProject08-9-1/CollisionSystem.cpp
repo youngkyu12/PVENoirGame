@@ -140,6 +140,21 @@ void CCollisionSystem::UnregisterCollider(CColliderComponent* c)
     mColliders.erase(it, mColliders.end());
 }
 
+void CCollisionSystem::SetBoundingFrustum(const BoundingFrustum& BFrustum)
+{
+	mCameraCollider = BFrustum;
+}
+
+size_t CCollisionSystem::GetColiidersNum() const
+{
+	return mColliders.size();
+}
+
+const std::vector<CColliderComponent*>& CCollisionSystem::GetColliders() const
+{
+	return mColliders;
+}
+
 bool CCollisionSystem::PassFilter(const CColliderComponent* a, const CColliderComponent* b) const
 {
     // 레이어/마스크: 서로 허용해야 충돌(대칭)
@@ -263,6 +278,19 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 	transform->Translate(pos);
 }
 
+bool CCollisionSystem::IsVisible(const BoundingFrustum& frustum, const CColliderComponent* collider)
+{
+	if ( collider->GetType() == EColliderType::BCapsule )
+	{
+		return collider->GetBCapsule().Intersects(frustum);
+	}
+	else if ( collider->GetType() == EColliderType::OOBB )
+	{
+		return collider->GetOOBB().Intersects(frustum);
+	}
+  return false;
+}
+
 void CCollisionSystem::OnUpdate()
 {
     // 전수검사: i<j
@@ -272,6 +300,10 @@ void CCollisionSystem::OnUpdate()
         auto* a = mColliders[i];
         if (!a) continue;
 
+		/*if ( !IsVisible(mCameraCollider, a) )
+			a->DisabledRender();
+			continue;*/
+
         for (size_t j = i + 1; j < n; ++j)
         {
             auto* b = mColliders[j];
@@ -279,6 +311,8 @@ void CCollisionSystem::OnUpdate()
 
             if (!PassFilter(a, b))
                 continue;
+
+			
 
             HandlePair(a, b);
         }

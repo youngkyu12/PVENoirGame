@@ -65,6 +65,9 @@ void CColliderComponent::OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*)
 
     mModel = GetOwner()->GetComponent<CModelComponent>();
     assert(mModel && "CColliderComponent requires CModelComponent");
+	
+	mRender = GetOwner()->GetRenderer();
+	assert(mRender && "CColliderComponent requires CRendererComponent");
 
     const vector<shared_ptr<CMesh>>& meshes = mModel->GetMeshes();
 
@@ -328,6 +331,11 @@ void CColliderComponent::SetSubBCapsule(const XMFLOAT3& Min, const XMFLOAT3& Max
     }
 
     LocalSubBCapsules.push_back(Capsule);
+}
+
+void CColliderComponent::DisabledRender()
+{
+	mRender->SetEnabled(false);
 }
 
 void CColliderComponent::UpdateWorldBounds()
