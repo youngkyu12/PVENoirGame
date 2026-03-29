@@ -9,6 +9,8 @@
 #include "MenuScene.h"
 #include "GameScene.h"
 
+#include "GlobalValues.h"
+
 void CSceneManager::ReleaseCurrent()
 {
     if (m_pScene)
@@ -38,6 +40,6 @@ void CSceneManager::BuildScene(ESceneId id, ID3D12Device* dev, ID3D12GraphicsCom
 
     m_sceneId = id;
 
-    // Scene ºôµå(°¢ SceneÀÌ ³»ºÎ¿¡¼­ Ä«¸Þ¶ó±îÁö ±¸¼º)
+    // Scene ë¹Œë“œ(ê° Sceneì´ ë‚´ë¶€ì—ì„œ ì¹´ë©”ë¼ê¹Œì§€ êµ¬ì„±)
     m_pScene->BuildObjects(dev, cmd);
 }
