@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "BoundingCapsule.h"
+#include <sstream>
 
 void BoundingCapsule::Transform(BoundingCapsule& Out, FXMMATRIX M) const noexcept
 {
@@ -76,29 +77,17 @@ ContainmentType BoundingCapsule::Contains(FXMVECTOR V0, FXMVECTOR V1, FXMVECTOR 
 
 bool BoundingCapsule::Intersects(const BoundingOrientedBox& box) const noexcept
 {
-    XMVECTOR A = XMLoadFloat3(&p0);	// p0
-    XMVECTOR B = XMLoadFloat3(&p1);	// p1
+    XMVECTOR A = XMLoadFloat3(&p0);
+    XMVECTOR B = XMLoadFloat3(&p1);
 
-    XMVECTOR center = XMLoadFloat3(&box.Center);	// OBB Center
-    XMVECTOR extents = XMLoadFloat3(&box.Extents);	// OBB Extents
-    XMVECTOR OBB_quat = XMLoadFloat4(&box.Orientation);	// OBB 회전 상태
+    XMVECTOR center = XMLoadFloat3(&box.Center);
+    XMVECTOR extents = XMLoadFloat3(&box.Extents);
+    XMVECTOR q = XMLoadFloat4(&box.Orientation);
 
-    XMMATRIX R = XMMatrixRotationQuaternion(OBB_quat);	// OBB 회전 상태를 회전행렬로 바꿔서 반환
+    XMVECTOR ALocal = XMVector3InverseRotate(XMVectorSubtract(A, center), q);
+    XMVECTOR BLocal = XMVector3InverseRotate(XMVectorSubtract(B, center), q);
 
-	XMVECTOR ALocal = XMVector3InverseRotate(XMVectorSubtract(A, center), OBB_quat); 
-	// A - center : OBB 중심을 원점으로 봤을 때 A의 상대 위치
-	// InverseRotate : OBB의 회전을 역으로 적용해서 월드 좌표를 OBB 로컬 좌표로 변환
-
-	XMVECTOR BLocal = XMVector3InverseRotate(XMVectorSubtract(B, center), OBB_quat);	
-	// B - center : OBB 중심을 원점으로 봤을 때 B의 상대 위치
-	// InverseRotate : OBB의 회전을 역으로 적용해서 월드 좌표를 OBB 로컬 좌표로 변환
-	
     float distSq = Vector3::distSegmentToAABB(ALocal, BLocal, extents);
-	// ALocal, BLocal은 OBB 중심을 원점으로 하고 회전을 제거한 로컬 공간에서의 캡슐 축 양끝점이다.
-	// 이 공간에서 OBB는 extents를 절반크기로 가지는 AABB가 된다.
-	// 이후 선분 ALocal-BLocal과 AABB 사이의 최단거리를 구하고,
-	// 그 거리가 캡슐 반지름 이하이면 충돌로 판단한다.
-
     return distSq <= Radius * Radius;
 }
 

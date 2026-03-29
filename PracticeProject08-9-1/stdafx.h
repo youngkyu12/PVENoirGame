@@ -604,6 +604,47 @@ namespace Vector3
 
 		return minDistSq;
 	}
+
+	inline bool IntersectsSegmentAABB(FXMVECTOR A, FXMVECTOR B, FXMVECTOR Extents)
+	{
+		float ax = XMVectorGetX(A);
+		float ay = XMVectorGetY(A);
+		float az = XMVectorGetZ(A);
+
+		float bx = XMVectorGetX(B);
+		float by = XMVectorGetY(B);
+		float bz = XMVectorGetZ(B);
+
+		float ex = XMVectorGetX(Extents);
+		float ey = XMVectorGetY(Extents);
+		float ez = XMVectorGetZ(Extents);
+
+		float dx = bx - ax;
+		float dy = by - ay;
+		float dz = bz - az;
+
+		float tmin = 0.0f;
+		float tmax = 1.0f;
+
+		auto slab = [ & ] (float a, float d, float e) -> bool
+			{
+				if ( fabsf(d) <= EPSILON )
+					return ( a >= -e && a <= e );
+
+				float invD = 1.0f / d;
+				float t1 = ( -e - a ) * invD;
+				float t2 = ( e - a ) * invD;
+
+				if ( t1 > t2 ) std::swap(t1, t2);
+
+				tmin = max(tmin, t1);
+				tmax = min(tmax, t2);
+
+				return tmin <= tmax;
+			};
+
+		return slab(ax, dx, ex) && slab(ay, dy, ey) && slab(az, dz, ez);
+	}
 }
 
 namespace Vector4

@@ -3,6 +3,124 @@
 #include "ColliderComponent.h"
 #include "Object.h"
 
+#include "ActorTagComponent.h"
+#include "Mesh.h"
+#include <string>
+#include <sstream>
+
+namespace
+{
+	enum : uint32_t
+	{
+		kCollisionLayerCharacter = 0,
+		kCollisionLayerWorldStatic = 1,
+		kCollisionLayerLocalPlayer = 2
+	};
+
+	const char* ColliderTypeToString(EColliderType type)
+	{
+		switch ( type )
+		{
+		case EColliderType::AABB:     return "AABB";
+		case EColliderType::OOBB:     return "OOBB";
+		case EColliderType::BSphere:  return "BSphere";
+		case EColliderType::BCapsule: return "BCapsule";
+		default:                      return "None";
+		}
+	}
+
+	bool IsLocalPlayerObject(const CGameObject* obj)
+	{
+		if ( !obj ) return false;
+
+		auto* tag = obj->GetComponent<CActorTagComponent>();
+		if ( !tag ) return false;
+
+		return ( tag->kind == EActorKind::Player &&
+				tag->control == EPlayerControl::Local );
+	}
+
+	std::string BuildObjectDebugName(const CGameObject* obj, const CColliderComponent* collider)
+	{
+		std::ostringstream oss;
+
+		if ( !obj )
+		{
+			oss << "null";
+			return oss.str();
+		}
+
+		auto* tag = obj->GetComponent<CActorTagComponent>();
+		if ( tag )
+		{
+			if ( tag->kind == EActorKind::Player )
+			{
+				if ( tag->control == EPlayerControl::Local )
+					oss << "LocalPlayer";
+				else
+					oss << "RemotePlayer";
+
+				oss << "(slot=" << tag->playerSlot << ")";
+			}
+			else if ( tag->kind == EActorKind::NPC )
+			{
+				oss << "NPC";
+			}
+			else
+			{
+				oss << "Actor";
+			}
+		}
+		else
+		{
+			oss << "StaticObject";
+		}
+
+		if ( collider )
+		{
+			oss << "[";
+			oss << ColliderTypeToString(collider->GetType());
+			oss << "]";
+		}
+
+		std::shared_ptr<CMesh> mesh = obj->GetMeshShared(0);
+		if ( mesh )
+		{
+			const std::string& src = mesh->GetSourceMeshPath();
+			if ( !src.empty() )
+			{
+				oss << " mesh=" << src;
+			}
+		}
+
+		oss << " ptr=" << obj;
+		return oss.str();
+	}
+
+	void DebugPrintCollision(CColliderComponent* a, CColliderComponent* b)
+	{
+		if ( !a || !b ) return;
+
+		CGameObject* ownerA = a->GetOwner();
+		CGameObject* ownerB = b->GetOwner();
+
+		if ( !ownerA || !ownerB ) return;
+
+		// 로컬 플레이어가 포함된 충돌만 출력
+		if ( !IsLocalPlayerObject(ownerA) && !IsLocalPlayerObject(ownerB) )
+			return;
+
+		std::ostringstream oss;
+		oss << "[Collision] "
+			<< BuildObjectDebugName(ownerA, a)
+			<< " <-> "
+			<< BuildObjectDebugName(ownerB, b)
+			<< "\n";
+
+		OutputDebugStringA(oss.str().c_str());
+	}
+}
+
 CCollisionSystem::CCollisionSystem()
 {
 }
@@ -49,54 +167,115 @@ bool CCollisionSystem::PassFilter(const CColliderComponent* a, const CColliderCo
     return true;
 }
 
+bool CCollisionSystem::IsPairIntersecting(const CColliderComponent* a, const CColliderComponent* b) const
+{
+	if ( !a || !b )
+		return false;
+
+	if ( !PassFilter(a, b) )
+		return false;
+
+	if ( a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::BCapsule )
+	{
+		return a->GetBCapsule().Intersects(b->GetBCapsule());
+	}
+	else if ( a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::OOBB )
+	{
+		return b->IntersectsCapsuleHierarchical(a->GetBCapsule());
+	}
+	else if ( a->GetType() == EColliderType::OOBB && b->GetType() == EColliderType::BCapsule )
+	{
+		return a->IntersectsCapsuleHierarchical(b->GetBCapsule());
+	}
+
+	return false;
+}
+
+bool CCollisionSystem::HasCollisionWithWorldStatic(const CColliderComponent* subject) const
+{
+	if ( !subject )
+		return false;
+
+	for ( CColliderComponent* other : mColliders )
+	{
+		if ( !other ) continue;
+		if ( other == subject ) continue;
+
+		if ( other->GetLayer() != kCollisionLayerWorldStatic )
+			continue;
+
+		if ( IsPairIntersecting(subject, other) )
+			return true;
+	}
+
+	return false;
+}
+
 void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 {
-    if (!a || !b)
-        return;
+	if ( !a || !b )
+		return;
 
-    bool isHit = false;
+	bool isHit = IsPairIntersecting(a, b);
+	if ( !isHit )
+		return;
 
-    // 타입별 narrow phase
-    if (a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::BCapsule)
-    {
-        isHit = a->GetBCapsule().Intersects(b->GetBCapsule());
-    }
-    else if (a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::OOBB)
-    {
-        isHit = a->GetBCapsule().Intersects(b->GetOOBB());
-    }
-    else if (a->GetType() == EColliderType::OOBB && b->GetType() == EColliderType::BCapsule)
-    {
-        isHit = b->GetBCapsule().Intersects(a->GetOOBB());
-    }
+	CColliderComponent* pushedCollider = nullptr;
 
-    if (!isHit)
-        return;
+	if ( a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::BCapsule )
+	{
+		pushedCollider = a;
+	}
+	else if ( a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::OOBB )
+	{
+		pushedCollider = a;
+	}
+	else if ( a->GetType() == EColliderType::OOBB && b->GetType() == EColliderType::BCapsule )
+	{
+		pushedCollider = b;
+	}
 
-    if (a->IsTrigger() || b->IsTrigger())
-    {
-        // Trigger 이벤트 처리
-        return;
-    }
+	//DebugPrintCollision(a, b);
 
-    auto* ownerA = a->GetOwner();
-    if (!ownerA)
-        return;
+	if ( a->IsTrigger() || b->IsTrigger() )
+	{
+		// Trigger 이벤트 처리
+		return;
+	}
 
-    auto* transformA = ownerA->GetComponent<CTransformComponent>();
-    if (!transformA)
-        return;
+	const bool isCapsuleVsOOBB =
+		( a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::OOBB ) ||
+		( a->GetType() == EColliderType::OOBB && b->GetType() == EColliderType::BCapsule );
 
-    const float pushBackDistance = 0.1f;
+	if ( isCapsuleVsOOBB )
+		return;
 
-    XMFLOAT3 forward = transformA->direction;
-    XMFLOAT3 pos = transformA->position;
+	if ( !pushedCollider )
+		return;
 
-    pos.x -= forward.x * pushBackDistance;
-    pos.y -= forward.y * pushBackDistance;
-    pos.z -= forward.z * pushBackDistance;
+	auto* owner = pushedCollider->GetOwner();
+	if ( !owner )
+		return;
 
-    transformA->Translate(pos);
+	auto* transform = owner->GetComponent<CTransformComponent>();
+	if ( !transform )
+		return;
+
+	const float pushBackDistance = 0.1f;
+
+	XMFLOAT3 forward = transform->direction;
+	XMVECTOR fwdV = XMLoadFloat3(&forward);
+
+	if ( XMVectorGetX(XMVector3LengthSq(fwdV)) < 1e-8f )
+		forward = XMFLOAT3(0.0f, 0.0f, 1.0f);
+
+	XMFLOAT3 pos = transform->position;
+
+	pos.x -= forward.x * pushBackDistance;
+	pos.y -= forward.y * pushBackDistance;
+	pos.z -= forward.z * pushBackDistance;
+
+	transform->Translate(pos);
 }
 
 bool CCollisionSystem::IsVisible(const BoundingFrustum& frustum, const CColliderComponent* collider)
@@ -109,6 +288,7 @@ bool CCollisionSystem::IsVisible(const BoundingFrustum& frustum, const CCollider
 	{
 		return collider->GetOOBB().Intersects(frustum);
 	}
+  return false;
 }
 
 void CCollisionSystem::OnUpdate()

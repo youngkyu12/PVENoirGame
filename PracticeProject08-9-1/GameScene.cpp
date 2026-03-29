@@ -56,6 +56,18 @@ namespace
         kStateDieBit = 1u << 9,
     };
 
+	enum : uint32_t
+	{
+		kCollisionLayerCharacter = 0, // 적 / 원격 플레이어 / 일반 캐릭터
+		kCollisionLayerWorldStatic = 1, // 월드 정적 오브젝트
+		kCollisionLayerLocalPlayer = 2  // 로컬 플레이어만 별도 분리
+	};
+
+	static constexpr uint32_t CollisionBit(uint32_t layer)
+	{
+		return ( 1u << layer );
+	}
+
     struct DecodedAnimStateCode
     {
         bool hasMove = false;
@@ -200,6 +212,14 @@ namespace
 
         return false;
     }
+
+	bool ShouldCreateWorldStaticCollider(const std::string& assetName)
+	{
+		if ( assetName == "Grass" )    return false;
+		if ( assetName == "Ground" )   return false;
+		if ( assetName == "DirtRoad" ) return false;
+		return true;
+	}
 
 	void TriggerMonsterTestCommand(CGameObject* obj, EMonsterAnimCommand cmd, EMonsterAnimState locomotion = EMonsterAnimState::Idle)
 	{
@@ -456,7 +476,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     DequeueNetworkMessage(NetworkMessageType::GameStart);
     m_localPlayerSlot = g_myPlayerId;
 #else
-    m_localPlayerSlot = 1;
+    m_localPlayerSlot = 0;
 #endif
 
     const std::string placementFilePath = "Assets/placement_export_st1.txt";
@@ -921,9 +941,19 @@ void CGameScene::BuildStaticBatch(
         auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
         obj->SetMappedGameObjectCB(cb);
 
-        obj->SetMesh(0, asset.mesh);
-        obj->AddComponent<CStaticMeshRendererComponent>();
-		
+		obj->SetMesh(0, asset.mesh);
+		obj->AddComponent<CStaticMeshRendererComponent>();
+
+		if ( ShouldCreateWorldStaticCollider(placement.assetName) )
+		{
+			auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
+			if ( collider )
+			{
+				collider->SetLayer(kCollisionLayerWorldStatic);
+				// 월드 정적물은 로컬 플레이어만 받는다.
+				collider->SetMask(CollisionBit(kCollisionLayerLocalPlayer));
+			}
+		}
 
         obj->SetPosition(placement.pos);
         obj->Rotate(0.0f, placement.yawDeg, 0.0f);
@@ -992,8 +1022,8 @@ void CGameScene::BuildStaticBatch(
         }
     }
 	// ------------------------------------------------------------------------
-// Bullet pool (Static)
-// ------------------------------------------------------------------------
+	// Bullet pool (Static)
+	// ------------------------------------------------------------------------
 	{
 		AssetBuildDesc BulletDesc =
 		{
@@ -1682,6 +1712,34 @@ void CGameScene::BuildSkinnedBatch(
     b->count = 0;
 
     m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
+	auto ConfigureCharacterCollider = [ ] (CColliderComponent* collider, bool isLocalPlayer)
+		{
+			if ( !collider ) return;
+
+			if ( isLocalPlayer )
+			{
+				collider->SetLayer(kCollisionLayerLocalPlayer);
+
+				// 로컬 플레이어는
+				// - 월드 정적 오브젝트와 충돌
+				// - 일반 캐릭터들과도 충돌 가능
+				collider->SetMask(
+					CollisionBit(kCollisionLayerWorldStatic) |
+					CollisionBit(kCollisionLayerCharacter) |
+					CollisionBit(kCollisionLayerLocalPlayer)
+				);
+			}
+			else
+			{
+				collider->SetLayer(kCollisionLayerCharacter);
+
+				// 적 / 원격 플레이어는 월드 정적물과는 충돌하지 않게 둔다.
+				collider->SetMask(
+					CollisionBit(kCollisionLayerCharacter) |
+					CollisionBit(kCollisionLayerLocalPlayer)
+				);
+			}
+		};
 
     const UINT fighterCount = m_PlayerCount;
 
@@ -1755,8 +1813,8 @@ void CGameScene::BuildSkinnedBatch(
 
                 obj->SetMesh(0, assetW.mesh);
                 obj->AddComponent<CSkinnedMeshRendererComponent>();
-                obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
-				m_ColliderCount++;
+				auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				ConfigureCharacterCollider(collider, false); 
 				auto* animComp = obj->AddComponent<CAnimatorComponent>();
 
                 {
@@ -1901,7 +1959,8 @@ void CGameScene::BuildSkinnedBatch(
 
 				obj->SetMesh(0, assetX.mesh);
 				obj->AddComponent<CSkinnedMeshRendererComponent>();
-				obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				ConfigureCharacterCollider(collider, false); 
 				auto* animComp = obj->AddComponent<CAnimatorComponent>();
 
                 {
@@ -2030,7 +2089,8 @@ void CGameScene::BuildSkinnedBatch(
 
 				obj->SetMesh(0, assetY.mesh);
 				obj->AddComponent<CSkinnedMeshRendererComponent>();
-				obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				ConfigureCharacterCollider(collider, false); 
 				auto* animComp = obj->AddComponent<CAnimatorComponent>();
 
                 {
@@ -2160,7 +2220,8 @@ void CGameScene::BuildSkinnedBatch(
 
 				obj->SetMesh(0, assetZ.mesh);
 				obj->AddComponent<CSkinnedMeshRendererComponent>();
-				obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				ConfigureCharacterCollider(collider, false); 
 				auto* animComp = obj->AddComponent<CAnimatorComponent>();
 
                 {
@@ -2287,7 +2348,8 @@ void CGameScene::BuildSkinnedBatch(
 
 				obj->SetMesh(0, assetOne.mesh);
 				obj->AddComponent<CSkinnedMeshRendererComponent>();
-				obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+				ConfigureCharacterCollider(collider, false); 
 				auto* animComp = obj->AddComponent<CAnimatorComponent>();
 
                 {
@@ -2425,12 +2487,14 @@ void CGameScene::BuildSkinnedBatch(
             auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
             obj->SetMappedGameObjectCB(cb);
 
-            obj->SetMesh(0, asset.mesh);
-            obj->AddComponent<CSkinnedMeshRendererComponent>();
-            obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+			obj->SetMesh(0, asset.mesh);
+			obj->AddComponent<CSkinnedMeshRendererComponent>();
 
-            auto* animComp = obj->AddComponent<CAnimatorComponent>();
-            auto* equipComp = obj->AddComponent<CPlayerEquipmentComponent>();
+			auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+			ConfigureCharacterCollider(collider, isLocal);
+
+			auto* animComp = obj->AddComponent<CAnimatorComponent>(); 
+			auto* equipComp = obj->AddComponent<CPlayerEquipmentComponent>();
 
             {
                 auto* tag = obj->AddComponent<CActorTagComponent>();
@@ -3570,6 +3634,75 @@ bool CGameScene::IsLocalPlayer(const CGameObject* obj) const
     if (!obj) return false;
     auto* tag = obj->GetComponent<CActorTagComponent>();
     return tag && tag->kind == EActorKind::Player && tag->control == EPlayerControl::Local;
+}
+
+bool CGameScene::RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& previousPos)
+{
+	CGameObject* localPlayer = GetPlayer();
+	if ( !localPlayer ) return false;
+	if ( !m_Collision ) return false;
+
+	auto* collider = localPlayer->GetComponent<CColliderComponent>();
+	if ( !collider ) return false;
+
+	const XMFLOAT3 currentPos = localPlayer->GetPosition();
+
+	auto TestPositionAgainstWorldStatic = [ this, localPlayer, collider ] (const XMFLOAT3& testPos) -> bool
+		{
+			localPlayer->SetPosition(testPos);
+			collider->OnUpdate(0.0f);
+			return m_Collision->HasCollisionWithWorldStatic(collider);
+		};
+
+	// 현재 위치가 애초에 안 겹치면 아무 것도 안 함
+	if ( !TestPositionAgainstWorldStatic(currentPos) )
+		return false;
+
+	// 후보 1: X만 롤백 (Z 이동은 살림)
+	XMFLOAT3 candidateRollbackX = currentPos;
+	candidateRollbackX.x = previousPos.x;
+
+	// 후보 2: Z만 롤백 (X 이동은 살림)
+	XMFLOAT3 candidateRollbackZ = currentPos;
+	candidateRollbackZ.z = previousPos.z;
+
+	const bool xResolved = !TestPositionAgainstWorldStatic(candidateRollbackX);
+	const bool zResolved = !TestPositionAgainstWorldStatic(candidateRollbackZ);
+
+	if ( xResolved && zResolved )
+	{
+		const float keepDistSqX =
+			( candidateRollbackX.x - previousPos.x ) * ( candidateRollbackX.x - previousPos.x ) +
+			( candidateRollbackX.z - previousPos.z ) * ( candidateRollbackX.z - previousPos.z );
+
+		const float keepDistSqZ =
+			( candidateRollbackZ.x - previousPos.x ) * ( candidateRollbackZ.x - previousPos.x ) +
+			( candidateRollbackZ.z - previousPos.z ) * ( candidateRollbackZ.z - previousPos.z );
+
+		const XMFLOAT3 resolvedPos = ( keepDistSqX >= keepDistSqZ ) ? candidateRollbackX : candidateRollbackZ;
+		localPlayer->SetPosition(resolvedPos);
+		collider->OnUpdate(0.0f);
+		return true;
+	}
+
+	if ( xResolved )
+	{
+		localPlayer->SetPosition(candidateRollbackX);
+		collider->OnUpdate(0.0f);
+		return true;
+	}
+
+	if ( zResolved )
+	{
+		localPlayer->SetPosition(candidateRollbackZ);
+		collider->OnUpdate(0.0f);
+		return true;
+	}
+
+	// 둘 다 안 되면 전체 롤백
+	localPlayer->SetPosition(previousPos);
+	collider->OnUpdate(0.0f);
+	return true;
 }
 
 bool CGameScene::OnProcessingMouseMessage(HWND /*hWnd*/, UINT msg, WPARAM /*wParam*/, LPARAM /*lParam*/)

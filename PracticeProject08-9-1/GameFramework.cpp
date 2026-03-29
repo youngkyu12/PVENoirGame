@@ -914,7 +914,14 @@ void CGameFramework::ProcessInput()
 
 		if ( dwDirection && !pc->IsActionLockedByAnimation() )
 		{
+			const XMFLOAT3 prevPos = playerObj->GetPosition();
+
 			pc->MoveByYaw(dwDirection, 5.0f * dt, cameraYawDeg, false);
+
+			if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
+			{
+				gameScene->RollbackLocalPlayerMoveIfCollidingWorldStatic(prevPos);
+			}
 		}
 
 		// 애니메이터 방향 비트는 항상 갱신
@@ -970,11 +977,35 @@ void CGameFramework::FrameAdvance()
 	UpdateWindowActivationState();
 
 	ApplyPendingSceneSwitch();
-	
+
+#ifndef USING_NETWORK
+	XMFLOAT3 localPlayerPrevPos = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	bool hasLocalPlayerPrevPos = false;
+
+	if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( m_SceneManager.GetScene() ) )
+	{
+		if ( CGameObject* localPlayer = gameScene->GetPlayer() )
+		{
+			localPlayerPrevPos = localPlayer->GetPosition();
+			hasLocalPlayerPrevPos = true;
+		}
+	}
+#endif
+
 	ProcessInput();
 	AnimateObjects();
+
+#ifndef USING_NETWORK
+	if ( hasLocalPlayerPrevPos )
+	{
+		if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( m_SceneManager.GetScene() ) )
+		{
+			gameScene->RollbackLocalPlayerMoveIfCollidingWorldStatic(localPlayerPrevPos);
+		}
+	}
+#endif
+
 	CollisionSystem();
-	// 충돌체크 함수 필요
 
 	hResult = m_pd3dCommandAllocator->Reset();
 	hResult = m_pd3dCommandList->Reset(m_pd3dCommandAllocator.Get(), nullptr);

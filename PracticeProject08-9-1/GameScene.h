@@ -182,8 +182,9 @@ public:
 
     CGameObject* GetPlayerBySlot(int slot) const; // slot: 0..3
     bool IsLocalPlayer(const CGameObject* obj) const;
-
-    void RequestFireArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f, float yOffset = 0.0f);
+	bool RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& previousPos);
+    
+	void RequestFireArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f, float yOffset = 0.0f);
 
 private:
     // slot 0..3 플레이어 포인터(소유는 m_skinnedObjects가 함)
