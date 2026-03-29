@@ -10,9 +10,11 @@
 #include "SceneRenderTypes.h"
 
 class CMaterial;
+class CMesh;
 class CFollowTransformComponent;
 class CFollowBoneComponent;
 class CArrowComponent;
+class CBulletComponent;
 class CGameObject;
 class CCollisionSystem;
 class CTexture;
@@ -34,6 +36,48 @@ struct StaticPlacementEntry
     XMFLOAT4 rot = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
 
     float yawDeg = 0.0f;
+};
+struct StaticInstanceVertex
+{
+	XMFLOAT4 world0 = XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f);
+	XMFLOAT4 world1 = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
+	XMFLOAT4 world2 = XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f);
+	XMFLOAT4 world3 = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+
+	UINT objectId = 0;
+	UINT pad[3] = { 0, 0, 0 };
+};
+
+struct StaticInstanceGroup
+{
+	std::shared_ptr<CMesh> mesh;
+	UINT subMeshIndex = 0;
+	std::vector<UINT> objectIndices;
+
+	UINT instanceBufferStart = 0;
+};
+
+struct SkinnedInstanceVertex
+{
+	XMFLOAT4 world0 = XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f);
+	XMFLOAT4 world1 = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
+	XMFLOAT4 world2 = XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f);
+	XMFLOAT4 world3 = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+
+	UINT materialId = 0;
+	UINT bonePaletteBase = 0;
+	UINT pad[2] = { 0, 0 };
+};
+
+struct SkinnedInstanceGroup
+{
+	std::string geometryKey;
+	std::shared_ptr<CMesh> mesh;
+	UINT meshIndex = 0;
+	UINT subMeshIndex = 0;
+	std::vector<UINT> objectIndices;
+
+	UINT instanceBufferStart = 0;
 };
 
 // ============================================================================
@@ -99,6 +143,10 @@ private:
     );
 
     void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd);
+	void BuildStaticInstanceGroups();
+	void RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd);
+	void BuildSkinnedInstanceGroups();
+	void RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd);
 
     // Frame / Render
 public:
@@ -164,7 +212,7 @@ private:
     UINT m_ghoulCount = 4;
     UINT m_swordManCount = 3;
     UINT m_bowManCount = 3;
-    UINT m_axeManCount = 2;
+    UINT m_MutantCount = 2;
     UINT m_bossCount = 1;
 
     UINT m_PlayerCount = 4;
@@ -187,7 +235,7 @@ private:
 
     std::vector<CGameObject*> m_swordManRefs;
     std::vector<CGameObject*> m_bowManRefs;
-    std::vector<CGameObject*> m_axeManRefs;
+    std::vector<CGameObject*> m_MutantRefs;
 
     std::vector<CGameObject*> m_helmetRefs;
 
@@ -198,19 +246,30 @@ private:
 
     std::vector<CGameObject*> m_EnemySwordRefs;
     std::vector<CGameObject*> m_EnemyBowRefs;
-    std::vector<CGameObject*> m_EnemyAxeRefs;
 
     std::vector<AttachmentBindSpec> m_attachmentBinds;
 
-    static constexpr UINT kArrowPoolSize = 32;
-    std::vector<CGameObject*> m_arrowRefs;
-    std::array<CGameObject*, 4> m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr };
-    std::array<bool, 4> m_prevBowReleasePhase = { false, false, false, false };
-    int GetPlayerSlotFromObject(const CGameObject* obj) const;
+	static constexpr UINT kArrowPoolSize = 32;
+	static constexpr UINT kBulletPoolSize = 32;
+	std::vector<CGameObject*> m_arrowRefs;
+	std::vector<CGameObject*> m_bulletRefs;
 
-    void RequestPrepareArrow(CGameObject* shooter, float pullBackDistance);
-    void RequestReleasePreparedArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f);
-    void UpdatePreparedBowArrows();
+	std::array<CGameObject*, 4> m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr };
+	std::array<bool, 4> m_prevBowReleasePhase = { false, false, false, false };
+	std::vector<CGameObject*> m_preparedBowmanArrows;
+	std::vector<bool> m_prevEnemyBowReleasePhase;
+
+	int GetPlayerSlotFromObject(const CGameObject* obj) const;
+	int GetBowManIndexFromObject(const CGameObject* obj) const;
+
+	void RequestPrepareArrow(CGameObject* shooter, float pullBackDistance);
+	void RequestReleasePreparedArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f);
+
+	void RequestPrepareBowmanArrow(CGameObject* bowman, float pullBackDistance);
+	void RequestReleasePreparedBowmanArrow(CGameObject* bowman, float speed, float lifeSec = 3.0f);
+	void RequestFireBullet(CGameObject* shooter, float speed, float lifeSec = 3.0f);
+
+	void UpdatePreparedBowArrows();
 
     std::array<CGameObject*, 3> m_demoFighters = { nullptr, nullptr, nullptr };
 
@@ -237,12 +296,27 @@ private:
 private:
     std::vector<StaticPlacementEntry>   m_staticPlacementEntries;
     
+	std::vector<StaticInstanceGroup>    m_staticInstanceGroups;
+	ComPtr<ID3D12Resource>              m_pd3dStaticInstanceBuffer;
+	StaticInstanceVertex* m_pMappedStaticInstanceBuffer = nullptr;
+	UINT                                m_staticInstanceBufferCapacity = 0;
+
     std::shared_ptr<CRectUIShader>      m_inactiveOverlayShader;
     std::shared_ptr<CTexture>           m_inactiveOverlayTex;
     UINT                                m_inactiveOverlaySrvIndex = UINT_MAX;
     bool                                m_bInactiveOverlayVisible = false;
     bool GetPauseOverlayRect(XMFLOAT4& outRect) const;
 
+	std::vector<SkinnedInstanceGroup>   m_skinnedInstanceGroups;
+
+	ComPtr<ID3D12Resource>              m_pd3dSkinnedInstanceBuffer;
+	SkinnedInstanceVertex* m_pMappedSkinnedInstanceBuffer = nullptr;
+	UINT                                m_skinnedInstanceBufferCapacity = 0;
+
+	ComPtr<ID3D12Resource>              m_pd3dSkinnedBonePaletteBuffer;
+	XMFLOAT4X4* m_pMappedSkinnedBonePaletteBuffer = nullptr;
+	UINT                                m_skinnedBonePaletteStride = 0;
+	UINT                                m_skinnedBonePaletteCapacity = 0;
 public:
     bool IsPointInPauseOverlay(POINT clientPt) const;
 

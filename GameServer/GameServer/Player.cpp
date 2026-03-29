@@ -3,7 +3,7 @@
 
 void Player::Update(uint32 serverTick)
 {
-	Move(GetVelocity());
+	Move(m_velocity * ((GetAnimState() == Protocol::ANIMATION_TYPE_RUN) + 1));
 
 	// player는 Move 이후에는 자기 속도를 초기화하는 것으로 가정 (옵션)
 	SetVelocity(GameMath::Vec3::Zero());
@@ -18,8 +18,14 @@ void Player::Update(uint32 serverTick)
 		case Protocol::ANIMATION_TYPE_WALK:
 			animDuration = 30; // 30 ticks
 			break;
+		case Protocol::ANIMATION_TYPE_RUN:
+			animDuration = 20; // 20 ticks
+			break;
 		case Protocol::ANIMATION_TYPE_ATTACK:
 			animDuration = 50; // 20 ticks
+			break;
+		case Protocol::ANIMATION_TYPE_ROLL:
+			animDuration = 40; // 40 ticks
 			break;
 		case Protocol::ANIMATION_TYPE_DIE:
 			animDuration = 50; // 50 ticks

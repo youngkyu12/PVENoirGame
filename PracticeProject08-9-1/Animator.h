@@ -10,10 +10,10 @@
     ============================================================
     CAnimator
     ------------------------------------------------------------
-    - ½ºÄÌ·¹Åæ(º» °èÃş/¿ÀÇÁ¼Â) º¸À¯
-    - AnimationClipµéÀ» µî·Ï/Á¶È¸
-    - ÇöÀç Å¬¸³ Àç»ı ¹× Å©·Î½ºÆäÀÌµå(ºí·»µù) Áö¿ø
-    - Update(dt)¿¡¼­ ·ÎÄÃ Æ÷Áî Æò°¡ ¡æ ±Û·Î¹ú Æ÷Áî ´©Àû ¡æ ½ºÅ°´× ÆÈ·¹Æ®(final matrices) »ı¼º
+    - ìŠ¤ì¼ˆë ˆí†¤(ë³¸ ê³„ì¸µ/ì˜¤í”„ì…‹) ë³´ìœ 
+    - AnimationClipë“¤ì„ ë“±ë¡/ì¡°íšŒ
+    - í˜„ì¬ í´ë¦½ ì¬ìƒ ë° í¬ë¡œìŠ¤í˜ì´ë“œ(ë¸”ë Œë”©) ì§€ì›
+    - Update(dt)ì—ì„œ ë¡œì»¬ í¬ì¦ˆ í‰ê°€ â†’ ê¸€ë¡œë²Œ í¬ì¦ˆ ëˆ„ì  â†’ ìŠ¤í‚¤ë‹ íŒ”ë ˆíŠ¸(final matrices) ìƒì„±
     ============================================================
 */
 class CAnimator
@@ -57,12 +57,13 @@ public:
     bool IsBlending() const { return m_bBlending; }
 
     // --- query helpers ---
-    float GetCurrentTime() const { return m_fCurrentTime; }
-    float GetCurrentClipDuration() const;
-    bool  IsPlaying() const { return m_bPlaying; }
+	float GetCurrentTime() const { return m_fCurrentTime; }
+	float GetCurrentClipDuration() const;
+	float GetClipDuration(const std::string& clipName) const;
+	bool  IsPlaying() const { return m_bPlaying; }
     bool  IsLooping() const { return m_bLoop; }
 
-    // ÇöÀç Å¬¸³ÀÌ "non-loop"·Î Àç»ı ÁßÀÌ°í ³¡¿¡ µµ´ŞÇß´ÂÁö
+    // í˜„ì¬ í´ë¦½ì´ "non-loop"ë¡œ ì¬ìƒ ì¤‘ì´ê³  ëì— ë„ë‹¬í–ˆëŠ”ì§€
     bool  IsCurrentClipFinished(float eps = 1e-4f) const;
 
     float GetUpperBodyOverlayDuration() const;
@@ -77,7 +78,7 @@ private:
     void AdvanceTime(AnimationClip* clip, float& time, float dt, bool loop);
     void BuildGlobalAndFinalFromLocal();
 
-    // LocalPose(A/B)´Â Çà·ÄÀ» TRS·Î ºĞÇØ ÈÄ (T,S´Â lerp / RÀº slerp)·Î ºí·»µùÇÑ´Ù.
+    // LocalPose(A/B)ëŠ” í–‰ë ¬ì„ TRSë¡œ ë¶„í•´ í›„ (T,SëŠ” lerp / Rì€ slerp)ë¡œ ë¸”ë Œë”©í•œë‹¤.
     void BlendLocalPosesTRS(const std::vector<XMFLOAT4X4>& A,
         const std::vector<XMFLOAT4X4>& B,
         float alpha,

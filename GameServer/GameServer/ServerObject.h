@@ -158,6 +158,9 @@ protected:
     // Physics helper
     void ApplyPhysics(float dt);    
 
+    // 능동적인 행동이 가능한지 여부
+    // 예) 구르기, Hit, Die, 근접 공격 도중에는 다른 행동이 불가능하다
+    bool m_bpassive = true; 
 };
 
 //-----------------------------------------------------------------------------

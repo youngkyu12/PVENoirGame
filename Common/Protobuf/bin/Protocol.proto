@@ -43,8 +43,12 @@ message S_GAME_START
 	InitStruct initStruct = 1;
 }
 
-
-
+// 게임이 시작된 후, 클라이언트가 준비되었음을 서버에 알리는 메시지
+message C_CLIENT_READY
+{
+	uint32 playerId = 1;
+	bool ready = 2;
+}
 
 message C_INPUT
 {
