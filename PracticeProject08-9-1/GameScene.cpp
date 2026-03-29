@@ -4063,7 +4063,7 @@ void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 			if ( !m_colliderObjects[j] ) continue;
 			m_colliderObjects[j]->Render(cmd, camera);
 		}
-	
+	}
 
     if (m_bInactiveOverlayVisible && m_inactiveOverlayShader && (m_inactiveOverlaySrvIndex != UINT_MAX))
     {
