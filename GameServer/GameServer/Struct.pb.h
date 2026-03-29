@@ -1447,6 +1447,7 @@ class Building final :
   enum : int {
     kTransformFieldNumber = 2,
     kIdFieldNumber = 1,
+    kBuildingTypeFieldNumber = 3,
   };
   // .Protocol.Transform transform = 2;
   bool has_transform() const;
@@ -1475,6 +1476,15 @@ class Building final :
   void _internal_set_id(::PROTOBUF_NAMESPACE_ID::uint64 value);
   public:
 
+  // .Protocol.BuildingType buildingType = 3;
+  void clear_buildingtype();
+  ::Protocol::BuildingType buildingtype() const;
+  void set_buildingtype(::Protocol::BuildingType value);
+  private:
+  ::Protocol::BuildingType _internal_buildingtype() const;
+  void _internal_set_buildingtype(::Protocol::BuildingType value);
+  public:
+
   // @@protoc_insertion_point(class_scope:Protocol.Building)
  private:
   class _Internal;
@@ -1484,6 +1494,7 @@ class Building final :
   typedef void DestructorSkippable_;
   ::Protocol::Transform* transform_;
   ::PROTOBUF_NAMESPACE_ID::uint64 id_;
+  int buildingtype_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_Struct_2eproto;
 };
@@ -2736,6 +2747,26 @@ inline void Building::set_allocated_transform(::Protocol::Transform* transform) 
   }
   transform_ = transform;
   // @@protoc_insertion_point(field_set_allocated:Protocol.Building.transform)
+}
+
+// .Protocol.BuildingType buildingType = 3;
+inline void Building::clear_buildingtype() {
+  buildingtype_ = 0;
+}
+inline ::Protocol::BuildingType Building::_internal_buildingtype() const {
+  return static_cast< ::Protocol::BuildingType >(buildingtype_);
+}
+inline ::Protocol::BuildingType Building::buildingtype() const {
+  // @@protoc_insertion_point(field_get:Protocol.Building.buildingType)
+  return _internal_buildingtype();
+}
+inline void Building::_internal_set_buildingtype(::Protocol::BuildingType value) {
+  
+  buildingtype_ = value;
+}
+inline void Building::set_buildingtype(::Protocol::BuildingType value) {
+  _internal_set_buildingtype(value);
+  // @@protoc_insertion_point(field_set:Protocol.Building.buildingType)
 }
 
 #ifdef __GNUC__

@@ -132,7 +132,9 @@ PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT EnemyDefaultTypeInternal _Enemy
 constexpr Building::Building(
   ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
   : transform_(nullptr)
-  , id_(uint64_t{0u}){}
+  , id_(uint64_t{0u})
+  , buildingtype_(0)
+{}
 struct BuildingDefaultTypeInternal {
   constexpr BuildingDefaultTypeInternal()
     : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
@@ -219,6 +221,7 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_Struct_2eproto::offsets[] PROT
   ~0u,  // no _weak_field_map_
   PROTOBUF_FIELD_OFFSET(::Protocol::Building, id_),
   PROTOBUF_FIELD_OFFSET(::Protocol::Building, transform_),
+  PROTOBUF_FIELD_OFFSET(::Protocol::Building, buildingtype_),
 };
 static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
   { 0, -1, sizeof(::Protocol::Vec3f)},
@@ -265,15 +268,16 @@ const char descriptor_table_protodef_Struct_2eproto[] PROTOBUF_SECTION_VARIABLE(
   "\022&\n\ttransform\030\004 \001(\0132\023.Protocol.Transform"
   "\022&\n\tanimation\030\005 \001(\0132\023.Protocol.Animation"
   "\022(\n\nweaponType\030\006 \001(\0162\024.Protocol.WeaponTy"
-  "pe\">\n\010Building\022\n\n\002id\030\001 \001(\004\022&\n\ttransform\030"
-  "\002 \001(\0132\023.Protocol.Transformb\006proto3"
+  "pe\"l\n\010Building\022\n\n\002id\030\001 \001(\004\022&\n\ttransform\030"
+  "\002 \001(\0132\023.Protocol.Transform\022,\n\014buildingTy"
+  "pe\030\003 \001(\0162\026.Protocol.BuildingTypeb\006proto3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_Struct_2eproto_deps[1] = {
   &::descriptor_table_Enum_2eproto,
 };
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_Struct_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_Struct_2eproto = {
-  false, false, 954, descriptor_table_protodef_Struct_2eproto, "Struct.proto", 
+  false, false, 1000, descriptor_table_protodef_Struct_2eproto, "Struct.proto", 
   &descriptor_table_Struct_2eproto_once, descriptor_table_Struct_2eproto_deps, 1, 8,
   schemas, file_default_instances, TableStruct_Struct_2eproto::offsets,
   file_level_metadata_Struct_2eproto, file_level_enum_descriptors_Struct_2eproto, file_level_service_descriptors_Struct_2eproto,
@@ -2380,15 +2384,17 @@ Building::Building(const Building& from)
   } else {
     transform_ = nullptr;
   }
-  id_ = from.id_;
+  ::memcpy(&id_, &from.id_,
+    static_cast<size_t>(reinterpret_cast<char*>(&buildingtype_) -
+    reinterpret_cast<char*>(&id_)) + sizeof(buildingtype_));
   // @@protoc_insertion_point(copy_constructor:Protocol.Building)
 }
 
 void Building::SharedCtor() {
 ::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
     reinterpret_cast<char*>(&transform_) - reinterpret_cast<char*>(this)),
-    0, static_cast<size_t>(reinterpret_cast<char*>(&id_) -
-    reinterpret_cast<char*>(&transform_)) + sizeof(id_));
+    0, static_cast<size_t>(reinterpret_cast<char*>(&buildingtype_) -
+    reinterpret_cast<char*>(&transform_)) + sizeof(buildingtype_));
 }
 
 Building::~Building() {
@@ -2422,7 +2428,9 @@ void Building::Clear() {
     delete transform_;
   }
   transform_ = nullptr;
-  id_ = uint64_t{0u};
+  ::memset(&id_, 0, static_cast<size_t>(
+      reinterpret_cast<char*>(&buildingtype_) -
+      reinterpret_cast<char*>(&id_)) + sizeof(buildingtype_));
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
@@ -2444,6 +2452,14 @@ const char* Building::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::i
         if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 18)) {
           ptr = ctx->ParseMessage(_internal_mutable_transform(), ptr);
           CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      // .Protocol.BuildingType buildingType = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 24)) {
+          ::PROTOBUF_NAMESPACE_ID::uint64 val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+          _internal_set_buildingtype(static_cast<::Protocol::BuildingType>(val));
         } else goto handle_unusual;
         continue;
       default: {
@@ -2489,6 +2505,13 @@ failure:
         2, _Internal::transform(this), target, stream);
   }
 
+  // .Protocol.BuildingType buildingType = 3;
+  if (this->buildingtype() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteEnumToArray(
+      3, this->_internal_buildingtype(), target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -2517,6 +2540,12 @@ size_t Building::ByteSizeLong() const {
     total_size += 1 +
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::UInt64Size(
         this->_internal_id());
+  }
+
+  // .Protocol.BuildingType buildingType = 3;
+  if (this->buildingtype() != 0) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::EnumSize(this->_internal_buildingtype());
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
@@ -2556,6 +2585,9 @@ void Building::MergeFrom(const Building& from) {
   if (from.id() != 0) {
     _internal_set_id(from._internal_id());
   }
+  if (from.buildingtype() != 0) {
+    _internal_set_buildingtype(from._internal_buildingtype());
+  }
 }
 
 void Building::CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) {
@@ -2580,8 +2612,8 @@ void Building::InternalSwap(Building* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(Building, id_)
-      + sizeof(Building::id_)
+      PROTOBUF_FIELD_OFFSET(Building, buildingtype_)
+      + sizeof(Building::buildingtype_)
       - PROTOBUF_FIELD_OFFSET(Building, transform_)>(
           reinterpret_cast<char*>(&transform_),
           reinterpret_cast<char*>(&other->transform_));

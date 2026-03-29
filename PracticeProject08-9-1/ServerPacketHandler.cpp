@@ -8,6 +8,30 @@
 
 #include "GlobalEnum.h"
 
+namespace
+{
+	static std::string ToAssetNameFromBuildingType(uint32_t buildingType)
+	{
+		switch (buildingType)
+		{
+		case 1:  return "Grass";
+		case 2:  return "Ground";
+		case 3:  return "Building1";
+		case 4:  return "Building2";
+		case 5:  return "Building3";
+		case 6:  return "Building4";
+		case 7:  return "Building5";
+		case 8:  return "Building6";
+		case 9:  return "Building7";
+		case 10: return "Building8";
+		case 11: return "Building9";
+		case 12: return "VillageWall";
+		case 13: return "DirtRoad";
+		default: return "";
+		}
+	}
+}
+
 PacketHandlerFunc GPacketHandler[UINT16_MAX];
 
 bool Handle_INVALID(PacketSessionRef& session, BYTE* buffer, int32 len)
@@ -74,10 +98,11 @@ bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
 	Protocol::InitStruct worldInit = pkt.initstruct();
 	auto players = worldInit.players();
 	auto enemies = worldInit.enemies();
-	//auto buildings = worldInit.buildings();
+	auto buildings = worldInit.buildings();
 
 	data.players.reserve(players.size());
 	data.enemies.reserve(enemies.size());
+	data.buildings.reserve(buildings.size());
 
 	for (auto& player : players)
 	{
@@ -105,6 +130,24 @@ bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
 		OutputDebugStringA(s.c_str());
 
 		data.enemies.push_back({ enemy.id(), {position.x(), position.y(), position.z()}, yaw });
+	}
+
+	for (auto& building : buildings)
+	{
+		auto transform = building.transform();
+		auto position = transform.position();
+		auto yaw = transform.yaw();
+		const uint32_t buildingType = static_cast<uint32_t>(building.buildingtype());
+
+		BuildingState b{};
+		b.id = building.id();
+		b.position = XMFLOAT3(position.x(), position.y(), position.z());
+		b.yaw = yaw;
+		b.buildingType = buildingType;
+		b.assetName = ToAssetNameFromBuildingType(buildingType);
+
+		if (!b.assetName.empty())
+			data.buildings.push_back(std::move(b));
 	}
 
 	// networkQueue에 게임 시작 패킷 push

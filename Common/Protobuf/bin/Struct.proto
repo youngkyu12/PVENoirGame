@@ -70,5 +70,6 @@ message Building
 {
 	uint64 id = 1;
 	Transform transform = 2;
+	BuildingType buildingType = 3;
 }
 
