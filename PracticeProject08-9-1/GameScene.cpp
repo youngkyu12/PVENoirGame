@@ -3731,7 +3731,8 @@ void CGameScene::AnimateObjects(float dt)
                 }
                 else if (decoded.attack)
                 {
-                    ac->SetAnimState(EAnimState::Attack);
+					RequestPlayerAttackBySlot(slot);
+                    //ac->SetAnimState(EAnimState::Attack);
                 }
                 else
                 {

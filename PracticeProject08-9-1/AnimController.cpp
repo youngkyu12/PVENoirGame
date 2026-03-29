@@ -453,7 +453,7 @@ void CAnimController::NetworkUpdate(float dt)
         };
 
     // 서버 권위 경로에서는 로컬 공격 큐는 사용하지 않는다.
-    m_attackQueued = false;
+    //m_attackQueued = false;
 
     // Protocol Roll 이벤트 우선 처리
     if (m_rollQueued && m_actionPhase == EActionPhase::None)
@@ -516,6 +516,30 @@ void CAnimController::NetworkUpdate(float dt)
 			//		anim->Play(targetClip, true, 0.0f);
 			//	위의 2줄 지우고 밑으로 교체
 			//	StartLocomotionClipPreservePhase(anim, targetClip, kBlendTime);
+        }
+    }
+
+    if (m_attackQueued && m_actionPhase == EActionPhase::None)
+    {
+        m_attackQueued = false;
+
+        EActionPhase nextPhase = EActionPhase::None;
+        const std::string atkClip = ResolveAttackStartClip(nextPhase);
+
+        if (!atkClip.empty() && anim->HasClip(atkClip))
+        {
+            if (IsOverlayActionPhase(nextPhase))
+            {
+                StartUpperBodyAttack(atkClip, nextPhase, m_state);
+            }
+            else
+            {
+                if (StartFullBodyAction(atkClip, nextPhase, 0.15f, 0.12f))
+                {
+                    animPrevState = m_state;
+                    return;
+                }
+            }
         }
     }
 
