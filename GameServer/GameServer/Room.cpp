@@ -262,7 +262,8 @@ void Room::StartGame(bool ready, uint32 index)
 		{
 			return player.second && player.second->IsActive();
 		})
-		)
+		&& 
+		players.size() == MaxPlayers)
 	{
 		if (gameStarted.exchange(true) == false)
 		{
@@ -538,7 +539,7 @@ void Room::CheckClientReady()
 {
 	//TODO: 모든 플레이어가 ready를 보냈는지 확인하는 함수 정의
 
-	bool allPlayerBuilt = !players.empty();
+	bool allPlayerBuilt = false;
 	for (auto& player : players)
 	{
 		allPlayerBuilt = allPlayerBuilt && player.second->IsActive();
