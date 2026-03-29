@@ -393,10 +393,12 @@ void CGameFramework::BuildObjects()
 void CGameFramework::SyncGameSceneInactiveOverlay()
 {
 	CScene* scene = m_SceneManager.GetScene();
-	if (!scene) return;
+	if (!scene) 
+		return;
 
 	CGameScene* gameScene = dynamic_cast<CGameScene*>(scene);
-	if (!gameScene) return;
+	if (!gameScene) 
+		return;
 
 	gameScene->SetInactiveOverlayVisible(IsInputPauseActive());
 }
@@ -479,8 +481,9 @@ void CGameFramework::UpdateWindowActivationState()
 
 void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 {
-	WaitForGpuComplete();
 
+	WaitForGpuComplete();
+	
 	m_SceneManager.ReleaseCurrent();
 	m_pCamera = nullptr;
 
@@ -934,7 +937,14 @@ void CGameFramework::ProcessInput()
 
 		if ( dwDirection && !pc->IsActionLockedByAnimation() )
 		{
+			const XMFLOAT3 prevPos = playerObj->GetPosition();
+
 			pc->MoveByYaw(dwDirection, 5.0f * dt, cameraYawDeg, false);
+
+			if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
+			{
+				gameScene->RollbackLocalPlayerMoveIfCollidingWorldStatic(prevPos);
+			}
 		}
 
 		// 애니메이터 방향 비트는 항상 갱신
@@ -986,15 +996,39 @@ void CGameFramework::FrameAdvance()
 {
 	HRESULT hResult;
 
-	m_GameTimer.Tick(0.0f);
+	m_GameTimer.Tick(60.0f);
 	UpdateWindowActivationState();
 
 	ApplyPendingSceneSwitch();
 
+#ifndef USING_NETWORK
+	XMFLOAT3 localPlayerPrevPos = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	bool hasLocalPlayerPrevPos = false;
+
+	if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( m_SceneManager.GetScene() ) )
+	{
+		if ( CGameObject* localPlayer = gameScene->GetPlayer() )
+		{
+			localPlayerPrevPos = localPlayer->GetPosition();
+			hasLocalPlayerPrevPos = true;
+		}
+	}
+#endif
+
 	ProcessInput();
 	AnimateObjects();
+
+#ifndef USING_NETWORK
+	if ( hasLocalPlayerPrevPos )
+	{
+		if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( m_SceneManager.GetScene() ) )
+		{
+			gameScene->RollbackLocalPlayerMoveIfCollidingWorldStatic(localPlayerPrevPos);
+		}
+	}
+#endif
+
 	CollisionSystem();
-	// 충돌체크 함수 필요
 
 	hResult = m_pd3dCommandAllocator->Reset();
 	hResult = m_pd3dCommandList->Reset(m_pd3dCommandAllocator.Get(), nullptr);
