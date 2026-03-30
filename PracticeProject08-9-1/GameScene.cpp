@@ -512,7 +512,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
     ApplyStaticPlacementCounts();
 #else
 	m_localPlayerSlot = 0;
-	const std::string placementFilePath = "Assets/placement_export_st1.txt";
+	const std::string placementFilePath = "Assets/placement_export_tst.txt";
 
 	if ( !LoadStaticPlacementFile(placementFilePath) )
 	{
