@@ -783,26 +783,25 @@ void CGameScene::BuildLightsAndMaterials()
         m_lightObjects.push_back(std::move(obj));
     }
 
-    // [2] Directional Light
-    {
-        auto obj = std::make_unique<CGameObject>(0);
+	// [2] Directional Light
+	{
+		auto obj = std::make_unique<CGameObject>(0);
 
-        if (auto* tr = obj->GetComponent<CTransformComponent>())
-        {
-            // 태양광 방향
-            tr->SetLookDirection(XMFLOAT3(1.0f, 0.0f, 0.0f));
-        }
+		if ( auto* tr = obj->GetComponent<CTransformComponent>() )
+		{
+			// 오른쪽 위 앞쪽에서 왼쪽 아래 뒤쪽으로 비추는 느낌
+			tr->SetLookDirection(XMFLOAT3(1.0f, -1.0f, 0.3f));
+		}
 
-        auto* lc = obj->AddComponent<CLightComponent>();
-        lc->type = ELightType::Directional;
+		auto* lc = obj->AddComponent<CLightComponent>();
+		lc->type = ELightType::Directional;
 
-        lc->ambient = XMFLOAT4(0.25f, 0.25f, 0.25f, 1.0f);
-        lc->diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-        lc->specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
-   
+		lc->ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+		lc->diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+		lc->specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 
-        m_lightObjects.push_back(std::move(obj));
-    }
+		m_lightObjects.push_back(std::move(obj));
+	}
 
     // [3] Spot Light
     {
@@ -4149,7 +4148,7 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
     if (m_pcbMappedLights)
     {
         ::ZeroMemory(m_pcbMappedLights, sizeof(LIGHTS));
-        m_pcbMappedLights->m_xmf4GlobalAmbient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+		m_pcbMappedLights->m_xmf4GlobalAmbient = XMFLOAT4(0.20f, 0.20f, 0.20f, 1.0f);
 
         UINT li = 0;
         for (auto& obj : m_lightObjects)
