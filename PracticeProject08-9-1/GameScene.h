@@ -135,6 +135,11 @@ private:
 		DXGI_FORMAT dsvFormat
 	);
 
+	void BuildStaticWorldSubmeshOOBBDebugObjects(
+	ID3D12Device* dev,
+	ID3D12GraphicsCommandList* cmd
+	);
+
     void LinkSceneObjects();
     static XMFLOAT4X4 BuildAttachmentOffsetMatrix(
         const XMFLOAT3& pos,
