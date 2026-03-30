@@ -294,25 +294,38 @@ bool CCollisionSystem::IsVisible(const BoundingFrustum& frustum, const CCollider
 void CCollisionSystem::OnUpdate()
 {
     // 전수검사: i<j
-    const size_t n = mColliders.size();
+    
+	const size_t n = mColliders.size();
+
+	for ( size_t i = 0; i < n; ++i )
+	{
+		auto* a = mColliders[i];
+
+		if ( !a ) 
+			continue;
+
+		if ( !IsVisible(mCameraCollider, a) )
+		{
+			a->DisabledRender();
+			continue;
+		}
+	}
+
     for (size_t i = 0; i < n; ++i)
     {
         auto* a = mColliders[i];
-        if (!a) continue;
-
-		/*if ( !IsVisible(mCameraCollider, a) )
-			a->DisabledRender();
-			continue;*/
+		if ( !a->IsRender() ) continue;
+		else if ( !a )continue;
 
         for (size_t j = i + 1; j < n; ++j)
         {
             auto* b = mColliders[j];
-            if (!b) continue;
+
+            if (!b) 
+				continue;
 
             if (!PassFilter(a, b))
                 continue;
-
-			
 
             HandlePair(a, b);
         }

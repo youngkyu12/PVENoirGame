@@ -1125,7 +1125,7 @@ CBoxMeshDiffused::CBoxMeshDiffused(
 
 	indices.assign(std::begin(lineIndices), std::end(lineIndices));
 
-	m_d3dPrimitiveTopology = D3D_PRIMITIVE_TOPOLOGY_LINELIST;
+	m_d3dPrimitiveTopology = D3D_PRIMITIVE_TOPOLOGY_LINESTRIP;
 	m_nSlot = 0;
 
 	m_SubMeshes.resize(1);
