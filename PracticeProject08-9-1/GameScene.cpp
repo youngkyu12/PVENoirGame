@@ -754,9 +754,9 @@ void CGameScene::BuildLightsAndMaterials()
         auto* lc = obj->AddComponent<CLightComponent>();
         lc->type = ELightType::Point;
         lc->range = 100.0f;
-        lc->ambient = XMFLOAT4(0.1f, 0.0f, 0.0f, 1.0f);
+        lc->ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
         lc->diffuse = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
-        lc->specular = XMFLOAT4(0.1f, 0.1f, 0.1f, 0.0f);
+        lc->specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
         lc->attenuation = XMFLOAT3(1.0f, 0.001f, 0.0001f);
 
         m_lightObjects.push_back(std::move(obj));
@@ -769,9 +769,9 @@ void CGameScene::BuildLightsAndMaterials()
         auto* lc = obj->AddComponent<CLightComponent>();
         lc->type = ELightType::Spot;
         lc->range = 50.0f;
-        lc->ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+        lc->ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
         lc->diffuse = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
-        lc->specular = XMFLOAT4(0.1f, 0.1f, 0.1f, 0.0f);
+        lc->specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
         lc->attenuation = XMFLOAT3(1.0f, 0.01f, 0.0001f);
         lc->falloff = 8.0f;
         lc->cosPhi = (float)cos(XMConvertToRadians(40.0f));
@@ -796,7 +796,7 @@ void CGameScene::BuildLightsAndMaterials()
         auto* lc = obj->AddComponent<CLightComponent>();
         lc->type = ELightType::Directional;
 
-        lc->ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+        lc->ambient = XMFLOAT4(0.25f, 0.25f, 0.25f, 1.0f);
         lc->diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
         lc->specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
    
@@ -814,7 +814,7 @@ void CGameScene::BuildLightsAndMaterials()
         auto* lc = obj->AddComponent<CLightComponent>();
         lc->type = ELightType::Spot;
         lc->range = 60.0f;
-        lc->ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+        lc->ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
         lc->diffuse = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
         lc->specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
         lc->attenuation = XMFLOAT3(1.0f, 0.01f, 0.0001f);

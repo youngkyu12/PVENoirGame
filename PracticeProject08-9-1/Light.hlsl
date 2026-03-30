@@ -149,9 +149,8 @@ float4 DirectionalLight(
     );
 
     float3 ambientColor =
-        gLights[nIndex].m_cAmbient.rgb *
-        texColor.rgb *
-        mat.m_cAmbient.rgb;
+    gLights[nIndex].m_cAmbient.rgb *
+    texColor.rgb;
 
     return float4(ambientColor + litColor, 0.0f);
 }
@@ -190,8 +189,7 @@ float4 PointLight(
 
         float3 ambientColor =
             gLights[nIndex].m_cAmbient.rgb *
-            texColor.rgb *
-            mat.m_cAmbient.rgb;
+            texColor.rgb;
 
         float fAttenuationFactor =
             1.0f / dot(
@@ -256,8 +254,7 @@ float4 SpotLight(
 
         float3 ambientColor =
             gLights[nIndex].m_cAmbient.rgb *
-            texColor.rgb *
-            mat.m_cAmbient.rgb;
+            texColor.rgb;
 
         float fAttenuationFactor =
             1.0f / dot(
@@ -333,7 +330,7 @@ float4 Lighting(
         }
     }
 
-    cColor.rgb += gcGlobalAmbientLight.rgb * texColor.rgb * mat.m_cAmbient.rgb;
+    cColor.rgb += gcGlobalAmbientLight.rgb * texColor.rgb;
     cColor.rgb += emissiveColor;
     cColor.a = texColor.a;
 
