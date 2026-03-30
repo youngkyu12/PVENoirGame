@@ -1997,7 +1997,7 @@ void CGameScene::BuildSkinnedBatch(
         // ----------------------------
         // Enemy Type: SwordMan
         // ----------------------------
-        {
+		{
             const UINT countX = m_swordManCount;
 
             AssetBuildDesc EnemyXDesc =
@@ -2306,7 +2306,7 @@ void CGameScene::BuildSkinnedBatch(
                 }
 
                 // GameStartData에서 좌표 가져오기
-				XMFLOAT3 pos{};
+                XMFLOAT3 pos{};
 				float yaw = 180.0f;
 
 #ifdef USING_NETWORK
@@ -2367,12 +2367,31 @@ void CGameScene::BuildSkinnedBatch(
 				obj->CreateComponents(dev, cmd);
 				if ( animComp ) animComp->EvaluatePose(0.0f);
 
+				auto mesh = std::make_shared<CBoxMeshDiffused>(dev, cmd, obj->GetComponent<CColliderComponent>());
+
+
                 CGameObject* raw = obj.get();
                 m_skinnedObjects.push_back(std::move(obj));
                 b->objectRefs.push_back(raw);
                 b->count = (UINT)b->objectRefs.size();
 
                 m_MutantRefs.push_back(raw);
+
+				auto colliderobj = std::make_unique<CGameObject>(1);
+				auto* collidercb = ( CB_GAMEOBJECT_INFO* ) ( ( UINT8* ) coliiderbatch->mappedGameObjects + m_ColliderCount * coliiderbatch->cbElementBytes );
+				colliderobj->SetMappedGameObjectCB(collidercb);
+
+				colliderobj->SetMesh(0, mesh);
+				colliderobj->AddComponent<CColliderMeshRendererComponent>();
+
+				colliderobj->SetCbvGPUDescriptorHandlePtr(coliiderbatch->baseCbvGpu.ptr + ( UINT64 ) m_ColliderCount * coliiderbatch->cbvInc);
+
+				colliderobj->CreateComponents(dev, cmd);
+
+				CGameObject* rawcollider = colliderobj.get();
+				m_colliderObjects.push_back(std::move(colliderobj));
+				coliiderbatch->objectRefs.push_back(rawcollider);
+				coliiderbatch->count = ( UINT ) coliiderbatch->objectRefs.size();
             }
         }
 

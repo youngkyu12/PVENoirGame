@@ -53,6 +53,7 @@ public:
 	// external helpers
 	void UpdateWorldBounds();
 	void DisabledRender();
+	bool IsRender() const { return mRender->IsEnabled(); }
 
 private:
 	static BoundingOrientedBox MakeLocalOOBB(const XMFLOAT3& Min, const XMFLOAT3& Max);
