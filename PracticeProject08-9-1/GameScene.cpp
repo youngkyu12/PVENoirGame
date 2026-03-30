@@ -107,37 +107,6 @@ namespace
 
         return out;
     }
-
-	static constexpr UINT kDebugSubmeshOOBBCapacity = 8096;
-
-	static XMFLOAT4X4 BuildWorldMatrixFromOOBB(const BoundingOrientedBox& box)
-	{
-		XMFLOAT4X4 out{};
-
-		const XMMATRIX S = XMMatrixScaling(
-			box.Extents.x * 2.0f,
-			box.Extents.y * 2.0f,
-			box.Extents.z * 2.0f
-		);
-
-		const XMMATRIX R = XMMatrixRotationQuaternion(XMLoadFloat4(&box.Orientation));
-
-		const XMMATRIX T = XMMatrixTranslation(
-			box.Center.x,
-			box.Center.y,
-			box.Center.z
-		);
-
-		XMStoreFloat4x4(&out, S * R * T);
-		return out;
-	}
-
-	static XMFLOAT4X4 BuildIdentityMatrix4x4()
-	{
-		XMFLOAT4X4 out{};
-		XMStoreFloat4x4(&out, XMMatrixIdentity());
-		return out;
-	}
 }
 
 namespace
@@ -395,11 +364,6 @@ void CGameScene::ReleaseObjects()
     m_staticBatch.objectRefs.clear();
     m_skinnedBatch.objectRefs.clear();
 
-	m_colliderbatch.shader.reset();
-	m_colliderbatch.objectRefs.clear();
-	m_colliderObjects.clear();
-	m_ColliderCount = 0;
-
     m_swordManRefs.clear();
     m_bowManRefs.clear();
     m_MutantRefs.clear();
@@ -524,16 +488,6 @@ void CGameScene::ReleaseShaderVariables()
         m_pd3dcbMaterials.Reset();
     }
     m_pcbMappedMaterials = nullptr;
-
-	if ( m_colliderbatch.cbGameObjects )
-	{
-		if ( m_colliderbatch.mappedGameObjects )
-		{
-			m_colliderbatch.cbGameObjects->Unmap(0, NULL);
-			m_colliderbatch.mappedGameObjects = nullptr;
-		}
-		m_colliderbatch.cbGameObjects.Reset();
-	}
 }
 
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
@@ -682,11 +636,6 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 #endif
 
 	BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
-
-#ifndef USING_NETWORK
-	BuildStaticWorldSubmeshOOBBDebugObjects(dev, cmd);
-#endif
-
 	BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
 
 	LinkSceneObjects();
@@ -707,82 +656,6 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(iamReady);
 	g_clientService->BroadCast(sendBuffer);
 #endif
-}
-
-void CGameScene::BuildStaticWorldSubmeshOOBBDebugObjects(
-	ID3D12Device* dev,
-	ID3D12GraphicsCommandList* cmd)
-{
-	if ( !dev || !cmd ) return;
-	if ( !m_colliderbatch.mappedGameObjects ) return;
-
-	for ( auto& ownerObj : m_staticObjects )
-	{
-		if ( !ownerObj ) continue;
-
-		auto* ownerCollider = ownerObj->GetComponent<CColliderComponent>();
-		if ( !ownerCollider ) continue;
-		if ( ownerCollider->GetType() != EColliderType::OOBB ) continue;
-
-		const std::vector<MeshOOBBSet>& meshSets = ownerCollider->GetMeshOOBBSets();
-		if ( meshSets.empty() ) continue;
-
-		for ( const MeshOOBBSet& set : meshSets )
-		{
-			for ( const BoundingOrientedBox& subOOBB : set.WorldSubOOBBs )
-			{
-				if ( m_ColliderCount >= m_colliderbatch.capacity )
-					return;
-
-				const UINT i = m_ColliderCount;
-
-				auto debugObj = std::make_unique<CGameObject>(1);
-
-				auto* cb = reinterpret_cast< CB_GAMEOBJECT_INFO* >(
-					reinterpret_cast< UINT8* >( m_colliderbatch.mappedGameObjects ) +
-					i * m_colliderbatch.cbElementBytes
-				);
-
-				debugObj->SetMappedGameObjectCB(cb);
-				debugObj->SetCbvGPUDescriptorHandlePtr(
-					m_colliderbatch.baseCbvGpu.ptr + ( UINT64 ) i * m_colliderbatch.cbvInc
-				);
-
-				debugObj->AddComponent<CColliderMeshRendererComponent>();
-				auto* debugCollider = debugObj->AddComponent<CColliderComponent>(EColliderType::OOBB);
-
-				debugObj->CreateComponents(dev, cmd);
-
-				// unit box를 local OOBB로 잡고
-				// world matrix를 sub-OOBB에 맞춰 세팅한 뒤
-				// 기존 CBoxMeshDiffused 생성자를 재사용한다.
-				debugCollider->SetOOBB(
-					XMFLOAT3(-0.5f, -0.5f, -0.5f),
-					XMFLOAT3(0.5f, 0.5f, 0.5f)
-				);
-
-				const XMFLOAT4X4 subWorld = BuildWorldMatrixFromOOBB(subOOBB);
-				debugObj->SetWorldMatrix(subWorld);
-				debugCollider->OnUpdate(0.0f);
-
-				std::shared_ptr<CMesh> debugMesh =
-					std::make_shared<CBoxMeshDiffused>(dev, cmd, debugCollider);
-
-				debugObj->SetMesh(0, debugMesh);
-
-				// 박스 메쉬는 이미 world-space로 bake 됐으므로
-				// debug object 자체 transform은 identity로 되돌린다.
-				debugObj->SetWorldMatrix(BuildIdentityMatrix4x4());
-
-				CGameObject* raw = debugObj.get();
-				m_colliderObjects.push_back(std::move(debugObj));
-				m_colliderbatch.objectRefs.push_back(raw);
-				m_colliderbatch.count = ( UINT ) m_colliderbatch.objectRefs.size();
-
-				++m_ColliderCount;
-			}
-		}
-	}
 }
 
 float CGameScene::QuaternionToYawDegrees(const XMFLOAT4& q)
@@ -2093,10 +1966,30 @@ void CGameScene::BuildSkinnedBatch(
 				obj->CreateComponents(dev, cmd);
 				if ( animComp ) animComp->EvaluatePose(0.0f);
 
+				auto mesh = std::make_shared<CBoxMeshDiffused>(dev, cmd, obj->GetComponent<CColliderComponent>());
+
 				CGameObject* raw = obj.get();
 				m_skinnedObjects.push_back(std::move(obj));
 				b->objectRefs.push_back(raw);
 				b->count = ( UINT ) b->objectRefs.size();
+
+				auto colliderobj = std::make_unique<CGameObject>(1);
+				auto* collidercb = ( CB_GAMEOBJECT_INFO* ) ( ( UINT8* ) coliiderbatch->mappedGameObjects + m_ColliderCount * coliiderbatch->cbElementBytes );
+				colliderobj->SetMappedGameObjectCB(collidercb);
+
+				colliderobj->SetMesh(0, mesh);
+				colliderobj->AddComponent<CColliderMeshRendererComponent>();
+
+				colliderobj->SetCbvGPUDescriptorHandlePtr(coliiderbatch->baseCbvGpu.ptr + ( UINT64 ) m_ColliderCount * coliiderbatch->cbvInc);
+
+				colliderobj->CreateComponents(dev, cmd);
+
+				CGameObject* rawcollider = colliderobj.get();
+				m_colliderObjects.push_back(std::move(colliderobj));
+				coliiderbatch->objectRefs.push_back(rawcollider);
+				coliiderbatch->count = ( UINT ) coliiderbatch->objectRefs.size();
+
+				++m_ColliderCount;
 			}
 		}
 
@@ -3052,10 +2945,9 @@ void CGameScene::BuildColliderBatch(
 	auto* b = &m_colliderbatch;
 	if ( !b ) return;
 
-	const UINT cap = kDebugSubmeshOOBBCapacity;
-	b->capacity = cap;
+	const UINT cap = 20;
 
-	if ( cap == 0 )
+	if ( cap == 0 ) 
 		return;
 
 	pshader->CreateShader(
@@ -3087,6 +2979,9 @@ void CGameScene::BuildColliderBatch(
 		b->cbGameObjects.Get(),
 		b->cbElementBytes
 	);
+
+	m_staticObjects.clear();
+	m_staticObjects.reserve(cap);
 
 	b->objectRefs.clear();
 	b->objectRefs.reserve(cap);
