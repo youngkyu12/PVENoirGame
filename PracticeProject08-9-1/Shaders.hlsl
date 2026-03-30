@@ -337,6 +337,7 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
     float shininess = mat.m_cSpecular.a;
 
     float4 illumination = Lighting(
+        materialId,
         input.positionW,
         normalW,
         texColor,

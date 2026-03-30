@@ -755,7 +755,7 @@ void CGameScene::BuildLightsAndMaterials()
         lc->type = ELightType::Point;
         lc->range = 100.0f;
         lc->ambient = XMFLOAT4(0.1f, 0.0f, 0.0f, 1.0f);
-        lc->diffuse = XMFLOAT4(0.8f, 0.0f, 0.0f, 1.0f);
+        lc->diffuse = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
         lc->specular = XMFLOAT4(0.1f, 0.1f, 0.1f, 0.0f);
         lc->attenuation = XMFLOAT3(1.0f, 0.001f, 0.0001f);
 
@@ -770,7 +770,7 @@ void CGameScene::BuildLightsAndMaterials()
         lc->type = ELightType::Spot;
         lc->range = 50.0f;
         lc->ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
-        lc->diffuse = XMFLOAT4(0.4f, 0.4f, 0.4f, 1.0f);
+        lc->diffuse = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
         lc->specular = XMFLOAT4(0.1f, 0.1f, 0.1f, 0.0f);
         lc->attenuation = XMFLOAT3(1.0f, 0.01f, 0.0001f);
         lc->falloff = 8.0f;
@@ -815,7 +815,7 @@ void CGameScene::BuildLightsAndMaterials()
         lc->type = ELightType::Spot;
         lc->range = 60.0f;
         lc->ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
-        lc->diffuse = XMFLOAT4(0.5f, 0.0f, 0.0f, 1.0f);
+        lc->diffuse = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
         lc->specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
         lc->attenuation = XMFLOAT3(1.0f, 0.01f, 0.0001f);
         lc->falloff = 8.0f;
