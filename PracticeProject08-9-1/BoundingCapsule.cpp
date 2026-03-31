@@ -181,10 +181,91 @@ bool BoundingCapsule::Intersects(const BoundingOrientedBox& box) const noexcept
 
 bool BoundingCapsule::Intersects(const BoundingFrustum& fr) const noexcept
 {
-	// 충돌 연산 다시 작성
+	
+	XMVECTOR A = XMLoadFloat3(&p0);
+	XMVECTOR B = XMLoadFloat3(&p1);
+	XMVECTOR D = XMVectorSubtract(B, A);
+
+	// GetPlanes를 쓸 때는 월드 plane 이므로 A, B를 로컬로 바꾸면 안됨
+	/*XMVECTOR origin = XMLoadFloat3(&fr.Origin);
+	XMVECTOR q = XMLoadFloat4(&fr.Orientation);
+	
+	XMVECTOR ALocal = XMVector3InverseRotate(XMVectorSubtract(A, origin), q);
+	XMVECTOR BLocal = XMVector3InverseRotate(XMVectorSubtract(B, origin), q);*/
+
+	XMVECTOR planes[6];
+	fr.GetPlanes(&planes[0], &planes[1], &planes[2], &planes[3], &planes[4], &planes[5]);
+
+	float tEnter = 0.0f;
+	float tExit = 1.0f;
+
 	float distSq = 0.0f;
 
-	return distSq <= Radius * Radius;
+	for ( int i = 0; i < 6; ++i )
+	{
+		XMVECTOR P = XMPlaneNormalize(planes[i]);	// 원점에서 평면까지의 거리 d
+
+		// 정규화된 평면 법선 벡터와 점 벡터를 내적하면 점에서 수직으로 뻗은 평면까지의 거리를 얻을 수 있음
+		// 점과 평면까지의 거리에 캡슐 반지름을 더해 캡슐 선분을 반지름이 있는 볼륨처럼 판정한다.
+		float fA = XMVectorGetX(XMPlaneDotCoord(P, A)) + Radius;	// |P||A|cos(alpha) + Radius
+		float fB = XMVectorGetX(XMPlaneDotCoord(P, B)) + Radius;	// |P||B|cos(beta) + Radius
+
+		
+		// 두 끝점이 모두 반지름 보정 후에도 평면 바깥이면 캡슐은 프러스텀과 비충돌
+		if ( fA < 0.0f && fB < 0.0f )
+			return false;
+		
+		// 선분 두 끝점 이외에 안쪽 점들 확인
+
+		// |N||D|cos(theta) = dot(N, D)	// 평면 벡터를 정규화했기 때문에 법선벡터 1로 수식에서 N으로 표기
+		// 선분 방향이 현재 평면의 법선 방향으로 얼마나 향하는지 알 수 있다.
+		// 이 값이 0에 가까우면 선분은 평면과 거의 평행하다.
+		XMVECTOR N = XMVectorSetW(P, 0.0f);
+		float denom = XMVectorGetX(XMVector3Dot(N, D));
+
+		// 선분이 현재 평면과 거의 평행
+		if ( fabsf(denom) <= EPSILON )
+		{
+			if ( fA < 0.0f )
+				return false;
+
+			continue;
+		}
+
+		// X(t) = fA + t(fB - fA), 선분 위의 위치 벡터 구하는 식
+		// dot(N, X) + d = 0, 평면 방정식
+		// dot(N, X(t)) + d = 0, 선분 위의 위치 벡터를 평면 방정식에 대입한 식
+		// 이 식을 만족하는 t를 구하면, 무한 평면 위에 놓이는 선분 위의 점을 찾을 수 있다.
+		// dot(N, fA + t(fB - fA)) + d = 0
+		// dot(N, fA) + d + t * dot(N, fB - fA) = 0
+		// fA + t * denom = 0 
+		// t = -fA / denom
+		
+		float t = -fA / denom;
+
+		// t < 0		: A보다 앞쪽 연장선
+		// t == 0		: 시작점 A
+		// 0 < t < 1	: 선분 AB 사이
+		// t == 1		: 끝점 B
+		// t > 1		: B보다 뒤쪽 연장선
+		// 즉, t < 0 이거나 t > 1 이면 선분 바깥쪽 t시점에서 평면과 만나므로 선분 위에 있는 점이 아님
+
+		// denom > 0 : 선분 A->B가 현재 평면 법선 방향으로 진행
+		// denom < 0 : 선분 A->B가 현재 평면 법선 반대 방향으로 진행
+		// denom == 0에 가까움 : 선분이 현재 평면과 거의 평행
+		// 현재 프러스텀 평면의 바깥 -> 안쪽 진입
+		if ( denom < 0.0f )
+			tEnter = max(tEnter, t); // 0 < t
+		// 현재 프러스텀 평면의 안쪽 -> 바깥 이탈
+		else
+			tExit = min(tExit, t);	// t < 1
+
+		// t < 0 or t > 1
+		if ( tEnter > tExit )
+			return false;
+	}
+
+	return true;
 }
 
 bool BoundingCapsule::Intersects(const BoundingCapsule& ca) const noexcept
