@@ -191,6 +191,7 @@
     <ClInclude Include="ModelComponent.h" />
     <ClInclude Include="MonsterAnimController.h" />
     <ClInclude Include="MonsterAnimTypes.h" />
+    <ClInclude Include="NavMesh.h" />
     <ClInclude Include="NetworkQueue.h" />
     <ClInclude Include="Object.h" />
     <ClInclude Include="PlayerControllerComponent.h" />
@@ -253,6 +254,7 @@
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="ModelComponent.cpp" />
     <ClCompile Include="MonsterAnimController.cpp" />
+    <ClCompile Include="NavMesh.cpp" />
     <ClCompile Include="NetworkQueue.cpp" />
     <ClCompile Include="Object.cpp" />
     <ClCompile Include="PlayerControllerComponent.cpp" />
