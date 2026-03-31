@@ -180,6 +180,7 @@
     <ClInclude Include="FollowBoneComponent.h" />
     <ClInclude Include="GameFramework.h" />
     <ClInclude Include="GameScene.h" />
+    <ClInclude Include="GhoulAIComponent.h" />
     <ClInclude Include="GlobalEnum.h" />
     <ClInclude Include="GlobalValues.h" />
     <ClInclude Include="InitStruct.pb.h" />
@@ -244,6 +245,7 @@
     <ClCompile Include="FollowBoneComponent.cpp" />
     <ClCompile Include="GameFramework.cpp" />
     <ClCompile Include="GameScene.cpp" />
+    <ClCompile Include="GhoulAIComponent.cpp" />
     <ClCompile Include="GlobalValues.cpp" />
     <ClCompile Include="InitStruct.pb.cc">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>

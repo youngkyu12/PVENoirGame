@@ -30,6 +30,7 @@
 #include "CollisionSystem.h"
 #include "ColliderComponent.h"
 #include "NavMesh.h"
+#include "GhoulAIComponent.h"
 
 #include "ThreadManager.h"
 #include "Service.h"
@@ -1909,6 +1910,21 @@ void CGameScene::BuildSkinnedBatch(
 				auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
 				ConfigureCharacterCollider(collider, false);
 				auto* animComp = obj->AddComponent<CAnimatorComponent>();
+
+#ifndef USING_NETWORK
+				if ( k == 0 )
+				{
+					auto* ghoulAI = obj->AddComponent<CGhoulAIComponent>();
+					if ( ghoulAI )
+					{
+						ghoulAI->SetScene(this);
+						ghoulAI->SetMoveSpeed(2.0f);
+						ghoulAI->SetRepathInterval(0.15f);
+						ghoulAI->SetPathPointReachDistance(0.10f);
+						ghoulAI->SetGoalReachDistance(0.25f);
+					}
+				}
+#endif
 
 				{
 					auto* tag = obj->AddComponent<CActorTagComponent>();
