@@ -1980,30 +1980,10 @@ void CGameScene::BuildSkinnedBatch(
 				obj->CreateComponents(dev, cmd);
 				if ( animComp ) animComp->EvaluatePose(0.0f);
 
-				auto mesh = std::make_shared<CBoxMeshDiffused>(dev, cmd, obj->GetComponent<CColliderComponent>());
-
 				CGameObject* raw = obj.get();
 				m_skinnedObjects.push_back(std::move(obj));
 				b->objectRefs.push_back(raw);
 				b->count = ( UINT ) b->objectRefs.size();
-
-				auto colliderobj = std::make_unique<CGameObject>(1);
-				auto* collidercb = ( CB_GAMEOBJECT_INFO* ) ( ( UINT8* ) coliiderbatch->mappedGameObjects + m_ColliderCount * coliiderbatch->cbElementBytes );
-				colliderobj->SetMappedGameObjectCB(collidercb);
-
-				colliderobj->SetMesh(0, mesh);
-				colliderobj->AddComponent<CColliderMeshRendererComponent>();
-
-				colliderobj->SetCbvGPUDescriptorHandlePtr(coliiderbatch->baseCbvGpu.ptr + ( UINT64 ) m_ColliderCount * coliiderbatch->cbvInc);
-
-				colliderobj->CreateComponents(dev, cmd);
-
-				CGameObject* rawcollider = colliderobj.get();
-				m_colliderObjects.push_back(std::move(colliderobj));
-				coliiderbatch->objectRefs.push_back(rawcollider);
-				coliiderbatch->count = ( UINT ) coliiderbatch->objectRefs.size();
-
-				++m_ColliderCount;
 			}
 		}
 
