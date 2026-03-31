@@ -29,6 +29,7 @@
 #include "PlayerEquipmentComponent.h"
 #include "CollisionSystem.h"
 #include "ColliderComponent.h"
+#include "NavMesh.h"
 
 #include "ThreadManager.h"
 #include "Service.h"
@@ -342,6 +343,8 @@ CGameScene::CGameScene()
 
 	m_bulletRefs.clear();
 	m_bulletRefs.shrink_to_fit();
+
+	m_navMesh.reset();
 }
 
 CGameScene::~CGameScene()
@@ -388,14 +391,16 @@ void CGameScene::ReleaseObjects()
 	m_preparedBowmanArrows.clear();
 	m_prevEnemyBowReleasePhase.clear();
 
-    m_inactiveOverlayShader.reset();
-    m_inactiveOverlayTex.reset();
-    m_inactiveOverlaySrvIndex = UINT_MAX;
-    m_bInactiveOverlayVisible = false;
+	m_inactiveOverlayShader.reset();
+	m_inactiveOverlayTex.reset();
+	m_inactiveOverlaySrvIndex = UINT_MAX;
+	m_bInactiveOverlayVisible = false;
 
-    ReleaseShaderVariables();
+	m_navMesh.reset();
 
-    CScene::ReleaseObjects();
+	ReleaseShaderVariables();
+
+	CScene::ReleaseObjects();
 }
 
 void CGameScene::ReleaseUploadBuffers()
@@ -498,25 +503,34 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		OutputDebugStringA("Waiting for game start message...\n");
 	}
 
-    DequeueNetworkMessage(NetworkMessageType::GameStart);
-    m_localPlayerSlot = g_myPlayerId;
+	DequeueNetworkMessage(NetworkMessageType::GameStart);
+	m_localPlayerSlot = g_myPlayerId;
 
-    if (!std::holds_alternative<GameStartData>(m_pendingNetworkMessage.data))
-    {
-        assert(false && "Missing GameStartData in network mode");
-        return;
-    }
+	if ( !std::holds_alternative<GameStartData>(m_pendingNetworkMessage.data) )
+	{
+		assert(false && "Missing GameStartData in network mode");
+		return;
+	}
 
-    const GameStartData& gameStartData = std::get<GameStartData>(m_pendingNetworkMessage.data);
-    BuildStaticPlacementsFromNetworkGameStart(gameStartData, m_staticPlacementEntries);
-    ApplyStaticPlacementCounts();
+	const GameStartData& gameStartData = std::get<GameStartData>(m_pendingNetworkMessage.data);
+	BuildStaticPlacementsFromNetworkGameStart(gameStartData, m_staticPlacementEntries);
+	ApplyStaticPlacementCounts();
 #else
 	m_localPlayerSlot = 0;
-	const std::string placementFilePath = "MapData/placement_export_tst.txt";
+	const std::string placementFilePath = "MapData/placement_export_st1.txt";
+	const std::string navMeshFilePath = "MapData/1StageNavmesh.nvm";
 
 	if ( !LoadStaticPlacementFile(placementFilePath) )
 	{
 		assert(false && "Failed to load placement_export");
+		return;
+	}
+
+	m_navMesh = std::make_unique<CNavMesh>();
+	if ( !m_navMesh->LoadFromFile(navMeshFilePath) )
+	{
+		assert(false && "Failed to load navmesh file");
+		m_navMesh.reset();
 		return;
 	}
 #endif

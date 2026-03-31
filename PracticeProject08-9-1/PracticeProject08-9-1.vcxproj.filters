@@ -128,6 +128,9 @@
     <Filter Include="RigidBody">
       <UniqueIdentifier>{9edd29e9-1f3a-4544-b9ae-c2d93bccb801}</UniqueIdentifier>
     </Filter>
+    <Filter Include="NavMesh">
+      <UniqueIdentifier>{29fa9c05-5a78-40c4-898b-3f0e040081c8}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animator.h">
@@ -289,6 +292,9 @@
     <ClInclude Include="RigidBody.h">
       <Filter>RigidBody</Filter>
     </ClInclude>
+    <ClInclude Include="NavMesh.h">
+      <Filter>NavMesh</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -419,6 +425,9 @@
     </ClCompile>
     <ClCompile Include="RigidBody.cpp">
       <Filter>RigidBody</Filter>
+    </ClCompile>
+    <ClCompile Include="NavMesh.cpp">
+      <Filter>NavMesh</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

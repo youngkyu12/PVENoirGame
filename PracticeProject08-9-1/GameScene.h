@@ -18,6 +18,7 @@ class CBulletComponent;
 class CGameObject;
 class CCollisionSystem;
 class CTexture;
+class CNavMesh;
 
 struct CB_GAMEOBJECT_INFO;
 struct AttachmentBindSpec
@@ -177,6 +178,9 @@ public:
     void SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex);
     void SetInactiveOverlayVisible(bool visible) { m_bInactiveOverlayVisible = visible; }
 
+	CNavMesh* GetNavMesh() { return m_navMesh.get(); }
+	const CNavMesh* GetNavMesh() const { return m_navMesh.get(); }
+
     CGameObject* GetDemoFighter(int index) const;
     void RequestDemoFighterAttack(int index);
 
@@ -287,6 +291,7 @@ private:
     MATERIAL* m_pcbMappedMaterials = nullptr;
 
     unique_ptr<CCollisionSystem> m_Collision;
+	std::unique_ptr<CNavMesh> m_navMesh;
 
 private:
     bool LoadStaticPlacementFile(const std::string& filePath);
