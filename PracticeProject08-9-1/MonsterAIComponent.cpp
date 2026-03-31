@@ -368,6 +368,12 @@ bool CMonsterAIComponent::FaceTowards(const XMFLOAT3& targetPos)
 	if ( auto* tr = owner->GetComponent<CTransformComponent>() )
 	{
 		tr->SetLookDirection(dir, XMFLOAT3(0.0f, 1.0f, 0.0f));
+
+		if ( std::fabs(m_facingYawOffsetDegrees) > 1e-6f )
+		{
+			tr->RotateWorldEulerDegrees(0.0f, m_facingYawOffsetDegrees, 0.0f);
+		}
+
 		return true;
 	}
 

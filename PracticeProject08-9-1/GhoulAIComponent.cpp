@@ -17,6 +17,9 @@ CGhoulAIComponent::CGhoulAIComponent(CGameObject* owner)
 	SetPathPointReachDistance(0.10f);
 	SetGoalReachDistance(0.25f);
 
+	// Ghoul 메쉬 정면축 보정
+	SetFacingYawOffsetDegrees(180.0f);
+
 	// 테스트용이므로 감지/공격 사거리는 의미 없지만,
 	// 베이스 쪽 값이 남아 있어도 문제 없게 넉넉히 둔다.
 	SetDetectRange(99999.0f);

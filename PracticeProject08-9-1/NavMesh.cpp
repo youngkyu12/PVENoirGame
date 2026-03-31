@@ -23,39 +23,83 @@ namespace
 	static constexpr float kDegenerateEpsilon = 1e-8f;
 	static constexpr float kPointEqualEpsilonSq = 1e-6f;
 
-	struct EdgeKey
-	{
-		int a = 0;
-		int b = 0;
+	static constexpr float kGeometricEdgeEpsilon = 1e-4f;
+	static constexpr float kGeometricEdgeEpsilonSq = kGeometricEdgeEpsilon * kGeometricEdgeEpsilon;
 
-		EdgeKey() = default;
-		EdgeKey(int i0, int i1)
+	struct QuantizedPointKey
+	{
+		int64_t x = 0;
+		int64_t y = 0;
+		int64_t z = 0;
+
+		bool operator==(const QuantizedPointKey& rhs) const
 		{
-			if ( i0 < i1 )
-			{
-				a = i0;
-				b = i1;
-			}
-			else
-			{
-				a = i1;
-				b = i0;
-			}
+			return ( x == rhs.x ) && ( y == rhs.y ) && ( z == rhs.z );
 		}
 
-		bool operator==(const EdgeKey& rhs) const
+		bool operator<(const QuantizedPointKey& rhs) const
+		{
+			if ( x != rhs.x ) return x < rhs.x;
+			if ( y != rhs.y ) return y < rhs.y;
+			return z < rhs.z;
+		}
+	};
+
+	struct QuantizedPointKeyHasher
+	{
+		size_t operator()(const QuantizedPointKey& k) const noexcept
+		{
+			const size_t hx = std::hash<int64_t>{}( k.x );
+			const size_t hy = std::hash<int64_t>{}( k.y );
+			const size_t hz = std::hash<int64_t>{}( k.z );
+
+			return hx ^ ( hy + 0x9e3779b9ull + ( hx << 6 ) + ( hx >> 2 ) )
+				^ ( hz + 0x9e3779b9ull + ( hy << 6 ) + ( hy >> 2 ) );
+		}
+	};
+
+	static QuantizedPointKey MakeQuantizedPointKey(const XMFLOAT3& p)
+	{
+		return QuantizedPointKey
+		{
+			static_cast< int64_t >( std::llround(static_cast< double >( p.x ) / static_cast< double >( kGeometricEdgeEpsilon )) ),
+			static_cast< int64_t >( std::llround(static_cast< double >( p.y ) / static_cast< double >( kGeometricEdgeEpsilon )) ),
+			static_cast< int64_t >( std::llround(static_cast< double >( p.z ) / static_cast< double >( kGeometricEdgeEpsilon )) )
+		};
+	}
+
+	struct GeometricEdgeKey
+	{
+		QuantizedPointKey a{};
+		QuantizedPointKey b{};
+
+		GeometricEdgeKey() = default;
+
+		GeometricEdgeKey(const XMFLOAT3& p0, const XMFLOAT3& p1)
+		{
+			QuantizedPointKey k0 = MakeQuantizedPointKey(p0);
+			QuantizedPointKey k1 = MakeQuantizedPointKey(p1);
+
+			if ( k1 < k0 )
+				std::swap(k0, k1);
+
+			a = k0;
+			b = k1;
+		}
+
+		bool operator==(const GeometricEdgeKey& rhs) const
 		{
 			return ( a == rhs.a ) && ( b == rhs.b );
 		}
 	};
 
-	struct EdgeKeyHasher
+	struct GeometricEdgeKeyHasher
 	{
-		size_t operator()(const EdgeKey& k) const noexcept
+		size_t operator()(const GeometricEdgeKey& k) const noexcept
 		{
-			size_t h0 = static_cast< size_t >( k.a ) * 73856093u;
-			size_t h1 = static_cast< size_t >( k.b ) * 19349663u;
-			return h0 ^ h1;
+			const size_t h0 = QuantizedPointKeyHasher{}( k.a );
+			const size_t h1 = QuantizedPointKeyHasher{}( k.b );
+			return h0 ^ ( h1 + 0x9e3779b9ull + ( h0 << 6 ) + ( h0 >> 2 ) );
 		}
 	};
 
@@ -311,6 +355,36 @@ namespace
 		default: return -1;
 		}
 	}
+
+	static float DistanceSq3D(const XMFLOAT3& a, const XMFLOAT3& b)
+	{
+		const float dx = a.x - b.x;
+		const float dy = a.y - b.y;
+		const float dz = a.z - b.z;
+		return ( dx * dx ) + ( dy * dy ) + ( dz * dz );
+	}
+
+	static bool NearlyEqual3D(const XMFLOAT3& a, const XMFLOAT3& b, float epsSq = kGeometricEdgeEpsilonSq)
+	{
+		return DistanceSq3D(a, b) <= epsSq;
+	}
+
+	static bool IsSameUndirectedEdge3D(
+		const XMFLOAT3& a0,
+		const XMFLOAT3& a1,
+		const XMFLOAT3& b0,
+		const XMFLOAT3& b1)
+	{
+		const bool sameForward =
+			NearlyEqual3D(a0, b0) &&
+			NearlyEqual3D(a1, b1);
+
+		const bool sameReverse =
+			NearlyEqual3D(a0, b1) &&
+			NearlyEqual3D(a1, b0);
+
+		return sameForward || sameReverse;
+	}
 }
 
 CNavMesh::CNavMesh()
@@ -461,11 +535,9 @@ bool CNavMesh::LoadFromFile(const std::string& filePath)
 		return false;
 	}
 
-	// 파일에 neighbor가 없거나, geometry 기준으로 다시 보장하고 싶으면 재구축
-	if ( ( m_fileHeader.flags & kNavMeshFlagHasNeighbors ) == 0u )
-	{
-		BuildNeighborsFromGeometry();
-	}
+	// Unity export / seam 분리 정점 문제 때문에
+	// 파일 내 neighbor 정보 유무와 무관하게 geometry 기준으로 항상 다시 만든다.
+	BuildNeighborsFromGeometry();
 
 	BuildRuntimeData();
 
@@ -560,9 +632,6 @@ void CNavMesh::BuildRuntimeData()
 
 void CNavMesh::BuildNeighborsFromGeometry()
 {
-	std::unordered_map<EdgeKey, EdgeRef, EdgeKeyHasher> edgeMap;
-	edgeMap.reserve(m_triangles.size() * 3);
-
 	for ( NAVMESH_TRIANGLE& tri : m_triangles )
 	{
 		tri.n0 = -1;
@@ -570,31 +639,99 @@ void CNavMesh::BuildNeighborsFromGeometry()
 		tri.n2 = -1;
 	}
 
+	std::unordered_map<GeometricEdgeKey, std::vector<EdgeRef>, GeometricEdgeKeyHasher> edgeBuckets;
+	edgeBuckets.reserve(m_triangles.size() * 3);
+
 	for ( int triIndex = 0; triIndex < static_cast< int >(m_triangles.size()); ++triIndex )
 	{
-		NAVMESH_TRIANGLE& tri = m_triangles[triIndex];
+		const NAVMESH_TRIANGLE& tri = m_triangles[triIndex];
 
 		for ( int edgeIndex = 0; edgeIndex < 3; ++edgeIndex )
 		{
-			uint32_t ia = 0, ib = 0;
+			uint32_t ia = 0;
+			uint32_t ib = 0;
 			GetTriangleEdgeVertexIndices(tri, edgeIndex, ia, ib);
 
-			EdgeKey key(static_cast< int >(ia), static_cast< int >(ib));
+			const XMFLOAT3& va = m_vertices[ia];
+			const XMFLOAT3& vb = m_vertices[ib];
 
-			auto it = edgeMap.find(key);
-			if ( it == edgeMap.end() )
+			// 퇴화 edge는 무시
+			if ( DistanceSq3D(va, vb) <= kDegenerateEpsilon )
+				continue;
+
+			GeometricEdgeKey key(va, vb);
+			edgeBuckets[key].push_back(EdgeRef{ triIndex, edgeIndex });
+		}
+	}
+
+	for ( auto& kv : edgeBuckets )
+	{
+		std::vector<EdgeRef>& refs = kv.second;
+		if ( refs.size() < 2 )
+			continue;
+
+		for ( size_t i = 0; i < refs.size(); ++i )
+		{
+			const EdgeRef lhsRef = refs[i];
+
+			if ( lhsRef.triangleIndex < 0 )
+				continue;
+
+			if ( GetTriangleNeighbor(m_triangles[lhsRef.triangleIndex], lhsRef.edgeIndex) >= 0 )
+				continue;
+
+			uint32_t lhsIa = 0, lhsIb = 0;
+			GetTriangleEdgeVertexIndices(
+				m_triangles[lhsRef.triangleIndex],
+				lhsRef.edgeIndex,
+				lhsIa,
+				lhsIb
+			);
+
+			const XMFLOAT3& lhsA = m_vertices[lhsIa];
+			const XMFLOAT3& lhsB = m_vertices[lhsIb];
+
+			for ( size_t j = i + 1; j < refs.size(); ++j )
 			{
-				edgeMap.emplace(key, EdgeRef{ triIndex, edgeIndex });
-			}
-			else
-			{
-				EdgeRef other = it->second;
+				const EdgeRef rhsRef = refs[j];
 
-				int* pThis = GetTriangleNeighborPtr(tri, edgeIndex);
-				int* pOther = GetTriangleNeighborPtr(m_triangles[other.triangleIndex], other.edgeIndex);
+				if ( rhsRef.triangleIndex < 0 )
+					continue;
 
-				if ( pThis )  *pThis = other.triangleIndex;
-				if ( pOther ) *pOther = triIndex;
+				if ( lhsRef.triangleIndex == rhsRef.triangleIndex )
+					continue;
+
+				if ( GetTriangleNeighbor(m_triangles[rhsRef.triangleIndex], rhsRef.edgeIndex) >= 0 )
+					continue;
+
+				uint32_t rhsIa = 0, rhsIb = 0;
+				GetTriangleEdgeVertexIndices(
+					m_triangles[rhsRef.triangleIndex],
+					rhsRef.edgeIndex,
+					rhsIa,
+					rhsIb
+				);
+
+				const XMFLOAT3& rhsA = m_vertices[rhsIa];
+				const XMFLOAT3& rhsB = m_vertices[rhsIb];
+
+				if ( !IsSameUndirectedEdge3D(lhsA, lhsB, rhsA, rhsB) )
+					continue;
+
+				int* pLhsNeighbor = GetTriangleNeighborPtr(
+					m_triangles[lhsRef.triangleIndex],
+					lhsRef.edgeIndex
+				);
+
+				int* pRhsNeighbor = GetTriangleNeighborPtr(
+					m_triangles[rhsRef.triangleIndex],
+					rhsRef.edgeIndex
+				);
+
+				if ( pLhsNeighbor ) *pLhsNeighbor = rhsRef.triangleIndex;
+				if ( pRhsNeighbor ) *pRhsNeighbor = lhsRef.triangleIndex;
+
+				break;
 			}
 		}
 	}
@@ -898,7 +1035,43 @@ bool CNavMesh::FindTrianglePath(
 	}
 
 	if ( cameFrom[goalTri] == -1 )
+	{
+#ifdef _DEBUG
+		char dbg[1024] = {};
+
+		sprintf_s(
+			dbg,
+			"[NavMesh] FindTrianglePath FAIL startTri=%d goalTri=%d start=(%.3f, %.3f, %.3f) goal=(%.3f, %.3f, %.3f)\n",
+			startTri, goalTri,
+			startProj.x, startProj.y, startProj.z,
+			goalProj.x, goalProj.y, goalProj.z
+		);
+		OutputDebugStringA(dbg);
+
+		if ( startTri >= 0 && startTri < triCount )
+		{
+			const NAVMESH_TRIANGLE& st = m_triangles[startTri];
+			sprintf_s(
+				dbg,
+				"[NavMesh] startTri neighbors = [%d, %d, %d]\n",
+				st.n0, st.n1, st.n2
+			);
+			OutputDebugStringA(dbg);
+		}
+
+		if ( goalTri >= 0 && goalTri < triCount )
+		{
+			const NAVMESH_TRIANGLE& gt = m_triangles[goalTri];
+			sprintf_s(
+				dbg,
+				"[NavMesh] goalTri neighbors = [%d, %d, %d]\n",
+				gt.n0, gt.n1, gt.n2
+			);
+			OutputDebugStringA(dbg);
+		}
+#endif
 		return false;
+	}
 
 	std::vector<int> reversed;
 	for ( int node = goalTri; node != -1; node = cameFrom[node] )

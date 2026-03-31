@@ -2060,6 +2060,20 @@ void CGameScene::BuildSkinnedBatch(
                 // GameStartData에서 좌표 가져오기
 				XMFLOAT3 pos{};
 				float yaw = 180.0f;
+#ifndef USING_NETWORK
+				if ( k == 0 )
+				{
+					auto* ghoulAI = obj->AddComponent<CGhoulAIComponent>();
+					if ( ghoulAI )
+					{
+						ghoulAI->SetScene(this);
+						ghoulAI->SetMoveSpeed(2.0f);
+						ghoulAI->SetRepathInterval(0.15f);
+						ghoulAI->SetPathPointReachDistance(0.10f);
+						ghoulAI->SetGoalReachDistance(0.25f);
+					}
+				}
+#endif
 
 #ifdef USING_NETWORK
 				if ( !GetNetworkEnemySpawn(enemyIndex, pos, yaw) )
@@ -2071,7 +2085,7 @@ void CGameScene::BuildSkinnedBatch(
 #endif
 
 				obj->SetPosition(pos.x, pos.y, pos.z);
-				obj->Rotate(0.0f, yaw, 0.0f);
+				//obj->Rotate(0.0f, yaw, 0.0f);
 
                 ++enemyIndex;
 
