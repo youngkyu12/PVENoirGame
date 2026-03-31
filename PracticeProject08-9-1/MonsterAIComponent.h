@@ -45,7 +45,8 @@ public:
 	void SetRepathInterval(float v) { m_repathInterval = v; }
 	void SetPathPointReachDistance(float v) { m_pathPointReachDistance = v; }
 	void SetGoalReachDistance(float v) { m_goalReachDistance = v; }
-
+	void SetFacingYawOffsetDegrees(float v) { m_facingYawOffsetDegrees = v; }
+	
 	float GetDetectRange() const { return m_detectRange; }
 	float GetAttackRange() const { return m_attackRange; }
 	float GetMoveSpeed() const { return m_moveSpeed; }
@@ -53,6 +54,7 @@ public:
 	float GetRepathInterval() const { return m_repathInterval; }
 	float GetPathPointReachDistance() const { return m_pathPointReachDistance; }
 	float GetGoalReachDistance() const { return m_goalReachDistance; }
+	float GetFacingYawOffsetDegrees() const { return m_facingYawOffsetDegrees; }
 
 public:
 	bool HasValidTarget() const;
@@ -114,6 +116,7 @@ protected:
 
 	float m_pathPointReachDistance = 0.15f;
 	float m_goalReachDistance = 0.75f;
+	float m_facingYawOffsetDegrees = 0.0f;
 
 	float m_attackCooldownRemaining = 0.0f;
 	float m_repathTimer = 0.0f;
