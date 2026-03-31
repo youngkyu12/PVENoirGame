@@ -297,7 +297,7 @@ void CCollisionSystem::OnUpdate()
     
 	const size_t n = mColliders.size();
 
-	for ( size_t i = 0; i < n; ++i )
+	/*for ( size_t i = 0; i < n; ++i )
 	{
 		auto* a = mColliders[i];
 
@@ -309,7 +309,7 @@ void CCollisionSystem::OnUpdate()
 			a->DisabledRender();
 			continue;
 		}
-	}
+	}*/
 
     for (size_t i = 0; i < n; ++i)
     {
