@@ -1,0 +1,124 @@
+//-----------------------------------------------------------------------------
+// File: MonsterAIComponent.h
+//-----------------------------------------------------------------------------
+
+#pragma once
+
+#include "Component.h"
+
+#include <vector>
+#include <string>
+
+class CGameScene;
+class CNavMesh;
+class CAnimatorComponent;
+class CAnimController;
+class CGameObject;
+
+class CMonsterAIComponent : public CComponentT<CMonsterAIComponent>
+{
+public:
+	explicit CMonsterAIComponent(CGameObject* owner);
+	virtual ~CMonsterAIComponent() = default;
+
+public:
+	void OnCreate(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd) override;
+	void OnUpdate(float dt) override;
+
+public:
+	void SetScene(CGameScene* scene) { m_pScene = scene; }
+	CGameScene* GetScene() const { return m_pScene; }
+
+	void SetTarget(CGameObject* target);
+	CGameObject* GetTarget() const { return m_pTarget; }
+
+	void ClearTarget();
+
+public:
+	void SetEnabledAI(bool enabled) { m_bAIEnabled = enabled; }
+	bool IsAIEnabled() const { return m_bAIEnabled; }
+
+	void SetDetectRange(float v) { m_detectRange = v; }
+	void SetAttackRange(float v) { m_attackRange = v; }
+	void SetMoveSpeed(float v) { m_moveSpeed = v; }
+	void SetAttackCooldown(float v) { m_attackCooldown = v; }
+	void SetRepathInterval(float v) { m_repathInterval = v; }
+	void SetPathPointReachDistance(float v) { m_pathPointReachDistance = v; }
+	void SetGoalReachDistance(float v) { m_goalReachDistance = v; }
+
+	float GetDetectRange() const { return m_detectRange; }
+	float GetAttackRange() const { return m_attackRange; }
+	float GetMoveSpeed() const { return m_moveSpeed; }
+	float GetAttackCooldown() const { return m_attackCooldown; }
+	float GetRepathInterval() const { return m_repathInterval; }
+	float GetPathPointReachDistance() const { return m_pathPointReachDistance; }
+	float GetGoalReachDistance() const { return m_goalReachDistance; }
+
+public:
+	bool HasValidTarget() const;
+	bool HasPath() const { return !m_currentPath.empty() && ( m_currentPathIndex < m_currentPath.size() ); }
+
+	float GetDistanceToTargetXZ() const;
+	float GetDistanceToPointXZ(const XMFLOAT3& p) const;
+
+	bool IsTargetInDetectRange() const;
+	bool IsTargetInAttackRange() const;
+
+	bool CanAttackNow() const;
+	void ConsumeAttackCooldown();
+
+public:
+	bool RebuildPathToTarget();
+	void ClearPath();
+
+protected:
+	// 파생 클래스에서 override
+	virtual bool AcquireTarget();
+	virtual void UpdateBehavior(float dt);
+	virtual bool TryPerformAttack() = 0;
+
+	// 이동 정책
+	virtual bool ShouldMoveTowardsTarget() const;
+	virtual bool ShouldRepath() const;
+	virtual bool CanMoveNow() const;
+	virtual bool CanThinkNow() const;
+	virtual bool CanAttackNowByState() const;
+
+protected:
+	CNavMesh* GetNavMesh() const;
+	CAnimatorComponent* GetAnimatorComponent() const;
+	CAnimController* GetAnimController() const;
+
+	XMFLOAT3 GetOwnerPosition() const;
+	bool FaceTowards(const XMFLOAT3& targetPos);
+	bool MoveTowards(const XMFLOAT3& targetPos, float maxStepDistance);
+
+	bool FollowCurrentPath(float dt);
+
+	bool SampleNavMeshPosition(const XMFLOAT3& inPos, XMFLOAT3& outPos, int* outTri = nullptr) const;
+
+	void UpdateCooldowns(float dt);
+	void UpdatePathTimers(float dt);
+
+protected:
+	CGameScene* m_pScene = nullptr;
+	CGameObject* m_pTarget = nullptr;
+
+	bool m_bAIEnabled = true;
+
+	float m_detectRange = 12.0f;
+	float m_attackRange = 1.5f;
+	float m_moveSpeed = 2.0f;
+	float m_attackCooldown = 1.0f;
+	float m_repathInterval = 0.35f;
+
+	float m_pathPointReachDistance = 0.15f;
+	float m_goalReachDistance = 0.75f;
+
+	float m_attackCooldownRemaining = 0.0f;
+	float m_repathTimer = 0.0f;
+
+	std::vector<int> m_trianglePath;
+	std::vector<XMFLOAT3> m_currentPath;
+	size_t m_currentPathIndex = 0;
+};
