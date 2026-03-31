@@ -131,6 +131,9 @@
     <Filter Include="NavMesh">
       <UniqueIdentifier>{29fa9c05-5a78-40c4-898b-3f0e040081c8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Components\MonsterAIComponent">
+      <UniqueIdentifier>{7a149549-114b-43fa-a74b-3b467bc953d2}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animator.h">
@@ -295,6 +298,9 @@
     <ClInclude Include="NavMesh.h">
       <Filter>NavMesh</Filter>
     </ClInclude>
+    <ClInclude Include="MonsterAIComponent.h">
+      <Filter>Components\MonsterAIComponent</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -428,6 +434,9 @@
     </ClCompile>
     <ClCompile Include="NavMesh.cpp">
       <Filter>NavMesh</Filter>
+    </ClCompile>
+    <ClCompile Include="MonsterAIComponent.cpp">
+      <Filter>Components\MonsterAIComponent</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
