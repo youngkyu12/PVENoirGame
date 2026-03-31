@@ -301,6 +301,9 @@
     <ClInclude Include="MonsterAIComponent.h">
       <Filter>Components\MonsterAIComponent</Filter>
     </ClInclude>
+    <ClInclude Include="GhoulAIComponent.h">
+      <Filter>Components\MonsterAIComponent</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -436,6 +439,9 @@
       <Filter>NavMesh</Filter>
     </ClCompile>
     <ClCompile Include="MonsterAIComponent.cpp">
+      <Filter>Components\MonsterAIComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="GhoulAIComponent.cpp">
       <Filter>Components\MonsterAIComponent</Filter>
     </ClCompile>
   </ItemGroup>
