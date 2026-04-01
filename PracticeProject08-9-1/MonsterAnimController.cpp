@@ -21,10 +21,24 @@ CAnimator* CMonsterAnimController::ResolveAnimator() const
 
 std::string CMonsterAnimController::ResolveLocomotionClip() const
 {
-	if ( m_locomotionState == EMonsterAnimState::Move )
-		return m_profile.moveClip;
+	switch ( m_locomotionState )
+	{
+	case EMonsterAnimState::Run:
+		if ( !m_profile.runClip.empty() )
+			return m_profile.runClip;
+		if ( !m_profile.moveClip.empty() )
+			return m_profile.moveClip;
+		return m_profile.idleClip;
 
-	return m_profile.idleClip;
+	case EMonsterAnimState::Move:
+		if ( !m_profile.moveClip.empty() )
+			return m_profile.moveClip;
+		return m_profile.idleClip;
+
+	case EMonsterAnimState::Idle:
+	default:
+		return m_profile.idleClip;
+	}
 }
 
 bool CMonsterAnimController::StartAction(CAnimator* anim, const std::string& clipName, EActionPhase phase, float blendTimeSec, bool loop)

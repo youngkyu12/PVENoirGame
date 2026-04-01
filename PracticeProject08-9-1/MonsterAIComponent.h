@@ -5,6 +5,7 @@
 #pragma once
 
 #include "Component.h"
+#include "MonsterAnimTypes.h"
 
 #include <vector>
 #include <string>
@@ -12,6 +13,7 @@
 class CGameScene;
 class CNavMesh;
 class CAnimatorComponent;
+class CMonsterAnimController;
 class CAnimController;
 class CGameObject;
 
@@ -90,6 +92,8 @@ protected:
 	CNavMesh* GetNavMesh() const;
 	CAnimatorComponent* GetAnimatorComponent() const;
 	CAnimController* GetAnimController() const;
+	CMonsterAnimController* GetMonsterAnimController() const;
+	void SetMonsterLocomotionState(EMonsterAnimState state);
 
 	XMFLOAT3 GetOwnerPosition() const;
 	bool FaceTowards(const XMFLOAT3& targetPos);
