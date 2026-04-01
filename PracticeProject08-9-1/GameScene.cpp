@@ -1982,6 +1982,7 @@ void CGameScene::BuildSkinnedBatch(
 						MonsterAnimProfile p{};
 						p.idleClip = "Idle";
 						p.moveClip = "Walk";
+						p.runClip = "Run";
 						p.hitClip = "Hit";
 						p.attackClip = "Attack";
 						p.deathClip = "Death";

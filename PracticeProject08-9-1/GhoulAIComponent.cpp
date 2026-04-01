@@ -7,20 +7,21 @@
 
 #include "GameScene.h"
 #include "Object.h"
+#include "AnimatorComponent.h"
+#include "MonsterAnimController.h"
 
 CGhoulAIComponent::CGhoulAIComponent(CGameObject* owner)
 	: CMonsterAIComponent(owner)
 {
-	// NavMesh 추적 테스트용 기본값
+	// 추적 / 전투용 기본값
 	SetMoveSpeed(2.0f);
 	SetRepathInterval(0.15f);
 	SetPathPointReachDistance(0.10f);
 	SetGoalReachDistance(0.25f);
 
-	// 테스트용이므로 감지/공격 사거리는 의미 없지만,
-	// 베이스 쪽 값이 남아 있어도 문제 없게 넉넉히 둔다.
 	SetDetectRange(99999.0f);
-	SetAttackRange(0.0f);
+	SetAttackRange(1.5f);
+	SetAttackCooldown(1.0f);
 }
 
 bool CGhoulAIComponent::AcquireTarget()
@@ -40,31 +41,19 @@ bool CGhoulAIComponent::AcquireTarget()
 
 void CGhoulAIComponent::UpdateBehavior(float dt)
 {
-	if ( !HasValidTarget() )
-	{
-		ClearPath();
-		return;
-	}
-
-	// 목표를 향해 무조건 NavMesh 경로 재계산/추적
-	if ( ShouldRepath() || !HasPath() )
-	{
-		RebuildPathToTarget();
-	}
-
-	if ( HasPath() )
-	{
-		FollowCurrentPath(dt);
-	}
-	else
-	{
-		// 혹시 path가 안 나오더라도 최소한 바라보게는 둔다.
-		FaceTowards(GetTarget()->GetPosition());
-	}
+	CMonsterAIComponent::UpdateBehavior(dt);
 }
 
 bool CGhoulAIComponent::TryPerformAttack()
 {
-	// 이번 테스트 목적에서는 공격 안 함
-	return false;
+	auto* animComp = GetAnimatorComponent();
+	if ( !animComp )
+		return false;
+
+	auto* ctrl = animComp->EnsureMonsterController();
+	if ( !ctrl )
+		return false;
+
+	ctrl->RequestCommand(EMonsterAnimCommand::Attack);
+	return true;
 }

@@ -13,6 +13,7 @@
 #include "Object.h"
 #include "AnimatorComponent.h"
 #include "AnimController.h"
+#include "MonsterAnimController.h"
 #include "ActorTagComponent.h"
 
 namespace
@@ -201,6 +202,7 @@ void CMonsterAIComponent::ClearPath()
 	m_trianglePath.clear();
 	m_currentPath.clear();
 	m_currentPathIndex = 0;
+	SetMonsterLocomotionState(EMonsterAnimState::Idle);
 }
 
 bool CMonsterAIComponent::AcquireTarget()
@@ -221,19 +223,25 @@ bool CMonsterAIComponent::AcquireTarget()
 void CMonsterAIComponent::UpdateBehavior(float dt)
 {
 	if ( !HasValidTarget() )
+	{
+		ClearPath();
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
 		return;
+	}
 
 	// 감지 범위 밖이면 추적 중단
 	if ( !IsTargetInDetectRange() )
 	{
 		ClearPath();
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
 		return;
 	}
 
-	// 공격 범위면 공격 시도
+	// 공격 범위면 이동 정지 + 공격
 	if ( IsTargetInAttackRange() )
 	{
 		ClearPath();
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
 		FaceTowards(m_pTarget->GetPosition());
 
 		if ( CanAttackNow() )
@@ -248,17 +256,31 @@ void CMonsterAIComponent::UpdateBehavior(float dt)
 
 	// 이동 가능하면 경로 추적
 	if ( !ShouldMoveTowardsTarget() )
+	{
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
 		return;
+	}
 
 	if ( !CanMoveNow() )
+	{
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
 		return;
+	}
 
 	if ( ShouldRepath() || !HasPath() )
 	{
 		RebuildPathToTarget();
 	}
 
-	FollowCurrentPath(dt);
+	if ( HasPath() )
+	{
+		FollowCurrentPath(dt);
+	}
+	else
+	{
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		FaceTowards(m_pTarget->GetPosition());
+	}
 }
 
 bool CMonsterAIComponent::ShouldMoveTowardsTarget() const
@@ -290,7 +312,12 @@ bool CMonsterAIComponent::ShouldRepath() const
 
 bool CMonsterAIComponent::CanMoveNow() const
 {
-	// 추후 hit/attack/skill state별 이동 금지 정책은 여기나 파생 클래스에서 확장
+	if ( auto* ctrl = GetMonsterAnimController() )
+	{
+		if ( ctrl->IsBusy() )
+			return false;
+	}
+
 	return true;
 }
 
@@ -302,6 +329,12 @@ bool CMonsterAIComponent::CanThinkNow() const
 
 bool CMonsterAIComponent::CanAttackNowByState() const
 {
+	if ( auto* ctrl = GetMonsterAnimController() )
+	{
+		if ( ctrl->IsBusy() )
+			return false;
+	}
+
 	return true;
 }
 
@@ -333,6 +366,27 @@ CAnimController* CMonsterAIComponent::GetAnimController() const
 	}
 
 	return GetOwner()->GetAnimController();
+}
+
+CMonsterAnimController* CMonsterAIComponent::GetMonsterAnimController() const
+{
+	if ( !GetOwner() )
+		return nullptr;
+
+	if ( auto* animComp = GetOwner()->GetComponent<CAnimatorComponent>() )
+	{
+		return animComp->EnsureMonsterController();
+	}
+
+	return nullptr;
+}
+
+void CMonsterAIComponent::SetMonsterLocomotionState(EMonsterAnimState state)
+{
+	if ( auto* ctrl = GetMonsterAnimController() )
+	{
+		ctrl->SetLocomotionState(state);
+	}
 }
 
 XMFLOAT3 CMonsterAIComponent::GetOwnerPosition() const
@@ -439,7 +493,10 @@ bool CMonsterAIComponent::FollowCurrentPath(float dt)
 		return false;
 
 	if ( !HasPath() )
+	{
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
 		return false;
+	}
 
 	if ( dt <= 0.0f )
 		return false;
@@ -459,10 +516,12 @@ bool CMonsterAIComponent::FollowCurrentPath(float dt)
 			continue;
 		}
 
+		SetMonsterLocomotionState(EMonsterAnimState::Run);
 		MoveTowards(waypoint, moveDistance);
 		return true;
 	}
 
+	SetMonsterLocomotionState(EMonsterAnimState::Idle);
 	return false;
 }
 
