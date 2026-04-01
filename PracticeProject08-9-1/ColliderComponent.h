@@ -17,6 +17,13 @@ struct MeshOOBBSet
 	vector<BoundingOrientedBox> WorldSubOOBBs;
 };
 
+struct BoneCapsuleLink
+{
+	int parentBoneIndex = -1;
+	int childBoneIndex = -1;
+	float radius = 0.0f;
+};
+
 class CColliderComponent final : public CComponentT<CColliderComponent>
 {
 public:
@@ -54,6 +61,16 @@ public:
 	void UpdateWorldBounds();
 	void DisabledRender();
 
+	const std::vector<BoundingCapsule>& GetBoneCapsules() const { return mWorldBoneCapsules; }
+	bool HasBoneCapsules() const { return !mWorldBoneCapsules.empty(); }
+
+	bool IntersectsBoneCapsulesHierarchical(const BoundingOrientedBox& box) const;
+	bool IntersectsBoneCapsulesHierarchical(const BoundingCapsule& capsule) const;
+
+	void BuildBoneCapsulesFromSkeleton();
+	void UpdateBoneCapsulesFromCurrentPose();
+
+	void OnLateUpdate(float dt) override;
 private:
 	static BoundingOrientedBox MakeLocalOOBB(const XMFLOAT3& Min, const XMFLOAT3& Max);
 	void BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>& meshes);
@@ -86,4 +103,8 @@ private:
 	uint32_t mLayer = 0;
 	uint32_t mMask = 0xFFFFFFFFu;
 	bool mIsTrigger = false;
+
+private:
+	std::vector<BoneCapsuleLink> mBoneCapsuleLinks;
+	std::vector<BoundingCapsule> mWorldBoneCapsules;
 };

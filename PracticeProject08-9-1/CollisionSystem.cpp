@@ -177,17 +177,38 @@ bool CCollisionSystem::IsPairIntersecting(const CColliderComponent* a, const CCo
 	if ( !PassFilter(a, b) )
 		return false;
 
-	if ( a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::BCapsule )
+	const uint32_t layerA = a->GetLayer();
+	const uint32_t layerB = b->GetLayer();
+
+	// BCapsule vs BCapsule
+	if ( a->GetType() == EColliderType::BCapsule &&
+		b->GetType() == EColliderType::BCapsule )
 	{
 		return a->GetBCapsule().Intersects(b->GetBCapsule());
 	}
-	else if ( a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::OOBB )
+
+	// BCapsule vs OOBB
+	if ( a->GetType() == EColliderType::BCapsule &&
+		b->GetType() == EColliderType::OOBB )
 	{
-		return b->IntersectsCapsuleHierarchical(a->GetBCapsule());
+		// body vs world static
+		if ( layerB == kCollisionLayerWorldStatic )
+			return b->IntersectsCapsuleHierarchical(a->GetBCapsule());
+
+		// body vs weapon OOBB
+		return a->IntersectsBoneCapsulesHierarchical(b->GetOOBB());
 	}
-	else if ( a->GetType() == EColliderType::OOBB && b->GetType() == EColliderType::BCapsule )
+
+	// OOBB vs BCapsule
+	if ( a->GetType() == EColliderType::OOBB &&
+		b->GetType() == EColliderType::BCapsule )
 	{
-		return a->IntersectsCapsuleHierarchical(b->GetBCapsule());
+		// world static vs body
+		if ( layerA == kCollisionLayerWorldStatic )
+			return a->IntersectsCapsuleHierarchical(b->GetBCapsule());
+
+		// weapon OOBB vs body
+		return b->IntersectsBoneCapsulesHierarchical(a->GetOOBB());
 	}
 
 	return false;

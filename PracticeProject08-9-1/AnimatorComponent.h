@@ -52,6 +52,7 @@ public:
     bool CrossFade(const std::string& name, float blendTime, bool loop = true, float start = 0.0f);
 
     void InvalidateSkeleton();
+	const std::vector<XMFLOAT4X4>* GetCurrentGlobalPose() const;
 
 private:
     void SyncSkeletonIfPossible();
