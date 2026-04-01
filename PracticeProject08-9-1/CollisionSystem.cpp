@@ -216,66 +216,14 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 	if ( !a || !b )
 		return;
 
-	bool isHit = IsPairIntersecting(a, b);
+	const bool isHit = IsPairIntersecting(a, b);
 	if ( !isHit )
 		return;
 
-	CColliderComponent* pushedCollider = nullptr;
-
-	if ( a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::BCapsule )
-	{
-		pushedCollider = a;
-	}
-	else if ( a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::OOBB )
-	{
-		pushedCollider = a;
-	}
-	else if ( a->GetType() == EColliderType::OOBB && b->GetType() == EColliderType::BCapsule )
-	{
-		pushedCollider = b;
-	}
-
-	//DebugPrintCollision(a, b);
-
 	if ( a->IsTrigger() || b->IsTrigger() )
 	{
-		// Trigger 이벤트 처리
 		return;
 	}
-
-	const bool isCapsuleVsOOBB =
-		( a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::OOBB ) ||
-		( a->GetType() == EColliderType::OOBB && b->GetType() == EColliderType::BCapsule );
-
-	if ( isCapsuleVsOOBB )
-		return;
-
-	if ( !pushedCollider )
-		return;
-
-	auto* owner = pushedCollider->GetOwner();
-	if ( !owner )
-		return;
-
-	auto* transform = owner->GetComponent<CTransformComponent>();
-	if ( !transform )
-		return;
-
-	const float pushBackDistance = 0.1f;
-
-	XMFLOAT3 forward = transform->direction;
-	XMVECTOR fwdV = XMLoadFloat3(&forward);
-
-	if ( XMVectorGetX(XMVector3LengthSq(fwdV)) < 1e-8f )
-		forward = XMFLOAT3(0.0f, 0.0f, 1.0f);
-
-	XMFLOAT3 pos = transform->position;
-
-	pos.x -= forward.x * pushBackDistance;
-	pos.y -= forward.y * pushBackDistance;
-	pos.z -= forward.z * pushBackDistance;
-
-	transform->Translate(pos);
 }
 
 bool CCollisionSystem::IsVisible(const BoundingFrustum& frustum, const CColliderComponent* collider)
