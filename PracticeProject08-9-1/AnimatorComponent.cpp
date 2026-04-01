@@ -167,3 +167,9 @@ void CAnimatorComponent::InvalidateSkeleton()
 {
     m_bSkeletonBound = false;
 }
+
+const std::vector<XMFLOAT4X4>* CAnimatorComponent::GetCurrentGlobalPose() const
+{
+	if ( !m_pAnimator ) return nullptr;
+	return &m_pAnimator->GetCurrentGlobalPose();
+}

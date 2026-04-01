@@ -3,7 +3,8 @@
 //-----------------------------------------------------------------------------
 #include "stdafx.h"
 #include "ColliderComponent.h"
-#include "Object.h" // CGameObject
+#include "Object.h"
+#include "AnimatorComponent.h"
 
 BoundingOrientedBox CColliderComponent::MakeLocalOOBB(const XMFLOAT3& Min, const XMFLOAT3& Max)
 {
@@ -23,6 +24,40 @@ BoundingOrientedBox CColliderComponent::MakeLocalOOBB(const XMFLOAT3& Min, const
 
 	box.Orientation = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
 	return box;
+}
+
+static BoundingCapsule MakeCapsuleFromSegment(
+	const XMFLOAT3& p0,
+	const XMFLOAT3& p1,
+	float radius)
+{
+	BoundingCapsule capsule{};
+	capsule.p0 = p0;
+	capsule.p1 = p1;
+
+	capsule.Center = XMFLOAT3(
+		( p0.x + p1.x ) * 0.5f,
+		( p0.y + p1.y ) * 0.5f,
+		( p0.z + p1.z ) * 0.5f
+	);
+
+	capsule.Radius = radius;
+
+	const XMVECTOR A = XMLoadFloat3(&p0);
+	const XMVECTOR B = XMLoadFloat3(&p1);
+	const XMVECTOR D = B - A;
+
+	const float axisLen = XMVectorGetX(XMVector3Length(D));
+	capsule.Height = axisLen + radius * 2.0f;
+
+	XMFLOAT3 absD{};
+	XMStoreFloat3(&absD, XMVectorAbs(D));
+
+	if ( absD.x >= absD.y && absD.x >= absD.z ) capsule.Direction = EDirection::X;
+	else if ( absD.y >= absD.x && absD.y >= absD.z ) capsule.Direction = EDirection::Y;
+	else capsule.Direction = EDirection::Z;
+
+	return capsule;
 }
 
 void CColliderComponent::BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>& meshes)
@@ -151,13 +186,22 @@ void CColliderComponent::OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*)
     default:
         break;
     }
-    
-    UpdateWorldBounds();
-}
 
-void CColliderComponent::OnUpdate(float dt)
-{
-    // MVP: 매 프레임 갱신
+	bool isSkinned = false;
+	for ( const auto& mesh : meshes )
+	{
+		if ( mesh && mesh->IsSkinnedMesh() )
+		{
+			isSkinned = true;
+			break;
+		}
+	}
+
+	if ( mColliderType == EColliderType::BCapsule && isSkinned )
+	{
+		BuildBoneCapsulesFromSkeleton();
+	}
+    
     UpdateWorldBounds();
 }
 
@@ -250,21 +294,24 @@ void CColliderComponent::SetBCapsule(const XMFLOAT3& Min, const XMFLOAT3& Max)
             LocalBCapsule.Center.z);
         LocalBCapsule.Direction = EDirection::Y;
     }
-    else {
-        LocalBCapsule.Height = dz;
-        const float halfSegment = max(0.0f, dz * 0.5f - LocalBCapsule.Radius);
+	else {
+		LocalBCapsule.Height = dz;
+		LocalBCapsule.Radius = max(dx, dy) * 0.5f;
 
-        LocalBCapsule.p0 = XMFLOAT3(
-            LocalBCapsule.Center.x,
-            LocalBCapsule.Center.y,
-            LocalBCapsule.Center.z - halfSegment);
+		const float halfSegment = max(0.0f, dz * 0.5f - LocalBCapsule.Radius);
 
-        LocalBCapsule.p1 = XMFLOAT3(
-            LocalBCapsule.Center.x,
-            LocalBCapsule.Center.y,
-            LocalBCapsule.Center.z + halfSegment);
-        LocalBCapsule.Direction = EDirection::Z;
-    }
+		LocalBCapsule.p0 = XMFLOAT3(
+			LocalBCapsule.Center.x,
+			LocalBCapsule.Center.y,
+			LocalBCapsule.Center.z - halfSegment);
+
+		LocalBCapsule.p1 = XMFLOAT3(
+			LocalBCapsule.Center.x,
+			LocalBCapsule.Center.y,
+			LocalBCapsule.Center.z + halfSegment);
+
+		LocalBCapsule.Direction = EDirection::Z;
+	}
    
 }
 
@@ -314,21 +361,24 @@ void CColliderComponent::SetSubBCapsule(const XMFLOAT3& Min, const XMFLOAT3& Max
             Capsule.Center.z);
         Capsule.Direction = EDirection::Y;
     }
-    else {
-        Capsule.Height = dz;
-        const float halfSegment = max(0.0f, dz * 0.5f - Capsule.Radius);
+	else {
+		Capsule.Height = dz;
+		Capsule.Radius = max(dx, dy) * 0.5f;
 
-        Capsule.p0 = XMFLOAT3(
-            Capsule.Center.x,
-            Capsule.Center.y,
-            Capsule.Center.z - halfSegment);
+		const float halfSegment = max(0.0f, dz * 0.5f - Capsule.Radius);
 
-        Capsule.p1 = XMFLOAT3(
-            Capsule.Center.x,
-            Capsule.Center.y,
-            Capsule.Center.z + halfSegment);
-        Capsule.Direction = EDirection::Z;
-    }
+		Capsule.p0 = XMFLOAT3(
+			Capsule.Center.x,
+			Capsule.Center.y,
+			Capsule.Center.z - halfSegment);
+
+		Capsule.p1 = XMFLOAT3(
+			Capsule.Center.x,
+			Capsule.Center.y,
+			Capsule.Center.z + halfSegment);
+
+		Capsule.Direction = EDirection::Z;
+	}
 
     LocalSubBCapsules.push_back(Capsule);
 }
@@ -378,11 +428,23 @@ void CColliderComponent::UpdateWorldBounds()
         LocalBSphere.Transform(WorldBSphere, W);
         break;
     }
-    case EColliderType::BCapsule:
-    {
-        LocalBCapsule.Transform(WorldBCapsule, W);
-        break;
-    }
+	case EColliderType::BCapsule:
+	{
+		LocalBCapsule.Transform(WorldBCapsule, W);
+
+		WorldSubBCapsules.resize(LocalSubBCapsules.size());
+		for ( size_t i = 0; i < LocalSubBCapsules.size(); ++i )
+		{
+			LocalSubBCapsules[i].Transform(WorldSubBCapsules[i], W);
+		}
+
+		if ( !mBoneCapsuleLinks.empty() )
+		{
+			UpdateBoneCapsulesFromCurrentPose();
+		}
+
+		break;
+	}
     default:
         // None이면 캐시만 리셋하거나 무시
         break;
@@ -417,4 +479,198 @@ bool CColliderComponent::IntersectsCapsuleHierarchical(const BoundingCapsule& ca
 	}
 
 	return false;
+}
+
+bool CColliderComponent::IntersectsBoneCapsulesHierarchical(const BoundingOrientedBox& box) const
+{
+	if ( mColliderType != EColliderType::BCapsule )
+		return false;
+
+	if ( !WorldBCapsule.Intersects(box) )
+		return false;
+
+	if ( mWorldBoneCapsules.empty() )
+		return true;
+
+	for ( const BoundingCapsule& boneCapsule : mWorldBoneCapsules )
+	{
+		if ( boneCapsule.Intersects(box) )
+			return true;
+	}
+
+	return false;
+}
+
+bool CColliderComponent::IntersectsBoneCapsulesHierarchical(const BoundingCapsule& capsule) const
+{
+	if ( mColliderType != EColliderType::BCapsule )
+		return false;
+
+	if ( !WorldBCapsule.Intersects(capsule) )
+		return false;
+
+	if ( mWorldBoneCapsules.empty() )
+		return true;
+
+	for ( const BoundingCapsule& boneCapsule : mWorldBoneCapsules )
+	{
+		if ( boneCapsule.Intersects(capsule) )
+			return true;
+	}
+
+	return false;
+}
+
+void CColliderComponent::BuildBoneCapsulesFromSkeleton()
+{
+	mBoneCapsuleLinks.clear();
+	mWorldBoneCapsules.clear();
+
+	if ( !mModel ) return;
+
+	const std::vector<Bone>& bones = mModel->GetBones();
+	if ( bones.empty() ) return;
+
+	std::vector<XMFLOAT4X4> bindGlobal(bones.size());
+
+	for ( size_t i = 0; i < bones.size(); ++i )
+	{
+		XMMATRIX local = XMLoadFloat4x4(&bones[i].bindLocal);
+
+		if ( bones[i].parentIndex >= 0 )
+		{
+			XMMATRIX parentGlobal = XMLoadFloat4x4(&bindGlobal[bones[i].parentIndex]);
+			XMStoreFloat4x4(&bindGlobal[i], local * parentGlobal);
+		}
+		else
+		{
+			XMStoreFloat4x4(&bindGlobal[i], local);
+		}
+	}
+
+	std::vector<XMFLOAT3> jointBindPositions(bones.size());
+
+	for ( size_t i = 0; i < bones.size(); ++i )
+	{
+		XMVECTOR pos = XMVector3TransformCoord(
+			XMVectorZero(),
+			XMLoadFloat4x4(&bindGlobal[i])
+		);
+		XMStoreFloat3(&jointBindPositions[i], pos);
+	}
+
+	for ( size_t child = 0; child < bones.size(); ++child )
+	{
+		const int parent = bones[child].parentIndex;
+		if ( parent < 0 ) continue;
+
+		const XMVECTOR A = XMLoadFloat3(&jointBindPositions[parent]);
+		const XMVECTOR B = XMLoadFloat3(&jointBindPositions[child]);
+
+		const float boneLen = XMVectorGetX(XMVector3Length(B - A));
+		if ( boneLen <= 1e-4f ) continue;
+
+		float maxRadius = 0.0f;
+		int sampleCount = 0;
+
+		for ( const auto& mesh : mModel->GetMeshes() )
+		{
+			if ( !mesh ) continue;
+
+			for ( const auto& sm : mesh->m_SubMeshes )
+			{
+				const size_t vcount = sm.positions.size();
+				for ( size_t v = 0; v < vcount; ++v )
+				{
+					if ( v >= sm.boneIndices.size() ) continue;
+					if ( v >= sm.boneWeights.size() ) continue;
+
+					const XMUINT4& bi = sm.boneIndices[v];
+					const XMFLOAT4& bw = sm.boneWeights[v];
+
+					int dominantBone = ( int ) bi.x;
+					float dominantWeight = bw.x;
+
+					if ( bw.y > dominantWeight ) { dominantWeight = bw.y; dominantBone = ( int ) bi.y; }
+					if ( bw.z > dominantWeight ) { dominantWeight = bw.z; dominantBone = ( int ) bi.z; }
+					if ( bw.w > dominantWeight ) { dominantWeight = bw.w; dominantBone = ( int ) bi.w; }
+
+					if ( dominantBone != parent && dominantBone != ( int ) child )
+						continue;
+
+					const XMVECTOR P = XMLoadFloat3(&sm.positions[v]);
+					const float distSq = Vector3::distPointToSegment(A, B, P);
+					const float dist = sqrtf(distSq);
+
+					if ( dist > maxRadius )
+						maxRadius = dist;
+
+					++sampleCount;
+				}
+			}
+		}
+
+		if ( sampleCount == 0 )
+			maxRadius = boneLen * 0.15f;
+
+		if ( maxRadius < 0.02f ) maxRadius = 0.02f;
+		if ( maxRadius > boneLen * 0.75f ) maxRadius = boneLen * 0.75f;
+
+		BoneCapsuleLink link{};
+		link.parentBoneIndex = parent;
+		link.childBoneIndex = ( int ) child;
+		link.radius = maxRadius;
+
+		mBoneCapsuleLinks.push_back(link);
+	}
+
+	mWorldBoneCapsules.resize(mBoneCapsuleLinks.size());
+}
+
+void CColliderComponent::UpdateBoneCapsulesFromCurrentPose()
+{
+	if ( mBoneCapsuleLinks.empty() ) return;
+
+	CAnimatorComponent* animComp = GetOwner()->GetComponent<CAnimatorComponent>();
+	if ( !animComp ) return;
+
+	const std::vector<XMFLOAT4X4>* globalPose = animComp->GetCurrentGlobalPose();
+	if ( !globalPose ) return;
+	if ( globalPose->empty() ) return;
+
+	const XMMATRIX objectWorld = XMLoadFloat4x4(&mTransform->GetWorldMatrix());
+
+	for ( size_t i = 0; i < mBoneCapsuleLinks.size(); ++i )
+	{
+		const BoneCapsuleLink& link = mBoneCapsuleLinks[i];
+
+		if ( link.parentBoneIndex < 0 ) continue;
+		if ( link.childBoneIndex < 0 ) continue;
+		if ( link.parentBoneIndex >= ( int ) globalPose->size() ) continue;
+		if ( link.childBoneIndex >= ( int ) globalPose->size() ) continue;
+
+		const XMMATRIX parentGlobal = XMLoadFloat4x4(&( *globalPose )[link.parentBoneIndex]);
+		const XMMATRIX childGlobal = XMLoadFloat4x4(&( *globalPose )[link.childBoneIndex]);
+
+		const XMVECTOR P0 = XMVector3TransformCoord(XMVectorZero(), parentGlobal * objectWorld);
+		const XMVECTOR P1 = XMVector3TransformCoord(XMVectorZero(), childGlobal * objectWorld);
+
+		XMFLOAT3 p0{};
+		XMFLOAT3 p1{};
+		XMStoreFloat3(&p0, P0);
+		XMStoreFloat3(&p1, P1);
+
+		mWorldBoneCapsules[i] = MakeCapsuleFromSegment(p0, p1, link.radius);
+	}
+}
+
+void CColliderComponent::OnUpdate(float dt)
+{
+	UNREFERENCED_PARAMETER(dt);
+}
+
+void CColliderComponent::OnLateUpdate(float dt)
+{
+	UNREFERENCED_PARAMETER(dt);
+	UpdateWorldBounds();
 }
