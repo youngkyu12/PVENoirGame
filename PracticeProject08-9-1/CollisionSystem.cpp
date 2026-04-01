@@ -12,9 +12,11 @@ namespace
 {
 	enum : uint32_t
 	{
-		kCollisionLayerCharacter = 0,
-		kCollisionLayerWorldStatic = 1,
-		kCollisionLayerLocalPlayer = 2
+		kCollisionLayerPlayer = 0,
+		kCollisionLayerMonster = 1,
+		kCollisionLayerWorldStatic = 2,
+		kCollisionLayerPlayerWeapon = 3,
+		kCollisionLayerMonsterWeapon = 4
 	};
 
 	const char* ColliderTypeToString(EColliderType type)
@@ -224,6 +226,7 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 	{
 		return;
 	}
+
 }
 
 bool CCollisionSystem::IsVisible(const BoundingFrustum& frustum, const CColliderComponent* collider)
