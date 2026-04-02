@@ -93,3 +93,15 @@ void CWeaponHitboxComponent::DisableAllWeaponColliders()
 	DisableOne(equip->GetWeaponObject(EWeaponType::Bow));
 	DisableOne(equip->GetWeaponObject(EWeaponType::Gun));
 }
+
+bool CWeaponHitboxComponent::CanHitTarget(CGameObject* target) const
+{
+	if ( !target ) return false;
+	return ( m_hitTargets.find(target) == m_hitTargets.end() );
+}
+
+void CWeaponHitboxComponent::MarkHitTarget(CGameObject* target)
+{
+	if ( !target ) return;
+	m_hitTargets.insert(target);
+}

@@ -30,6 +30,7 @@
 #include "CollisionSystem.h"
 #include "ColliderComponent.h"
 #include "WeaponHitboxComponent.h"
+#include "MonsterWeaponHitboxComponent.h"
 #include "MonsterCombatComponent.h"
 #include "NavMesh.h"
 #include "GhoulAIComponent.h"
@@ -1421,6 +1422,9 @@ void CGameScene::BuildStaticBatch(
 			auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
 			ConfigureWeaponCollider(collider, false);
 			if ( collider ) collider->SetCollisionEnabled(false);
+
+			auto* enemyWeaponHitbox = obj->AddComponent<CMonsterWeaponHitboxComponent>();
+			( void ) enemyWeaponHitbox;
 
             obj->SetPosition(0.0f, -10000.0f, 0.0f);
             obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
@@ -3214,10 +3218,17 @@ void CGameScene::LinkSceneObjects()
         const size_t pairCount =
             (m_swordManRefs.size() < m_EnemySwordRefs.size()) ? m_swordManRefs.size() : m_EnemySwordRefs.size();
 
-        for (size_t i = 0; i < pairCount; ++i)
-        {
-            AddWeaponBind(m_EnemySwordRefs[i], m_swordManRefs[i], "hand_r", enemySwordOffset);
-        }
+		for ( size_t i = 0; i < pairCount; ++i )
+		{
+			AddWeaponBind(m_EnemySwordRefs[i], m_swordManRefs[i], "hand_r", enemySwordOffset);
+
+			if ( auto* hitbox = m_EnemySwordRefs[i]->GetComponent<CMonsterWeaponHitboxComponent>() )
+			{
+				hitbox->BindAttacker(m_swordManRefs[i]);
+				hitbox->SetAttackClipName("Attack");
+				hitbox->SetActiveWindow(0.20f, 0.55f);
+			}
+		}
     }
 
     // BowMan <-> EnemyBow

@@ -20,6 +20,8 @@ public:
 	// 한 번 휘두를 때 같은 대상 중복 타격 방지용 캐시를 이미 쓰고 있으면
 	// 그 캐시 clear 함수 이름만 맞춰서 연결하면 된다.
 	void ClearHitTargets() { m_hitTargets.clear(); }
+	bool CanHitTarget(CGameObject* target) const;
+	void MarkHitTarget(CGameObject* target);
 
 private:
 	void DisableAllWeaponColliders();

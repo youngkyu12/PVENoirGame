@@ -316,6 +316,9 @@
     <ClInclude Include="MonsterCombatComponent.h">
       <Filter>Components\MonsterCombatComponent</Filter>
     </ClInclude>
+    <ClInclude Include="MonsterWeaponHitboxComponent.h">
+      <Filter>Components\WeaponHitboxComponent</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -461,6 +464,9 @@
     </ClCompile>
     <ClCompile Include="MonsterCombatComponent.cpp">
       <Filter>Components\MonsterCombatComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="MonsterWeaponHitboxComponent.cpp">
+      <Filter>Components\WeaponHitboxComponent</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
