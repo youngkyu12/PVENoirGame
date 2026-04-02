@@ -84,6 +84,12 @@ private:
         Roll
     };
 
+public:
+	bool IsGenericAttackPhase() const { return m_actionPhase == EActionPhase::AttackGeneric; }
+	bool IsRollPhase() const { return m_actionPhase == EActionPhase::Roll; }
+
+	bool IsMeleeAttackHitboxActive() const;
+
 private:
     std::string ResolveIdleClip() const;
     std::string ResolveMoveClip() const;

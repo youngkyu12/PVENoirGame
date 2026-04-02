@@ -5,8 +5,10 @@
 #include "WeaponHitboxComponent.h"
 
 #include "Object.h"
-#include "ColliderComponent.h"
+#include "AnimatorComponent.h"
 #include "AnimController.h"
+#include "PlayerEquipmentComponent.h"
+#include "ColliderComponent.h"
 
 CWeaponHitboxComponent::CWeaponHitboxComponent(CGameObject* owner)
 	: CComponentT<CWeaponHitboxComponent>(owner)
@@ -15,67 +17,79 @@ CWeaponHitboxComponent::CWeaponHitboxComponent(CGameObject* owner)
 
 void CWeaponHitboxComponent::OnCreate(ID3D12Device* /*dev*/, ID3D12GraphicsCommandList* /*cmd*/)
 {
-	m_pEquipment = GetOwner()->GetComponent<CPlayerEquipmentComponent>();
-	DisableAllMeleeWeaponColliders();
+	m_bPrevHitboxActive = false;
+	DisableAllWeaponColliders();
 }
 
 void CWeaponHitboxComponent::OnUpdate(float /*dt*/)
 {
-	if ( !m_pEquipment )
+	CGameObject* owner = GetOwner();
+	if ( !owner )
 		return;
 
-	const EWeaponType equipped = m_pEquipment->GetEquippedWeapon();
-	const bool active = IsMeleeAttackActive();
+	auto* equip = owner->GetComponent<CPlayerEquipmentComponent>();
+	if ( !equip )
+	{
+		DisableAllWeaponColliders();
+		m_bPrevHitboxActive = false;
+		return;
+	}
 
-	SetWeaponColliderEnabled(
-		EWeaponType::Sword,
-		active && ( equipped == EWeaponType::Sword )
-	);
+	CAnimController* ctrl = nullptr;
 
-	SetWeaponColliderEnabled(
-		EWeaponType::Axe,
-		active && ( equipped == EWeaponType::Axe )
-	);
+	if ( auto* animComp = owner->GetComponent<CAnimatorComponent>() )
+		ctrl = animComp->GetController();
 
-	// 원거리 무기는 근접 히트박스 사용 안 함
-	SetWeaponColliderEnabled(EWeaponType::Bow, false);
-	SetWeaponColliderEnabled(EWeaponType::Gun, false);
-}
-
-bool CWeaponHitboxComponent::IsMeleeAttackActive() const
-{
-	if ( !m_pEquipment )
-		return false;
-
-	const EWeaponType equipped = m_pEquipment->GetEquippedWeapon();
-	if ( equipped != EWeaponType::Sword && equipped != EWeaponType::Axe )
-		return false;
-
-	auto* ctrl = GetOwner()->GetAnimController();
 	if ( !ctrl )
-		return false;
+		ctrl = owner->GetAnimController();
 
-	return ( ctrl->GetAnimState() == EAnimState::Attack );
+	const bool shouldEnableMeleeHitbox =
+		( ctrl != nullptr ) && ctrl->IsMeleeAttackHitboxActive();
+
+	// 기본은 전부 끔
+	DisableAllWeaponColliders();
+
+	// 공격 시작/종료 경계에서 히트 캐시 초기화
+	if ( shouldEnableMeleeHitbox != m_bPrevHitboxActive )
+		ClearHitTargets();
+
+	if ( shouldEnableMeleeHitbox )
+	{
+		const EWeaponType equipped = equip->GetEquippedWeapon();
+
+		if ( equipped == EWeaponType::Sword || equipped == EWeaponType::Axe )
+		{
+			CGameObject* weaponObj = equip->GetEquippedWeaponObject();
+			if ( weaponObj )
+			{
+				if ( auto* collider = weaponObj->GetComponent<CColliderComponent>() )
+					collider->SetCollisionEnabled(true);
+			}
+		}
+	}
+
+	m_bPrevHitboxActive = shouldEnableMeleeHitbox;
 }
 
-void CWeaponHitboxComponent::DisableAllMeleeWeaponColliders()
+void CWeaponHitboxComponent::DisableAllWeaponColliders()
 {
-	SetWeaponColliderEnabled(EWeaponType::Sword, false);
-	SetWeaponColliderEnabled(EWeaponType::Axe, false);
-}
-
-void CWeaponHitboxComponent::SetWeaponColliderEnabled(EWeaponType type, bool enabled)
-{
-	if ( !m_pEquipment )
+	CGameObject* owner = GetOwner();
+	if ( !owner )
 		return;
 
-	CGameObject* weaponObj = m_pEquipment->GetWeaponObject(type);
-	if ( !weaponObj )
+	auto* equip = owner->GetComponent<CPlayerEquipmentComponent>();
+	if ( !equip )
 		return;
 
-	auto* collider = weaponObj->GetComponent<CColliderComponent>();
-	if ( !collider )
-		return;
+	auto DisableOne = [ ] (CGameObject* weaponObj)
+		{
+			if ( !weaponObj ) return;
+			if ( auto* collider = weaponObj->GetComponent<CColliderComponent>() )
+				collider->SetCollisionEnabled(false);
+		};
 
-	collider->SetCollisionEnabled(enabled);
+	DisableOne(equip->GetWeaponObject(EWeaponType::Sword));
+	DisableOne(equip->GetWeaponObject(EWeaponType::Axe));
+	DisableOne(equip->GetWeaponObject(EWeaponType::Bow));
+	DisableOne(equip->GetWeaponObject(EWeaponType::Gun));
 }
