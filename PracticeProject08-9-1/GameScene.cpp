@@ -29,6 +29,7 @@
 #include "PlayerEquipmentComponent.h"
 #include "CollisionSystem.h"
 #include "ColliderComponent.h"
+#include "WeaponHitboxComponent.h"
 #include "NavMesh.h"
 #include "GhoulAIComponent.h"
 
@@ -1245,6 +1246,7 @@ void CGameScene::BuildStaticBatch(
 
 			auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
 			ConfigureWeaponCollider(collider, true);
+			if ( collider ) collider->SetCollisionEnabled(false);
 
             // 링크 전까진 화면 밖에 둠
             obj->SetPosition(0.0f, -10000.0f, 0.0f);
@@ -1315,6 +1317,7 @@ void CGameScene::BuildStaticBatch(
 
 			auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
 			ConfigureWeaponCollider(collider, true);
+			if ( collider ) collider->SetCollisionEnabled(false);
 
             // 링크 전까지는 화면 밖에 둠
             obj->SetPosition(0.0f, -10000.0f, 0.0f);
@@ -1416,6 +1419,7 @@ void CGameScene::BuildStaticBatch(
 
 			auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
 			ConfigureWeaponCollider(collider, false);
+			if ( collider ) collider->SetCollisionEnabled(false);
 
             obj->SetPosition(0.0f, -10000.0f, 0.0f);
             obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
@@ -2598,6 +2602,8 @@ void CGameScene::BuildSkinnedBatch(
 
 			auto* animComp = obj->AddComponent<CAnimatorComponent>(); 
 			auto* equipComp = obj->AddComponent<CPlayerEquipmentComponent>();
+			auto* weaponHitboxComp = obj->AddComponent<CWeaponHitboxComponent>();
+			( void ) weaponHitboxComp;
 
             {
                 auto* tag = obj->AddComponent<CActorTagComponent>();

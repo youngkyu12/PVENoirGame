@@ -134,6 +134,9 @@
     <Filter Include="Components\AIComponent">
       <UniqueIdentifier>{7a149549-114b-43fa-a74b-3b467bc953d2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Components\WeaponHitboxComponent">
+      <UniqueIdentifier>{6003ae83-b712-4472-aea4-4987caeecc79}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animator.h">
@@ -304,6 +307,9 @@
     <ClInclude Include="GhoulAIComponent.h">
       <Filter>Components\AIComponent</Filter>
     </ClInclude>
+    <ClInclude Include="WeaponHitboxComponent.h">
+      <Filter>Components\WeaponHitboxComponent</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -443,6 +449,9 @@
     </ClCompile>
     <ClCompile Include="GhoulAIComponent.cpp">
       <Filter>Components\AIComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="WeaponHitboxComponent.cpp">
+      <Filter>Components\WeaponHitboxComponent</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

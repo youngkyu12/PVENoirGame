@@ -216,6 +216,7 @@
     <ClInclude Include="targetver.h" />
     <ClInclude Include="Texture.h" />
     <ClInclude Include="Timer.h" />
+    <ClInclude Include="WeaponHitboxComponent.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ActorTagComponent.cpp" />
@@ -290,6 +291,7 @@
     </ClCompile>
     <ClCompile Include="Texture.cpp" />
     <ClCompile Include="Timer.cpp" />
+    <ClCompile Include="WeaponHitboxComponent.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PracticeProject08-9-1.rc" />

@@ -45,6 +45,8 @@ public:
     bool IsActionLocked() const;
 	bool IsActionActive() const { return m_actionPhase != EActionPhase::None; }
 
+	EAnimState GetAnimState() const { return m_state; }
+
     void Update(float dt);
 	void NetworkUpdate(float dt);
 	void LocalUpdate(float dt);
