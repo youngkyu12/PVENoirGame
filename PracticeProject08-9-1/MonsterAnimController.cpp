@@ -66,12 +66,21 @@ void CMonsterAnimController::RequestCommand(EMonsterAnimCommand cmd)
 	if ( cmd == EMonsterAnimCommand::None )
 		return;
 
+	// Death는 최우선
 	if ( cmd == EMonsterAnimCommand::Death )
 	{
 		m_pendingCommand = cmd;
 		return;
 	}
 
+	// Hit도 높은 우선순위로 받아서 현재 액션을 끊게 한다
+	if ( cmd == EMonsterAnimCommand::Hit )
+	{
+		m_pendingCommand = cmd;
+		return;
+	}
+
+	// 그 외 명령은 현재 액션 중이면 무시
 	if ( m_actionPhase != EActionPhase::None )
 		return;
 

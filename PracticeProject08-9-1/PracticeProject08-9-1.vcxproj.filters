@@ -137,6 +137,9 @@
     <Filter Include="Components\WeaponHitboxComponent">
       <UniqueIdentifier>{6003ae83-b712-4472-aea4-4987caeecc79}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Components\MonsterCombatComponent">
+      <UniqueIdentifier>{16aaad4e-f7aa-4e0a-a3f6-036a548f179e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animator.h">
@@ -310,6 +313,9 @@
     <ClInclude Include="WeaponHitboxComponent.h">
       <Filter>Components\WeaponHitboxComponent</Filter>
     </ClInclude>
+    <ClInclude Include="MonsterCombatComponent.h">
+      <Filter>Components\MonsterCombatComponent</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -452,6 +458,9 @@
     </ClCompile>
     <ClCompile Include="WeaponHitboxComponent.cpp">
       <Filter>Components\WeaponHitboxComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="MonsterCombatComponent.cpp">
+      <Filter>Components\MonsterCombatComponent</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
