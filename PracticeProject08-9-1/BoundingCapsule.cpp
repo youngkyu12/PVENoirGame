@@ -75,6 +75,34 @@ ContainmentType BoundingCapsule::Contains(FXMVECTOR V0, FXMVECTOR V1, FXMVECTOR 
     return XMVector3EqualInt(inside, XMVectorTrueInt()) ? CONTAINS : INTERSECTS;
 }
 
+bool BoundingCapsule::Intersects(const BoundingSphere& sh) const noexcept
+{
+	XMVECTOR A = XMLoadFloat3(&p0);
+	XMVECTOR B = XMLoadFloat3(&p1);
+	XMVECTOR C = XMLoadFloat3(&sh.Center);
+
+	const float distSq = Vector3::distPointToSegment(A, B, C);
+	const float r = Radius + sh.Radius;
+
+	return distSq <= ( r * r );
+}
+
+bool BoundingCapsule::Intersects(const BoundingBox& box) const noexcept
+{
+	XMVECTOR A = XMLoadFloat3(&p0);
+	XMVECTOR B = XMLoadFloat3(&p1);
+
+	XMVECTOR center = XMLoadFloat3(&box.Center);
+	XMVECTOR extents = XMLoadFloat3(&box.Extents);
+
+	// AABB 중심 기준 로컬 공간으로 선분 이동
+	XMVECTOR ALocal = XMVectorSubtract(A, center);
+	XMVECTOR BLocal = XMVectorSubtract(B, center);
+
+	const float distSq = Vector3::distSegmentToAABB(ALocal, BLocal, extents);
+	return distSq <= ( Radius * Radius );
+}
+
 bool BoundingCapsule::Intersects(const BoundingOrientedBox& box) const noexcept
 {
     XMVECTOR A = XMLoadFloat3(&p0);

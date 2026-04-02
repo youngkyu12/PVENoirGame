@@ -1943,6 +1943,7 @@ void CGameScene::BuildSkinnedBatch(
 				ConfigureBodyCollider(collider, false);
 				auto* animComp = obj->AddComponent<CAnimatorComponent>();
 				auto* combat = obj->AddComponent<CMonsterCombatComponent>();
+				auto* weaponHitbox = obj->AddComponent<CMonsterWeaponHitboxComponent>();
 				( void ) combat;
 
 #ifndef USING_NETWORK
@@ -2025,6 +2026,18 @@ void CGameScene::BuildSkinnedBatch(
 						ctrl->SetLocomotionState(EMonsterAnimState::Idle);
 						ctrl->Update(0.0f);
 					}
+				}
+
+				if ( weaponHitbox )
+				{
+					weaponHitbox->BindAttacker(obj.get());
+					weaponHitbox->SetUseOwnerBoneWeaponCapsules(true);
+					weaponHitbox->AddBoneWeaponConfig(
+						"Attack",
+						0.20f,
+						0.55f,
+						std::vector<std::string>{ "hand_r" }
+					);
 				}
 
 				obj->Animate(0.0f);
@@ -2346,6 +2359,7 @@ void CGameScene::BuildSkinnedBatch(
 				ConfigureBodyCollider(collider, false);
 				auto* animComp = obj->AddComponent<CAnimatorComponent>();
 				auto* combat = obj->AddComponent<CMonsterCombatComponent>();
+				auto* weaponHitbox = obj->AddComponent<CMonsterWeaponHitboxComponent>();
 				( void ) combat;
 
                 {
@@ -2414,6 +2428,18 @@ void CGameScene::BuildSkinnedBatch(
 					}
 				}
 
+				if ( weaponHitbox )
+				{
+					weaponHitbox->BindAttacker(obj.get());
+					weaponHitbox->SetUseOwnerBoneWeaponCapsules(true);
+					weaponHitbox->AddBoneWeaponConfig(
+						"Attack",
+						0.20f,
+						0.55f,
+						std::vector<std::string>{ "CATRigRArmPalm" }
+					);
+				}
+
 				obj->CreateComponents(dev, cmd);
 				if ( animComp ) animComp->EvaluatePose(0.0f);
 
@@ -2474,6 +2500,7 @@ void CGameScene::BuildSkinnedBatch(
 				ConfigureBodyCollider(collider, false);
 				auto* animComp = obj->AddComponent<CAnimatorComponent>();
 				auto* combat = obj->AddComponent<CMonsterCombatComponent>();
+				auto* weaponHitbox = obj->AddComponent<CMonsterWeaponHitboxComponent>();
 				( void ) combat;
 
                 {
@@ -2547,6 +2574,26 @@ void CGameScene::BuildSkinnedBatch(
 						ctrl->SetLocomotionState(EMonsterAnimState::Idle);
 						ctrl->Update(0.0f);
 					}
+				}
+
+				if ( weaponHitbox )
+				{
+					weaponHitbox->BindAttacker(obj.get());
+					weaponHitbox->SetUseOwnerBoneWeaponCapsules(true);
+
+					weaponHitbox->AddBoneWeaponConfig(
+						"AttackLeft",
+						0.20f,
+						0.55f,
+						std::vector<std::string>{ "Wrist_L" }
+					);
+
+					weaponHitbox->AddBoneWeaponConfig(
+						"AttackRight",
+						0.20f,
+						0.55f,
+						std::vector<std::string>{ "Wrist_R" }
+					);
 				}
 
 				obj->CreateComponents(dev, cmd);
