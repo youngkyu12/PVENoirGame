@@ -30,6 +30,7 @@
 #include "CollisionSystem.h"
 #include "ColliderComponent.h"
 #include "WeaponHitboxComponent.h"
+#include "MonsterCombatComponent.h"
 #include "NavMesh.h"
 #include "GhoulAIComponent.h"
 
@@ -1937,6 +1938,8 @@ void CGameScene::BuildSkinnedBatch(
 				auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
 				ConfigureBodyCollider(collider, false);
 				auto* animComp = obj->AddComponent<CAnimatorComponent>();
+				auto* combat = obj->AddComponent<CMonsterCombatComponent>();
+				( void ) combat;
 
 #ifndef USING_NETWORK
 				if ( k == 0 )
@@ -2076,8 +2079,10 @@ void CGameScene::BuildSkinnedBatch(
 				obj->SetMesh(0, assetX.mesh);
 				obj->AddComponent<CSkinnedMeshRendererComponent>();
 				auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
-				ConfigureBodyCollider(collider, false); 
+				ConfigureBodyCollider(collider, false);
 				auto* animComp = obj->AddComponent<CAnimatorComponent>();
+				auto* combat = obj->AddComponent<CMonsterCombatComponent>();
+				( void ) combat;
 
                 {
                     auto* tag = obj->AddComponent<CActorTagComponent>();
@@ -2203,8 +2208,10 @@ void CGameScene::BuildSkinnedBatch(
 				obj->SetMesh(0, assetY.mesh);
 				obj->AddComponent<CSkinnedMeshRendererComponent>();
 				auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
-				ConfigureBodyCollider(collider, false); 
+				ConfigureBodyCollider(collider, false);
 				auto* animComp = obj->AddComponent<CAnimatorComponent>();
+				auto* combat = obj->AddComponent<CMonsterCombatComponent>();
+				( void ) combat;
 
                 {
                     auto* tag = obj->AddComponent<CActorTagComponent>();
@@ -2332,8 +2339,10 @@ void CGameScene::BuildSkinnedBatch(
 				obj->SetMesh(0, assetZ.mesh);
 				obj->AddComponent<CSkinnedMeshRendererComponent>();
 				auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
-				ConfigureBodyCollider(collider, false); 
+				ConfigureBodyCollider(collider, false);
 				auto* animComp = obj->AddComponent<CAnimatorComponent>();
+				auto* combat = obj->AddComponent<CMonsterCombatComponent>();
+				( void ) combat;
 
                 {
                     auto* tag = obj->AddComponent<CActorTagComponent>();
@@ -2458,8 +2467,10 @@ void CGameScene::BuildSkinnedBatch(
 				obj->SetMesh(0, assetOne.mesh);
 				obj->AddComponent<CSkinnedMeshRendererComponent>();
 				auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
-				ConfigureBodyCollider(collider, false); 
+				ConfigureBodyCollider(collider, false);
 				auto* animComp = obj->AddComponent<CAnimatorComponent>();
+				auto* combat = obj->AddComponent<CMonsterCombatComponent>();
+				( void ) combat;
 
                 {
                     auto* tag = obj->AddComponent<CActorTagComponent>();

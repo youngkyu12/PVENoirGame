@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "CollisionSystem.h"
 #include "ColliderComponent.h"
+#include "MonsterCombatComponent.h"
 #include "Object.h"
 
 #include "ActorTagComponent.h"
@@ -42,63 +43,6 @@ namespace
 				tag->control == EPlayerControl::Local );
 	}
 
-	std::string BuildObjectDebugName(const CGameObject* obj, const CColliderComponent* collider)
-	{
-		std::ostringstream oss;
-
-		if ( !obj )
-		{
-			oss << "null";
-			return oss.str();
-		}
-
-		auto* tag = obj->GetComponent<CActorTagComponent>();
-		if ( tag )
-		{
-			if ( tag->kind == EActorKind::Player )
-			{
-				if ( tag->control == EPlayerControl::Local )
-					oss << "LocalPlayer";
-				else
-					oss << "RemotePlayer";
-
-				oss << "(slot=" << tag->playerSlot << ")";
-			}
-			else if ( tag->kind == EActorKind::NPC )
-			{
-				oss << "NPC";
-			}
-			else
-			{
-				oss << "Actor";
-			}
-		}
-		else
-		{
-			oss << "StaticObject";
-		}
-
-		if ( collider )
-		{
-			oss << "[";
-			oss << ColliderTypeToString(collider->GetType());
-			oss << "]";
-		}
-
-		std::shared_ptr<CMesh> mesh = obj->GetMeshShared(0);
-		if ( mesh )
-		{
-			const std::string& src = mesh->GetSourceMeshPath();
-			if ( !src.empty() )
-			{
-				oss << " mesh=" << src;
-			}
-		}
-
-		oss << " ptr=" << obj;
-		return oss.str();
-	}
-
 	void DebugPrintCollision(CColliderComponent* a, CColliderComponent* b)
 	{
 		if ( !a || !b ) return;
@@ -111,15 +55,6 @@ namespace
 		// 로컬 플레이어가 포함된 충돌만 출력
 		if ( !IsLocalPlayerObject(ownerA) && !IsLocalPlayerObject(ownerB) )
 			return;
-
-		std::ostringstream oss;
-		oss << "[Collision] "
-			<< BuildObjectDebugName(ownerA, a)
-			<< " <-> "
-			<< BuildObjectDebugName(ownerB, b)
-			<< "\n";
-
-		OutputDebugStringA(oss.str().c_str());
 	}
 }
 
@@ -247,10 +182,52 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 		return;
 
 	if ( a->IsTrigger() || b->IsTrigger() )
+		return;
+
+	CGameObject* ownerA = a->GetOwner();
+	CGameObject* ownerB = b->GetOwner();
+	if ( !ownerA || !ownerB )
+		return;
+
+	const uint32_t layerA = a->GetLayer();
+	const uint32_t layerB = b->GetLayer();
+
+	DebugPrintCollision(a, b);
+
+	// true 로 바꾸면 맞는 즉시 Death 애니메이션 테스트 가능
+	constexpr bool kTestForceDeathOnHit = false;
+
+	auto NotifyMonsterHit = [ & ] (CGameObject* weaponObject, CGameObject* monsterObject)
+		{
+			if ( !weaponObject || !monsterObject )
+				return;
+
+			auto* combat = monsterObject->GetComponent<CMonsterCombatComponent>();
+			if ( !combat )
+				return;
+
+			combat->OnHitByPlayerWeapon(weaponObject, kTestForceDeathOnHit);
+		};
+
+	// PlayerWeapon -> Monster
+	if ( layerA == kCollisionLayerPlayerWeapon &&
+		layerB == kCollisionLayerMonster )
 	{
+		NotifyMonsterHit(ownerA, ownerB);
 		return;
 	}
 
+	// Monster <- PlayerWeapon (reverse order)
+	if ( layerA == kCollisionLayerMonster &&
+		layerB == kCollisionLayerPlayerWeapon )
+	{
+		NotifyMonsterHit(ownerB, ownerA);
+		return;
+	}
+
+	// 나중에 필요하면 여기서
+	// MonsterWeapon <-> Player
+	// 같은 처리 추가
 }
 
 bool CCollisionSystem::IsVisible(const BoundingFrustum& frustum, const CColliderComponent* collider)
