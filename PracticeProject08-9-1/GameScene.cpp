@@ -2361,7 +2361,7 @@ void CGameScene::BuildSkinnedBatch(
 #else
 				pos.x = enemyBase.x + 2.0f * ( float ) k;
 				pos.y = enemyBase.y;
-				pos.z = enemyBase.z + 9.0f;
+				pos.z = enemyBase.z + 15.0f;
 #endif
 
 				obj->SetPosition(pos.x, pos.y, pos.z);
@@ -2489,7 +2489,7 @@ void CGameScene::BuildSkinnedBatch(
 #else
 				pos.x = enemyBase.x + 0.0f;
 				pos.y = enemyBase.y;
-				pos.z = enemyBase.z + 12.0f;
+				pos.z = enemyBase.z + 18.0f;
 #endif
 
 				obj->SetPosition(pos.x, pos.y, pos.z);
