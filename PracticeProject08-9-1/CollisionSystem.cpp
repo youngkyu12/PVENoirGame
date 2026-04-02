@@ -6,6 +6,11 @@
 
 #include "ActorTagComponent.h"
 #include "Mesh.h"
+#include "WeaponHitboxComponent.h"
+#include "MonsterWeaponHitboxComponent.h"
+#include "AnimatorComponent.h"
+#include "AnimController.h"
+
 #include <string>
 #include <sstream>
 
@@ -194,13 +199,47 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 
 	DebugPrintCollision(a, b);
 
-	// true 로 바꾸면 맞는 즉시 Death 애니메이션 테스트 가능
+	// true 로 바꾸면 몬스터는 맞는 즉시 Death 테스트 가능
 	constexpr bool kTestForceDeathOnHit = false;
+
+	auto RequestPlayerHitAnimation = [ & ] (CGameObject* playerObject)
+		{
+			if ( !playerObject )
+				return;
+
+			if ( auto* animComp = playerObject->GetComponent<CAnimatorComponent>() )
+			{
+				if ( auto* ctrl = animComp->EnsureController() )
+				{
+					ctrl->RequestHit();
+					return;
+				}
+			}
+
+			if ( auto* ctrl = playerObject->GetAnimController() )
+			{
+				ctrl->RequestHit();
+			}
+		};
 
 	auto NotifyMonsterHit = [ & ] (CGameObject* weaponObject, CGameObject* monsterObject)
 		{
 			if ( !weaponObject || !monsterObject )
 				return;
+
+			if ( auto* hitbox = weaponObject->GetComponent<CWeaponHitboxComponent>() )
+			{
+				if ( !hitbox->CanHitTarget(monsterObject) )
+					return;
+
+				auto* combat = monsterObject->GetComponent<CMonsterCombatComponent>();
+				if ( !combat )
+					return;
+
+				combat->OnHitByPlayerWeapon(weaponObject, kTestForceDeathOnHit);
+				hitbox->MarkHitTarget(monsterObject);
+				return;
+			}
 
 			auto* combat = monsterObject->GetComponent<CMonsterCombatComponent>();
 			if ( !combat )
@@ -209,25 +248,61 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 			combat->OnHitByPlayerWeapon(weaponObject, kTestForceDeathOnHit);
 		};
 
+	auto NotifyPlayerHit = [ & ] (CGameObject* weaponObject, CGameObject* playerObject)
+		{
+			if ( !weaponObject || !playerObject )
+				return;
+
+			if ( auto* hitbox = weaponObject->GetComponent<CMonsterWeaponHitboxComponent>() )
+			{
+				if ( !hitbox->CanHitTarget(playerObject) )
+					return;
+
+#ifndef USING_NETWORK
+				RequestPlayerHitAnimation(playerObject);
+#endif
+				hitbox->MarkHitTarget(playerObject);
+				return;
+			}
+
+#ifndef USING_NETWORK
+			RequestPlayerHitAnimation(playerObject);
+#endif
+		};
+
+	// ------------------------------------------------------------
 	// PlayerWeapon -> Monster
+	// ------------------------------------------------------------
 	if ( layerA == kCollisionLayerPlayerWeapon &&
-		layerB == kCollisionLayerMonster )
+		 layerB == kCollisionLayerMonster )
 	{
 		NotifyMonsterHit(ownerA, ownerB);
 		return;
 	}
 
-	// Monster <- PlayerWeapon (reverse order)
 	if ( layerA == kCollisionLayerMonster &&
-		layerB == kCollisionLayerPlayerWeapon )
+		 layerB == kCollisionLayerPlayerWeapon )
 	{
 		NotifyMonsterHit(ownerB, ownerA);
 		return;
 	}
 
-	// 나중에 필요하면 여기서
-	// MonsterWeapon <-> Player
-	// 같은 처리 추가
+	// ------------------------------------------------------------
+	// MonsterWeapon -> Player
+	// ------------------------------------------------------------
+	if ( layerA == kCollisionLayerMonsterWeapon &&
+		 layerB == kCollisionLayerPlayer )
+	{
+		NotifyPlayerHit(ownerA, ownerB);
+		return;
+	}
+
+	if ( layerA == kCollisionLayerPlayer &&
+		 layerB == kCollisionLayerMonsterWeapon )
+	{
+		NotifyPlayerHit(ownerB, ownerA);
+		return;
+	}
 }
 
 bool CCollisionSystem::IsVisible(const BoundingFrustum& frustum, const CColliderComponent* collider)

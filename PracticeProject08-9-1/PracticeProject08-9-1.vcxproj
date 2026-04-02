@@ -194,6 +194,7 @@
     <ClInclude Include="MonsterAnimController.h" />
     <ClInclude Include="MonsterAnimTypes.h" />
     <ClInclude Include="MonsterCombatComponent.h" />
+    <ClInclude Include="MonsterWeaponHitboxComponent.h" />
     <ClInclude Include="NavMesh.h" />
     <ClInclude Include="NetworkQueue.h" />
     <ClInclude Include="Object.h" />
@@ -261,6 +262,7 @@
     <ClCompile Include="MonsterAIComponent.cpp" />
     <ClCompile Include="MonsterAnimController.cpp" />
     <ClCompile Include="MonsterCombatComponent.cpp" />
+    <ClCompile Include="MonsterWeaponHitboxComponent.cpp" />
     <ClCompile Include="NavMesh.cpp" />
     <ClCompile Include="NetworkQueue.cpp" />
     <ClCompile Include="Object.cpp" />
