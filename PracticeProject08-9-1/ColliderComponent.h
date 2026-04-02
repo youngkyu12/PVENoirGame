@@ -71,6 +71,10 @@ public:
 	void UpdateBoneCapsulesFromCurrentPose();
 
 	void OnLateUpdate(float dt) override;
+
+	void SetCollisionEnabled(bool enabled) { mCollisionEnabled = enabled; }
+	bool IsCollisionEnabled() const { return mCollisionEnabled; }
+
 private:
 	static BoundingOrientedBox MakeLocalOOBB(const XMFLOAT3& Min, const XMFLOAT3& Max);
 	void BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>& meshes);
@@ -104,6 +108,7 @@ private:
 	uint32_t mMask = 0xFFFFFFFFu;
 	bool mIsTrigger = false;
 
+	bool mCollisionEnabled = true;
 private:
 	std::vector<BoneCapsuleLink> mBoneCapsuleLinks;
 	std::vector<BoundingCapsule> mWorldBoneCapsules;

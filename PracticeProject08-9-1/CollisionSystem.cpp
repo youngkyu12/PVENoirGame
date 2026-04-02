@@ -159,14 +159,17 @@ const std::vector<CColliderComponent*>& CCollisionSystem::GetColliders() const
 
 bool CCollisionSystem::PassFilter(const CColliderComponent* a, const CColliderComponent* b) const
 {
-    // 레이어/마스크: 서로 허용해야 충돌(대칭)
-    // b의 layer bit가 a의 mask에 포함 && a의 layer bit가 b의 mask에 포함
-    const uint32_t bitA = (1u << a->GetLayer());
-    const uint32_t bitB = (1u << b->GetLayer());
+	if ( !a || !b ) return false;
 
-    if ((a->GetMask() & bitB) == 0) return false;
-    if ((b->GetMask() & bitA) == 0) return false;
-    return true;
+	if ( !a->IsCollisionEnabled() ) return false;
+	if ( !b->IsCollisionEnabled() ) return false;
+
+	const uint32_t bitA = ( 1u << a->GetLayer() );
+	const uint32_t bitB = ( 1u << b->GetLayer() );
+
+	if ( ( a->GetMask() & bitB ) == 0 ) return false;
+	if ( ( b->GetMask() & bitA ) == 0 ) return false;
+	return true;
 }
 
 bool CCollisionSystem::IsPairIntersecting(const CColliderComponent* a, const CColliderComponent* b) const
