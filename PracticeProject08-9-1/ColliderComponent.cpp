@@ -625,6 +625,7 @@ void CColliderComponent::BuildBoneCapsulesFromSkeleton()
 	}
 
 	mWorldBoneCapsules.resize(mBoneCapsuleLinks.size());
+	RebuildWeaponBoneCapsuleSelection();
 }
 
 void CColliderComponent::UpdateBoneCapsulesFromCurrentPose()
@@ -662,6 +663,141 @@ void CColliderComponent::UpdateBoneCapsulesFromCurrentPose()
 
 		mWorldBoneCapsules[i] = MakeCapsuleFromSegment(p0, p1, link.radius);
 	}
+
+	mWorldWeaponBoneCapsules.resize(mWeaponBoneCapsuleLinkIndices.size());
+
+	for ( size_t i = 0; i < mWeaponBoneCapsuleLinkIndices.size(); ++i )
+	{
+		const int srcIndex = mWeaponBoneCapsuleLinkIndices[i];
+		if ( srcIndex < 0 ) continue;
+		if ( srcIndex >= ( int ) mWorldBoneCapsules.size() ) continue;
+
+		mWorldWeaponBoneCapsules[i] = mWorldBoneCapsules[srcIndex];
+	}
+}
+
+void CColliderComponent::SetWeaponBoneCapsuleRoots(const std::vector<std::string>& rootBoneNames)
+{
+	mWeaponBoneRootNames = rootBoneNames;
+	RebuildWeaponBoneCapsuleSelection();
+
+	if ( !mBoneCapsuleLinks.empty() )
+		UpdateBoneCapsulesFromCurrentPose();
+}
+
+void CColliderComponent::ClearWeaponBoneCapsuleRoots()
+{
+	mWeaponBoneRootNames.clear();
+	mWeaponBoneCapsuleLinkIndices.clear();
+	mWorldWeaponBoneCapsules.clear();
+}
+
+void CColliderComponent::RebuildWeaponBoneCapsuleSelection()
+{
+	mWeaponBoneCapsuleLinkIndices.clear();
+	mWorldWeaponBoneCapsules.clear();
+
+	if ( !mModel ) return;
+
+	const std::vector<Bone>& bones = mModel->GetBones();
+	if ( bones.empty() ) return;
+	if ( mBoneCapsuleLinks.empty() ) return;
+	if ( mWeaponBoneRootNames.empty() ) return;
+
+	std::vector<uint8_t> includedBones(bones.size(), 0u);
+
+	auto FindBoneIndexByName = [ &bones ] (const std::string& boneName) -> int
+		{
+			for ( int i = 0; i < ( int ) bones.size(); ++i )
+			{
+				if ( bones[i].name == boneName )
+					return i;
+			}
+			return -1;
+		};
+
+	for ( const std::string& rootName : mWeaponBoneRootNames )
+	{
+		const int rootBoneIndex = FindBoneIndexByName(rootName);
+		if ( rootBoneIndex < 0 ) continue;
+
+		std::vector<int> stack;
+		stack.push_back(rootBoneIndex);
+
+		while ( !stack.empty() )
+		{
+			const int boneIndex = stack.back();
+			stack.pop_back();
+
+			if ( boneIndex < 0 ) continue;
+			if ( boneIndex >= ( int ) bones.size() ) continue;
+			if ( includedBones[boneIndex] ) continue;
+
+			includedBones[boneIndex] = 1u;
+
+			for ( int i = 0; i < ( int ) bones.size(); ++i )
+			{
+				if ( bones[i].parentIndex == boneIndex )
+					stack.push_back(i);
+			}
+		}
+	}
+
+	for ( size_t i = 0; i < mBoneCapsuleLinks.size(); ++i )
+	{
+		const BoneCapsuleLink& link = mBoneCapsuleLinks[i];
+
+		if ( link.parentBoneIndex < 0 ) continue;
+		if ( link.parentBoneIndex >= ( int ) includedBones.size() ) continue;
+
+		if ( includedBones[link.parentBoneIndex] )
+			mWeaponBoneCapsuleLinkIndices.push_back(( int ) i);
+	}
+
+	mWorldWeaponBoneCapsules.resize(mWeaponBoneCapsuleLinkIndices.size());
+}
+
+bool CColliderComponent::IntersectsActiveWeaponBoneCapsulesAgainstBody(const CColliderComponent& targetBody) const
+{
+	if ( !mWeaponBoneCapsulesActive )
+		return false;
+
+	if ( mWorldWeaponBoneCapsules.empty() )
+		return false;
+
+	if ( !targetBody.IsCollisionEnabled() )
+		return false;
+
+	for ( const BoundingCapsule& weaponCapsule : mWorldWeaponBoneCapsules )
+	{
+		switch ( targetBody.GetType() )
+		{
+		case EColliderType::BCapsule:
+			if ( targetBody.IntersectsBoneCapsulesHierarchical(weaponCapsule) )
+				return true;
+			break;
+
+		case EColliderType::OOBB:
+			if ( weaponCapsule.Intersects(targetBody.GetOOBB()) )
+				return true;
+			break;
+
+		case EColliderType::AABB:
+			if ( weaponCapsule.Intersects(targetBody.GetAABB()) )
+				return true;
+			break;
+
+		case EColliderType::BSphere:
+			if ( weaponCapsule.Intersects(targetBody.GetBSphere()) )
+				return true;
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	return false;
 }
 
 void CColliderComponent::OnUpdate(float dt)

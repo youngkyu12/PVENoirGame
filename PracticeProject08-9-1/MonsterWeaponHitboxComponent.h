@@ -5,6 +5,7 @@
 #include "Component.h"
 #include <unordered_set>
 #include <string>
+#include <vector>
 
 class CGameObject;
 
@@ -39,4 +40,29 @@ private:
 
 	bool m_bPrevHitboxActive = false;
 	std::unordered_set<CGameObject*> m_hitTargets;
+
+public:
+	void SetUseOwnerBoneWeaponCapsules(bool enable) { m_useOwnerBoneWeaponCapsules = enable; }
+
+	void AddBoneWeaponConfig(
+		const std::string& clipName,
+		float startNormalized,
+		float endNormalized,
+		const std::vector<std::string>& rootBoneNames);
+
+private:
+	struct BoneWeaponConfig
+	{
+		std::string clipName;
+		float startNormalized = 0.0f;
+		float endNormalized = 1.0f;
+		std::vector<std::string> rootBoneNames;
+	};
+
+	int FindActiveBoneWeaponConfigIndex() const;
+
+private:
+	bool m_useOwnerBoneWeaponCapsules = false;
+	int m_activeBoneWeaponConfigIndex = -1;
+	std::vector<BoneWeaponConfig> m_boneWeaponConfigs;
 };

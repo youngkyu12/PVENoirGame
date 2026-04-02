@@ -112,4 +112,25 @@ private:
 private:
 	std::vector<BoneCapsuleLink> mBoneCapsuleLinks;
 	std::vector<BoundingCapsule> mWorldBoneCapsules;
+
+public:
+	void SetWeaponBoneCapsuleRoots(const std::vector<std::string>& rootBoneNames);
+	void ClearWeaponBoneCapsuleRoots();
+
+	void SetWeaponCapsulesActive(bool active) { mWeaponBoneCapsulesActive = active; }
+	bool AreWeaponCapsulesActive() const { return mWeaponBoneCapsulesActive; }
+
+	const std::vector<BoundingCapsule>& GetWeaponBoneCapsules() const { return mWorldWeaponBoneCapsules; }
+	bool HasWeaponBoneCapsules() const { return !mWorldWeaponBoneCapsules.empty(); }
+
+	bool IntersectsActiveWeaponBoneCapsulesAgainstBody(const CColliderComponent& targetBody) const;
+
+private:
+	void RebuildWeaponBoneCapsuleSelection();
+
+private:
+	std::vector<std::string> mWeaponBoneRootNames;
+	std::vector<int> mWeaponBoneCapsuleLinkIndices;
+	std::vector<BoundingCapsule> mWorldWeaponBoneCapsules;
+	bool mWeaponBoneCapsulesActive = false;
 };

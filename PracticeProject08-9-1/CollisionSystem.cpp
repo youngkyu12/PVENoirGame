@@ -61,6 +61,49 @@ namespace
 		if ( !IsLocalPlayerObject(ownerA) && !IsLocalPlayerObject(ownerB) )
 			return;
 	}
+
+	bool IsMonsterBodyPlayerBodyPair(const CColliderComponent* a, const CColliderComponent* b)
+	{
+		if ( !a || !b ) return false;
+
+		const uint32_t layerA = a->GetLayer();
+		const uint32_t layerB = b->GetLayer();
+
+		return
+			( layerA == kCollisionLayerMonster && layerB == kCollisionLayerPlayer ) ||
+			( layerA == kCollisionLayerPlayer && layerB == kCollisionLayerMonster );
+	}
+
+	bool IsBareHandMonsterWeaponPairCandidate(const CColliderComponent* a, const CColliderComponent* b)
+	{
+		if ( !IsMonsterBodyPlayerBodyPair(a, b) )
+			return false;
+
+		const CColliderComponent* monsterCollider =
+			( a->GetLayer() == kCollisionLayerMonster ) ? a : b;
+
+		const CColliderComponent* playerCollider =
+			( monsterCollider == a ) ? b : a;
+
+		if ( !monsterCollider->IsCollisionEnabled() ) return false;
+		if ( !playerCollider->IsCollisionEnabled() ) return false;
+
+		if ( !monsterCollider->AreWeaponCapsulesActive() )
+			return false;
+
+		if ( !monsterCollider->HasWeaponBoneCapsules() )
+			return false;
+
+		CGameObject* monsterOwner = monsterCollider->GetOwner();
+		if ( !monsterOwner )
+			return false;
+
+		auto* hitbox = monsterOwner->GetComponent<CMonsterWeaponHitboxComponent>();
+		if ( !hitbox )
+			return false;
+
+		return true;
+	}
 }
 
 CCollisionSystem::CCollisionSystem()
@@ -182,13 +225,6 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 	if ( !a || !b )
 		return;
 
-	const bool isHit = IsPairIntersecting(a, b);
-	if ( !isHit )
-		return;
-
-	if ( a->IsTrigger() || b->IsTrigger() )
-		return;
-
 	CGameObject* ownerA = a->GetOwner();
 	CGameObject* ownerB = b->GetOwner();
 	if ( !ownerA || !ownerB )
@@ -196,8 +232,6 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 
 	const uint32_t layerA = a->GetLayer();
 	const uint32_t layerB = b->GetLayer();
-
-	DebugPrintCollision(a, b);
 
 	// true 로 바꾸면 몬스터는 맞는 즉시 Death 테스트 가능
 	constexpr bool kTestForceDeathOnHit = false;
@@ -271,6 +305,43 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 		};
 
 	// ------------------------------------------------------------
+	// Bare-hand Monster body weapon capsules -> Player
+	// ------------------------------------------------------------
+	if ( IsMonsterBodyPlayerBodyPair(a, b) )
+	{
+		CColliderComponent* monsterCollider =
+			( layerA == kCollisionLayerMonster ) ? a : b;
+
+		CColliderComponent* playerCollider =
+			( monsterCollider == a ) ? b : a;
+
+		if ( monsterCollider->AreWeaponCapsulesActive() &&
+			 monsterCollider->HasWeaponBoneCapsules() &&
+			 monsterCollider->IntersectsActiveWeaponBoneCapsulesAgainstBody(*playerCollider) )
+		{
+			CGameObject* monsterObject = monsterCollider->GetOwner();
+			CGameObject* playerObject = playerCollider->GetOwner();
+
+			if ( !monsterObject || !playerObject )
+				return;
+
+			DebugPrintCollision(monsterCollider, playerCollider);
+
+			NotifyPlayerHit(monsterObject, playerObject);
+			return;
+		}
+	}
+
+	const bool isHit = IsPairIntersecting(a, b);
+	if ( !isHit )
+		return;
+
+	if ( a->IsTrigger() || b->IsTrigger() )
+		return;
+
+	DebugPrintCollision(a, b);
+
+	// ------------------------------------------------------------
 	// PlayerWeapon -> Monster
 	// ------------------------------------------------------------
 	if ( layerA == kCollisionLayerPlayerWeapon &&
@@ -336,12 +407,13 @@ void CCollisionSystem::OnUpdate()
             auto* b = mColliders[j];
             if (!b) continue;
 
-            if (!PassFilter(a, b))
-                continue;
+			const bool normalFilteredPair = PassFilter(a, b);
+			const bool bareHandPair = IsBareHandMonsterWeaponPairCandidate(a, b);
 
-			
+			if ( !normalFilteredPair && !bareHandPair )
+				continue;
 
-            HandlePair(a, b);
+			HandlePair(a, b);
         }
     }
 }
