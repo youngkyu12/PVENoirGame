@@ -1301,7 +1301,7 @@ void CGameScene::BuildStaticBatch(
 			{
 				collider->SetLayer(kCollisionLayerWorldStatic);
 				collider->SetMask(CollisionBit(kCollisionLayerPlayer));
-
+				
 				const auto authoredIt = mSceneCubeBoxColliderTable.find(placement.assetName);
 				if ( authoredIt != mSceneCubeBoxColliderTable.end() )
 				{
