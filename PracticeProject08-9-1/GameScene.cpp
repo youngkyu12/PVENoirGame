@@ -406,6 +406,8 @@ void CGameScene::ReleaseObjects()
 
 	ReleaseShaderVariables();
 
+	CColliderComponent::ClearStaticRefinedOOBBReport();
+
 	CScene::ReleaseObjects();
 }
 
@@ -547,6 +549,13 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 //	m_staticPlacementEntries.clear();
 //	ResetStaticPlacementCounts();
 //#endif
+
+	const std::string staticColliderReportPath = "MapData/StaticRefinedOOBBReport.txt";
+	if ( !CColliderComponent::LoadStaticRefinedOOBBReport(staticColliderReportPath) )
+	{
+		assert(false && "Failed to load static refined collider report");
+		return;
+	}
 
 #ifdef USING_NETWORK
 	if ( std::holds_alternative<GameStartData>(m_pendingNetworkMessage.data) )
@@ -1044,6 +1053,7 @@ void CGameScene::BuildStaticBatch(
 			{
 				collider->SetLayer(kCollisionLayerWorldStatic);
 				collider->SetMask(CollisionBit(kCollisionLayerPlayer));
+				collider->SetStaticColliderAssetKey(placement.assetName);
 			}
 		}
 
