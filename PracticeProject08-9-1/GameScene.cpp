@@ -8,6 +8,7 @@
 #include <cmath>
 #include <fstream>
 #include <cstdio>
+#include <cctype>
 
 #include "AnimatorComponent.h"
 #include "AnimatorData.h"
@@ -143,6 +144,41 @@ namespace
         outEntry.rot = XMFLOAT4(qx, qy, qz, qw);
         return true;
     }
+
+	std::string TrimString(const std::string& text)
+	{
+		size_t begin = 0;
+		while ( begin < text.size() && std::isspace(static_cast< unsigned char >(text[begin])) )
+			++begin;
+
+		size_t end = text.size();
+		while ( end > begin && std::isspace(static_cast< unsigned char >( text[end - 1] )) )
+			--end;
+
+		return text.substr(begin, end - begin);
+	}
+
+	std::string StripTopRootFromAPath(const std::string& fullAPath)
+	{
+		const size_t firstSlash = fullAPath.find('/');
+		if ( firstSlash == std::string::npos )
+			return fullAPath;
+
+		return fullAPath.substr(firstSlash + 1);
+	}
+
+	bool ParseVector3Tuple(const std::string& text, XMFLOAT3& outValue)
+	{
+		float x = 0.0f;
+		float y = 0.0f;
+		float z = 0.0f;
+
+		if ( sscanf_s(text.c_str(), "(%f, %f, %f)", &x, &y, &z) != 3 )
+			return false;
+
+		outValue = XMFLOAT3(x, y, z);
+		return true;
+	}
 
     static void BuildStaticPlacementsFromNetworkGameStart(
         const GameStartData& gameStartData,
@@ -524,11 +560,18 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 #else
 	m_localPlayerSlot = 0;
 	const std::string placementFilePath = "MapData/placement_export_st1.txt";
+	const std::string cubeColliderReportFilePath = "MapData/CubeBoxColliderReport.txt";
 	const std::string navMeshFilePath = "MapData/1StageNavmesh.nvm";
 
 	if ( !LoadStaticPlacementFile(placementFilePath) )
 	{
 		assert(false && "Failed to load placement_export");
+		return;
+	}
+
+	if ( !LoadSceneCubeBoxColliderReport(cubeColliderReportFilePath) )
+	{
+		assert(false && "Failed to load cube box collider report");
 		return;
 	}
 
@@ -758,6 +801,91 @@ bool CGameScene::LoadStaticPlacementFile(const std::string& filePath)
 
     ApplyStaticPlacementCounts();
     return !m_staticPlacementEntries.empty();
+}
+
+bool CGameScene::LoadSceneCubeBoxColliderReport(const std::string& filePath)
+{
+	mSceneCubeBoxColliderTable.clear();
+
+	std::ifstream fin(filePath);
+	if ( !fin.is_open() )
+		return false;
+
+	const std::string kTopRootPrefix = "TopRootName:";
+	const std::string kAPathPrefix = "APath:";
+	const std::string kCenterPrefix = "CenterInA_Local:";
+	const std::string kRotationPrefix = "RotationInA_LocalEuler:";
+	const std::string kSizePrefix = "SizeInA_Local:";
+
+	std::string line;
+	std::string currentTopRootName;
+	std::string currentRelativeAPath;
+
+	AuthoredSubMeshOOBB currentBox{};
+	bool hasCenter = false;
+	bool hasRotation = false;
+	bool hasSize = false;
+
+	while ( std::getline(fin, line) )
+	{
+		if ( !line.empty() && line.back() == '\r' )
+			line.pop_back();
+
+		const std::string trimmed = TrimString(line);
+
+		if ( trimmed.rfind(kTopRootPrefix, 0) == 0 )
+		{
+			currentTopRootName = TrimString(trimmed.substr(kTopRootPrefix.size()));
+			continue;
+		}
+
+		if ( trimmed.rfind(kAPathPrefix, 0) == 0 )
+		{
+			const std::string fullAPath = TrimString(trimmed.substr(kAPathPrefix.size()));
+			currentRelativeAPath = StripTopRootFromAPath(fullAPath);
+			continue;
+		}
+
+		if ( trimmed.rfind(kCenterPrefix, 0) == 0 )
+		{
+			hasCenter = ParseVector3Tuple(
+				TrimString(trimmed.substr(kCenterPrefix.size())),
+				currentBox.Center
+			);
+			continue;
+		}
+
+		if ( trimmed.rfind(kRotationPrefix, 0) == 0 )
+		{
+			hasRotation = ParseVector3Tuple(
+				TrimString(trimmed.substr(kRotationPrefix.size())),
+				currentBox.RotationEulerDeg
+			);
+			continue;
+		}
+
+		if ( trimmed.rfind(kSizePrefix, 0) == 0 )
+		{
+			hasSize = ParseVector3Tuple(
+				TrimString(trimmed.substr(kSizePrefix.size())),
+				currentBox.Size
+			);
+
+			if ( hasCenter && hasRotation && hasSize &&
+				!currentTopRootName.empty() &&
+				!currentRelativeAPath.empty() )
+			{
+				mSceneCubeBoxColliderTable[currentTopRootName][currentRelativeAPath].push_back(currentBox);
+			}
+
+			currentBox = AuthoredSubMeshOOBB{};
+			hasCenter = false;
+			hasRotation = false;
+			hasSize = false;
+		}
+	}
+
+	return !mSceneCubeBoxColliderTable.empty();
 }
 
 void CGameScene::BuildLightsAndMaterials()
@@ -1044,6 +1172,12 @@ void CGameScene::BuildStaticBatch(
 			{
 				collider->SetLayer(kCollisionLayerWorldStatic);
 				collider->SetMask(CollisionBit(kCollisionLayerPlayer));
+
+				const auto authoredIt = mSceneCubeBoxColliderTable.find(placement.assetName);
+				if ( authoredIt != mSceneCubeBoxColliderTable.end() )
+				{
+					collider->SetStaticSubMeshAuthoredOOBBs(authoredIt->second);
+				}
 			}
 		}
 

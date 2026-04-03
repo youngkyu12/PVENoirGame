@@ -17,6 +17,13 @@ struct MeshOOBBSet
 	vector<BoundingOrientedBox> WorldSubOOBBs;
 };
 
+struct AuthoredSubMeshOOBB
+{
+	XMFLOAT3 Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT3 RotationEulerDeg = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT3 Size = XMFLOAT3(0.0f, 0.0f, 0.0f);
+};
+
 struct BoneCapsuleLink
 {
 	int parentBoneIndex = -1;
@@ -47,6 +54,11 @@ public:
 	vector<BoundingCapsule> GetSubBCapsules() const { return WorldSubBCapsules; }
 
 	const vector<MeshOOBBSet>& GetMeshOOBBSets() const { return mMeshOOBBSets; }
+	void SetStaticSubMeshAuthoredOOBBs(
+	const std::unordered_map<std::string, std::vector<AuthoredSubMeshOOBB>>& authoredOOBBs)
+	{
+		mStaticSubMeshAuthoredOOBBs = authoredOOBBs;
+	}
 
 	bool IntersectsCapsuleHierarchical(const BoundingCapsule& capsule) const;
 
@@ -77,6 +89,10 @@ public:
 
 private:
 	static BoundingOrientedBox MakeLocalOOBB(const XMFLOAT3& Min, const XMFLOAT3& Max);
+	static BoundingOrientedBox MakeAuthoredLocalOOBB(
+	const XMFLOAT3& Center,
+	const XMFLOAT3& RotationEulerDeg,
+	const XMFLOAT3& Size);
 	void BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>& meshes);
 
 private:
@@ -102,6 +118,7 @@ private:
 
 	// mesh/submesh 계층형 OOBB
 	vector<MeshOOBBSet> mMeshOOBBSets;
+	std::unordered_map<std::string, std::vector<AuthoredSubMeshOOBB>> mStaticSubMeshAuthoredOOBBs;
 
 	// Filtering
 	uint32_t mLayer = 0;
