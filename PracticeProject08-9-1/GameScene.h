@@ -326,6 +326,11 @@ private:
 	XMFLOAT4X4* m_pMappedSkinnedBonePaletteBuffer = nullptr;
 	UINT                                m_skinnedBonePaletteStride = 0;
 	UINT                                m_skinnedBonePaletteCapacity = 0;
+	
+	void BuildStaticWorldSubmeshOOBBDebugObjects(
+	ID3D12Device* dev,
+	ID3D12GraphicsCommandList* cmd
+	);
 public:
     bool IsPointInPauseOverlay(POINT clientPt) const;
 

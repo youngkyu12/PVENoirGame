@@ -115,6 +115,37 @@ namespace
 
         return out;
     }
+
+	static constexpr UINT kDebugSubmeshOOBBCapacity = 8096;
+
+	static XMFLOAT4X4 BuildWorldMatrixFromOOBB(const BoundingOrientedBox& box)
+	{
+		XMFLOAT4X4 out{};
+
+		const XMMATRIX S = XMMatrixScaling(
+			box.Extents.x * 2.0f,
+			box.Extents.y * 2.0f,
+			box.Extents.z * 2.0f
+		);
+
+		const XMMATRIX R = XMMatrixRotationQuaternion(XMLoadFloat4(&box.Orientation));
+
+		const XMMATRIX T = XMMatrixTranslation(
+			box.Center.x,
+			box.Center.y,
+			box.Center.z
+		);
+
+		XMStoreFloat4x4(&out, S * R * T);
+		return out;
+	}
+
+	static XMFLOAT4X4 BuildIdentityMatrix4x4()
+	{
+		XMFLOAT4X4 out{};
+		XMStoreFloat4x4(&out, XMMatrixIdentity());
+		return out;
+	}
 }
 
 namespace
@@ -409,6 +440,11 @@ void CGameScene::ReleaseObjects()
     m_staticBatch.objectRefs.clear();
     m_skinnedBatch.objectRefs.clear();
 
+	m_colliderbatch.shader.reset();
+	m_colliderbatch.objectRefs.clear();
+	m_colliderObjects.clear();
+	m_ColliderCount = 0;
+
     m_swordManRefs.clear();
     m_bowManRefs.clear();
     m_MutantRefs.clear();
@@ -535,6 +571,15 @@ void CGameScene::ReleaseShaderVariables()
         m_pd3dcbMaterials.Reset();
     }
     m_pcbMappedMaterials = nullptr;
+	if ( m_colliderbatch.cbGameObjects )
+	{
+		if ( m_colliderbatch.mappedGameObjects )
+		{
+			m_colliderbatch.cbGameObjects->Unmap(0, NULL);
+			m_colliderbatch.mappedGameObjects = nullptr;
+		}
+		m_colliderbatch.cbGameObjects.Reset();
+	}
 }
 
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
@@ -699,6 +744,9 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 #endif
 
 	BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
+#ifndef USING_NETWORK
+	BuildStaticWorldSubmeshOOBBDebugObjects(dev, cmd);
+#endif
 	BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
 
 	LinkSceneObjects();
@@ -719,6 +767,87 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(iamReady);
 	g_clientService->BroadCast(sendBuffer);
 #endif
+}
+
+void CGameScene::BuildStaticWorldSubmeshOOBBDebugObjects(
+	ID3D12Device* dev,
+	ID3D12GraphicsCommandList* cmd)
+{
+	if ( !dev || !cmd ) return;
+	if ( !m_colliderbatch.mappedGameObjects ) return;
+
+	for ( auto& ownerObj : m_staticObjects )
+	{
+		if ( !ownerObj ) continue;
+
+		auto* ownerCollider = ownerObj->GetComponent<CColliderComponent>();
+		if ( !ownerCollider ) continue;
+		if ( ownerCollider->GetType() != EColliderType::OOBB ) continue;
+		if ( ownerCollider->GetLayer() != kCollisionLayerWorldStatic ) continue;
+
+		const std::vector<MeshOOBBSet>& meshSets = ownerCollider->GetMeshOOBBSets();
+		if ( meshSets.empty() ) continue;
+
+		for ( const MeshOOBBSet& set : meshSets )
+		{
+			for ( const BoundingOrientedBox& subOOBB : set.WorldSubOOBBs )
+			{
+				if ( m_ColliderCount >= m_colliderbatch.capacity )
+				{
+					OutputDebugStringA("[DebugOOBB] capacity reached\n");
+					return;
+				}
+
+				const UINT i = m_ColliderCount;
+
+				auto debugObj = std::make_unique<CGameObject>(1);
+
+				auto* cb = reinterpret_cast< CB_GAMEOBJECT_INFO* >(
+					reinterpret_cast< UINT8* >( m_colliderbatch.mappedGameObjects ) +
+					i * m_colliderbatch.cbElementBytes
+				);
+
+				debugObj->SetMappedGameObjectCB(cb);
+				debugObj->SetCbvGPUDescriptorHandlePtr(
+					m_colliderbatch.baseCbvGpu.ptr + ( UINT64 ) i * m_colliderbatch.cbvInc
+				);
+
+				debugObj->AddComponent<CColliderMeshRendererComponent>();
+				auto* debugCollider = debugObj->AddComponent<CColliderComponent>(EColliderType::OOBB);
+
+				debugObj->CreateComponents(dev, cmd);
+
+				// local unit box
+				debugCollider->SetOOBB(
+					XMFLOAT3(-0.5f, -0.5f, -0.5f),
+					XMFLOAT3(0.5f, 0.5f, 0.5f)
+				);
+
+				// 이 월드행렬로 unit box -> subOOBB world box
+				const XMFLOAT4X4 subWorld = BuildWorldMatrixFromOOBB(subOOBB);
+				debugObj->SetWorldMatrix(subWorld);
+
+				// OnUpdate는 빈 함수라 의미 없음
+				debugCollider->UpdateWorldBounds();
+
+				// 여기서 이미 world-space 꼭짓점으로 메쉬가 bake됨
+				std::shared_ptr<CMesh> debugMesh =
+					std::make_shared<CBoxMeshDiffused>(dev, cmd, debugCollider);
+
+				debugObj->SetMesh(0, debugMesh);
+
+				// bake 끝났으니 object transform은 identity로 돌려야 이중 변환이 안 생김
+				debugObj->SetWorldMatrix(BuildIdentityMatrix4x4());
+
+				CGameObject* raw = debugObj.get();
+				m_colliderObjects.push_back(std::move(debugObj));
+				m_colliderbatch.objectRefs.push_back(raw);
+				m_colliderbatch.count = ( UINT ) m_colliderbatch.objectRefs.size();
+
+				++m_ColliderCount;
+			}
+		}
+	}
 }
 
 float CGameScene::QuaternionToYawDegrees(const XMFLOAT4& q)
@@ -2081,7 +2210,7 @@ void CGameScene::BuildSkinnedBatch(
 				( void ) combat;
 
 #ifndef USING_NETWORK
-				if ( k == 0 )
+				/*if ( k == 0 )
 				{
 					auto* ghoulAI = obj->AddComponent<CGhoulAIComponent>();
 					if ( ghoulAI )
@@ -2092,7 +2221,7 @@ void CGameScene::BuildSkinnedBatch(
 						ghoulAI->SetPathPointReachDistance(0.10f);
 						ghoulAI->SetGoalReachDistance(0.25f);
 					}
-				}
+				}*/
 #endif
 
 				{
@@ -3181,7 +3310,8 @@ void CGameScene::BuildColliderBatch(
 	auto* b = &m_colliderbatch;
 	if ( !b ) return;
 
-	const UINT cap = 20;
+	const UINT cap = kDebugSubmeshOOBBCapacity;
+	b->capacity = cap;
 
 	if ( cap == 0 ) 
 		return;
