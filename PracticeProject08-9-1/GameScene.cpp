@@ -116,7 +116,7 @@ namespace
         return out;
     }
 
-	static constexpr UINT kDebugSubmeshOOBBCapacity = 8096;
+	static constexpr UINT kDebugSubmeshOOBBCapacity = 4096;
 
 	static XMFLOAT4X4 BuildWorldMatrixFromOOBB(const BoundingOrientedBox& box)
 	{
@@ -604,7 +604,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	ApplyStaticPlacementCounts();
 #else
 	m_localPlayerSlot = 0;
-	const std::string placementFilePath = "MapData/placement_export_st1.txt";
+	const std::string placementFilePath = "MapData/placement_export_tst.txt";
 	const std::string cubeColliderReportFilePath = "MapData/CubeBoxColliderReport.txt";
 	const std::string navMeshFilePath = "MapData/1StageNavmesh.nvm";
 
