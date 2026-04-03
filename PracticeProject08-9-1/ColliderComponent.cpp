@@ -6,6 +6,10 @@
 #include "Object.h"
 #include "AnimatorComponent.h"
 
+#include <fstream>
+#include <cctype>
+#include <cstring>
+
 BoundingOrientedBox CColliderComponent::MakeLocalOOBB(const XMFLOAT3& Min, const XMFLOAT3& Max)
 {
 	BoundingOrientedBox box{};
@@ -60,6 +64,291 @@ static BoundingCapsule MakeCapsuleFromSegment(
 	return capsule;
 }
 
+namespace
+{
+	struct StaticRefinedVariant
+	{
+		std::vector<BoundingOrientedBox> boxes;
+		XMFLOAT3 unionMin = XMFLOAT3(FLT_MAX, FLT_MAX, FLT_MAX);
+		XMFLOAT3 unionMax = XMFLOAT3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+	};
+
+	using RefinedNameMap = std::unordered_map<std::string, std::vector<StaticRefinedVariant>>;
+	static std::unordered_map<std::string, RefinedNameMap> gStaticRefinedOOBBReport;
+
+	static std::string TrimCopy(const std::string& s)
+	{
+		size_t begin = 0;
+		while ( begin < s.size() && std::isspace(static_cast< unsigned char >(s[begin])) )
+			++begin;
+
+		size_t end = s.size();
+		while ( end > begin && std::isspace(static_cast< unsigned char >( s[end - 1] )) )
+			--end;
+
+		return s.substr(begin, end - begin);
+	}
+
+	static bool ParseFloat3Field(const std::string& line, const char* label, XMFLOAT3& out)
+	{
+		if ( line.rfind(label, 0) != 0 )
+			return false;
+
+		float x = 0.0f, y = 0.0f, z = 0.0f;
+		if ( sscanf_s(line.c_str() + std::strlen(label), " (%f, %f, %f)", &x, &y, &z) != 3 )
+			return false;
+
+		out = XMFLOAT3(x, y, z);
+		return true;
+	}
+
+	static BoundingOrientedBox MakeLocalOOBBFromCenterSizeEuler(
+		const XMFLOAT3& center,
+		const XMFLOAT3& size,
+		const XMFLOAT3& eulerDeg)
+	{
+		BoundingOrientedBox box{};
+		box.Center = center;
+		box.Extents = XMFLOAT3(size.x * 0.5f, size.y * 0.5f, size.z * 0.5f);
+
+		const XMVECTOR q = XMQuaternionRotationRollPitchYaw(
+			XMConvertToRadians(eulerDeg.x),
+			XMConvertToRadians(eulerDeg.y),
+			XMConvertToRadians(eulerDeg.z)
+		);
+		XMStoreFloat4(&box.Orientation, q);
+		return box;
+	}
+
+	static void ExpandMinMax(XMFLOAT3& minV, XMFLOAT3& maxV, const XMFLOAT3& p)
+	{
+		minV.x = min(minV.x, p.x);
+		minV.y = min(minV.y, p.y);
+		minV.z = min(minV.z, p.z);
+
+		maxV.x = max(maxV.x, p.x);
+		maxV.y = max(maxV.y, p.y);
+		maxV.z = max(maxV.z, p.z);
+	}
+
+	static void ComputeUnionBounds(
+		const std::vector<BoundingOrientedBox>& boxes,
+		XMFLOAT3& outMin,
+		XMFLOAT3& outMax)
+	{
+		outMin = XMFLOAT3(FLT_MAX, FLT_MAX, FLT_MAX);
+		outMax = XMFLOAT3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+		for ( const BoundingOrientedBox& box : boxes )
+		{
+			XMFLOAT3 corners[8];
+			box.GetCorners(corners);
+
+			for ( int i = 0; i < 8; ++i )
+				ExpandMinMax(outMin, outMax, corners[i]);
+		}
+	}
+
+	static const StaticRefinedVariant* FindBestRefinedVariant(
+		const std::string& assetKey,
+		const std::string& subMeshName,
+		const XMFLOAT3& subMeshMin,
+		const XMFLOAT3& subMeshMax)
+	{
+		auto itAsset = gStaticRefinedOOBBReport.find(assetKey);
+		if ( itAsset == gStaticRefinedOOBBReport.end() )
+			return nullptr;
+
+		auto itName = itAsset->second.find(subMeshName);
+		if ( itName == itAsset->second.end() )
+			return nullptr;
+
+		const std::vector<StaticRefinedVariant>& variants = itName->second;
+		if ( variants.empty() )
+			return nullptr;
+
+		if ( variants.size() == 1 )
+			return &variants[0];
+
+		const XMFLOAT3 subCenter(
+			( subMeshMin.x + subMeshMax.x ) * 0.5f,
+			( subMeshMin.y + subMeshMax.y ) * 0.5f,
+			( subMeshMin.z + subMeshMax.z ) * 0.5f
+		);
+
+		const XMFLOAT3 subSize(
+			subMeshMax.x - subMeshMin.x,
+			subMeshMax.y - subMeshMin.y,
+			subMeshMax.z - subMeshMin.z
+		);
+
+		const StaticRefinedVariant* best = nullptr;
+		float bestScore = FLT_MAX;
+
+		for ( const StaticRefinedVariant& variant : variants )
+		{
+			const XMFLOAT3 varCenter(
+				( variant.unionMin.x + variant.unionMax.x ) * 0.5f,
+				( variant.unionMin.y + variant.unionMax.y ) * 0.5f,
+				( variant.unionMin.z + variant.unionMax.z ) * 0.5f
+			);
+
+			const XMFLOAT3 varSize(
+				variant.unionMax.x - variant.unionMin.x,
+				variant.unionMax.y - variant.unionMin.y,
+				variant.unionMax.z - variant.unionMin.z
+			);
+
+			const float sizeScore =
+				fabsf(subSize.x - varSize.x) +
+				fabsf(subSize.y - varSize.y) +
+				fabsf(subSize.z - varSize.z);
+
+			const float centerScore =
+				fabsf(subCenter.x - varCenter.x) +
+				fabsf(subCenter.y - varCenter.y) +
+				fabsf(subCenter.z - varCenter.z);
+
+			const float score = sizeScore * 10.0f + centerScore;
+
+			if ( score < bestScore )
+			{
+				bestScore = score;
+				best = &variant;
+			}
+		}
+
+		return best;
+	}
+}
+
+bool CColliderComponent::LoadStaticRefinedOOBBReport(const std::string& txtPath)
+{
+	gStaticRefinedOOBBReport.clear();
+
+	std::ifstream fin(txtPath);
+	if ( !fin.is_open() )
+		return false;
+
+	std::string currentAssetName;
+	std::string currentAName;
+	std::vector<BoundingOrientedBox> currentBoxes;
+
+	struct PendingCubeState
+	{
+		bool hasCenter = false;
+		bool hasRotation = false;
+		XMFLOAT3 center = XMFLOAT3(0, 0, 0);
+		XMFLOAT3 rotation = XMFLOAT3(0, 0, 0);
+
+		void Reset()
+		{
+			hasCenter = false;
+			hasRotation = false;
+			center = XMFLOAT3(0, 0, 0);
+			rotation = XMFLOAT3(0, 0, 0);
+		}
+	} pendingCube;
+
+	auto FlushCurrentA = [ & ] ()
+		{
+			if ( currentAssetName.empty() || currentAName.empty() || currentBoxes.empty() )
+			{
+				currentBoxes.clear();
+				return;
+			}
+
+			StaticRefinedVariant variant{};
+			variant.boxes = currentBoxes;
+			ComputeUnionBounds(variant.boxes, variant.unionMin, variant.unionMax);
+
+			gStaticRefinedOOBBReport[currentAssetName][currentAName].push_back(std::move(variant));
+			currentBoxes.clear();
+		};
+
+	std::string line;
+	while ( std::getline(fin, line) )
+	{
+		const std::string t = TrimCopy(line);
+		if ( t.empty() )
+			continue;
+
+		if ( t.rfind("[TopRootGroup", 0) == 0 )
+		{
+			FlushCurrentA();
+			currentAName.clear();
+			pendingCube.Reset();
+			continue;
+		}
+
+		if ( t.rfind("TopRootName:", 0) == 0 )
+		{
+			FlushCurrentA();
+			currentAName.clear();
+			pendingCube.Reset();
+			currentAssetName = TrimCopy(t.substr(std::strlen("TopRootName:")));
+			continue;
+		}
+
+		if ( t.rfind("[A #", 0) == 0 )
+		{
+			FlushCurrentA();
+			currentAName.clear();
+			pendingCube.Reset();
+			continue;
+		}
+
+		if ( t.rfind("AName:", 0) == 0 )
+		{
+			FlushCurrentA();
+			currentBoxes.clear();
+			pendingCube.Reset();
+			currentAName = TrimCopy(t.substr(std::strlen("AName:")));
+			continue;
+		}
+
+		XMFLOAT3 value{};
+		if ( ParseFloat3Field(t, "CenterInA_Local:", value) )
+		{
+			pendingCube.center = value;
+			pendingCube.hasCenter = true;
+			continue;
+		}
+
+		if ( ParseFloat3Field(t, "RotationInA_LocalEuler:", value) )
+		{
+			pendingCube.rotation = value;
+			pendingCube.hasRotation = true;
+			continue;
+		}
+
+		if ( ParseFloat3Field(t, "SizeInA_Local:", value) )
+		{
+			if ( pendingCube.hasCenter && pendingCube.hasRotation )
+			{
+				currentBoxes.push_back(
+					MakeLocalOOBBFromCenterSizeEuler(
+						pendingCube.center,
+						value,
+						pendingCube.rotation
+					)
+				);
+			}
+
+			pendingCube.Reset();
+			continue;
+		}
+	}
+
+	FlushCurrentA();
+	return !gStaticRefinedOOBBReport.empty();
+}
+
+void CColliderComponent::ClearStaticRefinedOOBBReport()
+{
+	gStaticRefinedOOBBReport.clear();
+}
+
 void CColliderComponent::BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>& meshes)
 {
 	mMeshOOBBSets.clear();
@@ -73,14 +362,34 @@ void CColliderComponent::BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>&
 		set.LocalMeshOOBB = MakeLocalOOBB(mesh->GetMeshMin(), mesh->GetMeshMax());
 		set.WorldMeshOOBB = set.LocalMeshOOBB;
 
-		set.LocalSubOOBBs.reserve(mesh->m_SubMeshes.size());
-		set.WorldSubOOBBs.reserve(mesh->m_SubMeshes.size());
+		set.SubMeshes.reserve(mesh->m_SubMeshes.size());
 
 		for ( const auto& submesh : mesh->m_SubMeshes )
 		{
-			BoundingOrientedBox subBox = MakeLocalOOBB(submesh.subMeshMin, submesh.subMeshMax);
-			set.LocalSubOOBBs.push_back(subBox);
-			set.WorldSubOOBBs.push_back(subBox);
+			SubMeshOOBBSet subSet{};
+			subSet.subMeshName = submesh.meshName;
+			subSet.LocalCoarseOOBB = MakeLocalOOBB(submesh.subMeshMin, submesh.subMeshMax);
+			subSet.WorldCoarseOOBB = subSet.LocalCoarseOOBB;
+			subSet.useCoarseOOBB = true;
+
+			if ( !mStaticColliderAssetKey.empty() && !subSet.subMeshName.empty() )
+			{
+				const StaticRefinedVariant* variant = FindBestRefinedVariant(
+					mStaticColliderAssetKey,
+					subSet.subMeshName,
+					submesh.subMeshMin,
+					submesh.subMeshMax
+				);
+
+				if ( variant && !variant->boxes.empty() )
+				{
+					subSet.useCoarseOOBB = false;
+					subSet.LocalRefinedOOBBs = variant->boxes;
+					subSet.WorldRefinedOOBBs.resize(subSet.LocalRefinedOOBBs.size());
+				}
+			}
+
+			set.SubMeshes.push_back(std::move(subSet));
 		}
 
 		mMeshOOBBSets.push_back(std::move(set));
@@ -414,10 +723,15 @@ void CColliderComponent::UpdateWorldBounds()
 		{
 			set.LocalMeshOOBB.Transform(set.WorldMeshOOBB, W);
 
-			set.WorldSubOOBBs.resize(set.LocalSubOOBBs.size());
-			for ( size_t i = 0; i < set.LocalSubOOBBs.size(); ++i )
+			for ( SubMeshOOBBSet& subSet : set.SubMeshes )
 			{
-				set.LocalSubOOBBs[i].Transform(set.WorldSubOOBBs[i], W);
+				subSet.LocalCoarseOOBB.Transform(subSet.WorldCoarseOOBB, W);
+
+				subSet.WorldRefinedOOBBs.resize(subSet.LocalRefinedOOBBs.size());
+				for ( size_t i = 0; i < subSet.LocalRefinedOOBBs.size(); ++i )
+				{
+					subSet.LocalRefinedOOBBs[i].Transform(subSet.WorldRefinedOOBBs[i], W);
+				}
 			}
 		}
 
@@ -456,25 +770,38 @@ bool CColliderComponent::IntersectsCapsuleHierarchical(const BoundingCapsule& ca
 	if ( mColliderType != EColliderType::OOBB )
 		return false;
 
-	// 계층형 데이터가 없으면 기존 단일 OOBB로 fallback
-	if ( mMeshOOBBSets.empty() )
-		return capsule.Intersects(WorldOOBB);
+	// 1차: 오브젝트 전체 OOBB
+	if ( !capsule.Intersects(WorldOOBB) )
+		return false;
 
+	// 세부 계층이 없으면 여기서 종료
+	if ( mMeshOOBBSets.empty() )
+		return true;
+
+	// 2차: mesh 단위 OOBB
 	for ( const MeshOOBBSet& set : mMeshOOBBSets )
 	{
-		// 1차: mesh 단위 OOBB
 		if ( !capsule.Intersects(set.WorldMeshOOBB) )
 			continue;
 
-		// submesh가 없으면 mesh hit만으로도 true
-		if ( set.WorldSubOOBBs.empty() )
-			return true;
-
-		// 2차: submesh 단위 OOBB
-		for ( const BoundingOrientedBox& subBox : set.WorldSubOOBBs )
+		// 3차: submesh 단위
+		for ( const SubMeshOOBBSet& subSet : set.SubMeshes )
 		{
-			if ( capsule.Intersects(subBox) )
-				return true;
+			// 리포트가 없으면 기존 coarse submesh OOBB 사용
+			if ( subSet.useCoarseOOBB )
+			{
+				if ( capsule.Intersects(subSet.WorldCoarseOOBB) )
+					return true;
+
+				continue;
+			}
+
+			// 리포트가 있으면 refined OOBB들만 사용
+			for ( const BoundingOrientedBox& refinedBox : subSet.WorldRefinedOOBBs )
+			{
+				if ( capsule.Intersects(refinedBox) )
+					return true;
+			}
 		}
 	}
 
