@@ -8,6 +8,7 @@
 #include "Shader.h"
 #include "LightTypes.h"
 #include "SceneRenderTypes.h"
+#include "ColliderComponent.h"
 
 class CMaterial;
 class CMesh;
@@ -295,13 +296,15 @@ private:
 
 private:
     bool LoadStaticPlacementFile(const std::string& filePath);
-    void ResetStaticPlacementCounts();
+	bool LoadSceneCubeBoxColliderReport(const std::string& filePath);
+	void ResetStaticPlacementCounts();
     void ApplyStaticPlacementCounts();
     static float QuaternionToYawDegrees(const XMFLOAT4& q);
 
 private:
     std::vector<StaticPlacementEntry>   m_staticPlacementEntries;
-    
+	std::unordered_map<std::string, std::unordered_map<std::string, std::vector<AuthoredSubMeshOOBB>>> mSceneCubeBoxColliderTable;
+
 	std::vector<StaticInstanceGroup>    m_staticInstanceGroups;
 	ComPtr<ID3D12Resource>              m_pd3dStaticInstanceBuffer;
 	StaticInstanceVertex* m_pMappedStaticInstanceBuffer = nullptr;

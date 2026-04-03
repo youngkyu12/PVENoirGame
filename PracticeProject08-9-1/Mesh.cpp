@@ -198,7 +198,7 @@ void CMesh::LoadMeshFromBIN(
     if (!ReadUInt32(subMeshCount)) return;
 
 
-	if ( version != 1 && version != 2 && version != 3 )
+	if ( version != 1 && version != 2 && version != 3 && version != 4 )
 		return;
 
     // 기존 데이터 정리
@@ -339,13 +339,23 @@ void CMesh::LoadMeshFromBIN(
     {
         SubMesh sm{};
 
-        // 3-1) meshName / materialIndex
-        if (!ReadString(sm.meshName)) 
-            return;
+		// 3-1) meshName / authoringPath / materialIndex
+		if ( !ReadString(sm.meshName) )
+			return;
 
-        uint32_t matIndex = 0;
-        if (!ReadUInt32(matIndex)) 
-            return;
+		if ( version >= 4 )
+		{
+			if ( !ReadString(sm.authoringPath) )
+				return;
+		}
+		else
+		{
+			sm.authoringPath.clear();
+		}
+
+		uint32_t matIndex = 0;
+		if ( !ReadUInt32(matIndex) )
+			return;
 
         sm.materialIndex = matIndex;
         sm.materialId = matIndex; // 현재는 materialIndex == shader materialId로 사용

@@ -89,6 +89,7 @@ struct SubMesh
 	XMFLOAT3 subMeshMin{ FLT_MAX,  FLT_MAX,  FLT_MAX };
 	XMFLOAT3 subMeshMax{ -FLT_MAX, -FLT_MAX, -FLT_MAX };
 
+	std::string authoringPath;
 	std::string meshName;
 	std::string materialName;
 	std::string diffuseTextureName;

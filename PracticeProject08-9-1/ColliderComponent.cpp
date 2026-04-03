@@ -5,6 +5,7 @@
 #include "ColliderComponent.h"
 #include "Object.h"
 #include "AnimatorComponent.h"
+#include <unordered_set>
 
 BoundingOrientedBox CColliderComponent::MakeLocalOOBB(const XMFLOAT3& Min, const XMFLOAT3& Max)
 {
@@ -23,6 +24,30 @@ BoundingOrientedBox CColliderComponent::MakeLocalOOBB(const XMFLOAT3& Min, const
 	);
 
 	box.Orientation = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+	return box;
+}
+
+BoundingOrientedBox CColliderComponent::MakeAuthoredLocalOOBB(
+	const XMFLOAT3& Center,
+	const XMFLOAT3& RotationEulerDeg,
+	const XMFLOAT3& Size)
+{
+	BoundingOrientedBox box{};
+
+	box.Center = Center;
+	box.Extents = XMFLOAT3(
+		Size.x * 0.5f,
+		Size.y * 0.5f,
+		Size.z * 0.5f
+	);
+
+	const XMVECTOR q = XMQuaternionRotationRollPitchYaw(
+		XMConvertToRadians(RotationEulerDeg.x),
+		XMConvertToRadians(RotationEulerDeg.y),
+		XMConvertToRadians(RotationEulerDeg.z)
+	);
+
+	XMStoreFloat4(&box.Orientation, XMQuaternionNormalize(q));
 	return box;
 }
 
@@ -73,11 +98,35 @@ void CColliderComponent::BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>&
 		set.LocalMeshOOBB = MakeLocalOOBB(mesh->GetMeshMin(), mesh->GetMeshMax());
 		set.WorldMeshOOBB = set.LocalMeshOOBB;
 
-		set.LocalSubOOBBs.reserve(mesh->m_SubMeshes.size());
-		set.WorldSubOOBBs.reserve(mesh->m_SubMeshes.size());
+		std::unordered_set<std::string> consumedAuthoredPaths;
 
 		for ( const auto& submesh : mesh->m_SubMeshes )
 		{
+			const auto authoredIt = mStaticSubMeshAuthoredOOBBs.find(submesh.authoringPath);
+
+			if ( authoredIt != mStaticSubMeshAuthoredOOBBs.end() && !authoredIt->second.empty() )
+			{
+				const bool firstUseOfThisPath =
+					consumedAuthoredPaths.insert(submesh.authoringPath).second;
+
+				if ( firstUseOfThisPath )
+				{
+					for ( const AuthoredSubMeshOOBB& authoredBox : authoredIt->second )
+					{
+						BoundingOrientedBox subBox = MakeAuthoredLocalOOBB(
+							authoredBox.Center,
+							authoredBox.RotationEulerDeg,
+							authoredBox.Size
+						);
+
+						set.LocalSubOOBBs.push_back(subBox);
+						set.WorldSubOOBBs.push_back(subBox);
+					}
+				}
+
+				continue;
+			}
+
 			BoundingOrientedBox subBox = MakeLocalOOBB(submesh.subMeshMin, submesh.subMeshMax);
 			set.LocalSubOOBBs.push_back(subBox);
 			set.WorldSubOOBBs.push_back(subBox);
