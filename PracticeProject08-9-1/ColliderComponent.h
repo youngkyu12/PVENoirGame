@@ -8,25 +8,13 @@
 #include "BoundingCapsule.h"
 class CTransformComponent;
 
-struct SubMeshOOBBSet
-{
-	std::string subMeshName;
-
-	bool useCoarseOOBB = true;
-
-	BoundingOrientedBox LocalCoarseOOBB;
-	BoundingOrientedBox WorldCoarseOOBB;
-
-	std::vector<BoundingOrientedBox> LocalRefinedOOBBs;
-	std::vector<BoundingOrientedBox> WorldRefinedOOBBs;
-};
-
 struct MeshOOBBSet
 {
 	BoundingOrientedBox LocalMeshOOBB;
 	BoundingOrientedBox WorldMeshOOBB;
 
-	std::vector<SubMeshOOBBSet> SubMeshes;
+	vector<BoundingOrientedBox> LocalSubOOBBs;
+	vector<BoundingOrientedBox> WorldSubOOBBs;
 };
 
 struct BoneCapsuleLink
@@ -87,12 +75,6 @@ public:
 	void SetCollisionEnabled(bool enabled) { mCollisionEnabled = enabled; }
 	bool IsCollisionEnabled() const { return mCollisionEnabled; }
 
-	static bool LoadStaticRefinedOOBBReport(const std::string& txtPath);
-	static void ClearStaticRefinedOOBBReport();
-
-	void SetStaticColliderAssetKey(const std::string& assetKey) { mStaticColliderAssetKey = assetKey; }
-	const std::string& GetStaticColliderAssetKey() const { return mStaticColliderAssetKey; }
-
 private:
 	static BoundingOrientedBox MakeLocalOOBB(const XMFLOAT3& Min, const XMFLOAT3& Max);
 	void BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>& meshes);
@@ -127,8 +109,6 @@ private:
 	bool mIsTrigger = false;
 
 	bool mCollisionEnabled = true;
-	std::string mStaticColliderAssetKey;
-
 private:
 	std::vector<BoneCapsuleLink> mBoneCapsuleLinks;
 	std::vector<BoundingCapsule> mWorldBoneCapsules;
