@@ -59,7 +59,6 @@ public:
 	{
 		mStaticSubMeshAuthoredOOBBs = authoredOOBBs;
 	}
-
 	bool IntersectsCapsuleHierarchical(const BoundingCapsule& capsule) const;
 
 	// Filtering
@@ -119,7 +118,7 @@ private:
 	// mesh/submesh 계층형 OOBB
 	vector<MeshOOBBSet> mMeshOOBBSets;
 	std::unordered_map<std::string, std::vector<AuthoredSubMeshOOBB>> mStaticSubMeshAuthoredOOBBs;
-
+	
 	// Filtering
 	uint32_t mLayer = 0;
 	uint32_t mMask = 0xFFFFFFFFu;
