@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "ArrowComponent.h"
 #include "Object.h"
+#include "ColliderComponent.h"
 
 CArrowComponent::CArrowComponent(CGameObject* owner)
     : CComponentT<CArrowComponent>(owner)
@@ -40,12 +41,22 @@ void CArrowComponent::Activate(const XMFLOAT3& position, const XMFLOAT3& velocit
     m_directionSource = nullptr;
     m_pullBackDistance = 0.0f;
 
-    m_velocity = velocity;
-    m_lifeRemaining = (lifeSec > 0.0f) ? lifeSec : 0.0f;
-    m_state = EState::Flying;
+	m_velocity = velocity;
+	m_lifeRemaining = ( lifeSec > 0.0f ) ? lifeSec : 0.0f;
+	m_enableCollisionOnLaunch = true;
+	m_state = EState::Flying;
+
+	if ( auto* collider = owner->GetComponent<CColliderComponent>() )
+	{
+		collider->SetCollisionEnabled(true);
+	}
 }
 
-void CArrowComponent::Prepare(CGameObject* bowObject, CGameObject* directionSource, float pullBackDistance)
+void CArrowComponent::Prepare(
+	CGameObject* bowObject,
+	CGameObject* directionSource,
+	float pullBackDistance,
+	bool enableCollisionOnLaunch) 
 {
     CGameObject* owner = GetOwner();
     if (!owner || !bowObject) return;
@@ -54,14 +65,20 @@ void CArrowComponent::Prepare(CGameObject* bowObject, CGameObject* directionSour
     m_directionSource = directionSource;
     m_pullBackDistance = (pullBackDistance > 0.0f) ? pullBackDistance : 0.0f;
 
-    m_velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
-    m_lifeRemaining = 0.0f;
-    m_state = EState::Prepared;
+	m_velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	m_lifeRemaining = 0.0f;
+	m_enableCollisionOnLaunch = enableCollisionOnLaunch;
+	m_state = EState::Prepared;
 
-    OnUpdate(0.0f); // Áï½Ã ½º³À
+	if ( auto* collider = owner->GetComponent<CColliderComponent>() )
+	{
+		collider->SetCollisionEnabled(false);
+	}
+
+	OnUpdate(0.0f); // ì¦‰ì‹œ ìŠ¤ëƒ…
 }
 
-void CArrowComponent::Launch(const XMFLOAT3& velocity, float lifeSec)
+void CArrowComponent::Launch(const XMFLOAT3& velocity, float lifeSec, bool enableCollision) 
 {
     if (m_state != EState::Prepared)
         return;
@@ -70,9 +87,18 @@ void CArrowComponent::Launch(const XMFLOAT3& velocity, float lifeSec)
     m_directionSource = nullptr;
     m_pullBackDistance = 0.0f;
 
-    m_velocity = velocity;
-    m_lifeRemaining = (lifeSec > 0.0f) ? lifeSec : 0.0f;
-    m_state = EState::Flying;
+	m_velocity = velocity;
+	m_lifeRemaining = ( lifeSec > 0.0f ) ? lifeSec : 0.0f;
+	m_state = EState::Flying;
+
+	CGameObject* owner = GetOwner();
+	if ( owner )
+	{
+		if ( auto* collider = owner->GetComponent<CColliderComponent>() )
+		{
+			collider->SetCollisionEnabled(enableCollision && m_enableCollisionOnLaunch);
+		}
+	}
 }
 
 void CArrowComponent::Deactivate()
@@ -83,12 +109,21 @@ void CArrowComponent::Deactivate()
         owner->SetPosition(0.0f, -10000.0f, 0.0f);
     }
 
-    m_state = EState::Inactive;
-    m_lifeRemaining = 0.0f;
-    m_velocity = { 0.0f, 0.0f, 0.0f };
-    m_bowObject = nullptr;
-    m_directionSource = nullptr;
-    m_pullBackDistance = 0.0f;
+	if ( owner )
+	{
+		if ( auto* collider = owner->GetComponent<CColliderComponent>() )
+		{
+			collider->SetCollisionEnabled(false);
+		}
+	}
+
+	m_state = EState::Inactive;
+	m_lifeRemaining = 0.0f;
+	m_velocity = { 0.0f, 0.0f, 0.0f };
+	m_bowObject = nullptr;
+	m_directionSource = nullptr;
+	m_pullBackDistance = 0.0f;
+	m_enableCollisionOnLaunch = true;
 }
 
 void CArrowComponent::OnUpdate(float dt)

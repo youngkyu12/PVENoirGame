@@ -10,6 +10,8 @@
 #include "MonsterWeaponHitboxComponent.h"
 #include "AnimatorComponent.h"
 #include "AnimController.h"
+#include "ArrowComponent.h"
+#include "BulletComponent.h"
 
 #include <string>
 #include <sstream>
@@ -260,6 +262,22 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 		{
 			if ( !weaponObject || !monsterObject )
 				return;
+			auto DeactivateProjectileIfNeeded = [ ] (CGameObject* weaponObj)
+				{
+					if ( !weaponObj ) return;
+
+					if ( auto* arrow = weaponObj->GetComponent<CArrowComponent>() )
+					{
+						arrow->Deactivate();
+						return;
+					}
+
+					if ( auto* bullet = weaponObj->GetComponent<CBulletComponent>() )
+					{
+						bullet->Deactivate();
+						return;
+					}
+				};
 
 			if ( auto* hitbox = weaponObject->GetComponent<CWeaponHitboxComponent>() )
 			{
@@ -272,6 +290,7 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 
 				combat->OnHitByPlayerWeapon(weaponObject, kTestForceDeathOnHit);
 				hitbox->MarkHitTarget(monsterObject);
+				DeactivateProjectileIfNeeded(weaponObject);
 				return;
 			}
 
@@ -280,12 +299,30 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 				return;
 
 			combat->OnHitByPlayerWeapon(weaponObject, kTestForceDeathOnHit);
+			DeactivateProjectileIfNeeded(weaponObject);
 		};
 
 	auto NotifyPlayerHit = [ & ] (CGameObject* weaponObject, CGameObject* playerObject)
 		{
 			if ( !weaponObject || !playerObject )
 				return;
+
+			auto DeactivateProjectileIfNeeded = [ ] (CGameObject* weaponObj)
+				{
+					if ( !weaponObj ) return;
+
+					if ( auto* arrow = weaponObj->GetComponent<CArrowComponent>() )
+					{
+						arrow->Deactivate();
+						return;
+					}
+
+					if ( auto* bullet = weaponObj->GetComponent<CBulletComponent>() )
+					{
+						bullet->Deactivate();
+						return;
+					}
+				};
 
 			if ( auto* hitbox = weaponObject->GetComponent<CMonsterWeaponHitboxComponent>() )
 			{
@@ -296,12 +333,14 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 				RequestPlayerHitAnimation(playerObject);
 #endif
 				hitbox->MarkHitTarget(playerObject);
+				DeactivateProjectileIfNeeded(weaponObject);
 				return;
 			}
 
 #ifndef USING_NETWORK
 			RequestPlayerHitAnimation(playerObject);
 #endif
+			DeactivateProjectileIfNeeded(weaponObject);
 		};
 
 	// ------------------------------------------------------------

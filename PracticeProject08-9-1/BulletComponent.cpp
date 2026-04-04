@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "BulletComponent.h"
 #include "Object.h"
+#include "ColliderComponent.h"
 
 CBulletComponent::CBulletComponent(CGameObject* owner)
 	: CComponentT<CBulletComponent>(owner)
@@ -17,6 +18,11 @@ void CBulletComponent::Activate(const XMFLOAT3& position, const XMFLOAT3& veloci
 	m_velocity = velocity;
 	m_lifeRemaining = ( lifeSec > 0.0f ) ? lifeSec : 0.0f;
 	m_state = EState::Flying;
+
+	if ( auto* collider = owner->GetComponent<CColliderComponent>() )
+	{
+		collider->SetCollisionEnabled(true);
+	}
 }
 
 void CBulletComponent::Deactivate()
@@ -25,6 +31,11 @@ void CBulletComponent::Deactivate()
 	if ( owner )
 	{
 		owner->SetPosition(0.0f, -10000.0f, 0.0f);
+	}
+
+	if ( auto* collider = owner->GetComponent<CColliderComponent>() )
+	{
+		collider->SetCollisionEnabled(false);
 	}
 
 	m_state = EState::Inactive;
