@@ -76,6 +76,22 @@ namespace
 		return ( 1u << layer );
 	}
 
+	static void ConfigureProjectileCollider(CColliderComponent* collider, bool firedByPlayer)
+	{
+		if ( !collider ) return;
+
+		if ( firedByPlayer )
+		{
+			collider->SetLayer(kCollisionLayerPlayerWeapon);
+			collider->SetMask(CollisionBit(kCollisionLayerMonster));
+		}
+		else
+		{
+			collider->SetLayer(kCollisionLayerMonsterWeapon);
+			collider->SetMask(CollisionBit(kCollisionLayerPlayer));
+		}
+	}
+
     struct DecodedAnimStateCode
     {
         bool hasMove = false;
@@ -617,7 +633,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	BuildStaticPlacementsFromNetworkGameStart(gameStartData, m_staticPlacementEntries);
 	ApplyStaticPlacementCounts();
 #else
-	m_localPlayerSlot = 0;
+	m_localPlayerSlot = 1;
 	const std::string placementFilePath = "MapData/placement_export_st1.txt";
 	const std::string cubeColliderReportFilePath = "MapData/CubeBoxColliderReport.txt";
 	const std::string navMeshFilePath = "MapData/1StageNavmesh.nvm";
@@ -1369,11 +1385,19 @@ void CGameScene::BuildStaticBatch(
             auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
             obj->SetMappedGameObjectCB(cb);
 
-            obj->SetMesh(0, arrowAsset.mesh);
-            obj->AddComponent<CStaticMeshRendererComponent>();
+			obj->SetMesh(0, arrowAsset.mesh);
+			obj->AddComponent<CStaticMeshRendererComponent>();
 
-            auto* arrow = obj->AddComponent<CArrowComponent>();
-            (void)arrow;
+			auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
+			if ( collider )
+			{
+				collider->SetLayer(kCollisionLayerPlayerWeapon);
+				collider->SetMask(CollisionBit(kCollisionLayerMonster));
+				collider->SetCollisionEnabled(false);
+			}
+
+			auto* arrow = obj->AddComponent<CArrowComponent>();
+			( void ) arrow;
 
             obj->SetPosition(0.0f, -10000.0f, 0.0f);
 
@@ -1422,6 +1446,14 @@ void CGameScene::BuildStaticBatch(
 
 			obj->SetMesh(0, bulletAsset.mesh);
 			obj->AddComponent<CStaticMeshRendererComponent>();
+
+			auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
+			if ( collider )
+			{
+				collider->SetLayer(kCollisionLayerPlayerWeapon);
+				collider->SetMask(CollisionBit(kCollisionLayerMonster));
+				collider->SetCollisionEnabled(false);
+			}
 
 			auto* bullet = obj->AddComponent<CBulletComponent>();
 			( void ) bullet;
@@ -3831,8 +3863,14 @@ void CGameScene::RequestPrepareArrow(CGameObject* shooter, float pullBackDistanc
 
         if (arrow->IsActive()) continue;
 
-        arrow->Prepare(bowObj, shooter, pullBackDistance);
-        m_preparedPlayerArrows[(size_t)slot] = arrowObj;
+		if ( auto* collider = arrowObj->GetComponent<CColliderComponent>() )
+		{
+			ConfigureProjectileCollider(collider, true);
+			collider->SetCollisionEnabled(false);
+		}
+
+		arrow->Prepare(bowObj, shooter, pullBackDistance, true);
+		m_preparedPlayerArrows[( size_t ) slot] = arrowObj;
         return;
     }
 }
@@ -3864,7 +3902,13 @@ void CGameScene::RequestPrepareBowmanArrow(CGameObject* bowman, float pullBackDi
 		if ( !arrow ) continue;
 		if ( arrow->IsActive() ) continue;
 
-		arrow->Prepare(bowObj, bowman, pullBackDistance);
+		if ( auto* collider = arrowObj->GetComponent<CColliderComponent>() )
+		{
+			ConfigureProjectileCollider(collider, false);
+			collider->SetCollisionEnabled(false);
+		}
+
+		arrow->Prepare(bowObj, bowman, pullBackDistance, true);
 		m_preparedBowmanArrows[idx] = arrowObj;
 		return;
 	}
@@ -3918,7 +3962,12 @@ void CGameScene::RequestReleasePreparedBowmanArrow(CGameObject* bowman, float sp
 		dirN.z * speed
 	};
 
-	arrow->Launch(vel, lifeSec);
+	if ( auto* collider = arrowObj->GetComponent<CColliderComponent>() )
+	{
+		ConfigureProjectileCollider(collider, false);
+	}
+
+	arrow->Launch(vel, lifeSec, true);
 	m_preparedBowmanArrows[idx] = nullptr;
 }
 
@@ -3967,8 +4016,13 @@ void CGameScene::RequestReleasePreparedArrow(CGameObject* shooter, float speed, 
         dirN.z * speed
     };
 
-    arrow->Launch(vel, lifeSec);
-    m_preparedPlayerArrows[(size_t)slot] = nullptr;
+	if ( auto* collider = arrowObj->GetComponent<CColliderComponent>() )
+	{
+		ConfigureProjectileCollider(collider, true);
+	}
+
+	arrow->Launch(vel, lifeSec, true);
+	m_preparedPlayerArrows[( size_t ) slot] = nullptr;
 }
 
 void CGameScene::UpdatePreparedBowArrows()
@@ -4297,13 +4351,19 @@ void CGameScene::RequestFireArrow(CGameObject* shooter, float speed, float lifeS
 
         if (arrow->IsActive()) continue;
 
-        if (auto* tr = arrowObj->GetComponent<CTransformComponent>())
-        {
-            tr->SetLookDirection(dirN);
-        }
+		if ( auto* tr = arrowObj->GetComponent<CTransformComponent>() )
+		{
+			tr->SetLookDirection(dirN);
+		}
 
-        arrow->Activate(startPos, vel, lifeSec);
-        return;
+		if ( auto* collider = arrowObj->GetComponent<CColliderComponent>() )
+		{
+			ConfigureProjectileCollider(collider, true);
+			collider->SetCollisionEnabled(false);
+		}
+
+		arrow->Activate(startPos, vel, lifeSec);
+		return;
     }
 }
 
@@ -4365,6 +4425,11 @@ void CGameScene::RequestFireBullet(CGameObject* shooter, float speed, float life
 		if ( auto* tr = bulletObj->GetComponent<CTransformComponent>() )
 		{
 			tr->SetLookDirection(dirN);
+		}
+		if ( auto* collider = bulletObj->GetComponent<CColliderComponent>() )
+		{
+			ConfigureProjectileCollider(collider, true);
+			collider->SetCollisionEnabled(false);
 		}
 
 		bullet->Activate(startPos, vel, lifeSec);
