@@ -939,7 +939,7 @@ void CGameFramework::ProcessInput()
 		{
 			const XMFLOAT3 prevPos = playerObj->GetPosition();
 
-			pc->MoveByYaw(dwDirection, 5.0f * dt, cameraYawDeg, false);
+			pc->MoveByYaw(dwDirection, 50.0f * dt, cameraYawDeg, false);
 
 			if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
 			{

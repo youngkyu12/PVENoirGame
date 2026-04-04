@@ -29,7 +29,7 @@ BoundingOrientedBox CColliderComponent::MakeLocalOOBB(const XMFLOAT3& Min, const
 
 BoundingOrientedBox CColliderComponent::MakeAuthoredLocalOOBB(
 	const XMFLOAT3& Center,
-	const XMFLOAT3& RotationEulerDeg,
+	const XMFLOAT4& RotationQuat,
 	const XMFLOAT3& Size)
 {
 	BoundingOrientedBox box{};
@@ -41,13 +41,8 @@ BoundingOrientedBox CColliderComponent::MakeAuthoredLocalOOBB(
 		Size.z * 0.5f
 	);
 
-	const XMVECTOR q = XMQuaternionRotationRollPitchYaw(
-		XMConvertToRadians(RotationEulerDeg.x),
-		XMConvertToRadians(RotationEulerDeg.y),
-		XMConvertToRadians(RotationEulerDeg.z)
-	);
-
-	XMStoreFloat4(&box.Orientation, XMQuaternionNormalize(q));
+	const XMVECTOR q = XMQuaternionNormalize(XMLoadFloat4(&RotationQuat));
+	XMStoreFloat4(&box.Orientation, q);
 	return box;
 }
 
@@ -85,9 +80,69 @@ static BoundingCapsule MakeCapsuleFromSegment(
 	return capsule;
 }
 
+static void ExpandMinMaxByPoint(
+	XMFLOAT3& minPt,
+	XMFLOAT3& maxPt,
+	const XMFLOAT3& p)
+{
+	minPt.x = min(minPt.x, p.x);
+	minPt.y = min(minPt.y, p.y);
+	minPt.z = min(minPt.z, p.z);
+
+	maxPt.x = max(maxPt.x, p.x);
+	maxPt.y = max(maxPt.y, p.y);
+	maxPt.z = max(maxPt.z, p.z);
+}
+
+static void ExpandMinMaxByOOBB(
+	XMFLOAT3& minPt,
+	XMFLOAT3& maxPt,
+	const BoundingOrientedBox& box)
+{
+	XMFLOAT3 corners[8]{};
+	box.GetCorners(corners);
+
+	for ( int i = 0; i < 8; ++i )
+		ExpandMinMaxByPoint(minPt, maxPt, corners[i]);
+}
+
+static BoundingOrientedBox MakeEnclosingLocalOOBB(
+	const std::vector<BoundingOrientedBox>& boxes)
+{
+	BoundingOrientedBox result{};
+
+	if ( boxes.empty() )
+	{
+		result.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		result.Extents = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		result.Orientation = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+		return result;
+	}
+
+	XMFLOAT3 minPt(FLT_MAX, FLT_MAX, FLT_MAX);
+	XMFLOAT3 maxPt(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+	for ( const BoundingOrientedBox& box : boxes )
+		ExpandMinMaxByOOBB(minPt, maxPt, box);
+
+	result.Center = XMFLOAT3(
+		( minPt.x + maxPt.x ) * 0.5f,
+		( minPt.y + maxPt.y ) * 0.5f,
+		( minPt.z + maxPt.z ) * 0.5f
+	);
+
+	result.Extents = XMFLOAT3(
+		( maxPt.x - minPt.x ) * 0.5f,
+		( maxPt.y - minPt.y ) * 0.5f,
+		( maxPt.z - minPt.z ) * 0.5f
+	);
+
+	result.Orientation = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+	return result;
+}
+
 void CColliderComponent::BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>& meshes)
 {
-	bool matchedAnyAuthoredPath = false;
 	mMeshOOBBSets.clear();
 	mMeshOOBBSets.reserve(meshes.size());
 
@@ -96,14 +151,15 @@ void CColliderComponent::BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>&
 		if ( !mesh ) continue;
 
 		MeshOOBBSet set{};
-		set.LocalMeshOOBB = MakeLocalOOBB(mesh->GetMeshMin(), mesh->GetMeshMax());
-		set.WorldMeshOOBB = set.LocalMeshOOBB;
-
 		std::unordered_set<std::string> consumedAuthoredPaths;
 
 		for ( const auto& submesh : mesh->m_SubMeshes )
 		{
-			const auto authoredIt = mStaticSubMeshAuthoredOOBBs.find(submesh.authoringPath);
+			const bool hasAuthoringPath = !submesh.authoringPath.empty();
+			const auto authoredIt =
+				hasAuthoringPath
+				? mStaticSubMeshAuthoredOOBBs.find(submesh.authoringPath)
+				: mStaticSubMeshAuthoredOOBBs.end();
 
 			if ( authoredIt != mStaticSubMeshAuthoredOOBBs.end() && !authoredIt->second.empty() )
 			{
@@ -125,22 +181,40 @@ void CColliderComponent::BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>&
 					{
 						BoundingOrientedBox subBox = MakeAuthoredLocalOOBB(
 							authoredBox.Center,
-							authoredBox.RotationEulerDeg,
+							authoredBox.RotationQuat,
 							authoredBox.Size
 						);
 
 						set.LocalSubOOBBs.push_back(subBox);
-						set.WorldSubOOBBs.push_back(subBox);
 					}
 				}
 
 				continue;
 			}
 
+			if ( !mStaticSubMeshAuthoredOOBBs.empty() && hasAuthoringPath )
+			{
+				char missBuf[1024] = {};
+				sprintf_s(
+					missBuf,
+					"[CubeBoxColliderReport MISS] submeshName=\"%s\" authoringPath=\"%s\"\n",
+					submesh.meshName.c_str(),
+					submesh.authoringPath.c_str()
+				);
+				OutputDebugStringA(missBuf);
+			}
+
 			BoundingOrientedBox subBox = MakeLocalOOBB(submesh.subMeshMin, submesh.subMeshMax);
 			set.LocalSubOOBBs.push_back(subBox);
-			set.WorldSubOOBBs.push_back(subBox);
 		}
+
+		if ( !set.LocalSubOOBBs.empty() )
+			set.LocalMeshOOBB = MakeEnclosingLocalOOBB(set.LocalSubOOBBs);
+		else
+			set.LocalMeshOOBB = MakeLocalOOBB(mesh->GetMeshMin(), mesh->GetMeshMax());
+
+		set.WorldMeshOOBB = set.LocalMeshOOBB;
+		set.WorldSubOOBBs = set.LocalSubOOBBs;
 
 		mMeshOOBBSets.push_back(std::move(set));
 	}
@@ -194,27 +268,40 @@ void CColliderComponent::OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*)
 	{
 		BuildHierarchicalOOBBs(meshes);
 
-		for ( const shared_ptr<CMesh>& mesh : meshes )
+		std::vector<BoundingOrientedBox> meshBoxes;
+		meshBoxes.reserve(mMeshOOBBSets.size());
+
+		for ( const MeshOOBBSet& set : mMeshOOBBSets )
+			meshBoxes.push_back(set.LocalMeshOOBB);
+
+		if ( !meshBoxes.empty() )
 		{
-			if ( !mesh ) continue;
-
-			const XMFLOAT3 meshMin = mesh->GetMeshMin();
-			const XMFLOAT3 meshMax = mesh->GetMeshMax();
-
-			objMin.x = min(objMin.x, meshMin.x);
-			objMin.y = min(objMin.y, meshMin.y);
-			objMin.z = min(objMin.z, meshMin.z);
-
-			objMax.x = max(objMax.x, meshMax.x);
-			objMax.y = max(objMax.y, meshMax.y);
-			objMax.z = max(objMax.z, meshMax.z);
+			LocalOOBB = MakeEnclosingLocalOOBB(meshBoxes);
 		}
-
-		if ( objMin.x <= objMax.x &&
-			objMin.y <= objMax.y &&
-			objMin.z <= objMax.z )
+		else
 		{
-			SetOOBB(objMin, objMax);
+			for ( const shared_ptr<CMesh>& mesh : meshes )
+			{
+				if ( !mesh ) continue;
+
+				const XMFLOAT3 meshMin = mesh->GetMeshMin();
+				const XMFLOAT3 meshMax = mesh->GetMeshMax();
+
+				objMin.x = min(objMin.x, meshMin.x);
+				objMin.y = min(objMin.y, meshMin.y);
+				objMin.z = min(objMin.z, meshMin.z);
+
+				objMax.x = max(objMax.x, meshMax.x);
+				objMax.y = max(objMax.y, meshMax.y);
+				objMax.z = max(objMax.z, meshMax.z);
+			}
+
+			if ( objMin.x <= objMax.x &&
+				objMin.y <= objMax.y &&
+				objMin.z <= objMax.z )
+			{
+				SetOOBB(objMin, objMax);
+			}
 		}
 
 		break;
