@@ -56,60 +56,13 @@ BoundingOrientedBox CColliderComponent::MakeLocalOOBBFromMatrix(const XMFLOAT4X4
 		unitBoxToLocal._43
 	);
 
-	XMFLOAT3 axisX(
-		unitBoxToLocal._11,
-		unitBoxToLocal._12,
-		unitBoxToLocal._13
-	);
+	const XMVECTOR rawX = XMVectorSet(unitBoxToLocal._11, unitBoxToLocal._12, unitBoxToLocal._13, 0.0f);
+	const XMVECTOR rawY = XMVectorSet(unitBoxToLocal._21, unitBoxToLocal._22, unitBoxToLocal._23, 0.0f);
+	const XMVECTOR rawZ = XMVectorSet(unitBoxToLocal._31, unitBoxToLocal._32, unitBoxToLocal._33, 0.0f);
 
-	XMFLOAT3 axisY(
-		unitBoxToLocal._21,
-		unitBoxToLocal._22,
-		unitBoxToLocal._23
-	);
-
-	XMFLOAT3 axisZ(
-		unitBoxToLocal._31,
-		unitBoxToLocal._32,
-		unitBoxToLocal._33
-	);
-
-	const float sizeX = sqrtf(axisX.x * axisX.x + axisX.y * axisX.y + axisX.z * axisX.z);
-	const float sizeY = sqrtf(axisY.x * axisY.x + axisY.y * axisY.y + axisY.z * axisY.z);
-	const float sizeZ = sqrtf(axisZ.x * axisZ.x + axisZ.y * axisZ.y + axisZ.z * axisZ.z);
-
-	if ( sizeX > 1e-6f )
-	{
-		axisX.x /= sizeX;
-		axisX.y /= sizeX;
-		axisX.z /= sizeX;
-	}
-	else
-	{
-		axisX = XMFLOAT3(1.0f, 0.0f, 0.0f);
-	}
-
-	if ( sizeY > 1e-6f )
-	{
-		axisY.x /= sizeY;
-		axisY.y /= sizeY;
-		axisY.z /= sizeY;
-	}
-	else
-	{
-		axisY = XMFLOAT3(0.0f, 1.0f, 0.0f);
-	}
-
-	if ( sizeZ > 1e-6f )
-	{
-		axisZ.x /= sizeZ;
-		axisZ.y /= sizeZ;
-		axisZ.z /= sizeZ;
-	}
-	else
-	{
-		axisZ = XMFLOAT3(0.0f, 0.0f, 1.0f);
-	}
+	const float sizeX = XMVectorGetX(XMVector3Length(rawX));
+	const float sizeY = XMVectorGetX(XMVector3Length(rawY));
+	const float sizeZ = XMVectorGetX(XMVector3Length(rawZ));
 
 	box.Extents = XMFLOAT3(
 		sizeX * 0.5f,
@@ -117,10 +70,45 @@ BoundingOrientedBox CColliderComponent::MakeLocalOOBBFromMatrix(const XMFLOAT4X4
 		sizeZ * 0.5f
 	);
 
+	if ( sizeX <= 1e-6f || sizeY <= 1e-6f || sizeZ <= 1e-6f )
+	{
+		box.Orientation = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+		return box;
+	}
+
+	XMVECTOR axisX = XMVectorScale(rawX, 1.0f / sizeX);
+
+	XMVECTOR axisY = rawY - XMVectorScale(axisX, XMVectorGetX(XMVector3Dot(rawY, axisX)));
+	if ( XMVectorGetX(XMVector3LengthSq(axisY)) <= 1e-8f )
+	{
+		axisY = rawZ - XMVectorScale(axisX, XMVectorGetX(XMVector3Dot(rawZ, axisX)));
+	}
+
+	if ( XMVectorGetX(XMVector3LengthSq(axisY)) <= 1e-8f )
+	{
+		axisY = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+		if ( fabsf(XMVectorGetX(XMVector3Dot(axisX, axisY))) > 0.99f )
+			axisY = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+	}
+
+	axisY = XMVector3Normalize(axisY);
+	XMVECTOR axisZ = XMVector3Normalize(XMVector3Cross(axisX, axisY));
+
+	// rawZ 방향과 반대면 Y,Z를 같이 뒤집어서 det(+1) 유지
+	if ( XMVectorGetX(XMVector3Dot(axisZ, rawZ)) < 0.0f )
+	{
+		axisY = XMVectorNegate(axisY);
+		axisZ = XMVectorNegate(axisZ);
+	}
+
+	// 마지막으로 직교 재보정
+	axisX = XMVector3Normalize(XMVector3Cross(axisY, axisZ));
+	axisY = XMVector3Normalize(XMVector3Cross(axisZ, axisX));
+
 	const XMMATRIX rotM(
-		XMVectorSet(axisX.x, axisX.y, axisX.z, 0.0f),
-		XMVectorSet(axisY.x, axisY.y, axisY.z, 0.0f),
-		XMVectorSet(axisZ.x, axisZ.y, axisZ.z, 0.0f),
+		axisX,
+		axisY,
+		axisZ,
 		XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f)
 	);
 
@@ -320,10 +308,7 @@ void CColliderComponent::BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>&
 			}
 			else
 			{
-				set.LocalMeshOOBB = MakeLocalOOBB(
-					XMFLOAT3(0.0f, 0.0f, 0.0f),
-					XMFLOAT3(0.0f, 0.0f, 0.0f)
-				);
+				continue;
 			}
 		}
 
@@ -398,7 +383,16 @@ void CColliderComponent::OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*)
 		meshBoxes.reserve(mMeshOOBBSets.size());
 
 		for ( const MeshOOBBSet& set : mMeshOOBBSets )
+		{
+			if ( set.LocalMeshOOBB.Extents.x <= 1e-6f &&
+				 set.LocalMeshOOBB.Extents.y <= 1e-6f &&
+				 set.LocalMeshOOBB.Extents.z <= 1e-6f )
+			{
+				continue;
+			}
+
 			meshBoxes.push_back(set.LocalMeshOOBB);
+		}
 
 		if ( !meshBoxes.empty() )
 		{
