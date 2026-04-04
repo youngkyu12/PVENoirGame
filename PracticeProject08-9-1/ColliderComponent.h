@@ -92,6 +92,7 @@ private:
 	const XMFLOAT3& Center,
 	const XMFLOAT4& RotationQuat,
 	const XMFLOAT3& Size);
+	static BoundingOrientedBox MakeLocalOOBBFromMatrix(const XMFLOAT4X4& unitBoxToLocal);
 	void BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>& meshes);
 
 private:
