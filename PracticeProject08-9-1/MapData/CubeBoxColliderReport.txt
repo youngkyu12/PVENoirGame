@@ -1,5 +1,5 @@
 === Scene Cube BoxCollider Report ===
-GeneratedAt: 2026-04-04 15:45:06
+GeneratedAt: 2026-04-04 16:13:37
 SceneName: FBX_ExportScene
 ScenePath: Assets/Scenes/FBX_ExportScene.unity
 TopRootCount: 10
@@ -83,7 +83,7 @@ TargetObjectCount: 17
     [CubeCollider #1]
     ChildName: Cube
     ChildPath: Building1[4]/accessory_15_1[26]/Cube[0]
-    CenterInTopRoot_Local: (-2.6330, 2.4880, -8.0466)
+    CenterInTopRoot_Local: (-2.6330, 2.4880, -8.0467)
     RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
     SizeInTopRoot_Local: (2.7526, 0.2595, 2.5378)
     ChildLocalPositionFromA: (1.0409, 0.0000, 1.4083)
@@ -851,19 +851,19 @@ TargetObjectCount: 14
 
 [TopRootGroup #3]
 TopRootName: Building3
-TopRootPath: Building3[6]
+TopRootPath: Building3[10]
 TargetObjectCount: 15
 
   [A #1]
   AName: accessory_7
-  APath: Building3[6]/back[0]/accessory_7[3]
+  APath: Building3[10]/back[0]/accessory_7[3]
   TopRootName: Building3
-  TopRootPath: Building3[6]
+  TopRootPath: Building3[10]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building3[6]/back[0]/accessory_7[3]/Cube[0]
+    ChildPath: Building3[10]/back[0]/accessory_7[3]/Cube[0]
     CenterInTopRoot_Local: (-4.9463, -1.4303, -14.8927)
     RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
     SizeInTopRoot_Local: (9.0507, 2.4178, 0.4921)
@@ -875,14 +875,14 @@ TargetObjectCount: 15
 
   [A #2]
   AName: accessory_15_2
-  APath: Building3[6]/building3Connector[3]/accessory_15_2[7]
+  APath: Building3[10]/building3Connector[3]/accessory_15_2[7]
   TopRootName: Building3
-  TopRootPath: Building3[6]
+  TopRootPath: Building3[10]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building3[6]/building3Connector[3]/accessory_15_2[7]/Cube[0]
+    ChildPath: Building3[10]/building3Connector[3]/accessory_15_2[7]/Cube[0]
     CenterInTopRoot_Local: (1.7414, 5.5871, 1.5857)
     RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
     SizeInTopRoot_Local: (2.3961, 0.2259, 2.2091)
@@ -894,14 +894,14 @@ TargetObjectCount: 15
 
   [A #3]
   AName: accessory_7_2
-  APath: Building3[6]/building3Connector[3]/accessory_7_2[4]
+  APath: Building3[10]/building3Connector[3]/accessory_7_2[4]
   TopRootName: Building3
-  TopRootPath: Building3[6]
+  TopRootPath: Building3[10]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building3[6]/building3Connector[3]/accessory_7_2[4]/Cube[0]
+    ChildPath: Building3[10]/building3Connector[3]/accessory_7_2[4]/Cube[0]
     CenterInTopRoot_Local: (2.9661, 3.2391, 0.5920)
     RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
     SizeInTopRoot_Local: (3.9004, 1.4125, 0.2875)
@@ -913,14 +913,14 @@ TargetObjectCount: 15
 
   [A #4]
   AName: accessory_9
-  APath: Building3[6]/building3Connector[3]/accessory_9[5]
+  APath: Building3[10]/building3Connector[3]/accessory_9[5]
   TopRootName: Building3
-  TopRootPath: Building3[6]
+  TopRootPath: Building3[10]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building3[6]/building3Connector[3]/accessory_9[5]/Cube[0]
+    ChildPath: Building3[10]/building3Connector[3]/accessory_9[5]/Cube[0]
     CenterInTopRoot_Local: (2.5964, 2.0252, -15.8715)
     RotationInTopRoot_LocalQuat: (0.000000, 1.000000, 0.000000, 0.000000)
     SizeInTopRoot_Local: (5.0000, 0.4000, 2.2802)
@@ -932,14 +932,14 @@ TargetObjectCount: 15
 
   [A #5]
   AName: accessory_7_1
-  APath: Building3[6]/building3b[2]/back_1[0]/accessory_7_1[0]
+  APath: Building3[10]/building3b[2]/back_1[0]/accessory_7_1[0]
   TopRootName: Building3
-  TopRootPath: Building3[6]
+  TopRootPath: Building3[10]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building3[6]/building3b[2]/back_1[0]/accessory_7_1[0]/Cube[0]
+    ChildPath: Building3[10]/building3b[2]/back_1[0]/accessory_7_1[0]/Cube[0]
     CenterInTopRoot_Local: (10.0538, -1.4303, -15.1073)
     RotationInTopRoot_LocalQuat: (0.000000, 1.000000, 0.000000, 0.000000)
     SizeInTopRoot_Local: (9.0507, 2.4178, 0.4921)
@@ -951,14 +951,14 @@ TargetObjectCount: 15
 
   [A #6]
   AName: doorFrame4b
-  APath: Building3[6]/building3b[2]/front[2]/doorFrame4b[4]
+  APath: Building3[10]/building3b[2]/front[2]/doorFrame4b[4]
   TopRootName: Building3
-  TopRootPath: Building3[6]
+  TopRootPath: Building3[10]
   CubeColliderCount: 5
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building3[6]/building3b[2]/front[2]/doorFrame4b[4]/Cube[0]
+    ChildPath: Building3[10]/building3b[2]/front[2]/doorFrame4b[4]/Cube[0]
     CenterInTopRoot_Local: (9.6822, 4.2548, -0.0052)
     RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
     SizeInTopRoot_Local: (0.5875, 4.4406, 0.5138)
@@ -970,7 +970,7 @@ TargetObjectCount: 15
 
     [CubeCollider #2]
     ChildName: Cube
-    ChildPath: Building3[6]/building3b[2]/front[2]/doorFrame4b[4]/Cube[1]
+    ChildPath: Building3[10]/building3b[2]/front[2]/doorFrame4b[4]/Cube[1]
     CenterInTopRoot_Local: (5.2882, 4.2957, -0.0052)
     RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
     SizeInTopRoot_Local: (0.5875, 4.5312, 0.5138)
@@ -982,7 +982,7 @@ TargetObjectCount: 15
 
     [CubeCollider #3]
     ChildName: Cube
-    ChildPath: Building3[6]/building3b[2]/front[2]/doorFrame4b[4]/Cube[2]
+    ChildPath: Building3[10]/building3b[2]/front[2]/doorFrame4b[4]/Cube[2]
     CenterInTopRoot_Local: (7.4859, 6.7065, -0.0052)
     RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.707107, 0.707107)
     SizeInTopRoot_Local: (0.5875, 5.0008, 0.5138)
@@ -994,7 +994,7 @@ TargetObjectCount: 15
 
     [CubeCollider #4]
     ChildName: Cube
-    ChildPath: Building3[6]/building3b[2]/front[2]/doorFrame4b[4]/Cube[3]
+    ChildPath: Building3[10]/building3b[2]/front[2]/doorFrame4b[4]/Cube[3]
     CenterInTopRoot_Local: (9.0806, 6.2022, -0.0052)
     RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.408992, 0.912538)
     SizeInTopRoot_Local: (0.7858, 1.7038, 0.5138)
@@ -1006,7 +1006,7 @@ TargetObjectCount: 15
 
     [CubeCollider #5]
     ChildName: Cube
-    ChildPath: Building3[6]/building3b[2]/front[2]/doorFrame4b[4]/Cube[4]
+    ChildPath: Building3[10]/building3b[2]/front[2]/doorFrame4b[4]/Cube[4]
     CenterInTopRoot_Local: (5.8231, 6.2022, -0.0052)
     RotationInTopRoot_LocalQuat: (0.000000, 0.000000, -0.408992, 0.912538)
     SizeInTopRoot_Local: (0.7858, 1.7038, 0.5138)
@@ -1018,14 +1018,14 @@ TargetObjectCount: 15
 
   [A #7]
   AName: accessory_15
-  APath: Building3[6]/building3b[2]/ladder[3]/accessory_15[0]
+  APath: Building3[10]/building3b[2]/ladder[3]/accessory_15[0]
   TopRootName: Building3
-  TopRootPath: Building3[6]
+  TopRootPath: Building3[10]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building3[6]/building3b[2]/ladder[3]/accessory_15[0]/Cube[0]
+    ChildPath: Building3[10]/building3b[2]/ladder[3]/accessory_15[0]/Cube[0]
     CenterInTopRoot_Local: (17.3747, 4.8802, -17.0501)
     RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
     SizeInTopRoot_Local: (2.7526, 0.2595, 2.5378)
@@ -1037,14 +1037,14 @@ TargetObjectCount: 15
 
   [A #8]
   AName: accessory_15_1
-  APath: Building3[6]/building3b[2]/ladder[3]/accessory_15_1[1]
+  APath: Building3[10]/building3b[2]/ladder[3]/accessory_15_1[1]
   TopRootName: Building3
-  TopRootPath: Building3[6]
+  TopRootPath: Building3[10]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building3[6]/building3b[2]/ladder[3]/accessory_15_1[1]/Cube[0]
+    ChildPath: Building3[10]/building3b[2]/ladder[3]/accessory_15_1[1]/Cube[0]
     CenterInTopRoot_Local: (17.7437, 10.5822, -9.0576)
     RotationInTopRoot_LocalQuat: (0.000000, -0.719315, 0.000000, 0.694684)
     SizeInTopRoot_Local: (2.7526, 0.2595, 2.5378)
@@ -1056,14 +1056,14 @@ TargetObjectCount: 15
 
   [A #9]
   AName: ladder_2_5
-  APath: Building3[6]/building3b[2]/ladder[3]/ladder_2_5[10]
+  APath: Building3[10]/building3b[2]/ladder[3]/ladder_2_5[10]
   TopRootName: Building3
-  TopRootPath: Building3[6]
+  TopRootPath: Building3[10]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building3[6]/building3b[2]/ladder[3]/ladder_2_5[10]/Cube[0]
+    ChildPath: Building3[10]/building3b[2]/ladder[3]/ladder_2_5[10]/Cube[0]
     CenterInTopRoot_Local: (14.5834, 3.7123, -17.0378)
     RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.391126, 0.920337)
     SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
@@ -1075,14 +1075,14 @@ TargetObjectCount: 15
 
   [A #10]
   AName: ladder_2_5_1
-  APath: Building3[6]/building3b[2]/ladder[3]/ladder_2_5_1[11]
+  APath: Building3[10]/building3b[2]/ladder[3]/ladder_2_5_1[11]
   TopRootName: Building3
-  TopRootPath: Building3[6]
+  TopRootPath: Building3[10]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building3[6]/building3b[2]/ladder[3]/ladder_2_5_1[11]/Cube[0]
+    ChildPath: Building3[10]/building3b[2]/ladder[3]/ladder_2_5_1[11]/Cube[0]
     CenterInTopRoot_Local: (17.0643, 6.2664, -14.4976)
     RotationInTopRoot_LocalQuat: (-0.276568, -0.650777, 0.276568, 0.650777)
     SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
@@ -1094,14 +1094,14 @@ TargetObjectCount: 15
 
   [A #11]
   AName: ladder_2_5_2
-  APath: Building3[6]/building3b[2]/ladder[3]/ladder_2_5_2[12]
+  APath: Building3[10]/building3b[2]/ladder[3]/ladder_2_5_2[12]
   TopRootName: Building3
-  TopRootPath: Building3[6]
+  TopRootPath: Building3[10]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building3[6]/building3b[2]/ladder[3]/ladder_2_5_2[12]/Cube[0]
+    ChildPath: Building3[10]/building3b[2]/ladder[3]/ladder_2_5_2[12]/Cube[0]
     CenterInTopRoot_Local: (17.0930, 8.8303, -12.0929)
     RotationInTopRoot_LocalQuat: (-0.276568, -0.650777, 0.276568, 0.650777)
     SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
@@ -1113,14 +1113,14 @@ TargetObjectCount: 15
 
   [A #12]
   AName: ladder_2_5_3
-  APath: Building3[6]/building3b[2]/ladder[3]/ladder_2_5_3[13]
+  APath: Building3[10]/building3b[2]/ladder[3]/ladder_2_5_3[13]
   TopRootName: Building3
-  TopRootPath: Building3[6]
+  TopRootPath: Building3[10]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building3[6]/building3b[2]/ladder[3]/ladder_2_5_3[13]/Cube[0]
+    ChildPath: Building3[10]/building3b[2]/ladder[3]/ladder_2_5_3[13]/Cube[0]
     CenterInTopRoot_Local: (12.1683, 1.1581, -17.0332)
     RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.391126, 0.920337)
     SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
@@ -1132,14 +1132,14 @@ TargetObjectCount: 15
 
   [A #13]
   AName: ladder_2_5_4
-  APath: Building3[6]/building3b[2]/ladder[3]/ladder_2_5_4[14]
+  APath: Building3[10]/building3b[2]/ladder[3]/ladder_2_5_4[14]
   TopRootName: Building3
-  TopRootPath: Building3[6]
+  TopRootPath: Building3[10]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building3[6]/building3b[2]/ladder[3]/ladder_2_5_4[14]/Cube[0]
+    ChildPath: Building3[10]/building3b[2]/ladder[3]/ladder_2_5_4[14]/Cube[0]
     CenterInTopRoot_Local: (9.7531, -1.3960, -16.5524)
     RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.391126, 0.920337)
     SizeInTopRoot_Local: (3.8108, 0.5581, 2.3640)
@@ -1151,14 +1151,14 @@ TargetObjectCount: 15
 
   [A #14]
   AName: accessoire_1
-  APath: Building3[6]/building3b[2]/side[7]/accessoire_1[0]
+  APath: Building3[10]/building3b[2]/side[7]/accessoire_1[0]
   TopRootName: Building3
-  TopRootPath: Building3[6]
+  TopRootPath: Building3[10]
   CubeColliderCount: 3
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building3[6]/building3b[2]/side[7]/accessoire_1[0]/Cube[0]
+    ChildPath: Building3[10]/building3b[2]/side[7]/accessoire_1[0]/Cube[0]
     CenterInTopRoot_Local: (15.4974, 5.7783, -6.4270)
     RotationInTopRoot_LocalQuat: (0.148404, 0.691358, -0.148404, 0.691358)
     SizeInTopRoot_Local: (1.6742, 0.1279, 0.8812)
@@ -1170,7 +1170,7 @@ TargetObjectCount: 15
 
     [CubeCollider #2]
     ChildName: Cube
-    ChildPath: Building3[6]/building3b[2]/side[7]/accessoire_1[0]/Cube[1]
+    ChildPath: Building3[10]/building3b[2]/side[7]/accessoire_1[0]/Cube[1]
     CenterInTopRoot_Local: (15.0844, 5.1625, -5.7053)
     RotationInTopRoot_LocalQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
     SizeInTopRoot_Local: (0.1552, 0.2088, 1.4319)
@@ -1182,7 +1182,7 @@ TargetObjectCount: 15
 
     [CubeCollider #3]
     ChildName: Cube
-    ChildPath: Building3[6]/building3b[2]/side[7]/accessoire_1[0]/Cube[2]
+    ChildPath: Building3[10]/building3b[2]/side[7]/accessoire_1[0]/Cube[2]
     CenterInTopRoot_Local: (15.0844, 5.1625, -7.1232)
     RotationInTopRoot_LocalQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
     SizeInTopRoot_Local: (0.1552, 0.2088, 1.4319)
@@ -1194,14 +1194,14 @@ TargetObjectCount: 15
 
   [A #15]
   AName: accessoire_1_1
-  APath: Building3[6]/front_1[5]/accessoire_1_1[0]
+  APath: Building3[10]/front_1[5]/accessoire_1_1[0]
   TopRootName: Building3
-  TopRootPath: Building3[6]
+  TopRootPath: Building3[10]
   CubeColliderCount: 3
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building3[6]/front_1[5]/accessoire_1_1[0]/Cube[0]
+    ChildPath: Building3[10]/front_1[5]/accessoire_1_1[0]/Cube[0]
     CenterInTopRoot_Local: (-8.4589, 10.9719, 0.6338)
     RotationInTopRoot_LocalQuat: (0.209875, 0.000000, 0.000000, 0.977728)
     SizeInTopRoot_Local: (1.6742, 0.1279, 0.8812)
@@ -1213,7 +1213,7 @@ TargetObjectCount: 15
 
     [CubeCollider #2]
     ChildName: Cube
-    ChildPath: Building3[6]/front_1[5]/accessoire_1_1[0]/Cube[1]
+    ChildPath: Building3[10]/front_1[5]/accessoire_1_1[0]/Cube[1]
     CenterInTopRoot_Local: (-9.1807, 10.3561, 0.2208)
     RotationInTopRoot_LocalQuat: (-0.707107, 0.000000, 0.000000, 0.707107)
     SizeInTopRoot_Local: (0.1552, 0.2088, 1.4319)
@@ -1225,7 +1225,7 @@ TargetObjectCount: 15
 
     [CubeCollider #3]
     ChildName: Cube
-    ChildPath: Building3[6]/front_1[5]/accessoire_1_1[0]/Cube[2]
+    ChildPath: Building3[10]/front_1[5]/accessoire_1_1[0]/Cube[2]
     CenterInTopRoot_Local: (-7.7628, 10.3561, 0.2208)
     RotationInTopRoot_LocalQuat: (-0.707107, 0.000000, 0.000000, 0.707107)
     SizeInTopRoot_Local: (0.1552, 0.2088, 1.4319)
@@ -1239,19 +1239,19 @@ TargetObjectCount: 15
 
 [TopRootGroup #4]
 TopRootName: Building4
-TopRootPath: Building4[7]
+TopRootPath: Building4[11]
 TargetObjectCount: 6
 
   [A #1]
   AName: accessory_6
-  APath: Building4[7]/side1[15]/accessory_6[1]
+  APath: Building4[11]/side1[15]/accessory_6[1]
   TopRootName: Building4
-  TopRootPath: Building4[7]
+  TopRootPath: Building4[11]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building4[7]/side1[15]/accessory_6[1]/Cube[0]
+    ChildPath: Building4[11]/side1[15]/accessory_6[1]/Cube[0]
     CenterInTopRoot_Local: (10.5898, 4.9084, -2.5170)
     RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
     SizeInTopRoot_Local: (5.3875, 0.4000, 2.0000)
@@ -1263,14 +1263,14 @@ TargetObjectCount: 6
 
   [A #2]
   AName: accessory_7
-  APath: Building4[7]/side1[15]/accessory_7[2]
+  APath: Building4[11]/side1[15]/accessory_7[2]
   TopRootName: Building4
-  TopRootPath: Building4[7]
+  TopRootPath: Building4[11]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building4[7]/side1[15]/accessory_7[2]/Cube[0]
+    ChildPath: Building4[11]/side1[15]/accessory_7[2]/Cube[0]
     CenterInTopRoot_Local: (13.0537, 5.7644, -7.5000)
     RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
     SizeInTopRoot_Local: (5.2875, 1.4125, 0.2875)
@@ -1282,14 +1282,14 @@ TargetObjectCount: 6
 
   [A #3]
   AName: accessory_9
-  APath: Building4[7]/side1[15]/accessory_9[4]
+  APath: Building4[11]/side1[15]/accessory_9[4]
   TopRootName: Building4
-  TopRootPath: Building4[7]
+  TopRootPath: Building4[11]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building4[7]/side1[15]/accessory_9[4]/Cube[0]
+    ChildPath: Building4[11]/side1[15]/accessory_9[4]/Cube[0]
     CenterInTopRoot_Local: (11.6496, 4.8494, -12.4131)
     RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
     SizeInTopRoot_Local: (5.0000, 0.4000, 2.2802)
@@ -1301,14 +1301,14 @@ TargetObjectCount: 6
 
   [A #4]
   AName: accessory_6_1
-  APath: Building4[7]/side2[16]/accessory_6_1[2]
+  APath: Building4[11]/side2[16]/accessory_6_1[2]
   TopRootName: Building4
-  TopRootPath: Building4[7]
+  TopRootPath: Building4[11]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building4[7]/side2[16]/accessory_6_1[2]/Cube[0]
+    ChildPath: Building4[11]/side2[16]/accessory_6_1[2]/Cube[0]
     CenterInTopRoot_Local: (-0.5898, 4.9084, -12.4830)
     RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
     SizeInTopRoot_Local: (5.3875, 0.4000, 2.0000)
@@ -1320,14 +1320,14 @@ TargetObjectCount: 6
 
   [A #5]
   AName: accessory_7_1
-  APath: Building4[7]/side2[16]/accessory_7_1[3]
+  APath: Building4[11]/side2[16]/accessory_7_1[3]
   TopRootName: Building4
-  TopRootPath: Building4[7]
+  TopRootPath: Building4[11]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building4[7]/side2[16]/accessory_7_1[3]/Cube[0]
+    ChildPath: Building4[11]/side2[16]/accessory_7_1[3]/Cube[0]
     CenterInTopRoot_Local: (-0.6432, 0.7644, -2.1992)
     RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
     SizeInTopRoot_Local: (5.2875, 1.4125, 0.2875)
@@ -1339,14 +1339,14 @@ TargetObjectCount: 6
 
   [A #6]
   AName: accessory_9_1
-  APath: Building4[7]/side2[16]/accessory_9_1[4]
+  APath: Building4[11]/side2[16]/accessory_9_1[4]
   TopRootName: Building4
-  TopRootPath: Building4[7]
+  TopRootPath: Building4[11]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building4[7]/side2[16]/accessory_9_1[4]/Cube[0]
+    ChildPath: Building4[11]/side2[16]/accessory_9_1[4]/Cube[0]
     CenterInTopRoot_Local: (-1.6496, 4.8494, -2.5869)
     RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
     SizeInTopRoot_Local: (5.0000, 0.4000, 2.2802)
@@ -1562,19 +1562,19 @@ TargetObjectCount: 9
 
 [TopRootGroup #6]
 TopRootName: Building6
-TopRootPath: Building6[8]
+TopRootPath: Building6[6]
 TargetObjectCount: 5
 
   [A #1]
   AName: accessoire_1_1
-  APath: Building6[8]/back[0]/accessoire_1_1[0]
+  APath: Building6[6]/back[0]/accessoire_1_1[0]
   TopRootName: Building6
-  TopRootPath: Building6[8]
+  TopRootPath: Building6[6]
   CubeColliderCount: 3
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building6[8]/back[0]/accessoire_1_1[0]/Cube[0]
+    ChildPath: Building6[6]/back[0]/accessoire_1_1[0]/Cube[0]
     CenterInTopRoot_Local: (-1.5411, 8.9719, -15.6338)
     RotationInTopRoot_LocalQuat: (0.000000, 0.977728, -0.209875, 0.000000)
     SizeInTopRoot_Local: (1.6742, 0.1279, 0.8812)
@@ -1586,7 +1586,7 @@ TargetObjectCount: 5
 
     [CubeCollider #2]
     ChildName: Cube
-    ChildPath: Building6[8]/back[0]/accessoire_1_1[0]/Cube[1]
+    ChildPath: Building6[6]/back[0]/accessoire_1_1[0]/Cube[1]
     CenterInTopRoot_Local: (-0.8193, 8.3561, -15.2208)
     RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.707107, 0.000000)
     SizeInTopRoot_Local: (0.1552, 0.2088, 1.4319)
@@ -1598,7 +1598,7 @@ TargetObjectCount: 5
 
     [CubeCollider #3]
     ChildName: Cube
-    ChildPath: Building6[8]/back[0]/accessoire_1_1[0]/Cube[2]
+    ChildPath: Building6[6]/back[0]/accessoire_1_1[0]/Cube[2]
     CenterInTopRoot_Local: (-2.2372, 8.3561, -15.2208)
     RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.707107, 0.000000)
     SizeInTopRoot_Local: (0.1552, 0.2088, 1.4319)
@@ -1610,14 +1610,14 @@ TargetObjectCount: 5
 
   [A #2]
   AName: accessoire_1
-  APath: Building6[8]/front[2]/accessoire_1[0]
+  APath: Building6[6]/front[2]/accessoire_1[0]
   TopRootName: Building6
-  TopRootPath: Building6[8]
+  TopRootPath: Building6[6]
   CubeColliderCount: 3
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building6[8]/front[2]/accessoire_1[0]/Cube[0]
+    ChildPath: Building6[6]/front[2]/accessoire_1[0]/Cube[0]
     CenterInTopRoot_Local: (-8.4589, 8.9719, 0.6338)
     RotationInTopRoot_LocalQuat: (0.209875, 0.000000, 0.000000, 0.977728)
     SizeInTopRoot_Local: (1.6742, 0.1279, 0.8812)
@@ -1629,7 +1629,7 @@ TargetObjectCount: 5
 
     [CubeCollider #2]
     ChildName: Cube
-    ChildPath: Building6[8]/front[2]/accessoire_1[0]/Cube[1]
+    ChildPath: Building6[6]/front[2]/accessoire_1[0]/Cube[1]
     CenterInTopRoot_Local: (-9.1807, 8.3561, 0.2208)
     RotationInTopRoot_LocalQuat: (-0.707107, 0.000000, 0.000000, 0.707107)
     SizeInTopRoot_Local: (0.1552, 0.2088, 1.4319)
@@ -1641,7 +1641,7 @@ TargetObjectCount: 5
 
     [CubeCollider #3]
     ChildName: Cube
-    ChildPath: Building6[8]/front[2]/accessoire_1[0]/Cube[2]
+    ChildPath: Building6[6]/front[2]/accessoire_1[0]/Cube[2]
     CenterInTopRoot_Local: (-7.7628, 8.3561, 0.2208)
     RotationInTopRoot_LocalQuat: (-0.707107, 0.000000, 0.000000, 0.707107)
     SizeInTopRoot_Local: (0.1552, 0.2088, 1.4319)
@@ -1653,14 +1653,14 @@ TargetObjectCount: 5
 
   [A #3]
   AName: doorFrame4b_1
-  APath: Building6[8]/side2[5]/doorFrame4b_1[10]
+  APath: Building6[6]/side2[5]/doorFrame4b_1[10]
   TopRootName: Building6
-  TopRootPath: Building6[8]
+  TopRootPath: Building6[6]
   CubeColliderCount: 5
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building6[8]/side2[5]/doorFrame4b_1[10]/Cube[0]
+    ChildPath: Building6[6]/side2[5]/doorFrame4b_1[10]/Cube[0]
     CenterInTopRoot_Local: (-0.0052, 2.2548, -9.6822)
     RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
     SizeInTopRoot_Local: (0.5875, 4.4406, 0.5138)
@@ -1672,7 +1672,7 @@ TargetObjectCount: 5
 
     [CubeCollider #2]
     ChildName: Cube
-    ChildPath: Building6[8]/side2[5]/doorFrame4b_1[10]/Cube[1]
+    ChildPath: Building6[6]/side2[5]/doorFrame4b_1[10]/Cube[1]
     CenterInTopRoot_Local: (-0.0052, 2.2957, -5.2882)
     RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
     SizeInTopRoot_Local: (0.5875, 4.5312, 0.5138)
@@ -1684,7 +1684,7 @@ TargetObjectCount: 5
 
     [CubeCollider #3]
     ChildName: Cube
-    ChildPath: Building6[8]/side2[5]/doorFrame4b_1[10]/Cube[2]
+    ChildPath: Building6[6]/side2[5]/doorFrame4b_1[10]/Cube[2]
     CenterInTopRoot_Local: (-0.0052, 4.7065, -7.4859)
     RotationInTopRoot_LocalQuat: (0.500000, 0.500000, 0.500000, 0.500000)
     SizeInTopRoot_Local: (0.5875, 5.0008, 0.5138)
@@ -1696,7 +1696,7 @@ TargetObjectCount: 5
 
     [CubeCollider #4]
     ChildName: Cube
-    ChildPath: Building6[8]/side2[5]/doorFrame4b_1[10]/Cube[3]
+    ChildPath: Building6[6]/side2[5]/doorFrame4b_1[10]/Cube[3]
     CenterInTopRoot_Local: (-0.0052, 4.2022, -9.0806)
     RotationInTopRoot_LocalQuat: (0.289200, 0.645262, 0.289201, 0.645262)
     SizeInTopRoot_Local: (0.7858, 1.7038, 0.5138)
@@ -1708,7 +1708,7 @@ TargetObjectCount: 5
 
     [CubeCollider #5]
     ChildName: Cube
-    ChildPath: Building6[8]/side2[5]/doorFrame4b_1[10]/Cube[4]
+    ChildPath: Building6[6]/side2[5]/doorFrame4b_1[10]/Cube[4]
     CenterInTopRoot_Local: (-0.0052, 4.2022, -5.8231)
     RotationInTopRoot_LocalQuat: (-0.289201, 0.645262, -0.289201, 0.645262)
     SizeInTopRoot_Local: (0.7858, 1.7038, 0.5138)
@@ -1720,14 +1720,14 @@ TargetObjectCount: 5
 
   [A #4]
   AName: accessory_7
-  APath: Building6[8]/side2[5]/window_7_1[19]/accessory_7[0]
+  APath: Building6[6]/side2[5]/window_7_1[19]/accessory_7[0]
   TopRootName: Building6
-  TopRootPath: Building6[8]
+  TopRootPath: Building6[6]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building6[8]/side2[5]/window_7_1[19]/accessory_7[0]/Cube[0]
+    ChildPath: Building6[6]/side2[5]/window_7_1[19]/accessory_7[0]/Cube[0]
     CenterInTopRoot_Local: (0.0627, 0.7644, -2.5000)
     RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
     SizeInTopRoot_Local: (4.7036, 1.4125, 0.2875)
@@ -1739,14 +1739,14 @@ TargetObjectCount: 5
 
   [A #5]
   AName: doorFrame4b
-  APath: Building6[8]/side[4]/doorFrame4b[8]
+  APath: Building6[6]/side[4]/doorFrame4b[8]
   TopRootName: Building6
-  TopRootPath: Building6[8]
+  TopRootPath: Building6[6]
   CubeColliderCount: 5
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building6[8]/side[4]/doorFrame4b[8]/Cube[0]
+    ChildPath: Building6[6]/side[4]/doorFrame4b[8]/Cube[0]
     CenterInTopRoot_Local: (-9.9948, 2.2548, -5.3178)
     RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
     SizeInTopRoot_Local: (0.5875, 4.4406, 0.5138)
@@ -1758,7 +1758,7 @@ TargetObjectCount: 5
 
     [CubeCollider #2]
     ChildName: Cube
-    ChildPath: Building6[8]/side[4]/doorFrame4b[8]/Cube[1]
+    ChildPath: Building6[6]/side[4]/doorFrame4b[8]/Cube[1]
     CenterInTopRoot_Local: (-9.9948, 2.2957, -9.7118)
     RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
     SizeInTopRoot_Local: (0.5875, 4.5312, 0.5138)
@@ -1770,7 +1770,7 @@ TargetObjectCount: 5
 
     [CubeCollider #3]
     ChildName: Cube
-    ChildPath: Building6[8]/side[4]/doorFrame4b[8]/Cube[2]
+    ChildPath: Building6[6]/side[4]/doorFrame4b[8]/Cube[2]
     CenterInTopRoot_Local: (-9.9948, 4.7065, -7.5141)
     RotationInTopRoot_LocalQuat: (0.500000, 0.500000, -0.500000, -0.500000)
     SizeInTopRoot_Local: (0.5875, 5.0008, 0.5138)
@@ -1782,7 +1782,7 @@ TargetObjectCount: 5
 
     [CubeCollider #4]
     ChildName: Cube
-    ChildPath: Building6[8]/side[4]/doorFrame4b[8]/Cube[3]
+    ChildPath: Building6[6]/side[4]/doorFrame4b[8]/Cube[3]
     CenterInTopRoot_Local: (-9.9948, 4.2022, -5.9194)
     RotationInTopRoot_LocalQuat: (-0.289201, -0.645262, 0.289201, 0.645262)
     SizeInTopRoot_Local: (0.7858, 1.7038, 0.5138)
@@ -1794,7 +1794,7 @@ TargetObjectCount: 5
 
     [CubeCollider #5]
     ChildName: Cube
-    ChildPath: Building6[8]/side[4]/doorFrame4b[8]/Cube[4]
+    ChildPath: Building6[6]/side[4]/doorFrame4b[8]/Cube[4]
     CenterInTopRoot_Local: (-9.9948, 4.2022, -9.1769)
     RotationInTopRoot_LocalQuat: (0.289201, -0.645262, -0.289201, 0.645262)
     SizeInTopRoot_Local: (0.7858, 1.7038, 0.5138)
@@ -1808,19 +1808,19 @@ TargetObjectCount: 5
 
 [TopRootGroup #7]
 TopRootName: Building7
-TopRootPath: Building7[9]
+TopRootPath: Building7[7]
 TargetObjectCount: 6
 
   [A #1]
   AName: accessory_15
-  APath: Building7[9]/ladder[3]/accessory_15[0]
+  APath: Building7[7]/ladder[3]/accessory_15[0]
   TopRootName: Building7
-  TopRootPath: Building7[9]
+  TopRootPath: Building7[7]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building7[9]/ladder[3]/accessory_15[0]/Cube[0]
+    ChildPath: Building7[7]/ladder[3]/accessory_15[0]/Cube[0]
     CenterInTopRoot_Local: (-1.5555, 5.0985, -11.3014)
     RotationInTopRoot_LocalQuat: (0.000000, 0.014181, 0.000000, 0.999899)
     SizeInTopRoot_Local: (2.7526, 0.2595, 2.5378)
@@ -1832,14 +1832,14 @@ TargetObjectCount: 6
 
   [A #2]
   AName: ladder_2_5
-  APath: Building7[9]/ladder[3]/ladder_2_5[3]
+  APath: Building7[7]/ladder[3]/ladder_2_5[3]
   TopRootName: Building7
-  TopRootPath: Building7[9]
+  TopRootPath: Building7[7]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building7[9]/ladder[3]/ladder_2_5[3]/Cube[0]
+    ChildPath: Building7[7]/ladder[3]/ladder_2_5[3]/Cube[0]
     CenterInTopRoot_Local: (-9.4634, -1.4696, -11.8968)
     RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.391126, 0.920337)
     SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
@@ -1851,14 +1851,14 @@ TargetObjectCount: 6
 
   [A #3]
   AName: ladder_2_5_1
-  APath: Building7[9]/ladder[3]/ladder_2_5_1[4]
+  APath: Building7[7]/ladder[3]/ladder_2_5_1[4]
   TopRootName: Building7
-  TopRootPath: Building7[9]
+  TopRootPath: Building7[7]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building7[9]/ladder[3]/ladder_2_5_1[4]/Cube[0]
+    ChildPath: Building7[7]/ladder[3]/ladder_2_5_1[4]/Cube[0]
     CenterInTopRoot_Local: (-4.6541, 3.6581, -11.9544)
     RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.391126, 0.920337)
     SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
@@ -1870,14 +1870,14 @@ TargetObjectCount: 6
 
   [A #4]
   AName: ladder_2_5_2
-  APath: Building7[9]/ladder[3]/ladder_2_5_2[5]
+  APath: Building7[7]/ladder[3]/ladder_2_5_2[5]
   TopRootName: Building7
-  TopRootPath: Building7[9]
+  TopRootPath: Building7[7]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building7[9]/ladder[3]/ladder_2_5_2[5]/Cube[0]
+    ChildPath: Building7[7]/ladder[3]/ladder_2_5_2[5]/Cube[0]
     CenterInTopRoot_Local: (-7.0587, 1.0943, -11.9256)
     RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.391126, 0.920337)
     SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
@@ -1889,14 +1889,14 @@ TargetObjectCount: 6
 
   [A #5]
   AName: accessory_5
-  APath: Building7[9]/side1[6]/accessory_5[0]
+  APath: Building7[7]/side1[6]/accessory_5[0]
   TopRootName: Building7
-  TopRootPath: Building7[9]
+  TopRootPath: Building7[7]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building7[9]/side1[6]/accessory_5[0]/Cube[0]
+    ChildPath: Building7[7]/side1[6]/accessory_5[0]/Cube[0]
     CenterInTopRoot_Local: (-11.2616, 9.6697, -5.0179)
     RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
     SizeInTopRoot_Local: (5.8886, 0.5662, 2.2649)
@@ -1908,14 +1908,14 @@ TargetObjectCount: 6
 
   [A #6]
   AName: accessory_7
-  APath: Building7[9]/side2[7]/accessory_7[0]
+  APath: Building7[7]/side2[7]/accessory_7[0]
   TopRootName: Building7
-  TopRootPath: Building7[9]
+  TopRootPath: Building7[7]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building7[9]/side2[7]/accessory_7[0]/Cube[0]
+    ChildPath: Building7[7]/side2[7]/accessory_7[0]/Cube[0]
     CenterInTopRoot_Local: (-2.6756, 5.8010, -7.7514)
     RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
     SizeInTopRoot_Local: (4.9483, 1.3219, 0.2691)
@@ -1929,19 +1929,19 @@ TargetObjectCount: 6
 
 [TopRootGroup #8]
 TopRootName: Building8
-TopRootPath: Building8[10]
+TopRootPath: Building8[8]
 TargetObjectCount: 18
 
   [A #1]
   AName: doorFrame1
-  APath: Building8[10]/back[0]/doorFrame1[22]
+  APath: Building8[8]/back[0]/doorFrame1[22]
   TopRootName: Building8
-  TopRootPath: Building8[10]
+  TopRootPath: Building8[8]
   CubeColliderCount: 3
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building8[10]/back[0]/doorFrame1[22]/Cube[2]
+    ChildPath: Building8[8]/back[0]/doorFrame1[22]/Cube[2]
     CenterInTopRoot_Local: (-0.7812, 7.5000, 15.0000)
     RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
     SizeInTopRoot_Local: (1.5538, 5.0375, 0.9125)
@@ -1953,7 +1953,7 @@ TargetObjectCount: 18
 
     [CubeCollider #2]
     ChildName: Cube
-    ChildPath: Building8[10]/back[0]/doorFrame1[22]/Cube[3]
+    ChildPath: Building8[8]/back[0]/doorFrame1[22]/Cube[3]
     CenterInTopRoot_Local: (-4.2005, 7.5000, 15.0000)
     RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
     SizeInTopRoot_Local: (1.5538, 5.0375, 0.9125)
@@ -1965,7 +1965,7 @@ TargetObjectCount: 18
 
     [CubeCollider #3]
     ChildName: Cube
-    ChildPath: Building8[10]/back[0]/doorFrame1[22]/Cube[4]
+    ChildPath: Building8[8]/back[0]/doorFrame1[22]/Cube[4]
     CenterInTopRoot_Local: (-2.4909, 8.8805, 15.0000)
     RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
     SizeInTopRoot_Local: (2.3889, 2.2148, 0.9125)
@@ -1977,14 +1977,14 @@ TargetObjectCount: 18
 
   [A #2]
   AName: ladder_2_5
-  APath: Building8[10]/back[0]/doorFrame1[22]/ladder_2_5[6]
+  APath: Building8[8]/back[0]/doorFrame1[22]/ladder_2_5[6]
   TopRootName: Building8
-  TopRootPath: Building8[10]
+  TopRootPath: Building8[8]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building8[10]/back[0]/doorFrame1[22]/ladder_2_5[6]/Cube[0]
+    ChildPath: Building8[8]/back[0]/doorFrame1[22]/ladder_2_5[6]/Cube[0]
     CenterInTopRoot_Local: (-2.5425, 4.1579, 16.5366)
     RotationInTopRoot_LocalQuat: (0.276568, 0.650777, 0.276568, 0.650777)
     SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
@@ -1996,14 +1996,14 @@ TargetObjectCount: 18
 
   [A #3]
   AName: ladder_2_5_1
-  APath: Building8[10]/back[0]/doorFrame1[22]/ladder_2_5_1[7]
+  APath: Building8[8]/back[0]/doorFrame1[22]/ladder_2_5_1[7]
   TopRootName: Building8
-  TopRootPath: Building8[10]
+  TopRootPath: Building8[8]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building8[10]/back[0]/doorFrame1[22]/ladder_2_5_1[7]/Cube[0]
+    ChildPath: Building8[8]/back[0]/doorFrame1[22]/ladder_2_5_1[7]/Cube[0]
     CenterInTopRoot_Local: (-2.5379, 1.6037, 18.9518)
     RotationInTopRoot_LocalQuat: (0.276568, 0.650777, 0.276568, 0.650776)
     SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
@@ -2015,14 +2015,14 @@ TargetObjectCount: 18
 
   [A #4]
   AName: accessory_5
-  APath: Building8[10]/front[5]/accessory_5[0]
+  APath: Building8[8]/front[5]/accessory_5[0]
   TopRootName: Building8
-  TopRootPath: Building8[10]
+  TopRootPath: Building8[8]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building8[10]/front[5]/accessory_5[0]/Cube[0]
+    ChildPath: Building8[8]/front[5]/accessory_5[0]/Cube[0]
     CenterInTopRoot_Local: (-7.5000, 10.2428, 0.8859)
     RotationInTopRoot_LocalQuat: (0.000000, 1.000000, 0.000000, 0.000000)
     SizeInTopRoot_Local: (5.2000, 0.5000, 2.0000)
@@ -2034,14 +2034,14 @@ TargetObjectCount: 18
 
   [A #5]
   AName: doorFrame5
-  APath: Building8[10]/front[5]/doorFrame5[35]
+  APath: Building8[8]/front[5]/doorFrame5[35]
   TopRootName: Building8
-  TopRootPath: Building8[10]
+  TopRootPath: Building8[8]
   CubeColliderCount: 3
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building8[10]/front[5]/doorFrame5[35]/Cube[0]
+    ChildPath: Building8[8]/front[5]/doorFrame5[35]/Cube[0]
     CenterInTopRoot_Local: (-9.5278, 2.5000, 4.5000)
     RotationInTopRoot_LocalQuat: (0.000000, 1.000000, 0.000000, 0.000000)
     SizeInTopRoot_Local: (1.0000, 5.0000, 5.0000)
@@ -2053,7 +2053,7 @@ TargetObjectCount: 18
 
     [CubeCollider #2]
     ChildName: Cube
-    ChildPath: Building8[10]/front[5]/doorFrame5[35]/Cube[1]
+    ChildPath: Building8[8]/front[5]/doorFrame5[35]/Cube[1]
     CenterInTopRoot_Local: (-5.4722, 2.5000, 4.5000)
     RotationInTopRoot_LocalQuat: (0.000000, 1.000000, 0.000000, 0.000000)
     SizeInTopRoot_Local: (1.0000, 5.0000, 5.0000)
@@ -2065,7 +2065,7 @@ TargetObjectCount: 18
 
     [CubeCollider #3]
     ChildName: Cube
-    ChildPath: Building8[10]/front[5]/doorFrame5[35]/Cube[2]
+    ChildPath: Building8[8]/front[5]/doorFrame5[35]/Cube[2]
     CenterInTopRoot_Local: (-7.4228, 4.5072, 4.5000)
     RotationInTopRoot_LocalQuat: (0.000000, 1.000000, 0.000000, 0.000000)
     SizeInTopRoot_Local: (4.5625, 1.0000, 5.0000)
@@ -2077,14 +2077,14 @@ TargetObjectCount: 18
 
   [A #6]
   AName: accessory_15
-  APath: Building8[10]/ladder[6]/accessory_15[0]
+  APath: Building8[8]/ladder[6]/accessory_15[0]
   TopRootName: Building8
-  TopRootPath: Building8[10]
+  TopRootPath: Building8[8]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building8[10]/ladder[6]/accessory_15[0]/Cube[0]
+    ChildPath: Building8[8]/ladder[6]/accessory_15[0]/Cube[0]
     CenterInTopRoot_Local: (-9.0555, 8.1193, 17.0117)
     RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
     SizeInTopRoot_Local: (2.7526, 0.2595, 2.5378)
@@ -2096,14 +2096,14 @@ TargetObjectCount: 18
 
   [A #7]
   AName: accessory_15_1
-  APath: Building8[10]/ladder[6]/accessory_15_1[1]
+  APath: Building8[8]/ladder[6]/accessory_15_1[1]
   TopRootName: Building8
-  TopRootPath: Building8[10]
+  TopRootPath: Building8[8]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building8[10]/ladder[6]/accessory_15_1[1]/Cube[0]
+    ChildPath: Building8[8]/ladder[6]/accessory_15_1[1]/Cube[0]
     CenterInTopRoot_Local: (-1.6361, 13.3851, 17.0117)
     RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
     SizeInTopRoot_Local: (2.7526, 0.2595, 2.5378)
@@ -2115,14 +2115,14 @@ TargetObjectCount: 18
 
   [A #8]
   AName: ladder_2_5_2
-  APath: Building8[10]/ladder[6]/ladder_2_5_2[8]
+  APath: Building8[8]/ladder[6]/ladder_2_5_2[8]
   TopRootName: Building8
-  TopRootPath: Building8[10]
+  TopRootPath: Building8[8]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building8[10]/ladder[6]/ladder_2_5_2[8]/Cube[0]
+    ChildPath: Building8[8]/ladder[6]/ladder_2_5_2[8]/Cube[0]
     CenterInTopRoot_Local: (-4.0479, 11.8126, 16.9499)
     RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.391126, 0.920337)
     SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
@@ -2134,14 +2134,14 @@ TargetObjectCount: 18
 
   [A #9]
   AName: ladder_2_5_3
-  APath: Building8[10]/ladder[6]/ladder_2_5_3[9]
+  APath: Building8[8]/ladder[6]/ladder_2_5_3[9]
   TopRootName: Building8
-  TopRootPath: Building8[10]
+  TopRootPath: Building8[8]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building8[10]/ladder[6]/ladder_2_5_3[9]/Cube[0]
+    ChildPath: Building8[8]/ladder[6]/ladder_2_5_3[9]/Cube[0]
     CenterInTopRoot_Local: (-6.4159, 9.2467, 16.9876)
     RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.391126, 0.920337)
     SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
@@ -2153,14 +2153,14 @@ TargetObjectCount: 18
 
   [A #10]
   AName: ladder_2_5_4
-  APath: Building8[10]/ladder[6]/ladder_2_5_4[10]
+  APath: Building8[8]/ladder[6]/ladder_2_5_4[10]
   TopRootName: Building8
-  TopRootPath: Building8[10]
+  TopRootPath: Building8[8]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building8[10]/ladder[6]/ladder_2_5_4[10]/Cube[0]
+    ChildPath: Building8[8]/ladder[6]/ladder_2_5_4[10]/Cube[0]
     CenterInTopRoot_Local: (-9.1306, 4.1268, 21.9278)
     RotationInTopRoot_LocalQuat: (0.274668, 0.646307, 0.278455, 0.655216)
     SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
@@ -2172,14 +2172,14 @@ TargetObjectCount: 18
 
   [A #11]
   AName: ladder_2_5_5
-  APath: Building8[10]/ladder[6]/ladder_2_5_5[11]
+  APath: Building8[8]/ladder[6]/ladder_2_5_5[11]
   TopRootName: Building8
-  TopRootPath: Building8[10]
+  TopRootPath: Building8[8]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building8[10]/ladder[6]/ladder_2_5_5[11]/Cube[0]
+    ChildPath: Building8[8]/ladder[6]/ladder_2_5_5[11]/Cube[0]
     CenterInTopRoot_Local: (-9.1021, 6.6809, 19.5128)
     RotationInTopRoot_LocalQuat: (0.274668, 0.646306, 0.278455, 0.655217)
     SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
@@ -2191,14 +2191,14 @@ TargetObjectCount: 18
 
   [A #12]
   AName: ladder_2_5_6
-  APath: Building8[10]/ladder[6]/ladder_2_5_6[12]
+  APath: Building8[8]/ladder[6]/ladder_2_5_6[12]
   TopRootName: Building8
-  TopRootPath: Building8[10]
+  TopRootPath: Building8[8]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building8[10]/ladder[6]/ladder_2_5_6[12]/Cube[0]
+    ChildPath: Building8[8]/ladder[6]/ladder_2_5_6[12]/Cube[0]
     CenterInTopRoot_Local: (-9.1590, 1.5726, 24.3428)
     RotationInTopRoot_LocalQuat: (0.274668, 0.646307, 0.278455, 0.655216)
     SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
@@ -2210,14 +2210,14 @@ TargetObjectCount: 18
 
   [A #13]
   AName: accessory_5_1
-  APath: Building8[10]/side1[12]/accessory_5_1[1]
+  APath: Building8[8]/side1[12]/accessory_5_1[1]
   TopRootName: Building8
-  TopRootPath: Building8[10]
+  TopRootPath: Building8[8]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building8[10]/side1[12]/accessory_5_1[1]/Cube[0]
+    ChildPath: Building8[8]/side1[12]/accessory_5_1[1]/Cube[0]
     CenterInTopRoot_Local: (1.1141, 9.7650, 7.5198)
     RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
     SizeInTopRoot_Local: (5.2000, 0.5000, 2.0000)
@@ -2229,14 +2229,14 @@ TargetObjectCount: 18
 
   [A #14]
   AName: accessory_6
-  APath: Building8[10]/side1[12]/accessory_6[2]
+  APath: Building8[8]/side1[12]/accessory_6[2]
   TopRootName: Building8
-  TopRootPath: Building8[10]
+  TopRootPath: Building8[8]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building8[10]/side1[12]/accessory_6[2]/Cube[0]
+    ChildPath: Building8[8]/side1[12]/accessory_6[2]/Cube[0]
     CenterInTopRoot_Local: (0.0000, 14.8104, 12.6022)
     RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
     SizeInTopRoot_Local: (5.3875, 0.4000, 2.0000)
@@ -2248,14 +2248,14 @@ TargetObjectCount: 18
 
   [A #15]
   AName: accessory_9
-  APath: Building8[10]/side1[12]/accessory_9[3]
+  APath: Building8[8]/side1[12]/accessory_9[3]
   TopRootName: Building8
-  TopRootPath: Building8[10]
+  TopRootPath: Building8[8]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building8[10]/side1[12]/accessory_9[3]/Cube[0]
+    ChildPath: Building8[8]/side1[12]/accessory_9[3]/Cube[0]
     CenterInTopRoot_Local: (1.0014, 9.7442, 2.3548)
     RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
     SizeInTopRoot_Local: (5.0000, 0.4000, 2.2802)
@@ -2267,14 +2267,14 @@ TargetObjectCount: 18
 
   [A #16]
   AName: accessory_5_2
-  APath: Building8[10]/side2[13]/accessory_5_2[1]
+  APath: Building8[8]/side2[13]/accessory_5_2[1]
   TopRootName: Building8
-  TopRootPath: Building8[10]
+  TopRootPath: Building8[8]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building8[10]/side2[13]/accessory_5_2[1]/Cube[0]
+    ChildPath: Building8[8]/side2[13]/accessory_5_2[1]/Cube[0]
     CenterInTopRoot_Local: (-16.1141, 9.7650, 7.4802)
     RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
     SizeInTopRoot_Local: (5.2000, 0.5000, 2.0000)
@@ -2286,14 +2286,14 @@ TargetObjectCount: 18
 
   [A #17]
   AName: accessory_6_1
-  APath: Building8[10]/side2[13]/accessory_6_1[2]
+  APath: Building8[8]/side2[13]/accessory_6_1[2]
   TopRootName: Building8
-  TopRootPath: Building8[10]
+  TopRootPath: Building8[8]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building8[10]/side2[13]/accessory_6_1[2]/Cube[0]
+    ChildPath: Building8[8]/side2[13]/accessory_6_1[2]/Cube[0]
     CenterInTopRoot_Local: (-15.0000, 14.8104, 2.3978)
     RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
     SizeInTopRoot_Local: (5.3875, 0.4000, 2.0000)
@@ -2305,14 +2305,14 @@ TargetObjectCount: 18
 
   [A #18]
   AName: accessory_9_1
-  APath: Building8[10]/side2[13]/accessory_9_1[3]
+  APath: Building8[8]/side2[13]/accessory_9_1[3]
   TopRootName: Building8
-  TopRootPath: Building8[10]
+  TopRootPath: Building8[8]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building8[10]/side2[13]/accessory_9_1[3]/Cube[0]
+    ChildPath: Building8[8]/side2[13]/accessory_9_1[3]/Cube[0]
     CenterInTopRoot_Local: (-16.0014, 9.7442, 12.6452)
     RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
     SizeInTopRoot_Local: (5.0000, 0.4000, 2.2802)
@@ -2326,19 +2326,19 @@ TargetObjectCount: 18
 
 [TopRootGroup #9]
 TopRootName: Building9
-TopRootPath: Building9[11]
+TopRootPath: Building9[9]
 TargetObjectCount: 5
 
   [A #1]
   AName: doorFrame1
-  APath: Building9[11]/front[2]/doorFrame1[16]
+  APath: Building9[9]/front[2]/doorFrame1[16]
   TopRootName: Building9
-  TopRootPath: Building9[11]
+  TopRootPath: Building9[9]
   CubeColliderCount: 3
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building9[11]/front[2]/doorFrame1[16]/Cube[0]
+    ChildPath: Building9[9]/front[2]/doorFrame1[16]/Cube[0]
     CenterInTopRoot_Local: (1.7188, 2.5000, 0.0000)
     RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
     SizeInTopRoot_Local: (1.5538, 5.0375, 0.9125)
@@ -2350,7 +2350,7 @@ TargetObjectCount: 5
 
     [CubeCollider #2]
     ChildName: Cube
-    ChildPath: Building9[11]/front[2]/doorFrame1[16]/Cube[1]
+    ChildPath: Building9[9]/front[2]/doorFrame1[16]/Cube[1]
     CenterInTopRoot_Local: (-1.7005, 2.5000, 0.0000)
     RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
     SizeInTopRoot_Local: (1.5538, 5.0375, 0.9125)
@@ -2362,7 +2362,7 @@ TargetObjectCount: 5
 
     [CubeCollider #3]
     ChildName: Cube
-    ChildPath: Building9[11]/front[2]/doorFrame1[16]/Cube[2]
+    ChildPath: Building9[9]/front[2]/doorFrame1[16]/Cube[2]
     CenterInTopRoot_Local: (0.0091, 3.8805, 0.0000)
     RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
     SizeInTopRoot_Local: (2.3889, 2.2148, 0.9125)
@@ -2374,14 +2374,14 @@ TargetObjectCount: 5
 
   [A #2]
   AName: ladder_2_5
-  APath: Building9[11]/front[2]/doorFrame1[16]/door_1[3]/ladder_2_5[0]
+  APath: Building9[9]/front[2]/doorFrame1[16]/door_1[3]/ladder_2_5[0]
   TopRootName: Building9
-  TopRootPath: Building9[11]
+  TopRootPath: Building9[9]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building9[11]/front[2]/doorFrame1[16]/door_1[3]/ladder_2_5[0]/Cube[0]
+    ChildPath: Building9[9]/front[2]/doorFrame1[16]/door_1[3]/ladder_2_5[0]/Cube[0]
     CenterInTopRoot_Local: (-0.0310, -0.6970, 0.8575)
     RotationInTopRoot_LocalQuat: (0.274787, 0.646593, 0.278332, 0.654936)
     SizeInTopRoot_Local: (3.8108, 0.5581, 2.5142)
@@ -2393,14 +2393,14 @@ TargetObjectCount: 5
 
   [A #3]
   AName: accessoire_1
-  APath: Building9[11]/side1[4]/accessoire_1[0]
+  APath: Building9[9]/side1[4]/accessoire_1[0]
   TopRootName: Building9
-  TopRootPath: Building9[11]
+  TopRootPath: Building9[9]
   CubeColliderCount: 3
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building9[11]/side1[4]/accessoire_1[0]/Cube[0]
+    ChildPath: Building9[9]/side1[4]/accessoire_1[0]/Cube[0]
     CenterInTopRoot_Local: (3.3479, 4.1977, -2.5000)
     RotationInTopRoot_LocalQuat: (0.148404, 0.691358, -0.148404, 0.691358)
     SizeInTopRoot_Local: (2.8392, 0.2169, 1.4943)
@@ -2412,7 +2412,7 @@ TargetObjectCount: 5
 
     [CubeCollider #2]
     ChildName: Cube
-    ChildPath: Building9[11]/side1[4]/accessoire_1[0]/Cube[1]
+    ChildPath: Building9[9]/side1[4]/accessoire_1[0]/Cube[1]
     CenterInTopRoot_Local: (2.6475, 3.1534, -1.2761)
     RotationInTopRoot_LocalQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
     SizeInTopRoot_Local: (0.2631, 0.3542, 2.4283)
@@ -2424,7 +2424,7 @@ TargetObjectCount: 5
 
     [CubeCollider #3]
     ChildName: Cube
-    ChildPath: Building9[11]/side1[4]/accessoire_1[0]/Cube[2]
+    ChildPath: Building9[9]/side1[4]/accessoire_1[0]/Cube[2]
     CenterInTopRoot_Local: (2.6475, 3.1534, -3.6806)
     RotationInTopRoot_LocalQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
     SizeInTopRoot_Local: (0.2631, 0.3542, 2.4283)
@@ -2436,14 +2436,14 @@ TargetObjectCount: 5
 
   [A #4]
   AName: accessory_6
-  APath: Building9[11]/side1[4]/accessory_6[2]
+  APath: Building9[9]/side1[4]/accessory_6[2]
   TopRootName: Building9
-  TopRootPath: Building9[11]
+  TopRootPath: Building9[9]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building9[11]/side1[4]/accessory_6[2]/Cube[0]
+    ChildPath: Building9[9]/side1[4]/accessory_6[2]/Cube[0]
     CenterInTopRoot_Local: (2.5301, 5.0333, -2.5000)
     RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
     SizeInTopRoot_Local: (5.3875, 0.4000, 2.0000)
@@ -2455,14 +2455,14 @@ TargetObjectCount: 5
 
   [A #5]
   AName: accessory_7
-  APath: Building9[11]/side1[4]/accessory_7[3]
+  APath: Building9[9]/side1[4]/accessory_7[3]
   TopRootName: Building9
-  TopRootPath: Building9[11]
+  TopRootPath: Building9[9]
   CubeColliderCount: 1
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Building9[11]/side1[4]/accessory_7[3]/Cube[0]
+    ChildPath: Building9[9]/side1[4]/accessory_7[3]/Cube[0]
     CenterInTopRoot_Local: (2.5627, 0.7644, -7.2694)
     RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
     SizeInTopRoot_Local: (5.2875, 1.4125, 0.2875)
