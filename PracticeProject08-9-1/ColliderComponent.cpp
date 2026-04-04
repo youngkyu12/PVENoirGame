@@ -70,40 +70,115 @@ BoundingOrientedBox CColliderComponent::MakeLocalOOBBFromMatrix(const XMFLOAT4X4
 		sizeZ * 0.5f
 	);
 
-	if ( sizeX <= 1e-6f || sizeY <= 1e-6f || sizeZ <= 1e-6f )
+	const float eps = 1e-6f;
+
+	auto NormalizeOr = [ ] (FXMVECTOR v, FXMVECTOR fallback) -> XMVECTOR
+		{
+			const float lenSq = XMVectorGetX(XMVector3LengthSq(v));
+			if ( lenSq > 1e-12f )
+				return XMVector3Normalize(v);
+			return fallback;
+		};
+
+	const bool hasX = ( sizeX > eps );
+	const bool hasY = ( sizeY > eps );
+	const bool hasZ = ( sizeZ > eps );
+
+	XMVECTOR axisX = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+	XMVECTOR axisY = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	XMVECTOR axisZ = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+
+	// 1) 일반적인 입체 서브메시
+	if ( hasX && hasY && hasZ )
+	{
+		axisX = NormalizeOr(rawX, XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f));
+
+		XMVECTOR yOrtho = rawY - XMVectorScale(axisX, XMVectorGetX(XMVector3Dot(rawY, axisX)));
+		axisY = NormalizeOr(yOrtho, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+
+		axisZ = NormalizeOr(XMVector3Cross(axisX, axisY), XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
+
+		// rawZ 방향과 반대면 뒤집기
+		if ( XMVectorGetX(XMVector3Dot(axisZ, rawZ)) < 0.0f )
+		{
+			axisY = XMVectorNegate(axisY);
+			axisZ = XMVectorNegate(axisZ);
+		}
+
+		axisY = NormalizeOr(XMVector3Cross(axisZ, axisX), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+	}
+	// 2) XY 평면류: Z 두께만 0
+	else if ( hasX && hasY )
+	{
+		axisX = NormalizeOr(rawX, XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f));
+
+		XMVECTOR yOrtho = rawY - XMVectorScale(axisX, XMVectorGetX(XMVector3Dot(rawY, axisX)));
+		axisY = NormalizeOr(yOrtho, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+
+		axisZ = NormalizeOr(XMVector3Cross(axisX, axisY), XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
+		axisY = NormalizeOr(XMVector3Cross(axisZ, axisX), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+	}
+	// 3) YZ 평면류: X 두께만 0
+	else if ( hasY && hasZ )
+	{
+		axisY = NormalizeOr(rawY, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+
+		XMVECTOR zOrtho = rawZ - XMVectorScale(axisY, XMVectorGetX(XMVector3Dot(rawZ, axisY)));
+		axisZ = NormalizeOr(zOrtho, XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
+
+		axisX = NormalizeOr(XMVector3Cross(axisY, axisZ), XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f));
+		axisZ = NormalizeOr(XMVector3Cross(axisX, axisY), XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
+	}
+	// 4) XZ 평면류: Y 두께만 0
+	else if ( hasX && hasZ )
+	{
+		axisX = NormalizeOr(rawX, XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f));
+
+		XMVECTOR zOrtho = rawZ - XMVectorScale(axisX, XMVectorGetX(XMVector3Dot(rawZ, axisX)));
+		axisZ = NormalizeOr(zOrtho, XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
+
+		axisY = NormalizeOr(XMVector3Cross(axisZ, axisX), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+		axisZ = NormalizeOr(XMVector3Cross(axisX, axisY), XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
+	}
+	// 5) 선분/점 수준의 완전 퇴화 케이스 fallback
+	else if ( hasX )
+	{
+		axisX = NormalizeOr(rawX, XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f));
+
+		XMVECTOR tmp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+		if ( fabsf(XMVectorGetX(XMVector3Dot(axisX, tmp))) > 0.99f )
+			tmp = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+
+		axisZ = NormalizeOr(XMVector3Cross(axisX, tmp), XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
+		axisY = NormalizeOr(XMVector3Cross(axisZ, axisX), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+	}
+	else if ( hasY )
+	{
+		axisY = NormalizeOr(rawY, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+
+		XMVECTOR tmp = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+		if ( fabsf(XMVectorGetX(XMVector3Dot(axisY, tmp))) > 0.99f )
+			tmp = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+
+		axisX = NormalizeOr(XMVector3Cross(axisY, tmp), XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f));
+		axisZ = NormalizeOr(XMVector3Cross(axisX, axisY), XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
+	}
+	else if ( hasZ )
+	{
+		axisZ = NormalizeOr(rawZ, XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
+
+		XMVECTOR tmp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+		if ( fabsf(XMVectorGetX(XMVector3Dot(axisZ, tmp))) > 0.99f )
+			tmp = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+
+		axisX = NormalizeOr(XMVector3Cross(tmp, axisZ), XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f));
+		axisY = NormalizeOr(XMVector3Cross(axisZ, axisX), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+	}
+	else
 	{
 		box.Orientation = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
 		return box;
 	}
-
-	XMVECTOR axisX = XMVectorScale(rawX, 1.0f / sizeX);
-
-	XMVECTOR axisY = rawY - XMVectorScale(axisX, XMVectorGetX(XMVector3Dot(rawY, axisX)));
-	if ( XMVectorGetX(XMVector3LengthSq(axisY)) <= 1e-8f )
-	{
-		axisY = rawZ - XMVectorScale(axisX, XMVectorGetX(XMVector3Dot(rawZ, axisX)));
-	}
-
-	if ( XMVectorGetX(XMVector3LengthSq(axisY)) <= 1e-8f )
-	{
-		axisY = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-		if ( fabsf(XMVectorGetX(XMVector3Dot(axisX, axisY))) > 0.99f )
-			axisY = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
-	}
-
-	axisY = XMVector3Normalize(axisY);
-	XMVECTOR axisZ = XMVector3Normalize(XMVector3Cross(axisX, axisY));
-
-	// rawZ 방향과 반대면 Y,Z를 같이 뒤집어서 det(+1) 유지
-	if ( XMVectorGetX(XMVector3Dot(axisZ, rawZ)) < 0.0f )
-	{
-		axisY = XMVectorNegate(axisY);
-		axisZ = XMVectorNegate(axisZ);
-	}
-
-	// 마지막으로 직교 재보정
-	axisX = XMVector3Normalize(XMVector3Cross(axisY, axisZ));
-	axisY = XMVector3Normalize(XMVector3Cross(axisZ, axisX));
 
 	const XMMATRIX rotM(
 		axisX,
