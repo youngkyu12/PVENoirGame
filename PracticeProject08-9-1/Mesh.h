@@ -110,6 +110,16 @@ struct SubMesh
 	uint32_t materialIndex = 0xFFFFFFFFu;
 	UINT     materialId = 0xFFFFFFFFu;
 
+	bool isColliderHelper = false;
+	bool hasExplicitLocalOOBB = false;
+	XMFLOAT4X4 explicitLocalOOBBMatrix =
+	{
+		1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	};
+
 	// GPU
 	ID3D12Resource* vb = nullptr;
 	ID3D12Resource* vbUpload = nullptr;

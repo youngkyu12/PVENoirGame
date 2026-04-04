@@ -46,6 +46,90 @@ BoundingOrientedBox CColliderComponent::MakeAuthoredLocalOOBB(
 	return box;
 }
 
+BoundingOrientedBox CColliderComponent::MakeLocalOOBBFromMatrix(const XMFLOAT4X4& unitBoxToLocal)
+{
+	BoundingOrientedBox box{};
+
+	box.Center = XMFLOAT3(
+		unitBoxToLocal._41,
+		unitBoxToLocal._42,
+		unitBoxToLocal._43
+	);
+
+	XMFLOAT3 axisX(
+		unitBoxToLocal._11,
+		unitBoxToLocal._12,
+		unitBoxToLocal._13
+	);
+
+	XMFLOAT3 axisY(
+		unitBoxToLocal._21,
+		unitBoxToLocal._22,
+		unitBoxToLocal._23
+	);
+
+	XMFLOAT3 axisZ(
+		unitBoxToLocal._31,
+		unitBoxToLocal._32,
+		unitBoxToLocal._33
+	);
+
+	const float sizeX = sqrtf(axisX.x * axisX.x + axisX.y * axisX.y + axisX.z * axisX.z);
+	const float sizeY = sqrtf(axisY.x * axisY.x + axisY.y * axisY.y + axisY.z * axisY.z);
+	const float sizeZ = sqrtf(axisZ.x * axisZ.x + axisZ.y * axisZ.y + axisZ.z * axisZ.z);
+
+	if ( sizeX > 1e-6f )
+	{
+		axisX.x /= sizeX;
+		axisX.y /= sizeX;
+		axisX.z /= sizeX;
+	}
+	else
+	{
+		axisX = XMFLOAT3(1.0f, 0.0f, 0.0f);
+	}
+
+	if ( sizeY > 1e-6f )
+	{
+		axisY.x /= sizeY;
+		axisY.y /= sizeY;
+		axisY.z /= sizeY;
+	}
+	else
+	{
+		axisY = XMFLOAT3(0.0f, 1.0f, 0.0f);
+	}
+
+	if ( sizeZ > 1e-6f )
+	{
+		axisZ.x /= sizeZ;
+		axisZ.y /= sizeZ;
+		axisZ.z /= sizeZ;
+	}
+	else
+	{
+		axisZ = XMFLOAT3(0.0f, 0.0f, 1.0f);
+	}
+
+	box.Extents = XMFLOAT3(
+		sizeX * 0.5f,
+		sizeY * 0.5f,
+		sizeZ * 0.5f
+	);
+
+	const XMMATRIX rotM(
+		XMVectorSet(axisX.x, axisX.y, axisX.z, 0.0f),
+		XMVectorSet(axisY.x, axisY.y, axisY.z, 0.0f),
+		XMVectorSet(axisZ.x, axisZ.y, axisZ.z, 0.0f),
+		XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f)
+	);
+
+	const XMVECTOR q = XMQuaternionNormalize(XMQuaternionRotationMatrix(rotM));
+	XMStoreFloat4(&box.Orientation, q);
+
+	return box;
+}
+
 static BoundingCapsule MakeCapsuleFromSegment(
 	const XMFLOAT3& p0,
 	const XMFLOAT3& p1,
@@ -155,7 +239,10 @@ void CColliderComponent::BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>&
 
 		for ( const auto& submesh : mesh->m_SubMeshes )
 		{
-			const bool hasAuthoringPath = !submesh.authoringPath.empty();
+			if ( submesh.isColliderHelper )
+				continue;
+
+			const bool hasAuthoringPath = !submesh.authoringPath.empty(); 
 			const auto authoredIt =
 				hasAuthoringPath
 				? mStaticSubMeshAuthoredOOBBs.find(submesh.authoringPath)
@@ -204,14 +291,41 @@ void CColliderComponent::BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>&
 				OutputDebugStringA(missBuf);
 			}
 
-			BoundingOrientedBox subBox = MakeLocalOOBB(submesh.subMeshMin, submesh.subMeshMax);
-			set.LocalSubOOBBs.push_back(subBox);
+			if ( submesh.hasExplicitLocalOOBB )
+			{
+				BoundingOrientedBox subBox = MakeLocalOOBBFromMatrix(submesh.explicitLocalOOBBMatrix);
+				set.LocalSubOOBBs.push_back(subBox);
+			}
+			else
+			{
+				BoundingOrientedBox subBox = MakeLocalOOBB(submesh.subMeshMin, submesh.subMeshMax);
+				set.LocalSubOOBBs.push_back(subBox);
+			}
 		}
 
 		if ( !set.LocalSubOOBBs.empty() )
+		{
 			set.LocalMeshOOBB = MakeEnclosingLocalOOBB(set.LocalSubOOBBs);
+		}
 		else
-			set.LocalMeshOOBB = MakeLocalOOBB(mesh->GetMeshMin(), mesh->GetMeshMax());
+		{
+			const XMFLOAT3 meshMin = mesh->GetMeshMin();
+			const XMFLOAT3 meshMax = mesh->GetMeshMax();
+
+			if ( meshMin.x <= meshMax.x &&
+				 meshMin.y <= meshMax.y &&
+				 meshMin.z <= meshMax.z )
+			{
+				set.LocalMeshOOBB = MakeLocalOOBB(meshMin, meshMax);
+			}
+			else
+			{
+				set.LocalMeshOOBB = MakeLocalOOBB(
+					XMFLOAT3(0.0f, 0.0f, 0.0f),
+					XMFLOAT3(0.0f, 0.0f, 0.0f)
+				);
+			}
+		}
 
 		set.WorldMeshOOBB = set.LocalMeshOOBB;
 		set.WorldSubOOBBs = set.LocalSubOOBBs;
@@ -246,24 +360,36 @@ void CColliderComponent::OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*)
 
     switch (mColliderType)
     {
-    case EColliderType::AABB:
-        for (const shared_ptr<CMesh>& mesh : meshes)
-        {
-            if (!mesh) continue;
+	case EColliderType::AABB:
+	{
+		bool hasAnySubMesh = false;
 
-            for (const vector<SubMesh>::iterator::value_type& submesh : mesh->m_SubMeshes)
-            {
-                objMin.x = min(objMin.x, submesh.subMeshMin.x);
-                objMin.y = min(objMin.y, submesh.subMeshMin.y);
-                objMin.z = min(objMin.z, submesh.subMeshMin.z);
+		for ( const shared_ptr<CMesh>& mesh : meshes )
+		{
+			if ( !mesh ) continue;
 
-                objMax.x = max(objMax.x, submesh.subMeshMax.x);
-                objMax.y = max(objMax.y, submesh.subMeshMax.y);
-                objMax.z = max(objMax.z, submesh.subMeshMax.z);
-            }
-            SetAABB(objMin, objMax);
-        }
-        break;
+			for ( const auto& submesh : mesh->m_SubMeshes )
+			{
+				if ( submesh.isColliderHelper )
+					continue;
+
+				objMin.x = min(objMin.x, submesh.subMeshMin.x);
+				objMin.y = min(objMin.y, submesh.subMeshMin.y);
+				objMin.z = min(objMin.z, submesh.subMeshMin.z);
+
+				objMax.x = max(objMax.x, submesh.subMeshMax.x);
+				objMax.y = max(objMax.y, submesh.subMeshMax.y);
+				objMax.z = max(objMax.z, submesh.subMeshMax.z);
+
+				hasAnySubMesh = true;
+			}
+		}
+
+		if ( hasAnySubMesh )
+			SetAABB(objMin, objMax);
+
+		break;
+	}
 	case EColliderType::OOBB:
 	{
 		BuildHierarchicalOOBBs(meshes);
@@ -309,26 +435,39 @@ void CColliderComponent::OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*)
     case EColliderType::BSphere:
 
         break;
-    case EColliderType::BCapsule:
-        for (const shared_ptr<CMesh>& mesh : meshes)
-        {
-            if (!mesh) continue;
+	case EColliderType::BCapsule:
+	{
+		LocalSubBCapsules.clear();
 
-            for (const auto& submesh : mesh->m_SubMeshes)
-            {
-                objMin.x = min(objMin.x, submesh.subMeshMin.x);
-                objMin.y = min(objMin.y, submesh.subMeshMin.y);
-                objMin.z = min(objMin.z, submesh.subMeshMin.z);
+		bool hasAnySubMesh = false;
 
-                objMax.x = max(objMax.x, submesh.subMeshMax.x);
-                objMax.y = max(objMax.y, submesh.subMeshMax.y);
-                objMax.z = max(objMax.z, submesh.subMeshMax.z);
-                SetSubBCapsule(submesh.subMeshMin, submesh.subMeshMax);
-            }
-            SetBCapsule(objMin, objMax);
-        }
-        
-        break;
+		for ( const shared_ptr<CMesh>& mesh : meshes )
+		{
+			if ( !mesh ) continue;
+
+			for ( const auto& submesh : mesh->m_SubMeshes )
+			{
+				if ( submesh.isColliderHelper )
+					continue;
+
+				objMin.x = min(objMin.x, submesh.subMeshMin.x);
+				objMin.y = min(objMin.y, submesh.subMeshMin.y);
+				objMin.z = min(objMin.z, submesh.subMeshMin.z);
+
+				objMax.x = max(objMax.x, submesh.subMeshMax.x);
+				objMax.y = max(objMax.y, submesh.subMeshMax.y);
+				objMax.z = max(objMax.z, submesh.subMeshMax.z);
+
+				SetSubBCapsule(submesh.subMeshMin, submesh.subMeshMax);
+				hasAnySubMesh = true;
+			}
+		}
+
+		if ( hasAnySubMesh )
+			SetBCapsule(objMin, objMax);
+
+		break;
+	}
     default:
         break;
     }
