@@ -54,6 +54,20 @@ namespace
 			outMin = XMFLOAT3(-2.5f, 0.0f, -0.5f);
 			outMax = XMFLOAT3(2.5f, 2.5f, 0.5f);
 			return;
+		case Protocol::BUILDING_TYPE_BUILDING1:
+		case Protocol::BUILDING_TYPE_BUILDING2:
+		case Protocol::BUILDING_TYPE_BUILDING3:
+		case Protocol::BUILDING_TYPE_BUILDING4:
+		case Protocol::BUILDING_TYPE_BUILDING5:
+		case Protocol::BUILDING_TYPE_BUILDING6:
+		case Protocol::BUILDING_TYPE_BUILDING7:
+		case Protocol::BUILDING_TYPE_BUILDING8:
+		case Protocol::BUILDING_TYPE_BUILDING9:
+			// 기본 빌딩 바운드(-1.5~1.5, 0~3.5)를 중심 기준으로 약 3배 확장
+			// X/Z: extents 1.5 -> 4.5, Y: center 1.75 기준 extents 1.75 -> 5.25
+			outMin = XMFLOAT3(-4.5f, -3.5f, -4.5f);
+			outMax = XMFLOAT3(4.5f, 7.0f, 4.5f);
+			return;
 		default:
 			outMin = XMFLOAT3(-1.5f, 0.0f, -1.5f);
 			outMax = XMFLOAT3(1.5f, 3.5f, 1.5f);
