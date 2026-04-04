@@ -5,6 +5,8 @@
 #include "Building.h"
 #include "GameSession.h"
 #include "GameArea.h"
+#include "CollisionSystem.h"
+#include "ColliderComponent.h"
 
 #include "CommonPlayerControllerComponent.h"
 
@@ -20,6 +22,45 @@ shared_ptr<Room> GRoom = make_shared<Room>();
 
 namespace
 {
+	enum : uint32
+	{
+		kCollisionLayerCharacter = 0,
+		kCollisionLayerWorldStatic = 1
+	};
+
+	static constexpr uint32 CollisionBit(uint32 layer)
+	{
+		return (1u << layer);
+	}
+
+	static bool ShouldCreateWorldStaticCollider(Protocol::BuildingType type)
+	{
+		switch (type)
+		{
+		case Protocol::BUILDING_TYPE_GRASS:
+		case Protocol::BUILDING_TYPE_GROUND:
+		case Protocol::BUILDING_TYPE_DIRT_ROAD:
+			return false;
+		default:
+			return true;
+		}
+	}
+
+	static void GetStaticBuildingBounds(Protocol::BuildingType type, XMFLOAT3& outMin, XMFLOAT3& outMax)
+	{
+		switch (type)
+		{
+		case Protocol::BUILDING_TYPE_VILLAGE_WALL:
+			outMin = XMFLOAT3(-2.5f, 0.0f, -0.5f);
+			outMax = XMFLOAT3(2.5f, 2.5f, 0.5f);
+			return;
+		default:
+			outMin = XMFLOAT3(-1.5f, 0.0f, -1.5f);
+			outMax = XMFLOAT3(1.5f, 3.5f, 1.5f);
+			return;
+		}
+	}
+
 	// [die][hit][run][roll][attack][up][down][left][right][move]
 	// LSB부터 move로 배치 (전송/해석 시 동일 규약만 지키면 됨)
 	enum : uint32
@@ -162,6 +203,158 @@ namespace
 		if (asset == "DirtRoad") return Protocol::BUILDING_TYPE_DIRT_ROAD;
 		return Protocol::BUILDING_TYPE_NONE;
 	}
+
+	static GameMath::Vec3 GetInitialPlayerSpawnPosition(uint64 playerId)
+	{
+		// VillageWall OOBB(z: -0.5 ~ 0.5), Player 반경 z 약 0.4
+		// z=1.2면 비충돌 시작 + 조금만 이동하면 충돌 테스트 가능
+		constexpr float kBaseZ = 1.2f;
+		constexpr float kSpacingX = 4.0f;
+		return GameMath::Vec3(static_cast<float>(playerId) * kSpacingX, 0.0f, kBaseZ);
+	}
+}
+
+void Room::InitializeCollisionSystem()
+{
+	_collision = make_unique<CCollisionSystem>();
+}
+
+void Room::RegisterDynamicCollider(const shared_ptr<CServerObject>& obj)
+{
+	if (!obj)
+		return;
+
+	auto* collider = obj->GetComponent<CColliderComponent>();
+	if (!collider)
+	{
+		collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
+		if (collider)
+		{
+			collider->SetLayer(kCollisionLayerCharacter);
+			collider->SetMask(CollisionBit(kCollisionLayerCharacter) | CollisionBit(kCollisionLayerWorldStatic));
+			collider->SetBCapsule(XMFLOAT3(-0.4f, 0.0f, -0.4f), XMFLOAT3(0.4f, 1.8f, 0.4f));
+		}
+	}
+
+	obj->CreateComponents();
+
+	if (collider)
+	{
+		collider->OnUpdate(0.0f);
+		if (_collision)
+			_collision->RegisterCollider(collider);
+	}
+}
+
+void Room::RegisterStaticCollider(BuildingRef building)
+{
+	if (!building)
+		return;
+
+	if (!ShouldCreateWorldStaticCollider(building->GetBuildingType()))
+		return;
+
+	auto* collider = building->GetComponent<CColliderComponent>();
+	if (!collider)
+	{
+		collider = building->AddComponent<CColliderComponent>(EColliderType::OOBB);
+		if (collider)
+		{
+			XMFLOAT3 minV{};
+			XMFLOAT3 maxV{};
+			GetStaticBuildingBounds(building->GetBuildingType(), minV, maxV);
+			collider->SetOOBB(minV, maxV);
+			collider->SetLayer(kCollisionLayerWorldStatic);
+			collider->SetMask(CollisionBit(kCollisionLayerCharacter));
+		}
+	}
+
+	building->CreateComponents();
+
+	if (collider)
+	{
+		collider->OnUpdate(0.0f);
+		if (_collision)
+			_collision->RegisterCollider(collider);
+	}
+}
+
+void Room::ResolveWorldStaticCollision(const shared_ptr<CServerObject>& obj, const GameMath::Vec3& previousPos)
+{
+	if (!_collision || !obj)
+		return;
+
+	auto* collider = obj->GetComponent<CColliderComponent>();
+	if (!collider)
+		return;
+
+	collider->OnUpdate(0.0f);
+	if (_collision->HasCollisionWithWorldStatic(collider))
+	{
+		obj->SetPosition(previousPos);
+		collider->OnUpdate(0.0f);
+	}
+}
+
+GameMath::Vec3 Room::ResolvePreBlockedShift(const shared_ptr<CServerObject>& obj, const GameMath::Vec3& desiredShift)
+{
+	if (!_collision || !obj)
+		return desiredShift;
+
+	if (desiredShift.LengthSq() <= 1e-8f)
+		return desiredShift;
+
+	auto* collider = obj->GetComponent<CColliderComponent>();
+	if (!collider)
+		return desiredShift;
+
+	const GameMath::Vec3 originPos = obj->GetPosition();
+
+	auto WouldCollideAt = [&](const GameMath::Vec3& testPos) -> bool
+		{
+			obj->SetPosition(testPos);
+			collider->OnUpdate(0.0f);
+			return _collision->HasCollisionWithWorldStatic(collider);
+		};
+
+	GameMath::Vec3 resolvedShift = desiredShift;
+	const GameMath::Vec3 desiredPos = originPos + desiredShift;
+
+	if (WouldCollideAt(desiredPos))
+	{
+		GameMath::Vec3 xOnlyPos = originPos;
+		xOnlyPos.x += desiredShift.x;
+
+		GameMath::Vec3 zOnlyPos = originPos;
+		zOnlyPos.z += desiredShift.z;
+
+		const bool canMoveX = (fabsf(desiredShift.x) > 1e-8f) && !WouldCollideAt(xOnlyPos);
+		const bool canMoveZ = (fabsf(desiredShift.z) > 1e-8f) && !WouldCollideAt(zOnlyPos);
+
+		if (canMoveX && canMoveZ)
+		{
+			resolvedShift = (fabsf(desiredShift.x) >= fabsf(desiredShift.z))
+				? GameMath::Vec3(desiredShift.x, desiredShift.y, 0.0f)
+				: GameMath::Vec3(0.0f, desiredShift.y, desiredShift.z);
+		}
+		else if (canMoveX)
+		{
+			resolvedShift = GameMath::Vec3(desiredShift.x, desiredShift.y, 0.0f);
+		}
+		else if (canMoveZ)
+		{
+			resolvedShift = GameMath::Vec3(0.0f, desiredShift.y, desiredShift.z);
+		}
+		else
+		{
+			resolvedShift = GameMath::Vec3::Zero();
+		}
+	}
+
+	obj->SetPosition(originPos);
+	collider->OnUpdate(0.0f);
+
+	return resolvedShift;
 }
 
 
@@ -169,15 +362,25 @@ namespace
 void Room::Enter(PlayerRef player)
 {
 	player->Build();
+	player->SetPosition(GetInitialPlayerSpawnPosition(player->playerId)); // 초기 비충돌 스폰
+
 	player->SetWeapon(
 		static_cast<Protocol::WeaponType>(player->playerId + 2), 0); // 예시: 모든 플레이어가 검으로 시작
 
 	players[player->playerId] = player;
 	player->SetActive(false); // 초기에는 비활성화 상태로 시작 (Ready 신호 대기)
+
+	RegisterDynamicCollider(player);
 }
 
 void Room::Leave(PlayerRef player)
 {
+	if (_collision && player)
+	{
+		if (auto* collider = player->GetComponent<CColliderComponent>())
+			_collision->UnregisterCollider(collider);
+	}
+
 	players.erase(player->playerId);
 }
 
@@ -199,6 +402,7 @@ void Room::BroadCastAll(SendBufferRef sendBuffer)
 void Room::BuildRoom()
 {
 	buildings.clear();
+	InitializeCollisionSystem();
 
 	std::vector<PlacementEntry> entries;
 	if (LoadPlacementEntries(entries))
@@ -212,6 +416,7 @@ void Room::BuildRoom()
 			building->SetYaw(GameMath::NormalizeYaw(e.yawDeg));
 			building->SetBuildingType(AssetToBuildingType(e.asset));
 			building->SetActive(true);
+			RegisterStaticCollider(building);
 
 			buildings[buildingId] = building;
 			++buildingId;
@@ -223,6 +428,7 @@ void Room::BuildRoom()
 	{
 		auto enemy = make_shared<CEnemy>(i, u8"Zombie", Protocol::ENEMY_TYPE_BASIC, nullptr);
 		enemy->Build(GameMath::Vec3(i * 10.0f, 0, 0), GameMath::Vec3(0, 0, 0));
+		RegisterDynamicCollider(enemy);
 		//enemies[i]->AddComponent<CTransformComponent>();
 		//enemies[i]->CreateComponents();
 		enemies[i] = enemy;
@@ -232,10 +438,14 @@ void Room::BuildRoom()
 	{
 		auto enemy = make_shared<CEnemy>(i + 10, u8"FIghter", Protocol::ENEMY_TYPE_ARCHER, nullptr);
 		enemy->Build(GameMath::Vec3((i + 10) * 10.0f, 0, 10), GameMath::Vec3(0, 0, 0));
+		RegisterDynamicCollider(enemy);
 		//enemies[i]->AddComponent<CTransformComponent>();
 		//enemies[i]->CreateComponents();
 		enemies[i] = enemy;
 	}
+
+	for (auto& playerPair : players)
+		RegisterDynamicCollider(playerPair.second);
 }
 
 void Room::StartGame(bool ready, uint32 index)
@@ -290,14 +500,21 @@ void Room::TickAdvance()
 
 	for (auto player : players)
 	{
+		const GameMath::Vec3 prevPos = player.second->GetPosition();
 		player.second->Update(tick); // dt는 30ms로 고정 (옵션)
+		ResolveWorldStaticCollision(player.second, prevPos);
 		// 위치 적용
 	}
 
 	for(auto enemy : enemies)
 	{
+		const GameMath::Vec3 prevPos = enemy.second->GetPosition();
 		enemy.second->Update(tick);
+		ResolveWorldStaticCollision(enemy.second, prevPos);
 	}
+
+	if (_collision)
+		_collision->OnUpdate();
 
 
 	tick++;
@@ -398,7 +615,20 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	if (keyCodes & kDirLeft)
 		shift += right * (-fDistance) * 0.5f;
 
+	const float moveMul = (player->GetAnimState() == Protocol::ANIMATION_TYPE_RUN) ? 2.0f : 1.0f;
+	GameMath::Vec3 desiredShift = shift * moveMul;
+
+	if (GameMath::Vec3::Dot(desiredShift, desiredShift) > 1e-8f)
+	{
+		std::cout << "desiredShift before collision: " << desiredShift.x << ", " << desiredShift.y << ", " << desiredShift.z << std::endl;
+		desiredShift = ResolvePreBlockedShift(player, desiredShift);
+	}
+
+	shift = desiredShift / moveMul;
+
 	player->SetVelocity(shift);
+
+	std::cout << "shift: " << shift.x << ", " << shift.y << ", " << shift.z << std::endl;
 
 	// 위치 적용
 	//player->Move(shift);
