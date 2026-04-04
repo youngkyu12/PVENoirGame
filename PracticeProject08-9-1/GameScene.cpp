@@ -211,6 +211,20 @@ namespace
 		return true;
 	}
 
+	bool ParseVector4Tuple(const std::string& text, XMFLOAT4& outValue)
+	{
+		float x = 0.0f;
+		float y = 0.0f;
+		float z = 0.0f;
+		float w = 1.0f;
+
+		if ( sscanf_s(text.c_str(), "(%f, %f, %f, %f)", &x, &y, &z, &w) != 4 )
+			return false;
+
+		outValue = XMFLOAT4(x, y, z, w);
+		return true;
+	}
+
     static void BuildStaticPlacementsFromNetworkGameStart(
         const GameStartData& gameStartData,
         std::vector<StaticPlacementEntry>& outEntries)
@@ -942,9 +956,9 @@ bool CGameScene::LoadSceneCubeBoxColliderReport(const std::string& filePath)
 
 	const std::string kTopRootPrefix = "TopRootName:";
 	const std::string kAPathPrefix = "APath:";
-	const std::string kCenterPrefix = "CenterInA_Local:";
-	const std::string kRotationPrefix = "RotationInA_LocalEuler:";
-	const std::string kSizePrefix = "SizeInA_Local:";
+	const std::string kCenterPrefix = "CenterInTopRoot_Local:";
+	const std::string kRotationPrefix = "RotationInTopRoot_LocalQuat:";
+	const std::string kSizePrefix = "SizeInTopRoot_Local:";
 
 	std::string line;
 	std::string currentTopRootName;
@@ -986,9 +1000,9 @@ bool CGameScene::LoadSceneCubeBoxColliderReport(const std::string& filePath)
 
 		if ( trimmed.rfind(kRotationPrefix, 0) == 0 )
 		{
-			hasRotation = ParseVector3Tuple(
+			hasRotation = ParseVector4Tuple(
 				TrimString(trimmed.substr(kRotationPrefix.size())),
-				currentBox.RotationEulerDeg
+				currentBox.RotationQuat
 			);
 			continue;
 		}

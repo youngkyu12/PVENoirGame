@@ -20,7 +20,7 @@ struct MeshOOBBSet
 struct AuthoredSubMeshOOBB
 {
 	XMFLOAT3 Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	XMFLOAT3 RotationEulerDeg = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT4 RotationQuat = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
 	XMFLOAT3 Size = XMFLOAT3(0.0f, 0.0f, 0.0f);
 };
 
@@ -90,7 +90,7 @@ private:
 	static BoundingOrientedBox MakeLocalOOBB(const XMFLOAT3& Min, const XMFLOAT3& Max);
 	static BoundingOrientedBox MakeAuthoredLocalOOBB(
 	const XMFLOAT3& Center,
-	const XMFLOAT3& RotationEulerDeg,
+	const XMFLOAT4& RotationQuat,
 	const XMFLOAT3& Size);
 	void BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>& meshes);
 
