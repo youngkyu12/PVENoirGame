@@ -48,6 +48,7 @@ public:
 	EColliderType GetType() const { return mColliderType; }
 	BoundingBox GetAABB() const { return WorldAABB; }
 	BoundingOrientedBox GetOOBB() const { return WorldOOBB; }
+	const BoundingOrientedBox& GetLocalOOBB() const { return LocalOOBB; }
 	BoundingSphere GetBSphere() const { return WorldBSphere; }
 	BoundingCapsule GetBCapsule() const { return WorldBCapsule; }
 	vector<BoundingCapsule> GetSubBCapsules() const { return WorldSubBCapsules; }
