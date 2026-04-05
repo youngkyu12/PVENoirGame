@@ -153,4 +153,7 @@ private:
     float m_fVisualYawTargetDeg = 0.0f;
     float m_fVisualYawBlendInEndNormalized = 0.0f;
     float m_fVisualYawBlendOutStartNormalized = 1.0f;
+
+public:
+	const std::vector<XMFLOAT4X4>& GetCurrentGlobalPose() const { return m_GlobalPose; }
 };

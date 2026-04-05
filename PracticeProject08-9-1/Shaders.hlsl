@@ -337,6 +337,7 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
     float shininess = mat.m_cSpecular.a;
 
     float4 illumination = Lighting(
+        materialId,
         input.positionW,
         normalW,
         texColor,
@@ -348,7 +349,7 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
     output.cTexture = texColor;
     output.cIllumination = illumination;
     output.color = illumination;
-    //output.color = texColor;
+    //output.color = float4(gcGlobalAmbientLight.rgb, 1.0f);
     output.normal = float4(normalW * 0.5f + 0.5f, 1.0f);
     output.zDepth = input.position.z;
 

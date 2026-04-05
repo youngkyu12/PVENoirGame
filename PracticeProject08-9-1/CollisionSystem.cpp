@@ -1,10 +1,18 @@
 #include "stdafx.h"
 #include "CollisionSystem.h"
 #include "ColliderComponent.h"
+#include "MonsterCombatComponent.h"
 #include "Object.h"
 
 #include "ActorTagComponent.h"
 #include "Mesh.h"
+#include "WeaponHitboxComponent.h"
+#include "MonsterWeaponHitboxComponent.h"
+#include "AnimatorComponent.h"
+#include "AnimController.h"
+#include "ArrowComponent.h"
+#include "BulletComponent.h"
+
 #include <string>
 #include <sstream>
 
@@ -12,9 +20,11 @@ namespace
 {
 	enum : uint32_t
 	{
-		kCollisionLayerCharacter = 0,
-		kCollisionLayerWorldStatic = 1,
-		kCollisionLayerLocalPlayer = 2
+		kCollisionLayerPlayer = 0,
+		kCollisionLayerMonster = 1,
+		kCollisionLayerWorldStatic = 2,
+		kCollisionLayerPlayerWeapon = 3,
+		kCollisionLayerMonsterWeapon = 4
 	};
 
 	const char* ColliderTypeToString(EColliderType type)
@@ -40,63 +50,6 @@ namespace
 				tag->control == EPlayerControl::Local );
 	}
 
-	std::string BuildObjectDebugName(const CGameObject* obj, const CColliderComponent* collider)
-	{
-		std::ostringstream oss;
-
-		if ( !obj )
-		{
-			oss << "null";
-			return oss.str();
-		}
-
-		auto* tag = obj->GetComponent<CActorTagComponent>();
-		if ( tag )
-		{
-			if ( tag->kind == EActorKind::Player )
-			{
-				if ( tag->control == EPlayerControl::Local )
-					oss << "LocalPlayer";
-				else
-					oss << "RemotePlayer";
-
-				oss << "(slot=" << tag->playerSlot << ")";
-			}
-			else if ( tag->kind == EActorKind::NPC )
-			{
-				oss << "NPC";
-			}
-			else
-			{
-				oss << "Actor";
-			}
-		}
-		else
-		{
-			oss << "StaticObject";
-		}
-
-		if ( collider )
-		{
-			oss << "[";
-			oss << ColliderTypeToString(collider->GetType());
-			oss << "]";
-		}
-
-		std::shared_ptr<CMesh> mesh = obj->GetMeshShared(0);
-		if ( mesh )
-		{
-			const std::string& src = mesh->GetSourceMeshPath();
-			if ( !src.empty() )
-			{
-				oss << " mesh=" << src;
-			}
-		}
-
-		oss << " ptr=" << obj;
-		return oss.str();
-	}
-
 	void DebugPrintCollision(CColliderComponent* a, CColliderComponent* b)
 	{
 		if ( !a || !b ) return;
@@ -109,15 +62,49 @@ namespace
 		// 로컬 플레이어가 포함된 충돌만 출력
 		if ( !IsLocalPlayerObject(ownerA) && !IsLocalPlayerObject(ownerB) )
 			return;
+	}
 
-		std::ostringstream oss;
-		oss << "[Collision] "
-			<< BuildObjectDebugName(ownerA, a)
-			<< " <-> "
-			<< BuildObjectDebugName(ownerB, b)
-			<< "\n";
+	bool IsMonsterBodyPlayerBodyPair(const CColliderComponent* a, const CColliderComponent* b)
+	{
+		if ( !a || !b ) return false;
 
-		OutputDebugStringA(oss.str().c_str());
+		const uint32_t layerA = a->GetLayer();
+		const uint32_t layerB = b->GetLayer();
+
+		return
+			( layerA == kCollisionLayerMonster && layerB == kCollisionLayerPlayer ) ||
+			( layerA == kCollisionLayerPlayer && layerB == kCollisionLayerMonster );
+	}
+
+	bool IsBareHandMonsterWeaponPairCandidate(const CColliderComponent* a, const CColliderComponent* b)
+	{
+		if ( !IsMonsterBodyPlayerBodyPair(a, b) )
+			return false;
+
+		const CColliderComponent* monsterCollider =
+			( a->GetLayer() == kCollisionLayerMonster ) ? a : b;
+
+		const CColliderComponent* playerCollider =
+			( monsterCollider == a ) ? b : a;
+
+		if ( !monsterCollider->IsCollisionEnabled() ) return false;
+		if ( !playerCollider->IsCollisionEnabled() ) return false;
+
+		if ( !monsterCollider->AreWeaponCapsulesActive() )
+			return false;
+
+		if ( !monsterCollider->HasWeaponBoneCapsules() )
+			return false;
+
+		CGameObject* monsterOwner = monsterCollider->GetOwner();
+		if ( !monsterOwner )
+			return false;
+
+		auto* hitbox = monsterOwner->GetComponent<CMonsterWeaponHitboxComponent>();
+		if ( !hitbox )
+			return false;
+
+		return true;
 	}
 }
 
@@ -152,14 +139,17 @@ const std::vector<CColliderComponent*>& CCollisionSystem::GetColliders() const
 
 bool CCollisionSystem::PassFilter(const CColliderComponent* a, const CColliderComponent* b) const
 {
-    // 레이어/마스크: 서로 허용해야 충돌(대칭)
-    // b의 layer bit가 a의 mask에 포함 && a의 layer bit가 b의 mask에 포함
-    const uint32_t bitA = (1u << a->GetLayer());
-    const uint32_t bitB = (1u << b->GetLayer());
+	if ( !a || !b ) return false;
 
-    if ((a->GetMask() & bitB) == 0) return false;
-    if ((b->GetMask() & bitA) == 0) return false;
-    return true;
+	if ( !a->IsCollisionEnabled() ) return false;
+	if ( !b->IsCollisionEnabled() ) return false;
+
+	const uint32_t bitA = ( 1u << a->GetLayer() );
+	const uint32_t bitB = ( 1u << b->GetLayer() );
+
+	if ( ( a->GetMask() & bitB ) == 0 ) return false;
+	if ( ( b->GetMask() & bitA ) == 0 ) return false;
+	return true;
 }
 
 bool CCollisionSystem::IsPairIntersecting(const CColliderComponent* a, const CColliderComponent* b) const
@@ -170,17 +160,38 @@ bool CCollisionSystem::IsPairIntersecting(const CColliderComponent* a, const CCo
 	if ( !PassFilter(a, b) )
 		return false;
 
-	if ( a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::BCapsule )
+	const uint32_t layerA = a->GetLayer();
+	const uint32_t layerB = b->GetLayer();
+
+	// BCapsule vs BCapsule
+	if ( a->GetType() == EColliderType::BCapsule &&
+		b->GetType() == EColliderType::BCapsule )
 	{
 		return a->GetBCapsule().Intersects(b->GetBCapsule());
 	}
-	else if ( a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::OOBB )
+
+	// BCapsule vs OOBB
+	if ( a->GetType() == EColliderType::BCapsule &&
+		b->GetType() == EColliderType::OOBB )
 	{
-		return b->IntersectsCapsuleHierarchical(a->GetBCapsule());
+		// body vs world static
+		if ( layerB == kCollisionLayerWorldStatic )
+			return b->IntersectsCapsuleHierarchical(a->GetBCapsule());
+
+		// body vs weapon OOBB
+		return a->IntersectsBoneCapsulesHierarchical(b->GetOOBB());
 	}
-	else if ( a->GetType() == EColliderType::OOBB && b->GetType() == EColliderType::BCapsule )
+
+	// OOBB vs BCapsule
+	if ( a->GetType() == EColliderType::OOBB &&
+		b->GetType() == EColliderType::BCapsule )
 	{
-		return a->IntersectsCapsuleHierarchical(b->GetBCapsule());
+		// world static vs body
+		if ( layerA == kCollisionLayerWorldStatic )
+			return a->IntersectsCapsuleHierarchical(b->GetBCapsule());
+
+		// weapon OOBB vs body
+		return b->IntersectsBoneCapsulesHierarchical(a->GetOOBB());
 	}
 
 	return false;
@@ -211,63 +222,192 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 	if ( !a || !b )
 		return;
 
-	bool isHit = IsPairIntersecting(a, b);
+	CGameObject* ownerA = a->GetOwner();
+	CGameObject* ownerB = b->GetOwner();
+	if ( !ownerA || !ownerB )
+		return;
+
+	const uint32_t layerA = a->GetLayer();
+	const uint32_t layerB = b->GetLayer();
+
+	// true 로 바꾸면 몬스터는 맞는 즉시 Death 테스트 가능
+	constexpr bool kTestForceDeathOnHit = false;
+
+	auto RequestPlayerHitAnimation = [ & ] (CGameObject* playerObject)
+		{
+			if ( !playerObject )
+				return;
+
+			if ( auto* animComp = playerObject->GetComponent<CAnimatorComponent>() )
+			{
+				if ( auto* ctrl = animComp->EnsureController() )
+				{
+					ctrl->RequestHit();
+					return;
+				}
+			}
+
+			if ( auto* ctrl = playerObject->GetAnimController() )
+			{
+				ctrl->RequestHit();
+			}
+		};
+
+	auto NotifyMonsterHit = [ & ] (CGameObject* weaponObject, CGameObject* monsterObject)
+		{
+			if ( !weaponObject || !monsterObject )
+				return;
+			auto DeactivateProjectileIfNeeded = [ ] (CGameObject* weaponObj)
+				{
+					if ( !weaponObj ) return;
+
+					if ( auto* arrow = weaponObj->GetComponent<CArrowComponent>() )
+					{
+						arrow->Deactivate();
+						return;
+					}
+
+					if ( auto* bullet = weaponObj->GetComponent<CBulletComponent>() )
+					{
+						bullet->Deactivate();
+						return;
+					}
+				};
+
+			if ( auto* hitbox = weaponObject->GetComponent<CWeaponHitboxComponent>() )
+			{
+				if ( !hitbox->CanHitTarget(monsterObject) )
+					return;
+
+				auto* combat = monsterObject->GetComponent<CMonsterCombatComponent>();
+				if ( !combat )
+					return;
+
+				combat->OnHitByPlayerWeapon(weaponObject, kTestForceDeathOnHit);
+				hitbox->MarkHitTarget(monsterObject);
+				DeactivateProjectileIfNeeded(weaponObject);
+				return;
+			}
+
+			auto* combat = monsterObject->GetComponent<CMonsterCombatComponent>();
+			if ( !combat )
+				return;
+
+			combat->OnHitByPlayerWeapon(weaponObject, kTestForceDeathOnHit);
+			DeactivateProjectileIfNeeded(weaponObject);
+		};
+
+	auto NotifyPlayerHit = [ & ] (CGameObject* weaponObject, CGameObject* playerObject)
+		{
+			if ( !weaponObject || !playerObject )
+				return;
+
+			auto DeactivateProjectileIfNeeded = [ ] (CGameObject* weaponObj)
+				{
+					if ( !weaponObj ) return;
+
+					if ( auto* arrow = weaponObj->GetComponent<CArrowComponent>() )
+					{
+						arrow->Deactivate();
+						return;
+					}
+
+					if ( auto* bullet = weaponObj->GetComponent<CBulletComponent>() )
+					{
+						bullet->Deactivate();
+						return;
+					}
+				};
+
+			if ( auto* hitbox = weaponObject->GetComponent<CMonsterWeaponHitboxComponent>() )
+			{
+				if ( !hitbox->CanHitTarget(playerObject) )
+					return;
+
+#ifndef USING_NETWORK
+				RequestPlayerHitAnimation(playerObject);
+#endif
+				hitbox->MarkHitTarget(playerObject);
+				DeactivateProjectileIfNeeded(weaponObject);
+				return;
+			}
+
+#ifndef USING_NETWORK
+			RequestPlayerHitAnimation(playerObject);
+#endif
+			DeactivateProjectileIfNeeded(weaponObject);
+		};
+
+	// ------------------------------------------------------------
+	// Bare-hand Monster body weapon capsules -> Player
+	// ------------------------------------------------------------
+	if ( IsMonsterBodyPlayerBodyPair(a, b) )
+	{
+		CColliderComponent* monsterCollider =
+			( layerA == kCollisionLayerMonster ) ? a : b;
+
+		CColliderComponent* playerCollider =
+			( monsterCollider == a ) ? b : a;
+
+		if ( monsterCollider->AreWeaponCapsulesActive() &&
+			 monsterCollider->HasWeaponBoneCapsules() &&
+			 monsterCollider->IntersectsActiveWeaponBoneCapsulesAgainstBody(*playerCollider) )
+		{
+			CGameObject* monsterObject = monsterCollider->GetOwner();
+			CGameObject* playerObject = playerCollider->GetOwner();
+
+			if ( !monsterObject || !playerObject )
+				return;
+
+			DebugPrintCollision(monsterCollider, playerCollider);
+
+			NotifyPlayerHit(monsterObject, playerObject);
+			return;
+		}
+	}
+
+	const bool isHit = IsPairIntersecting(a, b);
 	if ( !isHit )
 		return;
 
-	CColliderComponent* pushedCollider = nullptr;
-
-	if ( a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::BCapsule )
-	{
-		pushedCollider = a;
-	}
-	else if ( a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::OOBB )
-	{
-		pushedCollider = a;
-	}
-	else if ( a->GetType() == EColliderType::OOBB && b->GetType() == EColliderType::BCapsule )
-	{
-		pushedCollider = b;
-	}
-
-	//DebugPrintCollision(a, b);
-
 	if ( a->IsTrigger() || b->IsTrigger() )
+		return;
+
+	DebugPrintCollision(a, b);
+
+	// ------------------------------------------------------------
+	// PlayerWeapon -> Monster
+	// ------------------------------------------------------------
+	if ( layerA == kCollisionLayerPlayerWeapon &&
+		 layerB == kCollisionLayerMonster )
 	{
-		// Trigger 이벤트 처리
+		NotifyMonsterHit(ownerA, ownerB);
 		return;
 	}
 
-	const bool isCapsuleVsOOBB =
-		( a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::OOBB ) ||
-		( a->GetType() == EColliderType::OOBB && b->GetType() == EColliderType::BCapsule );
-
-	if ( !pushedCollider )
+	if ( layerA == kCollisionLayerMonster &&
+		 layerB == kCollisionLayerPlayerWeapon )
+	{
+		NotifyMonsterHit(ownerB, ownerA);
 		return;
+	}
 
-	auto* owner = pushedCollider->GetOwner();
-	if ( !owner )
+	// ------------------------------------------------------------
+	// MonsterWeapon -> Player
+	// ------------------------------------------------------------
+	if ( layerA == kCollisionLayerMonsterWeapon &&
+		 layerB == kCollisionLayerPlayer )
+	{
+		NotifyPlayerHit(ownerA, ownerB);
 		return;
+	}
 
-	auto* transform = owner->GetComponent<CTransformComponent>();
-	if ( !transform )
+	if ( layerA == kCollisionLayerPlayer &&
+		 layerB == kCollisionLayerMonsterWeapon )
+	{
+		NotifyPlayerHit(ownerB, ownerA);
 		return;
-
-	const float pushBackDistance = 0.1f;
-
-	XMFLOAT3 forward = transform->direction;
-	XMVECTOR fwdV = XMLoadFloat3(&forward);
-
-	if ( XMVectorGetX(XMVector3LengthSq(fwdV)) < 1e-8f )
-		forward = XMFLOAT3(0.0f, 0.0f, 1.0f);
-
-	XMFLOAT3 pos = transform->position;
-
-	pos.x -= forward.x * pushBackDistance;
-	pos.y -= forward.y * pushBackDistance;
-	pos.z -= forward.z * pushBackDistance;
-
-	transform->Translate(pos);
+	}
 }
 
 void CCollisionSystem::OnUpdate()
@@ -288,8 +428,8 @@ void CCollisionSystem::OnUpdate()
             if (!b) 
 				continue;
 
-            if (!PassFilter(a, b))
-                continue;
+			const bool normalFilteredPair = PassFilter(a, b);
+			const bool bareHandPair = IsBareHandMonsterWeaponPairCandidate(a, b);
 
             HandlePair(a, b);
         }

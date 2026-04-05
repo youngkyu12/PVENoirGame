@@ -3,7 +3,9 @@
 //-----------------------------------------------------------------------------
 #include "stdafx.h"
 #include "ColliderComponent.h"
-#include "Object.h" // CGameObject
+#include "Object.h"
+#include "AnimatorComponent.h"
+#include <unordered_set>
 
 BoundingOrientedBox CColliderComponent::MakeLocalOOBB(const XMFLOAT3& Min, const XMFLOAT3& Max)
 {
@@ -25,6 +27,267 @@ BoundingOrientedBox CColliderComponent::MakeLocalOOBB(const XMFLOAT3& Min, const
 	return box;
 }
 
+BoundingOrientedBox CColliderComponent::MakeAuthoredLocalOOBB(
+	const XMFLOAT3& Center,
+	const XMFLOAT4& RotationQuat,
+	const XMFLOAT3& Size)
+{
+	BoundingOrientedBox box{};
+
+	box.Center = Center;
+	box.Extents = XMFLOAT3(
+		Size.x * 0.5f,
+		Size.y * 0.5f,
+		Size.z * 0.5f
+	);
+
+	const XMVECTOR q = XMQuaternionNormalize(XMLoadFloat4(&RotationQuat));
+	XMStoreFloat4(&box.Orientation, q);
+	return box;
+}
+
+BoundingOrientedBox CColliderComponent::MakeLocalOOBBFromMatrix(const XMFLOAT4X4& unitBoxToLocal)
+{
+	BoundingOrientedBox box{};
+
+	box.Center = XMFLOAT3(
+		unitBoxToLocal._41,
+		unitBoxToLocal._42,
+		unitBoxToLocal._43
+	);
+
+	const XMVECTOR rawX = XMVectorSet(unitBoxToLocal._11, unitBoxToLocal._12, unitBoxToLocal._13, 0.0f);
+	const XMVECTOR rawY = XMVectorSet(unitBoxToLocal._21, unitBoxToLocal._22, unitBoxToLocal._23, 0.0f);
+	const XMVECTOR rawZ = XMVectorSet(unitBoxToLocal._31, unitBoxToLocal._32, unitBoxToLocal._33, 0.0f);
+
+	const float sizeX = XMVectorGetX(XMVector3Length(rawX));
+	const float sizeY = XMVectorGetX(XMVector3Length(rawY));
+	const float sizeZ = XMVectorGetX(XMVector3Length(rawZ));
+
+	box.Extents = XMFLOAT3(
+		sizeX * 0.5f,
+		sizeY * 0.5f,
+		sizeZ * 0.5f
+	);
+
+	const float eps = 1e-6f;
+
+	auto NormalizeOr = [ ] (FXMVECTOR v, FXMVECTOR fallback) -> XMVECTOR
+		{
+			const float lenSq = XMVectorGetX(XMVector3LengthSq(v));
+			if ( lenSq > 1e-12f )
+				return XMVector3Normalize(v);
+			return fallback;
+		};
+
+	const bool hasX = ( sizeX > eps );
+	const bool hasY = ( sizeY > eps );
+	const bool hasZ = ( sizeZ > eps );
+
+	XMVECTOR axisX = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+	XMVECTOR axisY = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	XMVECTOR axisZ = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+
+	// 1) 일반적인 입체 서브메시
+	if ( hasX && hasY && hasZ )
+	{
+		axisX = NormalizeOr(rawX, XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f));
+
+		XMVECTOR yOrtho = rawY - XMVectorScale(axisX, XMVectorGetX(XMVector3Dot(rawY, axisX)));
+		axisY = NormalizeOr(yOrtho, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+
+		axisZ = NormalizeOr(XMVector3Cross(axisX, axisY), XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
+
+		// rawZ 방향과 반대면 뒤집기
+		if ( XMVectorGetX(XMVector3Dot(axisZ, rawZ)) < 0.0f )
+		{
+			axisY = XMVectorNegate(axisY);
+			axisZ = XMVectorNegate(axisZ);
+		}
+
+		axisY = NormalizeOr(XMVector3Cross(axisZ, axisX), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+	}
+	// 2) XY 평면류: Z 두께만 0
+	else if ( hasX && hasY )
+	{
+		axisX = NormalizeOr(rawX, XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f));
+
+		XMVECTOR yOrtho = rawY - XMVectorScale(axisX, XMVectorGetX(XMVector3Dot(rawY, axisX)));
+		axisY = NormalizeOr(yOrtho, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+
+		axisZ = NormalizeOr(XMVector3Cross(axisX, axisY), XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
+		axisY = NormalizeOr(XMVector3Cross(axisZ, axisX), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+	}
+	// 3) YZ 평면류: X 두께만 0
+	else if ( hasY && hasZ )
+	{
+		axisY = NormalizeOr(rawY, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+
+		XMVECTOR zOrtho = rawZ - XMVectorScale(axisY, XMVectorGetX(XMVector3Dot(rawZ, axisY)));
+		axisZ = NormalizeOr(zOrtho, XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
+
+		axisX = NormalizeOr(XMVector3Cross(axisY, axisZ), XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f));
+		axisZ = NormalizeOr(XMVector3Cross(axisX, axisY), XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
+	}
+	// 4) XZ 평면류: Y 두께만 0
+	else if ( hasX && hasZ )
+	{
+		axisX = NormalizeOr(rawX, XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f));
+
+		XMVECTOR zOrtho = rawZ - XMVectorScale(axisX, XMVectorGetX(XMVector3Dot(rawZ, axisX)));
+		axisZ = NormalizeOr(zOrtho, XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
+
+		axisY = NormalizeOr(XMVector3Cross(axisZ, axisX), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+		axisZ = NormalizeOr(XMVector3Cross(axisX, axisY), XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
+	}
+	// 5) 선분/점 수준의 완전 퇴화 케이스 fallback
+	else if ( hasX )
+	{
+		axisX = NormalizeOr(rawX, XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f));
+
+		XMVECTOR tmp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+		if ( fabsf(XMVectorGetX(XMVector3Dot(axisX, tmp))) > 0.99f )
+			tmp = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+
+		axisZ = NormalizeOr(XMVector3Cross(axisX, tmp), XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
+		axisY = NormalizeOr(XMVector3Cross(axisZ, axisX), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+	}
+	else if ( hasY )
+	{
+		axisY = NormalizeOr(rawY, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+
+		XMVECTOR tmp = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+		if ( fabsf(XMVectorGetX(XMVector3Dot(axisY, tmp))) > 0.99f )
+			tmp = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+
+		axisX = NormalizeOr(XMVector3Cross(axisY, tmp), XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f));
+		axisZ = NormalizeOr(XMVector3Cross(axisX, axisY), XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
+	}
+	else if ( hasZ )
+	{
+		axisZ = NormalizeOr(rawZ, XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
+
+		XMVECTOR tmp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+		if ( fabsf(XMVectorGetX(XMVector3Dot(axisZ, tmp))) > 0.99f )
+			tmp = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+
+		axisX = NormalizeOr(XMVector3Cross(tmp, axisZ), XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f));
+		axisY = NormalizeOr(XMVector3Cross(axisZ, axisX), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+	}
+	else
+	{
+		box.Orientation = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+		return box;
+	}
+
+	const XMMATRIX rotM(
+		axisX,
+		axisY,
+		axisZ,
+		XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f)
+	);
+
+	const XMVECTOR q = XMQuaternionNormalize(XMQuaternionRotationMatrix(rotM));
+	XMStoreFloat4(&box.Orientation, q);
+
+	return box;
+}
+
+static BoundingCapsule MakeCapsuleFromSegment(
+	const XMFLOAT3& p0,
+	const XMFLOAT3& p1,
+	float radius)
+{
+	BoundingCapsule capsule{};
+	capsule.p0 = p0;
+	capsule.p1 = p1;
+
+	capsule.Center = XMFLOAT3(
+		( p0.x + p1.x ) * 0.5f,
+		( p0.y + p1.y ) * 0.5f,
+		( p0.z + p1.z ) * 0.5f
+	);
+
+	capsule.Radius = radius;
+
+	const XMVECTOR A = XMLoadFloat3(&p0);
+	const XMVECTOR B = XMLoadFloat3(&p1);
+	const XMVECTOR D = B - A;
+
+	const float axisLen = XMVectorGetX(XMVector3Length(D));
+	capsule.Height = axisLen + radius * 2.0f;
+
+	XMFLOAT3 absD{};
+	XMStoreFloat3(&absD, XMVectorAbs(D));
+
+	if ( absD.x >= absD.y && absD.x >= absD.z ) capsule.Direction = EDirection::X;
+	else if ( absD.y >= absD.x && absD.y >= absD.z ) capsule.Direction = EDirection::Y;
+	else capsule.Direction = EDirection::Z;
+
+	return capsule;
+}
+
+static void ExpandMinMaxByPoint(
+	XMFLOAT3& minPt,
+	XMFLOAT3& maxPt,
+	const XMFLOAT3& p)
+{
+	minPt.x = min(minPt.x, p.x);
+	minPt.y = min(minPt.y, p.y);
+	minPt.z = min(minPt.z, p.z);
+
+	maxPt.x = max(maxPt.x, p.x);
+	maxPt.y = max(maxPt.y, p.y);
+	maxPt.z = max(maxPt.z, p.z);
+}
+
+static void ExpandMinMaxByOOBB(
+	XMFLOAT3& minPt,
+	XMFLOAT3& maxPt,
+	const BoundingOrientedBox& box)
+{
+	XMFLOAT3 corners[8]{};
+	box.GetCorners(corners);
+
+	for ( int i = 0; i < 8; ++i )
+		ExpandMinMaxByPoint(minPt, maxPt, corners[i]);
+}
+
+static BoundingOrientedBox MakeEnclosingLocalOOBB(
+	const std::vector<BoundingOrientedBox>& boxes)
+{
+	BoundingOrientedBox result{};
+
+	if ( boxes.empty() )
+	{
+		result.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		result.Extents = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		result.Orientation = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+		return result;
+	}
+
+	XMFLOAT3 minPt(FLT_MAX, FLT_MAX, FLT_MAX);
+	XMFLOAT3 maxPt(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+	for ( const BoundingOrientedBox& box : boxes )
+		ExpandMinMaxByOOBB(minPt, maxPt, box);
+
+	result.Center = XMFLOAT3(
+		( minPt.x + maxPt.x ) * 0.5f,
+		( minPt.y + maxPt.y ) * 0.5f,
+		( minPt.z + maxPt.z ) * 0.5f
+	);
+
+	result.Extents = XMFLOAT3(
+		( maxPt.x - minPt.x ) * 0.5f,
+		( maxPt.y - minPt.y ) * 0.5f,
+		( maxPt.z - minPt.z ) * 0.5f
+	);
+
+	result.Orientation = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+	return result;
+}
+
 void CColliderComponent::BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>& meshes)
 {
 	mMeshOOBBSets.clear();
@@ -35,18 +298,97 @@ void CColliderComponent::BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>&
 		if ( !mesh ) continue;
 
 		MeshOOBBSet set{};
-		set.LocalMeshOOBB = MakeLocalOOBB(mesh->GetMeshMin(), mesh->GetMeshMax());
-		set.WorldMeshOOBB = set.LocalMeshOOBB;
-
-		set.LocalSubOOBBs.reserve(mesh->m_SubMeshes.size());
-		set.WorldSubOOBBs.reserve(mesh->m_SubMeshes.size());
+		std::unordered_set<std::string> consumedAuthoredPaths;
 
 		for ( const auto& submesh : mesh->m_SubMeshes )
 		{
-			BoundingOrientedBox subBox = MakeLocalOOBB(submesh.subMeshMin, submesh.subMeshMax);
-			set.LocalSubOOBBs.push_back(subBox);
-			set.WorldSubOOBBs.push_back(subBox);
+			if ( submesh.isColliderHelper )
+				continue;
+
+			const bool hasAuthoringPath = !submesh.authoringPath.empty(); 
+			const auto authoredIt =
+				hasAuthoringPath
+				? mStaticSubMeshAuthoredOOBBs.find(submesh.authoringPath)
+				: mStaticSubMeshAuthoredOOBBs.end();
+
+			if ( authoredIt != mStaticSubMeshAuthoredOOBBs.end() && !authoredIt->second.empty() )
+			{
+				const bool firstUseOfThisPath =
+					consumedAuthoredPaths.insert(submesh.authoringPath).second;
+
+				if ( firstUseOfThisPath )
+				{
+					char logBuf[1024] = {};
+					sprintf_s(
+						logBuf,
+						"[CubeBoxColliderReport MATCH] submeshName=\"%s\" authoringPath=\"%s\"\n",
+						submesh.meshName.c_str(),
+						submesh.authoringPath.c_str()
+					);
+					OutputDebugStringA(logBuf);
+
+					for ( const AuthoredSubMeshOOBB& authoredBox : authoredIt->second )
+					{
+						BoundingOrientedBox subBox = MakeAuthoredLocalOOBB(
+							authoredBox.Center,
+							authoredBox.RotationQuat,
+							authoredBox.Size
+						);
+
+						set.LocalSubOOBBs.push_back(subBox);
+					}
+				}
+
+				continue;
+			}
+
+			if ( !mStaticSubMeshAuthoredOOBBs.empty() && hasAuthoringPath )
+			{
+				char missBuf[1024] = {};
+				sprintf_s(
+					missBuf,
+					"[CubeBoxColliderReport MISS] submeshName=\"%s\" authoringPath=\"%s\"\n",
+					submesh.meshName.c_str(),
+					submesh.authoringPath.c_str()
+				);
+				OutputDebugStringA(missBuf);
+			}
+
+			if ( submesh.hasExplicitLocalOOBB )
+			{
+				BoundingOrientedBox subBox = MakeLocalOOBBFromMatrix(submesh.explicitLocalOOBBMatrix);
+				set.LocalSubOOBBs.push_back(subBox);
+			}
+			else
+			{
+				BoundingOrientedBox subBox = MakeLocalOOBB(submesh.subMeshMin, submesh.subMeshMax);
+				set.LocalSubOOBBs.push_back(subBox);
+			}
 		}
+
+		if ( !set.LocalSubOOBBs.empty() )
+		{
+			set.LocalMeshOOBB = MakeEnclosingLocalOOBB(set.LocalSubOOBBs);
+		}
+		else
+		{
+			const XMFLOAT3 meshMin = mesh->GetMeshMin();
+			const XMFLOAT3 meshMax = mesh->GetMeshMax();
+
+			if ( meshMin.x <= meshMax.x &&
+				 meshMin.y <= meshMax.y &&
+				 meshMin.z <= meshMax.z )
+			{
+				set.LocalMeshOOBB = MakeLocalOOBB(meshMin, meshMax);
+			}
+			else
+			{
+				continue;
+			}
+		}
+
+		set.WorldMeshOOBB = set.LocalMeshOOBB;
+		set.WorldSubOOBBs = set.LocalSubOOBBs;
 
 		mMeshOOBBSets.push_back(std::move(set));
 	}
@@ -78,49 +420,83 @@ void CColliderComponent::OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*)
 
     switch (mColliderType)
     {
-    case EColliderType::AABB:
-        for (const shared_ptr<CMesh>& mesh : meshes)
-        {
-            if (!mesh) continue;
-
-            for (const vector<SubMesh>::iterator::value_type& submesh : mesh->m_SubMeshes)
-            {
-                objMin.x = min(objMin.x, submesh.subMeshMin.x);
-                objMin.y = min(objMin.y, submesh.subMeshMin.y);
-                objMin.z = min(objMin.z, submesh.subMeshMin.z);
-
-                objMax.x = max(objMax.x, submesh.subMeshMax.x);
-                objMax.y = max(objMax.y, submesh.subMeshMax.y);
-                objMax.z = max(objMax.z, submesh.subMeshMax.z);
-            }
-            SetAABB(objMin, objMax);
-        }
-        break;
-	case EColliderType::OOBB:
+	case EColliderType::AABB:
 	{
-		BuildHierarchicalOOBBs(meshes);
+		bool hasAnySubMesh = false;
 
 		for ( const shared_ptr<CMesh>& mesh : meshes )
 		{
 			if ( !mesh ) continue;
 
-			const XMFLOAT3 meshMin = mesh->GetMeshMin();
-			const XMFLOAT3 meshMax = mesh->GetMeshMax();
+			for ( const auto& submesh : mesh->m_SubMeshes )
+			{
+				if ( submesh.isColliderHelper )
+					continue;
 
-			objMin.x = min(objMin.x, meshMin.x);
-			objMin.y = min(objMin.y, meshMin.y);
-			objMin.z = min(objMin.z, meshMin.z);
+				objMin.x = min(objMin.x, submesh.subMeshMin.x);
+				objMin.y = min(objMin.y, submesh.subMeshMin.y);
+				objMin.z = min(objMin.z, submesh.subMeshMin.z);
 
-			objMax.x = max(objMax.x, meshMax.x);
-			objMax.y = max(objMax.y, meshMax.y);
-			objMax.z = max(objMax.z, meshMax.z);
+				objMax.x = max(objMax.x, submesh.subMeshMax.x);
+				objMax.y = max(objMax.y, submesh.subMeshMax.y);
+				objMax.z = max(objMax.z, submesh.subMeshMax.z);
+
+				hasAnySubMesh = true;
+			}
 		}
 
-		if ( objMin.x <= objMax.x &&
-			objMin.y <= objMax.y &&
-			objMin.z <= objMax.z )
+		if ( hasAnySubMesh )
+			SetAABB(objMin, objMax);
+
+		break;
+	}
+	case EColliderType::OOBB:
+	{
+		BuildHierarchicalOOBBs(meshes);
+
+		std::vector<BoundingOrientedBox> meshBoxes;
+		meshBoxes.reserve(mMeshOOBBSets.size());
+
+		for ( const MeshOOBBSet& set : mMeshOOBBSets )
 		{
-			SetOOBB(objMin, objMax);
+			if ( set.LocalMeshOOBB.Extents.x <= 1e-6f &&
+				 set.LocalMeshOOBB.Extents.y <= 1e-6f &&
+				 set.LocalMeshOOBB.Extents.z <= 1e-6f )
+			{
+				continue;
+			}
+
+			meshBoxes.push_back(set.LocalMeshOOBB);
+		}
+
+		if ( !meshBoxes.empty() )
+		{
+			LocalOOBB = MakeEnclosingLocalOOBB(meshBoxes);
+		}
+		else
+		{
+			for ( const shared_ptr<CMesh>& mesh : meshes )
+			{
+				if ( !mesh ) continue;
+
+				const XMFLOAT3 meshMin = mesh->GetMeshMin();
+				const XMFLOAT3 meshMax = mesh->GetMeshMax();
+
+				objMin.x = min(objMin.x, meshMin.x);
+				objMin.y = min(objMin.y, meshMin.y);
+				objMin.z = min(objMin.z, meshMin.z);
+
+				objMax.x = max(objMax.x, meshMax.x);
+				objMax.y = max(objMax.y, meshMax.y);
+				objMax.z = max(objMax.z, meshMax.z);
+			}
+
+			if ( objMin.x <= objMax.x &&
+				objMin.y <= objMax.y &&
+				objMin.z <= objMax.z )
+			{
+				SetOOBB(objMin, objMax);
+			}
 		}
 
 		break;
@@ -128,36 +504,58 @@ void CColliderComponent::OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*)
     case EColliderType::BSphere:
 
         break;
-    case EColliderType::BCapsule:
-        for (const shared_ptr<CMesh>& mesh : meshes)
-        {
-            if (!mesh) continue;
+	case EColliderType::BCapsule:
+	{
+		LocalSubBCapsules.clear();
 
-            for (const auto& submesh : mesh->m_SubMeshes)
-            {
-                objMin.x = min(objMin.x, submesh.subMeshMin.x);
-                objMin.y = min(objMin.y, submesh.subMeshMin.y);
-                objMin.z = min(objMin.z, submesh.subMeshMin.z);
+		bool hasAnySubMesh = false;
 
-                objMax.x = max(objMax.x, submesh.subMeshMax.x);
-                objMax.y = max(objMax.y, submesh.subMeshMax.y);
-                objMax.z = max(objMax.z, submesh.subMeshMax.z);
-                SetSubBCapsule(submesh.subMeshMin, submesh.subMeshMax);
-            }
-            SetBCapsule(objMin, objMax);
-        }
-        
-        break;
+		for ( const shared_ptr<CMesh>& mesh : meshes )
+		{
+			if ( !mesh ) continue;
+
+			for ( const auto& submesh : mesh->m_SubMeshes )
+			{
+				if ( submesh.isColliderHelper )
+					continue;
+
+				objMin.x = min(objMin.x, submesh.subMeshMin.x);
+				objMin.y = min(objMin.y, submesh.subMeshMin.y);
+				objMin.z = min(objMin.z, submesh.subMeshMin.z);
+
+				objMax.x = max(objMax.x, submesh.subMeshMax.x);
+				objMax.y = max(objMax.y, submesh.subMeshMax.y);
+				objMax.z = max(objMax.z, submesh.subMeshMax.z);
+
+				SetSubBCapsule(submesh.subMeshMin, submesh.subMeshMax);
+				hasAnySubMesh = true;
+			}
+		}
+
+		if ( hasAnySubMesh )
+			SetBCapsule(objMin, objMax);
+
+		break;
+	}
     default:
         break;
     }
-    
-    UpdateWorldBounds();
-}
 
-void CColliderComponent::OnUpdate(float dt)
-{
-    // MVP: 매 프레임 갱신
+	bool isSkinned = false;
+	for ( const auto& mesh : meshes )
+	{
+		if ( mesh && mesh->IsSkinnedMesh() )
+		{
+			isSkinned = true;
+			break;
+		}
+	}
+
+	if ( mColliderType == EColliderType::BCapsule && isSkinned )
+	{
+		BuildBoneCapsulesFromSkeleton();
+	}
+    
     UpdateWorldBounds();
 }
 
@@ -251,21 +649,24 @@ void CColliderComponent::SetBCapsule(const XMFLOAT3& Min, const XMFLOAT3& Max)
             LocalBCapsule.Center.z);
         LocalBCapsule.Direction = EDirection::Y;
     }
-    else {
-        LocalBCapsule.Height = dz;
-        const float halfSegment = max(0.0f, dz * 0.5f - LocalBCapsule.Radius);
+	else {
+		LocalBCapsule.Height = dz;
+		LocalBCapsule.Radius = max(dx, dy) * 0.5f;
 
-        LocalBCapsule.p0 = XMFLOAT3(
-            LocalBCapsule.Center.x,
-            LocalBCapsule.Center.y,
-            LocalBCapsule.Center.z - halfSegment);
+		const float halfSegment = max(0.0f, dz * 0.5f - LocalBCapsule.Radius);
 
-        LocalBCapsule.p1 = XMFLOAT3(
-            LocalBCapsule.Center.x,
-            LocalBCapsule.Center.y,
-            LocalBCapsule.Center.z + halfSegment);
-        LocalBCapsule.Direction = EDirection::Z;
-    }
+		LocalBCapsule.p0 = XMFLOAT3(
+			LocalBCapsule.Center.x,
+			LocalBCapsule.Center.y,
+			LocalBCapsule.Center.z - halfSegment);
+
+		LocalBCapsule.p1 = XMFLOAT3(
+			LocalBCapsule.Center.x,
+			LocalBCapsule.Center.y,
+			LocalBCapsule.Center.z + halfSegment);
+
+		LocalBCapsule.Direction = EDirection::Z;
+	}
    
 }
 
@@ -315,22 +716,24 @@ void CColliderComponent::SetSubBCapsule(const XMFLOAT3& Min, const XMFLOAT3& Max
             Capsule.Center.z);
         Capsule.Direction = EDirection::Y;
     }
-    else {
-        Capsule.Height = dz;
-		LocalBCapsule.Radius = max(dx, dy) * 0.5f;
-        const float halfSegment = max(0.0f, dz * 0.5f - Capsule.Radius);
+	else {
+		Capsule.Height = dz;
+		Capsule.Radius = max(dx, dy) * 0.5f;
 
-        Capsule.p0 = XMFLOAT3(
-            Capsule.Center.x,
-            Capsule.Center.y,
-            Capsule.Center.z - halfSegment);
+		const float halfSegment = max(0.0f, dz * 0.5f - Capsule.Radius);
 
-        Capsule.p1 = XMFLOAT3(
-            Capsule.Center.x,
-            Capsule.Center.y,
-            Capsule.Center.z + halfSegment);
-        Capsule.Direction = EDirection::Z;
-    }
+		Capsule.p0 = XMFLOAT3(
+			Capsule.Center.x,
+			Capsule.Center.y,
+			Capsule.Center.z - halfSegment);
+
+		Capsule.p1 = XMFLOAT3(
+			Capsule.Center.x,
+			Capsule.Center.y,
+			Capsule.Center.z + halfSegment);
+
+		Capsule.Direction = EDirection::Z;
+	}
 
     LocalSubBCapsules.push_back(Capsule);
 }
@@ -380,11 +783,23 @@ void CColliderComponent::UpdateWorldBounds()
         LocalBSphere.Transform(WorldBSphere, W);
         break;
     }
-    case EColliderType::BCapsule:
-    {
-        LocalBCapsule.Transform(WorldBCapsule, W);
-        break;
-    }
+	case EColliderType::BCapsule:
+	{
+		LocalBCapsule.Transform(WorldBCapsule, W);
+
+		WorldSubBCapsules.resize(LocalSubBCapsules.size());
+		for ( size_t i = 0; i < LocalSubBCapsules.size(); ++i )
+		{
+			LocalSubBCapsules[i].Transform(WorldSubBCapsules[i], W);
+		}
+
+		if ( !mBoneCapsuleLinks.empty() )
+		{
+			UpdateBoneCapsulesFromCurrentPose();
+		}
+
+		break;
+	}
     default:
         // None이면 캐시만 리셋하거나 무시
         break;
@@ -419,4 +834,334 @@ bool CColliderComponent::IntersectsCapsuleHierarchical(const BoundingCapsule& ca
 	}
 
 	return false;
+}
+
+bool CColliderComponent::IntersectsBoneCapsulesHierarchical(const BoundingOrientedBox& box) const
+{
+	if ( mColliderType != EColliderType::BCapsule )
+		return false;
+
+	if ( !WorldBCapsule.Intersects(box) )
+		return false;
+
+	if ( mWorldBoneCapsules.empty() )
+		return true;
+
+	for ( const BoundingCapsule& boneCapsule : mWorldBoneCapsules )
+	{
+		if ( boneCapsule.Intersects(box) )
+			return true;
+	}
+
+	return false;
+}
+
+bool CColliderComponent::IntersectsBoneCapsulesHierarchical(const BoundingCapsule& capsule) const
+{
+	if ( mColliderType != EColliderType::BCapsule )
+		return false;
+
+	if ( !WorldBCapsule.Intersects(capsule) )
+		return false;
+
+	if ( mWorldBoneCapsules.empty() )
+		return true;
+
+	for ( const BoundingCapsule& boneCapsule : mWorldBoneCapsules )
+	{
+		if ( boneCapsule.Intersects(capsule) )
+			return true;
+	}
+
+	return false;
+}
+
+void CColliderComponent::BuildBoneCapsulesFromSkeleton()
+{
+	mBoneCapsuleLinks.clear();
+	mWorldBoneCapsules.clear();
+
+	if ( !mModel ) return;
+
+	const std::vector<Bone>& bones = mModel->GetBones();
+	if ( bones.empty() ) return;
+
+	std::vector<XMFLOAT4X4> bindGlobal(bones.size());
+
+	for ( size_t i = 0; i < bones.size(); ++i )
+	{
+		XMMATRIX local = XMLoadFloat4x4(&bones[i].bindLocal);
+
+		if ( bones[i].parentIndex >= 0 )
+		{
+			XMMATRIX parentGlobal = XMLoadFloat4x4(&bindGlobal[bones[i].parentIndex]);
+			XMStoreFloat4x4(&bindGlobal[i], local * parentGlobal);
+		}
+		else
+		{
+			XMStoreFloat4x4(&bindGlobal[i], local);
+		}
+	}
+
+	std::vector<XMFLOAT3> jointBindPositions(bones.size());
+
+	for ( size_t i = 0; i < bones.size(); ++i )
+	{
+		XMVECTOR pos = XMVector3TransformCoord(
+			XMVectorZero(),
+			XMLoadFloat4x4(&bindGlobal[i])
+		);
+		XMStoreFloat3(&jointBindPositions[i], pos);
+	}
+
+	for ( size_t child = 0; child < bones.size(); ++child )
+	{
+		const int parent = bones[child].parentIndex;
+		if ( parent < 0 ) continue;
+
+		const XMVECTOR A = XMLoadFloat3(&jointBindPositions[parent]);
+		const XMVECTOR B = XMLoadFloat3(&jointBindPositions[child]);
+
+		const float boneLen = XMVectorGetX(XMVector3Length(B - A));
+		if ( boneLen <= 1e-4f ) continue;
+
+		float maxRadius = 0.0f;
+		int sampleCount = 0;
+
+		for ( const auto& mesh : mModel->GetMeshes() )
+		{
+			if ( !mesh ) continue;
+
+			for ( const auto& sm : mesh->m_SubMeshes )
+			{
+				const size_t vcount = sm.positions.size();
+				for ( size_t v = 0; v < vcount; ++v )
+				{
+					if ( v >= sm.boneIndices.size() ) continue;
+					if ( v >= sm.boneWeights.size() ) continue;
+
+					const XMUINT4& bi = sm.boneIndices[v];
+					const XMFLOAT4& bw = sm.boneWeights[v];
+
+					int dominantBone = ( int ) bi.x;
+					float dominantWeight = bw.x;
+
+					if ( bw.y > dominantWeight ) { dominantWeight = bw.y; dominantBone = ( int ) bi.y; }
+					if ( bw.z > dominantWeight ) { dominantWeight = bw.z; dominantBone = ( int ) bi.z; }
+					if ( bw.w > dominantWeight ) { dominantWeight = bw.w; dominantBone = ( int ) bi.w; }
+
+					if ( dominantBone != parent && dominantBone != ( int ) child )
+						continue;
+
+					const XMVECTOR P = XMLoadFloat3(&sm.positions[v]);
+					const float distSq = Vector3::distPointToSegment(A, B, P);
+					const float dist = sqrtf(distSq);
+
+					if ( dist > maxRadius )
+						maxRadius = dist;
+
+					++sampleCount;
+				}
+			}
+		}
+
+		if ( sampleCount == 0 )
+			maxRadius = boneLen * 0.15f;
+
+		if ( maxRadius < 0.02f ) maxRadius = 0.02f;
+		if ( maxRadius > boneLen * 0.75f ) maxRadius = boneLen * 0.75f;
+
+		BoneCapsuleLink link{};
+		link.parentBoneIndex = parent;
+		link.childBoneIndex = ( int ) child;
+		link.radius = maxRadius;
+
+		mBoneCapsuleLinks.push_back(link);
+	}
+
+	mWorldBoneCapsules.resize(mBoneCapsuleLinks.size());
+	RebuildWeaponBoneCapsuleSelection();
+}
+
+void CColliderComponent::UpdateBoneCapsulesFromCurrentPose()
+{
+	if ( mBoneCapsuleLinks.empty() ) return;
+
+	CAnimatorComponent* animComp = GetOwner()->GetComponent<CAnimatorComponent>();
+	if ( !animComp ) return;
+
+	const std::vector<XMFLOAT4X4>* globalPose = animComp->GetCurrentGlobalPose();
+	if ( !globalPose ) return;
+	if ( globalPose->empty() ) return;
+
+	const XMMATRIX objectWorld = XMLoadFloat4x4(&mTransform->GetWorldMatrix());
+
+	for ( size_t i = 0; i < mBoneCapsuleLinks.size(); ++i )
+	{
+		const BoneCapsuleLink& link = mBoneCapsuleLinks[i];
+
+		if ( link.parentBoneIndex < 0 ) continue;
+		if ( link.childBoneIndex < 0 ) continue;
+		if ( link.parentBoneIndex >= ( int ) globalPose->size() ) continue;
+		if ( link.childBoneIndex >= ( int ) globalPose->size() ) continue;
+
+		const XMMATRIX parentGlobal = XMLoadFloat4x4(&( *globalPose )[link.parentBoneIndex]);
+		const XMMATRIX childGlobal = XMLoadFloat4x4(&( *globalPose )[link.childBoneIndex]);
+
+		const XMVECTOR P0 = XMVector3TransformCoord(XMVectorZero(), parentGlobal * objectWorld);
+		const XMVECTOR P1 = XMVector3TransformCoord(XMVectorZero(), childGlobal * objectWorld);
+
+		XMFLOAT3 p0{};
+		XMFLOAT3 p1{};
+		XMStoreFloat3(&p0, P0);
+		XMStoreFloat3(&p1, P1);
+
+		mWorldBoneCapsules[i] = MakeCapsuleFromSegment(p0, p1, link.radius);
+	}
+
+	mWorldWeaponBoneCapsules.resize(mWeaponBoneCapsuleLinkIndices.size());
+
+	for ( size_t i = 0; i < mWeaponBoneCapsuleLinkIndices.size(); ++i )
+	{
+		const int srcIndex = mWeaponBoneCapsuleLinkIndices[i];
+		if ( srcIndex < 0 ) continue;
+		if ( srcIndex >= ( int ) mWorldBoneCapsules.size() ) continue;
+
+		mWorldWeaponBoneCapsules[i] = mWorldBoneCapsules[srcIndex];
+	}
+}
+
+void CColliderComponent::SetWeaponBoneCapsuleRoots(const std::vector<std::string>& rootBoneNames)
+{
+	mWeaponBoneRootNames = rootBoneNames;
+	RebuildWeaponBoneCapsuleSelection();
+
+	if ( !mBoneCapsuleLinks.empty() )
+		UpdateBoneCapsulesFromCurrentPose();
+}
+
+void CColliderComponent::ClearWeaponBoneCapsuleRoots()
+{
+	mWeaponBoneRootNames.clear();
+	mWeaponBoneCapsuleLinkIndices.clear();
+	mWorldWeaponBoneCapsules.clear();
+}
+
+void CColliderComponent::RebuildWeaponBoneCapsuleSelection()
+{
+	mWeaponBoneCapsuleLinkIndices.clear();
+	mWorldWeaponBoneCapsules.clear();
+
+	if ( !mModel ) return;
+
+	const std::vector<Bone>& bones = mModel->GetBones();
+	if ( bones.empty() ) return;
+	if ( mBoneCapsuleLinks.empty() ) return;
+	if ( mWeaponBoneRootNames.empty() ) return;
+
+	std::vector<uint8_t> includedBones(bones.size(), 0u);
+
+	auto FindBoneIndexByName = [ &bones ] (const std::string& boneName) -> int
+		{
+			for ( int i = 0; i < ( int ) bones.size(); ++i )
+			{
+				if ( bones[i].name == boneName )
+					return i;
+			}
+			return -1;
+		};
+
+	for ( const std::string& rootName : mWeaponBoneRootNames )
+	{
+		const int rootBoneIndex = FindBoneIndexByName(rootName);
+		if ( rootBoneIndex < 0 ) continue;
+
+		std::vector<int> stack;
+		stack.push_back(rootBoneIndex);
+
+		while ( !stack.empty() )
+		{
+			const int boneIndex = stack.back();
+			stack.pop_back();
+
+			if ( boneIndex < 0 ) continue;
+			if ( boneIndex >= ( int ) bones.size() ) continue;
+			if ( includedBones[boneIndex] ) continue;
+
+			includedBones[boneIndex] = 1u;
+
+			for ( int i = 0; i < ( int ) bones.size(); ++i )
+			{
+				if ( bones[i].parentIndex == boneIndex )
+					stack.push_back(i);
+			}
+		}
+	}
+
+	for ( size_t i = 0; i < mBoneCapsuleLinks.size(); ++i )
+	{
+		const BoneCapsuleLink& link = mBoneCapsuleLinks[i];
+
+		if ( link.parentBoneIndex < 0 ) continue;
+		if ( link.parentBoneIndex >= ( int ) includedBones.size() ) continue;
+
+		if ( includedBones[link.parentBoneIndex] )
+			mWeaponBoneCapsuleLinkIndices.push_back(( int ) i);
+	}
+
+	mWorldWeaponBoneCapsules.resize(mWeaponBoneCapsuleLinkIndices.size());
+}
+
+bool CColliderComponent::IntersectsActiveWeaponBoneCapsulesAgainstBody(const CColliderComponent& targetBody) const
+{
+	if ( !mWeaponBoneCapsulesActive )
+		return false;
+
+	if ( mWorldWeaponBoneCapsules.empty() )
+		return false;
+
+	if ( !targetBody.IsCollisionEnabled() )
+		return false;
+
+	for ( const BoundingCapsule& weaponCapsule : mWorldWeaponBoneCapsules )
+	{
+		switch ( targetBody.GetType() )
+		{
+		case EColliderType::BCapsule:
+			if ( targetBody.IntersectsBoneCapsulesHierarchical(weaponCapsule) )
+				return true;
+			break;
+
+		case EColliderType::OOBB:
+			if ( weaponCapsule.Intersects(targetBody.GetOOBB()) )
+				return true;
+			break;
+
+		case EColliderType::AABB:
+			if ( weaponCapsule.Intersects(targetBody.GetAABB()) )
+				return true;
+			break;
+
+		case EColliderType::BSphere:
+			if ( weaponCapsule.Intersects(targetBody.GetBSphere()) )
+				return true;
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	return false;
+}
+
+void CColliderComponent::OnUpdate(float dt)
+{
+	UNREFERENCED_PARAMETER(dt);
+}
+
+void CColliderComponent::OnLateUpdate(float dt)
+{
+	UNREFERENCED_PARAMETER(dt);
+	UpdateWorldBounds();
 }

@@ -74,9 +74,6 @@
     <Filter Include="Components\PlayerController">
       <UniqueIdentifier>{6f8a975b-20b3-4860-8c83-fd1b05974ab5}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Mesh\Material">
-      <UniqueIdentifier>{e0fe32e7-3df3-4dfa-b429-1e36880a7cca}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Asset">
       <UniqueIdentifier>{cde9b567-4446-447e-8da8-5a15a41761cb}</UniqueIdentifier>
     </Filter>
@@ -115,6 +112,33 @@
     </Filter>
     <Filter Include="Components\Bullet">
       <UniqueIdentifier>{4ee5f8ae-15fa-4df4-bd07-0e898df3f8ef}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Material">
+      <UniqueIdentifier>{e0fe32e7-3df3-4dfa-b429-1e36880a7cca}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="BoundingCapsule">
+      <UniqueIdentifier>{d0ac47c8-d1d6-4300-b584-0a4cad21299d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Components\ColliderComponent">
+      <UniqueIdentifier>{dad159b7-7326-4f8e-aed6-bf28373ffcbc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="CollisionSystem">
+      <UniqueIdentifier>{7897e45d-0980-4532-a0a1-518dbee876b1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="RigidBody">
+      <UniqueIdentifier>{9edd29e9-1f3a-4544-b9ae-c2d93bccb801}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="NavMesh">
+      <UniqueIdentifier>{29fa9c05-5a78-40c4-898b-3f0e040081c8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Components\AIComponent">
+      <UniqueIdentifier>{7a149549-114b-43fa-a74b-3b467bc953d2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Components\WeaponHitboxComponent">
+      <UniqueIdentifier>{6003ae83-b712-4472-aea4-4987caeecc79}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Components\MonsterCombatComponent">
+      <UniqueIdentifier>{16aaad4e-f7aa-4e0a-a3f6-036a548f179e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -170,7 +194,7 @@
       <Filter>Light</Filter>
     </ClInclude>
     <ClInclude Include="Material.h">
-      <Filter>Mesh\Material</Filter>
+      <Filter>Material</Filter>
     </ClInclude>
     <ClInclude Include="Mesh.h">
       <Filter>Mesh</Filter>
@@ -253,10 +277,6 @@
     <ClInclude Include="PlayerEquipmentComponent.h">
       <Filter>Components\PlayerEquipmentComponent</Filter>
     </ClInclude>
-    <ClInclude Include="BoundingCapsule.h" />
-    <ClInclude Include="ColliderComponent.h" />
-    <ClInclude Include="CollisionSystem.h" />
-    <ClInclude Include="RigidBody.h" />
     <ClInclude Include="ActorTagComponent.h">
       <Filter>Components\ActorTag</Filter>
     </ClInclude>
@@ -270,6 +290,36 @@
       <Filter>Components\Bullet</Filter>
     </ClInclude>
     <ClInclude Include="MathHelper.h" />
+    <ClInclude Include="BoundingCapsule.h">
+      <Filter>BoundingCapsule</Filter>
+    </ClInclude>
+    <ClInclude Include="ColliderComponent.h">
+      <Filter>Components\ColliderComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="CollisionSystem.h">
+      <Filter>CollisionSystem</Filter>
+    </ClInclude>
+    <ClInclude Include="RigidBody.h">
+      <Filter>RigidBody</Filter>
+    </ClInclude>
+    <ClInclude Include="NavMesh.h">
+      <Filter>NavMesh</Filter>
+    </ClInclude>
+    <ClInclude Include="MonsterAIComponent.h">
+      <Filter>Components\AIComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="GhoulAIComponent.h">
+      <Filter>Components\AIComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="WeaponHitboxComponent.h">
+      <Filter>Components\WeaponHitboxComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="MonsterCombatComponent.h">
+      <Filter>Components\MonsterCombatComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="MonsterWeaponHitboxComponent.h">
+      <Filter>Components\WeaponHitboxComponent</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -312,7 +362,7 @@
       <Filter>Object</Filter>
     </ClCompile>
     <ClCompile Include="Material.cpp">
-      <Filter>Mesh\Material</Filter>
+      <Filter>Material</Filter>
     </ClCompile>
     <ClCompile Include="Mesh.cpp">
       <Filter>Mesh</Filter>
@@ -380,10 +430,6 @@
     <ClCompile Include="PlayerEquipmentComponent.cpp">
       <Filter>Components\PlayerEquipmentComponent</Filter>
     </ClCompile>
-    <ClCompile Include="BoundingCapsule.cpp" />
-    <ClCompile Include="ColliderComponent.cpp" />
-    <ClCompile Include="CollisionSystem.cpp" />
-    <ClCompile Include="RigidBody.cpp" />
     <ClCompile Include="ActorTagComponent.cpp">
       <Filter>Components\ActorTag</Filter>
     </ClCompile>
@@ -392,6 +438,36 @@
     </ClCompile>
     <ClCompile Include="BulletComponent.cpp">
       <Filter>Components\Bullet</Filter>
+    </ClCompile>
+    <ClCompile Include="BoundingCapsule.cpp">
+      <Filter>BoundingCapsule</Filter>
+    </ClCompile>
+    <ClCompile Include="ColliderComponent.cpp">
+      <Filter>Components\ColliderComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="CollisionSystem.cpp">
+      <Filter>CollisionSystem</Filter>
+    </ClCompile>
+    <ClCompile Include="RigidBody.cpp">
+      <Filter>RigidBody</Filter>
+    </ClCompile>
+    <ClCompile Include="NavMesh.cpp">
+      <Filter>NavMesh</Filter>
+    </ClCompile>
+    <ClCompile Include="MonsterAIComponent.cpp">
+      <Filter>Components\AIComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="GhoulAIComponent.cpp">
+      <Filter>Components\AIComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="WeaponHitboxComponent.cpp">
+      <Filter>Components\WeaponHitboxComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="MonsterCombatComponent.cpp">
+      <Filter>Components\MonsterCombatComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="MonsterWeaponHitboxComponent.cpp">
+      <Filter>Components\WeaponHitboxComponent</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
