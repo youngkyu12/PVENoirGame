@@ -7,6 +7,7 @@
 
 #include <cmath>
 #include <fstream>
+#include <iomanip>
 #include <cstdio>
 #include <cctype>
 
@@ -634,7 +635,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	ApplyStaticPlacementCounts();
 #else
 	m_localPlayerSlot = 0;
-	const std::string placementFilePath = "MapData/placement_export_st1.txt";
+	const std::string placementFilePath = "MapData/placement_export_tst.txt";
 	const std::string cubeColliderReportFilePath = "MapData/CubeBoxColliderReport.txt";
 	const std::string navMeshFilePath = "MapData/1StageNavmesh.nvm";
 
@@ -1055,6 +1056,129 @@ bool CGameScene::LoadSceneCubeBoxColliderReport(const std::string& filePath)
 	return !mSceneCubeBoxColliderTable.empty();
 }
 
+bool CGameScene::ExportStaticWorldLocalOOBBReport(
+	const std::string& filePath,
+	const std::vector<size_t>& placementIndices,
+	const std::vector<CGameObject*>& objects
+) const
+{
+	if ( placementIndices.size() != objects.size() )
+		return false;
+
+	std::ofstream fout(filePath, std::ios::out | std::ios::trunc);
+	if ( !fout.is_open() )
+		return false;
+
+	fout << std::fixed << std::setprecision(6);
+
+	auto WriteFloat3 = [ &fout ] (const char* label, const XMFLOAT3& v)
+		{
+			fout
+				<< label
+				<< "(" << v.x << ", " << v.y << ", " << v.z << ")\n";
+		};
+
+	auto WriteFloat4 = [ &fout ] (const char* label, const XMFLOAT4& v)
+		{
+			fout
+				<< label
+				<< "(" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ")\n";
+		};
+
+	auto WriteOOBB = [ & ] (const std::string& prefix, const BoundingOrientedBox& box)
+		{
+			fout
+				<< prefix
+				<< "Center: ("
+				<< box.Center.x << ", "
+				<< box.Center.y << ", "
+				<< box.Center.z << ")\n";
+
+			fout
+				<< prefix
+				<< "RotationQuat: ("
+				<< box.Orientation.x << ", "
+				<< box.Orientation.y << ", "
+				<< box.Orientation.z << ", "
+				<< box.Orientation.w << ")\n";
+
+			fout
+				<< prefix
+				<< "Extents: ("
+				<< box.Extents.x << ", "
+				<< box.Extents.y << ", "
+				<< box.Extents.z << ")\n";
+
+			fout
+				<< prefix
+				<< "Size: ("
+				<< box.Extents.x * 2.0f << ", "
+				<< box.Extents.y * 2.0f << ", "
+				<< box.Extents.z * 2.0f << ")\n";
+		};
+
+	fout << "StaticWorldLocalOOBBReportBegin\n";
+	fout << "ObjectCount: " << objects.size() << "\n\n";
+
+	for ( size_t i = 0; i < objects.size(); ++i )
+	{
+		const size_t placementIndex = placementIndices[i];
+		if ( placementIndex >= m_staticPlacementEntries.size() )
+			continue;
+
+		CGameObject* obj = objects[i];
+		if ( !obj )
+			continue;
+
+		auto* collider = obj->GetComponent<CColliderComponent>();
+		if ( !collider )
+			continue;
+
+		const StaticPlacementEntry& placement = m_staticPlacementEntries[placementIndex];
+		const BoundingOrientedBox& objectLocalOOBB = collider->GetLocalOOBB();
+		const std::vector<MeshOOBBSet>& meshSets = collider->GetMeshOOBBSets();
+
+		fout << "ObjectBegin\n";
+		fout << "PlacementIndex: " << placementIndex << "\n";
+		fout << "AssetName: " << placement.assetName << "\n";
+		fout << "ObjectName: " << placement.objectName << "\n";
+		WriteFloat3("ObjectWorldPosition: ", placement.pos);
+		WriteFloat4("ObjectWorldRotationQuat: ", placement.rot);
+		fout << "ObjectWorldYawDeg: " << placement.yawDeg << "\n";
+
+		WriteOOBB("OverallLocalOOBB.", objectLocalOOBB);
+
+		fout << "MeshOOBBSetCount: " << meshSets.size() << "\n";
+
+		for ( size_t meshIndex = 0; meshIndex < meshSets.size(); ++meshIndex )
+		{
+			const MeshOOBBSet& set = meshSets[meshIndex];
+
+			fout << "MeshSetBegin\n";
+			fout << "MeshIndex: " << meshIndex << "\n";
+
+			WriteOOBB("MeshLocalOOBB.", set.LocalMeshOOBB);
+
+			fout << "SubOOBBCount: " << set.LocalSubOOBBs.size() << "\n";
+
+			for ( size_t subIndex = 0; subIndex < set.LocalSubOOBBs.size(); ++subIndex )
+			{
+				fout << "SubOOBBBegin\n";
+				fout << "SubIndex: " << subIndex << "\n";
+				WriteOOBB("SubLocalOOBB.", set.LocalSubOOBBs[subIndex]);
+				fout << "SubOOBBEnd\n";
+			}
+
+			fout << "MeshSetEnd\n";
+		}
+
+		fout << "ObjectEnd\n\n";
+	}
+
+	fout << "StaticWorldLocalOOBBReportEnd\n";
+	return true;
+}
+
 void CGameScene::BuildLightsAndMaterials()
 {
     m_lightObjects.clear();
@@ -1299,6 +1423,12 @@ void CGameScene::BuildStaticBatch(
 
     b->count = 0;
 
+	std::vector<size_t> exportedWorldStaticPlacementIndices;
+	std::vector<CGameObject*> exportedWorldStaticObjects;
+
+	exportedWorldStaticPlacementIndices.reserve(m_staticPlacementEntries.size());
+	exportedWorldStaticObjects.reserve(m_staticPlacementEntries.size());
+
 //#ifndef USING_NETWORK
 	// ------------------------------------------------------------------------
 	// Static world objects from placement file
@@ -1309,6 +1439,7 @@ void CGameScene::BuildStaticBatch(
 
 		const UINT i = ( UINT ) b->objectRefs.size();
 		const StaticPlacementEntry& placement = m_staticPlacementEntries[k];
+		const bool createWorldStaticCollider = ShouldCreateWorldStaticCollider(placement.assetName);
 
 		AssetBuildDesc desc{};
 		if ( !ResolveStaticAssetDesc(placement.assetName, desc) )
@@ -1328,14 +1459,14 @@ void CGameScene::BuildStaticBatch(
 		obj->SetMesh(0, asset.mesh);
 		obj->AddComponent<CStaticMeshRendererComponent>();
 
-		if ( ShouldCreateWorldStaticCollider(placement.assetName) )
+		if ( createWorldStaticCollider )
 		{
 			auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
 			if ( collider )
 			{
 				collider->SetLayer(kCollisionLayerWorldStatic);
 				collider->SetMask(CollisionBit(kCollisionLayerPlayer));
-				
+
 				const auto authoredIt = mSceneCubeBoxColliderTable.find(placement.assetName);
 				if ( authoredIt != mSceneCubeBoxColliderTable.end() )
 				{
@@ -1352,11 +1483,33 @@ void CGameScene::BuildStaticBatch(
 		obj->CreateComponents(dev, cmd);
 
 		CGameObject* raw = obj.get();
+		if ( createWorldStaticCollider )
+		{
+			auto* collider = raw->GetComponent<CColliderComponent>();
+			if ( collider && collider->GetType() == EColliderType::OOBB )
+			{
+				exportedWorldStaticPlacementIndices.push_back(static_cast< size_t >( k ));
+				exportedWorldStaticObjects.push_back(raw);
+			}
+		}
 		m_staticObjects.push_back(std::move(obj));
 		b->objectRefs.push_back(raw);
 		b->count = ( UINT ) b->objectRefs.size();
 	}
 //#endif
+#ifndef USING_NETWORK
+	if ( !ExportStaticWorldLocalOOBBReport(
+		"MapData/StaticWorldLocalOOBBReport.txt",
+		exportedWorldStaticPlacementIndices,
+		exportedWorldStaticObjects) )
+	{
+		OutputDebugStringA("[StaticWorldLocalOOBBReport] export failed\n");
+	}
+	else
+	{
+		OutputDebugStringA("[StaticWorldLocalOOBBReport] export complete\n");
+	}
+#endif
 
     // ------------------------------------------------------------------------
     // Arrow pool (Static)

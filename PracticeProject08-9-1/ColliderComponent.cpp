@@ -318,15 +318,6 @@ void CColliderComponent::BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>&
 
 				if ( firstUseOfThisPath )
 				{
-					char logBuf[1024] = {};
-					sprintf_s(
-						logBuf,
-						"[CubeBoxColliderReport MATCH] submeshName=\"%s\" authoringPath=\"%s\"\n",
-						submesh.meshName.c_str(),
-						submesh.authoringPath.c_str()
-					);
-					OutputDebugStringA(logBuf);
-
 					for ( const AuthoredSubMeshOOBB& authoredBox : authoredIt->second )
 					{
 						BoundingOrientedBox subBox = MakeAuthoredLocalOOBB(
@@ -340,18 +331,6 @@ void CColliderComponent::BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>&
 				}
 
 				continue;
-			}
-
-			if ( !mStaticSubMeshAuthoredOOBBs.empty() && hasAuthoringPath )
-			{
-				char missBuf[1024] = {};
-				sprintf_s(
-					missBuf,
-					"[CubeBoxColliderReport MISS] submeshName=\"%s\" authoringPath=\"%s\"\n",
-					submesh.meshName.c_str(),
-					submesh.authoringPath.c_str()
-				);
-				OutputDebugStringA(missBuf);
 			}
 
 			if ( submesh.hasExplicitLocalOOBB )
