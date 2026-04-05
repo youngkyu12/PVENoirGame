@@ -45,6 +45,8 @@ public:
     bool IsActionLocked() const;
 	bool IsActionActive() const { return m_actionPhase != EActionPhase::None; }
 
+	EAnimState GetAnimState() const { return m_state; }
+
     void Update(float dt);
 	void NetworkUpdate(float dt);
 	void LocalUpdate(float dt);
@@ -81,6 +83,12 @@ private:
         Hit,
         Roll
     };
+
+public:
+	bool IsGenericAttackPhase() const { return m_actionPhase == EActionPhase::AttackGeneric; }
+	bool IsRollPhase() const { return m_actionPhase == EActionPhase::Roll; }
+
+	bool IsMeleeAttackHitboxActive() const;
 
 private:
     std::string ResolveIdleClip() const;

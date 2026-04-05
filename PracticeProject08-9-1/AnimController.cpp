@@ -1078,3 +1078,24 @@ void CAnimController::RequestHit()
 
     m_hitQueued = true;
 }
+
+bool CAnimController::IsMeleeAttackHitboxActive() const
+{
+	// 핵심:
+	// Roll / Hit / Bow_Load / Bow_Release / Gun_Shoot 는 모두 제외
+	if ( m_actionPhase != EActionPhase::AttackGeneric )
+		return false;
+
+	switch ( GetEquippedWeaponType(m_pOwner) )
+	{
+	case EWeaponType::Sword:
+	case EWeaponType::Axe:
+		return true;
+
+	case EWeaponType::Bow:
+	case EWeaponType::Gun:
+	case EWeaponType::None:
+	default:
+		return false;
+	}
+}

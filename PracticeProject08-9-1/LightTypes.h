@@ -4,8 +4,8 @@
 #pragma once
 #include "stdafx.h"
 
-// MAX_LIGHTS / POINT_LIGHT / SPOT_LIGHT / DIRECTIONAL_LIGHT ´Â
-// ±âÁ¸¿¡ ¾²´ø °÷(Shader.h µî)¿¡ ÀÌ¹Ì Á¤ÀÇµÅ ÀÖ´Ù°í °¡Á¤.
+// MAX_LIGHTS / POINT_LIGHT / SPOT_LIGHT / DIRECTIONAL_LIGHT ëŠ”
+// ê¸°ì¡´ì— ì“°ë˜ ê³³(Shader.h ë“±)ì— ì´ë¯¸ ì •ì˜ë¼ ìˆë‹¤ê³  ê°€ì •.
 
 struct LIGHT
 {
@@ -18,7 +18,7 @@ struct LIGHT
     float    m_fTheta; // cos(theta)
     XMFLOAT3 m_xmf3Attenuation;
     float    m_fPhi;   // cos(phi)
-    bool     m_bEnable;
+	UINT     m_bEnable;
     int      m_nType;
     float    m_fRange;
     float    padding;
@@ -26,6 +26,6 @@ struct LIGHT
 
 struct LIGHTS
 {
-    LIGHT    m_pLights[MAX_LIGHTS];
-    XMFLOAT4 m_xmf4GlobalAmbient;
+	LIGHT    m_pLights[MAX_LIGHTS];
+	XMFLOAT4 m_xmf4GlobalAmbient;
 };

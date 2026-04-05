@@ -7,7 +7,7 @@
 
 #define WIN32_LEAN_AND_MEAN             // 거의 사용되지 않는 내용은 Windows 헤더에서 제외합니다.
 
-#define USING_NETWORK					// 네트워크 사용 여부
+//#define USING_NETWORK					// 네트워크 사용 여부
 
 //ServerCore
 #ifdef _DEBUG
@@ -84,7 +84,7 @@ using Microsoft::WRL::ComPtr;
 #define FRAME_BUFFER_WIDTH		640
 #define FRAME_BUFFER_HEIGHT		480
 
-#define MAX_LIGHTS				8 
+#define MAX_LIGHTS				4
 #define MAX_MATERIALS			256 
 #define MAX_BONES				256
 
