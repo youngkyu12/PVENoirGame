@@ -1,4 +1,16 @@
 #pragma once
+#include "MathHelper.h"
+#include <DirectXMath.h>
+#include <DirectXCollision.h>
+#include <cstdint>
+using namespace DirectX;
+
+enum class EDirection : uint8_t
+{
+	X = 0,
+	Y,
+	Z
+};
 
 struct BoundingCapsule
 {
@@ -28,25 +40,25 @@ struct BoundingCapsule
 
     ContainmentType Contains(FXMVECTOR Point) const noexcept;
     ContainmentType Contains(FXMVECTOR V0, FXMVECTOR V1, FXMVECTOR V2) const noexcept;
-    ContainmentType Contains(const BoundingSphere& sh) const noexcept;
-    ContainmentType Contains(const BoundingBox& box) const noexcept;
+    //ContainmentType Contains(const BoundingSphere& sh) const noexcept;
+    //ContainmentType Contains(const BoundingBox& box) const noexcept;
     ContainmentType Contains(const BoundingOrientedBox& box) const noexcept;
     ContainmentType Contains(const BoundingFrustum& fr) const noexcept;
     ContainmentType Contains(const BoundingCapsule& ca) const noexcept;
 
-    bool Intersects(const BoundingSphere& sh) const noexcept;
-    bool Intersects(const BoundingBox& box) const noexcept;
+    //bool Intersects(const BoundingSphere& sh) const noexcept;
+    //bool Intersects(const BoundingBox& box) const noexcept;
     bool Intersects(const BoundingOrientedBox& box) const noexcept;
     bool Intersects(const BoundingFrustum& fr) const noexcept;
     bool Intersects(const BoundingCapsule& ca) const noexcept;
 
     bool Intersects( FXMVECTOR V0,  FXMVECTOR V1,  FXMVECTOR V2) const noexcept;
 
-    PlaneIntersectionType Intersects( FXMVECTOR Plane) const noexcept;
+    //PlaneIntersectionType Intersects( FXMVECTOR Plane) const noexcept;
 
-    bool Intersects( FXMVECTOR Origin,  FXMVECTOR Direction,  float& Dist) const noexcept;
+   // bool Intersects( FXMVECTOR Origin,  FXMVECTOR Direction,  float& Dist) const noexcept;
     // Ray-sphere test
 
-    ContainmentType ContainedBy( FXMVECTOR Plane0,  FXMVECTOR Plane1,  FXMVECTOR Plane2,
-         GXMVECTOR Plane3,  HXMVECTOR Plane4,  HXMVECTOR Plane5) const noexcept;
+    //ContainmentType ContainedBy( FXMVECTOR Plane0,  FXMVECTOR Plane1,  FXMVECTOR Plane2,
+    //     GXMVECTOR Plane3,  HXMVECTOR Plane4,  HXMVECTOR Plane5) const noexcept;
 };
