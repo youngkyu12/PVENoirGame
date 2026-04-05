@@ -245,7 +245,7 @@ T* CGameObject::AddComponent(Args&&... args)
 		if (base->IsRenderer())
 			m_pRenderer = static_cast<CRendererComponent*>(base); 
 
-		if constexpr ( std::is_same_v<T, CTransformComponent> )
+		/*if constexpr ( std::is_same_v<T, CTransformComponent> )
 			m_pTransform = raw;
 		else if constexpr ( std::is_same_v<T, CModelComponent> )
 			m_pModel = raw;
@@ -255,8 +255,8 @@ T* CGameObject::AddComponent(Args&&... args)
 			m_pSkinning = raw;
 		else if constexpr ( std::is_same_v<T, CAnimatorComponent> )
 			m_pAnimatorComponent = raw;
-		else if constexpr ( std::is_same_v<T, CColliderComponent> )
-			m_pCollider = raw;
+		else if constexpr ( std::is_same_v<T, CColliderComponent> )*/
+			//m_pCollider = raw;
 	}
 
 	m_components.emplace_back(std::move(comp));
