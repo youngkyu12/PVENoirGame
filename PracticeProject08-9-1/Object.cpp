@@ -377,7 +377,9 @@ void CGameObject::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 // ============================================================================
 bool CGameObject::IsVisible(CCamera* pCamera)
 {
-	
+	if ( !pCamera || !m_pCollider )
+		return true;
+
 	bool bIsVisible = false;
 	switch ( m_pCollider->GetType() )
 	{
