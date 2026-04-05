@@ -239,7 +239,7 @@ bool BoundingCapsule::Intersects(const BoundingFrustum& fr) const noexcept
 
 		
 		// 두 끝점이 모두 반지름 보정 후에도 평면 바깥이면 캡슐은 프러스텀과 비충돌
-		if ( fA < 0.0f && fB < 0.0f )
+		if ( fA > 0.0f && fB > 0.0f )
 			return false;
 		
 		// 선분 두 끝점 이외에 안쪽 점들 확인
