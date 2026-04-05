@@ -146,9 +146,9 @@ private:
 
     void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd);
 	void BuildStaticInstanceGroups();
-	void RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	void RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd);
 	void BuildSkinnedInstanceGroups();
-	void RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	void RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd);
 
     // Frame / Render
 public:
@@ -158,6 +158,7 @@ public:
 
     void OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera) override;
     void Render(ID3D12GraphicsCommandList* cmd, CCamera* camera = nullptr) override;
+
 
     // Input (messages) : 게임에서는 좌클릭 공격
 public:
@@ -236,7 +237,7 @@ private:
 
     SCENE_STATIC_BATCH  m_staticBatch;
     SCENE_SKINNED_BATCH m_skinnedBatch;
-	SCENE_COLLIDER_BATCH m_colliderBatch;
+	SCENE_COLLIDER_BATCH m_colliderbatch;
 
     std::vector<CGameObject*> m_swordManRefs;
     std::vector<CGameObject*> m_bowManRefs;

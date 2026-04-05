@@ -327,9 +327,5 @@ void CDescriptorHeap::CreateShaderResourceViewsOther(
 		return;
 
     pTexture->SetBaseSrvIndex(baseIndex);
-    CreateShaderResourceViews(
-		pd3dDevice, 
-		pTexture, 
-		baseIndex, 
-		nRootParameterStartIndex);
+    CreateShaderResourceViews(pd3dDevice, pTexture, baseIndex, nRootParameterStartIndex);
 }

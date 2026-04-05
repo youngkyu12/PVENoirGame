@@ -561,16 +561,15 @@ void CColliderComponent::OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*)
 
 void CColliderComponent::SetAABB(const XMFLOAT3& Min, const XMFLOAT3& Max)
 {
-    XMFLOAT3 Center = XMFLOAT3(
+    LocalAABB.Center = XMFLOAT3(
         (Min.x + Max.x) * 0.5f,
         (Min.y + Max.y) * 0.5f,
         (Min.z + Max.z) * 0.5f);
 
-	XMFLOAT3 Extents = XMFLOAT3(
+    LocalAABB.Extents = XMFLOAT3(
         (Max.x - Min.x) * 0.5f,
         (Max.y - Min.y) * 0.5f,
         (Max.z - Min.z) * 0.5f);
-
 }
 
 void CColliderComponent::SetOOBB(const XMFLOAT3& Min, const XMFLOAT3& Max)

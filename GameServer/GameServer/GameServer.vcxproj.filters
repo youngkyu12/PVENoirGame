@@ -99,6 +99,9 @@
     <ClCompile Include="CWeapon.cpp">
       <Filter>GameObject\Player</Filter>
     </ClCompile>
+    <ClCompile Include="BoundingCapsule.cpp" />
+    <ClCompile Include="ColliderComponent.cpp" />
+    <ClCompile Include="CollisionSystem.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -146,6 +149,9 @@
     <ClInclude Include="CWeapon.h">
       <Filter>GameObject\Player</Filter>
     </ClInclude>
+    <ClInclude Include="BoundingCapsule.h" />
+    <ClInclude Include="ColliderComponent.h" />
+    <ClInclude Include="CollisionSystem.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\Common\Protobuf\bin\Enum.proto">

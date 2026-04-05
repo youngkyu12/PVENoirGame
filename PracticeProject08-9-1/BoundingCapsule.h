@@ -1,16 +1,4 @@
 #pragma once
-#include "MathHelper.h"
-#include <DirectXMath.h>
-#include <DirectXCollision.h>
-#include <cstdint>
-using namespace DirectX;
-
-enum class EDirection : uint8_t
-{
-	X = 0,
-	Y,
-	Z
-};
 
 struct BoundingCapsule
 {
@@ -54,11 +42,11 @@ struct BoundingCapsule
 
     bool Intersects( FXMVECTOR V0,  FXMVECTOR V1,  FXMVECTOR V2) const noexcept;
 
-    //PlaneIntersectionType Intersects( FXMVECTOR Plane) const noexcept;
+    PlaneIntersectionType Intersects( FXMVECTOR Plane) const noexcept;
 
-   // bool Intersects( FXMVECTOR Origin,  FXMVECTOR Direction,  float& Dist) const noexcept;
+    bool Intersects( FXMVECTOR Origin,  FXMVECTOR Direction,  float& Dist) const noexcept;
     // Ray-sphere test
 
-    //ContainmentType ContainedBy( FXMVECTOR Plane0,  FXMVECTOR Plane1,  FXMVECTOR Plane2,
-    //     GXMVECTOR Plane3,  HXMVECTOR Plane4,  HXMVECTOR Plane5) const noexcept;
+    ContainmentType ContainedBy( FXMVECTOR Plane0,  FXMVECTOR Plane1,  FXMVECTOR Plane2,
+         GXMVECTOR Plane3,  HXMVECTOR Plane4,  HXMVECTOR Plane5) const noexcept;
 };
