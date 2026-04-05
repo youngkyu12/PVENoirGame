@@ -412,6 +412,8 @@ bool CGameObject::IsVisible(CCamera* pCamera)
 		bIsVisible = true;
 		break;
 	}
+
+	//return bIsVisible;
 }
 // ============================================================================
 // Movement helpers
