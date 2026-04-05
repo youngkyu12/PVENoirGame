@@ -80,7 +80,7 @@ bool BoundingCapsule::Intersects(const BoundingSphere& sh) const noexcept
 	XMVECTOR B = XMLoadFloat3(&p1);
 	XMVECTOR C = XMLoadFloat3(&sh.Center);
 
-	const float distSq = Vector3::distPointToSegment(A, B, C);
+	const float distSq = Collide::distPointToSegment(A, B, C);
 	const float r = Radius + sh.Radius;
 
 	return distSq <= ( r * r );
@@ -98,7 +98,7 @@ bool BoundingCapsule::Intersects(const BoundingBox& box) const noexcept
 	XMVECTOR ALocal = XMVectorSubtract(A, center);
 	XMVECTOR BLocal = XMVectorSubtract(B, center);
 
-	const float distSq = Vector3::distSegmentToAABB(ALocal, BLocal, extents);
+	const float distSq = Collide::distSegmentToAABB(ALocal, BLocal, extents);
 	return distSq <= ( Radius * Radius );
 }
 

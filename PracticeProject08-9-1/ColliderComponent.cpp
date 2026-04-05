@@ -954,7 +954,7 @@ void CColliderComponent::BuildBoneCapsulesFromSkeleton()
 						continue;
 
 					const XMVECTOR P = XMLoadFloat3(&sm.positions[v]);
-					const float distSq = Vector3::distPointToSegment(A, B, P);
+					const float distSq = Collide::distPointToSegment(A, B, P);
 					const float dist = sqrtf(distSq);
 
 					if ( dist > maxRadius )
