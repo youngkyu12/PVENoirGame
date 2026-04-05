@@ -1,6 +1,5 @@
 #include "stdafx.h"
 #include "BoundingCapsule.h"
-#include <sstream>
 
 void BoundingCapsule::Transform(BoundingCapsule& Out, FXMMATRIX M) const noexcept
 {

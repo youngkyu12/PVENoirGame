@@ -373,6 +373,28 @@ void CGameObject::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 }
 
 // ============================================================================
+// Camera Visible
+// ============================================================================
+bool CGameObject::IsVisible(CCamera* pCamera)
+{
+	
+	bool bIsVisible = false;
+	switch ( m_pCollider->GetType() )
+	{
+	case EColliderType::OOBB:
+	{
+		BoundingOrientedBox xmBoundingBox = m_pCollider->GetOOBB();
+		bIsVisible = pCamera->IsInFrustum(xmBoundingBox);
+		break;
+	}
+	default:
+		break;
+	}
+
+	return( bIsVisible );
+}
+
+// ============================================================================
 // Movement helpers
 // ============================================================================
 void CGameObject::MoveStrafe(float fDistance)

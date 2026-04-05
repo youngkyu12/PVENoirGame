@@ -140,11 +140,6 @@ void CCollisionSystem::UnregisterCollider(CColliderComponent* c)
     mColliders.erase(it, mColliders.end());
 }
 
-void CCollisionSystem::SetBoundingFrustum(const BoundingFrustum& BFrustum)
-{
-	mCameraCollider = BFrustum;
-}
-
 size_t CCollisionSystem::GetColiidersNum() const
 {
 	return mColliders.size();
@@ -247,9 +242,6 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 		( a->GetType() == EColliderType::BCapsule && b->GetType() == EColliderType::OOBB ) ||
 		( a->GetType() == EColliderType::OOBB && b->GetType() == EColliderType::BCapsule );
 
-	if ( isCapsuleVsOOBB )
-		return;
-
 	if ( !pushedCollider )
 		return;
 
@@ -278,44 +270,16 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 	transform->Translate(pos);
 }
 
-bool CCollisionSystem::IsVisible(const BoundingFrustum& frustum, const CColliderComponent* collider)
-{
-	if ( collider->GetType() == EColliderType::BCapsule )
-	{
-		return collider->GetBCapsule().Intersects(frustum);
-	}
-	else if ( collider->GetType() == EColliderType::OOBB )
-	{
-		return collider->GetOOBB().Intersects(frustum);
-	}
-  return false;
-}
-
 void CCollisionSystem::OnUpdate()
 {
     // 전수검사: i<j
     
 	const size_t n = mColliders.size();
 
-	/*for ( size_t i = 0; i < n; ++i )
-	{
-		auto* a = mColliders[i];
-
-		if ( !a ) 
-			continue;
-
-		if ( !IsVisible(mCameraCollider, a) )
-		{
-			a->DisabledRender();
-			continue;
-		}
-	}*/
-
     for (size_t i = 0; i < n; ++i)
     {
         auto* a = mColliders[i];
-		if ( !a->IsRender() ) continue;
-		else if ( !a )continue;
+		if ( !a )continue;
 
         for (size_t j = i + 1; j < n; ++j)
         {

@@ -70,6 +70,10 @@ public:
 	virtual void OnPrepareRender(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera);
 	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera = nullptr);
 
+	// Camera Visible
+public:
+	bool IsVisible(CCamera* pCamera = nullptr);
+
 	// Movement helpers (legacy convenience)
 public:
 	void MoveStrafe(float fDistance = 1.0f);
