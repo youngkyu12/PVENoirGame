@@ -296,6 +296,11 @@ private:
 private:
     bool LoadStaticPlacementFile(const std::string& filePath);
 	bool LoadSceneCubeBoxColliderReport(const std::string& filePath);
+	bool ExportStaticWorldLocalOOBBReport(
+	const std::string& filePath,
+	const std::vector<size_t>& placementIndices,
+	const std::vector<CGameObject*>& objects
+	) const;
 	void ResetStaticPlacementCounts();
     void ApplyStaticPlacementCounts();
     static float QuaternionToYawDegrees(const XMFLOAT4& q);
