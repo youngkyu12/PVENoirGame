@@ -289,6 +289,7 @@
     <ClInclude Include="BulletComponent.h">
       <Filter>Components\Bullet</Filter>
     </ClInclude>
+    <ClInclude Include="MathHelper.h" />
     <ClInclude Include="BoundingCapsule.h">
       <Filter>BoundingCapsule</Filter>
     </ClInclude>
