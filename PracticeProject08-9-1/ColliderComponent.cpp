@@ -163,15 +163,16 @@ void CColliderComponent::OnUpdate(float dt)
 
 void CColliderComponent::SetAABB(const XMFLOAT3& Min, const XMFLOAT3& Max)
 {
-    LocalAABB.Center = XMFLOAT3(
+    XMFLOAT3 Center = XMFLOAT3(
         (Min.x + Max.x) * 0.5f,
         (Min.y + Max.y) * 0.5f,
         (Min.z + Max.z) * 0.5f);
 
-    LocalAABB.Extents = XMFLOAT3(
+	XMFLOAT3 Extents = XMFLOAT3(
         (Max.x - Min.x) * 0.5f,
         (Max.y - Min.y) * 0.5f,
         (Max.z - Min.z) * 0.5f);
+
 }
 
 void CColliderComponent::SetOOBB(const XMFLOAT3& Min, const XMFLOAT3& Max)
@@ -316,6 +317,7 @@ void CColliderComponent::SetSubBCapsule(const XMFLOAT3& Min, const XMFLOAT3& Max
     }
     else {
         Capsule.Height = dz;
+		LocalBCapsule.Radius = max(dx, dy) * 0.5f;
         const float halfSegment = max(0.0f, dz * 0.5f - Capsule.Radius);
 
         Capsule.p0 = XMFLOAT3(

@@ -2,10 +2,9 @@
 #include "Component.h"
 #include "ModelComponent.h"
 #include "RendererComponent.h"
-#include <vector>
-#include <unordered_map>
-#include <string>
 #include "BoundingCapsule.h"
+#include "MathHelper.h"
+
 class CTransformComponent;
 
 struct MeshOOBBSet

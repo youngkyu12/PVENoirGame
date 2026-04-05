@@ -55,18 +55,24 @@ public:
 
 	virtual void SetViewportsAndScissorRects(ID3D12GraphicsCommandList *pd3dCommandList);
 
+	//절두체(월드 좌표계)를 생성한다.
+	void GenerateFrustum();
 	void GenerateViewMatrix();
 	void GenerateViewMatrix(XMFLOAT3 xmf3Position, XMFLOAT3 xmf3LookAt, XMFLOAT3 xmf3Up);
 	void RegenerateViewMatrix();
 
 	void GenerateProjectionMatrix(float fNearPlaneDistance, float fFarPlaneDistance, float fAspectRatio, float fFOVAngle);
 
+	//바운딩 박스(OOBB, 월드 좌표계)가 절두체에 포함되는 가를 검사한다.
+	bool IsInFrustum(BoundingBox& xmBoundingBox);
+	bool IsInFrustum(BoundingOrientedBox& xmBoundingBox);
+	bool IsInFrustum(BoundingCapsule& xmBoundingBox);
+
 	void SetViewport(int xTopLeft, int yTopLeft, int nWidth, int nHeight, float fMinZ = 0.0f, float fMaxZ = 1.0f);
 	void SetScissorRect(LONG xLeft, LONG yTop, LONG xRight, LONG yBottom);
 
 	void SetTarget(CGameObject* target) { m_pTarget = target; }
 	CGameObject* GetTarget() const { return m_pTarget; }
-	
 
 	void SetMode(DWORD nMode) { m_nMode = nMode; }
 	DWORD GetMode() { return(m_nMode); }

@@ -269,6 +269,7 @@
     <ClInclude Include="BulletComponent.h">
       <Filter>Components\Bullet</Filter>
     </ClInclude>
+    <ClInclude Include="MathHelper.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
