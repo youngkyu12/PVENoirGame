@@ -179,7 +179,10 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="BoundingCapsule.cpp" />
     <ClCompile Include="Building.cpp" />
+    <ClCompile Include="ColliderComponent.cpp" />
+    <ClCompile Include="CollisionSystem.cpp" />
     <ClCompile Include="CommonPlayerControllerComponent_Server.cpp" />
     <ClCompile Include="CWeapon.cpp" />
     <ClCompile Include="Enemy.cpp" />
@@ -224,7 +227,10 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BoundingCapsule.h" />
     <ClInclude Include="Building.h" />
+    <ClInclude Include="ColliderComponent.h" />
+    <ClInclude Include="CollisionSystem.h" />
     <ClInclude Include="CWeapon.h" />
     <ClInclude Include="Enemy.h" />
     <ClInclude Include="Enum.pb.h" />

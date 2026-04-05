@@ -1,5 +1,6 @@
 #pragma once
 #include "JobQueue.h"
+#include "CollisionSystem.h"
 
 namespace Protocol
 {
@@ -41,6 +42,17 @@ public:
 	map<uint64, EnemyRef> GetEnemies() { return enemies; }
 
 private:
+	void InitializeCollisionSystem();
+	void RegisterStaticCollider(BuildingRef building);
+	void RegisterDynamicCollider(const shared_ptr<CServerObject>& obj);
+
+	CCollisionSystem* GetCollisionSystem() const { return _collision.get(); }
+
+	void ResolveWorldStaticCollision(const shared_ptr<CServerObject>& obj, const GameMath::Vec3& previousPos);
+	GameMath::Vec3 ResolvePreBlockedShift(const shared_ptr<CServerObject>& obj, const GameMath::Vec3& desiredShift);
+
+	std::unique_ptr<CCollisionSystem> _collision;
+
     USE_LOCK;
     map<uint64, PlayerRef> players; // 전체 플레이어 참조
 	map<uint64, EnemyRef> fighters; //  특수 적 참조 (옵션)
