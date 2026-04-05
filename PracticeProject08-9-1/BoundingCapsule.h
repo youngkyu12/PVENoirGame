@@ -40,14 +40,14 @@ struct BoundingCapsule
 
     ContainmentType Contains(FXMVECTOR Point) const noexcept;
     ContainmentType Contains(FXMVECTOR V0, FXMVECTOR V1, FXMVECTOR V2) const noexcept;
-    //ContainmentType Contains(const BoundingSphere& sh) const noexcept;
-    //ContainmentType Contains(const BoundingBox& box) const noexcept;
+    ContainmentType Contains(const BoundingSphere& sh) const noexcept;
+    ContainmentType Contains(const BoundingBox& box) const noexcept;
     ContainmentType Contains(const BoundingOrientedBox& box) const noexcept;
     ContainmentType Contains(const BoundingFrustum& fr) const noexcept;
     ContainmentType Contains(const BoundingCapsule& ca) const noexcept;
 
-    //bool Intersects(const BoundingSphere& sh) const noexcept;
-    //bool Intersects(const BoundingBox& box) const noexcept;
+    bool Intersects(const BoundingSphere& sh) const noexcept;
+    bool Intersects(const BoundingBox& box) const noexcept;
     bool Intersects(const BoundingOrientedBox& box) const noexcept;
     bool Intersects(const BoundingFrustum& fr) const noexcept;
     bool Intersects(const BoundingCapsule& ca) const noexcept;
