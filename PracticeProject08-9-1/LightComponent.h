@@ -36,7 +36,7 @@ public:
     {
         ::ZeroMemory(&out, sizeof(LIGHT));
 
-        out.m_bEnable = IsEnabled();
+		out.m_bEnable = IsEnabled() ? 1u : 0u;
         out.m_nType = (int)type;
 
         out.m_xmf4Ambient = ambient;
@@ -53,7 +53,7 @@ public:
         if (auto* tr = GetOwner()->GetComponent<CTransformComponent>())
         {
             out.m_xmf3Position = tr->position;
-            out.m_xmf3Direction = tr->GetLook(); // TransformÀÇ forward
+            out.m_xmf3Direction = tr->GetLook(); // Transformì˜ forward
         }
     }
 };

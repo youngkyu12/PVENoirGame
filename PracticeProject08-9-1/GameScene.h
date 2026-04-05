@@ -8,6 +8,7 @@
 #include "Shader.h"
 #include "LightTypes.h"
 #include "SceneRenderTypes.h"
+#include "ColliderComponent.h"
 
 class CMaterial;
 class CMesh;
@@ -18,6 +19,7 @@ class CBulletComponent;
 class CGameObject;
 class CCollisionSystem;
 class CTexture;
+class CNavMesh;
 
 struct CB_GAMEOBJECT_INFO;
 struct AttachmentBindSpec
@@ -176,6 +178,9 @@ public:
     void SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex);
     void SetInactiveOverlayVisible(bool visible) { m_bInactiveOverlayVisible = visible; }
 
+	CNavMesh* GetNavMesh() { return m_navMesh.get(); }
+	const CNavMesh* GetNavMesh() const { return m_navMesh.get(); }
+
     CGameObject* GetDemoFighter(int index) const;
     void RequestDemoFighterAttack(int index);
 
@@ -286,16 +291,19 @@ private:
     MATERIAL* m_pcbMappedMaterials = nullptr;
 
     unique_ptr<CCollisionSystem> m_Collision;
+	std::unique_ptr<CNavMesh> m_navMesh;
 
 private:
     bool LoadStaticPlacementFile(const std::string& filePath);
-    void ResetStaticPlacementCounts();
+	bool LoadSceneCubeBoxColliderReport(const std::string& filePath);
+	void ResetStaticPlacementCounts();
     void ApplyStaticPlacementCounts();
     static float QuaternionToYawDegrees(const XMFLOAT4& q);
 
 private:
     std::vector<StaticPlacementEntry>   m_staticPlacementEntries;
-    
+	std::unordered_map<std::string, std::unordered_map<std::string, std::vector<AuthoredSubMeshOOBB>>> mSceneCubeBoxColliderTable;
+
 	std::vector<StaticInstanceGroup>    m_staticInstanceGroups;
 	ComPtr<ID3D12Resource>              m_pd3dStaticInstanceBuffer;
 	StaticInstanceVertex* m_pMappedStaticInstanceBuffer = nullptr;
@@ -317,6 +325,11 @@ private:
 	XMFLOAT4X4* m_pMappedSkinnedBonePaletteBuffer = nullptr;
 	UINT                                m_skinnedBonePaletteStride = 0;
 	UINT                                m_skinnedBonePaletteCapacity = 0;
+	
+	void BuildStaticWorldSubmeshOOBBDebugObjects(
+	ID3D12Device* dev,
+	ID3D12GraphicsCommandList* cmd
+	);
 public:
     bool IsPointInPauseOverlay(POINT clientPt) const;
 

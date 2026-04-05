@@ -9,6 +9,42 @@
 #include "Animator.h"
 #include "Object.h"
 
+static std::string NormalizeMaterialLikeName(const std::string& text)
+{
+	std::string out = text;
+
+	std::transform(out.begin(), out.end(), out.begin(),
+		[ ] (unsigned char c) { return ( char ) std::tolower(c); });
+
+	const std::string instanceTag = "(instance)";
+	size_t pos = std::string::npos;
+	while ( ( pos = out.find(instanceTag) ) != std::string::npos )
+		out.erase(pos, instanceTag.size());
+
+	out.erase(
+		std::remove_if(out.begin(), out.end(),
+			[ ] (unsigned char c)
+			{
+				return c == ' ' || c == '-' || c == '_';
+			}),
+		out.end()
+	);
+
+	return out;
+}
+
+static bool StartsWithCubePrefix(const std::string& text)
+{
+	return text.rfind("Cube", 0) == 0;
+}
+
+static bool IsColliderHelperSubMesh(const SubMesh& sm)
+{
+	return
+		StartsWithCubePrefix(sm.meshName) &&
+		NormalizeMaterialLikeName(sm.materialName) == "defaultmaterial";
+}
+
 static void RecomputeVertexNormals(SubMesh& sm)
 {
 	sm.normals.assign(sm.positions.size(), XMFLOAT3(0, 0, 0));
@@ -108,10 +144,13 @@ void CMesh::Render(ID3D12GraphicsCommandList* cmd, CB_GAMEOBJECT_INFO* /*objCB*/
 {
     cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    for (auto& sm : m_SubMeshes)
-    {
-        const UINT mid = (sm.materialId == 0xFFFFFFFFu) ? 0u : sm.materialId;
-        cmd->SetGraphicsRoot32BitConstant(ROOT_PARAMETER_MATERIAL_ID, mid, 0);
+	for ( auto& sm : m_SubMeshes )
+	{
+		if ( sm.isColliderHelper )
+			continue;
+
+		const UINT mid = ( sm.materialId == 0xFFFFFFFFu ) ? 0u : sm.materialId; 
+		cmd->SetGraphicsRoot32BitConstant(ROOT_PARAMETER_MATERIAL_ID, mid, 0);
 
         if (sm.material && sm.material->NeedsLegacyBinding())
             sm.material->UpdateShaderVariables(cmd);
@@ -198,7 +237,7 @@ void CMesh::LoadMeshFromBIN(
     if (!ReadUInt32(subMeshCount)) return;
 
 
-	if ( version != 1 && version != 2 && version != 3 )
+	if ( version != 1 && version != 2 && version != 3 && version != 4 && version != 5 )
 		return;
 
     // 기존 데이터 정리
@@ -339,16 +378,57 @@ void CMesh::LoadMeshFromBIN(
     {
         SubMesh sm{};
 
-        // 3-1) meshName / materialIndex
-        if (!ReadString(sm.meshName)) 
-            return;
+		// 3-1) meshName / authoringPath / materialIndex
+		if ( !ReadString(sm.meshName) )
+			return;
 
-        uint32_t matIndex = 0;
-        if (!ReadUInt32(matIndex)) 
-            return;
+		if ( version >= 4 )
+		{
+			if ( !ReadString(sm.authoringPath) )
+				return;
+		}
+		else
+		{
+			sm.authoringPath.clear();
+		}
 
-        sm.materialIndex = matIndex;
-        sm.materialId = matIndex; // 현재는 materialIndex == shader materialId로 사용
+		uint32_t matIndex = 0;
+		if ( !ReadUInt32(matIndex) )
+			return;
+
+		sm.materialIndex = matIndex;
+		sm.materialId = matIndex; // 현재는 materialIndex == shader materialId로 사용
+
+		if ( version >= 5 )
+		{
+			uint32_t hasExplicitLocalOOBB = 0;
+			float obbMatrix[16];
+
+			if ( !ReadUInt32(hasExplicitLocalOOBB) )
+				return;
+			if ( !ReadRaw(obbMatrix, sizeof(obbMatrix)) )
+				return;
+
+			sm.hasExplicitLocalOOBB = ( hasExplicitLocalOOBB != 0 );
+
+			for ( int r = 0; r < 4; ++r )
+			{
+				for ( int c = 0; c < 4; ++c )
+				{
+					sm.explicitLocalOOBBMatrix.m[r][c] = obbMatrix[r * 4 + c];
+				}
+			}
+		}
+		else
+		{
+			sm.hasExplicitLocalOOBB = false;
+			sm.explicitLocalOOBBMatrix = XMFLOAT4X4(
+				1.0f, 0.0f, 0.0f, 0.0f,
+				0.0f, 1.0f, 0.0f, 0.0f,
+				0.0f, 0.0f, 1.0f, 0.0f,
+				0.0f, 0.0f, 0.0f, 1.0f
+			);
+		}
 
         // materialName / diffuseTextureName 채우기
 		if ( matIndex < m_BinMaterials.size() )
@@ -392,7 +472,7 @@ void CMesh::LoadMeshFromBIN(
             sm.materialName = m_BinMaterials[matIndex].name;
         else
             sm.materialName.clear();
-
+		sm.isColliderHelper = IsColliderHelperSubMesh(sm);
 
         // 3-2) vertexCount / indexCount
         uint32_t vertexCount = 0;
@@ -460,13 +540,16 @@ void CMesh::LoadMeshFromBIN(
             sm.subMeshMax.z = max(sm.subMeshMax.z, pos[2]);
         }
        
-        MeshMin.x = min(MeshMin.x, sm.subMeshMin.x);
-        MeshMin.y = min(MeshMin.y, sm.subMeshMin.y);
-        MeshMin.z = min(MeshMin.z, sm.subMeshMin.z);
+		if ( !sm.isColliderHelper )
+		{
+			MeshMin.x = min(MeshMin.x, sm.subMeshMin.x);
+			MeshMin.y = min(MeshMin.y, sm.subMeshMin.y);
+			MeshMin.z = min(MeshMin.z, sm.subMeshMin.z);
 
-        MeshMax.x = max(MeshMax.x, sm.subMeshMax.x);
-        MeshMax.y = max(MeshMax.y, sm.subMeshMax.y);
-        MeshMax.z = max(MeshMax.z, sm.subMeshMax.z);
+			MeshMax.x = max(MeshMax.x, sm.subMeshMax.x);
+			MeshMax.y = max(MeshMax.y, sm.subMeshMax.y);
+			MeshMax.z = max(MeshMax.z, sm.subMeshMax.z);
+		}
 
         // 3-4) 인덱스 데이터
         for (uint32_t ii = 0; ii < indexCount; ++ii)
@@ -697,9 +780,12 @@ int CMesh::CheckRayIntersection(XMVECTOR& rayOrigin, XMVECTOR& rayDir, float* pf
     int hitCount = 0;
     float nearest = FLT_MAX;
 
-    for (auto& sm : m_SubMeshes)
-    {
-        const auto& pos = sm.positions;
+	for ( auto& sm : m_SubMeshes )
+	{
+		if ( sm.isColliderHelper )
+			continue;
+
+		const auto& pos = sm.positions;
         const auto& idx = sm.indices;
 
         for (size_t i = 0; i < idx.size(); i += 3)

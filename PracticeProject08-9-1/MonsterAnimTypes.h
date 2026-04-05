@@ -9,7 +9,8 @@
 enum class EMonsterAnimState : uint8_t
 {
 	Idle = 0,
-	Move
+	Move,
+	Run
 };
 
 enum class EMonsterAnimCommand : uint8_t
@@ -27,6 +28,7 @@ struct MonsterAnimProfile
 {
 	std::string idleClip;
 	std::string moveClip;
+	std::string runClip;
 
 	std::string hitClip;
 	std::string deathClip;

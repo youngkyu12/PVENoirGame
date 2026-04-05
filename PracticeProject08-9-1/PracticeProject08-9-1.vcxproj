@@ -180,6 +180,7 @@
     <ClInclude Include="FollowBoneComponent.h" />
     <ClInclude Include="GameFramework.h" />
     <ClInclude Include="GameScene.h" />
+    <ClInclude Include="GhoulAIComponent.h" />
     <ClInclude Include="GlobalEnum.h" />
     <ClInclude Include="GlobalValues.h" />
     <ClInclude Include="InitStruct.pb.h" />
@@ -189,8 +190,12 @@
     <ClInclude Include="MenuScene.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="ModelComponent.h" />
+    <ClInclude Include="MonsterAIComponent.h" />
     <ClInclude Include="MonsterAnimController.h" />
     <ClInclude Include="MonsterAnimTypes.h" />
+    <ClInclude Include="MonsterCombatComponent.h" />
+    <ClInclude Include="MonsterWeaponHitboxComponent.h" />
+    <ClInclude Include="NavMesh.h" />
     <ClInclude Include="NetworkQueue.h" />
     <ClInclude Include="Object.h" />
     <ClInclude Include="PlayerControllerComponent.h" />
@@ -214,6 +219,7 @@
     <ClInclude Include="Texture.h" />
     <ClInclude Include="Timer.h" />
     <ClInclude Include="MathHelper.h" />
+    <ClInclude Include="WeaponHitboxComponent.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ActorTagComponent.cpp" />
@@ -243,6 +249,7 @@
     <ClCompile Include="FollowBoneComponent.cpp" />
     <ClCompile Include="GameFramework.cpp" />
     <ClCompile Include="GameScene.cpp" />
+    <ClCompile Include="GhoulAIComponent.cpp" />
     <ClCompile Include="GlobalValues.cpp" />
     <ClCompile Include="InitStruct.pb.cc">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
@@ -253,7 +260,11 @@
     <ClCompile Include="MenuScene.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="ModelComponent.cpp" />
+    <ClCompile Include="MonsterAIComponent.cpp" />
     <ClCompile Include="MonsterAnimController.cpp" />
+    <ClCompile Include="MonsterCombatComponent.cpp" />
+    <ClCompile Include="MonsterWeaponHitboxComponent.cpp" />
+    <ClCompile Include="NavMesh.cpp" />
     <ClCompile Include="NetworkQueue.cpp" />
     <ClCompile Include="Object.cpp" />
     <ClCompile Include="PlayerControllerComponent.cpp" />
@@ -285,6 +296,7 @@
     </ClCompile>
     <ClCompile Include="Texture.cpp" />
     <ClCompile Include="Timer.cpp" />
+    <ClCompile Include="WeaponHitboxComponent.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PracticeProject08-9-1.rc" />
