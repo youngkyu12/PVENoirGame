@@ -1029,7 +1029,7 @@ void CGameFramework::FrameAdvance()
 	}
 #endif
 
-	//CollisionSystem();
+	CollisionSystem();
 
 	hResult = m_pd3dCommandAllocator->Reset();
 	hResult = m_pd3dCommandList->Reset(m_pd3dCommandAllocator.Get(), nullptr);

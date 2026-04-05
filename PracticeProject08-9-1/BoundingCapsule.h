@@ -46,8 +46,8 @@ struct BoundingCapsule
     ContainmentType Contains(const BoundingFrustum& fr) const noexcept;
     ContainmentType Contains(const BoundingCapsule& ca) const noexcept;
 
-    //bool Intersects(const BoundingSphere& sh) const noexcept;
-    //bool Intersects(const BoundingBox& box) const noexcept;
+    bool Intersects(const BoundingSphere& sh) const noexcept;
+    bool Intersects(const BoundingBox& box) const noexcept;
     bool Intersects(const BoundingOrientedBox& box) const noexcept;
     bool Intersects(const BoundingFrustum& fr) const noexcept;
     bool Intersects(const BoundingCapsule& ca) const noexcept;

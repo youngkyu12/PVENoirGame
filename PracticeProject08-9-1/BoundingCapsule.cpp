@@ -80,7 +80,7 @@ bool BoundingCapsule::Intersects(const BoundingSphere& sh) const noexcept
 	XMVECTOR B = XMLoadFloat3(&p1);
 	XMVECTOR C = XMLoadFloat3(&sh.Center);
 
-	const float distSq = Vector3::distPointToSegment(A, B, C);
+	const float distSq = Collide::distPointToSegment(A, B, C);
 	const float r = Radius + sh.Radius;
 
 	return distSq <= ( r * r );
@@ -98,7 +98,7 @@ bool BoundingCapsule::Intersects(const BoundingBox& box) const noexcept
 	XMVECTOR ALocal = XMVectorSubtract(A, center);
 	XMVECTOR BLocal = XMVectorSubtract(B, center);
 
-	const float distSq = Vector3::distSegmentToAABB(ALocal, BLocal, extents);
+	const float distSq = Collide::distSegmentToAABB(ALocal, BLocal, extents);
 	return distSq <= ( Radius * Radius );
 }
 
@@ -239,7 +239,7 @@ bool BoundingCapsule::Intersects(const BoundingFrustum& fr) const noexcept
 
 		
 		// 두 끝점이 모두 반지름 보정 후에도 평면 바깥이면 캡슐은 프러스텀과 비충돌
-		if ( fA < 0.0f && fB < 0.0f )
+		if ( fA > 0.0f && fB > 0.0f )
 			return false;
 		
 		// 선분 두 끝점 이외에 안쪽 점들 확인
