@@ -70,10 +70,6 @@ public:
 	virtual void OnPrepareRender(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera);
 	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera = nullptr);
 
-	// Camera Visible
-public:
-	bool IsVisible(CCamera* pCamera = nullptr);
-
 	// Movement helpers (legacy convenience)
 public:
 	void MoveStrafe(float fDistance = 1.0f);
@@ -244,19 +240,6 @@ T* CGameObject::AddComponent(Args&&... args)
 		CComponent* base = raw;
 		if (base->IsRenderer())
 			m_pRenderer = static_cast<CRendererComponent*>(base); 
-
-		if constexpr ( std::is_same_v<T, CTransformComponent> )
-			m_pTransform = raw;
-		else if constexpr ( std::is_same_v<T, CModelComponent> )
-			m_pModel = raw;
-		else if constexpr ( std::is_same_v<T, CRenderObjectComponent> )
-			m_pRenderObject = raw;
-		else if constexpr ( std::is_same_v<T, CSkinningComponent> )
-			m_pSkinning = raw;
-		else if constexpr ( std::is_same_v<T, CAnimatorComponent> )
-			m_pAnimatorComponent = raw;
-		else if constexpr ( std::is_same_v<T, CColliderComponent> )
-			m_pCollider = raw;
 	}
 
 	m_components.emplace_back(std::move(comp));

@@ -2,9 +2,10 @@
 #include "Component.h"
 #include "ModelComponent.h"
 #include "RendererComponent.h"
+#include <vector>
+#include <unordered_map>
+#include <string>
 #include "BoundingCapsule.h"
-#include "MathHelper.h"
-
 class CTransformComponent;
 
 struct MeshOOBBSet
@@ -70,7 +71,6 @@ public:
 	// external helpers
 	void UpdateWorldBounds();
 	void DisabledRender();
-	bool IsRender() const { return mRender->IsEnabled(); }
 
 	const std::vector<BoundingCapsule>& GetBoneCapsules() const { return mWorldBoneCapsules; }
 	bool HasBoneCapsules() const { return !mWorldBoneCapsules.empty(); }

@@ -11,21 +11,6 @@ CCamera::~CCamera()
 	ReleaseShaderVariables();
 }
 
-bool CCamera::IsInFrustum(BoundingBox& xmBoundingBox)
-{
-	return( m_xmBoundingFrustum.Intersects(xmBoundingBox) );
-}
-
-bool CCamera::IsInFrustum(BoundingOrientedBox& xmBoundingBox)
-{
-	return( m_xmBoundingFrustum.Intersects(xmBoundingBox) );
-}
-
-bool CCamera::IsInFrustum(BoundingCapsule& xmBoundingBox)
-{
-	return( Collide::Intersects(m_xmBoundingFrustum, xmBoundingBox) );
-}
-
 void CCamera::SetViewport(int xTopLeft, int yTopLeft, int nWidth, int nHeight, float fMinZ, float fMaxZ)
 {
 	m_d3dViewport.TopLeftX = float(xTopLeft);
@@ -49,6 +34,7 @@ void CCamera::GenerateProjectionMatrix(float fNearPlaneDistance, float fFarPlane
 	m_xmf4x4Projection = Matrix4x4::PerspectiveFovLH(XMConvertToRadians(fFOVAngle), fAspectRatio, fNearPlaneDistance, fFarPlaneDistance);
 //	XMMATRIX xmmtxProjection = XMMatrixPerspectiveFovLH(XMConvertToRadians(fFOVAngle), fAspectRatio, fNearPlaneDistance, fFarPlaneDistance);
 //	XMStoreFloat4x4(&m_xmf4x4Projection, xmmtxProjection);
+	UpdateBoundingFrustum();
 }
 
 void CCamera::GenerateViewMatrix(XMFLOAT3 xmf3Position, XMFLOAT3 xmf3LookAt, XMFLOAT3 xmf3Up)
@@ -58,16 +44,6 @@ void CCamera::GenerateViewMatrix(XMFLOAT3 xmf3Position, XMFLOAT3 xmf3LookAt, XMF
 	m_xmf3Up = xmf3Up;
 
 	GenerateViewMatrix();
-}
-
-void CCamera::GenerateFrustum()
-{
-	//원근 투영 변환 행렬에서 절두체를 생성한다(절두체는 카메라 좌표계로 표현된다).
-	m_xmBoundingFrustum.CreateFromMatrix(m_xmBoundingFrustum, XMLoadFloat4x4(&m_xmf4x4Projection));
-	//카메라 변환 행렬의 역행렬을 구한다.
-	XMMATRIX xmmtxInversView = XMMatrixInverse(NULL, XMLoadFloat4x4(&m_xmf4x4View));
-	//절두체를 카메라 변환 행렬의 역행렬로 변환한다(이제 절두체는 월드 좌표계로 표현된다).
-	m_xmBoundingFrustum.Transform(m_xmBoundingFrustum, xmmtxInversView);
 }
 
 void CCamera::GenerateViewMatrix()
@@ -88,7 +64,7 @@ void CCamera::RegenerateViewMatrix()
 	m_xmf4x4View._42 = -Vector3::DotProduct(m_xmf3Position, m_xmf3Up);
 	m_xmf4x4View._43 = -Vector3::DotProduct(m_xmf3Position, m_xmf3Look);
 
-	GenerateFrustum();
+	UpdateBoundingFrustum();
 }
 
 void CCamera::CreateShaderVariables(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList)
@@ -133,7 +109,36 @@ void CCamera::SetViewportsAndScissorRects(ID3D12GraphicsCommandList *pd3dCommand
 
 void CCamera::UpdateBoundingFrustum()
 {
-	GenerateFrustum();
+	// 1. Projection 기준의 로컬 프러스텀 생성
+	BoundingFrustum localFrustum;
+
+	XMMATRIX proj = XMLoadFloat4x4(&m_xmf4x4Projection);
+	BoundingFrustum::CreateFromMatrix(localFrustum, proj);
+
+	// 2. 카메라 회전행렬 생성
+	XMVECTOR right = XMLoadFloat3(&m_xmf3Right);
+	XMVECTOR up = XMLoadFloat3(&m_xmf3Up);
+	XMVECTOR look = XMLoadFloat3(&m_xmf3Look);
+	XMVECTOR pos = XMLoadFloat3(&m_xmf3Position);
+
+	right = XMVector3Normalize(right);
+	up = XMVector3Normalize(up);
+	look = XMVector3Normalize(look);
+
+	// DirectXMath의 XMMATRIX는 row-major 생성 형태로 많이 다루니까
+	// 축벡터를 행으로 넣어서 회전행렬을 만든다.
+	XMMATRIX rot(
+		XMVectorSetW(right, 0.0f),
+		XMVectorSetW(up, 0.0f),
+		XMVectorSetW(look, 0.0f),
+		XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f)
+	);
+
+	// 3. 회전행렬에서 쿼터니언 생성
+	XMVECTOR orientation = XMQuaternionRotationMatrix(rot);
+
+	// 4. 로컬 프러스텀을 월드 공간으로 변환
+	localFrustum.Transform(m_xmBoundingFrustum, 1.0f, orientation, pos);
 }
 
 void CCamera::OnCreate(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
