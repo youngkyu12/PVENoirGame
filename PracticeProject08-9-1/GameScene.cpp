@@ -470,8 +470,8 @@ void CGameScene::ReleaseObjects()
     m_staticBatch.objectRefs.clear();
     m_skinnedBatch.objectRefs.clear();
 
-	m_colliderbatch.shader.reset();
-	m_colliderbatch.objectRefs.clear();
+	m_colliderBatch.shader.reset();
+	m_colliderBatch.objectRefs.clear();
 	m_colliderObjects.clear();
 	m_ColliderCount = 0;
 
@@ -601,14 +601,14 @@ void CGameScene::ReleaseShaderVariables()
         m_pd3dcbMaterials.Reset();
     }
     m_pcbMappedMaterials = nullptr;
-	if ( m_colliderbatch.cbGameObjects )
+	if ( m_colliderBatch.cbGameObjects )
 	{
-		if ( m_colliderbatch.mappedGameObjects )
+		if ( m_colliderBatch.mappedGameObjects )
 		{
-			m_colliderbatch.cbGameObjects->Unmap(0, NULL);
-			m_colliderbatch.mappedGameObjects = nullptr;
+			m_colliderBatch.cbGameObjects->Unmap(0, NULL);
+			m_colliderBatch.mappedGameObjects = nullptr;
 		}
-		m_colliderbatch.cbGameObjects.Reset();
+		m_colliderBatch.cbGameObjects.Reset();
 	}
 }
 
@@ -633,7 +633,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	BuildStaticPlacementsFromNetworkGameStart(gameStartData, m_staticPlacementEntries);
 	ApplyStaticPlacementCounts();
 #else
-	m_localPlayerSlot = 1;
+	m_localPlayerSlot = 0;
 	const std::string placementFilePath = "MapData/placement_export_st1.txt";
 	const std::string cubeColliderReportFilePath = "MapData/CubeBoxColliderReport.txt";
 	const std::string navMeshFilePath = "MapData/1StageNavmesh.nvm";
@@ -804,7 +804,7 @@ void CGameScene::BuildStaticWorldSubmeshOOBBDebugObjects(
 	ID3D12GraphicsCommandList* cmd)
 {
 	if ( !dev || !cmd ) return;
-	if ( !m_colliderbatch.mappedGameObjects ) return;
+	if ( !m_colliderBatch.mappedGameObjects ) return;
 
 	for ( auto& ownerObj : m_staticObjects )
 	{
@@ -822,7 +822,7 @@ void CGameScene::BuildStaticWorldSubmeshOOBBDebugObjects(
 		{
 			for ( const BoundingOrientedBox& subOOBB : set.WorldSubOOBBs )
 			{
-				if ( m_ColliderCount >= m_colliderbatch.capacity )
+				if ( m_ColliderCount >= m_colliderBatch.capacity )
 				{
 					OutputDebugStringA("[DebugOOBB] capacity reached\n");
 					return;
@@ -833,13 +833,13 @@ void CGameScene::BuildStaticWorldSubmeshOOBBDebugObjects(
 				auto debugObj = std::make_unique<CGameObject>(1);
 
 				auto* cb = reinterpret_cast< CB_GAMEOBJECT_INFO* >(
-					reinterpret_cast< UINT8* >( m_colliderbatch.mappedGameObjects ) +
-					i * m_colliderbatch.cbElementBytes
+					reinterpret_cast< UINT8* >( m_colliderBatch.mappedGameObjects ) +
+					i * m_colliderBatch.cbElementBytes
 				);
 
 				debugObj->SetMappedGameObjectCB(cb);
 				debugObj->SetCbvGPUDescriptorHandlePtr(
-					m_colliderbatch.baseCbvGpu.ptr + ( UINT64 ) i * m_colliderbatch.cbvInc
+					m_colliderBatch.baseCbvGpu.ptr + ( UINT64 ) i * m_colliderBatch.cbvInc
 				);
 
 				debugObj->AddComponent<CColliderMeshRendererComponent>();
@@ -871,8 +871,8 @@ void CGameScene::BuildStaticWorldSubmeshOOBBDebugObjects(
 
 				CGameObject* raw = debugObj.get();
 				m_colliderObjects.push_back(std::move(debugObj));
-				m_colliderbatch.objectRefs.push_back(raw);
-				m_colliderbatch.count = ( UINT ) m_colliderbatch.objectRefs.size();
+				m_colliderBatch.objectRefs.push_back(raw);
+				m_colliderBatch.count = ( UINT ) m_colliderBatch.objectRefs.size();
 
 				++m_ColliderCount;
 			}
@@ -1320,7 +1320,7 @@ void CGameScene::BuildStaticBatch(
 
 		auto* cb = ( CB_GAMEOBJECT_INFO* ) ( ( UINT8* ) b->mappedGameObjects + i * b->cbElementBytes );
 		obj->SetMappedGameObjectCB(cb);
-
+		//auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
 		obj->SetMesh(0, asset.mesh);
 		obj->AddComponent<CStaticMeshRendererComponent>();
 
@@ -1443,10 +1443,12 @@ void CGameScene::BuildStaticBatch(
 
 			auto* cb = ( CB_GAMEOBJECT_INFO* ) ( ( UINT8* ) b->mappedGameObjects + i * b->cbElementBytes );
 			obj->SetMappedGameObjectCB(cb);
-			auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
+
 			obj->SetMesh(0, bulletAsset.mesh);
 			obj->AddComponent<CStaticMeshRendererComponent>();
 
+			auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BSphere);
+			//auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
 			if ( collider )
 			{
 				collider->SetLayer(kCollisionLayerPlayerWeapon);
@@ -2757,6 +2759,22 @@ void CGameScene::BuildSkinnedBatch(
                 b->count = (UINT)b->objectRefs.size();
 
                 m_MutantRefs.push_back(raw);
+
+				//auto colliderobj = std::make_unique<CGameObject>(1);
+				//auto* collidercb = ( CB_GAMEOBJECT_INFO* ) ( ( UINT8* ) coliiderbatch->mappedGameObjects + m_ColliderCount * coliiderbatch->cbElementBytes );
+				//colliderobj->SetMappedGameObjectCB(collidercb);
+
+				//colliderobj->SetMesh(0, mesh);
+				//colliderobj->AddComponent<CColliderMeshRendererComponent>();
+
+				//colliderobj->SetCbvGPUDescriptorHandlePtr(coliiderbatch->baseCbvGpu.ptr + ( UINT64 ) m_ColliderCount * coliiderbatch->cbvInc);
+
+				//colliderobj->CreateComponents(dev, cmd);
+
+				//CGameObject* rawcollider = colliderobj.get();
+				//m_colliderObjects.push_back(std::move(colliderobj));
+				//coliiderbatch->objectRefs.push_back(rawcollider);
+				//coliiderbatch->count = ( UINT ) coliiderbatch->objectRefs.size();
             }
         }
 
