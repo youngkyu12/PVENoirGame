@@ -373,47 +373,6 @@ void CGameObject::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 }
 
 // ============================================================================
-// Camera Visible
-// ============================================================================
-bool CGameObject::IsVisible(CCamera* pCamera)
-{
-	if ( !pCamera )
-		return true;
-
-	if ( !m_pCollider )
-		m_pCollider = GetComponent<CColliderComponent>();
-
-	if ( !m_pCollider )
-		return true;
-
-	bool bIsVisible = false;
-	switch ( m_pCollider->GetType() )
-	{
-	case EColliderType::AABB:
-	{
-		BoundingBox xmBoundingBox = m_pCollider->GetAABB();
-		bIsVisible = pCamera->IsInFrustum(xmBoundingBox);
-		break;
-	}
-	case EColliderType::OOBB:
-	{
-		BoundingOrientedBox xmBoundingBox = m_pCollider->GetOOBB();
-		bIsVisible = pCamera->IsInFrustum(xmBoundingBox);
-		break;
-	}
-	case EColliderType::BCapsule:
-	{
-		BoundingCapsule xmBoundingCapsule = m_pCollider->GetBCapsule();
-		bIsVisible = pCamera->IsInFrustum(xmBoundingCapsule);
-		break;
-	}
-	default:
-		// 지원하지 않는 충돌체 타입은 렌더링 보수적으로 허용한다.
-		bIsVisible = true;
-		break;
-	}
-}
-// ============================================================================
 // Movement helpers
 // ============================================================================
 void CGameObject::MoveStrafe(float fDistance)

@@ -218,7 +218,6 @@
     <ClInclude Include="targetver.h" />
     <ClInclude Include="Texture.h" />
     <ClInclude Include="Timer.h" />
-    <ClInclude Include="MathHelper.h" />
     <ClInclude Include="WeaponHitboxComponent.h" />
   </ItemGroup>
   <ItemGroup>

@@ -127,6 +127,11 @@ void CCollisionSystem::UnregisterCollider(CColliderComponent* c)
     mColliders.erase(it, mColliders.end());
 }
 
+void CCollisionSystem::SetBoundingFrustum(const BoundingFrustum& BFrustum)
+{
+	mCameraCollider = BFrustum;
+}
+
 size_t CCollisionSystem::GetColiidersNum() const
 {
 	return mColliders.size();
@@ -410,28 +415,44 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 	}
 }
 
+bool CCollisionSystem::IsVisible(const BoundingFrustum& frustum, const CColliderComponent* collider)
+{
+	if ( collider->GetType() == EColliderType::BCapsule )
+	{
+		return collider->GetBCapsule().Intersects(frustum);
+	}
+	else if ( collider->GetType() == EColliderType::OOBB )
+	{
+		return collider->GetOOBB().Intersects(frustum);
+	}
+  return false;
+}
+
 void CCollisionSystem::OnUpdate()
 {
     // 전수검사: i<j
-    
-	const size_t n = mColliders.size();
-
+    const size_t n = mColliders.size();
     for (size_t i = 0; i < n; ++i)
     {
         auto* a = mColliders[i];
-		if ( !a )continue;
+        if (!a) continue;
+
+		/*if ( !IsVisible(mCameraCollider, a) )
+			a->DisabledRender();
+			continue;*/
 
         for (size_t j = i + 1; j < n; ++j)
         {
             auto* b = mColliders[j];
-
-            if (!b) 
-				continue;
+            if (!b) continue;
 
 			const bool normalFilteredPair = PassFilter(a, b);
 			const bool bareHandPair = IsBareHandMonsterWeaponPairCandidate(a, b);
 
-            HandlePair(a, b);
+			if ( !normalFilteredPair && !bareHandPair )
+				continue;
+
+			HandlePair(a, b);
         }
     }
 }
