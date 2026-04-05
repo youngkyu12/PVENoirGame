@@ -575,7 +575,8 @@ void CGameFramework::RequestSceneSwitch(ESceneId next)
 
 void CGameFramework::ApplyPendingSceneSwitch()
 {
-	if (!m_sceneSwitchPending) return;
+	if (!m_sceneSwitchPending) 
+		return;
 
 	const ESceneId next = m_pendingScene;
 	m_sceneSwitchPending = false;
@@ -996,7 +997,7 @@ void CGameFramework::FrameAdvance()
 {
 	HRESULT hResult;
 
-	m_GameTimer.Tick(60.0f);
+	m_GameTimer.Tick(0.0f);
 	UpdateWindowActivationState();
 
 	ApplyPendingSceneSwitch();
