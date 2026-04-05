@@ -21,10 +21,24 @@ CAnimator* CMonsterAnimController::ResolveAnimator() const
 
 std::string CMonsterAnimController::ResolveLocomotionClip() const
 {
-	if ( m_locomotionState == EMonsterAnimState::Move )
-		return m_profile.moveClip;
+	switch ( m_locomotionState )
+	{
+	case EMonsterAnimState::Run:
+		if ( !m_profile.runClip.empty() )
+			return m_profile.runClip;
+		if ( !m_profile.moveClip.empty() )
+			return m_profile.moveClip;
+		return m_profile.idleClip;
 
-	return m_profile.idleClip;
+	case EMonsterAnimState::Move:
+		if ( !m_profile.moveClip.empty() )
+			return m_profile.moveClip;
+		return m_profile.idleClip;
+
+	case EMonsterAnimState::Idle:
+	default:
+		return m_profile.idleClip;
+	}
 }
 
 bool CMonsterAnimController::StartAction(CAnimator* anim, const std::string& clipName, EActionPhase phase, float blendTimeSec, bool loop)
@@ -52,12 +66,21 @@ void CMonsterAnimController::RequestCommand(EMonsterAnimCommand cmd)
 	if ( cmd == EMonsterAnimCommand::None )
 		return;
 
+	// Death는 최우선
 	if ( cmd == EMonsterAnimCommand::Death )
 	{
 		m_pendingCommand = cmd;
 		return;
 	}
 
+	// Hit도 높은 우선순위로 받아서 현재 액션을 끊게 한다
+	if ( cmd == EMonsterAnimCommand::Hit )
+	{
+		m_pendingCommand = cmd;
+		return;
+	}
+
+	// 그 외 명령은 현재 액션 중이면 무시
 	if ( m_actionPhase != EActionPhase::None )
 		return;
 

@@ -12,14 +12,23 @@ class CArrowComponent final : public CComponentT<CArrowComponent>
 public:
     explicit CArrowComponent(CGameObject* owner);
 
-    // Áï½Ã ¹ß»ç »óÅÂ·Î È°¼ºÈ­(±âÁ¸ È£È¯)
+    // ì¦‰ì‹œ ë°œì‚¬ ìƒíƒœë¡œ í™œì„±í™”(ê¸°ì¡´ í˜¸í™˜)
     void Activate(const XMFLOAT3& position, const XMFLOAT3& velocity, float lifeSec);
 
-    // È°¿¡ °É¸° »óÅÂ·Î ÁØºñ
-    void Prepare(CGameObject* bowObject, CGameObject* directionSource, float pullBackDistance);
+    // í™œì— ê±¸ë¦° ìƒíƒœë¡œ ì¤€ë¹„
+	void Prepare(
+	CGameObject* bowObject,
+	CGameObject* directionSource,
+	float pullBackDistance,
+	bool enableCollisionOnLaunch = true
+	);
 
-    // ÁØºñµÈ È­»ìÀ» ½ÇÁ¦ ¹ß»ç
-    void Launch(const XMFLOAT3& velocity, float lifeSec);
+	// ì¤€ë¹„ëœ í™”ì‚´ì„ ì‹¤ì œ ë°œì‚¬
+	void Launch(
+		const XMFLOAT3& velocity,
+		float lifeSec,
+		bool enableCollision = true
+	);
 
     void Deactivate();
 
@@ -46,7 +55,8 @@ private:
     float    m_lifeRemaining = 0.0f;
     XMFLOAT3 m_velocity = { 0.0f, 0.0f, 0.0f };
 
-    CGameObject* m_bowObject = nullptr;         // µû¶ó°¥ È°
-    CGameObject* m_directionSource = nullptr;   // ¹æÇâ ±âÁØ(ÇÃ·¹ÀÌ¾î)
+    CGameObject* m_bowObject = nullptr;         // ë”°ë¼ê°ˆ í™œ
+    CGameObject* m_directionSource = nullptr;   // ë°©í–¥ ê¸°ì¤€(í”Œë ˆì´ì–´)
     float        m_pullBackDistance = 0.0f;
+	bool         m_enableCollisionOnLaunch = true;
 };

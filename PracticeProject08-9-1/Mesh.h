@@ -89,6 +89,7 @@ struct SubMesh
 	XMFLOAT3 subMeshMin{ FLT_MAX,  FLT_MAX,  FLT_MAX };
 	XMFLOAT3 subMeshMax{ -FLT_MAX, -FLT_MAX, -FLT_MAX };
 
+	std::string authoringPath;
 	std::string meshName;
 	std::string materialName;
 	std::string diffuseTextureName;
@@ -108,6 +109,16 @@ struct SubMesh
 	shared_ptr<CMaterial> material;
 	uint32_t materialIndex = 0xFFFFFFFFu;
 	UINT     materialId = 0xFFFFFFFFu;
+
+	bool isColliderHelper = false;
+	bool hasExplicitLocalOOBB = false;
+	XMFLOAT4X4 explicitLocalOOBBMatrix =
+	{
+		1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	};
 
 	// GPU
 	ID3D12Resource* vb = nullptr;

@@ -8,6 +8,7 @@
 #include <cmath>
 #include <fstream>
 #include <cstdio>
+#include <cctype>
 
 #include "AnimatorComponent.h"
 #include "AnimatorData.h"
@@ -29,6 +30,11 @@
 #include "PlayerEquipmentComponent.h"
 #include "CollisionSystem.h"
 #include "ColliderComponent.h"
+#include "WeaponHitboxComponent.h"
+#include "MonsterWeaponHitboxComponent.h"
+#include "MonsterCombatComponent.h"
+#include "NavMesh.h"
+#include "GhoulAIComponent.h"
 
 #include "ThreadManager.h"
 #include "Service.h"
@@ -58,14 +64,32 @@ namespace
 
 	enum : uint32_t
 	{
-		kCollisionLayerCharacter = 0, // 적 / 원격 플레이어 / 일반 캐릭터
-		kCollisionLayerWorldStatic = 1, // 월드 정적 오브젝트
-		kCollisionLayerLocalPlayer = 2  // 로컬 플레이어만 별도 분리
+		kCollisionLayerPlayer = 0, // 플레이어 본체
+		kCollisionLayerMonster = 1, // 몬스터 본체
+		kCollisionLayerWorldStatic = 2, // 월드 정적 오브젝트
+		kCollisionLayerPlayerWeapon = 3, // 플레이어 무기
+		kCollisionLayerMonsterWeapon = 4  // 몬스터 무기
 	};
 
 	static constexpr uint32_t CollisionBit(uint32_t layer)
 	{
 		return ( 1u << layer );
+	}
+
+	static void ConfigureProjectileCollider(CColliderComponent* collider, bool firedByPlayer)
+	{
+		if ( !collider ) return;
+
+		if ( firedByPlayer )
+		{
+			collider->SetLayer(kCollisionLayerPlayerWeapon);
+			collider->SetMask(CollisionBit(kCollisionLayerMonster));
+		}
+		else
+		{
+			collider->SetLayer(kCollisionLayerMonsterWeapon);
+			collider->SetMask(CollisionBit(kCollisionLayerPlayer));
+		}
 	}
 
     struct DecodedAnimStateCode
@@ -107,6 +131,37 @@ namespace
 
         return out;
     }
+
+	static constexpr UINT kDebugSubmeshOOBBCapacity = 4096;
+
+	static XMFLOAT4X4 BuildWorldMatrixFromOOBB(const BoundingOrientedBox& box)
+	{
+		XMFLOAT4X4 out{};
+
+		const XMMATRIX S = XMMatrixScaling(
+			box.Extents.x * 2.0f,
+			box.Extents.y * 2.0f,
+			box.Extents.z * 2.0f
+		);
+
+		const XMMATRIX R = XMMatrixRotationQuaternion(XMLoadFloat4(&box.Orientation));
+
+		const XMMATRIX T = XMMatrixTranslation(
+			box.Center.x,
+			box.Center.y,
+			box.Center.z
+		);
+
+		XMStoreFloat4x4(&out, S * R * T);
+		return out;
+	}
+
+	static XMFLOAT4X4 BuildIdentityMatrix4x4()
+	{
+		XMFLOAT4X4 out{};
+		XMStoreFloat4x4(&out, XMMatrixIdentity());
+		return out;
+	}
 }
 
 namespace
@@ -136,6 +191,55 @@ namespace
         outEntry.rot = XMFLOAT4(qx, qy, qz, qw);
         return true;
     }
+
+	std::string TrimString(const std::string& text)
+	{
+		size_t begin = 0;
+		while ( begin < text.size() && std::isspace(static_cast< unsigned char >(text[begin])) )
+			++begin;
+
+		size_t end = text.size();
+		while ( end > begin && std::isspace(static_cast< unsigned char >( text[end - 1] )) )
+			--end;
+
+		return text.substr(begin, end - begin);
+	}
+
+	std::string StripTopRootFromAPath(const std::string& fullAPath)
+	{
+		const size_t firstSlash = fullAPath.find('/');
+		if ( firstSlash == std::string::npos )
+			return fullAPath;
+
+		return fullAPath.substr(firstSlash + 1);
+	}
+
+	bool ParseVector3Tuple(const std::string& text, XMFLOAT3& outValue)
+	{
+		float x = 0.0f;
+		float y = 0.0f;
+		float z = 0.0f;
+
+		if ( sscanf_s(text.c_str(), "(%f, %f, %f)", &x, &y, &z) != 3 )
+			return false;
+
+		outValue = XMFLOAT3(x, y, z);
+		return true;
+	}
+
+	bool ParseVector4Tuple(const std::string& text, XMFLOAT4& outValue)
+	{
+		float x = 0.0f;
+		float y = 0.0f;
+		float z = 0.0f;
+		float w = 1.0f;
+
+		if ( sscanf_s(text.c_str(), "(%f, %f, %f, %f)", &x, &y, &z, &w) != 4 )
+			return false;
+
+		outValue = XMFLOAT4(x, y, z, w);
+		return true;
+	}
 
     static void BuildStaticPlacementsFromNetworkGameStart(
         const GameStartData& gameStartData,
@@ -342,6 +446,8 @@ CGameScene::CGameScene()
 
 	m_bulletRefs.clear();
 	m_bulletRefs.shrink_to_fit();
+
+	m_navMesh.reset();
 }
 
 CGameScene::~CGameScene()
@@ -363,6 +469,11 @@ void CGameScene::ReleaseObjects()
 
     m_staticBatch.objectRefs.clear();
     m_skinnedBatch.objectRefs.clear();
+
+	m_colliderbatch.shader.reset();
+	m_colliderbatch.objectRefs.clear();
+	m_colliderObjects.clear();
+	m_ColliderCount = 0;
 
     m_swordManRefs.clear();
     m_bowManRefs.clear();
@@ -388,14 +499,16 @@ void CGameScene::ReleaseObjects()
 	m_preparedBowmanArrows.clear();
 	m_prevEnemyBowReleasePhase.clear();
 
-    m_inactiveOverlayShader.reset();
-    m_inactiveOverlayTex.reset();
-    m_inactiveOverlaySrvIndex = UINT_MAX;
-    m_bInactiveOverlayVisible = false;
+	m_inactiveOverlayShader.reset();
+	m_inactiveOverlayTex.reset();
+	m_inactiveOverlaySrvIndex = UINT_MAX;
+	m_bInactiveOverlayVisible = false;
 
-    ReleaseShaderVariables();
+	m_navMesh.reset();
 
-    CScene::ReleaseObjects();
+	ReleaseShaderVariables();
+
+	CScene::ReleaseObjects();
 }
 
 void CGameScene::ReleaseUploadBuffers()
@@ -488,6 +601,15 @@ void CGameScene::ReleaseShaderVariables()
         m_pd3dcbMaterials.Reset();
     }
     m_pcbMappedMaterials = nullptr;
+	if ( m_colliderbatch.cbGameObjects )
+	{
+		if ( m_colliderbatch.mappedGameObjects )
+		{
+			m_colliderbatch.cbGameObjects->Unmap(0, NULL);
+			m_colliderbatch.mappedGameObjects = nullptr;
+		}
+		m_colliderbatch.cbGameObjects.Reset();
+	}
 }
 
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
@@ -498,25 +620,41 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		OutputDebugStringA("Waiting for game start message...\n");
 	}
 
-    DequeueNetworkMessage(NetworkMessageType::GameStart);
-    m_localPlayerSlot = g_myPlayerId;
+	DequeueNetworkMessage(NetworkMessageType::GameStart);
+	m_localPlayerSlot = g_myPlayerId;
 
-    if (!std::holds_alternative<GameStartData>(m_pendingNetworkMessage.data))
-    {
-        assert(false && "Missing GameStartData in network mode");
-        return;
-    }
+	if ( !std::holds_alternative<GameStartData>(m_pendingNetworkMessage.data) )
+	{
+		assert(false && "Missing GameStartData in network mode");
+		return;
+	}
 
-    const GameStartData& gameStartData = std::get<GameStartData>(m_pendingNetworkMessage.data);
-    BuildStaticPlacementsFromNetworkGameStart(gameStartData, m_staticPlacementEntries);
-    ApplyStaticPlacementCounts();
+	const GameStartData& gameStartData = std::get<GameStartData>(m_pendingNetworkMessage.data);
+	BuildStaticPlacementsFromNetworkGameStart(gameStartData, m_staticPlacementEntries);
+	ApplyStaticPlacementCounts();
 #else
-	m_localPlayerSlot = 0;
-	const std::string placementFilePath = "Assets/placement_export_st1.txt";
+	m_localPlayerSlot = 1;
+	const std::string placementFilePath = "MapData/placement_export_st1.txt";
+	const std::string cubeColliderReportFilePath = "MapData/CubeBoxColliderReport.txt";
+	const std::string navMeshFilePath = "MapData/1StageNavmesh.nvm";
 
 	if ( !LoadStaticPlacementFile(placementFilePath) )
 	{
 		assert(false && "Failed to load placement_export");
+		return;
+	}
+
+	if ( !LoadSceneCubeBoxColliderReport(cubeColliderReportFilePath) )
+	{
+		assert(false && "Failed to load cube box collider report");
+		return;
+	}
+
+	m_navMesh = std::make_unique<CNavMesh>();
+	if ( !m_navMesh->LoadFromFile(navMeshFilePath) )
+	{
+		assert(false && "Failed to load navmesh file");
+		m_navMesh.reset();
 		return;
 	}
 #endif
@@ -632,10 +770,13 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	const DXGI_FORMAT kDsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
 #ifndef USING_NETWORK
-	BuildColliderBatch(dev, cmd, pColliderShader, kRTCount, rtvFormats, kDsvFormat);
+	//BuildColliderBatch(dev, cmd, pColliderShader, kRTCount, rtvFormats, kDsvFormat);
 #endif
 
 	BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
+#ifndef USING_NETWORK
+	BuildStaticWorldSubmeshOOBBDebugObjects(dev, cmd);
+#endif
 	BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
 
 	LinkSceneObjects();
@@ -656,6 +797,87 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(iamReady);
 	g_clientService->BroadCast(sendBuffer);
 #endif
+}
+
+void CGameScene::BuildStaticWorldSubmeshOOBBDebugObjects(
+	ID3D12Device* dev,
+	ID3D12GraphicsCommandList* cmd)
+{
+	if ( !dev || !cmd ) return;
+	if ( !m_colliderbatch.mappedGameObjects ) return;
+
+	for ( auto& ownerObj : m_staticObjects )
+	{
+		if ( !ownerObj ) continue;
+
+		auto* ownerCollider = ownerObj->GetComponent<CColliderComponent>();
+		if ( !ownerCollider ) continue;
+		if ( ownerCollider->GetType() != EColliderType::OOBB ) continue;
+		if ( ownerCollider->GetLayer() != kCollisionLayerWorldStatic ) continue;
+
+		const std::vector<MeshOOBBSet>& meshSets = ownerCollider->GetMeshOOBBSets();
+		if ( meshSets.empty() ) continue;
+
+		for ( const MeshOOBBSet& set : meshSets )
+		{
+			for ( const BoundingOrientedBox& subOOBB : set.WorldSubOOBBs )
+			{
+				if ( m_ColliderCount >= m_colliderbatch.capacity )
+				{
+					OutputDebugStringA("[DebugOOBB] capacity reached\n");
+					return;
+				}
+
+				const UINT i = m_ColliderCount;
+
+				auto debugObj = std::make_unique<CGameObject>(1);
+
+				auto* cb = reinterpret_cast< CB_GAMEOBJECT_INFO* >(
+					reinterpret_cast< UINT8* >( m_colliderbatch.mappedGameObjects ) +
+					i * m_colliderbatch.cbElementBytes
+				);
+
+				debugObj->SetMappedGameObjectCB(cb);
+				debugObj->SetCbvGPUDescriptorHandlePtr(
+					m_colliderbatch.baseCbvGpu.ptr + ( UINT64 ) i * m_colliderbatch.cbvInc
+				);
+
+				debugObj->AddComponent<CColliderMeshRendererComponent>();
+				auto* debugCollider = debugObj->AddComponent<CColliderComponent>(EColliderType::OOBB);
+
+				debugObj->CreateComponents(dev, cmd);
+
+				// local unit box
+				debugCollider->SetOOBB(
+					XMFLOAT3(-0.5f, -0.5f, -0.5f),
+					XMFLOAT3(0.5f, 0.5f, 0.5f)
+				);
+
+				// 이 월드행렬로 unit box -> subOOBB world box
+				const XMFLOAT4X4 subWorld = BuildWorldMatrixFromOOBB(subOOBB);
+				debugObj->SetWorldMatrix(subWorld);
+
+				// OnUpdate는 빈 함수라 의미 없음
+				debugCollider->UpdateWorldBounds();
+
+				// 여기서 이미 world-space 꼭짓점으로 메쉬가 bake됨
+				std::shared_ptr<CMesh> debugMesh =
+					std::make_shared<CBoxMeshDiffused>(dev, cmd, debugCollider);
+
+				debugObj->SetMesh(0, debugMesh);
+
+				// bake 끝났으니 object transform은 identity로 돌려야 이중 변환이 안 생김
+				debugObj->SetWorldMatrix(BuildIdentityMatrix4x4());
+
+				CGameObject* raw = debugObj.get();
+				m_colliderObjects.push_back(std::move(debugObj));
+				m_colliderbatch.objectRefs.push_back(raw);
+				m_colliderbatch.count = ( UINT ) m_colliderbatch.objectRefs.size();
+
+				++m_ColliderCount;
+			}
+		}
+	}
 }
 
 float CGameScene::QuaternionToYawDegrees(const XMFLOAT4& q)
@@ -740,6 +962,91 @@ bool CGameScene::LoadStaticPlacementFile(const std::string& filePath)
     return !m_staticPlacementEntries.empty();
 }
 
+bool CGameScene::LoadSceneCubeBoxColliderReport(const std::string& filePath)
+{
+	mSceneCubeBoxColliderTable.clear();
+
+	std::ifstream fin(filePath);
+	if ( !fin.is_open() )
+		return false;
+
+	const std::string kTopRootPrefix = "TopRootName:";
+	const std::string kAPathPrefix = "APath:";
+	const std::string kCenterPrefix = "CenterInTopRoot_Local:";
+	const std::string kRotationPrefix = "RotationInTopRoot_LocalQuat:";
+	const std::string kSizePrefix = "SizeInTopRoot_Local:";
+
+	std::string line;
+	std::string currentTopRootName;
+	std::string currentRelativeAPath;
+
+	AuthoredSubMeshOOBB currentBox{};
+	bool hasCenter = false;
+	bool hasRotation = false;
+	bool hasSize = false;
+
+	while ( std::getline(fin, line) )
+	{
+		if ( !line.empty() && line.back() == '\r' )
+			line.pop_back();
+
+		const std::string trimmed = TrimString(line);
+
+		if ( trimmed.rfind(kTopRootPrefix, 0) == 0 )
+		{
+			currentTopRootName = TrimString(trimmed.substr(kTopRootPrefix.size()));
+			continue;
+		}
+
+		if ( trimmed.rfind(kAPathPrefix, 0) == 0 )
+		{
+			const std::string fullAPath = TrimString(trimmed.substr(kAPathPrefix.size()));
+			currentRelativeAPath = StripTopRootFromAPath(fullAPath);
+			continue;
+		}
+
+		if ( trimmed.rfind(kCenterPrefix, 0) == 0 )
+		{
+			hasCenter = ParseVector3Tuple(
+				TrimString(trimmed.substr(kCenterPrefix.size())),
+				currentBox.Center
+			);
+			continue;
+		}
+
+		if ( trimmed.rfind(kRotationPrefix, 0) == 0 )
+		{
+			hasRotation = ParseVector4Tuple(
+				TrimString(trimmed.substr(kRotationPrefix.size())),
+				currentBox.RotationQuat
+			);
+			continue;
+		}
+
+		if ( trimmed.rfind(kSizePrefix, 0) == 0 )
+		{
+			hasSize = ParseVector3Tuple(
+				TrimString(trimmed.substr(kSizePrefix.size())),
+				currentBox.Size
+			);
+
+			if ( hasCenter && hasRotation && hasSize &&
+				!currentTopRootName.empty() &&
+				!currentRelativeAPath.empty() )
+			{
+				mSceneCubeBoxColliderTable[currentTopRootName][currentRelativeAPath].push_back(currentBox);
+			}
+
+			currentBox = AuthoredSubMeshOOBB{};
+			hasCenter = false;
+			hasRotation = false;
+			hasSize = false;
+		}
+	}
+
+	return !mSceneCubeBoxColliderTable.empty();
+}
+
 void CGameScene::BuildLightsAndMaterials()
 {
     m_lightObjects.clear();
@@ -754,9 +1061,9 @@ void CGameScene::BuildLightsAndMaterials()
         auto* lc = obj->AddComponent<CLightComponent>();
         lc->type = ELightType::Point;
         lc->range = 100.0f;
-        lc->ambient = XMFLOAT4(0.1f, 0.0f, 0.0f, 1.0f);
-        lc->diffuse = XMFLOAT4(0.8f, 0.0f, 0.0f, 1.0f);
-        lc->specular = XMFLOAT4(0.1f, 0.1f, 0.1f, 0.0f);
+        lc->ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+        lc->diffuse = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+        lc->specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
         lc->attenuation = XMFLOAT3(1.0f, 0.001f, 0.0001f);
 
         m_lightObjects.push_back(std::move(obj));
@@ -769,9 +1076,9 @@ void CGameScene::BuildLightsAndMaterials()
         auto* lc = obj->AddComponent<CLightComponent>();
         lc->type = ELightType::Spot;
         lc->range = 50.0f;
-        lc->ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
-        lc->diffuse = XMFLOAT4(0.4f, 0.4f, 0.4f, 1.0f);
-        lc->specular = XMFLOAT4(0.1f, 0.1f, 0.1f, 0.0f);
+        lc->ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+        lc->diffuse = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+        lc->specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
         lc->attenuation = XMFLOAT3(1.0f, 0.01f, 0.0001f);
         lc->falloff = 8.0f;
         lc->cosPhi = (float)cos(XMConvertToRadians(40.0f));
@@ -783,26 +1090,25 @@ void CGameScene::BuildLightsAndMaterials()
         m_lightObjects.push_back(std::move(obj));
     }
 
-    // [2] Directional Light
-    {
-        auto obj = std::make_unique<CGameObject>(0);
+	// [2] Directional Light
+	{
+		auto obj = std::make_unique<CGameObject>(0);
 
-        if (auto* tr = obj->GetComponent<CTransformComponent>())
-        {
-            // 태양광 방향
-            tr->SetLookDirection(XMFLOAT3(1.0f, 0.0f, 0.0f));
-        }
+		if ( auto* tr = obj->GetComponent<CTransformComponent>() )
+		{
+			// 오른쪽 위 앞쪽에서 왼쪽 아래 뒤쪽으로 비추는 느낌
+			tr->SetLookDirection(XMFLOAT3(1.0f, -1.0f, 0.3f));
+		}
 
-        auto* lc = obj->AddComponent<CLightComponent>();
-        lc->type = ELightType::Directional;
+		auto* lc = obj->AddComponent<CLightComponent>();
+		lc->type = ELightType::Directional;
 
-        lc->ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
-        lc->diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-        lc->specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
-   
+		lc->ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+		lc->diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+		lc->specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 
-        m_lightObjects.push_back(std::move(obj));
-    }
+		m_lightObjects.push_back(std::move(obj));
+	}
 
     // [3] Spot Light
     {
@@ -814,8 +1120,8 @@ void CGameScene::BuildLightsAndMaterials()
         auto* lc = obj->AddComponent<CLightComponent>();
         lc->type = ELightType::Spot;
         lc->range = 60.0f;
-        lc->ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
-        lc->diffuse = XMFLOAT4(0.5f, 0.0f, 0.0f, 1.0f);
+        lc->ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+        lc->diffuse = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
         lc->specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
         lc->attenuation = XMFLOAT3(1.0f, 0.01f, 0.0001f);
         lc->falloff = 8.0f;
@@ -930,6 +1236,23 @@ void CGameScene::BuildStaticBatch(
 	auto* coliiderbatch = &m_colliderbatch;
 	if ( !coliiderbatch ) return;
 
+	auto ConfigureWeaponCollider = [ ] (CColliderComponent* collider, bool isPlayerWeapon)
+		{
+			if ( !collider ) return;
+
+			if ( isPlayerWeapon )
+			{
+				collider->SetLayer(kCollisionLayerPlayerWeapon);
+				collider->SetMask(CollisionBit(kCollisionLayerMonster));
+			}
+			else
+			{
+				collider->SetLayer(kCollisionLayerMonsterWeapon);
+				collider->SetMask(CollisionBit(kCollisionLayerPlayer));
+			}
+		};
+
+
     if (b->capacity < 4) b->capacity = 4;
     const UINT cap = b->capacity;
     if (cap == 0) return;
@@ -1007,7 +1330,13 @@ void CGameScene::BuildStaticBatch(
 			if ( collider )
 			{
 				collider->SetLayer(kCollisionLayerWorldStatic);
-				collider->SetMask(CollisionBit(kCollisionLayerLocalPlayer));
+				collider->SetMask(CollisionBit(kCollisionLayerPlayer));
+				
+				const auto authoredIt = mSceneCubeBoxColliderTable.find(placement.assetName);
+				if ( authoredIt != mSceneCubeBoxColliderTable.end() )
+				{
+					collider->SetStaticSubMeshAuthoredOOBBs(authoredIt->second);
+				}
 			}
 		}
 
@@ -1056,11 +1385,19 @@ void CGameScene::BuildStaticBatch(
             auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
             obj->SetMappedGameObjectCB(cb);
 
-            obj->SetMesh(0, arrowAsset.mesh);
-            obj->AddComponent<CStaticMeshRendererComponent>();
+			obj->SetMesh(0, arrowAsset.mesh);
+			obj->AddComponent<CStaticMeshRendererComponent>();
 
-            auto* arrow = obj->AddComponent<CArrowComponent>();
-            (void)arrow;
+			auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
+			if ( collider )
+			{
+				collider->SetLayer(kCollisionLayerPlayerWeapon);
+				collider->SetMask(CollisionBit(kCollisionLayerMonster));
+				collider->SetCollisionEnabled(false);
+			}
+
+			auto* arrow = obj->AddComponent<CArrowComponent>();
+			( void ) arrow;
 
             obj->SetPosition(0.0f, -10000.0f, 0.0f);
 
@@ -1109,6 +1446,14 @@ void CGameScene::BuildStaticBatch(
 
 			obj->SetMesh(0, bulletAsset.mesh);
 			obj->AddComponent<CStaticMeshRendererComponent>();
+
+			auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
+			if ( collider )
+			{
+				collider->SetLayer(kCollisionLayerPlayerWeapon);
+				collider->SetMask(CollisionBit(kCollisionLayerMonster));
+				collider->SetCollisionEnabled(false);
+			}
 
 			auto* bullet = obj->AddComponent<CBulletComponent>();
 			( void ) bullet;
@@ -1207,10 +1552,12 @@ void CGameScene::BuildStaticBatch(
             auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
             obj->SetMappedGameObjectCB(cb);
 
-            obj->SetMesh(0, SwordAsset.mesh);
-            obj->AddComponent<CStaticMeshRendererComponent>();
-			/*obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
-			m_ColliderCount++;*/
+			obj->SetMesh(0, SwordAsset.mesh);
+			obj->AddComponent<CStaticMeshRendererComponent>();
+
+			auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
+			ConfigureWeaponCollider(collider, true);
+			if ( collider ) collider->SetCollisionEnabled(false);
 
             // 링크 전까진 화면 밖에 둠
             obj->SetPosition(0.0f, -10000.0f, 0.0f);
@@ -1276,8 +1623,12 @@ void CGameScene::BuildStaticBatch(
             auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
             obj->SetMappedGameObjectCB(cb);
 
-            obj->SetMesh(0, AxeAsset.mesh);
-            obj->AddComponent<CStaticMeshRendererComponent>();
+			obj->SetMesh(0, AxeAsset.mesh);
+			obj->AddComponent<CStaticMeshRendererComponent>();
+
+			auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
+			ConfigureWeaponCollider(collider, true);
+			if ( collider ) collider->SetCollisionEnabled(false);
 
             // 링크 전까지는 화면 밖에 둠
             obj->SetPosition(0.0f, -10000.0f, 0.0f);
@@ -1374,8 +1725,15 @@ void CGameScene::BuildStaticBatch(
             auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)b->mappedGameObjects + i * b->cbElementBytes);
             obj->SetMappedGameObjectCB(cb);
 
-            obj->SetMesh(0, swordAsset.mesh);
-            obj->AddComponent<CStaticMeshRendererComponent>();
+			obj->SetMesh(0, swordAsset.mesh);
+			obj->AddComponent<CStaticMeshRendererComponent>();
+
+			auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
+			ConfigureWeaponCollider(collider, false);
+			if ( collider ) collider->SetCollisionEnabled(false);
+
+			auto* enemyWeaponHitbox = obj->AddComponent<CMonsterWeaponHitboxComponent>();
+			( void ) enemyWeaponHitbox;
 
             obj->SetPosition(0.0f, -10000.0f, 0.0f);
             obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + (UINT64)i * b->cbvInc);
@@ -1767,38 +2125,35 @@ void CGameScene::BuildSkinnedBatch(
     b->count = 0;
 
     m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
-	auto ConfigureCharacterCollider = [ ] (CColliderComponent* collider, bool isLocalPlayer)
+	auto ConfigureBodyCollider = [ ] (CColliderComponent* collider, bool isPlayerBody)
 		{
 			if ( !collider ) return;
 
-			if ( isLocalPlayer )
+			if ( isPlayerBody )
 			{
-				collider->SetLayer(kCollisionLayerLocalPlayer);
-
-				// 로컬 플레이어는
-				// - 월드 정적 오브젝트와 충돌
-				// - 일반 캐릭터들과도 충돌 가능
+				// Player body:
+				// 1) WorldStatic 과 충돌
+				// 2) MonsterWeapon 과 충돌
+				collider->SetLayer(kCollisionLayerPlayer);
 				collider->SetMask(
 					CollisionBit(kCollisionLayerWorldStatic) |
-					CollisionBit(kCollisionLayerCharacter) |
-					CollisionBit(kCollisionLayerLocalPlayer)
+					CollisionBit(kCollisionLayerMonsterWeapon)
 				);
 			}
 			else
 			{
-				collider->SetLayer(kCollisionLayerCharacter);
-
-				// 적 / 원격 플레이어는 월드 정적물과는 충돌하지 않게 둔다.
+				// Monster body:
+				// PlayerWeapon 과만 충돌
+				collider->SetLayer(kCollisionLayerMonster);
 				collider->SetMask(
-					CollisionBit(kCollisionLayerCharacter) |
-					CollisionBit(kCollisionLayerLocalPlayer)
+					CollisionBit(kCollisionLayerPlayerWeapon)
 				);
 			}
 		};
 
     const UINT fighterCount = m_PlayerCount;
 
-    const XMFLOAT3 playerBase(0.0f, 0.0f, 0.0f);
+    const XMFLOAT3 playerBase(-150.0f, 0.0f, 0.0f);
 
     m_swordManRefs.clear();
     m_swordManRefs.reserve(m_swordManCount);
@@ -1894,8 +2249,26 @@ void CGameScene::BuildSkinnedBatch(
 				obj->SetMesh(0, assetW.mesh);
 				obj->AddComponent<CSkinnedMeshRendererComponent>();
 				auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
-				ConfigureCharacterCollider(collider, false);
+				ConfigureBodyCollider(collider, false);
 				auto* animComp = obj->AddComponent<CAnimatorComponent>();
+				auto* combat = obj->AddComponent<CMonsterCombatComponent>();
+				auto* weaponHitbox = obj->AddComponent<CMonsterWeaponHitboxComponent>();
+				( void ) combat;
+
+#ifndef USING_NETWORK
+				/*if ( k == 0 )
+				{
+					auto* ghoulAI = obj->AddComponent<CGhoulAIComponent>();
+					if ( ghoulAI )
+					{
+						ghoulAI->SetScene(this);
+						ghoulAI->SetMoveSpeed(2.0f);
+						ghoulAI->SetRepathInterval(0.15f);
+						ghoulAI->SetPathPointReachDistance(0.10f);
+						ghoulAI->SetGoalReachDistance(0.25f);
+					}
+				}*/
+#endif
 
 				{
 					auto* tag = obj->AddComponent<CActorTagComponent>();
@@ -1918,6 +2291,7 @@ void CGameScene::BuildSkinnedBatch(
 #endif
 
 				obj->SetPosition(pos.x, pos.y, pos.z);
+				obj->Rotate(0.0f, yaw, 0.0f);
 
 				++enemyIndex;
 
@@ -1952,6 +2326,7 @@ void CGameScene::BuildSkinnedBatch(
 						MonsterAnimProfile p{};
 						p.idleClip = "Idle";
 						p.moveClip = "Walk";
+						p.runClip = "Run";
 						p.hitClip = "Hit";
 						p.attackClip = "Attack";
 						p.deathClip = "Death";
@@ -1962,35 +2337,27 @@ void CGameScene::BuildSkinnedBatch(
 					}
 				}
 
+				if ( weaponHitbox )
+				{
+					weaponHitbox->BindAttacker(obj.get());
+					weaponHitbox->SetUseOwnerBoneWeaponCapsules(true);
+					weaponHitbox->AddBoneWeaponConfig(
+						"Attack",
+						0.20f,
+						0.55f,
+						std::vector<std::string>{ "hand_r" }
+					);
+				}
+
 				obj->Animate(0.0f);
 
 				obj->CreateComponents(dev, cmd);
 				if ( animComp ) animComp->EvaluatePose(0.0f);
 
-				auto mesh = std::make_shared<CBoxMeshDiffused>(dev, cmd, obj->GetComponent<CColliderComponent>());
-
 				CGameObject* raw = obj.get();
 				m_skinnedObjects.push_back(std::move(obj));
 				b->objectRefs.push_back(raw);
 				b->count = ( UINT ) b->objectRefs.size();
-
-				auto colliderobj = std::make_unique<CGameObject>(1);
-				auto* collidercb = ( CB_GAMEOBJECT_INFO* ) ( ( UINT8* ) coliiderbatch->mappedGameObjects + m_ColliderCount * coliiderbatch->cbElementBytes );
-				colliderobj->SetMappedGameObjectCB(collidercb);
-
-				colliderobj->SetMesh(0, mesh);
-				colliderobj->AddComponent<CColliderMeshRendererComponent>();
-
-				colliderobj->SetCbvGPUDescriptorHandlePtr(coliiderbatch->baseCbvGpu.ptr + ( UINT64 ) m_ColliderCount * coliiderbatch->cbvInc);
-
-				colliderobj->CreateComponents(dev, cmd);
-
-				CGameObject* rawcollider = colliderobj.get();
-				m_colliderObjects.push_back(std::move(colliderobj));
-				coliiderbatch->objectRefs.push_back(rawcollider);
-				coliiderbatch->count = ( UINT ) coliiderbatch->objectRefs.size();
-
-				++m_ColliderCount;
 			}
 		}
 
@@ -2038,8 +2405,10 @@ void CGameScene::BuildSkinnedBatch(
 				obj->SetMesh(0, assetX.mesh);
 				obj->AddComponent<CSkinnedMeshRendererComponent>();
 				auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
-				ConfigureCharacterCollider(collider, false); 
+				ConfigureBodyCollider(collider, false);
 				auto* animComp = obj->AddComponent<CAnimatorComponent>();
+				auto* combat = obj->AddComponent<CMonsterCombatComponent>();
+				( void ) combat;
 
                 {
                     auto* tag = obj->AddComponent<CActorTagComponent>();
@@ -2051,7 +2420,6 @@ void CGameScene::BuildSkinnedBatch(
                 // GameStartData에서 좌표 가져오기
 				XMFLOAT3 pos{};
 				float yaw = 180.0f;
-
 #ifdef USING_NETWORK
 				if ( !GetNetworkEnemySpawn(enemyIndex, pos, yaw) )
 					break;
@@ -2166,8 +2534,10 @@ void CGameScene::BuildSkinnedBatch(
 				obj->SetMesh(0, assetY.mesh);
 				obj->AddComponent<CSkinnedMeshRendererComponent>();
 				auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
-				ConfigureCharacterCollider(collider, false); 
+				ConfigureBodyCollider(collider, false);
 				auto* animComp = obj->AddComponent<CAnimatorComponent>();
+				auto* combat = obj->AddComponent<CMonsterCombatComponent>();
+				( void ) combat;
 
                 {
                     auto* tag = obj->AddComponent<CActorTagComponent>();
@@ -2295,8 +2665,11 @@ void CGameScene::BuildSkinnedBatch(
 				obj->SetMesh(0, assetZ.mesh);
 				obj->AddComponent<CSkinnedMeshRendererComponent>();
 				auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
-				ConfigureCharacterCollider(collider, false); 
+				ConfigureBodyCollider(collider, false);
 				auto* animComp = obj->AddComponent<CAnimatorComponent>();
+				auto* combat = obj->AddComponent<CMonsterCombatComponent>();
+				auto* weaponHitbox = obj->AddComponent<CMonsterWeaponHitboxComponent>();
+				( void ) combat;
 
                 {
                     auto* tag = obj->AddComponent<CActorTagComponent>();
@@ -2315,7 +2688,7 @@ void CGameScene::BuildSkinnedBatch(
 #else
 				pos.x = enemyBase.x + 2.0f * ( float ) k;
 				pos.y = enemyBase.y;
-				pos.z = enemyBase.z + 9.0f;
+				pos.z = enemyBase.z + 15.0f;
 #endif
 
 				obj->SetPosition(pos.x, pos.y, pos.z);
@@ -2362,6 +2735,18 @@ void CGameScene::BuildSkinnedBatch(
 						ctrl->SetLocomotionState(EMonsterAnimState::Idle);
 						ctrl->Update(0.0f);
 					}
+				}
+
+				if ( weaponHitbox )
+				{
+					weaponHitbox->BindAttacker(obj.get());
+					weaponHitbox->SetUseOwnerBoneWeaponCapsules(true);
+					weaponHitbox->AddBoneWeaponConfig(
+						"Attack",
+						0.20f,
+						0.55f,
+						std::vector<std::string>{ "CATRigRArmPalm" }
+					);
 				}
 
 				obj->CreateComponents(dev, cmd);
@@ -2421,8 +2806,11 @@ void CGameScene::BuildSkinnedBatch(
 				obj->SetMesh(0, assetOne.mesh);
 				obj->AddComponent<CSkinnedMeshRendererComponent>();
 				auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
-				ConfigureCharacterCollider(collider, false); 
+				ConfigureBodyCollider(collider, false);
 				auto* animComp = obj->AddComponent<CAnimatorComponent>();
+				auto* combat = obj->AddComponent<CMonsterCombatComponent>();
+				auto* weaponHitbox = obj->AddComponent<CMonsterWeaponHitboxComponent>();
+				( void ) combat;
 
                 {
                     auto* tag = obj->AddComponent<CActorTagComponent>();
@@ -2441,7 +2829,7 @@ void CGameScene::BuildSkinnedBatch(
 #else
 				pos.x = enemyBase.x + 0.0f;
 				pos.y = enemyBase.y;
-				pos.z = enemyBase.z + 12.0f;
+				pos.z = enemyBase.z + 18.0f;
 #endif
 
 				obj->SetPosition(pos.x, pos.y, pos.z);
@@ -2495,6 +2883,26 @@ void CGameScene::BuildSkinnedBatch(
 						ctrl->SetLocomotionState(EMonsterAnimState::Idle);
 						ctrl->Update(0.0f);
 					}
+				}
+
+				if ( weaponHitbox )
+				{
+					weaponHitbox->BindAttacker(obj.get());
+					weaponHitbox->SetUseOwnerBoneWeaponCapsules(true);
+
+					weaponHitbox->AddBoneWeaponConfig(
+						"AttackLeft",
+						0.20f,
+						0.55f,
+						std::vector<std::string>{ "Wrist_L" }
+					);
+
+					weaponHitbox->AddBoneWeaponConfig(
+						"AttackRight",
+						0.20f,
+						0.55f,
+						std::vector<std::string>{ "Wrist_R" }
+					);
 				}
 
 				obj->CreateComponents(dev, cmd);
@@ -2561,10 +2969,12 @@ void CGameScene::BuildSkinnedBatch(
 			obj->AddComponent<CSkinnedMeshRendererComponent>();
 
 			auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
-			ConfigureCharacterCollider(collider, isLocal);
+			ConfigureBodyCollider(collider, true);
 
 			auto* animComp = obj->AddComponent<CAnimatorComponent>(); 
 			auto* equipComp = obj->AddComponent<CPlayerEquipmentComponent>();
+			auto* weaponHitboxComp = obj->AddComponent<CWeaponHitboxComponent>();
+			( void ) weaponHitboxComp;
 
             {
                 auto* tag = obj->AddComponent<CActorTagComponent>();
@@ -2946,7 +3356,8 @@ void CGameScene::BuildColliderBatch(
 	auto* b = &m_colliderbatch;
 	if ( !b ) return;
 
-	const UINT cap = 20;
+	const UINT cap = kDebugSubmeshOOBBCapacity;
+	b->capacity = cap;
 
 	if ( cap == 0 ) 
 		return;
@@ -3164,10 +3575,17 @@ void CGameScene::LinkSceneObjects()
         const size_t pairCount =
             (m_swordManRefs.size() < m_EnemySwordRefs.size()) ? m_swordManRefs.size() : m_EnemySwordRefs.size();
 
-        for (size_t i = 0; i < pairCount; ++i)
-        {
-            AddWeaponBind(m_EnemySwordRefs[i], m_swordManRefs[i], "hand_r", enemySwordOffset);
-        }
+		for ( size_t i = 0; i < pairCount; ++i )
+		{
+			AddWeaponBind(m_EnemySwordRefs[i], m_swordManRefs[i], "hand_r", enemySwordOffset);
+
+			if ( auto* hitbox = m_EnemySwordRefs[i]->GetComponent<CMonsterWeaponHitboxComponent>() )
+			{
+				hitbox->BindAttacker(m_swordManRefs[i]);
+				hitbox->SetAttackClipName("Attack");
+				hitbox->SetActiveWindow(0.20f, 0.55f);
+			}
+		}
     }
 
     // BowMan <-> EnemyBow
@@ -3445,8 +3863,14 @@ void CGameScene::RequestPrepareArrow(CGameObject* shooter, float pullBackDistanc
 
         if (arrow->IsActive()) continue;
 
-        arrow->Prepare(bowObj, shooter, pullBackDistance);
-        m_preparedPlayerArrows[(size_t)slot] = arrowObj;
+		if ( auto* collider = arrowObj->GetComponent<CColliderComponent>() )
+		{
+			ConfigureProjectileCollider(collider, true);
+			collider->SetCollisionEnabled(false);
+		}
+
+		arrow->Prepare(bowObj, shooter, pullBackDistance, true);
+		m_preparedPlayerArrows[( size_t ) slot] = arrowObj;
         return;
     }
 }
@@ -3478,7 +3902,13 @@ void CGameScene::RequestPrepareBowmanArrow(CGameObject* bowman, float pullBackDi
 		if ( !arrow ) continue;
 		if ( arrow->IsActive() ) continue;
 
-		arrow->Prepare(bowObj, bowman, pullBackDistance);
+		if ( auto* collider = arrowObj->GetComponent<CColliderComponent>() )
+		{
+			ConfigureProjectileCollider(collider, false);
+			collider->SetCollisionEnabled(false);
+		}
+
+		arrow->Prepare(bowObj, bowman, pullBackDistance, true);
 		m_preparedBowmanArrows[idx] = arrowObj;
 		return;
 	}
@@ -3532,7 +3962,12 @@ void CGameScene::RequestReleasePreparedBowmanArrow(CGameObject* bowman, float sp
 		dirN.z * speed
 	};
 
-	arrow->Launch(vel, lifeSec);
+	if ( auto* collider = arrowObj->GetComponent<CColliderComponent>() )
+	{
+		ConfigureProjectileCollider(collider, false);
+	}
+
+	arrow->Launch(vel, lifeSec, true);
 	m_preparedBowmanArrows[idx] = nullptr;
 }
 
@@ -3581,8 +4016,13 @@ void CGameScene::RequestReleasePreparedArrow(CGameObject* shooter, float speed, 
         dirN.z * speed
     };
 
-    arrow->Launch(vel, lifeSec);
-    m_preparedPlayerArrows[(size_t)slot] = nullptr;
+	if ( auto* collider = arrowObj->GetComponent<CColliderComponent>() )
+	{
+		ConfigureProjectileCollider(collider, true);
+	}
+
+	arrow->Launch(vel, lifeSec, true);
+	m_preparedPlayerArrows[( size_t ) slot] = nullptr;
 }
 
 void CGameScene::UpdatePreparedBowArrows()
@@ -3911,13 +4351,19 @@ void CGameScene::RequestFireArrow(CGameObject* shooter, float speed, float lifeS
 
         if (arrow->IsActive()) continue;
 
-        if (auto* tr = arrowObj->GetComponent<CTransformComponent>())
-        {
-            tr->SetLookDirection(dirN);
-        }
+		if ( auto* tr = arrowObj->GetComponent<CTransformComponent>() )
+		{
+			tr->SetLookDirection(dirN);
+		}
 
-        arrow->Activate(startPos, vel, lifeSec);
-        return;
+		if ( auto* collider = arrowObj->GetComponent<CColliderComponent>() )
+		{
+			ConfigureProjectileCollider(collider, true);
+			collider->SetCollisionEnabled(false);
+		}
+
+		arrow->Activate(startPos, vel, lifeSec);
+		return;
     }
 }
 
@@ -3979,6 +4425,11 @@ void CGameScene::RequestFireBullet(CGameObject* shooter, float speed, float life
 		if ( auto* tr = bulletObj->GetComponent<CTransformComponent>() )
 		{
 			tr->SetLookDirection(dirN);
+		}
+		if ( auto* collider = bulletObj->GetComponent<CColliderComponent>() )
+		{
+			ConfigureProjectileCollider(collider, true);
+			collider->SetCollisionEnabled(false);
 		}
 
 		bullet->Activate(startPos, vel, lifeSec);
@@ -4149,7 +4600,7 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
     if (m_pcbMappedLights)
     {
         ::ZeroMemory(m_pcbMappedLights, sizeof(LIGHTS));
-        m_pcbMappedLights->m_xmf4GlobalAmbient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+		m_pcbMappedLights->m_xmf4GlobalAmbient = XMFLOAT4(0.20f, 0.20f, 0.20f, 1.0f);
 
         UINT li = 0;
         for (auto& obj : m_lightObjects)
