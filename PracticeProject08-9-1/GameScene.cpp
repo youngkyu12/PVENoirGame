@@ -134,6 +134,8 @@ namespace
     }
 
 	static constexpr UINT kDebugSubmeshOOBBCapacity = 4096;
+	static constexpr bool kEnableStaticWorldLocalOOBBReportExport = false;
+	static constexpr const char* kStaticWorldLocalOOBBReportPath = "MapData/StaticWorldLocalOOBBReport.txt";
 
 	static XMFLOAT4X4 BuildWorldMatrixFromOOBB(const BoundingOrientedBox& box)
 	{
@@ -335,6 +337,23 @@ namespace
             outDesc = { AssetType::Tower, "Assets/Tower/Mesh/Tower.bin", "Assets/Tower/Texture" };
             return true;
         }
+		if ( assetName == "Tree1" )
+		{
+			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree1.bin", "Assets/Tree/Texture" };
+			return true;
+		}
+		if ( assetName == "Tree2" )
+		{
+			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree2.bin", "Assets/Tree/Texture" };
+		}
+		if ( assetName == "Tree3" )
+		{
+			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree3.bin", "Assets/Tree/Texture" };
+		}
+		if ( assetName == "Tree4" )
+		{
+			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree4.bin", "Assets/Tree/Texture" };
+		}
 
         return false;
     }
@@ -635,7 +654,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	ApplyStaticPlacementCounts();
 #else
 	m_localPlayerSlot = 0;
-	const std::string placementFilePath = "MapData/placement_export_tst.txt";
+	const std::string placementFilePath = "MapData/placement_export_st1_tree.txt";
 	const std::string cubeColliderReportFilePath = "MapData/CubeBoxColliderReport.txt";
 	const std::string navMeshFilePath = "MapData/1StageNavmesh.nvm";
 
@@ -1498,16 +1517,19 @@ void CGameScene::BuildStaticBatch(
 	}
 //#endif
 #ifndef USING_NETWORK
-	if ( !ExportStaticWorldLocalOOBBReport(
-		"MapData/StaticWorldLocalOOBBReport.txt",
-		exportedWorldStaticPlacementIndices,
-		exportedWorldStaticObjects) )
+	if ( kEnableStaticWorldLocalOOBBReportExport )
 	{
-		OutputDebugStringA("[StaticWorldLocalOOBBReport] export failed\n");
-	}
-	else
-	{
-		OutputDebugStringA("[StaticWorldLocalOOBBReport] export complete\n");
+		if ( !ExportStaticWorldLocalOOBBReport(
+			kStaticWorldLocalOOBBReportPath,
+			exportedWorldStaticPlacementIndices,
+			exportedWorldStaticObjects) )
+		{
+			OutputDebugStringA("[StaticWorldLocalOOBBReport] export failed\n");
+		}
+		else
+		{
+			OutputDebugStringA("[StaticWorldLocalOOBBReport] export complete\n");
+		}
 	}
 #endif
 
