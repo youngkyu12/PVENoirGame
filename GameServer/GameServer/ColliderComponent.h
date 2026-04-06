@@ -24,6 +24,7 @@ public:
 
 	void SetAABB(const XMFLOAT3& Min, const XMFLOAT3& Max);
 	void SetOOBB(const XMFLOAT3& Min, const XMFLOAT3& Max);
+  void SetOOBB(const BoundingOrientedBox& localOOBB);
 	void SetBSphere(const XMFLOAT3& Min, const XMFLOAT3& Max);
 	void SetBCapsule(const XMFLOAT3& Min, const XMFLOAT3& Max);
 	void SetSubBCapsule(const XMFLOAT3& Min, const XMFLOAT3& Max);
