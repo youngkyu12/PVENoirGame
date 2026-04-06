@@ -460,7 +460,7 @@ void CStaticObjectsShader::CreateShader(ID3D12Device* pd3dDevice, ID3D12RootSign
 
 D3D12_SHADER_BYTECODE CStaticObjectsShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
 {
-	return( CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSTexturedLightingToMultipleRTs_AlphaClip", "ps_5_1", ppd3dShaderBlob) );
+	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSTexturedLightingToMultipleRTs", "ps_5_1", ppd3dShaderBlob));
 }
 
 void CStaticObjectsShader::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext)
