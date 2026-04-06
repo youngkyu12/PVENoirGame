@@ -16,6 +16,9 @@
 #include <algorithm>
 #include <fstream>
 #include <cstdio>
+#include <cstdlib>
+#include <cctype>
+#include <unordered_map>
 
 shared_ptr<Room> GRoom = make_shared<Room>();
 
@@ -133,6 +136,17 @@ namespace
 		float yawDeg = 0.0f;
 	};
 
+	struct ReportObjectOOBB
+	{
+		int placementIndex = -1;
+		std::string assetName;
+		std::string objectName;
+		BoundingOrientedBox localOOBB{};
+	};
+
+	static std::unordered_map<int, ReportObjectOOBB> g_reportByPlacementIndex;
+	static bool g_staticWorldReportLoaded = false;
+
 	static float QuaternionToYawDegrees(float x, float y, float z, float w)
 	{
 		const float siny_cosp = 2.0f * (w * y + x * z);
@@ -200,6 +214,153 @@ namespace
 		return !outEntries.empty();
 	}
 
+	static std::string TrimString(const std::string& text)
+	{
+		size_t begin = 0;
+		while (begin < text.size() && std::isspace(static_cast<unsigned char>(text[begin])))
+			++begin;
+
+		size_t end = text.size();
+		while (end > begin && std::isspace(static_cast<unsigned char>(text[end - 1])))
+			--end;
+
+		return text.substr(begin, end - begin);
+	}
+
+	static bool TrySplitKeyValue(const std::string& line, std::string& outKey, std::string& outValue)
+	{
+		const size_t sep = line.find(':');
+		if (sep == std::string::npos)
+			return false;
+
+		outKey = TrimString(line.substr(0, sep));
+		outValue = TrimString(line.substr(sep + 1));
+		return !outKey.empty();
+	}
+
+	static bool ParseVector3Tuple(const std::string& text, XMFLOAT3& outValue)
+	{
+		float x = 0.0f;
+		float y = 0.0f;
+		float z = 0.0f;
+		if (::sscanf_s(text.c_str(), "(%f, %f, %f)", &x, &y, &z) != 3)
+			return false;
+
+		outValue = XMFLOAT3(x, y, z);
+		return true;
+	}
+
+	static bool ParseVector4Tuple(const std::string& text, XMFLOAT4& outValue)
+	{
+		float x = 0.0f;
+		float y = 0.0f;
+		float z = 0.0f;
+		float w = 1.0f;
+		if (::sscanf_s(text.c_str(), "(%f, %f, %f, %f)", &x, &y, &z, &w) != 4)
+			return false;
+
+		outValue = XMFLOAT4(x, y, z, w);
+		return true;
+	}
+
+	static bool LoadStaticWorldOverallLocalOOBBReport(
+		std::unordered_map<int, ReportObjectOOBB>& outByPlacementIndex,
+		std::unordered_map<std::string, ReportObjectOOBB>& outByObjectName)
+	{
+		outByPlacementIndex.clear();
+		outByObjectName.clear();
+
+		const std::vector<std::string> candidates = {
+			"MapFIle/StaticWorldLocalOOBBReport.txt",
+			"GameServer/MapFIle/StaticWorldLocalOOBBReport.txt",
+			"../GameServer/MapFIle/StaticWorldLocalOOBBReport.txt"
+		};
+
+		std::ifstream fin;
+		for (const auto& path : candidates)
+		{
+			fin.open(path);
+			if (fin.is_open())
+				break;
+			fin.clear();
+		}
+
+		if (!fin.is_open())
+			return false;
+
+		std::string line;
+		bool inObject = false;
+		ReportObjectOOBB current{};
+		bool hasCenter = false;
+		bool hasRotation = false;
+		bool hasExtents = false;
+
+		while (std::getline(fin, line))
+		{
+			line = TrimString(line);
+			if (line.empty())
+				continue;
+
+			if (line == "ObjectBegin")
+			{
+				inObject = true;
+				current = ReportObjectOOBB{};
+				hasCenter = false;
+				hasRotation = false;
+				hasExtents = false;
+				continue;
+			}
+
+			if (!inObject)
+				continue;
+
+			if (line == "ObjectEnd")
+			{
+				if (current.placementIndex >= 0 && hasCenter && hasRotation && hasExtents)
+				{
+					outByPlacementIndex[current.placementIndex] = current;
+					if (!current.objectName.empty())
+						outByObjectName[current.objectName] = current;
+				}
+
+				inObject = false;
+				continue;
+			}
+
+			std::string key;
+			std::string value;
+			if (!TrySplitKeyValue(line, key, value))
+				continue;
+
+			if (key == "PlacementIndex")
+			{
+				current.placementIndex = std::atoi(value.c_str());
+			}
+			else if (key == "AssetName")
+			{
+				current.assetName = value;
+			}
+			else if (key == "ObjectName")
+			{
+				current.objectName = value;
+			}
+			else if (key == "OverallLocalOOBB.Center")
+			{
+				hasCenter = ParseVector3Tuple(value, current.localOOBB.Center);
+			}
+			else if (key == "OverallLocalOOBB.RotationQuat")
+			{
+				hasRotation = ParseVector4Tuple(value, current.localOOBB.Orientation);
+			}
+			else if (key == "OverallLocalOOBB.Extents")
+			{
+				hasExtents = ParseVector3Tuple(value, current.localOOBB.Extents);
+			}
+		}
+
+		return !outByPlacementIndex.empty() || !outByObjectName.empty();
+	}
+
 	static Protocol::BuildingType AssetToBuildingType(const std::string& asset)
 	{
 		if (asset == "Grass") return Protocol::BUILDING_TYPE_GRASS;
@@ -216,6 +377,37 @@ namespace
 		if (asset == "VillageWall") return Protocol::BUILDING_TYPE_VILLAGE_WALL;
 		if (asset == "DirtRoad") return Protocol::BUILDING_TYPE_DIRT_ROAD;
 		return Protocol::BUILDING_TYPE_NONE;
+	}
+
+	static const char* BuildingTypeToAssetName(Protocol::BuildingType type)
+	{
+		switch (type)
+		{
+		case Protocol::BUILDING_TYPE_GRASS: return "Grass";
+		case Protocol::BUILDING_TYPE_GROUND: return "Ground";
+		case Protocol::BUILDING_TYPE_BUILDING1: return "Building1";
+		case Protocol::BUILDING_TYPE_BUILDING2: return "Building2";
+		case Protocol::BUILDING_TYPE_BUILDING3: return "Building3";
+		case Protocol::BUILDING_TYPE_BUILDING4: return "Building4";
+		case Protocol::BUILDING_TYPE_BUILDING5: return "Building5";
+		case Protocol::BUILDING_TYPE_BUILDING6: return "Building6";
+		case Protocol::BUILDING_TYPE_BUILDING7: return "Building7";
+		case Protocol::BUILDING_TYPE_BUILDING8: return "Building8";
+		case Protocol::BUILDING_TYPE_BUILDING9: return "Building9";
+		case Protocol::BUILDING_TYPE_VILLAGE_WALL: return "VillageWall";
+		case Protocol::BUILDING_TYPE_DIRT_ROAD: return "DirtRoad";
+		default: return "";
+		}
+	}
+
+	static void EnsureStaticWorldReportLoaded()
+	{
+		if (g_staticWorldReportLoaded)
+			return;
+
+		std::unordered_map<std::string, ReportObjectOOBB> unusedByName;
+		LoadStaticWorldOverallLocalOOBBReport(g_reportByPlacementIndex, unusedByName);
+		g_staticWorldReportLoaded = true;
 	}
 
 	static GameMath::Vec3 GetInitialPlayerSpawnPosition(uint64 playerId)
@@ -274,10 +466,33 @@ void Room::RegisterStaticCollider(BuildingRef building)
 		collider = building->AddComponent<CColliderComponent>(EColliderType::OOBB);
 		if (collider)
 		{
-			XMFLOAT3 minV{};
-			XMFLOAT3 maxV{};
-			GetStaticBuildingBounds(building->GetBuildingType(), minV, maxV);
-			collider->SetOOBB(minV, maxV);
+          bool appliedFromReport = false;
+			EnsureStaticWorldReportLoaded();
+
+			const int placementIdx1Based = static_cast<int>(building->GetObjectId());
+			auto reportIt = g_reportByPlacementIndex.find(placementIdx1Based);
+
+			if (reportIt == g_reportByPlacementIndex.end())
+				reportIt = g_reportByPlacementIndex.find(placementIdx1Based - 1);
+
+			if (reportIt != g_reportByPlacementIndex.end())
+			{
+				const char* expectedAsset = BuildingTypeToAssetName(building->GetBuildingType());
+				if (expectedAsset[0] == '\0' || reportIt->second.assetName.empty() || reportIt->second.assetName == expectedAsset)
+				{
+					collider->SetOOBB(reportIt->second.localOOBB);
+					appliedFromReport = true;
+				}
+			}
+
+			if (!appliedFromReport)
+			{
+				XMFLOAT3 minV{};
+				XMFLOAT3 maxV{};
+				GetStaticBuildingBounds(building->GetBuildingType(), minV, maxV);
+				collider->SetOOBB(minV, maxV);
+			}
+
 			collider->SetLayer(kCollisionLayerWorldStatic);
 			collider->SetMask(CollisionBit(kCollisionLayerCharacter));
 		}
@@ -419,17 +634,20 @@ void Room::BuildRoom()
 	InitializeCollisionSystem();
 
 	std::vector<PlacementEntry> entries;
+
 	if (LoadPlacementEntries(entries))
 	{
 		uint64 buildingId = 1;
-		for (const auto& e : entries)
+       for (size_t entryIndex = 0; entryIndex < entries.size(); ++entryIndex)
 		{
+          const auto& e = entries[entryIndex];
 			auto building = std::make_shared<CBuilding>();
 			building->SetObjectId(buildingId);
 			building->SetPosition(e.position);
 			building->SetYaw(GameMath::NormalizeYaw(e.yawDeg));
 			building->SetBuildingType(AssetToBuildingType(e.asset));
 			building->SetActive(true);
+
 			RegisterStaticCollider(building);
 
 			buildings[buildingId] = building;

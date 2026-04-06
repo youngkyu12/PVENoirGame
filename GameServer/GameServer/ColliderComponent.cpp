@@ -60,6 +60,11 @@ void CColliderComponent::SetOOBB(const XMFLOAT3& Min, const XMFLOAT3& Max)
 	LocalOOBB.Orientation = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
 }
 
+void CColliderComponent::SetOOBB(const BoundingOrientedBox& localOOBB)
+{
+	LocalOOBB = localOOBB;
+}
+
 void CColliderComponent::SetBSphere(const XMFLOAT3& Min, const XMFLOAT3& Max)
 {
 	LocalBSphere.Center = XMFLOAT3(
