@@ -356,6 +356,69 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
     return output;
 }
 
+
+PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs_AlphaClip(
+    VS_TEXTURED_LIGHTING_OUTPUT input,
+    uint nPrimitiveID : SV_PrimitiveID)
+{
+    PS_MULTIPLE_RENDER_TARGETS_OUTPUT output;
+
+    uint materialId = input.materialId;
+    MATERIAL mat = gMaterials[materialId];
+
+    float2 diffuseUV = GetDiffuseUV(materialId, input.uv);
+    float2 normalUV = GetNormalUV(materialId, input.uv);
+    float2 emissiveUV = GetEmissiveUV(materialId, input.uv);
+    float2 specularUV = GetSpecularUV(materialId, input.uv);
+
+    float4 diffuseSample = SampleTextureRGBA(
+        mat.TextureIndices.x,
+        diffuseUV,
+        float4(1.0f, 1.0f, 1.0f, 1.0f)
+    );
+
+    float finalAlpha = diffuseSample.a * mat.m_cDiffuse.a;
+    clip(finalAlpha - 0.5f);
+
+    float4 emissiveSample = SampleTextureRGBA(
+        mat.TextureIndices.z,
+        emissiveUV,
+        float4(1.0f, 1.0f, 1.0f, 1.0f)
+    );
+
+    float4 specularSample = SampleTextureRGBA(
+        mat.TextureIndices.w,
+        specularUV,
+        float4(1.0f, 1.0f, 1.0f, 1.0f)
+    );
+
+    float4 texColor = diffuseSample * mat.m_cDiffuse;
+    float3 normalW = GetNormalWFromMap(mat.TextureIndices.y, input.normalW, input.tangentW, normalUV);
+    float3 emissiveColor = emissiveSample.rgb * mat.m_cEmissive.rgb;
+
+    float3 specularColor = specularSample.rgb * mat.m_cSpecular.rgb;
+    float shininess = mat.m_cSpecular.a;
+
+    float4 illumination = Lighting(
+        materialId,
+        input.positionW,
+        normalW,
+        texColor,
+        emissiveColor,
+        specularColor,
+        shininess
+    );
+
+    output.cTexture = texColor;
+    output.cIllumination = illumination;
+    output.color = illumination;
+    output.normal = float4(normalW * 0.5f + 0.5f, 1.0f);
+    output.zDepth = input.position.z;
+
+    return output;
+}
+
+
 //////////////////////////////////////////////////////////////////////////////////////////////////
 // Skinned (VS only; PS는 위 MRT PS를 재사용)
 struct VS_SKINNED_INPUT
