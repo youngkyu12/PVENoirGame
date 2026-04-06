@@ -25,6 +25,8 @@ public:
 	void SetAABB(const XMFLOAT3& Min, const XMFLOAT3& Max);
 	void SetOOBB(const XMFLOAT3& Min, const XMFLOAT3& Max);
   void SetOOBB(const BoundingOrientedBox& localOOBB);
+  void SetSubOOBBs(const std::vector<BoundingOrientedBox>& localSubOOBBs);
+	void ClearSubOOBBs();
 	void SetBSphere(const XMFLOAT3& Min, const XMFLOAT3& Max);
 	void SetBCapsule(const XMFLOAT3& Min, const XMFLOAT3& Max);
 	void SetSubBCapsule(const XMFLOAT3& Min, const XMFLOAT3& Max);
@@ -32,6 +34,7 @@ public:
 	EColliderType GetType() const { return mColliderType; }
 	const BoundingBox& GetAABB() const { return WorldAABB; }
 	const BoundingOrientedBox& GetOOBB() const { return WorldOOBB; }
+   const std::vector<BoundingOrientedBox>& GetSubOOBBs() const { return WorldSubOOBBs; }
 	const BoundingSphere& GetBSphere() const { return WorldBSphere; }
 	const BoundingCapsule& GetBCapsule() const { return WorldBCapsule; }
 	const std::vector<BoundingCapsule>& GetSubBCapsules() const { return WorldSubBCapsules; }
@@ -52,12 +55,14 @@ private:
 
 	BoundingBox LocalAABB{};
 	BoundingOrientedBox LocalOOBB{};
+  std::vector<BoundingOrientedBox> LocalSubOOBBs;
 	BoundingSphere LocalBSphere{};
 	BoundingCapsule LocalBCapsule{};
 	std::vector<BoundingCapsule> LocalSubBCapsules;
 
 	BoundingBox WorldAABB{};
 	BoundingOrientedBox WorldOOBB{};
+  std::vector<BoundingOrientedBox> WorldSubOOBBs;
 	BoundingSphere WorldBSphere{};
 	BoundingCapsule WorldBCapsule{};
 	std::vector<BoundingCapsule> WorldSubBCapsules;

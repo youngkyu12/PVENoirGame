@@ -27,6 +27,7 @@ namespace
 		case 11: return "Building9";
 		case 12: return "VillageWall";
 		case 13: return "DirtRoad";
+		case 14: return "Tower";
 		default: return "";
 		}
 	}

@@ -65,6 +65,17 @@ void CColliderComponent::SetOOBB(const BoundingOrientedBox& localOOBB)
 	LocalOOBB = localOOBB;
 }
 
+void CColliderComponent::SetSubOOBBs(const std::vector<BoundingOrientedBox>& localSubOOBBs)
+{
+	LocalSubOOBBs = localSubOOBBs;
+}
+
+void CColliderComponent::ClearSubOOBBs()
+{
+	LocalSubOOBBs.clear();
+	WorldSubOOBBs.clear();
+}
+
 void CColliderComponent::SetBSphere(const XMFLOAT3& Min, const XMFLOAT3& Max)
 {
 	LocalBSphere.Center = XMFLOAT3(
@@ -183,6 +194,9 @@ void CColliderComponent::UpdateWorldBounds()
 		break;
 	case EColliderType::OOBB:
 		LocalOOBB.Transform(WorldOOBB, W);
+      WorldSubOOBBs.resize(LocalSubOOBBs.size());
+		for (size_t i = 0; i < LocalSubOOBBs.size(); ++i)
+			LocalSubOOBBs[i].Transform(WorldSubOOBBs[i], W);
 		break;
 	case EColliderType::BSphere:
 		LocalBSphere.Transform(WorldBSphere, W);
@@ -203,5 +217,17 @@ bool CColliderComponent::IntersectsCapsuleHierarchical(const BoundingCapsule& ca
 	if (mColliderType != EColliderType::OOBB)
 		return false;
 
-	return capsule.Intersects(WorldOOBB);
+	if (!capsule.Intersects(WorldOOBB))
+		return false;
+
+	if (WorldSubOOBBs.empty())
+		return true;
+
+	for (const BoundingOrientedBox& subBox : WorldSubOOBBs)
+	{
+		if (capsule.Intersects(subBox))
+			return true;
+	}
+
+   return false;
 }
