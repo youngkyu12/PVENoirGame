@@ -12,13 +12,12 @@
 
 #include "Protocol.pb.h"
 #include "ClientPacketHandler.h"
+#include "ReportHelper.h"
 
 #include <algorithm>
 #include <fstream>
 #include <cstdio>
 #include <cstdlib>
-#include <cctype>
-#include <unordered_map>
 
 shared_ptr<Room> GRoom = make_shared<Room>();
 
@@ -35,8 +34,6 @@ namespace
 	{
 		return (1u << layer);
 	}
-
-	static Protocol::BuildingType AssetToBuildingType(const std::string& asset);
 
 	static bool ShouldCreateWorldStaticCollider(Protocol::BuildingType type)
 	{
@@ -143,16 +140,7 @@ namespace
 		float yawDeg = 0.0f;
 	};
 
-	struct ReportObjectOOBB
-	{
-		int placementIndex = -1;
-		std::string assetName;
-		std::string objectName;
-		BoundingOrientedBox localOOBB{};
-      std::vector<BoundingOrientedBox> localSubOOBBs;
-	};
-
-  static std::unordered_map<int, ReportObjectOOBB> g_reportByBuildingType;
+ static StaticWorldReportCache g_staticWorldReportCache;
 	static bool g_staticWorldReportLoaded = false;
 
 	static float QuaternionToYawDegrees(float x, float y, float z, float w)
@@ -222,59 +210,10 @@ namespace
 		return !outEntries.empty();
 	}
 
-	static std::string TrimString(const std::string& text)
+	static void EnsureStaticWorldReportLoaded()
 	{
-		size_t begin = 0;
-		while (begin < text.size() && std::isspace(static_cast<unsigned char>(text[begin])))
-			++begin;
-
-		size_t end = text.size();
-		while (end > begin && std::isspace(static_cast<unsigned char>(text[end - 1])))
-			--end;
-
-		return text.substr(begin, end - begin);
-	}
-
-	static bool TrySplitKeyValue(const std::string& line, std::string& outKey, std::string& outValue)
-	{
-		const size_t sep = line.find(':');
-		if (sep == std::string::npos)
-			return false;
-
-		outKey = TrimString(line.substr(0, sep));
-		outValue = TrimString(line.substr(sep + 1));
-		return !outKey.empty();
-	}
-
-	static bool ParseVector3Tuple(const std::string& text, XMFLOAT3& outValue)
-	{
-		float x = 0.0f;
-		float y = 0.0f;
-		float z = 0.0f;
-		if (::sscanf_s(text.c_str(), "(%f, %f, %f)", &x, &y, &z) != 3)
-			return false;
-
-		outValue = XMFLOAT3(x, y, z);
-		return true;
-	}
-
-	static bool ParseVector4Tuple(const std::string& text, XMFLOAT4& outValue)
-	{
-		float x = 0.0f;
-		float y = 0.0f;
-		float z = 0.0f;
-		float w = 1.0f;
-		if (::sscanf_s(text.c_str(), "(%f, %f, %f, %f)", &x, &y, &z, &w) != 4)
-			return false;
-
-		outValue = XMFLOAT4(x, y, z, w);
-		return true;
-	}
-
-  static bool LoadStaticWorldOverallLocalOOBBReport(
-		std::unordered_map<int, ReportObjectOOBB>& outByBuildingType)
-	{
-        outByBuildingType.clear();
+		if (g_staticWorldReportLoaded)
+			return;
 
 		const std::vector<std::string> candidates = {
 			"MapFIle/StaticWorldLocalOOBBReport.txt",
@@ -282,186 +221,7 @@ namespace
 			"../GameServer/MapFIle/StaticWorldLocalOOBBReport.txt"
 		};
 
-		std::ifstream fin;
-		for (const auto& path : candidates)
-		{
-			fin.open(path);
-			if (fin.is_open())
-				break;
-			fin.clear();
-		}
-
-		if (!fin.is_open())
-			return false;
-
-		std::string line;
-		bool inObject = false;
-		ReportObjectOOBB current{};
-		bool hasCenter = false;
-		bool hasRotation = false;
-		bool hasExtents = false;
-		bool inSubOOBB = false;
-		BoundingOrientedBox currentSubOOBB{};
-		bool hasSubCenter = false;
-		bool hasSubRotation = false;
-		bool hasSubExtents = false;
-
-		while (std::getline(fin, line))
-		{
-			line = TrimString(line);
-			if (line.empty())
-				continue;
-
-			if (line == "ObjectBegin")
-			{
-				inObject = true;
-				current = ReportObjectOOBB{};
-				hasCenter = false;
-				hasRotation = false;
-				hasExtents = false;
-               inSubOOBB = false;
-				hasSubCenter = false;
-				hasSubRotation = false;
-				hasSubExtents = false;
-				continue;
-			}
-
-			if (!inObject)
-				continue;
-
-			if (line == "ObjectEnd")
-			{
-              if (inSubOOBB && hasSubCenter && hasSubRotation && hasSubExtents)
-					current.localSubOOBBs.push_back(currentSubOOBB);
-
-				if (current.placementIndex >= 0 && hasCenter && hasRotation && hasExtents)
-				{
-                  const Protocol::BuildingType buildingType = AssetToBuildingType(current.assetName);
-					if (buildingType != Protocol::BUILDING_TYPE_NONE)
-					{
-						const int buildingTypeKey = static_cast<int>(buildingType);
-						if (outByBuildingType.find(buildingTypeKey) == outByBuildingType.end())
-							outByBuildingType[buildingTypeKey] = current;
-					}
-				}
-
-				inObject = false;
-               inSubOOBB = false;
-				continue;
-			}
-
-			if (line == "SubOOBBBegin")
-			{
-				inSubOOBB = true;
-				currentSubOOBB = BoundingOrientedBox{};
-				hasSubCenter = false;
-				hasSubRotation = false;
-				hasSubExtents = false;
-				continue;
-			}
-
-			if (line == "SubOOBBEnd")
-			{
-				if (inSubOOBB && hasSubCenter && hasSubRotation && hasSubExtents)
-					current.localSubOOBBs.push_back(currentSubOOBB);
-
-				inSubOOBB = false;
-				continue;
-			}
-
-			std::string key;
-			std::string value;
-			if (!TrySplitKeyValue(line, key, value))
-				continue;
-
-			if (key == "PlacementIndex")
-			{
-				current.placementIndex = std::atoi(value.c_str());
-			}
-			else if (key == "AssetName")
-			{
-				current.assetName = value;
-			}
-			else if (key == "ObjectName")
-			{
-				current.objectName = value;
-			}
-			else if (key == "OverallLocalOOBB.Center")
-			{
-				hasCenter = ParseVector3Tuple(value, current.localOOBB.Center);
-			}
-			else if (key == "OverallLocalOOBB.RotationQuat")
-			{
-				hasRotation = ParseVector4Tuple(value, current.localOOBB.Orientation);
-			}
-			else if (key == "OverallLocalOOBB.Extents")
-			{
-				hasExtents = ParseVector3Tuple(value, current.localOOBB.Extents);
-			}
-           else if (key == "SubLocalOOBB.Center")
-			{
-				hasSubCenter = ParseVector3Tuple(value, currentSubOOBB.Center);
-			}
-			else if (key == "SubLocalOOBB.RotationQuat")
-			{
-				hasSubRotation = ParseVector4Tuple(value, currentSubOOBB.Orientation);
-			}
-			else if (key == "SubLocalOOBB.Extents")
-			{
-				hasSubExtents = ParseVector3Tuple(value, currentSubOOBB.Extents);
-			}
-		}
-
-        return !outByBuildingType.empty();
-	}
-
-	static Protocol::BuildingType AssetToBuildingType(const std::string& asset)
-	{
-		if (asset == "Grass") return Protocol::BUILDING_TYPE_GRASS;
-		if (asset == "Ground") return Protocol::BUILDING_TYPE_GROUND;
-		if (asset == "Building1") return Protocol::BUILDING_TYPE_BUILDING1;
-		if (asset == "Building2") return Protocol::BUILDING_TYPE_BUILDING2;
-		if (asset == "Building3") return Protocol::BUILDING_TYPE_BUILDING3;
-		if (asset == "Building4") return Protocol::BUILDING_TYPE_BUILDING4;
-		if (asset == "Building5") return Protocol::BUILDING_TYPE_BUILDING5;
-		if (asset == "Building6") return Protocol::BUILDING_TYPE_BUILDING6;
-		if (asset == "Building7") return Protocol::BUILDING_TYPE_BUILDING7;
-		if (asset == "Building8") return Protocol::BUILDING_TYPE_BUILDING8;
-		if (asset == "Building9") return Protocol::BUILDING_TYPE_BUILDING9;
-		if (asset == "VillageWall") return Protocol::BUILDING_TYPE_VILLAGE_WALL;
-		if (asset == "DirtRoad") return Protocol::BUILDING_TYPE_DIRT_ROAD;
-		if (asset == "Tower") return Protocol::BUILDING_TYPE_TOWER;
-		return Protocol::BUILDING_TYPE_NONE;
-	}
-
-	static const char* BuildingTypeToAssetName(Protocol::BuildingType type)
-	{
-		switch (type)
-		{
-		case Protocol::BUILDING_TYPE_GRASS: return "Grass";
-		case Protocol::BUILDING_TYPE_GROUND: return "Ground";
-		case Protocol::BUILDING_TYPE_BUILDING1: return "Building1";
-		case Protocol::BUILDING_TYPE_BUILDING2: return "Building2";
-		case Protocol::BUILDING_TYPE_BUILDING3: return "Building3";
-		case Protocol::BUILDING_TYPE_BUILDING4: return "Building4";
-		case Protocol::BUILDING_TYPE_BUILDING5: return "Building5";
-		case Protocol::BUILDING_TYPE_BUILDING6: return "Building6";
-		case Protocol::BUILDING_TYPE_BUILDING7: return "Building7";
-		case Protocol::BUILDING_TYPE_BUILDING8: return "Building8";
-		case Protocol::BUILDING_TYPE_BUILDING9: return "Building9";
-		case Protocol::BUILDING_TYPE_VILLAGE_WALL: return "VillageWall";
-		case Protocol::BUILDING_TYPE_DIRT_ROAD: return "DirtRoad";
-		case Protocol::BUILDING_TYPE_TOWER: return "Tower";
-		default: return "";
-		}
-	}
-
-	static void EnsureStaticWorldReportLoaded()
-	{
-		if (g_staticWorldReportLoaded)
-			return;
-
-     LoadStaticWorldOverallLocalOOBBReport(g_reportByBuildingType);
+		ReportHelper::LoadStaticWorldOverallLocalOOBBReport(candidates, g_staticWorldReportCache);
 		g_staticWorldReportLoaded = true;
 	}
 
@@ -471,7 +231,7 @@ namespace
 		// z=1.2면 비충돌 시작 + 조금만 이동하면 충돌 테스트 가능
 		constexpr float kBaseZ = 1.2f;
 		constexpr float kSpacingX = 4.0f;
-		return GameMath::Vec3(200 + static_cast<float>(playerId) * kSpacingX, 0.0f, kBaseZ);
+		return GameMath::Vec3(static_cast<float>(playerId) * kSpacingX, 0.0f, kBaseZ);
 	}
 }
 
@@ -524,13 +284,14 @@ void Room::RegisterStaticCollider(BuildingRef building)
           bool appliedFromReport = false;
 			EnsureStaticWorldReportLoaded();
 
-           const int buildingTypeKey = static_cast<int>(building->GetBuildingType());
-			auto reportIt = g_reportByBuildingType.find(buildingTypeKey);
+           const ReportObjectOOBB* report = ReportHelper::FindByBuildingType(
+				g_staticWorldReportCache,
+				building->GetBuildingType());
 
-			if (reportIt != g_reportByBuildingType.end())
+			if (report)
 			{
-				collider->SetOOBB(reportIt->second.localOOBB);
-               collider->SetSubOOBBs(reportIt->second.localSubOOBBs);
+              collider->SetOOBB(report->localOOBB);
+				collider->SetSubOOBBs(report->localSubOOBBs);
 				appliedFromReport = true;
 			}
 
@@ -695,7 +456,7 @@ void Room::BuildRoom()
 			building->SetObjectId(buildingId);
 			building->SetPosition(e.position);
 			building->SetYaw(GameMath::NormalizeYaw(e.yawDeg));
-			building->SetBuildingType(AssetToBuildingType(e.asset));
+            building->SetBuildingType(ReportHelper::AssetToBuildingType(e.asset));
 			building->SetActive(true);
 
 			RegisterStaticCollider(building);
@@ -708,7 +469,7 @@ void Room::BuildRoom()
 	MakeFireRateMap();
 	for (int i = 0; i < 10; ++i)
 	{
-		auto enemy = make_shared<CEnemy>(i, u8"Zombie", Protocol::ENEMY_TYPE_BASIC, nullptr);
+       auto enemy = make_shared<CEnemy>(i, "Zombie", Protocol::ENEMY_TYPE_BASIC, nullptr);
 		enemy->Build(GameMath::Vec3(i * 10.0f, 0, 0), GameMath::Vec3(0, 0, 0));
 		RegisterDynamicCollider(enemy);
 		//enemies[i]->AddComponent<CTransformComponent>();
@@ -718,7 +479,7 @@ void Room::BuildRoom()
 
 	for (int i = 0; i < 30; ++i)
 	{
-		auto enemy = make_shared<CEnemy>(i + 10, u8"FIghter", Protocol::ENEMY_TYPE_ARCHER, nullptr);
+        auto enemy = make_shared<CEnemy>(i + 10, "FIghter", Protocol::ENEMY_TYPE_ARCHER, nullptr);
 		enemy->Build(GameMath::Vec3((i + 10) * 10.0f, 0, 10), GameMath::Vec3(0, 0, 0));
 		RegisterDynamicCollider(enemy);
 		//enemies[i]->AddComponent<CTransformComponent>();
