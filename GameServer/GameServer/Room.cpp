@@ -36,6 +36,8 @@ namespace
 		return (1u << layer);
 	}
 
+	static Protocol::BuildingType AssetToBuildingType(const std::string& asset);
+
 	static bool ShouldCreateWorldStaticCollider(Protocol::BuildingType type)
 	{
 		switch (type)
@@ -70,6 +72,11 @@ namespace
 			// X/Z: extents 1.5 -> 4.5, Y: center 1.75 기준 extents 1.75 -> 5.25
 			outMin = XMFLOAT3(-4.5f, -3.5f, -4.5f);
 			outMax = XMFLOAT3(4.5f, 7.0f, 4.5f);
+			return;
+		case Protocol::BUILDING_TYPE_TOWER:
+			// 타워는 높이가 더 높고, 폭이 더 좁음
+			outMin = XMFLOAT3(-1.0f, 0.0f, -1.0f);
+			outMax = XMFLOAT3(1.0f, 6.0f, 1.0f);
 			return;
 		default:
 			outMin = XMFLOAT3(-1.5f, 0.0f, -1.5f);
@@ -142,9 +149,10 @@ namespace
 		std::string assetName;
 		std::string objectName;
 		BoundingOrientedBox localOOBB{};
+      std::vector<BoundingOrientedBox> localSubOOBBs;
 	};
 
-	static std::unordered_map<int, ReportObjectOOBB> g_reportByPlacementIndex;
+  static std::unordered_map<int, ReportObjectOOBB> g_reportByBuildingType;
 	static bool g_staticWorldReportLoaded = false;
 
 	static float QuaternionToYawDegrees(float x, float y, float z, float w)
@@ -263,12 +271,10 @@ namespace
 		return true;
 	}
 
-	static bool LoadStaticWorldOverallLocalOOBBReport(
-		std::unordered_map<int, ReportObjectOOBB>& outByPlacementIndex,
-		std::unordered_map<std::string, ReportObjectOOBB>& outByObjectName)
+  static bool LoadStaticWorldOverallLocalOOBBReport(
+		std::unordered_map<int, ReportObjectOOBB>& outByBuildingType)
 	{
-		outByPlacementIndex.clear();
-		outByObjectName.clear();
+        outByBuildingType.clear();
 
 		const std::vector<std::string> candidates = {
 			"MapFIle/StaticWorldLocalOOBBReport.txt",
@@ -294,6 +300,11 @@ namespace
 		bool hasCenter = false;
 		bool hasRotation = false;
 		bool hasExtents = false;
+		bool inSubOOBB = false;
+		BoundingOrientedBox currentSubOOBB{};
+		bool hasSubCenter = false;
+		bool hasSubRotation = false;
+		bool hasSubExtents = false;
 
 		while (std::getline(fin, line))
 		{
@@ -308,6 +319,10 @@ namespace
 				hasCenter = false;
 				hasRotation = false;
 				hasExtents = false;
+               inSubOOBB = false;
+				hasSubCenter = false;
+				hasSubRotation = false;
+				hasSubExtents = false;
 				continue;
 			}
 
@@ -316,14 +331,41 @@ namespace
 
 			if (line == "ObjectEnd")
 			{
+              if (inSubOOBB && hasSubCenter && hasSubRotation && hasSubExtents)
+					current.localSubOOBBs.push_back(currentSubOOBB);
+
 				if (current.placementIndex >= 0 && hasCenter && hasRotation && hasExtents)
 				{
-					outByPlacementIndex[current.placementIndex] = current;
-					if (!current.objectName.empty())
-						outByObjectName[current.objectName] = current;
+                  const Protocol::BuildingType buildingType = AssetToBuildingType(current.assetName);
+					if (buildingType != Protocol::BUILDING_TYPE_NONE)
+					{
+						const int buildingTypeKey = static_cast<int>(buildingType);
+						if (outByBuildingType.find(buildingTypeKey) == outByBuildingType.end())
+							outByBuildingType[buildingTypeKey] = current;
+					}
 				}
 
 				inObject = false;
+               inSubOOBB = false;
+				continue;
+			}
+
+			if (line == "SubOOBBBegin")
+			{
+				inSubOOBB = true;
+				currentSubOOBB = BoundingOrientedBox{};
+				hasSubCenter = false;
+				hasSubRotation = false;
+				hasSubExtents = false;
+				continue;
+			}
+
+			if (line == "SubOOBBEnd")
+			{
+				if (inSubOOBB && hasSubCenter && hasSubRotation && hasSubExtents)
+					current.localSubOOBBs.push_back(currentSubOOBB);
+
+				inSubOOBB = false;
 				continue;
 			}
 
@@ -356,9 +398,21 @@ namespace
 			{
 				hasExtents = ParseVector3Tuple(value, current.localOOBB.Extents);
 			}
+           else if (key == "SubLocalOOBB.Center")
+			{
+				hasSubCenter = ParseVector3Tuple(value, currentSubOOBB.Center);
+			}
+			else if (key == "SubLocalOOBB.RotationQuat")
+			{
+				hasSubRotation = ParseVector4Tuple(value, currentSubOOBB.Orientation);
+			}
+			else if (key == "SubLocalOOBB.Extents")
+			{
+				hasSubExtents = ParseVector3Tuple(value, currentSubOOBB.Extents);
+			}
 		}
 
-		return !outByPlacementIndex.empty() || !outByObjectName.empty();
+        return !outByBuildingType.empty();
 	}
 
 	static Protocol::BuildingType AssetToBuildingType(const std::string& asset)
@@ -376,6 +430,7 @@ namespace
 		if (asset == "Building9") return Protocol::BUILDING_TYPE_BUILDING9;
 		if (asset == "VillageWall") return Protocol::BUILDING_TYPE_VILLAGE_WALL;
 		if (asset == "DirtRoad") return Protocol::BUILDING_TYPE_DIRT_ROAD;
+		if (asset == "Tower") return Protocol::BUILDING_TYPE_TOWER;
 		return Protocol::BUILDING_TYPE_NONE;
 	}
 
@@ -396,6 +451,7 @@ namespace
 		case Protocol::BUILDING_TYPE_BUILDING9: return "Building9";
 		case Protocol::BUILDING_TYPE_VILLAGE_WALL: return "VillageWall";
 		case Protocol::BUILDING_TYPE_DIRT_ROAD: return "DirtRoad";
+		case Protocol::BUILDING_TYPE_TOWER: return "Tower";
 		default: return "";
 		}
 	}
@@ -405,8 +461,7 @@ namespace
 		if (g_staticWorldReportLoaded)
 			return;
 
-		std::unordered_map<std::string, ReportObjectOOBB> unusedByName;
-		LoadStaticWorldOverallLocalOOBBReport(g_reportByPlacementIndex, unusedByName);
+     LoadStaticWorldOverallLocalOOBBReport(g_reportByBuildingType);
 		g_staticWorldReportLoaded = true;
 	}
 
@@ -416,7 +471,7 @@ namespace
 		// z=1.2면 비충돌 시작 + 조금만 이동하면 충돌 테스트 가능
 		constexpr float kBaseZ = 1.2f;
 		constexpr float kSpacingX = 4.0f;
-		return GameMath::Vec3(static_cast<float>(playerId) * kSpacingX, 0.0f, kBaseZ);
+		return GameMath::Vec3(200 + static_cast<float>(playerId) * kSpacingX, 0.0f, kBaseZ);
 	}
 }
 
@@ -469,20 +524,14 @@ void Room::RegisterStaticCollider(BuildingRef building)
           bool appliedFromReport = false;
 			EnsureStaticWorldReportLoaded();
 
-			const int placementIdx1Based = static_cast<int>(building->GetObjectId());
-			auto reportIt = g_reportByPlacementIndex.find(placementIdx1Based);
+           const int buildingTypeKey = static_cast<int>(building->GetBuildingType());
+			auto reportIt = g_reportByBuildingType.find(buildingTypeKey);
 
-			if (reportIt == g_reportByPlacementIndex.end())
-				reportIt = g_reportByPlacementIndex.find(placementIdx1Based - 1);
-
-			if (reportIt != g_reportByPlacementIndex.end())
+			if (reportIt != g_reportByBuildingType.end())
 			{
-				const char* expectedAsset = BuildingTypeToAssetName(building->GetBuildingType());
-				if (expectedAsset[0] == '\0' || reportIt->second.assetName.empty() || reportIt->second.assetName == expectedAsset)
-				{
-					collider->SetOOBB(reportIt->second.localOOBB);
-					appliedFromReport = true;
-				}
+				collider->SetOOBB(reportIt->second.localOOBB);
+               collider->SetSubOOBBs(reportIt->second.localSubOOBBs);
+				appliedFromReport = true;
 			}
 
 			if (!appliedFromReport)
@@ -491,6 +540,7 @@ void Room::RegisterStaticCollider(BuildingRef building)
 				XMFLOAT3 maxV{};
 				GetStaticBuildingBounds(building->GetBuildingType(), minV, maxV);
 				collider->SetOOBB(minV, maxV);
+               collider->ClearSubOOBBs();
 			}
 
 			collider->SetLayer(kCollisionLayerWorldStatic);
