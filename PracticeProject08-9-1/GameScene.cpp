@@ -345,14 +345,17 @@ namespace
 		if ( assetName == "Tree2" )
 		{
 			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree2.bin", "Assets/Tree/Texture" };
+			return true;
 		}
 		if ( assetName == "Tree3" )
 		{
 			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree3.bin", "Assets/Tree/Texture" };
+			return true;
 		}
 		if ( assetName == "Tree4" )
 		{
 			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree4.bin", "Assets/Tree/Texture" };
+			return true;
 		}
 
         return false;
@@ -364,6 +367,15 @@ namespace
 		if ( assetName == "Ground" )   return false;
 		if ( assetName == "DirtRoad" ) return false;
 		return true;
+	}
+
+	static bool IsTreeStaticAsset(const std::string& assetName)
+	{
+		return
+			( assetName == "Tree1" ) ||
+			( assetName == "Tree2" ) ||
+			( assetName == "Tree3" ) ||
+			( assetName == "Tree4" );
 	}
 
 	void TriggerMonsterTestCommand(CGameObject* obj, EMonsterAnimCommand cmd, EMonsterAnimState locomotion = EMonsterAnimState::Idle)
@@ -478,6 +490,9 @@ void CGameScene::ReleaseObjects()
 {
     m_staticBatch.shader.reset();
     m_skinnedBatch.shader.reset();
+
+	m_treeStaticShader.reset();
+	m_treeAlphaClipObjects.clear();
 
     m_staticObjects.clear();
     m_skinnedObjects.clear();
@@ -737,10 +752,12 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	CreateGraphicsRootSignature(dev);
 
 	auto pStaticShader = std::make_shared<CStaticObjectsShader>();
+	auto pTreeStaticShader = std::make_shared<CTreeStaticObjectsShader>();
 	auto pSkinnedShader = std::make_shared<CSkinnedObjectsShader>();
 	auto pColliderShader = std::make_shared<CDiffusedShader>();
 
 	m_staticBatch.shader = pStaticShader;
+	m_treeStaticShader = pTreeStaticShader;
 	m_skinnedBatch.shader = pSkinnedShader;
 	m_colliderBatch.shader = pColliderShader;
 
@@ -800,6 +817,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	//BuildColliderBatch(dev, cmd, pColliderShader, kRTCount, rtvFormats, kDsvFormat);
 #endif
 
+	pTreeStaticShader->CreateShader(dev,m_pd3dGraphicsRootSignature.Get(),kRTCount,rtvFormats,kDsvFormat);
 	BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
 #ifndef USING_NETWORK
 	//BuildStaticWorldSubmeshOOBBDebugObjects(dev, cmd);
@@ -1434,6 +1452,7 @@ void CGameScene::BuildStaticBatch(
         b->cbElementBytes
     );
 
+	m_treeAlphaClipObjects.clear();
     m_staticObjects.clear();
     m_staticObjects.reserve(cap);
 
@@ -1502,6 +1521,12 @@ void CGameScene::BuildStaticBatch(
 		obj->CreateComponents(dev, cmd);
 
 		CGameObject* raw = obj.get();
+
+		if ( IsTreeStaticAsset(placement.assetName) )
+		{
+			m_treeAlphaClipObjects.insert(raw);
+		}
+
 		if ( createWorldStaticCollider )
 		{
 			auto* collider = raw->GetComponent<CColliderComponent>();
@@ -1511,6 +1536,7 @@ void CGameScene::BuildStaticBatch(
 				exportedWorldStaticObjects.push_back(raw);
 			}
 		}
+
 		m_staticObjects.push_back(std::move(obj));
 		b->objectRefs.push_back(raw);
 		b->count = ( UINT ) b->objectRefs.size();
@@ -1963,6 +1989,8 @@ void CGameScene::BuildStaticInstanceGroups()
 	for ( UINT objectIndex = 0; objectIndex < ( UINT ) m_staticBatch.objectRefs.size(); ++objectIndex )
 	{
 		CGameObject* obj = m_staticBatch.objectRefs[objectIndex];
+		const bool useTreeShader =
+			( m_treeAlphaClipObjects.find(obj) != m_treeAlphaClipObjects.end() );
 		if ( !obj ) continue;
 
 		const int meshCount = obj->GetMeshCount();
@@ -1977,7 +2005,9 @@ void CGameScene::BuildStaticInstanceGroups()
 
 				for ( StaticInstanceGroup& group : m_staticInstanceGroups )
 				{
-					if ( group.mesh.get() == mesh.get() && group.subMeshIndex == subMeshIndex )
+					if ( group.mesh.get() == mesh.get() &&
+						group.subMeshIndex == subMeshIndex &&
+						group.useTreeShader == useTreeShader )
 					{
 						targetGroup = &group;
 						break;
@@ -1989,6 +2019,7 @@ void CGameScene::BuildStaticInstanceGroups()
 					StaticInstanceGroup newGroup{};
 					newGroup.mesh = mesh;
 					newGroup.subMeshIndex = subMeshIndex;
+					newGroup.useTreeShader = useTreeShader;
 					m_staticInstanceGroups.push_back(std::move(newGroup));
 					targetGroup = &m_staticInstanceGroups.back();
 				}
@@ -2078,6 +2109,9 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 	if ( !m_pd3dStaticInstanceBuffer ) return;
 	if ( !m_pMappedStaticInstanceBuffer ) return;
 
+	bool lastUseTreeShader = false;
+	bool hasBoundAnyShader = false;
+
 	for ( const StaticInstanceGroup& group : m_staticInstanceGroups )
 	{
 		if ( !group.mesh ) continue;
@@ -2130,6 +2164,26 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 			( UINT64 ) ( sizeof(StaticInstanceVertex) * instanceBase );
 		vbViews[1].SizeInBytes = sizeof(StaticInstanceVertex) * visibleInstanceCount;
 		vbViews[1].StrideInBytes = sizeof(StaticInstanceVertex);
+
+
+		if ( !hasBoundAnyShader || ( lastUseTreeShader != group.useTreeShader ) )
+		{
+			if ( group.useTreeShader )
+			{
+				if ( m_treeStaticShader )
+					m_treeStaticShader->Render(cmd, camera, &m_staticBatch);
+				else if ( m_staticBatch.shader )
+					m_staticBatch.shader->Render(cmd, camera, &m_staticBatch);
+			}
+			else
+			{
+				if ( m_staticBatch.shader )
+					m_staticBatch.shader->Render(cmd, camera, &m_staticBatch);
+			}
+
+			lastUseTreeShader = group.useTreeShader;
+			hasBoundAnyShader = true;
+		}
 
 		cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -4915,7 +4969,6 @@ void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	if ( m_staticBatch.shader )
 	{
-		m_staticBatch.shader->Render(cmd, camera, &m_staticBatch);
 		RenderStaticInstanceGroups(cmd, camera);
 	}
 

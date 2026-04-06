@@ -10,6 +10,8 @@
 #include "SceneRenderTypes.h"
 #include "ColliderComponent.h"
 
+#include <unordered_set>
+
 class CMaterial;
 class CMesh;
 class CFollowTransformComponent;
@@ -57,6 +59,7 @@ struct StaticInstanceGroup
 	std::vector<UINT> objectIndices;
 
 	UINT instanceBufferStart = 0;
+	bool useTreeShader = false;
 };
 
 struct SkinnedInstanceVertex
@@ -311,8 +314,11 @@ private:
 
 	std::vector<StaticInstanceGroup>    m_staticInstanceGroups;
 	ComPtr<ID3D12Resource>              m_pd3dStaticInstanceBuffer;
-	StaticInstanceVertex* m_pMappedStaticInstanceBuffer = nullptr;
+	StaticInstanceVertex*				m_pMappedStaticInstanceBuffer = nullptr;
 	UINT                                m_staticInstanceBufferCapacity = 0;
+
+	std::shared_ptr<CStaticObjectsShader>	m_treeStaticShader;
+	std::unordered_set<const CGameObject*>	m_treeAlphaClipObjects;
 
     std::shared_ptr<CRectUIShader>      m_inactiveOverlayShader;
     std::shared_ptr<CTexture>           m_inactiveOverlayTex;

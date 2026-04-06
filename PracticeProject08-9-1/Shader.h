@@ -151,6 +151,17 @@ public:
 	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext = nullptr);
 }; 
 
+class CTreeStaticObjectsShader final : public CStaticObjectsShader
+{
+public:
+	CTreeStaticObjectsShader() = default;
+	~CTreeStaticObjectsShader() override = default;
+
+public:
+	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
+	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
+};
+
 class CSkinnedObjectsShader : public CIlluminatedTexturedShader
 {
 public:

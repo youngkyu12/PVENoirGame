@@ -480,6 +480,18 @@ void CStaticObjectsShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CC
 #endif
 }
 
+D3D12_SHADER_BYTECODE CTreeStaticObjectsShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(L"Shaders.hlsl","PSTexturedLightingToMultipleRTs_AlphaClip","ps_5_1",ppd3dShaderBlob);
+}
+
+D3D12_RASTERIZER_DESC CTreeStaticObjectsShader::CreateRasterizerState()
+{
+	D3D12_RASTERIZER_DESC rs = CShader::CreateRasterizerState();
+	rs.CullMode = D3D12_CULL_MODE_NONE;
+	return rs;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 CSkinnedObjectsShader::CSkinnedObjectsShader()
