@@ -357,6 +357,21 @@ namespace
 			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree4.bin", "Assets/Tree/Texture" };
 			return true;
 		}
+		if ( assetName == "Tree5" )
+		{
+			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree5.bin", "Assets/Tree/Texture" };
+			return true;
+		}
+		if ( assetName == "Tree6" )
+		{
+			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree6.bin", "Assets/Tree/Texture" };
+			return true;
+		}
+		if ( assetName == "Tree7" )
+		{
+			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree7.bin", "Assets/Tree/Texture" };
+			return true;
+		}
 
         return false;
     }
