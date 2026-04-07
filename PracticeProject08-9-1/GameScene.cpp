@@ -684,7 +684,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	ApplyStaticPlacementCounts();
 #else
 	m_localPlayerSlot = 0;
-	const std::string placementFilePath = "MapData/placement_export_st1_tree.txt";
+	const std::string placementFilePath = "MapData/placement_export_tst.txt";
 	const std::string cubeColliderReportFilePath = "MapData/CubeBoxColliderReport.txt";
 	const std::string navMeshFilePath = "MapData/1StageNavmesh.nvm";
 
@@ -829,13 +829,13 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	const DXGI_FORMAT kDsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
 #ifndef USING_NETWORK
-	//BuildColliderBatch(dev, cmd, pColliderShader, kRTCount, rtvFormats, kDsvFormat);
+	BuildColliderBatch(dev, cmd, pColliderShader, kRTCount, rtvFormats, kDsvFormat);
 #endif
 
 	pTreeStaticShader->CreateShader(dev,m_pd3dGraphicsRootSignature.Get(),kRTCount,rtvFormats,kDsvFormat);
 	BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
 #ifndef USING_NETWORK
-	//BuildStaticWorldSubmeshOOBBDebugObjects(dev, cmd);
+	BuildStaticWorldSubmeshOOBBDebugObjects(dev, cmd);
 #endif
 	BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
 
