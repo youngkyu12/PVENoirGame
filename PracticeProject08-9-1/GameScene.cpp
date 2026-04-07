@@ -2412,7 +2412,7 @@ void CGameScene::BuildSkinnedBatch(
 
     const UINT fighterCount = m_PlayerCount;
 
-    const XMFLOAT3 playerBase(-150.0f, 0.0f, 0.0f);
+    const XMFLOAT3 playerBase(0.0f, 0.0f, 0.0f);
 
     m_swordManRefs.clear();
     m_swordManRefs.reserve(m_swordManCount);
