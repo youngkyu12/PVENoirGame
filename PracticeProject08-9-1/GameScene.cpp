@@ -265,111 +265,126 @@ namespace
         }
     }
 
-    bool ResolveStaticAssetDesc(const std::string& assetName, AssetBuildDesc& outDesc)
-    {
-        if (assetName == "Grass")
-        {
-            outDesc = { AssetType::Grass, "Assets/GroundPlane/Mesh/Grass.bin", "Assets/GroundPlane/Texture" };
-            return true;
-        }
-        if (assetName == "Ground")
-        {
-            outDesc = { AssetType::Ground, "Assets/GroundPlane/Mesh/Ground.bin", "Assets/GroundPlane/Texture" };
-            return true;
-        }
-        if (assetName == "VillageWall")
-        {
-            outDesc = { AssetType::VillageWall, "Assets/VillageWall/Mesh/VillageWall.bin", "Assets/VillageWall/Texture" };
-            return true;
-        }
-        if (assetName == "DirtRoad")
-        {
-            outDesc = { AssetType::DirtRoad, "Assets/GroundPlane/Mesh/DirtRoad.bin", "Assets/GroundPlane/Texture" };
-            return true;
-        }
+	bool ResolveStaticAssetDesc(const std::string& assetName, AssetBuildDesc& outDesc, AssetType* outResolvedType = nullptr) 
+	{
+		if ( assetName == "Grass" )
+		{
+			outDesc = { AssetType::Grass, "Assets/GroundPlane/Mesh/Grass.bin", "Assets/GroundPlane/Texture" };
+			if ( outResolvedType ) *outResolvedType = AssetType::Grass;
+			return true;
+		}
+		if ( assetName == "Ground" )
+		{
+			outDesc = { AssetType::Ground, "Assets/GroundPlane/Mesh/Ground.bin", "Assets/GroundPlane/Texture" };
+			if ( outResolvedType ) *outResolvedType = AssetType::Ground;
+			return true;
+		}
+		if ( assetName == "VillageWall" )
+		{
+			outDesc = { AssetType::VillageWall, "Assets/VillageWall/Mesh/VillageWall.bin", "Assets/VillageWall/Texture" };
+			if ( outResolvedType ) *outResolvedType = AssetType::VillageWall;
+			return true;
+		}
+		if ( assetName == "DirtRoad" )
+		{
+			outDesc = { AssetType::DirtRoad, "Assets/GroundPlane/Mesh/DirtRoad.bin", "Assets/GroundPlane/Texture" };
+			if ( outResolvedType ) *outResolvedType = AssetType::DirtRoad;
+			return true;
+		}
         if (assetName == "Building1")
         {
             outDesc = { AssetType::House, "Assets/House/Mesh/Building1.bin", "Assets/House/Texture" };
-            return true;
+			if ( outResolvedType ) *outResolvedType = AssetType::House;
+			return true;
         }
         if (assetName == "Building2")
         {
             outDesc = { AssetType::House, "Assets/House/Mesh/Building2.bin", "Assets/House/Texture" };
+			if ( outResolvedType ) *outResolvedType = AssetType::House;
             return true;
         }
         if (assetName == "Building3")
         {
             outDesc = { AssetType::House, "Assets/House/Mesh/Building3.bin", "Assets/House/Texture" };
+			if ( outResolvedType ) *outResolvedType = AssetType::House;
             return true;
         }
         if (assetName == "Building4")
         {
             outDesc = { AssetType::House, "Assets/House/Mesh/Building4.bin", "Assets/House/Texture" };
+			if ( outResolvedType ) *outResolvedType = AssetType::House;
             return true;
         }
         if (assetName == "Building5")
         {
             outDesc = { AssetType::House, "Assets/House/Mesh/Building5.bin", "Assets/House/Texture" };
+			if ( outResolvedType ) *outResolvedType = AssetType::House;
             return true;
         }
         if (assetName == "Building6")
         {
             outDesc = { AssetType::House, "Assets/House/Mesh/Building6.bin", "Assets/House/Texture" };
+			if ( outResolvedType ) *outResolvedType = AssetType::House;
             return true;
         }
         if (assetName == "Building7")
         {
             outDesc = { AssetType::House, "Assets/House/Mesh/Building7.bin", "Assets/House/Texture" };
+			if ( outResolvedType ) *outResolvedType = AssetType::House;
             return true;
         }
         if (assetName == "Building8")
         {
             outDesc = { AssetType::House, "Assets/House/Mesh/Building8.bin", "Assets/House/Texture" };
+			if ( outResolvedType ) *outResolvedType = AssetType::House;
             return true;
         }
         if (assetName == "Building9")
         {
             outDesc = { AssetType::House, "Assets/House/Mesh/Building9.bin", "Assets/House/Texture" };
+			if ( outResolvedType ) *outResolvedType = AssetType::House;
             return true;
         }
         if (assetName == "Tower")
         {
             outDesc = { AssetType::Tower, "Assets/Tower/Mesh/Tower.bin", "Assets/Tower/Texture" };
+			if ( outResolvedType ) *outResolvedType = AssetType::Tower;
             return true;
         }
 		if ( assetName == "Tree1" )
 		{
 			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree1.bin", "Assets/Tree/Texture" };
+			if ( outResolvedType ) *outResolvedType = AssetType::Tree;
 			return true;
 		}
 		if ( assetName == "Tree2" )
 		{
 			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree2.bin", "Assets/Tree/Texture" };
+			if ( outResolvedType ) *outResolvedType = AssetType::Tree;
 			return true;
 		}
 		if ( assetName == "Tree3" )
 		{
 			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree3.bin", "Assets/Tree/Texture" };
+			if ( outResolvedType ) *outResolvedType = AssetType::Tree;
 			return true;
 		}
 		if ( assetName == "Tree4" )
 		{
 			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree4.bin", "Assets/Tree/Texture" };
+			if ( outResolvedType ) *outResolvedType = AssetType::Tree;
 			return true;
 		}
 		if ( assetName == "Tree5" )
 		{
 			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree5.bin", "Assets/Tree/Texture" };
+			if ( outResolvedType ) *outResolvedType = AssetType::Tree;
 			return true;
 		}
 		if ( assetName == "Tree6" )
 		{
 			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree6.bin", "Assets/Tree/Texture" };
-			return true;
-		}
-		if ( assetName == "Tree7" )
-		{
-			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree7.bin", "Assets/Tree/Texture" };
+			if ( outResolvedType ) *outResolvedType = AssetType::Tree;
 			return true;
 		}
 
@@ -382,15 +397,6 @@ namespace
 		if ( assetName == "Ground" )   return false;
 		if ( assetName == "DirtRoad" ) return false;
 		return true;
-	}
-
-	static bool IsTreeStaticAsset(const std::string& assetName)
-	{
-		return
-			( assetName == "Tree1" ) ||
-			( assetName == "Tree2" ) ||
-			( assetName == "Tree3" ) ||
-			( assetName == "Tree4" );
 	}
 
 	void TriggerMonsterTestCommand(CGameObject* obj, EMonsterAnimCommand cmd, EMonsterAnimState locomotion = EMonsterAnimState::Idle)
@@ -684,9 +690,9 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	ApplyStaticPlacementCounts();
 #else
 	m_localPlayerSlot = 0;
-	const std::string placementFilePath = "MapData/placement_export_tst.txt";
+	const std::string placementFilePath = "MapData/MapData_tst.txt";
 	const std::string cubeColliderReportFilePath = "MapData/CubeBoxColliderReport.txt";
-	const std::string navMeshFilePath = "MapData/1StageNavmesh.nvm";
+	const std::string navMeshFilePath = "MapData/Navmesh_Stage1.nvm";
 
 	if ( !LoadStaticPlacementFile(placementFilePath) )
 	{
@@ -1495,7 +1501,8 @@ void CGameScene::BuildStaticBatch(
 		const bool createWorldStaticCollider = ShouldCreateWorldStaticCollider(placement.assetName);
 
 		AssetBuildDesc desc{};
-		if ( !ResolveStaticAssetDesc(placement.assetName, desc) )
+		AssetType resolvedAssetType{};
+		if ( !ResolveStaticAssetDesc(placement.assetName, desc, &resolvedAssetType) )
 			continue;
 
 		BuiltAsset asset = AssetManager::BuildAsset(
@@ -1537,7 +1544,7 @@ void CGameScene::BuildStaticBatch(
 
 		CGameObject* raw = obj.get();
 
-		if ( IsTreeStaticAsset(placement.assetName) )
+		if ( resolvedAssetType == AssetType::Tree )
 		{
 			m_treeAlphaClipObjects.insert(raw);
 		}
