@@ -1,10 +1,10 @@
 === Scene Cube BoxCollider Report ===
-GeneratedAt: 2026-04-08 01:58:44
+GeneratedAt: 2026-04-08 04:11:03
 SceneName: TestScene
 ScenePath: Assets/Scenes/TestScene.unity
-TopRootCount: 10
-TargetObjectCount: 107
-CubeColliderCount: 169
+TopRootCount: 16
+TargetObjectCount: 113
+CubeColliderCount: 179
 
 [TopRootGroup #1]
 TopRootName: Building1
@@ -2475,6 +2475,210 @@ TargetObjectCount: 5
 ------------------------------------------------------------
 
 [TopRootGroup #10]
+TopRootName: Tree1
+TopRootPath: Tree1[14]
+TargetObjectCount: 1
+
+  [A #1]
+  AName: Tree1_1
+  APath: Tree1[14]/Tree1_1[0]
+  TopRootName: Tree1
+  TopRootPath: Tree1[14]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: Tree1[14]/Tree1_1[0]/Cube[0]
+    CenterInTopRoot_Local: (0.0000, 5.0000, 0.0000)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.0000, 10.0000, 2.0000)
+    ChildLocalPositionFromA: (0.0000, 5.0000, 0.0000)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (2.0000, 10.0000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+------------------------------------------------------------
+
+[TopRootGroup #11]
+TopRootName: Tree2
+TopRootPath: Tree2[15]
+TargetObjectCount: 1
+
+  [A #1]
+  AName: Tree2_1
+  APath: Tree2[15]/Tree2_1[0]
+  TopRootName: Tree2
+  TopRootPath: Tree2[15]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: Tree2[15]/Tree2_1[0]/Cube[0]
+    CenterInTopRoot_Local: (0.0000, 5.0000, 0.0000)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.0000, 10.0000, 2.0000)
+    ChildLocalPositionFromA: (0.0000, 5.0000, 0.0000)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (2.0000, 10.0000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+------------------------------------------------------------
+
+[TopRootGroup #12]
+TopRootName: Tree3
+TopRootPath: Tree3[16]
+TargetObjectCount: 1
+
+  [A #1]
+  AName: Tree3_1
+  APath: Tree3[16]/Tree3_1[0]
+  TopRootName: Tree3
+  TopRootPath: Tree3[16]
+  CubeColliderCount: 3
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: Tree3[16]/Tree3_1[0]/Cube[0]
+    CenterInTopRoot_Local: (0.6300, 5.0000, -1.3200)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.0000, 10.0000, 2.0000)
+    ChildLocalPositionFromA: (0.6300, 5.0000, -1.3200)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (2.0000, 10.0000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: Tree3[16]/Tree3_1[0]/Cube[1]
+    CenterInTopRoot_Local: (-2.6100, 5.0000, 1.0100)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.0000, 10.0000, 2.0000)
+    ChildLocalPositionFromA: (-2.6100, 5.0000, 1.0100)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (2.0000, 10.0000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: Tree3[16]/Tree3_1[0]/Cube[2]
+    CenterInTopRoot_Local: (1.3700, 5.0000, 1.5700)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.0000, 10.0000, 2.0000)
+    ChildLocalPositionFromA: (1.3700, 5.0000, 1.5700)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (2.0000, 10.0000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+------------------------------------------------------------
+
+[TopRootGroup #13]
+TopRootName: Tree4
+TopRootPath: Tree4[17]
+TargetObjectCount: 1
+
+  [A #1]
+  AName: Tree4_1
+  APath: Tree4[17]/Tree4_1[0]
+  TopRootName: Tree4
+  TopRootPath: Tree4[17]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: Tree4[17]/Tree4_1[0]/Cube[0]
+    CenterInTopRoot_Local: (0.0000, 5.0000, 0.3880)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.0000, 10.0000, 2.0000)
+    ChildLocalPositionFromA: (0.0000, 5.0000, 0.3880)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (2.0000, 10.0000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+------------------------------------------------------------
+
+[TopRootGroup #14]
+TopRootName: Tree5
+TopRootPath: Tree5[18]
+TargetObjectCount: 1
+
+  [A #1]
+  AName: Tree5_1
+  APath: Tree5[18]/Tree5_1[0]
+  TopRootName: Tree5
+  TopRootPath: Tree5[18]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: Tree5[18]/Tree5_1[0]/Cube[0]
+    CenterInTopRoot_Local: (0.0000, 5.0000, 0.0700)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.0000, 10.0000, 2.0000)
+    ChildLocalPositionFromA: (0.0000, 5.0000, 0.0700)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (2.0000, 10.0000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+------------------------------------------------------------
+
+[TopRootGroup #15]
+TopRootName: Tree6
+TopRootPath: Tree6[19]
+TargetObjectCount: 1
+
+  [A #1]
+  AName: Tree6_1
+  APath: Tree6[19]/Tree6_1[0]
+  TopRootName: Tree6
+  TopRootPath: Tree6[19]
+  CubeColliderCount: 3
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: Tree6[19]/Tree6_1[0]/Cube[0]
+    CenterInTopRoot_Local: (-0.5180, 5.0000, 0.6620)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.0000, 10.0000, 2.0000)
+    ChildLocalPositionFromA: (-0.5180, 5.0000, 0.6620)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (2.0000, 10.0000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: Tree6[19]/Tree6_1[0]/Cube[1]
+    CenterInTopRoot_Local: (-3.7700, 5.0000, 1.5030)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.0000, 10.0000, 2.0000)
+    ChildLocalPositionFromA: (-3.7700, 5.0000, 1.5030)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (2.0000, 10.0000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: Tree6[19]/Tree6_1[0]/Cube[2]
+    CenterInTopRoot_Local: (1.9500, 5.0000, 2.3100)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.0000, 10.0000, 2.0000)
+    ChildLocalPositionFromA: (1.9500, 5.0000, 2.3100)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (2.0000, 10.0000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+------------------------------------------------------------
+
+[TopRootGroup #16]
 TopRootName: VillageWall
 TopRootPath: VillageWall[13]
 TargetObjectCount: 12
