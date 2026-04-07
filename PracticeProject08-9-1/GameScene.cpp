@@ -133,7 +133,7 @@ namespace
         return out;
     }
 
-	static constexpr UINT kDebugSubmeshOOBBCapacity = 4096;
+	static constexpr UINT kDebugSubmeshOOBBCapacity = 8192;
 	static constexpr bool kEnableStaticWorldLocalOOBBReportExport = false;
 	static constexpr const char* kStaticWorldLocalOOBBReportPath = "MapData/StaticWorldLocalOOBBReport.txt";
 
