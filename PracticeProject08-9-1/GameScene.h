@@ -11,6 +11,7 @@
 #include "ColliderComponent.h"
 
 #include <unordered_set>
+#include <cstdint>
 
 class CMaterial;
 class CMesh;
@@ -194,6 +195,65 @@ public:
 	void RequestFireArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f, float yOffset = 0.0f);
 
 private:
+#ifndef USING_NETWORK
+	static constexpr int kGridMinX = -600;
+	static constexpr int kGridMaxX = 600;
+	static constexpr int kGridMinZ = -200;
+	static constexpr int kGridMaxZ = 1000;
+
+	static constexpr int kGridWidth = ( kGridMaxX - kGridMinX );
+	static constexpr int kGridHeight = ( kGridMaxZ - kGridMinZ );
+	static constexpr int kGridCellCount = ( kGridWidth * kGridHeight );
+
+	struct GridStaticCell
+	{
+		uint16_t buildingCount = 0;
+		float floorHeight = 0.0f; // 지금은 고정 0
+	};
+
+	struct GridDynamicCell
+	{
+		uint16_t playerCount = 0;
+		uint16_t monsterCount = 0;
+		uint16_t arrowCount = 0;
+		uint16_t bulletCount = 0;
+	};
+
+	enum class EGridDynamicKind : uint8_t
+	{
+		Player,
+		Monster,
+		Arrow,
+		Bullet
+	};
+
+	struct GridDynamicTracker
+	{
+		CGameObject* object = nullptr;
+		int prevCellX = -1;
+		int prevCellZ = -1;
+		bool occupied = false;
+	};
+
+	void InitializeSpatialGrid();
+	void ShutdownSpatialGrid();
+
+	bool WorldToGridCell(float worldX, float worldZ, int& outCellX, int& outCellZ) const;
+	int GridCellIndex(int cellX, int cellZ) const;
+
+	void AddDynamicCount(int cellX, int cellZ, EGridDynamicKind kind, int delta);
+	void StampBuildingCellsFromOOBB(const BoundingOrientedBox& box, std::unordered_set<int>& touchedCells);
+	void RegisterStaticPlacementToGrid(const StaticPlacementEntry& placement, CGameObject* obj);
+
+	void ResetDynamicGridCounts();
+	bool TryGetTrackedCell(const CGameObject* obj, int& outCellX, int& outCellZ) const;
+	void RefreshDynamicTracker(GridDynamicTracker& tracker, EGridDynamicKind kind);
+	void BuildDynamicGridTrackers();
+	void RebuildDynamicGridState();
+	void UpdateDynamicGridState();
+	void DumpStaticGridOccupancyLog() const;
+#endif
+
     // slot 0..3 플레이어 포인터(소유는 m_skinnedObjects가 함)
     std::array<CGameObject*, 4> m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
 
@@ -295,6 +355,17 @@ private:
 
     unique_ptr<CCollisionSystem> m_Collision;
 	std::unique_ptr<CNavMesh> m_navMesh;
+
+#ifndef USING_NETWORK
+	bool m_spatialGridInitialized = false;
+	std::vector<GridStaticCell> m_gridStaticCells;
+	std::vector<GridDynamicCell> m_gridDynamicCells;
+
+	std::array<GridDynamicTracker, 4> m_playerGridTrackers = {};
+	std::vector<GridDynamicTracker> m_monsterGridTrackers;
+	std::vector<GridDynamicTracker> m_arrowGridTrackers;
+	std::vector<GridDynamicTracker> m_bulletGridTrackers;
+#endif
 
 private:
     bool LoadStaticPlacementFile(const std::string& filePath);

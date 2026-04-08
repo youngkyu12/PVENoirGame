@@ -503,6 +503,355 @@ CGameScene::CGameScene()
 	m_navMesh.reset();
 }
 
+#ifndef USING_NETWORK
+void CGameScene::InitializeSpatialGrid()
+{
+	m_gridStaticCells.assign(kGridCellCount, GridStaticCell{});
+	m_gridDynamicCells.assign(kGridCellCount, GridDynamicCell{});
+
+	for ( auto& tracker : m_playerGridTrackers )
+		tracker = GridDynamicTracker{};
+
+	m_monsterGridTrackers.clear();
+	m_arrowGridTrackers.clear();
+	m_bulletGridTrackers.clear();
+
+	m_spatialGridInitialized = true;
+}
+
+void CGameScene::ShutdownSpatialGrid()
+{
+	m_gridStaticCells.clear();
+	m_gridDynamicCells.clear();
+
+	for ( auto& tracker : m_playerGridTrackers )
+		tracker = GridDynamicTracker{};
+
+	m_monsterGridTrackers.clear();
+	m_arrowGridTrackers.clear();
+	m_bulletGridTrackers.clear();
+
+	m_spatialGridInitialized = false;
+}
+
+bool CGameScene::WorldToGridCell(float worldX, float worldZ, int& outCellX, int& outCellZ) const
+{
+	if ( worldX < ( float ) kGridMinX || worldX >(float)kGridMaxX ) return false;
+	if ( worldZ < ( float ) kGridMinZ || worldZ >(float)kGridMaxZ ) return false;
+
+	int cellX = ( int ) std::floor(worldX) - kGridMinX;
+	int cellZ = ( int ) std::floor(worldZ) - kGridMinZ;
+
+	if ( cellX == kGridWidth ) cellX = kGridWidth - 1;
+	if ( cellZ == kGridHeight ) cellZ = kGridHeight - 1;
+
+	if ( cellX < 0 || cellX >= kGridWidth ) return false;
+	if ( cellZ < 0 || cellZ >= kGridHeight ) return false;
+
+	outCellX = cellX;
+	outCellZ = cellZ;
+	return true;
+}
+
+int CGameScene::GridCellIndex(int cellX, int cellZ) const
+{
+	return ( cellZ * kGridWidth ) + cellX;
+}
+
+void CGameScene::AddDynamicCount(int cellX, int cellZ, EGridDynamicKind kind, int delta)
+{
+	if ( !m_spatialGridInitialized ) return;
+	if ( cellX < 0 || cellX >= kGridWidth ) return;
+	if ( cellZ < 0 || cellZ >= kGridHeight ) return;
+
+	GridDynamicCell& cell = m_gridDynamicCells[( size_t ) GridCellIndex(cellX, cellZ)];
+
+	uint16_t* target = nullptr;
+
+	switch ( kind )
+	{
+	case EGridDynamicKind::Player:  target = &cell.playerCount;  break;
+	case EGridDynamicKind::Monster: target = &cell.monsterCount; break;
+	case EGridDynamicKind::Arrow:   target = &cell.arrowCount;   break;
+	case EGridDynamicKind::Bullet:  target = &cell.bulletCount;  break;
+	default: return;
+	}
+
+	int nextValue = ( int ) ( *target ) + delta;
+	if ( nextValue < 0 ) nextValue = 0;
+	*target = ( uint16_t ) nextValue;
+}
+
+void CGameScene::StampBuildingCellsFromOOBB(const BoundingOrientedBox& box, std::unordered_set<int>& touchedCells)
+{
+	XMFLOAT3 corners[8] = {};
+	box.GetCorners(corners);
+
+	float minX = corners[0].x;
+	float maxX = corners[0].x;
+	float minZ = corners[0].z;
+	float maxZ = corners[0].z;
+
+	for ( int i = 1; i < 8; ++i )
+	{
+		if ( corners[i].x < minX ) minX = corners[i].x;
+		if ( corners[i].x > maxX ) maxX = corners[i].x;
+		if ( corners[i].z < minZ ) minZ = corners[i].z;
+		if ( corners[i].z > maxZ ) maxZ = corners[i].z;
+	}
+
+	int beginCellX = ( int ) std::floor(minX) - kGridMinX;
+	int endCellX = ( int ) std::ceil(maxX) - kGridMinX - 1;
+
+	int beginCellZ = ( int ) std::floor(minZ) - kGridMinZ;
+	int endCellZ = ( int ) std::ceil(maxZ) - kGridMinZ - 1;
+
+	if ( beginCellX < 0 ) beginCellX = 0;
+	if ( beginCellZ < 0 ) beginCellZ = 0;
+	if ( endCellX >= kGridWidth ) endCellX = kGridWidth - 1;
+	if ( endCellZ >= kGridHeight ) endCellZ = kGridHeight - 1;
+
+	if ( beginCellX > endCellX ) return;
+	if ( beginCellZ > endCellZ ) return;
+
+	for ( int z = beginCellZ; z <= endCellZ; ++z )
+	{
+		for ( int x = beginCellX; x <= endCellX; ++x )
+		{
+			touchedCells.insert(GridCellIndex(x, z));
+		}
+	}
+}
+
+void CGameScene::RegisterStaticPlacementToGrid(const StaticPlacementEntry& placement, CGameObject* obj)
+{
+	if ( !m_spatialGridInitialized ) return;
+	if ( !obj ) return;
+
+	const bool isBuilding =
+		( placement.assetName == "VillageWall" ) ||
+		( placement.assetName == "Tower" ) ||
+		( placement.assetName == "Building1" ) ||
+		( placement.assetName == "Building2" ) ||
+		( placement.assetName == "Building3" ) ||
+		( placement.assetName == "Building4" ) ||
+		( placement.assetName == "Building5" ) ||
+		( placement.assetName == "Building6" ) ||
+		( placement.assetName == "Building7" ) ||
+		( placement.assetName == "Building8" ) ||
+		( placement.assetName == "Building9" ) ||
+		( placement.assetName == "Tree1" ) ||
+		( placement.assetName == "Tree2" ) ||
+		( placement.assetName == "Tree3" ) ||
+		( placement.assetName == "Tree4" ) ||
+		( placement.assetName == "Tree5" ) ||
+		( placement.assetName == "Tree6" );
+
+	if ( !isBuilding )
+		return;
+
+	std::unordered_set<int> touchedCells;
+
+	if ( auto* collider = obj->GetComponent<CColliderComponent>() )
+	{
+		const std::vector<MeshOOBBSet>& meshSets = collider->GetMeshOOBBSets();
+
+		for ( const MeshOOBBSet& set : meshSets )
+		{
+			for ( const BoundingOrientedBox& subOOBB : set.WorldSubOOBBs )
+			{
+				StampBuildingCellsFromOOBB(subOOBB, touchedCells);
+			}
+		}
+	}
+
+	if ( touchedCells.empty() )
+	{
+		int cellX = -1;
+		int cellZ = -1;
+		const XMFLOAT3 pos = obj->GetPosition();
+
+		if ( WorldToGridCell(pos.x, pos.z, cellX, cellZ) )
+		{
+			touchedCells.insert(GridCellIndex(cellX, cellZ));
+		}
+	}
+
+	for ( int cellIndex : touchedCells )
+	{
+		if ( cellIndex < 0 || cellIndex >= kGridCellCount ) continue;
+		++m_gridStaticCells[( size_t ) cellIndex].buildingCount;
+		m_gridStaticCells[( size_t ) cellIndex].floorHeight = 0.0f;
+	}
+}
+
+void CGameScene::ResetDynamicGridCounts()
+{
+	for ( GridDynamicCell& cell : m_gridDynamicCells )
+	{
+		cell.playerCount = 0;
+		cell.monsterCount = 0;
+		cell.arrowCount = 0;
+		cell.bulletCount = 0;
+	}
+}
+
+bool CGameScene::TryGetTrackedCell(const CGameObject* obj, int& outCellX, int& outCellZ) const
+{
+	if ( !obj ) return false;
+
+	const XMFLOAT3 pos = obj->GetPosition();
+	if ( pos.y < -100.0f ) return false;
+
+	return WorldToGridCell(pos.x, pos.z, outCellX, outCellZ);
+}
+
+void CGameScene::RefreshDynamicTracker(GridDynamicTracker& tracker, EGridDynamicKind kind)
+{
+	int currentCellX = -1;
+	int currentCellZ = -1;
+	const bool hasCurrentCell = TryGetTrackedCell(tracker.object, currentCellX, currentCellZ);
+
+	if ( tracker.occupied )
+	{
+		if ( !hasCurrentCell ||
+			tracker.prevCellX != currentCellX ||
+			tracker.prevCellZ != currentCellZ )
+		{
+			AddDynamicCount(tracker.prevCellX, tracker.prevCellZ, kind, -1);
+			tracker.occupied = false;
+		}
+	}
+
+	if ( hasCurrentCell )
+	{
+		if ( !tracker.occupied ||
+			tracker.prevCellX != currentCellX ||
+			tracker.prevCellZ != currentCellZ )
+		{
+			AddDynamicCount(currentCellX, currentCellZ, kind, +1);
+			tracker.prevCellX = currentCellX;
+			tracker.prevCellZ = currentCellZ;
+			tracker.occupied = true;
+		}
+	}
+}
+
+void CGameScene::BuildDynamicGridTrackers()
+{
+	for ( size_t i = 0; i < m_playerGridTrackers.size(); ++i )
+	{
+		m_playerGridTrackers[i] = GridDynamicTracker{};
+		m_playerGridTrackers[i].object = m_playersBySlot[i];
+	}
+
+	m_monsterGridTrackers.clear();
+	m_monsterGridTrackers.reserve(m_skinnedBatch.objectRefs.size());
+
+	for ( CGameObject* obj : m_skinnedBatch.objectRefs )
+	{
+		if ( !obj ) continue;
+
+		auto* tag = obj->GetComponent<CActorTagComponent>();
+		if ( !tag ) continue;
+		if ( tag->kind != EActorKind::NPC ) continue;
+
+		GridDynamicTracker tracker{};
+		tracker.object = obj;
+		m_monsterGridTrackers.push_back(tracker);
+	}
+
+	m_arrowGridTrackers.clear();
+	m_arrowGridTrackers.reserve(m_arrowRefs.size());
+
+	for ( CGameObject* obj : m_arrowRefs )
+	{
+		GridDynamicTracker tracker{};
+		tracker.object = obj;
+		m_arrowGridTrackers.push_back(tracker);
+	}
+
+	m_bulletGridTrackers.clear();
+	m_bulletGridTrackers.reserve(m_bulletRefs.size());
+
+	for ( CGameObject* obj : m_bulletRefs )
+	{
+		GridDynamicTracker tracker{};
+		tracker.object = obj;
+		m_bulletGridTrackers.push_back(tracker);
+	}
+}
+
+void CGameScene::RebuildDynamicGridState()
+{
+	if ( !m_spatialGridInitialized ) return;
+
+	ResetDynamicGridCounts();
+	BuildDynamicGridTrackers();
+
+	for ( auto& tracker : m_playerGridTrackers )
+		RefreshDynamicTracker(tracker, EGridDynamicKind::Player);
+
+	for ( auto& tracker : m_monsterGridTrackers )
+		RefreshDynamicTracker(tracker, EGridDynamicKind::Monster);
+
+	for ( auto& tracker : m_arrowGridTrackers )
+		RefreshDynamicTracker(tracker, EGridDynamicKind::Arrow);
+
+	for ( auto& tracker : m_bulletGridTrackers )
+		RefreshDynamicTracker(tracker, EGridDynamicKind::Bullet);
+}
+
+void CGameScene::UpdateDynamicGridState()
+{
+	if ( !m_spatialGridInitialized ) return;
+
+	for ( auto& tracker : m_playerGridTrackers )
+		RefreshDynamicTracker(tracker, EGridDynamicKind::Player);
+
+	for ( auto& tracker : m_monsterGridTrackers )
+		RefreshDynamicTracker(tracker, EGridDynamicKind::Monster);
+
+	for ( auto& tracker : m_arrowGridTrackers )
+		RefreshDynamicTracker(tracker, EGridDynamicKind::Arrow);
+
+	for ( auto& tracker : m_bulletGridTrackers )
+		RefreshDynamicTracker(tracker, EGridDynamicKind::Bullet);
+}
+
+void CGameScene::DumpStaticGridOccupancyLog() const
+{
+	if ( !m_spatialGridInitialized )
+	{
+		OutputDebugStringA("[GridStatic] not initialized\n");
+		return;
+	}
+
+	OutputDebugStringA("[GridStatic] begin\n");
+
+	std::string row;
+	row.reserve(kGridWidth + 1);
+
+	for ( int z = 0; z < kGridHeight; ++z )
+	{
+		row.clear();
+
+		for ( int x = 0; x < kGridWidth; ++x )
+		{
+			const GridStaticCell& cell =
+				m_gridStaticCells[( size_t ) GridCellIndex(x, z)];
+
+			row.push_back(( cell.buildingCount > 0 ) ? '1' : '0');
+		}
+
+		row.push_back('\n');
+		OutputDebugStringA(row.c_str());
+	}
+
+	OutputDebugStringA("[GridStatic] end\n");
+}
+#endif
+
 CGameScene::~CGameScene()
 {
 }
@@ -561,6 +910,10 @@ void CGameScene::ReleaseObjects()
 	m_bInactiveOverlayVisible = false;
 
 	m_navMesh.reset();
+
+#ifndef USING_NETWORK
+	ShutdownSpatialGrid();
+#endif
 
 	ReleaseShaderVariables();
 
@@ -781,6 +1134,9 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_colliderBatch.count = 0;
 
 	CreateGraphicsRootSignature(dev);
+#ifndef USING_NETWORK
+	InitializeSpatialGrid();
+#endif
 
 	auto pStaticShader = std::make_shared<CStaticObjectsShader>();
 	auto pTreeStaticShader = std::make_shared<CTreeStaticObjectsShader>();
@@ -851,6 +1207,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	pTreeStaticShader->CreateShader(dev,m_pd3dGraphicsRootSignature.Get(),kRTCount,rtvFormats,kDsvFormat);
 	BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
 #ifndef USING_NETWORK
+	DumpStaticGridOccupancyLog();
 	//BuildStaticWorldSubmeshOOBBDebugObjects(dev, cmd);
 #endif
 	BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
@@ -866,6 +1223,9 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	CreateMainCamera(dev, cmd, local);
 	BuildObjectsCollider();
 
+#ifndef USING_NETWORK
+	RebuildDynamicGridState();
+#endif
 #ifdef USING_NETWORK
 	Protocol::C_CLIENT_READY iamReady;
 
@@ -1568,6 +1928,9 @@ void CGameScene::BuildStaticBatch(
 				exportedWorldStaticObjects.push_back(raw);
 			}
 		}
+#ifndef USING_NETWORK
+		RegisterStaticPlacementToGrid(placement, raw);
+#endif
 
 		m_staticObjects.push_back(std::move(obj));
 		b->objectRefs.push_back(raw);
@@ -4867,14 +5230,15 @@ void CGameScene::AnimateObjects(float dt)
         m_pPlayerSpotFollower->SetTarget(local);
     }
 
-    for (UINT j = 0; j < (UINT)m_lightObjects.size(); ++j)
-    {
-        if (!m_lightObjects[j]) continue;
-        m_lightObjects[j]->Animate(dt);
-    }
+	for ( UINT j = 0; j < ( UINT ) m_lightObjects.size(); ++j )
+	{
+		if ( !m_lightObjects[j] ) continue;
+		m_lightObjects[j]->Animate(dt);
+	}
 
-    
-
+#ifndef USING_NETWORK
+	UpdateDynamicGridState();
+#endif
 }
 
 void CGameScene::CollisionObjects()
