@@ -43,6 +43,9 @@
     <Filter Include="Area\MapData">
       <UniqueIdentifier>{bd8ffbbb-4783-49a5-8f35-20cf5d4f8398}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Room">
+      <UniqueIdentifier>{168974d8-557a-455a-8d45-8704d77d5625}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GameServer.cpp">
@@ -59,9 +62,6 @@
     </ClCompile>
     <ClCompile Include="ClientPacketHandler.cpp">
       <Filter>Main</Filter>
-    </ClCompile>
-    <ClCompile Include="Room.cpp">
-      <Filter>GameContents</Filter>
     </ClCompile>
     <ClCompile Include="InitStruct.pb.cc">
       <Filter>Protocol</Filter>
@@ -102,6 +102,12 @@
     <ClCompile Include="BoundingCapsule.cpp" />
     <ClCompile Include="ColliderComponent.cpp" />
     <ClCompile Include="CollisionSystem.cpp" />
+    <ClCompile Include="Room.cpp">
+      <Filter>Room</Filter>
+    </ClCompile>
+    <ClCompile Include="ReportHelper.cpp">
+      <Filter>Room</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -115,9 +121,6 @@
     </ClInclude>
     <ClInclude Include="ClientPacketHandler.h">
       <Filter>Main</Filter>
-    </ClInclude>
-    <ClInclude Include="Room.h">
-      <Filter>GameContents</Filter>
     </ClInclude>
     <ClInclude Include="InitStruct.pb.h">
       <Filter>Protocol</Filter>
@@ -152,6 +155,12 @@
     <ClInclude Include="BoundingCapsule.h" />
     <ClInclude Include="ColliderComponent.h" />
     <ClInclude Include="CollisionSystem.h" />
+    <ClInclude Include="Room.h">
+      <Filter>Room</Filter>
+    </ClInclude>
+    <ClInclude Include="ReportHelper.h">
+      <Filter>Room</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\Common\Protobuf\bin\Enum.proto">
