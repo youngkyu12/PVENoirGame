@@ -690,9 +690,19 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	ApplyStaticPlacementCounts();
 #else
 	m_localPlayerSlot = 0;
+	//Test stage
 	const std::string placementFilePath = "MapData/MapData_tst.txt";
+	const std::string navMeshFilePath = "MapData/Navmesh_tst.nvm";
+
+	//1 stage
+	//const std::string placementFilePath = "MapData/MapData_stage1_with_Tree.txt";
+	//const std::string navMeshFilePath = "MapData/Navmesh_Stage1.nvm";
+
+	//Full stage
+	//const std::string placementFilePath = "MapData/MapData_fullstage.txt";
+	//const std::string navMeshFilePath = "MapData/Navmesh_FullStage.nvm";
+
 	const std::string cubeColliderReportFilePath = "MapData/CubeBoxColliderReport.txt";
-	const std::string navMeshFilePath = "MapData/Navmesh_Stage1.nvm";
 
 	if ( !LoadStaticPlacementFile(placementFilePath) )
 	{
@@ -2412,7 +2422,7 @@ void CGameScene::BuildSkinnedBatch(
 
     const UINT fighterCount = m_PlayerCount;
 
-    const XMFLOAT3 playerBase(0.0f, 0.0f, 0.0f);
+    const XMFLOAT3 playerBase(-150.0f, 0.0f, 0.0f);
 
     m_swordManRefs.clear();
     m_swordManRefs.reserve(m_swordManCount);
