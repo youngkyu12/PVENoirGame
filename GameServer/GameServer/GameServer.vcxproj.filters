@@ -105,7 +105,9 @@
     <ClCompile Include="Room.cpp">
       <Filter>Room</Filter>
     </ClCompile>
-    <ClCompile Include="ReportHelper.cpp" />
+    <ClCompile Include="ReportHelper.cpp">
+      <Filter>Room</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
