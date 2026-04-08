@@ -70,6 +70,17 @@ int APIENTRY _tWinMain(
 	LPTSTR lpCmdLine, 
 	int nCmdShow)
 {
+	// 디버깅(콘솔창 출력)
+#if defined(DEBUG) | defined(_DEBUG)
+	FILE* fp;
+
+	AllocConsole();
+
+	freopen_s(&fp, "CONIN$", "r", stdin);
+	freopen_s(&fp, "CONOUT$", "w", stdout);
+	freopen_s(&fp, "CONOUT$", "w", stderr);
+#endif
+
 	UNREFERENCED_PARAMETER(hPrevInstance);
 	UNREFERENCED_PARAMETER(lpCmdLine);
 

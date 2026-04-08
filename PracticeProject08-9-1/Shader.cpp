@@ -480,6 +480,18 @@ void CStaticObjectsShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CC
 #endif
 }
 
+D3D12_SHADER_BYTECODE CTreeStaticObjectsShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(L"Shaders.hlsl","PSTexturedLightingToMultipleRTs_AlphaClip","ps_5_1",ppd3dShaderBlob);
+}
+
+D3D12_RASTERIZER_DESC CTreeStaticObjectsShader::CreateRasterizerState()
+{
+	D3D12_RASTERIZER_DESC rs = CShader::CreateRasterizerState();
+	rs.CullMode = D3D12_CULL_MODE_NONE;
+	return rs;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 CSkinnedObjectsShader::CSkinnedObjectsShader()
@@ -906,7 +918,7 @@ void CPostProcessingShader::OnPrepareRenderTarget(
 	for (int i = 0; i < nRenderTargets; i++)
 	{
 		pd3dAllRtvCPUHandles[i] = pd3dRtvCPUHandles[i];
-		pd3dCommandList->ClearRenderTargetView(pd3dRtvCPUHandles[i], Colors::Black, 0, nullptr);
+		pd3dCommandList->ClearRenderTargetView(pd3dRtvCPUHandles[i], Colors::SkyBlue, 0, nullptr);
 	}
 
 	for (int i = 0; i < nResources; i++)

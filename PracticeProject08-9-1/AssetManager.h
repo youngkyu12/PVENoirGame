@@ -32,6 +32,7 @@ enum class AssetType
     VillageWall,
     House,
     Tower,
+	Tree,
 
     Arrow,
 	Bullet,

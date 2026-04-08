@@ -320,6 +320,7 @@
     <ClInclude Include="MonsterWeaponHitboxComponent.h">
       <Filter>Components\WeaponHitboxComponent</Filter>
     </ClInclude>
+    <ClInclude Include="ShadowMap.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -469,6 +470,7 @@
     <ClCompile Include="MonsterWeaponHitboxComponent.cpp">
       <Filter>Components\WeaponHitboxComponent</Filter>
     </ClCompile>
+    <ClCompile Include="ShadowMap.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PracticeProject08-9-1.rc">
