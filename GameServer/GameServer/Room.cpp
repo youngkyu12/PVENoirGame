@@ -12,10 +12,12 @@
 
 #include "Protocol.pb.h"
 #include "ClientPacketHandler.h"
+#include "ReportHelper.h"
 
 #include <algorithm>
 #include <fstream>
 #include <cstdio>
+#include <cstdlib>
 
 shared_ptr<Room> GRoom = make_shared<Room>();
 
@@ -67,6 +69,11 @@ namespace
 			// X/Z: extents 1.5 -> 4.5, Y: center 1.75 기준 extents 1.75 -> 5.25
 			outMin = XMFLOAT3(-4.5f, -3.5f, -4.5f);
 			outMax = XMFLOAT3(4.5f, 7.0f, 4.5f);
+			return;
+		case Protocol::BUILDING_TYPE_TOWER:
+			// 타워는 높이가 더 높고, 폭이 더 좁음
+			outMin = XMFLOAT3(-1.0f, 0.0f, -1.0f);
+			outMax = XMFLOAT3(1.0f, 6.0f, 1.0f);
 			return;
 		default:
 			outMin = XMFLOAT3(-1.5f, 0.0f, -1.5f);
@@ -132,6 +139,9 @@ namespace
 		GameMath::Vec3 position = GameMath::Vec3::Zero();
 		float yawDeg = 0.0f;
 	};
+
+ static StaticWorldReportCache g_staticWorldReportCache;
+	static bool g_staticWorldReportLoaded = false;
 
 	static float QuaternionToYawDegrees(float x, float y, float z, float w)
 	{
@@ -200,22 +210,19 @@ namespace
 		return !outEntries.empty();
 	}
 
-	static Protocol::BuildingType AssetToBuildingType(const std::string& asset)
+	static void EnsureStaticWorldReportLoaded()
 	{
-		if (asset == "Grass") return Protocol::BUILDING_TYPE_GRASS;
-		if (asset == "Ground") return Protocol::BUILDING_TYPE_GROUND;
-		if (asset == "Building1") return Protocol::BUILDING_TYPE_BUILDING1;
-		if (asset == "Building2") return Protocol::BUILDING_TYPE_BUILDING2;
-		if (asset == "Building3") return Protocol::BUILDING_TYPE_BUILDING3;
-		if (asset == "Building4") return Protocol::BUILDING_TYPE_BUILDING4;
-		if (asset == "Building5") return Protocol::BUILDING_TYPE_BUILDING5;
-		if (asset == "Building6") return Protocol::BUILDING_TYPE_BUILDING6;
-		if (asset == "Building7") return Protocol::BUILDING_TYPE_BUILDING7;
-		if (asset == "Building8") return Protocol::BUILDING_TYPE_BUILDING8;
-		if (asset == "Building9") return Protocol::BUILDING_TYPE_BUILDING9;
-		if (asset == "VillageWall") return Protocol::BUILDING_TYPE_VILLAGE_WALL;
-		if (asset == "DirtRoad") return Protocol::BUILDING_TYPE_DIRT_ROAD;
-		return Protocol::BUILDING_TYPE_NONE;
+		if (g_staticWorldReportLoaded)
+			return;
+
+		const std::vector<std::string> candidates = {
+			"MapFIle/StaticWorldLocalOOBBReport.txt",
+			"GameServer/MapFIle/StaticWorldLocalOOBBReport.txt",
+			"../GameServer/MapFIle/StaticWorldLocalOOBBReport.txt"
+		};
+
+		ReportHelper::LoadStaticWorldOverallLocalOOBBReport(candidates, g_staticWorldReportCache);
+		g_staticWorldReportLoaded = true;
 	}
 
 	static GameMath::Vec3 GetInitialPlayerSpawnPosition(uint64 playerId)
@@ -274,10 +281,29 @@ void Room::RegisterStaticCollider(BuildingRef building)
 		collider = building->AddComponent<CColliderComponent>(EColliderType::OOBB);
 		if (collider)
 		{
-			XMFLOAT3 minV{};
-			XMFLOAT3 maxV{};
-			GetStaticBuildingBounds(building->GetBuildingType(), minV, maxV);
-			collider->SetOOBB(minV, maxV);
+          bool appliedFromReport = false;
+			EnsureStaticWorldReportLoaded();
+
+           const ReportObjectOOBB* report = ReportHelper::FindByBuildingType(
+				g_staticWorldReportCache,
+				building->GetBuildingType());
+
+			if (report)
+			{
+              collider->SetOOBB(report->localOOBB);
+				collider->SetSubOOBBs(report->localSubOOBBs);
+				appliedFromReport = true;
+			}
+
+			if (!appliedFromReport)
+			{
+				XMFLOAT3 minV{};
+				XMFLOAT3 maxV{};
+				GetStaticBuildingBounds(building->GetBuildingType(), minV, maxV);
+				collider->SetOOBB(minV, maxV);
+               collider->ClearSubOOBBs();
+			}
+
 			collider->SetLayer(kCollisionLayerWorldStatic);
 			collider->SetMask(CollisionBit(kCollisionLayerCharacter));
 		}
@@ -419,17 +445,20 @@ void Room::BuildRoom()
 	InitializeCollisionSystem();
 
 	std::vector<PlacementEntry> entries;
+
 	if (LoadPlacementEntries(entries))
 	{
 		uint64 buildingId = 1;
-		for (const auto& e : entries)
+       for (size_t entryIndex = 0; entryIndex < entries.size(); ++entryIndex)
 		{
+          const auto& e = entries[entryIndex];
 			auto building = std::make_shared<CBuilding>();
 			building->SetObjectId(buildingId);
 			building->SetPosition(e.position);
 			building->SetYaw(GameMath::NormalizeYaw(e.yawDeg));
-			building->SetBuildingType(AssetToBuildingType(e.asset));
+            building->SetBuildingType(ReportHelper::AssetToBuildingType(e.asset));
 			building->SetActive(true);
+
 			RegisterStaticCollider(building);
 
 			buildings[buildingId] = building;
@@ -440,7 +469,7 @@ void Room::BuildRoom()
 	MakeFireRateMap();
 	for (int i = 0; i < 10; ++i)
 	{
-		auto enemy = make_shared<CEnemy>(i, u8"Zombie", Protocol::ENEMY_TYPE_BASIC, nullptr);
+       auto enemy = make_shared<CEnemy>(i, "Zombie", Protocol::ENEMY_TYPE_BASIC, nullptr);
 		enemy->Build(GameMath::Vec3(i * 10.0f, 0, 0), GameMath::Vec3(0, 0, 0));
 		RegisterDynamicCollider(enemy);
 		//enemies[i]->AddComponent<CTransformComponent>();
@@ -450,7 +479,7 @@ void Room::BuildRoom()
 
 	for (int i = 0; i < 30; ++i)
 	{
-		auto enemy = make_shared<CEnemy>(i + 10, u8"FIghter", Protocol::ENEMY_TYPE_ARCHER, nullptr);
+        auto enemy = make_shared<CEnemy>(i + 10, "FIghter", Protocol::ENEMY_TYPE_ARCHER, nullptr);
 		enemy->Build(GameMath::Vec3((i + 10) * 10.0f, 0, 10), GameMath::Vec3(0, 0, 0));
 		RegisterDynamicCollider(enemy);
 		//enemies[i]->AddComponent<CTransformComponent>();

@@ -43,7 +43,7 @@ public:
 
 private:
 	void InitializeCollisionSystem();
-	void RegisterStaticCollider(BuildingRef building);
+    void RegisterStaticCollider(BuildingRef building);
 	void RegisterDynamicCollider(const shared_ptr<CServerObject>& obj);
 
 	CCollisionSystem* GetCollisionSystem() const { return _collision.get(); }
@@ -64,5 +64,5 @@ private:
 };
 
 extern shared_ptr<Room> GRoom;
-constexpr int MaxPlayers = 1;
+constexpr int MaxPlayers = 3;
 
