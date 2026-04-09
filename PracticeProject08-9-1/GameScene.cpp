@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <cstdio>
 #include <cctype>
+#include <algorithm>
 
 #include "AnimatorComponent.h"
 #include "AnimatorData.h"
@@ -504,10 +505,19 @@ CGameScene::CGameScene()
 }
 
 #ifndef USING_NETWORK
+void CGameScene::InitializeMegaGridState()
+{
+	for ( MegaGridCell& cell : m_megaGridCells )
+	{
+		cell = MegaGridCell{};
+	}
+}
+
 void CGameScene::InitializeSpatialGrid()
 {
 	m_gridStaticCells.assign(kGridCellCount, GridStaticCell{});
 	m_gridDynamicCells.assign(kGridCellCount, GridDynamicCell{});
+	InitializeMegaGridState();
 
 	for ( auto& tracker : m_playerGridTrackers )
 		tracker = GridDynamicTracker{};
@@ -523,6 +533,7 @@ void CGameScene::ShutdownSpatialGrid()
 {
 	m_gridStaticCells.clear();
 	m_gridDynamicCells.clear();
+	InitializeMegaGridState();
 
 	for ( auto& tracker : m_playerGridTrackers )
 		tracker = GridDynamicTracker{};
@@ -556,6 +567,54 @@ bool CGameScene::WorldToGridCell(float worldX, float worldZ, int& outCellX, int&
 int CGameScene::GridCellIndex(int cellX, int cellZ) const
 {
 	return ( cellZ * kGridWidth ) + cellX;
+}
+
+int CGameScene::MegaGridIndex(int megaX, int megaZ) const
+{
+	return ( megaZ * kMegaGridCols ) + megaX;
+}
+
+bool CGameScene::FineCellToMegaGridCell(int cellX, int cellZ, int& outMegaX, int& outMegaZ) const
+{
+	if ( cellX < 0 || cellX >= kGridWidth ) return false;
+	if ( cellZ < 0 || cellZ >= kGridHeight ) return false;
+
+	outMegaX = cellX / kMegaGridCellWidth;
+	outMegaZ = cellZ / kMegaGridCellHeight;
+
+	if ( outMegaX < 0 || outMegaX >= kMegaGridCols ) return false;
+	if ( outMegaZ < 0 || outMegaZ >= kMegaGridRows ) return false;
+
+	return true;
+}
+
+bool CGameScene::IsFineCellInsideMegaGridApproachZone(int megaX, int megaZ, int cellX, int cellZ) const
+{
+	if ( megaX < 0 || megaX >= kMegaGridCols ) return false;
+	if ( megaZ < 0 || megaZ >= kMegaGridRows ) return false;
+	if ( cellX < 0 || cellX >= kGridWidth ) return false;
+	if ( cellZ < 0 || cellZ >= kGridHeight ) return false;
+
+	const MegaGridCell& megaCell = m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)];
+
+	const int zoneWidth =
+		std::clamp(megaCell.approachWidthCells, 1, kMegaGridCellWidth);
+
+	const int zoneHeight =
+		std::clamp(megaCell.approachHeightCells, 1, kMegaGridCellHeight);
+
+	const int megaStartX = megaX * kMegaGridCellWidth;
+	const int megaStartZ = megaZ * kMegaGridCellHeight;
+
+	const int zoneStartX = megaStartX + ( ( kMegaGridCellWidth - zoneWidth ) / 2 );
+	const int zoneStartZ = megaStartZ + ( ( kMegaGridCellHeight - zoneHeight ) / 2 );
+
+	const int zoneEndX = zoneStartX + zoneWidth;   // exclusive
+	const int zoneEndZ = zoneStartZ + zoneHeight;  // exclusive
+
+	return
+		( cellX >= zoneStartX && cellX < zoneEndX ) &&
+		( cellZ >= zoneStartZ && cellZ < zoneEndZ );
 }
 
 void CGameScene::AddDynamicCount(int cellX, int cellZ, EGridDynamicKind kind, int delta)
@@ -800,6 +859,8 @@ void CGameScene::RebuildDynamicGridState()
 
 	for ( auto& tracker : m_bulletGridTrackers )
 		RefreshDynamicTracker(tracker, EGridDynamicKind::Bullet);
+
+	UpdateMegaGridState();
 }
 
 void CGameScene::UpdateDynamicGridState()
@@ -817,6 +878,36 @@ void CGameScene::UpdateDynamicGridState()
 
 	for ( auto& tracker : m_bulletGridTrackers )
 		RefreshDynamicTracker(tracker, EGridDynamicKind::Bullet);
+
+	UpdateMegaGridState();
+}
+
+void CGameScene::UpdateMegaGridState()
+{
+	if ( !m_spatialGridInitialized ) return;
+
+	for ( const GridDynamicTracker& tracker : m_playerGridTrackers )
+	{
+		if ( !tracker.occupied ) continue;
+
+		int megaX = -1;
+		int megaZ = -1;
+
+		if ( !FineCellToMegaGridCell(tracker.prevCellX, tracker.prevCellZ, megaX, megaZ) )
+			continue;
+
+		if ( !IsFineCellInsideMegaGridApproachZone(
+			megaX,
+			megaZ,
+			tracker.prevCellX,
+			tracker.prevCellZ) )
+		{
+			continue;
+		}
+
+		MegaGridCell& megaCell = m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)];
+		megaCell.hasPlayerApproached = true;
+	}
 }
 
 void CGameScene::DumpStaticGridOccupancyLog() const
@@ -849,6 +940,56 @@ void CGameScene::DumpStaticGridOccupancyLog() const
 	}
 
 	OutputDebugStringA("[GridStatic] end\n");
+}
+
+void CGameScene::SetMegaGridApproachZoneSize(int megaX, int megaZ, int widthCells, int heightCells)
+{
+	if ( megaX < 0 || megaX >= kMegaGridCols ) return;
+	if ( megaZ < 0 || megaZ >= kMegaGridRows ) return;
+
+	MegaGridCell& cell = m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)];
+	cell.approachWidthCells = std::clamp(widthCells, 1, kMegaGridCellWidth);
+	cell.approachHeightCells = std::clamp(heightCells, 1, kMegaGridCellHeight);
+}
+
+void CGameScene::SetMegaGridCleared(int megaX, int megaZ, bool cleared)
+{
+	if ( megaX < 0 || megaX >= kMegaGridCols ) return;
+	if ( megaZ < 0 || megaZ >= kMegaGridRows ) return;
+
+	m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)].isCleared = cleared;
+}
+
+void CGameScene::SetMegaGridEventOccurred(int megaX, int megaZ, bool occurred)
+{
+	if ( megaX < 0 || megaX >= kMegaGridCols ) return;
+	if ( megaZ < 0 || megaZ >= kMegaGridRows ) return;
+
+	m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)].hasEventOccurred = occurred;
+}
+
+bool CGameScene::HasMegaGridPlayerApproached(int megaX, int megaZ) const
+{
+	if ( megaX < 0 || megaX >= kMegaGridCols ) return false;
+	if ( megaZ < 0 || megaZ >= kMegaGridRows ) return false;
+
+	return m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)].hasPlayerApproached;
+}
+
+bool CGameScene::IsMegaGridCleared(int megaX, int megaZ) const
+{
+	if ( megaX < 0 || megaX >= kMegaGridCols ) return false;
+	if ( megaZ < 0 || megaZ >= kMegaGridRows ) return false;
+
+	return m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)].isCleared;
+}
+
+bool CGameScene::HasMegaGridEventOccurred(int megaX, int megaZ) const
+{
+	if ( megaX < 0 || megaX >= kMegaGridCols ) return false;
+	if ( megaZ < 0 || megaZ >= kMegaGridRows ) return false;
+
+	return m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)].hasEventOccurred;
 }
 #endif
 

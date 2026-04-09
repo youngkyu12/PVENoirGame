@@ -194,6 +194,16 @@ public:
     
 	void RequestFireArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f, float yOffset = 0.0f);
 
+#ifndef USING_NETWORK
+	void SetMegaGridApproachZoneSize(int megaX, int megaZ, int widthCells, int heightCells);
+	void SetMegaGridCleared(int megaX, int megaZ, bool cleared = true);
+	void SetMegaGridEventOccurred(int megaX, int megaZ, bool occurred = true);
+
+	bool HasMegaGridPlayerApproached(int megaX, int megaZ) const;
+	bool IsMegaGridCleared(int megaX, int megaZ) const;
+	bool HasMegaGridEventOccurred(int megaX, int megaZ) const;
+#endif
+
 private:
 #ifndef USING_NETWORK
 	static constexpr int kGridMinX = -600;
@@ -204,6 +214,26 @@ private:
 	static constexpr int kGridWidth = ( kGridMaxX - kGridMinX );
 	static constexpr int kGridHeight = ( kGridMaxZ - kGridMinZ );
 	static constexpr int kGridCellCount = ( kGridWidth * kGridHeight );
+
+	static constexpr int kMegaGridCols = 3;
+	static constexpr int kMegaGridRows = 3;
+	static constexpr int kMegaGridCount = ( kMegaGridCols * kMegaGridRows );
+
+	static constexpr int kMegaGridCellWidth = ( kGridWidth / kMegaGridCols );   // 400
+	static constexpr int kMegaGridCellHeight = ( kGridHeight / kMegaGridRows ); // 400
+
+	static constexpr int kDefaultMegaGridApproachWidth = 200;
+	static constexpr int kDefaultMegaGridApproachHeight = 200;
+
+	struct MegaGridCell
+	{
+		bool hasPlayerApproached = false;
+		bool isCleared = false;
+		bool hasEventOccurred = false;
+
+		int approachWidthCells = kDefaultMegaGridApproachWidth;
+		int approachHeightCells = kDefaultMegaGridApproachHeight;
+	};
 
 	struct GridStaticCell
 	{
@@ -237,9 +267,14 @@ private:
 
 	void InitializeSpatialGrid();
 	void ShutdownSpatialGrid();
+	void InitializeMegaGridState();
 
 	bool WorldToGridCell(float worldX, float worldZ, int& outCellX, int& outCellZ) const;
 	int GridCellIndex(int cellX, int cellZ) const;
+
+	int MegaGridIndex(int megaX, int megaZ) const;
+	bool FineCellToMegaGridCell(int cellX, int cellZ, int& outMegaX, int& outMegaZ) const;
+	bool IsFineCellInsideMegaGridApproachZone(int megaX, int megaZ, int cellX, int cellZ) const;
 
 	void AddDynamicCount(int cellX, int cellZ, EGridDynamicKind kind, int delta);
 	void StampBuildingCellsFromOOBB(const BoundingOrientedBox& box, std::unordered_set<int>& touchedCells);
@@ -251,6 +286,7 @@ private:
 	void BuildDynamicGridTrackers();
 	void RebuildDynamicGridState();
 	void UpdateDynamicGridState();
+	void UpdateMegaGridState();
 	void DumpStaticGridOccupancyLog() const;
 #endif
 
@@ -360,6 +396,7 @@ private:
 	bool m_spatialGridInitialized = false;
 	std::vector<GridStaticCell> m_gridStaticCells;
 	std::vector<GridDynamicCell> m_gridDynamicCells;
+	std::array<MegaGridCell, kMegaGridCount> m_megaGridCells = {};
 
 	std::array<GridDynamicTracker, 4> m_playerGridTrackers = {};
 	std::vector<GridDynamicTracker> m_monsterGridTrackers;
