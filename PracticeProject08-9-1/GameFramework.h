@@ -65,13 +65,17 @@ public:
 
 private:
 	// Scene switching (Menu -> Game)
-	void RequestSceneSwitch(ESceneId next);
+	void RequestSceneSwitch(ESceneId next, bool presentCurrentSceneOnceBeforeSwitch = false);
 	void ApplyPendingSceneSwitch();
 	void BuildSceneInternal(ESceneId id, bool resetTimer);
 	void SyncGameSceneInactiveOverlay();
 	bool IsWindowActuallyActive() const;
 	void UpdateWindowActivationState();
 	bool IsInputPauseActive() const;
+
+	bool								m_sceneSwitchPending = false;
+	ESceneId							m_pendingScene = ESceneId::Menu;
+	bool								m_sceneSwitchReadyToApply = false;
 
 private:
 	// Window
@@ -130,10 +134,6 @@ private:
 
 	// UI Text
 	_TCHAR								m_pszFrameRate[50];
-
-	// Pending scene switch
-	bool								m_sceneSwitchPending = false;
-	ESceneId							m_pendingScene = ESceneId::Menu;
 	
 	bool								m_bWindowActive = true;
 	bool								m_bConsumeNextMouseClick = false;
