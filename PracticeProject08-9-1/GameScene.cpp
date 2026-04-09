@@ -1044,16 +1044,17 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 #else
 	m_localPlayerSlot = 0;
 	//Test stage
-	//const std::string placementFilePath = "MapData/MapData_tst.txt";
-	//const std::string navMeshFilePath = "MapData/Navmesh_tst.nvm";
+	const std::string placementFilePath = "MapData/MapData_tst.txt";
+	const std::string navMeshFilePath = "MapData/Navmesh_tst.nvm";
 
 	//1 stage
 	//const std::string placementFilePath = "MapData/MapData_stage1_with_Tree.txt";
 	//const std::string navMeshFilePath = "MapData/Navmesh_Stage1.nvm";
 
 	//Full stage
-	const std::string placementFilePath = "MapData/MapData_fullstage.txt";
-	const std::string navMeshFilePath = "MapData/Navmesh_FullStage.nvm";
+	//const std::string placementFilePath = "MapData/MapData_fullstage.txt";
+	//const std::string placementFilePath = "MapData/MapData_fullstage(NoTree).txt";
+	//const std::string navMeshFilePath = "MapData/Navmesh_FullStage.nvm";
 
 	const std::string cubeColliderReportFilePath = "MapData/CubeBoxColliderReport.txt";
 
@@ -1201,14 +1202,14 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	const DXGI_FORMAT kDsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
 #ifndef USING_NETWORK
-	//BuildColliderBatch(dev, cmd, pColliderShader, kRTCount, rtvFormats, kDsvFormat);
+	BuildColliderBatch(dev, cmd, pColliderShader, kRTCount, rtvFormats, kDsvFormat);
 #endif
 
 	pTreeStaticShader->CreateShader(dev,m_pd3dGraphicsRootSignature.Get(),kRTCount,rtvFormats,kDsvFormat);
 	BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
 #ifndef USING_NETWORK
-	DumpStaticGridOccupancyLog();
-	//BuildStaticWorldSubmeshOOBBDebugObjects(dev, cmd);
+	//DumpStaticGridOccupancyLog();
+	BuildStaticWorldSubmeshOOBBDebugObjects(dev, cmd);
 #endif
 	BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
 
