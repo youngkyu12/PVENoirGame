@@ -298,8 +298,16 @@ public:
 	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext = nullptr);
 
 protected:
+	static constexpr UINT			m_nMaxDrawOptionEntries = 64;
+
 	ComPtr<ID3D12Resource>			m_pd3dcbDrawOptions;
-	PS_CB_DRAW_OPTIONS* m_pcbMappedDrawOptions = nullptr;
+	UINT8* m_pcbMappedDrawOptions = nullptr;
+
+	UINT							m_nDrawOptionsStride = 0;
+	UINT							m_nDrawOptionWriteIndex = 0;
+
+public:
+	void ResetDrawOptionWriteIndex() { m_nDrawOptionWriteIndex = 0; }
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
