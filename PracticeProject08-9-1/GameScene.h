@@ -289,6 +289,38 @@ private:
 	void UpdateMegaGridState();
 	void DumpStaticGridOccupancyLog() const;
 #endif
+private:
+	enum class EUIRenderLayer : uint8_t
+	{
+		Frame = 0,
+		Content = 1,
+		Pause = 2
+	};
+
+	struct UISpriteEntry
+	{
+		std::string name;
+		std::shared_ptr<CTexture> texture;
+		UINT srvIndex = UINT_MAX;
+
+		// x=centerX, y=centerY, z=width, w=height (pixel)
+		XMFLOAT4 rect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+
+		EUIRenderLayer layer = EUIRenderLayer::Frame;
+		bool visible = true;
+	};
+
+	void BuildUIResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
+	int AddUISprite(
+		ID3D12Device* dev,
+		ID3D12GraphicsCommandList* cmd,
+		const char* name,
+		const wchar_t* texturePath,
+		const XMFLOAT4& rect,
+		EUIRenderLayer layer,
+		bool visible = true
+	);
+	void RenderUI(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
     // slot 0..3 플레이어 포인터(소유는 m_skinnedObjects가 함)
     std::array<CGameObject*, 4> m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
@@ -428,11 +460,12 @@ private:
 	std::shared_ptr<CStaticObjectsShader>	m_treeStaticShader;
 	std::unordered_set<const CGameObject*>	m_treeAlphaClipObjects;
 
-    std::shared_ptr<CRectUIShader>      m_inactiveOverlayShader;
-    std::shared_ptr<CTexture>           m_inactiveOverlayTex;
-    UINT                                m_inactiveOverlaySrvIndex = UINT_MAX;
-    bool                                m_bInactiveOverlayVisible = false;
-    bool GetPauseOverlayRect(XMFLOAT4& outRect) const;
+	std::shared_ptr<CRectUIShader>      m_uiRectShader;
+	std::vector<UISpriteEntry>          m_uiSprites;
+	int                                 m_pauseUISpriteIndex = -1;
+
+	bool                                m_bInactiveOverlayVisible = false;
+	bool GetPauseOverlayRect(XMFLOAT4& outRect) const;
 
 	std::vector<SkinnedInstanceGroup>   m_skinnedInstanceGroups;
 
