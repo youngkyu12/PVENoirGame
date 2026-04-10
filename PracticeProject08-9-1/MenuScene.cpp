@@ -69,18 +69,6 @@ void CMenuScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 			dsv);
 		m_menuShader->CreateShaderVariables(dev, cmd);
 	}
-
-	{
-		char dbg[256] = {};
-		sprintf_s(
-			dbg,
-			"[MenuScene] menuSrv=%u startSrv=%u loadingSrv=%u\n",
-			m_menuSrvIndex,
-			m_startButtonSrvIndex,
-			m_loadingSrvIndex
-		);
-		::OutputDebugStringA(dbg);
-	}
 }
 
 void CMenuScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* /*target*/)

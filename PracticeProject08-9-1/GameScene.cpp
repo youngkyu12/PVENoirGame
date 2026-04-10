@@ -906,7 +906,22 @@ void CGameScene::UpdateMegaGridState()
 		}
 
 		MegaGridCell& megaCell = m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)];
-		megaCell.hasPlayerApproached = true;
+
+		if ( !megaCell.hasPlayerApproached )
+		{
+			megaCell.hasPlayerApproached = true;
+
+			char debugText[256] = {};
+			sprintf_s(
+				debugText,
+				"[MegaGrid] hasPlayerApproached=true | mega=(%d,%d) | playerCell=(%d,%d)\n",
+				megaX,
+				megaZ,
+				tracker.prevCellX,
+				tracker.prevCellZ
+			);
+			OutputDebugStringA(debugText);
+		}
 	}
 }
 
