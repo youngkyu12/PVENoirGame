@@ -1060,9 +1060,12 @@ void CGameScene::ReleaseObjects()
 	m_preparedBowmanArrows.clear();
 	m_prevEnemyBowReleasePhase.clear();
 
-	m_inactiveOverlayShader.reset();
-	m_inactiveOverlayTex.reset();
-	m_inactiveOverlaySrvIndex = UINT_MAX;
+	if ( m_uiRectShader )
+		m_uiRectShader->ReleaseShaderVariables();
+
+	m_uiRectShader.reset();
+	m_uiSprites.clear();
+	m_pauseUISpriteIndex = -1;
 	m_bInactiveOverlayVisible = false;
 
 	m_navMesh.reset();
@@ -1174,6 +1177,11 @@ void CGameScene::ReleaseShaderVariables()
 			m_colliderBatch.mappedGameObjects = nullptr;
 		}
 		m_colliderBatch.cbGameObjects.Reset();
+	}
+
+	if ( m_uiRectShader )
+	{
+		m_uiRectShader->ReleaseShaderVariables();
 	}
 }
 
@@ -1315,38 +1323,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	};
 
 	BuildLightsAndMaterials();
-
-	{
-		constexpr const wchar_t* kInactiveOverlayDDS = L"Assets/UI/Pause.dds";
-
-		m_inactiveOverlayTex = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 0);
-		m_inactiveOverlayTex->LoadTextureFromFile(
-			dev, 
-			cmd, 
-			kInactiveOverlayDDS, 
-			RESOURCE_TEXTURE2D, 
-			0);
-
-		CScene::m_pDescriptorHeap->CreateShaderResourceViewsOther(
-			dev,
-			m_inactiveOverlayTex.get(),
-			ROOT_PARAMETER_GLOBAL_SRV);
-
-		m_inactiveOverlaySrvIndex = m_inactiveOverlayTex->GetSrvIndex(0);
-
-		m_inactiveOverlayShader = std::make_shared<CRectUIShader>();
-
-		DXGI_FORMAT overlayRtv = DXGI_FORMAT_R8G8B8A8_UNORM;
-		DXGI_FORMAT overlayDsv = DXGI_FORMAT_UNKNOWN;
-
-		m_inactiveOverlayShader->CreateShader(
-			dev,
-			GetGraphicsRootSignature(),
-			1,
-			&overlayRtv,
-			overlayDsv);
-		m_inactiveOverlayShader->CreateShaderVariables(dev, cmd);
-	}
+	BuildUIResources(dev, cmd);
 
 	for ( auto& lo : m_lightObjects )
 	{
@@ -1358,14 +1335,14 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	const DXGI_FORMAT kDsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
 #ifndef USING_NETWORK
-	BuildColliderBatch(dev, cmd, pColliderShader, kRTCount, rtvFormats, kDsvFormat);
+	//BuildColliderBatch(dev, cmd, pColliderShader, kRTCount, rtvFormats, kDsvFormat);
 #endif
 
 	pTreeStaticShader->CreateShader(dev,m_pd3dGraphicsRootSignature.Get(),kRTCount,rtvFormats,kDsvFormat);
 	BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
 #ifndef USING_NETWORK
 	//DumpStaticGridOccupancyLog();
-	BuildStaticWorldSubmeshOOBBDebugObjects(dev, cmd);
+	//BuildStaticWorldSubmeshOOBBDebugObjects(dev, cmd);
 #endif
 	BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
 
@@ -4495,38 +4472,295 @@ void CGameScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* 
 	}
 }
 
+int CGameScene::AddUISprite(
+	ID3D12Device* dev,
+	ID3D12GraphicsCommandList* cmd,
+	const char* name,
+	const wchar_t* texturePath,
+	const XMFLOAT4& rect,
+	EUIRenderLayer layer,
+	bool visible)
+{
+	if ( !dev || !cmd || !name || !texturePath )
+		return -1;
+
+	UISpriteEntry entry{};
+	entry.name = name;
+	entry.layer = layer;
+	entry.visible = visible;
+	entry.rect = rect;
+
+	entry.texture = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 0);
+	entry.texture->LoadTextureFromFile(
+		dev,
+		cmd,
+		texturePath,
+		RESOURCE_TEXTURE2D,
+		0
+	);
+
+	CScene::m_pDescriptorHeap->CreateShaderResourceViewsOther(
+		dev,
+		entry.texture.get(),
+		ROOT_PARAMETER_GLOBAL_SRV
+	);
+
+	entry.srvIndex = entry.texture->GetSrvIndex(0);
+
+	// width/height를 0 이하로 넣으면 원본 텍스처 크기 사용
+	if ( entry.rect.z <= 0.0f )
+		entry.rect.z = static_cast< float >( entry.texture->GetTextureWidth(0) );
+	if ( entry.rect.w <= 0.0f )
+		entry.rect.w = static_cast< float >( entry.texture->GetTextureHeight(0) );
+
+	m_uiSprites.push_back(std::move(entry));
+	return static_cast< int >( m_uiSprites.size() - 1 );
+}
+
+void CGameScene::BuildUIResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
+{
+	if ( m_uiRectShader )
+		m_uiRectShader->ReleaseShaderVariables();
+
+	m_uiRectShader.reset();
+	m_uiSprites.clear();
+	m_pauseUISpriteIndex = -1;
+
+	m_uiRectShader = std::make_shared<CRectUIShader>();
+
+	DXGI_FORMAT overlayRtv = DXGI_FORMAT_R8G8B8A8_UNORM;
+	DXGI_FORMAT overlayDsv = DXGI_FORMAT_UNKNOWN;
+
+	m_uiRectShader->CreateShader(
+		dev,
+		GetGraphicsRootSignature(),
+		1,
+		&overlayRtv,
+		overlayDsv
+	);
+	m_uiRectShader->CreateShaderVariables(dev, cmd);
+
+	// --------------------------------------------------------------------
+	// UI layout tuning block
+	// - rect = (centerX, centerY, width, height)
+	// --------------------------------------------------------------------
+	constexpr int kItemSlotCount = 5;
+	constexpr int kEquipSlotCount = 2;
+
+	const float itemFrameCenterX = FRAME_BUFFER_WIDTH - 105.0f;
+	const float itemFrameCenterY = FRAME_BUFFER_HEIGHT - 22.5f;
+	const float itemFrameWidth = 210.0f;
+	const float itemFrameHeight = 45.0f;
+
+	const float itemSlotSize = 32.0f;
+	const float itemSlotSpacing = 37.0f;
+	const float itemSlotStartX =
+		itemFrameCenterX - ( ( kItemSlotCount - 1 ) * itemSlotSpacing * 0.5f );
+	const float itemSlotCenterY = itemFrameCenterY;
+
+	const float equipFrameCenterX = FRAME_BUFFER_WIDTH - 45.0f;
+	const float equipFrameCenterY = FRAME_BUFFER_HEIGHT - 66.0f;
+	const float equipFrameWidth = 90.0f;
+	const float equipFrameHeight = 45.0f;
+
+	const float equipSlotSize = 32.0f;
+	const float equipSlotSpacing = 37.0f;
+	const float equipSlotStartX =
+		equipFrameCenterX - ( ( kEquipSlotCount - 1 ) * equipSlotSpacing * 0.5f );
+	const float equipSlotCenterY = equipFrameCenterY;
+
+	const float hpFrameCenterX = 150.0f;
+	const float hpFrameCenterY = 20.0f;
+	const float hpFrameWidth = 300.0f;
+	const float hpFrameHeight = 40.0f;
+
+	const float hpBarCenterX = hpFrameCenterX;
+	const float hpBarCenterY = hpFrameCenterY;
+	const float hpBarWidth = 290.0f;
+	const float hpBarHeight = 34.0f;
+
+	// --------------------------------------------------------------------
+	// Frame layer (가장 아래)
+	// --------------------------------------------------------------------
+	AddUISprite(
+		dev, cmd,
+		"ItemFrame",
+		L"Assets/UI/low_darkness_bar.dds",
+		XMFLOAT4(itemFrameCenterX, itemFrameCenterY, itemFrameWidth, itemFrameHeight),
+		EUIRenderLayer::Frame,
+		true
+	);
+
+	AddUISprite(
+		dev, cmd,
+		"EquipmentFrame",
+		L"Assets/UI/low_darkness_bar.dds",
+		XMFLOAT4(equipFrameCenterX, equipFrameCenterY, equipFrameWidth, equipFrameHeight),
+		EUIRenderLayer::Frame,
+		true
+	);
+
+	AddUISprite(
+		dev, cmd,
+		"HPFrame",
+		L"Assets/UI/low_darkness_bar.dds",
+		XMFLOAT4(hpFrameCenterX, hpFrameCenterY, hpFrameWidth, hpFrameHeight),
+		EUIRenderLayer::Frame,
+		true
+	);
+
+	// --------------------------------------------------------------------
+	// Content layer (Frame 위)
+	// --------------------------------------------------------------------
+	for ( int i = 0; i < kItemSlotCount; ++i )
+	{
+		const float centerX = itemSlotStartX + ( itemSlotSpacing * i );
+
+		char name[64] = {};
+		sprintf_s(name, "ItemSlot_%d", i);
+
+		AddUISprite(
+			dev, cmd,
+			name,
+			L"Assets/UI/mini_dark_bar1.dds",
+			XMFLOAT4(centerX, itemSlotCenterY, itemSlotSize, itemSlotSize),
+			EUIRenderLayer::Content,
+			true
+		);
+	}
+
+	for ( int i = 0; i < kEquipSlotCount; ++i )
+	{
+		const float centerX = equipSlotStartX + ( equipSlotSpacing * i );
+
+		char name[64] = {};
+		sprintf_s(name, "EquipmentSlot_%d", i);
+
+		AddUISprite(
+			dev, cmd,
+			name,
+			L"Assets/UI/mini_dark_bar1.dds",
+			XMFLOAT4(centerX, equipSlotCenterY, equipSlotSize, equipSlotSize),
+			EUIRenderLayer::Content,
+			true
+		);
+	}
+
+	AddUISprite(
+		dev, cmd,
+		"HPFill",
+		L"Assets/UI/HP.dds",
+		XMFLOAT4(hpBarCenterX, hpBarCenterY, hpBarWidth, hpBarHeight),
+		EUIRenderLayer::Content,
+		true
+	);
+
+	// --------------------------------------------------------------------
+	// Pause layer (가장 위)
+	// --------------------------------------------------------------------
+	m_pauseUISpriteIndex = AddUISprite(
+		dev, cmd,
+		"Pause",
+		L"Assets/UI/Pause.dds",
+		XMFLOAT4(
+			FRAME_BUFFER_WIDTH * 0.5f,
+			FRAME_BUFFER_HEIGHT * 0.5f,
+			0.0f,
+			0.0f
+		),
+		EUIRenderLayer::Pause,
+		true
+	);
+
+	if ( m_pauseUISpriteIndex >= 0 &&
+		m_pauseUISpriteIndex < static_cast< int >(m_uiSprites.size()) )
+	{
+		UISpriteEntry& pause = m_uiSprites[( size_t ) m_pauseUISpriteIndex];
+
+		float drawW = static_cast< float >(pause.texture->GetTextureWidth(0));
+		float drawH = static_cast< float >(pause.texture->GetTextureHeight(0));
+
+		if ( drawW <= 0.0f || drawH <= 0.0f )
+		{
+			drawW = 512.0f;
+			drawH = 512.0f;
+		}
+
+		float fitScale = 1.0f;
+		const float scaleX = static_cast< float >( FRAME_BUFFER_WIDTH ) / drawW;
+		const float scaleY = static_cast< float >( FRAME_BUFFER_HEIGHT ) / drawH;
+
+		if ( scaleX < fitScale ) fitScale = scaleX;
+		if ( scaleY < fitScale ) fitScale = scaleY;
+		if ( fitScale > 1.0f ) fitScale = 1.0f;
+
+		pause.rect.z = drawW * fitScale;
+		pause.rect.w = drawH * fitScale;
+	}
+}
+
+void CGameScene::RenderUI(ID3D12GraphicsCommandList* cmd, CCamera* camera)
+{
+	if ( !cmd ) return;
+	if ( !m_uiRectShader ) return;
+	if ( m_uiSprites.empty() ) return;
+
+	m_uiRectShader->ResetDrawOptionWriteIndex();
+
+	for ( int layerValue = static_cast< int >( EUIRenderLayer::Frame );
+		layerValue <= static_cast< int >( EUIRenderLayer::Pause );
+		++layerValue )
+	{
+		for ( size_t i = 0; i < m_uiSprites.size(); ++i )
+		{
+			const UISpriteEntry& ui = m_uiSprites[i];
+
+			if ( static_cast< int >(ui.layer) != layerValue )
+				continue;
+
+			if ( !ui.texture || ui.srvIndex == UINT_MAX )
+				continue;
+
+			bool visible = ui.visible;
+
+			// Pause는 기존 플래그로 제어
+			if ( static_cast< int >( i ) == m_pauseUISpriteIndex )
+				visible = visible && m_bInactiveOverlayVisible;
+
+			if ( !visible )
+				continue;
+
+			PS_CB_DRAW_OPTIONS opt{};
+			opt.m_xmn4DrawOptions = XMINT4('T', 0, 0, 0);
+			opt.m_xmu4PostSrvIdx0 = XMUINT4(ui.srvIndex, 0, 0, 0);
+			opt.m_xmu4PostSrvIdx1 = XMUINT4(0, 0, 0, 0);
+			opt.m_xmf4UiRect = ui.rect;
+			opt.m_xmf4Viewport = XMFLOAT4(
+				static_cast< float >( FRAME_BUFFER_WIDTH ),
+				static_cast< float >( FRAME_BUFFER_HEIGHT ),
+				1.0f / static_cast< float >( FRAME_BUFFER_WIDTH ),
+				1.0f / static_cast< float >( FRAME_BUFFER_HEIGHT )
+			);
+
+			m_uiRectShader->Render(cmd, camera, &opt);
+		}
+	}
+}
+
 bool CGameScene::GetPauseOverlayRect(XMFLOAT4& outRect) const
 {
-    if (!m_inactiveOverlayTex || (m_inactiveOverlaySrvIndex == UINT_MAX))
-        return false;
+	if ( m_pauseUISpriteIndex < 0 )
+		return false;
 
-    float drawW = static_cast<float>(m_inactiveOverlayTex->GetTextureWidth(0));
-    float drawH = static_cast<float>(m_inactiveOverlayTex->GetTextureHeight(0));
+	if ( m_pauseUISpriteIndex >= static_cast< int >(m_uiSprites.size()) )
+		return false;
 
-    if (drawW <= 0.0f || drawH <= 0.0f)
-    {
-        drawW = 512.0f;
-        drawH = 512.0f;
-    }
+	const UISpriteEntry& pause = m_uiSprites[( size_t ) m_pauseUISpriteIndex];
+	if ( !pause.texture || pause.srvIndex == UINT_MAX )
+		return false;
 
-    float fitScale = 1.0f;
-    const float scaleX = (drawW > 0.0f) ? (static_cast<float>(FRAME_BUFFER_WIDTH) / drawW) : 1.0f;
-    const float scaleY = (drawH > 0.0f) ? (static_cast<float>(FRAME_BUFFER_HEIGHT) / drawH) : 1.0f;
-
-    if (scaleX < fitScale) fitScale = scaleX;
-    if (scaleY < fitScale) fitScale = scaleY;
-    if (fitScale > 1.0f) fitScale = 1.0f;
-
-    drawW *= fitScale;
-    drawH *= fitScale;
-
-    outRect = XMFLOAT4(
-        FRAME_BUFFER_WIDTH * 0.5f,
-        FRAME_BUFFER_HEIGHT * 0.5f,
-        drawW,
-        drawH
-    );
-    return true;
+	outRect = pause.rect;
+	return true;
 }
 
 bool CGameScene::IsPointInPauseOverlay(POINT clientPt) const
@@ -5543,33 +5777,7 @@ void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 	}
 #endif
 
-    if (m_bInactiveOverlayVisible && m_inactiveOverlayShader && (m_inactiveOverlaySrvIndex != UINT_MAX))
-    {
-        XMFLOAT4 uiRect{};
-        if (!GetPauseOverlayRect(uiRect))
-        {
-            uiRect = XMFLOAT4(
-                FRAME_BUFFER_WIDTH * 0.5f,
-                FRAME_BUFFER_HEIGHT * 0.5f,
-                512.0f,
-                512.0f
-            );
-        }
-
-        PS_CB_DRAW_OPTIONS opt{};
-        opt.m_xmn4DrawOptions = XMINT4('T', 0, 0, 0);
-        opt.m_xmu4PostSrvIdx0 = XMUINT4(m_inactiveOverlaySrvIndex, 0, 0, 0);
-        opt.m_xmu4PostSrvIdx1 = XMUINT4(0, 0, 0, 0);
-        opt.m_xmf4UiRect = uiRect;
-        opt.m_xmf4Viewport = XMFLOAT4(
-            static_cast<float>(FRAME_BUFFER_WIDTH),
-            static_cast<float>(FRAME_BUFFER_HEIGHT),
-            1.0f / static_cast<float>(FRAME_BUFFER_WIDTH),
-            1.0f / static_cast<float>(FRAME_BUFFER_HEIGHT)
-        );
-
-        m_inactiveOverlayShader->Render(cmd, camera, &opt);
-    }
+	RenderUI(cmd, camera);
 
     if (m_Collision)
     {
