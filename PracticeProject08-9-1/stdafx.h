@@ -67,7 +67,7 @@ extern ClientServiceRef g_clientService;
 
 #include <wincodec.h>
 #include <windowsx.h>
-//#include <fmod.hpp>
+#include <fmod.hpp>
 #include <cassert>
 
 #include "d3dx12.h"
