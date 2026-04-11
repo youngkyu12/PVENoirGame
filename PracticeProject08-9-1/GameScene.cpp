@@ -4897,7 +4897,7 @@ void CGameScene::AnimateObjects(float dt)
 				if (!arrowObj) continue;
 
 				if (auto* arrow = arrowObj->GetComponent<CArrowComponent>())
-					arrow->Activate(b.position, b.velocity, 0.2f);
+					arrow->Activate(b.position, b.velocity, 2.0f);
 			}
 			else
 			{
@@ -4908,7 +4908,7 @@ void CGameScene::AnimateObjects(float dt)
 				if (!bulletObj) continue;
 
 				if (auto* bullet = bulletObj->GetComponent<CBulletComponent>())
-					bullet->Activate(b.position, b.velocity, 0.2f);
+					bullet->Activate(b.position, b.velocity, 2.0f);
 			}
 		}
 

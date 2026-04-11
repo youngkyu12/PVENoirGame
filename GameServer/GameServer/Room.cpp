@@ -692,7 +692,7 @@ void Room::FireArrow(PlayerRef shooter)
 	const GameMath::Vec3 origin = shooter->GetPosition() + GameMath::Vec3(0.f, 1.5f, 0.f);
 	const GameMath::Vec3 forward = shooter->GetLook().Normalized();
 	constexpr float kArrowSpeed = 3.0f;
-	constexpr int kArrowLifeTicks = 200;
+	constexpr int kArrowLifeTicks = 200; // 6.0s @ 30ms tick
 
 	p->Activate(origin, forward * kArrowSpeed, kArrowLifeTicks, shooter->GetObjectId(), Protocol::BULLET_TYPE_ARROW);
 	shooter->OnFired(tick.load());
@@ -711,7 +711,7 @@ void Room::FireCannonball(PlayerRef shooter)
 	const GameMath::Vec3 origin = shooter->GetPosition() + GameMath::Vec3(0.f, 1.5f, 0.f);
 	const GameMath::Vec3 forward = shooter->GetLook().Normalized();
 	constexpr float kBulletSpeed = 10.0f;
-	constexpr int kBulletLifeTicks = 100;
+	constexpr int kBulletLifeTicks = 100; // 3.0s @ 30ms tick
 
 	p->Activate(origin, forward * kBulletSpeed, kBulletLifeTicks, shooter->GetObjectId(), Protocol::BULLET_TYPE_CANNONBALL);
 	shooter->OnFired(tick.load());
