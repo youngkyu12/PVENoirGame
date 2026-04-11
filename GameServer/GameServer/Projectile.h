@@ -12,7 +12,7 @@ public:
 	{
 		SetPosition(pos);
 		SetVelocity(vel);
-		m_remainingTicks = lifetimeTicks;
+		m_remainingTicks = (lifetimeTicks > 0) ? lifetimeTicks : 0;
 		m_ownerObjectId = ownerId;
 		m_bulletType = type;
 		m_active = true;
@@ -37,7 +37,8 @@ public:
 		if (!m_active)
 			return;
 
-		Move(GetVelocity());
+		constexpr float kServerTickDtSec = 0.03f;
+		Move(GetVelocity() * kServerTickDtSec);
 
 		if (m_remainingTicks > 0)
 			--m_remainingTicks;
