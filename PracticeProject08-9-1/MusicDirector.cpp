@@ -66,7 +66,7 @@ void CMusicDirector::BeginPendingTransition()
 	if ( m_requestedState == m_currentState && m_currentChannel && m_audioManager->IsChannelPlaying(m_currentChannel) )
 		return;
 
-	if ( m_pendingImmediate || !m_currentChannel )
+	if ( m_pendingImmediate )
 	{
 		StartImmediate(m_requestedState);
 		return;
@@ -83,10 +83,15 @@ void CMusicDirector::StartImmediate(EMusicState state)
 	m_audioManager->StopChannel(m_nextChannel);
 	m_audioManager->StopChannel(m_currentChannel);
 
+	m_nextChannel = nullptr;
+	m_currentChannel = nullptr;
+
 	auto it = m_musicFileTable.find(state);
 	if ( it == m_musicFileTable.end() )
 	{
 		m_currentState = EMusicState::None;
+		m_transitionElapsed = 0.0f;
+		m_isCrossFading = false;
 		return;
 	}
 
@@ -116,28 +121,40 @@ void CMusicDirector::StartCrossFade(EMusicState state)
 		return;
 
 	m_audioManager->StopChannel(m_nextChannel);
+	m_nextChannel = nullptr;
 
 	auto it = m_musicFileTable.find(state);
-	if ( it == m_musicFileTable.end() )
-		return;
-
-	m_nextChannel = m_audioManager->PlaySound2D(
-		it->second.c_str(),
-		true,   // loop
-		true,   // stream
-		0.0f,   // start at silent
-		false
-	);
-
-	if ( m_nextChannel )
+	if ( it != m_musicFileTable.end() )
 	{
-		FMOD::ChannelGroup* bgmGroup = m_audioManager->GetBgmGroup();
-		if ( bgmGroup )
-			m_nextChannel->setChannelGroup(bgmGroup);
+		m_nextChannel = m_audioManager->PlaySound2D(
+			it->second.c_str(),
+			true,   // loop
+			true,   // stream
+			0.0f,   // start at silent
+			false
+		);
+
+		if ( m_nextChannel )
+		{
+			FMOD::ChannelGroup* bgmGroup = m_audioManager->GetBgmGroup();
+			if ( bgmGroup )
+				m_nextChannel->setChannelGroup(bgmGroup);
+		}
+	}
+
+	// case 1) current != nullptr, next != nullptr : 일반 크로스페이드
+	// case 2) current != nullptr, next == nullptr : 현재 곡만 페이드아웃 후 정지
+	// case 3) current == nullptr, next != nullptr : 무음 -> 새 곡 페이드인
+	if ( !m_currentChannel && !m_nextChannel )
+	{
+		m_currentState = EMusicState::None;
+		m_transitionElapsed = 0.0f;
+		m_isCrossFading = false;
+		return;
 	}
 
 	m_transitionElapsed = 0.0f;
-	m_isCrossFading = ( m_nextChannel != nullptr );
+	m_isCrossFading = true;
 }
 
 void CMusicDirector::Update()

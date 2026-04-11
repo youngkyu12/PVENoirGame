@@ -467,8 +467,8 @@ private:
 
 	bool                                m_bInactiveOverlayVisible = false;
 	bool                                m_bStartedGameplayMusic = false;
-	bool                                m_bStoppedGameplayMusicByMegaGridCenter = false;
-	
+	bool                                m_bWasLocalPlayerInsideMegaGridCenter = false;
+
 	bool GetPauseOverlayRect(XMFLOAT4& outRect) const;
 
 	std::vector<SkinnedInstanceGroup>   m_skinnedInstanceGroups;

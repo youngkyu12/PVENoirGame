@@ -1070,7 +1070,7 @@ void CGameScene::ReleaseObjects()
 	m_pauseUISpriteIndex = -1;
 	m_bInactiveOverlayVisible = false;
 	m_bStartedGameplayMusic = false;
-	m_bStoppedGameplayMusicByMegaGridCenter = false;
+	m_bWasLocalPlayerInsideMegaGridCenter = false;
 
 	m_navMesh.reset();
 
@@ -5830,22 +5830,33 @@ void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 	}
 #endif
 #ifndef USING_NETWORK
-	if ( !m_bStoppedGameplayMusicByMegaGridCenter )
 	{
-		if ( IsLocalPlayerInsideMegaGridCenter() )
-		{
-			OutputDebugStringA("[MegaGridBGM] local player entered center zone\n");
+		const bool isInsideMegaGridCenter = IsLocalPlayerInsideMegaGridCenter();
 
+		if ( isInsideMegaGridCenter != m_bWasLocalPlayerInsideMegaGridCenter )
+		{
 			if ( m_pAudioManager )
 			{
 				if ( auto* music = m_pAudioManager->GetMusicDirector() )
 				{
-					music->RequestState(EMusicState::None, true);
-					music->BeginPendingTransition();
+					music->SetCrossFadeSeconds(1.0f);
+
+					if ( isInsideMegaGridCenter )
+					{
+						OutputDebugStringA("[MegaGridBGM] local player entered center zone\n");
+						music->RequestState(EMusicState::None, false);
+						music->BeginPendingTransition();
+					}
+					else
+					{
+						OutputDebugStringA("[MegaGridBGM] local player left center zone\n");
+						music->RequestState(EMusicState::Gameplay, false);
+						music->BeginPendingTransition();
+					}
 				}
 			}
 
-			m_bStoppedGameplayMusicByMegaGridCenter = true;
+			m_bWasLocalPlayerInsideMegaGridCenter = isInsideMegaGridCenter;
 		}
 	}
 #endif
