@@ -170,6 +170,8 @@
     <ClInclude Include="AnimController.h" />
     <ClInclude Include="ArrowComponent.h" />
     <ClInclude Include="AssetManager.h" />
+    <ClInclude Include="AudioComponent.h" />
+    <ClInclude Include="AudioManager.h" />
     <ClInclude Include="BoundingCapsule.h" />
     <ClInclude Include="BulletComponent.h" />
     <ClInclude Include="Camera.h" />
@@ -198,6 +200,7 @@
     <ClInclude Include="MonsterAnimTypes.h" />
     <ClInclude Include="MonsterCombatComponent.h" />
     <ClInclude Include="MonsterWeaponHitboxComponent.h" />
+    <ClInclude Include="MusicDirector.h" />
     <ClInclude Include="NavMesh.h" />
     <ClInclude Include="NetworkQueue.h" />
     <ClInclude Include="Object.h" />
@@ -233,6 +236,8 @@
     <ClCompile Include="AnimController.cpp" />
     <ClCompile Include="ArrowComponent.cpp" />
     <ClCompile Include="AssetManager.cpp" />
+    <ClCompile Include="AudioComponent.cpp" />
+    <ClCompile Include="AudioManager.cpp" />
     <ClCompile Include="BoundingCapsule.cpp" />
     <ClCompile Include="BulletComponent.cpp" />
     <ClCompile Include="Camera.cpp" />
@@ -268,6 +273,7 @@
     <ClCompile Include="MonsterAnimController.cpp" />
     <ClCompile Include="MonsterCombatComponent.cpp" />
     <ClCompile Include="MonsterWeaponHitboxComponent.cpp" />
+    <ClCompile Include="MusicDirector.cpp" />
     <ClCompile Include="NavMesh.cpp" />
     <ClCompile Include="NetworkQueue.cpp" />
     <ClCompile Include="Object.cpp" />
