@@ -183,9 +183,9 @@ namespace
 		outEntries.clear();
 
 		const std::vector<std::string> candidates = {
-			"MapFIle/placement_export_full.txt",
-			"GameServer/MapFIle/placement_export_full.txt",
-			"../GameServer/MapFIle/placement_export_full.txt"
+			"MapFIle/MapData_fullstage.txt",
+			"GameServer/MapFIle/MapData_fullstage.txt",
+			"../GameServer/MapFIle/MapData_fullstage.txt"
 		};
 
 		std::ifstream fin;
@@ -490,10 +490,10 @@ void Room::BuildRoom()
 
 	m_navMesh = make_unique<CNavMesh>();
 	const std::vector<std::string> navCandidates = {
-		"MapFIle/1StageNavmesh.nvm",
-		"MapFIle/Navmesh_Stage1.nvm",
-		"GameServer/MapFIle/1StageNavmesh.nvm",
-		"GameServer/MapFIle/Navmesh_Stage1.nvm"
+		"MapFIle/FullStageNavmesh.nvm",
+		"MapFIle/Navmesh_FullStage.nvm",
+		"GameServer/MapFIle/FullStageNavmesh.nvm",
+		"GameServer/MapFIle/Navmesh_FullStage.nvm"
 	};
 	for (const auto& path : navCandidates)
 	{

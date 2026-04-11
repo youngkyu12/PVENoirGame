@@ -14,6 +14,11 @@ namespace
 		const float dz = a.z - b.z;
 		return dx * dx + dz * dz;
 	}
+
+	bool ShouldPrintTrackLog(const CServerObject* owner)
+	{
+		return owner && owner->GetObjectId() == 20;
+	}
 }
 
 CMonsterAI::CMonsterAI(OwnerT* owner)
@@ -25,6 +30,21 @@ void CMonsterAI::OnUpdate(float dt)
 {
 	if (!GetOwner())
 		return;
+
+	auto PrintState = [&](const char* state, bool repathChanged, bool followingPath)
+		{
+			if (!ShouldPrintTrackLog(GetOwner()))
+				return;
+
+			const bool hasPath = (!m_currentPath.empty() && m_currentPathIndex < m_currentPath.size());
+			cout
+				<< "[MONSTER AI] id=" << GetOwner()->GetObjectId()
+				<< " state=" << state
+				<< " hasPath=" << (hasPath ? 1 : 0)
+				<< " following=" << (followingPath ? 1 : 0)
+				<< " repathChanged=" << (repathChanged ? 1 : 0)
+				<< endl;
+		};
 
 	if (m_attackCooldownRemaining > 0.f)
 	{
@@ -42,6 +62,7 @@ void CMonsterAI::OnUpdate(float dt)
 		m_trianglePath.clear();
 		m_currentPathIndex = 0;
 		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
+		PrintState("NO_TARGET", false, false);
 		return;
 	}
 
@@ -55,6 +76,7 @@ void CMonsterAI::OnUpdate(float dt)
 		m_trianglePath.clear();
 		m_currentPathIndex = 0;
 		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
+		PrintState("OUT_OF_DETECT_RANGE", false, false);
 		return;
 	}
 
@@ -76,16 +98,25 @@ void CMonsterAI::OnUpdate(float dt)
 		{
 			GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
 		}
+
+		PrintState("ATTACK_RANGE", false, false);
 		return;
 	}
 
+	bool repathChanged = false;
 	if (m_repathTimer <= 0.f || m_currentPath.empty() || m_currentPathIndex >= m_currentPath.size())
-		RebuildPathToTarget();
+		repathChanged = RebuildPathToTarget();
 
-	if (!FollowCurrentPath(dt))
+	const bool followingPath = FollowCurrentPath(dt);
+	if (!followingPath)
 	{
 		FaceTowards(targetPos);
 		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
+		PrintState("IDLE_NO_FOLLOW", repathChanged, false);
+	}
+	else
+	{
+		PrintState(repathChanged ? "FOLLOWING_REPATHED" : "FOLLOWING_PATH", repathChanged, true);
 	}
 }
 

@@ -26,7 +26,7 @@ void CEnemy::Update(uint32 serverTick)
 		if (serverTick < m_hitEndTick)
 		{
 			SetVelocity(GameMath::Vec3::Zero());
-			CServerObject::Update(serverTick);
+			ApplyPhysics(0.03f);
 			return;
 		}
 
@@ -34,9 +34,6 @@ void CEnemy::Update(uint32 serverTick)
 		SetAnimTick(serverTick);
 		m_hitEndTick = 0;
 	}
-
-	if (auto* ai = GetComponent<CMonsterAI>())
-		ai->OnUpdate(0.03f);
 
 	CServerObject::Update(serverTick);
 }
