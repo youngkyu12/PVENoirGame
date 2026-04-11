@@ -53,8 +53,11 @@ private:
 	bool FindContainingTriangle(const GameMath::Vec3& worldPos, int& outTriangleIndex) const;
 	int FindNearestTriangle(const GameMath::Vec3& worldPos, float maxSearchDistanceXZ) const;
 	bool BuildTrianglePath(int startTri, int goalTri, std::vector<int>& outTrianglePath) const;
+	bool FindStraightPath(const GameMath::Vec3& startProj, const GameMath::Vec3& goalProj, const std::vector<int>& trianglePath, std::vector<GameMath::Vec3>& outStraightPath) const;
+	bool GetTrianglePortal(int fromTriangle, int toTriangle, GameMath::Vec3& outA, GameMath::Vec3& outB) const;
 	GameMath::Vec3 TriangleCenter(int triIndex) const;
 	bool ProjectPointToTriangleXZ(int triIndex, const GameMath::Vec3& input, GameMath::Vec3& outProjectedPos, float* outDistSq = nullptr) const;
+	void BuildNeighborsFromGeometry();
 
 private:
 	bool m_loaded = false;
