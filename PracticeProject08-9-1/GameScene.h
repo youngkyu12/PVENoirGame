@@ -193,6 +193,7 @@ public:
 	bool RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& previousPos);
     
 	void RequestFireArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f, float yOffset = 0.0f);
+	bool IsLocalPlayerInsideMegaGridCenter() const;
 
 #ifndef USING_NETWORK
 	void SetMegaGridApproachZoneSize(int megaX, int megaZ, int widthCells, int heightCells);
@@ -466,6 +467,8 @@ private:
 
 	bool                                m_bInactiveOverlayVisible = false;
 	bool                                m_bStartedGameplayMusic = false;
+	bool                                m_bStoppedGameplayMusicByMegaGridCenter = false;
+	
 	bool GetPauseOverlayRect(XMFLOAT4& outRect) const;
 
 	std::vector<SkinnedInstanceGroup>   m_skinnedInstanceGroups;
