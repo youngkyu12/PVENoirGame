@@ -37,6 +37,8 @@
 #include "MonsterCombatComponent.h"
 #include "NavMesh.h"
 #include "GhoulAIComponent.h"
+#include "AudioManager.h"
+#include "MusicDirector.h"
 
 #include "ThreadManager.h"
 #include "Service.h"
@@ -1067,6 +1069,7 @@ void CGameScene::ReleaseObjects()
 	m_uiSprites.clear();
 	m_pauseUISpriteIndex = -1;
 	m_bInactiveOverlayVisible = false;
+	m_bStartedGameplayMusic = false;
 
 	m_navMesh.reset();
 
@@ -5754,6 +5757,20 @@ void CGameScene::OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera
 
 void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
+	if ( !m_bStartedGameplayMusic )
+	{
+		if ( m_pAudioManager )
+		{
+			if ( auto* music = m_pAudioManager->GetMusicDirector() )
+			{
+				music->RequestState(EMusicState::Gameplay, false);
+				music->BeginPendingTransition();
+			}
+		}
+
+		m_bStartedGameplayMusic = true;
+	}
+
 	if ( m_staticBatch.shader )
 	{
 		RenderStaticInstanceGroups(cmd, camera);

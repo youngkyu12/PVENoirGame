@@ -3,6 +3,8 @@
 
 #include "Object.h"
 #include "Camera.h"
+#include "AudioManager.h"
+#include "MusicDirector.h"
 
 void CMenuScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
@@ -68,6 +70,15 @@ void CMenuScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 			&rtv,
 			dsv);
 		m_menuShader->CreateShaderVariables(dev, cmd);
+	}
+
+	if ( m_pAudioManager )
+	{
+		if ( auto* music = m_pAudioManager->GetMusicDirector() )
+		{
+			music->RequestState(EMusicState::Menu, true);
+			music->BeginPendingTransition();
+		}
 	}
 }
 
@@ -222,6 +233,17 @@ bool CMenuScene::OnProcessingMouseMessage(HWND /*hWnd*/, UINT nMessageID, WPARAM
 	// 스타트 버튼 영역 안을 눌렀을 때만 시작
 	if ( !IsPointInRect(ptClient, GetStartButtonRect()) )
 		return false;
+
+	if ( m_pAudioManager )
+	{
+		m_pAudioManager->PlaySound2D(
+			"Assets/Audio/StartEffect.mp3",
+			false,   // loop
+			false,   // stream
+			1.0f,    // volume
+			false    // startPaused
+		);
+	}
 
 	m_showLoading = true;
 	m_startGameRequested = true;
