@@ -1,6 +1,7 @@
 #pragma once
 #include "JobQueue.h"
 #include "CollisionSystem.h"
+#include "NavMesh.h"
 
 namespace Protocol
 {
@@ -40,6 +41,8 @@ public:
     void TransferPlayer(PlayerRef player, uint32 fromAreaId, uint32 toAreaId);
 
 	map<uint64, EnemyRef> GetEnemies() { return enemies; }
+	const map<uint64, PlayerRef>& GetPlayers() const { return players; }
+	const CNavMesh* GetNavMesh() const { return m_navMesh.get(); }
 
 private:
 	void InitializeCollisionSystem();
@@ -50,6 +53,16 @@ private:
 
 	void ResolveWorldStaticCollision(const shared_ptr<CServerObject>& obj, const GameMath::Vec3& previousPos);
 	GameMath::Vec3 ResolvePreBlockedShift(const shared_ptr<CServerObject>& obj, const GameMath::Vec3& desiredShift);
+
+	void FireArrow(PlayerRef shooter);
+	void FireCannonball(PlayerRef shooter);
+	ProjectileRef AcquireFromPool(Vector<ProjectileRef>& pool);
+
+	std::unique_ptr<CNavMesh> m_navMesh;
+	static constexpr int kArrowPoolSize = 64;
+	static constexpr int kBulletPoolSize = 64;
+	Vector<ProjectileRef> m_arrowPool;
+	Vector<ProjectileRef> m_bulletPool;
 
 	std::unique_ptr<CCollisionSystem> _collision;
 

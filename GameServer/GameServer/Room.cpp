@@ -7,6 +7,8 @@
 #include "GameArea.h"
 #include "CollisionSystem.h"
 #include "ColliderComponent.h"
+#include "MonsterAI.h"
+#include "Projectile.h"
 
 #include "CommonPlayerControllerComponent.h"
 
@@ -442,6 +444,8 @@ void Room::BroadCastAll(SendBufferRef sendBuffer)
 void Room::BuildRoom()
 {
 	buildings.clear();
+	m_arrowPool.clear();
+	m_bulletPool.clear();
 	InitializeCollisionSystem();
 
 	std::vector<PlacementEntry> entries;
@@ -467,10 +471,43 @@ void Room::BuildRoom()
 	}
 
 	MakeFireRateMap();
+
+	for (int i = 0; i < kArrowPoolSize; ++i)
+	{
+		auto p = ObjectPool<CProjectile>::MakeShared();
+		p->SetObjectId(100000 + i);
+		p->Deactivate();
+		m_arrowPool.push_back(p);
+	}
+
+	for (int i = 0; i < kBulletPoolSize; ++i)
+	{
+		auto p = ObjectPool<CProjectile>::MakeShared();
+		p->SetObjectId(200000 + i);
+		p->Deactivate();
+		m_bulletPool.push_back(p);
+	}
+
+	m_navMesh = make_unique<CNavMesh>();
+	const std::vector<std::string> navCandidates = {
+		"MapFIle/1StageNavmesh.nvm",
+		"MapFIle/Navmesh_Stage1.nvm",
+		"GameServer/MapFIle/1StageNavmesh.nvm",
+		"GameServer/MapFIle/Navmesh_Stage1.nvm"
+	};
+	for (const auto& path : navCandidates)
+	{
+		if (m_navMesh->LoadFromFile(path))
+			break;
+	}
+	if (!m_navMesh->IsLoaded())
+		m_navMesh.reset();
+
 	for (int i = 0; i < 10; ++i)
 	{
        auto enemy = make_shared<CEnemy>(i, "Zombie", Protocol::ENEMY_TYPE_BASIC, nullptr);
 		enemy->Build(GameMath::Vec3(i * 10.0f, 0, 0), GameMath::Vec3(0, 0, 0));
+		enemy->AddComponent<CMonsterAI>();
 		RegisterDynamicCollider(enemy);
 		//enemies[i]->AddComponent<CTransformComponent>();
 		//enemies[i]->CreateComponents();
@@ -481,6 +518,7 @@ void Room::BuildRoom()
 	{
         auto enemy = make_shared<CEnemy>(i + 10, "FIghter", Protocol::ENEMY_TYPE_ARCHER, nullptr);
 		enemy->Build(GameMath::Vec3((i + 10) * 10.0f, 0, 10), GameMath::Vec3(0, 0, 0));
+		enemy->AddComponent<CMonsterAI>();
 		RegisterDynamicCollider(enemy);
 		//enemies[i]->AddComponent<CTransformComponent>();
 		//enemies[i]->CreateComponents();
@@ -556,11 +594,74 @@ void Room::TickAdvance()
 		ResolveWorldStaticCollision(enemy.second, prevPos);
 	}
 
+	for (auto& p : m_arrowPool)
+	{
+		if (!p->IsActive())
+			continue;
+		p->Update(tick);
+	}
+
+	for (auto& p : m_bulletPool)
+	{
+		if (!p->IsActive())
+			continue;
+		p->Update(tick);
+	}
+
 	if (_collision)
 		_collision->OnUpdate();
 
 
 	tick++;
+}
+
+ProjectileRef Room::AcquireFromPool(Vector<ProjectileRef>& pool)
+{
+	for (auto& p : pool)
+	{
+		if (!p->IsActive())
+			return p;
+	}
+
+	return nullptr;
+}
+
+void Room::FireArrow(PlayerRef shooter)
+{
+	if (!shooter || !shooter->CanFire(tick.load()))
+		return;
+
+	auto p = AcquireFromPool(m_arrowPool);
+	if (!p)
+		return;
+
+	const GameMath::Vec3 origin = shooter->GetPosition() + GameMath::Vec3(0.f, 1.5f, 0.f);
+	const GameMath::Vec3 forward = shooter->GetLook().Normalized();
+	constexpr float kArrowSpeed = 3.0f;
+	constexpr int kArrowLifeTicks = 200;
+
+	p->Activate(origin, forward * kArrowSpeed, kArrowLifeTicks, shooter->GetObjectId(), Protocol::BULLET_TYPE_ARROW);
+	shooter->OnFired(tick.load());
+	shooter->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
+}
+
+void Room::FireCannonball(PlayerRef shooter)
+{
+	if (!shooter || !shooter->CanFire(tick.load()))
+		return;
+
+	auto p = AcquireFromPool(m_bulletPool);
+	if (!p)
+		return;
+
+	const GameMath::Vec3 origin = shooter->GetPosition() + GameMath::Vec3(0.f, 1.5f, 0.f);
+	const GameMath::Vec3 forward = shooter->GetLook().Normalized();
+	constexpr float kBulletSpeed = 10.0f;
+	constexpr int kBulletLifeTicks = 100;
+
+	p->Activate(origin, forward * kBulletSpeed, kBulletLifeTicks, shooter->GetObjectId(), Protocol::BULLET_TYPE_CANNONBALL);
+	shooter->OnFired(tick.load());
+	shooter->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
 }
 
 
@@ -613,7 +714,20 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 
 
 	if ((keyCodes & kDirLButton) != 0)
-		player->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
+	{
+		switch (player->GetWeaponState())
+		{
+		case Protocol::WEAPON_TYPE_BOW:
+			FireArrow(player);
+			break;
+		case Protocol::WEAPON_TYPE_CANON:
+			FireCannonball(player);
+			break;
+		default:
+			player->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
+			break;
+		}
+	}
 	else if (prevAnimState != Protocol::ANIMATION_TYPE_ATTACK &&
 		prevAnimState != Protocol::ANIMATION_TYPE_ROLL)
 	{
@@ -730,6 +844,8 @@ void Room::MakeFrameState(uint32 tick)
 		position->set_y(enemy->GetPosition().y);
 		position->set_z(enemy->GetPosition().z);
 	}
+
+	// TODO: Protocol S_FRAME_STATE에 bullets 필드 확정 후 투사체 동기화 추가
 
 	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(frameStatePkt);
 	GRoom->DoAsync(&Room::BroadCastAll, sendBuffer);
