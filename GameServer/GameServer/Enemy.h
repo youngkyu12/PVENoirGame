@@ -17,7 +17,7 @@ public:
 		CServerObject::SetObjectId(id);
 	}
 public:
-	//void Update(float dt) override;
+	virtual void Update(uint32 serverTick) override;
 	void Build(GameMath::Vec3 pos, GameMath::Vec3 rot);
 
 private:

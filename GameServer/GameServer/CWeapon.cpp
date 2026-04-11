@@ -50,6 +50,30 @@ void CWeapon::SetWeapon(Protocol::WeaponType&& type, uint32&& currnetBullets)
 	}
 }
 
+bool CWeapon::CanFire(uint32 serverTick) const
+{
+	if (fireRate <= 0.f)
+		return false;
+
+	if (currentBullets == 0 && bulletType != Protocol::BULLET_TYPE_NONE)
+		return false;
+
+	const float ticksPerShot = 33.3f / fireRate;
+	const uint32 requiredTicks = static_cast<uint32>(ticksPerShot);
+	if (m_lastFireTick == 0)
+		return true;
+
+	return (serverTick >= m_lastFireTick + requiredTicks);
+}
+
+void CWeapon::OnFired(uint32 serverTick)
+{
+	m_lastFireTick = serverTick;
+
+	if (currentBullets > 0)
+		--currentBullets;
+}
+
 void CWeapon::SetBullet(Protocol::BulletType&& type, uint32& currentBullets)
 {
 	bulletType = type;
