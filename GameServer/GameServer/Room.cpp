@@ -500,13 +500,39 @@ void Room::BuildRoom()
 		if (m_navMesh->LoadFromFile(path))
 			break;
 	}
+
+	auto SampleEnemySpawn = [&](const GameMath::Vec3& desiredPos)
+		{
+			if (!m_navMesh)
+				return desiredPos;
+
+			GameMath::Vec3 projected{};
+			if (m_navMesh->SamplePosition(desiredPos, projected))
+				return projected;
+
+			return desiredPos;
+		};
+
 	if (!m_navMesh->IsLoaded())
+	{
 		m_navMesh.reset();
+		cout << "[NavMesh] load failed" << endl;
+	}
+	else
+	{
+		cout << "[NavMesh] load success" << endl;
+	}
+
+	const GameMath::Vec3 spawnAnchor = players.empty()
+		? GetInitialPlayerSpawnPosition(0)
+		: players.begin()->second->GetPosition();
 
 	for (int i = 0; i < 10; ++i)
 	{
        auto enemy = make_shared<CEnemy>(i, "Zombie", Protocol::ENEMY_TYPE_BASIC, nullptr);
-		enemy->Build(GameMath::Vec3(i * 10.0f, 0, 0), GameMath::Vec3(0, 0, 0));
+		const float dx = static_cast<float>((i % 5) - 2) * 1.8f;
+		const float dz = static_cast<float>(i / 5) * 1.8f + 4.0f;
+		enemy->Build(SampleEnemySpawn(GameMath::Vec3(spawnAnchor.x + dx, 0, spawnAnchor.z + dz)), GameMath::Vec3(0, 0, 0));
 		enemy->AddComponent<CMonsterAI>();
 		RegisterDynamicCollider(enemy);
 		//enemies[i]->AddComponent<CTransformComponent>();
@@ -517,7 +543,9 @@ void Room::BuildRoom()
 	for (int i = 0; i < 30; ++i)
 	{
         auto enemy = make_shared<CEnemy>(i + 10, "FIghter", Protocol::ENEMY_TYPE_ARCHER, nullptr);
-		enemy->Build(GameMath::Vec3((i + 10) * 10.0f, 0, 10), GameMath::Vec3(0, 0, 0));
+		const float dx = static_cast<float>((i % 6) - 3) * 2.0f;
+		const float dz = static_cast<float>(i / 6) * 2.0f + 8.0f;
+		enemy->Build(SampleEnemySpawn(GameMath::Vec3(spawnAnchor.x + dx, 0, spawnAnchor.z + dz)), GameMath::Vec3(0, 0, 0));
 		enemy->AddComponent<CMonsterAI>();
 		RegisterDynamicCollider(enemy);
 		//enemies[i]->AddComponent<CTransformComponent>();
@@ -777,7 +805,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 
 	if (GameMath::Vec3::Dot(desiredShift, desiredShift) > 1e-8f)
 	{
-		std::cout << "desiredShift before collision: " << desiredShift.x << ", " << desiredShift.y << ", " << desiredShift.z << std::endl;
+		//std::cout << "desiredShift before collision: " << desiredShift.x << ", " << desiredShift.y << ", " << desiredShift.z << std::endl;
 		desiredShift = ResolvePreBlockedShift(player, desiredShift);
 	}
 
@@ -785,7 +813,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 
 	player->SetVelocity(shift);
 
-	std::cout << "shift: " << shift.x << ", " << shift.y << ", " << shift.z << std::endl;
+	//std::cout << "shift: " << shift.x << ", " << shift.y << ", " << shift.z << std::endl;
 
 	// 위치 적용
 	//player->Move(shift);
@@ -845,7 +873,47 @@ void Room::MakeFrameState(uint32 tick)
 		position->set_z(enemy->GetPosition().z);
 	}
 
-	// TODO: Protocol S_FRAME_STATE에 bullets 필드 확정 후 투사체 동기화 추가
+	for (auto& projectile : m_arrowPool)
+	{
+		if (!projectile->IsActive())
+			continue;
+
+		Protocol::Bullet* b = frameStatePkt.add_bullets();
+		b->set_id(projectile->GetObjectId());
+		b->set_ownerid(projectile->GetOwnerId());
+		b->set_bullettype(projectile->GetBulletType());
+
+		Protocol::Vec3f* pos = b->mutable_position();
+		pos->set_x(projectile->GetPosition().x);
+		pos->set_y(projectile->GetPosition().y);
+		pos->set_z(projectile->GetPosition().z);
+
+		Protocol::Vec3f* vel = b->mutable_velocity();
+		vel->set_x(projectile->GetVelocity().x);
+		vel->set_y(projectile->GetVelocity().y);
+		vel->set_z(projectile->GetVelocity().z);
+	}
+
+	for (auto& projectile : m_bulletPool)
+	{
+		if (!projectile->IsActive())
+			continue;
+
+		Protocol::Bullet* b = frameStatePkt.add_bullets();
+		b->set_id(projectile->GetObjectId());
+		b->set_ownerid(projectile->GetOwnerId());
+		b->set_bullettype(projectile->GetBulletType());
+
+		Protocol::Vec3f* pos = b->mutable_position();
+		pos->set_x(projectile->GetPosition().x);
+		pos->set_y(projectile->GetPosition().y);
+		pos->set_z(projectile->GetPosition().z);
+
+		Protocol::Vec3f* vel = b->mutable_velocity();
+		vel->set_x(projectile->GetVelocity().x);
+		vel->set_y(projectile->GetVelocity().y);
+		vel->set_z(projectile->GetVelocity().z);
+	}
 
 	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(frameStatePkt);
 	GRoom->DoAsync(&Room::BroadCastAll, sendBuffer);
@@ -937,7 +1005,7 @@ void Room::CheckClientReady()
 
 	if (allPlayerBuilt)
 	{
-		cout << "Game Started!" << endl;
+		std::cout << "Game Started!" << endl;
 
 		// 게임 시작 로직 (예: 타이머 시작, 적 스폰 등)
 		GRoom->DoTimer(100, &Room::TickAdvance);
