@@ -112,7 +112,7 @@ namespace
 		if (anim == Protocol::ANIMATION_TYPE_RUN)    code |= kStateRun;
 
 		// TODO: Hit 상태 소스 추가 시 반영
-		// if (anim == Protocol::ANIMATION_TYPE_HIT) code |= kStateHit;
+		if (anim == Protocol::ANIMATION_TYPE_HIT) code |= kStateHit;
 
 		// 이동/방향 비트
 		const GameMath::Vec3 v = obj.GetVelocity();
@@ -627,6 +627,19 @@ void Room::TickAdvance()
 		if (!p->IsActive())
 			continue;
 		p->Update(tick);
+
+		constexpr float kHitRadiusSq = 1.0f;
+		for (auto& enemyPair : enemies)
+		{
+			auto& enemy = enemyPair.second;
+			const GameMath::Vec3 d = enemy->GetPosition() - p->GetPosition();
+			if (d.LengthSq() > kHitRadiusSq)
+				continue;
+
+			enemy->ApplyHit(tick.load(), 20);
+			p->Deactivate();
+			break;
+		}
 	}
 
 	for (auto& p : m_bulletPool)
@@ -634,6 +647,19 @@ void Room::TickAdvance()
 		if (!p->IsActive())
 			continue;
 		p->Update(tick);
+
+		constexpr float kHitRadiusSq = 1.0f;
+		for (auto& enemyPair : enemies)
+		{
+			auto& enemy = enemyPair.second;
+			const GameMath::Vec3 d = enemy->GetPosition() - p->GetPosition();
+			if (d.LengthSq() > kHitRadiusSq)
+				continue;
+
+			enemy->ApplyHit(tick.load(), 20);
+			p->Deactivate();
+			break;
+		}
 	}
 
 	if (_collision)
@@ -757,7 +783,8 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		}
 	}
 	else if (prevAnimState != Protocol::ANIMATION_TYPE_ATTACK &&
-		prevAnimState != Protocol::ANIMATION_TYPE_ROLL)
+		prevAnimState != Protocol::ANIMATION_TYPE_ROLL &&
+		prevAnimState != Protocol::ANIMATION_TYPE_HIT)
 	{
 		player->SetAnimState(keyCodes & (kDirForward | kDirBackward | kDirLeft | kDirRight) ?
 			(keyCodes & kDirRun ? Protocol::ANIMATION_TYPE_RUN : Protocol::ANIMATION_TYPE_WALK) :

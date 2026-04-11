@@ -19,6 +19,7 @@ public:
 public:
 	virtual void Update(uint32 serverTick) override;
 	void Build(GameMath::Vec3 pos, GameMath::Vec3 rot);
+	void ApplyHit(uint32 serverTick, uint32 hitDurationTicks = 20);
 
 private:
 	//EnemyControllerComponentRef controller;
@@ -37,5 +38,8 @@ public:
 
 	Protocol::WeaponType GetWeaponState() const { return weapon.GetWeaponState(); }
 	Protocol::BulletType GetBulletState() const { return weapon.GetBulletState(); }
+
+private:
+	uint32 m_hitEndTick = 0;
 };
 
