@@ -64,7 +64,16 @@ void CMonsterAI::OnUpdate(float dt)
 		m_trianglePath.clear();
 		m_currentPathIndex = 0;
 		FaceTowards(targetPos);
-		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
+
+		if (m_attackCooldownRemaining <= 0.f)
+		{
+			GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
+			m_attackCooldownRemaining = m_attackCooldownSec;
+		}
+		else
+		{
+			GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
+		}
 		return;
 	}
 
