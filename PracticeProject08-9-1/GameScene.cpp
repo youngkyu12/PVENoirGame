@@ -1070,6 +1070,7 @@ void CGameScene::ReleaseObjects()
 	m_pauseUISpriteIndex = -1;
 	m_bInactiveOverlayVisible = false;
 	m_bStartedGameplayMusic = false;
+	m_bStoppedGameplayMusicByMegaGridCenter = false;
 
 	m_navMesh.reset();
 
@@ -5190,6 +5191,41 @@ CGameObject* CGameScene::GetPlayerBySlot(int slot) const
     return m_playersBySlot[(size_t)slot];
 }
 
+bool CGameScene::IsLocalPlayerInsideMegaGridCenter() const
+{
+#ifndef USING_NETWORK
+	if ( !m_spatialGridInitialized )
+		return false;
+
+	if ( m_localPlayerSlot < 0 ||
+		 m_localPlayerSlot >= static_cast< int >(m_playerGridTrackers.size()) )
+	{
+		return false;
+	}
+
+	const GridDynamicTracker& tracker =
+		m_playerGridTrackers[static_cast< size_t >(m_localPlayerSlot)];
+
+	if ( !tracker.occupied )
+		return false;
+
+	int megaX = -1;
+	int megaZ = -1;
+
+	if ( !FineCellToMegaGridCell(tracker.prevCellX, tracker.prevCellZ, megaX, megaZ) )
+		return false;
+
+	return IsFineCellInsideMegaGridApproachZone(
+		megaX,
+		megaZ,
+		tracker.prevCellX,
+		tracker.prevCellZ
+	);
+#else
+	return false;
+#endif
+}
+
 bool CGameScene::IsLocalPlayer(const CGameObject* obj) const
 {
     if (!obj) return false;
@@ -5790,6 +5826,26 @@ void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 		{
 			if ( !m_colliderObjects[j] ) continue;
 			m_colliderObjects[j]->Render(cmd, camera);
+		}
+	}
+#endif
+#ifndef USING_NETWORK
+	if ( !m_bStoppedGameplayMusicByMegaGridCenter )
+	{
+		if ( IsLocalPlayerInsideMegaGridCenter() )
+		{
+			OutputDebugStringA("[MegaGridBGM] local player entered center zone\n");
+
+			if ( m_pAudioManager )
+			{
+				if ( auto* music = m_pAudioManager->GetMusicDirector() )
+				{
+					music->RequestState(EMusicState::None, true);
+					music->BeginPendingTransition();
+				}
+			}
+
+			m_bStoppedGameplayMusicByMegaGridCenter = true;
 		}
 	}
 #endif
