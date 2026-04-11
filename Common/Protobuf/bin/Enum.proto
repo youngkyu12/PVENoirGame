@@ -11,6 +11,7 @@ enum AnimationType
 	ANIMATION_TYPE_ATTACK = 4;
 	ANIMATION_TYPE_ROLL = 5;
 	ANIMATION_TYPE_DIE = 6;
+	ANIMATION_TYPE_HIT = 7;
 }
 
 enum ObjectType

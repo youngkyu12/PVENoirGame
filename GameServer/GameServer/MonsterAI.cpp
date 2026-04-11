@@ -68,6 +68,8 @@ void CMonsterAI::OnUpdate(float dt)
 		if (m_attackCooldownRemaining <= 0.f)
 		{
 			GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
+			m_pTarget->SetAnimState(Protocol::ANIMATION_TYPE_HIT);
+			m_pTarget->SetAnimTick(GRoom->GetTick());
 			m_attackCooldownRemaining = m_attackCooldownSec;
 		}
 		else

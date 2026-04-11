@@ -43,6 +43,7 @@ public:
 	map<uint64, EnemyRef> GetEnemies() { return enemies; }
 	const map<uint64, PlayerRef>& GetPlayers() const { return players; }
 	const CNavMesh* GetNavMesh() const { return m_navMesh.get(); }
+	uint32 GetTick() const { return tick.load(); }
 
 private:
 	void InitializeCollisionSystem();
