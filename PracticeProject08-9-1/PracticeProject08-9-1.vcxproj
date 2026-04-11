@@ -161,6 +161,9 @@
       <AdditionalLibraryDirectories>$(ProjectDir)External\FMOD\lib\x64</AdditionalLibraryDirectories>
       <AdditionalDependencies>fmod_vc.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>copy /Y "$(ProjectDir)External\FMOD\lib\x64\fmod.dll" "$(OutDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="ActorTagComponent.h" />

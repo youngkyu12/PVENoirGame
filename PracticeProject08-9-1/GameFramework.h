@@ -20,6 +20,7 @@
 class CScene;
 class CCamera;
 class CPostProcessingShader;
+class CAudioManager;
 
 class CGameFramework {
 public:
@@ -43,7 +44,6 @@ public:
 	void CreateSwapChainRenderTargetViews();
 	void CreateDepthStencilView();
 
-	// �ʱ⿡�� MenuScene�� ����
 	void BuildObjects();
 
 	// Frame / Render
@@ -125,6 +125,7 @@ private:
 
 	// Post Processing
 	shared_ptr<CPostProcessingShader>	m_pPostProcessingShader;
+	std::unique_ptr<CAudioManager>		m_pAudioManager;
 
 	// Render Option
 	int									m_nDrawOption = DRAW_SCENE_COLOR;

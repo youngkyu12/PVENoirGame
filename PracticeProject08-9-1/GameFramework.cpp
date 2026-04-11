@@ -11,6 +11,8 @@
 #include "AnimController.h"
 #include "AnimatorComponent.h"
 #include "PlayerControllerComponent.h"
+#include "AudioManager.h"
+#include "MusicDirector.h"
 
 #include "Service.h"
 #include "ServerPacketHandler.h"
@@ -50,14 +52,32 @@ bool CGameFramework::OnCreate(HINSTANCE hInstance, HWND hMainWnd)
 		GLOBAL_CBV_CAPACITY,
 		GLOBAL_SRV_CAPACITY);
 
+	m_pAudioManager = std::make_unique<CAudioManager>();
+	m_pAudioManager->Initialize();
+
+	if ( auto* music = m_pAudioManager->GetMusicDirector() )
+	{
+		music->RegisterMusic(EMusicState::Menu, "Assets/Audio/MainMenuBGM_Test.mp3");
+		music->RegisterMusic(EMusicState::Gameplay, "Assets/Audio/ForestBGMWithBird.wav");
+		music->SetCrossFadeSeconds(1.5f);
+	}
+
+	m_SceneManager.SetAudioManager(m_pAudioManager.get());
+
 	BuildObjects();
 
-	return(true);
+	return( true );
 }
 
 void CGameFramework::OnDestroy()
 {
 	ReleaseObjects();
+
+	if ( m_pAudioManager )
+	{
+		m_pAudioManager->Shutdown();
+		m_pAudioManager.reset();
+	}
 
 	AssetManager::ClearCache();
 
@@ -1009,6 +1029,9 @@ void CGameFramework::FrameAdvance()
 
 	m_GameTimer.Tick(0.0f);
 	UpdateWindowActivationState();
+
+	if ( m_pAudioManager )
+		m_pAudioManager->Update();
 
 	ApplyPendingSceneSwitch();
 

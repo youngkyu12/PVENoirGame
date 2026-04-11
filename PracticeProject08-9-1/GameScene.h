@@ -465,6 +465,7 @@ private:
 	int                                 m_pauseUISpriteIndex = -1;
 
 	bool                                m_bInactiveOverlayVisible = false;
+	bool                                m_bStartedGameplayMusic = false;
 	bool GetPauseOverlayRect(XMFLOAT4& outRect) const;
 
 	std::vector<SkinnedInstanceGroup>   m_skinnedInstanceGroups;
