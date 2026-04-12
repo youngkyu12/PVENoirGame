@@ -11,6 +11,7 @@ struct ID3D12Device;
 struct ID3D12GraphicsCommandList;
 
 class CScene;
+class CAudioManager;
 
 enum class ESceneId : uint8_t
 {
@@ -24,15 +25,18 @@ public:
     CSceneManager() = default;
     ~CSceneManager() = default;
 
-    CScene* GetScene() const { return m_pScene.get(); }
-    ESceneId GetSceneId() const { return m_sceneId; }
+	CScene* GetScene() const { return m_pScene.get(); }
+	ESceneId GetSceneId() const { return m_sceneId; }
 
-    void ReleaseCurrent();
+	void SetAudioManager(CAudioManager* audioManager) { m_pAudioManager = audioManager; }
 
-    // cmd´Â ResetµÈ »óÅÂ·Î µé¾î¿Â´Ù°í °¡Á¤ (Framework¿¡¼­ °ü¸®)
+	void ReleaseCurrent();
+
+    // cmdëŠ” Resetëœ ìƒíƒœë¡œ ë“¤ì–´ì˜¨ë‹¤ê³  ê°€ì • (Frameworkì—ì„œ ê´€ë¦¬)
     void BuildScene(ESceneId id, ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
 
 private:
-    std::unique_ptr<CScene> m_pScene;
-    ESceneId                m_sceneId = ESceneId::Menu;
+	std::unique_ptr<CScene> m_pScene;
+	ESceneId                m_sceneId = ESceneId::Menu;
+	CAudioManager*			m_pAudioManager = nullptr;
 };
