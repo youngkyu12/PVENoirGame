@@ -20,6 +20,7 @@
 #include <fstream>
 #include <cstdio>
 #include <cstdlib>
+#include <unordered_map>
 
 shared_ptr<Room> GRoom = make_shared<Room>();
 
@@ -131,6 +132,47 @@ namespace
 			if (str < -kEps) code |= kStateLeft;
 		}
 
+		return code;
+	}
+
+	static uint32 BuildEnemyStateCode(const CServerObject& obj)
+	{
+		uint32 code = 0;
+		const auto anim = obj.GetAnimState();
+
+		if (anim == Protocol::ANIMATION_TYPE_DIE)    code |= kStateDie;
+		if (anim == Protocol::ANIMATION_TYPE_ATTACK) code |= kStateAttack;
+		if (anim == Protocol::ANIMATION_TYPE_ROLL)   code |= kStateRoll;
+		if (anim == Protocol::ANIMATION_TYPE_RUN)    code |= kStateRun;
+		if (anim == Protocol::ANIMATION_TYPE_HIT)    code |= kStateHit;
+
+		static std::unordered_map<uint64, GameMath::Vec3> s_prevEnemyPos;
+
+		const uint64 enemyId = obj.GetObjectId();
+		const GameMath::Vec3 curPos = obj.GetPosition();
+		constexpr float kEps = 1e-4f;
+
+		auto it = s_prevEnemyPos.find(enemyId);
+		if (it != s_prevEnemyPos.end())
+		{
+			const GameMath::Vec3& prevPos = it->second;
+			GameMath::Vec3 delta(curPos.x - prevPos.x, 0.0f, curPos.z - prevPos.z);
+
+			if (delta.LengthSq() > kEps)
+			{
+				code |= kStateMove;
+
+				const float fwd = GameMath::Vec3::Dot(delta, obj.GetLook());
+				const float str = GameMath::Vec3::Dot(delta, obj.GetRight());
+
+				if (fwd > kEps) code |= kStateUp;
+				if (fwd < -kEps) code |= kStateDown;
+				if (str > kEps) code |= kStateRight;
+				if (str < -kEps) code |= kStateLeft;
+			}
+		}
+
+		s_prevEnemyPos[enemyId] = curPos;
 		return code;
 	}
 
@@ -890,7 +932,7 @@ void Room::MakeFrameState(uint32 tick)
 		e->set_weapontype(enemy->GetWeaponState());
 
 		Protocol::Animation* anim = e->mutable_animation();
-		anim->set_statecode(BuildStateCode(*enemy));
+        anim->set_statecode(BuildEnemyStateCode(*enemy));
 		anim->set_animationtick(enemy->GetAnimTick());
 
 		Protocol::Transform* transform = e->mutable_transform();
@@ -898,6 +940,7 @@ void Room::MakeFrameState(uint32 tick)
 		position->set_x(enemy->GetPosition().x);
 		position->set_y(enemy->GetPosition().y);
 		position->set_z(enemy->GetPosition().z);
+		transform->set_yaw(enemy->GetYaw());
 	}
 
 	for (auto& projectile : m_arrowPool)
