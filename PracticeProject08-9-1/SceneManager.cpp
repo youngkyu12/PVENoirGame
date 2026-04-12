@@ -38,8 +38,11 @@ void CSceneManager::BuildScene(ESceneId id, ID3D12Device* dev, ID3D12GraphicsCom
         break;
     }
 
-    m_sceneId = id;
+	m_sceneId = id;
 
-    // Scene 빌드(각 Scene이 내부에서 카메라까지 구성)
-    m_pScene->BuildObjects(dev, cmd);
+	if ( m_pScene )
+		m_pScene->SetAudioManager(m_pAudioManager);
+
+	// Scene 빌드(각 Scene이 내부에서 카메라까지 구성)
+	m_pScene->BuildObjects(dev, cmd);
 }

@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <cstdio>
 #include <cctype>
+#include <algorithm>
 
 #include "AnimatorComponent.h"
 #include "AnimatorData.h"
@@ -36,6 +37,8 @@
 #include "MonsterCombatComponent.h"
 #include "NavMesh.h"
 #include "GhoulAIComponent.h"
+#include "AudioManager.h"
+#include "MusicDirector.h"
 
 #include "ThreadManager.h"
 #include "Service.h"
@@ -503,6 +506,510 @@ CGameScene::CGameScene()
 	m_navMesh.reset();
 }
 
+#ifndef USING_NETWORK
+void CGameScene::InitializeMegaGridState()
+{
+	for ( MegaGridCell& cell : m_megaGridCells )
+	{
+		cell = MegaGridCell{};
+	}
+}
+
+void CGameScene::InitializeSpatialGrid()
+{
+	m_gridStaticCells.assign(kGridCellCount, GridStaticCell{});
+	m_gridDynamicCells.assign(kGridCellCount, GridDynamicCell{});
+	InitializeMegaGridState();
+
+	for ( auto& tracker : m_playerGridTrackers )
+		tracker = GridDynamicTracker{};
+
+	m_monsterGridTrackers.clear();
+	m_arrowGridTrackers.clear();
+	m_bulletGridTrackers.clear();
+
+	m_spatialGridInitialized = true;
+}
+
+void CGameScene::ShutdownSpatialGrid()
+{
+	m_gridStaticCells.clear();
+	m_gridDynamicCells.clear();
+	InitializeMegaGridState();
+
+	for ( auto& tracker : m_playerGridTrackers )
+		tracker = GridDynamicTracker{};
+
+	m_monsterGridTrackers.clear();
+	m_arrowGridTrackers.clear();
+	m_bulletGridTrackers.clear();
+
+	m_spatialGridInitialized = false;
+}
+
+bool CGameScene::WorldToGridCell(float worldX, float worldZ, int& outCellX, int& outCellZ) const
+{
+	if ( worldX < ( float ) kGridMinX || worldX >(float)kGridMaxX ) return false;
+	if ( worldZ < ( float ) kGridMinZ || worldZ >(float)kGridMaxZ ) return false;
+
+	int cellX = ( int ) std::floor(worldX) - kGridMinX;
+	int cellZ = ( int ) std::floor(worldZ) - kGridMinZ;
+
+	if ( cellX == kGridWidth ) cellX = kGridWidth - 1;
+	if ( cellZ == kGridHeight ) cellZ = kGridHeight - 1;
+
+	if ( cellX < 0 || cellX >= kGridWidth ) return false;
+	if ( cellZ < 0 || cellZ >= kGridHeight ) return false;
+
+	outCellX = cellX;
+	outCellZ = cellZ;
+	return true;
+}
+
+int CGameScene::GridCellIndex(int cellX, int cellZ) const
+{
+	return ( cellZ * kGridWidth ) + cellX;
+}
+
+int CGameScene::MegaGridIndex(int megaX, int megaZ) const
+{
+	return ( megaZ * kMegaGridCols ) + megaX;
+}
+
+bool CGameScene::FineCellToMegaGridCell(int cellX, int cellZ, int& outMegaX, int& outMegaZ) const
+{
+	if ( cellX < 0 || cellX >= kGridWidth ) return false;
+	if ( cellZ < 0 || cellZ >= kGridHeight ) return false;
+
+	outMegaX = cellX / kMegaGridCellWidth;
+	outMegaZ = cellZ / kMegaGridCellHeight;
+
+	if ( outMegaX < 0 || outMegaX >= kMegaGridCols ) return false;
+	if ( outMegaZ < 0 || outMegaZ >= kMegaGridRows ) return false;
+
+	return true;
+}
+
+bool CGameScene::IsFineCellInsideMegaGridApproachZone(int megaX, int megaZ, int cellX, int cellZ) const
+{
+	if ( megaX < 0 || megaX >= kMegaGridCols ) return false;
+	if ( megaZ < 0 || megaZ >= kMegaGridRows ) return false;
+	if ( cellX < 0 || cellX >= kGridWidth ) return false;
+	if ( cellZ < 0 || cellZ >= kGridHeight ) return false;
+
+	const MegaGridCell& megaCell = m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)];
+
+	const int zoneWidth =
+		std::clamp(megaCell.approachWidthCells, 1, kMegaGridCellWidth);
+
+	const int zoneHeight =
+		std::clamp(megaCell.approachHeightCells, 1, kMegaGridCellHeight);
+
+	const int megaStartX = megaX * kMegaGridCellWidth;
+	const int megaStartZ = megaZ * kMegaGridCellHeight;
+
+	const int zoneStartX = megaStartX + ( ( kMegaGridCellWidth - zoneWidth ) / 2 );
+	const int zoneStartZ = megaStartZ + ( ( kMegaGridCellHeight - zoneHeight ) / 2 );
+
+	const int zoneEndX = zoneStartX + zoneWidth;   // exclusive
+	const int zoneEndZ = zoneStartZ + zoneHeight;  // exclusive
+
+	return
+		( cellX >= zoneStartX && cellX < zoneEndX ) &&
+		( cellZ >= zoneStartZ && cellZ < zoneEndZ );
+}
+
+void CGameScene::AddDynamicCount(int cellX, int cellZ, EGridDynamicKind kind, int delta)
+{
+	if ( !m_spatialGridInitialized ) return;
+	if ( cellX < 0 || cellX >= kGridWidth ) return;
+	if ( cellZ < 0 || cellZ >= kGridHeight ) return;
+
+	GridDynamicCell& cell = m_gridDynamicCells[( size_t ) GridCellIndex(cellX, cellZ)];
+
+	uint16_t* target = nullptr;
+
+	switch ( kind )
+	{
+	case EGridDynamicKind::Player:  target = &cell.playerCount;  break;
+	case EGridDynamicKind::Monster: target = &cell.monsterCount; break;
+	case EGridDynamicKind::Arrow:   target = &cell.arrowCount;   break;
+	case EGridDynamicKind::Bullet:  target = &cell.bulletCount;  break;
+	default: return;
+	}
+
+	int nextValue = ( int ) ( *target ) + delta;
+	if ( nextValue < 0 ) nextValue = 0;
+	*target = ( uint16_t ) nextValue;
+}
+
+void CGameScene::StampBuildingCellsFromOOBB(const BoundingOrientedBox& box, std::unordered_set<int>& touchedCells)
+{
+	XMFLOAT3 corners[8] = {};
+	box.GetCorners(corners);
+
+	float minX = corners[0].x;
+	float maxX = corners[0].x;
+	float minZ = corners[0].z;
+	float maxZ = corners[0].z;
+
+	for ( int i = 1; i < 8; ++i )
+	{
+		if ( corners[i].x < minX ) minX = corners[i].x;
+		if ( corners[i].x > maxX ) maxX = corners[i].x;
+		if ( corners[i].z < minZ ) minZ = corners[i].z;
+		if ( corners[i].z > maxZ ) maxZ = corners[i].z;
+	}
+
+	int beginCellX = ( int ) std::floor(minX) - kGridMinX;
+	int endCellX = ( int ) std::ceil(maxX) - kGridMinX - 1;
+
+	int beginCellZ = ( int ) std::floor(minZ) - kGridMinZ;
+	int endCellZ = ( int ) std::ceil(maxZ) - kGridMinZ - 1;
+
+	if ( beginCellX < 0 ) beginCellX = 0;
+	if ( beginCellZ < 0 ) beginCellZ = 0;
+	if ( endCellX >= kGridWidth ) endCellX = kGridWidth - 1;
+	if ( endCellZ >= kGridHeight ) endCellZ = kGridHeight - 1;
+
+	if ( beginCellX > endCellX ) return;
+	if ( beginCellZ > endCellZ ) return;
+
+	for ( int z = beginCellZ; z <= endCellZ; ++z )
+	{
+		for ( int x = beginCellX; x <= endCellX; ++x )
+		{
+			touchedCells.insert(GridCellIndex(x, z));
+		}
+	}
+}
+
+void CGameScene::RegisterStaticPlacementToGrid(const StaticPlacementEntry& placement, CGameObject* obj)
+{
+	if ( !m_spatialGridInitialized ) return;
+	if ( !obj ) return;
+
+	const bool isBuilding =
+		( placement.assetName == "VillageWall" ) ||
+		( placement.assetName == "Tower" ) ||
+		( placement.assetName == "Building1" ) ||
+		( placement.assetName == "Building2" ) ||
+		( placement.assetName == "Building3" ) ||
+		( placement.assetName == "Building4" ) ||
+		( placement.assetName == "Building5" ) ||
+		( placement.assetName == "Building6" ) ||
+		( placement.assetName == "Building7" ) ||
+		( placement.assetName == "Building8" ) ||
+		( placement.assetName == "Building9" ) ||
+		( placement.assetName == "Tree1" ) ||
+		( placement.assetName == "Tree2" ) ||
+		( placement.assetName == "Tree3" ) ||
+		( placement.assetName == "Tree4" ) ||
+		( placement.assetName == "Tree5" ) ||
+		( placement.assetName == "Tree6" );
+
+	if ( !isBuilding )
+		return;
+
+	std::unordered_set<int> touchedCells;
+
+	if ( auto* collider = obj->GetComponent<CColliderComponent>() )
+	{
+		const std::vector<MeshOOBBSet>& meshSets = collider->GetMeshOOBBSets();
+
+		for ( const MeshOOBBSet& set : meshSets )
+		{
+			for ( const BoundingOrientedBox& subOOBB : set.WorldSubOOBBs )
+			{
+				StampBuildingCellsFromOOBB(subOOBB, touchedCells);
+			}
+		}
+	}
+
+	if ( touchedCells.empty() )
+	{
+		int cellX = -1;
+		int cellZ = -1;
+		const XMFLOAT3 pos = obj->GetPosition();
+
+		if ( WorldToGridCell(pos.x, pos.z, cellX, cellZ) )
+		{
+			touchedCells.insert(GridCellIndex(cellX, cellZ));
+		}
+	}
+
+	for ( int cellIndex : touchedCells )
+	{
+		if ( cellIndex < 0 || cellIndex >= kGridCellCount ) continue;
+		++m_gridStaticCells[( size_t ) cellIndex].buildingCount;
+		m_gridStaticCells[( size_t ) cellIndex].floorHeight = 0.0f;
+	}
+}
+
+void CGameScene::ResetDynamicGridCounts()
+{
+	for ( GridDynamicCell& cell : m_gridDynamicCells )
+	{
+		cell.playerCount = 0;
+		cell.monsterCount = 0;
+		cell.arrowCount = 0;
+		cell.bulletCount = 0;
+	}
+}
+
+bool CGameScene::TryGetTrackedCell(const CGameObject* obj, int& outCellX, int& outCellZ) const
+{
+	if ( !obj ) return false;
+
+	const XMFLOAT3 pos = obj->GetPosition();
+	if ( pos.y < -100.0f ) return false;
+
+	return WorldToGridCell(pos.x, pos.z, outCellX, outCellZ);
+}
+
+void CGameScene::RefreshDynamicTracker(GridDynamicTracker& tracker, EGridDynamicKind kind)
+{
+	int currentCellX = -1;
+	int currentCellZ = -1;
+	const bool hasCurrentCell = TryGetTrackedCell(tracker.object, currentCellX, currentCellZ);
+
+	if ( tracker.occupied )
+	{
+		if ( !hasCurrentCell ||
+			tracker.prevCellX != currentCellX ||
+			tracker.prevCellZ != currentCellZ )
+		{
+			AddDynamicCount(tracker.prevCellX, tracker.prevCellZ, kind, -1);
+			tracker.occupied = false;
+		}
+	}
+
+	if ( hasCurrentCell )
+	{
+		if ( !tracker.occupied ||
+			tracker.prevCellX != currentCellX ||
+			tracker.prevCellZ != currentCellZ )
+		{
+			AddDynamicCount(currentCellX, currentCellZ, kind, +1);
+			tracker.prevCellX = currentCellX;
+			tracker.prevCellZ = currentCellZ;
+			tracker.occupied = true;
+		}
+	}
+}
+
+void CGameScene::BuildDynamicGridTrackers()
+{
+	for ( size_t i = 0; i < m_playerGridTrackers.size(); ++i )
+	{
+		m_playerGridTrackers[i] = GridDynamicTracker{};
+		m_playerGridTrackers[i].object = m_playersBySlot[i];
+	}
+
+	m_monsterGridTrackers.clear();
+	m_monsterGridTrackers.reserve(m_skinnedBatch.objectRefs.size());
+
+	for ( CGameObject* obj : m_skinnedBatch.objectRefs )
+	{
+		if ( !obj ) continue;
+
+		auto* tag = obj->GetComponent<CActorTagComponent>();
+		if ( !tag ) continue;
+		if ( tag->kind != EActorKind::NPC ) continue;
+
+		GridDynamicTracker tracker{};
+		tracker.object = obj;
+		m_monsterGridTrackers.push_back(tracker);
+	}
+
+	m_arrowGridTrackers.clear();
+	m_arrowGridTrackers.reserve(m_arrowRefs.size());
+
+	for ( CGameObject* obj : m_arrowRefs )
+	{
+		GridDynamicTracker tracker{};
+		tracker.object = obj;
+		m_arrowGridTrackers.push_back(tracker);
+	}
+
+	m_bulletGridTrackers.clear();
+	m_bulletGridTrackers.reserve(m_bulletRefs.size());
+
+	for ( CGameObject* obj : m_bulletRefs )
+	{
+		GridDynamicTracker tracker{};
+		tracker.object = obj;
+		m_bulletGridTrackers.push_back(tracker);
+	}
+}
+
+void CGameScene::RebuildDynamicGridState()
+{
+	if ( !m_spatialGridInitialized ) return;
+
+	ResetDynamicGridCounts();
+	BuildDynamicGridTrackers();
+
+	for ( auto& tracker : m_playerGridTrackers )
+		RefreshDynamicTracker(tracker, EGridDynamicKind::Player);
+
+	for ( auto& tracker : m_monsterGridTrackers )
+		RefreshDynamicTracker(tracker, EGridDynamicKind::Monster);
+
+	for ( auto& tracker : m_arrowGridTrackers )
+		RefreshDynamicTracker(tracker, EGridDynamicKind::Arrow);
+
+	for ( auto& tracker : m_bulletGridTrackers )
+		RefreshDynamicTracker(tracker, EGridDynamicKind::Bullet);
+
+	UpdateMegaGridState();
+}
+
+void CGameScene::UpdateDynamicGridState()
+{
+	if ( !m_spatialGridInitialized ) return;
+
+	for ( auto& tracker : m_playerGridTrackers )
+		RefreshDynamicTracker(tracker, EGridDynamicKind::Player);
+
+	for ( auto& tracker : m_monsterGridTrackers )
+		RefreshDynamicTracker(tracker, EGridDynamicKind::Monster);
+
+	for ( auto& tracker : m_arrowGridTrackers )
+		RefreshDynamicTracker(tracker, EGridDynamicKind::Arrow);
+
+	for ( auto& tracker : m_bulletGridTrackers )
+		RefreshDynamicTracker(tracker, EGridDynamicKind::Bullet);
+
+	UpdateMegaGridState();
+}
+
+void CGameScene::UpdateMegaGridState()
+{
+	if ( !m_spatialGridInitialized ) return;
+
+	for ( const GridDynamicTracker& tracker : m_playerGridTrackers )
+	{
+		if ( !tracker.occupied ) continue;
+
+		int megaX = -1;
+		int megaZ = -1;
+
+		if ( !FineCellToMegaGridCell(tracker.prevCellX, tracker.prevCellZ, megaX, megaZ) )
+			continue;
+
+		if ( !IsFineCellInsideMegaGridApproachZone(
+			megaX,
+			megaZ,
+			tracker.prevCellX,
+			tracker.prevCellZ) )
+		{
+			continue;
+		}
+
+		MegaGridCell& megaCell = m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)];
+
+		if ( !megaCell.hasPlayerApproached )
+		{
+			megaCell.hasPlayerApproached = true;
+
+			char debugText[256] = {};
+			sprintf_s(
+				debugText,
+				"[MegaGrid] hasPlayerApproached=true | mega=(%d,%d) | playerCell=(%d,%d)\n",
+				megaX,
+				megaZ,
+				tracker.prevCellX,
+				tracker.prevCellZ
+			);
+			OutputDebugStringA(debugText);
+		}
+	}
+}
+
+void CGameScene::DumpStaticGridOccupancyLog() const
+{
+	if ( !m_spatialGridInitialized )
+	{
+		OutputDebugStringA("[GridStatic] not initialized\n");
+		return;
+	}
+
+	OutputDebugStringA("[GridStatic] begin\n");
+
+	std::string row;
+	row.reserve(kGridWidth + 1);
+
+	for ( int z = 0; z < kGridHeight; ++z )
+	{
+		row.clear();
+
+		for ( int x = 0; x < kGridWidth; ++x )
+		{
+			const GridStaticCell& cell =
+				m_gridStaticCells[( size_t ) GridCellIndex(x, z)];
+
+			row.push_back(( cell.buildingCount > 0 ) ? '1' : '0');
+		}
+
+		row.push_back('\n');
+		OutputDebugStringA(row.c_str());
+	}
+
+	OutputDebugStringA("[GridStatic] end\n");
+}
+
+void CGameScene::SetMegaGridApproachZoneSize(int megaX, int megaZ, int widthCells, int heightCells)
+{
+	if ( megaX < 0 || megaX >= kMegaGridCols ) return;
+	if ( megaZ < 0 || megaZ >= kMegaGridRows ) return;
+
+	MegaGridCell& cell = m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)];
+	cell.approachWidthCells = std::clamp(widthCells, 1, kMegaGridCellWidth);
+	cell.approachHeightCells = std::clamp(heightCells, 1, kMegaGridCellHeight);
+}
+
+void CGameScene::SetMegaGridCleared(int megaX, int megaZ, bool cleared)
+{
+	if ( megaX < 0 || megaX >= kMegaGridCols ) return;
+	if ( megaZ < 0 || megaZ >= kMegaGridRows ) return;
+
+	m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)].isCleared = cleared;
+}
+
+void CGameScene::SetMegaGridEventOccurred(int megaX, int megaZ, bool occurred)
+{
+	if ( megaX < 0 || megaX >= kMegaGridCols ) return;
+	if ( megaZ < 0 || megaZ >= kMegaGridRows ) return;
+
+	m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)].hasEventOccurred = occurred;
+}
+
+bool CGameScene::HasMegaGridPlayerApproached(int megaX, int megaZ) const
+{
+	if ( megaX < 0 || megaX >= kMegaGridCols ) return false;
+	if ( megaZ < 0 || megaZ >= kMegaGridRows ) return false;
+
+	return m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)].hasPlayerApproached;
+}
+
+bool CGameScene::IsMegaGridCleared(int megaX, int megaZ) const
+{
+	if ( megaX < 0 || megaX >= kMegaGridCols ) return false;
+	if ( megaZ < 0 || megaZ >= kMegaGridRows ) return false;
+
+	return m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)].isCleared;
+}
+
+bool CGameScene::HasMegaGridEventOccurred(int megaX, int megaZ) const
+{
+	if ( megaX < 0 || megaX >= kMegaGridCols ) return false;
+	if ( megaZ < 0 || megaZ >= kMegaGridRows ) return false;
+
+	return m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)].hasEventOccurred;
+}
+#endif
+
 CGameScene::~CGameScene()
 {
 }
@@ -555,12 +1062,21 @@ void CGameScene::ReleaseObjects()
 	m_preparedBowmanArrows.clear();
 	m_prevEnemyBowReleasePhase.clear();
 
-	m_inactiveOverlayShader.reset();
-	m_inactiveOverlayTex.reset();
-	m_inactiveOverlaySrvIndex = UINT_MAX;
+	if ( m_uiRectShader )
+		m_uiRectShader->ReleaseShaderVariables();
+
+	m_uiRectShader.reset();
+	m_uiSprites.clear();
+	m_pauseUISpriteIndex = -1;
 	m_bInactiveOverlayVisible = false;
+	m_bStartedGameplayMusic = false;
+	m_bWasLocalPlayerInsideMegaGridCenter = false;
 
 	m_navMesh.reset();
+
+#ifndef USING_NETWORK
+	ShutdownSpatialGrid();
+#endif
 
 	ReleaseShaderVariables();
 
@@ -666,6 +1182,11 @@ void CGameScene::ReleaseShaderVariables()
 		}
 		m_colliderBatch.cbGameObjects.Reset();
 	}
+
+	if ( m_uiRectShader )
+	{
+		m_uiRectShader->ReleaseShaderVariables();
+	}
 }
 
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
@@ -691,16 +1212,17 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 #else
 	m_localPlayerSlot = 0;
 	//Test stage
-	const std::string placementFilePath = "MapData/MapData_tst.txt";
-	const std::string navMeshFilePath = "MapData/Navmesh_tst.nvm";
+	//const std::string placementFilePath = "MapData/MapData_tst.txt";
+	//const std::string navMeshFilePath = "MapData/Navmesh_tst.nvm";
 
 	//1 stage
 	//const std::string placementFilePath = "MapData/MapData_stage1_with_Tree.txt";
 	//const std::string navMeshFilePath = "MapData/Navmesh_Stage1.nvm";
 
 	//Full stage
-	//const std::string placementFilePath = "MapData/MapData_fullstage.txt";
-	//const std::string navMeshFilePath = "MapData/Navmesh_FullStage.nvm";
+	const std::string placementFilePath = "MapData/MapData_fullstage.txt";
+	//const std::string placementFilePath = "MapData/MapData_fullstage(NoTree).txt";
+	const std::string navMeshFilePath = "MapData/Navmesh_FullStage.nvm";
 
 	const std::string cubeColliderReportFilePath = "MapData/CubeBoxColliderReport.txt";
 
@@ -781,6 +1303,9 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_colliderBatch.count = 0;
 
 	CreateGraphicsRootSignature(dev);
+#ifndef USING_NETWORK
+	InitializeSpatialGrid();
+#endif
 
 	auto pStaticShader = std::make_shared<CStaticObjectsShader>();
 	auto pTreeStaticShader = std::make_shared<CTreeStaticObjectsShader>();
@@ -802,38 +1327,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	};
 
 	BuildLightsAndMaterials();
-
-	{
-		constexpr const wchar_t* kInactiveOverlayDDS = L"Assets/UI/Pause.dds";
-
-		m_inactiveOverlayTex = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 0);
-		m_inactiveOverlayTex->LoadTextureFromFile(
-			dev, 
-			cmd, 
-			kInactiveOverlayDDS, 
-			RESOURCE_TEXTURE2D, 
-			0);
-
-		CScene::m_pDescriptorHeap->CreateShaderResourceViewsOther(
-			dev,
-			m_inactiveOverlayTex.get(),
-			ROOT_PARAMETER_GLOBAL_SRV);
-
-		m_inactiveOverlaySrvIndex = m_inactiveOverlayTex->GetSrvIndex(0);
-
-		m_inactiveOverlayShader = std::make_shared<CRectUIShader>();
-
-		DXGI_FORMAT overlayRtv = DXGI_FORMAT_R8G8B8A8_UNORM;
-		DXGI_FORMAT overlayDsv = DXGI_FORMAT_UNKNOWN;
-
-		m_inactiveOverlayShader->CreateShader(
-			dev,
-			GetGraphicsRootSignature(),
-			1,
-			&overlayRtv,
-			overlayDsv);
-		m_inactiveOverlayShader->CreateShaderVariables(dev, cmd);
-	}
+	BuildUIResources(dev, cmd);
 
 	for ( auto& lo : m_lightObjects )
 	{
@@ -845,13 +1339,14 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	const DXGI_FORMAT kDsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
 #ifndef USING_NETWORK
-	BuildColliderBatch(dev, cmd, pColliderShader, kRTCount, rtvFormats, kDsvFormat);
+	//BuildColliderBatch(dev, cmd, pColliderShader, kRTCount, rtvFormats, kDsvFormat);
 #endif
 
 	pTreeStaticShader->CreateShader(dev,m_pd3dGraphicsRootSignature.Get(),kRTCount,rtvFormats,kDsvFormat);
 	BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
 #ifndef USING_NETWORK
-	BuildStaticWorldSubmeshOOBBDebugObjects(dev, cmd);
+	//DumpStaticGridOccupancyLog();
+	//BuildStaticWorldSubmeshOOBBDebugObjects(dev, cmd);
 #endif
 	BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
 
@@ -866,6 +1361,9 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	CreateMainCamera(dev, cmd, local);
 	BuildObjectsCollider();
 
+#ifndef USING_NETWORK
+	RebuildDynamicGridState();
+#endif
 #ifdef USING_NETWORK
 	Protocol::C_CLIENT_READY iamReady;
 
@@ -1568,6 +2066,9 @@ void CGameScene::BuildStaticBatch(
 				exportedWorldStaticObjects.push_back(raw);
 			}
 		}
+#ifndef USING_NETWORK
+		RegisterStaticPlacementToGrid(placement, raw);
+#endif
 
 		m_staticObjects.push_back(std::move(obj));
 		b->objectRefs.push_back(raw);
@@ -2422,7 +2923,7 @@ void CGameScene::BuildSkinnedBatch(
 
     const UINT fighterCount = m_PlayerCount;
 
-    const XMFLOAT3 playerBase(-150.0f, 0.0f, 0.0f);
+    const XMFLOAT3 playerBase(0.0f, 0.0f, -150.0f);
 
     m_swordManRefs.clear();
     m_swordManRefs.reserve(m_swordManCount);
@@ -3975,38 +4476,295 @@ void CGameScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* 
 	}
 }
 
+int CGameScene::AddUISprite(
+	ID3D12Device* dev,
+	ID3D12GraphicsCommandList* cmd,
+	const char* name,
+	const wchar_t* texturePath,
+	const XMFLOAT4& rect,
+	EUIRenderLayer layer,
+	bool visible)
+{
+	if ( !dev || !cmd || !name || !texturePath )
+		return -1;
+
+	UISpriteEntry entry{};
+	entry.name = name;
+	entry.layer = layer;
+	entry.visible = visible;
+	entry.rect = rect;
+
+	entry.texture = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 0);
+	entry.texture->LoadTextureFromFile(
+		dev,
+		cmd,
+		texturePath,
+		RESOURCE_TEXTURE2D,
+		0
+	);
+
+	CScene::m_pDescriptorHeap->CreateShaderResourceViewsOther(
+		dev,
+		entry.texture.get(),
+		ROOT_PARAMETER_GLOBAL_SRV
+	);
+
+	entry.srvIndex = entry.texture->GetSrvIndex(0);
+
+	// width/height를 0 이하로 넣으면 원본 텍스처 크기 사용
+	if ( entry.rect.z <= 0.0f )
+		entry.rect.z = static_cast< float >( entry.texture->GetTextureWidth(0) );
+	if ( entry.rect.w <= 0.0f )
+		entry.rect.w = static_cast< float >( entry.texture->GetTextureHeight(0) );
+
+	m_uiSprites.push_back(std::move(entry));
+	return static_cast< int >( m_uiSprites.size() - 1 );
+}
+
+void CGameScene::BuildUIResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
+{
+	if ( m_uiRectShader )
+		m_uiRectShader->ReleaseShaderVariables();
+
+	m_uiRectShader.reset();
+	m_uiSprites.clear();
+	m_pauseUISpriteIndex = -1;
+
+	m_uiRectShader = std::make_shared<CRectUIShader>();
+
+	DXGI_FORMAT overlayRtv = DXGI_FORMAT_R8G8B8A8_UNORM;
+	DXGI_FORMAT overlayDsv = DXGI_FORMAT_UNKNOWN;
+
+	m_uiRectShader->CreateShader(
+		dev,
+		GetGraphicsRootSignature(),
+		1,
+		&overlayRtv,
+		overlayDsv
+	);
+	m_uiRectShader->CreateShaderVariables(dev, cmd);
+
+	// --------------------------------------------------------------------
+	// UI layout tuning block
+	// - rect = (centerX, centerY, width, height)
+	// --------------------------------------------------------------------
+	constexpr int kItemSlotCount = 5;
+	constexpr int kEquipSlotCount = 2;
+
+	const float itemFrameCenterX = FRAME_BUFFER_WIDTH - 105.0f;
+	const float itemFrameCenterY = FRAME_BUFFER_HEIGHT - 22.5f;
+	const float itemFrameWidth = 210.0f;
+	const float itemFrameHeight = 45.0f;
+
+	const float itemSlotSize = 32.0f;
+	const float itemSlotSpacing = 37.0f;
+	const float itemSlotStartX =
+		itemFrameCenterX - ( ( kItemSlotCount - 1 ) * itemSlotSpacing * 0.5f );
+	const float itemSlotCenterY = itemFrameCenterY;
+
+	const float equipFrameCenterX = FRAME_BUFFER_WIDTH - 45.0f;
+	const float equipFrameCenterY = FRAME_BUFFER_HEIGHT - 66.0f;
+	const float equipFrameWidth = 90.0f;
+	const float equipFrameHeight = 45.0f;
+
+	const float equipSlotSize = 32.0f;
+	const float equipSlotSpacing = 37.0f;
+	const float equipSlotStartX =
+		equipFrameCenterX - ( ( kEquipSlotCount - 1 ) * equipSlotSpacing * 0.5f );
+	const float equipSlotCenterY = equipFrameCenterY;
+
+	const float hpFrameCenterX = 150.0f;
+	const float hpFrameCenterY = 20.0f;
+	const float hpFrameWidth = 300.0f;
+	const float hpFrameHeight = 40.0f;
+
+	const float hpBarCenterX = hpFrameCenterX;
+	const float hpBarCenterY = hpFrameCenterY;
+	const float hpBarWidth = 290.0f;
+	const float hpBarHeight = 34.0f;
+
+	// --------------------------------------------------------------------
+	// Frame layer (가장 아래)
+	// --------------------------------------------------------------------
+	AddUISprite(
+		dev, cmd,
+		"ItemFrame",
+		L"Assets/UI/low_darkness_bar.dds",
+		XMFLOAT4(itemFrameCenterX, itemFrameCenterY, itemFrameWidth, itemFrameHeight),
+		EUIRenderLayer::Frame,
+		true
+	);
+
+	AddUISprite(
+		dev, cmd,
+		"EquipmentFrame",
+		L"Assets/UI/low_darkness_bar.dds",
+		XMFLOAT4(equipFrameCenterX, equipFrameCenterY, equipFrameWidth, equipFrameHeight),
+		EUIRenderLayer::Frame,
+		true
+	);
+
+	AddUISprite(
+		dev, cmd,
+		"HPFrame",
+		L"Assets/UI/low_darkness_bar.dds",
+		XMFLOAT4(hpFrameCenterX, hpFrameCenterY, hpFrameWidth, hpFrameHeight),
+		EUIRenderLayer::Frame,
+		true
+	);
+
+	// --------------------------------------------------------------------
+	// Content layer (Frame 위)
+	// --------------------------------------------------------------------
+	for ( int i = 0; i < kItemSlotCount; ++i )
+	{
+		const float centerX = itemSlotStartX + ( itemSlotSpacing * i );
+
+		char name[64] = {};
+		sprintf_s(name, "ItemSlot_%d", i);
+
+		AddUISprite(
+			dev, cmd,
+			name,
+			L"Assets/UI/mini_dark_bar1.dds",
+			XMFLOAT4(centerX, itemSlotCenterY, itemSlotSize, itemSlotSize),
+			EUIRenderLayer::Content,
+			true
+		);
+	}
+
+	for ( int i = 0; i < kEquipSlotCount; ++i )
+	{
+		const float centerX = equipSlotStartX + ( equipSlotSpacing * i );
+
+		char name[64] = {};
+		sprintf_s(name, "EquipmentSlot_%d", i);
+
+		AddUISprite(
+			dev, cmd,
+			name,
+			L"Assets/UI/mini_dark_bar1.dds",
+			XMFLOAT4(centerX, equipSlotCenterY, equipSlotSize, equipSlotSize),
+			EUIRenderLayer::Content,
+			true
+		);
+	}
+
+	AddUISprite(
+		dev, cmd,
+		"HPFill",
+		L"Assets/UI/HP.dds",
+		XMFLOAT4(hpBarCenterX, hpBarCenterY, hpBarWidth, hpBarHeight),
+		EUIRenderLayer::Content,
+		true
+	);
+
+	// --------------------------------------------------------------------
+	// Pause layer (가장 위)
+	// --------------------------------------------------------------------
+	m_pauseUISpriteIndex = AddUISprite(
+		dev, cmd,
+		"Pause",
+		L"Assets/UI/Pause.dds",
+		XMFLOAT4(
+			FRAME_BUFFER_WIDTH * 0.5f,
+			FRAME_BUFFER_HEIGHT * 0.5f,
+			0.0f,
+			0.0f
+		),
+		EUIRenderLayer::Pause,
+		true
+	);
+
+	if ( m_pauseUISpriteIndex >= 0 &&
+		m_pauseUISpriteIndex < static_cast< int >(m_uiSprites.size()) )
+	{
+		UISpriteEntry& pause = m_uiSprites[( size_t ) m_pauseUISpriteIndex];
+
+		float drawW = static_cast< float >(pause.texture->GetTextureWidth(0));
+		float drawH = static_cast< float >(pause.texture->GetTextureHeight(0));
+
+		if ( drawW <= 0.0f || drawH <= 0.0f )
+		{
+			drawW = 512.0f;
+			drawH = 512.0f;
+		}
+
+		float fitScale = 1.0f;
+		const float scaleX = static_cast< float >( FRAME_BUFFER_WIDTH ) / drawW;
+		const float scaleY = static_cast< float >( FRAME_BUFFER_HEIGHT ) / drawH;
+
+		if ( scaleX < fitScale ) fitScale = scaleX;
+		if ( scaleY < fitScale ) fitScale = scaleY;
+		if ( fitScale > 1.0f ) fitScale = 1.0f;
+
+		pause.rect.z = drawW * fitScale;
+		pause.rect.w = drawH * fitScale;
+	}
+}
+
+void CGameScene::RenderUI(ID3D12GraphicsCommandList* cmd, CCamera* camera)
+{
+	if ( !cmd ) return;
+	if ( !m_uiRectShader ) return;
+	if ( m_uiSprites.empty() ) return;
+
+	m_uiRectShader->ResetDrawOptionWriteIndex();
+
+	for ( int layerValue = static_cast< int >( EUIRenderLayer::Frame );
+		layerValue <= static_cast< int >( EUIRenderLayer::Pause );
+		++layerValue )
+	{
+		for ( size_t i = 0; i < m_uiSprites.size(); ++i )
+		{
+			const UISpriteEntry& ui = m_uiSprites[i];
+
+			if ( static_cast< int >(ui.layer) != layerValue )
+				continue;
+
+			if ( !ui.texture || ui.srvIndex == UINT_MAX )
+				continue;
+
+			bool visible = ui.visible;
+
+			// Pause는 기존 플래그로 제어
+			if ( static_cast< int >( i ) == m_pauseUISpriteIndex )
+				visible = visible && m_bInactiveOverlayVisible;
+
+			if ( !visible )
+				continue;
+
+			PS_CB_DRAW_OPTIONS opt{};
+			opt.m_xmn4DrawOptions = XMINT4('T', 0, 0, 0);
+			opt.m_xmu4PostSrvIdx0 = XMUINT4(ui.srvIndex, 0, 0, 0);
+			opt.m_xmu4PostSrvIdx1 = XMUINT4(0, 0, 0, 0);
+			opt.m_xmf4UiRect = ui.rect;
+			opt.m_xmf4Viewport = XMFLOAT4(
+				static_cast< float >( FRAME_BUFFER_WIDTH ),
+				static_cast< float >( FRAME_BUFFER_HEIGHT ),
+				1.0f / static_cast< float >( FRAME_BUFFER_WIDTH ),
+				1.0f / static_cast< float >( FRAME_BUFFER_HEIGHT )
+			);
+
+			m_uiRectShader->Render(cmd, camera, &opt);
+		}
+	}
+}
+
 bool CGameScene::GetPauseOverlayRect(XMFLOAT4& outRect) const
 {
-    if (!m_inactiveOverlayTex || (m_inactiveOverlaySrvIndex == UINT_MAX))
-        return false;
+	if ( m_pauseUISpriteIndex < 0 )
+		return false;
 
-    float drawW = static_cast<float>(m_inactiveOverlayTex->GetTextureWidth(0));
-    float drawH = static_cast<float>(m_inactiveOverlayTex->GetTextureHeight(0));
+	if ( m_pauseUISpriteIndex >= static_cast< int >(m_uiSprites.size()) )
+		return false;
 
-    if (drawW <= 0.0f || drawH <= 0.0f)
-    {
-        drawW = 512.0f;
-        drawH = 512.0f;
-    }
+	const UISpriteEntry& pause = m_uiSprites[( size_t ) m_pauseUISpriteIndex];
+	if ( !pause.texture || pause.srvIndex == UINT_MAX )
+		return false;
 
-    float fitScale = 1.0f;
-    const float scaleX = (drawW > 0.0f) ? (static_cast<float>(FRAME_BUFFER_WIDTH) / drawW) : 1.0f;
-    const float scaleY = (drawH > 0.0f) ? (static_cast<float>(FRAME_BUFFER_HEIGHT) / drawH) : 1.0f;
-
-    if (scaleX < fitScale) fitScale = scaleX;
-    if (scaleY < fitScale) fitScale = scaleY;
-    if (fitScale > 1.0f) fitScale = 1.0f;
-
-    drawW *= fitScale;
-    drawH *= fitScale;
-
-    outRect = XMFLOAT4(
-        FRAME_BUFFER_WIDTH * 0.5f,
-        FRAME_BUFFER_HEIGHT * 0.5f,
-        drawW,
-        drawH
-    );
-    return true;
+	outRect = pause.rect;
+	return true;
 }
 
 bool CGameScene::IsPointInPauseOverlay(POINT clientPt) const
@@ -4431,6 +5189,41 @@ CGameObject* CGameScene::GetPlayerBySlot(int slot) const
 {
     if (slot < 0 || slot > 3) return nullptr;
     return m_playersBySlot[(size_t)slot];
+}
+
+bool CGameScene::IsLocalPlayerInsideMegaGridCenter() const
+{
+#ifndef USING_NETWORK
+	if ( !m_spatialGridInitialized )
+		return false;
+
+	if ( m_localPlayerSlot < 0 ||
+		 m_localPlayerSlot >= static_cast< int >(m_playerGridTrackers.size()) )
+	{
+		return false;
+	}
+
+	const GridDynamicTracker& tracker =
+		m_playerGridTrackers[static_cast< size_t >(m_localPlayerSlot)];
+
+	if ( !tracker.occupied )
+		return false;
+
+	int megaX = -1;
+	int megaZ = -1;
+
+	if ( !FineCellToMegaGridCell(tracker.prevCellX, tracker.prevCellZ, megaX, megaZ) )
+		return false;
+
+	return IsFineCellInsideMegaGridApproachZone(
+		megaX,
+		megaZ,
+		tracker.prevCellX,
+		tracker.prevCellZ
+	);
+#else
+	return false;
+#endif
 }
 
 bool CGameScene::IsLocalPlayer(const CGameObject* obj) const
@@ -4867,14 +5660,15 @@ void CGameScene::AnimateObjects(float dt)
         m_pPlayerSpotFollower->SetTarget(local);
     }
 
-    for (UINT j = 0; j < (UINT)m_lightObjects.size(); ++j)
-    {
-        if (!m_lightObjects[j]) continue;
-        m_lightObjects[j]->Animate(dt);
-    }
+	for ( UINT j = 0; j < ( UINT ) m_lightObjects.size(); ++j )
+	{
+		if ( !m_lightObjects[j] ) continue;
+		m_lightObjects[j]->Animate(dt);
+	}
 
-    
-
+#ifndef USING_NETWORK
+	UpdateDynamicGridState();
+#endif
 }
 
 void CGameScene::CollisionObjects()
@@ -4999,6 +5793,20 @@ void CGameScene::OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera
 
 void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
+	if ( !m_bStartedGameplayMusic )
+	{
+		if ( m_pAudioManager )
+		{
+			if ( auto* music = m_pAudioManager->GetMusicDirector() )
+			{
+				music->RequestState(EMusicState::Gameplay, false);
+				music->BeginPendingTransition();
+			}
+		}
+
+		m_bStartedGameplayMusic = true;
+	}
+
 	if ( m_staticBatch.shader )
 	{
 		RenderStaticInstanceGroups(cmd, camera);
@@ -5021,34 +5829,39 @@ void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 		}
 	}
 #endif
+#ifndef USING_NETWORK
+	{
+		const bool isInsideMegaGridCenter = IsLocalPlayerInsideMegaGridCenter();
 
-    if (m_bInactiveOverlayVisible && m_inactiveOverlayShader && (m_inactiveOverlaySrvIndex != UINT_MAX))
-    {
-        XMFLOAT4 uiRect{};
-        if (!GetPauseOverlayRect(uiRect))
-        {
-            uiRect = XMFLOAT4(
-                FRAME_BUFFER_WIDTH * 0.5f,
-                FRAME_BUFFER_HEIGHT * 0.5f,
-                512.0f,
-                512.0f
-            );
-        }
+		if ( isInsideMegaGridCenter != m_bWasLocalPlayerInsideMegaGridCenter )
+		{
+			if ( m_pAudioManager )
+			{
+				if ( auto* music = m_pAudioManager->GetMusicDirector() )
+				{
+					music->SetCrossFadeSeconds(1.0f);
 
-        PS_CB_DRAW_OPTIONS opt{};
-        opt.m_xmn4DrawOptions = XMINT4('T', 0, 0, 0);
-        opt.m_xmu4PostSrvIdx0 = XMUINT4(m_inactiveOverlaySrvIndex, 0, 0, 0);
-        opt.m_xmu4PostSrvIdx1 = XMUINT4(0, 0, 0, 0);
-        opt.m_xmf4UiRect = uiRect;
-        opt.m_xmf4Viewport = XMFLOAT4(
-            static_cast<float>(FRAME_BUFFER_WIDTH),
-            static_cast<float>(FRAME_BUFFER_HEIGHT),
-            1.0f / static_cast<float>(FRAME_BUFFER_WIDTH),
-            1.0f / static_cast<float>(FRAME_BUFFER_HEIGHT)
-        );
+					if ( isInsideMegaGridCenter )
+					{
+						OutputDebugStringA("[MegaGridBGM] local player entered center zone\n");
+						music->RequestState(EMusicState::None, false);
+						music->BeginPendingTransition();
+					}
+					else
+					{
+						OutputDebugStringA("[MegaGridBGM] local player left center zone\n");
+						music->RequestState(EMusicState::Gameplay, false);
+						music->BeginPendingTransition();
+					}
+				}
+			}
 
-        m_inactiveOverlayShader->Render(cmd, camera, &opt);
-    }
+			m_bWasLocalPlayerInsideMegaGridCenter = isInsideMegaGridCenter;
+		}
+	}
+#endif
+
+	RenderUI(cmd, camera);
 
     if (m_Collision)
     {
