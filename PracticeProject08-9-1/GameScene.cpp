@@ -5641,11 +5641,17 @@ void CGameScene::AnimateObjects(float dt)
     // ------------------------------------------------------------------------
     // 기존 애니메이션 로직
     // ------------------------------------------------------------------------
-    for (UINT j = 0; j < (UINT)m_skinnedObjects.size(); ++j)
-    {
-        if (!m_skinnedObjects[j]) continue;
-        m_skinnedObjects[j]->Animate(dt);
-    }
+	CCamera* camera = GetMainCamera();
+
+	for ( UINT j = 0; j < ( UINT ) m_skinnedObjects.size(); ++j )
+	{
+		if ( !m_skinnedObjects[j] ) continue;
+
+		if ( camera && !m_skinnedObjects[j]->IsVisible(camera) )
+			continue;
+
+		m_skinnedObjects[j]->Animate(dt);
+	}
 
     for (UINT j = 0; j < (UINT)m_staticObjects.size(); ++j)
     {
