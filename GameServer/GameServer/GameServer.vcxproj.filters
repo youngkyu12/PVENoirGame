@@ -46,6 +46,9 @@
     <Filter Include="Room">
       <UniqueIdentifier>{168974d8-557a-455a-8d45-8704d77d5625}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Collider">
+      <UniqueIdentifier>{63c0f701-9f50-4f4d-a529-97a18d1e0de6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GameServer.cpp">
@@ -99,17 +102,27 @@
     <ClCompile Include="CWeapon.cpp">
       <Filter>GameObject\Player</Filter>
     </ClCompile>
-    <ClCompile Include="BoundingCapsule.cpp" />
-    <ClCompile Include="ColliderComponent.cpp" />
-    <ClCompile Include="CollisionSystem.cpp" />
     <ClCompile Include="Room.cpp">
       <Filter>Room</Filter>
     </ClCompile>
     <ClCompile Include="ReportHelper.cpp">
       <Filter>Room</Filter>
     </ClCompile>
-    <ClCompile Include="NavMesh.cpp" />
-    <ClCompile Include="MonsterAI.cpp" />
+    <ClCompile Include="BoundingCapsule.cpp">
+      <Filter>Collider</Filter>
+    </ClCompile>
+    <ClCompile Include="ColliderComponent.cpp">
+      <Filter>Collider</Filter>
+    </ClCompile>
+    <ClCompile Include="CollisionSystem.cpp">
+      <Filter>Collider</Filter>
+    </ClCompile>
+    <ClCompile Include="MonsterAI.cpp">
+      <Filter>GameObject\Enemy</Filter>
+    </ClCompile>
+    <ClCompile Include="NavMesh.cpp">
+      <Filter>GameContents\Map</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -154,18 +167,30 @@
     <ClInclude Include="CWeapon.h">
       <Filter>GameObject\Player</Filter>
     </ClInclude>
-    <ClInclude Include="BoundingCapsule.h" />
-    <ClInclude Include="ColliderComponent.h" />
-    <ClInclude Include="CollisionSystem.h" />
     <ClInclude Include="Room.h">
       <Filter>Room</Filter>
     </ClInclude>
     <ClInclude Include="ReportHelper.h">
       <Filter>Room</Filter>
     </ClInclude>
-    <ClInclude Include="Projectile.h" />
-    <ClInclude Include="NavMesh.h" />
-    <ClInclude Include="MonsterAI.h" />
+    <ClInclude Include="BoundingCapsule.h">
+      <Filter>Collider</Filter>
+    </ClInclude>
+    <ClInclude Include="ColliderComponent.h">
+      <Filter>Collider</Filter>
+    </ClInclude>
+    <ClInclude Include="CollisionSystem.h">
+      <Filter>Collider</Filter>
+    </ClInclude>
+    <ClInclude Include="MonsterAI.h">
+      <Filter>GameObject\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="NavMesh.h">
+      <Filter>GameContents\Map</Filter>
+    </ClInclude>
+    <ClInclude Include="Projectile.h">
+      <Filter>GameObject\Tile</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\Common\Protobuf\bin\Enum.proto">
