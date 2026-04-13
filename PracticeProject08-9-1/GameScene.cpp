@@ -3268,7 +3268,7 @@ void CGameScene::BuildSkinnedBatch(
             AssetBuildDesc EnemyYDesc =
             {
                 AssetType::BowMan,
-                "Assets/Enemy/Mesh/Enemy_Mesh2.bin",
+                "Assets/Enemy/Mesh/Enemy_Mesh1.bin",
                 "Assets/Enemy/Texture"
             };
 
