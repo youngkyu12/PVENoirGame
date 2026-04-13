@@ -49,7 +49,9 @@ void CArrowComponent::Activate(const XMFLOAT3& position, const XMFLOAT3& velocit
 	if ( auto* collider = owner->GetComponent<CColliderComponent>() )
 	{
 		collider->SetCollisionEnabled(true);
-	}
+	}	
+
+	
 }
 
 void CArrowComponent::Prepare(

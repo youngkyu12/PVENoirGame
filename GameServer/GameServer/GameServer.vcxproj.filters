@@ -108,6 +108,8 @@
     <ClCompile Include="ReportHelper.cpp">
       <Filter>Room</Filter>
     </ClCompile>
+    <ClCompile Include="NavMesh.cpp" />
+    <ClCompile Include="MonsterAI.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -161,6 +163,9 @@
     <ClInclude Include="ReportHelper.h">
       <Filter>Room</Filter>
     </ClInclude>
+    <ClInclude Include="Projectile.h" />
+    <ClInclude Include="NavMesh.h" />
+    <ClInclude Include="MonsterAI.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\Common\Protobuf\bin\Enum.proto">

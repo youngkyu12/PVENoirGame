@@ -125,10 +125,11 @@ void CServerObject::ApplyPhysics(float dt)
 // ============================================================================
 // Update
 // ============================================================================
-void CServerObject::Update(uint32 serverTick)
+void CServerObject::Update(uint32 /*serverTick*/)
 {
-    ApplyPhysics(serverTick);
-    UpdateComponents(serverTick);
+    constexpr float kFixedDtSec = 0.03f;
+    ApplyPhysics(kFixedDtSec);
+    UpdateComponents(kFixedDtSec);
 }
 
 void CServerObject::Animate(float dt)
