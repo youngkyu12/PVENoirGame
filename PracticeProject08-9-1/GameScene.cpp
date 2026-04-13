@@ -4896,8 +4896,12 @@ void CGameScene::AnimateObjects(float dt)
 				CGameObject* arrowObj = m_arrowRefs[usedArrowCount++];
 				if (!arrowObj) continue;
 
-				if (auto* arrow = arrowObj->GetComponent<CArrowComponent>())
+				if ( auto* arrow = arrowObj->GetComponent<CArrowComponent>() )
+				{
 					arrow->Activate(b.position, b.velocity, 2.0f);
+					auto arrowtransform = arrowObj->GetComponent<CTransformComponent>();
+					arrowtransform->SetLookDirection(b.velocity);
+				}
 			}
 			else
 			{
@@ -4907,8 +4911,10 @@ void CGameScene::AnimateObjects(float dt)
 				CGameObject* bulletObj = m_bulletRefs[usedBulletCount++];
 				if (!bulletObj) continue;
 
-				if (auto* bullet = bulletObj->GetComponent<CBulletComponent>())
+				if ( auto* bullet = bulletObj->GetComponent<CBulletComponent>() )
+				{
 					bullet->Activate(b.position, b.velocity, 2.0f);
+				}
 			}
 		}
 
