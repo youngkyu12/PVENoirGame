@@ -1414,6 +1414,7 @@ class S_FRAME_STATE final :
   enum : int {
     kPlayersFieldNumber = 2,
     kEnemiesFieldNumber = 3,
+    kBulletsFieldNumber = 4,
     kServerTickFieldNumber = 1,
   };
   // repeated .Protocol.Player players = 2;
@@ -1452,6 +1453,24 @@ class S_FRAME_STATE final :
   const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Enemy >&
       enemies() const;
 
+  // repeated .Protocol.Bullet bullets = 4;
+  int bullets_size() const;
+  private:
+  int _internal_bullets_size() const;
+  public:
+  void clear_bullets();
+  ::Protocol::Bullet* mutable_bullets(int index);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Bullet >*
+      mutable_bullets();
+  private:
+  const ::Protocol::Bullet& _internal_bullets(int index) const;
+  ::Protocol::Bullet* _internal_add_bullets();
+  public:
+  const ::Protocol::Bullet& bullets(int index) const;
+  ::Protocol::Bullet* add_bullets();
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Bullet >&
+      bullets() const;
+
   // uint32 serverTick = 1;
   void clear_servertick();
   ::PROTOBUF_NAMESPACE_ID::uint32 servertick() const;
@@ -1470,6 +1489,7 @@ class S_FRAME_STATE final :
   typedef void DestructorSkippable_;
   ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Player > players_;
   ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Enemy > enemies_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Bullet > bullets_;
   ::PROTOBUF_NAMESPACE_ID::uint32 servertick_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_Protocol_2eproto;
@@ -2085,6 +2105,42 @@ inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Enemy >&
 S_FRAME_STATE::enemies() const {
   // @@protoc_insertion_point(field_list:Protocol.S_FRAME_STATE.enemies)
   return enemies_;
+}
+
+// repeated .Protocol.Bullet bullets = 4;
+inline int S_FRAME_STATE::_internal_bullets_size() const {
+  return bullets_.size();
+}
+inline int S_FRAME_STATE::bullets_size() const {
+  return _internal_bullets_size();
+}
+inline ::Protocol::Bullet* S_FRAME_STATE::mutable_bullets(int index) {
+  // @@protoc_insertion_point(field_mutable:Protocol.S_FRAME_STATE.bullets)
+  return bullets_.Mutable(index);
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Bullet >*
+S_FRAME_STATE::mutable_bullets() {
+  // @@protoc_insertion_point(field_mutable_list:Protocol.S_FRAME_STATE.bullets)
+  return &bullets_;
+}
+inline const ::Protocol::Bullet& S_FRAME_STATE::_internal_bullets(int index) const {
+  return bullets_.Get(index);
+}
+inline const ::Protocol::Bullet& S_FRAME_STATE::bullets(int index) const {
+  // @@protoc_insertion_point(field_get:Protocol.S_FRAME_STATE.bullets)
+  return _internal_bullets(index);
+}
+inline ::Protocol::Bullet* S_FRAME_STATE::_internal_add_bullets() {
+  return bullets_.Add();
+}
+inline ::Protocol::Bullet* S_FRAME_STATE::add_bullets() {
+  // @@protoc_insertion_point(field_add:Protocol.S_FRAME_STATE.bullets)
+  return _internal_add_bullets();
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Bullet >&
+S_FRAME_STATE::bullets() const {
+  // @@protoc_insertion_point(field_list:Protocol.S_FRAME_STATE.bullets)
+  return bullets_;
 }
 
 #ifdef __GNUC__
