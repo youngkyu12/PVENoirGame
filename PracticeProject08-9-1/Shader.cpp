@@ -689,16 +689,26 @@ D3D12_BLEND_DESC CRectUIShader::CreateBlendState()
 
 void CRectUIShader::UpdateShaderVariables(ID3D12GraphicsCommandList* cmd, void* pContext)
 {
-	if (!cmd) return;
-	if (!m_pd3dcbDrawOptions || !m_pcbMappedDrawOptions) return;
-	if (!pContext) return;
+	if ( !cmd ) return;
+	if ( !m_pd3dcbDrawOptions || !m_pcbMappedDrawOptions ) return;
+	if ( !pContext ) return;
 
-	const PS_CB_DRAW_OPTIONS* opt = reinterpret_cast<const PS_CB_DRAW_OPTIONS*>(pContext);
-	*m_pcbMappedDrawOptions = *opt;
+	UINT nIndex = m_nDrawOptionWriteIndex;
+	if ( nIndex >= m_nMaxDrawOptionEntries )
+		nIndex = m_nMaxDrawOptionEntries - 1;
+	else
+		++m_nDrawOptionWriteIndex;
+
+	const UINT nOffset = m_nDrawOptionsStride * nIndex;
+
+	auto* pDst = reinterpret_cast< PS_CB_DRAW_OPTIONS* >( m_pcbMappedDrawOptions + nOffset );
+	const auto* pSrc = reinterpret_cast< const PS_CB_DRAW_OPTIONS* >( pContext );
+
+	*pDst = *pSrc;
 
 	cmd->SetGraphicsRootConstantBufferView(
 		ROOT_PARAMETER_DRAW_OPTIONS,
-		m_pd3dcbDrawOptions->GetGPUVirtualAddress()
+		m_pd3dcbDrawOptions->GetGPUVirtualAddress() + nOffset
 	);
 }
 
@@ -972,7 +982,16 @@ CTextureToFullScreenShader::~CTextureToFullScreenShader()
 
 void CTextureToFullScreenShader::ReleaseShaderVariables()
 {
-	if (m_pd3dcbDrawOptions)
+	if ( m_pd3dcbDrawOptions && m_pcbMappedDrawOptions )
+	{
+		m_pd3dcbDrawOptions->Unmap(0, nullptr);
+		m_pcbMappedDrawOptions = nullptr;
+	}
+
+	m_nDrawOptionsStride = 0;
+	m_nDrawOptionWriteIndex = 0;
+
+	if ( m_pd3dcbDrawOptions )
 		m_pd3dcbDrawOptions.Reset();
 }
 
@@ -988,43 +1007,64 @@ D3D12_SHADER_BYTECODE CTextureToFullScreenShader::CreatePixelShader(ID3DBlob** p
 
 void CTextureToFullScreenShader::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	UINT ncbElementBytes = ((sizeof(PS_CB_DRAW_OPTIONS) + 255) & ~255);
+	m_nDrawOptionsStride = ( ( sizeof(PS_CB_DRAW_OPTIONS) + 255 ) & ~255 );
+	const UINT nBufferBytes = m_nDrawOptionsStride * m_nMaxDrawOptionEntries;
+
 	m_pd3dcbDrawOptions = ::CreateBufferResource(
 		pd3dDevice,
 		pd3dCommandList,
 		nullptr,
-		ncbElementBytes,
+		nBufferBytes,
 		D3D12_HEAP_TYPE_UPLOAD,
 		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
 		nullptr);
-	m_pd3dcbDrawOptions->Map(0, nullptr, (void**)&m_pcbMappedDrawOptions);
+
+	m_pd3dcbDrawOptions->Map(0, nullptr, reinterpret_cast< void** >( &m_pcbMappedDrawOptions ));
+	m_nDrawOptionWriteIndex = 0;
 
 	CPostProcessingShader::CreateShaderVariables(pd3dDevice, pd3dCommandList);
 }
 
 void CTextureToFullScreenShader::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext)
 {
-	::ZeroMemory(m_pcbMappedDrawOptions, sizeof(PS_CB_DRAW_OPTIONS));
+	if ( !pd3dCommandList ) return;
+	if ( !m_pd3dcbDrawOptions || !m_pcbMappedDrawOptions ) return;
+	if ( !pContext ) return;
 
-	m_pcbMappedDrawOptions->m_xmn4DrawOptions.x = *((int*)pContext);
+	UINT nIndex = m_nDrawOptionWriteIndex;
+	if ( nIndex >= m_nMaxDrawOptionEntries )
+		nIndex = m_nMaxDrawOptionEntries - 1;
+	else
+		++m_nDrawOptionWriteIndex;
 
-	// Fullscreen default rect
-	m_pcbMappedDrawOptions->m_xmf4UiRect = XMFLOAT4(
+	const UINT nOffset = m_nDrawOptionsStride * nIndex;
+
+	auto* pDrawOptions = reinterpret_cast< PS_CB_DRAW_OPTIONS* >( m_pcbMappedDrawOptions + nOffset );
+	::ZeroMemory(pDrawOptions, sizeof(PS_CB_DRAW_OPTIONS));
+
+	pDrawOptions->m_xmn4DrawOptions.x = *( ( int* ) pContext );
+
+	pDrawOptions->m_xmf4UiRect = XMFLOAT4(
 		FRAME_BUFFER_WIDTH * 0.5f,
 		FRAME_BUFFER_HEIGHT * 0.5f,
-		static_cast<float>(FRAME_BUFFER_WIDTH),
-		static_cast<float>(FRAME_BUFFER_HEIGHT)
+		static_cast< float >( FRAME_BUFFER_WIDTH ),
+		static_cast< float >( FRAME_BUFFER_HEIGHT )
 	);
 
-	m_pcbMappedDrawOptions->m_xmf4Viewport = XMFLOAT4(
-		static_cast<float>(FRAME_BUFFER_WIDTH),
-		static_cast<float>(FRAME_BUFFER_HEIGHT),
-		1.0f / static_cast<float>(FRAME_BUFFER_WIDTH),
-		1.0f / static_cast<float>(FRAME_BUFFER_HEIGHT)
+	pDrawOptions->m_xmf4Viewport = XMFLOAT4(
+		static_cast< float >( FRAME_BUFFER_WIDTH ),
+		static_cast< float >( FRAME_BUFFER_HEIGHT ),
+		1.0f / static_cast< float >( FRAME_BUFFER_WIDTH ),
+		1.0f / static_cast< float >( FRAME_BUFFER_HEIGHT )
 	);
 
-	D3D12_GPU_VIRTUAL_ADDRESS d3dGpuVirtualAddress = m_pd3dcbDrawOptions->GetGPUVirtualAddress();
-	pd3dCommandList->SetGraphicsRootConstantBufferView(ROOT_PARAMETER_DRAW_OPTIONS, d3dGpuVirtualAddress);
+	const D3D12_GPU_VIRTUAL_ADDRESS d3dGpuVirtualAddress =
+		m_pd3dcbDrawOptions->GetGPUVirtualAddress() + nOffset;
+
+	pd3dCommandList->SetGraphicsRootConstantBufferView(
+		ROOT_PARAMETER_DRAW_OPTIONS,
+		d3dGpuVirtualAddress
+	);
 
 	CPostProcessingShader::UpdateShaderVariables(pd3dCommandList, pContext);
 }
