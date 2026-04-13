@@ -11,6 +11,8 @@
 #include "AnimController.h"
 #include "AnimatorComponent.h"
 #include "PlayerControllerComponent.h"
+#include "AudioManager.h"
+#include "MusicDirector.h"
 
 #include "Service.h"
 #include "ServerPacketHandler.h"
@@ -50,14 +52,32 @@ bool CGameFramework::OnCreate(HINSTANCE hInstance, HWND hMainWnd)
 		GLOBAL_CBV_CAPACITY,
 		GLOBAL_SRV_CAPACITY);
 
+	m_pAudioManager = std::make_unique<CAudioManager>();
+	m_pAudioManager->Initialize();
+
+	if ( auto* music = m_pAudioManager->GetMusicDirector() )
+	{
+		music->RegisterMusic(EMusicState::Menu, "Assets/Audio/MainMenuBGM_Test.mp3");
+		music->RegisterMusic(EMusicState::Gameplay, "Assets/Audio/ForestBGMWithBird.wav");
+		music->SetCrossFadeSeconds(1.5f);
+	}
+
+	m_SceneManager.SetAudioManager(m_pAudioManager.get());
+
 	BuildObjects();
 
-	return(true);
+	return( true );
 }
 
 void CGameFramework::OnDestroy()
 {
 	ReleaseObjects();
+
+	if ( m_pAudioManager )
+	{
+		m_pAudioManager->Shutdown();
+		m_pAudioManager.reset();
+	}
 
 	AssetManager::ClearCache();
 
@@ -567,19 +587,26 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 	
 }
 
-void CGameFramework::RequestSceneSwitch(ESceneId next)
+void CGameFramework::RequestSceneSwitch(ESceneId next, bool presentCurrentSceneOnceBeforeSwitch)
 {
 	m_sceneSwitchPending = true;
 	m_pendingScene = next;
+
+	m_sceneSwitchReadyToApply = !presentCurrentSceneOnceBeforeSwitch;
 }
 
 void CGameFramework::ApplyPendingSceneSwitch()
 {
-	if (!m_sceneSwitchPending) 
+	if ( !m_sceneSwitchPending )
+		return;
+
+	if ( !m_sceneSwitchReadyToApply )
 		return;
 
 	const ESceneId next = m_pendingScene;
+
 	m_sceneSwitchPending = false;
+	m_sceneSwitchReadyToApply = false;
 	m_pendingScene = ESceneId::Menu;
 
 	BuildSceneInternal(next, true);
@@ -618,13 +645,16 @@ void CGameFramework::OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM
 	CScene* scene = m_SceneManager.GetScene();
 	if (scene) scene->OnProcessingMouseMessage(hWnd, nMessageID, wParam, lParam);
 
-	if (scene)
+	if ( scene )
 	{
 		CScene::ESceneRequest req;
-		if (scene->ConsumeSceneRequest(req))
+		if ( scene->ConsumeSceneRequest(req) )
 		{
-			if (req == CScene::ESceneRequest::SwitchToGame)
-				RequestSceneSwitch(ESceneId::Game);
+			if ( req == CScene::ESceneRequest::SwitchToGame )
+			{
+				// MenuScene을 "로딩 UI 상태"로 1프레임 더 보여준 뒤 실제 전환
+				RequestSceneSwitch(ESceneId::Game, true);
+			}
 		}
 	}
 
@@ -1000,6 +1030,9 @@ void CGameFramework::FrameAdvance()
 	m_GameTimer.Tick(0.0f);
 	UpdateWindowActivationState();
 
+	if ( m_pAudioManager )
+		m_pAudioManager->Update();
+
 	ApplyPendingSceneSwitch();
 
 #ifndef USING_NETWORK
@@ -1096,6 +1129,11 @@ void CGameFramework::FrameAdvance()
 	m_pdxgiSwapChain->Present(0, 0);
 
 	MoveToNextFrame();
+
+	// 현재 프레임이 화면에 실제로 표시된 뒤,
+	// 다음 프레임 시작에서 씬 전환이 가능하도록 만든다.
+	if ( m_sceneSwitchPending && !m_sceneSwitchReadyToApply )
+		m_sceneSwitchReadyToApply = true;
 
 	m_GameTimer.GetFrameRate(m_pszFrameRate + 12, 37);
 	::SetWindowText(m_hWnd, m_pszFrameRate);
