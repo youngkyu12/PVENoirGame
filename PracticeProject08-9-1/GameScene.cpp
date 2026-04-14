@@ -383,9 +383,10 @@ namespace
 
 	static bool IsStaticWorldLodSupportedAssetName(const std::string& assetName)
 	{
-		if ( assetName == "Grass" ) return true;
-		if ( assetName == "Ground" ) return true;
-		if ( assetName == "DirtRoad" ) return true;
+		if ( assetName == "Grass" ) return false;
+		if ( assetName == "Ground" ) return false;
+		if ( assetName == "DirtRoad" ) return false;
+
 		if ( assetName == "VillageWall" ) return true;
 
 		if ( assetName == "Building1" ) return true;
@@ -2333,6 +2334,39 @@ void CGameScene::BuildStaticBatch(
 			lodEntry.currentLod = 0;
 			lodEntry.lodMeshes = loadedLodMeshes;
 
+			// 자산군별 거리 설정
+			if ( placement.assetName == "VillageWall" )
+			{
+				lodEntry.lodDistance01 = 250.0f;
+				lodEntry.lodDistance12 = 600.0f;
+			}
+			else if (
+				placement.assetName == "Building1" ||
+				placement.assetName == "Building2" ||
+				placement.assetName == "Building3" ||
+				placement.assetName == "Building4" ||
+				placement.assetName == "Building5" ||
+				placement.assetName == "Building6" ||
+				placement.assetName == "Building7" ||
+				placement.assetName == "Building8" ||
+				placement.assetName == "Building9" ||
+				placement.assetName == "Tower" )
+			{
+				lodEntry.lodDistance01 = 120.0f;
+				lodEntry.lodDistance12 = 300.0f;
+			}
+			else if (
+				placement.assetName == "Tree1" ||
+				placement.assetName == "Tree2" ||
+				placement.assetName == "Tree3" ||
+				placement.assetName == "Tree4" ||
+				placement.assetName == "Tree5" ||
+				placement.assetName == "Tree6" )
+			{
+				lodEntry.lodDistance01 = 40.0f;
+				lodEntry.lodDistance12 = 120.0f;
+			}
+
 			if ( !lodEntry.lodMeshes[0] )
 				lodEntry.lodMeshes[0] = selectedMesh;
 
@@ -2815,10 +2849,13 @@ int CGameScene::ComputeStaticWorldLodLevel(const XMFLOAT3& cameraPosition, const
 	const float distSq = dx * dx + dy * dy + dz * dz;
 	const float dist = std::sqrt(distSq);
 
-	const float lod01Enter = m_staticLodDistance01 + m_staticLodHysteresis;
-	const float lod01Exit = m_staticLodDistance01 - m_staticLodHysteresis;
-	const float lod12Enter = m_staticLodDistance12 + m_staticLodHysteresis;
-	const float lod12Exit = m_staticLodDistance12 - m_staticLodHysteresis;
+	const float lodDistance01 = std::max(0.0f, entry.lodDistance01);
+	const float lodDistance12 = std::max(lodDistance01, entry.lodDistance12);
+
+	const float lod01Enter = lodDistance01 + m_staticLodHysteresis;
+	const float lod01Exit = lodDistance01 - m_staticLodHysteresis;
+	const float lod12Enter = lodDistance12 + m_staticLodHysteresis;
+	const float lod12Exit = lodDistance12 - m_staticLodHysteresis;
 
 	switch ( entry.currentLod )
 	{
@@ -2839,8 +2876,8 @@ int CGameScene::ComputeStaticWorldLodLevel(const XMFLOAT3& cameraPosition, const
 		break;
 	}
 
-	if ( dist < m_staticLodDistance01 ) return 0;
-	if ( dist < m_staticLodDistance12 ) return 1;
+	if ( dist < lodDistance01 ) return 0;
+	if ( dist < lodDistance12 ) return 1;
 	return 2;
 }
 
