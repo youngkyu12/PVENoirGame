@@ -2813,11 +2813,34 @@ int CGameScene::ComputeStaticWorldLodLevel(const XMFLOAT3& cameraPosition, const
 	const float dz = cameraPosition.z - entry.lodReferencePosition.z;
 
 	const float distSq = dx * dx + dy * dy + dz * dz;
-	const float lod01Sq = m_staticLodDistance01 * m_staticLodDistance01;
-	const float lod12Sq = m_staticLodDistance12 * m_staticLodDistance12;
+	const float dist = std::sqrt(distSq);
 
-	if ( distSq < lod01Sq ) return 0;
-	if ( distSq < lod12Sq ) return 1;
+	const float lod01Enter = m_staticLodDistance01 + m_staticLodHysteresis;
+	const float lod01Exit = m_staticLodDistance01 - m_staticLodHysteresis;
+	const float lod12Enter = m_staticLodDistance12 + m_staticLodHysteresis;
+	const float lod12Exit = m_staticLodDistance12 - m_staticLodHysteresis;
+
+	switch ( entry.currentLod )
+	{
+	case 0:
+		if ( dist >= lod01Enter ) return 1;
+		return 0;
+
+	case 1:
+		if ( dist < lod01Exit ) return 0;
+		if ( dist >= lod12Enter ) return 2;
+		return 1;
+
+	case 2:
+		if ( dist < lod12Exit ) return 1;
+		return 2;
+
+	default:
+		break;
+	}
+
+	if ( dist < m_staticLodDistance01 ) return 0;
+	if ( dist < m_staticLodDistance12 ) return 1;
 	return 2;
 }
 
@@ -2856,6 +2879,8 @@ void CGameScene::UpdateStaticWorldLodSelection(CCamera* camera)
 			continue;
 		}
 
+		const int previousLod = entry.currentLod;
+
 		entry.object->SetMesh(0, targetMesh);
 		entry.currentLod = resolvedLod;
 		anyLodChanged = true;
@@ -2863,9 +2888,10 @@ void CGameScene::UpdateStaticWorldLodSelection(CCamera* camera)
 		char debugText[256] = {};
 		sprintf_s(
 			debugText,
-			"[StaticLOD Select] asset=%s objectIndex=%u lod=%d\n",
+			"[StaticLOD Select] asset=%s objectIndex=%u %d->%d\n",
 			entry.assetName.c_str(),
 			entry.staticBatchObjectIndex,
+			previousLod,
 			entry.currentLod
 		);
 		OutputDebugStringA(debugText);
