@@ -2805,16 +2805,82 @@ void CGameScene::ResetStaticWorldLodEntries()
 
 int CGameScene::ComputeStaticWorldLodLevel(const XMFLOAT3& cameraPosition, const StaticWorldLodEntry& entry) const
 {
-	UNREFERENCED_PARAMETER(cameraPosition);
-	UNREFERENCED_PARAMETER(entry);
-	return 0;
+	if ( !entry.lodEnabled )
+		return 0;
+
+	const float dx = cameraPosition.x - entry.lodReferencePosition.x;
+	const float dy = cameraPosition.y - entry.lodReferencePosition.y;
+	const float dz = cameraPosition.z - entry.lodReferencePosition.z;
+
+	const float distSq = dx * dx + dy * dy + dz * dz;
+	const float lod01Sq = m_staticLodDistance01 * m_staticLodDistance01;
+	const float lod12Sq = m_staticLodDistance12 * m_staticLodDistance12;
+
+	if ( distSq < lod01Sq ) return 0;
+	if ( distSq < lod12Sq ) return 1;
+	return 2;
 }
 
 void CGameScene::UpdateStaticWorldLodSelection(CCamera* camera)
 {
-	UNREFERENCED_PARAMETER(camera);
-}
+	if ( !camera ) return;
+	if ( m_staticWorldLodEntries.empty() ) return;
 
+	const XMFLOAT3 cameraPosition = camera->GetPosition();
+
+	bool anyLodChanged = false;
+
+	for ( StaticWorldLodEntry& entry : m_staticWorldLodEntries )
+	{
+		if ( !entry.object ) continue;
+		if ( entry.staticBatchObjectIndex == UINT_MAX ) continue;
+		if ( entry.staticBatchObjectIndex >= ( UINT ) m_staticBatch.objectRefs.size() ) continue;
+
+		int desiredLod = ComputeStaticWorldLodLevel(cameraPosition, entry);
+		desiredLod = ClampStaticWorldLodLevel(desiredLod);
+
+		int resolvedLod = desiredLod;
+		while ( resolvedLod > 0 && !entry.lodMeshes[( size_t ) resolvedLod] )
+		{
+			--resolvedLod;
+		}
+
+		std::shared_ptr<CMesh> targetMesh = entry.lodMeshes[( size_t ) resolvedLod];
+		if ( !targetMesh ) continue;
+
+		std::shared_ptr<CMesh> currentMesh = entry.object->GetMeshShared(0);
+
+		if ( entry.currentLod == resolvedLod &&
+			 currentMesh.get() == targetMesh.get() )
+		{
+			continue;
+		}
+
+		entry.object->SetMesh(0, targetMesh);
+		entry.currentLod = resolvedLod;
+		anyLodChanged = true;
+
+		char debugText[256] = {};
+		sprintf_s(
+			debugText,
+			"[StaticLOD Select] asset=%s objectIndex=%u lod=%d\n",
+			entry.assetName.c_str(),
+			entry.staticBatchObjectIndex,
+			entry.currentLod
+		);
+		OutputDebugStringA(debugText);
+	}
+
+	if ( anyLodChanged )
+	{
+		BuildStaticInstanceGroups();
+		m_staticWorldLodDirty = true;
+	}
+	else
+	{
+		m_staticWorldLodDirty = false;
+	}
+}
 void CGameScene::BuildStaticInstanceGroups()
 {
 	m_staticInstanceGroups.clear();
@@ -6080,9 +6146,12 @@ void CGameScene::OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera
     CScene::OnPrepareRender(cmd, camera);
 
 	if ( camera )
+	{
 		camera->UpdateBoundingFrustum();
+		UpdateStaticWorldLodSelection(camera);
+	}
 
-    UpdateShaderVariables(cmd);
+	UpdateShaderVariables(cmd);
 
     if (m_pd3dcbLights)
     {
