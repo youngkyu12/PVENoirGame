@@ -2214,44 +2214,80 @@ void CGameScene::BuildStaticBatch(
 		const UINT i = ( UINT ) b->objectRefs.size();
 		const StaticPlacementEntry& placement = m_staticPlacementEntries[k];
 		const bool createWorldStaticCollider = ShouldCreateWorldStaticCollider(placement.assetName);
+		const bool isStaticWorldLodTarget = IsStaticWorldLodSupportedAssetName(placement.assetName);
 
 		AssetBuildDesc desc{};
 		AssetType resolvedAssetType{};
 		if ( !ResolveStaticAssetDesc(placement.assetName, desc, &resolvedAssetType) )
 			continue;
 
-		if ( IsStaticWorldLodSupportedAssetName(placement.assetName) )
+		std::shared_ptr<CMesh> selectedMesh = nullptr;
+		std::array<std::shared_ptr<CMesh>, 3> loadedLodMeshes = { nullptr, nullptr, nullptr };
+		bool enableStaticWorldLod = false;
+
+		if ( isStaticWorldLodTarget )
 		{
-			StaticAssetPathDesc lod0Path{};
-			StaticAssetPathDesc lod1Path{};
-			StaticAssetPathDesc lod2Path{};
+			enableStaticWorldLod = true;
 
-			const bool ok0 = ResolveStaticLodAssetPathDesc(placement.assetName, 0, lod0Path);
-			const bool ok1 = ResolveStaticLodAssetPathDesc(placement.assetName, 1, lod1Path);
-			const bool ok2 = ResolveStaticLodAssetPathDesc(placement.assetName, 2, lod2Path);
-
-			if ( ok0 && ok1 && ok2 )
+			for ( int lodLevel = 0; lodLevel < 3; ++lodLevel )
 			{
-				std::string msg = "[StaticLOD Paths] asset=" + placement.assetName +
-					" | LOD0=" + lod0Path.meshBinPath +
-					" | LOD1=" + lod1Path.meshBinPath +
-					" | LOD2=" + lod2Path.meshBinPath + "\n";
-				OutputDebugStringA(msg.c_str());
+				AssetBuildDesc lodDesc{};
+				AssetType lodResolvedType{};
+				if ( !ResolveStaticLodAssetDesc(
+					placement.assetName,
+					lodLevel,
+					lodDesc,
+					&lodResolvedType) )
+				{
+					enableStaticWorldLod = false;
+					break;
+				}
+
+				BuiltAsset lodAsset = AssetManager::BuildAsset(
+					dev, cmd,
+					m_pMaterials.get(),
+					lodDesc
+				);
+
+				loadedLodMeshes[( size_t ) lodLevel] = lodAsset.mesh;
+				if ( !loadedLodMeshes[( size_t ) lodLevel] )
+				{
+					enableStaticWorldLod = false;
+					break;
+				}
+			}
+
+			if ( enableStaticWorldLod )
+			{
+				selectedMesh = loadedLodMeshes[0];
+			}
+			else
+			{
+				loadedLodMeshes = { nullptr, nullptr, nullptr };
 			}
 		}
 
-		BuiltAsset asset = AssetManager::BuildAsset(
-			dev, cmd,
-			m_pMaterials.get(),
-			desc
-		);
+		if ( !selectedMesh )
+		{
+			BuiltAsset baseAsset = AssetManager::BuildAsset(
+				dev, cmd,
+				m_pMaterials.get(),
+				desc
+			);
+
+			selectedMesh = baseAsset.mesh;
+			loadedLodMeshes[0] = selectedMesh;
+		}
+
+		if ( !selectedMesh )
+			continue;
 
 		auto obj = std::make_unique<CGameObject>(1);
 
 		auto* cb = ( CB_GAMEOBJECT_INFO* ) ( ( UINT8* ) b->mappedGameObjects + i * b->cbElementBytes );
 		obj->SetMappedGameObjectCB(cb);
 		//auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
-		obj->SetMesh(0, asset.mesh);
+		obj->SetMesh(0, selectedMesh);
 		obj->AddComponent<CStaticMeshRendererComponent>();
 
 		if ( createWorldStaticCollider )
@@ -2282,6 +2318,25 @@ void CGameScene::BuildStaticBatch(
 		if ( resolvedAssetType == AssetType::Tree )
 		{
 			m_treeAlphaClipObjects.insert(raw);
+		}
+
+		if ( isStaticWorldLodTarget )
+		{
+			StaticWorldLodEntry lodEntry{};
+			lodEntry.object = raw;
+			lodEntry.staticBatchObjectIndex = i;
+			lodEntry.assetName = placement.assetName;
+			lodEntry.lodReferencePosition = placement.pos;
+
+			lodEntry.lodEnabled = enableStaticWorldLod;
+			lodEntry.useTreeShader = ( resolvedAssetType == AssetType::Tree );
+			lodEntry.currentLod = 0;
+			lodEntry.lodMeshes = loadedLodMeshes;
+
+			if ( !lodEntry.lodMeshes[0] )
+				lodEntry.lodMeshes[0] = selectedMesh;
+
+			m_staticWorldLodEntries.push_back(std::move(lodEntry));
 		}
 
 		if ( createWorldStaticCollider )
