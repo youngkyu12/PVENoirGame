@@ -75,6 +75,9 @@ struct StaticWorldLodEntry
 	bool useTreeShader = false;
 	int currentLod = 0;
 
+	float lodDistance01 = 40.0f;
+	float lodDistance12 = 80.0f;
+
 	std::array<std::shared_ptr<CMesh>, 3> lodMeshes = { nullptr, nullptr, nullptr };
 };
 
