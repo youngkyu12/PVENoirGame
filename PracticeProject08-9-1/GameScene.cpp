@@ -268,6 +268,211 @@ namespace
         }
     }
 
+	struct StaticAssetPathDesc
+	{
+		AssetType type{};
+		std::string meshBinPath;
+		std::string texturePath;
+	};
+
+	static bool ResolveStaticAssetPathDesc(const std::string& assetName, StaticAssetPathDesc& outDesc)
+	{
+		if ( assetName == "Grass" )
+		{
+			outDesc = { AssetType::Grass, "Assets/GroundPlane/Mesh/Grass.bin", "Assets/GroundPlane/Texture" };
+			return true;
+		}
+		if ( assetName == "Ground" )
+		{
+			outDesc = { AssetType::Ground, "Assets/GroundPlane/Mesh/Ground.bin", "Assets/GroundPlane/Texture" };
+			return true;
+		}
+		if ( assetName == "VillageWall" )
+		{
+			outDesc = { AssetType::VillageWall, "Assets/VillageWall/Mesh/VillageWall.bin", "Assets/VillageWall/Texture" };
+			return true;
+		}
+		if ( assetName == "DirtRoad" )
+		{
+			outDesc = { AssetType::DirtRoad, "Assets/GroundPlane/Mesh/DirtRoad.bin", "Assets/GroundPlane/Texture" };
+			return true;
+		}
+		if ( assetName == "Building1" )
+		{
+			outDesc = { AssetType::House, "Assets/House/Mesh/Building1.bin", "Assets/House/Texture" };
+			return true;
+		}
+		if ( assetName == "Building2" )
+		{
+			outDesc = { AssetType::House, "Assets/House/Mesh/Building2.bin", "Assets/House/Texture" };
+			return true;
+		}
+		if ( assetName == "Building3" )
+		{
+			outDesc = { AssetType::House, "Assets/House/Mesh/Building3.bin", "Assets/House/Texture" };
+			return true;
+		}
+		if ( assetName == "Building4" )
+		{
+			outDesc = { AssetType::House, "Assets/House/Mesh/Building4.bin", "Assets/House/Texture" };
+			return true;
+		}
+		if ( assetName == "Building5" )
+		{
+			outDesc = { AssetType::House, "Assets/House/Mesh/Building5.bin", "Assets/House/Texture" };
+			return true;
+		}
+		if ( assetName == "Building6" )
+		{
+			outDesc = { AssetType::House, "Assets/House/Mesh/Building6.bin", "Assets/House/Texture" };
+			return true;
+		}
+		if ( assetName == "Building7" )
+		{
+			outDesc = { AssetType::House, "Assets/House/Mesh/Building7.bin", "Assets/House/Texture" };
+			return true;
+		}
+		if ( assetName == "Building8" )
+		{
+			outDesc = { AssetType::House, "Assets/House/Mesh/Building8.bin", "Assets/House/Texture" };
+			return true;
+		}
+		if ( assetName == "Building9" )
+		{
+			outDesc = { AssetType::House, "Assets/House/Mesh/Building9.bin", "Assets/House/Texture" };
+			return true;
+		}
+		if ( assetName == "Tower" )
+		{
+			outDesc = { AssetType::Tower, "Assets/Tower/Mesh/Tower.bin", "Assets/Tower/Texture" };
+			return true;
+		}
+		if ( assetName == "Tree1" )
+		{
+			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree1.bin", "Assets/Tree/Texture" };
+			return true;
+		}
+		if ( assetName == "Tree2" )
+		{
+			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree2.bin", "Assets/Tree/Texture" };
+			return true;
+		}
+		if ( assetName == "Tree3" )
+		{
+			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree3.bin", "Assets/Tree/Texture" };
+			return true;
+		}
+		if ( assetName == "Tree4" )
+		{
+			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree4.bin", "Assets/Tree/Texture" };
+			return true;
+		}
+		if ( assetName == "Tree5" )
+		{
+			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree5.bin", "Assets/Tree/Texture" };
+			return true;
+		}
+		if ( assetName == "Tree6" )
+		{
+			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree6.bin", "Assets/Tree/Texture" };
+			return true;
+		}
+
+		return false;
+	}
+
+	static bool IsStaticWorldLodSupportedAssetName(const std::string& assetName)
+	{
+		if ( assetName == "Grass" ) return true;
+		if ( assetName == "Ground" ) return true;
+		if ( assetName == "DirtRoad" ) return true;
+		if ( assetName == "VillageWall" ) return true;
+
+		if ( assetName == "Building1" ) return true;
+		if ( assetName == "Building2" ) return true;
+		if ( assetName == "Building3" ) return true;
+		if ( assetName == "Building4" ) return true;
+		if ( assetName == "Building5" ) return true;
+		if ( assetName == "Building6" ) return true;
+		if ( assetName == "Building7" ) return true;
+		if ( assetName == "Building8" ) return true;
+		if ( assetName == "Building9" ) return true;
+
+		if ( assetName == "Tower" ) return true;
+
+		if ( assetName == "Tree1" ) return true;
+		if ( assetName == "Tree2" ) return true;
+		if ( assetName == "Tree3" ) return true;
+		if ( assetName == "Tree4" ) return true;
+		if ( assetName == "Tree5" ) return true;
+		if ( assetName == "Tree6" ) return true;
+
+		return false;
+	}
+
+	static int ClampStaticWorldLodLevel(int lodLevel)
+	{
+		if ( lodLevel < 0 ) return 0;
+		if ( lodLevel > 2 ) return 2;
+		return lodLevel;
+	}
+
+	static bool BuildStaticLodMeshBinPath(
+		const std::string& baseMeshBinPath,
+		int lodLevel,
+		std::string& outMeshBinPath)
+	{
+		const size_t dotPos = baseMeshBinPath.find_last_of('.');
+		if ( dotPos == std::string::npos )
+			return false;
+
+		const int clampedLodLevel = ClampStaticWorldLodLevel(lodLevel);
+
+		outMeshBinPath = baseMeshBinPath.substr(0, dotPos);
+		outMeshBinPath += "_LOD";
+		outMeshBinPath += std::to_string(clampedLodLevel);
+		outMeshBinPath += baseMeshBinPath.substr(dotPos);
+
+		return true;
+	}
+
+	static bool ResolveStaticLodAssetPathDesc(
+		const std::string& assetName,
+		int lodLevel,
+		StaticAssetPathDesc& outDesc)
+	{
+		if ( !ResolveStaticAssetPathDesc(assetName, outDesc) )
+			return false;
+
+		if ( !IsStaticWorldLodSupportedAssetName(assetName) )
+			return true;
+
+		std::string lodMeshBinPath;
+		if ( !BuildStaticLodMeshBinPath(outDesc.meshBinPath, lodLevel, lodMeshBinPath) )
+			return false;
+
+		outDesc.meshBinPath = std::move(lodMeshBinPath);
+		return true;
+	}
+
+	static bool ResolveStaticLodAssetDesc(
+		const std::string& assetName,
+		int lodLevel,
+		AssetBuildDesc& outDesc,
+		AssetType* outResolvedType = nullptr)
+	{
+		StaticAssetPathDesc resolved{};
+		if ( !ResolveStaticLodAssetPathDesc(assetName, lodLevel, resolved) )
+			return false;
+
+		outDesc = { resolved.type, resolved.meshBinPath, resolved.texturePath };
+
+		if ( outResolvedType )
+			*outResolvedType = resolved.type;
+
+		return true;
+	}
+
 	bool ResolveStaticAssetDesc(const std::string& assetName, AssetBuildDesc& outDesc, AssetType* outResolvedType = nullptr) 
 	{
 		if ( assetName == "Grass" )
@@ -1047,6 +1252,7 @@ void CGameScene::ReleaseObjects()
 	m_bulletRefs.clear();
 	m_attachmentBinds.clear();
 	m_staticInstanceGroups.clear();
+	ResetStaticWorldLodEntries();
 	m_skinnedInstanceGroups.clear();
 
     m_PlayerSwordRefs.clear();
@@ -1985,10 +2191,11 @@ void CGameScene::BuildStaticBatch(
     m_staticObjects.clear();
     m_staticObjects.reserve(cap);
 
-    b->objectRefs.clear();
-    b->objectRefs.reserve(cap);
+	b->objectRefs.clear();
+	b->objectRefs.reserve(cap);
 
-    b->count = 0;
+	b->count = 0;
+	ResetStaticWorldLodEntries();
 
 	std::vector<size_t> exportedWorldStaticPlacementIndices;
 	std::vector<CGameObject*> exportedWorldStaticObjects;
@@ -2012,6 +2219,26 @@ void CGameScene::BuildStaticBatch(
 		AssetType resolvedAssetType{};
 		if ( !ResolveStaticAssetDesc(placement.assetName, desc, &resolvedAssetType) )
 			continue;
+
+		if ( IsStaticWorldLodSupportedAssetName(placement.assetName) )
+		{
+			StaticAssetPathDesc lod0Path{};
+			StaticAssetPathDesc lod1Path{};
+			StaticAssetPathDesc lod2Path{};
+
+			const bool ok0 = ResolveStaticLodAssetPathDesc(placement.assetName, 0, lod0Path);
+			const bool ok1 = ResolveStaticLodAssetPathDesc(placement.assetName, 1, lod1Path);
+			const bool ok2 = ResolveStaticLodAssetPathDesc(placement.assetName, 2, lod2Path);
+
+			if ( ok0 && ok1 && ok2 )
+			{
+				std::string msg = "[StaticLOD Paths] asset=" + placement.assetName +
+					" | LOD0=" + lod0Path.meshBinPath +
+					" | LOD1=" + lod1Path.meshBinPath +
+					" | LOD2=" + lod2Path.meshBinPath + "\n";
+				OutputDebugStringA(msg.c_str());
+			}
+		}
 
 		BuiltAsset asset = AssetManager::BuildAsset(
 			dev, cmd,
@@ -2513,6 +2740,24 @@ void CGameScene::BuildStaticBatch(
 
 		m_pd3dStaticInstanceBuffer->Map(0, nullptr, ( void** ) &m_pMappedStaticInstanceBuffer);
 	}
+}
+
+void CGameScene::ResetStaticWorldLodEntries()
+{
+	m_staticWorldLodEntries.clear();
+	m_staticWorldLodDirty = false;
+}
+
+int CGameScene::ComputeStaticWorldLodLevel(const XMFLOAT3& cameraPosition, const StaticWorldLodEntry& entry) const
+{
+	UNREFERENCED_PARAMETER(cameraPosition);
+	UNREFERENCED_PARAMETER(entry);
+	return 0;
+}
+
+void CGameScene::UpdateStaticWorldLodSelection(CCamera* camera)
+{
+	UNREFERENCED_PARAMETER(camera);
 }
 
 void CGameScene::BuildStaticInstanceGroups()
