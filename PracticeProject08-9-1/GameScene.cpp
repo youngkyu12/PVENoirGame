@@ -1212,17 +1212,17 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 #else
 	m_localPlayerSlot = 0;
 	//Test stage
-	//const std::string placementFilePath = "MapData/MapData_tst.txt";
-	//const std::string navMeshFilePath = "MapData/Navmesh_tst.nvm";
+	const std::string placementFilePath = "MapData/MapData_tst.txt";
+	const std::string navMeshFilePath = "MapData/Navmesh_tst.nvm";
 
 	//1 stage
 	//const std::string placementFilePath = "MapData/MapData_stage1_with_Tree.txt";
 	//const std::string navMeshFilePath = "MapData/Navmesh_Stage1.nvm";
 
 	//Full stage
-	const std::string placementFilePath = "MapData/MapData_fullstage.txt";
+	//const std::string placementFilePath = "MapData/MapData_fullstage.txt";
 	//const std::string placementFilePath = "MapData/MapData_fullstage(NoTree).txt";
-	const std::string navMeshFilePath = "MapData/Navmesh_FullStage.nvm";
+	//const std::string navMeshFilePath = "MapData/Navmesh_FullStage.nvm";
 
 	const std::string cubeColliderReportFilePath = "MapData/CubeBoxColliderReport.txt";
 
