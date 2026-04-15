@@ -36,11 +36,16 @@ public:
 
 	Protocol::WeaponType GetWeaponState() const { return weapon.GetWeaponState(); }
 	Protocol::BulletType GetBulletState() const { return weapon.GetBulletState(); }
+	CWeapon& GetWeapon() { return weapon; }
+	const CWeapon& GetWeapon() const { return weapon; }
 
 	void SetBullet(Protocol::BulletType&& type, uint32& currentBullets)
 	{
 		weapon.SetBullet(std::move(type), currentBullets);
 	}
+
+	bool CanFire(uint32 serverTick) const { return weapon.CanFire(serverTick); }
+	void OnFired(uint32 serverTick) { weapon.OnFired(serverTick); }
 
 };
 

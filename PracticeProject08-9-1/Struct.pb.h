@@ -836,12 +836,13 @@ class Bullet final :
   // accessors -------------------------------------------------------
 
   enum : int {
-    kPositionFieldNumber = 3,
-    kVelocityFieldNumber = 4,
+    kPositionFieldNumber = 4,
+    kVelocityFieldNumber = 5,
     kIdFieldNumber = 1,
     kOwnerIdFieldNumber = 2,
+    kBulletTypeFieldNumber = 3,
   };
-  // .Protocol.Vec3f position = 3;
+  // .Protocol.Vec3f position = 4;
   bool has_position() const;
   private:
   bool _internal_has_position() const;
@@ -859,7 +860,7 @@ class Bullet final :
       ::Protocol::Vec3f* position);
   ::Protocol::Vec3f* unsafe_arena_release_position();
 
-  // .Protocol.Vec3f velocity = 4;
+  // .Protocol.Vec3f velocity = 5;
   bool has_velocity() const;
   private:
   bool _internal_has_velocity() const;
@@ -895,6 +896,15 @@ class Bullet final :
   void _internal_set_ownerid(::PROTOBUF_NAMESPACE_ID::uint64 value);
   public:
 
+  // .Protocol.BulletType bulletType = 3;
+  void clear_bullettype();
+  ::Protocol::BulletType bullettype() const;
+  void set_bullettype(::Protocol::BulletType value);
+  private:
+  ::Protocol::BulletType _internal_bullettype() const;
+  void _internal_set_bullettype(::Protocol::BulletType value);
+  public:
+
   // @@protoc_insertion_point(class_scope:Protocol.Bullet)
  private:
   class _Internal;
@@ -906,6 +916,7 @@ class Bullet final :
   ::Protocol::Vec3f* velocity_;
   ::PROTOBUF_NAMESPACE_ID::uint64 id_;
   ::PROTOBUF_NAMESPACE_ID::uint64 ownerid_;
+  int bullettype_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_Struct_2eproto;
 };
@@ -1931,7 +1942,27 @@ inline void Bullet::set_ownerid(::PROTOBUF_NAMESPACE_ID::uint64 value) {
   // @@protoc_insertion_point(field_set:Protocol.Bullet.ownerId)
 }
 
-// .Protocol.Vec3f position = 3;
+// .Protocol.BulletType bulletType = 3;
+inline void Bullet::clear_bullettype() {
+  bullettype_ = 0;
+}
+inline ::Protocol::BulletType Bullet::_internal_bullettype() const {
+  return static_cast< ::Protocol::BulletType >(bullettype_);
+}
+inline ::Protocol::BulletType Bullet::bullettype() const {
+  // @@protoc_insertion_point(field_get:Protocol.Bullet.bulletType)
+  return _internal_bullettype();
+}
+inline void Bullet::_internal_set_bullettype(::Protocol::BulletType value) {
+  
+  bullettype_ = value;
+}
+inline void Bullet::set_bullettype(::Protocol::BulletType value) {
+  _internal_set_bullettype(value);
+  // @@protoc_insertion_point(field_set:Protocol.Bullet.bulletType)
+}
+
+// .Protocol.Vec3f position = 4;
 inline bool Bullet::_internal_has_position() const {
   return this != internal_default_instance() && position_ != nullptr;
 }
@@ -2014,7 +2045,7 @@ inline void Bullet::set_allocated_position(::Protocol::Vec3f* position) {
   // @@protoc_insertion_point(field_set_allocated:Protocol.Bullet.position)
 }
 
-// .Protocol.Vec3f velocity = 4;
+// .Protocol.Vec3f velocity = 5;
 inline bool Bullet::_internal_has_velocity() const {
   return this != internal_default_instance() && velocity_ != nullptr;
 }

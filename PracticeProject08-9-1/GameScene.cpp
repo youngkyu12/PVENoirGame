@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <cstdio>
 #include <cctype>
+#include <unordered_map>
 #include <algorithm>
 
 #include "AnimatorComponent.h"
@@ -6241,9 +6242,98 @@ void CGameScene::AnimateObjects(float dt)
                 {
                     tr->SetYawDegrees(state.yaw);
                 }
+
+				if (auto* animComp = obj->GetComponent<CAnimatorComponent>())
+				{
+					if (auto* ctrl = animComp->EnsureMonsterController())
+					{
+						const DecodedAnimStateCode decoded = DecodeStateCode(state.animation.stateCode);
+
+						EMonsterAnimState locomotionState = EMonsterAnimState::Idle;
+						if (decoded.hasMove)
+							locomotionState = decoded.run ? EMonsterAnimState::Run : EMonsterAnimState::Move;
+
+						ctrl->SetLocomotionState(locomotionState);
+
+						static std::unordered_map<uint64_t, uint32_t> s_prevEnemyStateCode;
+						const uint32_t prevStateCode =
+							(s_prevEnemyStateCode.find(state.id) != s_prevEnemyStateCode.end())
+							? s_prevEnemyStateCode[state.id]
+							: 0u;
+						const DecodedAnimStateCode prevDecoded = DecodeStateCode(prevStateCode);
+
+						if (decoded.die && !prevDecoded.die)
+						{
+							ctrl->RequestCommand(EMonsterAnimCommand::Death);
+						}
+						else if (decoded.hit && !prevDecoded.hit)
+						{
+							ctrl->RequestCommand(EMonsterAnimCommand::Hit);
+						}
+						else if (decoded.attack && !prevDecoded.attack)
+						{
+							ctrl->RequestCommand(EMonsterAnimCommand::Attack);
+						}
+
+						s_prevEnemyStateCode[state.id] = state.animation.stateCode;
+						ctrl->Update(0.0f);
+					}
+				}
             }
             ++enemyIndex;
         }
+
+		// Projectile 동기화
+		size_t usedArrowCount = 0;
+		size_t usedBulletCount = 0;
+
+		for (const auto& b : snapshot.bullets)
+		{
+			const bool isArrow = (b.bulletType == 1u); // Protocol::BULLET_TYPE_ARROW
+
+			if (isArrow)
+			{
+				if (usedArrowCount >= m_arrowRefs.size())
+					continue;
+
+				CGameObject* arrowObj = m_arrowRefs[usedArrowCount++];
+				if (!arrowObj) continue;
+
+				if ( auto* arrow = arrowObj->GetComponent<CArrowComponent>() )
+				{
+					arrow->Activate(b.position, b.velocity, 2.0f);
+					auto arrowtransform = arrowObj->GetComponent<CTransformComponent>();
+					arrowtransform->SetLookDirection(b.velocity);
+				}
+			}
+			else
+			{
+				if (usedBulletCount >= m_bulletRefs.size())
+					continue;
+
+				CGameObject* bulletObj = m_bulletRefs[usedBulletCount++];
+				if (!bulletObj) continue;
+
+				if ( auto* bullet = bulletObj->GetComponent<CBulletComponent>() )
+				{
+					bullet->Activate(b.position, b.velocity, 2.0f);
+				}
+			}
+		}
+
+		for (size_t i = usedArrowCount; i < m_arrowRefs.size(); ++i)
+		{
+			if (!m_arrowRefs[i]) continue;
+			if (auto* arrow = m_arrowRefs[i]->GetComponent<CArrowComponent>())
+				arrow->Deactivate();
+		}
+
+		for (size_t i = usedBulletCount; i < m_bulletRefs.size(); ++i)
+		{
+			if (!m_bulletRefs[i]) continue;
+			if (auto* bullet = m_bulletRefs[i]->GetComponent<CBulletComponent>())
+				bullet->Deactivate();
+		}
     }
 #endif
    
@@ -6268,7 +6358,9 @@ void CGameScene::AnimateObjects(float dt)
         if (!m_staticObjects[j]) continue;
         m_staticObjects[j]->Animate(dt);
     }
+#ifndef USING_NETWORK
     UpdatePreparedBowArrows();
+#endif
 
     CGameObject* local = GetPlayer();
     if (local && m_pPlayerSpotFollower && (m_pPlayerSpotFollower->GetTarget() == nullptr))
