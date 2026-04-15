@@ -63,6 +63,41 @@ struct StaticInstanceGroup
 	bool useTreeShader = false;
 };
 
+struct StaticWorldLodEntry
+{
+	CGameObject* object = nullptr;
+	UINT staticBatchObjectIndex = UINT_MAX;
+
+	std::string assetName;
+	XMFLOAT3 lodReferencePosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	bool lodEnabled = false;
+	bool useTreeShader = false;
+	int currentLod = 0;
+
+	float lodDistance01 = 40.0f;
+	float lodDistance12 = 80.0f;
+
+	std::array<std::shared_ptr<CMesh>, 3> lodMeshes = { nullptr, nullptr, nullptr };
+};
+
+struct SkinnedWorldLodEntry
+{
+	CGameObject* object = nullptr;
+	UINT skinnedBatchObjectIndex = UINT_MAX;
+
+	std::string assetName;
+	XMFLOAT3 lodReferencePosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	bool lodEnabled = false;
+	int currentLod = 0;
+
+	float lodDistance01 = 80.0f;
+	float lodDistance12 = 180.0f;
+
+	std::array<std::shared_ptr<CMesh>, 3> lodMeshes = { nullptr, nullptr, nullptr };
+};
+
 struct SkinnedInstanceVertex
 {
 	XMFLOAT4 world0 = XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f);
@@ -150,8 +185,15 @@ private:
 
     void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd);
 	void BuildStaticInstanceGroups();
+	void ResetStaticWorldLodEntries();
+	int ComputeStaticWorldLodLevel(const XMFLOAT3& cameraPosition, const StaticWorldLodEntry& entry) const;
+	void UpdateStaticWorldLodSelection(CCamera* camera);
 	void RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
 	void BuildSkinnedInstanceGroups();
+	void ResetSkinnedWorldLodEntries();
+	int ComputeSkinnedWorldLodLevel(const XMFLOAT3& cameraPosition, const SkinnedWorldLodEntry& entry) const;
+	void UpdateSkinnedWorldLodSelection(CCamera* camera);
 	void RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
     // Frame / Render
@@ -454,8 +496,14 @@ private:
 	std::unordered_map<std::string, std::unordered_map<std::string, std::vector<AuthoredSubMeshOOBB>>> mSceneCubeBoxColliderTable;
 
 	std::vector<StaticInstanceGroup>    m_staticInstanceGroups;
+	std::vector<StaticWorldLodEntry>    m_staticWorldLodEntries;
+	bool                                m_staticWorldLodDirty = false;
+	float                               m_staticLodDistance01 = 40.0f;
+	float                               m_staticLodDistance12 = 80.0f;
+	float                               m_staticLodHysteresis = 15.0f;
+
 	ComPtr<ID3D12Resource>              m_pd3dStaticInstanceBuffer;
-	StaticInstanceVertex*				m_pMappedStaticInstanceBuffer = nullptr;
+	StaticInstanceVertex* m_pMappedStaticInstanceBuffer = nullptr;
 	UINT                                m_staticInstanceBufferCapacity = 0;
 
 	std::shared_ptr<CStaticObjectsShader>	m_treeStaticShader;
@@ -474,6 +522,9 @@ private:
 	std::vector<SkinnedInstanceGroup>   m_skinnedInstanceGroups;
 
 	ComPtr<ID3D12Resource>              m_pd3dSkinnedInstanceBuffer;
+	std::vector<SkinnedWorldLodEntry>   m_skinnedWorldLodEntries;
+	bool                                m_skinnedWorldLodDirty = false;
+	float                               m_skinnedLodHysteresis = 5.0f;
 	SkinnedInstanceVertex* m_pMappedSkinnedInstanceBuffer = nullptr;
 	UINT                                m_skinnedInstanceBufferCapacity = 0;
 

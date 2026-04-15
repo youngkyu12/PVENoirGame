@@ -269,6 +269,252 @@ namespace
         }
     }
 
+	struct StaticAssetPathDesc
+	{
+		AssetType type{};
+		std::string meshBinPath;
+		std::string texturePath;
+	};
+
+	static bool ResolveStaticAssetPathDesc(const std::string& assetName, StaticAssetPathDesc& outDesc)
+	{
+		if ( assetName == "Grass" )
+		{
+			outDesc = { AssetType::Grass, "Assets/GroundPlane/Mesh/Grass.bin", "Assets/GroundPlane/Texture" };
+			return true;
+		}
+		if ( assetName == "Ground" )
+		{
+			outDesc = { AssetType::Ground, "Assets/GroundPlane/Mesh/Ground.bin", "Assets/GroundPlane/Texture" };
+			return true;
+		}
+		if ( assetName == "VillageWall" )
+		{
+			outDesc = { AssetType::VillageWall, "Assets/VillageWall/Mesh/VillageWall.bin", "Assets/VillageWall/Texture" };
+			return true;
+		}
+		if ( assetName == "DirtRoad" )
+		{
+			outDesc = { AssetType::DirtRoad, "Assets/GroundPlane/Mesh/DirtRoad.bin", "Assets/GroundPlane/Texture" };
+			return true;
+		}
+		if ( assetName == "Building1" )
+		{
+			outDesc = { AssetType::House, "Assets/House/Mesh/Building1.bin", "Assets/House/Texture" };
+			return true;
+		}
+		if ( assetName == "Building2" )
+		{
+			outDesc = { AssetType::House, "Assets/House/Mesh/Building2.bin", "Assets/House/Texture" };
+			return true;
+		}
+		if ( assetName == "Building3" )
+		{
+			outDesc = { AssetType::House, "Assets/House/Mesh/Building3.bin", "Assets/House/Texture" };
+			return true;
+		}
+		if ( assetName == "Building4" )
+		{
+			outDesc = { AssetType::House, "Assets/House/Mesh/Building4.bin", "Assets/House/Texture" };
+			return true;
+		}
+		if ( assetName == "Building5" )
+		{
+			outDesc = { AssetType::House, "Assets/House/Mesh/Building5.bin", "Assets/House/Texture" };
+			return true;
+		}
+		if ( assetName == "Building6" )
+		{
+			outDesc = { AssetType::House, "Assets/House/Mesh/Building6.bin", "Assets/House/Texture" };
+			return true;
+		}
+		if ( assetName == "Building7" )
+		{
+			outDesc = { AssetType::House, "Assets/House/Mesh/Building7.bin", "Assets/House/Texture" };
+			return true;
+		}
+		if ( assetName == "Building8" )
+		{
+			outDesc = { AssetType::House, "Assets/House/Mesh/Building8.bin", "Assets/House/Texture" };
+			return true;
+		}
+		if ( assetName == "Building9" )
+		{
+			outDesc = { AssetType::House, "Assets/House/Mesh/Building9.bin", "Assets/House/Texture" };
+			return true;
+		}
+		if ( assetName == "Tower" )
+		{
+			outDesc = { AssetType::Tower, "Assets/Tower/Mesh/Tower.bin", "Assets/Tower/Texture" };
+			return true;
+		}
+		if ( assetName == "Tree1" )
+		{
+			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree1.bin", "Assets/Tree/Texture" };
+			return true;
+		}
+		if ( assetName == "Tree2" )
+		{
+			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree2.bin", "Assets/Tree/Texture" };
+			return true;
+		}
+		if ( assetName == "Tree3" )
+		{
+			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree3.bin", "Assets/Tree/Texture" };
+			return true;
+		}
+		if ( assetName == "Tree4" )
+		{
+			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree4.bin", "Assets/Tree/Texture" };
+			return true;
+		}
+		if ( assetName == "Tree5" )
+		{
+			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree5.bin", "Assets/Tree/Texture" };
+			return true;
+		}
+		if ( assetName == "Tree6" )
+		{
+			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree6.bin", "Assets/Tree/Texture" };
+			return true;
+		}
+
+		return false;
+	}
+
+	static bool IsStaticWorldLodSupportedAssetName(const std::string& assetName)
+	{
+		if ( assetName == "Grass" ) return false;
+		if ( assetName == "Ground" ) return false;
+		if ( assetName == "DirtRoad" ) return false;
+
+		if ( assetName == "VillageWall" ) return true;
+
+		if ( assetName == "Building1" ) return true;
+		if ( assetName == "Building2" ) return true;
+		if ( assetName == "Building3" ) return true;
+		if ( assetName == "Building4" ) return true;
+		if ( assetName == "Building5" ) return true;
+		if ( assetName == "Building6" ) return true;
+		if ( assetName == "Building7" ) return true;
+		if ( assetName == "Building8" ) return true;
+		if ( assetName == "Building9" ) return true;
+
+		if ( assetName == "Tower" ) return true;
+
+		if ( assetName == "Tree1" ) return true;
+		if ( assetName == "Tree2" ) return true;
+		if ( assetName == "Tree3" ) return true;
+		if ( assetName == "Tree4" ) return true;
+		if ( assetName == "Tree5" ) return true;
+		if ( assetName == "Tree6" ) return true;
+
+		return false;
+	}
+
+	static int ClampStaticWorldLodLevel(int lodLevel)
+	{
+		if ( lodLevel < 0 ) return 0;
+		if ( lodLevel > 2 ) return 2;
+		return lodLevel;
+	}
+
+	static bool BuildStaticLodMeshBinPath(
+		const std::string& baseMeshBinPath,
+		int lodLevel,
+		std::string& outMeshBinPath)
+	{
+		const size_t dotPos = baseMeshBinPath.find_last_of('.');
+		if ( dotPos == std::string::npos )
+			return false;
+
+		const int clampedLodLevel = ClampStaticWorldLodLevel(lodLevel);
+
+		outMeshBinPath = baseMeshBinPath.substr(0, dotPos);
+		outMeshBinPath += "_LOD";
+		outMeshBinPath += std::to_string(clampedLodLevel);
+		outMeshBinPath += baseMeshBinPath.substr(dotPos);
+
+		return true;
+	}
+
+	static int ClampSkinnedWorldLodLevel(int lodLevel)
+	{
+		if ( lodLevel < 0 ) return 0;
+		if ( lodLevel > 2 ) return 2;
+		return lodLevel;
+	}
+
+	static bool BuildSkinnedLodMeshBinPath(
+		const std::string& baseMeshBinPath,
+		int lodLevel,
+		std::string& outMeshBinPath)
+	{
+		const size_t dotPos = baseMeshBinPath.find_last_of('.');
+		if ( dotPos == std::string::npos )
+			return false;
+
+		const int clampedLodLevel = ClampSkinnedWorldLodLevel(lodLevel);
+
+		outMeshBinPath = baseMeshBinPath.substr(0, dotPos);
+		outMeshBinPath += "_LOD";
+		outMeshBinPath += std::to_string(clampedLodLevel);
+		outMeshBinPath += baseMeshBinPath.substr(dotPos);
+		return true;
+	}
+
+	static bool ResolveGhoulSkinnedLodAssetDesc(int lodLevel, AssetBuildDesc& outDesc)
+	{
+		std::string meshPath;
+		if ( !BuildSkinnedLodMeshBinPath("Assets/Ghoul/Mesh/Ghoul_Mesh.bin", lodLevel, meshPath) )
+			return false;
+
+		outDesc =
+		{
+			AssetType::Ghoul,
+			meshPath,
+			"Assets/Ghoul/Texture"
+		};
+		return true;
+	}
+
+	static bool ResolveStaticLodAssetPathDesc(
+		const std::string& assetName,
+		int lodLevel,
+		StaticAssetPathDesc& outDesc)
+	{
+		if ( !ResolveStaticAssetPathDesc(assetName, outDesc) )
+			return false;
+
+		if ( !IsStaticWorldLodSupportedAssetName(assetName) )
+			return true;
+
+		std::string lodMeshBinPath;
+		if ( !BuildStaticLodMeshBinPath(outDesc.meshBinPath, lodLevel, lodMeshBinPath) )
+			return false;
+
+		outDesc.meshBinPath = std::move(lodMeshBinPath);
+		return true;
+	}
+
+	static bool ResolveStaticLodAssetDesc(
+		const std::string& assetName,
+		int lodLevel,
+		AssetBuildDesc& outDesc,
+		AssetType* outResolvedType = nullptr)
+	{
+		StaticAssetPathDesc resolved{};
+		if ( !ResolveStaticLodAssetPathDesc(assetName, lodLevel, resolved) )
+			return false;
+
+		outDesc = { resolved.type, resolved.meshBinPath, resolved.texturePath };
+
+		if ( outResolvedType )
+			*outResolvedType = resolved.type;
+
+		return true;
+	}
+
 	bool ResolveStaticAssetDesc(const std::string& assetName, AssetBuildDesc& outDesc, AssetType* outResolvedType = nullptr) 
 	{
 		if ( assetName == "Grass" )
@@ -1048,7 +1294,9 @@ void CGameScene::ReleaseObjects()
 	m_bulletRefs.clear();
 	m_attachmentBinds.clear();
 	m_staticInstanceGroups.clear();
+	ResetStaticWorldLodEntries();
 	m_skinnedInstanceGroups.clear();
+	ResetSkinnedWorldLodEntries();
 
     m_PlayerSwordRefs.clear();
     m_PlayerBowRefs.clear();
@@ -1986,10 +2234,11 @@ void CGameScene::BuildStaticBatch(
     m_staticObjects.clear();
     m_staticObjects.reserve(cap);
 
-    b->objectRefs.clear();
-    b->objectRefs.reserve(cap);
+	b->objectRefs.clear();
+	b->objectRefs.reserve(cap);
 
-    b->count = 0;
+	b->count = 0;
+	ResetStaticWorldLodEntries();
 
 	std::vector<size_t> exportedWorldStaticPlacementIndices;
 	std::vector<CGameObject*> exportedWorldStaticObjects;
@@ -2008,24 +2257,80 @@ void CGameScene::BuildStaticBatch(
 		const UINT i = ( UINT ) b->objectRefs.size();
 		const StaticPlacementEntry& placement = m_staticPlacementEntries[k];
 		const bool createWorldStaticCollider = ShouldCreateWorldStaticCollider(placement.assetName);
+		const bool isStaticWorldLodTarget = IsStaticWorldLodSupportedAssetName(placement.assetName);
 
 		AssetBuildDesc desc{};
 		AssetType resolvedAssetType{};
 		if ( !ResolveStaticAssetDesc(placement.assetName, desc, &resolvedAssetType) )
 			continue;
 
-		BuiltAsset asset = AssetManager::BuildAsset(
-			dev, cmd,
-			m_pMaterials.get(),
-			desc
-		);
+		std::shared_ptr<CMesh> selectedMesh = nullptr;
+		std::array<std::shared_ptr<CMesh>, 3> loadedLodMeshes = { nullptr, nullptr, nullptr };
+		bool enableStaticWorldLod = false;
+
+		if ( isStaticWorldLodTarget )
+		{
+			enableStaticWorldLod = true;
+
+			for ( int lodLevel = 0; lodLevel < 3; ++lodLevel )
+			{
+				AssetBuildDesc lodDesc{};
+				AssetType lodResolvedType{};
+				if ( !ResolveStaticLodAssetDesc(
+					placement.assetName,
+					lodLevel,
+					lodDesc,
+					&lodResolvedType) )
+				{
+					enableStaticWorldLod = false;
+					break;
+				}
+
+				BuiltAsset lodAsset = AssetManager::BuildAsset(
+					dev, cmd,
+					m_pMaterials.get(),
+					lodDesc
+				);
+
+				loadedLodMeshes[( size_t ) lodLevel] = lodAsset.mesh;
+				if ( !loadedLodMeshes[( size_t ) lodLevel] )
+				{
+					enableStaticWorldLod = false;
+					break;
+				}
+			}
+
+			if ( enableStaticWorldLod )
+			{
+				selectedMesh = loadedLodMeshes[0];
+			}
+			else
+			{
+				loadedLodMeshes = { nullptr, nullptr, nullptr };
+			}
+		}
+
+		if ( !selectedMesh )
+		{
+			BuiltAsset baseAsset = AssetManager::BuildAsset(
+				dev, cmd,
+				m_pMaterials.get(),
+				desc
+			);
+
+			selectedMesh = baseAsset.mesh;
+			loadedLodMeshes[0] = selectedMesh;
+		}
+
+		if ( !selectedMesh )
+			continue;
 
 		auto obj = std::make_unique<CGameObject>(1);
 
 		auto* cb = ( CB_GAMEOBJECT_INFO* ) ( ( UINT8* ) b->mappedGameObjects + i * b->cbElementBytes );
 		obj->SetMappedGameObjectCB(cb);
 		//auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::OOBB);
-		obj->SetMesh(0, asset.mesh);
+		obj->SetMesh(0, selectedMesh);
 		obj->AddComponent<CStaticMeshRendererComponent>();
 
 		if ( createWorldStaticCollider )
@@ -2056,6 +2361,58 @@ void CGameScene::BuildStaticBatch(
 		if ( resolvedAssetType == AssetType::Tree )
 		{
 			m_treeAlphaClipObjects.insert(raw);
+		}
+
+		if ( isStaticWorldLodTarget )
+		{
+			StaticWorldLodEntry lodEntry{};
+			lodEntry.object = raw;
+			lodEntry.staticBatchObjectIndex = i;
+			lodEntry.assetName = placement.assetName;
+			lodEntry.lodReferencePosition = placement.pos;
+
+			lodEntry.lodEnabled = enableStaticWorldLod;
+			lodEntry.useTreeShader = ( resolvedAssetType == AssetType::Tree );
+			lodEntry.currentLod = 0;
+			lodEntry.lodMeshes = loadedLodMeshes;
+
+			// 자산군별 거리 설정
+			if ( placement.assetName == "VillageWall" )
+			{
+				lodEntry.lodDistance01 = 250.0f;
+				lodEntry.lodDistance12 = 600.0f;
+			}
+			else if (
+				placement.assetName == "Building1" ||
+				placement.assetName == "Building2" ||
+				placement.assetName == "Building3" ||
+				placement.assetName == "Building4" ||
+				placement.assetName == "Building5" ||
+				placement.assetName == "Building6" ||
+				placement.assetName == "Building7" ||
+				placement.assetName == "Building8" ||
+				placement.assetName == "Building9" ||
+				placement.assetName == "Tower" )
+			{
+				lodEntry.lodDistance01 = 150.0f;
+				lodEntry.lodDistance12 = 380.0f;
+			}
+			else if (
+				placement.assetName == "Tree1" ||
+				placement.assetName == "Tree2" ||
+				placement.assetName == "Tree3" ||
+				placement.assetName == "Tree4" ||
+				placement.assetName == "Tree5" ||
+				placement.assetName == "Tree6" )
+			{
+				lodEntry.lodDistance01 = 40.0f;
+				lodEntry.lodDistance12 = 120.0f;
+			}
+
+			if ( !lodEntry.lodMeshes[0] )
+				lodEntry.lodMeshes[0] = selectedMesh;
+
+			m_staticWorldLodEntries.push_back(std::move(lodEntry));
 		}
 
 		if ( createWorldStaticCollider )
@@ -2516,6 +2873,223 @@ void CGameScene::BuildStaticBatch(
 	}
 }
 
+void CGameScene::ResetStaticWorldLodEntries()
+{
+	m_staticWorldLodEntries.clear();
+	m_staticWorldLodDirty = false;
+}
+
+int CGameScene::ComputeStaticWorldLodLevel(const XMFLOAT3& cameraPosition, const StaticWorldLodEntry& entry) const
+{
+	if ( !entry.lodEnabled )
+		return 0;
+
+	const float dx = cameraPosition.x - entry.lodReferencePosition.x;
+	const float dy = cameraPosition.y - entry.lodReferencePosition.y;
+	const float dz = cameraPosition.z - entry.lodReferencePosition.z;
+
+	const float distSq = dx * dx + dy * dy + dz * dz;
+	const float dist = std::sqrt(distSq);
+
+	const float lodDistance01 = std::max(0.0f, entry.lodDistance01);
+	const float lodDistance12 = std::max(lodDistance01, entry.lodDistance12);
+
+	const float lod01Enter = lodDistance01 + m_staticLodHysteresis;
+	const float lod01Exit = lodDistance01 - m_staticLodHysteresis;
+	const float lod12Enter = lodDistance12 + m_staticLodHysteresis;
+	const float lod12Exit = lodDistance12 - m_staticLodHysteresis;
+
+	switch ( entry.currentLod )
+	{
+	case 0:
+		if ( dist >= lod01Enter ) return 1;
+		return 0;
+
+	case 1:
+		if ( dist < lod01Exit ) return 0;
+		if ( dist >= lod12Enter ) return 2;
+		return 1;
+
+	case 2:
+		if ( dist < lod12Exit ) return 1;
+		return 2;
+
+	default:
+		break;
+	}
+
+	if ( dist < lodDistance01 ) return 0;
+	if ( dist < lodDistance12 ) return 1;
+	return 2;
+}
+
+void CGameScene::UpdateStaticWorldLodSelection(CCamera* camera)
+{
+	if ( !camera ) return;
+	if ( m_staticWorldLodEntries.empty() ) return;
+
+	const XMFLOAT3 cameraPosition = camera->GetPosition();
+
+	bool anyLodChanged = false;
+
+	for ( StaticWorldLodEntry& entry : m_staticWorldLodEntries )
+	{
+		if ( !entry.object ) continue;
+		if ( entry.staticBatchObjectIndex == UINT_MAX ) continue;
+		if ( entry.staticBatchObjectIndex >= ( UINT ) m_staticBatch.objectRefs.size() ) continue;
+
+		int desiredLod = ComputeStaticWorldLodLevel(cameraPosition, entry);
+		desiredLod = ClampStaticWorldLodLevel(desiredLod);
+
+		int resolvedLod = desiredLod;
+		while ( resolvedLod > 0 && !entry.lodMeshes[( size_t ) resolvedLod] )
+		{
+			--resolvedLod;
+		}
+
+		std::shared_ptr<CMesh> targetMesh = entry.lodMeshes[( size_t ) resolvedLod];
+		if ( !targetMesh ) continue;
+
+		std::shared_ptr<CMesh> currentMesh = entry.object->GetMeshShared(0);
+
+		if ( entry.currentLod == resolvedLod &&
+			 currentMesh.get() == targetMesh.get() )
+		{
+			continue;
+		}
+
+		/*const int previousLod = entry.currentLod;
+
+		entry.object->SetMesh(0, targetMesh);
+		entry.currentLod = resolvedLod;
+		anyLodChanged = true;
+
+		char debugText[256] = {};
+		sprintf_s(
+			debugText,
+			"[StaticLOD Select] asset=%s objectIndex=%u %d->%d\n",
+			entry.assetName.c_str(),
+			entry.staticBatchObjectIndex,
+			previousLod,
+			entry.currentLod
+		);
+		OutputDebugStringA(debugText);*/
+	}
+
+	if ( anyLodChanged )
+	{
+		BuildStaticInstanceGroups();
+		m_staticWorldLodDirty = true;
+	}
+	else
+	{
+		m_staticWorldLodDirty = false;
+	}
+}
+
+void CGameScene::ResetSkinnedWorldLodEntries()
+{
+	m_skinnedWorldLodEntries.clear();
+	m_skinnedWorldLodDirty = false;
+}
+
+int CGameScene::ComputeSkinnedWorldLodLevel(const XMFLOAT3& cameraPosition, const SkinnedWorldLodEntry& entry) const
+{
+	if ( !entry.lodEnabled )
+		return 0;
+
+	const float dx = cameraPosition.x - entry.lodReferencePosition.x;
+	const float dy = cameraPosition.y - entry.lodReferencePosition.y;
+	const float dz = cameraPosition.z - entry.lodReferencePosition.z;
+
+	const float dist = std::sqrt(dx * dx + dy * dy + dz * dz);
+
+	const float lodDistance01 = std::max(0.0f, entry.lodDistance01);
+	const float lodDistance12 = std::max(lodDistance01, entry.lodDistance12);
+
+	const float lod01Enter = lodDistance01 + m_skinnedLodHysteresis;
+	const float lod01Exit = lodDistance01 - m_skinnedLodHysteresis;
+	const float lod12Enter = lodDistance12 + m_skinnedLodHysteresis;
+	const float lod12Exit = lodDistance12 - m_skinnedLodHysteresis;
+
+	switch ( entry.currentLod )
+	{
+	case 0:
+		if ( dist >= lod01Enter ) return 1;
+		return 0;
+
+	case 1:
+		if ( dist < lod01Exit ) return 0;
+		if ( dist >= lod12Enter ) return 2;
+		return 1;
+
+	case 2:
+		if ( dist < lod12Exit ) return 1;
+		return 2;
+	}
+
+	if ( dist < lodDistance01 ) return 0;
+	if ( dist < lodDistance12 ) return 1;
+	return 2;
+}
+
+void CGameScene::UpdateSkinnedWorldLodSelection(CCamera* camera)
+{
+	if ( !camera ) return;
+	if ( m_skinnedWorldLodEntries.empty() ) return;
+
+	const XMFLOAT3 cameraPosition = camera->GetPosition();
+	bool anyLodChanged = false;
+
+	for ( SkinnedWorldLodEntry& entry : m_skinnedWorldLodEntries )
+	{
+		if ( !entry.object ) continue;
+		if ( entry.skinnedBatchObjectIndex == UINT_MAX ) continue;
+		if ( entry.skinnedBatchObjectIndex >= ( UINT ) m_skinnedBatch.objectRefs.size() ) continue;
+
+		int desiredLod = ComputeSkinnedWorldLodLevel(cameraPosition, entry);
+		desiredLod = ClampSkinnedWorldLodLevel(desiredLod);
+
+		int resolvedLod = desiredLod;
+		while ( resolvedLod > 0 && !entry.lodMeshes[( size_t ) resolvedLod] )
+			--resolvedLod;
+
+		std::shared_ptr<CMesh> targetMesh = entry.lodMeshes[( size_t ) resolvedLod];
+		if ( !targetMesh ) continue;
+
+		std::shared_ptr<CMesh> currentMesh = entry.object->GetMeshShared(0);
+		if ( entry.currentLod == resolvedLod && currentMesh.get() == targetMesh.get() )
+			continue;
+
+		/*const int previousLod = entry.currentLod;
+
+		entry.object->SetMesh(0, targetMesh);
+		entry.currentLod = resolvedLod;
+		anyLodChanged = true;
+
+		char debugText[256] = {};
+		sprintf_s(
+			debugText,
+			"[SkinnedLOD Select] asset=%s objectIndex=%u %d->%d\n",
+			entry.assetName.c_str(),
+			entry.skinnedBatchObjectIndex,
+			previousLod,
+			entry.currentLod
+		);
+		OutputDebugStringA(debugText);*/
+	}
+
+	if ( anyLodChanged )
+	{
+		BuildSkinnedInstanceGroups();
+		m_skinnedWorldLodDirty = true;
+	}
+	else
+	{
+		m_skinnedWorldLodDirty = false;
+	}
+}
+
 void CGameScene::BuildStaticInstanceGroups()
 {
 	m_staticInstanceGroups.clear();
@@ -2887,13 +3461,14 @@ void CGameScene::BuildSkinnedBatch(
         b->cbElementBytes
     );
 
-    m_skinnedObjects.clear();
-    m_skinnedObjects.reserve(cap);
+	m_skinnedObjects.clear();
+	m_skinnedObjects.reserve(cap);
 
-    b->objectRefs.clear();
-    b->objectRefs.reserve(cap);
+	b->objectRefs.clear();
+	b->objectRefs.reserve(cap);
 
-    b->count = 0;
+	b->count = 0;
+	ResetSkinnedWorldLodEntries();
 
     m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
 	auto ConfigureBodyCollider = [ ] (CColliderComponent* collider, bool isPlayerBody)
@@ -2984,17 +3559,35 @@ void CGameScene::BuildSkinnedBatch(
 		{
 			const UINT countW = m_ghoulCount;
 
-			AssetBuildDesc EnemyWDesc =
-			{
-				AssetType::Ghoul,
-				"Assets/Ghoul/Mesh/Ghoul_Mesh.bin",
-				"Assets/Ghoul/Texture"
-			};
+			std::array<std::shared_ptr<CMesh>, 3> ghoulLodMeshes = { nullptr, nullptr, nullptr };
 
-			BuiltAsset assetW = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyWDesc);
+			for ( int lodLevel = 0; lodLevel < 3; ++lodLevel )
+			{
+				AssetBuildDesc ghoulLodDesc{};
+				if ( !ResolveGhoulSkinnedLodAssetDesc(lodLevel, ghoulLodDesc) )
+					continue;
+
+				BuiltAsset ghoulLodAsset = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), ghoulLodDesc);
+				ghoulLodMeshes[( size_t ) lodLevel] = ghoulLodAsset.mesh;
+			}
+
+			std::shared_ptr<CMesh> ghoulBaseMesh = ghoulLodMeshes[0];
+			if ( !ghoulBaseMesh )
+			{
+				AssetBuildDesc EnemyWDesc =
+				{
+					AssetType::Ghoul,
+					"Assets/Ghoul/Mesh/Ghoul_Mesh.bin",
+					"Assets/Ghoul/Texture"
+				};
+
+				BuiltAsset assetW = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyWDesc);
+				ghoulBaseMesh = assetW.mesh;
+				ghoulLodMeshes[0] = ghoulBaseMesh;
+			}
 
 			PreloadCachedClipSet(
-				assetW.mesh.get(),
+				ghoulBaseMesh.get(),
 				"Ghoul",
 				{
 					{ "Assets/Ghoul/Animation/Ghoul_Anim_Idle.bin",   "Idle" },
@@ -3017,7 +3610,7 @@ void CGameScene::BuildSkinnedBatch(
 				auto* cb = ( CB_GAMEOBJECT_INFO* ) ( ( UINT8* ) b->mappedGameObjects + i * b->cbElementBytes );
 				obj->SetMappedGameObjectCB(cb);
 
-				obj->SetMesh(0, assetW.mesh);
+				obj->SetMesh(0, ghoulBaseMesh);
 				obj->AddComponent<CSkinnedMeshRendererComponent>();
 				auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
 				ConfigureBodyCollider(collider, false);
@@ -3068,8 +3661,8 @@ void CGameScene::BuildSkinnedBatch(
 
 				obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + ( UINT64 ) i * b->cbvInc);
 
-				if ( assetW.mesh && assetW.mesh->IsSkinnedMesh() )
-					obj->EnableSkinning(dev, assetW.mesh->GetBoneCount());
+				if ( ghoulBaseMesh && ghoulBaseMesh->IsSkinnedMesh() )
+					obj->EnableSkinning(dev, ghoulBaseMesh->GetBoneCount());
 
 				auto mesh0 = obj->GetMeshShared(0);
 				if ( mesh0 && animComp )
@@ -3126,6 +3719,23 @@ void CGameScene::BuildSkinnedBatch(
 				if ( animComp ) animComp->EvaluatePose(0.0f);
 
 				CGameObject* raw = obj.get();
+				{
+					SkinnedWorldLodEntry lodEntry{};
+					lodEntry.object = raw;
+					lodEntry.skinnedBatchObjectIndex = i;
+					lodEntry.assetName = "Ghoul";
+					lodEntry.lodReferencePosition = pos;
+					lodEntry.lodEnabled = true;
+					lodEntry.currentLod = 0;
+					lodEntry.lodDistance01 = 15.0f;
+					lodEntry.lodDistance12 = 30.0f;
+					lodEntry.lodMeshes = ghoulLodMeshes;
+
+					if ( !lodEntry.lodMeshes[0] )
+						lodEntry.lodMeshes[0] = ghoulBaseMesh;
+
+					m_skinnedWorldLodEntries.push_back(std::move(lodEntry));
+				}
 				m_skinnedObjects.push_back(std::move(obj));
 				b->objectRefs.push_back(raw);
 				b->count = ( UINT ) b->objectRefs.size();
@@ -3269,7 +3879,7 @@ void CGameScene::BuildSkinnedBatch(
             AssetBuildDesc EnemyYDesc =
             {
                 AssetType::BowMan,
-                "Assets/Enemy/Mesh/Enemy_Mesh2.bin",
+                "Assets/Enemy/Mesh/Enemy_Mesh1.bin",
                 "Assets/Enemy/Texture"
             };
 
@@ -5731,11 +6341,17 @@ void CGameScene::AnimateObjects(float dt)
     // ------------------------------------------------------------------------
     // 기존 애니메이션 로직
     // ------------------------------------------------------------------------
-    for (UINT j = 0; j < (UINT)m_skinnedObjects.size(); ++j)
-    {
-        if (!m_skinnedObjects[j]) continue;
-        m_skinnedObjects[j]->Animate(dt);
-    }
+	CCamera* camera = GetMainCamera();
+
+	for ( UINT j = 0; j < ( UINT ) m_skinnedObjects.size(); ++j )
+	{
+		if ( !m_skinnedObjects[j] ) continue;
+
+		if ( camera && !m_skinnedObjects[j]->IsVisible(camera) )
+			continue;
+
+		m_skinnedObjects[j]->Animate(dt);
+	}
 
     for (UINT j = 0; j < (UINT)m_staticObjects.size(); ++j)
     {
@@ -5866,9 +6482,13 @@ void CGameScene::OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera
     CScene::OnPrepareRender(cmd, camera);
 
 	if ( camera )
+	{
 		camera->UpdateBoundingFrustum();
+		UpdateStaticWorldLodSelection(camera);
+		UpdateSkinnedWorldLodSelection(camera);
+	}
 
-    UpdateShaderVariables(cmd);
+	UpdateShaderVariables(cmd);
 
     if (m_pd3dcbLights)
     {
