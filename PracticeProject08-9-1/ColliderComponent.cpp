@@ -345,25 +345,25 @@ void CColliderComponent::BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>&
 			}
 		}
 
-		if ( !set.LocalSubOOBBs.empty() )
+		const XMFLOAT3 meshMin = mesh->GetMeshMin();
+		const XMFLOAT3 meshMax = mesh->GetMeshMax();
+
+		// 대표용 mesh OOBB는 항상 "실제 렌더 메시 전체 크기" 기준으로 만든다.
+		// authored sub OOBB / explicit sub OOBB는 세부 충돌용으로만 유지한다.
+		if ( meshMin.x <= meshMax.x &&
+			 meshMin.y <= meshMax.y &&
+			 meshMin.z <= meshMax.z )
 		{
+			set.LocalMeshOOBB = MakeLocalOOBB(meshMin, meshMax);
+		}
+		else if ( !set.LocalSubOOBBs.empty() )
+		{
+			// 예외 fallback: 메시 bounds가 비정상이면 기존처럼 sub OOBB 외접 사용
 			set.LocalMeshOOBB = MakeEnclosingLocalOOBB(set.LocalSubOOBBs);
 		}
 		else
 		{
-			const XMFLOAT3 meshMin = mesh->GetMeshMin();
-			const XMFLOAT3 meshMax = mesh->GetMeshMax();
-
-			if ( meshMin.x <= meshMax.x &&
-				 meshMin.y <= meshMax.y &&
-				 meshMin.z <= meshMax.z )
-			{
-				set.LocalMeshOOBB = MakeLocalOOBB(meshMin, meshMax);
-			}
-			else
-			{
-				continue;
-			}
+			continue;
 		}
 
 		set.WorldMeshOOBB = set.LocalMeshOOBB;

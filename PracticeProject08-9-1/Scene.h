@@ -18,6 +18,7 @@ constexpr UINT LEGACY_SRV_COUNT = 6; // t0(1) + t1~t5(5)
 
 class CGameObject;
 class CCamera;
+class CAudioManager;
 
 constexpr UINT GLOBAL_SRV_CAPACITY = 8192;
 
@@ -96,6 +97,8 @@ public:
 
     // Framework 숫자키 공격 요청 호환(메뉴에서는 noop)
     virtual void RequestPlayerAttackBySlot(int /*slot*/) {}
+	void SetAudioManager(CAudioManager* audioManager) { m_pAudioManager = audioManager; }
+	CAudioManager* GetAudioManager() const { return m_pAudioManager; }
 
 public:
     static std::unique_ptr<CDescriptorHeap> m_pDescriptorHeap;
@@ -105,11 +108,11 @@ protected:
 
     std::unique_ptr<CGameObject> m_pMainCameraObject;
     CCamera* m_pMainCamera = nullptr;
+	CAudioManager* m_pAudioManager = nullptr;
 
 protected:
 	NetworkMessage m_pendingNetworkMessage;
 public:
     virtual void DequeueNetworkMessage(const NetworkMessageType& type);
     virtual void SetNetworkMessageType(NetworkMessageType type);
-
 };

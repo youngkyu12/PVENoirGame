@@ -51,6 +51,8 @@ struct BuildingState
 struct BulletState
 {
     uint64_t    id;
+    uint64_t    ownerId;
+    uint32_t    bulletType = 0;
     XMFLOAT3    position;
     XMFLOAT3    velocity;
     // 필요시 추가 정보
