@@ -1594,7 +1594,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	pTreeStaticShader->CreateShader(dev,m_pd3dGraphicsRootSignature.Get(),kRTCount,rtvFormats,kDsvFormat);
 	BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
 #ifndef USING_NETWORK
-	//DumpStaticGridOccupancyLog();
+	DumpStaticGridOccupancyLog();
 	//BuildStaticWorldSubmeshOOBBDebugObjects(dev, cmd);
 #endif
 	BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
