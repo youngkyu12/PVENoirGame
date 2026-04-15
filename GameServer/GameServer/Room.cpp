@@ -7,15 +7,20 @@
 #include "GameArea.h"
 #include "CollisionSystem.h"
 #include "ColliderComponent.h"
+#include "MonsterAI.h"
+#include "Projectile.h"
 
 #include "CommonPlayerControllerComponent.h"
 
 #include "Protocol.pb.h"
 #include "ClientPacketHandler.h"
+#include "ReportHelper.h"
 
 #include <algorithm>
 #include <fstream>
 #include <cstdio>
+#include <cstdlib>
+#include <unordered_map>
 
 shared_ptr<Room> GRoom = make_shared<Room>();
 
@@ -68,6 +73,11 @@ namespace
 			outMin = XMFLOAT3(-4.5f, -3.5f, -4.5f);
 			outMax = XMFLOAT3(4.5f, 7.0f, 4.5f);
 			return;
+		case Protocol::BUILDING_TYPE_TOWER:
+			// 타워는 높이가 더 높고, 폭이 더 좁음
+			outMin = XMFLOAT3(-1.0f, 0.0f, -1.0f);
+			outMax = XMFLOAT3(1.0f, 6.0f, 1.0f);
+			return;
 		default:
 			outMin = XMFLOAT3(-1.5f, 0.0f, -1.5f);
 			outMax = XMFLOAT3(1.5f, 3.5f, 1.5f);
@@ -103,7 +113,7 @@ namespace
 		if (anim == Protocol::ANIMATION_TYPE_RUN)    code |= kStateRun;
 
 		// TODO: Hit 상태 소스 추가 시 반영
-		// if (anim == Protocol::ANIMATION_TYPE_HIT) code |= kStateHit;
+		if (anim == Protocol::ANIMATION_TYPE_HIT) code |= kStateHit;
 
 		// 이동/방향 비트
 		const GameMath::Vec3 v = obj.GetVelocity();
@@ -125,6 +135,47 @@ namespace
 		return code;
 	}
 
+	static uint32 BuildEnemyStateCode(const CServerObject& obj)
+	{
+		uint32 code = 0;
+		const auto anim = obj.GetAnimState();
+
+		if (anim == Protocol::ANIMATION_TYPE_DIE)    code |= kStateDie;
+		if (anim == Protocol::ANIMATION_TYPE_ATTACK) code |= kStateAttack;
+		if (anim == Protocol::ANIMATION_TYPE_ROLL)   code |= kStateRoll;
+		if (anim == Protocol::ANIMATION_TYPE_RUN)    code |= kStateRun;
+		if (anim == Protocol::ANIMATION_TYPE_HIT)    code |= kStateHit;
+
+		static std::unordered_map<uint64, GameMath::Vec3> s_prevEnemyPos;
+
+		const uint64 enemyId = obj.GetObjectId();
+		const GameMath::Vec3 curPos = obj.GetPosition();
+		constexpr float kEps = 1e-4f;
+
+		auto it = s_prevEnemyPos.find(enemyId);
+		if (it != s_prevEnemyPos.end())
+		{
+			const GameMath::Vec3& prevPos = it->second;
+			GameMath::Vec3 delta(curPos.x - prevPos.x, 0.0f, curPos.z - prevPos.z);
+
+			if (delta.LengthSq() > kEps)
+			{
+				code |= kStateMove;
+
+				const float fwd = GameMath::Vec3::Dot(delta, obj.GetLook());
+				const float str = GameMath::Vec3::Dot(delta, obj.GetRight());
+
+				if (fwd > kEps) code |= kStateUp;
+				if (fwd < -kEps) code |= kStateDown;
+				if (str > kEps) code |= kStateRight;
+				if (str < -kEps) code |= kStateLeft;
+			}
+		}
+
+		s_prevEnemyPos[enemyId] = curPos;
+		return code;
+	}
+
 	struct PlacementEntry
 	{
 		std::string asset;
@@ -132,6 +183,9 @@ namespace
 		GameMath::Vec3 position = GameMath::Vec3::Zero();
 		float yawDeg = 0.0f;
 	};
+
+ static StaticWorldReportCache g_staticWorldReportCache;
+	static bool g_staticWorldReportLoaded = false;
 
 	static float QuaternionToYawDegrees(float x, float y, float z, float w)
 	{
@@ -171,9 +225,9 @@ namespace
 		outEntries.clear();
 
 		const std::vector<std::string> candidates = {
-			"MapFIle/placement_export_full.txt",
-			"GameServer/MapFIle/placement_export_full.txt",
-			"../GameServer/MapFIle/placement_export_full.txt"
+			"MapFIle/MapData_fullstage.txt",
+			"GameServer/MapFIle/MapData_fullstage.txt",
+			"../GameServer/MapFIle/MapData_fullstage.txt"
 		};
 
 		std::ifstream fin;
@@ -200,22 +254,19 @@ namespace
 		return !outEntries.empty();
 	}
 
-	static Protocol::BuildingType AssetToBuildingType(const std::string& asset)
+	static void EnsureStaticWorldReportLoaded()
 	{
-		if (asset == "Grass") return Protocol::BUILDING_TYPE_GRASS;
-		if (asset == "Ground") return Protocol::BUILDING_TYPE_GROUND;
-		if (asset == "Building1") return Protocol::BUILDING_TYPE_BUILDING1;
-		if (asset == "Building2") return Protocol::BUILDING_TYPE_BUILDING2;
-		if (asset == "Building3") return Protocol::BUILDING_TYPE_BUILDING3;
-		if (asset == "Building4") return Protocol::BUILDING_TYPE_BUILDING4;
-		if (asset == "Building5") return Protocol::BUILDING_TYPE_BUILDING5;
-		if (asset == "Building6") return Protocol::BUILDING_TYPE_BUILDING6;
-		if (asset == "Building7") return Protocol::BUILDING_TYPE_BUILDING7;
-		if (asset == "Building8") return Protocol::BUILDING_TYPE_BUILDING8;
-		if (asset == "Building9") return Protocol::BUILDING_TYPE_BUILDING9;
-		if (asset == "VillageWall") return Protocol::BUILDING_TYPE_VILLAGE_WALL;
-		if (asset == "DirtRoad") return Protocol::BUILDING_TYPE_DIRT_ROAD;
-		return Protocol::BUILDING_TYPE_NONE;
+		if (g_staticWorldReportLoaded)
+			return;
+
+		const std::vector<std::string> candidates = {
+			"MapFIle/StaticWorldLocalOOBBReport.txt",
+			"GameServer/MapFIle/StaticWorldLocalOOBBReport.txt",
+			"../GameServer/MapFIle/StaticWorldLocalOOBBReport.txt"
+		};
+
+		ReportHelper::LoadStaticWorldOverallLocalOOBBReport(candidates, g_staticWorldReportCache);
+		g_staticWorldReportLoaded = true;
 	}
 
 	static GameMath::Vec3 GetInitialPlayerSpawnPosition(uint64 playerId)
@@ -274,10 +325,29 @@ void Room::RegisterStaticCollider(BuildingRef building)
 		collider = building->AddComponent<CColliderComponent>(EColliderType::OOBB);
 		if (collider)
 		{
-			XMFLOAT3 minV{};
-			XMFLOAT3 maxV{};
-			GetStaticBuildingBounds(building->GetBuildingType(), minV, maxV);
-			collider->SetOOBB(minV, maxV);
+          bool appliedFromReport = false;
+			EnsureStaticWorldReportLoaded();
+
+           const ReportObjectOOBB* report = ReportHelper::FindByBuildingType(
+				g_staticWorldReportCache,
+				building->GetBuildingType());
+
+			if (report)
+			{
+              collider->SetOOBB(report->localOOBB);
+				collider->SetSubOOBBs(report->localSubOOBBs);
+				appliedFromReport = true;
+			}
+
+			if (!appliedFromReport)
+			{
+				XMFLOAT3 minV{};
+				XMFLOAT3 maxV{};
+				GetStaticBuildingBounds(building->GetBuildingType(), minV, maxV);
+				collider->SetOOBB(minV, maxV);
+               collider->ClearSubOOBBs();
+			}
+
 			collider->SetLayer(kCollisionLayerWorldStatic);
 			collider->SetMask(CollisionBit(kCollisionLayerCharacter));
 		}
@@ -416,20 +486,25 @@ void Room::BroadCastAll(SendBufferRef sendBuffer)
 void Room::BuildRoom()
 {
 	buildings.clear();
+	m_arrowPool.clear();
+	m_bulletPool.clear();
 	InitializeCollisionSystem();
 
 	std::vector<PlacementEntry> entries;
+
 	if (LoadPlacementEntries(entries))
 	{
 		uint64 buildingId = 1;
-		for (const auto& e : entries)
+       for (size_t entryIndex = 0; entryIndex < entries.size(); ++entryIndex)
 		{
+          const auto& e = entries[entryIndex];
 			auto building = std::make_shared<CBuilding>();
 			building->SetObjectId(buildingId);
 			building->SetPosition(e.position);
 			building->SetYaw(GameMath::NormalizeYaw(e.yawDeg));
-			building->SetBuildingType(AssetToBuildingType(e.asset));
+            building->SetBuildingType(ReportHelper::AssetToBuildingType(e.asset));
 			building->SetActive(true);
+
 			RegisterStaticCollider(building);
 
 			buildings[buildingId] = building;
@@ -438,10 +513,69 @@ void Room::BuildRoom()
 	}
 
 	MakeFireRateMap();
+
+	for (int i = 0; i < kArrowPoolSize; ++i)
+	{
+		auto p = ObjectPool<CProjectile>::MakeShared();
+		p->SetObjectId(100000 + i);
+		p->Deactivate();
+		m_arrowPool.push_back(p);
+	}
+
+	for (int i = 0; i < kBulletPoolSize; ++i)
+	{
+		auto p = ObjectPool<CProjectile>::MakeShared();
+		p->SetObjectId(200000 + i);
+		p->Deactivate();
+		m_bulletPool.push_back(p);
+	}
+
+	m_navMesh = make_unique<CNavMesh>();
+	const std::vector<std::string> navCandidates = {
+		"MapFIle/FullStageNavmesh.nvm",
+		"MapFIle/Navmesh_FullStage.nvm",
+		"GameServer/MapFIle/FullStageNavmesh.nvm",
+		"GameServer/MapFIle/Navmesh_FullStage.nvm"
+	};
+	for (const auto& path : navCandidates)
+	{
+		if (m_navMesh->LoadFromFile(path))
+			break;
+	}
+
+	auto SampleEnemySpawn = [&](const GameMath::Vec3& desiredPos)
+		{
+			if (!m_navMesh)
+				return desiredPos;
+
+			GameMath::Vec3 projected{};
+			if (m_navMesh->SamplePosition(desiredPos, projected))
+				return projected;
+
+			return desiredPos;
+		};
+
+	if (!m_navMesh->IsLoaded())
+	{
+		m_navMesh.reset();
+		cout << "[NavMesh] load failed" << endl;
+	}
+	else
+	{
+		cout << "[NavMesh] load success" << endl;
+	}
+
+	const GameMath::Vec3 spawnAnchor = players.empty()
+		? GetInitialPlayerSpawnPosition(0)
+		: players.begin()->second->GetPosition();
+
 	for (int i = 0; i < 10; ++i)
 	{
-		auto enemy = make_shared<CEnemy>(i, u8"Zombie", Protocol::ENEMY_TYPE_BASIC, nullptr);
-		enemy->Build(GameMath::Vec3(i * 10.0f, 0, 0), GameMath::Vec3(0, 0, 0));
+       auto enemy = make_shared<CEnemy>(i, "Zombie", Protocol::ENEMY_TYPE_BASIC, nullptr);
+		const float dx = static_cast<float>((i % 5) - 2) * 1.8f;
+		const float dz = static_cast<float>(i / 5) * 1.8f + 4.0f;
+		enemy->Build(SampleEnemySpawn(GameMath::Vec3(spawnAnchor.x + dx, 0, spawnAnchor.z + dz)), GameMath::Vec3(0, 0, 0));
+		enemy->AddComponent<CMonsterAI>();
 		RegisterDynamicCollider(enemy);
 		//enemies[i]->AddComponent<CTransformComponent>();
 		//enemies[i]->CreateComponents();
@@ -450,8 +584,11 @@ void Room::BuildRoom()
 
 	for (int i = 0; i < 30; ++i)
 	{
-		auto enemy = make_shared<CEnemy>(i + 10, u8"FIghter", Protocol::ENEMY_TYPE_ARCHER, nullptr);
-		enemy->Build(GameMath::Vec3((i + 10) * 10.0f, 0, 10), GameMath::Vec3(0, 0, 0));
+        auto enemy = make_shared<CEnemy>(i + 10, "FIghter", Protocol::ENEMY_TYPE_ARCHER, nullptr);
+		const float dx = static_cast<float>((i % 6) - 3) * 2.0f;
+		const float dz = static_cast<float>(i / 6) * 2.0f + 8.0f;
+		enemy->Build(SampleEnemySpawn(GameMath::Vec3(spawnAnchor.x + dx, 0, spawnAnchor.z + dz)), GameMath::Vec3(0, 0, 0));
+		enemy->AddComponent<CMonsterAI>();
 		RegisterDynamicCollider(enemy);
 		//enemies[i]->AddComponent<CTransformComponent>();
 		//enemies[i]->CreateComponents();
@@ -527,11 +664,100 @@ void Room::TickAdvance()
 		ResolveWorldStaticCollision(enemy.second, prevPos);
 	}
 
+	for (auto& p : m_arrowPool)
+	{
+		if (!p->IsActive())
+			continue;
+		p->Update(tick);
+
+		constexpr float kHitRadiusSq = 1.0f;
+		for (auto& enemyPair : enemies)
+		{
+			auto& enemy = enemyPair.second;
+			const GameMath::Vec3 d = enemy->GetPosition() - p->GetPosition();
+			if (d.LengthSq() > kHitRadiusSq)
+				continue;
+
+			enemy->ApplyHit(tick.load(), 20);
+			p->Deactivate();
+			break;
+		}
+	}
+
+	for (auto& p : m_bulletPool)
+	{
+		if (!p->IsActive())
+			continue;
+		p->Update(tick);
+
+		constexpr float kHitRadiusSq = 1.0f;
+		for (auto& enemyPair : enemies)
+		{
+			auto& enemy = enemyPair.second;
+			const GameMath::Vec3 d = enemy->GetPosition() - p->GetPosition();
+			if (d.LengthSq() > kHitRadiusSq)
+				continue;
+
+			enemy->ApplyHit(tick.load(), 20);
+			p->Deactivate();
+			break;
+		}
+	}
+
 	if (_collision)
 		_collision->OnUpdate();
 
 
 	tick++;
+}
+
+ProjectileRef Room::AcquireFromPool(Vector<ProjectileRef>& pool)
+{
+	for (auto& p : pool)
+	{
+		if (!p->IsActive())
+			return p;
+	}
+
+	return nullptr;
+}
+
+void Room::FireArrow(PlayerRef shooter)
+{
+	if (!shooter || !shooter->CanFire(tick.load()))
+		return;
+
+	auto p = AcquireFromPool(m_arrowPool);
+	if (!p)
+		return;
+
+	const GameMath::Vec3 origin = shooter->GetPosition() + GameMath::Vec3(0.f, 1.5f, 0.f);
+	const GameMath::Vec3 forward = shooter->GetLook().Normalized();
+	constexpr float kArrowSpeed = 3.0f;
+	constexpr int kArrowLifeTicks = 200; // 6.0s @ 30ms tick
+
+	p->Activate(origin, forward * kArrowSpeed, kArrowLifeTicks, shooter->GetObjectId(), Protocol::BULLET_TYPE_ARROW);
+	shooter->OnFired(tick.load());
+	shooter->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
+}
+
+void Room::FireCannonball(PlayerRef shooter)
+{
+	if (!shooter || !shooter->CanFire(tick.load()))
+		return;
+
+	auto p = AcquireFromPool(m_bulletPool);
+	if (!p)
+		return;
+
+	const GameMath::Vec3 origin = shooter->GetPosition() + GameMath::Vec3(0.f, 1.5f, 0.f);
+	const GameMath::Vec3 forward = shooter->GetLook().Normalized();
+	constexpr float kBulletSpeed = 10.0f;
+	constexpr int kBulletLifeTicks = 100; // 3.0s @ 30ms tick
+
+	p->Activate(origin, forward * kBulletSpeed, kBulletLifeTicks, shooter->GetObjectId(), Protocol::BULLET_TYPE_CANNONBALL);
+	shooter->OnFired(tick.load());
+	shooter->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
 }
 
 
@@ -584,9 +810,23 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 
 
 	if ((keyCodes & kDirLButton) != 0)
-		player->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
+	{
+		switch (player->GetWeaponState())
+		{
+		case Protocol::WEAPON_TYPE_BOW:
+			FireArrow(player);
+			break;
+		case Protocol::WEAPON_TYPE_CANON:
+			FireCannonball(player);
+			break;
+		default:
+			player->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
+			break;
+		}
+	}
 	else if (prevAnimState != Protocol::ANIMATION_TYPE_ATTACK &&
-		prevAnimState != Protocol::ANIMATION_TYPE_ROLL)
+		prevAnimState != Protocol::ANIMATION_TYPE_ROLL &&
+		prevAnimState != Protocol::ANIMATION_TYPE_HIT)
 	{
 		player->SetAnimState(keyCodes & (kDirForward | kDirBackward | kDirLeft | kDirRight) ?
 			(keyCodes & kDirRun ? Protocol::ANIMATION_TYPE_RUN : Protocol::ANIMATION_TYPE_WALK) :
@@ -634,7 +874,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 
 	if (GameMath::Vec3::Dot(desiredShift, desiredShift) > 1e-8f)
 	{
-		std::cout << "desiredShift before collision: " << desiredShift.x << ", " << desiredShift.y << ", " << desiredShift.z << std::endl;
+		//std::cout << "desiredShift before collision: " << desiredShift.x << ", " << desiredShift.y << ", " << desiredShift.z << std::endl;
 		desiredShift = ResolvePreBlockedShift(player, desiredShift);
 	}
 
@@ -642,7 +882,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 
 	player->SetVelocity(shift);
 
-	std::cout << "shift: " << shift.x << ", " << shift.y << ", " << shift.z << std::endl;
+	//std::cout << "shift: " << shift.x << ", " << shift.y << ", " << shift.z << std::endl;
 
 	// 위치 적용
 	//player->Move(shift);
@@ -692,7 +932,7 @@ void Room::MakeFrameState(uint32 tick)
 		e->set_weapontype(enemy->GetWeaponState());
 
 		Protocol::Animation* anim = e->mutable_animation();
-		anim->set_statecode(BuildStateCode(*enemy));
+        anim->set_statecode(BuildEnemyStateCode(*enemy));
 		anim->set_animationtick(enemy->GetAnimTick());
 
 		Protocol::Transform* transform = e->mutable_transform();
@@ -700,6 +940,49 @@ void Room::MakeFrameState(uint32 tick)
 		position->set_x(enemy->GetPosition().x);
 		position->set_y(enemy->GetPosition().y);
 		position->set_z(enemy->GetPosition().z);
+		transform->set_yaw(enemy->GetYaw());
+	}
+
+	for (auto& projectile : m_arrowPool)
+	{
+		if (!projectile->IsActive())
+			continue;
+
+		Protocol::Bullet* b = frameStatePkt.add_bullets();
+		b->set_id(projectile->GetObjectId());
+		b->set_ownerid(projectile->GetOwnerId());
+		b->set_bullettype(projectile->GetBulletType());
+
+		Protocol::Vec3f* pos = b->mutable_position();
+		pos->set_x(projectile->GetPosition().x);
+		pos->set_y(projectile->GetPosition().y);
+		pos->set_z(projectile->GetPosition().z);
+
+		Protocol::Vec3f* vel = b->mutable_velocity();
+		vel->set_x(projectile->GetVelocity().x);
+		vel->set_y(projectile->GetVelocity().y);
+		vel->set_z(projectile->GetVelocity().z);
+	}
+
+	for (auto& projectile : m_bulletPool)
+	{
+		if (!projectile->IsActive())
+			continue;
+
+		Protocol::Bullet* b = frameStatePkt.add_bullets();
+		b->set_id(projectile->GetObjectId());
+		b->set_ownerid(projectile->GetOwnerId());
+		b->set_bullettype(projectile->GetBulletType());
+
+		Protocol::Vec3f* pos = b->mutable_position();
+		pos->set_x(projectile->GetPosition().x);
+		pos->set_y(projectile->GetPosition().y);
+		pos->set_z(projectile->GetPosition().z);
+
+		Protocol::Vec3f* vel = b->mutable_velocity();
+		vel->set_x(projectile->GetVelocity().x);
+		vel->set_y(projectile->GetVelocity().y);
+		vel->set_z(projectile->GetVelocity().z);
 	}
 
 	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(frameStatePkt);
@@ -792,7 +1075,7 @@ void Room::CheckClientReady()
 
 	if (allPlayerBuilt)
 	{
-		cout << "Game Started!" << endl;
+		std::cout << "Game Started!" << endl;
 
 		// 게임 시작 로직 (예: 타이머 시작, 적 스폰 등)
 		GRoom->DoTimer(100, &Room::TickAdvance);

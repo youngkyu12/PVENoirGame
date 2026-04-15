@@ -69,4 +69,5 @@ message S_FRAME_STATE
 	uint32 serverTick = 1;
 	repeated Player players = 2;
 	repeated Enemy enemies = 3;
+	repeated Bullet bullets = 4;
 }

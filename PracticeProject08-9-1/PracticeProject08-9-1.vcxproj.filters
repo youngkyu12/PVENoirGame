@@ -140,6 +140,12 @@
     <Filter Include="Components\MonsterCombatComponent">
       <UniqueIdentifier>{16aaad4e-f7aa-4e0a-a3f6-036a548f179e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="AudioManager">
+      <UniqueIdentifier>{aed301b5-8685-4e5f-8c74-475c77ee1c54}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Components\AudioComponent">
+      <UniqueIdentifier>{e293aa47-1d63-419e-8cb4-5a21d61efd73}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animator.h">
@@ -321,6 +327,15 @@
       <Filter>Components\WeaponHitboxComponent</Filter>
     </ClInclude>
     <ClInclude Include="ShadowMap.h" />
+    <ClInclude Include="AudioManager.h">
+      <Filter>AudioManager</Filter>
+    </ClInclude>
+    <ClInclude Include="MusicDirector.h">
+      <Filter>AudioManager</Filter>
+    </ClInclude>
+    <ClInclude Include="AudioComponent.h">
+      <Filter>Components\AudioComponent</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -471,6 +486,15 @@
       <Filter>Components\WeaponHitboxComponent</Filter>
     </ClCompile>
     <ClCompile Include="ShadowMap.cpp" />
+    <ClCompile Include="AudioManager.cpp">
+      <Filter>AudioManager</Filter>
+    </ClCompile>
+    <ClCompile Include="MusicDirector.cpp">
+      <Filter>AudioManager</Filter>
+    </ClCompile>
+    <ClCompile Include="AudioComponent.cpp">
+      <Filter>Components\AudioComponent</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PracticeProject08-9-1.rc">

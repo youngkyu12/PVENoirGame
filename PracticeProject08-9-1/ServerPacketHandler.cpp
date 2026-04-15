@@ -27,6 +27,7 @@ namespace
 		case 11: return "Building9";
 		case 12: return "VillageWall";
 		case 13: return "DirtRoad";
+		case 14: return "Tower";
 		default: return "";
 		}
 	}
@@ -165,6 +166,7 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 
 	auto players = pkt.players();
 	auto enemies = pkt.enemies();
+	auto bullets = pkt.bullets();
 
 	for (auto& player : players)
 	{
@@ -198,6 +200,22 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 		EWeaponType eweaponType = static_cast<EWeaponType>(weaponType - 1);
 
 		data.enemies.push_back({ enemy.id(), {position.x(), position.y(), position.z()}, yaw, animState, eweaponType });
+	}
+
+	data.bullets.reserve(bullets.size());
+	for (auto& bullet : bullets)
+	{
+		auto position = bullet.position();
+		auto velocity = bullet.velocity();
+
+		BulletState b{};
+		b.id = bullet.id();
+		b.ownerId = bullet.ownerid();
+		b.bulletType = static_cast<uint32_t>(bullet.bullettype());
+		b.position = XMFLOAT3(position.x(), position.y(), position.z());
+		b.velocity = XMFLOAT3(velocity.x(), velocity.y(), velocity.z());
+
+		data.bullets.push_back(std::move(b));
 	}
 
 	g_NetworkQueue.PushFrameState(std::move(data));
