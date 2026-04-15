@@ -2393,8 +2393,8 @@ void CGameScene::BuildStaticBatch(
 				placement.assetName == "Building9" ||
 				placement.assetName == "Tower" )
 			{
-				lodEntry.lodDistance01 = 120.0f;
-				lodEntry.lodDistance12 = 300.0f;
+				lodEntry.lodDistance01 = 150.0f;
+				lodEntry.lodDistance12 = 380.0f;
 			}
 			else if (
 				placement.assetName == "Tree1" ||
@@ -3060,7 +3060,7 @@ void CGameScene::UpdateSkinnedWorldLodSelection(CCamera* camera)
 		if ( entry.currentLod == resolvedLod && currentMesh.get() == targetMesh.get() )
 			continue;
 
-		const int previousLod = entry.currentLod;
+		/*const int previousLod = entry.currentLod;
 
 		entry.object->SetMesh(0, targetMesh);
 		entry.currentLod = resolvedLod;
@@ -3075,7 +3075,7 @@ void CGameScene::UpdateSkinnedWorldLodSelection(CCamera* camera)
 			previousLod,
 			entry.currentLod
 		);
-		OutputDebugStringA(debugText);
+		OutputDebugStringA(debugText);*/
 	}
 
 	if ( anyLodChanged )
@@ -3726,8 +3726,8 @@ void CGameScene::BuildSkinnedBatch(
 					lodEntry.lodReferencePosition = pos;
 					lodEntry.lodEnabled = true;
 					lodEntry.currentLod = 0;
-					lodEntry.lodDistance01 = 80.0f;
-					lodEntry.lodDistance12 = 180.0f;
+					lodEntry.lodDistance01 = 15.0f;
+					lodEntry.lodDistance12 = 30.0f;
 					lodEntry.lodMeshes = ghoulLodMeshes;
 
 					if ( !lodEntry.lodMeshes[0] )
