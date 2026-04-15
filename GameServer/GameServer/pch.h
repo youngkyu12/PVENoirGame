@@ -30,4 +30,5 @@ using GameAreaRef = shared_ptr<class GameArea>;
 using PlayerRef = shared_ptr<class Player>;
 using EnemyRef = shared_ptr<class CEnemy>;
 using BuildingRef = shared_ptr<class CBuilding>;
+using ProjectileRef = shared_ptr<class CProjectile>;
 //using ItemRef = shared_ptr<class CItem>;

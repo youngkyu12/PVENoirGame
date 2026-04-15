@@ -7,6 +7,8 @@
 #include "GameArea.h"
 #include "CollisionSystem.h"
 #include "ColliderComponent.h"
+#include "MonsterAI.h"
+#include "Projectile.h"
 
 #include "CommonPlayerControllerComponent.h"
 
@@ -18,6 +20,8 @@
 #include <fstream>
 #include <cstdio>
 #include <cstdlib>
+#include <cmath>
+#include <unordered_map>
 
 shared_ptr<Room> GRoom = make_shared<Room>();
 
@@ -110,7 +114,7 @@ namespace
 		if (anim == Protocol::ANIMATION_TYPE_RUN)    code |= kStateRun;
 
 		// TODO: Hit 상태 소스 추가 시 반영
-		// if (anim == Protocol::ANIMATION_TYPE_HIT) code |= kStateHit;
+		if (anim == Protocol::ANIMATION_TYPE_HIT) code |= kStateHit;
 
 		// 이동/방향 비트
 		const GameMath::Vec3 v = obj.GetVelocity();
@@ -129,6 +133,47 @@ namespace
 			if (str < -kEps) code |= kStateLeft;
 		}
 
+		return code;
+	}
+
+	static uint32 BuildEnemyStateCode(const CServerObject& obj)
+	{
+		uint32 code = 0;
+		const auto anim = obj.GetAnimState();
+
+		if (anim == Protocol::ANIMATION_TYPE_DIE)    code |= kStateDie;
+		if (anim == Protocol::ANIMATION_TYPE_ATTACK) code |= kStateAttack;
+		if (anim == Protocol::ANIMATION_TYPE_ROLL)   code |= kStateRoll;
+		if (anim == Protocol::ANIMATION_TYPE_RUN)    code |= kStateRun;
+		if (anim == Protocol::ANIMATION_TYPE_HIT)    code |= kStateHit;
+
+		static std::unordered_map<uint64, GameMath::Vec3> s_prevEnemyPos;
+
+		const uint64 enemyId = obj.GetObjectId();
+		const GameMath::Vec3 curPos = obj.GetPosition();
+		constexpr float kEps = 1e-4f;
+
+		auto it = s_prevEnemyPos.find(enemyId);
+		if (it != s_prevEnemyPos.end())
+		{
+			const GameMath::Vec3& prevPos = it->second;
+			GameMath::Vec3 delta(curPos.x - prevPos.x, 0.0f, curPos.z - prevPos.z);
+
+			if (delta.LengthSq() > kEps)
+			{
+				code |= kStateMove;
+
+				const float fwd = GameMath::Vec3::Dot(delta, obj.GetLook());
+				const float str = GameMath::Vec3::Dot(delta, obj.GetRight());
+
+				if (fwd > kEps) code |= kStateUp;
+				if (fwd < -kEps) code |= kStateDown;
+				if (str > kEps) code |= kStateRight;
+				if (str < -kEps) code |= kStateLeft;
+			}
+		}
+
+		s_prevEnemyPos[enemyId] = curPos;
 		return code;
 	}
 
@@ -181,9 +226,9 @@ namespace
 		outEntries.clear();
 
 		const std::vector<std::string> candidates = {
-			"MapFIle/placement_export_full.txt",
-			"GameServer/MapFIle/placement_export_full.txt",
-			"../GameServer/MapFIle/placement_export_full.txt"
+			"MapFIle/MapData_fullstage.txt",
+			"GameServer/MapFIle/MapData_fullstage.txt",
+			"../GameServer/MapFIle/MapData_fullstage.txt"
 		};
 
 		std::ifstream fin;
@@ -336,6 +381,366 @@ void Room::ResolveWorldStaticCollision(const shared_ptr<CServerObject>& obj, con
 	}
 }
 
+void Room::InitializeMegaGridState()
+{
+	for (MegaGridCell& cell : m_megaGridCells)
+		cell = MegaGridCell{};
+}
+
+void Room::InitializeSpatialGrid()
+{
+	m_gridStaticCells.assign(kGridCellCount, GridStaticCell{});
+	m_gridDynamicCells.assign(kGridCellCount, GridDynamicCell{});
+	InitializeMegaGridState();
+
+	m_playerGridTrackers.clear();
+	m_monsterGridTrackers.clear();
+	m_arrowGridTrackers.clear();
+	m_bulletGridTrackers.clear();
+
+	m_spatialGridInitialized = true;
+}
+
+void Room::ShutdownSpatialGrid()
+{
+	m_gridStaticCells.clear();
+	m_gridDynamicCells.clear();
+	InitializeMegaGridState();
+
+	m_playerGridTrackers.clear();
+	m_monsterGridTrackers.clear();
+	m_arrowGridTrackers.clear();
+	m_bulletGridTrackers.clear();
+
+	m_spatialGridInitialized = false;
+}
+
+bool Room::WorldToGridCell(float worldX, float worldZ, int& outCellX, int& outCellZ) const
+{
+	if (worldX < static_cast<float>(kGridMinX) || worldX > static_cast<float>(kGridMaxX)) return false;
+	if (worldZ < static_cast<float>(kGridMinZ) || worldZ > static_cast<float>(kGridMaxZ)) return false;
+
+	int cellX = static_cast<int>(std::floor(worldX)) - kGridMinX;
+	int cellZ = static_cast<int>(std::floor(worldZ)) - kGridMinZ;
+
+	if (cellX == kGridWidth) cellX = kGridWidth - 1;
+	if (cellZ == kGridHeight) cellZ = kGridHeight - 1;
+
+	if (cellX < 0 || cellX >= kGridWidth) return false;
+	if (cellZ < 0 || cellZ >= kGridHeight) return false;
+
+	outCellX = cellX;
+	outCellZ = cellZ;
+	return true;
+}
+
+int Room::GridCellIndex(int cellX, int cellZ) const
+{
+	return (cellZ * kGridWidth) + cellX;
+}
+
+int Room::MegaGridIndex(int megaX, int megaZ) const
+{
+	return (megaZ * kMegaGridCols) + megaX;
+}
+
+bool Room::FineCellToMegaGridCell(int cellX, int cellZ, int& outMegaX, int& outMegaZ) const
+{
+	if (cellX < 0 || cellX >= kGridWidth) return false;
+	if (cellZ < 0 || cellZ >= kGridHeight) return false;
+
+	outMegaX = cellX / kMegaGridCellWidth;
+	outMegaZ = cellZ / kMegaGridCellHeight;
+
+	if (outMegaX < 0 || outMegaX >= kMegaGridCols) return false;
+	if (outMegaZ < 0 || outMegaZ >= kMegaGridRows) return false;
+
+	return true;
+}
+
+bool Room::IsFineCellInsideMegaGridApproachZone(int megaX, int megaZ, int cellX, int cellZ) const
+{
+	if (megaX < 0 || megaX >= kMegaGridCols) return false;
+	if (megaZ < 0 || megaZ >= kMegaGridRows) return false;
+	if (cellX < 0 || cellX >= kGridWidth) return false;
+	if (cellZ < 0 || cellZ >= kGridHeight) return false;
+
+	const MegaGridCell& megaCell = m_megaGridCells[static_cast<size_t>(MegaGridIndex(megaX, megaZ))];
+
+	const int zoneWidth = std::clamp(megaCell.approachWidthCells, 1, kMegaGridCellWidth);
+	const int zoneHeight = std::clamp(megaCell.approachHeightCells, 1, kMegaGridCellHeight);
+
+	const int megaStartX = megaX * kMegaGridCellWidth;
+	const int megaStartZ = megaZ * kMegaGridCellHeight;
+
+	const int zoneStartX = megaStartX + ((kMegaGridCellWidth - zoneWidth) / 2);
+	const int zoneStartZ = megaStartZ + ((kMegaGridCellHeight - zoneHeight) / 2);
+
+	const int zoneEndX = zoneStartX + zoneWidth;
+	const int zoneEndZ = zoneStartZ + zoneHeight;
+
+	return
+		(cellX >= zoneStartX && cellX < zoneEndX) &&
+		(cellZ >= zoneStartZ && cellZ < zoneEndZ);
+}
+
+void Room::AddDynamicCount(int cellX, int cellZ, EGridDynamicKind kind, int delta)
+{
+	if (!m_spatialGridInitialized) return;
+	if (cellX < 0 || cellX >= kGridWidth) return;
+	if (cellZ < 0 || cellZ >= kGridHeight) return;
+
+	GridDynamicCell& cell = m_gridDynamicCells[static_cast<size_t>(GridCellIndex(cellX, cellZ))];
+
+	uint16_t* target = nullptr;
+	switch (kind)
+	{
+	case EGridDynamicKind::Player: target = &cell.playerCount; break;
+	case EGridDynamicKind::Monster: target = &cell.monsterCount; break;
+	case EGridDynamicKind::Arrow: target = &cell.arrowCount; break;
+	case EGridDynamicKind::Bullet: target = &cell.bulletCount; break;
+	default: return;
+	}
+
+	int next = static_cast<int>(*target) + delta;
+	if (next < 0) next = 0;
+	*target = static_cast<uint16_t>(next);
+}
+
+void Room::RegisterStaticBuildingToGrid(BuildingRef building)
+{
+	if (!m_spatialGridInitialized || !building)
+		return;
+
+	if (!ShouldCreateWorldStaticCollider(building->GetBuildingType()))
+		return;
+
+	std::unordered_set<int> touchedCells;
+
+	auto StampBuildingCellsFromOOBB = [&](const BoundingOrientedBox& box)
+		{
+			XMFLOAT3 corners[8] = {};
+			box.GetCorners(corners);
+
+			float minX = corners[0].x;
+			float maxX = corners[0].x;
+			float minZ = corners[0].z;
+			float maxZ = corners[0].z;
+
+			for (int i = 1; i < 8; ++i)
+			{
+				if (corners[i].x < minX) minX = corners[i].x;
+				if (corners[i].x > maxX) maxX = corners[i].x;
+				if (corners[i].z < minZ) minZ = corners[i].z;
+				if (corners[i].z > maxZ) maxZ = corners[i].z;
+			}
+
+			int beginCellX = static_cast<int>(std::floor(minX)) - kGridMinX;
+			int endCellX = static_cast<int>(std::ceil(maxX)) - kGridMinX - 1;
+
+			int beginCellZ = static_cast<int>(std::floor(minZ)) - kGridMinZ;
+			int endCellZ = static_cast<int>(std::ceil(maxZ)) - kGridMinZ - 1;
+
+			if (beginCellX < 0) beginCellX = 0;
+			if (beginCellZ < 0) beginCellZ = 0;
+			if (endCellX >= kGridWidth) endCellX = kGridWidth - 1;
+			if (endCellZ >= kGridHeight) endCellZ = kGridHeight - 1;
+
+			if (beginCellX > endCellX) return;
+			if (beginCellZ > endCellZ) return;
+
+			for (int z = beginCellZ; z <= endCellZ; ++z)
+			{
+				for (int x = beginCellX; x <= endCellX; ++x)
+				{
+					touchedCells.insert(GridCellIndex(x, z));
+				}
+			}
+		};
+
+	if (auto* collider = building->GetComponent<CColliderComponent>())
+	{
+		for (const auto& subOOBB : collider->GetSubOOBBs())
+			StampBuildingCellsFromOOBB(subOOBB);
+
+		if (touchedCells.empty() && collider->GetType() == EColliderType::OOBB)
+			StampBuildingCellsFromOOBB(collider->GetOOBB());
+	}
+
+	if (touchedCells.empty())
+	{
+		int cellX = -1;
+		int cellZ = -1;
+		const GameMath::Vec3 pos = building->GetPosition();
+
+		if (WorldToGridCell(pos.x, pos.z, cellX, cellZ))
+			touchedCells.insert(GridCellIndex(cellX, cellZ));
+	}
+
+	for (int cellIndex : touchedCells)
+	{
+		if (cellIndex < 0 || cellIndex >= kGridCellCount) continue;
+		++m_gridStaticCells[static_cast<size_t>(cellIndex)].buildingCount;
+		m_gridStaticCells[static_cast<size_t>(cellIndex)].floorHeight = 0.0f;
+	}
+}
+
+void Room::ResetDynamicGridCounts()
+{
+	for (GridDynamicCell& cell : m_gridDynamicCells)
+	{
+		cell.playerCount = 0;
+		cell.monsterCount = 0;
+		cell.arrowCount = 0;
+		cell.bulletCount = 0;
+	}
+}
+
+bool Room::TryGetTrackedCell(const CServerObject* obj, int& outCellX, int& outCellZ) const
+{
+	if (!obj) return false;
+	if (!obj->IsActive()) return false;
+
+	if (const auto* projectile = dynamic_cast<const CProjectile*>(obj))
+	{
+		if (!projectile->IsActive())
+			return false;
+	}
+
+	const GameMath::Vec3 pos = obj->GetPosition();
+	if (pos.y < -100.0f) return false;
+
+	return WorldToGridCell(pos.x, pos.z, outCellX, outCellZ);
+}
+
+void Room::RefreshDynamicTracker(GridDynamicTracker& tracker, EGridDynamicKind kind)
+{
+	int currentCellX = -1;
+	int currentCellZ = -1;
+	const bool hasCurrentCell = TryGetTrackedCell(tracker.object, currentCellX, currentCellZ);
+
+	if (tracker.occupied)
+	{
+		if (!hasCurrentCell || tracker.prevCellX != currentCellX || tracker.prevCellZ != currentCellZ)
+		{
+			AddDynamicCount(tracker.prevCellX, tracker.prevCellZ, kind, -1);
+			tracker.occupied = false;
+		}
+	}
+
+	if (hasCurrentCell)
+	{
+		if (!tracker.occupied || tracker.prevCellX != currentCellX || tracker.prevCellZ != currentCellZ)
+		{
+			AddDynamicCount(currentCellX, currentCellZ, kind, +1);
+			tracker.prevCellX = currentCellX;
+			tracker.prevCellZ = currentCellZ;
+			tracker.occupied = true;
+		}
+	}
+}
+
+void Room::BuildDynamicGridTrackers()
+{
+	m_playerGridTrackers.clear();
+	m_playerGridTrackers.reserve(players.size());
+	for (auto& p : players)
+	{
+		GridDynamicTracker tracker{};
+		tracker.object = p.second.get();
+		m_playerGridTrackers.push_back(tracker);
+	}
+
+	m_monsterGridTrackers.clear();
+	m_monsterGridTrackers.reserve(enemies.size());
+	for (auto& e : enemies)
+	{
+		GridDynamicTracker tracker{};
+		tracker.object = e.second.get();
+		m_monsterGridTrackers.push_back(tracker);
+	}
+
+	m_arrowGridTrackers.clear();
+	m_arrowGridTrackers.reserve(m_arrowPool.size());
+	for (auto& p : m_arrowPool)
+	{
+		GridDynamicTracker tracker{};
+		tracker.object = p.get();
+		m_arrowGridTrackers.push_back(tracker);
+	}
+
+	m_bulletGridTrackers.clear();
+	m_bulletGridTrackers.reserve(m_bulletPool.size());
+	for (auto& p : m_bulletPool)
+	{
+		GridDynamicTracker tracker{};
+		tracker.object = p.get();
+		m_bulletGridTrackers.push_back(tracker);
+	}
+}
+
+void Room::RebuildDynamicGridState()
+{
+	if (!m_spatialGridInitialized) return;
+
+	ResetDynamicGridCounts();
+	BuildDynamicGridTrackers();
+
+	for (auto& tracker : m_playerGridTrackers)
+		RefreshDynamicTracker(tracker, EGridDynamicKind::Player);
+
+	for (auto& tracker : m_monsterGridTrackers)
+		RefreshDynamicTracker(tracker, EGridDynamicKind::Monster);
+
+	for (auto& tracker : m_arrowGridTrackers)
+		RefreshDynamicTracker(tracker, EGridDynamicKind::Arrow);
+
+	for (auto& tracker : m_bulletGridTrackers)
+		RefreshDynamicTracker(tracker, EGridDynamicKind::Bullet);
+
+	UpdateMegaGridState();
+}
+
+void Room::UpdateDynamicGridState()
+{
+	if (!m_spatialGridInitialized) return;
+
+	for (auto& tracker : m_playerGridTrackers)
+		RefreshDynamicTracker(tracker, EGridDynamicKind::Player);
+
+	for (auto& tracker : m_monsterGridTrackers)
+		RefreshDynamicTracker(tracker, EGridDynamicKind::Monster);
+
+	for (auto& tracker : m_arrowGridTrackers)
+		RefreshDynamicTracker(tracker, EGridDynamicKind::Arrow);
+
+	for (auto& tracker : m_bulletGridTrackers)
+		RefreshDynamicTracker(tracker, EGridDynamicKind::Bullet);
+
+	UpdateMegaGridState();
+}
+
+void Room::UpdateMegaGridState()
+{
+	if (!m_spatialGridInitialized) return;
+
+	for (const GridDynamicTracker& tracker : m_playerGridTrackers)
+	{
+		if (!tracker.occupied) continue;
+
+		int megaX = -1;
+		int megaZ = -1;
+		if (!FineCellToMegaGridCell(tracker.prevCellX, tracker.prevCellZ, megaX, megaZ))
+			continue;
+
+		if (!IsFineCellInsideMegaGridApproachZone(megaX, megaZ, tracker.prevCellX, tracker.prevCellZ))
+			continue;
+
+		MegaGridCell& megaCell = m_megaGridCells[static_cast<size_t>(MegaGridIndex(megaX, megaZ))];
+		megaCell.hasPlayerApproached = true;
+	}
+}
+
 GameMath::Vec3 Room::ResolvePreBlockedShift(const shared_ptr<CServerObject>& obj, const GameMath::Vec3& desiredShift)
 {
 	if (!_collision || !obj)
@@ -442,7 +847,10 @@ void Room::BroadCastAll(SendBufferRef sendBuffer)
 void Room::BuildRoom()
 {
 	buildings.clear();
+	m_arrowPool.clear();
+	m_bulletPool.clear();
 	InitializeCollisionSystem();
+	InitializeSpatialGrid();
 
 	std::vector<PlacementEntry> entries;
 
@@ -460,6 +868,7 @@ void Room::BuildRoom()
 			building->SetActive(true);
 
 			RegisterStaticCollider(building);
+			RegisterStaticBuildingToGrid(building);
 
 			buildings[buildingId] = building;
 			++buildingId;
@@ -467,10 +876,69 @@ void Room::BuildRoom()
 	}
 
 	MakeFireRateMap();
+
+	for (int i = 0; i < kArrowPoolSize; ++i)
+	{
+		auto p = ObjectPool<CProjectile>::MakeShared();
+		p->SetObjectId(100000 + i);
+		p->Deactivate();
+		m_arrowPool.push_back(p);
+	}
+
+	for (int i = 0; i < kBulletPoolSize; ++i)
+	{
+		auto p = ObjectPool<CProjectile>::MakeShared();
+		p->SetObjectId(200000 + i);
+		p->Deactivate();
+		m_bulletPool.push_back(p);
+	}
+
+	m_navMesh = make_unique<CNavMesh>();
+	const std::vector<std::string> navCandidates = {
+		"MapFIle/FullStageNavmesh.nvm",
+		"MapFIle/Navmesh_FullStage.nvm",
+		"GameServer/MapFIle/FullStageNavmesh.nvm",
+		"GameServer/MapFIle/Navmesh_FullStage.nvm"
+	};
+	for (const auto& path : navCandidates)
+	{
+		if (m_navMesh->LoadFromFile(path))
+			break;
+	}
+
+	auto SampleEnemySpawn = [&](const GameMath::Vec3& desiredPos)
+		{
+			if (!m_navMesh)
+				return desiredPos;
+
+			GameMath::Vec3 projected{};
+			if (m_navMesh->SamplePosition(desiredPos, projected))
+				return projected;
+
+			return desiredPos;
+		};
+
+	if (!m_navMesh->IsLoaded())
+	{
+		m_navMesh.reset();
+		cout << "[NavMesh] load failed" << endl;
+	}
+	else
+	{
+		cout << "[NavMesh] load success" << endl;
+	}
+
+	const GameMath::Vec3 spawnAnchor = players.empty()
+		? GetInitialPlayerSpawnPosition(0)
+		: players.begin()->second->GetPosition();
+
 	for (int i = 0; i < 10; ++i)
 	{
        auto enemy = make_shared<CEnemy>(i, "Zombie", Protocol::ENEMY_TYPE_BASIC, nullptr);
-		enemy->Build(GameMath::Vec3(i * 10.0f, 0, 0), GameMath::Vec3(0, 0, 0));
+		const float dx = static_cast<float>((i % 5) - 2) * 1.8f;
+		const float dz = static_cast<float>(i / 5) * 1.8f + 4.0f;
+		enemy->Build(SampleEnemySpawn(GameMath::Vec3(spawnAnchor.x + dx, 0, spawnAnchor.z + dz)), GameMath::Vec3(0, 0, 0));
+		enemy->AddComponent<CMonsterAI>();
 		RegisterDynamicCollider(enemy);
 		//enemies[i]->AddComponent<CTransformComponent>();
 		//enemies[i]->CreateComponents();
@@ -480,7 +948,10 @@ void Room::BuildRoom()
 	for (int i = 0; i < 30; ++i)
 	{
         auto enemy = make_shared<CEnemy>(i + 10, "FIghter", Protocol::ENEMY_TYPE_ARCHER, nullptr);
-		enemy->Build(GameMath::Vec3((i + 10) * 10.0f, 0, 10), GameMath::Vec3(0, 0, 0));
+		const float dx = static_cast<float>((i % 6) - 3) * 2.0f;
+		const float dz = static_cast<float>(i / 6) * 2.0f + 8.0f;
+		enemy->Build(SampleEnemySpawn(GameMath::Vec3(spawnAnchor.x + dx, 0, spawnAnchor.z + dz)), GameMath::Vec3(0, 0, 0));
+		enemy->AddComponent<CMonsterAI>();
 		RegisterDynamicCollider(enemy);
 		//enemies[i]->AddComponent<CTransformComponent>();
 		//enemies[i]->CreateComponents();
@@ -489,6 +960,8 @@ void Room::BuildRoom()
 
 	for (auto& playerPair : players)
 		RegisterDynamicCollider(playerPair.second);
+
+	RebuildDynamicGridState();
 }
 
 void Room::StartGame(bool ready, uint32 index)
@@ -535,6 +1008,7 @@ void Room::StartGame(bool ready, uint32 index)
 
 void Room::EndGame()
 {
+	ShutdownSpatialGrid();
 }
 
 void Room::TickAdvance()
@@ -556,11 +1030,102 @@ void Room::TickAdvance()
 		ResolveWorldStaticCollision(enemy.second, prevPos);
 	}
 
+	for (auto& p : m_arrowPool)
+	{
+		if (!p->IsActive())
+			continue;
+		p->Update(tick);
+
+		constexpr float kHitRadiusSq = 1.0f;
+		for (auto& enemyPair : enemies)
+		{
+			auto& enemy = enemyPair.second;
+			const GameMath::Vec3 d = enemy->GetPosition() - p->GetPosition();
+			if (d.LengthSq() > kHitRadiusSq)
+				continue;
+
+			enemy->ApplyHit(tick.load(), 20);
+			p->Deactivate();
+			break;
+		}
+	}
+
+	for (auto& p : m_bulletPool)
+	{
+		if (!p->IsActive())
+			continue;
+		p->Update(tick);
+
+		constexpr float kHitRadiusSq = 1.0f;
+		for (auto& enemyPair : enemies)
+		{
+			auto& enemy = enemyPair.second;
+			const GameMath::Vec3 d = enemy->GetPosition() - p->GetPosition();
+			if (d.LengthSq() > kHitRadiusSq)
+				continue;
+
+			enemy->ApplyHit(tick.load(), 20);
+			p->Deactivate();
+			break;
+		}
+	}
+
 	if (_collision)
 		_collision->OnUpdate();
 
+	UpdateDynamicGridState();
+
 
 	tick++;
+}
+
+ProjectileRef Room::AcquireFromPool(Vector<ProjectileRef>& pool)
+{
+	for (auto& p : pool)
+	{
+		if (!p->IsActive())
+			return p;
+	}
+
+	return nullptr;
+}
+
+void Room::FireArrow(PlayerRef shooter)
+{
+	if (!shooter || !shooter->CanFire(tick.load()))
+		return;
+
+	auto p = AcquireFromPool(m_arrowPool);
+	if (!p)
+		return;
+
+	const GameMath::Vec3 origin = shooter->GetPosition() + GameMath::Vec3(0.f, 1.5f, 0.f);
+	const GameMath::Vec3 forward = shooter->GetLook().Normalized();
+	constexpr float kArrowSpeed = 3.0f;
+	constexpr int kArrowLifeTicks = 200; // 6.0s @ 30ms tick
+
+	p->Activate(origin, forward * kArrowSpeed, kArrowLifeTicks, shooter->GetObjectId(), Protocol::BULLET_TYPE_ARROW);
+	shooter->OnFired(tick.load());
+	shooter->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
+}
+
+void Room::FireCannonball(PlayerRef shooter)
+{
+	if (!shooter || !shooter->CanFire(tick.load()))
+		return;
+
+	auto p = AcquireFromPool(m_bulletPool);
+	if (!p)
+		return;
+
+	const GameMath::Vec3 origin = shooter->GetPosition() + GameMath::Vec3(0.f, 1.5f, 0.f);
+	const GameMath::Vec3 forward = shooter->GetLook().Normalized();
+	constexpr float kBulletSpeed = 10.0f;
+	constexpr int kBulletLifeTicks = 100; // 3.0s @ 30ms tick
+
+	p->Activate(origin, forward * kBulletSpeed, kBulletLifeTicks, shooter->GetObjectId(), Protocol::BULLET_TYPE_CANNONBALL);
+	shooter->OnFired(tick.load());
+	shooter->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
 }
 
 
@@ -613,9 +1178,23 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 
 
 	if ((keyCodes & kDirLButton) != 0)
-		player->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
+	{
+		switch (player->GetWeaponState())
+		{
+		case Protocol::WEAPON_TYPE_BOW:
+			FireArrow(player);
+			break;
+		case Protocol::WEAPON_TYPE_CANON:
+			FireCannonball(player);
+			break;
+		default:
+			player->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
+			break;
+		}
+	}
 	else if (prevAnimState != Protocol::ANIMATION_TYPE_ATTACK &&
-		prevAnimState != Protocol::ANIMATION_TYPE_ROLL)
+		prevAnimState != Protocol::ANIMATION_TYPE_ROLL &&
+		prevAnimState != Protocol::ANIMATION_TYPE_HIT)
 	{
 		player->SetAnimState(keyCodes & (kDirForward | kDirBackward | kDirLeft | kDirRight) ?
 			(keyCodes & kDirRun ? Protocol::ANIMATION_TYPE_RUN : Protocol::ANIMATION_TYPE_WALK) :
@@ -663,7 +1242,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 
 	if (GameMath::Vec3::Dot(desiredShift, desiredShift) > 1e-8f)
 	{
-		std::cout << "desiredShift before collision: " << desiredShift.x << ", " << desiredShift.y << ", " << desiredShift.z << std::endl;
+		//std::cout << "desiredShift before collision: " << desiredShift.x << ", " << desiredShift.y << ", " << desiredShift.z << std::endl;
 		desiredShift = ResolvePreBlockedShift(player, desiredShift);
 	}
 
@@ -671,7 +1250,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 
 	player->SetVelocity(shift);
 
-	std::cout << "shift: " << shift.x << ", " << shift.y << ", " << shift.z << std::endl;
+	//std::cout << "shift: " << shift.x << ", " << shift.y << ", " << shift.z << std::endl;
 
 	// 위치 적용
 	//player->Move(shift);
@@ -721,7 +1300,7 @@ void Room::MakeFrameState(uint32 tick)
 		e->set_weapontype(enemy->GetWeaponState());
 
 		Protocol::Animation* anim = e->mutable_animation();
-		anim->set_statecode(BuildStateCode(*enemy));
+        anim->set_statecode(BuildEnemyStateCode(*enemy));
 		anim->set_animationtick(enemy->GetAnimTick());
 
 		Protocol::Transform* transform = e->mutable_transform();
@@ -729,6 +1308,49 @@ void Room::MakeFrameState(uint32 tick)
 		position->set_x(enemy->GetPosition().x);
 		position->set_y(enemy->GetPosition().y);
 		position->set_z(enemy->GetPosition().z);
+		transform->set_yaw(enemy->GetYaw());
+	}
+
+	for (auto& projectile : m_arrowPool)
+	{
+		if (!projectile->IsActive())
+			continue;
+
+		Protocol::Bullet* b = frameStatePkt.add_bullets();
+		b->set_id(projectile->GetObjectId());
+		b->set_ownerid(projectile->GetOwnerId());
+		b->set_bullettype(projectile->GetBulletType());
+
+		Protocol::Vec3f* pos = b->mutable_position();
+		pos->set_x(projectile->GetPosition().x);
+		pos->set_y(projectile->GetPosition().y);
+		pos->set_z(projectile->GetPosition().z);
+
+		Protocol::Vec3f* vel = b->mutable_velocity();
+		vel->set_x(projectile->GetVelocity().x);
+		vel->set_y(projectile->GetVelocity().y);
+		vel->set_z(projectile->GetVelocity().z);
+	}
+
+	for (auto& projectile : m_bulletPool)
+	{
+		if (!projectile->IsActive())
+			continue;
+
+		Protocol::Bullet* b = frameStatePkt.add_bullets();
+		b->set_id(projectile->GetObjectId());
+		b->set_ownerid(projectile->GetOwnerId());
+		b->set_bullettype(projectile->GetBulletType());
+
+		Protocol::Vec3f* pos = b->mutable_position();
+		pos->set_x(projectile->GetPosition().x);
+		pos->set_y(projectile->GetPosition().y);
+		pos->set_z(projectile->GetPosition().z);
+
+		Protocol::Vec3f* vel = b->mutable_velocity();
+		vel->set_x(projectile->GetVelocity().x);
+		vel->set_y(projectile->GetVelocity().y);
+		vel->set_z(projectile->GetVelocity().z);
 	}
 
 	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(frameStatePkt);
@@ -821,7 +1443,7 @@ void Room::CheckClientReady()
 
 	if (allPlayerBuilt)
 	{
-		cout << "Game Started!" << endl;
+		std::cout << "Game Started!" << endl;
 
 		// 게임 시작 로직 (예: 타이머 시작, 적 스폰 등)
 		GRoom->DoTimer(100, &Room::TickAdvance);

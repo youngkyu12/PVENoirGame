@@ -18,6 +18,9 @@ public:
 	void SetWeapon(Protocol::WeaponType&& type, uint32&& currnetBullets);
 	void SetBullet(Protocol::BulletType&& type, uint32& currentBullets);
 
+	bool CanFire(uint32 serverTick) const;
+	void OnFired(uint32 serverTick);
+
 	Protocol::WeaponType GetWeaponState() const { return weaponType; }
 	Protocol::BulletType GetBulletState() const { return bulletType; }
 
@@ -27,5 +30,6 @@ private:
 
 	Protocol::BulletType bulletType = Protocol::BULLET_TYPE_NONE;
 	uint32 currentBullets = 0;
+	uint32 m_lastFireTick = 0;
 };
 

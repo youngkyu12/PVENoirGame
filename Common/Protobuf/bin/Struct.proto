@@ -39,8 +39,9 @@ message Bullet
 {
 	uint64 id = 1;
 	uint64 ownerId = 2;
-	Vec3f position = 3;
-	Vec3f velocity = 4;
+	BulletType bulletType = 3;
+	Vec3f position = 4;
+	Vec3f velocity = 5;
 }
 
 message Player

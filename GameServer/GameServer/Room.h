@@ -1,6 +1,10 @@
 #pragma once
 #include "JobQueue.h"
 #include "CollisionSystem.h"
+#include "NavMesh.h"
+#include <array>
+#include <vector>
+#include <unordered_set>
 
 namespace Protocol
 {
@@ -40,6 +44,9 @@ public:
     void TransferPlayer(PlayerRef player, uint32 fromAreaId, uint32 toAreaId);
 
 	map<uint64, EnemyRef> GetEnemies() { return enemies; }
+	const map<uint64, PlayerRef>& GetPlayers() const { return players; }
+	const CNavMesh* GetNavMesh() const { return m_navMesh.get(); }
+	uint32 GetTick() const { return tick.load(); }
 
 private:
 	void InitializeCollisionSystem();
@@ -51,6 +58,94 @@ private:
 	void ResolveWorldStaticCollision(const shared_ptr<CServerObject>& obj, const GameMath::Vec3& previousPos);
 	GameMath::Vec3 ResolvePreBlockedShift(const shared_ptr<CServerObject>& obj, const GameMath::Vec3& desiredShift);
 
+	void FireArrow(PlayerRef shooter);
+	void FireCannonball(PlayerRef shooter);
+	ProjectileRef AcquireFromPool(Vector<ProjectileRef>& pool);
+
+	void InitializeSpatialGrid();
+	void ShutdownSpatialGrid();
+	void InitializeMegaGridState();
+
+	bool WorldToGridCell(float worldX, float worldZ, int& outCellX, int& outCellZ) const;
+	int GridCellIndex(int cellX, int cellZ) const;
+
+	int MegaGridIndex(int megaX, int megaZ) const;
+	bool FineCellToMegaGridCell(int cellX, int cellZ, int& outMegaX, int& outMegaZ) const;
+	bool IsFineCellInsideMegaGridApproachZone(int megaX, int megaZ, int cellX, int cellZ) const;
+
+	enum class EGridDynamicKind : uint8_t
+	{
+		Player,
+		Monster,
+		Arrow,
+		Bullet
+	};
+
+	struct GridStaticCell
+	{
+		uint16_t buildingCount = 0;
+		float floorHeight = 0.0f;
+	};
+
+	struct GridDynamicCell
+	{
+		uint16_t playerCount = 0;
+		uint16_t monsterCount = 0;
+		uint16_t arrowCount = 0;
+		uint16_t bulletCount = 0;
+	};
+
+	struct MegaGridCell
+	{
+		bool hasPlayerApproached = false;
+		bool isCleared = false;
+		bool hasEventOccurred = false;
+
+		int approachWidthCells = 200;
+		int approachHeightCells = 200;
+	};
+
+	struct GridDynamicTracker
+	{
+		CServerObject* object = nullptr;
+		int prevCellX = -1;
+		int prevCellZ = -1;
+		bool occupied = false;
+	};
+
+	void AddDynamicCount(int cellX, int cellZ, EGridDynamicKind kind, int delta);
+	void RegisterStaticBuildingToGrid(BuildingRef building);
+
+	void ResetDynamicGridCounts();
+	bool TryGetTrackedCell(const CServerObject* obj, int& outCellX, int& outCellZ) const;
+	void RefreshDynamicTracker(GridDynamicTracker& tracker, EGridDynamicKind kind);
+	void BuildDynamicGridTrackers();
+	void RebuildDynamicGridState();
+	void UpdateDynamicGridState();
+	void UpdateMegaGridState();
+
+	static constexpr int kGridMinX = -600;
+	static constexpr int kGridMaxX = 600;
+	static constexpr int kGridMinZ = -200;
+	static constexpr int kGridMaxZ = 1000;
+
+	static constexpr int kGridWidth = (kGridMaxX - kGridMinX);
+	static constexpr int kGridHeight = (kGridMaxZ - kGridMinZ);
+	static constexpr int kGridCellCount = (kGridWidth * kGridHeight);
+
+	static constexpr int kMegaGridCols = 3;
+	static constexpr int kMegaGridRows = 3;
+	static constexpr int kMegaGridCount = (kMegaGridCols * kMegaGridRows);
+
+	static constexpr int kMegaGridCellWidth = (kGridWidth / kMegaGridCols);
+	static constexpr int kMegaGridCellHeight = (kGridHeight / kMegaGridRows);
+
+	std::unique_ptr<CNavMesh> m_navMesh;
+	static constexpr int kArrowPoolSize = 64;
+	static constexpr int kBulletPoolSize = 64;
+	Vector<ProjectileRef> m_arrowPool;
+	Vector<ProjectileRef> m_bulletPool;
+
 	std::unique_ptr<CCollisionSystem> _collision;
 
     USE_LOCK;
@@ -58,11 +153,21 @@ private:
 	map<uint64, EnemyRef> fighters; //  특수 적 참조 (옵션)
 	map<uint64, EnemyRef> enemies; // 전체 적 참조 (옵션)
 	map<uint64, BuildingRef> buildings; // 맵 파일 기반 정적 오브젝트
+
+	bool m_spatialGridInitialized = false;
+	std::vector<GridStaticCell> m_gridStaticCells;
+	std::vector<GridDynamicCell> m_gridDynamicCells;
+	std::array<MegaGridCell, kMegaGridCount> m_megaGridCells = {};
+
+	std::vector<GridDynamicTracker> m_playerGridTrackers;
+	std::vector<GridDynamicTracker> m_monsterGridTrackers;
+	std::vector<GridDynamicTracker> m_arrowGridTrackers;
+	std::vector<GridDynamicTracker> m_bulletGridTrackers;
     //array<GameAreaRef, 9> gameAreas; // 9개 구역
 
     Atomic<uint32> tick = 0;
 };
 
 extern shared_ptr<Room> GRoom;
-constexpr int MaxPlayers = 3;
+constexpr int MaxPlayers = 1;
 
