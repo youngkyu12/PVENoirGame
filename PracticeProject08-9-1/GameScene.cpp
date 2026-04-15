@@ -437,6 +437,46 @@ namespace
 		return true;
 	}
 
+	static int ClampSkinnedWorldLodLevel(int lodLevel)
+	{
+		if ( lodLevel < 0 ) return 0;
+		if ( lodLevel > 2 ) return 2;
+		return lodLevel;
+	}
+
+	static bool BuildSkinnedLodMeshBinPath(
+		const std::string& baseMeshBinPath,
+		int lodLevel,
+		std::string& outMeshBinPath)
+	{
+		const size_t dotPos = baseMeshBinPath.find_last_of('.');
+		if ( dotPos == std::string::npos )
+			return false;
+
+		const int clampedLodLevel = ClampSkinnedWorldLodLevel(lodLevel);
+
+		outMeshBinPath = baseMeshBinPath.substr(0, dotPos);
+		outMeshBinPath += "_LOD";
+		outMeshBinPath += std::to_string(clampedLodLevel);
+		outMeshBinPath += baseMeshBinPath.substr(dotPos);
+		return true;
+	}
+
+	static bool ResolveGhoulSkinnedLodAssetDesc(int lodLevel, AssetBuildDesc& outDesc)
+	{
+		std::string meshPath;
+		if ( !BuildSkinnedLodMeshBinPath("Assets/Ghoul/Mesh/Ghoul_Mesh.bin", lodLevel, meshPath) )
+			return false;
+
+		outDesc =
+		{
+			AssetType::Ghoul,
+			meshPath,
+			"Assets/Ghoul/Texture"
+		};
+		return true;
+	}
+
 	static bool ResolveStaticLodAssetPathDesc(
 		const std::string& assetName,
 		int lodLevel,
@@ -1255,6 +1295,7 @@ void CGameScene::ReleaseObjects()
 	m_staticInstanceGroups.clear();
 	ResetStaticWorldLodEntries();
 	m_skinnedInstanceGroups.clear();
+	ResetSkinnedWorldLodEntries();
 
     m_PlayerSwordRefs.clear();
     m_PlayerBowRefs.clear();
@@ -2944,6 +2985,110 @@ void CGameScene::UpdateStaticWorldLodSelection(CCamera* camera)
 		m_staticWorldLodDirty = false;
 	}
 }
+
+void CGameScene::ResetSkinnedWorldLodEntries()
+{
+	m_skinnedWorldLodEntries.clear();
+	m_skinnedWorldLodDirty = false;
+}
+
+int CGameScene::ComputeSkinnedWorldLodLevel(const XMFLOAT3& cameraPosition, const SkinnedWorldLodEntry& entry) const
+{
+	if ( !entry.lodEnabled )
+		return 0;
+
+	const float dx = cameraPosition.x - entry.lodReferencePosition.x;
+	const float dy = cameraPosition.y - entry.lodReferencePosition.y;
+	const float dz = cameraPosition.z - entry.lodReferencePosition.z;
+
+	const float dist = std::sqrt(dx * dx + dy * dy + dz * dz);
+
+	const float lodDistance01 = std::max(0.0f, entry.lodDistance01);
+	const float lodDistance12 = std::max(lodDistance01, entry.lodDistance12);
+
+	const float lod01Enter = lodDistance01 + m_skinnedLodHysteresis;
+	const float lod01Exit = lodDistance01 - m_skinnedLodHysteresis;
+	const float lod12Enter = lodDistance12 + m_skinnedLodHysteresis;
+	const float lod12Exit = lodDistance12 - m_skinnedLodHysteresis;
+
+	switch ( entry.currentLod )
+	{
+	case 0:
+		if ( dist >= lod01Enter ) return 1;
+		return 0;
+
+	case 1:
+		if ( dist < lod01Exit ) return 0;
+		if ( dist >= lod12Enter ) return 2;
+		return 1;
+
+	case 2:
+		if ( dist < lod12Exit ) return 1;
+		return 2;
+	}
+
+	if ( dist < lodDistance01 ) return 0;
+	if ( dist < lodDistance12 ) return 1;
+	return 2;
+}
+
+void CGameScene::UpdateSkinnedWorldLodSelection(CCamera* camera)
+{
+	if ( !camera ) return;
+	if ( m_skinnedWorldLodEntries.empty() ) return;
+
+	const XMFLOAT3 cameraPosition = camera->GetPosition();
+	bool anyLodChanged = false;
+
+	for ( SkinnedWorldLodEntry& entry : m_skinnedWorldLodEntries )
+	{
+		if ( !entry.object ) continue;
+		if ( entry.skinnedBatchObjectIndex == UINT_MAX ) continue;
+		if ( entry.skinnedBatchObjectIndex >= ( UINT ) m_skinnedBatch.objectRefs.size() ) continue;
+
+		int desiredLod = ComputeSkinnedWorldLodLevel(cameraPosition, entry);
+		desiredLod = ClampSkinnedWorldLodLevel(desiredLod);
+
+		int resolvedLod = desiredLod;
+		while ( resolvedLod > 0 && !entry.lodMeshes[( size_t ) resolvedLod] )
+			--resolvedLod;
+
+		std::shared_ptr<CMesh> targetMesh = entry.lodMeshes[( size_t ) resolvedLod];
+		if ( !targetMesh ) continue;
+
+		std::shared_ptr<CMesh> currentMesh = entry.object->GetMeshShared(0);
+		if ( entry.currentLod == resolvedLod && currentMesh.get() == targetMesh.get() )
+			continue;
+
+		const int previousLod = entry.currentLod;
+
+		entry.object->SetMesh(0, targetMesh);
+		entry.currentLod = resolvedLod;
+		anyLodChanged = true;
+
+		char debugText[256] = {};
+		sprintf_s(
+			debugText,
+			"[SkinnedLOD Select] asset=%s objectIndex=%u %d->%d\n",
+			entry.assetName.c_str(),
+			entry.skinnedBatchObjectIndex,
+			previousLod,
+			entry.currentLod
+		);
+		OutputDebugStringA(debugText);
+	}
+
+	if ( anyLodChanged )
+	{
+		BuildSkinnedInstanceGroups();
+		m_skinnedWorldLodDirty = true;
+	}
+	else
+	{
+		m_skinnedWorldLodDirty = false;
+	}
+}
+
 void CGameScene::BuildStaticInstanceGroups()
 {
 	m_staticInstanceGroups.clear();
@@ -3315,13 +3460,14 @@ void CGameScene::BuildSkinnedBatch(
         b->cbElementBytes
     );
 
-    m_skinnedObjects.clear();
-    m_skinnedObjects.reserve(cap);
+	m_skinnedObjects.clear();
+	m_skinnedObjects.reserve(cap);
 
-    b->objectRefs.clear();
-    b->objectRefs.reserve(cap);
+	b->objectRefs.clear();
+	b->objectRefs.reserve(cap);
 
-    b->count = 0;
+	b->count = 0;
+	ResetSkinnedWorldLodEntries();
 
     m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
 	auto ConfigureBodyCollider = [ ] (CColliderComponent* collider, bool isPlayerBody)
@@ -3412,17 +3558,35 @@ void CGameScene::BuildSkinnedBatch(
 		{
 			const UINT countW = m_ghoulCount;
 
-			AssetBuildDesc EnemyWDesc =
-			{
-				AssetType::Ghoul,
-				"Assets/Ghoul/Mesh/Ghoul_Mesh.bin",
-				"Assets/Ghoul/Texture"
-			};
+			std::array<std::shared_ptr<CMesh>, 3> ghoulLodMeshes = { nullptr, nullptr, nullptr };
 
-			BuiltAsset assetW = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyWDesc);
+			for ( int lodLevel = 0; lodLevel < 3; ++lodLevel )
+			{
+				AssetBuildDesc ghoulLodDesc{};
+				if ( !ResolveGhoulSkinnedLodAssetDesc(lodLevel, ghoulLodDesc) )
+					continue;
+
+				BuiltAsset ghoulLodAsset = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), ghoulLodDesc);
+				ghoulLodMeshes[( size_t ) lodLevel] = ghoulLodAsset.mesh;
+			}
+
+			std::shared_ptr<CMesh> ghoulBaseMesh = ghoulLodMeshes[0];
+			if ( !ghoulBaseMesh )
+			{
+				AssetBuildDesc EnemyWDesc =
+				{
+					AssetType::Ghoul,
+					"Assets/Ghoul/Mesh/Ghoul_Mesh.bin",
+					"Assets/Ghoul/Texture"
+				};
+
+				BuiltAsset assetW = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyWDesc);
+				ghoulBaseMesh = assetW.mesh;
+				ghoulLodMeshes[0] = ghoulBaseMesh;
+			}
 
 			PreloadCachedClipSet(
-				assetW.mesh.get(),
+				ghoulBaseMesh.get(),
 				"Ghoul",
 				{
 					{ "Assets/Ghoul/Animation/Ghoul_Anim_Idle.bin",   "Idle" },
@@ -3445,7 +3609,7 @@ void CGameScene::BuildSkinnedBatch(
 				auto* cb = ( CB_GAMEOBJECT_INFO* ) ( ( UINT8* ) b->mappedGameObjects + i * b->cbElementBytes );
 				obj->SetMappedGameObjectCB(cb);
 
-				obj->SetMesh(0, assetW.mesh);
+				obj->SetMesh(0, ghoulBaseMesh);
 				obj->AddComponent<CSkinnedMeshRendererComponent>();
 				auto* collider = obj->AddComponent<CColliderComponent>(EColliderType::BCapsule);
 				ConfigureBodyCollider(collider, false);
@@ -3496,8 +3660,8 @@ void CGameScene::BuildSkinnedBatch(
 
 				obj->SetCbvGPUDescriptorHandlePtr(b->baseCbvGpu.ptr + ( UINT64 ) i * b->cbvInc);
 
-				if ( assetW.mesh && assetW.mesh->IsSkinnedMesh() )
-					obj->EnableSkinning(dev, assetW.mesh->GetBoneCount());
+				if ( ghoulBaseMesh && ghoulBaseMesh->IsSkinnedMesh() )
+					obj->EnableSkinning(dev, ghoulBaseMesh->GetBoneCount());
 
 				auto mesh0 = obj->GetMeshShared(0);
 				if ( mesh0 && animComp )
@@ -3554,6 +3718,23 @@ void CGameScene::BuildSkinnedBatch(
 				if ( animComp ) animComp->EvaluatePose(0.0f);
 
 				CGameObject* raw = obj.get();
+				{
+					SkinnedWorldLodEntry lodEntry{};
+					lodEntry.object = raw;
+					lodEntry.skinnedBatchObjectIndex = i;
+					lodEntry.assetName = "Ghoul";
+					lodEntry.lodReferencePosition = pos;
+					lodEntry.lodEnabled = true;
+					lodEntry.currentLod = 0;
+					lodEntry.lodDistance01 = 80.0f;
+					lodEntry.lodDistance12 = 180.0f;
+					lodEntry.lodMeshes = ghoulLodMeshes;
+
+					if ( !lodEntry.lodMeshes[0] )
+						lodEntry.lodMeshes[0] = ghoulBaseMesh;
+
+					m_skinnedWorldLodEntries.push_back(std::move(lodEntry));
+				}
 				m_skinnedObjects.push_back(std::move(obj));
 				b->objectRefs.push_back(raw);
 				b->count = ( UINT ) b->objectRefs.size();
@@ -6212,6 +6393,7 @@ void CGameScene::OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera
 	{
 		camera->UpdateBoundingFrustum();
 		UpdateStaticWorldLodSelection(camera);
+		UpdateSkinnedWorldLodSelection(camera);
 	}
 
 	UpdateShaderVariables(cmd);

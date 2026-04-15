@@ -81,6 +81,23 @@ struct StaticWorldLodEntry
 	std::array<std::shared_ptr<CMesh>, 3> lodMeshes = { nullptr, nullptr, nullptr };
 };
 
+struct SkinnedWorldLodEntry
+{
+	CGameObject* object = nullptr;
+	UINT skinnedBatchObjectIndex = UINT_MAX;
+
+	std::string assetName;
+	XMFLOAT3 lodReferencePosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	bool lodEnabled = false;
+	int currentLod = 0;
+
+	float lodDistance01 = 80.0f;
+	float lodDistance12 = 180.0f;
+
+	std::array<std::shared_ptr<CMesh>, 3> lodMeshes = { nullptr, nullptr, nullptr };
+};
+
 struct SkinnedInstanceVertex
 {
 	XMFLOAT4 world0 = XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f);
@@ -172,7 +189,11 @@ private:
 	int ComputeStaticWorldLodLevel(const XMFLOAT3& cameraPosition, const StaticWorldLodEntry& entry) const;
 	void UpdateStaticWorldLodSelection(CCamera* camera);
 	void RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
 	void BuildSkinnedInstanceGroups();
+	void ResetSkinnedWorldLodEntries();
+	int ComputeSkinnedWorldLodLevel(const XMFLOAT3& cameraPosition, const SkinnedWorldLodEntry& entry) const;
+	void UpdateSkinnedWorldLodSelection(CCamera* camera);
 	void RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
     // Frame / Render
@@ -501,6 +522,9 @@ private:
 	std::vector<SkinnedInstanceGroup>   m_skinnedInstanceGroups;
 
 	ComPtr<ID3D12Resource>              m_pd3dSkinnedInstanceBuffer;
+	std::vector<SkinnedWorldLodEntry>   m_skinnedWorldLodEntries;
+	bool                                m_skinnedWorldLodDirty = false;
+	float                               m_skinnedLodHysteresis = 10.0f;
 	SkinnedInstanceVertex* m_pMappedSkinnedInstanceBuffer = nullptr;
 	UINT                                m_skinnedInstanceBufferCapacity = 0;
 
