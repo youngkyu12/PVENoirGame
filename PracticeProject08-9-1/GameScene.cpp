@@ -1324,6 +1324,7 @@ void CGameScene::ReleaseObjects()
 	m_navMesh.reset();
 
 #ifndef USING_NETWORK
+	m_monsterSpawnEntries.clear();
 	ShutdownSpatialGrid();
 #endif
 
@@ -1469,11 +1470,12 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	//const std::string navMeshFilePath = "MapData/Navmesh_Stage1.nvm";
 
 	//Full stage
-	const std::string placementFilePath = "MapData/MapData_fullstage.txt";
-	//const std::string placementFilePath = "MapData/MapData_fullstage(NoTree).txt";
+	//const std::string placementFilePath = "MapData/MapData_fullstage.txt";
+	const std::string placementFilePath = "MapData/MapData_fullstage(NoTree).txt";
 	const std::string navMeshFilePath = "MapData/Navmesh_FullStage.nvm";
 
 	const std::string cubeColliderReportFilePath = "MapData/CubeBoxColliderReport.txt";
+	const std::string monsterSpawnFilePath = "MapData/monster_spawn_points.txt";
 
 	if ( !LoadStaticPlacementFile(placementFilePath) )
 	{
@@ -1492,6 +1494,11 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	{
 		assert(false && "Failed to load navmesh file");
 		m_navMesh.reset();
+		return;
+	}
+	if ( !LoadMonsterSpawnFile(monsterSpawnFilePath) )
+	{
+		assert(false && "Failed to load monster spawn file");
 		return;
 	}
 #endif
@@ -1755,6 +1762,99 @@ void CGameScene::ApplyStaticPlacementCounts()
         else if (e.assetName == "Tower")       ++m_towerCount;
     }
 }
+
+#ifndef USING_NETWORK
+bool CGameScene::LoadMonsterSpawnFile(const std::string& filePath)
+{
+	m_monsterSpawnEntries.clear();
+
+	std::ifstream fin(filePath);
+	if ( !fin.is_open() )
+	{
+		m_ghoulCount = 0;
+		m_swordManCount = 0;
+		m_bowManCount = 0;
+		m_MutantCount = 0;
+		m_bossCount = 0;
+		return false;
+	}
+
+	std::string line;
+	while ( std::getline(fin, line) )
+	{
+		if ( !line.empty() && line.back() == '\r' )
+			line.pop_back();
+
+		if ( line.rfind("SPAWN|", 0) != 0 )
+			continue;
+
+		MonsterSpawnEntry entry{};
+
+		char type[32] = {};
+		float px = 0.0f;
+		float py = 0.0f;
+		float pz = 0.0f;
+		float yawDeg = 0.0f;
+		int megaX = -1;
+		int megaZ = -1;
+
+		const int matched = sscanf_s(
+			line.c_str(),
+			"SPAWN|index=%d|type=\"%31[^\"]\"|mega_id=%d|mega=(%d,%d)|pos=(%f,%f,%f)|yaw_deg=%f",
+			&entry.index,
+			type, ( unsigned ) _countof(type),
+			&entry.megaId,
+			&megaX,
+			&megaZ,
+			&px,
+			&py,
+			&pz,
+			&yawDeg
+		);
+
+		if ( matched != 9 )
+			continue;
+
+		entry.type = type;
+		entry.megaX = megaX;
+		entry.megaZ = megaZ;
+		entry.pos = XMFLOAT3(px, py, pz);
+		entry.yawDeg = yawDeg;
+
+		m_monsterSpawnEntries.push_back(std::move(entry));
+	}
+
+	std::sort(
+		m_monsterSpawnEntries.begin(),
+		m_monsterSpawnEntries.end(),
+		[ ] (const MonsterSpawnEntry& a, const MonsterSpawnEntry& b)
+		{
+			return a.index < b.index;
+		}
+	);
+
+	ApplyMonsterSpawnCounts();
+	return !m_monsterSpawnEntries.empty();
+}
+
+void CGameScene::ApplyMonsterSpawnCounts()
+{
+	m_ghoulCount = 0;
+	m_swordManCount = 0;
+	m_bowManCount = 0;
+	m_MutantCount = 0;
+	m_bossCount = 0;
+
+	for ( const MonsterSpawnEntry& entry : m_monsterSpawnEntries )
+	{
+		if ( entry.type == "Ghoul" ) ++m_ghoulCount;
+		else if ( entry.type == "SwordMan" ) ++m_swordManCount;
+		else if ( entry.type == "BowMan" ) ++m_bowManCount;
+		else if ( entry.type == "Mutant" ) ++m_MutantCount;
+		else if ( entry.type == "Boss" ) ++m_bossCount;
+	}
+}
+#endif
 
 bool CGameScene::LoadStaticPlacementFile(const std::string& filePath)
 {
@@ -3547,6 +3647,37 @@ void CGameScene::BuildSkinnedBatch(
     // enemy 인덱스 카운터 (모든 적 타입에 걸쳐 순차 증가)
     UINT enemyIndex = 0;
 
+#ifndef USING_NETWORK
+	auto GatherLocalMonsterSpawns = [ this ] (const char* typeName)
+		{
+			std::vector<const MonsterSpawnEntry*> result;
+			result.reserve(m_monsterSpawnEntries.size());
+
+			for ( const MonsterSpawnEntry& entry : m_monsterSpawnEntries )
+			{
+				if ( entry.type == typeName )
+					result.push_back(&entry);
+			}
+
+			std::sort(
+				result.begin(),
+				result.end(),
+				[ ] (const MonsterSpawnEntry* a, const MonsterSpawnEntry* b)
+				{
+						return a->index < b->index;
+				}
+			);
+
+			return result;
+		};
+
+	const auto ghoulSpawns = GatherLocalMonsterSpawns("Ghoul");
+	const auto swordSpawns = GatherLocalMonsterSpawns("SwordMan");
+	const auto bowSpawns = GatherLocalMonsterSpawns("BowMan");
+	const auto mutantSpawns = GatherLocalMonsterSpawns("Mutant");
+	const auto bossSpawns = GatherLocalMonsterSpawns("Boss");
+#endif
+
     // ------------------------------------------------------------------------
     // Enemies
     // ------------------------------------------------------------------------
@@ -3557,8 +3688,11 @@ void CGameScene::BuildSkinnedBatch(
         // Enemy Type: Ghoul
         // ----------------------------
 		{
+#ifdef USING_NETWORK
 			const UINT countW = m_ghoulCount;
-
+#else
+			const UINT countW = static_cast< UINT >( ghoulSpawns.size() );
+#endif
 			std::array<std::shared_ptr<CMesh>, 3> ghoulLodMeshes = { nullptr, nullptr, nullptr };
 
 			for ( int lodLevel = 0; lodLevel < 3; ++lodLevel )
@@ -3620,18 +3754,17 @@ void CGameScene::BuildSkinnedBatch(
 				( void ) combat;
 
 #ifndef USING_NETWORK
-				/*if ( k == 0 )
+				/*
+				auto* ghoulAI = obj->AddComponent<CGhoulAIComponent>();
+				if ( ghoulAI )
 				{
-					auto* ghoulAI = obj->AddComponent<CGhoulAIComponent>();
-					if ( ghoulAI )
-					{
-						ghoulAI->SetScene(this);
-						ghoulAI->SetMoveSpeed(2.0f);
-						ghoulAI->SetRepathInterval(0.15f);
-						ghoulAI->SetPathPointReachDistance(0.10f);
-						ghoulAI->SetGoalReachDistance(0.25f);
-					}
-				}*/
+					ghoulAI->SetScene(this);
+					ghoulAI->SetMoveSpeed(2.0f);
+					ghoulAI->SetRepathInterval(0.15f);
+					ghoulAI->SetPathPointReachDistance(0.10f);
+					ghoulAI->SetGoalReachDistance(0.25f);
+				}
+				*/
 #endif
 
 				{
@@ -3649,9 +3782,11 @@ void CGameScene::BuildSkinnedBatch(
 				if ( !GetNetworkEnemySpawn(enemyIndex, pos, yaw) )
 					break;
 #else
-				pos.x = enemyBase.x + 2.0f * ( float ) k;
-				pos.y = enemyBase.y;
-				pos.z = enemyBase.z + 0.0f;
+				if ( k >= ghoulSpawns.size() )
+					break;
+
+				pos = ghoulSpawns[k]->pos;
+				yaw = ghoulSpawns[k]->yawDeg;
 #endif
 
 				obj->SetPosition(pos.x, pos.y, pos.z);
@@ -3746,7 +3881,11 @@ void CGameScene::BuildSkinnedBatch(
         // Enemy Type: SwordMan
         // ----------------------------
 		{
-            const UINT countX = m_swordManCount;
+#ifdef USING_NETWORK
+			const UINT countX = m_swordManCount;
+#else
+			const UINT countX = static_cast< UINT >( swordSpawns.size() );
+#endif
 
             AssetBuildDesc EnemyXDesc =
             {
@@ -3805,9 +3944,11 @@ void CGameScene::BuildSkinnedBatch(
 				if ( !GetNetworkEnemySpawn(enemyIndex, pos, yaw) )
 					break;
 #else
-				pos.x = enemyBase.x + 2.0f * ( float ) k;
-				pos.y = enemyBase.y;
-				pos.z = enemyBase.z + 3.0f;
+				if ( k >= swordSpawns.size() )
+					break;
+
+				pos = swordSpawns[k]->pos;
+				yaw = swordSpawns[k]->yawDeg;
 #endif
 
 				obj->SetPosition(pos.x, pos.y, pos.z);
@@ -3874,7 +4015,11 @@ void CGameScene::BuildSkinnedBatch(
         // Enemy Type BowMan
         // ----------------------------
         {
-            const UINT countY = m_bowManCount;
+#ifdef USING_NETWORK
+			const UINT countY = m_bowManCount;
+#else
+			const UINT countY = static_cast< UINT >( bowSpawns.size() );
+#endif
 
             AssetBuildDesc EnemyYDesc =
             {
@@ -3935,9 +4080,11 @@ void CGameScene::BuildSkinnedBatch(
 				if ( !GetNetworkEnemySpawn(enemyIndex, pos, yaw) )
 					break;
 #else
-				pos.x = enemyBase.x + 2.0f * ( float ) k;
-				pos.y = enemyBase.y;
-				pos.z = enemyBase.z + 6.0f;
+				if ( k >= bowSpawns.size() )
+					break;
+
+				pos = bowSpawns[k]->pos;
+				yaw = bowSpawns[k]->yawDeg;
 #endif
 
 				obj->SetPosition(pos.x, pos.y, pos.z);
@@ -4008,7 +4155,11 @@ void CGameScene::BuildSkinnedBatch(
         // Enemy Type: Mutant
         // ----------------------------
         {
-            const UINT countZ = m_MutantCount;
+#ifdef USING_NETWORK
+			const UINT countZ = m_MutantCount;
+#else
+			const UINT countZ = static_cast< UINT >( mutantSpawns.size() );
+#endif
 
             AssetBuildDesc EnemyZDesc =
             {
@@ -4067,9 +4218,11 @@ void CGameScene::BuildSkinnedBatch(
 				if ( !GetNetworkEnemySpawn(enemyIndex, pos, yaw) )
 					break;
 #else
-				pos.x = enemyBase.x + 2.0f * ( float ) k;
-				pos.y = enemyBase.y;
-				pos.z = enemyBase.z + 15.0f;
+				if ( k >= mutantSpawns.size() )
+					break;
+
+				pos = mutantSpawns[k]->pos;
+				yaw = mutantSpawns[k]->yawDeg;
 #endif
 
 				obj->SetPosition(pos.x, pos.y, pos.z);
@@ -4165,7 +4318,11 @@ void CGameScene::BuildSkinnedBatch(
         // Enemy Type: Boss
         // ----------------------------
         {
-            const UINT countOne = m_bossCount;
+#ifdef USING_NETWORK
+			const UINT countOne = m_bossCount;
+#else
+			const UINT countOne = static_cast< UINT >( bossSpawns.size() );
+#endif
 
             AssetBuildDesc EnemyOneDesc =
             {
@@ -4227,9 +4384,11 @@ void CGameScene::BuildSkinnedBatch(
 				if ( !GetNetworkEnemySpawn(enemyIndex, pos, yaw) )
 					break;
 #else
-				pos.x = enemyBase.x + 0.0f;
-				pos.y = enemyBase.y;
-				pos.z = enemyBase.z + 18.0f;
+				if ( k >= bossSpawns.size() )
+					break;
+
+				pos = bossSpawns[k]->pos;
+				yaw = bossSpawns[k]->yawDeg;
 #endif
 
 				obj->SetPosition(pos.x, pos.y, pos.z);
