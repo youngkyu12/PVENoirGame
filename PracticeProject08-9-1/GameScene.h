@@ -332,6 +332,26 @@ private:
 	void UpdateMegaGridState();
 	void DumpStaticGridOccupancyLog() const;
 #endif
+
+#ifndef USING_NETWORK
+	struct MonsterSpawnEntry
+	{
+		int index = -1;
+
+		std::string type;
+
+		int megaId = -1;
+		int megaX = -1;
+		int megaZ = -1;
+
+		XMFLOAT3 pos = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		float yawDeg = 0.0f;
+	};
+
+	bool LoadMonsterSpawnFile(const std::string& filePath);
+	void ApplyMonsterSpawnCounts();
+#endif
+
 private:
 	enum class EUIRenderLayer : uint8_t
 	{
@@ -468,6 +488,8 @@ private:
 	std::unique_ptr<CNavMesh> m_navMesh;
 
 #ifndef USING_NETWORK
+	std::vector<MonsterSpawnEntry> m_monsterSpawnEntries;
+
 	bool m_spatialGridInitialized = false;
 	std::vector<GridStaticCell> m_gridStaticCells;
 	std::vector<GridDynamicCell> m_gridDynamicCells;
