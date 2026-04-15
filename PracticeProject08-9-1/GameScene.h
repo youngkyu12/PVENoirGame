@@ -500,7 +500,7 @@ private:
 	bool                                m_staticWorldLodDirty = false;
 	float                               m_staticLodDistance01 = 40.0f;
 	float                               m_staticLodDistance12 = 80.0f;
-	float                               m_staticLodHysteresis = 5.0f;
+	float                               m_staticLodHysteresis = 15.0f;
 
 	ComPtr<ID3D12Resource>              m_pd3dStaticInstanceBuffer;
 	StaticInstanceVertex* m_pMappedStaticInstanceBuffer = nullptr;
@@ -524,7 +524,7 @@ private:
 	ComPtr<ID3D12Resource>              m_pd3dSkinnedInstanceBuffer;
 	std::vector<SkinnedWorldLodEntry>   m_skinnedWorldLodEntries;
 	bool                                m_skinnedWorldLodDirty = false;
-	float                               m_skinnedLodHysteresis = 10.0f;
+	float                               m_skinnedLodHysteresis = 5.0f;
 	SkinnedInstanceVertex* m_pMappedSkinnedInstanceBuffer = nullptr;
 	UINT                                m_skinnedInstanceBufferCapacity = 0;
 
