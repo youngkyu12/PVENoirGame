@@ -3,12 +3,97 @@
 #include "Object.h"
 #include "ColliderComponent.h"
 
+namespace
+{
+	enum : uint32_t
+	{
+		kCollisionLayerPlayer = 0,
+		kCollisionLayerMonster = 1,
+		kCollisionLayerPlayerWeapon = 3,
+		kCollisionLayerMonsterWeapon = 4
+	};
+
+	static constexpr uint32_t CollisionBit(uint32_t layer)
+	{
+		return ( 1u << layer );
+	}
+}
+
 CBulletComponent::CBulletComponent(CGameObject* owner)
 	: CComponentT<CBulletComponent>(owner)
 {
 }
 
-void CBulletComponent::Activate(const XMFLOAT3& position, const XMFLOAT3& velocity, float lifeSec)
+XMFLOAT3 CBulletComponent::NormalizeSafe(const XMFLOAT3& v)
+{
+	XMVECTOR vec = XMLoadFloat3(&v);
+	const float lenSq = XMVectorGetX(XMVector3LengthSq(vec));
+
+	if ( lenSq < 1e-8f )
+		return XMFLOAT3(0.0f, 0.0f, 1.0f);
+
+	XMFLOAT3 out{};
+	XMStoreFloat3(&out, XMVector3Normalize(vec));
+	return out;
+}
+
+XMFLOAT3 CBulletComponent::GetForwardFromObject(const CGameObject* obj)
+{
+	if ( !obj )
+		return XMFLOAT3(0.0f, 0.0f, 1.0f);
+
+	const XMFLOAT4X4& W = obj->GetWorldMatrix();
+	return NormalizeSafe(XMFLOAT3(W._31, W._32, W._33));
+}
+
+void CBulletComponent::ApplyProjectileColliderProfile()
+{
+	CGameObject* owner = GetOwner();
+	if ( !owner ) return;
+
+	auto* collider = owner->GetComponent<CColliderComponent>();
+	if ( !collider ) return;
+
+	if ( m_firedByPlayer )
+	{
+		collider->SetLayer(kCollisionLayerPlayerWeapon);
+		collider->SetMask(CollisionBit(kCollisionLayerMonster));
+	}
+	else
+	{
+		collider->SetLayer(kCollisionLayerMonsterWeapon);
+		collider->SetMask(CollisionBit(kCollisionLayerPlayer));
+	}
+}
+
+bool CBulletComponent::FireFromObjects(
+	CGameObject* spawnSource,
+	CGameObject* directionSource,
+	float speed,
+	float lifeSec,
+	bool firedByPlayer)
+{
+	CGameObject* actualSpawnSource = spawnSource ? spawnSource : directionSource;
+	CGameObject* actualDirectionSource = directionSource ? directionSource : spawnSource;
+
+	if ( !actualSpawnSource ) return false;
+	if ( !actualDirectionSource ) return false;
+
+	const XMFLOAT3 startPos = actualSpawnSource->GetPosition();
+	const XMFLOAT3 dir = GetForwardFromObject(actualDirectionSource);
+
+	const XMFLOAT3 velocity =
+	{
+		dir.x * speed,
+		dir.y * speed,
+		dir.z * speed
+	};
+
+	Activate(startPos, velocity, lifeSec, firedByPlayer);
+	return IsActive();
+}
+
+void CBulletComponent::Activate(const XMFLOAT3& position, const XMFLOAT3& velocity, float lifeSec, bool firedByPlayer)
 {
 	CGameObject* owner = GetOwner();
 	if ( !owner ) return;
@@ -17,7 +102,15 @@ void CBulletComponent::Activate(const XMFLOAT3& position, const XMFLOAT3& veloci
 
 	m_velocity = velocity;
 	m_lifeRemaining = ( lifeSec > 0.0f ) ? lifeSec : 0.0f;
+	m_firedByPlayer = firedByPlayer;
 	m_state = EState::Flying;
+
+	if ( auto* tr = owner->GetComponent<CTransformComponent>() )
+	{
+		tr->SetLookDirection(NormalizeSafe(velocity));
+	}
+
+	ApplyProjectileColliderProfile();
 
 	if ( auto* collider = owner->GetComponent<CColliderComponent>() )
 	{
@@ -31,11 +124,11 @@ void CBulletComponent::Deactivate()
 	if ( owner )
 	{
 		owner->SetPosition(0.0f, -10000.0f, 0.0f);
-	}
 
-	if ( auto* collider = owner->GetComponent<CColliderComponent>() )
-	{
-		collider->SetCollisionEnabled(false);
+		if ( auto* collider = owner->GetComponent<CColliderComponent>() )
+		{
+			collider->SetCollisionEnabled(false);
+		}
 	}
 
 	m_state = EState::Inactive;
