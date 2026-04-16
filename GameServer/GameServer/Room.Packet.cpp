@@ -208,7 +208,6 @@ void Room::MakeFrameState(uint32 tick)
 		viewer->ownerSession->Send(sendBuffer);
 	}
 
-	GRoom->DoTimer(30, &Room::TickAdvance);
 }
 
 void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
