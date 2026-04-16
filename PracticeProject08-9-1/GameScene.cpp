@@ -1612,7 +1612,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	pTreeStaticShader->CreateShader(dev,m_pd3dGraphicsRootSignature.Get(),kRTCount,rtvFormats,kDsvFormat);
 	BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
 #ifndef USING_NETWORK
-	DumpStaticGridOccupancyLog();
+	//DumpStaticGridOccupancyLog();
 	//BuildStaticWorldSubmeshOOBBDebugObjects(dev, cmd);
 #endif
 	BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
@@ -3112,6 +3112,7 @@ void CGameScene::UpdateStaticWorldLodSelection(CCamera* camera)
 void CGameScene::ResetSkinnedWorldLodEntries()
 {
 	m_skinnedWorldLodEntries.clear();
+	m_skinnedDistanceCullFlags.clear();
 	m_skinnedWorldLodDirty = false;
 }
 
@@ -3155,10 +3156,48 @@ int CGameScene::ComputeSkinnedWorldLodLevel(const XMFLOAT3& cameraPosition, cons
 	return 2;
 }
 
+bool CGameScene::ComputeSkinnedWorldDistanceCulled(
+	const XMFLOAT3& cameraPosition,
+	const SkinnedWorldLodEntry& entry) const
+{
+	if ( !entry.distanceCullEnabled )
+		return false;
+
+	const float dx = cameraPosition.x - entry.lodReferencePosition.x;
+	const float dy = cameraPosition.y - entry.lodReferencePosition.y;
+	const float dz = cameraPosition.z - entry.lodReferencePosition.z;
+
+	const float dist = std::sqrt(dx * dx + dy * dy + dz * dz);
+
+	const float cullDistance = std::max(0.0f, entry.cullDistance);
+	const float cullEnter = cullDistance + m_skinnedCullHysteresis;
+	const float cullExit = std::max(0.0f, cullDistance - m_skinnedCullHysteresis);
+
+	if ( !entry.distanceCulled )
+	{
+		if ( dist >= cullEnter ) return true;
+		return false;
+	}
+
+	if ( dist < cullExit ) return false;
+	return true;
+}
+
 void CGameScene::UpdateSkinnedWorldLodSelection(CCamera* camera)
 {
-	if ( !camera ) return;
-	if ( m_skinnedWorldLodEntries.empty() ) return;
+	if ( !camera )
+	{
+		m_skinnedDistanceCullFlags.clear();
+		return;
+	}
+
+	m_skinnedDistanceCullFlags.assign(m_skinnedBatch.objectRefs.size(), 0);
+
+	if ( m_skinnedWorldLodEntries.empty() )
+	{
+		m_skinnedWorldLodDirty = false;
+		return;
+	}
 
 	const XMFLOAT3 cameraPosition = camera->GetPosition();
 	bool anyLodChanged = false;
@@ -3167,8 +3206,20 @@ void CGameScene::UpdateSkinnedWorldLodSelection(CCamera* camera)
 	{
 		if ( !entry.object ) continue;
 		if ( entry.skinnedBatchObjectIndex == UINT_MAX ) continue;
-		if ( entry.skinnedBatchObjectIndex >= ( UINT ) m_skinnedBatch.objectRefs.size() ) continue;
+		if ( entry.skinnedBatchObjectIndex >= ( UINT ) m_skinnedDistanceCullFlags.size() ) continue;
 
+		const bool distanceCulled =
+			ComputeSkinnedWorldDistanceCulled(cameraPosition, entry);
+
+		entry.distanceCulled = distanceCulled;
+
+		if ( distanceCulled )
+		{
+			m_skinnedDistanceCullFlags[entry.skinnedBatchObjectIndex] = 1;
+			continue;
+		}
+
+		// 기존 Ghoul LOD 경로 유지
 		int desiredLod = ComputeSkinnedWorldLodLevel(cameraPosition, entry);
 		desiredLod = ClampSkinnedWorldLodLevel(desiredLod);
 
@@ -3183,7 +3234,10 @@ void CGameScene::UpdateSkinnedWorldLodSelection(CCamera* camera)
 		if ( entry.currentLod == resolvedLod && currentMesh.get() == targetMesh.get() )
 			continue;
 
-		/*const int previousLod = entry.currentLod;
+		// 지금 단계에서는 컬링만 넣을 것이므로,
+		// LOD 스왑은 네 현재 파일 흐름에 맞춰 그대로 막아둔다.
+		/*
+		const int previousLod = entry.currentLod;
 
 		entry.object->SetMesh(0, targetMesh);
 		entry.currentLod = resolvedLod;
@@ -3198,7 +3252,64 @@ void CGameScene::UpdateSkinnedWorldLodSelection(CCamera* camera)
 			previousLod,
 			entry.currentLod
 		);
-		OutputDebugStringA(debugText);*/
+		OutputDebugStringA(debugText);
+		*/
+	}
+
+	// --------------------------------------------------------------------
+	// body가 culled 되면 attachment follower도 같이 culled 처리
+	// - static follower : sword, helmet 등
+	// - skinned follower: bow 등
+	// --------------------------------------------------------------------
+	std::unordered_map<const CGameObject*, UINT> staticIndexByObject;
+	staticIndexByObject.reserve(m_staticBatch.objectRefs.size());
+
+	for ( UINT i = 0; i < ( UINT ) m_staticBatch.objectRefs.size(); ++i )
+	{
+		if ( m_staticBatch.objectRefs[i] )
+			staticIndexByObject[m_staticBatch.objectRefs[i]] = i;
+	}
+
+	std::unordered_map<const CGameObject*, UINT> skinnedIndexByObject;
+	skinnedIndexByObject.reserve(m_skinnedBatch.objectRefs.size());
+
+	for ( UINT i = 0; i < ( UINT ) m_skinnedBatch.objectRefs.size(); ++i )
+	{
+		if ( m_skinnedBatch.objectRefs[i] )
+			skinnedIndexByObject[m_skinnedBatch.objectRefs[i]] = i;
+	}
+
+	for ( const AttachmentBindSpec& spec : m_attachmentBinds )
+	{
+		if ( !spec.follower || !spec.target )
+			continue;
+
+		auto targetIt = skinnedIndexByObject.find(spec.target);
+		if ( targetIt == skinnedIndexByObject.end() )
+			continue;
+
+		const UINT targetIndex = targetIt->second;
+		if ( targetIndex >= ( UINT ) m_skinnedDistanceCullFlags.size() )
+			continue;
+
+		if ( m_skinnedDistanceCullFlags[targetIndex] == 0 )
+			continue;
+
+		auto followerStaticIt = staticIndexByObject.find(spec.follower);
+		if ( followerStaticIt != staticIndexByObject.end() )
+		{
+			const UINT followerIndex = followerStaticIt->second;
+			if ( followerIndex < ( UINT ) m_staticDistanceCullFlags.size() )
+				m_staticDistanceCullFlags[followerIndex] = 1;
+		}
+
+		auto followerSkinnedIt = skinnedIndexByObject.find(spec.follower);
+		if ( followerSkinnedIt != skinnedIndexByObject.end() )
+		{
+			const UINT followerIndex = followerSkinnedIt->second;
+			if ( followerIndex < ( UINT ) m_skinnedDistanceCullFlags.size() )
+				m_skinnedDistanceCullFlags[followerIndex] = 1;
+		}
 	}
 
 	if ( anyLodChanged )
@@ -3470,6 +3581,12 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 			const UINT objectIndex = group.objectIndices[i];
 			if ( objectIndex >= ( UINT ) m_skinnedBatch.objectRefs.size() ) continue;
 
+			if ( objectIndex < ( UINT ) m_skinnedDistanceCullFlags.size() )
+			{
+				if ( m_skinnedDistanceCullFlags[objectIndex] != 0 )
+					continue;
+			}
+
 			CGameObject* obj = m_skinnedBatch.objectRefs[objectIndex];
 			if ( !obj ) continue;
 			if ( !obj->IsVisible(camera) ) continue;
@@ -3623,6 +3740,43 @@ void CGameScene::BuildSkinnedBatch(
 					CollisionBit(kCollisionLayerPlayerWeapon)
 				);
 			}
+		};
+
+	auto RegisterSkinnedCullEntry =
+		[this](
+			CGameObject* raw,
+			UINT objectIndex,
+			const char* assetName,
+			const XMFLOAT3& pos,
+			const std::array<std::shared_ptr<CMesh>, 3>& lodMeshes,
+			bool lodEnabled,
+			float lodDistance01,
+			float lodDistance12,
+			float cullDistance)
+		{
+			if ( !raw || !assetName || !assetName[0] )
+				return;
+
+			SkinnedWorldLodEntry entry{};
+			entry.object = raw;
+			entry.skinnedBatchObjectIndex = objectIndex;
+			entry.assetName = assetName;
+			entry.lodReferencePosition = pos;
+
+			entry.lodEnabled = lodEnabled;
+			entry.currentLod = 0;
+			entry.lodDistance01 = lodDistance01;
+			entry.lodDistance12 = lodDistance12;
+			entry.lodMeshes = lodMeshes;
+
+			entry.distanceCullEnabled = true;
+			entry.distanceCulled = false;
+			entry.cullDistance = cullDistance;
+
+			if ( !entry.lodMeshes[0] )
+				entry.lodMeshes[0] = raw->GetMeshShared(0);
+
+			m_skinnedWorldLodEntries.push_back(std::move(entry));
 		};
 
     const UINT fighterCount = m_PlayerCount;
@@ -3883,21 +4037,7 @@ void CGameScene::BuildSkinnedBatch(
 
 				CGameObject* raw = obj.get();
 				{
-					SkinnedWorldLodEntry lodEntry{};
-					lodEntry.object = raw;
-					lodEntry.skinnedBatchObjectIndex = i;
-					lodEntry.assetName = "Ghoul";
-					lodEntry.lodReferencePosition = pos;
-					lodEntry.lodEnabled = true;
-					lodEntry.currentLod = 0;
-					lodEntry.lodDistance01 = 15.0f;
-					lodEntry.lodDistance12 = 30.0f;
-					lodEntry.lodMeshes = ghoulLodMeshes;
-
-					if ( !lodEntry.lodMeshes[0] )
-						lodEntry.lodMeshes[0] = ghoulBaseMesh;
-
-					m_skinnedWorldLodEntries.push_back(std::move(lodEntry));
+					RegisterSkinnedCullEntry( raw, i, "Ghoul", pos, ghoulLodMeshes, true, 15.0f, 30.0f,60.0f);
 				}
 				m_skinnedObjects.push_back(std::move(obj));
 				b->objectRefs.push_back(raw);
@@ -4031,6 +4171,10 @@ void CGameScene::BuildSkinnedBatch(
 				if ( animComp ) animComp->EvaluatePose(0.0f);
 
                 CGameObject* raw = obj.get();
+				{
+					std::array<std::shared_ptr<CMesh>, 3> noLodMeshes = { assetX.mesh, nullptr, nullptr };
+					RegisterSkinnedCullEntry(raw, i, "SwordMan", pos, noLodMeshes, false, 0.0f, 0.0f, 90.0f);
+				}
                 m_skinnedObjects.push_back(std::move(obj));
                 b->objectRefs.push_back(raw);
                 b->count = (UINT)b->objectRefs.size();
@@ -4171,6 +4315,10 @@ void CGameScene::BuildSkinnedBatch(
 				if ( animComp ) animComp->EvaluatePose(0.0f);
 
                 CGameObject* raw = obj.get();
+				{
+					std::array<std::shared_ptr<CMesh>, 3> noLodMeshes = { assetY.mesh, nullptr, nullptr };
+					RegisterSkinnedCullEntry(raw, i, "BowMan", pos, noLodMeshes, false, 0.0f, 0.0f, 100.0f);
+				}
                 m_skinnedObjects.push_back(std::move(obj));
                 b->objectRefs.push_back(raw);
                 b->count = (UINT)b->objectRefs.size();
@@ -4318,6 +4466,10 @@ void CGameScene::BuildSkinnedBatch(
 
 
                 CGameObject* raw = obj.get();
+				{
+					std::array<std::shared_ptr<CMesh>, 3> noLodMeshes = { assetZ.mesh, nullptr, nullptr };
+					RegisterSkinnedCullEntry(raw, i, "Mutant", pos, noLodMeshes, false, 0.0f, 0.0f, 110.0f);
+				}
                 m_skinnedObjects.push_back(std::move(obj));
                 b->objectRefs.push_back(raw);
                 b->count = (UINT)b->objectRefs.size();
@@ -4496,6 +4648,10 @@ void CGameScene::BuildSkinnedBatch(
 				if ( animComp ) animComp->EvaluatePose(0.0f);
 
                 CGameObject* raw = obj.get();
+				{
+					std::array<std::shared_ptr<CMesh>, 3> noLodMeshes = { assetOne.mesh, nullptr, nullptr };\
+					RegisterSkinnedCullEntry(raw, i, "Boss", pos, noLodMeshes, false, 0.0f, 0.0f, 160.0f);
+				}
                 m_skinnedObjects.push_back(std::move(obj));
                 b->objectRefs.push_back(raw);
                 b->count = (UINT)b->objectRefs.size();
