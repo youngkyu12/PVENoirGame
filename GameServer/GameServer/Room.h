@@ -124,6 +124,16 @@ private:
 	void UpdateDynamicGridState();
 	void UpdateMegaGridState();
 
+	struct MonsterSpawnEntry
+	{
+		int index = -1;
+		std::string type;
+		GameMath::Vec3 position = GameMath::Vec3::Zero();
+		float yawDeg = 0.0f;
+	};
+
+	bool LoadMonsterSpawnEntries(std::vector<MonsterSpawnEntry>& outEntries);
+
 	static constexpr int kGridMinX = -600;
 	static constexpr int kGridMaxX = 600;
 	static constexpr int kGridMinZ = -200;

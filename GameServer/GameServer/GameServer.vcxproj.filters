@@ -123,6 +123,11 @@
     <ClCompile Include="NavMesh.cpp">
       <Filter>GameContents\Map</Filter>
     </ClCompile>
+    <ClCompile Include="Room.Collision.cpp" />
+    <ClCompile Include="Room.Grid.cpp" />
+    <ClCompile Include="Room.Combat.cpp" />
+    <ClCompile Include="Room.Input.cpp" />
+    <ClCompile Include="Room.Packet.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
