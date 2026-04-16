@@ -1475,7 +1475,9 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	const std::string navMeshFilePath = "MapData/Navmesh_FullStage.nvm";
 
 	const std::string cubeColliderReportFilePath = "MapData/CubeBoxColliderReport.txt";
-	const std::string monsterSpawnFilePath = "MapData/monster_spawn_points.txt";
+	//const std::string monsterSpawnFilePath = "MapData/monster_spawn_points.txt";
+	const std::string monsterSpawnFilePath = "MapData/monster_spawn_points_little.txt";
+	
 
 	if ( !LoadStaticPlacementFile(placementFilePath) )
 	{

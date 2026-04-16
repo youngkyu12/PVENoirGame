@@ -43,7 +43,7 @@ from typing import Dict, Iterable, List, Tuple
 # =============================================================================
 
 INPUT_GRID_PATH = "그리드 지도.txt"
-OUTPUT_SPAWN_PATH = "monster_spawn_points.txt"
+OUTPUT_SPAWN_PATH = "monster_spawn_points_little.txt"
 
 # None이면 시스템 랜덤, 정수를 넣으면 재현 가능한 결과
 RNG_SEED = 20260416
@@ -93,15 +93,15 @@ MONSTER_ORDER: Tuple[str, ...] = (
 # 여기 값을 바꾸면 된다.
 # Boss도 여기에 그대로 둔다. Boss는 count만큼 "해당 메가그리드 중심점"에 겹쳐서 생성된다.
 MEGA_GRID_MONSTER_COUNTS: Dict[int, Dict[str, int]] = {
-    1: {"Ghoul": 92, "BowMan": 8, "SwordMan": 0, "Mutant": 0, "Boss": 0},
+    1: {"Ghoul": 0, "BowMan": 0, "SwordMan": 0, "Mutant": 0, "Boss": 0},
     2: {"Ghoul": 100, "BowMan": 0, "SwordMan": 0, "Mutant": 0, "Boss": 0},
     3: {"Ghoul": 95, "BowMan": 5, "SwordMan": 5, "Mutant": 0, "Boss": 0},
-    4: {"Ghoul": 80, "BowMan": 3, "SwordMan": 1, "Mutant": 0, "Boss": 0},
+    4: {"Ghoul": 0, "BowMan": 0, "SwordMan": 0, "Mutant": 0, "Boss": 0},
     5: {"Ghoul": 0, "BowMan": 0, "SwordMan": 0, "Mutant": 0, "Boss": 1},
     6: {"Ghoul": 50, "BowMan": 0, "SwordMan": 10, "Mutant": 1, "Boss": 0},
-    7: {"Ghoul": 90, "BowMan": 5, "SwordMan": 5, "Mutant": 5, "Boss": 0},
-    8: {"Ghoul": 50, "BowMan": 10, "SwordMan": 3, "Mutant": 3, "Boss": 0},
-    9: {"Ghoul": 95, "BowMan": 5, "SwordMan": 5, "Mutant": 0, "Boss": 0},
+    7: {"Ghoul": 0, "BowMan": 0, "SwordMan": 0, "Mutant": 0, "Boss": 0},
+    8: {"Ghoul": 0, "BowMan": 0, "SwordMan": 0, "Mutant": 0, "Boss": 0},
+    9: {"Ghoul": 0, "BowMan": 0, "SwordMan": 0, "Mutant": 0, "Boss": 0},
 }
 
 # 아래처럼 오타/대소문자 차이를 어느 정도 흡수한다.
