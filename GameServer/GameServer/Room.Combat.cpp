@@ -4,6 +4,31 @@
 #include "Enemy.h"
 #include "Projectile.h"
 
+namespace
+{
+	static float DistSqXZ(const GameMath::Vec3& a, const GameMath::Vec3& b)
+	{
+		const float dx = a.x - b.x;
+		const float dz = a.z - b.z;
+		return dx * dx + dz * dz;
+	}
+
+	static bool IsEnemyNearAnyPlayer(const map<uint64, PlayerRef>& players, const GameMath::Vec3& enemyPos, float rangeSq)
+	{
+		for (const auto& playerPair : players)
+		{
+			const PlayerRef& player = playerPair.second;
+			if (!player)
+				continue;
+
+			if (DistSqXZ(player->GetPosition(), enemyPos) <= rangeSq)
+				return true;
+		}
+
+		return false;
+	}
+}
+
 void Room::TickAdvance()
 {
 	MakeFrameState(tick.load());
@@ -17,9 +42,19 @@ void Room::TickAdvance()
 
 	for (auto enemy : enemies)
 	{
+		constexpr float kEnemyAiActiveRange = 100.0f;
+		constexpr float kEnemyAiActiveRangeSq = kEnemyAiActiveRange * kEnemyAiActiveRange;
+
 		const GameMath::Vec3 prevPos = enemy.second->GetPosition();
-		enemy.second->Update(tick);
-		ResolveWorldStaticCollision(enemy.second, prevPos);
+		if (IsEnemyNearAnyPlayer(players, prevPos, kEnemyAiActiveRangeSq))
+		{
+			enemy.second->Update(tick);
+			ResolveWorldStaticCollision(enemy.second, prevPos);
+		}
+		else
+		{
+			enemy.second->SetVelocity(GameMath::Vec3::Zero());
+		}
 	}
 
 	for (auto& p : m_arrowPool)

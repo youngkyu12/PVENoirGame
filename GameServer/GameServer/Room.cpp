@@ -108,6 +108,13 @@ namespace
 	{
 		return "MapData_fullstage";
 	}
+
+	static float DistSqXZ(const GameMath::Vec3& a, const GameMath::Vec3& b)
+	{
+		const float dx = a.x - b.x;
+		const float dz = a.z - b.z;
+		return dx * dx + dz * dz;
+	}
 }
 
 void Room::Enter(PlayerRef player)
@@ -510,96 +517,106 @@ namespace
 
 void Room::MakeFrameState(uint32 tick)
 {
-	Protocol::S_FRAME_STATE frameStatePkt;
-	frameStatePkt.set_servertick(tick);
+	constexpr float kEnemyViewRange = 90.0f;
+	constexpr float kEnemyViewRangeSq = kEnemyViewRange * kEnemyViewRange;
+	constexpr float kBulletViewRange = 100.0f;
+	constexpr float kBulletViewRangeSq = kBulletViewRange * kBulletViewRange;
 
-	for (auto playerMap : players)
+	for (auto& viewerPair : players)
 	{
-		PlayerRef& player = playerMap.second;
-
-		auto p = frameStatePkt.add_players();
-		p->set_id(player->playerId);
-		p->set_name(player->name);
-		p->set_playertype(player->type);
-
-		Protocol::Animation* anim = p->mutable_animation();
-		anim->set_statecode(BuildStateCode(*player));
-		anim->set_animationtick(player->GetAnimTick());
-
-		p->set_weapontype(player->GetWeaponState());
-
-		Protocol::Transform* transform = p->mutable_transform();
-		Protocol::Vec3f* position = transform->mutable_position();
-		position->set_x(player->GetPosition().x);
-		position->set_y(player->GetPosition().y);
-		position->set_z(player->GetPosition().z);
-		transform->set_yaw(player->GetYaw());
-	}
-
-	for (auto enemyMap : enemies)
-	{
-		EnemyRef& enemy = enemyMap.second;
-		auto e = frameStatePkt.add_enemies();
-		e->set_id(enemyMap.first);
-		e->set_enemytype(enemy->type);
-		e->set_weapontype(enemy->GetWeaponState());
-
-		Protocol::Animation* anim = e->mutable_animation();
-		anim->set_statecode(BuildEnemyStateCode(*enemy));
-		anim->set_animationtick(enemy->GetAnimTick());
-
-		Protocol::Transform* transform = e->mutable_transform();
-		Protocol::Vec3f* position = transform->mutable_position();
-		position->set_x(enemy->GetPosition().x);
-		position->set_y(enemy->GetPosition().y);
-		position->set_z(enemy->GetPosition().z);
-		transform->set_yaw(enemy->GetYaw());
-	}
-
-	for (auto& projectile : m_arrowPool)
-	{
-		if (!projectile->IsActive())
+		PlayerRef& viewer = viewerPair.second;
+		if (!viewer || !viewer->ownerSession)
 			continue;
 
-		Protocol::Bullet* b = frameStatePkt.add_bullets();
-		b->set_id(projectile->GetObjectId());
-		b->set_ownerid(projectile->GetOwnerId());
-		b->set_bullettype(projectile->GetBulletType());
+		Protocol::S_FRAME_STATE frameStatePkt;
+		frameStatePkt.set_servertick(tick);
 
-		Protocol::Vec3f* pos = b->mutable_position();
-		pos->set_x(projectile->GetPosition().x);
-		pos->set_y(projectile->GetPosition().y);
-		pos->set_z(projectile->GetPosition().z);
+		for (auto& playerMap : players)
+		{
+			PlayerRef& player = playerMap.second;
+			if (!player)
+				continue;
 
-		Protocol::Vec3f* vel = b->mutable_velocity();
-		vel->set_x(projectile->GetVelocity().x);
-		vel->set_y(projectile->GetVelocity().y);
-		vel->set_z(projectile->GetVelocity().z);
+			auto p = frameStatePkt.add_players();
+			p->set_id(player->playerId);
+			p->set_name(player->name);
+			p->set_playertype(player->type);
+
+			Protocol::Animation* anim = p->mutable_animation();
+			anim->set_statecode(BuildStateCode(*player));
+			anim->set_animationtick(player->GetAnimTick());
+
+			p->set_weapontype(player->GetWeaponState());
+
+			Protocol::Transform* transform = p->mutable_transform();
+			Protocol::Vec3f* position = transform->mutable_position();
+			position->set_x(player->GetPosition().x);
+			position->set_y(player->GetPosition().y);
+			position->set_z(player->GetPosition().z);
+			transform->set_yaw(player->GetYaw());
+		}
+
+		const GameMath::Vec3 viewerPos = viewer->GetPosition();
+
+		for (auto& enemyMap : enemies)
+		{
+			EnemyRef& enemy = enemyMap.second;
+			if (!enemy)
+				continue;
+
+			if (DistSqXZ(viewerPos, enemy->GetPosition()) > kEnemyViewRangeSq)
+				continue;
+
+			auto e = frameStatePkt.add_enemies();
+			e->set_id(enemyMap.first);
+			e->set_enemytype(enemy->type);
+			e->set_weapontype(enemy->GetWeaponState());
+
+			Protocol::Animation* anim = e->mutable_animation();
+			anim->set_statecode(BuildEnemyStateCode(*enemy));
+			anim->set_animationtick(enemy->GetAnimTick());
+
+			Protocol::Transform* transform = e->mutable_transform();
+			Protocol::Vec3f* position = transform->mutable_position();
+			position->set_x(enemy->GetPosition().x);
+			position->set_y(enemy->GetPosition().y);
+			position->set_z(enemy->GetPosition().z);
+			transform->set_yaw(enemy->GetYaw());
+		}
+
+		auto AddVisibleBullet = [&](ProjectileRef projectile)
+			{
+				if (!projectile || !projectile->IsActive())
+					return;
+
+				if (DistSqXZ(viewerPos, projectile->GetPosition()) > kBulletViewRangeSq)
+					return;
+
+				Protocol::Bullet* b = frameStatePkt.add_bullets();
+				b->set_id(projectile->GetObjectId());
+				b->set_ownerid(projectile->GetOwnerId());
+				b->set_bullettype(projectile->GetBulletType());
+
+				Protocol::Vec3f* pos = b->mutable_position();
+				pos->set_x(projectile->GetPosition().x);
+				pos->set_y(projectile->GetPosition().y);
+				pos->set_z(projectile->GetPosition().z);
+
+				Protocol::Vec3f* vel = b->mutable_velocity();
+				vel->set_x(projectile->GetVelocity().x);
+				vel->set_y(projectile->GetVelocity().y);
+				vel->set_z(projectile->GetVelocity().z);
+			};
+
+		for (auto& projectile : m_arrowPool)
+			AddVisibleBullet(projectile);
+
+		for (auto& projectile : m_bulletPool)
+			AddVisibleBullet(projectile);
+
+		auto sendBuffer = ClientPacketHandler::MakeSendBuffer(frameStatePkt);
+		viewer->ownerSession->Send(sendBuffer);
 	}
-
-	for (auto& projectile : m_bulletPool)
-	{
-		if (!projectile->IsActive())
-			continue;
-
-		Protocol::Bullet* b = frameStatePkt.add_bullets();
-		b->set_id(projectile->GetObjectId());
-		b->set_ownerid(projectile->GetOwnerId());
-		b->set_bullettype(projectile->GetBulletType());
-
-		Protocol::Vec3f* pos = b->mutable_position();
-		pos->set_x(projectile->GetPosition().x);
-		pos->set_y(projectile->GetPosition().y);
-		pos->set_z(projectile->GetPosition().z);
-
-		Protocol::Vec3f* vel = b->mutable_velocity();
-		vel->set_x(projectile->GetVelocity().x);
-		vel->set_y(projectile->GetVelocity().y);
-		vel->set_z(projectile->GetVelocity().z);
-	}
-
-	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(frameStatePkt);
-	GRoom->DoAsync(&Room::BroadCastAll, sendBuffer);
 
 	GRoom->DoTimer(30, &Room::TickAdvance);
 }
