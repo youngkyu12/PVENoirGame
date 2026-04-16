@@ -336,6 +336,9 @@
     <ClInclude Include="AudioComponent.h">
       <Filter>Components\AudioComponent</Filter>
     </ClInclude>
+    <ClInclude Include="GameSceneContentCatalog.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -494,6 +497,9 @@
     </ClCompile>
     <ClCompile Include="AudioComponent.cpp">
       <Filter>Components\AudioComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneContentCatalog.cpp">
+      <Filter>Scene</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
