@@ -5863,13 +5863,7 @@ void CGameScene::RequestPrepareArrow(CGameObject* shooter, float pullBackDistanc
 
         if (arrow->IsActive()) continue;
 
-		if ( auto* collider = arrowObj->GetComponent<CColliderComponent>() )
-		{
-			ConfigureProjectileCollider(collider, true);
-			collider->SetCollisionEnabled(false);
-		}
-
-		arrow->Prepare(bowObj, shooter, pullBackDistance, true);
+		arrow->Prepare(bowObj, shooter, pullBackDistance, true, true);
 		m_preparedPlayerArrows[( size_t ) slot] = arrowObj;
         return;
     }
@@ -5902,13 +5896,7 @@ void CGameScene::RequestPrepareBowmanArrow(CGameObject* bowman, float pullBackDi
 		if ( !arrow ) continue;
 		if ( arrow->IsActive() ) continue;
 
-		if ( auto* collider = arrowObj->GetComponent<CColliderComponent>() )
-		{
-			ConfigureProjectileCollider(collider, false);
-			collider->SetCollisionEnabled(false);
-		}
-
-		arrow->Prepare(bowObj, bowman, pullBackDistance, true);
+		arrow->Prepare(bowObj, bowman, pullBackDistance, false, true);
 		m_preparedBowmanArrows[idx] = arrowObj;
 		return;
 	}
@@ -5934,40 +5922,12 @@ void CGameScene::RequestReleasePreparedBowmanArrow(CGameObject* bowman, float sp
 		return;
 	}
 
-	const XMFLOAT4X4& W = bowman->GetWorldMatrix();
-	XMFLOAT3 dir = { W._31, W._32, W._33 };
-
-	XMVECTOR dirV = XMLoadFloat3(&dir);
-	const float lenSq = XMVectorGetX(XMVector3LengthSq(dirV));
-	if ( lenSq < 1e-8f )
+	if ( !arrow->LaunchPrepared(speed, lifeSec, true) )
 	{
-		dir = XMFLOAT3(0.0f, 0.0f, 1.0f);
-		dirV = XMLoadFloat3(&dir);
+		m_preparedBowmanArrows[idx] = nullptr;
+		return;
 	}
 
-	dirV = XMVector3Normalize(dirV);
-
-	XMFLOAT3 dirN{};
-	XMStoreFloat3(&dirN, dirV);
-
-	if ( auto* tr = arrowObj->GetComponent<CTransformComponent>() )
-	{
-		tr->SetLookDirection(dirN);
-	}
-
-	const XMFLOAT3 vel =
-	{
-		dirN.x * speed,
-		dirN.y * speed,
-		dirN.z * speed
-	};
-
-	if ( auto* collider = arrowObj->GetComponent<CColliderComponent>() )
-	{
-		ConfigureProjectileCollider(collider, false);
-	}
-
-	arrow->Launch(vel, lifeSec, true);
 	m_preparedBowmanArrows[idx] = nullptr;
 }
 
@@ -5988,40 +5948,12 @@ void CGameScene::RequestReleasePreparedArrow(CGameObject* shooter, float speed, 
         return;
     }
 
-    const XMFLOAT4X4& W = shooter->GetWorldMatrix();
-    XMFLOAT3 dir = { W._31, W._32, W._33 };
-
-    XMVECTOR dirV = XMLoadFloat3(&dir);
-    const float lenSq = XMVectorGetX(XMVector3LengthSq(dirV));
-    if (lenSq < 1e-8f)
-    {
-        dir = XMFLOAT3(0.0f, 0.0f, 1.0f);
-        dirV = XMLoadFloat3(&dir);
-    }
-
-    dirV = XMVector3Normalize(dirV);
-
-    XMFLOAT3 dirN{};
-    XMStoreFloat3(&dirN, dirV);
-
-    if (auto* tr = arrowObj->GetComponent<CTransformComponent>())
-    {
-        tr->SetLookDirection(dirN);
-    }
-
-    const XMFLOAT3 vel =
-    {
-        dirN.x * speed,
-        dirN.y * speed,
-        dirN.z * speed
-    };
-
-	if ( auto* collider = arrowObj->GetComponent<CColliderComponent>() )
+	if ( !arrow->LaunchPrepared(speed, lifeSec, true) )
 	{
-		ConfigureProjectileCollider(collider, true);
+		m_preparedPlayerArrows[( size_t ) slot] = nullptr;
+		return;
 	}
 
-	arrow->Launch(vel, lifeSec, true);
 	m_preparedPlayerArrows[( size_t ) slot] = nullptr;
 }
 
@@ -6386,18 +6318,7 @@ void CGameScene::RequestFireArrow(CGameObject* shooter, float speed, float lifeS
 
         if (arrow->IsActive()) continue;
 
-		if ( auto* tr = arrowObj->GetComponent<CTransformComponent>() )
-		{
-			tr->SetLookDirection(dirN);
-		}
-
-		if ( auto* collider = arrowObj->GetComponent<CColliderComponent>() )
-		{
-			ConfigureProjectileCollider(collider, true);
-			collider->SetCollisionEnabled(false);
-		}
-
-		arrow->Activate(startPos, vel, lifeSec);
+		arrow->Activate(startPos, vel, lifeSec, true);
 		return;
     }
 }
