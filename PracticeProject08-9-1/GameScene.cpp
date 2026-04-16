@@ -81,22 +81,6 @@ namespace
 		return ( 1u << layer );
 	}
 
-	static void ConfigureProjectileCollider(CColliderComponent* collider, bool firedByPlayer)
-	{
-		if ( !collider ) return;
-
-		if ( firedByPlayer )
-		{
-			collider->SetLayer(kCollisionLayerPlayerWeapon);
-			collider->SetMask(CollisionBit(kCollisionLayerMonster));
-		}
-		else
-		{
-			collider->SetLayer(kCollisionLayerMonsterWeapon);
-			collider->SetMask(CollisionBit(kCollisionLayerPlayer));
-		}
-	}
-
     struct DecodedAnimStateCode
     {
         bool hasMove = false;
@@ -6337,38 +6321,8 @@ void CGameScene::RequestFireBullet(CGameObject* shooter, float speed, float life
 		gunObj = equip->GetWeaponObject(EWeaponType::Gun);
 	}
 
-	const XMFLOAT4X4& W = shooter->GetWorldMatrix();
-	XMFLOAT3 dir = { W._31, W._32, W._33 };
-
-	XMVECTOR dirV = XMLoadFloat3(&dir);
-	const float lenSq = XMVectorGetX(XMVector3LengthSq(dirV));
-	if ( lenSq < 1e-8f )
-	{
-		dir = XMFLOAT3(0.0f, 0.0f, 1.0f);
-		dirV = XMLoadFloat3(&dir);
-	}
-
-	dirV = XMVector3Normalize(dirV);
-
-	XMFLOAT3 dirN{};
-	XMStoreFloat3(&dirN, dirV);
-
-	XMFLOAT3 startPos{};
-	if ( gunObj )
-	{
-		startPos = gunObj->GetPosition();
-	}
-	else
-	{
-		startPos = shooter->GetPosition();
-	}
-
-	const XMFLOAT3 vel =
-	{
-		dirN.x * speed,
-		dirN.y * speed,
-		dirN.z * speed
-	};
+	CGameObject* spawnSource = gunObj ? gunObj : shooter;
+	CGameObject* directionSource = shooter;
 
 	for ( CGameObject* bulletObj : m_bulletRefs )
 	{
@@ -6378,18 +6332,10 @@ void CGameScene::RequestFireBullet(CGameObject* shooter, float speed, float life
 		if ( !bullet ) continue;
 		if ( bullet->IsActive() ) continue;
 
-		if ( auto* tr = bulletObj->GetComponent<CTransformComponent>() )
+		if ( bullet->FireFromObjects(spawnSource, directionSource, speed, lifeSec, true) )
 		{
-			tr->SetLookDirection(dirN);
+			return;
 		}
-		if ( auto* collider = bulletObj->GetComponent<CColliderComponent>() )
-		{
-			ConfigureProjectileCollider(collider, true);
-			collider->SetCollisionEnabled(false);
-		}
-
-		bullet->Activate(startPos, vel, lifeSec);
-		return;
 	}
 }
 
@@ -6580,7 +6526,7 @@ void CGameScene::AnimateObjects(float dt)
 
 				if ( auto* bullet = bulletObj->GetComponent<CBulletComponent>() )
 				{
-					bullet->Activate(b.position, b.velocity, 2.0f);
+					bullet->Activate(b.position, b.velocity, 2.0f, true);
 				}
 			}
 		}
