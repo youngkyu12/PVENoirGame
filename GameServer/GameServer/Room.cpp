@@ -103,6 +103,11 @@ namespace
 		constexpr float kSpacingX = 4.0f;
 		return GameMath::Vec3(static_cast<float>(playerId) * kSpacingX, 0.0f, kBaseZ);
 	}
+
+	static const char* GetMapId()
+	{
+		return "MapData_fullstage";
+	}
 }
 
 void Room::Enter(PlayerRef player)
@@ -601,6 +606,8 @@ void Room::MakeFrameState(uint32 tick)
 
 void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
 {
+	gameStartPkt.set_mapid(GetMapId());
+
 	Protocol::InitStruct* initStruct = gameStartPkt.mutable_initstruct();
 	for (auto playerMap : players)
 	{
@@ -632,21 +639,6 @@ void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
 		position->set_y(enemy->GetPosition().y);
 		position->set_z(enemy->GetPosition().z);
 		transform->set_yaw(enemy->GetYaw());
-	}
-
-	for (auto buildingMap : buildings)
-	{
-		BuildingRef& building = buildingMap.second;
-		auto b = initStruct->add_buildings();
-		b->set_id(buildingMap.first);
-		b->set_buildingtype(building->GetBuildingType());
-
-		Protocol::Transform* transform = b->mutable_transform();
-		Protocol::Vec3f* position = transform->mutable_position();
-		position->set_x(building->GetPosition().x);
-		position->set_y(building->GetPosition().y);
-		position->set_z(building->GetPosition().z);
-		transform->set_yaw(building->GetYaw());
 	}
 
 	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(gameStartPkt);

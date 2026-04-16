@@ -35,15 +35,6 @@ struct ActorState
     // 필요하면 HP, 상태 등 추가
 };
 
-struct BuildingState
-{
-    uint64_t    id = 0;
-    XMFLOAT3    position = XMFLOAT3(0.0f, 0.0f, 0.0f);
-    float       yaw = 0.0f;
-    uint32_t    buildingType = 0;
-    std::string assetName;
-};
-
 // ============================================================
 // 총알 상태
 // ============================================================
@@ -75,7 +66,7 @@ struct GameStartData
 {
     std::vector<ActorState> players;
     std::vector<ActorState> enemies;
-	std::vector<BuildingState> buildings; // 필요시 추가
+	std::string mapId;
 };
 
 // ============================================================
