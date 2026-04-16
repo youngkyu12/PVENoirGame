@@ -79,6 +79,10 @@ struct StaticWorldLodEntry
 	float lodDistance12 = 80.0f;
 
 	std::array<std::shared_ptr<CMesh>, 3> lodMeshes = { nullptr, nullptr, nullptr };
+
+	bool distanceCullEnabled = false;
+	bool distanceCulled = false;
+	float cullDistance = 1000000.0f;
 };
 
 struct SkinnedWorldLodEntry
@@ -96,6 +100,10 @@ struct SkinnedWorldLodEntry
 	float lodDistance12 = 180.0f;
 
 	std::array<std::shared_ptr<CMesh>, 3> lodMeshes = { nullptr, nullptr, nullptr };
+
+	bool distanceCullEnabled = false;
+	bool distanceCulled = false;
+	float cullDistance = 1000000.0f;
 };
 
 struct SkinnedInstanceVertex
@@ -187,6 +195,7 @@ private:
 	void BuildStaticInstanceGroups();
 	void ResetStaticWorldLodEntries();
 	int ComputeStaticWorldLodLevel(const XMFLOAT3& cameraPosition, const StaticWorldLodEntry& entry) const;
+	bool ComputeStaticWorldDistanceCulled(const XMFLOAT3& cameraPosition, const StaticWorldLodEntry& entry) const;
 	void UpdateStaticWorldLodSelection(CCamera* camera);
 	void RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
@@ -488,11 +497,11 @@ private:
 	std::unique_ptr<CNavMesh> m_navMesh;
 
 #ifndef USING_NETWORK
-	std::vector<MonsterSpawnEntry> m_monsterSpawnEntries;
+	std::vector<MonsterSpawnEntry>	m_monsterSpawnEntries;
 
 	bool m_spatialGridInitialized = false;
-	std::vector<GridStaticCell> m_gridStaticCells;
-	std::vector<GridDynamicCell> m_gridDynamicCells;
+	std::vector<GridStaticCell>		m_gridStaticCells;
+	std::vector<GridDynamicCell>	m_gridDynamicCells;
 	std::array<MegaGridCell, kMegaGridCount> m_megaGridCells = {};
 
 	std::array<GridDynamicTracker, 4> m_playerGridTrackers = {};
@@ -519,10 +528,12 @@ private:
 
 	std::vector<StaticInstanceGroup>    m_staticInstanceGroups;
 	std::vector<StaticWorldLodEntry>    m_staticWorldLodEntries;
+	std::vector<uint8_t>                m_staticDistanceCullFlags;
 	bool                                m_staticWorldLodDirty = false;
 	float                               m_staticLodDistance01 = 40.0f;
 	float                               m_staticLodDistance12 = 80.0f;
 	float                               m_staticLodHysteresis = 15.0f;
+	float                               m_staticCullHysteresis = 20.0f;
 
 	ComPtr<ID3D12Resource>              m_pd3dStaticInstanceBuffer;
 	StaticInstanceVertex* m_pMappedStaticInstanceBuffer = nullptr;

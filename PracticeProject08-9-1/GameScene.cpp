@@ -412,6 +412,15 @@ namespace
 		return false;
 	}
 
+	static bool ShouldUseStaticWorldDistanceCull(const std::string& assetName)
+	{
+		if ( assetName == "Grass" ) return false;
+		if ( assetName == "Ground" ) return false;
+		if ( assetName == "DirtRoad" ) return false;
+
+		return true;
+	}
+
 	static int ClampStaticWorldLodLevel(int lodLevel)
 	{
 		if ( lodLevel < 0 ) return 0;
@@ -2360,6 +2369,7 @@ void CGameScene::BuildStaticBatch(
 		const StaticPlacementEntry& placement = m_staticPlacementEntries[k];
 		const bool createWorldStaticCollider = ShouldCreateWorldStaticCollider(placement.assetName);
 		const bool isStaticWorldLodTarget = IsStaticWorldLodSupportedAssetName(placement.assetName);
+		const bool enableDistanceCull = ShouldUseStaticWorldDistanceCull(placement.assetName);
 
 		AssetBuildDesc desc{};
 		AssetType resolvedAssetType{};
@@ -2465,7 +2475,7 @@ void CGameScene::BuildStaticBatch(
 			m_treeAlphaClipObjects.insert(raw);
 		}
 
-		if ( isStaticWorldLodTarget )
+		if ( enableDistanceCull || isStaticWorldLodTarget )
 		{
 			StaticWorldLodEntry lodEntry{};
 			lodEntry.object = raw;
@@ -2473,16 +2483,20 @@ void CGameScene::BuildStaticBatch(
 			lodEntry.assetName = placement.assetName;
 			lodEntry.lodReferencePosition = placement.pos;
 
-			lodEntry.lodEnabled = enableStaticWorldLod;
+			lodEntry.lodEnabled = ( isStaticWorldLodTarget && enableStaticWorldLod );
 			lodEntry.useTreeShader = ( resolvedAssetType == AssetType::Tree );
 			lodEntry.currentLod = 0;
 			lodEntry.lodMeshes = loadedLodMeshes;
 
-			// 자산군별 거리 설정
+			lodEntry.distanceCullEnabled = enableDistanceCull;
+			lodEntry.distanceCulled = false;
+
+			// 자산군별 LOD / 거리 컬링 설정
 			if ( placement.assetName == "VillageWall" )
 			{
 				lodEntry.lodDistance01 = 250.0f;
 				lodEntry.lodDistance12 = 600.0f;
+				lodEntry.cullDistance = 900.0f;
 			}
 			else if (
 				placement.assetName == "Building1" ||
@@ -2498,6 +2512,7 @@ void CGameScene::BuildStaticBatch(
 			{
 				lodEntry.lodDistance01 = 150.0f;
 				lodEntry.lodDistance12 = 380.0f;
+				lodEntry.cullDistance = 550.0f;
 			}
 			else if (
 				placement.assetName == "Tree1" ||
@@ -2509,6 +2524,11 @@ void CGameScene::BuildStaticBatch(
 			{
 				lodEntry.lodDistance01 = 40.0f;
 				lodEntry.lodDistance12 = 120.0f;
+				lodEntry.cullDistance = 250.0f;
+			}
+			else
+			{
+				lodEntry.cullDistance = 400.0f;
 			}
 
 			if ( !lodEntry.lodMeshes[0] )
@@ -2978,6 +2998,7 @@ void CGameScene::BuildStaticBatch(
 void CGameScene::ResetStaticWorldLodEntries()
 {
 	m_staticWorldLodEntries.clear();
+	m_staticDistanceCullFlags.clear();
 	m_staticWorldLodDirty = false;
 }
 
@@ -3025,68 +3046,67 @@ int CGameScene::ComputeStaticWorldLodLevel(const XMFLOAT3& cameraPosition, const
 	return 2;
 }
 
+bool CGameScene::ComputeStaticWorldDistanceCulled(
+	const XMFLOAT3& cameraPosition,
+	const StaticWorldLodEntry& entry) const
+{
+	if ( !entry.distanceCullEnabled )
+		return false;
+
+	const float dx = cameraPosition.x - entry.lodReferencePosition.x;
+	const float dy = cameraPosition.y - entry.lodReferencePosition.y;
+	const float dz = cameraPosition.z - entry.lodReferencePosition.z;
+
+	const float dist = std::sqrt(dx * dx + dy * dy + dz * dz);
+
+	const float cullDistance = std::max(0.0f, entry.cullDistance);
+	const float cullEnter = cullDistance + m_staticCullHysteresis;
+	const float cullExit = std::max(0.0f, cullDistance - m_staticCullHysteresis);
+
+	if ( !entry.distanceCulled )
+	{
+		if ( dist >= cullEnter ) return true;
+		return false;
+	}
+
+	if ( dist < cullExit ) return false;
+	return true;
+}
+
 void CGameScene::UpdateStaticWorldLodSelection(CCamera* camera)
 {
-	if ( !camera ) return;
-	if ( m_staticWorldLodEntries.empty() ) return;
+	if ( !camera )
+	{
+		m_staticDistanceCullFlags.clear();
+		return;
+	}
+
+	m_staticDistanceCullFlags.assign(m_staticBatch.objectRefs.size(), 0);
+
+	if ( m_staticWorldLodEntries.empty() )
+	{
+		m_staticWorldLodDirty = false;
+		return;
+	}
 
 	const XMFLOAT3 cameraPosition = camera->GetPosition();
-
-	bool anyLodChanged = false;
 
 	for ( StaticWorldLodEntry& entry : m_staticWorldLodEntries )
 	{
 		if ( !entry.object ) continue;
 		if ( entry.staticBatchObjectIndex == UINT_MAX ) continue;
-		if ( entry.staticBatchObjectIndex >= ( UINT ) m_staticBatch.objectRefs.size() ) continue;
+		if ( entry.staticBatchObjectIndex >= ( UINT ) m_staticDistanceCullFlags.size() ) continue;
 
-		int desiredLod = ComputeStaticWorldLodLevel(cameraPosition, entry);
-		desiredLod = ClampStaticWorldLodLevel(desiredLod);
+		const bool distanceCulled =
+			ComputeStaticWorldDistanceCulled(cameraPosition, entry);
 
-		int resolvedLod = desiredLod;
-		while ( resolvedLod > 0 && !entry.lodMeshes[( size_t ) resolvedLod] )
-		{
-			--resolvedLod;
-		}
+		entry.distanceCulled = distanceCulled;
 
-		std::shared_ptr<CMesh> targetMesh = entry.lodMeshes[( size_t ) resolvedLod];
-		if ( !targetMesh ) continue;
-
-		std::shared_ptr<CMesh> currentMesh = entry.object->GetMeshShared(0);
-
-		if ( entry.currentLod == resolvedLod &&
-			 currentMesh.get() == targetMesh.get() )
-		{
-			continue;
-		}
-
-		/*const int previousLod = entry.currentLod;
-
-		entry.object->SetMesh(0, targetMesh);
-		entry.currentLod = resolvedLod;
-		anyLodChanged = true;
-
-		char debugText[256] = {};
-		sprintf_s(
-			debugText,
-			"[StaticLOD Select] asset=%s objectIndex=%u %d->%d\n",
-			entry.assetName.c_str(),
-			entry.staticBatchObjectIndex,
-			previousLod,
-			entry.currentLod
-		);
-		OutputDebugStringA(debugText);*/
+		if ( distanceCulled )
+			m_staticDistanceCullFlags[entry.staticBatchObjectIndex] = 1;
 	}
 
-	if ( anyLodChanged )
-	{
-		BuildStaticInstanceGroups();
-		m_staticWorldLodDirty = true;
-	}
-	else
-	{
-		m_staticWorldLodDirty = false;
-	}
+	m_staticWorldLodDirty = false;
 }
 
 void CGameScene::ResetSkinnedWorldLodEntries()
@@ -3342,6 +3362,12 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 		{
 			const UINT objectIndex = group.objectIndices[i];
 			if ( objectIndex >= ( UINT ) m_staticBatch.objectRefs.size() ) continue;
+
+			if ( objectIndex < ( UINT ) m_staticDistanceCullFlags.size() )
+			{
+				if ( m_staticDistanceCullFlags[objectIndex] != 0 )
+					continue;
+			}
 
 			CGameObject* obj = m_staticBatch.objectRefs[objectIndex];
 			if ( !obj ) continue;
