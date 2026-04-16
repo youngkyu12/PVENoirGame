@@ -48,6 +48,7 @@
 #include "ServerPacketHandler.h"
 
 #include "GlobalValues.h"
+#include "GameSceneContentCatalog.h"
 
 namespace
 {
@@ -153,6 +154,8 @@ namespace
 		XMStoreFloat4x4(&out, XMMatrixIdentity());
 		return out;
 	}
+
+	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::FullStageNoTree;
 }
 
 namespace
@@ -253,158 +256,6 @@ namespace
         }
     }
 
-	struct StaticAssetPathDesc
-	{
-		AssetType type{};
-		std::string meshBinPath;
-		std::string texturePath;
-	};
-
-	static bool ResolveStaticAssetPathDesc(const std::string& assetName, StaticAssetPathDesc& outDesc)
-	{
-		if ( assetName == "Grass" )
-		{
-			outDesc = { AssetType::Grass, "Assets/GroundPlane/Mesh/Grass.bin", "Assets/GroundPlane/Texture" };
-			return true;
-		}
-		if ( assetName == "Ground" )
-		{
-			outDesc = { AssetType::Ground, "Assets/GroundPlane/Mesh/Ground.bin", "Assets/GroundPlane/Texture" };
-			return true;
-		}
-		if ( assetName == "VillageWall" )
-		{
-			outDesc = { AssetType::VillageWall, "Assets/VillageWall/Mesh/VillageWall.bin", "Assets/VillageWall/Texture" };
-			return true;
-		}
-		if ( assetName == "DirtRoad" )
-		{
-			outDesc = { AssetType::DirtRoad, "Assets/GroundPlane/Mesh/DirtRoad.bin", "Assets/GroundPlane/Texture" };
-			return true;
-		}
-		if ( assetName == "Building1" )
-		{
-			outDesc = { AssetType::House, "Assets/House/Mesh/Building1.bin", "Assets/House/Texture" };
-			return true;
-		}
-		if ( assetName == "Building2" )
-		{
-			outDesc = { AssetType::House, "Assets/House/Mesh/Building2.bin", "Assets/House/Texture" };
-			return true;
-		}
-		if ( assetName == "Building3" )
-		{
-			outDesc = { AssetType::House, "Assets/House/Mesh/Building3.bin", "Assets/House/Texture" };
-			return true;
-		}
-		if ( assetName == "Building4" )
-		{
-			outDesc = { AssetType::House, "Assets/House/Mesh/Building4.bin", "Assets/House/Texture" };
-			return true;
-		}
-		if ( assetName == "Building5" )
-		{
-			outDesc = { AssetType::House, "Assets/House/Mesh/Building5.bin", "Assets/House/Texture" };
-			return true;
-		}
-		if ( assetName == "Building6" )
-		{
-			outDesc = { AssetType::House, "Assets/House/Mesh/Building6.bin", "Assets/House/Texture" };
-			return true;
-		}
-		if ( assetName == "Building7" )
-		{
-			outDesc = { AssetType::House, "Assets/House/Mesh/Building7.bin", "Assets/House/Texture" };
-			return true;
-		}
-		if ( assetName == "Building8" )
-		{
-			outDesc = { AssetType::House, "Assets/House/Mesh/Building8.bin", "Assets/House/Texture" };
-			return true;
-		}
-		if ( assetName == "Building9" )
-		{
-			outDesc = { AssetType::House, "Assets/House/Mesh/Building9.bin", "Assets/House/Texture" };
-			return true;
-		}
-		if ( assetName == "Tower" )
-		{
-			outDesc = { AssetType::Tower, "Assets/Tower/Mesh/Tower.bin", "Assets/Tower/Texture" };
-			return true;
-		}
-		if ( assetName == "Tree1" )
-		{
-			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree1.bin", "Assets/Tree/Texture" };
-			return true;
-		}
-		if ( assetName == "Tree2" )
-		{
-			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree2.bin", "Assets/Tree/Texture" };
-			return true;
-		}
-		if ( assetName == "Tree3" )
-		{
-			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree3.bin", "Assets/Tree/Texture" };
-			return true;
-		}
-		if ( assetName == "Tree4" )
-		{
-			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree4.bin", "Assets/Tree/Texture" };
-			return true;
-		}
-		if ( assetName == "Tree5" )
-		{
-			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree5.bin", "Assets/Tree/Texture" };
-			return true;
-		}
-		if ( assetName == "Tree6" )
-		{
-			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree6.bin", "Assets/Tree/Texture" };
-			return true;
-		}
-
-		return false;
-	}
-
-	static bool IsStaticWorldLodSupportedAssetName(const std::string& assetName)
-	{
-		if ( assetName == "Grass" ) return false;
-		if ( assetName == "Ground" ) return false;
-		if ( assetName == "DirtRoad" ) return false;
-
-		if ( assetName == "VillageWall" ) return true;
-
-		if ( assetName == "Building1" ) return true;
-		if ( assetName == "Building2" ) return true;
-		if ( assetName == "Building3" ) return true;
-		if ( assetName == "Building4" ) return true;
-		if ( assetName == "Building5" ) return true;
-		if ( assetName == "Building6" ) return true;
-		if ( assetName == "Building7" ) return true;
-		if ( assetName == "Building8" ) return true;
-		if ( assetName == "Building9" ) return true;
-
-		if ( assetName == "Tower" ) return true;
-
-		if ( assetName == "Tree1" ) return true;
-		if ( assetName == "Tree2" ) return true;
-		if ( assetName == "Tree3" ) return true;
-		if ( assetName == "Tree4" ) return true;
-		if ( assetName == "Tree5" ) return true;
-		if ( assetName == "Tree6" ) return true;
-
-		return false;
-	}
-
-	static bool ShouldUseStaticWorldDistanceCull(const std::string& assetName)
-	{
-		if ( assetName == "Grass" ) return false;
-		if ( assetName == "Ground" ) return false;
-		if ( assetName == "DirtRoad" ) return false;
-
-		return true;
-	}
-
 	static int ClampStaticWorldLodLevel(int lodLevel)
 	{
 		if ( lodLevel < 0 ) return 0;
@@ -456,192 +307,6 @@ namespace
 		return true;
 	}
 
-	static bool ResolveGhoulSkinnedLodAssetDesc(int lodLevel, AssetBuildDesc& outDesc)
-	{
-		std::string meshPath;
-		if ( !BuildSkinnedLodMeshBinPath("Assets/Ghoul/Mesh/Ghoul_Mesh.bin", lodLevel, meshPath) )
-			return false;
-
-		outDesc =
-		{
-			AssetType::Ghoul,
-			meshPath,
-			"Assets/Ghoul/Texture"
-		};
-		return true;
-	}
-
-	static bool ResolveStaticLodAssetPathDesc(
-		const std::string& assetName,
-		int lodLevel,
-		StaticAssetPathDesc& outDesc)
-	{
-		if ( !ResolveStaticAssetPathDesc(assetName, outDesc) )
-			return false;
-
-		if ( !IsStaticWorldLodSupportedAssetName(assetName) )
-			return true;
-
-		std::string lodMeshBinPath;
-		if ( !BuildStaticLodMeshBinPath(outDesc.meshBinPath, lodLevel, lodMeshBinPath) )
-			return false;
-
-		outDesc.meshBinPath = std::move(lodMeshBinPath);
-		return true;
-	}
-
-	static bool ResolveStaticLodAssetDesc(
-		const std::string& assetName,
-		int lodLevel,
-		AssetBuildDesc& outDesc,
-		AssetType* outResolvedType = nullptr)
-	{
-		StaticAssetPathDesc resolved{};
-		if ( !ResolveStaticLodAssetPathDesc(assetName, lodLevel, resolved) )
-			return false;
-
-		outDesc = { resolved.type, resolved.meshBinPath, resolved.texturePath };
-
-		if ( outResolvedType )
-			*outResolvedType = resolved.type;
-
-		return true;
-	}
-
-	bool ResolveStaticAssetDesc(const std::string& assetName, AssetBuildDesc& outDesc, AssetType* outResolvedType = nullptr) 
-	{
-		if ( assetName == "Grass" )
-		{
-			outDesc = { AssetType::Grass, "Assets/GroundPlane/Mesh/Grass.bin", "Assets/GroundPlane/Texture" };
-			if ( outResolvedType ) *outResolvedType = AssetType::Grass;
-			return true;
-		}
-		if ( assetName == "Ground" )
-		{
-			outDesc = { AssetType::Ground, "Assets/GroundPlane/Mesh/Ground.bin", "Assets/GroundPlane/Texture" };
-			if ( outResolvedType ) *outResolvedType = AssetType::Ground;
-			return true;
-		}
-		if ( assetName == "VillageWall" )
-		{
-			outDesc = { AssetType::VillageWall, "Assets/VillageWall/Mesh/VillageWall.bin", "Assets/VillageWall/Texture" };
-			if ( outResolvedType ) *outResolvedType = AssetType::VillageWall;
-			return true;
-		}
-		if ( assetName == "DirtRoad" )
-		{
-			outDesc = { AssetType::DirtRoad, "Assets/GroundPlane/Mesh/DirtRoad.bin", "Assets/GroundPlane/Texture" };
-			if ( outResolvedType ) *outResolvedType = AssetType::DirtRoad;
-			return true;
-		}
-        if (assetName == "Building1")
-        {
-            outDesc = { AssetType::House, "Assets/House/Mesh/Building1.bin", "Assets/House/Texture" };
-			if ( outResolvedType ) *outResolvedType = AssetType::House;
-			return true;
-        }
-        if (assetName == "Building2")
-        {
-            outDesc = { AssetType::House, "Assets/House/Mesh/Building2.bin", "Assets/House/Texture" };
-			if ( outResolvedType ) *outResolvedType = AssetType::House;
-            return true;
-        }
-        if (assetName == "Building3")
-        {
-            outDesc = { AssetType::House, "Assets/House/Mesh/Building3.bin", "Assets/House/Texture" };
-			if ( outResolvedType ) *outResolvedType = AssetType::House;
-            return true;
-        }
-        if (assetName == "Building4")
-        {
-            outDesc = { AssetType::House, "Assets/House/Mesh/Building4.bin", "Assets/House/Texture" };
-			if ( outResolvedType ) *outResolvedType = AssetType::House;
-            return true;
-        }
-        if (assetName == "Building5")
-        {
-            outDesc = { AssetType::House, "Assets/House/Mesh/Building5.bin", "Assets/House/Texture" };
-			if ( outResolvedType ) *outResolvedType = AssetType::House;
-            return true;
-        }
-        if (assetName == "Building6")
-        {
-            outDesc = { AssetType::House, "Assets/House/Mesh/Building6.bin", "Assets/House/Texture" };
-			if ( outResolvedType ) *outResolvedType = AssetType::House;
-            return true;
-        }
-        if (assetName == "Building7")
-        {
-            outDesc = { AssetType::House, "Assets/House/Mesh/Building7.bin", "Assets/House/Texture" };
-			if ( outResolvedType ) *outResolvedType = AssetType::House;
-            return true;
-        }
-        if (assetName == "Building8")
-        {
-            outDesc = { AssetType::House, "Assets/House/Mesh/Building8.bin", "Assets/House/Texture" };
-			if ( outResolvedType ) *outResolvedType = AssetType::House;
-            return true;
-        }
-        if (assetName == "Building9")
-        {
-            outDesc = { AssetType::House, "Assets/House/Mesh/Building9.bin", "Assets/House/Texture" };
-			if ( outResolvedType ) *outResolvedType = AssetType::House;
-            return true;
-        }
-        if (assetName == "Tower")
-        {
-            outDesc = { AssetType::Tower, "Assets/Tower/Mesh/Tower.bin", "Assets/Tower/Texture" };
-			if ( outResolvedType ) *outResolvedType = AssetType::Tower;
-            return true;
-        }
-		if ( assetName == "Tree1" )
-		{
-			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree1.bin", "Assets/Tree/Texture" };
-			if ( outResolvedType ) *outResolvedType = AssetType::Tree;
-			return true;
-		}
-		if ( assetName == "Tree2" )
-		{
-			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree2.bin", "Assets/Tree/Texture" };
-			if ( outResolvedType ) *outResolvedType = AssetType::Tree;
-			return true;
-		}
-		if ( assetName == "Tree3" )
-		{
-			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree3.bin", "Assets/Tree/Texture" };
-			if ( outResolvedType ) *outResolvedType = AssetType::Tree;
-			return true;
-		}
-		if ( assetName == "Tree4" )
-		{
-			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree4.bin", "Assets/Tree/Texture" };
-			if ( outResolvedType ) *outResolvedType = AssetType::Tree;
-			return true;
-		}
-		if ( assetName == "Tree5" )
-		{
-			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree5.bin", "Assets/Tree/Texture" };
-			if ( outResolvedType ) *outResolvedType = AssetType::Tree;
-			return true;
-		}
-		if ( assetName == "Tree6" )
-		{
-			outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree6.bin", "Assets/Tree/Texture" };
-			if ( outResolvedType ) *outResolvedType = AssetType::Tree;
-			return true;
-		}
-
-        return false;
-    }
-
-	bool ShouldCreateWorldStaticCollider(const std::string& assetName)
-	{
-		if ( assetName == "Grass" )    return false;
-		if ( assetName == "Ground" )   return false;
-		if ( assetName == "DirtRoad" ) return false;
-		return true;
-	}
-
 	void TriggerMonsterTestCommand(CGameObject* obj, EMonsterAnimCommand cmd, EMonsterAnimState locomotion = EMonsterAnimState::Idle)
 	{
 		if ( !obj ) return;
@@ -657,23 +322,16 @@ namespace
 	}
 
 	void PreloadCachedClipSet(
-	CMesh* mesh,
-	const char* skeletonKey,
-	std::initializer_list<std::pair<const char*, const char*>> clipList)
+		CMesh* mesh,
+		const char* skeletonKey,
+		const std::vector<GameSceneClipEntry>& clipList) 
 	{
 		if ( !mesh || !skeletonKey ) return;
 
 		for ( const auto& clipInfo : clipList )
 		{
 			AnimationClip clip{};
-			AssetManager::LoadCachedClip(
-				mesh,
-				skeletonKey,
-				clipInfo.first,
-				clipInfo.second,
-				clip,
-				1.0f
-			);
+			AssetManager::LoadCachedClip(mesh, skeletonKey, clipInfo.filePath, clipInfo.clipName, clip, 1.0f);
 		}
 	}
 
@@ -681,20 +339,14 @@ namespace
 		CAnimatorComponent* animComp,
 		CMesh* mesh,
 		const char* skeletonKey,
-		std::initializer_list<std::pair<const char*, const char*>> clipList)
+		const std::vector<GameSceneClipEntry>& clipList) 
 	{
 		if ( !animComp || !mesh || !skeletonKey ) return;
 
 		for ( const auto& clipInfo : clipList )
 		{
 			AnimationClip clip{};
-			if ( AssetManager::LoadCachedClip(
-				mesh,
-				skeletonKey,
-				clipInfo.first,
-				clipInfo.second,
-				clip,
-				1.0f) )
+			if ( AssetManager::LoadCachedClip(mesh, skeletonKey, clipInfo.filePath, clipInfo.clipName, clip, 1.0f) )
 			{
 				animComp->AddClip(clip);
 			}
@@ -1454,44 +1106,30 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	ApplyStaticPlacementCounts();
 #else
 	m_localPlayerSlot = 0;
-	//Test stage
-	//const std::string placementFilePath = "MapData/MapData_tst.txt";
-	//const std::string navMeshFilePath = "MapData/Navmesh_tst.nvm";
 
-	//1 stage
-	//const std::string placementFilePath = "MapData/MapData_stage1_with_Tree.txt";
-	//const std::string navMeshFilePath = "MapData/Navmesh_Stage1.nvm";
+	const GameSceneStageFileSet& stageFiles = GetLocalStageFileSet(kLocalStagePreset);
 
-	//Full stage
-	//const std::string placementFilePath = "MapData/MapData_fullstage.txt";
-	const std::string placementFilePath = "MapData/MapData_fullstage(NoTree).txt";
-	const std::string navMeshFilePath = "MapData/Navmesh_FullStage.nvm";
-
-	const std::string cubeColliderReportFilePath = "MapData/CubeBoxColliderReport.txt";
-	//const std::string monsterSpawnFilePath = "MapData/monster_spawn_points.txt";
-	const std::string monsterSpawnFilePath = "MapData/monster_spawn_points_little.txt";
-	
-
-	if ( !LoadStaticPlacementFile(placementFilePath) )
+	if ( !LoadStaticPlacementFile(stageFiles.placementFilePath) )
 	{
 		assert(false && "Failed to load placement_export");
 		return;
 	}
 
-	if ( !LoadSceneCubeBoxColliderReport(cubeColliderReportFilePath) )
+	if ( !LoadSceneCubeBoxColliderReport(stageFiles.cubeColliderReportFilePath) )
 	{
 		assert(false && "Failed to load cube box collider report");
 		return;
 	}
 
 	m_navMesh = std::make_unique<CNavMesh>();
-	if ( !m_navMesh->LoadFromFile(navMeshFilePath) )
+	if ( !m_navMesh->LoadFromFile(stageFiles.navMeshFilePath) )
 	{
 		assert(false && "Failed to load navmesh file");
 		m_navMesh.reset();
 		return;
 	}
-	if ( !LoadMonsterSpawnFile(monsterSpawnFilePath) )
+
+	if ( !LoadMonsterSpawnFile(stageFiles.monsterSpawnFilePath) )
 	{
 		assert(false && "Failed to load monster spawn file");
 		return;
@@ -2560,12 +2198,8 @@ void CGameScene::BuildStaticBatch(
     // Arrow pool (Static)
     // ------------------------------------------------------------------------
     {
-        AssetBuildDesc ArrowDesc =
-        {
-            AssetType::Arrow,
-            "Assets/Weapon/Arrow/Mesh/Arrow_Mesh.bin",
-            "Assets/Weapon/Arrow/Texture"
-        };
+		AssetBuildDesc ArrowDesc{};
+		GetGameSceneAssetBuildDesc(EGameSceneAssetId::Arrow, ArrowDesc);
 
         BuiltAsset arrowAsset = AssetManager::BuildAsset(
             dev, cmd,
@@ -2619,12 +2253,8 @@ void CGameScene::BuildStaticBatch(
 	// Bullet pool (Static)
 	// ------------------------------------------------------------------------
 	{
-		AssetBuildDesc BulletDesc =
-		{
-			AssetType::Bullet, // 별도 타입이 없으면 일단 임시로 동일 enum 사용
-			"Assets/Weapon/Bullet/Mesh/Bullet_Mesh.bin",
-			"Assets/Weapon/Bullet/Texture"
-		};
+		AssetBuildDesc BulletDesc{};
+		GetGameSceneAssetBuildDesc(EGameSceneAssetId::Bullet, BulletDesc);
 
 		BuiltAsset bulletAsset = AssetManager::BuildAsset(
 			dev, cmd,
@@ -2679,12 +2309,8 @@ void CGameScene::BuildStaticBatch(
     // Helmet pool (Static attachment)
     // ------------------------------------------------------------------------
     {
-        AssetBuildDesc HelmetDesc =
-        {
-            AssetType::Helmet,
-            "Assets/Helmet/Mesh/Helmet.bin",
-            "Assets/Helmet/Texture"
-        };
+		AssetBuildDesc HelmetDesc{};
+		GetGameSceneAssetBuildDesc(EGameSceneAssetId::Helmet, HelmetDesc);
 
         BuiltAsset helmetAsset = AssetManager::BuildAsset(
             dev, cmd,
@@ -2728,12 +2354,8 @@ void CGameScene::BuildStaticBatch(
     // PlayerSword pool
     // ------------------------------------------------------------------------
     {
-        AssetBuildDesc SwordDesc =
-        {
-            AssetType::Sword,
-            "Assets/Weapon/SwordP/Mesh/Sword_Mesh.bin",
-            "Assets/Weapon/SwordP/Texture"
-        };
+		AssetBuildDesc SwordDesc{};
+		GetGameSceneAssetBuildDesc(EGameSceneAssetId::PlayerSword, SwordDesc);
 
         BuiltAsset SwordAsset = AssetManager::BuildAsset(
             dev, cmd,
@@ -2799,12 +2421,8 @@ void CGameScene::BuildStaticBatch(
     // PlayerAxe pool
     // ------------------------------------------------------------------------
     {
-        AssetBuildDesc AxeDesc =
-        {
-            AssetType::Axe,
-            "Assets/Weapon/Axe/Mesh/Axe_Mesh.bin",
-            "Assets/Weapon/Axe/Texture"
-        };
+		AssetBuildDesc AxeDesc{};
+		GetGameSceneAssetBuildDesc(EGameSceneAssetId::PlayerAxe, AxeDesc);
 
         BuiltAsset AxeAsset = AssetManager::BuildAsset(
             dev, cmd,
@@ -2852,12 +2470,8 @@ void CGameScene::BuildStaticBatch(
     // PlayerGun pool
     // ------------------------------------------------------------------------
     {
-        AssetBuildDesc GunDesc =
-        {
-            AssetType::Gun,
-            "Assets/Weapon/Gun/Mesh/Gun_Mesh.bin",
-            "Assets/Weapon/Gun/Texture"
-        };
+		AssetBuildDesc GunDesc{};
+		GetGameSceneAssetBuildDesc(EGameSceneAssetId::PlayerGun, GunDesc);
 
         BuiltAsset GunAsset = AssetManager::BuildAsset(
             dev, cmd,
@@ -2902,12 +2516,8 @@ void CGameScene::BuildStaticBatch(
     // EnemySword pool
     // ------------------------------------------------------------------------
     {
-        AssetBuildDesc SwordDesc =
-        {
-            AssetType::Sword,
-            "Assets/Weapon/SwordE/Mesh/Sword_Mesh.bin",
-            "Assets/Weapon/SwordE/Texture"
-        };
+		AssetBuildDesc SwordDesc{};
+		GetGameSceneAssetBuildDesc(EGameSceneAssetId::EnemySword, SwordDesc);
 
         BuiltAsset swordAsset = AssetManager::BuildAsset(
             dev, cmd,
@@ -3874,12 +3484,8 @@ void CGameScene::BuildSkinnedBatch(
 			std::shared_ptr<CMesh> ghoulBaseMesh = ghoulLodMeshes[0];
 			if ( !ghoulBaseMesh )
 			{
-				AssetBuildDesc EnemyWDesc =
-				{
-					AssetType::Ghoul,
-					"Assets/Ghoul/Mesh/Ghoul_Mesh.bin",
-					"Assets/Ghoul/Texture"
-				};
+				AssetBuildDesc EnemyWDesc{};
+				GetGameSceneAssetBuildDesc(EGameSceneAssetId::Ghoul, EnemyWDesc);
 
 				BuiltAsset assetW = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyWDesc);
 				ghoulBaseMesh = assetW.mesh;
@@ -3889,14 +3495,7 @@ void CGameScene::BuildSkinnedBatch(
 			PreloadCachedClipSet(
 				ghoulBaseMesh.get(),
 				"Ghoul",
-				{
-					{ "Assets/Ghoul/Animation/Ghoul_Anim_Idle.bin",   "Idle" },
-					{ "Assets/Ghoul/Animation/Ghoul_Anim_Walk.bin",   "Walk" },
-					{ "Assets/Ghoul/Animation/Ghoul_Anim_Run.bin",    "Run" },
-					{ "Assets/Ghoul/Animation/Ghoul_Anim_Hit.bin",    "Hit" },
-					{ "Assets/Ghoul/Animation/Ghoul_Anim_Attack.bin", "Attack" },
-					{ "Assets/Ghoul/Animation/Ghoul_Anim_Death.bin",  "Death" }
-				}
+				GetGhoulClipEntries()
 			);
 
 			for ( UINT k = 0; k < countW; ++k )
@@ -3972,14 +3571,7 @@ void CGameScene::BuildSkinnedBatch(
 						animComp,
 						mesh0.get(),
 						"Ghoul",
-						{
-							{ "Assets/Ghoul/Animation/Ghoul_Anim_Idle.bin",   "Idle" },
-							{ "Assets/Ghoul/Animation/Ghoul_Anim_Walk.bin",   "Walk" },
-							{ "Assets/Ghoul/Animation/Ghoul_Anim_Run.bin",    "Run" },
-							{ "Assets/Ghoul/Animation/Ghoul_Anim_Hit.bin",    "Hit" },
-							{ "Assets/Ghoul/Animation/Ghoul_Anim_Attack.bin", "Attack" },
-							{ "Assets/Ghoul/Animation/Ghoul_Anim_Death.bin",  "Death" }
-						}
+						GetGhoulClipEntries()
 					);
 				}
 
@@ -4039,29 +3631,16 @@ void CGameScene::BuildSkinnedBatch(
 			const UINT countX = static_cast< UINT >( swordSpawns.size() );
 #endif
 
-            AssetBuildDesc EnemyXDesc =
-            {
-                AssetType::SwordMan,
-                "Assets/Enemy/Mesh/Enemy_Mesh1.bin",
-                "Assets/Enemy/Texture"
-            };
+			AssetBuildDesc EnemyXDesc{};
+			GetGameSceneAssetBuildDesc(EGameSceneAssetId::SwordMan, EnemyXDesc);
 
             BuiltAsset assetX = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyXDesc);
 
 			PreloadCachedClipSet(
-                assetX.mesh.get(),
-                "EnemySword",
-                {
-                    { "Assets/Enemy/Animation/Enemy_Normal_Idle.bin", "Idle_Common" },
-                    { "Assets/Enemy/Animation/Enemy_Sword_Idle.bin",  "Idle" },
-                    { "Assets/Enemy/Animation/Enemy_Walk_F.bin",      "Walk" },
-                    { "Assets/Enemy/Animation/Enemy_Run_F.bin",       "Run" },
-                    { "Assets/Enemy/Animation/Enemy_Normal_Hit.bin",  "Hit_Common" },
-                    { "Assets/Enemy/Animation/Enemy_Sword_Hit.bin",   "Hit" },
-                    { "Assets/Enemy/Animation/Enemy_Sword_Attack.bin","Attack" },
-                    { "Assets/Enemy/Animation/Enemy_Death.bin",       "Death" }
-                }
-            );
+				assetX.mesh.get(),
+				"EnemySword",
+				GetEnemySwordClipEntries()
+			);
 
             for (UINT k = 0; k < countX; ++k)
             {
@@ -4120,16 +3699,7 @@ void CGameScene::BuildSkinnedBatch(
 						animComp,
 						mesh0.get(),
 						"EnemySword",
-						{
-							{ "Assets/Enemy/Animation/Enemy_Normal_Idle.bin", "Idle_Common" },
-							{ "Assets/Enemy/Animation/Enemy_Sword_Idle.bin",  "Idle" },
-							{ "Assets/Enemy/Animation/Enemy_Walk_F.bin",      "Walk" },
-							{ "Assets/Enemy/Animation/Enemy_Run_F.bin",       "Run" },
-							{ "Assets/Enemy/Animation/Enemy_Normal_Hit.bin",  "Hit_Common" },
-							{ "Assets/Enemy/Animation/Enemy_Sword_Hit.bin",   "Hit" },
-							{ "Assets/Enemy/Animation/Enemy_Sword_Attack.bin","Attack" },
-							{ "Assets/Enemy/Animation/Enemy_Death.bin",       "Death" }
-						}
+						GetEnemySwordClipEntries()
 					);
 				}
 
@@ -4177,30 +3747,16 @@ void CGameScene::BuildSkinnedBatch(
 			const UINT countY = static_cast< UINT >( bowSpawns.size() );
 #endif
 
-            AssetBuildDesc EnemyYDesc =
-            {
-                AssetType::BowMan,
-                "Assets/Enemy/Mesh/Enemy_Mesh1.bin",
-                "Assets/Enemy/Texture"
-            };
+			AssetBuildDesc EnemyYDesc{};
+			GetGameSceneAssetBuildDesc(EGameSceneAssetId::BowMan, EnemyYDesc);
 
             BuiltAsset assetY = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyYDesc);
 
 			PreloadCachedClipSet(
-                assetY.mesh.get(),
-                "EnemyBow",
-                {
-                    { "Assets/Enemy/Animation/Enemy_Normal_Idle.bin", "Idle_Common" },
-                    { "Assets/Enemy/Animation/Enemy_Bow_Idle.bin",    "Idle" },
-                    { "Assets/Enemy/Animation/Enemy_Walk_F.bin",      "Walk" },
-                    { "Assets/Enemy/Animation/Enemy_Run_F.bin",       "Run" },
-                    { "Assets/Enemy/Animation/Enemy_Normal_Hit.bin",  "Hit" },
-                    { "Assets/Enemy/Animation/Enemy_Bow_Hold.bin",    "Bow_Hold" },
-                    { "Assets/Enemy/Animation/Enemy_Bow_Load.bin",    "Bow_Load" },
-                    { "Assets/Enemy/Animation/Enemy_Bow_Release.bin", "Bow_Release" },
-                    { "Assets/Enemy/Animation/Enemy_Death.bin",       "Death" }
-                }
-            );
+				assetY.mesh.get(),
+				"EnemyBow",
+				GetEnemyBowClipEntries()
+			);
 
             for (UINT k = 0; k < countY; ++k)
             {
@@ -4260,17 +3816,7 @@ void CGameScene::BuildSkinnedBatch(
 						animComp,
 						mesh0.get(),
 						"EnemyBow",
-						{
-							{ "Assets/Enemy/Animation/Enemy_Normal_Idle.bin", "Idle_Common" },
-							{ "Assets/Enemy/Animation/Enemy_Bow_Idle.bin",    "Idle" },
-							{ "Assets/Enemy/Animation/Enemy_Walk_F.bin",      "Walk" },
-							{ "Assets/Enemy/Animation/Enemy_Run_F.bin",       "Run" },
-							{ "Assets/Enemy/Animation/Enemy_Normal_Hit.bin",  "Hit" },
-							{ "Assets/Enemy/Animation/Enemy_Bow_Hold.bin",    "Bow_Hold" },
-							{ "Assets/Enemy/Animation/Enemy_Bow_Load.bin",    "Bow_Load" },
-							{ "Assets/Enemy/Animation/Enemy_Bow_Release.bin", "Bow_Release" },
-							{ "Assets/Enemy/Animation/Enemy_Death.bin",       "Death" }
-						}
+						GetEnemyBowClipEntries()
 					);
 				}
 
@@ -4321,26 +3867,15 @@ void CGameScene::BuildSkinnedBatch(
 			const UINT countZ = static_cast< UINT >( mutantSpawns.size() );
 #endif
 
-            AssetBuildDesc EnemyZDesc =
-            {
-                AssetType::Mutant,
-                "Assets/Mutant/Mesh/Mutant_Mesh.bin",
-                "Assets/Mutant/Texture"
-            };
+			AssetBuildDesc EnemyZDesc{};
+			GetGameSceneAssetBuildDesc(EGameSceneAssetId::Mutant, EnemyZDesc);
 
             BuiltAsset assetZ = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyZDesc);
 
 			PreloadCachedClipSet(
                 assetZ.mesh.get(),
                 "Mutant",
-                {
-                    { "Assets/Mutant/Animation/Mutant_Anim_Idle.bin",   "Idle" },
-                    { "Assets/Mutant/Animation/Mutant_Anim_Walk.bin",   "Walk" },
-                    { "Assets/Mutant/Animation/Mutant_Anim_Run.bin",    "Run" },
-                    { "Assets/Mutant/Animation/Mutant_Anim_Hit.bin",    "Hit" },
-                    { "Assets/Mutant/Animation/Mutant_Anim_Attack.bin", "Attack" },
-                    { "Assets/Mutant/Animation/Mutant_Anim_Dead.bin",   "Death" }
-                }
+				GetMutantClipEntries()
             );
 
             for (UINT k = 0; k < countZ; ++k)
@@ -4402,14 +3937,7 @@ void CGameScene::BuildSkinnedBatch(
 						animComp,
 						mesh0.get(),
 						"Mutant",
-						{
-							{ "Assets/Mutant/Animation/Mutant_Anim_Idle.bin",   "Idle" },
-							{ "Assets/Mutant/Animation/Mutant_Anim_Walk.bin",   "Walk" },
-							{ "Assets/Mutant/Animation/Mutant_Anim_Run.bin",    "Run" },
-							{ "Assets/Mutant/Animation/Mutant_Anim_Hit.bin",    "Hit" },
-							{ "Assets/Mutant/Animation/Mutant_Anim_Attack.bin", "Attack" },
-							{ "Assets/Mutant/Animation/Mutant_Anim_Dead.bin",   "Death" }
-						}
+						GetMutantClipEntries()
 					);
 				}
 
@@ -4459,23 +3987,7 @@ void CGameScene::BuildSkinnedBatch(
                 b->count = (UINT)b->objectRefs.size();
 
                 m_MutantRefs.push_back(raw);
-
-				//auto colliderobj = std::make_unique<CGameObject>(1);
-				//auto* collidercb = ( CB_GAMEOBJECT_INFO* ) ( ( UINT8* ) coliiderbatch->mappedGameObjects + m_ColliderCount * coliiderbatch->cbElementBytes );
-				//colliderobj->SetMappedGameObjectCB(collidercb);
-
-				//colliderobj->SetMesh(0, mesh);
-				//colliderobj->AddComponent<CColliderMeshRendererComponent>();
-
-				//colliderobj->SetCbvGPUDescriptorHandlePtr(coliiderbatch->baseCbvGpu.ptr + ( UINT64 ) m_ColliderCount * coliiderbatch->cbvInc);
-
-				//colliderobj->CreateComponents(dev, cmd);
-
-				//CGameObject* rawcollider = colliderobj.get();
-				//m_colliderObjects.push_back(std::move(colliderobj));
-				//coliiderbatch->objectRefs.push_back(rawcollider);
-				//coliiderbatch->count = ( UINT ) coliiderbatch->objectRefs.size();
-            }
+			}
         }
 
         // ----------------------------
@@ -4488,29 +4000,15 @@ void CGameScene::BuildSkinnedBatch(
 			const UINT countOne = static_cast< UINT >( bossSpawns.size() );
 #endif
 
-            AssetBuildDesc EnemyOneDesc =
-            {
-                AssetType::Boss,
-                "Assets/Boss/Mesh/Boss_Mesh.bin",
-                "Assets/Boss/Texture"
-            };
+			AssetBuildDesc EnemyOneDesc{};
+			GetGameSceneAssetBuildDesc(EGameSceneAssetId::Boss, EnemyOneDesc);
 
             BuiltAsset assetOne = AssetManager::BuildAsset(dev, cmd, m_pMaterials.get(), EnemyOneDesc);
 
 			PreloadCachedClipSet(
                 assetOne.mesh.get(),
                 "Boss",
-                {
-                    { "Assets/Boss/Animation/Boss_Anim_Appear.bin",      "Appear" },
-                    { "Assets/Boss/Animation/Boss_Anim_AttackLeft.bin",  "AttackLeft" },
-                    { "Assets/Boss/Animation/Boss_Anim_AttackRight.bin", "AttackRight" },
-                    { "Assets/Boss/Animation/Boss_Anim_Call.bin",        "Call" },
-                    { "Assets/Boss/Animation/Boss_Anim_Death.bin",       "Death" },
-                    { "Assets/Boss/Animation/Boss_Anim_Hit.bin",         "Hit" },
-                    { "Assets/Boss/Animation/Boss_Anim_Idle.bin",        "Idle" },
-                    { "Assets/Boss/Animation/Boss_Anim_Spell.bin",       "Spell" },
-                    { "Assets/Boss/Animation/Boss_Anim_Walk.bin",        "Walk" }
-                }
+				GetBossClipEntries()
             );
 
             for (UINT k = 0; k < countOne; ++k)
@@ -4572,17 +4070,7 @@ void CGameScene::BuildSkinnedBatch(
 						animComp,
 						mesh0.get(),
 						"Boss",
-						{
-							{ "Assets/Boss/Animation/Boss_Anim_Appear.bin",      "Appear" },
-							{ "Assets/Boss/Animation/Boss_Anim_AttackLeft.bin",  "AttackLeft" },
-							{ "Assets/Boss/Animation/Boss_Anim_AttackRight.bin", "AttackRight" },
-							{ "Assets/Boss/Animation/Boss_Anim_Call.bin",        "Call" },
-							{ "Assets/Boss/Animation/Boss_Anim_Death.bin",       "Death" },
-							{ "Assets/Boss/Animation/Boss_Anim_Hit.bin",         "Hit" },
-							{ "Assets/Boss/Animation/Boss_Anim_Idle.bin",        "Idle" },
-							{ "Assets/Boss/Animation/Boss_Anim_Spell.bin",       "Spell" },
-							{ "Assets/Boss/Animation/Boss_Anim_Walk.bin",        "Walk" }
-						}
+						GetBossClipEntries()
 					);
 				}
 
@@ -4633,7 +4121,7 @@ void CGameScene::BuildSkinnedBatch(
 
                 CGameObject* raw = obj.get();
 				{
-					std::array<std::shared_ptr<CMesh>, 3> noLodMeshes = { assetOne.mesh, nullptr, nullptr };\
+					std::array<std::shared_ptr<CMesh>, 3> noLodMeshes = { assetOne.mesh, nullptr, nullptr };
 					RegisterSkinnedCullEntry(raw, i, "Boss", pos, noLodMeshes, false, 0.0f, 0.0f, 160.0f);
 				}
                 m_skinnedObjects.push_back(std::move(obj));
@@ -4647,30 +4135,17 @@ void CGameScene::BuildSkinnedBatch(
     // Player (Players slot 0..3)
     // ------------------------------------------------------------------------
     {
-        AssetBuildDesc FighterDesc0 =
-        {
-            AssetType::Player,
-            "Assets/Player/Mesh/Player_Mesh1.bin",
-            "Assets/Player/Texture"
-        };
-        AssetBuildDesc FighterDesc1 =
-        {
-            AssetType::Player,
-            "Assets/Player/Mesh/Player_Mesh2.bin",
-            "Assets/Player/Texture"
-        };
-        AssetBuildDesc FighterDesc2 =
-        {
-            AssetType::Player,
-            "Assets/Player/Mesh/Player_Mesh3.bin",
-            "Assets/Player/Texture"
-        };
-        AssetBuildDesc FighterDesc3 =
-        {
-            AssetType::Player,
-            "Assets/Player/Mesh/Player_Mesh4.bin",
-            "Assets/Player/Texture"
-        };
+		AssetBuildDesc FighterDesc0{};
+		GetGameSceneAssetBuildDesc(EGameSceneAssetId::PlayerMesh1, FighterDesc0);
+
+		AssetBuildDesc FighterDesc1{};
+		GetGameSceneAssetBuildDesc(EGameSceneAssetId::PlayerMesh2, FighterDesc1);
+
+		AssetBuildDesc FighterDesc2{};
+		GetGameSceneAssetBuildDesc(EGameSceneAssetId::PlayerMesh3, FighterDesc2);
+
+		AssetBuildDesc FighterDesc3{};
+		GetGameSceneAssetBuildDesc(EGameSceneAssetId::PlayerMesh4, FighterDesc3);
 
         for (UINT k = 0; k < fighterCount; ++k)
         {
@@ -4762,43 +4237,7 @@ void CGameScene::BuildSkinnedBatch(
 					animComp,
 					mesh0.get(),
 					"Player",
-					{
-						{ "Assets/Player/Animation/Player_Normal_Idle.bin", "Idle_Normal" },
-						{ "Assets/Player/Animation/Player_Sword_Idle.bin",  "Idle_Sword" },
-						{ "Assets/Player/Animation/Player_Axe_Idle.bin",    "Idle_Axe" },
-						{ "Assets/Player/Animation/Player_Bow_Idle.bin",    "Idle_Bow" },
-						{ "Assets/Player/Animation/Player_Gun_Idle.bin",    "Idle_Gun" },
-
-						{ "Assets/Player/Animation/Player_Normal_Hit.bin",  "Hit_Normal" },
-						{ "Assets/Player/Animation/Player_Sword_Hit.bin",   "Hit_Sword" },
-						{ "Assets/Player/Animation/Player_Death.bin",       "Death" },
-
-						{ "Assets/Player/Animation/Player_Sword_Attack.bin","Attack_Sword" },
-						{ "Assets/Player/Animation/Player_Axe_Attack.bin",  "Attack_Axe" },
-						{ "Assets/Player/Animation/Player_Bow_Load.bin",    "Bow_Load" },
-						{ "Assets/Player/Animation/Player_Bow_Release.bin", "Bow_Release" },
-						{ "Assets/Player/Animation/Player_Gun_Shoot.bin",   "Gun_Shoot" },
-						{ "Assets/Player/Animation/Player_Roll_F.bin",      "Roll_F" },
-						{ "Assets/Player/Animation/Player_Roll_B.bin",      "Roll_B" },
-
-						{ "Assets/Player/Animation/Player_Walk_F.bin",      "Walk_F" },
-						{ "Assets/Player/Animation/Player_Walk_B.bin",      "Walk_B" },
-						{ "Assets/Player/Animation/Player_Walk_L.bin",      "Walk_L" },
-						{ "Assets/Player/Animation/Player_Walk_R.bin",      "Walk_R" },
-						{ "Assets/Player/Animation/Player_Walk_FL.bin",     "Walk_FL" },
-						{ "Assets/Player/Animation/Player_Walk_FR.bin",     "Walk_FR" },
-						{ "Assets/Player/Animation/Player_Walk_BL.bin",     "Walk_BL" },
-						{ "Assets/Player/Animation/Player_Walk_BR.bin",     "Walk_BR" },
-
-						{ "Assets/Player/Animation/Player_Run_F.bin",       "Run_F" },
-						{ "Assets/Player/Animation/Player_Run_B.bin",       "Run_B" },
-						{ "Assets/Player/Animation/Player_Run_L.bin",       "Run_L" },
-						{ "Assets/Player/Animation/Player_Run_R.bin",       "Run_R" },
-						{ "Assets/Player/Animation/Player_Run_FL.bin",      "Run_FL" },
-						{ "Assets/Player/Animation/Player_Run_FR.bin",      "Run_FR" },
-						{ "Assets/Player/Animation/Player_Run_BL.bin",      "Run_BL" },
-						{ "Assets/Player/Animation/Player_Run_BR.bin",      "Run_BR" }
-					}
+					GetPlayerClipEntries()
 				);
 			}
 
@@ -4842,12 +4281,8 @@ void CGameScene::BuildSkinnedBatch(
     // PlayerBow pool (Skinned attachment)
     // ------------------------------------------------------------------------
     {
-        AssetBuildDesc BowDesc =
-        {
-            AssetType::Bow,
-            "Assets/Weapon/BowP/Mesh/Bow_Mesh.bin",
-            "Assets/Weapon/BowP/Texture"
-        };
+		AssetBuildDesc BowDesc{};
+		GetGameSceneAssetBuildDesc(EGameSceneAssetId::PlayerBow, BowDesc);
 
         BuiltAsset bowAsset = AssetManager::BuildAsset(
             dev, cmd,
@@ -4858,9 +4293,7 @@ void CGameScene::BuildSkinnedBatch(
 		PreloadCachedClipSet(
             bowAsset.mesh.get(),
             "BowP",
-            {
-                { "Assets/Weapon/BowP/Animation/Bow_Anim.bin", "Fire" }
-            }
+			GetPlayerBowClipEntries()
         );
 
         m_PlayerBowRefs.clear();
@@ -4899,9 +4332,7 @@ void CGameScene::BuildSkinnedBatch(
 						animComp,
 						mesh0.get(),
 						"BowP",
-						{
-							{ "Assets/Weapon/BowP/Animation/Bow_Anim.bin", "Fire" }
-						}
+						GetPlayerBowClipEntries()
 					);
 				}
 			}
@@ -4922,12 +4353,8 @@ void CGameScene::BuildSkinnedBatch(
     // EnemyBow pool (Skinned attachment)
     // ------------------------------------------------------------------------
     {
-        AssetBuildDesc BowDesc =
-        {
-            AssetType::Bow,
-            "Assets/Weapon/BowE/Mesh/Bow_Mesh.bin",
-            "Assets/Weapon/BowE/Texture"
-        };
+		AssetBuildDesc BowDesc{};
+		GetGameSceneAssetBuildDesc(EGameSceneAssetId::EnemyBow, BowDesc);
 
         BuiltAsset bowAsset = AssetManager::BuildAsset(
             dev, cmd,
@@ -4938,9 +4365,7 @@ void CGameScene::BuildSkinnedBatch(
 		PreloadCachedClipSet(
             bowAsset.mesh.get(),
             "BowE",
-            {
-                { "Assets/Weapon/BowE/Animation/Bow_Anim.bin", "Fire" }
-            }
+			GetEnemyBowWeaponClipEntries()
         );
 
         m_EnemyBowRefs.clear();
@@ -4979,9 +4404,7 @@ void CGameScene::BuildSkinnedBatch(
 						animComp,
 						mesh0.get(),
 						"BowE",
-						{
-							{ "Assets/Weapon/BowE/Animation/Bow_Anim.bin", "Fire" }
-						}
+						GetEnemyBowWeaponClipEntries()
 					);
 				}
 			}
