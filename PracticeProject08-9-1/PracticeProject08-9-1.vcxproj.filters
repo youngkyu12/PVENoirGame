@@ -146,6 +146,9 @@
     <Filter Include="Components\AudioComponent">
       <UniqueIdentifier>{e293aa47-1d63-419e-8cb4-5a21d61efd73}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Scene\GameScene">
+      <UniqueIdentifier>{ff521d59-8515-4d7f-aef1-dff665d834e7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animator.h">
@@ -253,9 +256,6 @@
     <ClInclude Include="Component.h">
       <Filter>Components</Filter>
     </ClInclude>
-    <ClInclude Include="GameScene.h">
-      <Filter>Scene</Filter>
-    </ClInclude>
     <ClInclude Include="MenuScene.h">
       <Filter>Scene</Filter>
     </ClInclude>
@@ -336,8 +336,14 @@
     <ClInclude Include="AudioComponent.h">
       <Filter>Components\AudioComponent</Filter>
     </ClInclude>
+    <ClInclude Include="GameScene.h">
+      <Filter>Scene\GameScene</Filter>
+    </ClInclude>
     <ClInclude Include="GameSceneContentCatalog.h">
-      <Filter>Scene</Filter>
+      <Filter>Scene\GameScene</Filter>
+    </ClInclude>
+    <ClInclude Include="GameSceneObjectFactory.h">
+      <Filter>Scene\GameScene</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -434,9 +440,6 @@
     <ClCompile Include="SceneManager.cpp">
       <Filter>SceneManager</Filter>
     </ClCompile>
-    <ClCompile Include="GameScene.cpp">
-      <Filter>Scene</Filter>
-    </ClCompile>
     <ClCompile Include="NetworkQueue.cpp">
       <Filter>Network\NetworkGlobal</Filter>
     </ClCompile>
@@ -498,8 +501,14 @@
     <ClCompile Include="AudioComponent.cpp">
       <Filter>Components\AudioComponent</Filter>
     </ClCompile>
+    <ClCompile Include="GameScene.cpp">
+      <Filter>Scene\GameScene</Filter>
+    </ClCompile>
     <ClCompile Include="GameSceneContentCatalog.cpp">
-      <Filter>Scene</Filter>
+      <Filter>Scene\GameScene</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneObjectFactory.cpp">
+      <Filter>Scene\GameScene</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

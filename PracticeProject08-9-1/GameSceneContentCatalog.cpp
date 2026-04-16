@@ -71,7 +71,6 @@ const GameSceneStageFileSet& GetLocalStageFileSet(ELocalStagePreset preset)
 
 	//Full stage
 	//const std::string placementFilePath = "MapData/MapData_fullstage.txt";
-
 	//const std::string placementFilePath = "MapData/MapData_fullstage(NoTree).txt";
 	//const std::string navMeshFilePath = "MapData/Navmesh_FullStage.nvm";
 
@@ -108,7 +107,7 @@ const GameSceneStageFileSet& GetLocalStageFileSet(ELocalStagePreset preset)
 		"MapData/MapData_fullstage(NoTree).txt",
 		"MapData/Navmesh_FullStage.nvm",
 		"MapData/CubeBoxColliderReport.txt",
-		"MapData/monster_spawn_points_little.txt"
+		"MapData/monster_spawn_points.txt"
 	};
 
 	switch ( preset )
