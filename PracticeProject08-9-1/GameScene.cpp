@@ -1819,10 +1819,6 @@ void CGameScene::BuildLightsAndMaterials()
         XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),
         XMFLOAT4(1.0f, 1.0f, 1.0f, 5.0f),
         XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f)
-		/*XMFLOAT4(1,1,1,1),
-	XMFLOAT4(1,1,1,1),
-	XMFLOAT4(1,1,1,16),
-	XMFLOAT4(0,0,0,1)*/
     };
 
     m_pMaterials->m_pReflections[1] = {
@@ -2399,22 +2395,6 @@ void CGameScene::BuildStaticBatch(
             b->count = (UINT)b->objectRefs.size();
 
             m_PlayerSwordRefs.push_back(raw);
-
-			/*auto colliderobj = std::make_unique<CGameObject>(1);
-			auto* collidercb = ( CB_GAMEOBJECT_INFO* ) ( ( UINT8* ) coliiderbatch->mappedGameObjects + m_ColliderCount * coliiderbatch->cbElementBytes );
-			colliderobj->SetMappedGameObjectCB(collidercb);
-
-			colliderobj->SetMesh(0, mesh);
-			colliderobj->AddComponent<CColliderMeshRendererComponent>();
-
-			colliderobj->SetCbvGPUDescriptorHandlePtr(coliiderbatch->baseCbvGpu.ptr + ( UINT64 ) m_ColliderCount * coliiderbatch->cbvInc);
-
-			colliderobj->CreateComponents(dev, cmd);*/
-
-			/*CGameObject* rawcollider = colliderobj.get();
-			m_colliderObjects.push_back(std::move(colliderobj));
-			coliiderbatch->objectRefs.push_back(rawcollider);
-			coliiderbatch->count = ( UINT ) coliiderbatch->objectRefs.size();*/
         }
     }
     // ------------------------------------------------------------------------
@@ -2813,7 +2793,6 @@ void CGameScene::UpdateSkinnedWorldLodSelection(CCamera* camera)
 			continue;
 		}
 
-		// 기존 Ghoul LOD 경로 유지
 		int desiredLod = ComputeSkinnedWorldLodLevel(cameraPosition, entry);
 		desiredLod = ClampSkinnedWorldLodLevel(desiredLod);
 
@@ -2827,27 +2806,6 @@ void CGameScene::UpdateSkinnedWorldLodSelection(CCamera* camera)
 		std::shared_ptr<CMesh> currentMesh = entry.object->GetMeshShared(0);
 		if ( entry.currentLod == resolvedLod && currentMesh.get() == targetMesh.get() )
 			continue;
-
-		// 지금 단계에서는 컬링만 넣을 것이므로,
-		// LOD 스왑은 네 현재 파일 흐름에 맞춰 그대로 막아둔다.
-		/*
-		const int previousLod = entry.currentLod;
-
-		entry.object->SetMesh(0, targetMesh);
-		entry.currentLod = resolvedLod;
-		anyLodChanged = true;
-
-		char debugText[256] = {};
-		sprintf_s(
-			debugText,
-			"[SkinnedLOD Select] asset=%s objectIndex=%u %d->%d\n",
-			entry.assetName.c_str(),
-			entry.skinnedBatchObjectIndex,
-			previousLod,
-			entry.currentLod
-		);
-		OutputDebugStringA(debugText);
-		*/
 	}
 
 	// --------------------------------------------------------------------
