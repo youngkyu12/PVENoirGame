@@ -189,6 +189,7 @@
     <ClInclude Include="GameFramework.h" />
     <ClInclude Include="GameScene.h" />
     <ClInclude Include="GameSceneContentCatalog.h" />
+    <ClInclude Include="GameSceneObjectFactory.h" />
     <ClInclude Include="GhoulAIComponent.h" />
     <ClInclude Include="GlobalEnum.h" />
     <ClInclude Include="GlobalValues.h" />
@@ -263,6 +264,7 @@
     <ClCompile Include="GameFramework.cpp" />
     <ClCompile Include="GameScene.cpp" />
     <ClCompile Include="GameSceneContentCatalog.cpp" />
+    <ClCompile Include="GameSceneObjectFactory.cpp" />
     <ClCompile Include="GhoulAIComponent.cpp" />
     <ClCompile Include="GlobalValues.cpp" />
     <ClCompile Include="InitStruct.pb.cc">
