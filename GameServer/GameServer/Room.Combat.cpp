@@ -4,6 +4,8 @@
 #include "Enemy.h"
 #include "Projectile.h"
 
+#include <chrono>
+
 namespace
 {
 	static float DistSqXZ(const GameMath::Vec3& a, const GameMath::Vec3& b)
@@ -31,6 +33,8 @@ namespace
 
 void Room::TickAdvance()
 {
+	const auto frameStart = std::chrono::steady_clock::now();
+
 	MakeFrameState(tick.load());
 
 	for (auto player : players)
@@ -101,6 +105,11 @@ void Room::TickAdvance()
 		_collision->OnUpdate();
 
 	UpdateDynamicGridState();
+	const auto elapsedMs = static_cast<uint64>(
+		std::chrono::duration_cast<std::chrono::milliseconds>(
+			std::chrono::steady_clock::now() - frameStart).count());
+	const uint64 nextDelayMs = (elapsedMs >= 30) ? 0 : (30 - elapsedMs);
+	GRoom->DoTimer(nextDelayMs, &Room::TickAdvance);
 	++tick;
 }
 

@@ -76,7 +76,7 @@ void CMonsterAI::OnUpdate(float dt)
 		m_trianglePath.clear();
 		m_currentPathIndex = 0;
 		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
-		PrintState("OUT_OF_DETECT_RANGE", false, false);
+		//PrintState("OUT_OF_DETECT_RANGE", false, false);
 		return;
 	}
 
@@ -99,7 +99,7 @@ void CMonsterAI::OnUpdate(float dt)
 			GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
 		}
 
-		PrintState("ATTACK_RANGE", false, false);
+		//PrintState("ATTACK_RANGE", false, false);
 		return;
 	}
 
@@ -112,11 +112,11 @@ void CMonsterAI::OnUpdate(float dt)
 	{
 		FaceTowards(targetPos);
 		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
-		PrintState("IDLE_NO_FOLLOW", repathChanged, false);
+		//PrintState("IDLE_NO_FOLLOW", repathChanged, false);
 	}
 	else
 	{
-		PrintState(repathChanged ? "FOLLOWING_REPATHED" : "FOLLOWING_PATH", repathChanged, true);
+		//PrintState(repathChanged ? "FOLLOWING_REPATHED" : "FOLLOWING_PATH", repathChanged, true);
 	}
 }
 
