@@ -345,6 +345,9 @@
     <ClInclude Include="GameSceneObjectFactory.h">
       <Filter>Scene\GameScene</Filter>
     </ClInclude>
+    <ClInclude Include="GameSceneAttachmentBinder.h">
+      <Filter>Scene\GameScene</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -508,6 +511,9 @@
       <Filter>Scene\GameScene</Filter>
     </ClCompile>
     <ClCompile Include="GameSceneObjectFactory.cpp">
+      <Filter>Scene\GameScene</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneAttachmentBinder.cpp">
       <Filter>Scene\GameScene</Filter>
     </ClCompile>
   </ItemGroup>

@@ -50,6 +50,7 @@
 #include "GlobalValues.h"
 #include "GameSceneContentCatalog.h"
 #include "GameSceneObjectFactory.h"
+#include "GameSceneAttachmentBinder.h"
 
 namespace
 {
@@ -4227,242 +4228,39 @@ void CGameScene::BuildColliderBatch(
 	m_ColliderCount = 0;
 }
 
-XMFLOAT4X4 CGameScene::BuildAttachmentOffsetMatrix(
-    const XMFLOAT3& pos,
-    const XMFLOAT3& rotDeg,
-    const XMFLOAT3& scale)
-{
-    XMMATRIX S = XMMatrixScaling(scale.x, scale.y, scale.z);
-    XMMATRIX R = XMMatrixRotationRollPitchYaw(
-        XMConvertToRadians(rotDeg.x),
-        XMConvertToRadians(rotDeg.y),
-        XMConvertToRadians(rotDeg.z)
-    );
-    XMMATRIX T = XMMatrixTranslation(pos.x, pos.y, pos.z);
-
-    XMFLOAT4X4 out{};
-    XMStoreFloat4x4(&out, S * R * T);
-    return out;
-}
-
 void CGameScene::LinkSceneObjects()
 {
-    // ------------------------------------------------------------------------
-    // Light follow target
-    // ------------------------------------------------------------------------
-    if (m_pPlayerSpotFollower)
-    {
-        CGameObject* local = GetPlayer();
-        if (!local) local = GetPlayerBySlot(0);
-        if (local) m_pPlayerSpotFollower->SetTarget(local);
-    }
+	GameSceneAttachmentBinder::LinkInput input{};
+	input.playerSpotFollower = m_pPlayerSpotFollower;
 
-    // ------------------------------------------------------------------------
-    // Player weapon offsets (authoring LOCAL transform)
-    // ------------------------------------------------------------------------
-    const XMFLOAT4X4 swordOffset = BuildAttachmentOffsetMatrix(
-        XMFLOAT3(0.09635256f, -0.02604572f, -0.008439302f),
-        XMFLOAT3(-15.925f, 0.919f, -7.3f),
-        XMFLOAT3(1.0f, 1.0f, 1.0f)
-    );
+	CGameObject* local = GetPlayer();
+	if ( !local )
+		local = GetPlayerBySlot(0);
 
-    const XMFLOAT4X4 axeOffset = BuildAttachmentOffsetMatrix(
-        XMFLOAT3(0.099f, 0.025f, 0.166f),
-        XMFLOAT3(-15.925f, 0.919f, 172.7f),
-        XMFLOAT3(1.0f, 1.0f, 1.0f)
-    );
+	input.preferredPlayer = local;
+	input.playersBySlot = &m_playersBySlot;
+	input.playerCount = m_PlayerCount;
 
-    const XMFLOAT4X4 bowOffset = BuildAttachmentOffsetMatrix(
-        XMFLOAT3(-0.1f, 0.0f, 0.0f),
-        XMFLOAT3(0.0f, 180.0f, 0.0f),
-        XMFLOAT3(2.0f, 1.0f, 1.0f)
-    );
+	input.playerSwordRefs = &m_PlayerSwordRefs;
+	input.playerBowRefs = &m_PlayerBowRefs;
+	input.playerAxeRefs = &m_PlayerAxeRefs;
+	input.playerGunRefs = &m_PlayerGunRefs;
 
-    const XMFLOAT4X4 gunOffset = BuildAttachmentOffsetMatrix(
-        XMFLOAT3(-0.00403512f, 0.00763781f, 0.04897089f),
-        XMFLOAT3(-2.441f, 75.104f, 80.119f),
-        XMFLOAT3(1.0f, 1.0f, 1.0f)
-    );
+	input.enemySwordRefs = &m_EnemySwordRefs;
+	input.enemyBowRefs = &m_EnemyBowRefs;
 
-    // ------------------------------------------------------------------------
-    // Enemy weapon offsets
-    // ------------------------------------------------------------------------
-    const XMFLOAT4X4 enemySwordOffset = BuildAttachmentOffsetMatrix(
-        XMFLOAT3(
-            0.09635256f * 1.5f,
-            -0.02604572f * 1.5f,
-            -0.008439302f * 1.5f
-        ),
-        XMFLOAT3(-15.925f, 0.919f, -7.3f),
-        XMFLOAT3(1.0f, 1.0f, 1.0f)
-    );
+	input.swordManRefs = &m_swordManRefs;
+	input.bowManRefs = &m_bowManRefs;
+	input.mutantRefs = &m_MutantRefs;
+	input.helmetRefs = &m_helmetRefs;
 
-    const XMFLOAT4X4 enemyBowOffset = BuildAttachmentOffsetMatrix(
-        XMFLOAT3(
-            -0.1f * 1.5f,
-            0.0f * 1.5f,
-            0.0f * 1.5f
-        ),
-        XMFLOAT3(0.0f, 180.0f, 0.0f),
-        XMFLOAT3(2.0f, 1.0f, 1.0f)
-    );
-
-    // ------------------------------------------------------------------------
-    // Generic attachment list reset
-    // ------------------------------------------------------------------------
-    m_attachmentBinds.clear();
-
-    {
-        const size_t helmetPairCount =
-            (m_helmetRefs.size() < m_MutantRefs.size()) ? m_helmetRefs.size() : m_MutantRefs.size();
-
-        const size_t playerWeaponBindCount = static_cast<size_t>(m_PlayerCount) * 4;
-
-		const size_t enemyWeaponBindCount =
-			m_EnemySwordRefs.size() +
-			m_EnemyBowRefs.size();
-
-        m_attachmentBinds.reserve(helmetPairCount + playerWeaponBindCount + enemyWeaponBindCount);
-    }
-
-    auto AddWeaponBind = [this](CGameObject* follower, CGameObject* target, const char* boneName, const XMFLOAT4X4& localOffset)
-        {
-            if (!follower || !target || !boneName || !boneName[0])
-                return;
-
-            AttachmentBindSpec spec{};
-            spec.follower = follower;
-            spec.target = target;
-            spec.boneName = boneName;
-            spec.localOffset = localOffset;
-            m_attachmentBinds.push_back(spec);
-        };
-
-    // ------------------------------------------------------------------------
-    // Player weapon refs / test loadout / follow-bone binding
-    // - slot0 = Sword
-    // - slot1 = Bow
-    // - slot2 = Axe
-    // - slot3 = Gun
-    // ------------------------------------------------------------------------
-    for (int slot = 0; slot < static_cast<int>(m_PlayerCount); ++slot)
-    {
-        CGameObject* player = GetPlayerBySlot(slot);
-        if (!player) continue;
-
-        auto* equip = player->GetComponent<CPlayerEquipmentComponent>();
-        if (!equip) continue;
-
-        // 1) 장비 컴포넌트에 무기 오브젝트 포인터 등록
-        if ((size_t)slot < m_PlayerSwordRefs.size())
-            equip->SetWeaponObject(EWeaponType::Sword, m_PlayerSwordRefs[slot]);
-
-        if ((size_t)slot < m_PlayerBowRefs.size())
-            equip->SetWeaponObject(EWeaponType::Bow, m_PlayerBowRefs[slot]);
-
-        if ((size_t)slot < m_PlayerAxeRefs.size())
-            equip->SetWeaponObject(EWeaponType::Axe, m_PlayerAxeRefs[slot]);
-
-        if ((size_t)slot < m_PlayerGunRefs.size())
-            equip->SetWeaponObject(EWeaponType::Gun, m_PlayerGunRefs[slot]);
-
-        // 2) 테스트용 로드아웃 지정
 #ifndef USING_NETWORK
-		switch ( slot )
-		{
-		case 0: equip->SetLoadout(EWeaponType::Sword); break;
-		case 1: equip->SetLoadout(EWeaponType::Bow);   break;
-		case 2: equip->SetLoadout(EWeaponType::Axe);   break;
-		case 3: equip->SetLoadout(EWeaponType::Gun);   break;
-		default: equip->ClearOwnedWeapons();           break;
-		}
+	input.applyOfflineTestLoadout = true;
+#else
+	input.applyOfflineTestLoadout = false;
 #endif
 
-        // 3) 플레이어 무기 바인드
-        AddWeaponBind(equip->GetWeaponObject(EWeaponType::Sword), player, "hand_r", swordOffset);
-        AddWeaponBind(equip->GetWeaponObject(EWeaponType::Bow), player, "hand_l", bowOffset);
-        AddWeaponBind(equip->GetWeaponObject(EWeaponType::Axe), player, "hand_r", axeOffset);
-        AddWeaponBind(equip->GetWeaponObject(EWeaponType::Gun), player, "hand_r", gunOffset);
-    }
-
-    // ------------------------------------------------------------------------
-    // Enemy weapon binding
-    // - SwordMan : sword only
-    // - BowMan   : bow only
-    // - Mutant   : axe only
-    // ------------------------------------------------------------------------
-
-    // SwordMan <-> EnemySword
-    {
-        const size_t pairCount =
-            (m_swordManRefs.size() < m_EnemySwordRefs.size()) ? m_swordManRefs.size() : m_EnemySwordRefs.size();
-
-		for ( size_t i = 0; i < pairCount; ++i )
-		{
-			AddWeaponBind(m_EnemySwordRefs[i], m_swordManRefs[i], "hand_r", enemySwordOffset);
-
-			if ( auto* hitbox = m_EnemySwordRefs[i]->GetComponent<CMonsterWeaponHitboxComponent>() )
-			{
-				hitbox->BindAttacker(m_swordManRefs[i]);
-				hitbox->SetAttackClipName("Attack");
-				hitbox->SetActiveWindow(0.20f, 0.55f);
-			}
-		}
-    }
-
-    // BowMan <-> EnemyBow
-    {
-        const size_t pairCount =
-            (m_bowManRefs.size() < m_EnemyBowRefs.size()) ? m_bowManRefs.size() : m_EnemyBowRefs.size();
-
-        for (size_t i = 0; i < pairCount; ++i)
-        {
-            AddWeaponBind(m_EnemyBowRefs[i], m_bowManRefs[i], "hand_l", enemyBowOffset);
-        }
-    }
-
-    // ------------------------------------------------------------------------
-    // Mutant Helmet Attachment
-    //  - 1:1 매칭: helmet[i] -> Mutant[i]
-    //  - bone: CATRigHub002
-    // ------------------------------------------------------------------------
-    {
-        const size_t helmetCount = m_helmetRefs.size();
-        const size_t axeCount = m_MutantRefs.size();
-        const size_t pairCount = (helmetCount < axeCount) ? helmetCount : axeCount;
-
-        const XMFLOAT4X4 helmetOffset = BuildAttachmentOffsetMatrix(
-            XMFLOAT3(3.8f, 0.35f, 0.0f),
-            XMFLOAT3(-90.0f, 0.0f, 90.0f),
-            XMFLOAT3(1.0f, 1.0f, 1.0f)
-        );
-
-        for (size_t i = 0; i < pairCount; ++i)
-        {
-            AttachmentBindSpec spec{};
-            spec.follower = m_helmetRefs[i];
-            spec.target = m_MutantRefs[i];
-            spec.boneName = "CATRigHub002";
-            spec.localOffset = helmetOffset;
-            m_attachmentBinds.push_back(spec);
-        }
-    }
-
-    // ------------------------------------------------------------------------
-    // Apply all binds
-    // ------------------------------------------------------------------------
-    for (AttachmentBindSpec& spec : m_attachmentBinds)
-    {
-        if (!spec.follower || !spec.target || spec.boneName.empty())
-            continue;
-
-        CFollowBoneComponent* follow = spec.follower->GetComponent<CFollowBoneComponent>();
-        if (!follow)
-            follow = spec.follower->AddComponent<CFollowBoneComponent>();
-
-        follow->Bind(spec.target, spec.boneName, spec.localOffset);
-        follow->SnapNow();
-    }
+	GameSceneAttachmentBinder::LinkSceneObjects(input, m_attachmentBinds);
 }
 
 void CGameScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target)
