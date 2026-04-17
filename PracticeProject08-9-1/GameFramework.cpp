@@ -850,7 +850,9 @@ void CGameFramework::ProcessInput()
 
 		inputPkt.set_playerid(g_myPlayerId);
 		inputPkt.set_keycodes(keyCodes);
-#else
+
+		// 클라이언트 로컬 애니메이션 반영 코드를 살림
+
 		if (pKeysBuffer['W'] & 0xF0) dwDirection |= DIR_FORWARD;
 
 		if (pKeysBuffer['S'] & 0xF0) dwDirection |= DIR_BACKWARD;
