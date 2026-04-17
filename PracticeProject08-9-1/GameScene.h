@@ -185,11 +185,6 @@ private:
 	);
 
     void LinkSceneObjects();
-    static XMFLOAT4X4 BuildAttachmentOffsetMatrix(
-        const XMFLOAT3& pos,
-        const XMFLOAT3& rotDeg,
-        const XMFLOAT3& scale = XMFLOAT3(1.0f, 1.0f, 1.0f)
-    );
 
     void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd);
 	void BuildStaticInstanceGroups();

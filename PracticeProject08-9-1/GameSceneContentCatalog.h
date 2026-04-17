@@ -64,6 +64,35 @@ enum class EGameSceneAssetId : uint8_t
 	Boss
 };
 
+enum class EGameSceneAttachmentPresetId : uint8_t
+{
+	PlayerSword = 0,
+	PlayerBow,
+	PlayerAxe,
+	PlayerGun,
+	EnemySword,
+	EnemyBow,
+	MutantHelmet
+};
+
+struct GameSceneAttachmentTransformDesc
+{
+	XMFLOAT3 pos = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT3 rotDeg = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT3 scale = XMFLOAT3(1.0f, 1.0f, 1.0f);
+};
+
+struct GameSceneAttachmentPresetDesc
+{
+	const char* boneName = nullptr;
+	GameSceneAttachmentTransformDesc local{};
+};
+
+bool GetGameSceneAttachmentPresetDesc(
+	EGameSceneAttachmentPresetId id,
+	GameSceneAttachmentPresetDesc& outDesc
+);
+
 const GameSceneStageFileSet& GetLocalStageFileSet(ELocalStagePreset preset);
 
 bool GetGameSceneAssetBuildDesc(EGameSceneAssetId assetId, AssetBuildDesc& outDesc);

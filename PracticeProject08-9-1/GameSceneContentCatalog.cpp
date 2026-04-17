@@ -558,3 +558,75 @@ const std::vector<GameSceneClipEntry>& GetEnemyBowWeaponClipEntries()
 	};
 	return kEntries;
 }
+
+bool GetGameSceneAttachmentPresetDesc(
+	EGameSceneAttachmentPresetId id,
+	GameSceneAttachmentPresetDesc& outDesc)
+{
+	outDesc = GameSceneAttachmentPresetDesc{};
+
+	switch ( id )
+	{
+	case EGameSceneAttachmentPresetId::PlayerSword:
+		outDesc.boneName = "hand_r";
+		outDesc.local.pos = XMFLOAT3(0.09635256f, -0.02604572f, -0.008439302f);
+		outDesc.local.rotDeg = XMFLOAT3(-15.925f, 0.919f, -7.3f);
+		outDesc.local.scale = XMFLOAT3(1.0f, 1.0f, 1.0f);
+		return true;
+
+	case EGameSceneAttachmentPresetId::PlayerBow:
+		outDesc.boneName = "hand_l";
+		outDesc.local.pos = XMFLOAT3(-0.1f, 0.0f, 0.0f);
+		outDesc.local.rotDeg = XMFLOAT3(0.0f, 180.0f, 0.0f);
+		outDesc.local.scale = XMFLOAT3(2.0f, 1.0f, 1.0f);
+		return true;
+
+	case EGameSceneAttachmentPresetId::PlayerAxe:
+		outDesc.boneName = "hand_r";
+		outDesc.local.pos = XMFLOAT3(0.099f, 0.025f, 0.166f);
+		outDesc.local.rotDeg = XMFLOAT3(-15.925f, 0.919f, 172.7f);
+		outDesc.local.scale = XMFLOAT3(1.0f, 1.0f, 1.0f);
+		return true;
+
+	case EGameSceneAttachmentPresetId::PlayerGun:
+		outDesc.boneName = "hand_r";
+		outDesc.local.pos = XMFLOAT3(-0.00403512f, 0.00763781f, 0.04897089f);
+		outDesc.local.rotDeg = XMFLOAT3(-2.441f, 75.104f, 80.119f);
+		outDesc.local.scale = XMFLOAT3(1.0f, 1.0f, 1.0f);
+		return true;
+
+	case EGameSceneAttachmentPresetId::EnemySword:
+		outDesc.boneName = "hand_r";
+		outDesc.local.pos = XMFLOAT3(
+			0.09635256f * 1.5f,
+			-0.02604572f * 1.5f,
+			-0.008439302f * 1.5f
+		);
+		outDesc.local.rotDeg = XMFLOAT3(-15.925f, 0.919f, -7.3f);
+		outDesc.local.scale = XMFLOAT3(1.0f, 1.0f, 1.0f);
+		return true;
+
+	case EGameSceneAttachmentPresetId::EnemyBow:
+		outDesc.boneName = "hand_l";
+		outDesc.local.pos = XMFLOAT3(
+			-0.1f * 1.5f,
+			0.0f * 1.5f,
+			0.0f * 1.5f
+		);
+		outDesc.local.rotDeg = XMFLOAT3(0.0f, 180.0f, 0.0f);
+		outDesc.local.scale = XMFLOAT3(2.0f, 1.0f, 1.0f);
+		return true;
+
+	case EGameSceneAttachmentPresetId::MutantHelmet:
+		outDesc.boneName = "CATRigHub002";
+		outDesc.local.pos = XMFLOAT3(3.8f, 0.35f, 0.0f);
+		outDesc.local.rotDeg = XMFLOAT3(-90.0f, 0.0f, 90.0f);
+		outDesc.local.scale = XMFLOAT3(1.0f, 1.0f, 1.0f);
+		return true;
+
+	default:
+		break;
+	}
+
+	return false;
+}
