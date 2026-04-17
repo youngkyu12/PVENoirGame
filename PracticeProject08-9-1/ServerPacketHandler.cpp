@@ -90,7 +90,14 @@ bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
 		s += "\n";
 		OutputDebugStringA(s.c_str());
 
-		data.players.push_back({ player.id(), {position.x(), position.y(), position.z()}, yaw });
+       PlayerState state{};
+		state.id = player.id();
+		state.playerType = static_cast<uint32_t>(player.playertype());
+		state.position = XMFLOAT3(position.x(), position.y(), position.z());
+		state.yaw = yaw;
+		state.weaponType = static_cast<EWeaponType>(player.weapontype() - 1);
+
+		data.players.push_back(std::move(state));
 	}
 
 	for (auto& enemy : enemies)
@@ -104,7 +111,14 @@ bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
 		s += "\n";
 		OutputDebugStringA(s.c_str());
 
-		data.enemies.push_back({ enemy.id(), {position.x(), position.y(), position.z()}, yaw });
+        EnemyState state{};
+		state.id = enemy.id();
+		state.enemyType = static_cast<uint32_t>(enemy.enemytype());
+		state.position = XMFLOAT3(position.x(), position.y(), position.z());
+		state.yaw = yaw;
+		state.weaponType = static_cast<EWeaponType>(enemy.weapontype() - 1);
+
+		data.enemies.push_back(std::move(state));
 	}
 
 	// networkQueue에 게임 시작 패킷 push
@@ -138,7 +152,15 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 
 		EWeaponType eweaponType = static_cast<EWeaponType>(weaponType - 1);
 
-		data.players.push_back({ player.id(), {position.x(), position.y(), position.z()}, yaw, animState, eweaponType });
+		PlayerState state{};
+		state.id = player.id();
+		state.playerType = static_cast<uint32_t>(player.playertype());
+		state.position = XMFLOAT3(position.x(), position.y(), position.z());
+		state.yaw = yaw;
+		state.animation = animState;
+		state.weaponType = eweaponType;
+
+		data.players.push_back(std::move(state));
 	}
 
 	for (auto& enemy : enemies)
@@ -155,7 +177,15 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 
 		EWeaponType eweaponType = static_cast<EWeaponType>(weaponType - 1);
 
-		data.enemies.push_back({ enemy.id(), {position.x(), position.y(), position.z()}, yaw, animState, eweaponType });
+		EnemyState state{};
+		state.id = enemy.id();
+		state.enemyType = static_cast<uint32_t>(enemy.enemytype());
+		state.position = XMFLOAT3(position.x(), position.y(), position.z());
+		state.yaw = yaw;
+		state.animation = animState;
+		state.weaponType = eweaponType;
+
+		data.enemies.push_back(std::move(state));
 	}
 
 	data.bullets.reserve(bullets.size());

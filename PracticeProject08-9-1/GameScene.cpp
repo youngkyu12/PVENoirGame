@@ -81,6 +81,16 @@ namespace
 		return ( 1u << layer );
 	}
 
+	enum : uint32_t
+	{
+		kNetworkEnemyTypeNone = 0,
+		kNetworkEnemyTypeBasic = 1,
+		kNetworkEnemyTypeArcher = 2,
+		kNetworkEnemyTypeWarrior = 3,
+		kNetworkEnemyTypeBoss = 4,
+		kNetworkEnemyTypeMutant = 5
+	};
+
 	static void ConfigureProjectileCollider(CColliderComponent* collider, bool firedByPlayer)
 	{
 		if ( !collider ) return;
@@ -1513,6 +1523,36 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	}
 
 	ApplyStaticPlacementCounts();
+
+	m_ghoulCount = 0;
+	m_swordManCount = 0;
+	m_bowManCount = 0;
+	m_MutantCount = 0;
+	m_bossCount = 0;
+
+	for ( const EnemyState& enemyState : gameStartData.enemies )
+	{
+		switch ( enemyState.enemyType )
+		{
+		case kNetworkEnemyTypeArcher:
+			++m_bowManCount;
+			break;
+		case kNetworkEnemyTypeWarrior:
+			++m_swordManCount;
+			break;
+		case kNetworkEnemyTypeBoss:
+			++m_bossCount;
+			break;
+		case kNetworkEnemyTypeMutant:
+			++m_MutantCount;
+			break;
+		case kNetworkEnemyTypeNone:
+		case kNetworkEnemyTypeBasic:
+		default:
+			++m_ghoulCount;
+			break;
+		}
+	}
 #else
 	m_localPlayerSlot = 0;
 	//Test stage
@@ -6620,6 +6660,8 @@ void CGameScene::AnimateObjects(float dt)
 
             auto* tag = obj->GetComponent<CActorTagComponent>();
             if (!tag || tag->kind != EActorKind::NPC) continue;
+
+			if ( j != snapshot.enemies[enemyIndex].id ) continue;
 
             if (enemyIndex < (UINT)snapshot.enemies.size())
             {
