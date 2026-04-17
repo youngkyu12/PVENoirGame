@@ -5573,6 +5573,12 @@ void CGameScene::OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera
         D3D12_GPU_VIRTUAL_ADDRESS matsGpu = m_pd3dcbMaterials->GetGPUVirtualAddress();
         cmd->SetGraphicsRootConstantBufferView(ROOT_PARAMETER_MATERIAL, matsGpu);
     }
+
+	if ( m_pd3dcbFog )
+	{
+		D3D12_GPU_VIRTUAL_ADDRESS fogGpu = m_pd3dcbFog->GetGPUVirtualAddress();
+		cmd->SetGraphicsRootConstantBufferView(ROOT_PARAMETER_FOG, fogGpu);
+	}
 }
 
 void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
