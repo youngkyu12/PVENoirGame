@@ -254,6 +254,19 @@ void CGameFramework::CreateDirect3DDevice()
 void CGameFramework::CreateCommandQueueAndList()
 {
 	HRESULT hResult;
+#if defined(_DEBUG)
+	m_pd3dDevice->QueryInterface(IID_PPV_ARGS(&infoQueue));
+
+	// 치명적인 문제(CORRUPTION) 디버깅 종료
+	infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
+
+	// 에러(ERROR) 디버깅 종료
+	//infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
+
+	// 경고(WARNING) 무시
+	infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, FALSE);
+#endif
+	
 
 	D3D12_COMMAND_QUEUE_DESC d3dCommandQueueDesc;
 	::ZeroMemory(&d3dCommandQueueDesc, sizeof(D3D12_COMMAND_QUEUE_DESC));

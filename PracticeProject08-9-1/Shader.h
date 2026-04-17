@@ -332,3 +332,14 @@ public:
 	D3D12_BLEND_DESC CreateBlendState() override;
 	void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd, void* pContext) override;
 };
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+class CShadowShader : public CShader
+{
+public:
+	virtual D3D12_INPUT_LAYOUT_DESC CreateInputLayout();
+	virtual D3D12_RASTERIZER_DESC CreateRasterizerState();
+	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob);
+	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob);
+};

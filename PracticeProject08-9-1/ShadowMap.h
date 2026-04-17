@@ -64,10 +64,10 @@ private:
 	D3D12_GPU_DESCRIPTOR_HANDLE mhGpuSrv;
 	D3D12_CPU_DESCRIPTOR_HANDLE mhCpuDsv;
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> mShadowMap = nullptr;
+	ComPtr<ID3D12Resource> mShadowMap = nullptr;
 
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mCbvHeap = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12PipelineState> mPSO = nullptr;
+	ComPtr<ID3D12DescriptorHeap> mCbvHeap = nullptr;
+	ComPtr<ID3D12PipelineState> mPSO = nullptr;
 
 	DirectX::XMFLOAT3 mLightPosW;
 	float mLightNearZ = 0.0f;

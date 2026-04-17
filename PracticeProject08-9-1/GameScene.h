@@ -9,6 +9,7 @@
 #include "LightTypes.h"
 #include "SceneRenderTypes.h"
 #include "ColliderComponent.h"
+#include "ShadowMap.h"
 
 #include <unordered_set>
 #include <cstdint>
@@ -436,6 +437,9 @@ private:
 	std::vector<GridDynamicTracker> m_arrowGridTrackers;
 	std::vector<GridDynamicTracker> m_bulletGridTrackers;
 #endif
+
+	//std::unique_ptr<ShadowMap> mShadowMap;
+	//CShader* mShadowShader;
 
 private:
     bool LoadStaticPlacementFile(const std::string& filePath);
