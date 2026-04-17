@@ -147,7 +147,7 @@ void Room::MakeFrameState(uint32 tick)
 			if (!enemy)
 				continue;
 
-			if (DistSqXZ(viewerPos, enemy->GetPosition()) > kEnemyViewRangeSq)
+			if (abs(GameMath::DistSqXZ(viewerPos, enemy->GetPosition())) > kEnemyViewRangeSq)
 				continue;
 
 			auto e = frameStatePkt.add_enemies();
@@ -172,7 +172,7 @@ void Room::MakeFrameState(uint32 tick)
 				if (!projectile || !projectile->IsActive())
 					return;
 
-				if (DistSqXZ(viewerPos, projectile->GetPosition()) > kBulletViewRangeSq)
+				if (GameMath::DistSqXZ(viewerPos, projectile->GetPosition()) > kBulletViewRangeSq)
 					return;
 
 				Protocol::Bullet* b = frameStatePkt.add_bullets();
