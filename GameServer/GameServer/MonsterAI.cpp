@@ -8,13 +8,6 @@
 
 namespace
 {
-	float DistSqXZ(const GameMath::Vec3& a, const GameMath::Vec3& b)
-	{
-		const float dx = a.x - b.x;
-		const float dz = a.z - b.z;
-		return dx * dx + dz * dz;
-	}
-
 	bool ShouldPrintTrackLog(const CServerObject* owner)
 	{
 		return owner && owner->GetObjectId() == 20;

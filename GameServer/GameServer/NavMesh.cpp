@@ -93,16 +93,9 @@ namespace
 		int edgeIndex = -1;
 	};
 
-	float DistSqXZ(const GameMath::Vec3& a, const GameMath::Vec3& b)
-	{
-		const float dx = a.x - b.x;
-		const float dz = a.z - b.z;
-		return dx * dx + dz * dz;
-	}
-
 	float DistXZ(const GameMath::Vec3& a, const GameMath::Vec3& b)
 	{
-		return sqrtf(DistSqXZ(a, b));
+		return sqrtf(GameMath::DistSqXZ(a, b));
 	}
 
 	float Cross2D_XZ(const GameMath::Vec3& a, const GameMath::Vec3& b, const GameMath::Vec3& c)
@@ -112,7 +105,7 @@ namespace
 
 	bool NearlyEqualXZ(const GameMath::Vec3& a, const GameMath::Vec3& b)
 	{
-		return DistSqXZ(a, b) <= 1e-6f;
+		return GameMath::DistSqXZ(a, b) <= 1e-6f;
 	}
 
 	bool AppendPointIfNotDuplicate(std::vector<GameMath::Vec3>& points, const GameMath::Vec3& p)
@@ -363,7 +356,7 @@ bool CNavMesh::ProjectPointToTriangleXZ(int triIndex, const GameMath::Vec3& inpu
 		a.z * u + b.z * v + c.z * w);
 
 	if (outDistSq)
-		*outDistSq = DistSqXZ(input, outProjectedPos);
+		*outDistSq = GameMath::DistSqXZ(input, outProjectedPos);
 
 	return true;
 }
@@ -606,7 +599,7 @@ bool CNavMesh::BuildTrianglePath(int startTri, int goalTri, std::vector<int>& ou
 
 	auto heuristic = [&](int idx)
 		{
-			return sqrtf(DistSqXZ(TriangleCenter(idx), TriangleCenter(goalTri)));
+			return sqrtf(GameMath::DistSqXZ(TriangleCenter(idx), TriangleCenter(goalTri)));
 		};
 
 	g[startTri] = 0.f;
@@ -634,7 +627,7 @@ bool CNavMesh::BuildTrianglePath(int startTri, int goalTri, std::vector<int>& ou
 			if (closed[n])
 				continue;
 
-			const float stepCost = sqrtf(DistSqXZ(TriangleCenter(cur), TriangleCenter(n)));
+			const float stepCost = sqrtf(GameMath::DistSqXZ(TriangleCenter(cur), TriangleCenter(n)));
 			const float candidate = g[cur] + stepCost;
 			if (candidate >= g[n])
 				continue;

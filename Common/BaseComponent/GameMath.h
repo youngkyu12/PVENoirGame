@@ -236,4 +236,11 @@ namespace GameMath
         return a + (b - a) * t;
     }
 
+    inline float DistSqXZ(const Vec3& a, const Vec3& b)
+    {
+        const float dx = a.x - b.x;
+        const float dz = a.z - b.z;
+        return dx * dx + dz * dz;
+    }
+
 } // namespace GameMath
