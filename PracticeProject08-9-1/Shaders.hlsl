@@ -19,7 +19,13 @@ cbuffer cbGameObjectInfo : register(b2)
 };
 
 
-SamplerState gssDefaultSamplerState : register(s0);
+SamplerState gsamPointWrap : register(s0);
+SamplerState gsamPointClamp : register(s1);
+SamplerState gsamLinearWrap : register(s2);
+SamplerState gsamLinearClamp : register(s3);
+SamplerState gsamAnisotropicWrap : register(s4);
+SamplerState gsamAnisotropicClamp : register(s5);
+SamplerComparisonState gsamShadow : register(s6);
 
 cbuffer cbDrawOptions : register(b5)
 {
@@ -116,7 +122,7 @@ float4 SampleTextureRGBA(uint packedIndex, float2 uv, float4 fallbackColor)
     if (textureIndex >= MAX_GLOBAL_SRVS)
         return fallbackColor;
 
-    return gtxtGlobalTextures[textureIndex].Sample(gssDefaultSamplerState, uv);
+    return gtxtGlobalTextures[textureIndex].Sample(gsamLinearWrap, uv);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -131,7 +137,7 @@ float3 GetNormalWFromMap(uint packedNormal, float3 normalW_in, float4 tangentW_i
     if (normalIndex >= MAX_GLOBAL_SRVS)
         return N;
 
-    float3 nTS = gtxtGlobalTextures[normalIndex].Sample(gssDefaultSamplerState, uv).xyz;
+    float3 nTS = gtxtGlobalTextures[normalIndex].Sample(gsamLinearWrap, uv).xyz;
     nTS = nTS * 2.0f - 1.0f;
 
     float3 T = normalize(tangentW_in.xyz);
@@ -666,5 +672,5 @@ float4 PSScreenRectSamplingTextured(VS_SCREEN_RECT_TEXTURED_OUTPUT input) : SV_T
         return float4(d, d, d, 1);
     }
 
-    return gtxtGlobalTextures[idx].Sample(gssDefaultSamplerState, input.uv);
+    return gtxtGlobalTextures[idx].Sample(gsamLinearWrap, input.uv);
 }

@@ -70,6 +70,9 @@ cbuffer cbLights : register(b4)
 {
 	LIGHT				gLights[MAX_LIGHTS];
 	float4				gcGlobalAmbientLight;
+    float4x4            gmtxLightView;
+    float4x4            gmtxLightProj;
+    float4x4            gmtxShadowTransform;
 };
 
 // ==============================

@@ -129,11 +129,15 @@
       <CallingConvention>Cdecl</CallingConvention>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\Common\BaseComponent</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)External\FMOD\include\core</AdditionalIncludeDirectories>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>fmod_vc.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)External\FMOD\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <OptimizeReferences>true</OptimizeReferences>
     </Link>
     <PreBuildEvent>
       <Command>CALL $(SolutionDir)..\Common\Protobuf\bin\GenPackets.bat</Command>
@@ -247,10 +251,10 @@
     <ClCompile Include="ColliderComponent.cpp" />
     <ClCompile Include="CollisionSystem.cpp" />
     <ClCompile Include="DDSTextureLoader12.cpp">
-      <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">VectorCall</CallingConvention>
+      <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">VectorCall</CallingConvention>
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">VectorCall</CallingConvention>
-      <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Release|x64'">VectorCall</CallingConvention>
+      <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Cdecl</CallingConvention>
     </ClCompile>
     <ClCompile Include="DescriptorHeap.cpp" />
     <ClCompile Include="Enum.pb.cc">
