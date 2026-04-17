@@ -100,7 +100,7 @@ namespace
 
 void Room::MakeFrameState(uint32 tick)
 {
-	constexpr float kEnemyViewRange = 90.0f;
+	constexpr float kEnemyViewRange = 200.0f;
 	constexpr float kEnemyViewRangeSq = kEnemyViewRange * kEnemyViewRange;
 	constexpr float kBulletViewRange = 100.0f;
 	constexpr float kBulletViewRangeSq = kBulletViewRange * kBulletViewRange;
