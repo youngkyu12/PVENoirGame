@@ -1038,6 +1038,17 @@ void CGameScene::ReleaseShaderVariables()
         m_pd3dcbMaterials.Reset();
     }
     m_pcbMappedMaterials = nullptr;
+
+	if ( m_pd3dcbFog )
+	{
+		if ( m_pcbMappedFog )
+		{
+			m_pd3dcbFog->Unmap(0, NULL);
+			m_pcbMappedFog = nullptr;
+		}
+		m_pd3dcbFog.Reset();
+	}
+
 	if ( m_colliderBatch.cbGameObjects )
 	{
 		if ( m_colliderBatch.mappedGameObjects )
@@ -1863,6 +1874,15 @@ void CGameScene::CreateShaderVariables(ID3D12Device* dev, ID3D12GraphicsCommandL
         D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
         nullptr);
     m_pd3dcbMaterials->Map(0, nullptr, (void**)&m_pcbMappedMaterials);
+
+	UINT ncbFogBytes = ( ( sizeof(CB_FOG) + 255 ) & ~255 );
+	m_pd3dcbFog = ::CreateBufferResource(
+		dev, cmd, nullptr,
+		ncbFogBytes,
+		D3D12_HEAP_TYPE_UPLOAD,
+		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+		nullptr);
+	m_pd3dcbFog->Map(0, nullptr, ( void** ) &m_pcbMappedFog);
 }
 
 void CGameScene::BuildStaticBatch(
@@ -5459,6 +5479,8 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
 
     if (m_pcbMappedMaterials && m_pMaterials)
         ::memcpy(m_pcbMappedMaterials, m_pMaterials.get(), sizeof(MATERIALS));
+	if ( m_pcbMappedFog )
+		::memcpy(m_pcbMappedFog, &m_fogData, sizeof(CB_FOG));
 
     if (m_staticBatch.mappedGameObjects && !m_staticBatch.objectRefs.empty())
     {

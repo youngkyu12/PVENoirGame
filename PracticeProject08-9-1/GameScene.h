@@ -129,6 +129,23 @@ struct SkinnedInstanceGroup
 	UINT instanceBufferStart = 0;
 };
 
+struct CB_FOG
+{
+	XMFLOAT4 fogColor = XMFLOAT4(0.62f, 0.67f, 0.72f, 1.0f);
+
+	// x = fogStart
+	// y = fogEnd
+	// z = fogDensity
+	// w = fogEnable (0.0f or 1.0f)
+	XMFLOAT4 fogParams0 = XMFLOAT4(80.0f, 320.0f, 0.0f, 1.0f);
+
+	// x = cameraNear
+	// y = cameraFar
+	// z = fogMode (0=Linear, 1=Exp, 2=Exp2)
+	// w = reserved
+	XMFLOAT4 fogParams1 = XMFLOAT4(1.01f, 5000.0f, 0.0f, 0.0f);
+};
+
 // ============================================================================
 // GameScene
 // ============================================================================
@@ -488,6 +505,10 @@ private:
 
     ComPtr<ID3D12Resource> m_pd3dcbMaterials;
     MATERIAL* m_pcbMappedMaterials = nullptr;
+
+	CB_FOG                          m_fogData{};
+	ComPtr<ID3D12Resource>          m_pd3dcbFog;
+	CB_FOG* m_pcbMappedFog = nullptr;
 
     unique_ptr<CCollisionSystem> m_Collision;
 	std::unique_ptr<CNavMesh> m_navMesh;
