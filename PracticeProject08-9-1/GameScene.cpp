@@ -5649,7 +5649,7 @@ void CGameScene::OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera
 	}
 }
 
-void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
+void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	if ( !m_bStartedGameplayMusic )
 	{
@@ -5670,12 +5670,12 @@ void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 		RenderStaticInstanceGroups(cmd, camera);
 	}
 
-    if ( m_skinnedBatch.shader )
+	if ( m_skinnedBatch.shader )
 	{
 		m_skinnedBatch.shader->Render(cmd, camera, &m_skinnedBatch);
 		RenderSkinnedInstanceGroups(cmd, camera);
 	}
-    
+
 #ifndef USING_NETWORK
 	if ( m_colliderBatch.shader )
 	{
@@ -5687,6 +5687,7 @@ void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 		}
 	}
 #endif
+
 #ifndef USING_NETWORK
 	{
 		const bool isInsideMegaGridCenter = IsLocalPlayerInsideMegaGridCenter();
@@ -5718,13 +5719,22 @@ void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 		}
 	}
 #endif
+}
 
+void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* camera)
+{
 	RenderDepthFog(cmd, camera);
 	RenderUI(cmd, camera);
 
-    if (m_Collision)
-    {
-    }
+	if ( m_Collision )
+	{
+	}
+}
+
+void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
+{
+	RenderSceneGeometry(cmd, camera);
+	RenderSceneComposite(cmd, camera);
 }
 
 void CGameScene::BuildObjectsCollider()
