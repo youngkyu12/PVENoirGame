@@ -929,10 +929,17 @@ void CGameScene::ReleaseObjects()
 	if ( m_uiRectShader )
 		m_uiRectShader->ReleaseShaderVariables();
 
+	if ( m_depthFogShader )
+		m_depthFogShader->ReleaseShaderVariables();
+
 	m_uiRectShader.reset();
+	m_depthFogShader.reset();
 	m_uiSprites.clear();
 	m_pauseUISpriteIndex = -1;
+	m_depthFogSceneColorSrvIndex = UINT_MAX;
+	m_depthFogSceneDepthSrvIndex = UINT_MAX;
 	m_bInactiveOverlayVisible = false;
+	m_bDepthFogPassEnabled = true;
 	m_bStartedGameplayMusic = false;
 	m_bWasLocalPlayerInsideMegaGridCenter = false;
 
@@ -1059,9 +1066,14 @@ void CGameScene::ReleaseShaderVariables()
 		m_colliderBatch.cbGameObjects.Reset();
 	}
 
-	if ( m_uiRectShader )
+		if ( m_uiRectShader )
 	{
 		m_uiRectShader->ReleaseShaderVariables();
+	}
+
+	if ( m_depthFogShader )
+	{
+		m_depthFogShader->ReleaseShaderVariables();
 	}
 }
 
@@ -1198,6 +1210,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
 	BuildLightsAndMaterials();
 	BuildUIResources(dev, cmd);
+	BuildDepthFogResources(dev, cmd);
 
 	for ( auto& lo : m_lightObjects )
 	{
@@ -4554,6 +4567,61 @@ void CGameScene::BuildUIResources(ID3D12Device* dev, ID3D12GraphicsCommandList* 
 	}
 }
 
+void CGameScene::BuildDepthFogResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
+{
+	if ( m_depthFogShader )
+		m_depthFogShader->ReleaseShaderVariables();
+
+	m_depthFogShader.reset();
+	m_depthFogShader = std::make_shared<CDepthFogShader>();
+
+	DXGI_FORMAT fogRtv = DXGI_FORMAT_R8G8B8A8_UNORM;
+	DXGI_FORMAT fogDsv = DXGI_FORMAT_UNKNOWN;
+
+	m_depthFogShader->CreateShader(
+		dev,
+		GetGraphicsRootSignature(),
+		1,
+		&fogRtv,
+		fogDsv
+	);
+	m_depthFogShader->CreateShaderVariables(dev, cmd);
+}
+
+void CGameScene::RenderDepthFog(ID3D12GraphicsCommandList* cmd, CCamera* camera)
+{
+	if ( !cmd ) return;
+	if ( !m_depthFogShader ) return;
+	if ( !m_bDepthFogPassEnabled ) return;
+	if ( m_depthFogSceneColorSrvIndex == UINT_MAX ) return;
+	if ( m_depthFogSceneDepthSrvIndex == UINT_MAX ) return;
+
+	PS_CB_DRAW_OPTIONS opt{};
+	opt.m_xmn4DrawOptions = XMINT4(0, 0, 0, 0);
+	opt.m_xmu4PostSrvIdx0 = XMUINT4(
+		m_depthFogSceneColorSrvIndex,
+		m_depthFogSceneDepthSrvIndex,
+		0,
+		0
+	);
+	opt.m_xmu4PostSrvIdx1 = XMUINT4(0, 0, 0, 0);
+	opt.m_xmf4UiRect = XMFLOAT4(
+		FRAME_BUFFER_WIDTH * 0.5f,
+		FRAME_BUFFER_HEIGHT * 0.5f,
+		static_cast< float >( FRAME_BUFFER_WIDTH ),
+		static_cast< float >( FRAME_BUFFER_HEIGHT )
+	);
+	opt.m_xmf4Viewport = XMFLOAT4(
+		static_cast< float >( FRAME_BUFFER_WIDTH ),
+		static_cast< float >( FRAME_BUFFER_HEIGHT ),
+		1.0f / static_cast< float >( FRAME_BUFFER_WIDTH ),
+		1.0f / static_cast< float >( FRAME_BUFFER_HEIGHT )
+	);
+
+	m_depthFogShader->ResetDrawOptionWriteIndex();
+	m_depthFogShader->Render(cmd, camera, &opt);
+}
+
 void CGameScene::RenderUI(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	if ( !cmd ) return;
@@ -5651,6 +5719,7 @@ void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 	}
 #endif
 
+	RenderDepthFog(cmd, camera);
 	RenderUI(cmd, camera);
 
     if (m_Collision)
