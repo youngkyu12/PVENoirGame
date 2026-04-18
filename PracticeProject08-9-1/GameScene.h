@@ -421,7 +421,7 @@ private:
 #ifndef USING_NETWORK
 	int GetLocalPlayerMegaGridNumberForDepthFog() const;
 #endif
-	void UpdateDepthFogState();
+	void UpdateDepthFogState(float dt);
 
     // slot 0..3 플레이어 포인터(소유는 m_skinnedObjects가 함)
     std::array<CGameObject*, 4> m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
@@ -527,6 +527,9 @@ private:
 	CB_FOG                          m_depthFogEnabledPreset{};
 	CB_FOG                          m_depthFogDisabledPreset{};
 	bool                            m_bDepthFogTargetEnabled = false;
+	float                           m_depthFogFadeAlpha = 0.0f;
+	float                           m_depthFogFadeDuration = 1.0f;
+	float m_fElapsedTime = 0.0f;
 	CB_FOG* m_pcbMappedFog = nullptr;
 
     unique_ptr<CCollisionSystem> m_Collision;

@@ -730,12 +730,17 @@ float ComputeFogFactor(float linearDepth)
 
     const uint fogMode = (uint) (gvFogParams1.z + 0.5f);
 
-    if (fogMode == 1u)
-        return ComputeFogFactorExp(linearDepth);
-    if (fogMode == 2u)
-        return ComputeFogFactorExp2(linearDepth);
+    float baseFogFactor = 0.0f;
 
-    return ComputeFogFactorLinear(linearDepth);
+    if (fogMode == 1u)
+        baseFogFactor = ComputeFogFactorExp(linearDepth);
+    else if (fogMode == 2u)
+        baseFogFactor = ComputeFogFactorExp2(linearDepth);
+    else
+        baseFogFactor = ComputeFogFactorLinear(linearDepth);
+
+    const float fogIntensity = saturate(gvFogParams1.w);
+    return baseFogFactor * fogIntensity;
 }
 
 float4 PSDepthFog(VS_SCREEN_RECT_TEXTURED_OUTPUT input) : SV_Target
