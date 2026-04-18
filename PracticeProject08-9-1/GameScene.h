@@ -226,6 +226,8 @@ public:
 
     void OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera) override;
     void Render(ID3D12GraphicsCommandList* cmd, CCamera* camera = nullptr) override;
+	void RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	void RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
     // Input (messages) : 게임에서는 좌클릭 공격
 public:

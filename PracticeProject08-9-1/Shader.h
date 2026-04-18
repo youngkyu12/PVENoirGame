@@ -248,6 +248,11 @@ public:
 		D3D12_CPU_DESCRIPTOR_HANDLE* pd3dDsvCPUHandle
 	);
 
+	virtual void OnPrepareSceneRenderTargets(
+		ID3D12GraphicsCommandList* pd3dCommandList,
+		D3D12_CPU_DESCRIPTOR_HANDLE* pd3dDsvCPUHandle
+	);
+
 	virtual void OnPostRenderTarget(ID3D12GraphicsCommandList* pd3dCommandList);
 
 	// Render

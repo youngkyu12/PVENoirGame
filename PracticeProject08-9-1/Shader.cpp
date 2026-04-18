@@ -1053,6 +1053,44 @@ void CPostProcessingShader::OnPrepareRenderTarget(
 	pd3dCommandList->OMSetRenderTargets(nRenderTargets + nResources, pd3dAllRtvCPUHandles.get(), FALSE, pd3dDsvCPUHandle);
 }
 
+void CPostProcessingShader::OnPrepareSceneRenderTargets(
+	ID3D12GraphicsCommandList* pd3dCommandList,
+	D3D12_CPU_DESCRIPTOR_HANDLE* pd3dDsvCPUHandle
+)
+{
+	if ( !pd3dCommandList ) return;
+	if ( !m_pTexture ) return;
+	if ( !m_pd3dRtvCPUDescriptorHandles ) return;
+
+	const int nResources = m_pTexture->GetTextures();
+	if ( nResources <= 0 ) return;
+
+	for ( int i = 0; i < nResources; ++i )
+	{
+		::SynchronizeResourceTransition(
+			pd3dCommandList,
+			GetTextureResource(i),
+			D3D12_RESOURCE_STATE_COMMON,
+			D3D12_RESOURCE_STATE_RENDER_TARGET
+		);
+
+		D3D12_CPU_DESCRIPTOR_HANDLE d3dRtvCPUDescriptorHandle = GetRtvCPUDescriptorHandle(i);
+		pd3dCommandList->ClearRenderTargetView(
+			d3dRtvCPUDescriptorHandle,
+			Colors::White,
+			0,
+			nullptr
+		);
+	}
+
+	pd3dCommandList->OMSetRenderTargets(
+		nResources,
+		m_pd3dRtvCPUDescriptorHandles.get(),
+		FALSE,
+		pd3dDsvCPUHandle
+	);
+}
+
 void CPostProcessingShader::OnPostRenderTarget(ID3D12GraphicsCommandList* pd3dCommandList)
 {
 	int nResources = m_pTexture->GetTextures();
