@@ -137,7 +137,7 @@ struct CB_FOG
 	// y = fogEnd
 	// z = fogDensity
 	// w = fogEnable (0.0f or 1.0f)
-	XMFLOAT4 fogParams0 = XMFLOAT4(80.0f, 320.0f, 0.0f, 1.0f);
+	XMFLOAT4 fogParams0 = XMFLOAT4(20.0f, 40.0f, 0.0f, 1.0f);
 
 	// x = cameraNear
 	// y = cameraFar
@@ -418,6 +418,10 @@ private:
 	void RenderUI(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	void BuildDepthFogResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
 	void RenderDepthFog(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+#ifndef USING_NETWORK
+	int GetLocalPlayerMegaGridNumberForDepthFog() const;
+#endif
+	void UpdateDepthFogState();
 
     // slot 0..3 플레이어 포인터(소유는 m_skinnedObjects가 함)
     std::array<CGameObject*, 4> m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
@@ -520,6 +524,9 @@ private:
 
 	CB_FOG                          m_fogData{};
 	ComPtr<ID3D12Resource>          m_pd3dcbFog;
+	CB_FOG                          m_depthFogEnabledPreset{};
+	CB_FOG                          m_depthFogDisabledPreset{};
+	bool                            m_bDepthFogTargetEnabled = false;
 	CB_FOG* m_pcbMappedFog = nullptr;
 
     unique_ptr<CCollisionSystem> m_Collision;
