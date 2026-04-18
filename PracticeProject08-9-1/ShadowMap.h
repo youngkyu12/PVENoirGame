@@ -4,7 +4,7 @@
 #include "MathHelper.h"
 #include "Timer.h"
 
-struct CB_SHADOWMAP_INFO
+struct SHADOWMAP_INFO
 {
 	DirectX::XMMATRIX ViewProj = {};
 	DirectX::XMFLOAT4X4 ShadowTransform = Matrix4x4::Identity();
@@ -31,7 +31,7 @@ public:
 	D3D12_VIEWPORT Viewport()const;
 	D3D12_RECT ScissorRect()const;
 
-	CB_SHADOWMAP_INFO GetConstants();
+	SHADOWMAP_INFO GetConstants();
 
 	void OnCreate(D3D12_CPU_DESCRIPTOR_HANDLE dsvStart);
 	void OnUpdate();

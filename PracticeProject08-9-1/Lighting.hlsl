@@ -1,96 +1,37 @@
-//-----------------------------------------------------------------------------
-// File: Light.hlsl
-//-----------------------------------------------------------------------------
-#define MAX_LIGHTS			4 
-#define MAX_MATERIALS		256
+#ifndef __LIGHTING_HLSL__
+#define __LIGHTING_HLSL__
 
-#define POINT_LIGHT			1
-#define SPOT_LIGHT			2
-#define DIRECTIONAL_LIGHT	3
-
-#define _WITH_LOCAL_VIEWER_HIGHLIGHTING
-#define _WITH_THETA_PHI_CONES
-//#define _WITH_REFLECT
-
-#define MAX_GLOBAL_SRVS 8192
+#include "Common.hlsl"
+#include "MaterialTexture.hlsl"
 
 struct LIGHT
 {
-	float4				m_cAmbient;
-	float4				m_cDiffuse;
-	float4				m_cSpecular;
-	float3				m_vPosition;
-	float 				m_fFalloff;
-	float3				m_vDirection;
-	float 				m_fTheta; //cos(m_fTheta)
-	float3				m_vAttenuation;
-	float				m_fPhi; //cos(m_fPhi)
-    uint                m_bEnable;
-	int 				m_nType;
-	float				m_fRange;
-	float				padding;
-};
-
-struct MATERIAL
-{
     float4 m_cAmbient;
     float4 m_cDiffuse;
-    float4 m_cSpecular; // rgb=specular, a=shininess
-    float4 m_cEmissive;
-
-    // x=diffuse, y=normal, z=emissive, w=specular
-    uint4 TextureIndices;
-
-    // x=scaleU, y=scaleV, z=offsetU, w=offsetV
-    float4 DiffuseUVST;
-    float4 NormalUVST;
-    float4 EmissiveUVST;
-    float4 SpecularUVST;
-
-    // x=diffuseU, y=diffuseV, z=normalU, w=normalV
-    uint4 WrapModes0;
-
-    // x=emissiveU, y=emissiveV, z=specularU, w=specularV
-    uint4 WrapModes1;
-};
-
-cbuffer cbCameraInfo : register(b1)
-{
-    matrix gmtxView : packoffset(c0);
-    matrix gmtxProjection : packoffset(c4);
-    float3 gvCameraPosition : packoffset(c8);
-};
-
-cbuffer cbMaterial : register(b3)
-{
-    MATERIAL			gMaterials[MAX_MATERIALS];
+    float4 m_cSpecular;
+    float3 m_vPosition;
+    float m_fFalloff;
+    float3 m_vDirection;
+    float m_fTheta;
+    float3 m_vAttenuation;
+    float m_fPhi;
+    uint m_bEnable;
+    int m_nType;
+    float m_fRange;
+    float padding;
 };
 
 cbuffer cbLights : register(b4)
 {
-	LIGHT				gLights[MAX_LIGHTS];
-	float4				gcGlobalAmbientLight;
-    float4x4            gmtxLightView;
-    float4x4            gmtxLightProj;
-    float4x4            gmtxShadowTransform;
-};
-
-// ==============================
-// Per-draw Material ID (Root Constants)
-// RootSig: RootConstants(num32BitConstants=1, b6)
-// ==============================
-cbuffer cbPerDrawMaterialId : register(b6)
-{
-    uint gnMaterialID;
+    LIGHT gLights[MAX_LIGHTS];
+    float4 gcGlobalAmbientLight;
 };
 
 float3 SchlickFresnel(float3 R0, float3 vNormal, float3 vToLight)
 {
     float cosIncidentAngle = saturate(dot(vNormal, vToLight));
-
     float f0 = 1.0f - cosIncidentAngle;
     float3 reflectPercent = R0 + (1.0f - R0) * (f0 * f0 * f0 * f0 * f0);
-
     return reflectPercent;
 }
 
@@ -135,8 +76,6 @@ float4 DirectionalLight(
     float3 specularColor,
     float shininess)
 {
-    MATERIAL mat = gMaterials[materialId];
-
     float3 vToLight = normalize(-gLights[nIndex].m_vDirection);
     float ndotl = saturate(dot(vToLight, normalize(vNormal)));
 
@@ -151,9 +90,7 @@ float4 DirectionalLight(
         shininess
     );
 
-    float3 ambientColor =
-    gLights[nIndex].m_cAmbient.rgb *
-    texColor.rgb;
+    float3 ambientColor = gLights[nIndex].m_cAmbient.rgb * texColor.rgb;
 
     return float4(ambientColor + litColor, 0.0f);
 }
@@ -168,8 +105,6 @@ float4 PointLight(
     float3 specularColor,
     float shininess)
 {
-    MATERIAL mat = gMaterials[materialId];
-
     float3 vToLight = gLights[nIndex].m_vPosition - vPosition;
     float fDistance = length(vToLight);
 
@@ -190,9 +125,7 @@ float4 PointLight(
             shininess
         );
 
-        float3 ambientColor =
-            gLights[nIndex].m_cAmbient.rgb *
-            texColor.rgb;
+        float3 ambientColor = gLights[nIndex].m_cAmbient.rgb * texColor.rgb;
 
         float fAttenuationFactor =
             1.0f / dot(
@@ -216,8 +149,6 @@ float4 SpotLight(
     float3 specularColor,
     float shininess)
 {
-    MATERIAL mat = gMaterials[materialId];
-
     float3 vToLight = gLights[nIndex].m_vPosition - vPosition;
     float fDistance = length(vToLight);
 
@@ -255,9 +186,7 @@ float4 SpotLight(
         );
 #endif
 
-        float3 ambientColor =
-            gLights[nIndex].m_cAmbient.rgb *
-            texColor.rgb;
+        float3 ambientColor = gLights[nIndex].m_cAmbient.rgb * texColor.rgb;
 
         float fAttenuationFactor =
             1.0f / dot(
@@ -280,8 +209,6 @@ float4 Lighting(
     float3 specularColor,
     float shininess)
 {
-    MATERIAL mat = gMaterials[materialId];
-
     float3 vCameraPosition = float3(gvCameraPosition.x, gvCameraPosition.y, gvCameraPosition.z);
     float3 vToCamera = normalize(vCameraPosition - vPosition);
 
@@ -295,41 +222,15 @@ float4 Lighting(
 
         if (gLights[i].m_nType == DIRECTIONAL_LIGHT)
         {
-            cColor += DirectionalLight(
-                i,
-                materialId,
-                N,
-                vToCamera,
-                texColor,
-                specularColor,
-                shininess
-            );
+            cColor += DirectionalLight(i, materialId, N, vToCamera, texColor, specularColor, shininess);
         }
         else if (gLights[i].m_nType == POINT_LIGHT)
         {
-            cColor += PointLight(
-                i,
-                materialId,
-                vPosition,
-                N,
-                vToCamera,
-                texColor,
-                specularColor,
-                shininess
-            );
+            cColor += PointLight(i, materialId, vPosition, N, vToCamera, texColor, specularColor, shininess);
         }
         else if (gLights[i].m_nType == SPOT_LIGHT)
         {
-            cColor += SpotLight(
-                i,
-                materialId,
-                vPosition,
-                N,
-                vToCamera,
-                texColor,
-                specularColor,
-                shininess
-            );
+            cColor += SpotLight(i, materialId, vPosition, N, vToCamera, texColor, specularColor, shininess);
         }
     }
 
@@ -339,3 +240,5 @@ float4 Lighting(
 
     return cColor;
 }
+
+#endif
