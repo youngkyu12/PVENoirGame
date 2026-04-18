@@ -37,6 +37,23 @@ cbuffer cbDrawOptions : register(b5)
     float4 gvViewport;
 };
 
+cbuffer cbFog : register(b7)
+{
+    float4 gvFogColor;
+
+    // x = fogStart
+    // y = fogEnd
+    // z = fogDensity
+    // w = fogEnable
+    float4 gvFogParams0;
+
+    // x = cameraNear
+    // y = cameraFar
+    // z = fogMode (0=Linear, 1=Exp, 2=Exp2)
+    // w = reserved
+    float4 gvFogParams1;
+};
+
 StructuredBuffer<float4x4> gBonePalette : register(t0, space1);
 
 #include "Light.hlsl"
@@ -667,4 +684,82 @@ float4 PSScreenRectSamplingTextured(VS_SCREEN_RECT_TEXTURED_OUTPUT input) : SV_T
     }
 
     return gtxtGlobalTextures[idx].Sample(gssDefaultSamplerState, input.uv);
+}
+
+float ResolveLinearDepthFromDeviceZ(float deviceZ)
+{
+    const float nearZ = max(0.0001f, gvFogParams1.x);
+    const float farZ = max(nearZ + 0.0001f, gvFogParams1.y);
+
+    // deviceZ: [0,1] depth
+    const float zNdc = deviceZ * 2.0f - 1.0f;
+
+    const float denom = max(
+        0.0001f,
+        farZ + nearZ - zNdc * (farZ - nearZ)
+    );
+
+    return (2.0f * nearZ * farZ) / denom;
+}
+
+float ComputeFogFactorLinear(float linearDepth)
+{
+    const float fogStart = max(0.0f, gvFogParams0.x);
+    const float fogEnd = max(fogStart + 0.0001f, gvFogParams0.y);
+
+    return saturate((linearDepth - fogStart) / (fogEnd - fogStart));
+}
+
+float ComputeFogFactorExp(float linearDepth)
+{
+    const float density = max(0.0001f, gvFogParams0.z);
+    return saturate(1.0f - exp(-linearDepth * density));
+}
+
+float ComputeFogFactorExp2(float linearDepth)
+{
+    const float density = max(0.0001f, gvFogParams0.z);
+    const float x = linearDepth * density;
+    return saturate(1.0f - exp(-(x * x)));
+}
+
+float ComputeFogFactor(float linearDepth)
+{
+    if (gvFogParams0.w <= 0.0f)
+        return 0.0f;
+
+    const uint fogMode = (uint) (gvFogParams1.z + 0.5f);
+
+    if (fogMode == 1u)
+        return ComputeFogFactorExp(linearDepth);
+    if (fogMode == 2u)
+        return ComputeFogFactorExp2(linearDepth);
+
+    return ComputeFogFactorLinear(linearDepth);
+}
+
+float4 PSDepthFog(VS_SCREEN_RECT_TEXTURED_OUTPUT input) : SV_Target
+{
+    const uint sceneColorIdx = gvPostSrvIdx0.x;
+    const uint sceneDepthIdx = gvPostSrvIdx0.y;
+
+    if (sceneColorIdx == 0xFFFFFFFFu || sceneColorIdx >= MAX_GLOBAL_SRVS)
+        return float4(1, 0, 1, 1);
+
+    if (sceneDepthIdx == 0xFFFFFFFFu || sceneDepthIdx >= MAX_GLOBAL_SRVS)
+        return float4(1, 0, 1, 1);
+
+    const float4 sceneColor =
+        gtxtGlobalTextures[sceneColorIdx].Sample(gssDefaultSamplerState, input.uv);
+
+    const float deviceZ =
+        gtxtGlobalTextures[sceneDepthIdx].Load(
+            uint3((uint) input.position.x, (uint) input.position.y, 0)
+        ).x;
+
+    const float linearDepth = ResolveLinearDepthFromDeviceZ(deviceZ);
+    const float fogFactor = ComputeFogFactor(linearDepth);
+
+    const float3 rgb = lerp(sceneColor.rgb, gvFogColor.rgb, fogFactor);
+    return float4(rgb, sceneColor.a);
 }

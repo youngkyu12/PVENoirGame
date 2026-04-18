@@ -713,7 +713,113 @@ void CRectUIShader::UpdateShaderVariables(ID3D12GraphicsCommandList* cmd, void* 
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
+// CDepthFogShader
+void CDepthFogShader::CreateShader(
+	ID3D12Device* dev,
+	ID3D12RootSignature* sceneRootSig,
+	UINT nRenderTargets,
+	DXGI_FORMAT* rtvFormats,
+	DXGI_FORMAT dsvFormat)
+{
+	// Scene이 이미 루트시그니처와 SRV 디스크립터 테이블을 세팅하므로
+	// 여기서는 Scene RootSig를 그대로 사용한다.
+	CShader::CreateShader(
+		dev,
+		sceneRootSig,
+		nRenderTargets,
+		rtvFormats,
+		dsvFormat);
+}
+
+D3D12_SHADER_BYTECODE CDepthFogShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(
+		L"Shaders.hlsl",
+		"PSDepthFog",
+		"ps_5_1",
+		ppd3dShaderBlob
+	);
+}
+
+D3D12_RASTERIZER_DESC CDepthFogShader::CreateRasterizerState()
+{
+	D3D12_RASTERIZER_DESC rs = CTextureToFullScreenShader::CreateRasterizerState();
+	rs.CullMode = D3D12_CULL_MODE_NONE;
+	return rs;
+}
+
+D3D12_BLEND_DESC CDepthFogShader::CreateBlendState()
+{
+	D3D12_BLEND_DESC bs{};
+	::ZeroMemory(&bs, sizeof(bs));
+
+	bs.AlphaToCoverageEnable = FALSE;
+	bs.IndependentBlendEnable = FALSE;
+
+	auto& rt0 = bs.RenderTarget[0];
+	rt0.BlendEnable = FALSE;
+	rt0.LogicOpEnable = FALSE;
+	rt0.SrcBlend = D3D12_BLEND_ONE;
+	rt0.DestBlend = D3D12_BLEND_ZERO;
+	rt0.BlendOp = D3D12_BLEND_OP_ADD;
+	rt0.SrcBlendAlpha = D3D12_BLEND_ONE;
+	rt0.DestBlendAlpha = D3D12_BLEND_ZERO;
+	rt0.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	rt0.LogicOp = D3D12_LOGIC_OP_NOOP;
+	rt0.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+	return bs;
+}
+
+D3D12_DEPTH_STENCIL_DESC CDepthFogShader::CreateDepthStencilState()
+{
+	D3D12_DEPTH_STENCIL_DESC ds{};
+	::ZeroMemory(&ds, sizeof(ds));
+
+	ds.DepthEnable = FALSE;
+	ds.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	ds.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+
+	ds.StencilEnable = FALSE;
+	ds.StencilReadMask = 0x00;
+	ds.StencilWriteMask = 0x00;
+
+	ds.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	ds.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	ds.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+	ds.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_NEVER;
+
+	ds.BackFace = ds.FrontFace;
+
+	return ds;
+}
+
+void CDepthFogShader::UpdateShaderVariables(ID3D12GraphicsCommandList* cmd, void* pContext)
+{
+	if ( !cmd ) return;
+	if ( !m_pd3dcbDrawOptions || !m_pcbMappedDrawOptions ) return;
+	if ( !pContext ) return;
+
+	UINT nIndex = m_nDrawOptionWriteIndex;
+	if ( nIndex >= m_nMaxDrawOptionEntries )
+		nIndex = m_nMaxDrawOptionEntries - 1;
+	else
+		++m_nDrawOptionWriteIndex;
+
+	const UINT nOffset = m_nDrawOptionsStride * nIndex;
+
+	auto* pDst = reinterpret_cast< PS_CB_DRAW_OPTIONS* >( m_pcbMappedDrawOptions + nOffset );
+	const auto* pSrc = reinterpret_cast< const PS_CB_DRAW_OPTIONS* >( pContext );
+
+	*pDst = *pSrc;
+
+	cmd->SetGraphicsRootConstantBufferView(
+		ROOT_PARAMETER_DRAW_OPTIONS,
+		m_pd3dcbDrawOptions->GetGPUVirtualAddress() + nOffset
+	);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 CPostProcessingShader::CPostProcessingShader()
 {
 }
