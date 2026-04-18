@@ -190,7 +190,8 @@ namespace
             &qx, &qy, &qz, &qw
         );
 
-        if (matched != 9) return false;
+        if (matched != 9) 
+			return false;
 
         outEntry.assetName = asset;
         outEntry.objectName = objectName;
