@@ -377,6 +377,8 @@ CGameScene::CGameScene()
 
 	m_fogData = m_depthFogDisabledPreset;
 	m_bDepthFogTargetEnabled = false;
+	m_depthFogFadeAlpha = 0.0f;
+	m_depthFogFadeDuration = 1.0f;
 }
 
 #ifndef USING_NETWORK
@@ -5116,7 +5118,7 @@ int CGameScene::GetLocalPlayerMegaGridNumberForDepthFog() const
 }
 #endif
 
-void CGameScene::UpdateDepthFogState()
+void CGameScene::UpdateDepthFogState(float dt)
 {
 #ifndef USING_NETWORK
 	const int megaGridNumber = GetLocalPlayerMegaGridNumberForDepthFog();
@@ -5127,14 +5129,44 @@ void CGameScene::UpdateDepthFogState()
 
 	m_bDepthFogTargetEnabled = enableFog;
 
-	if ( enableFog )
+	const float targetAlpha = enableFog ? 1.0f : 0.0f;
+
+	float safeDt = dt;
+	if ( safeDt < 0.0f )
+		safeDt = 0.0f;
+
+	const float safeDuration = ( m_depthFogFadeDuration > 0.0001f )
+		? m_depthFogFadeDuration
+		: 0.0001f;
+
+	const float step = safeDt / safeDuration;
+
+	if ( m_depthFogFadeAlpha < targetAlpha )
 	{
-		m_fogData = m_depthFogEnabledPreset;
+		m_depthFogFadeAlpha += step;
+		if ( m_depthFogFadeAlpha > targetAlpha )
+			m_depthFogFadeAlpha = targetAlpha;
 	}
-	else
+	else if ( m_depthFogFadeAlpha > targetAlpha )
 	{
-		m_fogData = m_depthFogDisabledPreset;
+		m_depthFogFadeAlpha -= step;
+		if ( m_depthFogFadeAlpha < targetAlpha )
+			m_depthFogFadeAlpha = targetAlpha;
 	}
+
+	const float t = m_depthFogFadeAlpha;
+	const float invT = 1.0f - t;
+
+	m_fogData.fogColor.x = m_depthFogDisabledPreset.fogColor.x * invT + m_depthFogEnabledPreset.fogColor.x * t;
+	m_fogData.fogColor.y = m_depthFogDisabledPreset.fogColor.y * invT + m_depthFogEnabledPreset.fogColor.y * t;
+	m_fogData.fogColor.z = m_depthFogDisabledPreset.fogColor.z * invT + m_depthFogEnabledPreset.fogColor.z * t;
+	m_fogData.fogColor.w = m_depthFogDisabledPreset.fogColor.w * invT + m_depthFogEnabledPreset.fogColor.w * t;
+
+	m_fogData = m_depthFogEnabledPreset;
+
+	m_fogData.fogParams0.w = ( m_depthFogFadeAlpha > 0.0f || enableFog ) ? 1.0f : 0.0f;
+
+	m_fogData.fogParams1.w = m_depthFogFadeAlpha;
 }
 
 bool CGameScene::IsLocalPlayer(const CGameObject* obj) const
@@ -5334,6 +5366,7 @@ bool CGameScene::ProcessInput(UCHAR* /*pKeysBuffer*/)
 
 void CGameScene::AnimateObjects(float dt)
 {
+	m_fElapsedTime = dt;
     // ------------------------------------------------------------------------
     // FrameSnapshot에서 좌표 업데이트
     // ------------------------------------------------------------------------
@@ -5608,7 +5641,7 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
     if (m_pcbMappedMaterials && m_pMaterials)
         ::memcpy(m_pcbMappedMaterials, m_pMaterials.get(), sizeof(MATERIALS));
 	
-	UpdateDepthFogState();
+	UpdateDepthFogState(m_fElapsedTime);
 
 	if ( m_pcbMappedFog )
 		::memcpy(m_pcbMappedFog, &m_fogData, sizeof(CB_FOG));
