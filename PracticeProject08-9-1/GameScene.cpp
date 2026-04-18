@@ -366,6 +366,17 @@ CGameScene::CGameScene()
 	m_bulletRefs.shrink_to_fit();
 
 	m_navMesh.reset();
+
+	m_depthFogEnabledPreset = m_fogData;
+	m_depthFogDisabledPreset = m_fogData;
+
+	m_depthFogDisabledPreset.fogParams0.x = 0.0f;
+	m_depthFogDisabledPreset.fogParams0.y = 1.0f;
+	m_depthFogDisabledPreset.fogParams0.z = 0.0f;
+	m_depthFogDisabledPreset.fogParams0.w = 0.0f;
+
+	m_fogData = m_depthFogDisabledPreset;
+	m_bDepthFogTargetEnabled = false;
 }
 
 #ifndef USING_NETWORK
@@ -5077,6 +5088,55 @@ bool CGameScene::IsLocalPlayerInsideMegaGridCenter() const
 #endif
 }
 
+#ifndef USING_NETWORK
+int CGameScene::GetLocalPlayerMegaGridNumberForDepthFog() const
+{
+	if ( !m_spatialGridInitialized )
+		return -1;
+
+	if ( m_localPlayerSlot < 0 ||
+		 m_localPlayerSlot >= static_cast< int >(m_playerGridTrackers.size()) )
+	{
+		return -1;
+	}
+
+	const GridDynamicTracker& tracker =
+		m_playerGridTrackers[static_cast< size_t >(m_localPlayerSlot)];
+
+	if ( !tracker.occupied )
+		return -1;
+
+	int megaX = -1;
+	int megaZ = -1;
+
+	if ( !FineCellToMegaGridCell(tracker.prevCellX, tracker.prevCellZ, megaX, megaZ) )
+		return -1;
+
+	return ( megaZ * kMegaGridCols ) + megaX + 1;
+}
+#endif
+
+void CGameScene::UpdateDepthFogState()
+{
+#ifndef USING_NETWORK
+	const int megaGridNumber = GetLocalPlayerMegaGridNumberForDepthFog();
+	const bool enableFog = ( megaGridNumber == 1 || megaGridNumber == 9 );
+#else
+	const bool enableFog = true;
+#endif
+
+	m_bDepthFogTargetEnabled = enableFog;
+
+	if ( enableFog )
+	{
+		m_fogData = m_depthFogEnabledPreset;
+	}
+	else
+	{
+		m_fogData = m_depthFogDisabledPreset;
+	}
+}
+
 bool CGameScene::IsLocalPlayer(const CGameObject* obj) const
 {
     if (!obj) return false;
@@ -5547,6 +5607,9 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
 
     if (m_pcbMappedMaterials && m_pMaterials)
         ::memcpy(m_pcbMappedMaterials, m_pMaterials.get(), sizeof(MATERIALS));
+	
+	UpdateDepthFogState();
+
 	if ( m_pcbMappedFog )
 		::memcpy(m_pcbMappedFog, &m_fogData, sizeof(CB_FOG));
 
