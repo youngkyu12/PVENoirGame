@@ -246,6 +246,14 @@ public:
     void SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex);
     void SetInactiveOverlayVisible(bool visible) { m_bInactiveOverlayVisible = visible; }
 
+	void SetDepthFogSourceSrvIndices(UINT sceneColorSrvIndex, UINT sceneDepthSrvIndex)
+	{
+		m_depthFogSceneColorSrvIndex = sceneColorSrvIndex;
+		m_depthFogSceneDepthSrvIndex = sceneDepthSrvIndex;
+	}
+
+	void SetDepthFogPassEnabled(bool enabled) { m_bDepthFogPassEnabled = enabled; }
+
 	CNavMesh* GetNavMesh() { return m_navMesh.get(); }
 	const CNavMesh* GetNavMesh() const { return m_navMesh.get(); }
 
@@ -406,6 +414,8 @@ private:
 		bool visible = true
 	);
 	void RenderUI(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	void BuildDepthFogResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
+	void RenderDepthFog(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
     // slot 0..3 플레이어 포인터(소유는 m_skinnedObjects가 함)
     std::array<CGameObject*, 4> m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
@@ -560,10 +570,14 @@ private:
 	std::unordered_set<const CGameObject*>	m_treeAlphaClipObjects;
 
 	std::shared_ptr<CRectUIShader>      m_uiRectShader;
+	std::shared_ptr<CDepthFogShader>    m_depthFogShader;
 	std::vector<UISpriteEntry>          m_uiSprites;
 	int                                 m_pauseUISpriteIndex = -1;
+	UINT                                m_depthFogSceneColorSrvIndex = UINT_MAX;
+	UINT                                m_depthFogSceneDepthSrvIndex = UINT_MAX;
 
 	bool                                m_bInactiveOverlayVisible = false;
+	bool                                m_bDepthFogPassEnabled = true;
 	bool                                m_bStartedGameplayMusic = false;
 	bool                                m_bWasLocalPlayerInsideMegaGridCenter = false;
 
