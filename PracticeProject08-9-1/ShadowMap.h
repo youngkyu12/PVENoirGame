@@ -4,7 +4,10 @@
 #include "MathHelper.h"
 #include "Timer.h"
 
-struct SHADOWMAP_INFO
+class CLightComponent;
+class CGameObject;
+
+struct CB_SHADOW_PASS
 {
 	DirectX::XMMATRIX ViewProj = {};
 	DirectX::XMFLOAT4X4 ShadowTransform = Matrix4x4::Identity();
@@ -31,11 +34,18 @@ public:
 	D3D12_VIEWPORT Viewport()const;
 	D3D12_RECT ScissorRect()const;
 
-	SHADOWMAP_INFO GetConstants();
+	CB_SHADOW_PASS GetConstants();
+
+	void SetLightComponent(CLightComponent* light) { m_pLight = light; }
+	void SetTargetObject(CGameObject* target) { m_pTarget = target; }
 
 	void OnCreate(D3D12_CPU_DESCRIPTOR_HANDLE dsvStart);
 	void OnUpdate();
 	void Render(const CGameTimer& gt, ID3D12GraphicsCommandList* commandList, std::vector<CGameObject*> components);
+
+	void CreateShadowPassCB();
+	void UpdateShadowPassCB();
+	void BindShadowPassCB(ID3D12GraphicsCommandList* commandList) const;
 
 	void BuildDescriptors(
 		D3D12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
@@ -52,6 +62,8 @@ private:
 
 	ComPtr<ID3D12Device> mDevice;
 	CShader* mShader;
+	CLightComponent* m_pLight = nullptr;
+	CGameObject* m_pTarget = nullptr;
 
 	D3D12_VIEWPORT mViewport;
 	D3D12_RECT mScissorRect;
@@ -69,7 +81,11 @@ private:
 	ComPtr<ID3D12DescriptorHeap> mCbvHeap = nullptr;
 	ComPtr<ID3D12PipelineState> mPSO = nullptr;
 
-	DirectX::XMFLOAT3 mLightPosW;
+	std::unique_ptr<CB_SHADOW_PASS> m_pShadow;
+	ComPtr<ID3D12Resource> m_pd3dcbShadowPass;
+	CB_SHADOW_PASS* m_pcbMappedShadowPass = nullptr;
+
+	DirectX::XMFLOAT3 mLightPosW = { 0.0f, 0.0f, 0.0f };
 	float mLightNearZ = 0.0f;
 	float mLightFarZ = 0.0f;
 	DirectX::XMFLOAT4X4 mLightView = Matrix4x4::Identity();

@@ -1325,6 +1325,10 @@ void CGameScene::ReleaseObjects()
 		m_uiRectShader->ReleaseShaderVariables();
 
 	m_uiRectShader.reset();
+	mShadowMap.reset();
+	mShadowShader.reset();
+	if ( m_pd3dShadowDsvDescriptorHeap )
+		m_pd3dShadowDsvDescriptorHeap.Reset();
 	m_uiSprites.clear();
 	m_pauseUISpriteIndex = -1;
 	m_bInactiveOverlayVisible = false;
@@ -1341,6 +1345,65 @@ void CGameScene::ReleaseObjects()
 	ReleaseShaderVariables();
 
 	CScene::ReleaseObjects();
+}
+
+void CGameScene::InitShadowMap(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
+{
+	if ( !dev || !cmd || !m_pd3dGraphicsRootSignature )
+		return;
+
+	mShadowShader = std::make_shared<CShadowShader>();
+	mShadowShader->CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		0,
+		nullptr,
+		DXGI_FORMAT_D24_UNORM_S8_UINT);
+
+	constexpr UINT kShadowMapWidth = 2048;
+	constexpr UINT kShadowMapHeight = 2048;
+	mShadowMap = std::make_unique<ShadowMap>(
+		dev,
+		mShadowShader.get(),
+		kShadowMapWidth,
+		kShadowMapHeight);
+
+	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
+	dsvHeapDesc.NumDescriptors = 1;
+	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	dsvHeapDesc.NodeMask = 0;
+	HRESULT hr = dev->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_pd3dShadowDsvDescriptorHeap));
+	assert(SUCCEEDED(hr));
+
+	const UINT shadowSrvIndex = CScene::m_pDescriptorHeap->AllocateSrvRangeBack(1);
+	assert(shadowSrvIndex != UINT_MAX);
+	D3D12_CPU_DESCRIPTOR_HANDLE shadowSrvCpu = CScene::m_pDescriptorHeap->GetCPUSrvHandle(shadowSrvIndex);
+	D3D12_GPU_DESCRIPTOR_HANDLE shadowSrvGpu = CScene::m_pDescriptorHeap->GetGPUSrvHandle(shadowSrvIndex);
+	D3D12_CPU_DESCRIPTOR_HANDLE shadowDsvCpu = m_pd3dShadowDsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+
+	mShadowMap->OnCreate(shadowDsvCpu);
+	mShadowMap->BuildDescriptors(shadowSrvCpu, shadowSrvGpu, shadowDsvCpu);
+
+	CGameObject* targetPlayer = GetPlayer();
+	if ( !targetPlayer )
+		targetPlayer = GetPlayerBySlot(0);
+	mShadowMap->SetTargetObject(targetPlayer);
+
+	for ( auto& lo : m_lightObjects )
+	{
+		if ( !lo ) continue;
+		auto* lc = lo->GetComponent<CLightComponent>();
+		if ( !lc ) continue;
+		if ( lc->type == ELightType::Directional )
+		{
+			mShadowMap->SetLightComponent(lc);
+			break;
+		}
+	}
+
+	mShadowMap->OnUpdate();
+	mShadowMap->UpdateShadowPassCB();
 }
 
 void CGameScene::ReleaseUploadBuffers()
@@ -1627,6 +1690,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		local = GetPlayerBySlot(0);
 
 	CreateMainCamera(dev, cmd, local);
+	InitShadowMap(dev, cmd);
 	BuildObjectsCollider();
 
 #ifndef USING_NETWORK

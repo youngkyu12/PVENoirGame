@@ -153,6 +153,7 @@ protected:
     void CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target) override;
 
 private:
+	void InitShadowMap(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
     void BuildLightsAndMaterials();
     void BuildObjectsCollider() override;
 
@@ -512,8 +513,9 @@ private:
 	std::vector<GridDynamicTracker> m_bulletGridTrackers;
 #endif
 
-	//std::unique_ptr<ShadowMap> mShadowMap;
-	//CShader* mShadowShader;
+	std::unique_ptr<ShadowMap> mShadowMap;
+	std::shared_ptr<CShadowShader> mShadowShader;
+	ComPtr<ID3D12DescriptorHeap> m_pd3dShadowDsvDescriptorHeap;
 
 private:
     bool LoadStaticPlacementFile(const std::string& filePath);
