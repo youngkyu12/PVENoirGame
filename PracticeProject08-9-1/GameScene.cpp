@@ -4777,7 +4777,7 @@ void CGameScene::RenderUI(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 	{
 		PS_CB_DRAW_OPTIONS opt{};
 		opt.m_xmn4DrawOptions = XMINT4('T', 0, 0, 0);
-		opt.m_xmu4PostSrvIdx0 = XMUINT4(mShadowMap ? mShadowMap->GetSrvIndex() : UINT_MAX, 0, 0, 0);
+		opt.m_xmu4PostSrvIdx0 = XMUINT4(2, 0, 0, 0); // t2: shadow map SRV
 		opt.m_xmu4PostSrvIdx1 = XMUINT4(0, 0, 0, 0);
 		opt.m_xmf4UiRect = XMFLOAT4(180.0f, 130.0f, 320.0f, 180.0f);
 		opt.m_xmf4Viewport = XMFLOAT4(

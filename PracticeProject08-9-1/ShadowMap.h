@@ -56,7 +56,6 @@ public:
 		UINT shadowSrvIndex);
 
 	void OnResize(UINT newWidth, UINT newHeight);
-	UINT GetSrvIndex() const { return m_nShadowSrvIndex; }
 
 private:
 	void BuildDescriptors();

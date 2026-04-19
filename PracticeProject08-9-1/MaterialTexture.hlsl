@@ -157,35 +157,30 @@ float CalcShadowFactor(float4 shadowPosH)
         return shadowFactor;
     }
 
-    uint width, height;
-    gtxtGlobalTextures[shadowSrvIndex].GetDimensions(width, height);
+    float depth = shadowPosH.z;
 
-    int2 center;
-    center.x = (int) (shadowPosH.x * (float) width);
-    center.y = (int) (shadowPosH.y * (float) height);
+    uint width, height, numMips;
+    gtxtGlobalTextures[shadowSrvIndex].GetDimensions(0, width, height, numMips);
 
-    center.x = clamp(center.x, 0, (int) width - 1);
-    center.y = clamp(center.y, 0, (int) height - 1);
+    float dx = 1.0f / (float) width;
 
-    const float depth = shadowPosH.z;
     float percentLit = 0.0f;
-
-    static const int2 offsets[9] =
+    const float2 offsets[9] =
     {
-        int2(-1, -1), int2(0, -1), int2(1, -1),
-        int2(-1, 0), int2(0, 0), int2(1, 0),
-        int2(-1, 1), int2(0, 1), int2(1, 1)
+        float2(-dx, -dx), float2(0.0f, -dx), float2(dx, -dx),
+        float2(-dx, 0.0f), float2(0.0f, 0.0f), float2(dx, 0.0f),
+        float2(-dx, +dx), float2(0.0f, +dx), float2(dx, +dx)
     };
 
     [unroll]
     for (int i = 0; i < 9; ++i)
     {
-        int2 p = center + offsets[i];
-        p.x = clamp(p.x, 0, (int) width - 1);
-        p.y = clamp(p.y, 0, (int) height - 1);
-
         const float sampledDepth =
-            gtxtGlobalTextures[shadowSrvIndex].Load(int3(p, 0)).r;
+            gtxtGlobalTextures[shadowSrvIndex].SampleLevel(
+                gsamLinearClamp,
+                shadowPosH.xy + offsets[i],
+                0.0f
+            ).r;
 
         percentLit += (depth <= sampledDepth + 0.0005f) ? 1.0f : 0.0f;
     }
