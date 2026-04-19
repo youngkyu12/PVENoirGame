@@ -82,7 +82,6 @@ cbuffer cbShadowPass : register(b8)
     float4x4 gShadowTransform;
     float3 gLightDirectionW;
     float _padShadow0;
-
     uint4 gShadowMeta; // x = shadowMapSrvIndex
 };
 
