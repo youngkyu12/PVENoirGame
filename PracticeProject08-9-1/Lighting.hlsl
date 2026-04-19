@@ -42,9 +42,10 @@ float3 BlinnPhong(
     float3 vToCamera,
     float4 texColor,
     float3 specularColor,
-    float shininess)
+    float shininess,
+    float shadowFactor)
 {
-    float3 lit = texColor.rgb * fDiffuseFactor;
+    float3 lit = texColor.rgb * fDiffuseFactor * shadowFactor;
 
     if (shininess <= 0.0f)
         return lit;
@@ -77,7 +78,8 @@ float4 DirectionalLight(
     float3 vToCamera,
     float4 texColor,
     float3 specularColor,
-    float shininess)
+    float shininess,
+    float shadowFactor)
 {
     float3 vToLight = normalize(-gLights[nIndex].m_vDirection);
     float ndotl = saturate(dot(vToLight, normalize(vNormal)));
@@ -90,7 +92,8 @@ float4 DirectionalLight(
         vToCamera,
         texColor,
         specularColor,
-        shininess
+        shininess,
+        shadowFactor
     );
 
     float3 ambientColor = gLights[nIndex].m_cAmbient.rgb * texColor.rgb;
@@ -106,7 +109,8 @@ float4 PointLight(
     float3 vToCamera,
     float4 texColor,
     float3 specularColor,
-    float shininess)
+    float shininess,
+    float shadowFactor)
 {
     float4 c = float4(0.0f, 0.0f, 0.0f, 0.0f);
     float3 vToLight = gLights[nIndex].m_vPosition - vPosition;
@@ -126,7 +130,8 @@ float4 PointLight(
             vToCamera,
             texColor,
             specularColor,
-            shininess
+            shininess,
+            shadowFactor
         );
 
         float3 ambientColor = gLights[nIndex].m_cAmbient.rgb * texColor.rgb;
@@ -152,7 +157,8 @@ float4 SpotLight(
     float3 vToCamera,
     float4 texColor,
     float3 specularColor,
-    float shininess)
+    float shininess,
+    float shadowFactor)
 {
     float4 c = float4(0.0f, 0.0f, 0.0f, 0.0f);
     float3 vToLight = gLights[nIndex].m_vPosition - vPosition;
@@ -172,7 +178,8 @@ float4 SpotLight(
             vToCamera,
             texColor,
             specularColor,
-            shininess
+            shininess,
+            shadowFactor
         );
 
 #ifdef _WITH_THETA_PHI_CONES
@@ -214,7 +221,8 @@ float4 Lighting(
     float4 texColor,
     float3 emissiveColor,
     float3 specularColor,
-    float shininess)
+    float shininess,
+    float shadowFactor)
 {
     float3 vCameraPosition = float3(gvCameraPosition.x, gvCameraPosition.y, gvCameraPosition.z);
     float3 vToCamera = normalize(vCameraPosition - vPosition);
@@ -229,15 +237,15 @@ float4 Lighting(
 
         if (gLights[i].m_nType == DIRECTIONAL_LIGHT)
         {
-            cColor += DirectionalLight(i, materialId, N, vToCamera, texColor, specularColor, shininess);
+            cColor += DirectionalLight(i, materialId, N, vToCamera, texColor, specularColor, shininess, shadowFactor);
         }
         else if (gLights[i].m_nType == POINT_LIGHT)
         {
-            cColor += PointLight(i, materialId, vPosition, N, vToCamera, texColor, specularColor, shininess);
+            cColor += PointLight(i, materialId, vPosition, N, vToCamera, texColor, specularColor, shininess, shadowFactor);
         }
         else if (gLights[i].m_nType == SPOT_LIGHT)
         {
-            cColor += SpotLight(i, materialId, vPosition, N, vToCamera, texColor, specularColor, shininess);
+            cColor += SpotLight(i, materialId, vPosition, N, vToCamera, texColor, specularColor, shininess, shadowFactor);
         }
     }
 
