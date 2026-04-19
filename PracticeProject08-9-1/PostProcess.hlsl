@@ -114,12 +114,16 @@ float4 PSScreenRectSamplingTextured(VS_SCREEN_RECT_TEXTURED_OUTPUT input) : SV_T
 
 float4 PSDepthFog(VS_SCREEN_RECT_TEXTURED_OUTPUT input) : SV_Target
 {
-    const uint sceneColorIdx = gvPostSrvIdx0.x;
+    const uint sceneDepthIdx = gvPostSrvIdx0.y;
 
-    if (sceneColorIdx == 0xFFFFFFFFu || sceneColorIdx >= MAX_GLOBAL_SRVS)
+    if (sceneDepthIdx == 0xFFFFFFFFu || sceneDepthIdx >= MAX_GLOBAL_SRVS)
         return float4(1, 0, 1, 1);
 
-    return gtxtGlobalTextures[sceneColorIdx].Sample(gsamLinearWrap, input.uv);
-}
+    const uint2 pixel = uint2(input.position.xy);
 
+    const float d =
+        gtxtGlobalTextures[sceneDepthIdx].Load(uint3(pixel, 0)).x;
+
+    return float4(d, d, d, 1);
+}
 #endif
