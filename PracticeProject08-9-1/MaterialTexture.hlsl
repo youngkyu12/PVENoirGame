@@ -130,4 +130,49 @@ float3 GetNormalWFromMap(uint packedNormal, float3 normalW_in, float4 tangentW_i
     return nW;
 }
 
+//---------------------------------------------------------------------------------------
+// PCF for shadow mapping.
+//---------------------------------------------------------------------------------------
+float CalcShadowFactor(float4 shadowPosH)
+{
+    if (shadowPosH.w <= 0.0f)
+        return 1.0f;
+
+    shadowPosH.xyz /= shadowPosH.w;
+
+    if (shadowPosH.x < 0.0f || shadowPosH.x > 1.0f ||
+        shadowPosH.y < 0.0f || shadowPosH.y > 1.0f ||
+        shadowPosH.z < 0.0f || shadowPosH.z > 1.0f)
+    {
+        return 1.0f;
+    }
+
+    float depth = shadowPosH.z;
+
+    uint width, height, numMips;
+    gShadowMap.GetDimensions(0, width, height, numMips);
+
+    float dx = 1.0f / (float) width;
+
+    float percentLit = 0.0f;
+    const float2 offsets[9] =
+    {
+        float2(-dx, -dx), float2(0.0f, -dx), float2(dx, -dx),
+        float2(-dx, 0.0f), float2(0.0f, 0.0f), float2(dx, 0.0f),
+        float2(-dx, +dx), float2(0.0f, +dx), float2(dx, +dx)
+    };
+
+    [unroll]
+    for (int i = 0; i < 9; ++i)
+    {
+        percentLit += gShadowMap.SampleCmpLevelZero(
+            gsamShadow,
+            shadowPosH.xy + offsets[i],
+            depth
+        ).r;
+    }
+
+    return percentLit / 9.0f;
+}
+
 #endif
