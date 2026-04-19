@@ -189,6 +189,7 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
     float3 emissiveColor = emissiveSample.rgb * mat.m_cEmissive.rgb;
     float3 specularColor = specularSample.rgb * mat.m_cSpecular.rgb;
     float shininess = mat.m_cSpecular.a;
+    float shadowFactor = CalcShadowFactor(input.shadowPosH);
 
     float4 illumination = Lighting(
         materialId,
@@ -197,11 +198,9 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
         texColor,
         emissiveColor,
         specularColor,
-        shininess
+        shininess,
+        shadowFactor
     );
-    
-    float shadowFactor = CalcShadowFactor(input.shadowPosH);
-    illumination.rgb *= shadowFactor;
     
     output.cTexture = texColor;
     output.cIllumination = illumination;
@@ -252,6 +251,7 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs_AlphaClip(
     float3 emissiveColor = emissiveSample.rgb * mat.m_cEmissive.rgb;
     float3 specularColor = specularSample.rgb * mat.m_cSpecular.rgb;
     float shininess = mat.m_cSpecular.a;
+    float shadowFactor = CalcShadowFactor(input.shadowPosH);
 
     float4 illumination = Lighting(
         materialId,
@@ -260,11 +260,8 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs_AlphaClip(
         texColor,
         emissiveColor,
         specularColor,
-        shininess
-    );
-    
-    float shadowFactor = CalcShadowFactor(input.shadowPosH);
-    illumination.rgb *= shadowFactor;
+        shininess,
+        shadowFactor);
 
     output.cTexture = texColor;
     output.cIllumination = illumination;
