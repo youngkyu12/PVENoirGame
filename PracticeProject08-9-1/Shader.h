@@ -268,7 +268,8 @@ public:
 
 protected:
 	shared_ptr<CTexture>						m_pTexture;
-	unique_ptr<D3D12_CPU_DESCRIPTOR_HANDLE[]>	m_pd3dRtvCPUDescriptorHandles;
+	unique_ptr<D3D12_CPU_DESCRIPTOR_HANDLE[ ]>	m_pd3dRtvCPUDescriptorHandles;
+	unique_ptr<D3D12_RESOURCE_STATES[ ]>		m_pTextureStates;
 };
 
 struct PS_CB_DRAW_OPTIONS
