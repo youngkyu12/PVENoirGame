@@ -557,6 +557,7 @@ private:
 	bool                                m_bInactiveOverlayVisible = false;
 	bool                                m_bStartedGameplayMusic = false;
 	bool                                m_bWasLocalPlayerInsideMegaGridCenter = false;
+	bool                                m_bShowShadowMapOverlay = true;
 
 	bool GetPauseOverlayRect(XMFLOAT4& outRect) const;
 
