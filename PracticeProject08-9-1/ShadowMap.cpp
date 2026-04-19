@@ -68,20 +68,15 @@ D3D12_RECT ShadowMap::ScissorRect() const
 
 CB_SHADOW_PASS ShadowMap::GetConstants()
 {
-	CB_SHADOW_PASS shadowInfo{};
-
+	CB_SHADOW_PASS shadowInfo;
 	const XMMATRIX lightView = XMLoadFloat4x4(&mLightView);
 	const XMMATRIX lightProj = XMLoadFloat4x4(&mLightProj);
 	const XMMATRIX lightViewProj = XMMatrixMultiply(lightView, lightProj);
 	const XMMATRIX shadowTransform = XMLoadFloat4x4(&mShadowTransform);
 
-	XMStoreFloat4x4(&shadowInfo.ViewProj, XMMatrixTranspose(lightViewProj));
+	shadowInfo.ViewProj = XMMatrixTranspose(lightViewProj);
 	XMStoreFloat4x4(&shadowInfo.ShadowTransform, XMMatrixTranspose(shadowTransform));
-
-	shadowInfo.LightDirectionW = mLightDirW;
-	shadowInfo.PadShadow0 = 0.0f;
-	shadowInfo.ShadowMeta = DirectX::XMUINT4(m_nShadowSrvIndex, 0, 0, 0);
-
+	shadowInfo.EyePosW = mLightDirW;
 	return shadowInfo;
 }
 
@@ -214,13 +209,11 @@ void ShadowMap::Render(const CGameTimer& /*gt*/, ID3D12GraphicsCommandList* comm
 void ShadowMap::BuildDescriptors(
 	D3D12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
 	D3D12_GPU_DESCRIPTOR_HANDLE hGpuSrv,
-	D3D12_CPU_DESCRIPTOR_HANDLE hCpuDsv,
-	UINT shadowSrvIndex)
+	D3D12_CPU_DESCRIPTOR_HANDLE hCpuDsv)
 {
 	mhCpuSrv = hCpuSrv;
 	mhGpuSrv = hGpuSrv;
 	mhCpuDsv = hCpuDsv;
-	m_nShadowSrvIndex = shadowSrvIndex;
 
 	BuildDescriptors();
 }

@@ -1009,7 +1009,7 @@ void CGameScene::InitShadowMap(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd
 	D3D12_CPU_DESCRIPTOR_HANDLE shadowDsvCpu = m_pd3dShadowDsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 
 	mShadowMap->OnCreate(shadowDsvCpu);
-	mShadowMap->BuildDescriptors(shadowSrvCpu, shadowSrvGpu, shadowDsvCpu, shadowSrvIndex);
+	mShadowMap->BuildDescriptors(shadowSrvCpu, shadowSrvGpu, shadowDsvCpu);
 
 	CGameObject* targetPlayer = GetPlayer();
 	if ( !targetPlayer )
