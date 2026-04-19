@@ -18,6 +18,22 @@
 #include "ServerPacketHandler.h"
 #include "GlobalValues.h"
 
+#include <strsafe.h>
+
+static void DebugLogA(const char* fmt, ...)
+{
+	char buffer[1024] = {};
+	va_list args;
+	va_start(args, fmt);
+	StringCchVPrintfA(buffer, _countof(buffer), fmt, args);
+	va_end(args);
+	OutputDebugStringA(buffer);
+}
+
+static void DebugLogHr(const char* tag, HRESULT hr)
+{
+	DebugLogA("%s hr=0x%08X\n", tag, static_cast< unsigned int >( hr ));
+}
 
 CGameFramework::CGameFramework()
 {
@@ -146,13 +162,47 @@ void CGameFramework::ReleaseObjects()
 void CGameFramework::WaitForGpuComplete()
 {
 	const UINT64 nFenceValue = ++m_nFenceValues[m_nSwapChainBufferIndex];
-	HRESULT hResult = m_pd3dCommandQueue->Signal(m_pd3dFence.Get(), nFenceValue);
 
-	if (m_pd3dFence->GetCompletedValue() < nFenceValue)
+	DebugLogA(
+		"[WaitForGpuComplete] begin bufferIndex=%u targetFence=%llu completedBefore=%llu\n",
+		m_nSwapChainBufferIndex,
+		static_cast< unsigned long long >( nFenceValue ),
+		static_cast< unsigned long long >( m_pd3dFence->GetCompletedValue() )
+	);
+
+	HRESULT hResult = m_pd3dCommandQueue->Signal(m_pd3dFence.Get(), nFenceValue);
+	DebugLogHr("[WaitForGpuComplete] Signal", hResult);
+
+	if ( FAILED(hResult) )
+	{
+		HRESULT removed = m_pd3dDevice ? m_pd3dDevice->GetDeviceRemovedReason() : S_OK;
+		DebugLogHr("[WaitForGpuComplete] DeviceRemovedReason after Signal", removed);
+		return;
+	}
+
+	if ( m_pd3dFence->GetCompletedValue() < nFenceValue )
 	{
 		hResult = m_pd3dFence->SetEventOnCompletion(nFenceValue, m_hFenceEvent);
-		::WaitForSingleObject(m_hFenceEvent, INFINITE);
+		DebugLogHr("[WaitForGpuComplete] SetEventOnCompletion", hResult);
+
+		if ( FAILED(hResult) )
+		{
+			HRESULT removed = m_pd3dDevice ? m_pd3dDevice->GetDeviceRemovedReason() : S_OK;
+			DebugLogHr("[WaitForGpuComplete] DeviceRemovedReason after SetEventOnCompletion", removed);
+			return;
+		}
+
+		DWORD waitResult = ::WaitForSingleObject(m_hFenceEvent, INFINITE);
+		DebugLogA("[WaitForGpuComplete] WaitForSingleObject result=%lu\n", static_cast< unsigned long >( waitResult ));
 	}
+
+	HRESULT removed = m_pd3dDevice ? m_pd3dDevice->GetDeviceRemovedReason() : S_OK;
+	DebugLogHr("[WaitForGpuComplete] DeviceRemovedReason end", removed);
+
+	DebugLogA(
+		"[WaitForGpuComplete] end completedAfter=%llu\n",
+		static_cast< unsigned long long >( m_pd3dFence->GetCompletedValue() )
+	);
 }
 
 void CGameFramework::CreateDirect3DDevice()
@@ -196,6 +246,19 @@ void CGameFramework::CreateDirect3DDevice()
 		DXGI_ADAPTER_DESC1 desc = {};
 		pd3dAdapter->GetDesc1(&desc);
 
+		char adapterName[256] = {};
+		WideCharToMultiByte(CP_UTF8, 0, desc.Description, -1, adapterName, 256, nullptr, nullptr);
+
+		DebugLogA(
+			"[CreateDirect3DDevice] Adapter[%u] name=%s vendor=0x%04X device=0x%04X flags=0x%08X vramMB=%llu\n",
+			i,
+			adapterName,
+			desc.VendorId,
+			desc.DeviceId,
+			desc.Flags,
+			static_cast< unsigned long long >( desc.DedicatedVideoMemory / ( 1024ull * 1024ull ) )
+		);
+
 		if ( desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE )
 			continue;
 
@@ -203,7 +266,7 @@ void CGameFramework::CreateDirect3DDevice()
 			pd3dAdapter.Get(),
 			D3D_FEATURE_LEVEL_12_0,
 			IID_PPV_ARGS(&m_pd3dDevice));
-
+		DebugLogHr("[CreateDirect3DDevice] D3D12CreateDevice 1", hResult);
 		if ( SUCCEEDED(hResult) )
 			break;
 	}
@@ -215,6 +278,7 @@ void CGameFramework::CreateDirect3DDevice()
 			pd3dAdapter.Get(),
 			D3D_FEATURE_LEVEL_11_0,
 			IID_PPV_ARGS(&m_pd3dDevice));
+		DebugLogHr("[CreateDirect3DDevice] D3D12CreateDevice 2", hResult);
 	}
 
 	if (!m_pd3dDevice)
@@ -236,6 +300,11 @@ void CGameFramework::CreateDirect3DDevice()
 
 	m_nMsaa4xQualityLevels = d3dMsaaQualityLevels.NumQualityLevels;
 	m_bMsaa4xEnable = (m_nMsaa4xQualityLevels > 1) ? true : false;
+	DebugLogA(
+	"[CreateDirect3DDevice] MSAA4x qualityLevels=%u enabled=%d\n",
+	m_nMsaa4xQualityLevels,
+	m_bMsaa4xEnable ? 1 : 0
+	);
 
 	hResult = m_pd3dDevice->CreateFence(
 		0,
@@ -261,7 +330,7 @@ void CGameFramework::CreateCommandQueueAndList()
 	infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
 
 	// 에러(ERROR) 디버깅 종료
-	//infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
+	infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
 
 	// 경고(WARNING) 무시
 	infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, FALSE);
@@ -337,12 +406,24 @@ void CGameFramework::CreateSwapChain()
 #else
 	dxgiSwapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 #endif
+	DebugLogA(
+	"[CreateSwapChain] size=%dx%d format=%d sampleCount=%u quality=%u bufferCount=%u swapEffect=%d flags=0x%08X\n",
+	m_nWndClientWidth,
+	m_nWndClientHeight,
+	dxgiSwapChainDesc.BufferDesc.Format,
+	dxgiSwapChainDesc.SampleDesc.Count,
+	dxgiSwapChainDesc.SampleDesc.Quality,
+	dxgiSwapChainDesc.BufferCount,
+	dxgiSwapChainDesc.SwapEffect,
+	dxgiSwapChainDesc.Flags
+	);
 
 	hResult = m_pdxgiFactory->CreateSwapChain(
 		m_pd3dCommandQueue.Get(),
 		&dxgiSwapChainDesc,
 		(IDXGISwapChain**)m_pdxgiSwapChain.ReleaseAndGetAddressOf());
 
+	DebugLogHr("[CreateSwapChain] CreateSwapChain", hResult);
 	hResult = m_pdxgiFactory->MakeWindowAssociation(m_hWnd, DXGI_MWA_NO_ALT_ENTER);
 	m_nSwapChainBufferIndex = m_pdxgiSwapChain->GetCurrentBackBufferIndex();
 }
@@ -400,14 +481,26 @@ void CGameFramework::CreateDepthStencilView()
 	d3dClearValue.DepthStencil.Depth = 1.0f;
 	d3dClearValue.DepthStencil.Stencil = 0;
 
-	m_pd3dDevice->CreateCommittedResource(
-		&d3dHeapProperties,
-		D3D12_HEAP_FLAG_NONE,
-		&d3dResourceDesc,
-		D3D12_RESOURCE_STATE_DEPTH_WRITE,
-		&d3dClearValue,
-		IID_PPV_ARGS(m_pd3dDepthStencilBuffer.ReleaseAndGetAddressOf())
+	DebugLogA(
+	"[CreateDepthStencilView] size=%dx%d format=%d sampleCount=%u quality=%u initialState=%d flags=0x%08X\n",
+	m_nWndClientWidth,
+	m_nWndClientHeight,
+	d3dResourceDesc.Format,
+	d3dResourceDesc.SampleDesc.Count,
+	d3dResourceDesc.SampleDesc.Quality,
+	D3D12_RESOURCE_STATE_DEPTH_WRITE,
+	d3dResourceDesc.Flags
 	);
+
+	HRESULT hrDepth = m_pd3dDevice->CreateCommittedResource(
+	&d3dHeapProperties,
+	D3D12_HEAP_FLAG_NONE,
+	&d3dResourceDesc,
+	D3D12_RESOURCE_STATE_DEPTH_WRITE,
+	&d3dClearValue,
+	IID_PPV_ARGS(m_pd3dDepthStencilBuffer.ReleaseAndGetAddressOf())
+	);
+	DebugLogHr("[CreateDepthStencilView] CreateCommittedResource", hrDepth);
 
 	m_d3dDsvDescriptorCPUHandle = m_pd3dDsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 
@@ -416,6 +509,10 @@ void CGameFramework::CreateDepthStencilView()
 		nullptr,
 		m_d3dDsvDescriptorCPUHandle
 	);
+	DebugLogA("[CreateDepthStencilView] DSV created resource=%p dsvCpu=0x%p\n",
+	m_pd3dDepthStencilBuffer.Get(),
+	reinterpret_cast< void* >( m_d3dDsvDescriptorCPUHandle.ptr ));
+
 }
 
 void CGameFramework::BuildObjects()
@@ -514,10 +611,12 @@ void CGameFramework::UpdateWindowActivationState()
 
 void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 {
-
+	DebugLogA("[BuildSceneInternal] BEGIN nextScene=%d\n", static_cast< int >( id ));
 	WaitForGpuComplete();
+	DebugLogA("[BuildSceneInternal] WaitForGpuComplete done before release\n");
 	
 	m_SceneManager.ReleaseCurrent();
+	DebugLogA("[BuildSceneInternal] ReleaseCurrent done\n");
 	m_pCamera = nullptr;
 
 	if (m_pPostProcessingShader)
@@ -527,11 +626,15 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 	}
 
 	HRESULT hr = m_pd3dCommandAllocator->Reset();
-	(void)hr;
+	DebugLogHr("[BuildSceneInternal] CommandAllocator Reset", hr);
 	hr = m_pd3dCommandList->Reset(m_pd3dCommandAllocator.Get(), nullptr);
-	(void)hr;
+	DebugLogHr("[BuildSceneInternal] CommandList Reset", hr);
+	/*(void)hr;
+	hr = m_pd3dCommandList->Reset(m_pd3dCommandAllocator.Get(), nullptr);
+	(void)hr;*/
 
 	m_SceneManager.BuildScene(id, m_pd3dDevice.Get(), m_pd3dCommandList.Get());
+	DebugLogA("[BuildSceneInternal] SceneManager.BuildScene done scene=%p\n", m_SceneManager.GetScene());
 
 	CScene* scene = m_SceneManager.GetScene();
 	if (!scene)
@@ -553,10 +656,13 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 		1,
 		nullptr,
 		DXGI_FORMAT_D24_UNORM_S8_UINT);
+	DebugLogA("[BuildSceneInternal] PostProcessingShader CreateShader done\n");
+
 	m_pPostProcessingShader->BuildObjects(
 		m_pd3dDevice.Get(), 
 		m_pd3dCommandList.Get(),
 		&m_nDrawOption);
+	DebugLogA("[BuildSceneInternal] PostProcessingShader BuildObjects done\n");
 
 	D3D12_CPU_DESCRIPTOR_HANDLE d3dRtvCPUDescriptorHandle = m_pd3dRtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	d3dRtvCPUDescriptorHandle.ptr += (::gnRtvDescriptorIncrementSize * m_nSwapChainBuffers);
@@ -575,12 +681,26 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 		5,
 		pdxgiResourceFormats,
 		d3dRtvCPUDescriptorHandle);
+	DebugLogA(
+	"[BuildSceneInternal] CreateResourcesAndRtvsSrvs done formats={%d,%d,%d,%d,%d}\n",
+	pdxgiResourceFormats[0],
+	pdxgiResourceFormats[1],
+	pdxgiResourceFormats[2],
+	pdxgiResourceFormats[3],
+	pdxgiResourceFormats[4]
+	);
 
 	D3D12_GPU_DESCRIPTOR_HANDLE d3dDsvGPUDescriptorHandle = CScene::m_pDescriptorHeap->CreateShaderResourceView(
 		m_pd3dDevice.Get(),
 		m_pd3dDepthStencilBuffer.Get(),
 		DXGI_FORMAT_R24_UNORM_X8_TYPELESS);
 	(void)d3dDsvGPUDescriptorHandle;
+	DebugLogA(
+	"[BuildSceneInternal] Depth SRV created depthRes=%p gpuHandle=0x%llX format=%d\n",
+	m_pd3dDepthStencilBuffer.Get(),
+	static_cast< unsigned long long >( d3dDsvGPUDescriptorHandle.ptr ),
+	DXGI_FORMAT_R24_UNORM_X8_TYPELESS
+	);
 
 	if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
 	{
@@ -588,14 +708,23 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 			m_pPostProcessingShader->GetTexture()->GetSrvIndex(0),
 			m_pPostProcessingShader->GetTexture()->GetSrvIndex(4)
 		);
+		DebugLogA(
+	"[BuildSceneInternal] DepthFog SRV indices color=%d zDepth=%d\n",
+	m_pPostProcessingShader->GetTexture()->GetSrvIndex(0),
+	m_pPostProcessingShader->GetTexture()->GetSrvIndex(4)
+		);
 	}
 
 	hr = m_pd3dCommandList->Close();
 	(void)hr;
 
-	ID3D12CommandList* ppd3dCommandLists[] = { m_pd3dCommandList.Get() };
+	DebugLogA("[BuildSceneInternal] ExecuteCommandLists begin\n");
+	ID3D12CommandList* ppd3dCommandLists[ ] = { m_pd3dCommandList.Get() };
 	m_pd3dCommandQueue->ExecuteCommandLists(1, ppd3dCommandLists);
+	DebugLogA("[BuildSceneInternal] ExecuteCommandLists end\n");
+	
 	WaitForGpuComplete();
+	DebugLogA("[BuildSceneInternal] WaitForGpuComplete after scene build done\n");
 
 	if (scene)
 		scene->ReleaseUploadBuffers();
@@ -1048,6 +1177,9 @@ void CGameFramework::MoveToNextFrame()
 void CGameFramework::FrameAdvance()
 {
 	HRESULT hResult;
+	static unsigned long long sFrameNo = 0;
+	++sFrameNo;
+	DebugLogA("[FrameAdvance] --- Frame Start #%llu ---\n", sFrameNo);
 
 	m_GameTimer.Tick(0.0f);
 	UpdateWindowActivationState();
