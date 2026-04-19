@@ -2,6 +2,7 @@
 #define __POST_PROCESS_HLSL__
 
 #include "Common.hlsl"
+#include "MaterialTexture.hlsl"
 
 float4 VSPostProcessing(uint nVertexID : SV_VertexID) : SV_POSITION
 {
@@ -108,6 +109,32 @@ float4 PSScreenRectSamplingTextured(VS_SCREEN_RECT_TEXTURED_OUTPUT input) : SV_T
     }
 
     return gtxtGlobalTextures[idx].Sample(gsamLinearWrap, input.uv);
+}
+
+float4 PSDepthFog(VS_SCREEN_RECT_TEXTURED_OUTPUT input) : SV_Target
+{
+    const uint sceneColorIdx = gvPostSrvIdx0.x;
+    const uint sceneDepthIdx = gvPostSrvIdx0.y;
+
+    if (sceneColorIdx == 0xFFFFFFFFu || sceneColorIdx >= MAX_GLOBAL_SRVS)
+        return float4(1, 0, 1, 1);
+
+    if (sceneDepthIdx == 0xFFFFFFFFu || sceneDepthIdx >= MAX_GLOBAL_SRVS)
+        return float4(1, 0, 1, 1);
+
+    const float4 sceneColor =
+        gtxtGlobalTextures[sceneColorIdx].Sample(gsamLinearWrap, input.uv);
+
+    const float deviceZ =
+        gtxtGlobalTextures[sceneDepthIdx].Load(
+            uint3((uint) input.position.x, (uint) input.position.y, 0)
+        ).x;
+
+    const float linearDepth = ResolveLinearDepthFromDeviceZ(deviceZ);
+    const float fogFactor = ComputeFogFactor(linearDepth);
+
+    const float3 rgb = lerp(sceneColor.rgb, gvFogColor.rgb, fogFactor);
+    return float4(rgb, sceneColor.a);
 }
 
 #endif
