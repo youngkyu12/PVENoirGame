@@ -94,11 +94,11 @@ struct VS_TEXTURED_LIGHTING_INSTANCED_INPUT
 struct VS_TEXTURED_LIGHTING_OUTPUT
 {
     float4 position : SV_POSITION;
-    float4 shadowPosH : POSITION0;
-    float3 positionW : POSITION;
-    float3 normalW : NORMAL;
-    float2 uv : TEXCOORD;
-    float4 tangentW : TANGENT;
+    float4 shadowPosH : TEXCOORD1;
+    float3 positionW : TEXCOORD2;
+    float3 normalW : TEXCOORD3;
+    float2 uv : TEXCOORD4;
+    float4 tangentW : TEXCOORD5;
     nointerpolation uint materialId : MATERIAL_ID;
 };
 
