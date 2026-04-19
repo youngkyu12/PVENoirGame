@@ -95,13 +95,16 @@ D3D12_GPU_DESCRIPTOR_HANDLE CGameObject::GetCbvGPUDescriptorHandle()
 
 void CGameObject::SetRootParameter(ID3D12GraphicsCommandList* cmd)
 {
-	// b2 table: per-object CBV
-	if (m_pRenderObject)
-		cmd->SetGraphicsRootDescriptorTable(ROOT_PARAMETER_OBJECT, m_pRenderObject->GetCbvHandle());
+	if ( !cmd )
+		return;
 
-	// b7: bone palette
-	if ( m_pSkinning && m_pSkinning->IsSkinned() )
-		cmd->SetGraphicsRootShaderResourceView(ROOT_PARAMETER_BONE_PALETTE, m_pSkinning->GetBoneCBAddress());
+	if ( m_pRenderObject )
+	{
+		cmd->SetGraphicsRootDescriptorTable(
+			ROOT_PARAMETER_OBJECT,
+			m_pRenderObject->GetCbvHandle()
+		);
+	}
 }
 
 void CGameObject::SetMappedGameObjectCB(CB_GAMEOBJECT_INFO* p)
@@ -360,18 +363,38 @@ void CGameObject::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 
 	UpdateShaderVariables(cmd);
 
-	for (std::unique_ptr<CComponent>& c : m_components)
-		if (c && c->IsEnabled()) c->OnPreRender(cmd);
+	// shadow pass는 ShadowMap::Render()에서 obj->Render(commandList, nullptr)로 들어온다.
+	// 이 경우 renderer component 경로를 타지 말고 바로 mesh만 그린다.
+	if ( camera == nullptr )
+	{
+		SetRootParameter(cmd);
+
+		const int n = GetMeshCount();
+		for ( int i = 0; i < n; ++i )
+		{
+			std::shared_ptr<CMesh> mesh = GetMeshShared(i);
+			if ( mesh )
+				mesh->Render(cmd, GetMappedGameObjectCB());
+		}
+		return;
+	}
+
+	for ( std::unique_ptr<CComponent>& c : m_components )
+	{
+		if ( c && c->IsEnabled() )
+			c->OnPreRender(cmd);
+	}
 
 	CRendererComponent* renderer = GetRenderer();
-	if (renderer && renderer->IsEnabled())
+	if ( renderer && renderer->IsEnabled() )
 		renderer->Render(cmd, camera);
 
-	for (std::unique_ptr<CComponent>& c : m_components)
-		if (c && c->IsEnabled()) c->OnPostRender(cmd);
-
+	for ( std::unique_ptr<CComponent>& c : m_components )
+	{
+		if ( c && c->IsEnabled() )
+			c->OnPostRender(cmd);
+	}
 }
-
 // ============================================================================
 // Camera Visible
 // ============================================================================

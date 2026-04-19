@@ -962,6 +962,7 @@ void CGameScene::ReleaseObjects()
 	m_bWasLocalPlayerInsideMegaGridCenter = false;
 
 	m_navMesh.reset();
+	m_shadowCasterRefs.clear();
 
 #ifndef USING_NETWORK
 	m_monsterSpawnEntries.clear();
@@ -1009,7 +1010,7 @@ void CGameScene::InitShadowMap(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd
 	D3D12_CPU_DESCRIPTOR_HANDLE shadowDsvCpu = m_pd3dShadowDsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 
 	mShadowMap->OnCreate(shadowDsvCpu);
-	mShadowMap->BuildDescriptors(shadowSrvCpu, shadowSrvGpu, shadowDsvCpu);
+	mShadowMap->BuildDescriptors(shadowSrvCpu, shadowSrvGpu, shadowDsvCpu, shadowSrvIndex);
 
 	CGameObject* targetPlayer = GetPlayer();
 	if ( !targetPlayer )
@@ -1043,18 +1044,19 @@ void CGameScene::RenderShadowMap(ID3D12GraphicsCommandList* cmd, const CGameTime
 	mShadowMap->SetTargetObject(targetPlayer);
 
 	std::vector<CGameObject*> casters;
-	casters.reserve(m_staticObjects.size());
+	casters.reserve(m_shadowCasterRefs.size());
 
-	for ( auto& obj : m_staticObjects )
+	for ( CGameObject* obj : m_shadowCasterRefs )
 	{
-		if ( obj )
-			casters.push_back(obj.get());
+		if ( !obj )
+			continue;
+
+		casters.push_back(obj);
 	}
 
 	// NOTE:
-	// 현재 shadow 전용 VS(Shadows.hlsl)는 스키닝(본 인덱스/가중치)을 처리하지 않는다.
-	// 스키닝 섀도우 패스를 별도로 구현하기 전까지는 정적 오브젝트만 그림자 캐스터로 사용한다.
-
+	// 현재 shadow 전용 VS(Shadows.hlsl)는 스키닝을 처리하지 않는다.
+	// 따라서 placement 기반 월드 정적 오브젝트만 shadow caster로 사용한다.
 	mShadowMap->Render(gt, cmd, casters);
 }
 
@@ -2055,6 +2057,9 @@ void CGameScene::BuildStaticBatch(
 	b->objectRefs.clear();
 	b->objectRefs.reserve(cap);
 
+	m_shadowCasterRefs.clear();
+	m_shadowCasterRefs.reserve(m_staticPlacementEntries.size());
+
 	b->count = 0;
 	ResetStaticWorldLodEntries();
 
@@ -2271,6 +2276,7 @@ void CGameScene::BuildStaticBatch(
 		m_staticObjects.push_back(std::move(obj));
 		b->objectRefs.push_back(raw);
 		b->count = ( UINT ) b->objectRefs.size();
+		m_shadowCasterRefs.push_back(raw);
 	}
 
 #ifndef USING_NETWORK

@@ -139,51 +139,6 @@ float3 GetNormalWFromMap(uint packedNormal, float3 normalW_in, float4 tangentW_i
 //---------------------------------------------------------------------------------------
 float CalcShadowFactor(float4 shadowPosH)
 {
-    /*float shadowFactor = 1.0f;
-    
-    if (shadowPosH.w <= 0.0f)
-        return shadowFactor;
-
-    shadowPosH.xyz /= shadowPosH.w;
-
-    if (shadowPosH.x < 0.0f || shadowPosH.x > 1.0f ||
-        shadowPosH.y < 0.0f || shadowPosH.y > 1.0f ||
-        shadowPosH.z < 0.0f || shadowPosH.z > 1.0f)
-    {
-        return shadowFactor;
-    }
-
-    float depth = shadowPosH.z;
-
-    uint width, height, numMips;
-    gtxtGlobalTextures[SHADOW_MAP_SRV_INDEX].GetDimensions(0, width, height, numMips);
-
-    float dx = 1.0f / (float) width;
-
-    float percentLit = 0.0f;
-    const float2 offsets[9] =
-    {
-        float2(-dx, -dx), float2(0.0f, -dx), float2(dx, -dx),
-        float2(-dx, 0.0f), float2(0.0f, 0.0f), float2(dx, 0.0f),
-        float2(-dx, +dx), float2(0.0f, +dx), float2(dx, +dx)
-    };
-
-    [unroll]
-    for (int i = 0; i < 9; ++i)
-    {
-        const float sampledDepth =
-            gtxtGlobalTextures[SHADOW_MAP_SRV_INDEX].SampleLevel(
-                gsamLinearClamp,
-                shadowPosH.xy + offsets[i],
-                0.0f
-            ).r;
-
-        percentLit += (depth <= sampledDepth + 0.0005f) ? 1.0f : 0.0f;
-    }
-
-
-    shadowFactor = percentLit / 9.0f;
-    return shadowFactor;*/
     return 1.0f;
 }
 

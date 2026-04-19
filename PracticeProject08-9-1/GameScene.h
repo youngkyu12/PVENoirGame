@@ -625,5 +625,5 @@ private:
 	);
 public:
     bool IsPointInPauseOverlay(POINT clientPt) const;
-
+	std::vector<CGameObject*> m_shadowCasterRefs;
 };

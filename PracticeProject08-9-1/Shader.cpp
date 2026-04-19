@@ -1370,3 +1370,25 @@ D3D12_SHADER_BYTECODE CShadowShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlo
 {
 	return CShader::CompileShaderFromFile(L"Shadows.hlsl", "PS", "ps_5_1", ppd3dShaderBlob);
 }
+
+void CShadowShader::CreateShader(
+	ID3D12Device* pd3dDevice,
+	ID3D12RootSignature* pd3dGraphicsRootSignature,
+	UINT nRenderTargets,
+	DXGI_FORMAT* pdxgiRtvFormats,
+	DXGI_FORMAT dxgiDsvFormat)
+{
+#ifdef _WITH_SCENE_ROOT_SIGNATURE
+	m_pd3dGraphicsRootSignature = pd3dGraphicsRootSignature;
+#else
+	CreateGraphicsRootSignature(pd3dDevice);
+#endif
+
+	CShader::CreateShader(
+		pd3dDevice,
+		m_pd3dGraphicsRootSignature.Get(),
+		nRenderTargets,
+		pdxgiRtvFormats,
+		dxgiDsvFormat
+	);
+}
