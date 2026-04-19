@@ -874,6 +874,7 @@ void CGameFramework::ProcessInput()
 		inputPkt.set_playerid(g_myPlayerId);
 		inputPkt.set_keycodes(keyCodes);
 
+#endif
 		// 클라이언트 로컬 애니메이션 반영 코드를 살림
 
 		if (pKeysBuffer['W'] & 0xF0) dwDirection |= DIR_FORWARD;
@@ -905,7 +906,6 @@ void CGameFramework::ProcessInput()
 		}
 
 		s_prevSpaceDown = spaceDown;
-#endif
 
 		POINT ptCursorPos{};
 		if ( GetCapture() == m_hWnd )
