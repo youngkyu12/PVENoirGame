@@ -139,12 +139,8 @@ float3 GetNormalWFromMap(uint packedNormal, float3 normalW_in, float4 tangentW_i
 //---------------------------------------------------------------------------------------
 float CalcShadowFactor(float4 shadowPosH)
 {
-    float shadowFactor = 1.0f;
-
-    const uint shadowSrvIndex = gShadowMeta.x;
-    if (shadowSrvIndex == INVALID_TEXTURE_INDEX || shadowSrvIndex >= MAX_GLOBAL_SRVS)
-        return shadowFactor;
-
+    /*float shadowFactor = 1.0f;
+    
     if (shadowPosH.w <= 0.0f)
         return shadowFactor;
 
@@ -160,7 +156,7 @@ float CalcShadowFactor(float4 shadowPosH)
     float depth = shadowPosH.z;
 
     uint width, height, numMips;
-    gtxtGlobalTextures[shadowSrvIndex].GetDimensions(0, width, height, numMips);
+    gtxtGlobalTextures[SHADOW_MAP_SRV_INDEX].GetDimensions(0, width, height, numMips);
 
     float dx = 1.0f / (float) width;
 
@@ -176,7 +172,7 @@ float CalcShadowFactor(float4 shadowPosH)
     for (int i = 0; i < 9; ++i)
     {
         const float sampledDepth =
-            gtxtGlobalTextures[shadowSrvIndex].SampleLevel(
+            gtxtGlobalTextures[SHADOW_MAP_SRV_INDEX].SampleLevel(
                 gsamLinearClamp,
                 shadowPosH.xy + offsets[i],
                 0.0f
@@ -185,9 +181,12 @@ float CalcShadowFactor(float4 shadowPosH)
         percentLit += (depth <= sampledDepth + 0.0005f) ? 1.0f : 0.0f;
     }
 
+
     shadowFactor = percentLit / 9.0f;
-    return shadowFactor;
+    return shadowFactor;*/
+    return 1.0f;
 }
+
 float ResolveLinearDepthFromDeviceZ(float deviceZ)
 {
     const float nearZ = max(0.0001f, gvFogParams1.x);
