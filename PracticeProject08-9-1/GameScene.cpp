@@ -1009,7 +1009,7 @@ void CGameScene::InitShadowMap(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd
 	D3D12_CPU_DESCRIPTOR_HANDLE shadowDsvCpu = m_pd3dShadowDsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 
 	mShadowMap->OnCreate(shadowDsvCpu);
-	mShadowMap->BuildDescriptors(shadowSrvCpu, shadowSrvGpu, shadowDsvCpu);
+	mShadowMap->BuildDescriptors(shadowSrvCpu, shadowSrvGpu, shadowDsvCpu, shadowSrvIndex);
 
 	CGameObject* targetPlayer = GetPlayer();
 	if ( !targetPlayer )
@@ -4777,7 +4777,7 @@ void CGameScene::RenderUI(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 	{
 		PS_CB_DRAW_OPTIONS opt{};
 		opt.m_xmn4DrawOptions = XMINT4('T', 0, 0, 0);
-		opt.m_xmu4PostSrvIdx0 = XMUINT4(2, 0, 0, 0); // t2: shadow map SRV
+		opt.m_xmu4PostSrvIdx0 = XMUINT4(mShadowMap ? mShadowMap->GetSrvIndex() : UINT_MAX, 0, 0, 0); 
 		opt.m_xmu4PostSrvIdx1 = XMUINT4(0, 0, 0, 0);
 		opt.m_xmf4UiRect = XMFLOAT4(180.0f, 130.0f, 320.0f, 180.0f);
 		opt.m_xmf4Viewport = XMFLOAT4(
@@ -5928,12 +5928,12 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 
 void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
-	/*RenderDepthFog(cmd, camera);
+	RenderDepthFog(cmd, camera);
 	RenderUI(cmd, camera);
 
 	if ( m_Collision )
 	{
-	}*/
+	}
 }
 
 void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)

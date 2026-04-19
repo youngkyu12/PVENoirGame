@@ -9,9 +9,11 @@ class CGameObject;
 
 struct CB_SHADOW_PASS
 {
-	DirectX::XMMATRIX ViewProj = {};
+	DirectX::XMFLOAT4X4 ViewProj = Matrix4x4::Identity();
 	DirectX::XMFLOAT4X4 ShadowTransform = Matrix4x4::Identity();
-	DirectX::XMFLOAT3 EyePosW = { 0.0f, 0.0f, 0.0f };
+	DirectX::XMFLOAT3 LightDirectionW = { 0.0f, -1.0f, 0.0f };
+	float PadShadow0 = 0.0f;
+	DirectX::XMUINT4 ShadowMeta = DirectX::XMUINT4(UINT_MAX, 0, 0, 0);
 };
 
 class ShadowMap
@@ -50,9 +52,11 @@ public:
 	void BuildDescriptors(
 		D3D12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
 		D3D12_GPU_DESCRIPTOR_HANDLE hGpuSrv,
-		D3D12_CPU_DESCRIPTOR_HANDLE hCpuDsv);
+		D3D12_CPU_DESCRIPTOR_HANDLE hCpuDsv,
+		UINT shadowSrvIndex);
 
 	void OnResize(UINT newWidth, UINT newHeight);
+	UINT GetSrvIndex() const { return m_nShadowSrvIndex; }
 
 private:
 	void BuildDescriptors();
@@ -92,4 +96,6 @@ private:
 	DirectX::XMFLOAT4X4 mLightView = Matrix4x4::Identity();
 	DirectX::XMFLOAT4X4 mLightProj = Matrix4x4::Identity();
 	DirectX::XMFLOAT4X4 mShadowTransform = Matrix4x4::Identity();
+	
+	UINT m_nShadowSrvIndex = UINT_MAX;
 };

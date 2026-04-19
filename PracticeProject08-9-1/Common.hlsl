@@ -15,7 +15,7 @@
 //#define _WITH_REFLECT
 
 Texture2D gtxtGlobalTextures[MAX_GLOBAL_SRVS] : register(t0);
-static const uint SHADOW_MAP_SRV_INDEX = 2u;
+//static const uint SHADOW_MAP_SRV_INDEX = 2u;
 
 cbuffer cbPlayerInfo : register(b0)
 {
@@ -82,6 +82,8 @@ cbuffer cbShadowPass : register(b8)
     float4x4 gShadowTransform;
     float3 gLightDirectionW;
     float _padShadow0;
+
+    uint4 gShadowMeta; // x = shadowMapSrvIndex
 };
 
 StructuredBuffer<float4x4> gBonePalette : register(t0, space1);
