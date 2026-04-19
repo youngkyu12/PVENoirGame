@@ -5,7 +5,9 @@
 struct VertexIn
 {
     float3 PosL : POSITION;
+    float3 NormalL : NORMAL;
     float2 TexC : TEXCOORD;
+    float4 TangentL : TANGENT;
 };
 
 struct VertexOut
@@ -20,13 +22,13 @@ VertexOut VS(VertexIn vin)
 	
     // Transform to world space.
     float4 posW = mul(float4(vin.PosL, 1.0f), gmtxGameObject);
-
+    
     // Transform to homogeneous clip space.
-    vout.PosH = mul(posW, gViewProj);
+    float4 posV = mul(posW, gmtxView);
+    vout.PosH = mul(posV, gmtxProjection);
 	
 	// Output vertex attributes for interpolation across triangle.
-    float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), gTexTransform);
-    vout.TexC = mul(texC, gTexTransform).xy;
+    vout.TexC = vin.TexC;
 	
     return vout;
 }
