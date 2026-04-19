@@ -19,7 +19,7 @@ Service::~Service()
 
 void Service::CloseService()
 {
-	// TODO
+
 }
 
 void Service::BroadCast(SendBufferRef sendBuffer)

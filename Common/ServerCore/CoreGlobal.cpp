@@ -35,9 +35,9 @@ public:
 
 	~CoreGlobal()
 	{
-		delete GSendBufferManager;
 		delete GThreadManager;
 		delete GMemory;
+		delete GSendBufferManager;
 		delete GGlobalQueue;
 		delete GJobTimer;
 		delete GDeadLockProfiler;
