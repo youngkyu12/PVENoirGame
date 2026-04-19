@@ -86,7 +86,7 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* dev)
     pd3dDescriptorRanges[1].RegisterSpace = 0;
     pd3dDescriptorRanges[1].OffsetInDescriptorsFromTableStart = 0;
 
-    D3D12_ROOT_PARAMETER pd3dRootParameters[10] = {};
+    D3D12_ROOT_PARAMETER pd3dRootParameters[11] = {};
 
     pd3dRootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     pd3dRootParameters[0].Descriptor.ShaderRegister = 1;
@@ -138,6 +138,11 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* dev)
 	pd3dRootParameters[9].Descriptor.ShaderRegister = 7; // b7
 	pd3dRootParameters[9].Descriptor.RegisterSpace = 0;
 	pd3dRootParameters[9].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	pd3dRootParameters[10].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	pd3dRootParameters[10].Descriptor.ShaderRegister = 8; // b8
+	pd3dRootParameters[10].Descriptor.RegisterSpace = 0;
+	pd3dRootParameters[10].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	auto ad3dSamplerDesces = GetStaticSamplers();
     

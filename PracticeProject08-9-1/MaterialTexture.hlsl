@@ -185,4 +185,63 @@ float CalcShadowFactor(float4 shadowPosH)
     return shadowFactor;
 }
 
+float ResolveLinearDepthFromDeviceZ(float deviceZ)
+{
+    const float nearZ = max(0.0001f, gvFogParams1.x);
+    const float farZ = max(nearZ + 0.0001f, gvFogParams1.y);
+
+    // deviceZ: [0,1] depth
+    const float zNdc = deviceZ * 2.0f - 1.0f;
+
+    const float denom = max(
+        0.0001f,
+        farZ + nearZ - zNdc * (farZ - nearZ)
+    );
+
+    return (2.0f * nearZ * farZ) / denom;
+}
+
+float ComputeFogFactorLinear(float linearDepth)
+{
+    const float fogStart = max(0.0f, gvFogParams0.x);
+    const float fogEnd = max(fogStart + 0.0001f, gvFogParams0.y);
+
+    return saturate((linearDepth - fogStart) / (fogEnd - fogStart));
+}
+
+float ComputeFogFactorExp(float linearDepth)
+{
+    const float density = max(0.0001f, gvFogParams0.z);
+    return saturate(1.0f - exp(-linearDepth * density));
+}
+
+float ComputeFogFactorExp2(float linearDepth)
+{
+    const float density = max(0.0001f, gvFogParams0.z);
+    const float x = linearDepth * density;
+    return saturate(1.0f - exp(-(x * x)));
+}
+
+float ComputeFogFactor(float linearDepth)
+{
+    if (gvFogParams0.w <= 0.0f)
+        return 0.0f;
+
+    const uint fogMode = (uint) (gvFogParams1.z + 0.5f);
+
+    float baseFogFactor = 0.0f;
+
+    if (fogMode == 1u)
+        baseFogFactor = ComputeFogFactorExp(linearDepth);
+    else if (fogMode == 2u)
+        baseFogFactor = ComputeFogFactorExp2(linearDepth);
+    else
+        baseFogFactor = ComputeFogFactorLinear(linearDepth);
+
+    const float fogIntensity = saturate(gvFogParams1.w);
+    return baseFogFactor * fogIntensity;
+}
+
+
+
 #endif

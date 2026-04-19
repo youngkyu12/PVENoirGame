@@ -58,7 +58,24 @@ cbuffer cbPerDrawMaterialId : register(b6)
     uint gnMaterialID;
 };
 
-cbuffer cbShadowPass : register(b7)
+cbuffer cbFog : register(b7)
+{
+    float4 gvFogColor;
+
+    // x = fogStart
+    // y = fogEnd
+    // z = fogDensity
+    // w = fogEnable
+    float4 gvFogParams0;
+
+    // x = cameraNear
+    // y = cameraFar
+    // z = fogMode (0=Linear, 1=Exp, 2=Exp2)
+    // w = reserved
+    float4 gvFogParams1;
+};
+
+cbuffer cbShadowPass : register(b8)
 {
     float4x4 gLightViewProj;
     float4x4 gShadowTransform;
