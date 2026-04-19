@@ -86,6 +86,7 @@ private:
 	CB_SHADOW_PASS* m_pcbMappedShadowPass = nullptr;
 
 	DirectX::XMFLOAT3 mLightPosW = { 0.0f, 0.0f, 0.0f };
+	DirectX::XMFLOAT3 mLightDirW = { 0.0f, -1.0f, 0.0f };
 	float mLightNearZ = 0.0f;
 	float mLightFarZ = 0.0f;
 	DirectX::XMFLOAT4X4 mLightView = Matrix4x4::Identity();

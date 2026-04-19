@@ -72,10 +72,11 @@ CB_SHADOW_PASS ShadowMap::GetConstants()
 	const XMMATRIX lightView = XMLoadFloat4x4(&mLightView);
 	const XMMATRIX lightProj = XMLoadFloat4x4(&mLightProj);
 	const XMMATRIX lightViewProj = XMMatrixMultiply(lightView, lightProj);
+	const XMMATRIX shadowTransform = XMLoadFloat4x4(&mShadowTransform);
 
 	shadowInfo.ViewProj = XMMatrixTranspose(lightViewProj);
-	shadowInfo.ShadowTransform = mShadowTransform;
-	shadowInfo.EyePosW = mLightPosW;
+	XMStoreFloat4x4(&shadowInfo.ShadowTransform, XMMatrixTranspose(shadowTransform));
+	shadowInfo.EyePosW = mLightDirW;
 	return shadowInfo;
 }
 
@@ -145,6 +146,7 @@ void ShadowMap::OnUpdate()
 
 	XMVECTOR target = XMLoadFloat3(&targetPos);
 	XMVECTOR dir = XMVector3Normalize(XMLoadFloat3(&lightDir));
+	XMStoreFloat3(&mLightDirW, dir);
 	XMVECTOR lightPos = XMVectorSubtract(target, XMVectorScale(dir, 150.0f));
 	const XMVECTOR upDir = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
