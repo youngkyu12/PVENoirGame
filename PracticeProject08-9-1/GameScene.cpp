@@ -4773,7 +4773,7 @@ void CGameScene::RenderUI(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 		}
 	}
 
-	if ( m_bShowShadowMapOverlay && mShadowMap )
+	if ( false && m_bShowShadowMapOverlay && mShadowMap )
 	{
 		PS_CB_DRAW_OPTIONS opt{};
 		opt.m_xmn4DrawOptions = XMINT4('T', 0, 0, 0);
@@ -5928,12 +5928,12 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 
 void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
-	RenderDepthFog(cmd, camera);
+	/*RenderDepthFog(cmd, camera);
 	RenderUI(cmd, camera);
 
 	if ( m_Collision )
 	{
-	}
+	}*/
 }
 
 void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)

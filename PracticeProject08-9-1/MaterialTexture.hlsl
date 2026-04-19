@@ -139,7 +139,7 @@ float3 GetNormalWFromMap(uint packedNormal, float3 normalW_in, float4 tangentW_i
 //---------------------------------------------------------------------------------------
 float CalcShadowFactor(float4 shadowPosH)
 {
-    float shadowFactor = 1.0f;
+    /*float shadowFactor = 1.0f;
     
     if (shadowPosH.w <= 0.0f)
         return shadowFactor;
@@ -183,7 +183,8 @@ float CalcShadowFactor(float4 shadowPosH)
 
 
     shadowFactor = percentLit / 9.0f;
-    return shadowFactor;
+    return shadowFactor;*/
+    return 1.0f;
 }
 
 float ResolveLinearDepthFromDeviceZ(float deviceZ)
