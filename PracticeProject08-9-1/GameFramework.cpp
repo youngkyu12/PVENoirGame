@@ -254,6 +254,19 @@ void CGameFramework::CreateDirect3DDevice()
 void CGameFramework::CreateCommandQueueAndList()
 {
 	HRESULT hResult;
+#if defined(_DEBUG)
+	m_pd3dDevice->QueryInterface(IID_PPV_ARGS(&infoQueue));
+
+	// 치명적인 문제(CORRUPTION) 디버깅 종료
+	infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
+
+	// 에러(ERROR) 디버깅 종료
+	//infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
+
+	// 경고(WARNING) 무시
+	infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, FALSE);
+#endif
+	
 
 	D3D12_COMMAND_QUEUE_DESC d3dCommandQueueDesc;
 	::ZeroMemory(&d3dCommandQueueDesc, sizeof(D3D12_COMMAND_QUEUE_DESC));
@@ -549,17 +562,18 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 	D3D12_CPU_DESCRIPTOR_HANDLE d3dRtvCPUDescriptorHandle = m_pd3dRtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	d3dRtvCPUDescriptorHandle.ptr += (::gnRtvDescriptorIncrementSize * m_nSwapChainBuffers);
 
-	DXGI_FORMAT pdxgiResourceFormats[4] = {
-		DXGI_FORMAT_R8G8B8A8_UNORM,
-		DXGI_FORMAT_R8G8B8A8_UNORM,
-		DXGI_FORMAT_R8G8B8A8_UNORM,
-		DXGI_FORMAT_R32_FLOAT
+	DXGI_FORMAT pdxgiResourceFormats[5] = {
+	DXGI_FORMAT_R8G8B8A8_UNORM, // SV_TARGET0 : color
+	DXGI_FORMAT_R8G8B8A8_UNORM, // SV_TARGET1 : cTexture
+	DXGI_FORMAT_R8G8B8A8_UNORM, // SV_TARGET2 : cIllumination
+	DXGI_FORMAT_R8G8B8A8_UNORM, // SV_TARGET3 : normal
+	DXGI_FORMAT_R32_FLOAT       // SV_TARGET4 : zDepth
 	};
 
 	m_pPostProcessingShader->CreateResourcesAndRtvsSrvs(
 		m_pd3dDevice.Get(),
 		m_pd3dCommandList.Get(),
-		4,
+		5,
 		pdxgiResourceFormats,
 		d3dRtvCPUDescriptorHandle);
 
@@ -568,6 +582,14 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 		m_pd3dDepthStencilBuffer.Get(),
 		DXGI_FORMAT_R24_UNORM_X8_TYPELESS);
 	(void)d3dDsvGPUDescriptorHandle;
+
+	if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
+	{
+		gameScene->SetDepthFogSourceSrvIndices(
+			m_pPostProcessingShader->GetTexture()->GetSrvIndex(0),
+			m_pPostProcessingShader->GetTexture()->GetSrvIndex(4)
+		);
+	}
 
 	hr = m_pd3dCommandList->Close();
 	(void)hr;
@@ -1078,6 +1100,13 @@ void CGameFramework::FrameAdvance()
 	);
 
 	CScene* scene = m_SceneManager.GetScene();
+	CGameScene* gameScene = dynamic_cast< CGameScene* >( scene );
+
+	if ( gameScene && ( m_nDrawOption == DRAW_SCENE_COLOR ) )
+	{
+		gameScene->RenderShadowMap(m_pd3dCommandList.Get(), m_GameTimer);
+	}
+
 	if (scene)
 		scene->OnPrepareRender(m_pd3dCommandList.Get(), m_pCamera);
 
@@ -1092,17 +1121,59 @@ void CGameFramework::FrameAdvance()
 			nullptr
 		);
 
-		m_pPostProcessingShader->OnPrepareRenderTarget(
-			m_pd3dCommandList.Get(),
-			1,
-			&m_pd3dSwapChainBackBufferRTVCPUHandles[m_nSwapChainBufferIndex],
-			&m_d3dDsvDescriptorCPUHandle
-		);
+		if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
+		{
+			// 1) Geometry pass -> offscreen MRT only
+			m_pPostProcessingShader->OnPrepareSceneRenderTargets(
+				m_pd3dCommandList.Get(),
+				&m_d3dDsvDescriptorCPUHandle
+			);
 
-		if (scene)
-			scene->Render(m_pd3dCommandList.Get(), m_pCamera);
+			gameScene->OnPrepareRender(m_pd3dCommandList.Get(), m_pCamera);
+			gameScene->RenderSceneGeometry(m_pd3dCommandList.Get(), m_pCamera);
 
-		m_pPostProcessingShader->OnPostRenderTarget(m_pd3dCommandList.Get());
+			m_pPostProcessingShader->OnPostRenderTarget(m_pd3dCommandList.Get());
+
+			// 2) Composite pass -> backbuffer only
+			m_pd3dCommandList->ClearRenderTargetView(
+				m_pd3dSwapChainBackBufferRTVCPUHandles[m_nSwapChainBufferIndex],
+				Colors::SkyBlue,
+				0,
+				nullptr
+			);
+
+			m_pd3dCommandList->OMSetRenderTargets(
+				1,
+				&m_pd3dSwapChainBackBufferRTVCPUHandles[m_nSwapChainBufferIndex],
+				FALSE,
+				nullptr
+			);
+
+			gameScene->OnPrepareRender(m_pd3dCommandList.Get(), m_pCamera);
+			gameScene->RenderSceneComposite(m_pd3dCommandList.Get(), m_pCamera);
+		}
+		else
+		{
+			m_pd3dCommandList->ClearRenderTargetView(
+				m_pd3dSwapChainBackBufferRTVCPUHandles[m_nSwapChainBufferIndex],
+				Colors::SkyBlue,
+				0,
+				nullptr
+			);
+
+			m_pd3dCommandList->OMSetRenderTargets(
+				1,
+				&m_pd3dSwapChainBackBufferRTVCPUHandles[m_nSwapChainBufferIndex],
+				FALSE,
+				&m_d3dDsvDescriptorCPUHandle
+			);
+
+			if ( scene )
+			{
+				scene->OnPrepareRender(m_pd3dCommandList.Get(), m_pCamera);
+				scene->Render(m_pd3dCommandList.Get(), m_pCamera);
+			}
+		}
 	}
 	else
 	{
