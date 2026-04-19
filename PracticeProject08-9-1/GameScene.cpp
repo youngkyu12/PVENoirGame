@@ -1406,6 +1406,34 @@ void CGameScene::InitShadowMap(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd
 	mShadowMap->UpdateShadowPassCB();
 }
 
+void CGameScene::RenderShadowMap(ID3D12GraphicsCommandList* cmd, const CGameTimer& gt)
+{
+	if ( !cmd || !mShadowMap )
+		return;
+
+	CGameObject* targetPlayer = GetPlayer();
+	if ( !targetPlayer )
+		targetPlayer = GetPlayerBySlot(0);
+	mShadowMap->SetTargetObject(targetPlayer);
+
+	std::vector<CGameObject*> casters;
+	casters.reserve(m_staticObjects.size() + m_skinnedObjects.size());
+
+	for ( auto& obj : m_staticObjects )
+	{
+		if ( obj )
+			casters.push_back(obj.get());
+	}
+
+	for ( auto& obj : m_skinnedObjects )
+	{
+		if ( obj )
+			casters.push_back(obj.get());
+	}
+
+	mShadowMap->Render(gt, cmd, casters);
+}
+
 void CGameScene::ReleaseUploadBuffers()
 {
     for (UINT j = 0; j < (UINT)m_staticObjects.size(); ++j)
@@ -6909,6 +6937,9 @@ void CGameScene::OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera
         D3D12_GPU_VIRTUAL_ADDRESS matsGpu = m_pd3dcbMaterials->GetGPUVirtualAddress();
         cmd->SetGraphicsRootConstantBufferView(ROOT_PARAMETER_MATERIAL, matsGpu);
     }
+
+	if ( mShadowMap )
+		mShadowMap->BindShadowPassCB(cmd);
 }
 
 void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)

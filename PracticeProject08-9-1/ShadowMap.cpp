@@ -17,6 +17,15 @@ ShadowMap::ShadowMap(ID3D12Device* device, CShader* shader, UINT width, UINT hei
 	UpdateShadowPassCB();
 }
 
+ShadowMap::~ShadowMap()
+{
+	if ( m_pd3dcbShadowPass && m_pcbMappedShadowPass )
+	{
+		m_pd3dcbShadowPass->Unmap(0, nullptr);
+		m_pcbMappedShadowPass = nullptr;
+	}
+}
+
 UINT ShadowMap::Width() const
 {
 	return mWidth;

@@ -213,6 +213,7 @@ public:
     bool ProcessInput(UCHAR* pKeysBuffer) override;
     void AnimateObjects(float dt) override;
     void CollisionObjects() override;
+	void RenderShadowMap(ID3D12GraphicsCommandList* cmd, const CGameTimer& gt);
 
     void OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera) override;
     void Render(ID3D12GraphicsCommandList* cmd, CCamera* camera = nullptr) override;
