@@ -248,6 +248,11 @@ public:
 		D3D12_CPU_DESCRIPTOR_HANDLE* pd3dDsvCPUHandle
 	);
 
+	virtual void OnPrepareSceneRenderTargets(
+		ID3D12GraphicsCommandList* pd3dCommandList,
+		D3D12_CPU_DESCRIPTOR_HANDLE* pd3dDsvCPUHandle
+	);
+
 	virtual void OnPostRenderTarget(ID3D12GraphicsCommandList* pd3dCommandList);
 
 	// Render
@@ -342,4 +347,30 @@ public:
 	virtual D3D12_RASTERIZER_DESC CreateRasterizerState();
 	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob);
 	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob);
+}
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+class CDepthFogShader final : public CTextureToFullScreenShader
+{
+public:
+	CDepthFogShader() = default;
+	~CDepthFogShader() override = default;
+
+public:
+	// 중요: Scene이 이미 RootSig/DescriptorTable을 세팅하므로
+	// Shader가 RootSig를 다시 Set하지 않게 CreateShader를 재정의한다.
+	void CreateShader(
+		ID3D12Device* dev,
+		ID3D12RootSignature* sceneRootSig,
+		UINT nRenderTargets,
+		DXGI_FORMAT* rtvFormats,
+		DXGI_FORMAT dsvFormat
+	) override;
+
+	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
+
+	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
+	D3D12_BLEND_DESC CreateBlendState() override;
+	D3D12_DEPTH_STENCIL_DESC CreateDepthStencilState() override;
+
+	void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd, void* pContext) override;
 };

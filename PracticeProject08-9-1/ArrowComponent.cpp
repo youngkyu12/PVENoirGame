@@ -3,6 +3,22 @@
 #include "Object.h"
 #include "ColliderComponent.h"
 
+namespace
+{
+	enum : uint32_t
+	{
+		kCollisionLayerPlayer = 0,
+		kCollisionLayerMonster = 1,
+		kCollisionLayerPlayerWeapon = 3,
+		kCollisionLayerMonsterWeapon = 4
+	};
+
+	static constexpr uint32_t CollisionBit(uint32_t layer)
+	{
+		return ( 1u << layer );
+	}
+}
+
 CArrowComponent::CArrowComponent(CGameObject* owner)
     : CComponentT<CArrowComponent>(owner)
 {
@@ -30,35 +46,74 @@ XMFLOAT3 CArrowComponent::GetForwardFromObject(const CGameObject* obj)
     return NormalizeSafe(XMFLOAT3(W._31, W._32, W._33));
 }
 
-void CArrowComponent::Activate(const XMFLOAT3& position, const XMFLOAT3& velocity, float lifeSec)
+void CArrowComponent::ApplyProjectileColliderProfile()
 {
-    CGameObject* owner = GetOwner();
-    if (!owner) return;
+	CGameObject* owner = GetOwner();
+	if ( !owner ) return;
 
-    owner->SetPosition(position);
+	auto* collider = owner->GetComponent<CColliderComponent>();
+	if ( !collider ) return;
 
-    m_bowObject = nullptr;
-    m_directionSource = nullptr;
-    m_pullBackDistance = 0.0f;
+	if ( m_firedByPlayer )
+	{
+		collider->SetLayer(kCollisionLayerPlayerWeapon);
+		collider->SetMask(CollisionBit(kCollisionLayerMonster));
+	}
+	else
+	{
+		collider->SetLayer(kCollisionLayerMonsterWeapon);
+		collider->SetMask(CollisionBit(kCollisionLayerPlayer));
+	}
+}
+
+XMFLOAT3 CArrowComponent::BuildLaunchVelocity(float speed) const
+{
+	const CGameObject* source = m_directionSource ? m_directionSource : GetOwner();
+	const XMFLOAT3 dir = GetForwardFromObject(source);
+
+	return XMFLOAT3(
+		dir.x * speed,
+		dir.y * speed,
+		dir.z * speed
+	);
+}
+
+void CArrowComponent::Activate(const XMFLOAT3& position, const XMFLOAT3& velocity, float lifeSec, bool firedByPlayer) 
+{
+	CGameObject* owner = GetOwner();
+	if ( !owner ) return;
+
+	owner->SetPosition(position);
+
+	m_bowObject = nullptr;
+	m_directionSource = nullptr;
+	m_pullBackDistance = 0.0f;
 
 	m_velocity = velocity;
 	m_lifeRemaining = ( lifeSec > 0.0f ) ? lifeSec : 0.0f;
 	m_enableCollisionOnLaunch = true;
+	m_firedByPlayer = firedByPlayer;
 	m_state = EState::Flying;
+
+	if ( auto* tr = owner->GetComponent<CTransformComponent>() )
+	{
+		tr->SetLookDirection(NormalizeSafe(velocity));
+	}
+
+	ApplyProjectileColliderProfile();
 
 	if ( auto* collider = owner->GetComponent<CColliderComponent>() )
 	{
 		collider->SetCollisionEnabled(true);
-	}	
-
-	
+	}
 }
 
 void CArrowComponent::Prepare(
 	CGameObject* bowObject,
 	CGameObject* directionSource,
 	float pullBackDistance,
-	bool enableCollisionOnLaunch) 
+	bool firedByPlayer,
+	bool enableCollisionOnLaunch)
 {
     CGameObject* owner = GetOwner();
     if (!owner || !bowObject) return;
@@ -70,7 +125,10 @@ void CArrowComponent::Prepare(
 	m_velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
 	m_lifeRemaining = 0.0f;
 	m_enableCollisionOnLaunch = enableCollisionOnLaunch;
+	m_firedByPlayer = firedByPlayer;
 	m_state = EState::Prepared;
+
+	ApplyProjectileColliderProfile();
 
 	if ( auto* collider = owner->GetComponent<CColliderComponent>() )
 	{
@@ -78,6 +136,16 @@ void CArrowComponent::Prepare(
 	}
 
 	OnUpdate(0.0f); // 즉시 스냅
+}
+
+bool CArrowComponent::LaunchPrepared(float speed, float lifeSec, bool enableCollision)
+{
+	if ( m_state != EState::Prepared )
+		return false;
+
+	const XMFLOAT3 velocity = BuildLaunchVelocity(speed);
+	Launch(velocity, lifeSec, enableCollision);
+	return ( m_state == EState::Flying );
 }
 
 void CArrowComponent::Launch(const XMFLOAT3& velocity, float lifeSec, bool enableCollision) 
@@ -94,8 +162,16 @@ void CArrowComponent::Launch(const XMFLOAT3& velocity, float lifeSec, bool enabl
 	m_state = EState::Flying;
 
 	CGameObject* owner = GetOwner();
+
 	if ( owner )
 	{
+		if ( auto* tr = owner->GetComponent<CTransformComponent>() )
+		{
+			tr->SetLookDirection(NormalizeSafe(velocity));
+		}
+
+		ApplyProjectileColliderProfile();
+
 		if ( auto* collider = owner->GetComponent<CColliderComponent>() )
 		{
 			collider->SetCollisionEnabled(enableCollision && m_enableCollisionOnLaunch);
