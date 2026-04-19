@@ -1,3 +1,4 @@
+//MaterialTexture.hlsl
 #ifndef __MATERIAL_TEXTURE_HLSL__
 #define __MATERIAL_TEXTURE_HLSL__
 

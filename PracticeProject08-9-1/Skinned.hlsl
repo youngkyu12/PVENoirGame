@@ -1,3 +1,4 @@
+//Skinned.hlsl
 #ifndef __SKINNED_VS_HLSL__
 #define __SKINNED_VS_HLSL__
 
