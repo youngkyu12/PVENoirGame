@@ -37,9 +37,8 @@ void CDescriptorHeap::CreateCbvSrvDescriptorHeaps(
 
 	m_nCbvDescriptors = (UINT)nConstantBufferViews;
 	m_nSrvDescriptors = (UINT)nShaderResourceViews;
-	m_nSrvAllocated = 0;
-
-	m_nSrvAllocated = 0;            // 앞쪽(머티리얼) 커서
+	constexpr UINT kReservedLegacySrv = 6; // t0~t5는 고정 슬롯(예: t2 shadow map)
+	m_nSrvAllocated = min(kReservedLegacySrv, m_nSrvDescriptors); // 앞쪽(머티리얼) 커서 시작
 	m_nSrvBack = m_nSrvDescriptors; // 뒤쪽(기타) 커서 (exclusive)
 }
 

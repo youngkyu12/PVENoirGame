@@ -35,13 +35,20 @@ void CShader::ReleaseUploadBuffers()
 
 D3D12_SHADER_BYTECODE CShader::CompileShaderFromFile(const WCHAR* pszFileName, LPCSTR pszShaderName, LPCSTR pszShaderProfile, ID3DBlob** ppd3dShaderBlob)
 {
+	D3D12_SHADER_BYTECODE d3dShaderByteCode = {};
+
+	if ( !ppd3dShaderBlob )
+		return d3dShaderByteCode;
+
+	*ppd3dShaderBlob = nullptr;
+
 	UINT nCompileFlags = 0;
 #if defined(_DEBUG)
 	nCompileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
 
 	ComPtr<ID3DBlob> pd3dErrorBlob;
-	::D3DCompileFromFile(
+	HRESULT hr = ::D3DCompileFromFile(
 		pszFileName,
 		nullptr,
 		D3D_COMPILE_STANDARD_FILE_INCLUDE,
@@ -53,7 +60,14 @@ D3D12_SHADER_BYTECODE CShader::CompileShaderFromFile(const WCHAR* pszFileName, L
 		&pd3dErrorBlob
 	);
 
-	D3D12_SHADER_BYTECODE d3dShaderByteCode;
+	if ( pd3dErrorBlob && pd3dErrorBlob->GetBufferPointer() )
+		OutputDebugStringA(static_cast< const char* >( pd3dErrorBlob->GetBufferPointer() ));
+
+	if ( FAILED(hr) || !( *ppd3dShaderBlob ) )
+	{
+		OutputDebugStringA("[Shader] D3DCompileFromFile failed.\n");
+		return d3dShaderByteCode;
+	}
 	d3dShaderByteCode.BytecodeLength = (*ppd3dShaderBlob)->GetBufferSize();
 	d3dShaderByteCode.pShaderBytecode = (*ppd3dShaderBlob)->GetBufferPointer();
 
@@ -1216,4 +1230,39 @@ void CTextureToFullScreenShader::UpdateShaderVariables(ID3D12GraphicsCommandList
 void CTextureToFullScreenShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext)
 {
 	CPostProcessingShader::Render(pd3dCommandList, pCamera, pContext);
+}
+
+D3D12_INPUT_LAYOUT_DESC CShadowShader::CreateInputLayout()
+{
+	UINT nInputElementDescs = 4;
+	D3D12_INPUT_ELEMENT_DESC* desc = new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
+
+	desc[0] = { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
+	desc[1] = { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
+	desc[2] = { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
+	desc[3] = { "TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
+
+	D3D12_INPUT_LAYOUT_DESC layout{};
+	layout.pInputElementDescs = desc;
+	layout.NumElements = nInputElementDescs;
+	return layout;
+}
+
+D3D12_RASTERIZER_DESC CShadowShader::CreateRasterizerState()
+{
+	D3D12_RASTERIZER_DESC rasterizer = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	rasterizer.DepthBias = 100000;
+	rasterizer.DepthBiasClamp = 0.0f;
+	rasterizer.SlopeScaledDepthBias = 1.0f;
+	return rasterizer;
+}
+
+D3D12_SHADER_BYTECODE CShadowShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(L"Shadows.hlsl", "VS", "vs_5_1", ppd3dShaderBlob);
+}
+
+D3D12_SHADER_BYTECODE CShadowShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(L"Shadows.hlsl", "PS", "ps_5_1", ppd3dShaderBlob);
 }
