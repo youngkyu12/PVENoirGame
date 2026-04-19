@@ -84,6 +84,32 @@ namespace
 		return ( 1u << layer );
 	}
 
+	enum : uint32_t
+	{
+		kNetworkEnemyTypeNone = 0,
+		kNetworkEnemyTypeBasic = 1,
+		kNetworkEnemyTypeArcher = 2,
+		kNetworkEnemyTypeWarrior = 3,
+		kNetworkEnemyTypeBoss = 4,
+		kNetworkEnemyTypeMutant = 5
+	};
+
+	static void ConfigureProjectileCollider(CColliderComponent* collider, bool firedByPlayer)
+	{
+		if ( !collider ) return;
+
+		if ( firedByPlayer )
+		{
+			collider->SetLayer(kCollisionLayerPlayerWeapon);
+			collider->SetMask(CollisionBit(kCollisionLayerMonster));
+		}
+		else
+		{
+			collider->SetLayer(kCollisionLayerMonsterWeapon);
+			collider->SetMask(CollisionBit(kCollisionLayerPlayer));
+		}
+	}
+
     struct DecodedAnimStateCode
     {
         bool hasMove = false;
@@ -238,25 +264,57 @@ namespace
 		return true;
 	}
 
-    static void BuildStaticPlacementsFromNetworkGameStart(
-        const GameStartData& gameStartData,
-        std::vector<StaticPlacementEntry>& outEntries)
+    static std::string ToLowerAscii(const std::string& text)
     {
-        outEntries.clear();
-        outEntries.reserve(gameStartData.buildings.size());
+        std::string out = text;
+        std::transform(out.begin(), out.end(), out.begin(),
+            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        return out;
+    }
 
-        for (const auto& b : gameStartData.buildings)
+    static bool ResolvePlacementFilePathFromMapId(const std::string& mapId, std::string& outPlacementFilePath)
+    {
+        std::string normalized = ToLowerAscii(TrimString(mapId));
+
+        if (normalized.size() >= 2 && normalized.front() == '"' && normalized.back() == '"')
+            normalized = normalized.substr(1, normalized.size() - 2);
+
+        if (normalized.empty() ||
+            normalized == "full" ||
+            normalized == "fullstage" ||
+            normalized == "map_fullstage" ||
+            normalized == "mapdata_fullstage")
         {
-            if (b.assetName.empty())
-                continue;
-
-            StaticPlacementEntry entry{};
-            entry.assetName = b.assetName;
-            entry.objectName = "NetBuilding_" + std::to_string(b.id);
-            entry.pos = b.position;
-            entry.yawDeg = b.yaw;
-            outEntries.push_back(std::move(entry));
+            outPlacementFilePath = "MapData/MapData_fullstage(NoTree).txt";
+            return true;
         }
+
+        if (normalized == "fullstage_tree" ||
+            normalized == "map_fullstage_tree" ||
+            normalized == "mapdata_fullstage_tree")
+        {
+            outPlacementFilePath = "MapData/MapData_fullstage.txt";
+            return true;
+        }
+
+        if (normalized == "stage1" ||
+            normalized == "map_stage1" ||
+            normalized == "mapdata_stage1")
+        {
+            outPlacementFilePath = "MapData/MapData_stage1_with_Tree.txt";
+            return true;
+        }
+
+        if (normalized == "test" ||
+            normalized == "tst" ||
+            normalized == "map_tst" ||
+            normalized == "mapdata_tst")
+        {
+            outPlacementFilePath = "MapData/MapData_tst.txt";
+            return true;
+        }
+
+        return false;
     }
 
 	static int ClampStaticWorldLodLevel(int lodLevel)
@@ -1198,8 +1256,51 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	}
 
 	const GameStartData& gameStartData = std::get<GameStartData>(m_pendingNetworkMessage.data);
-	BuildStaticPlacementsFromNetworkGameStart(gameStartData, m_staticPlacementEntries);
+
+	std::string placementFilePath;
+	if ( !ResolvePlacementFilePathFromMapId(gameStartData.mapId, placementFilePath) )
+	{
+		assert(false && "Unknown mapId received from server");
+		return;
+	}
+
+	if ( !LoadStaticPlacementFile(placementFilePath) )
+	{
+		assert(false && "Failed to load placement data for mapId");
+		return;
+	}
+
 	ApplyStaticPlacementCounts();
+
+	m_ghoulCount = 0;
+	m_swordManCount = 0;
+	m_bowManCount = 0;
+	m_MutantCount = 0;
+	m_bossCount = 0;
+
+	for ( const EnemyState& enemyState : gameStartData.enemies )
+	{
+		switch ( enemyState.enemyType )
+		{
+		case kNetworkEnemyTypeArcher:
+			++m_bowManCount;
+			break;
+		case kNetworkEnemyTypeWarrior:
+			++m_swordManCount;
+			break;
+		case kNetworkEnemyTypeBoss:
+			++m_bossCount;
+			break;
+		case kNetworkEnemyTypeMutant:
+			++m_MutantCount;
+			break;
+		case kNetworkEnemyTypeNone:
+		case kNetworkEnemyTypeBasic:
+		default:
+			++m_ghoulCount;
+			break;
+		}
+	}
 #else
 	m_localPlayerSlot = 0;
 
@@ -5570,6 +5671,8 @@ void CGameScene::AnimateObjects(float dt)
 
             auto* tag = obj->GetComponent<CActorTagComponent>();
             if (!tag || tag->kind != EActorKind::NPC) continue;
+
+			if ( j != snapshot.enemies[enemyIndex].id ) continue;
 
             if (enemyIndex < (UINT)snapshot.enemies.size())
             {

@@ -57,11 +57,12 @@ bool Handle_S_ENTER_GAME(PacketSessionRef& session, Protocol::S_ENTER_GAME& pkt)
 bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
 {
 	// 초기 정보를 수신받아 적용
+	const std::string& mapId = pkt.mapid();
 
 	Protocol::InitStruct worldInit = pkt.initstruct();
 	auto players = worldInit.players();
 	auto enemies = worldInit.enemies();
-	//auto buildings = worldInit.buildings();
+	(void)mapId;
 
 	for (auto& player : players)
 	{
