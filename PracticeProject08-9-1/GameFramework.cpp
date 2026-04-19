@@ -449,6 +449,7 @@ bool CGameFramework::HandlePauseClick(UINT nMessageID, LPARAM lParam)
 	// GameScene이고 Pause UI 위를 클릭했으면 종료
 	if (gameScene && gameScene->IsPointInPauseOverlay(ptClient))
 	{
+		g_End.store(true);
 		::PostQuitMessage(0);
 		return true;
 	}

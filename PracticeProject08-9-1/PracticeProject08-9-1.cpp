@@ -10,7 +10,9 @@
 #include "BufferReader.h"
 #include "ServerPacketHandler.h"
 
-#include "CoreTLS.h"
+
+
+#include "GlobalValues.h"
 
 
 #define MAX_LOADSTRING 100
@@ -177,15 +179,9 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow, CGameFramework& gGameFramew
 	return(TRUE);
 }
 
-Atomic<bool> g_End = false;
 
 bool CheckEnd()
 {
-	//if (GetAsyncKeyState(VK_ESCAPE) & 0x8000)
-	//{
-	//	g_End = true;
-	//}
-
 	return g_End.load();
 }
 
