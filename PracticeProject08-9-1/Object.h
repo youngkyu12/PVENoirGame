@@ -35,6 +35,8 @@ class CColliderComponent;
 struct CB_GAMEOBJECT_INFO
 {
 	XMFLOAT4X4  m_xmf4x4World;
+	XMFLOAT4X4 TexTransform = Matrix4x4::Identity();
+	XMFLOAT4X4 ShadowTransform = Matrix4x4::Identity();
 	UINT        m_nObjectID;
 	UINT        _pad[3];   // 16-byte align
 };

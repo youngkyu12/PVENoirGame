@@ -9,6 +9,7 @@
 #include "LightTypes.h"
 #include "SceneRenderTypes.h"
 #include "ColliderComponent.h"
+#include "ShadowMap.h"
 
 #include <unordered_set>
 #include <cstdint>
@@ -129,6 +130,23 @@ struct SkinnedInstanceGroup
 	UINT instanceBufferStart = 0;
 };
 
+struct CB_FOG
+{
+	XMFLOAT4 fogColor = XMFLOAT4(0.62f, 0.67f, 0.72f, 1.0f);
+
+	// x = fogStart
+	// y = fogEnd
+	// z = fogDensity
+	// w = fogEnable (0.0f or 1.0f)
+	XMFLOAT4 fogParams0 = XMFLOAT4(20.0f, 40.0f, 0.0f, 1.0f);
+
+	// x = cameraNear
+	// y = cameraFar
+	// z = fogMode (0=Linear, 1=Exp, 2=Exp2)
+	// w = reserved
+	XMFLOAT4 fogParams1 = XMFLOAT4(1.01f, 5000.0f, 0.0f, 0.0f);
+};
+
 // ============================================================================
 // GameScene
 // ============================================================================
@@ -152,6 +170,7 @@ protected:
     void CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target) override;
 
 private:
+	void InitShadowMap(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
     void BuildLightsAndMaterials();
     void BuildObjectsCollider() override;
 
@@ -185,11 +204,6 @@ private:
 	);
 
     void LinkSceneObjects();
-    static XMFLOAT4X4 BuildAttachmentOffsetMatrix(
-        const XMFLOAT3& pos,
-        const XMFLOAT3& rotDeg,
-        const XMFLOAT3& scale = XMFLOAT3(1.0f, 1.0f, 1.0f)
-    );
 
     void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd);
 	void BuildStaticInstanceGroups();
@@ -211,9 +225,12 @@ public:
     bool ProcessInput(UCHAR* pKeysBuffer) override;
     void AnimateObjects(float dt) override;
     void CollisionObjects() override;
+	void RenderShadowMap(ID3D12GraphicsCommandList* cmd, const CGameTimer& gt);
 
     void OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera) override;
     void Render(ID3D12GraphicsCommandList* cmd, CCamera* camera = nullptr) override;
+	void RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	void RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
     // Input (messages) : 게임에서는 좌클릭 공격
 public:
@@ -233,6 +250,14 @@ public:
 public:
     void SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex);
     void SetInactiveOverlayVisible(bool visible) { m_bInactiveOverlayVisible = visible; }
+
+	void SetDepthFogSourceSrvIndices(UINT sceneColorSrvIndex, UINT sceneDepthSrvIndex)
+	{
+		m_depthFogSceneColorSrvIndex = sceneColorSrvIndex;
+		m_depthFogSceneDepthSrvIndex = sceneDepthSrvIndex;
+	}
+
+	void SetDepthFogPassEnabled(bool enabled) { m_bDepthFogPassEnabled = enabled; }
 
 	CNavMesh* GetNavMesh() { return m_navMesh.get(); }
 	const CNavMesh* GetNavMesh() const { return m_navMesh.get(); }
@@ -394,6 +419,12 @@ private:
 		bool visible = true
 	);
 	void RenderUI(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	void BuildDepthFogResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
+	void RenderDepthFog(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+#ifndef USING_NETWORK
+	int GetLocalPlayerMegaGridNumberForDepthFog() const;
+#endif
+	void UpdateDepthFogState(float dt);
 
     // slot 0..3 플레이어 포인터(소유는 m_skinnedObjects가 함)
     std::array<CGameObject*, 4> m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
@@ -494,6 +525,16 @@ private:
     ComPtr<ID3D12Resource> m_pd3dcbMaterials;
     MATERIAL* m_pcbMappedMaterials = nullptr;
 
+	CB_FOG                          m_fogData{};
+	ComPtr<ID3D12Resource>          m_pd3dcbFog;
+	CB_FOG                          m_depthFogEnabledPreset{};
+	CB_FOG                          m_depthFogDisabledPreset{};
+	bool                            m_bDepthFogTargetEnabled = false;
+	float                           m_depthFogFadeAlpha = 0.0f;
+	float                           m_depthFogFadeDuration = 1.0f;
+	float m_fElapsedTime = 0.0f;
+	CB_FOG* m_pcbMappedFog = nullptr;
+
     unique_ptr<CCollisionSystem> m_Collision;
 	std::unique_ptr<CNavMesh> m_navMesh;
 
@@ -510,6 +551,10 @@ private:
 	std::vector<GridDynamicTracker> m_arrowGridTrackers;
 	std::vector<GridDynamicTracker> m_bulletGridTrackers;
 #endif
+
+	std::unique_ptr<ShadowMap> mShadowMap;
+	std::shared_ptr<CShadowShader> mShadowShader;
+	ComPtr<ID3D12DescriptorHeap> m_pd3dShadowDsvDescriptorHeap;
 
 private:
     bool LoadStaticPlacementFile(const std::string& filePath);
@@ -544,12 +589,17 @@ private:
 	std::unordered_set<const CGameObject*>	m_treeAlphaClipObjects;
 
 	std::shared_ptr<CRectUIShader>      m_uiRectShader;
+	std::shared_ptr<CDepthFogShader>    m_depthFogShader;
 	std::vector<UISpriteEntry>          m_uiSprites;
 	int                                 m_pauseUISpriteIndex = -1;
+	UINT                                m_depthFogSceneColorSrvIndex = UINT_MAX;
+	UINT                                m_depthFogSceneDepthSrvIndex = UINT_MAX;
 
 	bool                                m_bInactiveOverlayVisible = false;
+	bool                                m_bDepthFogPassEnabled = true;
 	bool                                m_bStartedGameplayMusic = false;
 	bool                                m_bWasLocalPlayerInsideMegaGridCenter = false;
+	bool                                m_bShowShadowMapOverlay = true;
 
 	bool GetPauseOverlayRect(XMFLOAT4& outRect) const;
 
