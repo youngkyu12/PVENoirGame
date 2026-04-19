@@ -33,10 +33,11 @@ struct VS_SKINNED_INSTANCED_INPUT
 struct VS_SKINNED_OUTPUT
 {
     float4 position : SV_POSITION;
-    float3 positionW : POSITION;
-    float3 normalW : NORMAL;
-    float2 uv : TEXCOORD;
-    float4 tangentW : TANGENT;
+    float4 shadowPosH : TEXCOORD1;
+    float3 positionW : TEXCOORD2;
+    float3 normalW : TEXCOORD3;
+    float2 uv : TEXCOORD4;
+    float4 tangentW : TEXCOORD5;
     nointerpolation uint materialId : MATERIAL_ID;
 };
 
@@ -75,6 +76,7 @@ VS_SKINNED_OUTPUT VSSkinned(VS_SKINNED_INPUT input)
 
     output.positionW = posW.xyz;
     output.position = mul(mul(posW, gmtxView), gmtxProjection);
+    output.shadowPosH = mul(float4(output.positionW, 1.0f), gShadowTransform);
     output.uv = input.uv;
 
     float3 nSkinned = SkinDirection4(input.normal, input.blendIndices, input.blendWeights, boneBase);
@@ -111,6 +113,7 @@ VS_SKINNED_OUTPUT VSSkinnedInstanced(VS_SKINNED_INSTANCED_INPUT input)
 
     output.positionW = posW.xyz;
     output.position = mul(mul(posW, gmtxView), gmtxProjection);
+    output.shadowPosH = mul(float4(output.positionW, 1.0f), gShadowTransform);
     output.uv = input.uv;
 
     float3 nSkinned = SkinDirection4(

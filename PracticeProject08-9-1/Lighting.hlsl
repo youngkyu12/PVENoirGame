@@ -44,14 +44,16 @@ float3 BlinnPhong(
     float3 specularColor,
     float shininess)
 {
+    float3 lit = texColor.rgb * fDiffuseFactor;
+
     if (shininess <= 0.0f)
-        return texColor.rgb * fDiffuseFactor;
+        return lit;
 
     if (specularColor.r <= 0.0f &&
         specularColor.g <= 0.0f &&
         specularColor.b <= 0.0f)
     {
-        return texColor.rgb * fDiffuseFactor;
+        return lit;
     }
 
     float3 vHalf = normalize(vToCamera + vToLight);
@@ -64,7 +66,8 @@ float3 BlinnPhong(
     float3 specAlbedo = fresnelFactor * roughnessFactor;
     specAlbedo = specAlbedo / (specAlbedo + 1.0f);
 
-    return (texColor.rgb + specAlbedo) * fDiffuseFactor;
+    lit = (texColor.rgb + specAlbedo) * fDiffuseFactor;
+    return lit;
 }
 
 float4 DirectionalLight(
@@ -105,6 +108,7 @@ float4 PointLight(
     float3 specularColor,
     float shininess)
 {
+    float4 c = float4(0.0f, 0.0f, 0.0f, 0.0f);
     float3 vToLight = gLights[nIndex].m_vPosition - vPosition;
     float fDistance = length(vToLight);
 
@@ -133,10 +137,11 @@ float4 PointLight(
                 float3(1.0f, fDistance, fDistance * fDistance)
             );
 
-        return float4(ambientColor + litColor, 0.0f) * fAttenuationFactor;
+        c = float4(ambientColor + litColor, 0.0f) * fAttenuationFactor;
+        return c;
     }
 
-    return float4(0.0f, 0.0f, 0.0f, 0.0f);
+    return c;
 }
 
 float4 SpotLight(
@@ -149,6 +154,7 @@ float4 SpotLight(
     float3 specularColor,
     float shininess)
 {
+    float4 c = float4(0.0f, 0.0f, 0.0f, 0.0f);
     float3 vToLight = gLights[nIndex].m_vPosition - vPosition;
     float fDistance = length(vToLight);
 
@@ -194,10 +200,11 @@ float4 SpotLight(
                 float3(1.0f, fDistance, fDistance * fDistance)
             );
 
-        return float4(ambientColor + litColor, 0.0f) * fAttenuationFactor * fSpotFactor;
+        c = float4(ambientColor + litColor, 0.0f) * fAttenuationFactor * fSpotFactor;
+        return c;
     }
 
-    return float4(0.0f, 0.0f, 0.0f, 0.0f);
+    return c;
 }
 
 float4 Lighting(

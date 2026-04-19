@@ -1417,7 +1417,7 @@ void CGameScene::RenderShadowMap(ID3D12GraphicsCommandList* cmd, const CGameTime
 	mShadowMap->SetTargetObject(targetPlayer);
 
 	std::vector<CGameObject*> casters;
-	casters.reserve(m_staticObjects.size() + m_skinnedObjects.size());
+	casters.reserve(m_staticObjects.size());
 
 	for ( auto& obj : m_staticObjects )
 	{
@@ -1425,11 +1425,9 @@ void CGameScene::RenderShadowMap(ID3D12GraphicsCommandList* cmd, const CGameTime
 			casters.push_back(obj.get());
 	}
 
-	for ( auto& obj : m_skinnedObjects )
-	{
-		if ( obj )
-			casters.push_back(obj.get());
-	}
+	// NOTE:
+	// 현재 shadow 전용 VS(Shadows.hlsl)는 스키닝(본 인덱스/가중치)을 처리하지 않는다.
+	// 스키닝 섀도우 패스를 별도로 구현하기 전까지는 정적 오브젝트만 그림자 캐스터로 사용한다.
 
 	mShadowMap->Render(gt, cmd, casters);
 }

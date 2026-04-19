@@ -96,27 +96,30 @@ float2 GetSpecularUV(uint materialId, float2 baseUV)
 
 float4 SampleTextureRGBA(uint packedIndex, float2 uv, float4 fallbackColor)
 {
+    float4 sampled = fallbackColor;
     uint textureIndex = DecodePackedTextureIndex(packedIndex);
 
     if (textureIndex == INVALID_TEXTURE_INDEX)
-        return fallbackColor;
+        return sampled;
 
     if (textureIndex >= MAX_GLOBAL_SRVS)
-        return fallbackColor;
+        return sampled;
 
-    return gtxtGlobalTextures[textureIndex].Sample(gsamLinearWrap, uv);
+    sampled = gtxtGlobalTextures[textureIndex].Sample(gsamLinearWrap, uv);
+    return sampled;
 }
 
 float3 GetNormalWFromMap(uint packedNormal, float3 normalW_in, float4 tangentW_in, float2 uv)
 {
     float3 N = normalize(normalW_in);
-
+    float3 nW = N;
+    
     uint normalIndex = DecodePackedTextureIndex(packedNormal);
     if (normalIndex == INVALID_TEXTURE_INDEX)
-        return N;
+        return nW;
 
     if (normalIndex >= MAX_GLOBAL_SRVS)
-        return N;
+        return nW;
 
     float3 nTS = gtxtGlobalTextures[normalIndex].Sample(gsamLinearWrap, uv).xyz;
     nTS = nTS * 2.0f - 1.0f;
@@ -126,7 +129,7 @@ float3 GetNormalWFromMap(uint packedNormal, float3 normalW_in, float4 tangentW_i
 
     float3 B = normalize(cross(N, T) * tangentW_in.w);
 
-    float3 nW = normalize(T * nTS.x + B * nTS.y + N * nTS.z);
+    nW = normalize(T * nTS.x + B * nTS.y + N * nTS.z);
     return nW;
 }
 
@@ -135,8 +138,10 @@ float3 GetNormalWFromMap(uint packedNormal, float3 normalW_in, float4 tangentW_i
 //---------------------------------------------------------------------------------------
 float CalcShadowFactor(float4 shadowPosH)
 {
+    float shadowFactor = 1.0f;
+    
     if (shadowPosH.w <= 0.0f)
-        return 1.0f;
+        return shadowFactor;
 
     shadowPosH.xyz /= shadowPosH.w;
 
@@ -144,13 +149,13 @@ float CalcShadowFactor(float4 shadowPosH)
         shadowPosH.y < 0.0f || shadowPosH.y > 1.0f ||
         shadowPosH.z < 0.0f || shadowPosH.z > 1.0f)
     {
-        return 1.0f;
+        return shadowFactor;
     }
 
     float depth = shadowPosH.z;
 
     uint width, height, numMips;
-    gShadowMap.GetDimensions(0, width, height, numMips);
+    gtxtGlobalTextures[SHADOW_MAP_SRV_INDEX].GetDimensions(0, width, height, numMips);
 
     float dx = 1.0f / (float) width;
 
@@ -165,14 +170,19 @@ float CalcShadowFactor(float4 shadowPosH)
     [unroll]
     for (int i = 0; i < 9; ++i)
     {
-        percentLit += gShadowMap.SampleCmpLevelZero(
-            gsamShadow,
-            shadowPosH.xy + offsets[i],
-            depth
-        ).r;
+        const float sampledDepth =
+            gtxtGlobalTextures[SHADOW_MAP_SRV_INDEX].SampleLevel(
+                gsamLinearClamp,
+                shadowPosH.xy + offsets[i],
+                0.0f
+            ).r;
+
+        percentLit += (depth <= sampledDepth + 0.0005f) ? 1.0f : 0.0f;
     }
 
-    return percentLit / 9.0f;
+
+    shadowFactor = percentLit / 9.0f;
+    return shadowFactor;
 }
 
 #endif

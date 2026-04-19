@@ -39,7 +39,8 @@ VertexOut VS(VertexIn vin)
 void PS(VertexOut pin)
 {
 	// Dynamically look up the texture in the array.
-    float4 diffuseAlbedo = gDiffuseMap.Sample(gsamLinearWrap, pin.TexC);
+    float4 diffuseAlbedo = gtxtGlobalTextures[1].Sample(gsamLinearWrap, pin.TexC);
+
 
 #ifdef ALPHA_TEST
     // Discard pixel if texture alpha < 0.1.  We do this test as soon 

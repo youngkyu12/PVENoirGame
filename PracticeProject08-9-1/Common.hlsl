@@ -14,8 +14,7 @@
 //#define _WITH_REFLECT
 
 Texture2D gtxtGlobalTextures[MAX_GLOBAL_SRVS] : register(t0);
-Texture2D gDiffuseMap : register(t1);
-Texture2D<float> gShadowMap : register(t2);
+static const uint SHADOW_MAP_SRV_INDEX = 2u;
 
 cbuffer cbPlayerInfo : register(b0)
 {
