@@ -121,9 +121,9 @@ struct SubMesh
 	};
 
 	// GPU
-	ID3D12Resource* vb = nullptr;
+	ComPtr<ID3D12Resource> vb = nullptr;
 	ID3D12Resource* vbUpload = nullptr;
-	ID3D12Resource* ib = nullptr;
+	ComPtr<ID3D12Resource> ib = nullptr;
 	ID3D12Resource* ibUpload = nullptr;
 
 	D3D12_VERTEX_BUFFER_VIEW vbView{};

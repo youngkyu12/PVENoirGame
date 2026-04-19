@@ -139,20 +139,8 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* dev)
 	pd3dRootParameters[9].Descriptor.RegisterSpace = 0;
 	pd3dRootParameters[9].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-    D3D12_STATIC_SAMPLER_DESC d3dSamplerDesc = {};
-    d3dSamplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-    d3dSamplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    d3dSamplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    d3dSamplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    d3dSamplerDesc.MipLODBias = 0;
-    d3dSamplerDesc.MaxAnisotropy = 1;
-    d3dSamplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-    d3dSamplerDesc.MinLOD = 0;
-    d3dSamplerDesc.MaxLOD = D3D12_FLOAT32_MAX;
-    d3dSamplerDesc.ShaderRegister = 0;
-    d3dSamplerDesc.RegisterSpace = 0;
-    d3dSamplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-
+	auto ad3dSamplerDesces = GetStaticSamplers();
+    
     D3D12_ROOT_SIGNATURE_FLAGS flags =
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
         D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
@@ -162,8 +150,8 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* dev)
     D3D12_ROOT_SIGNATURE_DESC desc = {};
     desc.NumParameters = _countof(pd3dRootParameters);
     desc.pParameters = pd3dRootParameters;
-    desc.NumStaticSamplers = 1;
-    desc.pStaticSamplers = &d3dSamplerDesc;
+    desc.NumStaticSamplers = ad3dSamplerDesces.size();
+    desc.pStaticSamplers = ad3dSamplerDesces.data();
     desc.Flags = flags;
 
     ComPtr<ID3DBlob> sigBlob;
@@ -184,4 +172,119 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* dev)
 
     if (FAILED(hr))
         OutputDebugStringA("CreateRootSignature failed.\n");
+}
+
+std::array<const D3D12_STATIC_SAMPLER_DESC, 7> CScene::GetStaticSamplers()
+{
+	D3D12_STATIC_SAMPLER_DESC pointWrap = {};
+	pointWrap.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+	pointWrap.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	pointWrap.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	pointWrap.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	pointWrap.MipLODBias = 0.0f;
+	pointWrap.MaxAnisotropy = 16;
+	pointWrap.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	pointWrap.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+	pointWrap.MinLOD = 0.0f;
+	pointWrap.MaxLOD = D3D12_FLOAT32_MAX;
+	pointWrap.ShaderRegister = 0;
+	pointWrap.RegisterSpace = 0;
+	pointWrap.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	D3D12_STATIC_SAMPLER_DESC pointClamp = {};
+	pointClamp.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+	pointClamp.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	pointClamp.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	pointClamp.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	pointClamp.MipLODBias = 0.0f;
+	pointClamp.MaxAnisotropy = 16;
+	pointClamp.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	pointClamp.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+	pointClamp.MinLOD = 0.0f;
+	pointClamp.MaxLOD = D3D12_FLOAT32_MAX;
+	pointClamp.ShaderRegister = 1;
+	pointClamp.RegisterSpace = 0;
+	pointClamp.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	D3D12_STATIC_SAMPLER_DESC linearWrap = {};
+	linearWrap.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+	linearWrap.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	linearWrap.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	linearWrap.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	linearWrap.MipLODBias = 0.0f;
+	linearWrap.MaxAnisotropy = 16;
+	linearWrap.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	linearWrap.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+	linearWrap.MinLOD = 0.0f;
+	linearWrap.MaxLOD = D3D12_FLOAT32_MAX;
+	linearWrap.ShaderRegister = 2;
+	linearWrap.RegisterSpace = 0;
+	linearWrap.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	D3D12_STATIC_SAMPLER_DESC linearClamp = {};
+	linearClamp.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+	linearClamp.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	linearClamp.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	linearClamp.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	linearClamp.MipLODBias = 0.0f;
+	linearClamp.MaxAnisotropy = 16;
+	linearClamp.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	linearClamp.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+	linearClamp.MinLOD = 0.0f;
+	linearClamp.MaxLOD = D3D12_FLOAT32_MAX;
+	linearClamp.ShaderRegister = 3;
+	linearClamp.RegisterSpace = 0;
+	linearClamp.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	D3D12_STATIC_SAMPLER_DESC anisotropicWrap = {};
+	anisotropicWrap.Filter = D3D12_FILTER_ANISOTROPIC;
+	anisotropicWrap.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	anisotropicWrap.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	anisotropicWrap.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	anisotropicWrap.MipLODBias = 0.0f;
+	anisotropicWrap.MaxAnisotropy = 8;
+	anisotropicWrap.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	anisotropicWrap.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+	anisotropicWrap.MinLOD = 0.0f;
+	anisotropicWrap.MaxLOD = D3D12_FLOAT32_MAX;
+	anisotropicWrap.ShaderRegister = 4;
+	anisotropicWrap.RegisterSpace = 0;
+	anisotropicWrap.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	D3D12_STATIC_SAMPLER_DESC anisotropicClamp = {};
+	anisotropicClamp.Filter = D3D12_FILTER_ANISOTROPIC;
+	anisotropicClamp.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	anisotropicClamp.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	anisotropicClamp.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	anisotropicClamp.MipLODBias = 0.0f;
+	anisotropicClamp.MaxAnisotropy = 8;
+	anisotropicClamp.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	anisotropicClamp.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+	anisotropicClamp.MinLOD = 0.0f;
+	anisotropicClamp.MaxLOD = D3D12_FLOAT32_MAX;
+	anisotropicClamp.ShaderRegister = 5;
+	anisotropicClamp.RegisterSpace = 0;
+	anisotropicClamp.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	D3D12_STATIC_SAMPLER_DESC shadow = {};
+	shadow.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+	shadow.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+	shadow.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+	shadow.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+	shadow.MipLODBias = 0.0f;
+	shadow.MaxAnisotropy = 16;
+	shadow.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	shadow.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
+	shadow.MinLOD = 0.0f;
+	shadow.MaxLOD = D3D12_FLOAT32_MAX;
+	shadow.ShaderRegister = 6;
+	shadow.RegisterSpace = 0;
+	shadow.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	return {
+		pointWrap, pointClamp,
+		linearWrap, linearClamp,
+		anisotropicWrap, anisotropicClamp,
+		shadow
+	};
 }
