@@ -94,6 +94,7 @@ struct VS_TEXTURED_LIGHTING_INSTANCED_INPUT
 struct VS_TEXTURED_LIGHTING_OUTPUT
 {
     float4 position : SV_POSITION;
+    float4 shadowPosH : POSITION0;
     float3 positionW : POSITION;
     float3 normalW : NORMAL;
     float2 uv : TEXCOORD;
@@ -108,6 +109,7 @@ VS_TEXTURED_LIGHTING_OUTPUT VSTexturedLighting(VS_TEXTURED_LIGHTING_INPUT input)
     output.normalW = mul(input.normal, (float3x3) gmtxGameObject);
     output.positionW = (float3) mul(float4(input.position, 1.0f), gmtxGameObject);
     output.position = mul(mul(float4(output.positionW, 1.0f), gmtxView), gmtxProjection);
+    output.shadowPosH = mul(float4(output.positionW, 1.0f), gShadowTransform);
     output.uv = input.uv;
 
     float3 tW = mul(input.tangent.xyz, (float3x3) gmtxGameObject);
@@ -131,6 +133,7 @@ VS_TEXTURED_LIGHTING_OUTPUT VSTexturedLightingInstanced(VS_TEXTURED_LIGHTING_INS
     output.normalW = mul(input.normal, (float3x3) mtxInstanceWorld);
     output.positionW = (float3) mul(float4(input.position, 1.0f), mtxInstanceWorld);
     output.position = mul(mul(float4(output.positionW, 1.0f), gmtxView), gmtxProjection);
+    output.shadowPosH = mul(float4(output.positionW, 1.0f), gShadowTransform);
     output.uv = input.uv;
 
     float3 tW = mul(input.tangent.xyz, (float3x3) mtxInstanceWorld);
@@ -196,7 +199,10 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
         specularColor,
         shininess
     );
-
+    
+    float shadowFactor = CalcShadowFactor(input.shadowPosH);
+    illumination.rgb *= shadowFactor;
+    
     output.cTexture = texColor;
     output.cIllumination = illumination;
     output.color = illumination;
@@ -256,6 +262,9 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs_AlphaClip(
         specularColor,
         shininess
     );
+    
+    float shadowFactor = CalcShadowFactor(input.shadowPosH);
+    illumination.rgb *= shadowFactor;
 
     output.cTexture = texColor;
     output.cIllumination = illumination;

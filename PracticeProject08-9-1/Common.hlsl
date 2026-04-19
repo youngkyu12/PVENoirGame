@@ -15,7 +15,7 @@
 
 Texture2D gtxtGlobalTextures[MAX_GLOBAL_SRVS] : register(t0);
 Texture2D gDiffuseMap : register(t1);
-Texture2D gShadowMap : register(t2);
+Texture2D<float> gShadowMap : register(t2);
 
 cbuffer cbPlayerInfo : register(b0)
 {
@@ -63,6 +63,8 @@ cbuffer cbShadowPass : register(b7)
 {
     float4x4 gLightViewProj;
     float4x4 gShadowTransform;
+    float3 gLightDirectionW;
+    float _padShadow0;
 };
 
 StructuredBuffer<float4x4> gBonePalette : register(t0, space1);
