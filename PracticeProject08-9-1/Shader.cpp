@@ -1210,6 +1210,7 @@ void CPostProcessingShader::OnPostRenderTarget(ID3D12GraphicsCommandList* pd3dCo
 		}
 	}
 }
+
 void CPostProcessingShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext)
 {
 	CShader::Render(pd3dCommandList, pCamera, pContext);

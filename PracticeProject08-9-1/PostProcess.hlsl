@@ -119,10 +119,7 @@ float4 PSDepthFog(VS_SCREEN_RECT_TEXTURED_OUTPUT input) : SV_Target
     if (sceneColorIdx == 0xFFFFFFFFu || sceneColorIdx >= MAX_GLOBAL_SRVS)
         return float4(1, 0, 1, 1);
 
-    return gtxtGlobalTextures[sceneColorIdx].SampleLevel(
-        gsamLinearClamp,
-        input.uv,
-        0.0f
-    );
+    return gtxtGlobalTextures[sceneColorIdx].Sample(gsamLinearWrap, input.uv);
 }
+
 #endif
