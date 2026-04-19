@@ -22,7 +22,7 @@ public:
 
 	ShadowMap(const ShadowMap& rhs) = delete;
 	ShadowMap& operator=(const ShadowMap& rhs) = delete;
-	~ShadowMap() = default;
+	~ShadowMap();
 
 	UINT Width()const;
 	UINT Height()const;
