@@ -129,6 +129,7 @@ int APIENTRY _tWinMain(
 	{
 		g_clientService->CloseService();
 		g_clientService.reset();
+		LSendBufferChunk->Reset();
 	}
 
 	
