@@ -45,7 +45,7 @@ namespace DirectX
     };
 
     // Standard version
-    HRESULT __vectorcall LoadDDSTextureFromMemory(
+    HRESULT __cdecl LoadDDSTextureFromMemory(
         _In_ ID3D12Device* d3dDevice,
         _In_reads_bytes_(ddsDataSize) const uint8_t* ddsData,
         size_t ddsDataSize,
@@ -55,7 +55,7 @@ namespace DirectX
         _Out_opt_ DDS_ALPHA_MODE* alphaMode = nullptr,
         _Out_opt_ bool* isCubeMap = nullptr);
 
-    HRESULT __vectorcall LoadDDSTextureFromFile(
+    HRESULT __cdecl LoadDDSTextureFromFile(
         _In_ ID3D12Device* d3dDevice,
         _In_z_ const wchar_t* szFileName,
         _Outptr_ ID3D12Resource** texture,
@@ -66,7 +66,7 @@ namespace DirectX
         _Out_opt_ bool* isCubeMap = nullptr);
 
     // Extended version
-    HRESULT __vectorcall LoadDDSTextureFromMemoryEx(
+    HRESULT __cdecl LoadDDSTextureFromMemoryEx(
         _In_ ID3D12Device* d3dDevice,
         _In_reads_bytes_(ddsDataSize) const uint8_t* ddsData,
         size_t ddsDataSize,
@@ -78,7 +78,7 @@ namespace DirectX
         _Out_opt_ DDS_ALPHA_MODE* alphaMode = nullptr,
         _Out_opt_ bool* isCubeMap = nullptr);
 
-    HRESULT __vectorcall LoadDDSTextureFromFileEx(
+    HRESULT __cdecl LoadDDSTextureFromFileEx(
         _In_ ID3D12Device* d3dDevice,
         _In_z_ const wchar_t* szFileName,
         size_t maxsize,
