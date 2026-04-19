@@ -18,6 +18,18 @@
 #include "ServerPacketHandler.h"
 #include "GlobalValues.h"
 
+#include <strsafe.h>
+
+static void GFDebugLog(const char* fmt, ...)
+{
+	char buffer[1024] = {};
+	va_list args;
+	va_start(args, fmt);
+	StringCchVPrintfA(buffer, _countof(buffer), fmt, args);
+	va_end(args);
+	OutputDebugStringA(buffer);
+}
+
 
 CGameFramework::CGameFramework()
 {
@@ -153,6 +165,18 @@ void CGameFramework::WaitForGpuComplete()
 		hResult = m_pd3dFence->SetEventOnCompletion(nFenceValue, m_hFenceEvent);
 		::WaitForSingleObject(m_hFenceEvent, INFINITE);
 	}
+
+	HRESULT removed = m_pd3dDevice ? m_pd3dDevice->GetDeviceRemovedReason() : S_OK;
+	if ( removed != S_OK )
+	{
+		GFDebugLog(
+			"[GF] DeviceRemovedReason=0x%08X swapIndex=%u completed=%llu target=%llu\n",
+			static_cast< unsigned int >( removed ),
+			m_nSwapChainBufferIndex,
+			static_cast< unsigned long long >( m_pd3dFence->GetCompletedValue() ),
+			static_cast< unsigned long long >( nFenceValue )
+		);
+	}
 }
 
 void CGameFramework::CreateDirect3DDevice()
@@ -204,6 +228,17 @@ void CGameFramework::CreateDirect3DDevice()
 			D3D_FEATURE_LEVEL_12_0,
 			IID_PPV_ARGS(&m_pd3dDevice));
 
+		char adapterName[256] = {};
+		WideCharToMultiByte(CP_UTF8, 0, desc.Description, -1, adapterName, 256, nullptr, nullptr);
+
+		GFDebugLog(
+			"[GF] SelectedAdapter name=%s vendor=0x%04X device=0x%04X vramMB=%llu\n",
+			adapterName,
+			desc.VendorId,
+			desc.DeviceId,
+			static_cast< unsigned long long >( desc.DedicatedVideoMemory / ( 1024ull * 1024ull ) )
+		);
+
 		if ( SUCCEEDED(hResult) )
 			break;
 	}
@@ -236,6 +271,12 @@ void CGameFramework::CreateDirect3DDevice()
 
 	m_nMsaa4xQualityLevels = d3dMsaaQualityLevels.NumQualityLevels;
 	m_bMsaa4xEnable = (m_nMsaa4xQualityLevels > 1) ? true : false;
+
+	GFDebugLog(
+		"[GF] MSAA qualityLevels=%u enabled=%d\n",
+		m_nMsaa4xQualityLevels,
+		m_bMsaa4xEnable ? 1 : 0
+	);
 
 	hResult = m_pd3dDevice->CreateFence(
 		0,
@@ -514,7 +555,7 @@ void CGameFramework::UpdateWindowActivationState()
 
 void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 {
-
+	GFDebugLog("[GF] BuildSceneInternal begin scene=%d\n", static_cast< int >( id ));
 	WaitForGpuComplete();
 	
 	m_SceneManager.ReleaseCurrent();
@@ -580,11 +621,20 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 		m_pd3dDevice.Get(),
 		m_pd3dDepthStencilBuffer.Get(),
 		DXGI_FORMAT_R24_UNORM_X8_TYPELESS);
+	GFDebugLog(
+		"[GF] DepthSRV gpu=0x%llX\n",
+		static_cast< unsigned long long >( d3dDsvGPUDescriptorHandle.ptr )
+	);
 	(void)d3dDsvGPUDescriptorHandle;
 
 	if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
 	{
 		gameScene->SetDepthFogSourceSrvIndices(
+			m_pPostProcessingShader->GetTexture()->GetSrvIndex(0),
+			m_pPostProcessingShader->GetTexture()->GetSrvIndex(4)
+		);
+		GFDebugLog(
+			"[GF] DepthFogSources colorSrv=%u depthSrv=%u\n",
 			m_pPostProcessingShader->GetTexture()->GetSrvIndex(0),
 			m_pPostProcessingShader->GetTexture()->GetSrvIndex(4)
 		);
@@ -599,6 +649,8 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 
 	if (scene)
 		scene->ReleaseUploadBuffers();
+
+	GFDebugLog("[GF] BuildSceneInternal end scene=%d\n", static_cast< int >( id ));
 
 	if (resetTimer)
 		m_GameTimer.Reset();

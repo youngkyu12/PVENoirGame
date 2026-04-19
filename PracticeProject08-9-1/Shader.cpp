@@ -11,6 +11,17 @@
 #include "AnimController.h"
 
 #include <random>
+#include <strsafe.h>
+
+static void ShaderDebugLog(const char* fmt, ...)
+{
+	char buffer[1024] = {};
+	va_list args;
+	va_start(args, fmt);
+	StringCchVPrintfA(buffer, _countof(buffer), fmt, args);
+	va_end(args);
+	OutputDebugStringA(buffer);
+}
 
 CShader::CShader()
 {
@@ -827,6 +838,32 @@ void CDepthFogShader::UpdateShaderVariables(ID3D12GraphicsCommandList* cmd, void
 
 	*pDst = *pSrc;
 
+	static int s_depthFogLogCount = 0;
+	if ( s_depthFogLogCount < 16 )
+	{
+		ShaderDebugLog(
+			"[DepthFog] drawIdx=%u colorSrv=%u depthSrv=%u rect=(%.1f,%.1f,%.1f,%.1f) viewport=(%.1f,%.1f,%.6f,%.6f)\n",
+			nIndex,
+			pSrc->m_xmu4PostSrvIdx0.x,
+			pSrc->m_xmu4PostSrvIdx0.y,
+			pSrc->m_xmf4UiRect.x,
+			pSrc->m_xmf4UiRect.y,
+			pSrc->m_xmf4UiRect.z,
+			pSrc->m_xmf4UiRect.w,
+			pSrc->m_xmf4Viewport.x,
+			pSrc->m_xmf4Viewport.y,
+			pSrc->m_xmf4Viewport.z,
+			pSrc->m_xmf4Viewport.w
+		);
+
+		if ( pSrc->m_xmu4PostSrvIdx0.x == UINT_MAX || pSrc->m_xmu4PostSrvIdx0.y == UINT_MAX )
+		{
+			ShaderDebugLog("[DepthFog] ERROR invalid SRV index\n");
+		}
+
+		++s_depthFogLogCount;
+	}
+
 	cmd->SetGraphicsRootConstantBufferView(
 		ROOT_PARAMETER_DRAW_OPTIONS,
 		m_pd3dcbDrawOptions->GetGPUVirtualAddress() + nOffset
@@ -976,18 +1013,28 @@ void CPostProcessingShader::CreateShader(
 }
 
 void CPostProcessingShader::CreateResourcesAndRtvsSrvs(
-	ID3D12Device* pd3dDevice, 
-	ID3D12GraphicsCommandList* pd3dCommandList, 
-	UINT nRenderTargets, 
-	DXGI_FORMAT* pdxgiFormats, 
+	ID3D12Device* pd3dDevice,
+	ID3D12GraphicsCommandList* pd3dCommandList,
+	UINT nRenderTargets,
+	DXGI_FORMAT* pdxgiFormats,
 	D3D12_CPU_DESCRIPTOR_HANDLE d3dRtvCPUDescriptorHandle)
 {
+	ShaderDebugLog(
+		"[PP] CreateResourcesAndRtvsSrvs rtCount=%u\n",
+		nRenderTargets
+	);
+
 	m_pTexture = make_shared<CTexture>(nRenderTargets, RESOURCE_TEXTURE2D, 0, 1);
 
-	D3D12_CLEAR_VALUE d3dClearValue = { DXGI_FORMAT_R8G8B8A8_UNORM, { 1.0f, 1.0f, 1.0f, 1.0f } };
-	for (UINT i = 0; i < nRenderTargets; i++)
+	D3D12_CLEAR_VALUE d3dClearValue = {
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		{ 1.0f, 1.0f, 1.0f, 1.0f }
+	};
+
+	for ( UINT i = 0; i < nRenderTargets; i++ )
 	{
 		d3dClearValue.Format = pdxgiFormats[i];
+
 		m_pTexture->CreateTexture(
 			pd3dDevice,
 			FRAME_BUFFER_WIDTH,
@@ -997,40 +1044,69 @@ void CPostProcessingShader::CreateResourcesAndRtvsSrvs(
 			D3D12_RESOURCE_STATE_COMMON,
 			&d3dClearValue,
 			RESOURCE_TEXTURE2D,
-			i);
+			i
+		);
+
+		ID3D12Resource* res = m_pTexture->GetResource(i);
+		ShaderDebugLog(
+			"[PP] RT[%u] res=%p format=%d\n",
+			i,
+			res,
+			pdxgiFormats[i]
+		);
 	}
 
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
+
 #ifdef _WITH_SCENE_ROOT_SIGNATURE
 	CScene::m_pDescriptorHeap->CreateShaderResourceViewsOther(
 		pd3dDevice,
 		m_pTexture.get(),
 		ROOT_PARAMETER_GLOBAL_SRV);
-
 #else
 	CScene::m_pDescriptorHeap->CreateShaderResourceViewsOther(
 		pd3dDevice,
 		m_pTexture.get(),
 		0);
-
 #endif
+
+	ShaderDebugLog(
+		"[PP] SRV baseIndex=%u texCount=%d\n",
+		m_pTexture->GetBaseSrvIndex(),
+		m_pTexture->GetTextures()
+	);
 
 	D3D12_RENDER_TARGET_VIEW_DESC d3dRenderTargetViewDesc{};
 	d3dRenderTargetViewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 	d3dRenderTargetViewDesc.Texture2D.MipSlice = 0;
 	d3dRenderTargetViewDesc.Texture2D.PlaneSlice = 0;
 
-	m_pd3dRtvCPUDescriptorHandles = make_unique<D3D12_CPU_DESCRIPTOR_HANDLE[]>(nRenderTargets);
+	m_pd3dRtvCPUDescriptorHandles = make_unique<D3D12_CPU_DESCRIPTOR_HANDLE[ ]>(nRenderTargets);
 
-	for (UINT i = 0; i < nRenderTargets; i++)
+	for ( UINT i = 0; i < nRenderTargets; i++ )
 	{
 		d3dRenderTargetViewDesc.Format = pdxgiFormats[i];
 		ID3D12Resource* pd3dTextureResource = m_pTexture->GetResource(i);
+
+		D3D12_CPU_DESCRIPTOR_HANDLE currentRtvHandle = d3dRtvCPUDescriptorHandle;
+
 		pd3dDevice->CreateRenderTargetView(
-			pd3dTextureResource, 
-			&d3dRenderTargetViewDesc, 
-			d3dRtvCPUDescriptorHandle);
-		m_pd3dRtvCPUDescriptorHandles[i] = d3dRtvCPUDescriptorHandle;
+			pd3dTextureResource,
+			&d3dRenderTargetViewDesc,
+			currentRtvHandle
+		);
+
+		m_pd3dRtvCPUDescriptorHandles[i] = currentRtvHandle;
+
+		ShaderDebugLog(
+			"[PP] RTV[%u] cpu=0x%p srvIndex=%u res=%p format=%d\n",
+			i,
+			reinterpret_cast< void* >( currentRtvHandle.ptr ),
+			m_pTexture->GetSrvIndex(i),
+			pd3dTextureResource,
+			pdxgiFormats[i]
+		);
+
 		d3dRtvCPUDescriptorHandle.ptr += ::gnRtvDescriptorIncrementSize;
 	}
 }
@@ -1079,8 +1155,21 @@ void CPostProcessingShader::OnPrepareSceneRenderTargets(
 	const int nResources = m_pTexture->GetTextures();
 	if ( nResources <= 0 ) return;
 
+	static int s_prepareLogCount = 0;
+	const bool bLogThisCall = ( s_prepareLogCount < 6 );
+
+	if ( bLogThisCall )
+	{
+		ShaderDebugLog(
+			"[PP] OnPrepareSceneRenderTargets begin count=%d\n",
+			s_prepareLogCount
+		);
+	}
+
 	for ( int i = 0; i < nResources; ++i )
 	{
+		D3D12_CPU_DESCRIPTOR_HANDLE d3dRtvCPUDescriptorHandle = GetRtvCPUDescriptorHandle(i);
+
 		::SynchronizeResourceTransition(
 			pd3dCommandList,
 			GetTextureResource(i),
@@ -1088,7 +1177,17 @@ void CPostProcessingShader::OnPrepareSceneRenderTargets(
 			D3D12_RESOURCE_STATE_RENDER_TARGET
 		);
 
-		D3D12_CPU_DESCRIPTOR_HANDLE d3dRtvCPUDescriptorHandle = GetRtvCPUDescriptorHandle(i);
+		if ( bLogThisCall )
+		{
+			ShaderDebugLog(
+				"[PP] Prepare RT[%d] COMMON->RENDER_TARGET res=%p rtv=0x%p srvIndex=%u\n",
+				i,
+				GetTextureResource(i),
+				reinterpret_cast< void* >( d3dRtvCPUDescriptorHandle.ptr ),
+				m_pTexture->GetSrvIndex(i)
+			);
+		}
+
 		pd3dCommandList->ClearRenderTargetView(
 			d3dRtvCPUDescriptorHandle,
 			Colors::White,
@@ -1103,12 +1202,33 @@ void CPostProcessingShader::OnPrepareSceneRenderTargets(
 		FALSE,
 		pd3dDsvCPUHandle
 	);
+
+	if ( bLogThisCall )
+	{
+		ShaderDebugLog("[PP] OnPrepareSceneRenderTargets end\n");
+		++s_prepareLogCount;
+	}
 }
 
 void CPostProcessingShader::OnPostRenderTarget(ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	int nResources = m_pTexture->GetTextures();
-	for (int i = 0; i < nResources; i++)
+	if ( !pd3dCommandList ) return;
+	if ( !m_pTexture ) return;
+
+	const int nResources = m_pTexture->GetTextures();
+
+	static int s_postLogCount = 0;
+	const bool bLogThisCall = ( s_postLogCount < 6 );
+
+	if ( bLogThisCall )
+	{
+		ShaderDebugLog(
+			"[PP] OnPostRenderTarget begin count=%d\n",
+			s_postLogCount
+		);
+	}
+
+	for ( int i = 0; i < nResources; i++ )
 	{
 		::SynchronizeResourceTransition(
 			pd3dCommandList,
@@ -1116,6 +1236,22 @@ void CPostProcessingShader::OnPostRenderTarget(ID3D12GraphicsCommandList* pd3dCo
 			D3D12_RESOURCE_STATE_RENDER_TARGET,
 			D3D12_RESOURCE_STATE_COMMON
 		);
+
+		if ( bLogThisCall )
+		{
+			ShaderDebugLog(
+				"[PP] Post RT[%d] RENDER_TARGET->COMMON res=%p srvIndex=%u\n",
+				i,
+				GetTextureResource(i),
+				m_pTexture->GetSrvIndex(i)
+			);
+		}
+	}
+
+	if ( bLogThisCall )
+	{
+		ShaderDebugLog("[PP] OnPostRenderTarget end\n");
+		++s_postLogCount;
 	}
 }
 
@@ -1218,6 +1354,18 @@ void CTextureToFullScreenShader::UpdateShaderVariables(ID3D12GraphicsCommandList
 
 	const D3D12_GPU_VIRTUAL_ADDRESS d3dGpuVirtualAddress =
 		m_pd3dcbDrawOptions->GetGPUVirtualAddress() + nOffset;
+
+	static int s_fullscreenLogCount = 0;
+	if ( s_fullscreenLogCount < 8 )
+	{
+		ShaderDebugLog(
+			"[FullScreen] drawIdx=%u drawOption=%d cbGpuVA=0x%llX\n",
+			nIndex,
+			pDrawOptions->m_xmn4DrawOptions.x,
+			static_cast< unsigned long long >(d3dGpuVirtualAddress)
+		);
+		++s_fullscreenLogCount;
+	}
 
 	pd3dCommandList->SetGraphicsRootConstantBufferView(
 		ROOT_PARAMETER_DRAW_OPTIONS,
