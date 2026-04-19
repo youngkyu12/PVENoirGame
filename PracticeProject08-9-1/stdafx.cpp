@@ -14,7 +14,7 @@ UINT gnRtvDescriptorIncrementSize = 0;
 // TODO: 필요한 추가 헤더는
 // 이 파일이 아닌 STDAFX.H에서 참조합니다.
 
-ID3D12Resource *CreateBufferResource(
+ComPtr<ID3D12Resource> CreateBufferResource(
 	ID3D12Device *pd3dDevice, 
 	ID3D12GraphicsCommandList *pd3dCommandList,
 	void *pData, 
@@ -23,7 +23,7 @@ ID3D12Resource *CreateBufferResource(
 	D3D12_RESOURCE_STATES d3dResourceStates,
 	ID3D12Resource **ppd3dUploadBuffer)
 {
-	ID3D12Resource *pd3dBuffer = NULL;
+	ComPtr<ID3D12Resource>pd3dBuffer;
 
 	D3D12_HEAP_PROPERTIES d3dHeapPropertiesDesc;
 	::ZeroMemory(&d3dHeapPropertiesDesc, sizeof(D3D12_HEAP_PROPERTIES));
@@ -85,14 +85,14 @@ ID3D12Resource *CreateBufferResource(
 				::ZeroMemory(&d3dSubResourceData, sizeof(D3D12_SUBRESOURCE_DATA));
 				d3dSubResourceData.pData = pData;
 				d3dSubResourceData.SlicePitch = d3dSubResourceData.RowPitch = nBytes;
-				::UpdateSubresources<1>(pd3dCommandList, pd3dBuffer, *ppd3dUploadBuffer, 0, 0, 1, &d3dSubResourceData);
+				::UpdateSubresources<1>(pd3dCommandList, pd3dBuffer.Get(), *ppd3dUploadBuffer, 0, 0, 1, &d3dSubResourceData);
 
 #endif
 				D3D12_RESOURCE_BARRIER d3dResourceBarrier;
 				::ZeroMemory(&d3dResourceBarrier, sizeof(D3D12_RESOURCE_BARRIER));
 				d3dResourceBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 				d3dResourceBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-				d3dResourceBarrier.Transition.pResource = pd3dBuffer;
+				d3dResourceBarrier.Transition.pResource = pd3dBuffer.Get();
 				d3dResourceBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
 				d3dResourceBarrier.Transition.StateAfter = d3dResourceStates;
 				d3dResourceBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
@@ -116,14 +116,14 @@ ID3D12Resource *CreateBufferResource(
 	return(pd3dBuffer);
 }
 
-ID3D12Resource *CreateTextureResourceFromDDSFile(
+ComPtr<ID3D12Resource> CreateTextureResourceFromDDSFile(
 	ID3D12Device *pd3dDevice, 
 	ID3D12GraphicsCommandList *pd3dCommandList, 
 	const wchar_t *pszFileName, 
 	ID3D12Resource **ppd3dUploadBuffer, 
 	D3D12_RESOURCE_STATES d3dResourceStates)
 {
-	ID3D12Resource *pd3dTexture = NULL;
+	ComPtr<ID3D12Resource> pd3dTexture;
 	std::unique_ptr<uint8_t[]> ddsData;
 	std::vector<D3D12_SUBRESOURCE_DATA> vSubresources;
 	DDS_ALPHA_MODE ddsAlphaMode = DDS_ALPHA_MODE_UNKNOWN;
@@ -151,7 +151,7 @@ ID3D12Resource *CreateTextureResourceFromDDSFile(
 
 	D3D12_RESOURCE_DESC d3dTextureResourceDesc = pd3dTexture->GetDesc();
 	UINT nSubResources = (UINT)vSubresources.size();
-	UINT64 nBytes = GetRequiredIntermediateSize(pd3dTexture, 0, nSubResources);
+	UINT64 nBytes = GetRequiredIntermediateSize(pd3dTexture.Get(), 0, nSubResources);
 	//	UINT nSubResources = d3dTextureResourceDesc.DepthOrArraySize * d3dTextureResourceDesc.MipLevels;
 	//	UINT64 nBytes = 0;
 	//	pd3dDevice->GetCopyableFootprints(&d3dTextureResourceDesc, 0, nSubResources, 0, NULL, NULL, NULL, &nBytes);
@@ -186,7 +186,7 @@ ID3D12Resource *CreateTextureResourceFromDDSFile(
 	//	std::vector<D3D12_SUBRESOURCE_DATA>::pointer ptr = &vSubresources[0];
 	UINT64 nBytesUpdated = ::UpdateSubresources(
 		pd3dCommandList, 
-		pd3dTexture, 
+		pd3dTexture.Get(),
 		*ppd3dUploadBuffer,
 		0, 
 		0, 
@@ -197,7 +197,7 @@ ID3D12Resource *CreateTextureResourceFromDDSFile(
 	::ZeroMemory(&d3dResourceBarrier, sizeof(D3D12_RESOURCE_BARRIER));
 	d3dResourceBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	d3dResourceBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	d3dResourceBarrier.Transition.pResource = pd3dTexture;
+	d3dResourceBarrier.Transition.pResource = pd3dTexture.Get();
 	d3dResourceBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
 	d3dResourceBarrier.Transition.StateAfter = d3dResourceStates;
 	d3dResourceBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
@@ -208,7 +208,7 @@ ID3D12Resource *CreateTextureResourceFromDDSFile(
 	return(pd3dTexture);
 }
 
-ID3D12Resource *CreateTexture2DResource(
+ComPtr<ID3D12Resource> CreateTexture2DResource(
 	ID3D12Device *pd3dDevice, 
 	UINT nWidth, 
 	UINT nHeight, 

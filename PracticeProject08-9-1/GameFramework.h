@@ -110,6 +110,7 @@ private:
 	ComPtr<ID3D12CommandAllocator>		m_pd3dCommandAllocator;
 	ComPtr<ID3D12CommandQueue>			m_pd3dCommandQueue;
 	ComPtr<ID3D12GraphicsCommandList>	m_pd3dCommandList;
+	ComPtr<ID3D12InfoQueue>				infoQueue;
 
 	// Sync
 	ComPtr<ID3D12Fence>					m_pd3dFence;
