@@ -114,16 +114,33 @@ float4 PSScreenRectSamplingTextured(VS_SCREEN_RECT_TEXTURED_OUTPUT input) : SV_T
 
 float4 PSDepthFog(VS_SCREEN_RECT_TEXTURED_OUTPUT input) : SV_Target
 {
+    const uint sceneColorIdx = gvPostSrvIdx0.x;
     const uint sceneDepthIdx = gvPostSrvIdx0.y;
+
+    if (sceneColorIdx == 0xFFFFFFFFu || sceneColorIdx >= MAX_GLOBAL_SRVS)
+        return float4(1, 0, 1, 1);
 
     if (sceneDepthIdx == 0xFFFFFFFFu || sceneDepthIdx >= MAX_GLOBAL_SRVS)
         return float4(1, 0, 1, 1);
 
-    const uint2 pixel = uint2(input.position.xy);
+    uint2 pixel = uint2(input.position.xy);
 
-    const float d =
+    const uint maxX = (uint) gvViewport.x - 1u;
+    const uint maxY = (uint) gvViewport.y - 1u;
+
+    pixel.x = min(pixel.x, maxX);
+    pixel.y = min(pixel.y, maxY);
+
+    const float4 sceneColor =
+        gtxtGlobalTextures[sceneColorIdx].Load(uint3(pixel, 0));
+
+    const float deviceZ =
         gtxtGlobalTextures[sceneDepthIdx].Load(uint3(pixel, 0)).x;
 
-    return float4(d, d, d, 1);
+    const float linearDepth = ResolveLinearDepthFromDeviceZ(deviceZ);
+    const float fogFactor = saturate(ComputeFogFactor(linearDepth));
+
+    const float3 rgb = lerp(sceneColor.rgb, gvFogColor.rgb, fogFactor);
+    return float4(rgb, sceneColor.a);
 }
 #endif
