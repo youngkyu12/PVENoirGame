@@ -462,6 +462,7 @@ bool CGameFramework::HandlePauseClick(UINT nMessageID, LPARAM lParam)
 	// GameScene이고 Pause UI 위를 클릭했으면 종료
 	if (gameScene && gameScene->IsPointInPauseOverlay(ptClient))
 	{
+		g_End.store(true);
 		::PostQuitMessage(0);
 		return true;
 	}
@@ -872,7 +873,9 @@ void CGameFramework::ProcessInput()
 
 		inputPkt.set_playerid(g_myPlayerId);
 		inputPkt.set_keycodes(keyCodes);
-#else
+
+		// 클라이언트 로컬 애니메이션 반영 코드를 살림
+
 		if (pKeysBuffer['W'] & 0xF0) dwDirection |= DIR_FORWARD;
 
 		if (pKeysBuffer['S'] & 0xF0) dwDirection |= DIR_BACKWARD;

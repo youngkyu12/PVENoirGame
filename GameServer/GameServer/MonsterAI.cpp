@@ -8,13 +8,6 @@
 
 namespace
 {
-	float DistSqXZ(const GameMath::Vec3& a, const GameMath::Vec3& b)
-	{
-		const float dx = a.x - b.x;
-		const float dz = a.z - b.z;
-		return dx * dx + dz * dz;
-	}
-
 	bool ShouldPrintTrackLog(const CServerObject* owner)
 	{
 		return owner && owner->GetObjectId() == 20;
@@ -76,7 +69,7 @@ void CMonsterAI::OnUpdate(float dt)
 		m_trianglePath.clear();
 		m_currentPathIndex = 0;
 		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
-		PrintState("OUT_OF_DETECT_RANGE", false, false);
+		//PrintState("OUT_OF_DETECT_RANGE", false, false);
 		return;
 	}
 
@@ -99,7 +92,7 @@ void CMonsterAI::OnUpdate(float dt)
 			GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
 		}
 
-		PrintState("ATTACK_RANGE", false, false);
+		//PrintState("ATTACK_RANGE", false, false);
 		return;
 	}
 
@@ -112,11 +105,11 @@ void CMonsterAI::OnUpdate(float dt)
 	{
 		FaceTowards(targetPos);
 		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
-		PrintState("IDLE_NO_FOLLOW", repathChanged, false);
+		//PrintState("IDLE_NO_FOLLOW", repathChanged, false);
 	}
 	else
 	{
-		PrintState(repathChanged ? "FOLLOWING_REPATHED" : "FOLLOWING_PATH", repathChanged, true);
+		//PrintState(repathChanged ? "FOLLOWING_REPATHED" : "FOLLOWING_PATH", repathChanged, true);
 	}
 }
 
