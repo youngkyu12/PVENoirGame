@@ -157,7 +157,7 @@ namespace
 		return out;
 	}
 
-	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::FullStage;
+	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::Test;
 }
 
 namespace
@@ -6341,9 +6341,6 @@ void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* c
 
 void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
-	OnPrepareRender(cmd, camera);
-	RenderShadowMap(cmd);
-
 	OnPrepareRender(cmd, camera);
 	RenderSceneGeometry(cmd, camera);
 	RenderSceneComposite(cmd, camera);
