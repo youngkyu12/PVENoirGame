@@ -185,7 +185,7 @@ public:
 	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext = nullptr);
 };
 
-class CShadowMapStaticShader final : public CStaticObjectsShader
+class CShadowMapStaticShader : public CStaticObjectsShader
 {
 public:
 	CShadowMapStaticShader() = default;
@@ -195,6 +195,16 @@ public:
 	D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob) override;
 	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
 	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
+};
+
+class CShadowMapAlphaClipStaticShader final : public CShadowMapStaticShader
+{
+public:
+	CShadowMapAlphaClipStaticShader() = default;
+	~CShadowMapAlphaClipStaticShader() override = default;
+
+public:
+	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
 };
 
 class CShadowMapSkinnedShader final : public CSkinnedObjectsShader

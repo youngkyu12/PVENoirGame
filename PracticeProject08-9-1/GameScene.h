@@ -619,8 +619,9 @@ private:
 
 	std::shared_ptr<CRectUIShader>      m_uiRectShader;
 	std::shared_ptr<CDepthFogShader>    m_depthFogShader;
-	std::shared_ptr<CShadowMapStaticShader>  m_shadowStaticShader;
-	std::shared_ptr<CShadowMapSkinnedShader> m_shadowSkinnedShader;
+	std::shared_ptr<CShadowMapStaticShader>           m_shadowStaticShader;
+	std::shared_ptr<CShadowMapAlphaClipStaticShader>  m_shadowAlphaClipStaticShader;
+	std::shared_ptr<CShadowMapSkinnedShader>          m_shadowSkinnedShader;
 	std::vector<UISpriteEntry>          m_uiSprites;
 	int                                 m_pauseUISpriteIndex = -1;
 	UINT                                m_depthFogSceneColorSrvIndex = UINT_MAX;
