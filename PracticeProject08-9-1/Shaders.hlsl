@@ -20,6 +20,7 @@ cbuffer cbGameObjectInfo : register(b2)
 
 
 SamplerState gssDefaultSamplerState : register(s0);
+SamplerComparisonState gssShadowSampler : register(s1);
 
 cbuffer cbDrawOptions : register(b5)
 {
@@ -54,7 +55,19 @@ cbuffer cbFog : register(b7)
     float4 gvFogParams1;
 };
 
+cbuffer cbShadow : register(b8)
+{
+    matrix gmtxShadowViewProj;
+    matrix gmtxShadowTransform;
+
+    float4 gvShadowLightPos;
+    float4 gvShadowParams0;
+    uint4 gvShadowParams1;
+};
+
 StructuredBuffer<float4x4> gBonePalette : register(t0, space1);
+
+float CalcShadowFactor(float4 shadowPosH, float3 normalW, float3 vToLight);
 
 #include "Light.hlsl"
 
@@ -134,6 +147,37 @@ float4 SampleTextureRGBA(uint packedIndex, float2 uv, float4 fallbackColor)
         return fallbackColor;
 
     return gtxtGlobalTextures[textureIndex].Sample(gssDefaultSamplerState, uv);
+}
+
+float CalcShadowFactor(float4 shadowPosH, float3 normalW, float3 vToLight)
+{
+    if (gvShadowParams1.y == 0u)
+        return 1.0f;
+
+    const uint shadowMapIdx = gvShadowParams1.x;
+    if (shadowMapIdx == 0xffffffffu || shadowMapIdx >= MAX_GLOBAL_SRVS)
+        return 1.0f;
+
+    float invW = rcp(max(0.0001f, shadowPosH.w));
+    float3 proj = shadowPosH.xyz * invW;
+
+    if (proj.x < 0.0f || proj.x > 1.0f ||
+        proj.y < 0.0f || proj.y > 1.0f ||
+        proj.z < 0.0f || proj.z > 1.0f)
+    {
+        return 1.0f;
+    }
+
+    float ndotl = saturate(dot(normalize(normalW), normalize(vToLight)));
+    float bias = max(gvShadowParams0.y, gvShadowParams0.z * (1.0f - ndotl));
+
+    float shadowLit = gtxtGlobalTextures[shadowMapIdx].SampleCmpLevelZero(
+        gssShadowSampler,
+        proj.xy,
+        proj.z - bias
+    );
+
+    return lerp(1.0f, shadowLit, saturate(gvShadowParams0.w));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -266,6 +310,7 @@ struct VS_TEXTURED_LIGHTING_OUTPUT
     float2 uv : TEXCOORD;
     float4 tangentW : TANGENT;
     nointerpolation uint materialId : MATERIAL_ID;
+    float4 shadowPosH : TEXCOORD1;
 };
 
 VS_TEXTURED_LIGHTING_OUTPUT VSTexturedLighting(VS_TEXTURED_LIGHTING_INPUT input)
@@ -303,6 +348,7 @@ VS_TEXTURED_LIGHTING_OUTPUT VSTexturedLightingInstanced(VS_TEXTURED_LIGHTING_INS
     output.tangentW = float4(tW, input.tangent.w);
     output.materialId = gnMaterialID;
     
+    output.shadowPosH = mul(float4(output.positionW, 1.0f), gmtxShadowTransform);
     return (output);
 }
 
@@ -360,7 +406,8 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
         texColor,
         emissiveColor,
         specularColor,
-        shininess
+        shininess,
+        input.shadowPosH
     );
     
     output.cTexture = texColor;
@@ -473,6 +520,7 @@ struct VS_SKINNED_OUTPUT
     float2 uv : TEXCOORD;
     float4 tangentW : TANGENT;
     nointerpolation uint materialId : MATERIAL_ID;
+    float4 shadowPosH : TEXCOORD1;
 };
 
 float4 SkinPosition4(float3 position, uint4 blendIndices, float4 blendWeights, uint boneBase)
@@ -567,6 +615,7 @@ VS_SKINNED_OUTPUT VSSkinnedInstanced(VS_SKINNED_INSTANCED_INPUT input)
     output.tangentW = float4(tW, input.tangent.w);
 
     output.materialId = input.instMaterialId;
+    output.shadowPosH = mul(float4(output.positionW, 1.0f), gmtxShadowTransform);
     return output;
 }
 
@@ -741,6 +790,105 @@ float ComputeFogFactor(float linearDepth)
 
     const float fogIntensity = saturate(gvFogParams1.w);
     return baseFogFactor * fogIntensity;
+}
+
+struct VS_SHADOW_STATIC_INSTANCED_INPUT
+{
+    float3 position : POSITION;
+    float3 normal : NORMAL;
+    float2 uv : TEXCOORD;
+    float4 tangent : TANGENT;
+
+    float4 instWorld0 : INSTANCE_WORLD0;
+    float4 instWorld1 : INSTANCE_WORLD1;
+    float4 instWorld2 : INSTANCE_WORLD2;
+    float4 instWorld3 : INSTANCE_WORLD3;
+    uint instObjectId : INSTANCE_OBJECT_ID0;
+};
+
+struct VS_SHADOW_SKINNED_INSTANCED_INPUT
+{
+    float3 position : POSITION;
+    float3 normal : NORMAL;
+    float2 uv : TEXCOORD;
+    float4 tangent : TANGENT;
+    uint4 blendIndices : BLENDINDICES;
+    float4 blendWeights : BLENDWEIGHT;
+
+    float4 instWorld0 : INSTANCE_WORLD0;
+    float4 instWorld1 : INSTANCE_WORLD1;
+    float4 instWorld2 : INSTANCE_WORLD2;
+    float4 instWorld3 : INSTANCE_WORLD3;
+    uint instMaterialId : INSTANCE_MATERIAL_ID0;
+    uint instBoneBase : INSTANCE_BONE_BASE0;
+};
+
+struct VS_SHADOW_OUTPUT
+{
+    float4 position : SV_POSITION;
+    float2 uv : TEXCOORD0;
+    nointerpolation uint materialId : MATERIAL_ID;
+};
+
+VS_SHADOW_OUTPUT VSShadowMapStaticInstanced(VS_SHADOW_STATIC_INSTANCED_INPUT input)
+{
+    VS_SHADOW_OUTPUT output;
+
+    float4x4 mtxInstanceWorld = float4x4(
+        input.instWorld0,
+        input.instWorld1,
+        input.instWorld2,
+        input.instWorld3
+    );
+
+    float4 positionW = mul(float4(input.position, 1.0f), mtxInstanceWorld);
+    output.position = mul(positionW, gmtxShadowViewProj);
+    output.uv = input.uv;
+    output.materialId = gnMaterialID;
+
+    return output;
+}
+
+VS_SHADOW_OUTPUT VSShadowMapSkinnedInstanced(VS_SHADOW_SKINNED_INSTANCED_INPUT input)
+{
+    VS_SHADOW_OUTPUT output;
+
+    float4 skinnedPos = SkinPosition4(
+        input.position,
+        input.blendIndices,
+        input.blendWeights,
+        input.instBoneBase
+    );
+
+    float4x4 mtxInstanceWorld = float4x4(
+        input.instWorld0,
+        input.instWorld1,
+        input.instWorld2,
+        input.instWorld3
+    );
+
+    float4 positionW = mul(skinnedPos, mtxInstanceWorld);
+    output.position = mul(positionW, gmtxShadowViewProj);
+    output.uv = input.uv;
+    output.materialId = input.instMaterialId;
+
+    return output;
+}
+
+void PSShadowMapAlphaClip(VS_SHADOW_OUTPUT input)
+{
+    MATERIAL mat = gMaterials[input.materialId];
+
+    float2 diffuseUV = GetDiffuseUV(input.materialId, input.uv);
+
+    float4 diffuseSample = SampleTextureRGBA(
+        mat.TextureIndices.x,
+        diffuseUV,
+        float4(1.0f, 1.0f, 1.0f, 1.0f)
+    );
+
+    float finalAlpha = diffuseSample.a * mat.m_cDiffuse.a;
+    clip(finalAlpha - 0.5f);
 }
 
 float4 PSDepthFog(VS_SCREEN_RECT_TEXTURED_OUTPUT input) : SV_Target

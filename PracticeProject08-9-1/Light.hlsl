@@ -123,6 +123,8 @@ float3 BlinnPhong(
     return (texColor.rgb + specAlbedo) * fDiffuseFactor;
 }
 
+float CalcShadowFactor(float4 shadowPosH, float3 normalW, float3 vToLight);
+
 float4 DirectionalLight(
     int nIndex,
     uint materialId,
@@ -130,7 +132,8 @@ float4 DirectionalLight(
     float3 vToCamera,
     float4 texColor,
     float3 specularColor,
-    float shininess)
+    float shininess,
+    float4 shadowPosH)
 {
     MATERIAL mat = gMaterials[materialId];
 
@@ -148,11 +151,13 @@ float4 DirectionalLight(
         shininess
     );
 
-    float3 ambientColor =
-    gLights[nIndex].m_cAmbient.rgb *
-    texColor.rgb;
+    float shadowFactor = CalcShadowFactor(shadowPosH, vNormal, vToLight);
 
-    return float4(ambientColor + litColor, 0.0f);
+    float3 ambientColor =
+        gLights[nIndex].m_cAmbient.rgb *
+        texColor.rgb;
+
+    return float4(ambientColor + (litColor * shadowFactor), 0.0f);
 }
 
 float4 PointLight(
@@ -275,7 +280,8 @@ float4 Lighting(
     float4 texColor,
     float3 emissiveColor,
     float3 specularColor,
-    float shininess)
+    float shininess,
+    float4 shadowPosH)
 {
     MATERIAL mat = gMaterials[materialId];
 
@@ -299,7 +305,8 @@ float4 Lighting(
                 vToCamera,
                 texColor,
                 specularColor,
-                shininess
+                shininess,
+                shadowPosH
             );
         }
         else if (gLights[i].m_nType == POINT_LIGHT)
