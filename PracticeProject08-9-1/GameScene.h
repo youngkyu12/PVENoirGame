@@ -234,8 +234,10 @@ public:
     void AnimateObjects(float dt) override;
     void CollisionObjects() override;
 
-    void OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera) override;
-    void Render(ID3D12GraphicsCommandList* cmd, CCamera* camera = nullptr) override;
+public:
+	void OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera) override;
+	void Render(ID3D12GraphicsCommandList* cmd, CCamera* camera = nullptr) override;
+	void RenderShadowPrePass(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	void RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	void RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
@@ -262,6 +264,22 @@ public:
 	{
 		m_depthFogSceneColorSrvIndex = sceneColorSrvIndex;
 		m_depthFogSceneDepthSrvIndex = sceneDepthSrvIndex;
+	}
+
+	void SetSceneRenderTargets(
+	UINT count,
+	const D3D12_CPU_DESCRIPTOR_HANDLE* rtvs,
+	D3D12_CPU_DESCRIPTOR_HANDLE dsv)
+	{
+		m_sceneRenderTargetCount = ( count > static_cast< UINT >( m_sceneRtvHandles.size() ) )
+			? static_cast< UINT >( m_sceneRtvHandles.size() )
+			: count;
+
+		for ( UINT i = 0; i < m_sceneRenderTargetCount; ++i )
+			m_sceneRtvHandles[i] = rtvs[i];
+
+		m_sceneDsvHandle = dsv;
+		m_bSceneRenderTargetsReady = ( m_sceneRenderTargetCount > 0 );
 	}
 
 	void SetDepthFogPassEnabled(bool enabled) { m_bDepthFogPassEnabled = enabled; }
@@ -434,6 +452,7 @@ private:
 	void RenderShadowMap(ID3D12GraphicsCommandList* cmd);
 	void RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList* cmd);
 	void RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandList* cmd);
+	void RestoreSceneRenderTargets(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 #ifndef USING_NETWORK
 	int GetLocalPlayerMegaGridNumberForDepthFog() const;
@@ -620,6 +639,10 @@ private:
 
 	D3D12_VIEWPORT                      m_shadowViewport = { 0.0f, 0.0f, 2048.0f, 2048.0f, 0.0f, 1.0f };
 	D3D12_RECT                          m_shadowScissorRect = { 0, 0, 2048, 2048 };
+	std::array<D3D12_CPU_DESCRIPTOR_HANDLE, 8> m_sceneRtvHandles = {};
+	D3D12_CPU_DESCRIPTOR_HANDLE                m_sceneDsvHandle = {};
+	UINT                                       m_sceneRenderTargetCount = 0;
+	bool                                       m_bSceneRenderTargetsReady = false;
 
 	bool                                m_bInactiveOverlayVisible = false;
 	bool                                m_bDepthFogPassEnabled = true;

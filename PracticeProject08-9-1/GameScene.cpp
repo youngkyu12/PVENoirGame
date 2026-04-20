@@ -954,6 +954,8 @@ void CGameScene::ReleaseObjects()
 	m_depthFogSceneColorSrvIndex = UINT_MAX;
 	m_depthFogSceneDepthSrvIndex = UINT_MAX;
 	m_shadowMapSrvIndex = UINT_MAX;
+	m_sceneRenderTargetCount = 0;
+	m_bSceneRenderTargetsReady = false;
 	m_bInactiveOverlayVisible = false;
 	m_bDepthFogPassEnabled = true;
 	m_bStartedGameplayMusic = false;
@@ -5059,13 +5061,12 @@ void CGameScene::UpdateShadowData()
 	XMStoreFloat4x4(&m_shadowData.shadowViewProj, XMMatrixTranspose(shadowViewProj));
 	XMStoreFloat4x4(&m_shadowData.shadowTransform, XMMatrixTranspose(shadowTransform));
 
-	m_shadowData.shadowLightPos = XMFLOAT4(eye.x, eye.y, eye.z, 1.0f);
 	m_shadowData.shadowParams0 = XMFLOAT4(
 		static_cast< float >( m_shadowMapSize ),
 		0.0008f,
 		0.0040f,
 		1.0f
-	);
+		);
 	m_shadowData.shadowParams1 = XMUINT4(m_shadowMapSrvIndex, 1u, 0u, 0u);
 }
 
@@ -5182,6 +5183,32 @@ void CGameScene::RenderShadowMap(ID3D12GraphicsCommandList* cmd)
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
 	);
+}
+
+void CGameScene::RestoreSceneRenderTargets(ID3D12GraphicsCommandList* cmd, CCamera* camera)
+{
+	if ( !cmd ) return;
+	if ( !m_bSceneRenderTargetsReady ) return;
+	if ( m_sceneRenderTargetCount == 0 ) return;
+
+	cmd->OMSetRenderTargets(
+		m_sceneRenderTargetCount,
+		m_sceneRtvHandles.data(),
+		FALSE,
+		&m_sceneDsvHandle
+	);
+
+	if ( camera )
+		camera->SetViewportsAndScissorRects(cmd);
+}
+
+void CGameScene::RenderShadowPrePass(ID3D12GraphicsCommandList* cmd, CCamera* camera)
+{
+	if ( !cmd ) return;
+
+	OnPrepareRender(cmd, camera);
+	RenderShadowMap(cmd);
+	RestoreSceneRenderTargets(cmd, camera);
 }
 
 bool CGameScene::GetPauseOverlayRect(XMFLOAT4& outRect) const
@@ -6342,6 +6369,11 @@ void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* c
 void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	OnPrepareRender(cmd, camera);
+	RenderShadowMap(cmd);
+
+	OnPrepareRender(cmd, camera);
+	RestoreSceneRenderTargets(cmd, camera);
+
 	RenderSceneGeometry(cmd, camera);
 	RenderSceneComposite(cmd, camera);
 }
