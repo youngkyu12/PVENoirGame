@@ -324,6 +324,7 @@ VS_TEXTURED_LIGHTING_OUTPUT VSTexturedLighting(VS_TEXTURED_LIGHTING_INPUT input)
     float3 tW = mul(input.tangent.xyz, (float3x3) gmtxGameObject);
     output.tangentW = float4(tW, input.tangent.w);
     output.materialId = gnMaterialID;
+    output.shadowPosH = mul(float4(output.positionW, 1.0f), gmtxShadowTransform);
     
     return (output);
 }
@@ -470,7 +471,8 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs_AlphaClip(
         texColor,
         emissiveColor,
         specularColor,
-        shininess
+        shininess,
+        input.shadowPosH
     );
 
     output.cTexture = texColor;
@@ -569,6 +571,8 @@ VS_SKINNED_OUTPUT VSSkinned(VS_SKINNED_INPUT input)
     output.tangentW = float4(tW, input.tangent.w);
 
     output.materialId = gnMaterialID;
+    output.shadowPosH = mul(float4(output.positionW, 1.0f), gmtxShadowTransform);
+    
     return output;
 }
 
