@@ -33,15 +33,27 @@ void CShader::ReleaseUploadBuffers()
 {
 }
 
-D3D12_SHADER_BYTECODE CShader::CompileShaderFromFile(const WCHAR* pszFileName, LPCSTR pszShaderName, LPCSTR pszShaderProfile, ID3DBlob** ppd3dShaderBlob)
+D3D12_SHADER_BYTECODE CShader::CompileShaderFromFile(
+	const WCHAR* pszFileName,
+	LPCSTR pszShaderName,
+	LPCSTR pszShaderProfile,
+	ID3DBlob** ppd3dShaderBlob)
 {
+	D3D12_SHADER_BYTECODE d3dShaderByteCode{};
+	d3dShaderByteCode.BytecodeLength = 0;
+	d3dShaderByteCode.pShaderBytecode = nullptr;
+
+	if ( ppd3dShaderBlob )
+		*ppd3dShaderBlob = nullptr;
+
 	UINT nCompileFlags = 0;
 #if defined(_DEBUG)
 	nCompileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
 
 	ComPtr<ID3DBlob> pd3dErrorBlob;
-	::D3DCompileFromFile(
+
+	HRESULT hr = ::D3DCompileFromFile(
 		pszFileName,
 		nullptr,
 		D3D_COMPILE_STANDARD_FILE_INCLUDE,
@@ -53,11 +65,33 @@ D3D12_SHADER_BYTECODE CShader::CompileShaderFromFile(const WCHAR* pszFileName, L
 		&pd3dErrorBlob
 	);
 
-	D3D12_SHADER_BYTECODE d3dShaderByteCode;
-	d3dShaderByteCode.BytecodeLength = (*ppd3dShaderBlob)->GetBufferSize();
-	d3dShaderByteCode.pShaderBytecode = (*ppd3dShaderBlob)->GetBufferPointer();
+	if ( pd3dErrorBlob )
+	{
+		OutputDebugStringA("=== HLSL Compile Log Begin ===\n");
+		OutputDebugStringA(( const char* ) pd3dErrorBlob->GetBufferPointer());
+		OutputDebugStringA("\n=== HLSL Compile Log End ===\n");
+	}
 
-	return(d3dShaderByteCode);
+	if ( FAILED(hr) || !ppd3dShaderBlob || !( *ppd3dShaderBlob ) )
+	{
+		char debugText[512] = {};
+		sprintf_s(
+			debugText,
+			"[Shader Compile Failed] file=%ws entry=%s profile=%s hr=0x%08X\n",
+			pszFileName,
+			pszShaderName,
+			pszShaderProfile,
+			static_cast< unsigned int >( hr )
+		);
+		OutputDebugStringA(debugText);
+
+		return d3dShaderByteCode;
+	}
+
+	d3dShaderByteCode.BytecodeLength = ( *ppd3dShaderBlob )->GetBufferSize();
+	d3dShaderByteCode.pShaderBytecode = ( *ppd3dShaderBlob )->GetBufferPointer();
+
+	return d3dShaderByteCode;
 }
 
 D3D12_SHADER_BYTECODE CShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
@@ -563,6 +597,65 @@ void CSkinnedObjectsShader::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3
 void CSkinnedObjectsShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext)
 {
 	CIlluminatedTexturedShader::Render(pd3dCommandList, pCamera, pContext);
+}
+
+D3D12_SHADER_BYTECODE CShadowMapStaticShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(
+		L"Shaders.hlsl",
+		"VSShadowMapStaticInstanced",
+		"vs_5_1",
+		ppd3dShaderBlob
+	);
+}
+
+D3D12_SHADER_BYTECODE CShadowMapStaticShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(
+		L"Shaders.hlsl",
+		"PSShadowMapAlphaClip",
+		"ps_5_1",
+		ppd3dShaderBlob
+	);
+}
+
+D3D12_RASTERIZER_DESC CShadowMapStaticShader::CreateRasterizerState()
+{
+	D3D12_RASTERIZER_DESC rs = CShader::CreateRasterizerState();
+	rs.CullMode = D3D12_CULL_MODE_NONE;
+	rs.DepthBias = 100000;
+	rs.SlopeScaledDepthBias = 1.5f;
+	rs.DepthBiasClamp = 0.0f;
+	return rs;
+}
+
+D3D12_SHADER_BYTECODE CShadowMapSkinnedShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(
+		L"Shaders.hlsl",
+		"VSShadowMapSkinnedInstanced",
+		"vs_5_1",
+		ppd3dShaderBlob
+	);
+}
+
+D3D12_SHADER_BYTECODE CShadowMapSkinnedShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(
+		L"Shaders.hlsl",
+		"PSShadowMapAlphaClip",
+		"ps_5_1",
+		ppd3dShaderBlob
+	);
+}
+
+D3D12_RASTERIZER_DESC CShadowMapSkinnedShader::CreateRasterizerState()
+{
+	D3D12_RASTERIZER_DESC rs = CShader::CreateRasterizerState();
+	rs.DepthBias = 100000;
+	rs.SlopeScaledDepthBias = 1.5f;
+	rs.DepthBiasClamp = 0.0f;
+	return rs;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

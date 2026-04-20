@@ -146,6 +146,16 @@ struct CB_FOG
 	XMFLOAT4 fogParams1 = XMFLOAT4(1.01f, 5000.0f, 0.0f, 0.0f);
 };
 
+struct CB_SHADOW
+{
+	XMFLOAT4X4 shadowViewProj{};
+	XMFLOAT4X4 shadowTransform{};
+
+	XMFLOAT4 shadowLightPos = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+	XMFLOAT4 shadowParams0 = XMFLOAT4(2048.0f, 0.0008f, 0.0040f, 1.0f);
+	XMUINT4  shadowParams1 = XMUINT4(UINT_MAX, 0u, 0u, 0u);
+};
+
 // ============================================================================
 // GameScene
 // ============================================================================
@@ -418,6 +428,13 @@ private:
 	void RenderUI(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	void BuildDepthFogResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
 	void RenderDepthFog(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
+	void BuildShadowResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
+	void UpdateShadowData();
+	void RenderShadowMap(ID3D12GraphicsCommandList* cmd);
+	void RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList* cmd);
+	void RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandList* cmd);
+
 #ifndef USING_NETWORK
 	int GetLocalPlayerMegaGridNumberForDepthFog() const;
 #endif
@@ -583,10 +600,26 @@ private:
 
 	std::shared_ptr<CRectUIShader>      m_uiRectShader;
 	std::shared_ptr<CDepthFogShader>    m_depthFogShader;
+	std::shared_ptr<CShadowMapStaticShader>  m_shadowStaticShader;
+	std::shared_ptr<CShadowMapSkinnedShader> m_shadowSkinnedShader;
 	std::vector<UISpriteEntry>          m_uiSprites;
 	int                                 m_pauseUISpriteIndex = -1;
 	UINT                                m_depthFogSceneColorSrvIndex = UINT_MAX;
 	UINT                                m_depthFogSceneDepthSrvIndex = UINT_MAX;
+	ComPtr<ID3D12DescriptorHeap>        m_pd3dShadowDsvHeap;
+	ComPtr<ID3D12Resource>              m_pd3dShadowMap;
+	ComPtr<ID3D12Resource>              m_pd3dcbShadow;
+	CB_SHADOW* m_pcbMappedShadow = nullptr;
+	CB_SHADOW                           m_shadowData{};
+
+	UINT                                m_shadowMapSize = 2048;
+	UINT                                m_shadowMapSrvIndex = UINT_MAX;
+	float                               m_shadowOrthoHalfSize = 120.0f;
+	float                               m_shadowNearZ = 1.0f;
+	float                               m_shadowFarZ = 350.0f;
+
+	D3D12_VIEWPORT                      m_shadowViewport = { 0.0f, 0.0f, 2048.0f, 2048.0f, 0.0f, 1.0f };
+	D3D12_RECT                          m_shadowScissorRect = { 0, 0, 2048, 2048 };
 
 	bool                                m_bInactiveOverlayVisible = false;
 	bool                                m_bDepthFogPassEnabled = true;
