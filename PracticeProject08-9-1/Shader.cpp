@@ -613,6 +613,16 @@ D3D12_SHADER_BYTECODE CShadowMapStaticShader::CreatePixelShader(ID3DBlob** ppd3d
 {
 	return CShader::CompileShaderFromFile(
 		L"Shaders.hlsl",
+		"PSShadowMapOpaque",
+		"ps_5_1",
+		ppd3dShaderBlob
+	);
+}
+
+D3D12_SHADER_BYTECODE CShadowMapAlphaClipStaticShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(
+		L"Shaders.hlsl",
 		"PSShadowMapAlphaClip",
 		"ps_5_1",
 		ppd3dShaderBlob

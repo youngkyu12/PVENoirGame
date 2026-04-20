@@ -879,6 +879,10 @@ VS_SHADOW_OUTPUT VSShadowMapSkinnedInstanced(VS_SHADOW_SKINNED_INSTANCED_INPUT i
     return output;
 }
 
+void PSShadowMapOpaque(VS_SHADOW_OUTPUT input)
+{
+}
+
 void PSShadowMapAlphaClip(VS_SHADOW_OUTPUT input)
 {
     MATERIAL mat = gMaterials[input.materialId];

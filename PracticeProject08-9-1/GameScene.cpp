@@ -948,6 +948,7 @@ void CGameScene::ReleaseObjects()
 	m_uiRectShader.reset();
 	m_depthFogShader.reset();
 	m_shadowStaticShader.reset();
+	m_shadowAlphaClipStaticShader.reset();
 	m_shadowSkinnedShader.reset();
 	m_uiSprites.clear();
 	m_pauseUISpriteIndex = -1;
@@ -1228,6 +1229,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	auto pSkinnedShader = std::make_shared<CSkinnedObjectsShader>();
 	auto pColliderShader = std::make_shared<CDiffusedShader>();
 	auto pShadowStaticShader = std::make_shared<CShadowMapStaticShader>();
+	auto pShadowAlphaClipStaticShader = std::make_shared<CShadowMapAlphaClipStaticShader>();
 	auto pShadowSkinnedShader = std::make_shared<CShadowMapSkinnedShader>();
 
 	m_staticBatch.shader = pStaticShader;
@@ -1235,6 +1237,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_skinnedBatch.shader = pSkinnedShader;
 	m_colliderBatch.shader = pColliderShader;
 	m_shadowStaticShader = pShadowStaticShader;
+	m_shadowAlphaClipStaticShader = pShadowAlphaClipStaticShader;
 	m_shadowSkinnedShader = pShadowSkinnedShader;
 
 	DXGI_FORMAT rtvFormats[5] =
@@ -1266,11 +1269,19 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
 	pTreeStaticShader->CreateShader(dev,m_pd3dGraphicsRootSignature.Get(),kRTCount,rtvFormats,kDsvFormat);
 	pShadowStaticShader->CreateShader(
-	dev,
-	m_pd3dGraphicsRootSignature.Get(),
-	0,
-	nullptr,
-	DXGI_FORMAT_D24_UNORM_S8_UINT
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		0,
+		nullptr,
+		DXGI_FORMAT_D24_UNORM_S8_UINT
+	);
+
+	pShadowAlphaClipStaticShader->CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		0,
+		nullptr,
+		DXGI_FORMAT_D24_UNORM_S8_UINT
 	);
 
 	pShadowSkinnedShader->CreateShader(
@@ -3246,8 +3257,10 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 	if ( !m_pd3dStaticInstanceBuffer ) return;
 	if ( !m_pMappedStaticInstanceBuffer ) return;
 	if ( !m_shadowStaticShader ) return;
+	if ( !m_shadowAlphaClipStaticShader ) return;
 
-	m_shadowStaticShader->Render(cmd, nullptr, &m_staticBatch);
+	bool lastUseAlphaClipShader = false;
+	bool hasBoundAnyShader = false;
 
 	for ( const StaticInstanceGroup& group : m_staticInstanceGroups )
 	{
@@ -3299,6 +3312,17 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 		}
 
 		if ( visibleInstanceCount == 0 ) continue;
+
+		if ( !hasBoundAnyShader || ( lastUseAlphaClipShader != group.useTreeShader ) )
+		{
+			if ( group.useTreeShader )
+				m_shadowAlphaClipStaticShader->Render(cmd, nullptr, &m_staticBatch);
+			else
+				m_shadowStaticShader->Render(cmd, nullptr, &m_staticBatch);
+
+			lastUseAlphaClipShader = group.useTreeShader;
+			hasBoundAnyShader = true;
+		}
 
 		D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
 		vbViews[0] = sm.vbView;
