@@ -157,7 +157,7 @@ namespace
 		return out;
 	}
 
-	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::Test;
+	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::FullStageNoTree;
 }
 
 namespace
@@ -896,6 +896,7 @@ void CGameScene::ReleaseObjects()
 
 	m_treeStaticShader.reset();
 	m_treeAlphaClipObjects.clear();
+	m_skinnedAlphaClipObjects.clear();
 
     m_staticObjects.clear();
     m_skinnedObjects.clear();
@@ -947,14 +948,19 @@ void CGameScene::ReleaseObjects()
 
 	m_uiRectShader.reset();
 	m_depthFogShader.reset();
+
 	m_shadowStaticShader.reset();
 	m_shadowAlphaClipStaticShader.reset();
 	m_shadowSkinnedShader.reset();
+	m_shadowAlphaClipSkinnedShader.reset();
+
 	m_uiSprites.clear();
 	m_pauseUISpriteIndex = -1;
+
 	m_depthFogSceneColorSrvIndex = UINT_MAX;
 	m_depthFogSceneDepthSrvIndex = UINT_MAX;
 	m_shadowMapSrvIndex = UINT_MAX;
+
 	m_sceneRenderTargetCount = 0;
 	m_bSceneRenderTargetsReady = false;
 	m_bInactiveOverlayVisible = false;
@@ -1231,6 +1237,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	auto pShadowStaticShader = std::make_shared<CShadowMapStaticShader>();
 	auto pShadowAlphaClipStaticShader = std::make_shared<CShadowMapAlphaClipStaticShader>();
 	auto pShadowSkinnedShader = std::make_shared<CShadowMapSkinnedShader>();
+	auto pShadowAlphaClipSkinnedShader = std::make_shared<CShadowMapAlphaClipSkinnedShader>();
 
 	m_staticBatch.shader = pStaticShader;
 	m_treeStaticShader = pTreeStaticShader;
@@ -1239,6 +1246,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_shadowStaticShader = pShadowStaticShader;
 	m_shadowAlphaClipStaticShader = pShadowAlphaClipStaticShader;
 	m_shadowSkinnedShader = pShadowSkinnedShader;
+	m_shadowAlphaClipSkinnedShader = pShadowAlphaClipSkinnedShader;
 
 	DXGI_FORMAT rtvFormats[5] =
 	{
@@ -1291,6 +1299,15 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		nullptr,
 		DXGI_FORMAT_D24_UNORM_S8_UINT
 	);
+
+	pShadowAlphaClipSkinnedShader->CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		0,
+		nullptr,
+		DXGI_FORMAT_D24_UNORM_S8_UINT
+	);
+
 	BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
 #ifndef USING_NETWORK
 	//DumpStaticGridOccupancyLog();
@@ -2982,6 +2999,9 @@ void CGameScene::BuildSkinnedInstanceGroups()
 		CGameObject* obj = m_skinnedBatch.objectRefs[objectIndex];
 		if ( !obj ) continue;
 
+		const bool useAlphaClipShader =
+			( m_skinnedAlphaClipObjects.find(obj) != m_skinnedAlphaClipObjects.end() );
+
 		const int meshCount = obj->GetMeshCount();
 		for ( int meshIndex = 0; meshIndex < meshCount; ++meshIndex )
 		{
@@ -3004,7 +3024,8 @@ void CGameScene::BuildSkinnedInstanceGroups()
 				{
 					if ( group.geometryKey == geometryKey &&
 						group.meshIndex == ( UINT ) meshIndex &&
-						group.subMeshIndex == subMeshIndex )
+						group.subMeshIndex == subMeshIndex &&
+						group.useAlphaClipShader == useAlphaClipShader )
 					{
 						targetGroup = &group;
 						break;
@@ -3015,9 +3036,10 @@ void CGameScene::BuildSkinnedInstanceGroups()
 				{
 					SkinnedInstanceGroup newGroup{};
 					newGroup.geometryKey = geometryKey;
-					newGroup.mesh = mesh; // representative mesh
+					newGroup.mesh = mesh;
 					newGroup.subMeshIndex = subMeshIndex;
 					newGroup.meshIndex = ( UINT ) meshIndex;
+					newGroup.useAlphaClipShader = useAlphaClipShader;
 					m_skinnedInstanceGroups.push_back(std::move(newGroup));
 					targetGroup = &m_skinnedInstanceGroups.back();
 				}
@@ -3361,13 +3383,15 @@ void CGameScene::RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandLis
 	if ( !m_pd3dSkinnedBonePaletteBuffer ) return;
 	if ( !m_pMappedSkinnedBonePaletteBuffer ) return;
 	if ( !m_shadowSkinnedShader ) return;
+	if ( !m_shadowAlphaClipSkinnedShader ) return;
 
 	cmd->SetGraphicsRootShaderResourceView(
 		ROOT_PARAMETER_BONE_PALETTE,
 		m_pd3dSkinnedBonePaletteBuffer->GetGPUVirtualAddress()
 	);
 
-	m_shadowSkinnedShader->Render(cmd, nullptr, &m_skinnedBatch);
+	bool lastUseAlphaClipShader = false;
+	bool hasBoundAnyShader = false;
 
 	for ( const SkinnedInstanceGroup& group : m_skinnedInstanceGroups )
 	{
@@ -3444,6 +3468,17 @@ void CGameScene::RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandLis
 
 		if ( visibleInstanceCount == 0 ) continue;
 
+		if ( !hasBoundAnyShader || ( lastUseAlphaClipShader != group.useAlphaClipShader ) )
+		{
+			if ( group.useAlphaClipShader )
+				m_shadowAlphaClipSkinnedShader->Render(cmd, nullptr, &m_skinnedBatch);
+			else
+				m_shadowSkinnedShader->Render(cmd, nullptr, &m_skinnedBatch);
+
+			lastUseAlphaClipShader = group.useAlphaClipShader;
+			hasBoundAnyShader = true;
+		}
+
 		D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
 		vbViews[0] = repSm.vbView;
 		vbViews[1].BufferLocation =
@@ -3512,6 +3547,7 @@ void CGameScene::BuildSkinnedBatch(
 	);
 
 	m_skinnedObjects.clear();
+	m_skinnedAlphaClipObjects.clear();
 	m_skinnedObjects.reserve(cap);
 
 	b->objectRefs.clear();
@@ -4356,6 +4392,8 @@ void CGameScene::BuildSkinnedBatch(
 				continue;
 
 			CGameObject* raw = obj.get();
+			m_skinnedAlphaClipObjects.insert(raw);
+
 			m_skinnedObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			b->count = ( UINT ) b->objectRefs.size();
@@ -4408,6 +4446,8 @@ void CGameScene::BuildSkinnedBatch(
 				continue;
 
 			CGameObject* raw = obj.get();
+			m_skinnedAlphaClipObjects.insert(raw);
+
 			m_skinnedObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			b->count = ( UINT ) b->objectRefs.size();
