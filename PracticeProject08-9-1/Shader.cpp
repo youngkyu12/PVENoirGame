@@ -653,6 +653,16 @@ D3D12_SHADER_BYTECODE CShadowMapSkinnedShader::CreatePixelShader(ID3DBlob** ppd3
 {
 	return CShader::CompileShaderFromFile(
 		L"Shaders.hlsl",
+		"PSShadowMapOpaque",
+		"ps_5_1",
+		ppd3dShaderBlob
+	);
+}
+
+D3D12_SHADER_BYTECODE CShadowMapAlphaClipSkinnedShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(
+		L"Shaders.hlsl",
 		"PSShadowMapAlphaClip",
 		"ps_5_1",
 		ppd3dShaderBlob
