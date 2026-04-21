@@ -111,7 +111,7 @@ void Room::Enter(PlayerRef player)
 	player->SetPosition(GetInitialPlayerSpawnPosition(player->playerId));
 
 	player->SetWeapon(
-		static_cast<Protocol::WeaponType>(player->playerId + 2), 0);
+		static_cast<Protocol::WeaponType>(player->playerId + 1), 0);
 
 	players[player->playerId] = player;
 	player->SetActive(false);
