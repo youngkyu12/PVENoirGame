@@ -633,8 +633,8 @@ D3D12_RASTERIZER_DESC CShadowMapStaticShader::CreateRasterizerState()
 {
 	D3D12_RASTERIZER_DESC rs = CShader::CreateRasterizerState();
 	rs.CullMode = D3D12_CULL_MODE_NONE;
-	rs.DepthBias = 100000;
-	rs.SlopeScaledDepthBias = 1.5f;
+	rs.DepthBias = 20000;
+	rs.SlopeScaledDepthBias = 0.75f;
 	rs.DepthBiasClamp = 0.0f;
 	return rs;
 }
@@ -672,8 +672,9 @@ D3D12_SHADER_BYTECODE CShadowMapAlphaClipSkinnedShader::CreatePixelShader(ID3DBl
 D3D12_RASTERIZER_DESC CShadowMapSkinnedShader::CreateRasterizerState()
 {
 	D3D12_RASTERIZER_DESC rs = CShader::CreateRasterizerState();
-	rs.DepthBias = 100000;
-	rs.SlopeScaledDepthBias = 1.5f;
+	rs.CullMode = D3D12_CULL_MODE_NONE;
+	rs.DepthBias = 20000;
+	rs.SlopeScaledDepthBias = 0.75f;
 	rs.DepthBiasClamp = 0.0f;
 	return rs;
 }
