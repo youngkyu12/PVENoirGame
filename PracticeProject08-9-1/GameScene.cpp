@@ -5127,8 +5127,8 @@ void CGameScene::UpdateShadowData()
 
 	m_shadowData.shadowParams0 = XMFLOAT4(
 		static_cast< float >( m_shadowMapSize ),
-		0.0008f,
-		0.0040f,
+		0.00020f,
+		0.00120f,
 		1.0f
 		);
 	m_shadowData.shadowParams1 = XMUINT4(m_shadowMapSrvIndex, 1u, 0u, 0u);

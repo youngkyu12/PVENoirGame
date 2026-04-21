@@ -638,9 +638,9 @@ private:
 
 	UINT                                m_shadowMapSize = 2048;
 	UINT                                m_shadowMapSrvIndex = UINT_MAX;
-	float                               m_shadowOrthoHalfSize = 120.0f;
+	float                               m_shadowOrthoHalfSize = 45.0f;
 	float                               m_shadowNearZ = 1.0f;
-	float                               m_shadowFarZ = 350.0f;
+	float                               m_shadowFarZ = 160.0f;
 
 	D3D12_VIEWPORT                      m_shadowViewport = { 0.0f, 0.0f, 2048.0f, 2048.0f, 0.0f, 1.0f };
 	D3D12_RECT                          m_shadowScissorRect = { 0, 0, 2048, 2048 };
