@@ -171,12 +171,28 @@ float CalcShadowFactor(float4 shadowPosH, float3 normalW, float3 vToLight)
     float ndotl = saturate(dot(normalize(normalW), normalize(vToLight)));
     float bias = max(gvShadowParams0.y, gvShadowParams0.z * (1.0f - ndotl));
 
-    float shadowLit = gtxtGlobalTextures[shadowMapIdx].SampleCmpLevelZero(
-        gssShadowSampler,
-        proj.xy,
-        proj.z - bias
-    );
+    const float shadowMapSize = max(gvShadowParams0.x, 1.0f);
+    const float2 texelSize = float2(1.0f / shadowMapSize, 1.0f / shadowMapSize);
 
+    float shadowSum = 0.0f;
+
+    [unroll]
+    for (int y = -1; y <= 1; ++y)
+    {
+        [unroll]
+        for (int x = -1; x <= 1; ++x)
+        {
+            const float2 sampleUv = proj.xy + float2((float) x, (float) y) * texelSize;
+
+            shadowSum += gtxtGlobalTextures[shadowMapIdx].SampleCmpLevelZero(
+                gssShadowSampler,
+                sampleUv,
+                proj.z - bias
+            );
+        }
+    }
+
+    const float shadowLit = shadowSum / 9.0f;
     return lerp(1.0f, shadowLit, saturate(gvShadowParams0.w));
 }
 
