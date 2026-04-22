@@ -49,9 +49,11 @@ public:
 public:
     virtual void BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd) = 0;
     virtual void BuildObjectsCollider() {}
+	virtual void InitShadowMap() {};
 
 protected:
     void CreateGraphicsRootSignature(ID3D12Device* dev);
+	std::array<const D3D12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 
     // 파생에서 카메라 생성(메뉴/게임 각자 방식)
     virtual void CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target) = 0;

@@ -136,7 +136,6 @@ VS_SKINNED_OUTPUT VSSkinnedInstanced(VS_SKINNED_INSTANCED_INPUT input)
 
     output.materialId = input.instMaterialId;
     output.shadowPosH = mul(float4(output.positionW, 1.0f), gmtxShadowTransform);
-
     return output;
 }
 

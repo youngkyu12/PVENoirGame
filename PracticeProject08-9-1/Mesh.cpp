@@ -676,19 +676,19 @@ void CMesh::LoadMeshFromBIN(
         {
             CD3DX12_RESOURCE_BARRIER toCopy =
                 CD3DX12_RESOURCE_BARRIER::Transition(
-                    sm.vb,                       // sm.vb가 ComPtr이면 Get(), 포인터면 sm.vb
+                    sm.vb.Get(),                       // sm.vb가 ComPtr이면 Get(), 포인터면 sm.vb
                     D3D12_RESOURCE_STATE_COMMON,
                     D3D12_RESOURCE_STATE_COPY_DEST);
             cmdList->ResourceBarrier(1, &toCopy);
         }
 
-        cmdList->CopyBufferRegion(sm.vb, 0, sm.vbUpload, 0, vbSize);
+        cmdList->CopyBufferRegion(sm.vb.Get(), 0, sm.vbUpload, 0, vbSize);
 
         // Copy 후 COPY_DEST -> VERTEX
         {
             CD3DX12_RESOURCE_BARRIER toVB =
                 CD3DX12_RESOURCE_BARRIER::Transition(
-                    sm.vb,
+                    sm.vb.Get(),
                     D3D12_RESOURCE_STATE_COPY_DEST,
                     D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
             cmdList->ResourceBarrier(1, &toVB);
@@ -729,19 +729,19 @@ void CMesh::LoadMeshFromBIN(
             {
                 CD3DX12_RESOURCE_BARRIER toCopy =
                     CD3DX12_RESOURCE_BARRIER::Transition(
-                        sm.ib,
+                        sm.ib.Get(),
                         D3D12_RESOURCE_STATE_COMMON,
                         D3D12_RESOURCE_STATE_COPY_DEST);
                 cmdList->ResourceBarrier(1, &toCopy);
             }
 
-            cmdList->CopyBufferRegion(sm.ib, 0, sm.ibUpload, 0, ibSize);
+            cmdList->CopyBufferRegion(sm.ib.Get(), 0, sm.ibUpload, 0, ibSize);
 
             // Copy 후 COPY_DEST -> INDEX
             {
                 CD3DX12_RESOURCE_BARRIER toIB =
                     CD3DX12_RESOURCE_BARRIER::Transition(
-                        sm.ib,
+                        sm.ib.Get(),
                         D3D12_RESOURCE_STATE_COPY_DEST,
                         D3D12_RESOURCE_STATE_INDEX_BUFFER);
                 cmdList->ResourceBarrier(1, &toIB);

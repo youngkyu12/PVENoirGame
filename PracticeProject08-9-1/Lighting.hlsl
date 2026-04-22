@@ -78,7 +78,6 @@ float4 DirectionalLight(
     float4 shadowPosH)
 {
     MATERIAL mat = gMaterials[materialId];
-
     float3 vToLight = normalize(-gLights[nIndex].m_vDirection);
     float ndotl = saturate(dot(vToLight, normalize(vNormal)));
 
@@ -113,7 +112,6 @@ float4 PointLight(
     float shininess)
 {
     MATERIAL mat = gMaterials[materialId];
-
     float3 vToLight = gLights[nIndex].m_vPosition - vPosition;
     float fDistance = length(vToLight);
 
@@ -198,7 +196,6 @@ float4 SpotLight(
             gLights[nIndex].m_fFalloff
         );
 #endif
-
         float3 ambientColor =
             gLights[nIndex].m_cAmbient.rgb *
             texColor.rgb;
@@ -226,7 +223,6 @@ float4 Lighting(
     float4 shadowPosH)
 {
     MATERIAL mat = gMaterials[materialId];
-
     float3 vCameraPosition = float3(gvCameraPosition.x, gvCameraPosition.y, gvCameraPosition.z);
     float3 vToCamera = normalize(vCameraPosition - vPosition);
 

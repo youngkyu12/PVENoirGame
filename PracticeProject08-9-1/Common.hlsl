@@ -41,7 +41,7 @@ cbuffer cbDrawOptions : register(b5)
 {
     int4 gvDrawOptions; // x = 'T','L','N','D','Z'
     uint4 gvPostSrvIdx0; // x=T, y=L, z=N, w=D
-    uint4 gvPostSrvIdx1; // x=Z, ³ª¸ÓÁö ÆÐµù
+    uint4 gvPostSrvIdx1; // x=Z, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ðµï¿½
 
     // UI rectangle in pixels
     // x = centerX, y = centerY, z = width, w = height
