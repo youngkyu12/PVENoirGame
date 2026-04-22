@@ -14,7 +14,6 @@
 //#define _WITH_REFLECT
 
 Texture2D gtxtGlobalTextures[MAX_GLOBAL_SRVS] : register(t0);
-static const uint SHADOW_MAP_SRV_INDEX = 2u;
 
 cbuffer cbPlayerInfo : register(b0)
 {
@@ -35,22 +34,23 @@ cbuffer cbGameObjectInfo : register(b2)
     uint3 _padObj;
 };
 
-SamplerState gsamPointWrap : register(s0);
-SamplerState gsamPointClamp : register(s1);
-SamplerState gsamLinearWrap : register(s2);
-SamplerState gsamLinearClamp : register(s3);
-SamplerState gsamAnisotropicWrap : register(s4);
-SamplerState gsamAnisotropicClamp : register(s5);
-SamplerComparisonState gsamShadow : register(s6);
+SamplerState gssDefaultSamplerState : register(s0);
+SamplerComparisonState gssShadowSampler : register(s1);
 
 cbuffer cbDrawOptions : register(b5)
 {
     int4 gvDrawOptions; // x = 'T','L','N','D','Z'
     uint4 gvPostSrvIdx0; // x=T, y=L, z=N, w=D
-    uint4 gvPostSrvIdx1; // x=Z, ³ª¸ÓÁö ÆÐµù
+    uint4 gvPostSrvIdx1; // x=Z, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ðµï¿½
 
-    float4 gvUiRect; // x=centerX, y=centerY, z=width, w=height
-    float4 gvViewport; // x=viewportWidth, y=viewportHeight, z=1/w, w=1/h
+    // UI rectangle in pixels
+    // x = centerX, y = centerY, z = width, w = height
+    float4 gvUiRect;
+
+    // viewport info
+    // x = viewportWidth, y = viewportHeight
+    // z = 1/viewportWidth, w = 1/viewportHeight
+    float4 gvViewport;
 };
 
 cbuffer cbPerDrawMaterialId : register(b6)
@@ -75,12 +75,14 @@ cbuffer cbFog : register(b7)
     float4 gvFogParams1;
 };
 
-cbuffer cbShadowPass : register(b8)
+cbuffer cbShadow : register(b8)
 {
-    float4x4 gLightViewProj;
-    float4x4 gShadowTransform;
-    float3 gLightDirectionW;
-    float _padShadow0;
+    matrix gmtxShadowViewProj;
+    matrix gmtxShadowTransform;
+
+    float4 gvShadowLightPos;
+    float4 gvShadowParams0;
+    uint4 gvShadowParams1;
 };
 
 StructuredBuffer<float4x4> gBonePalette : register(t0, space1);

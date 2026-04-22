@@ -1,5 +1,5 @@
-#ifndef __SKINNED_VS_HLSL__
-#define __SKINNED_VS_HLSL__
+#ifndef __SKINNED_HLSL__
+#define __SKINNED_HLSL__
 
 #include "Common.hlsl"
 
@@ -33,12 +33,12 @@ struct VS_SKINNED_INSTANCED_INPUT
 struct VS_SKINNED_OUTPUT
 {
     float4 position : SV_POSITION;
-    float4 shadowPosH : TEXCOORD1;
-    float3 positionW : TEXCOORD2;
-    float3 normalW : TEXCOORD3;
-    float2 uv : TEXCOORD4;
-    float4 tangentW : TEXCOORD5;
+    float3 positionW : POSITION;
+    float3 normalW : NORMAL;
+    float2 uv : TEXCOORD;
+    float4 tangentW : TANGENT;
     nointerpolation uint materialId : MATERIAL_ID;
+    float4 shadowPosH : TEXCOORD1;
 };
 
 float4 SkinPosition4(float3 position, uint4 blendIndices, float4 blendWeights, uint boneBase)
@@ -76,7 +76,6 @@ VS_SKINNED_OUTPUT VSSkinned(VS_SKINNED_INPUT input)
 
     output.positionW = posW.xyz;
     output.position = mul(mul(posW, gmtxView), gmtxProjection);
-    output.shadowPosH = mul(float4(output.positionW, 1.0f), gShadowTransform);
     output.uv = input.uv;
 
     float3 nSkinned = SkinDirection4(input.normal, input.blendIndices, input.blendWeights, boneBase);
@@ -88,6 +87,8 @@ VS_SKINNED_OUTPUT VSSkinned(VS_SKINNED_INPUT input)
     output.tangentW = float4(tW, input.tangent.w);
 
     output.materialId = gnMaterialID;
+    output.shadowPosH = mul(float4(output.positionW, 1.0f), gmtxShadowTransform);
+
     return output;
 }
 
@@ -113,7 +114,6 @@ VS_SKINNED_OUTPUT VSSkinnedInstanced(VS_SKINNED_INSTANCED_INPUT input)
 
     output.positionW = posW.xyz;
     output.position = mul(mul(posW, gmtxView), gmtxProjection);
-    output.shadowPosH = mul(float4(output.positionW, 1.0f), gShadowTransform);
     output.uv = input.uv;
 
     float3 nSkinned = SkinDirection4(
@@ -135,6 +135,7 @@ VS_SKINNED_OUTPUT VSSkinnedInstanced(VS_SKINNED_INSTANCED_INPUT input)
     output.tangentW = float4(tW, input.tangent.w);
 
     output.materialId = input.instMaterialId;
+    output.shadowPosH = mul(float4(output.positionW, 1.0f), gmtxShadowTransform);
     return output;
 }
 
