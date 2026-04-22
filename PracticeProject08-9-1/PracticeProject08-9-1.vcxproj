@@ -392,6 +392,30 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </None>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Common.hlsl">
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+      <FileType>Document</FileType>
+    </None>
+    <None Include="Geometry.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="Lighting.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="MaterialTexture.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="PostProcess.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="Shadow.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="Skinned.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
