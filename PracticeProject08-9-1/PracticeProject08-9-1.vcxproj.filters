@@ -558,16 +558,16 @@
     <None Include="Geometry.hlsl">
       <Filter>Resource\HLSL</Filter>
     </None>
-    <None Include="Lighting.hlsl">
+    <None Include="Skinned.hlsl">
+      <Filter>Resource\HLSL</Filter>
+    </None>
+    <None Include="Shadow.hlsl">
       <Filter>Resource\HLSL</Filter>
     </None>
     <None Include="PostProcess.hlsl">
       <Filter>Resource\HLSL</Filter>
     </None>
-    <None Include="Skinned.hlsl">
-      <Filter>Resource\HLSL</Filter>
-    </None>
-    <None Include="Shadows.hlsl">
+    <None Include="Lighting.hlsl">
       <Filter>Resource\HLSL</Filter>
     </None>
   </ItemGroup>

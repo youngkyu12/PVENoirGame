@@ -96,32 +96,76 @@ float2 GetSpecularUV(uint materialId, float2 baseUV)
 
 float4 SampleTextureRGBA(uint packedIndex, float2 uv, float4 fallbackColor)
 {
-    float4 sampled = fallbackColor;
     uint textureIndex = DecodePackedTextureIndex(packedIndex);
 
     if (textureIndex == INVALID_TEXTURE_INDEX)
-        return sampled;
+        return fallbackColor;
 
     if (textureIndex >= MAX_GLOBAL_SRVS)
-        return sampled;
+        return fallbackColor;
 
-    sampled = gtxtGlobalTextures[textureIndex].Sample(gsamLinearWrap, uv);
-    return sampled;
+    return gtxtGlobalTextures[textureIndex].Sample(gssDefaultSamplerState, uv);
+}
+
+float CalcShadowFactor(float4 shadowPosH, float3 normalW, float3 vToLight)
+{
+    if (gvShadowParams1.y == 0u)
+        return 1.0f;
+
+    const uint shadowMapIdx = gvShadowParams1.x;
+    if (shadowMapIdx == 0xffffffffu || shadowMapIdx >= MAX_GLOBAL_SRVS)
+        return 1.0f;
+
+    float invW = rcp(max(0.0001f, shadowPosH.w));
+    float3 proj = shadowPosH.xyz * invW;
+
+    if (proj.x < 0.0f || proj.x > 1.0f ||
+        proj.y < 0.0f || proj.y > 1.0f ||
+        proj.z < 0.0f || proj.z > 1.0f)
+    {
+        return 1.0f;
+    }
+
+    float ndotl = saturate(dot(normalize(normalW), normalize(vToLight)));
+    float bias = max(gvShadowParams0.y, gvShadowParams0.z * (1.0f - ndotl));
+
+    const float shadowMapSize = max(gvShadowParams0.x, 1.0f);
+    const float2 texelSize = float2(1.0f / shadowMapSize, 1.0f / shadowMapSize);
+
+    float shadowSum = 0.0f;
+
+    [unroll]
+    for (int y = -1; y <= 1; ++y)
+    {
+        [unroll]
+        for (int x = -1; x <= 1; ++x)
+        {
+            const float2 sampleUv = proj.xy + float2((float) x, (float) y) * texelSize;
+
+            shadowSum += gtxtGlobalTextures[shadowMapIdx].SampleCmpLevelZero(
+                gssShadowSampler,
+                sampleUv,
+                proj.z - bias
+            );
+        }
+    }
+
+    const float shadowLit = shadowSum / 9.0f;
+    return lerp(1.0f, shadowLit, saturate(gvShadowParams0.w));
 }
 
 float3 GetNormalWFromMap(uint packedNormal, float3 normalW_in, float4 tangentW_in, float2 uv)
 {
     float3 N = normalize(normalW_in);
-    float3 nW = N;
-    
+
     uint normalIndex = DecodePackedTextureIndex(packedNormal);
     if (normalIndex == INVALID_TEXTURE_INDEX)
-        return nW;
+        return N;
 
     if (normalIndex >= MAX_GLOBAL_SRVS)
-        return nW;
+        return N;
 
-    float3 nTS = gtxtGlobalTextures[normalIndex].Sample(gsamLinearWrap, uv).xyz;
+    float3 nTS = gtxtGlobalTextures[normalIndex].Sample(gssDefaultSamplerState, uv).xyz;
     nTS = nTS * 2.0f - 1.0f;
 
     float3 T = normalize(tangentW_in.xyz);
@@ -129,60 +173,8 @@ float3 GetNormalWFromMap(uint packedNormal, float3 normalW_in, float4 tangentW_i
 
     float3 B = normalize(cross(N, T) * tangentW_in.w);
 
-    nW = normalize(T * nTS.x + B * nTS.y + N * nTS.z);
+    float3 nW = normalize(T * nTS.x + B * nTS.y + N * nTS.z);
     return nW;
-}
-
-//---------------------------------------------------------------------------------------
-// PCF for shadow mapping.
-//---------------------------------------------------------------------------------------
-float CalcShadowFactor(float4 shadowPosH)
-{
-    float shadowFactor = 1.0f;
-    
-    if (shadowPosH.w <= 0.0f)
-        return shadowFactor;
-
-    shadowPosH.xyz /= shadowPosH.w;
-
-    if (shadowPosH.x < 0.0f || shadowPosH.x > 1.0f ||
-        shadowPosH.y < 0.0f || shadowPosH.y > 1.0f ||
-        shadowPosH.z < 0.0f || shadowPosH.z > 1.0f)
-    {
-        return shadowFactor;
-    }
-
-    float depth = shadowPosH.z;
-
-    uint width, height, numMips;
-    gtxtGlobalTextures[SHADOW_MAP_SRV_INDEX].GetDimensions(0, width, height, numMips);
-
-    float dx = 1.0f / (float) width;
-
-    float percentLit = 0.0f;
-    const float2 offsets[9] =
-    {
-        float2(-dx, -dx), float2(0.0f, -dx), float2(dx, -dx),
-        float2(-dx, 0.0f), float2(0.0f, 0.0f), float2(dx, 0.0f),
-        float2(-dx, +dx), float2(0.0f, +dx), float2(dx, +dx)
-    };
-
-    [unroll]
-    for (int i = 0; i < 9; ++i)
-    {
-        const float sampledDepth =
-            gtxtGlobalTextures[SHADOW_MAP_SRV_INDEX].SampleLevel(
-                gsamLinearClamp,
-                shadowPosH.xy + offsets[i],
-                0.0f
-            ).r;
-
-        percentLit += (depth <= sampledDepth + 0.0005f) ? 1.0f : 0.0f;
-    }
-
-
-    shadowFactor = percentLit / 9.0f;
-    return shadowFactor;
 }
 
 float ResolveLinearDepthFromDeviceZ(float deviceZ)
@@ -190,7 +182,6 @@ float ResolveLinearDepthFromDeviceZ(float deviceZ)
     const float nearZ = max(0.0001f, gvFogParams1.x);
     const float farZ = max(nearZ + 0.0001f, gvFogParams1.y);
 
-    // deviceZ: [0,1] depth
     const float zNdc = deviceZ * 2.0f - 1.0f;
 
     const float denom = max(
@@ -241,7 +232,5 @@ float ComputeFogFactor(float linearDepth)
     const float fogIntensity = saturate(gvFogParams1.w);
     return baseFogFactor * fogIntensity;
 }
-
-
 
 #endif
