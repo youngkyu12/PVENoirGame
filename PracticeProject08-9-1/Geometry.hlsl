@@ -1,5 +1,5 @@
-#ifndef __GEOMETRY_VS_HLSL__
-#define __GEOMETRY_VS_HLSL__
+#ifndef __GEOMETRY_HLSL__
+#define __GEOMETRY_HLSL__
 
 #include "Common.hlsl"
 #include "MaterialTexture.hlsl"
@@ -94,12 +94,12 @@ struct VS_TEXTURED_LIGHTING_INSTANCED_INPUT
 struct VS_TEXTURED_LIGHTING_OUTPUT
 {
     float4 position : SV_POSITION;
-    float4 shadowPosH : TEXCOORD1;
-    float3 positionW : TEXCOORD2;
-    float3 normalW : TEXCOORD3;
-    float2 uv : TEXCOORD4;
-    float4 tangentW : TEXCOORD5;
+    float3 positionW : POSITION;
+    float3 normalW : NORMAL;
+    float2 uv : TEXCOORD;
+    float4 tangentW : TANGENT;
     nointerpolation uint materialId : MATERIAL_ID;
+    float4 shadowPosH : TEXCOORD1;
 };
 
 VS_TEXTURED_LIGHTING_OUTPUT VSTexturedLighting(VS_TEXTURED_LIGHTING_INPUT input)
@@ -109,12 +109,12 @@ VS_TEXTURED_LIGHTING_OUTPUT VSTexturedLighting(VS_TEXTURED_LIGHTING_INPUT input)
     output.normalW = mul(input.normal, (float3x3) gmtxGameObject);
     output.positionW = (float3) mul(float4(input.position, 1.0f), gmtxGameObject);
     output.position = mul(mul(float4(output.positionW, 1.0f), gmtxView), gmtxProjection);
-    output.shadowPosH = mul(float4(output.positionW, 1.0f), gShadowTransform);
     output.uv = input.uv;
 
     float3 tW = mul(input.tangent.xyz, (float3x3) gmtxGameObject);
     output.tangentW = float4(tW, input.tangent.w);
     output.materialId = gnMaterialID;
+    output.shadowPosH = mul(float4(output.positionW, 1.0f), gmtxShadowTransform);
 
     return output;
 }
@@ -133,12 +133,12 @@ VS_TEXTURED_LIGHTING_OUTPUT VSTexturedLightingInstanced(VS_TEXTURED_LIGHTING_INS
     output.normalW = mul(input.normal, (float3x3) mtxInstanceWorld);
     output.positionW = (float3) mul(float4(input.position, 1.0f), mtxInstanceWorld);
     output.position = mul(mul(float4(output.positionW, 1.0f), gmtxView), gmtxProjection);
-    output.shadowPosH = mul(float4(output.positionW, 1.0f), gShadowTransform);
     output.uv = input.uv;
 
     float3 tW = mul(input.tangent.xyz, (float3x3) mtxInstanceWorld);
     output.tangentW = float4(tW, input.tangent.w);
     output.materialId = gnMaterialID;
+    output.shadowPosH = mul(float4(output.positionW, 1.0f), gmtxShadowTransform);
 
     return output;
 }
@@ -189,7 +189,6 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
     float3 emissiveColor = emissiveSample.rgb * mat.m_cEmissive.rgb;
     float3 specularColor = specularSample.rgb * mat.m_cSpecular.rgb;
     float shininess = mat.m_cSpecular.a;
-    float shadowFactor = CalcShadowFactor(input.shadowPosH);
 
     float4 illumination = Lighting(
         materialId,
@@ -199,9 +198,9 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
         emissiveColor,
         specularColor,
         shininess,
-        shadowFactor
+        input.shadowPosH
     );
-    
+
     output.cTexture = texColor;
     output.cIllumination = illumination;
     output.color = illumination;
@@ -251,7 +250,6 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs_AlphaClip(
     float3 emissiveColor = emissiveSample.rgb * mat.m_cEmissive.rgb;
     float3 specularColor = specularSample.rgb * mat.m_cSpecular.rgb;
     float shininess = mat.m_cSpecular.a;
-    float shadowFactor = CalcShadowFactor(input.shadowPosH);
 
     float4 illumination = Lighting(
         materialId,
@@ -261,7 +259,8 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs_AlphaClip(
         emissiveColor,
         specularColor,
         shininess,
-        shadowFactor);
+        input.shadowPosH
+    );
 
     output.cTexture = texColor;
     output.cIllumination = illumination;
@@ -271,7 +270,4 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs_AlphaClip(
 
     return output;
 }
-
-
-
 #endif

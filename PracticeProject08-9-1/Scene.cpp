@@ -144,6 +144,35 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* dev)
 	pd3dRootParameters[10].Descriptor.RegisterSpace = 0;
 	pd3dRootParameters[10].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
+	D3D12_STATIC_SAMPLER_DESC d3dSamplerDescs[2] = {};
+
+	d3dSamplerDescs[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+	d3dSamplerDescs[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	d3dSamplerDescs[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	d3dSamplerDescs[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	d3dSamplerDescs[0].MipLODBias = 0;
+	d3dSamplerDescs[0].MaxAnisotropy = 1;
+	d3dSamplerDescs[0].ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	d3dSamplerDescs[0].MinLOD = 0;
+	d3dSamplerDescs[0].MaxLOD = D3D12_FLOAT32_MAX;
+	d3dSamplerDescs[0].ShaderRegister = 0; // s0
+	d3dSamplerDescs[0].RegisterSpace = 0;
+	d3dSamplerDescs[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+	d3dSamplerDescs[1].Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+	d3dSamplerDescs[1].AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+	d3dSamplerDescs[1].AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+	d3dSamplerDescs[1].AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+	d3dSamplerDescs[1].MipLODBias = 0;
+	d3dSamplerDescs[1].MaxAnisotropy = 1;
+	d3dSamplerDescs[1].ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	d3dSamplerDescs[1].BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+	d3dSamplerDescs[1].MinLOD = 0;
+	d3dSamplerDescs[1].MaxLOD = D3D12_FLOAT32_MAX;
+	d3dSamplerDescs[1].ShaderRegister = 1; // s1
+	d3dSamplerDescs[1].RegisterSpace = 0;
+	d3dSamplerDescs[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
 	auto ad3dSamplerDesces = GetStaticSamplers();
     
     D3D12_ROOT_SIGNATURE_FLAGS flags =
@@ -155,8 +184,8 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* dev)
     D3D12_ROOT_SIGNATURE_DESC desc = {};
     desc.NumParameters = _countof(pd3dRootParameters);
     desc.pParameters = pd3dRootParameters;
-    desc.NumStaticSamplers = ad3dSamplerDesces.size();
-    desc.pStaticSamplers = ad3dSamplerDesces.data();
+	desc.NumStaticSamplers = _countof(d3dSamplerDescs);
+	desc.pStaticSamplers = d3dSamplerDescs;
     desc.Flags = flags;
 
     ComPtr<ID3DBlob> sigBlob;
