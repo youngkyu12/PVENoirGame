@@ -179,7 +179,8 @@ namespace
             &qx, &qy, &qz, &qw
         );
 
-        if (matched != 9) return false;
+        if (matched != 9) 
+			return false;
 
         outEntry.assetName = asset;
         outEntry.objectName = objectName;
@@ -947,6 +948,10 @@ void CGameScene::ReleaseObjects()
 		m_depthFogShader->ReleaseShaderVariables();
 
 	m_uiRectShader.reset();
+	mShadowMap.reset();
+	mShadowShader.reset();
+	if ( m_pd3dShadowDsvDescriptorHeap )
+		m_pd3dShadowDsvDescriptorHeap.Reset();
 	m_depthFogShader.reset();
 
 	m_shadowStaticShader.reset();
@@ -978,6 +983,91 @@ void CGameScene::ReleaseObjects()
 	ReleaseShaderVariables();
 
 	CScene::ReleaseObjects();
+}
+
+void CGameScene::InitShadowMap(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
+{
+	if ( !dev || !cmd || !m_pd3dGraphicsRootSignature )
+		return;
+
+	mShadowShader = std::make_shared<CShadowShader>();
+	mShadowShader->CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		0,
+		nullptr,
+		DXGI_FORMAT_D24_UNORM_S8_UINT);
+
+	constexpr UINT kShadowMapWidth = 2048;
+	constexpr UINT kShadowMapHeight = 2048;
+	mShadowMap = std::make_unique<ShadowMap>(
+		dev,
+		mShadowShader.get(),
+		kShadowMapWidth,
+		kShadowMapHeight);
+
+	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
+	dsvHeapDesc.NumDescriptors = 1;
+	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	dsvHeapDesc.NodeMask = 0;
+	HRESULT hr = dev->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_pd3dShadowDsvDescriptorHeap));
+	assert(SUCCEEDED(hr));
+
+	const UINT shadowSrvIndex = CScene::m_pDescriptorHeap->AllocateSrvRangeBack(1);
+	assert(shadowSrvIndex != UINT_MAX);
+	D3D12_CPU_DESCRIPTOR_HANDLE shadowSrvCpu = CScene::m_pDescriptorHeap->GetCPUSrvHandle(shadowSrvIndex);
+	D3D12_GPU_DESCRIPTOR_HANDLE shadowSrvGpu = CScene::m_pDescriptorHeap->GetGPUSrvHandle(shadowSrvIndex);
+	D3D12_CPU_DESCRIPTOR_HANDLE shadowDsvCpu = m_pd3dShadowDsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+
+	mShadowMap->OnCreate(shadowDsvCpu);
+	mShadowMap->BuildDescriptors(shadowSrvCpu, shadowSrvGpu, shadowDsvCpu);
+
+	CGameObject* targetPlayer = GetPlayer();
+	if ( !targetPlayer )
+		targetPlayer = GetPlayerBySlot(0);
+	mShadowMap->SetTargetObject(targetPlayer);
+
+	for ( auto& lo : m_lightObjects )
+	{
+		if ( !lo ) continue;
+		auto* lc = lo->GetComponent<CLightComponent>();
+		if ( !lc ) continue;
+		if ( lc->type == ELightType::Directional )
+		{
+			mShadowMap->SetLightComponent(lc);
+			break;
+		}
+	}
+
+	mShadowMap->OnUpdate();
+	mShadowMap->UpdateShadowPassCB();
+}
+
+void CGameScene::RenderShadowMap(ID3D12GraphicsCommandList* cmd, const CGameTimer& gt)
+{
+	if ( !cmd || !mShadowMap )
+		return;
+
+	CGameObject* targetPlayer = GetPlayer();
+	if ( !targetPlayer )
+		targetPlayer = GetPlayerBySlot(0);
+	mShadowMap->SetTargetObject(targetPlayer);
+
+	std::vector<CGameObject*> casters;
+	casters.reserve(m_staticObjects.size());
+
+	for ( auto& obj : m_staticObjects )
+	{
+		if ( obj )
+			casters.push_back(obj.get());
+	}
+
+	// NOTE:
+	// 현재 shadow 전용 VS(Shadows.hlsl)는 스키닝(본 인덱스/가중치)을 처리하지 않는다.
+	// 스키닝 섀도우 패스를 별도로 구현하기 전까지는 정적 오브젝트만 그림자 캐스터로 사용한다.
+
+	mShadowMap->Render(gt, cmd, casters);
 }
 
 void CGameScene::ReleaseUploadBuffers()
@@ -1324,6 +1414,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		local = GetPlayerBySlot(0);
 
 	CreateMainCamera(dev, cmd, local);
+	InitShadowMap(dev, cmd);
 	BuildObjectsCollider();
 
 #ifndef USING_NETWORK
@@ -5180,6 +5271,22 @@ void CGameScene::RenderUI(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 			m_uiRectShader->Render(cmd, camera, &opt);
 		}
 	}
+
+	if ( m_bShowShadowMapOverlay && mShadowMap )
+	{
+		PS_CB_DRAW_OPTIONS opt{};
+		opt.m_xmn4DrawOptions = XMINT4('T', 0, 0, 0);
+		opt.m_xmu4PostSrvIdx0 = XMUINT4(2, 0, 0, 0); // t2: shadow map SRV
+		opt.m_xmu4PostSrvIdx1 = XMUINT4(0, 0, 0, 0);
+		opt.m_xmf4UiRect = XMFLOAT4(180.0f, 130.0f, 320.0f, 180.0f);
+		opt.m_xmf4Viewport = XMFLOAT4(
+			static_cast< float >( FRAME_BUFFER_WIDTH ),
+			static_cast< float >( FRAME_BUFFER_HEIGHT ),
+			1.0f / static_cast< float >( FRAME_BUFFER_WIDTH ),
+			1.0f / static_cast< float >( FRAME_BUFFER_HEIGHT ));
+
+		m_uiRectShader->Render(cmd, camera, &opt);
+	}
 }
 
 void CGameScene::RenderShadowMap(ID3D12GraphicsCommandList* cmd)
@@ -6335,6 +6442,8 @@ void CGameScene::OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera
         cmd->SetGraphicsRootConstantBufferView(ROOT_PARAMETER_MATERIAL, matsGpu);
     }
 
+	if ( mShadowMap )
+		mShadowMap->BindShadowPassCB(cmd);
 	if ( m_pd3dcbFog )
 	{
 		D3D12_GPU_VIRTUAL_ADDRESS fogGpu = m_pd3dcbFog->GetGPUVirtualAddress();

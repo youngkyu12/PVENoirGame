@@ -531,9 +531,6 @@
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Light.hlsl">
-      <Filter>Resource\HLSL</Filter>
-    </None>
     <None Include="Shaders.hlsl">
       <Filter>Resource\HLSL</Filter>
     </None>
