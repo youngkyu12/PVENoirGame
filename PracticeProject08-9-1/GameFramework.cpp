@@ -1102,10 +1102,10 @@ void CGameFramework::FrameAdvance()
 	CScene* scene = m_SceneManager.GetScene();
 	CGameScene* gameScene = dynamic_cast< CGameScene* >( scene );
 
-	if ( gameScene && ( m_nDrawOption == DRAW_SCENE_COLOR ) )
+	/*if ( gameScene && ( m_nDrawOption == DRAW_SCENE_COLOR ) )
 	{
 		gameScene->RenderShadowMap(m_pd3dCommandList.Get(), m_GameTimer);
-	}
+	}*/
 
 	if (scene)
 		scene->OnPrepareRender(m_pd3dCommandList.Get(), m_pCamera);
@@ -1128,6 +1128,32 @@ void CGameFramework::FrameAdvance()
 				m_pd3dCommandList.Get(),
 				&m_d3dDsvDescriptorCPUHandle
 			);
+
+			{
+				D3D12_CPU_DESCRIPTOR_HANDLE sceneRtvs[8] = {};
+				UINT sceneRtvCount = 0;
+
+				if ( m_pPostProcessingShader && m_pPostProcessingShader->GetTexture() )
+				{
+					sceneRtvCount = static_cast< UINT >(
+						m_pPostProcessingShader->GetTexture()->GetTextures()
+					);
+
+					if ( sceneRtvCount > 8 )
+						sceneRtvCount = 8;
+
+					for ( UINT i = 0; i < sceneRtvCount; ++i )
+						sceneRtvs[i] = m_pPostProcessingShader->GetRtvCPUDescriptorHandle(i);
+				}
+
+				gameScene->SetSceneRenderTargets(
+					sceneRtvCount,
+					sceneRtvs,
+					m_d3dDsvDescriptorCPUHandle
+				);
+			}
+
+			gameScene->RenderShadowPrePass(m_pd3dCommandList.Get(), m_pCamera);
 
 			gameScene->OnPrepareRender(m_pd3dCommandList.Get(), m_pCamera);
 			gameScene->RenderSceneGeometry(m_pd3dCommandList.Get(), m_pCamera);
