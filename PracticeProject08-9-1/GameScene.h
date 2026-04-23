@@ -9,7 +9,7 @@
 #include "LightTypes.h"
 #include "SceneRenderTypes.h"
 #include "ColliderComponent.h"
-#include "ShadowMap.h"
+//#include "ShadowMap.h"
 
 #include <unordered_set>
 #include <cstdint>
@@ -128,6 +128,7 @@ struct SkinnedInstanceGroup
 	std::vector<UINT> objectIndices;
 
 	UINT instanceBufferStart = 0;
+	bool useAlphaClipShader = false;
 };
 
 struct CB_FOG
@@ -145,6 +146,16 @@ struct CB_FOG
 	// z = fogMode (0=Linear, 1=Exp, 2=Exp2)
 	// w = reserved
 	XMFLOAT4 fogParams1 = XMFLOAT4(1.01f, 5000.0f, 0.0f, 0.0f);
+};
+
+struct CB_SHADOW
+{
+	XMFLOAT4X4 shadowViewProj{};
+	XMFLOAT4X4 shadowTransform{};
+
+	XMFLOAT4 shadowLightPos = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+	XMFLOAT4 shadowParams0 = XMFLOAT4(2048.0f, 0.0008f, 0.0040f, 1.0f);
+	XMUINT4  shadowParams1 = XMUINT4(UINT_MAX, 0u, 0u, 0u);
 };
 
 // ============================================================================
@@ -170,7 +181,7 @@ protected:
     void CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target) override;
 
 private:
-	void InitShadowMap(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
+	//void InitShadowMap(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
     void BuildLightsAndMaterials();
     void BuildObjectsCollider() override;
 
@@ -225,10 +236,12 @@ public:
     bool ProcessInput(UCHAR* pKeysBuffer) override;
     void AnimateObjects(float dt) override;
     void CollisionObjects() override;
-	void RenderShadowMap(ID3D12GraphicsCommandList* cmd, const CGameTimer& gt);
+	//void RenderShadowMap(ID3D12GraphicsCommandList* cmd, const CGameTimer& gt);
 
-    void OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera) override;
-    void Render(ID3D12GraphicsCommandList* cmd, CCamera* camera = nullptr) override;
+public:
+	void OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera) override;
+	void Render(ID3D12GraphicsCommandList* cmd, CCamera* camera = nullptr) override;
+	void RenderShadowPrePass(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	void RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	void RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
@@ -255,6 +268,22 @@ public:
 	{
 		m_depthFogSceneColorSrvIndex = sceneColorSrvIndex;
 		m_depthFogSceneDepthSrvIndex = sceneDepthSrvIndex;
+	}
+
+	void SetSceneRenderTargets(
+	UINT count,
+	const D3D12_CPU_DESCRIPTOR_HANDLE* rtvs,
+	D3D12_CPU_DESCRIPTOR_HANDLE dsv)
+	{
+		m_sceneRenderTargetCount = ( count > static_cast< UINT >( m_sceneRtvHandles.size() ) )
+			? static_cast< UINT >( m_sceneRtvHandles.size() )
+			: count;
+
+		for ( UINT i = 0; i < m_sceneRenderTargetCount; ++i )
+			m_sceneRtvHandles[i] = rtvs[i];
+
+		m_sceneDsvHandle = dsv;
+		m_bSceneRenderTargetsReady = ( m_sceneRenderTargetCount > 0 );
 	}
 
 	void SetDepthFogPassEnabled(bool enabled) { m_bDepthFogPassEnabled = enabled; }
@@ -421,6 +450,14 @@ private:
 	void RenderUI(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	void BuildDepthFogResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
 	void RenderDepthFog(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
+	void BuildShadowResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
+	void UpdateShadowData();
+	void RenderShadowMap(ID3D12GraphicsCommandList* cmd);
+	void RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList* cmd);
+	void RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandList* cmd);
+	void RestoreSceneRenderTargets(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
 #ifndef USING_NETWORK
 	int GetLocalPlayerMegaGridNumberForDepthFog() const;
 #endif
@@ -552,9 +589,9 @@ private:
 	std::vector<GridDynamicTracker> m_bulletGridTrackers;
 #endif
 
-	std::unique_ptr<ShadowMap> mShadowMap;
+	/*std::unique_ptr<ShadowMap> mShadowMap;
 	std::shared_ptr<CShadowShader> mShadowShader;
-	ComPtr<ID3D12DescriptorHeap> m_pd3dShadowDsvDescriptorHeap;
+	ComPtr<ID3D12DescriptorHeap> m_pd3dShadowDsvDescriptorHeap;*/
 
 private:
     bool LoadStaticPlacementFile(const std::string& filePath);
@@ -587,13 +624,37 @@ private:
 
 	std::shared_ptr<CStaticObjectsShader>	m_treeStaticShader;
 	std::unordered_set<const CGameObject*>	m_treeAlphaClipObjects;
+	std::unordered_set<const CGameObject*>	m_skinnedAlphaClipObjects;
 
 	std::shared_ptr<CRectUIShader>      m_uiRectShader;
 	std::shared_ptr<CDepthFogShader>    m_depthFogShader;
+	std::shared_ptr<CShadowMapStaticShader>               m_shadowStaticShader;
+	std::shared_ptr<CShadowMapAlphaClipStaticShader>      m_shadowAlphaClipStaticShader;
+	std::shared_ptr<CShadowMapSkinnedShader>              m_shadowSkinnedShader;
+	std::shared_ptr<CShadowMapAlphaClipSkinnedShader>     m_shadowAlphaClipSkinnedShader;
+
 	std::vector<UISpriteEntry>          m_uiSprites;
 	int                                 m_pauseUISpriteIndex = -1;
 	UINT                                m_depthFogSceneColorSrvIndex = UINT_MAX;
 	UINT                                m_depthFogSceneDepthSrvIndex = UINT_MAX;
+	ComPtr<ID3D12DescriptorHeap>        m_pd3dShadowDsvHeap;
+	ComPtr<ID3D12Resource>              m_pd3dShadowMap;
+	ComPtr<ID3D12Resource>              m_pd3dcbShadow;
+	CB_SHADOW* m_pcbMappedShadow = nullptr;
+	CB_SHADOW                           m_shadowData{};
+
+	UINT                                m_shadowMapSize = 2048;
+	UINT                                m_shadowMapSrvIndex = UINT_MAX;
+	float                               m_shadowOrthoHalfSize = 45.0f;
+	float                               m_shadowNearZ = 1.0f;
+	float                               m_shadowFarZ = 160.0f;
+
+	D3D12_VIEWPORT                      m_shadowViewport = { 0.0f, 0.0f, 2048.0f, 2048.0f, 0.0f, 1.0f };
+	D3D12_RECT                          m_shadowScissorRect = { 0, 0, 2048, 2048 };
+	std::array<D3D12_CPU_DESCRIPTOR_HANDLE, 8> m_sceneRtvHandles = {};
+	D3D12_CPU_DESCRIPTOR_HANDLE                m_sceneDsvHandle = {};
+	UINT                                       m_sceneRenderTargetCount = 0;
+	bool                                       m_bSceneRenderTargetsReady = false;
 
 	bool                                m_bInactiveOverlayVisible = false;
 	bool                                m_bDepthFogPassEnabled = true;
