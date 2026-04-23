@@ -185,6 +185,50 @@ public:
 	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext = nullptr);
 };
 
+class CShadowMapStaticShader : public CStaticObjectsShader
+{
+public:
+	CShadowMapStaticShader() = default;
+	~CShadowMapStaticShader() override = default;
+
+public:
+	D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob) override;
+	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
+	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
+};
+
+class CShadowMapAlphaClipStaticShader final : public CShadowMapStaticShader
+{
+public:
+	CShadowMapAlphaClipStaticShader() = default;
+	~CShadowMapAlphaClipStaticShader() override = default;
+
+public:
+	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
+};
+
+class CShadowMapSkinnedShader : public CSkinnedObjectsShader
+{
+public:
+	CShadowMapSkinnedShader() = default;
+	~CShadowMapSkinnedShader() override = default;
+
+public:
+	D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob) override;
+	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
+	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
+};
+
+class CShadowMapAlphaClipSkinnedShader final : public CShadowMapSkinnedShader
+{
+public:
+	CShadowMapAlphaClipSkinnedShader() = default;
+	~CShadowMapAlphaClipSkinnedShader() override = default;
+
+public:
+	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
+};
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // -----------------------------------------------------------------------------
 // UI Shader (2D)

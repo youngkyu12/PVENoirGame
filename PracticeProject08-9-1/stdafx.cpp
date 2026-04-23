@@ -208,7 +208,7 @@ ComPtr<ID3D12Resource> CreateTextureResourceFromDDSFile(
 	return(pd3dTexture);
 }
 
-ComPtr<ID3D12Resource> CreateTexture2DResource(
+ID3D12Resource* CreateTexture2DResource(
 	ID3D12Device *pd3dDevice, 
 	UINT nWidth, 
 	UINT nHeight, 
