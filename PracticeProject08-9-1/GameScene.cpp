@@ -999,10 +999,12 @@ void CGameScene::ReleaseObjects()
 	m_helmetRefs.clear();
 	m_arrowRefs.clear();
 	m_bulletRefs.clear();
+
 	m_attachmentBinds.clear();
 	m_staticInstanceGroups.clear();
 	ResetStaticWorldLodEntries();
 	ResetStaticOcclusionEntries();
+	m_staticOcclusionUnitBoxMesh.reset();
 	m_skinnedInstanceGroups.clear();
 	ResetSkinnedWorldLodEntries();
 
@@ -2769,6 +2771,7 @@ void CGameScene::BuildStaticBatch(
 	}
 
 	BuildStaticOcclusionEntries();
+	BuildStaticOcclusionUnitBoxMesh(dev, cmd);
 	BuildStaticOcclusionGpuResources(dev);
 	BuildStaticInstanceGroups();
 
@@ -2812,6 +2815,8 @@ void CGameScene::ResetStaticOcclusionEntries()
 	m_staticOcclusionEntries.clear();
 	m_staticOcclusionCullFlags.clear();
 	m_staticOcclusionQuerySampleCounts.clear();
+	m_staticOcclusionLastFrameIssuedFlags.clear();
+	m_staticOcclusionCurrentFrameIssuedFlags.clear();
 	m_staticOcclusionQueryCapacity = 0;
 	m_bStaticOcclusionQueryResultsValid = false;
 }
@@ -2869,6 +2874,31 @@ void CGameScene::BuildStaticOcclusionEntries()
 	}
 }
 
+void CGameScene::BuildStaticOcclusionUnitBoxMesh(
+	ID3D12Device* dev,
+	ID3D12GraphicsCommandList* cmd)
+{
+	m_staticOcclusionUnitBoxMesh.reset();
+
+	if ( !dev || !cmd )
+		return;
+
+	auto tempObj = std::make_unique<CGameObject>(1);
+	auto* tempCollider = tempObj->AddComponent<CColliderComponent>(EColliderType::OOBB);
+
+	tempObj->CreateComponents(dev, cmd);
+	tempObj->SetWorldMatrix(BuildIdentityMatrix4x4());
+
+	tempCollider->SetOOBB(
+		XMFLOAT3(-0.5f, -0.5f, -0.5f),
+		XMFLOAT3(0.5f, 0.5f, 0.5f)
+	);
+	tempCollider->UpdateWorldBounds();
+
+	m_staticOcclusionUnitBoxMesh =
+		std::make_shared<CBoxMeshDiffused>(dev, cmd, tempCollider);
+}
+
 void CGameScene::BuildStaticOcclusionGpuResources(ID3D12Device* dev)
 {
 	ReleaseStaticOcclusionGpuResources();
@@ -2879,6 +2909,8 @@ void CGameScene::BuildStaticOcclusionGpuResources(ID3D12Device* dev)
 	const UINT queryCount = ( UINT ) m_staticOcclusionEntries.size();
 	m_staticOcclusionQueryCapacity = queryCount;
 	m_staticOcclusionQuerySampleCounts.assign(queryCount, 1ull);
+	m_staticOcclusionLastFrameIssuedFlags.assign(queryCount, 0);
+	m_staticOcclusionCurrentFrameIssuedFlags.assign(queryCount, 0);
 	m_bStaticOcclusionQueryResultsValid = false;
 
 	if ( queryCount == 0 )
@@ -2976,6 +3008,8 @@ void CGameScene::ReleaseStaticOcclusionGpuResources()
 	m_bStaticOcclusionQueryResourcesReady = false;
 	m_bStaticOcclusionQueryResultsValid = false;
 	m_staticOcclusionQuerySampleCounts.clear();
+	m_staticOcclusionLastFrameIssuedFlags.clear();
+	m_staticOcclusionCurrentFrameIssuedFlags.clear();
 }
 
 void CGameScene::BeginStaticOcclusionReadback()
@@ -3005,23 +3039,35 @@ void CGameScene::BeginStaticOcclusionReadback()
 
 void CGameScene::ResolveStaticOcclusionQueries(ID3D12GraphicsCommandList* cmd)
 {
-	UNREFERENCED_PARAMETER(cmd);
+	if ( !cmd )
+		return;
 
 	if ( !m_bStaticOcclusionQueryResourcesReady )
 		return;
 
-	if ( m_staticOcclusionEntries.empty() )
+	const UINT queryCount = ( UINT ) m_staticOcclusionEntries.size();
+	if ( queryCount == 0 )
 		return;
 
-	// 실제 BeginQuery / EndQuery / ResolveQueryData는 다음 단계에서 추가한다.
-	// 지금 단계에서는 query resource와 프레임 경로만 연결한다.
+	cmd->ResolveQueryData(
+		m_pd3dStaticOcclusionQueryHeap.Get(),
+		D3D12_QUERY_TYPE_OCCLUSION,
+		0,
+		queryCount,
+		m_pd3dStaticOcclusionReadbackBuffer.Get(),
+		0
+	);
+
+	m_staticOcclusionLastFrameIssuedFlags = m_staticOcclusionCurrentFrameIssuedFlags;
+	m_bStaticOcclusionQueryResultsValid = true;
 }
 
 void CGameScene::RenderStaticOcclusionPass(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
-	UNREFERENCED_PARAMETER(camera);
-
 	if ( !cmd )
+		return;
+
+	if ( !camera )
 		return;
 
 	if ( !m_bStaticOcclusionCullingEnabled )
@@ -3033,16 +3079,172 @@ void CGameScene::RenderStaticOcclusionPass(ID3D12GraphicsCommandList* cmd, CCame
 	if ( m_staticOcclusionEntries.empty() )
 		return;
 
+	if ( !m_staticOcclusionUnitBoxMesh )
+		return;
+
+	if ( !m_shadowStaticShader )
+		return;
+
+	if ( !m_pd3dcbShadow )
+		return;
+
+	if ( !m_bSceneRenderTargetsReady )
+		return;
+
+	if ( m_sceneRenderTargetCount == 0 )
+		return;
+
+	if ( !m_pd3dStaticInstanceBuffer )
+		return;
+
+	if ( !m_pMappedStaticInstanceBuffer )
+		return;
+
+	if ( m_staticInstanceBufferCapacity == 0 )
+		return;
+
+	if ( m_staticOcclusionUnitBoxMesh->m_SubMeshes.empty() )
+		return;
+
+	const SubMesh& sm = m_staticOcclusionUnitBoxMesh->m_SubMeshes[0];
+	if ( sm.indices.empty() )
+		return;
+
+	cmd->SetGraphicsRootSignature(GetGraphicsRootSignature());
+
+	if ( m_pDescriptorHeap && m_pDescriptorHeap->m_pd3dCbvSrvDescriptorHeap )
+	{
+		cmd->SetDescriptorHeaps(1, m_pDescriptorHeap->m_pd3dCbvSrvDescriptorHeap.GetAddressOf());
+		cmd->SetGraphicsRootDescriptorTable(
+			ROOT_PARAMETER_GLOBAL_SRV,
+			m_pDescriptorHeap->GetGPUSrvDescriptorStartHandle()
+		);
+	}
+
+	camera->SetViewportsAndScissorRects(cmd);
+
+	cmd->OMSetRenderTargets(
+		0,
+		nullptr,
+		FALSE,
+		&m_sceneDsvHandle
+	);
+
+	if ( m_pd3dcbMaterials )
+	{
+		cmd->SetGraphicsRootConstantBufferView(
+			ROOT_PARAMETER_MATERIAL,
+			m_pd3dcbMaterials->GetGPUVirtualAddress()
+		);
+	}
+
+	cmd->SetGraphicsRootConstantBufferView(
+		ROOT_PARAMETER_SHADOW,
+		m_pd3dcbShadow->GetGPUVirtualAddress()
+	);
+
+	m_shadowStaticShader->Render(cmd, nullptr, &m_staticBatch);
+	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	m_staticOcclusionCurrentFrameIssuedFlags.assign(m_staticOcclusionEntries.size(), 0);
+
+	for ( UINT queryIndex = 0; queryIndex < ( UINT ) m_staticOcclusionEntries.size(); ++queryIndex )
+	{
+		const StaticOcclusionEntry& entry = m_staticOcclusionEntries[queryIndex];
+
+		bool issueRealQuery = true;
+
+		if ( !entry.enabled )
+			issueRealQuery = false;
+
+		if ( !entry.hasWorldBounds )
+			issueRealQuery = false;
+
+		if ( !entry.object )
+			issueRealQuery = false;
+
+		if ( entry.staticBatchObjectIndex == UINT_MAX )
+			issueRealQuery = false;
+
+		if ( entry.staticBatchObjectIndex >= ( UINT ) m_staticBatch.objectRefs.size() )
+			issueRealQuery = false;
+
+		if ( entry.staticBatchObjectIndex < ( UINT ) m_staticDistanceCullFlags.size() )
+		{
+			if ( m_staticDistanceCullFlags[entry.staticBatchObjectIndex] != 0 )
+				issueRealQuery = false;
+		}
+
+		if ( issueRealQuery )
+		{
+			if ( !entry.object->IsVisible(camera) )
+				issueRealQuery = false;
+		}
+
+		cmd->BeginQuery(
+			m_pd3dStaticOcclusionQueryHeap.Get(),
+			D3D12_QUERY_TYPE_OCCLUSION,
+			queryIndex
+		);
+
+		if ( issueRealQuery )
+		{
+			m_staticOcclusionCurrentFrameIssuedFlags[queryIndex] = 1;
+
+			const XMFLOAT4X4 world = BuildWorldMatrixFromOOBB(entry.worldBounds);
+
+			StaticInstanceVertex& dst = m_pMappedStaticInstanceBuffer[0];
+			ZeroMemory(&dst, sizeof(dst));
+
+			dst.world0 = XMFLOAT4(world._11, world._12, world._13, world._14);
+			dst.world1 = XMFLOAT4(world._21, world._22, world._23, world._24);
+			dst.world2 = XMFLOAT4(world._31, world._32, world._33, world._34);
+			dst.world3 = XMFLOAT4(world._41, world._42, world._43, world._44);
+			dst.objectId = 0;
+
+			D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
+			vbViews[0] = sm.vbView;
+			vbViews[1].BufferLocation =
+				m_pd3dStaticInstanceBuffer->GetGPUVirtualAddress();
+			vbViews[1].SizeInBytes = sizeof(StaticInstanceVertex);
+			vbViews[1].StrideInBytes = sizeof(StaticInstanceVertex);
+
+			cmd->SetGraphicsRoot32BitConstant(ROOT_PARAMETER_MATERIAL_ID, 0u, 0);
+
+			if ( sm.material && sm.material->NeedsLegacyBinding() )
+				sm.material->UpdateShaderVariables(cmd);
+
+			cmd->IASetVertexBuffers(0, 2, vbViews);
+			cmd->IASetIndexBuffer(&sm.ibView);
+
+			cmd->DrawIndexedInstanced(
+				( UINT ) sm.indices.size(),
+				1,
+				0,
+				0,
+				0
+			);
+		}
+
+		cmd->EndQuery(
+			m_pd3dStaticOcclusionQueryHeap.Get(),
+			D3D12_QUERY_TYPE_OCCLUSION,
+			queryIndex
+		);
+	}
+
 	ResolveStaticOcclusionQueries(cmd);
+	RestoreSceneRenderTargets(cmd, camera);
 }
 
 void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 {
-	UNREFERENCED_PARAMETER(camera);
-
 	m_staticOcclusionCullFlags.assign(m_staticBatch.objectRefs.size(), 0);
 
 	if ( !m_bStaticOcclusionCullingEnabled )
+		return;
+
+	if ( !camera )
 		return;
 
 	for ( size_t occlusionIndex = 0; occlusionIndex < m_staticOcclusionEntries.size(); ++occlusionIndex )
@@ -3055,20 +3257,36 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 		if ( !entry.hasWorldBounds )
 			continue;
 
+		if ( !entry.object )
+			continue;
+
 		if ( entry.staticBatchObjectIndex == UINT_MAX )
 			continue;
 
 		if ( entry.staticBatchObjectIndex >= ( UINT ) m_staticOcclusionCullFlags.size() )
 			continue;
 
+		if ( entry.staticBatchObjectIndex < ( UINT ) m_staticDistanceCullFlags.size() )
+		{
+			if ( m_staticDistanceCullFlags[entry.staticBatchObjectIndex] != 0 )
+				continue;
+		}
+
+		if ( !entry.object->IsVisible(camera) )
+			continue;
+
 		bool occluded = false;
 
 		if ( m_bStaticOcclusionQueryResultsValid )
 		{
-			if ( occlusionIndex < m_staticOcclusionQuerySampleCounts.size() )
+			if ( occlusionIndex < m_staticOcclusionQuerySampleCounts.size() &&
+				occlusionIndex < m_staticOcclusionLastFrameIssuedFlags.size() )
 			{
-				if ( m_staticOcclusionQuerySampleCounts[occlusionIndex] == 0ull )
+				if ( m_staticOcclusionLastFrameIssuedFlags[occlusionIndex] != 0 &&
+					m_staticOcclusionQuerySampleCounts[occlusionIndex] == 0ull )
+				{
 					occluded = true;
+				}
 			}
 		}
 
