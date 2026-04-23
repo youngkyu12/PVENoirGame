@@ -5609,49 +5609,20 @@ void CGameScene::RequestReleasePreparedBowmanArrow(CGameObject* bowman, float sp
 
 void CGameScene::RequestReleasePreparedArrow(CGameObject* shooter, float speed, float lifeSec)
 {
-	if ( !shooter ) return;
+    if (!shooter) return;
 
-	const int slot = GetPlayerSlotFromObject(shooter);
-	if ( slot < 0 || slot > 3 ) return;
+    const int slot = GetPlayerSlotFromObject(shooter);
+    if (slot < 0 || slot > 3) return;
 
-	CGameObject* arrowObj = m_preparedPlayerArrows[( size_t ) slot];
-	if ( !arrowObj ) return;
+    CGameObject* arrowObj = m_preparedPlayerArrows[(size_t)slot];
+    if (!arrowObj) return;
 
-	auto* arrow = arrowObj->GetComponent<CArrowComponent>();
-	if ( !arrow || !arrow->IsPrepared() )
-	{
-		m_preparedPlayerArrows[( size_t ) slot] = nullptr;
-		return;
-	}
-
-	// --------------------------------------------------------------------
-	// 디버그용: slot 1 플레이어가 Bow_Release 시작 시점에
-	// 화살의 "플레이어 기준 로컬 좌표"를 한 번 출력
-	// --------------------------------------------------------------------
-	if ( slot == 1 )
-	{
-		const XMFLOAT4X4& playerWorld = shooter->GetWorldMatrix();
-		const XMMATRIX invPlayerWorld = XMMatrixInverse(nullptr, XMLoadFloat4x4(&playerWorld));
-
-		const XMFLOAT3 arrowWorldPos = arrowObj->GetPosition();
-
-		XMFLOAT3 arrowLocalPos{};
-		XMStoreFloat3(
-			&arrowLocalPos,
-			XMVector3TransformCoord(XMLoadFloat3(&arrowWorldPos), invPlayerWorld)
-		);
-
-		char debugText[256] = {};
-		sprintf_s(
-			debugText,
-			"[ArrowReleaseLocal] slot=%d local=(%.6f, %.6f, %.6f)\n",
-			slot,
-			arrowLocalPos.x,
-			arrowLocalPos.y,
-			arrowLocalPos.z
-		);
-		OutputDebugStringA(debugText);
-	}
+    auto* arrow = arrowObj->GetComponent<CArrowComponent>();
+    if (!arrow || !arrow->IsPrepared())
+    {
+        m_preparedPlayerArrows[(size_t)slot] = nullptr;
+        return;
+    }
 
 	if ( !arrow->LaunchPrepared(speed, lifeSec, true) )
 	{
@@ -6070,40 +6041,6 @@ void CGameScene::RequestFireBullet(CGameObject* shooter, float speed, float life
 
 	CGameObject* spawnSource = gunObj ? gunObj : shooter;
 	CGameObject* directionSource = shooter;
-
-	// --------------------------------------------------------------------
-	// 디버그용: slot 3 플레이어의 총알 시작 위치를
-	// "플레이어 기준 로컬 좌표"로 출력
-	// --------------------------------------------------------------------
-	const int slot = GetPlayerSlotFromObject(shooter);
-	if ( slot == 3 && spawnSource )
-	{
-		const XMFLOAT3 bulletStartWorld = spawnSource->GetPosition();
-
-		const XMFLOAT4X4& playerWorld = shooter->GetWorldMatrix();
-		const XMMATRIX invPlayerWorld =
-			XMMatrixInverse(nullptr, XMLoadFloat4x4(&playerWorld));
-
-		XMFLOAT3 bulletStartLocal{};
-		XMStoreFloat3(
-			&bulletStartLocal,
-			XMVector3TransformCoord(
-				XMLoadFloat3(&bulletStartWorld),
-				invPlayerWorld
-			)
-		);
-
-		char debugText[256] = {};
-		sprintf_s(
-			debugText,
-			"[BulletFireLocal] slot=%d local=(%.6f, %.6f, %.6f)\n",
-			slot,
-			bulletStartLocal.x,
-			bulletStartLocal.y,
-			bulletStartLocal.z
-		);
-		OutputDebugStringA(debugText);
-	}
 
 	for ( CGameObject* bulletObj : m_bulletRefs )
 	{
