@@ -406,8 +406,7 @@ void CGameFramework::CreateDepthStencilView()
 		&d3dResourceDesc,
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
 		&d3dClearValue,
-		IID_PPV_ARGS(m_pd3dDepthStencilBuffer.ReleaseAndGetAddressOf())
-	);
+		IID_PPV_ARGS(m_pd3dDepthStencilBuffer.ReleaseAndGetAddressOf()));
 
 	m_d3dDsvDescriptorCPUHandle = m_pd3dDsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 
