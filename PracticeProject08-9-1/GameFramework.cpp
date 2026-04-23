@@ -1099,10 +1099,10 @@ void CGameFramework::FrameAdvance()
 	CScene* scene = m_SceneManager.GetScene();
 	CGameScene* gameScene = dynamic_cast< CGameScene* >( scene );
 
-	if ( gameScene && ( m_nDrawOption == DRAW_SCENE_COLOR ) )
+	/*if ( gameScene && ( m_nDrawOption == DRAW_SCENE_COLOR ) )
 	{
 		gameScene->RenderShadowMap(m_pd3dCommandList.Get(), m_GameTimer);
-	}
+	}*/
 
 	if (scene)
 		scene->OnPrepareRender(m_pd3dCommandList.Get(), m_pCamera);

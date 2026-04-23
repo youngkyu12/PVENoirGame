@@ -9,7 +9,7 @@
 #include "LightTypes.h"
 #include "SceneRenderTypes.h"
 #include "ColliderComponent.h"
-#include "ShadowMap.h"
+//#include "ShadowMap.h"
 
 #include <unordered_set>
 #include <cstdint>
@@ -181,7 +181,7 @@ protected:
     void CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target) override;
 
 private:
-	void InitShadowMap(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
+	//void InitShadowMap(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
     void BuildLightsAndMaterials();
     void BuildObjectsCollider() override;
 
@@ -236,7 +236,7 @@ public:
     bool ProcessInput(UCHAR* pKeysBuffer) override;
     void AnimateObjects(float dt) override;
     void CollisionObjects() override;
-	void RenderShadowMap(ID3D12GraphicsCommandList* cmd, const CGameTimer& gt);
+	//void RenderShadowMap(ID3D12GraphicsCommandList* cmd, const CGameTimer& gt);
 
 public:
 	void OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera) override;
@@ -589,9 +589,9 @@ private:
 	std::vector<GridDynamicTracker> m_bulletGridTrackers;
 #endif
 
-	std::unique_ptr<ShadowMap> mShadowMap;
+	/*std::unique_ptr<ShadowMap> mShadowMap;
 	std::shared_ptr<CShadowShader> mShadowShader;
-	ComPtr<ID3D12DescriptorHeap> m_pd3dShadowDsvDescriptorHeap;
+	ComPtr<ID3D12DescriptorHeap> m_pd3dShadowDsvDescriptorHeap;*/
 
 private:
     bool LoadStaticPlacementFile(const std::string& filePath);
