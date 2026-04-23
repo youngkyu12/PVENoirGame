@@ -925,6 +925,7 @@ void CGameScene::ReleaseObjects()
 	m_attachmentBinds.clear();
 	m_staticInstanceGroups.clear();
 	ResetStaticWorldLodEntries();
+	ResetStaticOcclusionEntries();
 	m_skinnedInstanceGroups.clear();
 	ResetSkinnedWorldLodEntries();
 
@@ -2688,6 +2689,7 @@ void CGameScene::BuildStaticBatch(
 		}
 	}
 
+	BuildStaticOcclusionEntries();
 	BuildStaticInstanceGroups();
 
 	if ( m_pd3dStaticInstanceBuffer )
@@ -2723,6 +2725,87 @@ void CGameScene::ResetStaticWorldLodEntries()
 	m_staticWorldLodEntries.clear();
 	m_staticDistanceCullFlags.clear();
 	m_staticWorldLodDirty = false;
+}
+
+void CGameScene::ResetStaticOcclusionEntries()
+{
+	m_staticOcclusionEntries.clear();
+	m_staticOcclusionCullFlags.clear();
+}
+
+void CGameScene::BuildStaticOcclusionEntries()
+{
+	ResetStaticOcclusionEntries();
+
+	m_staticOcclusionCullFlags.assign(m_staticBatch.objectRefs.size(), 0);
+
+	for ( const StaticWorldLodEntry& lodEntry : m_staticWorldLodEntries )
+	{
+		if ( !lodEntry.object )
+			continue;
+
+		if ( lodEntry.staticBatchObjectIndex == UINT_MAX )
+			continue;
+
+		if ( lodEntry.staticBatchObjectIndex >= ( UINT ) m_staticBatch.objectRefs.size() )
+			continue;
+
+		const std::string& assetName = lodEntry.assetName;
+
+		const bool isOcclusionTarget =
+			( assetName == "VillageWall" ) ||
+			( assetName == "Tower" ) ||
+			( assetName == "Building1" ) ||
+			( assetName == "Building2" ) ||
+			( assetName == "Building3" ) ||
+			( assetName == "Building4" ) ||
+			( assetName == "Building5" ) ||
+			( assetName == "Building6" ) ||
+			( assetName == "Building7" ) ||
+			( assetName == "Building8" ) ||
+			( assetName == "Building9" ) ||
+			( assetName == "Tree1" ) ||
+			( assetName == "Tree2" ) ||
+			( assetName == "Tree3" ) ||
+			( assetName == "Tree4" ) ||
+			( assetName == "Tree5" ) ||
+			( assetName == "Tree6" );
+
+		if ( !isOcclusionTarget )
+			continue;
+
+		StaticOcclusionEntry entry{};
+		entry.object = lodEntry.object;
+		entry.staticBatchObjectIndex = lodEntry.staticBatchObjectIndex;
+		entry.assetName = assetName;
+		entry.enabled = true;
+
+		m_staticOcclusionEntries.push_back(std::move(entry));
+	}
+}
+
+void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
+{
+	UNREFERENCED_PARAMETER(camera);
+
+	m_staticOcclusionCullFlags.assign(m_staticBatch.objectRefs.size(), 0);
+
+	if ( !m_bStaticOcclusionCullingEnabled )
+		return;
+
+	for ( const StaticOcclusionEntry& entry : m_staticOcclusionEntries )
+	{
+		if ( !entry.enabled )
+			continue;
+
+		if ( entry.staticBatchObjectIndex == UINT_MAX )
+			continue;
+
+		if ( entry.staticBatchObjectIndex >= ( UINT ) m_staticOcclusionCullFlags.size() )
+			continue;
+
+		m_staticOcclusionCullFlags[entry.staticBatchObjectIndex] = 0;
+	}
 }
 
 int CGameScene::ComputeStaticWorldLodLevel(const XMFLOAT3& cameraPosition, const StaticWorldLodEntry& entry) const
@@ -3183,6 +3266,12 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 			if ( objectIndex < ( UINT ) m_staticDistanceCullFlags.size() )
 			{
 				if ( m_staticDistanceCullFlags[objectIndex] != 0 )
+					continue;
+			}
+
+			if ( objectIndex < ( UINT ) m_staticOcclusionCullFlags.size() )
+			{
+				if ( m_staticOcclusionCullFlags[objectIndex] != 0 )
 					continue;
 			}
 
@@ -6424,6 +6513,7 @@ void CGameScene::OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera
 	{
 		camera->UpdateBoundingFrustum();
 		UpdateStaticWorldLodSelection(camera);
+		UpdateStaticOcclusionCullSelection(camera);
 		UpdateSkinnedWorldLodSelection(camera);
 	}
 
