@@ -183,7 +183,7 @@ namespace
 		return out;
 	}
 
-	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::FullStage;
+	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::FullStageNoTree;
 }
 
 namespace
@@ -955,6 +955,7 @@ void CGameScene::ReleaseObjects()
 
 	m_treeStaticShader.reset();
 	m_treeAlphaClipObjects.clear();
+	m_skinnedAlphaClipObjects.clear();
 
     m_staticObjects.clear();
     m_skinnedObjects.clear();
@@ -1005,15 +1006,26 @@ void CGameScene::ReleaseObjects()
 		m_depthFogShader->ReleaseShaderVariables();
 
 	m_uiRectShader.reset();
-	mShadowMap.reset();
-	mShadowShader.reset();
-	if ( m_pd3dShadowDsvDescriptorHeap )
-		m_pd3dShadowDsvDescriptorHeap.Reset();
+	// mShadowMap.reset();
+	// mShadowShader.reset();
+	// if ( m_pd3dShadowDsvDescriptorHeap )
+	//     m_pd3dShadowDsvDescriptorHeap.Reset();
 	m_depthFogShader.reset();
+
+	m_shadowStaticShader.reset();
+	m_shadowAlphaClipStaticShader.reset();
+	m_shadowSkinnedShader.reset();
+	m_shadowAlphaClipSkinnedShader.reset();
+
 	m_uiSprites.clear();
 	m_pauseUISpriteIndex = -1;
+
 	m_depthFogSceneColorSrvIndex = UINT_MAX;
 	m_depthFogSceneDepthSrvIndex = UINT_MAX;
+	m_shadowMapSrvIndex = UINT_MAX;
+
+	m_sceneRenderTargetCount = 0;
+	m_bSceneRenderTargetsReady = false;
 	m_bInactiveOverlayVisible = false;
 	m_bDepthFogPassEnabled = true;
 	m_bStartedGameplayMusic = false;
@@ -1031,90 +1043,90 @@ void CGameScene::ReleaseObjects()
 	CScene::ReleaseObjects();
 }
 
-void CGameScene::InitShadowMap(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
-{
-	if ( !dev || !cmd || !m_pd3dGraphicsRootSignature )
-		return;
+//void CGameScene::InitShadowMap(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
+//{
+//	if ( !dev || !cmd || !m_pd3dGraphicsRootSignature )
+//		return;
+//
+//	mShadowShader = std::make_shared<CShadowShader>();
+//	mShadowShader->CreateShader(
+//		dev,
+//		m_pd3dGraphicsRootSignature.Get(),
+//		0,
+//		nullptr,
+//		DXGI_FORMAT_D24_UNORM_S8_UINT);
+//
+//	constexpr UINT kShadowMapWidth = 2048;
+//	constexpr UINT kShadowMapHeight = 2048;
+//	mShadowMap = std::make_unique<ShadowMap>(
+//		dev,
+//		mShadowShader.get(),
+//		kShadowMapWidth,
+//		kShadowMapHeight);
+//
+//	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
+//	dsvHeapDesc.NumDescriptors = 1;
+//	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+//	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+//	dsvHeapDesc.NodeMask = 0;
+//	HRESULT hr = dev->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_pd3dShadowDsvDescriptorHeap));
+//	assert(SUCCEEDED(hr));
+//
+//	const UINT shadowSrvIndex = CScene::m_pDescriptorHeap->AllocateSrvRangeBack(1);
+//	assert(shadowSrvIndex != UINT_MAX);
+//	D3D12_CPU_DESCRIPTOR_HANDLE shadowSrvCpu = CScene::m_pDescriptorHeap->GetCPUSrvHandle(shadowSrvIndex);
+//	D3D12_GPU_DESCRIPTOR_HANDLE shadowSrvGpu = CScene::m_pDescriptorHeap->GetGPUSrvHandle(shadowSrvIndex);
+//	D3D12_CPU_DESCRIPTOR_HANDLE shadowDsvCpu = m_pd3dShadowDsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+//
+//	mShadowMap->OnCreate(shadowDsvCpu);
+//	mShadowMap->BuildDescriptors(shadowSrvCpu, shadowSrvGpu, shadowDsvCpu);
+//
+//	CGameObject* targetPlayer = GetPlayer();
+//	if ( !targetPlayer )
+//		targetPlayer = GetPlayerBySlot(0);
+//	mShadowMap->SetTargetObject(targetPlayer);
+//
+//	for ( auto& lo : m_lightObjects )
+//	{
+//		if ( !lo ) continue;
+//		auto* lc = lo->GetComponent<CLightComponent>();
+//		if ( !lc ) continue;
+//		if ( lc->type == ELightType::Directional )
+//		{
+//			mShadowMap->SetLightComponent(lc);
+//			break;
+//		}
+//	}
+//
+//	mShadowMap->OnUpdate();
+//	mShadowMap->UpdateShadowPassCB();
+//}
 
-	mShadowShader = std::make_shared<CShadowShader>();
-	mShadowShader->CreateShader(
-		dev,
-		m_pd3dGraphicsRootSignature.Get(),
-		0,
-		nullptr,
-		DXGI_FORMAT_D24_UNORM_S8_UINT);
-
-	constexpr UINT kShadowMapWidth = 2048;
-	constexpr UINT kShadowMapHeight = 2048;
-	mShadowMap = std::make_unique<ShadowMap>(
-		dev,
-		mShadowShader.get(),
-		kShadowMapWidth,
-		kShadowMapHeight);
-
-	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
-	dsvHeapDesc.NumDescriptors = 1;
-	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-	dsvHeapDesc.NodeMask = 0;
-	HRESULT hr = dev->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_pd3dShadowDsvDescriptorHeap));
-	assert(SUCCEEDED(hr));
-
-	const UINT shadowSrvIndex = CScene::m_pDescriptorHeap->AllocateSrvRangeBack(1);
-	assert(shadowSrvIndex != UINT_MAX);
-	D3D12_CPU_DESCRIPTOR_HANDLE shadowSrvCpu = CScene::m_pDescriptorHeap->GetCPUSrvHandle(shadowSrvIndex);
-	D3D12_GPU_DESCRIPTOR_HANDLE shadowSrvGpu = CScene::m_pDescriptorHeap->GetGPUSrvHandle(shadowSrvIndex);
-	D3D12_CPU_DESCRIPTOR_HANDLE shadowDsvCpu = m_pd3dShadowDsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-
-	mShadowMap->OnCreate(shadowDsvCpu);
-	mShadowMap->BuildDescriptors(shadowSrvCpu, shadowSrvGpu, shadowDsvCpu);
-
-	CGameObject* targetPlayer = GetPlayer();
-	if ( !targetPlayer )
-		targetPlayer = GetPlayerBySlot(0);
-	mShadowMap->SetTargetObject(targetPlayer);
-
-	for ( auto& lo : m_lightObjects )
-	{
-		if ( !lo ) continue;
-		auto* lc = lo->GetComponent<CLightComponent>();
-		if ( !lc ) continue;
-		if ( lc->type == ELightType::Directional )
-		{
-			mShadowMap->SetLightComponent(lc);
-			break;
-		}
-	}
-
-	mShadowMap->OnUpdate();
-	mShadowMap->UpdateShadowPassCB();
-}
-
-void CGameScene::RenderShadowMap(ID3D12GraphicsCommandList* cmd, const CGameTimer& gt)
-{
-	if ( !cmd || !mShadowMap )
-		return;
-
-	CGameObject* targetPlayer = GetPlayer();
-	if ( !targetPlayer )
-		targetPlayer = GetPlayerBySlot(0);
-	mShadowMap->SetTargetObject(targetPlayer);
-
-	std::vector<CGameObject*> casters;
-	casters.reserve(m_staticObjects.size());
-
-	for ( auto& obj : m_staticObjects )
-	{
-		if ( obj )
-			casters.push_back(obj.get());
-	}
-
-	// NOTE:
-	// 현재 shadow 전용 VS(Shadows.hlsl)는 스키닝(본 인덱스/가중치)을 처리하지 않는다.
-	// 스키닝 섀도우 패스를 별도로 구현하기 전까지는 정적 오브젝트만 그림자 캐스터로 사용한다.
-
-	mShadowMap->Render(gt, cmd, casters);
-}
+//void CGameScene::RenderShadowMap(ID3D12GraphicsCommandList* cmd, const CGameTimer& gt)
+//{
+//	if ( !cmd || !mShadowMap )
+//		return;
+//
+//	CGameObject* targetPlayer = GetPlayer();
+//	if ( !targetPlayer )
+//		targetPlayer = GetPlayerBySlot(0);
+//	mShadowMap->SetTargetObject(targetPlayer);
+//
+//	std::vector<CGameObject*> casters;
+//	casters.reserve(m_staticObjects.size());
+//
+//	for ( auto& obj : m_staticObjects )
+//	{
+//		if ( obj )
+//			casters.push_back(obj.get());
+//	}
+//
+//	// NOTE:
+//	// 현재 shadow 전용 VS(Shadows.hlsl)는 스키닝(본 인덱스/가중치)을 처리하지 않는다.
+//	// 스키닝 섀도우 패스를 별도로 구현하기 전까지는 정적 오브젝트만 그림자 캐스터로 사용한다.
+//
+//	mShadowMap->Render(gt, cmd, casters);
+//}
 
 void CGameScene::ReleaseUploadBuffers()
 {
@@ -1216,6 +1228,22 @@ void CGameScene::ReleaseShaderVariables()
 		}
 		m_pd3dcbFog.Reset();
 	}
+
+	if ( m_pd3dcbShadow )
+	{
+		if ( m_pcbMappedShadow )
+		{
+			m_pd3dcbShadow->Unmap(0, NULL);
+			m_pcbMappedShadow = nullptr;
+		}
+		m_pd3dcbShadow.Reset();
+	}
+
+	if ( m_pd3dShadowMap )
+		m_pd3dShadowMap.Reset();
+
+	if ( m_pd3dShadowDsvHeap )
+		m_pd3dShadowDsvHeap.Reset();
 
 	if ( m_colliderBatch.cbGameObjects )
 	{
@@ -1397,11 +1425,19 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	auto pTreeStaticShader = std::make_shared<CTreeStaticObjectsShader>();
 	auto pSkinnedShader = std::make_shared<CSkinnedObjectsShader>();
 	auto pColliderShader = std::make_shared<CDiffusedShader>();
+	auto pShadowStaticShader = std::make_shared<CShadowMapStaticShader>();
+	auto pShadowAlphaClipStaticShader = std::make_shared<CShadowMapAlphaClipStaticShader>();
+	auto pShadowSkinnedShader = std::make_shared<CShadowMapSkinnedShader>();
+	auto pShadowAlphaClipSkinnedShader = std::make_shared<CShadowMapAlphaClipSkinnedShader>();
 
 	m_staticBatch.shader = pStaticShader;
 	m_treeStaticShader = pTreeStaticShader;
 	m_skinnedBatch.shader = pSkinnedShader;
 	m_colliderBatch.shader = pColliderShader;
+	m_shadowStaticShader = pShadowStaticShader;
+	m_shadowAlphaClipStaticShader = pShadowAlphaClipStaticShader;
+	m_shadowSkinnedShader = pShadowSkinnedShader;
+	m_shadowAlphaClipSkinnedShader = pShadowAlphaClipSkinnedShader;
 
 	DXGI_FORMAT rtvFormats[5] =
 	{
@@ -1415,6 +1451,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	BuildLightsAndMaterials();
 	BuildUIResources(dev, cmd);
 	BuildDepthFogResources(dev, cmd);
+	BuildShadowResources(dev, cmd);
 
 	for ( auto& lo : m_lightObjects )
 	{
@@ -1430,6 +1467,38 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 #endif
 
 	pTreeStaticShader->CreateShader(dev,m_pd3dGraphicsRootSignature.Get(),kRTCount,rtvFormats,kDsvFormat);
+	pShadowStaticShader->CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		0,
+		nullptr,
+		DXGI_FORMAT_D24_UNORM_S8_UINT
+	);
+
+	pShadowAlphaClipStaticShader->CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		0,
+		nullptr,
+		DXGI_FORMAT_D24_UNORM_S8_UINT
+	);
+
+	pShadowSkinnedShader->CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		0,
+		nullptr,
+		DXGI_FORMAT_D24_UNORM_S8_UINT
+	);
+
+	pShadowAlphaClipSkinnedShader->CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		0,
+		nullptr,
+		DXGI_FORMAT_D24_UNORM_S8_UINT
+	);
+
 	BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
 #ifndef USING_NETWORK
 	//DumpStaticGridOccupancyLog();
@@ -1446,7 +1515,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		local = GetPlayerBySlot(0);
 
 	CreateMainCamera(dev, cmd, local);
-	InitShadowMap(dev, cmd);
+	//InitShadowMap(dev, cmd);
 	BuildObjectsCollider();
 
 #ifndef USING_NETWORK
@@ -2101,6 +2170,15 @@ void CGameScene::CreateShaderVariables(ID3D12Device* dev, ID3D12GraphicsCommandL
 		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
 		nullptr);
 	m_pd3dcbFog->Map(0, nullptr, ( void** ) &m_pcbMappedFog);
+
+	UINT ncbShadowBytes = ( ( sizeof(CB_SHADOW) + 255 ) & ~255 );
+	m_pd3dcbShadow = ::CreateBufferResource(
+		dev, cmd, nullptr,
+		ncbShadowBytes,
+		D3D12_HEAP_TYPE_UPLOAD,
+		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+		nullptr);
+	m_pd3dcbShadow->Map(0, nullptr, ( void** ) &m_pcbMappedShadow);
 }
 
 void CGameScene::BuildStaticBatch(
@@ -3113,6 +3191,9 @@ void CGameScene::BuildSkinnedInstanceGroups()
 		CGameObject* obj = m_skinnedBatch.objectRefs[objectIndex];
 		if ( !obj ) continue;
 
+		const bool useAlphaClipShader =
+			( m_skinnedAlphaClipObjects.find(obj) != m_skinnedAlphaClipObjects.end() );
+
 		const int meshCount = obj->GetMeshCount();
 		for ( int meshIndex = 0; meshIndex < meshCount; ++meshIndex )
 		{
@@ -3135,7 +3216,8 @@ void CGameScene::BuildSkinnedInstanceGroups()
 				{
 					if ( group.geometryKey == geometryKey &&
 						group.meshIndex == ( UINT ) meshIndex &&
-						group.subMeshIndex == subMeshIndex )
+						group.subMeshIndex == subMeshIndex &&
+						group.useAlphaClipShader == useAlphaClipShader )
 					{
 						targetGroup = &group;
 						break;
@@ -3146,9 +3228,10 @@ void CGameScene::BuildSkinnedInstanceGroups()
 				{
 					SkinnedInstanceGroup newGroup{};
 					newGroup.geometryKey = geometryKey;
-					newGroup.mesh = mesh; // representative mesh
+					newGroup.mesh = mesh;
 					newGroup.subMeshIndex = subMeshIndex;
 					newGroup.meshIndex = ( UINT ) meshIndex;
+					newGroup.useAlphaClipShader = useAlphaClipShader;
 					m_skinnedInstanceGroups.push_back(std::move(newGroup));
 					targetGroup = &m_skinnedInstanceGroups.back();
 				}
@@ -3382,6 +3465,234 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 	}
 }
 
+void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList* cmd)
+{
+	if ( !cmd ) return;
+	if ( !m_pd3dStaticInstanceBuffer ) return;
+	if ( !m_pMappedStaticInstanceBuffer ) return;
+	if ( !m_shadowStaticShader ) return;
+	if ( !m_shadowAlphaClipStaticShader ) return;
+
+	bool lastUseAlphaClipShader = false;
+	bool hasBoundAnyShader = false;
+
+	for ( const StaticInstanceGroup& group : m_staticInstanceGroups )
+	{
+		if ( !group.mesh ) continue;
+		if ( group.subMeshIndex >= group.mesh->m_SubMeshes.size() ) continue;
+
+		const SubMesh& sm = group.mesh->m_SubMeshes[group.subMeshIndex];
+		if ( sm.indices.empty() ) continue;
+
+		const UINT maxInstanceCount = ( UINT ) group.objectIndices.size();
+		if ( maxInstanceCount == 0 ) continue;
+
+		const UINT instanceBase = group.instanceBufferStart;
+		if ( ( instanceBase + maxInstanceCount ) > m_staticInstanceBufferCapacity ) continue;
+
+		UINT visibleInstanceCount = 0;
+
+		for ( UINT i = 0; i < maxInstanceCount; ++i )
+		{
+			const UINT objectIndex = group.objectIndices[i];
+			if ( objectIndex >= ( UINT ) m_staticBatch.objectRefs.size() ) continue;
+
+			if ( objectIndex < ( UINT ) m_staticDistanceCullFlags.size() )
+			{
+				if ( m_staticDistanceCullFlags[objectIndex] != 0 )
+					continue;
+			}
+
+			CGameObject* obj = m_staticBatch.objectRefs[objectIndex];
+			if ( !obj ) continue;
+
+			auto* renderer = obj->GetComponent<CStaticMeshRendererComponent>();
+			if ( !renderer ) continue;
+			if ( !renderer->IsEnabled() ) continue;
+
+			StaticInstanceVertex& dst =
+				m_pMappedStaticInstanceBuffer[instanceBase + visibleInstanceCount];
+			ZeroMemory(&dst, sizeof(dst));
+
+			const XMFLOAT4X4& W = obj->GetWorldMatrix();
+
+			dst.world0 = XMFLOAT4(W._11, W._12, W._13, W._14);
+			dst.world1 = XMFLOAT4(W._21, W._22, W._23, W._24);
+			dst.world2 = XMFLOAT4(W._31, W._32, W._33, W._34);
+			dst.world3 = XMFLOAT4(W._41, W._42, W._43, W._44);
+			dst.objectId = objectIndex;
+
+			++visibleInstanceCount;
+		}
+
+		if ( visibleInstanceCount == 0 ) continue;
+
+		if ( !hasBoundAnyShader || ( lastUseAlphaClipShader != group.useTreeShader ) )
+		{
+			if ( group.useTreeShader )
+				m_shadowAlphaClipStaticShader->Render(cmd, nullptr, &m_staticBatch);
+			else
+				m_shadowStaticShader->Render(cmd, nullptr, &m_staticBatch);
+
+			lastUseAlphaClipShader = group.useTreeShader;
+			hasBoundAnyShader = true;
+		}
+
+		D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
+		vbViews[0] = sm.vbView;
+		vbViews[1].BufferLocation =
+			m_pd3dStaticInstanceBuffer->GetGPUVirtualAddress() +
+			( UINT64 ) ( sizeof(StaticInstanceVertex) * instanceBase );
+		vbViews[1].SizeInBytes = sizeof(StaticInstanceVertex) * visibleInstanceCount;
+		vbViews[1].StrideInBytes = sizeof(StaticInstanceVertex);
+
+		cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		const UINT mid = ( sm.materialId == 0xFFFFFFFFu ) ? 0u : sm.materialId;
+		cmd->SetGraphicsRoot32BitConstant(ROOT_PARAMETER_MATERIAL_ID, mid, 0);
+
+		if ( sm.material && sm.material->NeedsLegacyBinding() )
+			sm.material->UpdateShaderVariables(cmd);
+
+		cmd->IASetVertexBuffers(0, 2, vbViews);
+		cmd->IASetIndexBuffer(&sm.ibView);
+
+		cmd->DrawIndexedInstanced(
+			( UINT ) sm.indices.size(),
+			visibleInstanceCount,
+			0,
+			0,
+			0
+		);
+	}
+}
+
+void CGameScene::RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandList* cmd)
+{
+	if ( !cmd ) return;
+	if ( !m_pd3dSkinnedInstanceBuffer ) return;
+	if ( !m_pMappedSkinnedInstanceBuffer ) return;
+	if ( !m_pd3dSkinnedBonePaletteBuffer ) return;
+	if ( !m_pMappedSkinnedBonePaletteBuffer ) return;
+	if ( !m_shadowSkinnedShader ) return;
+	if ( !m_shadowAlphaClipSkinnedShader ) return;
+
+	cmd->SetGraphicsRootShaderResourceView(
+		ROOT_PARAMETER_BONE_PALETTE,
+		m_pd3dSkinnedBonePaletteBuffer->GetGPUVirtualAddress()
+	);
+
+	bool lastUseAlphaClipShader = false;
+	bool hasBoundAnyShader = false;
+
+	for ( const SkinnedInstanceGroup& group : m_skinnedInstanceGroups )
+	{
+		if ( !group.mesh ) continue;
+		if ( group.subMeshIndex >= group.mesh->m_SubMeshes.size() ) continue;
+
+		const SubMesh& repSm = group.mesh->m_SubMeshes[group.subMeshIndex];
+		if ( repSm.indices.empty() ) continue;
+
+		const UINT maxInstanceCount = ( UINT ) group.objectIndices.size();
+		if ( maxInstanceCount == 0 ) continue;
+
+		const UINT instanceBase = group.instanceBufferStart;
+		if ( ( instanceBase + maxInstanceCount ) > m_skinnedInstanceBufferCapacity ) continue;
+
+		UINT visibleInstanceCount = 0;
+
+		for ( UINT i = 0; i < maxInstanceCount; ++i )
+		{
+			const UINT objectIndex = group.objectIndices[i];
+			if ( objectIndex >= ( UINT ) m_skinnedBatch.objectRefs.size() ) continue;
+
+			if ( objectIndex < ( UINT ) m_skinnedDistanceCullFlags.size() )
+			{
+				if ( m_skinnedDistanceCullFlags[objectIndex] != 0 )
+					continue;
+			}
+
+			CGameObject* obj = m_skinnedBatch.objectRefs[objectIndex];
+			if ( !obj ) continue;
+
+			auto* renderer = obj->GetComponent<CSkinnedMeshRendererComponent>();
+			if ( !renderer ) continue;
+			if ( !renderer->IsEnabled() ) continue;
+
+			auto* skin = obj->GetComponent<CSkinningComponent>();
+			if ( !skin ) continue;
+			if ( !skin->IsSkinned() ) continue;
+
+			std::shared_ptr<CMesh> objMesh = obj->GetMeshShared(( int ) group.meshIndex);
+			if ( !objMesh ) continue;
+			if ( group.subMeshIndex >= objMesh->m_SubMeshes.size() ) continue;
+
+			const SubMesh& objSm = objMesh->m_SubMeshes[group.subMeshIndex];
+
+			SkinnedInstanceVertex& dst =
+				m_pMappedSkinnedInstanceBuffer[instanceBase + visibleInstanceCount];
+			ZeroMemory(&dst, sizeof(dst));
+
+			const XMFLOAT4X4& W = obj->GetWorldMatrix();
+
+			dst.world0 = XMFLOAT4(W._11, W._12, W._13, W._14);
+			dst.world1 = XMFLOAT4(W._21, W._22, W._23, W._24);
+			dst.world2 = XMFLOAT4(W._31, W._32, W._33, W._34);
+			dst.world3 = XMFLOAT4(W._41, W._42, W._43, W._44);
+
+			dst.materialId = ( objSm.materialId == 0xFFFFFFFFu ) ? 0u : objSm.materialId;
+			dst.bonePaletteBase = objectIndex * m_skinnedBonePaletteStride;
+
+			const XMFLOAT4X4* srcBoneMats = skin->GetMappedBoneMatrices();
+			const UINT boneCount = ( UINT ) skin->GetBoneCount();
+
+			if ( srcBoneMats && boneCount > 0 )
+			{
+				memcpy(
+					m_pMappedSkinnedBonePaletteBuffer + dst.bonePaletteBase,
+					srcBoneMats,
+					sizeof(XMFLOAT4X4) * boneCount
+				);
+			}
+
+			++visibleInstanceCount;
+		}
+
+		if ( visibleInstanceCount == 0 ) continue;
+
+		if ( !hasBoundAnyShader || ( lastUseAlphaClipShader != group.useAlphaClipShader ) )
+		{
+			if ( group.useAlphaClipShader )
+				m_shadowAlphaClipSkinnedShader->Render(cmd, nullptr, &m_skinnedBatch);
+			else
+				m_shadowSkinnedShader->Render(cmd, nullptr, &m_skinnedBatch);
+
+			lastUseAlphaClipShader = group.useAlphaClipShader;
+			hasBoundAnyShader = true;
+		}
+
+		D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
+		vbViews[0] = repSm.vbView;
+		vbViews[1].BufferLocation =
+			m_pd3dSkinnedInstanceBuffer->GetGPUVirtualAddress() +
+			( UINT64 ) ( sizeof(SkinnedInstanceVertex) * instanceBase );
+		vbViews[1].SizeInBytes = sizeof(SkinnedInstanceVertex) * visibleInstanceCount;
+		vbViews[1].StrideInBytes = sizeof(SkinnedInstanceVertex);
+
+		cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		cmd->IASetVertexBuffers(0, 2, vbViews);
+		cmd->IASetIndexBuffer(&repSm.ibView);
+
+		cmd->DrawIndexedInstanced(
+			( UINT ) repSm.indices.size(),
+			visibleInstanceCount,
+			0,
+			0,
+			0
+		);
+	}
+}
+
 void CGameScene::BuildSkinnedBatch(
 	ID3D12Device* dev,
 	ID3D12GraphicsCommandList* cmd,
@@ -3428,6 +3739,7 @@ void CGameScene::BuildSkinnedBatch(
 	);
 
 	m_skinnedObjects.clear();
+	m_skinnedAlphaClipObjects.clear();
 	m_skinnedObjects.reserve(cap);
 
 	b->objectRefs.clear();
@@ -4272,6 +4584,8 @@ void CGameScene::BuildSkinnedBatch(
 				continue;
 
 			CGameObject* raw = obj.get();
+			m_skinnedAlphaClipObjects.insert(raw);
+
 			m_skinnedObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			b->count = ( UINT ) b->objectRefs.size();
@@ -4324,6 +4638,8 @@ void CGameScene::BuildSkinnedBatch(
 				continue;
 
 			CGameObject* raw = obj.get();
+			m_skinnedAlphaClipObjects.insert(raw);
+
 			m_skinnedObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			b->count = ( UINT ) b->objectRefs.size();
@@ -4793,6 +5109,106 @@ void CGameScene::BuildDepthFogResources(ID3D12Device* dev, ID3D12GraphicsCommand
 	m_depthFogShader->CreateShaderVariables(dev, cmd);
 }
 
+void CGameScene::BuildShadowResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
+{
+	UNREFERENCED_PARAMETER(cmd);
+
+	if ( !dev )
+		return;
+
+	m_shadowViewport = {
+		0.0f,
+		0.0f,
+		static_cast< float >( m_shadowMapSize ),
+		static_cast< float >( m_shadowMapSize ),
+		0.0f,
+		1.0f
+	};
+
+	m_shadowScissorRect = {
+		0,
+		0,
+		static_cast< LONG >( m_shadowMapSize ),
+		static_cast< LONG >( m_shadowMapSize )
+	};
+
+	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc{};
+	dsvHeapDesc.NumDescriptors = 1;
+	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+
+	HRESULT hr = dev->CreateDescriptorHeap(
+		&dsvHeapDesc,
+		IID_PPV_ARGS(m_pd3dShadowDsvHeap.ReleaseAndGetAddressOf())
+	);
+
+	if ( FAILED(hr) )
+	{
+		OutputDebugStringA("[Shadow] Create DSV heap failed.\n");
+		return;
+	}
+
+	D3D12_CLEAR_VALUE clearValue{};
+	clearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	clearValue.DepthStencil.Depth = 1.0f;
+	clearValue.DepthStencil.Stencil = 0;
+
+	m_pd3dShadowMap.Attach(
+		::CreateTexture2DResource(
+			dev,
+			m_shadowMapSize,
+			m_shadowMapSize,
+			1,
+			1,
+			DXGI_FORMAT_R24G8_TYPELESS,
+			D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
+			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+			&clearValue
+		)
+	);
+
+	if ( !m_pd3dShadowMap )
+	{
+		OutputDebugStringA("[Shadow] Create shadow map resource failed.\n");
+		return;
+	}
+
+	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
+	dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
+
+	dev->CreateDepthStencilView(
+		m_pd3dShadowMap.Get(),
+		&dsvDesc,
+		m_pd3dShadowDsvHeap->GetCPUDescriptorHandleForHeapStart()
+	);
+
+	if ( m_shadowMapSrvIndex == UINT_MAX )
+		m_shadowMapSrvIndex = CScene::m_pDescriptorHeap->AllocateSrvRangeBack(1);
+
+	if ( m_shadowMapSrvIndex == UINT_MAX )
+	{
+		OutputDebugStringA("[Shadow] Allocate SRV slot failed.\n");
+		return;
+	}
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.MipLevels = 1;
+	srvDesc.Texture2D.PlaneSlice = 0;
+	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+	dev->CreateShaderResourceView(
+		m_pd3dShadowMap.Get(),
+		&srvDesc,
+		CScene::m_pDescriptorHeap->GetCPUSrvHandle(m_shadowMapSrvIndex)
+	);
+}
+
 void CGameScene::RenderDepthFog(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	if ( !cmd ) return;
@@ -4825,6 +5241,89 @@ void CGameScene::RenderDepthFog(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 
 	m_depthFogShader->ResetDrawOptionWriteIndex();
 	m_depthFogShader->Render(cmd, camera, &opt);
+}
+
+void CGameScene::UpdateShadowData()
+{
+	if ( !m_pcbMappedShadow )
+		return;
+
+	m_shadowData.shadowParams1 = XMUINT4(UINT_MAX, 0u, 0u, 0u);
+
+	CGameObject* focus = GetPlayer();
+	if ( !focus )
+		focus = GetPlayerBySlot(0);
+
+	if ( !focus )
+		return;
+
+	if ( m_shadowMapSrvIndex == UINT_MAX )
+		return;
+
+	if ( m_lightObjects.size() <= 2 || !m_lightObjects[2] )
+		return;
+
+	auto* lightTr = m_lightObjects[2]->GetComponent<CTransformComponent>();
+	if ( !lightTr )
+		return;
+
+	XMFLOAT3 lightDir = lightTr->GetLook();
+	XMVECTOR lightDirV = XMLoadFloat3(&lightDir);
+
+	if ( XMVectorGetX(XMVector3LengthSq(lightDirV)) < 1.0e-6f )
+		lightDirV = XMVectorSet(1.0f, -1.0f, 0.3f, 0.0f);
+
+	lightDirV = XMVector3Normalize(lightDirV);
+
+	XMFLOAT3 center = focus->GetPosition();
+	center.y += 10.0f;
+
+	XMFLOAT3 up = XMFLOAT3(0.0f, 1.0f, 0.0f);
+	if ( fabsf(XMVectorGetX(XMVector3Dot(lightDirV, XMLoadFloat3(&up)))) > 0.98f )
+		up = XMFLOAT3(0.0f, 0.0f, 1.0f);
+
+	XMFLOAT3 eye{};
+	XMStoreFloat3(
+		&eye,
+		XMLoadFloat3(&center) - ( lightDirV * ( m_shadowFarZ * 0.5f ) )
+	);
+
+	const XMMATRIX view =
+		XMMatrixLookAtLH(
+			XMLoadFloat3(&eye),
+			XMLoadFloat3(&center),
+			XMLoadFloat3(&up)
+		);
+
+	const XMMATRIX proj =
+		XMMatrixOrthographicLH(
+			m_shadowOrthoHalfSize * 2.0f,
+			m_shadowOrthoHalfSize * 2.0f,
+			m_shadowNearZ,
+			m_shadowFarZ
+		);
+
+	const XMMATRIX tex =
+		XMMATRIX(
+			0.5f, 0.0f, 0.0f, 0.0f,
+			0.0f, -0.5f, 0.0f, 0.0f,
+			0.0f, 0.0f, 1.0f, 0.0f,
+			0.5f, 0.5f, 0.0f, 1.0f
+		);
+
+	const XMMATRIX shadowViewProj = view * proj;
+	const XMMATRIX shadowTransform = shadowViewProj * tex;
+
+	XMStoreFloat4x4(&m_shadowData.shadowViewProj, XMMatrixTranspose(shadowViewProj));
+	XMStoreFloat4x4(&m_shadowData.shadowTransform, XMMatrixTranspose(shadowTransform));
+
+	m_shadowData.shadowParams0 = XMFLOAT4(
+		static_cast< float >( m_shadowMapSize ),
+		0.00020f,
+		0.00120f,
+		1.0f
+		);
+	m_shadowData.shadowParams1 = XMUINT4(m_shadowMapSrvIndex, 1u, 0u, 0u);
 }
 
 void CGameScene::RenderUI(ID3D12GraphicsCommandList* cmd, CCamera* camera)
@@ -4874,21 +5373,113 @@ void CGameScene::RenderUI(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 		}
 	}
 
-	if ( m_bShowShadowMapOverlay && mShadowMap )
-	{
-		PS_CB_DRAW_OPTIONS opt{};
-		opt.m_xmn4DrawOptions = XMINT4('T', 0, 0, 0);
-		opt.m_xmu4PostSrvIdx0 = XMUINT4(2, 0, 0, 0); // t2: shadow map SRV
-		opt.m_xmu4PostSrvIdx1 = XMUINT4(0, 0, 0, 0);
-		opt.m_xmf4UiRect = XMFLOAT4(180.0f, 130.0f, 320.0f, 180.0f);
-		opt.m_xmf4Viewport = XMFLOAT4(
-			static_cast< float >( FRAME_BUFFER_WIDTH ),
-			static_cast< float >( FRAME_BUFFER_HEIGHT ),
-			1.0f / static_cast< float >( FRAME_BUFFER_WIDTH ),
-			1.0f / static_cast< float >( FRAME_BUFFER_HEIGHT ));
+	//if ( m_bShowShadowMapOverlay && mShadowMap )
+	//{
+	//	PS_CB_DRAW_OPTIONS opt{};
+	//	opt.m_xmn4DrawOptions = XMINT4('T', 0, 0, 0);
+	//	opt.m_xmu4PostSrvIdx0 = XMUINT4(2, 0, 0, 0); // t2: shadow map SRV
+	//	opt.m_xmu4PostSrvIdx1 = XMUINT4(0, 0, 0, 0);
+	//	opt.m_xmf4UiRect = XMFLOAT4(180.0f, 130.0f, 320.0f, 180.0f);
+	//	opt.m_xmf4Viewport = XMFLOAT4(
+	//		static_cast< float >( FRAME_BUFFER_WIDTH ),
+	//		static_cast< float >( FRAME_BUFFER_HEIGHT ),
+	//		1.0f / static_cast< float >( FRAME_BUFFER_WIDTH ),
+	//		1.0f / static_cast< float >( FRAME_BUFFER_HEIGHT ));
+	//	m_uiRectShader->Render(cmd, camera, &opt);
+	//}
+}
 
-		m_uiRectShader->Render(cmd, camera, &opt);
+void CGameScene::RenderShadowMap(ID3D12GraphicsCommandList* cmd)
+{
+	if ( !cmd ) return;
+	if ( !m_pd3dShadowMap ) return;
+	if ( !m_pd3dShadowDsvHeap ) return;
+	if ( !m_shadowStaticShader ) return;
+	if ( !m_shadowSkinnedShader ) return;
+	if ( !m_pd3dcbShadow ) return;
+
+	::SynchronizeResourceTransition(
+		cmd,
+		m_pd3dShadowMap.Get(),
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+		D3D12_RESOURCE_STATE_DEPTH_WRITE
+	);
+
+	cmd->SetGraphicsRootSignature(GetGraphicsRootSignature());
+
+	if ( m_pDescriptorHeap && m_pDescriptorHeap->m_pd3dCbvSrvDescriptorHeap )
+	{
+		cmd->SetDescriptorHeaps(1, m_pDescriptorHeap->m_pd3dCbvSrvDescriptorHeap.GetAddressOf());
+		cmd->SetGraphicsRootDescriptorTable(
+			ROOT_PARAMETER_GLOBAL_SRV,
+			m_pDescriptorHeap->GetGPUSrvDescriptorStartHandle()
+		);
 	}
+
+	cmd->RSSetViewports(1, &m_shadowViewport);
+	cmd->RSSetScissorRects(1, &m_shadowScissorRect);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle =
+		m_pd3dShadowDsvHeap->GetCPUDescriptorHandleForHeapStart();
+
+	cmd->OMSetRenderTargets(0, nullptr, FALSE, &dsvHandle);
+	cmd->ClearDepthStencilView(
+		dsvHandle,
+		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
+		1.0f,
+		0,
+		0,
+		nullptr
+	);
+
+	if ( m_pd3dcbMaterials )
+	{
+		cmd->SetGraphicsRootConstantBufferView(
+			ROOT_PARAMETER_MATERIAL,
+			m_pd3dcbMaterials->GetGPUVirtualAddress()
+		);
+	}
+
+	cmd->SetGraphicsRootConstantBufferView(
+		ROOT_PARAMETER_SHADOW,
+		m_pd3dcbShadow->GetGPUVirtualAddress()
+	);
+
+	RenderStaticInstanceGroupsToShadowMap(cmd);
+	RenderSkinnedInstanceGroupsToShadowMap(cmd);
+
+	::SynchronizeResourceTransition(
+		cmd,
+		m_pd3dShadowMap.Get(),
+		D3D12_RESOURCE_STATE_DEPTH_WRITE,
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+	);
+}
+
+void CGameScene::RestoreSceneRenderTargets(ID3D12GraphicsCommandList* cmd, CCamera* camera)
+{
+	if ( !cmd ) return;
+	if ( !m_bSceneRenderTargetsReady ) return;
+	if ( m_sceneRenderTargetCount == 0 ) return;
+
+	cmd->OMSetRenderTargets(
+		m_sceneRenderTargetCount,
+		m_sceneRtvHandles.data(),
+		FALSE,
+		&m_sceneDsvHandle
+	);
+
+	if ( camera )
+		camera->SetViewportsAndScissorRects(cmd);
+}
+
+void CGameScene::RenderShadowPrePass(ID3D12GraphicsCommandList* cmd, CCamera* camera)
+{
+	if ( !cmd ) return;
+
+	OnPrepareRender(cmd, camera);
+	RenderShadowMap(cmd);
+	RestoreSceneRenderTargets(cmd, camera);
 }
 
 bool CGameScene::GetPauseOverlayRect(XMFLOAT4& outRect) const
@@ -5851,6 +6442,11 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
     if (m_pcbMappedMaterials && m_pMaterials)
         ::memcpy(m_pcbMappedMaterials, m_pMaterials.get(), sizeof(MATERIALS));
 	
+	UpdateShadowData();
+
+	if ( m_pcbMappedShadow )
+		::memcpy(m_pcbMappedShadow, &m_shadowData, sizeof(CB_SHADOW));
+
 	UpdateDepthFogState(m_fElapsedTime);
 
 	if ( m_pcbMappedFog )
@@ -5948,12 +6544,19 @@ void CGameScene::OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera
         cmd->SetGraphicsRootConstantBufferView(ROOT_PARAMETER_MATERIAL, matsGpu);
     }
 
-	if ( mShadowMap )
-		mShadowMap->BindShadowPassCB(cmd);
+	/*if ( mShadowMap )
+		mShadowMap->BindShadowPassCB(cmd);*/
+
 	if ( m_pd3dcbFog )
 	{
 		D3D12_GPU_VIRTUAL_ADDRESS fogGpu = m_pd3dcbFog->GetGPUVirtualAddress();
 		cmd->SetGraphicsRootConstantBufferView(ROOT_PARAMETER_FOG, fogGpu);
+	}
+
+	if ( m_pd3dcbShadow )
+	{
+		D3D12_GPU_VIRTUAL_ADDRESS shadowGpu = m_pd3dcbShadow->GetGPUVirtualAddress();
+		cmd->SetGraphicsRootConstantBufferView(ROOT_PARAMETER_SHADOW, shadowGpu);
 	}
 }
 
@@ -6041,6 +6644,12 @@ void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* c
 
 void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
+	OnPrepareRender(cmd, camera);
+	RenderShadowMap(cmd);
+
+	OnPrepareRender(cmd, camera);
+	RestoreSceneRenderTargets(cmd, camera);
+
 	RenderSceneGeometry(cmd, camera);
 	RenderSceneComposite(cmd, camera);
 }
