@@ -1406,6 +1406,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	auto pTreeStaticShader = std::make_shared<CTreeStaticObjectsShader>();
 	auto pSkinnedShader = std::make_shared<CSkinnedObjectsShader>();
 	auto pColliderShader = std::make_shared<CDiffusedShader>();
+	auto pOcclusionStaticShader = std::make_shared<COcclusionStaticShader>();
 	auto pShadowStaticShader = std::make_shared<CShadowMapStaticShader>();
 	auto pShadowAlphaClipStaticShader = std::make_shared<CShadowMapAlphaClipStaticShader>();
 	auto pShadowSkinnedShader = std::make_shared<CShadowMapSkinnedShader>();
@@ -1415,6 +1416,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_treeStaticShader = pTreeStaticShader;
 	m_skinnedBatch.shader = pSkinnedShader;
 	m_colliderBatch.shader = pColliderShader;
+	m_occlusionStaticShader = pOcclusionStaticShader;
 	m_shadowStaticShader = pShadowStaticShader;
 	m_shadowAlphaClipStaticShader = pShadowAlphaClipStaticShader;
 	m_shadowSkinnedShader = pShadowSkinnedShader;
@@ -1447,7 +1449,15 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	//BuildColliderBatch(dev, cmd, pColliderShader, kRTCount, rtvFormats, kDsvFormat);
 #endif
 
-	pTreeStaticShader->CreateShader(dev,m_pd3dGraphicsRootSignature.Get(),kRTCount,rtvFormats,kDsvFormat);
+	pTreeStaticShader->CreateShader(dev, m_pd3dGraphicsRootSignature.Get(), kRTCount, rtvFormats, kDsvFormat);
+	pOcclusionStaticShader->CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		0,
+		nullptr,
+		DXGI_FORMAT_D24_UNORM_S8_UINT
+	);
+
 	pShadowStaticShader->CreateShader(
 		dev,
 		m_pd3dGraphicsRootSignature.Get(),
@@ -3082,25 +3092,16 @@ void CGameScene::RenderStaticOcclusionPass(ID3D12GraphicsCommandList* cmd, CCame
 	if ( !m_staticOcclusionUnitBoxMesh )
 		return;
 
-	if ( !m_shadowStaticShader )
-		return;
-
-	if ( !m_pd3dcbShadow )
+	if ( !m_occlusionStaticShader )
 		return;
 
 	if ( !m_bSceneRenderTargetsReady )
-		return;
-
-	if ( m_sceneRenderTargetCount == 0 )
 		return;
 
 	if ( !m_pd3dStaticInstanceBuffer )
 		return;
 
 	if ( !m_pMappedStaticInstanceBuffer )
-		return;
-
-	if ( m_staticInstanceBufferCapacity == 0 )
 		return;
 
 	if ( m_staticOcclusionUnitBoxMesh->m_SubMeshes.empty() )
@@ -3130,20 +3131,7 @@ void CGameScene::RenderStaticOcclusionPass(ID3D12GraphicsCommandList* cmd, CCame
 		&m_sceneDsvHandle
 	);
 
-	if ( m_pd3dcbMaterials )
-	{
-		cmd->SetGraphicsRootConstantBufferView(
-			ROOT_PARAMETER_MATERIAL,
-			m_pd3dcbMaterials->GetGPUVirtualAddress()
-		);
-	}
-
-	cmd->SetGraphicsRootConstantBufferView(
-		ROOT_PARAMETER_SHADOW,
-		m_pd3dcbShadow->GetGPUVirtualAddress()
-	);
-
-	m_shadowStaticShader->Render(cmd, nullptr, &m_staticBatch);
+	m_occlusionStaticShader->Render(cmd, camera, &m_staticBatch);
 	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	m_staticOcclusionCurrentFrameIssuedFlags.assign(m_staticOcclusionEntries.size(), 0);
@@ -3204,16 +3192,11 @@ void CGameScene::RenderStaticOcclusionPass(ID3D12GraphicsCommandList* cmd, CCame
 
 			D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
 			vbViews[0] = sm.vbView;
-			vbViews[1].BufferLocation =
-				m_pd3dStaticInstanceBuffer->GetGPUVirtualAddress();
+			vbViews[1].BufferLocation = m_pd3dStaticInstanceBuffer->GetGPUVirtualAddress();
 			vbViews[1].SizeInBytes = sizeof(StaticInstanceVertex);
 			vbViews[1].StrideInBytes = sizeof(StaticInstanceVertex);
 
 			cmd->SetGraphicsRoot32BitConstant(ROOT_PARAMETER_MATERIAL_ID, 0u, 0);
-
-			if ( sm.material && sm.material->NeedsLegacyBinding() )
-				sm.material->UpdateShaderVariables(cmd);
-
 			cmd->IASetVertexBuffers(0, 2, vbViews);
 			cmd->IASetIndexBuffer(&sm.ibView);
 

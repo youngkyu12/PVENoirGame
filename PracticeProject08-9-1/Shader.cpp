@@ -679,6 +679,63 @@ D3D12_RASTERIZER_DESC CShadowMapSkinnedShader::CreateRasterizerState()
 	return rs;
 }
 
+D3D12_SHADER_BYTECODE COcclusionStaticShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(
+		L"Shaders.hlsl",
+		"VSStaticOcclusionInstanced",
+		"vs_5_1",
+		ppd3dShaderBlob
+	);
+}
+
+D3D12_SHADER_BYTECODE COcclusionStaticShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(
+		L"Shaders.hlsl",
+		"PSOcclusionOpaque",
+		"ps_5_1",
+		ppd3dShaderBlob
+	);
+}
+
+D3D12_RASTERIZER_DESC COcclusionStaticShader::CreateRasterizerState()
+{
+	D3D12_RASTERIZER_DESC rs = CShader::CreateRasterizerState();
+	rs.CullMode = D3D12_CULL_MODE_NONE;
+	return rs;
+}
+
+D3D12_BLEND_DESC COcclusionStaticShader::CreateBlendState()
+{
+	D3D12_BLEND_DESC bs = CShader::CreateBlendState();
+	bs.RenderTarget[0].RenderTargetWriteMask = 0;
+	return bs;
+}
+
+D3D12_DEPTH_STENCIL_DESC COcclusionStaticShader::CreateDepthStencilState()
+{
+	D3D12_DEPTH_STENCIL_DESC ds{};
+	::ZeroMemory(&ds, sizeof(D3D12_DEPTH_STENCIL_DESC));
+
+	ds.DepthEnable = TRUE;
+	ds.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	ds.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+
+	ds.StencilEnable = FALSE;
+	ds.StencilReadMask = 0x00;
+	ds.StencilWriteMask = 0x00;
+
+	ds.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	ds.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	ds.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+	ds.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+
+	ds.BackFace = ds.FrontFace;
+
+	return ds;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 CUIShader::CUIShader()
 {
