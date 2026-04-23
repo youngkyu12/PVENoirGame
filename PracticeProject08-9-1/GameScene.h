@@ -86,6 +86,15 @@ struct StaticWorldLodEntry
 	float cullDistance = 1000000.0f;
 };
 
+struct StaticOcclusionEntry
+{
+	CGameObject* object = nullptr;
+	UINT staticBatchObjectIndex = UINT_MAX;
+
+	std::string assetName;
+	bool enabled = false;
+};
+
 struct SkinnedWorldLodEntry
 {
 	CGameObject* object = nullptr;
@@ -219,9 +228,12 @@ private:
     void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd);
 	void BuildStaticInstanceGroups();
 	void ResetStaticWorldLodEntries();
+	void ResetStaticOcclusionEntries();
+	void BuildStaticOcclusionEntries();
 	int ComputeStaticWorldLodLevel(const XMFLOAT3& cameraPosition, const StaticWorldLodEntry& entry) const;
 	bool ComputeStaticWorldDistanceCulled(const XMFLOAT3& cameraPosition, const StaticWorldLodEntry& entry) const;
 	void UpdateStaticWorldLodSelection(CCamera* camera);
+	void UpdateStaticOcclusionCullSelection(CCamera* camera);
 	void RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 	void BuildSkinnedInstanceGroups();
@@ -611,8 +623,11 @@ private:
 
 	std::vector<StaticInstanceGroup>    m_staticInstanceGroups;
 	std::vector<StaticWorldLodEntry>    m_staticWorldLodEntries;
+	std::vector<StaticOcclusionEntry>   m_staticOcclusionEntries;
 	std::vector<uint8_t>                m_staticDistanceCullFlags;
+	std::vector<uint8_t>                m_staticOcclusionCullFlags;
 	bool                                m_staticWorldLodDirty = false;
+	bool                                m_bStaticOcclusionCullingEnabled = true;
 	float                               m_staticLodDistance01 = 40.0f;
 	float                               m_staticLodDistance12 = 80.0f;
 	float                               m_staticLodHysteresis = 15.0f;
