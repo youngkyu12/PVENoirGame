@@ -664,6 +664,7 @@ private:
 
 	std::shared_ptr<CRectUIShader>      m_uiRectShader;
 	std::shared_ptr<CDepthFogShader>    m_depthFogShader;
+	std::shared_ptr<COcclusionStaticShader>               m_occlusionStaticShader;
 	std::shared_ptr<CShadowMapStaticShader>               m_shadowStaticShader;
 	std::shared_ptr<CShadowMapAlphaClipStaticShader>      m_shadowAlphaClipStaticShader;
 	std::shared_ptr<CShadowMapSkinnedShader>              m_shadowSkinnedShader;
