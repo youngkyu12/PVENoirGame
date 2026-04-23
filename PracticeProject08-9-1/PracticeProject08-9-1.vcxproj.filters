@@ -348,6 +348,7 @@
     <ClInclude Include="GameSceneAttachmentBinder.h">
       <Filter>Scene\GameScene</Filter>
     </ClInclude>
+    <ClInclude Include="TerrainComponent.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -516,6 +517,7 @@
     <ClCompile Include="GameSceneAttachmentBinder.cpp">
       <Filter>Scene\GameScene</Filter>
     </ClCompile>
+    <ClCompile Include="TerrainComponent.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PracticeProject08-9-1.rc">
@@ -561,14 +563,12 @@
     <None Include="Skinned.hlsl">
       <Filter>Resource\HLSL</Filter>
     </None>
-    <None Include="Shadow.hlsl">
-      <Filter>Resource\HLSL</Filter>
-    </None>
     <None Include="PostProcess.hlsl">
       <Filter>Resource\HLSL</Filter>
     </None>
     <None Include="Lighting.hlsl">
       <Filter>Resource\HLSL</Filter>
     </None>
+    <None Include="Shadows.hlsl" />
   </ItemGroup>
 </Project>
