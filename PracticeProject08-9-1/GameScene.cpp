@@ -1168,6 +1168,8 @@ void CGameScene::ReleaseUploadBuffers()
 
 void CGameScene::ReleaseShaderVariables()
 {
+	ReleaseStaticOcclusionGpuResources();
+
 	if ( m_pd3dStaticInstanceBuffer )
 	{
 		if ( m_pMappedStaticInstanceBuffer )
@@ -2767,6 +2769,7 @@ void CGameScene::BuildStaticBatch(
 	}
 
 	BuildStaticOcclusionEntries();
+	BuildStaticOcclusionGpuResources(dev);
 	BuildStaticInstanceGroups();
 
 	if ( m_pd3dStaticInstanceBuffer )
@@ -2808,6 +2811,9 @@ void CGameScene::ResetStaticOcclusionEntries()
 {
 	m_staticOcclusionEntries.clear();
 	m_staticOcclusionCullFlags.clear();
+	m_staticOcclusionQuerySampleCounts.clear();
+	m_staticOcclusionQueryCapacity = 0;
+	m_bStaticOcclusionQueryResultsValid = false;
 }
 
 void CGameScene::BuildStaticOcclusionEntries()
@@ -2863,6 +2869,173 @@ void CGameScene::BuildStaticOcclusionEntries()
 	}
 }
 
+void CGameScene::BuildStaticOcclusionGpuResources(ID3D12Device* dev)
+{
+	ReleaseStaticOcclusionGpuResources();
+
+	if ( !dev )
+		return;
+
+	const UINT queryCount = ( UINT ) m_staticOcclusionEntries.size();
+	m_staticOcclusionQueryCapacity = queryCount;
+	m_staticOcclusionQuerySampleCounts.assign(queryCount, 1ull);
+	m_bStaticOcclusionQueryResultsValid = false;
+
+	if ( queryCount == 0 )
+		return;
+
+	D3D12_QUERY_HEAP_DESC queryHeapDesc{};
+	queryHeapDesc.Count = queryCount;
+	queryHeapDesc.Type = D3D12_QUERY_HEAP_TYPE_OCCLUSION;
+	queryHeapDesc.NodeMask = 0;
+
+	HRESULT hr = dev->CreateQueryHeap(
+		&queryHeapDesc,
+		IID_PPV_ARGS(m_pd3dStaticOcclusionQueryHeap.ReleaseAndGetAddressOf())
+	);
+
+	if ( FAILED(hr) )
+	{
+		OutputDebugStringA("[Occlusion] CreateQueryHeap failed.\n");
+		return;
+	}
+
+	D3D12_HEAP_PROPERTIES heapProps{};
+	heapProps.Type = D3D12_HEAP_TYPE_READBACK;
+	heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	heapProps.CreationNodeMask = 1;
+	heapProps.VisibleNodeMask = 1;
+
+	D3D12_RESOURCE_DESC bufferDesc{};
+	bufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	bufferDesc.Alignment = 0;
+	bufferDesc.Width = sizeof(UINT64) * queryCount;
+	bufferDesc.Height = 1;
+	bufferDesc.DepthOrArraySize = 1;
+	bufferDesc.MipLevels = 1;
+	bufferDesc.Format = DXGI_FORMAT_UNKNOWN;
+	bufferDesc.SampleDesc.Count = 1;
+	bufferDesc.SampleDesc.Quality = 0;
+	bufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	bufferDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	hr = dev->CreateCommittedResource(
+		&heapProps,
+		D3D12_HEAP_FLAG_NONE,
+		&bufferDesc,
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		nullptr,
+		IID_PPV_ARGS(m_pd3dStaticOcclusionReadbackBuffer.ReleaseAndGetAddressOf())
+	);
+
+	if ( FAILED(hr) )
+	{
+		OutputDebugStringA("[Occlusion] Create readback buffer failed.\n");
+		ReleaseStaticOcclusionGpuResources();
+		return;
+	}
+
+	D3D12_RANGE readRange{};
+	readRange.Begin = 0;
+	readRange.End = 0;
+
+	hr = m_pd3dStaticOcclusionReadbackBuffer->Map(
+		0,
+		&readRange,
+		reinterpret_cast< void** >( &m_pMappedStaticOcclusionReadbackBuffer )
+	);
+
+	if ( FAILED(hr) || !m_pMappedStaticOcclusionReadbackBuffer )
+	{
+		OutputDebugStringA("[Occlusion] Map readback buffer failed.\n");
+		ReleaseStaticOcclusionGpuResources();
+		return;
+	}
+
+	m_bStaticOcclusionQueryResourcesReady = true;
+}
+
+void CGameScene::ReleaseStaticOcclusionGpuResources()
+{
+	if ( m_pd3dStaticOcclusionReadbackBuffer )
+	{
+		if ( m_pMappedStaticOcclusionReadbackBuffer )
+		{
+			m_pd3dStaticOcclusionReadbackBuffer->Unmap(0, nullptr);
+			m_pMappedStaticOcclusionReadbackBuffer = nullptr;
+		}
+
+		m_pd3dStaticOcclusionReadbackBuffer.Reset();
+	}
+
+	if ( m_pd3dStaticOcclusionQueryHeap )
+		m_pd3dStaticOcclusionQueryHeap.Reset();
+
+	m_staticOcclusionQueryCapacity = 0;
+	m_bStaticOcclusionQueryResourcesReady = false;
+	m_bStaticOcclusionQueryResultsValid = false;
+	m_staticOcclusionQuerySampleCounts.clear();
+}
+
+void CGameScene::BeginStaticOcclusionReadback()
+{
+	if ( !m_bStaticOcclusionQueryResourcesReady )
+		return;
+
+	if ( !m_bStaticOcclusionQueryResultsValid )
+		return;
+
+	if ( !m_pMappedStaticOcclusionReadbackBuffer )
+		return;
+
+	const UINT queryCount = ( UINT ) m_staticOcclusionEntries.size();
+	if ( queryCount == 0 )
+		return;
+
+	if ( m_staticOcclusionQuerySampleCounts.size() != queryCount )
+		m_staticOcclusionQuerySampleCounts.assign(queryCount, 1ull);
+
+	for ( UINT i = 0; i < queryCount; ++i )
+	{
+		m_staticOcclusionQuerySampleCounts[i] =
+			m_pMappedStaticOcclusionReadbackBuffer[i];
+	}
+}
+
+void CGameScene::ResolveStaticOcclusionQueries(ID3D12GraphicsCommandList* cmd)
+{
+	UNREFERENCED_PARAMETER(cmd);
+
+	if ( !m_bStaticOcclusionQueryResourcesReady )
+		return;
+
+	if ( m_staticOcclusionEntries.empty() )
+		return;
+
+	// 실제 BeginQuery / EndQuery / ResolveQueryData는 다음 단계에서 추가한다.
+	// 지금 단계에서는 query resource와 프레임 경로만 연결한다.
+}
+
+void CGameScene::RenderStaticOcclusionPass(ID3D12GraphicsCommandList* cmd, CCamera* camera)
+{
+	UNREFERENCED_PARAMETER(camera);
+
+	if ( !cmd )
+		return;
+
+	if ( !m_bStaticOcclusionCullingEnabled )
+		return;
+
+	if ( !m_bStaticOcclusionQueryResourcesReady )
+		return;
+
+	if ( m_staticOcclusionEntries.empty() )
+		return;
+
+	ResolveStaticOcclusionQueries(cmd);
+}
+
 void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 {
 	UNREFERENCED_PARAMETER(camera);
@@ -2872,8 +3045,10 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 	if ( !m_bStaticOcclusionCullingEnabled )
 		return;
 
-	for ( const StaticOcclusionEntry& entry : m_staticOcclusionEntries )
+	for ( size_t occlusionIndex = 0; occlusionIndex < m_staticOcclusionEntries.size(); ++occlusionIndex )
 	{
+		const StaticOcclusionEntry& entry = m_staticOcclusionEntries[occlusionIndex];
+
 		if ( !entry.enabled )
 			continue;
 
@@ -2886,7 +3061,19 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 		if ( entry.staticBatchObjectIndex >= ( UINT ) m_staticOcclusionCullFlags.size() )
 			continue;
 
-		m_staticOcclusionCullFlags[entry.staticBatchObjectIndex] = 0;
+		bool occluded = false;
+
+		if ( m_bStaticOcclusionQueryResultsValid )
+		{
+			if ( occlusionIndex < m_staticOcclusionQuerySampleCounts.size() )
+			{
+				if ( m_staticOcclusionQuerySampleCounts[occlusionIndex] == 0ull )
+					occluded = true;
+			}
+		}
+
+		if ( occluded )
+			m_staticOcclusionCullFlags[entry.staticBatchObjectIndex] = 1;
 	}
 }
 
@@ -6595,6 +6782,7 @@ void CGameScene::OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera
 	{
 		camera->UpdateBoundingFrustum();
 		UpdateStaticWorldLodSelection(camera);
+		BeginStaticOcclusionReadback();
 		UpdateStaticOcclusionCullSelection(camera);
 		UpdateSkinnedWorldLodSelection(camera);
 	}
@@ -6655,6 +6843,8 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 		m_skinnedBatch.shader->Render(cmd, camera, &m_skinnedBatch);
 		RenderSkinnedInstanceGroups(cmd, camera);
 	}
+
+	RenderStaticOcclusionPass(cmd, camera);
 
 #ifndef USING_NETWORK
 	if ( m_colliderBatch.shader )
