@@ -93,6 +93,9 @@ struct StaticOcclusionEntry
 
 	std::string assetName;
 	bool enabled = false;
+
+	BoundingOrientedBox worldBounds{};
+	bool hasWorldBounds = false;
 };
 
 struct SkinnedWorldLodEntry
