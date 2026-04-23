@@ -233,6 +233,11 @@ private:
 	void ResetStaticWorldLodEntries();
 	void ResetStaticOcclusionEntries();
 	void BuildStaticOcclusionEntries();
+	void BuildStaticOcclusionGpuResources(ID3D12Device* dev);
+	void ReleaseStaticOcclusionGpuResources();
+	void BeginStaticOcclusionReadback();
+	void RenderStaticOcclusionPass(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	void ResolveStaticOcclusionQueries(ID3D12GraphicsCommandList* cmd);
 	int ComputeStaticWorldLodLevel(const XMFLOAT3& cameraPosition, const StaticWorldLodEntry& entry) const;
 	bool ComputeStaticWorldDistanceCulled(const XMFLOAT3& cameraPosition, const StaticWorldLodEntry& entry) const;
 	void UpdateStaticWorldLodSelection(CCamera* camera);
@@ -629,6 +634,13 @@ private:
 	std::vector<StaticOcclusionEntry>   m_staticOcclusionEntries;
 	std::vector<uint8_t>                m_staticDistanceCullFlags;
 	std::vector<uint8_t>                m_staticOcclusionCullFlags;
+	std::vector<UINT64>                 m_staticOcclusionQuerySampleCounts;
+	ComPtr<ID3D12QueryHeap>             m_pd3dStaticOcclusionQueryHeap;
+	ComPtr<ID3D12Resource>              m_pd3dStaticOcclusionReadbackBuffer;
+	UINT64* m_pMappedStaticOcclusionReadbackBuffer = nullptr;
+	UINT                                m_staticOcclusionQueryCapacity = 0;
+	bool                                m_bStaticOcclusionQueryResourcesReady = false;
+	bool                                m_bStaticOcclusionQueryResultsValid = false;
 	bool                                m_staticWorldLodDirty = false;
 	bool                                m_bStaticOcclusionCullingEnabled = true;
 	float                               m_staticLodDistance01 = 40.0f;
