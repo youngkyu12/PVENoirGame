@@ -157,6 +157,83 @@ namespace
 		return out;
 	}
 
+	static bool TryBuildStaticOcclusionWorldBounds(
+	CGameObject* obj,
+	BoundingOrientedBox& outBounds)
+	{
+		if ( !obj )
+			return false;
+
+		if ( auto* collider = obj->GetComponent<CColliderComponent>() )
+		{
+			const std::vector<MeshOOBBSet>& meshSets = collider->GetMeshOOBBSets();
+
+			bool hasAnyCorner = false;
+			float minX = 0.0f;
+			float maxX = 0.0f;
+			float minY = 0.0f;
+			float maxY = 0.0f;
+			float minZ = 0.0f;
+			float maxZ = 0.0f;
+
+			for ( const MeshOOBBSet& set : meshSets )
+			{
+				for ( const BoundingOrientedBox& subOOBB : set.WorldSubOOBBs )
+				{
+					XMFLOAT3 corners[8] = {};
+					subOOBB.GetCorners(corners);
+
+					for ( int i = 0; i < 8; ++i )
+					{
+						const XMFLOAT3& c = corners[i];
+
+						if ( !hasAnyCorner )
+						{
+							minX = maxX = c.x;
+							minY = maxY = c.y;
+							minZ = maxZ = c.z;
+							hasAnyCorner = true;
+						}
+						else
+						{
+							if ( c.x < minX ) minX = c.x;
+							if ( c.x > maxX ) maxX = c.x;
+							if ( c.y < minY ) minY = c.y;
+							if ( c.y > maxY ) maxY = c.y;
+							if ( c.z < minZ ) minZ = c.z;
+							if ( c.z > maxZ ) maxZ = c.z;
+						}
+					}
+				}
+			}
+
+			if ( hasAnyCorner )
+			{
+				outBounds.Center = XMFLOAT3(
+					( minX + maxX ) * 0.5f,
+					( minY + maxY ) * 0.5f,
+					( minZ + maxZ ) * 0.5f
+				);
+
+				outBounds.Extents = XMFLOAT3(
+					( maxX - minX ) * 0.5f,
+					( maxY - minY ) * 0.5f,
+					( maxZ - minZ ) * 0.5f
+				);
+
+				outBounds.Orientation = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+				return true;
+			}
+		}
+
+		const XMFLOAT3 pos = obj->GetPosition();
+
+		outBounds.Center = pos;
+		outBounds.Extents = XMFLOAT3(0.5f, 0.5f, 0.5f);
+		outBounds.Orientation = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+		return true;
+	}
+
 	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::FullStageNoTree;
 }
 
@@ -2779,6 +2856,8 @@ void CGameScene::BuildStaticOcclusionEntries()
 		entry.staticBatchObjectIndex = lodEntry.staticBatchObjectIndex;
 		entry.assetName = assetName;
 		entry.enabled = true;
+		entry.hasWorldBounds =
+			TryBuildStaticOcclusionWorldBounds(entry.object, entry.worldBounds);
 
 		m_staticOcclusionEntries.push_back(std::move(entry));
 	}
@@ -2796,6 +2875,9 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 	for ( const StaticOcclusionEntry& entry : m_staticOcclusionEntries )
 	{
 		if ( !entry.enabled )
+			continue;
+
+		if ( !entry.hasWorldBounds )
 			continue;
 
 		if ( entry.staticBatchObjectIndex == UINT_MAX )
