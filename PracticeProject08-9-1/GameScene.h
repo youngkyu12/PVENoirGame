@@ -650,8 +650,9 @@ private:
 	bool                                m_bStaticOcclusionQueryResultsValid = false;
 	bool                                m_staticWorldLodDirty = false;
 	bool                                m_bStaticOcclusionCullingEnabled = true;
-	UINT                                m_staticOcclusionHideFrameThreshold = 3;
-	float                               m_staticOcclusionMinTestDistance = 25.0f;
+	UINT                                m_staticOcclusionHideFrameThreshold = 8;
+	float                               m_staticOcclusionMinTestDistance = 50.0f;
+	float                               m_staticOcclusionMaxCullExtentDistanceRatio = 0.20f;
 	float                               m_staticLodDistance01 = 40.0f;
 	float                               m_staticLodDistance12 = 80.0f;
 	float                               m_staticLodHysteresis = 15.0f;

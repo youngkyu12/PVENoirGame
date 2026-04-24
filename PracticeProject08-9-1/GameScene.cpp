@@ -350,7 +350,7 @@ namespace
 		return true;
 	}
 
-	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::Test;
+	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::FullStageNoTree;
 }
 
 namespace
@@ -3346,7 +3346,24 @@ void CGameScene::RenderStaticOcclusionPass(ID3D12GraphicsCommandList* cmd, CCame
 			const float distSq = dx * dx + dy * dy + dz * dz;
 
 			if ( distSq < minTestDistanceSq )
+			{
 				issueRealQuery = false;
+			}
+			else
+			{
+				const float dist = std::sqrt(distSq);
+				const float maxExtent =
+					std::max(entry.worldBounds.Extents.x,
+						std::max(entry.worldBounds.Extents.y, entry.worldBounds.Extents.z));
+
+				if ( dist > 0.0001f )
+				{
+					const float extentDistanceRatio = maxExtent / dist;
+
+					if ( extentDistanceRatio > m_staticOcclusionMaxCullExtentDistanceRatio )
+						issueRealQuery = false;
+				}
+			}
 		}
 
 		cmd->BeginQuery(
@@ -3574,6 +3591,28 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 				sampleCount, 0, distSq
 			);
 			continue;
+		}
+
+		const float dist = std::sqrt(distSq);
+		const float maxExtent =
+			std::max(entry.worldBounds.Extents.x,
+				std::max(entry.worldBounds.Extents.y, entry.worldBounds.Extents.z));
+
+		if ( dist > 0.0001f )
+		{
+			const float extentDistanceRatio = maxExtent / dist;
+
+			if ( extentDistanceRatio > m_staticOcclusionMaxCullExtentDistanceRatio )
+			{
+				m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+
+				LogVillageWallOcclusionState(
+					occlusionIndex, entry, false,
+					"too large on screen, occlusion ignored",
+					sampleCount, 0, distSq
+				);
+				continue;
+			}
 		}
 
 		if ( !m_bStaticOcclusionQueryResultsValid )
