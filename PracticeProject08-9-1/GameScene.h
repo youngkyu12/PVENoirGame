@@ -640,6 +640,7 @@ private:
 	std::vector<UINT64>                 m_staticOcclusionQuerySampleCounts;
 	std::vector<uint8_t>                m_staticOcclusionLastFrameIssuedFlags;
 	std::vector<uint8_t>                m_staticOcclusionCurrentFrameIssuedFlags;
+	std::vector<uint8_t>                m_staticOcclusionZeroSampleFrameCounts;
 	ComPtr<ID3D12QueryHeap>             m_pd3dStaticOcclusionQueryHeap;
 	ComPtr<ID3D12Resource>              m_pd3dStaticOcclusionReadbackBuffer;
 	UINT64* m_pMappedStaticOcclusionReadbackBuffer = nullptr;
@@ -648,6 +649,8 @@ private:
 	bool                                m_bStaticOcclusionQueryResultsValid = false;
 	bool                                m_staticWorldLodDirty = false;
 	bool                                m_bStaticOcclusionCullingEnabled = true;
+	UINT                                m_staticOcclusionHideFrameThreshold = 3;
+	float                               m_staticOcclusionMinTestDistance = 25.0f;
 	float                               m_staticLodDistance01 = 40.0f;
 	float                               m_staticLodDistance12 = 80.0f;
 	float                               m_staticLodHysteresis = 15.0f;
