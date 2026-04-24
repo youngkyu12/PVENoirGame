@@ -24,6 +24,7 @@
 #include "LightComponent.h"
 #include "PlayerControllerComponent.h"
 #include "Object.h"
+#include "Mesh.h"
 #include "SkinningComponent.h"
 #include "ActorTagComponent.h"
 #include "ArrowComponent.h"
@@ -157,6 +158,121 @@ namespace
 		return out;
 	}
 
+	static std::shared_ptr<CMesh> CreateStaticOcclusionLocalUnitBoxMesh(
+	ID3D12Device* dev,
+	ID3D12GraphicsCommandList* cmd)
+	{
+		if ( !dev || !cmd )
+			return nullptr;
+
+		struct OcclusionVertex
+		{
+			XMFLOAT3 position;
+			XMFLOAT3 normal;
+			XMFLOAT2 uv;
+			XMFLOAT4 tangent;
+		};
+
+		const OcclusionVertex vertices[ ] =
+		{
+			{ XMFLOAT3(-0.5f, -0.5f, -0.5f), XMFLOAT3(0.0f, 0.0f, -1.0f), XMFLOAT2(0.0f, 1.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
+			{ XMFLOAT3(-0.5f, +0.5f, -0.5f), XMFLOAT3(0.0f, 0.0f, -1.0f), XMFLOAT2(0.0f, 0.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
+			{ XMFLOAT3(+0.5f, +0.5f, -0.5f), XMFLOAT3(0.0f, 0.0f, -1.0f), XMFLOAT2(1.0f, 0.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
+			{ XMFLOAT3(+0.5f, -0.5f, -0.5f), XMFLOAT3(0.0f, 0.0f, -1.0f), XMFLOAT2(1.0f, 1.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
+
+			{ XMFLOAT3(-0.5f, -0.5f, +0.5f), XMFLOAT3(0.0f, 0.0f, +1.0f), XMFLOAT2(0.0f, 1.0f), XMFLOAT4(-1.0f, 0.0f, 0.0f, 1.0f) },
+			{ XMFLOAT3(+0.5f, -0.5f, +0.5f), XMFLOAT3(0.0f, 0.0f, +1.0f), XMFLOAT2(1.0f, 1.0f), XMFLOAT4(-1.0f, 0.0f, 0.0f, 1.0f) },
+			{ XMFLOAT3(+0.5f, +0.5f, +0.5f), XMFLOAT3(0.0f, 0.0f, +1.0f), XMFLOAT2(1.0f, 0.0f), XMFLOAT4(-1.0f, 0.0f, 0.0f, 1.0f) },
+			{ XMFLOAT3(-0.5f, +0.5f, +0.5f), XMFLOAT3(0.0f, 0.0f, +1.0f), XMFLOAT2(0.0f, 0.0f), XMFLOAT4(-1.0f, 0.0f, 0.0f, 1.0f) },
+
+			{ XMFLOAT3(-0.5f, -0.5f, +0.5f), XMFLOAT3(-1.0f, 0.0f, 0.0f), XMFLOAT2(0.0f, 1.0f), XMFLOAT4(0.0f, 0.0f, -1.0f, 1.0f) },
+			{ XMFLOAT3(-0.5f, +0.5f, +0.5f), XMFLOAT3(-1.0f, 0.0f, 0.0f), XMFLOAT2(0.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, -1.0f, 1.0f) },
+			{ XMFLOAT3(-0.5f, +0.5f, -0.5f), XMFLOAT3(-1.0f, 0.0f, 0.0f), XMFLOAT2(1.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, -1.0f, 1.0f) },
+			{ XMFLOAT3(-0.5f, -0.5f, -0.5f), XMFLOAT3(-1.0f, 0.0f, 0.0f), XMFLOAT2(1.0f, 1.0f), XMFLOAT4(0.0f, 0.0f, -1.0f, 1.0f) },
+
+			{ XMFLOAT3(+0.5f, -0.5f, -0.5f), XMFLOAT3(+1.0f, 0.0f, 0.0f), XMFLOAT2(0.0f, 1.0f), XMFLOAT4(0.0f, 0.0f, +1.0f, 1.0f) },
+			{ XMFLOAT3(+0.5f, +0.5f, -0.5f), XMFLOAT3(+1.0f, 0.0f, 0.0f), XMFLOAT2(0.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, +1.0f, 1.0f) },
+			{ XMFLOAT3(+0.5f, +0.5f, +0.5f), XMFLOAT3(+1.0f, 0.0f, 0.0f), XMFLOAT2(1.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, +1.0f, 1.0f) },
+			{ XMFLOAT3(+0.5f, -0.5f, +0.5f), XMFLOAT3(+1.0f, 0.0f, 0.0f), XMFLOAT2(1.0f, 1.0f), XMFLOAT4(0.0f, 0.0f, +1.0f, 1.0f) },
+
+			{ XMFLOAT3(-0.5f, +0.5f, -0.5f), XMFLOAT3(0.0f, +1.0f, 0.0f), XMFLOAT2(0.0f, 1.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
+			{ XMFLOAT3(-0.5f, +0.5f, +0.5f), XMFLOAT3(0.0f, +1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
+			{ XMFLOAT3(+0.5f, +0.5f, +0.5f), XMFLOAT3(0.0f, +1.0f, 0.0f), XMFLOAT2(1.0f, 0.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
+			{ XMFLOAT3(+0.5f, +0.5f, -0.5f), XMFLOAT3(0.0f, +1.0f, 0.0f), XMFLOAT2(1.0f, 1.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
+
+			{ XMFLOAT3(-0.5f, -0.5f, +0.5f), XMFLOAT3(0.0f, -1.0f, 0.0f), XMFLOAT2(0.0f, 1.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
+			{ XMFLOAT3(-0.5f, -0.5f, -0.5f), XMFLOAT3(0.0f, -1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
+			{ XMFLOAT3(+0.5f, -0.5f, -0.5f), XMFLOAT3(0.0f, -1.0f, 0.0f), XMFLOAT2(1.0f, 0.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
+			{ XMFLOAT3(+0.5f, -0.5f, +0.5f), XMFLOAT3(0.0f, -1.0f, 0.0f), XMFLOAT2(1.0f, 1.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
+		};
+
+		const UINT indices[ ] =
+		{
+			0, 1, 2, 0, 2, 3,
+			4, 5, 6, 4, 6, 7,
+			8, 9,10, 8,10,11,
+		   12,13,14,12,14,15,
+		   16,17,18,16,18,19,
+		   20,21,22,20,22,23
+		};
+
+		auto mesh = std::make_shared<CMesh>(dev, cmd);
+		mesh->m_SubMeshes.resize(1);
+
+		SubMesh& sm = mesh->m_SubMeshes[0];
+
+		sm.positions.reserve(_countof(vertices));
+		sm.normals.reserve(_countof(vertices));
+		sm.uvs.reserve(_countof(vertices));
+		sm.tangents.reserve(_countof(vertices));
+
+		for ( const OcclusionVertex& v : vertices )
+		{
+			sm.positions.push_back(v.position);
+			sm.normals.push_back(v.normal);
+			sm.uvs.push_back(v.uv);
+			sm.tangents.push_back(v.tangent);
+		}
+
+		sm.indices.assign(std::begin(indices), std::end(indices));
+
+		sm.subMeshMin = XMFLOAT3(-0.5f, -0.5f, -0.5f);
+		sm.subMeshMax = XMFLOAT3(+0.5f, +0.5f, +0.5f);
+
+		const UINT vertexBufferSize = sizeof(OcclusionVertex) * _countof(vertices);
+		const UINT indexBufferSize = sizeof(UINT) * _countof(indices);
+
+		sm.vb = ::CreateBufferResource(
+			dev,
+			cmd,
+			( void* ) vertices,
+			vertexBufferSize,
+			D3D12_HEAP_TYPE_DEFAULT,
+			D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+			&sm.vbUpload
+		);
+
+		sm.ib = ::CreateBufferResource(
+			dev,
+			cmd,
+			( void* ) indices,
+			indexBufferSize,
+			D3D12_HEAP_TYPE_DEFAULT,
+			D3D12_RESOURCE_STATE_INDEX_BUFFER,
+			&sm.ibUpload
+		);
+
+		sm.vbView.BufferLocation = sm.vb->GetGPUVirtualAddress();
+		sm.vbView.SizeInBytes = vertexBufferSize;
+		sm.vbView.StrideInBytes = sizeof(OcclusionVertex);
+
+		sm.ibView.BufferLocation = sm.ib->GetGPUVirtualAddress();
+		sm.ibView.SizeInBytes = indexBufferSize;
+		sm.ibView.Format = DXGI_FORMAT_R32_UINT;
+
+		return mesh;
+	}
+
 	static bool TryBuildStaticOcclusionWorldBounds(
 	CGameObject* obj,
 	BoundingOrientedBox& outBounds)
@@ -234,7 +350,7 @@ namespace
 		return true;
 	}
 
-	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::FullStageNoTree;
+	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::FullStage;
 }
 
 namespace
@@ -1034,6 +1150,7 @@ void CGameScene::ReleaseObjects()
 	//     m_pd3dShadowDsvDescriptorHeap.Reset();
 	m_depthFogShader.reset();
 
+	m_occlusionStaticShader.reset();
 	m_shadowStaticShader.reset();
 	m_shadowAlphaClipStaticShader.reset();
 	m_shadowSkinnedShader.reset();
@@ -2827,6 +2944,7 @@ void CGameScene::ResetStaticOcclusionEntries()
 	m_staticOcclusionQuerySampleCounts.clear();
 	m_staticOcclusionLastFrameIssuedFlags.clear();
 	m_staticOcclusionCurrentFrameIssuedFlags.clear();
+	m_staticOcclusionZeroSampleFrameCounts.clear();
 	m_staticOcclusionQueryCapacity = 0;
 	m_bStaticOcclusionQueryResultsValid = false;
 }
@@ -2861,13 +2979,7 @@ void CGameScene::BuildStaticOcclusionEntries()
 			( assetName == "Building6" ) ||
 			( assetName == "Building7" ) ||
 			( assetName == "Building8" ) ||
-			( assetName == "Building9" ) ||
-			( assetName == "Tree1" ) ||
-			( assetName == "Tree2" ) ||
-			( assetName == "Tree3" ) ||
-			( assetName == "Tree4" ) ||
-			( assetName == "Tree5" ) ||
-			( assetName == "Tree6" );
+			( assetName == "Building9" );
 
 		if ( !isOcclusionTarget )
 			continue;
@@ -2893,20 +3005,8 @@ void CGameScene::BuildStaticOcclusionUnitBoxMesh(
 	if ( !dev || !cmd )
 		return;
 
-	auto tempObj = std::make_unique<CGameObject>(1);
-	auto* tempCollider = tempObj->AddComponent<CColliderComponent>(EColliderType::OOBB);
-
-	tempObj->CreateComponents(dev, cmd);
-	tempObj->SetWorldMatrix(BuildIdentityMatrix4x4());
-
-	tempCollider->SetOOBB(
-		XMFLOAT3(-0.5f, -0.5f, -0.5f),
-		XMFLOAT3(0.5f, 0.5f, 0.5f)
-	);
-	tempCollider->UpdateWorldBounds();
-
 	m_staticOcclusionUnitBoxMesh =
-		std::make_shared<CBoxMeshDiffused>(dev, cmd, tempCollider);
+		CreateStaticOcclusionLocalUnitBoxMesh(dev, cmd);
 }
 
 void CGameScene::BuildStaticOcclusionGpuResources(ID3D12Device* dev)
@@ -2921,6 +3021,7 @@ void CGameScene::BuildStaticOcclusionGpuResources(ID3D12Device* dev)
 	m_staticOcclusionQuerySampleCounts.assign(queryCount, 1ull);
 	m_staticOcclusionLastFrameIssuedFlags.assign(queryCount, 0);
 	m_staticOcclusionCurrentFrameIssuedFlags.assign(queryCount, 0);
+	m_staticOcclusionZeroSampleFrameCounts.assign(queryCount, 0);
 	m_bStaticOcclusionQueryResultsValid = false;
 
 	if ( queryCount == 0 )
@@ -3020,6 +3121,7 @@ void CGameScene::ReleaseStaticOcclusionGpuResources()
 	m_staticOcclusionQuerySampleCounts.clear();
 	m_staticOcclusionLastFrameIssuedFlags.clear();
 	m_staticOcclusionCurrentFrameIssuedFlags.clear();
+	m_staticOcclusionZeroSampleFrameCounts.clear();
 }
 
 void CGameScene::BeginStaticOcclusionReadback()
@@ -3136,6 +3238,10 @@ void CGameScene::RenderStaticOcclusionPass(ID3D12GraphicsCommandList* cmd, CCame
 
 	m_staticOcclusionCurrentFrameIssuedFlags.assign(m_staticOcclusionEntries.size(), 0);
 
+	const XMFLOAT3 cameraPosition = camera->GetPosition();
+	const float minTestDistanceSq =
+		m_staticOcclusionMinTestDistance * m_staticOcclusionMinTestDistance;
+
 	for ( UINT queryIndex = 0; queryIndex < ( UINT ) m_staticOcclusionEntries.size(); ++queryIndex )
 	{
 		const StaticOcclusionEntry& entry = m_staticOcclusionEntries[queryIndex];
@@ -3166,6 +3272,17 @@ void CGameScene::RenderStaticOcclusionPass(ID3D12GraphicsCommandList* cmd, CCame
 		if ( issueRealQuery )
 		{
 			if ( !entry.object->IsVisible(camera) )
+				issueRealQuery = false;
+		}
+
+		if ( issueRealQuery )
+		{
+			const float dx = cameraPosition.x - entry.worldBounds.Center.x;
+			const float dy = cameraPosition.y - entry.worldBounds.Center.y;
+			const float dz = cameraPosition.z - entry.worldBounds.Center.z;
+			const float distSq = dx * dx + dy * dy + dz * dz;
+
+			if ( distSq < minTestDistanceSq )
 				issueRealQuery = false;
 		}
 
@@ -3230,6 +3347,10 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 	if ( !camera )
 		return;
 
+	const XMFLOAT3 cameraPosition = camera->GetPosition();
+	const float minTestDistanceSq =
+		m_staticOcclusionMinTestDistance * m_staticOcclusionMinTestDistance;
+
 	for ( size_t occlusionIndex = 0; occlusionIndex < m_staticOcclusionEntries.size(); ++occlusionIndex )
 	{
 		const StaticOcclusionEntry& entry = m_staticOcclusionEntries[occlusionIndex];
@@ -3249,32 +3370,72 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 		if ( entry.staticBatchObjectIndex >= ( UINT ) m_staticOcclusionCullFlags.size() )
 			continue;
 
+		if ( occlusionIndex >= m_staticOcclusionZeroSampleFrameCounts.size() )
+			continue;
+
 		if ( entry.staticBatchObjectIndex < ( UINT ) m_staticDistanceCullFlags.size() )
 		{
 			if ( m_staticDistanceCullFlags[entry.staticBatchObjectIndex] != 0 )
-				continue;
-		}
-
-		if ( !entry.object->IsVisible(camera) )
-			continue;
-
-		bool occluded = false;
-
-		if ( m_bStaticOcclusionQueryResultsValid )
-		{
-			if ( occlusionIndex < m_staticOcclusionQuerySampleCounts.size() &&
-				occlusionIndex < m_staticOcclusionLastFrameIssuedFlags.size() )
 			{
-				if ( m_staticOcclusionLastFrameIssuedFlags[occlusionIndex] != 0 &&
-					m_staticOcclusionQuerySampleCounts[occlusionIndex] == 0ull )
-				{
-					occluded = true;
-				}
+				m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+				continue;
 			}
 		}
 
-		if ( occluded )
-			m_staticOcclusionCullFlags[entry.staticBatchObjectIndex] = 1;
+		if ( !entry.object->IsVisible(camera) )
+		{
+			m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+			continue;
+		}
+
+		const float dx = cameraPosition.x - entry.worldBounds.Center.x;
+		const float dy = cameraPosition.y - entry.worldBounds.Center.y;
+		const float dz = cameraPosition.z - entry.worldBounds.Center.z;
+		const float distSq = dx * dx + dy * dy + dz * dz;
+
+		if ( distSq < minTestDistanceSq )
+		{
+			m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+			continue;
+		}
+
+		if ( !m_bStaticOcclusionQueryResultsValid )
+		{
+			m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+			continue;
+		}
+
+		if ( occlusionIndex >= m_staticOcclusionQuerySampleCounts.size() )
+		{
+			m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+			continue;
+		}
+
+		if ( occlusionIndex >= m_staticOcclusionLastFrameIssuedFlags.size() )
+		{
+			m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+			continue;
+		}
+
+		if ( m_staticOcclusionLastFrameIssuedFlags[occlusionIndex] == 0 )
+		{
+			m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+			continue;
+		}
+
+		if ( m_staticOcclusionQuerySampleCounts[occlusionIndex] == 0ull )
+		{
+			uint8_t& zeroFrameCount = m_staticOcclusionZeroSampleFrameCounts[occlusionIndex];
+			if ( zeroFrameCount < 255 )
+				++zeroFrameCount;
+
+			if ( zeroFrameCount >= m_staticOcclusionHideFrameThreshold )
+				m_staticOcclusionCullFlags[entry.staticBatchObjectIndex] = 1;
+		}
+		else
+		{
+			m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+		}
 	}
 }
 
