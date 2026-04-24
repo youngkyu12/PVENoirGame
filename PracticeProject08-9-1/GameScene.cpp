@@ -350,7 +350,7 @@ namespace
 		return true;
 	}
 
-	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::FullStageNoTree;
+	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::FullStage;
 }
 
 namespace
@@ -2945,7 +2945,6 @@ void CGameScene::ResetStaticOcclusionEntries()
 	m_staticOcclusionLastFrameIssuedFlags.clear();
 	m_staticOcclusionCurrentFrameIssuedFlags.clear();
 	m_staticOcclusionZeroSampleFrameCounts.clear();
-	m_staticOcclusionLastLoggedCullFlags.clear();
 	m_staticOcclusionQueryCapacity = 0;
 	m_bStaticOcclusionQueryResultsValid = false;
 }
@@ -2980,7 +2979,13 @@ void CGameScene::BuildStaticOcclusionEntries()
 			( assetName == "Building6" ) ||
 			( assetName == "Building7" ) ||
 			( assetName == "Building8" ) ||
-			( assetName == "Building9" );
+			( assetName == "Building9" ) ||
+			( assetName == "Tree1" ) ||
+			( assetName == "Tree2" ) ||
+			( assetName == "Tree3" ) ||
+			( assetName == "Tree4" ) ||
+			( assetName == "Tree5" ) ||
+			( assetName == "Tree6" );
 
 		if ( !isOcclusionTarget )
 			continue;
@@ -3023,7 +3028,6 @@ void CGameScene::BuildStaticOcclusionGpuResources(ID3D12Device* dev)
 	m_staticOcclusionLastFrameIssuedFlags.assign(queryCount, 0);
 	m_staticOcclusionCurrentFrameIssuedFlags.assign(queryCount, 0);
 	m_staticOcclusionZeroSampleFrameCounts.assign(queryCount, 0);
-	m_staticOcclusionLastLoggedCullFlags.assign(queryCount, 255);
 	m_bStaticOcclusionQueryResultsValid = false;
 
 	if ( queryCount == 0 )
@@ -3184,7 +3188,6 @@ void CGameScene::ReleaseStaticOcclusionGpuResources()
 	m_staticOcclusionLastFrameIssuedFlags.clear();
 	m_staticOcclusionCurrentFrameIssuedFlags.clear();
 	m_staticOcclusionZeroSampleFrameCounts.clear();
-	m_staticOcclusionLastLoggedCullFlags.clear();
 }
 
 void CGameScene::BeginStaticOcclusionReadback()
@@ -3433,133 +3436,33 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 	const float minTestDistanceSq =
 		m_staticOcclusionMinTestDistance * m_staticOcclusionMinTestDistance;
 
-	auto LogVillageWallOcclusionState =
-		[&](
-			size_t occlusionIndex,
-			const StaticOcclusionEntry& entry,
-			bool culled,
-			const char* reason,
-			UINT64 sampleCount,
-			uint8_t zeroFrameCount,
-			float distSq)
-		{
-			if ( entry.assetName != "VillageWall" )
-				return;
-
-			if ( occlusionIndex >= m_staticOcclusionLastLoggedCullFlags.size() )
-				return;
-
-			const uint8_t newState = culled ? 1 : 0;
-
-			if ( m_staticOcclusionLastLoggedCullFlags[occlusionIndex] == newState )
-				return;
-
-			m_staticOcclusionLastLoggedCullFlags[occlusionIndex] = newState;
-
-			char debugText[512] = {};
-			sprintf_s(
-				debugText,
-				"[Occlusion][VillageWall] %s | occIndex=%zu | staticIndex=%u | reason=%s | samples=%llu | zeroFrames=%u/%u | dist=%.2f | center=(%.2f, %.2f, %.2f) | cam=(%.2f, %.2f, %.2f)\n",
-				culled ? "CULLED" : "VISIBLE",
-				occlusionIndex,
-				entry.staticBatchObjectIndex,
-				reason ? reason : "unknown",
-				( unsigned long long )sampleCount,
-				( unsigned ) zeroFrameCount,
-				( unsigned ) m_staticOcclusionHideFrameThreshold,
-				std::sqrt(distSq),
-				entry.worldBounds.Center.x,
-				entry.worldBounds.Center.y,
-				entry.worldBounds.Center.z,
-				cameraPosition.x,
-				cameraPosition.y,
-				cameraPosition.z
-			);
-
-			OutputDebugStringA(debugText);
-		};
-
 	for ( size_t occlusionIndex = 0; occlusionIndex < m_staticOcclusionEntries.size(); ++occlusionIndex )
 	{
 		const StaticOcclusionEntry& entry = m_staticOcclusionEntries[occlusionIndex];
 
-		UINT64 sampleCount = UINT64_MAX;
-		uint8_t zeroFrameCount = 0;
-		float distSq = 0.0f;
-
 		if ( !entry.enabled )
-		{
-			LogVillageWallOcclusionState(
-				occlusionIndex, entry, false,
-				"entry disabled",
-				sampleCount, zeroFrameCount, distSq
-			);
 			continue;
-		}
 
 		if ( !entry.hasWorldBounds )
-		{
-			LogVillageWallOcclusionState(
-				occlusionIndex, entry, false,
-				"no world bounds",
-				sampleCount, zeroFrameCount, distSq
-			);
 			continue;
-		}
 
 		if ( !entry.object )
-		{
-			LogVillageWallOcclusionState(
-				occlusionIndex, entry, false,
-				"null object",
-				sampleCount, zeroFrameCount, distSq
-			);
 			continue;
-		}
 
 		if ( entry.staticBatchObjectIndex == UINT_MAX )
-		{
-			LogVillageWallOcclusionState(
-				occlusionIndex, entry, false,
-				"invalid static batch index",
-				sampleCount, zeroFrameCount, distSq
-			);
 			continue;
-		}
 
 		if ( entry.staticBatchObjectIndex >= ( UINT ) m_staticOcclusionCullFlags.size() )
-		{
-			LogVillageWallOcclusionState(
-				occlusionIndex, entry, false,
-				"static batch index out of range",
-				sampleCount, zeroFrameCount, distSq
-			);
 			continue;
-		}
 
 		if ( occlusionIndex >= m_staticOcclusionZeroSampleFrameCounts.size() )
-		{
-			LogVillageWallOcclusionState(
-				occlusionIndex, entry, false,
-				"zero sample counter out of range",
-				sampleCount, zeroFrameCount, distSq
-			);
 			continue;
-		}
-
-		zeroFrameCount = m_staticOcclusionZeroSampleFrameCounts[occlusionIndex];
 
 		if ( entry.staticBatchObjectIndex < ( UINT ) m_staticDistanceCullFlags.size() )
 		{
 			if ( m_staticDistanceCullFlags[entry.staticBatchObjectIndex] != 0 )
 			{
 				m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
-
-				LogVillageWallOcclusionState(
-					occlusionIndex, entry, false,
-					"already distance-culled, occlusion ignored",
-					sampleCount, 0, distSq
-				);
 				continue;
 			}
 		}
@@ -3567,29 +3470,17 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 		if ( !entry.object->IsVisible(camera) )
 		{
 			m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
-
-			LogVillageWallOcclusionState(
-				occlusionIndex, entry, false,
-				"frustum invisible, occlusion ignored",
-				sampleCount, 0, distSq
-			);
 			continue;
 		}
 
 		const float dx = cameraPosition.x - entry.worldBounds.Center.x;
 		const float dy = cameraPosition.y - entry.worldBounds.Center.y;
 		const float dz = cameraPosition.z - entry.worldBounds.Center.z;
-		distSq = dx * dx + dy * dy + dz * dz;
+		const float distSq = dx * dx + dy * dy + dz * dz;
 
 		if ( distSq < minTestDistanceSq )
 		{
 			m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
-
-			LogVillageWallOcclusionState(
-				occlusionIndex, entry, false,
-				"too near, occlusion ignored",
-				sampleCount, 0, distSq
-			);
 			continue;
 		}
 
@@ -3605,12 +3496,6 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 			if ( extentDistanceRatio > m_staticOcclusionMaxCullExtentDistanceRatio )
 			{
 				m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
-
-				LogVillageWallOcclusionState(
-					occlusionIndex, entry, false,
-					"too large on screen, occlusion ignored",
-					sampleCount, 0, distSq
-				);
 				continue;
 			}
 		}
@@ -3618,87 +3503,40 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 		if ( !m_bStaticOcclusionQueryResultsValid )
 		{
 			m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
-
-			LogVillageWallOcclusionState(
-				occlusionIndex, entry, false,
-				"query results not valid yet",
-				sampleCount, 0, distSq
-			);
 			continue;
 		}
 
 		if ( occlusionIndex >= m_staticOcclusionQuerySampleCounts.size() )
 		{
 			m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
-
-			LogVillageWallOcclusionState(
-				occlusionIndex, entry, false,
-				"sample count out of range",
-				sampleCount, 0, distSq
-			);
 			continue;
 		}
-
-		sampleCount = m_staticOcclusionQuerySampleCounts[occlusionIndex];
 
 		if ( occlusionIndex >= m_staticOcclusionLastFrameIssuedFlags.size() )
 		{
 			m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
-
-			LogVillageWallOcclusionState(
-				occlusionIndex, entry, false,
-				"issued flag out of range",
-				sampleCount, 0, distSq
-			);
 			continue;
 		}
 
 		if ( m_staticOcclusionLastFrameIssuedFlags[occlusionIndex] == 0 )
 		{
 			m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
-
-			LogVillageWallOcclusionState(
-				occlusionIndex, entry, false,
-				"query was not issued last frame",
-				sampleCount, 0, distSq
-			);
 			continue;
 		}
 
-		if ( sampleCount == 0ull )
+		if ( m_staticOcclusionQuerySampleCounts[occlusionIndex] == 0ull )
 		{
-			uint8_t& z = m_staticOcclusionZeroSampleFrameCounts[occlusionIndex];
-			if ( z < 255 )
-				++z;
+			uint8_t& zeroFrameCount = m_staticOcclusionZeroSampleFrameCounts[occlusionIndex];
 
-			if ( z >= m_staticOcclusionHideFrameThreshold )
-			{
+			if ( zeroFrameCount < 255 )
+				++zeroFrameCount;
+
+			if ( zeroFrameCount >= m_staticOcclusionHideFrameThreshold )
 				m_staticOcclusionCullFlags[entry.staticBatchObjectIndex] = 1;
-
-				LogVillageWallOcclusionState(
-					occlusionIndex, entry, true,
-					"query samples == 0 for threshold frames",
-					sampleCount, z, distSq
-				);
-			}
-			else
-			{
-				LogVillageWallOcclusionState(
-					occlusionIndex, entry, false,
-					"query samples == 0 but below threshold",
-					sampleCount, z, distSq
-				);
-			}
 		}
 		else
 		{
 			m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
-
-			LogVillageWallOcclusionState(
-				occlusionIndex, entry, false,
-				"query samples > 0",
-				sampleCount, 0, distSq
-			);
 		}
 	}
 }
