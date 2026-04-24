@@ -657,6 +657,9 @@ private:
 	float                               m_staticCullHysteresis = 20.0f;
 
 	std::shared_ptr<CMesh>              m_staticOcclusionUnitBoxMesh;
+	ComPtr<ID3D12Resource>              m_pd3dStaticOcclusionInstanceBuffer;
+	StaticInstanceVertex* m_pMappedStaticOcclusionInstanceBuffer = nullptr;
+
 	ComPtr<ID3D12Resource>              m_pd3dStaticInstanceBuffer;
 	StaticInstanceVertex* m_pMappedStaticInstanceBuffer = nullptr;
 	UINT                                m_staticInstanceBufferCapacity = 0;

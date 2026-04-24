@@ -3096,11 +3096,71 @@ void CGameScene::BuildStaticOcclusionGpuResources(ID3D12Device* dev)
 		return;
 	}
 
+	D3D12_HEAP_PROPERTIES uploadHeapProps{};
+	uploadHeapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+	uploadHeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	uploadHeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	uploadHeapProps.CreationNodeMask = 1;
+	uploadHeapProps.VisibleNodeMask = 1;
+
+	D3D12_RESOURCE_DESC instanceBufferDesc{};
+	instanceBufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	instanceBufferDesc.Alignment = 0;
+	instanceBufferDesc.Width = sizeof(StaticInstanceVertex);
+	instanceBufferDesc.Height = 1;
+	instanceBufferDesc.DepthOrArraySize = 1;
+	instanceBufferDesc.MipLevels = 1;
+	instanceBufferDesc.Format = DXGI_FORMAT_UNKNOWN;
+	instanceBufferDesc.SampleDesc.Count = 1;
+	instanceBufferDesc.SampleDesc.Quality = 0;
+	instanceBufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	instanceBufferDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	hr = dev->CreateCommittedResource(
+		&uploadHeapProps,
+		D3D12_HEAP_FLAG_NONE,
+		&instanceBufferDesc,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(m_pd3dStaticOcclusionInstanceBuffer.ReleaseAndGetAddressOf())
+	);
+
+	if ( FAILED(hr) )
+	{
+		OutputDebugStringA("[Occlusion] Create occlusion instance buffer failed.\n");
+		ReleaseStaticOcclusionGpuResources();
+		return;
+	}
+
+	hr = m_pd3dStaticOcclusionInstanceBuffer->Map(
+		0,
+		nullptr,
+		reinterpret_cast< void** >( &m_pMappedStaticOcclusionInstanceBuffer )
+	);
+
+	if ( FAILED(hr) || !m_pMappedStaticOcclusionInstanceBuffer )
+	{
+		OutputDebugStringA("[Occlusion] Map occlusion instance buffer failed.\n");
+		ReleaseStaticOcclusionGpuResources();
+		return;
+	}
+
 	m_bStaticOcclusionQueryResourcesReady = true;
 }
 
 void CGameScene::ReleaseStaticOcclusionGpuResources()
 {
+	if ( m_pd3dStaticOcclusionInstanceBuffer )
+	{
+		if ( m_pMappedStaticOcclusionInstanceBuffer )
+		{
+			m_pd3dStaticOcclusionInstanceBuffer->Unmap(0, nullptr);
+			m_pMappedStaticOcclusionInstanceBuffer = nullptr;
+		}
+
+		m_pd3dStaticOcclusionInstanceBuffer.Reset();
+	}
+
 	if ( m_pd3dStaticOcclusionReadbackBuffer )
 	{
 		if ( m_pMappedStaticOcclusionReadbackBuffer )
@@ -3200,10 +3260,10 @@ void CGameScene::RenderStaticOcclusionPass(ID3D12GraphicsCommandList* cmd, CCame
 	if ( !m_bSceneRenderTargetsReady )
 		return;
 
-	if ( !m_pd3dStaticInstanceBuffer )
+	if ( !m_pd3dStaticOcclusionInstanceBuffer )
 		return;
 
-	if ( !m_pMappedStaticInstanceBuffer )
+	if ( !m_pMappedStaticOcclusionInstanceBuffer )
 		return;
 
 	if ( m_staticOcclusionUnitBoxMesh->m_SubMeshes.empty() )
@@ -3298,7 +3358,7 @@ void CGameScene::RenderStaticOcclusionPass(ID3D12GraphicsCommandList* cmd, CCame
 
 			const XMFLOAT4X4 world = BuildWorldMatrixFromOOBB(entry.worldBounds);
 
-			StaticInstanceVertex& dst = m_pMappedStaticInstanceBuffer[0];
+			StaticInstanceVertex& dst = m_pMappedStaticOcclusionInstanceBuffer[0]; 
 			ZeroMemory(&dst, sizeof(dst));
 
 			dst.world0 = XMFLOAT4(world._11, world._12, world._13, world._14);
@@ -3309,7 +3369,7 @@ void CGameScene::RenderStaticOcclusionPass(ID3D12GraphicsCommandList* cmd, CCame
 
 			D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
 			vbViews[0] = sm.vbView;
-			vbViews[1].BufferLocation = m_pd3dStaticInstanceBuffer->GetGPUVirtualAddress();
+			vbViews[1].BufferLocation = m_pd3dStaticOcclusionInstanceBuffer->GetGPUVirtualAddress(); 
 			vbViews[1].SizeInBytes = sizeof(StaticInstanceVertex);
 			vbViews[1].StrideInBytes = sizeof(StaticInstanceVertex);
 
