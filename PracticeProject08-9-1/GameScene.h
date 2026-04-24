@@ -641,6 +641,7 @@ private:
 	std::vector<uint8_t>                m_staticOcclusionLastFrameIssuedFlags;
 	std::vector<uint8_t>                m_staticOcclusionCurrentFrameIssuedFlags;
 	std::vector<uint8_t>                m_staticOcclusionZeroSampleFrameCounts;
+	std::vector<uint8_t>                m_staticOcclusionLastLoggedCullFlags;
 	ComPtr<ID3D12QueryHeap>             m_pd3dStaticOcclusionQueryHeap;
 	ComPtr<ID3D12Resource>              m_pd3dStaticOcclusionReadbackBuffer;
 	UINT64* m_pMappedStaticOcclusionReadbackBuffer = nullptr;
