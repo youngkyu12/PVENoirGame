@@ -741,6 +741,302 @@ bool CGameScene::IsFineCellInsideMegaGridApproachZone(int megaX, int megaZ, int 
 		( cellZ >= zoneStartZ && cellZ < zoneEndZ );
 }
 
+bool CGameScene::TryGetTreeCullReferenceGridCell(
+	CCamera* camera,
+	int& outCellX,
+	int& outCellZ,
+	int& outMegaX,
+	int& outMegaZ) const
+{
+	outCellX = -1;
+	outCellZ = -1;
+	outMegaX = -1;
+	outMegaZ = -1;
+
+	if ( !m_spatialGridInitialized )
+		return false;
+
+	if ( camera )
+	{
+		const XMFLOAT3 cameraPosition = camera->GetPosition();
+
+		if ( WorldToGridCell(cameraPosition.x, cameraPosition.z, outCellX, outCellZ) )
+		{
+			if ( FineCellToMegaGridCell(outCellX, outCellZ, outMegaX, outMegaZ) )
+				return true;
+		}
+	}
+
+	CGameObject* localPlayer = GetPlayer();
+	if ( !localPlayer )
+		localPlayer = GetPlayerBySlot(0);
+
+	if ( !localPlayer )
+		return false;
+
+	const XMFLOAT3 playerPosition = localPlayer->GetPosition();
+
+	if ( !WorldToGridCell(playerPosition.x, playerPosition.z, outCellX, outCellZ) )
+		return false;
+
+	return FineCellToMegaGridCell(outCellX, outCellZ, outMegaX, outMegaZ);
+}
+
+bool CGameScene::IsFineCellInsideTreeCullVillageCenter(
+	int megaX,
+	int megaZ,
+	int cellX,
+	int cellZ) const
+{
+	if ( megaX < 0 || megaX >= kMegaGridCols )
+		return false;
+
+	if ( megaZ < 0 || megaZ >= kMegaGridRows )
+		return false;
+
+	if ( cellX < 0 || cellX >= kGridWidth )
+		return false;
+
+	if ( cellZ < 0 || cellZ >= kGridHeight )
+		return false;
+
+	const int centerSize = kTreeCullVillageCenterSizeCells;
+
+	const int megaStartX = megaX * kMegaGridCellWidth;
+	const int megaStartZ = megaZ * kMegaGridCellHeight;
+
+	const int centerStartX =
+		megaStartX + ( ( kMegaGridCellWidth - centerSize ) / 2 );
+
+	const int centerStartZ =
+		megaStartZ + ( ( kMegaGridCellHeight - centerSize ) / 2 );
+
+	const int centerEndX = centerStartX + centerSize;
+	const int centerEndZ = centerStartZ + centerSize;
+
+	return
+		( cellX >= centerStartX && cellX < centerEndX ) &&
+		( cellZ >= centerStartZ && cellZ < centerEndZ );
+}
+
+bool CGameScene::IsFineCellInsideTreeCullInnerBlockedArea(
+	int megaX,
+	int megaZ,
+	int cellX,
+	int cellZ) const
+{
+	if ( megaX < 0 || megaX >= kMegaGridCols )
+		return false;
+
+	if ( megaZ < 0 || megaZ >= kMegaGridRows )
+		return false;
+
+	if ( cellX < 0 || cellX >= kGridWidth )
+		return false;
+
+	if ( cellZ < 0 || cellZ >= kGridHeight )
+		return false;
+
+	const int blockedSize = kTreeCullVillageInnerBlockedSizeCells;
+
+	const int megaStartX = megaX * kMegaGridCellWidth;
+	const int megaStartZ = megaZ * kMegaGridCellHeight;
+
+	const int blockedStartX =
+		megaStartX + ( ( kMegaGridCellWidth - blockedSize ) / 2 );
+
+	const int blockedStartZ =
+		megaStartZ + ( ( kMegaGridCellHeight - blockedSize ) / 2 );
+
+	const int blockedEndX = blockedStartX + blockedSize;
+	const int blockedEndZ = blockedStartZ + blockedSize;
+
+	return
+		( cellX >= blockedStartX && cellX < blockedEndX ) &&
+		( cellZ >= blockedStartZ && cellZ < blockedEndZ );
+}
+
+bool CGameScene::CanFineCellSeeOutsideThroughVillageGate(
+	int megaX,
+	int megaZ,
+	int cellX,
+	int cellZ) const
+{
+	if ( !IsFineCellInsideTreeCullVillageCenter(megaX, megaZ, cellX, cellZ) )
+		return true;
+
+	if ( IsFineCellInsideTreeCullInnerBlockedArea(megaX, megaZ, cellX, cellZ) )
+		return false;
+
+	const int centerSize = kTreeCullVillageCenterSizeCells;
+
+	const int megaStartX = megaX * kMegaGridCellWidth;
+	const int megaStartZ = megaZ * kMegaGridCellHeight;
+
+	const int centerStartX =
+		megaStartX + ( ( kMegaGridCellWidth - centerSize ) / 2 );
+
+	const int centerStartZ =
+		megaStartZ + ( ( kMegaGridCellHeight - centerSize ) / 2 );
+
+	const float localX =
+		static_cast< float >( cellX - centerStartX ) + 0.5f - kTreeCullVillageHalfSize;
+
+	const float localZ =
+		static_cast< float >( cellZ - centerStartZ ) + 0.5f - kTreeCullVillageHalfSize;
+
+	const float half = kTreeCullVillageHalfSize;
+	const float gateHalf = kTreeCullGateHalfWidth;
+	const float gateDepth = kTreeCullGateDepth;
+	const float epsilon = 0.0001f;
+
+	auto OverlapsGateInterval =
+		[ gateHalf ] (float a, float b) -> bool
+		{
+			const float minValue = ( a < b ) ? a : b;
+			const float maxValue = ( a > b ) ? a : b;
+
+			if ( maxValue < -gateHalf )
+				return false;
+
+			if ( minValue > gateHalf )
+				return false;
+
+			return true;
+		};
+
+	auto CanSeeNorthGate =
+		[ & ] () -> bool
+		{
+			const float innerPlaneZ = half;
+			const float outerPlaneZ = half + gateDepth;
+			const float denom = outerPlaneZ - localZ;
+
+			if ( std::fabs(denom) < epsilon )
+				return false;
+
+			const float t = ( innerPlaneZ - localZ ) / denom;
+
+			if ( t < 0.0f || t > 1.0f )
+				return false;
+
+			const float xAtInnerLeft =
+				localX + t * ( -gateHalf - localX );
+
+			const float xAtInnerRight =
+				localX + t * ( gateHalf - localX );
+
+			return OverlapsGateInterval(xAtInnerLeft, xAtInnerRight);
+		};
+
+	auto CanSeeSouthGate =
+		[ & ] () -> bool
+		{
+			const float innerPlaneZ = -half;
+			const float outerPlaneZ = -half - gateDepth;
+			const float denom = outerPlaneZ - localZ;
+
+			if ( std::fabs(denom) < epsilon )
+				return false;
+
+			const float t = ( innerPlaneZ - localZ ) / denom;
+
+			if ( t < 0.0f || t > 1.0f )
+				return false;
+
+			const float xAtInnerLeft =
+				localX + t * ( -gateHalf - localX );
+
+			const float xAtInnerRight =
+				localX + t * ( gateHalf - localX );
+
+			return OverlapsGateInterval(xAtInnerLeft, xAtInnerRight);
+		};
+
+	auto CanSeeEastGate =
+		[ & ] () -> bool
+		{
+			const float innerPlaneX = half;
+			const float outerPlaneX = half + gateDepth;
+			const float denom = outerPlaneX - localX;
+
+			if ( std::fabs(denom) < epsilon )
+				return false;
+
+			const float t = ( innerPlaneX - localX ) / denom;
+
+			if ( t < 0.0f || t > 1.0f )
+				return false;
+
+			const float zAtInnerBottom =
+				localZ + t * ( -gateHalf - localZ );
+
+			const float zAtInnerTop =
+				localZ + t * ( gateHalf - localZ );
+
+			return OverlapsGateInterval(zAtInnerBottom, zAtInnerTop);
+		};
+
+	auto CanSeeWestGate =
+		[ & ] () -> bool
+		{
+			const float innerPlaneX = -half;
+			const float outerPlaneX = -half - gateDepth;
+			const float denom = outerPlaneX - localX;
+
+			if ( std::fabs(denom) < epsilon )
+				return false;
+
+			const float t = ( innerPlaneX - localX ) / denom;
+
+			if ( t < 0.0f || t > 1.0f )
+				return false;
+
+			const float zAtInnerBottom =
+				localZ + t * ( -gateHalf - localZ );
+
+			const float zAtInnerTop =
+				localZ + t * ( gateHalf - localZ );
+
+			return OverlapsGateInterval(zAtInnerBottom, zAtInnerTop);
+		};
+
+	return
+		CanSeeNorthGate() ||
+		CanSeeSouthGate() ||
+		CanSeeEastGate() ||
+		CanSeeWestGate();
+}
+
+bool CGameScene::ShouldCullTreesByVillageGrid(CCamera* camera) const
+{
+	if ( !m_spatialGridInitialized )
+		return false;
+
+	int cellX = -1;
+	int cellZ = -1;
+	int megaX = -1;
+	int megaZ = -1;
+
+	if ( !TryGetTreeCullReferenceGridCell(
+		camera,
+		cellX,
+		cellZ,
+		megaX,
+		megaZ) )
+	{
+		return false;
+	}
+
+	if ( !IsFineCellInsideTreeCullVillageCenter(megaX, megaZ, cellX, cellZ) )
+		return false;
+
+	if ( CanFineCellSeeOutsideThroughVillageGate(megaX, megaZ, cellX, cellZ) )
+		return false;
+
+	return true;
+}
+
 void CGameScene::AddDynamicCount(int cellX, int cellZ, EGridDynamicKind kind, int delta)
 {
 	if ( !m_spatialGridInitialized ) return;
@@ -3803,8 +4099,14 @@ void CGameScene::UpdateStaticTreeGridCullSelection(CCamera* camera)
 	if ( !camera )
 		return;
 
-	// 2단계에서 여기에 플레이어/카메라 grid 기반 Tree cull 판정을 넣는다.
-	// 현재 1단계에서는 준비만 하므로 모든 Tree를 visible 상태로 둔다.
+#ifndef USING_NETWORK
+	const bool shouldCullTrees = ShouldCullTreesByVillageGrid(camera);
+#else
+	const bool shouldCullTrees = false;
+#endif
+
+	if ( !shouldCullTrees )
+		return;
 
 	for ( UINT objectIndex = 0; objectIndex < ( UINT ) m_staticBatch.objectRefs.size(); ++objectIndex )
 	{
@@ -3813,9 +4115,7 @@ void CGameScene::UpdateStaticTreeGridCullSelection(CCamera* camera)
 		if ( !IsStaticTreeObject(obj) )
 			continue;
 
-		// 2단계 예정:
-		// if ( 현재 플레이어 위치/카메라 방향 기준으로 Tree를 숨겨야 하는 상태 )
-		//     m_staticTreeGridCullFlags[objectIndex] = 1;
+		m_staticTreeGridCullFlags[objectIndex] = 1;
 	}
 }
 
