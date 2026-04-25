@@ -742,8 +742,6 @@ private:
 	std::vector<uint8_t>                m_skinnedOcclusionLastFrameIssuedFlags;
 	std::vector<uint8_t>                m_skinnedOcclusionCurrentFrameIssuedFlags;
 	std::vector<uint8_t>                m_skinnedOcclusionZeroSampleFrameCounts;
-	std::vector<uint8_t>                m_skinnedOcclusionLastLoggedCullFlags;
-
 	ComPtr<ID3D12QueryHeap>             m_pd3dSkinnedOcclusionQueryHeap;
 	ComPtr<ID3D12Resource>              m_pd3dSkinnedOcclusionReadbackBuffer;
 	UINT64* m_pMappedSkinnedOcclusionReadbackBuffer = nullptr;
