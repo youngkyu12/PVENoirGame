@@ -366,6 +366,9 @@
     <ClInclude Include="SceneUI.h">
       <Filter>SceneUI</Filter>
     </ClInclude>
+    <ClInclude Include="GameSceneHUD.h">
+      <Filter>Scene\GameScene</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -542,6 +545,9 @@
     </ClCompile>
     <ClCompile Include="SceneUI.cpp">
       <Filter>SceneUI</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneHUD.cpp">
+      <Filter>Scene\GameScene</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
