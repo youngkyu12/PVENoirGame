@@ -379,6 +379,15 @@ private:
 	static constexpr int kDefaultMegaGridApproachWidth = 200;
 	static constexpr int kDefaultMegaGridApproachHeight = 200;
 
+	static constexpr int kTreeCullVillageCenterSizeCells = 200;
+	static constexpr int kTreeCullVillageInnerBlockedSizeCells = 100;
+
+	static constexpr float kTreeCullVillageHalfSize = 100.0f;
+	static constexpr float kTreeCullVillageInnerBlockedHalfSize = 50.0f;
+
+	static constexpr float kTreeCullGateHalfWidth = 4.0f;   // gate width 8m
+	static constexpr float kTreeCullGateDepth = 17.0f;      // gate depth 17m
+
 	struct MegaGridCell
 	{
 		bool hasPlayerApproached = false;
@@ -429,6 +438,33 @@ private:
 	int MegaGridIndex(int megaX, int megaZ) const;
 	bool FineCellToMegaGridCell(int cellX, int cellZ, int& outMegaX, int& outMegaZ) const;
 	bool IsFineCellInsideMegaGridApproachZone(int megaX, int megaZ, int cellX, int cellZ) const;
+
+	bool TryGetTreeCullReferenceGridCell(
+		CCamera* camera,
+		int& outCellX,
+		int& outCellZ,
+		int& outMegaX,
+		int& outMegaZ) const;
+
+	bool IsFineCellInsideTreeCullVillageCenter(
+		int megaX,
+		int megaZ,
+		int cellX,
+		int cellZ) const;
+
+	bool IsFineCellInsideTreeCullInnerBlockedArea(
+		int megaX,
+		int megaZ,
+		int cellX,
+		int cellZ) const;
+
+	bool CanFineCellSeeOutsideThroughVillageGate(
+		int megaX,
+		int megaZ,
+		int cellX,
+		int cellZ) const;
+
+	bool ShouldCullTreesByVillageGrid(CCamera* camera) const;
 
 	void AddDynamicCount(int cellX, int cellZ, EGridDynamicKind kind, int delta);
 	void StampBuildingCellsFromOOBB(const BoundingOrientedBox& box, std::unordered_set<int>& touchedCells);
