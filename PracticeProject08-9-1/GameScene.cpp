@@ -628,19 +628,6 @@ CGameScene::CGameScene()
 	m_bulletRefs.shrink_to_fit();
 
 	m_navMesh.reset();
-
-	m_depthFogEnabledPreset = m_fogData;
-	m_depthFogDisabledPreset = m_fogData;
-
-	m_depthFogDisabledPreset.fogParams0.x = 0.0f;
-	m_depthFogDisabledPreset.fogParams0.y = 1.0f;
-	m_depthFogDisabledPreset.fogParams0.z = 0.0f;
-	m_depthFogDisabledPreset.fogParams0.w = 0.0f;
-
-	m_fogData = m_depthFogDisabledPreset;
-	m_bDepthFogTargetEnabled = false;
-	m_depthFogFadeAlpha = 0.0f;
-	m_depthFogFadeDuration = 1.0f;
 }
 
 #ifndef USING_NETWORK
@@ -1078,15 +1065,12 @@ void CGameScene::ReleaseObjects()
 	if ( m_uiRectShader )
 		m_uiRectShader->ReleaseShaderVariables();
 
-	if ( m_depthFogShader )
-		m_depthFogShader->ReleaseShaderVariables();
-
 	m_uiRectShader.reset();
 	// mShadowMap.reset();
 	// mShadowShader.reset();
 	// if ( m_pd3dShadowDsvDescriptorHeap )
 	//     m_pd3dShadowDsvDescriptorHeap.Reset();
-	m_depthFogShader.reset();
+	m_depthFog.ReleaseResources();
 
 	m_occlusionStaticShader.reset();
 	m_shadowStaticShader.reset();
@@ -1096,15 +1080,11 @@ void CGameScene::ReleaseObjects()
 
 	m_uiSprites.clear();
 	m_pauseUISpriteIndex = -1;
-
-	m_depthFogSceneColorSrvIndex = UINT_MAX;
-	m_depthFogSceneDepthSrvIndex = UINT_MAX;
 	m_shadowMapSrvIndex = UINT_MAX;
 
 	m_sceneRenderTargetCount = 0;
 	m_bSceneRenderTargetsReady = false;
 	m_bInactiveOverlayVisible = false;
-	m_bDepthFogPassEnabled = true;
 	m_bStartedGameplayMusic = false;
 	m_bWasLocalPlayerInsideMegaGridCenter = false;
 
@@ -1299,15 +1279,7 @@ void CGameScene::ReleaseShaderVariables()
     }
     m_pcbMappedMaterials = nullptr;
 
-	if ( m_pd3dcbFog )
-	{
-		if ( m_pcbMappedFog )
-		{
-			m_pd3dcbFog->Unmap(0, NULL);
-			m_pcbMappedFog = nullptr;
-		}
-		m_pd3dcbFog.Reset();
-	}
+	m_depthFog.ReleaseConstantBuffer();
 
 	if ( m_pd3dcbShadow )
 	{
@@ -1340,10 +1312,7 @@ void CGameScene::ReleaseShaderVariables()
 		m_uiRectShader->ReleaseShaderVariables();
 	}
 
-	if ( m_depthFogShader )
-	{
-		m_depthFogShader->ReleaseShaderVariables();
-	}
+		m_depthFog.ReleaseShaderVariables();
 }
 
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
@@ -2209,14 +2178,7 @@ void CGameScene::CreateShaderVariables(ID3D12Device* dev, ID3D12GraphicsCommandL
         nullptr);
     m_pd3dcbMaterials->Map(0, nullptr, (void**)&m_pcbMappedMaterials);
 
-	UINT ncbFogBytes = ( ( sizeof(CB_FOG) + 255 ) & ~255 );
-	m_pd3dcbFog = ::CreateBufferResource(
-		dev, cmd, nullptr,
-		ncbFogBytes,
-		D3D12_HEAP_TYPE_UPLOAD,
-		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
-		nullptr);
-	m_pd3dcbFog->Map(0, nullptr, ( void** ) &m_pcbMappedFog);
+	m_depthFog.CreateConstantBuffer(dev, cmd);
 
 	UINT ncbShadowBytes = ( ( sizeof(CB_SHADOW) + 255 ) & ~255 );
 	m_pd3dcbShadow = ::CreateBufferResource(
@@ -6444,23 +6406,7 @@ void CGameScene::BuildUIResources(ID3D12Device* dev, ID3D12GraphicsCommandList* 
 
 void CGameScene::BuildDepthFogResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
-	if ( m_depthFogShader )
-		m_depthFogShader->ReleaseShaderVariables();
-
-	m_depthFogShader.reset();
-	m_depthFogShader = std::make_shared<CDepthFogShader>();
-
-	DXGI_FORMAT fogRtv = DXGI_FORMAT_R8G8B8A8_UNORM;
-	DXGI_FORMAT fogDsv = DXGI_FORMAT_UNKNOWN;
-
-	m_depthFogShader->CreateShader(
-		dev,
-		GetGraphicsRootSignature(),
-		1,
-		&fogRtv,
-		fogDsv
-	);
-	m_depthFogShader->CreateShaderVariables(dev, cmd);
+	m_depthFog.BuildResources(dev, cmd, GetGraphicsRootSignature());
 }
 
 void CGameScene::BuildShadowResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
@@ -6565,36 +6511,7 @@ void CGameScene::BuildShadowResources(ID3D12Device* dev, ID3D12GraphicsCommandLi
 
 void CGameScene::RenderDepthFog(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
-	if ( !cmd ) return;
-	if ( !m_depthFogShader ) return;
-	if ( !m_bDepthFogPassEnabled ) return;
-	if ( m_depthFogSceneColorSrvIndex == UINT_MAX ) return;
-	if ( m_depthFogSceneDepthSrvIndex == UINT_MAX ) return;
-
-	PS_CB_DRAW_OPTIONS opt{};
-	opt.m_xmn4DrawOptions = XMINT4(0, 0, 0, 0);
-	opt.m_xmu4PostSrvIdx0 = XMUINT4(
-		m_depthFogSceneColorSrvIndex,
-		m_depthFogSceneDepthSrvIndex,
-		0,
-		0
-	);
-	opt.m_xmu4PostSrvIdx1 = XMUINT4(0, 0, 0, 0);
-	opt.m_xmf4UiRect = XMFLOAT4(
-		FRAME_BUFFER_WIDTH * 0.5f,
-		FRAME_BUFFER_HEIGHT * 0.5f,
-		static_cast< float >( FRAME_BUFFER_WIDTH ),
-		static_cast< float >( FRAME_BUFFER_HEIGHT )
-	);
-	opt.m_xmf4Viewport = XMFLOAT4(
-		static_cast< float >( FRAME_BUFFER_WIDTH ),
-		static_cast< float >( FRAME_BUFFER_HEIGHT ),
-		1.0f / static_cast< float >( FRAME_BUFFER_WIDTH ),
-		1.0f / static_cast< float >( FRAME_BUFFER_HEIGHT )
-	);
-
-	m_depthFogShader->ResetDrawOptionWriteIndex();
-	m_depthFogShader->Render(cmd, camera, &opt);
+	m_depthFog.Render(cmd, camera);
 }
 
 void CGameScene::UpdateShadowData()
@@ -7274,46 +7191,7 @@ void CGameScene::UpdateDepthFogState(float dt)
 	const bool enableFog = true;
 #endif
 
-	m_bDepthFogTargetEnabled = enableFog;
-
-	const float targetAlpha = enableFog ? 1.0f : 0.0f;
-
-	float safeDt = dt;
-	if ( safeDt < 0.0f )
-		safeDt = 0.0f;
-
-	const float safeDuration = ( m_depthFogFadeDuration > 0.0001f )
-		? m_depthFogFadeDuration
-		: 0.0001f;
-
-	const float step = safeDt / safeDuration;
-
-	if ( m_depthFogFadeAlpha < targetAlpha )
-	{
-		m_depthFogFadeAlpha += step;
-		if ( m_depthFogFadeAlpha > targetAlpha )
-			m_depthFogFadeAlpha = targetAlpha;
-	}
-	else if ( m_depthFogFadeAlpha > targetAlpha )
-	{
-		m_depthFogFadeAlpha -= step;
-		if ( m_depthFogFadeAlpha < targetAlpha )
-			m_depthFogFadeAlpha = targetAlpha;
-	}
-
-	const float t = m_depthFogFadeAlpha;
-	const float invT = 1.0f - t;
-
-	m_fogData.fogColor.x = m_depthFogDisabledPreset.fogColor.x * invT + m_depthFogEnabledPreset.fogColor.x * t;
-	m_fogData.fogColor.y = m_depthFogDisabledPreset.fogColor.y * invT + m_depthFogEnabledPreset.fogColor.y * t;
-	m_fogData.fogColor.z = m_depthFogDisabledPreset.fogColor.z * invT + m_depthFogEnabledPreset.fogColor.z * t;
-	m_fogData.fogColor.w = m_depthFogDisabledPreset.fogColor.w * invT + m_depthFogEnabledPreset.fogColor.w * t;
-
-	m_fogData = m_depthFogEnabledPreset;
-
-	m_fogData.fogParams0.w = ( m_depthFogFadeAlpha > 0.0f || enableFog ) ? 1.0f : 0.0f;
-
-	m_fogData.fogParams1.w = m_depthFogFadeAlpha;
+	m_depthFog.UpdateState(dt, enableFog);
 }
 
 bool CGameScene::IsLocalPlayer(const CGameObject* obj) const
@@ -7794,9 +7672,7 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
 		::memcpy(m_pcbMappedShadow, &m_shadowData, sizeof(CB_SHADOW));
 
 	UpdateDepthFogState(m_fElapsedTime);
-
-	if ( m_pcbMappedFog )
-		::memcpy(m_pcbMappedFog, &m_fogData, sizeof(CB_FOG));
+	m_depthFog.UploadConstantBuffer();
 
     if (m_staticBatch.mappedGameObjects && !m_staticBatch.objectRefs.empty())
     {
@@ -7900,11 +7776,7 @@ void CGameScene::OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera
 	/*if ( mShadowMap )
 		mShadowMap->BindShadowPassCB(cmd);*/
 
-	if ( m_pd3dcbFog )
-	{
-		D3D12_GPU_VIRTUAL_ADDRESS fogGpu = m_pd3dcbFog->GetGPUVirtualAddress();
-		cmd->SetGraphicsRootConstantBufferView(ROOT_PARAMETER_FOG, fogGpu);
-	}
+	m_depthFog.BindConstantBuffer(cmd);
 
 	if ( m_pd3dcbShadow )
 	{

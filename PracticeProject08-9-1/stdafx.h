@@ -123,9 +123,13 @@ extern void SynchronizeResourceTransition(ID3D12GraphicsCommandList* pd3dCommand
 #define ROOT_PARAMETER_OBJECT			2
 #define ROOT_PARAMETER_MATERIAL			3
 #define ROOT_PARAMETER_LIGHT			4
+#define ROOT_PARAMETER_DRAW_OPTIONS		5
+#define ROOT_PARAMETER_GLOBAL_SRV		6
 #define ROOT_PARAMETER_MATERIAL_ID		7
 #define ROOT_PARAMETER_BONE_PALETTE		8
-#define ROOT_PARAMETER_SHADOW_PASS		10
+#define ROOT_PARAMETER_FOG				9
+#define ROOT_PARAMETER_SHADOW			10
+#define ROOT_PARAMETER_SHADOW_PASS		10 //쓰면 안되긴 하는데, 일단 지금은 컴파일 에러 막기용.
 
 #define EPSILON							1.0e-10f
 

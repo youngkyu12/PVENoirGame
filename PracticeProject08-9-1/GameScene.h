@@ -10,6 +10,7 @@
 #include "SceneRenderTypes.h"
 #include "ColliderComponent.h"
 #include "Grid.h"
+#include "DepthFog.h"
 //#include "ShadowMap.h"
 
 #include <unordered_set>
@@ -156,23 +157,6 @@ struct SkinnedInstanceGroup
 	bool useAlphaClipShader = false;
 };
 
-struct CB_FOG
-{
-	XMFLOAT4 fogColor = XMFLOAT4(0.62f, 0.67f, 0.72f, 1.0f);
-
-	// x = fogStart
-	// y = fogEnd
-	// z = fogDensity
-	// w = fogEnable (0.0f or 1.0f)
-	XMFLOAT4 fogParams0 = XMFLOAT4(20.0f, 40.0f, 0.0f, 1.0f);
-
-	// x = cameraNear
-	// y = cameraFar
-	// z = fogMode (0=Linear, 1=Exp, 2=Exp2)
-	// w = reserved
-	XMFLOAT4 fogParams1 = XMFLOAT4(1.01f, 5000.0f, 0.0f, 0.0f);
-};
-
 struct CB_SHADOW
 {
 	XMFLOAT4X4 shadowViewProj{};
@@ -314,8 +298,7 @@ public:
 
 	void SetDepthFogSourceSrvIndices(UINT sceneColorSrvIndex, UINT sceneDepthSrvIndex)
 	{
-		m_depthFogSceneColorSrvIndex = sceneColorSrvIndex;
-		m_depthFogSceneDepthSrvIndex = sceneDepthSrvIndex;
+		m_depthFog.SetSourceSrvIndices(sceneColorSrvIndex, sceneDepthSrvIndex);
 	}
 
 	void SetSceneRenderTargets(
@@ -334,7 +317,7 @@ public:
 		m_bSceneRenderTargetsReady = ( m_sceneRenderTargetCount > 0 );
 	}
 
-	void SetDepthFogPassEnabled(bool enabled) { m_bDepthFogPassEnabled = enabled; }
+	void SetDepthFogPassEnabled(bool enabled) { m_depthFog.SetPassEnabled(enabled); }
 
 	CNavMesh* GetNavMesh() { return m_navMesh.get(); }
 	const CNavMesh* GetNavMesh() const { return m_navMesh.get(); }
@@ -554,15 +537,8 @@ private:
     ComPtr<ID3D12Resource> m_pd3dcbMaterials;
     MATERIAL* m_pcbMappedMaterials = nullptr;
 
-	CB_FOG                          m_fogData{};
-	ComPtr<ID3D12Resource>          m_pd3dcbFog;
-	CB_FOG                          m_depthFogEnabledPreset{};
-	CB_FOG                          m_depthFogDisabledPreset{};
-	bool                            m_bDepthFogTargetEnabled = false;
-	float                           m_depthFogFadeAlpha = 0.0f;
-	float                           m_depthFogFadeDuration = 1.0f;
-	float m_fElapsedTime = 0.0f;
-	CB_FOG* m_pcbMappedFog = nullptr;
+	CDepthFogSystem                 m_depthFog;
+	float                           m_fElapsedTime = 0.0f;
 
     unique_ptr<CCollisionSystem> m_Collision;
 	std::unique_ptr<CNavMesh> m_navMesh;
@@ -638,7 +614,6 @@ private:
 	std::unordered_set<const CGameObject*>	m_skinnedAlphaClipObjects;
 
 	std::shared_ptr<CRectUIShader>      m_uiRectShader;
-	std::shared_ptr<CDepthFogShader>    m_depthFogShader;
 	std::shared_ptr<COcclusionStaticShader>               m_occlusionStaticShader;
 	std::shared_ptr<CShadowMapStaticShader>               m_shadowStaticShader;
 	std::shared_ptr<CShadowMapAlphaClipStaticShader>      m_shadowAlphaClipStaticShader;
@@ -647,8 +622,6 @@ private:
 
 	std::vector<UISpriteEntry>          m_uiSprites;
 	int                                 m_pauseUISpriteIndex = -1;
-	UINT                                m_depthFogSceneColorSrvIndex = UINT_MAX;
-	UINT                                m_depthFogSceneDepthSrvIndex = UINT_MAX;
 	ComPtr<ID3D12DescriptorHeap>        m_pd3dShadowDsvHeap;
 	ComPtr<ID3D12Resource>              m_pd3dShadowMap;
 	ComPtr<ID3D12Resource>              m_pd3dcbShadow;
@@ -669,7 +642,6 @@ private:
 	bool                                       m_bSceneRenderTargetsReady = false;
 
 	bool                                m_bInactiveOverlayVisible = false;
-	bool                                m_bDepthFogPassEnabled = true;
 	bool                                m_bStartedGameplayMusic = false;
 	bool                                m_bWasLocalPlayerInsideMegaGridCenter = false;
 	bool                                m_bShowShadowMapOverlay = true;
