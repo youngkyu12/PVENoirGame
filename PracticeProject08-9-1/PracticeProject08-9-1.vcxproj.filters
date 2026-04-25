@@ -155,6 +155,9 @@
     <Filter Include="DepthFog">
       <UniqueIdentifier>{0c9d0669-1410-49dc-9079-9874d2f2f301}</UniqueIdentifier>
     </Filter>
+    <Filter Include="SceneUI">
+      <UniqueIdentifier>{82bffcad-a59b-4e2f-b10f-ef814845d86f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animator.h">
@@ -360,6 +363,9 @@
     <ClInclude Include="DepthFog.h">
       <Filter>DepthFog</Filter>
     </ClInclude>
+    <ClInclude Include="SceneUI.h">
+      <Filter>SceneUI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -533,6 +539,9 @@
     </ClCompile>
     <ClCompile Include="DepthFog.cpp">
       <Filter>DepthFog</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneUI.cpp">
+      <Filter>SceneUI</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

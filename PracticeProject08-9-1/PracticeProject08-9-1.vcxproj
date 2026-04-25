@@ -227,6 +227,7 @@
     <ClInclude Include="Scene.h" />
     <ClInclude Include="SceneManager.h" />
     <ClInclude Include="SceneRenderTypes.h" />
+    <ClInclude Include="SceneUI.h" />
     <ClInclude Include="ServerPacketHandler.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="ShadowMap.h" />
@@ -307,6 +308,7 @@
     <ClCompile Include="RigidBody.cpp" />
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="SceneManager.cpp" />
+    <ClCompile Include="SceneUI.cpp" />
     <ClCompile Include="ServerPacketHandler.cpp">
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
     </ClCompile>

@@ -11,6 +11,7 @@
 #include "ColliderComponent.h"
 #include "Grid.h"
 #include "DepthFog.h"
+#include "SceneUI.h"
 //#include "ShadowMap.h"
 
 #include <unordered_set>
@@ -294,7 +295,11 @@ public:
     // Game-only API
 public:
     void SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex);
-    void SetInactiveOverlayVisible(bool visible) { m_bInactiveOverlayVisible = visible; }
+	void SetInactiveOverlayVisible(bool visible)
+	{
+		m_bInactiveOverlayVisible = visible;
+		m_gameUI.SetLayerVisible(CSceneUI::ELayer::Pause, visible);
+	}
 
 	void SetDepthFogSourceSrvIndices(UINT sceneColorSrvIndex, UINT sceneDepthSrvIndex)
 	{
@@ -392,37 +397,9 @@ private:
 #endif
 
 private:
-	enum class EUIRenderLayer : uint8_t
-	{
-		Frame = 0,
-		Content = 1,
-		Pause = 2
-	};
-
-	struct UISpriteEntry
-	{
-		std::string name;
-		std::shared_ptr<CTexture> texture;
-		UINT srvIndex = UINT_MAX;
-
-		// x=centerX, y=centerY, z=width, w=height (pixel)
-		XMFLOAT4 rect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
-
-		EUIRenderLayer layer = EUIRenderLayer::Frame;
-		bool visible = true;
-	};
-
 	void BuildUIResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
-	int AddUISprite(
-		ID3D12Device* dev,
-		ID3D12GraphicsCommandList* cmd,
-		const char* name,
-		const wchar_t* texturePath,
-		const XMFLOAT4& rect,
-		EUIRenderLayer layer,
-		bool visible = true
-	);
 	void RenderUI(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
 	void BuildDepthFogResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
 	void RenderDepthFog(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
@@ -613,14 +590,13 @@ private:
 	std::unordered_set<const CGameObject*>	m_treeAlphaClipObjects;
 	std::unordered_set<const CGameObject*>	m_skinnedAlphaClipObjects;
 
-	std::shared_ptr<CRectUIShader>      m_uiRectShader;
 	std::shared_ptr<COcclusionStaticShader>               m_occlusionStaticShader;
 	std::shared_ptr<CShadowMapStaticShader>               m_shadowStaticShader;
 	std::shared_ptr<CShadowMapAlphaClipStaticShader>      m_shadowAlphaClipStaticShader;
 	std::shared_ptr<CShadowMapSkinnedShader>              m_shadowSkinnedShader;
 	std::shared_ptr<CShadowMapAlphaClipSkinnedShader>     m_shadowAlphaClipSkinnedShader;
 
-	std::vector<UISpriteEntry>          m_uiSprites;
+	CSceneUI                            m_gameUI;
 	int                                 m_pauseUISpriteIndex = -1;
 	ComPtr<ID3D12DescriptorHeap>        m_pd3dShadowDsvHeap;
 	ComPtr<ID3D12Resource>              m_pd3dShadowMap;

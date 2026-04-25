@@ -1062,10 +1062,7 @@ void CGameScene::ReleaseObjects()
 	m_preparedBowmanArrows.clear();
 	m_prevEnemyBowReleasePhase.clear();
 
-	if ( m_uiRectShader )
-		m_uiRectShader->ReleaseShaderVariables();
-
-	m_uiRectShader.reset();
+	m_gameUI.ReleaseResources();
 	// mShadowMap.reset();
 	// mShadowShader.reset();
 	// if ( m_pd3dShadowDsvDescriptorHeap )
@@ -1078,7 +1075,6 @@ void CGameScene::ReleaseObjects()
 	m_shadowSkinnedShader.reset();
 	m_shadowAlphaClipSkinnedShader.reset();
 
-	m_uiSprites.clear();
 	m_pauseUISpriteIndex = -1;
 	m_shadowMapSrvIndex = UINT_MAX;
 
@@ -1307,12 +1303,8 @@ void CGameScene::ReleaseShaderVariables()
 		m_colliderBatch.cbGameObjects.Reset();
 	}
 
-		if ( m_uiRectShader )
-	{
-		m_uiRectShader->ReleaseShaderVariables();
-	}
-
-		m_depthFog.ReleaseShaderVariables();
+	m_gameUI.ReleaseResources();
+	m_depthFog.ReleaseShaderVariables();
 }
 
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
@@ -6177,73 +6169,10 @@ void CGameScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* 
 	}
 }
 
-int CGameScene::AddUISprite(
-	ID3D12Device* dev,
-	ID3D12GraphicsCommandList* cmd,
-	const char* name,
-	const wchar_t* texturePath,
-	const XMFLOAT4& rect,
-	EUIRenderLayer layer,
-	bool visible)
-{
-	if ( !dev || !cmd || !name || !texturePath )
-		return -1;
-
-	UISpriteEntry entry{};
-	entry.name = name;
-	entry.layer = layer;
-	entry.visible = visible;
-	entry.rect = rect;
-
-	entry.texture = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 0);
-	entry.texture->LoadTextureFromFile(
-		dev,
-		cmd,
-		texturePath,
-		RESOURCE_TEXTURE2D,
-		0
-	);
-
-	CScene::m_pDescriptorHeap->CreateShaderResourceViewsOther(
-		dev,
-		entry.texture.get(),
-		ROOT_PARAMETER_GLOBAL_SRV
-	);
-
-	entry.srvIndex = entry.texture->GetSrvIndex(0);
-
-	// width/height를 0 이하로 넣으면 원본 텍스처 크기 사용
-	if ( entry.rect.z <= 0.0f )
-		entry.rect.z = static_cast< float >( entry.texture->GetTextureWidth(0) );
-	if ( entry.rect.w <= 0.0f )
-		entry.rect.w = static_cast< float >( entry.texture->GetTextureHeight(0) );
-
-	m_uiSprites.push_back(std::move(entry));
-	return static_cast< int >( m_uiSprites.size() - 1 );
-}
-
 void CGameScene::BuildUIResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
-	if ( m_uiRectShader )
-		m_uiRectShader->ReleaseShaderVariables();
-
-	m_uiRectShader.reset();
-	m_uiSprites.clear();
+	m_gameUI.BuildShader(dev, cmd, GetGraphicsRootSignature());
 	m_pauseUISpriteIndex = -1;
-
-	m_uiRectShader = std::make_shared<CRectUIShader>();
-
-	DXGI_FORMAT overlayRtv = DXGI_FORMAT_R8G8B8A8_UNORM;
-	DXGI_FORMAT overlayDsv = DXGI_FORMAT_UNKNOWN;
-
-	m_uiRectShader->CreateShader(
-		dev,
-		GetGraphicsRootSignature(),
-		1,
-		&overlayRtv,
-		overlayDsv
-	);
-	m_uiRectShader->CreateShaderVariables(dev, cmd);
 
 	// --------------------------------------------------------------------
 	// UI layout tuning block
@@ -6285,37 +6214,40 @@ void CGameScene::BuildUIResources(ID3D12Device* dev, ID3D12GraphicsCommandList* 
 	const float hpBarHeight = 34.0f;
 
 	// --------------------------------------------------------------------
-	// Frame layer (가장 아래)
+	// Frame layer
 	// --------------------------------------------------------------------
-	AddUISprite(
-		dev, cmd,
+	m_gameUI.AddSprite(
+		dev,
+		cmd,
 		"ItemFrame",
 		L"Assets/UI/low_darkness_bar.dds",
 		XMFLOAT4(itemFrameCenterX, itemFrameCenterY, itemFrameWidth, itemFrameHeight),
-		EUIRenderLayer::Frame,
+		CSceneUI::ELayer::Frame,
 		true
 	);
 
-	AddUISprite(
-		dev, cmd,
+	m_gameUI.AddSprite(
+		dev,
+		cmd,
 		"EquipmentFrame",
 		L"Assets/UI/low_darkness_bar.dds",
 		XMFLOAT4(equipFrameCenterX, equipFrameCenterY, equipFrameWidth, equipFrameHeight),
-		EUIRenderLayer::Frame,
+		CSceneUI::ELayer::Frame,
 		true
 	);
 
-	AddUISprite(
-		dev, cmd,
+	m_gameUI.AddSprite(
+		dev,
+		cmd,
 		"HPFrame",
 		L"Assets/UI/low_darkness_bar.dds",
 		XMFLOAT4(hpFrameCenterX, hpFrameCenterY, hpFrameWidth, hpFrameHeight),
-		EUIRenderLayer::Frame,
+		CSceneUI::ELayer::Frame,
 		true
 	);
 
 	// --------------------------------------------------------------------
-	// Content layer (Frame 위)
+	// Content layer
 	// --------------------------------------------------------------------
 	for ( int i = 0; i < kItemSlotCount; ++i )
 	{
@@ -6324,12 +6256,13 @@ void CGameScene::BuildUIResources(ID3D12Device* dev, ID3D12GraphicsCommandList* 
 		char name[64] = {};
 		sprintf_s(name, "ItemSlot_%d", i);
 
-		AddUISprite(
-			dev, cmd,
+		m_gameUI.AddSprite(
+			dev,
+			cmd,
 			name,
 			L"Assets/UI/mini_dark_bar1.dds",
 			XMFLOAT4(centerX, itemSlotCenterY, itemSlotSize, itemSlotSize),
-			EUIRenderLayer::Content,
+			CSceneUI::ELayer::Content,
 			true
 		);
 	}
@@ -6341,67 +6274,44 @@ void CGameScene::BuildUIResources(ID3D12Device* dev, ID3D12GraphicsCommandList* 
 		char name[64] = {};
 		sprintf_s(name, "EquipmentSlot_%d", i);
 
-		AddUISprite(
-			dev, cmd,
+		m_gameUI.AddSprite(
+			dev,
+			cmd,
 			name,
 			L"Assets/UI/mini_dark_bar1.dds",
 			XMFLOAT4(centerX, equipSlotCenterY, equipSlotSize, equipSlotSize),
-			EUIRenderLayer::Content,
+			CSceneUI::ELayer::Content,
 			true
 		);
 	}
 
-	AddUISprite(
-		dev, cmd,
+	m_gameUI.AddSprite(
+		dev,
+		cmd,
 		"HPFill",
 		L"Assets/UI/HP.dds",
 		XMFLOAT4(hpBarCenterX, hpBarCenterY, hpBarWidth, hpBarHeight),
-		EUIRenderLayer::Content,
+		CSceneUI::ELayer::Content,
 		true
 	);
 
 	// --------------------------------------------------------------------
-	// Pause layer (가장 위)
+	// Pause layer
 	// --------------------------------------------------------------------
-	m_pauseUISpriteIndex = AddUISprite(
-		dev, cmd,
+	m_pauseUISpriteIndex = m_gameUI.AddFitSprite(
+		dev,
+		cmd,
 		"Pause",
 		L"Assets/UI/Pause.dds",
-		XMFLOAT4(
-			FRAME_BUFFER_WIDTH * 0.5f,
-			FRAME_BUFFER_HEIGHT * 0.5f,
-			0.0f,
-			0.0f
-		),
-		EUIRenderLayer::Pause,
+		FRAME_BUFFER_WIDTH * 0.5f,
+		FRAME_BUFFER_HEIGHT * 0.5f,
+		static_cast< float >( FRAME_BUFFER_WIDTH ),
+		static_cast< float >( FRAME_BUFFER_HEIGHT ),
+		CSceneUI::ELayer::Pause,
 		true
 	);
 
-	if ( m_pauseUISpriteIndex >= 0 &&
-		m_pauseUISpriteIndex < static_cast< int >(m_uiSprites.size()) )
-	{
-		UISpriteEntry& pause = m_uiSprites[( size_t ) m_pauseUISpriteIndex];
-
-		float drawW = static_cast< float >(pause.texture->GetTextureWidth(0));
-		float drawH = static_cast< float >(pause.texture->GetTextureHeight(0));
-
-		if ( drawW <= 0.0f || drawH <= 0.0f )
-		{
-			drawW = 512.0f;
-			drawH = 512.0f;
-		}
-
-		float fitScale = 1.0f;
-		const float scaleX = static_cast< float >( FRAME_BUFFER_WIDTH ) / drawW;
-		const float scaleY = static_cast< float >( FRAME_BUFFER_HEIGHT ) / drawH;
-
-		if ( scaleX < fitScale ) fitScale = scaleX;
-		if ( scaleY < fitScale ) fitScale = scaleY;
-		if ( fitScale > 1.0f ) fitScale = 1.0f;
-
-		pause.rect.z = drawW * fitScale;
-		pause.rect.w = drawH * fitScale;
-	}
+	m_gameUI.SetLayerVisible(CSceneUI::ELayer::Pause, m_bInactiveOverlayVisible);
 }
 
 void CGameScene::BuildDepthFogResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
@@ -6599,65 +6509,8 @@ void CGameScene::UpdateShadowData()
 
 void CGameScene::RenderUI(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
-	if ( !cmd ) return;
-	if ( !m_uiRectShader ) return;
-	if ( m_uiSprites.empty() ) return;
-
-	m_uiRectShader->ResetDrawOptionWriteIndex();
-
-	for ( int layerValue = static_cast< int >( EUIRenderLayer::Frame );
-		layerValue <= static_cast< int >( EUIRenderLayer::Pause );
-		++layerValue )
-	{
-		for ( size_t i = 0; i < m_uiSprites.size(); ++i )
-		{
-			const UISpriteEntry& ui = m_uiSprites[i];
-
-			if ( static_cast< int >(ui.layer) != layerValue )
-				continue;
-
-			if ( !ui.texture || ui.srvIndex == UINT_MAX )
-				continue;
-
-			bool visible = ui.visible;
-
-			// Pause는 기존 플래그로 제어
-			if ( static_cast< int >( i ) == m_pauseUISpriteIndex )
-				visible = visible && m_bInactiveOverlayVisible;
-
-			if ( !visible )
-				continue;
-
-			PS_CB_DRAW_OPTIONS opt{};
-			opt.m_xmn4DrawOptions = XMINT4('T', 0, 0, 0);
-			opt.m_xmu4PostSrvIdx0 = XMUINT4(ui.srvIndex, 0, 0, 0);
-			opt.m_xmu4PostSrvIdx1 = XMUINT4(0, 0, 0, 0);
-			opt.m_xmf4UiRect = ui.rect;
-			opt.m_xmf4Viewport = XMFLOAT4(
-				static_cast< float >( FRAME_BUFFER_WIDTH ),
-				static_cast< float >( FRAME_BUFFER_HEIGHT ),
-				1.0f / static_cast< float >( FRAME_BUFFER_WIDTH ),
-				1.0f / static_cast< float >( FRAME_BUFFER_HEIGHT )
-			);
-
-			m_uiRectShader->Render(cmd, camera, &opt);
-		}
-	}
-
-	//if ( m_bShowShadowMapOverlay && mShadowMap )
-	//{
-	//	PS_CB_DRAW_OPTIONS opt{};
-	//	opt.m_xmn4DrawOptions = XMINT4('T', 0, 0, 0);
-	//	opt.m_xmu4PostSrvIdx0 = XMUINT4(2, 0, 0, 0); // t2: shadow map SRV
-	//	opt.m_xmu4PostSrvIdx1 = XMUINT4(0, 0, 0, 0);
-	//	opt.m_xmf4UiRect = XMFLOAT4(180.0f, 130.0f, 320.0f, 180.0f);
-	//	opt.m_xmf4Viewport = XMFLOAT4(
-	//		static_cast< float >( FRAME_BUFFER_WIDTH ),
-	//		static_cast< float >( FRAME_BUFFER_HEIGHT ),
-	//		1.0f / static_cast< float >( FRAME_BUFFER_WIDTH ),
-	//		1.0f / static_cast< float >( FRAME_BUFFER_HEIGHT ));
-	//	m_uiRectShader->Render(cmd, camera, &opt);
-	//}
+	m_gameUI.SetLayerVisible(CSceneUI::ELayer::Pause, m_bInactiveOverlayVisible);
+	m_gameUI.RenderAll(cmd, camera);
 }
 
 void CGameScene::RenderShadowMap(ID3D12GraphicsCommandList* cmd)
@@ -6755,35 +6608,12 @@ void CGameScene::RenderShadowPrePass(ID3D12GraphicsCommandList* cmd, CCamera* ca
 
 bool CGameScene::GetPauseOverlayRect(XMFLOAT4& outRect) const
 {
-	if ( m_pauseUISpriteIndex < 0 )
-		return false;
-
-	if ( m_pauseUISpriteIndex >= static_cast< int >(m_uiSprites.size()) )
-		return false;
-
-	const UISpriteEntry& pause = m_uiSprites[( size_t ) m_pauseUISpriteIndex];
-	if ( !pause.texture || pause.srvIndex == UINT_MAX )
-		return false;
-
-	outRect = pause.rect;
-	return true;
+	return m_gameUI.GetSpriteRect(m_pauseUISpriteIndex, outRect);
 }
 
 bool CGameScene::IsPointInPauseOverlay(POINT clientPt) const
 {
-    XMFLOAT4 rect{};
-    if (!GetPauseOverlayRect(rect))
-        return false;
-
-    const float left = rect.x - rect.z * 0.5f;
-    const float right = rect.x + rect.z * 0.5f;
-    const float top = rect.y - rect.w * 0.5f;
-    const float bottom = rect.y + rect.w * 0.5f;
-
-    const float px = static_cast<float>(clientPt.x);
-    const float py = static_cast<float>(clientPt.y);
-
-    return (px >= left && px <= right && py >= top && py <= bottom);
+	return m_gameUI.IsPointInSprite(m_pauseUISpriteIndex, clientPt);
 }
 
 void CGameScene::SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex)
