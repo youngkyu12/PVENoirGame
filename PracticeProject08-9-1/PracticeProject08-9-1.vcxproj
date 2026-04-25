@@ -276,6 +276,7 @@
     <ClCompile Include="GameSceneAttachmentBinder.cpp" />
     <ClCompile Include="GameSceneContentCatalog.cpp" />
     <ClCompile Include="GameSceneHUD.cpp" />
+    <ClCompile Include="GameSceneLOD.cpp" />
     <ClCompile Include="GameSceneObjectFactory.cpp" />
     <ClCompile Include="GameSceneOcclusion.cpp" />
     <ClCompile Include="GhoulAIComponent.cpp" />
