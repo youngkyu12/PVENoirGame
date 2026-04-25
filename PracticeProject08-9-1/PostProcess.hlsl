@@ -40,6 +40,7 @@ VS_SCREEN_RECT_TEXTURED_OUTPUT VSScreenRectSamplingTextured(uint nVertexID : SV_
         float2(-0.5f, -0.5f),
         float2(-0.5f, +0.5f),
         float2(+0.5f, -0.5f),
+
         float2(+0.5f, -0.5f),
         float2(-0.5f, +0.5f),
         float2(+0.5f, +0.5f)
@@ -50,6 +51,7 @@ VS_SCREEN_RECT_TEXTURED_OUTPUT VSScreenRectSamplingTextured(uint nVertexID : SV_
         float2(0.0f, 0.0f),
         float2(0.0f, 1.0f),
         float2(1.0f, 0.0f),
+
         float2(1.0f, 0.0f),
         float2(0.0f, 1.0f),
         float2(1.0f, 1.0f)
@@ -108,7 +110,7 @@ float4 PSScreenRectSamplingTextured(VS_SCREEN_RECT_TEXTURED_OUTPUT input) : SV_T
         return float4(d, d, d, 1);
     }
 
-    return gtxtGlobalTextures[idx].Sample(gsamLinearWrap, input.uv);
+    return gtxtGlobalTextures[idx].Sample(gssDefaultSamplerState, input.uv);
 }
 
 float4 PSDepthFog(VS_SCREEN_RECT_TEXTURED_OUTPUT input) : SV_Target
@@ -123,7 +125,7 @@ float4 PSDepthFog(VS_SCREEN_RECT_TEXTURED_OUTPUT input) : SV_Target
         return float4(1, 0, 1, 1);
 
     const float4 sceneColor =
-        gtxtGlobalTextures[sceneColorIdx].Sample(gsamLinearWrap, input.uv);
+        gtxtGlobalTextures[sceneColorIdx].Sample(gssDefaultSamplerState, input.uv);
 
     const float deviceZ =
         gtxtGlobalTextures[sceneDepthIdx].Load(
