@@ -198,6 +198,7 @@
     <ClInclude Include="GhoulAIComponent.h" />
     <ClInclude Include="GlobalEnum.h" />
     <ClInclude Include="GlobalValues.h" />
+    <ClInclude Include="Grid.h" />
     <ClInclude Include="InitStruct.pb.h" />
     <ClInclude Include="LightComponent.h" />
     <ClInclude Include="LightTypes.h" />
@@ -273,6 +274,7 @@
     <ClCompile Include="GameSceneObjectFactory.cpp" />
     <ClCompile Include="GhoulAIComponent.cpp" />
     <ClCompile Include="GlobalValues.cpp" />
+    <ClCompile Include="Grid.cpp" />
     <ClCompile Include="InitStruct.pb.cc">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
@@ -329,7 +331,7 @@
     <Image Include="PracticeProject08-9-1.ico" />
     <Image Include="small.ico" />
   </ItemGroup>
-    <ItemGroup>
+  <ItemGroup>
     <None Include="..\Common\Protobuf\bin\Enum.proto" />
     <None Include="..\Common\Protobuf\bin\GenPackets.bat" />
     <None Include="..\Common\Protobuf\bin\InitStruct.proto" />
@@ -341,7 +343,6 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </None>
   </ItemGroup>
-
   <ItemGroup>
     <None Include="Common.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Geometry</ShaderType>
@@ -357,7 +358,6 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </None>
   </ItemGroup>
-
   <ItemGroup>
     <None Include="MaterialTexture.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
@@ -365,7 +365,6 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </None>
   </ItemGroup>
-
   <ItemGroup>
     <None Include="Geometry.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
@@ -388,7 +387,6 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </None>
   </ItemGroup>
-
   <ItemGroup>
     <None Include="Shadows.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
@@ -396,7 +394,6 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </None>
   </ItemGroup>
-
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

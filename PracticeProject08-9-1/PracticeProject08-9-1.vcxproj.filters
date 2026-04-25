@@ -149,6 +149,9 @@
     <Filter Include="Scene\GameScene">
       <UniqueIdentifier>{ff521d59-8515-4d7f-aef1-dff665d834e7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Grid">
+      <UniqueIdentifier>{958c4851-c424-41fc-ba0d-1a39289c073a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animator.h">
@@ -348,6 +351,9 @@
     <ClInclude Include="GameSceneAttachmentBinder.h">
       <Filter>Scene\GameScene</Filter>
     </ClInclude>
+    <ClInclude Include="Grid.h">
+      <Filter>Grid</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -516,6 +522,9 @@
     <ClCompile Include="GameSceneAttachmentBinder.cpp">
       <Filter>Scene\GameScene</Filter>
     </ClCompile>
+    <ClCompile Include="Grid.cpp">
+      <Filter>Grid</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PracticeProject08-9-1.rc">
@@ -561,14 +570,12 @@
     <None Include="Skinned.hlsl">
       <Filter>Resource\HLSL</Filter>
     </None>
-    <None Include="Shadow.hlsl">
-      <Filter>Resource\HLSL</Filter>
-    </None>
     <None Include="PostProcess.hlsl">
       <Filter>Resource\HLSL</Filter>
     </None>
     <None Include="Lighting.hlsl">
       <Filter>Resource\HLSL</Filter>
     </None>
+    <None Include="Shadows.hlsl" />
   </ItemGroup>
 </Project>
