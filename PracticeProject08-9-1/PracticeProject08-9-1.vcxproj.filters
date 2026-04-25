@@ -552,6 +552,9 @@
     <ClCompile Include="GameSceneOcclusion.cpp">
       <Filter>Scene\GameScene</Filter>
     </ClCompile>
+    <ClCompile Include="GameSceneLOD.cpp">
+      <Filter>Scene\GameScene</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PracticeProject08-9-1.rc">
