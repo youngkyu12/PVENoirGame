@@ -1062,7 +1062,7 @@ void CGameScene::ReleaseObjects()
 	m_preparedBowmanArrows.clear();
 	m_prevEnemyBowReleasePhase.clear();
 
-	m_gameUI.ReleaseResources();
+	m_hud.ReleaseResources();
 	// mShadowMap.reset();
 	// mShadowShader.reset();
 	// if ( m_pd3dShadowDsvDescriptorHeap )
@@ -1074,8 +1074,6 @@ void CGameScene::ReleaseObjects()
 	m_shadowAlphaClipStaticShader.reset();
 	m_shadowSkinnedShader.reset();
 	m_shadowAlphaClipSkinnedShader.reset();
-
-	m_pauseUISpriteIndex = -1;
 	m_shadowMapSrvIndex = UINT_MAX;
 
 	m_sceneRenderTargetCount = 0;
@@ -1303,7 +1301,7 @@ void CGameScene::ReleaseShaderVariables()
 		m_colliderBatch.cbGameObjects.Reset();
 	}
 
-	m_gameUI.ReleaseResources();
+	m_hud.ReleaseResources();
 	m_depthFog.ReleaseShaderVariables();
 }
 
@@ -1449,7 +1447,8 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	};
 
 	BuildLightsAndMaterials();
-	BuildUIResources(dev, cmd);
+	m_hud.BuildResources(dev, cmd, GetGraphicsRootSignature());
+	m_hud.SetInactiveOverlayVisible(m_bInactiveOverlayVisible);
 	BuildDepthFogResources(dev, cmd);
 	BuildShadowResources(dev, cmd);
 
@@ -6169,151 +6168,6 @@ void CGameScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* 
 	}
 }
 
-void CGameScene::BuildUIResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
-{
-	m_gameUI.BuildShader(dev, cmd, GetGraphicsRootSignature());
-	m_pauseUISpriteIndex = -1;
-
-	// --------------------------------------------------------------------
-	// UI layout tuning block
-	// - rect = (centerX, centerY, width, height)
-	// --------------------------------------------------------------------
-	constexpr int kItemSlotCount = 5;
-	constexpr int kEquipSlotCount = 2;
-
-	const float itemFrameCenterX = FRAME_BUFFER_WIDTH - 105.0f;
-	const float itemFrameCenterY = FRAME_BUFFER_HEIGHT - 22.5f;
-	const float itemFrameWidth = 210.0f;
-	const float itemFrameHeight = 45.0f;
-
-	const float itemSlotSize = 32.0f;
-	const float itemSlotSpacing = 37.0f;
-	const float itemSlotStartX =
-		itemFrameCenterX - ( ( kItemSlotCount - 1 ) * itemSlotSpacing * 0.5f );
-	const float itemSlotCenterY = itemFrameCenterY;
-
-	const float equipFrameCenterX = FRAME_BUFFER_WIDTH - 45.0f;
-	const float equipFrameCenterY = FRAME_BUFFER_HEIGHT - 66.0f;
-	const float equipFrameWidth = 90.0f;
-	const float equipFrameHeight = 45.0f;
-
-	const float equipSlotSize = 32.0f;
-	const float equipSlotSpacing = 37.0f;
-	const float equipSlotStartX =
-		equipFrameCenterX - ( ( kEquipSlotCount - 1 ) * equipSlotSpacing * 0.5f );
-	const float equipSlotCenterY = equipFrameCenterY;
-
-	const float hpFrameCenterX = 150.0f;
-	const float hpFrameCenterY = 20.0f;
-	const float hpFrameWidth = 300.0f;
-	const float hpFrameHeight = 40.0f;
-
-	const float hpBarCenterX = hpFrameCenterX;
-	const float hpBarCenterY = hpFrameCenterY;
-	const float hpBarWidth = 290.0f;
-	const float hpBarHeight = 34.0f;
-
-	// --------------------------------------------------------------------
-	// Frame layer
-	// --------------------------------------------------------------------
-	m_gameUI.AddSprite(
-		dev,
-		cmd,
-		"ItemFrame",
-		L"Assets/UI/low_darkness_bar.dds",
-		XMFLOAT4(itemFrameCenterX, itemFrameCenterY, itemFrameWidth, itemFrameHeight),
-		CSceneUI::ELayer::Frame,
-		true
-	);
-
-	m_gameUI.AddSprite(
-		dev,
-		cmd,
-		"EquipmentFrame",
-		L"Assets/UI/low_darkness_bar.dds",
-		XMFLOAT4(equipFrameCenterX, equipFrameCenterY, equipFrameWidth, equipFrameHeight),
-		CSceneUI::ELayer::Frame,
-		true
-	);
-
-	m_gameUI.AddSprite(
-		dev,
-		cmd,
-		"HPFrame",
-		L"Assets/UI/low_darkness_bar.dds",
-		XMFLOAT4(hpFrameCenterX, hpFrameCenterY, hpFrameWidth, hpFrameHeight),
-		CSceneUI::ELayer::Frame,
-		true
-	);
-
-	// --------------------------------------------------------------------
-	// Content layer
-	// --------------------------------------------------------------------
-	for ( int i = 0; i < kItemSlotCount; ++i )
-	{
-		const float centerX = itemSlotStartX + ( itemSlotSpacing * i );
-
-		char name[64] = {};
-		sprintf_s(name, "ItemSlot_%d", i);
-
-		m_gameUI.AddSprite(
-			dev,
-			cmd,
-			name,
-			L"Assets/UI/mini_dark_bar1.dds",
-			XMFLOAT4(centerX, itemSlotCenterY, itemSlotSize, itemSlotSize),
-			CSceneUI::ELayer::Content,
-			true
-		);
-	}
-
-	for ( int i = 0; i < kEquipSlotCount; ++i )
-	{
-		const float centerX = equipSlotStartX + ( equipSlotSpacing * i );
-
-		char name[64] = {};
-		sprintf_s(name, "EquipmentSlot_%d", i);
-
-		m_gameUI.AddSprite(
-			dev,
-			cmd,
-			name,
-			L"Assets/UI/mini_dark_bar1.dds",
-			XMFLOAT4(centerX, equipSlotCenterY, equipSlotSize, equipSlotSize),
-			CSceneUI::ELayer::Content,
-			true
-		);
-	}
-
-	m_gameUI.AddSprite(
-		dev,
-		cmd,
-		"HPFill",
-		L"Assets/UI/HP.dds",
-		XMFLOAT4(hpBarCenterX, hpBarCenterY, hpBarWidth, hpBarHeight),
-		CSceneUI::ELayer::Content,
-		true
-	);
-
-	// --------------------------------------------------------------------
-	// Pause layer
-	// --------------------------------------------------------------------
-	m_pauseUISpriteIndex = m_gameUI.AddFitSprite(
-		dev,
-		cmd,
-		"Pause",
-		L"Assets/UI/Pause.dds",
-		FRAME_BUFFER_WIDTH * 0.5f,
-		FRAME_BUFFER_HEIGHT * 0.5f,
-		static_cast< float >( FRAME_BUFFER_WIDTH ),
-		static_cast< float >( FRAME_BUFFER_HEIGHT ),
-		CSceneUI::ELayer::Pause,
-		true
-	);
-
-	m_gameUI.SetLayerVisible(CSceneUI::ELayer::Pause, m_bInactiveOverlayVisible);
-}
-
 void CGameScene::BuildDepthFogResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
 	m_depthFog.BuildResources(dev, cmd, GetGraphicsRootSignature());
@@ -6507,12 +6361,6 @@ void CGameScene::UpdateShadowData()
 	m_shadowData.shadowParams1 = XMUINT4(m_shadowMapSrvIndex, 1u, 0u, 0u);
 }
 
-void CGameScene::RenderUI(ID3D12GraphicsCommandList* cmd, CCamera* camera)
-{
-	m_gameUI.SetLayerVisible(CSceneUI::ELayer::Pause, m_bInactiveOverlayVisible);
-	m_gameUI.RenderAll(cmd, camera);
-}
-
 void CGameScene::RenderShadowMap(ID3D12GraphicsCommandList* cmd)
 {
 	if ( !cmd ) return;
@@ -6608,12 +6456,12 @@ void CGameScene::RenderShadowPrePass(ID3D12GraphicsCommandList* cmd, CCamera* ca
 
 bool CGameScene::GetPauseOverlayRect(XMFLOAT4& outRect) const
 {
-	return m_gameUI.GetSpriteRect(m_pauseUISpriteIndex, outRect);
+	return m_hud.GetPauseOverlayRect(outRect);
 }
 
 bool CGameScene::IsPointInPauseOverlay(POINT clientPt) const
 {
-	return m_gameUI.IsPointInSprite(m_pauseUISpriteIndex, clientPt);
+	return m_hud.IsPointInPauseOverlay(clientPt);
 }
 
 void CGameScene::SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex)
@@ -7693,7 +7541,7 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	RenderDepthFog(cmd, camera);
-	RenderUI(cmd, camera);
+	m_hud.Render(cmd, camera);
 
 	if ( m_Collision )
 	{

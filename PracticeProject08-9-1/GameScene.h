@@ -11,7 +11,7 @@
 #include "ColliderComponent.h"
 #include "Grid.h"
 #include "DepthFog.h"
-#include "SceneUI.h"
+#include "GameSceneHUD.h"
 //#include "ShadowMap.h"
 
 #include <unordered_set>
@@ -298,7 +298,7 @@ public:
 	void SetInactiveOverlayVisible(bool visible)
 	{
 		m_bInactiveOverlayVisible = visible;
-		m_gameUI.SetLayerVisible(CSceneUI::ELayer::Pause, visible);
+		m_hud.SetInactiveOverlayVisible(visible);
 	}
 
 	void SetDepthFogSourceSrvIndices(UINT sceneColorSrvIndex, UINT sceneDepthSrvIndex)
@@ -397,9 +397,6 @@ private:
 #endif
 
 private:
-	void BuildUIResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
-	void RenderUI(ID3D12GraphicsCommandList* cmd, CCamera* camera);
-
 	void BuildDepthFogResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
 	void RenderDepthFog(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
@@ -596,8 +593,7 @@ private:
 	std::shared_ptr<CShadowMapSkinnedShader>              m_shadowSkinnedShader;
 	std::shared_ptr<CShadowMapAlphaClipSkinnedShader>     m_shadowAlphaClipSkinnedShader;
 
-	CSceneUI                            m_gameUI;
-	int                                 m_pauseUISpriteIndex = -1;
+	CGameSceneHUD                       m_hud;
 	ComPtr<ID3D12DescriptorHeap>        m_pd3dShadowDsvHeap;
 	ComPtr<ID3D12Resource>              m_pd3dShadowMap;
 	ComPtr<ID3D12Resource>              m_pd3dcbShadow;
