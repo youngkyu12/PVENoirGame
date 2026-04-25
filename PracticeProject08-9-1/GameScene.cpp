@@ -3902,6 +3902,7 @@ void CGameScene::ResetSkinnedOcclusionEntries()
 	m_skinnedOcclusionLastFrameIssuedFlags.clear();
 	m_skinnedOcclusionCurrentFrameIssuedFlags.clear();
 	m_skinnedOcclusionZeroSampleFrameCounts.clear();
+	m_skinnedOcclusionLastLoggedCullFlags.clear();
 	m_skinnedOcclusionQueryCapacity = 0;
 	m_bSkinnedOcclusionQueryResultsValid = false;
 }
@@ -3948,11 +3949,11 @@ void CGameScene::BuildSkinnedOcclusionGpuResources(ID3D12Device* dev)
 		return;
 
 	const UINT queryCount = ( UINT ) m_skinnedOcclusionEntries.size();
-	m_skinnedOcclusionQueryCapacity = queryCount;
 	m_skinnedOcclusionQuerySampleCounts.assign(queryCount, 1ull);
 	m_skinnedOcclusionLastFrameIssuedFlags.assign(queryCount, 0);
 	m_skinnedOcclusionCurrentFrameIssuedFlags.assign(queryCount, 0);
 	m_skinnedOcclusionZeroSampleFrameCounts.assign(queryCount, 0);
+	m_skinnedOcclusionLastLoggedCullFlags.assign(queryCount, 255);
 	m_bSkinnedOcclusionQueryResultsValid = false;
 
 	if ( queryCount == 0 )
@@ -4113,6 +4114,7 @@ void CGameScene::ReleaseSkinnedOcclusionGpuResources()
 	m_skinnedOcclusionLastFrameIssuedFlags.clear();
 	m_skinnedOcclusionCurrentFrameIssuedFlags.clear();
 	m_skinnedOcclusionZeroSampleFrameCounts.clear();
+	m_skinnedOcclusionLastLoggedCullFlags.clear();
 }
 
 void CGameScene::BeginSkinnedOcclusionReadback()
@@ -4179,7 +4181,58 @@ void CGameScene::UpdateSkinnedOcclusionCullSelection(CCamera* camera)
 	const float minTestDistanceSq =
 		m_skinnedOcclusionMinTestDistance * m_skinnedOcclusionMinTestDistance;
 
-	for ( size_t occlusionIndex = 0; occlusionIndex < m_skinnedOcclusionEntries.size(); ++occlusionIndex )
+	auto LogSkinnedOcclusionState =
+		[&](
+			size_t occlusionIndex,
+			const SkinnedOcclusionEntry& entry,
+			bool culled,
+			UINT64 sampleCount,
+			uint8_t zeroFrameCount,
+			float distSq)
+		{
+			if ( occlusionIndex >= m_skinnedOcclusionLastLoggedCullFlags.size() )
+				return;
+
+			const uint8_t newState = culled ? 1 : 0;
+			uint8_t& lastState = m_skinnedOcclusionLastLoggedCullFlags[occlusionIndex];
+
+			if ( lastState == newState )
+				return;
+
+			// 최초 상태가 visible이면 로그를 찍지 않는다.
+			// 실제 occlusion cull 발생 또는 cull 해제만 확인하기 위함.
+			if ( lastState == 255 && !culled )
+			{
+				lastState = newState;
+				return;
+			}
+
+			lastState = newState;
+
+			char debugText[512] = {};
+			sprintf_s(
+				debugText,
+				"[SkinnedOcclusion] %s | asset=%s | occIndex=%zu | skinnedIndex=%u | samples=%llu | zeroFrames=%u/%u | dist=%.2f | center=(%.2f, %.2f, %.2f) | cam=(%.2f, %.2f, %.2f)\n",
+				culled ? "CULLED" : "VISIBLE",
+				entry.assetName.c_str(),
+				occlusionIndex,
+				entry.skinnedBatchObjectIndex,
+				( unsigned long long )sampleCount,
+				( unsigned ) zeroFrameCount,
+				( unsigned ) m_skinnedOcclusionHideFrameThreshold,
+				std::sqrt(distSq),
+				entry.worldBounds.Center.x,
+				entry.worldBounds.Center.y,
+				entry.worldBounds.Center.z,
+				cameraPosition.x,
+				cameraPosition.y,
+				cameraPosition.z
+			);
+
+			OutputDebugStringA(debugText);
+		};
+
+	for ( size_t occlusionIndex = 0; occlusionIndex < m_skinnedOcclusionEntries.size(); ++occlusionIndex ) 
 	{
 		SkinnedOcclusionEntry& entry = m_skinnedOcclusionEntries[occlusionIndex];
 
@@ -4273,7 +4326,10 @@ void CGameScene::UpdateSkinnedOcclusionCullSelection(CCamera* camera)
 			continue;
 		}
 
-		if ( m_skinnedOcclusionQuerySampleCounts[occlusionIndex] == 0ull )
+		const UINT64 sampleCount =
+			m_skinnedOcclusionQuerySampleCounts[occlusionIndex];
+
+		if ( sampleCount == 0ull )
 		{
 			uint8_t& zeroFrameCount = m_skinnedOcclusionZeroSampleFrameCounts[occlusionIndex];
 
@@ -4281,11 +4337,31 @@ void CGameScene::UpdateSkinnedOcclusionCullSelection(CCamera* camera)
 				++zeroFrameCount;
 
 			if ( zeroFrameCount >= m_skinnedOcclusionHideFrameThreshold )
+			{
 				m_skinnedOcclusionCullFlags[entry.skinnedBatchObjectIndex] = 1;
+
+				LogSkinnedOcclusionState(
+					occlusionIndex,
+					entry,
+					true,
+					sampleCount,
+					zeroFrameCount,
+					distSq
+				);
+			}
 		}
 		else
 		{
 			m_skinnedOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+
+			LogSkinnedOcclusionState(
+				occlusionIndex,
+				entry,
+				false,
+				sampleCount,
+				0,
+				distSq
+			);
 		}
 	}
 
