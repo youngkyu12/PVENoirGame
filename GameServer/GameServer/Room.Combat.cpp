@@ -4,7 +4,9 @@
 #include "Enemy.h"
 #include "Projectile.h"
 
+#include <algorithm>
 #include <chrono>
+#include <vector>
 
 namespace
 {
@@ -22,13 +24,32 @@ namespace
 
 		return false;
 	}
+
+	static void UpdateEnemyAIChunk(const std::vector<EnemyRef>& activeEnemies, size_t beginIndex, size_t endIndex, float dt)
+	{
+		for (size_t i = beginIndex; i < endIndex; ++i)
+		{
+			const EnemyRef& enemy = activeEnemies[i];
+			if (!enemy)
+				continue;
+
+			enemy->UpdateAI(dt);
+		}
+	}
 }
 
 void Room::ProcessEnemyAI()
 {
+	const auto frameStart = std::chrono::steady_clock::now();
+
+
 	constexpr float kEnemyAiActiveRange = 100.0f;
 	constexpr float kEnemyAiActiveRangeSq = kEnemyAiActiveRange * kEnemyAiActiveRange;
 	constexpr float kFixedDtSec = 0.03f;
+	constexpr size_t kEnemyAiChunkSize = 32;
+
+	std::vector<EnemyRef> activeEnemies;
+	activeEnemies.reserve(enemies.size());
 
 	for (auto& enemyPair : enemies)
 	{
@@ -37,10 +58,22 @@ void Room::ProcessEnemyAI()
 			continue;
 
 		if (IsEnemyNearAnyPlayer(players, enemy->GetPosition(), kEnemyAiActiveRangeSq))
-			enemy->UpdateAI(kFixedDtSec);
+			activeEnemies.push_back(enemy);
 		else
 			enemy->SetVelocity(GameMath::Vec3::Zero());
 	}
+
+	for (size_t beginIndex = 0; beginIndex < activeEnemies.size(); beginIndex += kEnemyAiChunkSize)
+	{
+		const size_t endIndex = (std::min)(beginIndex + kEnemyAiChunkSize, activeEnemies.size());
+		UpdateEnemyAIChunk(activeEnemies, beginIndex, endIndex, kFixedDtSec);
+	}
+
+	const auto elapsedMs = static_cast<uint64>(
+		std::chrono::duration_cast<std::chrono::milliseconds>(
+			std::chrono::steady_clock::now() - frameStart).count());
+	const uint64 nextDelayMs = (elapsedMs >= 100) ? 0 : (100 - elapsedMs);
+	GRoom->DoTimer(nextDelayMs, &Room::ProcessEnemyAI);
 }
 
 
@@ -50,7 +83,6 @@ void Room::TickAdvance()
 	const auto frameStart = std::chrono::steady_clock::now();
 
 	MakeFrameState(tick.load());
-	ProcessEnemyAI();
 
 	for (auto player : players)
 	{
