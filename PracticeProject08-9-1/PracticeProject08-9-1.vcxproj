@@ -277,6 +277,7 @@
     <ClCompile Include="GameSceneContentCatalog.cpp" />
     <ClCompile Include="GameSceneHUD.cpp" />
     <ClCompile Include="GameSceneObjectFactory.cpp" />
+    <ClCompile Include="GameSceneOcclusion.cpp" />
     <ClCompile Include="GhoulAIComponent.cpp" />
     <ClCompile Include="GlobalValues.cpp" />
     <ClCompile Include="Grid.cpp" />
