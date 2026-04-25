@@ -45,7 +45,7 @@ void Room::ProcessEnemyAI()
 
 	constexpr float kEnemyAiActiveRange = 100.0f;
 	constexpr float kEnemyAiActiveRangeSq = kEnemyAiActiveRange * kEnemyAiActiveRange;
-	constexpr float kFixedDtSec = 0.03f;
+	constexpr float kFixedDtSec = 0.06f;
 	constexpr size_t kEnemyAiChunkSize = 32;
 
 	std::vector<EnemyRef> activeEnemies;
@@ -72,7 +72,7 @@ void Room::ProcessEnemyAI()
 	const auto elapsedMs = static_cast<uint64>(
 		std::chrono::duration_cast<std::chrono::milliseconds>(
 			std::chrono::steady_clock::now() - frameStart).count());
-	const uint64 nextDelayMs = (elapsedMs >= 100) ? 0 : (100 - elapsedMs);
+	const uint64 nextDelayMs = (elapsedMs >= 60) ? 0 : (60 - elapsedMs);
 	GRoom->DoTimer(nextDelayMs, &Room::ProcessEnemyAI);
 }
 
@@ -145,7 +145,7 @@ void Room::TickAdvance()
 	const auto elapsedMs = static_cast<uint64>(
 		std::chrono::duration_cast<std::chrono::milliseconds>(
 			std::chrono::steady_clock::now() - frameStart).count());
-	const uint64 nextDelayMs = (elapsedMs >= 30) ? 0 : (30 - elapsedMs);
+	const uint64 nextDelayMs = (elapsedMs >= 60) ? 0 : (60 - elapsedMs);
 	GRoom->DoTimer(nextDelayMs, &Room::TickAdvance);
 	++tick;
 }
