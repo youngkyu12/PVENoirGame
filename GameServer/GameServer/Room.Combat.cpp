@@ -24,6 +24,14 @@ namespace
 	}
 }
 
+void Room::ProcessEnemyAI()
+{
+	// Enemy의 실행 처리는 따로 초당 한번씩 실행되도록 함
+	GRoom->DoTimer(1000, &Room::ProcessEnemyAI);
+}
+
+
+
 void Room::TickAdvance()
 {
 	const auto frameStart = std::chrono::steady_clock::now();
