@@ -119,6 +119,18 @@ struct SkinnedWorldLodEntry
 	float cullDistance = 1000000.0f;
 };
 
+struct SkinnedOcclusionEntry
+{
+	CGameObject* object = nullptr;
+	UINT skinnedBatchObjectIndex = UINT_MAX;
+
+	std::string assetName;
+	bool enabled = false;
+
+	BoundingOrientedBox worldBounds{};
+	bool hasWorldBounds = false;
+};
+
 struct SkinnedInstanceVertex
 {
 	XMFLOAT4 world0 = XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f);
@@ -249,6 +261,16 @@ private:
 
 	void BuildSkinnedInstanceGroups();
 	void ResetSkinnedWorldLodEntries();
+
+	void ResetSkinnedOcclusionEntries();
+	void BuildSkinnedOcclusionEntries();
+	void BuildSkinnedOcclusionGpuResources(ID3D12Device* dev);
+	void ReleaseSkinnedOcclusionGpuResources();
+	void BeginSkinnedOcclusionReadback();
+	void RenderSkinnedOcclusionPass(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	void ResolveSkinnedOcclusionQueries(ID3D12GraphicsCommandList* cmd);
+	void UpdateSkinnedOcclusionCullSelection(CCamera* camera);
+
 	int ComputeSkinnedWorldLodLevel(const XMFLOAT3& cameraPosition, const SkinnedWorldLodEntry& entry) const;
 	bool ComputeSkinnedWorldDistanceCulled(const XMFLOAT3& cameraPosition, const SkinnedWorldLodEntry& entry) const;
 	void UpdateSkinnedWorldLodSelection(CCamera* camera);
@@ -713,6 +735,26 @@ private:
 	ComPtr<ID3D12Resource>              m_pd3dSkinnedInstanceBuffer;
 	std::vector<SkinnedWorldLodEntry>   m_skinnedWorldLodEntries;
 	std::vector<uint8_t>                m_skinnedDistanceCullFlags;
+
+	std::vector<SkinnedOcclusionEntry>  m_skinnedOcclusionEntries;
+	std::vector<uint8_t>                m_skinnedOcclusionCullFlags;
+	std::vector<UINT64>                 m_skinnedOcclusionQuerySampleCounts;
+	std::vector<uint8_t>                m_skinnedOcclusionLastFrameIssuedFlags;
+	std::vector<uint8_t>                m_skinnedOcclusionCurrentFrameIssuedFlags;
+	std::vector<uint8_t>                m_skinnedOcclusionZeroSampleFrameCounts;
+	ComPtr<ID3D12QueryHeap>             m_pd3dSkinnedOcclusionQueryHeap;
+	ComPtr<ID3D12Resource>              m_pd3dSkinnedOcclusionReadbackBuffer;
+	UINT64* m_pMappedSkinnedOcclusionReadbackBuffer = nullptr;
+	ComPtr<ID3D12Resource>              m_pd3dSkinnedOcclusionInstanceBuffer;
+	StaticInstanceVertex* m_pMappedSkinnedOcclusionInstanceBuffer = nullptr;
+	UINT                                m_skinnedOcclusionQueryCapacity = 0;
+	bool                                m_bSkinnedOcclusionQueryResourcesReady = false;
+	bool                                m_bSkinnedOcclusionQueryResultsValid = false;
+	bool                                m_bSkinnedOcclusionCullingEnabled = true;
+	UINT                                m_skinnedOcclusionHideFrameThreshold = 8;
+	float                               m_skinnedOcclusionMinTestDistance = 35.0f;
+	float                               m_skinnedOcclusionMaxCullExtentDistanceRatio = 0.30f;
+
 	bool                                m_skinnedWorldLodDirty = false;
 	float                               m_skinnedLodHysteresis = 5.0f;
 	float                               m_skinnedCullHysteresis = 10.0f;
