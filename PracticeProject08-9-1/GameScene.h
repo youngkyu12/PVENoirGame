@@ -496,10 +496,6 @@ private:
 	void BuildDepthFogResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
 	void RenderDepthFog(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
-	void BuildOcclusionDepthResources(ID3D12Device* dev);
-	void ReleaseOcclusionDepthResources();
-	void RenderStaticOcclusionDepthPrePass(ID3D12GraphicsCommandList* cmd, CCamera* camera);
-
 	void BuildShadowResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
 	void UpdateShadowData();
 	void RenderShadowMap(ID3D12GraphicsCommandList* cmd);
@@ -667,8 +663,6 @@ private:
 	std::vector<uint8_t>                m_staticOcclusionLastFrameIssuedFlags;
 	std::vector<uint8_t>                m_staticOcclusionCurrentFrameIssuedFlags;
 	std::vector<uint8_t>                m_staticOcclusionZeroSampleFrameCounts;
-	std::vector<uint8_t>                m_staticOcclusionDepthOccluderFlags; 
-	
 	ComPtr<ID3D12QueryHeap>             m_pd3dStaticOcclusionQueryHeap;
 	ComPtr<ID3D12Resource>              m_pd3dStaticOcclusionReadbackBuffer;
 	UINT64* m_pMappedStaticOcclusionReadbackBuffer = nullptr;
@@ -689,10 +683,6 @@ private:
 	ComPtr<ID3D12Resource>              m_pd3dStaticOcclusionInstanceBuffer;
 	StaticInstanceVertex* m_pMappedStaticOcclusionInstanceBuffer = nullptr;
 
-	ComPtr<ID3D12Resource>              m_pd3dStaticOcclusionDepthInstanceBuffer;
-	StaticInstanceVertex* m_pMappedStaticOcclusionDepthInstanceBuffer = nullptr;
-	UINT                                m_staticOcclusionDepthInstanceBufferCapacity = 0;
-
 	ComPtr<ID3D12Resource>              m_pd3dStaticInstanceBuffer;
 	StaticInstanceVertex* m_pMappedStaticInstanceBuffer = nullptr;
 	UINT                                m_staticInstanceBufferCapacity = 0;
@@ -704,7 +694,6 @@ private:
 	std::shared_ptr<CRectUIShader>      m_uiRectShader;
 	std::shared_ptr<CDepthFogShader>    m_depthFogShader;
 	std::shared_ptr<COcclusionStaticShader>               m_occlusionStaticShader;
-	std::shared_ptr<COcclusionDepthStaticShader>          m_occlusionDepthStaticShader;
 	std::shared_ptr<CShadowMapStaticShader>               m_shadowStaticShader;
 	std::shared_ptr<CShadowMapAlphaClipStaticShader>      m_shadowAlphaClipStaticShader;
 	std::shared_ptr<CShadowMapSkinnedShader>              m_shadowSkinnedShader;
@@ -714,14 +703,6 @@ private:
 	int                                 m_pauseUISpriteIndex = -1;
 	UINT                                m_depthFogSceneColorSrvIndex = UINT_MAX;
 	UINT                                m_depthFogSceneDepthSrvIndex = UINT_MAX;
-	ComPtr<ID3D12DescriptorHeap>        m_pd3dOcclusionDepthDsvHeap;
-	ComPtr<ID3D12Resource>              m_pd3dOcclusionDepthMap;
-	D3D12_CPU_DESCRIPTOR_HANDLE         m_occlusionDepthDsvHandle = {};
-	D3D12_VIEWPORT                      m_occlusionDepthViewport = {};
-	D3D12_RECT                          m_occlusionDepthScissorRect = {};
-	UINT                                m_occlusionDepthWidth = 0;
-	UINT                                m_occlusionDepthHeight = 0;
-
 	ComPtr<ID3D12DescriptorHeap>        m_pd3dShadowDsvHeap;
 	ComPtr<ID3D12Resource>              m_pd3dShadowMap;
 	ComPtr<ID3D12Resource>              m_pd3dcbShadow;

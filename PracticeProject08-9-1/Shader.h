@@ -184,7 +184,6 @@ public:
 	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext);
 	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext = nullptr);
 };
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class CShadowMapStaticShader : public CStaticObjectsShader
 {
@@ -229,27 +228,12 @@ public:
 public:
 	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
 };
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class COcclusionStaticShader final : public CStaticObjectsShader
 {
 public:
 	COcclusionStaticShader() = default;
 	~COcclusionStaticShader() override = default;
-
-public:
-	D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob) override;
-	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
-	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
-	D3D12_BLEND_DESC CreateBlendState() override;
-	D3D12_DEPTH_STENCIL_DESC CreateDepthStencilState() override;
-};
-
-class COcclusionDepthStaticShader final : public CStaticObjectsShader
-{
-public:
-	COcclusionDepthStaticShader() = default;
-	~COcclusionDepthStaticShader() override = default;
 
 public:
 	D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob) override;
