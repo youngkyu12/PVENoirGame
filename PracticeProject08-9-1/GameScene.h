@@ -453,10 +453,13 @@ private:
 		int cellZ) const;
 
 	bool IsFineCellInsideTreeCullInnerBlockedArea(
-		int megaX,
-		int megaZ,
-		int cellX,
-		int cellZ) const;
+	int megaX,
+	int megaZ,
+	int cellX,
+	int cellZ) const;
+
+	bool IsTreeCullBlockerCell(int cellX, int cellZ) const;
+	bool RaycastTreeCullGridClear(int startCellX, int startCellZ, int endCellX, int endCellZ) const;
 
 	bool CanFineCellSeeOutsideThroughVillageGate(
 		int megaX,
@@ -663,7 +666,8 @@ private:
 
 	bool m_spatialGridInitialized = false;
 	std::vector<GridStaticCell>		m_gridStaticCells;
-	std::vector<GridDynamicCell>	m_gridDynamicCells;
+	std::vector<uint8_t>				m_treeCullBlockerCells;
+	std::vector<GridDynamicCell>		m_gridDynamicCells;
 	std::array<MegaGridCell, kMegaGridCount> m_megaGridCells = {};
 
 	std::array<GridDynamicTracker, 4> m_playerGridTrackers = {};

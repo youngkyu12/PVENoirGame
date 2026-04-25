@@ -349,6 +349,21 @@ namespace
 		outBounds.Orientation = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
 		return true;
 	}
+	static bool IsTreeCullBlockerAssetName(const std::string& assetName)
+	{
+		return
+			( assetName == "VillageWall" ) ||
+			( assetName == "Tower" ) ||
+			( assetName == "Building1" ) ||
+			( assetName == "Building2" ) ||
+			( assetName == "Building3" ) ||
+			( assetName == "Building4" ) ||
+			( assetName == "Building5" ) ||
+			( assetName == "Building6" ) ||
+			( assetName == "Building7" ) ||
+			( assetName == "Building8" ) ||
+			( assetName == "Building9" );
+	}
 
 	static bool IsSkinnedOcclusionTargetAssetName(const std::string& assetName)
 	{
@@ -640,6 +655,7 @@ void CGameScene::InitializeMegaGridState()
 void CGameScene::InitializeSpatialGrid()
 {
 	m_gridStaticCells.assign(kGridCellCount, GridStaticCell{});
+	m_treeCullBlockerCells.assign(kGridCellCount, 0);
 	m_gridDynamicCells.assign(kGridCellCount, GridDynamicCell{});
 	InitializeMegaGridState();
 
@@ -656,6 +672,7 @@ void CGameScene::InitializeSpatialGrid()
 void CGameScene::ShutdownSpatialGrid()
 {
 	m_gridStaticCells.clear();
+	m_treeCullBlockerCells.clear();
 	m_gridDynamicCells.clear();
 	InitializeMegaGridState();
 
@@ -856,6 +873,90 @@ bool CGameScene::IsFineCellInsideTreeCullInnerBlockedArea(
 		( cellZ >= blockedStartZ && cellZ < blockedEndZ );
 }
 
+bool CGameScene::IsTreeCullBlockerCell(int cellX, int cellZ) const
+{
+	if ( cellX < 0 || cellX >= kGridWidth )
+		return true;
+
+	if ( cellZ < 0 || cellZ >= kGridHeight )
+		return true;
+
+	const int cellIndex = GridCellIndex(cellX, cellZ);
+
+	if ( cellIndex < 0 || cellIndex >= kGridCellCount )
+		return true;
+
+	if ( cellIndex >= ( int ) m_treeCullBlockerCells.size() )
+		return false;
+
+	return m_treeCullBlockerCells[( size_t ) cellIndex] != 0;
+}
+
+bool CGameScene::RaycastTreeCullGridClear(
+	int startCellX,
+	int startCellZ,
+	int endCellX,
+	int endCellZ) const
+{
+	if ( startCellX < 0 || startCellX >= kGridWidth )
+		return false;
+
+	if ( startCellZ < 0 || startCellZ >= kGridHeight )
+		return false;
+
+	if ( endCellX < 0 || endCellX >= kGridWidth )
+		return false;
+
+	if ( endCellZ < 0 || endCellZ >= kGridHeight )
+		return false;
+
+	int x0 = startCellX;
+	int z0 = startCellZ;
+	const int x1 = endCellX;
+	const int z1 = endCellZ;
+
+	const int dx = ( x1 >= x0 ) ? ( x1 - x0 ) : ( x0 - x1 );
+	const int dzAbs = ( z1 >= z0 ) ? ( z1 - z0 ) : ( z0 - z1 );
+
+	const int stepX = ( x0 < x1 ) ? 1 : -1;
+	const int stepZ = ( z0 < z1 ) ? 1 : -1;
+
+	const int dz = -dzAbs;
+	int error = dx + dz;
+
+	bool firstCell = true;
+
+	for ( ;; )
+	{
+		if ( !firstCell )
+		{
+			if ( IsTreeCullBlockerCell(x0, z0) )
+				return false;
+		}
+
+		if ( x0 == x1 && z0 == z1 )
+			break;
+
+		const int error2 = error * 2;
+
+		if ( error2 >= dz )
+		{
+			error += dz;
+			x0 += stepX;
+		}
+
+		if ( error2 <= dx )
+		{
+			error += dx;
+			z0 += stepZ;
+		}
+
+		firstCell = false;
+	}
+
+	return true;
+}
+
 bool CGameScene::CanFineCellSeeOutsideThroughVillageGate(
 	int megaX,
 	int megaZ,
@@ -865,8 +966,8 @@ bool CGameScene::CanFineCellSeeOutsideThroughVillageGate(
 	if ( !IsFineCellInsideTreeCullVillageCenter(megaX, megaZ, cellX, cellZ) )
 		return true;
 
-	if ( IsFineCellInsideTreeCullInnerBlockedArea(megaX, megaZ, cellX, cellZ) )
-		return false;
+	if ( m_treeCullBlockerCells.empty() )
+		return true;
 
 	const int centerSize = kTreeCullVillageCenterSizeCells;
 
@@ -879,133 +980,83 @@ bool CGameScene::CanFineCellSeeOutsideThroughVillageGate(
 	const int centerStartZ =
 		megaStartZ + ( ( kMegaGridCellHeight - centerSize ) / 2 );
 
-	const float localX =
-		static_cast< float >( cellX - centerStartX ) + 0.5f - kTreeCullVillageHalfSize;
+	const int centerEndX = centerStartX + centerSize;
+	const int centerEndZ = centerStartZ + centerSize;
 
-	const float localZ =
-		static_cast< float >( cellZ - centerStartZ ) + 0.5f - kTreeCullVillageHalfSize;
+	const int centerMidX = centerStartX + ( centerSize / 2 );
+	const int centerMidZ = centerStartZ + ( centerSize / 2 );
 
-	const float half = kTreeCullVillageHalfSize;
-	const float gateHalf = kTreeCullGateHalfWidth;
-	const float gateDepth = kTreeCullGateDepth;
-	const float epsilon = 0.0001f;
+	const int gateHalfCells =
+		static_cast< int >( std::ceil(kTreeCullGateHalfWidth) );
 
-	auto OverlapsGateInterval =
-		[ gateHalf ] (float a, float b) -> bool
+	const int gateDepthCells =
+		static_cast< int >( std::ceil(kTreeCullGateDepth) );
+
+	auto TestNorthGate = [ & ] () -> bool
 		{
-			const float minValue = ( a < b ) ? a : b;
-			const float maxValue = ( a > b ) ? a : b;
+			const int targetZ = centerEndZ + gateDepthCells;
 
-			if ( maxValue < -gateHalf )
-				return false;
+			for ( int offset = -gateHalfCells; offset <= gateHalfCells; ++offset )
+			{
+				const int targetX = centerMidX + offset;
 
-			if ( minValue > gateHalf )
-				return false;
+				if ( RaycastTreeCullGridClear(cellX, cellZ, targetX, targetZ) )
+					return true;
+			}
 
-			return true;
+			return false;
 		};
 
-	auto CanSeeNorthGate =
-		[ & ] () -> bool
+	auto TestSouthGate = [ & ] () -> bool
 		{
-			const float innerPlaneZ = half;
-			const float outerPlaneZ = half + gateDepth;
-			const float denom = outerPlaneZ - localZ;
+			const int targetZ = centerStartZ - gateDepthCells - 1;
 
-			if ( std::fabs(denom) < epsilon )
-				return false;
+			for ( int offset = -gateHalfCells; offset <= gateHalfCells; ++offset )
+			{
+				const int targetX = centerMidX + offset;
 
-			const float t = ( innerPlaneZ - localZ ) / denom;
+				if ( RaycastTreeCullGridClear(cellX, cellZ, targetX, targetZ) )
+					return true;
+			}
 
-			if ( t < 0.0f || t > 1.0f )
-				return false;
-
-			const float xAtInnerLeft =
-				localX + t * ( -gateHalf - localX );
-
-			const float xAtInnerRight =
-				localX + t * ( gateHalf - localX );
-
-			return OverlapsGateInterval(xAtInnerLeft, xAtInnerRight);
+			return false;
 		};
 
-	auto CanSeeSouthGate =
-		[ & ] () -> bool
+	auto TestEastGate = [ & ] () -> bool
 		{
-			const float innerPlaneZ = -half;
-			const float outerPlaneZ = -half - gateDepth;
-			const float denom = outerPlaneZ - localZ;
+			const int targetX = centerEndX + gateDepthCells;
 
-			if ( std::fabs(denom) < epsilon )
-				return false;
+			for ( int offset = -gateHalfCells; offset <= gateHalfCells; ++offset )
+			{
+				const int targetZ = centerMidZ + offset;
 
-			const float t = ( innerPlaneZ - localZ ) / denom;
+				if ( RaycastTreeCullGridClear(cellX, cellZ, targetX, targetZ) )
+					return true;
+			}
 
-			if ( t < 0.0f || t > 1.0f )
-				return false;
-
-			const float xAtInnerLeft =
-				localX + t * ( -gateHalf - localX );
-
-			const float xAtInnerRight =
-				localX + t * ( gateHalf - localX );
-
-			return OverlapsGateInterval(xAtInnerLeft, xAtInnerRight);
+			return false;
 		};
 
-	auto CanSeeEastGate =
-		[ & ] () -> bool
+	auto TestWestGate = [ & ] () -> bool
 		{
-			const float innerPlaneX = half;
-			const float outerPlaneX = half + gateDepth;
-			const float denom = outerPlaneX - localX;
+			const int targetX = centerStartX - gateDepthCells - 1;
 
-			if ( std::fabs(denom) < epsilon )
-				return false;
+			for ( int offset = -gateHalfCells; offset <= gateHalfCells; ++offset )
+			{
+				const int targetZ = centerMidZ + offset;
 
-			const float t = ( innerPlaneX - localX ) / denom;
+				if ( RaycastTreeCullGridClear(cellX, cellZ, targetX, targetZ) )
+					return true;
+			}
 
-			if ( t < 0.0f || t > 1.0f )
-				return false;
-
-			const float zAtInnerBottom =
-				localZ + t * ( -gateHalf - localZ );
-
-			const float zAtInnerTop =
-				localZ + t * ( gateHalf - localZ );
-
-			return OverlapsGateInterval(zAtInnerBottom, zAtInnerTop);
-		};
-
-	auto CanSeeWestGate =
-		[ & ] () -> bool
-		{
-			const float innerPlaneX = -half;
-			const float outerPlaneX = -half - gateDepth;
-			const float denom = outerPlaneX - localX;
-
-			if ( std::fabs(denom) < epsilon )
-				return false;
-
-			const float t = ( innerPlaneX - localX ) / denom;
-
-			if ( t < 0.0f || t > 1.0f )
-				return false;
-
-			const float zAtInnerBottom =
-				localZ + t * ( -gateHalf - localZ );
-
-			const float zAtInnerTop =
-				localZ + t * ( gateHalf - localZ );
-
-			return OverlapsGateInterval(zAtInnerBottom, zAtInnerTop);
+			return false;
 		};
 
 	return
-		CanSeeNorthGate() ||
-		CanSeeSouthGate() ||
-		CanSeeEastGate() ||
-		CanSeeWestGate();
+		TestNorthGate() ||
+		TestSouthGate() ||
+		TestEastGate() ||
+		TestWestGate();
 }
 
 bool CGameScene::ShouldCullTreesByVillageGrid(CCamera* camera) const
@@ -1158,9 +1209,25 @@ void CGameScene::RegisterStaticPlacementToGrid(const StaticPlacementEntry& place
 
 	for ( int cellIndex : touchedCells )
 	{
-		if ( cellIndex < 0 || cellIndex >= kGridCellCount ) continue;
+		if ( cellIndex < 0 || cellIndex >= kGridCellCount )
+			continue;
+
 		++m_gridStaticCells[( size_t ) cellIndex].buildingCount;
 		m_gridStaticCells[( size_t ) cellIndex].floorHeight = 0.0f;
+	}
+
+	if ( IsTreeCullBlockerAssetName(placement.assetName) )
+	{
+		for ( int cellIndex : touchedCells )
+		{
+			if ( cellIndex < 0 || cellIndex >= kGridCellCount )
+				continue;
+
+			if ( cellIndex >= ( int ) m_treeCullBlockerCells.size() )
+				continue;
+
+			m_treeCullBlockerCells[( size_t ) cellIndex] = 1;
+		}
 	}
 }
 
