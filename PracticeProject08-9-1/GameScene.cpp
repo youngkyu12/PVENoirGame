@@ -350,6 +350,22 @@ namespace
 		return true;
 	}
 
+	static bool IsStaticOcclusionDepthOccluderAssetName(const std::string& assetName)
+	{
+		return
+			( assetName == "VillageWall" ) ||
+			( assetName == "Tower" ) ||
+			( assetName == "Building1" ) ||
+			( assetName == "Building2" ) ||
+			( assetName == "Building3" ) ||
+			( assetName == "Building4" ) ||
+			( assetName == "Building5" ) ||
+			( assetName == "Building6" ) ||
+			( assetName == "Building7" ) ||
+			( assetName == "Building8" ) ||
+			( assetName == "Building9" );
+	}
+
 	static bool IsSkinnedOcclusionTargetAssetName(const std::string& assetName)
 	{
 		return
@@ -1205,6 +1221,7 @@ void CGameScene::ReleaseObjects()
 	m_depthFogShader.reset();
 
 	m_occlusionStaticShader.reset();
+	m_occlusionDepthStaticShader.reset();
 	m_shadowStaticShader.reset();
 	m_shadowAlphaClipStaticShader.reset();
 	m_shadowSkinnedShader.reset();
@@ -1343,6 +1360,7 @@ void CGameScene::ReleaseShaderVariables()
 {
 	ReleaseStaticOcclusionGpuResources();
 	ReleaseSkinnedOcclusionGpuResources();
+	ReleaseOcclusionDepthResources();
 
 	if ( m_pd3dStaticInstanceBuffer )
 	{
@@ -1579,7 +1597,8 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	auto pSkinnedShader = std::make_shared<CSkinnedObjectsShader>();
 	auto pColliderShader = std::make_shared<CDiffusedShader>();
 	auto pOcclusionStaticShader = std::make_shared<COcclusionStaticShader>();
-	auto pShadowStaticShader = std::make_shared<CShadowMapStaticShader>();
+	auto pOcclusionDepthStaticShader = std::make_shared<COcclusionDepthStaticShader>();
+	auto pShadowStaticShader = std::make_shared<CShadowMapStaticShader>(); 
 	auto pShadowAlphaClipStaticShader = std::make_shared<CShadowMapAlphaClipStaticShader>();
 	auto pShadowSkinnedShader = std::make_shared<CShadowMapSkinnedShader>();
 	auto pShadowAlphaClipSkinnedShader = std::make_shared<CShadowMapAlphaClipSkinnedShader>();
@@ -1589,6 +1608,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_skinnedBatch.shader = pSkinnedShader;
 	m_colliderBatch.shader = pColliderShader;
 	m_occlusionStaticShader = pOcclusionStaticShader;
+	m_occlusionDepthStaticShader = pOcclusionDepthStaticShader;
 	m_shadowStaticShader = pShadowStaticShader;
 	m_shadowAlphaClipStaticShader = pShadowAlphaClipStaticShader;
 	m_shadowSkinnedShader = pShadowSkinnedShader;
@@ -1606,6 +1626,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	BuildLightsAndMaterials();
 	BuildUIResources(dev, cmd);
 	BuildDepthFogResources(dev, cmd);
+	BuildOcclusionDepthResources(dev);
 	BuildShadowResources(dev, cmd);
 
 	for ( auto& lo : m_lightObjects )
@@ -1623,6 +1644,14 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
 	pTreeStaticShader->CreateShader(dev, m_pd3dGraphicsRootSignature.Get(), kRTCount, rtvFormats, kDsvFormat);
 	pOcclusionStaticShader->CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		0,
+		nullptr,
+		DXGI_FORMAT_D24_UNORM_S8_UINT
+	);
+
+	pOcclusionDepthStaticShader->CreateShader(
 		dev,
 		m_pd3dGraphicsRootSignature.Get(),
 		0,
@@ -2954,8 +2983,8 @@ void CGameScene::BuildStaticBatch(
 
 	BuildStaticOcclusionEntries();
 	BuildStaticOcclusionUnitBoxMesh(dev, cmd);
-	BuildStaticOcclusionGpuResources(dev);
 	BuildStaticInstanceGroups();
+	BuildStaticOcclusionGpuResources(dev);
 
 	if ( m_pd3dStaticInstanceBuffer )
 	{
@@ -3000,17 +3029,18 @@ void CGameScene::ResetStaticOcclusionEntries()
 	m_staticOcclusionLastFrameIssuedFlags.clear();
 	m_staticOcclusionCurrentFrameIssuedFlags.clear();
 	m_staticOcclusionZeroSampleFrameCounts.clear();
+	m_staticOcclusionDepthOccluderFlags.clear();
 	m_staticOcclusionQueryCapacity = 0;
 	m_bStaticOcclusionQueryResultsValid = false;
 }
-
 void CGameScene::BuildStaticOcclusionEntries()
 {
 	ResetStaticOcclusionEntries();
 
 	m_staticOcclusionCullFlags.assign(m_staticBatch.objectRefs.size(), 0);
+	m_staticOcclusionDepthOccluderFlags.assign(m_staticBatch.objectRefs.size(), 0);
 
-	for ( const StaticWorldLodEntry& lodEntry : m_staticWorldLodEntries )
+	for ( const StaticWorldLodEntry& lodEntry : m_staticWorldLodEntries ) 
 	{
 		if ( !lodEntry.object )
 			continue;
@@ -3023,18 +3053,10 @@ void CGameScene::BuildStaticOcclusionEntries()
 
 		const std::string& assetName = lodEntry.assetName;
 
+		if ( IsStaticOcclusionDepthOccluderAssetName(assetName) )
+			m_staticOcclusionDepthOccluderFlags[lodEntry.staticBatchObjectIndex] = 1;
+
 		const bool isOcclusionTarget =
-			( assetName == "VillageWall" ) ||
-			( assetName == "Tower" ) ||
-			( assetName == "Building1" ) ||
-			( assetName == "Building2" ) ||
-			( assetName == "Building3" ) ||
-			( assetName == "Building4" ) ||
-			( assetName == "Building5" ) ||
-			( assetName == "Building6" ) ||
-			( assetName == "Building7" ) ||
-			( assetName == "Building8" ) ||
-			( assetName == "Building9" ) ||
 			( assetName == "Tree1" ) ||
 			( assetName == "Tree2" ) ||
 			( assetName == "Tree3" ) ||
@@ -3194,9 +3216,9 @@ void CGameScene::BuildStaticOcclusionGpuResources(ID3D12Device* dev)
 	}
 
 	hr = m_pd3dStaticOcclusionInstanceBuffer->Map(
-		0,
-		nullptr,
-		reinterpret_cast< void** >( &m_pMappedStaticOcclusionInstanceBuffer )
+	0,
+	nullptr,
+	reinterpret_cast< void** >( &m_pMappedStaticOcclusionInstanceBuffer )
 	);
 
 	if ( FAILED(hr) || !m_pMappedStaticOcclusionInstanceBuffer )
@@ -3206,11 +3228,72 @@ void CGameScene::BuildStaticOcclusionGpuResources(ID3D12Device* dev)
 		return;
 	}
 
+	m_staticOcclusionDepthInstanceBufferCapacity = m_staticInstanceBufferCapacity;
+
+	if ( m_staticOcclusionDepthInstanceBufferCapacity > 0 )
+	{
+		D3D12_RESOURCE_DESC depthInstanceBufferDesc{};
+		depthInstanceBufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		depthInstanceBufferDesc.Alignment = 0;
+		depthInstanceBufferDesc.Width =
+			sizeof(StaticInstanceVertex) * m_staticOcclusionDepthInstanceBufferCapacity;
+		depthInstanceBufferDesc.Height = 1;
+		depthInstanceBufferDesc.DepthOrArraySize = 1;
+		depthInstanceBufferDesc.MipLevels = 1;
+		depthInstanceBufferDesc.Format = DXGI_FORMAT_UNKNOWN;
+		depthInstanceBufferDesc.SampleDesc.Count = 1;
+		depthInstanceBufferDesc.SampleDesc.Quality = 0;
+		depthInstanceBufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		depthInstanceBufferDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+		hr = dev->CreateCommittedResource(
+			&uploadHeapProps,
+			D3D12_HEAP_FLAG_NONE,
+			&depthInstanceBufferDesc,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(m_pd3dStaticOcclusionDepthInstanceBuffer.ReleaseAndGetAddressOf())
+		);
+
+		if ( FAILED(hr) )
+		{
+			OutputDebugStringA("[Occlusion] Create occlusion depth prepass instance buffer failed.\n");
+			ReleaseStaticOcclusionGpuResources();
+			return;
+		}
+
+		hr = m_pd3dStaticOcclusionDepthInstanceBuffer->Map(
+			0,
+			nullptr,
+			reinterpret_cast< void** >( &m_pMappedStaticOcclusionDepthInstanceBuffer )
+		);
+
+		if ( FAILED(hr) || !m_pMappedStaticOcclusionDepthInstanceBuffer )
+		{
+			OutputDebugStringA("[Occlusion] Map occlusion depth prepass instance buffer failed.\n");
+			ReleaseStaticOcclusionGpuResources();
+			return;
+		}
+	}
+
 	m_bStaticOcclusionQueryResourcesReady = true;
 }
 
 void CGameScene::ReleaseStaticOcclusionGpuResources()
 {
+	if ( m_pd3dStaticOcclusionDepthInstanceBuffer )
+	{
+		if ( m_pMappedStaticOcclusionDepthInstanceBuffer )
+		{
+			m_pd3dStaticOcclusionDepthInstanceBuffer->Unmap(0, nullptr);
+			m_pMappedStaticOcclusionDepthInstanceBuffer = nullptr;
+		}
+
+		m_pd3dStaticOcclusionDepthInstanceBuffer.Reset();
+	}
+
+	m_staticOcclusionDepthInstanceBufferCapacity = 0;
+
 	if ( m_pd3dStaticOcclusionInstanceBuffer )
 	{
 		if ( m_pMappedStaticOcclusionInstanceBuffer )
@@ -3243,6 +3326,7 @@ void CGameScene::ReleaseStaticOcclusionGpuResources()
 	m_staticOcclusionLastFrameIssuedFlags.clear();
 	m_staticOcclusionCurrentFrameIssuedFlags.clear();
 	m_staticOcclusionZeroSampleFrameCounts.clear();
+	m_staticOcclusionDepthOccluderFlags.clear();
 }
 
 void CGameScene::BeginStaticOcclusionReadback()
@@ -3295,6 +3379,184 @@ void CGameScene::ResolveStaticOcclusionQueries(ID3D12GraphicsCommandList* cmd)
 	m_bStaticOcclusionQueryResultsValid = true;
 }
 
+void CGameScene::RenderStaticOcclusionDepthPrePass(ID3D12GraphicsCommandList* cmd, CCamera* camera)
+{
+	if ( !cmd )
+		return;
+
+	if ( !camera )
+		return;
+
+	if ( !m_bStaticOcclusionCullingEnabled && !m_bSkinnedOcclusionCullingEnabled )
+		return;
+
+	if ( !m_pd3dOcclusionDepthMap )
+		return;
+
+	if ( !m_occlusionDepthStaticShader )
+		return;
+
+	if ( !m_pd3dStaticOcclusionDepthInstanceBuffer )
+		return;
+
+	if ( !m_pMappedStaticOcclusionDepthInstanceBuffer )
+		return;
+
+	if ( m_staticOcclusionDepthInstanceBufferCapacity == 0 )
+		return;
+
+	if ( m_staticOcclusionDepthOccluderFlags.empty() )
+		return;
+
+	cmd->SetGraphicsRootSignature(GetGraphicsRootSignature());
+
+	if ( m_pDescriptorHeap && m_pDescriptorHeap->m_pd3dCbvSrvDescriptorHeap )
+	{
+		cmd->SetDescriptorHeaps(
+			1,
+			m_pDescriptorHeap->m_pd3dCbvSrvDescriptorHeap.GetAddressOf()
+		);
+
+		cmd->SetGraphicsRootDescriptorTable(
+			ROOT_PARAMETER_GLOBAL_SRV,
+			m_pDescriptorHeap->GetGPUSrvDescriptorStartHandle()
+		);
+	}
+
+	cmd->RSSetViewports(1, &m_occlusionDepthViewport);
+	cmd->RSSetScissorRects(1, &m_occlusionDepthScissorRect);
+
+	cmd->OMSetRenderTargets(
+		0,
+		nullptr,
+		FALSE,
+		&m_occlusionDepthDsvHandle
+	);
+
+	cmd->ClearDepthStencilView(
+		m_occlusionDepthDsvHandle,
+		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
+		1.0f,
+		0,
+		0,
+		nullptr
+	);
+
+	m_occlusionDepthStaticShader->Render(cmd, camera, &m_staticBatch);
+	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	for ( const StaticInstanceGroup& group : m_staticInstanceGroups )
+	{
+		if ( !group.mesh )
+			continue;
+
+		if ( group.subMeshIndex >= group.mesh->m_SubMeshes.size() )
+			continue;
+
+		if ( group.useTreeShader )
+			continue;
+
+		const SubMesh& sm = group.mesh->m_SubMeshes[group.subMeshIndex];
+		if ( sm.indices.empty() )
+			continue;
+
+		const UINT maxInstanceCount = ( UINT ) group.objectIndices.size();
+		if ( maxInstanceCount == 0 )
+			continue;
+
+		const UINT instanceBase = group.instanceBufferStart;
+		if ( ( instanceBase + maxInstanceCount ) > m_staticOcclusionDepthInstanceBufferCapacity )
+			continue;
+
+		UINT visibleInstanceCount = 0;
+
+		for ( UINT i = 0; i < maxInstanceCount; ++i )
+		{
+			const UINT objectIndex = group.objectIndices[i];
+
+			if ( objectIndex >= ( UINT ) m_staticBatch.objectRefs.size() )
+				continue;
+
+			if ( objectIndex >= ( UINT ) m_staticOcclusionDepthOccluderFlags.size() )
+				continue;
+
+			if ( m_staticOcclusionDepthOccluderFlags[objectIndex] == 0 )
+				continue;
+
+			if ( objectIndex < ( UINT ) m_staticDistanceCullFlags.size() )
+			{
+				if ( m_staticDistanceCullFlags[objectIndex] != 0 )
+					continue;
+			}
+
+			if ( objectIndex < ( UINT ) m_staticOcclusionCullFlags.size() )
+			{
+				if ( m_staticOcclusionCullFlags[objectIndex] != 0 )
+					continue;
+			}
+
+			CGameObject* obj = m_staticBatch.objectRefs[objectIndex]; 
+			if ( !obj )
+				continue;
+
+			if ( !obj->IsVisible(camera) )
+				continue;
+
+			auto* renderer = obj->GetComponent<CStaticMeshRendererComponent>();
+			if ( !renderer )
+				continue;
+
+			if ( !renderer->IsEnabled() )
+				continue;
+
+			StaticInstanceVertex& dst =
+				m_pMappedStaticOcclusionDepthInstanceBuffer[instanceBase + visibleInstanceCount];
+
+			ZeroMemory(&dst, sizeof(dst));
+
+			const XMFLOAT4X4& W = obj->GetWorldMatrix();
+
+			dst.world0 = XMFLOAT4(W._11, W._12, W._13, W._14);
+			dst.world1 = XMFLOAT4(W._21, W._22, W._23, W._24);
+			dst.world2 = XMFLOAT4(W._31, W._32, W._33, W._34);
+			dst.world3 = XMFLOAT4(W._41, W._42, W._43, W._44);
+			dst.objectId = objectIndex;
+
+			++visibleInstanceCount;
+		}
+
+		if ( visibleInstanceCount == 0 )
+			continue;
+
+		D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
+		vbViews[0] = sm.vbView;
+		vbViews[1].BufferLocation =
+			m_pd3dStaticOcclusionDepthInstanceBuffer->GetGPUVirtualAddress() +
+			( UINT64 ) ( sizeof(StaticInstanceVertex) * instanceBase );
+		vbViews[1].SizeInBytes = sizeof(StaticInstanceVertex) * visibleInstanceCount;
+		vbViews[1].StrideInBytes = sizeof(StaticInstanceVertex);
+
+		const UINT mid = ( sm.materialId == 0xFFFFFFFFu ) ? 0u : sm.materialId;
+		cmd->SetGraphicsRoot32BitConstant(ROOT_PARAMETER_MATERIAL_ID, mid, 0);
+
+		if ( sm.material && sm.material->NeedsLegacyBinding() )
+			sm.material->UpdateShaderVariables(cmd);
+
+		cmd->IASetVertexBuffers(0, 2, vbViews);
+		cmd->IASetIndexBuffer(&sm.ibView);
+
+		cmd->DrawIndexedInstanced(
+			( UINT ) sm.indices.size(),
+			visibleInstanceCount,
+			0,
+			0,
+			0
+		);
+	}
+
+	RestoreSceneRenderTargets(cmd, camera);
+}
+
 void CGameScene::RenderStaticOcclusionPass(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	if ( !cmd )
@@ -3319,6 +3581,8 @@ void CGameScene::RenderStaticOcclusionPass(ID3D12GraphicsCommandList* cmd, CCame
 		return;
 
 	if ( !m_bSceneRenderTargetsReady )
+		return;
+	if ( !m_pd3dOcclusionDepthMap )
 		return;
 
 	if ( !m_pd3dStaticOcclusionInstanceBuffer )
@@ -3345,13 +3609,14 @@ void CGameScene::RenderStaticOcclusionPass(ID3D12GraphicsCommandList* cmd, CCame
 		);
 	}
 
-	camera->SetViewportsAndScissorRects(cmd);
+	cmd->RSSetViewports(1, &m_occlusionDepthViewport);
+	cmd->RSSetScissorRects(1, &m_occlusionDepthScissorRect);
 
 	cmd->OMSetRenderTargets(
 		0,
 		nullptr,
 		FALSE,
-		&m_sceneDsvHandle
+		&m_occlusionDepthDsvHandle
 	);
 
 	m_occlusionStaticShader->Render(cmd, camera, &m_staticBatch);
@@ -3503,6 +3768,9 @@ void CGameScene::RenderSkinnedOcclusionPass(ID3D12GraphicsCommandList* cmd, CCam
 	if ( !m_bSceneRenderTargetsReady )
 		return;
 
+	if ( !m_pd3dOcclusionDepthMap )
+		return;
+
 	if ( !m_pd3dSkinnedOcclusionInstanceBuffer )
 		return;
 
@@ -3527,13 +3795,14 @@ void CGameScene::RenderSkinnedOcclusionPass(ID3D12GraphicsCommandList* cmd, CCam
 		);
 	}
 
-	camera->SetViewportsAndScissorRects(cmd);
+	cmd->RSSetViewports(1, &m_occlusionDepthViewport);
+	cmd->RSSetScissorRects(1, &m_occlusionDepthScissorRect);
 
 	cmd->OMSetRenderTargets(
 		0,
 		nullptr,
 		FALSE,
-		&m_sceneDsvHandle
+		&m_occlusionDepthDsvHandle
 	);
 
 	m_occlusionStaticShader->Render(cmd, camera, &m_staticBatch);
@@ -6532,6 +6801,105 @@ void CGameScene::BuildDepthFogResources(ID3D12Device* dev, ID3D12GraphicsCommand
 	m_depthFogShader->CreateShaderVariables(dev, cmd);
 }
 
+void CGameScene::BuildOcclusionDepthResources(ID3D12Device* dev)
+{
+	if ( !dev )
+		return;
+
+	ReleaseOcclusionDepthResources();
+
+	m_occlusionDepthWidth = FRAME_BUFFER_WIDTH;
+	m_occlusionDepthHeight = FRAME_BUFFER_HEIGHT;
+
+	m_occlusionDepthViewport = {
+		0.0f,
+		0.0f,
+		static_cast< float >( m_occlusionDepthWidth ),
+		static_cast< float >( m_occlusionDepthHeight ),
+		0.0f,
+		1.0f
+	};
+
+	m_occlusionDepthScissorRect = {
+		0,
+		0,
+		static_cast< LONG >( m_occlusionDepthWidth ),
+		static_cast< LONG >( m_occlusionDepthHeight )
+	};
+
+	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc{};
+	dsvHeapDesc.NumDescriptors = 1;
+	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	dsvHeapDesc.NodeMask = 0;
+
+	HRESULT hr = dev->CreateDescriptorHeap(
+		&dsvHeapDesc,
+		IID_PPV_ARGS(m_pd3dOcclusionDepthDsvHeap.ReleaseAndGetAddressOf())
+	);
+
+	if ( FAILED(hr) )
+	{
+		OutputDebugStringA("[OcclusionDepth] Create DSV heap failed.\n");
+		return;
+	}
+
+	D3D12_CLEAR_VALUE clearValue{};
+	clearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	clearValue.DepthStencil.Depth = 1.0f;
+	clearValue.DepthStencil.Stencil = 0;
+
+	m_pd3dOcclusionDepthMap.Attach(
+		::CreateTexture2DResource(
+			dev,
+			m_occlusionDepthWidth,
+			m_occlusionDepthHeight,
+			1,
+			1,
+			DXGI_FORMAT_R24G8_TYPELESS,
+			D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
+			D3D12_RESOURCE_STATE_DEPTH_WRITE,
+			&clearValue
+		)
+	);
+
+	if ( !m_pd3dOcclusionDepthMap )
+	{
+		OutputDebugStringA("[OcclusionDepth] Create depth resource failed.\n");
+		ReleaseOcclusionDepthResources();
+		return;
+	}
+
+	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
+	dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
+
+	m_occlusionDepthDsvHandle =
+		m_pd3dOcclusionDepthDsvHeap->GetCPUDescriptorHandleForHeapStart();
+
+	dev->CreateDepthStencilView(
+		m_pd3dOcclusionDepthMap.Get(),
+		&dsvDesc,
+		m_occlusionDepthDsvHandle
+	);
+}
+
+void CGameScene::ReleaseOcclusionDepthResources()
+{
+	if ( m_pd3dOcclusionDepthMap )
+		m_pd3dOcclusionDepthMap.Reset();
+
+	if ( m_pd3dOcclusionDepthDsvHeap )
+		m_pd3dOcclusionDepthDsvHeap.Reset();
+
+	m_occlusionDepthDsvHandle = {};
+	m_occlusionDepthViewport = {};
+	m_occlusionDepthScissorRect = {};
+	m_occlusionDepthWidth = 0;
+	m_occlusionDepthHeight = 0;
+}
+
 void CGameScene::BuildShadowResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
 	UNREFERENCED_PARAMETER(cmd);
@@ -8014,6 +8382,7 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 		RenderSkinnedInstanceGroups(cmd, camera);
 	}
 
+	RenderStaticOcclusionDepthPrePass(cmd, camera);
 	RenderStaticOcclusionPass(cmd, camera);
 	RenderSkinnedOcclusionPass(cmd, camera);
 
