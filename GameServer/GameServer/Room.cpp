@@ -6,7 +6,6 @@
 #include "GameSession.h"
 #include "GameArea.h"
 #include "ColliderComponent.h"
-#include "MonsterAI.h"
 #include "Projectile.h"
 
 #include "Protocol.pb.h"
@@ -330,7 +329,6 @@ void Room::BuildRoom()
 		auto enemy = make_shared<CEnemy>(enemyId, spawn.type, enemyType, nullptr);
 		enemy->Build(SampleEnemySpawn(spawn.position), GameMath::Vec3(0, 0, 0));
 		enemy->SetYaw(GameMath::NormalizeYaw(spawn.yawDeg));
-		enemy->AddComponent<CMonsterAI>();
 		RegisterDynamicCollider(enemy);
 		enemies[enemyId] = enemy;
 	}

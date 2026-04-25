@@ -26,8 +26,21 @@ namespace
 
 void Room::ProcessEnemyAI()
 {
-	// Enemy의 실행 처리는 따로 초당 한번씩 실행되도록 함
-	GRoom->DoTimer(1000, &Room::ProcessEnemyAI);
+	constexpr float kEnemyAiActiveRange = 100.0f;
+	constexpr float kEnemyAiActiveRangeSq = kEnemyAiActiveRange * kEnemyAiActiveRange;
+	constexpr float kFixedDtSec = 0.03f;
+
+	for (auto& enemyPair : enemies)
+	{
+		auto& enemy = enemyPair.second;
+		if (!enemy)
+			continue;
+
+		if (IsEnemyNearAnyPlayer(players, enemy->GetPosition(), kEnemyAiActiveRangeSq))
+			enemy->UpdateAI(kFixedDtSec);
+		else
+			enemy->SetVelocity(GameMath::Vec3::Zero());
+	}
 }
 
 
@@ -37,6 +50,7 @@ void Room::TickAdvance()
 	const auto frameStart = std::chrono::steady_clock::now();
 
 	MakeFrameState(tick.load());
+	ProcessEnemyAI();
 
 	for (auto player : players)
 	{
@@ -47,19 +61,9 @@ void Room::TickAdvance()
 
 	for (auto enemy : enemies)
 	{
-		constexpr float kEnemyAiActiveRange = 100.0f;
-		constexpr float kEnemyAiActiveRangeSq = kEnemyAiActiveRange * kEnemyAiActiveRange;
-
 		const GameMath::Vec3 prevPos = enemy.second->GetPosition();
-		if (IsEnemyNearAnyPlayer(players, prevPos, kEnemyAiActiveRangeSq))
-		{
-			enemy.second->Update(tick);
-			ResolveWorldStaticCollision(enemy.second, prevPos);
-		}
-		else
-		{
-			enemy.second->SetVelocity(GameMath::Vec3::Zero());
-		}
+		enemy.second->Update(tick);
+		ResolveWorldStaticCollision(enemy.second, prevPos);
 	}
 
 	for (auto& p : m_arrowPool)
