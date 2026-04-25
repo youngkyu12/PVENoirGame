@@ -42,19 +42,16 @@ float3 BlinnPhong(
     float3 vToCamera,
     float4 texColor,
     float3 specularColor,
-    float shininess,
-    float shadowFactor)
+    float shininess)
 {
-    float3 lit = texColor.rgb * fDiffuseFactor * shadowFactor;
-
     if (shininess <= 0.0f)
-        return lit;
+        return texColor.rgb * fDiffuseFactor;
 
     if (specularColor.r <= 0.0f &&
         specularColor.g <= 0.0f &&
         specularColor.b <= 0.0f)
     {
-        return lit;
+        return texColor.rgb * fDiffuseFactor;
     }
 
     float3 vHalf = normalize(vToCamera + vToLight);
@@ -67,8 +64,7 @@ float3 BlinnPhong(
     float3 specAlbedo = fresnelFactor * roughnessFactor;
     specAlbedo = specAlbedo / (specAlbedo + 1.0f);
 
-    lit = (texColor.rgb + specAlbedo) * fDiffuseFactor;
-    return lit;
+    return (texColor.rgb + specAlbedo) * fDiffuseFactor;
 }
 
 float4 DirectionalLight(
@@ -79,8 +75,9 @@ float4 DirectionalLight(
     float4 texColor,
     float3 specularColor,
     float shininess,
-    float shadowFactor)
+    float4 shadowPosH)
 {
+    MATERIAL mat = gMaterials[materialId];
     float3 vToLight = normalize(-gLights[nIndex].m_vDirection);
     float ndotl = saturate(dot(vToLight, normalize(vNormal)));
 
@@ -92,13 +89,16 @@ float4 DirectionalLight(
         vToCamera,
         texColor,
         specularColor,
-        shininess,
-        shadowFactor
+        shininess
     );
 
-    float3 ambientColor = gLights[nIndex].m_cAmbient.rgb * texColor.rgb;
+    float shadowFactor = CalcShadowFactor(shadowPosH, vNormal, vToLight);
 
-    return float4(ambientColor + litColor, 0.0f);
+    float3 ambientColor =
+        gLights[nIndex].m_cAmbient.rgb *
+        texColor.rgb;
+
+    return float4(ambientColor + (litColor * shadowFactor), 0.0f);
 }
 
 float4 PointLight(
@@ -109,10 +109,9 @@ float4 PointLight(
     float3 vToCamera,
     float4 texColor,
     float3 specularColor,
-    float shininess,
-    float shadowFactor)
+    float shininess)
 {
-    float4 c = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    MATERIAL mat = gMaterials[materialId];
     float3 vToLight = gLights[nIndex].m_vPosition - vPosition;
     float fDistance = length(vToLight);
 
@@ -130,11 +129,12 @@ float4 PointLight(
             vToCamera,
             texColor,
             specularColor,
-            shininess,
-            shadowFactor
+            shininess
         );
 
-        float3 ambientColor = gLights[nIndex].m_cAmbient.rgb * texColor.rgb;
+        float3 ambientColor =
+            gLights[nIndex].m_cAmbient.rgb *
+            texColor.rgb;
 
         float fAttenuationFactor =
             1.0f / dot(
@@ -142,11 +142,10 @@ float4 PointLight(
                 float3(1.0f, fDistance, fDistance * fDistance)
             );
 
-        c = float4(ambientColor + litColor, 0.0f) * fAttenuationFactor;
-        return c;
+        return float4(ambientColor + litColor, 0.0f) * fAttenuationFactor;
     }
 
-    return c;
+    return float4(0.0f, 0.0f, 0.0f, 0.0f);
 }
 
 float4 SpotLight(
@@ -157,10 +156,10 @@ float4 SpotLight(
     float3 vToCamera,
     float4 texColor,
     float3 specularColor,
-    float shininess,
-    float shadowFactor)
+    float shininess)
 {
-    float4 c = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    MATERIAL mat = gMaterials[materialId];
+
     float3 vToLight = gLights[nIndex].m_vPosition - vPosition;
     float fDistance = length(vToLight);
 
@@ -178,8 +177,7 @@ float4 SpotLight(
             vToCamera,
             texColor,
             specularColor,
-            shininess,
-            shadowFactor
+            shininess
         );
 
 #ifdef _WITH_THETA_PHI_CONES
@@ -198,8 +196,9 @@ float4 SpotLight(
             gLights[nIndex].m_fFalloff
         );
 #endif
-
-        float3 ambientColor = gLights[nIndex].m_cAmbient.rgb * texColor.rgb;
+        float3 ambientColor =
+            gLights[nIndex].m_cAmbient.rgb *
+            texColor.rgb;
 
         float fAttenuationFactor =
             1.0f / dot(
@@ -207,11 +206,10 @@ float4 SpotLight(
                 float3(1.0f, fDistance, fDistance * fDistance)
             );
 
-        c = float4(ambientColor + litColor, 0.0f) * fAttenuationFactor * fSpotFactor;
-        return c;
+        return float4(ambientColor + litColor, 0.0f) * fAttenuationFactor * fSpotFactor;
     }
 
-    return c;
+    return float4(0.0f, 0.0f, 0.0f, 0.0f);
 }
 
 float4 Lighting(
@@ -222,8 +220,9 @@ float4 Lighting(
     float3 emissiveColor,
     float3 specularColor,
     float shininess,
-    float shadowFactor)
+    float4 shadowPosH)
 {
+    MATERIAL mat = gMaterials[materialId];
     float3 vCameraPosition = float3(gvCameraPosition.x, gvCameraPosition.y, gvCameraPosition.z);
     float3 vToCamera = normalize(vCameraPosition - vPosition);
 
@@ -237,15 +236,42 @@ float4 Lighting(
 
         if (gLights[i].m_nType == DIRECTIONAL_LIGHT)
         {
-            cColor += DirectionalLight(i, materialId, N, vToCamera, texColor, specularColor, shininess, shadowFactor);
+            cColor += DirectionalLight(
+                i,
+                materialId,
+                N,
+                vToCamera,
+                texColor,
+                specularColor,
+                shininess,
+                shadowPosH
+            );
         }
         else if (gLights[i].m_nType == POINT_LIGHT)
         {
-            cColor += PointLight(i, materialId, vPosition, N, vToCamera, texColor, specularColor, shininess, shadowFactor);
+            cColor += PointLight(
+                i,
+                materialId,
+                vPosition,
+                N,
+                vToCamera,
+                texColor,
+                specularColor,
+                shininess
+            );
         }
         else if (gLights[i].m_nType == SPOT_LIGHT)
         {
-            cColor += SpotLight(i, materialId, vPosition, N, vToCamera, texColor, specularColor, shininess, shadowFactor);
+            cColor += SpotLight(
+                i,
+                materialId,
+                vPosition,
+                N,
+                vToCamera,
+                texColor,
+                specularColor,
+                shininess
+            );
         }
     }
 
