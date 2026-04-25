@@ -257,6 +257,8 @@ private:
 	bool ComputeStaticWorldDistanceCulled(const XMFLOAT3& cameraPosition, const StaticWorldLodEntry& entry) const;
 	void UpdateStaticWorldLodSelection(CCamera* camera);
 	void UpdateStaticOcclusionCullSelection(CCamera* camera);
+	void UpdateStaticTreeGridCullSelection(CCamera* camera);
+	bool IsStaticTreeObject(const CGameObject* obj) const;
 	void RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 	void BuildSkinnedInstanceGroups();
@@ -659,6 +661,7 @@ private:
 	std::vector<StaticOcclusionEntry>   m_staticOcclusionEntries;
 	std::vector<uint8_t>                m_staticDistanceCullFlags;
 	std::vector<uint8_t>                m_staticOcclusionCullFlags;
+	std::vector<uint8_t>                m_staticTreeGridCullFlags;
 	std::vector<UINT64>                 m_staticOcclusionQuerySampleCounts;
 	std::vector<uint8_t>                m_staticOcclusionLastFrameIssuedFlags;
 	std::vector<uint8_t>                m_staticOcclusionCurrentFrameIssuedFlags;
@@ -671,6 +674,7 @@ private:
 	bool                                m_bStaticOcclusionQueryResultsValid = false;
 	bool                                m_staticWorldLodDirty = false;
 	bool                                m_bStaticOcclusionCullingEnabled = true;
+	bool                                m_bStaticTreeGridCullingEnabled = true;
 	UINT                                m_staticOcclusionHideFrameThreshold = 8;
 	float                               m_staticOcclusionMinTestDistance = 50.0f;
 	float                               m_staticOcclusionMaxCullExtentDistanceRatio = 0.20f;

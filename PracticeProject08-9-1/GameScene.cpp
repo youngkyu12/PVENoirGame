@@ -1144,6 +1144,7 @@ void CGameScene::ReleaseObjects()
 	m_treeStaticShader.reset();
 	m_treeAlphaClipObjects.clear();
 	m_skinnedAlphaClipObjects.clear();
+	m_staticTreeGridCullFlags.clear();
 
     m_staticObjects.clear();
     m_skinnedObjects.clear();
@@ -2957,6 +2958,8 @@ void CGameScene::BuildStaticBatch(
 	BuildStaticOcclusionGpuResources(dev);
 	BuildStaticInstanceGroups();
 
+	m_staticTreeGridCullFlags.assign(m_staticBatch.objectRefs.size(), 0);
+
 	if ( m_pd3dStaticInstanceBuffer )
 	{
 		if ( m_pMappedStaticInstanceBuffer )
@@ -2989,6 +2992,7 @@ void CGameScene::ResetStaticWorldLodEntries()
 {
 	m_staticWorldLodEntries.clear();
 	m_staticDistanceCullFlags.clear();
+	m_staticTreeGridCullFlags.clear();
 	m_staticWorldLodDirty = false;
 }
 
@@ -3034,13 +3038,7 @@ void CGameScene::BuildStaticOcclusionEntries()
 			( assetName == "Building6" ) ||
 			( assetName == "Building7" ) ||
 			( assetName == "Building8" ) ||
-			( assetName == "Building9" ) ||
-			( assetName == "Tree1" ) ||
-			( assetName == "Tree2" ) ||
-			( assetName == "Tree3" ) ||
-			( assetName == "Tree4" ) ||
-			( assetName == "Tree5" ) ||
-			( assetName == "Tree6" );
+			( assetName == "Building9" );
 
 		if ( !isOcclusionTarget )
 			continue;
@@ -3784,6 +3782,40 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 		{
 			m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
 		}
+	}
+}
+
+bool CGameScene::IsStaticTreeObject(const CGameObject* obj) const
+{
+	if ( !obj )
+		return false;
+
+	return m_treeAlphaClipObjects.find(obj) != m_treeAlphaClipObjects.end();
+}
+
+void CGameScene::UpdateStaticTreeGridCullSelection(CCamera* camera)
+{
+	m_staticTreeGridCullFlags.assign(m_staticBatch.objectRefs.size(), 0);
+
+	if ( !m_bStaticTreeGridCullingEnabled )
+		return;
+
+	if ( !camera )
+		return;
+
+	// 2단계에서 여기에 플레이어/카메라 grid 기반 Tree cull 판정을 넣는다.
+	// 현재 1단계에서는 준비만 하므로 모든 Tree를 visible 상태로 둔다.
+
+	for ( UINT objectIndex = 0; objectIndex < ( UINT ) m_staticBatch.objectRefs.size(); ++objectIndex )
+	{
+		CGameObject* obj = m_staticBatch.objectRefs[objectIndex];
+
+		if ( !IsStaticTreeObject(obj) )
+			continue;
+
+		// 2단계 예정:
+		// if ( 현재 플레이어 위치/카메라 방향 기준으로 Tree를 숨겨야 하는 상태 )
+		//     m_staticTreeGridCullFlags[objectIndex] = 1;
 	}
 }
 
@@ -7951,6 +7983,7 @@ void CGameScene::OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera
 		UpdateStaticWorldLodSelection(camera);
 		BeginStaticOcclusionReadback();
 		UpdateStaticOcclusionCullSelection(camera);
+		UpdateStaticTreeGridCullSelection(camera);
 
 		UpdateSkinnedWorldLodSelection(camera);
 		BeginSkinnedOcclusionReadback();
