@@ -388,6 +388,11 @@ private:
 	static constexpr float kTreeCullGateHalfWidth = 4.0f;   // gate width 8m
 	static constexpr float kTreeCullGateDepth = 17.0f;      // gate depth 17m
 
+	static constexpr int kTreeCullLooseGateHalfWidthCells = 24;
+	static constexpr int kTreeCullLooseGateInsideDepthCells = 45;
+
+	static constexpr int kTreeCullRaycastExtraGateHalfWidthCells = 8;
+	static constexpr int kTreeCullRaycastExtraGateDepthCells = 8;
 	struct MegaGridCell
 	{
 		bool hasPlayerApproached = false;
@@ -453,6 +458,12 @@ private:
 		int cellZ) const;
 
 	bool IsFineCellInsideTreeCullInnerBlockedArea(
+	int megaX,
+	int megaZ,
+	int cellX,
+	int cellZ) const;
+
+	bool IsFineCellInsideLooseTreeVisibleGateZone(
 	int megaX,
 	int megaZ,
 	int cellX,

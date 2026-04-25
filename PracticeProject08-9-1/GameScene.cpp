@@ -873,6 +873,61 @@ bool CGameScene::IsFineCellInsideTreeCullInnerBlockedArea(
 		( cellZ >= blockedStartZ && cellZ < blockedEndZ );
 }
 
+bool CGameScene::IsFineCellInsideLooseTreeVisibleGateZone(
+	int megaX,
+	int megaZ,
+	int cellX,
+	int cellZ) const
+{
+	if ( !IsFineCellInsideTreeCullVillageCenter(megaX, megaZ, cellX, cellZ) )
+		return false;
+
+	const int centerSize = kTreeCullVillageCenterSizeCells;
+
+	const int megaStartX = megaX * kMegaGridCellWidth;
+	const int megaStartZ = megaZ * kMegaGridCellHeight;
+
+	const int centerStartX =
+		megaStartX + ( ( kMegaGridCellWidth - centerSize ) / 2 );
+
+	const int centerStartZ =
+		megaStartZ + ( ( kMegaGridCellHeight - centerSize ) / 2 );
+
+	const float localX =
+		static_cast< float >( cellX - centerStartX ) + 0.5f - kTreeCullVillageHalfSize;
+
+	const float localZ =
+		static_cast< float >( cellZ - centerStartZ ) + 0.5f - kTreeCullVillageHalfSize;
+
+	const float half = kTreeCullVillageHalfSize;
+	const float gateHalf =
+		static_cast< float >( kTreeCullLooseGateHalfWidthCells );
+	const float insideDepth =
+		static_cast< float >( kTreeCullLooseGateInsideDepthCells );
+
+	const bool nearNorthGate =
+		( std::fabs(localX) <= gateHalf ) &&
+		( localZ >= half - insideDepth );
+
+	const bool nearSouthGate =
+		( std::fabs(localX) <= gateHalf ) &&
+		( localZ <= -half + insideDepth );
+
+	const bool nearEastGate =
+		( std::fabs(localZ) <= gateHalf ) &&
+		( localX >= half - insideDepth );
+
+	const bool nearWestGate =
+		( std::fabs(localZ) <= gateHalf ) &&
+		( localX <= -half + insideDepth );
+
+	return
+		nearNorthGate ||
+		nearSouthGate ||
+		nearEastGate ||
+		nearWestGate;
+}
+
 bool CGameScene::IsTreeCullBlockerCell(int cellX, int cellZ) const
 {
 	if ( cellX < 0 || cellX >= kGridWidth )
@@ -969,6 +1024,9 @@ bool CGameScene::CanFineCellSeeOutsideThroughVillageGate(
 	if ( m_treeCullBlockerCells.empty() )
 		return true;
 
+	if ( IsFineCellInsideLooseTreeVisibleGateZone(megaX, megaZ, cellX, cellZ) )
+		return true;
+
 	const int centerSize = kTreeCullVillageCenterSizeCells;
 
 	const int megaStartX = megaX * kMegaGridCellWidth;
@@ -987,10 +1045,12 @@ bool CGameScene::CanFineCellSeeOutsideThroughVillageGate(
 	const int centerMidZ = centerStartZ + ( centerSize / 2 );
 
 	const int gateHalfCells =
-		static_cast< int >( std::ceil(kTreeCullGateHalfWidth) );
+		static_cast< int >( std::ceil(kTreeCullGateHalfWidth) ) +
+		kTreeCullRaycastExtraGateHalfWidthCells;
 
 	const int gateDepthCells =
-		static_cast< int >( std::ceil(kTreeCullGateDepth) );
+		static_cast< int >( std::ceil(kTreeCullGateDepth) ) +
+		kTreeCullRaycastExtraGateDepthCells;
 
 	auto TestNorthGate = [ & ] () -> bool
 		{
@@ -5100,6 +5160,12 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 					continue;
 			}
 
+			if ( objectIndex < ( UINT ) m_staticTreeGridCullFlags.size() )
+			{
+				if ( m_staticTreeGridCullFlags[objectIndex] != 0 )
+					continue;
+			}
+
 			CGameObject* obj = m_staticBatch.objectRefs[objectIndex];
 			if ( !obj ) continue;
 			if ( !obj->IsVisible(camera) ) continue;
@@ -5319,6 +5385,12 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 			if ( objectIndex < ( UINT ) m_staticDistanceCullFlags.size() )
 			{
 				if ( m_staticDistanceCullFlags[objectIndex] != 0 )
+					continue;
+			}
+
+			if ( objectIndex < ( UINT ) m_staticTreeGridCullFlags.size() )
+			{
+				if ( m_staticTreeGridCullFlags[objectIndex] != 0 )
 					continue;
 			}
 
