@@ -9,6 +9,7 @@
 #include "LightTypes.h"
 #include "SceneRenderTypes.h"
 #include "ColliderComponent.h"
+#include "Grid.h"
 //#include "ShadowMap.h"
 
 #include <unordered_set>
@@ -360,89 +361,11 @@ public:
 
 private:
 #ifndef USING_NETWORK
-	static constexpr int kGridMinX = -600;
-	static constexpr int kGridMaxX = 600;
-	static constexpr int kGridMinZ = -200;
-	static constexpr int kGridMaxZ = 1000;
-
-	static constexpr int kGridWidth = ( kGridMaxX - kGridMinX );
-	static constexpr int kGridHeight = ( kGridMaxZ - kGridMinZ );
-	static constexpr int kGridCellCount = ( kGridWidth * kGridHeight );
-
-	static constexpr int kMegaGridCols = 3;
-	static constexpr int kMegaGridRows = 3;
-	static constexpr int kMegaGridCount = ( kMegaGridCols * kMegaGridRows );
-
-	static constexpr int kMegaGridCellWidth = ( kGridWidth / kMegaGridCols );   // 400
-	static constexpr int kMegaGridCellHeight = ( kGridHeight / kMegaGridRows ); // 400
-
-	static constexpr int kDefaultMegaGridApproachWidth = 200;
-	static constexpr int kDefaultMegaGridApproachHeight = 200;
-
-	static constexpr int kTreeCullVillageCenterSizeCells = 200;
-	static constexpr int kTreeCullVillageInnerBlockedSizeCells = 100;
-
-	static constexpr float kTreeCullVillageHalfSize = 100.0f;
-	static constexpr float kTreeCullVillageInnerBlockedHalfSize = 50.0f;
-
-	static constexpr float kTreeCullGateHalfWidth = 4.0f;   // gate width 8m
-	static constexpr float kTreeCullGateDepth = 17.0f;      // gate depth 17m
-
-	static constexpr int kTreeCullLooseGateHalfWidthCells = 24;
-	static constexpr int kTreeCullLooseGateInsideDepthCells = 45;
-
-	static constexpr int kTreeCullRaycastExtraGateHalfWidthCells = 8;
-	static constexpr int kTreeCullRaycastExtraGateDepthCells = 8;
-	struct MegaGridCell
-	{
-		bool hasPlayerApproached = false;
-		bool isCleared = false;
-		bool hasEventOccurred = false;
-
-		int approachWidthCells = kDefaultMegaGridApproachWidth;
-		int approachHeightCells = kDefaultMegaGridApproachHeight;
-	};
-
-	struct GridStaticCell
-	{
-		uint16_t buildingCount = 0;
-		float floorHeight = 0.0f; // 지금은 고정 0
-	};
-
-	struct GridDynamicCell
-	{
-		uint16_t playerCount = 0;
-		uint16_t monsterCount = 0;
-		uint16_t arrowCount = 0;
-		uint16_t bulletCount = 0;
-	};
-
-	enum class EGridDynamicKind : uint8_t
-	{
-		Player,
-		Monster,
-		Arrow,
-		Bullet
-	};
-
-	struct GridDynamicTracker
-	{
-		CGameObject* object = nullptr;
-		int prevCellX = -1;
-		int prevCellZ = -1;
-		bool occupied = false;
-	};
+	using EGridDynamicKind = CSceneGrid::EDynamicKind;
+	using GridDynamicTracker = CSceneGrid::DynamicTracker;
 
 	void InitializeSpatialGrid();
 	void ShutdownSpatialGrid();
-	void InitializeMegaGridState();
-
-	bool WorldToGridCell(float worldX, float worldZ, int& outCellX, int& outCellZ) const;
-	int GridCellIndex(int cellX, int cellZ) const;
-
-	int MegaGridIndex(int megaX, int megaZ) const;
-	bool FineCellToMegaGridCell(int cellX, int cellZ, int& outMegaX, int& outMegaZ) const;
-	bool IsFineCellInsideMegaGridApproachZone(int megaX, int megaZ, int cellX, int cellZ) const;
 
 	bool TryGetTreeCullReferenceGridCell(
 		CCamera* camera,
@@ -451,37 +374,9 @@ private:
 		int& outMegaX,
 		int& outMegaZ) const;
 
-	bool IsFineCellInsideTreeCullVillageCenter(
-		int megaX,
-		int megaZ,
-		int cellX,
-		int cellZ) const;
-
-	bool IsFineCellInsideTreeCullInnerBlockedArea(
-	int megaX,
-	int megaZ,
-	int cellX,
-	int cellZ) const;
-
-	bool IsFineCellInsideLooseTreeVisibleGateZone(
-	int megaX,
-	int megaZ,
-	int cellX,
-	int cellZ) const;
-
-	bool IsTreeCullBlockerCell(int cellX, int cellZ) const;
-	bool RaycastTreeCullGridClear(int startCellX, int startCellZ, int endCellX, int endCellZ) const;
-
-	bool CanFineCellSeeOutsideThroughVillageGate(
-		int megaX,
-		int megaZ,
-		int cellX,
-		int cellZ) const;
-
 	bool ShouldCullTreesByVillageGrid(CCamera* camera) const;
 
 	void AddDynamicCount(int cellX, int cellZ, EGridDynamicKind kind, int delta);
-	void StampBuildingCellsFromOOBB(const BoundingOrientedBox& box, std::unordered_set<int>& touchedCells);
 	void RegisterStaticPlacementToGrid(const StaticPlacementEntry& placement, CGameObject* obj);
 
 	void ResetDynamicGridCounts();
@@ -675,11 +570,7 @@ private:
 #ifndef USING_NETWORK
 	std::vector<MonsterSpawnEntry>	m_monsterSpawnEntries;
 
-	bool m_spatialGridInitialized = false;
-	std::vector<GridStaticCell>		m_gridStaticCells;
-	std::vector<uint8_t>				m_treeCullBlockerCells;
-	std::vector<GridDynamicCell>		m_gridDynamicCells;
-	std::array<MegaGridCell, kMegaGridCount> m_megaGridCells = {};
+	CSceneGrid m_sceneGrid;
 
 	std::array<GridDynamicTracker, 4> m_playerGridTrackers = {};
 	std::vector<GridDynamicTracker> m_monsterGridTrackers;

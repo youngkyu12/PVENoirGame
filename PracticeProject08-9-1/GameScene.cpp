@@ -644,20 +644,9 @@ CGameScene::CGameScene()
 }
 
 #ifndef USING_NETWORK
-void CGameScene::InitializeMegaGridState()
-{
-	for ( MegaGridCell& cell : m_megaGridCells )
-	{
-		cell = MegaGridCell{};
-	}
-}
-
 void CGameScene::InitializeSpatialGrid()
 {
-	m_gridStaticCells.assign(kGridCellCount, GridStaticCell{});
-	m_treeCullBlockerCells.assign(kGridCellCount, 0);
-	m_gridDynamicCells.assign(kGridCellCount, GridDynamicCell{});
-	InitializeMegaGridState();
+	m_sceneGrid.Initialize();
 
 	for ( auto& tracker : m_playerGridTrackers )
 		tracker = GridDynamicTracker{};
@@ -665,16 +654,11 @@ void CGameScene::InitializeSpatialGrid()
 	m_monsterGridTrackers.clear();
 	m_arrowGridTrackers.clear();
 	m_bulletGridTrackers.clear();
-
-	m_spatialGridInitialized = true;
 }
 
 void CGameScene::ShutdownSpatialGrid()
 {
-	m_gridStaticCells.clear();
-	m_treeCullBlockerCells.clear();
-	m_gridDynamicCells.clear();
-	InitializeMegaGridState();
+	m_sceneGrid.Shutdown();
 
 	for ( auto& tracker : m_playerGridTrackers )
 		tracker = GridDynamicTracker{};
@@ -682,80 +666,6 @@ void CGameScene::ShutdownSpatialGrid()
 	m_monsterGridTrackers.clear();
 	m_arrowGridTrackers.clear();
 	m_bulletGridTrackers.clear();
-
-	m_spatialGridInitialized = false;
-}
-
-bool CGameScene::WorldToGridCell(float worldX, float worldZ, int& outCellX, int& outCellZ) const
-{
-	if ( worldX < ( float ) kGridMinX || worldX >(float)kGridMaxX ) return false;
-	if ( worldZ < ( float ) kGridMinZ || worldZ >(float)kGridMaxZ ) return false;
-
-	int cellX = ( int ) std::floor(worldX) - kGridMinX;
-	int cellZ = ( int ) std::floor(worldZ) - kGridMinZ;
-
-	if ( cellX == kGridWidth ) cellX = kGridWidth - 1;
-	if ( cellZ == kGridHeight ) cellZ = kGridHeight - 1;
-
-	if ( cellX < 0 || cellX >= kGridWidth ) return false;
-	if ( cellZ < 0 || cellZ >= kGridHeight ) return false;
-
-	outCellX = cellX;
-	outCellZ = cellZ;
-	return true;
-}
-
-int CGameScene::GridCellIndex(int cellX, int cellZ) const
-{
-	return ( cellZ * kGridWidth ) + cellX;
-}
-
-int CGameScene::MegaGridIndex(int megaX, int megaZ) const
-{
-	return ( megaZ * kMegaGridCols ) + megaX;
-}
-
-bool CGameScene::FineCellToMegaGridCell(int cellX, int cellZ, int& outMegaX, int& outMegaZ) const
-{
-	if ( cellX < 0 || cellX >= kGridWidth ) return false;
-	if ( cellZ < 0 || cellZ >= kGridHeight ) return false;
-
-	outMegaX = cellX / kMegaGridCellWidth;
-	outMegaZ = cellZ / kMegaGridCellHeight;
-
-	if ( outMegaX < 0 || outMegaX >= kMegaGridCols ) return false;
-	if ( outMegaZ < 0 || outMegaZ >= kMegaGridRows ) return false;
-
-	return true;
-}
-
-bool CGameScene::IsFineCellInsideMegaGridApproachZone(int megaX, int megaZ, int cellX, int cellZ) const
-{
-	if ( megaX < 0 || megaX >= kMegaGridCols ) return false;
-	if ( megaZ < 0 || megaZ >= kMegaGridRows ) return false;
-	if ( cellX < 0 || cellX >= kGridWidth ) return false;
-	if ( cellZ < 0 || cellZ >= kGridHeight ) return false;
-
-	const MegaGridCell& megaCell = m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)];
-
-	const int zoneWidth =
-		std::clamp(megaCell.approachWidthCells, 1, kMegaGridCellWidth);
-
-	const int zoneHeight =
-		std::clamp(megaCell.approachHeightCells, 1, kMegaGridCellHeight);
-
-	const int megaStartX = megaX * kMegaGridCellWidth;
-	const int megaStartZ = megaZ * kMegaGridCellHeight;
-
-	const int zoneStartX = megaStartX + ( ( kMegaGridCellWidth - zoneWidth ) / 2 );
-	const int zoneStartZ = megaStartZ + ( ( kMegaGridCellHeight - zoneHeight ) / 2 );
-
-	const int zoneEndX = zoneStartX + zoneWidth;   // exclusive
-	const int zoneEndZ = zoneStartZ + zoneHeight;  // exclusive
-
-	return
-		( cellX >= zoneStartX && cellX < zoneEndX ) &&
-		( cellZ >= zoneStartZ && cellZ < zoneEndZ );
 }
 
 bool CGameScene::TryGetTreeCullReferenceGridCell(
@@ -770,21 +680,22 @@ bool CGameScene::TryGetTreeCullReferenceGridCell(
 	outMegaX = -1;
 	outMegaZ = -1;
 
-	if ( !m_spatialGridInitialized )
+	if ( !m_sceneGrid.IsInitialized() )
 		return false;
 
 	if ( camera )
 	{
 		const XMFLOAT3 cameraPosition = camera->GetPosition();
 
-		if ( WorldToGridCell(cameraPosition.x, cameraPosition.z, outCellX, outCellZ) )
+		if ( m_sceneGrid.WorldToCell(cameraPosition.x, cameraPosition.z, outCellX, outCellZ) )
 		{
-			if ( FineCellToMegaGridCell(outCellX, outCellZ, outMegaX, outMegaZ) )
+			if ( m_sceneGrid.FineCellToMegaGridCell(outCellX, outCellZ, outMegaX, outMegaZ) )
 				return true;
 		}
 	}
 
 	CGameObject* localPlayer = GetPlayer();
+
 	if ( !localPlayer )
 		localPlayer = GetPlayerBySlot(0);
 
@@ -793,335 +704,15 @@ bool CGameScene::TryGetTreeCullReferenceGridCell(
 
 	const XMFLOAT3 playerPosition = localPlayer->GetPosition();
 
-	if ( !WorldToGridCell(playerPosition.x, playerPosition.z, outCellX, outCellZ) )
+	if ( !m_sceneGrid.WorldToCell(playerPosition.x, playerPosition.z, outCellX, outCellZ) )
 		return false;
 
-	return FineCellToMegaGridCell(outCellX, outCellZ, outMegaX, outMegaZ);
-}
-
-bool CGameScene::IsFineCellInsideTreeCullVillageCenter(
-	int megaX,
-	int megaZ,
-	int cellX,
-	int cellZ) const
-{
-	if ( megaX < 0 || megaX >= kMegaGridCols )
-		return false;
-
-	if ( megaZ < 0 || megaZ >= kMegaGridRows )
-		return false;
-
-	if ( cellX < 0 || cellX >= kGridWidth )
-		return false;
-
-	if ( cellZ < 0 || cellZ >= kGridHeight )
-		return false;
-
-	const int centerSize = kTreeCullVillageCenterSizeCells;
-
-	const int megaStartX = megaX * kMegaGridCellWidth;
-	const int megaStartZ = megaZ * kMegaGridCellHeight;
-
-	const int centerStartX =
-		megaStartX + ( ( kMegaGridCellWidth - centerSize ) / 2 );
-
-	const int centerStartZ =
-		megaStartZ + ( ( kMegaGridCellHeight - centerSize ) / 2 );
-
-	const int centerEndX = centerStartX + centerSize;
-	const int centerEndZ = centerStartZ + centerSize;
-
-	return
-		( cellX >= centerStartX && cellX < centerEndX ) &&
-		( cellZ >= centerStartZ && cellZ < centerEndZ );
-}
-
-bool CGameScene::IsFineCellInsideTreeCullInnerBlockedArea(
-	int megaX,
-	int megaZ,
-	int cellX,
-	int cellZ) const
-{
-	if ( megaX < 0 || megaX >= kMegaGridCols )
-		return false;
-
-	if ( megaZ < 0 || megaZ >= kMegaGridRows )
-		return false;
-
-	if ( cellX < 0 || cellX >= kGridWidth )
-		return false;
-
-	if ( cellZ < 0 || cellZ >= kGridHeight )
-		return false;
-
-	const int blockedSize = kTreeCullVillageInnerBlockedSizeCells;
-
-	const int megaStartX = megaX * kMegaGridCellWidth;
-	const int megaStartZ = megaZ * kMegaGridCellHeight;
-
-	const int blockedStartX =
-		megaStartX + ( ( kMegaGridCellWidth - blockedSize ) / 2 );
-
-	const int blockedStartZ =
-		megaStartZ + ( ( kMegaGridCellHeight - blockedSize ) / 2 );
-
-	const int blockedEndX = blockedStartX + blockedSize;
-	const int blockedEndZ = blockedStartZ + blockedSize;
-
-	return
-		( cellX >= blockedStartX && cellX < blockedEndX ) &&
-		( cellZ >= blockedStartZ && cellZ < blockedEndZ );
-}
-
-bool CGameScene::IsFineCellInsideLooseTreeVisibleGateZone(
-	int megaX,
-	int megaZ,
-	int cellX,
-	int cellZ) const
-{
-	if ( !IsFineCellInsideTreeCullVillageCenter(megaX, megaZ, cellX, cellZ) )
-		return false;
-
-	const int centerSize = kTreeCullVillageCenterSizeCells;
-
-	const int megaStartX = megaX * kMegaGridCellWidth;
-	const int megaStartZ = megaZ * kMegaGridCellHeight;
-
-	const int centerStartX =
-		megaStartX + ( ( kMegaGridCellWidth - centerSize ) / 2 );
-
-	const int centerStartZ =
-		megaStartZ + ( ( kMegaGridCellHeight - centerSize ) / 2 );
-
-	const float localX =
-		static_cast< float >( cellX - centerStartX ) + 0.5f - kTreeCullVillageHalfSize;
-
-	const float localZ =
-		static_cast< float >( cellZ - centerStartZ ) + 0.5f - kTreeCullVillageHalfSize;
-
-	const float half = kTreeCullVillageHalfSize;
-	const float gateHalf =
-		static_cast< float >( kTreeCullLooseGateHalfWidthCells );
-	const float insideDepth =
-		static_cast< float >( kTreeCullLooseGateInsideDepthCells );
-
-	const bool nearNorthGate =
-		( std::fabs(localX) <= gateHalf ) &&
-		( localZ >= half - insideDepth );
-
-	const bool nearSouthGate =
-		( std::fabs(localX) <= gateHalf ) &&
-		( localZ <= -half + insideDepth );
-
-	const bool nearEastGate =
-		( std::fabs(localZ) <= gateHalf ) &&
-		( localX >= half - insideDepth );
-
-	const bool nearWestGate =
-		( std::fabs(localZ) <= gateHalf ) &&
-		( localX <= -half + insideDepth );
-
-	return
-		nearNorthGate ||
-		nearSouthGate ||
-		nearEastGate ||
-		nearWestGate;
-}
-
-bool CGameScene::IsTreeCullBlockerCell(int cellX, int cellZ) const
-{
-	if ( cellX < 0 || cellX >= kGridWidth )
-		return true;
-
-	if ( cellZ < 0 || cellZ >= kGridHeight )
-		return true;
-
-	const int cellIndex = GridCellIndex(cellX, cellZ);
-
-	if ( cellIndex < 0 || cellIndex >= kGridCellCount )
-		return true;
-
-	if ( cellIndex >= ( int ) m_treeCullBlockerCells.size() )
-		return false;
-
-	return m_treeCullBlockerCells[( size_t ) cellIndex] != 0;
-}
-
-bool CGameScene::RaycastTreeCullGridClear(
-	int startCellX,
-	int startCellZ,
-	int endCellX,
-	int endCellZ) const
-{
-	if ( startCellX < 0 || startCellX >= kGridWidth )
-		return false;
-
-	if ( startCellZ < 0 || startCellZ >= kGridHeight )
-		return false;
-
-	if ( endCellX < 0 || endCellX >= kGridWidth )
-		return false;
-
-	if ( endCellZ < 0 || endCellZ >= kGridHeight )
-		return false;
-
-	int x0 = startCellX;
-	int z0 = startCellZ;
-	const int x1 = endCellX;
-	const int z1 = endCellZ;
-
-	const int dx = ( x1 >= x0 ) ? ( x1 - x0 ) : ( x0 - x1 );
-	const int dzAbs = ( z1 >= z0 ) ? ( z1 - z0 ) : ( z0 - z1 );
-
-	const int stepX = ( x0 < x1 ) ? 1 : -1;
-	const int stepZ = ( z0 < z1 ) ? 1 : -1;
-
-	const int dz = -dzAbs;
-	int error = dx + dz;
-
-	bool firstCell = true;
-
-	for ( ;; )
-	{
-		if ( !firstCell )
-		{
-			if ( IsTreeCullBlockerCell(x0, z0) )
-				return false;
-		}
-
-		if ( x0 == x1 && z0 == z1 )
-			break;
-
-		const int error2 = error * 2;
-
-		if ( error2 >= dz )
-		{
-			error += dz;
-			x0 += stepX;
-		}
-
-		if ( error2 <= dx )
-		{
-			error += dx;
-			z0 += stepZ;
-		}
-
-		firstCell = false;
-	}
-
-	return true;
-}
-
-bool CGameScene::CanFineCellSeeOutsideThroughVillageGate(
-	int megaX,
-	int megaZ,
-	int cellX,
-	int cellZ) const
-{
-	if ( !IsFineCellInsideTreeCullVillageCenter(megaX, megaZ, cellX, cellZ) )
-		return true;
-
-	if ( m_treeCullBlockerCells.empty() )
-		return true;
-
-	if ( IsFineCellInsideLooseTreeVisibleGateZone(megaX, megaZ, cellX, cellZ) )
-		return true;
-
-	const int centerSize = kTreeCullVillageCenterSizeCells;
-
-	const int megaStartX = megaX * kMegaGridCellWidth;
-	const int megaStartZ = megaZ * kMegaGridCellHeight;
-
-	const int centerStartX =
-		megaStartX + ( ( kMegaGridCellWidth - centerSize ) / 2 );
-
-	const int centerStartZ =
-		megaStartZ + ( ( kMegaGridCellHeight - centerSize ) / 2 );
-
-	const int centerEndX = centerStartX + centerSize;
-	const int centerEndZ = centerStartZ + centerSize;
-
-	const int centerMidX = centerStartX + ( centerSize / 2 );
-	const int centerMidZ = centerStartZ + ( centerSize / 2 );
-
-	const int gateHalfCells =
-		static_cast< int >( std::ceil(kTreeCullGateHalfWidth) ) +
-		kTreeCullRaycastExtraGateHalfWidthCells;
-
-	const int gateDepthCells =
-		static_cast< int >( std::ceil(kTreeCullGateDepth) ) +
-		kTreeCullRaycastExtraGateDepthCells;
-
-	auto TestNorthGate = [ & ] () -> bool
-		{
-			const int targetZ = centerEndZ + gateDepthCells;
-
-			for ( int offset = -gateHalfCells; offset <= gateHalfCells; ++offset )
-			{
-				const int targetX = centerMidX + offset;
-
-				if ( RaycastTreeCullGridClear(cellX, cellZ, targetX, targetZ) )
-					return true;
-			}
-
-			return false;
-		};
-
-	auto TestSouthGate = [ & ] () -> bool
-		{
-			const int targetZ = centerStartZ - gateDepthCells - 1;
-
-			for ( int offset = -gateHalfCells; offset <= gateHalfCells; ++offset )
-			{
-				const int targetX = centerMidX + offset;
-
-				if ( RaycastTreeCullGridClear(cellX, cellZ, targetX, targetZ) )
-					return true;
-			}
-
-			return false;
-		};
-
-	auto TestEastGate = [ & ] () -> bool
-		{
-			const int targetX = centerEndX + gateDepthCells;
-
-			for ( int offset = -gateHalfCells; offset <= gateHalfCells; ++offset )
-			{
-				const int targetZ = centerMidZ + offset;
-
-				if ( RaycastTreeCullGridClear(cellX, cellZ, targetX, targetZ) )
-					return true;
-			}
-
-			return false;
-		};
-
-	auto TestWestGate = [ & ] () -> bool
-		{
-			const int targetX = centerStartX - gateDepthCells - 1;
-
-			for ( int offset = -gateHalfCells; offset <= gateHalfCells; ++offset )
-			{
-				const int targetZ = centerMidZ + offset;
-
-				if ( RaycastTreeCullGridClear(cellX, cellZ, targetX, targetZ) )
-					return true;
-			}
-
-			return false;
-		};
-
-	return
-		TestNorthGate() ||
-		TestSouthGate() ||
-		TestEastGate() ||
-		TestWestGate();
+	return m_sceneGrid.FineCellToMegaGridCell(outCellX, outCellZ, outMegaX, outMegaZ);
 }
 
 bool CGameScene::ShouldCullTreesByVillageGrid(CCamera* camera) const
 {
-	if ( !m_spatialGridInitialized )
+	if ( !m_sceneGrid.IsInitialized() )
 		return false;
 
 	int cellX = -1;
@@ -1129,94 +720,27 @@ bool CGameScene::ShouldCullTreesByVillageGrid(CCamera* camera) const
 	int megaX = -1;
 	int megaZ = -1;
 
-	if ( !TryGetTreeCullReferenceGridCell(
-		camera,
-		cellX,
-		cellZ,
-		megaX,
-		megaZ) )
-	{
-		return false;
-	}
-
-	if ( !IsFineCellInsideTreeCullVillageCenter(megaX, megaZ, cellX, cellZ) )
+	if ( !TryGetTreeCullReferenceGridCell(camera, cellX, cellZ, megaX, megaZ) )
 		return false;
 
-	if ( CanFineCellSeeOutsideThroughVillageGate(megaX, megaZ, cellX, cellZ) )
-		return false;
-
-	return true;
+	return m_sceneGrid.ShouldCullTreesByVillageGridCell(megaX, megaZ, cellX, cellZ);
 }
 
 void CGameScene::AddDynamicCount(int cellX, int cellZ, EGridDynamicKind kind, int delta)
 {
-	if ( !m_spatialGridInitialized ) return;
-	if ( cellX < 0 || cellX >= kGridWidth ) return;
-	if ( cellZ < 0 || cellZ >= kGridHeight ) return;
+	if ( !m_sceneGrid.IsInitialized() )
+		return;
 
-	GridDynamicCell& cell = m_gridDynamicCells[( size_t ) GridCellIndex(cellX, cellZ)];
-
-	uint16_t* target = nullptr;
-
-	switch ( kind )
-	{
-	case EGridDynamicKind::Player:  target = &cell.playerCount;  break;
-	case EGridDynamicKind::Monster: target = &cell.monsterCount; break;
-	case EGridDynamicKind::Arrow:   target = &cell.arrowCount;   break;
-	case EGridDynamicKind::Bullet:  target = &cell.bulletCount;  break;
-	default: return;
-	}
-
-	int nextValue = ( int ) ( *target ) + delta;
-	if ( nextValue < 0 ) nextValue = 0;
-	*target = ( uint16_t ) nextValue;
-}
-
-void CGameScene::StampBuildingCellsFromOOBB(const BoundingOrientedBox& box, std::unordered_set<int>& touchedCells)
-{
-	XMFLOAT3 corners[8] = {};
-	box.GetCorners(corners);
-
-	float minX = corners[0].x;
-	float maxX = corners[0].x;
-	float minZ = corners[0].z;
-	float maxZ = corners[0].z;
-
-	for ( int i = 1; i < 8; ++i )
-	{
-		if ( corners[i].x < minX ) minX = corners[i].x;
-		if ( corners[i].x > maxX ) maxX = corners[i].x;
-		if ( corners[i].z < minZ ) minZ = corners[i].z;
-		if ( corners[i].z > maxZ ) maxZ = corners[i].z;
-	}
-
-	int beginCellX = ( int ) std::floor(minX) - kGridMinX;
-	int endCellX = ( int ) std::ceil(maxX) - kGridMinX - 1;
-
-	int beginCellZ = ( int ) std::floor(minZ) - kGridMinZ;
-	int endCellZ = ( int ) std::ceil(maxZ) - kGridMinZ - 1;
-
-	if ( beginCellX < 0 ) beginCellX = 0;
-	if ( beginCellZ < 0 ) beginCellZ = 0;
-	if ( endCellX >= kGridWidth ) endCellX = kGridWidth - 1;
-	if ( endCellZ >= kGridHeight ) endCellZ = kGridHeight - 1;
-
-	if ( beginCellX > endCellX ) return;
-	if ( beginCellZ > endCellZ ) return;
-
-	for ( int z = beginCellZ; z <= endCellZ; ++z )
-	{
-		for ( int x = beginCellX; x <= endCellX; ++x )
-		{
-			touchedCells.insert(GridCellIndex(x, z));
-		}
-	}
+	m_sceneGrid.AddDynamicCount(cellX, cellZ, kind, delta);
 }
 
 void CGameScene::RegisterStaticPlacementToGrid(const StaticPlacementEntry& placement, CGameObject* obj)
 {
-	if ( !m_spatialGridInitialized ) return;
-	if ( !obj ) return;
+	if ( !m_sceneGrid.IsInitialized() )
+		return;
+
+	if ( !obj )
+		return;
 
 	const bool isBuilding =
 		( placement.assetName == "VillageWall" ) ||
@@ -1249,9 +773,7 @@ void CGameScene::RegisterStaticPlacementToGrid(const StaticPlacementEntry& place
 		for ( const MeshOOBBSet& set : meshSets )
 		{
 			for ( const BoundingOrientedBox& subOOBB : set.WorldSubOOBBs )
-			{
-				StampBuildingCellsFromOOBB(subOOBB, touchedCells);
-			}
+				m_sceneGrid.StampBuildingCellsFromOOBB(subOOBB, touchedCells);
 		}
 	}
 
@@ -1261,55 +783,32 @@ void CGameScene::RegisterStaticPlacementToGrid(const StaticPlacementEntry& place
 		int cellZ = -1;
 		const XMFLOAT3 pos = obj->GetPosition();
 
-		if ( WorldToGridCell(pos.x, pos.z, cellX, cellZ) )
-		{
-			touchedCells.insert(GridCellIndex(cellX, cellZ));
-		}
+		if ( m_sceneGrid.WorldToCell(pos.x, pos.z, cellX, cellZ) )
+			touchedCells.insert(m_sceneGrid.GridCellIndex(cellX, cellZ));
 	}
 
-	for ( int cellIndex : touchedCells )
-	{
-		if ( cellIndex < 0 || cellIndex >= kGridCellCount )
-			continue;
-
-		++m_gridStaticCells[( size_t ) cellIndex].buildingCount;
-		m_gridStaticCells[( size_t ) cellIndex].floorHeight = 0.0f;
-	}
+	m_sceneGrid.AddStaticTouchedCells(touchedCells);
 
 	if ( IsTreeCullBlockerAssetName(placement.assetName) )
-	{
-		for ( int cellIndex : touchedCells )
-		{
-			if ( cellIndex < 0 || cellIndex >= kGridCellCount )
-				continue;
-
-			if ( cellIndex >= ( int ) m_treeCullBlockerCells.size() )
-				continue;
-
-			m_treeCullBlockerCells[( size_t ) cellIndex] = 1;
-		}
-	}
+		m_sceneGrid.MarkTreeCullBlockerCells(touchedCells);
 }
 
 void CGameScene::ResetDynamicGridCounts()
 {
-	for ( GridDynamicCell& cell : m_gridDynamicCells )
-	{
-		cell.playerCount = 0;
-		cell.monsterCount = 0;
-		cell.arrowCount = 0;
-		cell.bulletCount = 0;
-	}
+	m_sceneGrid.ResetDynamicCounts();
 }
 
 bool CGameScene::TryGetTrackedCell(const CGameObject* obj, int& outCellX, int& outCellZ) const
 {
-	if ( !obj ) return false;
+	if ( !obj )
+		return false;
 
 	const XMFLOAT3 pos = obj->GetPosition();
-	if ( pos.y < -100.0f ) return false;
 
-	return WorldToGridCell(pos.x, pos.z, outCellX, outCellZ);
+	if ( pos.y < -100.0f )
+		return false;
+
+	return m_sceneGrid.WorldToCell(pos.x, pos.z, outCellX, outCellZ);
 }
 
 void CGameScene::RefreshDynamicTracker(GridDynamicTracker& tracker, EGridDynamicKind kind)
@@ -1356,11 +855,16 @@ void CGameScene::BuildDynamicGridTrackers()
 
 	for ( CGameObject* obj : m_skinnedBatch.objectRefs )
 	{
-		if ( !obj ) continue;
+		if ( !obj )
+			continue;
 
 		auto* tag = obj->GetComponent<CActorTagComponent>();
-		if ( !tag ) continue;
-		if ( tag->kind != EActorKind::NPC ) continue;
+
+		if ( !tag )
+			continue;
+
+		if ( tag->kind != EActorKind::NPC )
+			continue;
 
 		GridDynamicTracker tracker{};
 		tracker.object = obj;
@@ -1390,7 +894,8 @@ void CGameScene::BuildDynamicGridTrackers()
 
 void CGameScene::RebuildDynamicGridState()
 {
-	if ( !m_spatialGridInitialized ) return;
+	if ( !m_sceneGrid.IsInitialized() )
+		return;
 
 	ResetDynamicGridCounts();
 	BuildDynamicGridTrackers();
@@ -1412,7 +917,8 @@ void CGameScene::RebuildDynamicGridState()
 
 void CGameScene::UpdateDynamicGridState()
 {
-	if ( !m_spatialGridInitialized ) return;
+	if ( !m_sceneGrid.IsInitialized() )
+		return;
 
 	for ( auto& tracker : m_playerGridTrackers )
 		RefreshDynamicTracker(tracker, EGridDynamicKind::Player);
@@ -1431,19 +937,21 @@ void CGameScene::UpdateDynamicGridState()
 
 void CGameScene::UpdateMegaGridState()
 {
-	if ( !m_spatialGridInitialized ) return;
+	if ( !m_sceneGrid.IsInitialized() )
+		return;
 
 	for ( const GridDynamicTracker& tracker : m_playerGridTrackers )
 	{
-		if ( !tracker.occupied ) continue;
+		if ( !tracker.occupied )
+			continue;
 
 		int megaX = -1;
 		int megaZ = -1;
 
-		if ( !FineCellToMegaGridCell(tracker.prevCellX, tracker.prevCellZ, megaX, megaZ) )
+		if ( !m_sceneGrid.FineCellToMegaGridCell(tracker.prevCellX, tracker.prevCellZ, megaX, megaZ) )
 			continue;
 
-		if ( !IsFineCellInsideMegaGridApproachZone(
+		if ( !m_sceneGrid.IsFineCellInsideMegaGridApproachZone(
 			megaX,
 			megaZ,
 			tracker.prevCellX,
@@ -1452,11 +960,9 @@ void CGameScene::UpdateMegaGridState()
 			continue;
 		}
 
-		MegaGridCell& megaCell = m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)];
-
-		if ( !megaCell.hasPlayerApproached )
+		if ( !m_sceneGrid.HasMegaGridPlayerApproached(megaX, megaZ) )
 		{
-			megaCell.hasPlayerApproached = true;
+			m_sceneGrid.SetMegaGridPlayerApproached(megaX, megaZ, true);
 
 			char debugText[256] = {};
 			sprintf_s(
@@ -1467,6 +973,7 @@ void CGameScene::UpdateMegaGridState()
 				tracker.prevCellX,
 				tracker.prevCellZ
 			);
+
 			OutputDebugStringA(debugText);
 		}
 	}
@@ -1474,84 +981,37 @@ void CGameScene::UpdateMegaGridState()
 
 void CGameScene::DumpStaticGridOccupancyLog() const
 {
-	if ( !m_spatialGridInitialized )
-	{
-		OutputDebugStringA("[GridStatic] not initialized\n");
-		return;
-	}
-
-	OutputDebugStringA("[GridStatic] begin\n");
-
-	std::string row;
-	row.reserve(kGridWidth + 1);
-
-	for ( int z = 0; z < kGridHeight; ++z )
-	{
-		row.clear();
-
-		for ( int x = 0; x < kGridWidth; ++x )
-		{
-			const GridStaticCell& cell =
-				m_gridStaticCells[( size_t ) GridCellIndex(x, z)];
-
-			row.push_back(( cell.buildingCount > 0 ) ? '1' : '0');
-		}
-
-		row.push_back('\n');
-		OutputDebugStringA(row.c_str());
-	}
-
-	OutputDebugStringA("[GridStatic] end\n");
+	m_sceneGrid.DumpStaticGridOccupancyLog();
 }
 
 void CGameScene::SetMegaGridApproachZoneSize(int megaX, int megaZ, int widthCells, int heightCells)
 {
-	if ( megaX < 0 || megaX >= kMegaGridCols ) return;
-	if ( megaZ < 0 || megaZ >= kMegaGridRows ) return;
-
-	MegaGridCell& cell = m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)];
-	cell.approachWidthCells = std::clamp(widthCells, 1, kMegaGridCellWidth);
-	cell.approachHeightCells = std::clamp(heightCells, 1, kMegaGridCellHeight);
+	m_sceneGrid.SetMegaGridApproachZoneSize(megaX, megaZ, widthCells, heightCells);
 }
 
 void CGameScene::SetMegaGridCleared(int megaX, int megaZ, bool cleared)
 {
-	if ( megaX < 0 || megaX >= kMegaGridCols ) return;
-	if ( megaZ < 0 || megaZ >= kMegaGridRows ) return;
-
-	m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)].isCleared = cleared;
+	m_sceneGrid.SetMegaGridCleared(megaX, megaZ, cleared);
 }
 
 void CGameScene::SetMegaGridEventOccurred(int megaX, int megaZ, bool occurred)
 {
-	if ( megaX < 0 || megaX >= kMegaGridCols ) return;
-	if ( megaZ < 0 || megaZ >= kMegaGridRows ) return;
-
-	m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)].hasEventOccurred = occurred;
+	m_sceneGrid.SetMegaGridEventOccurred(megaX, megaZ, occurred);
 }
 
 bool CGameScene::HasMegaGridPlayerApproached(int megaX, int megaZ) const
 {
-	if ( megaX < 0 || megaX >= kMegaGridCols ) return false;
-	if ( megaZ < 0 || megaZ >= kMegaGridRows ) return false;
-
-	return m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)].hasPlayerApproached;
+	return m_sceneGrid.HasMegaGridPlayerApproached(megaX, megaZ);
 }
 
 bool CGameScene::IsMegaGridCleared(int megaX, int megaZ) const
 {
-	if ( megaX < 0 || megaX >= kMegaGridCols ) return false;
-	if ( megaZ < 0 || megaZ >= kMegaGridRows ) return false;
-
-	return m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)].isCleared;
+	return m_sceneGrid.IsMegaGridCleared(megaX, megaZ);
 }
 
 bool CGameScene::HasMegaGridEventOccurred(int megaX, int megaZ) const
 {
-	if ( megaX < 0 || megaX >= kMegaGridCols ) return false;
-	if ( megaZ < 0 || megaZ >= kMegaGridRows ) return false;
-
-	return m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)].hasEventOccurred;
+	return m_sceneGrid.HasMegaGridEventOccurred(megaX, megaZ);
 }
 #endif
 
@@ -7751,7 +7211,7 @@ CGameObject* CGameScene::GetPlayerBySlot(int slot) const
 bool CGameScene::IsLocalPlayerInsideMegaGridCenter() const
 {
 #ifndef USING_NETWORK
-	if ( !m_spatialGridInitialized )
+	if ( !m_sceneGrid.IsInitialized() )
 		return false;
 
 	if ( m_localPlayerSlot < 0 ||
@@ -7769,10 +7229,10 @@ bool CGameScene::IsLocalPlayerInsideMegaGridCenter() const
 	int megaX = -1;
 	int megaZ = -1;
 
-	if ( !FineCellToMegaGridCell(tracker.prevCellX, tracker.prevCellZ, megaX, megaZ) )
+	if ( !m_sceneGrid.FineCellToMegaGridCell(tracker.prevCellX, tracker.prevCellZ, megaX, megaZ) )
 		return false;
 
-	return IsFineCellInsideMegaGridApproachZone(
+	return m_sceneGrid.IsFineCellInsideMegaGridApproachZone(
 		megaX,
 		megaZ,
 		tracker.prevCellX,
@@ -7786,7 +7246,7 @@ bool CGameScene::IsLocalPlayerInsideMegaGridCenter() const
 #ifndef USING_NETWORK
 int CGameScene::GetLocalPlayerMegaGridNumberForDepthFog() const
 {
-	if ( !m_spatialGridInitialized )
+	if ( !m_sceneGrid.IsInitialized() )
 		return -1;
 
 	if ( m_localPlayerSlot < 0 ||
@@ -7801,13 +7261,7 @@ int CGameScene::GetLocalPlayerMegaGridNumberForDepthFog() const
 	if ( !tracker.occupied )
 		return -1;
 
-	int megaX = -1;
-	int megaZ = -1;
-
-	if ( !FineCellToMegaGridCell(tracker.prevCellX, tracker.prevCellZ, megaX, megaZ) )
-		return -1;
-
-	return ( megaZ * kMegaGridCols ) + megaX + 1;
+	return m_sceneGrid.MegaGridNumberFromCell(tracker.prevCellX, tracker.prevCellZ);
 }
 #endif
 
