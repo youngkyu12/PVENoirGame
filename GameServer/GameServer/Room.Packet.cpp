@@ -100,6 +100,8 @@ namespace
 
 void Room::MakeFrameState(uint32 tick)
 {
+	const auto frameStart = std::chrono::steady_clock::now();
+
 	constexpr float kEnemyViewRange = 200.0f;
 	constexpr float kEnemyViewRangeSq = kEnemyViewRange * kEnemyViewRange;
 	constexpr float kBulletViewRange = 100.0f;
@@ -200,6 +202,8 @@ void Room::MakeFrameState(uint32 tick)
 		auto sendBuffer = ClientPacketHandler::MakeSendBuffer(frameStatePkt);
 		viewer->ownerSession->Send(sendBuffer);
 	}
+
+
 
 }
 
