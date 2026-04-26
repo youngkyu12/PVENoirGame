@@ -205,6 +205,11 @@ private:
         DXGI_FORMAT dsvFormat
     );
 
+	void BuildTerrainObjects(
+		ID3D12Device* dev,
+		ID3D12GraphicsCommandList* cmd
+	);
+
 	void BuildColliderBatch(
 		ID3D12Device* dev,
 		ID3D12GraphicsCommandList* cmd,
@@ -230,6 +235,7 @@ private:
 	bool ComputeSkinnedWorldDistanceCulled(const XMFLOAT3& cameraPosition, const SkinnedWorldLodEntry& entry) const;
 	void UpdateSkinnedWorldLodSelection(CCamera* camera);
 	void RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	void RenderTerrainObjects(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
     // Frame / Render
 public:
@@ -523,6 +529,7 @@ private:
 
     std::vector<CGameObject*> m_EnemySwordRefs;
     std::vector<CGameObject*> m_EnemyBowRefs;
+	std::vector<CGameObject*> m_terrainRefs;
 
     std::vector<AttachmentBindSpec> m_attachmentBinds;
 

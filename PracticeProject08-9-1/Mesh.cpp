@@ -1483,3 +1483,305 @@ CCapsuleMeshDiffused::CCapsuleMeshDiffused(
 	sm.ibView.Format = DXGI_FORMAT_R32_UINT;
 	sm.ibView.SizeInBytes = ibSize;
 }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+CHeightMapImage::CHeightMapImage(LPCTSTR pFileName, int nWidth, int nLength, XMFLOAT3 xmf3Scale)
+{
+	m_nWidth = nWidth;
+	m_nLength = nLength;
+	m_xmf3Scale = xmf3Scale;
+
+	BYTE* pHeightMapPixels = new BYTE[m_nWidth * m_nLength];
+	// 파일을 열고 읽는다. 
+	// 높이 맵 이미지는 파일 헤더가 없는 RAW 이미지이다.
+	HANDLE hFile = ::CreateFile(pFileName, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_READONLY, NULL);
+	DWORD dwBytesRead;
+	::ReadFile(hFile, pHeightMapPixels, ( m_nWidth * m_nLength ), &dwBytesRead, NULL);
+	::CloseHandle(hFile);
+	m_pHeightMapPixels = new BYTE[m_nWidth * m_nLength];
+	for ( int y = 0; y < m_nLength; y++ )
+	{
+		for ( int x = 0; x < m_nWidth; x++ )
+		{
+			m_pHeightMapPixels[x + ( ( m_nLength - 1 - y ) * m_nWidth )] = pHeightMapPixels[x + ( y * m_nWidth )];
+		}
+	}
+	if ( pHeightMapPixels ) delete[ ] pHeightMapPixels;
+}
+
+CHeightMapImage::~CHeightMapImage(void)
+{
+	if ( m_pHeightMapPixels ) 
+		delete[] m_pHeightMapPixels;
+
+	m_pHeightMapPixels = nullptr;
+}
+
+#define _WITH_APPROXIMATE_OPPOSITE_CORNER
+
+float CHeightMapImage::GetHeight(float fx, float fz)
+{
+	fx = fx / m_xmf3Scale.x;
+	fz = fz / m_xmf3Scale.z;
+	//지형의 좌표 (fx, fz)는 이미지 좌표계이다. 높이 맵의 x-좌표와 z-좌표가 높이 맵의 범위를 벗어나면 지형의 높이는 0이다.
+	if ( ( fx < 0.0f ) || ( fz < 0.0f ) || ( fx >= m_nWidth ) || ( fz >= m_nLength ) ) return( 0.0f );
+
+	//높이 맵의 좌표의 정수 부분과 소수 부분을 계산한다.
+	int x = ( int ) fx;
+	int z = ( int ) fz;
+	float fxPercent = fx - x;
+	float fzPercent = fz - z;
+	float fBottomLeft = ( float ) m_pHeightMapPixels[x + ( z * m_nWidth )];
+	float fBottomRight = ( float ) m_pHeightMapPixels[( x + 1 ) + ( z * m_nWidth )];
+	float fTopLeft = ( float ) m_pHeightMapPixels[x + ( ( z + 1 ) * m_nWidth )];
+	float fTopRight = ( float ) m_pHeightMapPixels[( x + 1 ) + ( ( z + 1 ) * m_nWidth )];
+
+#ifdef _WITH_APPROXIMATE_OPPOSITE_CORNER
+
+	//z-좌표가 1, 3, 5, ...인 경우 인덱스가 오른쪽에서 왼쪽으로 나열된다.
+	bool bRightToLeft = ( ( z % 2 ) != 0 );
+	if ( bRightToLeft )
+	{
+		// 지형의 삼각형들이 오른쪽에서 왼쪽 방향으로 나열되는 경우이다. 다음 그림의 오른쪽은 (fzPercent < fxPercent)인 경우이다. 
+		// 이 경우 TopLeft의 픽셀 값은 (fTopLeft = fTopRight + (fBottomLeft - fBottomRight))로 근사한다.
+		// 다음 그림의 왼쪽은 (fzPercent ≥ fxPercent)인 경우이다. 
+		// 이 경우 BottomRight의 픽셀 값은 (fBottomRight = fBottomLeft + (fTopRight - fTopLeft))로 근사한다.
+		if ( fzPercent >= fxPercent )
+			fBottomRight = fBottomLeft + ( fTopRight - fTopLeft );
+		else
+			fTopLeft = fTopRight + ( fBottomLeft - fBottomRight );
+	}
+	else
+	{
+		// 지형의 삼각형들이 왼쪽에서 오른쪽 방향으로 나열되는 경우이다. 다음 그림의 왼쪽은 (fzPercent < (1.0f - fxPercent))인 경우이다. 
+		// 이 경우 TopRight의 픽셀 값은 (fTopRight = fTopLeft + (fBottomRight - fBottomLeft))로 근사한다. 
+		// 다음 그림의 오른쪽은 (fzPercent ≥ (1.0f - fxPercent))인 경우이다. 
+		// 이 경우 BottomLeft의 픽셀 값은 (fBottomLeft = fTopLeft + (fBottomRight - fTopRight))로 근사한다.
+		if ( fzPercent < ( 1.0f - fxPercent ) )
+			fTopRight = fTopLeft + ( fBottomRight - fBottomLeft );
+		else
+			fBottomLeft = fTopLeft + ( fBottomRight - fTopRight );
+	}
+#endif
+
+	//사각형의 네 점을 보간하여 높이(픽셀 값)를 계산한다.
+	float fTopHeight = fTopLeft * ( 1 - fxPercent ) + fTopRight * fxPercent;
+	float fBottomHeight = fBottomLeft * ( 1 - fxPercent ) + fBottomRight * fxPercent;
+	float fHeight = fBottomHeight * ( 1 - fzPercent ) + fTopHeight * fzPercent;
+
+	return( fHeight * m_xmf3Scale.y );
+}
+
+XMFLOAT3 CHeightMapImage::GetHeightMapNormal(int x, int z)
+{
+	// x-좌표와 z-좌표가 높이 맵의 범위를 벗어나면 지형의 법선 벡터는 y-축 방향 벡터이다.
+	if ( ( x < 0.0f ) || ( z < 0.0f ) || ( x >= m_nWidth ) || ( z >= m_nLength ) ) return( XMFLOAT3(0.0f, 1.0f, 0.0f) );
+
+	// 높이 맵에서 (x, z) 좌표의 픽셀 값과 인접한 두 개의 점 (x+1, z), (z, z+1)에 대한 픽셀 값을 사용하여 법선 벡터를 계산한다.
+	int nHeightMapIndex = x + ( z * m_nWidth );
+	int xHeightMapAdd = ( x < ( m_nWidth - 1 ) ) ? 1 : -1;
+	int zHeightMapAdd = ( z < ( m_nLength - 1 ) ) ? m_nWidth : -m_nWidth;
+
+	// (x, z), (x+1, z), (z, z+1)의 픽셀에서 지형의 높이를 구한다.
+	float y1 = ( float ) m_pHeightMapPixels[nHeightMapIndex] * m_xmf3Scale.y;
+	float y2 = ( float ) m_pHeightMapPixels[nHeightMapIndex + xHeightMapAdd] * m_xmf3Scale.y;
+	float y3 = ( float ) m_pHeightMapPixels[nHeightMapIndex + zHeightMapAdd] * m_xmf3Scale.y;
+
+	// xmf3Edge1은 (0, y3, m_xmf3Scale.z) - (0, y1, 0) 벡터이다.
+	XMFLOAT3 xmf3Edge1 = XMFLOAT3(0.0f, y3 - y1, m_xmf3Scale.z);
+
+	// xmf3Edge2는 (m_xmf3Scale.x, y2, 0) - (0, y1, 0) 벡터이다.
+	XMFLOAT3 xmf3Edge2 = XMFLOAT3(m_xmf3Scale.x, y2 - y1, 0.0f);
+
+	// 법선 벡터는 xmf3Edge1과 xmf3Edge2의 외적을 정규화하면 된다.
+	XMFLOAT3 xmf3Normal = Vector3::CrossProduct(xmf3Edge1, xmf3Edge2, true);
+
+	return( xmf3Normal );
+}
+
+CHeightMapGridMesh::CHeightMapGridMesh(
+	ID3D12Device* pd3dDevice,
+	ID3D12GraphicsCommandList* pd3dCommandList,
+	int xStart,
+	int zStart,
+	int nWidth,
+	int nLength,
+	XMFLOAT3 xmf3Scale,
+	XMFLOAT4 xmf4Color,
+	void* pContext)
+	: CMesh(pd3dDevice, pd3dCommandList)
+{
+	if ( !pd3dDevice || !pd3dCommandList || ( nWidth <= 1 ) || ( nLength <= 1 ) )
+		return;
+
+	struct TERRAIN_VERTEX
+	{
+		XMFLOAT3 position;
+		XMFLOAT3 normal;
+		XMFLOAT2 uv;
+		XMFLOAT4 tangent;
+		UINT boneIndices[4];
+		float boneWeights[4];
+	};
+
+	m_nWidth = nWidth;
+	m_nLength = nLength;
+	m_xmf3Scale = xmf3Scale;
+	m_xmf4BaseColor = xmf4Color;
+
+	m_d3dPrimitiveTopology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+	m_nSlot = 0;
+
+	const int vertexCount = m_nWidth * m_nLength;
+	std::vector<TERRAIN_VERTEX> vertices;
+	vertices.resize(vertexCount);
+
+	std::vector<UINT> indices;
+	indices.reserve(( m_nWidth * 2 * ( m_nLength - 1 ) ) + ( m_nLength - 2 ));
+
+	m_SubMeshes.resize(1);
+	SubMesh& sm = m_SubMeshes[0];
+	sm.positions.reserve(vertexCount);
+	sm.normals.reserve(vertexCount);
+	sm.uvs.reserve(vertexCount);
+
+	sm.subMeshMin = XMFLOAT3(FLT_MAX, FLT_MAX, FLT_MAX);
+	sm.subMeshMax = XMFLOAT3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+	int i = 0;
+	const int safeColorMaxX = xStart + max(0, m_nWidth - 2);
+	const int safeColorMaxZ = zStart + max(0, m_nLength - 2);
+	for ( int z = zStart; z < ( zStart + m_nLength ); ++z )
+	{
+		for ( int x = xStart; x < ( xStart + m_nWidth ); ++x )
+		{
+			const float height = OnGetHeight(x, z, pContext);
+			const XMFLOAT3 pos = XMFLOAT3(( x * m_xmf3Scale.x ), height, ( z * m_xmf3Scale.z ));
+			const int colorX = min(x, safeColorMaxX);
+			const int colorZ = min(z, safeColorMaxZ);
+			const XMFLOAT4 color = OnGetColor(colorX, colorZ, pContext);
+			const XMFLOAT3 normal = XMFLOAT3(0.0f, 1.0f, 0.0f);
+			const XMFLOAT2 uv = XMFLOAT2(
+				static_cast< float >(x - xStart) / static_cast< float >(max(1, m_nWidth - 1)),
+				static_cast< float >(z - zStart) / static_cast< float >(max(1, m_nLength - 1)));
+
+			TERRAIN_VERTEX v{};
+			v.position = pos;
+			v.normal = normal;
+			v.uv = uv;
+			v.tangent = XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f);
+			v.boneIndices[0] = 0; v.boneIndices[1] = 0; v.boneIndices[2] = 0; v.boneIndices[3] = 0;
+			v.boneWeights[0] = 1.0f; v.boneWeights[1] = 0.0f; v.boneWeights[2] = 0.0f; v.boneWeights[3] = 0.0f;
+
+			vertices[i++] = v;
+			sm.positions.push_back(pos);
+			sm.normals.push_back(normal);
+			sm.uvs.push_back(uv);
+
+			sm.subMeshMin.x = min(sm.subMeshMin.x, pos.x);
+			sm.subMeshMin.y = min(sm.subMeshMin.y, pos.y);
+			sm.subMeshMin.z = min(sm.subMeshMin.z, pos.z);
+			sm.subMeshMax.x = max(sm.subMeshMax.x, pos.x);
+			sm.subMeshMax.y = max(sm.subMeshMax.y, pos.y);
+			sm.subMeshMax.z = max(sm.subMeshMax.z, pos.z);
+
+			( void ) color;
+		}
+	}
+
+	for ( int z = 0; z < ( m_nLength - 1 ); ++z )
+	{
+		if ( ( z % 2 ) == 0 )
+		{
+			for ( int x = 0; x < m_nWidth; ++x )
+			{
+				if ( ( x == 0 ) && ( z > 0 ) )
+					indices.push_back(static_cast< UINT >(x + ( z * m_nWidth )));
+				indices.push_back(static_cast< UINT >(x + ( z * m_nWidth )));
+				indices.push_back(static_cast< UINT >(x + ( z * m_nWidth ) + m_nWidth));
+			}
+		}
+		else
+		{
+			for ( int x = ( m_nWidth - 1 ); x >= 0; --x )
+			{
+				if ( x == ( m_nWidth - 1 ) )
+					indices.push_back(static_cast< UINT >( x + ( z * m_nWidth ) ));
+				indices.push_back(static_cast< UINT >( x + ( z * m_nWidth ) ));
+				indices.push_back(static_cast< UINT >( x + ( z * m_nWidth ) + m_nWidth ));
+			}
+		}
+	}
+
+	sm.indices = indices;
+	MeshMin = sm.subMeshMin;
+	MeshMax = sm.subMeshMax;
+
+	const UINT vbSize = static_cast< UINT >( sizeof(TERRAIN_VERTEX) * vertices.size() );
+	const UINT ibSize = static_cast< UINT >( sizeof(UINT) * indices.size() );
+
+	sm.vb = ::CreateBufferResource(
+		pd3dDevice,
+		pd3dCommandList,
+		vertices.data(),
+		vbSize,
+		D3D12_HEAP_TYPE_DEFAULT,
+		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+		&sm.vbUpload);
+
+	sm.ib = ::CreateBufferResource(
+		pd3dDevice,
+		pd3dCommandList,
+		indices.data(),
+		ibSize,
+		D3D12_HEAP_TYPE_DEFAULT,
+		D3D12_RESOURCE_STATE_INDEX_BUFFER,
+		&sm.ibUpload);
+
+	sm.vbView.BufferLocation = sm.vb->GetGPUVirtualAddress();
+	sm.vbView.StrideInBytes = sizeof(TERRAIN_VERTEX);
+	sm.vbView.SizeInBytes = vbSize;
+
+	sm.ibView.BufferLocation = sm.ib->GetGPUVirtualAddress();
+	sm.ibView.Format = DXGI_FORMAT_R32_UINT;
+	sm.ibView.SizeInBytes = ibSize;
+}
+
+//높이 맵 이미지의 픽셀 값을 지형의 높이로 반환한다. 
+float CHeightMapGridMesh::OnGetHeight(int x, int z, void* pContext)
+{
+	CHeightMapImage* pHeightMapImage = ( CHeightMapImage* ) pContext;
+	BYTE* pHeightMapPixels = pHeightMapImage->GetHeightMapPixels();
+	XMFLOAT3 xmf3Scale = pHeightMapImage->GetScale();
+	int nWidth = pHeightMapImage->GetHeightMapWidth();
+	float fHeight = pHeightMapPixels[x + ( z * nWidth )] * xmf3Scale.y;
+	return( fHeight );
+}
+
+XMFLOAT4 CHeightMapGridMesh::OnGetColor(int x, int z, void* pContext)
+{
+	//조명의 방향 벡터(정점에서 조명까지의 벡터)이다.
+	XMFLOAT3 xmf3LightDirection = XMFLOAT3(-1.0f, 1.0f, 1.0f);
+	xmf3LightDirection = Vector3::Normalize(xmf3LightDirection);
+	CHeightMapImage* pHeightMapImage = ( CHeightMapImage* ) pContext;
+	XMFLOAT3 xmf3Scale = pHeightMapImage->GetScale();
+
+	//조명의 색상(세기, 밝기)이다. 
+	XMFLOAT4 xmf4IncidentLightColor(0.9f, 0.8f, 0.4f, 1.0f);
+
+	// 정점 (x, z)에서 조명이 반사되는 양(비율)은 정점 (x, z)의 법선 벡터와 조명의 방향 벡터의 내적(cos)과 
+	// 인접한 3개의 정점 (x+1, z), (x, z+1), (x+1, z+1)의 법선 벡터와 조명의 방향 벡터의 내적을 평균하여 구한다. 
+	// 정점 (x, z)의 색상은 조명 색상(세기)과 반사되는 양(비율)을 곱한 값이다.
+	float fScale = Vector3::DotProduct(pHeightMapImage->GetHeightMapNormal(x, z), xmf3LightDirection);
+	fScale += Vector3::DotProduct(pHeightMapImage->GetHeightMapNormal(x + 1, z), xmf3LightDirection);
+	fScale += Vector3::DotProduct(pHeightMapImage->GetHeightMapNormal(x + 1, z + 1), xmf3LightDirection);
+	fScale += Vector3::DotProduct(pHeightMapImage->GetHeightMapNormal(x, z + 1), xmf3LightDirection);
+	fScale = ( fScale / 4.0f ) + 0.05f;
+	if ( fScale > 1.0f ) fScale = 1.0f;
+	if ( fScale < 0.25f ) fScale = 0.25f;
+
+	//fScale은 조명 색상(밝기)이 반사되는 비율이다.
+	XMFLOAT4 xmf4Color = Vector4::Multiply(fScale, xmf4IncidentLightColor);
+	return( xmf4Color );
+}

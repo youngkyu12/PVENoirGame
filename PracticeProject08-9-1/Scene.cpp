@@ -173,8 +173,6 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* dev)
 	d3dSamplerDescs[1].RegisterSpace = 0;
 	d3dSamplerDescs[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
-	auto ad3dSamplerDesces = GetStaticSamplers();
-    
     D3D12_ROOT_SIGNATURE_FLAGS flags =
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
         D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |

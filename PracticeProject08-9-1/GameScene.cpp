@@ -38,6 +38,7 @@
 #include "MonsterCombatComponent.h"
 #include "NavMesh.h"
 #include "GhoulAIComponent.h"
+#include "TerrainComponent.h"
 #include "AudioManager.h"
 #include "MusicDirector.h"
 
@@ -1389,6 +1390,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 #else
 	const UINT worldStaticCount = static_cast< UINT >( m_staticPlacementEntries.size() );
 #endif
+	constexpr UINT kTerrainObjectCount = 1;
 
 	m_staticBatch.capacity =
 		worldStaticCount +
@@ -1398,7 +1400,8 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		m_PlayerSwordCount +
 		m_PlayerAxeCount +
 		m_PlayerGunCount +
-		m_swordManCount;
+		m_swordManCount +
+		kTerrainObjectCount;
 
 	m_skinnedBatch.capacity =
 		m_ghoulCount +
@@ -1505,6 +1508,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	//BuildStaticWorldSubmeshOOBBDebugObjects(dev, cmd);
 #endif
 	BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
+	BuildTerrainObjects(dev, cmd);
 
 	LinkSceneObjects();
 
@@ -2227,6 +2231,7 @@ void CGameScene::BuildStaticBatch(
 	);
 
 	m_treeAlphaClipObjects.clear();
+	m_terrainRefs.clear();
 
 	m_staticObjects.clear();
 	m_staticObjects.reserve(cap);
@@ -3462,6 +3467,24 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 			0,
 			0
 		);
+	}
+}
+
+void CGameScene::RenderTerrainObjects(ID3D12GraphicsCommandList* cmd, CCamera* camera)
+{
+	if ( !cmd ) return;
+	if ( m_terrainRefs.empty() ) return;
+
+	for ( CGameObject* terrainObj : m_terrainRefs )
+	{
+		if ( !terrainObj ) continue;
+		if ( camera && !terrainObj->IsVisible(camera) ) continue;
+
+		std::shared_ptr<CShader> terrainShader = terrainObj->GetShader();
+		if ( !terrainShader ) continue;
+
+		terrainShader->Render(cmd, camera, terrainObj);
+		terrainObj->Render(cmd, camera);
 	}
 }
 
@@ -4720,6 +4743,54 @@ void CGameScene::BuildSkinnedBatch(
 		m_pd3dSkinnedBonePaletteBuffer->Map(
 			0, nullptr, ( void** ) &m_pMappedSkinnedBonePaletteBuffer);
 	}
+}
+
+void CGameScene::BuildTerrainObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
+{
+	if ( !dev || !cmd ) return;
+	if ( !m_pd3dGraphicsRootSignature ) return;
+
+	auto* b = &m_staticBatch;
+	if ( !b || !b->mappedGameObjects ) return;
+	if ( b->objectRefs.size() >= b->capacity ) return;
+
+	const UINT objectIndex = static_cast< UINT >( b->objectRefs.size() );
+	CB_GAMEOBJECT_INFO* cb = reinterpret_cast< CB_GAMEOBJECT_INFO* >(
+		reinterpret_cast< UINT8* >( b->mappedGameObjects ) + objectIndex * b->cbElementBytes );
+
+	D3D12_GPU_DESCRIPTOR_HANDLE cbvGpu{};
+	cbvGpu.ptr = b->baseCbvGpu.ptr + ( UINT64 ) objectIndex * b->cbvInc;
+
+	auto terrainObj = std::make_unique<CGameObject>(0);
+	terrainObj->SetMappedGameObjectCB(cb);
+	terrainObj->SetCbvGPUDescriptorHandlePtr(cbvGpu.ptr);
+	terrainObj->AddComponent<CStaticMeshRendererComponent>();
+
+	constexpr int kHeightMapWidth = 257;
+	constexpr int kHeightMapLength = 257;
+	constexpr int kBlockWidth = 33;
+	constexpr int kBlockLength = 33;
+
+	terrainObj->AddComponent<TerrainComponent>(
+		m_pd3dGraphicsRootSignature.Get(),
+		_T("Assets/Image/Terrain/HeightMap.raw"),
+		kHeightMapWidth,
+		kHeightMapLength,
+		kBlockWidth,
+		kBlockLength,
+		XMFLOAT3(1.0f, 0.25f, 1.0f),
+		XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
+
+	terrainObj->SetPosition(0.0f, 0.0f, 0.0f);
+	terrainObj->CreateComponents(dev, cmd);
+
+	CGameObject* raw = terrainObj.get();
+	m_staticObjects.push_back(std::move(terrainObj));
+	b->objectRefs.push_back(raw);
+	b->count = static_cast< UINT >( b->objectRefs.size() );
+
+	m_terrainRefs.clear();
+	m_terrainRefs.push_back(raw);
 }
 
 void CGameScene::BuildColliderBatch(
@@ -6586,6 +6657,8 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 		m_skinnedBatch.shader->Render(cmd, camera, &m_skinnedBatch);
 		RenderSkinnedInstanceGroups(cmd, camera);
 	}
+
+	RenderTerrainObjects(cmd, camera);
 
 #ifndef USING_NETWORK
 	if ( m_colliderBatch.shader )
