@@ -52,17 +52,7 @@ bool CGameFramework::OnCreate(HINSTANCE hInstance, HWND hMainWnd)
 		GLOBAL_CBV_CAPACITY,
 		GLOBAL_SRV_CAPACITY);
 
-	m_pAudioManager = std::make_unique<CAudioManager>();
-	m_pAudioManager->Initialize();
-
-	if ( auto* music = m_pAudioManager->GetMusicDirector() )
-	{
-		music->RegisterMusic(EMusicState::Menu, "Assets/Audio/MainMenuBGM_Test.mp3");
-		music->RegisterMusic(EMusicState::Gameplay, "Assets/Audio/ForestBGMWithBird.wav");
-		music->SetCrossFadeSeconds(1.5f);
-	}
-
-	m_SceneManager.SetAudioManager(m_pAudioManager.get());
+	CreateAudio();
 
 	BuildObjects();
 
@@ -415,6 +405,21 @@ void CGameFramework::CreateDepthStencilView()
 		nullptr,
 		m_d3dDsvDescriptorCPUHandle
 	);
+}
+
+void CGameFramework::CreateAudio()
+{
+	m_pAudioManager = std::make_unique<CAudioManager>();
+	m_pAudioManager->Initialize();
+
+	if ( auto* music = m_pAudioManager->GetMusicDirector() )
+	{
+		music->RegisterMusic(EMusicState::Menu, "Assets/Audio/MainMenuBGM_Test.mp3");
+		music->RegisterMusic(EMusicState::Gameplay, "Assets/Audio/ForestBGMWithBird.wav");
+		music->SetCrossFadeSeconds(1.5f);
+	}
+
+	m_SceneManager.SetAudioManager(m_pAudioManager.get());
 }
 
 void CGameFramework::BuildObjects()
@@ -1086,7 +1091,7 @@ void CGameFramework::FrameAdvance()
 	}
 #endif
 
-	CollisionSystem();
+	//CollisionSystem();
 
 	hResult = m_pd3dCommandAllocator->Reset();
 	hResult = m_pd3dCommandList->Reset(m_pd3dCommandAllocator.Get(), nullptr);

@@ -1366,3 +1366,78 @@ D3D12_SHADER_BYTECODE CShadowShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlo
 {
 	return CShader::CompileShaderFromFile(L"Shadows.hlsl", "PS", "ps_5_1", ppd3dShaderBlob);
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+///////
+CTerrainShader::CTerrainShader()
+{
+}
+
+CTerrainShader::~CTerrainShader()
+{
+}
+
+D3D12_INPUT_LAYOUT_DESC CTerrainShader::CreateInputLayout()
+{
+	// Geometry.hlsl::VSTextured 입력 시그니처(POSITION/TEXCOORD)에 맞추되,
+	// 현재 Terrain 정점 버퍼 레이아웃(position, normal, uv, tangent, ...)의 UV 오프셋(24)을 사용한다.
+	UINT nInputElementDescs = 2;
+	D3D12_INPUT_ELEMENT_DESC* pd3dInputElementDescs = new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
+
+	pd3dInputElementDescs[0] = {
+		"POSITION",
+		0,
+		DXGI_FORMAT_R32G32B32_FLOAT,
+		0,
+		0,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0
+	};
+
+	pd3dInputElementDescs[1] = {
+		"TEXCOORD",
+		0,
+		DXGI_FORMAT_R32G32_FLOAT,
+		0,
+		24,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0
+	};
+
+	D3D12_INPUT_LAYOUT_DESC d3dInputLayoutDesc;
+	d3dInputLayoutDesc.pInputElementDescs = pd3dInputElementDescs;
+	d3dInputLayoutDesc.NumElements = nInputElementDescs;
+
+	return d3dInputLayoutDesc;
+}
+
+D3D12_SHADER_BYTECODE CTerrainShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(L"Shaders.hlsl", "VSTextured", "vs_5_1", ppd3dShaderBlob);
+}
+
+D3D12_SHADER_BYTECODE CTerrainShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSTextured", "ps_5_1", ppd3dShaderBlob);
+}
+
+void CTerrainShader::CreateShader(
+	ID3D12Device* pd3dDevice,
+	ID3D12RootSignature* pd3dGraphicsRootSignature,
+	UINT nRenderTargets,
+	DXGI_FORMAT* pdxgiRtvFormats,
+	DXGI_FORMAT dxgiDsvFormat)
+{
+#ifdef _WITH_SCENE_ROOT_SIGNATURE
+	m_pd3dGraphicsRootSignature = pd3dGraphicsRootSignature;
+#else
+	CreateGraphicsRootSignature(pd3dDevice);
+#endif
+
+	CShader::CreateShader(
+		pd3dDevice,
+		m_pd3dGraphicsRootSignature.Get(),
+		nRenderTargets,
+		pdxgiRtvFormats,
+		dxgiDsvFormat);
+}
