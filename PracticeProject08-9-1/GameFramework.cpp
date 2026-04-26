@@ -18,6 +18,7 @@
 #include "ServerPacketHandler.h"
 #include "GlobalValues.h"
 
+#include <chrono>
 
 CGameFramework::CGameFramework()
 {
@@ -148,10 +149,16 @@ void CGameFramework::WaitForGpuComplete()
 	const UINT64 nFenceValue = ++m_nFenceValues[m_nSwapChainBufferIndex];
 	HRESULT hResult = m_pd3dCommandQueue->Signal(m_pd3dFence.Get(), nFenceValue);
 
-	if (m_pd3dFence->GetCompletedValue() < nFenceValue)
+	if ( m_pd3dFence->GetCompletedValue() < nFenceValue )
 	{
+		auto waitStart = std::chrono::high_resolution_clock::now();
+
 		hResult = m_pd3dFence->SetEventOnCompletion(nFenceValue, m_hFenceEvent);
 		::WaitForSingleObject(m_hFenceEvent, INFINITE);
+
+		auto waitEnd = std::chrono::high_resolution_clock::now();
+		auto waitMs = std::chrono::duration_cast< std::chrono::milliseconds >( waitEnd - waitStart ).count();
+		DBG_PrintF("[GPU] WaitForGpuComplete wait time: %lld ms\n", waitMs);
 	}
 }
 
@@ -1048,7 +1055,7 @@ void CGameFramework::MoveToNextFrame()
 void CGameFramework::FrameAdvance()
 {
 	HRESULT hResult;
-
+	auto waitStart = std::chrono::high_resolution_clock::now();
 	m_GameTimer.Tick(0.0f);
 	UpdateWindowActivationState();
 
@@ -1084,7 +1091,7 @@ void CGameFramework::FrameAdvance()
 	}
 #endif
 
-	CollisionSystem();
+	//CollisionSystem();
 
 	hResult = m_pd3dCommandAllocator->Reset();
 	hResult = m_pd3dCommandList->Reset(m_pd3dCommandAllocator.Get(), nullptr);
@@ -1221,6 +1228,9 @@ void CGameFramework::FrameAdvance()
 
 	ID3D12CommandList* ppd3dCommandLists[] = { m_pd3dCommandList.Get() };
 	m_pd3dCommandQueue->ExecuteCommandLists(1, ppd3dCommandLists);
+	auto waitEnd = std::chrono::high_resolution_clock::now();
+	auto waitMs = std::chrono::duration_cast< std::chrono::milliseconds >( waitEnd - waitStart ).count();
+	DBG_PrintF("[GPU] CPU Render time: %lld ms\n", waitMs);
 	WaitForGpuComplete();
 
 	m_pdxgiSwapChain->Present(0, 0);
