@@ -62,7 +62,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	GameMath::Vec3 right = player->GetRight();
 
 	const float speed = 5.0f;
-	const float dt = 0.03f;
+	const float dt = 0.06f;
 	float fDistance = speed * dt;
 
 	GameMath::Vec3 shift = GameMath::Vec3::Zero();
