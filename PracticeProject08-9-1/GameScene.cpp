@@ -5453,7 +5453,20 @@ void CGameScene::AnimateObjects(float dt)
 
 	for ( UINT j = 0; j < ( UINT ) m_skinnedObjects.size(); ++j )
 	{
-		if ( !m_skinnedObjects[j] ) continue;
+		if ( !m_skinnedObjects[j] )
+			continue;
+
+		if ( j < ( UINT ) m_skinnedDistanceCullFlags.size() )
+		{
+			if ( m_skinnedDistanceCullFlags[j] != 0 )
+				continue;
+		}
+
+		if ( j < ( UINT ) m_skinnedOcclusionCullFlags.size() )
+		{
+			if ( m_skinnedOcclusionCullFlags[j] != 0 )
+				continue;
+		}
 
 		if ( camera && !m_skinnedObjects[j]->IsVisible(camera) )
 			continue;
@@ -5461,11 +5474,31 @@ void CGameScene::AnimateObjects(float dt)
 		m_skinnedObjects[j]->Animate(dt);
 	}
 
-    for (UINT j = 0; j < (UINT)m_staticObjects.size(); ++j)
-    {
-        if (!m_staticObjects[j]) continue;
-        m_staticObjects[j]->Animate(dt);
-    }
+	for ( UINT j = 0; j < ( UINT ) m_staticObjects.size(); ++j )
+	{
+		if ( !m_staticObjects[j] )
+			continue;
+
+		if ( j < ( UINT ) m_staticDistanceCullFlags.size() )
+		{
+			if ( m_staticDistanceCullFlags[j] != 0 )
+				continue;
+		}
+
+		if ( j < ( UINT ) m_staticOcclusionCullFlags.size() )
+		{
+			if ( m_staticOcclusionCullFlags[j] != 0 )
+				continue;
+		}
+
+		if ( j < ( UINT ) m_staticTreeGridCullFlags.size() )
+		{
+			if ( m_staticTreeGridCullFlags[j] != 0 )
+				continue;
+		}
+
+		m_staticObjects[j]->Animate(dt);
+	}
 #ifndef USING_NETWORK
     UpdatePreparedBowArrows();
 #endif

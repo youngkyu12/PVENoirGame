@@ -153,14 +153,8 @@ void CGameFramework::WaitForGpuComplete()
 
 	if ( m_pd3dFence->GetCompletedValue() < nFenceValue )
 	{
-		auto waitStart = std::chrono::high_resolution_clock::now();
-
 		hResult = m_pd3dFence->SetEventOnCompletion(nFenceValue, m_hFenceEvent);
 		::WaitForSingleObject(m_hFenceEvent, INFINITE);
-
-		auto waitEnd = std::chrono::high_resolution_clock::now();
-		auto waitMs = std::chrono::duration_cast< std::chrono::milliseconds >( waitEnd - waitStart ).count();
-		DBG_PrintF("[GPU] WaitForGpuComplete wait time: %lld ms\n", waitMs);
 	}
 }
 
@@ -1114,10 +1108,10 @@ void CGameFramework::FrameAdvance()
 		}
 	}
 #endif
-	{
+	/*{
 		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::CollisionSystem");
 		CollisionSystem();
-	}
+	}*/
 
 	{
 		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::CommandAllocatorAndListReset");
