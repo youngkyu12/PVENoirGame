@@ -146,6 +146,8 @@ void CGameFramework::ReleaseObjects()
 
 void CGameFramework::WaitForGpuComplete()
 {
+	PROFILE_RENDER_SCOPE("Framework::WaitForGpuComplete(total)");
+
 	const UINT64 nFenceValue = ++m_nFenceValues[m_nSwapChainBufferIndex];
 	HRESULT hResult = m_pd3dCommandQueue->Signal(m_pd3dFence.Get(), nFenceValue);
 
@@ -1028,14 +1030,18 @@ void CGameFramework::ProcessInput()
 
 void CGameFramework::AnimateObjects()
 {
+	PROFILE_RENDER_SCOPE("Framework::AnimateObjects");
+
 	CScene* scene = m_SceneManager.GetScene();
-	if (scene) scene->AnimateObjects(m_GameTimer.GetTimeElapsed());
+	if ( scene ) scene->AnimateObjects(m_GameTimer.GetTimeElapsed());
 }
 
 void CGameFramework::CollisionSystem()
 {
+	PROFILE_RENDER_SCOPE("Framework::CollisionSystem");
+
 	CScene* scene = m_SceneManager.GetScene();
-	if (scene) scene->CollisionObjects();
+	if ( scene ) scene->CollisionObjects();
 }
 
 void CGameFramework::MoveToNextFrame()
@@ -1054,15 +1060,26 @@ void CGameFramework::MoveToNextFrame()
 
 void CGameFramework::FrameAdvance()
 {
+	PROFILE_RENDER_SCOPE("Framework::FrameAdvance(total)");
+
 	HRESULT hResult;
-	auto waitStart = std::chrono::high_resolution_clock::now();
-	m_GameTimer.Tick(0.0f);
-	UpdateWindowActivationState();
 
-	if ( m_pAudioManager )
-		m_pAudioManager->Update();
+	{
+		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::TickAndWindowState");
+		m_GameTimer.Tick(0.0f);
+		UpdateWindowActivationState();
+	}
 
-	ApplyPendingSceneSwitch();
+	{
+		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::AudioUpdate");
+		if ( m_pAudioManager )
+			m_pAudioManager->Update();
+	}
+
+	{
+		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::ApplyPendingSceneSwitch");
+		ApplyPendingSceneSwitch();
+	}
 
 #ifndef USING_NETWORK
 	XMFLOAT3 localPlayerPrevPos = XMFLOAT3(0.0f, 0.0f, 0.0f);
@@ -1078,8 +1095,15 @@ void CGameFramework::FrameAdvance()
 	}
 #endif
 
-	ProcessInput();
-	AnimateObjects();
+	{
+		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::ProcessInput");
+		ProcessInput();
+	}
+
+	{
+		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::AnimateObjects");
+		AnimateObjects();
+	}
 
 #ifndef USING_NETWORK
 	if ( hasLocalPlayerPrevPos )
@@ -1093,15 +1117,21 @@ void CGameFramework::FrameAdvance()
 
 	//CollisionSystem();
 
-	hResult = m_pd3dCommandAllocator->Reset();
-	hResult = m_pd3dCommandList->Reset(m_pd3dCommandAllocator.Get(), nullptr);
+	{
+		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::CommandAllocatorAndListReset");
+		hResult = m_pd3dCommandAllocator->Reset();
+		hResult = m_pd3dCommandList->Reset(m_pd3dCommandAllocator.Get(), nullptr);
+	}
 
-	::SynchronizeResourceTransition(
-		m_pd3dCommandList.Get(),
-		m_ppd3dSwapChainBackBuffers[m_nSwapChainBufferIndex].Get(),
-		D3D12_RESOURCE_STATE_PRESENT,
-		D3D12_RESOURCE_STATE_RENDER_TARGET
-	);
+	{
+		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::BackBufferPresentToRenderTarget");
+		::SynchronizeResourceTransition(
+			m_pd3dCommandList.Get(),
+			m_ppd3dSwapChainBackBuffers[m_nSwapChainBufferIndex].Get(),
+			D3D12_RESOURCE_STATE_PRESENT,
+			D3D12_RESOURCE_STATE_RENDER_TARGET
+		);
+	}
 
 	CScene* scene = m_SceneManager.GetScene();
 	CGameScene* gameScene = dynamic_cast< CGameScene* >( scene );
@@ -1134,6 +1164,8 @@ void CGameFramework::FrameAdvance()
 			);
 
 			{
+				PROFILE_RENDER_SCOPE("Framework::GameScene::SetSceneRenderTargets");
+
 				D3D12_CPU_DESCRIPTOR_HANDLE sceneRtvs[8] = {};
 				UINT sceneRtvCount = 0;
 
@@ -1157,30 +1189,53 @@ void CGameFramework::FrameAdvance()
 				);
 			}
 
-			gameScene->RenderShadowPrePass(m_pd3dCommandList.Get(), m_pCamera);
+			{
+				PROFILE_RENDER_SCOPE("Framework::GameScene::RenderShadowPrePass");
+				gameScene->RenderShadowPrePass(m_pd3dCommandList.Get(), m_pCamera);
+			}
 
-			gameScene->OnPrepareRender(m_pd3dCommandList.Get(), m_pCamera);
-			gameScene->RenderSceneGeometry(m_pd3dCommandList.Get(), m_pCamera);
+			{
+				PROFILE_RENDER_SCOPE("Framework::GameScene::OnPrepareRenderForGeometry");
+				gameScene->OnPrepareRender(m_pd3dCommandList.Get(), m_pCamera);
+			}
 
-			m_pPostProcessingShader->OnPostRenderTarget(m_pd3dCommandList.Get());
+			{
+				PROFILE_RENDER_SCOPE("Framework::GameScene::RenderSceneGeometry");
+				gameScene->RenderSceneGeometry(m_pd3dCommandList.Get(), m_pCamera);
+			}
 
-			// 2) Composite pass -> backbuffer only
-			m_pd3dCommandList->ClearRenderTargetView(
-				m_pd3dSwapChainBackBufferRTVCPUHandles[m_nSwapChainBufferIndex],
-				Colors::SkyBlue,
-				0,
-				nullptr
-			);
+			{
+				PROFILE_RENDER_SCOPE("Framework::PostProcessing::OnPostRenderTarget");
+				m_pPostProcessingShader->OnPostRenderTarget(m_pd3dCommandList.Get());
+			}
 
-			m_pd3dCommandList->OMSetRenderTargets(
-				1,
-				&m_pd3dSwapChainBackBufferRTVCPUHandles[m_nSwapChainBufferIndex],
-				FALSE,
-				nullptr
-			);
+			{
+				PROFILE_RENDER_SCOPE("Framework::BackBufferClearForComposite");
 
-			gameScene->OnPrepareRender(m_pd3dCommandList.Get(), m_pCamera);
-			gameScene->RenderSceneComposite(m_pd3dCommandList.Get(), m_pCamera);
+				m_pd3dCommandList->ClearRenderTargetView(
+					m_pd3dSwapChainBackBufferRTVCPUHandles[m_nSwapChainBufferIndex],
+					Colors::SkyBlue,
+					0,
+					nullptr
+				);
+
+				m_pd3dCommandList->OMSetRenderTargets(
+					1,
+					&m_pd3dSwapChainBackBufferRTVCPUHandles[m_nSwapChainBufferIndex],
+					FALSE,
+					nullptr
+				);
+			}
+
+			{
+				PROFILE_RENDER_SCOPE("Framework::GameScene::OnPrepareRenderForComposite");
+				gameScene->OnPrepareRender(m_pd3dCommandList.Get(), m_pCamera);
+			}
+
+			{
+				PROFILE_RENDER_SCOPE("Framework::GameScene::RenderSceneComposite");
+				gameScene->RenderSceneComposite(m_pd3dCommandList.Get(), m_pCamera);
+			}
 		}
 		else
 		{
@@ -1217,25 +1272,43 @@ void CGameFramework::FrameAdvance()
 		m_pPostProcessingShader->Render(m_pd3dCommandList.Get(), m_pCamera, &m_nDrawOption);
 	}
 
-	::SynchronizeResourceTransition(
-		m_pd3dCommandList.Get(),
-		m_ppd3dSwapChainBackBuffers[m_nSwapChainBufferIndex].Get(),
-		D3D12_RESOURCE_STATE_RENDER_TARGET,
-		D3D12_RESOURCE_STATE_PRESENT
-	);
+	{
+		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::BackBufferRenderTargetToPresent");
 
-	hResult = m_pd3dCommandList->Close();
+		::SynchronizeResourceTransition(
+			m_pd3dCommandList.Get(),
+			m_ppd3dSwapChainBackBuffers[m_nSwapChainBufferIndex].Get(),
+			D3D12_RESOURCE_STATE_RENDER_TARGET,
+			D3D12_RESOURCE_STATE_PRESENT
+		);
+	}
 
-	ID3D12CommandList* ppd3dCommandLists[] = { m_pd3dCommandList.Get() };
-	m_pd3dCommandQueue->ExecuteCommandLists(1, ppd3dCommandLists);
-	auto waitEnd = std::chrono::high_resolution_clock::now();
-	auto waitMs = std::chrono::duration_cast< std::chrono::milliseconds >( waitEnd - waitStart ).count();
-	DBG_PrintF("[GPU] CPU Render time: %lld ms\n", waitMs);
-	WaitForGpuComplete();
+	{
+		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::CommandListClose");
+		hResult = m_pd3dCommandList->Close();
+	}
 
-	m_pdxgiSwapChain->Present(0, 0);
+	{
+		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::ExecuteCommandLists");
 
-	MoveToNextFrame();
+		ID3D12CommandList* ppd3dCommandLists[ ] = { m_pd3dCommandList.Get() };
+		m_pd3dCommandQueue->ExecuteCommandLists(1, ppd3dCommandLists);
+	}
+
+	{
+		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::WaitForGpuComplete");
+		WaitForGpuComplete();
+	}
+
+	{
+		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::Present");
+		m_pdxgiSwapChain->Present(0, 0);
+	}
+
+	{
+		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::MoveToNextFrame");
+		MoveToNextFrame();
+	}
 
 	// 현재 프레임이 화면에 실제로 표시된 뒤,
 	// 다음 프레임 시작에서 씬 전환이 가능하도록 만든다.

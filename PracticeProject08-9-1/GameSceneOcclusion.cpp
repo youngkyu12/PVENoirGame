@@ -534,6 +534,8 @@ void CGameScene::ReleaseStaticOcclusionGpuResources()
 
 void CGameScene::BeginStaticOcclusionReadback()
 {
+	PROFILE_RENDER_SCOPE("GameScene::BeginStaticOcclusionReadback");
+
 	if ( !m_bStaticOcclusionQueryResourcesReady )
 		return;
 
@@ -559,6 +561,8 @@ void CGameScene::BeginStaticOcclusionReadback()
 
 void CGameScene::ResolveStaticOcclusionQueries(ID3D12GraphicsCommandList* cmd)
 {
+	PROFILE_RENDER_SCOPE("GameScene::ResolveStaticOcclusionQueries");
+
 	if ( !cmd )
 		return;
 
@@ -584,6 +588,8 @@ void CGameScene::ResolveStaticOcclusionQueries(ID3D12GraphicsCommandList* cmd)
 
 void CGameScene::RenderStaticOcclusionPass(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
+	PROFILE_RENDER_SCOPE("GameScene::RenderStaticOcclusionPass");
+
 	if ( !cmd )
 		return;
 
@@ -766,6 +772,8 @@ void CGameScene::RenderStaticOcclusionPass(ID3D12GraphicsCommandList* cmd, CCame
 
 void CGameScene::RenderSkinnedOcclusionPass(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
+	PROFILE_RENDER_SCOPE("GameScene::RenderSkinnedOcclusionPass");
+
 	if ( !cmd )
 		return;
 
@@ -1297,6 +1305,8 @@ void CGameScene::ReleaseSkinnedOcclusionGpuResources()
 
 void CGameScene::BeginSkinnedOcclusionReadback()
 {
+	PROFILE_RENDER_SCOPE("GameScene::BeginSkinnedOcclusionReadback");
+
 	if ( !m_bSkinnedOcclusionQueryResourcesReady )
 		return;
 
@@ -1322,6 +1332,8 @@ void CGameScene::BeginSkinnedOcclusionReadback()
 
 void CGameScene::ResolveSkinnedOcclusionQueries(ID3D12GraphicsCommandList* cmd)
 {
+	PROFILE_RENDER_SCOPE("GameScene::ResolveSkinnedOcclusionQueries");
+
 	if ( !cmd )
 		return;
 
