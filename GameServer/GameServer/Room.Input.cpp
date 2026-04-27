@@ -69,17 +69,14 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	float fDistance = speed * dt;
 
 	GameMath::Vec3 shift = GameMath::Vec3::Zero();
+	GameMath::Vec3 moveDirection = GameMath::Vec3::Zero();
 
 	switch (player->GetAnimState())
 	{
-		case Protocol::ANIMATION_TYPE_RUN:
-		{
-			fDistance *= 2.0f;
-			break;
-		}
+
 		case Protocol::ANIMATION_TYPE_ROLL:
 		{
-			shift += look * fDistance; // 구르기는 기존 상태를 계속 유지
+			// 구르기는 기존 상태를 계속 유지
 			break;
 		}
 		case Protocol::ANIMATION_TYPE_ATTACK:
@@ -88,8 +85,40 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 			break;
 		}
 		case Protocol::ANIMATION_TYPE_IDLE:
+		{
+			// IDLE도 이동하면 안됨
+			fDistance *= 0.0f;
+			break;
+		}
+		case Protocol::ANIMATION_TYPE_RUN:
+		{
+			fDistance *= 2.0f;
+		}
 		case Protocol::ANIMATION_TYPE_WALK:
 		{
+			// 이동 방향에 따라 fdistaance 조절
+			if (keyCodes & kDirForward)
+			{
+				moveDirection = look;
+			}
+
+			if (keyCodes & kDirBackward)
+			{
+				moveDirection = -look;
+			}
+
+			if (keyCodes & kDirRight)
+			{
+				moveDirection = right;
+				fDistance *= 0.5f;
+			}
+
+			if (keyCodes & kDirLeft)
+			{
+				moveDirection = -right;
+				fDistance *= 0.5f;
+			}
+
 			break;
 		}
 		default:
@@ -98,17 +127,19 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		}
 	}
 
-	if (keyCodes & kDirForward)
-		shift += look * fDistance;
-
-	if (keyCodes & kDirBackward)
-		shift += look * (-fDistance);
-
-	if (keyCodes & kDirRight)
-		shift += right * fDistance * 0.5f;
-
-	if (keyCodes & kDirLeft)
-		shift += right * (-fDistance) * 0.5f;
+	if(player->GetAnimState() == Protocol::ANIMATION_TYPE_ROLL)
+	{
+		// 구르기는 이동 방향이 고정되어야 한다
+		if (prevAnimState == Protocol::ANIMATION_TYPE_IDLE || prevAnimState == Protocol::ANIMATION_TYPE_WALK || prevAnimState == Protocol::ANIMATION_TYPE_RUN)
+		{
+			moveDirection = player->GetLook();
+		}
+		else
+		{
+			moveDirection = player->GetVelocity().Normalized();
+		}
+	}
+	shift += moveDirection * fDistance;
 
 	const float moveMul = (player->GetAnimState() == Protocol::ANIMATION_TYPE_RUN
 		&& !(player->GetAnimState() == Protocol::ANIMATION_TYPE_ROLL 
