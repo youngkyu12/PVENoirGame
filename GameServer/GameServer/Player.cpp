@@ -16,22 +16,22 @@ void Player::Update(uint32 serverTick)
 		switch (m_animState)
 		{
 		case Protocol::ANIMATION_TYPE_WALK:
-			animDuration = 30; // 30 ticks
+			animDuration = 15; // 30 ticks
 			break;
 		case Protocol::ANIMATION_TYPE_RUN:
-			animDuration = 20; // 20 ticks
+			animDuration = 10; // 20 ticks
 			break;
 		case Protocol::ANIMATION_TYPE_ATTACK:
-			animDuration = 20; // 20 ticks
+			animDuration = 10; // 20 ticks
 			break;
 		case Protocol::ANIMATION_TYPE_ROLL:
-			animDuration = 20; // 40 ticks
+			animDuration = 1; // 40 ticks
 			break;
 		case Protocol::ANIMATION_TYPE_DIE:
-			animDuration = 50; // 50 ticks
+			animDuration = 25; // 50 ticks
 			break;
 		case Protocol::ANIMATION_TYPE_HIT:
-			animDuration = 40;
+			animDuration = 20;
 			break;
 		default:
 			animDuration = 0;
