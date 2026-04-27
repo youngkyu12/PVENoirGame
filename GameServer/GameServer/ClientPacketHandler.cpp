@@ -88,6 +88,7 @@ bool Handle_C_GAME_START(PacketSessionRef& session, Protocol::C_GAME_START& pkt)
 	GameSessionRef gameSession = static_pointer_cast<GameSession>(session);
 	//cout << "Send World Info..." << endl;		
 
+
 	//GRoom->DoAsync(&Room::StartGame, pkt.ready(), pkt.playerid());
 	GRoom->DoTimer(1000, &Room::StartGame, pkt.ready(), pkt.playerid());
 
@@ -96,9 +97,9 @@ bool Handle_C_GAME_START(PacketSessionRef& session, Protocol::C_GAME_START& pkt)
 
 bool Handle_C_CLIENT_READY(PacketSessionRef& session, Protocol::C_CLIENT_READY& pkt)
 {
-	uint32 local_playerId = pkt.playerid();
+	uint32 localPlayerId = pkt.playerid();
 
-	GRoom->SetPlayerReady(pkt.ready(), local_playerId);
+	GRoom->DoAsync(&Room::SetPlayerReady, pkt.ready(), localPlayerId);
 
 	return false;
 }

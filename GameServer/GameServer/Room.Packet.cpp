@@ -100,6 +100,8 @@ namespace
 
 void Room::MakeFrameState(uint32 tick)
 {
+	const auto frameStart = std::chrono::steady_clock::now();
+
 	constexpr float kEnemyViewRange = 200.0f;
 	constexpr float kEnemyViewRangeSq = kEnemyViewRange * kEnemyViewRange;
 	constexpr float kBulletViewRange = 100.0f;
@@ -201,6 +203,8 @@ void Room::MakeFrameState(uint32 tick)
 		viewer->ownerSession->Send(sendBuffer);
 	}
 
+
+
 }
 
 void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
@@ -246,7 +250,7 @@ void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
 	for (auto& player : players)
 		player.second->SetActive(false);
 
-	CheckClientReady();
+	GRoom->DoTimer(100, &Room::CheckClientReady);
 }
 
 void Room::MakeEnterGameStruct(Protocol::S_ENTER_GAME enterGamePkt)
