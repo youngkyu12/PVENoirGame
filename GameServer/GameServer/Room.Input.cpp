@@ -40,6 +40,9 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 			player->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
 			break;
 		}
+
+		// 공격 애니메이션이 시작되면 이동 입력은 무시되어야 한다
+		player->SetVelocity(GameMath::Vec3::Zero());
 	}
 	else if (prevAnimState != Protocol::ANIMATION_TYPE_ATTACK &&
 		prevAnimState != Protocol::ANIMATION_TYPE_ROLL &&
@@ -61,11 +64,39 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	GameMath::Vec3 look = player->GetLook();
 	GameMath::Vec3 right = player->GetRight();
 
-	const float speed = 5.0f;
+	const float speed = 8.0f;
 	const float dt = 0.06f;
 	float fDistance = speed * dt;
 
 	GameMath::Vec3 shift = GameMath::Vec3::Zero();
+
+	switch (player->GetAnimState())
+	{
+		case Protocol::ANIMATION_TYPE_RUN:
+		{
+			fDistance *= 2.0f;
+			break;
+		}
+		case Protocol::ANIMATION_TYPE_ROLL:
+		{
+			shift += look * fDistance; // 구르기는 기존 상태를 계속 유지
+			break;
+		}
+		case Protocol::ANIMATION_TYPE_ATTACK:
+		{
+			fDistance *= 0.0f; // 공격 도중에는 이동 속도 = 0
+			break;
+		}
+		case Protocol::ANIMATION_TYPE_IDLE:
+		case Protocol::ANIMATION_TYPE_WALK:
+		{
+			break;
+		}
+		default:
+		{
+			break;
+		}
+	}
 
 	if (keyCodes & kDirForward)
 		shift += look * fDistance;
@@ -79,7 +110,10 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	if (keyCodes & kDirLeft)
 		shift += right * (-fDistance) * 0.5f;
 
-	const float moveMul = (player->GetAnimState() == Protocol::ANIMATION_TYPE_RUN) ? 2.0f : 1.0f;
+	const float moveMul = (player->GetAnimState() == Protocol::ANIMATION_TYPE_RUN
+		&& !(player->GetAnimState() == Protocol::ANIMATION_TYPE_ROLL 
+			|| player->GetAnimState() == Protocol::ANIMATION_TYPE_ATTACK)) 
+		? 2.0f : 1.0f;
 	GameMath::Vec3 desiredShift = shift * moveMul;
 
 	if (GameMath::Vec3::Dot(desiredShift, desiredShift) > 1e-8f)
