@@ -50,7 +50,7 @@ int main()
 
 	ASSERT_CRASH(service->Start());
 
-	for (int32 i = 0; i < 3; i++)
+	for (int32 i = 0; i < 4; i++)
 	{
 		GThreadManager->Launch([=]()
 			{

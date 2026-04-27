@@ -250,7 +250,7 @@ void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
 	for (auto& player : players)
 		player.second->SetActive(false);
 
-	CheckClientReady();
+	GRoom->DoTimer(100, &Room::CheckClientReady);
 }
 
 void Room::MakeEnterGameStruct(Protocol::S_ENTER_GAME enterGamePkt)
