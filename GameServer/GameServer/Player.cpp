@@ -31,7 +31,7 @@ void Player::Update(uint32 serverTick)
 			animDuration = 50; // 50 ticks
 			break;
 		case Protocol::ANIMATION_TYPE_HIT:
-			animDuration = 20;
+			animDuration = 40;
 			break;
 		default:
 			animDuration = 0;

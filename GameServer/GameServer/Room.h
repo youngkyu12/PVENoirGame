@@ -41,7 +41,7 @@ public:
 	void ProcessEnemyAI();
 
 public:
-    void SetPlayerReady(bool ready, uint32& playerId);
+    void SetPlayerReady(bool ready, uint32 playerId);
 
 public:
     GameAreaRef GetArea(uint32 areaId);

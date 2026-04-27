@@ -344,22 +344,15 @@ void Room::StartGame(bool ready, uint32 index)
 	if (players.find(index) == players.end())
 		return;
 
-	WRITE_LOCK;
-	static Vector<bool> p_ready(4);
+	static Vector<bool> p_ready(MaxPlayers);
 	p_ready[index] = ready;
-
-	players[index]->SetActive(ready);
 
 	static Atomic<bool> gameStarted = false;
 
-	if (
-		std::all_of(players.begin(), players.end(),
-			[&](const auto& player)
-			{
-				return player.second && player.second->IsActive();
-			})
-		&&
-		players.size() == MaxPlayers)
+	const bool allReady = std::all_of(p_ready.begin(), p_ready.end(),
+		[](bool b) { return b; });
+
+	if (allReady && players.size() == MaxPlayers)
 	{
 		if (gameStarted.exchange(true) == false)
 		{
@@ -380,11 +373,9 @@ void Room::EndGame()
 
 void Room::CheckClientReady()
 {
-	bool allPlayerBuilt = !players.empty();
-	for (auto& player : players)
-	{
-		allPlayerBuilt = allPlayerBuilt && player.second->IsActive();
-	}
+	const volatile bool allPlayerBuilt = !players.empty() &&
+		std::all_of(players.begin(), players.end(),
+			[](const auto& kv) { return kv.second && kv.second->IsActive(); });
 
 	if (allPlayerBuilt)
 	{
@@ -394,13 +385,19 @@ void Room::CheckClientReady()
 	}
 	else
 	{
+
 		GRoom->DoTimer(100, &Room::CheckClientReady);
+		//GRoom->CheckClientReady();
 	}
 }
 
-void Room::SetPlayerReady(bool ready, uint32& playerId)
+void Room::SetPlayerReady(bool ready, uint32 playerId)
 {
-	players[playerId]->SetActive(true);
+	auto it = players.find(playerId);
+	if (it == players.end())
+		return;
+
+	it->second->SetActive(ready);   // ready 인자 사용
 }
 
 GameAreaRef Room::GetArea(uint32 areaId)
