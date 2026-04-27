@@ -64,6 +64,7 @@ extern ClientServiceRef g_clientService;
 #include <vector>
 #include <unordered_map>
 #include <random>
+#include <chrono>
 
 #include <wincodec.h>
 #include <windowsx.h>
@@ -143,3 +144,53 @@ static void DBG_PrintF(const char* fmt, ...)
 	va_end(ap);
 	OutputDebugStringA(buf);
 }
+
+// ============================================================================
+// Render profiling log
+// ============================================================================
+// 1 = 켬, 0 = 끔
+#define LOG_RENDER_PROFILE 1
+
+// 너무 작은 함수까지 전부 찍기 싫으면 0.05f, 0.1f 같은 값으로 올리면 됨.
+// 일단 병목 찾는 단계에서는 0.0f 권장.
+#define LOG_RENDER_PROFILE_MIN_MS 0.0
+
+#if LOG_RENDER_PROFILE
+
+class CScopedRenderProfile
+{
+public:
+	using Clock = std::chrono::high_resolution_clock;
+
+	explicit CScopedRenderProfile(const char* name)
+		: m_name(name)
+		, m_begin(Clock::now())
+	{
+	}
+
+	~CScopedRenderProfile()
+	{
+		const auto end = Clock::now();
+		const double elapsedMs =
+			std::chrono::duration<double, std::milli>(end - m_begin).count();
+
+		if ( elapsedMs >= LOG_RENDER_PROFILE_MIN_MS )
+		{
+			DBG_PrintF("[RenderProfile] %-55s : %.3f ms\n", m_name, elapsedMs);
+		}
+	}
+
+private:
+	const char* m_name = "";
+	Clock::time_point m_begin;
+};
+
+#define PROFILE_CONCAT_IMPL(a, b) a##b
+#define PROFILE_CONCAT(a, b) PROFILE_CONCAT_IMPL(a, b)
+#define PROFILE_RENDER_SCOPE(name) CScopedRenderProfile PROFILE_CONCAT(_renderProfileScope_, __LINE__)(name)
+
+#else
+
+#define PROFILE_RENDER_SCOPE(name) ((void)0)
+
+#endif
