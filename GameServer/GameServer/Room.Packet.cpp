@@ -92,7 +92,6 @@ namespace
 				if (str < -kEps) code |= kStateLeft;
 			}
 		}
-
 		s_prevEnemyPos[enemyId] = curPos;
 		return code;
 	}
@@ -106,6 +105,8 @@ void Room::MakeFrameState(uint32 tick)
 	constexpr float kEnemyViewRangeSq = kEnemyViewRange * kEnemyViewRange;
 	constexpr float kBulletViewRange = 100.0f;
 	constexpr float kBulletViewRangeSq = kBulletViewRange * kBulletViewRange;
+
+	std::unordered_map<uint64, uint32> s_EnemyStateCodeCache;
 
 	for (auto& viewerPair : players)
 	{
@@ -152,13 +153,15 @@ void Room::MakeFrameState(uint32 tick)
 			if (abs(GameMath::DistSqXZ(viewerPos, enemy->GetPosition())) > kEnemyViewRangeSq)
 				continue;
 
+			if(s_EnemyStateCodeCache.find(enemyMap.first) == s_EnemyStateCodeCache.end())
+				s_EnemyStateCodeCache[enemyMap.first] = BuildEnemyStateCode(*enemy);
+
 			auto e = frameStatePkt.add_enemies();
 			e->set_id(enemyMap.first);
 			e->set_enemytype(enemy->type);
 			e->set_weapontype(enemy->GetWeaponState());
-
 			Protocol::Animation* anim = e->mutable_animation();
-			anim->set_statecode(BuildEnemyStateCode(*enemy));
+			anim->set_statecode(s_EnemyStateCodeCache[enemyMap.first]);
 			anim->set_animationtick(enemy->GetAnimTick());
 
 			Protocol::Transform* transform = e->mutable_transform();
