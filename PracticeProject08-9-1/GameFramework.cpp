@@ -945,6 +945,30 @@ void CGameFramework::ProcessInput()
 			m_pCamera->Rotate(cyDelta, cxDelta, 0.0f);
 		}
 
+		const float cameraYawDeg = m_pCamera ? m_pCamera->GetYaw() : pc->GetYawDegrees();
+
+		if ( pc->ShouldFaceCameraWhileActionActive() )
+		{
+			pc->SetYawDegrees(cameraYawDeg);
+		}
+		else if ( ( dwDirection & ( DIR_FORWARD | DIR_BACKWARD | DIR_LEFT | DIR_RIGHT ) ) &&
+				 !pc->IsActionLockedByAnimation() )
+		{
+			pc->RotateTowardYawDegrees(cameraYawDeg, 12.0f, dt);
+		}
+
+		pc->SetRunRequested(bRunRequested);
+
+		if ( dwDirection && !pc->IsActionLockedByAnimation() )
+		{
+			const XMFLOAT3 prevPos = playerObj->GetPosition();
+			pc->MoveByYaw(dwDirection, 5.0f * dt, cameraYawDeg, false);
+			if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
+				gameScene->RollbackLocalPlayerMoveIfCollidingWorldStatic(prevPos);
+		}
+
+		pc->SetInputDirection(static_cast< uint32_t >( dwDirection ));
+
 		XMFLOAT3 cameraTarget = playerObj->GetPosition();
 		cameraTarget.y += 1.7f;
 
