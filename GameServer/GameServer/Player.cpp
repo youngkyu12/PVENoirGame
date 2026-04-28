@@ -25,13 +25,13 @@ void Player::Update(uint32 serverTick)
 			animDuration = 10; // 20 ticks
 			break;
 		case Protocol::ANIMATION_TYPE_ROLL:
-			animDuration = 1; // 40 ticks
+			animDuration = 10; // 40 ticks
 			break;
 		case Protocol::ANIMATION_TYPE_DIE:
 			animDuration = 25; // 50 ticks
 			break;
 		case Protocol::ANIMATION_TYPE_HIT:
-			animDuration = 20;
+			animDuration = 10;
 			break;
 		default:
 			animDuration = 0;
