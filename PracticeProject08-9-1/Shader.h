@@ -205,6 +205,7 @@ public:
 
 public:
 	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
+	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
 };
 
 class CShadowMapSkinnedShader : public CSkinnedObjectsShader
@@ -227,6 +228,7 @@ public:
 
 public:
 	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
+	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
 };
 
 class COcclusionStaticShader final : public CStaticObjectsShader
