@@ -2800,8 +2800,6 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 
 void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
-	PROFILE_RENDER_SCOPE("GameScene::RenderSkinnedInstanceGroups");
-
 	if ( !cmd ) return;
 	if ( !m_pd3dSkinnedInstanceBuffer ) return;
 	if ( !m_pMappedSkinnedInstanceBuffer ) return;
@@ -3029,8 +3027,6 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 
 void CGameScene::RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandList* cmd)
 {
-	PROFILE_RENDER_SCOPE("GameScene::RenderSkinnedInstanceGroupsToShadowMap");
-
 	if ( !cmd ) return;
 	if ( !m_pd3dSkinnedInstanceBuffer ) return;
 	if ( !m_pMappedSkinnedInstanceBuffer ) return;
@@ -4433,7 +4429,6 @@ void CGameScene::BuildShadowResources(ID3D12Device* dev, ID3D12GraphicsCommandLi
 
 void CGameScene::RenderDepthFog(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
-	PROFILE_RENDER_SCOPE("GameScene::RenderDepthFog");
 	m_depthFog.Render(cmd, camera);
 }
 
@@ -4621,11 +4616,7 @@ void CGameScene::RenderShadowPrePass(ID3D12GraphicsCommandList* cmd, CCamera* ca
 		PROFILE_RENDER_SCOPE("GameScene::RenderShadowPrePass::RenderShadowMap");
 		RenderShadowMap(cmd);
 	}
-
-	{
-		PROFILE_RENDER_SCOPE("GameScene::RenderShadowPrePass::RestoreSceneRenderTargets");
-		RestoreSceneRenderTargets(cmd, camera);
-	}
+	RestoreSceneRenderTargets(cmd, camera);
 }
 
 bool CGameScene::GetPauseOverlayRect(XMFLOAT4& outRect) const
@@ -5700,8 +5691,6 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 
 	if ( m_skinnedBatch.shader )
 	{
-		PROFILE_RENDER_SCOPE("GameScene::RenderSceneGeometry::SkinnedInstances");
-
 		m_skinnedBatch.shader->Render(cmd, camera, &m_skinnedBatch);
 		RenderSkinnedInstanceGroups(cmd, camera);
 	}
@@ -5719,8 +5708,6 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 #ifndef USING_NETWORK
 	if ( m_colliderBatch.shader )
 	{
-		PROFILE_RENDER_SCOPE("GameScene::RenderSceneGeometry::ColliderDebugRender");
-
 		m_colliderBatch.shader->Render(cmd, camera, &m_colliderBatch);
 		for ( UINT j = 0; j < ( UINT ) m_colliderObjects.size(); ++j )
 		{
@@ -5732,8 +5719,6 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 
 #ifndef USING_NETWORK
 	{
-		PROFILE_RENDER_SCOPE("GameScene::RenderSceneGeometry::MegaGridBgmCheck");
-
 		const bool isInsideMegaGridCenter = IsLocalPlayerInsideMegaGridCenter();
 
 		if ( isInsideMegaGridCenter != m_bWasLocalPlayerInsideMegaGridCenter )
@@ -5767,17 +5752,8 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 
 void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
-	PROFILE_RENDER_SCOPE("GameScene::RenderSceneComposite(total)");
-
-	{
-		PROFILE_RENDER_SCOPE("GameScene::RenderSceneComposite::DepthFog");
-		RenderDepthFog(cmd, camera);
-	}
-
-	{
-		PROFILE_RENDER_SCOPE("GameScene::RenderSceneComposite::HUD");
-		m_hud.Render(cmd, camera);
-	}
+	RenderDepthFog(cmd, camera);
+	m_hud.Render(cmd, camera);
 }
 
 void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
@@ -5809,10 +5785,7 @@ void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 		RenderSceneGeometry(cmd, camera);
 	}
 
-	{
-		PROFILE_RENDER_SCOPE("GameScene::Render::RenderSceneComposite");
-		RenderSceneComposite(cmd, camera);
-	}
+	RenderSceneComposite(cmd, camera);
 }
 
 void CGameScene::BuildObjectsCollider()
