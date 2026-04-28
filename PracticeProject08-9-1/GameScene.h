@@ -112,8 +112,8 @@ struct SkinnedWorldLodEntry
 	bool lodEnabled = false;
 	int currentLod = 0;
 
-	float lodDistance01 = 80.0f;
-	float lodDistance12 = 180.0f;
+	float lodDistance01 = 1.0f;
+	float lodDistance12 = 2.0f;
 
 	std::array<std::shared_ptr<CMesh>, 3> lodMeshes = { nullptr, nullptr, nullptr };
 
