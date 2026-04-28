@@ -5865,6 +5865,17 @@ void CGameScene::BindFrameRootParameters(ID3D12GraphicsCommandList* cmd)
 	}
 }
 
+void CGameScene::RebindFrameRenderState(ID3D12GraphicsCommandList* cmd, CCamera* camera)
+{
+	PROFILE_RENDER_SCOPE("GameScene::RebindFrameRenderState");
+
+	if ( !cmd )
+		return;
+
+	CScene::OnPrepareRender(cmd, camera);
+	BindFrameRootParameters(cmd);
+}
+
 void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	PROFILE_RENDER_SCOPE("GameScene::RenderSceneGeometry(total)");

@@ -1127,7 +1127,7 @@ void CGameFramework::FrameAdvance()
 		gameScene->RenderShadowMap(m_pd3dCommandList.Get(), m_GameTimer);
 	}*/
 
-	if ( scene )
+	if ( scene && !gameScene )
 		scene->OnPrepareRender(m_pd3dCommandList.Get(), m_pCamera);
 
 	if ( m_nDrawOption == DRAW_SCENE_COLOR )
@@ -1141,7 +1141,7 @@ void CGameFramework::FrameAdvance()
 			nullptr
 		);
 
-		if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
+		if ( gameScene ) 
 		{
 			// 1) Geometry pass -> offscreen MRT only
 			m_pPostProcessingShader->OnPrepareSceneRenderTargets(
@@ -1177,8 +1177,8 @@ void CGameFramework::FrameAdvance()
 			}
 
 			{
-				PROFILE_RENDER_SCOPE("Framework::GameScene::OnPrepareRenderForGeometry");
-				gameScene->OnPrepareRender(m_pd3dCommandList.Get(), m_pCamera);
+				PROFILE_RENDER_SCOPE("Framework::GameScene::RebindFrameForGeometry");
+				gameScene->RebindFrameRenderState(m_pd3dCommandList.Get(), m_pCamera);
 			}
 
 			{
@@ -1204,8 +1204,8 @@ void CGameFramework::FrameAdvance()
 			);
 
 			{
-				PROFILE_RENDER_SCOPE("Framework::GameScene::OnPrepareRenderForComposite");
-				gameScene->OnPrepareRender(m_pd3dCommandList.Get(), m_pCamera);
+				PROFILE_RENDER_SCOPE("Framework::GameScene::RebindFrameForComposite");
+				gameScene->RebindFrameRenderState(m_pd3dCommandList.Get(), m_pCamera);
 			}
 
 			{
