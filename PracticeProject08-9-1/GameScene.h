@@ -275,11 +275,14 @@ public:
 	//void RenderShadowMap(ID3D12GraphicsCommandList* cmd, const CGameTimer& gt);
 
 public:
-	void OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera) override;
-	void Render(ID3D12GraphicsCommandList* cmd, CCamera* camera = nullptr) override;
-	void RenderShadowPrePass(ID3D12GraphicsCommandList* cmd, CCamera* camera);
-	void RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* camera);
-	void RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	public:
+		void OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera) override;
+		void Render(ID3D12GraphicsCommandList* cmd, CCamera* camera = nullptr) override;
+		void RenderShadowPrePass(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+		void RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+		void RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
+		void RebindFrameRenderState(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
     // Input (messages) : 게임에서는 좌클릭 공격
 public:
