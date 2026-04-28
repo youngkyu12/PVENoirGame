@@ -226,7 +226,10 @@ private:
 
     void LinkSceneObjects();
 
-    void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd);
+	void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd);
+	void UpdateFrameRenderState(CCamera* camera);
+	void BindFrameRootParameters(ID3D12GraphicsCommandList* cmd);
+
 	void BuildStaticInstanceGroups();
 	void ResetStaticWorldLodEntries();
 
@@ -402,6 +405,11 @@ private:
 
 	void BuildShadowResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
 	void UpdateShadowData();
+
+	bool IsWorldOOBBInsideShadowBox(const BoundingOrientedBox& box) const;
+	bool IsStaticObjectInsideShadowBox(UINT objectIndex) const;
+	bool IsSkinnedObjectInsideShadowBox(UINT objectIndex) const;
+
 	void RenderShadowMap(ID3D12GraphicsCommandList* cmd);
 	void RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList* cmd);
 	void RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandList* cmd);
@@ -551,9 +559,15 @@ private:
 	std::vector<StaticInstanceGroup>    m_staticInstanceGroups;
 	std::vector<StaticWorldLodEntry>    m_staticWorldLodEntries;
 	std::vector<StaticOcclusionEntry>   m_staticOcclusionEntries;
+
 	std::vector<uint8_t>                m_staticDistanceCullFlags;
 	std::vector<uint8_t>                m_staticOcclusionCullFlags;
 	std::vector<uint8_t>                m_staticTreeGridCullFlags;
+
+	std::vector<uint8_t>                m_staticShadowCasterFlags;
+	std::vector<UINT>                   m_staticTreeObjectIndices;
+	std::vector<int>                    m_staticShadowOcclusionEntryIndices;
+
 	std::vector<UINT64>                 m_staticOcclusionQuerySampleCounts;
 	std::vector<uint8_t>                m_staticOcclusionLastFrameIssuedFlags;
 	std::vector<uint8_t>                m_staticOcclusionCurrentFrameIssuedFlags;
@@ -600,6 +614,8 @@ private:
 	CB_SHADOW* m_pcbMappedShadow = nullptr;
 	CB_SHADOW                           m_shadowData{};
 
+	XMFLOAT4X4                          m_shadowView{};
+
 	UINT                                m_shadowMapSize = 2048;
 	UINT                                m_shadowMapSrvIndex = UINT_MAX;
 	float                               m_shadowOrthoHalfSize = 45.0f;
@@ -628,6 +644,7 @@ private:
 
 	std::vector<SkinnedOcclusionEntry>  m_skinnedOcclusionEntries;
 	std::vector<uint8_t>                m_skinnedOcclusionCullFlags;
+	std::vector<int>                    m_skinnedShadowOcclusionEntryIndices;
 	std::vector<UINT64>                 m_skinnedOcclusionQuerySampleCounts;
 	std::vector<uint8_t>                m_skinnedOcclusionLastFrameIssuedFlags;
 	std::vector<uint8_t>                m_skinnedOcclusionCurrentFrameIssuedFlags;

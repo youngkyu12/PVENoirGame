@@ -174,6 +174,20 @@ namespace
 			( assetName == "Building9" );
 	}
 
+	static bool ShouldStaticPlacementCastShadow(const std::string& assetName)
+	{
+		if ( assetName == "Ground" )
+			return false;
+
+		if ( assetName == "DirtRoad" )
+			return false;
+
+		if ( assetName == "Grass" )
+			return false;
+
+		return true;
+	}
+
 	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::FullStage;
 }
 
@@ -707,7 +721,12 @@ void CGameScene::ReleaseObjects()
 	m_treeStaticShader.reset();
 	m_treeAlphaClipObjects.clear();
 	m_skinnedAlphaClipObjects.clear();
+
 	m_staticTreeGridCullFlags.clear();
+	m_staticShadowCasterFlags.clear();
+	m_staticTreeObjectIndices.clear();
+	m_staticShadowOcclusionEntryIndices.clear();
+	m_skinnedShadowOcclusionEntryIndices.clear();
 
     m_staticObjects.clear();
     m_skinnedObjects.clear();
@@ -1697,90 +1716,38 @@ bool CGameScene::ExportStaticWorldLocalOOBBReport(
 
 void CGameScene::BuildLightsAndMaterials()
 {
-    m_lightObjects.clear();
-    m_lightObjects.reserve(4);
-    m_pPlayerSpotFollower = nullptr;
+	m_lightObjects.clear();
+	m_lightObjects.reserve(1);
+	m_pPlayerSpotFollower = nullptr;
 
-    // [0] Point Light
-    {
-        auto obj = std::make_unique<CGameObject>(0);
-        obj->SetPosition(1.0f, 0.0f, 0.0f);
-
-        auto* lc = obj->AddComponent<CLightComponent>();
-        lc->type = ELightType::Point;
-        lc->range = 100.0f;
-        lc->ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
-        lc->diffuse = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
-        lc->specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
-        lc->attenuation = XMFLOAT3(1.0f, 0.001f, 0.0001f);
-
-        m_lightObjects.push_back(std::move(obj));
-    }
-
-    // [1] Spot Light (player follow)
-    {
-        auto obj = std::make_unique<CGameObject>(0);
-
-        auto* lc = obj->AddComponent<CLightComponent>();
-        lc->type = ELightType::Spot;
-        lc->range = 50.0f;
-        lc->ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
-        lc->diffuse = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
-        lc->specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
-        lc->attenuation = XMFLOAT3(1.0f, 0.01f, 0.0001f);
-        lc->falloff = 8.0f;
-        lc->cosPhi = (float)cos(XMConvertToRadians(40.0f));
-        lc->cosTheta = (float)cos(XMConvertToRadians(20.0f));
-
-        auto* follow = obj->AddComponent<CFollowTransformComponent>();
-        m_pPlayerSpotFollower = follow;
-
-        m_lightObjects.push_back(std::move(obj));
-    }
-
-	// [2] Directional Light
+	// [0] Directional Light only
 	{
 		auto obj = std::make_unique<CGameObject>(0);
 
 		if ( auto* tr = obj->GetComponent<CTransformComponent>() )
 		{
-			// 오른쪽 위 앞쪽에서 왼쪽 아래 뒤쪽으로 비추는 느낌
+			// 오른쪽 위 앞쪽에서 왼쪽 아래 뒤쪽으로 비추는 방향광
 			tr->SetLookDirection(XMFLOAT3(1.0f, -1.0f, 0.3f));
 		}
 
 		auto* lc = obj->AddComponent<CLightComponent>();
 		lc->type = ELightType::Directional;
 
+		// 전역 환경광은 LIGHTS::m_xmf4GlobalAmbient에서 따로 넣고 있으므로
+		// 여기 directional ambient는 0으로 유지.
 		lc->ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+
+		// 실질적으로 의미 있는 방향광.
 		lc->diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+
+		// 스펙큘러가 필요 없으면 0 유지.
 		lc->specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 
 		m_lightObjects.push_back(std::move(obj));
 	}
 
-    // [3] Spot Light
-    {
-        auto obj = std::make_unique<CGameObject>(0);
-        obj->SetPosition(-150.0f, 30.0f, 30.0f);
-        if (auto* tr = obj->GetComponent<CTransformComponent>())
-            tr->SetLookDirection(XMFLOAT3(0.0f, 1.0f, 1.0f));
-
-        auto* lc = obj->AddComponent<CLightComponent>();
-        lc->type = ELightType::Spot;
-        lc->range = 60.0f;
-        lc->ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
-        lc->diffuse = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
-        lc->specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
-        lc->attenuation = XMFLOAT3(1.0f, 0.01f, 0.0001f);
-        lc->falloff = 8.0f;
-        lc->cosPhi = (float)cos(XMConvertToRadians(90.0f));
-        lc->cosTheta = (float)cos(XMConvertToRadians(30.0f));
-
-        m_lightObjects.push_back(std::move(obj));
-    }
-
-    m_pMaterials = make_unique<MATERIALS>();
-    ::ZeroMemory(m_pMaterials.get(), sizeof(MATERIALS));
+	m_pMaterials = make_unique<MATERIALS>();
+	::ZeroMemory(m_pMaterials.get(), sizeof(MATERIALS));
 
     m_pMaterials->m_pReflections[0] = {
         XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),
@@ -1927,6 +1894,14 @@ void CGameScene::BuildStaticBatch(
 	b->objectRefs.clear();
 	b->objectRefs.reserve(cap);
 
+	m_staticShadowCasterFlags.clear();
+	m_staticShadowCasterFlags.reserve(cap);
+
+	m_staticTreeObjectIndices.clear();
+	m_staticTreeObjectIndices.reserve(cap);
+
+	m_staticShadowOcclusionEntryIndices.clear();
+
 	b->count = 0;
 	ResetStaticWorldLodEntries();
 
@@ -2060,9 +2035,13 @@ void CGameScene::BuildStaticBatch(
 
 		CGameObject* raw = obj.get();
 
-		if ( resolvedAssetType == AssetType::Tree )
+		const bool isTreeObject = ( resolvedAssetType == AssetType::Tree );
+		const bool castsShadow = ShouldStaticPlacementCastShadow(placement.assetName);
+
+		if ( isTreeObject )
 		{
 			m_treeAlphaClipObjects.insert(raw);
+			m_staticTreeObjectIndices.push_back(i);
 		}
 
 		if ( enableDistanceCull || isStaticWorldLodTarget )
@@ -2142,6 +2121,7 @@ void CGameScene::BuildStaticBatch(
 
 		m_staticObjects.push_back(std::move(obj));
 		b->objectRefs.push_back(raw);
+		m_staticShadowCasterFlags.push_back(castsShadow ? 1 : 0);
 		b->count = ( UINT ) b->objectRefs.size();
 	}
 
@@ -2204,6 +2184,7 @@ void CGameScene::BuildStaticBatch(
 			CGameObject* raw = obj.get();
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
+			m_staticShadowCasterFlags.push_back(0);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_arrowRefs.push_back(raw);
@@ -2252,6 +2233,7 @@ void CGameScene::BuildStaticBatch(
 			CGameObject* raw = obj.get();
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
+			m_staticShadowCasterFlags.push_back(0);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_bulletRefs.push_back(raw);
@@ -2292,6 +2274,7 @@ void CGameScene::BuildStaticBatch(
 			CGameObject* raw = obj.get();
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
+			m_staticShadowCasterFlags.push_back(0);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_helmetRefs.push_back(raw);
@@ -2338,6 +2321,7 @@ void CGameScene::BuildStaticBatch(
 			CGameObject* raw = obj.get();
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
+			m_staticShadowCasterFlags.push_back(0);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_PlayerSwordRefs.push_back(raw);
@@ -2384,6 +2368,7 @@ void CGameScene::BuildStaticBatch(
 			CGameObject* raw = obj.get();
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
+			m_staticShadowCasterFlags.push_back(0);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_PlayerAxeRefs.push_back(raw);
@@ -2428,6 +2413,7 @@ void CGameScene::BuildStaticBatch(
 			CGameObject* raw = obj.get();
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
+			m_staticShadowCasterFlags.push_back(0);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_PlayerGunRefs.push_back(raw);
@@ -2476,6 +2462,7 @@ void CGameScene::BuildStaticBatch(
 			CGameObject* raw = obj.get();
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
+			m_staticShadowCasterFlags.push_back(0);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_EnemySwordRefs.push_back(raw);
@@ -2483,6 +2470,20 @@ void CGameScene::BuildStaticBatch(
 	}
 
 	BuildStaticOcclusionEntries();
+
+	m_staticShadowOcclusionEntryIndices.assign(m_staticBatch.objectRefs.size(), -1);
+
+	for ( UINT entryIndex = 0; entryIndex < ( UINT ) m_staticOcclusionEntries.size(); ++entryIndex )
+	{
+		const StaticOcclusionEntry& entry = m_staticOcclusionEntries[entryIndex];
+
+		if ( entry.staticBatchObjectIndex >= ( UINT ) m_staticShadowOcclusionEntryIndices.size() )
+			continue;
+
+		m_staticShadowOcclusionEntryIndices[entry.staticBatchObjectIndex] =
+			static_cast< int >(entryIndex);
+	}
+
 	BuildStaticOcclusionUnitBoxMesh(dev, cmd);
 	BuildStaticOcclusionGpuResources(dev);
 	BuildStaticInstanceGroups();
@@ -2501,8 +2502,14 @@ void CGameScene::BuildStaticBatch(
 
 	if ( m_staticInstanceBufferCapacity > 0 )
 	{
+		// pass 0: scene
+		// pass 1: shadow
+		const UINT kStaticInstancePassCount = 2;
+
 		const UINT instanceBufferBytes =
-			sizeof(StaticInstanceVertex) * m_staticInstanceBufferCapacity;
+			sizeof(StaticInstanceVertex) *
+			m_staticInstanceBufferCapacity *
+			kStaticInstancePassCount;
 
 		m_pd3dStaticInstanceBuffer = ::CreateBufferResource(
 			dev, cmd, nullptr,
@@ -2527,7 +2534,12 @@ bool CGameScene::IsStaticTreeObject(const CGameObject* obj) const
 
 void CGameScene::UpdateStaticTreeGridCullSelection(CCamera* camera)
 {
-	m_staticTreeGridCullFlags.assign(m_staticBatch.objectRefs.size(), 0);
+	const size_t objectCount = m_staticBatch.objectRefs.size();
+
+	if ( m_staticTreeGridCullFlags.size() != objectCount )
+		m_staticTreeGridCullFlags.assign(objectCount, 0);
+	else
+		std::fill(m_staticTreeGridCullFlags.begin(), m_staticTreeGridCullFlags.end(), 0);
 
 	if ( !m_bStaticTreeGridCullingEnabled )
 		return;
@@ -2544,11 +2556,9 @@ void CGameScene::UpdateStaticTreeGridCullSelection(CCamera* camera)
 	if ( !shouldCullTrees )
 		return;
 
-	for ( UINT objectIndex = 0; objectIndex < ( UINT ) m_staticBatch.objectRefs.size(); ++objectIndex )
+	for ( UINT objectIndex : m_staticTreeObjectIndices )
 	{
-		CGameObject* obj = m_staticBatch.objectRefs[objectIndex];
-
-		if ( !IsStaticTreeObject(obj) )
+		if ( objectIndex >= ( UINT ) m_staticTreeGridCullFlags.size() )
 			continue;
 
 		m_staticTreeGridCullFlags[objectIndex] = 1;
@@ -2601,6 +2611,21 @@ void CGameScene::BuildStaticInstanceGroups()
 			}
 		}
 	}
+
+	std::sort(
+	m_staticInstanceGroups.begin(),
+	m_staticInstanceGroups.end(),
+	[ ] (const StaticInstanceGroup& a, const StaticInstanceGroup& b)
+	{
+		if ( a.useTreeShader != b.useTreeShader )
+			return a.useTreeShader < b.useTreeShader; // opaque 먼저, tree alpha-clip 나중
+
+		if ( a.mesh.get() != b.mesh.get() )
+			return a.mesh.get() < b.mesh.get();
+
+		return a.subMeshIndex < b.subMeshIndex;
+	}
+	);
 
 	UINT runningStart = 0;
 	for ( StaticInstanceGroup& group : m_staticInstanceGroups )
@@ -2671,6 +2696,24 @@ void CGameScene::BuildSkinnedInstanceGroups()
 		}
 	}
 
+	std::sort(
+	m_skinnedInstanceGroups.begin(),
+	m_skinnedInstanceGroups.end(),
+	[ ] (const SkinnedInstanceGroup& a, const SkinnedInstanceGroup& b)
+	{
+		if ( a.useAlphaClipShader != b.useAlphaClipShader )
+			return a.useAlphaClipShader < b.useAlphaClipShader; // opaque 먼저, alpha-clip 나중
+
+		if ( a.geometryKey != b.geometryKey )
+			return a.geometryKey < b.geometryKey;
+
+		if ( a.meshIndex != b.meshIndex )
+			return a.meshIndex < b.meshIndex;
+
+		return a.subMeshIndex < b.subMeshIndex;
+	}
+	);
+
 	UINT runningStart = 0;
 	for ( SkinnedInstanceGroup& group : m_skinnedInstanceGroups )
 	{
@@ -2692,6 +2735,8 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 	bool lastUseTreeShader = false;
 	bool hasBoundAnyShader = false;
 
+	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
 	for ( const StaticInstanceGroup& group : m_staticInstanceGroups )
 	{
 		if ( !group.mesh ) continue;
@@ -2703,32 +2748,37 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 		const UINT maxInstanceCount = ( UINT ) group.objectIndices.size();
 		if ( maxInstanceCount == 0 ) continue;
 
+		// pass 0: scene
 		const UINT instanceBase = group.instanceBufferStart;
-		if ( ( instanceBase + maxInstanceCount ) > m_staticInstanceBufferCapacity ) continue;
+
+		if ( ( instanceBase + maxInstanceCount ) > m_staticInstanceBufferCapacity )
+			continue;
 
 		UINT visibleInstanceCount = 0;
 
 		for ( UINT i = 0; i < maxInstanceCount; ++i )
 		{
 			const UINT objectIndex = group.objectIndices[i];
-			if ( objectIndex >= ( UINT ) m_staticBatch.objectRefs.size() ) continue;
 
-			if ( objectIndex < ( UINT ) m_staticDistanceCullFlags.size() )
+			if ( objectIndex >= ( UINT ) m_staticBatch.objectRefs.size() )
+				continue;
+
+			if ( objectIndex < ( UINT ) m_staticDistanceCullFlags.size() &&
+				 m_staticDistanceCullFlags[objectIndex] != 0 )
 			{
-				if ( m_staticDistanceCullFlags[objectIndex] != 0 )
-					continue;
+				continue;
 			}
 
-			if ( objectIndex < ( UINT ) m_staticOcclusionCullFlags.size() )
+			if ( objectIndex < ( UINT ) m_staticOcclusionCullFlags.size() &&
+				 m_staticOcclusionCullFlags[objectIndex] != 0 )
 			{
-				if ( m_staticOcclusionCullFlags[objectIndex] != 0 )
-					continue;
+				continue;
 			}
 
-			if ( objectIndex < ( UINT ) m_staticTreeGridCullFlags.size() )
+			if ( objectIndex < ( UINT ) m_staticTreeGridCullFlags.size() &&
+				 m_staticTreeGridCullFlags[objectIndex] != 0 )
 			{
-				if ( m_staticTreeGridCullFlags[objectIndex] != 0 )
-					continue;
+				continue;
 			}
 
 			CGameObject* obj = m_staticBatch.objectRefs[objectIndex];
@@ -2739,8 +2789,8 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 			if ( !renderer ) continue;
 			if ( !renderer->IsEnabled() ) continue;
 
-			StaticInstanceVertex& dst = m_pMappedStaticInstanceBuffer[instanceBase + visibleInstanceCount];
-			ZeroMemory(&dst, sizeof(dst));
+			StaticInstanceVertex& dst =
+				m_pMappedStaticInstanceBuffer[instanceBase + visibleInstanceCount];
 
 			const XMFLOAT4X4& W = obj->GetWorldMatrix();
 
@@ -2753,7 +2803,8 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 			++visibleInstanceCount;
 		}
 
-		if ( visibleInstanceCount == 0 ) continue;
+		if ( visibleInstanceCount == 0 )
+			continue;
 
 		D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
 		vbViews[0] = sm.vbView;
@@ -2763,8 +2814,7 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 		vbViews[1].SizeInBytes = sizeof(StaticInstanceVertex) * visibleInstanceCount;
 		vbViews[1].StrideInBytes = sizeof(StaticInstanceVertex);
 
-
-		if ( !hasBoundAnyShader || ( lastUseTreeShader != group.useTreeShader ) )
+		if ( !hasBoundAnyShader || lastUseTreeShader != group.useTreeShader )
 		{
 			if ( group.useTreeShader )
 			{
@@ -2782,8 +2832,6 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 			lastUseTreeShader = group.useTreeShader;
 			hasBoundAnyShader = true;
 		}
-
-		cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 		const UINT mid = ( sm.materialId == 0xFFFFFFFFu ) ? 0u : sm.materialId;
 		cmd->SetGraphicsRoot32BitConstant(ROOT_PARAMETER_MATERIAL_ID, mid, 0);
@@ -2810,6 +2858,7 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 		ROOT_PARAMETER_BONE_PALETTE,
 		m_pd3dSkinnedBonePaletteBuffer->GetGPUVirtualAddress()
 	);
+	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	for ( const SkinnedInstanceGroup& group : m_skinnedInstanceGroups )
 	{
@@ -2864,7 +2913,6 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 
 			SkinnedInstanceVertex& dst =
 				m_pMappedSkinnedInstanceBuffer[instanceBase + visibleInstanceCount];
-			ZeroMemory(&dst, sizeof(dst));
 
 			const XMFLOAT4X4& W = obj->GetWorldMatrix();
 
@@ -2901,7 +2949,6 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 		vbViews[1].SizeInBytes = sizeof(SkinnedInstanceVertex) * visibleInstanceCount;
 		vbViews[1].StrideInBytes = sizeof(SkinnedInstanceVertex);
 
-		cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		cmd->IASetVertexBuffers(0, 2, vbViews);
 		cmd->IASetIndexBuffer(&repSm.ibView);
 
@@ -2928,6 +2975,8 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 	bool lastUseAlphaClipShader = false;
 	bool hasBoundAnyShader = false;
 
+	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
 	for ( const StaticInstanceGroup& group : m_staticInstanceGroups )
 	{
 		if ( !group.mesh ) continue;
@@ -2939,27 +2988,41 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 		const UINT maxInstanceCount = ( UINT ) group.objectIndices.size();
 		if ( maxInstanceCount == 0 ) continue;
 
-		const UINT instanceBase = group.instanceBufferStart;
-		if ( ( instanceBase + maxInstanceCount ) > m_staticInstanceBufferCapacity ) continue;
+		// pass 1: shadow
+		const UINT instanceBase = m_staticInstanceBufferCapacity + group.instanceBufferStart;
+
+		if ( ( group.instanceBufferStart + maxInstanceCount ) > m_staticInstanceBufferCapacity )
+			continue;
 
 		UINT visibleInstanceCount = 0;
 
 		for ( UINT i = 0; i < maxInstanceCount; ++i )
 		{
 			const UINT objectIndex = group.objectIndices[i];
-			if ( objectIndex >= ( UINT ) m_staticBatch.objectRefs.size() ) continue;
 
-			if ( objectIndex < ( UINT ) m_staticDistanceCullFlags.size() )
+			if ( objectIndex >= ( UINT ) m_staticBatch.objectRefs.size() )
+				continue;
+
+			if ( objectIndex < ( UINT ) m_staticShadowCasterFlags.size() &&
+				 m_staticShadowCasterFlags[objectIndex] == 0 )
 			{
-				if ( m_staticDistanceCullFlags[objectIndex] != 0 )
-					continue;
+				continue;
 			}
 
-			if ( objectIndex < ( UINT ) m_staticTreeGridCullFlags.size() )
+			if ( objectIndex < ( UINT ) m_staticDistanceCullFlags.size() &&
+				 m_staticDistanceCullFlags[objectIndex] != 0 )
 			{
-				if ( m_staticTreeGridCullFlags[objectIndex] != 0 )
-					continue;
+				continue;
 			}
+
+			if ( objectIndex < ( UINT ) m_staticTreeGridCullFlags.size() &&
+				 m_staticTreeGridCullFlags[objectIndex] != 0 )
+			{
+				continue;
+			}
+
+			if ( !IsStaticObjectInsideShadowBox(objectIndex) )
+				continue;
 
 			CGameObject* obj = m_staticBatch.objectRefs[objectIndex];
 			if ( !obj ) continue;
@@ -2970,7 +3033,6 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 
 			StaticInstanceVertex& dst =
 				m_pMappedStaticInstanceBuffer[instanceBase + visibleInstanceCount];
-			ZeroMemory(&dst, sizeof(dst));
 
 			const XMFLOAT4X4& W = obj->GetWorldMatrix();
 
@@ -2983,9 +3045,10 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 			++visibleInstanceCount;
 		}
 
-		if ( visibleInstanceCount == 0 ) continue;
+		if ( visibleInstanceCount == 0 )
+			continue;
 
-		if ( !hasBoundAnyShader || ( lastUseAlphaClipShader != group.useTreeShader ) )
+		if ( !hasBoundAnyShader || lastUseAlphaClipShader != group.useTreeShader )
 		{
 			if ( group.useTreeShader )
 				m_shadowAlphaClipStaticShader->Render(cmd, nullptr, &m_staticBatch);
@@ -3004,24 +3067,21 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 		vbViews[1].SizeInBytes = sizeof(StaticInstanceVertex) * visibleInstanceCount;
 		vbViews[1].StrideInBytes = sizeof(StaticInstanceVertex);
 
-		cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		// opaque shadow는 PS가 없으므로 material binding 불필요.
+		// alpha-clip tree shadow만 material/texture 정보가 필요하다.
+		if ( group.useTreeShader )
+		{
+			const UINT mid = ( sm.materialId == 0xFFFFFFFFu ) ? 0u : sm.materialId;
+			cmd->SetGraphicsRoot32BitConstant(ROOT_PARAMETER_MATERIAL_ID, mid, 0);
 
-		const UINT mid = ( sm.materialId == 0xFFFFFFFFu ) ? 0u : sm.materialId;
-		cmd->SetGraphicsRoot32BitConstant(ROOT_PARAMETER_MATERIAL_ID, mid, 0);
-
-		if ( sm.material && sm.material->NeedsLegacyBinding() )
-			sm.material->UpdateShaderVariables(cmd);
+			if ( sm.material && sm.material->NeedsLegacyBinding() )
+				sm.material->UpdateShaderVariables(cmd);
+		}
 
 		cmd->IASetVertexBuffers(0, 2, vbViews);
 		cmd->IASetIndexBuffer(&sm.ibView);
 
-		cmd->DrawIndexedInstanced(
-			( UINT ) sm.indices.size(),
-			visibleInstanceCount,
-			0,
-			0,
-			0
-		);
+		cmd->DrawIndexedInstanced(( UINT ) sm.indices.size(), visibleInstanceCount, 0, 0, 0);
 	}
 }
 
@@ -3039,6 +3099,7 @@ void CGameScene::RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandLis
 		ROOT_PARAMETER_BONE_PALETTE,
 		m_pd3dSkinnedBonePaletteBuffer->GetGPUVirtualAddress()
 	);
+	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	bool lastUseAlphaClipShader = false;
 	bool hasBoundAnyShader = false;
@@ -3054,8 +3115,11 @@ void CGameScene::RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandLis
 		const UINT maxInstanceCount = ( UINT ) group.objectIndices.size();
 		if ( maxInstanceCount == 0 ) continue;
 
-		const UINT instanceBase = group.instanceBufferStart;
-		if ( ( instanceBase + maxInstanceCount ) > m_skinnedInstanceBufferCapacity ) continue;
+		// pass 1: shadow
+		const UINT instanceBase = m_skinnedInstanceBufferCapacity + group.instanceBufferStart;
+
+		if ( ( group.instanceBufferStart + maxInstanceCount ) > m_skinnedInstanceBufferCapacity )
+			continue;
 
 		UINT visibleInstanceCount = 0;
 
@@ -3069,6 +3133,9 @@ void CGameScene::RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandLis
 				if ( m_skinnedDistanceCullFlags[objectIndex] != 0 )
 					continue;
 			}
+
+			if ( !IsSkinnedObjectInsideShadowBox(objectIndex) )
+				continue;
 
 			CGameObject* obj = m_skinnedBatch.objectRefs[objectIndex];
 			if ( !obj ) continue;
@@ -3089,7 +3156,6 @@ void CGameScene::RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandLis
 
 			SkinnedInstanceVertex& dst =
 				m_pMappedSkinnedInstanceBuffer[instanceBase + visibleInstanceCount];
-			ZeroMemory(&dst, sizeof(dst));
 
 			const XMFLOAT4X4& W = obj->GetWorldMatrix();
 
@@ -3137,17 +3203,10 @@ void CGameScene::RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandLis
 		vbViews[1].SizeInBytes = sizeof(SkinnedInstanceVertex) * visibleInstanceCount;
 		vbViews[1].StrideInBytes = sizeof(SkinnedInstanceVertex);
 
-		cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		cmd->IASetVertexBuffers(0, 2, vbViews);
 		cmd->IASetIndexBuffer(&repSm.ibView);
 
-		cmd->DrawIndexedInstanced(
-			( UINT ) repSm.indices.size(),
-			visibleInstanceCount,
-			0,
-			0,
-			0
-		);
+		cmd->DrawIndexedInstanced(( UINT ) repSm.indices.size(), visibleInstanceCount, 0, 0, 0);
 	}
 }
 
@@ -4147,8 +4206,14 @@ void CGameScene::BuildSkinnedBatch(
 
 	if ( m_skinnedInstanceBufferCapacity > 0 )
 	{
+		// pass 0: scene
+		// pass 1: shadow
+		const UINT kSkinnedInstancePassCount = 2;
+
 		const UINT instanceBufferBytes =
-			sizeof(SkinnedInstanceVertex) * m_skinnedInstanceBufferCapacity;
+			sizeof(SkinnedInstanceVertex) *
+			m_skinnedInstanceBufferCapacity *
+			kSkinnedInstancePassCount;
 
 		m_pd3dSkinnedInstanceBuffer = ::CreateBufferResource(
 			dev, cmd, nullptr,
@@ -4180,6 +4245,20 @@ void CGameScene::BuildSkinnedBatch(
 	}
 
 	BuildSkinnedOcclusionEntries();
+
+	m_skinnedShadowOcclusionEntryIndices.assign(m_skinnedBatch.objectRefs.size(), -1);
+
+	for ( UINT entryIndex = 0; entryIndex < ( UINT ) m_skinnedOcclusionEntries.size(); ++entryIndex )
+	{
+		const SkinnedOcclusionEntry& entry = m_skinnedOcclusionEntries[entryIndex];
+
+		if ( entry.skinnedBatchObjectIndex >= ( UINT ) m_skinnedShadowOcclusionEntryIndices.size() )
+			continue;
+
+		m_skinnedShadowOcclusionEntryIndices[entry.skinnedBatchObjectIndex] =
+			static_cast< int >(entryIndex);
+	}
+
 	BuildSkinnedOcclusionGpuResources(dev);
 }
 
@@ -4246,7 +4325,7 @@ void CGameScene::BuildColliderBatch(
 void CGameScene::LinkSceneObjects()
 {
 	GameSceneAttachmentBinder::LinkInput input{};
-	input.playerSpotFollower = m_pPlayerSpotFollower;
+	input.playerSpotFollower = nullptr;
 
 	CGameObject* local = GetPlayer();
 	if ( !local )
@@ -4449,10 +4528,28 @@ void CGameScene::UpdateShadowData()
 	if ( m_shadowMapSrvIndex == UINT_MAX )
 		return;
 
-	if ( m_lightObjects.size() <= 2 || !m_lightObjects[2] )
+	CGameObject* directionalLightObj = nullptr;
+
+	for ( const auto& lightObj : m_lightObjects )
+	{
+		if ( !lightObj )
+			continue;
+
+		auto* lc = lightObj->GetComponent<CLightComponent>();
+		if ( !lc )
+			continue;
+
+		if ( lc->type == ELightType::Directional )
+		{
+			directionalLightObj = lightObj.get();
+			break;
+		}
+	}
+
+	if ( !directionalLightObj )
 		return;
 
-	auto* lightTr = m_lightObjects[2]->GetComponent<CTransformComponent>();
+	auto* lightTr = directionalLightObj->GetComponent<CTransformComponent>();
 	if ( !lightTr )
 		return;
 
@@ -4503,6 +4600,8 @@ void CGameScene::UpdateShadowData()
 	const XMMATRIX shadowViewProj = view * proj;
 	const XMMATRIX shadowTransform = shadowViewProj * tex;
 
+	XMStoreFloat4x4(&m_shadowView, view);
+
 	XMStoreFloat4x4(&m_shadowData.shadowViewProj, XMMatrixTranspose(shadowViewProj));
 	XMStoreFloat4x4(&m_shadowData.shadowTransform, XMMatrixTranspose(shadowTransform));
 
@@ -4513,6 +4612,89 @@ void CGameScene::UpdateShadowData()
 		1.0f
 		);
 	m_shadowData.shadowParams1 = XMUINT4(m_shadowMapSrvIndex, 1u, 0u, 0u);
+}
+
+bool CGameScene::IsWorldOOBBInsideShadowBox(const BoundingOrientedBox& box) const
+{
+	const XMVECTOR centerWorld = XMLoadFloat3(&box.Center);
+	const XMMATRIX shadowView = XMLoadFloat4x4(&m_shadowView);
+	const XMVECTOR centerLight = XMVector3TransformCoord(centerWorld, shadowView);
+
+	const float x = XMVectorGetX(centerLight);
+	const float y = XMVectorGetY(centerLight);
+	const float z = XMVectorGetZ(centerLight);
+
+	// OOBB를 light-space sphere로 보수적으로 검사.
+	const float radius =
+		std::sqrt(
+			box.Extents.x * box.Extents.x +
+			box.Extents.y * box.Extents.y +
+			box.Extents.z * box.Extents.z
+		) + 2.0f;
+
+	if ( x + radius < -m_shadowOrthoHalfSize )
+		return false;
+
+	if ( x - radius > m_shadowOrthoHalfSize )
+		return false;
+
+	if ( y + radius < -m_shadowOrthoHalfSize )
+		return false;
+
+	if ( y - radius > m_shadowOrthoHalfSize )
+		return false;
+
+	if ( z + radius < m_shadowNearZ )
+		return false;
+
+	if ( z - radius > m_shadowFarZ )
+		return false;
+
+	return true;
+}
+
+bool CGameScene::IsStaticObjectInsideShadowBox(UINT objectIndex) const
+{
+	if ( objectIndex >= ( UINT ) m_staticShadowOcclusionEntryIndices.size() )
+		return true;
+
+	const int entryIndex = m_staticShadowOcclusionEntryIndices[objectIndex];
+
+	if ( entryIndex < 0 )
+		return true;
+
+	if ( entryIndex >= ( int ) m_staticOcclusionEntries.size() )
+		return true;
+
+	const StaticOcclusionEntry& entry =
+		m_staticOcclusionEntries[( size_t ) entryIndex];
+
+	if ( !entry.hasWorldBounds )
+		return true;
+
+	return IsWorldOOBBInsideShadowBox(entry.worldBounds);
+}
+
+bool CGameScene::IsSkinnedObjectInsideShadowBox(UINT objectIndex) const
+{
+	if ( objectIndex >= ( UINT ) m_skinnedShadowOcclusionEntryIndices.size() )
+		return true;
+
+	const int entryIndex = m_skinnedShadowOcclusionEntryIndices[objectIndex];
+
+	if ( entryIndex < 0 )
+		return true;
+
+	if ( entryIndex >= ( int ) m_skinnedOcclusionEntries.size() )
+		return true;
+
+	const SkinnedOcclusionEntry& entry =
+		m_skinnedOcclusionEntries[( size_t ) entryIndex];
+
+	if ( !entry.hasWorldBounds )
+		return true;
+
+	return IsWorldOOBBInsideShadowBox(entry.worldBounds);
 }
 
 void CGameScene::RenderShadowMap(ID3D12GraphicsCommandList* cmd)
@@ -4605,17 +4787,22 @@ void CGameScene::RenderShadowPrePass(ID3D12GraphicsCommandList* cmd, CCamera* ca
 {
 	PROFILE_RENDER_SCOPE("GameScene::RenderShadowPrePass(total)");
 
-	if ( !cmd ) return;
+	if ( !cmd )
+		return;
 
 	{
-		PROFILE_RENDER_SCOPE("GameScene::RenderShadowPrePass::OnPrepareRender");
-		OnPrepareRender(cmd, camera);
+		PROFILE_RENDER_SCOPE("GameScene::RenderShadowPrePass::PrepareFrame");
+		CScene::OnPrepareRender(cmd, camera);
+		UpdateFrameRenderState(camera);
+		UpdateShaderVariables(cmd);
+		BindFrameRootParameters(cmd);
 	}
 
 	{
 		PROFILE_RENDER_SCOPE("GameScene::RenderShadowPrePass::RenderShadowMap");
 		RenderShadowMap(cmd);
 	}
+
 	RestoreSceneRenderTargets(cmd, camera);
 }
 
@@ -5494,15 +5681,11 @@ void CGameScene::AnimateObjects(float dt)
     UpdatePreparedBowArrows();
 #endif
 
-    CGameObject* local = GetPlayer();
-    if (local && m_pPlayerSpotFollower && (m_pPlayerSpotFollower->GetTarget() == nullptr))
-    {
-        m_pPlayerSpotFollower->SetTarget(local);
-    }
-
 	for ( UINT j = 0; j < ( UINT ) m_lightObjects.size(); ++j )
 	{
-		if ( !m_lightObjects[j] ) continue;
+		if ( !m_lightObjects[j] )
+			continue;
+
 		m_lightObjects[j]->Animate(dt);
 	}
 
@@ -5621,45 +5804,64 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
 void CGameScene::OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	PROFILE_RENDER_SCOPE("GameScene::OnPrepareRender");
-    CScene::OnPrepareRender(cmd, camera);
 
-	if ( camera )
+	CScene::OnPrepareRender(cmd, camera);
+
+	UpdateFrameRenderState(camera);
+	UpdateShaderVariables(cmd);
+	BindFrameRootParameters(cmd);
+}
+
+void CGameScene::UpdateFrameRenderState(CCamera* camera)
+{
+	PROFILE_RENDER_SCOPE("GameScene::UpdateFrameRenderState");
+
+	if ( !camera )
+		return;
+
+	camera->UpdateBoundingFrustum();
+
+	UpdateStaticWorldLodSelection(camera);
+	BeginStaticOcclusionReadback();
+	UpdateStaticOcclusionCullSelection(camera);
+	UpdateStaticTreeGridCullSelection(camera);
+
+	UpdateSkinnedWorldLodSelection(camera);
+	BeginSkinnedOcclusionReadback();
+	UpdateSkinnedOcclusionCullSelection(camera);
+}
+
+void CGameScene::BindFrameRootParameters(ID3D12GraphicsCommandList* cmd)
+{
+	PROFILE_RENDER_SCOPE("GameScene::BindFrameRootParameters");
+
+	if ( !cmd )
+		return;
+
+	if ( m_pd3dcbLights )
 	{
-		camera->UpdateBoundingFrustum();
-
-		UpdateStaticWorldLodSelection(camera);
-		BeginStaticOcclusionReadback();
-		UpdateStaticOcclusionCullSelection(camera);
-		UpdateStaticTreeGridCullSelection(camera);
-
-		UpdateSkinnedWorldLodSelection(camera);
-		BeginSkinnedOcclusionReadback();
-		UpdateSkinnedOcclusionCullSelection(camera);
+		cmd->SetGraphicsRootConstantBufferView(
+			ROOT_PARAMETER_LIGHT,
+			m_pd3dcbLights->GetGPUVirtualAddress()
+		);
 	}
 
-	UpdateShaderVariables(cmd);
-
-    if (m_pd3dcbLights)
-    {
-        D3D12_GPU_VIRTUAL_ADDRESS lightsGpu = m_pd3dcbLights->GetGPUVirtualAddress();
-        cmd->SetGraphicsRootConstantBufferView(ROOT_PARAMETER_LIGHT, lightsGpu);
-    }
-
-    if (m_pd3dcbMaterials)
-    {
-        D3D12_GPU_VIRTUAL_ADDRESS matsGpu = m_pd3dcbMaterials->GetGPUVirtualAddress();
-        cmd->SetGraphicsRootConstantBufferView(ROOT_PARAMETER_MATERIAL, matsGpu);
-    }
-
-	/*if ( mShadowMap )
-		mShadowMap->BindShadowPassCB(cmd);*/
+	if ( m_pd3dcbMaterials )
+	{
+		cmd->SetGraphicsRootConstantBufferView(
+			ROOT_PARAMETER_MATERIAL,
+			m_pd3dcbMaterials->GetGPUVirtualAddress()
+		);
+	}
 
 	m_depthFog.BindConstantBuffer(cmd);
 
 	if ( m_pd3dcbShadow )
 	{
-		D3D12_GPU_VIRTUAL_ADDRESS shadowGpu = m_pd3dcbShadow->GetGPUVirtualAddress();
-		cmd->SetGraphicsRootConstantBufferView(ROOT_PARAMETER_SHADOW, shadowGpu);
+		cmd->SetGraphicsRootConstantBufferView(
+			ROOT_PARAMETER_SHADOW,
+			m_pd3dcbShadow->GetGPUVirtualAddress()
+		);
 	}
 }
 
@@ -5760,9 +5962,15 @@ void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	PROFILE_RENDER_SCOPE("GameScene::Render(total)");
 
+	if ( !cmd )
+		return;
+
 	{
-		PROFILE_RENDER_SCOPE("GameScene::Render::OnPrepareRenderForShadow");
-		OnPrepareRender(cmd, camera);
+		PROFILE_RENDER_SCOPE("GameScene::Render::PrepareFrame");
+		CScene::OnPrepareRender(cmd, camera);
+		UpdateFrameRenderState(camera);
+		UpdateShaderVariables(cmd);
+		BindFrameRootParameters(cmd);
 	}
 
 	{
@@ -5771,14 +5979,11 @@ void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 	}
 
 	{
-		PROFILE_RENDER_SCOPE("GameScene::Render::OnPrepareRenderForScene");
-		OnPrepareRender(cmd, camera);
-	}
-
-	{
 		PROFILE_RENDER_SCOPE("GameScene::Render::RestoreSceneRenderTargets");
 		RestoreSceneRenderTargets(cmd, camera);
 	}
+
+	BindFrameRootParameters(cmd);
 
 	{
 		PROFILE_RENDER_SCOPE("GameScene::Render::RenderSceneGeometry");
@@ -5787,7 +5992,6 @@ void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 
 	RenderSceneComposite(cmd, camera);
 }
-
 void CGameScene::BuildObjectsCollider()
 {
     m_Collision = make_unique<CCollisionSystem>();
