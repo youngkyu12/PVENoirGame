@@ -6280,7 +6280,7 @@ void CGameScene::AnimateObjects(float dt)
 					if (auto* ctrl = animComp->EnsureMonsterController())
 					{
 						const DecodedAnimStateCode decoded = DecodeStateCode(state.animation.stateCode);
-
+						
 						EMonsterAnimState locomotionState = EMonsterAnimState::Idle;
 						if (decoded.hasMove)
 							locomotionState = decoded.run ? EMonsterAnimState::Run : EMonsterAnimState::Move;
