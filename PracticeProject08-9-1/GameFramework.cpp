@@ -1130,8 +1130,7 @@ void CGameFramework::FrameAdvance()
 			// 1) Geometry pass -> offscreen MRT only
 			m_pPostProcessingShader->OnPrepareSceneRenderTargets(
 				m_pd3dCommandList.Get(),
-				&m_d3dDsvDescriptorCPUHandle
-			);
+				&m_d3dDsvDescriptorCPUHandle);
 
 			{
 				D3D12_CPU_DESCRIPTOR_HANDLE sceneRtvs[8] = {};
@@ -1153,8 +1152,7 @@ void CGameFramework::FrameAdvance()
 				gameScene->SetSceneRenderTargets(
 					sceneRtvCount,
 					sceneRtvs,
-					m_d3dDsvDescriptorCPUHandle
-				);
+					m_d3dDsvDescriptorCPUHandle);
 			}
 
 			gameScene->RenderShadowPrePass(m_pd3dCommandList.Get(), m_pCamera);
