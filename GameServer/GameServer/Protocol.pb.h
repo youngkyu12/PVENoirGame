@@ -963,8 +963,23 @@ class S_GAME_START final :
   // accessors -------------------------------------------------------
 
   enum : int {
+    kMapIdFieldNumber = 2,
     kInitStructFieldNumber = 1,
   };
+  // string mapId = 2;
+  void clear_mapid();
+  const std::string& mapid() const;
+  template <typename ArgT0 = const std::string&, typename... ArgT>
+  void set_mapid(ArgT0&& arg0, ArgT... args);
+  std::string* mutable_mapid();
+  PROTOBUF_FUTURE_MUST_USE_RESULT std::string* release_mapid();
+  void set_allocated_mapid(std::string* mapid);
+  private:
+  const std::string& _internal_mapid() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_mapid(const std::string& value);
+  std::string* _internal_mutable_mapid();
+  public:
+
   // .Protocol.InitStruct initStruct = 1;
   bool has_initstruct() const;
   private:
@@ -990,6 +1005,7 @@ class S_GAME_START final :
   template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
+  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr mapid_;
   ::Protocol::InitStruct* initstruct_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_Protocol_2eproto;
@@ -1881,6 +1897,51 @@ inline void S_GAME_START::set_allocated_initstruct(::Protocol::InitStruct* inits
   }
   initstruct_ = initstruct;
   // @@protoc_insertion_point(field_set_allocated:Protocol.S_GAME_START.initStruct)
+}
+
+// string mapId = 2;
+inline void S_GAME_START::clear_mapid() {
+  mapid_.ClearToEmpty();
+}
+inline const std::string& S_GAME_START::mapid() const {
+  // @@protoc_insertion_point(field_get:Protocol.S_GAME_START.mapId)
+  return _internal_mapid();
+}
+template <typename ArgT0, typename... ArgT>
+inline PROTOBUF_ALWAYS_INLINE
+void S_GAME_START::set_mapid(ArgT0&& arg0, ArgT... args) {
+ 
+ mapid_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, static_cast<ArgT0 &&>(arg0), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:Protocol.S_GAME_START.mapId)
+}
+inline std::string* S_GAME_START::mutable_mapid() {
+  // @@protoc_insertion_point(field_mutable:Protocol.S_GAME_START.mapId)
+  return _internal_mutable_mapid();
+}
+inline const std::string& S_GAME_START::_internal_mapid() const {
+  return mapid_.Get();
+}
+inline void S_GAME_START::_internal_set_mapid(const std::string& value) {
+  
+  mapid_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, value, GetArenaForAllocation());
+}
+inline std::string* S_GAME_START::_internal_mutable_mapid() {
+  
+  return mapid_.Mutable(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, GetArenaForAllocation());
+}
+inline std::string* S_GAME_START::release_mapid() {
+  // @@protoc_insertion_point(field_release:Protocol.S_GAME_START.mapId)
+  return mapid_.Release(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArenaForAllocation());
+}
+inline void S_GAME_START::set_allocated_mapid(std::string* mapid) {
+  if (mapid != nullptr) {
+    
+  } else {
+    
+  }
+  mapid_.SetAllocated(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), mapid,
+      GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set_allocated:Protocol.S_GAME_START.mapId)
 }
 
 // -------------------------------------------------------------------

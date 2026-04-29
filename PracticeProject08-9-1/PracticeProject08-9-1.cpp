@@ -10,7 +10,9 @@
 #include "BufferReader.h"
 #include "ServerPacketHandler.h"
 
-#include "CoreTLS.h"
+
+
+#include "GlobalValues.h"
 
 
 #define MAX_LOADSTRING 100
@@ -57,7 +59,9 @@ public:
 
 	virtual void OnDisconnected() override
 	{
-		//cout << "Disconnected" << endl;
+		//cout << "Disconnected" << endl
+		// 연결을 끊을 때 해당 세션을 정리한다
+		LSendBufferChunk->Reset();
 	}
 };
 
@@ -101,8 +105,11 @@ int APIENTRY _tWinMain(
 	{
 		if (::PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 		{
-			if (msg.message == WM_QUIT) 
+			if (msg.message == WM_QUIT)
+			{
+				g_End.store(true);
 				break;
+			}
 			if (!::TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
 			{
 				::TranslateMessage(&msg);
@@ -116,6 +123,14 @@ int APIENTRY _tWinMain(
 	}
 	gGameFramework.OnDestroy();
 	GThreadManager->Join();
+
+	// ESC 키가 눌렸다면 네트워크 루프 종료
+	if ( g_clientService )
+	{
+		g_clientService->CloseService();
+		g_clientService.reset();
+		LSendBufferChunk->Reset();
+	}
 
 	
 	return((int)msg.wParam);
@@ -177,15 +192,9 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow, CGameFramework& gGameFramew
 	return(TRUE);
 }
 
-Atomic<bool> g_End = false;
 
 bool CheckEnd()
 {
-	//if (GetAsyncKeyState(VK_ESCAPE) & 0x8000)
-	//{
-	//	g_End = true;
-	//}
-
 	return g_End.load();
 }
 
@@ -212,8 +221,7 @@ void NetworkLoop()
 					g_clientService->GetIocpCore()->Dispatch(100);
 					if (CheckEnd())
 					{
-						// ESC 키가 눌렸다면 네트워크 루프 종료
-						
+						g_clientService->CloseService();
 						break;
 					}
 
@@ -272,6 +280,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		EndPaint(hWnd, &ps);
 		break;
 	case WM_DESTROY:
+		g_End = false;
 		::PostQuitMessage(0);
 		break;
 	default:

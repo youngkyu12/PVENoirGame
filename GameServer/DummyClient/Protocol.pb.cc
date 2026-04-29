@@ -85,7 +85,8 @@ struct C_GAME_STARTDefaultTypeInternal {
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT C_GAME_STARTDefaultTypeInternal _C_GAME_START_default_instance_;
 constexpr S_GAME_START::S_GAME_START(
   ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
-  : initstruct_(nullptr){}
+  : mapid_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , initstruct_(nullptr){}
 struct S_GAME_STARTDefaultTypeInternal {
   constexpr S_GAME_STARTDefaultTypeInternal()
     : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
@@ -186,6 +187,7 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_Protocol_2eproto::offsets[] PR
   ~0u,  // no _oneof_case_
   ~0u,  // no _weak_field_map_
   PROTOBUF_FIELD_OFFSET(::Protocol::S_GAME_START, initstruct_),
+  PROTOBUF_FIELD_OFFSET(::Protocol::S_GAME_START, mapid_),
   ~0u,  // no _has_bits_
   PROTOBUF_FIELD_OFFSET(::Protocol::C_CLIENT_READY, _internal_metadata_),
   ~0u,  // no _extensions_
@@ -219,9 +221,9 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOB
   { 21, -1, sizeof(::Protocol::S_ENTER_GAME)},
   { 28, -1, sizeof(::Protocol::C_GAME_START)},
   { 36, -1, sizeof(::Protocol::S_GAME_START)},
-  { 42, -1, sizeof(::Protocol::C_CLIENT_READY)},
-  { 49, -1, sizeof(::Protocol::C_INPUT)},
-  { 58, -1, sizeof(::Protocol::S_FRAME_STATE)},
+  { 43, -1, sizeof(::Protocol::C_CLIENT_READY)},
+  { 50, -1, sizeof(::Protocol::C_INPUT)},
+  { 59, -1, sizeof(::Protocol::S_FRAME_STATE)},
 };
 
 static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] = {
@@ -246,15 +248,16 @@ const char descriptor_table_protodef_Protocol_2eproto[] PROTOBUF_SECTION_VARIABL
   "NTER_GAME\022!\n\007players\030\001 \003(\0132\020.Protocol.Pl"
   "ayer\022\r\n\005ready\030\002 \003(\010\"E\n\014C_GAME_START\022\020\n\010p"
   "layerId\030\001 \001(\r\022\024\n\014playerWeapon\030\002 \001(\r\022\r\n\005r"
-  "eady\030\003 \001(\010\"8\n\014S_GAME_START\022(\n\ninitStruct"
-  "\030\001 \001(\0132\024.Protocol.InitStruct\"1\n\016C_CLIENT"
-  "_READY\022\020\n\010playerId\030\001 \001(\r\022\r\n\005ready\030\002 \001(\010\""
-  "M\n\007C_INPUT\022\020\n\010playerid\030\001 \001(\004\022\020\n\010keyCodes"
-  "\030\002 \001(\005\022\016\n\006deltaX\030\003 \001(\002\022\016\n\006deltaY\030\004 \001(\002\"\213"
-  "\001\n\rS_FRAME_STATE\022\022\n\nserverTick\030\001 \001(\r\022!\n\007"
-  "players\030\002 \003(\0132\020.Protocol.Player\022 \n\007enemi"
-  "es\030\003 \003(\0132\017.Protocol.Enemy\022!\n\007bullets\030\004 \003"
-  "(\0132\020.Protocol.Bulletb\006proto3"
+  "eady\030\003 \001(\010\"G\n\014S_GAME_START\022(\n\ninitStruct"
+  "\030\001 \001(\0132\024.Protocol.InitStruct\022\r\n\005mapId\030\002 "
+  "\001(\t\"1\n\016C_CLIENT_READY\022\020\n\010playerId\030\001 \001(\r\022"
+  "\r\n\005ready\030\002 \001(\010\"M\n\007C_INPUT\022\020\n\010playerid\030\001 "
+  "\001(\004\022\020\n\010keyCodes\030\002 \001(\005\022\016\n\006deltaX\030\003 \001(\002\022\016\n"
+  "\006deltaY\030\004 \001(\002\"\213\001\n\rS_FRAME_STATE\022\022\n\nserve"
+  "rTick\030\001 \001(\r\022!\n\007players\030\002 \003(\0132\020.Protocol."
+  "Player\022 \n\007enemies\030\003 \003(\0132\017.Protocol.Enemy"
+  "\022!\n\007bullets\030\004 \003(\0132\020.Protocol.Bulletb\006pro"
+  "to3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_Protocol_2eproto_deps[3] = {
   &::descriptor_table_Enum_2eproto,
@@ -263,7 +266,7 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor
 };
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_Protocol_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_Protocol_2eproto = {
-  false, false, 708, descriptor_table_protodef_Protocol_2eproto, "Protocol.proto", 
+  false, false, 723, descriptor_table_protodef_Protocol_2eproto, "Protocol.proto", 
   &descriptor_table_Protocol_2eproto_once, descriptor_table_Protocol_2eproto_deps, 3, 9,
   schemas, file_default_instances, TableStruct_Protocol_2eproto::offsets,
   file_level_metadata_Protocol_2eproto, file_level_enum_descriptors_Protocol_2eproto, file_level_service_descriptors_Protocol_2eproto,
@@ -1440,6 +1443,11 @@ S_GAME_START::S_GAME_START(::PROTOBUF_NAMESPACE_ID::Arena* arena)
 S_GAME_START::S_GAME_START(const S_GAME_START& from)
   : ::PROTOBUF_NAMESPACE_ID::Message() {
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  mapid_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  if (!from._internal_mapid().empty()) {
+    mapid_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_mapid(), 
+      GetArenaForAllocation());
+  }
   if (from._internal_has_initstruct()) {
     initstruct_ = new ::Protocol::InitStruct(*from.initstruct_);
   } else {
@@ -1449,6 +1457,7 @@ S_GAME_START::S_GAME_START(const S_GAME_START& from)
 }
 
 void S_GAME_START::SharedCtor() {
+mapid_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 initstruct_ = nullptr;
 }
 
@@ -1460,6 +1469,7 @@ S_GAME_START::~S_GAME_START() {
 
 void S_GAME_START::SharedDtor() {
   GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
+  mapid_.DestroyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (this != internal_default_instance()) delete initstruct_;
 }
 
@@ -1479,6 +1489,7 @@ void S_GAME_START::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
+  mapid_.ClearToEmpty();
   if (GetArenaForAllocation() == nullptr && initstruct_ != nullptr) {
     delete initstruct_;
   }
@@ -1496,6 +1507,15 @@ const char* S_GAME_START::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_I
       case 1:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 10)) {
           ptr = ctx->ParseMessage(_internal_mutable_initstruct(), ptr);
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      // string mapId = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 18)) {
+          auto str = _internal_mutable_mapid();
+          ptr = ::PROTOBUF_NAMESPACE_ID::internal::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(::PROTOBUF_NAMESPACE_ID::internal::VerifyUTF8(str, "Protocol.S_GAME_START.mapId"));
           CHK_(ptr);
         } else goto handle_unusual;
         continue;
@@ -1536,6 +1556,16 @@ failure:
         1, _Internal::initstruct(this), target, stream);
   }
 
+  // string mapId = 2;
+  if (!this->mapid().empty()) {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+      this->_internal_mapid().data(), static_cast<int>(this->_internal_mapid().length()),
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE,
+      "Protocol.S_GAME_START.mapId");
+    target = stream->WriteStringMaybeAliased(
+        2, this->_internal_mapid(), target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -1551,6 +1581,13 @@ size_t S_GAME_START::ByteSizeLong() const {
   ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
+
+  // string mapId = 2;
+  if (!this->mapid().empty()) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+        this->_internal_mapid());
+  }
 
   // .Protocol.InitStruct initStruct = 1;
   if (this->has_initstruct()) {
@@ -1590,6 +1627,9 @@ void S_GAME_START::MergeFrom(const S_GAME_START& from) {
   ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
   (void) cached_has_bits;
 
+  if (!from.mapid().empty()) {
+    _internal_set_mapid(from._internal_mapid());
+  }
   if (from.has_initstruct()) {
     _internal_mutable_initstruct()->::Protocol::InitStruct::MergeFrom(from._internal_initstruct());
   }
@@ -1616,6 +1656,11 @@ bool S_GAME_START::IsInitialized() const {
 void S_GAME_START::InternalSwap(S_GAME_START* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::InternalSwap(
+      &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
+      &mapid_, GetArenaForAllocation(),
+      &other->mapid_, other->GetArenaForAllocation()
+  );
   swap(initstruct_, other->initstruct_);
 }
 

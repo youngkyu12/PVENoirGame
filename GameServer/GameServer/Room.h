@@ -37,7 +37,11 @@ public:
     void CheckClientReady();
 
 public:
-    void SetPlayerReady(bool ready, uint32& playerId);
+	// Enemy에 대한 AI 처리 함수를 워커 쓰레드가 꺼내 쓸 수 있도록 따로 함수를 판다
+	void ProcessEnemyAI();
+
+public:
+    void SetPlayerReady(bool ready, uint32 playerId);
 
 public:
     GameAreaRef GetArea(uint32 areaId);
@@ -124,6 +128,16 @@ private:
 	void UpdateDynamicGridState();
 	void UpdateMegaGridState();
 
+	struct MonsterSpawnEntry
+	{
+		int index = -1;
+		std::string type;
+		GameMath::Vec3 position = GameMath::Vec3::Zero();
+		float yawDeg = 0.0f;
+	};
+
+	bool LoadMonsterSpawnEntries(std::vector<MonsterSpawnEntry>& outEntries);
+
 	static constexpr int kGridMinX = -600;
 	static constexpr int kGridMaxX = 600;
 	static constexpr int kGridMinZ = -200;
@@ -169,5 +183,5 @@ private:
 };
 
 extern shared_ptr<Room> GRoom;
-constexpr int MaxPlayers = 1;
+constexpr int MaxPlayers = 2;
 

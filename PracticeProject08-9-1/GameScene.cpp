@@ -85,6 +85,32 @@ namespace
 		return ( 1u << layer );
 	}
 
+	enum : uint32_t
+	{
+		kNetworkEnemyTypeNone = 0,
+		kNetworkEnemyTypeBasic = 1,
+		kNetworkEnemyTypeArcher = 2,
+		kNetworkEnemyTypeWarrior = 3,
+		kNetworkEnemyTypeBoss = 4,
+		kNetworkEnemyTypeMutant = 5
+	};
+
+	static void ConfigureProjectileCollider(CColliderComponent* collider, bool firedByPlayer)
+	{
+		if ( !collider ) return;
+
+		if ( firedByPlayer )
+		{
+			collider->SetLayer(kCollisionLayerPlayerWeapon);
+			collider->SetMask(CollisionBit(kCollisionLayerMonster));
+		}
+		else
+		{
+			collider->SetLayer(kCollisionLayerMonsterWeapon);
+			collider->SetMask(CollisionBit(kCollisionLayerPlayer));
+		}
+	}
+
     struct DecodedAnimStateCode
     {
         bool hasMove = false;
@@ -269,25 +295,57 @@ namespace
 		return true;
 	}
 
-    static void BuildStaticPlacementsFromNetworkGameStart(
-        const GameStartData& gameStartData,
-        std::vector<StaticPlacementEntry>& outEntries)
+    static std::string ToLowerAscii(const std::string& text)
     {
-        outEntries.clear();
-        outEntries.reserve(gameStartData.buildings.size());
+        std::string out = text;
+        std::transform(out.begin(), out.end(), out.begin(),
+            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        return out;
+    }
 
-        for (const auto& b : gameStartData.buildings)
+    static bool ResolvePlacementFilePathFromMapId(const std::string& mapId, std::string& outPlacementFilePath)
+    {
+        std::string normalized = ToLowerAscii(TrimString(mapId));
+
+        if (normalized.size() >= 2 && normalized.front() == '"' && normalized.back() == '"')
+            normalized = normalized.substr(1, normalized.size() - 2);
+
+        if (normalized.empty() ||
+            normalized == "full" ||
+            normalized == "fullstage" ||
+            normalized == "map_fullstage" ||
+            normalized == "mapdata_fullstage")
         {
-            if (b.assetName.empty())
-                continue;
-
-            StaticPlacementEntry entry{};
-            entry.assetName = b.assetName;
-            entry.objectName = "NetBuilding_" + std::to_string(b.id);
-            entry.pos = b.position;
-            entry.yawDeg = b.yaw;
-            outEntries.push_back(std::move(entry));
+            outPlacementFilePath = "MapData/MapData_fullstage(NoTree).txt";
+            return true;
         }
+
+        if (normalized == "fullstage_tree" ||
+            normalized == "map_fullstage_tree" ||
+            normalized == "mapdata_fullstage_tree")
+        {
+            outPlacementFilePath = "MapData/MapData_fullstage.txt";
+            return true;
+        }
+
+        if (normalized == "stage1" ||
+            normalized == "map_stage1" ||
+            normalized == "mapdata_stage1")
+        {
+            outPlacementFilePath = "MapData/MapData_stage1_with_Tree.txt";
+            return true;
+        }
+
+        if (normalized == "test" ||
+            normalized == "tst" ||
+            normalized == "map_tst" ||
+            normalized == "mapdata_tst")
+        {
+            outPlacementFilePath = "MapData/MapData_tst.txt";
+            return true;
+        }
+
+        return false;
     }
 
 	void TriggerMonsterTestCommand(CGameObject* obj, EMonsterAnimCommand cmd, EMonsterAnimState locomotion = EMonsterAnimState::Idle)
@@ -1035,8 +1093,51 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	}
 
 	const GameStartData& gameStartData = std::get<GameStartData>(m_pendingNetworkMessage.data);
-	BuildStaticPlacementsFromNetworkGameStart(gameStartData, m_staticPlacementEntries);
+
+	std::string placementFilePath;
+	if ( !ResolvePlacementFilePathFromMapId(gameStartData.mapId, placementFilePath) )
+	{
+		assert(false && "Unknown mapId received from server");
+		return;
+	}
+
+	if ( !LoadStaticPlacementFile(placementFilePath) )
+	{
+		assert(false && "Failed to load placement data for mapId");
+		return;
+	}
+
 	ApplyStaticPlacementCounts();
+
+	m_ghoulCount = 0;
+	m_swordManCount = 0;
+	m_bowManCount = 0;
+	m_MutantCount = 0;
+	m_bossCount = 0;
+
+	for ( const EnemyState& enemyState : gameStartData.enemies )
+	{
+		switch ( enemyState.enemyType )
+		{
+		case kNetworkEnemyTypeArcher:
+			++m_bowManCount;
+			break;
+		case kNetworkEnemyTypeWarrior:
+			++m_swordManCount;
+			break;
+		case kNetworkEnemyTypeBoss:
+			++m_bossCount;
+			break;
+		case kNetworkEnemyTypeMutant:
+			++m_MutantCount;
+			break;
+		case kNetworkEnemyTypeNone:
+		case kNetworkEnemyTypeBasic:
+		default:
+			++m_ghoulCount;
+			break;
+		}
+	}
 #else
 	m_localPlayerSlot = 0;
 
@@ -5506,68 +5607,65 @@ void CGameScene::AnimateObjects(float dt)
             }
         }
 
-        // Enemy 좌표 업데이트
-        // skinnedObjects에서 NPC만 순회 (Fighter 제외)
-        UINT enemyIndex = 0;
-        const UINT totalEnemies = m_ghoulCount + m_swordManCount + m_bowManCount + m_MutantCount + m_bossCount;
+		// Enemy 좌표 업데이트
+		// 1) NPC 인덱스 → 오브젝트 매핑 구축
+		std::unordered_map<uint64_t, CGameObject*> npcById;
+		{
+			UINT npcIndex = 0;
+			for ( UINT j = 0; j < ( UINT ) m_skinnedObjects.size(); ++j )
+			{
+				auto* obj = m_skinnedObjects[j].get();
+				if ( !obj ) continue;
+				auto* tag = obj->GetComponent<CActorTagComponent>();
+				if ( !tag || tag->kind != EActorKind::NPC ) continue;
+				npcById[npcIndex] = obj;
+				++npcIndex;
+			}
+		}
 
-        for (UINT j = 0; j < totalEnemies && j < (UINT)m_skinnedObjects.size(); ++j)
-        {
-            auto* obj = m_skinnedObjects[j].get();
-            if (!obj) continue;
+		// 2) snapshot enemy를 ID 기준으로 적용
+		for ( const auto& state : snapshot.enemies )
+		{
+			auto it = npcById.find(state.id);
+			if ( it == npcById.end() ) continue;
 
-            auto* tag = obj->GetComponent<CActorTagComponent>();
-            if (!tag || tag->kind != EActorKind::NPC) continue;
+			auto* obj = it->second;
+			obj->SetPosition(state.position.x, state.position.y, state.position.z);
 
-            if (enemyIndex < (UINT)snapshot.enemies.size())
-            {
-                const auto& state = snapshot.enemies[enemyIndex];
-                obj->SetPosition(state.position.x, state.position.y, state.position.z);
+			if ( auto* tr = obj->GetComponent<CTransformComponent>() )
+				tr->SetYawDegrees(state.yaw);
 
-                if (auto* tr = obj->GetComponent<CTransformComponent>())
-                {
-                    tr->SetYawDegrees(state.yaw);
-                }
-
-				if (auto* animComp = obj->GetComponent<CAnimatorComponent>())
+			if ( auto* animComp = obj->GetComponent<CAnimatorComponent>() )
+			{
+				if ( auto* ctrl = animComp->EnsureMonsterController() )
 				{
-					if (auto* ctrl = animComp->EnsureMonsterController())
-					{
-						const DecodedAnimStateCode decoded = DecodeStateCode(state.animation.stateCode);
+					const DecodedAnimStateCode decoded = DecodeStateCode(state.animation.stateCode);
 
-						EMonsterAnimState locomotionState = EMonsterAnimState::Idle;
-						if (decoded.hasMove)
-							locomotionState = decoded.run ? EMonsterAnimState::Run : EMonsterAnimState::Move;
+					EMonsterAnimState locomotionState = EMonsterAnimState::Idle;
+					if ( decoded.hasMove )
+						locomotionState = decoded.run ? EMonsterAnimState::Run : EMonsterAnimState::Move;
 
-						ctrl->SetLocomotionState(locomotionState);
+					ctrl->SetLocomotionState(locomotionState);
 
-						static std::unordered_map<uint64_t, uint32_t> s_prevEnemyStateCode;
-						const uint32_t prevStateCode =
-							(s_prevEnemyStateCode.find(state.id) != s_prevEnemyStateCode.end())
-							? s_prevEnemyStateCode[state.id]
-							: 0u;
-						const DecodedAnimStateCode prevDecoded = DecodeStateCode(prevStateCode);
+					static std::unordered_map<uint64_t, uint32_t> s_prevEnemyStateCode;
+					const uint32_t prevStateCode =
+						( s_prevEnemyStateCode.find(state.id) != s_prevEnemyStateCode.end() )
+						? s_prevEnemyStateCode[state.id]
+						: 0u;
+					const DecodedAnimStateCode prevDecoded = DecodeStateCode(prevStateCode);
 
-						if (decoded.die && !prevDecoded.die)
-						{
-							ctrl->RequestCommand(EMonsterAnimCommand::Death);
-						}
-						else if (decoded.hit && !prevDecoded.hit)
-						{
-							ctrl->RequestCommand(EMonsterAnimCommand::Hit);
-						}
-						else if (decoded.attack && !prevDecoded.attack)
-						{
-							ctrl->RequestCommand(EMonsterAnimCommand::Attack);
-						}
+					if ( decoded.die && !prevDecoded.die )
+						ctrl->RequestCommand(EMonsterAnimCommand::Death);
+					else if ( decoded.hit && !prevDecoded.hit )
+						ctrl->RequestCommand(EMonsterAnimCommand::Hit);
+					else if ( decoded.attack && !prevDecoded.attack )
+						ctrl->RequestCommand(EMonsterAnimCommand::Attack);
 
-						s_prevEnemyStateCode[state.id] = state.animation.stateCode;
-						ctrl->Update(0.0f);
-					}
+					s_prevEnemyStateCode[state.id] = state.animation.stateCode;
+					ctrl->Update(0.0f);
 				}
-            }
-            ++enemyIndex;
-        }
+			}
+		}
 
 		// Projectile 동기화
 		size_t usedArrowCount = 0;
