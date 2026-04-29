@@ -8,11 +8,17 @@
 #include "Camera.h"
 #include "GlobalValues.h"
 
+#include <algorithm>
+
 void CGameSceneHUD::ReleaseResources()
 {
 	m_ui.ReleaseResources();
 
 	m_pauseSpriteIndex = -1;
+	m_hpFillSpriteIndex = -1;
+	m_hpFillOriginalRect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	m_healthRatio = 1.0f;
+
 	m_inactiveOverlayVisible = false;
 }
 
@@ -135,12 +141,14 @@ void CGameSceneHUD::BuildResources(
 		);
 	}
 
-	m_ui.AddSprite(
+	m_hpFillOriginalRect = XMFLOAT4(hpBarCenterX, hpBarCenterY, hpBarWidth, hpBarHeight);
+
+	m_hpFillSpriteIndex = m_ui.AddSprite(
 		dev,
 		cmd,
 		"HPFill",
 		L"Assets/UI/HP.dds",
-		XMFLOAT4(hpBarCenterX, hpBarCenterY, hpBarWidth, hpBarHeight),
+		m_hpFillOriginalRect,
 		CSceneUI::ELayer::Content,
 		true
 	);
@@ -162,6 +170,30 @@ void CGameSceneHUD::BuildResources(
 	);
 
 	m_ui.SetLayerVisible(CSceneUI::ELayer::Pause, m_inactiveOverlayVisible);
+}
+
+void CGameSceneHUD::SetHealthRatio(float ratio)
+{
+	m_healthRatio = std::clamp(ratio, 0.0f, 1.0f);
+
+	if ( m_hpFillSpriteIndex < 0 )
+		return;
+
+	const float originalCenterX = m_hpFillOriginalRect.x;
+	const float originalCenterY = m_hpFillOriginalRect.y;
+	const float originalWidth = m_hpFillOriginalRect.z;
+	const float originalHeight = m_hpFillOriginalRect.w;
+
+	const float newWidth = originalWidth * m_healthRatio;
+
+	// 왼쪽 고정, 오른쪽만 줄어드는 방식.
+	const float leftX = originalCenterX - originalWidth * 0.5f;
+	const float newCenterX = leftX + newWidth * 0.5f;
+
+	m_ui.SetSpriteRect(
+		m_hpFillSpriteIndex,
+		XMFLOAT4(newCenterX, originalCenterY, newWidth, originalHeight)
+	);
 }
 
 void CGameSceneHUD::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)

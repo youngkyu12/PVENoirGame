@@ -67,25 +67,27 @@ public:
     void OnUpdate(float dt) override;
 
 public:
-    void SetRunRequested(bool run);
-    bool IsRunRequested() const { return m_isRunRequested; }
+	void SetRunRequested(bool run);
+	bool IsRunRequested() const { return m_isRunRequested; }
+
+	void SetInputEnabled(bool enabled);
+	bool IsInputEnabled() const { return m_inputEnabled; }
+
 private:
 
     void ApplyYawToOwnerTransform();
     void SyncAnimatorLocomotion();
 
 private:
-    XMFLOAT3 m_velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
-    XMFLOAT3 m_gravity = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT3 m_velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT3 m_gravity = XMFLOAT3(0.0f, 0.0f, 0.0f);
 
-    float    m_yawDeg = 0.0f; // degrees
-    float    m_maxVelXZ = 0.0f;
-    float    m_maxVelY = 0.0f;
-    float    m_friction = 0.0f;
+	float    m_yawDeg = 0.0f;
+	float    m_maxVelXZ = 0.0f;
+	float    m_maxVelY = 0.0f;
+	float    m_friction = 0.0f;
 
-    DWORD    m_inputDir = 0;
-    bool     m_isRunRequested = false;
-public:
-    void SetInputDirection(uint32_t dir) { m_inputDir = dir; }
-
+	DWORD    m_inputDir = 0;
+	bool     m_isRunRequested = false;
+	bool     m_inputEnabled = true;
 };
