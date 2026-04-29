@@ -62,10 +62,7 @@ void Player::Build()
 
 void Player::ApplyHit(uint32 serverTick, uint32 hitDurationTicks)
 {
-	
+	cout << "Player Hit" << endl;
 	SetAnimState(Protocol::ANIMATION_TYPE_HIT);
 	SetAnimTick(serverTick);
-	const uint32 endTick = serverTick + hitDurationTicks;
-	if (endTick > m_hitEndTick)
-		m_hitEndTick = endTick;
 }

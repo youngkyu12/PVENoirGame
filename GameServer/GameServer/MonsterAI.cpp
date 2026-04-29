@@ -25,6 +25,12 @@ void CMonsterAI::OnUpdate(float dt)
 	if (!GetOwner())
 		return;
 
+	// ★ HIT/DIE 등 피격 상태일 때는 AI 행동 중단
+	const auto animState = GetOwner()->GetAnimState();
+	if (animState == Protocol::ANIMATION_TYPE_HIT ||
+		animState == Protocol::ANIMATION_TYPE_DIE)
+		return;
+
 	auto PrintState = [&](const char* state, bool repathChanged, bool followingPath)
 		{
 			if (!ShouldPrintTrackLog(GetOwner()))
