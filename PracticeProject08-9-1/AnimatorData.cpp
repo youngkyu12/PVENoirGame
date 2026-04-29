@@ -21,7 +21,7 @@ static void BuildTRSMatrix(
     XMMATRIX mR = XMMatrixRotationQuaternion(rot);
     XMMATRIX mT = XMMatrixTranslationFromVector(trans);
 
-    // (Scale * Rotate * Translate) ¼ø¼­
+    // (Scale * Rotate * Translate) ìˆœì„œ
     XMMATRIX M = mS * mR * mT;
     XMStoreFloat4x4(&outM, M);
 }
@@ -33,7 +33,7 @@ static void DecomposeTRS(const XMFLOAT4X4& M, XMFLOAT3& outT, XMFLOAT4& outR, XM
     XMVECTOR S, R, T;
     if (!XMMatrixDecompose(&S, &R, &T, m))
     {
-        // ½ÇÆĞ ½Ã ¾ÈÀü°ª
+        // ì‹¤íŒ¨ ì‹œ ì•ˆì „ê°’
         outT = XMFLOAT3(0, 0, 0);
         outR = XMFLOAT4(0, 0, 0, 1);
         outS = XMFLOAT3(1, 1, 1);
@@ -45,7 +45,7 @@ static void DecomposeTRS(const XMFLOAT4X4& M, XMFLOAT3& outT, XMFLOAT4& outR, XM
 }
 
 
-// ÇÑ º»ÀÇ Å°ÇÁ·¹ÀÓ ¸®½ºÆ®¿¡¼­ t¿¡ ÇØ´çÇÏ´Â TRS¸¦ º¸°£ÇØ¼­ ±¸ÇÔ
+// í•œ ë³¸ì˜ í‚¤í”„ë ˆì„ ë¦¬ìŠ¤íŠ¸ì—ì„œ tì— í•´ë‹¹í•˜ëŠ” TRSë¥¼ ë³´ê°„í•´ì„œ êµ¬í•¨
 static void SampleBoneTrack(
     const std::vector<Keyframe>& keys,
     float timeSec,
@@ -56,7 +56,7 @@ static void SampleBoneTrack(
     const size_t keyCount = keys.size();
     if (keyCount == 0)
     {
-        // Å°°¡ ¾øÀ¸¸é ´ÜÀ§ TRS
+        // í‚¤ê°€ ì—†ìœ¼ë©´ ë‹¨ìœ„ TRS
         outT = XMFLOAT3(0.f, 0.f, 0.f);
         outR = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
         outS = XMFLOAT3(1.f, 1.f, 1.f);
@@ -65,29 +65,35 @@ static void SampleBoneTrack(
 
     if (keyCount == 1)
     {
-        // Å°°¡ ÇÏ³ª¸é ±×´ë·Î »ç¿ë
+        // í‚¤ê°€ í•˜ë‚˜ë©´ ê·¸ëŒ€ë¡œ ì‚¬ìš©
         outT = keys[0].translation;
         outR = keys[0].rotationQuat;
         outS = keys[0].scale;
         return;
     }
 
-    // timeSecÀ» Å° ¹üÀ§ ¾ÈÀ¸·Î clamp
+    // timeSecì„ í‚¤ ë²”ìœ„ ì•ˆìœ¼ë¡œ clamp
     float startTime = keys.front().timeSec;
     float endTime = keys.back().timeSec;
     if (timeSec <= startTime) timeSec = startTime;
     if (timeSec >= endTime)   timeSec = endTime;
 
-    // timeSecÀÌ µé¾î°¥ ±¸°£ [k0, k1]À» Ã£±â
-    size_t k1 = 1;
-    for (; k1 < keyCount; ++k1)
-    {
-        if (keys[k1].timeSec >= timeSec)
-            break;
-    }
+	// timeSecì´ ë“¤ì–´ê°ˆ êµ¬ê°„ [k0, k1]ì„ ì°¾ê¸°
+//size_t k1 = 1;
+//for (; k1 < keyCount; ++k1)
+//{
+//    if (keys[k1].timeSec >= timeSec)
+//        break;
+//}
+
+// BETA: ì´ì§„ íƒìƒ‰
+	auto it = std::lower_bound(keys.begin() + 1, keys.end(), timeSec,
+	[ ] (const Keyframe& k, float t) { return k.timeSec < t; });
+	size_t k1 = ( it == keys.end() ) ? keyCount - 1
+		: static_cast< size_t >(it - keys.begin());
     if (k1 >= keyCount)
     {
-        // safety: ¸¶Áö¸· Å° »ç¿ë
+        // safety: ë§ˆì§€ë§‰ í‚¤ ì‚¬ìš©
         outT = keys.back().translation;
         outR = keys.back().rotationQuat;
         outS = keys.back().scale;
@@ -103,7 +109,7 @@ static void SampleBoneTrack(
     float span = (t1 - t0);
     float alpha = (span > 0.0f) ? ((timeSec - t0) / span) : 0.0f;
 
-    // À§Ä¡ / ½ºÄÉÀÏ: ¼±Çüº¸°£
+    // ìœ„ì¹˜ / ìŠ¤ì¼€ì¼: ì„ í˜•ë³´ê°„
     XMVECTOR T0 = XMLoadFloat3(&key0.translation);
     XMVECTOR T1 = XMLoadFloat3(&key1.translation);
     XMVECTOR S0 = XMLoadFloat3(&key0.scale);
@@ -115,7 +121,7 @@ static void SampleBoneTrack(
     XMStoreFloat3(&outT, T);
     XMStoreFloat3(&outS, S);
 
-    // È¸Àü: ÄõÅÍ´Ï¾ğ SLERP
+    // íšŒì „: ì¿¼í„°ë‹ˆì–¸ SLERP
     XMVECTOR R0 = XMLoadFloat4(&key0.rotationQuat);
     XMVECTOR R1 = XMLoadFloat4(&key1.rotationQuat);
     XMVECTOR R = XMQuaternionSlerp(R0, R1, alpha);
@@ -125,10 +131,10 @@ static void SampleBoneTrack(
 
 // ============================================================
 // AnimationClip::Evaluate
-//   - timeSec ½Ã°¢¿¡¼­ °¢ º»ÀÇ "·ÎÄÃ Çà·Ä(animLocal)"À» outLocalTransforms ¿¡ Ã¤¿ò
-//   - Å°ÇÁ·¹ÀÓÀÌ ¾ø´Â º»Àº skeleton[i].bindLocal »ç¿ë
-//   - ¼öÁ¤: ´õ ÀÌ»ó corrected = bindInv * anim * bind Çü½Ä »ç¿ë ¾È ÇÔ
-//            SampleBoneTrack ÀÇ TRS¸¦ "±×´ë·Î ·ÎÄÃ º¯È¯"À¸·Î »ç¿ë.
+//   - timeSec ì‹œê°ì—ì„œ ê° ë³¸ì˜ "ë¡œì»¬ í–‰ë ¬(animLocal)"ì„ outLocalTransforms ì— ì±„ì›€
+//   - í‚¤í”„ë ˆì„ì´ ì—†ëŠ” ë³¸ì€ skeleton[i].bindLocal ì‚¬ìš©
+//   - ìˆ˜ì •: ë” ì´ìƒ corrected = bindInv * anim * bind í˜•ì‹ ì‚¬ìš© ì•ˆ í•¨
+//            SampleBoneTrack ì˜ TRSë¥¼ "ê·¸ëŒ€ë¡œ ë¡œì»¬ ë³€í™˜"ìœ¼ë¡œ ì‚¬ìš©.
 // ============================================================
 void AnimationClip::Evaluate(
     float timeSec,
@@ -139,7 +145,7 @@ void AnimationClip::Evaluate(
     if (skeletonCount == 0) { outLocalTransforms.clear(); return; }
     if (outLocalTransforms.size() < skeletonCount) outLocalTransforms.resize(skeletonCount);
 
-    // 0) Bind_Root Æ®·¢ »ùÇÃ(ÀÖÀ¸¸é)
+    // 0) Bind_Root íŠ¸ë™ ìƒ˜í”Œ(ìˆìœ¼ë©´)
     bool hasRoot = hasBindRootTrack && !bindRootTrack.keyframes.empty();
     XMMATRIX rootM = XMMatrixIdentity();
     if (hasRoot)
@@ -151,7 +157,7 @@ void AnimationClip::Evaluate(
         rootM = XMLoadFloat4x4(&rootLocal);
     }
 
-    // 1) º»º° ·ÎÄÃ Æ÷Áî
+    // 1) ë³¸ë³„ ë¡œì»¬ í¬ì¦ˆ
     for (size_t i = 0; i < skeletonCount; ++i)
     {
         const std::string& boneName = skeleton[i].name;
@@ -178,11 +184,11 @@ void AnimationClip::Evaluate(
         XMFLOAT4X4 localM;
         BuildTRSMatrix(t, r, s, localM);
 
-        // Bind_Root¸¦ ¡°ºÎ¸ğ¡±Ã³·³ Àû¿ë: ·çÆ® º»µé(parent=-1)¿¡¸¸
+        // Bind_Rootë¥¼ â€œë¶€ëª¨â€ì²˜ëŸ¼ ì ìš©: ë£¨íŠ¸ ë³¸ë“¤(parent=-1)ì—ë§Œ
         if (hasRoot && skeleton[i].parentIndex < 0)
         {
             XMMATRIX L = XMLoadFloat4x4(&localM);
-            L = L * rootM; // (¿£Áø ±ÔÄ¢: global = local * parent)
+            L = L * rootM; // (ì—”ì§„ ê·œì¹™: global = local * parent)
             XMStoreFloat4x4(&localM, L);
         }
 
