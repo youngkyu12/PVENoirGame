@@ -25,11 +25,23 @@ void CMonsterAI::OnUpdate(float dt)
 	if (!GetOwner())
 		return;
 
-	// ★ HIT/DIE 등 피격 상태일 때는 AI 행동 중단
+	// HIT/DIE 등 피격 상태일 때는 AI 행동 중단
 	const auto animState = GetOwner()->GetAnimState();
 	if (animState == Protocol::ANIMATION_TYPE_HIT ||
 		animState == Protocol::ANIMATION_TYPE_DIE)
 		return;
+
+	// ATTACK 중이면 공격 지속시간 동안 AI 동결 (IDLE로 덮어쓰기 방지)
+	if (animState == Protocol::ANIMATION_TYPE_ATTACK)
+	{
+		constexpr int kAttackDurationTicks = 20; // 공격 애니메이션 총 지속 틱
+		const int elapsed = static_cast<int>(GRoom->GetTick()) - GetOwner()->GetAnimTick();
+		if (elapsed <= kAttackDurationTicks)
+			return; // 아직 공격 중 → TickAdvance에서 히트 판정할 시간을 줌
+
+		// 공격 끝 → IDLE로 전환, 이후 일반 AI 흐름으로
+		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
+	}
 
 	auto PrintState = [&](const char* state, bool repathChanged, bool followingPath)
 		{
