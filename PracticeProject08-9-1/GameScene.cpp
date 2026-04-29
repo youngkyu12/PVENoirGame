@@ -38,7 +38,10 @@
 #include "MonsterWeaponHitboxComponent.h"
 #include "MonsterCombatComponent.h"
 #include "NavMesh.h"
+#include "MonsterAIComponent.h"
 #include "GhoulAIComponent.h"
+#include "HealthComponent.h"
+#include "AttackPowerComponent.h"
 #include "AudioManager.h"
 #include "MusicDirector.h"
 
@@ -214,7 +217,47 @@ namespace
 		return true;
 	}
 
+	static void SetObjectAttackPower(CGameObject* obj, int attackPower)
+	{
+		if ( !obj )
+			return;
+
+		if ( auto* attack = obj->GetComponent<CAttackPowerComponent>() )
+			attack->SetAttackPower(attackPower);
+	}
+
+	static constexpr XMFLOAT3 kLocalPlayerRespawnPosition =
+		XMFLOAT3(0.0f, 0.0f, -200.0f);
+
+	static constexpr float kLocalPlayerRespawnDelay = 5.0f;
+
 	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::FullStage;
+
+	// -----------------------------------------------------------------------------
+	// HP
+	// -----------------------------------------------------------------------------
+	static constexpr int kHpGhoul = 30;
+	static constexpr int kHpBowMan = 120;
+	static constexpr int kHpSwordMan = 120;
+	static constexpr int kHpMutant = 240;
+	static constexpr int kHpBoss = 4800;
+	static constexpr int kHpPlayer = 100;
+
+	// -----------------------------------------------------------------------------
+	// Attack power
+	// -----------------------------------------------------------------------------
+	static constexpr int kAttackPowerPlayerSword = 10;
+	static constexpr int kAttackPowerPlayerAxe = 15;
+	static constexpr int kAttackPowerPlayerArrow = 15;
+	static constexpr int kAttackPowerPlayerBullet = 8;
+
+	static constexpr int kAttackPowerGhoul = 5;
+	static constexpr int kAttackPowerEnemySword = 10;
+	static constexpr int kAttackPowerEnemyArrow = 10;
+	static constexpr int kAttackPowerMutant = 20;
+	static constexpr int kAttackPowerBoss = 50;
+
+	static constexpr UINT kOfflineGhoulAICount = 30;
 }
 
 namespace
@@ -405,6 +448,11 @@ CGameScene::CGameScene()
 	m_bulletRefs.shrink_to_fit();
 
 	m_navMesh.reset();
+
+	m_bLocalPlayerDead = false;
+	m_bLocalPlayerRespawnUsed = false;
+	m_localPlayerRespawnTimer = 0.0f;
+	m_deadMonsters.clear();
 }
 
 #ifndef USING_NETWORK
@@ -854,6 +902,11 @@ void CGameScene::ReleaseObjects()
 
 	m_navMesh.reset();
 
+	m_bLocalPlayerDead = false;
+	m_bLocalPlayerRespawnUsed = false;
+	m_localPlayerRespawnTimer = 0.0f;
+	m_deadMonsters.clear();
+
 #ifndef USING_NETWORK
 	m_monsterSpawnEntries.clear();
 	ShutdownSpatialGrid();
@@ -1077,6 +1130,7 @@ void CGameScene::ReleaseShaderVariables()
 
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
+	m_deadMonsters.clear();
 #ifdef USING_NETWORK
 	while ( false == g_GameStarted )
 	{
@@ -1140,6 +1194,9 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	}
 #else
 	m_localPlayerSlot = 0;
+	m_bLocalPlayerDead = false;
+	m_bLocalPlayerRespawnUsed = false;
+	m_localPlayerRespawnTimer = 0.0f;
 
 	const GameSceneStageFileSet& stageFiles = GetLocalStageFileSet(kLocalStagePreset);
 
@@ -2278,6 +2335,9 @@ void CGameScene::BuildStaticBatch(
 
 			createDesc.addArrowComponent = true;
 
+			createDesc.addAttackPower = true;
+			createDesc.attackPower = 0;
+
 			auto obj = GameSceneObjectFactory::CreateStaticRenderable(createDesc);
 			if ( !obj )
 				continue;
@@ -2326,6 +2386,9 @@ void CGameScene::BuildStaticBatch(
 			createDesc.colliderEnabled = false;
 
 			createDesc.addBulletComponent = true;
+
+			createDesc.addAttackPower = true;
+			createDesc.attackPower = 0;
 
 			auto obj = GameSceneObjectFactory::CreateStaticRenderable(createDesc);
 			if ( !obj )
@@ -2415,6 +2478,9 @@ void CGameScene::BuildStaticBatch(
 			createDesc.colliderMask = CollisionBit(kCollisionLayerMonster);
 			createDesc.colliderEnabled = false;
 
+			createDesc.addAttackPower = true;
+			createDesc.attackPower = kAttackPowerPlayerSword;
+
 			auto obj = GameSceneObjectFactory::CreateStaticRenderable(createDesc);
 			if ( !obj )
 				continue;
@@ -2461,6 +2527,9 @@ void CGameScene::BuildStaticBatch(
 			createDesc.colliderLayer = kCollisionLayerPlayerWeapon;
 			createDesc.colliderMask = CollisionBit(kCollisionLayerMonster);
 			createDesc.colliderEnabled = false;
+
+			createDesc.addAttackPower = true;
+			createDesc.attackPower = kAttackPowerPlayerSword;
 
 			auto obj = GameSceneObjectFactory::CreateStaticRenderable(createDesc);
 			if ( !obj )
@@ -2555,6 +2624,8 @@ void CGameScene::BuildStaticBatch(
 			createDesc.colliderEnabled = false;
 
 			createDesc.addMonsterWeaponHitbox = true;
+			createDesc.addAttackPower = true;
+			createDesc.attackPower = kAttackPowerEnemySword;
 
 			auto obj = GameSceneObjectFactory::CreateStaticRenderable(createDesc);
 			if ( !obj )
@@ -3606,6 +3677,12 @@ void CGameScene::BuildSkinnedBatch(
 			createDesc.addMonsterCombat = true;
 			createDesc.addMonsterWeaponHitbox = true;
 
+			createDesc.addHealth = true;
+			createDesc.maxHp = kHpGhoul;
+
+			createDesc.addAttackPower = true;
+			createDesc.attackPower = kAttackPowerGhoul;
+
 			createDesc.skeletonKey = "Ghoul";
 			createDesc.clipEntries = &ghoulClips;
 
@@ -3623,14 +3700,21 @@ void CGameScene::BuildSkinnedBatch(
 				{ "Attack", 0.20f, 0.55f, { "hand_r" } }
 			);
 
-#ifndef USING_NETWORK
-			// CGhoulAIComponent는 기존 요청대로 현재 전부 비활성화 상태로 유지.
-			// auto* ghoulAI = obj->AddComponent<CGhoulAIComponent>();
-#endif
-
 			auto obj = GameSceneObjectFactory::CreateSkinnedRenderable(createDesc);
 			if ( !obj )
 				continue;
+
+#ifndef USING_NETWORK
+			if ( k < kOfflineGhoulAICount )
+			{
+				auto* ghoulAI = obj->AddComponent<CGhoulAIComponent>();
+				if ( ghoulAI )
+				{
+					ghoulAI->SetScene(this);
+					ghoulAI->SetEnabledAI(true);
+				}
+			}
+#endif
 
 			++enemyIndex;
 
@@ -3710,6 +3794,9 @@ void CGameScene::BuildSkinnedBatch(
 			createDesc.playerSlot = -1;
 
 			createDesc.addMonsterCombat = true;
+
+			createDesc.addHealth = true;
+			createDesc.maxHp = kHpSwordMan;
 
 			createDesc.skeletonKey = "EnemySword";
 			createDesc.clipEntries = &swordClips;
@@ -3811,6 +3898,9 @@ void CGameScene::BuildSkinnedBatch(
 			createDesc.playerSlot = -1;
 
 			createDesc.addMonsterCombat = true;
+
+			createDesc.addHealth = true;
+			createDesc.maxHp = kHpBowMan;
 
 			createDesc.skeletonKey = "EnemyBow";
 			createDesc.clipEntries = &bowManClips;
@@ -3915,6 +4005,12 @@ void CGameScene::BuildSkinnedBatch(
 
 			createDesc.addMonsterCombat = true;
 			createDesc.addMonsterWeaponHitbox = true;
+
+			createDesc.addHealth = true;
+			createDesc.maxHp = kHpMutant;
+
+			createDesc.addAttackPower = true;
+			createDesc.attackPower = kAttackPowerMutant;
 
 			createDesc.skeletonKey = "Mutant";
 			createDesc.clipEntries = &mutantClips;
@@ -4023,6 +4119,12 @@ void CGameScene::BuildSkinnedBatch(
 			createDesc.addMonsterCombat = true;
 			createDesc.addMonsterWeaponHitbox = true;
 
+			createDesc.addHealth = true;
+			createDesc.maxHp = kHpBoss;
+
+			createDesc.addAttackPower = true;
+			createDesc.attackPower = kAttackPowerBoss;
+
 			createDesc.skeletonKey = "Boss";
 			createDesc.clipEntries = &bossClips;
 
@@ -4126,6 +4228,9 @@ void CGameScene::BuildSkinnedBatch(
 			createDesc.addPlayerController = isLocal;
 			createDesc.addPlayerEquipment = true;
 			createDesc.addPlayerWeaponHitbox = true;
+
+			createDesc.addHealth = true;
+			createDesc.maxHp = kHpPlayer;
 
 			createDesc.skeletonKey = "Player";
 			createDesc.clipEntries = &playerClips;
@@ -4945,6 +5050,9 @@ void CGameScene::RequestPlayerAttackBySlot(int slot)
 	CGameObject* obj = GetPlayerBySlot(slot);
 	if ( !obj ) return;
 
+	if ( slot == m_localPlayerSlot && m_bLocalPlayerDead )
+		return;
+
 	constexpr float kArrowPullBackDistance = 0.35f;
 	constexpr float kBulletSpeed = 10.0f;
 	constexpr float kBulletLife = 3.0f;
@@ -5042,9 +5150,11 @@ void CGameScene::RequestPrepareArrow(CGameObject* shooter, float pullBackDistanc
 
         if (arrow->IsActive()) continue;
 
+		SetObjectAttackPower(arrowObj, kAttackPowerPlayerArrow);
+
 		arrow->Prepare(bowObj, shooter, pullBackDistance, true, true);
 		m_preparedPlayerArrows[( size_t ) slot] = arrowObj;
-        return;
+		return;
     }
 }
 
@@ -5074,6 +5184,8 @@ void CGameScene::RequestPrepareBowmanArrow(CGameObject* bowman, float pullBackDi
 		auto* arrow = arrowObj->GetComponent<CArrowComponent>();
 		if ( !arrow ) continue;
 		if ( arrow->IsActive() ) continue;
+
+		SetObjectAttackPower(arrowObj, kAttackPowerEnemyArrow);
 
 		arrow->Prepare(bowObj, bowman, pullBackDistance, false, true);
 		m_preparedBowmanArrows[idx] = arrowObj;
@@ -5196,6 +5308,21 @@ void CGameScene::UpdatePreparedBowArrows()
 	for ( size_t i = 0; i < m_bowManRefs.size(); ++i )
 	{
 		CGameObject* bowman = m_bowManRefs[i];
+		if ( IsMonsterDead(bowman) )
+		{
+			if ( i < m_preparedBowmanArrows.size() && m_preparedBowmanArrows[i] )
+			{
+				if ( auto* arrow = m_preparedBowmanArrows[i]->GetComponent<CArrowComponent>() )
+					arrow->Deactivate();
+
+				m_preparedBowmanArrows[i] = nullptr;
+			}
+
+			if ( i < m_prevEnemyBowReleasePhase.size() )
+				m_prevEnemyBowReleasePhase[i] = false;
+
+			continue;
+		}
 
 		bool isBowLoad = false;
 		bool isBowRelease = false;
@@ -5332,6 +5459,298 @@ bool CGameScene::IsLocalPlayer(const CGameObject* obj) const
     return tag && tag->kind == EActorKind::Player && tag->control == EPlayerControl::Local;
 }
 
+void CGameScene::SetLocalPlayerControlEnabled(bool enabled)
+{
+	CGameObject* player = GetPlayer();
+	if ( !player )
+		return;
+
+	if ( auto* controller = player->GetComponent<CPlayerControllerComponent>() )
+	{
+		controller->SetInputEnabled(enabled);
+
+		if ( !enabled )
+		{
+			controller->SetInputDirection(static_cast< DWORD >( 0 ));
+			controller->SetRunRequested(false);
+			controller->SetVelocity(XMFLOAT3(0.0f, 0.0f, 0.0f));
+		}
+	}
+}
+
+void CGameScene::CancelLocalPlayerPreparedActions()
+{
+	const int slot = m_localPlayerSlot;
+
+	if ( slot < 0 || slot >= 4 )
+		return;
+
+	if ( m_preparedPlayerArrows[( size_t ) slot] )
+	{
+		if ( auto* arrow = m_preparedPlayerArrows[( size_t ) slot]->GetComponent<CArrowComponent>() )
+			arrow->Deactivate();
+
+		m_preparedPlayerArrows[( size_t ) slot] = nullptr;
+	}
+
+	m_prevBowReleasePhase[( size_t ) slot] = false;
+
+	auto DisableColliderOnly = [ ] (CGameObject* obj)
+		{
+			if ( !obj )
+				return;
+
+			if ( auto* collider = obj->GetComponent<CColliderComponent>() )
+				collider->SetEnabled(false);
+		};
+
+	if ( slot >= 0 && slot < ( int ) m_PlayerSwordRefs.size() )
+		DisableColliderOnly(m_PlayerSwordRefs[( size_t ) slot]);
+
+	if ( slot >= 0 && slot < ( int ) m_PlayerAxeRefs.size() )
+		DisableColliderOnly(m_PlayerAxeRefs[( size_t ) slot]);
+
+	if ( slot >= 0 && slot < ( int ) m_PlayerGunRefs.size() )
+		DisableColliderOnly(m_PlayerGunRefs[( size_t ) slot]);
+}
+
+bool CGameScene::IsMonsterDead(const CGameObject* monster) const
+{
+	if ( !monster )
+		return true;
+
+	if ( m_deadMonsters.find(const_cast< CGameObject* >(monster)) != m_deadMonsters.end() )
+		return true;
+
+	if ( auto* hp = monster->GetComponent<CHealthComponent>() )
+		return hp->IsDead();
+
+	return false;
+}
+
+void CGameScene::CancelMonsterPreparedActions(CGameObject* monster)
+{
+	if ( !monster )
+		return;
+
+	// ---------------------------------------------------------------------
+	// 1) BowMan이 Bow_Load 중 죽은 경우 준비 중인 화살 제거
+	// ---------------------------------------------------------------------
+	const int bowmanIndex = GetBowManIndexFromObject(monster);
+	if ( bowmanIndex >= 0 )
+	{
+		const size_t idx = static_cast< size_t >( bowmanIndex );
+
+		if ( idx < m_preparedBowmanArrows.size() )
+		{
+			if ( m_preparedBowmanArrows[idx] )
+			{
+				if ( auto* arrow = m_preparedBowmanArrows[idx]->GetComponent<CArrowComponent>() )
+					arrow->Deactivate();
+
+				m_preparedBowmanArrows[idx] = nullptr;
+			}
+		}
+
+		if ( idx < m_prevEnemyBowReleasePhase.size() )
+			m_prevEnemyBowReleasePhase[idx] = false;
+	}
+
+	// ---------------------------------------------------------------------
+	// 2) SwordMan의 외부 무기 collider 비활성화
+	//    m_swordManRefs와 m_EnemySwordRefs는 같은 순서로 연결되어 있음.
+	// ---------------------------------------------------------------------
+	for ( size_t i = 0; i < m_swordManRefs.size(); ++i )
+	{
+		if ( m_swordManRefs[i] != monster )
+			continue;
+
+		if ( i < m_EnemySwordRefs.size() )
+		{
+			CGameObject* sword = m_EnemySwordRefs[i];
+
+			if ( sword )
+			{
+				if ( auto* collider = sword->GetComponent<CColliderComponent>() )
+					collider->SetEnabled(false);
+
+				if ( auto* hitbox = sword->GetComponent<CMonsterWeaponHitboxComponent>() )
+					hitbox->SetEnabled(false);
+			}
+		}
+
+		break;
+	}
+
+	// ---------------------------------------------------------------------
+	// 3) Ghoul / Mutant / Boss처럼 owner bone weapon capsule을 쓰는 경우
+	// ---------------------------------------------------------------------
+	if ( auto* ownerWeaponHitbox = monster->GetComponent<CMonsterWeaponHitboxComponent>() )
+		ownerWeaponHitbox->SetEnabled(false);
+}
+
+void CGameScene::BeginMonsterDeath(CGameObject* monster)
+{
+	if ( !monster )
+		return;
+
+	if ( m_deadMonsters.find(monster) != m_deadMonsters.end() )
+		return;
+
+	auto* tag = monster->GetComponent<CActorTagComponent>();
+	if ( !tag || tag->kind != EActorKind::NPC )
+		return;
+
+	m_deadMonsters.insert(monster);
+
+	CancelMonsterPreparedActions(monster);
+
+	// 더 이상 플레이어 무기 충돌을 받지 않게 함.
+	if ( auto* collider = monster->GetComponent<CColliderComponent>() )
+		collider->SetEnabled(false);
+
+	// 현재 실제로 붙는 AI는 CGhoulAIComponent지만,
+	// base 타입으로도 잡히는 구조라면 같이 처리.
+	if ( auto* ai = monster->GetComponent<CMonsterAIComponent>() )
+	{
+		ai->SetEnabledAI(false);
+		ai->ClearTarget();
+		ai->ClearPath();
+	}
+
+	if ( auto* ghoulAI = monster->GetComponent<CGhoulAIComponent>() )
+	{
+		ghoulAI->SetEnabledAI(false);
+		ghoulAI->ClearTarget();
+		ghoulAI->ClearPath();
+	}
+
+	if ( auto* animComp = monster->GetComponent<CAnimatorComponent>() )
+	{
+		if ( auto* ctrl = animComp->EnsureMonsterController() )
+		{
+			ctrl->SetLocomotionState(EMonsterAnimState::Idle);
+			ctrl->RequestCommand(EMonsterAnimCommand::Death);
+			return;
+		}
+	}
+}
+
+void CGameScene::UpdateMonsterDeathStates()
+{
+	for ( CGameObject* obj : m_skinnedBatch.objectRefs )
+	{
+		if ( !obj )
+			continue;
+
+		auto* tag = obj->GetComponent<CActorTagComponent>();
+		if ( !tag || tag->kind != EActorKind::NPC )
+			continue;
+
+		auto* hp = obj->GetComponent<CHealthComponent>();
+		if ( !hp )
+			continue;
+
+		if ( hp->IsDead() )
+			BeginMonsterDeath(obj);
+	}
+}
+
+void CGameScene::BeginLocalPlayerDeath(CGameObject* player)
+{
+	if ( !player )
+		return;
+
+	if ( m_bLocalPlayerDead )
+		return;
+
+	m_bLocalPlayerDead = true;
+	m_localPlayerRespawnTimer = 0.0f;
+
+	SetLocalPlayerControlEnabled(false);
+	CancelLocalPlayerPreparedActions();
+
+	if ( auto* collider = player->GetComponent<CColliderComponent>() )
+		collider->SetEnabled(false);
+
+	if ( auto* animComp = player->GetComponent<CAnimatorComponent>() )
+	{
+		if ( auto* ctrl = animComp->EnsureController() )
+		{
+			ctrl->RequestDeath();
+			return;
+		}
+	}
+
+	if ( auto* ctrl = player->GetAnimController() )
+		ctrl->RequestDeath();
+}
+
+void CGameScene::RespawnLocalPlayer(CGameObject* player)
+{
+	if ( !player )
+		return;
+
+	player->SetPosition(kLocalPlayerRespawnPosition);
+
+	if ( auto* hp = player->GetComponent<CHealthComponent>() )
+		hp->ResetToMax();
+
+	if ( auto* collider = player->GetComponent<CColliderComponent>() )
+	{
+		collider->SetEnabled(true);
+		collider->OnUpdate(0.0f);
+	}
+
+	if ( auto* animComp = player->GetComponent<CAnimatorComponent>() )
+	{
+		if ( auto* ctrl = animComp->EnsureController() )
+		{
+			ctrl->ResetToIdleAfterRespawn();
+		}
+	}
+	else if ( auto* ctrl = player->GetAnimController() )
+	{
+		ctrl->ResetToIdleAfterRespawn();
+	}
+
+	SetLocalPlayerControlEnabled(true);
+
+	m_bLocalPlayerDead = false;
+	m_bLocalPlayerRespawnUsed = true;
+	m_localPlayerRespawnTimer = 0.0f;
+}
+
+void CGameScene::UpdateLocalPlayerDeathAndRespawn(float dt)
+{
+	CGameObject* player = GetPlayer();
+	if ( !player )
+		return;
+
+	auto* hp = player->GetComponent<CHealthComponent>();
+	if ( !hp )
+		return;
+
+	if ( !m_bLocalPlayerDead && hp->IsDead() )
+	{
+		BeginLocalPlayerDeath(player);
+	}
+
+	if ( !m_bLocalPlayerDead )
+		return;
+
+	if ( m_bLocalPlayerRespawnUsed )
+		return;
+
+	if ( dt > 0.0f )
+		m_localPlayerRespawnTimer += dt;
+
+	if ( m_localPlayerRespawnTimer >= kLocalPlayerRespawnDelay )
+	{
+		RespawnLocalPlayer(player);
+	}
+}
+
 bool CGameScene::RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& previousPos)
 {
 	CGameObject* localPlayer = GetPlayer();
@@ -5406,7 +5825,8 @@ bool CGameScene::OnProcessingMouseMessage(HWND /*hWnd*/, UINT msg, WPARAM /*wPar
 	if ( msg == WM_LBUTTONDOWN )
 	{
 #ifndef USING_NETWORK
-		RequestPlayerAttackBySlot(m_localPlayerSlot);
+		if ( !m_bLocalPlayerDead )
+			RequestPlayerAttackBySlot(m_localPlayerSlot);
 #endif
 		return true;
 	}
@@ -5508,6 +5928,8 @@ void CGameScene::RequestFireBullet(CGameObject* shooter, float speed, float life
 		if ( !bullet ) continue;
 		if ( bullet->IsActive() ) continue;
 
+		SetObjectAttackPower(bulletObj, kAttackPowerPlayerBullet);
+
 		if ( bullet->FireFromObjects(spawnSource, directionSource, speed, lifeSec, true) )
 		{
 			return;
@@ -5523,6 +5945,13 @@ bool CGameScene::ProcessInput(UCHAR* /*pKeysBuffer*/)
 void CGameScene::AnimateObjects(float dt)
 {
 	m_fElapsedTime = dt;
+
+	UpdateMonsterDeathStates();
+
+#ifndef USING_NETWORK
+	UpdateLocalPlayerDeathAndRespawn(dt);
+#endif
+
     // ------------------------------------------------------------------------
     // FrameSnapshot에서 좌표 업데이트
     // ------------------------------------------------------------------------
@@ -5798,7 +6227,14 @@ void CGameScene::AnimateObjects(float dt)
 void CGameScene::CollisionObjects()
 {
 	if ( !m_Collision ) return;
+
 	m_Collision->OnUpdate();
+
+	UpdateMonsterDeathStates();
+
+#ifndef USING_NETWORK
+	UpdateLocalPlayerDeathAndRespawn(0.0f);
+#endif
 }
 
 void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
@@ -5834,6 +6270,22 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
 
 	UpdateDepthFogState(m_fElapsedTime);
 	m_depthFog.UploadConstantBuffer();
+
+	{
+		float hpRatio = 1.0f;
+
+		CGameObject* localPlayer = GetPlayer();
+		if ( !localPlayer )
+			localPlayer = GetPlayerBySlot(0);
+
+		if ( localPlayer )
+		{
+			if ( auto* hp = localPlayer->GetComponent<CHealthComponent>() )
+				hpRatio = hp->GetHpRatio();
+		}
+
+		m_hud.SetHealthRatio(hpRatio);
+	}
 
     if (m_staticBatch.mappedGameObjects && !m_staticBatch.objectRefs.empty())
     {
