@@ -207,6 +207,7 @@ void Room::TickAdvance()
 				player->GetPosition(), player->GetLook(),
 				enemy->GetPosition(), reach, halfAngleDeg))
 			{
+				cout << "Player " << player->GetObjectId() << " hits Enemy " << enemy->GetObjectId() << endl;
 				enemy->ApplyHit(tick.load(), 20);
 			}
 		}
@@ -230,7 +231,7 @@ void Room::TickAdvance()
 		{
 		case Protocol::WEAPON_TYPE_SWORD: reach = 2.0f; halfAngleDeg = 45.0f; break;
 		case Protocol::WEAPON_TYPE_AXE:   reach = 2.5f; halfAngleDeg = 45.0f; break;
-		default:                          reach = 2.0f; halfAngleDeg = 90.0f; break; // 반원
+		default:                          reach = 5.0f; halfAngleDeg = 90.0f; break; // 반원
 		}
 
 		for (auto& [pid, player] : players)
@@ -239,7 +240,7 @@ void Room::TickAdvance()
 				enemy->GetPosition(), enemy->GetLook(),
 				player->GetPosition(), reach, halfAngleDeg))
 			{
-				player->ApplyHit(tick.load(), 20); // Player에도 ApplyHit 필요
+				player->ApplyHit(tick.load(), 10);
 			}
 		}
 	}

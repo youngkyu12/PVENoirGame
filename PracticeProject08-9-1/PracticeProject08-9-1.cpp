@@ -61,7 +61,6 @@ public:
 	{
 		//cout << "Disconnected" << endl
 		// 연결을 끊을 때 해당 세션을 정리한다
-		LSendBufferChunk->Reset();
 	}
 };
 
