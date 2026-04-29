@@ -302,6 +302,10 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 		{
 			if ( !weaponObject || !monsterObject )
 				return;
+
+			if ( IsDeadByHealth(monsterObject) )
+				return;
+
 			auto DeactivateProjectileIfNeeded = [ ] (CGameObject* weaponObj)
 				{
 					if ( !weaponObj ) return;

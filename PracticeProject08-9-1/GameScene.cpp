@@ -38,6 +38,7 @@
 #include "MonsterWeaponHitboxComponent.h"
 #include "MonsterCombatComponent.h"
 #include "NavMesh.h"
+#include "MonsterAIComponent.h"
 #include "GhoulAIComponent.h"
 #include "HealthComponent.h"
 #include "AttackPowerComponent.h"
@@ -451,6 +452,7 @@ CGameScene::CGameScene()
 	m_bLocalPlayerDead = false;
 	m_bLocalPlayerRespawnUsed = false;
 	m_localPlayerRespawnTimer = 0.0f;
+	m_deadMonsters.clear();
 }
 
 #ifndef USING_NETWORK
@@ -903,6 +905,7 @@ void CGameScene::ReleaseObjects()
 	m_bLocalPlayerDead = false;
 	m_bLocalPlayerRespawnUsed = false;
 	m_localPlayerRespawnTimer = 0.0f;
+	m_deadMonsters.clear();
 
 #ifndef USING_NETWORK
 	m_monsterSpawnEntries.clear();
@@ -1127,6 +1130,7 @@ void CGameScene::ReleaseShaderVariables()
 
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
+	m_deadMonsters.clear();
 #ifdef USING_NETWORK
 	while ( false == g_GameStarted )
 	{
@@ -5304,6 +5308,21 @@ void CGameScene::UpdatePreparedBowArrows()
 	for ( size_t i = 0; i < m_bowManRefs.size(); ++i )
 	{
 		CGameObject* bowman = m_bowManRefs[i];
+		if ( IsMonsterDead(bowman) )
+		{
+			if ( i < m_preparedBowmanArrows.size() && m_preparedBowmanArrows[i] )
+			{
+				if ( auto* arrow = m_preparedBowmanArrows[i]->GetComponent<CArrowComponent>() )
+					arrow->Deactivate();
+
+				m_preparedBowmanArrows[i] = nullptr;
+			}
+
+			if ( i < m_prevEnemyBowReleasePhase.size() )
+				m_prevEnemyBowReleasePhase[i] = false;
+
+			continue;
+		}
 
 		bool isBowLoad = false;
 		bool isBowRelease = false;
@@ -5493,6 +5512,148 @@ void CGameScene::CancelLocalPlayerPreparedActions()
 
 	if ( slot >= 0 && slot < ( int ) m_PlayerGunRefs.size() )
 		DisableColliderOnly(m_PlayerGunRefs[( size_t ) slot]);
+}
+
+bool CGameScene::IsMonsterDead(const CGameObject* monster) const
+{
+	if ( !monster )
+		return true;
+
+	if ( m_deadMonsters.find(const_cast< CGameObject* >(monster)) != m_deadMonsters.end() )
+		return true;
+
+	if ( auto* hp = monster->GetComponent<CHealthComponent>() )
+		return hp->IsDead();
+
+	return false;
+}
+
+void CGameScene::CancelMonsterPreparedActions(CGameObject* monster)
+{
+	if ( !monster )
+		return;
+
+	// ---------------------------------------------------------------------
+	// 1) BowMan이 Bow_Load 중 죽은 경우 준비 중인 화살 제거
+	// ---------------------------------------------------------------------
+	const int bowmanIndex = GetBowManIndexFromObject(monster);
+	if ( bowmanIndex >= 0 )
+	{
+		const size_t idx = static_cast< size_t >( bowmanIndex );
+
+		if ( idx < m_preparedBowmanArrows.size() )
+		{
+			if ( m_preparedBowmanArrows[idx] )
+			{
+				if ( auto* arrow = m_preparedBowmanArrows[idx]->GetComponent<CArrowComponent>() )
+					arrow->Deactivate();
+
+				m_preparedBowmanArrows[idx] = nullptr;
+			}
+		}
+
+		if ( idx < m_prevEnemyBowReleasePhase.size() )
+			m_prevEnemyBowReleasePhase[idx] = false;
+	}
+
+	// ---------------------------------------------------------------------
+	// 2) SwordMan의 외부 무기 collider 비활성화
+	//    m_swordManRefs와 m_EnemySwordRefs는 같은 순서로 연결되어 있음.
+	// ---------------------------------------------------------------------
+	for ( size_t i = 0; i < m_swordManRefs.size(); ++i )
+	{
+		if ( m_swordManRefs[i] != monster )
+			continue;
+
+		if ( i < m_EnemySwordRefs.size() )
+		{
+			CGameObject* sword = m_EnemySwordRefs[i];
+
+			if ( sword )
+			{
+				if ( auto* collider = sword->GetComponent<CColliderComponent>() )
+					collider->SetEnabled(false);
+
+				if ( auto* hitbox = sword->GetComponent<CMonsterWeaponHitboxComponent>() )
+					hitbox->SetEnabled(false);
+			}
+		}
+
+		break;
+	}
+
+	// ---------------------------------------------------------------------
+	// 3) Ghoul / Mutant / Boss처럼 owner bone weapon capsule을 쓰는 경우
+	// ---------------------------------------------------------------------
+	if ( auto* ownerWeaponHitbox = monster->GetComponent<CMonsterWeaponHitboxComponent>() )
+		ownerWeaponHitbox->SetEnabled(false);
+}
+
+void CGameScene::BeginMonsterDeath(CGameObject* monster)
+{
+	if ( !monster )
+		return;
+
+	if ( m_deadMonsters.find(monster) != m_deadMonsters.end() )
+		return;
+
+	auto* tag = monster->GetComponent<CActorTagComponent>();
+	if ( !tag || tag->kind != EActorKind::NPC )
+		return;
+
+	m_deadMonsters.insert(monster);
+
+	CancelMonsterPreparedActions(monster);
+
+	// 더 이상 플레이어 무기 충돌을 받지 않게 함.
+	if ( auto* collider = monster->GetComponent<CColliderComponent>() )
+		collider->SetEnabled(false);
+
+	// 현재 실제로 붙는 AI는 CGhoulAIComponent지만,
+	// base 타입으로도 잡히는 구조라면 같이 처리.
+	if ( auto* ai = monster->GetComponent<CMonsterAIComponent>() )
+	{
+		ai->SetEnabledAI(false);
+		ai->ClearTarget();
+		ai->ClearPath();
+	}
+
+	if ( auto* ghoulAI = monster->GetComponent<CGhoulAIComponent>() )
+	{
+		ghoulAI->SetEnabledAI(false);
+		ghoulAI->ClearTarget();
+		ghoulAI->ClearPath();
+	}
+
+	if ( auto* animComp = monster->GetComponent<CAnimatorComponent>() )
+	{
+		if ( auto* ctrl = animComp->EnsureMonsterController() )
+		{
+			ctrl->SetLocomotionState(EMonsterAnimState::Idle);
+			ctrl->RequestCommand(EMonsterAnimCommand::Death);
+			return;
+		}
+	}
+}
+
+void CGameScene::UpdateMonsterDeathStates()
+{
+	for ( CGameObject* obj : m_skinnedBatch.objectRefs )
+	{
+		if ( !obj )
+			continue;
+
+		auto* tag = obj->GetComponent<CActorTagComponent>();
+		if ( !tag || tag->kind != EActorKind::NPC )
+			continue;
+
+		auto* hp = obj->GetComponent<CHealthComponent>();
+		if ( !hp )
+			continue;
+
+		if ( hp->IsDead() )
+			BeginMonsterDeath(obj);
+	}
 }
 
 void CGameScene::BeginLocalPlayerDeath(CGameObject* player)
@@ -5784,6 +5945,9 @@ bool CGameScene::ProcessInput(UCHAR* /*pKeysBuffer*/)
 void CGameScene::AnimateObjects(float dt)
 {
 	m_fElapsedTime = dt;
+
+	UpdateMonsterDeathStates();
+
 #ifndef USING_NETWORK
 	UpdateLocalPlayerDeathAndRespawn(dt);
 #endif
@@ -6062,6 +6226,8 @@ void CGameScene::CollisionObjects()
 	if ( !m_Collision ) return;
 
 	m_Collision->OnUpdate();
+
+	UpdateMonsterDeathStates();
 
 #ifndef USING_NETWORK
 	UpdateLocalPlayerDeathAndRespawn(0.0f);

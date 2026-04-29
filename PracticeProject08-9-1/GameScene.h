@@ -514,6 +514,11 @@ private:
 	void SetLocalPlayerControlEnabled(bool enabled);
 	void CancelLocalPlayerPreparedActions();
 
+	void UpdateMonsterDeathStates();
+	void BeginMonsterDeath(CGameObject* monster);
+	void CancelMonsterPreparedActions(CGameObject* monster);
+	bool IsMonsterDead(const CGameObject* monster) const;
+
     std::array<CGameObject*, 3> m_demoFighters = { nullptr, nullptr, nullptr };
 
     std::vector<std::unique_ptr<CGameObject>> m_lightObjects;
@@ -534,6 +539,8 @@ private:
 	bool                            m_bLocalPlayerDead = false;
 	bool                            m_bLocalPlayerRespawnUsed = false;
 	float                           m_localPlayerRespawnTimer = 0.0f;
+
+	std::unordered_set<CGameObject*> m_deadMonsters;
 
     unique_ptr<CCollisionSystem> m_Collision;
 	std::unique_ptr<CNavMesh> m_navMesh;
