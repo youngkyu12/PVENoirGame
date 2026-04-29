@@ -36,6 +36,39 @@ namespace
 			enemy->UpdateAI(dt);
 		}
 	}
+
+	// 부채꼴 범위 내 타겟인지 판정
+	// attacker → 공격자 위치/방향, target → 피격 대상 위치
+	// reach: 사거리, halfAngleDeg: 부채꼴 반각 (90도 부채꼴이면 45도)
+
+	bool IsInArcXZ(
+		const GameMath::Vec3& attackerPos,
+		const GameMath::Vec3& attackerLook,
+		const GameMath::Vec3& targetPos,
+		float reach,
+		float halfAngleDeg)
+	{
+		const float dx = targetPos.x - attackerPos.x;
+		const float dz = targetPos.z - attackerPos.z;
+		const float distSq = dx * dx + dz * dz;
+
+		// 1) 거리 체크
+		if (distSq > reach * reach)
+			return false;
+		if (distSq < 1e-8f)
+			return true; // 겹쳐있으면 히트
+
+		// 2) 각도 체크
+		const float dist = sqrtf(distSq);
+		const float dirX = dx / dist;
+		const float dirZ = dz / dist;
+
+		// attackerLook은 이미 정규화되어있다고 가정 (GetLook())
+		const float dot = dirX * attackerLook.x + dirZ * attackerLook.z;
+		const float cosHalf = cosf(halfAngleDeg * GameMath::DEG_TO_RAD);
+
+		return dot >= cosHalf;
+	}
 }
 
 void Room::ProcessEnemyAI()
@@ -135,6 +168,79 @@ void Room::TickAdvance()
 			enemy->ApplyHit(tick.load(), 20);
 			p->Deactivate();
 			break;
+		}
+	}
+
+	// ── 플레이어 근접 공격 히트 판정 ──
+	for (auto& [pid, player] : players)
+	{
+		if (player->GetAnimState() != Protocol::ANIMATION_TYPE_ATTACK)
+			continue;
+
+		const auto weaponType = player->GetWeaponState();
+		if (weaponType == Protocol::WEAPON_TYPE_BOW ||
+			weaponType == Protocol::WEAPON_TYPE_CANON)
+			continue; // 원거리는 발사체로 처리
+
+		// 공격 시작 후 히트 프레임인지 확인 (예: 공격 시작 5~15틱 구간)
+		const int elapsed = static_cast<int>(tick.load()) - player->GetAnimTick();
+		constexpr int kHitFrameStart = 5;
+		constexpr int kHitFrameEnd = 15;
+		if (elapsed < kHitFrameStart || elapsed > kHitFrameEnd)
+			continue;
+
+		// 이미 이 공격에서 히트한 적은 스킵 (다중 히트 방지)
+		// → player에 m_meleeHitSet 같은 걸 추가하거나, 
+		//   간단하게 kHitFrameStart 틱에서만 1회 판정
+
+		float reach, halfAngleDeg;
+		switch (weaponType)
+		{
+		case Protocol::WEAPON_TYPE_SWORD: reach = 2.0f; halfAngleDeg = 45.0f; break;
+		case Protocol::WEAPON_TYPE_AXE:   reach = 2.5f; halfAngleDeg = 45.0f; break;
+		default:                          reach = 1.5f; halfAngleDeg = 90.0f; break;
+		}
+
+		for (auto& [eid, enemy] : enemies)
+		{
+			if (IsInArcXZ(
+				player->GetPosition(), player->GetLook(),
+				enemy->GetPosition(), reach, halfAngleDeg))
+			{
+				enemy->ApplyHit(tick.load(), 20);
+			}
+		}
+	}
+
+	// ── 적 근접 공격 히트 판정 ──
+	for (auto& [eid, enemy] : enemies)
+	{
+		if (enemy->GetAnimState() != Protocol::ANIMATION_TYPE_ATTACK)
+			continue;
+
+		const int elapsed = static_cast<int>(tick.load()) - enemy->GetAnimTick();
+		constexpr int kHitFrameStart = 5;
+		constexpr int kHitFrameEnd = 15;
+		if (elapsed < kHitFrameStart || elapsed > kHitFrameEnd)
+			continue;
+
+		// 적 무기에 따른 arc 설정
+		float reach, halfAngleDeg;
+		switch (enemy->GetWeaponState())
+		{
+		case Protocol::WEAPON_TYPE_SWORD: reach = 2.0f; halfAngleDeg = 45.0f; break;
+		case Protocol::WEAPON_TYPE_AXE:   reach = 2.5f; halfAngleDeg = 45.0f; break;
+		default:                          reach = 2.0f; halfAngleDeg = 90.0f; break; // 반원
+		}
+
+		for (auto& [pid, player] : players)
+		{
+			if (IsInArcXZ(
+				enemy->GetPosition(), enemy->GetLook(),
+				player->GetPosition(), reach, halfAngleDeg))
+			{
+				player->ApplyHit(tick.load(), 20); // Player에도 ApplyHit 필요
+			}
 		}
 	}
 

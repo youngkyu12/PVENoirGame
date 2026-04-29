@@ -59,3 +59,13 @@ void Player::Build()
 
 	weapon.SetWeapon(Protocol::WEAPON_TYPE_SWORD, 0);
 }
+
+void Player::ApplyHit(uint32 serverTick, uint32 hitDurationTicks)
+{
+	
+	SetAnimState(Protocol::ANIMATION_TYPE_HIT);
+	SetAnimTick(serverTick);
+	const uint32 endTick = serverTick + hitDurationTicks;
+	if (endTick > m_hitEndTick)
+		m_hitEndTick = endTick;
+}

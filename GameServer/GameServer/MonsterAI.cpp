@@ -64,13 +64,20 @@ void CMonsterAI::OnUpdate(float dt)
 	const auto targetPos = m_pTarget->GetPosition();
 	const float distSq = DistSqXZ(myPos, targetPos);
 
-	if (distSq > m_detectRange * m_detectRange)
+	if (distSq <= m_attackRange * m_attackRange)
 	{
-		m_currentPath.clear();
-		m_trianglePath.clear();
-		m_currentPathIndex = 0;
-		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
-		//PrintState("OUT_OF_DETECT_RANGE", false, false);
+		FaceTowards(targetPos);
+		if (m_attackCooldownRemaining <= 0.f)
+		{
+			GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
+			GetOwner()->SetAnimTick(GRoom->GetTick());
+			m_attackCooldownRemaining = m_attackCooldownSec;
+			// ★ 여기서 즉시 히트하지 않음 → TickAdvance에서 arc 판정
+		}
+		else
+		{
+			GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
+		}
 		return;
 	}
 
@@ -253,4 +260,28 @@ bool CMonsterAI::FollowCurrentPath(float dt)
 	}
 
 	return false;
+}
+
+void CMonsterAI::ConfigureFromWeapon(Protocol::WeaponType weaponType)
+{
+	switch (weaponType)
+	{
+	case Protocol::WEAPON_TYPE_BOW:
+	case Protocol::WEAPON_TYPE_CANON:
+		m_attackRange = 15.0f;     // 원거리
+		m_meleeArcDeg = 360.0f;    // 원거리는 방향 무관
+		break;
+	case Protocol::WEAPON_TYPE_SWORD:
+		m_attackRange = 2.0f;
+		m_meleeArcDeg = 90.0f;     // 사분원
+		break;
+	case Protocol::WEAPON_TYPE_AXE:
+		m_attackRange = 2.5f;
+		m_meleeArcDeg = 90.0f;     // 사분원
+		break;
+	default: // 무기 없는 잡몹, 보스
+		m_attackRange = 2.0f;
+		m_meleeArcDeg = 180.0f;    // 반원
+		break;
+	}
 }
