@@ -12,6 +12,8 @@
 #include "AnimController.h"
 #include "ArrowComponent.h"
 #include "BulletComponent.h"
+#include "HealthComponent.h"
+#include "AttackPowerComponent.h"
 
 #include <string>
 #include <sstream>
@@ -253,6 +255,34 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 			}
 		};
 
+	auto GetAttackPower = [ ] (CGameObject* weaponObject) -> int
+		{
+			if ( !weaponObject )
+				return 0;
+
+			auto* attack = weaponObject->GetComponent<CAttackPowerComponent>();
+			if ( !attack )
+				return 0;
+
+			return attack->GetAttackPower();
+		};
+
+	auto ApplyDamage = [ & ] (CGameObject* weaponObject, CGameObject* targetObject) -> bool
+		{
+			if ( !weaponObject || !targetObject )
+				return false;
+
+			const int damage = GetAttackPower(weaponObject);
+			if ( damage <= 0 )
+				return false;
+
+			auto* hp = targetObject->GetComponent<CHealthComponent>();
+			if ( !hp )
+				return false;
+
+			return hp->TakeDamage(damage);
+		};
+
 	auto NotifyMonsterHit = [ & ] (CGameObject* weaponObject, CGameObject* monsterObject)
 		{
 			if ( !weaponObject || !monsterObject )
@@ -280,20 +310,30 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 					return;
 
 				auto* combat = monsterObject->GetComponent<CMonsterCombatComponent>();
-				if ( !combat )
-					return;
+				auto* hp = monsterObject->GetComponent<CHealthComponent>();
 
-				combat->OnHitByPlayerWeapon(weaponObject, kTestForceDeathOnHit);
+				ApplyDamage(weaponObject, monsterObject);
+
+				const bool deadByHp = ( hp && hp->IsDead() );
+
+				if ( combat )
+					combat->OnHitByPlayerWeapon(weaponObject, kTestForceDeathOnHit || deadByHp);
+
 				hitbox->MarkHitTarget(monsterObject);
 				DeactivateProjectileIfNeeded(weaponObject);
 				return;
 			}
 
 			auto* combat = monsterObject->GetComponent<CMonsterCombatComponent>();
-			if ( !combat )
-				return;
+			auto* hp = monsterObject->GetComponent<CHealthComponent>();
 
-			combat->OnHitByPlayerWeapon(weaponObject, kTestForceDeathOnHit);
+			ApplyDamage(weaponObject, monsterObject);
+
+			const bool deadByHp = ( hp && hp->IsDead() );
+
+			if ( combat )
+				combat->OnHitByPlayerWeapon(weaponObject, kTestForceDeathOnHit || deadByHp);
+
 			DeactivateProjectileIfNeeded(weaponObject);
 		};
 
@@ -324,17 +364,23 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 				if ( !hitbox->CanHitTarget(playerObject) )
 					return;
 
+				ApplyDamage(weaponObject, playerObject);
+
 #ifndef USING_NETWORK
 				RequestPlayerHitAnimation(playerObject);
 #endif
+
 				hitbox->MarkHitTarget(playerObject);
 				DeactivateProjectileIfNeeded(weaponObject);
 				return;
 			}
 
+			ApplyDamage(weaponObject, playerObject);
+
 #ifndef USING_NETWORK
 			RequestPlayerHitAnimation(playerObject);
 #endif
+
 			DeactivateProjectileIfNeeded(weaponObject);
 		};
 

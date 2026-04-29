@@ -158,6 +158,9 @@
     <Filter Include="SceneUI">
       <UniqueIdentifier>{82bffcad-a59b-4e2f-b10f-ef814845d86f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Components\Health&amp;AttackPower">
+      <UniqueIdentifier>{a7c1173c-5085-4756-ba9a-40b4a0386bbf}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animator.h">
@@ -368,6 +371,12 @@
     </ClInclude>
     <ClInclude Include="GameSceneHUD.h">
       <Filter>Scene\GameScene</Filter>
+    </ClInclude>
+    <ClInclude Include="HealthComponent.h">
+      <Filter>Components\Health&amp;AttackPower</Filter>
+    </ClInclude>
+    <ClInclude Include="AttackPowerComponent.h">
+      <Filter>Components\Health&amp;AttackPower</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

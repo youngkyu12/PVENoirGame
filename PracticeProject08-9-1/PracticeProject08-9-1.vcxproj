@@ -177,6 +177,7 @@
     <ClInclude Include="AnimController.h" />
     <ClInclude Include="ArrowComponent.h" />
     <ClInclude Include="AssetManager.h" />
+    <ClInclude Include="AttackPowerComponent.h" />
     <ClInclude Include="AudioComponent.h" />
     <ClInclude Include="AudioManager.h" />
     <ClInclude Include="BoundingCapsule.h" />
@@ -201,6 +202,7 @@
     <ClInclude Include="GlobalEnum.h" />
     <ClInclude Include="GlobalValues.h" />
     <ClInclude Include="Grid.h" />
+    <ClInclude Include="HealthComponent.h" />
     <ClInclude Include="InitStruct.pb.h" />
     <ClInclude Include="LightComponent.h" />
     <ClInclude Include="LightTypes.h" />

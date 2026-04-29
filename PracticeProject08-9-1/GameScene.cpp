@@ -39,6 +39,8 @@
 #include "MonsterCombatComponent.h"
 #include "NavMesh.h"
 #include "GhoulAIComponent.h"
+#include "HealthComponent.h"
+#include "AttackPowerComponent.h"
 #include "AudioManager.h"
 #include "MusicDirector.h"
 
@@ -214,7 +216,42 @@ namespace
 		return true;
 	}
 
+	static void SetObjectAttackPower(CGameObject* obj, int attackPower)
+	{
+		if ( !obj )
+			return;
+
+		if ( auto* attack = obj->GetComponent<CAttackPowerComponent>() )
+			attack->SetAttackPower(attackPower);
+	}
+
 	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::FullStage;
+
+	// -----------------------------------------------------------------------------
+	// HP
+	// -----------------------------------------------------------------------------
+	static constexpr int kHpGhoul = 30;
+	static constexpr int kHpBowMan = 120;
+	static constexpr int kHpSwordMan = 120;
+	static constexpr int kHpMutant = 240;
+	static constexpr int kHpBoss = 4800;
+	static constexpr int kHpPlayer = 100;
+
+	// -----------------------------------------------------------------------------
+	// Attack power
+	// -----------------------------------------------------------------------------
+	static constexpr int kAttackPowerPlayerSword = 10;
+	static constexpr int kAttackPowerPlayerAxe = 15;
+	static constexpr int kAttackPowerPlayerArrow = 15;
+	static constexpr int kAttackPowerPlayerBullet = 8;
+
+	static constexpr int kAttackPowerGhoul = 5;
+	static constexpr int kAttackPowerEnemySword = 10;
+	static constexpr int kAttackPowerEnemyArrow = 10;
+	static constexpr int kAttackPowerMutant = 20;
+	static constexpr int kAttackPowerBoss = 50;
+
+	static constexpr UINT kOfflineGhoulAICount = 30;
 }
 
 namespace
@@ -2278,6 +2315,9 @@ void CGameScene::BuildStaticBatch(
 
 			createDesc.addArrowComponent = true;
 
+			createDesc.addAttackPower = true;
+			createDesc.attackPower = 0;
+
 			auto obj = GameSceneObjectFactory::CreateStaticRenderable(createDesc);
 			if ( !obj )
 				continue;
@@ -2326,6 +2366,9 @@ void CGameScene::BuildStaticBatch(
 			createDesc.colliderEnabled = false;
 
 			createDesc.addBulletComponent = true;
+
+			createDesc.addAttackPower = true;
+			createDesc.attackPower = 0;
 
 			auto obj = GameSceneObjectFactory::CreateStaticRenderable(createDesc);
 			if ( !obj )
@@ -2415,6 +2458,9 @@ void CGameScene::BuildStaticBatch(
 			createDesc.colliderMask = CollisionBit(kCollisionLayerMonster);
 			createDesc.colliderEnabled = false;
 
+			createDesc.addAttackPower = true;
+			createDesc.attackPower = kAttackPowerPlayerSword;
+
 			auto obj = GameSceneObjectFactory::CreateStaticRenderable(createDesc);
 			if ( !obj )
 				continue;
@@ -2461,6 +2507,9 @@ void CGameScene::BuildStaticBatch(
 			createDesc.colliderLayer = kCollisionLayerPlayerWeapon;
 			createDesc.colliderMask = CollisionBit(kCollisionLayerMonster);
 			createDesc.colliderEnabled = false;
+
+			createDesc.addAttackPower = true;
+			createDesc.attackPower = kAttackPowerPlayerSword;
 
 			auto obj = GameSceneObjectFactory::CreateStaticRenderable(createDesc);
 			if ( !obj )
@@ -2555,6 +2604,8 @@ void CGameScene::BuildStaticBatch(
 			createDesc.colliderEnabled = false;
 
 			createDesc.addMonsterWeaponHitbox = true;
+			createDesc.addAttackPower = true;
+			createDesc.attackPower = kAttackPowerEnemySword;
 
 			auto obj = GameSceneObjectFactory::CreateStaticRenderable(createDesc);
 			if ( !obj )
@@ -3606,6 +3657,12 @@ void CGameScene::BuildSkinnedBatch(
 			createDesc.addMonsterCombat = true;
 			createDesc.addMonsterWeaponHitbox = true;
 
+			createDesc.addHealth = true;
+			createDesc.maxHp = kHpGhoul;
+
+			createDesc.addAttackPower = true;
+			createDesc.attackPower = kAttackPowerGhoul;
+
 			createDesc.skeletonKey = "Ghoul";
 			createDesc.clipEntries = &ghoulClips;
 
@@ -3623,14 +3680,21 @@ void CGameScene::BuildSkinnedBatch(
 				{ "Attack", 0.20f, 0.55f, { "hand_r" } }
 			);
 
-#ifndef USING_NETWORK
-			// CGhoulAIComponent는 기존 요청대로 현재 전부 비활성화 상태로 유지.
-			// auto* ghoulAI = obj->AddComponent<CGhoulAIComponent>();
-#endif
-
 			auto obj = GameSceneObjectFactory::CreateSkinnedRenderable(createDesc);
 			if ( !obj )
 				continue;
+
+#ifndef USING_NETWORK
+			if ( k < kOfflineGhoulAICount )
+			{
+				auto* ghoulAI = obj->AddComponent<CGhoulAIComponent>();
+				if ( ghoulAI )
+				{
+					ghoulAI->SetScene(this);
+					ghoulAI->SetEnabledAI(true);
+				}
+			}
+#endif
 
 			++enemyIndex;
 
@@ -3710,6 +3774,9 @@ void CGameScene::BuildSkinnedBatch(
 			createDesc.playerSlot = -1;
 
 			createDesc.addMonsterCombat = true;
+
+			createDesc.addHealth = true;
+			createDesc.maxHp = kHpSwordMan;
 
 			createDesc.skeletonKey = "EnemySword";
 			createDesc.clipEntries = &swordClips;
@@ -3811,6 +3878,9 @@ void CGameScene::BuildSkinnedBatch(
 			createDesc.playerSlot = -1;
 
 			createDesc.addMonsterCombat = true;
+
+			createDesc.addHealth = true;
+			createDesc.maxHp = kHpBowMan;
 
 			createDesc.skeletonKey = "EnemyBow";
 			createDesc.clipEntries = &bowManClips;
@@ -3915,6 +3985,12 @@ void CGameScene::BuildSkinnedBatch(
 
 			createDesc.addMonsterCombat = true;
 			createDesc.addMonsterWeaponHitbox = true;
+
+			createDesc.addHealth = true;
+			createDesc.maxHp = kHpMutant;
+
+			createDesc.addAttackPower = true;
+			createDesc.attackPower = kAttackPowerMutant;
 
 			createDesc.skeletonKey = "Mutant";
 			createDesc.clipEntries = &mutantClips;
@@ -4023,6 +4099,12 @@ void CGameScene::BuildSkinnedBatch(
 			createDesc.addMonsterCombat = true;
 			createDesc.addMonsterWeaponHitbox = true;
 
+			createDesc.addHealth = true;
+			createDesc.maxHp = kHpBoss;
+
+			createDesc.addAttackPower = true;
+			createDesc.attackPower = kAttackPowerBoss;
+
 			createDesc.skeletonKey = "Boss";
 			createDesc.clipEntries = &bossClips;
 
@@ -4126,6 +4208,9 @@ void CGameScene::BuildSkinnedBatch(
 			createDesc.addPlayerController = isLocal;
 			createDesc.addPlayerEquipment = true;
 			createDesc.addPlayerWeaponHitbox = true;
+
+			createDesc.addHealth = true;
+			createDesc.maxHp = kHpPlayer;
 
 			createDesc.skeletonKey = "Player";
 			createDesc.clipEntries = &playerClips;
@@ -5042,9 +5127,11 @@ void CGameScene::RequestPrepareArrow(CGameObject* shooter, float pullBackDistanc
 
         if (arrow->IsActive()) continue;
 
+		SetObjectAttackPower(arrowObj, kAttackPowerPlayerArrow);
+
 		arrow->Prepare(bowObj, shooter, pullBackDistance, true, true);
 		m_preparedPlayerArrows[( size_t ) slot] = arrowObj;
-        return;
+		return;
     }
 }
 
@@ -5074,6 +5161,8 @@ void CGameScene::RequestPrepareBowmanArrow(CGameObject* bowman, float pullBackDi
 		auto* arrow = arrowObj->GetComponent<CArrowComponent>();
 		if ( !arrow ) continue;
 		if ( arrow->IsActive() ) continue;
+
+		SetObjectAttackPower(arrowObj, kAttackPowerEnemyArrow);
 
 		arrow->Prepare(bowObj, bowman, pullBackDistance, false, true);
 		m_preparedBowmanArrows[idx] = arrowObj;
@@ -5508,6 +5597,8 @@ void CGameScene::RequestFireBullet(CGameObject* shooter, float speed, float life
 		if ( !bullet ) continue;
 		if ( bullet->IsActive() ) continue;
 
+		SetObjectAttackPower(bulletObj, kAttackPowerPlayerBullet);
+
 		if ( bullet->FireFromObjects(spawnSource, directionSource, speed, lifeSec, true) )
 		{
 			return;
@@ -5831,6 +5922,22 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
 
 	UpdateDepthFogState(m_fElapsedTime);
 	m_depthFog.UploadConstantBuffer();
+
+	{
+		float hpRatio = 1.0f;
+
+		CGameObject* localPlayer = GetPlayer();
+		if ( !localPlayer )
+			localPlayer = GetPlayerBySlot(0);
+
+		if ( localPlayer )
+		{
+			if ( auto* hp = localPlayer->GetComponent<CHealthComponent>() )
+				hpRatio = hp->GetHpRatio();
+		}
+
+		m_hud.SetHealthRatio(hpRatio);
+	}
 
     if (m_staticBatch.mappedGameObjects && !m_staticBatch.objectRefs.empty())
     {
