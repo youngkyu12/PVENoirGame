@@ -23,6 +23,8 @@ public:
 private:
 	//PlayerControllerComponentRef controller;
 	CWeapon weapon;
+private:
+	uint32 m_hitEndTick = 0;
 
 public:
 	void SetWeapon(Protocol::WeaponType& type, uint32& currentBullets)
@@ -46,6 +48,7 @@ public:
 
 	bool CanFire(uint32 serverTick) const { return weapon.CanFire(serverTick); }
 	void OnFired(uint32 serverTick) { weapon.OnFired(serverTick); }
+	void ApplyHit(uint32 serverTick, uint32 hitDurationTicks = 10);
 
 };
 
