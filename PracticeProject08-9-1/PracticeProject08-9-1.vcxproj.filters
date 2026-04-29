@@ -149,6 +149,15 @@
     <Filter Include="Scene\GameScene">
       <UniqueIdentifier>{ff521d59-8515-4d7f-aef1-dff665d834e7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Grid">
+      <UniqueIdentifier>{958c4851-c424-41fc-ba0d-1a39289c073a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DepthFog">
+      <UniqueIdentifier>{0c9d0669-1410-49dc-9079-9874d2f2f301}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SceneUI">
+      <UniqueIdentifier>{82bffcad-a59b-4e2f-b10f-ef814845d86f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animator.h">
@@ -348,6 +357,18 @@
     <ClInclude Include="GameSceneAttachmentBinder.h">
       <Filter>Scene\GameScene</Filter>
     </ClInclude>
+    <ClInclude Include="Grid.h">
+      <Filter>Grid</Filter>
+    </ClInclude>
+    <ClInclude Include="DepthFog.h">
+      <Filter>DepthFog</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneUI.h">
+      <Filter>SceneUI</Filter>
+    </ClInclude>
+    <ClInclude Include="GameSceneHUD.h">
+      <Filter>Scene\GameScene</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -516,6 +537,24 @@
     <ClCompile Include="GameSceneAttachmentBinder.cpp">
       <Filter>Scene\GameScene</Filter>
     </ClCompile>
+    <ClCompile Include="Grid.cpp">
+      <Filter>Grid</Filter>
+    </ClCompile>
+    <ClCompile Include="DepthFog.cpp">
+      <Filter>DepthFog</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneUI.cpp">
+      <Filter>SceneUI</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneHUD.cpp">
+      <Filter>Scene\GameScene</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneOcclusion.cpp">
+      <Filter>Scene\GameScene</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneLOD.cpp">
+      <Filter>Scene\GameScene</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PracticeProject08-9-1.rc">
@@ -561,14 +600,12 @@
     <None Include="Skinned.hlsl">
       <Filter>Resource\HLSL</Filter>
     </None>
-    <None Include="Shadow.hlsl">
-      <Filter>Resource\HLSL</Filter>
-    </None>
     <None Include="PostProcess.hlsl">
       <Filter>Resource\HLSL</Filter>
     </None>
     <None Include="Lighting.hlsl">
       <Filter>Resource\HLSL</Filter>
     </None>
+    <None Include="Shadows.hlsl" />
   </ItemGroup>
 </Project>
