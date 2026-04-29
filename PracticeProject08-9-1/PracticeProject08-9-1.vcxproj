@@ -187,6 +187,7 @@
     <ClInclude Include="Component.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="DDSTextureLoader12.h" />
+    <ClInclude Include="DepthFog.h" />
     <ClInclude Include="DescriptorHeap.h" />
     <ClInclude Include="Enum.pb.h" />
     <ClInclude Include="FollowBoneComponent.h" />
@@ -194,10 +195,12 @@
     <ClInclude Include="GameScene.h" />
     <ClInclude Include="GameSceneAttachmentBinder.h" />
     <ClInclude Include="GameSceneContentCatalog.h" />
+    <ClInclude Include="GameSceneHUD.h" />
     <ClInclude Include="GameSceneObjectFactory.h" />
     <ClInclude Include="GhoulAIComponent.h" />
     <ClInclude Include="GlobalEnum.h" />
     <ClInclude Include="GlobalValues.h" />
+    <ClInclude Include="Grid.h" />
     <ClInclude Include="InitStruct.pb.h" />
     <ClInclude Include="LightComponent.h" />
     <ClInclude Include="LightTypes.h" />
@@ -225,6 +228,7 @@
     <ClInclude Include="Scene.h" />
     <ClInclude Include="SceneManager.h" />
     <ClInclude Include="SceneRenderTypes.h" />
+    <ClInclude Include="SceneUI.h" />
     <ClInclude Include="ServerPacketHandler.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="ShadowMap.h" />
@@ -260,6 +264,7 @@
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">VectorCall</CallingConvention>
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Cdecl</CallingConvention>
     </ClCompile>
+    <ClCompile Include="DepthFog.cpp" />
     <ClCompile Include="DescriptorHeap.cpp" />
     <ClCompile Include="Enum.pb.cc">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
@@ -271,9 +276,13 @@
     <ClCompile Include="GameScene.cpp" />
     <ClCompile Include="GameSceneAttachmentBinder.cpp" />
     <ClCompile Include="GameSceneContentCatalog.cpp" />
+    <ClCompile Include="GameSceneHUD.cpp" />
+    <ClCompile Include="GameSceneLOD.cpp" />
     <ClCompile Include="GameSceneObjectFactory.cpp" />
+    <ClCompile Include="GameSceneOcclusion.cpp" />
     <ClCompile Include="GhoulAIComponent.cpp" />
     <ClCompile Include="GlobalValues.cpp" />
+    <ClCompile Include="Grid.cpp" />
     <ClCompile Include="InitStruct.pb.cc">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
@@ -304,6 +313,7 @@
     <ClCompile Include="RigidBody.cpp" />
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="SceneManager.cpp" />
+    <ClCompile Include="SceneUI.cpp" />
     <ClCompile Include="ServerPacketHandler.cpp">
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
     </ClCompile>
