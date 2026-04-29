@@ -6251,7 +6251,7 @@ void CGameScene::AnimateObjects(float dt)
         }
 
 		// Enemy 좌표 업데이트
-// 1) NPC 인덱스 → 오브젝트 매핑 구축
+		// 1) NPC 인덱스 → 오브젝트 매핑 구축
 		std::unordered_map<uint64_t, CGameObject*> npcById;
 		{
 			UINT npcIndex = 0;
