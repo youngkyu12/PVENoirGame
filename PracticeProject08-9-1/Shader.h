@@ -205,6 +205,7 @@ public:
 
 public:
 	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
+	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
 };
 
 class CShadowMapSkinnedShader : public CSkinnedObjectsShader
@@ -227,6 +228,21 @@ public:
 
 public:
 	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
+	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
+};
+
+class COcclusionStaticShader final : public CStaticObjectsShader
+{
+public:
+	COcclusionStaticShader() = default;
+	~COcclusionStaticShader() override = default;
+
+public:
+	D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob) override;
+	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
+	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
+	D3D12_BLEND_DESC CreateBlendState() override;
+	D3D12_DEPTH_STENCIL_DESC CreateDepthStencilState() override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

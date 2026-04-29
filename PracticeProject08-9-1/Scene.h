@@ -9,13 +9,9 @@
 #include <array>
 #include <cstdint>
 
+#include "stdafx.h"
 #include "DescriptorHeap.h"
 #include "NetworkQueue.h"
-
-#define ROOT_PARAMETER_DRAW_OPTIONS 5
-#define ROOT_PARAMETER_GLOBAL_SRV 6
-#define ROOT_PARAMETER_FOG 9
-#define ROOT_PARAMETER_SHADOW 10
 constexpr UINT LEGACY_SRV_COUNT = 6; // t0(1) + t1~t5(5)
 
 class CGameObject;
