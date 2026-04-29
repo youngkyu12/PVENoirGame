@@ -9,66 +9,6 @@
 #include "Object.h"
 #include "Shader.h"
 
-namespace
-{
-	class CTerrainHeightMapGridMesh final : public CHeightMapGridMesh
-	{
-	public:
-		CTerrainHeightMapGridMesh(
-			ID3D12Device* pd3dDevice,
-			ID3D12GraphicsCommandList* pd3dCommandList,
-			TerrainComponent* terrain,
-			int xStart,
-			int zStart,
-			int nWidth,
-			int nLength,
-			XMFLOAT3 xmf3Scale,
-			XMFLOAT4 xmf4Color)
-			: CHeightMapGridMesh(
-				pd3dDevice,
-				pd3dCommandList,
-				xStart,
-				zStart,
-				nWidth,
-				nLength,
-				xmf3Scale,
-				xmf4Color,
-				terrain)
-		{
-		}
-
-		float OnGetHeight(int x, int z, void* pContext) override
-		{
-			auto* terrain = static_cast<TerrainComponent*>(pContext);
-			if (!terrain) return 0.0f;
-			const int maxX = max(0, terrain->GetHeightMapWidth() - 1);
-			const int maxZ = max(0, terrain->GetHeightMapLength() - 1);
-			const int sx = std::clamp(x, 0, maxX);
-			const int sz = std::clamp(z, 0, maxZ);
-			return terrain->SampleHeightMap(sx, sz);
-		}
-
-		XMFLOAT4 OnGetColor(int x, int z, void* pContext) override
-		{
-			auto* terrain = static_cast<TerrainComponent*>(pContext);
-			if (!terrain) return XMFLOAT4(1, 1, 1, 1);
-
-			const int maxX = max(0, terrain->GetHeightMapWidth() - 1);
-			const int maxZ = max(0, terrain->GetHeightMapLength() - 1);
-			const int x0 = std::clamp(x, 0, maxX);
-			const int z0 = std::clamp(z, 0, maxZ);
-			const int x1 = min(x0 + 1, maxX);
-			const int z1 = min(z0 + 1, maxZ);
-
-			XMFLOAT3 lightDir = Vector3::Normalize(XMFLOAT3(-1.0f, 1.0f, 1.0f));
-			const float n0 = Vector3::DotProduct(terrain->SampleHeightMapNormal(x0, z0), lightDir);
-			const float n1 = Vector3::DotProduct(terrain->SampleHeightMapNormal(x1, z0), lightDir);
-			const float n2 = Vector3::DotProduct(terrain->SampleHeightMapNormal(x1, z1), lightDir);
-			const float n3 = Vector3::DotProduct(terrain->SampleHeightMapNormal(x0, z1), lightDir);
-		}
-	};
-}
-
 TerrainComponent::TerrainComponent(
 	CGameObject* owner,
 	ID3D12RootSignature* pd3dGraphicsRootSignature,
@@ -120,21 +60,21 @@ void TerrainComponent::OnCreate(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandL
 			const int xStart = x * cxQuadsPerBlock;
 			const int zStart = z * czQuadsPerBlock;
 
-			auto mesh = std::make_shared<CTerrainHeightMapGridMesh>(
+			shared_ptr<CHeightMapGridMesh> mesh = std::make_shared<CHeightMapGridMesh>(
 				pd3dDevice,
 				pd3dCommandList,
-				this,
 				xStart,
 				zStart,
 				m_nBlockWidth,
 				m_nBlockLength,
 				m_xmf3Scale,
-				m_xmf4Color);
-
+				m_xmf4Color,
+				this);
+			
 			mModel->SetMesh(x + (z * cxBlocks), std::move(mesh));
 		}
 	}
-
+	// 밖에서 할 것
 	std::shared_ptr<CTerrainShader> terrainShader = std::make_shared<CTerrainShader>();
 	DXGI_FORMAT rtvFormats[5] =
 	{
