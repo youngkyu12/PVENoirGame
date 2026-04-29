@@ -338,6 +338,7 @@ public:
 
     CGameObject* GetPlayerBySlot(int slot) const; // slot: 0..3
     bool IsLocalPlayer(const CGameObject* obj) const;
+	bool IsLocalPlayerDead() const { return m_bLocalPlayerDead; }
 	bool RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& previousPos);
     
 	void RequestFireArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f, float yOffset = 0.0f);
@@ -507,6 +508,11 @@ private:
 	void RequestFireBullet(CGameObject* shooter, float speed, float lifeSec = 3.0f);
 
 	void UpdatePreparedBowArrows();
+	void UpdateLocalPlayerDeathAndRespawn(float dt);
+	void BeginLocalPlayerDeath(CGameObject* player);
+	void RespawnLocalPlayer(CGameObject* player);
+	void SetLocalPlayerControlEnabled(bool enabled);
+	void CancelLocalPlayerPreparedActions();
 
     std::array<CGameObject*, 3> m_demoFighters = { nullptr, nullptr, nullptr };
 
@@ -524,6 +530,10 @@ private:
 
 	CDepthFogSystem                 m_depthFog;
 	float                           m_fElapsedTime = 0.0f;
+
+	bool                            m_bLocalPlayerDead = false;
+	bool                            m_bLocalPlayerRespawnUsed = false;
+	float                           m_localPlayerRespawnTimer = 0.0f;
 
     unique_ptr<CCollisionSystem> m_Collision;
 	std::unique_ptr<CNavMesh> m_navMesh;

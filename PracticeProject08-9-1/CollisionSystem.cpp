@@ -267,9 +267,24 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 			return attack->GetAttackPower();
 		};
 
+	auto IsDeadByHealth = [ ] (CGameObject* obj) -> bool
+		{
+			if ( !obj )
+				return true;
+
+			auto* hp = obj->GetComponent<CHealthComponent>();
+			if ( !hp )
+				return false;
+
+			return hp->IsDead();
+		};
+
 	auto ApplyDamage = [ & ] (CGameObject* weaponObject, CGameObject* targetObject) -> bool
 		{
 			if ( !weaponObject || !targetObject )
+				return false;
+
+			if ( IsDeadByHealth(targetObject) )
 				return false;
 
 			const int damage = GetAttackPower(weaponObject);
@@ -339,6 +354,9 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 
 	auto NotifyPlayerHit = [ & ] (CGameObject* weaponObject, CGameObject* playerObject)
 		{
+			if ( IsDeadByHealth(playerObject) )
+				return;
+
 			if ( !weaponObject || !playerObject )
 				return;
 
@@ -366,8 +384,11 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 
 				ApplyDamage(weaponObject, playerObject);
 
+				const bool deadAfterHit = IsDeadByHealth(playerObject);
+
 #ifndef USING_NETWORK
-				RequestPlayerHitAnimation(playerObject);
+				if ( !deadAfterHit )
+					RequestPlayerHitAnimation(playerObject);
 #endif
 
 				hitbox->MarkHitTarget(playerObject);
@@ -377,8 +398,11 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 
 			ApplyDamage(weaponObject, playerObject);
 
+			const bool deadAfterHit = IsDeadByHealth(playerObject);
+
 #ifndef USING_NETWORK
-			RequestPlayerHitAnimation(playerObject);
+			if ( !deadAfterHit )
+				RequestPlayerHitAnimation(playerObject);
 #endif
 
 			DeactivateProjectileIfNeeded(weaponObject);

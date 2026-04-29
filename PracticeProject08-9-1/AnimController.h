@@ -60,6 +60,12 @@ public:
     bool IsBowReleasePhase() const { return m_actionPhase == EActionPhase::AttackBowRelease; }
 
     void RequestHit();
+	bool RequestDeath();
+	void ResetToIdleAfterRespawn();
+	bool IsDeathPhase() const { return m_actionPhase == EActionPhase::Death; }
+
+	void SetDeathClip(const char* name) { m_deathClip = name ? name : ""; }
+	void SetDeathClip(const std::string& name) { m_deathClip = name; }
 
 private:
     const char* ClipFor(EAnimState s) const
@@ -74,15 +80,16 @@ public:
     }
 
 private:
-    enum class EActionPhase : uint8_t
-    {
-        None = 0,
-        AttackGeneric,
-        AttackBowLoad,
-        AttackBowRelease,
-        Hit,
-        Roll
-    };
+	enum class EActionPhase : uint8_t
+	{
+		None = 0,
+		AttackGeneric,
+		AttackBowLoad,
+		AttackBowRelease,
+		Hit,
+		Roll,
+		Death
+	};
 
 public:
 	bool IsGenericAttackPhase() const { return m_actionPhase == EActionPhase::AttackGeneric; }
@@ -94,6 +101,7 @@ private:
     std::string ResolveIdleClip() const;
     std::string ResolveMoveClip() const;
     std::string ResolveHitClip() const;
+	std::string ResolveDeathClip() const;
     std::string ResolveAttackStartClip(EActionPhase& outPhase) const;
     std::string ResolveRollClip(uint32_t dirBits, float& outVisualYawDeg) const;
     std::string ResolveLocomotionClip(EAnimState state) const;
@@ -113,9 +121,11 @@ private:
     std::string m_moveClip = "Walk";
     std::string m_hitClip = "Hit";
     std::string m_attackClip = "Attack";
+	std::string m_deathClip = "Death";
 
     bool m_attackQueued = false;
     bool m_hitQueued = false;
+	bool m_deathQueued = false;
 
     bool m_rollQueued = false;
     std::string m_rollQueuedClipName;

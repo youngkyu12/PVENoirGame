@@ -212,6 +212,14 @@ std::string CAnimController::ResolveHitClip() const
     }
 }
 
+std::string CAnimController::ResolveDeathClip() const
+{
+	if ( !m_usePlayerClipSet )
+		return m_deathClip;
+
+	return "Death";
+}
+
 std::string CAnimController::ResolveAttackStartClip(EActionPhase& outPhase) const
 {
     outPhase = EActionPhase::None;
@@ -802,6 +810,48 @@ void CAnimController::LocalUpdate(float dt)
             return true;
         };
 
+	auto StartDeathAction = [ & ] () -> bool
+		{
+			const std::string deathClip = ResolveDeathClip();
+
+			if ( deathClip.empty() || !anim->HasClip(deathClip) )
+				return false;
+
+			anim->StopUpperBodyOverlay(true);
+			anim->ClearVisualYawOffset();
+			anim->Play(deathClip, false, 0.0f);
+
+			m_attackQueued = false;
+			m_hitQueued = false;
+			m_rollQueued = false;
+			m_deathQueued = false;
+
+			m_speed = 0.0f;
+			m_moveDirBits = 0;
+			m_bRunRequested = false;
+
+			m_actionPhase = EActionPhase::Death;
+			m_state = EAnimState::Die;
+			return true;
+		};
+
+	if ( m_actionPhase == EActionPhase::Death )
+	{
+		animPrevState = m_state;
+		return;
+	}
+
+	if ( m_deathQueued )
+	{
+		if ( StartDeathAction() )
+		{
+			animPrevState = m_state;
+			return;
+		}
+
+		m_deathQueued = false;
+	}
+
     if (m_rollQueued && m_actionPhase == EActionPhase::None)
     {
         m_rollQueued = false;
@@ -994,12 +1044,14 @@ void CAnimController::LocalUpdate(float dt)
 
 bool CAnimController::IsActionLocked() const
 {
-    if (m_actionPhase == EActionPhase::None)
-        return false;
+	if ( m_actionPhase == EActionPhase::None )
+		return false;
 
-    // Hit은 그대로 잠금 유지
-    if (m_actionPhase == EActionPhase::Hit)
-        return true;
+	if ( m_actionPhase == EActionPhase::Death )
+		return true;
+
+	if ( m_actionPhase == EActionPhase::Hit )
+		return true;
 
     const EWeaponType weapon = GetEquippedWeaponType(m_pOwner);
 
@@ -1077,6 +1129,63 @@ void CAnimController::RequestHit()
         return;
 
     m_hitQueued = true;
+}
+
+bool CAnimController::RequestDeath()
+{
+	if ( m_actionPhase == EActionPhase::Death )
+		return false;
+
+	m_attackQueued = false;
+	m_hitQueued = false;
+	m_rollQueued = false;
+
+	m_speed = 0.0f;
+	m_moveDirBits = 0;
+	m_bRunRequested = false;
+
+	m_deathQueued = true;
+	return true;
+}
+
+void CAnimController::ResetToIdleAfterRespawn()
+{
+	m_attackQueued = false;
+	m_hitQueued = false;
+	m_rollQueued = false;
+	m_deathQueued = false;
+
+	m_speed = 0.0f;
+	m_moveDirBits = 0;
+	m_bRunRequested = false;
+
+	m_actionPhase = EActionPhase::None;
+	m_state = EAnimState::Idle;
+	animPrevState = EAnimState::Idle;
+
+	CAnimator* anim = nullptr;
+
+	if ( m_pOwner )
+	{
+		if ( auto* animComp = m_pOwner->GetComponent<CAnimatorComponent>() )
+			anim = animComp->GetAnimator();
+
+		if ( !anim )
+			anim = m_pOwner->GetAnimator();
+	}
+
+	if ( !anim )
+		return;
+
+	anim->StopUpperBodyOverlay(true);
+	anim->ClearVisualYawOffset();
+
+	const std::string idleClip = ResolveIdleClip();
+
+	if ( !idleClip.empty() && anim->HasClip(idleClip) )
+	{
+		anim->Play(idleClip, true, 0.0f);
+	}
 }
 
 bool CAnimController::IsMeleeAttackHitboxActive() const

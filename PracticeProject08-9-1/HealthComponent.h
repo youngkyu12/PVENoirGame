@@ -43,6 +43,11 @@ public:
 
 	bool IsDead() const { return m_currentHp <= 0; }
 
+	void SetCurrentHp(int hp)
+	{
+		m_currentHp = std::clamp(hp, 0, m_maxHp);
+	}
+
 	void ResetToMax()
 	{
 		m_currentHp = m_maxHp;
