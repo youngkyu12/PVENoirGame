@@ -34,8 +34,9 @@ enum class ELocalStagePreset : uint8_t
 {
 	Test,
 	Stage1,
-	FullStage,
-	FullStageNoTree
+	FullStageNoTree,
+	FullStageNoBoss,
+	FullStage
 };
 
 enum class EGameSceneAssetId : uint8_t
