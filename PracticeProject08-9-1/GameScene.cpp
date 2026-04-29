@@ -6250,70 +6250,65 @@ void CGameScene::AnimateObjects(float dt)
             }
         }
 
-        // Enemy 좌표 업데이트
-        // skinnedObjects에서 NPC만 순회 (Fighter 제외)
-        UINT enemyIndex = 0;
-        const UINT totalEnemies = m_ghoulCount + m_swordManCount + m_bowManCount + m_MutantCount + m_bossCount;
+		// Enemy 좌표 업데이트
+// 1) NPC 인덱스 → 오브젝트 매핑 구축
+		std::unordered_map<uint64_t, CGameObject*> npcById;
+		{
+			UINT npcIndex = 0;
+			for ( UINT j = 0; j < ( UINT ) m_skinnedObjects.size(); ++j )
+			{
+				auto* obj = m_skinnedObjects[j].get();
+				if ( !obj ) continue;
+				auto* tag = obj->GetComponent<CActorTagComponent>();
+				if ( !tag || tag->kind != EActorKind::NPC ) continue;
+				npcById[npcIndex] = obj;
+				++npcIndex;
+			}
+		}
 
-        for (UINT j = 0; j < totalEnemies && j < (UINT)m_skinnedObjects.size(); ++j)
-        {
-            auto* obj = m_skinnedObjects[j].get();
-            if (!obj) continue;
+		// 2) snapshot enemy를 ID 기준으로 적용
+		for ( const auto& state : snapshot.enemies )
+		{
+			auto it = npcById.find(state.id);
+			if ( it == npcById.end() ) continue;
 
-            auto* tag = obj->GetComponent<CActorTagComponent>();
-            if (!tag || tag->kind != EActorKind::NPC) continue;
+			auto* obj = it->second;
+			obj->SetPosition(state.position.x, state.position.y, state.position.z);
 
-			if ( j != snapshot.enemies[enemyIndex].id ) continue;
+			if ( auto* tr = obj->GetComponent<CTransformComponent>() )
+				tr->SetYawDegrees(state.yaw);
 
-            if (enemyIndex < (UINT)snapshot.enemies.size())
-            {
-                const auto& state = snapshot.enemies[enemyIndex];
-                obj->SetPosition(state.position.x, state.position.y, state.position.z);
-
-                if (auto* tr = obj->GetComponent<CTransformComponent>())
-                {
-                    tr->SetYawDegrees(state.yaw);
-                }
-
-				if (auto* animComp = obj->GetComponent<CAnimatorComponent>())
+			if ( auto* animComp = obj->GetComponent<CAnimatorComponent>() )
+			{
+				if ( auto* ctrl = animComp->EnsureMonsterController() )
 				{
-					if (auto* ctrl = animComp->EnsureMonsterController())
-					{
-						const DecodedAnimStateCode decoded = DecodeStateCode(state.animation.stateCode);
-						
-						EMonsterAnimState locomotionState = EMonsterAnimState::Idle;
-						if (decoded.hasMove)
-							locomotionState = decoded.run ? EMonsterAnimState::Run : EMonsterAnimState::Move;
+					const DecodedAnimStateCode decoded = DecodeStateCode(state.animation.stateCode);
 
-						ctrl->SetLocomotionState(locomotionState);
+					EMonsterAnimState locomotionState = EMonsterAnimState::Idle;
+					if ( decoded.hasMove )
+						locomotionState = decoded.run ? EMonsterAnimState::Run : EMonsterAnimState::Move;
 
-						static std::unordered_map<uint64_t, uint32_t> s_prevEnemyStateCode;
-						const uint32_t prevStateCode =
-							(s_prevEnemyStateCode.find(state.id) != s_prevEnemyStateCode.end())
-							? s_prevEnemyStateCode[state.id]
-							: 0u;
-						const DecodedAnimStateCode prevDecoded = DecodeStateCode(prevStateCode);
+					ctrl->SetLocomotionState(locomotionState);
 
-						if (decoded.die && !prevDecoded.die)
-						{
-							ctrl->RequestCommand(EMonsterAnimCommand::Death);
-						}
-						else if (decoded.hit && !prevDecoded.hit)
-						{
-							ctrl->RequestCommand(EMonsterAnimCommand::Hit);
-						}
-						else if (decoded.attack && !prevDecoded.attack)
-						{
-							ctrl->RequestCommand(EMonsterAnimCommand::Attack);
-						}
+					static std::unordered_map<uint64_t, uint32_t> s_prevEnemyStateCode;
+					const uint32_t prevStateCode =
+						( s_prevEnemyStateCode.find(state.id) != s_prevEnemyStateCode.end() )
+						? s_prevEnemyStateCode[state.id]
+						: 0u;
+					const DecodedAnimStateCode prevDecoded = DecodeStateCode(prevStateCode);
 
-						s_prevEnemyStateCode[state.id] = state.animation.stateCode;
-						ctrl->Update(0.0f);
-					}
+					if ( decoded.die && !prevDecoded.die )
+						ctrl->RequestCommand(EMonsterAnimCommand::Death);
+					else if ( decoded.hit && !prevDecoded.hit )
+						ctrl->RequestCommand(EMonsterAnimCommand::Hit);
+					else if ( decoded.attack && !prevDecoded.attack )
+						ctrl->RequestCommand(EMonsterAnimCommand::Attack);
+
+					s_prevEnemyStateCode[state.id] = state.animation.stateCode;
+					ctrl->Update(0.0f);
 				}
-            }
-            ++enemyIndex;
-        }
+			}
+		}
 
 		// Projectile 동기화
 		size_t usedArrowCount = 0;
