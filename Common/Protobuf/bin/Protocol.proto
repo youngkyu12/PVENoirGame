@@ -41,6 +41,7 @@ message S_GAME_START
 {
 	// 월드의 초기 상태를 전달
 	InitStruct initStruct = 1;
+	string mapId = 2;
 }
 
 // 게임이 시작된 후, 클라이언트가 준비되었음을 서버에 알리는 메시지

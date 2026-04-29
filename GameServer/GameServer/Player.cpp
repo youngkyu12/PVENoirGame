@@ -16,22 +16,22 @@ void Player::Update(uint32 serverTick)
 		switch (m_animState)
 		{
 		case Protocol::ANIMATION_TYPE_WALK:
-			animDuration = 30; // 30 ticks
+			animDuration = 15; // 30 ticks
 			break;
 		case Protocol::ANIMATION_TYPE_RUN:
-			animDuration = 20; // 20 ticks
+			animDuration = 10; // 20 ticks
 			break;
 		case Protocol::ANIMATION_TYPE_ATTACK:
-			animDuration = 50; // 20 ticks
+			animDuration = 10; // 20 ticks
 			break;
 		case Protocol::ANIMATION_TYPE_ROLL:
-			animDuration = 40; // 40 ticks
+			animDuration = 1; // 40 ticks
 			break;
 		case Protocol::ANIMATION_TYPE_DIE:
-			animDuration = 50; // 50 ticks
+			animDuration = 25; // 50 ticks
 			break;
 		case Protocol::ANIMATION_TYPE_HIT:
-			animDuration = 20;
+			animDuration = 10;
 			break;
 		default:
 			animDuration = 0;
@@ -40,7 +40,9 @@ void Player::Update(uint32 serverTick)
 		if (animDuration > 0)
 		{
 			int elapsedTicks = serverTick - GetAnimTick(); // tick¿∫ Room¿« Atomic<uint32> tick
-			if (elapsedTicks >= animDuration)
+			if (elapsedTicks >= animDuration && m_animState != Protocol::ANIMATION_TYPE_DIE 
+				&& m_animState != Protocol::ANIMATION_TYPE_WALK
+				&& m_animState != Protocol::ANIMATION_TYPE_RUN)
 			{
 				SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
 				SetAnimTick(serverTick);

@@ -8,16 +8,10 @@
 
 namespace
 {
-	float DistSqXZ(const GameMath::Vec3& a, const GameMath::Vec3& b)
-	{
-		const float dx = a.x - b.x;
-		const float dz = a.z - b.z;
-		return dx * dx + dz * dz;
-	}
-
 	bool ShouldPrintTrackLog(const CServerObject* owner)
 	{
-		return owner && owner->GetObjectId() == 20;
+		return owner &&
+			(owner->GetAnimState() != Protocol::ANIMATION_TYPE_IDLE);
 	}
 }
 
@@ -76,7 +70,7 @@ void CMonsterAI::OnUpdate(float dt)
 		m_trianglePath.clear();
 		m_currentPathIndex = 0;
 		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
-		PrintState("OUT_OF_DETECT_RANGE", false, false);
+		//PrintState("OUT_OF_DETECT_RANGE", false, false);
 		return;
 	}
 
@@ -99,7 +93,7 @@ void CMonsterAI::OnUpdate(float dt)
 			GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
 		}
 
-		PrintState("ATTACK_RANGE", false, false);
+		//PrintState("ATTACK_RANGE", false, false);
 		return;
 	}
 
@@ -112,11 +106,11 @@ void CMonsterAI::OnUpdate(float dt)
 	{
 		FaceTowards(targetPos);
 		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
-		PrintState("IDLE_NO_FOLLOW", repathChanged, false);
+		//PrintState("IDLE_NO_FOLLOW", repathChanged, false);
 	}
 	else
 	{
-		PrintState(repathChanged ? "FOLLOWING_REPATHED" : "FOLLOWING_PATH", repathChanged, true);
+		//PrintState(repathChanged ? "FOLLOWING_REPATHED" : "FOLLOWING_PATH", repathChanged, true);
 	}
 }
 
@@ -163,13 +157,8 @@ bool CMonsterAI::SampleNavMeshPosition(const GameMath::Vec3& in, GameMath::Vec3&
 bool CMonsterAI::RebuildPathToTarget()
 {
 	m_repathTimer = m_repathInterval;
-	m_trianglePath.clear();
-	m_currentPath.clear();
-	m_currentPathIndex = 0;
-
 	if (!m_pTarget)
 		return false;
-
 	const CNavMesh* nav = GetNavMesh();
 	if (!nav || !nav->IsLoaded())
 		return false;
@@ -181,8 +170,19 @@ bool CMonsterAI::RebuildPathToTarget()
 	if (!SampleNavMeshPosition(m_pTarget->GetPosition(), goalPos))
 		return false;
 
-	if (!nav->FindPath(startPos, goalPos, m_trianglePath, m_currentPath))
+	// 임시 버퍼에 먼저 받기
+	std::vector<int> newTrianglePath;
+	std::vector<GameMath::Vec3> newPath;
+
+	if (!nav->FindPath(startPos, goalPos, newTrianglePath, newPath))
+	{
 		return false;
+	}
+
+	// 성공하면 그때 교체
+	m_trianglePath = std::move(newTrianglePath);
+	m_currentPath = std::move(newPath);
+	m_currentPathIndex = 0;
 
 	while (m_currentPathIndex < m_currentPath.size())
 	{
@@ -190,7 +190,6 @@ bool CMonsterAI::RebuildPathToTarget()
 			break;
 		++m_currentPathIndex;
 	}
-
 	return m_currentPathIndex < m_currentPath.size();
 }
 
@@ -232,7 +231,9 @@ bool CMonsterAI::MoveTowards(const GameMath::Vec3& goal, float maxStep)
 
 bool CMonsterAI::FollowCurrentPath(float dt)
 {
-	if (m_currentPath.empty() || m_currentPathIndex >= m_currentPath.size())
+	if (m_currentPath.empty()) 
+		return false;
+	if (m_currentPathIndex >= m_currentPath.size())
 		return false;
 
 	const float moveDistance = m_moveSpeed * dt;

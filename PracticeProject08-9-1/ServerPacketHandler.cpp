@@ -8,31 +8,6 @@
 
 #include "GlobalEnum.h"
 
-namespace
-{
-	static std::string ToAssetNameFromBuildingType(uint32_t buildingType)
-	{
-		switch (buildingType)
-		{
-		case 1:  return "Grass";
-		case 2:  return "Ground";
-		case 3:  return "Building1";
-		case 4:  return "Building2";
-		case 5:  return "Building3";
-		case 6:  return "Building4";
-		case 7:  return "Building5";
-		case 8:  return "Building6";
-		case 9:  return "Building7";
-		case 10: return "Building8";
-		case 11: return "Building9";
-		case 12: return "VillageWall";
-		case 13: return "DirtRoad";
-		case 14: return "Tower";
-		default: return "";
-		}
-	}
-}
-
 PacketHandlerFunc GPacketHandler[UINT16_MAX];
 
 bool Handle_INVALID(PacketSessionRef& session, BYTE* buffer, int32 len)
@@ -99,11 +74,10 @@ bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
 	Protocol::InitStruct worldInit = pkt.initstruct();
 	auto players = worldInit.players();
 	auto enemies = worldInit.enemies();
-	auto buildings = worldInit.buildings();
+	data.mapId = pkt.mapid();
 
 	data.players.reserve(players.size());
 	data.enemies.reserve(enemies.size());
-	data.buildings.reserve(buildings.size());
 
 	for (auto& player : players)
 	{
@@ -116,7 +90,14 @@ bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
 		s += "\n";
 		OutputDebugStringA(s.c_str());
 
-		data.players.push_back({ player.id(), {position.x(), position.y(), position.z()}, yaw });
+       PlayerState state{};
+		state.id = player.id();
+		state.playerType = static_cast<uint32_t>(player.playertype());
+		state.position = XMFLOAT3(position.x(), position.y(), position.z());
+		state.yaw = yaw;
+		state.weaponType = static_cast<EWeaponType>(player.weapontype() - 1);
+
+		data.players.push_back(std::move(state));
 	}
 
 	for (auto& enemy : enemies)
@@ -130,25 +111,14 @@ bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
 		s += "\n";
 		OutputDebugStringA(s.c_str());
 
-		data.enemies.push_back({ enemy.id(), {position.x(), position.y(), position.z()}, yaw });
-	}
+        EnemyState state{};
+		state.id = enemy.id();
+		state.enemyType = static_cast<uint32_t>(enemy.enemytype());
+		state.position = XMFLOAT3(position.x(), position.y(), position.z());
+		state.yaw = yaw;
+		state.weaponType = static_cast<EWeaponType>(enemy.weapontype() - 1);
 
-	for (auto& building : buildings)
-	{
-		auto transform = building.transform();
-		auto position = transform.position();
-		auto yaw = transform.yaw();
-		const uint32_t buildingType = static_cast<uint32_t>(building.buildingtype());
-
-		BuildingState b{};
-		b.id = building.id();
-		b.position = XMFLOAT3(position.x(), position.y(), position.z());
-		b.yaw = yaw;
-		b.buildingType = buildingType;
-		b.assetName = ToAssetNameFromBuildingType(buildingType);
-
-		if (!b.assetName.empty())
-			data.buildings.push_back(std::move(b));
+		data.enemies.push_back(std::move(state));
 	}
 
 	// networkQueue에 게임 시작 패킷 push
@@ -182,7 +152,15 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 
 		EWeaponType eweaponType = static_cast<EWeaponType>(weaponType - 1);
 
-		data.players.push_back({ player.id(), {position.x(), position.y(), position.z()}, yaw, animState, eweaponType });
+		PlayerState state{};
+		state.id = player.id();
+		state.playerType = static_cast<uint32_t>(player.playertype());
+		state.position = XMFLOAT3(position.x(), position.y(), position.z());
+		state.yaw = yaw;
+		state.animation = animState;
+		state.weaponType = eweaponType;
+
+		data.players.push_back(std::move(state));
 	}
 
 	for (auto& enemy : enemies)
@@ -199,7 +177,15 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 
 		EWeaponType eweaponType = static_cast<EWeaponType>(weaponType - 1);
 
-		data.enemies.push_back({ enemy.id(), {position.x(), position.y(), position.z()}, yaw, animState, eweaponType });
+		EnemyState state{};
+		state.id = enemy.id();
+		state.enemyType = static_cast<uint32_t>(enemy.enemytype());
+		state.position = XMFLOAT3(position.x(), position.y(), position.z());
+		state.yaw = yaw;
+		state.animation = animState;
+		state.weaponType = eweaponType;
+
+		data.enemies.push_back(std::move(state));
 	}
 
 	data.bullets.reserve(bullets.size());

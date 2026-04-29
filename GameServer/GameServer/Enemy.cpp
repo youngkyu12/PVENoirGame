@@ -2,12 +2,27 @@
 #include "Enemy.h"
 #include "MonsterAI.h"
 
+CEnemy::~CEnemy() = default;
+
+void CEnemy::EnsureAI()
+{
+	if (!m_monsterAI)
+		m_monsterAI = std::make_unique<CMonsterAI>(this);
+}
 
 
 void CEnemy::Build(GameMath::Vec3 pos, GameMath::Vec3 rot)
 {
+	EnsureAI();
 	SetPosition(pos);
 	Rotate(rot.x, rot.y, rot.z);
+}
+
+void CEnemy::UpdateAI(float dt)
+{
+	EnsureAI();
+	if (m_monsterAI)
+		m_monsterAI->OnUpdate(dt);
 }
 
 void CEnemy::ApplyHit(uint32 serverTick, uint32 hitDurationTicks)

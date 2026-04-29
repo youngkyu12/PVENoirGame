@@ -2,6 +2,7 @@
 #include "ServerObject.h"
 #include "GameMath.h"
 #include "CWeapon.h"
+#include "MonsterAI.h"
 
 class CEnemy : public CServerObject
 {
@@ -12,6 +13,7 @@ public:
 	GameSessionRef			ownerSession;
 public:
 	CEnemy() = default;
+	virtual ~CEnemy();
 	CEnemy(uint64 id, const string& name, Protocol::EnemyType type, GameSessionRef session)
 		: enemyId(id), name(name), type(type), ownerSession(session) {
 		CServerObject::SetObjectId(id);
@@ -20,10 +22,14 @@ public:
 	virtual void Update(uint32 serverTick) override;
 	void Build(GameMath::Vec3 pos, GameMath::Vec3 rot);
 	void ApplyHit(uint32 serverTick, uint32 hitDurationTicks = 20);
+	void UpdateAI(float dt);
 
 private:
+	void EnsureAI();
+
 	//EnemyControllerComponentRef controller;
 	CWeapon weapon;
+	std::unique_ptr<CMonsterAI> m_monsterAI;
 
 public:
 	void SetWeapon(Protocol::WeaponType& type, uint32& currentBullets)

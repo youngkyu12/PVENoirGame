@@ -120,7 +120,15 @@ private:
 	bool active = false; // 劝己拳 咯何 (可记)
 public:
     bool IsActive() const { return active; }
-	void SetActive(bool b) { active = b; }
+	void SetActive(bool b) { 
+
+        if(m_objectId == 0 && b != active)
+            cout << m_objectId << " goes to " << b
+                << " from " << active
+                << std::endl;
+
+        active = b; 
+    }
     // ========================================
 
 

@@ -23,25 +23,26 @@ struct AnimationState
 };
 
 // ============================================================
-// 공통 Actor 상태
+// Actor 상태
 // ============================================================
-struct ActorState
+struct PlayerState
 {
     uint64_t    id = 0;
+    uint32_t    playerType = 0;
     XMFLOAT3    position = XMFLOAT3(0.0f, 0.0f, 0.0f);
     float       yaw = 0.0f;
-	AnimationState animation{};
-	EWeaponType weaponType = EWeaponType::None;
-    // 필요하면 HP, 상태 등 추가
+    AnimationState animation{};
+    EWeaponType weaponType = EWeaponType::None;
 };
 
-struct BuildingState
+struct EnemyState
 {
     uint64_t    id = 0;
+    uint32_t    enemyType = 0;
     XMFLOAT3    position = XMFLOAT3(0.0f, 0.0f, 0.0f);
     float       yaw = 0.0f;
-    uint32_t    buildingType = 0;
-    std::string assetName;
+    AnimationState animation{};
+    EWeaponType weaponType = EWeaponType::None;
 };
 
 // ============================================================
@@ -73,9 +74,9 @@ struct LoadoutData
 // ============================================================
 struct GameStartData
 {
-    std::vector<ActorState> players;
-    std::vector<ActorState> enemies;
-	std::vector<BuildingState> buildings; // 필요시 추가
+    std::vector<PlayerState> players;
+    std::vector<EnemyState> enemies;
+	std::string mapId;
 };
 
 // ============================================================
@@ -84,8 +85,8 @@ struct GameStartData
 struct FrameSnapshot
 {
 	uint64_t frameId; // serverTick과 동일한 값
-    std::vector<ActorState> players;
-    std::vector<ActorState> enemies;
+    std::vector<PlayerState> players;
+    std::vector<EnemyState> enemies;
     std::vector<BulletState> bullets;
 };
 

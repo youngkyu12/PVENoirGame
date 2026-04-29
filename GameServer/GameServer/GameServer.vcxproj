@@ -219,7 +219,12 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="ReportHelper.cpp" />
+    <ClCompile Include="Room.Collision.cpp" />
+    <ClCompile Include="Room.Combat.cpp" />
     <ClCompile Include="Room.cpp" />
+    <ClCompile Include="Room.Grid.cpp" />
+    <ClCompile Include="Room.Input.cpp" />
+    <ClCompile Include="Room.Packet.cpp" />
     <ClCompile Include="ServerMap.cpp" />
     <ClCompile Include="ServerObject.cpp" />
     <ClCompile Include="Struct.pb.cc">
