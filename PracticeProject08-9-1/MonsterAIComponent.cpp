@@ -15,6 +15,7 @@
 #include "AnimController.h"
 #include "MonsterAnimController.h"
 #include "ActorTagComponent.h"
+#include "HealthComponent.h"
 
 namespace
 {
@@ -100,12 +101,16 @@ bool CMonsterAIComponent::HasValidTarget() const
 	if ( !m_pTarget )
 		return false;
 
+	if ( auto* hp = m_pTarget->GetComponent<CHealthComponent>() )
+	{
+		if ( hp->IsDead() )
+			return false;
+	}
+
 	auto* tag = m_pTarget->GetComponent<CActorTagComponent>();
 	if ( !tag )
 		return true;
 
-	// 죽은 대상 제외 정도는 추후 확장 가능.
-	// 현재는 pointer validity 위주로만 본다.
 	return true;
 }
 

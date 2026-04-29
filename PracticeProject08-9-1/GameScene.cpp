@@ -225,6 +225,11 @@ namespace
 			attack->SetAttackPower(attackPower);
 	}
 
+	static constexpr XMFLOAT3 kLocalPlayerRespawnPosition =
+		XMFLOAT3(0.0f, 0.0f, -200.0f);
+
+	static constexpr float kLocalPlayerRespawnDelay = 5.0f;
+
 	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::FullStage;
 
 	// -----------------------------------------------------------------------------
@@ -442,6 +447,10 @@ CGameScene::CGameScene()
 	m_bulletRefs.shrink_to_fit();
 
 	m_navMesh.reset();
+
+	m_bLocalPlayerDead = false;
+	m_bLocalPlayerRespawnUsed = false;
+	m_localPlayerRespawnTimer = 0.0f;
 }
 
 #ifndef USING_NETWORK
@@ -891,6 +900,10 @@ void CGameScene::ReleaseObjects()
 
 	m_navMesh.reset();
 
+	m_bLocalPlayerDead = false;
+	m_bLocalPlayerRespawnUsed = false;
+	m_localPlayerRespawnTimer = 0.0f;
+
 #ifndef USING_NETWORK
 	m_monsterSpawnEntries.clear();
 	ShutdownSpatialGrid();
@@ -1177,6 +1190,9 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	}
 #else
 	m_localPlayerSlot = 0;
+	m_bLocalPlayerDead = false;
+	m_bLocalPlayerRespawnUsed = false;
+	m_localPlayerRespawnTimer = 0.0f;
 
 	const GameSceneStageFileSet& stageFiles = GetLocalStageFileSet(kLocalStagePreset);
 
@@ -5030,6 +5046,9 @@ void CGameScene::RequestPlayerAttackBySlot(int slot)
 	CGameObject* obj = GetPlayerBySlot(slot);
 	if ( !obj ) return;
 
+	if ( slot == m_localPlayerSlot && m_bLocalPlayerDead )
+		return;
+
 	constexpr float kArrowPullBackDistance = 0.35f;
 	constexpr float kBulletSpeed = 10.0f;
 	constexpr float kBulletLife = 3.0f;
@@ -5421,6 +5440,156 @@ bool CGameScene::IsLocalPlayer(const CGameObject* obj) const
     return tag && tag->kind == EActorKind::Player && tag->control == EPlayerControl::Local;
 }
 
+void CGameScene::SetLocalPlayerControlEnabled(bool enabled)
+{
+	CGameObject* player = GetPlayer();
+	if ( !player )
+		return;
+
+	if ( auto* controller = player->GetComponent<CPlayerControllerComponent>() )
+	{
+		controller->SetInputEnabled(enabled);
+
+		if ( !enabled )
+		{
+			controller->SetInputDirection(static_cast< DWORD >( 0 ));
+			controller->SetRunRequested(false);
+			controller->SetVelocity(XMFLOAT3(0.0f, 0.0f, 0.0f));
+		}
+	}
+}
+
+void CGameScene::CancelLocalPlayerPreparedActions()
+{
+	const int slot = m_localPlayerSlot;
+
+	if ( slot < 0 || slot >= 4 )
+		return;
+
+	if ( m_preparedPlayerArrows[( size_t ) slot] )
+	{
+		if ( auto* arrow = m_preparedPlayerArrows[( size_t ) slot]->GetComponent<CArrowComponent>() )
+			arrow->Deactivate();
+
+		m_preparedPlayerArrows[( size_t ) slot] = nullptr;
+	}
+
+	m_prevBowReleasePhase[( size_t ) slot] = false;
+
+	auto DisableColliderOnly = [ ] (CGameObject* obj)
+		{
+			if ( !obj )
+				return;
+
+			if ( auto* collider = obj->GetComponent<CColliderComponent>() )
+				collider->SetEnabled(false);
+		};
+
+	if ( slot >= 0 && slot < ( int ) m_PlayerSwordRefs.size() )
+		DisableColliderOnly(m_PlayerSwordRefs[( size_t ) slot]);
+
+	if ( slot >= 0 && slot < ( int ) m_PlayerAxeRefs.size() )
+		DisableColliderOnly(m_PlayerAxeRefs[( size_t ) slot]);
+
+	if ( slot >= 0 && slot < ( int ) m_PlayerGunRefs.size() )
+		DisableColliderOnly(m_PlayerGunRefs[( size_t ) slot]);
+}
+
+void CGameScene::BeginLocalPlayerDeath(CGameObject* player)
+{
+	if ( !player )
+		return;
+
+	if ( m_bLocalPlayerDead )
+		return;
+
+	m_bLocalPlayerDead = true;
+	m_localPlayerRespawnTimer = 0.0f;
+
+	SetLocalPlayerControlEnabled(false);
+	CancelLocalPlayerPreparedActions();
+
+	if ( auto* collider = player->GetComponent<CColliderComponent>() )
+		collider->SetEnabled(false);
+
+	if ( auto* animComp = player->GetComponent<CAnimatorComponent>() )
+	{
+		if ( auto* ctrl = animComp->EnsureController() )
+		{
+			ctrl->RequestDeath();
+			return;
+		}
+	}
+
+	if ( auto* ctrl = player->GetAnimController() )
+		ctrl->RequestDeath();
+}
+
+void CGameScene::RespawnLocalPlayer(CGameObject* player)
+{
+	if ( !player )
+		return;
+
+	player->SetPosition(kLocalPlayerRespawnPosition);
+
+	if ( auto* hp = player->GetComponent<CHealthComponent>() )
+		hp->ResetToMax();
+
+	if ( auto* collider = player->GetComponent<CColliderComponent>() )
+	{
+		collider->SetEnabled(true);
+		collider->OnUpdate(0.0f);
+	}
+
+	if ( auto* animComp = player->GetComponent<CAnimatorComponent>() )
+	{
+		if ( auto* ctrl = animComp->EnsureController() )
+		{
+			ctrl->ResetToIdleAfterRespawn();
+		}
+	}
+	else if ( auto* ctrl = player->GetAnimController() )
+	{
+		ctrl->ResetToIdleAfterRespawn();
+	}
+
+	SetLocalPlayerControlEnabled(true);
+
+	m_bLocalPlayerDead = false;
+	m_bLocalPlayerRespawnUsed = true;
+	m_localPlayerRespawnTimer = 0.0f;
+}
+
+void CGameScene::UpdateLocalPlayerDeathAndRespawn(float dt)
+{
+	CGameObject* player = GetPlayer();
+	if ( !player )
+		return;
+
+	auto* hp = player->GetComponent<CHealthComponent>();
+	if ( !hp )
+		return;
+
+	if ( !m_bLocalPlayerDead && hp->IsDead() )
+	{
+		BeginLocalPlayerDeath(player);
+	}
+
+	if ( !m_bLocalPlayerDead )
+		return;
+
+	if ( m_bLocalPlayerRespawnUsed )
+		return;
+
+	if ( dt > 0.0f )
+		m_localPlayerRespawnTimer += dt;
+
+	if ( m_localPlayerRespawnTimer >= kLocalPlayerRespawnDelay )
+	{
+		RespawnLocalPlayer(player);
+	}
+}
+
 bool CGameScene::RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& previousPos)
 {
 	CGameObject* localPlayer = GetPlayer();
@@ -5495,7 +5664,8 @@ bool CGameScene::OnProcessingMouseMessage(HWND /*hWnd*/, UINT msg, WPARAM /*wPar
 	if ( msg == WM_LBUTTONDOWN )
 	{
 #ifndef USING_NETWORK
-		RequestPlayerAttackBySlot(m_localPlayerSlot);
+		if ( !m_bLocalPlayerDead )
+			RequestPlayerAttackBySlot(m_localPlayerSlot);
 #endif
 		return true;
 	}
@@ -5614,6 +5784,10 @@ bool CGameScene::ProcessInput(UCHAR* /*pKeysBuffer*/)
 void CGameScene::AnimateObjects(float dt)
 {
 	m_fElapsedTime = dt;
+#ifndef USING_NETWORK
+	UpdateLocalPlayerDeathAndRespawn(dt);
+#endif
+
     // ------------------------------------------------------------------------
     // FrameSnapshot에서 좌표 업데이트
     // ------------------------------------------------------------------------
@@ -5886,7 +6060,12 @@ void CGameScene::AnimateObjects(float dt)
 void CGameScene::CollisionObjects()
 {
 	if ( !m_Collision ) return;
+
 	m_Collision->OnUpdate();
+
+#ifndef USING_NETWORK
+	UpdateLocalPlayerDeathAndRespawn(0.0f);
+#endif
 }
 
 void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)

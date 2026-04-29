@@ -9,6 +9,7 @@
 #include "Object.h"
 #include "AnimatorComponent.h"
 #include "MonsterAnimController.h"
+#include "HealthComponent.h"
 
 CGhoulAIComponent::CGhoulAIComponent(CGameObject* owner)
 	: CMonsterAIComponent(owner)
@@ -30,10 +31,15 @@ bool CGhoulAIComponent::AcquireTarget()
 	if ( !scene )
 		return false;
 
-	// 테스트 조건: 무조건 player[0]만 추적
 	CGameObject* player0 = scene->GetPlayerBySlot(0);
 	if ( !player0 )
 		return false;
+
+	if ( auto* hp = player0->GetComponent<CHealthComponent>() )
+	{
+		if ( hp->IsDead() )
+			return false;
+	}
 
 	SetTarget(player0);
 	return true;
