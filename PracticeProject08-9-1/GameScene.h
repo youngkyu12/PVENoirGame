@@ -9,6 +9,9 @@
 #include "LightTypes.h"
 #include "SceneRenderTypes.h"
 #include "ColliderComponent.h"
+#include "Grid.h"
+#include "DepthFog.h"
+#include "GameSceneHUD.h"
 //#include "ShadowMap.h"
 
 #include <unordered_set>
@@ -86,6 +89,18 @@ struct StaticWorldLodEntry
 	float cullDistance = 1000000.0f;
 };
 
+struct StaticOcclusionEntry
+{
+	CGameObject* object = nullptr;
+	UINT staticBatchObjectIndex = UINT_MAX;
+
+	std::string assetName;
+	bool enabled = false;
+
+	BoundingOrientedBox worldBounds{};
+	bool hasWorldBounds = false;
+};
+
 struct SkinnedWorldLodEntry
 {
 	CGameObject* object = nullptr;
@@ -97,14 +112,26 @@ struct SkinnedWorldLodEntry
 	bool lodEnabled = false;
 	int currentLod = 0;
 
-	float lodDistance01 = 80.0f;
-	float lodDistance12 = 180.0f;
+	float lodDistance01 = 1.0f;
+	float lodDistance12 = 2.0f;
 
 	std::array<std::shared_ptr<CMesh>, 3> lodMeshes = { nullptr, nullptr, nullptr };
 
 	bool distanceCullEnabled = false;
 	bool distanceCulled = false;
 	float cullDistance = 1000000.0f;
+};
+
+struct SkinnedOcclusionEntry
+{
+	CGameObject* object = nullptr;
+	UINT skinnedBatchObjectIndex = UINT_MAX;
+
+	std::string assetName;
+	bool enabled = false;
+
+	BoundingOrientedBox worldBounds{};
+	bool hasWorldBounds = false;
 };
 
 struct SkinnedInstanceVertex
@@ -129,23 +156,6 @@ struct SkinnedInstanceGroup
 
 	UINT instanceBufferStart = 0;
 	bool useAlphaClipShader = false;
-};
-
-struct CB_FOG
-{
-	XMFLOAT4 fogColor = XMFLOAT4(0.62f, 0.67f, 0.72f, 1.0f);
-
-	// x = fogStart
-	// y = fogEnd
-	// z = fogDensity
-	// w = fogEnable (0.0f or 1.0f)
-	XMFLOAT4 fogParams0 = XMFLOAT4(20.0f, 40.0f, 0.0f, 1.0f);
-
-	// x = cameraNear
-	// y = cameraFar
-	// z = fogMode (0=Linear, 1=Exp, 2=Exp2)
-	// w = reserved
-	XMFLOAT4 fogParams1 = XMFLOAT4(1.01f, 5000.0f, 0.0f, 0.0f);
 };
 
 struct CB_SHADOW
@@ -221,16 +231,42 @@ private:
 
     void LinkSceneObjects();
 
-    void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd);
+	void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd);
+	void UpdateFrameRenderState(CCamera* camera);
+	void BindFrameRootParameters(ID3D12GraphicsCommandList* cmd);
+
 	void BuildStaticInstanceGroups();
 	void ResetStaticWorldLodEntries();
+
+	void ResetStaticOcclusionEntries();
+	void BuildStaticOcclusionEntries();
+	void BuildStaticOcclusionUnitBoxMesh(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
+	void BuildStaticOcclusionGpuResources(ID3D12Device* dev);
+	void ReleaseStaticOcclusionGpuResources();
+	void BeginStaticOcclusionReadback();
+	void RenderStaticOcclusionPass(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	void ResolveStaticOcclusionQueries(ID3D12GraphicsCommandList* cmd);
+	
 	int ComputeStaticWorldLodLevel(const XMFLOAT3& cameraPosition, const StaticWorldLodEntry& entry) const;
 	bool ComputeStaticWorldDistanceCulled(const XMFLOAT3& cameraPosition, const StaticWorldLodEntry& entry) const;
 	void UpdateStaticWorldLodSelection(CCamera* camera);
+	void UpdateStaticOcclusionCullSelection(CCamera* camera);
+	void UpdateStaticTreeGridCullSelection(CCamera* camera);
+	bool IsStaticTreeObject(const CGameObject* obj) const;
 	void RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 	void BuildSkinnedInstanceGroups();
 	void ResetSkinnedWorldLodEntries();
+
+	void ResetSkinnedOcclusionEntries();
+	void BuildSkinnedOcclusionEntries();
+	void BuildSkinnedOcclusionGpuResources(ID3D12Device* dev);
+	void ReleaseSkinnedOcclusionGpuResources();
+	void BeginSkinnedOcclusionReadback();
+	void RenderSkinnedOcclusionPass(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	void ResolveSkinnedOcclusionQueries(ID3D12GraphicsCommandList* cmd);
+	void UpdateSkinnedOcclusionCullSelection(CCamera* camera);
+
 	int ComputeSkinnedWorldLodLevel(const XMFLOAT3& cameraPosition, const SkinnedWorldLodEntry& entry) const;
 	bool ComputeSkinnedWorldDistanceCulled(const XMFLOAT3& cameraPosition, const SkinnedWorldLodEntry& entry) const;
 	void UpdateSkinnedWorldLodSelection(CCamera* camera);
@@ -245,11 +281,14 @@ public:
 	//void RenderShadowMap(ID3D12GraphicsCommandList* cmd, const CGameTimer& gt);
 
 public:
-	void OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera) override;
-	void Render(ID3D12GraphicsCommandList* cmd, CCamera* camera = nullptr) override;
-	void RenderShadowPrePass(ID3D12GraphicsCommandList* cmd, CCamera* camera);
-	void RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* camera);
-	void RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	public:
+		void OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera) override;
+		void Render(ID3D12GraphicsCommandList* cmd, CCamera* camera = nullptr) override;
+		void RenderShadowPrePass(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+		void RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+		void RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
+		void RebindFrameRenderState(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
     // Input (messages) : 게임에서는 좌클릭 공격
 public:
@@ -268,12 +307,15 @@ public:
     // Game-only API
 public:
     void SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex);
-    void SetInactiveOverlayVisible(bool visible) { m_bInactiveOverlayVisible = visible; }
+	void SetInactiveOverlayVisible(bool visible)
+	{
+		m_bInactiveOverlayVisible = visible;
+		m_hud.SetInactiveOverlayVisible(visible);
+	}
 
 	void SetDepthFogSourceSrvIndices(UINT sceneColorSrvIndex, UINT sceneDepthSrvIndex)
 	{
-		m_depthFogSceneColorSrvIndex = sceneColorSrvIndex;
-		m_depthFogSceneDepthSrvIndex = sceneDepthSrvIndex;
+		m_depthFog.SetSourceSrvIndices(sceneColorSrvIndex, sceneDepthSrvIndex);
 	}
 
 	void SetSceneRenderTargets(
@@ -292,7 +334,7 @@ public:
 		m_bSceneRenderTargetsReady = ( m_sceneRenderTargetCount > 0 );
 	}
 
-	void SetDepthFogPassEnabled(bool enabled) { m_bDepthFogPassEnabled = enabled; }
+	void SetDepthFogPassEnabled(bool enabled) { m_depthFog.SetPassEnabled(enabled); }
 
 	CNavMesh* GetNavMesh() { return m_navMesh.get(); }
 	const CNavMesh* GetNavMesh() const { return m_navMesh.get(); }
@@ -319,78 +361,22 @@ public:
 
 private:
 #ifndef USING_NETWORK
-	static constexpr int kGridMinX = -600;
-	static constexpr int kGridMaxX = 600;
-	static constexpr int kGridMinZ = -200;
-	static constexpr int kGridMaxZ = 1000;
-
-	static constexpr int kGridWidth = ( kGridMaxX - kGridMinX );
-	static constexpr int kGridHeight = ( kGridMaxZ - kGridMinZ );
-	static constexpr int kGridCellCount = ( kGridWidth * kGridHeight );
-
-	static constexpr int kMegaGridCols = 3;
-	static constexpr int kMegaGridRows = 3;
-	static constexpr int kMegaGridCount = ( kMegaGridCols * kMegaGridRows );
-
-	static constexpr int kMegaGridCellWidth = ( kGridWidth / kMegaGridCols );   // 400
-	static constexpr int kMegaGridCellHeight = ( kGridHeight / kMegaGridRows ); // 400
-
-	static constexpr int kDefaultMegaGridApproachWidth = 200;
-	static constexpr int kDefaultMegaGridApproachHeight = 200;
-
-	struct MegaGridCell
-	{
-		bool hasPlayerApproached = false;
-		bool isCleared = false;
-		bool hasEventOccurred = false;
-
-		int approachWidthCells = kDefaultMegaGridApproachWidth;
-		int approachHeightCells = kDefaultMegaGridApproachHeight;
-	};
-
-	struct GridStaticCell
-	{
-		uint16_t buildingCount = 0;
-		float floorHeight = 0.0f; // 지금은 고정 0
-	};
-
-	struct GridDynamicCell
-	{
-		uint16_t playerCount = 0;
-		uint16_t monsterCount = 0;
-		uint16_t arrowCount = 0;
-		uint16_t bulletCount = 0;
-	};
-
-	enum class EGridDynamicKind : uint8_t
-	{
-		Player,
-		Monster,
-		Arrow,
-		Bullet
-	};
-
-	struct GridDynamicTracker
-	{
-		CGameObject* object = nullptr;
-		int prevCellX = -1;
-		int prevCellZ = -1;
-		bool occupied = false;
-	};
+	using EGridDynamicKind = CSceneGrid::EDynamicKind;
+	using GridDynamicTracker = CSceneGrid::DynamicTracker;
 
 	void InitializeSpatialGrid();
 	void ShutdownSpatialGrid();
-	void InitializeMegaGridState();
 
-	bool WorldToGridCell(float worldX, float worldZ, int& outCellX, int& outCellZ) const;
-	int GridCellIndex(int cellX, int cellZ) const;
+	bool TryGetTreeCullReferenceGridCell(
+		CCamera* camera,
+		int& outCellX,
+		int& outCellZ,
+		int& outMegaX,
+		int& outMegaZ) const;
 
-	int MegaGridIndex(int megaX, int megaZ) const;
-	bool FineCellToMegaGridCell(int cellX, int cellZ, int& outMegaX, int& outMegaZ) const;
-	bool IsFineCellInsideMegaGridApproachZone(int megaX, int megaZ, int cellX, int cellZ) const;
+	bool ShouldCullTreesByVillageGrid(CCamera* camera) const;
 
 	void AddDynamicCount(int cellX, int cellZ, EGridDynamicKind kind, int delta);
-	void StampBuildingCellsFromOOBB(const BoundingOrientedBox& box, std::unordered_set<int>& touchedCells);
 	void RegisterStaticPlacementToGrid(const StaticPlacementEntry& placement, CGameObject* obj);
 
 	void ResetDynamicGridCounts();
@@ -423,42 +409,16 @@ private:
 #endif
 
 private:
-	enum class EUIRenderLayer : uint8_t
-	{
-		Frame = 0,
-		Content = 1,
-		Pause = 2
-	};
-
-	struct UISpriteEntry
-	{
-		std::string name;
-		std::shared_ptr<CTexture> texture;
-		UINT srvIndex = UINT_MAX;
-
-		// x=centerX, y=centerY, z=width, w=height (pixel)
-		XMFLOAT4 rect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
-
-		EUIRenderLayer layer = EUIRenderLayer::Frame;
-		bool visible = true;
-	};
-
-	void BuildUIResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
-	int AddUISprite(
-		ID3D12Device* dev,
-		ID3D12GraphicsCommandList* cmd,
-		const char* name,
-		const wchar_t* texturePath,
-		const XMFLOAT4& rect,
-		EUIRenderLayer layer,
-		bool visible = true
-	);
-	void RenderUI(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	void BuildDepthFogResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
 	void RenderDepthFog(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 	void BuildShadowResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
 	void UpdateShadowData();
+
+	bool IsWorldOOBBInsideShadowBox(const BoundingOrientedBox& box) const;
+	bool IsStaticObjectInsideShadowBox(UINT objectIndex) const;
+	bool IsSkinnedObjectInsideShadowBox(UINT objectIndex) const;
+
 	void RenderShadowMap(ID3D12GraphicsCommandList* cmd);
 	void RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList* cmd);
 	void RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandList* cmd);
@@ -569,15 +529,8 @@ private:
     ComPtr<ID3D12Resource> m_pd3dcbMaterials;
     MATERIAL* m_pcbMappedMaterials = nullptr;
 
-	CB_FOG                          m_fogData{};
-	ComPtr<ID3D12Resource>          m_pd3dcbFog;
-	CB_FOG                          m_depthFogEnabledPreset{};
-	CB_FOG                          m_depthFogDisabledPreset{};
-	bool                            m_bDepthFogTargetEnabled = false;
-	float                           m_depthFogFadeAlpha = 0.0f;
-	float                           m_depthFogFadeDuration = 1.0f;
-	float m_fElapsedTime = 0.0f;
-	CB_FOG* m_pcbMappedFog = nullptr;
+	CDepthFogSystem                 m_depthFog;
+	float                           m_fElapsedTime = 0.0f;
 
     unique_ptr<CCollisionSystem> m_Collision;
 	std::unique_ptr<CNavMesh> m_navMesh;
@@ -585,10 +538,7 @@ private:
 #ifndef USING_NETWORK
 	std::vector<MonsterSpawnEntry>	m_monsterSpawnEntries;
 
-	bool m_spatialGridInitialized = false;
-	std::vector<GridStaticCell>		m_gridStaticCells;
-	std::vector<GridDynamicCell>	m_gridDynamicCells;
-	std::array<MegaGridCell, kMegaGridCount> m_megaGridCells = {};
+	CSceneGrid m_sceneGrid;
 
 	std::array<GridDynamicTracker, 4> m_playerGridTrackers = {};
 	std::vector<GridDynamicTracker> m_monsterGridTrackers;
@@ -618,12 +568,40 @@ private:
 
 	std::vector<StaticInstanceGroup>    m_staticInstanceGroups;
 	std::vector<StaticWorldLodEntry>    m_staticWorldLodEntries;
+	std::vector<StaticOcclusionEntry>   m_staticOcclusionEntries;
+
 	std::vector<uint8_t>                m_staticDistanceCullFlags;
+	std::vector<uint8_t>                m_staticOcclusionCullFlags;
+	std::vector<uint8_t>                m_staticTreeGridCullFlags;
+
+	std::vector<uint8_t>                m_staticShadowCasterFlags;
+	std::vector<UINT>                   m_staticTreeObjectIndices;
+	std::vector<int>                    m_staticShadowOcclusionEntryIndices;
+
+	std::vector<UINT64>                 m_staticOcclusionQuerySampleCounts;
+	std::vector<uint8_t>                m_staticOcclusionLastFrameIssuedFlags;
+	std::vector<uint8_t>                m_staticOcclusionCurrentFrameIssuedFlags;
+	std::vector<uint8_t>                m_staticOcclusionZeroSampleFrameCounts;
+	ComPtr<ID3D12QueryHeap>             m_pd3dStaticOcclusionQueryHeap;
+	ComPtr<ID3D12Resource>              m_pd3dStaticOcclusionReadbackBuffer;
+	UINT64* m_pMappedStaticOcclusionReadbackBuffer = nullptr;
+	UINT                                m_staticOcclusionQueryCapacity = 0;
+	bool                                m_bStaticOcclusionQueryResourcesReady = false;
+	bool                                m_bStaticOcclusionQueryResultsValid = false;
 	bool                                m_staticWorldLodDirty = false;
+	bool                                m_bStaticOcclusionCullingEnabled = true;
+	bool                                m_bStaticTreeGridCullingEnabled = true;
+	UINT                                m_staticOcclusionHideFrameThreshold = 8;
+	float                               m_staticOcclusionMinTestDistance = 50.0f;
+	float                               m_staticOcclusionMaxCullExtentDistanceRatio = 0.20f;
 	float                               m_staticLodDistance01 = 40.0f;
 	float                               m_staticLodDistance12 = 80.0f;
 	float                               m_staticLodHysteresis = 15.0f;
 	float                               m_staticCullHysteresis = 20.0f;
+
+	std::shared_ptr<CMesh>              m_staticOcclusionUnitBoxMesh;
+	ComPtr<ID3D12Resource>              m_pd3dStaticOcclusionInstanceBuffer;
+	StaticInstanceVertex* m_pMappedStaticOcclusionInstanceBuffer = nullptr;
 
 	ComPtr<ID3D12Resource>              m_pd3dStaticInstanceBuffer;
 	StaticInstanceVertex* m_pMappedStaticInstanceBuffer = nullptr;
@@ -633,22 +611,20 @@ private:
 	std::unordered_set<const CGameObject*>	m_treeAlphaClipObjects;
 	std::unordered_set<const CGameObject*>	m_skinnedAlphaClipObjects;
 
-	std::shared_ptr<CRectUIShader>      m_uiRectShader;
-	std::shared_ptr<CDepthFogShader>    m_depthFogShader;
+	std::shared_ptr<COcclusionStaticShader>               m_occlusionStaticShader;
 	std::shared_ptr<CShadowMapStaticShader>               m_shadowStaticShader;
 	std::shared_ptr<CShadowMapAlphaClipStaticShader>      m_shadowAlphaClipStaticShader;
 	std::shared_ptr<CShadowMapSkinnedShader>              m_shadowSkinnedShader;
 	std::shared_ptr<CShadowMapAlphaClipSkinnedShader>     m_shadowAlphaClipSkinnedShader;
 
-	std::vector<UISpriteEntry>          m_uiSprites;
-	int                                 m_pauseUISpriteIndex = -1;
-	UINT                                m_depthFogSceneColorSrvIndex = UINT_MAX;
-	UINT                                m_depthFogSceneDepthSrvIndex = UINT_MAX;
+	CGameSceneHUD                       m_hud;
 	ComPtr<ID3D12DescriptorHeap>        m_pd3dShadowDsvHeap;
 	ComPtr<ID3D12Resource>              m_pd3dShadowMap;
 	ComPtr<ID3D12Resource>              m_pd3dcbShadow;
 	CB_SHADOW* m_pcbMappedShadow = nullptr;
 	CB_SHADOW                           m_shadowData{};
+
+	XMFLOAT4X4                          m_shadowView{};
 
 	UINT                                m_shadowMapSize = 2048;
 	UINT                                m_shadowMapSrvIndex = UINT_MAX;
@@ -664,7 +640,6 @@ private:
 	bool                                       m_bSceneRenderTargetsReady = false;
 
 	bool                                m_bInactiveOverlayVisible = false;
-	bool                                m_bDepthFogPassEnabled = true;
 	bool                                m_bStartedGameplayMusic = false;
 	bool                                m_bWasLocalPlayerInsideMegaGridCenter = false;
 	bool                                m_bShowShadowMapOverlay = true;
@@ -676,6 +651,27 @@ private:
 	ComPtr<ID3D12Resource>              m_pd3dSkinnedInstanceBuffer;
 	std::vector<SkinnedWorldLodEntry>   m_skinnedWorldLodEntries;
 	std::vector<uint8_t>                m_skinnedDistanceCullFlags;
+
+	std::vector<SkinnedOcclusionEntry>  m_skinnedOcclusionEntries;
+	std::vector<uint8_t>                m_skinnedOcclusionCullFlags;
+	std::vector<int>                    m_skinnedShadowOcclusionEntryIndices;
+	std::vector<UINT64>                 m_skinnedOcclusionQuerySampleCounts;
+	std::vector<uint8_t>                m_skinnedOcclusionLastFrameIssuedFlags;
+	std::vector<uint8_t>                m_skinnedOcclusionCurrentFrameIssuedFlags;
+	std::vector<uint8_t>                m_skinnedOcclusionZeroSampleFrameCounts;
+	ComPtr<ID3D12QueryHeap>             m_pd3dSkinnedOcclusionQueryHeap;
+	ComPtr<ID3D12Resource>              m_pd3dSkinnedOcclusionReadbackBuffer;
+	UINT64* m_pMappedSkinnedOcclusionReadbackBuffer = nullptr;
+	ComPtr<ID3D12Resource>              m_pd3dSkinnedOcclusionInstanceBuffer;
+	StaticInstanceVertex* m_pMappedSkinnedOcclusionInstanceBuffer = nullptr;
+	UINT                                m_skinnedOcclusionQueryCapacity = 0;
+	bool                                m_bSkinnedOcclusionQueryResourcesReady = false;
+	bool                                m_bSkinnedOcclusionQueryResultsValid = false;
+	bool                                m_bSkinnedOcclusionCullingEnabled = true;
+	UINT                                m_skinnedOcclusionHideFrameThreshold = 8;
+	float                               m_skinnedOcclusionMinTestDistance = 35.0f;
+	float                               m_skinnedOcclusionMaxCullExtentDistanceRatio = 0.30f;
+
 	bool                                m_skinnedWorldLodDirty = false;
 	float                               m_skinnedLodHysteresis = 5.0f;
 	float                               m_skinnedCullHysteresis = 10.0f;

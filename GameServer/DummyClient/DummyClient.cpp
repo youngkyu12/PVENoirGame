@@ -5,6 +5,10 @@
 #include "BufferReader.h"
 #include "ServerPacketHandler.h"
 
+void RegisterStressSession(PacketSessionRef session);
+void UnregisterStressSession(PacketSessionRef session);
+void TickStressTest();
+
 char sendData[] = "Hello World";
 
 class ServerSession : public PacketSession
@@ -17,6 +21,8 @@ public:
 
 	virtual void OnConnected() override
 	{
+		RegisterStressSession(GetPacketSessionRef());
+
 		Protocol::C_LOGIN loginPkt;
 		auto sendBuffer = ServerPacketHandler::MakeSendBuffer(loginPkt);
 		Send(sendBuffer);
@@ -39,6 +45,8 @@ public:
 
 	virtual void OnDisconnected() override
 	{
+		UnregisterStressSession(GetPacketSessionRef());
+
 		//cout << "Disconnected" << endl;
 	}
 };
@@ -53,7 +61,7 @@ int main()
 		NetAddress(L"127.0.0.1", 7777),
 		MakeShared<IocpCore>(),
 		MakeShared<ServerSession>, // TODO : SessionManager 등
-		1);
+		4);
 
 	ASSERT_CRASH(service->Start());
 
@@ -68,18 +76,10 @@ int main()
 			});
 	}
 
-	Protocol::C_INPUT inputPkt;
-
-	inputPkt.set_playerid(1);
-	inputPkt.set_keycodes(0xF);
-
-	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(inputPkt);
-
 	while (true)
 	{
-
-		service->BroadCast(sendBuffer);
-		this_thread::sleep_for(1s);
+		TickStressTest();
+		this_thread::sleep_for(50ms);
 	}
 
 	GThreadManager->Join();
