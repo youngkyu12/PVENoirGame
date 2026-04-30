@@ -59,3 +59,10 @@ void Player::Build()
 
 	weapon.SetWeapon(Protocol::WEAPON_TYPE_SWORD, 0);
 }
+
+void Player::ApplyHit(uint32 serverTick, uint32 hitDurationTicks)
+{
+	cout << "Player Hit" << endl;
+	SetAnimState(Protocol::ANIMATION_TYPE_HIT);
+	SetAnimTick(serverTick);
+}

@@ -6190,6 +6190,9 @@ void CGameScene::AnimateObjects(float dt)
 			if (auto* bullet = m_bulletRefs[i]->GetComponent<CBulletComponent>())
 				bullet->Deactivate();
 		}
+
+		// 사용이 끝난 data는 기본값으로 초기화 (선택적)
+		m_pendingNetworkMessage.data = LoadoutData{};
     }
 #endif
    
