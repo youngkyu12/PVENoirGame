@@ -267,6 +267,7 @@ namespace
 	static constexpr float kTowerDoorPortalLowerExitYOffset = 0.0f;
 	static constexpr float kTowerDoorPortalUpperExitYOffset = 5.0f;
 	static constexpr float kTowerDoorPortalUpperHeightThreshold = 10.0f;
+	static constexpr float kTowerDoorPortalPlayerYawOffsetFromCamera = 180.0f;
 
 	static constexpr bool kEnableTowerDoorPortalCollisionLog = true;
 
@@ -375,6 +376,17 @@ namespace
 		}
 
 		return out;
+	}
+
+	static float NormalizeYawDegrees180(float yaw)
+	{
+		while ( yaw > 180.0f )
+			yaw -= 360.0f;
+
+		while ( yaw <= -180.0f )
+			yaw += 360.0f;
+
+		return yaw;
 	}
 
 	bool IsTowerDoorFrame2Name(const std::string& meshName, const std::string& authoringPath)
@@ -1071,6 +1083,72 @@ bool CGameScene::TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog)
 			return true;
 		};
 
+	auto RotateLocalPlayerAndCameraForPortal =
+		[&](
+			float yawDeltaDeg,
+			float& outOldCameraYaw,
+			float& outNewCameraYaw,
+			float& outOldPlayerYaw,
+			float& outNewPlayerYaw
+		) -> bool
+		{
+			outOldCameraYaw = 0.0f;
+			outNewCameraYaw = 0.0f;
+			outOldPlayerYaw = 0.0f;
+			outNewPlayerYaw = 0.0f;
+
+			bool rotatedAny = false;
+
+			CCamera* camera = GetMainCamera();
+
+			// 1) 카메라 yaw를 먼저 돌린다.
+			if ( camera )
+			{
+				outOldCameraYaw = camera->GetYaw();
+				outNewCameraYaw = NormalizeYawDegrees180(outOldCameraYaw + yawDeltaDeg);
+
+				camera->GetYaw() = outNewCameraYaw;
+
+				XMFLOAT3 cameraTarget = player->GetPosition();
+				cameraTarget.y += 1.7f;
+
+				camera->Update(cameraTarget, 0.0f);
+				camera->SetLookAt(cameraTarget);
+				camera->RegenerateViewMatrix();
+
+				rotatedAny = true;
+			}
+
+			// 2) 플레이어 모델은 카메라 yaw와 180도 오프셋을 둔다.
+			//    현재 상태에서 playerYaw == cameraYaw로 맞추면,
+			//    텔레포트 직후 플레이어가 다시 문을 바라보는 방향이 된다.
+			if ( auto* tr = player->GetComponent<CTransformComponent>() )
+			{
+				outOldPlayerYaw = QuaternionToYawDegrees(tr->rotation);
+
+				if ( camera )
+				{
+					outNewPlayerYaw = NormalizeYawDegrees180(
+						outNewCameraYaw + kTowerDoorPortalPlayerYawOffsetFromCamera
+					);
+				}
+				else
+				{
+					outNewPlayerYaw = NormalizeYawDegrees180(outOldPlayerYaw + yawDeltaDeg);
+				}
+
+				tr->SetYawDegrees(outNewPlayerYaw);
+				rotatedAny = true;
+			}
+			else
+			{
+				player->Rotate(0.0f, yawDeltaDeg, 0.0f);
+				rotatedAny = true;
+			}
+
+			return rotatedAny;
+		};
+
 	auto TeleportBetweenDoorGroups =
 		[&](
 			TowerDoorPortalEntry& portal,
@@ -1163,37 +1241,27 @@ bool CGameScene::TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog)
 			}
 
 			player->SetPosition(dst);
+
+			float oldCameraYaw = 0.0f;
+			float newCameraYaw = 0.0f;
+			float oldPlayerYaw = 0.0f;
+			float newPlayerYaw = 0.0f;
+
+			const bool rotatedPortalView =
+				RotateLocalPlayerAndCameraForPortal(
+					180.0f,
+					oldCameraYaw,
+					newCameraYaw,
+					oldPlayerYaw,
+					newPlayerYaw
+				);
+
 			playerCollider->UpdateWorldBounds();
 
 			if ( auto* controller = player->GetComponent<CPlayerControllerComponent>() )
 				controller->SetVelocity(XMFLOAT3(0.0f, 0.0f, 0.0f));
 
 			portal.cooldownFrames = kTowerDoorPortalCooldownFrames;
-
-			char buf[256];
-			XMFLOAT3 exitDirF{};
-			XMStoreFloat3(&exitDirF, exitDir);
-
-			sprintf_s(
-				buf,
-				"[TowerDoorPortal][TELEPORT] %s -> %s dst=(%.3f, %.3f, %.3f) targetCenter=(%.3f, %.3f, %.3f) targetBottomY=%.3f yOffset=%.3f exitDir=(%.3f, %.3f, %.3f) sideSign=%.1f\n",
-				debugFrom,
-				debugTo,
-				dst.x,
-				dst.y,
-				dst.z,
-				targetCenter.x,
-				targetCenter.y,
-				targetCenter.z,
-				targetBottomY,
-				appliedYOffset,
-				exitDirF.x,
-				exitDirF.y,
-				exitDirF.z,
-				sideSign
-			);
-
-			OutputDebugStringA(buf);
 
 			UpdateDynamicGridState();
 
