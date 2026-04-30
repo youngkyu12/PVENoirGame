@@ -3,32 +3,41 @@
 
 void Player::Update(uint32 serverTick)
 {
+	if (GetAnimState() == Protocol::ANIMATION_TYPE_DIE)
+	{
+		SetVelocity(GameMath::Vec3::Zero());
+
+		constexpr uint32 kRespawnDelayTicks = 80; // ~5초 (60ms * 80)
+		if (serverTick >= m_deathTick + kRespawnDelayTicks)
+		{
+			Respawn(serverTick);
+		}
+		return;
+	}
+
 	Move(m_velocity * ((GetAnimState() == Protocol::ANIMATION_TYPE_RUN) + 1));
 
-	// player는 Move 이후에는 자기 속도를 초기화하는 것으로 가정 (옵션)
 	SetVelocity(GameMath::Vec3::Zero());
 
-	// 애니메이션 업데이트 (옵션)
-
-	if(m_animState != Protocol::ANIMATION_TYPE_IDLE)
+	if (m_animState != Protocol::ANIMATION_TYPE_IDLE)
 	{
 		int animDuration = 0;
 		switch (m_animState)
 		{
 		case Protocol::ANIMATION_TYPE_WALK:
-			animDuration = 15; // 30 ticks
+			animDuration = 15;
 			break;
 		case Protocol::ANIMATION_TYPE_RUN:
-			animDuration = 10; // 20 ticks
+			animDuration = 10;
 			break;
 		case Protocol::ANIMATION_TYPE_ATTACK:
-			animDuration = 10; // 20 ticks
+			animDuration = 10;
 			break;
 		case Protocol::ANIMATION_TYPE_ROLL:
-			animDuration = 1; // 40 ticks
+			animDuration = 1;
 			break;
 		case Protocol::ANIMATION_TYPE_DIE:
-			animDuration = 25; // 50 ticks
+			animDuration = 25;
 			break;
 		case Protocol::ANIMATION_TYPE_HIT:
 			animDuration = 10;
@@ -39,8 +48,8 @@ void Player::Update(uint32 serverTick)
 		}
 		if (animDuration > 0)
 		{
-			int elapsedTicks = serverTick - GetAnimTick(); // tick은 Room의 Atomic<uint32> tick
-			if (elapsedTicks >= animDuration && m_animState != Protocol::ANIMATION_TYPE_DIE 
+			int elapsedTicks = serverTick - GetAnimTick();
+			if (elapsedTicks >= animDuration && m_animState != Protocol::ANIMATION_TYPE_DIE
 				&& m_animState != Protocol::ANIMATION_TYPE_WALK
 				&& m_animState != Protocol::ANIMATION_TYPE_RUN)
 			{
@@ -56,13 +65,36 @@ void Player::Build()
 	SetPosition(0.0f, 0.0f, 0.0f);
 	Rotate(0.0f, 0.0f, 0.0f);
 
-
 	weapon.SetWeapon(Protocol::WEAPON_TYPE_SWORD, 0);
 }
 
-void Player::ApplyHit(uint32 serverTick, uint32 hitDurationTicks)
+void Player::ApplyHit(uint32 serverTick, int damage, uint32 hitDurationTicks)
 {
-	cout << "Player Hit" << endl;
+	if (IsDead()) return;
+
+	TakeDamage(damage);
+
+	if (IsDead())
+	{
+		cout << "Player " << GetObjectId() << " died" << endl;
+		SetAnimState(Protocol::ANIMATION_TYPE_DIE);
+		SetAnimTick(serverTick);
+		SetVelocity(GameMath::Vec3::Zero());
+		m_deathTick = serverTick;
+		return;
+	}
+
+	cout << "Player " << GetObjectId() << " hit (HP: " << GetCurrentHp() << "/" << GetMaxHp() << ")" << endl;
 	SetAnimState(Protocol::ANIMATION_TYPE_HIT);
+	SetAnimTick(serverTick);
+}
+
+void Player::Respawn(uint32 serverTick)
+{
+	cout << "Player " << GetObjectId() << " respawned" << endl;
+	ResetHpToMax();
+	SetPosition(GameMath::Vec3(0.0f, 0.0f, -200.0f));
+	SetVelocity(GameMath::Vec3::Zero());
+	SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
 	SetAnimTick(serverTick);
 }

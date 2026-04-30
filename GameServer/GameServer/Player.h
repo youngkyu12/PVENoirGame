@@ -19,12 +19,13 @@ public:
 public:
 	virtual void Update(uint32 serverTick) override;
 	void Build();
+	void ApplyHit(uint32 serverTick, int damage, uint32 hitDurationTicks = 10);
+	void Respawn(uint32 serverTick);
 
 private:
-	//PlayerControllerComponentRef controller;
 	CWeapon weapon;
-private:
 	uint32 m_hitEndTick = 0;
+	uint32 m_deathTick = 0;
 
 public:
 	void SetWeapon(Protocol::WeaponType& type, uint32& currentBullets)
@@ -48,7 +49,5 @@ public:
 
 	bool CanFire(uint32 serverTick) const { return weapon.CanFire(serverTick); }
 	void OnFired(uint32 serverTick) { weapon.OnFired(serverTick); }
-	void ApplyHit(uint32 serverTick, uint32 hitDurationTicks = 10);
 
 };
-
