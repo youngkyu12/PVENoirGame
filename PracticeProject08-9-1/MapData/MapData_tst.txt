@@ -25,7 +25,8 @@ ASSET_COUNT|asset="Tree4"|count=1
 ASSET_COUNT|asset="Tree5"|count=1
 ASSET_COUNT|asset="Tree6"|count=1
 ASSET_COUNT|asset="Castle"|count=1
-asset_type_count=19
+ASSET_COUNT|asset="Tower"|count=1
+asset_type_count=20
 [ASSET_COUNTS_END]
 
 [PLACEMENT_ENTRIES_BEGIN]
@@ -48,6 +49,7 @@ ENTRY|asset="Tree4"|object="Tree4"|pos=(66.30011,0,23.96975)|rot=(0,0,0,1)
 ENTRY|asset="Tree5"|object="Tree5"|pos=(68.0015,1,50.25491)|rot=(0,0,0,1)
 ENTRY|asset="Tree6"|object="Tree6"|pos=(68.01665,1,72.08817)|rot=(0,0,0,1)
 ENTRY|asset="Castle"|object="Castle"|pos=(0,0,400)|rot=(0,0,0,1)
-entry_count=19
+ENTRY|asset="Tower"|object="Tower"|pos=(31.7,0,-57.4911)|rot=(0,0,0,1)
+entry_count=20
 [PLACEMENT_ENTRIES_END]
 [PLACEMENT_EXPORT_END]

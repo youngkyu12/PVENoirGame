@@ -1,10 +1,10 @@
 === Scene Cube BoxCollider Report ===
-GeneratedAt: 2026-04-30 15:58:35
+GeneratedAt: 2026-04-30 15:30:39
 SceneName: TestScene
 ScenePath: Assets/Scenes/TestScene.unity
-TopRootCount: 18
-TargetObjectCount: 122
-CubeColliderCount: 276
+TopRootCount: 17
+TargetObjectCount: 121
+CubeColliderCount: 275
 
 [TopRootGroup #1]
 TopRootName: Building1
@@ -3690,32 +3690,6 @@ TargetObjectCount: 8
 ------------------------------------------------------------
 
 [TopRootGroup #11]
-TopRootName: Tower
-TopRootPath: Tower[21]
-TargetObjectCount: 1
-
-  [A #1]
-  AName: TowerP
-  APath: Tower[21]/TowerP[0]
-  TopRootName: Tower
-  TopRootPath: Tower[21]
-  CubeColliderCount: 1
-
-    [CubeCollider #1]
-    ChildName: Cube
-    ChildPath: Tower[21]/TowerP[0]/Cube[0]
-    CenterInTopRoot_Local: (-0.0629, 39.9900, -0.0691)
-    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-    SizeInTopRoot_Local: (30.0000, 120.0000, 33.0000)
-    ChildLocalPositionFromA: (-0.0021, -2.7085, -0.0021)
-    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
-    ChildLocalScaleFromA: (1.0000, 6.0000, 1.0000)
-    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
-    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
-
-------------------------------------------------------------
-
-[TopRootGroup #12]
 TopRootName: Tree1
 TopRootPath: Tree1[14]
 TargetObjectCount: 1
@@ -3741,7 +3715,7 @@ TargetObjectCount: 1
 
 ------------------------------------------------------------
 
-[TopRootGroup #13]
+[TopRootGroup #12]
 TopRootName: Tree2
 TopRootPath: Tree2[15]
 TargetObjectCount: 1
@@ -3767,7 +3741,7 @@ TargetObjectCount: 1
 
 ------------------------------------------------------------
 
-[TopRootGroup #14]
+[TopRootGroup #13]
 TopRootName: Tree3
 TopRootPath: Tree3[16]
 TargetObjectCount: 1
@@ -3817,7 +3791,7 @@ TargetObjectCount: 1
 
 ------------------------------------------------------------
 
-[TopRootGroup #15]
+[TopRootGroup #14]
 TopRootName: Tree4
 TopRootPath: Tree4[17]
 TargetObjectCount: 1
@@ -3843,7 +3817,7 @@ TargetObjectCount: 1
 
 ------------------------------------------------------------
 
-[TopRootGroup #16]
+[TopRootGroup #15]
 TopRootName: Tree5
 TopRootPath: Tree5[18]
 TargetObjectCount: 1
@@ -3869,7 +3843,7 @@ TargetObjectCount: 1
 
 ------------------------------------------------------------
 
-[TopRootGroup #17]
+[TopRootGroup #16]
 TopRootName: Tree6
 TopRootPath: Tree6[19]
 TargetObjectCount: 1
@@ -3919,7 +3893,7 @@ TargetObjectCount: 1
 
 ------------------------------------------------------------
 
-[TopRootGroup #18]
+[TopRootGroup #17]
 TopRootName: VillageWall
 TopRootPath: VillageWall[13]
 TargetObjectCount: 12
