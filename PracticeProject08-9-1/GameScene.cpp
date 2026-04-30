@@ -267,6 +267,7 @@ namespace
 	static constexpr float kTowerDoorPortalLowerExitYOffset = 0.0f;
 	static constexpr float kTowerDoorPortalUpperExitYOffset = 5.0f;
 	static constexpr float kTowerDoorPortalUpperHeightThreshold = 10.0f;
+	static constexpr float kDisableVillageTreeCullPlayerHeight = 3.0f;
 	static constexpr float kTowerDoorPortalPlayerYawOffsetFromCamera = 0.0f;
 
 	static constexpr bool kEnableTowerDoorPortalCollisionLog = true;
@@ -637,6 +638,21 @@ bool CGameScene::ShouldCullTreesByVillageGrid(CCamera* camera) const
 {
 	if ( !m_sceneGrid.IsInitialized() )
 		return false;
+
+	CGameObject* localPlayer = GetPlayer();
+
+	if ( !localPlayer )
+		localPlayer = GetPlayerBySlot(0);
+
+	if ( localPlayer )
+	{
+		const XMFLOAT3 playerPosition = localPlayer->GetPosition();
+
+		// Tower 포탈 등으로 위로 올라간 경우에는
+		// 성벽/문 기준 나무 컬링을 하지 않는다.
+		if ( playerPosition.y >= kDisableVillageTreeCullPlayerHeight )
+			return false;
+	}
 
 	int cellX = -1;
 	int cellZ = -1;
@@ -3072,7 +3088,7 @@ void CGameScene::BuildStaticBatch(
 			{
 				lodEntry.lodDistance01 = 40.0f;
 				lodEntry.lodDistance12 = 120.0f;
-				lodEntry.cullDistance = 300.0f;
+				lodEntry.cullDistance = 500.0f;
 			}
 			else
 			{
@@ -6266,12 +6282,19 @@ void CGameScene::UpdateDepthFogState(float dt)
 {
 #ifndef USING_NETWORK
 	const int megaGridNumber = GetLocalPlayerMegaGridNumberForDepthFog();
-	const bool enableFog = ( megaGridNumber == 1 || megaGridNumber == 9 );
+
+	const bool isDenseFogZone =
+		( megaGridNumber == 1 || megaGridNumber == 9 );
+
+	const EDepthFogPresetMode fogMode =
+		isDenseFogZone
+		? EDepthFogPresetMode::ZoneDense
+		: EDepthFogPresetMode::OuterWide;
 #else
-	const bool enableFog = true;
+	const EDepthFogPresetMode fogMode = EDepthFogPresetMode::OuterWide;
 #endif
 
-	m_depthFog.UpdateState(dt, enableFog);
+	m_depthFog.UpdateState(dt, fogMode);
 }
 
 bool CGameScene::IsLocalPlayer(const CGameObject* obj) const
