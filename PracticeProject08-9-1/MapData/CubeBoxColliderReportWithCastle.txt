@@ -1,10 +1,10 @@
 === Scene Cube BoxCollider Report ===
-GeneratedAt: 2026-04-30 15:58:35
+GeneratedAt: 2026-04-30 20:54:26
 SceneName: TestScene
 ScenePath: Assets/Scenes/TestScene.unity
 TopRootCount: 18
 TargetObjectCount: 122
-CubeColliderCount: 276
+CubeColliderCount: 280
 
 [TopRootGroup #1]
 TopRootName: Building1
@@ -3699,11 +3699,59 @@ TargetObjectCount: 1
   APath: Tower[21]/TowerP[0]
   TopRootName: Tower
   TopRootPath: Tower[21]
-  CubeColliderCount: 1
+  CubeColliderCount: 5
 
     [CubeCollider #1]
     ChildName: Cube
-    ChildPath: Tower[21]/TowerP[0]/Cube[0]
+    ChildPath: Tower[21]/TowerP[0]/Cube[4]
+    CenterInTopRoot_Local: (-0.0629, 109.9900, -29.2741)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (30.0000, 20.0000, 33.0000)
+    ChildLocalPositionFromA: (-0.0021, 0.7915, -0.8871)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.0000, 1.0000, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: Tower[21]/TowerP[0]/Cube[5]
+    CenterInTopRoot_Local: (-0.0629, 109.9900, 27.2879)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (30.0000, 20.0000, 33.0000)
+    ChildLocalPositionFromA: (-0.0021, 0.7915, 0.8269)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.0000, 1.0000, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: Tower[21]/TowerP[0]/Cube[6]
+    CenterInTopRoot_Local: (-24.9329, 109.9900, -0.0691)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (30.0000, 20.0000, 33.0000)
+    ChildLocalPositionFromA: (-0.8311, 0.7915, -0.0021)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.0000, 1.0000, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #4]
+    ChildName: Cube
+    ChildPath: Tower[21]/TowerP[0]/Cube[7]
+    CenterInTopRoot_Local: (26.4871, 109.9900, -0.0691)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (30.0000, 20.0000, 33.0000)
+    ChildLocalPositionFromA: (0.8829, 0.7915, -0.0021)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.0000, 1.0000, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #5]
+    ChildName: Cube
+    ChildPath: Tower[21]/TowerP[0]/Cube[8]
     CenterInTopRoot_Local: (-0.0629, 39.9900, -0.0691)
     RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
     SizeInTopRoot_Local: (30.0000, 120.0000, 33.0000)
