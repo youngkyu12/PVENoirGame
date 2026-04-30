@@ -23,6 +23,12 @@ struct CB_FOG
 	XMFLOAT4 fogParams1 = XMFLOAT4(1.01f, 5000.0f, 0.0f, 0.0f);
 };
 
+enum class EDepthFogPresetMode : uint8_t
+{
+	OuterWide = 0,
+	ZoneDense = 1
+};
+
 class CDepthFogSystem final
 {
 public:
@@ -51,7 +57,7 @@ public:
 	void SetPassEnabled(bool enabled) { m_passEnabled = enabled; }
 	bool IsPassEnabled() const { return m_passEnabled; }
 
-	void UpdateState(float dt, bool enableFog);
+	void UpdateState(float dt, EDepthFogPresetMode mode);
 	void UploadConstantBuffer();
 	void BindConstantBuffer(ID3D12GraphicsCommandList* cmd) const;
 
@@ -66,13 +72,17 @@ private:
 	CB_FOG* m_mappedFog = nullptr;
 
 	CB_FOG m_fogData{};
-	CB_FOG m_enabledPreset{};
-	CB_FOG m_disabledPreset{};
+	CB_FOG m_zoneDensePreset{};
+	CB_FOG m_outerWidePreset{};
+	CB_FOG m_blendStartPreset{};
+	CB_FOG m_blendTargetPreset{};
 
-	bool m_targetEnabled = false;
+	EDepthFogPresetMode m_currentMode = EDepthFogPresetMode::OuterWide;
+	EDepthFogPresetMode m_targetMode = EDepthFogPresetMode::OuterWide;
+
 	bool m_passEnabled = true;
 
-	float m_fadeAlpha = 0.0f;
+	float m_fadeAlpha = 1.0f;
 	float m_fadeDuration = 1.0f;
 
 	UINT m_sceneColorSrvIndex = UINT_MAX;
