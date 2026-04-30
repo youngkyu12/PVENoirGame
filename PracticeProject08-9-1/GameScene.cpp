@@ -157,6 +157,7 @@ namespace
 	static constexpr UINT kDebugSubmeshOOBBCapacity = 8192;
 	static constexpr bool kEnableStaticWorldLocalOOBBReportExport = false;
 	static constexpr const char* kStaticWorldLocalOOBBReportPath = "MapData/StaticWorldLocalOOBBReport.txt";
+	static constexpr bool kEnableCastleVillageWallColliderBuildLog = true;
 
 	static XMFLOAT4X4 BuildWorldMatrixFromOOBB(const BoundingOrientedBox& box)
 	{
@@ -191,6 +192,7 @@ namespace
 	{
 		return
 			( assetName == "VillageWall" ) ||
+			( assetName == "Castle" ) ||
 			( assetName == "Tower" ) ||
 			( assetName == "Building1" ) ||
 			( assetName == "Building2" ) ||
@@ -414,6 +416,7 @@ CGameScene::CGameScene()
 	m_grassCount = 1;
     m_groundCount = 1;
     m_villagewallCount = 1;
+	m_castleCount = 1;
 	m_dirtRoadCount = 1;
 
     m_building1Count = 1;
@@ -556,6 +559,7 @@ void CGameScene::RegisterStaticPlacementToGrid(const StaticPlacementEntry& place
 
 	const bool isBuilding =
 		( placement.assetName == "VillageWall" ) ||
+		( placement.assetName == "Castle" ) ||
 		( placement.assetName == "Tower" ) ||
 		( placement.assetName == "Building1" ) ||
 		( placement.assetName == "Building2" ) ||
@@ -1504,6 +1508,7 @@ void CGameScene::ResetStaticPlacementCounts()
     m_grassCount = 0;
     m_groundCount = 0;
     m_villagewallCount = 0;
+	m_castleCount = 0;
     m_dirtRoadCount = 0;
 
     m_building1Count = 0;
@@ -1527,6 +1532,7 @@ void CGameScene::ApplyStaticPlacementCounts()
         if (e.assetName == "Grass")       ++m_grassCount;
         else if (e.assetName == "Ground")      ++m_groundCount;
         else if (e.assetName == "VillageWall") ++m_villagewallCount;
+		else if ( e.assetName == "Castle" )    ++m_castleCount;
         else if (e.assetName == "DirtRoad")    ++m_dirtRoadCount;
         else if (e.assetName == "Building1")   ++m_building1Count;
         else if (e.assetName == "Building2")   ++m_building2Count;
@@ -2178,12 +2184,49 @@ void CGameScene::BuildStaticBatch(
 		createDesc.colliderLayer = kCollisionLayerWorldStatic;
 		createDesc.colliderMask = CollisionBit(kCollisionLayerPlayer);
 
+		const bool logCastleVillageWallColliderBuild =
+			kEnableCastleVillageWallColliderBuildLog &&
+			( placement.assetName == "Castle" || placement.assetName == "VillageWall" );
+
+		createDesc.debugColliderBuildLog = logCastleVillageWallColliderBuild;
+		createDesc.debugColliderAssetName = placement.assetName;
+		createDesc.debugColliderObjectName = placement.objectName;
+
 		if ( createWorldStaticCollider )
 		{
 			const auto authoredIt = mSceneCubeBoxColliderTable.find(placement.assetName);
 			if ( authoredIt != mSceneCubeBoxColliderTable.end() )
 			{
 				createDesc.authoredStaticSubMeshOOBBs = &authoredIt->second;
+
+				if ( logCastleVillageWallColliderBuild )
+				{
+					size_t authoredBoxTotal = 0;
+					for ( const auto& kv : authoredIt->second )
+						authoredBoxTotal += kv.second.size();
+
+					char buf[512];
+					sprintf_s(
+						buf,
+						"[ColliderBuild][SCENE_AUTHORED_TABLE_FOUND] asset=\"%s\" object=\"%s\" pathGroupCount=%zu authoredBoxTotal=%zu\n",
+						placement.assetName.c_str(),
+						placement.objectName.c_str(),
+						authoredIt->second.size(),
+						authoredBoxTotal
+					);
+					OutputDebugStringA(buf);
+				}
+			}
+			else if ( logCastleVillageWallColliderBuild )
+			{
+				char buf[512];
+				sprintf_s(
+					buf,
+					"[ColliderBuild][SCENE_AUTHORED_TABLE_MISSING] asset=\"%s\" object=\"%s\"\n",
+					placement.assetName.c_str(),
+					placement.objectName.c_str()
+				);
+				OutputDebugStringA(buf);
 			}
 		}
 
@@ -2236,9 +2279,9 @@ void CGameScene::BuildStaticBatch(
 				placement.assetName == "Building9" ||
 				placement.assetName == "Tower" )
 			{
-				lodEntry.lodDistance01 = 150.0f;
-				lodEntry.lodDistance12 = 380.0f;
-				lodEntry.cullDistance = 550.0f;
+				lodEntry.lodDistance01 = 50.0f;
+				lodEntry.lodDistance12 = 300.0f;
+				lodEntry.cullDistance = 400.0f;
 			}
 			else if (
 				placement.assetName == "Tree1" ||
@@ -2250,7 +2293,7 @@ void CGameScene::BuildStaticBatch(
 			{
 				lodEntry.lodDistance01 = 40.0f;
 				lodEntry.lodDistance12 = 120.0f;
-				lodEntry.cullDistance = 250.0f;
+				lodEntry.cullDistance = 300.0f;
 			}
 			else
 			{
@@ -3514,7 +3557,7 @@ void CGameScene::BuildSkinnedBatch(
 		};
 
 	const UINT fighterCount = m_PlayerCount;
-	const XMFLOAT3 playerBase(0.0f, 0.0f, -150.0f);
+	const XMFLOAT3 playerBase(0.0f, 0.0f, -200.0f);
 
 	m_swordManRefs.clear();
 	m_swordManRefs.reserve(m_swordManCount);

@@ -95,6 +95,15 @@ std::unique_ptr<CGameObject> GameSceneObjectFactory::CreateStaticRenderable(cons
 		auto* collider = obj->AddComponent<CColliderComponent>(desc.colliderType);
 		if ( collider )
 		{
+			if ( desc.debugColliderBuildLog )
+			{
+				collider->SetColliderBuildLogEnabled(
+					true,
+					desc.debugColliderAssetName,
+					desc.debugColliderObjectName
+				);
+			}
+
 			if ( desc.configureColliderFiltering )
 			{
 				collider->SetLayer(desc.colliderLayer);
@@ -136,6 +145,7 @@ std::unique_ptr<CGameObject> GameSceneObjectFactory::CreateStaticRenderable(cons
 		obj->SetPosition(desc.position);
 		obj->Rotate(0.0f, desc.yawDeg, 0.0f);
 	}
+
 
 	obj->SetCbvGPUDescriptorHandlePtr(desc.ctx.cbvGpuHandle.ptr);
 	obj->CreateComponents(desc.ctx.device, desc.ctx.cmd);

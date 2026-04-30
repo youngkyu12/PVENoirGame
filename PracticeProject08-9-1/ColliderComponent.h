@@ -143,8 +143,18 @@ public:
 
 	bool IntersectsActiveWeaponBoneCapsulesAgainstBody(const CColliderComponent& targetBody) const;
 
+	void SetColliderBuildLogEnabled(
+		bool enabled,
+		const std::string& assetName = std::string(),
+		const std::string& objectName = std::string()
+	);
+
 private:
 	void RebuildWeaponBoneCapsuleSelection();
+
+	bool mDebugColliderBuildLogEnabled = false;
+	std::string mDebugColliderAssetName;
+	std::string mDebugColliderObjectName;
 
 private:
 	std::vector<std::string> mWeaponBoneRootNames;
