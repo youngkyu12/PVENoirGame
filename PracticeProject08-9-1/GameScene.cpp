@@ -267,7 +267,7 @@ namespace
 	static constexpr float kTowerDoorPortalLowerExitYOffset = 0.0f;
 	static constexpr float kTowerDoorPortalUpperExitYOffset = 5.0f;
 	static constexpr float kTowerDoorPortalUpperHeightThreshold = 10.0f;
-	static constexpr float kTowerDoorPortalPlayerYawOffsetFromCamera = 180.0f;
+	static constexpr float kTowerDoorPortalPlayerYawOffsetFromCamera = 0.0f;
 
 	static constexpr bool kEnableTowerDoorPortalCollisionLog = true;
 
@@ -1119,24 +1119,32 @@ bool CGameScene::TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog)
 				rotatedAny = true;
 			}
 
-			// 2) 플레이어 모델은 카메라 yaw와 180도 오프셋을 둔다.
-			//    현재 상태에서 playerYaw == cameraYaw로 맞추면,
-			//    텔레포트 직후 플레이어가 다시 문을 바라보는 방향이 된다.
+			// 2) 로컬 플레이어의 실제 회전 기준은 CPlayerControllerComponent 쪽이다.
+			//    프레임워크 입력 처리도 pc->SetYawDegrees(cameraYawDeg),
+			//    pc->RotateTowardYawDegrees(cameraYawDeg, ...)를 사용하므로
+			//    포탈 직후에도 controller yaw를 카메라 yaw와 같은 값으로 맞춘다.
+			const float desiredPlayerYaw =
+				camera
+				? outNewCameraYaw
+				: NormalizeYawDegrees180(outOldPlayerYaw + yawDeltaDeg);
+
 			if ( auto* tr = player->GetComponent<CTransformComponent>() )
 			{
 				outOldPlayerYaw = QuaternionToYawDegrees(tr->rotation);
+			}
 
-				if ( camera )
-				{
-					outNewPlayerYaw = NormalizeYawDegrees180(
-						outNewCameraYaw + kTowerDoorPortalPlayerYawOffsetFromCamera
-					);
-				}
-				else
-				{
-					outNewPlayerYaw = NormalizeYawDegrees180(outOldPlayerYaw + yawDeltaDeg);
-				}
+			outNewPlayerYaw = desiredPlayerYaw;
 
+			if ( auto* controller = player->GetComponent<CPlayerControllerComponent>() )
+			{
+				controller->SetYawDegrees(outNewPlayerYaw);
+				controller->SetVelocity(XMFLOAT3(0.0f, 0.0f, 0.0f));
+				controller->SetInputDirection(static_cast< DWORD >( 0 ));
+				controller->SetRunRequested(false);
+				rotatedAny = true;
+			}
+			else if ( auto* tr = player->GetComponent<CTransformComponent>() )
+			{
 				tr->SetYawDegrees(outNewPlayerYaw);
 				rotatedAny = true;
 			}
@@ -1259,7 +1267,11 @@ bool CGameScene::TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog)
 			playerCollider->UpdateWorldBounds();
 
 			if ( auto* controller = player->GetComponent<CPlayerControllerComponent>() )
+			{
 				controller->SetVelocity(XMFLOAT3(0.0f, 0.0f, 0.0f));
+				controller->SetInputDirection(static_cast< DWORD >( 0 ));
+				controller->SetRunRequested(false);
+			}
 
 			portal.cooldownFrames = kTowerDoorPortalCooldownFrames;
 
