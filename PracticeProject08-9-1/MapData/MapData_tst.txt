@@ -8,6 +8,15 @@ entry_section_format="ENTRY|asset=...|object=...|pos=(x,y,z)|rot=(x,y,z,w)"
 [ASSET_COUNTS_BEGIN]
 ASSET_COUNT|asset="Grass"|count=1
 ASSET_COUNT|asset="Ground"|count=1
+ASSET_COUNT|asset="Building1"|count=1
+ASSET_COUNT|asset="Building2"|count=1
+ASSET_COUNT|asset="Building3"|count=1
+ASSET_COUNT|asset="Building4"|count=1
+ASSET_COUNT|asset="Building5"|count=1
+ASSET_COUNT|asset="Building6"|count=1
+ASSET_COUNT|asset="Building7"|count=1
+ASSET_COUNT|asset="Building8"|count=1
+ASSET_COUNT|asset="Building9"|count=1
 ASSET_COUNT|asset="VillageWall"|count=1
 ASSET_COUNT|asset="Tree1"|count=1
 ASSET_COUNT|asset="Tree2"|count=1
@@ -16,12 +25,21 @@ ASSET_COUNT|asset="Tree4"|count=1
 ASSET_COUNT|asset="Tree5"|count=1
 ASSET_COUNT|asset="Tree6"|count=1
 ASSET_COUNT|asset="Castle"|count=1
-asset_type_count=10
+asset_type_count=19
 [ASSET_COUNTS_END]
 
 [PLACEMENT_ENTRIES_BEGIN]
 ENTRY|asset="Grass"|object="Grass"|pos=(0,-0.01,0)|rot=(0,0,0,1)
 ENTRY|asset="Ground"|object="Ground"|pos=(0,0,0)|rot=(0,0,0,1)
+ENTRY|asset="Building1"|object="Building1"|pos=(-50,0,-70)|rot=(0,0,0,1)
+ENTRY|asset="Building2"|object="Building2"|pos=(-50,0,-40)|rot=(0,0,0,1)
+ENTRY|asset="Building3"|object="Building3"|pos=(-50,0,-10)|rot=(0,0,0,1)
+ENTRY|asset="Building4"|object="Building4"|pos=(-50,0,30)|rot=(0,0,0,1)
+ENTRY|asset="Building5"|object="Building5"|pos=(-50,0,70)|rot=(0,0,0,1)
+ENTRY|asset="Building6"|object="Building6"|pos=(0,0,-60)|rot=(0,0,0,1)
+ENTRY|asset="Building7"|object="Building7"|pos=(0,0,-20)|rot=(0,0,0,1)
+ENTRY|asset="Building8"|object="Building8"|pos=(0,0,20)|rot=(0,0,0,1)
+ENTRY|asset="Building9"|object="Building9"|pos=(0,0,70)|rot=(0,0,0,1)
 ENTRY|asset="VillageWall"|object="VillageWall"|pos=(0,0,0)|rot=(0,0,0,1)
 ENTRY|asset="Tree1"|object="Tree1"|pos=(68.23148,0,-71.86229)|rot=(0,0,0,1)
 ENTRY|asset="Tree2"|object="Tree2"|pos=(72.06123,0,-36.78784)|rot=(0,0,0,1)
@@ -30,6 +48,6 @@ ENTRY|asset="Tree4"|object="Tree4"|pos=(66.30011,0,23.96975)|rot=(0,0,0,1)
 ENTRY|asset="Tree5"|object="Tree5"|pos=(68.0015,1,50.25491)|rot=(0,0,0,1)
 ENTRY|asset="Tree6"|object="Tree6"|pos=(68.01665,1,72.08817)|rot=(0,0,0,1)
 ENTRY|asset="Castle"|object="Castle"|pos=(0,0,400)|rot=(0,0,0,1)
-entry_count=10
+entry_count=19
 [PLACEMENT_ENTRIES_END]
 [PLACEMENT_EXPORT_END]

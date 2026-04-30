@@ -434,6 +434,7 @@ private:
     UINT m_grassCount = 1;
     UINT m_groundCount = 1;
     UINT m_villagewallCount = 1;
+	UINT m_castleCount = 1;
 	UINT m_dirtRoadCount = 1;
 
     UINT m_building1Count = 1;

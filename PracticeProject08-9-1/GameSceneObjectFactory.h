@@ -59,6 +59,10 @@ namespace GameSceneObjectFactory
 
 		const std::unordered_map<std::string, std::vector<AuthoredSubMeshOOBB>>* authoredStaticSubMeshOOBBs = nullptr;
 
+		bool debugColliderBuildLog = false;
+		std::string debugColliderAssetName;
+		std::string debugColliderObjectName;
+
 		bool addArrowComponent = false;
 		bool addBulletComponent = false;
 		bool addMonsterWeaponHitbox = false;

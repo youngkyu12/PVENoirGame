@@ -318,6 +318,7 @@ void CGameScene::BuildStaticOcclusionEntries()
 
 		const bool isOcclusionTarget =
 			( assetName == "VillageWall" ) ||
+			( assetName == "Castle" ) ||
 			( assetName == "Tower" ) ||
 			( assetName == "Building1" ) ||
 			( assetName == "Building2" ) ||
