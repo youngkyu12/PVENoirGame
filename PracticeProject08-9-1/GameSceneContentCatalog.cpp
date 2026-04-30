@@ -96,7 +96,7 @@ const GameSceneStageFileSet& GetLocalStageFileSet(ELocalStagePreset preset)
 	static const GameSceneStageFileSet kFullStage =
 	{
 		"MapData/MapData_fullstage(withBoss).txt",
-		"MapData/Navmesh_FullStage.nvm",
+		"MapData/FullStageNavmeshAll.nvm",
 		"MapData/CubeBoxColliderReportWithCastle.txt",
 		"MapData/monster_spawn_points.txt"
 	};
