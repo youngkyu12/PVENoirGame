@@ -150,7 +150,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 			moveDirection = player->GetVelocity().Normalized();
 		}
 	}
-	shift = moveDirection * fDistance;
+	shift += moveDirection * fDistance;
 
 	const float moveMul = (player->GetAnimState() == Protocol::ANIMATION_TYPE_RUN
 		&& !(player->GetAnimState() == Protocol::ANIMATION_TYPE_ROLL 
