@@ -1,0 +1,4169 @@
+=== Scene Cube BoxCollider Report ===
+GeneratedAt: 2026-04-30 13:59:04
+SceneName: TestScene
+ScenePath: Assets/Scenes/TestScene.unity
+TopRootCount: 2
+TargetObjectCount: 121
+CubeColliderCount: 275
+
+[TopRootGroup #1]
+TopRootName: Castle
+TopRootPath: Castle[4]
+TargetObjectCount: 8
+
+  [A #1]
+  AName: Tower 2 (1)
+  APath: Castle[4]/Tower 2 (1)[3]
+  TopRootName: Castle
+  TopRootPath: Castle[4]
+  CubeColliderCount: 12
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (1)[3]/Cube[0]
+    CenterInTopRoot_Local: (0.0000, 13.0000, 81.4800)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (5.2000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (0.0000, 2.1300, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.3000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (1)[3]/Cube[1]
+    CenterInTopRoot_Local: (-0.0206, 13.0000, 98.5724)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (5.2000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-0.0051, -2.1431, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.3000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (1)[3]/Cube[2]
+    CenterInTopRoot_Local: (-8.4656, 13.0000, 90.0285)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (4.1889, 20.8303, 5.2764)
+    ChildLocalPositionFromA: (-2.1164, -0.0071, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.0472, 4.1661, 1.3191)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #4]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (1)[3]/Cube[3]
+    CenterInTopRoot_Local: (8.4656, 13.0000, 90.0285)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (4.1889, 20.8303, 5.2764)
+    ChildLocalPositionFromA: (2.1164, -0.0071, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.0472, 4.1661, 1.3191)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #5]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (1)[3]/Cube[4]
+    CenterInTopRoot_Local: (4.5080, 13.0000, 82.5640)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.224815, 0.000000, 0.974402)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.1270, 1.8590, 0.0000)
+    ChildLocalRotationFromA_Euler: (64.0161, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #6]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (1)[3]/Cube[5]
+    CenterInTopRoot_Local: (-4.4268, 13.0000, 82.4836)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.974402, 0.000000, -0.224815)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.1067, 1.8791, 0.0000)
+    ChildLocalRotationFromA_Euler: (295.9840, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #7]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (1)[3]/Cube[6]
+    CenterInTopRoot_Local: (-7.4792, 13.0000, 85.5676)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.845201, 0.000000, 0.534449)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.8698, 1.1081, 0.0000)
+    ChildLocalRotationFromA_Euler: (334.6130, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #8]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (1)[3]/Cube[7]
+    CenterInTopRoot_Local: (-4.4324, 13.0000, 97.4792)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.219736, 0.000000, 0.975560)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.1081, -1.8698, 0.0000)
+    ChildLocalRotationFromA_Euler: (64.6130, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #9]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (1)[3]/Cube[8]
+    CenterInTopRoot_Local: (4.4324, 13.0000, 97.4792)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.975560, 0.000000, -0.219736)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.1081, -1.8698, 0.0000)
+    ChildLocalRotationFromA_Euler: (295.3870, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #10]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (1)[3]/Cube[9]
+    CenterInTopRoot_Local: (7.5604, 13.0000, 85.6484)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.534448, 0.000000, 0.845201)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.8901, 1.0879, 0.0000)
+    ChildLocalRotationFromA_Euler: (25.3870, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #11]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (1)[3]/Cube[10]
+    CenterInTopRoot_Local: (-7.5164, 13.0000, 94.4272)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.530038, 0.000000, 0.847974)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.8791, -1.1068, 0.0000)
+    ChildLocalRotationFromA_Euler: (25.9840, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #12]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (1)[3]/Cube[11]
+    CenterInTopRoot_Local: (7.4480, 13.0000, 94.4872)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.847974, 0.000000, 0.530038)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.8620, -1.1218, 0.0000)
+    ChildLocalRotationFromA_Euler: (334.0160, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #2]
+  AName: Tower 2 (2)
+  APath: Castle[4]/Tower 2 (2)[4]
+  TopRootName: Castle
+  TopRootPath: Castle[4]
+  CubeColliderCount: 12
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (2)[4]/Cube[0]
+    CenterInTopRoot_Local: (90.0000, 13.0000, 81.4800)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (5.2000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (0.0000, 2.1300, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.3000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (2)[4]/Cube[1]
+    CenterInTopRoot_Local: (89.9794, 13.0000, 98.5724)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (5.2000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-0.0051, -2.1431, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.3000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (2)[4]/Cube[2]
+    CenterInTopRoot_Local: (81.5344, 13.0000, 90.0285)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (4.1889, 20.8303, 5.2764)
+    ChildLocalPositionFromA: (-2.1164, -0.0071, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.0472, 4.1661, 1.3191)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #4]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (2)[4]/Cube[3]
+    CenterInTopRoot_Local: (98.4656, 13.0000, 90.0285)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (4.1889, 20.8303, 5.2764)
+    ChildLocalPositionFromA: (2.1164, -0.0071, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.0472, 4.1661, 1.3191)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #5]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (2)[4]/Cube[4]
+    CenterInTopRoot_Local: (94.5080, 13.0000, 82.5640)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.224815, 0.000000, 0.974402)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.1270, 1.8590, 0.0000)
+    ChildLocalRotationFromA_Euler: (64.0161, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #6]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (2)[4]/Cube[5]
+    CenterInTopRoot_Local: (85.5732, 13.0000, 82.4836)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.974402, 0.000000, -0.224815)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.1067, 1.8791, 0.0000)
+    ChildLocalRotationFromA_Euler: (295.9840, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #7]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (2)[4]/Cube[6]
+    CenterInTopRoot_Local: (82.5208, 13.0000, 85.5676)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.845201, 0.000000, 0.534449)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.8698, 1.1081, 0.0000)
+    ChildLocalRotationFromA_Euler: (334.6130, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #8]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (2)[4]/Cube[7]
+    CenterInTopRoot_Local: (85.5676, 13.0000, 97.4792)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.219736, 0.000000, 0.975560)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.1081, -1.8698, 0.0000)
+    ChildLocalRotationFromA_Euler: (64.6130, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #9]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (2)[4]/Cube[8]
+    CenterInTopRoot_Local: (94.4324, 13.0000, 97.4792)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.975560, 0.000000, -0.219736)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.1081, -1.8698, 0.0000)
+    ChildLocalRotationFromA_Euler: (295.3870, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #10]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (2)[4]/Cube[9]
+    CenterInTopRoot_Local: (97.5604, 13.0000, 85.6484)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.534448, 0.000000, 0.845201)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.8901, 1.0879, 0.0000)
+    ChildLocalRotationFromA_Euler: (25.3870, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #11]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (2)[4]/Cube[10]
+    CenterInTopRoot_Local: (82.4836, 13.0000, 94.4272)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.530038, 0.000000, 0.847974)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.8791, -1.1068, 0.0000)
+    ChildLocalRotationFromA_Euler: (25.9840, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #12]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (2)[4]/Cube[11]
+    CenterInTopRoot_Local: (97.4480, 13.0000, 94.4872)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.847974, 0.000000, 0.530038)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.8620, -1.1218, 0.0000)
+    ChildLocalRotationFromA_Euler: (334.0160, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #3]
+  AName: Tower 2 (3)
+  APath: Castle[4]/Tower 2 (3)[7]
+  TopRootName: Castle
+  TopRootPath: Castle[4]
+  CubeColliderCount: 12
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (3)[7]/Cube[0]
+    CenterInTopRoot_Local: (-90.0000, 13.0000, 81.4800)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (5.2000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (0.0000, 2.1300, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.3000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (3)[7]/Cube[1]
+    CenterInTopRoot_Local: (-90.0206, 13.0000, 98.5724)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (5.2000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-0.0051, -2.1431, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.3000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (3)[7]/Cube[2]
+    CenterInTopRoot_Local: (-98.4656, 13.0000, 90.0285)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (4.1889, 20.8303, 5.2764)
+    ChildLocalPositionFromA: (-2.1164, -0.0071, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.0472, 4.1661, 1.3191)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #4]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (3)[7]/Cube[3]
+    CenterInTopRoot_Local: (-81.5344, 13.0000, 90.0285)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (4.1889, 20.8303, 5.2764)
+    ChildLocalPositionFromA: (2.1164, -0.0071, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.0472, 4.1661, 1.3191)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #5]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (3)[7]/Cube[4]
+    CenterInTopRoot_Local: (-85.4920, 13.0000, 82.5640)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.224815, 0.000000, 0.974402)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.1270, 1.8590, 0.0000)
+    ChildLocalRotationFromA_Euler: (64.0161, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #6]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (3)[7]/Cube[5]
+    CenterInTopRoot_Local: (-94.4268, 13.0000, 82.4836)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.974402, 0.000000, -0.224815)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.1067, 1.8791, 0.0000)
+    ChildLocalRotationFromA_Euler: (295.9840, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #7]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (3)[7]/Cube[6]
+    CenterInTopRoot_Local: (-97.4792, 13.0000, 85.5676)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.845201, 0.000000, 0.534449)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.8698, 1.1081, 0.0000)
+    ChildLocalRotationFromA_Euler: (334.6130, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #8]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (3)[7]/Cube[7]
+    CenterInTopRoot_Local: (-94.4324, 13.0000, 97.4792)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.219736, 0.000000, 0.975560)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.1081, -1.8698, 0.0000)
+    ChildLocalRotationFromA_Euler: (64.6130, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #9]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (3)[7]/Cube[8]
+    CenterInTopRoot_Local: (-85.5676, 13.0000, 97.4792)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.975560, 0.000000, -0.219736)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.1081, -1.8698, 0.0000)
+    ChildLocalRotationFromA_Euler: (295.3870, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #10]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (3)[7]/Cube[9]
+    CenterInTopRoot_Local: (-82.4396, 13.0000, 85.6484)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.534448, 0.000000, 0.845201)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.8901, 1.0879, 0.0000)
+    ChildLocalRotationFromA_Euler: (25.3870, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #11]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (3)[7]/Cube[10]
+    CenterInTopRoot_Local: (-97.5164, 13.0000, 94.4272)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.530038, 0.000000, 0.847974)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.8791, -1.1068, 0.0000)
+    ChildLocalRotationFromA_Euler: (25.9840, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #12]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (3)[7]/Cube[11]
+    CenterInTopRoot_Local: (-82.5520, 13.0000, 94.4872)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.847974, 0.000000, 0.530038)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.8620, -1.1218, 0.0000)
+    ChildLocalRotationFromA_Euler: (334.0160, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #4]
+  AName: Tower 2 (4)
+  APath: Castle[4]/Tower 2 (4)[5]
+  TopRootName: Castle
+  TopRootPath: Castle[4]
+  CubeColliderCount: 12
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (4)[5]/Cube[0]
+    CenterInTopRoot_Local: (90.0000, 13.0000, -8.5200)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (5.2000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (0.0000, 2.1300, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.3000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (4)[5]/Cube[1]
+    CenterInTopRoot_Local: (89.9794, 13.0000, 8.5724)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (5.2000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-0.0051, -2.1431, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.3000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (4)[5]/Cube[2]
+    CenterInTopRoot_Local: (81.5344, 13.0000, 0.0285)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (4.1889, 20.8303, 5.2764)
+    ChildLocalPositionFromA: (-2.1164, -0.0071, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.0472, 4.1661, 1.3191)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #4]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (4)[5]/Cube[3]
+    CenterInTopRoot_Local: (98.4656, 13.0000, 0.0285)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (4.1889, 20.8303, 5.2764)
+    ChildLocalPositionFromA: (2.1164, -0.0071, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.0472, 4.1661, 1.3191)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #5]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (4)[5]/Cube[4]
+    CenterInTopRoot_Local: (94.5080, 13.0000, -7.4360)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.224815, 0.000000, 0.974402)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.1270, 1.8590, 0.0000)
+    ChildLocalRotationFromA_Euler: (64.0161, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #6]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (4)[5]/Cube[5]
+    CenterInTopRoot_Local: (85.5732, 13.0000, -7.5164)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.974402, 0.000000, -0.224815)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.1067, 1.8791, 0.0000)
+    ChildLocalRotationFromA_Euler: (295.9840, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #7]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (4)[5]/Cube[6]
+    CenterInTopRoot_Local: (82.5208, 13.0000, -4.4324)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.845201, 0.000000, 0.534449)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.8698, 1.1081, 0.0000)
+    ChildLocalRotationFromA_Euler: (334.6130, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #8]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (4)[5]/Cube[7]
+    CenterInTopRoot_Local: (85.5676, 13.0000, 7.4792)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.219736, 0.000000, 0.975560)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.1081, -1.8698, 0.0000)
+    ChildLocalRotationFromA_Euler: (64.6130, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #9]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (4)[5]/Cube[8]
+    CenterInTopRoot_Local: (94.4324, 13.0000, 7.4792)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.975560, 0.000000, -0.219736)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.1081, -1.8698, 0.0000)
+    ChildLocalRotationFromA_Euler: (295.3870, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #10]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (4)[5]/Cube[9]
+    CenterInTopRoot_Local: (97.5604, 13.0000, -4.3516)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.534448, 0.000000, 0.845201)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.8901, 1.0879, 0.0000)
+    ChildLocalRotationFromA_Euler: (25.3870, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #11]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (4)[5]/Cube[10]
+    CenterInTopRoot_Local: (82.4836, 13.0000, 4.4272)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.530038, 0.000000, 0.847974)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.8791, -1.1068, 0.0000)
+    ChildLocalRotationFromA_Euler: (25.9840, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #12]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (4)[5]/Cube[11]
+    CenterInTopRoot_Local: (97.4480, 13.0000, 4.4872)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.847974, 0.000000, 0.530038)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.8620, -1.1218, 0.0000)
+    ChildLocalRotationFromA_Euler: (334.0160, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #5]
+  AName: Tower 2 (5)
+  APath: Castle[4]/Tower 2 (5)[6]
+  TopRootName: Castle
+  TopRootPath: Castle[4]
+  CubeColliderCount: 12
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (5)[6]/Cube[0]
+    CenterInTopRoot_Local: (-90.0000, 13.0000, -8.5200)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (5.2000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (0.0000, 2.1300, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.3000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (5)[6]/Cube[1]
+    CenterInTopRoot_Local: (-90.0206, 13.0000, 8.5724)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (5.2000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-0.0051, -2.1431, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.3000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (5)[6]/Cube[2]
+    CenterInTopRoot_Local: (-98.4656, 13.0000, 0.0285)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (4.1889, 20.8303, 5.2764)
+    ChildLocalPositionFromA: (-2.1164, -0.0071, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.0472, 4.1661, 1.3191)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #4]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (5)[6]/Cube[3]
+    CenterInTopRoot_Local: (-81.5344, 13.0000, 0.0285)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (4.1889, 20.8303, 5.2764)
+    ChildLocalPositionFromA: (2.1164, -0.0071, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.0472, 4.1661, 1.3191)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #5]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (5)[6]/Cube[4]
+    CenterInTopRoot_Local: (-85.4920, 13.0000, -7.4360)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.224815, 0.000000, 0.974402)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.1270, 1.8590, 0.0000)
+    ChildLocalRotationFromA_Euler: (64.0161, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #6]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (5)[6]/Cube[5]
+    CenterInTopRoot_Local: (-94.4268, 13.0000, -7.5164)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.974402, 0.000000, -0.224815)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.1067, 1.8791, 0.0000)
+    ChildLocalRotationFromA_Euler: (295.9840, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #7]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (5)[6]/Cube[6]
+    CenterInTopRoot_Local: (-97.4792, 13.0000, -4.4324)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.845201, 0.000000, 0.534449)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.8698, 1.1081, 0.0000)
+    ChildLocalRotationFromA_Euler: (334.6130, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #8]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (5)[6]/Cube[7]
+    CenterInTopRoot_Local: (-94.4324, 13.0000, 7.4792)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.219736, 0.000000, 0.975560)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.1081, -1.8698, 0.0000)
+    ChildLocalRotationFromA_Euler: (64.6130, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #9]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (5)[6]/Cube[8]
+    CenterInTopRoot_Local: (-85.5676, 13.0000, 7.4792)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.975560, 0.000000, -0.219736)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.1081, -1.8698, 0.0000)
+    ChildLocalRotationFromA_Euler: (295.3870, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #10]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (5)[6]/Cube[9]
+    CenterInTopRoot_Local: (-82.4396, 13.0000, -4.3516)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.534448, 0.000000, 0.845201)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.8901, 1.0879, 0.0000)
+    ChildLocalRotationFromA_Euler: (25.3870, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #11]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (5)[6]/Cube[10]
+    CenterInTopRoot_Local: (-97.5164, 13.0000, 4.4272)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.530038, 0.000000, 0.847974)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.8791, -1.1068, 0.0000)
+    ChildLocalRotationFromA_Euler: (25.9840, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #12]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (5)[6]/Cube[11]
+    CenterInTopRoot_Local: (-82.5520, 13.0000, 4.4872)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.847974, 0.000000, 0.530038)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.8620, -1.1218, 0.0000)
+    ChildLocalRotationFromA_Euler: (334.0160, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #6]
+  AName: Tower 2 (8)
+  APath: Castle[4]/Tower 2 (8)[1]
+  TopRootName: Castle
+  TopRootPath: Castle[4]
+  CubeColliderCount: 12
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (8)[1]/Cube[0]
+    CenterInTopRoot_Local: (90.0000, 13.0000, -98.5200)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (5.2000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (0.0000, 2.1300, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.3000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (8)[1]/Cube[1]
+    CenterInTopRoot_Local: (89.9794, 13.0000, -81.4276)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (5.2000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-0.0051, -2.1431, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.3000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (8)[1]/Cube[2]
+    CenterInTopRoot_Local: (81.5344, 13.0000, -89.9715)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (4.1889, 20.8303, 5.2764)
+    ChildLocalPositionFromA: (-2.1164, -0.0071, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.0472, 4.1661, 1.3191)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #4]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (8)[1]/Cube[3]
+    CenterInTopRoot_Local: (98.4656, 13.0000, -89.9715)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (4.1889, 20.8303, 5.2764)
+    ChildLocalPositionFromA: (2.1164, -0.0071, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.0472, 4.1661, 1.3191)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #5]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (8)[1]/Cube[4]
+    CenterInTopRoot_Local: (94.5080, 13.0000, -97.4360)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.224815, 0.000000, 0.974402)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.1270, 1.8590, 0.0000)
+    ChildLocalRotationFromA_Euler: (64.0161, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #6]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (8)[1]/Cube[5]
+    CenterInTopRoot_Local: (85.5732, 13.0000, -97.5164)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.974402, 0.000000, -0.224815)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.1067, 1.8791, 0.0000)
+    ChildLocalRotationFromA_Euler: (295.9840, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #7]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (8)[1]/Cube[6]
+    CenterInTopRoot_Local: (82.5208, 13.0000, -94.4324)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.845201, 0.000000, 0.534449)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.8698, 1.1081, 0.0000)
+    ChildLocalRotationFromA_Euler: (334.6130, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #8]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (8)[1]/Cube[7]
+    CenterInTopRoot_Local: (85.5676, 13.0000, -82.5208)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.219736, 0.000000, 0.975560)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.1081, -1.8698, 0.0000)
+    ChildLocalRotationFromA_Euler: (64.6130, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #9]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (8)[1]/Cube[8]
+    CenterInTopRoot_Local: (94.4324, 13.0000, -82.5208)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.975560, 0.000000, -0.219736)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.1081, -1.8698, 0.0000)
+    ChildLocalRotationFromA_Euler: (295.3870, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #10]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (8)[1]/Cube[9]
+    CenterInTopRoot_Local: (97.5604, 13.0000, -94.3516)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.534448, 0.000000, 0.845201)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.8901, 1.0879, 0.0000)
+    ChildLocalRotationFromA_Euler: (25.3870, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #11]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (8)[1]/Cube[10]
+    CenterInTopRoot_Local: (82.4836, 13.0000, -85.5728)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.530038, 0.000000, 0.847974)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.8791, -1.1068, 0.0000)
+    ChildLocalRotationFromA_Euler: (25.9840, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #12]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (8)[1]/Cube[11]
+    CenterInTopRoot_Local: (97.4480, 13.0000, -85.5128)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.847974, 0.000000, 0.530038)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.8620, -1.1218, 0.0000)
+    ChildLocalRotationFromA_Euler: (334.0160, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #7]
+  AName: Tower 2 (9)
+  APath: Castle[4]/Tower 2 (9)[2]
+  TopRootName: Castle
+  TopRootPath: Castle[4]
+  CubeColliderCount: 12
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (9)[2]/Cube[0]
+    CenterInTopRoot_Local: (-90.0000, 13.0000, -98.5200)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (5.2000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (0.0000, 2.1300, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.3000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (9)[2]/Cube[1]
+    CenterInTopRoot_Local: (-90.0206, 13.0000, -81.4276)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (5.2000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-0.0051, -2.1431, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.3000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (9)[2]/Cube[2]
+    CenterInTopRoot_Local: (-98.4656, 13.0000, -89.9715)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (4.1889, 20.8303, 5.2764)
+    ChildLocalPositionFromA: (-2.1164, -0.0071, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.0472, 4.1661, 1.3191)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #4]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (9)[2]/Cube[3]
+    CenterInTopRoot_Local: (-81.5344, 13.0000, -89.9715)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (4.1889, 20.8303, 5.2764)
+    ChildLocalPositionFromA: (2.1164, -0.0071, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.0472, 4.1661, 1.3191)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #5]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (9)[2]/Cube[4]
+    CenterInTopRoot_Local: (-85.4920, 13.0000, -97.4360)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.224815, 0.000000, 0.974402)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.1270, 1.8590, 0.0000)
+    ChildLocalRotationFromA_Euler: (64.0161, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #6]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (9)[2]/Cube[5]
+    CenterInTopRoot_Local: (-94.4268, 13.0000, -97.5164)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.974402, 0.000000, -0.224815)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.1067, 1.8791, 0.0000)
+    ChildLocalRotationFromA_Euler: (295.9840, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #7]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (9)[2]/Cube[6]
+    CenterInTopRoot_Local: (-97.4792, 13.0000, -94.4324)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.845201, 0.000000, 0.534449)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.8698, 1.1081, 0.0000)
+    ChildLocalRotationFromA_Euler: (334.6130, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #8]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (9)[2]/Cube[7]
+    CenterInTopRoot_Local: (-94.4324, 13.0000, -82.5208)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.219736, 0.000000, 0.975560)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.1081, -1.8698, 0.0000)
+    ChildLocalRotationFromA_Euler: (64.6130, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #9]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (9)[2]/Cube[8]
+    CenterInTopRoot_Local: (-85.5676, 13.0000, -82.5208)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.975560, 0.000000, -0.219736)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.1081, -1.8698, 0.0000)
+    ChildLocalRotationFromA_Euler: (295.3870, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #10]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (9)[2]/Cube[9]
+    CenterInTopRoot_Local: (-82.4396, 13.0000, -94.3516)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.534448, 0.000000, 0.845201)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.8901, 1.0879, 0.0000)
+    ChildLocalRotationFromA_Euler: (25.3870, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #11]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (9)[2]/Cube[10]
+    CenterInTopRoot_Local: (-97.5164, 13.0000, -85.5728)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.530038, 0.000000, 0.847974)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.8791, -1.1068, 0.0000)
+    ChildLocalRotationFromA_Euler: (25.9840, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #12]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2 (9)[2]/Cube[11]
+    CenterInTopRoot_Local: (-82.5520, 13.0000, -85.5128)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.847974, 0.000000, 0.530038)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.8620, -1.1218, 0.0000)
+    ChildLocalRotationFromA_Euler: (334.0160, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #8]
+  AName: Tower 2
+  APath: Castle[4]/Tower 2[0]
+  TopRootName: Castle
+  TopRootPath: Castle[4]
+  CubeColliderCount: 12
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2[0]/Cube[0]
+    CenterInTopRoot_Local: (0.0000, 13.0000, -98.5200)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (5.2000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (0.0000, 2.1300, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.3000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2[0]/Cube[1]
+    CenterInTopRoot_Local: (-0.0206, 13.0000, -81.4276)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (5.2000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-0.0051, -2.1431, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.3000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2[0]/Cube[2]
+    CenterInTopRoot_Local: (-8.4656, 13.0000, -89.9715)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (4.1889, 20.8303, 5.2764)
+    ChildLocalPositionFromA: (-2.1164, -0.0071, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.0472, 4.1661, 1.3191)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #4]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2[0]/Cube[3]
+    CenterInTopRoot_Local: (8.4656, 13.0000, -89.9715)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (4.1889, 20.8303, 5.2764)
+    ChildLocalPositionFromA: (2.1164, -0.0071, 0.0000)
+    ChildLocalRotationFromA_Euler: (90.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.0472, 4.1661, 1.3191)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #5]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2[0]/Cube[4]
+    CenterInTopRoot_Local: (4.5080, 13.0000, -97.4360)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.224815, 0.000000, 0.974402)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.1270, 1.8590, 0.0000)
+    ChildLocalRotationFromA_Euler: (64.0161, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #6]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2[0]/Cube[5]
+    CenterInTopRoot_Local: (-4.4268, 13.0000, -97.5164)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.974402, 0.000000, -0.224815)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.1067, 1.8791, 0.0000)
+    ChildLocalRotationFromA_Euler: (295.9840, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #7]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2[0]/Cube[6]
+    CenterInTopRoot_Local: (-7.4792, 13.0000, -94.4324)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.845201, 0.000000, 0.534449)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.8698, 1.1081, 0.0000)
+    ChildLocalRotationFromA_Euler: (334.6130, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #8]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2[0]/Cube[7]
+    CenterInTopRoot_Local: (-4.4324, 13.0000, -82.5208)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.219736, 0.000000, 0.975560)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.1081, -1.8698, 0.0000)
+    ChildLocalRotationFromA_Euler: (64.6130, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #9]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2[0]/Cube[8]
+    CenterInTopRoot_Local: (4.4324, 13.0000, -82.5208)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.975560, 0.000000, -0.219736)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.1081, -1.8698, 0.0000)
+    ChildLocalRotationFromA_Euler: (295.3870, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #10]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2[0]/Cube[9]
+    CenterInTopRoot_Local: (7.5604, 13.0000, -94.3516)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.534448, 0.000000, 0.845201)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.8901, 1.0879, 0.0000)
+    ChildLocalRotationFromA_Euler: (25.3870, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #11]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2[0]/Cube[10]
+    CenterInTopRoot_Local: (-7.5164, 13.0000, -85.5728)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.530038, 0.000000, 0.847974)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (-1.8791, -1.1068, 0.0000)
+    ChildLocalRotationFromA_Euler: (25.9840, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #12]
+    ChildName: Cube
+    ChildPath: Castle[4]/Tower 2[0]/Cube[11]
+    CenterInTopRoot_Local: (7.4480, 13.0000, -85.5128)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.847974, 0.000000, 0.530038)
+    SizeInTopRoot_Local: (6.0000, 25.8585, 4.0000)
+    ChildLocalPositionFromA: (1.8620, -1.1218, 0.0000)
+    ChildLocalRotationFromA_Euler: (334.0160, 270.0000, 270.0000)
+    ChildLocalScaleFromA: (1.5000, 5.1717, 1.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+------------------------------------------------------------
+
+[TopRootGroup #2]
+TopRootName: World
+TopRootPath: World[2]
+TargetObjectCount: 113
+
+  [A #1]
+  AName: accessoire_1
+  APath: World[2]/Building1[2]/accessoire_1[0]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 3
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/accessoire_1[0]/Cube[0]
+    CenterInTopRoot_Local: (-61.6194, 9.0095, -67.7210)
+    RotationInTopRoot_LocalQuat: (0.209875, 0.000000, 0.000000, 0.977728)
+    SizeInTopRoot_Local: (1.6742, 0.1279, 0.8812)
+    ChildLocalPositionFromA: (0.2491, 0.3806, 0.0000)
+    ChildLocalRotationFromA_Euler: (24.2300, 90.0000, 0.0000)
+    ChildLocalScaleFromA: (1.6742, 0.1279, 0.8812)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/accessoire_1[0]/Cube[1]
+    CenterInTopRoot_Local: (-62.3411, 8.3937, -68.1341)
+    RotationInTopRoot_LocalQuat: (-0.707107, 0.000000, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (0.1552, 0.2088, 1.4319)
+    ChildLocalPositionFromA: (-0.1640, -0.2353, 0.7217)
+    ChildLocalRotationFromA_Euler: (270.0000, 90.0000, 0.0000)
+    ChildLocalScaleFromA: (0.1552, 0.2088, 1.4319)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/accessoire_1[0]/Cube[2]
+    CenterInTopRoot_Local: (-60.9232, 8.3937, -68.1341)
+    RotationInTopRoot_LocalQuat: (-0.707107, 0.000000, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (0.1552, 0.2088, 1.4319)
+    ChildLocalPositionFromA: (-0.1640, -0.2353, -0.6962)
+    ChildLocalRotationFromA_Euler: (270.0000, 90.0000, 0.0000)
+    ChildLocalScaleFromA: (0.1552, 0.2088, 1.4319)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #2]
+  AName: accessory_15
+  APath: World[2]/Building1[2]/accessory_15[25]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/accessory_15[25]/Cube[0]
+    CenterInTopRoot_Local: (-52.0965, 7.0536, -81.8044)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.0643, 0.1946, 1.9032)
+    ChildLocalPositionFromA: (1.0409, 0.0000, 1.4083)
+    ChildLocalRotationFromA_Euler: (0.0000, 270.0000, 0.0000)
+    ChildLocalScaleFromA: (2.7526, 0.2595, 2.5378)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #3]
+  AName: accessory_15_1
+  APath: World[2]/Building1[2]/accessory_15_1[26]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/accessory_15_1[26]/Cube[0]
+    CenterInTopRoot_Local: (-52.6330, 2.4880, -78.0467)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.7526, 0.2595, 2.5378)
+    ChildLocalPositionFromA: (1.0409, 0.0000, 1.4083)
+    ChildLocalRotationFromA_Euler: (0.0000, 270.0000, 0.0000)
+    ChildLocalScaleFromA: (2.7526, 0.2595, 2.5378)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #4]
+  AName: accessory_15_2
+  APath: World[2]/Building1[2]/accessory_15_2[27]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/accessory_15_2[27]/Cube[0]
+    CenterInTopRoot_Local: (-55.0299, 8.9034, -82.5235)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.0354, 0.1919, 1.8765)
+    ChildLocalPositionFromA: (1.0409, 0.0000, 1.4083)
+    ChildLocalRotationFromA_Euler: (0.0000, 270.0000, 0.0000)
+    ChildLocalScaleFromA: (2.7526, 0.2595, 2.5378)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #5]
+  AName: accessory_15_3
+  APath: World[2]/Building1[2]/accessory_15_3[28]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/accessory_15_3[28]/Cube[0]
+    CenterInTopRoot_Local: (-48.4191, 5.2218, -81.1165)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.7526, 0.2595, 2.5378)
+    ChildLocalPositionFromA: (1.0409, 0.0000, 1.4083)
+    ChildLocalRotationFromA_Euler: (0.0000, 270.0000, 0.0000)
+    ChildLocalScaleFromA: (2.7526, 0.2595, 2.5378)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #6]
+  AName: accessory_5
+  APath: World[2]/Building1[2]/accessory_5[4]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/accessory_5[4]/Cube[0]
+    CenterInTopRoot_Local: (-52.5000, 4.8789, -68.6821)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (5.2000, 0.5000, 2.0000)
+    ChildLocalPositionFromA: (0.0000, -0.1211, 1.1141)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.2000, 0.5000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #7]
+  AName: accessory_6
+  APath: World[2]/Building1[2]/accessory_6[5]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/accessory_6[5]/Cube[0]
+    CenterInTopRoot_Local: (-50.0000, 5.2722, -77.5000)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (5.3875, 0.4000, 2.0000)
+    ChildLocalPositionFromA: (0.0000, 0.2722, 0.0000)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.3875, 0.4000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #8]
+  AName: accessory_9
+  APath: World[2]/Building1[2]/accessory_9[10]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/accessory_9[10]/Cube[0]
+    CenterInTopRoot_Local: (-62.5000, 4.8091, -68.9986)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (5.0000, 0.4000, 2.2802)
+    ChildLocalPositionFromA: (0.0000, -0.1909, 1.0014)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.0000, 0.4000, 2.2802)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #9]
+  AName: accessory_9_1
+  APath: World[2]/Building1[2]/accessory_9_1[11]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/accessory_9_1[11]/Cube[0]
+    CenterInTopRoot_Local: (-48.9143, 4.7930, -72.5000)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (5.4207, 0.4337, 2.4721)
+    ChildLocalPositionFromA: (0.0000, -0.1909, 1.0014)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.0000, 0.4000, 2.2802)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #10]
+  AName: doorFrame2
+  APath: World[2]/Building1[2]/doorFrame2[66]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 3
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/doorFrame2[66]/Cube[0]
+    CenterInTopRoot_Local: (-61.6257, 2.5000, -73.5623)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (1.4017, 5.0000, 0.8600)
+    ChildLocalPositionFromA: (1.9377, 2.5000, -0.1503)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.4017, 5.0000, 0.8600)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/doorFrame2[66]/Cube[1]
+    CenterInTopRoot_Local: (-61.6257, 2.5000, -77.3890)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (1.3633, 5.0000, 0.8600)
+    ChildLocalPositionFromA: (-1.8890, 2.5000, -0.1503)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.3633, 5.0000, 0.8600)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/doorFrame2[66]/Cube[2]
+    CenterInTopRoot_Local: (-61.6257, 4.1457, -75.5240)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (2.0161, 1.7999, 0.8600)
+    ChildLocalPositionFromA: (-0.0240, 4.1457, -0.1503)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (2.0161, 1.7999, 0.8600)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #11]
+  AName: doorFrame2_1
+  APath: World[2]/Building1[2]/doorFrame2_1[67]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 3
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/doorFrame2_1[67]/Cube[0]
+    CenterInTopRoot_Local: (-60.1503, 2.5000, -77.2261)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (1.5361, 5.0000, 0.8600)
+    ChildLocalPositionFromA: (1.7261, 2.5000, -0.1503)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.5361, 5.0000, 0.8600)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/doorFrame2_1[67]/Cube[1]
+    CenterInTopRoot_Local: (-60.1503, 2.5000, -73.7581)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (1.5361, 5.0000, 0.8600)
+    ChildLocalPositionFromA: (-1.7419, 2.5000, -0.1503)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.5361, 5.0000, 0.8600)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/doorFrame2_1[67]/Cube[2]
+    CenterInTopRoot_Local: (-60.1503, 3.8636, -75.4760)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (2.0161, 2.2500, 0.8600)
+    ChildLocalPositionFromA: (-0.0240, 3.8636, -0.1503)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (2.0161, 2.2500, 0.8600)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #12]
+  AName: doorFrame4
+  APath: World[2]/Building1[2]/doorFrame4[69]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 5
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/doorFrame4[69]/Cube[0]
+    CenterInTopRoot_Local: (-55.3179, 2.2548, -80.0052)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (0.5875, 4.4406, 0.5138)
+    ChildLocalPositionFromA: (2.1822, 2.2548, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.5875, 4.4406, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/doorFrame4[69]/Cube[1]
+    CenterInTopRoot_Local: (-59.7118, 2.2957, -80.0052)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (0.5875, 4.5312, 0.5138)
+    ChildLocalPositionFromA: (-2.2118, 2.2957, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.5875, 4.5312, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/doorFrame4[69]/Cube[2]
+    CenterInTopRoot_Local: (-57.5141, 4.7065, -80.0052)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.707107, 0.707107)
+    SizeInTopRoot_Local: (0.5875, 5.0008, 0.5138)
+    ChildLocalPositionFromA: (-0.0141, 4.7065, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 90.0000)
+    ChildLocalScaleFromA: (0.5875, 5.0008, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #4]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/doorFrame4[69]/Cube[3]
+    CenterInTopRoot_Local: (-55.9194, 4.2022, -80.0052)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.408992, 0.912538)
+    SizeInTopRoot_Local: (0.7858, 1.7038, 0.5138)
+    ChildLocalPositionFromA: (1.5806, 4.2022, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 48.2830)
+    ChildLocalScaleFromA: (0.7858, 1.7038, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #5]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/doorFrame4[69]/Cube[4]
+    CenterInTopRoot_Local: (-59.1769, 4.2022, -80.0052)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, -0.408992, 0.912538)
+    SizeInTopRoot_Local: (0.7858, 1.7038, 0.5138)
+    ChildLocalPositionFromA: (-1.6769, 4.2022, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 311.7169)
+    ChildLocalScaleFromA: (0.7858, 1.7038, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #13]
+  AName: doorFrame4_1
+  APath: World[2]/Building1[2]/doorFrame4_1[70]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 5
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/doorFrame4_1[70]/Cube[0]
+    CenterInTopRoot_Local: (-55.3179, 2.2548, -73.0052)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (0.5875, 4.4406, 0.5138)
+    ChildLocalPositionFromA: (2.1822, 2.2548, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.5875, 4.4406, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/doorFrame4_1[70]/Cube[1]
+    CenterInTopRoot_Local: (-59.7118, 2.2957, -73.0052)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (0.5875, 4.5312, 0.5138)
+    ChildLocalPositionFromA: (-2.2118, 2.2957, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.5875, 4.5312, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/doorFrame4_1[70]/Cube[2]
+    CenterInTopRoot_Local: (-57.5141, 4.7065, -73.0052)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.707107, 0.707107)
+    SizeInTopRoot_Local: (0.5875, 5.0008, 0.5138)
+    ChildLocalPositionFromA: (-0.0141, 4.7065, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 90.0000)
+    ChildLocalScaleFromA: (0.5875, 5.0008, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #4]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/doorFrame4_1[70]/Cube[3]
+    CenterInTopRoot_Local: (-55.9194, 4.2022, -73.0052)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.408992, 0.912538)
+    SizeInTopRoot_Local: (0.7858, 1.7038, 0.5138)
+    ChildLocalPositionFromA: (1.5806, 4.2022, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 48.2830)
+    ChildLocalScaleFromA: (0.7858, 1.7038, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #5]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/doorFrame4_1[70]/Cube[4]
+    CenterInTopRoot_Local: (-59.1769, 4.2022, -73.0052)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, -0.408992, 0.912538)
+    SizeInTopRoot_Local: (0.7858, 1.7038, 0.5138)
+    ChildLocalPositionFromA: (-1.6769, 4.2022, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 311.7169)
+    ChildLocalScaleFromA: (0.7858, 1.7038, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #14]
+  AName: ladder_2_5
+  APath: World[2]/Building1[2]/ladder_2_5[71]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/ladder_2_5[71]/Cube[0]
+    CenterInTopRoot_Local: (-53.3393, 7.9050, -82.2474)
+    RotationInTopRoot_LocalQuat: (0.391126, 0.920337, 0.000000, 0.000000)
+    SizeInTopRoot_Local: (2.7395, 0.4012, 2.0365)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #15]
+  AName: ladder_2_5_1
+  APath: World[2]/Building1[2]/ladder_2_5_1[72]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/ladder_2_5_1[72]/Cube[0]
+    CenterInTopRoot_Local: (-50.5086, 6.0073, -81.1690)
+    RotationInTopRoot_LocalQuat: (0.391126, 0.920337, 0.000000, 0.000000)
+    SizeInTopRoot_Local: (2.7395, 0.4012, 2.0365)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #16]
+  AName: ladder_2_5_2
+  APath: World[2]/Building1[2]/ladder_2_5_2[73]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/ladder_2_5_2[73]/Cube[0]
+    CenterInTopRoot_Local: (-54.9191, 1.1040, -78.5059)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.391126, 0.920337)
+    SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #17]
+  AName: ladder_2_5_3
+  APath: World[2]/Building1[2]/ladder_2_5_3[74]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building1[2]/ladder_2_5_3[74]/Cube[0]
+    CenterInTopRoot_Local: (-52.5616, 3.6224, -76.2205)
+    RotationInTopRoot_LocalQuat: (-0.276568, -0.650777, 0.276568, 0.650777)
+    SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #18]
+  AName: accessory_15
+  APath: World[2]/Building2[3]/back[0]/accessory_15[8]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building2[3]/back[0]/accessory_15[8]/Cube[0]
+    CenterInTopRoot_Local: (-48.0487, 10.0000, -51.2889)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.7526, 0.2595, 2.5378)
+    ChildLocalPositionFromA: (1.0409, 0.0000, 1.4083)
+    ChildLocalRotationFromA_Euler: (0.0000, 270.0000, 0.0000)
+    ChildLocalScaleFromA: (2.7526, 0.2595, 2.5378)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #19]
+  AName: accessory_9_1
+  APath: World[2]/Building2[3]/back[0]/accessory_9_1[2]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building2[3]/back[0]/accessory_9_1[2]/Cube[0]
+    CenterInTopRoot_Local: (-52.4676, 4.8091, -50.9399)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.999988, 0.000000, 0.004861)
+    SizeInTopRoot_Local: (5.0000, 0.4000, 2.2802)
+    ChildLocalPositionFromA: (0.0000, -0.1909, 1.0014)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.0000, 0.4000, 2.2802)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #20]
+  AName: accessory_5
+  APath: World[2]/Building2[3]/front[1]/accessory_5[0]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building2[3]/front[1]/accessory_5[0]/Cube[0]
+    CenterInTopRoot_Local: (-57.5000, 10.0024, -38.8859)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (5.2000, 0.5000, 2.0000)
+    ChildLocalPositionFromA: (0.0000, -0.1211, 1.1141)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.2000, 0.5000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #21]
+  AName: accessory_7
+  APath: World[2]/Building2[3]/front[1]/accessory_7[2]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building2[3]/front[1]/accessory_7[2]/Cube[0]
+    CenterInTopRoot_Local: (-52.3849, 10.8441, -37.9922)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (5.2875, 1.4125, 0.2875)
+    ChildLocalPositionFromA: (0.0000, 0.7644, 0.0627)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.2875, 1.4125, 0.2875)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #22]
+  AName: accessory_9
+  APath: World[2]/Building2[3]/front[1]/accessory_9[3]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building2[3]/front[1]/accessory_9[3]/Cube[0]
+    CenterInTopRoot_Local: (-52.5000, 4.8091, -38.9986)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (5.0000, 0.4000, 2.2802)
+    ChildLocalPositionFromA: (0.0000, -0.1909, 1.0014)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.0000, 0.4000, 2.2802)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #23]
+  AName: doorFrame2
+  APath: World[2]/Building2[3]/front[1]/doorFrame2[16]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 3
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building2[3]/front[1]/doorFrame2[16]/Cube[0]
+    CenterInTopRoot_Local: (-55.7739, 2.5000, -45.1503)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (1.5361, 5.0000, 0.8600)
+    ChildLocalPositionFromA: (1.7261, 2.5000, -0.1503)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.5361, 5.0000, 0.8600)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/Building2[3]/front[1]/doorFrame2[16]/Cube[1]
+    CenterInTopRoot_Local: (-59.2419, 2.5000, -45.1503)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (1.5361, 5.0000, 0.8600)
+    ChildLocalPositionFromA: (-1.7419, 2.5000, -0.1503)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.5361, 5.0000, 0.8600)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: World[2]/Building2[3]/front[1]/doorFrame2[16]/Cube[2]
+    CenterInTopRoot_Local: (-57.5240, 3.8636, -45.1503)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.0161, 2.2500, 0.8600)
+    ChildLocalPositionFromA: (-0.0240, 3.8636, -0.1503)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (2.0161, 2.2500, 0.8600)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #24]
+  AName: doorFrame4b
+  APath: World[2]/Building2[3]/front[1]/doorFrame4b[17]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 5
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building2[3]/front[1]/doorFrame4b[17]/Cube[0]
+    CenterInTopRoot_Local: (-55.3179, 2.2548, -40.0052)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (0.5875, 4.4406, 0.5138)
+    ChildLocalPositionFromA: (2.1822, 2.2548, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.5875, 4.4406, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/Building2[3]/front[1]/doorFrame4b[17]/Cube[1]
+    CenterInTopRoot_Local: (-59.7118, 2.2957, -40.0052)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (0.5875, 4.5312, 0.5138)
+    ChildLocalPositionFromA: (-2.2118, 2.2957, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.5875, 4.5312, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: World[2]/Building2[3]/front[1]/doorFrame4b[17]/Cube[2]
+    CenterInTopRoot_Local: (-57.5141, 4.7065, -40.0052)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.707107, 0.707107)
+    SizeInTopRoot_Local: (0.5875, 5.0008, 0.5138)
+    ChildLocalPositionFromA: (-0.0141, 4.7065, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 90.0000)
+    ChildLocalScaleFromA: (0.5875, 5.0008, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #4]
+    ChildName: Cube
+    ChildPath: World[2]/Building2[3]/front[1]/doorFrame4b[17]/Cube[3]
+    CenterInTopRoot_Local: (-55.9194, 4.2022, -40.0052)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.408992, 0.912538)
+    SizeInTopRoot_Local: (0.7858, 1.7038, 0.5138)
+    ChildLocalPositionFromA: (1.5806, 4.2022, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 48.2830)
+    ChildLocalScaleFromA: (0.7858, 1.7038, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #5]
+    ChildName: Cube
+    ChildPath: World[2]/Building2[3]/front[1]/doorFrame4b[17]/Cube[4]
+    CenterInTopRoot_Local: (-59.1769, 4.2022, -40.0052)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, -0.408992, 0.912538)
+    SizeInTopRoot_Local: (0.7858, 1.7038, 0.5138)
+    ChildLocalPositionFromA: (-1.6769, 4.2022, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 311.7169)
+    ChildLocalScaleFromA: (0.7858, 1.7038, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #25]
+  AName: accessory_15_1
+  APath: World[2]/Building2[3]/ladder[2]/accessory_15_1[0]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building2[3]/ladder[2]/accessory_15_1[0]/Cube[0]
+    CenterInTopRoot_Local: (-61.5318, 10.0000, -38.9472)
+    RotationInTopRoot_LocalQuat: (0.000000, 1.000000, 0.000000, 0.000000)
+    SizeInTopRoot_Local: (2.7526, 0.2595, 2.5378)
+    ChildLocalPositionFromA: (1.0409, 0.0000, 1.4083)
+    ChildLocalRotationFromA_Euler: (0.0000, 270.0000, 0.0000)
+    ChildLocalScaleFromA: (2.7526, 0.2595, 2.5378)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #26]
+  AName: ladder_2_5
+  APath: World[2]/Building2[3]/ladder[2]/ladder_2_5[8]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building2[3]/ladder[2]/ladder_2_5[8]/Cube[0]
+    CenterInTopRoot_Local: (-61.6256, 3.6581, -45.9455)
+    RotationInTopRoot_LocalQuat: (-0.276568, -0.650777, 0.276568, 0.650777)
+    SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #27]
+  AName: ladder_2_5_1
+  APath: World[2]/Building2[3]/ladder[2]/ladder_2_5_1[9]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building2[3]/ladder[2]/ladder_2_5_1[9]/Cube[0]
+    CenterInTopRoot_Local: (-61.6210, 6.2123, -43.5303)
+    RotationInTopRoot_LocalQuat: (-0.276568, -0.650777, 0.276568, 0.650777)
+    SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #28]
+  AName: ladder_2_5_2
+  APath: World[2]/Building2[3]/ladder[2]/ladder_2_5_2[10]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building2[3]/ladder[2]/ladder_2_5_2[10]/Cube[0]
+    CenterInTopRoot_Local: (-61.6164, 8.7664, -41.1151)
+    RotationInTopRoot_LocalQuat: (-0.276568, -0.650777, 0.276568, 0.650777)
+    SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #29]
+  AName: ladder_2_5_3
+  APath: World[2]/Building2[3]/ladder[2]/ladder_2_5_3[11]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building2[3]/ladder[2]/ladder_2_5_3[11]/Cube[0]
+    CenterInTopRoot_Local: (-61.6302, 1.1040, -48.3607)
+    RotationInTopRoot_LocalQuat: (-0.276568, -0.650777, 0.276568, 0.650777)
+    SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #30]
+  AName: accessory_6
+  APath: World[2]/Building2[3]/left[3]/accessory_6[0]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building2[3]/left[3]/accessory_6[0]/Cube[0]
+    CenterInTopRoot_Local: (-49.5819, 10.2659, -47.6072)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (5.3875, 0.4000, 2.0000)
+    ChildLocalPositionFromA: (0.0000, 0.2722, 0.0000)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.3875, 0.4000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #31]
+  AName: accessory_9_2
+  APath: World[2]/Building2[3]/left[3]/accessory_9_2[2]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building2[3]/left[3]/accessory_9_2[2]/Cube[0]
+    CenterInTopRoot_Local: (-49.0601, 4.8091, -42.4676)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.703661, 0.000000, 0.710536)
+    SizeInTopRoot_Local: (5.0000, 0.4000, 2.2802)
+    ChildLocalPositionFromA: (0.0000, -0.1909, 1.0014)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.0000, 0.4000, 2.2802)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #32]
+  AName: accessory_7
+  APath: World[2]/Building3[4]/back[0]/accessory_7[3]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building3[4]/back[0]/accessory_7[3]/Cube[0]
+    CenterInTopRoot_Local: (-54.9463, -1.4303, -24.8927)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (9.0507, 2.4178, 0.4921)
+    ChildLocalPositionFromA: (0.0000, 0.7644, 0.0627)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.2875, 1.4125, 0.2875)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #33]
+  AName: accessory_15_2
+  APath: World[2]/Building3[4]/building3Connector[3]/accessory_15_2[7]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building3[4]/building3Connector[3]/accessory_15_2[7]/Cube[0]
+    CenterInTopRoot_Local: (-48.2586, 5.5871, -8.4143)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (2.3961, 0.2259, 2.2091)
+    ChildLocalPositionFromA: (1.0409, 0.0000, 1.4083)
+    ChildLocalRotationFromA_Euler: (0.0000, 270.0000, 0.0000)
+    ChildLocalScaleFromA: (2.7526, 0.2595, 2.5378)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #34]
+  AName: accessory_7_2
+  APath: World[2]/Building3[4]/building3Connector[3]/accessory_7_2[4]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building3[4]/building3Connector[3]/accessory_7_2[4]/Cube[0]
+    CenterInTopRoot_Local: (-47.0339, 3.2391, -9.4080)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (3.9004, 1.4125, 0.2875)
+    ChildLocalPositionFromA: (0.0000, 0.7644, 0.0627)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.2875, 1.4125, 0.2875)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #35]
+  AName: accessory_9
+  APath: World[2]/Building3[4]/building3Connector[3]/accessory_9[5]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building3[4]/building3Connector[3]/accessory_9[5]/Cube[0]
+    CenterInTopRoot_Local: (-47.4036, 2.0252, -25.8715)
+    RotationInTopRoot_LocalQuat: (0.000000, 1.000000, 0.000000, 0.000000)
+    SizeInTopRoot_Local: (5.0000, 0.4000, 2.2802)
+    ChildLocalPositionFromA: (0.0000, -0.1909, 1.0014)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.0000, 0.4000, 2.2802)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #36]
+  AName: accessory_7_1
+  APath: World[2]/Building3[4]/building3b[2]/back_1[0]/accessory_7_1[0]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building3[4]/building3b[2]/back_1[0]/accessory_7_1[0]/Cube[0]
+    CenterInTopRoot_Local: (-39.9463, -1.4303, -25.1073)
+    RotationInTopRoot_LocalQuat: (0.000000, 1.000000, 0.000000, 0.000000)
+    SizeInTopRoot_Local: (9.0507, 2.4178, 0.4921)
+    ChildLocalPositionFromA: (0.0000, 0.7644, 0.0627)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.2875, 1.4125, 0.2875)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #37]
+  AName: doorFrame4b
+  APath: World[2]/Building3[4]/building3b[2]/front[2]/doorFrame4b[4]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 5
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building3[4]/building3b[2]/front[2]/doorFrame4b[4]/Cube[0]
+    CenterInTopRoot_Local: (-40.3179, 4.2548, -10.0052)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (0.5875, 4.4406, 0.5138)
+    ChildLocalPositionFromA: (2.1822, 2.2548, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.5875, 4.4406, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/Building3[4]/building3b[2]/front[2]/doorFrame4b[4]/Cube[1]
+    CenterInTopRoot_Local: (-44.7118, 4.2957, -10.0052)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (0.5875, 4.5312, 0.5138)
+    ChildLocalPositionFromA: (-2.2118, 2.2957, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.5875, 4.5312, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: World[2]/Building3[4]/building3b[2]/front[2]/doorFrame4b[4]/Cube[2]
+    CenterInTopRoot_Local: (-42.5141, 6.7065, -10.0052)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.707107, 0.707107)
+    SizeInTopRoot_Local: (0.5875, 5.0008, 0.5138)
+    ChildLocalPositionFromA: (-0.0141, 4.7065, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 90.0000)
+    ChildLocalScaleFromA: (0.5875, 5.0008, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #4]
+    ChildName: Cube
+    ChildPath: World[2]/Building3[4]/building3b[2]/front[2]/doorFrame4b[4]/Cube[3]
+    CenterInTopRoot_Local: (-40.9194, 6.2022, -10.0052)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.408992, 0.912538)
+    SizeInTopRoot_Local: (0.7858, 1.7038, 0.5138)
+    ChildLocalPositionFromA: (1.5806, 4.2022, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 48.2830)
+    ChildLocalScaleFromA: (0.7858, 1.7038, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #5]
+    ChildName: Cube
+    ChildPath: World[2]/Building3[4]/building3b[2]/front[2]/doorFrame4b[4]/Cube[4]
+    CenterInTopRoot_Local: (-44.1769, 6.2022, -10.0052)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, -0.408992, 0.912538)
+    SizeInTopRoot_Local: (0.7858, 1.7038, 0.5138)
+    ChildLocalPositionFromA: (-1.6769, 4.2022, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 311.7169)
+    ChildLocalScaleFromA: (0.7858, 1.7038, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #38]
+  AName: accessory_15
+  APath: World[2]/Building3[4]/building3b[2]/ladder[3]/accessory_15[0]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building3[4]/building3b[2]/ladder[3]/accessory_15[0]/Cube[0]
+    CenterInTopRoot_Local: (-32.6253, 4.8802, -27.0501)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.7526, 0.2595, 2.5378)
+    ChildLocalPositionFromA: (1.0409, 0.0000, 1.4083)
+    ChildLocalRotationFromA_Euler: (0.0000, 270.0000, 0.0000)
+    ChildLocalScaleFromA: (2.7526, 0.2595, 2.5378)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #39]
+  AName: accessory_15_1
+  APath: World[2]/Building3[4]/building3b[2]/ladder[3]/accessory_15_1[1]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building3[4]/building3b[2]/ladder[3]/accessory_15_1[1]/Cube[0]
+    CenterInTopRoot_Local: (-32.2563, 10.5822, -19.0576)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.719315, 0.000000, 0.694684)
+    SizeInTopRoot_Local: (2.7526, 0.2595, 2.5378)
+    ChildLocalPositionFromA: (1.0409, 0.0000, 1.4083)
+    ChildLocalRotationFromA_Euler: (0.0000, 270.0000, 0.0000)
+    ChildLocalScaleFromA: (2.7526, 0.2595, 2.5378)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #40]
+  AName: ladder_2_5
+  APath: World[2]/Building3[4]/building3b[2]/ladder[3]/ladder_2_5[10]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building3[4]/building3b[2]/ladder[3]/ladder_2_5[10]/Cube[0]
+    CenterInTopRoot_Local: (-35.4166, 3.7123, -27.0378)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.391126, 0.920337)
+    SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #41]
+  AName: ladder_2_5_1
+  APath: World[2]/Building3[4]/building3b[2]/ladder[3]/ladder_2_5_1[11]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building3[4]/building3b[2]/ladder[3]/ladder_2_5_1[11]/Cube[0]
+    CenterInTopRoot_Local: (-32.9357, 6.2664, -24.4976)
+    RotationInTopRoot_LocalQuat: (-0.276568, -0.650777, 0.276568, 0.650777)
+    SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #42]
+  AName: ladder_2_5_2
+  APath: World[2]/Building3[4]/building3b[2]/ladder[3]/ladder_2_5_2[12]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building3[4]/building3b[2]/ladder[3]/ladder_2_5_2[12]/Cube[0]
+    CenterInTopRoot_Local: (-32.9070, 8.8303, -22.0929)
+    RotationInTopRoot_LocalQuat: (-0.276568, -0.650777, 0.276568, 0.650777)
+    SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #43]
+  AName: ladder_2_5_3
+  APath: World[2]/Building3[4]/building3b[2]/ladder[3]/ladder_2_5_3[13]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building3[4]/building3b[2]/ladder[3]/ladder_2_5_3[13]/Cube[0]
+    CenterInTopRoot_Local: (-37.8318, 1.1581, -27.0332)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.391126, 0.920337)
+    SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #44]
+  AName: ladder_2_5_4
+  APath: World[2]/Building3[4]/building3b[2]/ladder[3]/ladder_2_5_4[14]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building3[4]/building3b[2]/ladder[3]/ladder_2_5_4[14]/Cube[0]
+    CenterInTopRoot_Local: (-40.2469, -1.3960, -26.5524)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.391126, 0.920337)
+    SizeInTopRoot_Local: (3.8108, 0.5581, 2.3640)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #45]
+  AName: accessoire_1
+  APath: World[2]/Building3[4]/building3b[2]/side[7]/accessoire_1[0]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 3
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building3[4]/building3b[2]/side[7]/accessoire_1[0]/Cube[0]
+    CenterInTopRoot_Local: (-34.5026, 5.7783, -16.4270)
+    RotationInTopRoot_LocalQuat: (0.148404, 0.691358, -0.148404, 0.691358)
+    SizeInTopRoot_Local: (1.6742, 0.1279, 0.8812)
+    ChildLocalPositionFromA: (0.2491, 0.3806, 0.0000)
+    ChildLocalRotationFromA_Euler: (24.2300, 90.0000, 0.0000)
+    ChildLocalScaleFromA: (1.6742, 0.1279, 0.8812)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/Building3[4]/building3b[2]/side[7]/accessoire_1[0]/Cube[1]
+    CenterInTopRoot_Local: (-34.9156, 5.1625, -15.7053)
+    RotationInTopRoot_LocalQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
+    SizeInTopRoot_Local: (0.1552, 0.2088, 1.4319)
+    ChildLocalPositionFromA: (-0.1640, -0.2353, 0.7217)
+    ChildLocalRotationFromA_Euler: (270.0000, 90.0000, 0.0000)
+    ChildLocalScaleFromA: (0.1552, 0.2088, 1.4319)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: World[2]/Building3[4]/building3b[2]/side[7]/accessoire_1[0]/Cube[2]
+    CenterInTopRoot_Local: (-34.9156, 5.1625, -17.1232)
+    RotationInTopRoot_LocalQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
+    SizeInTopRoot_Local: (0.1552, 0.2088, 1.4319)
+    ChildLocalPositionFromA: (-0.1640, -0.2353, -0.6962)
+    ChildLocalRotationFromA_Euler: (270.0000, 90.0000, 0.0000)
+    ChildLocalScaleFromA: (0.1552, 0.2088, 1.4319)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #46]
+  AName: accessoire_1_1
+  APath: World[2]/Building3[4]/front_1[5]/accessoire_1_1[0]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 3
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building3[4]/front_1[5]/accessoire_1_1[0]/Cube[0]
+    CenterInTopRoot_Local: (-58.4590, 10.9719, -9.3662)
+    RotationInTopRoot_LocalQuat: (0.209875, 0.000000, 0.000000, 0.977728)
+    SizeInTopRoot_Local: (1.6742, 0.1279, 0.8812)
+    ChildLocalPositionFromA: (0.2491, 0.3806, 0.0000)
+    ChildLocalRotationFromA_Euler: (24.2300, 90.0000, 0.0000)
+    ChildLocalScaleFromA: (1.6742, 0.1279, 0.8812)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/Building3[4]/front_1[5]/accessoire_1_1[0]/Cube[1]
+    CenterInTopRoot_Local: (-59.1807, 10.3561, -9.7792)
+    RotationInTopRoot_LocalQuat: (-0.707107, 0.000000, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (0.1552, 0.2088, 1.4319)
+    ChildLocalPositionFromA: (-0.1640, -0.2353, 0.7217)
+    ChildLocalRotationFromA_Euler: (270.0000, 90.0000, 0.0000)
+    ChildLocalScaleFromA: (0.1552, 0.2088, 1.4319)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: World[2]/Building3[4]/front_1[5]/accessoire_1_1[0]/Cube[2]
+    CenterInTopRoot_Local: (-57.7628, 10.3561, -9.7792)
+    RotationInTopRoot_LocalQuat: (-0.707107, 0.000000, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (0.1552, 0.2088, 1.4319)
+    ChildLocalPositionFromA: (-0.1640, -0.2353, -0.6962)
+    ChildLocalRotationFromA_Euler: (270.0000, 90.0000, 0.0000)
+    ChildLocalScaleFromA: (0.1552, 0.2088, 1.4319)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #47]
+  AName: accessory_6
+  APath: World[2]/Building4[5]/side1[15]/accessory_6[1]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building4[5]/side1[15]/accessory_6[1]/Cube[0]
+    CenterInTopRoot_Local: (-39.4102, 4.9084, 27.4830)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (5.3875, 0.4000, 2.0000)
+    ChildLocalPositionFromA: (0.0000, 0.2722, 0.0000)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.3875, 0.4000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #48]
+  AName: accessory_7
+  APath: World[2]/Building4[5]/side1[15]/accessory_7[2]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building4[5]/side1[15]/accessory_7[2]/Cube[0]
+    CenterInTopRoot_Local: (-36.9463, 5.7644, 22.5000)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (5.2875, 1.4125, 0.2875)
+    ChildLocalPositionFromA: (0.0000, 0.7644, 0.0627)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.2875, 1.4125, 0.2875)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #49]
+  AName: accessory_9
+  APath: World[2]/Building4[5]/side1[15]/accessory_9[4]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building4[5]/side1[15]/accessory_9[4]/Cube[0]
+    CenterInTopRoot_Local: (-38.3504, 4.8494, 17.5869)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (5.0000, 0.4000, 2.2802)
+    ChildLocalPositionFromA: (0.0000, -0.1909, 1.0014)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.0000, 0.4000, 2.2802)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #50]
+  AName: accessory_6_1
+  APath: World[2]/Building4[5]/side2[16]/accessory_6_1[2]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building4[5]/side2[16]/accessory_6_1[2]/Cube[0]
+    CenterInTopRoot_Local: (-50.5898, 4.9084, 17.5170)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (5.3875, 0.4000, 2.0000)
+    ChildLocalPositionFromA: (0.0000, 0.2722, 0.0000)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.3875, 0.4000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #51]
+  AName: accessory_7_1
+  APath: World[2]/Building4[5]/side2[16]/accessory_7_1[3]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building4[5]/side2[16]/accessory_7_1[3]/Cube[0]
+    CenterInTopRoot_Local: (-50.6432, 0.7644, 27.8008)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (5.2875, 1.4125, 0.2875)
+    ChildLocalPositionFromA: (0.0000, 0.7644, 0.0627)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.2875, 1.4125, 0.2875)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #52]
+  AName: accessory_9_1
+  APath: World[2]/Building4[5]/side2[16]/accessory_9_1[4]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building4[5]/side2[16]/accessory_9_1[4]/Cube[0]
+    CenterInTopRoot_Local: (-51.6496, 4.8494, 27.4131)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (5.0000, 0.4000, 2.2802)
+    ChildLocalPositionFromA: (0.0000, -0.1909, 1.0014)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.0000, 0.4000, 2.2802)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #53]
+  AName: accessory_5
+  APath: World[2]/Building5[6]/back[0]/accessory_5[0]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building5[6]/back[0]/accessory_5[0]/Cube[0]
+    CenterInTopRoot_Local: (-42.6053, 4.8430, 58.8859)
+    RotationInTopRoot_LocalQuat: (0.000000, 1.000000, 0.000000, 0.000000)
+    SizeInTopRoot_Local: (5.2000, 0.5000, 2.0000)
+    ChildLocalPositionFromA: (0.0000, -0.1211, 1.1141)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.2000, 0.5000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #54]
+  AName: accessory_15
+  APath: World[2]/Building5[6]/ladder[2]/accessory_15[0]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building5[6]/ladder[2]/accessory_15[0]/Cube[0]
+    CenterInTopRoot_Local: (-55.0428, 10.0000, 58.4755)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.708717, 0.000000, 0.705493)
+    SizeInTopRoot_Local: (2.7526, 0.2595, 2.5378)
+    ChildLocalPositionFromA: (1.0409, 0.0000, 1.4083)
+    ChildLocalRotationFromA_Euler: (0.0000, 270.0000, 0.0000)
+    ChildLocalScaleFromA: (2.7526, 0.2595, 2.5378)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #55]
+  AName: accessory_15_1
+  APath: World[2]/Building5[6]/ladder[2]/accessory_15_1[1]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building5[6]/ladder[2]/accessory_15_1[1]/Cube[0]
+    CenterInTopRoot_Local: (-38.5263, 4.9514, 58.9192)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.028204, 0.000000, 0.999602)
+    SizeInTopRoot_Local: (2.7526, 0.2595, 2.5378)
+    ChildLocalPositionFromA: (1.0409, 0.0000, 1.4083)
+    ChildLocalRotationFromA_Euler: (0.0000, 270.0000, 0.0000)
+    ChildLocalScaleFromA: (2.7526, 0.2595, 2.5378)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #56]
+  AName: ladder_2_5
+  APath: World[2]/Building5[6]/ladder[2]/ladder_2_5[9]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building5[6]/ladder[2]/ladder_2_5[9]/Cube[0]
+    CenterInTopRoot_Local: (-38.7063, 3.6581, 61.1668)
+    RotationInTopRoot_LocalQuat: (0.276568, 0.650777, 0.276568, 0.650777)
+    SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #57]
+  AName: ladder_2_5_1
+  APath: World[2]/Building5[6]/ladder[2]/ladder_2_5_1[10]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building5[6]/ladder[2]/ladder_2_5_1[10]/Cube[0]
+    CenterInTopRoot_Local: (-50.4601, 6.2123, 58.3654)
+    RotationInTopRoot_LocalQuat: (0.391125, 0.920335, -0.000892, -0.002099)
+    SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #58]
+  AName: ladder_2_5_2
+  APath: World[2]/Building5[6]/ladder[2]/ladder_2_5_2[11]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building5[6]/ladder[2]/ladder_2_5_2[11]/Cube[0]
+    CenterInTopRoot_Local: (-38.7017, 1.1040, 63.5820)
+    RotationInTopRoot_LocalQuat: (0.276568, 0.650777, 0.276568, 0.650777)
+    SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #59]
+  AName: ladder_2_5_3
+  APath: World[2]/Building5[6]/ladder[2]/ladder_2_5_3[12]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building5[6]/ladder[2]/ladder_2_5_3[12]/Cube[0]
+    CenterInTopRoot_Local: (-52.8753, 8.7664, 58.3811)
+    RotationInTopRoot_LocalQuat: (0.391125, 0.920335, -0.000892, -0.002099)
+    SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #60]
+  AName: accessoire_1
+  APath: World[2]/Building5[6]/side1[8]/accessoire_1[0]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 3
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building5[6]/side1[8]/accessoire_1[0]/Cube[0]
+    CenterInTopRoot_Local: (-53.6378, 8.6520, 66.4747)
+    RotationInTopRoot_LocalQuat: (0.148404, -0.691358, 0.148404, 0.691358)
+    SizeInTopRoot_Local: (1.6742, 0.1279, 0.8812)
+    ChildLocalPositionFromA: (0.2491, 0.3806, 0.0000)
+    ChildLocalRotationFromA_Euler: (24.2300, 90.0000, 0.0000)
+    ChildLocalScaleFromA: (1.6742, 0.1279, 0.8812)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/Building5[6]/side1[8]/accessoire_1[0]/Cube[1]
+    CenterInTopRoot_Local: (-53.2248, 8.0362, 65.7530)
+    RotationInTopRoot_LocalQuat: (0.500000, 0.500000, 0.500000, -0.500000)
+    SizeInTopRoot_Local: (0.1552, 0.2088, 1.4319)
+    ChildLocalPositionFromA: (-0.1640, -0.2353, 0.7217)
+    ChildLocalRotationFromA_Euler: (270.0000, 90.0000, 0.0000)
+    ChildLocalScaleFromA: (0.1552, 0.2088, 1.4319)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: World[2]/Building5[6]/side1[8]/accessoire_1[0]/Cube[2]
+    CenterInTopRoot_Local: (-53.2248, 8.0362, 67.1709)
+    RotationInTopRoot_LocalQuat: (0.500000, 0.500000, 0.500000, -0.500000)
+    SizeInTopRoot_Local: (0.1552, 0.2088, 1.4319)
+    ChildLocalPositionFromA: (-0.1640, -0.2353, -0.6962)
+    ChildLocalRotationFromA_Euler: (270.0000, 90.0000, 0.0000)
+    ChildLocalScaleFromA: (0.1552, 0.2088, 1.4319)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #61]
+  AName: accessory_5_1
+  APath: World[2]/Building5[6]/side1[8]/accessory_5_1[4]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building5[6]/side1[8]/accessory_5_1[4]/Cube[0]
+    CenterInTopRoot_Local: (-51.1141, 4.7014, 67.4015)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (5.2000, 0.5000, 2.0000)
+    ChildLocalPositionFromA: (0.0000, -0.1211, 1.1141)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.2000, 0.5000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #62]
+  AName: accessoire_1_1
+  APath: World[2]/Building6[7]/back[0]/accessoire_1_1[0]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 3
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building6[7]/back[0]/accessoire_1_1[0]/Cube[0]
+    CenterInTopRoot_Local: (-1.5411, 8.9719, -75.6338)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.977728, -0.209875, 0.000000)
+    SizeInTopRoot_Local: (1.6742, 0.1279, 0.8812)
+    ChildLocalPositionFromA: (0.2491, 0.3806, 0.0000)
+    ChildLocalRotationFromA_Euler: (24.2300, 90.0000, 0.0000)
+    ChildLocalScaleFromA: (1.6742, 0.1279, 0.8812)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/Building6[7]/back[0]/accessoire_1_1[0]/Cube[1]
+    CenterInTopRoot_Local: (-0.8193, 8.3561, -75.2208)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.707107, 0.000000)
+    SizeInTopRoot_Local: (0.1552, 0.2088, 1.4319)
+    ChildLocalPositionFromA: (-0.1640, -0.2353, 0.7217)
+    ChildLocalRotationFromA_Euler: (270.0000, 90.0000, 0.0000)
+    ChildLocalScaleFromA: (0.1552, 0.2088, 1.4319)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: World[2]/Building6[7]/back[0]/accessoire_1_1[0]/Cube[2]
+    CenterInTopRoot_Local: (-2.2372, 8.3561, -75.2208)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.707107, 0.000000)
+    SizeInTopRoot_Local: (0.1552, 0.2088, 1.4319)
+    ChildLocalPositionFromA: (-0.1640, -0.2353, -0.6962)
+    ChildLocalRotationFromA_Euler: (270.0000, 90.0000, 0.0000)
+    ChildLocalScaleFromA: (0.1552, 0.2088, 1.4319)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #63]
+  AName: accessoire_1
+  APath: World[2]/Building6[7]/front[2]/accessoire_1[0]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 3
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building6[7]/front[2]/accessoire_1[0]/Cube[0]
+    CenterInTopRoot_Local: (-8.4589, 8.9719, -59.3662)
+    RotationInTopRoot_LocalQuat: (0.209875, 0.000000, 0.000000, 0.977728)
+    SizeInTopRoot_Local: (1.6742, 0.1279, 0.8812)
+    ChildLocalPositionFromA: (0.2491, 0.3806, 0.0000)
+    ChildLocalRotationFromA_Euler: (24.2300, 90.0000, 0.0000)
+    ChildLocalScaleFromA: (1.6742, 0.1279, 0.8812)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/Building6[7]/front[2]/accessoire_1[0]/Cube[1]
+    CenterInTopRoot_Local: (-9.1807, 8.3561, -59.7792)
+    RotationInTopRoot_LocalQuat: (-0.707107, 0.000000, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (0.1552, 0.2088, 1.4319)
+    ChildLocalPositionFromA: (-0.1640, -0.2353, 0.7217)
+    ChildLocalRotationFromA_Euler: (270.0000, 90.0000, 0.0000)
+    ChildLocalScaleFromA: (0.1552, 0.2088, 1.4319)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: World[2]/Building6[7]/front[2]/accessoire_1[0]/Cube[2]
+    CenterInTopRoot_Local: (-7.7628, 8.3561, -59.7792)
+    RotationInTopRoot_LocalQuat: (-0.707107, 0.000000, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (0.1552, 0.2088, 1.4319)
+    ChildLocalPositionFromA: (-0.1640, -0.2353, -0.6962)
+    ChildLocalRotationFromA_Euler: (270.0000, 90.0000, 0.0000)
+    ChildLocalScaleFromA: (0.1552, 0.2088, 1.4319)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #64]
+  AName: doorFrame4b_1
+  APath: World[2]/Building6[7]/side2[5]/doorFrame4b_1[10]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 5
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building6[7]/side2[5]/doorFrame4b_1[10]/Cube[0]
+    CenterInTopRoot_Local: (-0.0052, 2.2548, -69.6822)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (0.5875, 4.4406, 0.5138)
+    ChildLocalPositionFromA: (2.1822, 2.2548, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.5875, 4.4406, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/Building6[7]/side2[5]/doorFrame4b_1[10]/Cube[1]
+    CenterInTopRoot_Local: (-0.0052, 2.2957, -65.2882)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (0.5875, 4.5312, 0.5138)
+    ChildLocalPositionFromA: (-2.2118, 2.2957, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.5875, 4.5312, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: World[2]/Building6[7]/side2[5]/doorFrame4b_1[10]/Cube[2]
+    CenterInTopRoot_Local: (-0.0052, 4.7065, -67.4859)
+    RotationInTopRoot_LocalQuat: (0.500000, 0.500000, 0.500000, 0.500000)
+    SizeInTopRoot_Local: (0.5875, 5.0008, 0.5138)
+    ChildLocalPositionFromA: (-0.0141, 4.7065, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 90.0000)
+    ChildLocalScaleFromA: (0.5875, 5.0008, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #4]
+    ChildName: Cube
+    ChildPath: World[2]/Building6[7]/side2[5]/doorFrame4b_1[10]/Cube[3]
+    CenterInTopRoot_Local: (-0.0052, 4.2022, -69.0806)
+    RotationInTopRoot_LocalQuat: (0.289200, 0.645262, 0.289201, 0.645262)
+    SizeInTopRoot_Local: (0.7858, 1.7038, 0.5138)
+    ChildLocalPositionFromA: (1.5806, 4.2022, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 48.2830)
+    ChildLocalScaleFromA: (0.7858, 1.7038, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #5]
+    ChildName: Cube
+    ChildPath: World[2]/Building6[7]/side2[5]/doorFrame4b_1[10]/Cube[4]
+    CenterInTopRoot_Local: (-0.0052, 4.2022, -65.8231)
+    RotationInTopRoot_LocalQuat: (-0.289201, 0.645262, -0.289201, 0.645262)
+    SizeInTopRoot_Local: (0.7858, 1.7038, 0.5138)
+    ChildLocalPositionFromA: (-1.6769, 4.2022, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 311.7169)
+    ChildLocalScaleFromA: (0.7858, 1.7038, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #65]
+  AName: accessory_7
+  APath: World[2]/Building6[7]/side2[5]/window_7_1[19]/accessory_7[0]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building6[7]/side2[5]/window_7_1[19]/accessory_7[0]/Cube[0]
+    CenterInTopRoot_Local: (0.0627, 0.7644, -62.5000)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (4.7036, 1.4125, 0.2875)
+    ChildLocalPositionFromA: (0.0000, 0.7644, 0.0627)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.2875, 1.4125, 0.2875)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #66]
+  AName: doorFrame4b
+  APath: World[2]/Building6[7]/side[4]/doorFrame4b[8]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 5
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building6[7]/side[4]/doorFrame4b[8]/Cube[0]
+    CenterInTopRoot_Local: (-9.9948, 2.2548, -65.3179)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (0.5875, 4.4406, 0.5138)
+    ChildLocalPositionFromA: (2.1822, 2.2548, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.5875, 4.4406, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/Building6[7]/side[4]/doorFrame4b[8]/Cube[1]
+    CenterInTopRoot_Local: (-9.9948, 2.2957, -69.7118)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (0.5875, 4.5312, 0.5138)
+    ChildLocalPositionFromA: (-2.2118, 2.2957, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.5875, 4.5312, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: World[2]/Building6[7]/side[4]/doorFrame4b[8]/Cube[2]
+    CenterInTopRoot_Local: (-9.9948, 4.7065, -67.5141)
+    RotationInTopRoot_LocalQuat: (0.500000, 0.500000, -0.500000, -0.500000)
+    SizeInTopRoot_Local: (0.5875, 5.0008, 0.5138)
+    ChildLocalPositionFromA: (-0.0141, 4.7065, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 90.0000)
+    ChildLocalScaleFromA: (0.5875, 5.0008, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #4]
+    ChildName: Cube
+    ChildPath: World[2]/Building6[7]/side[4]/doorFrame4b[8]/Cube[3]
+    CenterInTopRoot_Local: (-9.9948, 4.2022, -65.9194)
+    RotationInTopRoot_LocalQuat: (-0.289201, -0.645262, 0.289201, 0.645262)
+    SizeInTopRoot_Local: (0.7858, 1.7038, 0.5138)
+    ChildLocalPositionFromA: (1.5806, 4.2022, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 48.2830)
+    ChildLocalScaleFromA: (0.7858, 1.7038, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #5]
+    ChildName: Cube
+    ChildPath: World[2]/Building6[7]/side[4]/doorFrame4b[8]/Cube[4]
+    CenterInTopRoot_Local: (-9.9948, 4.2022, -69.1769)
+    RotationInTopRoot_LocalQuat: (0.289201, -0.645262, -0.289201, 0.645262)
+    SizeInTopRoot_Local: (0.7858, 1.7038, 0.5138)
+    ChildLocalPositionFromA: (-1.6769, 4.2022, -0.0052)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 311.7169)
+    ChildLocalScaleFromA: (0.7858, 1.7038, 0.5138)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #67]
+  AName: accessory_15
+  APath: World[2]/Building7[8]/ladder[3]/accessory_15[0]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building7[8]/ladder[3]/accessory_15[0]/Cube[0]
+    CenterInTopRoot_Local: (-1.5555, 5.0985, -31.3014)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.014181, 0.000000, 0.999899)
+    SizeInTopRoot_Local: (2.7526, 0.2595, 2.5378)
+    ChildLocalPositionFromA: (1.0409, 0.0000, 1.4083)
+    ChildLocalRotationFromA_Euler: (0.0000, 270.0000, 0.0000)
+    ChildLocalScaleFromA: (2.7526, 0.2595, 2.5378)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #68]
+  AName: ladder_2_5
+  APath: World[2]/Building7[8]/ladder[3]/ladder_2_5[3]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building7[8]/ladder[3]/ladder_2_5[3]/Cube[0]
+    CenterInTopRoot_Local: (-9.4634, -1.4696, -31.8968)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.391126, 0.920337)
+    SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #69]
+  AName: ladder_2_5_1
+  APath: World[2]/Building7[8]/ladder[3]/ladder_2_5_1[4]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building7[8]/ladder[3]/ladder_2_5_1[4]/Cube[0]
+    CenterInTopRoot_Local: (-4.6541, 3.6581, -31.9544)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.391126, 0.920337)
+    SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #70]
+  AName: ladder_2_5_2
+  APath: World[2]/Building7[8]/ladder[3]/ladder_2_5_2[5]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building7[8]/ladder[3]/ladder_2_5_2[5]/Cube[0]
+    CenterInTopRoot_Local: (-7.0587, 1.0943, -31.9256)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.391126, 0.920337)
+    SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #71]
+  AName: accessory_5
+  APath: World[2]/Building7[8]/side1[6]/accessory_5[0]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building7[8]/side1[6]/accessory_5[0]/Cube[0]
+    CenterInTopRoot_Local: (-11.2616, 9.6697, -25.0179)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (5.8886, 0.5662, 2.2649)
+    ChildLocalPositionFromA: (0.0000, -0.1211, 1.1141)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.2000, 0.5000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #72]
+  AName: accessory_7
+  APath: World[2]/Building7[8]/side2[7]/accessory_7[0]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building7[8]/side2[7]/accessory_7[0]/Cube[0]
+    CenterInTopRoot_Local: (-2.6756, 5.8010, -27.7514)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (4.9483, 1.3219, 0.2691)
+    ChildLocalPositionFromA: (0.0000, 0.7644, 0.0627)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.2875, 1.4125, 0.2875)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #73]
+  AName: doorFrame1
+  APath: World[2]/Building8[9]/back[0]/doorFrame1[22]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 3
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building8[9]/back[0]/doorFrame1[22]/Cube[2]
+    CenterInTopRoot_Local: (-0.7812, 7.5000, 35.0000)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (1.5538, 5.0375, 0.9125)
+    ChildLocalPositionFromA: (1.7188, 2.5000, 0.0000)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.5538, 5.0375, 0.9125)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/Building8[9]/back[0]/doorFrame1[22]/Cube[3]
+    CenterInTopRoot_Local: (-4.2005, 7.5000, 35.0000)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (1.5538, 5.0375, 0.9125)
+    ChildLocalPositionFromA: (-1.7005, 2.5000, 0.0000)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.5538, 5.0375, 0.9125)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: World[2]/Building8[9]/back[0]/doorFrame1[22]/Cube[4]
+    CenterInTopRoot_Local: (-2.4909, 8.8805, 35.0000)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.3889, 2.2148, 0.9125)
+    ChildLocalPositionFromA: (0.0091, 3.8805, 0.0000)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (2.3889, 2.2148, 0.9125)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #74]
+  AName: ladder_2_5
+  APath: World[2]/Building8[9]/back[0]/doorFrame1[22]/ladder_2_5[6]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building8[9]/back[0]/doorFrame1[22]/ladder_2_5[6]/Cube[0]
+    CenterInTopRoot_Local: (-2.5425, 4.1579, 36.5366)
+    RotationInTopRoot_LocalQuat: (0.276568, 0.650777, 0.276568, 0.650777)
+    SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #75]
+  AName: ladder_2_5_1
+  APath: World[2]/Building8[9]/back[0]/doorFrame1[22]/ladder_2_5_1[7]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building8[9]/back[0]/doorFrame1[22]/ladder_2_5_1[7]/Cube[0]
+    CenterInTopRoot_Local: (-2.5379, 1.6037, 38.9518)
+    RotationInTopRoot_LocalQuat: (0.276568, 0.650777, 0.276568, 0.650776)
+    SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #76]
+  AName: accessory_5
+  APath: World[2]/Building8[9]/front[5]/accessory_5[0]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building8[9]/front[5]/accessory_5[0]/Cube[0]
+    CenterInTopRoot_Local: (-7.5000, 10.2428, 20.8859)
+    RotationInTopRoot_LocalQuat: (0.000000, 1.000000, 0.000000, 0.000000)
+    SizeInTopRoot_Local: (5.2000, 0.5000, 2.0000)
+    ChildLocalPositionFromA: (0.0000, -0.1211, 1.1141)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.2000, 0.5000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #77]
+  AName: doorFrame5
+  APath: World[2]/Building8[9]/front[5]/doorFrame5[35]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 3
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building8[9]/front[5]/doorFrame5[35]/Cube[0]
+    CenterInTopRoot_Local: (-9.5278, 2.5000, 24.5000)
+    RotationInTopRoot_LocalQuat: (0.000000, 1.000000, 0.000000, 0.000000)
+    SizeInTopRoot_Local: (1.0000, 5.0000, 5.0000)
+    ChildLocalPositionFromA: (2.0278, 2.5000, -2.5000)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.0000, 5.0000, 5.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/Building8[9]/front[5]/doorFrame5[35]/Cube[1]
+    CenterInTopRoot_Local: (-5.4722, 2.5000, 24.5000)
+    RotationInTopRoot_LocalQuat: (0.000000, 1.000000, 0.000000, 0.000000)
+    SizeInTopRoot_Local: (1.0000, 5.0000, 5.0000)
+    ChildLocalPositionFromA: (-2.0278, 2.5000, -2.5000)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.0000, 5.0000, 5.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: World[2]/Building8[9]/front[5]/doorFrame5[35]/Cube[2]
+    CenterInTopRoot_Local: (-7.4228, 4.5072, 24.5000)
+    RotationInTopRoot_LocalQuat: (0.000000, 1.000000, 0.000000, 0.000000)
+    SizeInTopRoot_Local: (4.5625, 1.0000, 5.0000)
+    ChildLocalPositionFromA: (-0.0772, 4.5072, -2.5000)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (4.5625, 1.0000, 5.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #78]
+  AName: accessory_15
+  APath: World[2]/Building8[9]/ladder[6]/accessory_15[0]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building8[9]/ladder[6]/accessory_15[0]/Cube[0]
+    CenterInTopRoot_Local: (-9.0555, 8.1193, 37.0117)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (2.7526, 0.2595, 2.5378)
+    ChildLocalPositionFromA: (1.0409, 0.0000, 1.4083)
+    ChildLocalRotationFromA_Euler: (0.0000, 270.0000, 0.0000)
+    ChildLocalScaleFromA: (2.7526, 0.2595, 2.5378)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #79]
+  AName: accessory_15_1
+  APath: World[2]/Building8[9]/ladder[6]/accessory_15_1[1]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building8[9]/ladder[6]/accessory_15_1[1]/Cube[0]
+    CenterInTopRoot_Local: (-1.6361, 13.3851, 37.0117)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (2.7526, 0.2595, 2.5378)
+    ChildLocalPositionFromA: (1.0409, 0.0000, 1.4083)
+    ChildLocalRotationFromA_Euler: (0.0000, 270.0000, 0.0000)
+    ChildLocalScaleFromA: (2.7526, 0.2595, 2.5378)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #80]
+  AName: ladder_2_5_2
+  APath: World[2]/Building8[9]/ladder[6]/ladder_2_5_2[8]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building8[9]/ladder[6]/ladder_2_5_2[8]/Cube[0]
+    CenterInTopRoot_Local: (-4.0479, 11.8126, 36.9499)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.391126, 0.920337)
+    SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #81]
+  AName: ladder_2_5_3
+  APath: World[2]/Building8[9]/ladder[6]/ladder_2_5_3[9]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building8[9]/ladder[6]/ladder_2_5_3[9]/Cube[0]
+    CenterInTopRoot_Local: (-6.4159, 9.2467, 36.9876)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.391126, 0.920337)
+    SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #82]
+  AName: ladder_2_5_4
+  APath: World[2]/Building8[9]/ladder[6]/ladder_2_5_4[10]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building8[9]/ladder[6]/ladder_2_5_4[10]/Cube[0]
+    CenterInTopRoot_Local: (-9.1306, 4.1268, 41.9278)
+    RotationInTopRoot_LocalQuat: (0.274668, 0.646307, 0.278455, 0.655216)
+    SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #83]
+  AName: ladder_2_5_5
+  APath: World[2]/Building8[9]/ladder[6]/ladder_2_5_5[11]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building8[9]/ladder[6]/ladder_2_5_5[11]/Cube[0]
+    CenterInTopRoot_Local: (-9.1021, 6.6809, 39.5128)
+    RotationInTopRoot_LocalQuat: (0.274668, 0.646306, 0.278455, 0.655217)
+    SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #84]
+  AName: ladder_2_5_6
+  APath: World[2]/Building8[9]/ladder[6]/ladder_2_5_6[12]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building8[9]/ladder[6]/ladder_2_5_6[12]/Cube[0]
+    CenterInTopRoot_Local: (-9.1590, 1.5726, 44.3428)
+    RotationInTopRoot_LocalQuat: (0.274668, 0.646307, 0.278455, 0.655216)
+    SizeInTopRoot_Local: (3.8108, 0.5581, 2.8329)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #85]
+  AName: accessory_5_1
+  APath: World[2]/Building8[9]/side1[12]/accessory_5_1[1]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building8[9]/side1[12]/accessory_5_1[1]/Cube[0]
+    CenterInTopRoot_Local: (1.1141, 9.7650, 27.5198)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (5.2000, 0.5000, 2.0000)
+    ChildLocalPositionFromA: (0.0000, -0.1211, 1.1141)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.2000, 0.5000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #86]
+  AName: accessory_6
+  APath: World[2]/Building8[9]/side1[12]/accessory_6[2]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building8[9]/side1[12]/accessory_6[2]/Cube[0]
+    CenterInTopRoot_Local: (0.0000, 14.8104, 32.6022)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (5.3875, 0.4000, 2.0000)
+    ChildLocalPositionFromA: (0.0000, 0.2722, 0.0000)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.3875, 0.4000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #87]
+  AName: accessory_9
+  APath: World[2]/Building8[9]/side1[12]/accessory_9[3]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building8[9]/side1[12]/accessory_9[3]/Cube[0]
+    CenterInTopRoot_Local: (1.0014, 9.7442, 22.3548)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (5.0000, 0.4000, 2.2802)
+    ChildLocalPositionFromA: (0.0000, -0.1909, 1.0014)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.0000, 0.4000, 2.2802)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #88]
+  AName: accessory_5_2
+  APath: World[2]/Building8[9]/side2[13]/accessory_5_2[1]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building8[9]/side2[13]/accessory_5_2[1]/Cube[0]
+    CenterInTopRoot_Local: (-16.1141, 9.7650, 27.4802)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (5.2000, 0.5000, 2.0000)
+    ChildLocalPositionFromA: (0.0000, -0.1211, 1.1141)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.2000, 0.5000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #89]
+  AName: accessory_6_1
+  APath: World[2]/Building8[9]/side2[13]/accessory_6_1[2]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building8[9]/side2[13]/accessory_6_1[2]/Cube[0]
+    CenterInTopRoot_Local: (-15.0000, 14.8104, 22.3978)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (5.3875, 0.4000, 2.0000)
+    ChildLocalPositionFromA: (0.0000, 0.2722, 0.0000)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.3875, 0.4000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #90]
+  AName: accessory_9_1
+  APath: World[2]/Building8[9]/side2[13]/accessory_9_1[3]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building8[9]/side2[13]/accessory_9_1[3]/Cube[0]
+    CenterInTopRoot_Local: (-16.0014, 9.7442, 32.6452)
+    RotationInTopRoot_LocalQuat: (0.000000, -0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (5.0000, 0.4000, 2.2802)
+    ChildLocalPositionFromA: (0.0000, -0.1909, 1.0014)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.0000, 0.4000, 2.2802)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #91]
+  AName: doorFrame1
+  APath: World[2]/Building9[10]/front[2]/doorFrame1[16]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 3
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building9[10]/front[2]/doorFrame1[16]/Cube[0]
+    CenterInTopRoot_Local: (1.7188, 2.5000, 70.0000)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (1.5538, 5.0375, 0.9125)
+    ChildLocalPositionFromA: (1.7188, 2.5000, 0.0000)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.5538, 5.0375, 0.9125)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/Building9[10]/front[2]/doorFrame1[16]/Cube[1]
+    CenterInTopRoot_Local: (-1.7005, 2.5000, 70.0000)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (1.5538, 5.0375, 0.9125)
+    ChildLocalPositionFromA: (-1.7005, 2.5000, 0.0000)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (1.5538, 5.0375, 0.9125)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: World[2]/Building9[10]/front[2]/doorFrame1[16]/Cube[2]
+    CenterInTopRoot_Local: (0.0091, 3.8805, 70.0000)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.3889, 2.2148, 0.9125)
+    ChildLocalPositionFromA: (0.0091, 3.8805, 0.0000)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (2.3889, 2.2148, 0.9125)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #92]
+  AName: ladder_2_5
+  APath: World[2]/Building9[10]/front[2]/doorFrame1[16]/door_1[3]/ladder_2_5[0]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building9[10]/front[2]/doorFrame1[16]/door_1[3]/ladder_2_5[0]/Cube[0]
+    CenterInTopRoot_Local: (-0.0310, -0.6970, 70.8575)
+    RotationInTopRoot_LocalQuat: (0.274787, 0.646593, 0.278332, 0.654936)
+    SizeInTopRoot_Local: (3.8108, 0.5581, 2.5142)
+    ChildLocalPositionFromA: (1.3009, 1.1254, -0.0425)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 46.0492)
+    ChildLocalScaleFromA: (3.8108, 0.5581, 2.8329)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #93]
+  AName: accessoire_1
+  APath: World[2]/Building9[10]/side1[4]/accessoire_1[0]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 3
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building9[10]/side1[4]/accessoire_1[0]/Cube[0]
+    CenterInTopRoot_Local: (3.3479, 4.1977, 67.5000)
+    RotationInTopRoot_LocalQuat: (0.148404, 0.691358, -0.148404, 0.691358)
+    SizeInTopRoot_Local: (2.8392, 0.2169, 1.4943)
+    ChildLocalPositionFromA: (0.2491, 0.3806, 0.0000)
+    ChildLocalRotationFromA_Euler: (24.2300, 90.0000, 0.0000)
+    ChildLocalScaleFromA: (1.6742, 0.1279, 0.8812)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/Building9[10]/side1[4]/accessoire_1[0]/Cube[1]
+    CenterInTopRoot_Local: (2.6475, 3.1534, 68.7239)
+    RotationInTopRoot_LocalQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
+    SizeInTopRoot_Local: (0.2631, 0.3542, 2.4283)
+    ChildLocalPositionFromA: (-0.1640, -0.2353, 0.7217)
+    ChildLocalRotationFromA_Euler: (270.0000, 90.0000, 0.0000)
+    ChildLocalScaleFromA: (0.1552, 0.2088, 1.4319)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: World[2]/Building9[10]/side1[4]/accessoire_1[0]/Cube[2]
+    CenterInTopRoot_Local: (2.6475, 3.1534, 66.3194)
+    RotationInTopRoot_LocalQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
+    SizeInTopRoot_Local: (0.2631, 0.3542, 2.4283)
+    ChildLocalPositionFromA: (-0.1640, -0.2353, -0.6962)
+    ChildLocalRotationFromA_Euler: (270.0000, 90.0000, 0.0000)
+    ChildLocalScaleFromA: (0.1552, 0.2088, 1.4319)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #94]
+  AName: accessory_6
+  APath: World[2]/Building9[10]/side1[4]/accessory_6[2]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building9[10]/side1[4]/accessory_6[2]/Cube[0]
+    CenterInTopRoot_Local: (2.5301, 5.0333, 67.5000)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (5.3875, 0.4000, 2.0000)
+    ChildLocalPositionFromA: (0.0000, 0.2722, 0.0000)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.3875, 0.4000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #95]
+  AName: accessory_7
+  APath: World[2]/Building9[10]/side1[4]/accessory_7[3]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Building9[10]/side1[4]/accessory_7[3]/Cube[0]
+    CenterInTopRoot_Local: (2.5627, 0.7644, 62.7306)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (5.2875, 1.4125, 0.2875)
+    ChildLocalPositionFromA: (0.0000, 0.7644, 0.0627)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (5.2875, 1.4125, 0.2875)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #96]
+  AName: Tree1_1
+  APath: World[2]/Tree1[12]/Tree1_1[0]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Tree1[12]/Tree1_1[0]/Cube[0]
+    CenterInTopRoot_Local: (68.2315, 5.0000, -71.8623)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.0000, 10.0000, 2.0000)
+    ChildLocalPositionFromA: (0.0000, 5.0000, 0.0000)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (2.0000, 10.0000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #97]
+  AName: Tree2_1
+  APath: World[2]/Tree2[13]/Tree2_1[0]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Tree2[13]/Tree2_1[0]/Cube[0]
+    CenterInTopRoot_Local: (72.0612, 5.0000, -36.7878)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.0000, 10.0000, 2.0000)
+    ChildLocalPositionFromA: (0.0000, 5.0000, 0.0000)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (2.0000, 10.0000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #98]
+  AName: Tree3_1
+  APath: World[2]/Tree3[14]/Tree3_1[0]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 3
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Tree3[14]/Tree3_1[0]/Cube[0]
+    CenterInTopRoot_Local: (69.6400, 6.0000, -1.1125)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.0000, 10.0000, 2.0000)
+    ChildLocalPositionFromA: (0.6300, 5.0000, -1.3200)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (2.0000, 10.0000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/Tree3[14]/Tree3_1[0]/Cube[1]
+    CenterInTopRoot_Local: (66.4000, 6.0000, 1.2175)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.0000, 10.0000, 2.0000)
+    ChildLocalPositionFromA: (-2.6100, 5.0000, 1.0100)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (2.0000, 10.0000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: World[2]/Tree3[14]/Tree3_1[0]/Cube[2]
+    CenterInTopRoot_Local: (70.3800, 6.0000, 1.7775)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.0000, 10.0000, 2.0000)
+    ChildLocalPositionFromA: (1.3700, 5.0000, 1.5700)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (2.0000, 10.0000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #99]
+  AName: Tree4_1
+  APath: World[2]/Tree4[15]/Tree4_1[0]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Tree4[15]/Tree4_1[0]/Cube[0]
+    CenterInTopRoot_Local: (66.3001, 5.0000, 24.3578)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.0000, 10.0000, 2.0000)
+    ChildLocalPositionFromA: (0.0000, 5.0000, 0.3880)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (2.0000, 10.0000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #100]
+  AName: Tree5_1
+  APath: World[2]/Tree5[16]/Tree5_1[0]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 1
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Tree5[16]/Tree5_1[0]/Cube[0]
+    CenterInTopRoot_Local: (68.0015, 6.0000, 50.3249)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.0000, 10.0000, 2.0000)
+    ChildLocalPositionFromA: (0.0000, 5.0000, 0.0700)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (2.0000, 10.0000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #101]
+  AName: Tree6_1
+  APath: World[2]/Tree6[17]/Tree6_1[0]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 3
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/Tree6[17]/Tree6_1[0]/Cube[0]
+    CenterInTopRoot_Local: (67.4987, 6.0000, 72.7502)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.0000, 10.0000, 2.0000)
+    ChildLocalPositionFromA: (-0.5180, 5.0000, 0.6620)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (2.0000, 10.0000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/Tree6[17]/Tree6_1[0]/Cube[1]
+    CenterInTopRoot_Local: (64.2467, 6.0000, 73.5912)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.0000, 10.0000, 2.0000)
+    ChildLocalPositionFromA: (-3.7700, 5.0000, 1.5030)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (2.0000, 10.0000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #3]
+    ChildName: Cube
+    ChildPath: World[2]/Tree6[17]/Tree6_1[0]/Cube[2]
+    CenterInTopRoot_Local: (69.9666, 6.0000, 74.3982)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+    SizeInTopRoot_Local: (2.0000, 10.0000, 2.0000)
+    ChildLocalPositionFromA: (1.9500, 5.0000, 2.3100)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (2.0000, 10.0000, 2.0000)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #102]
+  AName: DoorWall_2_1
+  APath: World[2]/VillageWall[11]/Wall__2__2_1[4]/DoorWall_2_1[2]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 2
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/VillageWall[11]/Wall__2__2_1[4]/DoorWall_2_1[2]/Cube[0]
+    CenterInTopRoot_Local: (-7.6566, 5.4500, 103.3730)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.707107, 0.000000)
+    SizeInTopRoot_Local: (6.0000, 8.0000, 12.0000)
+    ChildLocalPositionFromA: (-0.0061, 0.0016, -0.0134)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 180.0000)
+    ChildLocalScaleFromA: (0.0050, 0.0080, 0.0060)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/VillageWall[11]/Wall__2__2_1[4]/DoorWall_2_1[2]/Cube[1]
+    CenterInTopRoot_Local: (7.7063, 5.4500, 103.3730)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.707107, 0.000000)
+    SizeInTopRoot_Local: (6.0000, 8.0000, 12.0000)
+    ChildLocalPositionFromA: (0.0068, 0.0016, -0.0134)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 180.0000)
+    ChildLocalScaleFromA: (0.0050, 0.0080, 0.0060)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #103]
+  AName: Door__1__2_2
+  APath: World[2]/VillageWall[11]/Wall__2__2_1[4]/DoorWall_2_1[2]/Door__1__2_2[2]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 2
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/VillageWall[11]/Wall__2__2_1[4]/DoorWall_2_1[2]/Door__1__2_2[2]/Cube[0]
+    CenterInTopRoot_Local: (-5.2190, 5.4500, 98.9950)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.707107, 0.000000)
+    SizeInTopRoot_Local: (1.2000, 1.4000, 12.0000)
+    ChildLocalPositionFromA: (0.0026, 0.0001, -0.0007)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.0006, 0.0007, 0.0058)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/VillageWall[11]/Wall__2__2_1[4]/DoorWall_2_1[2]/Door__1__2_2[2]/Cube[1]
+    CenterInTopRoot_Local: (5.3400, 5.4500, 98.9950)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.707107, 0.000000)
+    SizeInTopRoot_Local: (1.2000, 1.4000, 12.0000)
+    ChildLocalPositionFromA: (-0.0026, 0.0001, -0.0007)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.0006, 0.0007, 0.0058)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #104]
+  AName: Door__1__2_3
+  APath: World[2]/VillageWall[11]/Wall__2__2_1[4]/DoorWall_2_1[2]/Door__1__2_3[3]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 2
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/VillageWall[11]/Wall__2__2_1[4]/DoorWall_2_1[2]/Door__1__2_3[3]/Cube[0]
+    CenterInTopRoot_Local: (5.3068, 5.4440, 107.4337)
+    RotationInTopRoot_LocalQuat: (-0.707107, 0.000000, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (1.2000, 1.4000, 12.0000)
+    ChildLocalPositionFromA: (0.0026, 0.0001, -0.0007)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.0006, 0.0007, 0.0058)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/VillageWall[11]/Wall__2__2_1[4]/DoorWall_2_1[2]/Door__1__2_3[3]/Cube[1]
+    CenterInTopRoot_Local: (-5.2522, 5.4440, 107.4338)
+    RotationInTopRoot_LocalQuat: (-0.707107, 0.000000, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (1.2000, 1.4000, 12.0000)
+    ChildLocalPositionFromA: (-0.0026, 0.0001, -0.0007)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.0006, 0.0007, 0.0058)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #105]
+  AName: DoorWall_2_2
+  APath: World[2]/VillageWall[11]/Wall__2__2_2[5]/DoorWall_2_2[2]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 2
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/VillageWall[11]/Wall__2__2_2[5]/DoorWall_2_2[2]/Cube[0]
+    CenterInTopRoot_Local: (7.6566, 5.4545, -103.3744)
+    RotationInTopRoot_LocalQuat: (-0.707107, 0.000000, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (6.0000, 8.0000, 12.0000)
+    ChildLocalPositionFromA: (-0.0061, 0.0016, -0.0134)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 180.0000)
+    ChildLocalScaleFromA: (0.0050, 0.0080, 0.0060)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/VillageWall[11]/Wall__2__2_2[5]/DoorWall_2_2[2]/Cube[1]
+    CenterInTopRoot_Local: (-7.7063, 5.4545, -103.3744)
+    RotationInTopRoot_LocalQuat: (-0.707107, 0.000000, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (6.0000, 8.0000, 12.0000)
+    ChildLocalPositionFromA: (0.0068, 0.0016, -0.0134)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 180.0000)
+    ChildLocalScaleFromA: (0.0050, 0.0080, 0.0060)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #106]
+  AName: Door__1__2_4
+  APath: World[2]/VillageWall[11]/Wall__2__2_2[5]/DoorWall_2_2[2]/Door__1__2_4[2]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 2
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/VillageWall[11]/Wall__2__2_2[5]/DoorWall_2_2[2]/Door__1__2_4[2]/Cube[0]
+    CenterInTopRoot_Local: (5.2190, 5.4500, -98.9950)
+    RotationInTopRoot_LocalQuat: (-0.707107, 0.000000, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (1.2000, 1.4000, 12.0000)
+    ChildLocalPositionFromA: (0.0026, 0.0001, -0.0007)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.0006, 0.0007, 0.0058)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/VillageWall[11]/Wall__2__2_2[5]/DoorWall_2_2[2]/Door__1__2_4[2]/Cube[1]
+    CenterInTopRoot_Local: (-5.3400, 5.4500, -98.9950)
+    RotationInTopRoot_LocalQuat: (-0.707107, 0.000000, 0.000000, 0.707107)
+    SizeInTopRoot_Local: (1.2000, 1.4000, 12.0000)
+    ChildLocalPositionFromA: (-0.0026, 0.0001, -0.0007)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.0006, 0.0007, 0.0058)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #107]
+  AName: Door__1__2_5
+  APath: World[2]/VillageWall[11]/Wall__2__2_2[5]/DoorWall_2_2[2]/Door__1__2_5[3]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 2
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/VillageWall[11]/Wall__2__2_2[5]/DoorWall_2_2[2]/Door__1__2_5[3]/Cube[0]
+    CenterInTopRoot_Local: (-5.3068, 5.4440, -107.4337)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.707107, 0.000000)
+    SizeInTopRoot_Local: (1.2000, 1.4000, 12.0000)
+    ChildLocalPositionFromA: (0.0026, 0.0001, -0.0007)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.0006, 0.0007, 0.0058)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/VillageWall[11]/Wall__2__2_2[5]/DoorWall_2_2[2]/Door__1__2_5[3]/Cube[1]
+    CenterInTopRoot_Local: (5.2522, 5.4440, -107.4338)
+    RotationInTopRoot_LocalQuat: (0.000000, 0.707107, 0.707107, 0.000000)
+    SizeInTopRoot_Local: (1.2000, 1.4000, 12.0000)
+    ChildLocalPositionFromA: (-0.0026, 0.0001, -0.0007)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.0006, 0.0007, 0.0058)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #108]
+  AName: DoorWall_2_3
+  APath: World[2]/VillageWall[11]/Wall__2__2_3[6]/DoorWall_2_3[2]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 2
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/VillageWall[11]/Wall__2__2_3[6]/DoorWall_2_3[2]/Cube[0]
+    CenterInTopRoot_Local: (-103.3730, 5.4500, -7.6566)
+    RotationInTopRoot_LocalQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
+    SizeInTopRoot_Local: (6.0000, 8.0000, 12.0000)
+    ChildLocalPositionFromA: (-0.0061, 0.0016, -0.0134)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 180.0000)
+    ChildLocalScaleFromA: (0.0050, 0.0080, 0.0060)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/VillageWall[11]/Wall__2__2_3[6]/DoorWall_2_3[2]/Cube[1]
+    CenterInTopRoot_Local: (-103.3730, 5.4500, 7.7063)
+    RotationInTopRoot_LocalQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
+    SizeInTopRoot_Local: (6.0000, 8.0000, 12.0000)
+    ChildLocalPositionFromA: (0.0068, 0.0016, -0.0134)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 180.0000)
+    ChildLocalScaleFromA: (0.0050, 0.0080, 0.0060)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #109]
+  AName: Door__1__2_6
+  APath: World[2]/VillageWall[11]/Wall__2__2_3[6]/DoorWall_2_3[2]/Door__1__2_6[2]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 2
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/VillageWall[11]/Wall__2__2_3[6]/DoorWall_2_3[2]/Door__1__2_6[2]/Cube[0]
+    CenterInTopRoot_Local: (-98.9950, 5.4500, -5.2190)
+    RotationInTopRoot_LocalQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
+    SizeInTopRoot_Local: (1.2000, 1.4000, 12.0000)
+    ChildLocalPositionFromA: (0.0026, 0.0001, -0.0007)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.0006, 0.0007, 0.0058)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/VillageWall[11]/Wall__2__2_3[6]/DoorWall_2_3[2]/Door__1__2_6[2]/Cube[1]
+    CenterInTopRoot_Local: (-98.9950, 5.4500, 5.3400)
+    RotationInTopRoot_LocalQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
+    SizeInTopRoot_Local: (1.2000, 1.4000, 12.0000)
+    ChildLocalPositionFromA: (-0.0026, 0.0001, -0.0007)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.0006, 0.0007, 0.0058)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #110]
+  AName: Door__1__2_7
+  APath: World[2]/VillageWall[11]/Wall__2__2_3[6]/DoorWall_2_3[2]/Door__1__2_7[3]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 2
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/VillageWall[11]/Wall__2__2_3[6]/DoorWall_2_3[2]/Door__1__2_7[3]/Cube[0]
+    CenterInTopRoot_Local: (-107.4337, 5.4440, 5.3068)
+    RotationInTopRoot_LocalQuat: (-0.500000, -0.500000, -0.500000, 0.500000)
+    SizeInTopRoot_Local: (1.2000, 1.4000, 12.0000)
+    ChildLocalPositionFromA: (0.0026, 0.0001, -0.0007)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.0006, 0.0007, 0.0058)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/VillageWall[11]/Wall__2__2_3[6]/DoorWall_2_3[2]/Door__1__2_7[3]/Cube[1]
+    CenterInTopRoot_Local: (-107.4337, 5.4440, -5.2522)
+    RotationInTopRoot_LocalQuat: (-0.500000, -0.500000, -0.500000, 0.500000)
+    SizeInTopRoot_Local: (1.2000, 1.4000, 12.0000)
+    ChildLocalPositionFromA: (-0.0026, 0.0001, -0.0007)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.0006, 0.0007, 0.0058)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #111]
+  AName: DoorWall_2_4
+  APath: World[2]/VillageWall[11]/Wall__2__2_4[7]/DoorWall_2_4[2]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 2
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/VillageWall[11]/Wall__2__2_4[7]/DoorWall_2_4[2]/Cube[0]
+    CenterInTopRoot_Local: (103.3730, 5.4500, 7.6566)
+    RotationInTopRoot_LocalQuat: (0.500000, 0.500000, 0.500000, -0.500000)
+    SizeInTopRoot_Local: (6.0000, 8.0000, 12.0000)
+    ChildLocalPositionFromA: (-0.0061, 0.0016, -0.0134)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 180.0000)
+    ChildLocalScaleFromA: (0.0050, 0.0080, 0.0060)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/VillageWall[11]/Wall__2__2_4[7]/DoorWall_2_4[2]/Cube[1]
+    CenterInTopRoot_Local: (103.3730, 5.4500, -7.7063)
+    RotationInTopRoot_LocalQuat: (0.500000, 0.500000, 0.500000, -0.500000)
+    SizeInTopRoot_Local: (6.0000, 8.0000, 12.0000)
+    ChildLocalPositionFromA: (0.0068, 0.0016, -0.0134)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 180.0000)
+    ChildLocalScaleFromA: (0.0050, 0.0080, 0.0060)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #112]
+  AName: Door__1__2_8
+  APath: World[2]/VillageWall[11]/Wall__2__2_4[7]/DoorWall_2_4[2]/Door__1__2_8[2]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 2
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/VillageWall[11]/Wall__2__2_4[7]/DoorWall_2_4[2]/Door__1__2_8[2]/Cube[0]
+    CenterInTopRoot_Local: (98.9950, 5.4500, 5.2190)
+    RotationInTopRoot_LocalQuat: (0.500000, 0.500000, 0.500000, -0.500000)
+    SizeInTopRoot_Local: (1.2000, 1.4000, 12.0000)
+    ChildLocalPositionFromA: (0.0026, 0.0001, -0.0007)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.0006, 0.0007, 0.0058)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/VillageWall[11]/Wall__2__2_4[7]/DoorWall_2_4[2]/Door__1__2_8[2]/Cube[1]
+    CenterInTopRoot_Local: (98.9950, 5.4500, -5.3400)
+    RotationInTopRoot_LocalQuat: (0.500000, 0.500000, 0.500000, -0.500000)
+    SizeInTopRoot_Local: (1.2000, 1.4000, 12.0000)
+    ChildLocalPositionFromA: (-0.0026, 0.0001, -0.0007)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.0006, 0.0007, 0.0058)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+  [A #113]
+  AName: Door__1__2_9
+  APath: World[2]/VillageWall[11]/Wall__2__2_4[7]/DoorWall_2_4[2]/Door__1__2_9[3]
+  TopRootName: World
+  TopRootPath: World[2]
+  CubeColliderCount: 2
+
+    [CubeCollider #1]
+    ChildName: Cube
+    ChildPath: World[2]/VillageWall[11]/Wall__2__2_4[7]/DoorWall_2_4[2]/Door__1__2_9[3]/Cube[0]
+    CenterInTopRoot_Local: (107.4338, 5.4440, -5.3068)
+    RotationInTopRoot_LocalQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
+    SizeInTopRoot_Local: (1.2000, 1.4000, 12.0000)
+    ChildLocalPositionFromA: (0.0026, 0.0001, -0.0007)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.0006, 0.0007, 0.0058)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+    [CubeCollider #2]
+    ChildName: Cube
+    ChildPath: World[2]/VillageWall[11]/Wall__2__2_4[7]/DoorWall_2_4[2]/Door__1__2_9[3]/Cube[1]
+    CenterInTopRoot_Local: (107.4338, 5.4440, 5.2522)
+    RotationInTopRoot_LocalQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
+    SizeInTopRoot_Local: (1.2000, 1.4000, 12.0000)
+    ChildLocalPositionFromA: (-0.0026, 0.0001, -0.0007)
+    ChildLocalRotationFromA_Euler: (0.0000, 0.0000, 0.0000)
+    ChildLocalScaleFromA: (0.0006, 0.0007, 0.0058)
+    BoxCenterInCubeLocal: (0.0000, 0.0000, 0.0000)
+    BoxSizeInCubeLocal: (1.0000, 1.0000, 1.0000)
+
+------------------------------------------------------------
+

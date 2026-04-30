@@ -65,7 +65,7 @@ const GameSceneStageFileSet& GetLocalStageFileSet(ELocalStagePreset preset)
 	{
 		"MapData/MapData_tst.txt",
 		"MapData/Navmesh_tst.nvm",
-		"MapData/CubeBoxColliderReport.txt",
+		"MapData/CubeBoxColliderReportWithCastle.txt",
 		"MapData/monster_spawn_points_little.txt"
 	};
 
@@ -97,7 +97,7 @@ const GameSceneStageFileSet& GetLocalStageFileSet(ELocalStagePreset preset)
 	{
 		"MapData/MapData_fullstage(withBoss).txt",
 		"MapData/Navmesh_FullStage.nvm",
-		"MapData/CubeBoxColliderReport.txt",
+		"MapData/CubeBoxColliderReportWithCastle.txt",
 		"MapData/monster_spawn_points.txt"
 	};
 
