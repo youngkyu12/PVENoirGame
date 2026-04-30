@@ -407,6 +407,24 @@ void CColliderComponent::BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>&
 		MeshOOBBSet set{};
 		std::unordered_set<std::string> consumedAuthoredPaths;
 
+		auto AddSubOOBBWithMeta =
+			[ &set ](
+				const BoundingOrientedBox& subBox,
+				const SubMesh& submesh,
+				size_t sourceSubMeshIndex,
+				size_t authoredBoxIndex)
+			{
+				set.LocalSubOOBBs.push_back(subBox);
+
+				SubOOBBMeta meta{};
+				meta.meshName = submesh.meshName;
+				meta.authoringPath = submesh.authoringPath;
+				meta.sourceSubMeshIndex = sourceSubMeshIndex;
+				meta.authoredBoxIndex = authoredBoxIndex;
+
+				set.SubOOBBMetas.push_back(std::move(meta));
+			};
+
 		if ( logEnabled )
 		{
 			std::ostringstream oss;
@@ -497,7 +515,13 @@ void CColliderComponent::BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>&
 						);
 
 						const size_t createdSubIndex = set.LocalSubOOBBs.size();
-						set.LocalSubOOBBs.push_back(subBox);
+
+						AddSubOOBBWithMeta(
+							subBox,
+							submesh,
+							subMeshIndex,
+							authoredIndex
+						);
 
 						if ( logEnabled )
 						{
@@ -539,7 +563,13 @@ void CColliderComponent::BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>&
 				BoundingOrientedBox subBox = MakeLocalOOBBFromMatrix(submesh.explicitLocalOOBBMatrix);
 
 				const size_t createdSubIndex = set.LocalSubOOBBs.size();
-				set.LocalSubOOBBs.push_back(subBox);
+
+				AddSubOOBBWithMeta(
+					subBox,
+					submesh,
+					subMeshIndex,
+					static_cast< size_t >( -1 )
+				);
 
 				if ( logEnabled )
 				{
@@ -560,7 +590,13 @@ void CColliderComponent::BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>&
 				BoundingOrientedBox subBox = MakeLocalOOBB(submesh.subMeshMin, submesh.subMeshMax);
 
 				const size_t createdSubIndex = set.LocalSubOOBBs.size();
-				set.LocalSubOOBBs.push_back(subBox);
+
+				AddSubOOBBWithMeta(
+					subBox,
+					submesh,
+					subMeshIndex,
+					static_cast< size_t >( -1 )
+				);
 
 				if ( logEnabled )
 				{

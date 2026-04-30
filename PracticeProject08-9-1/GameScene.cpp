@@ -157,7 +157,7 @@ namespace
 	static constexpr UINT kDebugSubmeshOOBBCapacity = 8192;
 	static constexpr bool kEnableStaticWorldLocalOOBBReportExport = false;
 	static constexpr const char* kStaticWorldLocalOOBBReportPath = "MapData/StaticWorldLocalOOBBReport.txt";
-	static constexpr bool kEnableCastleVillageWallColliderBuildLog = true;
+	static constexpr bool kEnableCastleVillageWallColliderBuildLog = false;
 
 	static XMFLOAT4X4 BuildWorldMatrixFromOOBB(const BoundingOrientedBox& box)
 	{
@@ -233,7 +233,7 @@ namespace
 
 	static constexpr float kLocalPlayerRespawnDelay = 5.0f;
 
-	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::FullStage;
+	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::Test;
 
 	// -----------------------------------------------------------------------------
 	// HP
@@ -260,6 +260,18 @@ namespace
 	static constexpr int kAttackPowerBoss = 50;
 
 	static constexpr UINT kOfflineGhoulAICount = 0;
+
+#ifndef USING_NETWORK
+	static constexpr int kTowerDoorPortalCooldownFrames = 30;
+	static constexpr float kTowerDoorPortalExitOffset = 2.0f;
+	static constexpr float kTowerDoorPortalLowerExitYOffset = 0.0f;
+	static constexpr float kTowerDoorPortalUpperExitYOffset = 5.0f;
+	static constexpr float kTowerDoorPortalUpperHeightThreshold = 10.0f;
+
+	static constexpr bool kEnableTowerDoorPortalCollisionLog = true;
+
+	static constexpr bool kEnableTowerDoorPortalVerboseLog = false;
+#endif
 }
 
 namespace
@@ -347,6 +359,90 @@ namespace
             [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
         return out;
     }
+
+#ifndef USING_NETWORK
+	static std::string NormalizeTowerDoorNameForMatch(const std::string& text)
+	{
+		std::string out;
+		out.reserve(text.size());
+
+		for ( unsigned char c : text )
+		{
+			if ( c == ' ' || c == '_' || c == '-' || c == '[' || c == ']' || c == '/' || c == '|' )
+				continue;
+
+			out.push_back(static_cast< char >( std::tolower(c) ));
+		}
+
+		return out;
+	}
+
+	bool IsTowerDoorFrame2Name(const std::string& meshName, const std::string& authoringPath)
+	{
+		UNREFERENCED_PARAMETER(authoringPath);
+
+		const std::string name = NormalizeTowerDoorNameForMatch(meshName);
+		return name == "doubledoorframe2";
+	}
+
+	bool IsTowerDoorFrame1Name(const std::string& meshName, const std::string& authoringPath)
+	{
+		UNREFERENCED_PARAMETER(authoringPath);
+
+		const std::string name = NormalizeTowerDoorNameForMatch(meshName);
+		return name == "doubledoorframe";
+	}
+
+	static void DebugPrintTowerDoorPortalLine(const char* text)
+	{
+		if ( !kEnableTowerDoorPortalCollisionLog )
+			return;
+
+		OutputDebugStringA(text);
+		OutputDebugStringA("\n");
+	}
+
+	static void DebugPrintTowerDoorPortalFloat3(
+		const char* tag,
+		const XMFLOAT3& v)
+	{
+		if ( !kEnableTowerDoorPortalCollisionLog )
+			return;
+
+		char buf[256];
+		sprintf_s(
+			buf,
+			"[TowerDoorPortal][%s] (%.3f, %.3f, %.3f)\n",
+			tag,
+			v.x,
+			v.y,
+			v.z
+		);
+		OutputDebugStringA(buf);
+	}
+
+	static void DebugPrintTowerDoorPortalOOBB(
+		const char* tag,
+		const BoundingOrientedBox& box)
+	{
+		if ( !kEnableTowerDoorPortalCollisionLog )
+			return;
+
+		char buf[512];
+		sprintf_s(
+			buf,
+			"[TowerDoorPortal][%s] center=(%.3f, %.3f, %.3f) extents=(%.3f, %.3f, %.3f)\n",
+			tag,
+			box.Center.x,
+			box.Center.y,
+			box.Center.z,
+			box.Extents.x,
+			box.Extents.y,
+			box.Extents.z
+		);
+		OutputDebugStringA(buf);
+	}
+#endif
 
     static bool ResolvePlacementFilePathFromMapId(const std::string& mapId, std::string& outPlacementFilePath)
     {
@@ -609,6 +705,594 @@ void CGameScene::RegisterStaticPlacementToGrid(const StaticPlacementEntry& place
 		m_sceneGrid.MarkTreeCullBlockerCells(touchedCells);
 }
 
+#ifndef USING_NETWORK
+void CGameScene::RegisterTowerDoorPortal(CGameObject* tower)
+{
+	if ( !tower )
+		return;
+
+	auto* collider = tower->GetComponent<CColliderComponent>();
+	if ( !collider )
+		return;
+
+	if ( collider->GetType() != EColliderType::OOBB )
+		return;
+
+	TowerDoorPortalEntry entry{};
+	entry.tower = tower;
+	entry.collider = collider;
+
+	const auto& meshSets = collider->GetMeshOOBBSets();
+
+	for ( size_t meshSetIndex = 0; meshSetIndex < meshSets.size(); ++meshSetIndex )
+	{
+		const MeshOOBBSet& set = meshSets[meshSetIndex];
+
+		size_t ob = set.SubOOBBMetas.size();
+		size_t obmin = set.LocalSubOOBBs.size();
+		if ( ob < obmin ) obmin = ob;
+		const size_t count = obmin;
+
+		for ( size_t subIndex = 0; subIndex < count; ++subIndex )
+		{
+			const SubOOBBMeta& meta = set.SubOOBBMetas[subIndex];
+
+			if ( kEnableTowerDoorPortalCollisionLog )
+			{
+				const bool isDoorA = IsTowerDoorFrame1Name(meta.meshName, meta.authoringPath);
+				const bool isDoorB = IsTowerDoorFrame2Name(meta.meshName, meta.authoringPath);
+
+				if ( isDoorA || isDoorB || kEnableTowerDoorPortalVerboseLog )
+				{
+					char buf[1024];
+					sprintf_s(
+						buf,
+						"[TowerDoorPortal][REGISTER_SCAN] tower=%p meshSet=%zu sub=%zu mesh=\"%s\" path=\"%s\" isDoorA=%d isDoorB=%d\n",
+						static_cast< void* >( tower ),
+						meshSetIndex,
+						subIndex,
+						meta.meshName.c_str(),
+						meta.authoringPath.c_str(),
+						isDoorA ? 1 : 0,
+						isDoorB ? 1 : 0
+					);
+					OutputDebugStringA(buf);
+				}
+			}
+
+			TowerDoorSubBoxRef ref{};
+			ref.meshSetIndex = meshSetIndex;
+			ref.subIndex = subIndex;
+
+			if ( IsTowerDoorFrame2Name(meta.meshName, meta.authoringPath) )
+			{
+				entry.doorBRefs.push_back(ref);
+			}
+			else if ( IsTowerDoorFrame1Name(meta.meshName, meta.authoringPath) )
+			{
+				entry.doorARefs.push_back(ref);
+			}
+		}
+	}
+
+	if ( entry.doorARefs.empty() || entry.doorBRefs.empty() )
+	{
+		if ( kEnableTowerDoorPortalCollisionLog )
+		{
+			char buf[512];
+			sprintf_s(
+				buf,
+				"[TowerDoorPortal][REGISTER_FAILED] tower=%p meshSetCount=%zu doorABoxes=%zu doorBBoxes=%zu\n",
+				static_cast< void* >( tower ),
+				meshSets.size(),
+				entry.doorARefs.size(),
+				entry.doorBRefs.size()
+			);
+			OutputDebugStringA(buf);
+		}
+		return;
+	}
+
+	char buf[256];
+	sprintf_s(
+		buf,
+		"[TowerDoorPortal][REGISTER] tower=%p doorABoxes=%zu doorBBoxes=%zu\n",
+		static_cast< void* >( tower ),
+		entry.doorARefs.size(),
+		entry.doorBRefs.size()
+	);
+	OutputDebugStringA(buf);
+
+	m_towerDoorPortals.push_back(std::move(entry));
+}
+
+void CGameScene::TickTowerDoorPortalCooldowns()
+{
+	for ( TowerDoorPortalEntry& portal : m_towerDoorPortals )
+	{
+		if ( portal.cooldownFrames > 0 )
+			--portal.cooldownFrames;
+	}
+}
+
+bool CGameScene::IsTowerDoorPortalOnCooldown() const
+{
+	for ( const TowerDoorPortalEntry& portal : m_towerDoorPortals )
+	{
+		if ( portal.cooldownFrames > 0 )
+			return true;
+	}
+
+	return false;
+}
+
+bool CGameScene::TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog)
+{
+	const bool shouldLog = kEnableTowerDoorPortalCollisionLog && forceLog;
+
+	if ( shouldLog )
+	{
+		char buf[256];
+		sprintf_s(
+			buf,
+			"[TowerDoorPortal][PROBE_BEGIN] portalCount=%zu localDead=%d\n",
+			m_towerDoorPortals.size(),
+			m_bLocalPlayerDead ? 1 : 0
+		);
+		OutputDebugStringA(buf);
+	}
+
+	if ( m_bLocalPlayerDead )
+	{
+		if ( shouldLog )
+			DebugPrintTowerDoorPortalLine("[TowerDoorPortal][PROBE_ABORT] local player is dead");
+		return false;
+	}
+
+	CGameObject* player = GetPlayer();
+	if ( !player )
+	{
+		if ( shouldLog )
+			DebugPrintTowerDoorPortalLine("[TowerDoorPortal][PROBE_ABORT] GetPlayer returned null");
+		return false;
+	}
+
+	auto* playerCollider = player->GetComponent<CColliderComponent>();
+	if ( !playerCollider )
+	{
+		if ( shouldLog )
+			DebugPrintTowerDoorPortalLine("[TowerDoorPortal][PROBE_ABORT] player collider missing");
+		return false;
+	}
+
+	if ( playerCollider->GetType() != EColliderType::BCapsule )
+	{
+		if ( shouldLog )
+			DebugPrintTowerDoorPortalLine("[TowerDoorPortal][PROBE_ABORT] player collider is not BCapsule");
+		return false;
+	}
+
+	if ( !playerCollider->IsCollisionEnabled() )
+	{
+		if ( shouldLog )
+			DebugPrintTowerDoorPortalLine("[TowerDoorPortal][PROBE_ABORT] player collider disabled");
+		return false;
+	}
+
+	playerCollider->UpdateWorldBounds();
+
+	const BoundingCapsule playerCapsule = playerCollider->GetBCapsule();
+	const XMFLOAT3 playerPos = player->GetPosition();
+
+	auto GetWorldBox =
+		[ ](
+			const TowerDoorPortalEntry& portal,
+			const TowerDoorSubBoxRef& ref
+		) -> const BoundingOrientedBox*
+		{
+			if ( !portal.collider )
+				return nullptr;
+
+			const auto& sets = portal.collider->GetMeshOOBBSets();
+
+			if ( ref.meshSetIndex >= sets.size() )
+				return nullptr;
+
+			const MeshOOBBSet& set = sets[ref.meshSetIndex];
+
+			if ( ref.subIndex >= set.WorldSubOOBBs.size() )
+				return nullptr;
+
+			return &set.WorldSubOOBBs[ref.subIndex];
+		};
+
+	auto DoesDoorGroupIntersect =
+		[ & ](
+			const TowerDoorPortalEntry& portal,
+			const std::vector<TowerDoorSubBoxRef>& refs,
+			const char* doorName
+		) -> bool
+		{
+			bool anyHit = false;
+
+			for ( const TowerDoorSubBoxRef& ref : refs )
+			{
+				const BoundingOrientedBox* box = GetWorldBox(portal, ref);
+				if ( !box )
+				{
+					if ( shouldLog )
+					{
+						char buf[256];
+						sprintf_s(
+							buf,
+							"[TowerDoorPortal][BOX_MISSING] door=%s meshSet=%zu sub=%zu\n",
+							doorName,
+							ref.meshSetIndex,
+							ref.subIndex
+						);
+						OutputDebugStringA(buf);
+					}
+					continue;
+				}
+
+				const bool hit = playerCapsule.Intersects(*box);
+
+				if ( shouldLog && ( hit || kEnableTowerDoorPortalVerboseLog ) )
+				{
+					char buf[512];
+					sprintf_s(
+						buf,
+						"[TowerDoorPortal][DOOR_TEST] door=%s hit=%d meshSet=%zu sub=%zu playerPos=(%.3f, %.3f, %.3f) boxCenter=(%.3f, %.3f, %.3f) boxExtents=(%.3f, %.3f, %.3f)\n",
+						doorName,
+						hit ? 1 : 0,
+						ref.meshSetIndex,
+						ref.subIndex,
+						playerPos.x,
+						playerPos.y,
+						playerPos.z,
+						box->Center.x,
+						box->Center.y,
+						box->Center.z,
+						box->Extents.x,
+						box->Extents.y,
+						box->Extents.z
+					);
+					OutputDebugStringA(buf);
+				}
+
+				if ( hit )
+					anyHit = true;
+			}
+
+			return anyHit;
+		};
+
+	auto ComputeDoorGroupCenter =
+		[ & ](
+			const TowerDoorPortalEntry& portal,
+			const std::vector<TowerDoorSubBoxRef>& refs,
+			XMFLOAT3& outCenter
+		) -> bool
+		{
+			XMVECTOR sum = XMVectorZero();
+			int count = 0;
+
+			for ( const TowerDoorSubBoxRef& ref : refs )
+			{
+				const BoundingOrientedBox* box = GetWorldBox(portal, ref);
+				if ( !box )
+					continue;
+
+				sum += XMLoadFloat3(&box->Center);
+				++count;
+			}
+
+			if ( count <= 0 )
+				return false;
+
+			sum = XMVectorScale(sum, 1.0f / static_cast< float >( count ));
+			XMStoreFloat3(&outCenter, sum);
+			return true;
+		};
+
+	auto ComputeDoorGroupBottomY =
+		[ & ](
+			const TowerDoorPortalEntry& portal,
+			const std::vector<TowerDoorSubBoxRef>& refs,
+			float& outBottomY
+		) -> bool
+		{
+			bool found = false;
+			float bottomY = FLT_MAX;
+
+			for ( const TowerDoorSubBoxRef& ref : refs )
+			{
+				const BoundingOrientedBox* box = GetWorldBox(portal, ref);
+				if ( !box )
+					continue;
+
+				XMFLOAT3 corners[BoundingOrientedBox::CORNER_COUNT];
+				box->GetCorners(corners);
+
+				for ( const XMFLOAT3& corner : corners )
+				{
+					if ( !found || corner.y < bottomY )
+					{
+						bottomY = corner.y;
+						found = true;
+					}
+				}
+			}
+
+			if ( !found )
+				return false;
+
+			outBottomY = bottomY;
+			return true;
+		};
+
+	auto GetFirstDoorBox =
+		[ & ](
+			const TowerDoorPortalEntry& portal,
+			const std::vector<TowerDoorSubBoxRef>& refs
+		) -> const BoundingOrientedBox*
+		{
+			if ( refs.empty() )
+				return nullptr;
+
+			return GetWorldBox(portal, refs.front());
+		};
+
+	auto ComputeDoorHorizontalNormal =
+		[ & ](
+			const BoundingOrientedBox& box,
+			XMVECTOR& outNormal
+		) -> bool
+		{
+			// Door frame은 일반적으로 local Z가 두께 방향이다.
+			// 그래도 혹시 local X가 더 얇은 경우까지 대비해서,
+			// X/Z 중 더 얇은 축을 문의 법선 후보로 쓴다.
+			XMVECTOR localAxis = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+
+			if ( box.Extents.x < box.Extents.z )
+				localAxis = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+
+			XMVECTOR q = XMLoadFloat4(&box.Orientation);
+			XMVECTOR n = XMVector3Rotate(localAxis, q);
+
+			// 출구 방향은 수평 방향만 사용한다.
+			n = XMVectorSetY(n, 0.0f);
+
+			const float lenSq = XMVectorGetX(XMVector3LengthSq(n));
+			if ( lenSq <= 1.0e-6f )
+				return false;
+
+			outNormal = XMVector3Normalize(n);
+			return true;
+		};
+
+	auto TeleportBetweenDoorGroups =
+		[&](
+			TowerDoorPortalEntry& portal,
+			const std::vector<TowerDoorSubBoxRef>& sourceRefs,
+			const std::vector<TowerDoorSubBoxRef>& targetRefs,
+			const char* debugFrom,
+			const char* debugTo
+		) -> bool
+		{
+			XMFLOAT3 sourceCenter{};
+			XMFLOAT3 targetCenter{};
+
+			if ( !ComputeDoorGroupCenter(portal, sourceRefs, sourceCenter) )
+				return false;
+
+			if ( !ComputeDoorGroupCenter(portal, targetRefs, targetCenter) )
+				return false;
+
+			XMVECTOR sourceV = XMLoadFloat3(&sourceCenter);
+			XMVECTOR targetV = XMLoadFloat3(&targetCenter);
+
+			const BoundingOrientedBox* sourceBox = GetFirstDoorBox(portal, sourceRefs);
+			const BoundingOrientedBox* targetBox = GetFirstDoorBox(portal, targetRefs);
+
+			XMVECTOR sourceNormal = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+			XMVECTOR targetNormal = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+
+			bool hasSourceNormal = false;
+			bool hasTargetNormal = false;
+
+			if ( sourceBox )
+				hasSourceNormal = ComputeDoorHorizontalNormal(*sourceBox, sourceNormal);
+
+			if ( targetBox )
+				hasTargetNormal = ComputeDoorHorizontalNormal(*targetBox, targetNormal);
+
+			// 플레이어가 source 문 기준 어느 면에서 들어왔는지 구한다.
+			// 양쪽 문이 같은 방향을 보고 있으면, target에서도 같은 면으로 내보내야 한다.
+			float sideSign = 1.0f;
+
+			if ( hasSourceNormal )
+			{
+				XMVECTOR playerV = XMLoadFloat3(&playerPos);
+				XMVECTOR sourceToPlayer = playerV - sourceV;
+				sourceToPlayer = XMVectorSetY(sourceToPlayer, 0.0f);
+
+				const float sideDot = XMVectorGetX(XMVector3Dot(sourceToPlayer, sourceNormal));
+				sideSign = ( sideDot >= 0.0f ) ? 1.0f : -1.0f;
+			}
+
+			XMVECTOR exitDir = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+
+			if ( hasTargetNormal )
+			{
+				exitDir = XMVectorScale(targetNormal, sideSign);
+			}
+			else
+			{
+				// fallback: 기존 방식
+				exitDir = targetV - sourceV;
+				exitDir = XMVectorSetY(exitDir, 0.0f);
+
+				const float lenSq = XMVectorGetX(XMVector3LengthSq(exitDir));
+				if ( lenSq > 1.0e-6f )
+					exitDir = XMVector3Normalize(exitDir);
+				else
+					exitDir = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+			}
+
+			XMVECTOR dstV = targetV + XMVectorScale(exitDir, kTowerDoorPortalExitOffset);
+
+			XMFLOAT3 dst{};
+			XMStoreFloat3(&dst, dstV);
+
+			float targetBottomY = 0.0f;
+			float appliedYOffset = 0.0f;
+
+			if ( ComputeDoorGroupBottomY(portal, targetRefs, targetBottomY) )
+			{
+				appliedYOffset =
+					( targetBottomY > kTowerDoorPortalUpperHeightThreshold )
+					? kTowerDoorPortalUpperExitYOffset
+					: kTowerDoorPortalLowerExitYOffset;
+
+				dst.y = targetBottomY + appliedYOffset;
+			}
+			else
+			{
+				dst.y = playerPos.y;
+			}
+
+			player->SetPosition(dst);
+			playerCollider->UpdateWorldBounds();
+
+			if ( auto* controller = player->GetComponent<CPlayerControllerComponent>() )
+				controller->SetVelocity(XMFLOAT3(0.0f, 0.0f, 0.0f));
+
+			portal.cooldownFrames = kTowerDoorPortalCooldownFrames;
+
+			char buf[256];
+			XMFLOAT3 exitDirF{};
+			XMStoreFloat3(&exitDirF, exitDir);
+
+			sprintf_s(
+				buf,
+				"[TowerDoorPortal][TELEPORT] %s -> %s dst=(%.3f, %.3f, %.3f) targetCenter=(%.3f, %.3f, %.3f) targetBottomY=%.3f yOffset=%.3f exitDir=(%.3f, %.3f, %.3f) sideSign=%.1f\n",
+				debugFrom,
+				debugTo,
+				dst.x,
+				dst.y,
+				dst.z,
+				targetCenter.x,
+				targetCenter.y,
+				targetCenter.z,
+				targetBottomY,
+				appliedYOffset,
+				exitDirF.x,
+				exitDirF.y,
+				exitDirF.z,
+				sideSign
+			);
+
+			OutputDebugStringA(buf);
+
+			UpdateDynamicGridState();
+
+			return true;
+		};
+
+	for ( TowerDoorPortalEntry& portal : m_towerDoorPortals )
+	{
+		if ( portal.cooldownFrames > 0 )
+		{
+			if ( shouldLog )
+			{
+				char buf[256];
+				sprintf_s(
+					buf,
+					"[TowerDoorPortal][SKIP_COOLDOWN] tower=%p cooldownFrames=%d\n",
+					static_cast< void* >( portal.tower ),
+					portal.cooldownFrames
+				);
+				OutputDebugStringA(buf);
+			}
+			continue;
+		}
+
+		if ( !portal.collider )
+		{
+			if ( shouldLog )
+				DebugPrintTowerDoorPortalLine("[TowerDoorPortal][SKIP] portal collider is null");
+			continue;
+		}
+
+		const bool hitDoorA = DoesDoorGroupIntersect(
+			portal,
+			portal.doorARefs,
+			"Double Door Frame"
+		);
+
+		const bool hitDoorB = DoesDoorGroupIntersect(
+			portal,
+			portal.doorBRefs,
+			"Double Door Frame2"
+		);
+
+		if ( shouldLog )
+		{
+			char buf[512];
+			sprintf_s(
+				buf,
+				"[TowerDoorPortal][PROBE_RESULT] tower=%p doorARefs=%zu doorBRefs=%zu hitA=%d hitB=%d\n",
+				static_cast< void* >( portal.tower ),
+				portal.doorARefs.size(),
+				portal.doorBRefs.size(),
+				hitDoorA ? 1 : 0,
+				hitDoorB ? 1 : 0
+			);
+			OutputDebugStringA(buf);
+		}
+
+		// 양쪽이 동시에 맞으면 문 중앙/겹침 상태일 수 있으므로 이번 프레임은 무시.
+		if ( hitDoorA && hitDoorB )
+		{
+			if ( shouldLog )
+				DebugPrintTowerDoorPortalLine("[TowerDoorPortal][SKIP_BOTH_HIT] both door groups intersected");
+			continue;
+		}
+
+		if ( hitDoorA )
+		{
+			if ( TeleportBetweenDoorGroups(
+				portal,
+				portal.doorARefs,
+				portal.doorBRefs,
+				"Double Door Frame",
+				"Double Door Frame2") )
+			{
+				return true;
+			}
+		}
+		else if ( hitDoorB )
+		{
+			if ( TeleportBetweenDoorGroups(
+				portal,
+				portal.doorBRefs,
+				portal.doorARefs,
+				"Double Door Frame2",
+				"Double Door Frame") )
+			{
+				return true;
+			}
+		}
+	}
+
+	if ( shouldLog )
+		DebugPrintTowerDoorPortalLine("[TowerDoorPortal][NO_DOOR_HIT] no registered door OOBB intersected player capsule");
+
+	return false;
+}
+#endif
+
 void CGameScene::ResetDynamicGridCounts()
 {
 	m_sceneGrid.ResetDynamicCounts();
@@ -838,8 +1522,12 @@ void CGameScene::ReleaseObjects()
 	m_staticShadowOcclusionEntryIndices.clear();
 	m_skinnedShadowOcclusionEntryIndices.clear();
 
-    m_staticObjects.clear();
-    m_skinnedObjects.clear();
+#ifndef USING_NETWORK
+	m_towerDoorPortals.clear();
+#endif
+
+	m_staticObjects.clear();
+	m_skinnedObjects.clear();
 
     m_lightObjects.clear();
     m_pPlayerSpotFollower = nullptr;
@@ -1336,7 +2024,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	const DXGI_FORMAT kDsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
 #ifndef USING_NETWORK
-	//BuildColliderBatch(dev, cmd, pColliderShader, kRTCount, rtvFormats, kDsvFormat);
+	BuildColliderBatch(dev, cmd, pColliderShader, kRTCount, rtvFormats, kDsvFormat);
 #endif
 
 	pTreeStaticShader->CreateShader(dev, m_pd3dGraphicsRootSignature.Get(), kRTCount, rtvFormats, kDsvFormat);
@@ -1383,7 +2071,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
 #ifndef USING_NETWORK
 	//DumpStaticGridOccupancyLog();
-	//BuildStaticWorldSubmeshOOBBDebugObjects(dev, cmd);
+	BuildStaticWorldSubmeshOOBBDebugObjects(dev, cmd);
 #endif
 	BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
 
@@ -2058,6 +2746,10 @@ void CGameScene::BuildStaticBatch(
 	b->objectRefs.clear();
 	b->objectRefs.reserve(cap);
 
+#ifndef USING_NETWORK
+	m_towerDoorPortals.clear();
+#endif
+
 	m_staticShadowCasterFlags.clear();
 	m_staticShadowCasterFlags.reserve(cap);
 
@@ -2235,6 +2927,13 @@ void CGameScene::BuildStaticBatch(
 			continue;
 
 		CGameObject* raw = obj.get();
+
+#ifndef USING_NETWORK
+		if ( placement.assetName == "Tower" )
+		{
+			RegisterTowerDoorPortal(raw);
+		}
+#endif
 
 		const bool isTreeObject = ( resolvedAssetType == AssetType::Tree );
 		const bool castsShadow = ShouldStaticPlacementCastShadow(placement.assetName);
@@ -3557,7 +4256,7 @@ void CGameScene::BuildSkinnedBatch(
 		};
 
 	const UINT fighterCount = m_PlayerCount;
-	const XMFLOAT3 playerBase(0.0f, 0.0f, -200.0f);
+	const XMFLOAT3 playerBase(0.0f, 0.0f, -150.0f);
 
 	m_swordManRefs.clear();
 	m_swordManRefs.reserve(m_swordManCount);
@@ -5742,7 +6441,7 @@ void CGameScene::RespawnLocalPlayer(CGameObject* player)
 	if ( auto* collider = player->GetComponent<CColliderComponent>() )
 	{
 		collider->SetEnabled(true);
-		collider->OnUpdate(0.0f);
+		collider->UpdateWorldBounds();
 	}
 
 	if ( auto* animComp = player->GetComponent<CAnimatorComponent>() )
@@ -5808,13 +6507,75 @@ bool CGameScene::RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& p
 	auto TestPositionAgainstWorldStatic = [ this, localPlayer, collider ] (const XMFLOAT3& testPos) -> bool
 		{
 			localPlayer->SetPosition(testPos);
-			collider->OnUpdate(0.0f);
+			collider->UpdateWorldBounds();
 			return m_Collision->HasCollisionWithWorldStatic(collider);
 		};
 
+	const bool hitWorldStaticAtCurrentPos = TestPositionAgainstWorldStatic(currentPos);
+
 	// 현재 위치가 애초에 안 겹치면 아무 것도 안 함
-	if ( !TestPositionAgainstWorldStatic(currentPos) )
+	if ( !hitWorldStaticAtCurrentPos )
+	{
+#ifndef USING_NETWORK
+		if ( kEnableTowerDoorPortalVerboseLog )
+		{
+			char buf[256];
+			sprintf_s(
+				buf,
+				"[TowerDoorPortal][ROLLBACK_CHECK] no world-static hit pos=(%.3f, %.3f, %.3f)\n",
+				currentPos.x,
+				currentPos.y,
+				currentPos.z
+			);
+			OutputDebugStringA(buf);
+		}
+#endif
 		return false;
+	}
+
+#ifndef USING_NETWORK
+	if ( kEnableTowerDoorPortalCollisionLog )
+	{
+		char buf[512];
+		sprintf_s(
+			buf,
+			"[TowerDoorPortal][WORLD_STATIC_HIT] pos=(%.3f, %.3f, %.3f) prev=(%.3f, %.3f, %.3f) portalCount=%zu\n",
+			currentPos.x,
+			currentPos.y,
+			currentPos.z,
+			previousPos.x,
+			previousPos.y,
+			previousPos.z,
+			m_towerDoorPortals.size()
+		);
+		OutputDebugStringA(buf);
+	}
+
+	localPlayer->SetPosition(currentPos);
+	collider->UpdateWorldBounds();
+
+	if ( TryTeleportLocalPlayerByTowerDoorPortal(true) )
+		return true;
+#endif
+
+#ifndef USING_NETWORK
+	// 텔레포트 직후 목적지 문 OOBB와 잠깐 겹칠 수 있다.
+	// 이때 일반 월드 정적 롤백을 수행하면 previousPos가 텔레포트 전 위치라서
+	// x/z가 원래 문 근처로 되돌아간다.
+	if ( IsTowerDoorPortalOnCooldown() )
+	{
+		if ( kEnableTowerDoorPortalCollisionLog )
+		{
+			OutputDebugStringA(
+				"[TowerDoorPortal][ROLLBACK_SKIP_DURING_COOLDOWN] skip normal world-static rollback after portal teleport\n"
+			);
+		}
+
+		localPlayer->SetPosition(currentPos);
+		collider->UpdateWorldBounds();
+		return true;
+	}
+#endif
 
 	// 후보 1: X만 롤백 (Z 이동은 살림)
 	XMFLOAT3 candidateRollbackX = currentPos;
@@ -5839,27 +6600,27 @@ bool CGameScene::RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& p
 
 		const XMFLOAT3 resolvedPos = ( keepDistSqX >= keepDistSqZ ) ? candidateRollbackX : candidateRollbackZ;
 		localPlayer->SetPosition(resolvedPos);
-		collider->OnUpdate(0.0f);
+		collider->UpdateWorldBounds();
 		return true;
 	}
 
 	if ( xResolved )
 	{
 		localPlayer->SetPosition(candidateRollbackX);
-		collider->OnUpdate(0.0f);
+		collider->UpdateWorldBounds();
 		return true;
 	}
 
 	if ( zResolved )
 	{
 		localPlayer->SetPosition(candidateRollbackZ);
-		collider->OnUpdate(0.0f);
+		collider->UpdateWorldBounds();
 		return true;
 	}
 
 	// 둘 다 안 되면 전체 롤백
 	localPlayer->SetPosition(previousPos);
-	collider->OnUpdate(0.0f);
+	collider->UpdateWorldBounds();
 	return true;
 }
 
@@ -6272,6 +7033,11 @@ void CGameScene::CollisionObjects()
 	if ( !m_Collision ) return;
 
 	m_Collision->OnUpdate();
+
+#ifndef USING_NETWORK
+	TickTowerDoorPortalCooldowns();
+	TryTeleportLocalPlayerByTowerDoorPortal();
+#endif
 
 	UpdateMonsterDeathStates();
 
