@@ -356,6 +356,28 @@ public:
 
 private:
 #ifndef USING_NETWORK
+	struct TowerDoorSubBoxRef
+	{
+		size_t meshSetIndex = static_cast< size_t >( -1 );
+		size_t subIndex = static_cast< size_t >( -1 );
+	};
+
+	struct TowerDoorPortalEntry
+	{
+		CGameObject* tower = nullptr;
+		CColliderComponent* collider = nullptr;
+
+		std::vector<TowerDoorSubBoxRef> doorARefs; // Double Door Frame
+		std::vector<TowerDoorSubBoxRef> doorBRefs; // Double Door Frame2
+
+		int cooldownFrames = 0;
+	};
+
+	void RegisterTowerDoorPortal(CGameObject* tower);
+	void TickTowerDoorPortalCooldowns();
+	bool IsTowerDoorPortalOnCooldown() const;
+	bool TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog = false);
+
 	using EGridDynamicKind = CSceneGrid::EDynamicKind;
 	using GridDynamicTracker = CSceneGrid::DynamicTracker;
 
@@ -548,6 +570,8 @@ private:
 
 #ifndef USING_NETWORK
 	std::vector<MonsterSpawnEntry>	m_monsterSpawnEntries;
+
+	std::vector<TowerDoorPortalEntry> m_towerDoorPortals;
 
 	CSceneGrid m_sceneGrid;
 
