@@ -305,7 +305,7 @@ namespace
 
 	static constexpr float kLocalPlayerRespawnDelay = 5.0f;
 
-	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::Test;
+	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::FullStage;
 
 	// -----------------------------------------------------------------------------
 	// HP
@@ -1046,11 +1046,11 @@ void CGameScene::RegisterCastleDoorPortal(CGameObject* castle)
 		};
 
 	// Unity 기준:
-	// Double Door Frame     -> Double Door Frame (1)
+	// Double Door Frame (1) -> Double Door Frame 
 	// Double Door Frame (2) -> Double Door Frame (4)
 	// Double Door Frame (3) -> Double Door Frame (5)
 	// Double Door Frame (7) -> Double Door Frame (6)
-	AddPair(0, 1);
+	AddPair(1, 0);
 	AddPair(2, 4);
 	AddPair(3, 5);
 	AddPair(7, 6);
@@ -2768,7 +2768,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	const DXGI_FORMAT kDsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
 #ifndef USING_NETWORK
-	BuildColliderBatch(dev, cmd, pColliderShader, kRTCount, rtvFormats, kDsvFormat);
+	//BuildColliderBatch(dev, cmd, pColliderShader, kRTCount, rtvFormats, kDsvFormat);
 #endif
 
 	pTreeStaticShader->CreateShader(dev, m_pd3dGraphicsRootSignature.Get(), kRTCount, rtvFormats, kDsvFormat);
@@ -2817,7 +2817,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	
 #ifndef USING_NETWORK
 	//DumpStaticGridOccupancyLog();
-	BuildStaticWorldSubmeshOOBBDebugObjects(dev, cmd);
+	//BuildStaticWorldSubmeshOOBBDebugObjects(dev, cmd);
 #endif
 	BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
 

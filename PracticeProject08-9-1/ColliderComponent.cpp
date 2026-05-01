@@ -77,6 +77,18 @@ namespace
 
 		DebugPrintLine(oss.str());
 	}
+
+	static bool IsCastleSubMeshOOBBExcluded(const std::string& assetName, const std::string& meshName)
+	{
+		if ( assetName != "Castle" )
+			return false;
+
+		return
+			meshName == "Carpet" ||
+			meshName == "Carpet1" ||
+			meshName == "Carpet2" ||
+			meshName == "Floor";
+	}
 }
 
 BoundingOrientedBox CColliderComponent::MakeLocalOOBB(const XMFLOAT3& Min, const XMFLOAT3& Max)
@@ -466,6 +478,28 @@ void CColliderComponent::BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>&
 				continue;
 			}
 
+			if ( IsCastleSubMeshOOBBExcluded(mDebugColliderAssetName, submesh.meshName) )
+			{
+				if ( logEnabled )
+				{
+					std::ostringstream oss;
+					oss << " meshSet=" << meshIndex
+						<< " subMesh=" << subMeshIndex
+						<< " mesh=\"" << submesh.meshName << "\""
+						<< " authoringPath=\"" << submesh.authoringPath << "\""
+						<< " reason=castleExcludedSubMesh";
+
+					DebugPrintMessage(
+						"SKIP_CASTLE_SUBMESH_OOBB",
+						mDebugColliderAssetName,
+						mDebugColliderObjectName,
+						oss.str()
+					);
+				}
+
+				continue;
+			}
+
 			const bool hasAuthoringPath = !submesh.authoringPath.empty();
 			const auto authoredIt =
 				hasAuthoringPath
@@ -612,6 +646,25 @@ void CColliderComponent::BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>&
 					);
 				}
 			}
+		}
+
+		if ( set.LocalSubOOBBs.empty() )
+		{
+			if ( logEnabled )
+			{
+				std::ostringstream oss;
+				oss << " meshSet=" << meshIndex
+					<< " reason=noSubOOBBsAfterCastleExclusion";
+
+				DebugPrintMessage(
+					"MESH_SKIPPED_NO_SUB_OOBBS",
+					mDebugColliderAssetName,
+					mDebugColliderObjectName,
+					oss.str()
+				);
+			}
+
+			continue;
 		}
 
 		const XMFLOAT3 meshMin = mesh->GetMeshMin();
