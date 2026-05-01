@@ -162,6 +162,19 @@ public:
 	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
 };
 
+class CItemBillboardShader final : public CStaticObjectsShader
+{
+public:
+	CItemBillboardShader() = default;
+	~CItemBillboardShader() override = default;
+
+public:
+	D3D12_INPUT_LAYOUT_DESC CreateInputLayout() override;
+	D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob) override;
+	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
+	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
+};
+
 class CSkinnedObjectsShader : public CIlluminatedTexturedShader
 {
 public:

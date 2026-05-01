@@ -155,7 +155,7 @@ namespace
     }
 
 	static constexpr UINT kDebugSubmeshOOBBCapacity = 8192;
-	static constexpr bool kEnableStaticWorldLocalOOBBReportExport = true;
+	static constexpr bool kEnableStaticWorldLocalOOBBReportExport = false;
 	static constexpr const char* kStaticWorldLocalOOBBReportPath = "MapData/StaticWorldLocalOOBBReport.txt";
 	static constexpr bool kEnableCastleVillageWallColliderBuildLog = false;
 
@@ -228,12 +228,76 @@ namespace
 			attack->SetAttackPower(attackPower);
 	}
 
+	static float DistanceSq3(const XMFLOAT3& a, const XMFLOAT3& b)
+	{
+		const float dx = a.x - b.x;
+		const float dy = a.y - b.y;
+		const float dz = a.z - b.z;
+
+		return dx * dx + dy * dy + dz * dz;
+	}
+
+	static void StoreCylindricalBillboardWorldRows(
+		ItemBillboardInstanceVertex& dst,
+		const XMFLOAT3& basePosition,
+		float yOffset,
+		float width,
+		float height,
+		const XMFLOAT3& targetPosition,
+		UINT materialId)
+	{
+		const XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+
+		XMVECTOR center = XMLoadFloat3(&basePosition);
+		center = XMVectorAdd(center, XMVectorSet(0.0f, yOffset, 0.0f, 0.0f));
+
+		XMVECTOR target = XMLoadFloat3(&targetPosition);
+
+		XMVECTOR forward = XMVectorSubtract(target, center);
+		forward = XMVectorSetY(forward, 0.0f);
+
+		if ( XMVectorGetX(XMVector3LengthSq(forward)) <= 1.0e-6f )
+			forward = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+		else
+			forward = XMVector3Normalize(forward);
+
+		XMVECTOR right = XMVector3Cross(up, forward);
+
+		if ( XMVectorGetX(XMVector3LengthSq(right)) <= 1.0e-6f )
+			right = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+		else
+			right = XMVector3Normalize(right);
+
+		const XMVECTOR scaledRight = XMVectorScale(right, width);
+		const XMVECTOR scaledUp = XMVectorScale(up, height);
+
+		XMFLOAT3 r{};
+		XMFLOAT3 u{};
+		XMFLOAT3 f{};
+		XMFLOAT3 c{};
+
+		XMStoreFloat3(&r, scaledRight);
+		XMStoreFloat3(&u, scaledUp);
+		XMStoreFloat3(&f, forward);
+		XMStoreFloat3(&c, center);
+
+		dst.world0 = XMFLOAT4(r.x, r.y, r.z, 0.0f);
+		dst.world1 = XMFLOAT4(u.x, u.y, u.z, 0.0f);
+		dst.world2 = XMFLOAT4(f.x, f.y, f.z, 0.0f);
+		dst.world3 = XMFLOAT4(c.x, c.y, c.z, 1.0f);
+
+		dst.materialId = materialId;
+		dst.pad[0] = 0;
+		dst.pad[1] = 0;
+		dst.pad[2] = 0;
+	}
+
 	static constexpr XMFLOAT3 kLocalPlayerRespawnPosition =
 		XMFLOAT3(0.0f, 0.0f, -200.0f);
 
 	static constexpr float kLocalPlayerRespawnDelay = 5.0f;
 
-	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::Test;
+	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::FullStage;
 
 	// -----------------------------------------------------------------------------
 	// HP
@@ -2258,6 +2322,12 @@ void CGameScene::ReleaseObjects()
 	m_localPlayerRespawnTimer = 0.0f;
 	m_deadMonsters.clear();
 
+	m_itemBillboardShader.reset();
+	m_itemBillboardQuadMesh.reset();
+	m_itemBillboards.clear();
+	m_keyItemTexture.reset();
+	ReleaseItemBillboardGpuResources();
+
 #ifndef USING_NETWORK
 	m_monsterSpawnEntries.clear();
 	ShutdownSpatialGrid();
@@ -2369,10 +2439,17 @@ void CGameScene::ReleaseUploadBuffers()
 #ifdef _WITH_BATCH_MATERIAL
     if (m_staticBatch.material)  m_staticBatch.material->ReleaseUploadBuffers();
 #endif
+
+	if ( m_itemBillboardQuadMesh )
+		m_itemBillboardQuadMesh->ReleaseUploadBuffers();
+
+	if ( m_keyItemTexture )
+		m_keyItemTexture->ReleaseUploadBuffers();
 }
 
 void CGameScene::ReleaseShaderVariables()
 {
+	ReleaseItemBillboardGpuResources();
 	ReleaseStaticOcclusionGpuResources();
 	ReleaseSkinnedOcclusionGpuResources();
 
@@ -2728,6 +2805,8 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	);
 
 	BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
+	BuildItemBillboardBatch(dev, cmd, kRTCount, rtvFormats, kDsvFormat);
+	
 #ifndef USING_NETWORK
 	//DumpStaticGridOccupancyLog();
 	//BuildStaticWorldSubmeshOOBBDebugObjects(dev, cmd);
@@ -3318,6 +3397,25 @@ void CGameScene::BuildLightsAndMaterials()
 
     for (int i = 0; i < MAX_MATERIALS; ++i)
         m_pMaterials->m_pReflections[i].m_xmn4TextureIndices = XMUINT4(0, 0, 0, 0);
+
+	{
+		MATERIAL& keyMat = m_pMaterials->m_pReflections[kItemBillboardKeyMaterialId];
+
+		keyMat.m_xmf4Ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+		keyMat.m_xmf4Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+		keyMat.m_xmf4Specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+		keyMat.m_xmf4Emissive = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+
+		keyMat.m_xmn4TextureIndices = XMUINT4(0, 0, 0, 0);
+
+		keyMat.m_xmf4DiffuseUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+		keyMat.m_xmf4NormalUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+		keyMat.m_xmf4EmissiveUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+		keyMat.m_xmf4SpecularUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+
+		keyMat.m_xmn4WrapModes0 = XMUINT4(0, 0, 0, 0);
+		keyMat.m_xmn4WrapModes1 = XMUINT4(0, 0, 0, 0);
+	}
 }
 
 void CGameScene::CreateShaderVariables(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
@@ -5874,6 +5972,338 @@ void CGameScene::BuildSkinnedBatch(
 	BuildSkinnedOcclusionGpuResources(dev);
 }
 
+std::shared_ptr<CMesh> CGameScene::CreateItemBillboardQuadMesh(
+	ID3D12Device* dev,
+	ID3D12GraphicsCommandList* cmd)
+{
+	if ( !dev || !cmd )
+		return nullptr;
+
+	struct ITEM_BILLBOARD_VERTEX
+	{
+		XMFLOAT3 position;
+		XMFLOAT3 normal;
+		XMFLOAT2 uv;
+		XMFLOAT4 tangent;
+	};
+
+	const ITEM_BILLBOARD_VERTEX vertices[4] =
+	{
+		// position                  normal              uv                  tangent
+		{ XMFLOAT3(-0.5f, -0.5f, 0.0f), XMFLOAT3(0.0f, 0.0f, 1.0f), XMFLOAT2(0.0f, 1.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
+		{ XMFLOAT3(-0.5f, +0.5f, 0.0f), XMFLOAT3(0.0f, 0.0f, 1.0f), XMFLOAT2(0.0f, 0.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
+		{ XMFLOAT3(+0.5f, +0.5f, 0.0f), XMFLOAT3(0.0f, 0.0f, 1.0f), XMFLOAT2(1.0f, 0.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
+		{ XMFLOAT3(+0.5f, -0.5f, 0.0f), XMFLOAT3(0.0f, 0.0f, 1.0f), XMFLOAT2(1.0f, 1.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
+	};
+
+	const UINT indices[6] =
+	{
+		0, 1, 2,
+		0, 2, 3
+	};
+
+	auto mesh = std::make_shared<CMesh>(dev, cmd);
+
+	mesh->m_SubMeshes.resize(1);
+	SubMesh& sm = mesh->m_SubMeshes[0];
+
+	sm.positions =
+	{
+		vertices[0].position,
+		vertices[1].position,
+		vertices[2].position,
+		vertices[3].position
+	};
+
+	sm.normals =
+	{
+		vertices[0].normal,
+		vertices[1].normal,
+		vertices[2].normal,
+		vertices[3].normal
+	};
+
+	sm.uvs =
+	{
+		vertices[0].uv,
+		vertices[1].uv,
+		vertices[2].uv,
+		vertices[3].uv
+	};
+
+	sm.tangents =
+	{
+		vertices[0].tangent,
+		vertices[1].tangent,
+		vertices[2].tangent,
+		vertices[3].tangent
+	};
+
+	sm.indices.assign(std::begin(indices), std::end(indices));
+
+	sm.subMeshMin = XMFLOAT3(-0.5f, -0.5f, 0.0f);
+	sm.subMeshMax = XMFLOAT3(+0.5f, +0.5f, 0.0f);
+
+	sm.materialId = kItemBillboardKeyMaterialId;
+
+	const UINT vertexBufferSize = sizeof(vertices);
+	const UINT indexBufferSize = sizeof(indices);
+
+	sm.vb = ::CreateBufferResource(
+		dev,
+		cmd,
+		( void* ) vertices,
+		vertexBufferSize,
+		D3D12_HEAP_TYPE_DEFAULT,
+		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+		&sm.vbUpload
+	);
+
+	sm.ib = ::CreateBufferResource(
+		dev,
+		cmd,
+		( void* ) indices,
+		indexBufferSize,
+		D3D12_HEAP_TYPE_DEFAULT,
+		D3D12_RESOURCE_STATE_INDEX_BUFFER,
+		&sm.ibUpload
+	);
+
+	sm.vbView.BufferLocation = sm.vb->GetGPUVirtualAddress();
+	sm.vbView.StrideInBytes = sizeof(ITEM_BILLBOARD_VERTEX);
+	sm.vbView.SizeInBytes = vertexBufferSize;
+
+	sm.ibView.BufferLocation = sm.ib->GetGPUVirtualAddress();
+	sm.ibView.Format = DXGI_FORMAT_R32_UINT;
+	sm.ibView.SizeInBytes = indexBufferSize;
+
+	return mesh;
+}
+
+void CGameScene::BuildItemBillboardBatch(
+	ID3D12Device* dev,
+	ID3D12GraphicsCommandList* cmd,
+	UINT rtCount,
+	DXGI_FORMAT* rtvFormats,
+	DXGI_FORMAT dsvFormat)
+{
+	if ( !dev || !cmd )
+		return;
+
+	m_itemBillboards.clear();
+
+	m_itemBillboardShader = std::make_shared<CItemBillboardShader>();
+	m_itemBillboardShader->CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		rtCount,
+		rtvFormats,
+		dsvFormat
+	);
+
+	{
+		m_keyItemTexture = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
+
+		m_keyItemTexture->LoadTextureFromFile(
+			dev,
+			cmd,
+			L"Assets/UI/Key.dds",
+			RESOURCE_TEXTURE2D,
+			0
+		);
+
+		CScene::m_pDescriptorHeap->CreateShaderResourceViews(
+			dev,
+			m_keyItemTexture.get(),
+			ROOT_PARAMETER_GLOBAL_SRV
+		);
+
+		SetKeyItemDiffuseSrvIndex(m_keyItemTexture->GetBaseSrvIndex());
+	}
+
+	m_itemBillboardQuadMesh = CreateItemBillboardQuadMesh(dev, cmd);
+
+	if ( !m_itemBillboardQuadMesh )
+		return;
+
+	ItemBillboardEntry key{};
+	key.active = true;
+	key.distanceCulled = false;
+	key.kind = EItemBillboardKind::Key;
+	key.position = XMFLOAT3(0.0f, 0.0f, -150.0f);
+	key.width = 1.2f;
+	key.height = 1.2f;
+	key.yOffset = 1.2f;
+	key.cullDistance = 35.0f;
+	key.materialId = kItemBillboardKeyMaterialId;
+
+	m_itemBillboards.push_back(key);
+
+	m_itemBillboardInstanceBufferCapacity =
+		static_cast< UINT >( m_itemBillboards.size() );
+
+	if ( m_itemBillboardInstanceBufferCapacity == 0 )
+		return;
+
+	const UINT instanceBufferBytes =
+		sizeof(ItemBillboardInstanceVertex) *
+		m_itemBillboardInstanceBufferCapacity;
+
+	m_pd3dItemBillboardInstanceBuffer = ::CreateBufferResource(
+		dev,
+		cmd,
+		nullptr,
+		instanceBufferBytes,
+		D3D12_HEAP_TYPE_UPLOAD,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr
+	);
+
+	m_pd3dItemBillboardInstanceBuffer->Map(
+		0,
+		nullptr,
+		reinterpret_cast< void** >( &m_pMappedItemBillboardInstanceBuffer )
+	);
+}
+
+void CGameScene::ReleaseItemBillboardGpuResources()
+{
+	if ( m_pd3dItemBillboardInstanceBuffer )
+	{
+		if ( m_pMappedItemBillboardInstanceBuffer )
+		{
+			m_pd3dItemBillboardInstanceBuffer->Unmap(0, nullptr);
+			m_pMappedItemBillboardInstanceBuffer = nullptr;
+		}
+
+		m_pd3dItemBillboardInstanceBuffer.Reset();
+	}
+
+	m_itemBillboardInstanceBufferCapacity = 0;
+}
+
+void CGameScene::UpdateItemBillboardDistanceCullSelection(CCamera* camera)
+{
+	if ( !camera )
+		return;
+
+	const XMFLOAT3 cameraPos = camera->GetPosition();
+
+	for ( ItemBillboardEntry& item : m_itemBillboards )
+	{
+		if ( !item.active )
+		{
+			item.distanceCulled = true;
+			continue;
+		}
+
+		const float cullDist = item.cullDistance;
+		const float cullDistSq = cullDist * cullDist;
+
+		item.distanceCulled =
+			DistanceSq3(cameraPos, item.position) > cullDistSq;
+	}
+}
+
+void CGameScene::RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera)
+{
+	PROFILE_RENDER_SCOPE("GameScene::RenderItemBillboards");
+
+	if ( !cmd )
+		return;
+
+	if ( !camera )
+		return;
+
+	if ( !m_itemBillboardShader )
+		return;
+
+	if ( !m_itemBillboardQuadMesh )
+		return;
+
+	if ( !m_pd3dItemBillboardInstanceBuffer )
+		return;
+
+	if ( !m_pMappedItemBillboardInstanceBuffer )
+		return;
+
+	if ( m_itemBillboardQuadMesh->m_SubMeshes.empty() )
+		return;
+
+	const SubMesh& sm = m_itemBillboardQuadMesh->m_SubMeshes[0];
+
+	if ( sm.indices.empty() )
+		return;
+
+	CGameObject* targetPlayer = GetPlayer();
+
+	if ( !targetPlayer )
+		targetPlayer = GetPlayerBySlot(0);
+
+	XMFLOAT3 targetPos = camera->GetPosition();
+
+	if ( targetPlayer )
+		targetPos = targetPlayer->GetPosition();
+
+	UINT visibleInstanceCount = 0;
+
+	for ( const ItemBillboardEntry& item : m_itemBillboards )
+	{
+		if ( !item.active )
+			continue;
+
+		if ( item.distanceCulled )
+			continue;
+
+		if ( visibleInstanceCount >= m_itemBillboardInstanceBufferCapacity )
+			break;
+
+		ItemBillboardInstanceVertex& dst =
+			m_pMappedItemBillboardInstanceBuffer[visibleInstanceCount];
+
+		StoreCylindricalBillboardWorldRows(
+			dst,
+			item.position,
+			item.yOffset,
+			item.width,
+			item.height,
+			targetPos,
+			item.materialId
+		);
+
+		++visibleInstanceCount;
+	}
+
+	if ( visibleInstanceCount == 0 )
+		return;
+
+	m_itemBillboardShader->Render(cmd, camera, nullptr);
+
+	D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
+	vbViews[0] = sm.vbView;
+
+	vbViews[1].BufferLocation =
+		m_pd3dItemBillboardInstanceBuffer->GetGPUVirtualAddress();
+
+	vbViews[1].SizeInBytes =
+		sizeof(ItemBillboardInstanceVertex) * visibleInstanceCount;
+
+	vbViews[1].StrideInBytes =
+		sizeof(ItemBillboardInstanceVertex);
+
+	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	cmd->IASetVertexBuffers(0, 2, vbViews);
+	cmd->IASetIndexBuffer(&sm.ibView);
+
+	cmd->DrawIndexedInstanced(
+		static_cast< UINT >( sm.indices.size() ),
+		visibleInstanceCount,
+		0,
+		0,
+		0
+	);
+}
+
 void CGameScene::BuildColliderBatch(
 	ID3D12Device* dev,
 	ID3D12GraphicsCommandList* cmd,
@@ -6430,9 +6860,19 @@ bool CGameScene::IsPointInPauseOverlay(POINT clientPt) const
 
 void CGameScene::SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex)
 {
-    if (!m_pMaterials) return;
-    if (materialId < 0 || materialId >= MAX_MATERIALS) return;
-    m_pMaterials->m_pReflections[materialId].m_xmn4TextureIndices.x = srvIndex;
+	if ( !m_pMaterials )
+		return;
+
+	if ( materialId < 0 || materialId >= MAX_MATERIALS )
+		return;
+
+	m_pMaterials->m_pReflections[materialId].m_xmn4TextureIndices.x =
+		( srvIndex == UINT_MAX ) ? 0u : ( srvIndex + 1u );
+}
+
+void CGameScene::SetKeyItemDiffuseSrvIndex(UINT srvIndex)
+{
+	SetMaterialDiffuseSrvIndex(( int ) kItemBillboardKeyMaterialId, srvIndex);
 }
 
 CGameObject* CGameScene::GetDemoFighter(int index) const
@@ -7858,6 +8298,7 @@ void CGameScene::UpdateFrameRenderState(CCamera* camera)
 	BeginStaticOcclusionReadback();
 	UpdateStaticOcclusionCullSelection(camera);
 	UpdateStaticTreeGridCullSelection(camera);
+	UpdateItemBillboardDistanceCullSelection(camera);
 
 	UpdateSkinnedWorldLodSelection(camera);
 	BeginSkinnedOcclusionReadback();
@@ -7933,6 +8374,12 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 	{
 		PROFILE_RENDER_SCOPE("GameScene::RenderSceneGeometry::StaticInstances");
 		RenderStaticInstanceGroups(cmd, camera);
+	}
+
+	if ( m_itemBillboardShader )
+	{
+		PROFILE_RENDER_SCOPE("GameScene::RenderSceneGeometry::ItemBillboards");
+		RenderItemBillboards(cmd, camera);
 	}
 
 	if ( m_skinnedBatch.shader )
