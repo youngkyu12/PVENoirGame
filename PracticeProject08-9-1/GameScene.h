@@ -88,6 +88,9 @@ struct ItemBillboardEntry
 
 	float cullDistance = 35.0f;
 
+	float pickupRadius = 1.25f;
+	float pickupHeightTolerance = 2.0f;
+
 	UINT materialId = 0;
 };
 
@@ -297,6 +300,9 @@ private:
 
 	void UpdateItemBillboardDistanceCullSelection(CCamera* camera);
 	void RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
+	void UpdateItemBillboardPickupCollision();
+	bool DoesPlayerOverlapItemBillboard(const CGameObject* player, const ItemBillboardEntry& item) const;
 
 	std::shared_ptr<CMesh> CreateItemBillboardQuadMesh(
 		ID3D12Device* dev,
@@ -575,6 +581,7 @@ private:
 	SCENE_COLLIDER_BATCH m_colliderBatch;
 
 	static constexpr UINT kItemBillboardKeyMaterialId = MAX_MATERIALS - 1;
+	static constexpr UINT kKeyItemBillboardCount = 7;
 
 	std::shared_ptr<CItemBillboardShader> m_itemBillboardShader;
 	std::shared_ptr<CMesh>                m_itemBillboardQuadMesh;
