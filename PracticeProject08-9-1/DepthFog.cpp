@@ -7,6 +7,33 @@
 
 #include "GlobalValues.h"
 
+namespace
+{
+	static float LerpFloat(float a, float b, float t)
+	{
+		return a + ( b - a ) * t;
+	}
+
+	static XMFLOAT4 LerpFloat4(const XMFLOAT4& a, const XMFLOAT4& b, float t)
+	{
+		return XMFLOAT4(
+			LerpFloat(a.x, b.x, t),
+			LerpFloat(a.y, b.y, t),
+			LerpFloat(a.z, b.z, t),
+			LerpFloat(a.w, b.w, t)
+		);
+	}
+
+	static CB_FOG LerpFogPreset(const CB_FOG& a, const CB_FOG& b, float t)
+	{
+		CB_FOG out{};
+		out.fogColor = LerpFloat4(a.fogColor, b.fogColor, t);
+		out.fogParams0 = LerpFloat4(a.fogParams0, b.fogParams0, t);
+		out.fogParams1 = LerpFloat4(a.fogParams1, b.fogParams1, t);
+		return out;
+	}
+}
+
 CDepthFogSystem::CDepthFogSystem()
 {
 	ResetState();
@@ -19,22 +46,53 @@ CDepthFogSystem::~CDepthFogSystem()
 
 void CDepthFogSystem::ResetState()
 {
-	m_fogData = CB_FOG{};
+	CB_FOG base{};
 
-	m_enabledPreset = m_fogData;
-	m_disabledPreset = m_fogData;
+	// 기존 안개 구역용 짙은 안개.
+	// 필요하면 기존에 쓰던 수치를 여기서 유지/조정하면 된다.
+	m_zoneDensePreset = base;
+	m_zoneDensePreset.fogColor = XMFLOAT4(0.62f, 0.67f, 0.72f, 1.0f);
+	m_zoneDensePreset.fogParams0 = XMFLOAT4(
+		20.0f,  // fogStart
+		40.0f,  // fogEnd
+		0.0f,   // fogDensity, Linear 모드에서는 사실상 미사용
+		1.0f    // fogEnable
+	);
+	m_zoneDensePreset.fogParams1 = XMFLOAT4(
+		1.01f,
+		5000.0f,
+		0.0f,   // 0 = Linear
+		1.0f    // fadeAlpha
+	);
 
-	m_disabledPreset.fogParams0.x = 0.0f;
-	m_disabledPreset.fogParams0.y = 1.0f;
-	m_disabledPreset.fogParams0.z = 0.0f;
-	m_disabledPreset.fogParams0.w = 0.0f;
+	// 안개 구역 외부용 넓은 안개.
+	// 건물/타워 대부분이 LOD2로 들어가는 300m부터,
+	// 현재 가장 먼 주요 static cull 거리인 VillageWall 900m까지 덮는다.
+	m_outerWidePreset = base;
+	m_outerWidePreset.fogColor = XMFLOAT4(0.62f, 0.67f, 0.72f, 1.0f);
+	m_outerWidePreset.fogParams0 = XMFLOAT4(
+		300.0f, // fogStart
+		500.0f, // fogEnd
+		0.0f,   // fogDensity
+		1.0f    // fogEnable
+	);
+	m_outerWidePreset.fogParams1 = XMFLOAT4(
+		1.01f,
+		5000.0f,
+		0.0f,   // 0 = Linear
+		1.0f
+	);
 
-	m_fogData = m_disabledPreset;
+	m_fogData = m_outerWidePreset;
+	m_blendStartPreset = m_outerWidePreset;
+	m_blendTargetPreset = m_outerWidePreset;
 
-	m_targetEnabled = false;
+	m_currentMode = EDepthFogPresetMode::OuterWide;
+	m_targetMode = EDepthFogPresetMode::OuterWide;
+
 	m_passEnabled = true;
 
-	m_fadeAlpha = 0.0f;
+	m_fadeAlpha = 1.0f;
 	m_fadeDuration = 1.0f;
 }
 
@@ -132,51 +190,51 @@ void CDepthFogSystem::SetSourceSrvIndices(UINT sceneColorSrvIndex, UINT sceneDep
 	m_sceneDepthSrvIndex = sceneDepthSrvIndex;
 }
 
-void CDepthFogSystem::UpdateState(float dt, bool enableFog)
+void CDepthFogSystem::UpdateState(float dt, EDepthFogPresetMode mode)
 {
-	m_targetEnabled = enableFog;
+	const CB_FOG& desiredPreset =
+		( mode == EDepthFogPresetMode::ZoneDense )
+		? m_zoneDensePreset
+		: m_outerWidePreset;
 
-	const float targetAlpha = enableFog ? 1.0f : 0.0f;
+	if ( mode != m_targetMode )
+	{
+		m_currentMode = m_targetMode;
+		m_targetMode = mode;
+
+		m_blendStartPreset = m_fogData;
+		m_blendTargetPreset = desiredPreset;
+		m_fadeAlpha = 0.0f;
+	}
 
 	float safeDt = dt;
 	if ( safeDt < 0.0f )
 		safeDt = 0.0f;
 
-	const float safeDuration = ( m_fadeDuration > 0.0001f )
+	const float safeDuration =
+		( m_fadeDuration > 0.0001f )
 		? m_fadeDuration
 		: 0.0001f;
 
-	const float step = safeDt / safeDuration;
-
-	if ( m_fadeAlpha < targetAlpha )
+	if ( m_fadeAlpha < 1.0f )
 	{
-		m_fadeAlpha += step;
+		m_fadeAlpha += safeDt / safeDuration;
 
-		if ( m_fadeAlpha > targetAlpha )
-			m_fadeAlpha = targetAlpha;
-	}
-	else if ( m_fadeAlpha > targetAlpha )
-	{
-		m_fadeAlpha -= step;
-
-		if ( m_fadeAlpha < targetAlpha )
-			m_fadeAlpha = targetAlpha;
+		if ( m_fadeAlpha > 1.0f )
+			m_fadeAlpha = 1.0f;
 	}
 
-	const float t = m_fadeAlpha;
-	const float invT = 1.0f - t;
+	m_fogData = LerpFogPreset(
+		m_blendStartPreset,
+		m_blendTargetPreset,
+		m_fadeAlpha
+	);
 
-	m_fogData.fogColor.x = m_disabledPreset.fogColor.x * invT + m_enabledPreset.fogColor.x * t;
-	m_fogData.fogColor.y = m_disabledPreset.fogColor.y * invT + m_enabledPreset.fogColor.y * t;
-	m_fogData.fogColor.z = m_disabledPreset.fogColor.z * invT + m_enabledPreset.fogColor.z * t;
-	m_fogData.fogColor.w = m_disabledPreset.fogColor.w * invT + m_enabledPreset.fogColor.w * t;
+	// 이제 외곽 안개도 항상 켜진 상태다.
+	m_fogData.fogParams0.w = 1.0f;
 
-	// 기존 동작 유지:
-	// 실제 fog 수치는 enabled preset을 유지하고,
-	// enable flag와 fade alpha만 갱신한다.
-	m_fogData = m_enabledPreset;
-
-	m_fogData.fogParams0.w = ( m_fadeAlpha > 0.0f || enableFog ) ? 1.0f : 0.0f;
+	// 셰이더의 기존 fadeAlpha 입력은 유지한다.
+	// ZoneDense <-> OuterWide 전환 보간값으로 사용된다.
 	m_fogData.fogParams1.w = m_fadeAlpha;
 }
 
