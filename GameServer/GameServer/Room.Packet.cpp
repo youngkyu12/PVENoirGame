@@ -212,7 +212,7 @@ void Room::MakeFrameState(uint32 tick)
 
 void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
 {
-	gameStartPkt.set_mapid("MapData_fullstage");
+	gameStartPkt.set_mapid("MapData_fullstage_withBoss");
 
 	Protocol::InitStruct* initStruct = gameStartPkt.mutable_initstruct();
 	for (auto playerMap : players)
