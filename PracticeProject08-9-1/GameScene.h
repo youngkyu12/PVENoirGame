@@ -57,6 +57,40 @@ struct StaticInstanceVertex
 	UINT pad[3] = { 0, 0, 0 };
 };
 
+struct ItemBillboardInstanceVertex
+{
+	XMFLOAT4 world0 = XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f);
+	XMFLOAT4 world1 = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
+	XMFLOAT4 world2 = XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f);
+	XMFLOAT4 world3 = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+
+	UINT materialId = 0;
+	UINT pad[3] = { 0, 0, 0 };
+};
+
+enum class EItemBillboardKind : UINT
+{
+	Key = 0,
+};
+
+struct ItemBillboardEntry
+{
+	bool active = true;
+	bool distanceCulled = false;
+
+	EItemBillboardKind kind = EItemBillboardKind::Key;
+
+	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	float width = 1.0f;
+	float height = 1.0f;
+	float yOffset = 1.0f;
+
+	float cullDistance = 35.0f;
+
+	UINT materialId = 0;
+};
+
 struct StaticInstanceGroup
 {
 	std::shared_ptr<CMesh> mesh;
@@ -250,6 +284,25 @@ private:
 	bool IsStaticTreeObject(const CGameObject* obj) const;
 	void RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
+	std::shared_ptr<CTexture> m_keyItemTexture;
+	void BuildItemBillboardBatch(
+		ID3D12Device* dev,
+		ID3D12GraphicsCommandList* cmd,
+		UINT rtCount,
+		DXGI_FORMAT* rtvFormats,
+		DXGI_FORMAT dsvFormat
+	);
+
+	void ReleaseItemBillboardGpuResources();
+
+	void UpdateItemBillboardDistanceCullSelection(CCamera* camera);
+	void RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
+	std::shared_ptr<CMesh> CreateItemBillboardQuadMesh(
+		ID3D12Device* dev,
+		ID3D12GraphicsCommandList* cmd
+	);
+
 	void BuildSkinnedInstanceGroups();
 	void ResetSkinnedWorldLodEntries();
 
@@ -301,6 +354,7 @@ public:
     // Game-only API
 public:
     void SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex);
+	void SetKeyItemDiffuseSrvIndex(UINT srvIndex);
 	void SetInactiveOverlayVisible(bool visible)
 	{
 		m_bInactiveOverlayVisible = visible;
@@ -519,6 +573,17 @@ private:
     SCENE_STATIC_BATCH  m_staticBatch;
     SCENE_SKINNED_BATCH m_skinnedBatch;
 	SCENE_COLLIDER_BATCH m_colliderBatch;
+
+	static constexpr UINT kItemBillboardKeyMaterialId = MAX_MATERIALS - 1;
+
+	std::shared_ptr<CItemBillboardShader> m_itemBillboardShader;
+	std::shared_ptr<CMesh>                m_itemBillboardQuadMesh;
+
+	std::vector<ItemBillboardEntry>       m_itemBillboards;
+
+	ComPtr<ID3D12Resource>                m_pd3dItemBillboardInstanceBuffer;
+	ItemBillboardInstanceVertex* m_pMappedItemBillboardInstanceBuffer = nullptr;
+	UINT                                  m_itemBillboardInstanceBufferCapacity = 0;
 
     std::vector<CGameObject*> m_swordManRefs;
     std::vector<CGameObject*> m_bowManRefs;
