@@ -95,14 +95,11 @@ std::unique_ptr<CGameObject> GameSceneObjectFactory::CreateStaticRenderable(cons
 		auto* collider = obj->AddComponent<CColliderComponent>(desc.colliderType);
 		if ( collider )
 		{
-			if ( desc.debugColliderBuildLog )
-			{
-				collider->SetColliderBuildLogEnabled(
-					true,
-					desc.debugColliderAssetName,
-					desc.debugColliderObjectName
-				);
-			}
+			collider->SetColliderBuildLogEnabled(
+				desc.debugColliderBuildLog,
+				desc.debugColliderAssetName,
+				desc.debugColliderObjectName
+			);
 
 			if ( desc.configureColliderFiltering )
 			{
