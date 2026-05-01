@@ -536,6 +536,17 @@ namespace
             return true;
         }
 
+		if (normalized == "fullstage_withboss" ||
+			normalized == "fullstagewithboss" ||
+			normalized == "map_fullstage_withboss" ||
+			normalized == "map_fullstage_with_boss" ||
+			normalized == "mapdata_fullstage_withboss" ||
+			normalized == "mapdata_fullstage_with_boss")
+		{
+			outPlacementFilePath = "MapData/MapData_fullstage(withBoss).txt";
+			return true;
+		}
+
         if (normalized == "stage1" ||
             normalized == "map_stage1" ||
             normalized == "mapdata_stage1")
