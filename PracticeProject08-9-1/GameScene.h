@@ -489,6 +489,11 @@ private:
 	void RebuildDynamicGridState();
 	void UpdateDynamicGridState();
 	void UpdateMegaGridState();
+
+	void MarkLocalPlayerEnteredCastleCenterMegaGrid();
+	bool IsLocalPlayerInsideCastleCenterMegaGridFullArea() const;
+	void UpdateCastleCenterMegaGridState();
+
 	void DumpStaticGridOccupancyLog() const;
 #endif
 
@@ -777,6 +782,10 @@ private:
 	bool                                m_bStartedGameplayMusic = false;
 	bool                                m_bWasLocalPlayerInsideMegaGridCenter = false;
 	bool                                m_bShowShadowMapOverlay = true;
+
+#ifndef USING_NETWORK
+	bool m_bLocalPlayerInsideCastleCenterMegaGrid = false;
+#endif
 
 	bool GetPauseOverlayRect(XMFLOAT4& outRect) const;
 
