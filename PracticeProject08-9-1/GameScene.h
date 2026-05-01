@@ -356,27 +356,53 @@ public:
 
 private:
 #ifndef USING_NETWORK
-	struct TowerDoorSubBoxRef
+	struct DoorPortalSubBoxRef
 	{
 		size_t meshSetIndex = static_cast< size_t >( -1 );
 		size_t subIndex = static_cast< size_t >( -1 );
 	};
+
+	using TowerDoorSubBoxRef = DoorPortalSubBoxRef;
 
 	struct TowerDoorPortalEntry
 	{
 		CGameObject* tower = nullptr;
 		CColliderComponent* collider = nullptr;
 
-		std::vector<TowerDoorSubBoxRef> doorARefs; // Double Door Frame
-		std::vector<TowerDoorSubBoxRef> doorBRefs; // Double Door Frame2
+		std::vector<DoorPortalSubBoxRef> doorARefs; // Double Door Frame
+		std::vector<DoorPortalSubBoxRef> doorBRefs; // Double Door Frame2
+
+		int cooldownFrames = 0;
+	};
+
+	struct CastleDoorPortalPair
+	{
+		int sourceDoorIndex = -1;
+		int targetDoorIndex = -1;
+
+		std::vector<DoorPortalSubBoxRef> sourceRefs;
+		std::vector<DoorPortalSubBoxRef> targetRefs;
+	};
+
+	struct CastleDoorPortalEntry
+	{
+		CGameObject* castle = nullptr;
+		CColliderComponent* collider = nullptr;
+
+		std::array<std::vector<DoorPortalSubBoxRef>, 8> doorRefsByIndex;
+		std::vector<CastleDoorPortalPair> pairs;
 
 		int cooldownFrames = 0;
 	};
 
 	void RegisterTowerDoorPortal(CGameObject* tower);
+	void RegisterCastleDoorPortal(CGameObject* castle);
+
 	void TickTowerDoorPortalCooldowns();
 	bool IsTowerDoorPortalOnCooldown() const;
+
 	bool TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog = false);
+	bool TryTeleportLocalPlayerByCastleDoorPortal(bool forceLog = false);
 
 	using EGridDynamicKind = CSceneGrid::EDynamicKind;
 	using GridDynamicTracker = CSceneGrid::DynamicTracker;
@@ -572,6 +598,7 @@ private:
 	std::vector<MonsterSpawnEntry>	m_monsterSpawnEntries;
 
 	std::vector<TowerDoorPortalEntry> m_towerDoorPortals;
+	std::vector<CastleDoorPortalEntry> m_castleDoorPortals;
 
 	CSceneGrid m_sceneGrid;
 
