@@ -6237,6 +6237,60 @@ void CGameScene::UpdateItemBillboardDistanceCullSelection(CCamera* camera)
 	}
 }
 
+bool CGameScene::DoesPlayerOverlapItemBillboard(
+	const CGameObject* player,
+	const ItemBillboardEntry& item) const
+{
+	if ( !player )
+		return false;
+
+	if ( !item.active )
+		return false;
+
+	const XMFLOAT3 playerPos = player->GetPosition();
+
+	// 죽었거나 비활성 처리된 오브젝트가 지하/멀리 내려가는 패턴을 피하기 위한 방어.
+	if ( playerPos.y < -100.0f )
+		return false;
+
+	const float radiusSq = item.pickupRadius * item.pickupRadius;
+
+	if ( DistanceSqXZ(playerPos, item.position) > radiusSq )
+		return false;
+
+	const float dy = fabsf(playerPos.y - item.position.y);
+
+	if ( dy > item.pickupHeightTolerance )
+		return false;
+
+	return true;
+}
+
+void CGameScene::UpdateItemBillboardPickupCollision()
+{
+	for ( ItemBillboardEntry& item : m_itemBillboards )
+	{
+		if ( !item.active )
+			continue;
+
+		for ( int slot = 0; slot < 4; ++slot )
+		{
+			CGameObject* player = GetPlayerBySlot(slot);
+
+			if ( !player )
+				continue;
+
+			if ( DoesPlayerOverlapItemBillboard(player, item) )
+			{
+				item.active = false;
+				item.distanceCulled = true;
+
+				break;
+			}
+		}
+	}
+}
+
 void CGameScene::RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	PROFILE_RENDER_SCOPE("GameScene::RenderItemBillboards");
@@ -8176,6 +8230,9 @@ void CGameScene::CollisionObjects()
 	if ( !m_Collision ) return;
 
 	m_Collision->OnUpdate();
+
+	// 아이템 빌보드는 CGameObject/Collider가 아니므로 별도 overlap 판정.
+	UpdateItemBillboardPickupCollision();
 
 #ifndef USING_NETWORK
 	TickTowerDoorPortalCooldowns();
