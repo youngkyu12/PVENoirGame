@@ -346,6 +346,9 @@ namespace
 	static constexpr float kDisableVillageTreeCullPlayerHeight = 3.0f;
 	static constexpr float kTowerDoorPortalPlayerYawOffsetFromCamera = 0.0f;
 
+	static constexpr int kCastleCenterMegaGridX = 1;
+	static constexpr int kCastleCenterMegaGridZ = 1;
+
 	static constexpr bool kEnableTowerDoorPortalCollisionLog = true;
 
 	static constexpr bool kEnableTowerDoorPortalVerboseLog = false;
@@ -691,6 +694,10 @@ CGameScene::CGameScene()
 	m_bLocalPlayerRespawnUsed = false;
 	m_localPlayerRespawnTimer = 0.0f;
 	m_deadMonsters.clear();
+
+#ifndef USING_NETWORK
+	m_bLocalPlayerInsideCastleCenterMegaGrid = false;
+#endif
 }
 
 #ifndef USING_NETWORK
@@ -764,6 +771,11 @@ bool CGameScene::ShouldCullTreesByVillageGrid(CCamera* camera) const
 {
 	if ( !m_sceneGrid.IsInitialized() )
 		return false;
+
+	// Castle 포탈로 중앙 성 내부에 들어간 경우에는
+	// 기존 문/성벽 시야 판정과 무관하게 모든 나무를 컬링한다.
+	if ( m_bLocalPlayerInsideCastleCenterMegaGrid )
+		return true;
 
 	CGameObject* localPlayer = GetPlayer();
 
@@ -1921,6 +1933,7 @@ bool CGameScene::TryTeleportLocalPlayerByCastleDoorPortal(bool forceLog)
 			portal.cooldownFrames = kCastleDoorPortalCooldownFrames;
 
 			UpdateDynamicGridState();
+			MarkLocalPlayerEnteredCastleCenterMegaGrid();
 
 			if ( shouldLog )
 			{
@@ -2143,6 +2156,7 @@ void CGameScene::RebuildDynamicGridState()
 		RefreshDynamicTracker(tracker, EGridDynamicKind::Bullet);
 
 	UpdateMegaGridState();
+	UpdateCastleCenterMegaGridState();
 }
 
 void CGameScene::UpdateDynamicGridState()
@@ -2163,6 +2177,7 @@ void CGameScene::UpdateDynamicGridState()
 		RefreshDynamicTracker(tracker, EGridDynamicKind::Bullet);
 
 	UpdateMegaGridState();
+	UpdateCastleCenterMegaGridState();
 }
 
 void CGameScene::UpdateMegaGridState()
@@ -2181,6 +2196,23 @@ void CGameScene::UpdateMegaGridState()
 		if ( !m_sceneGrid.FineCellToMegaGridCell(tracker.prevCellX, tracker.prevCellZ, megaX, megaZ) )
 			continue;
 
+		// 중앙 메가그리드 Castle은 기존 200x200 approach zone으로 진입 처리하지 않는다.
+		// Castle 포탈 성공 여부로만 중앙 메가그리드 접근을 처리한다.
+		if ( megaX == kCastleCenterMegaGridX &&
+			 megaZ == kCastleCenterMegaGridZ )
+		{
+			if ( m_bLocalPlayerInsideCastleCenterMegaGrid )
+			{
+				m_sceneGrid.SetMegaGridPlayerApproached(
+					kCastleCenterMegaGridX,
+					kCastleCenterMegaGridZ,
+					true
+				);
+			}
+
+			continue;
+		}
+
 		if ( !m_sceneGrid.IsFineCellInsideMegaGridApproachZone(
 			megaX,
 			megaZ,
@@ -2195,6 +2227,86 @@ void CGameScene::UpdateMegaGridState()
 			m_sceneGrid.SetMegaGridPlayerApproached(megaX, megaZ, true);
 		}
 	}
+}
+
+void CGameScene::MarkLocalPlayerEnteredCastleCenterMegaGrid()
+{
+	if ( !m_sceneGrid.IsInitialized() )
+		return;
+
+	m_bLocalPlayerInsideCastleCenterMegaGrid = true;
+
+	// Castle 포탈을 탄 순간 중앙 메가그리드 중앙에 접근한 것으로 처리한다.
+	// 기존 200x200 approach zone 판정은 중앙 메가그리드에서는 쓰지 않는다.
+	m_sceneGrid.SetMegaGridPlayerApproached(
+		kCastleCenterMegaGridX,
+		kCastleCenterMegaGridZ,
+		true
+	);
+}
+
+bool CGameScene::IsLocalPlayerInsideCastleCenterMegaGridFullArea() const
+{
+	if ( !m_sceneGrid.IsInitialized() )
+		return false;
+
+	if ( m_localPlayerSlot < 0 ||
+		 m_localPlayerSlot >= static_cast< int >(m_playerGridTrackers.size()) )
+	{
+		return false;
+	}
+
+	const GridDynamicTracker& tracker =
+		m_playerGridTrackers[static_cast< size_t >(m_localPlayerSlot)];
+
+	if ( !tracker.occupied )
+		return false;
+
+	int megaX = -1;
+	int megaZ = -1;
+
+	if ( !m_sceneGrid.FineCellToMegaGridCell(
+		tracker.prevCellX,
+		tracker.prevCellZ,
+		megaX,
+		megaZ) )
+	{
+		return false;
+	}
+
+	return
+		megaX == kCastleCenterMegaGridX &&
+		megaZ == kCastleCenterMegaGridZ;
+}
+
+void CGameScene::UpdateCastleCenterMegaGridState()
+{
+	if ( !m_sceneGrid.IsInitialized() )
+		return;
+
+	if ( !m_bLocalPlayerInsideCastleCenterMegaGrid )
+		return;
+
+	// Castle 포탈 후에는 중앙 메가그리드 400x400 안에 있는 동안
+	// 계속 중앙 메가그리드 내부로 취급한다.
+	if ( IsLocalPlayerInsideCastleCenterMegaGridFullArea() )
+	{
+		m_sceneGrid.SetMegaGridPlayerApproached(
+			kCastleCenterMegaGridX,
+			kCastleCenterMegaGridZ,
+			true
+		);
+		return;
+	}
+
+	// 죽고 부활해서 중앙 메가그리드 400x400 밖으로 나간 경우.
+	m_bLocalPlayerInsideCastleCenterMegaGrid = false;
+
+	m_sceneGrid.SetMegaGridPlayerApproached(
+		kCastleCenterMegaGridX,
+		kCastleCenterMegaGridZ,
+		false
+	);
 }
 
 void CGameScene::DumpStaticGridOccupancyLog() const
@@ -2322,6 +2434,9 @@ void CGameScene::ReleaseObjects()
 	m_bInactiveOverlayVisible = false;
 	m_bStartedGameplayMusic = false;
 	m_bWasLocalPlayerInsideMegaGridCenter = false;
+#ifndef USING_NETWORK
+	m_bLocalPlayerInsideCastleCenterMegaGrid = false;
+#endif
 
 	m_navMesh.reset();
 
@@ -7339,6 +7454,12 @@ bool CGameScene::IsLocalPlayerInsideMegaGridCenter() const
 	if ( !m_sceneGrid.FineCellToMegaGridCell(tracker.prevCellX, tracker.prevCellZ, megaX, megaZ) )
 		return false;
 
+	if ( megaX == kCastleCenterMegaGridX &&
+	 megaZ == kCastleCenterMegaGridZ )
+	{
+		return m_bLocalPlayerInsideCastleCenterMegaGrid;
+	}
+
 	return m_sceneGrid.IsFineCellInsideMegaGridApproachZone(
 		megaX,
 		megaZ,
@@ -7658,6 +7779,10 @@ void CGameScene::RespawnLocalPlayer(CGameObject* player)
 	m_bLocalPlayerDead = false;
 	m_bLocalPlayerRespawnUsed = true;
 	m_localPlayerRespawnTimer = 0.0f;
+
+#ifndef USING_NETWORK
+	UpdateDynamicGridState();
+#endif
 }
 
 void CGameScene::UpdateLocalPlayerDeathAndRespawn(float dt)
