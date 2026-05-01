@@ -270,9 +270,9 @@ void Room::BuildRoom()
 
 	m_navMesh = make_unique<CNavMesh>();
 	const std::vector<std::string> navCandidates = {
-		"MapFIle/FullStageNavmesh.nvm",
+		"MapFIle/FullStageNavmeshAll.nvm",
 		"MapFIle/Navmesh_FullStage.nvm",
-		"GameServer/MapFIle/FullStageNavmesh.nvm",
+		"GameServer/MapFIle/FullStageNavmeshAll.nvm",
 		"GameServer/MapFIle/Navmesh_FullStage.nvm"
 	};
 	for (const auto& path : navCandidates)
