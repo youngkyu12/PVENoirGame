@@ -237,6 +237,14 @@ namespace
 		return dx * dx + dy * dy + dz * dz;
 	}
 
+	static float DistanceSqXZ(const XMFLOAT3& a, const XMFLOAT3& b)
+	{
+		const float dx = a.x - b.x;
+		const float dz = a.z - b.z;
+
+		return dx * dx + dz * dz;
+	}
+
 	static void StoreCylindricalBillboardWorldRows(
 		ItemBillboardInstanceVertex& dst,
 		const XMFLOAT3& basePosition,
@@ -6126,18 +6134,42 @@ void CGameScene::BuildItemBillboardBatch(
 	if ( !m_itemBillboardQuadMesh )
 		return;
 
-	ItemBillboardEntry key{};
-	key.active = true;
-	key.distanceCulled = false;
-	key.kind = EItemBillboardKind::Key;
-	key.position = XMFLOAT3(0.0f, 0.0f, -100.0f);
-	key.width = 1.2f;
-	key.height = 1.2f;
-	key.yOffset = 1.2f;
-	key.cullDistance = 300.0f;
-	key.materialId = kItemBillboardKeyMaterialId;
+	const std::array<XMFLOAT3, kKeyItemBillboardCount> keyPositions =
+	{
+		XMFLOAT3(380.0f, 100.5f, -24.0f),
+		XMFLOAT3(400.0f, 0.0f, 400.0f),
+		XMFLOAT3(400.0f, 0.0f, 800.0f),
+		XMFLOAT3(0.0f, 0.0f, 800.0f),
+		XMFLOAT3(-430.0f, 100.5f, 774.0f),
+		XMFLOAT3(-400.0f, 0.0f, 400.0f),
+		XMFLOAT3(-400.0f, 0.0f, 0.0f)
+	};
 
-	m_itemBillboards.push_back(key);
+	m_itemBillboards.clear();
+	m_itemBillboards.reserve(kKeyItemBillboardCount);
+
+	for ( UINT i = 0; i < kKeyItemBillboardCount; ++i )
+	{
+		ItemBillboardEntry key{};
+		key.active = true;
+		key.distanceCulled = false;
+		key.kind = EItemBillboardKind::Key;
+
+		key.position = keyPositions[i];
+
+		key.width = 1.2f;
+		key.height = 1.2f;
+		key.yOffset = 1.2f;
+
+		key.cullDistance = 300.0f;
+
+		key.pickupRadius = 1.25f;
+		key.pickupHeightTolerance = 2.0f;
+
+		key.materialId = kItemBillboardKeyMaterialId;
+
+		m_itemBillboards.push_back(key);
+	}
 
 	m_itemBillboardInstanceBufferCapacity =
 		static_cast< UINT >( m_itemBillboards.size() );
