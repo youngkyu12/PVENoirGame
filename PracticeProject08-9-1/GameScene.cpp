@@ -155,7 +155,7 @@ namespace
     }
 
 	static constexpr UINT kDebugSubmeshOOBBCapacity = 8192;
-	static constexpr bool kEnableStaticWorldLocalOOBBReportExport = false;
+	static constexpr bool kEnableStaticWorldLocalOOBBReportExport = true;
 	static constexpr const char* kStaticWorldLocalOOBBReportPath = "MapData/StaticWorldLocalOOBBReport.txt";
 	static constexpr bool kEnableCastleVillageWallColliderBuildLog = false;
 
@@ -233,7 +233,7 @@ namespace
 
 	static constexpr float kLocalPlayerRespawnDelay = 5.0f;
 
-	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::FullStage;
+	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::Test;
 
 	// -----------------------------------------------------------------------------
 	// HP
