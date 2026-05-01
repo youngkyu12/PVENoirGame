@@ -339,4 +339,36 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs_AlphaClip(
 
     return output;
 }
+
+PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSItemBillboardUnlitAlphaClip(
+    VS_TEXTURED_LIGHTING_OUTPUT input,
+    uint nPrimitiveID : SV_PrimitiveID)
+{
+    PS_MULTIPLE_RENDER_TARGETS_OUTPUT output;
+
+    uint materialId = input.materialId;
+    MATERIAL mat = gMaterials[materialId];
+
+    float2 diffuseUV = GetDiffuseUV(materialId, input.uv);
+
+    float4 diffuseSample = SampleTextureRGBA(
+        mat.TextureIndices.x,
+        diffuseUV,
+        float4(1.0f, 1.0f, 1.0f, 1.0f)
+    );
+
+    float4 texColor = diffuseSample * mat.m_cDiffuse;
+
+    clip(texColor.a - 0.5f);
+    
+    output.cTexture = texColor;
+    output.cIllumination = texColor;
+    output.color = texColor;
+    
+    output.normal = float4(0.5f, 0.5f, 1.0f, 1.0f);
+
+    output.zDepth = input.position.z;
+
+    return output;
+}
 #endif
