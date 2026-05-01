@@ -34,31 +34,6 @@ void CGameSceneHUD::BuildResources(
 	// UI layout tuning block
 	// - rect = (centerX, centerY, width, height)
 	// --------------------------------------------------------------------
-	constexpr int kItemSlotCount = 5;
-	constexpr int kEquipSlotCount = 2;
-
-	const float itemFrameCenterX = FRAME_BUFFER_WIDTH - 105.0f;
-	const float itemFrameCenterY = FRAME_BUFFER_HEIGHT - 22.5f;
-	const float itemFrameWidth = 210.0f;
-	const float itemFrameHeight = 45.0f;
-
-	const float itemSlotSize = 32.0f;
-	const float itemSlotSpacing = 37.0f;
-	const float itemSlotStartX =
-		itemFrameCenterX - ( ( kItemSlotCount - 1 ) * itemSlotSpacing * 0.5f );
-	const float itemSlotCenterY = itemFrameCenterY;
-
-	const float equipFrameCenterX = FRAME_BUFFER_WIDTH - 45.0f;
-	const float equipFrameCenterY = FRAME_BUFFER_HEIGHT - 66.0f;
-	const float equipFrameWidth = 90.0f;
-	const float equipFrameHeight = 45.0f;
-
-	const float equipSlotSize = 32.0f;
-	const float equipSlotSpacing = 37.0f;
-	const float equipSlotStartX =
-		equipFrameCenterX - ( ( kEquipSlotCount - 1 ) * equipSlotSpacing * 0.5f );
-	const float equipSlotCenterY = equipFrameCenterY;
-
 	const float hpFrameCenterX = 150.0f;
 	const float hpFrameCenterY = 20.0f;
 	const float hpFrameWidth = 300.0f;
@@ -75,26 +50,6 @@ void CGameSceneHUD::BuildResources(
 	m_ui.AddSprite(
 		dev,
 		cmd,
-		"ItemFrame",
-		L"Assets/UI/low_darkness_bar.dds",
-		XMFLOAT4(itemFrameCenterX, itemFrameCenterY, itemFrameWidth, itemFrameHeight),
-		CSceneUI::ELayer::Frame,
-		true
-	);
-
-	m_ui.AddSprite(
-		dev,
-		cmd,
-		"EquipmentFrame",
-		L"Assets/UI/low_darkness_bar.dds",
-		XMFLOAT4(equipFrameCenterX, equipFrameCenterY, equipFrameWidth, equipFrameHeight),
-		CSceneUI::ELayer::Frame,
-		true
-	);
-
-	m_ui.AddSprite(
-		dev,
-		cmd,
 		"HPFrame",
 		L"Assets/UI/low_darkness_bar.dds",
 		XMFLOAT4(hpFrameCenterX, hpFrameCenterY, hpFrameWidth, hpFrameHeight),
@@ -105,42 +60,6 @@ void CGameSceneHUD::BuildResources(
 	// --------------------------------------------------------------------
 	// Content layer
 	// --------------------------------------------------------------------
-	for ( int i = 0; i < kItemSlotCount; ++i )
-	{
-		const float centerX = itemSlotStartX + ( itemSlotSpacing * i );
-
-		char name[64] = {};
-		sprintf_s(name, "ItemSlot_%d", i);
-
-		m_ui.AddSprite(
-			dev,
-			cmd,
-			name,
-			L"Assets/UI/mini_dark_bar1.dds",
-			XMFLOAT4(centerX, itemSlotCenterY, itemSlotSize, itemSlotSize),
-			CSceneUI::ELayer::Content,
-			true
-		);
-	}
-
-	for ( int i = 0; i < kEquipSlotCount; ++i )
-	{
-		const float centerX = equipSlotStartX + ( equipSlotSpacing * i );
-
-		char name[64] = {};
-		sprintf_s(name, "EquipmentSlot_%d", i);
-
-		m_ui.AddSprite(
-			dev,
-			cmd,
-			name,
-			L"Assets/UI/mini_dark_bar1.dds",
-			XMFLOAT4(centerX, equipSlotCenterY, equipSlotSize, equipSlotSize),
-			CSceneUI::ELayer::Content,
-			true
-		);
-	}
-
 	m_hpFillOriginalRect = XMFLOAT4(hpBarCenterX, hpBarCenterY, hpBarWidth, hpBarHeight);
 
 	m_hpFillSpriteIndex = m_ui.AddSprite(
