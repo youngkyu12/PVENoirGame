@@ -155,7 +155,7 @@ namespace
     }
 
 	static constexpr UINT kDebugSubmeshOOBBCapacity = 8192;
-	static constexpr bool kEnableStaticWorldLocalOOBBReportExport = false;
+	static constexpr bool kEnableStaticWorldLocalOOBBReportExport = true;
 	static constexpr const char* kStaticWorldLocalOOBBReportPath = "MapData/StaticWorldLocalOOBBReport.txt";
 	static constexpr bool kEnableCastleVillageWallColliderBuildLog = false;
 
@@ -233,7 +233,7 @@ namespace
 
 	static constexpr float kLocalPlayerRespawnDelay = 5.0f;
 
-	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::FullStage;
+	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::Test;
 
 	// -----------------------------------------------------------------------------
 	// HP
@@ -264,9 +264,14 @@ namespace
 #ifndef USING_NETWORK
 	static constexpr int kTowerDoorPortalCooldownFrames = 30;
 	static constexpr float kTowerDoorPortalExitOffset = 2.0f;
+
+	static constexpr int kCastleDoorPortalCooldownFrames = 30;
+	static constexpr float kCastleDoorPortalExitOffset = 2.0f;
+
 	static constexpr float kTowerDoorPortalLowerExitYOffset = 0.0f;
 	static constexpr float kTowerDoorPortalUpperExitYOffset = 5.0f;
 	static constexpr float kTowerDoorPortalUpperHeightThreshold = 10.0f;
+	static constexpr float kDisableVillageTreeCullPlayerHeight = 3.0f;
 	static constexpr float kTowerDoorPortalPlayerYawOffsetFromCamera = 0.0f;
 
 	static constexpr bool kEnableTowerDoorPortalCollisionLog = true;
@@ -395,6 +400,56 @@ namespace
 
 		const std::string name = NormalizeTowerDoorNameForMatch(meshName);
 		return name == "doubledoorframe2";
+	}
+
+	static int GetCastleDoorFrameIndexFromMeshName(const std::string& meshName)
+	{
+		const std::string name = NormalizeTowerDoorNameForMatch(meshName);
+
+		static constexpr const char* kPrefix = "doubledoorframe";
+		const std::string prefix = kPrefix;
+
+		if ( name == prefix )
+			return 0; // Unity: Double Door Frame
+
+		if ( name.rfind(prefix, 0) != 0 )
+			return -1;
+
+		const std::string suffix = name.substr(prefix.size());
+
+		if ( suffix.empty() )
+			return 0;
+
+		int value = 0;
+
+		for ( unsigned char c : suffix )
+		{
+			if ( !std::isdigit(c) )
+				return -1;
+
+			value = value * 10 + static_cast< int >( c - '0' );
+		}
+
+		if ( value < 0 || value > 7 )
+			return -1;
+
+		return value;
+	}
+
+	static const char* GetCastleDoorFrameDebugName(int index)
+	{
+		switch ( index )
+		{
+		case 0: return "Double Door Frame";
+		case 1: return "Double Door Frame (1)";
+		case 2: return "Double Door Frame (2)";
+		case 3: return "Double Door Frame (3)";
+		case 4: return "Double Door Frame (4)";
+		case 5: return "Double Door Frame (5)";
+		case 6: return "Double Door Frame (6)";
+		case 7: return "Double Door Frame (7)";
+		default: return "Double Door Frame (?)";
+		}
 	}
 
 	bool IsTowerDoorFrame1Name(const std::string& meshName, const std::string& authoringPath)
@@ -638,6 +693,21 @@ bool CGameScene::ShouldCullTreesByVillageGrid(CCamera* camera) const
 	if ( !m_sceneGrid.IsInitialized() )
 		return false;
 
+	CGameObject* localPlayer = GetPlayer();
+
+	if ( !localPlayer )
+		localPlayer = GetPlayerBySlot(0);
+
+	if ( localPlayer )
+	{
+		const XMFLOAT3 playerPosition = localPlayer->GetPosition();
+
+		// Tower 포탈 등으로 위로 올라간 경우에는
+		// 성벽/문 기준 나무 컬링을 하지 않는다.
+		if ( playerPosition.y >= kDisableVillageTreeCullPlayerHeight )
+			return false;
+	}
+
 	int cellX = -1;
 	int cellZ = -1;
 	int megaX = -1;
@@ -818,9 +888,157 @@ void CGameScene::RegisterTowerDoorPortal(CGameObject* tower)
 	m_towerDoorPortals.push_back(std::move(entry));
 }
 
+void CGameScene::RegisterCastleDoorPortal(CGameObject* castle)
+{
+	if ( !castle )
+		return;
+
+	auto* collider = castle->GetComponent<CColliderComponent>();
+	if ( !collider )
+		return;
+
+	if ( collider->GetType() != EColliderType::OOBB )
+		return;
+
+	CastleDoorPortalEntry entry{};
+	entry.castle = castle;
+	entry.collider = collider;
+
+	const auto& meshSets = collider->GetMeshOOBBSets();
+
+	for ( size_t meshSetIndex = 0; meshSetIndex < meshSets.size(); ++meshSetIndex )
+	{
+		const MeshOOBBSet& set = meshSets[meshSetIndex];
+
+		size_t count = set.SubOOBBMetas.size();
+
+		if ( set.LocalSubOOBBs.size() < count )
+			count = set.LocalSubOOBBs.size();
+
+		for ( size_t subIndex = 0; subIndex < count; ++subIndex )
+		{
+			const SubOOBBMeta& meta = set.SubOOBBMetas[subIndex];
+
+			const int doorIndex = GetCastleDoorFrameIndexFromMeshName(meta.meshName);
+
+			if ( doorIndex < 0 || doorIndex >= 8 )
+				continue;
+
+			DoorPortalSubBoxRef ref{};
+			ref.meshSetIndex = meshSetIndex;
+			ref.subIndex = subIndex;
+
+			entry.doorRefsByIndex[( size_t ) doorIndex].push_back(ref);
+
+			if ( kEnableTowerDoorPortalCollisionLog )
+			{
+				char buf[1024];
+				sprintf_s(
+					buf,
+					"[CastleDoorPortal][REGISTER_SCAN] castle=%p meshSet=%zu sub=%zu mesh=\"%s\" path=\"%s\" doorIndex=%d doorName=\"%s\"\n",
+					static_cast< void* >( castle ),
+					meshSetIndex,
+					subIndex,
+					meta.meshName.c_str(),
+					meta.authoringPath.c_str(),
+					doorIndex,
+					GetCastleDoorFrameDebugName(doorIndex)
+				);
+				OutputDebugStringA(buf);
+			}
+		}
+	}
+
+	auto AddPair =
+		[ &entry ] (int sourceIndex, int targetIndex)
+		{
+			if ( sourceIndex < 0 || sourceIndex >= 8 )
+				return;
+
+			if ( targetIndex < 0 || targetIndex >= 8 )
+				return;
+
+			if ( entry.doorRefsByIndex[( size_t ) sourceIndex].empty() )
+				return;
+
+			if ( entry.doorRefsByIndex[( size_t ) targetIndex].empty() )
+				return;
+
+			CastleDoorPortalPair pair{};
+			pair.sourceDoorIndex = sourceIndex;
+			pair.targetDoorIndex = targetIndex;
+			pair.sourceRefs = entry.doorRefsByIndex[( size_t ) sourceIndex];
+			pair.targetRefs = entry.doorRefsByIndex[( size_t ) targetIndex];
+
+			entry.pairs.push_back(std::move(pair));
+		};
+
+	// Unity 기준:
+	// Double Door Frame     -> Double Door Frame (1)
+	// Double Door Frame (2) -> Double Door Frame (4)
+	// Double Door Frame (3) -> Double Door Frame (5)
+	// Double Door Frame (7) -> Double Door Frame (6)
+	AddPair(0, 1);
+	AddPair(2, 4);
+	AddPair(3, 5);
+	AddPair(7, 6);
+
+	if ( entry.pairs.empty() )
+	{
+		if ( kEnableTowerDoorPortalCollisionLog )
+		{
+			char buf[512];
+			sprintf_s(
+				buf,
+				"[CastleDoorPortal][REGISTER_FAILED] castle=%p meshSetCount=%zu doorCounts=[%zu,%zu,%zu,%zu,%zu,%zu,%zu,%zu]\n",
+				static_cast< void* >( castle ),
+				meshSets.size(),
+				entry.doorRefsByIndex[0].size(),
+				entry.doorRefsByIndex[1].size(),
+				entry.doorRefsByIndex[2].size(),
+				entry.doorRefsByIndex[3].size(),
+				entry.doorRefsByIndex[4].size(),
+				entry.doorRefsByIndex[5].size(),
+				entry.doorRefsByIndex[6].size(),
+				entry.doorRefsByIndex[7].size()
+			);
+			OutputDebugStringA(buf);
+		}
+		return;
+	}
+
+	if ( kEnableTowerDoorPortalCollisionLog )
+	{
+		char buf[512];
+		sprintf_s(
+			buf,
+			"[CastleDoorPortal][REGISTER] castle=%p pairCount=%zu doorCounts=[%zu,%zu,%zu,%zu,%zu,%zu,%zu,%zu]\n",
+			static_cast< void* >( castle ),
+			entry.pairs.size(),
+			entry.doorRefsByIndex[0].size(),
+			entry.doorRefsByIndex[1].size(),
+			entry.doorRefsByIndex[2].size(),
+			entry.doorRefsByIndex[3].size(),
+			entry.doorRefsByIndex[4].size(),
+			entry.doorRefsByIndex[5].size(),
+			entry.doorRefsByIndex[6].size(),
+			entry.doorRefsByIndex[7].size()
+		);
+		OutputDebugStringA(buf);
+	}
+
+	m_castleDoorPortals.push_back(std::move(entry));
+}
+
 void CGameScene::TickTowerDoorPortalCooldowns()
 {
 	for ( TowerDoorPortalEntry& portal : m_towerDoorPortals )
+	{
+		if ( portal.cooldownFrames > 0 )
+			--portal.cooldownFrames;
+	}
+
+	for ( CastleDoorPortalEntry& portal : m_castleDoorPortals )
 	{
 		if ( portal.cooldownFrames > 0 )
 			--portal.cooldownFrames;
@@ -830,6 +1048,12 @@ void CGameScene::TickTowerDoorPortalCooldowns()
 bool CGameScene::IsTowerDoorPortalOnCooldown() const
 {
 	for ( const TowerDoorPortalEntry& portal : m_towerDoorPortals )
+	{
+		if ( portal.cooldownFrames > 0 )
+			return true;
+	}
+
+	for ( const CastleDoorPortalEntry& portal : m_castleDoorPortals )
 	{
 		if ( portal.cooldownFrames > 0 )
 			return true;
@@ -1371,6 +1595,360 @@ bool CGameScene::TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog)
 
 	return false;
 }
+
+bool CGameScene::TryTeleportLocalPlayerByCastleDoorPortal(bool forceLog)
+{
+	const bool shouldLog = kEnableTowerDoorPortalCollisionLog && forceLog;
+
+	if ( m_bLocalPlayerDead )
+		return false;
+
+	CGameObject* player = GetPlayer();
+	if ( !player )
+		return false;
+
+	auto* playerCollider = player->GetComponent<CColliderComponent>();
+	if ( !playerCollider )
+		return false;
+
+	if ( playerCollider->GetType() != EColliderType::BCapsule )
+		return false;
+
+	if ( !playerCollider->IsCollisionEnabled() )
+		return false;
+
+	playerCollider->UpdateWorldBounds();
+
+	const BoundingCapsule playerCapsule = playerCollider->GetBCapsule();
+	const XMFLOAT3 playerPos = player->GetPosition();
+
+	auto GetWorldBox =
+		[ ](
+			const CastleDoorPortalEntry& portal,
+			const DoorPortalSubBoxRef& ref
+		) -> const BoundingOrientedBox*
+		{
+			if ( !portal.collider )
+				return nullptr;
+
+			const auto& sets = portal.collider->GetMeshOOBBSets();
+
+			if ( ref.meshSetIndex >= sets.size() )
+				return nullptr;
+
+			const MeshOOBBSet& set = sets[ref.meshSetIndex];
+
+			if ( ref.subIndex >= set.WorldSubOOBBs.size() )
+				return nullptr;
+
+			return &set.WorldSubOOBBs[ref.subIndex];
+		};
+
+	auto DoesDoorGroupIntersect =
+		[ & ](
+			const CastleDoorPortalEntry& portal,
+			const std::vector<DoorPortalSubBoxRef>& refs,
+			int doorIndex
+		) -> bool
+		{
+			bool anyHit = false;
+
+			for ( const DoorPortalSubBoxRef& ref : refs )
+			{
+				const BoundingOrientedBox* box = GetWorldBox(portal, ref);
+
+				if ( !box )
+					continue;
+
+				const bool hit = playerCapsule.Intersects(*box);
+
+				if ( shouldLog && ( hit || kEnableTowerDoorPortalVerboseLog ) )
+				{
+					char buf[512];
+					sprintf_s(
+						buf,
+						"[CastleDoorPortal][DOOR_TEST] door=\"%s\" index=%d hit=%d meshSet=%zu sub=%zu playerPos=(%.3f, %.3f, %.3f) boxCenter=(%.3f, %.3f, %.3f) boxExtents=(%.3f, %.3f, %.3f)\n",
+						GetCastleDoorFrameDebugName(doorIndex),
+						doorIndex,
+						hit ? 1 : 0,
+						ref.meshSetIndex,
+						ref.subIndex,
+						playerPos.x,
+						playerPos.y,
+						playerPos.z,
+						box->Center.x,
+						box->Center.y,
+						box->Center.z,
+						box->Extents.x,
+						box->Extents.y,
+						box->Extents.z
+					);
+					OutputDebugStringA(buf);
+				}
+
+				if ( hit )
+					anyHit = true;
+			}
+
+			return anyHit;
+		};
+
+	auto ComputeDoorGroupCenter =
+		[ & ](
+			const CastleDoorPortalEntry& portal,
+			const std::vector<DoorPortalSubBoxRef>& refs,
+			XMFLOAT3& outCenter
+		) -> bool
+		{
+			XMVECTOR sum = XMVectorZero();
+			int count = 0;
+
+			for ( const DoorPortalSubBoxRef& ref : refs )
+			{
+				const BoundingOrientedBox* box = GetWorldBox(portal, ref);
+
+				if ( !box )
+					continue;
+
+				sum += XMLoadFloat3(&box->Center);
+				++count;
+			}
+
+			if ( count <= 0 )
+				return false;
+
+			sum = XMVectorScale(sum, 1.0f / static_cast< float >( count ));
+			XMStoreFloat3(&outCenter, sum);
+			return true;
+		};
+
+	auto GetFirstDoorBox =
+		[ & ](
+			const CastleDoorPortalEntry& portal,
+			const std::vector<DoorPortalSubBoxRef>& refs
+		) -> const BoundingOrientedBox*
+		{
+			if ( refs.empty() )
+				return nullptr;
+
+			return GetWorldBox(portal, refs.front());
+		};
+
+	auto ComputeDoorHorizontalNormal =
+		[ ](
+			const BoundingOrientedBox& box,
+			XMVECTOR& outNormal
+		) -> bool
+		{
+			XMVECTOR localAxis = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+
+			if ( box.Extents.x < box.Extents.z )
+				localAxis = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+
+			XMVECTOR q = XMLoadFloat4(&box.Orientation);
+			XMVECTOR n = XMVector3Rotate(localAxis, q);
+			n = XMVectorSetY(n, 0.0f);
+
+			const float lenSq = XMVectorGetX(XMVector3LengthSq(n));
+
+			if ( lenSq <= 1.0e-6f )
+				return false;
+
+			outNormal = XMVector3Normalize(n);
+			return true;
+		};
+
+	auto TeleportCastleDoorPair =
+		[ & ](
+			CastleDoorPortalEntry& portal,
+			const CastleDoorPortalPair& pair
+		) -> bool
+		{
+			XMFLOAT3 sourceCenter{};
+			XMFLOAT3 targetCenter{};
+
+			if ( !ComputeDoorGroupCenter(portal, pair.sourceRefs, sourceCenter) )
+				return false;
+
+			if ( !ComputeDoorGroupCenter(portal, pair.targetRefs, targetCenter) )
+				return false;
+
+			const BoundingOrientedBox* sourceBox =
+				GetFirstDoorBox(portal, pair.sourceRefs);
+
+			const BoundingOrientedBox* targetBox =
+				GetFirstDoorBox(portal, pair.targetRefs);
+
+			XMVECTOR sourceV = XMLoadFloat3(&sourceCenter);
+			XMVECTOR targetV = XMLoadFloat3(&targetCenter);
+
+			XMVECTOR sourceNormal = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+			XMVECTOR targetNormal = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+
+			const bool hasSourceNormal =
+				sourceBox && ComputeDoorHorizontalNormal(*sourceBox, sourceNormal);
+
+			const bool hasTargetNormal =
+				targetBox && ComputeDoorHorizontalNormal(*targetBox, targetNormal);
+
+			float sideSign = 1.0f;
+
+			if ( hasSourceNormal )
+			{
+				XMVECTOR playerV = XMLoadFloat3(&playerPos);
+				XMVECTOR sourceToPlayer = playerV - sourceV;
+				sourceToPlayer = XMVectorSetY(sourceToPlayer, 0.0f);
+
+				const float sideDot =
+					XMVectorGetX(XMVector3Dot(sourceToPlayer, sourceNormal));
+
+				sideSign = ( sideDot >= 0.0f ) ? 1.0f : -1.0f;
+			}
+
+			XMVECTOR exitDir = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+
+			if ( hasTargetNormal )
+			{
+				// Castle 문은 방향이 서로 반대이므로,
+				// Tower처럼 카메라/플레이어를 돌리지 않고 같은 world 진행 방향으로 나오게 둔다.
+				exitDir = XMVectorScale(targetNormal, sideSign);
+			}
+			else
+			{
+				exitDir = targetV - sourceV;
+				exitDir = XMVectorSetY(exitDir, 0.0f);
+
+				const float lenSq = XMVectorGetX(XMVector3LengthSq(exitDir));
+
+				if ( lenSq > 1.0e-6f )
+					exitDir = XMVector3Normalize(exitDir);
+				else
+					exitDir = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+			}
+
+			XMVECTOR dstV =
+				targetV + XMVectorScale(exitDir, kCastleDoorPortalExitOffset);
+
+			XMFLOAT3 dst{};
+			XMStoreFloat3(&dst, dstV);
+
+			// Castle 포탈은 같은 높이끼리 이동한다.
+			// 문 OOBB center/bottom y를 쓰지 않고 현재 플레이어 높이를 유지한다.
+			dst.y = playerPos.y;
+
+			player->SetPosition(dst);
+			playerCollider->UpdateWorldBounds();
+
+			if ( auto* controller = player->GetComponent<CPlayerControllerComponent>() )
+			{
+				controller->SetVelocity(XMFLOAT3(0.0f, 0.0f, 0.0f));
+				controller->SetInputDirection(static_cast< DWORD >( 0 ));
+				controller->SetRunRequested(false);
+			}
+
+			portal.cooldownFrames = kCastleDoorPortalCooldownFrames;
+
+			UpdateDynamicGridState();
+
+			if ( shouldLog )
+			{
+				XMFLOAT3 exitDirF{};
+				XMStoreFloat3(&exitDirF, exitDir);
+
+				char buf[768];
+				sprintf_s(
+					buf,
+					"[CastleDoorPortal][TELEPORT] %s -> %s dst=(%.3f, %.3f, %.3f) targetCenter=(%.3f, %.3f, %.3f) exitDir=(%.3f, %.3f, %.3f) sideSign=%.1f\n",
+					GetCastleDoorFrameDebugName(pair.sourceDoorIndex),
+					GetCastleDoorFrameDebugName(pair.targetDoorIndex),
+					dst.x,
+					dst.y,
+					dst.z,
+					targetCenter.x,
+					targetCenter.y,
+					targetCenter.z,
+					exitDirF.x,
+					exitDirF.y,
+					exitDirF.z,
+					sideSign
+				);
+				OutputDebugStringA(buf);
+			}
+
+			return true;
+		};
+
+	if ( shouldLog )
+	{
+		char buf[256];
+		sprintf_s(
+			buf,
+			"[CastleDoorPortal][PROBE_BEGIN] portalCount=%zu localDead=%d\n",
+			m_castleDoorPortals.size(),
+			m_bLocalPlayerDead ? 1 : 0
+		);
+		OutputDebugStringA(buf);
+	}
+
+	for ( CastleDoorPortalEntry& portal : m_castleDoorPortals )
+	{
+		if ( portal.cooldownFrames > 0 )
+		{
+			if ( shouldLog )
+			{
+				char buf[256];
+				sprintf_s(
+					buf,
+					"[CastleDoorPortal][SKIP_COOLDOWN] castle=%p cooldownFrames=%d\n",
+					static_cast< void* >( portal.castle ),
+					portal.cooldownFrames
+				);
+				OutputDebugStringA(buf);
+			}
+			continue;
+		}
+
+		if ( !portal.collider )
+			continue;
+
+		for ( const CastleDoorPortalPair& pair : portal.pairs )
+		{
+			const bool hitSource =
+				DoesDoorGroupIntersect(
+					portal,
+					pair.sourceRefs,
+					pair.sourceDoorIndex
+				);
+
+			if ( shouldLog && ( hitSource || kEnableTowerDoorPortalVerboseLog ) )
+			{
+				char buf[512];
+				sprintf_s(
+					buf,
+					"[CastleDoorPortal][PROBE_RESULT] castle=%p %s -> %s sourceRefs=%zu targetRefs=%zu hitSource=%d\n",
+					static_cast< void* >( portal.castle ),
+					GetCastleDoorFrameDebugName(pair.sourceDoorIndex),
+					GetCastleDoorFrameDebugName(pair.targetDoorIndex),
+					pair.sourceRefs.size(),
+					pair.targetRefs.size(),
+					hitSource ? 1 : 0
+				);
+				OutputDebugStringA(buf);
+			}
+
+			if ( !hitSource )
+				continue;
+
+			if ( TeleportCastleDoorPair(portal, pair) )
+				return true;
+		}
+	}
+
+	if ( shouldLog )
+		DebugPrintTowerDoorPortalLine("[CastleDoorPortal][NO_DOOR_HIT] no source castle door OOBB intersected player capsule");
+
+	return false;
+}
 #endif
 
 void CGameScene::ResetDynamicGridCounts()
@@ -1604,6 +2182,7 @@ void CGameScene::ReleaseObjects()
 
 #ifndef USING_NETWORK
 	m_towerDoorPortals.clear();
+	m_castleDoorPortals.clear();
 #endif
 
 	m_staticObjects.clear();
@@ -2828,6 +3407,7 @@ void CGameScene::BuildStaticBatch(
 
 #ifndef USING_NETWORK
 	m_towerDoorPortals.clear();
+	m_castleDoorPortals.clear();
 #endif
 
 	m_staticShadowCasterFlags.clear();
@@ -3013,6 +3593,10 @@ void CGameScene::BuildStaticBatch(
 		{
 			RegisterTowerDoorPortal(raw);
 		}
+		else if ( placement.assetName == "Castle" )
+		{
+			RegisterCastleDoorPortal(raw);
+		}
 #endif
 
 		const bool isTreeObject = ( resolvedAssetType == AssetType::Tree );
@@ -3072,7 +3656,7 @@ void CGameScene::BuildStaticBatch(
 			{
 				lodEntry.lodDistance01 = 40.0f;
 				lodEntry.lodDistance12 = 120.0f;
-				lodEntry.cullDistance = 300.0f;
+				lodEntry.cullDistance = 500.0f;
 			}
 			else
 			{
@@ -6266,12 +6850,19 @@ void CGameScene::UpdateDepthFogState(float dt)
 {
 #ifndef USING_NETWORK
 	const int megaGridNumber = GetLocalPlayerMegaGridNumberForDepthFog();
-	const bool enableFog = ( megaGridNumber == 1 || megaGridNumber == 9 );
+
+	const bool isDenseFogZone =
+		( megaGridNumber == 1 || megaGridNumber == 9 );
+
+	const EDepthFogPresetMode fogMode =
+		isDenseFogZone
+		? EDepthFogPresetMode::ZoneDense
+		: EDepthFogPresetMode::OuterWide;
 #else
-	const bool enableFog = true;
+	const EDepthFogPresetMode fogMode = EDepthFogPresetMode::OuterWide;
 #endif
 
-	m_depthFog.UpdateState(dt, enableFog);
+	m_depthFog.UpdateState(dt, fogMode);
 }
 
 bool CGameScene::IsLocalPlayer(const CGameObject* obj) const
@@ -6636,18 +7227,18 @@ bool CGameScene::RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& p
 
 	if ( TryTeleportLocalPlayerByTowerDoorPortal(true) )
 		return true;
+
+	if ( TryTeleportLocalPlayerByCastleDoorPortal(true) )
+		return true;
 #endif
 
 #ifndef USING_NETWORK
-	// 텔레포트 직후 목적지 문 OOBB와 잠깐 겹칠 수 있다.
-	// 이때 일반 월드 정적 롤백을 수행하면 previousPos가 텔레포트 전 위치라서
-	// x/z가 원래 문 근처로 되돌아간다.
 	if ( IsTowerDoorPortalOnCooldown() )
 	{
 		if ( kEnableTowerDoorPortalCollisionLog )
 		{
 			OutputDebugStringA(
-				"[TowerDoorPortal][ROLLBACK_SKIP_DURING_COOLDOWN] skip normal world-static rollback after portal teleport\n"
+				"[DoorPortal][ROLLBACK_SKIP_DURING_COOLDOWN] skip normal world-static rollback after portal teleport\n"
 			);
 		}
 
