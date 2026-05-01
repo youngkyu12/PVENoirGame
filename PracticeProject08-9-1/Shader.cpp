@@ -562,7 +562,7 @@ D3D12_SHADER_BYTECODE CItemBillboardShader::CreatePixelShader(ID3DBlob** ppd3dSh
 {
 	return CShader::CompileShaderFromFile(
 		L"Shaders.hlsl",
-		"PSTexturedLightingToMultipleRTs_AlphaClip",
+		"PSItemBillboardUnlitAlphaClip",
 		"ps_5_1",
 		ppd3dShaderBlob
 	);

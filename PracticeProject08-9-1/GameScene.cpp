@@ -6130,11 +6130,11 @@ void CGameScene::BuildItemBillboardBatch(
 	key.active = true;
 	key.distanceCulled = false;
 	key.kind = EItemBillboardKind::Key;
-	key.position = XMFLOAT3(0.0f, 0.0f, -150.0f);
+	key.position = XMFLOAT3(0.0f, 0.0f, -100.0f);
 	key.width = 1.2f;
 	key.height = 1.2f;
 	key.yOffset = 1.2f;
-	key.cullDistance = 35.0f;
+	key.cullDistance = 300.0f;
 	key.materialId = kItemBillboardKeyMaterialId;
 
 	m_itemBillboards.push_back(key);
