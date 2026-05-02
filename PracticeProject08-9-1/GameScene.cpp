@@ -7576,9 +7576,8 @@ void CGameScene::AnimateObjects(float dt)
 
 				m_prevPlayerNetworkStateCode[state.id] = state.animation.stateCode;
             }
-
-           
         }
+
 
 		// Enemy 좌표 업데이트
 		// 1) NPC 인덱스 → 오브젝트 매핑 구축
@@ -7695,6 +7694,29 @@ void CGameScene::AnimateObjects(float dt)
 		// 사용이 끝난 data는 기본값으로 초기화 (선택적)
 		m_pendingNetworkMessage.data = LoadoutData{};
     }
+	else
+	{
+		// 이전 state code를 따라가면서 그때의 애니메이션을 유지
+		for ( const auto& [id, stateCode] : m_prevPlayerNetworkStateCode )
+		{
+			CGameObject* player = GetPlayerBySlot(static_cast< int >( id ));
+			if ( !player ) continue;
+			if ( auto* ac = player->GetAnimController() )
+			{
+				const DecodedAnimStateCode decoded = DecodeStateCode(stateCode);
+				if ( decoded.die )
+					ac->SetAnimState(EAnimState::Die);
+				else if ( decoded.hit )
+					ac->SetAnimState(EAnimState::Hit);
+				else if ( decoded.roll )
+					ac->SetAnimState(EAnimState::Attack);
+				else if ( decoded.attack )
+					ac->SetAnimState(EAnimState::Attack);
+				else
+					ac->SetAnimState(decoded.hasMove ? EAnimState::Move : EAnimState::Idle);
+			}
+		}
+	}
 #endif
    
 
