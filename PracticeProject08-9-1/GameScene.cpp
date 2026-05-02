@@ -1328,7 +1328,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	//BuildStaticWorldSubmeshOOBBDebugObjects(dev, cmd);
 #endif
 	BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
-	BuildTerrainObjects(dev, cmd);
+	//BuildTerrainObjects(dev, cmd);
 
 	LinkSceneObjects();
 

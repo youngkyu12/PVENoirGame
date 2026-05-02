@@ -185,6 +185,9 @@ public:
 	CAnimController* EnsureAnimController();
 	CAnimController* GetAnimController() const;
 
+	void SetId(int id) { m_ID = id; }
+	void SetActive(bool b) { m_bEnabled = b; }
+
 	// Shader
 public:
 	void SetShader(std::shared_ptr<CShader> pShader) { m_pShader = std::move(pShader); }
@@ -209,6 +212,9 @@ protected:
 	bool m_bComponentsCreated = false;
 	ID3D12Device* m_pd3dDeviceForComponents = nullptr;
 	ID3D12GraphicsCommandList* m_pd3dCmdForComponents = nullptr;
+
+	int m_ID = 0;
+	bool m_bEnabled = true;
 
 	// Legacy / fallback resources (kept as-is)
 	ComPtr<ID3D12Resource>			m_pd3dcbGameObject;

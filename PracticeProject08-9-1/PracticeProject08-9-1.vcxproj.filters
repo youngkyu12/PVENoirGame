@@ -370,6 +370,8 @@
     <ClInclude Include="GameSceneHUD.h">
       <Filter>Scene\GameScene</Filter>
     </ClInclude>
+    <ClInclude Include="EnemyPool.h" />
+    <ClInclude Include="EnemySpawner.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -557,6 +559,8 @@
     <ClCompile Include="GameSceneLOD.cpp">
       <Filter>Scene\GameScene</Filter>
     </ClCompile>
+    <ClCompile Include="EnemyPool.cpp" />
+    <ClCompile Include="EnemySpawner.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PracticeProject08-9-1.rc">
@@ -609,5 +613,10 @@
       <Filter>Resource\HLSL</Filter>
     </None>
     <None Include="Shadows.hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shadow.hlsl">
+      <Filter>Resource\HLSL</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>
