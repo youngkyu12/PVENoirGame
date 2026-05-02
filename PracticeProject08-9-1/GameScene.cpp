@@ -629,6 +629,9 @@ CGameScene::CGameScene()
 	m_bLocalPlayerDead = false;
 	m_bLocalPlayerRespawnUsed = false;
 	m_localPlayerRespawnTimer = 0.0f;
+#ifdef USING_NETWORK
+	m_prevPlayerNetworkStateCode.clear();
+#endif
 	m_deadMonsters.clear();
 }
 
@@ -2267,6 +2270,9 @@ void CGameScene::ReleaseObjects()
 	m_bLocalPlayerDead = false;
 	m_bLocalPlayerRespawnUsed = false;
 	m_localPlayerRespawnTimer = 0.0f;
+#ifdef USING_NETWORK
+	m_prevPlayerNetworkStateCode.clear();
+#endif
 	m_deadMonsters.clear();
 
 #ifndef USING_NETWORK
@@ -2493,7 +2499,13 @@ void CGameScene::ReleaseShaderVariables()
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
 	m_deadMonsters.clear();
+	m_bLocalPlayerDead = false;
+	m_bLocalPlayerRespawnUsed = false;
+	m_localPlayerRespawnTimer = 0.0f;
+
 #ifdef USING_NETWORK
+	m_prevPlayerNetworkStateCode.clear();
+
 	while ( false == g_GameStarted )
 	{
 		OutputDebugStringA("Waiting for game start message...\n");
@@ -2556,9 +2568,6 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	}
 #else
 	m_localPlayerSlot = 0;
-	m_bLocalPlayerDead = false;
-	m_bLocalPlayerRespawnUsed = false;
-	m_localPlayerRespawnTimer = 0.0f;
 
 	const GameSceneStageFileSet& stageFiles = GetLocalStageFileSet(kLocalStagePreset);
 
@@ -7467,6 +7476,12 @@ void CGameScene::AnimateObjects(float dt)
             {
                 tr->SetYawDegrees(state.yaw);
             } 
+
+			if ( slot == m_localPlayerSlot )
+			{
+				if ( auto* controller = player->GetComponent<CPlayerControllerComponent>() )
+					controller->SetYawDegrees(state.yaw);
+			}
 			
 			if ( auto wc = player->GetComponent<CPlayerEquipmentComponent>() )
 			{
@@ -7492,19 +7507,50 @@ void CGameScene::AnimateObjects(float dt)
             if (auto ac = player->GetAnimController())
             {
                 const DecodedAnimStateCode decoded = DecodeStateCode(state.animation.stateCode);
+				const auto prevIt = m_prevPlayerNetworkStateCode.find(state.id);
+				const uint32_t prevStateCode =
+					( prevIt != m_prevPlayerNetworkStateCode.end() ) ? prevIt->second : 0u;
+				const DecodedAnimStateCode prevDecoded = DecodeStateCode(prevStateCode);
+
+				if ( prevDecoded.die && !decoded.die )
+				{
+					ac->ResetToIdleAfterRespawn();
+
+					if ( slot == m_localPlayerSlot )
+					{
+						m_bLocalPlayerDead = false;
+						m_bLocalPlayerRespawnUsed = false;
+						m_localPlayerRespawnTimer = 0.0f;
+
+						if ( auto* camera = GetMainCamera() )
+						{
+							camera->GetYaw() = state.yaw;
+
+							XMFLOAT3 cameraTarget = player->GetPosition();
+							cameraTarget.y += 1.7f;
+							camera->Update(cameraTarget, 0.0f);
+							camera->SetLookAt(cameraTarget);
+							camera->RegenerateViewMatrix();
+						}
+					}
+				}
 
                 ac->SetMoveDirection(decoded.hasMove ? decoded.moveDirBits : 0u);
                 ac->SetRunRequested(decoded.run);
 
                 if (decoded.die)
                 {
+					if ( slot == m_localPlayerSlot )
+						m_bLocalPlayerDead = true;
 					ac->RequestDeath();
                     ac->SetAnimState(EAnimState::Die);
+					m_prevPlayerNetworkStateCode[state.id] = state.animation.stateCode;
 					continue;
                 }
                 else if (decoded.hit)
                 {
                     ac->RequestHit();
+					m_prevPlayerNetworkStateCode[state.id] = state.animation.stateCode;
 					continue;
                     //ac->SetAnimState(decoded.hasMove ? EAnimState::Move : EAnimState::Idle);
                 }
@@ -7514,17 +7560,21 @@ void CGameScene::AnimateObjects(float dt)
                     ac->RequestRoll(rollDirBits);
                     ac->SetAnimState(EAnimState::Attack);
 
+					m_prevPlayerNetworkStateCode[state.id] = state.animation.stateCode;
 					continue;
                 }
 				else if ( decoded.attack )
 				{
 					ac->RequestAttack();
+					m_prevPlayerNetworkStateCode[state.id] = state.animation.stateCode;
 					continue;
 				}
                 else
                 {
                     ac->SetAnimState(decoded.hasMove ? EAnimState::Move : EAnimState::Idle);
                 }
+
+				m_prevPlayerNetworkStateCode[state.id] = state.animation.stateCode;
             }
 
            
