@@ -9,6 +9,16 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		return;
 
 	PlayerRef& player = it->second;
+	if (!player)
+		return;
+
+	// [추가] 죽음/리스폰 중 입력 차단
+	if (player->IsDead() || player->IsInputBlocked())
+	{
+		player->SetVelocity(GameMath::Vec3::Zero());
+		return;
+	}
+
 
 	if (deltaX != 0.0f)
 	{

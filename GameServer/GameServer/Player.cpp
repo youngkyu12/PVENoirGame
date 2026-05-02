@@ -1,100 +1,112 @@
 #include "pch.h"
 #include "Player.h"
+#include "ColliderComponent.h"
 
 void Player::Update(uint32 serverTick)
 {
-	if (GetAnimState() == Protocol::ANIMATION_TYPE_DIE)
-	{
-		SetVelocity(GameMath::Vec3::Zero());
+    if (m_lifeState == EPlayerLifeState::DeadAnimating)
+    {
+        SetVelocity(GameMath::Vec3::Zero());
 
-		constexpr uint32 kRespawnDelayTicks = 80; // ~5초 (60ms * 80)
-		if (serverTick >= m_deathTick + kRespawnDelayTicks)
-		{
-			Respawn(serverTick);
-		}
-		return;
-	}
+        constexpr uint32 kRespawnDelayTicks = 80; // ~5s (60ms * 80)
+        if (serverTick >= m_deathTick + kRespawnDelayTicks)
+        {
+            OnRespawnEnter(serverTick);
+        }
+        return;
+    }
 
-	Move(m_velocity * ((GetAnimState() == Protocol::ANIMATION_TYPE_RUN) + 1));
+    Move(m_velocity * ((GetAnimState() == Protocol::ANIMATION_TYPE_RUN) + 1));
+    SetVelocity(GameMath::Vec3::Zero());
 
-	SetVelocity(GameMath::Vec3::Zero());
+    if (m_animState != Protocol::ANIMATION_TYPE_IDLE)
+    {
+        int animDuration = 0;
+        switch (m_animState)
+        {
+        case Protocol::ANIMATION_TYPE_WALK:   animDuration = 15; break;
+        case Protocol::ANIMATION_TYPE_RUN:    animDuration = 10; break;
+        case Protocol::ANIMATION_TYPE_ATTACK: animDuration = 10; break;
+        case Protocol::ANIMATION_TYPE_ROLL:   animDuration = 1;  break;
+        case Protocol::ANIMATION_TYPE_DIE:    animDuration = 25; break;
+        case Protocol::ANIMATION_TYPE_HIT:    animDuration = 10; break;
+        default: animDuration = 0; break;
+        }
 
-	if (m_animState != Protocol::ANIMATION_TYPE_IDLE)
-	{
-		int animDuration = 0;
-		switch (m_animState)
-		{
-		case Protocol::ANIMATION_TYPE_WALK:
-			animDuration = 15;
-			break;
-		case Protocol::ANIMATION_TYPE_RUN:
-			animDuration = 10;
-			break;
-		case Protocol::ANIMATION_TYPE_ATTACK:
-			animDuration = 10;
-			break;
-		case Protocol::ANIMATION_TYPE_ROLL:
-			animDuration = 1;
-			break;
-		case Protocol::ANIMATION_TYPE_DIE:
-			animDuration = 25;
-			break;
-		case Protocol::ANIMATION_TYPE_HIT:
-			animDuration = 10;
-			break;
-		default:
-			animDuration = 0;
-			break;
-		}
-		if (animDuration > 0)
-		{
-			int elapsedTicks = serverTick - GetAnimTick();
-			if (elapsedTicks >= animDuration && m_animState != Protocol::ANIMATION_TYPE_DIE
-				&& m_animState != Protocol::ANIMATION_TYPE_WALK
-				&& m_animState != Protocol::ANIMATION_TYPE_RUN)
-			{
-				SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
-				SetAnimTick(serverTick);
-			}
-		}
-	}
+        if (animDuration > 0)
+        {
+            int elapsedTicks = serverTick - GetAnimTick();
+            if (elapsedTicks >= animDuration &&
+                m_animState != Protocol::ANIMATION_TYPE_DIE &&
+                m_animState != Protocol::ANIMATION_TYPE_WALK &&
+                m_animState != Protocol::ANIMATION_TYPE_RUN)
+            {
+                SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
+                SetAnimTick(serverTick);
+            }
+        }
+    }
 }
 
 void Player::Build()
 {
-	SetPosition(0.0f, 0.0f, 0.0f);
-	Rotate(0.0f, 0.0f, 0.0f);
-
-	weapon.SetWeapon(Protocol::WEAPON_TYPE_SWORD, 0);
+    SetPosition(0.0f, 0.0f, 0.0f);
+    Rotate(0.0f, 0.0f, 0.0f);
+    weapon.SetWeapon(Protocol::WEAPON_TYPE_SWORD, 0);
 }
 
 void Player::ApplyHit(uint32 serverTick, int damage, uint32 hitDurationTicks)
 {
-	if (IsDead()) return;
+    if (IsDead()) return;
 
-	TakeDamage(damage);
+    TakeDamage(damage);
 
-	if (IsDead())
-	{
-		cout << "Player " << GetObjectId() << " died" << endl;
-		SetAnimState(Protocol::ANIMATION_TYPE_DIE);
-		SetAnimTick(serverTick);
-		SetVelocity(GameMath::Vec3::Zero());
-		m_deathTick = serverTick;
-		return;
-	}
+    if (IsDead())
+    {
+        OnDeathEnter(serverTick);
+        return;
+    }
 
-	cout << "Player " << GetObjectId() << " hit (HP: " << GetCurrentHp() << "/" << GetMaxHp() << ")" << endl;
-	SetAnimState(Protocol::ANIMATION_TYPE_HIT);
-	SetAnimTick(serverTick);
+    SetAnimState(Protocol::ANIMATION_TYPE_HIT);
+    SetAnimTick(serverTick);
 }
 
+void Player::OnDeathEnter(uint32 serverTick)
+{
+    m_lifeState = EPlayerLifeState::DeadAnimating;
+
+    SetAnimState(Protocol::ANIMATION_TYPE_DIE);
+    SetAnimTick(serverTick);
+    SetVelocity(GameMath::Vec3::Zero());
+    m_deathTick = serverTick;
+
+    if (auto* collider = GetComponent<CColliderComponent>())
+    {
+        
+        collider->OnUpdate(0.0f);
+    }
+
+    // active는 참여 상태와 분리: 여기서 SetActive(false) 하지 않음
+}
+
+void Player::OnRespawnEnter(uint32 serverTick)
+{
+    m_lifeState = EPlayerLifeState::Alive;
+
+    ResetHpToMax();
+    SetPosition(GameMath::Vec3(0.0f, 0.0f, -200.0f));
+    SetVelocity(GameMath::Vec3::Zero());
+    SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
+    SetAnimTick(serverTick);
+
+    if (auto* collider = GetComponent<CColliderComponent>())
+    {
+        collider->OnUpdate(0.0f);
+    }
+}
+
+// 기존 Respawn 호출부와 호환하려면 래퍼 유지
 void Player::Respawn(uint32 serverTick)
 {
-	cout << "Player " << GetObjectId() << " respawned" << endl;
-	ResetHpToMax();
-	SetPosition(GameMath::Vec3(0.0f, 0.0f, -200.0f));
-	SetVelocity(GameMath::Vec3::Zero());
-	SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
-	SetAnimTick(serverTick);
+    OnRespawnEnter(serverTick);
 }

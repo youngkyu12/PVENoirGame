@@ -31,11 +31,16 @@ namespace
 		uint32 code = 0;
 		const auto anim = obj.GetAnimState();
 
-		if (anim == Protocol::ANIMATION_TYPE_DIE) code |= kStateDie;
+		if (anim == Protocol::ANIMATION_TYPE_DIE)
+		{
+			code |= kStateDie;
+			return code; // dead에서는 이동 플래그 강제 차단
+		}
+
 		if (anim == Protocol::ANIMATION_TYPE_ATTACK) code |= kStateAttack;
-		if (anim == Protocol::ANIMATION_TYPE_ROLL) code |= kStateRoll;
-		if (anim == Protocol::ANIMATION_TYPE_RUN) code |= kStateRun;
-		if (anim == Protocol::ANIMATION_TYPE_HIT) code |= kStateHit;
+		if (anim == Protocol::ANIMATION_TYPE_ROLL)   code |= kStateRoll;
+		if (anim == Protocol::ANIMATION_TYPE_RUN)    code |= kStateRun;
+		if (anim == Protocol::ANIMATION_TYPE_HIT)    code |= kStateHit;
 
 		const GameMath::Vec3 v = obj.GetVelocity();
 		constexpr float kEps = 1e-4f;
@@ -43,7 +48,6 @@ namespace
 		if (v.LengthSq() > kEps)
 		{
 			code |= kStateMove;
-
 			const float fwd = GameMath::Vec3::Dot(v, obj.GetLook());
 			const float str = GameMath::Vec3::Dot(v, obj.GetRight());
 

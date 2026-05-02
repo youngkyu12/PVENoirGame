@@ -141,11 +141,15 @@ void Room::Enter(PlayerRef player)
 	player->SetPosition(GetInitialPlayerSpawnPosition(player->playerId));
 	player->SetMaxHp(kHpPlayer);
 
+	// life-state 초기 정상화
+	player->OnRespawnEnter(tick.load()); // 위치를 내부에서 덮어쓰면 아래 순서 조정 필요
+	player->SetPosition(GetInitialPlayerSpawnPosition(player->playerId));
+
 	player->SetWeapon(
 		static_cast<Protocol::WeaponType>(player->playerId + 1), 0);
 
 	players[player->playerId] = player;
-	player->SetActive(false);
+	player->SetActive(false); // 기존 참여/ready 정책 유지
 
 	RegisterDynamicCollider(player);
 }
