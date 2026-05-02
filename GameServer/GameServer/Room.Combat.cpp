@@ -112,7 +112,6 @@ void Room::TickAdvance()
 {
 	const auto frameStart = std::chrono::steady_clock::now();
 
-	MakeFrameState(tick.load());
 
 	for (auto player : players)
 	{
@@ -242,6 +241,9 @@ void Room::TickAdvance()
 		_collision->OnUpdate();
 
 	UpdateDynamicGridState();
+
+	MakeFrameState(tick.load());
+
 	const auto elapsedMs = static_cast<uint64>(
 		std::chrono::duration_cast<std::chrono::milliseconds>(
 			std::chrono::steady_clock::now() - frameStart).count());

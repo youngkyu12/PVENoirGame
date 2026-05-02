@@ -94,6 +94,7 @@ void Player::OnRespawnEnter(uint32 serverTick)
 
     ResetHpToMax();
     SetPosition(GameMath::Vec3(0.0f, 0.0f, -200.0f));
+	SetYaw(180.0f);
     SetVelocity(GameMath::Vec3::Zero());
     SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
     SetAnimTick(serverTick);
