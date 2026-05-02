@@ -404,7 +404,6 @@ public:
 	void RequestFireArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f, float yOffset = 0.0f);
 	bool IsLocalPlayerInsideMegaGridCenter() const;
 
-#ifndef USING_NETWORK
 	void SetMegaGridApproachZoneSize(int megaX, int megaZ, int widthCells, int heightCells);
 	void SetMegaGridCleared(int megaX, int megaZ, bool cleared = true);
 	void SetMegaGridEventOccurred(int megaX, int megaZ, bool occurred = true);
@@ -412,8 +411,8 @@ public:
 	bool HasMegaGridPlayerApproached(int megaX, int megaZ) const;
 	bool IsMegaGridCleared(int megaX, int megaZ) const;
 	bool HasMegaGridEventOccurred(int megaX, int megaZ) const;
-#endif
 
+private:
 private:
 #ifndef USING_NETWORK
 	struct DoorPortalSubBoxRef
@@ -429,8 +428,8 @@ private:
 		CGameObject* tower = nullptr;
 		CColliderComponent* collider = nullptr;
 
-		std::vector<DoorPortalSubBoxRef> doorARefs; // Double Door Frame
-		std::vector<DoorPortalSubBoxRef> doorBRefs; // Double Door Frame2
+		std::vector<DoorPortalSubBoxRef> doorARefs;
+		std::vector<DoorPortalSubBoxRef> doorBRefs;
 
 		int cooldownFrames = 0;
 	};
@@ -463,6 +462,7 @@ private:
 
 	bool TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog = false);
 	bool TryTeleportLocalPlayerByCastleDoorPortal(bool forceLog = false);
+#endif
 
 	using EGridDynamicKind = CSceneGrid::EDynamicKind;
 	using GridDynamicTracker = CSceneGrid::DynamicTracker;
@@ -495,7 +495,6 @@ private:
 	void UpdateCastleCenterMegaGridState();
 
 	void DumpStaticGridOccupancyLog() const;
-#endif
 
 #ifndef USING_NETWORK
 	struct MonsterSpawnEntry
@@ -532,9 +531,7 @@ private:
 	void RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandList* cmd);
 	void RestoreSceneRenderTargets(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
-#ifndef USING_NETWORK
 	int GetLocalPlayerMegaGridNumberForDepthFog() const;
-#endif
 	void UpdateDepthFogState(float dt);
 
     // slot 0..3 플레이어 포인터(소유는 m_skinnedObjects가 함)
@@ -676,6 +673,7 @@ private:
 
 	std::vector<TowerDoorPortalEntry> m_towerDoorPortals;
 	std::vector<CastleDoorPortalEntry> m_castleDoorPortals;
+#endif
 
 	CSceneGrid m_sceneGrid;
 
@@ -683,7 +681,6 @@ private:
 	std::vector<GridDynamicTracker> m_monsterGridTrackers;
 	std::vector<GridDynamicTracker> m_arrowGridTrackers;
 	std::vector<GridDynamicTracker> m_bulletGridTrackers;
-#endif
 
 	/*std::unique_ptr<ShadowMap> mShadowMap;
 	std::shared_ptr<CShadowShader> mShadowShader;
@@ -783,9 +780,7 @@ private:
 	bool                                m_bWasLocalPlayerInsideMegaGridCenter = false;
 	bool                                m_bShowShadowMapOverlay = true;
 
-#ifndef USING_NETWORK
 	bool m_bLocalPlayerInsideCastleCenterMegaGrid = false;
-#endif
 
 	bool GetPauseOverlayRect(XMFLOAT4& outRect) const;
 
