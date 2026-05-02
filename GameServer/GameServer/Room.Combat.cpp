@@ -113,6 +113,7 @@ void Room::TickAdvance()
 	const auto frameStart = std::chrono::steady_clock::now();
 
 
+	MakeFrameState(tick.load());
 	for (auto player : players)
 	{
 		const GameMath::Vec3 prevPos = player.second->GetPosition();
@@ -242,7 +243,6 @@ void Room::TickAdvance()
 
 	UpdateDynamicGridState();
 
-	MakeFrameState(tick.load());
 
 	const auto elapsedMs = static_cast<uint64>(
 		std::chrono::duration_cast<std::chrono::milliseconds>(
