@@ -7466,7 +7466,27 @@ void CGameScene::AnimateObjects(float dt)
             if (auto* tr = player->GetComponent<CTransformComponent>())
             {
                 tr->SetYawDegrees(state.yaw);
-            }
+            } 
+			
+			if ( auto wc = player->GetComponent<CPlayerEquipmentComponent>() )
+			{
+				wc->SetLoadout(state.weaponType);
+			}
+
+
+			if ( slot == m_localPlayerSlot )
+			{
+				// 로컬 플레이어로 카메라 동기화
+				auto pCamera = GetMainCamera();
+				if ( pCamera )
+				{
+					XMFLOAT3 pos = player->GetPosition();
+					pos.y += 1.7f; // 카메라 높이 보정 (플레이어 중심에서 약간 위)
+					pCamera->Update(pos, dt);
+					pCamera->SetLookAt(pos);
+					pCamera->RegenerateViewMatrix();
+				}
+			}
 
             // 데모: animation state 강제 적용
             if (auto ac = player->GetAnimController())
@@ -7478,22 +7498,28 @@ void CGameScene::AnimateObjects(float dt)
 
                 if (decoded.die)
                 {
+					ac->RequestDeath();
                     ac->SetAnimState(EAnimState::Die);
+					continue;
                 }
                 else if (decoded.hit)
                 {
                     ac->RequestHit();
-                    ac->SetAnimState(decoded.hasMove ? EAnimState::Move : EAnimState::Idle);
+					continue;
+                    //ac->SetAnimState(decoded.hasMove ? EAnimState::Move : EAnimState::Idle);
                 }
                 else if (decoded.roll)
                 {
                     uint32_t rollDirBits = decoded.hasMove ? decoded.moveDirBits : DIR_FORWARD;
                     ac->RequestRoll(rollDirBits);
                     ac->SetAnimState(EAnimState::Attack);
+
+					continue;
                 }
 				else if ( decoded.attack )
 				{
 					ac->RequestAttack();
+					continue;
 				}
                 else
                 {
@@ -7501,25 +7527,7 @@ void CGameScene::AnimateObjects(float dt)
                 }
             }
 
-            if (auto wc = player->GetComponent<CPlayerEquipmentComponent>())
-            {
-                wc->SetLoadout(state.weaponType);
-            }
-
-
-            if (slot == m_localPlayerSlot)
-            {
-                // 로컬 플레이어로 카메라 동기화
-				auto pCamera = GetMainCamera();
-                if (pCamera)
-                {
-                    XMFLOAT3 pos = player->GetPosition();
-					pos.y += 1.7f; // 카메라 높이 보정 (플레이어 중심에서 약간 위)
-                    pCamera->Update(pos, dt);
-                    pCamera->SetLookAt(pos);
-                    pCamera->RegenerateViewMatrix();
-                }
-            }
+           
         }
 
 		// Enemy 좌표 업데이트

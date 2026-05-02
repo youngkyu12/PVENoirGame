@@ -82,7 +82,6 @@ void Player::OnDeathEnter(uint32 serverTick)
 
     if (auto* collider = GetComponent<CColliderComponent>())
     {
-        
         collider->OnUpdate(0.0f);
     }
 
