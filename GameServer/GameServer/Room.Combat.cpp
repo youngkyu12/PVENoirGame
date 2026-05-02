@@ -112,8 +112,8 @@ void Room::TickAdvance()
 {
 	const auto frameStart = std::chrono::steady_clock::now();
 
-	MakeFrameState(tick.load());
 
+	MakeFrameState(tick.load());
 	for (auto player : players)
 	{
 		const GameMath::Vec3 prevPos = player.second->GetPosition();
@@ -242,6 +242,8 @@ void Room::TickAdvance()
 		_collision->OnUpdate();
 
 	UpdateDynamicGridState();
+
+
 	const auto elapsedMs = static_cast<uint64>(
 		std::chrono::duration_cast<std::chrono::milliseconds>(
 			std::chrono::steady_clock::now() - frameStart).count());
@@ -267,9 +269,12 @@ void Room::FireArrow(PlayerRef shooter)
 	auto p = AcquireFromPool(m_arrowPool);
 	if (!p) return;
 
-	const GameMath::Vec3 origin = shooter->GetPosition() + GameMath::Vec3(0.f, 1.5f, 0.f);
+	const GameMath::Vec3 origin = shooter->GetPosition() +
+		shooter->GetRight() * 0.0626f +
+		shooter->GetUp() * 1.5538f +
+		shooter->GetLook() * 0.5657f;
 	const GameMath::Vec3 forward = shooter->GetLook().Normalized();
-	constexpr float kArrowSpeed = 3.0f;
+	constexpr float kArrowSpeed = 12.0f;
 	constexpr int   kArrowLifeTicks = 200;
 
 	p->Activate(origin, forward * kArrowSpeed, kArrowLifeTicks, shooter->GetObjectId(), Protocol::BULLET_TYPE_ARROW);
@@ -285,9 +290,12 @@ void Room::FireCannonball(PlayerRef shooter)
 	auto p = AcquireFromPool(m_bulletPool);
 	if (!p) return;
 
-	const GameMath::Vec3 origin = shooter->GetPosition() + GameMath::Vec3(0.f, 1.5f, 0.f);
+	const GameMath::Vec3 origin = shooter->GetPosition() +
+		shooter->GetRight() * 0.1698f +
+		shooter->GetUp() * 1.5665f +
+		shooter->GetLook() * 0.2778f;
 	const GameMath::Vec3 forward = shooter->GetLook().Normalized();
-	constexpr float kBulletSpeed = 10.0f;
+	constexpr float kBulletSpeed = 18.0f;
 	constexpr int   kBulletLifeTicks = 100;
 
 	p->Activate(origin, forward * kBulletSpeed, kBulletLifeTicks, shooter->GetObjectId(), Protocol::BULLET_TYPE_CANNONBALL);
