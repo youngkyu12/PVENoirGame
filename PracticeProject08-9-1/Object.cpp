@@ -303,6 +303,17 @@ CAnimController* CGameObject::GetAnimController() const
 	return ac ? ac->GetController() : nullptr;
 }
 
+void CGameObject::Reset()
+{
+	m_bEnabled = true;
+
+	for (std::unique_ptr<CComponent>& c : m_components)
+	{
+		if (c)
+			c->OnReset();
+	}
+}
+
 // ============================================================================
 // Shader Variables
 // ============================================================================

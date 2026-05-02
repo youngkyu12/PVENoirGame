@@ -47,6 +47,7 @@ public:
 
 	virtual void OnPreRender(ID3D12GraphicsCommandList* cmd) {}
 	virtual void OnPostRender(ID3D12GraphicsCommandList* cmd) {}
+	virtual void OnReset() {}
 
 protected:
 	CGameObject* m_pOwner = nullptr;
@@ -213,6 +214,15 @@ public:
 		{
 			worldMatrix = m;
 		}
+	}
+
+	void OnReset() override
+	{
+		position = XMFLOAT3(0, 0, 0);
+		direction = XMFLOAT3(0, 0, 1);
+		scale = XMFLOAT3(1, 1, 1);
+		rotation = XMFLOAT4(0, 0, 0, 1);
+		RebuildWorld();
 	}
 
 private:

@@ -187,6 +187,7 @@ public:
 
 	void SetId(int id) { m_ID = id; }
 	void SetActive(bool b) { m_bEnabled = b; }
+	void Reset();
 
 	// Shader
 public:

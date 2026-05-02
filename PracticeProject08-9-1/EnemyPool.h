@@ -1,5 +1,6 @@
 #pragma once
 
+class CGameObject;
 
 class EnemyPool
 {
@@ -8,34 +9,11 @@ public:
 		ID3D12Device* dev,
 		ID3D12GraphicsCommandList* cmd,
 		const std::shared_ptr<CSkinnedObjectsShader>& pSkinnedShader,
-		UINT nRenderTargets,
-		DXGI_FORMAT* rtvFormats,
-		DXGI_FORMAT dsvFormat);
+		int cnt);
 
-	CGameObject* Acquire()
-	{
-		if ( mFreeEnemies.empty() )
-		{
-			return nullptr;
-		}
+	CGameObject* Acquire();
 
-		CGameObject* enemy = mFreeEnemies.front();
-		mFreeEnemies.pop();
-
-		enemy->SetActive(true);
-		return enemy;
-	}
-
-	void Release(CGameObject* enemy)
-	{
-		if ( enemy == nullptr )
-			return;
-
-		enemy->Reset();
-		enemy->SetActive(false);
-
-		mFreeEnemies.push(enemy);
-	}
+	void Release(CGameObject* enemy);
 
 	int GetFreeCount() const
 	{
@@ -43,12 +21,14 @@ public:
 	}
 
 private:
+	static constexpr UINT kDefaultCapacity = 32;
+
 	std::shared_ptr<CSkinnedObjectsShader> shader;
 
-    UINT capacity = 0;
-    UINT count = 0;
+	UINT capacity = kDefaultCapacity;
+	UINT count = kDefaultCapacity;
 
-    UINT cbElementBytes = 0;
+    UINT cbElementBytes;
 
     ComPtr<ID3D12Resource> cbGameObjects;
     CB_GAMEOBJECT_INFO* mappedGameObjects = nullptr;
@@ -56,7 +36,7 @@ private:
     D3D12_GPU_DESCRIPTOR_HANDLE baseCbvGpu = { 0 };
     UINT cbvInc = 0;
 
-	std::vector<CGameObject> mEnemies;
+	std::vector<std::unique_ptr<CGameObject>> mEnemies;
 	std::queue<CGameObject*> mFreeEnemies;
 };
 

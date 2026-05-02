@@ -1,8 +1,5 @@
 #pragma once
 
-#include <vector>
-#include <DirectXMath.h>
-
 class CGameObject;
 class EnemyPool;
 
