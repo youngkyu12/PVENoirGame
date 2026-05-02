@@ -7483,7 +7483,6 @@ void CGameScene::AnimateObjects(float dt)
                 else if (decoded.hit)
                 {
                     ac->RequestHit();
-                    ac->SetAnimState(decoded.hasMove ? EAnimState::Move : EAnimState::Idle);
                 }
                 else if (decoded.roll)
                 {
