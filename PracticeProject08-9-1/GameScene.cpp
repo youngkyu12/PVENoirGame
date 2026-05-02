@@ -333,6 +333,11 @@ namespace
 
 	static constexpr UINT kOfflineGhoulAICount = 0;
 
+	static constexpr float kDisableVillageTreeCullPlayerHeight = 3.0f;
+
+	static constexpr int kCastleCenterMegaGridX = 1;
+	static constexpr int kCastleCenterMegaGridZ = 1;
+
 #ifndef USING_NETWORK
 	static constexpr int kTowerDoorPortalCooldownFrames = 30;
 	static constexpr float kTowerDoorPortalExitOffset = 2.0f;
@@ -343,14 +348,9 @@ namespace
 	static constexpr float kTowerDoorPortalLowerExitYOffset = 0.0f;
 	static constexpr float kTowerDoorPortalUpperExitYOffset = 5.0f;
 	static constexpr float kTowerDoorPortalUpperHeightThreshold = 10.0f;
-	static constexpr float kDisableVillageTreeCullPlayerHeight = 3.0f;
 	static constexpr float kTowerDoorPortalPlayerYawOffsetFromCamera = 0.0f;
 
-	static constexpr int kCastleCenterMegaGridX = 1;
-	static constexpr int kCastleCenterMegaGridZ = 1;
-
 	static constexpr bool kEnableTowerDoorPortalCollisionLog = true;
-
 	static constexpr bool kEnableTowerDoorPortalVerboseLog = false;
 #endif
 }
@@ -695,12 +695,9 @@ CGameScene::CGameScene()
 	m_localPlayerRespawnTimer = 0.0f;
 	m_deadMonsters.clear();
 
-#ifndef USING_NETWORK
 	m_bLocalPlayerInsideCastleCenterMegaGrid = false;
-#endif
 }
 
-#ifndef USING_NETWORK
 void CGameScene::InitializeSpatialGrid()
 {
 	m_sceneGrid.Initialize();
@@ -2094,45 +2091,8 @@ void CGameScene::BuildDynamicGridTrackers()
 	}
 
 	m_monsterGridTrackers.clear();
-	m_monsterGridTrackers.reserve(m_skinnedBatch.objectRefs.size());
-
-	for ( CGameObject* obj : m_skinnedBatch.objectRefs )
-	{
-		if ( !obj )
-			continue;
-
-		auto* tag = obj->GetComponent<CActorTagComponent>();
-
-		if ( !tag )
-			continue;
-
-		if ( tag->kind != EActorKind::NPC )
-			continue;
-
-		GridDynamicTracker tracker{};
-		tracker.object = obj;
-		m_monsterGridTrackers.push_back(tracker);
-	}
-
 	m_arrowGridTrackers.clear();
-	m_arrowGridTrackers.reserve(m_arrowRefs.size());
-
-	for ( CGameObject* obj : m_arrowRefs )
-	{
-		GridDynamicTracker tracker{};
-		tracker.object = obj;
-		m_arrowGridTrackers.push_back(tracker);
-	}
-
 	m_bulletGridTrackers.clear();
-	m_bulletGridTrackers.reserve(m_bulletRefs.size());
-
-	for ( CGameObject* obj : m_bulletRefs )
-	{
-		GridDynamicTracker tracker{};
-		tracker.object = obj;
-		m_bulletGridTrackers.push_back(tracker);
-	}
 }
 
 void CGameScene::RebuildDynamicGridState()
@@ -2146,15 +2106,6 @@ void CGameScene::RebuildDynamicGridState()
 	for ( auto& tracker : m_playerGridTrackers )
 		RefreshDynamicTracker(tracker, EGridDynamicKind::Player);
 
-	for ( auto& tracker : m_monsterGridTrackers )
-		RefreshDynamicTracker(tracker, EGridDynamicKind::Monster);
-
-	for ( auto& tracker : m_arrowGridTrackers )
-		RefreshDynamicTracker(tracker, EGridDynamicKind::Arrow);
-
-	for ( auto& tracker : m_bulletGridTrackers )
-		RefreshDynamicTracker(tracker, EGridDynamicKind::Bullet);
-
 	UpdateMegaGridState();
 	UpdateCastleCenterMegaGridState();
 }
@@ -2166,15 +2117,6 @@ void CGameScene::UpdateDynamicGridState()
 
 	for ( auto& tracker : m_playerGridTrackers )
 		RefreshDynamicTracker(tracker, EGridDynamicKind::Player);
-
-	for ( auto& tracker : m_monsterGridTrackers )
-		RefreshDynamicTracker(tracker, EGridDynamicKind::Monster);
-
-	for ( auto& tracker : m_arrowGridTrackers )
-		RefreshDynamicTracker(tracker, EGridDynamicKind::Arrow);
-
-	for ( auto& tracker : m_bulletGridTrackers )
-		RefreshDynamicTracker(tracker, EGridDynamicKind::Bullet);
 
 	UpdateMegaGridState();
 	UpdateCastleCenterMegaGridState();
@@ -2343,7 +2285,7 @@ bool CGameScene::HasMegaGridEventOccurred(int megaX, int megaZ) const
 {
 	return m_sceneGrid.HasMegaGridEventOccurred(megaX, megaZ);
 }
-#endif
+
 
 CGameScene::~CGameScene()
 {
@@ -2434,9 +2376,7 @@ void CGameScene::ReleaseObjects()
 	m_bInactiveOverlayVisible = false;
 	m_bStartedGameplayMusic = false;
 	m_bWasLocalPlayerInsideMegaGridCenter = false;
-#ifndef USING_NETWORK
 	m_bLocalPlayerInsideCastleCenterMegaGrid = false;
-#endif
 
 	m_navMesh.reset();
 
@@ -2453,8 +2393,9 @@ void CGameScene::ReleaseObjects()
 
 #ifndef USING_NETWORK
 	m_monsterSpawnEntries.clear();
-	ShutdownSpatialGrid();
 #endif
+
+	ShutdownSpatialGrid();
 
 	ReleaseShaderVariables();
 
@@ -2834,9 +2775,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_colliderBatch.count = 0;
 
 	CreateGraphicsRootSignature(dev);
-#ifndef USING_NETWORK
 	InitializeSpatialGrid();
-#endif
 
 	auto pStaticShader = std::make_shared<CStaticObjectsShader>();
 	auto pTreeStaticShader = std::make_shared<CTreeStaticObjectsShader>();
@@ -2948,9 +2887,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	//InitShadowMap(dev, cmd);
 	BuildObjectsCollider();
 
-#ifndef USING_NETWORK
 	RebuildDynamicGridState();
-#endif
 #ifdef USING_NETWORK
 	Protocol::C_CLIENT_READY iamReady;
 
@@ -3900,9 +3837,7 @@ void CGameScene::BuildStaticBatch(
 			}
 		}
 
-#ifndef USING_NETWORK
 		RegisterStaticPlacementToGrid(placement, raw);
-#endif
 
 		m_staticObjects.push_back(std::move(obj));
 		b->objectRefs.push_back(raw);
@@ -4346,11 +4281,7 @@ void CGameScene::UpdateStaticTreeGridCullSelection(CCamera* camera)
 	if ( !camera )
 		return;
 
-#ifndef USING_NETWORK
 	const bool shouldCullTrees = ShouldCullTreesByVillageGrid(camera);
-#else
-	const bool shouldCullTrees = false;
-#endif
 
 	if ( !shouldCullTrees )
 		return;
@@ -7432,7 +7363,6 @@ CGameObject* CGameScene::GetPlayerBySlot(int slot) const
 
 bool CGameScene::IsLocalPlayerInsideMegaGridCenter() const
 {
-#ifndef USING_NETWORK
 	if ( !m_sceneGrid.IsInitialized() )
 		return false;
 
@@ -7451,13 +7381,23 @@ bool CGameScene::IsLocalPlayerInsideMegaGridCenter() const
 	int megaX = -1;
 	int megaZ = -1;
 
-	if ( !m_sceneGrid.FineCellToMegaGridCell(tracker.prevCellX, tracker.prevCellZ, megaX, megaZ) )
+	if ( !m_sceneGrid.FineCellToMegaGridCell(
+		tracker.prevCellX,
+		tracker.prevCellZ,
+		megaX,
+		megaZ) )
+	{
 		return false;
+	}
 
 	if ( megaX == kCastleCenterMegaGridX &&
-	 megaZ == kCastleCenterMegaGridZ )
+		 megaZ == kCastleCenterMegaGridZ )
 	{
+#ifdef USING_NETWORK
+		return true;
+#else
 		return m_bLocalPlayerInsideCastleCenterMegaGrid;
+#endif
 	}
 
 	return m_sceneGrid.IsFineCellInsideMegaGridApproachZone(
@@ -7466,12 +7406,8 @@ bool CGameScene::IsLocalPlayerInsideMegaGridCenter() const
 		tracker.prevCellX,
 		tracker.prevCellZ
 	);
-#else
-	return false;
-#endif
 }
 
-#ifndef USING_NETWORK
 int CGameScene::GetLocalPlayerMegaGridNumberForDepthFog() const
 {
 	if ( !m_sceneGrid.IsInitialized() )
@@ -7491,11 +7427,9 @@ int CGameScene::GetLocalPlayerMegaGridNumberForDepthFog() const
 
 	return m_sceneGrid.MegaGridNumberFromCell(tracker.prevCellX, tracker.prevCellZ);
 }
-#endif
 
 void CGameScene::UpdateDepthFogState(float dt)
 {
-#ifndef USING_NETWORK
 	const int megaGridNumber = GetLocalPlayerMegaGridNumberForDepthFog();
 
 	const bool isDenseFogZone =
@@ -7505,9 +7439,6 @@ void CGameScene::UpdateDepthFogState(float dt)
 		isDenseFogZone
 		? EDepthFogPresetMode::ZoneDense
 		: EDepthFogPresetMode::OuterWide;
-#else
-	const EDepthFogPresetMode fogMode = EDepthFogPresetMode::OuterWide;
-#endif
 
 	m_depthFog.UpdateState(dt, fogMode);
 }
@@ -7780,9 +7711,7 @@ void CGameScene::RespawnLocalPlayer(CGameObject* player)
 	m_bLocalPlayerRespawnUsed = true;
 	m_localPlayerRespawnTimer = 0.0f;
 
-#ifndef USING_NETWORK
 	UpdateDynamicGridState();
-#endif
 }
 
 void CGameScene::UpdateLocalPlayerDeathAndRespawn(float dt)
@@ -8624,7 +8553,6 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 	}
 #endif
 
-#ifndef USING_NETWORK
 	{
 		const bool isInsideMegaGridCenter = IsLocalPlayerInsideMegaGridCenter();
 
@@ -8654,7 +8582,6 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 			m_bWasLocalPlayerInsideMegaGridCenter = isInsideMegaGridCenter;
 		}
 	}
-#endif
 }
 
 void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* camera)
