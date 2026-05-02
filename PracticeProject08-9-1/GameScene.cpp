@@ -611,6 +611,17 @@ namespace
             return true;
         }
 
+		if (normalized == "fullstage_withboss" ||
+			normalized == "fullstagewithboss" ||
+			normalized == "map_fullstage_withboss" ||
+			normalized == "map_fullstage_with_boss" ||
+			normalized == "mapdata_fullstage_withboss" ||
+			normalized == "mapdata_fullstage_with_boss")
+		{
+			outPlacementFilePath = "MapData/MapData_fullstage(withBoss).txt";
+			return true;
+		}
+
         if (normalized == "stage1" ||
             normalized == "map_stage1" ||
             normalized == "mapdata_stage1")
@@ -693,6 +704,9 @@ CGameScene::CGameScene()
 	m_bLocalPlayerDead = false;
 	m_bLocalPlayerRespawnUsed = false;
 	m_localPlayerRespawnTimer = 0.0f;
+#ifdef USING_NETWORK
+	m_prevPlayerNetworkStateCode.clear();
+#endif
 	m_deadMonsters.clear();
 
 	m_bLocalPlayerInsideCastleCenterMegaGrid = false;
@@ -2383,6 +2397,9 @@ void CGameScene::ReleaseObjects()
 	m_bLocalPlayerDead = false;
 	m_bLocalPlayerRespawnUsed = false;
 	m_localPlayerRespawnTimer = 0.0f;
+#ifdef USING_NETWORK
+	m_prevPlayerNetworkStateCode.clear();
+#endif
 	m_deadMonsters.clear();
 
 	m_itemBillboardShader.reset();
@@ -2623,7 +2640,13 @@ void CGameScene::ReleaseShaderVariables()
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
 	m_deadMonsters.clear();
+	m_bLocalPlayerDead = false;
+	m_bLocalPlayerRespawnUsed = false;
+	m_localPlayerRespawnTimer = 0.0f;
+
 #ifdef USING_NETWORK
+	m_prevPlayerNetworkStateCode.clear();
+
 	while ( false == g_GameStarted )
 	{
 		OutputDebugStringA("Waiting for game start message...\n");
@@ -2686,9 +2709,6 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	}
 #else
 	m_localPlayerSlot = 0;
-	m_bLocalPlayerDead = false;
-	m_bLocalPlayerRespawnUsed = false;
-	m_localPlayerRespawnTimer = 0.0f;
 
 	const GameSceneStageFileSet& stageFiles = GetLocalStageFileSet(kLocalStagePreset);
 
@@ -8035,61 +8055,109 @@ void CGameScene::AnimateObjects(float dt)
             if (auto* tr = player->GetComponent<CTransformComponent>())
             {
                 tr->SetYawDegrees(state.yaw);
-            }
+            } 
+
+			if ( slot == m_localPlayerSlot )
+			{
+				if ( auto* controller = player->GetComponent<CPlayerControllerComponent>() )
+					controller->SetYawDegrees(state.yaw);
+			}
+			
+			if ( auto wc = player->GetComponent<CPlayerEquipmentComponent>() )
+			{
+				wc->SetLoadout(state.weaponType);
+			}
+
+
+			if ( slot == m_localPlayerSlot )
+			{
+				// 로컬 플레이어로 카메라 동기화
+				auto pCamera = GetMainCamera();
+				if ( pCamera )
+				{
+					XMFLOAT3 pos = player->GetPosition();
+					pos.y += 1.7f; // 카메라 높이 보정 (플레이어 중심에서 약간 위)
+					pCamera->Update(pos, dt);
+					pCamera->SetLookAt(pos);
+					pCamera->RegenerateViewMatrix();
+				}
+			}
 
             // 데모: animation state 강제 적용
             if (auto ac = player->GetAnimController())
             {
                 const DecodedAnimStateCode decoded = DecodeStateCode(state.animation.stateCode);
+				const auto prevIt = m_prevPlayerNetworkStateCode.find(state.id);
+				const uint32_t prevStateCode =
+					( prevIt != m_prevPlayerNetworkStateCode.end() ) ? prevIt->second : 0u;
+				const DecodedAnimStateCode prevDecoded = DecodeStateCode(prevStateCode);
+
+				if ( prevDecoded.die && !decoded.die )
+				{
+					ac->ResetToIdleAfterRespawn();
+
+					if ( slot == m_localPlayerSlot )
+					{
+						m_bLocalPlayerDead = false;
+						m_bLocalPlayerRespawnUsed = false;
+						m_localPlayerRespawnTimer = 0.0f;
+
+						if ( auto* camera = GetMainCamera() )
+						{
+							camera->GetYaw() = state.yaw;
+
+							XMFLOAT3 cameraTarget = player->GetPosition();
+							cameraTarget.y += 1.7f;
+							camera->Update(cameraTarget, 0.0f);
+							camera->SetLookAt(cameraTarget);
+							camera->RegenerateViewMatrix();
+						}
+					}
+				}
 
                 ac->SetMoveDirection(decoded.hasMove ? decoded.moveDirBits : 0u);
                 ac->SetRunRequested(decoded.run);
 
                 if (decoded.die)
                 {
+					if ( slot == m_localPlayerSlot )
+						m_bLocalPlayerDead = true;
+					ac->RequestDeath();
                     ac->SetAnimState(EAnimState::Die);
+					m_prevPlayerNetworkStateCode[state.id] = state.animation.stateCode;
+					continue;
                 }
                 else if (decoded.hit)
                 {
                     ac->RequestHit();
-                    ac->SetAnimState(decoded.hasMove ? EAnimState::Move : EAnimState::Idle);
+					m_prevPlayerNetworkStateCode[state.id] = state.animation.stateCode;
+					continue;
+                    //ac->SetAnimState(decoded.hasMove ? EAnimState::Move : EAnimState::Idle);
                 }
                 else if (decoded.roll)
                 {
                     uint32_t rollDirBits = decoded.hasMove ? decoded.moveDirBits : DIR_FORWARD;
                     ac->RequestRoll(rollDirBits);
                     ac->SetAnimState(EAnimState::Attack);
+
+					m_prevPlayerNetworkStateCode[state.id] = state.animation.stateCode;
+					continue;
                 }
 				else if ( decoded.attack )
 				{
 					ac->RequestAttack();
+					m_prevPlayerNetworkStateCode[state.id] = state.animation.stateCode;
+					continue;
 				}
                 else
                 {
                     ac->SetAnimState(decoded.hasMove ? EAnimState::Move : EAnimState::Idle);
                 }
-            }
 
-            if (auto wc = player->GetComponent<CPlayerEquipmentComponent>())
-            {
-                wc->SetLoadout(state.weaponType);
-            }
-
-
-            if (slot == m_localPlayerSlot)
-            {
-                // 로컬 플레이어로 카메라 동기화
-				auto pCamera = GetMainCamera();
-                if (pCamera)
-                {
-                    XMFLOAT3 pos = player->GetPosition();
-					pos.y += 1.7f; // 카메라 높이 보정 (플레이어 중심에서 약간 위)
-                    pCamera->Update(pos, dt);
-                    pCamera->SetLookAt(pos);
-                    pCamera->RegenerateViewMatrix();
-                }
+				m_prevPlayerNetworkStateCode[state.id] = state.animation.stateCode;
             }
         }
+
 
 		// Enemy 좌표 업데이트
 		// 1) NPC 인덱스 → 오브젝트 매핑 구축
@@ -8206,6 +8274,29 @@ void CGameScene::AnimateObjects(float dt)
 		// 사용이 끝난 data는 기본값으로 초기화 (선택적)
 		m_pendingNetworkMessage.data = LoadoutData{};
     }
+	else
+	{
+		// 이전 state code를 따라가면서 그때의 애니메이션을 유지
+		for ( const auto& [id, stateCode] : m_prevPlayerNetworkStateCode )
+		{
+			CGameObject* player = GetPlayerBySlot(static_cast< int >( id ));
+			if ( !player ) continue;
+			if ( auto* ac = player->GetAnimController() )
+			{
+				const DecodedAnimStateCode decoded = DecodeStateCode(stateCode);
+				if ( decoded.die )
+					ac->SetAnimState(EAnimState::Die);
+				else if ( decoded.hit )
+					ac->SetAnimState(EAnimState::Hit);
+				else if ( decoded.roll )
+					ac->SetAnimState(EAnimState::Attack);
+				else if ( decoded.attack )
+					ac->SetAnimState(EAnimState::Attack);
+				else
+					ac->SetAnimState(decoded.hasMove ? EAnimState::Move : EAnimState::Idle);
+			}
+		}
+	}
 #endif
    
 

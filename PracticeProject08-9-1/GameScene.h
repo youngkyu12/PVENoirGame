@@ -14,6 +14,7 @@
 #include "GameSceneHUD.h"
 //#include "ShadowMap.h"
 
+#include <unordered_map>
 #include <unordered_set>
 #include <cstdint>
 
@@ -662,6 +663,10 @@ private:
 	bool                            m_bLocalPlayerDead = false;
 	bool                            m_bLocalPlayerRespawnUsed = false;
 	float                           m_localPlayerRespawnTimer = 0.0f;
+
+#ifdef USING_NETWORK
+	std::unordered_map<uint64_t, uint32_t> m_prevPlayerNetworkStateCode;
+#endif
 
 	std::unordered_set<CGameObject*> m_deadMonsters;
 
