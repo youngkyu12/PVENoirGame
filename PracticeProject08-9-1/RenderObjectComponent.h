@@ -17,7 +17,7 @@ public:
 
     void BindExternal(CB_GAMEOBJECT_INFO* mapped, D3D12_GPU_DESCRIPTOR_HANDLE cbvGpu);
 
-    // ·ÎÄÃ CB(ÇÃ·¹ÀÌ¾î) »ı¼º/¸ÊÇÎ
+    // ë¡œì»¬ CB(í”Œë ˆì´ì–´) ìƒì„±/ë§µí•‘
     void CreateLocalCB(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
 
     CB_GAMEOBJECT_INFO* GetMappedCB() const { return m_mapped; }
@@ -34,6 +34,7 @@ public:
 
     void OnCreate(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd) override;
     void OnDestroy() override;
+	void OnReset() override;
 
 private:
     static UINT Align256(UINT x) { return (x + 255u) & ~255u; }
@@ -42,7 +43,7 @@ private:
     D3D12_GPU_DESCRIPTOR_HANDLE m_cbvGpu = { 0 };
     CB_GAMEOBJECT_INFO* m_mapped = nullptr;
 
-    // ·ÎÄÃ CB(ÇÃ·¹ÀÌ¾î)ÀÏ ¶§¸¸ ¼ÒÀ¯
+    // ë¡œì»¬ CB(í”Œë ˆì´ì–´)ì¼ ë•Œë§Œ ì†Œìœ 
     ComPtr<ID3D12Resource>      m_localCB;
     UINT                       m_cbSizeBytes = 0;
 
