@@ -6,6 +6,20 @@
 #include "GameSceneObjectFactory.h"
 #include "Scene.h"
 
+namespace
+{
+	enum : uint32_t
+	{
+		kCollisionLayerMonster = 1,
+		kCollisionLayerPlayerWeapon = 3
+	};
+
+	static constexpr uint32_t CollisionBit(uint32_t layer)
+	{
+		return ( 1u << layer );
+	}
+}
+
 void EnemyPool::Initialize(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, const std::shared_ptr<CSkinnedObjectsShader>& pSkinnedShader, int cnt)
 {
 	if ( !dev || !cmd || !pSkinnedShader )
@@ -13,7 +27,9 @@ void EnemyPool::Initialize(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, co
 
 	shader = pSkinnedShader;
 
-	if ( count == 0 )
+	if ( cnt > 0 )
+		count = static_cast< UINT >( cnt );
+	else
 		count = kDefaultCapacity;
 
 	capacity = count;
@@ -53,7 +69,7 @@ void EnemyPool::Initialize(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, co
 		mFreeEnemies.pop();
 
 	AssetBuildDesc enemyDesc{};
-	if ( !GetGameSceneAssetBuildDesc(EGameSceneAssetId::SwordMan, enemyDesc) )
+	if ( !GetGameSceneAssetBuildDesc(EGameSceneAssetId::Ghoul, enemyDesc) )
 		return;
 
 	BuiltAsset enemyAsset = AssetManager::BuildAsset(
@@ -62,12 +78,22 @@ void EnemyPool::Initialize(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, co
 		enemyDesc
 	);
 
-	const auto& enemyClips = GetEnemySwordClipEntries();
+	const auto& enemyClips = GetGhoulClipEntries();
 	GameSceneObjectFactory::PreloadClipSet(
 		enemyAsset.mesh.get(),
-		"Enemy",
+		"Ghoul",
 		enemyClips
 	);
+
+	auto ApplyMonsterBodyCollider =
+		[ ] (GameSceneObjectFactory::SkinnedRenderableDesc& desc)
+		{
+			desc.addCollider = true;
+			desc.colliderType = EColliderType::BCapsule;
+			desc.colliderLayer = kCollisionLayerMonster;
+			desc.colliderMask = CollisionBit(kCollisionLayerPlayerWeapon);
+			desc.colliderEnabled = true;
+		};
 
 	for ( UINT i = 0; i < capacity; ++i )
 	{
@@ -79,8 +105,29 @@ void EnemyPool::Initialize(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, co
 		);
 		createDesc.mesh = enemyAsset.mesh;
 		createDesc.spawnHidden = true;
+		createDesc.addCollider = true;
 		createDesc.addAnimator = true;
-		createDesc.skeletonKey = "Enemy";
+		createDesc.addActorTag = true;
+		createDesc.actorKind = EActorKind::NPC;
+		createDesc.playerControl = EPlayerControl::None;
+		createDesc.playerSlot = -1;
+		createDesc.addMonsterCombat = true;
+		createDesc.addMonsterWeaponHitbox = true;
+		createDesc.skeletonKey = "Ghoul";
+		createDesc.clipEntries = &enemyClips;
+		createDesc.initMonsterController = true;
+		createDesc.monsterInitialState = EMonsterAnimState::Idle;
+		createDesc.monsterProfile.idleClip = "Idle";
+		createDesc.monsterProfile.moveClip = "Walk";
+		createDesc.monsterProfile.runClip = "Run";
+		createDesc.monsterProfile.hitClip = "Hit";
+		createDesc.monsterProfile.attackClip = "Attack";
+		createDesc.monsterProfile.deathClip = "Death";
+		createDesc.useOwnerBoneWeaponCapsules = true;
+		createDesc.monsterWeaponConfigs.push_back(
+			{ "Attack", 0.20f, 0.55f, { "hand_r" } }
+		);
+		ApplyMonsterBodyCollider(createDesc);
 		createDesc.clipEntries = &enemyClips;
 
 		auto obj = GameSceneObjectFactory::CreateSkinnedRenderable(createDesc);
