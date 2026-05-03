@@ -14,8 +14,47 @@ void EnemySpawner::Update(float deltaTime)
 	UNREFERENCED_PARAMETER(deltaTime);
 }
 
-void EnemySpawner::Render()
+void EnemySpawner::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
+	if ( !cmd )
+		return;
+
+	int activeEnemyCount = 0;
+	int rendererEnabledCount = 0;
+	int rendererMissingCount = 0;
+
+	for ( CGameObject* enemy : mActiveEnemies )
+	{
+		if ( !enemy || !enemy->IsActive() )
+			continue;
+
+		++activeEnemyCount;
+		CRendererComponent* renderer = enemy->GetRenderer();
+		if ( !renderer )
+			++rendererMissingCount;
+		else if ( renderer->IsEnabled() )
+			++rendererEnabledCount;
+
+		enemy->Render(cmd, camera);
+	}
+
+	static int sDebugFrameCounter = 0;
+	++sDebugFrameCounter;
+	if ( ( sDebugFrameCounter % 120 ) == 0 )
+	{
+		char dbg[256] = {};
+		std::snprintf(
+			dbg,
+			sizeof(dbg),
+			"[EnemySpawner::Render] active=%d renderer_enabled=%d renderer_missing=%d total_tracked=%zu\n",
+			activeEnemyCount,
+			rendererEnabledCount,
+			rendererMissingCount,
+			mActiveEnemies.size()
+		);
+		OutputDebugStringA(dbg);
+	}
+
 }
 
 void EnemySpawner::SetSpawnerPosition(const DirectX::XMFLOAT3& position)

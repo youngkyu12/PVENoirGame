@@ -2,6 +2,7 @@
 
 class CGameObject;
 class EnemyPool;
+class CCamera;
 
 class EnemySpawner
 {
@@ -12,7 +13,7 @@ public:
 public:
 	void Initialize(EnemyPool* enemyPool);
 	void Update(float deltaTime);
-	void Render();
+	void Render(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 public:
 	void SetSpawnerPosition(const DirectX::XMFLOAT3& position);

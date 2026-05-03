@@ -27,6 +27,8 @@ class CGameObject;
 class CCollisionSystem;
 class CTexture;
 class CNavMesh;
+class EnemySpawner;
+class EnemyPool;
 
 struct CB_GAMEOBJECT_INFO;
 struct AttachmentBindSpec
@@ -534,6 +536,10 @@ private:
 
     unique_ptr<CCollisionSystem> m_Collision;
 	std::unique_ptr<CNavMesh> m_navMesh;
+	std::unique_ptr<EnemySpawner> m_enemySpawner;
+	std::unique_ptr<EnemyPool> m_enemyPool;
+	float m_enemySpawnAccumulatorSec = 0.0f;
+	float m_enemySpawnIntervalSec = 5.0f;
 
 #ifndef USING_NETWORK
 	std::vector<MonsterSpawnEntry>	m_monsterSpawnEntries;

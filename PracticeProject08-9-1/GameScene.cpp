@@ -53,6 +53,8 @@
 #include "GameSceneContentCatalog.h"
 #include "GameSceneObjectFactory.h"
 #include "GameSceneAttachmentBinder.h"
+#include "EnemySpawner.h"
+#include "EnemyPool.h"
 
 namespace
 {
@@ -1330,6 +1332,16 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
 	//BuildTerrainObjects(dev, cmd);
 
+	if ( !m_enemyPool )
+		m_enemyPool = std::make_unique<EnemyPool>();
+
+	if ( !m_enemySpawner )
+		m_enemySpawner = std::make_unique<EnemySpawner>();
+
+	m_enemyPool->Initialize(dev, cmd, pSkinnedShader, 200);
+	m_enemySpawner->Initialize(m_enemyPool.get());
+	m_enemySpawnAccumulatorSec = 0.0f;
+
 	LinkSceneObjects();
 
 	CreateShaderVariables(dev, cmd);
@@ -1337,6 +1349,13 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	CGameObject* local = GetPlayer();
 	if ( !local ) 
 		local = GetPlayerBySlot(0);
+
+	if ( m_enemySpawner && local )
+	{
+		const XMFLOAT3 playerPos = local->GetPosition();
+		
+		m_enemySpawner->SetSpawnerPosition(	playerPos);
+	}
 
 	CreateMainCamera(dev, cmd, local);
 	//InitShadowMap(dev, cmd);
@@ -5594,7 +5613,10 @@ bool CGameScene::ProcessInput(UCHAR* /*pKeysBuffer*/)
 void CGameScene::AnimateObjects(float dt)
 {
 	m_fElapsedTime = dt;
-    // ------------------------------------------------------------------------
+    
+	m_enemySpawner->SpawnEnemies();
+
+	// ------------------------------------------------------------------------
     // FrameSnapshot에서 좌표 업데이트
     // ------------------------------------------------------------------------
 
@@ -6139,6 +6161,9 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 
 void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
+	if ( m_enemySpawner )
+		m_enemySpawner->Render(cmd, camera);
+
 	RenderDepthFog(cmd, camera);
 	m_hud.Render(cmd, camera);
 }
