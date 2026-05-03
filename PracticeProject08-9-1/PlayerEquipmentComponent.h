@@ -1,9 +1,6 @@
 //-----------------------------------------------------------------------------
 // File: PlayerEquipmentComponent.h
 //-----------------------------------------------------------------------------
-#ifndef ENABLE_PLAYER_SWORD_WHOOSH_TUNING
-#define ENABLE_PLAYER_SWORD_WHOOSH_TUNING 1
-#endif
 #pragma once
 
 #include <array>
@@ -93,24 +90,38 @@ public:
 
 	// 공격이 실제 accepted 되었을 때 GameScene에서 호출한다.
 	bool RequestSwordAttackWhoosh();
-
-#if ENABLE_PLAYER_SWORD_WHOOSH_TUNING
-public:
-	// 0 = 랜덤, 1~3 = Whoosh_Sword1~3 고정
-	static void DebugSetSwordWhooshFixedIndex(int index);
-	static void DebugDecreaseSwordWhooshDelayOneFrame();
-	static void DebugIncreaseSwordWhooshDelayOneFrame();
-#endif
+	bool RequestAxeAttackWhoosh();
 
 private:
-	void PlayPendingSwordWhoosh();
-	int SelectSwordWhooshIndex() const;
+	enum class EPendingWeaponWhooshKind : uint8_t
+	{
+		None = 0,
+		Sword,
+		Axe
+	};
+
+private:
+	void ScheduleWeaponWhoosh(
+		EPendingWeaponWhooshKind kind,
+		const char* soundPath,
+		float delaySeconds,
+		float volume
+	);
+
+	void PlayPendingWeaponWhoosh();
+
+	static int SelectSwordWhooshIndex();
 	static const char* GetSwordWhooshPath(int index);
+	static float GetSwordWhooshDelaySeconds(int index);
+
+	static const char* GetAxeWhooshPath();
 
 private:
 	CAudioManager* m_audioManager = nullptr;
 
-	bool  m_pendingSwordWhoosh = false;
-	float m_pendingSwordWhooshTimer = 0.0f;
-	int   m_pendingSwordWhooshIndex = 1;
+	EPendingWeaponWhooshKind m_pendingWhooshKind = EPendingWeaponWhooshKind::None;
+	const char* m_pendingWhooshPath = nullptr;
+	float m_pendingWhooshTimer = 0.0f;
+	float m_pendingWhooshOriginalDelay = 0.0f;
+	float m_pendingWhooshVolume = 1.0f;
 };

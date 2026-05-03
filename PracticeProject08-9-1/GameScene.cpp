@@ -2708,7 +2708,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		}
 	}
 #else
-	m_localPlayerSlot = 0;
+	m_localPlayerSlot = 2;
 
 	const GameSceneStageFileSet& stageFiles = GetLocalStageFileSet(kLocalStagePreset);
 
@@ -7060,6 +7060,7 @@ void CGameScene::RequestPlayerAttackBySlot(int slot)
 	constexpr float kBulletLife = 3.0f;
 
 	bool shouldPlaySwordWhoosh = false;
+	bool shouldPlayAxeWhoosh = false;
 	bool shouldPrepareArrow = false;
 	bool shouldFireBullet = false;
 
@@ -7070,7 +7071,9 @@ void CGameScene::RequestPlayerAttackBySlot(int slot)
 		equipComp = equip;
 
 		const EWeaponType weapon = equip->GetEquippedWeapon();
+
 		shouldPlaySwordWhoosh = ( weapon == EWeaponType::Sword );
+		shouldPlayAxeWhoosh = ( weapon == EWeaponType::Axe );
 		shouldPrepareArrow = ( weapon == EWeaponType::Bow );
 		shouldFireBullet = ( weapon == EWeaponType::Gun );
 	}
@@ -7081,8 +7084,13 @@ void CGameScene::RequestPlayerAttackBySlot(int slot)
 		{
 			const bool accepted = ctrl->RequestAttack();
 
-			if ( accepted && shouldPlaySwordWhoosh && equipComp )
-				equipComp->RequestSwordAttackWhoosh();
+			if ( accepted && equipComp )
+			{
+				if ( shouldPlaySwordWhoosh )
+					equipComp->RequestSwordAttackWhoosh();
+				else if ( shouldPlayAxeWhoosh )
+					equipComp->RequestAxeAttackWhoosh();
+			}
 
 			if ( accepted && shouldPrepareArrow )
 				RequestPrepareArrow(obj, kArrowPullBackDistance);
@@ -7098,8 +7106,13 @@ void CGameScene::RequestPlayerAttackBySlot(int slot)
 	{
 		const bool accepted = ctrl->RequestAttack();
 
-		if ( accepted && shouldPlaySwordWhoosh && equipComp )
-			equipComp->RequestSwordAttackWhoosh();
+		if ( accepted && equipComp )
+		{
+			if ( shouldPlaySwordWhoosh )
+				equipComp->RequestSwordAttackWhoosh();
+			else if ( shouldPlayAxeWhoosh )
+				equipComp->RequestAxeAttackWhoosh();
+		}
 
 		if ( accepted && shouldPrepareArrow )
 			RequestPrepareArrow(obj, kArrowPullBackDistance);
@@ -7924,43 +7937,8 @@ bool CGameScene::OnProcessingMouseMessage(HWND /*hWnd*/, UINT msg, WPARAM /*wPar
 	return false;
 }
 
-bool CGameScene::OnProcessingKeyboardMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+bool CGameScene::OnProcessingKeyboardMessage(HWND /*hWnd*/, UINT msg, WPARAM wParam, LPARAM /*lParam*/)
 {
-	UNREFERENCED_PARAMETER(hWnd);
-	UNREFERENCED_PARAMETER(lParam);
-
-#if ENABLE_PLAYER_SWORD_WHOOSH_TUNING
-	if ( msg == WM_KEYDOWN )
-	{
-		switch ( wParam )
-		{
-		case '7':
-			CPlayerEquipmentComponent::DebugSetSwordWhooshFixedIndex(1);
-			return true;
-
-		case '8':
-			CPlayerEquipmentComponent::DebugSetSwordWhooshFixedIndex(2);
-			return true;
-
-		case '9':
-			CPlayerEquipmentComponent::DebugSetSwordWhooshFixedIndex(3);
-			return true;
-
-		case 'O':
-			CPlayerEquipmentComponent::DebugDecreaseSwordWhooshDelayOneFrame();
-			return true;
-
-		case 'P':
-			CPlayerEquipmentComponent::DebugIncreaseSwordWhooshDelayOneFrame();
-			return true;
-
-		default:
-			break;
-		}
-	}
-#endif
-
-	// 기존 처리 유지
 	return false;
 }
 
