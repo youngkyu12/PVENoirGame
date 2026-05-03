@@ -18,7 +18,17 @@ void EnemySpawner::Render()
 {
 }
 
-CGameObject* EnemySpawner::SpawnEnemy(const DirectX::XMFLOAT3& position)
+void EnemySpawner::SetSpawnerPosition(const DirectX::XMFLOAT3& position)
+{
+	mSpawnerPosition = position;
+}
+
+const DirectX::XMFLOAT3& EnemySpawner::GetSpawnerPosition() const
+{
+	return mSpawnerPosition;
+}
+
+CGameObject* EnemySpawner::SpawnEnemy()
 {
 	if ( !mEnemyPool )
 		return nullptr;
@@ -27,11 +37,28 @@ CGameObject* EnemySpawner::SpawnEnemy(const DirectX::XMFLOAT3& position)
 	if ( !enemy )
 		return nullptr;
 
-	enemy->SetPosition(position);
+	enemy->SetPosition(mSpawnerPosition);
 	enemy->SetActive(true);
 
 	mActiveEnemies.push_back(enemy);
 	return enemy;
+}
+
+int EnemySpawner::SpawnEnemies(int count)
+{
+	if ( count <= 0 )
+		return 0;
+
+	int spawnedCount = 0;
+	for ( int i = 0; i < count; ++i )
+	{
+		if ( !SpawnEnemy() )
+			break;
+
+		++spawnedCount;
+	}
+
+	return spawnedCount;
 }
 
 void EnemySpawner::RemoveEnemy(CGameObject* enemy)
