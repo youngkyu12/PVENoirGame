@@ -103,6 +103,8 @@ void EnemyPool::Initialize(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, co
 		createDesc.ctx.mappedGameObjectCB = reinterpret_cast< CB_GAMEOBJECT_INFO* >(
 			reinterpret_cast< UINT8* >(mappedGameObjects) + i * cbElementBytes
 		);
+		createDesc.ctx.cbvGpuHandle.ptr =
+			baseCbvGpu.ptr + static_cast< UINT64 >(i) * cbvInc;
 		createDesc.mesh = enemyAsset.mesh;
 		createDesc.spawnHidden = true;
 		createDesc.addCollider = true;
