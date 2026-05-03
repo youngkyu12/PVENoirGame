@@ -22,16 +22,13 @@ void CPlayerEquipmentComponent::OnCreate(ID3D12Device* /*dev*/, ID3D12GraphicsCo
 
 namespace
 {
-	constexpr float kSwordWhooshDelayStepSeconds = 1.0f / 60.0f;
+	constexpr float kWhooshDelayStepSeconds = 1.0f / 60.0f;
 
-	// 실제 게임에서도 사용하는 기본 딜레이.
-	// 테스트가 끝나면 여기 값을 확정하거나, 애니메이션 이벤트 방식으로 교체하면 된다.
-	float g_swordWhooshDelaySeconds = 0.0f;
+	constexpr float kSword1WhooshDelaySeconds = 13.0f / 60.0f; // 0.2167 sec
+	constexpr float kSword2WhooshDelaySeconds = 13.0f / 60.0f; // 0.2167 sec
+	constexpr float kSword3WhooshDelaySeconds = 15.0f / 60.0f; // 0.2500 sec
 
-#if ENABLE_PLAYER_SWORD_WHOOSH_TUNING
-	// 0 = random, 1~3 = fixed
-	int g_debugSwordWhooshFixedIndex = 0;
-#endif
+	constexpr float kAxeWhooshDelaySeconds = 23.0f / 60.0f; // 0.3833 sec
 
 	int RandomSwordWhooshIndex()
 	{
@@ -40,19 +37,10 @@ namespace
 		return dist(rng);
 	}
 
-	const char* SwordWhooshModeText()
-	{
-#if ENABLE_PLAYER_SWORD_WHOOSH_TUNING
-		switch ( g_debugSwordWhooshFixedIndex )
-		{
-		case 1: return "Fixed: Whoosh_Sword1";
-		case 2: return "Fixed: Whoosh_Sword2";
-		case 3: return "Fixed: Whoosh_Sword3";
-		default: break;
-		}
-#endif
-		return "Random";
-	}
+	// whoosh 전용 볼륨.
+	// 1.0f가 현재 값. 작으면 1.5f~2.0f부터 테스트.
+	constexpr float kSwordWhooshVolume = 2.0f;
+	constexpr float kAxeWhooshVolume = 5.0f;
 }
 
 bool CPlayerEquipmentComponent::IsWeaponType(EWeaponType type)
@@ -262,18 +250,18 @@ void CPlayerEquipmentComponent::RefreshWeaponVisibility()
 
 void CPlayerEquipmentComponent::OnUpdate(float dt)
 {
-	if ( !m_pendingSwordWhoosh )
+	if ( m_pendingWhooshKind == EPendingWeaponWhooshKind::None )
 		return;
 
-	if ( m_pendingSwordWhooshTimer > 0.0f )
+	if ( m_pendingWhooshTimer > 0.0f )
 	{
-		m_pendingSwordWhooshTimer -= dt;
+		m_pendingWhooshTimer -= dt;
 
-		if ( m_pendingSwordWhooshTimer > 0.0f )
+		if ( m_pendingWhooshTimer > 0.0f )
 			return;
 	}
 
-	PlayPendingSwordWhoosh();
+	PlayPendingWeaponWhoosh();
 }
 
 bool CPlayerEquipmentComponent::RequestSwordAttackWhoosh()
@@ -284,70 +272,116 @@ bool CPlayerEquipmentComponent::RequestSwordAttackWhoosh()
 	if ( !m_audioManager )
 		return false;
 
-	m_pendingSwordWhoosh = true;
-	m_pendingSwordWhooshTimer = g_swordWhooshDelaySeconds;
-	m_pendingSwordWhooshIndex = SelectSwordWhooshIndex();
+	const int index = SelectSwordWhooshIndex();
+	const char* path = GetSwordWhooshPath(index);
+	const float delaySeconds = GetSwordWhooshDelaySeconds(index);
 
-	// 딜레이 0초면 같은 프레임에 즉시 재생한다.
-	// 그래도 구조상 “딜레이 후 실행” 경로를 그대로 타므로 나중에 조절하기 쉽다.
-	if ( m_pendingSwordWhooshTimer <= 0.0f )
-		PlayPendingSwordWhoosh();
+	ScheduleWeaponWhoosh(
+		EPendingWeaponWhooshKind::Sword,
+		path,
+		delaySeconds,
+		kSwordWhooshVolume
+	);
 
 	return true;
 }
 
-void CPlayerEquipmentComponent::PlayPendingSwordWhoosh()
+bool CPlayerEquipmentComponent::RequestAxeAttackWhoosh()
 {
-	if ( !m_pendingSwordWhoosh )
+	if ( m_equippedWeapon != EWeaponType::Axe )
+		return false;
+
+	if ( !m_audioManager )
+		return false;
+
+	ScheduleWeaponWhoosh(
+		EPendingWeaponWhooshKind::Axe,
+		GetAxeWhooshPath(),
+		kAxeWhooshDelaySeconds,
+		kAxeWhooshVolume
+	);
+
+	return true;
+}
+
+void CPlayerEquipmentComponent::ScheduleWeaponWhoosh(
+	EPendingWeaponWhooshKind kind,
+	const char* soundPath,
+	float delaySeconds,
+	float volume)
+{
+	if ( kind == EPendingWeaponWhooshKind::None )
 		return;
 
-	m_pendingSwordWhoosh = false;
-	m_pendingSwordWhooshTimer = 0.0f;
+	if ( !soundPath || !soundPath[0] )
+		return;
+
+	m_pendingWhooshKind = kind;
+	m_pendingWhooshPath = soundPath;
+	m_pendingWhooshTimer = delaySeconds;
+	m_pendingWhooshOriginalDelay = delaySeconds;
+	m_pendingWhooshVolume = volume;
+
+	if ( m_pendingWhooshTimer <= 0.0f )
+		PlayPendingWeaponWhoosh();
+}
+
+void CPlayerEquipmentComponent::PlayPendingWeaponWhoosh()
+{
+	if ( m_pendingWhooshKind == EPendingWeaponWhooshKind::None )
+		return;
+
+	const EPendingWeaponWhooshKind playedKind = m_pendingWhooshKind;
+	const char* playedPath = m_pendingWhooshPath;
+	const float playedDelay = m_pendingWhooshOriginalDelay;
+	const float playedVolume = m_pendingWhooshVolume;
+
+	m_pendingWhooshKind = EPendingWeaponWhooshKind::None;
+	m_pendingWhooshPath = nullptr;
+	m_pendingWhooshTimer = 0.0f;
+	m_pendingWhooshOriginalDelay = 0.0f;
+	m_pendingWhooshVolume = 1.0f;
 
 	if ( !m_audioManager )
 		return;
 
-	const char* path = GetSwordWhooshPath(m_pendingSwordWhooshIndex);
-	if ( !path || !path[0] )
+	if ( !playedPath || !playedPath[0] )
 		return;
 
 	const XMFLOAT3 pos =
 		m_pOwner ? m_pOwner->GetPosition() : XMFLOAT3(0.0f, 0.0f, 0.0f);
 
 	m_audioManager->PlaySound3D(
-		path,
+		playedPath,
 		pos,
-		false,  // loop
-		false,  // stream
-		1.0f,   // volume
-		false   // startPaused
+		false,        // loop
+		false,        // stream
+		playedVolume, // volume
+		false         // startPaused
 	);
 
-#if ENABLE_PLAYER_SWORD_WHOOSH_TUNING
-	char buf[512];
-	sprintf_s(
-		buf,
-		"[SwordWhoosh] sound=\"%s\" mode=\"%s\" delay=%.4f sec / %.2f ms owner=%p pos=(%.3f, %.3f, %.3f)\n",
-		path,
-		SwordWhooshModeText(),
-		g_swordWhooshDelaySeconds,
-		g_swordWhooshDelaySeconds * 1000.0f,
-		static_cast< void* >( m_pOwner ),
-		pos.x,
-		pos.y,
-		pos.z
-	);
-	OutputDebugStringA(buf);
+#if ENABLE_PLAYER_AXE_WHOOSH_TUNING
+	if ( playedKind == EPendingWeaponWhooshKind::Axe )
+	{
+		char buf[512];
+		sprintf_s(
+			buf,
+			"[AxeWhoosh] sound=\"%s\" delay=%.4f sec / %.2f ms owner=%p pos=(%.3f, %.3f, %.3f)\n",
+			playedPath,
+			playedDelay,
+			playedDelay * 1000.0f,
+			static_cast< void* >( m_pOwner ),
+			pos.x,
+			pos.y,
+			pos.z
+		);
+		OutputDebugStringA(buf);
+	}
 #endif
 }
 
-int CPlayerEquipmentComponent::SelectSwordWhooshIndex() const
+int CPlayerEquipmentComponent::SelectSwordWhooshIndex()
 {
-#if ENABLE_PLAYER_SWORD_WHOOSH_TUNING
-	if ( g_debugSwordWhooshFixedIndex >= 1 && g_debugSwordWhooshFixedIndex <= 3 )
-		return g_debugSwordWhooshFixedIndex;
-#endif
-
 	return RandomSwordWhooshIndex();
 }
 
@@ -364,58 +398,20 @@ const char* CPlayerEquipmentComponent::GetSwordWhooshPath(int index)
 	return "Assets/Audio/Whoosh_Sword1.wav";
 }
 
-#if ENABLE_PLAYER_SWORD_WHOOSH_TUNING
-
-void CPlayerEquipmentComponent::DebugSetSwordWhooshFixedIndex(int index)
+float CPlayerEquipmentComponent::GetSwordWhooshDelaySeconds(int index)
 {
-	if ( index < 0 ) index = 0;
-	if ( index > 3 ) index = 3;
+	switch ( index )
+	{
+	case 1: return kSword1WhooshDelaySeconds;
+	case 2: return kSword2WhooshDelaySeconds;
+	case 3: return kSword3WhooshDelaySeconds;
+	default: break;
+	}
 
-	g_debugSwordWhooshFixedIndex = index;
-
-	char buf[256];
-	sprintf_s(
-		buf,
-		"[SwordWhooshDebug] mode=%s delay=%.4f sec / %.2f ms\n",
-		SwordWhooshModeText(),
-		g_swordWhooshDelaySeconds,
-		g_swordWhooshDelaySeconds * 1000.0f
-	);
-	OutputDebugStringA(buf);
+	return kSword1WhooshDelaySeconds;
 }
 
-void CPlayerEquipmentComponent::DebugDecreaseSwordWhooshDelayOneFrame()
+const char* CPlayerEquipmentComponent::GetAxeWhooshPath()
 {
-	if ( g_swordWhooshDelaySeconds <= 0.0f )
-		return;
-
-	g_swordWhooshDelaySeconds -= kSwordWhooshDelayStepSeconds;
-
-	if ( g_swordWhooshDelaySeconds < 0.0f )
-		g_swordWhooshDelaySeconds = 0.0f;
-
-	char buf[256];
-	sprintf_s(
-		buf,
-		"[SwordWhooshDebug] delay decreased: %.4f sec / %.2f ms\n",
-		g_swordWhooshDelaySeconds,
-		g_swordWhooshDelaySeconds * 1000.0f
-	);
-	OutputDebugStringA(buf);
+	return "Assets/Audio/Whoosh_Axe.wav";
 }
-
-void CPlayerEquipmentComponent::DebugIncreaseSwordWhooshDelayOneFrame()
-{
-	g_swordWhooshDelaySeconds += kSwordWhooshDelayStepSeconds;
-
-	char buf[256];
-	sprintf_s(
-		buf,
-		"[SwordWhooshDebug] delay increased: %.4f sec / %.2f ms\n",
-		g_swordWhooshDelaySeconds,
-		g_swordWhooshDelaySeconds * 1000.0f
-	);
-	OutputDebugStringA(buf);
-}
-
-#endif
