@@ -1,6 +1,9 @@
 //-----------------------------------------------------------------------------
 // File: PlayerEquipmentComponent.h
 //-----------------------------------------------------------------------------
+#ifndef ENABLE_PLAYER_SWORD_WHOOSH_TUNING
+#define ENABLE_PLAYER_SWORD_WHOOSH_TUNING 1
+#endif
 #pragma once
 
 #include <array>
@@ -9,6 +12,7 @@
 #include "Component.h"
 
 class CGameObject;
+class CAudioManager;
 
 enum class EWeaponType : uint8_t
 {
@@ -81,4 +85,32 @@ private:
 
     // actually equipped weapon
     EWeaponType m_equippedWeapon = EWeaponType::None;
+
+public:
+	void OnUpdate(float dt) override;
+
+	void SetAudioManager(CAudioManager* audioManager) { m_audioManager = audioManager; }
+
+	// 공격이 실제 accepted 되었을 때 GameScene에서 호출한다.
+	bool RequestSwordAttackWhoosh();
+
+#if ENABLE_PLAYER_SWORD_WHOOSH_TUNING
+public:
+	// 0 = 랜덤, 1~3 = Whoosh_Sword1~3 고정
+	static void DebugSetSwordWhooshFixedIndex(int index);
+	static void DebugDecreaseSwordWhooshDelayOneFrame();
+	static void DebugIncreaseSwordWhooshDelayOneFrame();
+#endif
+
+private:
+	void PlayPendingSwordWhoosh();
+	int SelectSwordWhooshIndex() const;
+	static const char* GetSwordWhooshPath(int index);
+
+private:
+	CAudioManager* m_audioManager = nullptr;
+
+	bool  m_pendingSwordWhoosh = false;
+	float m_pendingSwordWhooshTimer = 0.0f;
+	int   m_pendingSwordWhooshIndex = 1;
 };

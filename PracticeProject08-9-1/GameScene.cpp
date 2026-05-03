@@ -5831,6 +5831,10 @@ void CGameScene::BuildSkinnedBatch(
 #endif
 
 			CGameObject* raw = obj.get();
+			if ( auto* equip = raw->GetComponent<CPlayerEquipmentComponent>() )
+			{
+				equip->SetAudioManager(m_pAudioManager);
+			}
 
 			if ( slot >= 0 && slot <= 3 )
 				m_playersBySlot[( size_t ) slot] = raw;
@@ -7055,12 +7059,18 @@ void CGameScene::RequestPlayerAttackBySlot(int slot)
 	constexpr float kBulletSpeed = 10.0f;
 	constexpr float kBulletLife = 3.0f;
 
+	bool shouldPlaySwordWhoosh = false;
 	bool shouldPrepareArrow = false;
 	bool shouldFireBullet = false;
 
+	CPlayerEquipmentComponent* equipComp = nullptr;
+
 	if ( auto* equip = obj->GetComponent<CPlayerEquipmentComponent>() )
 	{
+		equipComp = equip;
+
 		const EWeaponType weapon = equip->GetEquippedWeapon();
+		shouldPlaySwordWhoosh = ( weapon == EWeaponType::Sword );
 		shouldPrepareArrow = ( weapon == EWeaponType::Bow );
 		shouldFireBullet = ( weapon == EWeaponType::Gun );
 	}
@@ -7070,6 +7080,9 @@ void CGameScene::RequestPlayerAttackBySlot(int slot)
 		if ( auto* ctrl = animComp->EnsureController() )
 		{
 			const bool accepted = ctrl->RequestAttack();
+
+			if ( accepted && shouldPlaySwordWhoosh && equipComp )
+				equipComp->RequestSwordAttackWhoosh();
 
 			if ( accepted && shouldPrepareArrow )
 				RequestPrepareArrow(obj, kArrowPullBackDistance);
@@ -7084,6 +7097,9 @@ void CGameScene::RequestPlayerAttackBySlot(int slot)
 	if ( auto* ctrl = obj->GetAnimController() )
 	{
 		const bool accepted = ctrl->RequestAttack();
+
+		if ( accepted && shouldPlaySwordWhoosh && equipComp )
+			equipComp->RequestSwordAttackWhoosh();
 
 		if ( accepted && shouldPrepareArrow )
 			RequestPrepareArrow(obj, kArrowPullBackDistance);
@@ -7908,8 +7924,43 @@ bool CGameScene::OnProcessingMouseMessage(HWND /*hWnd*/, UINT msg, WPARAM /*wPar
 	return false;
 }
 
-bool CGameScene::OnProcessingKeyboardMessage(HWND /*hWnd*/, UINT msg, WPARAM wParam, LPARAM /*lParam*/)
+bool CGameScene::OnProcessingKeyboardMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+	UNREFERENCED_PARAMETER(hWnd);
+	UNREFERENCED_PARAMETER(lParam);
+
+#if ENABLE_PLAYER_SWORD_WHOOSH_TUNING
+	if ( msg == WM_KEYDOWN )
+	{
+		switch ( wParam )
+		{
+		case '7':
+			CPlayerEquipmentComponent::DebugSetSwordWhooshFixedIndex(1);
+			return true;
+
+		case '8':
+			CPlayerEquipmentComponent::DebugSetSwordWhooshFixedIndex(2);
+			return true;
+
+		case '9':
+			CPlayerEquipmentComponent::DebugSetSwordWhooshFixedIndex(3);
+			return true;
+
+		case 'O':
+			CPlayerEquipmentComponent::DebugDecreaseSwordWhooshDelayOneFrame();
+			return true;
+
+		case 'P':
+			CPlayerEquipmentComponent::DebugIncreaseSwordWhooshDelayOneFrame();
+			return true;
+
+		default:
+			break;
+		}
+	}
+#endif
+
+	// 기존 처리 유지
 	return false;
 }
 

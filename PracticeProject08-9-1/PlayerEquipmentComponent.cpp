@@ -3,8 +3,12 @@
 //-----------------------------------------------------------------------------
 #include "stdafx.h"
 #include "PlayerEquipmentComponent.h"
+#include "AudioManager.h"
 
 #include "Object.h"
+
+#include <random>
+#include <algorithm>
 
 CPlayerEquipmentComponent::CPlayerEquipmentComponent(CGameObject* owner)
     : CComponentT(owner)
@@ -14,6 +18,41 @@ CPlayerEquipmentComponent::CPlayerEquipmentComponent(CGameObject* owner)
 void CPlayerEquipmentComponent::OnCreate(ID3D12Device* /*dev*/, ID3D12GraphicsCommandList* /*cmd*/)
 {
     RefreshEquippedState();
+}
+
+namespace
+{
+	constexpr float kSwordWhooshDelayStepSeconds = 1.0f / 60.0f;
+
+	// ì‹¤ì œ ê²Œì„ì—ì„œë„ ì‚¬ìš©í•˜ëŠ” ê¸°ë³¸ ë”œë ˆì´.
+	// í…ŒìŠ¤íŠ¸ê°€ ëë‚˜ë©´ ì—¬ê¸° ê°’ì„ í™•ì •í•˜ê±°ë‚˜, ì• ë‹ˆë©”ì´ì…˜ ì´ë²¤íŠ¸ ë°©ì‹ìœ¼ë¡œ êµì²´í•˜ë©´ ëœë‹¤.
+	float g_swordWhooshDelaySeconds = 0.0f;
+
+#if ENABLE_PLAYER_SWORD_WHOOSH_TUNING
+	// 0 = random, 1~3 = fixed
+	int g_debugSwordWhooshFixedIndex = 0;
+#endif
+
+	int RandomSwordWhooshIndex()
+	{
+		static std::mt19937 rng{ std::random_device{}( ) };
+		static std::uniform_int_distribution<int> dist(1, 3);
+		return dist(rng);
+	}
+
+	const char* SwordWhooshModeText()
+	{
+#if ENABLE_PLAYER_SWORD_WHOOSH_TUNING
+		switch ( g_debugSwordWhooshFixedIndex )
+		{
+		case 1: return "Fixed: Whoosh_Sword1";
+		case 2: return "Fixed: Whoosh_Sword2";
+		case 3: return "Fixed: Whoosh_Sword3";
+		default: break;
+		}
+#endif
+		return "Random";
+	}
 }
 
 bool CPlayerEquipmentComponent::IsWeaponType(EWeaponType type)
@@ -32,7 +71,7 @@ void CPlayerEquipmentComponent::SetWeaponObject(EWeaponType type, CGameObject* w
     const int idx = ToIndex(type);
     if (idx < 0) return;
 
-    // ÀÌÀü ¿ÀºêÁ§Æ®°¡ ÀÖ¾ú´Ù¸é ÀÏ´Ü ¼û±è
+    // ì´ì „ ì˜¤ë¸Œì íŠ¸ê°€ ìˆì—ˆë‹¤ë©´ ì¼ë‹¨ ìˆ¨ê¹€
     if (m_weaponObjects[idx] && m_weaponObjects[idx] != weaponObject)
     {
         if (auto* renderer = m_weaponObjects[idx]->GetRenderer())
@@ -163,7 +202,7 @@ bool CPlayerEquipmentComponent::SwapWeapon()
 
     if (m_ownedCount == 1)
     {
-        // ÇÏ³ª¸¸ ÀÖÀ¸¸é ¹«Á¶°Ç ±×°É µê
+        // í•˜ë‚˜ë§Œ ìˆìœ¼ë©´ ë¬´ì¡°ê±´ ê·¸ê±¸ ë“¦
         if (m_equippedWeapon != m_ownedWeapons[0])
             EquipWeapon(m_ownedWeapons[0]);
         return false;
@@ -176,7 +215,7 @@ bool CPlayerEquipmentComponent::SwapWeapon()
     if (m_equippedWeapon == m_ownedWeapons[1])
         return EquipWeapon(m_ownedWeapons[0]);
 
-    // ºñÁ¤»ó »óÅÂ¸é Ã¹ ¹øÂ° ¹«±â·Î º¹±¸
+    // ë¹„ì •ìƒ ìƒíƒœë©´ ì²« ë²ˆì§¸ ë¬´ê¸°ë¡œ ë³µêµ¬
     return EquipWeapon(m_ownedWeapons[0]);
 }
 
@@ -195,7 +234,7 @@ void CPlayerEquipmentComponent::RefreshEquippedState()
         return;
     }
 
-    // ÇÏ³ª¶óµµ ÀÖÀ¸¸é ¹İµå½Ã ÇÏ³ª´Â µé°í ÀÖ¾î¾ß ÇÔ
+    // í•˜ë‚˜ë¼ë„ ìˆìœ¼ë©´ ë°˜ë“œì‹œ í•˜ë‚˜ëŠ” ë“¤ê³  ìˆì–´ì•¼ í•¨
     if (!HasWeapon(m_equippedWeapon))
         m_equippedWeapon = m_ownedWeapons[0];
 
@@ -220,3 +259,163 @@ void CPlayerEquipmentComponent::RefreshWeaponVisibility()
         SetWeaponObjectVisible(type, visible);
     }
 }
+
+void CPlayerEquipmentComponent::OnUpdate(float dt)
+{
+	if ( !m_pendingSwordWhoosh )
+		return;
+
+	if ( m_pendingSwordWhooshTimer > 0.0f )
+	{
+		m_pendingSwordWhooshTimer -= dt;
+
+		if ( m_pendingSwordWhooshTimer > 0.0f )
+			return;
+	}
+
+	PlayPendingSwordWhoosh();
+}
+
+bool CPlayerEquipmentComponent::RequestSwordAttackWhoosh()
+{
+	if ( m_equippedWeapon != EWeaponType::Sword )
+		return false;
+
+	if ( !m_audioManager )
+		return false;
+
+	m_pendingSwordWhoosh = true;
+	m_pendingSwordWhooshTimer = g_swordWhooshDelaySeconds;
+	m_pendingSwordWhooshIndex = SelectSwordWhooshIndex();
+
+	// ë”œë ˆì´ 0ì´ˆë©´ ê°™ì€ í”„ë ˆì„ì— ì¦‰ì‹œ ì¬ìƒí•œë‹¤.
+	// ê·¸ë˜ë„ êµ¬ì¡°ìƒ â€œë”œë ˆì´ í›„ ì‹¤í–‰â€ ê²½ë¡œë¥¼ ê·¸ëŒ€ë¡œ íƒ€ë¯€ë¡œ ë‚˜ì¤‘ì— ì¡°ì ˆí•˜ê¸° ì‰½ë‹¤.
+	if ( m_pendingSwordWhooshTimer <= 0.0f )
+		PlayPendingSwordWhoosh();
+
+	return true;
+}
+
+void CPlayerEquipmentComponent::PlayPendingSwordWhoosh()
+{
+	if ( !m_pendingSwordWhoosh )
+		return;
+
+	m_pendingSwordWhoosh = false;
+	m_pendingSwordWhooshTimer = 0.0f;
+
+	if ( !m_audioManager )
+		return;
+
+	const char* path = GetSwordWhooshPath(m_pendingSwordWhooshIndex);
+	if ( !path || !path[0] )
+		return;
+
+	const XMFLOAT3 pos =
+		m_pOwner ? m_pOwner->GetPosition() : XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	m_audioManager->PlaySound3D(
+		path,
+		pos,
+		false,  // loop
+		false,  // stream
+		1.0f,   // volume
+		false   // startPaused
+	);
+
+#if ENABLE_PLAYER_SWORD_WHOOSH_TUNING
+	char buf[512];
+	sprintf_s(
+		buf,
+		"[SwordWhoosh] sound=\"%s\" mode=\"%s\" delay=%.4f sec / %.2f ms owner=%p pos=(%.3f, %.3f, %.3f)\n",
+		path,
+		SwordWhooshModeText(),
+		g_swordWhooshDelaySeconds,
+		g_swordWhooshDelaySeconds * 1000.0f,
+		static_cast< void* >( m_pOwner ),
+		pos.x,
+		pos.y,
+		pos.z
+	);
+	OutputDebugStringA(buf);
+#endif
+}
+
+int CPlayerEquipmentComponent::SelectSwordWhooshIndex() const
+{
+#if ENABLE_PLAYER_SWORD_WHOOSH_TUNING
+	if ( g_debugSwordWhooshFixedIndex >= 1 && g_debugSwordWhooshFixedIndex <= 3 )
+		return g_debugSwordWhooshFixedIndex;
+#endif
+
+	return RandomSwordWhooshIndex();
+}
+
+const char* CPlayerEquipmentComponent::GetSwordWhooshPath(int index)
+{
+	switch ( index )
+	{
+	case 1: return "Assets/Audio/Whoosh_Sword1.wav";
+	case 2: return "Assets/Audio/Whoosh_Sword2.wav";
+	case 3: return "Assets/Audio/Whoosh_Sword3.wav";
+	default: break;
+	}
+
+	return "Assets/Audio/Whoosh_Sword1.wav";
+}
+
+#if ENABLE_PLAYER_SWORD_WHOOSH_TUNING
+
+void CPlayerEquipmentComponent::DebugSetSwordWhooshFixedIndex(int index)
+{
+	if ( index < 0 ) index = 0;
+	if ( index > 3 ) index = 3;
+
+	g_debugSwordWhooshFixedIndex = index;
+
+	char buf[256];
+	sprintf_s(
+		buf,
+		"[SwordWhooshDebug] mode=%s delay=%.4f sec / %.2f ms\n",
+		SwordWhooshModeText(),
+		g_swordWhooshDelaySeconds,
+		g_swordWhooshDelaySeconds * 1000.0f
+	);
+	OutputDebugStringA(buf);
+}
+
+void CPlayerEquipmentComponent::DebugDecreaseSwordWhooshDelayOneFrame()
+{
+	if ( g_swordWhooshDelaySeconds <= 0.0f )
+		return;
+
+	g_swordWhooshDelaySeconds -= kSwordWhooshDelayStepSeconds;
+
+	if ( g_swordWhooshDelaySeconds < 0.0f )
+		g_swordWhooshDelaySeconds = 0.0f;
+
+	char buf[256];
+	sprintf_s(
+		buf,
+		"[SwordWhooshDebug] delay decreased: %.4f sec / %.2f ms\n",
+		g_swordWhooshDelaySeconds,
+		g_swordWhooshDelaySeconds * 1000.0f
+	);
+	OutputDebugStringA(buf);
+}
+
+void CPlayerEquipmentComponent::DebugIncreaseSwordWhooshDelayOneFrame()
+{
+	g_swordWhooshDelaySeconds += kSwordWhooshDelayStepSeconds;
+
+	char buf[256];
+	sprintf_s(
+		buf,
+		"[SwordWhooshDebug] delay increased: %.4f sec / %.2f ms\n",
+		g_swordWhooshDelaySeconds,
+		g_swordWhooshDelaySeconds * 1000.0f
+	);
+	OutputDebugStringA(buf);
+}
+
+#endif

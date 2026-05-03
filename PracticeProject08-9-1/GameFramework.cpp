@@ -1128,10 +1128,10 @@ void CGameFramework::FrameAdvance()
 		}
 	}
 #endif
-	{
+	/*{
 		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::CollisionSystem");
 		CollisionSystem();
-	}
+	}*/
 
 	{
 		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::CommandAllocatorAndListReset");
