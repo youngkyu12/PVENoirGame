@@ -15,7 +15,10 @@ public:
 	void Render();
 
 public:
-	CGameObject* SpawnEnemy(const DirectX::XMFLOAT3& position);
+	void SetSpawnerPosition(const DirectX::XMFLOAT3& position);
+	const DirectX::XMFLOAT3& GetSpawnerPosition() const;
+	CGameObject* SpawnEnemy();
+	int SpawnEnemies(int count = 30);
 	void RemoveEnemy(CGameObject* enemy);
 	void Clear();
 
@@ -25,6 +28,7 @@ public:
 
 private:
 	EnemyPool* mEnemyPool = nullptr;
+	DirectX::XMFLOAT3 mSpawnerPosition = DirectX::XMFLOAT3(0.f, 0.f, 0.f);
 
 	std::vector<CGameObject*> mActiveEnemies;
 };
