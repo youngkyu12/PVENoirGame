@@ -1,6 +1,11 @@
 #pragma once
 
-class CGameObject;
+#include "stdafx.h"
+#include "Object.h"
+
+#include <memory>
+#include <queue>
+#include <vector>
 
 class EnemyPool
 {
