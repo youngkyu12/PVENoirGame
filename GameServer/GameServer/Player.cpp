@@ -26,7 +26,10 @@ void Player::Update(uint32 serverTick)
         {
         case Protocol::ANIMATION_TYPE_WALK:   animDuration = 15; break;
         case Protocol::ANIMATION_TYPE_RUN:    animDuration = 10; break;
-        case Protocol::ANIMATION_TYPE_ATTACK: animDuration = 10; break;
+        case Protocol::ANIMATION_TYPE_ATTACK:
+            animDuration =
+                (weapon.GetWeaponState() == Protocol::WEAPON_TYPE_BOW && weapon.IsAttacking()) ? 0 : 10;
+            break;
         case Protocol::ANIMATION_TYPE_ROLL:   animDuration = 1;  break;
         case Protocol::ANIMATION_TYPE_DIE:    animDuration = 25; break;
         case Protocol::ANIMATION_TYPE_HIT:    animDuration = 10; break;
@@ -59,6 +62,7 @@ void Player::ApplyHit(uint32 serverTick, int damage, uint32 hitDurationTicks)
 {
     if (IsDead()) return;
 
+    weapon.CancelAttack();
     TakeDamage(damage);
 
     if (IsDead())
@@ -74,6 +78,7 @@ void Player::ApplyHit(uint32 serverTick, int damage, uint32 hitDurationTicks)
 void Player::OnDeathEnter(uint32 serverTick)
 {
     m_lifeState = EPlayerLifeState::DeadAnimating;
+    weapon.CancelAttack();
 
     SetAnimState(Protocol::ANIMATION_TYPE_DIE);
     SetAnimTick(serverTick);
