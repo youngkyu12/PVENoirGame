@@ -8576,9 +8576,9 @@ void CGameScene::AnimateObjects(float dt)
 		m_lightObjects[j]->Animate(dt);
 	}
 
-#ifndef USING_NETWORK
+//#ifndef USING_NETWORK
 	UpdateDynamicGridState();
-#endif
+//#endif
 }
 
 void CGameScene::CollisionObjects()

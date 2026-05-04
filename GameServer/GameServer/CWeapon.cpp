@@ -1,18 +1,36 @@
 #include "CWeapon.h"
 
-Vector<float> FireRateMap;
+namespace
+{
+	WeaponTuning g_defaultWeaponTunings[Protocol::WEAPON_TYPE_CANON + 1];
+
+	constexpr float kServerTickMs = 60.0f;
+	constexpr float kServerTicksPerSec = 1000.0f / kServerTickMs;
+
+	const WeaponTuning& GetDefaultTuning(Protocol::WeaponType type)
+	{
+		if (type < Protocol::WEAPON_TYPE_NONE || type > Protocol::WEAPON_TYPE_CANON)
+			return g_defaultWeaponTunings[Protocol::WEAPON_TYPE_NONE];
+
+		return g_defaultWeaponTunings[type];
+	}
+}
 
 void MakeFireRateMap()
 {
-	FireRateMap.resize(Protocol::WEAPON_TYPE_CANON + 1);
+	g_defaultWeaponTunings[Protocol::WEAPON_TYPE_NONE].fireRate = 0.0f;
+	g_defaultWeaponTunings[Protocol::WEAPON_TYPE_SWORD].fireRate = 1.0f;
+	g_defaultWeaponTunings[Protocol::WEAPON_TYPE_AXE].fireRate = 0.5f;
+	g_defaultWeaponTunings[Protocol::WEAPON_TYPE_CANON].fireRate = 0.2f;
 
-	FireRateMap[Protocol::WEAPON_TYPE_NONE] = 0.f;
-	FireRateMap[Protocol::WEAPON_TYPE_SWORD] = 1.f; // 1초에 1회 공격
-	FireRateMap[Protocol::WEAPON_TYPE_BOW] = 2.f;   // 1초에 2회 공격
-	FireRateMap[Protocol::WEAPON_TYPE_AXE] = 0.5f;  // 1초에 0.5회 공격 (2초에 1회 공격)
-	FireRateMap[Protocol::WEAPON_TYPE_CANON] = 0.2f; // 1초에 0.2회 공격 (5초에 1회 공격)
+	WeaponTuning& bow = g_defaultWeaponTunings[Protocol::WEAPON_TYPE_BOW];
+	bow.fireRate = 2.0f;
+	bow.bowLoadTicks = 8;
+	bow.bowReleaseTicks = 4;
+	bow.bowRecoveryTicks = 4;
+	bow.arrowSpeed = 12.0f;
+	bow.arrowLifeTicks = 200;
 }
-
 
 CWeapon::CWeapon()
 	: bulletType(Protocol::BULLET_TYPE_NONE), weaponType(Protocol::WEAPON_TYPE_NONE)
@@ -25,24 +43,24 @@ CWeapon::~CWeapon()
 
 void CWeapon::SetWeapon(Protocol::WeaponType&& type, uint32&& currnetBullets)
 {
+	CancelAttack();
 	weaponType = type;
-	fireRate = FireRateMap[type];
 	switch (type)
 	{
 	case Protocol::WEAPON_TYPE_NONE:
 		currentBullets = 0;
 		break;
 	case Protocol::WEAPON_TYPE_SWORD:
-		currentBullets = 0; // 근접 무기는 탄환이 없음
+		currentBullets = 0;
 		break;
 	case Protocol::WEAPON_TYPE_BOW:
-		currentBullets = 30; // 예시: 활은 30발의 화살을 가짐
+		currentBullets = 30;
 		break;
 	case Protocol::WEAPON_TYPE_AXE:
-		currentBullets = 0; // 근접 무기는 탄환이 없음
+		currentBullets = 0;
 		break;
 	case Protocol::WEAPON_TYPE_CANON:
-		currentBullets = 10; // 예시: 대포는 10발의 포탄을 가짐
+		currentBullets = 10;
 		break;
 	default:
 		currentBullets = 0;
@@ -52,14 +70,15 @@ void CWeapon::SetWeapon(Protocol::WeaponType&& type, uint32&& currnetBullets)
 
 bool CWeapon::CanFire(uint32 serverTick) const
 {
-	if (fireRate <= 0.f)
+	const WeaponTuning& tuning = GetTuning();
+	if (tuning.fireRate <= 0.0f)
 		return false;
 
 	if (currentBullets == 0 && bulletType != Protocol::BULLET_TYPE_NONE)
 		return false;
 
-	const float ticksPerShot = 33.3f / fireRate;
-	const uint32 requiredTicks = static_cast<uint32>(ticksPerShot);
+	const float ticksPerShot = kServerTicksPerSec / tuning.fireRate;
+	const uint32 requiredTicks = static_cast<uint32>(ceilf(ticksPerShot));
 	if (m_lastFireTick == 0)
 		return true;
 
@@ -76,21 +95,96 @@ void CWeapon::OnFired(uint32 serverTick)
 
 void CWeapon::SetBullet(Protocol::BulletType&& type, uint32& currentBullets)
 {
+	CancelAttack();
 	bulletType = type;
 	switch (type)
 	{
 	case Protocol::BULLET_TYPE_NONE:
-		currentBullets = 0;
+		this->currentBullets = 0;
 		break;
 	case Protocol::BULLET_TYPE_ARROW:
-		currentBullets = 30; // 예시: 화살은 30발
+		this->currentBullets = 30;
 		break;
 	case Protocol::BULLET_TYPE_CANNONBALL:
-		currentBullets = 10; // 예시: 포탄은 10발
+		this->currentBullets = 10;
 		break;
 	default:
-		currentBullets = 0;
+		this->currentBullets = 0;
 		break;
 	}
 }
 
+const WeaponTuning& CWeapon::GetTuning() const
+{
+	if (m_tuning)
+		return *m_tuning;
+
+	return GetDefaultTuning(weaponType);
+}
+
+bool CWeapon::BeginAttack(uint32 serverTick)
+{
+	if (!CanFire(serverTick))
+		return false;
+
+	if (m_attackPhase != EWeaponAttackPhase::None)
+		return false;
+
+	if (weaponType == Protocol::WEAPON_TYPE_BOW)
+	{
+		m_attackPhase = EWeaponAttackPhase::BowLoad;
+		m_attackStartTick = serverTick;
+		m_releaseFired = false;
+		return true;
+	}
+
+	return true;
+}
+
+WeaponFireRequest CWeapon::UpdateAttack(uint32 serverTick)
+{
+	WeaponFireRequest req{};
+
+	if (m_attackPhase == EWeaponAttackPhase::None)
+		return req;
+
+	if (weaponType != Protocol::WEAPON_TYPE_BOW)
+	{
+		CancelAttack();
+		return req;
+	}
+
+	const WeaponTuning& tuning = GetTuning();
+	const uint32 elapsed = serverTick - m_attackStartTick;
+	const uint32 releaseStart = tuning.bowLoadTicks;
+	const uint32 recoveryStart = tuning.bowLoadTicks + tuning.bowReleaseTicks;
+	const uint32 attackEnd = recoveryStart + tuning.bowRecoveryTicks;
+
+	if (elapsed >= releaseStart && m_attackPhase == EWeaponAttackPhase::BowLoad)
+		m_attackPhase = EWeaponAttackPhase::BowRelease;
+
+	if (m_attackPhase == EWeaponAttackPhase::BowRelease && !m_releaseFired)
+	{
+		m_releaseFired = true;
+		req.fire = true;
+		req.bulletType = Protocol::BULLET_TYPE_ARROW;
+		req.speed = tuning.arrowSpeed;
+		req.lifeTicks = tuning.arrowLifeTicks;
+		return req;
+	}
+
+	if (elapsed >= recoveryStart && m_attackPhase == EWeaponAttackPhase::BowRelease)
+		m_attackPhase = EWeaponAttackPhase::BowRecovery;
+
+	if (elapsed >= attackEnd)
+		CancelAttack();
+
+	return req;
+}
+
+void CWeapon::CancelAttack()
+{
+	m_attackPhase = EWeaponAttackPhase::None;
+	m_attackStartTick = 0;
+	m_releaseFired = false;
+}
