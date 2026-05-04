@@ -4618,7 +4618,6 @@ void CGameScene::BuildStaticVisibleListsForFrame(CCamera* camera)
 	for ( StaticInstanceGroup& group : m_staticInstanceGroups )
 	{
 		group.visibleSceneObjectIndices.clear();
-		group.visibleShadowObjectIndices.clear();
 
 		for ( UINT objectIndex : group.objectIndices )
 		{
@@ -4655,14 +4654,45 @@ void CGameScene::BuildStaticVisibleListsForFrame(CCamera* camera)
 			const bool cameraVisible =
 				( camera == nullptr ) || cache.object->IsVisible(camera);
 
-			if ( cameraVisible )
+			if ( !cameraVisible )
+				continue;
+
+			if ( objectIndex < static_cast< UINT >(m_staticOcclusionCullFlags.size()) &&
+				 m_staticOcclusionCullFlags[objectIndex] != 0 )
 			{
-				if ( objectIndex >= static_cast< UINT >( m_staticOcclusionCullFlags.size() ) ||
-					 m_staticOcclusionCullFlags[objectIndex] == 0 )
-				{
-					group.visibleSceneObjectIndices.push_back(objectIndex);
-				}
+				continue;
 			}
+
+			group.visibleSceneObjectIndices.push_back(objectIndex);
+		}
+	}
+}
+
+void CGameScene::BuildStaticShadowVisibleListsForFrame()
+{
+	for ( StaticInstanceGroup& group : m_staticInstanceGroups )
+	{
+		group.visibleShadowObjectIndices.clear();
+
+		for ( UINT objectIndex : group.objectIndices )
+		{
+			if ( objectIndex >= static_cast< UINT >( m_staticBatch.objectRefs.size() ) )
+				continue;
+
+			if ( objectIndex >= static_cast< UINT >( m_staticRenderObjectCache.size() ) )
+				continue;
+
+			const StaticRenderObjectCache& cache =
+				m_staticRenderObjectCache[objectIndex];
+
+			if ( !cache.object )
+				continue;
+
+			if ( !cache.renderer )
+				continue;
+
+			if ( !cache.renderer->IsEnabled() )
+				continue;
 
 			if ( objectIndex < static_cast< UINT >(m_staticShadowCasterFlags.size()) &&
 				 m_staticShadowCasterFlags[objectIndex] == 0 )
@@ -4670,8 +4700,22 @@ void CGameScene::BuildStaticVisibleListsForFrame(CCamera* camera)
 				continue;
 			}
 
-			if ( IsStaticObjectInsideShadowBox(objectIndex) )
-				group.visibleShadowObjectIndices.push_back(objectIndex);
+			if ( objectIndex < static_cast< UINT >(m_staticDistanceCullFlags.size()) &&
+				 m_staticDistanceCullFlags[objectIndex] != 0 )
+			{
+				continue;
+			}
+
+			if ( objectIndex < static_cast< UINT >(m_staticTreeGridCullFlags.size()) &&
+				 m_staticTreeGridCullFlags[objectIndex] != 0 )
+			{
+				continue;
+			}
+
+			if ( !IsStaticObjectInsideShadowBox(objectIndex) )
+				continue;
+
+			group.visibleShadowObjectIndices.push_back(objectIndex);
 		}
 	}
 }
@@ -5007,9 +5051,13 @@ void CGameScene::RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandLis
 		if ( maxInstanceCount == 0 ) continue;
 
 		// pass 1: shadow
-		const UINT instanceBase = m_skinnedInstanceBufferCapacity + group.instanceBufferStart;
+		const UINT instanceBase =
+			m_skinnedInstanceBufferCapacity + group.instanceBufferStart;
 
-		if ( ( group.instanceBufferStart + maxInstanceCount ) > m_skinnedInstanceBufferCapacity )
+		const UINT totalSkinnedInstanceCapacity =
+			m_skinnedInstanceBufferCapacity * 2;
+
+		if ( ( instanceBase + maxInstanceCount ) > totalSkinnedInstanceCapacity )
 			continue;
 
 		UINT visibleInstanceCount = 0;
@@ -7102,10 +7150,16 @@ void CGameScene::RenderShadowPrePass(ID3D12GraphicsCommandList* cmd, CCamera* ca
 
 	{
 		PROFILE_RENDER_SCOPE("GameScene::RenderShadowPrePass::PrepareFrame");
+
 		CScene::OnPrepareRender(cmd, camera);
+
 		UpdateFrameRenderState(camera);
+
 		UpdateShaderVariables(cmd);
+
 		BindFrameRootParameters(cmd);
+
+		BuildStaticShadowVisibleListsForFrame();
 	}
 
 	{
