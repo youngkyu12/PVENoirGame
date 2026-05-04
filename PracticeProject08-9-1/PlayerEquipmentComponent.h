@@ -12,6 +12,11 @@
 class CGameObject;
 class CAudioManager;
 
+namespace FMOD
+{
+	class Channel;
+}
+
 enum class EWeaponType : uint8_t
 {
     Sword = 0,
@@ -108,6 +113,16 @@ private:
 		BowLoading,
 		BowRelease
 	};
+	struct ActivePlayerSfx
+	{
+		EPendingPlayerSfxKind kind = EPendingPlayerSfxKind::None;
+		FMOD::Channel* channel = nullptr;
+
+		CGameObject* followTarget = nullptr;
+
+		XMFLOAT3 prevPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		bool hasPrevPosition = false;
+	};
 
 private:
 	void SchedulePlayerSfx(
@@ -127,6 +142,11 @@ private:
 	static const char* GetRollSfxPath();
 	static const char* GetBowLoadingSfxPath();
 	static const char* GetBowReleaseSfxPath();
+
+	std::vector<ActivePlayerSfx> m_activeSfxList;
+
+	void UpdateActivePlayerSfx();
+	bool ShouldFollowOwnerForSfx(EPendingPlayerSfxKind kind) const;
 
 private:
 	struct PendingPlayerSfx

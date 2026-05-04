@@ -279,6 +279,8 @@ void CPlayerEquipmentComponent::RefreshWeaponVisibility()
 
 void CPlayerEquipmentComponent::OnUpdate(float dt)
 {
+	UpdateActivePlayerSfx();
+
 	for ( size_t i = 0; i < m_pendingSfxList.size(); )
 	{
 		PendingPlayerSfx& sfx = m_pendingSfxList[i];
@@ -296,6 +298,8 @@ void CPlayerEquipmentComponent::OnUpdate(float dt)
 
 		PlayPendingPlayerSfxAt(i);
 	}
+
+	UpdateActivePlayerSfx();
 }
 
 bool CPlayerEquipmentComponent::RequestSwordAttackWhoosh()
@@ -431,7 +435,7 @@ void CPlayerEquipmentComponent::PlayPendingPlayerSfxAt(size_t index)
 	const XMFLOAT3 pos =
 		m_pOwner ? m_pOwner->GetPosition() : XMFLOAT3(0.0f, 0.0f, 0.0f);
 
-	m_audioManager->PlaySound3D(
+	FMOD::Channel* channel = m_audioManager->PlaySound3D(
 		played.path,
 		pos,
 		false,
@@ -439,6 +443,18 @@ void CPlayerEquipmentComponent::PlayPendingPlayerSfxAt(size_t index)
 		played.volume,
 		false
 	);
+
+	if ( channel && ShouldFollowOwnerForSfx(played.kind) && m_pOwner )
+	{
+		ActivePlayerSfx active{};
+		active.kind = played.kind;
+		active.channel = channel;
+		active.followTarget = m_pOwner;
+		active.prevPosition = pos;
+		active.hasPrevPosition = true;
+
+		m_activeSfxList.push_back(active);
+	}
 
 	if ( played.kind == EPendingPlayerSfxKind::BowLoading ||
 		played.kind == EPendingPlayerSfxKind::BowRelease )
@@ -525,3 +541,66 @@ bool CPlayerEquipmentComponent::RequestBowReleaseSfxFromLoadPhase()
 	return true;
 }
 
+bool CPlayerEquipmentComponent::ShouldFollowOwnerForSfx(EPendingPlayerSfxKind kind) const
+{
+	switch ( kind )
+	{
+	case EPendingPlayerSfxKind::SwordWhoosh:
+	case EPendingPlayerSfxKind::AxeWhoosh:
+	case EPendingPlayerSfxKind::Roll:
+	case EPendingPlayerSfxKind::BowLoading:
+	case EPendingPlayerSfxKind::BowRelease:
+		return true;
+
+	default:
+		return false;
+	}
+}
+
+void CPlayerEquipmentComponent::UpdateActivePlayerSfx()
+{
+	if ( !m_audioManager )
+	{
+		m_activeSfxList.clear();
+		return;
+	}
+
+	for ( size_t i = 0; i < m_activeSfxList.size(); )
+	{
+		ActivePlayerSfx& active = m_activeSfxList[i];
+
+		if ( !active.channel || !active.followTarget )
+		{
+			m_activeSfxList.erase(m_activeSfxList.begin() + i);
+			continue;
+		}
+
+		if ( !m_audioManager->IsChannelPlaying(active.channel) )
+		{
+			m_activeSfxList.erase(m_activeSfxList.begin() + i);
+			continue;
+		}
+
+		const XMFLOAT3 pos = active.followTarget->GetPosition();
+
+		XMFLOAT3 vel(0.0f, 0.0f, 0.0f);
+
+		if ( active.hasPrevPosition )
+		{
+			vel.x = pos.x - active.prevPosition.x;
+			vel.y = pos.y - active.prevPosition.y;
+			vel.z = pos.z - active.prevPosition.z;
+		}
+
+		m_audioManager->SetChannel3DAttributes(
+			active.channel,
+			pos,
+			vel
+		);
+
+		active.prevPosition = pos;
+		active.hasPrevPosition = true;
+
+		++i;
+	}
+}
