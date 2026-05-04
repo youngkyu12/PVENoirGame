@@ -121,6 +121,24 @@ void Room::TickAdvance()
 		ResolveWorldStaticCollision(player.second, prevPos);
 	}
 
+	for (auto& [pid, player] : players)
+	{
+		if (!player) continue;
+		if (player->IsDead()) continue;
+
+		WeaponFireRequest req = player->GetWeapon().UpdateAttack(tick.load());
+		if (!req.fire) continue;
+
+		switch (req.bulletType)
+		{
+		case Protocol::BULLET_TYPE_ARROW:
+			FireArrow(player, req.speed, req.lifeTicks);
+			break;
+		default:
+			break;
+		}
+	}
+
 	for (auto enemy : enemies)
 	{
 		const GameMath::Vec3 prevPos = enemy.second->GetPosition();
@@ -139,8 +157,12 @@ void Room::TickAdvance()
 		{
 			auto& enemy = enemyPair.second;
 			if (enemy->IsDead()) continue;
-			const GameMath::Vec3 d = enemy->GetPosition() - p->GetPosition();
-			if (d.LengthSq() > kHitRadiusSq) continue;
+			//const GameMath::Vec3 d = enemy->GetPosition() - p->GetPosition();
+
+			float distSq = GameMath::DistSqXZ(enemy->GetPosition(), p->GetPosition());
+			const bool hit = distSq <= kHitRadiusSq
+				&& enemy->GetPosition().y - p->GetPosition().y <= 1.0f;
+			if (!hit) continue;
 
 			enemy->ApplyHit(tick.load(), kAtkPlayerArrow, 20);
 			p->Deactivate();
@@ -159,8 +181,12 @@ void Room::TickAdvance()
 		{
 			auto& enemy = enemyPair.second;
 			if (enemy->IsDead()) continue;
-			const GameMath::Vec3 d = enemy->GetPosition() - p->GetPosition();
-			if (d.LengthSq() > kHitRadiusSq) continue;
+			//const GameMath::Vec3 d = enemy->GetPosition() - p->GetPosition();
+
+			float distSq = GameMath::DistSqXZ(enemy->GetPosition(), p->GetPosition());
+			const bool hit = distSq <= kHitRadiusSq
+				&& enemy->GetPosition().y - p->GetPosition().y <= 1.0f;
+			if (!hit) continue;
 
 			enemy->ApplyHit(tick.load(), kAtkPlayerBullet, 20);
 			p->Deactivate();
@@ -261,10 +287,11 @@ ProjectileRef Room::AcquireFromPool(Vector<ProjectileRef>& pool)
 	return nullptr;
 }
 
-void Room::FireArrow(PlayerRef shooter)
+void Room::FireArrow(PlayerRef shooter, float speed, uint32 lifeTicks)
 {
-	if (!shooter || !shooter->CanFire(tick.load())) return;
+	if (!shooter) return;
 	if (shooter->IsDead()) return;
+	if (shooter->GetWeaponState() != Protocol::WEAPON_TYPE_BOW) return;
 
 	auto p = AcquireFromPool(m_arrowPool);
 	if (!p) return;
@@ -274,12 +301,9 @@ void Room::FireArrow(PlayerRef shooter)
 		shooter->GetUp() * 1.5538f +
 		shooter->GetLook() * 0.5657f;
 	const GameMath::Vec3 forward = shooter->GetLook().Normalized();
-	constexpr float kArrowSpeed = 12.0f;
-	constexpr int   kArrowLifeTicks = 200;
 
-	p->Activate(origin, forward * kArrowSpeed, kArrowLifeTicks, shooter->GetObjectId(), Protocol::BULLET_TYPE_ARROW);
+	p->Activate(origin, forward * speed, lifeTicks, shooter->GetObjectId(), Protocol::BULLET_TYPE_ARROW);
 	shooter->OnFired(tick.load());
-	shooter->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
 }
 
 void Room::FireCannonball(PlayerRef shooter)
