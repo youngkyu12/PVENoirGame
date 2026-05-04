@@ -39,6 +39,12 @@ namespace
 	constexpr float kAxeWhooshVolume = 1.0f;
 	constexpr float kRollSfxVolume = 2.0f;
 
+	constexpr float kBowLoadingSfxDelaySeconds = 5.0f / 60.0f;  // 0.0833 sec
+	constexpr float kBowReleaseSfxDelayFromLoadSeconds = 26.0f / 60.0f; // 0.4333 sec
+
+	constexpr float kBowLoadingSfxVolume = 2.0f;
+	constexpr float kBowReleaseSfxVolume = 2.0f;
+
 	int RandomSwordWhooshIndex()
 	{
 		static std::mt19937 rng{ std::random_device{}( ) };
@@ -273,18 +279,23 @@ void CPlayerEquipmentComponent::RefreshWeaponVisibility()
 
 void CPlayerEquipmentComponent::OnUpdate(float dt)
 {
-	if ( m_pendingSfxKind == EPendingPlayerSfxKind::None )
-		return;
-
-	if ( m_pendingSfxTimer > 0.0f )
+	for ( size_t i = 0; i < m_pendingSfxList.size(); )
 	{
-		m_pendingSfxTimer -= dt;
+		PendingPlayerSfx& sfx = m_pendingSfxList[i];
 
-		if ( m_pendingSfxTimer > 0.0f )
-			return;
+		if ( sfx.timer > 0.0f )
+		{
+			sfx.timer -= dt;
+
+			if ( sfx.timer > 0.0f )
+			{
+				++i;
+				continue;
+			}
+		}
+
+		PlayPendingPlayerSfxAt(i);
 	}
-
-	PlayPendingPlayerSfx();
 }
 
 bool CPlayerEquipmentComponent::RequestSwordAttackWhoosh()
@@ -344,6 +355,39 @@ bool CPlayerEquipmentComponent::RequestRollSfx(uint32_t dirBits)
 	return true;
 }
 
+bool CPlayerEquipmentComponent::RequestBowLoadingSfx()
+{
+	if ( m_equippedWeapon != EWeaponType::Bow )
+		return false;
+
+	if ( !m_audioManager )
+		return false;
+
+	SchedulePlayerSfx(
+		EPendingPlayerSfxKind::BowLoading,
+		GetBowLoadingSfxPath(),
+		kBowLoadingSfxDelaySeconds,
+		kBowLoadingSfxVolume
+	);
+
+	return true;
+}
+
+bool CPlayerEquipmentComponent::RequestBowReleaseSfx()
+{
+	return RequestBowReleaseSfxFromLoadPhase();
+}
+
+const char* CPlayerEquipmentComponent::GetBowLoadingSfxPath()
+{
+	return "Assets/Audio/Bow_Loading.mp3";
+}
+
+const char* CPlayerEquipmentComponent::GetBowReleaseSfxPath()
+{
+	return "Assets/Audio/Bow_Release.mp3";
+}
+
 void CPlayerEquipmentComponent::SchedulePlayerSfx(
 	EPendingPlayerSfxKind kind,
 	const char* soundPath,
@@ -356,60 +400,63 @@ void CPlayerEquipmentComponent::SchedulePlayerSfx(
 	if ( !soundPath || !soundPath[0] )
 		return;
 
-	m_pendingSfxKind = kind;
-	m_pendingSfxPath = soundPath;
-	m_pendingSfxTimer = delaySeconds;
-	m_pendingSfxOriginalDelay = delaySeconds;
-	m_pendingSfxVolume = volume;
+	PendingPlayerSfx sfx{};
+	sfx.kind = kind;
+	sfx.path = soundPath;
+	sfx.timer = delaySeconds;
+	sfx.originalDelay = delaySeconds;
+	sfx.volume = volume;
 
-	if ( m_pendingSfxTimer <= 0.0f )
-		PlayPendingPlayerSfx();
+	m_pendingSfxList.push_back(sfx);
+
+	if ( delaySeconds <= 0.0f )
+		PlayPendingPlayerSfxAt(m_pendingSfxList.size() - 1);
 }
 
-void CPlayerEquipmentComponent::PlayPendingPlayerSfx()
+void CPlayerEquipmentComponent::PlayPendingPlayerSfxAt(size_t index)
 {
-	if ( m_pendingSfxKind == EPendingPlayerSfxKind::None )
+	if ( index >= m_pendingSfxList.size() )
 		return;
 
-	const EPendingPlayerSfxKind playedKind = m_pendingSfxKind;
-	const char* playedPath = m_pendingSfxPath;
-	const float playedDelay = m_pendingSfxOriginalDelay;
-	const float playedVolume = m_pendingSfxVolume;
+	const PendingPlayerSfx played = m_pendingSfxList[index];
 
-	m_pendingSfxKind = EPendingPlayerSfxKind::None;
-	m_pendingSfxPath = nullptr;
-	m_pendingSfxTimer = 0.0f;
-	m_pendingSfxOriginalDelay = 0.0f;
-	m_pendingSfxVolume = 1.0f;
+	m_pendingSfxList.erase(m_pendingSfxList.begin() + index);
 
 	if ( !m_audioManager )
 		return;
 
-	if ( !playedPath || !playedPath[0] )
+	if ( !played.path || !played.path[0] )
 		return;
 
 	const XMFLOAT3 pos =
 		m_pOwner ? m_pOwner->GetPosition() : XMFLOAT3(0.0f, 0.0f, 0.0f);
 
 	m_audioManager->PlaySound3D(
-		playedPath,
+		played.path,
 		pos,
-		false,        // loop
-		false,        // stream
-		playedVolume, // volume
-		false         // startPaused
+		false,
+		false,
+		played.volume,
+		false
 	);
 
-	if ( playedKind == EPendingPlayerSfxKind::Roll )
+	if ( played.kind == EPendingPlayerSfxKind::BowLoading ||
+		played.kind == EPendingPlayerSfxKind::BowRelease )
 	{
+		const char* tag =
+			( played.kind == EPendingPlayerSfxKind::BowLoading )
+			? "BowLoadingSfx"
+			: "BowReleaseSfx";
+
 		char buf[512];
 		sprintf_s(
 			buf,
-			"[PlayerRollSfx] sound=\"%s\" delay=%.4f sec / %.2f ms volume=%.2f owner=%p pos=(%.3f, %.3f, %.3f)\n",
-			playedPath,
-			playedDelay,
-			playedDelay * 1000.0f,
-			playedVolume,
+			"[%s] sound=\"%s\" delay=%.4f sec / %.2f ms volume=%.2f owner=%p pos=(%.3f, %.3f, %.3f)\n",
+			tag,
+			played.path,
+			played.originalDelay,
+			played.originalDelay * 1000.0f,
+			played.volume,
 			static_cast< void* >( m_pOwner ),
 			pos.x,
 			pos.y,
@@ -459,3 +506,22 @@ const char* CPlayerEquipmentComponent::GetAxeWhooshPath()
 {
 	return "Assets/Audio/Whoosh_Axe.wav";
 }
+
+bool CPlayerEquipmentComponent::RequestBowReleaseSfxFromLoadPhase()
+{
+	if ( m_equippedWeapon != EWeaponType::Bow )
+		return false;
+
+	if ( !m_audioManager )
+		return false;
+
+	SchedulePlayerSfx(
+		EPendingPlayerSfxKind::BowRelease,
+		GetBowReleaseSfxPath(),
+		kBowReleaseSfxDelayFromLoadSeconds,
+		kBowReleaseSfxVolume
+	);
+
+	return true;
+}
+

@@ -642,6 +642,7 @@ private:
 
 	std::array<CGameObject*, 4> m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr };
 	std::array<bool, 4> m_prevBowReleasePhase = { false, false, false, false };
+	std::array<bool, 4> m_prevBowLoadPhase = { false, false, false, false };
 	std::vector<CGameObject*> m_preparedBowmanArrows;
 	std::vector<bool> m_prevEnemyBowReleasePhase;
 

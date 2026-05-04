@@ -2389,8 +2389,9 @@ void CGameScene::ReleaseObjects()
     m_EnemySwordRefs.clear();
     m_EnemyBowRefs.clear();
 
-    m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr };
-    m_prevBowReleasePhase = { false, false, false, false };
+	m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr };
+	m_prevBowLoadPhase = { false, false, false, false };
+	m_prevBowReleasePhase = { false, false, false, false };
 	m_preparedBowmanArrows.clear();
 	m_prevEnemyBowReleasePhase.clear();
 
@@ -2733,7 +2734,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		}
 	}
 #else
-	m_localPlayerSlot = 0;
+	m_localPlayerSlot = 1;
 
 	const GameSceneStageFileSet& stageFiles = GetLocalStageFileSet(kLocalStagePreset);
 
@@ -7480,23 +7481,38 @@ void CGameScene::UpdatePreparedBowArrows()
             }
         }
 
-        // Bow_Release 진입 순간에만 발사
-        if (isBowRelease && !m_prevBowReleasePhase[(size_t)slot])
-        {
-            RequestReleasePreparedArrow(player, kArrowSpeed, kArrowLife);
-        }
+		const size_t slotIndex = static_cast< size_t >( slot );
 
-        // 공격이 끝났거나 장비가 바뀌면 준비 화살 정리
-        if ((!hasBowEquipped || (!isBowLoad && !isBowRelease)) && m_preparedPlayerArrows[(size_t)slot])
-        {
-            if (auto* arrow = m_preparedPlayerArrows[(size_t)slot]->GetComponent<CArrowComponent>())
-            {
-                arrow->Deactivate();
-            }
-            m_preparedPlayerArrows[(size_t)slot] = nullptr;
-        }
+		if ( hasBowEquipped && isBowLoad && !m_prevBowLoadPhase[slotIndex] )
+		{
+			if ( auto* equip = player ? player->GetComponent<CPlayerEquipmentComponent>() : nullptr )
+			{
+				equip->RequestBowLoadingSfx();
 
-        m_prevBowReleasePhase[(size_t)slot] = isBowRelease;
+				// 릴리즈 사운드는 릴리즈 phase에서 틀지 않고,
+				// 로딩 phase 시작 시점에 미리 예약한다.
+				equip->RequestBowReleaseSfxFromLoadPhase();
+			}
+		}
+
+		if ( hasBowEquipped && isBowRelease && !m_prevBowReleasePhase[slotIndex] )
+		{
+			// 사운드는 이미 Bow_Load 진입 시 예약했으므로 여기서는 화살만 발사.
+			RequestReleasePreparedArrow(player, kArrowSpeed, kArrowLife);
+		}
+
+		// 공격이 끝났거나 장비가 바뀌면 준비 화살 정리
+		if ( ( !hasBowEquipped || ( !isBowLoad && !isBowRelease ) ) && m_preparedPlayerArrows[slotIndex] )
+		{
+			if ( auto* arrow = m_preparedPlayerArrows[slotIndex]->GetComponent<CArrowComponent>() )
+			{
+				arrow->Deactivate();
+			}
+			m_preparedPlayerArrows[slotIndex] = nullptr;
+		}
+
+		m_prevBowLoadPhase[slotIndex] = isBowLoad;
+		m_prevBowReleasePhase[slotIndex] = isBowRelease;
     }
 	for ( size_t i = 0; i < m_bowManRefs.size(); ++i )
 	{
@@ -8329,7 +8345,7 @@ void CGameScene::AnimateObjects(float dt)
 					continue;
                     //ac->SetAnimState(decoded.hasMove ? EAnimState::Move : EAnimState::Idle);
                 }
-                else if (decoded.roll)
+                /*else if (decoded.roll)
                 {
                     uint32_t rollDirBits = decoded.hasMove ? decoded.moveDirBits : DIR_FORWARD;
                     ac->RequestRoll(rollDirBits);
@@ -8337,8 +8353,8 @@ void CGameScene::AnimateObjects(float dt)
 
 					m_prevPlayerNetworkStateCode[state.id] = state.animation.stateCode;
 					continue;
-                }
-				/*else if ( decoded.roll )
+                }*/
+				else if ( decoded.roll )
 				{
 					uint32_t rollDirBits = decoded.hasMove ? decoded.moveDirBits : DIR_FORWARD;
 
@@ -8353,7 +8369,7 @@ void CGameScene::AnimateObjects(float dt)
 
 					m_prevPlayerNetworkStateCode[state.id] = state.animation.stateCode;
 					continue;
-				}*/
+				}
 				else if ( decoded.attack )
 				{
 					ac->RequestAttack();
