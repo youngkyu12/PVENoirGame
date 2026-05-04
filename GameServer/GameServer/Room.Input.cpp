@@ -41,7 +41,12 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		switch (player->GetWeaponState())
 		{
 		case Protocol::WEAPON_TYPE_BOW:
-			FireArrow(player);
+			if (player->GetWeapon().BeginAttack(tick.load()))
+			{
+				player->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
+				player->SetAnimTick(tick.load());
+				player->SetVelocity(GameMath::Vec3::Zero());
+			}
 			break;
 		case Protocol::WEAPON_TYPE_CANON:
 			FireCannonball(player);

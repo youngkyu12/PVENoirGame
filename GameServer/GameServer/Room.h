@@ -62,7 +62,7 @@ private:
 	void ResolveWorldStaticCollision(const shared_ptr<CServerObject>& obj, const GameMath::Vec3& previousPos);
 	GameMath::Vec3 ResolvePreBlockedShift(const shared_ptr<CServerObject>& obj, const GameMath::Vec3& desiredShift);
 
-	void FireArrow(PlayerRef shooter);
+	void FireArrow(PlayerRef shooter, float speed, uint32 lifeTicks);
 	void FireCannonball(PlayerRef shooter);
 	ProjectileRef AcquireFromPool(Vector<ProjectileRef>& pool);
 
