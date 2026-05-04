@@ -28,6 +28,7 @@ class CGameObject;
 class CCollisionSystem;
 class CTexture;
 class CNavMesh;
+class CStaticMeshRendererComponent;
 
 struct CB_GAMEOBJECT_INFO;
 struct AttachmentBindSpec
@@ -103,6 +104,22 @@ struct StaticInstanceGroup
 
 	UINT instanceBufferStart = 0;
 	bool useTreeShader = false;
+
+	std::vector<UINT> visibleSceneObjectIndices;
+	std::vector<UINT> visibleShadowObjectIndices;
+};
+
+struct StaticRenderObjectCache
+{
+	CGameObject* object = nullptr;
+	CStaticMeshRendererComponent* renderer = nullptr;
+
+	bool dynamicWorldMatrix = false;
+
+	XMFLOAT4 world0 = XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f);
+	XMFLOAT4 world1 = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
+	XMFLOAT4 world2 = XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f);
+	XMFLOAT4 world3 = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
 };
 
 struct StaticWorldLodEntry
@@ -269,6 +286,12 @@ private:
 	void BindFrameRootParameters(ID3D12GraphicsCommandList* cmd);
 
 	void BuildStaticInstanceGroups();
+
+	void BuildStaticRenderObjectCache();
+	bool IsDynamicStaticRenderObject(const CGameObject* obj) const;
+	bool WriteStaticInstanceVertexFromCache(StaticInstanceVertex& dst, UINT objectIndex) const;
+	void BuildStaticVisibleListsForFrame(CCamera* camera);
+
 	void ResetStaticWorldLodEntries();
 
 	void ResetStaticOcclusionEntries();
@@ -708,6 +731,8 @@ private:
 	std::unordered_map<std::string, std::unordered_map<std::string, std::vector<AuthoredSubMeshOOBB>>> mSceneCubeBoxColliderTable;
 
 	std::vector<StaticInstanceGroup>    m_staticInstanceGroups;
+	std::vector<StaticRenderObjectCache> m_staticRenderObjectCache;
+
 	std::vector<StaticWorldLodEntry>    m_staticWorldLodEntries;
 	std::vector<StaticOcclusionEntry>   m_staticOcclusionEntries;
 

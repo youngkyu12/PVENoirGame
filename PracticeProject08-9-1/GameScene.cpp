@@ -245,6 +245,29 @@ namespace
 		return dx * dx + dz * dz;
 	}
 
+	static void StoreStaticWorldRows(
+		XMFLOAT4& out0,
+		XMFLOAT4& out1,
+		XMFLOAT4& out2,
+		XMFLOAT4& out3,
+		const XMFLOAT4X4& W)
+	{
+		out0 = XMFLOAT4(W._11, W._12, W._13, W._14);
+		out1 = XMFLOAT4(W._21, W._22, W._23, W._24);
+		out2 = XMFLOAT4(W._31, W._32, W._33, W._34);
+		out3 = XMFLOAT4(W._41, W._42, W._43, W._44);
+	}
+
+	static bool ContainsGameObjectPtr(
+		const std::vector<CGameObject*>& refs,
+		const CGameObject* obj)
+	{
+		if ( !obj )
+			return false;
+
+		return std::find(refs.begin(), refs.end(), obj) != refs.end();
+	}
+
 	static void StoreCylindricalBillboardWorldRows(
 		ItemBillboardInstanceVertex& dst,
 		const XMFLOAT3& basePosition,
@@ -350,7 +373,7 @@ namespace
 	static constexpr float kTowerDoorPortalUpperHeightThreshold = 10.0f;
 	static constexpr float kTowerDoorPortalPlayerYawOffsetFromCamera = 0.0f;
 
-	static constexpr bool kEnableTowerDoorPortalCollisionLog = true;
+	static constexpr bool kEnableTowerDoorPortalCollisionLog = false;
 	static constexpr bool kEnableTowerDoorPortalVerboseLog = false;
 #endif
 }
@@ -2408,6 +2431,8 @@ void CGameScene::ReleaseObjects()
 	m_keyItemTexture.reset();
 	ReleaseItemBillboardGpuResources();
 
+	m_staticRenderObjectCache.clear();
+
 #ifndef USING_NETWORK
 	m_monsterSpawnEntries.clear();
 #endif
@@ -4241,6 +4266,7 @@ void CGameScene::BuildStaticBatch(
 	BuildStaticOcclusionUnitBoxMesh(dev, cmd);
 	BuildStaticOcclusionGpuResources(dev);
 	BuildStaticInstanceGroups();
+	BuildStaticRenderObjectCache();
 
 	m_staticTreeGridCullFlags.assign(m_staticBatch.objectRefs.size(), 0);
 
@@ -4385,6 +4411,15 @@ void CGameScene::BuildStaticInstanceGroups()
 	}
 
 	m_staticInstanceBufferCapacity = runningStart;
+
+	for ( StaticInstanceGroup& group : m_staticInstanceGroups )
+	{
+		group.visibleSceneObjectIndices.clear();
+		group.visibleShadowObjectIndices.clear();
+
+		group.visibleSceneObjectIndices.reserve(group.objectIndices.size());
+		group.visibleShadowObjectIndices.reserve(group.objectIndices.size());
+	}
 }
 
 void CGameScene::BuildSkinnedInstanceGroups()
@@ -4474,6 +4509,173 @@ void CGameScene::BuildSkinnedInstanceGroups()
 	m_skinnedInstanceBufferCapacity = runningStart;
 }
 
+bool CGameScene::IsDynamicStaticRenderObject(const CGameObject* obj) const
+{
+	if ( !obj )
+		return false;
+
+	// static batch에 들어가지만 transform이 바뀔 수 있는 오브젝트들.
+	// PlayerBow / EnemyBow는 현재 skinned batch 쪽이므로 여기서 제외한다.
+	if ( ContainsGameObjectPtr(m_helmetRefs, obj) )
+		return true;
+
+	if ( ContainsGameObjectPtr(m_PlayerSwordRefs, obj) )
+		return true;
+
+	if ( ContainsGameObjectPtr(m_PlayerAxeRefs, obj) )
+		return true;
+
+	if ( ContainsGameObjectPtr(m_PlayerGunRefs, obj) )
+		return true;
+
+	if ( ContainsGameObjectPtr(m_EnemySwordRefs, obj) )
+		return true;
+
+	if ( ContainsGameObjectPtr(m_arrowRefs, obj) )
+		return true;
+
+	if ( ContainsGameObjectPtr(m_bulletRefs, obj) )
+		return true;
+
+	return false;
+}
+
+void CGameScene::BuildStaticRenderObjectCache()
+{
+	m_staticRenderObjectCache.clear();
+	m_staticRenderObjectCache.resize(m_staticBatch.objectRefs.size());
+
+	for ( UINT i = 0; i < static_cast< UINT >(m_staticBatch.objectRefs.size()); ++i )
+	{
+		CGameObject* obj = m_staticBatch.objectRefs[i];
+
+		StaticRenderObjectCache& cache = m_staticRenderObjectCache[i];
+		cache.object = obj;
+
+		if ( !obj )
+			continue;
+
+		cache.renderer = obj->GetComponent<CStaticMeshRendererComponent>();
+		cache.dynamicWorldMatrix = IsDynamicStaticRenderObject(obj);
+
+		const XMFLOAT4X4& W = obj->GetWorldMatrix();
+
+		StoreStaticWorldRows(
+			cache.world0,
+			cache.world1,
+			cache.world2,
+			cache.world3,
+			W
+		);
+	}
+}
+
+bool CGameScene::WriteStaticInstanceVertexFromCache(
+	StaticInstanceVertex& dst,
+	UINT objectIndex) const
+{
+	if ( objectIndex >= static_cast< UINT >( m_staticRenderObjectCache.size() ) )
+		return false;
+
+	const StaticRenderObjectCache& cache = m_staticRenderObjectCache[objectIndex];
+
+	if ( !cache.object )
+		return false;
+
+	if ( !cache.renderer )
+		return false;
+
+	if ( !cache.renderer->IsEnabled() )
+		return false;
+
+	if ( cache.dynamicWorldMatrix )
+	{
+		const XMFLOAT4X4& W = cache.object->GetWorldMatrix();
+
+		StoreStaticWorldRows(
+			dst.world0,
+			dst.world1,
+			dst.world2,
+			dst.world3,
+			W
+		);
+	}
+	else
+	{
+		dst.world0 = cache.world0;
+		dst.world1 = cache.world1;
+		dst.world2 = cache.world2;
+		dst.world3 = cache.world3;
+	}
+
+	dst.objectId = objectIndex;
+
+	return true;
+}
+
+void CGameScene::BuildStaticVisibleListsForFrame(CCamera* camera)
+{
+	for ( StaticInstanceGroup& group : m_staticInstanceGroups )
+	{
+		group.visibleSceneObjectIndices.clear();
+		group.visibleShadowObjectIndices.clear();
+
+		for ( UINT objectIndex : group.objectIndices )
+		{
+			if ( objectIndex >= static_cast< UINT >( m_staticBatch.objectRefs.size() ) )
+				continue;
+
+			if ( objectIndex >= static_cast< UINT >( m_staticRenderObjectCache.size() ) )
+				continue;
+
+			const StaticRenderObjectCache& cache =
+				m_staticRenderObjectCache[objectIndex];
+
+			if ( !cache.object )
+				continue;
+
+			if ( !cache.renderer )
+				continue;
+
+			if ( !cache.renderer->IsEnabled() )
+				continue;
+
+			if ( objectIndex < static_cast< UINT >(m_staticDistanceCullFlags.size()) &&
+				 m_staticDistanceCullFlags[objectIndex] != 0 )
+			{
+				continue;
+			}
+
+			if ( objectIndex < static_cast< UINT >(m_staticTreeGridCullFlags.size()) &&
+				 m_staticTreeGridCullFlags[objectIndex] != 0 )
+			{
+				continue;
+			}
+
+			const bool cameraVisible =
+				( camera == nullptr ) || cache.object->IsVisible(camera);
+
+			if ( cameraVisible )
+			{
+				if ( objectIndex >= static_cast< UINT >( m_staticOcclusionCullFlags.size() ) ||
+					 m_staticOcclusionCullFlags[objectIndex] == 0 )
+				{
+					group.visibleSceneObjectIndices.push_back(objectIndex);
+				}
+			}
+
+			if ( objectIndex < static_cast< UINT >(m_staticShadowCasterFlags.size()) &&
+				 m_staticShadowCasterFlags[objectIndex] == 0 )
+			{
+				continue;
+			}
+
+			if ( IsStaticObjectInsideShadowBox(objectIndex) )
+				group.visibleShadowObjectIndices.push_back(objectIndex);
+		}
+	}
+}
+
 void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	PROFILE_RENDER_SCOPE("GameScene::RenderStaticInstanceGroups");
@@ -4495,10 +4697,12 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 		const SubMesh& sm = group.mesh->m_SubMeshes[group.subMeshIndex];
 		if ( sm.indices.empty() ) continue;
 
-		const UINT maxInstanceCount = ( UINT ) group.objectIndices.size();
-		if ( maxInstanceCount == 0 ) continue;
+		const UINT maxInstanceCount =
+			static_cast< UINT >( group.visibleSceneObjectIndices.size() );
 
-		// pass 0: scene
+		if ( maxInstanceCount == 0 )
+			continue;
+
 		const UINT instanceBase = group.instanceBufferStart;
 
 		if ( ( instanceBase + maxInstanceCount ) > m_staticInstanceBufferCapacity )
@@ -4508,47 +4712,13 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 
 		for ( UINT i = 0; i < maxInstanceCount; ++i )
 		{
-			const UINT objectIndex = group.objectIndices[i];
-
-			if ( objectIndex >= ( UINT ) m_staticBatch.objectRefs.size() )
-				continue;
-
-			if ( objectIndex < ( UINT ) m_staticDistanceCullFlags.size() &&
-				 m_staticDistanceCullFlags[objectIndex] != 0 )
-			{
-				continue;
-			}
-
-			if ( objectIndex < ( UINT ) m_staticOcclusionCullFlags.size() &&
-				 m_staticOcclusionCullFlags[objectIndex] != 0 )
-			{
-				continue;
-			}
-
-			if ( objectIndex < ( UINT ) m_staticTreeGridCullFlags.size() &&
-				 m_staticTreeGridCullFlags[objectIndex] != 0 )
-			{
-				continue;
-			}
-
-			CGameObject* obj = m_staticBatch.objectRefs[objectIndex];
-			if ( !obj ) continue;
-			if ( !obj->IsVisible(camera) ) continue;
-
-			auto* renderer = obj->GetComponent<CStaticMeshRendererComponent>();
-			if ( !renderer ) continue;
-			if ( !renderer->IsEnabled() ) continue;
+			const UINT objectIndex = group.visibleSceneObjectIndices[i];
 
 			StaticInstanceVertex& dst =
 				m_pMappedStaticInstanceBuffer[instanceBase + visibleInstanceCount];
 
-			const XMFLOAT4X4& W = obj->GetWorldMatrix();
-
-			dst.world0 = XMFLOAT4(W._11, W._12, W._13, W._14);
-			dst.world1 = XMFLOAT4(W._21, W._22, W._23, W._24);
-			dst.world2 = XMFLOAT4(W._31, W._32, W._33, W._34);
-			dst.world3 = XMFLOAT4(W._41, W._42, W._43, W._44);
-			dst.objectId = objectIndex;
+			if ( !WriteStaticInstanceVertexFromCache(dst, objectIndex) )
+				continue;
 
 			++visibleInstanceCount;
 		}
@@ -4735,62 +4905,33 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 		const SubMesh& sm = group.mesh->m_SubMeshes[group.subMeshIndex];
 		if ( sm.indices.empty() ) continue;
 
-		const UINT maxInstanceCount = ( UINT ) group.objectIndices.size();
-		if ( maxInstanceCount == 0 ) continue;
+		const UINT maxInstanceCount =
+			static_cast< UINT >( group.visibleShadowObjectIndices.size() );
+
+		if ( maxInstanceCount == 0 )
+			continue;
 
 		// pass 1: shadow
-		const UINT instanceBase = m_staticInstanceBufferCapacity + group.instanceBufferStart;
+		const UINT instanceBase =
+			m_staticInstanceBufferCapacity + group.instanceBufferStart;
 
-		if ( ( group.instanceBufferStart + maxInstanceCount ) > m_staticInstanceBufferCapacity )
+		const UINT totalStaticInstanceCapacity =
+			m_staticInstanceBufferCapacity * 2;
+
+		if ( ( instanceBase + maxInstanceCount ) > totalStaticInstanceCapacity )
 			continue;
 
 		UINT visibleInstanceCount = 0;
 
 		for ( UINT i = 0; i < maxInstanceCount; ++i )
 		{
-			const UINT objectIndex = group.objectIndices[i];
-
-			if ( objectIndex >= ( UINT ) m_staticBatch.objectRefs.size() )
-				continue;
-
-			if ( objectIndex < ( UINT ) m_staticShadowCasterFlags.size() &&
-				 m_staticShadowCasterFlags[objectIndex] == 0 )
-			{
-				continue;
-			}
-
-			if ( objectIndex < ( UINT ) m_staticDistanceCullFlags.size() &&
-				 m_staticDistanceCullFlags[objectIndex] != 0 )
-			{
-				continue;
-			}
-
-			if ( objectIndex < ( UINT ) m_staticTreeGridCullFlags.size() &&
-				 m_staticTreeGridCullFlags[objectIndex] != 0 )
-			{
-				continue;
-			}
-
-			if ( !IsStaticObjectInsideShadowBox(objectIndex) )
-				continue;
-
-			CGameObject* obj = m_staticBatch.objectRefs[objectIndex];
-			if ( !obj ) continue;
-
-			auto* renderer = obj->GetComponent<CStaticMeshRendererComponent>();
-			if ( !renderer ) continue;
-			if ( !renderer->IsEnabled() ) continue;
+			const UINT objectIndex = group.visibleShadowObjectIndices[i];
 
 			StaticInstanceVertex& dst =
 				m_pMappedStaticInstanceBuffer[instanceBase + visibleInstanceCount];
 
-			const XMFLOAT4X4& W = obj->GetWorldMatrix();
-
-			dst.world0 = XMFLOAT4(W._11, W._12, W._13, W._14);
-			dst.world1 = XMFLOAT4(W._21, W._22, W._23, W._24);
-			dst.world2 = XMFLOAT4(W._31, W._32, W._33, W._34);
-			dst.world3 = XMFLOAT4(W._41, W._42, W._43, W._44);
-			dst.objectId = objectIndex;
+			if ( !WriteStaticInstanceVertexFromCache(dst, objectIndex) )
+				continue;
 
 			++visibleInstanceCount;
 		}
@@ -6363,8 +6504,6 @@ void CGameScene::UpdateItemBillboardPickupCollision()
 
 void CGameScene::RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
-	PROFILE_RENDER_SCOPE("GameScene::RenderItemBillboards");
-
 	if ( !cmd ) return;
 	if ( !camera ) return;
 	if ( !m_itemBillboardShader ) return;
@@ -8528,12 +8667,13 @@ void CGameScene::UpdateFrameRenderState(CCamera* camera)
 	if ( !camera )
 		return;
 
-	camera->UpdateBoundingFrustum();
-
 	UpdateStaticWorldLodSelection(camera);
 	BeginStaticOcclusionReadback();
 	UpdateStaticOcclusionCullSelection(camera);
 	UpdateStaticTreeGridCullSelection(camera);
+
+	BuildStaticVisibleListsForFrame(camera);
+
 	UpdateItemBillboardDistanceCullSelection(camera);
 
 	UpdateSkinnedWorldLodSelection(camera);
@@ -8614,7 +8754,6 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 
 	if ( m_itemBillboardShader )
 	{
-		PROFILE_RENDER_SCOPE("GameScene::RenderSceneGeometry::ItemBillboards");
 		RenderItemBillboards(cmd, camera);
 	}
 
