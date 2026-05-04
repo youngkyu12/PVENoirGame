@@ -8338,6 +8338,22 @@ void CGameScene::AnimateObjects(float dt)
 					m_prevPlayerNetworkStateCode[state.id] = state.animation.stateCode;
 					continue;
                 }
+				/*else if ( decoded.roll )
+				{
+					uint32_t rollDirBits = decoded.hasMove ? decoded.moveDirBits : DIR_FORWARD;
+
+					if (!prevDecoded.roll && slot != m_localPlayerSlot)
+					{
+						if ( auto* equip = player->GetComponent<CPlayerEquipmentComponent>() )
+							equip->RequestRollSfx(rollDirBits);
+					}
+
+					ac->RequestRoll(rollDirBits);
+					ac->SetAnimState(EAnimState::Attack);
+
+					m_prevPlayerNetworkStateCode[state.id] = state.animation.stateCode;
+					continue;
+				}*/
 				else if ( decoded.attack )
 				{
 					ac->RequestAttack();
@@ -8910,6 +8926,7 @@ void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 
 	RenderSceneComposite(cmd, camera);
 }
+
 void CGameScene::BuildObjectsCollider()
 {
     m_Collision = make_unique<CCollisionSystem>();
