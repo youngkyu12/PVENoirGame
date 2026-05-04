@@ -897,14 +897,26 @@ void CGameFramework::ProcessInput()
 
 		if ( spaceDown && !s_prevSpaceDown )
 		{
+			bool requestedRoll = false;
+
 			if ( auto* animComp = playerObj->GetComponent<CAnimatorComponent>() )
 			{
 				if ( auto* ctrl = animComp->EnsureController() )
+				{
 					ctrl->RequestRoll(static_cast< uint32_t >( dwDirection ));
+					requestedRoll = true;
+				}
 			}
 			else if ( auto* ctrl = playerObj->GetAnimController() )
 			{
 				ctrl->RequestRoll(static_cast< uint32_t >( dwDirection ));
+				requestedRoll = true;
+			}
+
+			if ( requestedRoll )
+			{
+				if ( auto* equip = playerObj->GetComponent<CPlayerEquipmentComponent>() )
+					equip->RequestRollSfx(static_cast< uint32_t >( dwDirection ));
 			}
 		}
 

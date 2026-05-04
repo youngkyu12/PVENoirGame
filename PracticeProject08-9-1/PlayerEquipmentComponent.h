@@ -88,40 +88,43 @@ public:
 
 	void SetAudioManager(CAudioManager* audioManager) { m_audioManager = audioManager; }
 
-	// 공격이 실제 accepted 되었을 때 GameScene에서 호출한다.
+public:
 	bool RequestSwordAttackWhoosh();
 	bool RequestAxeAttackWhoosh();
+	bool RequestRollSfx(uint32_t dirBits);
 
 private:
-	enum class EPendingWeaponWhooshKind : uint8_t
+	enum class EPendingPlayerSfxKind : uint8_t
 	{
 		None = 0,
-		Sword,
-		Axe
+		SwordWhoosh,
+		AxeWhoosh,
+		Roll
 	};
 
 private:
-	void ScheduleWeaponWhoosh(
-		EPendingWeaponWhooshKind kind,
+	void SchedulePlayerSfx(
+		EPendingPlayerSfxKind kind,
 		const char* soundPath,
 		float delaySeconds,
 		float volume
 	);
 
-	void PlayPendingWeaponWhoosh();
+	void PlayPendingPlayerSfx();
 
 	static int SelectSwordWhooshIndex();
 	static const char* GetSwordWhooshPath(int index);
 	static float GetSwordWhooshDelaySeconds(int index);
 
 	static const char* GetAxeWhooshPath();
+	static const char* GetRollSfxPath();
 
 private:
 	CAudioManager* m_audioManager = nullptr;
 
-	EPendingWeaponWhooshKind m_pendingWhooshKind = EPendingWeaponWhooshKind::None;
-	const char* m_pendingWhooshPath = nullptr;
-	float m_pendingWhooshTimer = 0.0f;
-	float m_pendingWhooshOriginalDelay = 0.0f;
-	float m_pendingWhooshVolume = 1.0f;
+	EPendingPlayerSfxKind m_pendingSfxKind = EPendingPlayerSfxKind::None;
+	const char* m_pendingSfxPath = nullptr;
+	float m_pendingSfxTimer = 0.0f;
+	float m_pendingSfxOriginalDelay = 0.0f;
+	float m_pendingSfxVolume = 1.0f;
 };
