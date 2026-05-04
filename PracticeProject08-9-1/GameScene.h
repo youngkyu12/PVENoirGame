@@ -291,6 +291,7 @@ private:
 	bool IsDynamicStaticRenderObject(const CGameObject* obj) const;
 	bool WriteStaticInstanceVertexFromCache(StaticInstanceVertex& dst, UINT objectIndex) const;
 	void BuildStaticVisibleListsForFrame(CCamera* camera);
+	void BuildStaticShadowVisibleListsForFrame();
 
 	void ResetStaticWorldLodEntries();
 
