@@ -35,9 +35,9 @@ namespace
 	constexpr float kRollSfxDelayLeftSeconds = 0.1000f;
 	constexpr float kRollSfxDelayRightSeconds = 0.1000f;
 
-	constexpr float kSwordWhooshVolume = 5.0f;
-	constexpr float kAxeWhooshVolume = 5.0f;
-	constexpr float kRollSfxVolume = 5.0f;
+	constexpr float kSwordWhooshVolume = 1.0f;
+	constexpr float kAxeWhooshVolume = 1.0f;
+	constexpr float kRollSfxVolume = 2.0f;
 
 	int RandomSwordWhooshIndex()
 	{

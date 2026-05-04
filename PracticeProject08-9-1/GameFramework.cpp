@@ -13,6 +13,8 @@
 #include "PlayerControllerComponent.h"
 #include "AudioManager.h"
 #include "MusicDirector.h"
+#include "Camera.h"
+#include "Object.h"
 
 #include "Service.h"
 #include "ServerPacketHandler.h"
@@ -483,6 +485,51 @@ bool CGameFramework::IsWindowActuallyActive() const
 bool CGameFramework::IsInputPauseActive() const
 {
 	return m_bUserPaused;
+}
+
+void CGameFramework::UpdateAudioListener()
+{
+	if ( !m_pAudioManager || !m_pAudioManager->IsInitialized() )
+		return;
+
+	CScene* scene = m_SceneManager.GetScene();
+
+	CGameObject* localPlayer = scene ? scene->GetPlayer() : nullptr;
+
+	XMFLOAT3 listenerPos(0.0f, 0.0f, 0.0f);
+
+	if ( localPlayer )
+	{
+		// 플레이어 머리/귀 높이 근처.
+		listenerPos = localPlayer->GetPosition();
+		listenerPos.y += 1.7f;
+	}
+	else if ( m_pCamera )
+	{
+		listenerPos = m_pCamera->GetPosition();
+	}
+	else
+	{
+		return;
+	}
+
+	XMFLOAT3 forward(0.0f, 0.0f, 1.0f);
+	XMFLOAT3 up(0.0f, 1.0f, 0.0f);
+
+	if ( m_pCamera )
+	{
+		forward = m_pCamera->GetLookVector();
+		up = m_pCamera->GetUpVector();
+	}
+
+	const XMFLOAT3 velocity(0.0f, 0.0f, 0.0f);
+
+	m_pAudioManager->SetListenerAttributes(
+		listenerPos,
+		velocity,
+		forward,
+		up
+	);
 }
 
 void CGameFramework::UpdateWindowActivationState()
@@ -1102,9 +1149,6 @@ void CGameFramework::FrameAdvance()
 	m_GameTimer.Tick(0.0f);
 	UpdateWindowActivationState();
 
-	if ( m_pAudioManager )
-		m_pAudioManager->Update();
-
 	ApplyPendingSceneSwitch();
 
 
@@ -1131,6 +1175,11 @@ void CGameFramework::FrameAdvance()
 		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::AnimateObjects");
 		AnimateObjects();
 	}
+
+	UpdateAudioListener();
+
+	if ( m_pAudioManager )
+		m_pAudioManager->Update();
 
 #ifndef USING_NETWORK
 	if ( hasLocalPlayerPrevPos )
