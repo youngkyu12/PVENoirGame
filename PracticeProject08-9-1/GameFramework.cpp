@@ -1022,7 +1022,8 @@ void CGameFramework::ProcessInput()
 		{
 			const XMFLOAT3 prevPos = playerObj->GetPosition();
 
-			pc->MoveByYaw(dwDirection, 50.0f * dt, cameraYawDeg, false);
+			const float moveSpeed = bRunRequested ? 100.0f : 5.0f;
+			pc->MoveByYaw(dwDirection, moveSpeed * dt, cameraYawDeg, false);
 
 			if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
 			{
@@ -1128,10 +1129,10 @@ void CGameFramework::FrameAdvance()
 		}
 	}
 #endif
-	/*{
+	{
 		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::CollisionSystem");
 		CollisionSystem();
-	}*/
+	}
 
 	{
 		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::CommandAllocatorAndListReset");

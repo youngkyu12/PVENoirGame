@@ -2708,7 +2708,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		}
 	}
 #else
-	m_localPlayerSlot = 2;
+	m_localPlayerSlot = 0;
 
 	const GameSceneStageFileSet& stageFiles = GetLocalStageFileSet(kLocalStagePreset);
 
@@ -6365,41 +6365,20 @@ void CGameScene::RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* c
 {
 	PROFILE_RENDER_SCOPE("GameScene::RenderItemBillboards");
 
-	if ( !cmd )
-		return;
-
-	if ( !camera )
-		return;
-
-	if ( !m_itemBillboardShader )
-		return;
-
-	if ( !m_itemBillboardQuadMesh )
-		return;
-
-	if ( !m_pd3dItemBillboardInstanceBuffer )
-		return;
-
-	if ( !m_pMappedItemBillboardInstanceBuffer )
-		return;
-
-	if ( m_itemBillboardQuadMesh->m_SubMeshes.empty() )
-		return;
+	if ( !cmd ) return;
+	if ( !camera ) return;
+	if ( !m_itemBillboardShader ) return;
+	if ( !m_itemBillboardQuadMesh ) return;
+	if ( !m_pd3dItemBillboardInstanceBuffer ) return;
+	if ( !m_pMappedItemBillboardInstanceBuffer ) return;
+	if ( m_itemBillboardQuadMesh->m_SubMeshes.empty() ) return;
 
 	const SubMesh& sm = m_itemBillboardQuadMesh->m_SubMeshes[0];
 
 	if ( sm.indices.empty() )
 		return;
 
-	CGameObject* targetPlayer = GetPlayer();
-
-	if ( !targetPlayer )
-		targetPlayer = GetPlayerBySlot(0);
-
-	XMFLOAT3 targetPos = camera->GetPosition();
-
-	if ( targetPlayer )
-		targetPos = targetPlayer->GetPosition();
+	const XMFLOAT3 targetPos = camera->GetPosition();
 
 	UINT visibleInstanceCount = 0;
 
@@ -6451,13 +6430,7 @@ void CGameScene::RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* c
 	cmd->IASetVertexBuffers(0, 2, vbViews);
 	cmd->IASetIndexBuffer(&sm.ibView);
 
-	cmd->DrawIndexedInstanced(
-		static_cast< UINT >( sm.indices.size() ),
-		visibleInstanceCount,
-		0,
-		0,
-		0
-	);
+	cmd->DrawIndexedInstanced( static_cast< UINT >( sm.indices.size() ), visibleInstanceCount, 0, 0, 0);
 }
 
 void CGameScene::BuildColliderBatch(
