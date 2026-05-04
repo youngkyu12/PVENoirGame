@@ -5,6 +5,7 @@
 
 #include <array>
 #include <cstdint>
+#include <vector>
 
 #include "Component.h"
 
@@ -92,6 +93,10 @@ public:
 	bool RequestSwordAttackWhoosh();
 	bool RequestAxeAttackWhoosh();
 	bool RequestRollSfx(uint32_t dirBits);
+	bool RequestBowLoadingSfx();
+	bool RequestBowReleaseSfx();
+
+	bool RequestBowReleaseSfxFromLoadPhase();
 
 private:
 	enum class EPendingPlayerSfxKind : uint8_t
@@ -99,7 +104,9 @@ private:
 		None = 0,
 		SwordWhoosh,
 		AxeWhoosh,
-		Roll
+		Roll,
+		BowLoading,
+		BowRelease
 	};
 
 private:
@@ -118,13 +125,20 @@ private:
 
 	static const char* GetAxeWhooshPath();
 	static const char* GetRollSfxPath();
+	static const char* GetBowLoadingSfxPath();
+	static const char* GetBowReleaseSfxPath();
 
 private:
+	struct PendingPlayerSfx
+	{
+		EPendingPlayerSfxKind kind = EPendingPlayerSfxKind::None;
+		const char* path = nullptr;
+		float timer = 0.0f;
+		float originalDelay = 0.0f;
+		float volume = 1.0f;
+	};
 	CAudioManager* m_audioManager = nullptr;
 
-	EPendingPlayerSfxKind m_pendingSfxKind = EPendingPlayerSfxKind::None;
-	const char* m_pendingSfxPath = nullptr;
-	float m_pendingSfxTimer = 0.0f;
-	float m_pendingSfxOriginalDelay = 0.0f;
-	float m_pendingSfxVolume = 1.0f;
+	std::vector<PendingPlayerSfx> m_pendingSfxList;
+	void PlayPendingPlayerSfxAt(size_t index);
 };
