@@ -31,10 +31,12 @@ private:
 public:
 	void SetWeapon(Protocol::WeaponType& type, uint32& currentBullets)
 	{
+		weapon.CancelAttack();
 		weapon.SetWeapon(std::move(type), std::move(currentBullets));
 	}
 	void SetWeapon(Protocol::WeaponType&& type, uint32&& currentBullets)
 	{
+		weapon.CancelAttack();
 		weapon.SetWeapon(std::move(type), std::move(currentBullets));
 	}
 
@@ -45,6 +47,7 @@ public:
 
 	void SetBullet(Protocol::BulletType&& type, uint32& currentBullets)
 	{
+		weapon.CancelAttack();
 		weapon.SetBullet(std::move(type), currentBullets);
 	}
 
