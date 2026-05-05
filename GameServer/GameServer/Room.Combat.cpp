@@ -157,8 +157,12 @@ void Room::TickAdvance()
 		{
 			auto& enemy = enemyPair.second;
 			if (enemy->IsDead()) continue;
-			const GameMath::Vec3 d = enemy->GetPosition() - p->GetPosition();
-			if (d.LengthSq() > kHitRadiusSq) continue;
+			//const GameMath::Vec3 d = enemy->GetPosition() - p->GetPosition();
+
+			float distSq = GameMath::DistSqXZ(enemy->GetPosition(), p->GetPosition());
+			const bool hit = distSq <= kHitRadiusSq
+				&& enemy->GetPosition().y - p->GetPosition().y <= 1.0f;
+			if (!hit) continue;
 
 			enemy->ApplyHit(tick.load(), kAtkPlayerArrow, 20);
 			p->Deactivate();
@@ -177,8 +181,12 @@ void Room::TickAdvance()
 		{
 			auto& enemy = enemyPair.second;
 			if (enemy->IsDead()) continue;
-			const GameMath::Vec3 d = enemy->GetPosition() - p->GetPosition();
-			if (d.LengthSq() > kHitRadiusSq) continue;
+			//const GameMath::Vec3 d = enemy->GetPosition() - p->GetPosition();
+
+			float distSq = GameMath::DistSqXZ(enemy->GetPosition(), p->GetPosition());
+			const bool hit = distSq <= kHitRadiusSq
+				&& enemy->GetPosition().y - p->GetPosition().y <= 1.0f;
+			if (!hit) continue;
 
 			enemy->ApplyHit(tick.load(), kAtkPlayerBullet, 20);
 			p->Deactivate();
