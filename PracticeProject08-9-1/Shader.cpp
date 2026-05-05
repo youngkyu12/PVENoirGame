@@ -578,6 +578,161 @@ D3D12_RASTERIZER_DESC CItemBillboardShader::CreateRasterizerState()
 	return rs;
 }
 
+D3D12_INPUT_LAYOUT_DESC CTransparentItemBillboardShader::CreateInputLayout()
+{
+	// 현재 CItemBillboardShader와 동일한 input layout 사용
+	UINT nInputElementDescs = 9;
+	auto* desc = new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
+
+	desc[0] = { "POSITION",             0, DXGI_FORMAT_R32G32B32_FLOAT,    0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   0 };
+	desc[1] = { "NORMAL",               0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   0 };
+	desc[2] = { "TEXCOORD",             0, DXGI_FORMAT_R32G32_FLOAT,       0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   0 };
+	desc[3] = { "TANGENT",              0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   0 };
+
+	desc[4] = { "INSTANCE_WORLD",       0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1,  0, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+	desc[5] = { "INSTANCE_WORLD",       1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 16, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+	desc[6] = { "INSTANCE_WORLD",       2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 32, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+	desc[7] = { "INSTANCE_WORLD",       3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 48, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+	desc[8] = { "INSTANCE_MATERIAL_ID", 0, DXGI_FORMAT_R32_UINT,           1, 64, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+
+	D3D12_INPUT_LAYOUT_DESC layout{};
+	layout.pInputElementDescs = desc;
+	layout.NumElements = nInputElementDescs;
+	return layout;
+}
+
+D3D12_SHADER_BYTECODE CTransparentItemBillboardShader::CreateVertexShader(
+	ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(
+		L"Shaders.hlsl",
+		"VSItemBillboardInstanced",
+		"vs_5_1",
+		ppd3dShaderBlob
+	);
+}
+
+D3D12_SHADER_BYTECODE CTransparentItemBillboardShader::CreatePixelShader(
+	ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(
+		L"Shaders.hlsl",
+		"PSItemBillboardUnlitTransparent",
+		"ps_5_1",
+		ppd3dShaderBlob
+	);
+}
+
+D3D12_RASTERIZER_DESC CTransparentItemBillboardShader::CreateRasterizerState()
+{
+	D3D12_RASTERIZER_DESC rs = CShader::CreateRasterizerState();
+	rs.CullMode = D3D12_CULL_MODE_NONE;
+	return rs;
+}
+
+D3D12_BLEND_DESC CTransparentItemBillboardShader::CreateBlendState()
+{
+	D3D12_BLEND_DESC bs{};
+	::ZeroMemory(&bs, sizeof(bs));
+
+	bs.AlphaToCoverageEnable = FALSE;
+
+	// MRT별로 write mask를 다르게 줄 것이므로 TRUE
+	bs.IndependentBlendEnable = TRUE;
+
+	auto makeTransparentRT = [ ] ()
+		{
+			D3D12_RENDER_TARGET_BLEND_DESC rt{};
+			rt.BlendEnable = TRUE;
+			rt.LogicOpEnable = FALSE;
+
+			// out.rgb = src.rgb * src.a + dst.rgb * (1 - src.a)
+			rt.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+			rt.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+			rt.BlendOp = D3D12_BLEND_OP_ADD;
+
+			rt.SrcBlendAlpha = D3D12_BLEND_ONE;
+			rt.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+			rt.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+
+			rt.LogicOp = D3D12_LOGIC_OP_NOOP;
+			rt.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+			return rt;
+		};
+
+	auto makeNoWriteRT = [ ] ()
+		{
+			D3D12_RENDER_TARGET_BLEND_DESC rt{};
+			rt.BlendEnable = FALSE;
+			rt.LogicOpEnable = FALSE;
+			rt.SrcBlend = D3D12_BLEND_ONE;
+			rt.DestBlend = D3D12_BLEND_ZERO;
+			rt.BlendOp = D3D12_BLEND_OP_ADD;
+			rt.SrcBlendAlpha = D3D12_BLEND_ONE;
+			rt.DestBlendAlpha = D3D12_BLEND_ZERO;
+			rt.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+			rt.LogicOp = D3D12_LOGIC_OP_NOOP;
+
+			// normal / zDepth에는 투명 빌보드가 쓰지 않음
+			rt.RenderTargetWriteMask = 0;
+			return rt;
+		};
+
+	auto makeDepthWriteRT = [ ] ()
+		{
+			D3D12_RENDER_TARGET_BLEND_DESC rt{};
+			rt.BlendEnable = FALSE;
+			rt.LogicOpEnable = FALSE;
+
+			rt.SrcBlend = D3D12_BLEND_ONE;
+			rt.DestBlend = D3D12_BLEND_ZERO;
+			rt.BlendOp = D3D12_BLEND_OP_ADD;
+
+			rt.SrcBlendAlpha = D3D12_BLEND_ONE;
+			rt.DestBlendAlpha = D3D12_BLEND_ZERO;
+			rt.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+
+			rt.LogicOp = D3D12_LOGIC_OP_NOOP;
+
+			// zDepth RT는 DXGI_FORMAT_R32_FLOAT이므로 R 채널만 쓴다.
+			rt.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_RED;
+
+			return rt;
+		};
+
+	// SV_TARGET0: color
+	bs.RenderTarget[0] = makeTransparentRT();
+
+	// SV_TARGET1: cTexture
+	bs.RenderTarget[1] = makeTransparentRT();
+
+	// SV_TARGET2: cIllumination
+	bs.RenderTarget[2] = makeTransparentRT();
+
+	// SV_TARGET3: normal
+	bs.RenderTarget[3] = makeNoWriteRT();
+
+	// SV_TARGET4: zDepth
+	bs.RenderTarget[4] = makeDepthWriteRT();
+
+	// 나머지는 사용 안 함
+	for ( int i = 5; i < 8; ++i )
+		bs.RenderTarget[i] = makeNoWriteRT();
+
+	return bs;
+}
+
+D3D12_DEPTH_STENCIL_DESC CTransparentItemBillboardShader::CreateDepthStencilState()
+{
+	D3D12_DEPTH_STENCIL_DESC ds = CShader::CreateDepthStencilState();
+
+	ds.DepthEnable = TRUE;
+	ds.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	ds.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+
+	return ds;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 CSkinnedObjectsShader::CSkinnedObjectsShader()

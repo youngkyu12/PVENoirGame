@@ -80,6 +80,9 @@ struct ItemBillboardEntry
 	bool active = true;
 	bool distanceCulled = false;
 
+	// 추가: true면 transparent pass에서 그림
+	bool transparent = false;
+
 	EItemBillboardKind kind = EItemBillboardKind::Key;
 
 	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
@@ -325,6 +328,7 @@ private:
 
 	void UpdateItemBillboardDistanceCullSelection(CCamera* camera);
 	void RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	void RenderTransparentItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 	void UpdateItemBillboardPickupCollision();
 	bool DoesPlayerOverlapItemBillboard(const CGameObject* player, const ItemBillboardEntry& item) const;
@@ -384,8 +388,9 @@ public:
 
     // Game-only API
 public:
-    void SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex);
+	void SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex);
 	void SetKeyItemDiffuseSrvIndex(UINT srvIndex);
+	void SetTransparentItemDiffuseSrvIndex(UINT srvIndex); 
 	void SetInactiveOverlayVisible(bool visible)
 	{
 		m_bInactiveOverlayVisible = visible;
@@ -612,9 +617,12 @@ private:
 	SCENE_COLLIDER_BATCH m_colliderBatch;
 
 	static constexpr UINT kItemBillboardKeyMaterialId = MAX_MATERIALS - 1;
+	static constexpr UINT kTransparentItemBillboardMaterialId = MAX_MATERIALS - 2;
 	static constexpr UINT kKeyItemBillboardCount = 7;
 
 	std::shared_ptr<CItemBillboardShader> m_itemBillboardShader;
+	std::shared_ptr<CTransparentItemBillboardShader> m_transparentItemBillboardShader;
+
 	std::shared_ptr<CMesh>                m_itemBillboardQuadMesh;
 
 	std::vector<ItemBillboardEntry>       m_itemBillboards;
@@ -622,6 +630,10 @@ private:
 	ComPtr<ID3D12Resource>                m_pd3dItemBillboardInstanceBuffer;
 	ItemBillboardInstanceVertex* m_pMappedItemBillboardInstanceBuffer = nullptr;
 	UINT                                  m_itemBillboardInstanceBufferCapacity = 0;
+
+	ComPtr<ID3D12Resource>                m_pd3dTransparentItemBillboardInstanceBuffer;
+	ItemBillboardInstanceVertex* m_pMappedTransparentItemBillboardInstanceBuffer = nullptr;
+	UINT                                  m_transparentItemBillboardInstanceBufferCapacity = 0;
 
     std::vector<CGameObject*> m_swordManRefs;
     std::vector<CGameObject*> m_bowManRefs;
