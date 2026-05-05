@@ -6,6 +6,8 @@
 #include "Component.h"
 #include <algorithm>
 
+class CAudioManager;
+
 class CHealthComponent final : public CComponentT<CHealthComponent>
 {
 public:
@@ -61,11 +63,18 @@ public:
 		if ( IsDead() )
 			return false;
 
+		const int hpBefore = m_currentHp;
+
 		m_currentHp -= damage;
 
 		if ( m_currentHp < 0 )
 			m_currentHp = 0;
 
+		const bool actuallyDamaged = ( m_currentHp < hpBefore );
+
+		if ( actuallyDamaged )
+			PlayHitSfx();
+		
 		return true;
 	}
 
@@ -83,4 +92,15 @@ public:
 private:
 	int m_maxHp = 1;
 	int m_currentHp = 1;
+
+public:
+	void SetAudioManager(CAudioManager* audioManager) { m_audioManager = audioManager; }
+
+private:
+	void PlayHitSfx();
+
+	static const char* SelectHitSfxPath();
+
+private:
+	CAudioManager* m_audioManager = nullptr;
 };

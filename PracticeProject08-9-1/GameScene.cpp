@@ -354,7 +354,7 @@ namespace
 	static constexpr int kAttackPowerMutant = 20;
 	static constexpr int kAttackPowerBoss = 50;
 
-	static constexpr UINT kOfflineGhoulAICount = 0;
+	static constexpr UINT kOfflineGhoulAICount = 1000;
 
 	static constexpr float kDisableVillageTreeCullPlayerHeight = 3.0f;
 
@@ -2734,7 +2734,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		}
 	}
 #else
-	m_localPlayerSlot = 3;
+	m_localPlayerSlot = 0;
 
 	const GameSceneStageFileSet& stageFiles = GetLocalStageFileSet(kLocalStagePreset);
 
@@ -2920,6 +2920,15 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	//BuildStaticWorldSubmeshOOBBDebugObjects(dev, cmd);
 #endif
 	BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
+
+	for ( CGameObject* obj : m_skinnedBatch.objectRefs )
+	{
+		if ( !obj )
+			continue;
+
+		if ( auto* hp = obj->GetComponent<CHealthComponent>() )
+			hp->SetAudioManager(m_pAudioManager);
+	}
 
 	LinkSceneObjects();
 
