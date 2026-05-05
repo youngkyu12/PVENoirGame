@@ -332,7 +332,7 @@ namespace
 
 	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::FullStage;
 
-	static constexpr float kFootstepSfxVolume = 0.2f;
+	static constexpr float kFootstepSfxVolume = 0.04f;
 
 	static bool IsWalkClipName(const std::string& clipName)
 	{
@@ -388,6 +388,22 @@ namespace
 		}
 
 		return "Assets/Audio/Walk_Grass1.wav";
+	}
+
+	static const char* SelectRandomFootstepBlockSfxPath()
+	{
+		static std::mt19937 rng{ std::random_device{}( ) };
+		static std::uniform_int_distribution<int> dist(1, 3);
+
+		switch ( dist(rng) )
+		{
+		case 1: return "Assets/Audio/Walk_Block1.wav";
+		case 2: return "Assets/Audio/Walk_Block2.wav";
+		case 3: return "Assets/Audio/Walk_Block3.wav";
+		default: break;
+		}
+
+		return "Assets/Audio/Walk_Block1.wav";
 	}
 
 	// -----------------------------------------------------------------------------
@@ -8324,7 +8340,13 @@ void CGameScene::PlayPlayerFootstepSfx(CGameObject* player)
 	if ( !player )
 		return;
 
-	const char* path = SelectRandomFootstepGrassSfxPath();
+	const bool useBlockFootstep = IsLocalPlayerInsideMegaGridCenter();
+
+	const char* path =
+		useBlockFootstep
+		? SelectRandomFootstepBlockSfxPath()
+		: SelectRandomFootstepGrassSfxPath();
+
 	if ( !path || !path[0] )
 		return;
 
@@ -8426,7 +8448,7 @@ void CGameScene::UpdatePlayerFootstepSfx()
 
 		bool shouldPlayFootstep = false;
 
-		if ( mode == 1 ) // Walk: 21 keyframes, foot contact at 3, 12
+		if ( mode == 1 ) // Walk: 21 keyframes, foot contact at 2, 11
 		{
 			constexpr float kWalkFootstep0 = ( 2.0f - 1.0f ) / ( 21.0f - 1.0f );
 			constexpr float kWalkFootstep1 = ( 11.0f - 1.0f ) / ( 21.0f - 1.0f );
@@ -8435,7 +8457,7 @@ void CGameScene::UpdatePlayerFootstepSfx()
 				CrossedNormalizedEvent(prevNormalized, curNormalized, kWalkFootstep0) ||
 				CrossedNormalizedEvent(prevNormalized, curNormalized, kWalkFootstep1);
 		}
-		else if ( mode == 2 ) // Run: 16 keyframes, foot contact at 3, 11
+		else if ( mode == 2 ) // Run: 16 keyframes, foot contact at 2, 10
 		{
 			constexpr float kRunFootstep0 = ( 2.0f - 1.0f ) / ( 16.0f - 1.0f );
 			constexpr float kRunFootstep1 = ( 10.0f - 1.0f ) / ( 16.0f - 1.0f );
@@ -8779,6 +8801,10 @@ void CGameScene::AnimateObjects(float dt)
 		m_skinnedObjects[j]->Animate(dt);
 	}
 
+	// 플레이어 위치 기준 grid tracker를 먼저 최신화한다.
+	// 발걸음 표면 선택이 IsLocalPlayerInsideMegaGridCenter()를 사용하기 때문.
+	UpdateDynamicGridState();
+
 	// 플레이어 Walk_/Run_ 애니메이션 시간이 갱신된 뒤,
 	// 발 접지 키프레임을 지나쳤는지 검사해서 발걸음 소리를 낸다.
 	UpdatePlayerFootstepSfx();
@@ -8819,10 +8845,6 @@ void CGameScene::AnimateObjects(float dt)
 
 		m_lightObjects[j]->Animate(dt);
 	}
-
-//#ifndef USING_NETWORK
-	UpdateDynamicGridState();
-//#endif
 }
 
 void CGameScene::CollisionObjects()
