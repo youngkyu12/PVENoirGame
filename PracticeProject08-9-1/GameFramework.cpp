@@ -878,6 +878,10 @@ void CGameFramework::ProcessInput()
 	static bool s_prevDown[4] = { false, false, false, false };
 	for ( int slot = 0; slot < 4; ++slot )
 	{
+		// 0 키는 총 사운드 튜닝용으로 사용.
+		if ( slot == 0 )
+			continue;
+
 		const bool down = ( pKeysBuffer['0' + slot] & 0xF0 ) != 0;
 		if ( down && !s_prevDown[slot] )
 		{
