@@ -617,7 +617,7 @@ D3D12_SHADER_BYTECODE CTransparentItemBillboardShader::CreatePixelShader(
 {
 	return CShader::CompileShaderFromFile(
 		L"Shaders.hlsl",
-		"PSItemBillboardUnlitTransparent",
+		"PSItemBillboardUnlitTransparentForward",
 		"ps_5_1",
 		ppd3dShaderBlob
 	);
@@ -633,91 +633,25 @@ D3D12_RASTERIZER_DESC CTransparentItemBillboardShader::CreateRasterizerState()
 D3D12_BLEND_DESC CTransparentItemBillboardShader::CreateBlendState()
 {
 	D3D12_BLEND_DESC bs{};
-	::ZeroMemory(&bs, sizeof(bs));
-
 	bs.AlphaToCoverageEnable = FALSE;
+	bs.IndependentBlendEnable = FALSE;
 
-	// MRT별로 write mask를 다르게 줄 것이므로 TRUE
-	bs.IndependentBlendEnable = TRUE;
+	D3D12_RENDER_TARGET_BLEND_DESC rt{};
+	rt.BlendEnable = TRUE;
+	rt.LogicOpEnable = FALSE;
 
-	auto makeTransparentRT = [ ] ()
-		{
-			D3D12_RENDER_TARGET_BLEND_DESC rt{};
-			rt.BlendEnable = TRUE;
-			rt.LogicOpEnable = FALSE;
+	rt.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	rt.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	rt.BlendOp = D3D12_BLEND_OP_ADD;
 
-			// out.rgb = src.rgb * src.a + dst.rgb * (1 - src.a)
-			rt.SrcBlend = D3D12_BLEND_SRC_ALPHA;
-			rt.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-			rt.BlendOp = D3D12_BLEND_OP_ADD;
+	rt.SrcBlendAlpha = D3D12_BLEND_ONE;
+	rt.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+	rt.BlendOpAlpha = D3D12_BLEND_OP_ADD;
 
-			rt.SrcBlendAlpha = D3D12_BLEND_ONE;
-			rt.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
-			rt.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	rt.LogicOp = D3D12_LOGIC_OP_NOOP;
+	rt.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
-			rt.LogicOp = D3D12_LOGIC_OP_NOOP;
-			rt.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-			return rt;
-		};
-
-	auto makeNoWriteRT = [ ] ()
-		{
-			D3D12_RENDER_TARGET_BLEND_DESC rt{};
-			rt.BlendEnable = FALSE;
-			rt.LogicOpEnable = FALSE;
-			rt.SrcBlend = D3D12_BLEND_ONE;
-			rt.DestBlend = D3D12_BLEND_ZERO;
-			rt.BlendOp = D3D12_BLEND_OP_ADD;
-			rt.SrcBlendAlpha = D3D12_BLEND_ONE;
-			rt.DestBlendAlpha = D3D12_BLEND_ZERO;
-			rt.BlendOpAlpha = D3D12_BLEND_OP_ADD;
-			rt.LogicOp = D3D12_LOGIC_OP_NOOP;
-
-			// normal / zDepth에는 투명 빌보드가 쓰지 않음
-			rt.RenderTargetWriteMask = 0;
-			return rt;
-		};
-
-	auto makeDepthWriteRT = [ ] ()
-		{
-			D3D12_RENDER_TARGET_BLEND_DESC rt{};
-			rt.BlendEnable = FALSE;
-			rt.LogicOpEnable = FALSE;
-
-			rt.SrcBlend = D3D12_BLEND_ONE;
-			rt.DestBlend = D3D12_BLEND_ZERO;
-			rt.BlendOp = D3D12_BLEND_OP_ADD;
-
-			rt.SrcBlendAlpha = D3D12_BLEND_ONE;
-			rt.DestBlendAlpha = D3D12_BLEND_ZERO;
-			rt.BlendOpAlpha = D3D12_BLEND_OP_ADD;
-
-			rt.LogicOp = D3D12_LOGIC_OP_NOOP;
-
-			// zDepth RT는 DXGI_FORMAT_R32_FLOAT이므로 R 채널만 쓴다.
-			rt.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_RED;
-
-			return rt;
-		};
-
-	// SV_TARGET0: color
-	bs.RenderTarget[0] = makeTransparentRT();
-
-	// SV_TARGET1: cTexture
-	bs.RenderTarget[1] = makeTransparentRT();
-
-	// SV_TARGET2: cIllumination
-	bs.RenderTarget[2] = makeTransparentRT();
-
-	// SV_TARGET3: normal
-	bs.RenderTarget[3] = makeNoWriteRT();
-
-	// SV_TARGET4: zDepth
-	bs.RenderTarget[4] = makeDepthWriteRT();
-
-	// 나머지는 사용 안 함
-	for ( int i = 5; i < 8; ++i )
-		bs.RenderTarget[i] = makeNoWriteRT();
+	bs.RenderTarget[0] = rt;
 
 	return bs;
 }
