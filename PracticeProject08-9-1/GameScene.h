@@ -659,7 +659,9 @@ private:
 	void RequestPrepareBowmanArrow(CGameObject* bowman, float pullBackDistance);
 	void RequestReleasePreparedBowmanArrow(CGameObject* bowman, float speed, float lifeSec = 3.0f);
 	void RequestFireBullet(CGameObject* shooter, float speed, float lifeSec = 3.0f);
+	void RequestPlayerAttackSfx(CGameObject* player);
 
+	void UpdatePlayerBowSfxOnly();
 	void UpdatePreparedBowArrows();
 	void UpdateLocalPlayerDeathAndRespawn(float dt);
 	void BeginLocalPlayerDeath(CGameObject* player);

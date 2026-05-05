@@ -95,7 +95,10 @@ private:
 
 public:
 	void SetAudioManager(CAudioManager* audioManager) { m_audioManager = audioManager; }
-
+	void RequestHitSfx()
+	{
+		PlayHitSfx();
+	}
 private:
 	void PlayHitSfx();
 

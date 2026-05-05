@@ -7539,6 +7539,65 @@ void CGameScene::RequestReleasePreparedArrow(CGameObject* shooter, float speed, 
 	m_preparedPlayerArrows[( size_t ) slot] = nullptr;
 }
 
+void CGameScene::UpdatePlayerBowSfxOnly()
+{
+	for ( int slot = 0; slot < 4; ++slot )
+	{
+		CGameObject* player = GetPlayerBySlot(slot);
+		const size_t slotIndex = static_cast< size_t >(slot);
+
+		bool isBowLoad = false;
+		bool isBowRelease = false;
+		bool hasBowEquipped = false;
+
+		if ( player )
+		{
+			if ( auto* equip = player->GetComponent<CPlayerEquipmentComponent>() )
+			{
+				hasBowEquipped = ( equip->GetEquippedWeapon() == EWeaponType::Bow );
+			}
+
+			if ( auto* animComp = player->GetComponent<CAnimatorComponent>() )
+			{
+				if ( auto* ctrl = animComp->EnsureController() )
+				{
+					isBowLoad = ctrl->IsBowLoadPhase();
+					isBowRelease = ctrl->IsBowReleasePhase();
+				}
+			}
+			else if ( auto* ctrl = player->GetAnimController() )
+			{
+				isBowLoad = ctrl->IsBowLoadPhase();
+				isBowRelease = ctrl->IsBowReleasePhase();
+			}
+		}
+
+		// Bow_Load 진입 순간에만 로딩 사운드 + 릴리즈 사운드 예약.
+		// 릴리즈 사운드는 기존 구조대로 Bow_Load 시작 기준 0.4333초 후 재생된다.
+		if ( hasBowEquipped && isBowLoad && !m_prevBowLoadPhase[slotIndex] )
+		{
+			if ( auto* equip = player ? player->GetComponent<CPlayerEquipmentComponent>() : nullptr )
+			{
+				equip->RequestBowLoadingSfx();
+				equip->RequestBowReleaseSfxFromLoadPhase();
+			}
+		}
+
+		// 네트워크 모드에서는 화살 준비/발사는 서버 snapshot.bullets가 담당한다.
+		// 따라서 여기서는 RequestPrepareArrow(), RequestReleasePreparedArrow()를 호출하지 않는다.
+
+		if ( !hasBowEquipped || ( !isBowLoad && !isBowRelease ) )
+		{
+			m_prevBowLoadPhase[slotIndex] = false;
+			m_prevBowReleasePhase[slotIndex] = false;
+			continue;
+		}
+
+		m_prevBowLoadPhase[slotIndex] = isBowLoad;
+		m_prevBowReleasePhase[slotIndex] = isBowRelease;
+	}
+}
+
 void CGameScene::UpdatePreparedBowArrows()
 {
 	constexpr float kArrowSpeed = 3.0f;
@@ -8320,6 +8379,38 @@ void CGameScene::RequestFireBullet(CGameObject* shooter, float speed, float life
 	}
 }
 
+void CGameScene::RequestPlayerAttackSfx(CGameObject* player)
+{
+	if ( !player )
+		return;
+
+	auto* equip = player->GetComponent<CPlayerEquipmentComponent>();
+	if ( !equip )
+		return;
+
+	switch ( equip->GetEquippedWeapon() )
+	{
+	case EWeaponType::Sword:
+		equip->RequestSwordAttackWhoosh();
+		break;
+
+	case EWeaponType::Axe:
+		equip->RequestAxeAttackWhoosh();
+		break;
+
+	case EWeaponType::Gun:
+		equip->RequestGunShotSfx();
+		break;
+
+	case EWeaponType::Bow:
+		// 활은 UpdatePreparedBowArrows()에서 Bow_Load / Bow_Release phase 기준으로 처리한다.
+		break;
+
+	default:
+		break;
+	}
+}
+
 bool CGameScene::ProcessInput(UCHAR* /*pKeysBuffer*/)
 {
     return false;
@@ -8618,6 +8709,11 @@ void CGameScene::AnimateObjects(float dt)
 				}
 				else if ( decoded.attack )
 				{
+					if ( !prevDecoded.attack )
+					{
+						RequestPlayerAttackSfx(player);
+					}
+
 					ac->RequestAttack();
 					m_prevPlayerNetworkStateCode[state.id] = state.animation.stateCode;
 					continue;
@@ -8680,11 +8776,20 @@ void CGameScene::AnimateObjects(float dt)
 					const DecodedAnimStateCode prevDecoded = DecodeStateCode(prevStateCode);
 
 					if ( decoded.die && !prevDecoded.die )
+					{
 						ctrl->RequestCommand(EMonsterAnimCommand::Death);
+					}
 					else if ( decoded.hit && !prevDecoded.hit )
+					{
 						ctrl->RequestCommand(EMonsterAnimCommand::Hit);
+
+						if ( auto* hp = obj->GetComponent<CHealthComponent>() )
+							hp->RequestHitSfx();
+					}
 					else if ( decoded.attack && !prevDecoded.attack )
+					{
 						ctrl->RequestCommand(EMonsterAnimCommand::Attack);
+					}
 
 					s_prevEnemyStateCode[state.id] = state.animation.stateCode;
 					ctrl->Update(0.0f);
@@ -8834,8 +8939,10 @@ void CGameScene::AnimateObjects(float dt)
 
 		m_staticObjects[j]->Animate(dt);
 	}
-#ifndef USING_NETWORK
-    UpdatePreparedBowArrows();
+#ifdef USING_NETWORK
+	UpdatePlayerBowSfxOnly();
+#else
+	UpdatePreparedBowArrows();
 #endif
 
 	for ( UINT j = 0; j < ( UINT ) m_lightObjects.size(); ++j )
