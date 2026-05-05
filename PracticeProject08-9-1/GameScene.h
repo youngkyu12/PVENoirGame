@@ -562,6 +562,10 @@ private:
     // slot 0..3 플레이어 포인터(소유는 m_skinnedObjects가 함)
     std::array<CGameObject*, 4> m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
 
+	std::array<bool, 4> m_playerFootstepTrackingValid = { false, false, false, false };
+	std::array<int, 4> m_playerFootstepMode = { 0, 0, 0, 0 }; // 0=None, 1=Walk, 2=Run
+	std::array<float, 4> m_playerFootstepPrevNormalizedTime = { 0.0f, 0.0f, 0.0f, 0.0f };
+
     int m_localPlayerSlot;
     // ------------------------------------------------------------------------
     // Build counts (현재는 BuildObjects()에서 결정, 추후 서버 동기화 값으로 대체)
@@ -662,6 +666,10 @@ private:
 	void RespawnLocalPlayer(CGameObject* player);
 	void SetLocalPlayerControlEnabled(bool enabled);
 	void CancelLocalPlayerPreparedActions();
+
+	void UpdatePlayerFootstepSfx();
+	void ResetPlayerFootstepSfxState();
+	void PlayPlayerFootstepSfx(CGameObject* player);
 
 	void UpdateMonsterDeathStates();
 	void BeginMonsterDeath(CGameObject* monster);
