@@ -1234,7 +1234,7 @@ void CGameFramework::FrameAdvance()
 			nullptr
 		);
 
-		if ( gameScene ) 
+		if ( gameScene )
 		{
 			// 1) Geometry pass -> offscreen MRT only
 			m_pPostProcessingShader->OnPrepareSceneRenderTargets(
@@ -1289,12 +1289,7 @@ void CGameFramework::FrameAdvance()
 				nullptr
 			);
 
-			m_pd3dCommandList->OMSetRenderTargets(
-				1,
-				&m_pd3dSwapChainBackBufferRTVCPUHandles[m_nSwapChainBufferIndex],
-				FALSE,
-				nullptr
-			);
+			m_pd3dCommandList->OMSetRenderTargets(1, &m_pd3dSwapChainBackBufferRTVCPUHandles[m_nSwapChainBufferIndex], FALSE, &m_d3dDsvDescriptorCPUHandle);
 
 			{
 				PROFILE_RENDER_SCOPE("Framework::GameScene::RebindFrameForComposite");

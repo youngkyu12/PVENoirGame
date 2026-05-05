@@ -403,4 +403,31 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSItemBillboardUnlitTransparent(
 
     return output;
 }
+
+float4 PSItemBillboardUnlitTransparentForward(
+    VS_TEXTURED_LIGHTING_OUTPUT input,
+    uint nPrimitiveID : SV_PrimitiveID) : SV_TARGET
+{
+    uint materialId = input.materialId;
+    MATERIAL mat = gMaterials[materialId];
+
+    float2 diffuseUV = GetDiffuseUV(materialId, input.uv);
+
+    float4 diffuseSample = SampleTextureRGBA(
+        mat.TextureIndices.x,
+        diffuseUV,
+        float4(1.0f, 1.0f, 1.0f, 0.0f)
+    );
+
+    float4 color;
+    color.rgb = diffuseSample.rgb * mat.m_cDiffuse.rgb;
+    color.a = diffuseSample.a * mat.m_cDiffuse.a;
+
+    // 완전 투명한 픽셀만 제거.
+    // 반투명 가장자리는 유지.
+    clip(color.a - 0.001f);
+
+    return color;
+}
+
 #endif

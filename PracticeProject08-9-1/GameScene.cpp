@@ -445,7 +445,7 @@ namespace
 	static constexpr float kCastleDoorPortalExitOffset = 2.0f;
 
 	static constexpr float kTowerDoorPortalLowerExitYOffset = 0.0f;
-	static constexpr float kTowerDoorPortalUpperExitYOffset = 5.0f;
+	static constexpr float kTowerDoorPortalUpperExitYOffset = 3.5f;
 	static constexpr float kTowerDoorPortalUpperHeightThreshold = 10.0f;
 	static constexpr float kTowerDoorPortalPlayerYawOffsetFromCamera = 0.0f;
 
@@ -6483,11 +6483,13 @@ void CGameScene::BuildItemBillboardBatch(
 	m_transparentItemBillboardShader =
 		std::make_shared<CTransparentItemBillboardShader>();
 
+	DXGI_FORMAT transparentRtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+
 	m_transparentItemBillboardShader->CreateShader(
 		dev,
 		m_pd3dGraphicsRootSignature.Get(),
-		rtCount,
-		rtvFormats,
+		1,
+		&transparentRtvFormat,
 		dsvFormat
 	);
 
@@ -6540,9 +6542,9 @@ void CGameScene::BuildItemBillboardBatch(
 
 		key.position = keyPositions[i];
 
-		key.width = 1.2f;
-		key.height = 1.2f;
-		key.yOffset = 1.2f;
+		key.width = 2.0f;
+		key.height = 2.0f;
+		key.yOffset = 2.0f;
 
 		key.cullDistance = 300.0f;
 
@@ -9426,12 +9428,6 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 		RenderSkinnedOcclusionPass(cmd, camera);
 	}
 
-	// 추가: transparent billboard는 opaque/alpha-clip/skinned/occlusion 이후
-	if ( m_transparentItemBillboardShader )
-	{
-		RenderTransparentItemBillboards(cmd, camera);
-	}
-
 #ifndef USING_NETWORK
 	if ( m_colliderBatch.shader )
 	{
@@ -9478,6 +9474,14 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	RenderDepthFog(cmd, camera);
+	// DepthFog 이후, 최종 backbuffer 위에 forward transparent billboard 렌더.
+	BindFrameRootParameters(cmd);
+
+	if ( m_transparentItemBillboardShader )
+	{
+		RenderTransparentItemBillboards(cmd, camera);
+	}
+
 	m_hud.Render(cmd, camera);
 }
 
