@@ -100,6 +100,7 @@ public:
 	bool RequestRollSfx(uint32_t dirBits);
 	bool RequestBowLoadingSfx();
 	bool RequestBowReleaseSfx();
+	bool RequestGunShotSfx();
 
 	bool RequestBowReleaseSfxFromLoadPhase();
 
@@ -111,8 +112,10 @@ private:
 		AxeWhoosh,
 		Roll,
 		BowLoading,
-		BowRelease
+		BowRelease,
+		GunShot
 	};
+
 	struct ActivePlayerSfx
 	{
 		EPendingPlayerSfxKind kind = EPendingPlayerSfxKind::None;
@@ -142,6 +145,8 @@ private:
 	static const char* GetRollSfxPath();
 	static const char* GetBowLoadingSfxPath();
 	static const char* GetBowReleaseSfxPath();
+	static const char* GetGunShotSfxPath(int index);
+	static int SelectGunShotIndex();
 
 	std::vector<ActivePlayerSfx> m_activeSfxList;
 

@@ -34,21 +34,32 @@ namespace
 	constexpr float kRollSfxDelayBackwardSeconds = 0.0000f;
 	constexpr float kRollSfxDelayLeftSeconds = 0.1000f;
 	constexpr float kRollSfxDelayRightSeconds = 0.1000f;
+	constexpr float kBowLoadingSfxDelaySeconds = 5.0f / 60.0f;  // 0.0833 sec
+	constexpr float kBowReleaseSfxDelayFromLoadSeconds = 26.0f / 60.0f; // 0.4333 sec
+	constexpr float kGunShotSfxDelaySeconds = 0.0f;
 
 	constexpr float kSwordWhooshVolume = 0.5f;
 	constexpr float kAxeWhooshVolume = 1.0f;
 	constexpr float kRollSfxVolume = 2.0f;
-
-	constexpr float kBowLoadingSfxDelaySeconds = 5.0f / 60.0f;  // 0.0833 sec
-	constexpr float kBowReleaseSfxDelayFromLoadSeconds = 26.0f / 60.0f; // 0.4333 sec
-
 	constexpr float kBowLoadingSfxVolume = 2.0f;
 	constexpr float kBowReleaseSfxVolume = 2.0f;
+	constexpr float kGunShotSfxVolume = 0.5f;
+
+	// 0 = 랜덤, 1 = Gun1, 2 = Gun2
+	int g_debugGunShotFixedIndex = 0;
+
 
 	int RandomSwordWhooshIndex()
 	{
 		static std::mt19937 rng{ std::random_device{}( ) };
 		static std::uniform_int_distribution<int> dist(1, 3);
+		return dist(rng);
+	}
+
+	int RandomGunShotIndex()
+	{
+		static std::mt19937 rng{ std::random_device{}( ) };
+		static std::uniform_int_distribution<int> dist(1, 2);
 		return dist(rng);
 	}
 
@@ -382,14 +393,24 @@ bool CPlayerEquipmentComponent::RequestBowReleaseSfx()
 	return RequestBowReleaseSfxFromLoadPhase();
 }
 
-const char* CPlayerEquipmentComponent::GetBowLoadingSfxPath()
+bool CPlayerEquipmentComponent::RequestGunShotSfx()
 {
-	return "Assets/Audio/Bow_Loading.mp3";
-}
+	if ( m_equippedWeapon != EWeaponType::Gun )
+		return false;
 
-const char* CPlayerEquipmentComponent::GetBowReleaseSfxPath()
-{
-	return "Assets/Audio/Bow_Release.mp3";
+	if ( !m_audioManager )
+		return false;
+
+	const int index = SelectGunShotIndex();
+
+	SchedulePlayerSfx(
+		EPendingPlayerSfxKind::GunShot,
+		GetGunShotSfxPath(index),
+		kGunShotSfxDelaySeconds,
+		kGunShotSfxVolume
+	);
+
+	return true;
 }
 
 void CPlayerEquipmentComponent::SchedulePlayerSfx(
@@ -457,12 +478,17 @@ void CPlayerEquipmentComponent::PlayPendingPlayerSfxAt(size_t index)
 	}
 
 	if ( played.kind == EPendingPlayerSfxKind::BowLoading ||
-		played.kind == EPendingPlayerSfxKind::BowRelease )
+	played.kind == EPendingPlayerSfxKind::BowRelease ||
+	played.kind == EPendingPlayerSfxKind::GunShot )
 	{
-		const char* tag =
-			( played.kind == EPendingPlayerSfxKind::BowLoading )
-			? "BowLoadingSfx"
-			: "BowReleaseSfx";
+		const char* tag = "PlayerSfx";
+
+		if ( played.kind == EPendingPlayerSfxKind::BowLoading )
+			tag = "BowLoadingSfx";
+		else if ( played.kind == EPendingPlayerSfxKind::BowRelease )
+			tag = "BowReleaseSfx";
+		else if ( played.kind == EPendingPlayerSfxKind::GunShot )
+			tag = "GunShotSfx";
 
 		char buf[512];
 		sprintf_s(
@@ -500,9 +526,44 @@ const char* CPlayerEquipmentComponent::GetSwordWhooshPath(int index)
 	return "Assets/Audio/Whoosh_Sword1.wav";
 }
 
+const char* CPlayerEquipmentComponent::GetBowLoadingSfxPath()
+{
+	return "Assets/Audio/Bow_Loading.mp3";
+}
+
+const char* CPlayerEquipmentComponent::GetBowReleaseSfxPath()
+{
+	return "Assets/Audio/Bow_Release.mp3";
+}
+
+const char* CPlayerEquipmentComponent::GetAxeWhooshPath()
+{
+	return "Assets/Audio/Whoosh_Axe.wav";
+}
+
 const char* CPlayerEquipmentComponent::GetRollSfxPath()
 {
 	return "Assets/Audio/Player_Roll.mp3";
+}
+
+const char* CPlayerEquipmentComponent::GetGunShotSfxPath(int index)
+{
+	switch ( index )
+	{
+	case 1: return "Assets/Audio/Gun1.wav";
+	case 2: return "Assets/Audio/Gun2.wav";
+	default: break;
+	}
+
+	return "Assets/Audio/Gun1.wav";
+}
+
+int CPlayerEquipmentComponent::SelectGunShotIndex()
+{
+	if ( g_debugGunShotFixedIndex >= 1 && g_debugGunShotFixedIndex <= 2 )
+		return g_debugGunShotFixedIndex;
+
+	return RandomGunShotIndex();
 }
 
 float CPlayerEquipmentComponent::GetSwordWhooshDelaySeconds(int index)
@@ -516,11 +577,6 @@ float CPlayerEquipmentComponent::GetSwordWhooshDelaySeconds(int index)
 	}
 
 	return kSword1WhooshDelaySeconds;
-}
-
-const char* CPlayerEquipmentComponent::GetAxeWhooshPath()
-{
-	return "Assets/Audio/Whoosh_Axe.wav";
 }
 
 bool CPlayerEquipmentComponent::RequestBowReleaseSfxFromLoadPhase()
@@ -550,6 +606,7 @@ bool CPlayerEquipmentComponent::ShouldFollowOwnerForSfx(EPendingPlayerSfxKind ki
 	case EPendingPlayerSfxKind::Roll:
 	case EPendingPlayerSfxKind::BowLoading:
 	case EPendingPlayerSfxKind::BowRelease:
+	case EPendingPlayerSfxKind::GunShot:
 		return true;
 
 	default:
