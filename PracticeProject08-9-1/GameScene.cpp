@@ -2504,9 +2504,12 @@ void CGameScene::ReleaseObjects()
 	m_deadMonsters.clear();
 
 	m_itemBillboardShader.reset();
+	m_transparentItemBillboardShader.reset();
+
 	m_itemBillboardQuadMesh.reset();
 	m_itemBillboards.clear();
 	m_keyItemTexture.reset();
+
 	ReleaseItemBillboardGpuResources();
 
 	m_staticRenderObjectCache.clear();
@@ -3608,6 +3611,27 @@ void CGameScene::BuildLightsAndMaterials()
 
 		keyMat.m_xmn4WrapModes0 = XMUINT4(0, 0, 0, 0);
 		keyMat.m_xmn4WrapModes1 = XMUINT4(0, 0, 0, 0);
+	}
+	{
+		MATERIAL& transparentMat =
+			m_pMaterials->m_pReflections[kTransparentItemBillboardMaterialId];
+
+		transparentMat.m_xmf4Ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+
+		transparentMat.m_xmf4Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+
+		transparentMat.m_xmf4Specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+		transparentMat.m_xmf4Emissive = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+
+		transparentMat.m_xmn4TextureIndices = XMUINT4(0, 0, 0, 0);
+
+		transparentMat.m_xmf4DiffuseUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+		transparentMat.m_xmf4NormalUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+		transparentMat.m_xmf4EmissiveUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+		transparentMat.m_xmf4SpecularUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+
+		transparentMat.m_xmn4WrapModes0 = XMUINT4(0, 0, 0, 0);
+		transparentMat.m_xmn4WrapModes1 = XMUINT4(0, 0, 0, 0);
 	}
 }
 
@@ -6456,6 +6480,17 @@ void CGameScene::BuildItemBillboardBatch(
 		dsvFormat
 	);
 
+	m_transparentItemBillboardShader =
+		std::make_shared<CTransparentItemBillboardShader>();
+
+	m_transparentItemBillboardShader->CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		rtCount,
+		rtvFormats,
+		dsvFormat
+	);
+
 	{
 		m_keyItemTexture = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
 
@@ -6474,6 +6509,7 @@ void CGameScene::BuildItemBillboardBatch(
 		);
 
 		SetKeyItemDiffuseSrvIndex(m_keyItemTexture->GetBaseSrvIndex());
+		SetTransparentItemDiffuseSrvIndex(m_keyItemTexture->GetBaseSrvIndex());
 	}
 
 	m_itemBillboardQuadMesh = CreateItemBillboardQuadMesh(dev, cmd);
@@ -6513,7 +6549,8 @@ void CGameScene::BuildItemBillboardBatch(
 		key.pickupRadius = 1.25f;
 		key.pickupHeightTolerance = 2.0f;
 
-		key.materialId = kItemBillboardKeyMaterialId;
+		key.transparent = true;
+		key.materialId = kTransparentItemBillboardMaterialId;
 
 		m_itemBillboards.push_back(key);
 	}
@@ -6543,6 +6580,35 @@ void CGameScene::BuildItemBillboardBatch(
 		nullptr,
 		reinterpret_cast< void** >( &m_pMappedItemBillboardInstanceBuffer )
 	);
+
+	m_transparentItemBillboardInstanceBufferCapacity =
+		static_cast< UINT >( m_itemBillboards.size() );
+
+	if ( m_transparentItemBillboardInstanceBufferCapacity > 0 )
+	{
+		const UINT transparentInstanceBufferBytes =
+			sizeof(ItemBillboardInstanceVertex) *
+			m_transparentItemBillboardInstanceBufferCapacity;
+
+		m_pd3dTransparentItemBillboardInstanceBuffer =
+			::CreateBufferResource(
+				dev,
+				cmd,
+				nullptr,
+				transparentInstanceBufferBytes,
+				D3D12_HEAP_TYPE_UPLOAD,
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				nullptr
+			);
+
+		m_pd3dTransparentItemBillboardInstanceBuffer->Map(
+			0,
+			nullptr,
+			reinterpret_cast< void** >(
+				&m_pMappedTransparentItemBillboardInstanceBuffer
+				)
+		);
+	}
 }
 
 void CGameScene::ReleaseItemBillboardGpuResources()
@@ -6559,6 +6625,19 @@ void CGameScene::ReleaseItemBillboardGpuResources()
 	}
 
 	m_itemBillboardInstanceBufferCapacity = 0;
+
+	if ( m_pd3dTransparentItemBillboardInstanceBuffer )
+	{
+		if ( m_pMappedTransparentItemBillboardInstanceBuffer )
+		{
+			m_pd3dTransparentItemBillboardInstanceBuffer->Unmap(0, nullptr);
+			m_pMappedTransparentItemBillboardInstanceBuffer = nullptr;
+		}
+
+		m_pd3dTransparentItemBillboardInstanceBuffer.Reset();
+	}
+
+	m_transparentItemBillboardInstanceBufferCapacity = 0;
 }
 
 void CGameScene::UpdateItemBillboardDistanceCullSelection(CCamera* camera)
@@ -6662,6 +6741,9 @@ void CGameScene::RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* c
 		if ( !item.active )
 			continue;
 
+		if ( item.transparent )
+			continue;
+
 		if ( item.distanceCulled )
 			continue;
 
@@ -6706,6 +6788,126 @@ void CGameScene::RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* c
 	cmd->IASetIndexBuffer(&sm.ibView);
 
 	cmd->DrawIndexedInstanced( static_cast< UINT >( sm.indices.size() ), visibleInstanceCount, 0, 0, 0);
+}
+
+void CGameScene::RenderTransparentItemBillboards(
+	ID3D12GraphicsCommandList* cmd,
+	CCamera* camera)
+{
+	PROFILE_RENDER_SCOPE("GameScene::RenderTransparentItemBillboards");
+
+	if ( !cmd ) return;
+	if ( !camera ) return;
+	if ( !m_transparentItemBillboardShader ) return;
+	if ( !m_itemBillboardQuadMesh ) return;
+	if ( !m_pd3dTransparentItemBillboardInstanceBuffer ) return;
+	if ( !m_pMappedTransparentItemBillboardInstanceBuffer ) return;
+	if ( m_itemBillboardQuadMesh->m_SubMeshes.empty() ) return;
+
+	const SubMesh& sm = m_itemBillboardQuadMesh->m_SubMeshes[0];
+
+	if ( sm.indices.empty() )
+		return;
+
+	const XMFLOAT3 cameraPos = camera->GetPosition();
+
+	std::vector<const ItemBillboardEntry*> visibleItems;
+	visibleItems.reserve(m_itemBillboards.size());
+
+	for ( const ItemBillboardEntry& item : m_itemBillboards )
+	{
+		if ( !item.active )
+			continue;
+
+		if ( !item.transparent )
+			continue;
+
+		if ( item.distanceCulled )
+			continue;
+
+		visibleItems.push_back(&item);
+	}
+
+	if ( visibleItems.empty() )
+		return;
+
+	std::sort(
+		visibleItems.begin(),
+		visibleItems.end(),
+		[ &cameraPos ] (const ItemBillboardEntry* a, const ItemBillboardEntry* b)
+		{
+			const float adx = a->position.x - cameraPos.x;
+			const float ady = a->position.y - cameraPos.y;
+			const float adz = a->position.z - cameraPos.z;
+
+			const float bdx = b->position.x - cameraPos.x;
+			const float bdy = b->position.y - cameraPos.y;
+			const float bdz = b->position.z - cameraPos.z;
+
+			const float aDistSq = adx * adx + ady * ady + adz * adz;
+			const float bDistSq = bdx * bdx + bdy * bdy + bdz * bdz;
+
+			// transparent는 뒤에서 앞으로
+			return aDistSq > bDistSq;
+		}
+	);
+
+	const XMFLOAT3 targetPos = camera->GetPosition();
+
+	UINT visibleInstanceCount = 0;
+
+	for ( const ItemBillboardEntry* item : visibleItems )
+	{
+		if ( !item )
+			continue;
+
+		if ( visibleInstanceCount >= m_transparentItemBillboardInstanceBufferCapacity )
+			break;
+
+		ItemBillboardInstanceVertex& dst =
+			m_pMappedTransparentItemBillboardInstanceBuffer[visibleInstanceCount];
+
+		StoreCylindricalBillboardWorldRows(
+			dst,
+			item->position,
+			item->yOffset,
+			item->width,
+			item->height,
+			targetPos,
+			item->materialId
+		);
+
+		++visibleInstanceCount;
+	}
+
+	if ( visibleInstanceCount == 0 )
+		return;
+
+	m_transparentItemBillboardShader->Render(cmd, camera, nullptr);
+
+	D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
+	vbViews[0] = sm.vbView;
+
+	vbViews[1].BufferLocation =
+		m_pd3dTransparentItemBillboardInstanceBuffer->GetGPUVirtualAddress();
+
+	vbViews[1].SizeInBytes =
+		sizeof(ItemBillboardInstanceVertex) * visibleInstanceCount;
+
+	vbViews[1].StrideInBytes =
+		sizeof(ItemBillboardInstanceVertex);
+
+	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	cmd->IASetVertexBuffers(0, 2, vbViews);
+	cmd->IASetIndexBuffer(&sm.ibView);
+
+	cmd->DrawIndexedInstanced(
+		static_cast< UINT >( sm.indices.size() ),
+		visibleInstanceCount,
+		0,
+		0,
+		0
+	);
 }
 
 void CGameScene::BuildColliderBatch(
@@ -7283,6 +7485,14 @@ void CGameScene::SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex)
 void CGameScene::SetKeyItemDiffuseSrvIndex(UINT srvIndex)
 {
 	SetMaterialDiffuseSrvIndex(( int ) kItemBillboardKeyMaterialId, srvIndex);
+}
+
+void CGameScene::SetTransparentItemDiffuseSrvIndex(UINT srvIndex)
+{
+	SetMaterialDiffuseSrvIndex(
+		static_cast< int >( kTransparentItemBillboardMaterialId ),
+		srvIndex
+	);
 }
 
 CGameObject* CGameScene::GetDemoFighter(int index) const
@@ -9214,6 +9424,12 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 	{
 		PROFILE_RENDER_SCOPE("GameScene::RenderSceneGeometry::SkinnedOcclusionPass");
 		RenderSkinnedOcclusionPass(cmd, camera);
+	}
+
+	// 추가: transparent billboard는 opaque/alpha-clip/skinned/occlusion 이후
+	if ( m_transparentItemBillboardShader )
+	{
+		RenderTransparentItemBillboards(cmd, camera);
 	}
 
 #ifndef USING_NETWORK

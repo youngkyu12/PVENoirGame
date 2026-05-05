@@ -175,6 +175,22 @@ public:
 	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
 };
 
+class CTransparentItemBillboardShader final : public CStaticObjectsShader
+{
+public:
+	CTransparentItemBillboardShader() = default;
+	~CTransparentItemBillboardShader() override = default;
+
+public:
+	D3D12_INPUT_LAYOUT_DESC CreateInputLayout() override;
+	D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob) override;
+	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
+
+	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
+	D3D12_BLEND_DESC CreateBlendState() override;
+	D3D12_DEPTH_STENCIL_DESC CreateDepthStencilState() override;
+};
+
 class CSkinnedObjectsShader : public CIlluminatedTexturedShader
 {
 public:
