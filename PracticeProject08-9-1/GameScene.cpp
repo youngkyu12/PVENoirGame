@@ -12,9 +12,11 @@
 #include <cctype>
 #include <unordered_map>
 #include <algorithm>
+#include <random>
 
 #include "AnimatorComponent.h"
 #include "AnimatorData.h"
+#include "Animator.h"
 #include "AnimController.h"
 #include "MonsterAnimController.h"
 #include "MonsterAnimTypes.h"
@@ -330,6 +332,64 @@ namespace
 
 	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::FullStage;
 
+	static constexpr float kFootstepSfxVolume = 0.2f;
+
+	static bool IsWalkClipName(const std::string& clipName)
+	{
+		return clipName.rfind("Walk_", 0) == 0;
+	}
+
+	static bool IsRunClipName(const std::string& clipName)
+	{
+		return clipName.rfind("Run_", 0) == 0;
+	}
+
+	static int GetFootstepModeFromClipName(const std::string& clipName)
+	{
+		if ( IsWalkClipName(clipName) )
+			return 1;
+
+		if ( IsRunClipName(clipName) )
+			return 2;
+
+		return 0;
+	}
+
+	static bool CrossedNormalizedEvent(
+		float prevNormalized,
+		float curNormalized,
+		float eventNormalized)
+	{
+		if ( prevNormalized < 0.0f ) prevNormalized = 0.0f;
+		if ( prevNormalized > 1.0f ) prevNormalized = 1.0f;
+
+		if ( curNormalized < 0.0f ) curNormalized = 0.0f;
+		if ( curNormalized > 1.0f ) curNormalized = 1.0f;
+
+		// 일반 진행
+		if ( curNormalized >= prevNormalized )
+			return prevNormalized < eventNormalized && eventNormalized <= curNormalized;
+
+		// 루프 wrap: 0.95 -> 0.05 같은 경우
+		return eventNormalized > prevNormalized || eventNormalized <= curNormalized;
+	}
+
+	static const char* SelectRandomFootstepGrassSfxPath()
+	{
+		static std::mt19937 rng{ std::random_device{}( ) };
+		static std::uniform_int_distribution<int> dist(1, 3);
+
+		switch ( dist(rng) )
+		{
+		case 1: return "Assets/Audio/Walk_Grass1.wav";
+		case 2: return "Assets/Audio/Walk_Grass2.wav";
+		case 3: return "Assets/Audio/Walk_Grass3.wav";
+		default: break;
+		}
+
+		return "Assets/Audio/Walk_Grass1.wav";
+	}
+
 	// -----------------------------------------------------------------------------
 	// HP
 	// -----------------------------------------------------------------------------
@@ -354,7 +414,7 @@ namespace
 	static constexpr int kAttackPowerMutant = 20;
 	static constexpr int kAttackPowerBoss = 50;
 
-	static constexpr UINT kOfflineGhoulAICount = 1000;
+	static constexpr UINT kOfflineGhoulAICount = 0;
 
 	static constexpr float kDisableVillageTreeCullPlayerHeight = 3.0f;
 
@@ -2389,6 +2449,7 @@ void CGameScene::ReleaseObjects()
     m_EnemySwordRefs.clear();
     m_EnemyBowRefs.clear();
 
+	ResetPlayerFootstepSfxState();
 	m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr };
 	m_prevBowLoadPhase = { false, false, false, false };
 	m_prevBowReleasePhase = { false, false, false, false };
@@ -2665,6 +2726,7 @@ void CGameScene::ReleaseShaderVariables()
 
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
+	ResetPlayerFootstepSfxState();
 	m_deadMonsters.clear();
 	m_bLocalPlayerDead = false;
 	m_bLocalPlayerRespawnUsed = false;
@@ -8247,6 +8309,149 @@ bool CGameScene::ProcessInput(UCHAR* /*pKeysBuffer*/)
     return false;
 }
 
+void CGameScene::ResetPlayerFootstepSfxState()
+{
+	m_playerFootstepTrackingValid = { false, false, false, false };
+	m_playerFootstepMode = { 0, 0, 0, 0 };
+	m_playerFootstepPrevNormalizedTime = { 0.0f, 0.0f, 0.0f, 0.0f };
+}
+
+void CGameScene::PlayPlayerFootstepSfx(CGameObject* player)
+{
+	if ( !m_pAudioManager )
+		return;
+
+	if ( !player )
+		return;
+
+	const char* path = SelectRandomFootstepGrassSfxPath();
+	if ( !path || !path[0] )
+		return;
+
+	const XMFLOAT3 pos = player->GetPosition();
+
+	m_pAudioManager->PlaySound3D(
+		path,
+		pos,
+		false,                 // loop
+		false,                 // stream
+		kFootstepSfxVolume,
+		false                  // startPaused
+	);
+
+#if defined(_DEBUG)
+	char buf[512];
+	sprintf_s(
+		buf,
+		"[FootstepSfx] sound=\"%s\" volume=%.2f owner=%p pos=(%.3f, %.3f, %.3f)\n",
+		path,
+		kFootstepSfxVolume,
+		static_cast< void* >( player ),
+		pos.x,
+		pos.y,
+		pos.z
+	);
+	OutputDebugStringA(buf);
+#endif
+}
+
+void CGameScene::UpdatePlayerFootstepSfx()
+{
+	for ( int slot = 0; slot < 4; ++slot )
+	{
+		CGameObject* player = GetPlayerBySlot(slot);
+		const size_t slotIndex = static_cast< size_t >(slot);
+
+		if ( !player )
+		{
+			m_playerFootstepTrackingValid[slotIndex] = false;
+			m_playerFootstepMode[slotIndex] = 0;
+			m_playerFootstepPrevNormalizedTime[slotIndex] = 0.0f;
+			continue;
+		}
+
+		CAnimator* anim = nullptr;
+
+		if ( auto* animComp = player->GetComponent<CAnimatorComponent>() )
+			anim = animComp->GetAnimator();
+
+		if ( !anim )
+			anim = player->GetAnimator();
+
+		if ( !anim || !anim->IsPlaying() )
+		{
+			m_playerFootstepTrackingValid[slotIndex] = false;
+			m_playerFootstepMode[slotIndex] = 0;
+			m_playerFootstepPrevNormalizedTime[slotIndex] = 0.0f;
+			continue;
+		}
+
+		const std::string& clipName = anim->GetCurrentClipName();
+		const int mode = GetFootstepModeFromClipName(clipName);
+
+		// Walk_/Run_이 아니면 발소리 추적 중단.
+		if ( mode == 0 )
+		{
+			m_playerFootstepTrackingValid[slotIndex] = false;
+			m_playerFootstepMode[slotIndex] = 0;
+			m_playerFootstepPrevNormalizedTime[slotIndex] = 0.0f;
+			continue;
+		}
+
+		const float duration = anim->GetCurrentClipDuration();
+		if ( duration <= 1.0e-6f )
+		{
+			m_playerFootstepTrackingValid[slotIndex] = false;
+			m_playerFootstepMode[slotIndex] = 0;
+			m_playerFootstepPrevNormalizedTime[slotIndex] = 0.0f;
+			continue;
+		}
+
+		float curNormalized = anim->GetCurrentTime() / duration;
+
+		if ( curNormalized < 0.0f ) curNormalized = 0.0f;
+		if ( curNormalized > 1.0f ) curNormalized = 1.0f;
+
+		// 처음 Walk/Run에 진입한 프레임에는 소리 내지 않고 기준점만 잡는다.
+		if ( !m_playerFootstepTrackingValid[slotIndex] ||
+			m_playerFootstepMode[slotIndex] != mode )
+		{
+			m_playerFootstepTrackingValid[slotIndex] = true;
+			m_playerFootstepMode[slotIndex] = mode;
+			m_playerFootstepPrevNormalizedTime[slotIndex] = curNormalized;
+			continue;
+		}
+
+		const float prevNormalized = m_playerFootstepPrevNormalizedTime[slotIndex];
+
+		bool shouldPlayFootstep = false;
+
+		if ( mode == 1 ) // Walk: 21 keyframes, foot contact at 3, 12
+		{
+			constexpr float kWalkFootstep0 = ( 2.0f - 1.0f ) / ( 21.0f - 1.0f );
+			constexpr float kWalkFootstep1 = ( 11.0f - 1.0f ) / ( 21.0f - 1.0f );
+
+			shouldPlayFootstep =
+				CrossedNormalizedEvent(prevNormalized, curNormalized, kWalkFootstep0) ||
+				CrossedNormalizedEvent(prevNormalized, curNormalized, kWalkFootstep1);
+		}
+		else if ( mode == 2 ) // Run: 16 keyframes, foot contact at 3, 11
+		{
+			constexpr float kRunFootstep0 = ( 2.0f - 1.0f ) / ( 16.0f - 1.0f );
+			constexpr float kRunFootstep1 = ( 10.0f - 1.0f ) / ( 16.0f - 1.0f );
+
+			shouldPlayFootstep =
+				CrossedNormalizedEvent(prevNormalized, curNormalized, kRunFootstep0) ||
+				CrossedNormalizedEvent(prevNormalized, curNormalized, kRunFootstep1);
+		}
+
+		if ( shouldPlayFootstep )
+			PlayPlayerFootstepSfx(player);
+
+		m_playerFootstepPrevNormalizedTime[slotIndex] = curNormalized;
+	}
+}
+
 void CGameScene::AnimateObjects(float dt)
 {
 	m_fElapsedTime = dt;
@@ -8573,6 +8778,10 @@ void CGameScene::AnimateObjects(float dt)
 
 		m_skinnedObjects[j]->Animate(dt);
 	}
+
+	// 플레이어 Walk_/Run_ 애니메이션 시간이 갱신된 뒤,
+	// 발 접지 키프레임을 지나쳤는지 검사해서 발걸음 소리를 낸다.
+	UpdatePlayerFootstepSfx();
 
 	for ( UINT j = 0; j < ( UINT ) m_staticObjects.size(); ++j )
 	{
