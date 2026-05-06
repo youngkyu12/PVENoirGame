@@ -7934,7 +7934,6 @@ void CGameScene::RequestFireBullet(CGameObject* shooter, float speed, float life
 
 			XMFLOAT3 muzzlePos = spawnSource->GetPosition();
 
-			// gun object가 있으면 gun 위치 기준, 없으면 shooter 상체 높이 기준
 			if ( gunObj )
 			{
 				muzzlePos.x += dirN.x * 0.55f;
@@ -7956,9 +7955,267 @@ void CGameScene::RequestFireBullet(CGameObject* shooter, float speed, float life
 }
 
 
-bool CGameScene::ProcessInput(UCHAR* /*pKeysBuffer*/)
+bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 {
-    return false;
+	if ( !pKeysBuffer )
+		return false;
+
+	auto IsDown = [ pKeysBuffer ] (int vk) -> bool
+		{
+			return ( pKeysBuffer[vk] & 0x80 ) != 0;
+		};
+
+	auto IsPressed = [ ] (bool nowDown, bool& prevDown) -> bool
+		{
+			const bool pressed = nowDown && !prevDown;
+			prevDown = nowDown;
+			return pressed;
+		};
+
+	auto GetTargetName = [ this ] () -> const char*
+		{
+			switch ( m_muzzleFlashTuneTarget )
+			{
+			case EMuzzleFlashTuneTarget::CoreSizeScale:
+				return "coreSizeScale";
+			case EMuzzleFlashTuneTarget::CoreLifeScale:
+				return "coreLifeScale";
+			case EMuzzleFlashTuneTarget::CoreIntensityScale:
+				return "coreIntensityScale";
+
+			case EMuzzleFlashTuneTarget::RingSizeScale:
+				return "ringSizeScale";
+			case EMuzzleFlashTuneTarget::RingLifeScale:
+				return "ringLifeScale";
+			case EMuzzleFlashTuneTarget::RingIntensityScale:
+				return "ringIntensityScale";
+
+			case EMuzzleFlashTuneTarget::SparkCount:
+				return "sparkCount";
+			case EMuzzleFlashTuneTarget::SparkSpeedScale:
+				return "sparkSpeedScale";
+			case EMuzzleFlashTuneTarget::SparkLifeScale:
+				return "sparkLifeScale";
+			case EMuzzleFlashTuneTarget::SparkDrag:
+				return "sparkDrag";
+
+			default:
+				return "unknown";
+			}
+		};
+
+	auto GetTargetValue = [ this ] () -> float
+		{
+			switch ( m_muzzleFlashTuneTarget )
+			{
+			case EMuzzleFlashTuneTarget::CoreSizeScale:
+				return m_muzzleFlashTunedCoreSizeScale;
+			case EMuzzleFlashTuneTarget::CoreLifeScale:
+				return m_muzzleFlashTunedCoreLifeScale;
+			case EMuzzleFlashTuneTarget::CoreIntensityScale:
+				return m_muzzleFlashTunedCoreIntensityScale;
+
+			case EMuzzleFlashTuneTarget::RingSizeScale:
+				return m_muzzleFlashTunedRingSizeScale;
+			case EMuzzleFlashTuneTarget::RingLifeScale:
+				return m_muzzleFlashTunedRingLifeScale;
+			case EMuzzleFlashTuneTarget::RingIntensityScale:
+				return m_muzzleFlashTunedRingIntensityScale;
+
+			case EMuzzleFlashTuneTarget::SparkCount:
+				return static_cast< float >( m_muzzleFlashTunedSparkCount );
+			case EMuzzleFlashTuneTarget::SparkSpeedScale:
+				return m_muzzleFlashTunedSparkSpeedScale;
+			case EMuzzleFlashTuneTarget::SparkLifeScale:
+				return m_muzzleFlashTunedSparkLifeScale;
+			case EMuzzleFlashTuneTarget::SparkDrag:
+				return m_muzzleFlashTunedSparkDrag;
+
+			default:
+				return 0.0f;
+			}
+		};
+
+	auto GetTargetStep = [ this ] () -> float
+		{
+			switch ( m_muzzleFlashTuneTarget )
+			{
+			case EMuzzleFlashTuneTarget::SparkCount:
+				return 1.0f;
+
+			case EMuzzleFlashTuneTarget::SparkDrag:
+				return 0.10f;
+
+			default:
+				return 0.01f;
+			}
+		};
+
+	auto PrintMuzzleFlashTuneValues =
+		[ this, &GetTargetName, &GetTargetValue, &GetTargetStep ] ()
+		{
+			char buffer[512]{};
+
+			sprintf_s(
+				buffer,
+				"[MuzzleFlashTune] selected=%s, value=%.3f, step=%.3f | "
+				"coreSize=%.3f, coreLife=%.3f, coreIntensity=%.3f | "
+				"ringSize=%.3f, ringLife=%.3f, ringIntensity=%.3f | "
+				"sparkCount=%d, sparkSpeed=%.3f, sparkLife=%.3f, sparkDrag=%.3f\n",
+				GetTargetName(),
+				GetTargetValue(),
+				GetTargetStep(),
+
+				m_muzzleFlashTunedCoreSizeScale,
+				m_muzzleFlashTunedCoreLifeScale,
+				m_muzzleFlashTunedCoreIntensityScale,
+
+				m_muzzleFlashTunedRingSizeScale,
+				m_muzzleFlashTunedRingLifeScale,
+				m_muzzleFlashTunedRingIntensityScale,
+
+				m_muzzleFlashTunedSparkCount,
+				m_muzzleFlashTunedSparkSpeedScale,
+				m_muzzleFlashTunedSparkLifeScale,
+				m_muzzleFlashTunedSparkDrag
+			);
+
+			OutputDebugStringA(buffer);
+		};
+
+	auto ClampScale = [ ] (float v) -> float
+		{
+			return std::clamp(v, 0.0f, 10.0f);
+		};
+
+	auto AdjustCurrentValue = [ this, &GetTargetStep, &ClampScale ] (float sign)
+		{
+			const float delta = sign * GetTargetStep();
+
+			switch ( m_muzzleFlashTuneTarget )
+			{
+			case EMuzzleFlashTuneTarget::CoreSizeScale:
+				m_muzzleFlashTunedCoreSizeScale =
+					ClampScale(m_muzzleFlashTunedCoreSizeScale + delta);
+				break;
+
+			case EMuzzleFlashTuneTarget::CoreLifeScale:
+				m_muzzleFlashTunedCoreLifeScale =
+					ClampScale(m_muzzleFlashTunedCoreLifeScale + delta);
+				break;
+
+			case EMuzzleFlashTuneTarget::CoreIntensityScale:
+				m_muzzleFlashTunedCoreIntensityScale =
+					ClampScale(m_muzzleFlashTunedCoreIntensityScale + delta);
+				break;
+
+			case EMuzzleFlashTuneTarget::RingSizeScale:
+				m_muzzleFlashTunedRingSizeScale =
+					ClampScale(m_muzzleFlashTunedRingSizeScale + delta);
+				break;
+
+			case EMuzzleFlashTuneTarget::RingLifeScale:
+				m_muzzleFlashTunedRingLifeScale =
+					ClampScale(m_muzzleFlashTunedRingLifeScale + delta);
+				break;
+
+			case EMuzzleFlashTuneTarget::RingIntensityScale:
+				m_muzzleFlashTunedRingIntensityScale =
+					ClampScale(m_muzzleFlashTunedRingIntensityScale + delta);
+				break;
+
+			case EMuzzleFlashTuneTarget::SparkCount:
+			{
+				int nextCount =
+					m_muzzleFlashTunedSparkCount +
+					static_cast< int >( sign * GetTargetStep() );
+
+				m_muzzleFlashTunedSparkCount =
+					std::clamp(nextCount, 0, 16);
+				break;
+			}
+
+			case EMuzzleFlashTuneTarget::SparkSpeedScale:
+				m_muzzleFlashTunedSparkSpeedScale =
+					ClampScale(m_muzzleFlashTunedSparkSpeedScale + delta);
+				break;
+
+			case EMuzzleFlashTuneTarget::SparkLifeScale:
+				m_muzzleFlashTunedSparkLifeScale =
+					ClampScale(m_muzzleFlashTunedSparkLifeScale + delta);
+				break;
+
+			case EMuzzleFlashTuneTarget::SparkDrag:
+				m_muzzleFlashTunedSparkDrag =
+					std::clamp(m_muzzleFlashTunedSparkDrag + delta, 0.0f, 50.0f);
+				break;
+
+			default:
+				break;
+			}
+		};
+
+	auto SelectPrevTarget = [ this ] ()
+		{
+			int value = static_cast< int >( m_muzzleFlashTuneTarget );
+			--value;
+
+			if ( value < 0 )
+				value = static_cast< int >(EMuzzleFlashTuneTarget::SparkDrag);
+
+			m_muzzleFlashTuneTarget =
+				static_cast< EMuzzleFlashTuneTarget >(value);
+		};
+
+	auto SelectNextTarget = [ this ] ()
+		{
+			int value = static_cast< int >(m_muzzleFlashTuneTarget);
+			++value;
+
+			if ( value > static_cast< int >( EMuzzleFlashTuneTarget::SparkDrag ) )
+				value = 0;
+
+			m_muzzleFlashTuneTarget =
+				static_cast< EMuzzleFlashTuneTarget >( value );
+		};
+
+	bool handled = false;
+
+	if ( IsPressed(IsDown('8'), m_prevMuzzleFlashTuneKey8) )
+	{
+		SelectPrevTarget();
+		PrintMuzzleFlashTuneValues();
+		handled = true;
+	}
+
+	if ( IsPressed(IsDown('9'), m_prevMuzzleFlashTuneKey9) )
+	{
+		SelectNextTarget();
+		PrintMuzzleFlashTuneValues();
+		handled = true;
+	}
+
+	if ( IsPressed(IsDown('0'), m_prevMuzzleFlashTuneKey0) )
+	{
+		PrintMuzzleFlashTuneValues();
+		handled = true;
+	}
+
+	if ( IsPressed(IsDown('O'), m_prevMuzzleFlashTuneKeyO) )
+	{
+		AdjustCurrentValue(-1.0f);
+		PrintMuzzleFlashTuneValues();
+		handled = true;
+	}
+
+	if ( IsPressed(IsDown('P'), m_prevMuzzleFlashTuneKeyP) )
+	{
+		AdjustCurrentValue(+1.0f);
+		PrintMuzzleFlashTuneValues();
+		handled = true;
+	}
+
+	return handled;
 }
 
 bool CGameScene::ShouldEvaluateSkinnedPoseThisFrame(UINT objectIndex, CCamera* camera) const

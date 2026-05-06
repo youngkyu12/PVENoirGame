@@ -637,7 +637,7 @@ void CGameScene::SpawnMuzzleFlash(
 	static std::uniform_real_distribution<float> rotDist(0.0f, XM_2PI);
 	static std::uniform_real_distribution<float> seedDist(0.0f, 1000.0f);
 	static std::uniform_real_distribution<float> unitDist(-1.0f, 1.0f);
-	static std::uniform_real_distribution<float> sparkSpeedDist(2.2f, 4.8f);
+	static std::uniform_real_distribution<float> sparkSpeedBaseDist(2.2f, 4.8f);
 
 	XMVECTOR dirV = XMLoadFloat3(&direction);
 	if ( XMVectorGetX(XMVector3LengthSq(dirV)) <= 1.0e-8f )
@@ -690,15 +690,15 @@ void CGameScene::SpawnMuzzleFlash(
 			e->velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
 
 			e->age = 0.0f;
-			e->lifetime = 0.06f;
+			e->lifetime = 0.06f * m_muzzleFlashTunedRingLifeScale;
 
-			e->startWidth = 0.20f;
-			e->startHeight = 0.20f;
-			e->endWidth = 1.15f;
-			e->endHeight = 1.15f;
+			e->startWidth = 0.20f * m_muzzleFlashTunedRingSizeScale;
+			e->startHeight = 0.20f * m_muzzleFlashTunedRingSizeScale;
+			e->endWidth = 1.15f * m_muzzleFlashTunedRingSizeScale;
+			e->endHeight = 1.15f * m_muzzleFlashTunedRingSizeScale;
 
 			e->rotationRad = rotDist(rng);
-			e->intensity = 1.2f;
+			e->intensity = 1.2f * m_muzzleFlashTunedRingIntensityScale;
 			e->drag = 0.0f;
 			e->seed = seedDist(rng);
 
@@ -712,7 +712,9 @@ void CGameScene::SpawnMuzzleFlash(
 
 			const float side = unitDist(rng) * 0.35f;
 			const float lift = unitDist(rng) * 0.18f + 0.12f;
-			const float speed = sparkSpeedDist(rng);
+			const float speed =
+				sparkSpeedBaseDist(rng) *
+				m_muzzleFlashTunedSparkSpeedScale;
 
 			XMVECTOR vel =
 				XMVectorAdd(
@@ -739,7 +741,7 @@ void CGameScene::SpawnMuzzleFlash(
 			e->velocity = vel3;
 
 			e->age = 0.0f;
-			e->lifetime = 0.07f;
+			e->lifetime = 0.07f * m_muzzleFlashTunedSparkLifeScale;
 
 			e->startWidth = 0.10f;
 			e->startHeight = 0.42f;
@@ -748,21 +750,35 @@ void CGameScene::SpawnMuzzleFlash(
 
 			e->rotationRad = baseRot + unitDist(rng) * 0.35f;
 			e->intensity = 1.4f;
-			e->drag = 5.5f;
+			e->drag = m_muzzleFlashTunedSparkDrag;
 			e->seed = seedDist(rng);
 
 			e->color = XMFLOAT4(1.0f, 0.70f, 0.18f, 1.0f);
 		};
 
 	// 코어 flash를 2장 겹친다
-	spawnCore(0.55f, 0.045f, 2.2f, 1.0f);
-	spawnCore(0.80f, 0.065f, 1.5f, 0.75f);
+	spawnCore(
+		0.55f * m_muzzleFlashTunedCoreSizeScale,
+		0.045f * m_muzzleFlashTunedCoreLifeScale,
+		2.2f * m_muzzleFlashTunedCoreIntensityScale,
+		1.0f
+	);
+
+	spawnCore(
+		0.80f * m_muzzleFlashTunedCoreSizeScale,
+		0.065f * m_muzzleFlashTunedCoreLifeScale,
+		1.5f * m_muzzleFlashTunedCoreIntensityScale,
+		0.75f
+	);
 
 	// 충격 링
 	spawnRing();
 
-	// spark 4개
-	for ( int i = 0; i < 4; ++i )
+	// spark
+	const int sparkCount =
+		std::clamp(m_muzzleFlashTunedSparkCount, 0, 16);
+
+	for ( int i = 0; i < sparkCount; ++i )
 	{
 		spawnSpark(rotDist(rng));
 	}
@@ -791,23 +807,9 @@ void CGameScene::BeginSwordTrail(CGameObject* owner)
 
 	trail->age = 0.0f;
 
-	// 튜닝 포인트:
-	// 공격 애니메이션에서 칼을 뒤로 빼는 시간이 길면 startDelay를 늘린다.
-	// 너무 늦게 나오면 줄인다.
-	trail->startDelay = 0.09f;
-
-	// delay 이후 실제로 궤적을 남기는 시간
-	trail->sampleDuration = 0.18f;
-
-	// 샘플링이 끝난 뒤 서서히 사라지는 시간
-	trail->fadeDuration = 0.12f;
-
-	trail->samples.clear();
-	trail->samples.reserve(kSwordTrailMaxSamples);
-
-	// 중요:
-	// 여기서 즉시 샘플을 찍지 않는다.
-	// startDelay가 지난 뒤 UpdateSwordTrails()에서 첫 샘플을 찍게 한다.
+	trail->startDelay = 0.340f;
+	trail->sampleDuration = 0.240f;
+	trail->fadeDuration = 0.120f;
 }
 
 void CGameScene::UpdateMuzzleFlashes(float dt)
