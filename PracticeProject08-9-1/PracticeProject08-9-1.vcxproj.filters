@@ -567,6 +567,12 @@
     <ClCompile Include="HealthComponent.cpp">
       <Filter>Components\Health&amp;AttackPower</Filter>
     </ClCompile>
+    <ClCompile Include="GameSceneBillboard.cpp">
+      <Filter>Scene\GameScene</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneAudio.cpp">
+      <Filter>Scene\GameScene</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PracticeProject08-9-1.rc">
