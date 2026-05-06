@@ -334,6 +334,63 @@ float4 PSMuzzleFlashProcedural(
     return float4(color, alpha);
 }
 
+struct VS_SWORD_TRAIL_INPUT
+{
+    float3 position : POSITION;
+    float2 uv : TEXCOORD;
+    float4 color : COLOR;
+};
+
+struct VS_SWORD_TRAIL_OUTPUT
+{
+    float4 position : SV_POSITION;
+    float2 uv : TEXCOORD0;
+    float4 color : COLOR0;
+};
+
+VS_SWORD_TRAIL_OUTPUT VSSwordTrail(VS_SWORD_TRAIL_INPUT input)
+{
+    VS_SWORD_TRAIL_OUTPUT output;
+
+    output.position =
+        mul(mul(float4(input.position, 1.0f), gmtxView), gmtxProjection);
+
+    output.uv = input.uv;
+    output.color = input.color;
+
+    return output;
+}
+
+float4 PSSwordTrailProcedural(VS_SWORD_TRAIL_OUTPUT input) : SV_TARGET
+{
+    float along = saturate(input.uv.x);
+    float across = saturate(input.uv.y);
+
+    // root/tip 양 끝은 사라지고, 가운데가 가장 밝다.
+    float center = 1.0f - abs(across * 2.0f - 1.0f);
+    center = saturate(center);
+    center = pow(center, 0.35f);
+
+    // 오래된 tail은 사라진다.
+    float tailFade = smoothstep(0.0f, 0.25f, along);
+
+    // 검 끝 쪽은 약간 날카롭게.
+    float headBoost = smoothstep(0.35f, 1.0f, along);
+
+    float alpha = input.color.a * center * tailFade;
+    alpha = saturate(alpha);
+
+    clip(alpha - 0.002f);
+
+    float3 coreColor = float3(1.0f, 1.0f, 0.88f);
+    float3 edgeColor = input.color.rgb;
+
+    float3 color = lerp(edgeColor, coreColor, center);
+    color *= lerp(0.8f, 1.35f, headBoost);
+
+    return float4(color, alpha);
+}
+
 struct VS_OCCLUSION_STATIC_OUTPUT
 {
     float4 position : SV_POSITION;
