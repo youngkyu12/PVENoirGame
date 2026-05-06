@@ -13,6 +13,7 @@
 #include "Mesh.h"
 #include "Camera.h"
 #include "Object.h"
+#include "PlayerEquipmentComponent.h"
 
 namespace
 {
@@ -144,6 +145,96 @@ namespace
 		}
 
 		return nullptr;
+	}
+
+	static XMFLOAT3 TransformLocalPoint(
+	const XMFLOAT4X4& world,
+	const XMFLOAT3& localPoint)
+	{
+		XMVECTOR p = XMLoadFloat3(&localPoint);
+		XMMATRIX W = XMLoadFloat4x4(&world);
+
+		XMVECTOR out = XMVector3TransformCoord(p, W);
+
+		XMFLOAT3 result{};
+		XMStoreFloat3(&result, out);
+		return result;
+	}
+
+	static void ComputeSwordTrailRootTip(
+		const CGameObject* swordObject,
+		XMFLOAT3& outRoot,
+		XMFLOAT3& outTip)
+	{
+		if ( !swordObject )
+		{
+			outRoot = XMFLOAT3(0.0f, 0.0f, 0.0f);
+			outTip = XMFLOAT3(0.0f, 0.0f, 0.0f);
+			return;
+		}
+
+		const XMFLOAT4X4& W = swordObject->GetWorldMatrix();
+
+		// 튜닝 포인트:
+		// 검 모델의 길이 방향이 local Z가 아니면 이 두 값을 바꿔야 한다.
+		// 예: local Y가 검 길이면 (0, 0.1, 0), (0, 1.4, 0) 식으로 바꾼다.
+		static constexpr XMFLOAT3 kSwordTrailRootLocal =
+			XMFLOAT3(0.0f, 0.0f, 0.10f);
+
+		static constexpr XMFLOAT3 kSwordTrailTipLocal =
+			XMFLOAT3(0.0f, 0.0f, 1.45f);
+
+		outRoot = TransformLocalPoint(W, kSwordTrailRootLocal);
+		outTip = TransformLocalPoint(W, kSwordTrailTipLocal);
+	}
+
+	static SwordTrailEntry* AcquireFreeSwordTrailEntry(
+		std::vector<SwordTrailEntry>& trails)
+	{
+		for ( SwordTrailEntry& trail : trails )
+		{
+			if ( !trail.active )
+				return &trail;
+		}
+
+		return nullptr;
+	}
+
+	static bool AppendSwordTrailSample(
+		SwordTrailEntry& trail,
+		UINT maxSamples)
+	{
+		if ( !trail.swordObject )
+			return false;
+
+		SwordTrailSample sample{};
+		ComputeSwordTrailRootTip(
+			trail.swordObject,
+			sample.root,
+			sample.tip
+		);
+
+		// 같은 위치가 너무 많이 쌓이는 것을 약간 방지.
+		if ( !trail.samples.empty() )
+		{
+			const SwordTrailSample& last = trail.samples.back();
+
+			const float dx = sample.tip.x - last.tip.x;
+			const float dy = sample.tip.y - last.tip.y;
+			const float dz = sample.tip.z - last.tip.z;
+
+			const float movedSq = dx * dx + dy * dy + dz * dz;
+
+			if ( movedSq < 0.0004f )
+				return true;
+		}
+
+		trail.samples.push_back(sample);
+
+		while ( trail.samples.size() > maxSamples )
+			trail.samples.erase(trail.samples.begin());
+
+		return true;
 	}
 }
 
@@ -409,6 +500,7 @@ void CGameScene::BuildItemBillboardBatch(
 		);
 
 		BuildMuzzleFlashBatch(dev, cmd, dsvFormat);
+		BuildSwordTrailBatch(dev, cmd, dsvFormat);
 	}
 }
 
@@ -459,6 +551,51 @@ void CGameScene::BuildMuzzleFlashBatch(
 	);
 }
 
+void CGameScene::BuildSwordTrailBatch(
+	ID3D12Device* dev,
+	ID3D12GraphicsCommandList* cmd,
+	DXGI_FORMAT dsvFormat)
+{
+	if ( !dev || !cmd )
+		return;
+
+	m_swordTrailShader = std::make_shared<CSwordTrailShader>();
+
+	DXGI_FORMAT rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+	m_swordTrailShader->CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		1,
+		&rtvFormat,
+		dsvFormat
+	);
+
+	m_swordTrails.clear();
+	m_swordTrails.resize(kSwordTrailMaxCount);
+
+	m_swordTrailVertexBufferCapacity = kSwordTrailMaxVertices;
+
+	const UINT bufferBytes =
+		sizeof(SwordTrailVertex) * m_swordTrailVertexBufferCapacity;
+
+	m_pd3dSwordTrailVertexBuffer = ::CreateBufferResource(
+		dev,
+		cmd,
+		nullptr,
+		bufferBytes,
+		D3D12_HEAP_TYPE_UPLOAD,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr
+	);
+
+	m_pd3dSwordTrailVertexBuffer->Map(
+		0,
+		nullptr,
+		reinterpret_cast< void** >( &m_pMappedSwordTrailVertexBuffer )
+	);
+}
+
 void CGameScene::ReleaseMuzzleFlashGpuResources()
 {
 	if ( m_pd3dMuzzleFlashInstanceBuffer )
@@ -473,6 +610,22 @@ void CGameScene::ReleaseMuzzleFlashGpuResources()
 	}
 
 	m_muzzleFlashInstanceBufferCapacity = 0;
+}
+
+void CGameScene::ReleaseSwordTrailGpuResources()
+{
+	if ( m_pd3dSwordTrailVertexBuffer )
+	{
+		if ( m_pMappedSwordTrailVertexBuffer )
+		{
+			m_pd3dSwordTrailVertexBuffer->Unmap(0, nullptr);
+			m_pMappedSwordTrailVertexBuffer = nullptr;
+		}
+
+		m_pd3dSwordTrailVertexBuffer.Reset();
+	}
+
+	m_swordTrailVertexBufferCapacity = 0;
 }
 
 void CGameScene::SpawnMuzzleFlash(
@@ -615,6 +768,48 @@ void CGameScene::SpawnMuzzleFlash(
 	}
 }
 
+void CGameScene::BeginSwordTrail(CGameObject* owner)
+{
+	if ( !owner )
+		return;
+
+	auto* equip = owner->GetComponent<CPlayerEquipmentComponent>();
+	if ( !equip )
+		return;
+
+	CGameObject* swordObject = equip->GetWeaponObject(EWeaponType::Sword);
+	if ( !swordObject )
+		return;
+
+	SwordTrailEntry* trail = AcquireFreeSwordTrailEntry(m_swordTrails);
+	if ( !trail )
+		return;
+
+	trail->active = true;
+	trail->owner = owner;
+	trail->swordObject = swordObject;
+
+	trail->age = 0.0f;
+
+	// 튜닝 포인트:
+	// 공격 애니메이션에서 칼을 뒤로 빼는 시간이 길면 startDelay를 늘린다.
+	// 너무 늦게 나오면 줄인다.
+	trail->startDelay = 0.09f;
+
+	// delay 이후 실제로 궤적을 남기는 시간
+	trail->sampleDuration = 0.18f;
+
+	// 샘플링이 끝난 뒤 서서히 사라지는 시간
+	trail->fadeDuration = 0.12f;
+
+	trail->samples.clear();
+	trail->samples.reserve(kSwordTrailMaxSamples);
+
+	// 중요:
+	// 여기서 즉시 샘플을 찍지 않는다.
+	// startDelay가 지난 뒤 UpdateSwordTrails()에서 첫 샘플을 찍게 한다.
+}
+
 void CGameScene::UpdateMuzzleFlashes(float dt)
 {
 	if ( dt <= 0.0f )
@@ -647,6 +842,47 @@ void CGameScene::UpdateMuzzleFlashes(float dt)
 	}
 }
 
+void CGameScene::UpdateSwordTrails(float dt)
+{
+	if ( dt <= 0.0f )
+		return;
+
+	for ( SwordTrailEntry& trail : m_swordTrails )
+	{
+		if ( !trail.active )
+			continue;
+
+		trail.age += dt;
+
+		const float totalLife =
+			trail.startDelay +
+			trail.sampleDuration +
+			trail.fadeDuration;
+
+		if ( trail.age >= totalLife )
+		{
+			trail.active = false;
+			trail.owner = nullptr;
+			trail.swordObject = nullptr;
+			trail.age = 0.0f;
+			trail.samples.clear();
+			continue;
+		}
+
+		// 아직 칼을 뒤로 빼는 준비 구간이면 샘플링하지 않는다.
+		if ( trail.age < trail.startDelay )
+			continue;
+
+		const float sampleAge = trail.age - trail.startDelay;
+
+		// startDelay 이후 sampleDuration 동안만 검 위치를 샘플링한다.
+		if ( sampleAge <= trail.sampleDuration )
+		{
+			AppendSwordTrailSample(trail, kSwordTrailMaxSamples);
+		}
+	}
+}
+
 void CGameScene::ReleaseItemBillboardGpuResources()
 {
 	if ( m_pd3dItemBillboardInstanceBuffer )
@@ -674,7 +910,9 @@ void CGameScene::ReleaseItemBillboardGpuResources()
 	}
 
 	m_transparentItemBillboardInstanceBufferCapacity = 0;
+
 	ReleaseMuzzleFlashGpuResources();
+	ReleaseSwordTrailGpuResources();
 }
 
 void CGameScene::UpdateItemBillboardDistanceCullSelection(CCamera* camera)
@@ -1009,4 +1247,115 @@ void CGameScene::RenderMuzzleFlashes(
 	cmd->IASetIndexBuffer(&sm.ibView);
 
 	cmd->DrawIndexedInstanced(static_cast< UINT >( sm.indices.size() ), visibleInstanceCount, 0, 0, 0);
+}
+
+void CGameScene::RenderSwordTrails(
+	ID3D12GraphicsCommandList* cmd,
+	CCamera* camera)
+{
+	PROFILE_RENDER_SCOPE("GameScene::RenderSwordTrails");
+
+	if ( !cmd ) return;
+	if ( !camera ) return;
+	if ( !m_swordTrailShader ) return;
+	if ( !m_pd3dSwordTrailVertexBuffer ) return;
+	if ( !m_pMappedSwordTrailVertexBuffer ) return;
+	if ( m_swordTrailVertexBufferCapacity == 0 ) return;
+
+	struct DrawRange
+	{
+		UINT startVertex = 0;
+		UINT vertexCount = 0;
+	};
+
+	std::vector<DrawRange> drawRanges;
+	drawRanges.reserve(m_swordTrails.size());
+
+	UINT vertexCursor = 0;
+
+	for ( const SwordTrailEntry& trail : m_swordTrails )
+	{
+		if ( !trail.active )
+			continue;
+
+		const size_t sampleCount = trail.samples.size();
+
+		if ( sampleCount < 2 )
+			continue;
+
+		const UINT neededVertices =
+			static_cast< UINT >(sampleCount * 2);
+
+		if ( vertexCursor + neededVertices > m_swordTrailVertexBufferCapacity )
+			break;
+
+		float trailFade = 1.0f;
+
+		const float sampleAge = trail.age - trail.startDelay;
+
+		// startDelay 이전에는 샘플도 없겠지만, 방어적으로 렌더하지 않게 처리.
+		if ( sampleAge < 0.0f )
+			continue;
+
+		if ( sampleAge > trail.sampleDuration )
+		{
+			const float fadeAge = sampleAge - trail.sampleDuration;
+			const float denom = ( trail.fadeDuration > 1.0e-6f ) ? trail.fadeDuration : 1.0e-6f;
+
+			trailFade = 1.0f - std::clamp( fadeAge / denom, 0.0f, 1.0f);
+		}
+
+		const UINT startVertex = vertexCursor;
+
+		for ( size_t i = 0; i < sampleCount; ++i )
+		{
+			const float u = ( sampleCount > 1 ) ? static_cast< float >( i ) / static_cast< float >( sampleCount - 1 ) : 1.0f;
+
+			// 오래된 샘플은 약하게, 최신 샘플은 강하게.
+			const float ageAlpha = std::clamp(u, 0.0f, 1.0f);
+			const float alpha = trailFade * ageAlpha * 0.75f;
+
+			// 기본 색상. 검 궤적은 흰색-푸른색 계열.
+			const XMFLOAT4 color = XMFLOAT4(0.55f, 0.80f, 1.0f, alpha);
+
+			const SwordTrailSample& sample = trail.samples[i];
+
+			SwordTrailVertex& v0 = m_pMappedSwordTrailVertexBuffer[vertexCursor++];
+
+			v0.position = sample.root;
+			v0.uv = XMFLOAT2(u, 0.0f);
+			v0.color = color;
+
+			SwordTrailVertex& v1 = m_pMappedSwordTrailVertexBuffer[vertexCursor++];
+
+			v1.position = sample.tip;
+			v1.uv = XMFLOAT2(u, 1.0f);
+			v1.color = color;
+		}
+
+		DrawRange range{};
+		range.startVertex = startVertex;
+		range.vertexCount = neededVertices;
+		drawRanges.push_back(range);
+	}
+
+	if ( drawRanges.empty() ) return;
+
+	m_swordTrailShader->Render(cmd, camera, nullptr);
+
+	D3D12_VERTEX_BUFFER_VIEW vbView{};
+	vbView.BufferLocation = m_pd3dSwordTrailVertexBuffer->GetGPUVirtualAddress();
+	vbView.SizeInBytes = sizeof(SwordTrailVertex) * vertexCursor;
+	vbView.StrideInBytes = sizeof(SwordTrailVertex);
+
+	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	cmd->IASetVertexBuffers(0, 1, &vbView);
+	cmd->IASetIndexBuffer(nullptr);
+
+	for ( const DrawRange& range : drawRanges )
+	{
+		if ( range.vertexCount < 4 ) continue;
+
+		cmd->DrawInstanced(range.vertexCount, 1, range.startVertex, 0);
+	}
 }

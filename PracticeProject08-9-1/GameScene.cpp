@@ -286,7 +286,7 @@ namespace
 
 	static constexpr float kLocalPlayerRespawnDelay = 5.0f;
 
-	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::FullStage;
+	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::Test;
 
 	static constexpr float kFootstepSfxVolume = 0.04f;
 
@@ -2469,6 +2469,8 @@ void CGameScene::ReleaseObjects()
 	ReleaseItemBillboardGpuResources();
 	m_muzzleFlashShader.reset();
 	m_muzzleFlashes.clear();
+	m_swordTrailShader.reset();
+	m_swordTrails.clear();
 
 	m_staticRenderObjectCache.clear();
 
@@ -4986,13 +4988,7 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 		cmd->IASetVertexBuffers(0, 2, vbViews);
 		cmd->IASetIndexBuffer(&repSm.ibView);
 
-		cmd->DrawIndexedInstanced(
-			( UINT ) repSm.indices.size(),
-			visibleInstanceCount,
-			0,
-			0,
-			0
-		);
+		cmd->DrawIndexedInstanced(( UINT ) repSm.indices.size(), visibleInstanceCount, 0, 0, 0);
 	}
 }
 
@@ -6950,9 +6946,14 @@ void CGameScene::RequestPlayerAttackBySlot(int slot)
 			if ( accepted && equipComp )
 			{
 				if ( shouldPlaySwordWhoosh )
+				{
 					equipComp->RequestSwordAttackWhoosh();
+					BeginSwordTrail(obj);
+				}
 				else if ( shouldPlayAxeWhoosh )
+				{
 					equipComp->RequestAxeAttackWhoosh();
+				}
 			}
 
 			if ( accepted && shouldPrepareArrow )
@@ -6977,9 +6978,14 @@ void CGameScene::RequestPlayerAttackBySlot(int slot)
 		if ( accepted && equipComp )
 		{
 			if ( shouldPlaySwordWhoosh )
+			{
 				equipComp->RequestSwordAttackWhoosh();
+				BeginSwordTrail(obj);
+			}
 			else if ( shouldPlayAxeWhoosh )
+			{
 				equipComp->RequestAxeAttackWhoosh();
+			}
 		}
 
 		if ( accepted && shouldPrepareArrow )
@@ -8008,7 +8014,10 @@ bool CGameScene::ShouldEvaluateSkinnedPoseThisFrame(UINT objectIndex, CCamera* c
 void CGameScene::AnimateObjects(float dt)
 {
 	m_fElapsedTime = dt;
+
 	UpdateMuzzleFlashes(dt);
+	UpdateSwordTrails(dt);
+
 	UpdateMonsterDeathStates();
 
 #ifndef USING_NETWORK
@@ -8693,12 +8702,16 @@ void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* c
 {
 	RenderDepthFog(cmd, camera);
 
-	// DepthFog 이후, 최종 backbuffer 위에 forward 계열 이펙트 렌더.
 	BindFrameRootParameters(cmd);
 
 	if ( m_transparentItemBillboardShader )
 	{
 		RenderTransparentItemBillboards(cmd, camera);
+	}
+
+	if ( m_swordTrailShader )
+	{
+		RenderSwordTrails(cmd, camera);
 	}
 
 	if ( m_muzzleFlashShader )

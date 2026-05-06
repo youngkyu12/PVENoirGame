@@ -122,6 +122,41 @@ struct MuzzleFlashEntry
 	XMFLOAT4 color = XMFLOAT4(1.0f, 0.62f, 0.10f, 1.0f);
 };
 
+struct SwordTrailVertex
+{
+	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT2 uv = XMFLOAT2(0.0f, 0.0f);
+	XMFLOAT4 color = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+};
+
+struct SwordTrailSample
+{
+	XMFLOAT3 root = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT3 tip = XMFLOAT3(0.0f, 0.0f, 0.0f);
+};
+
+struct SwordTrailEntry
+{
+	bool active = false;
+
+	CGameObject* owner = nullptr;
+	CGameObject* swordObject = nullptr;
+
+	float age = 0.0f;
+
+	// 공격 accepted 후 실제 궤적 샘플링을 시작하기 전 대기 시간.
+	// 칼을 뒤로 빼는 준비 동작을 건너뛰기 위한 값.
+	float startDelay = 0.09f;
+
+	// 검 위치를 실제로 샘플링하는 시간
+	float sampleDuration = 0.18f;
+
+	// 샘플링 종료 후 사라지는 시간
+	float fadeDuration = 0.12f;
+
+	std::vector<SwordTrailSample> samples;
+};
+
 enum class EItemBillboardKind : UINT
 {
 	Key = 0,
@@ -393,6 +428,18 @@ private:
 	void SpawnMuzzleFlash(const XMFLOAT3& position, const XMFLOAT3& direction);
 	void UpdateMuzzleFlashes(float dt);
 	void RenderMuzzleFlashes(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
+	void BuildSwordTrailBatch(
+		ID3D12Device* dev,
+		ID3D12GraphicsCommandList* cmd,
+		DXGI_FORMAT dsvFormat
+	);
+
+	void ReleaseSwordTrailGpuResources();
+
+	void BeginSwordTrail(CGameObject* owner);
+	void UpdateSwordTrails(float dt);
+	void RenderSwordTrails(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 	void UpdateItemBillboardPickupCollision();
 	bool DoesPlayerOverlapItemBillboard(const CGameObject* player, const ItemBillboardEntry& item) const;
@@ -709,6 +756,19 @@ private:
 	ComPtr<ID3D12Resource> m_pd3dMuzzleFlashInstanceBuffer;
 	MuzzleFlashInstanceVertex* m_pMappedMuzzleFlashInstanceBuffer = nullptr;
 	UINT m_muzzleFlashInstanceBufferCapacity = 0;
+
+	static constexpr UINT kSwordTrailMaxCount = 8;
+	static constexpr UINT kSwordTrailMaxSamples = 12;
+	static constexpr UINT kSwordTrailMaxVertices =
+		kSwordTrailMaxCount * kSwordTrailMaxSamples * 2;
+
+	std::shared_ptr<CSwordTrailShader> m_swordTrailShader;
+
+	std::vector<SwordTrailEntry> m_swordTrails;
+
+	ComPtr<ID3D12Resource> m_pd3dSwordTrailVertexBuffer;
+	SwordTrailVertex* m_pMappedSwordTrailVertexBuffer = nullptr;
+	UINT m_swordTrailVertexBufferCapacity = 0;
 
     std::vector<CGameObject*> m_swordManRefs;
     std::vector<CGameObject*> m_bowManRefs;
