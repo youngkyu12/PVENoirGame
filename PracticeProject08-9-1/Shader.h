@@ -162,6 +162,29 @@ public:
 	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
 };
 
+class CSkinnedObjectsShader : public CIlluminatedTexturedShader
+{
+public:
+	CSkinnedObjectsShader();
+	virtual ~CSkinnedObjectsShader();
+
+public:
+	virtual void CreateShader(
+		ID3D12Device* pd3dDevice,
+		ID3D12RootSignature* pd3dGraphicsRootSignature,
+		UINT nRenderTargets,
+		DXGI_FORMAT* pdxgiRtvFormats,
+		DXGI_FORMAT dxgiDsvFormat
+	);
+
+	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob);
+	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob);
+
+	virtual D3D12_INPUT_LAYOUT_DESC CreateInputLayout();
+	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext);
+	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext = nullptr);
+};
+
 class CItemBillboardShader final : public CStaticObjectsShader
 {
 public:
@@ -191,28 +214,22 @@ public:
 	D3D12_DEPTH_STENCIL_DESC CreateDepthStencilState() override;
 };
 
-class CSkinnedObjectsShader : public CIlluminatedTexturedShader
+class CMuzzleFlashBillboardShader final : public CStaticObjectsShader
 {
 public:
-	CSkinnedObjectsShader();
-	virtual ~CSkinnedObjectsShader();
+	CMuzzleFlashBillboardShader() = default;
+	~CMuzzleFlashBillboardShader() override = default;
 
 public:
-	virtual void CreateShader(
-		ID3D12Device* pd3dDevice,
-		ID3D12RootSignature* pd3dGraphicsRootSignature,
-		UINT nRenderTargets,
-		DXGI_FORMAT* pdxgiRtvFormats,
-		DXGI_FORMAT dxgiDsvFormat
-	);
+	D3D12_INPUT_LAYOUT_DESC CreateInputLayout() override;
+	D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob) override;
+	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
 
-	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob);
-	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob);
-
-	virtual D3D12_INPUT_LAYOUT_DESC CreateInputLayout();
-	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext);
-	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext = nullptr);
+	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
+	D3D12_BLEND_DESC CreateBlendState() override;
+	D3D12_DEPTH_STENCIL_DESC CreateDepthStencilState() override;
 };
+
 
 class CShadowMapStaticShader : public CStaticObjectsShader
 {
