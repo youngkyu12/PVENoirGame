@@ -8777,6 +8777,56 @@ void CGameScene::UpdatePlayerFootstepSfx()
 	}
 }
 
+bool CGameScene::ShouldEvaluateSkinnedPoseThisFrame(UINT objectIndex, CCamera* camera) const
+{
+	if ( objectIndex >= static_cast< UINT >( m_skinnedBatch.objectRefs.size() ) )
+		return false;
+
+	CGameObject* obj = m_skinnedBatch.objectRefs[objectIndex];
+
+	if ( !obj )
+		return false;
+
+	// 비네트워크 모드는 클라이언트가 실제 판정도 하므로 보수적으로 full pose 유지.
+#ifndef USING_NETWORK
+	return true;
+#else
+	// 로컬 플레이어는 항상 full pose 유지.
+	if ( IsLocalPlayer(obj) )
+		return true;
+
+	auto* renderer = obj->GetComponent<CSkinnedMeshRendererComponent>();
+
+	if ( !renderer || !renderer->IsEnabled() )
+		return false;
+
+	const bool distanceCulled =
+		( objectIndex < static_cast< UINT >(m_skinnedDistanceCullFlags.size()) ) &&
+		( m_skinnedDistanceCullFlags[objectIndex] != 0 );
+
+	if ( distanceCulled )
+		return false;
+
+	const bool occlusionCulled =
+		( objectIndex < static_cast< UINT >(m_skinnedOcclusionCullFlags.size()) ) &&
+		( m_skinnedOcclusionCullFlags[objectIndex] != 0 );
+
+	const bool frustumVisible =
+		( camera == nullptr ) || obj->IsVisible(camera);
+
+	const bool sceneVisible =
+		!occlusionCulled && frustumVisible;
+
+	// Shadow pass에서도 렌더될 수 있으면 pose를 갱신한다.
+	// 이미 RenderSkinnedInstanceGroupsToShadowMap()도 distance cull +
+	// IsSkinnedObjectInsideShadowBox() 기준으로 걸러낸다.
+	const bool shadowVisible =
+		IsSkinnedObjectInsideShadowBox(objectIndex);
+
+	return sceneVisible || shadowVisible;
+#endif
+}
+
 void CGameScene::AnimateObjects(float dt)
 {
 	m_fElapsedTime = dt;
@@ -9088,42 +9138,32 @@ void CGameScene::AnimateObjects(float dt)
 		}
 	}
 #endif
-   
 
-    // ------------------------------------------------------------------------
-    // 기존 애니메이션 로직
-    // ------------------------------------------------------------------------
 	CCamera* camera = GetMainCamera();
 
-	for ( UINT j = 0; j < ( UINT ) m_skinnedObjects.size(); ++j )
+	for ( UINT j = 0; j < static_cast< UINT >(m_skinnedObjects.size()); ++j )
 	{
 		if ( !m_skinnedObjects[j] )
 			continue;
 
-		if ( j < ( UINT ) m_skinnedDistanceCullFlags.size() )
+		CGameObject* obj = m_skinnedObjects[j].get();
+
+#ifdef USING_NETWORK
+		const bool shouldEvaluatePose =
+			ShouldEvaluateSkinnedPoseThisFrame(j, camera);
+#else
+		const bool shouldEvaluatePose = true;
+#endif
+
+		if ( auto* animComp = obj->GetComponent<CAnimatorComponent>() )
 		{
-			if ( m_skinnedDistanceCullFlags[j] != 0 )
-				continue;
+			animComp->SetPoseEvaluationEnabled(shouldEvaluatePose);
 		}
 
-		if ( j < ( UINT ) m_skinnedOcclusionCullFlags.size() )
-		{
-			if ( m_skinnedOcclusionCullFlags[j] != 0 )
-				continue;
-		}
-
-		if ( camera && !m_skinnedObjects[j]->IsVisible(camera) )
-			continue;
-
-		m_skinnedObjects[j]->Animate(dt);
+		obj->Animate(dt);
 	}
 
-	// 플레이어 위치 기준 grid tracker를 먼저 최신화한다.
-	// 발걸음 표면 선택이 IsLocalPlayerInsideMegaGridCenter()를 사용하기 때문.
 	UpdateDynamicGridState();
-
-	// 플레이어 Walk_/Run_ 애니메이션 시간이 갱신된 뒤,
-	// 발 접지 키프레임을 지나쳤는지 검사해서 발걸음 소리를 낸다.
 	UpdatePlayerFootstepSfx();
 
 	for ( UINT j = 0; j < ( UINT ) m_staticObjects.size(); ++j )

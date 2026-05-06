@@ -114,66 +114,124 @@ void CAnimator::SetTime(float timeSec)
 
 void CAnimator::Update(float dt)
 {
-    if (!m_bPlaying) return;
+	UpdateTimeOnly(dt);
+	EvaluateCurrentPoseOnly();
+}
 
-    AnimationClip* cur = FindClipPtr(m_CurrentClipName);
-    if (!cur) return;
+void CAnimator::UpdateTimeOnly(float dt)
+{
+	if ( !m_bPlaying )
+		return;
 
-    const int boneCount = (int)m_Skeleton.size();
-    if (boneCount <= 0) return;
+	AnimationClip* cur = FindClipPtr(m_CurrentClipName);
+	if ( !cur )
+		return;
 
-    if (!m_bBlending)
-    {
-        AdvanceTime(cur, m_fCurrentTime, dt, m_bLoop);
+	// 스켈레톤이 비어 있어도 시간 자체는 진행시킬 수 있다.
+	// 단, 정상적인 skinned object라면 보통 skeleton은 이미 바인딩되어 있다.
 
-        cur->Evaluate(m_fCurrentTime, m_Skeleton, m_LocalPose);
-        UpdateUpperBodyOverlay(dt);
-        ApplyVisualYawOffsetToLocalPose();
-        BuildGlobalAndFinalFromLocal();
-        return;
-    }
+	if ( !m_bBlending )
+	{
+		AdvanceTime(cur, m_fCurrentTime, dt, m_bLoop);
+		UpdateUpperBodyOverlayTimeOnly(dt);
+		return;
+	}
 
-    AnimationClip* nxt = FindClipPtr(m_NextClipName);
-    if (!nxt)
-    {
-        m_bBlending = false;
+	AnimationClip* nxt = FindClipPtr(m_NextClipName);
 
-        AdvanceTime(cur, m_fCurrentTime, dt, m_bLoop);
-        cur->Evaluate(m_fCurrentTime, m_Skeleton, m_LocalPose);
-        UpdateUpperBodyOverlay(dt);
-        ApplyVisualYawOffsetToLocalPose();
-        BuildGlobalAndFinalFromLocal();
-        return;
-    }
+	if ( !nxt )
+	{
+		m_bBlending = false;
 
-    AdvanceTime(cur, m_fCurrentTime, dt, m_bLoop);
-    AdvanceTime(nxt, m_fNextTime, dt, m_bNextLoop);
+		AdvanceTime(cur, m_fCurrentTime, dt, m_bLoop);
+		UpdateUpperBodyOverlayTimeOnly(dt);
+		return;
+	}
 
-    cur->Evaluate(m_fCurrentTime, m_Skeleton, m_LocalPoseA);
-    nxt->Evaluate(m_fNextTime, m_Skeleton, m_LocalPoseB);
+	AdvanceTime(cur, m_fCurrentTime, dt, m_bLoop);
+	AdvanceTime(nxt, m_fNextTime, dt, m_bNextLoop);
 
-    m_fBlendElapsed += dt;
-    float alpha = (m_fBlendDuration > 0.0f) ? (m_fBlendElapsed / m_fBlendDuration) : 1.0f;
-    if (alpha > 1.0f) alpha = 1.0f;
+	m_fBlendElapsed += dt;
 
-    BlendLocalPosesTRS(m_LocalPoseA, m_LocalPoseB, alpha, m_LocalPose);
+	float alpha =
+		( m_fBlendDuration > 0.0f )
+		? ( m_fBlendElapsed / m_fBlendDuration )
+		: 1.0f;
 
-    UpdateUpperBodyOverlay(dt);
-    ApplyVisualYawOffsetToLocalPose();
-    BuildGlobalAndFinalFromLocal();
+	if ( alpha > 1.0f )
+		alpha = 1.0f;
 
-    if (alpha >= 1.0f)
-    {
-        m_bBlending = false;
-        m_CurrentClipName = m_NextClipName;
-        m_NextClipName.clear();
+	UpdateUpperBodyOverlayTimeOnly(dt);
 
-        m_fCurrentTime = m_fNextTime;
-        m_bLoop = m_bNextLoop;
+	if ( alpha >= 1.0f )
+	{
+		m_bBlending = false;
+		m_CurrentClipName = m_NextClipName;
+		m_NextClipName.clear();
 
-        m_fBlendElapsed = 0.0f;
-        m_fBlendDuration = 0.0f;
-    }
+		m_fCurrentTime = m_fNextTime;
+		m_bLoop = m_bNextLoop;
+
+		m_fBlendElapsed = 0.0f;
+		m_fBlendDuration = 0.0f;
+	}
+}
+
+void CAnimator::EvaluateCurrentPoseOnly()
+{
+	if ( !m_bPlaying )
+		return;
+
+	AnimationClip* cur = FindClipPtr(m_CurrentClipName);
+	if ( !cur )
+		return;
+
+	const int boneCount = static_cast< int >( m_Skeleton.size() );
+
+	if ( boneCount <= 0 )
+		return;
+
+	if ( !m_bBlending )
+	{
+		cur->Evaluate(m_fCurrentTime, m_Skeleton, m_LocalPose);
+		ApplyUpperBodyOverlayToCurrentPoseOnly();
+		ApplyVisualYawOffsetToLocalPose();
+		BuildGlobalAndFinalFromLocal();
+		return;
+	}
+
+	AnimationClip* nxt = FindClipPtr(m_NextClipName);
+
+	if ( !nxt )
+	{
+		m_bBlending = false;
+
+		cur->Evaluate(m_fCurrentTime, m_Skeleton, m_LocalPose);
+		ApplyUpperBodyOverlayToCurrentPoseOnly();
+		ApplyVisualYawOffsetToLocalPose();
+		BuildGlobalAndFinalFromLocal();
+		return;
+	}
+
+	cur->Evaluate(m_fCurrentTime, m_Skeleton, m_LocalPoseA);
+	nxt->Evaluate(m_fNextTime, m_Skeleton, m_LocalPoseB);
+
+	float alpha =
+		( m_fBlendDuration > 0.0f )
+		? ( m_fBlendElapsed / m_fBlendDuration )
+		: 1.0f;
+
+	if ( alpha < 0.0f )
+		alpha = 0.0f;
+
+	if ( alpha > 1.0f )
+		alpha = 1.0f;
+
+	BlendLocalPosesTRS(m_LocalPoseA, m_LocalPoseB, alpha, m_LocalPose);
+
+	ApplyUpperBodyOverlayToCurrentPoseOnly();
+	ApplyVisualYawOffsetToLocalPose();
+	BuildGlobalAndFinalFromLocal();
 }
 
 AnimationClip* CAnimator::FindClipPtr(const std::string& name)
@@ -549,58 +607,90 @@ void CAnimator::StopUpperBodyOverlay(bool immediate)
     m_fUpperBodyBlendDuration = 0.0f;
 }
 
-void CAnimator::UpdateUpperBodyOverlay(float dt)
+void CAnimator::UpdateUpperBodyOverlayTimeOnly(float dt)
 {
-    if (!m_bUpperBodyOverlay)
-        return;
+	if ( !m_bUpperBodyOverlay )
+		return;
 
-    AnimationClip* overlay = FindClipPtr(m_UpperBodyClipName);
-    if (!overlay)
-    {
-        StopUpperBodyOverlay(true);
-        return;
-    }
+	AnimationClip* overlay = FindClipPtr(m_UpperBodyClipName);
 
-    if ((int)m_LocalPoseUpperBody.size() != (int)m_Skeleton.size())
-        m_LocalPoseUpperBody.resize(m_Skeleton.size());
+	if ( !overlay )
+	{
+		StopUpperBodyOverlay(true);
+		return;
+	}
 
-    if ((int)m_UpperBodyBlendWeights.size() != (int)m_UpperBodyBoneWeights.size())
-        m_UpperBodyBlendWeights.resize(m_UpperBodyBoneWeights.size());
+	AdvanceTime(overlay, m_fUpperBodyTime, dt, m_bUpperBodyLoop);
 
-    AdvanceTime(overlay, m_fUpperBodyTime, dt, m_bUpperBodyLoop);
-    overlay->Evaluate(m_fUpperBodyTime, m_Skeleton, m_LocalPoseUpperBody);
-    RetargetUpperBodyOverlayRootToCurrentParent();
+	if ( m_fUpperBodyBlendDuration <= 0.0f )
+	{
+		m_fUpperBodyBlendAlpha = m_fUpperBodyBlendTargetAlpha;
+	}
+	else
+	{
+		m_fUpperBodyBlendElapsed += dt;
 
-    if (m_fUpperBodyBlendDuration <= 0.0f)
-    {
-        m_fUpperBodyBlendAlpha = m_fUpperBodyBlendTargetAlpha;
-    }
-    else
-    {
-        m_fUpperBodyBlendElapsed += dt;
+		float t = m_fUpperBodyBlendElapsed / m_fUpperBodyBlendDuration;
 
-        float t = m_fUpperBodyBlendElapsed / m_fUpperBodyBlendDuration;
-        if (t < 0.0f) t = 0.0f;
-        if (t > 1.0f) t = 1.0f;
+		if ( t < 0.0f )
+			t = 0.0f;
 
-        m_fUpperBodyBlendAlpha =
-            m_fUpperBodyBlendStartAlpha +
-            (m_fUpperBodyBlendTargetAlpha - m_fUpperBodyBlendStartAlpha) * t;
-    }
+		if ( t > 1.0f )
+			t = 1.0f;
 
-    if (m_fUpperBodyBlendAlpha < 0.0f) m_fUpperBodyBlendAlpha = 0.0f;
-    if (m_fUpperBodyBlendAlpha > 1.0f) m_fUpperBodyBlendAlpha = 1.0f;
+		m_fUpperBodyBlendAlpha =
+			m_fUpperBodyBlendStartAlpha +
+			( m_fUpperBodyBlendTargetAlpha - m_fUpperBodyBlendStartAlpha ) * t;
+	}
 
-    if ((m_fUpperBodyBlendTargetAlpha <= 0.0f) && (m_fUpperBodyBlendAlpha <= 0.0f))
-    {
-        StopUpperBodyOverlay(true);
-        return;
-    }
+	if ( m_fUpperBodyBlendAlpha < 0.0f )
+		m_fUpperBodyBlendAlpha = 0.0f;
 
-    for (size_t i = 0; i < m_UpperBodyBoneWeights.size(); ++i)
-        m_UpperBodyBlendWeights[i] = m_UpperBodyBoneWeights[i] * m_fUpperBodyBlendAlpha;
+	if ( m_fUpperBodyBlendAlpha > 1.0f )
+		m_fUpperBodyBlendAlpha = 1.0f;
 
-    BlendLocalPosesMaskedTRS(m_LocalPose, m_LocalPoseUpperBody, m_UpperBodyBlendWeights, m_LocalPose);
+	if ( ( m_fUpperBodyBlendTargetAlpha <= 0.0f ) &&
+		( m_fUpperBodyBlendAlpha <= 0.0f ) )
+	{
+		StopUpperBodyOverlay(true);
+		return;
+	}
+}
+
+void CAnimator::ApplyUpperBodyOverlayToCurrentPoseOnly()
+{
+	if ( !m_bUpperBodyOverlay )
+		return;
+
+	AnimationClip* overlay = FindClipPtr(m_UpperBodyClipName);
+
+	if ( !overlay )
+	{
+		StopUpperBodyOverlay(true);
+		return;
+	}
+
+	if ( ( int ) m_LocalPoseUpperBody.size() != ( int ) m_Skeleton.size() )
+		m_LocalPoseUpperBody.resize(m_Skeleton.size());
+
+	if ( ( int ) m_UpperBodyBlendWeights.size() != ( int ) m_UpperBodyBoneWeights.size() )
+		m_UpperBodyBlendWeights.resize(m_UpperBodyBoneWeights.size());
+
+	overlay->Evaluate(m_fUpperBodyTime, m_Skeleton, m_LocalPoseUpperBody);
+	RetargetUpperBodyOverlayRootToCurrentParent();
+
+	for ( size_t i = 0; i < m_UpperBodyBoneWeights.size(); ++i )
+	{
+		m_UpperBodyBlendWeights[i] =
+			m_UpperBodyBoneWeights[i] * m_fUpperBodyBlendAlpha;
+	}
+
+	BlendLocalPosesMaskedTRS(
+		m_LocalPose,
+		m_LocalPoseUpperBody,
+		m_UpperBodyBlendWeights,
+		m_LocalPose
+	);
 }
 
 void CAnimator::SetVisualYawOffset(float targetYawDeg, float blendInEndNormalized, float blendOutStartNormalized)
