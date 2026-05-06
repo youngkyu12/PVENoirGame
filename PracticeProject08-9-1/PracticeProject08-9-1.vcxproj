@@ -276,6 +276,8 @@
     <ClCompile Include="GameFramework.cpp" />
     <ClCompile Include="GameScene.cpp" />
     <ClCompile Include="GameSceneAttachmentBinder.cpp" />
+    <ClCompile Include="GameSceneAudio.cpp" />
+    <ClCompile Include="GameSceneBillboard.cpp" />
     <ClCompile Include="GameSceneContentCatalog.cpp" />
     <ClCompile Include="GameSceneHUD.cpp" />
     <ClCompile Include="GameSceneLOD.cpp" />
