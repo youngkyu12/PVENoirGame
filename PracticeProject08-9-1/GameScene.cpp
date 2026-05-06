@@ -325,6 +325,83 @@ namespace
 		dst.pad[2] = 0;
 	}
 
+	static void StoreMuzzleFlashWorldRows(
+		MuzzleFlashInstanceVertex& dst,
+		const XMFLOAT3& basePosition,
+		float width,
+		float height,
+		const XMFLOAT3& targetPosition)
+	{
+		const XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+
+		XMVECTOR center = XMLoadFloat3(&basePosition);
+		XMVECTOR target = XMLoadFloat3(&targetPosition);
+
+		XMVECTOR forward = XMVectorSubtract(target, center);
+		forward = XMVectorSetY(forward, 0.0f);
+
+		if ( XMVectorGetX(XMVector3LengthSq(forward)) <= 1.0e-6f )
+			forward = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+		else
+			forward = XMVector3Normalize(forward);
+
+		XMVECTOR right = XMVector3Cross(up, forward);
+
+		if ( XMVectorGetX(XMVector3LengthSq(right)) <= 1.0e-6f )
+			right = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+		else
+			right = XMVector3Normalize(right);
+
+		const XMVECTOR scaledRight = XMVectorScale(right, width);
+		const XMVECTOR scaledUp = XMVectorScale(up, height);
+
+		XMFLOAT3 r{};
+		XMFLOAT3 u{};
+		XMFLOAT3 f{};
+		XMFLOAT3 c{};
+
+		XMStoreFloat3(&r, scaledRight);
+		XMStoreFloat3(&u, scaledUp);
+		XMStoreFloat3(&f, forward);
+		XMStoreFloat3(&c, center);
+
+		dst.world0 = XMFLOAT4(r.x, r.y, r.z, 0.0f);
+		dst.world1 = XMFLOAT4(u.x, u.y, u.z, 0.0f);
+		dst.world2 = XMFLOAT4(f.x, f.y, f.z, 0.0f);
+		dst.world3 = XMFLOAT4(c.x, c.y, c.z, 1.0f);
+	}
+
+	static MuzzleFlashEntry* AcquireFreeMuzzleFlashEntry(
+	std::vector<MuzzleFlashEntry>& flashes)
+	{
+		for ( MuzzleFlashEntry& flash : flashes )
+		{
+			if ( !flash.active )
+				return &flash;
+		}
+		return nullptr;
+	}
+
+	static XMFLOAT3 GetSafeObjectForward(const CGameObject* obj)
+	{
+		if ( !obj )
+			return XMFLOAT3(0.0f, 0.0f, 1.0f);
+
+		const XMFLOAT4X4& W = obj->GetWorldMatrix();
+
+		XMFLOAT3 dir = XMFLOAT3(W._31, W._32, W._33);
+		XMVECTOR dirV = XMLoadFloat3(&dir);
+
+		if ( XMVectorGetX(XMVector3LengthSq(dirV)) <= 1.0e-8f )
+			return XMFLOAT3(0.0f, 0.0f, 1.0f);
+
+		dirV = XMVector3Normalize(dirV);
+
+		XMFLOAT3 out{};
+		XMStoreFloat3(&out, dirV);
+		return out;
+	}
+
 	static constexpr XMFLOAT3 kLocalPlayerRespawnPosition =
 		XMFLOAT3(0.0f, 0.0f, -200.0f);
 
@@ -2511,6 +2588,8 @@ void CGameScene::ReleaseObjects()
 	m_keyItemTexture.reset();
 
 	ReleaseItemBillboardGpuResources();
+	m_muzzleFlashShader.reset();
+	m_muzzleFlashes.clear();
 
 	m_staticRenderObjectCache.clear();
 
@@ -6610,6 +6689,241 @@ void CGameScene::BuildItemBillboardBatch(
 				&m_pMappedTransparentItemBillboardInstanceBuffer
 				)
 		);
+
+		BuildMuzzleFlashBatch(dev, cmd, dsvFormat);
+	}
+}
+
+void CGameScene::BuildMuzzleFlashBatch(
+	ID3D12Device* dev,
+	ID3D12GraphicsCommandList* cmd,
+	DXGI_FORMAT dsvFormat)
+{
+	if ( !dev || !cmd )
+		return;
+
+	m_muzzleFlashShader = std::make_shared<CMuzzleFlashBillboardShader>();
+
+	// forward pass용. 실제 swapchain format이 다르면 그 format으로 바꿔야 함.
+	DXGI_FORMAT rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+	m_muzzleFlashShader->CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		1,
+		&rtvFormat,
+		dsvFormat
+	);
+
+	m_muzzleFlashes.clear();
+	m_muzzleFlashes.resize(kMuzzleFlashMaxCount);
+
+	m_muzzleFlashInstanceBufferCapacity = kMuzzleFlashMaxCount;
+
+	const UINT instanceBufferBytes =
+		sizeof(MuzzleFlashInstanceVertex) *
+		m_muzzleFlashInstanceBufferCapacity;
+
+	m_pd3dMuzzleFlashInstanceBuffer = ::CreateBufferResource(
+		dev,
+		cmd,
+		nullptr,
+		instanceBufferBytes,
+		D3D12_HEAP_TYPE_UPLOAD,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr
+	);
+
+	m_pd3dMuzzleFlashInstanceBuffer->Map(
+		0,
+		nullptr,
+		reinterpret_cast< void** >( &m_pMappedMuzzleFlashInstanceBuffer )
+	);
+}
+
+void CGameScene::ReleaseMuzzleFlashGpuResources()
+{
+	if ( m_pd3dMuzzleFlashInstanceBuffer )
+	{
+		if ( m_pMappedMuzzleFlashInstanceBuffer )
+		{
+			m_pd3dMuzzleFlashInstanceBuffer->Unmap(0, nullptr);
+			m_pMappedMuzzleFlashInstanceBuffer = nullptr;
+		}
+
+		m_pd3dMuzzleFlashInstanceBuffer.Reset();
+	}
+
+	m_muzzleFlashInstanceBufferCapacity = 0;
+}
+
+void CGameScene::SpawnMuzzleFlash(
+	const XMFLOAT3& position,
+	const XMFLOAT3& direction)
+{
+	static std::mt19937 rng{ std::random_device{}( ) };
+
+	static std::uniform_real_distribution<float> rotDist(0.0f, XM_2PI);
+	static std::uniform_real_distribution<float> seedDist(0.0f, 1000.0f);
+	static std::uniform_real_distribution<float> unitDist(-1.0f, 1.0f);
+	static std::uniform_real_distribution<float> sparkSpeedDist(2.2f, 4.8f);
+
+	XMVECTOR dirV = XMLoadFloat3(&direction);
+	if ( XMVectorGetX(XMVector3LengthSq(dirV)) <= 1.0e-8f )
+		dirV = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+	else
+		dirV = XMVector3Normalize(dirV);
+
+	const XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+
+	XMVECTOR right = XMVector3Cross(up, dirV);
+	if ( XMVectorGetX(XMVector3LengthSq(right)) <= 1.0e-8f )
+		right = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+	else
+		right = XMVector3Normalize(right);
+
+	auto spawnCore = [ & ] (float size, float life, float intensity, float alpha)
+		{
+			MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashes);
+			if ( !e ) return;
+
+			e->active = true;
+			e->kind = EMuzzleFlashKind::Core;
+			e->position = position;
+			e->velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+			e->age = 0.0f;
+			e->lifetime = life;
+
+			e->startWidth = size;
+			e->startHeight = size;
+			e->endWidth = size * 1.7f;
+			e->endHeight = size * 1.7f;
+
+			e->rotationRad = rotDist(rng);
+			e->intensity = intensity;
+			e->drag = 0.0f;
+			e->seed = seedDist(rng);
+
+			e->color = XMFLOAT4(1.0f, 0.48f, 0.10f, alpha);
+		};
+
+	auto spawnRing = [ & ] ()
+		{
+			MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashes);
+			if ( !e ) return;
+
+			e->active = true;
+			e->kind = EMuzzleFlashKind::Ring;
+			e->position = position;
+			e->velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+			e->age = 0.0f;
+			e->lifetime = 0.06f;
+
+			e->startWidth = 0.20f;
+			e->startHeight = 0.20f;
+			e->endWidth = 1.15f;
+			e->endHeight = 1.15f;
+
+			e->rotationRad = rotDist(rng);
+			e->intensity = 1.2f;
+			e->drag = 0.0f;
+			e->seed = seedDist(rng);
+
+			e->color = XMFLOAT4(1.0f, 0.72f, 0.22f, 0.9f);
+		};
+
+	auto spawnSpark = [ & ] (float baseRot)
+		{
+			MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashes);
+			if ( !e ) return;
+
+			const float side = unitDist(rng) * 0.35f;
+			const float lift = unitDist(rng) * 0.18f + 0.12f;
+			const float speed = sparkSpeedDist(rng);
+
+			XMVECTOR vel =
+				XMVectorAdd(
+					XMVectorScale(dirV, 1.0f),
+					XMVectorAdd(
+						XMVectorScale(right, side),
+						XMVectorScale(up, lift)
+					)
+				);
+
+			if ( XMVectorGetX(XMVector3LengthSq(vel)) <= 1.0e-8f )
+				vel = dirV;
+			else
+				vel = XMVector3Normalize(vel);
+
+			vel = XMVectorScale(vel, speed);
+
+			XMFLOAT3 vel3{};
+			XMStoreFloat3(&vel3, vel);
+
+			e->active = true;
+			e->kind = EMuzzleFlashKind::Spark;
+			e->position = position;
+			e->velocity = vel3;
+
+			e->age = 0.0f;
+			e->lifetime = 0.07f;
+
+			e->startWidth = 0.10f;
+			e->startHeight = 0.42f;
+			e->endWidth = 0.05f;
+			e->endHeight = 0.28f;
+
+			e->rotationRad = baseRot + unitDist(rng) * 0.35f;
+			e->intensity = 1.4f;
+			e->drag = 5.5f;
+			e->seed = seedDist(rng);
+
+			e->color = XMFLOAT4(1.0f, 0.70f, 0.18f, 1.0f);
+		};
+
+	// 코어 flash를 2장 겹친다
+	spawnCore(0.55f, 0.045f, 2.2f, 1.0f);
+	spawnCore(0.80f, 0.065f, 1.5f, 0.75f);
+
+	// 충격 링
+	spawnRing();
+
+	// spark 4개
+	for ( int i = 0; i < 4; ++i )
+	{
+		spawnSpark(rotDist(rng));
+	}
+}
+
+void CGameScene::UpdateMuzzleFlashes(float dt)
+{
+	if ( dt <= 0.0f )
+		return;
+
+	for ( MuzzleFlashEntry& flash : m_muzzleFlashes )
+	{
+		if ( !flash.active )
+			continue;
+
+		flash.age += dt;
+
+		if ( flash.age >= flash.lifetime )
+		{
+			flash.active = false;
+			flash.age = 0.0f;
+			continue;
+		}
+
+		flash.position.x += flash.velocity.x * dt;
+		flash.position.y += flash.velocity.y * dt;
+		flash.position.z += flash.velocity.z * dt;
+
+		const float dragFactor = std::max(0.0f, 1.0f - flash.drag * dt);
+		flash.velocity.x *= dragFactor;
+		flash.velocity.y *= dragFactor;
+		flash.velocity.z *= dragFactor;
 	}
 }
 
@@ -6640,6 +6954,7 @@ void CGameScene::ReleaseItemBillboardGpuResources()
 	}
 
 	m_transparentItemBillboardInstanceBufferCapacity = 0;
+	ReleaseMuzzleFlashGpuResources();
 }
 
 void CGameScene::UpdateItemBillboardDistanceCullSelection(CCamera* camera)
@@ -6903,13 +7218,77 @@ void CGameScene::RenderTransparentItemBillboards(
 	cmd->IASetVertexBuffers(0, 2, vbViews);
 	cmd->IASetIndexBuffer(&sm.ibView);
 
-	cmd->DrawIndexedInstanced(
-		static_cast< UINT >( sm.indices.size() ),
-		visibleInstanceCount,
-		0,
-		0,
-		0
-	);
+	cmd->DrawIndexedInstanced(static_cast< UINT >( sm.indices.size() ), visibleInstanceCount, 0, 0, 0);
+}
+
+void CGameScene::RenderMuzzleFlashes(
+	ID3D12GraphicsCommandList* cmd,
+	CCamera* camera)
+{
+	PROFILE_RENDER_SCOPE("GameScene::RenderMuzzleFlashes");
+
+	if ( !cmd ) return;
+	if ( !camera ) return;
+	if ( !m_muzzleFlashShader ) return;
+	if ( !m_itemBillboardQuadMesh ) return;
+	if ( !m_pd3dMuzzleFlashInstanceBuffer ) return;
+	if ( !m_pMappedMuzzleFlashInstanceBuffer ) return;
+	if ( m_itemBillboardQuadMesh->m_SubMeshes.empty() ) return;
+
+	const SubMesh& sm = m_itemBillboardQuadMesh->m_SubMeshes[0];
+
+	if ( sm.indices.empty() )
+		return;
+
+	const XMFLOAT3 cameraPos = camera->GetPosition();
+
+	UINT visibleInstanceCount = 0;
+
+	for ( const MuzzleFlashEntry& flash : m_muzzleFlashes )
+	{
+		if ( !flash.active )
+			continue;
+
+		if ( visibleInstanceCount >= m_muzzleFlashInstanceBufferCapacity )
+			break;
+
+		const float ageRatio = ( flash.lifetime > 1.0e-6f ) ? std::clamp(flash.age / flash.lifetime, 0.0f, 1.0f) : 1.0f;
+
+		const float width = flash.startWidth + ( flash.endWidth - flash.startWidth ) * ageRatio;
+		const float height = flash.startHeight + ( flash.endHeight - flash.startHeight ) * ageRatio;
+
+		MuzzleFlashInstanceVertex& dst = m_pMappedMuzzleFlashInstanceBuffer[visibleInstanceCount];
+		StoreMuzzleFlashWorldRows(dst, flash.position, width, height, cameraPos);
+
+		dst.color = flash.color;
+		dst.params0 = XMFLOAT4(ageRatio, flash.intensity, flash.rotationRad, flash.seed);
+		dst.params1 = XMFLOAT4(static_cast< float >( static_cast< UINT >( flash.kind ) ), 0.0f, 0.0f, 0.0f);
+
+			++visibleInstanceCount;
+	}
+
+	if ( visibleInstanceCount == 0 )
+		return;
+
+	m_muzzleFlashShader->Render(cmd, camera, nullptr);
+
+	D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
+	vbViews[0] = sm.vbView;
+
+	vbViews[1].BufferLocation =
+		m_pd3dMuzzleFlashInstanceBuffer->GetGPUVirtualAddress();
+
+	vbViews[1].SizeInBytes =
+		sizeof(MuzzleFlashInstanceVertex) * visibleInstanceCount;
+
+	vbViews[1].StrideInBytes =
+		sizeof(MuzzleFlashInstanceVertex);
+
+	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	cmd->IASetVertexBuffers(0, 2, vbViews);
+	cmd->IASetIndexBuffer(&sm.ibView);
+
+	cmd->DrawIndexedInstanced(static_cast< UINT >( sm.indices.size() ), visibleInstanceCount, 0, 0, 0);
 }
 
 void CGameScene::BuildColliderBatch(
@@ -8586,6 +8965,26 @@ void CGameScene::RequestFireBullet(CGameObject* shooter, float speed, float life
 
 		if ( bullet->FireFromObjects(spawnSource, directionSource, speed, lifeSec, true) )
 		{
+			const XMFLOAT3 dirN = GetSafeObjectForward(directionSource);
+
+			XMFLOAT3 muzzlePos = spawnSource->GetPosition();
+
+			// gun object가 있으면 gun 위치 기준, 없으면 shooter 상체 높이 기준
+			if ( gunObj )
+			{
+				muzzlePos.x += dirN.x * 0.55f;
+				muzzlePos.y += 0.05f;
+				muzzlePos.z += dirN.z * 0.55f;
+			}
+			else
+			{
+				muzzlePos.y += 1.15f;
+				muzzlePos.x += dirN.x * 0.85f;
+				muzzlePos.z += dirN.z * 0.85f;
+			}
+
+			SpawnMuzzleFlash(muzzlePos, dirN);
+
 			return;
 		}
 	}
@@ -8830,7 +9229,7 @@ bool CGameScene::ShouldEvaluateSkinnedPoseThisFrame(UINT objectIndex, CCamera* c
 void CGameScene::AnimateObjects(float dt)
 {
 	m_fElapsedTime = dt;
-
+	UpdateMuzzleFlashes(dt);
 	UpdateMonsterDeathStates();
 
 #ifndef USING_NETWORK
@@ -9514,12 +9913,18 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	RenderDepthFog(cmd, camera);
-	// DepthFog 이후, 최종 backbuffer 위에 forward transparent billboard 렌더.
+
+	// DepthFog 이후, 최종 backbuffer 위에 forward 계열 이펙트 렌더.
 	BindFrameRootParameters(cmd);
 
 	if ( m_transparentItemBillboardShader )
 	{
 		RenderTransparentItemBillboards(cmd, camera);
+	}
+
+	if ( m_muzzleFlashShader )
+	{
+		RenderMuzzleFlashes(cmd, camera);
 	}
 
 	m_hud.Render(cmd, camera);

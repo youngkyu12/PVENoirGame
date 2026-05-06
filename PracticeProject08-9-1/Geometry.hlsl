@@ -185,6 +185,155 @@ VS_TEXTURED_LIGHTING_OUTPUT VSItemBillboardInstanced(VS_ITEM_BILLBOARD_INSTANCED
     return output;
 }
 
+struct VS_MUZZLE_FLASH_BILLBOARD_INPUT
+{
+    float3 position : POSITION;
+    float3 normal : NORMAL;
+    float2 uv : TEXCOORD;
+    float4 tangent : TANGENT;
+
+    float4 instWorld0 : INSTANCE_WORLD0;
+    float4 instWorld1 : INSTANCE_WORLD1;
+    float4 instWorld2 : INSTANCE_WORLD2;
+    float4 instWorld3 : INSTANCE_WORLD3;
+
+    float4 instColor : INSTANCE_COLOR0;
+    float4 instParams0 : INSTANCE_PARAMS0;
+    float4 instParams1 : INSTANCE_PARAMS1;
+};
+
+struct VS_MUZZLE_FLASH_BILLBOARD_OUTPUT
+{
+    float4 position : SV_POSITION;
+    float2 uv : TEXCOORD0;
+    float4 color : COLOR0;
+    float4 params0 : TEXCOORD1;
+    float4 params1 : TEXCOORD2;
+};
+
+VS_MUZZLE_FLASH_BILLBOARD_OUTPUT VSMuzzleFlashBillboardInstanced(
+    VS_MUZZLE_FLASH_BILLBOARD_INPUT input)
+{
+    VS_MUZZLE_FLASH_BILLBOARD_OUTPUT output;
+
+    float ageRatio = saturate(input.instParams0.x);
+    float rotation = input.instParams0.z;
+
+    float s = sin(rotation);
+    float c = cos(rotation);
+
+    float2 localXY = input.position.xy;
+
+    // 약간 커지는 느낌
+    float grow = lerp(1.0f, 1.2f, ageRatio);
+    localXY *= grow;
+
+    float2 rotatedXY = float2(
+        localXY.x * c - localXY.y * s,
+        localXY.x * s + localXY.y * c
+    );
+
+    float3 localPos = float3(rotatedXY, input.position.z);
+
+    float4x4 mtxInstanceWorld = float4x4(
+        input.instWorld0,
+        input.instWorld1,
+        input.instWorld2,
+        input.instWorld3
+    );
+
+    float3 positionW = (float3) mul(float4(localPos, 1.0f), mtxInstanceWorld);
+
+    output.position = mul(mul(float4(positionW, 1.0f), gmtxView), gmtxProjection);
+    output.uv = input.uv;
+    output.color = input.instColor;
+    output.params0 = input.instParams0;
+    output.params1 = input.instParams1;
+
+    return output;
+}
+
+float4 PSMuzzleFlashProcedural(
+    VS_MUZZLE_FLASH_BILLBOARD_OUTPUT input) : SV_TARGET
+{
+    float2 p = input.uv * 2.0f - 1.0f;
+
+    float r = length(p);
+    float angle = atan2(p.y, p.x);
+
+    float ageRatio = saturate(input.params0.x);
+    float intensity = input.params0.y;
+    float seed = input.params0.w;
+
+    float kind = input.params1.x;
+
+    float alpha = 0.0f;
+    float3 color = input.color.rgb;
+
+    // 0 = core
+    if (kind < 0.5f)
+    {
+        float core = saturate(1.0f - r * 2.8f);
+        core = pow(core, 1.4f);
+
+        float rays = abs(cos(angle * 6.0f + seed * 3.17f));
+        rays = pow(rays, 18.0f);
+        rays *= saturate(1.0f - r * 0.85f);
+
+        float flicker = 0.85f + 0.15f * sin(angle * 13.0f + seed * 17.0f);
+        float shape = core * 1.45f + rays * flicker * 1.25f;
+
+        float fade = saturate(1.0f - ageRatio);
+        fade *= fade;
+
+        alpha = saturate(shape * fade * input.color.a);
+
+        float3 hotColor = float3(1.0f, 0.96f, 0.70f);
+        float3 outerColor = input.color.rgb;
+        color = lerp(hotColor, outerColor, saturate(r));
+        color *= intensity;
+    }
+    // 1 = ring
+    else if (kind < 1.5f)
+    {
+        float ringRadius = lerp(0.15f, 0.70f, ageRatio);
+        float ringWidth = lerp(0.14f, 0.05f, ageRatio);
+
+        float ring = 1.0f - saturate(abs(r - ringRadius) / max(ringWidth, 0.001f));
+        ring = smoothstep(0.0f, 1.0f, ring);
+
+        float fade = saturate(1.0f - ageRatio);
+        alpha = ring * fade * 0.55f * input.color.a;
+
+        color = input.color.rgb * intensity * 0.85f;
+    }
+    // 2 = spark
+    else
+    {
+        float2 q = p;
+
+        // 세로로 긴 streak처럼 보이게
+        float body = exp(-abs(q.x) * 10.0f) * saturate(1.1f - abs(q.y) * 1.6f);
+
+        float head = saturate(1.2f - length(float2(q.x * 2.0f, q.y + 0.7f)) * 2.0f);
+        float tail = saturate(1.0f - length(float2(q.x * 3.0f, q.y - 0.2f)) * 1.2f);
+
+        float shape = body * 0.8f + head * 0.8f + tail * 0.35f;
+
+        float fade = saturate(1.0f - ageRatio);
+        fade *= fade;
+
+        alpha = saturate(shape * fade * input.color.a);
+
+        float3 hotColor = float3(1.0f, 0.95f, 0.70f);
+        color = lerp(input.color.rgb, hotColor, 0.55f) * intensity;
+    }
+
+    clip(alpha - 0.002f);
+
+    return float4(color, alpha);
+}
+
 struct VS_OCCLUSION_STATIC_OUTPUT
 {
     float4 position : SV_POSITION;

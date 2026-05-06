@@ -70,6 +70,58 @@ struct ItemBillboardInstanceVertex
 	UINT pad[3] = { 0, 0, 0 };
 };
 
+enum class EMuzzleFlashKind : UINT
+{
+	Core = 0,
+	Ring = 1,
+	Spark = 2,
+};
+
+struct MuzzleFlashInstanceVertex
+{
+	XMFLOAT4 world0 = XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f);
+	XMFLOAT4 world1 = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
+	XMFLOAT4 world2 = XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f);
+	XMFLOAT4 world3 = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+
+	// rgb = 색상, a = 전체 alpha 계수
+	XMFLOAT4 color = XMFLOAT4(1.0f, 0.65f, 0.12f, 1.0f);
+
+	// x = ageRatio, y = intensity, z = rotationRad, w = seed
+	XMFLOAT4 params0 = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
+
+	// x = kind (0=core, 1=ring, 2=spark)
+	// y = reserved
+	// z = reserved
+	// w = reserved
+	XMFLOAT4 params1 = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+};
+
+struct MuzzleFlashEntry
+{
+	bool active = false;
+	EMuzzleFlashKind kind = EMuzzleFlashKind::Core;
+
+	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT3 velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	float age = 0.0f;
+	float lifetime = 0.08f;
+
+	float startWidth = 0.65f;
+	float startHeight = 0.65f;
+
+	float endWidth = 1.25f;
+	float endHeight = 1.25f;
+
+	float rotationRad = 0.0f;
+	float intensity = 1.0f;
+	float drag = 0.0f;
+	float seed = 0.0f;
+
+	XMFLOAT4 color = XMFLOAT4(1.0f, 0.62f, 0.10f, 1.0f);
+};
+
 enum class EItemBillboardKind : UINT
 {
 	Key = 0,
@@ -329,6 +381,18 @@ private:
 	void UpdateItemBillboardDistanceCullSelection(CCamera* camera);
 	void RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	void RenderTransparentItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
+	void BuildMuzzleFlashBatch(
+		ID3D12Device* dev,
+		ID3D12GraphicsCommandList* cmd,
+		DXGI_FORMAT dsvFormat
+	);
+
+	void ReleaseMuzzleFlashGpuResources();
+
+	void SpawnMuzzleFlash(const XMFLOAT3& position, const XMFLOAT3& direction);
+	void UpdateMuzzleFlashes(float dt);
+	void RenderMuzzleFlashes(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 	void UpdateItemBillboardPickupCollision();
 	bool DoesPlayerOverlapItemBillboard(const CGameObject* player, const ItemBillboardEntry& item) const;
@@ -635,6 +699,16 @@ private:
 	ComPtr<ID3D12Resource>                m_pd3dTransparentItemBillboardInstanceBuffer;
 	ItemBillboardInstanceVertex* m_pMappedTransparentItemBillboardInstanceBuffer = nullptr;
 	UINT                                  m_transparentItemBillboardInstanceBufferCapacity = 0;
+
+	static constexpr UINT kMuzzleFlashMaxCount = 32;
+
+	std::shared_ptr<CMuzzleFlashBillboardShader> m_muzzleFlashShader;
+
+	std::vector<MuzzleFlashEntry> m_muzzleFlashes;
+
+	ComPtr<ID3D12Resource> m_pd3dMuzzleFlashInstanceBuffer;
+	MuzzleFlashInstanceVertex* m_pMappedMuzzleFlashInstanceBuffer = nullptr;
+	UINT m_muzzleFlashInstanceBufferCapacity = 0;
 
     std::vector<CGameObject*> m_swordManRefs;
     std::vector<CGameObject*> m_bowManRefs;
