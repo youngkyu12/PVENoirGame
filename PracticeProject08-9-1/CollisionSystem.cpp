@@ -201,6 +201,22 @@ bool CCollisionSystem::IsPairIntersecting(const CColliderComponent* a, const CCo
 		return b->IntersectsBoneCapsulesHierarchical(a->GetOOBB());
 	}
 
+	// BCapsule vs BSphere
+	if ( a->GetType() == EColliderType::BCapsule &&
+		b->GetType() == EColliderType::BSphere )
+	{
+		// body vs projectile sphere
+		return a->IntersectsBoneCapsulesHierarchical(b->GetBSphere());
+	}
+
+	// BSphere vs BCapsule
+	if ( a->GetType() == EColliderType::BSphere &&
+		b->GetType() == EColliderType::BCapsule )
+	{
+		// projectile sphere vs body
+		return b->IntersectsBoneCapsulesHierarchical(a->GetBSphere());
+	}
+
 	return false;
 }
 
