@@ -45,7 +45,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 			{
 				player->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
 				player->SetAnimTick(tick.load());
-				player->SetVelocity(GameMath::Vec3::Zero());
+				//player->SetVelocity(GameMath::Vec3::Zero());
 			}
 			break;
 		case Protocol::WEAPON_TYPE_CANON:
@@ -123,7 +123,11 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		}
 		case Protocol::ANIMATION_TYPE_ATTACK:
 		{
-			fDistance *= 0.0f; // 공격 도중에는 이동 속도 = 0
+			const bool canMoveWhileAttacking =
+				(player->GetWeaponState() == Protocol::WEAPON_TYPE_BOW ||
+				 player->GetWeaponState() == Protocol::WEAPON_TYPE_CANON);
+			if (!canMoveWhileAttacking)
+				fDistance *= 0.0f; // 공격 도중에는 이동 속도 = 0
 			break;
 		}
 		case Protocol::ANIMATION_TYPE_IDLE:
