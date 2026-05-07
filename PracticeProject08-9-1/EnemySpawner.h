@@ -7,12 +7,11 @@ class EnemySpawner
 {
 public:
 	EnemySpawner() = default;
-	~EnemySpawner() = default;
+	virtual ~EnemySpawner() = default;
 
 public:
 	void Initialize(const std::vector<CGameObject*>& spawnObjects);
 	void Update(float deltaTime);
-	void Render(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 public:
 	void SetSpawnerPosition(const DirectX::XMFLOAT3& position);
@@ -27,6 +26,7 @@ public:
 
 private:
 	DirectX::XMFLOAT3 mSpawnerPosition = DirectX::XMFLOAT3(0.f, 0.f, 0.f);
+	float mElapsedTime = 0.0f;
 
 	std::vector<CGameObject*> mActiveEnemies;
 };

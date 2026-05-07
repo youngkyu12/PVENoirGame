@@ -2982,8 +2982,6 @@ void CGameScene::RenderSpawnInstanceGroups(ID3D12GraphicsCommandList* cmd, CCame
 	if ( !m_spawnBatch.shader )
 		return;
 
-	m_spawnBatch.shader->Render(cmd, camera, &m_spawnBatch);
-
 	const std::vector<CGameObject*>& activeEnemies = m_enemySpawner->GetActiveEnemies();
 	for ( CGameObject* enemy : activeEnemies )
 	{
@@ -3388,7 +3386,7 @@ void CGameScene::BuildSpawnBatch(
 	if ( !dev || !cmd || !shader )
 		return;
 
-	auto* b = &m_skinnedBatch;
+	auto* b = &m_spawnBatch;
 	if ( !b ) return;
 
 	const UINT cap = b->capacity;
@@ -5936,6 +5934,9 @@ bool CGameScene::ProcessInput(UCHAR* /*pKeysBuffer*/)
 void CGameScene::AnimateObjects(float dt)
 {
 	m_fElapsedTime = dt;
+
+	if ( m_enemySpawner )
+		m_enemySpawner->Update(dt);
     
 	// ------------------------------------------------------------------------
     // FrameSnapshot에서 좌표 업데이트
@@ -6488,9 +6489,6 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 
 void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
-	if ( m_enemySpawner )
-		m_enemySpawner->Render(cmd, camera);
-
 	RenderDepthFog(cmd, camera);
 	m_hud.Render(cmd, camera);
 }
