@@ -14,13 +14,12 @@
 CGhoulAIComponent::CGhoulAIComponent(CGameObject* owner)
 	: CMonsterAIComponent(owner)
 {
-	// 추적 / 전투용 기본값
 	SetMoveSpeed(2.0f);
-	SetRepathInterval(0.15f);
-	SetPathPointReachDistance(0.10f);
-	SetGoalReachDistance(0.25f);
+	SetRepathInterval(0.35f);
+	SetPathPointReachDistance(0.20f);
+	SetGoalReachDistance(0.85f);
 
-	SetDetectRange(99999.0f);
+	SetDetectRange(50.0f);
 	SetAttackRange(1.5f);
 	SetAttackCooldown(1.0f);
 }
