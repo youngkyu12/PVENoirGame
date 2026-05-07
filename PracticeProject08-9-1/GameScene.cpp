@@ -6613,7 +6613,7 @@ void CGameScene::RequestPlayerAttackBySlot(int slot)
 		return;
 
 	constexpr float kArrowPullBackDistance = 0.35f;
-	constexpr float kBulletSpeed = 10.0f;
+	constexpr float kBulletSpeed = 25.0f;
 	constexpr float kBulletLife = 3.0f;
 
 	bool shouldPlaySwordWhoosh = false;
@@ -6856,11 +6856,11 @@ void CGameScene::RequestReleasePreparedArrow(CGameObject* shooter, float speed, 
 
 void CGameScene::UpdatePreparedBowArrows()
 {
-	constexpr float kArrowSpeed = 3.0f;
+	constexpr float kArrowSpeed = 16.0f;
 	constexpr float kArrowLife = 6.0f;
 
 	constexpr float kEnemyArrowPullBackDistance = 0.35f * 1.5f;
-	constexpr float kEnemyArrowSpeed = 3.0f;
+	constexpr float kEnemyArrowSpeed = 14.0f;
 	constexpr float kEnemyArrowLife = 6.0f;
 
     for (int slot = 0; slot < 4; ++slot)
