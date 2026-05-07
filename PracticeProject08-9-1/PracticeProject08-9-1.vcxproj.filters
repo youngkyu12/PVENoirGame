@@ -625,5 +625,17 @@
       <Filter>Resource\HLSL</Filter>
     </None>
     <None Include="Shadows.hlsl" />
+    <None Include="Billboard.hlsl">
+      <Filter>Resource\HLSL</Filter>
+    </None>
+    <None Include="Occlusion.hlsl">
+      <Filter>Resource\HLSL</Filter>
+    </None>
+    <None Include="RenderTypes.hlsl">
+      <Filter>Resource\HLSL</Filter>
+    </None>
+    <None Include="DepthFog.hlsl">
+      <Filter>Resource\HLSL</Filter>
+    </None>
   </ItemGroup>
 </Project>

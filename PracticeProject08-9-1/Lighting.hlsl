@@ -1,3 +1,4 @@
+//Lighting.hlsl
 #ifndef __LIGHTING_HLSL__
 #define __LIGHTING_HLSL__
 
