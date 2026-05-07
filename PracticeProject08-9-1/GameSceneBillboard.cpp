@@ -147,6 +147,34 @@ namespace
 		return nullptr;
 	}
 
+	static XMFLOAT3 GetBloodSplashFallbackPosition(const CGameObject* victim)
+	{
+		if ( !victim )
+			return XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+		XMFLOAT3 p = victim->GetPosition();
+
+		// 현재 오브젝트 원점이 발 쪽이므로 피격점 정보가 없으면 약 1m 위.
+		p.y += 1.0f;
+
+		return p;
+	}
+
+	static XMVECTOR SafeNormalize3OrDefault(
+		const XMFLOAT3* dir,
+		const XMVECTOR& fallback)
+	{
+		if ( !dir )
+			return fallback;
+
+		XMVECTOR v = XMLoadFloat3(dir);
+
+		if ( XMVectorGetX(XMVector3LengthSq(v)) <= 1.0e-8f )
+			return fallback;
+
+		return XMVector3Normalize(v);
+	}
+
 	static XMFLOAT3 TransformLocalPoint(
 	const XMFLOAT4X4& world,
 	const XMFLOAT3& localPoint)
@@ -686,6 +714,7 @@ void CGameScene::SpawnMuzzleFlash(
 			e->rotationRad = rotDist(rng);
 			e->intensity = intensity;
 			e->drag = 0.0f;
+			e->gravity = 0.0f;
 			e->seed = seedDist(rng);
 
 			// 불꽃 중심부: 강한 주황/적황색
@@ -713,6 +742,7 @@ void CGameScene::SpawnMuzzleFlash(
 			e->rotationRad = rotDist(rng);
 			e->intensity = 1.2f;
 			e->drag = 0.0f;
+			e->gravity = 0.0f;
 			e->seed = seedDist(rng);
 
 			// 충격 링: 붉은 외곽 불꽃 느낌
@@ -763,6 +793,7 @@ void CGameScene::SpawnMuzzleFlash(
 			e->rotationRad = baseRot + unitDist(rng) * 0.35f;
 			e->intensity = 1.4f;
 			e->drag = 5.5f;
+			e->gravity = 0.0f;
 			e->seed = seedDist(rng);
 
 			// 스파크: 노란 심지 + 주황 불티
@@ -782,6 +813,123 @@ void CGameScene::SpawnMuzzleFlash(
 	for ( int i = 0; i < kMuzzleFlashSparkCount; ++i )
 	{
 		spawnSpark(rotDist(rng));
+	}
+}
+
+void CGameScene::SpawnBloodSplash(
+	CGameObject* victim,
+	const XMFLOAT3* hitPosition,
+	const XMFLOAT3* hitDirection)
+{
+	if ( !victim )
+		return;
+
+	static std::mt19937 rng{ std::random_device{}( ) };
+
+	static std::uniform_real_distribution<float> rotDist(0.0f, XM_2PI);
+	static std::uniform_real_distribution<float> seedDist(0.0f, 1000.0f);
+	static std::uniform_real_distribution<float> unitDist(-1.0f, 1.0f);
+	static std::uniform_real_distribution<float> lifeDist(0.24f, 0.48f);
+	static std::uniform_real_distribution<float> speedDist(2.4f, 6.2f);
+	static std::uniform_real_distribution<float> sideDist(-1.35f, 1.35f);
+	static std::uniform_real_distribution<float> liftDist(0.55f, 1.85f);
+	static std::uniform_real_distribution<float> sizeDist(0.18f, 0.36f);
+	static std::uniform_real_distribution<float> alphaDist(0.70f, 1.00f);
+
+	const XMFLOAT3 basePos =
+		hitPosition ? *hitPosition : GetBloodSplashFallbackPosition(victim);
+
+	const XMVECTOR fallbackDir = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+	XMVECTOR baseDir = SafeNormalize3OrDefault(hitDirection, fallbackDir);
+
+	// 수평 기준으로 피가 앞/옆/위로 튀도록 한다.
+	baseDir = XMVectorSetY(baseDir, 0.0f);
+
+	if ( XMVectorGetX(XMVector3LengthSq(baseDir)) <= 1.0e-8f )
+		baseDir = fallbackDir;
+	else
+		baseDir = XMVector3Normalize(baseDir);
+
+	const XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+
+	XMVECTOR right = XMVector3Cross(up, baseDir);
+	if ( XMVectorGetX(XMVector3LengthSq(right)) <= 1.0e-8f )
+		right = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+	else
+		right = XMVector3Normalize(right);
+
+	constexpr int kBloodParticleCount = 30;
+
+	for ( int i = 0; i < kBloodParticleCount; ++i )
+	{
+		MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashes);
+		if ( !e )
+			return;
+
+		const float side = sideDist(rng);
+		const float lift = liftDist(rng);
+		const float speed = speedDist(rng);
+
+		XMVECTOR vel =
+			XMVectorAdd(
+				XMVectorScale(baseDir, 1.0f + unitDist(rng) * 0.35f),
+				XMVectorAdd(
+					XMVectorScale(right, side),
+					XMVectorScale(up, lift)
+				)
+			);
+
+		if ( XMVectorGetX(XMVector3LengthSq(vel)) <= 1.0e-8f )
+			vel = up;
+		else
+			vel = XMVector3Normalize(vel);
+
+		vel = XMVectorScale(vel, speed);
+
+		XMFLOAT3 vel3{};
+		XMStoreFloat3(&vel3, vel);
+
+		const float jitterX = unitDist(rng) * 0.08f;
+		const float jitterY = unitDist(rng) * 0.10f;
+		const float jitterZ = unitDist(rng) * 0.08f;
+
+		XMFLOAT3 pos = basePos;
+		pos.x += jitterX;
+		pos.y += jitterY;
+		pos.z += jitterZ;
+
+		const float size = sizeDist(rng);
+		const float alpha = alphaDist(rng);
+
+		e->active = true;
+		e->kind = EMuzzleFlashKind::Blood;
+
+		e->position = pos;
+		e->velocity = vel3;
+
+		e->age = 0.0f;
+		e->lifetime = lifeDist(rng);
+
+		// 시작은 살짝 크고, 시간이 지나며 작아지게 한다.
+		e->startWidth = size;
+		e->startHeight = size * ( 0.85f + unitDist(rng) * 0.25f );
+
+		// 시간이 지나면서 너무 작아지지 않게 유지.
+		// 기존 0.35배는 너무 빨리 사라져 보인다.
+		e->endWidth = size * 0.75f;
+		e->endHeight = size * 0.65f;
+
+		e->rotationRad = rotDist(rng);
+
+		// Blood branch에서는 intensity를 밝기/농도 계수로 사용.
+		e->intensity = 1.0f + unitDist(rng) * 0.15f;
+
+		e->drag = 2.2f;
+		e->gravity = 4.2f;
+		e->seed = seedDist(rng);
+
+		// 어두운 붉은색. additive 포화 방지를 위해 너무 밝게 두지 않는다.
+		e->color = XMFLOAT4(0.55f, 0.015f, 0.01f, alpha);
 	}
 }
 
@@ -898,8 +1046,11 @@ void CGameScene::UpdateMuzzleFlashes(float dt)
 		flash.position.y += flash.velocity.y * dt;
 		flash.position.z += flash.velocity.z * dt;
 
+		if ( flash.gravity != 0.0f )
+			flash.velocity.y -= flash.gravity * dt;
+
 		float df = 1.0f - flash.drag * dt;
-		const float dragFactor = (df > 0.0f) ? df : 0.0f;
+		const float dragFactor = ( df > 0.0f ) ? df : 0.0f;
 
 		flash.velocity.x *= dragFactor;
 		flash.velocity.y *= dragFactor;

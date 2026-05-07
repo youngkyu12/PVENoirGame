@@ -291,7 +291,7 @@ float4 PSMuzzleFlashProcedural(
 
         color *= min(intensity, 1.25f);
     }
-    else
+    else if (kind < 2.5f)
     {
         float2 q = p;
 
@@ -322,6 +322,44 @@ float4 PSMuzzleFlashProcedural(
         // 입력 색상 반영은 약하게. 너무 많이 곱하면 다시 하얘질 수 있음.
         color *= lerp(float3(1.0f, 1.0f, 1.0f), input.color.rgb, 0.25f);
         color *= min(intensity, 1.30f);
+    }
+    else
+    {
+        // blood
+        float2 q = p;
+
+        // seed 기반으로 모양을 약간 찌그러뜨린다.
+        float wobble =
+        0.82f +
+        0.18f * sin(angle * 5.0f + seed * 11.37f) +
+        0.10f * sin(angle * 11.0f + seed * 3.91f);
+
+        float rr = r / max(wobble, 0.15f);
+
+        float blob = saturate(1.0f - rr * 1.55f);
+        blob = pow(blob, 0.55f);
+
+        // 중심보다 한쪽에 살짝 뭉친 핏방울 느낌.
+        float lobe =
+        saturate(1.0f - length(float2(q.x * 1.5f, q.y * 2.4f + 0.35f)) * 1.5f);
+
+        float shape = max(blob, lobe * 0.65f);
+
+        float fade = saturate(1.0f - ageRatio);
+        fade *= fade;
+
+        alpha = saturate(shape * fade * input.color.a);
+
+        float3 darkBlood = float3(0.18f, 0.0f, 0.0f);
+        float3 redBlood = input.color.rgb;
+
+        // 중심은 조금 더 선명한 붉은색, 가장자리는 어둡게.
+        color = lerp(darkBlood, redBlood, saturate(shape * 1.4f));
+        color *= input.params0.y;
+
+        clip(alpha - 0.01f);
+
+        return float4(color, alpha);
     }
 
     clip(alpha - 0.002f);
