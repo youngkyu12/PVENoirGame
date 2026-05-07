@@ -1,98 +1,115 @@
-///-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 // File: ShadowMap.h
 //-----------------------------------------------------------------------------
+
 #pragma once
 
-#include "Shader.h"
-#include "MathHelper.h"
-#include "Timer.h"
+#include "stdafx.h"
 
-class CLightComponent;
 class CGameObject;
+class CDescriptorHeap;
 
-struct CB_SHADOW_PASS
+struct CB_SHADOW
 {
-	DirectX::XMMATRIX ViewProj = {};
-	DirectX::XMFLOAT4X4 ShadowTransform = Matrix4x4::Identity();
-	DirectX::XMFLOAT3 EyePosW = { 0.0f, 0.0f, 0.0f };
+	XMFLOAT4X4 shadowViewProj{};
+	XMFLOAT4X4 shadowTransform{};
+
+	XMFLOAT4 shadowLightPos = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+
+	// x = shadow map size
+	// y = constant depth bias
+	// z = normal/slope bias
+	// w = shadow intensity
+	XMFLOAT4 shadowParams0 = XMFLOAT4(2048.0f, 0.0008f, 0.0040f, 1.0f);
+
+	// x = shadow map SRV index
+	// y = shadow enabled
+	// z/w = reserved
+	XMUINT4 shadowParams1 = XMUINT4(UINT_MAX, 0u, 0u, 0u);
 };
 
-class ShadowMap
+class CShadowMapSystem
 {
 public:
-	ShadowMap(ID3D12Device* device, CShader* shader,
-		UINT width, UINT height);
+	CShadowMapSystem() = default;
+	~CShadowMapSystem();
 
-	ShadowMap(const ShadowMap& rhs) = delete;
-	ShadowMap& operator=(const ShadowMap& rhs) = delete;
-	~ShadowMap();
+public:
+	void BuildResources(
+		ID3D12Device* dev,
+		ID3D12GraphicsCommandList* cmd,
+		CDescriptorHeap* descriptorHeap
+	);
 
-	UINT Width()const;
-	UINT Height()const;
-	ID3D12Resource* Resource();
-	CD3DX12_GPU_DESCRIPTOR_HANDLE Srv()const;
-	CD3DX12_CPU_DESCRIPTOR_HANDLE Dsv()const;
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> Heap() const;
+	void ReleaseResources();
+	void BindConstantBuffer(ID3D12GraphicsCommandList* cmd) const;
 
-	D3D12_VIEWPORT Viewport()const;
-	D3D12_RECT ScissorRect()const;
+	void UpdateData(
+		CGameObject* focusObject,
+		CGameObject* directionalLightObject
+	);
 
-	CB_SHADOW_PASS GetConstants();
+	void UploadConstantBuffer();
 
-	void SetLightComponent(CLightComponent* light) { m_pLight = light; }
-	void SetTargetObject(CGameObject* target) { m_pTarget = target; }
+	bool BeginRender(
+		ID3D12GraphicsCommandList* cmd,
+		ID3D12RootSignature* rootSignature,
+		CDescriptorHeap* descriptorHeap,
+		D3D12_GPU_VIRTUAL_ADDRESS materialCbGpuAddress
+	);
 
-	void OnCreate(D3D12_CPU_DESCRIPTOR_HANDLE dsvStart);
-	void OnUpdate();
-	void Render(const CGameTimer& gt, ID3D12GraphicsCommandList* commandList, std::vector<CGameObject*> components);
+	void EndRender(ID3D12GraphicsCommandList* cmd);
 
-	void CreateShadowPassCB();
-	void UpdateShadowPassCB();
-	void BindShadowPassCB(ID3D12GraphicsCommandList* commandList) const;
+	bool IsReady() const
+	{
+		return
+			m_pd3dShadowMap &&
+			m_pd3dShadowDsvHeap &&
+			m_pd3dcbShadow &&
+			m_pcbMappedShadow &&
+			m_shadowMapSrvIndex != UINT_MAX;
+	}
 
-	void BuildDescriptors(
-		D3D12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
-		D3D12_GPU_DESCRIPTOR_HANDLE hGpuSrv,
-		D3D12_CPU_DESCRIPTOR_HANDLE hCpuDsv);
+	bool IsWorldOOBBInsideShadowBox(const BoundingOrientedBox& box) const;
 
-	void OnResize(UINT newWidth, UINT newHeight);
+public:
+	UINT GetSrvIndex() const { return m_shadowMapSrvIndex; }
+	ID3D12Resource* GetResource() const { return m_pd3dShadowMap.Get(); }
+	D3D12_VIEWPORT GetViewport() const { return m_shadowViewport; }
+	D3D12_RECT GetScissorRect() const { return m_shadowScissorRect; }
+	const CB_SHADOW& GetData() const { return m_shadowData; }
 
 private:
-	void BuildDescriptors();
-	void BuildResource();
+	ComPtr<ID3D12DescriptorHeap> m_pd3dShadowDsvHeap;
+	ComPtr<ID3D12Resource> m_pd3dShadowMap;
 
-private:
+	ComPtr<ID3D12Resource> m_pd3dcbShadow;
+	CB_SHADOW* m_pcbMappedShadow = nullptr;
 
-	ComPtr<ID3D12Device> mDevice;
-	CShader* mShader;
-	CLightComponent* m_pLight = nullptr;
-	CGameObject* m_pTarget = nullptr;
+	CB_SHADOW m_shadowData{};
 
-	D3D12_VIEWPORT mViewport;
-	D3D12_RECT mScissorRect;
+	XMFLOAT4X4 m_shadowView{};
 
-	UINT mWidth = 0;
-	UINT mHeight = 0;
-	DXGI_FORMAT mFormat = DXGI_FORMAT_R24G8_TYPELESS;
+	UINT m_shadowMapSize = 2048;
+	UINT m_shadowMapSrvIndex = UINT_MAX;
 
-	D3D12_CPU_DESCRIPTOR_HANDLE mhCpuSrv;
-	D3D12_GPU_DESCRIPTOR_HANDLE mhGpuSrv;
-	D3D12_CPU_DESCRIPTOR_HANDLE mhCpuDsv;
+	float m_shadowOrthoHalfSize = 45.0f;
+	float m_shadowNearZ = 1.0f;
+	float m_shadowFarZ = 160.0f;
 
-	ComPtr<ID3D12Resource> mShadowMap = nullptr;
+	float m_shadowConstantBias = 0.0008f;
+	float m_shadowNormalBias = 0.0040f;
+	float m_shadowIntensity = 1.0f;
 
-	ComPtr<ID3D12DescriptorHeap> mCbvHeap = nullptr;
-	ComPtr<ID3D12PipelineState> mPSO = nullptr;
+	D3D12_VIEWPORT m_shadowViewport =
+	{
+		0.0f, 0.0f,
+		2048.0f, 2048.0f,
+		0.0f, 1.0f
+	};
 
-	std::unique_ptr<CB_SHADOW_PASS> m_pShadow;
-	ComPtr<ID3D12Resource> m_pd3dcbShadowPass;
-	CB_SHADOW_PASS* m_pcbMappedShadowPass = nullptr;
-
-	DirectX::XMFLOAT3 mLightPosW = { 0.0f, 0.0f, 0.0f };
-	DirectX::XMFLOAT3 mLightDirW = { 0.0f, -1.0f, 0.0f };
-	float mLightNearZ = 0.0f;
-	float mLightFarZ = 0.0f;
-	DirectX::XMFLOAT4X4 mLightView = Matrix4x4::Identity();
-	DirectX::XMFLOAT4X4 mLightProj = Matrix4x4::Identity();
-	DirectX::XMFLOAT4X4 mShadowTransform = Matrix4x4::Identity();
+	D3D12_RECT m_shadowScissorRect =
+	{
+		0, 0, 2048, 2048
+	};
 };

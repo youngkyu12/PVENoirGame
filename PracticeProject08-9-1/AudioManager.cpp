@@ -51,7 +51,7 @@ bool CAudioManager::Initialize(int maxChannels)
 		return false;
 	}
 
-	fr = m_system->init(maxChannels, FMOD_INIT_NORMAL | FMOD_INIT_3D_RIGHTHANDED, nullptr);
+	fr = m_system->init(maxChannels, FMOD_INIT_NORMAL, nullptr);
 	if ( fr != FMOD_OK )
 	{
 		LogFmodError(fr, "System::init");

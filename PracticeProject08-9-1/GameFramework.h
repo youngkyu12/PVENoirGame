@@ -72,6 +72,7 @@ private:
 	bool IsWindowActuallyActive() const;
 	void UpdateWindowActivationState();
 	bool IsInputPauseActive() const;
+	void UpdateAudioListener();
 
 	bool								m_sceneSwitchPending = false;
 	ESceneId							m_pendingScene = ESceneId::Menu;
