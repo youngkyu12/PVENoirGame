@@ -300,6 +300,23 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 			return hp->IsDead();
 		};
 
+	auto IsPlayerRollInvincible = [ ] (CGameObject* playerObject) -> bool
+		{
+			if ( !playerObject )
+				return false;
+
+			if ( auto* animComp = playerObject->GetComponent<CAnimatorComponent>() )
+			{
+				if ( auto* ctrl = animComp->GetController() )
+					return ctrl->IsRollPhase();
+			}
+
+			if ( auto* ctrl = playerObject->GetAnimController() )
+				return ctrl->IsRollPhase();
+
+			return false;
+		};
+
 	auto ApplyDamage = [ & ] (CGameObject* weaponObject, CGameObject* targetObject) -> bool
 		{
 			if ( !weaponObject || !targetObject )
@@ -405,6 +422,9 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 				return;
 
 			if ( !weaponObject || !playerObject )
+				return;
+
+			if ( IsPlayerRollInvincible(playerObject) )
 				return;
 
 			auto DeactivateProjectileIfNeeded = [ ] (CGameObject* weaponObj)
