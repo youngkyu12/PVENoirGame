@@ -2775,7 +2775,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		}
 	}
 #else
-	m_localPlayerSlot = 3;
+	m_localPlayerSlot = 0;
 
 	const GameSceneStageFileSet& stageFiles = GetLocalStageFileSet(kLocalStagePreset);
 
@@ -6953,6 +6953,7 @@ void CGameScene::RequestPlayerAttackBySlot(int slot)
 				else if ( shouldPlayAxeWhoosh )
 				{
 					equipComp->RequestAxeAttackWhoosh();
+					BeginAxeTrail(obj);
 				}
 			}
 
@@ -6985,6 +6986,7 @@ void CGameScene::RequestPlayerAttackBySlot(int slot)
 			else if ( shouldPlayAxeWhoosh )
 			{
 				equipComp->RequestAxeAttackWhoosh();
+				BeginAxeTrail(obj);
 			}
 		}
 
