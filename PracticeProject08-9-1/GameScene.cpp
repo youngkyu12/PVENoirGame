@@ -2259,6 +2259,9 @@ void CGameScene::RegisterMonsterToMegaGrid(
 	if ( megaNumber <= 0 )
 		return;
 
+	m_collisionMegaGridMaskByObject[monster] =
+		static_cast< uint16_t >( 1u << ( megaNumber - 1 ) );
+
 	const int zeroBased = megaNumber - 1;
 	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
 	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
@@ -2305,6 +2308,134 @@ bool CGameScene::ShouldSkipMonsterByMegaGrid(
 		return false;
 
 	return monsterMegaGridNumber != activeMegaGridNumber;
+}
+
+uint16_t CGameScene::ComputeStaticObjectMegaGridMask(CGameObject* obj) const
+{
+	if ( !obj )
+		return 0;
+
+	auto* collider = obj->GetComponent<CColliderComponent>();
+	if ( !collider )
+		return 0;
+
+	uint16_t mask = 0;
+
+	if ( collider->GetType() == EColliderType::OOBB )
+	{
+		const std::vector<MeshOOBBSet>& meshSets = collider->GetMeshOOBBSets();
+
+		for ( const MeshOOBBSet& set : meshSets )
+		{
+			for ( const BoundingOrientedBox& box : set.WorldSubOOBBs )
+			{
+				XMFLOAT3 corners[BoundingOrientedBox::CORNER_COUNT] = {};
+				box.GetCorners(corners);
+
+				float minX = corners[0].x;
+				float maxX = corners[0].x;
+				float minZ = corners[0].z;
+				float maxZ = corners[0].z;
+
+				for ( int i = 1; i < BoundingOrientedBox::CORNER_COUNT; ++i )
+				{
+					minX = min(minX, corners[i].x);
+					maxX = max(maxX, corners[i].x);
+					minZ = min(minZ, corners[i].z);
+					maxZ = max(maxZ, corners[i].z);
+				}
+
+				int beginCellX = static_cast< int >(floor(minX)) - CSceneGrid::kGridMinX;
+				int endCellX = static_cast< int >(ceil(maxX)) - CSceneGrid::kGridMinX - 1;
+				int beginCellZ = static_cast< int >(floor(minZ)) - CSceneGrid::kGridMinZ;
+				int endCellZ = static_cast< int >( ceil(maxZ) ) - CSceneGrid::kGridMinZ - 1;
+
+				beginCellX = std::clamp(beginCellX, 0, CSceneGrid::kGridWidth - 1);
+				endCellX = std::clamp(endCellX, 0, CSceneGrid::kGridWidth - 1);
+				beginCellZ = std::clamp(beginCellZ, 0, CSceneGrid::kGridHeight - 1);
+				endCellZ = std::clamp(endCellZ, 0, CSceneGrid::kGridHeight - 1);
+
+				if ( beginCellX > endCellX || beginCellZ > endCellZ )
+					continue;
+
+				const int beginMegaX = beginCellX / CSceneGrid::kMegaGridCellWidth;
+				const int endMegaX = endCellX / CSceneGrid::kMegaGridCellWidth;
+				const int beginMegaZ = beginCellZ / CSceneGrid::kMegaGridCellHeight;
+				const int endMegaZ = endCellZ / CSceneGrid::kMegaGridCellHeight;
+
+				for ( int mz = beginMegaZ; mz <= endMegaZ; ++mz )
+				{
+					for ( int mx = beginMegaX; mx <= endMegaX; ++mx )
+					{
+						if ( mx < 0 || mx >= CSceneGrid::kMegaGridCols )
+							continue;
+
+						if ( mz < 0 || mz >= CSceneGrid::kMegaGridRows )
+							continue;
+
+						const int bit = mz * CSceneGrid::kMegaGridCols + mx;
+						mask |= static_cast< uint16_t >(1u << bit);
+					}
+				}
+			}
+		}
+	}
+
+	if ( mask != 0 )
+		return mask;
+
+	return ComputeObjectCurrentMegaGridMask(obj);
+}
+
+uint16_t CGameScene::ComputeObjectCurrentMegaGridMask(const CGameObject* obj) const
+{
+	if ( !obj )
+		return 0;
+
+	const XMFLOAT3 pos = obj->GetPosition();
+
+	int megaX = -1;
+	int megaZ = -1;
+
+	if ( !m_sceneGrid.TryGetMegaGridFromWorldPosition(pos.x, pos.z, megaX, megaZ) )
+		return 0;
+
+	const int bit = megaZ * CSceneGrid::kMegaGridCols + megaX;
+	return static_cast< uint16_t >( 1u << bit );
+}
+
+uint16_t CGameScene::GetCollisionMegaGridMaskForObject(const CGameObject* obj) const
+{
+	if ( !obj )
+		return 0;
+
+	const auto it = m_collisionMegaGridMaskByObject.find(obj);
+	if ( it != m_collisionMegaGridMaskByObject.end() )
+		return it->second;
+
+	return ComputeObjectCurrentMegaGridMask(obj);
+}
+
+bool CGameScene::ShouldKeepCollisionPairByMegaGrid(
+	const CColliderComponent* a,
+	const CColliderComponent* b) const
+{
+	if ( !a || !b )
+		return false;
+
+	// 월드 지형/건물과 플레이어, 몬스터, 투사체, 무기 충돌은 grid mask로 필터링한다.
+	// 정적 건물은 위치 1점이 아니라 m_staticCollisionMegaGridMasks를 우선 사용한다.
+	const CGameObject* objA = a->GetOwner();
+	const CGameObject* objB = b->GetOwner();
+
+	const uint16_t maskA = GetCollisionMegaGridMaskForObject(objA);
+	const uint16_t maskB = GetCollisionMegaGridMaskForObject(objB);
+
+	// grid 밖으로 나간 투사체/오브젝트는 충돌 후보에서 제거.
+	if ( maskA == 0 || maskB == 0 )
+		return false;
+
+	return ( maskA & maskB ) != 0;
 }
 
 void CGameScene::MarkLocalPlayerEnteredCastleCenterMegaGrid()
@@ -2440,6 +2571,8 @@ void CGameScene::ReleaseObjects()
 	m_staticShadowCasterFlags.clear();
 	m_staticTreeObjectIndices.clear();
 	m_staticShadowOcclusionEntryIndices.clear();
+	m_staticCollisionMegaGridMasks.clear();
+	m_collisionMegaGridMaskByObject.clear();
 	m_skinnedShadowOcclusionEntryIndices.clear();
 
 #ifndef USING_NETWORK
@@ -3737,6 +3870,12 @@ void CGameScene::BuildStaticBatch(
 
 	m_staticShadowOcclusionEntryIndices.clear();
 
+	m_staticCollisionMegaGridMasks.clear();
+	m_staticCollisionMegaGridMasks.reserve(cap);
+
+	m_collisionMegaGridMaskByObject.clear();
+	m_collisionMegaGridMaskByObject.reserve(cap + m_skinnedBatch.capacity);
+
 	b->count = 0;
 	ResetStaticWorldLodEntries();
 
@@ -4000,9 +4139,16 @@ void CGameScene::BuildStaticBatch(
 
 		RegisterStaticPlacementToGrid(placement, raw);
 
+		const uint16_t collisionMegaGridMask =
+			createWorldStaticCollider ? ComputeStaticObjectMegaGridMask(raw) : 0;
+
+		if ( collisionMegaGridMask != 0 )
+			m_collisionMegaGridMaskByObject[raw] = collisionMegaGridMask;
+
 		m_staticObjects.push_back(std::move(obj));
 		b->objectRefs.push_back(raw);
 		m_staticShadowCasterFlags.push_back(castsShadow ? 1 : 0);
+		m_staticCollisionMegaGridMasks.push_back(collisionMegaGridMask);
 		b->count = ( UINT ) b->objectRefs.size();
 	}
 
@@ -4069,6 +4215,7 @@ void CGameScene::BuildStaticBatch(
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(0);
+			m_staticCollisionMegaGridMasks.push_back(0);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_arrowRefs.push_back(raw);
@@ -4121,6 +4268,7 @@ void CGameScene::BuildStaticBatch(
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(0);
+			m_staticCollisionMegaGridMasks.push_back(0);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_bulletRefs.push_back(raw);
@@ -4162,6 +4310,7 @@ void CGameScene::BuildStaticBatch(
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(0);
+			m_staticCollisionMegaGridMasks.push_back(0);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_helmetRefs.push_back(raw);
@@ -4214,6 +4363,7 @@ void CGameScene::BuildStaticBatch(
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(1);
+			m_staticCollisionMegaGridMasks.push_back(0);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_PlayerSwordRefs.push_back(raw);
@@ -4266,6 +4416,7 @@ void CGameScene::BuildStaticBatch(
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(1);
+			m_staticCollisionMegaGridMasks.push_back(0);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_PlayerAxeRefs.push_back(raw);
@@ -4311,6 +4462,7 @@ void CGameScene::BuildStaticBatch(
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(1);
+			m_staticCollisionMegaGridMasks.push_back(0);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_PlayerGunRefs.push_back(raw);
@@ -4362,6 +4514,7 @@ void CGameScene::BuildStaticBatch(
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(1);
+			m_staticCollisionMegaGridMasks.push_back(0);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_EnemySwordRefs.push_back(raw);
@@ -8195,7 +8348,14 @@ void CGameScene::CollisionObjects()
 {
 	if ( !m_Collision ) return;
 
-	m_Collision->OnUpdate();
+	m_Collision->OnUpdateFiltered(
+		[ this ](
+			const CColliderComponent* a,
+			const CColliderComponent* b) -> bool
+		{
+			return ShouldKeepCollisionPairByMegaGrid(a, b);
+		}
+	);
 
 	// 아이템 빌보드는 CGameObject/Collider가 아니므로 별도 overlap 판정.
 	UpdateItemBillboardPickupCollision();

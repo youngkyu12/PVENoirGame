@@ -14,12 +14,16 @@ public:
 	using HitEffectCallback =
 		std::function<void(CGameObject* weaponObject, CGameObject* targetObject)>;
 
+	using PairCandidateFilter =
+		std::function<bool(const CColliderComponent* a, const CColliderComponent* b)>;
+
 public:
 	explicit CCollisionSystem();
 
 	void SetHitEffectCallback(HitEffectCallback callback);
 
 	void OnUpdate();
+	void OnUpdateFiltered(const PairCandidateFilter& filter);
 
 	void RegisterCollider(CColliderComponent* c);
 	void UnregisterCollider(CColliderComponent* c);

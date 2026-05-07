@@ -93,9 +93,9 @@ private:
 	UINT m_shadowMapSize = 2048;
 	UINT m_shadowMapSrvIndex = UINT_MAX;
 
-	float m_shadowOrthoHalfSize = 90.0f;
+	float m_shadowOrthoHalfSize = 60.0f;
 	float m_shadowNearZ = 1.0f;
-	float m_shadowFarZ = 240.0f;
+	float m_shadowFarZ = 200.0f;
 
 	float m_shadowConstantBias = 0.0008f;
 	float m_shadowNormalBias = 0.0040f;
