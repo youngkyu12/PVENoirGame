@@ -54,7 +54,6 @@
 #include "GameSceneObjectFactory.h"
 #include "GameSceneAttachmentBinder.h"
 #include "EnemySpawner.h"
-#include "EnemyPool.h"
 
 namespace
 {
@@ -1332,14 +1331,12 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
 	//BuildTerrainObjects(dev, cmd);
 
-	if ( !m_enemyPool )
-		m_enemyPool = std::make_unique<EnemyPool>();
+	BuildSpawnBatch(dev, cmd, pSkinnedShader);
 
 	if ( !m_enemySpawner )
 		m_enemySpawner = std::make_unique<EnemySpawner>();
 
-	m_enemyPool->Initialize(dev, cmd, pSkinnedShader, 200);
-	m_enemySpawner->Initialize(m_enemyPool.get());
+	m_enemySpawner->Initialize(m_SpawnObectsRefs);
 	m_enemySpawnAccumulatorSec = 0.0f;
 
 	LinkSceneObjects();
@@ -2971,6 +2968,31 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 	}
 }
 
+void CGameScene::RenderSpawnInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera)
+{
+	if ( !cmd || !camera )
+		return;
+	if ( !m_enemySpawner )
+		return;
+	if ( !m_spawnBatch.shader )
+		return;
+
+	m_spawnBatch.shader->Render(cmd, camera, &m_spawnBatch);
+
+	const std::vector<CGameObject*>& activeEnemies = m_enemySpawner->GetActiveEnemies();
+	for ( CGameObject* enemy : activeEnemies )
+	{
+		if ( !enemy || !enemy->IsActive() )
+			continue;
+
+		CRendererComponent* renderer = enemy->GetRenderer();
+		if ( renderer && !renderer->IsEnabled() )
+			continue;
+
+		enemy->Render(cmd, camera);
+	}
+}
+
 void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	if ( !cmd ) return;
@@ -3350,6 +3372,89 @@ void CGameScene::RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandLis
 		cmd->IASetIndexBuffer(&repSm.ibView);
 
 		cmd->DrawIndexedInstanced(( UINT ) repSm.indices.size(), visibleInstanceCount, 0, 0, 0);
+	}
+}
+
+void CGameScene::BuildSpawnBatch(
+	ID3D12Device* dev,
+	ID3D12GraphicsCommandList* cmd,
+	const std::shared_ptr<CSkinnedObjectsShader>& shader)
+{
+	if ( !dev || !cmd || !shader )
+		return;
+
+	m_SpawnObectsRefs.clear();
+	m_spawnObjects.clear();
+	m_spawnBatch.shader = shader;
+	m_spawnBatch.capacity = 200;
+	m_spawnBatch.count = 0;
+	m_spawnBatch.cbElementBytes = ( ( sizeof(CB_GAMEOBJECT_INFO) + 255 ) & ~255 );
+
+	m_spawnBatch.cbGameObjects = ::CreateBufferResource(
+		dev, cmd, nullptr,
+		m_spawnBatch.cbElementBytes * m_spawnBatch.capacity,
+		D3D12_HEAP_TYPE_UPLOAD,
+		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+		nullptr);
+	if ( !m_spawnBatch.cbGameObjects )
+		return;
+
+	m_spawnBatch.cbGameObjects->Map(0, nullptr, reinterpret_cast< void** >( &m_spawnBatch.mappedGameObjects ));
+	m_spawnBatch.baseCbvGpu = CScene::m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
+	m_spawnBatch.cbvInc = ::gnCbvSrvDescriptorIncrementSize;
+	CScene::m_pDescriptorHeap->CreateConstantBufferViews(dev, m_spawnBatch.capacity, m_spawnBatch.cbGameObjects.Get(), m_spawnBatch.cbElementBytes);
+
+	AssetBuildDesc enemyDesc{};
+	if ( !GetGameSceneAssetBuildDesc(EGameSceneAssetId::Ghoul, enemyDesc) )
+		return;
+	BuiltAsset enemyAsset = AssetManager::BuildAsset(dev, cmd, nullptr, enemyDesc);
+	const auto& enemyClips = GetGhoulClipEntries();
+	GameSceneObjectFactory::PreloadClipSet(enemyAsset.mesh.get(), "Ghoul", enemyClips);
+
+	m_spawnObjects.reserve(m_spawnBatch.capacity);
+	m_SpawnObectsRefs.reserve(m_spawnBatch.capacity);
+	for ( UINT i = 0; i < m_spawnBatch.capacity; ++i )
+	{
+		GameSceneObjectFactory::SkinnedRenderableDesc createDesc{};
+		createDesc.ctx.device = dev;
+		createDesc.ctx.cmd = cmd;
+		createDesc.ctx.mappedGameObjectCB = reinterpret_cast< CB_GAMEOBJECT_INFO* >(reinterpret_cast< UINT8* >(m_spawnBatch.mappedGameObjects) + i * m_spawnBatch.cbElementBytes);
+		createDesc.ctx.cbvGpuHandle.ptr = m_spawnBatch.baseCbvGpu.ptr + static_cast< UINT64 >(i) * m_spawnBatch.cbvInc;
+		createDesc.mesh = enemyAsset.mesh;
+		createDesc.spawnHidden = true;
+		createDesc.addCollider = true;
+		createDesc.colliderType = EColliderType::BCapsule;
+		createDesc.colliderLayer = kCollisionLayerMonster;
+		createDesc.colliderMask = CollisionBit(kCollisionLayerPlayerWeapon);
+		createDesc.colliderEnabled = true;
+		createDesc.addAnimator = true;
+		createDesc.addActorTag = true;
+		createDesc.actorKind = EActorKind::NPC;
+		createDesc.playerControl = EPlayerControl::None;
+		createDesc.playerSlot = -1;
+		createDesc.addMonsterCombat = true;
+		createDesc.addMonsterWeaponHitbox = true;
+		createDesc.skeletonKey = "Ghoul";
+		createDesc.clipEntries = &enemyClips;
+		createDesc.initMonsterController = true;
+		createDesc.monsterInitialState = EMonsterAnimState::Idle;
+		createDesc.monsterProfile.idleClip = "Idle";
+		createDesc.monsterProfile.moveClip = "Walk";
+		createDesc.monsterProfile.runClip = "Run";
+		createDesc.monsterProfile.hitClip = "Hit";
+		createDesc.monsterProfile.attackClip = "Attack";
+		createDesc.monsterProfile.deathClip = "Death";
+		createDesc.useOwnerBoneWeaponCapsules = true;
+		createDesc.monsterWeaponConfigs.push_back(
+			{ "Attack", 0.20f, 0.55f, { "hand_r" } }
+		);
+		auto obj = GameSceneObjectFactory::CreateSkinnedRenderable(createDesc);
+		if ( !obj )
+			continue;
+		obj->SetActive(false);
+		m_SpawnObectsRefs.push_back(obj.get());
+		m_spawnObjects.push_back(std::move(obj));
+		++m_spawnBatch.count;
 	}
 }
 
@@ -5614,7 +5719,11 @@ void CGameScene::AnimateObjects(float dt)
 {
 	m_fElapsedTime = dt;
     
-	m_enemySpawner->SpawnEnemies();
+	if ( m_enemySpawner )
+	{
+		m_enemySpawner->SpawnEnemies();
+		m_enemySpawner->Update(dt);
+	}
 
 	// ------------------------------------------------------------------------
     // FrameSnapshot에서 좌표 업데이트

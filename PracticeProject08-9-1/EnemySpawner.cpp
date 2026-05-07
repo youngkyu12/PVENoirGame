@@ -1,17 +1,27 @@
 #include "stdafx.h"
 #include "EnemySpawner.h"
 #include "Object.h"
-#include "EnemyPool.h"
 
-void EnemySpawner::Initialize(EnemyPool* enemyPool)
+void EnemySpawner::Initialize(const std::vector<CGameObject*>& spawnObjects)
 {
-	mEnemyPool = enemyPool;
+	mActiveEnemies = spawnObjects;
 	mActiveEnemies.clear();
+	for ( CGameObject* enemy : mActiveEnemies )
+	{
+		if ( enemy )
+			enemy->SetActive(false);
+	}
 }
 
 void EnemySpawner::Update(float deltaTime)
 {
-	UNREFERENCED_PARAMETER(deltaTime);
+	for ( CGameObject* enemy : mActiveEnemies )
+	{
+		if ( !enemy || !enemy->IsActive() )
+			continue;
+
+		enemy->Animate(deltaTime);
+	}
 }
 
 void EnemySpawner::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
@@ -67,20 +77,17 @@ const DirectX::XMFLOAT3& EnemySpawner::GetSpawnerPosition() const
 	return mSpawnerPosition;
 }
 
-CGameObject* EnemySpawner::SpawnEnemy()
+bool EnemySpawner::SpawnEnemy()
 {
-	if ( !mEnemyPool )
-		return nullptr;
-
-	CGameObject* enemy = mEnemyPool->Acquire();
+	CGameObject* enemy = mActiveEnemies.back();
+	mActiveEnemies.pop_back();
 	if ( !enemy )
-		return nullptr;
+		return false;
 
 	enemy->SetPosition(mSpawnerPosition);
 	enemy->SetActive(true);
 
-	mActiveEnemies.push_back(enemy);
-	return enemy;
+	return true;
 }
 
 int EnemySpawner::SpawnEnemies(int count)
@@ -108,24 +115,7 @@ void EnemySpawner::RemoveEnemy(CGameObject* enemy)
 	auto it = std::find(mActiveEnemies.begin(), mActiveEnemies.end(), enemy);
 	if ( it == mActiveEnemies.end() )
 		return;
-
-	if ( mEnemyPool )
-		mEnemyPool->Release(enemy);
-
-	mActiveEnemies.erase(it);
-}
-
-void EnemySpawner::Clear()
-{
-	if ( mEnemyPool )
-	{
-		for ( CGameObject* enemy : mActiveEnemies )
-		{
-			mEnemyPool->Release(enemy);
-		}
-	}
-
-	mActiveEnemies.clear();
+	(*it)->SetActive(false);
 }
 
 const std::vector<CGameObject*>& EnemySpawner::GetActiveEnemies() const

@@ -1,7 +1,6 @@
 #pragma once
 
 class CGameObject;
-class EnemyPool;
 class CCamera;
 
 class EnemySpawner
@@ -11,24 +10,22 @@ public:
 	~EnemySpawner() = default;
 
 public:
-	void Initialize(EnemyPool* enemyPool);
+	void Initialize(const std::vector<CGameObject*>& spawnObjects);
 	void Update(float deltaTime);
 	void Render(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 public:
 	void SetSpawnerPosition(const DirectX::XMFLOAT3& position);
 	const DirectX::XMFLOAT3& GetSpawnerPosition() const;
-	CGameObject* SpawnEnemy();
+	bool SpawnEnemy();
 	int SpawnEnemies(int count = 30);
 	void RemoveEnemy(CGameObject* enemy);
-	void Clear();
 
 public:
 	const std::vector<CGameObject*>& GetActiveEnemies() const;
 	int GetActiveEnemyCount() const;
 
 private:
-	EnemyPool* mEnemyPool = nullptr;
 	DirectX::XMFLOAT3 mSpawnerPosition = DirectX::XMFLOAT3(0.f, 0.f, 0.f);
 
 	std::vector<CGameObject*> mActiveEnemies;

@@ -28,7 +28,6 @@ class CCollisionSystem;
 class CTexture;
 class CNavMesh;
 class EnemySpawner;
-class EnemyPool;
 
 struct CB_GAMEOBJECT_INFO;
 struct AttachmentBindSpec
@@ -217,6 +216,12 @@ private:
         DXGI_FORMAT dsvFormat
     );
 
+	void BuildSpawnBatch(
+		ID3D12Device* dev,
+		ID3D12GraphicsCommandList* cmd,
+		const std::shared_ptr<CSkinnedObjectsShader>& shader
+	);
+
 	void BuildTerrainObjects(
 		ID3D12Device* dev,
 		ID3D12GraphicsCommandList* cmd
@@ -274,6 +279,7 @@ private:
 	void UpdateSkinnedWorldLodSelection(CCamera* camera);
 	void RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	void RenderTerrainObjects(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	void RenderSpawnInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
     // Frame / Render
 public:
@@ -473,10 +479,12 @@ private:
     std::vector<std::unique_ptr<CGameObject>> m_staticObjects;
     std::vector<std::unique_ptr<CGameObject>> m_skinnedObjects;
 	std::vector<std::unique_ptr<CGameObject>> m_colliderObjects;
+	std::vector<std::unique_ptr<CGameObject>> m_spawnObjects;
 
     SCENE_STATIC_BATCH  m_staticBatch;
     SCENE_SKINNED_BATCH m_skinnedBatch;
 	SCENE_COLLIDER_BATCH m_colliderBatch;
+	SCENE_SKINNED_BATCH m_spawnBatch;
 
     std::vector<CGameObject*> m_swordManRefs;
     std::vector<CGameObject*> m_bowManRefs;
@@ -492,6 +500,7 @@ private:
     std::vector<CGameObject*> m_EnemySwordRefs;
     std::vector<CGameObject*> m_EnemyBowRefs;
 	std::vector<CGameObject*> m_terrainRefs;
+	std::vector<CGameObject*> m_SpawnObectsRefs;
 
     std::vector<AttachmentBindSpec> m_attachmentBinds;
 
@@ -537,7 +546,6 @@ private:
     unique_ptr<CCollisionSystem> m_Collision;
 	std::unique_ptr<CNavMesh> m_navMesh;
 	std::unique_ptr<EnemySpawner> m_enemySpawner;
-	std::unique_ptr<EnemyPool> m_enemyPool;
 	float m_enemySpawnAccumulatorSec = 0.0f;
 	float m_enemySpawnIntervalSec = 5.0f;
 
