@@ -800,6 +800,11 @@ private:
 	std::vector<CGameObject*> m_MutantRefs;
 	std::vector<CGameObject*> m_bossRefs;
 
+	// 6, 8번 메가그리드에서 열쇠를 해금하는 첫 Mutant.
+	// key = mutant object, value = megaGridNumber.
+	std::unordered_map<CGameObject*, int> m_mutantKeyTriggerMegaByObject;
+	std::array<bool, CSceneGrid::kMegaGridCount + 1> m_mutantKeyTriggerRegisteredByMega = {};
+
     std::vector<CGameObject*> m_helmetRefs;
 
     std::vector<CGameObject*> m_PlayerSwordRefs;
@@ -854,6 +859,10 @@ private:
 	void MarkMegaGridClearedByNumber(int megaGridNumber);
 	bool AreAllMonstersInMegaGridDead(int megaGridNumber) const;
 	void UpdateMegaGridClearStateFromMonsterDeaths();
+
+	void RegisterMutantKeyTriggerIfNeeded(CGameObject* mutant, int megaGridNumber);
+	void UnlockKeyBillboardForMegaGrid(int megaGridNumber);
+	void HandleMutantKeyTriggerDeath(CGameObject* monster);
 
     std::array<CGameObject*, 3> m_demoFighters = { nullptr, nullptr, nullptr };
 

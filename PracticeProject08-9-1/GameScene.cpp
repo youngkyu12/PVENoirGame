@@ -2643,6 +2643,9 @@ void CGameScene::ReleaseObjects()
 	m_MutantRefs.clear();
 	m_bossRefs.clear();
 
+	m_mutantKeyTriggerMegaByObject.clear();
+	m_mutantKeyTriggerRegisteredByMega.fill(false);
+
 	m_helmetRefs.clear();
 	m_arrowRefs.clear();
 	m_bulletRefs.clear();
@@ -5605,6 +5608,9 @@ void CGameScene::BuildSkinnedBatch(
 	m_bossRefs.clear();
 	m_bossRefs.reserve(m_bossCount);
 
+	m_mutantKeyTriggerMegaByObject.clear();
+	m_mutantKeyTriggerRegisteredByMega.fill(false);
+
 	m_skinnedMonsterMegaGridNumbers.clear();
 	m_skinnedMonsterMegaGridNumbers.reserve(m_skinnedBatch.capacity);
 	m_sceneGrid.ClearMegaGridMonsters();
@@ -6127,6 +6133,11 @@ void CGameScene::BuildSkinnedBatch(
 			CGameObject* raw = obj.get();
 
 			RegisterMonsterToMegaGrid(raw, pos, i);
+
+			const int mutantMegaGridNumber =
+				m_sceneGrid.MegaGridNumberFromWorldPosition(pos.x, pos.z);
+
+			RegisterMutantKeyTriggerIfNeeded(raw, mutantMegaGridNumber);
 
 			std::array<std::shared_ptr<CMesh>, 3> noLodMeshes =
 			{
@@ -7484,6 +7495,87 @@ bool CGameScene::AreAllMonstersInMegaGridDead(int megaGridNumber) const
 	return true;
 }
 
+void CGameScene::RegisterMutantKeyTriggerIfNeeded(
+	CGameObject* mutant,
+	int megaGridNumber)
+{
+	if ( !mutant )
+		return;
+
+	if ( megaGridNumber != 6 && megaGridNumber != 8 )
+		return;
+
+	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+		return;
+
+	if ( m_mutantKeyTriggerRegisteredByMega[( size_t ) megaGridNumber] )
+		return;
+
+	m_mutantKeyTriggerRegisteredByMega[( size_t ) megaGridNumber] = true;
+	m_mutantKeyTriggerMegaByObject[mutant] = megaGridNumber;
+
+	char buf[256];
+	sprintf_s(
+		buf,
+		"[MutantKeyTrigger] Registered first Mutant for mega grid %d. mutant=%p\n",
+		megaGridNumber,
+		static_cast< void* >( mutant )
+	);
+	OutputDebugStringA(buf);
+}
+
+void CGameScene::UnlockKeyBillboardForMegaGrid(int megaGridNumber)
+{
+	if ( megaGridNumber != 6 && megaGridNumber != 8 )
+		return;
+
+	for ( ItemBillboardEntry& item : m_itemBillboards )
+	{
+		if ( item.kind != EItemBillboardKind::Key )
+			continue;
+
+		if ( item.megaGridNumber != megaGridNumber )
+			continue;
+
+		// 이미 먹은 열쇠는 다시 살리지 않는다.
+		if ( m_sceneGrid.IsMegaGridCleared(
+			( megaGridNumber - 1 ) % CSceneGrid::kMegaGridCols,
+			( megaGridNumber - 1 ) / CSceneGrid::kMegaGridCols) )
+		{
+			return;
+		}
+
+		item.active = true;
+		item.distanceCulled = false;
+
+		char buf[256];
+		sprintf_s(
+			buf,
+			"[MutantKeyTrigger] Key billboard unlocked for mega grid %d.\n",
+			megaGridNumber
+		);
+		OutputDebugStringA(buf);
+
+		return;
+	}
+}
+
+void CGameScene::HandleMutantKeyTriggerDeath(CGameObject* monster)
+{
+	if ( !monster )
+		return;
+
+	const auto it = m_mutantKeyTriggerMegaByObject.find(monster);
+	if ( it == m_mutantKeyTriggerMegaByObject.end() )
+		return;
+
+	const int megaGridNumber = it->second;
+
+	UnlockKeyBillboardForMegaGrid(megaGridNumber);
+
+	m_mutantKeyTriggerMegaByObject.erase(it);
+}
+
 void CGameScene::UpdateMegaGridClearStateFromMonsterDeaths()
 {
 	// 2번 메가그리드: 해당 메가그리드의 모든 몬스터 사망 시 클리어.
@@ -7581,6 +7673,8 @@ void CGameScene::BeginMonsterDeath(CGameObject* monster)
 		return;
 
 	m_deadMonsters.insert(monster);
+
+	HandleMutantKeyTriggerDeath(monster);
 
 	CancelMonsterPreparedActions(monster);
 

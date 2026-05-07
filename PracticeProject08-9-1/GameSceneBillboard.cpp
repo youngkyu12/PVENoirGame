@@ -521,6 +521,13 @@ void CGameScene::BuildItemBillboardBatch(
 				key.position.z
 			);
 
+		// 6, 8번 메가그리드의 열쇠는 해당 메가그리드 첫 Mutant 사망 전까지 숨기고 획득 불가.
+		if ( key.megaGridNumber == 6 || key.megaGridNumber == 8 )
+		{
+			key.active = false;
+			key.distanceCulled = true;
+		}
+
 		key.width = 2.0f;
 		key.height = 2.0f;
 		key.yOffset = 2.0f;
