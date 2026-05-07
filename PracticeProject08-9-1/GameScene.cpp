@@ -5719,7 +5719,7 @@ void CGameScene::AnimateObjects(float dt)
 {
 	m_fElapsedTime = dt;
     
-	if ( m_enemySpawner )
+	if ( !m_enemySpawner )
 	{
 		m_enemySpawner->SpawnEnemies();
 		m_enemySpawner->Update(dt);
