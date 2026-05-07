@@ -515,6 +515,11 @@ void CGameScene::BuildItemBillboardBatch(
 		key.kind = EItemBillboardKind::Key;
 
 		key.position = keyPositions[i];
+		key.megaGridNumber =
+			m_sceneGrid.MegaGridNumberFromWorldPosition(
+				key.position.x,
+				key.position.z
+			);
 
 		key.width = 2.0f;
 		key.height = 2.0f;
@@ -1258,6 +1263,9 @@ void CGameScene::UpdateItemBillboardPickupCollision()
 			{
 				item.active = false;
 				item.distanceCulled = true;
+
+				if ( item.kind == EItemBillboardKind::Key )
+					MarkMegaGridClearedByNumber(item.megaGridNumber);
 
 				break;
 			}
