@@ -375,7 +375,7 @@ namespace
 	// -----------------------------------------------------------------------------
 	// Attack power
 	// -----------------------------------------------------------------------------
-	static constexpr int kAttackPowerPlayerSword = 10000;
+	static constexpr int kAttackPowerPlayerSword = 10;
 	static constexpr int kAttackPowerPlayerAxe = 15;
 	static constexpr int kAttackPowerPlayerArrow = 15;
 	static constexpr int kAttackPowerPlayerBullet = 8;
@@ -386,7 +386,7 @@ namespace
 	static constexpr int kAttackPowerMutant = 20;
 	static constexpr int kAttackPowerBoss = 50;
 
-	static constexpr UINT kOfflineGhoulAICount = 200;
+	static constexpr UINT kOfflineGhoulAICount = 0;
 
 	static constexpr float kDisableVillageTreeCullPlayerHeight = 3.0f;
 
@@ -765,7 +765,6 @@ CGameScene::CGameScene()
 	m_deadMonsters.clear();
 
 	m_bLocalPlayerInsideCastleCenterMegaGrid = false;
-	m_bStageClearLogged = false;
 }
 
 void CGameScene::InitializeSpatialGrid()
@@ -2649,7 +2648,6 @@ void CGameScene::ReleaseObjects()
 	m_bStartedGameplayMusic = false;
 	m_bWasLocalPlayerInsideMegaGridCenter = false;
 	m_bLocalPlayerInsideCastleCenterMegaGrid = false;
-	m_bStageClearLogged = false;
 
 	m_navMesh.reset();
 
@@ -2964,7 +2962,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		}
 	}
 #else
-	m_localPlayerSlot = 0;
+	m_localPlayerSlot = 3;
 
 	const GameSceneStageFileSet& stageFiles = GetLocalStageFileSet(kLocalStagePreset);
 
@@ -7418,16 +7416,6 @@ void CGameScene::MarkMegaGridClearedByNumber(int megaGridNumber)
 		return;
 
 	m_sceneGrid.SetMegaGridCleared(megaX, megaZ, true);
-
-	char buf[256];
-	sprintf_s(
-		buf,
-		"[MegaGrid] Mega grid %d cleared.\n",
-		megaGridNumber
-	);
-	OutputDebugStringA(buf);
-
-	TryLogStageCleared();
 }
 
 bool CGameScene::AreAllMonstersInMegaGridDead(int megaGridNumber) const
@@ -7452,99 +7440,6 @@ bool CGameScene::AreAllMonstersInMegaGridDead(int megaGridNumber) const
 	}
 
 	return true;
-}
-
-int CGameScene::GetMegaGridNumberForMonster(const CGameObject* monster) const
-{
-	if ( !monster )
-		return -1;
-
-	const auto it = m_collisionMegaGridMaskByObject.find(monster);
-	if ( it == m_collisionMegaGridMaskByObject.end() )
-		return -1;
-
-	const uint16_t mask = it->second;
-	if ( mask == 0 )
-		return -1;
-
-	for ( int bit = 0; bit < CSceneGrid::kMegaGridCount; ++bit )
-	{
-		if ( mask & static_cast< uint16_t >(1u << bit) )
-			return bit + 1;
-	}
-
-	return -1;
-}
-
-int CGameScene::CountAliveMonstersInMegaGrid(int megaGridNumber) const
-{
-	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
-		return 0;
-
-	const int zeroBased = megaGridNumber - 1;
-	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
-	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
-
-	const std::vector<CGameObject*>& monsters =
-		m_sceneGrid.GetMegaGridMonsters(megaX, megaZ);
-
-	int aliveCount = 0;
-
-	for ( const CGameObject* monster : monsters )
-	{
-		if ( !IsMonsterDead(monster) )
-			++aliveCount;
-	}
-
-	return aliveCount;
-}
-
-bool CGameScene::IsStageCleared() const
-{
-	for ( int megaNumber = 1; megaNumber <= CSceneGrid::kMegaGridCount; ++megaNumber )
-	{
-		const int zeroBased = megaNumber - 1;
-		const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
-		const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
-
-		if ( !m_sceneGrid.IsMegaGridCleared(megaX, megaZ) )
-			return false;
-	}
-
-	return true;
-}
-
-void CGameScene::TryLogStageCleared()
-{
-	if ( m_bStageClearLogged )
-		return;
-
-	if ( !IsStageCleared() )
-		return;
-
-	m_bStageClearLogged = true;
-
-	OutputDebugStringA("[StageClear] All mega grids cleared. Stage cleared.\n");
-}
-
-void CGameScene::LogMegaGridRemainingMonsterCountForMonster(const CGameObject* monster)
-{
-	const int megaNumber = GetMegaGridNumberForMonster(monster);
-
-	if ( megaNumber < 1 || megaNumber > CSceneGrid::kMegaGridCount )
-		return;
-
-	const int aliveCount = CountAliveMonstersInMegaGrid(megaNumber);
-
-	char buf[256];
-	sprintf_s(
-		buf,
-		"[MegaGrid] Monster died in mega grid %d. Remaining monsters: %d\n",
-		megaNumber,
-		aliveCount
-	);
-
-	OutputDebugStringA(buf);
 }
 
 void CGameScene::UpdateMegaGridClearStateFromMonsterDeaths()
@@ -7644,8 +7539,6 @@ void CGameScene::BeginMonsterDeath(CGameObject* monster)
 		return;
 
 	m_deadMonsters.insert(monster);
-
-	LogMegaGridRemainingMonsterCountForMonster(monster);
 
 	CancelMonsterPreparedActions(monster);
 
