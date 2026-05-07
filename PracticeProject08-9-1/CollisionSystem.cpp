@@ -114,6 +114,11 @@ CCollisionSystem::CCollisionSystem()
 {
 }
 
+void CCollisionSystem::SetHitEffectCallback(HitEffectCallback callback)
+{
+	mHitEffectCallback = std::move(callback);
+}
+
 void CCollisionSystem::RegisterCollider(CColliderComponent* c)
 {
     if (!c) return;
@@ -297,6 +302,13 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 
 			return hp->TakeDamage(damage);
 		};
+	auto EmitHitEffect = [ this ](
+		CGameObject* weaponObject,
+		CGameObject* targetObject)
+		{
+			if ( mHitEffectCallback )
+				mHitEffectCallback(weaponObject, targetObject);
+		};
 
 	auto NotifyMonsterHit = [ & ] (CGameObject* weaponObject, CGameObject* monsterObject)
 		{
@@ -331,9 +343,12 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 				auto* combat = monsterObject->GetComponent<CMonsterCombatComponent>();
 				auto* hp = monsterObject->GetComponent<CHealthComponent>();
 
-				ApplyDamage(weaponObject, monsterObject);
+				const bool damaged = ApplyDamage(weaponObject, monsterObject);
 
 				const bool deadByHp = ( hp && hp->IsDead() );
+
+				if ( damaged )
+					EmitHitEffect(weaponObject, monsterObject);
 
 				if ( combat )
 					combat->OnHitByPlayerWeapon(weaponObject, kTestForceDeathOnHit || deadByHp);
@@ -346,9 +361,12 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 			auto* combat = monsterObject->GetComponent<CMonsterCombatComponent>();
 			auto* hp = monsterObject->GetComponent<CHealthComponent>();
 
-			ApplyDamage(weaponObject, monsterObject);
+			const bool damaged = ApplyDamage(weaponObject, monsterObject);
 
 			const bool deadByHp = ( hp && hp->IsDead() );
+
+			if ( damaged )
+				EmitHitEffect(weaponObject, monsterObject);
 
 			if ( combat )
 				combat->OnHitByPlayerWeapon(weaponObject, kTestForceDeathOnHit || deadByHp);
@@ -386,9 +404,12 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 				if ( !hitbox->CanHitTarget(playerObject) )
 					return;
 
-				ApplyDamage(weaponObject, playerObject);
+				const bool damaged = ApplyDamage(weaponObject, playerObject);
 
 				const bool deadAfterHit = IsDeadByHealth(playerObject);
+
+				if ( damaged )
+					EmitHitEffect(weaponObject, playerObject);
 
 #ifndef USING_NETWORK
 				if ( !deadAfterHit )
@@ -400,9 +421,12 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 				return;
 			}
 
-			ApplyDamage(weaponObject, playerObject);
+			const bool damaged = ApplyDamage(weaponObject, playerObject);
 
 			const bool deadAfterHit = IsDeadByHealth(playerObject);
+
+			if ( damaged )
+				EmitHitEffect(weaponObject, playerObject);
 
 #ifndef USING_NETWORK
 			if ( !deadAfterHit )

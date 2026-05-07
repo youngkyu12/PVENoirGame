@@ -7819,22 +7819,19 @@ void CGameScene::AnimateObjects(float dt)
 					m_prevPlayerNetworkStateCode[state.id] = state.animation.stateCode;
 					continue;
                 }
-                else if (decoded.hit)
-                {
-                    ac->RequestHit();
-					m_prevPlayerNetworkStateCode[state.id] = state.animation.stateCode;
-					continue;
-                    //ac->SetAnimState(decoded.hasMove ? EAnimState::Move : EAnimState::Idle);
-                }
-                /*else if (decoded.roll)
-                {
-                    uint32_t rollDirBits = decoded.hasMove ? decoded.moveDirBits : DIR_FORWARD;
-                    ac->RequestRoll(rollDirBits);
-                    ac->SetAnimState(EAnimState::Attack);
 
+				else if ( decoded.hit )
+				{
+					if ( !prevDecoded.hit )
+					{
+						SpawnBloodSplash(player, nullptr, nullptr);
+					}
+
+					ac->RequestHit();
 					m_prevPlayerNetworkStateCode[state.id] = state.animation.stateCode;
 					continue;
-                }*/
+				}
+
 				else if ( decoded.roll )
 				{
 					uint32_t rollDirBits = decoded.hasMove ? decoded.moveDirBits : DIR_FORWARD;
@@ -7923,13 +7920,17 @@ void CGameScene::AnimateObjects(float dt)
 					{
 						ctrl->RequestCommand(EMonsterAnimCommand::Death);
 					}
+
 					else if ( decoded.hit && !prevDecoded.hit )
 					{
 						ctrl->RequestCommand(EMonsterAnimCommand::Hit);
 
+						SpawnBloodSplash(obj, nullptr, nullptr);
+
 						if ( auto* hp = obj->GetComponent<CHealthComponent>() )
 							hp->RequestHitSfx();
 					}
+
 					else if ( decoded.attack && !prevDecoded.attack )
 					{
 						ctrl->RequestCommand(EMonsterAnimCommand::Attack);
@@ -8467,13 +8468,58 @@ void CGameScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 
 void CGameScene::BuildObjectsCollider()
 {
-    m_Collision = make_unique<CCollisionSystem>();
-    for (auto& obj : m_staticObjects)
-    {
-        m_Collision->RegisterCollider(obj->GetComponent<CColliderComponent>());
-    }
-    for (auto& obj : m_skinnedObjects)
-    {
-        m_Collision->RegisterCollider(obj->GetComponent<CColliderComponent>());
-    }
+	m_Collision = make_unique<CCollisionSystem>();
+
+	m_Collision->SetHitEffectCallback(
+		[ this ](
+			CGameObject* weaponObject,
+			CGameObject* targetObject)
+		{
+			if ( !targetObject )
+				return;
+
+			XMFLOAT3 hitDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
+
+			if ( weaponObject )
+			{
+				const XMFLOAT3 weaponPos = weaponObject->GetPosition();
+				const XMFLOAT3 targetPos = targetObject->GetPosition();
+
+				XMVECTOR dirV =
+					XMVectorSet(
+						targetPos.x - weaponPos.x,
+						0.0f,
+						targetPos.z - weaponPos.z,
+						0.0f
+					);
+
+				if ( XMVectorGetX(XMVector3LengthSq(dirV)) > 1.0e-6f )
+				{
+					dirV = XMVector3Normalize(dirV);
+					XMStoreFloat3(&hitDir, dirV);
+				}
+				else
+				{
+					// weaponObject와 targetObject 위치가 거의 같으면 무기 방향 사용.
+					hitDir = GetSafeObjectForward(weaponObject);
+				}
+			}
+
+			// hitPosition은 아직 정확히 모르므로 nullptr.
+			// SpawnBloodSplash 내부에서 targetObject 위치 + y 1m를 사용한다.
+			SpawnBloodSplash(targetObject, nullptr, &hitDir);
+		}
+	);
+
+	for ( auto& obj : m_staticObjects )
+	{
+		if ( obj )
+			m_Collision->RegisterCollider(obj->GetComponent<CColliderComponent>());
+	}
+
+	for ( auto& obj : m_skinnedObjects )
+	{
+		if ( obj )
+			m_Collision->RegisterCollider(obj->GetComponent<CColliderComponent>());
+	}
 }

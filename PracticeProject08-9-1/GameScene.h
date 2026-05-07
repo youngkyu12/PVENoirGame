@@ -75,6 +75,7 @@ enum class EMuzzleFlashKind : UINT
 	Core = 0,
 	Ring = 1,
 	Spark = 2,
+	Blood = 3,
 };
 
 struct MuzzleFlashInstanceVertex
@@ -117,6 +118,7 @@ struct MuzzleFlashEntry
 	float rotationRad = 0.0f;
 	float intensity = 1.0f;
 	float drag = 0.0f;
+	float gravity = 0.0f;
 	float seed = 0.0f;
 
 	XMFLOAT4 color = XMFLOAT4(1.0f, 0.62f, 0.10f, 1.0f);
@@ -432,6 +434,11 @@ private:
 	void ReleaseMuzzleFlashGpuResources();
 
 	void SpawnMuzzleFlash(const XMFLOAT3& position, const XMFLOAT3& direction);
+	void SpawnBloodSplash(
+		CGameObject* victim,
+		const XMFLOAT3* hitPosition = nullptr,
+		const XMFLOAT3* hitDirection = nullptr
+	);
 	void UpdateMuzzleFlashes(float dt);
 	void RenderMuzzleFlashes(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
@@ -750,7 +757,7 @@ private:
 	ItemBillboardInstanceVertex* m_pMappedTransparentItemBillboardInstanceBuffer = nullptr;
 	UINT                                  m_transparentItemBillboardInstanceBufferCapacity = 0;
 
-	static constexpr UINT kMuzzleFlashMaxCount = 32;
+	static constexpr UINT kMuzzleFlashMaxCount = 160;
 
 	std::shared_ptr<CMuzzleFlashBillboardShader> m_muzzleFlashShader;
 
