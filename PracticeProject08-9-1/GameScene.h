@@ -619,6 +619,9 @@ private:
 	void TickTowerDoorPortalCooldowns();
 	bool IsTowerDoorPortalOnCooldown() const;
 
+	int CountClearedMegaGrids() const;
+	bool CanUseCastleDoorPortal() const;
+
 	bool TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog = false);
 	bool TryTeleportLocalPlayerByCastleDoorPortal(bool forceLog = false);
 #endif
