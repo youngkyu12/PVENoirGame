@@ -650,6 +650,11 @@ private:
 	int GetLocalPlayerMegaGridNumberForMonsterTick() const;
 	bool ShouldSkipMonsterByMegaGrid(const CGameObject* monster, UINT skinnedBatchObjectIndex, int activeMegaGridNumber) const;
 
+	uint16_t ComputeStaticObjectMegaGridMask(CGameObject* obj) const;
+	uint16_t ComputeObjectCurrentMegaGridMask(const CGameObject* obj) const;
+	uint16_t GetCollisionMegaGridMaskForObject(const CGameObject* obj) const;
+	bool ShouldKeepCollisionPairByMegaGrid(const CColliderComponent* a, const CColliderComponent* b) const;
+
 	void MarkLocalPlayerEnteredCastleCenterMegaGrid(); 
 	bool IsLocalPlayerInsideCastleCenterMegaGridFullArea() const;
 	void UpdateCastleCenterMegaGridState();
@@ -914,6 +919,9 @@ private:
 	std::vector<uint8_t>                m_staticShadowCasterFlags;
 	std::vector<UINT>                   m_staticTreeObjectIndices;
 	std::vector<int>                    m_staticShadowOcclusionEntryIndices;
+
+	std::vector<uint16_t>               m_staticCollisionMegaGridMasks;
+	std::unordered_map<const CGameObject*, uint16_t> m_collisionMegaGridMaskByObject;
 
 	std::vector<UINT64>                 m_staticOcclusionQuerySampleCounts;
 	std::vector<uint8_t>                m_staticOcclusionLastFrameIssuedFlags;
