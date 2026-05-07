@@ -4145,7 +4145,7 @@ void CGameScene::BuildStaticBatch(
 			CGameObject* raw = obj.get();
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
-			m_staticShadowCasterFlags.push_back(0);
+			m_staticShadowCasterFlags.push_back(1);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_PlayerSwordRefs.push_back(raw);
@@ -4197,7 +4197,7 @@ void CGameScene::BuildStaticBatch(
 			CGameObject* raw = obj.get();
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
-			m_staticShadowCasterFlags.push_back(0);
+			m_staticShadowCasterFlags.push_back(1);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_PlayerAxeRefs.push_back(raw);
@@ -4242,7 +4242,7 @@ void CGameScene::BuildStaticBatch(
 			CGameObject* raw = obj.get();
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
-			m_staticShadowCasterFlags.push_back(0);
+			m_staticShadowCasterFlags.push_back(1);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_PlayerGunRefs.push_back(raw);
@@ -4293,7 +4293,7 @@ void CGameScene::BuildStaticBatch(
 			CGameObject* raw = obj.get();
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
-			m_staticShadowCasterFlags.push_back(0);
+			m_staticShadowCasterFlags.push_back(1);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_EnemySwordRefs.push_back(raw);
