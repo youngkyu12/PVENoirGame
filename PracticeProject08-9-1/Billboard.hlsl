@@ -229,7 +229,7 @@ float4 PSMuzzleFlashProcedural(
     if (kind < 0.5f)
     {
         float core = saturate(1.0f - r * 2.8f);
-        core = pow(core, 1.4f);
+        core = pow(core, 1.35f);
 
         float rays = abs(cos(angle * 6.0f + seed * 3.17f));
         rays = pow(rays, 18.0f);
@@ -243,10 +243,31 @@ float4 PSMuzzleFlashProcedural(
 
         alpha = saturate(shape * fade * input.color.a);
 
-        float3 hotColor = float3(1.0f, 0.96f, 0.70f);
-        float3 outerColor = input.color.rgb;
-        color = lerp(hotColor, outerColor, saturate(r));
-        color *= intensity;
+        // 불꽃 팔레트:
+        // 중심은 노란 불꽃, 중간은 주황, 외곽은 붉은 불꽃.
+        float radial = saturate(r);
+
+        float3 hotYellow = float3(1.0f, 0.78f, 0.22f);
+        float3 flameOrange = float3(1.0f, 0.34f, 0.04f);
+        float3 emberRed = float3(0.72f, 0.08f, 0.015f);
+
+        color = lerp(
+            hotYellow,
+            flameOrange,
+            smoothstep(0.10f, 0.55f, radial)
+        );
+
+        color = lerp(
+            color,
+            emberRed,
+            smoothstep(0.55f, 1.0f, radial)
+        );
+
+        // 입력 색상으로 약간 tint만 준다.
+        color *= lerp(float3(1.0f, 1.0f, 1.0f), input.color.rgb, 0.20f);
+
+        // additive 포화로 하얘지는 것을 줄이기 위해 상한을 둔다.
+        color *= min(intensity, 1.55f);
     }
     else if (kind < 1.5f)
     {
@@ -257,18 +278,32 @@ float4 PSMuzzleFlashProcedural(
         ring = smoothstep(0.0f, 1.0f, ring);
 
         float fade = saturate(1.0f - ageRatio);
-        alpha = ring * fade * 0.55f * input.color.a;
+        alpha = ring * fade * 0.45f * input.color.a;
 
-        color = input.color.rgb * intensity * 0.85f;
+        float3 ringInner = float3(1.0f, 0.45f, 0.06f);
+        float3 ringOuter = float3(0.75f, 0.08f, 0.015f);
+
+        color = lerp(
+            ringInner,
+            ringOuter,
+            smoothstep(0.25f, 1.0f, r)
+        );
+
+        color *= min(intensity, 1.25f);
     }
     else
     {
         float2 q = p;
 
-        float body = exp(-abs(q.x) * 10.0f) * saturate(1.1f - abs(q.y) * 1.6f);
+        float body =
+            exp(-abs(q.x) * 10.0f) *
+            saturate(1.1f - abs(q.y) * 1.6f);
 
-        float head = saturate(1.2f - length(float2(q.x * 2.0f, q.y + 0.7f)) * 2.0f);
-        float tail = saturate(1.0f - length(float2(q.x * 3.0f, q.y - 0.2f)) * 1.2f);
+        float head =
+            saturate(1.2f - length(float2(q.x * 2.0f, q.y + 0.7f)) * 2.0f);
+
+        float tail =
+            saturate(1.0f - length(float2(q.x * 3.0f, q.y - 0.2f)) * 1.2f);
 
         float shape = body * 0.8f + head * 0.8f + tail * 0.35f;
 
@@ -277,8 +312,16 @@ float4 PSMuzzleFlashProcedural(
 
         alpha = saturate(shape * fade * input.color.a);
 
-        float3 hotColor = float3(1.0f, 0.95f, 0.70f);
-        color = lerp(input.color.rgb, hotColor, 0.55f) * intensity;
+        float sparkHot = saturate(head + body * 0.45f);
+
+        float3 sparkYellow = float3(1.0f, 0.66f, 0.14f);
+        float3 sparkOrange = float3(1.0f, 0.24f, 0.025f);
+
+        color = lerp(sparkOrange, sparkYellow, sparkHot);
+
+        // 입력 색상 반영은 약하게. 너무 많이 곱하면 다시 하얘질 수 있음.
+        color *= lerp(float3(1.0f, 1.0f, 1.0f), input.color.rgb, 0.25f);
+        color *= min(intensity, 1.30f);
     }
 
     clip(alpha - 0.002f);
@@ -324,7 +367,7 @@ float4 PSSwordTrailProcedural(VS_SWORD_TRAIL_OUTPUT input) : SV_TARGET
 
     float center = 1.0f - abs(across * 2.0f - 1.0f);
     center = saturate(center);
-    center = pow(center, 0.35f);
+    center = pow(center, 0.45f);
 
     float tailFade = smoothstep(0.0f, 0.25f, along);
     float headBoost = smoothstep(0.35f, 1.0f, along);
@@ -334,11 +377,17 @@ float4 PSSwordTrailProcedural(VS_SWORD_TRAIL_OUTPUT input) : SV_TARGET
 
     clip(alpha - 0.002f);
 
-    float3 coreColor = float3(1.0f, 1.0f, 0.88f);
-    float3 edgeColor = input.color.rgb;
+    // 기존처럼 완전 흰색 core로 가지 않고,
+    // 입력 색을 밝게 만든 정도로만 중심부를 만든다.
+    float3 baseColor = saturate(input.color.rgb);
+
+    float3 edgeColor = baseColor * 0.55f;
+    float3 coreColor = saturate(baseColor * 1.45f + float3(0.10f, 0.08f, 0.03f));
 
     float3 color = lerp(edgeColor, coreColor, center);
-    color *= lerp(0.8f, 1.35f, headBoost);
+
+    // 검 끝 쪽 강조도 색을 유지한 채 밝기만 조금 올린다.
+    color *= lerp(0.85f, 1.15f, headBoost);
 
     return float4(color, alpha);
 }

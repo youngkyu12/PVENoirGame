@@ -688,7 +688,8 @@ void CGameScene::SpawnMuzzleFlash(
 			e->drag = 0.0f;
 			e->seed = seedDist(rng);
 
-			e->color = XMFLOAT4(1.0f, 0.48f, 0.10f, alpha);
+			// 불꽃 중심부: 강한 주황/적황색
+			e->color = XMFLOAT4(1.0f, 0.32f, 0.04f, alpha);
 		};
 
 	auto spawnRing = [ & ] ()
@@ -714,7 +715,8 @@ void CGameScene::SpawnMuzzleFlash(
 			e->drag = 0.0f;
 			e->seed = seedDist(rng);
 
-			e->color = XMFLOAT4(1.0f, 0.72f, 0.22f, 0.9f);
+			// 충격 링: 붉은 외곽 불꽃 느낌
+			e->color = XMFLOAT4(1.0f, 0.28f, 0.03f, 0.75f);
 		};
 
 	auto spawnSpark = [ & ] (float baseRot)
@@ -763,7 +765,8 @@ void CGameScene::SpawnMuzzleFlash(
 			e->drag = 5.5f;
 			e->seed = seedDist(rng);
 
-			e->color = XMFLOAT4(1.0f, 0.70f, 0.18f, 1.0f);
+			// 스파크: 노란 심지 + 주황 불티
+			e->color = XMFLOAT4(1.0f, 0.52f, 0.08f, 1.0f);
 		};
 
 	// 코어 flash를 2장 겹친다
@@ -865,8 +868,8 @@ void CGameScene::BeginAxeTrail(CGameObject* owner)
 	// 0.45~0.80 사이에서 튜닝 추천.
 	trail->widthScale = 0.80f;
 
-	// 도끼 궤적 색상: 금색/주황빛.
-	trail->color = XMFLOAT4(1.0f, 0.72f, 0.22f, 1.0f);
+	// 도끼 궤적 색상: 검과 동일한 푸른빛.
+	trail->color = XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f);
 
 	trail->samples.clear();
 	trail->samples.reserve(kSwordTrailMaxSamples);
@@ -1377,23 +1380,25 @@ void CGameScene::RenderSwordTrails(
 			const float ageAlpha = std::clamp(u, 0.0f, 1.0f);
 			const float alpha = trailFade * ageAlpha * 0.75f;
 
-			// 기본 색상. 검 궤적은 흰색-푸른색 계열.const XMFLOAT4 color =
-			XMFLOAT4(
-				trail.color.x,
-				trail.color.y,
-				trail.color.z,
-				alpha* trail.color.w
-			); const XMFLOAT4 color = XMFLOAT4(0.55f, 0.80f, 1.0f, alpha);
+			const XMFLOAT4 color =
+				XMFLOAT4(
+					trail.color.x,
+					trail.color.y,
+					trail.color.z,
+					alpha * trail.color.w
+				);
 
 			const SwordTrailSample& sample = trail.samples[i];
 
-			SwordTrailVertex& v0 = m_pMappedSwordTrailVertexBuffer[vertexCursor++];
+			SwordTrailVertex& v0 =
+				m_pMappedSwordTrailVertexBuffer[vertexCursor++];
 
 			v0.position = sample.root;
 			v0.uv = XMFLOAT2(u, 0.0f);
 			v0.color = color;
 
-			SwordTrailVertex& v1 = m_pMappedSwordTrailVertexBuffer[vertexCursor++];
+			SwordTrailVertex& v1 =
+				m_pMappedSwordTrailVertexBuffer[vertexCursor++];
 
 			v1.position = sample.tip;
 			v1.uv = XMFLOAT2(u, 1.0f);
