@@ -3507,7 +3507,175 @@ void CGameScene::BuildSpawnBatch(
 	m_SpawnObectsRefs.clear();
 	m_SpawnObectsRefs.reserve(m_SpawnObjectsCount);
 
+#ifdef USING_NETWORK
+	GameStartData gameStartData{};
+	if ( std::holds_alternative<GameStartData>(m_pendingNetworkMessage.data) )
+	{
+		gameStartData = std::get<GameStartData>(m_pendingNetworkMessage.data);
+	}
+
+	auto GetNetworkEnemySpawn = [ & ] (UINT index, XMFLOAT3& outPos, float& outYaw) -> bool
+		{
+			if ( index >= static_cast< UINT >( gameStartData.enemies.size() ) )
+				return false;
+
+			const auto& state = gameStartData.enemies[index];
+			outPos = state.position;
+			outYaw = state.yaw;
+			return true;
+		};
+#endif
+
+	UINT enemyIndex = 0;
+
+#ifndef USING_NETWORK
+	auto GatherLocalMonsterSpawns = [ this ] (const char* typeName)
+		{
+			std::vector<const MonsterSpawnEntry*> result;
+			result.reserve(m_monsterSpawnEntries.size());
+
+			for ( const MonsterSpawnEntry& entry : m_monsterSpawnEntries )
+			{
+				if ( entry.type == typeName )
+					result.push_back(&entry);
+			}
+
+			std::sort(
+				result.begin(),
+				result.end(),
+				[ ] (const MonsterSpawnEntry* a, const MonsterSpawnEntry* b)
+				{
+					return a->index < b->index;
+				}
+			);
+
+			return result;
+		};
+
+	const auto ghoulSpawns = GatherLocalMonsterSpawns("Ghoul");
+#endif
+
+	// ------------------------------------------------------------------------
+	// Ghoul
+	// ------------------------------------------------------------------------
+	{
+#ifdef USING_NETWORK
+		const UINT countW = m_ghoulCount;
+#else
+		const UINT countW = static_cast< UINT >( ghoulSpawns.size() );
+#endif
+
+		const auto& ghoulClips = GetGhoulClipEntries();
+
+		std::array<std::shared_ptr<CMesh>, 3> ghoulLodMeshes = { nullptr, nullptr, nullptr };
+
+		for ( int lodLevel = 0; lodLevel < 3; ++lodLevel )
+		{
+			AssetBuildDesc ghoulLodDesc{};
+			if ( !ResolveGhoulSkinnedLodAssetDesc(lodLevel, ghoulLodDesc) )
+				continue;
+
+			BuiltAsset ghoulLodAsset = AssetManager::BuildAsset(
+				dev, cmd,
+				m_pMaterials.get(),
+				ghoulLodDesc
+			);
+
+			ghoulLodMeshes[( size_t ) lodLevel] = ghoulLodAsset.mesh;
+		}
+
+		std::shared_ptr<CMesh> ghoulBaseMesh = ghoulLodMeshes[0];
+		if ( !ghoulBaseMesh )
+		{
+			AssetBuildDesc ghoulDesc{};
+			GetGameSceneAssetBuildDesc(EGameSceneAssetId::Ghoul, ghoulDesc);
+
+			BuiltAsset ghoulAsset = AssetManager::BuildAsset(
+				dev, cmd,
+				m_pMaterials.get(),
+				ghoulDesc
+			);
+
+			ghoulBaseMesh = ghoulAsset.mesh;
+			ghoulLodMeshes[0] = ghoulBaseMesh;
+		}
+
+		GameSceneObjectFactory::PreloadClipSet(
+			ghoulBaseMesh.get(),
+			"Ghoul",
+			ghoulClips
+		);
+
+		for ( UINT k = 0; k < countW; ++k )
+		{
+			if ( b->objectRefs.size() >= b->capacity ) break;
+
+			const UINT i = ( UINT ) b->objectRefs.size();
+
+			XMFLOAT3 pos{};
+			float yaw = 180.0f;
+
+#ifdef USING_NETWORK
+			if ( !GetNetworkEnemySpawn(enemyIndex, pos, yaw) )
+				break;
+#else
+			if ( k >= ghoulSpawns.size() )
+				break;
+
+			pos = ghoulSpawns[k]->pos;
+			yaw = ghoulSpawns[k]->yawDeg;
+#endif
+
+			GameSceneObjectFactory::SkinnedRenderableDesc createDesc{};
+			createDesc.ctx = MakeSkinnedContext(i);
+			createDesc.mesh = ghoulBaseMesh;
+			createDesc.position = pos;
+			createDesc.yawDeg = yaw;
+
+			ApplyMonsterBodyCollider(createDesc);
+
+			createDesc.addAnimator = true;
+			createDesc.addActorTag = true;
+			createDesc.actorKind = EActorKind::NPC;
+			createDesc.playerControl = EPlayerControl::None;
+			createDesc.playerSlot = -1;
+
+			createDesc.addMonsterCombat = true;
+			createDesc.addMonsterWeaponHitbox = true;
+
+			createDesc.skeletonKey = "Ghoul";
+			createDesc.clipEntries = &ghoulClips;
+
+			createDesc.initMonsterController = true;
+			createDesc.monsterInitialState = EMonsterAnimState::Idle;
+			createDesc.monsterProfile.idleClip = "Idle";
+			createDesc.monsterProfile.moveClip = "Walk";
+			createDesc.monsterProfile.runClip = "Run";
+			createDesc.monsterProfile.hitClip = "Hit";
+			createDesc.monsterProfile.attackClip = "Attack";
+			createDesc.monsterProfile.deathClip = "Death";
+
+			createDesc.useOwnerBoneWeaponCapsules = true;
+			createDesc.monsterWeaponConfigs.push_back(
+				{ "Attack", 0.20f, 0.55f, { "hand_r" } }
+			);
+
+			auto obj = GameSceneObjectFactory::CreateSkinnedRenderable(createDesc);
+			if ( !obj )
+				continue;
+
+			++enemyIndex;
+
+			CGameObject* raw = obj.get();
+			m_spawnObjects.push_back(std::move(obj));
+			b->objectRefs.push_back(raw);
+			m_SpawnObectsRefs.push_back(raw);
+			b->count = ( UINT ) b->objectRefs.size();
+		}
+	}
+
 }
+
 void CGameScene::BuildSkinnedBatch(
 	ID3D12Device* dev,
 	ID3D12GraphicsCommandList* cmd,
@@ -5769,12 +5937,6 @@ void CGameScene::AnimateObjects(float dt)
 {
 	m_fElapsedTime = dt;
     
-	if ( !m_enemySpawner )
-	{
-		m_enemySpawner->SpawnEnemies();
-		m_enemySpawner->Update(dt);
-	}
-
 	// ------------------------------------------------------------------------
     // FrameSnapshot에서 좌표 업데이트
     // ------------------------------------------------------------------------
