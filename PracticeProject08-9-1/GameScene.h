@@ -190,6 +190,9 @@ struct ItemBillboardEntry
 
 	EItemBillboardKind kind = EItemBillboardKind::Key;
 
+	// 1~9. 유효하지 않으면 -1.
+	int megaGridNumber = -1;
+
 	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
 
 	float width = 1.0f;
@@ -789,9 +792,10 @@ private:
 	SwordTrailVertex* m_pMappedSwordTrailVertexBuffer = nullptr;
 	UINT m_swordTrailVertexBufferCapacity = 0;
 
-    std::vector<CGameObject*> m_swordManRefs;
-    std::vector<CGameObject*> m_bowManRefs;
-    std::vector<CGameObject*> m_MutantRefs;
+	std::vector<CGameObject*> m_swordManRefs;
+	std::vector<CGameObject*> m_bowManRefs;
+	std::vector<CGameObject*> m_MutantRefs;
+	std::vector<CGameObject*> m_bossRefs;
 
     std::vector<CGameObject*> m_helmetRefs;
 
@@ -843,6 +847,10 @@ private:
 	void BeginMonsterDeath(CGameObject* monster);
 	void CancelMonsterPreparedActions(CGameObject* monster);
 	bool IsMonsterDead(const CGameObject* monster) const;
+
+	void MarkMegaGridClearedByNumber(int megaGridNumber);
+	bool AreAllMonstersInMegaGridDead(int megaGridNumber) const;
+	void UpdateMegaGridClearStateFromMonsterDeaths();
 
     std::array<CGameObject*, 3> m_demoFighters = { nullptr, nullptr, nullptr };
 

@@ -2596,9 +2596,10 @@ void CGameScene::ReleaseObjects()
 	m_colliderObjects.clear();
 	m_ColliderCount = 0;
 
-    m_swordManRefs.clear();
-    m_bowManRefs.clear();
-    m_MutantRefs.clear();
+	m_swordManRefs.clear();
+	m_bowManRefs.clear();
+	m_MutantRefs.clear();
+	m_bossRefs.clear();
 
 	m_helmetRefs.clear();
 	m_arrowRefs.clear();
@@ -5559,6 +5560,9 @@ void CGameScene::BuildSkinnedBatch(
 	m_MutantRefs.clear();
 	m_MutantRefs.reserve(m_MutantCount);
 
+	m_bossRefs.clear();
+	m_bossRefs.reserve(m_bossCount);
+
 	m_skinnedMonsterMegaGridNumbers.clear();
 	m_skinnedMonsterMegaGridNumbers.reserve(m_skinnedBatch.capacity);
 	m_sceneGrid.ClearMegaGridMonsters();
@@ -6200,6 +6204,8 @@ void CGameScene::BuildSkinnedBatch(
 			++enemyIndex;
 
 			CGameObject* raw = obj.get();
+
+			m_bossRefs.push_back(raw);
 
 			RegisterMonsterToMegaGrid(raw, pos, i);
 
@@ -7397,6 +7403,68 @@ bool CGameScene::IsMonsterDead(const CGameObject* monster) const
 	return false;
 }
 
+void CGameScene::MarkMegaGridClearedByNumber(int megaGridNumber)
+{
+	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+		return;
+
+	const int zeroBased = megaGridNumber - 1;
+	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+	if ( m_sceneGrid.IsMegaGridCleared(megaX, megaZ) )
+		return;
+
+	m_sceneGrid.SetMegaGridCleared(megaX, megaZ, true);
+}
+
+bool CGameScene::AreAllMonstersInMegaGridDead(int megaGridNumber) const
+{
+	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+		return false;
+
+	const int zeroBased = megaGridNumber - 1;
+	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+	const std::vector<CGameObject*>& monsters =
+		m_sceneGrid.GetMegaGridMonsters(megaX, megaZ);
+
+	if ( monsters.empty() )
+		return false;
+
+	for ( const CGameObject* monster : monsters )
+	{
+		if ( !IsMonsterDead(monster) )
+			return false;
+	}
+
+	return true;
+}
+
+void CGameScene::UpdateMegaGridClearStateFromMonsterDeaths()
+{
+	// 2번 메가그리드: 해당 메가그리드의 모든 몬스터 사망 시 클리어.
+	if ( !m_sceneGrid.IsMegaGridCleared(1, 0) )
+	{
+		if ( AreAllMonstersInMegaGridDead(2) )
+			MarkMegaGridClearedByNumber(2);
+	}
+
+	// 5번 메가그리드: 보스 사망 시 클리어.
+	if ( !m_sceneGrid.IsMegaGridCleared(1, 1) )
+	{
+		for ( const CGameObject* boss : m_bossRefs )
+		{
+			if ( IsMonsterDead(boss) )
+			{
+				MarkMegaGridClearedByNumber(5);
+				break;
+			}
+		}
+	}
+}
+
 void CGameScene::CancelMonsterPreparedActions(CGameObject* monster)
 {
 	if ( !monster )
@@ -7523,6 +7591,8 @@ void CGameScene::UpdateMonsterDeathStates()
 		if ( hp->IsDead() )
 			BeginMonsterDeath(obj);
 	}
+
+	UpdateMegaGridClearStateFromMonsterDeaths();
 }
 
 void CGameScene::BeginLocalPlayerDeath(CGameObject* player)
