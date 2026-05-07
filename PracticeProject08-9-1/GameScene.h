@@ -646,7 +646,11 @@ private:
 	void UpdateDynamicGridState();
 	void UpdateMegaGridState();
 
-	void MarkLocalPlayerEnteredCastleCenterMegaGrid();
+	void RegisterMonsterToMegaGrid(CGameObject* monster, const XMFLOAT3& spawnPosition, UINT skinnedBatchObjectIndex);
+	int GetLocalPlayerMegaGridNumberForMonsterTick() const;
+	bool ShouldSkipMonsterByMegaGrid(const CGameObject* monster, UINT skinnedBatchObjectIndex, int activeMegaGridNumber) const;
+
+	void MarkLocalPlayerEnteredCastleCenterMegaGrid(); 
 	bool IsLocalPlayerInsideCastleCenterMegaGridFullArea() const;
 	void UpdateCastleCenterMegaGridState();
 
@@ -879,9 +883,7 @@ private:
 	std::vector<GridDynamicTracker> m_arrowGridTrackers;
 	std::vector<GridDynamicTracker> m_bulletGridTrackers;
 
-	/*std::unique_ptr<ShadowMap> mShadowMap;
-	std::shared_ptr<CShadowShader> mShadowShader;
-	ComPtr<ID3D12DescriptorHeap> m_pd3dShadowDsvDescriptorHeap;*/
+	std::vector<int> m_skinnedMonsterMegaGridNumbers;
 
 private:
     bool LoadStaticPlacementFile(const std::string& filePath);

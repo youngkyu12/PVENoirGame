@@ -476,36 +476,6 @@ void CPlayerEquipmentComponent::PlayPendingPlayerSfxAt(size_t index)
 
 		m_activeSfxList.push_back(active);
 	}
-
-	if ( played.kind == EPendingPlayerSfxKind::BowLoading ||
-	played.kind == EPendingPlayerSfxKind::BowRelease ||
-	played.kind == EPendingPlayerSfxKind::GunShot )
-	{
-		const char* tag = "PlayerSfx";
-
-		if ( played.kind == EPendingPlayerSfxKind::BowLoading )
-			tag = "BowLoadingSfx";
-		else if ( played.kind == EPendingPlayerSfxKind::BowRelease )
-			tag = "BowReleaseSfx";
-		else if ( played.kind == EPendingPlayerSfxKind::GunShot )
-			tag = "GunShotSfx";
-
-		char buf[512];
-		sprintf_s(
-			buf,
-			"[%s] sound=\"%s\" delay=%.4f sec / %.2f ms volume=%.2f owner=%p pos=(%.3f, %.3f, %.3f)\n",
-			tag,
-			played.path,
-			played.originalDelay,
-			played.originalDelay * 1000.0f,
-			played.volume,
-			static_cast< void* >( m_pOwner ),
-			pos.x,
-			pos.y,
-			pos.z
-		);
-		OutputDebugStringA(buf);
-	}
 }
 
 int CPlayerEquipmentComponent::SelectSwordWhooshIndex()

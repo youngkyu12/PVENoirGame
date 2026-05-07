@@ -96,6 +96,17 @@ int CSceneGrid::MegaGridNumberFromCell(int cellX, int cellZ) const
 	return ( megaZ * kMegaGridCols ) + megaX + 1;
 }
 
+int CSceneGrid::MegaGridNumberFromWorldPosition(float worldX, float worldZ) const
+{
+	int cellX = -1;
+	int cellZ = -1;
+
+	if ( !WorldToCell(worldX, worldZ, cellX, cellZ) )
+		return -1;
+
+	return MegaGridNumberFromCell(cellX, cellZ);
+}
+
 bool CSceneGrid::FineCellToMegaGridCell(int cellX, int cellZ, int& outMegaX, int& outMegaZ) const
 {
 	if ( !IsValidCell(cellX, cellZ) )
@@ -105,6 +116,21 @@ bool CSceneGrid::FineCellToMegaGridCell(int cellX, int cellZ, int& outMegaX, int
 	outMegaZ = cellZ / kMegaGridCellHeight;
 
 	return IsValidMegaGrid(outMegaX, outMegaZ);
+}
+
+bool CSceneGrid::TryGetMegaGridFromWorldPosition(
+	float worldX,
+	float worldZ,
+	int& outMegaX,
+	int& outMegaZ) const
+{
+	int cellX = -1;
+	int cellZ = -1;
+
+	if ( !WorldToCell(worldX, worldZ, cellX, cellZ) )
+		return false;
+
+	return FineCellToMegaGridCell(cellX, cellZ, outMegaX, outMegaZ);
 }
 
 bool CSceneGrid::IsFineCellInsideMegaGridApproachZone(
@@ -173,6 +199,39 @@ void CSceneGrid::SetMegaGridPlayerApproached(int megaX, int megaZ, bool approach
 		return;
 
 	m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)].hasPlayerApproached = approached;
+}
+
+void CSceneGrid::ClearMegaGridMonsters()
+{
+	for ( MegaGridCell& cell : m_megaGridCells )
+		cell.monsterObjects.clear();
+}
+
+void CSceneGrid::AddMonsterToMegaGrid(int megaX, int megaZ, CGameObject* monster)
+{
+	if ( !monster )
+		return;
+
+	if ( !IsValidMegaGrid(megaX, megaZ) )
+		return;
+
+	std::vector<CGameObject*>& monsters =
+		m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)].monsterObjects;
+
+	if ( std::find(monsters.begin(), monsters.end(), monster) != monsters.end() )
+		return;
+
+	monsters.push_back(monster);
+}
+
+const std::vector<CGameObject*>& CSceneGrid::GetMegaGridMonsters(int megaX, int megaZ) const
+{
+	static const std::vector<CGameObject*> kEmpty;
+
+	if ( !IsValidMegaGrid(megaX, megaZ) )
+		return kEmpty;
+
+	return m_megaGridCells[( size_t ) MegaGridIndex(megaX, megaZ)].monsterObjects;
 }
 
 bool CSceneGrid::HasMegaGridPlayerApproached(int megaX, int megaZ) const
