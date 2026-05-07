@@ -99,6 +99,7 @@ protected:
 	bool FaceTowards(const XMFLOAT3& targetPos);
 	bool MoveTowards(const XMFLOAT3& targetPos, float maxStepDistance);
 
+	bool TryMoveDirectlyToTarget(float dt);
 	bool FollowCurrentPath(float dt);
 
 	bool SampleNavMeshPosition(const XMFLOAT3& inPos, XMFLOAT3& outPos, int* outTri = nullptr) const;
@@ -123,6 +124,9 @@ protected:
 	float m_facingYawOffsetDegrees = 0.0f;
 
 	float m_attackCooldownRemaining = 0.0f;
+	float m_postAttackMoveLockRemaining = 0.0f;
+	float m_postAttackMoveLockDuration = 0.25f;
+
 	float m_repathTimer = 0.0f;
 
 	std::vector<int> m_trianglePath;
