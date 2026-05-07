@@ -286,7 +286,7 @@ namespace
 
 	static constexpr float kLocalPlayerRespawnDelay = 5.0f;
 
-	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::Test;
+	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::FullStage;
 
 	static constexpr float kFootstepSfxVolume = 0.04f;
 
@@ -2240,6 +2240,73 @@ void CGameScene::UpdateMegaGridState()
 	}
 }
 
+void CGameScene::RegisterMonsterToMegaGrid(
+	CGameObject* monster,
+	const XMFLOAT3& spawnPosition,
+	UINT skinnedBatchObjectIndex)
+{
+	if ( !monster )
+		return;
+
+	if ( skinnedBatchObjectIndex >= m_skinnedMonsterMegaGridNumbers.size() )
+		m_skinnedMonsterMegaGridNumbers.resize(( size_t ) skinnedBatchObjectIndex + 1, -1);
+
+	const int megaNumber =
+		m_sceneGrid.MegaGridNumberFromWorldPosition(spawnPosition.x, spawnPosition.z);
+
+	m_skinnedMonsterMegaGridNumbers[( size_t ) skinnedBatchObjectIndex] = megaNumber;
+
+	if ( megaNumber <= 0 )
+		return;
+
+	const int zeroBased = megaNumber - 1;
+	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+	m_sceneGrid.AddMonsterToMegaGrid(megaX, megaZ, monster);
+}
+
+int CGameScene::GetLocalPlayerMegaGridNumberForMonsterTick() const
+{
+	CGameObject* player = GetPlayer();
+
+	if ( !player )
+		player = GetPlayerBySlot(0);
+
+	if ( !player )
+		return -1;
+
+	const XMFLOAT3 pos = player->GetPosition();
+	return m_sceneGrid.MegaGridNumberFromWorldPosition(pos.x, pos.z);
+}
+
+bool CGameScene::ShouldSkipMonsterByMegaGrid(
+	const CGameObject* monster,
+	UINT skinnedBatchObjectIndex,
+	int activeMegaGridNumber) const
+{
+	if ( !monster )
+		return false;
+
+	if ( activeMegaGridNumber <= 0 )
+		return false;
+
+	auto* tag = monster->GetComponent<CActorTagComponent>();
+	if ( !tag || tag->kind != EActorKind::NPC )
+		return false;
+
+	if ( skinnedBatchObjectIndex >= static_cast< UINT >( m_skinnedMonsterMegaGridNumbers.size() ) )
+		return false;
+
+	const int monsterMegaGridNumber =
+		m_skinnedMonsterMegaGridNumbers[( size_t ) skinnedBatchObjectIndex];
+
+	if ( monsterMegaGridNumber <= 0 )
+		return false;
+
+	return monsterMegaGridNumber != activeMegaGridNumber;
+}
+
 void CGameScene::MarkLocalPlayerEnteredCastleCenterMegaGrid()
 {
 	if ( !m_sceneGrid.IsInitialized() )
@@ -2457,6 +2524,7 @@ void CGameScene::ReleaseObjects()
 	m_prevPlayerNetworkStateCode.clear();
 #endif
 	m_deadMonsters.clear();
+	m_skinnedMonsterMegaGridNumbers.clear();
 
 	m_itemBillboardShader.reset();
 	m_transparentItemBillboardShader.reset();
@@ -5338,6 +5406,10 @@ void CGameScene::BuildSkinnedBatch(
 	m_MutantRefs.clear();
 	m_MutantRefs.reserve(m_MutantCount);
 
+	m_skinnedMonsterMegaGridNumbers.clear();
+	m_skinnedMonsterMegaGridNumbers.reserve(m_skinnedBatch.capacity);
+	m_sceneGrid.ClearMegaGridMonsters();
+
 #ifdef USING_NETWORK
 	GameStartData gameStartData{};
 	if ( std::holds_alternative<GameStartData>(m_pendingNetworkMessage.data) )
@@ -5533,10 +5605,12 @@ void CGameScene::BuildSkinnedBatch(
 
 			CGameObject* raw = obj.get();
 
+			RegisterMonsterToMegaGrid(raw, pos, i);
+
 			RegisterSkinnedCullEntry(
 				raw, i, "Ghoul", pos,
 				ghoulLodMeshes, true,
-				15.0f, 30.0f, 60.0f
+				35.0f, 90.0f, 120.0f
 			);
 
 			m_skinnedObjects.push_back(std::move(obj));
@@ -5629,6 +5703,8 @@ void CGameScene::BuildSkinnedBatch(
 			++enemyIndex;
 
 			CGameObject* raw = obj.get();
+
+			RegisterMonsterToMegaGrid(raw, pos, i);
 
 			std::array<std::shared_ptr<CMesh>, 3> noLodMeshes =
 			{
@@ -5735,6 +5811,8 @@ void CGameScene::BuildSkinnedBatch(
 			++enemyIndex;
 
 			CGameObject* raw = obj.get();
+
+			RegisterMonsterToMegaGrid(raw, pos, i);
 
 			std::array<std::shared_ptr<CMesh>, 3> noLodMeshes =
 			{
@@ -5848,6 +5926,8 @@ void CGameScene::BuildSkinnedBatch(
 			++enemyIndex;
 
 			CGameObject* raw = obj.get();
+
+			RegisterMonsterToMegaGrid(raw, pos, i);
 
 			std::array<std::shared_ptr<CMesh>, 3> noLodMeshes =
 			{
@@ -5967,6 +6047,8 @@ void CGameScene::BuildSkinnedBatch(
 			++enemyIndex;
 
 			CGameObject* raw = obj.get();
+
+			RegisterMonsterToMegaGrid(raw, pos, i);
 
 			std::array<std::shared_ptr<CMesh>, 3> noLodMeshes =
 			{
@@ -8027,12 +8109,29 @@ void CGameScene::AnimateObjects(float dt)
 
 	CCamera* camera = GetMainCamera();
 
+#ifndef USING_NETWORK
+	const int activeMonsterMegaGridNumber =
+		GetLocalPlayerMegaGridNumberForMonsterTick();
+#else
+	const int activeMonsterMegaGridNumber = -1;
+#endif
+
 	for ( UINT j = 0; j < static_cast< UINT >(m_skinnedObjects.size()); ++j )
 	{
 		if ( !m_skinnedObjects[j] )
 			continue;
 
 		CGameObject* obj = m_skinnedObjects[j].get();
+
+#ifndef USING_NETWORK
+		if ( ShouldSkipMonsterByMegaGrid(obj, j, activeMonsterMegaGridNumber) )
+		{
+			if ( auto* animComp = obj->GetComponent<CAnimatorComponent>() )
+				animComp->SetPoseEvaluationEnabled(false);
+
+			continue;
+		}
+#endif
 
 #ifdef USING_NETWORK
 		const bool shouldEvaluatePose =
