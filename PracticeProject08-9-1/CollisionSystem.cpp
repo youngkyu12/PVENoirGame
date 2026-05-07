@@ -358,6 +358,15 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 				return;
 			}
 
+			const bool isProjectile =
+				weaponObject->GetComponent<CArrowComponent>() ||
+				weaponObject->GetComponent<CBulletComponent>();
+
+			// 검/도끼 같은 melee weapon은 반드시 CWeaponHitboxComponent를 통해서만 데미지를 넣는다.
+			// 이 컴포넌트가 없는 비투사체 weapon은 fallback 경로로 매 프레임 데미지를 줄 수 있으므로 차단한다.
+			if ( !isProjectile )
+				return;
+
 			auto* combat = monsterObject->GetComponent<CMonsterCombatComponent>();
 			auto* hp = monsterObject->GetComponent<CHealthComponent>();
 

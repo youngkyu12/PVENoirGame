@@ -2760,7 +2760,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		}
 	}
 #else
-	m_localPlayerSlot = 0;
+	m_localPlayerSlot = 2;
 
 	const GameSceneStageFileSet& stageFiles = GetLocalStageFileSet(kLocalStagePreset);
 
@@ -4133,6 +4133,8 @@ void CGameScene::BuildStaticBatch(
 			createDesc.colliderMask = CollisionBit(kCollisionLayerMonster);
 			createDesc.colliderEnabled = false;
 
+			createDesc.addPlayerWeaponHitbox = true;
+
 			createDesc.addAttackPower = true;
 			createDesc.attackPower = kAttackPowerPlayerSword;
 
@@ -4183,8 +4185,10 @@ void CGameScene::BuildStaticBatch(
 			createDesc.colliderMask = CollisionBit(kCollisionLayerMonster);
 			createDesc.colliderEnabled = false;
 
+			createDesc.addPlayerWeaponHitbox = true;
+
 			createDesc.addAttackPower = true;
-			createDesc.attackPower = kAttackPowerPlayerSword;
+			createDesc.attackPower = kAttackPowerPlayerAxe;
 
 			auto obj = GameSceneObjectFactory::CreateStaticRenderable(createDesc);
 			if ( !obj )
@@ -6036,8 +6040,7 @@ void CGameScene::BuildSkinnedBatch(
 
 			createDesc.addPlayerController = isLocal;
 			createDesc.addPlayerEquipment = true;
-			createDesc.addPlayerWeaponHitbox = true;
-
+			
 			createDesc.addHealth = true;
 			createDesc.maxHp = kHpPlayer;
 

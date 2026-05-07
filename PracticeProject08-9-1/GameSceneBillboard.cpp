@@ -14,6 +14,8 @@
 #include "Camera.h"
 #include "Object.h"
 #include "PlayerEquipmentComponent.h"
+#include "WeaponHitboxComponent.h"
+#include "ColliderComponent.h"
 
 namespace
 {
@@ -275,6 +277,50 @@ namespace
 			trail.samples.erase(trail.samples.begin());
 
 		return true;
+	}
+
+	static void SetPlayerMeleeWeaponHitboxActive(CGameObject* weaponObject, bool active)
+	{
+		if ( !weaponObject )
+			return;
+
+		if ( auto* hitbox = weaponObject->GetComponent<CWeaponHitboxComponent>() )
+		{
+			hitbox->SetHitboxActive(active);
+			return;
+		}
+
+		// 검/도끼에 hitbox component가 빠져 있으면 다중 히트 방지 없이 데미지가 들어갈 수 있으므로
+		// 안전하게 collider를 꺼 둔다.
+		if ( auto* collider = weaponObject->GetComponent<CColliderComponent>() )
+			collider->SetCollisionEnabled(false);
+	}
+
+	static void ResetPlayerMeleeWeaponHitbox(CGameObject* weaponObject)
+	{
+		if ( !weaponObject )
+			return;
+
+		if ( auto* hitbox = weaponObject->GetComponent<CWeaponHitboxComponent>() )
+		{
+			hitbox->SetHitboxActive(false);
+			hitbox->ClearHitTargets();
+			return;
+		}
+
+		if ( auto* collider = weaponObject->GetComponent<CColliderComponent>() )
+			collider->SetCollisionEnabled(false);
+	}
+
+	static void FinishSwordTrailEntry(SwordTrailEntry& trail)
+	{
+		SetPlayerMeleeWeaponHitboxActive(trail.weaponObject, false);
+
+		trail.active = false;
+		trail.owner = nullptr;
+		trail.weaponObject = nullptr;
+		trail.age = 0.0f;
+		trail.samples.clear();
 	}
 }
 
@@ -957,6 +1003,7 @@ void CGameScene::BeginSwordTrail(CGameObject* owner)
 	trail->weaponObject = swordObject;
 
 	trail->age = 0.0f;
+	ResetPlayerMeleeWeaponHitbox(swordObject);
 
 	trail->startDelay = 0.340f;
 	trail->sampleDuration = 0.240f;
@@ -1000,6 +1047,7 @@ void CGameScene::BeginAxeTrail(CGameObject* owner)
 	trail->weaponObject = axeObject;
 
 	trail->age = 0.0f;
+	ResetPlayerMeleeWeaponHitbox(axeObject);
 
 	// 최종 튜닝값 고정.
 	// 공격 accepted 이후 0.530초부터 0.690초까지 도끼 궤적을 샘플링한다.
@@ -1068,6 +1116,12 @@ void CGameScene::UpdateSwordTrails(float dt)
 		if ( !trail.active )
 			continue;
 
+		if ( !trail.weaponObject )
+		{
+			FinishSwordTrailEntry(trail);
+			continue;
+		}
+
 		trail.age += dt;
 
 		const float totalLife =
@@ -1077,22 +1131,25 @@ void CGameScene::UpdateSwordTrails(float dt)
 
 		if ( trail.age >= totalLife )
 		{
-			trail.active = false;
-			trail.owner = nullptr;
-			trail.weaponObject = nullptr;
-			trail.age = 0.0f;
-			trail.samples.clear();
+			FinishSwordTrailEntry(trail);
 			continue;
 		}
 
-		// 아직 칼을 뒤로 빼는 준비 구간이면 샘플링하지 않는다.
+		// 준비 동작 구간: trail도 샘플링하지 않고, 공격 판정도 끈다.
 		if ( trail.age < trail.startDelay )
+		{
+			SetPlayerMeleeWeaponHitboxActive(trail.weaponObject, false);
 			continue;
+		}
 
 		const float sampleAge = trail.age - trail.startDelay;
 
-		// startDelay 이후 sampleDuration 동안만 검 위치를 샘플링한다.
-		if ( sampleAge <= trail.sampleDuration )
+		// startDelay 이후 sampleDuration 동안만 trail을 샘플링하고 공격 판정도 켠다.
+		const bool hitWindowActive = ( sampleAge <= trail.sampleDuration );
+
+		SetPlayerMeleeWeaponHitboxActive(trail.weaponObject, hitWindowActive);
+
+		if ( hitWindowActive )
 		{
 			AppendSwordTrailSample(trail, kSwordTrailMaxSamples);
 		}

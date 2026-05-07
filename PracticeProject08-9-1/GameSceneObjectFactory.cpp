@@ -126,6 +126,9 @@ std::unique_ptr<CGameObject> GameSceneObjectFactory::CreateStaticRenderable(cons
 	if ( desc.addMonsterWeaponHitbox )
 		obj->AddComponent<CMonsterWeaponHitboxComponent>();
 
+	if ( desc.addPlayerWeaponHitbox )
+		obj->AddComponent<CWeaponHitboxComponent>();
+
 	if ( desc.addAttackPower )
 	{
 		auto* attack = obj->AddComponent<CAttackPowerComponent>();
