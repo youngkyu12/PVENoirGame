@@ -17,6 +17,8 @@ namespace
 	{
 		return ( 1u << layer );
 	}
+
+	static constexpr float kBulletGravityY = -3.0f;
 }
 
 CBulletComponent::CBulletComponent(CGameObject* owner)
@@ -80,12 +82,17 @@ bool CBulletComponent::FireFromObjects(
 	if ( !actualDirectionSource ) return false;
 
 	const XMFLOAT3 startPos = actualSpawnSource->GetPosition();
-	const XMFLOAT3 dir = GetForwardFromObject(actualDirectionSource);
+
+	XMFLOAT3 dir = GetForwardFromObject(actualDirectionSource);
+
+	// 발사 시작 방향은 항상 지면에 수평이 되도록 y 성분 제거.
+	dir.y = 0.0f;
+	dir = NormalizeSafe(dir);
 
 	const XMFLOAT3 velocity =
 	{
 		dir.x * speed,
-		dir.y * speed,
+		0.0f,
 		dir.z * speed
 	};
 
@@ -101,13 +108,15 @@ void CBulletComponent::Activate(const XMFLOAT3& position, const XMFLOAT3& veloci
 	owner->SetPosition(position);
 
 	m_velocity = velocity;
+	m_velocity.y = 0.0f;
+
 	m_lifeRemaining = ( lifeSec > 0.0f ) ? lifeSec : 0.0f;
 	m_firedByPlayer = firedByPlayer;
 	m_state = EState::Flying;
 
 	if ( auto* tr = owner->GetComponent<CTransformComponent>() )
 	{
-		tr->SetLookDirection(NormalizeSafe(velocity));
+		tr->SetLookDirection(NormalizeSafe(m_velocity));
 	}
 
 	ApplyProjectileColliderProfile();
@@ -153,6 +162,8 @@ void CBulletComponent::OnUpdate(float dt)
 			return;
 		}
 	}
+
+	m_velocity.y += kBulletGravityY * dt;
 
 	const XMFLOAT3 pos = owner->GetPosition();
 	const XMFLOAT3 next =

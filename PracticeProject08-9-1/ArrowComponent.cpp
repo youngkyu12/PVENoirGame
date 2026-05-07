@@ -17,6 +17,8 @@ namespace
 	{
 		return ( 1u << layer );
 	}
+
+	static constexpr float kArrowGravityY = -2.5f;
 }
 
 CArrowComponent::CArrowComponent(CGameObject* owner)
@@ -69,13 +71,14 @@ void CArrowComponent::ApplyProjectileColliderProfile()
 XMFLOAT3 CArrowComponent::BuildLaunchVelocity(float speed) const
 {
 	const CGameObject* source = m_directionSource ? m_directionSource : GetOwner();
-	const XMFLOAT3 dir = GetForwardFromObject(source);
 
-	return XMFLOAT3(
-		dir.x * speed,
-		dir.y * speed,
-		dir.z * speed
-	);
+	XMFLOAT3 dir = GetForwardFromObject(source);
+
+	// 발사 시작 방향은 항상 지면에 수평이 되도록 y 성분 제거.
+	dir.y = 0.0f;
+	dir = NormalizeSafe(dir);
+
+	return XMFLOAT3(dir.x * speed, 0.0f, dir.z * speed);
 }
 
 void CArrowComponent::Activate(const XMFLOAT3& position, const XMFLOAT3& velocity, float lifeSec, bool firedByPlayer) 
@@ -90,6 +93,8 @@ void CArrowComponent::Activate(const XMFLOAT3& position, const XMFLOAT3& velocit
 	m_pullBackDistance = 0.0f;
 
 	m_velocity = velocity;
+	m_velocity.y = 0.0f;
+
 	m_lifeRemaining = ( lifeSec > 0.0f ) ? lifeSec : 0.0f;
 	m_enableCollisionOnLaunch = true;
 	m_firedByPlayer = firedByPlayer;
@@ -97,7 +102,7 @@ void CArrowComponent::Activate(const XMFLOAT3& position, const XMFLOAT3& velocit
 
 	if ( auto* tr = owner->GetComponent<CTransformComponent>() )
 	{
-		tr->SetLookDirection(NormalizeSafe(velocity));
+		tr->SetLookDirection(NormalizeSafe(m_velocity));
 	}
 
 	ApplyProjectileColliderProfile();
@@ -158,6 +163,8 @@ void CArrowComponent::Launch(const XMFLOAT3& velocity, float lifeSec, bool enabl
     m_pullBackDistance = 0.0f;
 
 	m_velocity = velocity;
+	m_velocity.y = 0.0f;
+
 	m_lifeRemaining = ( lifeSec > 0.0f ) ? lifeSec : 0.0f;
 	m_state = EState::Flying;
 
@@ -167,7 +174,7 @@ void CArrowComponent::Launch(const XMFLOAT3& velocity, float lifeSec, bool enabl
 	{
 		if ( auto* tr = owner->GetComponent<CTransformComponent>() )
 		{
-			tr->SetLookDirection(NormalizeSafe(velocity));
+			tr->SetLookDirection(NormalizeSafe(m_velocity));
 		}
 
 		ApplyProjectileColliderProfile();
@@ -248,14 +255,21 @@ void CArrowComponent::OnUpdate(float dt)
             }
         }
 
-        const XMFLOAT3 pos = owner->GetPosition();
-        const XMFLOAT3 next =
-        {
-            pos.x + m_velocity.x * dt,
-            pos.y + m_velocity.y * dt,
-            pos.z + m_velocity.z * dt
-        };
+		m_velocity.y += kArrowGravityY * dt;
 
-        owner->SetPosition(next);
+		const XMFLOAT3 pos = owner->GetPosition();
+		const XMFLOAT3 next =
+		{
+			pos.x + m_velocity.x * dt,
+			pos.y + m_velocity.y * dt,
+			pos.z + m_velocity.z * dt
+		};
+
+		owner->SetPosition(next);
+
+		if ( auto* tr = owner->GetComponent<CTransformComponent>() )
+		{
+			tr->SetLookDirection(NormalizeSafe(m_velocity));
+		}
     }
 }
