@@ -66,6 +66,7 @@ namespace GameSceneObjectFactory
 		bool addArrowComponent = false;
 		bool addBulletComponent = false;
 		bool addMonsterWeaponHitbox = false;
+		bool addPlayerWeaponHitbox = false;
 
 		bool addAttackPower = false;
 		int attackPower = 0;
