@@ -135,18 +135,40 @@ struct SwordTrailSample
 	XMFLOAT3 tip = XMFLOAT3(0.0f, 0.0f, 0.0f);
 };
 
+enum class EWeaponTrailKind : UINT
+{
+	Sword = 0,
+	Axe = 1,
+};
+
 struct SwordTrailEntry
 {
 	bool active = false;
 
+	EWeaponTrailKind kind = EWeaponTrailKind::Sword;
+
 	CGameObject* owner = nullptr;
-	CGameObject* swordObject = nullptr;
+
+	// 이름은 SwordTrailEntry지만, 실제로는 검/도끼 공용 weapon trail로 사용한다.
+	CGameObject* weaponObject = nullptr;
 
 	float age = 0.0f;
 
 	float startDelay = 0.340f;
 	float sampleDuration = 0.240f;
 	float fadeDuration = 0.120f;
+
+	// 무기 local space에서 trail ribbon의 양 끝점.
+	// sword: 손잡이 쪽 ~ 칼끝
+	// axe: 도끼날 근처 짧은 구간
+	XMFLOAT3 rootLocal = XMFLOAT3(0.0f, 0.0f, 0.10f);
+	XMFLOAT3 tipLocal = XMFLOAT3(0.0f, 0.0f, 1.45f);
+
+	// root/tip 사이 폭 조절.
+	// 도끼는 날이 끝자락에만 있으므로 이 값을 줄이면 된다.
+	float widthScale = 1.0f;
+
+	XMFLOAT4 color = XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f);
 
 	std::vector<SwordTrailSample> samples;
 };
@@ -432,6 +454,7 @@ private:
 	void ReleaseSwordTrailGpuResources();
 
 	void BeginSwordTrail(CGameObject* owner);
+	void BeginAxeTrail(CGameObject* owner);
 	void UpdateSwordTrails(float dt);
 	void RenderSwordTrails(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
@@ -751,7 +774,7 @@ private:
 	MuzzleFlashInstanceVertex* m_pMappedMuzzleFlashInstanceBuffer = nullptr;
 	UINT m_muzzleFlashInstanceBufferCapacity = 0;
 
-	static constexpr UINT kSwordTrailMaxCount = 8;
+	static constexpr UINT kSwordTrailMaxCount = 16;
 	static constexpr UINT kSwordTrailMaxSamples = 12;
 	static constexpr UINT kSwordTrailMaxVertices =
 		kSwordTrailMaxCount * kSwordTrailMaxSamples * 2;

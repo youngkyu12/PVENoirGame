@@ -161,31 +161,43 @@ namespace
 		return result;
 	}
 
-	static void ComputeSwordTrailRootTip(
-		const CGameObject* swordObject,
-		XMFLOAT3& outRoot,
-		XMFLOAT3& outTip)
+	static void ComputeWeaponTrailRootTip(
+	const SwordTrailEntry& trail,
+	XMFLOAT3& outRoot,
+	XMFLOAT3& outTip)
 	{
-		if ( !swordObject )
+		if ( !trail.weaponObject )
 		{
 			outRoot = XMFLOAT3(0.0f, 0.0f, 0.0f);
 			outTip = XMFLOAT3(0.0f, 0.0f, 0.0f);
 			return;
 		}
 
-		const XMFLOAT4X4& W = swordObject->GetWorldMatrix();
+		const XMFLOAT4X4& W = trail.weaponObject->GetWorldMatrix();
 
-		// 튜닝 포인트:
-		// 검 모델의 길이 방향이 local Z가 아니면 이 두 값을 바꿔야 한다.
-		// 예: local Y가 검 길이면 (0, 0.1, 0), (0, 1.4, 0) 식으로 바꾼다.
-		static constexpr XMFLOAT3 kSwordTrailRootLocal =
-			XMFLOAT3(0.0f, 0.0f, 0.10f);
+		XMFLOAT3 root = TransformLocalPoint(W, trail.rootLocal);
+		XMFLOAT3 tip = TransformLocalPoint(W, trail.tipLocal);
 
-		static constexpr XMFLOAT3 kSwordTrailTipLocal =
-			XMFLOAT3(0.0f, 0.0f, 1.45f);
+		// root-tip 사이 폭을 center 기준으로 조절한다.
+		// widthScale < 1.0f : 더 얇은/짧은 trail
+		// widthScale > 1.0f : 더 넓은 trail
+		if ( trail.widthScale != 1.0f )
+		{
+			XMVECTOR rootV = XMLoadFloat3(&root);
+			XMVECTOR tipV = XMLoadFloat3(&tip);
 
-		outRoot = TransformLocalPoint(W, kSwordTrailRootLocal);
-		outTip = TransformLocalPoint(W, kSwordTrailTipLocal);
+			XMVECTOR center = XMVectorScale(rootV + tipV, 0.5f);
+			XMVECTOR half = XMVectorScale(tipV - rootV, 0.5f * trail.widthScale);
+
+			rootV = center - half;
+			tipV = center + half;
+
+			XMStoreFloat3(&root, rootV);
+			XMStoreFloat3(&tip, tipV);
+		}
+
+		outRoot = root;
+		outTip = tip;
 	}
 
 	static SwordTrailEntry* AcquireFreeSwordTrailEntry(
@@ -201,15 +213,15 @@ namespace
 	}
 
 	static bool AppendSwordTrailSample(
-		SwordTrailEntry& trail,
-		UINT maxSamples)
+	SwordTrailEntry& trail,
+	UINT maxSamples)
 	{
-		if ( !trail.swordObject )
+		if ( !trail.weaponObject )
 			return false;
 
 		SwordTrailSample sample{};
-		ComputeSwordTrailRootTip(
-			trail.swordObject,
+		ComputeWeaponTrailRootTip(
+			trail,
 			sample.root,
 			sample.tip
 		);
@@ -788,14 +800,76 @@ void CGameScene::BeginSwordTrail(CGameObject* owner)
 		return;
 
 	trail->active = true;
+	trail->kind = EWeaponTrailKind::Sword;
+
 	trail->owner = owner;
-	trail->swordObject = swordObject;
+	trail->weaponObject = swordObject;
 
 	trail->age = 0.0f;
 
 	trail->startDelay = 0.340f;
 	trail->sampleDuration = 0.240f;
 	trail->fadeDuration = 0.120f;
+
+	// 검 모델의 길이 방향이 local Z가 아니면 여기만 바꿔라.
+	trail->rootLocal = XMFLOAT3(0.0f, 0.0f, 0.10f);
+	trail->tipLocal = XMFLOAT3(0.0f, 0.0f, 1.45f);
+
+	// 검은 전체 날 길이를 쓰므로 1.0.
+	trail->widthScale = 1.0f;
+
+	// 검 궤적 색상: 푸른빛.
+	trail->color = XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f);
+
+	trail->samples.clear();
+	trail->samples.reserve(kSwordTrailMaxSamples);
+}
+
+void CGameScene::BeginAxeTrail(CGameObject* owner)
+{
+	if ( !owner )
+		return;
+
+	auto* equip = owner->GetComponent<CPlayerEquipmentComponent>();
+	if ( !equip )
+		return;
+
+	CGameObject* axeObject = equip->GetWeaponObject(EWeaponType::Axe);
+	if ( !axeObject )
+		return;
+
+	SwordTrailEntry* trail = AcquireFreeSwordTrailEntry(m_swordTrails);
+	if ( !trail )
+		return;
+
+	trail->active = true;
+	trail->kind = EWeaponTrailKind::Axe;
+
+	trail->owner = owner;
+	trail->weaponObject = axeObject;
+
+	trail->age = 0.0f;
+
+	// 최종 튜닝값 고정.
+	// 공격 accepted 이후 0.530초부터 0.690초까지 도끼 궤적을 샘플링한다.
+	trail->startDelay = 0.530f;
+	trail->sampleDuration = 0.160f; // 0.690f - 0.530f
+	trail->fadeDuration = 0.120f;
+
+	// 도끼는 날이 끝자락에만 있으므로 root를 tip에 가깝게 둔다.
+	trail->rootLocal = XMFLOAT3(0.0f, 0.0f, 0.80f);
+	trail->tipLocal = XMFLOAT3(0.0f, 0.0f, 1.45f);
+
+	// 도끼 궤적 폭 조절 핵심값.
+	// 작게 할수록 날 끝부분에만 짧게 붙는다.
+	// 0.45~0.80 사이에서 튜닝 추천.
+	trail->widthScale = 0.80f;
+
+	// 도끼 궤적 색상: 금색/주황빛.
+	trail->color = XMFLOAT4(1.0f, 0.72f, 0.22f, 1.0f);
+
+	trail->samples.clear();
+	trail->samples.reserve(kSwordTrailMaxSamples);
 }
 
 void CGameScene::UpdateMuzzleFlashes(float dt)
@@ -851,7 +925,7 @@ void CGameScene::UpdateSwordTrails(float dt)
 		{
 			trail.active = false;
 			trail.owner = nullptr;
-			trail.swordObject = nullptr;
+			trail.weaponObject = nullptr;
 			trail.age = 0.0f;
 			trail.samples.clear();
 			continue;
@@ -1303,8 +1377,13 @@ void CGameScene::RenderSwordTrails(
 			const float ageAlpha = std::clamp(u, 0.0f, 1.0f);
 			const float alpha = trailFade * ageAlpha * 0.75f;
 
-			// 기본 색상. 검 궤적은 흰색-푸른색 계열.
-			const XMFLOAT4 color = XMFLOAT4(0.55f, 0.80f, 1.0f, alpha);
+			// 기본 색상. 검 궤적은 흰색-푸른색 계열.const XMFLOAT4 color =
+			XMFLOAT4(
+				trail.color.x,
+				trail.color.y,
+				trail.color.z,
+				alpha* trail.color.w
+			); const XMFLOAT4 color = XMFLOAT4(0.55f, 0.80f, 1.0f, alpha);
 
 			const SwordTrailSample& sample = trail.samples[i];
 
