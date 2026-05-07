@@ -2440,7 +2440,6 @@ void CGameScene::ReleaseObjects()
 	m_shadowAlphaClipStaticShader.reset();
 	m_shadowSkinnedShader.reset();
 	m_shadowAlphaClipSkinnedShader.reset();
-	m_shadowMapSrvIndex = UINT_MAX;
 
 	m_sceneRenderTargetCount = 0;
 	m_bSceneRenderTargetsReady = false;
@@ -2673,21 +2672,7 @@ void CGameScene::ReleaseShaderVariables()
 
 	m_depthFog.ReleaseConstantBuffer();
 
-	if ( m_pd3dcbShadow )
-	{
-		if ( m_pcbMappedShadow )
-		{
-			m_pd3dcbShadow->Unmap(0, NULL);
-			m_pcbMappedShadow = nullptr;
-		}
-		m_pd3dcbShadow.Reset();
-	}
-
-	if ( m_pd3dShadowMap )
-		m_pd3dShadowMap.Reset();
-
-	if ( m_pd3dShadowDsvHeap )
-		m_pd3dShadowDsvHeap.Reset();
+	m_shadowMap.ReleaseResources();
 
 	if ( m_colliderBatch.cbGameObjects )
 	{
@@ -2897,7 +2882,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_hud.BuildResources(dev, cmd, GetGraphicsRootSignature());
 	m_hud.SetInactiveOverlayVisible(m_bInactiveOverlayVisible);
 	BuildDepthFogResources(dev, cmd);
-	BuildShadowResources(dev, cmd);
+	m_shadowMap.BuildResources(dev, cmd, m_pDescriptorHeap.get());
 
 	for ( auto& lo : m_lightObjects )
 	{
@@ -3616,15 +3601,6 @@ void CGameScene::CreateShaderVariables(ID3D12Device* dev, ID3D12GraphicsCommandL
     m_pd3dcbMaterials->Map(0, nullptr, (void**)&m_pcbMappedMaterials);
 
 	m_depthFog.CreateConstantBuffer(dev, cmd);
-
-	UINT ncbShadowBytes = ( ( sizeof(CB_SHADOW) + 255 ) & ~255 );
-	m_pd3dcbShadow = ::CreateBufferResource(
-		dev, cmd, nullptr,
-		ncbShadowBytes,
-		D3D12_HEAP_TYPE_UPLOAD,
-		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
-		nullptr);
-	m_pd3dcbShadow->Map(0, nullptr, ( void** ) &m_pcbMappedShadow);
 }
 
 void CGameScene::BuildStaticBatch(
@@ -6449,251 +6425,9 @@ void CGameScene::BuildDepthFogResources(ID3D12Device* dev, ID3D12GraphicsCommand
 	m_depthFog.BuildResources(dev, cmd, GetGraphicsRootSignature());
 }
 
-void CGameScene::BuildShadowResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
-{
-	UNREFERENCED_PARAMETER(cmd);
-
-	if ( !dev )
-		return;
-
-	m_shadowViewport = {
-		0.0f,
-		0.0f,
-		static_cast< float >( m_shadowMapSize ),
-		static_cast< float >( m_shadowMapSize ),
-		0.0f,
-		1.0f
-	};
-
-	m_shadowScissorRect = {
-		0,
-		0,
-		static_cast< LONG >( m_shadowMapSize ),
-		static_cast< LONG >( m_shadowMapSize )
-	};
-
-	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc{};
-	dsvHeapDesc.NumDescriptors = 1;
-	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-
-	HRESULT hr = dev->CreateDescriptorHeap(
-		&dsvHeapDesc,
-		IID_PPV_ARGS(m_pd3dShadowDsvHeap.ReleaseAndGetAddressOf())
-	);
-
-	if ( FAILED(hr) )
-	{
-		OutputDebugStringA("[Shadow] Create DSV heap failed.\n");
-		return;
-	}
-
-	D3D12_CLEAR_VALUE clearValue{};
-	clearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	clearValue.DepthStencil.Depth = 1.0f;
-	clearValue.DepthStencil.Stencil = 0;
-
-	m_pd3dShadowMap.Attach(
-		::CreateTexture2DResource(
-			dev,
-			m_shadowMapSize,
-			m_shadowMapSize,
-			1,
-			1,
-			DXGI_FORMAT_R24G8_TYPELESS,
-			D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
-			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-			&clearValue
-		)
-	);
-
-	if ( !m_pd3dShadowMap )
-	{
-		OutputDebugStringA("[Shadow] Create shadow map resource failed.\n");
-		return;
-	}
-
-	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
-	dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
-
-	dev->CreateDepthStencilView(
-		m_pd3dShadowMap.Get(),
-		&dsvDesc,
-		m_pd3dShadowDsvHeap->GetCPUDescriptorHandleForHeapStart()
-	);
-
-	if ( m_shadowMapSrvIndex == UINT_MAX )
-		m_shadowMapSrvIndex = CScene::m_pDescriptorHeap->AllocateSrvRangeBack(1);
-
-	if ( m_shadowMapSrvIndex == UINT_MAX )
-	{
-		OutputDebugStringA("[Shadow] Allocate SRV slot failed.\n");
-		return;
-	}
-
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Texture2D.MostDetailedMip = 0;
-	srvDesc.Texture2D.MipLevels = 1;
-	srvDesc.Texture2D.PlaneSlice = 0;
-	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-
-	dev->CreateShaderResourceView(
-		m_pd3dShadowMap.Get(),
-		&srvDesc,
-		CScene::m_pDescriptorHeap->GetCPUSrvHandle(m_shadowMapSrvIndex)
-	);
-}
-
 void CGameScene::RenderDepthFog(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	m_depthFog.Render(cmd, camera);
-}
-
-void CGameScene::UpdateShadowData()
-{
-	if ( !m_pcbMappedShadow )
-		return;
-
-	m_shadowData.shadowParams1 = XMUINT4(UINT_MAX, 0u, 0u, 0u);
-
-	CGameObject* focus = GetPlayer();
-	if ( !focus )
-		focus = GetPlayerBySlot(0);
-
-	if ( !focus )
-		return;
-
-	if ( m_shadowMapSrvIndex == UINT_MAX )
-		return;
-
-	CGameObject* directionalLightObj = nullptr;
-
-	for ( const auto& lightObj : m_lightObjects )
-	{
-		if ( !lightObj )
-			continue;
-
-		auto* lc = lightObj->GetComponent<CLightComponent>();
-		if ( !lc )
-			continue;
-
-		if ( lc->type == ELightType::Directional )
-		{
-			directionalLightObj = lightObj.get();
-			break;
-		}
-	}
-
-	if ( !directionalLightObj )
-		return;
-
-	auto* lightTr = directionalLightObj->GetComponent<CTransformComponent>();
-	if ( !lightTr )
-		return;
-
-	XMFLOAT3 lightDir = lightTr->GetLook();
-	XMVECTOR lightDirV = XMLoadFloat3(&lightDir);
-
-	if ( XMVectorGetX(XMVector3LengthSq(lightDirV)) < 1.0e-6f )
-		lightDirV = XMVectorSet(1.0f, -1.0f, 0.3f, 0.0f);
-
-	lightDirV = XMVector3Normalize(lightDirV);
-
-	XMFLOAT3 center = focus->GetPosition();
-	center.y += 10.0f;
-
-	XMFLOAT3 up = XMFLOAT3(0.0f, 1.0f, 0.0f);
-	if ( fabsf(XMVectorGetX(XMVector3Dot(lightDirV, XMLoadFloat3(&up)))) > 0.98f )
-		up = XMFLOAT3(0.0f, 0.0f, 1.0f);
-
-	XMFLOAT3 eye{};
-	XMStoreFloat3(
-		&eye,
-		XMLoadFloat3(&center) - ( lightDirV * ( m_shadowFarZ * 0.5f ) )
-	);
-
-	const XMMATRIX view =
-		XMMatrixLookAtLH(
-			XMLoadFloat3(&eye),
-			XMLoadFloat3(&center),
-			XMLoadFloat3(&up)
-		);
-
-	const XMMATRIX proj =
-		XMMatrixOrthographicLH(
-			m_shadowOrthoHalfSize * 2.0f,
-			m_shadowOrthoHalfSize * 2.0f,
-			m_shadowNearZ,
-			m_shadowFarZ
-		);
-
-	const XMMATRIX tex =
-		XMMATRIX(
-			0.5f, 0.0f, 0.0f, 0.0f,
-			0.0f, -0.5f, 0.0f, 0.0f,
-			0.0f, 0.0f, 1.0f, 0.0f,
-			0.5f, 0.5f, 0.0f, 1.0f
-		);
-
-	const XMMATRIX shadowViewProj = view * proj;
-	const XMMATRIX shadowTransform = shadowViewProj * tex;
-
-	XMStoreFloat4x4(&m_shadowView, view);
-
-	XMStoreFloat4x4(&m_shadowData.shadowViewProj, XMMatrixTranspose(shadowViewProj));
-	XMStoreFloat4x4(&m_shadowData.shadowTransform, XMMatrixTranspose(shadowTransform));
-
-	m_shadowData.shadowParams0 = XMFLOAT4(
-		static_cast< float >( m_shadowMapSize ),
-		0.00020f,
-		0.00120f,
-		1.0f
-		);
-	m_shadowData.shadowParams1 = XMUINT4(m_shadowMapSrvIndex, 1u, 0u, 0u);
-}
-
-bool CGameScene::IsWorldOOBBInsideShadowBox(const BoundingOrientedBox& box) const
-{
-	const XMVECTOR centerWorld = XMLoadFloat3(&box.Center);
-	const XMMATRIX shadowView = XMLoadFloat4x4(&m_shadowView);
-	const XMVECTOR centerLight = XMVector3TransformCoord(centerWorld, shadowView);
-
-	const float x = XMVectorGetX(centerLight);
-	const float y = XMVectorGetY(centerLight);
-	const float z = XMVectorGetZ(centerLight);
-
-	// OOBB를 light-space sphere로 보수적으로 검사.
-	const float radius =
-		std::sqrt(
-			box.Extents.x * box.Extents.x +
-			box.Extents.y * box.Extents.y +
-			box.Extents.z * box.Extents.z
-		) + 2.0f;
-
-	if ( x + radius < -m_shadowOrthoHalfSize )
-		return false;
-
-	if ( x - radius > m_shadowOrthoHalfSize )
-		return false;
-
-	if ( y + radius < -m_shadowOrthoHalfSize )
-		return false;
-
-	if ( y - radius > m_shadowOrthoHalfSize )
-		return false;
-
-	if ( z + radius < m_shadowNearZ )
-		return false;
-
-	if ( z - radius > m_shadowFarZ )
-		return false;
-
-	return true;
 }
 
 bool CGameScene::IsStaticObjectInsideShadowBox(UINT objectIndex) const
@@ -6715,7 +6449,7 @@ bool CGameScene::IsStaticObjectInsideShadowBox(UINT objectIndex) const
 	if ( !entry.hasWorldBounds )
 		return true;
 
-	return IsWorldOOBBInsideShadowBox(entry.worldBounds);
+	return m_shadowMap.IsWorldOOBBInsideShadowBox(entry.worldBounds);
 }
 
 bool CGameScene::IsSkinnedObjectInsideShadowBox(UINT objectIndex) const
@@ -6737,7 +6471,7 @@ bool CGameScene::IsSkinnedObjectInsideShadowBox(UINT objectIndex) const
 	if ( !entry.hasWorldBounds )
 		return true;
 
-	return IsWorldOOBBInsideShadowBox(entry.worldBounds);
+	return m_shadowMap.IsWorldOOBBInsideShadowBox(entry.worldBounds);
 }
 
 void CGameScene::RenderShadowMap(ID3D12GraphicsCommandList* cmd)
@@ -6745,68 +6479,29 @@ void CGameScene::RenderShadowMap(ID3D12GraphicsCommandList* cmd)
 	PROFILE_RENDER_SCOPE("GameScene::RenderShadowMap");
 
 	if ( !cmd ) return;
-	if ( !m_pd3dShadowMap ) return;
-	if ( !m_pd3dShadowDsvHeap ) return;
+	if ( !m_shadowMap.IsReady() ) return;
 	if ( !m_shadowStaticShader ) return;
 	if ( !m_shadowSkinnedShader ) return;
-	if ( !m_pd3dcbShadow ) return;
 
-	::SynchronizeResourceTransition(
-		cmd,
-		m_pd3dShadowMap.Get(),
-		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-		D3D12_RESOURCE_STATE_DEPTH_WRITE
-	);
+	const D3D12_GPU_VIRTUAL_ADDRESS materialCbGpuAddress =
+		m_pd3dcbMaterials
+		? m_pd3dcbMaterials->GetGPUVirtualAddress()
+		: 0;
 
-	cmd->SetGraphicsRootSignature(GetGraphicsRootSignature());
-
-	if ( m_pDescriptorHeap && m_pDescriptorHeap->m_pd3dCbvSrvDescriptorHeap )
-	{
-		cmd->SetDescriptorHeaps(1, m_pDescriptorHeap->m_pd3dCbvSrvDescriptorHeap.GetAddressOf());
-		cmd->SetGraphicsRootDescriptorTable(
-			ROOT_PARAMETER_GLOBAL_SRV,
-			m_pDescriptorHeap->GetGPUSrvDescriptorStartHandle()
+	const bool begun =
+		m_shadowMap.BeginRender(
+			cmd,
+			GetGraphicsRootSignature(),
+			m_pDescriptorHeap.get(),
+			materialCbGpuAddress
 		);
-	}
 
-	cmd->RSSetViewports(1, &m_shadowViewport);
-	cmd->RSSetScissorRects(1, &m_shadowScissorRect);
-
-	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle =
-		m_pd3dShadowDsvHeap->GetCPUDescriptorHandleForHeapStart();
-
-	cmd->OMSetRenderTargets(0, nullptr, FALSE, &dsvHandle);
-	cmd->ClearDepthStencilView(
-		dsvHandle,
-		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
-		1.0f,
-		0,
-		0,
-		nullptr
-	);
-
-	if ( m_pd3dcbMaterials )
-	{
-		cmd->SetGraphicsRootConstantBufferView(
-			ROOT_PARAMETER_MATERIAL,
-			m_pd3dcbMaterials->GetGPUVirtualAddress()
-		);
-	}
-
-	cmd->SetGraphicsRootConstantBufferView(
-		ROOT_PARAMETER_SHADOW,
-		m_pd3dcbShadow->GetGPUVirtualAddress()
-	);
+	if ( !begun ) return;
 
 	RenderStaticInstanceGroupsToShadowMap(cmd);
 	RenderSkinnedInstanceGroupsToShadowMap(cmd);
 
-	::SynchronizeResourceTransition(
-		cmd,
-		m_pd3dShadowMap.Get(),
-		D3D12_RESOURCE_STATE_DEPTH_WRITE,
-		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
-	);
+	m_shadowMap.EndRender(cmd);
 }
 
 void CGameScene::RestoreSceneRenderTargets(ID3D12GraphicsCommandList* cmd, CCamera* camera)
@@ -8440,10 +8135,30 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
     if (m_pcbMappedMaterials && m_pMaterials)
         ::memcpy(m_pcbMappedMaterials, m_pMaterials.get(), sizeof(MATERIALS));
 	
-	UpdateShadowData();
+	CGameObject* shadowFocus = GetPlayer();
+	if ( !shadowFocus )
+		shadowFocus = GetPlayerBySlot(0);
 
-	if ( m_pcbMappedShadow )
-		::memcpy(m_pcbMappedShadow, &m_shadowData, sizeof(CB_SHADOW));
+	CGameObject* directionalLightObj = nullptr;
+
+	for ( const auto& lightObj : m_lightObjects )
+	{
+		if ( !lightObj )
+			continue;
+
+		auto* lc = lightObj->GetComponent<CLightComponent>();
+		if ( !lc )
+			continue;
+
+		if ( lc->type == ELightType::Directional )
+		{
+			directionalLightObj = lightObj.get();
+			break;
+		}
+	}
+
+	m_shadowMap.UpdateData(shadowFocus, directionalLightObj);
+	m_shadowMap.UploadConstantBuffer();
 
 	UpdateDepthFogState(m_fElapsedTime);
 	m_depthFog.UploadConstantBuffer();
@@ -8587,14 +8302,7 @@ void CGameScene::BindFrameRootParameters(ID3D12GraphicsCommandList* cmd)
 	}
 
 	m_depthFog.BindConstantBuffer(cmd);
-
-	if ( m_pd3dcbShadow )
-	{
-		cmd->SetGraphicsRootConstantBufferView(
-			ROOT_PARAMETER_SHADOW,
-			m_pd3dcbShadow->GetGPUVirtualAddress()
-		);
-	}
+	m_shadowMap.BindConstantBuffer(cmd);
 }
 
 void CGameScene::RebindFrameRenderState(ID3D12GraphicsCommandList* cmd, CCamera* camera)

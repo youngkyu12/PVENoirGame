@@ -9,4 +9,4 @@
 #include "Skinned.hlsl"
 #include "PostProcess.hlsl"
 #include "DepthFog.hlsl"
-#include "Shadow.hlsl"
+#include "Shadows.hlsl"

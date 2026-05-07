@@ -1760,38 +1760,3 @@ void CTextureToFullScreenShader::Render(ID3D12GraphicsCommandList* pd3dCommandLi
 {
 	CPostProcessingShader::Render(pd3dCommandList, pCamera, pContext);
 }
-
-D3D12_INPUT_LAYOUT_DESC CShadowShader::CreateInputLayout()
-{
-	UINT nInputElementDescs = 4;
-	D3D12_INPUT_ELEMENT_DESC* desc = new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
-
-	desc[0] = { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
-	desc[1] = { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
-	desc[2] = { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
-	desc[3] = { "TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
-
-	D3D12_INPUT_LAYOUT_DESC layout{};
-	layout.pInputElementDescs = desc;
-	layout.NumElements = nInputElementDescs;
-	return layout;
-}
-
-D3D12_RASTERIZER_DESC CShadowShader::CreateRasterizerState()
-{
-	D3D12_RASTERIZER_DESC rasterizer = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	rasterizer.DepthBias = 100000;
-	rasterizer.DepthBiasClamp = 0.0f;
-	rasterizer.SlopeScaledDepthBias = 1.0f;
-	return rasterizer;
-}
-
-D3D12_SHADER_BYTECODE CShadowShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
-{
-	return CShader::CompileShaderFromFile(L"Shadows.hlsl", "VS", "vs_5_1", ppd3dShaderBlob);
-}
-
-D3D12_SHADER_BYTECODE CShadowShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
-{
-	return CShader::CompileShaderFromFile(L"Shadows.hlsl", "PS", "ps_5_1", ppd3dShaderBlob);
-}

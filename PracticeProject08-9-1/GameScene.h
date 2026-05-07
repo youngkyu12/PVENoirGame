@@ -12,7 +12,7 @@
 #include "Grid.h"
 #include "DepthFog.h"
 #include "GameSceneHUD.h"
-//#include "ShadowMap.h"
+#include "ShadowMap.h"
 
 #include <unordered_map>
 #include <unordered_set>
@@ -317,16 +317,6 @@ struct SkinnedInstanceGroup
 
 	UINT instanceBufferStart = 0;
 	bool useAlphaClipShader = false;
-};
-
-struct CB_SHADOW
-{
-	XMFLOAT4X4 shadowViewProj{};
-	XMFLOAT4X4 shadowTransform{};
-
-	XMFLOAT4 shadowLightPos = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
-	XMFLOAT4 shadowParams0 = XMFLOAT4(2048.0f, 0.0008f, 0.0040f, 1.0f);
-	XMUINT4  shadowParams1 = XMUINT4(UINT_MAX, 0u, 0u, 0u);
 };
 
 // ============================================================================
@@ -678,10 +668,6 @@ private:
 	void BuildDepthFogResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
 	void RenderDepthFog(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
-	void BuildShadowResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
-	void UpdateShadowData();
-
-	bool IsWorldOOBBInsideShadowBox(const BoundingOrientedBox& box) const;
 	bool IsStaticObjectInsideShadowBox(UINT objectIndex) const;
 	bool IsSkinnedObjectInsideShadowBox(UINT objectIndex) const;
 
@@ -960,22 +946,8 @@ private:
 	std::shared_ptr<CShadowMapAlphaClipSkinnedShader>     m_shadowAlphaClipSkinnedShader;
 
 	CGameSceneHUD                       m_hud;
-	ComPtr<ID3D12DescriptorHeap>        m_pd3dShadowDsvHeap;
-	ComPtr<ID3D12Resource>              m_pd3dShadowMap;
-	ComPtr<ID3D12Resource>              m_pd3dcbShadow;
-	CB_SHADOW* m_pcbMappedShadow = nullptr;
-	CB_SHADOW                           m_shadowData{};
+	CShadowMapSystem					m_shadowMap;
 
-	XMFLOAT4X4                          m_shadowView{};
-
-	UINT                                m_shadowMapSize = 2048;
-	UINT                                m_shadowMapSrvIndex = UINT_MAX;
-	float                               m_shadowOrthoHalfSize = 45.0f;
-	float                               m_shadowNearZ = 1.0f;
-	float                               m_shadowFarZ = 160.0f;
-
-	D3D12_VIEWPORT                      m_shadowViewport = { 0.0f, 0.0f, 2048.0f, 2048.0f, 0.0f, 1.0f };
-	D3D12_RECT                          m_shadowScissorRect = { 0, 0, 2048, 2048 };
 	std::array<D3D12_CPU_DESCRIPTOR_HANDLE, 8> m_sceneRtvHandles = {};
 	D3D12_CPU_DESCRIPTOR_HANDLE                m_sceneDsvHandle = {};
 	UINT                                       m_sceneRenderTargetCount = 0;
