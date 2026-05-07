@@ -852,12 +852,6 @@ private:
 	bool AreAllMonstersInMegaGridDead(int megaGridNumber) const;
 	void UpdateMegaGridClearStateFromMonsterDeaths();
 
-	int GetMegaGridNumberForMonster(const CGameObject* monster) const;
-	int CountAliveMonstersInMegaGrid(int megaGridNumber) const;
-	bool IsStageCleared() const;
-	void TryLogStageCleared();
-	void LogMegaGridRemainingMonsterCountForMonster(const CGameObject* monster);
-
     std::array<CGameObject*, 3> m_demoFighters = { nullptr, nullptr, nullptr };
 
     std::vector<std::unique_ptr<CGameObject>> m_lightObjects;
@@ -990,7 +984,6 @@ private:
 	bool                                m_bShowShadowMapOverlay = true;
 
 	bool m_bLocalPlayerInsideCastleCenterMegaGrid = false;
-	bool m_bStageClearLogged = false;
 
 	bool GetPauseOverlayRect(XMFLOAT4& outRect) const;
 
