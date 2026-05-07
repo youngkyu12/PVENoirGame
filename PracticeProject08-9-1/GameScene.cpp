@@ -393,6 +393,9 @@ namespace
 	static constexpr int kCastleCenterMegaGridX = 1;
 	static constexpr int kCastleCenterMegaGridZ = 1;
 
+	// Castle 텔레포트는 총 4개 이상의 메가그리드가 클리어된 뒤부터 허용한다.
+	static constexpr int kRequiredClearedMegaGridCountForCastlePortal = 4;
+
 #ifndef USING_NETWORK
 	static constexpr int kTowerDoorPortalCooldownFrames = 30;
 	static constexpr float kTowerDoorPortalExitOffset = 2.0f;
@@ -1212,6 +1215,28 @@ bool CGameScene::IsTowerDoorPortalOnCooldown() const
 	return false;
 }
 
+int CGameScene::CountClearedMegaGrids() const
+{
+	int clearedCount = 0;
+
+	for ( int megaNumber = 1; megaNumber <= CSceneGrid::kMegaGridCount; ++megaNumber )
+	{
+		const int zeroBased = megaNumber - 1;
+		const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+		const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+		if ( m_sceneGrid.IsMegaGridCleared(megaX, megaZ) )
+			++clearedCount;
+	}
+
+	return clearedCount;
+}
+
+bool CGameScene::CanUseCastleDoorPortal() const
+{
+	return CountClearedMegaGrids() >= kRequiredClearedMegaGridCountForCastlePortal;
+}
+
 bool CGameScene::TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog)
 {
 	const bool shouldLog = kEnableTowerDoorPortalCollisionLog && forceLog;
@@ -1749,6 +1774,23 @@ bool CGameScene::TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog)
 bool CGameScene::TryTeleportLocalPlayerByCastleDoorPortal(bool forceLog)
 {
 	const bool shouldLog = kEnableTowerDoorPortalCollisionLog && forceLog;
+
+	if ( !CanUseCastleDoorPortal() )
+	{
+		if ( shouldLog )
+		{
+			char buf[256];
+			sprintf_s(
+				buf,
+				"[CastleDoorPortal][LOCKED] clearedMegaGrids=%d required=%d\n",
+				CountClearedMegaGrids(),
+				kRequiredClearedMegaGridCountForCastlePortal
+			);
+			OutputDebugStringA(buf);
+		}
+
+		return false;
+	}
 
 	if ( m_bLocalPlayerDead )
 		return false;
@@ -2962,7 +3004,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		}
 	}
 #else
-	m_localPlayerSlot = 3;
+	m_localPlayerSlot = 0;
 
 	const GameSceneStageFileSet& stageFiles = GetLocalStageFileSet(kLocalStagePreset);
 
