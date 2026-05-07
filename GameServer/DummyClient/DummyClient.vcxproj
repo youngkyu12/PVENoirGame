@@ -73,18 +73,22 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <IncludePath>$(SolutionDir)..\Common\ServerCore;$(SolutionDir)..\Common\BaseComponent;$(SolutionDir)..\Libraries\include;$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)..\Libraries\Libs;$(LibraryPath)</LibraryPath>
+    <PreBuildEventUseInBuild>false</PreBuildEventUseInBuild>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <IncludePath>$(SolutionDir)..\Common\ServerCore;$(SolutionDir)..\Common\BaseComponent;$(SolutionDir)..\Libraries\include;$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)..\Libraries\Libs;$(LibraryPath)</LibraryPath>
+    <PreBuildEventUseInBuild>false</PreBuildEventUseInBuild>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <IncludePath>$(SolutionDir)..\Common\ServerCore;$(SolutionDir)..\Common\BaseComponent;$(SolutionDir)..\Libraries\include;$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)..\Libraries\Libs;$(LibraryPath)</LibraryPath>
+    <PreBuildEventUseInBuild>false</PreBuildEventUseInBuild>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <IncludePath>$(SolutionDir)..\Common\ServerCore;$(SolutionDir)..\Common\BaseComponent;$(SolutionDir)..\Libraries\include;$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)..\Libraries\Libs;$(LibraryPath)</LibraryPath>
+    <PreBuildEventUseInBuild>false</PreBuildEventUseInBuild>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -174,6 +178,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="ServerPacketHandler.cpp" />
+    <ClCompile Include="DrawModule.cpp" />
     <ClCompile Include="DummyClient.cpp" />
     <ClCompile Include="Enum.pb.cc">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
@@ -202,6 +207,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="InitStruct.pb.h" />
+    <ClInclude Include="DummyClientWorldView.h" />
     <ClInclude Include="ServerPacketHandler.h" />
     <ClInclude Include="Enum.pb.h" />
     <ClInclude Include="pch.h" />
