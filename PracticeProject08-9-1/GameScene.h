@@ -12,7 +12,7 @@
 #include "Grid.h"
 #include "DepthFog.h"
 #include "GameSceneHUD.h"
-//#include "ShadowMap.h"
+#include "ShadowMap.h"
 
 #include <unordered_map>
 #include <unordered_set>
@@ -28,6 +28,7 @@ class CGameObject;
 class CCollisionSystem;
 class CTexture;
 class CNavMesh;
+class CStaticMeshRendererComponent;
 
 struct CB_GAMEOBJECT_INFO;
 struct AttachmentBindSpec
@@ -69,6 +70,111 @@ struct ItemBillboardInstanceVertex
 	UINT pad[3] = { 0, 0, 0 };
 };
 
+enum class EMuzzleFlashKind : UINT
+{
+	Core = 0,
+	Ring = 1,
+	Spark = 2,
+	Blood = 3,
+};
+
+struct MuzzleFlashInstanceVertex
+{
+	XMFLOAT4 world0 = XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f);
+	XMFLOAT4 world1 = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
+	XMFLOAT4 world2 = XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f);
+	XMFLOAT4 world3 = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+
+	// rgb = 색상, a = 전체 alpha 계수
+	XMFLOAT4 color = XMFLOAT4(1.0f, 0.65f, 0.12f, 1.0f);
+
+	// x = ageRatio, y = intensity, z = rotationRad, w = seed
+	XMFLOAT4 params0 = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
+
+	// x = kind (0=core, 1=ring, 2=spark)
+	// y = reserved
+	// z = reserved
+	// w = reserved
+	XMFLOAT4 params1 = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+};
+
+struct MuzzleFlashEntry
+{
+	bool active = false;
+	EMuzzleFlashKind kind = EMuzzleFlashKind::Core;
+
+	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT3 velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	float age = 0.0f;
+	float lifetime = 0.08f;
+
+	float startWidth = 0.65f;
+	float startHeight = 0.65f;
+
+	float endWidth = 1.25f;
+	float endHeight = 1.25f;
+
+	float rotationRad = 0.0f;
+	float intensity = 1.0f;
+	float drag = 0.0f;
+	float gravity = 0.0f;
+	float seed = 0.0f;
+
+	XMFLOAT4 color = XMFLOAT4(1.0f, 0.62f, 0.10f, 1.0f);
+};
+
+struct SwordTrailVertex
+{
+	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT2 uv = XMFLOAT2(0.0f, 0.0f);
+	XMFLOAT4 color = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+};
+
+struct SwordTrailSample
+{
+	XMFLOAT3 root = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT3 tip = XMFLOAT3(0.0f, 0.0f, 0.0f);
+};
+
+enum class EWeaponTrailKind : UINT
+{
+	Sword = 0,
+	Axe = 1,
+};
+
+struct SwordTrailEntry
+{
+	bool active = false;
+
+	EWeaponTrailKind kind = EWeaponTrailKind::Sword;
+
+	CGameObject* owner = nullptr;
+
+	// 이름은 SwordTrailEntry지만, 실제로는 검/도끼 공용 weapon trail로 사용한다.
+	CGameObject* weaponObject = nullptr;
+
+	float age = 0.0f;
+
+	float startDelay = 0.340f;
+	float sampleDuration = 0.240f;
+	float fadeDuration = 0.120f;
+
+	// 무기 local space에서 trail ribbon의 양 끝점.
+	// sword: 손잡이 쪽 ~ 칼끝
+	// axe: 도끼날 근처 짧은 구간
+	XMFLOAT3 rootLocal = XMFLOAT3(0.0f, 0.0f, 0.10f);
+	XMFLOAT3 tipLocal = XMFLOAT3(0.0f, 0.0f, 1.45f);
+
+	// root/tip 사이 폭 조절.
+	// 도끼는 날이 끝자락에만 있으므로 이 값을 줄이면 된다.
+	float widthScale = 1.0f;
+
+	XMFLOAT4 color = XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f);
+
+	std::vector<SwordTrailSample> samples;
+};
+
 enum class EItemBillboardKind : UINT
 {
 	Key = 0,
@@ -78,6 +184,9 @@ struct ItemBillboardEntry
 {
 	bool active = true;
 	bool distanceCulled = false;
+
+	// 추가: true면 transparent pass에서 그림
+	bool transparent = false;
 
 	EItemBillboardKind kind = EItemBillboardKind::Key;
 
@@ -103,6 +212,22 @@ struct StaticInstanceGroup
 
 	UINT instanceBufferStart = 0;
 	bool useTreeShader = false;
+
+	std::vector<UINT> visibleSceneObjectIndices;
+	std::vector<UINT> visibleShadowObjectIndices;
+};
+
+struct StaticRenderObjectCache
+{
+	CGameObject* object = nullptr;
+	CStaticMeshRendererComponent* renderer = nullptr;
+
+	bool dynamicWorldMatrix = false;
+
+	XMFLOAT4 world0 = XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f);
+	XMFLOAT4 world1 = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
+	XMFLOAT4 world2 = XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f);
+	XMFLOAT4 world3 = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
 };
 
 struct StaticWorldLodEntry
@@ -196,16 +321,6 @@ struct SkinnedInstanceGroup
 	bool useAlphaClipShader = false;
 };
 
-struct CB_SHADOW
-{
-	XMFLOAT4X4 shadowViewProj{};
-	XMFLOAT4X4 shadowTransform{};
-
-	XMFLOAT4 shadowLightPos = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
-	XMFLOAT4 shadowParams0 = XMFLOAT4(2048.0f, 0.0008f, 0.0040f, 1.0f);
-	XMUINT4  shadowParams1 = XMUINT4(UINT_MAX, 0u, 0u, 0u);
-};
-
 // ============================================================================
 // GameScene
 // ============================================================================
@@ -269,6 +384,13 @@ private:
 	void BindFrameRootParameters(ID3D12GraphicsCommandList* cmd);
 
 	void BuildStaticInstanceGroups();
+
+	void BuildStaticRenderObjectCache();
+	bool IsDynamicStaticRenderObject(const CGameObject* obj) const;
+	bool WriteStaticInstanceVertexFromCache(StaticInstanceVertex& dst, UINT objectIndex) const;
+	void BuildStaticVisibleListsForFrame(CCamera* camera);
+	void BuildStaticShadowVisibleListsForFrame();
+
 	void ResetStaticWorldLodEntries();
 
 	void ResetStaticOcclusionEntries();
@@ -301,6 +423,37 @@ private:
 
 	void UpdateItemBillboardDistanceCullSelection(CCamera* camera);
 	void RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	void RenderTransparentItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
+	void BuildMuzzleFlashBatch(
+		ID3D12Device* dev,
+		ID3D12GraphicsCommandList* cmd,
+		DXGI_FORMAT dsvFormat
+	);
+
+	void ReleaseMuzzleFlashGpuResources();
+
+	void SpawnMuzzleFlash(const XMFLOAT3& position, const XMFLOAT3& direction);
+	void SpawnBloodSplash(
+		CGameObject* victim,
+		const XMFLOAT3* hitPosition = nullptr,
+		const XMFLOAT3* hitDirection = nullptr
+	);
+	void UpdateMuzzleFlashes(float dt);
+	void RenderMuzzleFlashes(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
+	void BuildSwordTrailBatch(
+		ID3D12Device* dev,
+		ID3D12GraphicsCommandList* cmd,
+		DXGI_FORMAT dsvFormat
+	);
+
+	void ReleaseSwordTrailGpuResources();
+
+	void BeginSwordTrail(CGameObject* owner);
+	void BeginAxeTrail(CGameObject* owner);
+	void UpdateSwordTrails(float dt);
+	void RenderSwordTrails(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 	void UpdateItemBillboardPickupCollision();
 	bool DoesPlayerOverlapItemBillboard(const CGameObject* player, const ItemBillboardEntry& item) const;
@@ -326,6 +479,7 @@ private:
 	bool ComputeSkinnedWorldDistanceCulled(const XMFLOAT3& cameraPosition, const SkinnedWorldLodEntry& entry) const;
 	void UpdateSkinnedWorldLodSelection(CCamera* camera);
 	void RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	bool ShouldEvaluateSkinnedPoseThisFrame(UINT objectIndex, CCamera* camera) const;
 
     // Frame / Render
 public:
@@ -360,8 +514,9 @@ public:
 
     // Game-only API
 public:
-    void SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex);
+	void SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex);
 	void SetKeyItemDiffuseSrvIndex(UINT srvIndex);
+	void SetTransparentItemDiffuseSrvIndex(UINT srvIndex); 
 	void SetInactiveOverlayVisible(bool visible)
 	{
 		m_bInactiveOverlayVisible = visible;
@@ -520,10 +675,6 @@ private:
 	void BuildDepthFogResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
 	void RenderDepthFog(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
-	void BuildShadowResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
-	void UpdateShadowData();
-
-	bool IsWorldOOBBInsideShadowBox(const BoundingOrientedBox& box) const;
 	bool IsStaticObjectInsideShadowBox(UINT objectIndex) const;
 	bool IsSkinnedObjectInsideShadowBox(UINT objectIndex) const;
 
@@ -537,6 +688,10 @@ private:
 
     // slot 0..3 플레이어 포인터(소유는 m_skinnedObjects가 함)
     std::array<CGameObject*, 4> m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
+
+	std::array<bool, 4> m_playerFootstepTrackingValid = { false, false, false, false };
+	std::array<int, 4> m_playerFootstepMode = { 0, 0, 0, 0 }; // 0=None, 1=Walk, 2=Run
+	std::array<float, 4> m_playerFootstepPrevNormalizedTime = { 0.0f, 0.0f, 0.0f, 0.0f };
 
     int m_localPlayerSlot;
     // ------------------------------------------------------------------------
@@ -584,9 +739,12 @@ private:
 	SCENE_COLLIDER_BATCH m_colliderBatch;
 
 	static constexpr UINT kItemBillboardKeyMaterialId = MAX_MATERIALS - 1;
+	static constexpr UINT kTransparentItemBillboardMaterialId = MAX_MATERIALS - 2;
 	static constexpr UINT kKeyItemBillboardCount = 7;
 
 	std::shared_ptr<CItemBillboardShader> m_itemBillboardShader;
+	std::shared_ptr<CTransparentItemBillboardShader> m_transparentItemBillboardShader;
+
 	std::shared_ptr<CMesh>                m_itemBillboardQuadMesh;
 
 	std::vector<ItemBillboardEntry>       m_itemBillboards;
@@ -594,6 +752,33 @@ private:
 	ComPtr<ID3D12Resource>                m_pd3dItemBillboardInstanceBuffer;
 	ItemBillboardInstanceVertex* m_pMappedItemBillboardInstanceBuffer = nullptr;
 	UINT                                  m_itemBillboardInstanceBufferCapacity = 0;
+
+	ComPtr<ID3D12Resource>                m_pd3dTransparentItemBillboardInstanceBuffer;
+	ItemBillboardInstanceVertex* m_pMappedTransparentItemBillboardInstanceBuffer = nullptr;
+	UINT                                  m_transparentItemBillboardInstanceBufferCapacity = 0;
+
+	static constexpr UINT kMuzzleFlashMaxCount = 160;
+
+	std::shared_ptr<CMuzzleFlashBillboardShader> m_muzzleFlashShader;
+
+	std::vector<MuzzleFlashEntry> m_muzzleFlashes;
+
+	ComPtr<ID3D12Resource> m_pd3dMuzzleFlashInstanceBuffer;
+	MuzzleFlashInstanceVertex* m_pMappedMuzzleFlashInstanceBuffer = nullptr;
+	UINT m_muzzleFlashInstanceBufferCapacity = 0;
+
+	static constexpr UINT kSwordTrailMaxCount = 16;
+	static constexpr UINT kSwordTrailMaxSamples = 12;
+	static constexpr UINT kSwordTrailMaxVertices =
+		kSwordTrailMaxCount * kSwordTrailMaxSamples * 2;
+
+	std::shared_ptr<CSwordTrailShader> m_swordTrailShader;
+
+	std::vector<SwordTrailEntry> m_swordTrails;
+
+	ComPtr<ID3D12Resource> m_pd3dSwordTrailVertexBuffer;
+	SwordTrailVertex* m_pMappedSwordTrailVertexBuffer = nullptr;
+	UINT m_swordTrailVertexBufferCapacity = 0;
 
     std::vector<CGameObject*> m_swordManRefs;
     std::vector<CGameObject*> m_bowManRefs;
@@ -618,6 +803,7 @@ private:
 
 	std::array<CGameObject*, 4> m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr };
 	std::array<bool, 4> m_prevBowReleasePhase = { false, false, false, false };
+	std::array<bool, 4> m_prevBowLoadPhase = { false, false, false, false };
 	std::vector<CGameObject*> m_preparedBowmanArrows;
 	std::vector<bool> m_prevEnemyBowReleasePhase;
 
@@ -630,13 +816,19 @@ private:
 	void RequestPrepareBowmanArrow(CGameObject* bowman, float pullBackDistance);
 	void RequestReleasePreparedBowmanArrow(CGameObject* bowman, float speed, float lifeSec = 3.0f);
 	void RequestFireBullet(CGameObject* shooter, float speed, float lifeSec = 3.0f);
+	void RequestPlayerAttackSfx(CGameObject* player);
 
+	void UpdatePlayerBowSfxOnly();
 	void UpdatePreparedBowArrows();
 	void UpdateLocalPlayerDeathAndRespawn(float dt);
 	void BeginLocalPlayerDeath(CGameObject* player);
 	void RespawnLocalPlayer(CGameObject* player);
 	void SetLocalPlayerControlEnabled(bool enabled);
 	void CancelLocalPlayerPreparedActions();
+
+	void UpdatePlayerFootstepSfx();
+	void ResetPlayerFootstepSfxState();
+	void PlayPlayerFootstepSfx(CGameObject* player);
 
 	void UpdateMonsterDeathStates();
 	void BeginMonsterDeath(CGameObject* monster);
@@ -708,6 +900,8 @@ private:
 	std::unordered_map<std::string, std::unordered_map<std::string, std::vector<AuthoredSubMeshOOBB>>> mSceneCubeBoxColliderTable;
 
 	std::vector<StaticInstanceGroup>    m_staticInstanceGroups;
+	std::vector<StaticRenderObjectCache> m_staticRenderObjectCache;
+
 	std::vector<StaticWorldLodEntry>    m_staticWorldLodEntries;
 	std::vector<StaticOcclusionEntry>   m_staticOcclusionEntries;
 
@@ -759,22 +953,8 @@ private:
 	std::shared_ptr<CShadowMapAlphaClipSkinnedShader>     m_shadowAlphaClipSkinnedShader;
 
 	CGameSceneHUD                       m_hud;
-	ComPtr<ID3D12DescriptorHeap>        m_pd3dShadowDsvHeap;
-	ComPtr<ID3D12Resource>              m_pd3dShadowMap;
-	ComPtr<ID3D12Resource>              m_pd3dcbShadow;
-	CB_SHADOW* m_pcbMappedShadow = nullptr;
-	CB_SHADOW                           m_shadowData{};
+	CShadowMapSystem					m_shadowMap;
 
-	XMFLOAT4X4                          m_shadowView{};
-
-	UINT                                m_shadowMapSize = 2048;
-	UINT                                m_shadowMapSrvIndex = UINT_MAX;
-	float                               m_shadowOrthoHalfSize = 45.0f;
-	float                               m_shadowNearZ = 1.0f;
-	float                               m_shadowFarZ = 160.0f;
-
-	D3D12_VIEWPORT                      m_shadowViewport = { 0.0f, 0.0f, 2048.0f, 2048.0f, 0.0f, 1.0f };
-	D3D12_RECT                          m_shadowScissorRect = { 0, 0, 2048, 2048 };
 	std::array<D3D12_CPU_DESCRIPTOR_HANDLE, 8> m_sceneRtvHandles = {};
 	D3D12_CPU_DESCRIPTOR_HANDLE                m_sceneDsvHandle = {};
 	UINT                                       m_sceneRenderTargetCount = 0;
