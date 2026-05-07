@@ -386,7 +386,7 @@ namespace
 	static constexpr int kAttackPowerMutant = 20;
 	static constexpr int kAttackPowerBoss = 50;
 
-	static constexpr UINT kOfflineGhoulAICount = 0;
+	static constexpr UINT kOfflineGhoulAICount = 200;
 
 	static constexpr float kDisableVillageTreeCullPlayerHeight = 3.0f;
 
