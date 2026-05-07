@@ -435,48 +435,6 @@ private:
 	void UpdateSwordTrails(float dt);
 	void RenderSwordTrails(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
-	enum class EMuzzleFlashTuneTarget
-	{
-		CoreSizeScale,
-		CoreLifeScale,
-		CoreIntensityScale,
-
-		RingSizeScale,
-		RingLifeScale,
-		RingIntensityScale,
-
-		SparkCount,
-		SparkSpeedScale,
-		SparkLifeScale,
-		SparkDrag
-	};
-
-	EMuzzleFlashTuneTarget m_muzzleFlashTuneTarget =
-		EMuzzleFlashTuneTarget::CoreSizeScale;
-
-	// Core flash 2장에 공통 적용
-	float m_muzzleFlashTunedCoreSizeScale = 1.0f;
-	float m_muzzleFlashTunedCoreLifeScale = 1.0f;
-	float m_muzzleFlashTunedCoreIntensityScale = 1.0f;
-
-	// Ring에 적용
-	float m_muzzleFlashTunedRingSizeScale = 1.0f;
-	float m_muzzleFlashTunedRingLifeScale = 1.0f;
-	float m_muzzleFlashTunedRingIntensityScale = 1.0f;
-
-	// Spark에 적용
-	int   m_muzzleFlashTunedSparkCount = 4;
-	float m_muzzleFlashTunedSparkSpeedScale = 1.0f;
-	float m_muzzleFlashTunedSparkLifeScale = 1.0f;
-	float m_muzzleFlashTunedSparkDrag = 5.5f;
-
-	// 키 눌림 edge detection용
-	bool m_prevMuzzleFlashTuneKey8 = false;
-	bool m_prevMuzzleFlashTuneKey9 = false;
-	bool m_prevMuzzleFlashTuneKey0 = false;
-	bool m_prevMuzzleFlashTuneKeyO = false;
-	bool m_prevMuzzleFlashTuneKeyP = false;
-
 	void UpdateItemBillboardPickupCollision();
 	bool DoesPlayerOverlapItemBillboard(const CGameObject* player, const ItemBillboardEntry& item) const;
 
