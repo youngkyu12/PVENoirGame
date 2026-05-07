@@ -475,6 +475,7 @@ private:
 	UINT m_PlayerAxeCount = 4;
 	UINT m_PlayerGunCount = 4;
 	UINT m_ColliderCount = 0;
+	UINT m_SpawnObjectsCount = 0;
 
     std::vector<std::unique_ptr<CGameObject>> m_staticObjects;
     std::vector<std::unique_ptr<CGameObject>> m_skinnedObjects;

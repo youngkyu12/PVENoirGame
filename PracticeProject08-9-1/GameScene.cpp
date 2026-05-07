@@ -1186,6 +1186,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		m_PlayerCount = 4;
 #else
 	m_PlayerCount = 4;
+	m_SpawnObjectsCount = 200;
 #endif
 
 	m_PlayerSwordCount = m_PlayerCount;
@@ -1194,6 +1195,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_PlayerGunCount = m_PlayerCount;
 
 	m_helmetCount = m_MutantCount;
+
 
 #ifdef USING_NETWORK
 	const UINT worldStaticCount = static_cast< UINT >( m_staticPlacementEntries.size() );
@@ -1225,9 +1227,12 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
 	m_colliderBatch.capacity = m_staticBatch.capacity + m_skinnedBatch.capacity;
 
+	m_spawnBatch.capacity = m_SpawnObjectsCount;
+
 	m_staticBatch.count = 0;
 	m_skinnedBatch.count = 0;
 	m_colliderBatch.count = 0;
+	m_spawnBatch.count = 0;
 
 	CreateGraphicsRootSignature(dev);
 #ifndef USING_NETWORK
@@ -3383,81 +3388,126 @@ void CGameScene::BuildSpawnBatch(
 	if ( !dev || !cmd || !shader )
 		return;
 
-	m_SpawnObectsRefs.clear();
-	m_spawnObjects.clear();
-	m_spawnBatch.shader = shader;
-	m_spawnBatch.capacity = 200;
-	m_spawnBatch.count = 0;
-	m_spawnBatch.cbElementBytes = ( ( sizeof(CB_GAMEOBJECT_INFO) + 255 ) & ~255 );
+	auto* b = &m_skinnedBatch;
+	if ( !b ) return;
 
-	m_spawnBatch.cbGameObjects = ::CreateBufferResource(
+	const UINT cap = b->capacity;
+	if ( cap == 0 ) return;
+
+
+	b->shader = shader;
+
+	b->cbElementBytes = ( ( sizeof(CB_GAMEOBJECT_INFO) + 255 ) & ~255 );
+
+	b->cbGameObjects = ::CreateBufferResource(
 		dev, cmd, nullptr,
-		m_spawnBatch.cbElementBytes * m_spawnBatch.capacity,
+		b->cbElementBytes * cap,
 		D3D12_HEAP_TYPE_UPLOAD,
 		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
-		nullptr);
+		nullptr
+	);
+
 	if ( !m_spawnBatch.cbGameObjects )
 		return;
 
-	m_spawnBatch.cbGameObjects->Map(0, nullptr, reinterpret_cast< void** >( &m_spawnBatch.mappedGameObjects ));
-	m_spawnBatch.baseCbvGpu = CScene::m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
-	m_spawnBatch.cbvInc = ::gnCbvSrvDescriptorIncrementSize;
-	CScene::m_pDescriptorHeap->CreateConstantBufferViews(dev, m_spawnBatch.capacity, m_spawnBatch.cbGameObjects.Get(), m_spawnBatch.cbElementBytes);
+	b->cbGameObjects->Map(0, nullptr, ( void** ) &b->mappedGameObjects);
 
-	AssetBuildDesc enemyDesc{};
-	if ( !GetGameSceneAssetBuildDesc(EGameSceneAssetId::Ghoul, enemyDesc) )
-		return;
-	BuiltAsset enemyAsset = AssetManager::BuildAsset(dev, cmd, nullptr, enemyDesc);
-	const auto& enemyClips = GetGhoulClipEntries();
-	GameSceneObjectFactory::PreloadClipSet(enemyAsset.mesh.get(), "Ghoul", enemyClips);
+	b->baseCbvGpu = m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
+	b->cbvInc = ::gnCbvSrvDescriptorIncrementSize;
 
-	m_spawnObjects.reserve(m_spawnBatch.capacity);
-	m_SpawnObectsRefs.reserve(m_spawnBatch.capacity);
-	for ( UINT i = 0; i < m_spawnBatch.capacity; ++i )
-	{
-		GameSceneObjectFactory::SkinnedRenderableDesc createDesc{};
-		createDesc.ctx.device = dev;
-		createDesc.ctx.cmd = cmd;
-		createDesc.ctx.mappedGameObjectCB = reinterpret_cast< CB_GAMEOBJECT_INFO* >(reinterpret_cast< UINT8* >(m_spawnBatch.mappedGameObjects) + i * m_spawnBatch.cbElementBytes);
-		createDesc.ctx.cbvGpuHandle.ptr = m_spawnBatch.baseCbvGpu.ptr + static_cast< UINT64 >(i) * m_spawnBatch.cbvInc;
-		createDesc.mesh = enemyAsset.mesh;
-		createDesc.spawnHidden = true;
-		createDesc.addCollider = true;
-		createDesc.colliderType = EColliderType::BCapsule;
-		createDesc.colliderLayer = kCollisionLayerMonster;
-		createDesc.colliderMask = CollisionBit(kCollisionLayerPlayerWeapon);
-		createDesc.colliderEnabled = true;
-		createDesc.addAnimator = true;
-		createDesc.addActorTag = true;
-		createDesc.actorKind = EActorKind::NPC;
-		createDesc.playerControl = EPlayerControl::None;
-		createDesc.playerSlot = -1;
-		createDesc.addMonsterCombat = true;
-		createDesc.addMonsterWeaponHitbox = true;
-		createDesc.skeletonKey = "Ghoul";
-		createDesc.clipEntries = &enemyClips;
-		createDesc.initMonsterController = true;
-		createDesc.monsterInitialState = EMonsterAnimState::Idle;
-		createDesc.monsterProfile.idleClip = "Idle";
-		createDesc.monsterProfile.moveClip = "Walk";
-		createDesc.monsterProfile.runClip = "Run";
-		createDesc.monsterProfile.hitClip = "Hit";
-		createDesc.monsterProfile.attackClip = "Attack";
-		createDesc.monsterProfile.deathClip = "Death";
-		createDesc.useOwnerBoneWeaponCapsules = true;
-		createDesc.monsterWeaponConfigs.push_back(
-			{ "Attack", 0.20f, 0.55f, { "hand_r" } }
-		);
-		auto obj = GameSceneObjectFactory::CreateSkinnedRenderable(createDesc);
-		if ( !obj )
-			continue;
-		obj->SetActive(false);
-		m_SpawnObectsRefs.push_back(obj.get());
-		m_spawnObjects.push_back(std::move(obj));
-		++m_spawnBatch.count;
-	}
+	m_pDescriptorHeap->CreateConstantBufferViews(
+		dev,
+		cap,
+		b->cbGameObjects.Get(),
+		b->cbElementBytes
+	);
+
+	m_spawnObjects.clear();
+	m_spawnObjects.reserve(cap);
+
+	b->objectRefs.clear();
+	b->objectRefs.reserve(cap);
+
+	b->count = 0;
+
+	auto MakeSkinnedContext = [ & ] (UINT objectIndex)
+		{
+			GameSceneObjectFactory::CreateContext ctx{};
+			ctx.device = dev;
+			ctx.cmd = cmd;
+			ctx.mappedGameObjectCB =
+				reinterpret_cast< CB_GAMEOBJECT_INFO* >(
+					reinterpret_cast< UINT8* >( b->mappedGameObjects ) +
+					objectIndex * b->cbElementBytes
+				);
+			ctx.cbvGpuHandle.ptr =
+				b->baseCbvGpu.ptr + ( UINT64 ) objectIndex * b->cbvInc;
+			return ctx;
+		};
+
+	auto ApplyPlayerBodyCollider =
+		[ ] (GameSceneObjectFactory::SkinnedRenderableDesc& desc)
+		{
+			desc.addCollider = true;
+			desc.colliderType = EColliderType::BCapsule;
+			desc.colliderLayer = kCollisionLayerPlayer;
+			desc.colliderMask =
+				CollisionBit(kCollisionLayerWorldStatic) |
+				CollisionBit(kCollisionLayerMonsterWeapon);
+			desc.colliderEnabled = true;
+		};
+
+	auto ApplyMonsterBodyCollider =
+		[ ] (GameSceneObjectFactory::SkinnedRenderableDesc& desc)
+		{
+			desc.addCollider = true;
+			desc.colliderType = EColliderType::BCapsule;
+			desc.colliderLayer = kCollisionLayerMonster;
+			desc.colliderMask = CollisionBit(kCollisionLayerPlayerWeapon);
+			desc.colliderEnabled = true;
+		};
+
+	auto RegisterSkinnedCullEntry =
+		[this](
+			CGameObject* raw,
+			UINT objectIndex,
+			const char* assetName,
+			const XMFLOAT3& pos,
+			const std::array<std::shared_ptr<CMesh>, 3>& lodMeshes,
+			bool lodEnabled,
+			float lodDistance01,
+			float lodDistance12,
+			float cullDistance)
+		{
+			if ( !raw || !assetName || !assetName[0] )
+				return;
+
+			SkinnedWorldLodEntry entry{};
+			entry.object = raw;
+			entry.skinnedBatchObjectIndex = objectIndex;
+			entry.assetName = assetName;
+			entry.lodReferencePosition = pos;
+
+			entry.lodEnabled = lodEnabled;
+			entry.currentLod = 0;
+			entry.lodDistance01 = lodDistance01;
+			entry.lodDistance12 = lodDistance12;
+			entry.lodMeshes = lodMeshes;
+
+			entry.distanceCullEnabled = true;
+			entry.distanceCulled = false;
+			entry.cullDistance = cullDistance;
+
+			if ( !entry.lodMeshes[0] )
+				entry.lodMeshes[0] = raw->GetMeshShared(0);
+
+			m_skinnedWorldLodEntries.push_back(std::move(entry));
+		};
+
+	m_SpawnObectsRefs.clear();
+	m_SpawnObectsRefs.reserve(m_SpawnObjectsCount);
+
 }
-
 void CGameScene::BuildSkinnedBatch(
 	ID3D12Device* dev,
 	ID3D12GraphicsCommandList* cmd,
@@ -6209,6 +6259,12 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 	{
 		m_skinnedBatch.shader->Render(cmd, camera, &m_skinnedBatch);
 		RenderSkinnedInstanceGroups(cmd, camera);
+	}
+
+	if ( m_spawnBatch.shader )
+	{
+		m_spawnBatch.shader->Render(cmd, camera, &m_spawnBatch);
+		RenderSpawnInstanceGroups(cmd, camera);
 	}
 
 	RenderTerrainObjects(cmd, camera);
