@@ -455,28 +455,34 @@ void CGameFramework::ClearInputPause()
 
 bool CGameFramework::HandlePauseClick(UINT nMessageID, LPARAM lParam)
 {
-	if ((nMessageID != WM_LBUTTONDOWN) && (nMessageID != WM_RBUTTONDOWN))
+	if ( ( nMessageID != WM_LBUTTONDOWN ) && ( nMessageID != WM_RBUTTONDOWN ) )
 		return false;
 
-	if (!IsInputPauseActive())
+	if ( !IsInputPauseActive() )
 		return false;
 
-	CGameScene* gameScene = dynamic_cast<CGameScene*>(m_SceneManager.GetScene());
+	CGameScene* gameScene = dynamic_cast< CGameScene* >( m_SceneManager.GetScene() );
+	if ( !gameScene )
+		return true;
 
 	POINT ptClient = {};
 	ptClient.x = GET_X_LPARAM(lParam);
 	ptClient.y = GET_Y_LPARAM(lParam);
 
-	// GameScene이고 Pause UI 위를 클릭했으면 종료
-	if (gameScene && gameScene->IsPointInPauseOverlay(ptClient))
+	if ( gameScene->IsPointInResumeButton(ptClient) )
+	{
+		ClearInputPause();
+		return true;
+	}
+
+	if ( gameScene->IsPointInExitButton(ptClient) )
 	{
 		g_End.store(true);
 		::PostQuitMessage(0);
 		return true;
 	}
 
-	// Pause UI 바깥 클릭이면 입력정지 해제
-	ClearInputPause();
+	// Pause 배경 또는 빈 공간 클릭은 아무 일도 하지 않고 입력만 소비한다.
 	return true;
 }
 

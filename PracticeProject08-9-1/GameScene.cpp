@@ -6884,6 +6884,16 @@ bool CGameScene::IsPointInPauseOverlay(POINT clientPt) const
 	return m_hud.IsPointInPauseOverlay(clientPt);
 }
 
+bool CGameScene::IsPointInResumeButton(POINT clientPt) const
+{
+	return m_hud.IsPointInResumeButton(clientPt);
+}
+
+bool CGameScene::IsPointInExitButton(POINT clientPt) const
+{
+	return m_hud.IsPointInExitButton(clientPt);
+}
+
 void CGameScene::SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex)
 {
 	if ( !m_pMaterials )
