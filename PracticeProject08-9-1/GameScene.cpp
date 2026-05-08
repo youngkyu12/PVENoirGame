@@ -282,7 +282,7 @@ namespace
 	}
 
 	static constexpr XMFLOAT3 kLocalPlayerRespawnPosition =
-		XMFLOAT3(0.0f, 0.0f, -200.0f);
+		XMFLOAT3(0.0f, 0.0f, -100.0f);
 
 	static constexpr float kLocalPlayerRespawnDelay = 5.0f;
 
