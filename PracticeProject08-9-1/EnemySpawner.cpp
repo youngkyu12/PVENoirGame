@@ -23,12 +23,14 @@ void EnemySpawner::Initialize(const std::vector<CGameObject*>& spawnObjects)
 
 void EnemySpawner::Update(float deltaTime, const DirectX::XMFLOAT3& position)
 {
-	if ( deltaTime > 0.0f )
+
+	if ( deltaTime > 0.0f && mElapsedTime < 15.0f)
 		mElapsedTime += deltaTime;
 
-	if ( mElapsedTime > 10.0f ) {
+	if ( mElapsedTime > 10.0f && !flag) {
 		SetSpawnerPosition(position);
 		SpawnEnemy();
+		flag = true;
 	}
 
 }

@@ -27,6 +27,7 @@ public:
 private:
 	DirectX::XMFLOAT3 mSpawnerPosition = DirectX::XMFLOAT3(0.f, 0.f, 0.f);
 	float mElapsedTime = 0.0f;
+	bool flag = false;
 
 	std::vector<CGameObject*> m_SpawnObjects;
 	std::vector<size_t> m_freeList;

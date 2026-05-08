@@ -4638,6 +4638,8 @@ void CGameScene::BuildSpawnInstanceGroups()
 	}
 
 	m_spawnInstanceBufferCapacity = runningStart;
+}
+
 bool CGameScene::IsDynamicStaticRenderObject(const CGameObject* obj) const
 {
 	if ( !obj )
@@ -8213,7 +8215,7 @@ void CGameScene::AnimateObjects(float dt)
 	CGameObject* local = GetPlayer();
 	if ( !local )
 		local = GetPlayerBySlot(0);
-
+	
 	if ( m_enemySpawner )
 	{
 		m_enemySpawner->Update(dt, local->GetPosition());
