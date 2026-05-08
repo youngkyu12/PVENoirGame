@@ -4,21 +4,33 @@
 
 void EnemySpawner::Initialize(const std::vector<CGameObject*>& spawnObjects)
 {
-	mActiveEnemies = spawnObjects;
-	for ( CGameObject* enemy : mActiveEnemies )
+	m_SpawnObjects = spawnObjects;
+
+	m_freeList.clear();
+	m_freeList.reserve(m_SpawnObjects.size());
+
+	for ( size_t i = 0; i < m_SpawnObjects.size(); ++i )
 	{
-		if ( enemy )
-			enemy->SetActive(false);
+		CGameObject* enemy = m_SpawnObjects[i];
+
+		if ( !enemy )
+			continue;
+
+		enemy->SetActive(false);
+		m_freeList.push_back(i);
 	}
 }
 
-void EnemySpawner::Update(float deltaTime)
+void EnemySpawner::Update(float deltaTime, const DirectX::XMFLOAT3& position)
 {
 	if ( deltaTime > 0.0f )
 		mElapsedTime += deltaTime;
 
-	if ( mElapsedTime > 10.0f)
+	if ( mElapsedTime > 10.0f ) {
+		SetSpawnerPosition(position);
 		SpawnEnemy();
+	}
+
 }
 
 void EnemySpawner::SetSpawnerPosition(const DirectX::XMFLOAT3& position)
@@ -31,16 +43,22 @@ const DirectX::XMFLOAT3& EnemySpawner::GetSpawnerPosition() const
 	return mSpawnerPosition;
 }
 
-bool EnemySpawner::SpawnEnemy()
+CGameObject* EnemySpawner::SpawnEnemy()
 {
-	CGameObject* enemy = mActiveEnemies.back();
-	if ( enemy == nullptr )
-		return false;
+	if ( m_freeList.empty() )
+		return nullptr;
 
-	enemy->SetPosition(mSpawnerPosition);
+	size_t index = m_freeList.back();
+	m_freeList.pop_back();
+
+	CGameObject* enemy = m_SpawnObjects[index];
+
+	if ( !enemy )
+		return nullptr;
+
 	enemy->SetActive(true);
 
-	return true;
+	return enemy;
 }
 
 int EnemySpawner::SpawnEnemies(int count)
@@ -65,18 +83,18 @@ void EnemySpawner::RemoveEnemy(CGameObject* enemy)
 	if ( !enemy )
 		return;
 
-	auto it = std::find(mActiveEnemies.begin(), mActiveEnemies.end(), enemy);
-	if ( it == mActiveEnemies.end() )
+	auto it = std::find(m_SpawnObjects.begin(), m_SpawnObjects.end(), enemy);
+	if ( it == m_SpawnObjects.end() )
 		return;
 	(*it)->SetActive(false);
 }
 
 const std::vector<CGameObject*>& EnemySpawner::GetActiveEnemies() const
 {
-	return mActiveEnemies;
+	return m_SpawnObjects;
 }
 
 int EnemySpawner::GetActiveEnemyCount() const
 {
-	return static_cast< int >( mActiveEnemies.size() );
+	return static_cast< int >( m_SpawnObjects.size() );
 }

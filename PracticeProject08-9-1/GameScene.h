@@ -263,6 +263,7 @@ private:
 	void RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 	void BuildSkinnedInstanceGroups();
+	void BuildSpawnInstanceGroups();
 	void ResetSkinnedWorldLodEntries();
 
 	void ResetSkinnedOcclusionEntries();
@@ -280,6 +281,10 @@ private:
 	void RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	void RenderTerrainObjects(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	void RenderSpawnInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
+	//spawn
+	void ResetSpawnWorldLodEntries();
+
 
     // Frame / Render
 public:
@@ -661,6 +666,7 @@ private:
 
 	bool GetPauseOverlayRect(XMFLOAT4& outRect) const;
 
+	// skinned
 	std::vector<SkinnedInstanceGroup>   m_skinnedInstanceGroups;
 
 	ComPtr<ID3D12Resource>              m_pd3dSkinnedInstanceBuffer;
@@ -697,7 +703,17 @@ private:
 	XMFLOAT4X4* m_pMappedSkinnedBonePaletteBuffer = nullptr;
 	UINT                                m_skinnedBonePaletteStride = 0;
 	UINT                                m_skinnedBonePaletteCapacity = 0;
-	
+
+	// spawn
+	std::vector<SkinnedInstanceGroup>   m_spawnInstanceGroups;
+
+	std::vector<SkinnedWorldLodEntry>   m_spawnWorldLodEntries;
+	std::vector<uint8_t>                m_spawnDistanceCullFlags;
+
+	bool                                m_spawnWorldLodDirty = false;
+
+	UINT                                m_spawnInstanceBufferCapacity = 0;
+
 	void BuildStaticWorldSubmeshOOBBDebugObjects(
 	ID3D12Device* dev,
 	ID3D12GraphicsCommandList* cmd
