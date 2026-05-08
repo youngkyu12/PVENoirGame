@@ -11,12 +11,12 @@ public:
 
 public:
 	void Initialize(const std::vector<CGameObject*>& spawnObjects);
-	void Update(float deltaTime);
+	void Update(float deltaTime, const DirectX::XMFLOAT3& position);
 
 public:
 	void SetSpawnerPosition(const DirectX::XMFLOAT3& position);
 	const DirectX::XMFLOAT3& GetSpawnerPosition() const;
-	bool SpawnEnemy();
+	CGameObject* SpawnEnemy();
 	int SpawnEnemies(int count = 30);
 	void RemoveEnemy(CGameObject* enemy);
 
@@ -28,5 +28,6 @@ private:
 	DirectX::XMFLOAT3 mSpawnerPosition = DirectX::XMFLOAT3(0.f, 0.f, 0.f);
 	float mElapsedTime = 0.0f;
 
-	std::vector<CGameObject*> mActiveEnemies;
+	std::vector<CGameObject*> m_SpawnObjects;
+	std::vector<size_t> m_freeList;
 };

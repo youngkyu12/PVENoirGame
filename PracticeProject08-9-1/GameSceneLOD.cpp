@@ -390,3 +390,12 @@ void CGameScene::UpdateSkinnedWorldLodSelection(CCamera* camera)
 		m_skinnedWorldLodDirty = false;
 	}
 }
+
+// spawn
+
+void CGameScene::ResetSpawnWorldLodEntries()
+{
+	m_spawnWorldLodEntries.clear();
+	m_spawnDistanceCullFlags.clear();
+	m_spawnWorldLodDirty = false;
+}

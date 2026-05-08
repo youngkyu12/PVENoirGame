@@ -1352,13 +1352,6 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	if ( !local ) 
 		local = GetPlayerBySlot(0);
 
-	if ( m_enemySpawner && local )
-	{
-		const XMFLOAT3 playerPos = local->GetPosition();
-		
-		m_enemySpawner->SetSpawnerPosition(	playerPos);
-	}
-
 	CreateMainCamera(dev, cmd, local);
 	//InitShadowMap(dev, cmd);
 	BuildObjectsCollider();
@@ -2851,6 +2844,70 @@ void CGameScene::BuildSkinnedInstanceGroups()
 	m_skinnedInstanceBufferCapacity = runningStart;
 }
 
+void CGameScene::BuildSpawnInstanceGroups()
+{
+	m_spawnInstanceGroups.clear();
+
+	for ( UINT objectIndex = 0; objectIndex < ( UINT ) m_spawnBatch.objectRefs.size(); ++objectIndex )
+	{
+		CGameObject* obj = m_spawnBatch.objectRefs[objectIndex];
+		if ( !obj ) continue;
+
+		const int meshCount = obj->GetMeshCount();
+		for ( int meshIndex = 0; meshIndex < meshCount; ++meshIndex )
+		{
+			std::shared_ptr<CMesh> mesh = obj->GetMeshShared(meshIndex);
+			if ( !mesh ) continue;
+
+			std::string geometryKey = mesh->GetSourceMeshPath();
+			if ( geometryKey.empty() )
+			{
+				char buf[64];
+				sprintf_s(buf, "meshptr_%p", mesh.get());
+				geometryKey = buf;
+			}
+
+			for ( UINT subMeshIndex = 0; subMeshIndex < ( UINT ) mesh->m_SubMeshes.size(); ++subMeshIndex )
+			{
+				SkinnedInstanceGroup* targetGroup = nullptr;
+
+				for ( SkinnedInstanceGroup& group : m_spawnInstanceGroups )
+				{
+					if ( group.mesh.get() == mesh.get() &&
+						 group.meshIndex == ( UINT ) meshIndex &&
+						 group.subMeshIndex == subMeshIndex )
+					{
+						targetGroup = &group;
+						break;
+					}
+				}
+
+				if ( !targetGroup )
+				{
+					SkinnedInstanceGroup newGroup{};
+					newGroup.geometryKey = geometryKey;
+					newGroup.mesh = mesh;
+					newGroup.subMeshIndex = subMeshIndex;
+					newGroup.meshIndex = ( UINT ) meshIndex;
+					m_spawnInstanceGroups.push_back(std::move(newGroup));
+					targetGroup = &m_spawnInstanceGroups.back();
+				}
+
+				targetGroup->objectIndices.push_back(objectIndex);
+			}
+		}
+	}
+
+	UINT runningStart = 0;
+	for ( SkinnedInstanceGroup& group : m_spawnInstanceGroups )
+	{
+		group.instanceBufferStart = runningStart;
+		runningStart += ( UINT ) group.objectIndices.size();
+	}
+
+	m_spawnInstanceBufferCapacity = runningStart;
+}
+
 void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	PROFILE_RENDER_SCOPE("GameScene::RenderStaticInstanceGroups");
@@ -2979,23 +3036,98 @@ void CGameScene::RenderSpawnInstanceGroups(ID3D12GraphicsCommandList* cmd, CCame
 		return;
 	if ( !m_enemySpawner )
 		return;
-	if ( !m_spawnBatch.shader )
-		return;
 
-	const std::vector<CGameObject*>& activeEnemies = m_enemySpawner->GetActiveEnemies();
-	for ( CGameObject* enemy : activeEnemies )
+	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	for ( const SkinnedInstanceGroup& group : m_spawnInstanceGroups )
 	{
-		if ( !enemy || !enemy->IsActive() )
-			continue;
+		if ( !group.mesh ) continue;
+		if ( group.subMeshIndex >= group.mesh->m_SubMeshes.size() ) continue;
 
-		CRendererComponent* renderer = enemy->GetRenderer();
-		if ( renderer && !renderer->IsEnabled() )
-			continue;
+		const SubMesh& repSm = group.mesh->m_SubMeshes[group.subMeshIndex];
+		if ( repSm.indices.empty() ) continue;
 
-		enemy->Render(cmd, camera);
+		const UINT maxInstanceCount = ( UINT ) group.objectIndices.size();
+		if ( maxInstanceCount == 0 ) continue;
+
+		const UINT instanceBase = group.instanceBufferStart;
+		if ( ( instanceBase + maxInstanceCount ) > m_skinnedInstanceBufferCapacity ) continue;
+
+		UINT visibleInstanceCount = 0;
+
+		for ( UINT i = 0; i < maxInstanceCount; ++i )
+		{
+			const UINT objectIndex = group.objectIndices[i];
+			if ( objectIndex >= ( UINT ) m_spawnBatch.objectRefs.size() ) continue;
+
+			CGameObject* obj = m_spawnBatch.objectRefs[objectIndex];
+			if ( !obj || !obj->IsActive() ) continue;
+			if ( !obj->IsVisible(camera) ) continue;
+
+			auto* renderer = obj->GetComponent<CSkinnedMeshRendererComponent>();
+			if ( !renderer || !renderer->IsEnabled() ) continue;
+
+			auto* skin = obj->GetComponent<CSkinningComponent>();
+			if ( !skin || !skin->IsSkinned() ) continue;
+
+			std::shared_ptr<CMesh> objMesh = obj->GetMeshShared(( int ) group.meshIndex);
+			if ( !objMesh ) continue;
+			if ( objMesh.get() != group.mesh.get() ) continue;
+			if ( group.subMeshIndex >= objMesh->m_SubMeshes.size() ) continue;
+
+			const SubMesh& objSm = objMesh->m_SubMeshes[group.subMeshIndex];
+
+			SkinnedInstanceVertex& dst =
+				m_pMappedSkinnedInstanceBuffer[instanceBase + visibleInstanceCount];
+
+			const XMFLOAT4X4& W = obj->GetWorldMatrix();
+
+			dst.world0 = XMFLOAT4(W._11, W._12, W._13, W._14);
+			dst.world1 = XMFLOAT4(W._21, W._22, W._23, W._24);
+			dst.world2 = XMFLOAT4(W._31, W._32, W._33, W._34);
+			dst.world3 = XMFLOAT4(W._41, W._42, W._43, W._44);
+			dst.materialId = ( objSm.materialId == 0xFFFFFFFFu ) ? 0u : objSm.materialId;
+
+			const UINT paletteBase = ( UINT ) ( instanceBase + visibleInstanceCount ) * m_skinnedBonePaletteStride;
+			dst.bonePaletteBase = paletteBase;
+
+			const XMFLOAT4X4* srcBoneMats = skin->GetMappedBoneMatrices();
+			const UINT boneCount = ( UINT ) skin->GetBoneCount();
+
+			if ( srcBoneMats && boneCount > 0 )
+			{
+				memcpy(
+					m_pMappedSkinnedBonePaletteBuffer + dst.bonePaletteBase,
+					srcBoneMats,
+					sizeof(XMFLOAT4X4) * boneCount
+				);
+			}
+
+			++visibleInstanceCount;
+		}
+
+		if ( visibleInstanceCount == 0 ) continue;
+
+		D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
+		vbViews[0] = repSm.vbView;
+		vbViews[1].BufferLocation =
+			m_pd3dSkinnedInstanceBuffer->GetGPUVirtualAddress() +
+			( UINT64 ) ( sizeof(SkinnedInstanceVertex) * instanceBase );
+		vbViews[1].SizeInBytes = sizeof(SkinnedInstanceVertex) * visibleInstanceCount;
+		vbViews[1].StrideInBytes = sizeof(SkinnedInstanceVertex);
+
+		cmd->IASetVertexBuffers(0, 2, vbViews);
+		cmd->IASetIndexBuffer(&repSm.ibView);
+
+		cmd->DrawIndexedInstanced(
+			( UINT ) repSm.indices.size(),
+			visibleInstanceCount,
+			0,
+			0,
+			0
+		);
 	}
 }
-
 void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	if ( !cmd ) return;
@@ -3505,6 +3637,8 @@ void CGameScene::BuildSpawnBatch(
 	m_SpawnObectsRefs.clear();
 	m_SpawnObectsRefs.reserve(m_SpawnObjectsCount);
 
+	ResetSpawnWorldLodEntries();
+
 #ifdef USING_NETWORK
 	GameStartData gameStartData{};
 	if ( std::holds_alternative<GameStartData>(m_pendingNetworkMessage.data) )
@@ -3526,43 +3660,10 @@ void CGameScene::BuildSpawnBatch(
 
 	UINT enemyIndex = 0;
 
-#ifndef USING_NETWORK
-	auto GatherLocalMonsterSpawns = [ this ] (const char* typeName)
-		{
-			std::vector<const MonsterSpawnEntry*> result;
-			result.reserve(m_monsterSpawnEntries.size());
-
-			for ( const MonsterSpawnEntry& entry : m_monsterSpawnEntries )
-			{
-				if ( entry.type == typeName )
-					result.push_back(&entry);
-			}
-
-			std::sort(
-				result.begin(),
-				result.end(),
-				[ ] (const MonsterSpawnEntry* a, const MonsterSpawnEntry* b)
-				{
-					return a->index < b->index;
-				}
-			);
-
-			return result;
-		};
-
-	const auto ghoulSpawns = GatherLocalMonsterSpawns("Ghoul");
-#endif
-
 	// ------------------------------------------------------------------------
 	// Ghoul
 	// ------------------------------------------------------------------------
 	{
-#ifdef USING_NETWORK
-		const UINT countW = m_ghoulCount;
-#else
-		const UINT countW = static_cast< UINT >( ghoulSpawns.size() );
-#endif
-
 		const auto& ghoulClips = GetGhoulClipEntries();
 
 		std::array<std::shared_ptr<CMesh>, 3> ghoulLodMeshes = { nullptr, nullptr, nullptr };
@@ -3604,7 +3705,7 @@ void CGameScene::BuildSpawnBatch(
 			ghoulClips
 		);
 
-		for ( UINT k = 0; k < countW; ++k )
+		for ( UINT k = 0; k < m_SpawnObjectsCount; ++k )
 		{
 			if ( b->objectRefs.size() >= b->capacity ) break;
 
@@ -3612,17 +3713,6 @@ void CGameScene::BuildSpawnBatch(
 
 			XMFLOAT3 pos{};
 			float yaw = 180.0f;
-
-#ifdef USING_NETWORK
-			if ( !GetNetworkEnemySpawn(enemyIndex, pos, yaw) )
-				break;
-#else
-			if ( k >= ghoulSpawns.size() )
-				break;
-
-			pos = ghoulSpawns[k]->pos;
-			yaw = ghoulSpawns[k]->yawDeg;
-#endif
 
 			GameSceneObjectFactory::SkinnedRenderableDesc createDesc{};
 			createDesc.ctx = MakeSkinnedContext(i);
@@ -3672,6 +3762,7 @@ void CGameScene::BuildSpawnBatch(
 		}
 	}
 
+	BuildSpawnInstanceGroups();
 }
 
 void CGameScene::BuildSkinnedBatch(
@@ -5935,8 +6026,14 @@ void CGameScene::AnimateObjects(float dt)
 {
 	m_fElapsedTime = dt;
 
+	CGameObject* local = GetPlayer();
+	if ( !local )
+		local = GetPlayerBySlot(0);
+
 	if ( m_enemySpawner )
-		m_enemySpawner->Update(dt);
+	{
+		m_enemySpawner->Update(dt, local->GetPosition());
+	}
     
 	// ------------------------------------------------------------------------
     // FrameSnapshot에서 좌표 업데이트
@@ -6166,6 +6263,23 @@ void CGameScene::AnimateObjects(float dt)
 			continue;
 
 		m_skinnedObjects[j]->Animate(dt);
+	}
+
+	for ( UINT j = 0; j < ( UINT ) m_spawnObjects.size(); ++j )
+	{
+		if ( !m_spawnObjects[j] )
+			continue;
+
+		if ( j < ( UINT ) m_spawnDistanceCullFlags.size() )
+		{
+			if ( m_spawnDistanceCullFlags[j] != 0 )
+				continue;
+		}
+
+		if ( camera && !m_spawnObjects[j]->IsVisible(camera) )
+			continue;
+
+		m_spawnObjects[j]->Animate(dt);
 	}
 
 	for ( UINT j = 0; j < ( UINT ) m_staticObjects.size(); ++j )
@@ -6538,4 +6652,9 @@ void CGameScene::BuildObjectsCollider()
     {
         m_Collision->RegisterCollider(obj->GetComponent<CColliderComponent>());
     }
+    for (auto& obj : m_spawnObjects)
+    {
+        m_Collision->RegisterCollider(obj->GetComponent<CColliderComponent>());
+    }
+
 }
