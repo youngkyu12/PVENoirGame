@@ -5534,6 +5534,25 @@ void CGameScene::BuildSkinnedBatch(
 			return ctx;
 		};
 
+#ifndef USING_NETWORK
+	auto AttachGhoulAIToMonster =
+		[ this ] (std::unique_ptr<CGameObject>& obj)
+		{
+			if ( !obj )
+				return;
+
+			if ( obj->GetComponent<CGhoulAIComponent>() )
+				return;
+
+			auto* ghoulAI = obj->AddComponent<CGhoulAIComponent>();
+			if ( ghoulAI )
+			{
+				ghoulAI->SetScene(this);
+				ghoulAI->SetEnabledAI(true);
+			}
+		};
+#endif
+
 	auto ApplyPlayerBodyCollider =
 		[ ] (GameSceneObjectFactory::SkinnedRenderableDesc& desc)
 		{
@@ -5795,15 +5814,7 @@ void CGameScene::BuildSkinnedBatch(
 				continue;
 
 #ifndef USING_NETWORK
-			if ( k < kOfflineGhoulAICount )
-			{
-				auto* ghoulAI = obj->AddComponent<CGhoulAIComponent>();
-				if ( ghoulAI )
-				{
-					ghoulAI->SetScene(this);
-					ghoulAI->SetEnabledAI(true);
-				}
-			}
+			AttachGhoulAIToMonster(obj);
 #endif
 
 			++enemyIndex;
@@ -5904,6 +5915,10 @@ void CGameScene::BuildSkinnedBatch(
 			auto obj = GameSceneObjectFactory::CreateSkinnedRenderable(createDesc);
 			if ( !obj )
 				continue;
+
+#ifndef USING_NETWORK
+			AttachGhoulAIToMonster(obj);
+#endif
 
 			++enemyIndex;
 
@@ -6012,6 +6027,10 @@ void CGameScene::BuildSkinnedBatch(
 			auto obj = GameSceneObjectFactory::CreateSkinnedRenderable(createDesc);
 			if ( !obj )
 				continue;
+
+#ifndef USING_NETWORK
+			AttachGhoulAIToMonster(obj);
+#endif
 
 			++enemyIndex;
 
@@ -6127,6 +6146,10 @@ void CGameScene::BuildSkinnedBatch(
 			auto obj = GameSceneObjectFactory::CreateSkinnedRenderable(createDesc);
 			if ( !obj )
 				continue;
+
+#ifndef USING_NETWORK
+			AttachGhoulAIToMonster(obj);
+#endif
 
 			++enemyIndex;
 
@@ -6253,6 +6276,10 @@ void CGameScene::BuildSkinnedBatch(
 			auto obj = GameSceneObjectFactory::CreateSkinnedRenderable(createDesc);
 			if ( !obj )
 				continue;
+
+#ifndef USING_NETWORK
+			AttachGhoulAIToMonster(obj);
+#endif
 
 			++enemyIndex;
 
