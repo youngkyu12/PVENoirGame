@@ -74,6 +74,13 @@ private:
 	bool IsInputPauseActive() const;
 	void UpdateAudioListener();
 
+	bool IsGameSceneActive() const;
+	bool ShouldLockGameCursor() const;
+	POINT GetClientCenterScreenPoint() const;
+	void LockGameCursor();
+	void UnlockGameCursor();
+	void UpdateGameCursorLock();
+
 	bool								m_sceneSwitchPending = false;
 	ESceneId							m_pendingScene = ESceneId::Menu;
 	bool								m_sceneSwitchReadyToApply = false;
@@ -141,6 +148,7 @@ private:
 	bool								m_bWindowActive = true;
 	bool								m_bConsumeNextMouseClick = false;
 	bool								m_bUserPaused = false;
+	bool								m_bGameCursorLocked = false;
 	
 	bool HandlePauseClick(UINT nMessageID, LPARAM lParam);
 	void ClearInputPause();
