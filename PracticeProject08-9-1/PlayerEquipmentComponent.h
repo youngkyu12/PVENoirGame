@@ -5,10 +5,17 @@
 
 #include <array>
 #include <cstdint>
+#include <vector>
 
 #include "Component.h"
 
 class CGameObject;
+class CAudioManager;
+
+namespace FMOD
+{
+	class Channel;
+}
 
 enum class EWeaponType : uint8_t
 {
@@ -81,4 +88,82 @@ private:
 
     // actually equipped weapon
     EWeaponType m_equippedWeapon = EWeaponType::None;
+
+public:
+	void OnUpdate(float dt) override;
+
+	void SetAudioManager(CAudioManager* audioManager) { m_audioManager = audioManager; }
+
+public:
+	bool RequestSwordAttackWhoosh();
+	bool RequestAxeAttackWhoosh();
+	bool RequestRollSfx(uint32_t dirBits);
+	bool RequestBowLoadingSfx();
+	bool RequestBowReleaseSfx();
+	bool RequestGunShotSfx();
+
+	bool RequestBowReleaseSfxFromLoadPhase();
+
+private:
+	enum class EPendingPlayerSfxKind : uint8_t
+	{
+		None = 0,
+		SwordWhoosh,
+		AxeWhoosh,
+		Roll,
+		BowLoading,
+		BowRelease,
+		GunShot
+	};
+
+	struct ActivePlayerSfx
+	{
+		EPendingPlayerSfxKind kind = EPendingPlayerSfxKind::None;
+		FMOD::Channel* channel = nullptr;
+
+		CGameObject* followTarget = nullptr;
+
+		XMFLOAT3 prevPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		bool hasPrevPosition = false;
+	};
+
+private:
+	void SchedulePlayerSfx(
+		EPendingPlayerSfxKind kind,
+		const char* soundPath,
+		float delaySeconds,
+		float volume
+	);
+
+	void PlayPendingPlayerSfx();
+
+	static int SelectSwordWhooshIndex();
+	static const char* GetSwordWhooshPath(int index);
+	static float GetSwordWhooshDelaySeconds(int index);
+
+	static const char* GetAxeWhooshPath();
+	static const char* GetRollSfxPath();
+	static const char* GetBowLoadingSfxPath();
+	static const char* GetBowReleaseSfxPath();
+	static const char* GetGunShotSfxPath(int index);
+	static int SelectGunShotIndex();
+
+	std::vector<ActivePlayerSfx> m_activeSfxList;
+
+	void UpdateActivePlayerSfx();
+	bool ShouldFollowOwnerForSfx(EPendingPlayerSfxKind kind) const;
+
+private:
+	struct PendingPlayerSfx
+	{
+		EPendingPlayerSfxKind kind = EPendingPlayerSfxKind::None;
+		const char* path = nullptr;
+		float timer = 0.0f;
+		float originalDelay = 0.0f;
+		float volume = 1.0f;
+	};
+	CAudioManager* m_audioManager = nullptr;
+
+	std::vector<PendingPlayerSfx> m_pendingSfxList;
+	void PlayPendingPlayerSfxAt(size_t index);
 };

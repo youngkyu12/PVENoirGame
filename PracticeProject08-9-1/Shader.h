@@ -185,6 +185,73 @@ public:
 	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext = nullptr);
 };
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+
+class CItemBillboardShader final : public CStaticObjectsShader
+{
+public:
+	CItemBillboardShader() = default;
+	~CItemBillboardShader() override = default;
+
+public:
+	D3D12_INPUT_LAYOUT_DESC CreateInputLayout() override;
+	D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob) override;
+	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
+	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
+};
+
+class CTransparentItemBillboardShader final : public CStaticObjectsShader
+{
+public:
+	CTransparentItemBillboardShader() = default;
+	~CTransparentItemBillboardShader() override = default;
+
+public:
+	D3D12_INPUT_LAYOUT_DESC CreateInputLayout() override;
+	D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob) override;
+	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
+
+	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
+	D3D12_BLEND_DESC CreateBlendState() override;
+	D3D12_DEPTH_STENCIL_DESC CreateDepthStencilState() override;
+};
+
+class CMuzzleFlashBillboardShader final : public CStaticObjectsShader
+{
+public:
+	CMuzzleFlashBillboardShader() = default;
+	~CMuzzleFlashBillboardShader() override = default;
+
+public:
+	D3D12_INPUT_LAYOUT_DESC CreateInputLayout() override;
+	D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob) override;
+	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
+
+	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
+	D3D12_BLEND_DESC CreateBlendState() override;
+	D3D12_DEPTH_STENCIL_DESC CreateDepthStencilState() override;
+};
+
+class CSwordTrailShader final : public CStaticObjectsShader
+{
+public:
+	CSwordTrailShader() = default;
+	~CSwordTrailShader() override = default;
+
+public:
+	D3D12_INPUT_LAYOUT_DESC CreateInputLayout() override;
+	D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob) override;
+	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
+
+	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
+	D3D12_BLEND_DESC CreateBlendState() override;
+	D3D12_DEPTH_STENCIL_DESC CreateDepthStencilState() override;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+
 class CShadowMapStaticShader : public CStaticObjectsShader
 {
 public:
@@ -246,13 +313,7 @@ public:
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// -----------------------------------------------------------------------------
-// UI Shader (2D)
-//  - Reuse VSTextured/PSTextured
-//  - Alpha blending enabled
-//  - Depth test disabled
-//  - Cull disabled
-// -----------------------------------------------------------------------------
+
 class CUIShader : public CTexturedShader
 {
 public:
@@ -398,16 +459,6 @@ public:
 	void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd, void* pContext) override;
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-class CShadowShader : public CShader
-{
-public:
-	virtual D3D12_INPUT_LAYOUT_DESC CreateInputLayout();
-	virtual D3D12_RASTERIZER_DESC CreateRasterizerState();
-	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob);
-	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob);
-};
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class CDepthFogShader final : public CTextureToFullScreenShader
 {

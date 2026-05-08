@@ -3,13 +3,21 @@
 #include <vector>
 #include <unordered_map>
 #include <string>
+#include <functional>
 
 class CColliderComponent;
+class CGameObject;
 
 class CCollisionSystem
 {
 public:
+	using HitEffectCallback =
+		std::function<void(CGameObject* weaponObject, CGameObject* targetObject)>;
+
+public:
 	explicit CCollisionSystem();
+
+	void SetHitEffectCallback(HitEffectCallback callback);
 
 	void OnUpdate();
 
@@ -28,4 +36,6 @@ private:
 
 private:
 	std::vector<CColliderComponent*> mColliders;
+
+	HitEffectCallback mHitEffectCallback;
 };

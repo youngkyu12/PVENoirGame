@@ -19,6 +19,8 @@
 
 #include "ArrowComponent.h"
 #include "BulletComponent.h"
+#include "HealthComponent.h"
+#include "AttackPowerComponent.h"
 
 namespace
 {
@@ -93,6 +95,12 @@ std::unique_ptr<CGameObject> GameSceneObjectFactory::CreateStaticRenderable(cons
 		auto* collider = obj->AddComponent<CColliderComponent>(desc.colliderType);
 		if ( collider )
 		{
+			collider->SetColliderBuildLogEnabled(
+				desc.debugColliderBuildLog,
+				desc.debugColliderAssetName,
+				desc.debugColliderObjectName
+			);
+
 			if ( desc.configureColliderFiltering )
 			{
 				collider->SetLayer(desc.colliderLayer);
@@ -118,6 +126,13 @@ std::unique_ptr<CGameObject> GameSceneObjectFactory::CreateStaticRenderable(cons
 	if ( desc.addMonsterWeaponHitbox )
 		obj->AddComponent<CMonsterWeaponHitboxComponent>();
 
+	if ( desc.addAttackPower )
+	{
+		auto* attack = obj->AddComponent<CAttackPowerComponent>();
+		if ( attack )
+			attack->SetAttackPower(desc.attackPower);
+	}
+
 	if ( desc.spawnHidden )
 	{
 		obj->SetPosition(0.0f, -10000.0f, 0.0f);
@@ -127,6 +142,7 @@ std::unique_ptr<CGameObject> GameSceneObjectFactory::CreateStaticRenderable(cons
 		obj->SetPosition(desc.position);
 		obj->Rotate(0.0f, desc.yawDeg, 0.0f);
 	}
+
 
 	obj->SetCbvGPUDescriptorHandlePtr(desc.ctx.cbvGpuHandle.ptr);
 	obj->CreateComponents(desc.ctx.device, desc.ctx.cmd);
@@ -183,6 +199,20 @@ std::unique_ptr<CGameObject> GameSceneObjectFactory::CreateSkinnedRenderable(con
 	CMonsterWeaponHitboxComponent* monsterWeaponHitbox = nullptr;
 	if ( desc.addMonsterWeaponHitbox )
 		monsterWeaponHitbox = obj->AddComponent<CMonsterWeaponHitboxComponent>();
+
+	if ( desc.addHealth )
+	{
+		auto* hp = obj->AddComponent<CHealthComponent>();
+		if ( hp )
+			hp->SetMaxHp(desc.maxHp, true);
+	}
+
+	if ( desc.addAttackPower )
+	{
+		auto* attack = obj->AddComponent<CAttackPowerComponent>();
+		if ( attack )
+			attack->SetAttackPower(desc.attackPower);
+	}
 
 	if ( desc.addActorTag )
 	{

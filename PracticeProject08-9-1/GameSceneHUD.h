@@ -20,6 +20,8 @@ public:
 	);
 
 	void Render(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	
+	void SetHealthRatio(float ratio);
 
 	void SetInactiveOverlayVisible(bool visible);
 	bool IsInactiveOverlayVisible() const { return m_inactiveOverlayVisible; }
@@ -31,5 +33,10 @@ private:
 	CSceneUI m_ui;
 
 	int m_pauseSpriteIndex = -1;
+	int m_hpFillSpriteIndex = -1;
+
+	XMFLOAT4 m_hpFillOriginalRect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	float m_healthRatio = 1.0f;
+
 	bool m_inactiveOverlayVisible = false;
 };

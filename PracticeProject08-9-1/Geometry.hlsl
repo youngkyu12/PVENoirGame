@@ -1,9 +1,11 @@
+//Geometry.hlsl
 #ifndef __GEOMETRY_HLSL__
 #define __GEOMETRY_HLSL__
 
 #include "Common.hlsl"
 #include "MaterialTexture.hlsl"
 #include "Lighting.hlsl"
+#include "RenderTypes.hlsl"
 
 struct VS_INPUT
 {
@@ -69,39 +71,6 @@ float4 PSTextured(VS_TEXTURED_OUTPUT input, uint nPrimitiveID : SV_PrimitiveID) 
     return diffuseSample * mat.m_cDiffuse;
 }
 
-struct VS_TEXTURED_LIGHTING_INPUT
-{
-    float3 position : POSITION;
-    float3 normal : NORMAL;
-    float2 uv : TEXCOORD;
-    float4 tangent : TANGENT;
-};
-
-struct VS_TEXTURED_LIGHTING_INSTANCED_INPUT
-{
-    float3 position : POSITION;
-    float3 normal : NORMAL;
-    float2 uv : TEXCOORD;
-    float4 tangent : TANGENT;
-
-    float4 instWorld0 : INSTANCE_WORLD0;
-    float4 instWorld1 : INSTANCE_WORLD1;
-    float4 instWorld2 : INSTANCE_WORLD2;
-    float4 instWorld3 : INSTANCE_WORLD3;
-    uint instObjectId : INSTANCE_OBJECT_ID0;
-};
-
-struct VS_TEXTURED_LIGHTING_OUTPUT
-{
-    float4 position : SV_POSITION;
-    float3 positionW : POSITION;
-    float3 normalW : NORMAL;
-    float2 uv : TEXCOORD;
-    float4 tangentW : TANGENT;
-    nointerpolation uint materialId : MATERIAL_ID;
-    float4 shadowPosH : TEXCOORD1;
-};
-
 VS_TEXTURED_LIGHTING_OUTPUT VSTexturedLighting(VS_TEXTURED_LIGHTING_INPUT input)
 {
     VS_TEXTURED_LIGHTING_OUTPUT output;
@@ -142,42 +111,6 @@ VS_TEXTURED_LIGHTING_OUTPUT VSTexturedLightingInstanced(VS_TEXTURED_LIGHTING_INS
 
     return output;
 }
-
-struct VS_OCCLUSION_STATIC_OUTPUT
-{
-    float4 position : SV_POSITION;
-};
-
-VS_OCCLUSION_STATIC_OUTPUT VSStaticOcclusionInstanced(VS_TEXTURED_LIGHTING_INSTANCED_INPUT input)
-{
-    VS_OCCLUSION_STATIC_OUTPUT output;
-
-    float4x4 mtxInstanceWorld = float4x4(
-        input.instWorld0,
-        input.instWorld1,
-        input.instWorld2,
-        input.instWorld3
-    );
-
-    float3 positionW = (float3) mul(float4(input.position, 1.0f), mtxInstanceWorld);
-    output.position = mul(mul(float4(positionW, 1.0f), gmtxView), gmtxProjection);
-
-    return output;
-}
-
-float4 PSOcclusionOpaque(VS_OCCLUSION_STATIC_OUTPUT input) : SV_TARGET
-{
-    return float4(0.0f, 0.0f, 0.0f, 0.0f);
-}
-
-struct PS_MULTIPLE_RENDER_TARGETS_OUTPUT
-{
-    float4 color : SV_TARGET0;
-    float4 cTexture : SV_TARGET1;
-    float4 cIllumination : SV_TARGET2;
-    float4 normal : SV_TARGET3;
-    float zDepth : SV_TARGET4;
-};
 
 PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
     VS_TEXTURED_LIGHTING_OUTPUT input,
@@ -297,4 +230,5 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs_AlphaClip(
 
     return output;
 }
+
 #endif

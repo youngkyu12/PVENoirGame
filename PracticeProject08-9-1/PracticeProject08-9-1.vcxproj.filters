@@ -158,6 +158,12 @@
     <Filter Include="SceneUI">
       <UniqueIdentifier>{82bffcad-a59b-4e2f-b10f-ef814845d86f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Components\Health&amp;AttackPower">
+      <UniqueIdentifier>{a7c1173c-5085-4756-ba9a-40b4a0386bbf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ShadowMap">
+      <UniqueIdentifier>{4004a651-92e4-4af2-b222-2eb75c2e37e5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animator.h">
@@ -335,7 +341,6 @@
     <ClInclude Include="MonsterWeaponHitboxComponent.h">
       <Filter>Components\WeaponHitboxComponent</Filter>
     </ClInclude>
-    <ClInclude Include="ShadowMap.h" />
     <ClInclude Include="AudioManager.h">
       <Filter>AudioManager</Filter>
     </ClInclude>
@@ -372,6 +377,15 @@
     </ClInclude>
     <ClInclude Include="EnemyPool.h" />
     <ClInclude Include="EnemySpawner.h" />
+    <ClInclude Include="HealthComponent.h">
+      <Filter>Components\Health&amp;AttackPower</Filter>
+    </ClInclude>
+    <ClInclude Include="AttackPowerComponent.h">
+      <Filter>Components\Health&amp;AttackPower</Filter>
+    </ClInclude>
+    <ClInclude Include="ShadowMap.h">
+      <Filter>ShadowMap</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -518,7 +532,6 @@
     <ClCompile Include="MonsterWeaponHitboxComponent.cpp">
       <Filter>Components\WeaponHitboxComponent</Filter>
     </ClCompile>
-    <ClCompile Include="ShadowMap.cpp" />
     <ClCompile Include="AudioManager.cpp">
       <Filter>AudioManager</Filter>
     </ClCompile>
@@ -561,6 +574,18 @@
     </ClCompile>
     <ClCompile Include="EnemyPool.cpp" />
     <ClCompile Include="EnemySpawner.cpp" />
+    <ClCompile Include="HealthComponent.cpp">
+      <Filter>Components\Health&amp;AttackPower</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneBillboard.cpp">
+      <Filter>Scene\GameScene</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneAudio.cpp">
+      <Filter>Scene\GameScene</Filter>
+    </ClCompile>
+    <ClCompile Include="ShadowMap.cpp">
+      <Filter>ShadowMap</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PracticeProject08-9-1.rc">
@@ -612,7 +637,21 @@
     <None Include="Lighting.hlsl">
       <Filter>Resource\HLSL</Filter>
     </None>
-    <None Include="Shadows.hlsl" />
+    <None Include="Billboard.hlsl">
+      <Filter>Resource\HLSL</Filter>
+    </None>
+    <None Include="Occlusion.hlsl">
+      <Filter>Resource\HLSL</Filter>
+    </None>
+    <None Include="RenderTypes.hlsl">
+      <Filter>Resource\HLSL</Filter>
+    </None>
+    <None Include="DepthFog.hlsl">
+      <Filter>Resource\HLSL</Filter>
+    </None>
+    <None Include="Shadows.hlsl">
+      <Filter>Resource\HLSL</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shadow.hlsl">

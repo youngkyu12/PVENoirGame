@@ -1,7 +1,12 @@
+//Shaders.hlsl
 #include "Common.hlsl"
 #include "MaterialTexture.hlsl"
 #include "Lighting.hlsl"
+#include "RenderTypes.hlsl"
 #include "Geometry.hlsl"
+#include "Occlusion.hlsl"
+#include "Billboard.hlsl"
 #include "Skinned.hlsl"
 #include "PostProcess.hlsl"
-#include "Shadow.hlsl"
+#include "DepthFog.hlsl"
+#include "Shadows.hlsl"

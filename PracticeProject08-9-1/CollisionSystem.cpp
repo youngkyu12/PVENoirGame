@@ -12,6 +12,8 @@
 #include "AnimController.h"
 #include "ArrowComponent.h"
 #include "BulletComponent.h"
+#include "HealthComponent.h"
+#include "AttackPowerComponent.h"
 
 #include <string>
 #include <sstream>
@@ -110,6 +112,11 @@ namespace
 
 CCollisionSystem::CCollisionSystem()
 {
+}
+
+void CCollisionSystem::SetHitEffectCallback(HitEffectCallback callback)
+{
+	mHitEffectCallback = std::move(callback);
 }
 
 void CCollisionSystem::RegisterCollider(CColliderComponent* c)
@@ -253,10 +260,64 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 			}
 		};
 
+	auto GetAttackPower = [ ] (CGameObject* weaponObject) -> int
+		{
+			if ( !weaponObject )
+				return 0;
+
+			auto* attack = weaponObject->GetComponent<CAttackPowerComponent>();
+			if ( !attack )
+				return 0;
+
+			return attack->GetAttackPower();
+		};
+
+	auto IsDeadByHealth = [ ] (CGameObject* obj) -> bool
+		{
+			if ( !obj )
+				return true;
+
+			auto* hp = obj->GetComponent<CHealthComponent>();
+			if ( !hp )
+				return false;
+
+			return hp->IsDead();
+		};
+
+	auto ApplyDamage = [ & ] (CGameObject* weaponObject, CGameObject* targetObject) -> bool
+		{
+			if ( !weaponObject || !targetObject )
+				return false;
+
+			if ( IsDeadByHealth(targetObject) )
+				return false;
+
+			const int damage = GetAttackPower(weaponObject);
+			if ( damage <= 0 )
+				return false;
+
+			auto* hp = targetObject->GetComponent<CHealthComponent>();
+			if ( !hp )
+				return false;
+
+			return hp->TakeDamage(damage);
+		};
+	auto EmitHitEffect = [ this ](
+		CGameObject* weaponObject,
+		CGameObject* targetObject)
+		{
+			if ( mHitEffectCallback )
+				mHitEffectCallback(weaponObject, targetObject);
+		};
+
 	auto NotifyMonsterHit = [ & ] (CGameObject* weaponObject, CGameObject* monsterObject)
 		{
 			if ( !weaponObject || !monsterObject )
 				return;
+
+			if ( IsDeadByHealth(monsterObject) )
+				return;
+
 			auto DeactivateProjectileIfNeeded = [ ] (CGameObject* weaponObj)
 				{
 					if ( !weaponObj ) return;
@@ -280,25 +341,44 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 					return;
 
 				auto* combat = monsterObject->GetComponent<CMonsterCombatComponent>();
-				if ( !combat )
-					return;
+				auto* hp = monsterObject->GetComponent<CHealthComponent>();
 
-				combat->OnHitByPlayerWeapon(weaponObject, kTestForceDeathOnHit);
+				const bool damaged = ApplyDamage(weaponObject, monsterObject);
+
+				const bool deadByHp = ( hp && hp->IsDead() );
+
+				if ( damaged )
+					EmitHitEffect(weaponObject, monsterObject);
+
+				if ( combat )
+					combat->OnHitByPlayerWeapon(weaponObject, kTestForceDeathOnHit || deadByHp);
+
 				hitbox->MarkHitTarget(monsterObject);
 				DeactivateProjectileIfNeeded(weaponObject);
 				return;
 			}
 
 			auto* combat = monsterObject->GetComponent<CMonsterCombatComponent>();
-			if ( !combat )
-				return;
+			auto* hp = monsterObject->GetComponent<CHealthComponent>();
 
-			combat->OnHitByPlayerWeapon(weaponObject, kTestForceDeathOnHit);
+			const bool damaged = ApplyDamage(weaponObject, monsterObject);
+
+			const bool deadByHp = ( hp && hp->IsDead() );
+
+			if ( damaged )
+				EmitHitEffect(weaponObject, monsterObject);
+
+			if ( combat )
+				combat->OnHitByPlayerWeapon(weaponObject, kTestForceDeathOnHit || deadByHp);
+
 			DeactivateProjectileIfNeeded(weaponObject);
 		};
 
 	auto NotifyPlayerHit = [ & ] (CGameObject* weaponObject, CGameObject* playerObject)
 		{
+			if ( IsDeadByHealth(playerObject) )
+				return;
+
 			if ( !weaponObject || !playerObject )
 				return;
 
@@ -324,17 +404,35 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 				if ( !hitbox->CanHitTarget(playerObject) )
 					return;
 
+				const bool damaged = ApplyDamage(weaponObject, playerObject);
+
+				const bool deadAfterHit = IsDeadByHealth(playerObject);
+
+				if ( damaged )
+					EmitHitEffect(weaponObject, playerObject);
+
 #ifndef USING_NETWORK
-				RequestPlayerHitAnimation(playerObject);
+				if ( !deadAfterHit )
+					RequestPlayerHitAnimation(playerObject);
 #endif
+
 				hitbox->MarkHitTarget(playerObject);
 				DeactivateProjectileIfNeeded(weaponObject);
 				return;
 			}
 
+			const bool damaged = ApplyDamage(weaponObject, playerObject);
+
+			const bool deadAfterHit = IsDeadByHealth(playerObject);
+
+			if ( damaged )
+				EmitHitEffect(weaponObject, playerObject);
+
 #ifndef USING_NETWORK
-			RequestPlayerHitAnimation(playerObject);
+			if ( !deadAfterHit )
+				RequestPlayerHitAnimation(playerObject);
 #endif
+
 			DeactivateProjectileIfNeeded(weaponObject);
 		};
 
