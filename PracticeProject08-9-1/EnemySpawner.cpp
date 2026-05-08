@@ -57,7 +57,7 @@ CGameObject* EnemySpawner::SpawnEnemy()
 		return nullptr;
 
 	enemy->SetActive(true);
-
+	enemy->SetPosition(mSpawnerPosition);
 	return enemy;
 }
 
