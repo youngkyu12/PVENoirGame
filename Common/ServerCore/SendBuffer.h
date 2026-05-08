@@ -33,7 +33,7 @@ class SendBufferChunk : public enable_shared_from_this<SendBufferChunk>
 	enum
 	{
 		// TODO: AOI처리 이후에는 다시 줄여야 함
-		SEND_BUFFER_CHUNK_SIZE = 2 * 8192
+		SEND_BUFFER_CHUNK_SIZE = 3 * 8192
 	};
 
 public:
