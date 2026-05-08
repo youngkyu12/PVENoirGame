@@ -15,6 +15,9 @@ void CGameSceneHUD::ReleaseResources()
 	m_ui.ReleaseResources();
 
 	m_pauseSpriteIndex = -1;
+	m_resumeSpriteIndex = -1;
+	m_exitSpriteIndex = -1;
+
 	m_hpFillSpriteIndex = -1;
 	m_hpFillOriginalRect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 	m_healthRatio = 1.0f;
@@ -28,7 +31,10 @@ void CGameSceneHUD::BuildResources(
 	ID3D12RootSignature* rootSignature)
 {
 	m_ui.BuildShader(dev, cmd, rootSignature);
+
 	m_pauseSpriteIndex = -1;
+	m_resumeSpriteIndex = -1;
+	m_exitSpriteIndex = -1;
 
 	// --------------------------------------------------------------------
 	// UI layout tuning block
@@ -74,16 +80,58 @@ void CGameSceneHUD::BuildResources(
 
 	// --------------------------------------------------------------------
 	// Pause layer
+	// rect = (centerX, centerY, width, height)
 	// --------------------------------------------------------------------
-	m_pauseSpriteIndex = m_ui.AddFitSprite(
+	const float screenW = static_cast< float >( FRAME_BUFFER_WIDTH );
+	const float screenH = static_cast< float >( FRAME_BUFFER_HEIGHT );
+
+	const XMFLOAT4 pauseRect(
+		screenW * 0.5f,
+		screenH * 0.5f,
+		screenW,
+		screenH
+	);
+
+	const XMFLOAT4 resumeRect(
+		screenW * 0.5f,
+		screenH * 0.43f,
+		screenW * 0.40f,
+		screenH * 0.16f
+	);
+
+	const XMFLOAT4 exitRect(
+		screenW * 0.5f,
+		screenH * 0.66f,
+		screenW * 0.40f,
+		screenH * 0.16f
+	);
+
+	m_pauseSpriteIndex = m_ui.AddSprite(
 		dev,
 		cmd,
 		"Pause",
 		L"Assets/UI/Pause.dds",
-		FRAME_BUFFER_WIDTH * 0.5f,
-		FRAME_BUFFER_HEIGHT * 0.5f,
-		static_cast< float >( FRAME_BUFFER_WIDTH ),
-		static_cast< float >( FRAME_BUFFER_HEIGHT ),
+		pauseRect,
+		CSceneUI::ELayer::Pause,
+		true
+	);
+
+	m_resumeSpriteIndex = m_ui.AddSprite(
+		dev,
+		cmd,
+		"Resume",
+		L"Assets/UI/Resume.dds",
+		resumeRect,
+		CSceneUI::ELayer::Pause,
+		true
+	);
+
+	m_exitSpriteIndex = m_ui.AddSprite(
+		dev,
+		cmd,
+		"Exit",
+		L"Assets/UI/Exit.dds",
+		exitRect,
 		CSceneUI::ELayer::Pause,
 		true
 	);
@@ -132,7 +180,27 @@ bool CGameSceneHUD::GetPauseOverlayRect(XMFLOAT4& outRect) const
 	return m_ui.GetSpriteRect(m_pauseSpriteIndex, outRect);
 }
 
+bool CGameSceneHUD::GetResumeButtonRect(XMFLOAT4& outRect) const
+{
+	return m_ui.GetSpriteRect(m_resumeSpriteIndex, outRect);
+}
+
+bool CGameSceneHUD::GetExitButtonRect(XMFLOAT4& outRect) const
+{
+	return m_ui.GetSpriteRect(m_exitSpriteIndex, outRect);
+}
+
 bool CGameSceneHUD::IsPointInPauseOverlay(POINT clientPt) const
 {
 	return m_ui.IsPointInSprite(m_pauseSpriteIndex, clientPt);
+}
+
+bool CGameSceneHUD::IsPointInResumeButton(POINT clientPt) const
+{
+	return m_ui.IsPointInSprite(m_resumeSpriteIndex, clientPt);
+}
+
+bool CGameSceneHUD::IsPointInExitButton(POINT clientPt) const
+{
+	return m_ui.IsPointInSprite(m_exitSpriteIndex, clientPt);
 }

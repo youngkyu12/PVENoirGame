@@ -1041,6 +1041,8 @@ private:
 	ID3D12GraphicsCommandList* cmd
 	);
 public:
-    bool IsPointInPauseOverlay(POINT clientPt) const;
+	bool IsPointInPauseOverlay(POINT clientPt) const;
+	bool IsPointInResumeButton(POINT clientPt) const;
+	bool IsPointInExitButton(POINT clientPt) const;
 
 };
