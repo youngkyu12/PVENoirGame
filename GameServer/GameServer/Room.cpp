@@ -175,7 +175,7 @@ bool Room::LoadMonsterSpawnEntries(std::vector<MonsterSpawnEntry>& outEntries)
 	outEntries.clear();
 
 	const std::vector<std::string> candidates = {
-		"MapFIle/monster_spawn_points_little.txt",
+		"MapFIle/monster_spawn_points.txt",
 		"MapFIle/monster_spawn_points.txt",
 		"GameServer/MapFIle/monster_spawn_points_little.txt",
 		"GameServer/MapFIle/monster_spawn_points.txt",
