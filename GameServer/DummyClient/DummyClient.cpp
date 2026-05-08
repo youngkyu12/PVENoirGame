@@ -4,10 +4,7 @@
 #include "Session.h"
 #include "BufferReader.h"
 #include "ServerPacketHandler.h"
-
-void RegisterStressSession(PacketSessionRef session);
-void UnregisterStressSession(PacketSessionRef session);
-void TickStressTest();
+#include "DummyClientWorldView.h"
 
 char sendData[] = "Hello World";
 
@@ -76,11 +73,16 @@ int main()
 			});
 	}
 
-	while (true)
-	{
-		TickStressTest();
-		this_thread::sleep_for(50ms);
-	}
+	GThreadManager->Launch([=]()
+		{
+			while (true)
+			{
+				TickStressTest();
+				this_thread::sleep_for(50ms);
+			}
+		});
+
+	RunDrawModule();
 
 	GThreadManager->Join();
 }
