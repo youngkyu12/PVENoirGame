@@ -54,6 +54,10 @@ namespace
 			outMin = XMFLOAT3(-1.0f, 0.0f, -1.0f);
 			outMax = XMFLOAT3(1.0f, 6.0f, 1.0f);
 			return;
+        case Protocol::BUILDING_TYPE_CASTLE:
+			outMin = XMFLOAT3(-8.0f, 0.0f, -8.0f);
+			outMax = XMFLOAT3(8.0f, 10.0f, 8.0f);
+			return;
 		default:
 			outMin = XMFLOAT3(-1.5f, 0.0f, -1.5f);
 			outMax = XMFLOAT3(1.5f, 3.5f, 1.5f);

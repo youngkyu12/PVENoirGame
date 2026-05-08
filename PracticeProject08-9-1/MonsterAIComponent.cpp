@@ -15,6 +15,7 @@
 #include "AnimController.h"
 #include "MonsterAnimController.h"
 #include "ActorTagComponent.h"
+#include "HealthComponent.h"
 
 namespace
 {
@@ -28,6 +29,18 @@ namespace
 	static float DistanceXZ(const XMFLOAT3& a, const XMFLOAT3& b)
 	{
 		return std::sqrt(DistanceSqXZ(a, b));
+	}
+
+	static bool IsDeadByHealth(const CGameObject* obj)
+	{
+		if ( !obj )
+			return true;
+
+		auto* hp = obj->GetComponent<CHealthComponent>();
+		if ( !hp )
+			return false;
+
+		return hp->IsDead();
 	}
 
 	static bool IsNearlyZero(float v)
@@ -54,6 +67,13 @@ void CMonsterAIComponent::OnUpdate(float dt)
 
 	if ( !GetOwner() )
 		return;
+
+	if ( IsDeadByHealth(GetOwner()) )
+	{
+		ClearTarget();
+		ClearPath();
+		return;
+	}
 
 	if ( !m_pScene )
 		return;
@@ -100,12 +120,16 @@ bool CMonsterAIComponent::HasValidTarget() const
 	if ( !m_pTarget )
 		return false;
 
+	if ( auto* hp = m_pTarget->GetComponent<CHealthComponent>() )
+	{
+		if ( hp->IsDead() )
+			return false;
+	}
+
 	auto* tag = m_pTarget->GetComponent<CActorTagComponent>();
 	if ( !tag )
 		return true;
 
-	// 죽은 대상 제외 정도는 추후 확장 가능.
-	// 현재는 pointer validity 위주로만 본다.
 	return true;
 }
 
@@ -323,7 +347,9 @@ bool CMonsterAIComponent::CanMoveNow() const
 
 bool CMonsterAIComponent::CanThinkNow() const
 {
-	// 추후 death state 체크 가능
+	if ( IsDeadByHealth(GetOwner()) )
+		return false;
+
 	return true;
 }
 

@@ -5,7 +5,91 @@
 #include "ColliderComponent.h"
 #include "Object.h"
 #include "AnimatorComponent.h"
+
 #include <unordered_set>
+#include <sstream>
+#include <iomanip>
+
+namespace
+{
+	static std::string DebugFloat3(const XMFLOAT3& v)
+	{
+		std::ostringstream oss;
+		oss << std::fixed << std::setprecision(4)
+			<< "(" << v.x << ", " << v.y << ", " << v.z << ")";
+		return oss.str();
+	}
+
+	static std::string DebugFloat4(const XMFLOAT4& v)
+	{
+		std::ostringstream oss;
+		oss << std::fixed << std::setprecision(6)
+			<< "(" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ")";
+		return oss.str();
+	}
+
+	static void DebugPrintLine(const std::string& text)
+	{
+		OutputDebugStringA(text.c_str());
+		OutputDebugStringA("\n");
+	}
+
+	static void DebugPrintOOBBLine(
+		const char* tag,
+		const std::string& assetName,
+		const std::string& objectName,
+		const std::string& meshName,
+		const std::string& authoringPath,
+		size_t meshSetIndex,
+		size_t subIndex,
+		const BoundingOrientedBox& box)
+	{
+		std::ostringstream oss;
+		oss << "[ColliderBuild][" << tag << "] "
+			<< "asset=\"" << assetName << "\" "
+			<< "object=\"" << objectName << "\" "
+			<< "meshSet=" << meshSetIndex << " "
+			<< "sub=" << subIndex << " "
+			<< "mesh=\"" << meshName << "\" "
+			<< "authoringPath=\"" << authoringPath << "\" "
+			<< "center=" << DebugFloat3(box.Center) << " "
+			<< "extents=" << DebugFloat3(box.Extents) << " "
+			<< "size=" << DebugFloat3(XMFLOAT3(
+				box.Extents.x * 2.0f,
+				box.Extents.y * 2.0f,
+				box.Extents.z * 2.0f)) << " "
+			<< "rot=" << DebugFloat4(box.Orientation);
+
+		DebugPrintLine(oss.str());
+	}
+
+	static void DebugPrintMessage(
+		const char* tag,
+		const std::string& assetName,
+		const std::string& objectName,
+		const std::string& message)
+	{
+		std::ostringstream oss;
+		oss << "[ColliderBuild][" << tag << "] "
+			<< "asset=\"" << assetName << "\" "
+			<< "object=\"" << objectName << "\" "
+			<< message;
+
+		DebugPrintLine(oss.str());
+	}
+
+	static bool IsCastleSubMeshOOBBExcluded(const std::string& assetName, const std::string& meshName)
+	{
+		if ( assetName != "Castle" )
+			return false;
+
+		return
+			meshName == "Carpet" ||
+			meshName == "Carpet1" ||
+			meshName == "Carpet2" ||
+			meshName == "Floor";
+	}
+}
 
 BoundingOrientedBox CColliderComponent::MakeLocalOOBB(const XMFLOAT3& Min, const XMFLOAT3& Max)
 {
@@ -25,6 +109,16 @@ BoundingOrientedBox CColliderComponent::MakeLocalOOBB(const XMFLOAT3& Min, const
 
 	box.Orientation = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
 	return box;
+}
+
+void CColliderComponent::SetColliderBuildLogEnabled(
+	bool enabled,
+	const std::string& assetName,
+	const std::string& objectName)
+{
+	mDebugColliderBuildLogEnabled = enabled;
+	mDebugColliderAssetName = assetName;
+	mDebugColliderObjectName = objectName;
 }
 
 BoundingOrientedBox CColliderComponent::MakeAuthoredLocalOOBB(
@@ -293,23 +387,149 @@ void CColliderComponent::BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>&
 	mMeshOOBBSets.clear();
 	mMeshOOBBSets.reserve(meshes.size());
 
-	for ( const shared_ptr<CMesh>& mesh : meshes )
+	const bool logEnabled = mDebugColliderBuildLogEnabled;
+
+	if ( logEnabled )
 	{
-		if ( !mesh ) continue;
+		DebugPrintMessage(
+			"BEGIN",
+			mDebugColliderAssetName,
+			mDebugColliderObjectName,
+			" BuildHierarchicalOOBBs begin"
+		);
+
+		std::ostringstream oss;
+		oss << " meshCount=" << meshes.size()
+			<< " authoredPathGroupCount=" << mStaticSubMeshAuthoredOOBBs.size();
+
+		DebugPrintMessage(
+			"INPUT",
+			mDebugColliderAssetName,
+			mDebugColliderObjectName,
+			oss.str()
+		);
+	}
+
+	for ( size_t meshIndex = 0; meshIndex < meshes.size(); ++meshIndex )
+	{
+		const shared_ptr<CMesh>& mesh = meshes[meshIndex];
+		if ( !mesh )
+			continue;
 
 		MeshOOBBSet set{};
 		std::unordered_set<std::string> consumedAuthoredPaths;
 
-		for ( const auto& submesh : mesh->m_SubMeshes )
-		{
-			if ( submesh.isColliderHelper )
-				continue;
+		auto AddSubOOBBWithMeta =
+			[ &set ](
+				const BoundingOrientedBox& subBox,
+				const SubMesh& submesh,
+				size_t sourceSubMeshIndex,
+				size_t authoredBoxIndex)
+			{
+				set.LocalSubOOBBs.push_back(subBox);
 
-			const bool hasAuthoringPath = !submesh.authoringPath.empty(); 
+				SubOOBBMeta meta{};
+				meta.meshName = submesh.meshName;
+				meta.authoringPath = submesh.authoringPath;
+				meta.sourceSubMeshIndex = sourceSubMeshIndex;
+				meta.authoredBoxIndex = authoredBoxIndex;
+
+				set.SubOOBBMetas.push_back(std::move(meta));
+			};
+
+		if ( logEnabled )
+		{
+			std::ostringstream oss;
+			oss << " meshSet=" << meshIndex
+				<< " sourceMeshPath=\"" << mesh->GetSourceMeshPath() << "\""
+				<< " subMeshCount=" << mesh->m_SubMeshes.size()
+				<< " meshMin=" << DebugFloat3(mesh->GetMeshMin())
+				<< " meshMax=" << DebugFloat3(mesh->GetMeshMax());
+
+			DebugPrintMessage(
+				"MESH_BEGIN",
+				mDebugColliderAssetName,
+				mDebugColliderObjectName,
+				oss.str()
+			);
+		}
+
+		for ( size_t subMeshIndex = 0; subMeshIndex < mesh->m_SubMeshes.size(); ++subMeshIndex )
+		{
+			const auto& submesh = mesh->m_SubMeshes[subMeshIndex];
+
+			if ( submesh.isColliderHelper )
+			{
+				if ( logEnabled )
+				{
+					std::ostringstream oss;
+					oss << " meshSet=" << meshIndex
+						<< " subMesh=" << subMeshIndex
+						<< " mesh=\"" << submesh.meshName << "\""
+						<< " authoringPath=\"" << submesh.authoringPath << "\"";
+
+					DebugPrintMessage(
+						"SKIP_COLLIDER_HELPER",
+						mDebugColliderAssetName,
+						mDebugColliderObjectName,
+						oss.str()
+					);
+				}
+				continue;
+			}
+
+			if ( IsCastleSubMeshOOBBExcluded(mDebugColliderAssetName, submesh.meshName) )
+			{
+				if ( logEnabled )
+				{
+					std::ostringstream oss;
+					oss << " meshSet=" << meshIndex
+						<< " subMesh=" << subMeshIndex
+						<< " mesh=\"" << submesh.meshName << "\""
+						<< " authoringPath=\"" << submesh.authoringPath << "\""
+						<< " reason=castleExcludedSubMesh";
+
+					DebugPrintMessage(
+						"SKIP_CASTLE_SUBMESH_OOBB",
+						mDebugColliderAssetName,
+						mDebugColliderObjectName,
+						oss.str()
+					);
+				}
+
+				continue;
+			}
+
+			const bool hasAuthoringPath = !submesh.authoringPath.empty();
 			const auto authoredIt =
 				hasAuthoringPath
 				? mStaticSubMeshAuthoredOOBBs.find(submesh.authoringPath)
 				: mStaticSubMeshAuthoredOOBBs.end();
+
+			if ( logEnabled )
+			{
+				std::ostringstream oss;
+				oss << " meshSet=" << meshIndex
+					<< " subMesh=" << subMeshIndex
+					<< " mesh=\"" << submesh.meshName << "\""
+					<< " authoringPath=\"" << submesh.authoringPath << "\""
+					<< " hasAuthoringPath=" << ( hasAuthoringPath ? 1 : 0 )
+					<< " authoredMatch=" << ( authoredIt != mStaticSubMeshAuthoredOOBBs.end() ? 1 : 0 )
+					<< " authoredBoxCount=" << (
+						authoredIt != mStaticSubMeshAuthoredOOBBs.end()
+						? authoredIt->second.size()
+						: 0 )
+					<< " hasBinExplicitLocalOOBB=" << ( submesh.hasExplicitLocalOOBB ? 1 : 0 )
+					<< " subMin=" << DebugFloat3(submesh.subMeshMin)
+					<< " subMax=" << DebugFloat3(submesh.subMeshMax);
+
+				DebugPrintMessage(
+					"SUBMESH_CHECK",
+					mDebugColliderAssetName,
+					mDebugColliderObjectName,
+					oss.str()
+				);
+			}
 
 			if ( authoredIt != mStaticSubMeshAuthoredOOBBs.end() && !authoredIt->second.empty() )
 			{
@@ -318,16 +538,55 @@ void CColliderComponent::BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>&
 
 				if ( firstUseOfThisPath )
 				{
-					for ( const AuthoredSubMeshOOBB& authoredBox : authoredIt->second )
+					for ( size_t authoredIndex = 0; authoredIndex < authoredIt->second.size(); ++authoredIndex )
 					{
+						const AuthoredSubMeshOOBB& authoredBox = authoredIt->second[authoredIndex];
+
 						BoundingOrientedBox subBox = MakeAuthoredLocalOOBB(
 							authoredBox.Center,
 							authoredBox.RotationQuat,
 							authoredBox.Size
 						);
 
-						set.LocalSubOOBBs.push_back(subBox);
+						const size_t createdSubIndex = set.LocalSubOOBBs.size();
+
+						AddSubOOBBWithMeta(
+							subBox,
+							submesh,
+							subMeshIndex,
+							authoredIndex
+						);
+
+						if ( logEnabled )
+						{
+							DebugPrintOOBBLine(
+								"DETAIL_FROM_AUTHORED_REPORT",
+								mDebugColliderAssetName,
+								mDebugColliderObjectName,
+								submesh.meshName,
+								submesh.authoringPath,
+								meshIndex,
+								createdSubIndex,
+								subBox
+							);
+						}
 					}
+				}
+				else if ( logEnabled )
+				{
+					std::ostringstream oss;
+					oss << " meshSet=" << meshIndex
+						<< " subMesh=" << subMeshIndex
+						<< " mesh=\"" << submesh.meshName << "\""
+						<< " authoringPath=\"" << submesh.authoringPath << "\""
+						<< " reason=authoringPathAlreadyConsumed";
+
+					DebugPrintMessage(
+						"AUTHORED_DUPLICATE_PATH_SKIP",
+						mDebugColliderAssetName,
+						mDebugColliderObjectName,
+						oss.str()
+					);
 				}
 
 				continue;
@@ -336,13 +595,76 @@ void CColliderComponent::BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>&
 			if ( submesh.hasExplicitLocalOOBB )
 			{
 				BoundingOrientedBox subBox = MakeLocalOOBBFromMatrix(submesh.explicitLocalOOBBMatrix);
-				set.LocalSubOOBBs.push_back(subBox);
+
+				const size_t createdSubIndex = set.LocalSubOOBBs.size();
+
+				AddSubOOBBWithMeta(
+					subBox,
+					submesh,
+					subMeshIndex,
+					static_cast< size_t >( -1 )
+				);
+
+				if ( logEnabled )
+				{
+					DebugPrintOOBBLine(
+						"DETAIL_FROM_BIN_EXPLICIT_LOCAL_OOBB",
+						mDebugColliderAssetName,
+						mDebugColliderObjectName,
+						submesh.meshName,
+						submesh.authoringPath,
+						meshIndex,
+						createdSubIndex,
+						subBox
+					);
+				}
 			}
 			else
 			{
 				BoundingOrientedBox subBox = MakeLocalOOBB(submesh.subMeshMin, submesh.subMeshMax);
-				set.LocalSubOOBBs.push_back(subBox);
+
+				const size_t createdSubIndex = set.LocalSubOOBBs.size();
+
+				AddSubOOBBWithMeta(
+					subBox,
+					submesh,
+					subMeshIndex,
+					static_cast< size_t >( -1 )
+				);
+
+				if ( logEnabled )
+				{
+					DebugPrintOOBBLine(
+						"DETAIL_FROM_AUTO_SUBMESH_BOUNDS",
+						mDebugColliderAssetName,
+						mDebugColliderObjectName,
+						submesh.meshName,
+						submesh.authoringPath,
+						meshIndex,
+						createdSubIndex,
+						subBox
+					);
+				}
 			}
+		}
+
+		if ( set.LocalSubOOBBs.empty() )
+		{
+			if ( logEnabled )
+			{
+				std::ostringstream oss;
+				oss << " meshSet=" << meshIndex
+					<< " reason=noSubOOBBsAfterCastleExclusion";
+
+				DebugPrintMessage(
+					"MESH_SKIPPED_NO_SUB_OOBBS",
+					mDebugColliderAssetName,
+					mDebugColliderObjectName,
+					oss.str()
+				);
+			}
+
+			continue;
 		}
 
 		const XMFLOAT3 meshMin = mesh->GetMeshMin();
@@ -355,21 +677,94 @@ void CColliderComponent::BuildHierarchicalOOBBs(const vector<shared_ptr<CMesh>>&
 			 meshMin.z <= meshMax.z )
 		{
 			set.LocalMeshOOBB = MakeLocalOOBB(meshMin, meshMax);
+
+			if ( logEnabled )
+			{
+				DebugPrintOOBBLine(
+					"MESH_REP_FROM_RENDER_MESH_BOUNDS",
+					mDebugColliderAssetName,
+					mDebugColliderObjectName,
+					"",
+					"",
+					meshIndex,
+					0,
+					set.LocalMeshOOBB
+				);
+			}
 		}
 		else if ( !set.LocalSubOOBBs.empty() )
 		{
 			// 예외 fallback: 메시 bounds가 비정상이면 기존처럼 sub OOBB 외접 사용
 			set.LocalMeshOOBB = MakeEnclosingLocalOOBB(set.LocalSubOOBBs);
+
+			if ( logEnabled )
+			{
+				DebugPrintOOBBLine(
+					"MESH_REP_FROM_ENCLOSING_SUB_OOBBS",
+					mDebugColliderAssetName,
+					mDebugColliderObjectName,
+					"",
+					"",
+					meshIndex,
+					0,
+					set.LocalMeshOOBB
+				);
+			}
 		}
 		else
 		{
+			if ( logEnabled )
+			{
+				std::ostringstream oss;
+				oss << " meshSet=" << meshIndex
+					<< " reason=noMeshBoundsAndNoSubOOBBs";
+
+				DebugPrintMessage(
+					"MESH_SKIPPED",
+					mDebugColliderAssetName,
+					mDebugColliderObjectName,
+					oss.str()
+				);
+			}
 			continue;
 		}
 
 		set.WorldMeshOOBB = set.LocalMeshOOBB;
 		set.WorldSubOOBBs = set.LocalSubOOBBs;
 
+		if ( logEnabled )
+		{
+			std::ostringstream oss;
+			oss << " meshSet=" << meshIndex
+				<< " localSubOOBBCount=" << set.LocalSubOOBBs.size();
+
+			DebugPrintMessage(
+				"MESH_END",
+				mDebugColliderAssetName,
+				mDebugColliderObjectName,
+				oss.str()
+			);
+		}
+
 		mMeshOOBBSets.push_back(std::move(set));
+	}
+
+	if ( logEnabled )
+	{
+		size_t totalSubOOBBs = 0;
+		for ( const MeshOOBBSet& set : mMeshOOBBSets )
+			totalSubOOBBs += set.LocalSubOOBBs.size();
+
+		std::ostringstream oss;
+		oss << " meshSetCount=" << mMeshOOBBSets.size()
+			<< " totalLocalSubOOBBCount=" << totalSubOOBBs;
+
+		DebugPrintMessage(
+			"END",
+			mDebugColliderAssetName,
+			mDebugColliderObjectName,
+			oss.str()
+		);
 	}
 }
 
@@ -535,7 +930,31 @@ void CColliderComponent::OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*)
 		BuildBoneCapsulesFromSkeleton();
 	}
     
-    UpdateWorldBounds();
+	UpdateWorldBounds();
+
+	if ( mDebugColliderBuildLogEnabled && mColliderType == EColliderType::OOBB )
+	{
+		size_t totalSubOOBBs = 0;
+		for ( const MeshOOBBSet& set : mMeshOOBBSets )
+			totalSubOOBBs += set.LocalSubOOBBs.size();
+
+		std::ostringstream oss;
+		oss << " finalLocalOOBB.center=" << DebugFloat3(LocalOOBB.Center)
+			<< " finalLocalOOBB.extents=" << DebugFloat3(LocalOOBB.Extents)
+			<< " finalLocalOOBB.size=" << DebugFloat3(XMFLOAT3(
+				LocalOOBB.Extents.x * 2.0f,
+				LocalOOBB.Extents.y * 2.0f,
+				LocalOOBB.Extents.z * 2.0f))
+			<< " meshSetCount=" << mMeshOOBBSets.size()
+			<< " totalLocalSubOOBBCount=" << totalSubOOBBs;
+
+		DebugPrintMessage(
+			"FINAL",
+			mDebugColliderAssetName,
+			mDebugColliderObjectName,
+			oss.str()
+		);
+	}
 }
 
 void CColliderComponent::SetAABB(const XMFLOAT3& Min, const XMFLOAT3& Max)

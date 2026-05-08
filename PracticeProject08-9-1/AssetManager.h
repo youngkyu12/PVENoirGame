@@ -33,6 +33,7 @@ enum class AssetType
     House,
     Tower,
 	Tree,
+	Castle,
 
     Arrow,
 	Bullet,

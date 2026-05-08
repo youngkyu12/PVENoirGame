@@ -526,8 +526,6 @@ D3D12_RASTERIZER_DESC CTreeStaticObjectsShader::CreateRasterizerState()
 	return rs;
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
 CSkinnedObjectsShader::CSkinnedObjectsShader()
 {
 }
@@ -560,7 +558,7 @@ D3D12_SHADER_BYTECODE CSkinnedObjectsShader::CreateVertexShader(ID3DBlob** ppd3d
 
 D3D12_SHADER_BYTECODE CSkinnedObjectsShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
 {
-	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSTexturedLightingToMultipleRTs", "ps_5_1", ppd3dShaderBlob));
+	return( CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSTexturedLightingToMultipleRTs", "ps_5_1", ppd3dShaderBlob) );
 }
 
 D3D12_INPUT_LAYOUT_DESC CSkinnedObjectsShader::CreateInputLayout()
@@ -590,14 +588,366 @@ D3D12_INPUT_LAYOUT_DESC CSkinnedObjectsShader::CreateInputLayout()
 
 void CSkinnedObjectsShader::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext)
 {
-	(void)pd3dCommandList;
-	(void)pContext;
+	( void ) pd3dCommandList;
+	( void ) pContext;
 }
 
 void CSkinnedObjectsShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext)
 {
 	CIlluminatedTexturedShader::Render(pd3dCommandList, pCamera, pContext);
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+
+D3D12_INPUT_LAYOUT_DESC CItemBillboardShader::CreateInputLayout()
+{
+	UINT nInputElementDescs = 9;
+	auto* desc = new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
+
+	desc[0] = { "POSITION",             0, DXGI_FORMAT_R32G32B32_FLOAT,    0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   0 };
+	desc[1] = { "NORMAL",               0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   0 };
+	desc[2] = { "TEXCOORD",             0, DXGI_FORMAT_R32G32_FLOAT,       0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   0 };
+	desc[3] = { "TANGENT",              0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   0 };
+
+	desc[4] = { "INSTANCE_WORLD",       0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1,  0, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+	desc[5] = { "INSTANCE_WORLD",       1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 16, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+	desc[6] = { "INSTANCE_WORLD",       2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 32, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+	desc[7] = { "INSTANCE_WORLD",       3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 48, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+	desc[8] = { "INSTANCE_MATERIAL_ID", 0, DXGI_FORMAT_R32_UINT,           1, 64, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+
+	D3D12_INPUT_LAYOUT_DESC layout{};
+	layout.pInputElementDescs = desc;
+	layout.NumElements = nInputElementDescs;
+	return layout;
+}
+
+D3D12_SHADER_BYTECODE CItemBillboardShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(
+		L"Shaders.hlsl",
+		"VSItemBillboardInstanced",
+		"vs_5_1",
+		ppd3dShaderBlob
+	);
+}
+
+D3D12_SHADER_BYTECODE CItemBillboardShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(
+		L"Shaders.hlsl",
+		"PSItemBillboardUnlitAlphaClip",
+		"ps_5_1",
+		ppd3dShaderBlob
+	);
+}
+
+D3D12_RASTERIZER_DESC CItemBillboardShader::CreateRasterizerState()
+{
+	D3D12_RASTERIZER_DESC rs = CShader::CreateRasterizerState();
+
+	// 빌보드는 뒤집힌 면 때문에 사라지면 안 되므로 cull off
+	rs.CullMode = D3D12_CULL_MODE_NONE;
+
+	return rs;
+}
+
+D3D12_INPUT_LAYOUT_DESC CTransparentItemBillboardShader::CreateInputLayout()
+{
+	// 현재 CItemBillboardShader와 동일한 input layout 사용
+	UINT nInputElementDescs = 9;
+	auto* desc = new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
+
+	desc[0] = { "POSITION",             0, DXGI_FORMAT_R32G32B32_FLOAT,    0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   0 };
+	desc[1] = { "NORMAL",               0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   0 };
+	desc[2] = { "TEXCOORD",             0, DXGI_FORMAT_R32G32_FLOAT,       0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   0 };
+	desc[3] = { "TANGENT",              0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   0 };
+
+	desc[4] = { "INSTANCE_WORLD",       0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1,  0, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+	desc[5] = { "INSTANCE_WORLD",       1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 16, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+	desc[6] = { "INSTANCE_WORLD",       2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 32, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+	desc[7] = { "INSTANCE_WORLD",       3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 48, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+	desc[8] = { "INSTANCE_MATERIAL_ID", 0, DXGI_FORMAT_R32_UINT,           1, 64, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+
+	D3D12_INPUT_LAYOUT_DESC layout{};
+	layout.pInputElementDescs = desc;
+	layout.NumElements = nInputElementDescs;
+	return layout;
+}
+
+D3D12_SHADER_BYTECODE CTransparentItemBillboardShader::CreateVertexShader(
+	ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(
+		L"Shaders.hlsl",
+		"VSItemBillboardInstanced",
+		"vs_5_1",
+		ppd3dShaderBlob
+	);
+}
+
+D3D12_SHADER_BYTECODE CTransparentItemBillboardShader::CreatePixelShader(
+	ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(
+		L"Shaders.hlsl",
+		"PSItemBillboardUnlitTransparentForward",
+		"ps_5_1",
+		ppd3dShaderBlob
+	);
+}
+
+D3D12_RASTERIZER_DESC CTransparentItemBillboardShader::CreateRasterizerState()
+{
+	D3D12_RASTERIZER_DESC rs = CShader::CreateRasterizerState();
+	rs.CullMode = D3D12_CULL_MODE_NONE;
+	return rs;
+}
+
+D3D12_BLEND_DESC CTransparentItemBillboardShader::CreateBlendState()
+{
+	D3D12_BLEND_DESC bs{};
+	bs.AlphaToCoverageEnable = FALSE;
+	bs.IndependentBlendEnable = FALSE;
+
+	D3D12_RENDER_TARGET_BLEND_DESC rt{};
+	rt.BlendEnable = TRUE;
+	rt.LogicOpEnable = FALSE;
+
+	rt.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	rt.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	rt.BlendOp = D3D12_BLEND_OP_ADD;
+
+	rt.SrcBlendAlpha = D3D12_BLEND_ONE;
+	rt.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+	rt.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+
+	rt.LogicOp = D3D12_LOGIC_OP_NOOP;
+	rt.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+	bs.RenderTarget[0] = rt;
+
+	return bs;
+}
+
+D3D12_DEPTH_STENCIL_DESC CTransparentItemBillboardShader::CreateDepthStencilState()
+{
+	D3D12_DEPTH_STENCIL_DESC ds = CShader::CreateDepthStencilState();
+
+	ds.DepthEnable = TRUE;
+	ds.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	ds.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+
+	return ds;
+}
+
+D3D12_INPUT_LAYOUT_DESC CMuzzleFlashBillboardShader::CreateInputLayout()
+{
+	UINT nInputElementDescs = 11;
+	auto* desc = new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
+
+	desc[0] = { "POSITION",        0, DXGI_FORMAT_R32G32B32_FLOAT,    0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   0 };
+	desc[1] = { "NORMAL",          0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   0 };
+	desc[2] = { "TEXCOORD",        0, DXGI_FORMAT_R32G32_FLOAT,       0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   0 };
+	desc[3] = { "TANGENT",         0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   0 };
+
+	desc[4] = { "INSTANCE_WORLD",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1,  0, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+	desc[5] = { "INSTANCE_WORLD",  1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 16, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+	desc[6] = { "INSTANCE_WORLD",  2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 32, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+	desc[7] = { "INSTANCE_WORLD",  3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 48, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+
+	desc[8] = { "INSTANCE_COLOR",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 64, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+	desc[9] = { "INSTANCE_PARAMS", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 80, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+	desc[10] = { "INSTANCE_PARAMS", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 96, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+
+	D3D12_INPUT_LAYOUT_DESC layout{};
+	layout.pInputElementDescs = desc;
+	layout.NumElements = nInputElementDescs;
+	return layout;
+}
+
+D3D12_SHADER_BYTECODE CMuzzleFlashBillboardShader::CreateVertexShader(
+	ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(
+		L"Shaders.hlsl",
+		"VSMuzzleFlashBillboardInstanced",
+		"vs_5_1",
+		ppd3dShaderBlob
+	);
+}
+
+D3D12_SHADER_BYTECODE CMuzzleFlashBillboardShader::CreatePixelShader(
+	ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(
+		L"Shaders.hlsl",
+		"PSMuzzleFlashProcedural",
+		"ps_5_1",
+		ppd3dShaderBlob
+	);
+}
+
+D3D12_RASTERIZER_DESC CMuzzleFlashBillboardShader::CreateRasterizerState()
+{
+	D3D12_RASTERIZER_DESC rs = CShader::CreateRasterizerState();
+	rs.CullMode = D3D12_CULL_MODE_NONE;
+	return rs;
+}
+
+D3D12_BLEND_DESC CMuzzleFlashBillboardShader::CreateBlendState()
+{
+	D3D12_BLEND_DESC bs{};
+	bs.AlphaToCoverageEnable = FALSE;
+	bs.IndependentBlendEnable = FALSE;
+
+	D3D12_RENDER_TARGET_BLEND_DESC rt{};
+	rt.BlendEnable = TRUE;
+	rt.LogicOpEnable = FALSE;
+
+	// additive muzzle flash
+	// dst.rgb += src.rgb * src.a
+	rt.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	rt.DestBlend = D3D12_BLEND_ONE;
+	rt.BlendOp = D3D12_BLEND_OP_ADD;
+
+	rt.SrcBlendAlpha = D3D12_BLEND_ONE;
+	rt.DestBlendAlpha = D3D12_BLEND_ONE;
+	rt.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+
+	rt.LogicOp = D3D12_LOGIC_OP_NOOP;
+	rt.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+	bs.RenderTarget[0] = rt;
+
+	return bs;
+}
+
+D3D12_DEPTH_STENCIL_DESC CMuzzleFlashBillboardShader::CreateDepthStencilState()
+{
+	D3D12_DEPTH_STENCIL_DESC ds = CShader::CreateDepthStencilState();
+
+	// 벽 뒤에 있으면 가려져야 함
+	ds.DepthEnable = TRUE;
+
+	// 이펙트는 depth buffer에 쓰지 않음
+	ds.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	ds.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+
+	return ds;
+}
+
+D3D12_INPUT_LAYOUT_DESC CSwordTrailShader::CreateInputLayout()
+{
+	UINT nInputElementDescs = 3;
+	auto* desc = new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
+
+	desc[0] = {
+		"POSITION",
+		0,
+		DXGI_FORMAT_R32G32B32_FLOAT,
+		0,
+		0,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0
+	};
+
+	desc[1] = {
+		"TEXCOORD",
+		0,
+		DXGI_FORMAT_R32G32_FLOAT,
+		0,
+		12,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0
+	};
+
+	desc[2] = {
+		"COLOR",
+		0,
+		DXGI_FORMAT_R32G32B32A32_FLOAT,
+		0,
+		20,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0
+	};
+
+	D3D12_INPUT_LAYOUT_DESC layout{};
+	layout.pInputElementDescs = desc;
+	layout.NumElements = nInputElementDescs;
+	return layout;
+}
+
+D3D12_SHADER_BYTECODE CSwordTrailShader::CreateVertexShader(
+	ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(
+		L"Shaders.hlsl",
+		"VSSwordTrail",
+		"vs_5_1",
+		ppd3dShaderBlob
+	);
+}
+
+D3D12_SHADER_BYTECODE CSwordTrailShader::CreatePixelShader(
+	ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(
+		L"Shaders.hlsl",
+		"PSSwordTrailProcedural",
+		"ps_5_1",
+		ppd3dShaderBlob
+	);
+}
+
+D3D12_RASTERIZER_DESC CSwordTrailShader::CreateRasterizerState()
+{
+	D3D12_RASTERIZER_DESC rs = CShader::CreateRasterizerState();
+	rs.CullMode = D3D12_CULL_MODE_NONE;
+	return rs;
+}
+
+D3D12_BLEND_DESC CSwordTrailShader::CreateBlendState()
+{
+	D3D12_BLEND_DESC bs{};
+	bs.AlphaToCoverageEnable = FALSE;
+	bs.IndependentBlendEnable = FALSE;
+
+	D3D12_RENDER_TARGET_BLEND_DESC rt{};
+	rt.BlendEnable = TRUE;
+	rt.LogicOpEnable = FALSE;
+
+	// 밝게 빛나는 검 궤적. 정렬 문제를 줄이기 위해 additive 사용.
+	rt.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	rt.DestBlend = D3D12_BLEND_ONE;
+	rt.BlendOp = D3D12_BLEND_OP_ADD;
+
+	rt.SrcBlendAlpha = D3D12_BLEND_ONE;
+	rt.DestBlendAlpha = D3D12_BLEND_ONE;
+	rt.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+
+	rt.LogicOp = D3D12_LOGIC_OP_NOOP;
+	rt.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+	bs.RenderTarget[0] = rt;
+
+	return bs;
+}
+
+D3D12_DEPTH_STENCIL_DESC CSwordTrailShader::CreateDepthStencilState()
+{
+	D3D12_DEPTH_STENCIL_DESC ds = CShader::CreateDepthStencilState();
+
+	ds.DepthEnable = TRUE;
+	ds.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	ds.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+
+	return ds;
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
 
 D3D12_SHADER_BYTECODE CShadowMapStaticShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
 {
@@ -1409,114 +1759,4 @@ void CTextureToFullScreenShader::UpdateShaderVariables(ID3D12GraphicsCommandList
 void CTextureToFullScreenShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext)
 {
 	CPostProcessingShader::Render(pd3dCommandList, pCamera, pContext);
-}
-
-D3D12_INPUT_LAYOUT_DESC CShadowShader::CreateInputLayout()
-{
-	UINT nInputElementDescs = 4;
-	D3D12_INPUT_ELEMENT_DESC* desc = new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
-
-	desc[0] = { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
-	desc[1] = { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
-	desc[2] = { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
-	desc[3] = { "TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
-
-	D3D12_INPUT_LAYOUT_DESC layout{};
-	layout.pInputElementDescs = desc;
-	layout.NumElements = nInputElementDescs;
-	return layout;
-}
-
-D3D12_RASTERIZER_DESC CShadowShader::CreateRasterizerState()
-{
-	D3D12_RASTERIZER_DESC rasterizer = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	rasterizer.DepthBias = 100000;
-	rasterizer.DepthBiasClamp = 0.0f;
-	rasterizer.SlopeScaledDepthBias = 1.0f;
-	return rasterizer;
-}
-
-D3D12_SHADER_BYTECODE CShadowShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
-{
-	return CShader::CompileShaderFromFile(L"Shadows.hlsl", "VS", "vs_5_1", ppd3dShaderBlob);
-}
-
-D3D12_SHADER_BYTECODE CShadowShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
-{
-	return CShader::CompileShaderFromFile(L"Shadows.hlsl", "PS", "ps_5_1", ppd3dShaderBlob);
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////
-///////
-CTerrainShader::CTerrainShader()
-{
-}
-
-CTerrainShader::~CTerrainShader()
-{
-}
-
-D3D12_INPUT_LAYOUT_DESC CTerrainShader::CreateInputLayout()
-{
-	// Geometry.hlsl::VSTextured 입력 시그니처(POSITION/TEXCOORD)에 맞추되,
-	// 현재 Terrain 정점 버퍼 레이아웃(position, normal, uv, tangent, ...)의 UV 오프셋(24)을 사용한다.
-	UINT nInputElementDescs = 2;
-	D3D12_INPUT_ELEMENT_DESC* pd3dInputElementDescs = new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
-
-	pd3dInputElementDescs[0] = {
-		"POSITION",
-		0,
-		DXGI_FORMAT_R32G32B32_FLOAT,
-		0,
-		0,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-		0
-	};
-
-	pd3dInputElementDescs[1] = {
-		"TEXCOORD",
-		0,
-		DXGI_FORMAT_R32G32_FLOAT,
-		0,
-		24,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-		0
-	};
-
-	D3D12_INPUT_LAYOUT_DESC d3dInputLayoutDesc;
-	d3dInputLayoutDesc.pInputElementDescs = pd3dInputElementDescs;
-	d3dInputLayoutDesc.NumElements = nInputElementDescs;
-
-	return d3dInputLayoutDesc;
-}
-
-D3D12_SHADER_BYTECODE CTerrainShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
-{
-	return CShader::CompileShaderFromFile(L"Shaders.hlsl", "VSTextured", "vs_5_1", ppd3dShaderBlob);
-}
-
-D3D12_SHADER_BYTECODE CTerrainShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
-{
-	return CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSTextured", "ps_5_1", ppd3dShaderBlob);
-}
-
-void CTerrainShader::CreateShader(
-	ID3D12Device* pd3dDevice,
-	ID3D12RootSignature* pd3dGraphicsRootSignature,
-	UINT nRenderTargets,
-	DXGI_FORMAT* pdxgiRtvFormats,
-	DXGI_FORMAT dxgiDsvFormat)
-{
-#ifdef _WITH_SCENE_ROOT_SIGNATURE
-	m_pd3dGraphicsRootSignature = pd3dGraphicsRootSignature;
-#else
-	CreateGraphicsRootSignature(pd3dDevice);
-#endif
-
-	CShader::CreateShader(
-		pd3dDevice,
-		m_pd3dGraphicsRootSignature.Get(),
-		nRenderTargets,
-		pdxgiRtvFormats,
-		dxgiDsvFormat);
 }

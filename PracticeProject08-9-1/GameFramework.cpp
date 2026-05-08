@@ -13,6 +13,8 @@
 #include "PlayerControllerComponent.h"
 #include "AudioManager.h"
 #include "MusicDirector.h"
+#include "Camera.h"
+#include "Object.h"
 
 #include "Service.h"
 #include "ServerPacketHandler.h"
@@ -489,6 +491,51 @@ bool CGameFramework::IsInputPauseActive() const
 	return m_bUserPaused;
 }
 
+void CGameFramework::UpdateAudioListener()
+{
+	if ( !m_pAudioManager || !m_pAudioManager->IsInitialized() )
+		return;
+
+	CScene* scene = m_SceneManager.GetScene();
+
+	CGameObject* localPlayer = scene ? scene->GetPlayer() : nullptr;
+
+	XMFLOAT3 listenerPos(0.0f, 0.0f, 0.0f);
+
+	if ( localPlayer )
+	{
+		// 플레이어 머리/귀 높이 근처.
+		listenerPos = localPlayer->GetPosition();
+		listenerPos.y += 1.7f;
+	}
+	else if ( m_pCamera )
+	{
+		listenerPos = m_pCamera->GetPosition();
+	}
+	else
+	{
+		return;
+	}
+
+	XMFLOAT3 forward(0.0f, 0.0f, 1.0f);
+	XMFLOAT3 up(0.0f, 1.0f, 0.0f);
+
+	if ( m_pCamera )
+	{
+		forward = m_pCamera->GetLookVector();
+		up = m_pCamera->GetUpVector();
+	}
+
+	const XMFLOAT3 velocity(0.0f, 0.0f, 0.0f);
+
+	m_pAudioManager->SetListenerAttributes(
+		listenerPos,
+		velocity,
+		forward,
+		up
+	);
+}
+
 void CGameFramework::UpdateWindowActivationState()
 {
 	const bool isActiveNow = IsWindowActuallyActive();
@@ -835,6 +882,10 @@ void CGameFramework::ProcessInput()
 	static bool s_prevDown[4] = { false, false, false, false };
 	for ( int slot = 0; slot < 4; ++slot )
 	{
+		// 0 키는 총 사운드 튜닝용으로 사용.
+		if ( slot == 0 )
+			continue;
+
 		const bool down = ( pKeysBuffer['0' + slot] & 0xF0 ) != 0;
 		if ( down && !s_prevDown[slot] )
 		{
@@ -901,14 +952,26 @@ void CGameFramework::ProcessInput()
 
 		if ( spaceDown && !s_prevSpaceDown )
 		{
+			bool requestedRoll = false;
+
 			if ( auto* animComp = playerObj->GetComponent<CAnimatorComponent>() )
 			{
 				if ( auto* ctrl = animComp->EnsureController() )
+				{
 					ctrl->RequestRoll(static_cast< uint32_t >( dwDirection ));
+					requestedRoll = true;
+				}
 			}
 			else if ( auto* ctrl = playerObj->GetAnimController() )
 			{
 				ctrl->RequestRoll(static_cast< uint32_t >( dwDirection ));
+				requestedRoll = true;
+			}
+
+			if ( requestedRoll )
+			{
+				if ( auto* equip = playerObj->GetComponent<CPlayerEquipmentComponent>() )
+					equip->RequestRollSfx(static_cast< uint32_t >( dwDirection ));
 			}
 		}
 
@@ -1026,7 +1089,8 @@ void CGameFramework::ProcessInput()
 		{
 			const XMFLOAT3 prevPos = playerObj->GetPosition();
 
-			pc->MoveByYaw(dwDirection, 50.0f * dt, cameraYawDeg, false);
+			const float moveSpeed = bRunRequested ? 100.0f : 5.0f;
+			pc->MoveByYaw(dwDirection, moveSpeed * dt, cameraYawDeg, false);
 
 			if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
 			{
@@ -1093,9 +1157,6 @@ void CGameFramework::FrameAdvance()
 	m_GameTimer.Tick(0.0f);
 	UpdateWindowActivationState();
 
-	if ( m_pAudioManager )
-		m_pAudioManager->Update();
-
 	ApplyPendingSceneSwitch();
 
 
@@ -1123,6 +1184,11 @@ void CGameFramework::FrameAdvance()
 		AnimateObjects();
 	}
 
+	UpdateAudioListener();
+
+	if ( m_pAudioManager )
+		m_pAudioManager->Update();
+
 #ifndef USING_NETWORK
 	if ( hasLocalPlayerPrevPos )
 	{
@@ -1132,10 +1198,10 @@ void CGameFramework::FrameAdvance()
 		}
 	}
 #endif
-	/*{
+	{
 		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::CollisionSystem");
 		CollisionSystem();
-	}*/
+	}
 
 	{
 		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::CommandAllocatorAndListReset");
@@ -1172,7 +1238,7 @@ void CGameFramework::FrameAdvance()
 			nullptr
 		);
 
-		if ( gameScene ) 
+		if ( gameScene )
 		{
 			// 1) Geometry pass -> offscreen MRT only
 			m_pPostProcessingShader->OnPrepareSceneRenderTargets(
@@ -1226,12 +1292,7 @@ void CGameFramework::FrameAdvance()
 				nullptr
 			);
 
-			m_pd3dCommandList->OMSetRenderTargets(
-				1,
-				&m_pd3dSwapChainBackBufferRTVCPUHandles[m_nSwapChainBufferIndex],
-				FALSE,
-				nullptr
-			);
+			m_pd3dCommandList->OMSetRenderTargets(1, &m_pd3dSwapChainBackBufferRTVCPUHandles[m_nSwapChainBufferIndex], FALSE, &m_d3dDsvDescriptorCPUHandle);
 
 			{
 				PROFILE_RENDER_SCOPE("Framework::GameScene::RebindFrameForComposite");

@@ -45,12 +45,22 @@ void CAnimatorComponent::OnUpdate(float dt)
 		m_pController->Update(dt);
 	}
 
-	anim->Update(dt);
+	if ( m_poseEvaluationEnabled )
+	{
+		anim->Update(dt);
+	}
+	else
+	{
+		anim->UpdateTimeOnly(dt);
+	}
 }
 
 void CAnimatorComponent::OnLateUpdate(float /*dt*/)
 {
-    UploadIfSkinned();
+	if ( !m_poseEvaluationEnabled )
+		return;
+
+	UploadIfSkinned();
 }
 
 
@@ -111,8 +121,14 @@ void CAnimatorComponent::SetMoveClip(const char* name)
 
 void CAnimatorComponent::EvaluatePose(float dt)
 {
-    OnUpdate(dt);
-    OnLateUpdate(dt);
+	const bool oldPoseEvaluationEnabled = m_poseEvaluationEnabled;
+
+	m_poseEvaluationEnabled = true;
+
+	OnUpdate(dt);
+	OnLateUpdate(dt);
+
+	m_poseEvaluationEnabled = oldPoseEvaluationEnabled;
 }
 
 void CAnimatorComponent::SyncSkeletonIfPossible()

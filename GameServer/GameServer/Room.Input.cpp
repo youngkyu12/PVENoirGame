@@ -9,6 +9,16 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		return;
 
 	PlayerRef& player = it->second;
+	if (!player)
+		return;
+
+	// [추가] 죽음/리스폰 중 입력 차단
+	if (player->IsDead() || player->IsInputBlocked())
+	{
+		player->SetVelocity(GameMath::Vec3::Zero());
+		return;
+	}
+
 
 	if (deltaX != 0.0f)
 	{
@@ -31,7 +41,12 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		switch (player->GetWeaponState())
 		{
 		case Protocol::WEAPON_TYPE_BOW:
-			FireArrow(player);
+			if (player->GetWeapon().BeginAttack(tick.load()))
+			{
+				player->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
+				player->SetAnimTick(tick.load());
+				//player->SetVelocity(GameMath::Vec3::Zero());
+			}
 			break;
 		case Protocol::WEAPON_TYPE_CANON:
 			FireCannonball(player);
@@ -108,7 +123,11 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		}
 		case Protocol::ANIMATION_TYPE_ATTACK:
 		{
-			fDistance *= 0.0f; // 공격 도중에는 이동 속도 = 0
+			const bool canMoveWhileAttacking =
+				(player->GetWeaponState() == Protocol::WEAPON_TYPE_BOW ||
+				 player->GetWeaponState() == Protocol::WEAPON_TYPE_CANON);
+			if (!canMoveWhileAttacking)
+				fDistance *= 0.0f; // 공격 도중에는 이동 속도 = 0
 			break;
 		}
 		case Protocol::ANIMATION_TYPE_IDLE:
@@ -150,7 +169,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 			moveDirection = player->GetVelocity().Normalized();
 		}
 	}
-	shift = moveDirection * fDistance;
+	shift += moveDirection * fDistance;
 
 	const float moveMul = (player->GetAnimState() == Protocol::ANIMATION_TYPE_RUN
 		&& !(player->GetAnimState() == Protocol::ANIMATION_TYPE_ROLL 

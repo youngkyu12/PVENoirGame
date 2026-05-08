@@ -61,28 +61,11 @@ namespace
 
 const GameSceneStageFileSet& GetLocalStageFileSet(ELocalStagePreset preset)
 {
-	//Test stage
-	//const std::string placementFilePath = "MapData/MapData_tst.txt";
-	//const std::string navMeshFilePath = "MapData/Navmesh_tst.nvm";
-
-	//1 stage
-	//const std::string placementFilePath = "MapData/MapData_stage1_with_Tree.txt";
-	//const std::string navMeshFilePath = "MapData/Navmesh_Stage1.nvm";
-
-	//Full stage
-	//const std::string placementFilePath = "MapData/MapData_fullstage.txt";
-	//const std::string placementFilePath = "MapData/MapData_fullstage(NoTree).txt";
-	//const std::string navMeshFilePath = "MapData/Navmesh_FullStage.nvm";
-
-	//const std::string cubeColliderReportFilePath = "MapData/CubeBoxColliderReport.txt";
-	//const std::string monsterSpawnFilePath = "MapData/monster_spawn_points.txt";
-	//const std::string monsterSpawnFilePath = "MapData/monster_spawn_points_little.txt";
-
 	static const GameSceneStageFileSet kTest =
 	{
 		"MapData/MapData_tst.txt",
 		"MapData/Navmesh_tst.nvm",
-		"MapData/CubeBoxColliderReport.txt",
+		"MapData/CubeBoxColliderReportWithCastle.txt",
 		"MapData/monster_spawn_points_little.txt"
 	};
 
@@ -94,7 +77,7 @@ const GameSceneStageFileSet& GetLocalStageFileSet(ELocalStagePreset preset)
 		"MapData/monster_spawn_points_little.txt"
 	};
 
-	static const GameSceneStageFileSet kFullStage =
+	static const GameSceneStageFileSet kFullStageNoBoss =
 	{
 		"MapData/MapData_fullstage.txt",
 		"MapData/Navmesh_FullStage.nvm",
@@ -110,13 +93,22 @@ const GameSceneStageFileSet& GetLocalStageFileSet(ELocalStagePreset preset)
 		"MapData/monster_spawn_points.txt"
 	};
 
+	static const GameSceneStageFileSet kFullStage =
+	{
+		"MapData/MapData_fullstage(withBoss).txt",
+		"MapData/FullStageNavmeshAll.nvm",
+		"MapData/CubeBoxColliderReportWithCastle.txt",
+		"MapData/monster_spawn_points.txt"
+	};
+
 	switch ( preset )
 	{
 	case ELocalStagePreset::Test:           return kTest;
 	case ELocalStagePreset::Stage1:         return kStage1;
 	case ELocalStagePreset::FullStage:      return kFullStage;
 	case ELocalStagePreset::FullStageNoTree:return kFullStageNoTree;
-	default:                                return kFullStageNoTree;
+	case ELocalStagePreset::FullStageNoBoss:return kFullStageNoBoss;
+	default:                                return kTest;
 	}
 }
 
@@ -351,6 +343,11 @@ bool ResolveStaticAssetPathDesc(const std::string& assetName, StaticAssetPathDes
 		outDesc = { AssetType::Tower, "Assets/Tower/Mesh/Tower.bin", "Assets/Tower/Texture" };
 		return true;
 	}
+	if ( assetName == "Castle" )
+	{
+		outDesc = { AssetType::Castle, "Assets/Castle/Mesh/Castle.bin", "Assets/Castle/Texture" };
+		return true;
+	}
 	if ( assetName == "Tree1" )
 	{
 		outDesc = { AssetType::Tree, "Assets/Tree/Mesh/Tree1.bin", "Assets/Tree/Texture" };
@@ -404,6 +401,7 @@ bool IsStaticWorldLodSupportedAssetName(const std::string& assetName)
 	if ( assetName == "Building9" ) return true;
 
 	if ( assetName == "Tower" ) return true;
+	if ( assetName == "Castle" ) return true;
 
 	if ( assetName == "Tree1" ) return true;
 	if ( assetName == "Tree2" ) return true;
@@ -420,6 +418,8 @@ bool ShouldUseStaticWorldDistanceCull(const std::string& assetName)
 	if ( assetName == "Grass" ) return false;
 	if ( assetName == "Ground" ) return false;
 	if ( assetName == "DirtRoad" ) return false;
+	if ( assetName == "VillageWall" ) return false;
+	if ( assetName == "Castle" ) return false;
 
 	return true;
 }

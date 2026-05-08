@@ -79,6 +79,7 @@ public:
 	void SetLayerVisible(ELayer layer, bool visible);
 
 	bool GetSpriteRect(int spriteIndex, XMFLOAT4& outRect) const;
+	bool SetSpriteRect(int spriteIndex, const XMFLOAT4& rect);
 	bool IsPointInSprite(int spriteIndex, POINT pt) const;
 
 	const SpriteEntry* GetSprite(int spriteIndex) const;

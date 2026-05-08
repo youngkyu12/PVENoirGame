@@ -95,6 +95,7 @@ namespace ReportHelper
 		if (asset == "VillageWall") return Protocol::BUILDING_TYPE_VILLAGE_WALL;
 		if (asset == "DirtRoad") return Protocol::BUILDING_TYPE_DIRT_ROAD;
 		if (asset == "Tower") return Protocol::BUILDING_TYPE_TOWER;
+    if (asset == "Castle") return Protocol::BUILDING_TYPE_CASTLE;
 		return Protocol::BUILDING_TYPE_NONE;
 	}
 
@@ -116,6 +117,7 @@ namespace ReportHelper
 		case Protocol::BUILDING_TYPE_VILLAGE_WALL: return "VillageWall";
 		case Protocol::BUILDING_TYPE_DIRT_ROAD: return "DirtRoad";
 		case Protocol::BUILDING_TYPE_TOWER: return "Tower";
+ case Protocol::BUILDING_TYPE_CASTLE: return "Castle";
 		default: return "";
 		}
 	}
