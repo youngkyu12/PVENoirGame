@@ -707,12 +707,18 @@ private:
 	// spawn
 	std::vector<SkinnedInstanceGroup>   m_spawnInstanceGroups;
 
+	ComPtr<ID3D12Resource>              m_pd3dSpawnInstanceBuffer;
 	std::vector<SkinnedWorldLodEntry>   m_spawnWorldLodEntries;
 	std::vector<uint8_t>                m_spawnDistanceCullFlags;
 
 	bool                                m_spawnWorldLodDirty = false;
-
+	SkinnedInstanceVertex* m_pMappedSpawnInstanceBuffer = nullptr;
 	UINT                                m_spawnInstanceBufferCapacity = 0;
+
+	ComPtr<ID3D12Resource>              m_pd3dSpawnBonePaletteBuffer;
+	XMFLOAT4X4* m_pMappedSpawnBonePaletteBuffer = nullptr;
+	UINT                                m_spawnBonePaletteStride = 0;
+	UINT                                m_spawnBonePaletteCapacity = 0;
 
 	void BuildStaticWorldSubmeshOOBBDebugObjects(
 	ID3D12Device* dev,
