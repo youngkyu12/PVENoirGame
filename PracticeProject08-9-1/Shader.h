@@ -504,5 +504,6 @@ public:
 		ID3D12RootSignature* pd3dGraphicsRootSignature,
 		UINT nRenderTargets,
 		DXGI_FORMAT* pdxgiRtvFormats,
-		DXGI_FORMAT dxgiDsvFormat) override;
+		DXGI_FORMAT dxgiDsvFormat) override {
+	};
 };
