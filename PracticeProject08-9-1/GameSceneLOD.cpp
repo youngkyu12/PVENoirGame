@@ -171,6 +171,7 @@ void CGameScene::UpdateStaticWorldLodSelection(CCamera* camera)
 	}
 
 	const XMFLOAT3 cameraPosition = camera->GetPosition();
+	bool anyLodChanged = false;
 
 	for ( StaticWorldLodEntry& entry : m_staticWorldLodEntries )
 	{
@@ -184,10 +185,48 @@ void CGameScene::UpdateStaticWorldLodSelection(CCamera* camera)
 		entry.distanceCulled = distanceCulled;
 
 		if ( distanceCulled )
+		{
 			m_staticDistanceCullFlags[entry.staticBatchObjectIndex] = 1;
+			continue;
+		}
+
+		if ( !entry.lodEnabled )
+			continue;
+
+		int desiredLod = ComputeStaticWorldLodLevel(cameraPosition, entry);
+		desiredLod = ClampStaticWorldLodLevel(desiredLod);
+
+		int resolvedLod = desiredLod;
+		while ( resolvedLod > 0 && !entry.lodMeshes[( size_t ) resolvedLod] )
+			--resolvedLod;
+
+		std::shared_ptr<CMesh> targetMesh = entry.lodMeshes[( size_t ) resolvedLod];
+		if ( !targetMesh )
+			continue;
+
+		std::shared_ptr<CMesh> currentMesh = entry.object->GetMeshShared(0);
+
+		if ( entry.currentLod == resolvedLod &&
+			 currentMesh.get() == targetMesh.get() )
+		{
+			continue;
+		}
+
+		entry.object->SetMesh(0, targetMesh);
+		entry.currentLod = resolvedLod;
+		anyLodChanged = true;
 	}
 
-	m_staticWorldLodDirty = false;
+	if ( anyLodChanged )
+	{
+		BuildStaticInstanceGroups();
+		BuildStaticRenderObjectCache();
+		m_staticWorldLodDirty = true;
+	}
+	else
+	{
+		m_staticWorldLodDirty = false;
+	}
 }
 
 void CGameScene::ResetSkinnedWorldLodEntries()
@@ -322,6 +361,10 @@ void CGameScene::UpdateSkinnedWorldLodSelection(CCamera* camera)
 		std::shared_ptr<CMesh> currentMesh = entry.object->GetMeshShared(0);
 		if ( entry.currentLod == resolvedLod && currentMesh.get() == targetMesh.get() )
 			continue;
+
+		entry.object->SetMesh(0, targetMesh);
+		entry.currentLod = resolvedLod;
+		anyLodChanged = true;
 	}
 
 	// --------------------------------------------------------------------
