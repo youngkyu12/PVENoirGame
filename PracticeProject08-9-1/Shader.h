@@ -298,6 +298,17 @@ public:
 	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
 };
 
+class CAlphaClipSkinnedObjectsShader final : public CSkinnedObjectsShader
+{
+public:
+	CAlphaClipSkinnedObjectsShader() = default;
+	~CAlphaClipSkinnedObjectsShader() override = default;
+
+public:
+	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
+	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
+};
+
 class COcclusionStaticShader final : public CStaticObjectsShader
 {
 public:

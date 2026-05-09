@@ -972,7 +972,8 @@ private:
 	StaticInstanceVertex* m_pMappedStaticInstanceBuffer = nullptr;
 	UINT                                m_staticInstanceBufferCapacity = 0;
 
-	std::shared_ptr<CStaticObjectsShader>	m_treeStaticShader;
+	std::shared_ptr<CStaticObjectsShader>             m_treeStaticShader;
+	std::shared_ptr<CAlphaClipSkinnedObjectsShader>   m_skinnedAlphaClipShader;
 	std::unordered_set<const CGameObject*>	m_treeAlphaClipObjects;
 	std::unordered_set<const CGameObject*>	m_skinnedAlphaClipObjects;
 
