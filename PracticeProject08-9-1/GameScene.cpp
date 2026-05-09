@@ -2675,10 +2675,6 @@ void CGameScene::ReleaseObjects()
 	m_prevEnemyBowReleasePhase.clear();
 
 	m_hud.ReleaseResources();
-	// mShadowMap.reset();
-	// mShadowShader.reset();
-	// if ( m_pd3dShadowDsvDescriptorHeap )
-	//     m_pd3dShadowDsvDescriptorHeap.Reset();
 	m_depthFog.ReleaseResources();
 
 	m_occlusionStaticShader.reset();
@@ -2686,6 +2682,7 @@ void CGameScene::ReleaseObjects()
 	m_shadowAlphaClipStaticShader.reset();
 	m_shadowSkinnedShader.reset();
 	m_shadowAlphaClipSkinnedShader.reset();
+	m_skinnedAlphaClipShader.reset();
 
 	m_sceneRenderTargetCount = 0;
 	m_bSceneRenderTargetsReady = false;
@@ -3099,6 +3096,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	auto pStaticShader = std::make_shared<CStaticObjectsShader>();
 	auto pTreeStaticShader = std::make_shared<CTreeStaticObjectsShader>();
 	auto pSkinnedShader = std::make_shared<CSkinnedObjectsShader>();
+	auto pSkinnedAlphaClipShader = std::make_shared<CAlphaClipSkinnedObjectsShader>();
 	auto pColliderShader = std::make_shared<CDiffusedShader>();
 	auto pOcclusionStaticShader = std::make_shared<COcclusionStaticShader>();
 	auto pShadowStaticShader = std::make_shared<CShadowMapStaticShader>();
@@ -3109,6 +3107,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_staticBatch.shader = pStaticShader;
 	m_treeStaticShader = pTreeStaticShader;
 	m_skinnedBatch.shader = pSkinnedShader;
+	m_skinnedAlphaClipShader = pSkinnedAlphaClipShader;
 	m_colliderBatch.shader = pColliderShader;
 	m_occlusionStaticShader = pOcclusionStaticShader;
 	m_shadowStaticShader = pShadowStaticShader;
@@ -3183,6 +3182,14 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		0,
 		nullptr,
 		DXGI_FORMAT_D24_UNORM_S8_UINT
+	);
+
+	pSkinnedAlphaClipShader->CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		kRTCount,
+		rtvFormats,
+		kDsvFormat
 	);
 
 	BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
@@ -5143,6 +5150,9 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 	);
 	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
+	bool lastUseAlphaClipShader = false;
+	bool hasBoundAnyShader = false;
+
 	for ( const SkinnedInstanceGroup& group : m_skinnedInstanceGroups )
 	{
 		if ( !group.mesh ) continue;
@@ -5223,6 +5233,27 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 		}
 
 		if ( visibleInstanceCount == 0 ) continue;
+
+		if ( !hasBoundAnyShader || lastUseAlphaClipShader != group.useAlphaClipShader )
+		{
+			if ( group.useAlphaClipShader && m_skinnedAlphaClipShader )
+			{
+				m_skinnedAlphaClipShader->Render(cmd, camera, &m_skinnedBatch);
+			}
+			else
+			{
+				m_skinnedBatch.shader->Render(cmd, camera, &m_skinnedBatch);
+			}
+
+			// shader->Render()가 PSO/root state를 만질 수 있으므로 bone palette를 다시 보장.
+			cmd->SetGraphicsRootShaderResourceView(
+				ROOT_PARAMETER_BONE_PALETTE,
+				m_pd3dSkinnedBonePaletteBuffer->GetGPUVirtualAddress()
+			);
+
+			lastUseAlphaClipShader = group.useAlphaClipShader;
+			hasBoundAnyShader = true;
+		}
 
 		D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
 		vbViews[0] = repSm.vbView;
@@ -8855,7 +8886,6 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 
 	if ( m_skinnedBatch.shader )
 	{
-		m_skinnedBatch.shader->Render(cmd, camera, &m_skinnedBatch);
 		RenderSkinnedInstanceGroups(cmd, camera);
 	}
 
