@@ -8796,23 +8796,55 @@ void CGameScene::OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera
 
 void CGameScene::UpdateFrameRenderState(CCamera* camera)
 {
-	PROFILE_RENDER_SCOPE("GameScene::UpdateFrameRenderState");
+	PROFILE_RENDER_SCOPE("GameScene::UpdateFrameRenderState(total)");
 
 	if ( !camera )
 		return;
 
-	UpdateStaticWorldLodSelection(camera);
-	BeginStaticOcclusionReadback();
-	UpdateStaticOcclusionCullSelection(camera);
-	UpdateStaticTreeGridCullSelection(camera);
+	{
+		PROFILE_RENDER_SCOPE("UFRS::UpdateStaticWorldLodSelection");
+		UpdateStaticWorldLodSelection(camera);
+	}
 
-	BuildStaticVisibleListsForFrame(camera);
+	{
+		PROFILE_RENDER_SCOPE("UFRS::BeginStaticOcclusionReadback");
+		BeginStaticOcclusionReadback();
+	}
 
-	UpdateItemBillboardDistanceCullSelection(camera);
+	{
+		PROFILE_RENDER_SCOPE("UFRS::UpdateStaticOcclusionCullSelection");
+		UpdateStaticOcclusionCullSelection(camera);
+	}
 
-	UpdateSkinnedWorldLodSelection(camera);
-	BeginSkinnedOcclusionReadback();
-	UpdateSkinnedOcclusionCullSelection(camera);
+	{
+		PROFILE_RENDER_SCOPE("UFRS::UpdateStaticTreeGridCullSelection");
+		UpdateStaticTreeGridCullSelection(camera);
+	}
+
+	{
+		PROFILE_RENDER_SCOPE("UFRS::BuildStaticVisibleListsForFrame");
+		BuildStaticVisibleListsForFrame(camera);
+	}
+
+	{
+		PROFILE_RENDER_SCOPE("UFRS::UpdateItemBillboardDistanceCullSelection");
+		UpdateItemBillboardDistanceCullSelection(camera);
+	}
+
+	{
+		PROFILE_RENDER_SCOPE("UFRS::UpdateSkinnedWorldLodSelection");
+		UpdateSkinnedWorldLodSelection(camera);
+	}
+
+	{
+		PROFILE_RENDER_SCOPE("UFRS::BeginSkinnedOcclusionReadback");
+		BeginSkinnedOcclusionReadback();
+	}
+
+	{
+		PROFILE_RENDER_SCOPE("UFRS::UpdateSkinnedOcclusionCullSelection");
+		UpdateSkinnedOcclusionCullSelection(camera);
+	}
 }
 
 void CGameScene::BindFrameRootParameters(ID3D12GraphicsCommandList* cmd)

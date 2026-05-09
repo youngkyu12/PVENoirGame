@@ -156,13 +156,18 @@ bool CGameScene::ComputeStaticWorldDistanceCulled(
 
 void CGameScene::UpdateStaticWorldLodSelection(CCamera* camera)
 {
+	PROFILE_RENDER_SCOPE("StaticLOD::Total");
+
 	if ( !camera )
 	{
 		m_staticDistanceCullFlags.clear();
 		return;
 	}
 
-	m_staticDistanceCullFlags.assign(m_staticBatch.objectRefs.size(), 0);
+	{
+		PROFILE_RENDER_SCOPE("StaticLOD::AssignDistanceCullFlags");
+		m_staticDistanceCullFlags.assign(m_staticBatch.objectRefs.size(), 0);
+	}
 
 	if ( m_staticWorldLodEntries.empty() )
 	{
@@ -172,55 +177,68 @@ void CGameScene::UpdateStaticWorldLodSelection(CCamera* camera)
 
 	const XMFLOAT3 cameraPosition = camera->GetPosition();
 	bool anyLodChanged = false;
+	UINT changedCount = 0;
 
-	for ( StaticWorldLodEntry& entry : m_staticWorldLodEntries )
 	{
-		if ( !entry.object ) continue;
-		if ( entry.staticBatchObjectIndex == UINT_MAX ) continue;
-		if ( entry.staticBatchObjectIndex >= ( UINT ) m_staticDistanceCullFlags.size() ) continue;
+		PROFILE_RENDER_SCOPE("StaticLOD::SelectionLoop");
 
-		const bool distanceCulled =
-			ComputeStaticWorldDistanceCulled(cameraPosition, entry);
-
-		entry.distanceCulled = distanceCulled;
-
-		if ( distanceCulled )
+		for ( StaticWorldLodEntry& entry : m_staticWorldLodEntries )
 		{
-			m_staticDistanceCullFlags[entry.staticBatchObjectIndex] = 1;
-			continue;
+			if ( !entry.object ) continue;
+			if ( entry.staticBatchObjectIndex == UINT_MAX ) continue;
+			if ( entry.staticBatchObjectIndex >= ( UINT ) m_staticDistanceCullFlags.size() ) continue;
+
+			const bool distanceCulled =
+				ComputeStaticWorldDistanceCulled(cameraPosition, entry);
+
+			entry.distanceCulled = distanceCulled;
+
+			if ( distanceCulled )
+			{
+				m_staticDistanceCullFlags[entry.staticBatchObjectIndex] = 1;
+				continue;
+			}
+
+			if ( !entry.lodEnabled )
+				continue;
+
+			int desiredLod = ComputeStaticWorldLodLevel(cameraPosition, entry);
+			desiredLod = ClampStaticWorldLodLevel(desiredLod);
+
+			int resolvedLod = desiredLod;
+			while ( resolvedLod > 0 && !entry.lodMeshes[( size_t ) resolvedLod] )
+				--resolvedLod;
+
+			std::shared_ptr<CMesh> targetMesh = entry.lodMeshes[( size_t ) resolvedLod];
+			if ( !targetMesh )
+				continue;
+
+			std::shared_ptr<CMesh> currentMesh = entry.object->GetMeshShared(0);
+
+			if ( entry.currentLod == resolvedLod &&
+				 currentMesh.get() == targetMesh.get() )
+			{
+				continue;
+			}
+
+			{
+				PROFILE_RENDER_SCOPE("StaticLOD::SetMesh");
+				entry.object->SetMesh(0, targetMesh);
+			}
+
+			entry.currentLod = resolvedLod;
+			anyLodChanged = true;
+			++changedCount;
 		}
-
-		if ( !entry.lodEnabled )
-			continue;
-
-		int desiredLod = ComputeStaticWorldLodLevel(cameraPosition, entry);
-		desiredLod = ClampStaticWorldLodLevel(desiredLod);
-
-		int resolvedLod = desiredLod;
-		while ( resolvedLod > 0 && !entry.lodMeshes[( size_t ) resolvedLod] )
-			--resolvedLod;
-
-		std::shared_ptr<CMesh> targetMesh = entry.lodMeshes[( size_t ) resolvedLod];
-		if ( !targetMesh )
-			continue;
-
-		std::shared_ptr<CMesh> currentMesh = entry.object->GetMeshShared(0);
-
-		if ( entry.currentLod == resolvedLod &&
-			 currentMesh.get() == targetMesh.get() )
-		{
-			continue;
-		}
-
-		entry.object->SetMesh(0, targetMesh);
-		entry.currentLod = resolvedLod;
-		anyLodChanged = true;
 	}
 
 	if ( anyLodChanged )
 	{
-		BuildStaticInstanceGroups();
-		BuildStaticRenderObjectCache();
+		{
+			PROFILE_RENDER_SCOPE("StaticLOD::BuildStaticInstanceGroups");
+			BuildStaticInstanceGroups();
+		}
+
 		m_staticWorldLodDirty = true;
 	}
 	else
