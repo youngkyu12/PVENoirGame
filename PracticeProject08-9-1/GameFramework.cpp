@@ -1051,13 +1051,17 @@ LRESULT CALLBACK CGameFramework::OnProcessingWindowMessage(HWND hWnd, UINT nMess
 
 void CGameFramework::ChangeSwapChainState()
 {
-	WaitForGpuComplete();
+	FlushGpu();
 
 	BOOL bFullScreenState = FALSE;
-	m_pdxgiSwapChain->GetFullscreenState(&bFullScreenState, NULL);
-	m_pdxgiSwapChain->SetFullscreenState(!bFullScreenState, NULL);
+	HRESULT hResult = m_pdxgiSwapChain->GetFullscreenState(&bFullScreenState, NULL);
+	( void ) hResult;
+
+	hResult = m_pdxgiSwapChain->SetFullscreenState(!bFullScreenState, NULL);
+	( void ) hResult;
 
 	DXGI_MODE_DESC dxgiTargetParameters;
+	::ZeroMemory(&dxgiTargetParameters, sizeof(DXGI_MODE_DESC));
 	dxgiTargetParameters.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	dxgiTargetParameters.Width = m_nWndClientWidth;
 	dxgiTargetParameters.Height = m_nWndClientHeight;
@@ -1065,25 +1069,41 @@ void CGameFramework::ChangeSwapChainState()
 	dxgiTargetParameters.RefreshRate.Denominator = 1;
 	dxgiTargetParameters.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
 	dxgiTargetParameters.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
-	m_pdxgiSwapChain->ResizeTarget(&dxgiTargetParameters);
 
-	for (int i = 0; i < m_nSwapChainBuffers; i++)
-		if (m_ppd3dSwapChainBackBuffers[i])
+	hResult = m_pdxgiSwapChain->ResizeTarget(&dxgiTargetParameters);
+	( void ) hResult;
+
+	for ( int i = 0; i < m_nSwapChainBuffers; ++i )
+	{
+		if ( m_ppd3dSwapChainBackBuffers[i] )
 			m_ppd3dSwapChainBackBuffers[i].Reset();
+	}
 
 	DXGI_SWAP_CHAIN_DESC dxgiSwapChainDesc;
-	m_pdxgiSwapChain->GetDesc(&dxgiSwapChainDesc);
-	m_pdxgiSwapChain->ResizeBuffers(
+	::ZeroMemory(&dxgiSwapChainDesc, sizeof(DXGI_SWAP_CHAIN_DESC));
+
+	hResult = m_pdxgiSwapChain->GetDesc(&dxgiSwapChainDesc);
+	( void ) hResult;
+
+	hResult = m_pdxgiSwapChain->ResizeBuffers(
 		m_nSwapChainBuffers,
 		m_nWndClientWidth,
 		m_nWndClientHeight,
 		dxgiSwapChainDesc.BufferDesc.Format,
 		dxgiSwapChainDesc.Flags
 	);
+	( void ) hResult;
 
 	m_nSwapChainBufferIndex = m_pdxgiSwapChain->GetCurrentBackBufferIndex();
 
 	CreateSwapChainRenderTargetViews();
+
+	for ( UINT i = 0; i < m_nFrameContexts; ++i )
+		m_frameContexts[i].fenceValue = 0;
+
+	m_nFrameContextIndex = 0;
+	m_pd3dCommandAllocator = m_frameContexts[m_nFrameContextIndex].commandAllocator;
+	m_pd3dCommandList = m_frameContexts[m_nFrameContextIndex].commandList;
 }
 
 void CGameFramework::ProcessInput()
