@@ -7030,12 +7030,7 @@ void CGameScene::RenderShadowPrePass(ID3D12GraphicsCommandList* cmd, CCamera* ca
 
 		BuildStaticShadowVisibleListsForFrame();
 	}
-
-	{
-		PROFILE_RENDER_SCOPE("GameScene::RenderShadowPrePass::RenderShadowMap");
-		RenderShadowMap(cmd);
-	}
-
+	RenderShadowMap(cmd);
 	RestoreSceneRenderTargets(cmd, camera);
 }
 
@@ -8939,42 +8934,20 @@ void CGameScene::UpdateFrameRenderState(CCamera* camera)
 		PROFILE_RENDER_SCOPE("UFRS::UpdateStaticWorldLodSelection");
 		UpdateStaticWorldLodSelection(camera);
 	}
-
-	{
-		PROFILE_RENDER_SCOPE("UFRS::BeginStaticOcclusionReadback");
 		BeginStaticOcclusionReadback();
-	}
-
 	{
 		PROFILE_RENDER_SCOPE("UFRS::UpdateStaticOcclusionCullSelection");
 		UpdateStaticOcclusionCullSelection(camera);
 	}
-
-	{
-		PROFILE_RENDER_SCOPE("UFRS::UpdateStaticTreeGridCullSelection");
-		UpdateStaticTreeGridCullSelection(camera);
-	}
-
-	{
-		PROFILE_RENDER_SCOPE("UFRS::BuildStaticVisibleListsForFrame");
-		BuildStaticVisibleListsForFrame(camera);
-	}
-
-	{
-		PROFILE_RENDER_SCOPE("UFRS::UpdateItemBillboardDistanceCullSelection");
-		UpdateItemBillboardDistanceCullSelection(camera);
-	}
-
+	UpdateStaticTreeGridCullSelection(camera);
+	BuildStaticVisibleListsForFrame(camera);
+	UpdateItemBillboardDistanceCullSelection(camera);
+	
 	{
 		PROFILE_RENDER_SCOPE("UFRS::UpdateSkinnedWorldLodSelection");
 		UpdateSkinnedWorldLodSelection(camera);
 	}
-
-	{
-		PROFILE_RENDER_SCOPE("UFRS::BeginSkinnedOcclusionReadback");
-		BeginSkinnedOcclusionReadback();
-	}
-
+	BeginSkinnedOcclusionReadback();
 	{
 		PROFILE_RENDER_SCOPE("UFRS::UpdateSkinnedOcclusionCullSelection");
 		UpdateSkinnedOcclusionCullSelection(camera);
@@ -8983,8 +8956,6 @@ void CGameScene::UpdateFrameRenderState(CCamera* camera)
 
 void CGameScene::BindFrameRootParameters(ID3D12GraphicsCommandList* cmd)
 {
-	PROFILE_RENDER_SCOPE("GameScene::BindFrameRootParameters");
-
 	if ( !cmd )
 		return;
 
@@ -9010,10 +8981,7 @@ void CGameScene::BindFrameRootParameters(ID3D12GraphicsCommandList* cmd)
 
 void CGameScene::RebindFrameRenderState(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
-	PROFILE_RENDER_SCOPE("GameScene::RebindFrameRenderState");
-
-	if ( !cmd )
-		return;
+	if ( !cmd ) return;
 
 	CScene::OnPrepareRender(cmd, camera);
 	BindFrameRootParameters(cmd);
@@ -9041,7 +9009,6 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 
 	if ( m_staticBatch.shader )
 	{
-		PROFILE_RENDER_SCOPE("GameScene::RenderSceneGeometry::StaticInstances");
 		RenderStaticInstanceGroups(cmd, camera);
 	}
 
