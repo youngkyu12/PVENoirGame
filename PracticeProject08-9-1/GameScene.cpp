@@ -811,6 +811,12 @@ CGameScene::CGameScene()
 	m_bLocalPlayerInsideCastleCenterMegaGrid = false;
 }
 
+void CGameScene::SetFrameResourceIndex(UINT frameResourceIndex)
+{
+	m_nFrameResourceIndex = frameResourceIndex % kFrameResourceCount;
+}
+
+
 void CGameScene::InitializeSpatialGrid()
 {
 	m_sceneGrid.Initialize();
@@ -2941,19 +2947,32 @@ void CGameScene::ReleaseShaderVariables()
         m_skinnedBatch.cbGameObjects.Reset();
     }
 
-    if (m_pd3dcbLights)
-    {
-        m_pd3dcbLights->Unmap(0, NULL);
-        m_pd3dcbLights.Reset();
-    }
-    m_pcbMappedLights = nullptr;
+	for ( UINT i = 0; i < kFrameResourceCount; ++i )
+	{
+		if ( m_pd3dcbLights[i] )
+		{
+			m_pd3dcbLights[i]->Unmap(0, NULL);
+			m_pd3dcbLights[i].Reset();
+		}
 
-    if (m_pd3dcbMaterials)
-    {
-        m_pd3dcbMaterials->Unmap(0, NULL);
-        m_pd3dcbMaterials.Reset();
-    }
-    m_pcbMappedMaterials = nullptr;
+		m_pcbMappedLights[i] = nullptr;
+	}
+
+	m_nLightsCBElementBytes = 0;
+
+	for ( UINT i = 0; i < kFrameResourceCount; ++i )
+	{
+		if ( m_pd3dcbMaterials[i] )
+		{
+			m_pd3dcbMaterials[i]->Unmap(0, NULL);
+			m_pd3dcbMaterials[i].Reset();
+		}
+
+		m_pcbMappedMaterials[i] = nullptr;
+	}
+
+	m_nMaterialsCBElementBytes = 0;
+	m_nFrameResourceIndex = 0;
 
 	m_depthFog.ReleaseConstantBuffer();
 
@@ -3877,23 +3896,55 @@ void CGameScene::BuildLightsAndMaterials()
 
 void CGameScene::CreateShaderVariables(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
-    UINT ncbElementBytes = ((sizeof(LIGHTS) + 255) & ~255);
-    m_pd3dcbLights = ::CreateBufferResource(
-        dev, cmd, nullptr,
-        ncbElementBytes,
-        D3D12_HEAP_TYPE_UPLOAD,
-        D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
-        nullptr);
-    m_pd3dcbLights->Map(0, nullptr, (void**)&m_pcbMappedLights);
+	m_nLightsCBElementBytes = ( ( sizeof(LIGHTS) + 255 ) & ~255 );
 
-    UINT ncbMaterialBytes = ((sizeof(MATERIALS) + 255) & ~255);
-    m_pd3dcbMaterials = ::CreateBufferResource(
-        dev, cmd, nullptr,
-        ncbMaterialBytes,
-        D3D12_HEAP_TYPE_UPLOAD,
-        D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
-        nullptr);
-    m_pd3dcbMaterials->Map(0, nullptr, (void**)&m_pcbMappedMaterials);
+	for ( UINT i = 0; i < kFrameResourceCount; ++i )
+	{
+		m_pd3dcbLights[i] = ::CreateBufferResource(
+			dev,
+			cmd,
+			nullptr,
+			m_nLightsCBElementBytes,
+			D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+			nullptr
+		);
+
+		if ( m_pd3dcbLights[i] )
+		{
+			m_pd3dcbLights[i]->Map(
+				0,
+				nullptr,
+				reinterpret_cast< void** >( &m_pcbMappedLights[i] )
+			);
+		}
+	}
+
+	m_nMaterialsCBElementBytes = ( ( sizeof(MATERIALS) + 255 ) & ~255 );
+
+	for ( UINT i = 0; i < kFrameResourceCount; ++i )
+	{
+		m_pd3dcbMaterials[i] = ::CreateBufferResource(
+			dev,
+			cmd,
+			nullptr,
+			m_nMaterialsCBElementBytes,
+			D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+			nullptr
+		);
+
+		if ( m_pd3dcbMaterials[i] )
+		{
+			m_pd3dcbMaterials[i]->Map(
+				0,
+				nullptr,
+				reinterpret_cast< void** >( &m_pcbMappedMaterials[i] )
+			);
+		}
+	}
+
+	m_nFrameResourceIndex = 0;
 
 	m_depthFog.CreateConstantBuffer(dev, cmd);
 }
@@ -6972,9 +7023,11 @@ void CGameScene::RenderShadowMap(ID3D12GraphicsCommandList* cmd)
 	if ( !m_shadowStaticShader ) return;
 	if ( !m_shadowSkinnedShader ) return;
 
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
 	const D3D12_GPU_VIRTUAL_ADDRESS materialCbGpuAddress =
-		m_pd3dcbMaterials
-		? m_pd3dcbMaterials->GetGPUVirtualAddress()
+		m_pd3dcbMaterials[frameIndex]
+		? m_pd3dcbMaterials[frameIndex]->GetGPUVirtualAddress()
 		: 0;
 
 	const bool begun =
@@ -8778,29 +8831,35 @@ void CGameScene::CollisionObjects()
 void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
 {
 	PROFILE_RENDER_SCOPE("GameScene::UpdateShaderVariables");
-    if (m_pcbMappedLights)
-    {
-        ::ZeroMemory(m_pcbMappedLights, sizeof(LIGHTS));
-		m_pcbMappedLights->m_xmf4GlobalAmbient = XMFLOAT4(0.20f, 0.20f, 0.20f, 1.0f);
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
 
-        UINT li = 0;
-        for (auto& obj : m_lightObjects)
-        {
-            if (!obj) continue;
+	LIGHTS* mappedLights = m_pcbMappedLights[frameIndex];
 
-            auto* lc = obj->GetComponent<CLightComponent>();
-            if (!lc) continue;
-            if (!lc->IsEnabled()) continue;
-            if (li >= MAX_LIGHTS) break;
+	if ( mappedLights )
+	{
+		::ZeroMemory(mappedLights, sizeof(LIGHTS));
+		mappedLights->m_xmf4GlobalAmbient = XMFLOAT4(0.20f, 0.20f, 0.20f, 1.0f);
 
-            lc->Fill(m_pcbMappedLights->m_pLights[li]);
-            ++li;
-        }
-    }
+		UINT li = 0;
+		for ( auto& obj : m_lightObjects )
+		{
+			if ( !obj ) continue;
 
-    if (m_pcbMappedMaterials && m_pMaterials)
-        ::memcpy(m_pcbMappedMaterials, m_pMaterials.get(), sizeof(MATERIALS));
-	
+			auto* lc = obj->GetComponent<CLightComponent>();
+			if ( !lc ) continue;
+			if ( !lc->IsEnabled() ) continue;
+			if ( li >= MAX_LIGHTS ) break;
+
+			lc->Fill(mappedLights->m_pLights[li]);
+			++li;
+		}
+	}
+
+	MATERIALS* mappedMaterials = m_pcbMappedMaterials[frameIndex];
+
+	if ( mappedMaterials && m_pMaterials )
+		::memcpy(mappedMaterials, m_pMaterials.get(), sizeof(MATERIALS));
+
 	CGameObject* shadowFocus = GetPlayer();
 	if ( !shadowFocus )
 		shadowFocus = GetPlayerBySlot(0);
@@ -8956,22 +9015,26 @@ void CGameScene::UpdateFrameRenderState(CCamera* camera)
 
 void CGameScene::BindFrameRootParameters(ID3D12GraphicsCommandList* cmd)
 {
+	PROFILE_RENDER_SCOPE("GameScene::BindFrameRootParameters");
+
 	if ( !cmd )
 		return;
 
-	if ( m_pd3dcbLights )
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	if ( m_pd3dcbLights[frameIndex] )
 	{
 		cmd->SetGraphicsRootConstantBufferView(
 			ROOT_PARAMETER_LIGHT,
-			m_pd3dcbLights->GetGPUVirtualAddress()
+			m_pd3dcbLights[frameIndex]->GetGPUVirtualAddress()
 		);
 	}
 
-	if ( m_pd3dcbMaterials )
+	if ( m_pd3dcbMaterials[frameIndex] )
 	{
 		cmd->SetGraphicsRootConstantBufferView(
 			ROOT_PARAMETER_MATERIAL,
-			m_pd3dcbMaterials->GetGPUVirtualAddress()
+			m_pd3dcbMaterials[frameIndex]->GetGPUVirtualAddress()
 		);
 	}
 

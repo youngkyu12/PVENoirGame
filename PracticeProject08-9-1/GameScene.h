@@ -506,6 +506,7 @@ public:
 		void RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 		void RebindFrameRenderState(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+		void SetFrameResourceIndex(UINT frameResourceIndex);
 
     // Input (messages) : 게임에서는 좌클릭 공격
 public:
@@ -875,14 +876,20 @@ private:
     std::vector<std::unique_ptr<CGameObject>> m_lightObjects;
     CFollowTransformComponent* m_pPlayerSpotFollower = nullptr;
 
-    // GPU / Shader Variables (Game 전용)
-    ComPtr<ID3D12Resource> m_pd3dcbLights;
-    LIGHTS* m_pcbMappedLights = nullptr;
+	// GPU / Shader Variables (Game 전용)
+	static constexpr UINT kFrameResourceCount = 2;
 
-    std::unique_ptr<MATERIALS> m_pMaterials;
+	std::array<ComPtr<ID3D12Resource>, kFrameResourceCount> m_pd3dcbLights;
+	std::array<LIGHTS*, kFrameResourceCount> m_pcbMappedLights = {};
+	UINT m_nLightsCBElementBytes = 0;
 
-    ComPtr<ID3D12Resource> m_pd3dcbMaterials;
-    MATERIAL* m_pcbMappedMaterials = nullptr;
+	std::unique_ptr<MATERIALS> m_pMaterials;
+
+	std::array<ComPtr<ID3D12Resource>, kFrameResourceCount> m_pd3dcbMaterials;
+	std::array<MATERIALS*, kFrameResourceCount> m_pcbMappedMaterials = {};
+	UINT m_nMaterialsCBElementBytes = 0;
+
+	UINT m_nFrameResourceIndex = 0;
 
 	CDepthFogSystem                 m_depthFog;
 	float                           m_fElapsedTime = 0.0f;

@@ -855,6 +855,7 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 
 	if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
 	{
+		gameScene->SetFrameResourceIndex(m_nFrameContextIndex);
 		gameScene->SetDepthFogSourceSrvIndices(
 			m_pPostProcessingShader->GetTexture()->GetSrvIndex(0),
 			m_pPostProcessingShader->GetTexture()->GetSrvIndex(4)
@@ -1465,10 +1466,8 @@ void CGameFramework::FrameAdvance()
 	CScene* scene = m_SceneManager.GetScene();
 	CGameScene* gameScene = dynamic_cast< CGameScene* >( scene );
 
-	/*if ( gameScene && ( m_nDrawOption == DRAW_SCENE_COLOR ) )
-	{
-		gameScene->RenderShadowMap(m_pd3dCommandList.Get(), m_GameTimer);
-	}*/
+	if ( gameScene )
+		gameScene->SetFrameResourceIndex(m_nFrameContextIndex);
 
 	if ( scene && !gameScene )
 		scene->OnPrepareRender(m_pd3dCommandList.Get(), m_pCamera);
