@@ -6,6 +6,11 @@ CCamera::CCamera(CGameObject* owner) : CComponentT(owner)
 {
 }
 
+void CCamera::SetFrameResourceIndex(UINT frameResourceIndex)
+{
+	m_nCameraFrameResourceIndex = frameResourceIndex % kCameraFrameResourceCount;
+}
+
 CCamera::~CCamera()
 { 
 	ReleaseShaderVariables();
@@ -91,38 +96,90 @@ void CCamera::RegenerateViewMatrix()
 	GenerateFrustum();
 }
 
-void CCamera::CreateShaderVariables(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList)
+void CCamera::CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	UINT ncbElementBytes = ((sizeof(VS_CB_CAMERA_INFO) + 255) & ~255); //256의 배수
-	m_pd3dcbCamera = ::CreateBufferResource(
-		pd3dDevice, 
-		pd3dCommandList, 
-		NULL, 
-		ncbElementBytes, 
-		D3D12_HEAP_TYPE_UPLOAD, 
-		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, 
-		NULL);
+	m_nCameraCBElementBytes = ( ( sizeof(VS_CB_CAMERA_INFO) + 255 ) & ~255 );
 
-	m_pd3dcbCamera->Map(0, NULL, (void **)&m_pcbMappedCamera);
+	for ( UINT i = 0; i < kCameraFrameResourceCount; ++i )
+	{
+		m_pd3dcbCamera[i] = ::CreateBufferResource(
+			pd3dDevice,
+			pd3dCommandList,
+			NULL,
+			m_nCameraCBElementBytes,
+			D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+			NULL
+		);
+
+		if ( m_pd3dcbCamera[i] )
+		{
+			m_pd3dcbCamera[i]->Map(
+				0,
+				NULL,
+				reinterpret_cast< void** >( &m_pcbMappedCamera[i] )
+			);
+		}
+	}
+
+	m_nCameraFrameResourceIndex = 0;
 }
 
-void CCamera::UpdateShaderVariables(ID3D12GraphicsCommandList *pd3dCommandList)
+void CCamera::UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	XMStoreFloat4x4(&m_pcbMappedCamera->m_xmf4x4View, XMMatrixTranspose(XMLoadFloat4x4(&m_xmf4x4View)));
-	XMStoreFloat4x4(&m_pcbMappedCamera->m_xmf4x4Projection, XMMatrixTranspose(XMLoadFloat4x4(&m_xmf4x4Projection)));
-	::memcpy(&m_pcbMappedCamera->m_xmf3Position, &m_xmf3Position, sizeof(XMFLOAT3));
+	if ( !pd3dCommandList )
+		return;
 
-	D3D12_GPU_VIRTUAL_ADDRESS d3dGpuVirtualAddress = m_pd3dcbCamera->GetGPUVirtualAddress();
-	pd3dCommandList->SetGraphicsRootConstantBufferView(ROOT_PARAMETER_CAMERA, d3dGpuVirtualAddress);
+	const UINT frameIndex = m_nCameraFrameResourceIndex % kCameraFrameResourceCount;
+
+	if ( !m_pd3dcbCamera[frameIndex] )
+		return;
+
+	VS_CB_CAMERA_INFO* mappedCamera = m_pcbMappedCamera[frameIndex];
+
+	if ( !mappedCamera )
+		return;
+
+	XMStoreFloat4x4(
+		&mappedCamera->m_xmf4x4View,
+		XMMatrixTranspose(XMLoadFloat4x4(&m_xmf4x4View))
+	);
+
+	XMStoreFloat4x4(
+		&mappedCamera->m_xmf4x4Projection,
+		XMMatrixTranspose(XMLoadFloat4x4(&m_xmf4x4Projection))
+	);
+
+	::memcpy(
+		&mappedCamera->m_xmf3Position,
+		&m_xmf3Position,
+		sizeof(XMFLOAT3)
+	);
+
+	D3D12_GPU_VIRTUAL_ADDRESS d3dGpuVirtualAddress =
+		m_pd3dcbCamera[frameIndex]->GetGPUVirtualAddress();
+
+	pd3dCommandList->SetGraphicsRootConstantBufferView(
+		ROOT_PARAMETER_CAMERA,
+		d3dGpuVirtualAddress
+	);
 }
 
 void CCamera::ReleaseShaderVariables()
 {
-	if (m_pd3dcbCamera)
+	for ( UINT i = 0; i < kCameraFrameResourceCount; ++i )
 	{
-		m_pd3dcbCamera->Unmap(0, nullptr);
-		m_pd3dcbCamera.Reset();
+		if ( m_pd3dcbCamera[i] )
+		{
+			m_pd3dcbCamera[i]->Unmap(0, nullptr);
+			m_pd3dcbCamera[i].Reset();
+		}
+
+		m_pcbMappedCamera[i] = nullptr;
 	}
+
+	m_nCameraCBElementBytes = 0;
+	m_nCameraFrameResourceIndex = 0;
 }
 
 void CCamera::SetViewportsAndScissorRects(ID3D12GraphicsCommandList *pd3dCommandList)

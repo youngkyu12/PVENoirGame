@@ -800,6 +800,10 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 	m_bConsumeNextMouseClick = false;
 
 	m_pCamera = scene->GetMainCamera();
+
+	if ( m_pCamera )
+		m_pCamera->SetFrameResourceIndex(m_nFrameContextIndex);
+
 	SyncGameSceneInactiveOverlay();
 	UpdateGameCursorLock();
 
@@ -1447,6 +1451,9 @@ void CGameFramework::FrameAdvance()
 
 	hResult = m_pd3dCommandList->Reset(m_pd3dCommandAllocator.Get(), nullptr);
 	( void ) hResult;
+
+	if ( m_pCamera )
+		m_pCamera->SetFrameResourceIndex(m_nFrameContextIndex);
 
 	::SynchronizeResourceTransition(
 		m_pd3dCommandList.Get(),
