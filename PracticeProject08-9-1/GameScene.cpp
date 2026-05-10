@@ -817,8 +817,93 @@ void CGameScene::SetFrameResourceIndex(UINT frameResourceIndex)
 
 	m_depthFog.SetFrameResourceIndex(m_nFrameResourceIndex);
 	m_shadowMap.SetFrameResourceIndex(m_nFrameResourceIndex);
-}
 
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	if ( m_staticBatch.cbElementBytes > 0 &&
+		 m_staticBatch.mappedGameObjects[frameIndex] &&
+		 m_staticBatch.baseCbvGpu[frameIndex].ptr != 0 )
+	{
+		for ( UINT objectIndex = 0;
+			  objectIndex < static_cast< UINT >(m_staticBatch.objectRefs.size());
+			  ++objectIndex )
+		{
+			CGameObject* obj = m_staticBatch.objectRefs[objectIndex];
+
+			if ( !obj )
+				continue;
+
+			CB_GAMEOBJECT_INFO* cb =
+				reinterpret_cast< CB_GAMEOBJECT_INFO* >(
+					reinterpret_cast< UINT8* >(m_staticBatch.mappedGameObjects[frameIndex]) +
+					objectIndex * m_staticBatch.cbElementBytes
+				);
+
+			obj->SetCbvGPUDescriptorHandlePtr(
+				m_staticBatch.baseCbvGpu[frameIndex].ptr +
+				static_cast< UINT64 >( objectIndex ) * m_staticBatch.cbvInc
+			);
+
+			obj->SetMappedGameObjectCB(cb);
+		}
+	}
+
+	if ( m_skinnedBatch.cbElementBytes > 0 &&
+		 m_skinnedBatch.mappedGameObjects[frameIndex] &&
+		 m_skinnedBatch.baseCbvGpu[frameIndex].ptr != 0 )
+	{
+		for ( UINT objectIndex = 0;
+			  objectIndex < static_cast< UINT >(m_skinnedBatch.objectRefs.size());
+			  ++objectIndex )
+		{
+			CGameObject* obj = m_skinnedBatch.objectRefs[objectIndex];
+
+			if ( !obj )
+				continue;
+
+			CB_GAMEOBJECT_INFO* cb =
+				reinterpret_cast< CB_GAMEOBJECT_INFO* >(
+					reinterpret_cast< UINT8* >(m_skinnedBatch.mappedGameObjects[frameIndex]) +
+					objectIndex * m_skinnedBatch.cbElementBytes
+				);
+
+			obj->SetCbvGPUDescriptorHandlePtr(
+				m_skinnedBatch.baseCbvGpu[frameIndex].ptr +
+				static_cast< UINT64 >( objectIndex ) * m_skinnedBatch.cbvInc
+			);
+
+			obj->SetMappedGameObjectCB(cb);
+		}
+	}
+
+	if ( m_colliderBatch.cbElementBytes > 0 &&
+		 m_colliderBatch.mappedGameObjects[frameIndex] &&
+		 m_colliderBatch.baseCbvGpu[frameIndex].ptr != 0 )
+	{
+		for ( UINT objectIndex = 0;
+			  objectIndex < static_cast< UINT >(m_colliderBatch.objectRefs.size());
+			  ++objectIndex )
+		{
+			CGameObject* obj = m_colliderBatch.objectRefs[objectIndex];
+
+			if ( !obj )
+				continue;
+
+			CB_GAMEOBJECT_INFO* cb =
+				reinterpret_cast< CB_GAMEOBJECT_INFO* >(
+					reinterpret_cast< UINT8* >(m_colliderBatch.mappedGameObjects[frameIndex]) +
+					objectIndex * m_colliderBatch.cbElementBytes
+				);
+
+			obj->SetCbvGPUDescriptorHandlePtr(
+				m_colliderBatch.baseCbvGpu[frameIndex].ptr +
+				static_cast< UINT64 >( objectIndex ) * m_colliderBatch.cbvInc
+			);
+
+			obj->SetMappedGameObjectCB(cb);
+		}
+	}
+}
 
 void CGameScene::InitializeSpatialGrid()
 {
@@ -2928,27 +3013,40 @@ void CGameScene::ReleaseShaderVariables()
 	m_skinnedBonePaletteCapacity = 0;
 
 	// ---- Static batch CB ----
-	if ( m_staticBatch.cbGameObjects )
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
 	{
-		if ( m_staticBatch.mappedGameObjects )
+		if ( m_staticBatch.cbGameObjects[frameIndex] )
 		{
-			m_staticBatch.cbGameObjects->Unmap(0, NULL);
-			m_staticBatch.mappedGameObjects = nullptr;
+			if ( m_staticBatch.mappedGameObjects[frameIndex] )
+			{
+				m_staticBatch.cbGameObjects[frameIndex]->Unmap(0, NULL);
+				m_staticBatch.mappedGameObjects[frameIndex] = nullptr;
+			}
+
+			m_staticBatch.cbGameObjects[frameIndex].Reset();
 		}
-		m_staticBatch.cbGameObjects.Reset();
+
+		m_staticBatch.mappedGameObjects[frameIndex] = nullptr;
+		m_staticBatch.baseCbvGpu[frameIndex] = D3D12_GPU_DESCRIPTOR_HANDLE{ 0 };
 	}
 
+	// ---- Skinned batch CB ----
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+	{
+		if ( m_skinnedBatch.cbGameObjects[frameIndex] )
+		{
+			if ( m_skinnedBatch.mappedGameObjects[frameIndex] )
+			{
+				m_skinnedBatch.cbGameObjects[frameIndex]->Unmap(0, NULL);
+				m_skinnedBatch.mappedGameObjects[frameIndex] = nullptr;
+			}
 
-    // ---- Skinned batch CB ----
-    if (m_skinnedBatch.cbGameObjects)
-    {
-        if (m_skinnedBatch.mappedGameObjects)
-        {
-            m_skinnedBatch.cbGameObjects->Unmap(0, NULL);
-            m_skinnedBatch.mappedGameObjects = nullptr;
-        }
-        m_skinnedBatch.cbGameObjects.Reset();
-    }
+			m_skinnedBatch.cbGameObjects[frameIndex].Reset();
+		}
+
+		m_skinnedBatch.mappedGameObjects[frameIndex] = nullptr;
+		m_skinnedBatch.baseCbvGpu[frameIndex] = D3D12_GPU_DESCRIPTOR_HANDLE{ 0 };
+	}
 
 	for ( UINT i = 0; i < kFrameResourceCount; ++i )
 	{
@@ -2981,14 +3079,21 @@ void CGameScene::ReleaseShaderVariables()
 
 	m_shadowMap.ReleaseResources();
 
-	if ( m_colliderBatch.cbGameObjects )
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
 	{
-		if ( m_colliderBatch.mappedGameObjects )
+		if ( m_colliderBatch.cbGameObjects[frameIndex] )
 		{
-			m_colliderBatch.cbGameObjects->Unmap(0, NULL);
-			m_colliderBatch.mappedGameObjects = nullptr;
+			if ( m_colliderBatch.mappedGameObjects[frameIndex] )
+			{
+				m_colliderBatch.cbGameObjects[frameIndex]->Unmap(0, NULL);
+				m_colliderBatch.mappedGameObjects[frameIndex] = nullptr;
+			}
+
+			m_colliderBatch.cbGameObjects[frameIndex].Reset();
 		}
-		m_colliderBatch.cbGameObjects.Reset();
+
+		m_colliderBatch.mappedGameObjects[frameIndex] = nullptr;
+		m_colliderBatch.baseCbvGpu[frameIndex] = D3D12_GPU_DESCRIPTOR_HANDLE{ 0 };
 	}
 
 	m_hud.ReleaseResources();
@@ -3301,7 +3406,10 @@ void CGameScene::BuildStaticWorldSubmeshOOBBDebugObjects(
 	ID3D12GraphicsCommandList* cmd)
 {
 	if ( !dev || !cmd ) return;
-	if ( !m_colliderBatch.mappedGameObjects ) return;
+
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	if ( !m_colliderBatch.mappedGameObjects[frameIndex] ) return;
 
 	for ( auto& ownerObj : m_staticObjects )
 	{
@@ -3330,14 +3438,16 @@ void CGameScene::BuildStaticWorldSubmeshOOBBDebugObjects(
 				auto debugObj = std::make_unique<CGameObject>(1);
 
 				auto* cb = reinterpret_cast< CB_GAMEOBJECT_INFO* >(
-					reinterpret_cast< UINT8* >( m_colliderBatch.mappedGameObjects ) +
+					reinterpret_cast< UINT8* >( m_colliderBatch.mappedGameObjects[frameIndex] ) +
 					i * m_colliderBatch.cbElementBytes
 				);
 
-				debugObj->SetMappedGameObjectCB(cb);
 				debugObj->SetCbvGPUDescriptorHandlePtr(
-					m_colliderBatch.baseCbvGpu.ptr + ( UINT64 ) i * m_colliderBatch.cbvInc
+					m_colliderBatch.baseCbvGpu[frameIndex].ptr +
+					static_cast< UINT64 >( i ) * m_colliderBatch.cbvInc
 				);
+
+				debugObj->SetMappedGameObjectCB(cb);
 
 				debugObj->AddComponent<CColliderMeshRendererComponent>();
 				auto* debugCollider = debugObj->AddComponent<CColliderComponent>(EColliderType::OOBB);
@@ -3976,26 +4086,36 @@ void CGameScene::BuildStaticBatch(
 	);
 
 	b->cbElementBytes = ( ( sizeof(CB_GAMEOBJECT_INFO) + 255 ) & ~255 );
-
-	b->cbGameObjects = ::CreateBufferResource(
-		dev, cmd, nullptr,
-		b->cbElementBytes * cap,
-		D3D12_HEAP_TYPE_UPLOAD,
-		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
-		nullptr
-	);
-
-	b->cbGameObjects->Map(0, nullptr, ( void** ) &b->mappedGameObjects);
-
-	b->baseCbvGpu = m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
 	b->cbvInc = ::gnCbvSrvDescriptorIncrementSize;
 
-	m_pDescriptorHeap->CreateConstantBufferViews(
-		dev,
-		cap,
-		b->cbGameObjects.Get(),
-		b->cbElementBytes
-	);
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+	{
+		b->cbGameObjects[frameIndex] = ::CreateBufferResource(
+			dev, cmd, nullptr,
+			b->cbElementBytes * cap,
+			D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+			nullptr
+		);
+
+		if ( b->cbGameObjects[frameIndex] )
+		{
+			b->cbGameObjects[frameIndex]->Map(
+				0,
+				nullptr,
+				reinterpret_cast< void** >( &b->mappedGameObjects[frameIndex] )
+			);
+		}
+
+		b->baseCbvGpu[frameIndex] = m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
+
+		m_pDescriptorHeap->CreateConstantBufferViews(
+			dev,
+			cap,
+			b->cbGameObjects[frameIndex].Get(),
+			b->cbElementBytes
+		);
+	}
 
 	m_treeAlphaClipObjects.clear();
 
@@ -4035,16 +4155,19 @@ void CGameScene::BuildStaticBatch(
 
 	auto MakeStaticContext = [ & ] (UINT objectIndex)
 		{
+			const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
 			GameSceneObjectFactory::CreateContext ctx{};
 			ctx.device = dev;
 			ctx.cmd = cmd;
 			ctx.mappedGameObjectCB =
 				reinterpret_cast< CB_GAMEOBJECT_INFO* >(
-					reinterpret_cast< UINT8* >( b->mappedGameObjects ) +
+					reinterpret_cast< UINT8* >( b->mappedGameObjects[frameIndex] ) +
 					objectIndex * b->cbElementBytes
 				);
 			ctx.cbvGpuHandle.ptr =
-				b->baseCbvGpu.ptr + ( UINT64 ) objectIndex * b->cbvInc;
+				b->baseCbvGpu[frameIndex].ptr +
+				static_cast< UINT64 >( objectIndex ) * b->cbvInc;
 			return ctx;
 		};
 
@@ -5705,26 +5828,36 @@ void CGameScene::BuildSkinnedBatch(
 	);
 
 	b->cbElementBytes = ( ( sizeof(CB_GAMEOBJECT_INFO) + 255 ) & ~255 );
-
-	b->cbGameObjects = ::CreateBufferResource(
-		dev, cmd, nullptr,
-		b->cbElementBytes * cap,
-		D3D12_HEAP_TYPE_UPLOAD,
-		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
-		nullptr
-	);
-
-	b->cbGameObjects->Map(0, nullptr, ( void** ) &b->mappedGameObjects);
-
-	b->baseCbvGpu = m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
 	b->cbvInc = ::gnCbvSrvDescriptorIncrementSize;
 
-	m_pDescriptorHeap->CreateConstantBufferViews(
-		dev,
-		cap,
-		b->cbGameObjects.Get(),
-		b->cbElementBytes
-	);
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+	{
+		b->cbGameObjects[frameIndex] = ::CreateBufferResource(
+			dev, cmd, nullptr,
+			b->cbElementBytes * cap,
+			D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+			nullptr
+		);
+
+		if ( b->cbGameObjects[frameIndex] )
+		{
+			b->cbGameObjects[frameIndex]->Map(
+				0,
+				nullptr,
+				reinterpret_cast< void** >( &b->mappedGameObjects[frameIndex] )
+			);
+		}
+
+		b->baseCbvGpu[frameIndex] = m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
+
+		m_pDescriptorHeap->CreateConstantBufferViews(
+			dev,
+			cap,
+			b->cbGameObjects[frameIndex].Get(),
+			b->cbElementBytes
+		);
+	}
 
 	m_skinnedObjects.clear();
 	m_skinnedAlphaClipObjects.clear();
@@ -5740,16 +5873,19 @@ void CGameScene::BuildSkinnedBatch(
 
 	auto MakeSkinnedContext = [ & ] (UINT objectIndex)
 		{
+			const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
 			GameSceneObjectFactory::CreateContext ctx{};
 			ctx.device = dev;
 			ctx.cmd = cmd;
 			ctx.mappedGameObjectCB =
 				reinterpret_cast< CB_GAMEOBJECT_INFO* >(
-					reinterpret_cast< UINT8* >( b->mappedGameObjects ) +
+					reinterpret_cast< UINT8* >( b->mappedGameObjects[frameIndex] ) +
 					objectIndex * b->cbElementBytes
 				);
 			ctx.cbvGpuHandle.ptr =
-				b->baseCbvGpu.ptr + ( UINT64 ) objectIndex * b->cbvInc;
+				b->baseCbvGpu[frameIndex].ptr +
+				static_cast< UINT64 >( objectIndex ) * b->cbvInc;
 			return ctx;
 		};
 
@@ -6850,26 +6986,36 @@ void CGameScene::BuildColliderBatch(
 	);
 
 	b->cbElementBytes = ( ( sizeof(CB_GAMEOBJECT_INFO) + 255 ) & ~255 );
-
-	b->cbGameObjects = ::CreateBufferResource(
-		dev, cmd, nullptr,
-		b->cbElementBytes * cap,
-		D3D12_HEAP_TYPE_UPLOAD,
-		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
-		nullptr
-	);
-
-	b->cbGameObjects->Map(0, nullptr, ( void** ) &b->mappedGameObjects);
-
-	b->baseCbvGpu = m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
 	b->cbvInc = ::gnCbvSrvDescriptorIncrementSize;
 
-	m_pDescriptorHeap->CreateConstantBufferViews(
-		dev,
-		cap,
-		b->cbGameObjects.Get(),
-		b->cbElementBytes
-	);
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+	{
+		b->cbGameObjects[frameIndex] = ::CreateBufferResource(
+			dev, cmd, nullptr,
+			b->cbElementBytes * cap,
+			D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+			nullptr
+		);
+
+		if ( b->cbGameObjects[frameIndex] )
+		{
+			b->cbGameObjects[frameIndex]->Map(
+				0,
+				nullptr,
+				reinterpret_cast< void** >( &b->mappedGameObjects[frameIndex] )
+			);
+		}
+
+		b->baseCbvGpu[frameIndex] = m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
+
+		m_pDescriptorHeap->CreateConstantBufferViews(
+			dev,
+			cap,
+			b->cbGameObjects[frameIndex].Get(),
+			b->cbElementBytes
+		);
+	}
 
 	m_staticObjects.clear();
 	m_staticObjects.reserve(cap);
@@ -8907,60 +9053,73 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
 		m_hud.SetHealthRatio(hpRatio);
 	}
 
-    if (m_staticBatch.mappedGameObjects && !m_staticBatch.objectRefs.empty())
-    {
-        const UINT ncb = m_staticBatch.cbElementBytes;
 
-        for (UINT j = 0; j < (UINT)m_staticBatch.objectRefs.size(); ++j)
-        {
-            auto* obj = m_staticBatch.objectRefs[j];
-            if (!obj) continue;
+	if ( m_staticBatch.mappedGameObjects[frameIndex] && !m_staticBatch.objectRefs.empty() )
+	{
+		const UINT ncb = m_staticBatch.cbElementBytes;
 
-            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)m_staticBatch.mappedGameObjects + j * ncb);
+		for ( UINT j = 0; j < static_cast< UINT >(m_staticBatch.objectRefs.size()); ++j )
+		{
+			auto* obj = m_staticBatch.objectRefs[j];
+			if ( !obj ) continue;
 
-            const XMFLOAT4X4& W = obj->GetWorldMatrix();
+			auto* cb =
+				reinterpret_cast< CB_GAMEOBJECT_INFO* >(
+					reinterpret_cast< UINT8* >(m_staticBatch.mappedGameObjects[frameIndex]) +
+					j * ncb
+				);
 
-            XMStoreFloat4x4(
-                &cb->m_xmf4x4World,
-                XMMatrixTranspose(XMLoadFloat4x4(&W))
-            );
+			const XMFLOAT4X4& W = obj->GetWorldMatrix();
 
-            cb->m_nObjectID = j;
-        }
-    }
+			XMStoreFloat4x4(
+				&cb->m_xmf4x4World,
+				XMMatrixTranspose(XMLoadFloat4x4(&W))
+			);
 
-    if (m_skinnedBatch.mappedGameObjects && !m_skinnedBatch.objectRefs.empty())
-    {
-        const UINT ncb = m_skinnedBatch.cbElementBytes;
+			cb->m_nObjectID = j;
+		}
+	}
 
-        for (UINT j = 0; j < (UINT)m_skinnedBatch.objectRefs.size(); ++j)
-        {
-            auto* obj = m_skinnedBatch.objectRefs[j];
-            if (!obj) continue;
+	if ( m_skinnedBatch.mappedGameObjects[frameIndex] && !m_skinnedBatch.objectRefs.empty() )
+	{
+		const UINT ncb = m_skinnedBatch.cbElementBytes;
 
-            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)m_skinnedBatch.mappedGameObjects + j * ncb);
+		for ( UINT j = 0; j < static_cast< UINT >(m_skinnedBatch.objectRefs.size()); ++j )
+		{
+			auto* obj = m_skinnedBatch.objectRefs[j];
+			if ( !obj ) continue;
 
-            const XMFLOAT4X4& W = obj->GetWorldMatrix();
+			auto* cb =
+				reinterpret_cast< CB_GAMEOBJECT_INFO* >(
+					reinterpret_cast< UINT8* >(m_skinnedBatch.mappedGameObjects[frameIndex]) +
+					j * ncb
+				);
 
-            XMStoreFloat4x4(
-                &cb->m_xmf4x4World,
-                XMMatrixTranspose(XMLoadFloat4x4(&W))
-            );
+			const XMFLOAT4X4& W = obj->GetWorldMatrix();
 
-            cb->m_nObjectID = j;
-        }
-    }
+			XMStoreFloat4x4(
+				&cb->m_xmf4x4World,
+				XMMatrixTranspose(XMLoadFloat4x4(&W))
+			);
 
-	if ( m_colliderBatch.mappedGameObjects && !m_colliderBatch.objectRefs.empty() )
+			cb->m_nObjectID = j;
+		}
+	}
+
+	if ( m_colliderBatch.mappedGameObjects[frameIndex] && !m_colliderBatch.objectRefs.empty() )
 	{
 		const UINT ncb = m_colliderBatch.cbElementBytes;
 
-		for ( UINT j = 0; j < ( UINT ) m_colliderBatch.objectRefs.size(); ++j )
+		for ( UINT j = 0; j < static_cast< UINT >(m_colliderBatch.objectRefs.size()); ++j )
 		{
 			auto* obj = m_colliderBatch.objectRefs[j];
 			if ( !obj ) continue;
 
-			auto* cb = ( CB_GAMEOBJECT_INFO* ) ( ( UINT8* ) m_colliderBatch.mappedGameObjects + j * ncb );
+			auto* cb =
+				reinterpret_cast< CB_GAMEOBJECT_INFO* >(
+					reinterpret_cast< UINT8* >(m_colliderBatch.mappedGameObjects[frameIndex]) +
+					j * ncb
+				);
 
 			const XMFLOAT4X4& W = obj->GetWorldMatrix();
 
