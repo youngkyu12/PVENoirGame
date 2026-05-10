@@ -147,12 +147,12 @@ void CGameFramework::OnDestroy()
 
 void CGameFramework::ReleaseObjects()
 {
-	WaitForGpuComplete();
+	FlushGpu();
 
 	m_SceneManager.ReleaseCurrent();
 	m_pCamera = nullptr;
 
-	if (m_pPostProcessingShader)
+	if ( m_pPostProcessingShader )
 	{
 		m_pPostProcessingShader->ReleaseObjects();
 		m_pPostProcessingShader.reset();
@@ -199,15 +199,10 @@ void CGameFramework::WaitForFrameContext(UINT frameContextIndex)
 
 void CGameFramework::FlushGpu()
 {
+	PROFILE_RENDER_SCOPE("Framework::FlushGpu(total)");
+
 	const UINT64 fenceValue = SignalCommandQueue();
 	WaitForFenceValue(fenceValue);
-}
-
-void CGameFramework::WaitForGpuComplete()
-{
-	PROFILE_RENDER_SCOPE("Framework::WaitForGpuComplete(total)");
-
-	FlushGpu();
 }
 
 void CGameFramework::CreateDirect3DDevice()
