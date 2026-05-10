@@ -31,7 +31,6 @@ public:
 public:
 	void OnDestroy();
 	void ReleaseObjects();
-	void WaitForGpuComplete();
 	UINT64 SignalCommandQueue();
 	void WaitForFenceValue(UINT64 fenceValue);
 	void WaitForFrameContext(UINT frameContextIndex);
