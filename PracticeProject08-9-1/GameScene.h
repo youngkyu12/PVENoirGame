@@ -980,8 +980,8 @@ private:
 	float                               m_staticCullHysteresis = 20.0f;
 
 	std::shared_ptr<CMesh>              m_staticOcclusionUnitBoxMesh;
-	ComPtr<ID3D12Resource>              m_pd3dStaticOcclusionInstanceBuffer;
-	StaticInstanceVertex* m_pMappedStaticOcclusionInstanceBuffer = nullptr;
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dStaticOcclusionInstanceBuffer;
+	std::array<StaticInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedStaticOcclusionInstanceBuffer = {};
 
 	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dStaticInstanceBuffer;
 	std::array<StaticInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedStaticInstanceBuffer = {};
@@ -1031,8 +1031,8 @@ private:
 	ComPtr<ID3D12QueryHeap>             m_pd3dSkinnedOcclusionQueryHeap;
 	ComPtr<ID3D12Resource>              m_pd3dSkinnedOcclusionReadbackBuffer;
 	UINT64* m_pMappedSkinnedOcclusionReadbackBuffer = nullptr;
-	ComPtr<ID3D12Resource>              m_pd3dSkinnedOcclusionInstanceBuffer;
-	StaticInstanceVertex* m_pMappedSkinnedOcclusionInstanceBuffer = nullptr;
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dSkinnedOcclusionInstanceBuffer;
+	std::array<StaticInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedSkinnedOcclusionInstanceBuffer = {};
 	UINT                                m_skinnedOcclusionQueryCapacity = 0;
 	bool                                m_bSkinnedOcclusionQueryResourcesReady = false;
 	bool                                m_bSkinnedOcclusionQueryResultsValid = false;
