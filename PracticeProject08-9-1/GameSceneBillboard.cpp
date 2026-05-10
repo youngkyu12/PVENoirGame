@@ -553,21 +553,30 @@ void CGameScene::BuildItemBillboardBatch(
 		sizeof(ItemBillboardInstanceVertex) *
 		m_itemBillboardInstanceBufferCapacity;
 
-	m_pd3dItemBillboardInstanceBuffer = ::CreateBufferResource(
-		dev,
-		cmd,
-		nullptr,
-		instanceBufferBytes,
-		D3D12_HEAP_TYPE_UPLOAD,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr
-	);
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+	{
+		m_pd3dItemBillboardInstanceBuffer[frameIndex] =
+			::CreateBufferResource(
+				dev,
+				cmd,
+				nullptr,
+				instanceBufferBytes,
+				D3D12_HEAP_TYPE_UPLOAD,
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				nullptr
+			);
 
-	m_pd3dItemBillboardInstanceBuffer->Map(
-		0,
-		nullptr,
-		reinterpret_cast< void** >( &m_pMappedItemBillboardInstanceBuffer )
-	);
+		if ( m_pd3dItemBillboardInstanceBuffer[frameIndex] )
+		{
+			m_pd3dItemBillboardInstanceBuffer[frameIndex]->Map(
+				0,
+				nullptr,
+				reinterpret_cast< void** >(
+					&m_pMappedItemBillboardInstanceBuffer[frameIndex]
+					)
+			);
+		}
+	}
 
 	m_transparentItemBillboardInstanceBufferCapacity =
 		static_cast< UINT >( m_itemBillboards.size() );
@@ -578,24 +587,30 @@ void CGameScene::BuildItemBillboardBatch(
 			sizeof(ItemBillboardInstanceVertex) *
 			m_transparentItemBillboardInstanceBufferCapacity;
 
-		m_pd3dTransparentItemBillboardInstanceBuffer =
-			::CreateBufferResource(
-				dev,
-				cmd,
-				nullptr,
-				transparentInstanceBufferBytes,
-				D3D12_HEAP_TYPE_UPLOAD,
-				D3D12_RESOURCE_STATE_GENERIC_READ,
-				nullptr
-			);
+		for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+		{
+			m_pd3dTransparentItemBillboardInstanceBuffer[frameIndex] =
+				::CreateBufferResource(
+					dev,
+					cmd,
+					nullptr,
+					transparentInstanceBufferBytes,
+					D3D12_HEAP_TYPE_UPLOAD,
+					D3D12_RESOURCE_STATE_GENERIC_READ,
+					nullptr
+				);
 
-		m_pd3dTransparentItemBillboardInstanceBuffer->Map(
-			0,
-			nullptr,
-			reinterpret_cast< void** >(
-				&m_pMappedTransparentItemBillboardInstanceBuffer
-				)
-		);
+			if ( m_pd3dTransparentItemBillboardInstanceBuffer[frameIndex] )
+			{
+				m_pd3dTransparentItemBillboardInstanceBuffer[frameIndex]->Map(
+					0,
+					nullptr,
+					reinterpret_cast< void** >(
+						&m_pMappedTransparentItemBillboardInstanceBuffer[frameIndex]
+						)
+				);
+			}
+		}
 
 		BuildMuzzleFlashBatch(dev, cmd, dsvFormat);
 		BuildSwordTrailBatch(dev, cmd, dsvFormat);
@@ -632,21 +647,30 @@ void CGameScene::BuildMuzzleFlashBatch(
 		sizeof(MuzzleFlashInstanceVertex) *
 		m_muzzleFlashInstanceBufferCapacity;
 
-	m_pd3dMuzzleFlashInstanceBuffer = ::CreateBufferResource(
-		dev,
-		cmd,
-		nullptr,
-		instanceBufferBytes,
-		D3D12_HEAP_TYPE_UPLOAD,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr
-	);
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+	{
+		m_pd3dMuzzleFlashInstanceBuffer[frameIndex] =
+			::CreateBufferResource(
+				dev,
+				cmd,
+				nullptr,
+				instanceBufferBytes,
+				D3D12_HEAP_TYPE_UPLOAD,
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				nullptr
+			);
 
-	m_pd3dMuzzleFlashInstanceBuffer->Map(
-		0,
-		nullptr,
-		reinterpret_cast< void** >( &m_pMappedMuzzleFlashInstanceBuffer )
-	);
+		if ( m_pd3dMuzzleFlashInstanceBuffer[frameIndex] )
+		{
+			m_pd3dMuzzleFlashInstanceBuffer[frameIndex]->Map(
+				0,
+				nullptr,
+				reinterpret_cast< void** >(
+					&m_pMappedMuzzleFlashInstanceBuffer[frameIndex]
+					)
+			);
+		}
+	}
 }
 
 void CGameScene::BuildSwordTrailBatch(
@@ -677,34 +701,48 @@ void CGameScene::BuildSwordTrailBatch(
 	const UINT bufferBytes =
 		sizeof(SwordTrailVertex) * m_swordTrailVertexBufferCapacity;
 
-	m_pd3dSwordTrailVertexBuffer = ::CreateBufferResource(
-		dev,
-		cmd,
-		nullptr,
-		bufferBytes,
-		D3D12_HEAP_TYPE_UPLOAD,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr
-	);
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+	{
+		m_pd3dSwordTrailVertexBuffer[frameIndex] =
+			::CreateBufferResource(
+				dev,
+				cmd,
+				nullptr,
+				bufferBytes,
+				D3D12_HEAP_TYPE_UPLOAD,
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				nullptr
+			);
 
-	m_pd3dSwordTrailVertexBuffer->Map(
-		0,
-		nullptr,
-		reinterpret_cast< void** >( &m_pMappedSwordTrailVertexBuffer )
-	);
+		if ( m_pd3dSwordTrailVertexBuffer[frameIndex] )
+		{
+			m_pd3dSwordTrailVertexBuffer[frameIndex]->Map(
+				0,
+				nullptr,
+				reinterpret_cast< void** >(
+					&m_pMappedSwordTrailVertexBuffer[frameIndex]
+					)
+			);
+		}
+	}
 }
 
 void CGameScene::ReleaseMuzzleFlashGpuResources()
 {
-	if ( m_pd3dMuzzleFlashInstanceBuffer )
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
 	{
-		if ( m_pMappedMuzzleFlashInstanceBuffer )
+		if ( m_pd3dMuzzleFlashInstanceBuffer[frameIndex] )
 		{
-			m_pd3dMuzzleFlashInstanceBuffer->Unmap(0, nullptr);
-			m_pMappedMuzzleFlashInstanceBuffer = nullptr;
+			if ( m_pMappedMuzzleFlashInstanceBuffer[frameIndex] )
+			{
+				m_pd3dMuzzleFlashInstanceBuffer[frameIndex]->Unmap(0, nullptr);
+				m_pMappedMuzzleFlashInstanceBuffer[frameIndex] = nullptr;
+			}
+
+			m_pd3dMuzzleFlashInstanceBuffer[frameIndex].Reset();
 		}
 
-		m_pd3dMuzzleFlashInstanceBuffer.Reset();
+		m_pMappedMuzzleFlashInstanceBuffer[frameIndex] = nullptr;
 	}
 
 	m_muzzleFlashInstanceBufferCapacity = 0;
@@ -712,15 +750,20 @@ void CGameScene::ReleaseMuzzleFlashGpuResources()
 
 void CGameScene::ReleaseSwordTrailGpuResources()
 {
-	if ( m_pd3dSwordTrailVertexBuffer )
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
 	{
-		if ( m_pMappedSwordTrailVertexBuffer )
+		if ( m_pd3dSwordTrailVertexBuffer[frameIndex] )
 		{
-			m_pd3dSwordTrailVertexBuffer->Unmap(0, nullptr);
-			m_pMappedSwordTrailVertexBuffer = nullptr;
+			if ( m_pMappedSwordTrailVertexBuffer[frameIndex] )
+			{
+				m_pd3dSwordTrailVertexBuffer[frameIndex]->Unmap(0, nullptr);
+				m_pMappedSwordTrailVertexBuffer[frameIndex] = nullptr;
+			}
+
+			m_pd3dSwordTrailVertexBuffer[frameIndex].Reset();
 		}
 
-		m_pd3dSwordTrailVertexBuffer.Reset();
+		m_pMappedSwordTrailVertexBuffer[frameIndex] = nullptr;
 	}
 
 	m_swordTrailVertexBufferCapacity = 0;
@@ -1170,28 +1213,38 @@ void CGameScene::UpdateSwordTrails(float dt)
 
 void CGameScene::ReleaseItemBillboardGpuResources()
 {
-	if ( m_pd3dItemBillboardInstanceBuffer )
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
 	{
-		if ( m_pMappedItemBillboardInstanceBuffer )
+		if ( m_pd3dItemBillboardInstanceBuffer[frameIndex] )
 		{
-			m_pd3dItemBillboardInstanceBuffer->Unmap(0, nullptr);
-			m_pMappedItemBillboardInstanceBuffer = nullptr;
+			if ( m_pMappedItemBillboardInstanceBuffer[frameIndex] )
+			{
+				m_pd3dItemBillboardInstanceBuffer[frameIndex]->Unmap(0, nullptr);
+				m_pMappedItemBillboardInstanceBuffer[frameIndex] = nullptr;
+			}
+
+			m_pd3dItemBillboardInstanceBuffer[frameIndex].Reset();
 		}
 
-		m_pd3dItemBillboardInstanceBuffer.Reset();
+		m_pMappedItemBillboardInstanceBuffer[frameIndex] = nullptr;
 	}
 
 	m_itemBillboardInstanceBufferCapacity = 0;
 
-	if ( m_pd3dTransparentItemBillboardInstanceBuffer )
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
 	{
-		if ( m_pMappedTransparentItemBillboardInstanceBuffer )
+		if ( m_pd3dTransparentItemBillboardInstanceBuffer[frameIndex] )
 		{
-			m_pd3dTransparentItemBillboardInstanceBuffer->Unmap(0, nullptr);
-			m_pMappedTransparentItemBillboardInstanceBuffer = nullptr;
+			if ( m_pMappedTransparentItemBillboardInstanceBuffer[frameIndex] )
+			{
+				m_pd3dTransparentItemBillboardInstanceBuffer[frameIndex]->Unmap(0, nullptr);
+				m_pMappedTransparentItemBillboardInstanceBuffer[frameIndex] = nullptr;
+			}
+
+			m_pd3dTransparentItemBillboardInstanceBuffer[frameIndex].Reset();
 		}
 
-		m_pd3dTransparentItemBillboardInstanceBuffer.Reset();
+		m_pMappedTransparentItemBillboardInstanceBuffer[frameIndex] = nullptr;
 	}
 
 	m_transparentItemBillboardInstanceBufferCapacity = 0;
@@ -1286,8 +1339,17 @@ void CGameScene::RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* c
 	if ( !camera ) return;
 	if ( !m_itemBillboardShader ) return;
 	if ( !m_itemBillboardQuadMesh ) return;
-	if ( !m_pd3dItemBillboardInstanceBuffer ) return;
-	if ( !m_pMappedItemBillboardInstanceBuffer ) return;
+
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	ID3D12Resource* itemBillboardInstanceBuffer =
+		m_pd3dItemBillboardInstanceBuffer[frameIndex].Get();
+
+	ItemBillboardInstanceVertex* mappedItemBillboardInstanceBuffer =
+		m_pMappedItemBillboardInstanceBuffer[frameIndex];
+
+	if ( !itemBillboardInstanceBuffer ) return;
+	if ( !mappedItemBillboardInstanceBuffer ) return;
 	if ( m_itemBillboardQuadMesh->m_SubMeshes.empty() ) return;
 
 	const SubMesh& sm = m_itemBillboardQuadMesh->m_SubMeshes[0];
@@ -1314,7 +1376,7 @@ void CGameScene::RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* c
 			break;
 
 		ItemBillboardInstanceVertex& dst =
-			m_pMappedItemBillboardInstanceBuffer[visibleInstanceCount];
+			mappedItemBillboardInstanceBuffer[visibleInstanceCount];
 
 		StoreCylindricalBillboardWorldRows(
 			dst,
@@ -1338,7 +1400,7 @@ void CGameScene::RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* c
 	vbViews[0] = sm.vbView;
 
 	vbViews[1].BufferLocation =
-		m_pd3dItemBillboardInstanceBuffer->GetGPUVirtualAddress();
+		itemBillboardInstanceBuffer->GetGPUVirtualAddress();
 
 	vbViews[1].SizeInBytes =
 		sizeof(ItemBillboardInstanceVertex) * visibleInstanceCount;
@@ -1361,8 +1423,17 @@ void CGameScene::RenderTransparentItemBillboards(
 	if ( !camera ) return;
 	if ( !m_transparentItemBillboardShader ) return;
 	if ( !m_itemBillboardQuadMesh ) return;
-	if ( !m_pd3dTransparentItemBillboardInstanceBuffer ) return;
-	if ( !m_pMappedTransparentItemBillboardInstanceBuffer ) return;
+
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	ID3D12Resource* transparentItemBillboardInstanceBuffer =
+		m_pd3dTransparentItemBillboardInstanceBuffer[frameIndex].Get();
+
+	ItemBillboardInstanceVertex* mappedTransparentItemBillboardInstanceBuffer =
+		m_pMappedTransparentItemBillboardInstanceBuffer[frameIndex];
+
+	if ( !transparentItemBillboardInstanceBuffer ) return;
+	if ( !mappedTransparentItemBillboardInstanceBuffer ) return;
 	if ( m_itemBillboardQuadMesh->m_SubMeshes.empty() ) return;
 
 	const SubMesh& sm = m_itemBillboardQuadMesh->m_SubMeshes[0];
@@ -1426,7 +1497,7 @@ void CGameScene::RenderTransparentItemBillboards(
 			break;
 
 		ItemBillboardInstanceVertex& dst =
-			m_pMappedTransparentItemBillboardInstanceBuffer[visibleInstanceCount];
+			mappedTransparentItemBillboardInstanceBuffer[visibleInstanceCount];
 
 		StoreCylindricalBillboardWorldRows(
 			dst,
@@ -1450,7 +1521,7 @@ void CGameScene::RenderTransparentItemBillboards(
 	vbViews[0] = sm.vbView;
 
 	vbViews[1].BufferLocation =
-		m_pd3dTransparentItemBillboardInstanceBuffer->GetGPUVirtualAddress();
+		transparentItemBillboardInstanceBuffer->GetGPUVirtualAddress();
 
 	vbViews[1].SizeInBytes =
 		sizeof(ItemBillboardInstanceVertex) * visibleInstanceCount;
@@ -1473,8 +1544,18 @@ void CGameScene::RenderMuzzleFlashes(
 	if ( !camera ) return;
 	if ( !m_muzzleFlashShader ) return;
 	if ( !m_itemBillboardQuadMesh ) return;
-	if ( !m_pd3dMuzzleFlashInstanceBuffer ) return;
-	if ( !m_pMappedMuzzleFlashInstanceBuffer ) return;
+
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	ID3D12Resource* muzzleFlashInstanceBuffer =
+		m_pd3dMuzzleFlashInstanceBuffer[frameIndex].Get();
+
+	MuzzleFlashInstanceVertex* mappedMuzzleFlashInstanceBuffer =
+		m_pMappedMuzzleFlashInstanceBuffer[frameIndex];
+
+	if ( !muzzleFlashInstanceBuffer ) return;
+	if ( !mappedMuzzleFlashInstanceBuffer ) return;
+	if ( m_muzzleFlashInstanceBufferCapacity == 0 ) return;
 	if ( m_itemBillboardQuadMesh->m_SubMeshes.empty() ) return;
 
 	const SubMesh& sm = m_itemBillboardQuadMesh->m_SubMeshes[0];
@@ -1499,7 +1580,8 @@ void CGameScene::RenderMuzzleFlashes(
 		const float width = flash.startWidth + ( flash.endWidth - flash.startWidth ) * ageRatio;
 		const float height = flash.startHeight + ( flash.endHeight - flash.startHeight ) * ageRatio;
 
-		MuzzleFlashInstanceVertex& dst = m_pMappedMuzzleFlashInstanceBuffer[visibleInstanceCount];
+		MuzzleFlashInstanceVertex& dst =
+			mappedMuzzleFlashInstanceBuffer[visibleInstanceCount]; 
 		StoreMuzzleFlashWorldRows(dst, flash.position, width, height, cameraPos);
 
 		dst.color = flash.color;
@@ -1518,7 +1600,7 @@ void CGameScene::RenderMuzzleFlashes(
 	vbViews[0] = sm.vbView;
 
 	vbViews[1].BufferLocation =
-		m_pd3dMuzzleFlashInstanceBuffer->GetGPUVirtualAddress();
+		muzzleFlashInstanceBuffer->GetGPUVirtualAddress();
 
 	vbViews[1].SizeInBytes =
 		sizeof(MuzzleFlashInstanceVertex) * visibleInstanceCount;
@@ -1540,8 +1622,17 @@ void CGameScene::RenderSwordTrails(
 	if ( !cmd ) return;
 	if ( !camera ) return;
 	if ( !m_swordTrailShader ) return;
-	if ( !m_pd3dSwordTrailVertexBuffer ) return;
-	if ( !m_pMappedSwordTrailVertexBuffer ) return;
+
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	ID3D12Resource* swordTrailVertexBuffer =
+		m_pd3dSwordTrailVertexBuffer[frameIndex].Get();
+
+	SwordTrailVertex* mappedSwordTrailVertexBuffer =
+		m_pMappedSwordTrailVertexBuffer[frameIndex];
+
+	if ( !swordTrailVertexBuffer ) return;
+	if ( !mappedSwordTrailVertexBuffer ) return;
 	if ( m_swordTrailVertexBufferCapacity == 0 ) return;
 
 	struct DrawRange
@@ -1608,14 +1699,14 @@ void CGameScene::RenderSwordTrails(
 			const SwordTrailSample& sample = trail.samples[i];
 
 			SwordTrailVertex& v0 =
-				m_pMappedSwordTrailVertexBuffer[vertexCursor++];
+				mappedSwordTrailVertexBuffer[vertexCursor++];
 
 			v0.position = sample.root;
 			v0.uv = XMFLOAT2(u, 0.0f);
 			v0.color = color;
 
 			SwordTrailVertex& v1 =
-				m_pMappedSwordTrailVertexBuffer[vertexCursor++];
+				mappedSwordTrailVertexBuffer[vertexCursor++];
 
 			v1.position = sample.tip;
 			v1.uv = XMFLOAT2(u, 1.0f);
@@ -1633,7 +1724,8 @@ void CGameScene::RenderSwordTrails(
 	m_swordTrailShader->Render(cmd, camera, nullptr);
 
 	D3D12_VERTEX_BUFFER_VIEW vbView{};
-	vbView.BufferLocation = m_pd3dSwordTrailVertexBuffer->GetGPUVirtualAddress();
+	vbView.BufferLocation =
+		swordTrailVertexBuffer->GetGPUVirtualAddress();
 	vbView.SizeInBytes = sizeof(SwordTrailVertex) * vertexCursor;
 	vbView.StrideInBytes = sizeof(SwordTrailVertex);
 
