@@ -101,14 +101,25 @@ void CGameFramework::OnDestroy()
 	if (m_pd3dRtvDescriptorHeap)
 		m_pd3dRtvDescriptorHeap.Reset();
 
-	if (m_pd3dCommandAllocator)
+	if ( m_pd3dCommandList )
+		m_pd3dCommandList.Reset();
+
+	if ( m_pd3dCommandAllocator )
 		m_pd3dCommandAllocator.Reset();
 
-	if (m_pd3dCommandQueue)
-		m_pd3dCommandQueue.Reset();
+	for ( UINT i = 0; i < m_nFrameContexts; ++i )
+	{
+		if ( m_frameContexts[i].commandList )
+			m_frameContexts[i].commandList.Reset();
 
-	if (m_pd3dCommandList)
-		m_pd3dCommandList.Reset();
+		if ( m_frameContexts[i].commandAllocator )
+			m_frameContexts[i].commandAllocator.Reset();
+
+		m_frameContexts[i].fenceValue = 0;
+	}
+
+	if ( m_pd3dCommandQueue )
+		m_pd3dCommandQueue.Reset();
 
 	if (m_pd3dFence)
 		m_pd3dFence.Reset();
@@ -176,6 +187,14 @@ void CGameFramework::WaitForFenceValue(UINT64 fenceValue)
 
 		::WaitForSingleObject(m_hFenceEvent, INFINITE);
 	}
+}
+
+void CGameFramework::WaitForFrameContext(UINT frameContextIndex)
+{
+	if ( frameContextIndex >= m_nFrameContexts )
+		return;
+
+	WaitForFenceValue(m_frameContexts[frameContextIndex].fenceValue);
 }
 
 void CGameFramework::FlushGpu()
@@ -289,6 +308,7 @@ void CGameFramework::CreateDirect3DDevice()
 void CGameFramework::CreateCommandQueueAndList()
 {
 	HRESULT hResult;
+
 #if defined(_DEBUG)
 	m_pd3dDevice->QueryInterface(IID_PPV_ARGS(&infoQueue));
 
@@ -301,7 +321,6 @@ void CGameFramework::CreateCommandQueueAndList()
 	// 경고(WARNING) 무시
 	infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, FALSE);
 #endif
-	
 
 	D3D12_COMMAND_QUEUE_DESC d3dCommandQueueDesc;
 	::ZeroMemory(&d3dCommandQueueDesc, sizeof(D3D12_COMMAND_QUEUE_DESC));
@@ -311,19 +330,33 @@ void CGameFramework::CreateCommandQueueAndList()
 	hResult = m_pd3dDevice->CreateCommandQueue(
 		&d3dCommandQueueDesc,
 		IID_PPV_ARGS(&m_pd3dCommandQueue));
+	( void ) hResult;
 
-	hResult = m_pd3dDevice->CreateCommandAllocator(
-		D3D12_COMMAND_LIST_TYPE_DIRECT,
-		IID_PPV_ARGS(&m_pd3dCommandAllocator));
+	for ( UINT i = 0; i < m_nFrameContexts; ++i )
+	{
+		hResult = m_pd3dDevice->CreateCommandAllocator(
+			D3D12_COMMAND_LIST_TYPE_DIRECT,
+			IID_PPV_ARGS(&m_frameContexts[i].commandAllocator));
+		( void ) hResult;
 
-	hResult = m_pd3dDevice->CreateCommandList(
-		0,
-		D3D12_COMMAND_LIST_TYPE_DIRECT,
-		m_pd3dCommandAllocator.Get(),
-		nullptr,
-		IID_PPV_ARGS(&m_pd3dCommandList));
+		hResult = m_pd3dDevice->CreateCommandList(
+			0,
+			D3D12_COMMAND_LIST_TYPE_DIRECT,
+			m_frameContexts[i].commandAllocator.Get(),
+			nullptr,
+			IID_PPV_ARGS(&m_frameContexts[i].commandList));
+		( void ) hResult;
 
-	hResult = m_pd3dCommandList->Close();
+		hResult = m_frameContexts[i].commandList->Close();
+		( void ) hResult;
+
+		m_frameContexts[i].fenceValue = 0;
+	}
+
+	m_nFrameContextIndex = 0;
+
+	m_pd3dCommandAllocator = m_frameContexts[m_nFrameContextIndex].commandAllocator;
+	m_pd3dCommandList = m_frameContexts[m_nFrameContextIndex].commandList;
 }
 
 void CGameFramework::CreateRtvAndDsvDescriptorHeaps()
