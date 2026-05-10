@@ -2957,13 +2957,13 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
 	//BuildTerrainObjects(dev, cmd);
 
-	BuildSpawnBatch(dev, cmd, pSkinnedShader);
+	//BuildSpawnBatch(dev, cmd, pSkinnedShader);
 
-	if ( !m_enemySpawner )
+	/*if ( !m_enemySpawner )
 		m_enemySpawner = std::make_unique<EnemySpawner>();
 
 	m_enemySpawner->Initialize(m_SpawnObectsRefs);
-	m_enemySpawnAccumulatorSec = 0.0f;
+	m_enemySpawnAccumulatorSec = 0.0f;*/
 
 	for ( CGameObject* obj : m_skinnedBatch.objectRefs )
 	{
@@ -4947,8 +4947,23 @@ void CGameScene::RenderSpawnInstanceGroups(ID3D12GraphicsCommandList* cmd, CCame
 		return;
 	if ( !m_enemySpawner )
 		return;
+	if ( !m_pd3dSkinnedInstanceBuffer )
+		return;
+	if ( !m_pMappedSkinnedInstanceBuffer )
+		return;
+	if ( !m_pd3dSkinnedBonePaletteBuffer )
+		return;
+	if ( !m_pMappedSkinnedBonePaletteBuffer )
+		return;
+
+	cmd->SetGraphicsRootShaderResourceView(
+		ROOT_PARAMETER_BONE_PALETTE,
+		m_pd3dSkinnedBonePaletteBuffer->GetGPUVirtualAddress()
+	);
 
 	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	UINT paletteWriteCursor = 0;
 
 	for ( const SkinnedInstanceGroup& group : m_spawnInstanceGroups )
 	{
@@ -4962,8 +4977,8 @@ void CGameScene::RenderSpawnInstanceGroups(ID3D12GraphicsCommandList* cmd, CCame
 		if ( maxInstanceCount == 0 ) continue;
 
 		const UINT instanceBase = group.instanceBufferStart;
-		if ( ( instanceBase + maxInstanceCount ) > m_skinnedInstanceBufferCapacity ) continue;
-
+		if ( ( instanceBase + maxInstanceCount ) > m_spawnInstanceBufferCapacity ) continue;
+		
 		UINT visibleInstanceCount = 0;
 
 		for ( UINT i = 0; i < maxInstanceCount; ++i )
@@ -4999,7 +5014,9 @@ void CGameScene::RenderSpawnInstanceGroups(ID3D12GraphicsCommandList* cmd, CCame
 			dst.world3 = XMFLOAT4(W._41, W._42, W._43, W._44);
 			dst.materialId = ( objSm.materialId == 0xFFFFFFFFu ) ? 0u : objSm.materialId;
 
-			const UINT paletteBase = ( UINT ) ( instanceBase + visibleInstanceCount ) * m_skinnedBonePaletteStride;
+			const UINT paletteBase = paletteWriteCursor * m_skinnedBonePaletteStride;
+			if ( ( paletteBase + m_skinnedBonePaletteStride ) > m_skinnedBonePaletteCapacity )
+				continue;
 			dst.bonePaletteBase = paletteBase;
 
 			const XMFLOAT4X4* srcBoneMats = skin->GetMappedBoneMatrices();
@@ -5015,6 +5032,7 @@ void CGameScene::RenderSpawnInstanceGroups(ID3D12GraphicsCommandList* cmd, CCame
 			}
 
 			++visibleInstanceCount;
+			++paletteWriteCursor;
 		}
 
 		if ( visibleInstanceCount == 0 ) continue;
