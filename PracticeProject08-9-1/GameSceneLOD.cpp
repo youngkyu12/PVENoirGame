@@ -221,10 +221,7 @@ void CGameScene::UpdateStaticWorldLodSelection(CCamera* camera)
 				continue;
 			}
 
-			{
-				PROFILE_RENDER_SCOPE("StaticLOD::SetMesh");
-				entry.object->SetMesh(0, targetMesh);
-			}
+			entry.object->SetMesh(0, targetMesh);
 
 			entry.currentLod = resolvedLod;
 			anyLodChanged = true;
