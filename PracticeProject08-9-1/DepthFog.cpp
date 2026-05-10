@@ -143,16 +143,23 @@ void CDepthFogSystem::ReleaseShaderVariables()
 
 void CDepthFogSystem::ReleaseConstantBuffer()
 {
-	if ( m_cbFog )
+	for ( UINT i = 0; i < kFrameResourceCount; ++i )
 	{
-		if ( m_mappedFog )
+		if ( m_cbFog[i] )
 		{
-			m_cbFog->Unmap(0, NULL);
-			m_mappedFog = nullptr;
+			if ( m_mappedFog[i] )
+			{
+				m_cbFog[i]->Unmap(0, NULL);
+				m_mappedFog[i] = nullptr;
+			}
+
+			m_cbFog[i].Reset();
 		}
 
-		m_cbFog.Reset();
+		m_mappedFog[i] = nullptr;
 	}
+
+	m_nFrameResourceIndex = 0;
 }
 
 void CDepthFogSystem::CreateConstantBuffer(
@@ -166,28 +173,43 @@ void CDepthFogSystem::CreateConstantBuffer(
 
 	const UINT cbBytes = ( ( sizeof(CB_FOG) + 255 ) & ~255 );
 
-	m_cbFog = ::CreateBufferResource(
-		dev,
-		cmd,
-		nullptr,
-		cbBytes,
-		D3D12_HEAP_TYPE_UPLOAD,
-		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
-		nullptr
-	);
+	for ( UINT i = 0; i < kFrameResourceCount; ++i )
+	{
+		m_cbFog[i] = ::CreateBufferResource(
+			dev,
+			cmd,
+			nullptr,
+			cbBytes,
+			D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+			nullptr
+		);
 
-	if ( !m_cbFog )
-		return;
+		if ( !m_cbFog[i] )
+			continue;
 
-	m_cbFog->Map(0, nullptr, reinterpret_cast< void** >( &m_mappedFog ));
+		m_cbFog[i]->Map(
+			0,
+			nullptr,
+			reinterpret_cast< void** >( &m_mappedFog[i] )
+		);
 
-	UploadConstantBuffer();
+		if ( m_mappedFog[i] )
+			::memcpy(m_mappedFog[i], &m_fogData, sizeof(CB_FOG));
+	}
+
+	m_nFrameResourceIndex = 0;
 }
 
 void CDepthFogSystem::SetSourceSrvIndices(UINT sceneColorSrvIndex, UINT sceneDepthSrvIndex)
 {
 	m_sceneColorSrvIndex = sceneColorSrvIndex;
 	m_sceneDepthSrvIndex = sceneDepthSrvIndex;
+}
+
+void CDepthFogSystem::SetFrameResourceIndex(UINT frameResourceIndex)
+{
+	m_nFrameResourceIndex = frameResourceIndex % kFrameResourceCount;
 }
 
 void CDepthFogSystem::UpdateState(float dt, EDepthFogPresetMode mode)
@@ -240,10 +262,12 @@ void CDepthFogSystem::UpdateState(float dt, EDepthFogPresetMode mode)
 
 void CDepthFogSystem::UploadConstantBuffer()
 {
-	if ( !m_mappedFog )
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	if ( !m_mappedFog[frameIndex] )
 		return;
 
-	::memcpy(m_mappedFog, &m_fogData, sizeof(CB_FOG));
+	::memcpy(m_mappedFog[frameIndex], &m_fogData, sizeof(CB_FOG));
 }
 
 void CDepthFogSystem::BindConstantBuffer(ID3D12GraphicsCommandList* cmd) const
@@ -251,10 +275,14 @@ void CDepthFogSystem::BindConstantBuffer(ID3D12GraphicsCommandList* cmd) const
 	if ( !cmd )
 		return;
 
-	if ( !m_cbFog )
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	if ( !m_cbFog[frameIndex] )
 		return;
 
-	const D3D12_GPU_VIRTUAL_ADDRESS fogGpu = m_cbFog->GetGPUVirtualAddress();
+	const D3D12_GPU_VIRTUAL_ADDRESS fogGpu =
+		m_cbFog[frameIndex]->GetGPUVirtualAddress();
+
 	cmd->SetGraphicsRootConstantBufferView(ROOT_PARAMETER_FOG, fogGpu);
 }
 
