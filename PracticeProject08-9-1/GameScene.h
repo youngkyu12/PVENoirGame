@@ -772,12 +772,12 @@ private:
 
 	std::vector<ItemBillboardEntry>       m_itemBillboards;
 
-	ComPtr<ID3D12Resource>                m_pd3dItemBillboardInstanceBuffer;
-	ItemBillboardInstanceVertex* m_pMappedItemBillboardInstanceBuffer = nullptr;
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dItemBillboardInstanceBuffer;
+	std::array<ItemBillboardInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedItemBillboardInstanceBuffer = {};
 	UINT                                  m_itemBillboardInstanceBufferCapacity = 0;
 
-	ComPtr<ID3D12Resource>                m_pd3dTransparentItemBillboardInstanceBuffer;
-	ItemBillboardInstanceVertex* m_pMappedTransparentItemBillboardInstanceBuffer = nullptr;
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dTransparentItemBillboardInstanceBuffer;
+	std::array<ItemBillboardInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedTransparentItemBillboardInstanceBuffer = {};
 	UINT                                  m_transparentItemBillboardInstanceBufferCapacity = 0;
 
 	static constexpr UINT kMuzzleFlashMaxCount = 160;
@@ -786,8 +786,8 @@ private:
 
 	std::vector<MuzzleFlashEntry> m_muzzleFlashes;
 
-	ComPtr<ID3D12Resource> m_pd3dMuzzleFlashInstanceBuffer;
-	MuzzleFlashInstanceVertex* m_pMappedMuzzleFlashInstanceBuffer = nullptr;
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dMuzzleFlashInstanceBuffer;
+	std::array<MuzzleFlashInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedMuzzleFlashInstanceBuffer = {};
 	UINT m_muzzleFlashInstanceBufferCapacity = 0;
 
 	static constexpr UINT kSwordTrailMaxCount = 16;
@@ -799,8 +799,8 @@ private:
 
 	std::vector<SwordTrailEntry> m_swordTrails;
 
-	ComPtr<ID3D12Resource> m_pd3dSwordTrailVertexBuffer;
-	SwordTrailVertex* m_pMappedSwordTrailVertexBuffer = nullptr;
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dSwordTrailVertexBuffer;
+	std::array<SwordTrailVertex*, kSceneBatchFrameResourceCount> m_pMappedSwordTrailVertexBuffer = {};
 	UINT m_swordTrailVertexBufferCapacity = 0;
 
 	std::vector<CGameObject*> m_swordManRefs;
