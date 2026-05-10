@@ -2978,37 +2978,58 @@ void CGameScene::ReleaseShaderVariables()
 	ReleaseStaticOcclusionGpuResources();
 	ReleaseSkinnedOcclusionGpuResources();
 
-	if ( m_pd3dStaticInstanceBuffer )
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
 	{
-		if ( m_pMappedStaticInstanceBuffer )
+		if ( m_pd3dStaticInstanceBuffer[frameIndex] )
 		{
-			m_pd3dStaticInstanceBuffer->Unmap(0, NULL);
-			m_pMappedStaticInstanceBuffer = nullptr;
+			if ( m_pMappedStaticInstanceBuffer[frameIndex] )
+			{
+				m_pd3dStaticInstanceBuffer[frameIndex]->Unmap(0, NULL);
+				m_pMappedStaticInstanceBuffer[frameIndex] = nullptr;
+			}
+
+			m_pd3dStaticInstanceBuffer[frameIndex].Reset();
 		}
-		m_pd3dStaticInstanceBuffer.Reset();
+
+		m_pMappedStaticInstanceBuffer[frameIndex] = nullptr;
 	}
+
 	m_staticInstanceBufferCapacity = 0;
 
-	if ( m_pd3dSkinnedInstanceBuffer )
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
 	{
-		if ( m_pMappedSkinnedInstanceBuffer )
+		if ( m_pd3dSkinnedInstanceBuffer[frameIndex] )
 		{
-			m_pd3dSkinnedInstanceBuffer->Unmap(0, NULL);
-			m_pMappedSkinnedInstanceBuffer = nullptr;
+			if ( m_pMappedSkinnedInstanceBuffer[frameIndex] )
+			{
+				m_pd3dSkinnedInstanceBuffer[frameIndex]->Unmap(0, NULL);
+				m_pMappedSkinnedInstanceBuffer[frameIndex] = nullptr;
+			}
+
+			m_pd3dSkinnedInstanceBuffer[frameIndex].Reset();
 		}
-		m_pd3dSkinnedInstanceBuffer.Reset();
+
+		m_pMappedSkinnedInstanceBuffer[frameIndex] = nullptr;
 	}
+
 	m_skinnedInstanceBufferCapacity = 0;
 
-	if ( m_pd3dSkinnedBonePaletteBuffer )
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
 	{
-		if ( m_pMappedSkinnedBonePaletteBuffer )
+		if ( m_pd3dSkinnedBonePaletteBuffer[frameIndex] )
 		{
-			m_pd3dSkinnedBonePaletteBuffer->Unmap(0, NULL);
-			m_pMappedSkinnedBonePaletteBuffer = nullptr;
+			if ( m_pMappedSkinnedBonePaletteBuffer[frameIndex] )
+			{
+				m_pd3dSkinnedBonePaletteBuffer[frameIndex]->Unmap(0, NULL);
+				m_pMappedSkinnedBonePaletteBuffer[frameIndex] = nullptr;
+			}
+
+			m_pd3dSkinnedBonePaletteBuffer[frameIndex].Reset();
 		}
-		m_pd3dSkinnedBonePaletteBuffer.Reset();
+
+		m_pMappedSkinnedBonePaletteBuffer[frameIndex] = nullptr;
 	}
+
 	m_skinnedBonePaletteStride = 0;
 	m_skinnedBonePaletteCapacity = 0;
 
@@ -4814,14 +4835,20 @@ void CGameScene::BuildStaticBatch(
 
 	m_staticTreeGridCullFlags.assign(m_staticBatch.objectRefs.size(), 0);
 
-	if ( m_pd3dStaticInstanceBuffer )
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
 	{
-		if ( m_pMappedStaticInstanceBuffer )
+		if ( m_pd3dStaticInstanceBuffer[frameIndex] )
 		{
-			m_pd3dStaticInstanceBuffer->Unmap(0, NULL);
-			m_pMappedStaticInstanceBuffer = nullptr;
+			if ( m_pMappedStaticInstanceBuffer[frameIndex] )
+			{
+				m_pd3dStaticInstanceBuffer[frameIndex]->Unmap(0, NULL);
+				m_pMappedStaticInstanceBuffer[frameIndex] = nullptr;
+			}
+
+			m_pd3dStaticInstanceBuffer[frameIndex].Reset();
 		}
-		m_pd3dStaticInstanceBuffer.Reset();
+
+		m_pMappedStaticInstanceBuffer[frameIndex] = nullptr;
 	}
 
 	if ( m_staticInstanceBufferCapacity > 0 )
@@ -4835,16 +4862,27 @@ void CGameScene::BuildStaticBatch(
 			m_staticInstanceBufferCapacity *
 			kStaticInstancePassCount;
 
-		m_pd3dStaticInstanceBuffer = ::CreateBufferResource(
-			dev, cmd, nullptr,
-			instanceBufferBytes,
-			D3D12_HEAP_TYPE_UPLOAD,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr
-		);
+		for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+		{
+			m_pd3dStaticInstanceBuffer[frameIndex] = ::CreateBufferResource(
+				dev,
+				cmd,
+				nullptr,
+				instanceBufferBytes,
+				D3D12_HEAP_TYPE_UPLOAD,
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				nullptr
+			);
 
-		m_pd3dStaticInstanceBuffer->Map(
-			0, nullptr, ( void** ) &m_pMappedStaticInstanceBuffer);
+			if ( m_pd3dStaticInstanceBuffer[frameIndex] )
+			{
+				m_pd3dStaticInstanceBuffer[frameIndex]->Map(
+					0,
+					nullptr,
+					reinterpret_cast< void** >( &m_pMappedStaticInstanceBuffer[frameIndex] )
+				);
+			}
+		}
 	}
 }
 
@@ -5362,8 +5400,17 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 	PROFILE_RENDER_SCOPE("GameScene::RenderStaticInstanceGroups");
 
 	if ( !cmd ) return;
-	if ( !m_pd3dStaticInstanceBuffer ) return;
-	if ( !m_pMappedStaticInstanceBuffer ) return;
+
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	ID3D12Resource* staticInstanceBuffer =
+		m_pd3dStaticInstanceBuffer[frameIndex].Get();
+
+	StaticInstanceVertex* mappedStaticInstanceBuffer =
+		m_pMappedStaticInstanceBuffer[frameIndex];
+
+	if ( !staticInstanceBuffer ) return;
+	if ( !mappedStaticInstanceBuffer ) return;
 
 	bool lastUseTreeShader = false;
 	bool hasBoundAnyShader = false;
@@ -5396,7 +5443,7 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 			const UINT objectIndex = group.visibleSceneObjectIndices[i];
 
 			StaticInstanceVertex& dst =
-				m_pMappedStaticInstanceBuffer[instanceBase + visibleInstanceCount];
+				mappedStaticInstanceBuffer[instanceBase + visibleInstanceCount];
 
 			if ( !WriteStaticInstanceVertexFromCache(dst, objectIndex) )
 				continue;
@@ -5410,7 +5457,7 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 		D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
 		vbViews[0] = sm.vbView;
 		vbViews[1].BufferLocation =
-			m_pd3dStaticInstanceBuffer->GetGPUVirtualAddress() +
+			staticInstanceBuffer->GetGPUVirtualAddress() +
 			( UINT64 ) ( sizeof(StaticInstanceVertex) * instanceBase );
 		vbViews[1].SizeInBytes = sizeof(StaticInstanceVertex) * visibleInstanceCount;
 		vbViews[1].StrideInBytes = sizeof(StaticInstanceVertex);
@@ -5450,14 +5497,29 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	if ( !cmd ) return;
-	if ( !m_pd3dSkinnedInstanceBuffer ) return;
-	if ( !m_pMappedSkinnedInstanceBuffer ) return;
-	if ( !m_pd3dSkinnedBonePaletteBuffer ) return;
-	if ( !m_pMappedSkinnedBonePaletteBuffer ) return;
+
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	ID3D12Resource* skinnedInstanceBuffer =
+		m_pd3dSkinnedInstanceBuffer[frameIndex].Get();
+
+	SkinnedInstanceVertex* mappedSkinnedInstanceBuffer =
+		m_pMappedSkinnedInstanceBuffer[frameIndex];
+
+	ID3D12Resource* skinnedBonePaletteBuffer =
+		m_pd3dSkinnedBonePaletteBuffer[frameIndex].Get();
+
+	XMFLOAT4X4* mappedSkinnedBonePaletteBuffer =
+		m_pMappedSkinnedBonePaletteBuffer[frameIndex];
+
+	if ( !skinnedInstanceBuffer ) return;
+	if ( !mappedSkinnedInstanceBuffer ) return;
+	if ( !skinnedBonePaletteBuffer ) return;
+	if ( !mappedSkinnedBonePaletteBuffer ) return;
 
 	cmd->SetGraphicsRootShaderResourceView(
 		ROOT_PARAMETER_BONE_PALETTE,
-		m_pd3dSkinnedBonePaletteBuffer->GetGPUVirtualAddress()
+		skinnedBonePaletteBuffer->GetGPUVirtualAddress()
 	);
 	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -5516,7 +5578,7 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 			const SubMesh& objSm = objMesh->m_SubMeshes[group.subMeshIndex];
 
 			SkinnedInstanceVertex& dst =
-				m_pMappedSkinnedInstanceBuffer[instanceBase + visibleInstanceCount];
+				mappedSkinnedInstanceBuffer[instanceBase + visibleInstanceCount];
 
 			const XMFLOAT4X4& W = obj->GetWorldMatrix();
 
@@ -5534,7 +5596,7 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 			if ( srcBoneMats && boneCount > 0 )
 			{
 				memcpy(
-					m_pMappedSkinnedBonePaletteBuffer + dst.bonePaletteBase,
+					mappedSkinnedBonePaletteBuffer + dst.bonePaletteBase,
 					srcBoneMats,
 					sizeof(XMFLOAT4X4) * boneCount
 				);
@@ -5559,7 +5621,7 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 			// shader->Render()가 PSO/root state를 만질 수 있으므로 bone palette를 다시 보장.
 			cmd->SetGraphicsRootShaderResourceView(
 				ROOT_PARAMETER_BONE_PALETTE,
-				m_pd3dSkinnedBonePaletteBuffer->GetGPUVirtualAddress()
+				skinnedBonePaletteBuffer->GetGPUVirtualAddress()
 			);
 
 			lastUseAlphaClipShader = group.useAlphaClipShader;
@@ -5569,7 +5631,7 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 		D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
 		vbViews[0] = repSm.vbView;
 		vbViews[1].BufferLocation =
-			m_pd3dSkinnedInstanceBuffer->GetGPUVirtualAddress() +
+			skinnedInstanceBuffer->GetGPUVirtualAddress() +
 			( UINT64 ) ( sizeof(SkinnedInstanceVertex) * instanceBase );
 		vbViews[1].SizeInBytes = sizeof(SkinnedInstanceVertex) * visibleInstanceCount;
 		vbViews[1].StrideInBytes = sizeof(SkinnedInstanceVertex);
@@ -5586,8 +5648,17 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 	PROFILE_RENDER_SCOPE("GameScene::RenderStaticInstanceGroupsToShadowMap");
 
 	if ( !cmd ) return;
-	if ( !m_pd3dStaticInstanceBuffer ) return;
-	if ( !m_pMappedStaticInstanceBuffer ) return;
+
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	ID3D12Resource* staticInstanceBuffer =
+		m_pd3dStaticInstanceBuffer[frameIndex].Get();
+
+	StaticInstanceVertex* mappedStaticInstanceBuffer =
+		m_pMappedStaticInstanceBuffer[frameIndex];
+
+	if ( !staticInstanceBuffer ) return;
+	if ( !mappedStaticInstanceBuffer ) return;
 	if ( !m_shadowStaticShader ) return;
 	if ( !m_shadowAlphaClipStaticShader ) return;
 
@@ -5627,7 +5698,7 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 			const UINT objectIndex = group.visibleShadowObjectIndices[i];
 
 			StaticInstanceVertex& dst =
-				m_pMappedStaticInstanceBuffer[instanceBase + visibleInstanceCount];
+				mappedStaticInstanceBuffer[instanceBase + visibleInstanceCount];
 
 			if ( !WriteStaticInstanceVertexFromCache(dst, objectIndex) )
 				continue;
@@ -5652,8 +5723,8 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 		D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
 		vbViews[0] = sm.vbView;
 		vbViews[1].BufferLocation =
-			m_pd3dStaticInstanceBuffer->GetGPUVirtualAddress() +
-			( UINT64 ) ( sizeof(StaticInstanceVertex) * instanceBase );
+			staticInstanceBuffer->GetGPUVirtualAddress() +
+			( UINT64 ) ( sizeof(StaticInstanceVertex) * instanceBase ); 
 		vbViews[1].SizeInBytes = sizeof(StaticInstanceVertex) * visibleInstanceCount;
 		vbViews[1].StrideInBytes = sizeof(StaticInstanceVertex);
 
@@ -5678,16 +5749,31 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 void CGameScene::RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandList* cmd)
 {
 	if ( !cmd ) return;
-	if ( !m_pd3dSkinnedInstanceBuffer ) return;
-	if ( !m_pMappedSkinnedInstanceBuffer ) return;
-	if ( !m_pd3dSkinnedBonePaletteBuffer ) return;
-	if ( !m_pMappedSkinnedBonePaletteBuffer ) return;
+
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	ID3D12Resource* skinnedInstanceBuffer =
+		m_pd3dSkinnedInstanceBuffer[frameIndex].Get();
+
+	SkinnedInstanceVertex* mappedSkinnedInstanceBuffer =
+		m_pMappedSkinnedInstanceBuffer[frameIndex];
+
+	ID3D12Resource* skinnedBonePaletteBuffer =
+		m_pd3dSkinnedBonePaletteBuffer[frameIndex].Get();
+
+	XMFLOAT4X4* mappedSkinnedBonePaletteBuffer =
+		m_pMappedSkinnedBonePaletteBuffer[frameIndex];
+
+	if ( !skinnedInstanceBuffer ) return;
+	if ( !mappedSkinnedInstanceBuffer ) return;
+	if ( !skinnedBonePaletteBuffer ) return;
+	if ( !mappedSkinnedBonePaletteBuffer ) return;
 	if ( !m_shadowSkinnedShader ) return;
 	if ( !m_shadowAlphaClipSkinnedShader ) return;
 
 	cmd->SetGraphicsRootShaderResourceView(
 		ROOT_PARAMETER_BONE_PALETTE,
-		m_pd3dSkinnedBonePaletteBuffer->GetGPUVirtualAddress()
+		skinnedBonePaletteBuffer->GetGPUVirtualAddress()
 	);
 	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -5749,7 +5835,7 @@ void CGameScene::RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandLis
 			const SubMesh& objSm = objMesh->m_SubMeshes[group.subMeshIndex];
 
 			SkinnedInstanceVertex& dst =
-				m_pMappedSkinnedInstanceBuffer[instanceBase + visibleInstanceCount];
+				mappedSkinnedInstanceBuffer[instanceBase + visibleInstanceCount];
 
 			const XMFLOAT4X4& W = obj->GetWorldMatrix();
 
@@ -5767,7 +5853,7 @@ void CGameScene::RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandLis
 			if ( srcBoneMats && boneCount > 0 )
 			{
 				memcpy(
-					m_pMappedSkinnedBonePaletteBuffer + dst.bonePaletteBase,
+					mappedSkinnedBonePaletteBuffer + dst.bonePaletteBase,
 					srcBoneMats,
 					sizeof(XMFLOAT4X4) * boneCount
 				);
@@ -5792,7 +5878,7 @@ void CGameScene::RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandLis
 		D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
 		vbViews[0] = repSm.vbView;
 		vbViews[1].BufferLocation =
-			m_pd3dSkinnedInstanceBuffer->GetGPUVirtualAddress() +
+			skinnedInstanceBuffer->GetGPUVirtualAddress() +
 			( UINT64 ) ( sizeof(SkinnedInstanceVertex) * instanceBase );
 		vbViews[1].SizeInBytes = sizeof(SkinnedInstanceVertex) * visibleInstanceCount;
 		vbViews[1].StrideInBytes = sizeof(SkinnedInstanceVertex);
@@ -6868,24 +6954,36 @@ void CGameScene::BuildSkinnedBatch(
 
 	BuildSkinnedInstanceGroups();
 
-	if ( m_pd3dSkinnedInstanceBuffer )
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
 	{
-		if ( m_pMappedSkinnedInstanceBuffer )
+		if ( m_pd3dSkinnedInstanceBuffer[frameIndex] )
 		{
-			m_pd3dSkinnedInstanceBuffer->Unmap(0, NULL);
-			m_pMappedSkinnedInstanceBuffer = nullptr;
+			if ( m_pMappedSkinnedInstanceBuffer[frameIndex] )
+			{
+				m_pd3dSkinnedInstanceBuffer[frameIndex]->Unmap(0, NULL);
+				m_pMappedSkinnedInstanceBuffer[frameIndex] = nullptr;
+			}
+
+			m_pd3dSkinnedInstanceBuffer[frameIndex].Reset();
 		}
-		m_pd3dSkinnedInstanceBuffer.Reset();
+
+		m_pMappedSkinnedInstanceBuffer[frameIndex] = nullptr;
 	}
 
-	if ( m_pd3dSkinnedBonePaletteBuffer )
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
 	{
-		if ( m_pMappedSkinnedBonePaletteBuffer )
+		if ( m_pd3dSkinnedBonePaletteBuffer[frameIndex] )
 		{
-			m_pd3dSkinnedBonePaletteBuffer->Unmap(0, NULL);
-			m_pMappedSkinnedBonePaletteBuffer = nullptr;
+			if ( m_pMappedSkinnedBonePaletteBuffer[frameIndex] )
+			{
+				m_pd3dSkinnedBonePaletteBuffer[frameIndex]->Unmap(0, NULL);
+				m_pMappedSkinnedBonePaletteBuffer[frameIndex] = nullptr;
+			}
+
+			m_pd3dSkinnedBonePaletteBuffer[frameIndex].Reset();
 		}
-		m_pd3dSkinnedBonePaletteBuffer.Reset();
+
+		m_pMappedSkinnedBonePaletteBuffer[frameIndex] = nullptr;
 	}
 
 	m_skinnedBonePaletteStride = 1;
@@ -6913,16 +7011,27 @@ void CGameScene::BuildSkinnedBatch(
 			m_skinnedInstanceBufferCapacity *
 			kSkinnedInstancePassCount;
 
-		m_pd3dSkinnedInstanceBuffer = ::CreateBufferResource(
-			dev, cmd, nullptr,
-			instanceBufferBytes,
-			D3D12_HEAP_TYPE_UPLOAD,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr
-		);
+		for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+		{
+			m_pd3dSkinnedInstanceBuffer[frameIndex] = ::CreateBufferResource(
+				dev,
+				cmd,
+				nullptr,
+				instanceBufferBytes,
+				D3D12_HEAP_TYPE_UPLOAD,
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				nullptr
+			);
 
-		m_pd3dSkinnedInstanceBuffer->Map(
-			0, nullptr, ( void** ) &m_pMappedSkinnedInstanceBuffer);
+			if ( m_pd3dSkinnedInstanceBuffer[frameIndex] )
+			{
+				m_pd3dSkinnedInstanceBuffer[frameIndex]->Map(
+					0,
+					nullptr,
+					reinterpret_cast< void** >( &m_pMappedSkinnedInstanceBuffer[frameIndex] )
+				);
+			}
+		}
 	}
 
 	if ( m_skinnedBonePaletteCapacity > 0 )
@@ -6930,16 +7039,27 @@ void CGameScene::BuildSkinnedBatch(
 		const UINT bonePaletteBufferBytes =
 			sizeof(XMFLOAT4X4) * m_skinnedBonePaletteCapacity;
 
-		m_pd3dSkinnedBonePaletteBuffer = ::CreateBufferResource(
-			dev, cmd, nullptr,
-			bonePaletteBufferBytes,
-			D3D12_HEAP_TYPE_UPLOAD,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr
-		);
+		for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+		{
+			m_pd3dSkinnedBonePaletteBuffer[frameIndex] = ::CreateBufferResource(
+				dev,
+				cmd,
+				nullptr,
+				bonePaletteBufferBytes,
+				D3D12_HEAP_TYPE_UPLOAD,
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				nullptr
+			);
 
-		m_pd3dSkinnedBonePaletteBuffer->Map(
-			0, nullptr, ( void** ) &m_pMappedSkinnedBonePaletteBuffer);
+			if ( m_pd3dSkinnedBonePaletteBuffer[frameIndex] )
+			{
+				m_pd3dSkinnedBonePaletteBuffer[frameIndex]->Map(
+					0,
+					nullptr,
+					reinterpret_cast< void** >( &m_pMappedSkinnedBonePaletteBuffer[frameIndex] )
+				);
+			}
+		}
 	}
 
 	BuildSkinnedOcclusionEntries();
