@@ -367,12 +367,14 @@ namespace
 		const CMesh* mesh = nullptr;
 		UINT subMeshIndex = 0;
 		bool useTreeShader = false;
+		int lodLevel = 0;
 
 		bool operator==(const StaticGroupKey& rhs) const
 		{
 			return mesh == rhs.mesh &&
 				subMeshIndex == rhs.subMeshIndex &&
-				useTreeShader == rhs.useTreeShader;
+				useTreeShader == rhs.useTreeShader &&
+				lodLevel == rhs.lodLevel;
 		}
 	};
 
@@ -388,6 +390,11 @@ namespace
 				+ ( h >> 2 );
 
 			h ^= std::hash<bool>{}( k.useTreeShader )
+				+ 0x9e3779b9
+				+ ( h << 6 )
+				+ ( h >> 2 );
+
+			h ^= std::hash<int>{}( k.lodLevel )
 				+ 0x9e3779b9
 				+ ( h << 6 )
 				+ ( h >> 2 );
@@ -4706,30 +4713,25 @@ void CGameScene::BuildStaticInstanceGroups()
 	PROFILE_RENDER_SCOPE("BuildStaticInstanceGroups::Total");
 
 	m_staticInstanceGroups.clear();
+	BuildStaticWorldLodEntryIndexMap();
 
 	std::unordered_map<StaticGroupKey, size_t, StaticGroupKeyHash> groupIndexByKey;
-	groupIndexByKey.reserve(m_staticBatch.objectRefs.size() * 2);
+	groupIndexByKey.reserve(m_staticBatch.objectRefs.size() * 4);
 
-	m_staticInstanceGroups.reserve(m_staticBatch.objectRefs.size());
+	m_staticInstanceGroups.reserve(m_staticBatch.objectRefs.size() * 2);
 
-	for ( UINT objectIndex = 0; objectIndex < ( UINT ) m_staticBatch.objectRefs.size(); ++objectIndex )
-	{
-		CGameObject* obj = m_staticBatch.objectRefs[objectIndex];
-		if ( !obj )
-			continue;
-
-		const bool useTreeShader =
-			( m_treeAlphaClipObjects.find(obj) != m_treeAlphaClipObjects.end() );
-
-		const int meshCount = obj->GetMeshCount();
-
-		for ( int meshIndex = 0; meshIndex < meshCount; ++meshIndex )
+	auto AddObjectToGroup =
+		[ & ](
+			UINT objectIndex,
+			const std::shared_ptr<CMesh>& mesh,
+			int lodLevel,
+			bool useTreeShader)
 		{
-			std::shared_ptr<CMesh> mesh = obj->GetMeshShared(meshIndex);
 			if ( !mesh )
-				continue;
+				return;
 
-			const UINT subMeshCount = ( UINT ) mesh->m_SubMeshes.size();
+			const UINT subMeshCount =
+				static_cast< UINT >( mesh->m_SubMeshes.size() );
 
 			for ( UINT subMeshIndex = 0; subMeshIndex < subMeshCount; ++subMeshIndex )
 			{
@@ -4737,19 +4739,22 @@ void CGameScene::BuildStaticInstanceGroups()
 				key.mesh = mesh.get();
 				key.subMeshIndex = subMeshIndex;
 				key.useTreeShader = useTreeShader;
+				key.lodLevel = lodLevel;
 
 				size_t groupIndex = 0;
 
 				auto it = groupIndexByKey.find(key);
+
 				if ( it == groupIndexByKey.end() )
 				{
-					StaticInstanceGroup newGroup{};
-					newGroup.mesh = mesh;
-					newGroup.subMeshIndex = subMeshIndex;
-					newGroup.useTreeShader = useTreeShader;
+					StaticInstanceGroup group{};
+					group.mesh = mesh;
+					group.subMeshIndex = subMeshIndex;
+					group.useTreeShader = useTreeShader;
+					group.lodLevel = lodLevel;
 
 					groupIndex = m_staticInstanceGroups.size();
-					m_staticInstanceGroups.push_back(std::move(newGroup));
+					m_staticInstanceGroups.push_back(std::move(group));
 
 					groupIndexByKey.emplace(key, groupIndex);
 				}
@@ -4760,6 +4765,74 @@ void CGameScene::BuildStaticInstanceGroups()
 
 				m_staticInstanceGroups[groupIndex].objectIndices.push_back(objectIndex);
 			}
+		};
+
+	for ( UINT objectIndex = 0;
+		  objectIndex < static_cast< UINT >(m_staticBatch.objectRefs.size());
+		  ++objectIndex )
+	{
+		CGameObject* obj = m_staticBatch.objectRefs[objectIndex];
+		if ( !obj )
+			continue;
+
+		const bool useTreeShader =
+			( m_treeAlphaClipObjects.find(obj) != m_treeAlphaClipObjects.end() );
+
+		int lodEntryIndex = -1;
+		if ( objectIndex <
+			 static_cast< UINT >(m_staticWorldLodEntryIndexByObjectIndex.size()) )
+		{
+			lodEntryIndex = m_staticWorldLodEntryIndexByObjectIndex[objectIndex];
+		}
+
+		const bool hasLodEntry =
+			( lodEntryIndex >= 0 &&
+			  lodEntryIndex < static_cast< int >(m_staticWorldLodEntries.size()) );
+
+		if ( hasLodEntry )
+		{
+			const StaticWorldLodEntry& entry =
+				m_staticWorldLodEntries[lodEntryIndex];
+
+			if ( entry.lodEnabled )
+			{
+				bool registeredResolvedLods[3] = { false, false, false };
+
+				for ( int lodLevel = 0; lodLevel < 3; ++lodLevel )
+				{
+					const int resolvedLod =
+						ResolveStaticWorldLodLevel(entry, lodLevel);
+
+					if ( resolvedLod < 0 || resolvedLod > 2 )
+						continue;
+
+					if ( registeredResolvedLods[resolvedLod] )
+						continue;
+
+					registeredResolvedLods[resolvedLod] = true;
+
+					std::shared_ptr<CMesh> lodMesh =
+						entry.lodMeshes[static_cast< size_t >( resolvedLod )];
+
+					AddObjectToGroup(
+						objectIndex,
+						lodMesh,
+						resolvedLod,
+						useTreeShader
+					);
+				}
+
+				continue;
+			}
+		}
+
+		// LOD 대상이 아닌 일반 static object는 기존처럼 현재 mesh만 등록.
+		const int meshCount = obj->GetMeshCount();
+
+		for ( int meshIndex = 0; meshIndex < meshCount; ++meshIndex )
+		{
+			std::shared_ptr<CMesh> mesh = obj->GetMeshShared(meshIndex);
+			AddObjectToGroup(objectIndex, mesh, 0, useTreeShader);
 		}
 	}
 
@@ -4774,7 +4847,10 @@ void CGameScene::BuildStaticInstanceGroups()
 			if ( a.mesh.get() != b.mesh.get() )
 				return a.mesh.get() < b.mesh.get();
 
-			return a.subMeshIndex < b.subMeshIndex;
+			if ( a.subMeshIndex != b.subMeshIndex )
+				return a.subMeshIndex < b.subMeshIndex;
+
+			return a.lodLevel < b.lodLevel;
 		}
 	);
 
@@ -4783,7 +4859,7 @@ void CGameScene::BuildStaticInstanceGroups()
 	for ( StaticInstanceGroup& group : m_staticInstanceGroups )
 	{
 		group.instanceBufferStart = runningStart;
-		runningStart += ( UINT ) group.objectIndices.size();
+		runningStart += static_cast< UINT >(group.objectIndices.size());
 	}
 
 	m_staticInstanceBufferCapacity = runningStart;
@@ -4991,6 +5067,8 @@ bool CGameScene::WriteStaticInstanceVertexFromCache(
 
 void CGameScene::BuildStaticVisibleListsForFrame(CCamera* camera)
 {
+	PROFILE_RENDER_SCOPE("GameScene::BuildStaticVisibleListsForFrame");
+
 	for ( StaticInstanceGroup& group : m_staticInstanceGroups )
 	{
 		group.visibleSceneObjectIndices.clear();
@@ -5001,6 +5079,9 @@ void CGameScene::BuildStaticVisibleListsForFrame(CCamera* camera)
 				continue;
 
 			if ( objectIndex >= static_cast< UINT >( m_staticRenderObjectCache.size() ) )
+				continue;
+
+			if ( group.lodLevel != GetStaticObjectActiveLodLevel(objectIndex) )
 				continue;
 
 			const StaticRenderObjectCache& cache =
@@ -5056,6 +5137,9 @@ void CGameScene::BuildStaticShadowVisibleListsForFrame()
 				continue;
 
 			if ( objectIndex >= static_cast< UINT >( m_staticRenderObjectCache.size() ) )
+				continue;
+
+			if ( group.lodLevel != GetStaticObjectActiveLodLevel(objectIndex) )
 				continue;
 
 			const StaticRenderObjectCache& cache =

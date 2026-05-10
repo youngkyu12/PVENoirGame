@@ -216,6 +216,8 @@ struct StaticInstanceGroup
 	UINT instanceBufferStart = 0;
 	bool useTreeShader = false;
 
+	int lodLevel = 0;
+
 	std::vector<UINT> visibleSceneObjectIndices;
 	std::vector<UINT> visibleShadowObjectIndices;
 };
@@ -483,6 +485,10 @@ private:
 	void UpdateSkinnedWorldLodSelection(CCamera* camera);
 	void RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	bool ShouldEvaluateSkinnedPoseThisFrame(UINT objectIndex, CCamera* camera) const;
+
+	int ResolveStaticWorldLodLevel(const StaticWorldLodEntry& entry, int desiredLod) const;
+	int GetStaticObjectActiveLodLevel(UINT objectIndex) const;
+	void BuildStaticWorldLodEntryIndexMap();
 
     // Frame / Render
 public:
@@ -931,6 +937,7 @@ private:
 
 	std::vector<StaticWorldLodEntry>    m_staticWorldLodEntries;
 	std::vector<StaticOcclusionEntry>   m_staticOcclusionEntries;
+	std::vector<int> m_staticWorldLodEntryIndexByObjectIndex;
 
 	std::vector<uint8_t>                m_staticDistanceCullFlags;
 	std::vector<uint8_t>                m_staticOcclusionCullFlags;
