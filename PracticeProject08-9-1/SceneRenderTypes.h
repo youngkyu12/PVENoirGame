@@ -4,6 +4,7 @@
 #pragma once
 
 #include <memory>
+#include <array>
 #include <vector>
 #include <wrl.h>
 #include <d3d12.h>
@@ -18,6 +19,8 @@ class CSkinnedObjectsShader;
 class CShader;
 
 struct CB_GAMEOBJECT_INFO;
+static constexpr UINT kSceneBatchFrameResourceCount = 2;
+
 
 // -----------------------------------------------------------------------------
 // Materials (GPU constant buffer용)
@@ -56,40 +59,40 @@ struct MATERIALS
 // -----------------------------------------------------------------------------
 struct SCENE_STATIC_BATCH
 {
-    std::shared_ptr<CStaticObjectsShader> shader;
+	std::shared_ptr<CStaticObjectsShader> shader;
 
-    UINT capacity = 0;
-    UINT count = 0;
+	UINT capacity = 0;
+	UINT count = 0;
 
-    std::vector<CGameObject*> objectRefs;
+	std::vector<CGameObject*> objectRefs;
 
-    ComPtr<ID3D12Resource> cbGameObjects;
-    CB_GAMEOBJECT_INFO* mappedGameObjects = nullptr;
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> cbGameObjects;
+	std::array<CB_GAMEOBJECT_INFO*, kSceneBatchFrameResourceCount> mappedGameObjects = {};
 
-    UINT cbElementBytes = 0;
+	UINT cbElementBytes = 0;
 
-    D3D12_GPU_DESCRIPTOR_HANDLE baseCbvGpu = { 0 };
-    UINT cbvInc = 0;
+	std::array<D3D12_GPU_DESCRIPTOR_HANDLE, kSceneBatchFrameResourceCount> baseCbvGpu = {};
+	UINT cbvInc = 0;
 
-    std::shared_ptr<CMaterial> material;
+	std::shared_ptr<CMaterial> material;
 };
 
 struct SCENE_SKINNED_BATCH
 {
-    std::shared_ptr<CSkinnedObjectsShader> shader;
+	std::shared_ptr<CSkinnedObjectsShader> shader;
 
-    UINT capacity = 0;
-    UINT count = 0;
+	UINT capacity = 0;
+	UINT count = 0;
 
-    UINT cbElementBytes = 0;
+	UINT cbElementBytes = 0;
 
-    ComPtr<ID3D12Resource> cbGameObjects;
-    CB_GAMEOBJECT_INFO* mappedGameObjects = nullptr;
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> cbGameObjects;
+	std::array<CB_GAMEOBJECT_INFO*, kSceneBatchFrameResourceCount> mappedGameObjects = {};
 
-    D3D12_GPU_DESCRIPTOR_HANDLE baseCbvGpu = { 0 };
-    UINT cbvInc = 0;
+	std::array<D3D12_GPU_DESCRIPTOR_HANDLE, kSceneBatchFrameResourceCount> baseCbvGpu = {};
+	UINT cbvInc = 0;
 
-    std::vector<CGameObject*> objectRefs;
+	std::vector<CGameObject*> objectRefs;
 };
 
 struct SCENE_COLLIDER_BATCH
@@ -101,10 +104,10 @@ struct SCENE_COLLIDER_BATCH
 
 	UINT cbElementBytes = 0;
 
-	ComPtr<ID3D12Resource> cbGameObjects;
-	CB_GAMEOBJECT_INFO* mappedGameObjects = nullptr;
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> cbGameObjects;
+	std::array<CB_GAMEOBJECT_INFO*, kSceneBatchFrameResourceCount> mappedGameObjects = {};
 
-	D3D12_GPU_DESCRIPTOR_HANDLE baseCbvGpu = { 0 };
+	std::array<D3D12_GPU_DESCRIPTOR_HANDLE, kSceneBatchFrameResourceCount> baseCbvGpu = {};
 	UINT cbvInc = 0;
 
 	std::vector<CGameObject*> objectRefs;

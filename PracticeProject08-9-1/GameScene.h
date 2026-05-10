@@ -31,6 +31,7 @@ class CNavMesh;
 class CStaticMeshRendererComponent;
 
 struct CB_GAMEOBJECT_INFO;
+
 struct AttachmentBindSpec
 {
     CGameObject* follower = nullptr;
