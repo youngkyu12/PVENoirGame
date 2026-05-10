@@ -1357,8 +1357,6 @@ void CGameScene::RenderTransparentItemBillboards(
 	ID3D12GraphicsCommandList* cmd,
 	CCamera* camera)
 {
-	PROFILE_RENDER_SCOPE("GameScene::RenderTransparentItemBillboards");
-
 	if ( !cmd ) return;
 	if ( !camera ) return;
 	if ( !m_transparentItemBillboardShader ) return;
@@ -1471,8 +1469,6 @@ void CGameScene::RenderMuzzleFlashes(
 	ID3D12GraphicsCommandList* cmd,
 	CCamera* camera)
 {
-	PROFILE_RENDER_SCOPE("GameScene::RenderMuzzleFlashes");
-
 	if ( !cmd ) return;
 	if ( !camera ) return;
 	if ( !m_muzzleFlashShader ) return;
@@ -1541,8 +1537,6 @@ void CGameScene::RenderSwordTrails(
 	ID3D12GraphicsCommandList* cmd,
 	CCamera* camera)
 {
-	PROFILE_RENDER_SCOPE("GameScene::RenderSwordTrails");
-
 	if ( !cmd ) return;
 	if ( !camera ) return;
 	if ( !m_swordTrailShader ) return;

@@ -1316,11 +1316,8 @@ void CGameFramework::FrameAdvance()
 		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::ProcessInput");
 		ProcessInput();
 	}
-
-	{
-		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::AnimateObjects");
-		AnimateObjects();
-	}
+	AnimateObjects();
+	
 
 	UpdateAudioListener();
 
@@ -1336,17 +1333,11 @@ void CGameFramework::FrameAdvance()
 		}
 	}
 #endif
-	{
-		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::CollisionSystem");
-		CollisionSystem();
-	}
+	CollisionSystem();
 
-	{
-		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::CommandAllocatorAndListReset");
-		hResult = m_pd3dCommandAllocator->Reset();
-		hResult = m_pd3dCommandList->Reset(m_pd3dCommandAllocator.Get(), nullptr);
-	}
-
+	hResult = m_pd3dCommandAllocator->Reset();
+	hResult = m_pd3dCommandList->Reset(m_pd3dCommandAllocator.Get(), nullptr);
+	
 	::SynchronizeResourceTransition(
 		m_pd3dCommandList.Get(),
 		m_ppd3dSwapChainBackBuffers[m_nSwapChainBufferIndex].Get(),
@@ -1406,20 +1397,11 @@ void CGameFramework::FrameAdvance()
 				m_d3dDsvDescriptorCPUHandle
 			);
 
-			{
-				PROFILE_RENDER_SCOPE("Framework::GameScene::RenderShadowPrePass");
-				gameScene->RenderShadowPrePass(m_pd3dCommandList.Get(), m_pCamera);
-			}
-
-			{
-				PROFILE_RENDER_SCOPE("Framework::GameScene::RebindFrameForGeometry");
-				gameScene->RebindFrameRenderState(m_pd3dCommandList.Get(), m_pCamera);
-			}
-
-			{
-				PROFILE_RENDER_SCOPE("Framework::GameScene::RenderSceneGeometry");
-				gameScene->RenderSceneGeometry(m_pd3dCommandList.Get(), m_pCamera);
-			}
+			
+			gameScene->RenderShadowPrePass(m_pd3dCommandList.Get(), m_pCamera);
+			gameScene->RebindFrameRenderState(m_pd3dCommandList.Get(), m_pCamera);
+			gameScene->RenderSceneGeometry(m_pd3dCommandList.Get(), m_pCamera);
+			
 
 			m_pPostProcessingShader->OnPostRenderTarget(m_pd3dCommandList.Get());
 
@@ -1432,12 +1414,8 @@ void CGameFramework::FrameAdvance()
 			);
 
 			m_pd3dCommandList->OMSetRenderTargets(1, &m_pd3dSwapChainBackBufferRTVCPUHandles[m_nSwapChainBufferIndex], FALSE, &m_d3dDsvDescriptorCPUHandle);
-
-			{
-				PROFILE_RENDER_SCOPE("Framework::GameScene::RebindFrameForComposite");
-				gameScene->RebindFrameRenderState(m_pd3dCommandList.Get(), m_pCamera);
-			}
-
+			gameScene->RebindFrameRenderState(m_pd3dCommandList.Get(), m_pCamera);
+			
 			{
 				PROFILE_RENDER_SCOPE("Framework::GameScene::RenderSceneComposite");
 				gameScene->RenderSceneComposite(m_pd3dCommandList.Get(), m_pCamera);
@@ -1491,10 +1469,8 @@ void CGameFramework::FrameAdvance()
 	m_pd3dCommandQueue->ExecuteCommandLists(1, ppd3dCommandLists);
 
 
-	{
-		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::WaitForGpuComplete");
-		WaitForGpuComplete();
-	}
+	WaitForGpuComplete();
+	
 
 	{
 		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::Present");

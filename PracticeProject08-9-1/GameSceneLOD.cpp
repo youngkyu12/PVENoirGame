@@ -164,12 +164,8 @@ void CGameScene::UpdateStaticWorldLodSelection(CCamera* camera)
 		m_staticDistanceCullFlags.clear();
 		return;
 	}
-
-	{
-		PROFILE_RENDER_SCOPE("StaticLOD::AssignDistanceCullFlags");
-		m_staticDistanceCullFlags.assign(m_staticBatch.objectRefs.size(), 0);
-	}
-
+	m_staticDistanceCullFlags.assign(m_staticBatch.objectRefs.size(), 0);
+	
 	if ( m_staticWorldLodEntries.empty() )
 	{
 		m_staticWorldLodDirty = false;
@@ -181,8 +177,6 @@ void CGameScene::UpdateStaticWorldLodSelection(CCamera* camera)
 	UINT changedCount = 0;
 
 	{
-		PROFILE_RENDER_SCOPE("StaticLOD::SelectionLoop");
-
 		for ( StaticWorldLodEntry& entry : m_staticWorldLodEntries )
 		{
 			if ( !entry.object )
