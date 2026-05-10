@@ -362,6 +362,40 @@ namespace
 		return "Assets/Audio/Walk_Block1.wav";
 	}
 
+	struct StaticGroupKey
+	{
+		const CMesh* mesh = nullptr;
+		UINT subMeshIndex = 0;
+		bool useTreeShader = false;
+
+		bool operator==(const StaticGroupKey& rhs) const
+		{
+			return mesh == rhs.mesh &&
+				subMeshIndex == rhs.subMeshIndex &&
+				useTreeShader == rhs.useTreeShader;
+		}
+	};
+
+	struct StaticGroupKeyHash
+	{
+		size_t operator()(const StaticGroupKey& k) const
+		{
+			size_t h = std::hash<const void*>{}( k.mesh );
+
+			h ^= std::hash<UINT>{}( k.subMeshIndex )
+				+ 0x9e3779b9
+				+ ( h << 6 )
+				+ ( h >> 2 );
+
+			h ^= std::hash<bool>{}( k.useTreeShader )
+				+ 0x9e3779b9
+				+ ( h << 6 )
+				+ ( h >> 2 );
+
+			return h;
+		}
+	};
+
 	// -----------------------------------------------------------------------------
 	// HP
 	// -----------------------------------------------------------------------------
@@ -4669,67 +4703,83 @@ void CGameScene::UpdateStaticTreeGridCullSelection(CCamera* camera)
 
 void CGameScene::BuildStaticInstanceGroups()
 {
+	PROFILE_RENDER_SCOPE("BuildStaticInstanceGroups::Total");
+
 	m_staticInstanceGroups.clear();
+
+	std::unordered_map<StaticGroupKey, size_t, StaticGroupKeyHash> groupIndexByKey;
+	groupIndexByKey.reserve(m_staticBatch.objectRefs.size() * 2);
+
+	m_staticInstanceGroups.reserve(m_staticBatch.objectRefs.size());
 
 	for ( UINT objectIndex = 0; objectIndex < ( UINT ) m_staticBatch.objectRefs.size(); ++objectIndex )
 	{
 		CGameObject* obj = m_staticBatch.objectRefs[objectIndex];
+		if ( !obj )
+			continue;
+
 		const bool useTreeShader =
 			( m_treeAlphaClipObjects.find(obj) != m_treeAlphaClipObjects.end() );
-		if ( !obj ) continue;
 
 		const int meshCount = obj->GetMeshCount();
+
 		for ( int meshIndex = 0; meshIndex < meshCount; ++meshIndex )
 		{
 			std::shared_ptr<CMesh> mesh = obj->GetMeshShared(meshIndex);
-			if ( !mesh ) continue;
+			if ( !mesh )
+				continue;
 
-			for ( UINT subMeshIndex = 0; subMeshIndex < ( UINT ) mesh->m_SubMeshes.size(); ++subMeshIndex )
+			const UINT subMeshCount = ( UINT ) mesh->m_SubMeshes.size();
+
+			for ( UINT subMeshIndex = 0; subMeshIndex < subMeshCount; ++subMeshIndex )
 			{
-				StaticInstanceGroup* targetGroup = nullptr;
+				StaticGroupKey key{};
+				key.mesh = mesh.get();
+				key.subMeshIndex = subMeshIndex;
+				key.useTreeShader = useTreeShader;
 
-				for ( StaticInstanceGroup& group : m_staticInstanceGroups )
-				{
-					if ( group.mesh.get() == mesh.get() &&
-						group.subMeshIndex == subMeshIndex &&
-						group.useTreeShader == useTreeShader )
-					{
-						targetGroup = &group;
-						break;
-					}
-				}
+				size_t groupIndex = 0;
 
-				if ( !targetGroup )
+				auto it = groupIndexByKey.find(key);
+				if ( it == groupIndexByKey.end() )
 				{
 					StaticInstanceGroup newGroup{};
 					newGroup.mesh = mesh;
 					newGroup.subMeshIndex = subMeshIndex;
 					newGroup.useTreeShader = useTreeShader;
+
+					groupIndex = m_staticInstanceGroups.size();
 					m_staticInstanceGroups.push_back(std::move(newGroup));
-					targetGroup = &m_staticInstanceGroups.back();
+
+					groupIndexByKey.emplace(key, groupIndex);
+				}
+				else
+				{
+					groupIndex = it->second;
 				}
 
-				targetGroup->objectIndices.push_back(objectIndex);
+				m_staticInstanceGroups[groupIndex].objectIndices.push_back(objectIndex);
 			}
 		}
 	}
 
 	std::sort(
-	m_staticInstanceGroups.begin(),
-	m_staticInstanceGroups.end(),
-	[ ] (const StaticInstanceGroup& a, const StaticInstanceGroup& b)
-	{
-		if ( a.useTreeShader != b.useTreeShader )
-			return a.useTreeShader < b.useTreeShader; // opaque 먼저, tree alpha-clip 나중
+		m_staticInstanceGroups.begin(),
+		m_staticInstanceGroups.end(),
+		[ ] (const StaticInstanceGroup& a, const StaticInstanceGroup& b)
+		{
+			if ( a.useTreeShader != b.useTreeShader )
+				return a.useTreeShader < b.useTreeShader;
 
-		if ( a.mesh.get() != b.mesh.get() )
-			return a.mesh.get() < b.mesh.get();
+			if ( a.mesh.get() != b.mesh.get() )
+				return a.mesh.get() < b.mesh.get();
 
-		return a.subMeshIndex < b.subMeshIndex;
-	}
+			return a.subMeshIndex < b.subMeshIndex;
+		}
 	);
 
 	UINT runningStart = 0;
+
 	for ( StaticInstanceGroup& group : m_staticInstanceGroups )
 	{
 		group.instanceBufferStart = runningStart;
