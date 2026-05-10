@@ -148,18 +148,47 @@ void CGameFramework::ReleaseObjects()
 	}
 }
 
+UINT64 CGameFramework::SignalCommandQueue()
+{
+	const UINT64 fenceValue = m_nNextFenceValue++;
+
+	HRESULT hResult = m_pd3dCommandQueue->Signal(
+		m_pd3dFence.Get(),
+		fenceValue
+	);
+	( void ) hResult;
+
+	return fenceValue;
+}
+
+void CGameFramework::WaitForFenceValue(UINT64 fenceValue)
+{
+	if ( fenceValue == 0 )
+		return;
+
+	if ( m_pd3dFence->GetCompletedValue() < fenceValue )
+	{
+		HRESULT hResult = m_pd3dFence->SetEventOnCompletion(
+			fenceValue,
+			m_hFenceEvent
+		);
+		( void ) hResult;
+
+		::WaitForSingleObject(m_hFenceEvent, INFINITE);
+	}
+}
+
+void CGameFramework::FlushGpu()
+{
+	const UINT64 fenceValue = SignalCommandQueue();
+	WaitForFenceValue(fenceValue);
+}
+
 void CGameFramework::WaitForGpuComplete()
 {
 	PROFILE_RENDER_SCOPE("Framework::WaitForGpuComplete(total)");
 
-	const UINT64 nFenceValue = ++m_nFenceValues[m_nSwapChainBufferIndex];
-	HRESULT hResult = m_pd3dCommandQueue->Signal(m_pd3dFence.Get(), nFenceValue);
-
-	if ( m_pd3dFence->GetCompletedValue() < nFenceValue )
-	{
-		hResult = m_pd3dFence->SetEventOnCompletion(nFenceValue, m_hFenceEvent);
-		::WaitForSingleObject(m_hFenceEvent, INFINITE);
-	}
+	FlushGpu();
 }
 
 void CGameFramework::CreateDirect3DDevice()
@@ -245,12 +274,11 @@ void CGameFramework::CreateDirect3DDevice()
 	m_bMsaa4xEnable = (m_nMsaa4xQualityLevels > 1) ? true : false;
 
 	hResult = m_pd3dDevice->CreateFence(
-		0,
-		D3D12_FENCE_FLAG_NONE,
-		IID_PPV_ARGS(&m_pd3dFence));
+	0,
+	D3D12_FENCE_FLAG_NONE,
+	IID_PPV_ARGS(&m_pd3dFence));
 
-	for (UINT i = 0; i < m_nSwapChainBuffers; i++)
-		m_nFenceValues[i] = 1;
+	m_nNextFenceValue = 1;
 
 	m_hFenceEvent = ::CreateEvent(nullptr, FALSE, FALSE, nullptr);
 
@@ -1274,14 +1302,8 @@ void CGameFramework::MoveToNextFrame()
 {
 	m_nSwapChainBufferIndex = m_pdxgiSwapChain->GetCurrentBackBufferIndex();
 
-	UINT64 nFenceValue = ++m_nFenceValues[m_nSwapChainBufferIndex];
-	HRESULT hResult = m_pd3dCommandQueue->Signal(m_pd3dFence.Get(), nFenceValue);
-
-	if (m_pd3dFence->GetCompletedValue() < nFenceValue)
-	{
-		hResult = m_pd3dFence->SetEventOnCompletion(nFenceValue, m_hFenceEvent);
-		::WaitForSingleObject(m_hFenceEvent, INFINITE);
-	}
+	const UINT64 fenceValue = SignalCommandQueue();
+	WaitForFenceValue(fenceValue);
 }
 
 void CGameFramework::FrameAdvance()

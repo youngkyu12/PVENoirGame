@@ -32,6 +32,9 @@ public:
 	void OnDestroy();
 	void ReleaseObjects();
 	void WaitForGpuComplete();
+	UINT64 SignalCommandQueue();
+	void WaitForFenceValue(UINT64 fenceValue);
+	void FlushGpu();
 
 	// Build
 public:
@@ -122,7 +125,7 @@ private:
 
 	// Sync
 	ComPtr<ID3D12Fence>					m_pd3dFence;
-	array<UINT64, m_nSwapChainBuffers>	m_nFenceValues;
+	UINT64								m_nNextFenceValue = 1;
 	HANDLE								m_hFenceEvent = nullptr;
 
 	// Timer
