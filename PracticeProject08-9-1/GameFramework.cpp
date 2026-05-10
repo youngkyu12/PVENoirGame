@@ -1333,10 +1333,11 @@ void CGameFramework::CollisionSystem()
 
 void CGameFramework::MoveToNextFrame()
 {
+	m_nFrameContextIndex = ( m_nFrameContextIndex + 1 ) % m_nFrameContexts;
 	m_nSwapChainBufferIndex = m_pdxgiSwapChain->GetCurrentBackBufferIndex();
 
-	const UINT64 fenceValue = SignalCommandQueue();
-	WaitForFenceValue(fenceValue);
+	m_pd3dCommandAllocator = m_frameContexts[m_nFrameContextIndex].commandAllocator;
+	m_pd3dCommandList = m_frameContexts[m_nFrameContextIndex].commandList;
 }
 
 void CGameFramework::FrameAdvance()
@@ -1390,9 +1391,20 @@ void CGameFramework::FrameAdvance()
 #endif
 	CollisionSystem();
 
+	{
+		PROFILE_RENDER_SCOPE("Framework::WaitForFrameContext");
+		WaitForFrameContext(m_nFrameContextIndex);
+	}
+
+	m_pd3dCommandAllocator = m_frameContexts[m_nFrameContextIndex].commandAllocator;
+	m_pd3dCommandList = m_frameContexts[m_nFrameContextIndex].commandList;
+
 	hResult = m_pd3dCommandAllocator->Reset();
+	( void ) hResult;
+
 	hResult = m_pd3dCommandList->Reset(m_pd3dCommandAllocator.Get(), nullptr);
-	
+	( void ) hResult;
+
 	::SynchronizeResourceTransition(
 		m_pd3dCommandList.Get(),
 		m_ppd3dSwapChainBackBuffers[m_nSwapChainBufferIndex].Get(),
@@ -1519,13 +1531,12 @@ void CGameFramework::FrameAdvance()
 	);
 
 	hResult = m_pd3dCommandList->Close();
+	( void ) hResult;
 
 	ID3D12CommandList* ppd3dCommandLists[ ] = { m_pd3dCommandList.Get() };
 	m_pd3dCommandQueue->ExecuteCommandLists(1, ppd3dCommandLists);
 
-
-	WaitForGpuComplete();
-	
+	m_frameContexts[m_nFrameContextIndex].fenceValue = SignalCommandQueue();
 
 	{
 		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::Present");
