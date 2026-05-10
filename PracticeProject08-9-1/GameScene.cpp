@@ -814,6 +814,9 @@ CGameScene::CGameScene()
 void CGameScene::SetFrameResourceIndex(UINT frameResourceIndex)
 {
 	m_nFrameResourceIndex = frameResourceIndex % kFrameResourceCount;
+
+	m_depthFog.SetFrameResourceIndex(m_nFrameResourceIndex);
+	m_shadowMap.SetFrameResourceIndex(m_nFrameResourceIndex);
 }
 
 
