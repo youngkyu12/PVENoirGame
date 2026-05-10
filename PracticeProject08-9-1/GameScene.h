@@ -983,8 +983,8 @@ private:
 	ComPtr<ID3D12Resource>              m_pd3dStaticOcclusionInstanceBuffer;
 	StaticInstanceVertex* m_pMappedStaticOcclusionInstanceBuffer = nullptr;
 
-	ComPtr<ID3D12Resource>              m_pd3dStaticInstanceBuffer;
-	StaticInstanceVertex* m_pMappedStaticInstanceBuffer = nullptr;
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dStaticInstanceBuffer;
+	std::array<StaticInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedStaticInstanceBuffer = {};
 	UINT                                m_staticInstanceBufferCapacity = 0;
 
 	std::shared_ptr<CStaticObjectsShader>             m_treeStaticShader;
@@ -1017,7 +1017,7 @@ private:
 
 	std::vector<SkinnedInstanceGroup>   m_skinnedInstanceGroups;
 
-	ComPtr<ID3D12Resource>              m_pd3dSkinnedInstanceBuffer;
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dSkinnedInstanceBuffer;
 	std::vector<SkinnedWorldLodEntry>   m_skinnedWorldLodEntries;
 	std::vector<uint8_t>                m_skinnedDistanceCullFlags;
 
@@ -1044,11 +1044,11 @@ private:
 	bool                                m_skinnedWorldLodDirty = false;
 	float                               m_skinnedLodHysteresis = 5.0f;
 	float                               m_skinnedCullHysteresis = 10.0f;
-	SkinnedInstanceVertex* m_pMappedSkinnedInstanceBuffer = nullptr;
+	std::array<SkinnedInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedSkinnedInstanceBuffer = {};
 	UINT                                m_skinnedInstanceBufferCapacity = 0;
 
-	ComPtr<ID3D12Resource>              m_pd3dSkinnedBonePaletteBuffer;
-	XMFLOAT4X4* m_pMappedSkinnedBonePaletteBuffer = nullptr;
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dSkinnedBonePaletteBuffer;
+	std::array<XMFLOAT4X4*, kSceneBatchFrameResourceCount> m_pMappedSkinnedBonePaletteBuffer = {};
 	UINT                                m_skinnedBonePaletteStride = 0;
 	UINT                                m_skinnedBonePaletteCapacity = 0;
 	
