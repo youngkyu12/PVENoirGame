@@ -179,7 +179,6 @@ bool Handle_S_ENTER_GAME(PacketSessionRef& session, Protocol::S_ENTER_GAME& pkt)
 	UNREFERENCED_PARAMETER(pkt);
 
 	uint32 playerId = 0;
-	bool sendReady = false;
 	bool sendGameStart = false;
 	{
 		std::lock_guard<std::mutex> lock(g_stressLock);
@@ -187,15 +186,11 @@ bool Handle_S_ENTER_GAME(PacketSessionRef& session, Protocol::S_ENTER_GAME& pkt)
 		if (it != g_clients.end())
 		{
 			playerId = it->second.playerId;
-			sendReady = !it->second.readySent;
 			sendGameStart = !it->second.gameStartRequested;
-			it->second.readySent = true;
 			it->second.gameStartRequested = true;
 		}
 	}
 
-	if (sendReady)
-		SendClientReady(session, playerId);
 	if (sendGameStart)
 		SendGameStartRequest(session, playerId);
 
@@ -204,27 +199,37 @@ bool Handle_S_ENTER_GAME(PacketSessionRef& session, Protocol::S_ENTER_GAME& pkt)
 
 bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
 {
-	std::lock_guard<std::mutex> lock(g_stressLock);
-	auto it = g_clients.find(SessionKey(session));
-	if (it != g_clients.end())
+	uint32 playerId = 0;
+	bool sendReady = false;
 	{
-		it->second.gameStarted = true;
-		it->second.players.clear();
-		it->second.enemies.clear();
-
-		const Protocol::InitStruct& init = pkt.initstruct();
-		for (const auto& player : init.players())
+		std::lock_guard<std::mutex> lock(g_stressLock);
+		auto it = g_clients.find(SessionKey(session));
+		if (it != g_clients.end())
 		{
-			const auto& p = player.transform().position();
-			it->second.players[player.id()] = GameMath::Vec3(p.x(), p.y(), p.z());
-		}
+			it->second.gameStarted = true;
+			playerId = it->second.playerId;
+			sendReady = !it->second.readySent;
+			it->second.readySent = true;
+			it->second.players.clear();
+			it->second.enemies.clear();
 
-		for (const auto& enemy : init.enemies())
-		{
-			const auto& p = enemy.transform().position();
-			it->second.enemies[enemy.id()] = GameMath::Vec3(p.x(), p.y(), p.z());
+			const Protocol::InitStruct& init = pkt.initstruct();
+			for (const auto& player : init.players())
+			{
+				const auto& p = player.transform().position();
+				it->second.players[player.id()] = GameMath::Vec3(p.x(), p.y(), p.z());
+			}
+
+			for (const auto& enemy : init.enemies())
+			{
+				const auto& p = enemy.transform().position();
+				it->second.enemies[enemy.id()] = GameMath::Vec3(p.x(), p.y(), p.z());
+			}
 		}
 	}
+
+	if (sendReady)
+		SendClientReady(session, playerId);
 
 	return false;
 }
