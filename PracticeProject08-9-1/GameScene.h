@@ -969,6 +969,7 @@ private:
 	bool                                m_bStaticOcclusionQueryResourcesReady = false;
 	bool                                m_bStaticOcclusionQueryResultsValid = false;
 	bool                                m_staticWorldLodDirty = false;
+	bool                                m_staticOcclusionCullSelectionLodDirty = false;
 	bool                                m_bStaticOcclusionCullingEnabled = true;
 	bool                                m_bStaticTreeGridCullingEnabled = true;
 	UINT                                m_staticOcclusionHideFrameThreshold = 8;
