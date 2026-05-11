@@ -284,12 +284,12 @@ namespace
 		return true;
 	}
 
-	static constexpr UINT kStaticOcclusionCullSelectionMaxReuseFrames = 4;
-	static constexpr float kStaticOcclusionCullSelectionMoveThreshold = 1.0f;
+	static constexpr UINT kStaticOcclusionCullSelectionMaxReuseFrames = 60;
+	static constexpr float kStaticOcclusionCullSelectionMoveThreshold = 5.0f;
 	static constexpr float kStaticOcclusionCullSelectionMoveThresholdSq =
 		kStaticOcclusionCullSelectionMoveThreshold *
 		kStaticOcclusionCullSelectionMoveThreshold;
-	static constexpr float kStaticOcclusionCullSelectionYawThresholdDeg = 4.0f;
+	static constexpr float kStaticOcclusionCullSelectionYawThresholdDeg = 12.0f;
 	static constexpr bool kLogStaticOcclusionCullSelectionReason = true;
 	static constexpr UINT kLogStaticOcclusionCullSelectionSummaryInterval = 120;
 }
@@ -310,6 +310,7 @@ void CGameScene::ResetStaticOcclusionEntries()
 	m_staticOcclusionCullSelectionLastUpdateFrame = 0;
 	m_staticOcclusionCullSelectionLastCameraPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
 	m_staticOcclusionCullSelectionLastCameraYaw = 0.0f;
+	m_staticOcclusionCullSelectionLodDirty = false;
 }
 
 void CGameScene::BuildStaticOcclusionEntries()
@@ -1097,7 +1098,7 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 		reasonFlagSizeChanged = true;
 	}
 
-	if ( m_staticWorldLodDirty )
+	if ( m_staticOcclusionCullSelectionLodDirty )
 	{
 		shouldUpdateSelection = true;
 		reasonStaticWorldLodDirty = true;

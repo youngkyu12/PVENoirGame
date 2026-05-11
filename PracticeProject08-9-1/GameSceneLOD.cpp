@@ -49,9 +49,9 @@ namespace
 	}
 
 	static bool BuildSkinnedLodMeshBinPath(
-		const std::string& baseMeshBinPath,
-		int lodLevel,
-		std::string& outMeshBinPath)
+	const std::string& baseMeshBinPath,
+	int lodLevel,
+	std::string& outMeshBinPath)
 	{
 		const size_t dotPos = baseMeshBinPath.find_last_of('.');
 		if ( dotPos == std::string::npos )
@@ -65,6 +65,9 @@ namespace
 		outMeshBinPath += baseMeshBinPath.substr(dotPos);
 		return true;
 	}
+
+	static constexpr UINT kStaticOcclusionCullSelectionImmediateLodChangedThreshold = 8;
+	static constexpr UINT kStaticOcclusionCullSelectionImmediateDistanceCullChangedThreshold = 16;
 }
 
 void CGameScene::ResetStaticWorldLodEntries()
@@ -74,6 +77,7 @@ void CGameScene::ResetStaticWorldLodEntries()
 	m_staticTreeGridCullFlags.clear();
 	m_staticWorldLodEntryIndexByObjectIndex.clear();
 	m_staticWorldLodDirty = false;
+	m_staticOcclusionCullSelectionLodDirty = false;
 }
 
 int CGameScene::ComputeStaticWorldLodLevel(
@@ -232,15 +236,20 @@ void CGameScene::UpdateStaticWorldLodSelection(CCamera* camera)
 
 	m_staticWorldLodDirty = anyLodChanged || anyDistanceCullChanged;
 
+	m_staticOcclusionCullSelectionLodDirty =
+		( changedCount >= kStaticOcclusionCullSelectionImmediateLodChangedThreshold ) ||
+		( distanceCullChangedCount >= kStaticOcclusionCullSelectionImmediateDistanceCullChangedThreshold );
+
 	if ( changedCount > 0 || distanceCullChangedCount > 0 )
 	{
-		char buf[256];
+		char buf[320];
 		sprintf_s(
 			buf,
-			"[StaticLOD] lodChanged=%u distanceCullChanged=%u dirty=%d\n",
+			"[StaticLOD] lodChanged=%u distanceCullChanged=%u dirty=%d occDirty=%d\n",
 			changedCount,
 			distanceCullChangedCount,
-			m_staticWorldLodDirty ? 1 : 0
+			m_staticWorldLodDirty ? 1 : 0,
+			m_staticOcclusionCullSelectionLodDirty ? 1 : 0
 		);
 		OutputDebugStringA(buf);
 	}
