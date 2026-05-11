@@ -5282,8 +5282,6 @@ bool CGameScene::WriteStaticInstanceVertexFromCache(
 
 void CGameScene::BuildStaticVisibleListsForFrame(CCamera* camera)
 {
-	PROFILE_RENDER_SCOPE("GameScene::BuildStaticVisibleListsForFrame");
-
 	for ( StaticInstanceGroup& group : m_staticInstanceGroups )
 	{
 		group.visibleSceneObjectIndices.clear();
@@ -5342,6 +5340,7 @@ void CGameScene::BuildStaticVisibleListsForFrame(CCamera* camera)
 
 void CGameScene::BuildStaticShadowVisibleListsForFrame()
 {
+
 	for ( StaticInstanceGroup& group : m_staticInstanceGroups )
 	{
 		group.visibleShadowObjectIndices.clear();
@@ -7334,8 +7333,6 @@ void CGameScene::RestoreSceneRenderTargets(ID3D12GraphicsCommandList* cmd, CCame
 
 void CGameScene::RenderShadowPrePass(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
-	PROFILE_RENDER_SCOPE("GameScene::RenderShadowPrePass(total)");
-
 	if ( !cmd )
 		return;
 
@@ -7349,8 +7346,10 @@ void CGameScene::RenderShadowPrePass(ID3D12GraphicsCommandList* cmd, CCamera* ca
 		UpdateShaderVariables(cmd);
 
 		BindFrameRootParameters(cmd);
-
-		BuildStaticShadowVisibleListsForFrame();
+		{
+			PROFILE_RENDER_SCOPE("GameScene::RenderShadowPrePass::BuildShadowVisibleLists");
+			BuildStaticShadowVisibleListsForFrame();
+		}
 	}
 	RenderShadowMap(cmd);
 	RestoreSceneRenderTargets(cmd, camera);
@@ -9281,7 +9280,10 @@ void CGameScene::UpdateFrameRenderState(CCamera* camera)
 		UpdateStaticOcclusionCullSelection(camera);
 	}
 	UpdateStaticTreeGridCullSelection(camera);
-	BuildStaticVisibleListsForFrame(camera);
+	{
+		PROFILE_RENDER_SCOPE("UFRS::UpdateStaticOcclusionCullSelection");
+		BuildStaticVisibleListsForFrame(camera);
+	}
 	UpdateItemBillboardDistanceCullSelection(camera);
 	
 	{

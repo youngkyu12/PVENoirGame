@@ -174,7 +174,7 @@ public:
 		const double elapsedMs =
 			std::chrono::duration<double, std::milli>(end - m_begin).count();
 
-		if ( elapsedMs >= LOG_RENDER_PROFILE_MIN_MS )
+		if ( elapsedMs >= LOG_RENDER_PROFILE_MIN_MS && elapsedMs >= 1.0f)
 		{
 			DBG_PrintF("[RenderProfile] %-55s : %.3f ms\n", m_name, elapsedMs);
 		}
