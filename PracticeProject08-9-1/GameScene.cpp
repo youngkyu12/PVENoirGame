@@ -427,8 +427,6 @@ namespace
 	static constexpr int kAttackPowerMutant = 20;
 	static constexpr int kAttackPowerBoss = 50;
 
-	static constexpr UINT kOfflineGhoulAICount = 200;
-
 	static constexpr float kDisableVillageTreeCullPlayerHeight = 3.0f;
 
 	static constexpr int kCastleCenterMegaGridX = 1;
@@ -4408,6 +4406,17 @@ void CGameScene::BuildStaticBatch(
 				lodEntry.lodDistance12 = 120.0f;
 				lodEntry.cullDistance = 500.0f;
 			}
+			else if ( placement.assetName == "Tower" ) {
+				lodEntry.lodDistance01 = 200.0f;
+				lodEntry.lodDistance12 = 500.0f;
+				lodEntry.cullDistance = 800.0f;
+			}
+			else if ( placement.assetName == "Castle" ) {
+				lodEntry.lodDistance01 = 400.0f;
+				lodEntry.lodDistance12 = 600.0f;
+				lodEntry.cullDistance = 1000.0f;
+			}
+
 			else
 			{
 				lodEntry.cullDistance = 400.0f;
@@ -5985,7 +5994,7 @@ void CGameScene::BuildSkinnedBatch(
 				return;
 
 			auto* ghoulAI = obj->AddComponent<CGhoulAIComponent>();
-			if ( ghoulAI )
+			if ( !ghoulAI )
 			{
 				ghoulAI->SetScene(this);
 				ghoulAI->SetEnabledAI(true);
