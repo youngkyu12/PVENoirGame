@@ -875,9 +875,36 @@ void CColliderComponent::OnCreate(ID3D12Device*, ID3D12GraphicsCommandList*)
 
 		break;
 	}
-    case EColliderType::BSphere:
+	case EColliderType::BSphere:
+	{
+		bool hasAnySubMesh = false;
 
-        break;
+		for ( const shared_ptr<CMesh>& mesh : meshes )
+		{
+			if ( !mesh ) continue;
+
+			for ( const auto& submesh : mesh->m_SubMeshes )
+			{
+				if ( submesh.isColliderHelper )
+					continue;
+
+				objMin.x = min(objMin.x, submesh.subMeshMin.x);
+				objMin.y = min(objMin.y, submesh.subMeshMin.y);
+				objMin.z = min(objMin.z, submesh.subMeshMin.z);
+
+				objMax.x = max(objMax.x, submesh.subMeshMax.x);
+				objMax.y = max(objMax.y, submesh.subMeshMax.y);
+				objMax.z = max(objMax.z, submesh.subMeshMax.z);
+
+				hasAnySubMesh = true;
+			}
+		}
+
+		if ( hasAnySubMesh )
+			SetBSphere(objMin, objMax);
+
+		break;
+	}
 	case EColliderType::BCapsule:
 	{
 		LocalSubBCapsules.clear();
@@ -1268,6 +1295,26 @@ bool CColliderComponent::IntersectsBoneCapsulesHierarchical(const BoundingCapsul
 	for ( const BoundingCapsule& boneCapsule : mWorldBoneCapsules )
 	{
 		if ( boneCapsule.Intersects(capsule) )
+			return true;
+	}
+
+	return false;
+}
+
+bool CColliderComponent::IntersectsBoneCapsulesHierarchical(const BoundingSphere& sphere) const
+{
+	if ( mColliderType != EColliderType::BCapsule )
+		return false;
+
+	if ( !WorldBCapsule.Intersects(sphere) )
+		return false;
+
+	if ( mWorldBoneCapsules.empty() )
+		return true;
+
+	for ( const BoundingCapsule& boneCapsule : mWorldBoneCapsules )
+	{
+		if ( boneCapsule.Intersects(sphere) )
 			return true;
 	}
 

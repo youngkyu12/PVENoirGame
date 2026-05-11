@@ -191,6 +191,9 @@ struct ItemBillboardEntry
 
 	EItemBillboardKind kind = EItemBillboardKind::Key;
 
+	// 1~9. 유효하지 않으면 -1.
+	int megaGridNumber = -1;
+
 	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
 
 	float width = 1.0f;
@@ -635,6 +638,9 @@ private:
 	void TickTowerDoorPortalCooldowns();
 	bool IsTowerDoorPortalOnCooldown() const;
 
+	int CountClearedMegaGrids() const;
+	bool CanUseCastleDoorPortal() const;
+
 	bool TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog = false);
 	bool TryTeleportLocalPlayerByCastleDoorPortal(bool forceLog = false);
 #endif
@@ -665,7 +671,16 @@ private:
 	void UpdateDynamicGridState();
 	void UpdateMegaGridState();
 
-	void MarkLocalPlayerEnteredCastleCenterMegaGrid();
+	void RegisterMonsterToMegaGrid(CGameObject* monster, const XMFLOAT3& spawnPosition, UINT skinnedBatchObjectIndex);
+	int GetLocalPlayerMegaGridNumberForMonsterTick() const;
+	bool ShouldSkipMonsterByMegaGrid(const CGameObject* monster, UINT skinnedBatchObjectIndex, int activeMegaGridNumber) const;
+
+	uint16_t ComputeStaticObjectMegaGridMask(CGameObject* obj) const;
+	uint16_t ComputeObjectCurrentMegaGridMask(const CGameObject* obj) const;
+	uint16_t GetCollisionMegaGridMaskForObject(const CGameObject* obj) const;
+	bool ShouldKeepCollisionPairByMegaGrid(const CColliderComponent* a, const CColliderComponent* b) const;
+
+	void MarkLocalPlayerEnteredCastleCenterMegaGrid(); 
 	bool IsLocalPlayerInsideCastleCenterMegaGridFullArea() const;
 	void UpdateCastleCenterMegaGridState();
 
@@ -802,9 +817,15 @@ private:
 	SwordTrailVertex* m_pMappedSwordTrailVertexBuffer = nullptr;
 	UINT m_swordTrailVertexBufferCapacity = 0;
 
-    std::vector<CGameObject*> m_swordManRefs;
-    std::vector<CGameObject*> m_bowManRefs;
-    std::vector<CGameObject*> m_MutantRefs;
+	std::vector<CGameObject*> m_swordManRefs;
+	std::vector<CGameObject*> m_bowManRefs;
+	std::vector<CGameObject*> m_MutantRefs;
+	std::vector<CGameObject*> m_bossRefs;
+
+	// 6, 8번 메가그리드에서 열쇠를 해금하는 첫 Mutant.
+	// key = mutant object, value = megaGridNumber.
+	std::unordered_map<CGameObject*, int> m_mutantKeyTriggerMegaByObject;
+	std::array<bool, CSceneGrid::kMegaGridCount + 1> m_mutantKeyTriggerRegisteredByMega = {};
 
     std::vector<CGameObject*> m_helmetRefs;
 
@@ -859,6 +880,14 @@ private:
 	void CancelMonsterPreparedActions(CGameObject* monster);
 	bool IsMonsterDead(const CGameObject* monster) const;
 
+	void MarkMegaGridClearedByNumber(int megaGridNumber);
+	bool AreAllMonstersInMegaGridDead(int megaGridNumber) const;
+	void UpdateMegaGridClearStateFromMonsterDeaths();
+
+	void RegisterMutantKeyTriggerIfNeeded(CGameObject* mutant, int megaGridNumber);
+	void UnlockKeyBillboardForMegaGrid(int megaGridNumber);
+	void HandleMutantKeyTriggerDeath(CGameObject* monster);
+
     std::array<CGameObject*, 3> m_demoFighters = { nullptr, nullptr, nullptr };
 
     std::vector<std::unique_ptr<CGameObject>> m_lightObjects;
@@ -906,9 +935,7 @@ private:
 	std::vector<GridDynamicTracker> m_arrowGridTrackers;
 	std::vector<GridDynamicTracker> m_bulletGridTrackers;
 
-	/*std::unique_ptr<ShadowMap> mShadowMap;
-	std::shared_ptr<CShadowShader> mShadowShader;
-	ComPtr<ID3D12DescriptorHeap> m_pd3dShadowDsvDescriptorHeap;*/
+	std::vector<int> m_skinnedMonsterMegaGridNumbers;
 
 private:
     bool LoadStaticPlacementFile(const std::string& filePath);
@@ -939,6 +966,9 @@ private:
 	std::vector<uint8_t>                m_staticShadowCasterFlags;
 	std::vector<UINT>                   m_staticTreeObjectIndices;
 	std::vector<int>                    m_staticShadowOcclusionEntryIndices;
+
+	std::vector<uint16_t>               m_staticCollisionMegaGridMasks;
+	std::unordered_map<const CGameObject*, uint16_t> m_collisionMegaGridMaskByObject;
 
 	std::vector<UINT64>                 m_staticOcclusionQuerySampleCounts;
 	std::vector<uint8_t>                m_staticOcclusionLastFrameIssuedFlags;
@@ -1055,6 +1085,8 @@ private:
 	ID3D12GraphicsCommandList* cmd
 	);
 public:
-    bool IsPointInPauseOverlay(POINT clientPt) const;
+	bool IsPointInPauseOverlay(POINT clientPt) const;
+	bool IsPointInResumeButton(POINT clientPt) const;
+	bool IsPointInExitButton(POINT clientPt) const;
 
 };

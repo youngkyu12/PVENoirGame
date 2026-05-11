@@ -284,11 +284,11 @@ namespace
 	}
 
 	static constexpr XMFLOAT3 kLocalPlayerRespawnPosition =
-		XMFLOAT3(0.0f, 0.0f, -200.0f);
+		XMFLOAT3(0.0f, 0.0f, -100.0f);
 
 	static constexpr float kLocalPlayerRespawnDelay = 5.0f;
 
-	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::Test;
+	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::FullStage;
 
 	static constexpr float kFootstepSfxVolume = 0.04f;
 
@@ -388,12 +388,15 @@ namespace
 	static constexpr int kAttackPowerMutant = 20;
 	static constexpr int kAttackPowerBoss = 50;
 
-	static constexpr UINT kOfflineGhoulAICount = 0;
+	static constexpr UINT kOfflineGhoulAICount = 200;
 
 	static constexpr float kDisableVillageTreeCullPlayerHeight = 3.0f;
 
 	static constexpr int kCastleCenterMegaGridX = 1;
 	static constexpr int kCastleCenterMegaGridZ = 1;
+
+	// Castle 텔레포트는 총 4개 이상의 메가그리드가 클리어된 뒤부터 허용한다.
+	static constexpr int kRequiredClearedMegaGridCountForCastlePortal = 4;
 
 #ifndef USING_NETWORK
 	static constexpr int kTowerDoorPortalCooldownFrames = 30;
@@ -1214,6 +1217,28 @@ bool CGameScene::IsTowerDoorPortalOnCooldown() const
 	return false;
 }
 
+int CGameScene::CountClearedMegaGrids() const
+{
+	int clearedCount = 0;
+
+	for ( int megaNumber = 1; megaNumber <= CSceneGrid::kMegaGridCount; ++megaNumber )
+	{
+		const int zeroBased = megaNumber - 1;
+		const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+		const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+		if ( m_sceneGrid.IsMegaGridCleared(megaX, megaZ) )
+			++clearedCount;
+	}
+
+	return clearedCount;
+}
+
+bool CGameScene::CanUseCastleDoorPortal() const
+{
+	return CountClearedMegaGrids() >= kRequiredClearedMegaGridCountForCastlePortal;
+}
+
 bool CGameScene::TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog)
 {
 	const bool shouldLog = kEnableTowerDoorPortalCollisionLog && forceLog;
@@ -1752,6 +1777,23 @@ bool CGameScene::TryTeleportLocalPlayerByCastleDoorPortal(bool forceLog)
 {
 	const bool shouldLog = kEnableTowerDoorPortalCollisionLog && forceLog;
 
+	if ( !CanUseCastleDoorPortal() )
+	{
+		if ( shouldLog )
+		{
+			char buf[256];
+			sprintf_s(
+				buf,
+				"[CastleDoorPortal][LOCKED] clearedMegaGrids=%d required=%d\n",
+				CountClearedMegaGrids(),
+				kRequiredClearedMegaGridCountForCastlePortal
+			);
+			OutputDebugStringA(buf);
+		}
+
+		return false;
+	}
+
 	if ( m_bLocalPlayerDead )
 		return false;
 
@@ -2242,6 +2284,204 @@ void CGameScene::UpdateMegaGridState()
 	}
 }
 
+void CGameScene::RegisterMonsterToMegaGrid(
+	CGameObject* monster,
+	const XMFLOAT3& spawnPosition,
+	UINT skinnedBatchObjectIndex)
+{
+	if ( !monster )
+		return;
+
+	if ( skinnedBatchObjectIndex >= m_skinnedMonsterMegaGridNumbers.size() )
+		m_skinnedMonsterMegaGridNumbers.resize(( size_t ) skinnedBatchObjectIndex + 1, -1);
+
+	const int megaNumber =
+		m_sceneGrid.MegaGridNumberFromWorldPosition(spawnPosition.x, spawnPosition.z);
+
+	m_skinnedMonsterMegaGridNumbers[( size_t ) skinnedBatchObjectIndex] = megaNumber;
+
+	if ( megaNumber <= 0 )
+		return;
+
+	m_collisionMegaGridMaskByObject[monster] =
+		static_cast< uint16_t >( 1u << ( megaNumber - 1 ) );
+
+	const int zeroBased = megaNumber - 1;
+	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+	m_sceneGrid.AddMonsterToMegaGrid(megaX, megaZ, monster);
+}
+
+int CGameScene::GetLocalPlayerMegaGridNumberForMonsterTick() const
+{
+	CGameObject* player = GetPlayer();
+
+	if ( !player )
+		player = GetPlayerBySlot(0);
+
+	if ( !player )
+		return -1;
+
+	const XMFLOAT3 pos = player->GetPosition();
+	return m_sceneGrid.MegaGridNumberFromWorldPosition(pos.x, pos.z);
+}
+
+bool CGameScene::ShouldSkipMonsterByMegaGrid(
+	const CGameObject* monster,
+	UINT skinnedBatchObjectIndex,
+	int activeMegaGridNumber) const
+{
+	if ( !monster )
+		return false;
+
+	if ( activeMegaGridNumber <= 0 )
+		return false;
+
+	auto* tag = monster->GetComponent<CActorTagComponent>();
+	if ( !tag || tag->kind != EActorKind::NPC )
+		return false;
+
+	if ( skinnedBatchObjectIndex >= static_cast< UINT >( m_skinnedMonsterMegaGridNumbers.size() ) )
+		return false;
+
+	const int monsterMegaGridNumber =
+		m_skinnedMonsterMegaGridNumbers[( size_t ) skinnedBatchObjectIndex];
+
+	if ( monsterMegaGridNumber <= 0 )
+		return false;
+
+	return monsterMegaGridNumber != activeMegaGridNumber;
+}
+
+uint16_t CGameScene::ComputeStaticObjectMegaGridMask(CGameObject* obj) const
+{
+	if ( !obj )
+		return 0;
+
+	auto* collider = obj->GetComponent<CColliderComponent>();
+	if ( !collider )
+		return 0;
+
+	uint16_t mask = 0;
+
+	if ( collider->GetType() == EColliderType::OOBB )
+	{
+		const std::vector<MeshOOBBSet>& meshSets = collider->GetMeshOOBBSets();
+
+		for ( const MeshOOBBSet& set : meshSets )
+		{
+			for ( const BoundingOrientedBox& box : set.WorldSubOOBBs )
+			{
+				XMFLOAT3 corners[BoundingOrientedBox::CORNER_COUNT] = {};
+				box.GetCorners(corners);
+
+				float minX = corners[0].x;
+				float maxX = corners[0].x;
+				float minZ = corners[0].z;
+				float maxZ = corners[0].z;
+
+				for ( int i = 1; i < BoundingOrientedBox::CORNER_COUNT; ++i )
+				{
+					minX = min(minX, corners[i].x);
+					maxX = max(maxX, corners[i].x);
+					minZ = min(minZ, corners[i].z);
+					maxZ = max(maxZ, corners[i].z);
+				}
+
+				int beginCellX = static_cast< int >(floor(minX)) - CSceneGrid::kGridMinX;
+				int endCellX = static_cast< int >(ceil(maxX)) - CSceneGrid::kGridMinX - 1;
+				int beginCellZ = static_cast< int >(floor(minZ)) - CSceneGrid::kGridMinZ;
+				int endCellZ = static_cast< int >( ceil(maxZ) ) - CSceneGrid::kGridMinZ - 1;
+
+				beginCellX = std::clamp(beginCellX, 0, CSceneGrid::kGridWidth - 1);
+				endCellX = std::clamp(endCellX, 0, CSceneGrid::kGridWidth - 1);
+				beginCellZ = std::clamp(beginCellZ, 0, CSceneGrid::kGridHeight - 1);
+				endCellZ = std::clamp(endCellZ, 0, CSceneGrid::kGridHeight - 1);
+
+				if ( beginCellX > endCellX || beginCellZ > endCellZ )
+					continue;
+
+				const int beginMegaX = beginCellX / CSceneGrid::kMegaGridCellWidth;
+				const int endMegaX = endCellX / CSceneGrid::kMegaGridCellWidth;
+				const int beginMegaZ = beginCellZ / CSceneGrid::kMegaGridCellHeight;
+				const int endMegaZ = endCellZ / CSceneGrid::kMegaGridCellHeight;
+
+				for ( int mz = beginMegaZ; mz <= endMegaZ; ++mz )
+				{
+					for ( int mx = beginMegaX; mx <= endMegaX; ++mx )
+					{
+						if ( mx < 0 || mx >= CSceneGrid::kMegaGridCols )
+							continue;
+
+						if ( mz < 0 || mz >= CSceneGrid::kMegaGridRows )
+							continue;
+
+						const int bit = mz * CSceneGrid::kMegaGridCols + mx;
+						mask |= static_cast< uint16_t >(1u << bit);
+					}
+				}
+			}
+		}
+	}
+
+	if ( mask != 0 )
+		return mask;
+
+	return ComputeObjectCurrentMegaGridMask(obj);
+}
+
+uint16_t CGameScene::ComputeObjectCurrentMegaGridMask(const CGameObject* obj) const
+{
+	if ( !obj )
+		return 0;
+
+	const XMFLOAT3 pos = obj->GetPosition();
+
+	int megaX = -1;
+	int megaZ = -1;
+
+	if ( !m_sceneGrid.TryGetMegaGridFromWorldPosition(pos.x, pos.z, megaX, megaZ) )
+		return 0;
+
+	const int bit = megaZ * CSceneGrid::kMegaGridCols + megaX;
+	return static_cast< uint16_t >( 1u << bit );
+}
+
+uint16_t CGameScene::GetCollisionMegaGridMaskForObject(const CGameObject* obj) const
+{
+	if ( !obj )
+		return 0;
+
+	const auto it = m_collisionMegaGridMaskByObject.find(obj);
+	if ( it != m_collisionMegaGridMaskByObject.end() )
+		return it->second;
+
+	return ComputeObjectCurrentMegaGridMask(obj);
+}
+
+bool CGameScene::ShouldKeepCollisionPairByMegaGrid(
+	const CColliderComponent* a,
+	const CColliderComponent* b) const
+{
+	if ( !a || !b )
+		return false;
+
+	// 월드 지형/건물과 플레이어, 몬스터, 투사체, 무기 충돌은 grid mask로 필터링한다.
+	// 정적 건물은 위치 1점이 아니라 m_staticCollisionMegaGridMasks를 우선 사용한다.
+	const CGameObject* objA = a->GetOwner();
+	const CGameObject* objB = b->GetOwner();
+
+	const uint16_t maskA = GetCollisionMegaGridMaskForObject(objA);
+	const uint16_t maskB = GetCollisionMegaGridMaskForObject(objB);
+
+	// grid 밖으로 나간 투사체/오브젝트는 충돌 후보에서 제거.
+	if ( maskA == 0 || maskB == 0 )
+		return false;
+
+	return ( maskA & maskB ) != 0;
+}
+
 void CGameScene::MarkLocalPlayerEnteredCastleCenterMegaGrid()
 {
 	if ( !m_sceneGrid.IsInitialized() )
@@ -2375,6 +2615,8 @@ void CGameScene::ReleaseObjects()
 	m_staticShadowCasterFlags.clear();
 	m_staticTreeObjectIndices.clear();
 	m_staticShadowOcclusionEntryIndices.clear();
+	m_staticCollisionMegaGridMasks.clear();
+	m_collisionMegaGridMaskByObject.clear();
 	m_skinnedShadowOcclusionEntryIndices.clear();
 
 #ifndef USING_NETWORK
@@ -2398,9 +2640,13 @@ void CGameScene::ReleaseObjects()
 	m_colliderObjects.clear();
 	m_ColliderCount = 0;
 
-    m_swordManRefs.clear();
-    m_bowManRefs.clear();
-    m_MutantRefs.clear();
+	m_swordManRefs.clear();
+	m_bowManRefs.clear();
+	m_MutantRefs.clear();
+	m_bossRefs.clear();
+
+	m_mutantKeyTriggerMegaByObject.clear();
+	m_mutantKeyTriggerRegisteredByMega.fill(false);
 
 	m_helmetRefs.clear();
 	m_arrowRefs.clear();
@@ -2459,6 +2705,7 @@ void CGameScene::ReleaseObjects()
 	m_prevPlayerNetworkStateCode.clear();
 #endif
 	m_deadMonsters.clear();
+	m_skinnedMonsterMegaGridNumbers.clear();
 
 	m_itemBillboardShader.reset();
 	m_transparentItemBillboardShader.reset();
@@ -3688,6 +3935,12 @@ void CGameScene::BuildStaticBatch(
 
 	m_staticShadowOcclusionEntryIndices.clear();
 
+	m_staticCollisionMegaGridMasks.clear();
+	m_staticCollisionMegaGridMasks.reserve(cap);
+
+	m_collisionMegaGridMaskByObject.clear();
+	m_collisionMegaGridMaskByObject.reserve(cap + m_skinnedBatch.capacity);
+
 	b->count = 0;
 	ResetStaticWorldLodEntries();
 
@@ -3951,9 +4204,16 @@ void CGameScene::BuildStaticBatch(
 
 		RegisterStaticPlacementToGrid(placement, raw);
 
+		const uint16_t collisionMegaGridMask =
+			createWorldStaticCollider ? ComputeStaticObjectMegaGridMask(raw) : 0;
+
+		if ( collisionMegaGridMask != 0 )
+			m_collisionMegaGridMaskByObject[raw] = collisionMegaGridMask;
+
 		m_staticObjects.push_back(std::move(obj));
 		b->objectRefs.push_back(raw);
 		m_staticShadowCasterFlags.push_back(castsShadow ? 1 : 0);
+		m_staticCollisionMegaGridMasks.push_back(collisionMegaGridMask);
 		b->count = ( UINT ) b->objectRefs.size();
 	}
 
@@ -4020,6 +4280,7 @@ void CGameScene::BuildStaticBatch(
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(0);
+			m_staticCollisionMegaGridMasks.push_back(0);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_arrowRefs.push_back(raw);
@@ -4072,6 +4333,7 @@ void CGameScene::BuildStaticBatch(
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(0);
+			m_staticCollisionMegaGridMasks.push_back(0);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_bulletRefs.push_back(raw);
@@ -4113,6 +4375,7 @@ void CGameScene::BuildStaticBatch(
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(0);
+			m_staticCollisionMegaGridMasks.push_back(0);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_helmetRefs.push_back(raw);
@@ -4152,6 +4415,8 @@ void CGameScene::BuildStaticBatch(
 			createDesc.colliderMask = CollisionBit(kCollisionLayerMonster);
 			createDesc.colliderEnabled = false;
 
+			createDesc.addPlayerWeaponHitbox = true;
+
 			createDesc.addAttackPower = true;
 			createDesc.attackPower = kAttackPowerPlayerSword;
 
@@ -4162,7 +4427,8 @@ void CGameScene::BuildStaticBatch(
 			CGameObject* raw = obj.get();
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
-			m_staticShadowCasterFlags.push_back(0);
+			m_staticShadowCasterFlags.push_back(1);
+			m_staticCollisionMegaGridMasks.push_back(0);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_PlayerSwordRefs.push_back(raw);
@@ -4202,8 +4468,10 @@ void CGameScene::BuildStaticBatch(
 			createDesc.colliderMask = CollisionBit(kCollisionLayerMonster);
 			createDesc.colliderEnabled = false;
 
+			createDesc.addPlayerWeaponHitbox = true;
+
 			createDesc.addAttackPower = true;
-			createDesc.attackPower = kAttackPowerPlayerSword;
+			createDesc.attackPower = kAttackPowerPlayerAxe;
 
 			auto obj = GameSceneObjectFactory::CreateStaticRenderable(createDesc);
 			if ( !obj )
@@ -4212,7 +4480,8 @@ void CGameScene::BuildStaticBatch(
 			CGameObject* raw = obj.get();
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
-			m_staticShadowCasterFlags.push_back(0);
+			m_staticShadowCasterFlags.push_back(1);
+			m_staticCollisionMegaGridMasks.push_back(0);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_PlayerAxeRefs.push_back(raw);
@@ -4257,7 +4526,8 @@ void CGameScene::BuildStaticBatch(
 			CGameObject* raw = obj.get();
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
-			m_staticShadowCasterFlags.push_back(0);
+			m_staticShadowCasterFlags.push_back(1);
+			m_staticCollisionMegaGridMasks.push_back(0);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_PlayerGunRefs.push_back(raw);
@@ -4308,7 +4578,8 @@ void CGameScene::BuildStaticBatch(
 			CGameObject* raw = obj.get();
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
-			m_staticShadowCasterFlags.push_back(0);
+			m_staticShadowCasterFlags.push_back(1);
+			m_staticCollisionMegaGridMasks.push_back(0);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_EnemySwordRefs.push_back(raw);
@@ -5735,6 +6006,25 @@ void CGameScene::BuildSkinnedBatch(
 			return ctx;
 		};
 
+#ifndef USING_NETWORK
+	auto AttachGhoulAIToMonster =
+		[ this ] (std::unique_ptr<CGameObject>& obj)
+		{
+			if ( !obj )
+				return;
+
+			if ( obj->GetComponent<CGhoulAIComponent>() )
+				return;
+
+			auto* ghoulAI = obj->AddComponent<CGhoulAIComponent>();
+			if ( ghoulAI )
+			{
+				ghoulAI->SetScene(this);
+				ghoulAI->SetEnabledAI(true);
+			}
+		};
+#endif
+
 	auto ApplyPlayerBodyCollider =
 		[ ] (GameSceneObjectFactory::SkinnedRenderableDesc& desc)
 		{
@@ -5805,6 +6095,16 @@ void CGameScene::BuildSkinnedBatch(
 
 	m_MutantRefs.clear();
 	m_MutantRefs.reserve(m_MutantCount);
+
+	m_bossRefs.clear();
+	m_bossRefs.reserve(m_bossCount);
+
+	m_mutantKeyTriggerMegaByObject.clear();
+	m_mutantKeyTriggerRegisteredByMega.fill(false);
+
+	m_skinnedMonsterMegaGridNumbers.clear();
+	m_skinnedMonsterMegaGridNumbers.reserve(m_skinnedBatch.capacity);
+	m_sceneGrid.ClearMegaGridMonsters();
 
 #ifdef USING_NETWORK
 	GameStartData gameStartData{};
@@ -5986,25 +6286,19 @@ void CGameScene::BuildSkinnedBatch(
 				continue;
 
 #ifndef USING_NETWORK
-			if ( k < kOfflineGhoulAICount )
-			{
-				auto* ghoulAI = obj->AddComponent<CGhoulAIComponent>();
-				if ( ghoulAI )
-				{
-					ghoulAI->SetScene(this);
-					ghoulAI->SetEnabledAI(true);
-				}
-			}
+			AttachGhoulAIToMonster(obj);
 #endif
 
 			++enemyIndex;
 
 			CGameObject* raw = obj.get();
 
+			RegisterMonsterToMegaGrid(raw, pos, i);
+
 			RegisterSkinnedCullEntry(
 				raw, i, "Ghoul", pos,
 				ghoulLodMeshes, true,
-				15.0f, 30.0f, 60.0f
+				35.0f, 90.0f, 120.0f
 			);
 
 			m_skinnedObjects.push_back(std::move(obj));
@@ -6094,9 +6388,15 @@ void CGameScene::BuildSkinnedBatch(
 			if ( !obj )
 				continue;
 
+#ifndef USING_NETWORK
+			AttachGhoulAIToMonster(obj);
+#endif
+
 			++enemyIndex;
 
 			CGameObject* raw = obj.get();
+
+			RegisterMonsterToMegaGrid(raw, pos, i);
 
 			std::array<std::shared_ptr<CMesh>, 3> noLodMeshes =
 			{
@@ -6200,9 +6500,15 @@ void CGameScene::BuildSkinnedBatch(
 			if ( !obj )
 				continue;
 
+#ifndef USING_NETWORK
+			AttachGhoulAIToMonster(obj);
+#endif
+
 			++enemyIndex;
 
 			CGameObject* raw = obj.get();
+
+			RegisterMonsterToMegaGrid(raw, pos, i);
 
 			std::array<std::shared_ptr<CMesh>, 3> noLodMeshes =
 			{
@@ -6313,9 +6619,20 @@ void CGameScene::BuildSkinnedBatch(
 			if ( !obj )
 				continue;
 
+#ifndef USING_NETWORK
+			AttachGhoulAIToMonster(obj);
+#endif
+
 			++enemyIndex;
 
 			CGameObject* raw = obj.get();
+
+			RegisterMonsterToMegaGrid(raw, pos, i);
+
+			const int mutantMegaGridNumber =
+				m_sceneGrid.MegaGridNumberFromWorldPosition(pos.x, pos.z);
+
+			RegisterMutantKeyTriggerIfNeeded(raw, mutantMegaGridNumber);
 
 			std::array<std::shared_ptr<CMesh>, 3> noLodMeshes =
 			{
@@ -6432,9 +6749,17 @@ void CGameScene::BuildSkinnedBatch(
 			if ( !obj )
 				continue;
 
+#ifndef USING_NETWORK
+			AttachGhoulAIToMonster(obj);
+#endif
+
 			++enemyIndex;
 
 			CGameObject* raw = obj.get();
+
+			m_bossRefs.push_back(raw);
+
+			RegisterMonsterToMegaGrid(raw, pos, i);
 
 			std::array<std::shared_ptr<CMesh>, 3> noLodMeshes =
 			{
@@ -6508,8 +6833,7 @@ void CGameScene::BuildSkinnedBatch(
 
 			createDesc.addPlayerController = isLocal;
 			createDesc.addPlayerEquipment = true;
-			createDesc.addPlayerWeaponHitbox = true;
-
+			
 			createDesc.addHealth = true;
 			createDesc.maxHp = kHpPlayer;
 
@@ -7080,6 +7404,16 @@ bool CGameScene::IsPointInPauseOverlay(POINT clientPt) const
 	return m_hud.IsPointInPauseOverlay(clientPt);
 }
 
+bool CGameScene::IsPointInResumeButton(POINT clientPt) const
+{
+	return m_hud.IsPointInResumeButton(clientPt);
+}
+
+bool CGameScene::IsPointInExitButton(POINT clientPt) const
+{
+	return m_hud.IsPointInExitButton(clientPt);
+}
+
 void CGameScene::SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex)
 {
 	if ( !m_pMaterials )
@@ -7130,7 +7464,7 @@ void CGameScene::RequestPlayerAttackBySlot(int slot)
 		return;
 
 	constexpr float kArrowPullBackDistance = 0.35f;
-	constexpr float kBulletSpeed = 10.0f;
+	constexpr float kBulletSpeed = 25.0f;
 	constexpr float kBulletLife = 3.0f;
 
 	bool shouldPlaySwordWhoosh = false;
@@ -7373,11 +7707,11 @@ void CGameScene::RequestReleasePreparedArrow(CGameObject* shooter, float speed, 
 
 void CGameScene::UpdatePreparedBowArrows()
 {
-	constexpr float kArrowSpeed = 3.0f;
+	constexpr float kArrowSpeed = 16.0f;
 	constexpr float kArrowLife = 6.0f;
 
 	constexpr float kEnemyArrowPullBackDistance = 0.35f * 1.5f;
-	constexpr float kEnemyArrowSpeed = 3.0f;
+	constexpr float kEnemyArrowSpeed = 14.0f;
 	constexpr float kEnemyArrowLife = 6.0f;
 
     for (int slot = 0; slot < 4; ++slot)
@@ -7679,6 +8013,149 @@ bool CGameScene::IsMonsterDead(const CGameObject* monster) const
 	return false;
 }
 
+void CGameScene::MarkMegaGridClearedByNumber(int megaGridNumber)
+{
+	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+		return;
+
+	const int zeroBased = megaGridNumber - 1;
+	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+	if ( m_sceneGrid.IsMegaGridCleared(megaX, megaZ) )
+		return;
+
+	m_sceneGrid.SetMegaGridCleared(megaX, megaZ, true);
+}
+
+bool CGameScene::AreAllMonstersInMegaGridDead(int megaGridNumber) const
+{
+	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+		return false;
+
+	const int zeroBased = megaGridNumber - 1;
+	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+	const std::vector<CGameObject*>& monsters =
+		m_sceneGrid.GetMegaGridMonsters(megaX, megaZ);
+
+	if ( monsters.empty() )
+		return false;
+
+	for ( const CGameObject* monster : monsters )
+	{
+		if ( !IsMonsterDead(monster) )
+			return false;
+	}
+
+	return true;
+}
+
+void CGameScene::RegisterMutantKeyTriggerIfNeeded(
+	CGameObject* mutant,
+	int megaGridNumber)
+{
+	if ( !mutant )
+		return;
+
+	if ( megaGridNumber != 6 && megaGridNumber != 8 )
+		return;
+
+	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+		return;
+
+	if ( m_mutantKeyTriggerRegisteredByMega[( size_t ) megaGridNumber] )
+		return;
+
+	m_mutantKeyTriggerRegisteredByMega[( size_t ) megaGridNumber] = true;
+	m_mutantKeyTriggerMegaByObject[mutant] = megaGridNumber;
+
+	char buf[256];
+	sprintf_s(
+		buf,
+		"[MutantKeyTrigger] Registered first Mutant for mega grid %d. mutant=%p\n",
+		megaGridNumber,
+		static_cast< void* >( mutant )
+	);
+	OutputDebugStringA(buf);
+}
+
+void CGameScene::UnlockKeyBillboardForMegaGrid(int megaGridNumber)
+{
+	if ( megaGridNumber != 6 && megaGridNumber != 8 )
+		return;
+
+	for ( ItemBillboardEntry& item : m_itemBillboards )
+	{
+		if ( item.kind != EItemBillboardKind::Key )
+			continue;
+
+		if ( item.megaGridNumber != megaGridNumber )
+			continue;
+
+		// 이미 먹은 열쇠는 다시 살리지 않는다.
+		if ( m_sceneGrid.IsMegaGridCleared(
+			( megaGridNumber - 1 ) % CSceneGrid::kMegaGridCols,
+			( megaGridNumber - 1 ) / CSceneGrid::kMegaGridCols) )
+		{
+			return;
+		}
+
+		item.active = true;
+		item.distanceCulled = false;
+
+		char buf[256];
+		sprintf_s(
+			buf,
+			"[MutantKeyTrigger] Key billboard unlocked for mega grid %d.\n",
+			megaGridNumber
+		);
+		OutputDebugStringA(buf);
+
+		return;
+	}
+}
+
+void CGameScene::HandleMutantKeyTriggerDeath(CGameObject* monster)
+{
+	if ( !monster )
+		return;
+
+	const auto it = m_mutantKeyTriggerMegaByObject.find(monster);
+	if ( it == m_mutantKeyTriggerMegaByObject.end() )
+		return;
+
+	const int megaGridNumber = it->second;
+
+	UnlockKeyBillboardForMegaGrid(megaGridNumber);
+
+	m_mutantKeyTriggerMegaByObject.erase(it);
+}
+
+void CGameScene::UpdateMegaGridClearStateFromMonsterDeaths()
+{
+	// 2번 메가그리드: 해당 메가그리드의 모든 몬스터 사망 시 클리어.
+	if ( !m_sceneGrid.IsMegaGridCleared(1, 0) )
+	{
+		if ( AreAllMonstersInMegaGridDead(2) )
+			MarkMegaGridClearedByNumber(2);
+	}
+
+	// 5번 메가그리드: 보스 사망 시 클리어.
+	if ( !m_sceneGrid.IsMegaGridCleared(1, 1) )
+	{
+		for ( const CGameObject* boss : m_bossRefs )
+		{
+			if ( IsMonsterDead(boss) )
+			{
+				MarkMegaGridClearedByNumber(5);
+				break;
+			}
+		}
+	}
+}
+
 void CGameScene::CancelMonsterPreparedActions(CGameObject* monster)
 {
 	if ( !monster )
@@ -7754,6 +8231,8 @@ void CGameScene::BeginMonsterDeath(CGameObject* monster)
 
 	m_deadMonsters.insert(monster);
 
+	HandleMutantKeyTriggerDeath(monster);
+
 	CancelMonsterPreparedActions(monster);
 
 	// 더 이상 플레이어 무기 충돌을 받지 않게 함.
@@ -7805,6 +8284,8 @@ void CGameScene::UpdateMonsterDeathStates()
 		if ( hp->IsDead() )
 			BeginMonsterDeath(obj);
 	}
+
+	UpdateMegaGridClearStateFromMonsterDeaths();
 }
 
 void CGameScene::BeginLocalPlayerDeath(CGameObject* player)
@@ -8554,12 +9035,29 @@ void CGameScene::AnimateObjects(float dt)
 
 	CCamera* camera = GetMainCamera();
 
+#ifndef USING_NETWORK
+	const int activeMonsterMegaGridNumber =
+		GetLocalPlayerMegaGridNumberForMonsterTick();
+#else
+	const int activeMonsterMegaGridNumber = -1;
+#endif
+
 	for ( UINT j = 0; j < static_cast< UINT >(m_skinnedObjects.size()); ++j )
 	{
 		if ( !m_skinnedObjects[j] )
 			continue;
 
 		CGameObject* obj = m_skinnedObjects[j].get();
+
+#ifndef USING_NETWORK
+		if ( ShouldSkipMonsterByMegaGrid(obj, j, activeMonsterMegaGridNumber) )
+		{
+			if ( auto* animComp = obj->GetComponent<CAnimatorComponent>() )
+				animComp->SetPoseEvaluationEnabled(false);
+
+			continue;
+		}
+#endif
 
 #ifdef USING_NETWORK
 		const bool shouldEvaluatePose =
@@ -8639,7 +9137,14 @@ void CGameScene::CollisionObjects()
 {
 	if ( !m_Collision ) return;
 
-	m_Collision->OnUpdate();
+	m_Collision->OnUpdateFiltered(
+		[ this ](
+			const CColliderComponent* a,
+			const CColliderComponent* b) -> bool
+		{
+			return ShouldKeepCollisionPairByMegaGrid(a, b);
+		}
+	);
 
 	// 아이템 빌보드는 CGameObject/Collider가 아니므로 별도 overlap 판정.
 	UpdateItemBillboardPickupCollision();

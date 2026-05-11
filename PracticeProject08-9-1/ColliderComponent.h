@@ -89,6 +89,7 @@ public:
 
 	bool IntersectsBoneCapsulesHierarchical(const BoundingOrientedBox& box) const;
 	bool IntersectsBoneCapsulesHierarchical(const BoundingCapsule& capsule) const;
+	bool IntersectsBoneCapsulesHierarchical(const BoundingSphere& sphere) const;
 
 	void BuildBoneCapsulesFromSkeleton();
 	void UpdateBoneCapsulesFromCurrentPose();
