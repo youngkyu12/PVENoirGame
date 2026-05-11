@@ -176,6 +176,7 @@ void CGameScene::UpdateStaticWorldLodSelection(CCamera* camera)
 	bool anyLodChanged = false;
 	bool anyDistanceCullChanged = false;
 	UINT changedCount = 0;
+	UINT distanceCullChangedCount = 0;
 
 	{
 		for ( StaticWorldLodEntry& entry : m_staticWorldLodEntries )
@@ -200,7 +201,10 @@ void CGameScene::UpdateStaticWorldLodSelection(CCamera* camera)
 			entry.distanceCulled = distanceCulled;
 
 			if ( previousDistanceCulled != distanceCulled )
+			{
 				anyDistanceCullChanged = true;
+				++distanceCullChangedCount;
+			}
 
 			if ( distanceCulled )
 			{
@@ -228,10 +232,16 @@ void CGameScene::UpdateStaticWorldLodSelection(CCamera* camera)
 
 	m_staticWorldLodDirty = anyLodChanged || anyDistanceCullChanged;
 
-	if ( changedCount > 0 )
+	if ( changedCount > 0 || distanceCullChangedCount > 0 )
 	{
-		char buf[128];
-		sprintf_s(buf, "[StaticLOD] changed=%u\n", changedCount);
+		char buf[256];
+		sprintf_s(
+			buf,
+			"[StaticLOD] lodChanged=%u distanceCullChanged=%u dirty=%d\n",
+			changedCount,
+			distanceCullChangedCount,
+			m_staticWorldLodDirty ? 1 : 0
+		);
 		OutputDebugStringA(buf);
 	}
 }
