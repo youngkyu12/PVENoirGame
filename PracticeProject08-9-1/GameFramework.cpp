@@ -1437,7 +1437,7 @@ void CGameFramework::FrameAdvance()
 		}
 	}
 #endif
-	CollisionSystem();
+	//CollisionSystem();
 
 	{
 		PROFILE_RENDER_SCOPE("Framework::WaitForFrameContext");

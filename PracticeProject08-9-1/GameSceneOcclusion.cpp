@@ -283,6 +283,13 @@ namespace
 
 		return true;
 	}
+
+	static constexpr UINT kStaticOcclusionCullSelectionMaxReuseFrames = 4;
+	static constexpr float kStaticOcclusionCullSelectionMoveThreshold = 1.0f;
+	static constexpr float kStaticOcclusionCullSelectionMoveThresholdSq =
+		kStaticOcclusionCullSelectionMoveThreshold *
+		kStaticOcclusionCullSelectionMoveThreshold;
+	static constexpr float kStaticOcclusionCullSelectionYawThresholdDeg = 4.0f;
 }
 
 void CGameScene::ResetStaticOcclusionEntries()
@@ -295,6 +302,12 @@ void CGameScene::ResetStaticOcclusionEntries()
 	m_staticOcclusionZeroSampleFrameCounts.clear();
 	m_staticOcclusionQueryCapacity = 0;
 	m_bStaticOcclusionQueryResultsValid = false;
+
+	m_staticOcclusionCullSelectionCacheValid = false;
+	m_staticOcclusionCullSelectionFrameCounter = 0;
+	m_staticOcclusionCullSelectionLastUpdateFrame = 0;
+	m_staticOcclusionCullSelectionLastCameraPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	m_staticOcclusionCullSelectionLastCameraYaw = 0.0f;
 }
 
 void CGameScene::BuildStaticOcclusionEntries()
@@ -982,15 +995,146 @@ void CGameScene::RenderSkinnedOcclusionPass(ID3D12GraphicsCommandList* cmd, CCam
 
 void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 {
-	m_staticOcclusionCullFlags.assign(m_staticBatch.objectRefs.size(), 0);
+	const size_t objectCount = m_staticBatch.objectRefs.size();
+
+	++m_staticOcclusionCullSelectionFrameCounter;
+
+	auto ClearStaticOcclusionCullState =
+		[ this, objectCount ] ()
+		{
+			if ( objectCount == 0 )
+			{
+				m_staticOcclusionCullFlags.clear();
+			}
+			else if ( m_staticOcclusionCullFlags.size() != objectCount )
+			{
+				m_staticOcclusionCullFlags.assign(objectCount, 0);
+			}
+			else
+			{
+				std::fill(
+					m_staticOcclusionCullFlags.begin(),
+					m_staticOcclusionCullFlags.end(),
+					0
+				);
+			}
+
+			std::fill(
+				m_staticOcclusionZeroSampleFrameCounts.begin(),
+				m_staticOcclusionZeroSampleFrameCounts.end(),
+				0
+			);
+
+			m_staticOcclusionCullSelectionCacheValid = false;
+		};
 
 	if ( !m_bStaticOcclusionCullingEnabled )
+	{
+		ClearStaticOcclusionCullState();
 		return;
+	}
 
 	if ( !camera )
+	{
+		ClearStaticOcclusionCullState();
 		return;
+	}
+
+	if ( objectCount == 0 )
+	{
+		ClearStaticOcclusionCullState();
+		return;
+	}
+
+	if ( !m_bStaticOcclusionQueryResultsValid )
+	{
+		ClearStaticOcclusionCullState();
+		return;
+	}
 
 	const XMFLOAT3 cameraPosition = camera->GetPosition();
+	const float cameraYaw = camera->GetYaw();
+
+	bool shouldUpdateSelection = false;
+
+	if ( !m_staticOcclusionCullSelectionCacheValid )
+		shouldUpdateSelection = true;
+
+	if ( m_staticOcclusionCullFlags.size() != objectCount )
+		shouldUpdateSelection = true;
+
+	if ( m_staticWorldLodDirty )
+		shouldUpdateSelection = true;
+
+	if ( !shouldUpdateSelection )
+	{
+		const UINT framesSinceLastUpdate =
+			m_staticOcclusionCullSelectionFrameCounter -
+			m_staticOcclusionCullSelectionLastUpdateFrame;
+
+		if ( framesSinceLastUpdate >= kStaticOcclusionCullSelectionMaxReuseFrames )
+			shouldUpdateSelection = true;
+	}
+
+	if ( !shouldUpdateSelection )
+	{
+		const float dx =
+			cameraPosition.x -
+			m_staticOcclusionCullSelectionLastCameraPosition.x;
+
+		const float dy =
+			cameraPosition.y -
+			m_staticOcclusionCullSelectionLastCameraPosition.y;
+
+		const float dz =
+			cameraPosition.z -
+			m_staticOcclusionCullSelectionLastCameraPosition.z;
+
+		const float movedDistanceSq = dx * dx + dy * dy + dz * dz;
+
+		if ( movedDistanceSq >= kStaticOcclusionCullSelectionMoveThresholdSq )
+		{
+			shouldUpdateSelection = true;
+		}
+		else
+		{
+			float yawDelta =
+				cameraYaw -
+				m_staticOcclusionCullSelectionLastCameraYaw;
+
+			while ( yawDelta > 180.0f )
+				yawDelta -= 360.0f;
+
+			while ( yawDelta < -180.0f )
+				yawDelta += 360.0f;
+
+			if ( std::fabs(yawDelta) >= kStaticOcclusionCullSelectionYawThresholdDeg )
+				shouldUpdateSelection = true;
+		}
+	}
+
+	if ( !shouldUpdateSelection )
+		return;
+
+	if ( m_staticOcclusionCullFlags.size() != objectCount )
+	{
+		m_staticOcclusionCullFlags.assign(objectCount, 0);
+	}
+	else
+	{
+		std::fill(
+			m_staticOcclusionCullFlags.begin(),
+			m_staticOcclusionCullFlags.end(),
+			0
+		);
+	}
+
+	m_staticOcclusionCullSelectionCacheValid = true;
+	m_staticOcclusionCullSelectionLastUpdateFrame =
+		m_staticOcclusionCullSelectionFrameCounter;
+	m_staticOcclusionCullSelectionLastCameraPosition = cameraPosition;
+	m_staticOcclusionCullSelectionLastCameraYaw = cameraYaw;
+
 	const float minTestDistanceSq =
 		m_staticOcclusionMinTestDistance * m_staticOcclusionMinTestDistance;
 
@@ -1044,8 +1188,8 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 
 		const float dist = std::sqrt(distSq);
 		float maxExtent = entry.worldBounds.Extents.x;
-		if (entry.worldBounds.Extents.y > maxExtent) maxExtent = entry.worldBounds.Extents.y;
-		if (entry.worldBounds.Extents.z > maxExtent) maxExtent = entry.worldBounds.Extents.z;
+		if ( entry.worldBounds.Extents.y > maxExtent ) maxExtent = entry.worldBounds.Extents.y;
+		if ( entry.worldBounds.Extents.z > maxExtent ) maxExtent = entry.worldBounds.Extents.z;
 
 		if ( dist > 0.0001f )
 		{
@@ -1056,12 +1200,6 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 				m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
 				continue;
 			}
-		}
-
-		if ( !m_bStaticOcclusionQueryResultsValid )
-		{
-			m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
-			continue;
 		}
 
 		if ( occlusionIndex >= m_staticOcclusionQuerySampleCounts.size() )
@@ -1084,7 +1222,8 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 
 		if ( m_staticOcclusionQuerySampleCounts[occlusionIndex] == 0ull )
 		{
-			uint8_t& zeroFrameCount = m_staticOcclusionZeroSampleFrameCounts[occlusionIndex];
+			uint8_t& zeroFrameCount =
+				m_staticOcclusionZeroSampleFrameCounts[occlusionIndex];
 
 			if ( zeroFrameCount < 255 )
 				++zeroFrameCount;

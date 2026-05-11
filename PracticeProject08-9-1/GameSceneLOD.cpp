@@ -174,6 +174,7 @@ void CGameScene::UpdateStaticWorldLodSelection(CCamera* camera)
 
 	const XMFLOAT3 cameraPosition = camera->GetPosition();
 	bool anyLodChanged = false;
+	bool anyDistanceCullChanged = false;
 	UINT changedCount = 0;
 
 	{
@@ -191,10 +192,15 @@ void CGameScene::UpdateStaticWorldLodSelection(CCamera* camera)
 				continue;
 			}
 
+			const bool previousDistanceCulled = entry.distanceCulled;
+
 			const bool distanceCulled =
 				ComputeStaticWorldDistanceCulled(cameraPosition, entry);
 
 			entry.distanceCulled = distanceCulled;
+
+			if ( previousDistanceCulled != distanceCulled )
+				anyDistanceCullChanged = true;
 
 			if ( distanceCulled )
 			{
@@ -220,7 +226,7 @@ void CGameScene::UpdateStaticWorldLodSelection(CCamera* camera)
 		}
 	}
 
-	m_staticWorldLodDirty = anyLodChanged;
+	m_staticWorldLodDirty = anyLodChanged || anyDistanceCullChanged;
 
 	if ( changedCount > 0 )
 	{

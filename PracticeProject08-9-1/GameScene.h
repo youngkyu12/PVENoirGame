@@ -979,6 +979,12 @@ private:
 	float                               m_staticLodHysteresis = 15.0f;
 	float                               m_staticCullHysteresis = 20.0f;
 
+	bool                                m_staticOcclusionCullSelectionCacheValid = false;
+	UINT                                m_staticOcclusionCullSelectionFrameCounter = 0;
+	UINT                                m_staticOcclusionCullSelectionLastUpdateFrame = 0;
+	XMFLOAT3                            m_staticOcclusionCullSelectionLastCameraPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	float                               m_staticOcclusionCullSelectionLastCameraYaw = 0.0f;
+
 	std::shared_ptr<CMesh>              m_staticOcclusionUnitBoxMesh;
 	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dStaticOcclusionInstanceBuffer;
 	std::array<StaticInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedStaticOcclusionInstanceBuffer = {};
