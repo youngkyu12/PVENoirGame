@@ -64,6 +64,8 @@ bool CGameFramework::OnCreate(HINSTANCE hInstance, HWND hMainWnd)
 
 void CGameFramework::OnDestroy()
 {
+	UnlockGameCursor();
+
 	ReleaseObjects();
 
 	if ( m_pAudioManager )
@@ -452,32 +454,39 @@ void CGameFramework::ClearInputPause()
 
 	::GetCursorPos(&m_ptOldCursorPos);
 	SyncGameSceneInactiveOverlay();
+	UpdateGameCursorLock();
 }
 
 bool CGameFramework::HandlePauseClick(UINT nMessageID, LPARAM lParam)
 {
-	if ((nMessageID != WM_LBUTTONDOWN) && (nMessageID != WM_RBUTTONDOWN))
+	if ( ( nMessageID != WM_LBUTTONDOWN ) && ( nMessageID != WM_RBUTTONDOWN ) )
 		return false;
 
-	if (!IsInputPauseActive())
+	if ( !IsInputPauseActive() )
 		return false;
 
-	CGameScene* gameScene = dynamic_cast<CGameScene*>(m_SceneManager.GetScene());
+	CGameScene* gameScene = dynamic_cast< CGameScene* >( m_SceneManager.GetScene() );
+	if ( !gameScene )
+		return true;
 
 	POINT ptClient = {};
 	ptClient.x = GET_X_LPARAM(lParam);
 	ptClient.y = GET_Y_LPARAM(lParam);
 
-	// GameScene이고 Pause UI 위를 클릭했으면 종료
-	if (gameScene && gameScene->IsPointInPauseOverlay(ptClient))
+	if ( gameScene->IsPointInResumeButton(ptClient) )
+	{
+		ClearInputPause();
+		return true;
+	}
+
+	if ( gameScene->IsPointInExitButton(ptClient) )
 	{
 		g_End.store(true);
 		::PostQuitMessage(0);
 		return true;
 	}
 
-	// Pause UI 바깥 클릭이면 입력정지 해제
-	ClearInputPause();
+	// Pause 배경 또는 빈 공간 클릭은 아무 일도 하지 않고 입력만 소비한다.
 	return true;
 }
 
@@ -489,6 +498,122 @@ bool CGameFramework::IsWindowActuallyActive() const
 bool CGameFramework::IsInputPauseActive() const
 {
 	return m_bUserPaused;
+}
+
+bool CGameFramework::IsGameSceneActive() const
+{
+	return dynamic_cast< CGameScene* >( m_SceneManager.GetScene() ) != nullptr;
+}
+
+bool CGameFramework::ShouldLockGameCursor() const
+{
+	return
+		m_hWnd != nullptr &&
+		m_bWindowActive &&
+		IsGameSceneActive() &&
+		!IsInputPauseActive();
+}
+
+POINT CGameFramework::GetClientCenterScreenPoint() const
+{
+	POINT center{};
+
+	if ( !m_hWnd )
+		return center;
+
+	RECT rc{};
+	::GetClientRect(m_hWnd, &rc);
+
+	center.x = ( rc.left + rc.right ) / 2;
+	center.y = ( rc.top + rc.bottom ) / 2;
+
+	::ClientToScreen(m_hWnd, &center);
+	return center;
+}
+
+void CGameFramework::LockGameCursor()
+{
+	if ( !m_hWnd )
+		return;
+
+	RECT rc{};
+	::GetClientRect(m_hWnd, &rc);
+
+	POINT lt{ rc.left, rc.top };
+	POINT rb{ rc.right, rc.bottom };
+
+	::ClientToScreen(m_hWnd, &lt);
+	::ClientToScreen(m_hWnd, &rb);
+
+	RECT clipRect{};
+	clipRect.left = lt.x;
+	clipRect.top = lt.y;
+	clipRect.right = rb.x;
+	clipRect.bottom = rb.y;
+
+	::ClipCursor(&clipRect);
+	::SetCapture(m_hWnd);
+
+	while ( ::ShowCursor(FALSE) >= 0 )
+	{
+	}
+
+	m_ptOldCursorPos = GetClientCenterScreenPoint();
+	::SetCursorPos(m_ptOldCursorPos.x, m_ptOldCursorPos.y);
+
+	m_bGameCursorLocked = true;
+}
+
+void CGameFramework::UnlockGameCursor()
+{
+	::ClipCursor(nullptr);
+
+	if ( ::GetCapture() == m_hWnd )
+		::ReleaseCapture();
+
+	while ( ::ShowCursor(TRUE) < 0 )
+	{
+	}
+
+	::GetCursorPos(&m_ptOldCursorPos);
+
+	m_bGameCursorLocked = false;
+}
+
+void CGameFramework::UpdateGameCursorLock()
+{
+	const bool shouldLock = ShouldLockGameCursor();
+
+	if ( shouldLock )
+	{
+		if ( !m_bGameCursorLocked )
+		{
+			LockGameCursor();
+			return;
+		}
+
+		// 창 이동/크기 변경에 대비해서 clip rect를 계속 최신화.
+		RECT rc{};
+		::GetClientRect(m_hWnd, &rc);
+
+		POINT lt{ rc.left, rc.top };
+		POINT rb{ rc.right, rc.bottom };
+
+		::ClientToScreen(m_hWnd, &lt);
+		::ClientToScreen(m_hWnd, &rb);
+
+		RECT clipRect{};
+		clipRect.left = lt.x;
+		clipRect.top = lt.y;
+		clipRect.right = rb.x;
+		clipRect.bottom = rb.y;
+
+		::ClipCursor(&clipRect);
+		return;
+	}
+
+	if ( m_bGameCursorLocked )
+		UnlockGameCursor();
 }
 
 void CGameFramework::UpdateAudioListener()
@@ -545,15 +670,16 @@ void CGameFramework::UpdateWindowActivationState()
 
 	m_bWindowActive = isActiveNow;
 
-	if (!m_bWindowActive)
+	if ( !m_bWindowActive )
 	{
-		::ReleaseCapture();
+		UnlockGameCursor();
 
 		// 비활성화 = ESC pause와 동일하게 처리
-		if (dynamic_cast<CGameScene*>(m_SceneManager.GetScene()))
+		if ( dynamic_cast< CGameScene* >( m_SceneManager.GetScene() ) )
 			m_bUserPaused = true;
 
 		SyncGameSceneInactiveOverlay();
+		UpdateGameCursorLock();
 	}
 	else
 	{
@@ -564,6 +690,7 @@ void CGameFramework::UpdateWindowActivationState()
 		m_bConsumeNextMouseClick = true;
 
 		SyncGameSceneInactiveOverlay();
+		UpdateGameCursorLock();
 	}
 }
 
@@ -600,6 +727,7 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 
 	m_pCamera = scene->GetMainCamera();
 	SyncGameSceneInactiveOverlay();
+	UpdateGameCursorLock();
 
 	m_pPostProcessingShader = make_shared<CTextureToFullScreenShader>(); 
 	m_pPostProcessingShader->CreateShader(
@@ -735,19 +863,26 @@ void CGameFramework::OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM
 		}
 	}
 
-	switch (nMessageID)
+	switch ( nMessageID )
 	{
 	case WM_LBUTTONDOWN:
 	case WM_RBUTTONDOWN:
-		::SetCapture(hWnd);
-		::GetCursorPos(&m_ptOldCursorPos);
+		if ( !m_bGameCursorLocked )
+		{
+			::SetCapture(hWnd);
+			::GetCursorPos(&m_ptOldCursorPos);
+		}
 		break;
+
 	case WM_LBUTTONUP:
 	case WM_RBUTTONUP:
-		::ReleaseCapture();
+		if ( !m_bGameCursorLocked )
+			::ReleaseCapture();
 		break;
+
 	case WM_MOUSEMOVE:
 		break;
+
 	default:
 		break;
 	}
@@ -761,12 +896,13 @@ void CGameFramework::OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPA
 
 	if (nMessageID == WM_KEYUP)
 	{
-		if (wParam == VK_ESCAPE)
+		if ( wParam == VK_ESCAPE )
 		{
-			if (dynamic_cast<CGameScene*>(m_SceneManager.GetScene()))
+			if ( dynamic_cast< CGameScene* >( m_SceneManager.GetScene() ) )
 			{
 				m_bUserPaused = !m_bUserPaused;
 				SyncGameSceneInactiveOverlay();
+				UpdateGameCursorLock();
 			}
 
 			// ::PostQuitMessage(0);
@@ -868,6 +1004,8 @@ void CGameFramework::ChangeSwapChainState()
 void CGameFramework::ProcessInput()
 {
 	UpdateWindowActivationState();
+	UpdateGameCursorLock();
+
 	if ( IsInputPauseActive() )
 		return;
 
@@ -978,19 +1116,22 @@ void CGameFramework::ProcessInput()
 		s_prevSpaceDown = spaceDown;
 
 		POINT ptCursorPos{};
-		if ( GetCapture() == m_hWnd )
+
+		if ( m_bGameCursorLocked )
 		{
-			SetCursor(NULL);
-			GetCursorPos(&ptCursorPos);
+			const POINT center = GetClientCenterScreenPoint();
 
-			cxDelta = ( float ) ( ptCursorPos.x - m_ptOldCursorPos.x ) / 3.0f;
-			cyDelta = ( float ) ( ptCursorPos.y - m_ptOldCursorPos.y ) / 3.0f;
+			::GetCursorPos(&ptCursorPos);
 
-			SetCursorPos(m_ptOldCursorPos.x, m_ptOldCursorPos.y);
+			cxDelta = ( float ) ( ptCursorPos.x - center.x ) / 3.0f;
+			cyDelta = ( float ) ( ptCursorPos.y - center.y ) / 3.0f;
+
+			::SetCursorPos(center.x, center.y);
+			m_ptOldCursorPos = center;
 		}
 		else
 		{
-			GetCursorPos(&ptCursorPos);
+			::GetCursorPos(&ptCursorPos);
 
 			cxDelta = ( float ) ( ptCursorPos.x - m_ptOldCursorPos.x ) / 3.0f;
 			cyDelta = ( float ) ( ptCursorPos.y - m_ptOldCursorPos.y ) / 3.0f;
@@ -1089,7 +1230,7 @@ void CGameFramework::ProcessInput()
 		{
 			const XMFLOAT3 prevPos = playerObj->GetPosition();
 
-			const float moveSpeed = bRunRequested ? 100.0f : 5.0f;
+			const float moveSpeed = bRunRequested ? 10.0f : 5.0f;
 			pc->MoveByYaw(dwDirection, moveSpeed * dt, cameraYawDeg, false);
 
 			if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
@@ -1156,6 +1297,7 @@ void CGameFramework::FrameAdvance()
 
 	m_GameTimer.Tick(0.0f);
 	UpdateWindowActivationState();
+	UpdateGameCursorLock();
 
 	ApplyPendingSceneSwitch();
 

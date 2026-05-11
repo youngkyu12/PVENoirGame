@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "ServerPacketHandler.h"
+#include "DummyClientWorldView.h"
 #include "BufferReader.h"
 #include "Protocol.pb.h"
 #include "GameMath.h"
@@ -21,6 +22,8 @@ namespace
 		uint32 playerId = 0;
 		bool loggedIn = false;
 		bool gameStarted = false;
+		bool readySent = false;
+		bool gameStartRequested = false;
 		float accumulatedTurnDeg = 0.0f;
 		bool lapDone = false;
 		std::unordered_map<uint64, GameMath::Vec3> players;
@@ -48,7 +51,16 @@ namespace
 		session->Send(sendBuffer);
 	}
 
-	void SendGameStart(const PacketSessionRef& session, uint32 playerId)
+	void SendClientReady(const PacketSessionRef& session, uint32 playerId)
+	{
+		Protocol::C_CLIENT_READY pkt;
+		pkt.set_playerid(playerId);
+		pkt.set_ready(true);
+		auto sendBuffer = ServerPacketHandler::MakeSendBuffer(pkt);
+		session->Send(sendBuffer);
+	}
+
+	void SendGameStartRequest(const PacketSessionRef& session, uint32 playerId)
 	{
 		Protocol::C_GAME_START pkt;
 		pkt.set_playerid(playerId);
@@ -167,25 +179,52 @@ bool Handle_S_ENTER_GAME(PacketSessionRef& session, Protocol::S_ENTER_GAME& pkt)
 	UNREFERENCED_PARAMETER(pkt);
 
 	uint32 playerId = 0;
+	bool sendReady = false;
+	bool sendGameStart = false;
 	{
 		std::lock_guard<std::mutex> lock(g_stressLock);
 		auto it = g_clients.find(SessionKey(session));
 		if (it != g_clients.end())
+		{
 			playerId = it->second.playerId;
+			sendReady = !it->second.readySent;
+			sendGameStart = !it->second.gameStartRequested;
+			it->second.readySent = true;
+			it->second.gameStartRequested = true;
+		}
 	}
 
-	SendGameStart(session, playerId);
+	if (sendReady)
+		SendClientReady(session, playerId);
+	if (sendGameStart)
+		SendGameStartRequest(session, playerId);
+
 	return true;
 }
 
 bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
 {
-	UNREFERENCED_PARAMETER(pkt);
-
 	std::lock_guard<std::mutex> lock(g_stressLock);
 	auto it = g_clients.find(SessionKey(session));
 	if (it != g_clients.end())
+	{
 		it->second.gameStarted = true;
+		it->second.players.clear();
+		it->second.enemies.clear();
+
+		const Protocol::InitStruct& init = pkt.initstruct();
+		for (const auto& player : init.players())
+		{
+			const auto& p = player.transform().position();
+			it->second.players[player.id()] = GameMath::Vec3(p.x(), p.y(), p.z());
+		}
+
+		for (const auto& enemy : init.enemies())
+		{
+			const auto& p = enemy.transform().position();
+			it->second.enemies[enemy.id()] = GameMath::Vec3(p.x(), p.y(), p.z());
+		}
+	}
 
 	return false;
 }
@@ -215,6 +254,40 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 	return false;
 }
 
+void GetWorldDrawSnapshot(DrawSnapshot& outSnapshot)
+{
+	outSnapshot.players.clear();
+	outSnapshot.enemies.clear();
+
+	std::unordered_map<uint64, GameMath::Vec3> mergedPlayers;
+	std::unordered_map<uint64, GameMath::Vec3> mergedEnemies;
+
+	{
+		std::lock_guard<std::mutex> lock(g_stressLock);
+		for (const auto& kv : g_clients)
+		{
+			const ClientState& client = kv.second;
+			for (const auto& player : client.players)
+				mergedPlayers[player.first] = player.second;
+			for (const auto& enemy : client.enemies)
+				mergedEnemies[enemy.first] = enemy.second;
+		}
+	}
+
+	outSnapshot.players.reserve(mergedPlayers.size());
+	for (const auto& player : mergedPlayers)
+		outSnapshot.players.push_back({ player.second.x, player.second.z });
+
+	outSnapshot.enemies.reserve(mergedEnemies.size());
+	for (const auto& enemy : mergedEnemies)
+		outSnapshot.enemies.push_back({ enemy.second.x, enemy.second.z });
+}
+
+int GetConnectedStressClientCount()
+{
+	std::lock_guard<std::mutex> lock(g_stressLock);
+	return static_cast<int>(g_clients.size());
+}
 void RegisterStressSession(PacketSessionRef session)
 {
 	if (!session)
@@ -294,12 +367,6 @@ void TickStressTest()
 		}
 	}
 
-	const auto now = std::chrono::steady_clock::now();
-	if (std::chrono::duration_cast<std::chrono::milliseconds>(now - g_lastRender).count() >= 200)
-	{
-		RenderAsciiMap(clients);
-		g_lastRender = now;
-	}
 }
 
 

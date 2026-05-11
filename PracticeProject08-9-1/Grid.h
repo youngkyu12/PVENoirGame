@@ -59,6 +59,8 @@ public:
 
 		int approachWidthCells = kDefaultMegaGridApproachWidth;
 		int approachHeightCells = kDefaultMegaGridApproachHeight;
+
+		std::vector<CGameObject*> monsterObjects;
 	};
 
 	struct GridStaticCell
@@ -103,14 +105,20 @@ public:
 
 	int MegaGridIndex(int megaX, int megaZ) const;
 	int MegaGridNumberFromCell(int cellX, int cellZ) const;
+	int MegaGridNumberFromWorldPosition(float worldX, float worldZ) const;
 
 	bool FineCellToMegaGridCell(int cellX, int cellZ, int& outMegaX, int& outMegaZ) const;
+	bool TryGetMegaGridFromWorldPosition(float worldX, float worldZ, int& outMegaX, int& outMegaZ) const;
 	bool IsFineCellInsideMegaGridApproachZone(int megaX, int megaZ, int cellX, int cellZ) const;
 
 	void SetMegaGridApproachZoneSize(int megaX, int megaZ, int widthCells, int heightCells);
 	void SetMegaGridCleared(int megaX, int megaZ, bool cleared);
 	void SetMegaGridEventOccurred(int megaX, int megaZ, bool occurred);
 	void SetMegaGridPlayerApproached(int megaX, int megaZ, bool approached);
+
+	void ClearMegaGridMonsters();
+	void AddMonsterToMegaGrid(int megaX, int megaZ, CGameObject* monster);
+	const std::vector<CGameObject*>& GetMegaGridMonsters(int megaX, int megaZ) const;
 
 	bool HasMegaGridPlayerApproached(int megaX, int megaZ) const;
 	bool IsMegaGridCleared(int megaX, int megaZ) const;

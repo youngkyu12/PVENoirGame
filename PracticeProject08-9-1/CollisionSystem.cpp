@@ -201,6 +201,22 @@ bool CCollisionSystem::IsPairIntersecting(const CColliderComponent* a, const CCo
 		return b->IntersectsBoneCapsulesHierarchical(a->GetOOBB());
 	}
 
+	// BCapsule vs BSphere
+	if ( a->GetType() == EColliderType::BCapsule &&
+		b->GetType() == EColliderType::BSphere )
+	{
+		// body vs projectile sphere
+		return a->IntersectsBoneCapsulesHierarchical(b->GetBSphere());
+	}
+
+	// BSphere vs BCapsule
+	if ( a->GetType() == EColliderType::BSphere &&
+		b->GetType() == EColliderType::BCapsule )
+	{
+		// projectile sphere vs body
+		return b->IntersectsBoneCapsulesHierarchical(a->GetBSphere());
+	}
+
 	return false;
 }
 
@@ -284,6 +300,23 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 			return hp->IsDead();
 		};
 
+	auto IsPlayerRollInvincible = [ ] (CGameObject* playerObject) -> bool
+		{
+			if ( !playerObject )
+				return false;
+
+			if ( auto* animComp = playerObject->GetComponent<CAnimatorComponent>() )
+			{
+				if ( auto* ctrl = animComp->GetController() )
+					return ctrl->IsRollPhase();
+			}
+
+			if ( auto* ctrl = playerObject->GetAnimController() )
+				return ctrl->IsRollPhase();
+
+			return false;
+		};
+
 	auto ApplyDamage = [ & ] (CGameObject* weaponObject, CGameObject* targetObject) -> bool
 		{
 			if ( !weaponObject || !targetObject )
@@ -358,6 +391,15 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 				return;
 			}
 
+			const bool isProjectile =
+				weaponObject->GetComponent<CArrowComponent>() ||
+				weaponObject->GetComponent<CBulletComponent>();
+
+			// 검/도끼 같은 melee weapon은 반드시 CWeaponHitboxComponent를 통해서만 데미지를 넣는다.
+			// 이 컴포넌트가 없는 비투사체 weapon은 fallback 경로로 매 프레임 데미지를 줄 수 있으므로 차단한다.
+			if ( !isProjectile )
+				return;
+
 			auto* combat = monsterObject->GetComponent<CMonsterCombatComponent>();
 			auto* hp = monsterObject->GetComponent<CHealthComponent>();
 
@@ -380,6 +422,9 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 				return;
 
 			if ( !weaponObject || !playerObject )
+				return;
+
+			if ( IsPlayerRollInvincible(playerObject) )
 				return;
 
 			auto DeactivateProjectileIfNeeded = [ ] (CGameObject* weaponObj)
@@ -510,26 +555,35 @@ void CCollisionSystem::HandlePair(CColliderComponent* a, CColliderComponent* b)
 
 void CCollisionSystem::OnUpdate()
 {
-    // 전수검사: i<j
-    
+	OnUpdateFiltered(nullptr);
+}
+
+void CCollisionSystem::OnUpdateFiltered(const PairCandidateFilter& filter)
+{
 	const size_t n = mColliders.size();
 
-    for (size_t i = 0; i < n; ++i)
-    {
-        auto* a = mColliders[i];
-		if ( !a )continue;
+	for ( size_t i = 0; i < n; ++i )
+	{
+		CColliderComponent* a = mColliders[i];
+		if ( !a )
+			continue;
 
-        for (size_t j = i + 1; j < n; ++j)
-        {
-            auto* b = mColliders[j];
-
-            if (!b) 
+		for ( size_t j = i + 1; j < n; ++j )
+		{
+			CColliderComponent* b = mColliders[j];
+			if ( !b )
 				continue;
 
 			const bool normalFilteredPair = PassFilter(a, b);
 			const bool bareHandPair = IsBareHandMonsterWeaponPairCandidate(a, b);
 
-            HandlePair(a, b);
-        }
-    }
+			if ( !normalFilteredPair && !bareHandPair )
+				continue;
+
+			if ( filter && !filter(a, b) )
+				continue;
+
+			HandlePair(a, b);
+		}
+	}
 }

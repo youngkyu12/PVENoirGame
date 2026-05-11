@@ -151,18 +151,24 @@ float CMonsterAIComponent::GetDistanceToPointXZ(const XMFLOAT3& p) const
 
 bool CMonsterAIComponent::IsTargetInDetectRange() const
 {
-	if ( !HasValidTarget() )
+	if ( !HasValidTarget() || !GetOwner() )
 		return false;
 
-	return ( GetDistanceToTargetXZ() <= m_detectRange );
+	const float distSq =
+		DistanceSqXZ(GetOwner()->GetPosition(), m_pTarget->GetPosition());
+
+	return distSq <= ( m_detectRange * m_detectRange );
 }
 
 bool CMonsterAIComponent::IsTargetInAttackRange() const
 {
-	if ( !HasValidTarget() )
+	if ( !HasValidTarget() || !GetOwner() )
 		return false;
 
-	return ( GetDistanceToTargetXZ() <= m_attackRange );
+	const float distSq =
+		DistanceSqXZ(GetOwner()->GetPosition(), m_pTarget->GetPosition());
+
+	return distSq <= ( m_attackRange * m_attackRange );
 }
 
 bool CMonsterAIComponent::CanAttackNow() const
@@ -179,6 +185,7 @@ bool CMonsterAIComponent::CanAttackNow() const
 void CMonsterAIComponent::ConsumeAttackCooldown()
 {
 	m_attackCooldownRemaining = m_attackCooldown;
+	m_postAttackMoveLockRemaining = m_postAttackMoveLockDuration;
 }
 
 bool CMonsterAIComponent::RebuildPathToTarget()
@@ -186,7 +193,7 @@ bool CMonsterAIComponent::RebuildPathToTarget()
 	m_trianglePath.clear();
 	m_currentPath.clear();
 	m_currentPathIndex = 0;
-	m_repathTimer = 0.0f;
+	m_repathTimer = m_repathInterval;
 
 	if ( !GetOwner() || !m_pTarget )
 		return false;
@@ -296,6 +303,11 @@ void CMonsterAIComponent::UpdateBehavior(float dt)
 		RebuildPathToTarget();
 	}
 
+	if ( TryMoveDirectlyToTarget(dt) )
+	{
+		return;
+	}
+
 	if ( HasPath() )
 	{
 		FollowCurrentPath(dt);
@@ -330,17 +342,14 @@ bool CMonsterAIComponent::ShouldRepath() const
 	const XMFLOAT3& lastPoint = m_currentPath.back();
 	const XMFLOAT3 targetPos = m_pTarget->GetPosition();
 
-	const float goalDelta = DistanceXZ(lastPoint, targetPos);
-	return ( goalDelta > m_goalReachDistance );
+	const float goalDeltaSq = DistanceSqXZ(lastPoint, targetPos);
+	return goalDeltaSq > ( m_goalReachDistance * m_goalReachDistance );
 }
 
 bool CMonsterAIComponent::CanMoveNow() const
 {
-	if ( auto* ctrl = GetMonsterAnimController() )
-	{
-		if ( ctrl->IsBusy() )
-			return false;
-	}
+	if ( m_postAttackMoveLockRemaining > 0.0f )
+		return false;
 
 	return true;
 }
@@ -513,6 +522,36 @@ bool CMonsterAIComponent::MoveTowards(const XMFLOAT3& targetPos, float maxStepDi
 	return true;
 }
 
+bool CMonsterAIComponent::TryMoveDirectlyToTarget(float dt)
+{
+	if ( !GetOwner() || !m_pTarget )
+		return false;
+
+	if ( dt <= 0.0f )
+		return false;
+
+	const float moveDistance = m_moveSpeed * dt;
+	if ( moveDistance <= 0.0f )
+		return false;
+
+	// 현재 경로가 없으면 직선 이동을 확정할 근거가 없으므로 false.
+	if ( !HasPath() )
+		return false;
+
+	// FindPath 결과가 매우 짧으면 사실상 직선 경로로 본다.
+	// NavMesh Raycast가 없는 상태에서 쓰는 보수적 fallback.
+	const size_t remainingCount =
+		( m_currentPathIndex < m_currentPath.size() )
+		? ( m_currentPath.size() - m_currentPathIndex )
+		: 0;
+
+	if ( remainingCount > 1 )
+		return false;
+
+	SetMonsterLocomotionState(EMonsterAnimState::Run);
+	return MoveTowards(m_pTarget->GetPosition(), moveDistance);
+}
+
 bool CMonsterAIComponent::FollowCurrentPath(float dt)
 {
 	if ( !GetOwner() )
@@ -570,6 +609,13 @@ void CMonsterAIComponent::UpdateCooldowns(float dt)
 		m_attackCooldownRemaining -= dt;
 		if ( m_attackCooldownRemaining < 0.0f )
 			m_attackCooldownRemaining = 0.0f;
+	}
+
+	if ( m_postAttackMoveLockRemaining > 0.0f )
+	{
+		m_postAttackMoveLockRemaining -= dt;
+		if ( m_postAttackMoveLockRemaining < 0.0f )
+			m_postAttackMoveLockRemaining = 0.0f;
 	}
 }
 
