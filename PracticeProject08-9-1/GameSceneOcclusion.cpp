@@ -290,6 +290,8 @@ namespace
 		kStaticOcclusionCullSelectionMoveThreshold *
 		kStaticOcclusionCullSelectionMoveThreshold;
 	static constexpr float kStaticOcclusionCullSelectionYawThresholdDeg = 4.0f;
+	static constexpr bool kLogStaticOcclusionCullSelectionReason = true;
+	static constexpr UINT kLogStaticOcclusionCullSelectionSummaryInterval = 120;
 }
 
 void CGameScene::ResetStaticOcclusionEntries()
@@ -1030,24 +1032,36 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 
 	if ( !m_bStaticOcclusionCullingEnabled )
 	{
+		if ( kLogStaticOcclusionCullSelectionReason )
+			OutputDebugStringA("[StaticOcclusionCull][CLEAR] disabled\n");
+
 		ClearStaticOcclusionCullState();
 		return;
 	}
 
 	if ( !camera )
 	{
+		if ( kLogStaticOcclusionCullSelectionReason )
+			OutputDebugStringA("[StaticOcclusionCull][CLEAR] no camera\n");
+
 		ClearStaticOcclusionCullState();
 		return;
 	}
 
 	if ( objectCount == 0 )
 	{
+		if ( kLogStaticOcclusionCullSelectionReason )
+			OutputDebugStringA("[StaticOcclusionCull][CLEAR] objectCount zero\n");
+
 		ClearStaticOcclusionCullState();
 		return;
 	}
 
 	if ( !m_bStaticOcclusionQueryResultsValid )
 	{
+		if ( kLogStaticOcclusionCullSelectionReason )
+			OutputDebugStringA("[StaticOcclusionCull][CLEAR] query results invalid\n");
+
 		ClearStaticOcclusionCullState();
 		return;
 	}
@@ -1057,26 +1071,44 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 
 	bool shouldUpdateSelection = false;
 
+	bool reasonCacheInvalid = false;
+	bool reasonFlagSizeChanged = false;
+	bool reasonStaticWorldLodDirty = false;
+	bool reasonMaxReuse = false;
+	bool reasonCameraMove = false;
+	bool reasonCameraYaw = false;
+
+	UINT framesSinceLastUpdate =
+		m_staticOcclusionCullSelectionFrameCounter -
+		m_staticOcclusionCullSelectionLastUpdateFrame;
+
+	float movedDistanceSq = 0.0f;
+	float yawDelta = 0.0f;
+
 	if ( !m_staticOcclusionCullSelectionCacheValid )
-		shouldUpdateSelection = true;
-
-	if ( m_staticOcclusionCullFlags.size() != objectCount )
-		shouldUpdateSelection = true;
-
-	if ( m_staticWorldLodDirty )
-		shouldUpdateSelection = true;
-
-	if ( !shouldUpdateSelection )
 	{
-		const UINT framesSinceLastUpdate =
-			m_staticOcclusionCullSelectionFrameCounter -
-			m_staticOcclusionCullSelectionLastUpdateFrame;
-
-		if ( framesSinceLastUpdate >= kStaticOcclusionCullSelectionMaxReuseFrames )
-			shouldUpdateSelection = true;
+		shouldUpdateSelection = true;
+		reasonCacheInvalid = true;
 	}
 
-	if ( !shouldUpdateSelection )
+	if ( m_staticOcclusionCullFlags.size() != objectCount )
+	{
+		shouldUpdateSelection = true;
+		reasonFlagSizeChanged = true;
+	}
+
+	if ( m_staticWorldLodDirty )
+	{
+		shouldUpdateSelection = true;
+		reasonStaticWorldLodDirty = true;
+	}
+
+	if ( framesSinceLastUpdate >= kStaticOcclusionCullSelectionMaxReuseFrames )
+	{
+		shouldUpdateSelection = true;
+		reasonMaxReuse = true;
+	}
+
 	{
 		const float dx =
 			cameraPosition.x -
@@ -1090,15 +1122,16 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 			cameraPosition.z -
 			m_staticOcclusionCullSelectionLastCameraPosition.z;
 
-		const float movedDistanceSq = dx * dx + dy * dy + dz * dz;
+		movedDistanceSq = dx * dx + dy * dy + dz * dz;
 
 		if ( movedDistanceSq >= kStaticOcclusionCullSelectionMoveThresholdSq )
 		{
 			shouldUpdateSelection = true;
+			reasonCameraMove = true;
 		}
 		else
 		{
-			float yawDelta =
+			yawDelta =
 				cameraYaw -
 				m_staticOcclusionCullSelectionLastCameraYaw;
 
@@ -1109,12 +1142,85 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 				yawDelta += 360.0f;
 
 			if ( std::fabs(yawDelta) >= kStaticOcclusionCullSelectionYawThresholdDeg )
+			{
 				shouldUpdateSelection = true;
+				reasonCameraYaw = true;
+			}
 		}
 	}
 
+	static UINT s_staticOcclusionReuseCount = 0;
+	static UINT s_staticOcclusionFullUpdateCount = 0;
+	static UINT s_reasonCacheInvalidCount = 0;
+	static UINT s_reasonFlagSizeChangedCount = 0;
+	static UINT s_reasonStaticWorldLodDirtyCount = 0;
+	static UINT s_reasonMaxReuseCount = 0;
+	static UINT s_reasonCameraMoveCount = 0;
+	static UINT s_reasonCameraYawCount = 0;
+
 	if ( !shouldUpdateSelection )
+	{
+		++s_staticOcclusionReuseCount;
+
+		if ( kLogStaticOcclusionCullSelectionReason &&
+			 ( m_staticOcclusionCullSelectionFrameCounter %
+				 kLogStaticOcclusionCullSelectionSummaryInterval ) == 0 )
+		{
+			char buf[512];
+			sprintf_s(
+				buf,
+				"[StaticOcclusionCull][SUMMARY] frame=%u reuse=%u full=%u "
+				"cache=%u size=%u lodDirty=%u maxReuse=%u camMove=%u camYaw=%u\n",
+				m_staticOcclusionCullSelectionFrameCounter,
+				s_staticOcclusionReuseCount,
+				s_staticOcclusionFullUpdateCount,
+				s_reasonCacheInvalidCount,
+				s_reasonFlagSizeChangedCount,
+				s_reasonStaticWorldLodDirtyCount,
+				s_reasonMaxReuseCount,
+				s_reasonCameraMoveCount,
+				s_reasonCameraYawCount
+			);
+			OutputDebugStringA(buf);
+		}
+
 		return;
+	}
+
+	++s_staticOcclusionFullUpdateCount;
+
+	if ( reasonCacheInvalid ) ++s_reasonCacheInvalidCount;
+	if ( reasonFlagSizeChanged ) ++s_reasonFlagSizeChangedCount;
+	if ( reasonStaticWorldLodDirty ) ++s_reasonStaticWorldLodDirtyCount;
+	if ( reasonMaxReuse ) ++s_reasonMaxReuseCount;
+	if ( reasonCameraMove ) ++s_reasonCameraMoveCount;
+	if ( reasonCameraYaw ) ++s_reasonCameraYawCount;
+
+	if ( kLogStaticOcclusionCullSelectionReason )
+	{
+		char buf[1024];
+		sprintf_s(
+			buf,
+			"[StaticOcclusionCull][FULL] frame=%u "
+			"cache=%d size=%d lodDirty=%d maxReuse=%d camMove=%d camYaw=%d "
+			"framesSince=%u moveSq=%.3f yawDelta=%.3f objectCount=%zu entryCount=%zu "
+			"queryValid=%d\n",
+			m_staticOcclusionCullSelectionFrameCounter,
+			reasonCacheInvalid ? 1 : 0,
+			reasonFlagSizeChanged ? 1 : 0,
+			reasonStaticWorldLodDirty ? 1 : 0,
+			reasonMaxReuse ? 1 : 0,
+			reasonCameraMove ? 1 : 0,
+			reasonCameraYaw ? 1 : 0,
+			framesSinceLastUpdate,
+			movedDistanceSq,
+			yawDelta,
+			objectCount,
+			m_staticOcclusionEntries.size(),
+			m_bStaticOcclusionQueryResultsValid ? 1 : 0
+		);
+		OutputDebugStringA(buf);
+	}
 
 	if ( m_staticOcclusionCullFlags.size() != objectCount )
 	{
