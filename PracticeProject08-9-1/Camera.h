@@ -1,4 +1,7 @@
 #pragma once
+
+#include <array>
+
 #include "Component.h"
 
 #define ASPECT_RATIO				(float(FRAME_BUFFER_WIDTH) / float(FRAME_BUFFER_HEIGHT))
@@ -40,8 +43,12 @@ protected:
 
 	CGameObject*					m_pTarget = nullptr;
 
-	ComPtr<ID3D12Resource>			m_pd3dcbCamera;
-	VS_CB_CAMERA_INFO				*m_pcbMappedCamera = nullptr;
+	static constexpr UINT			kCameraFrameResourceCount = 2;
+
+	std::array<ComPtr<ID3D12Resource>, kCameraFrameResourceCount>	m_pd3dcbCamera;
+	std::array<VS_CB_CAMERA_INFO*, kCameraFrameResourceCount>		m_pcbMappedCamera = {};
+	UINT															m_nCameraCBElementBytes = 0;
+	UINT															m_nCameraFrameResourceIndex = 0;
 
 	BoundingFrustum					m_xmBoundingFrustum;
 
@@ -49,9 +56,11 @@ public:
 	explicit CCamera(CGameObject* owner);
 	virtual ~CCamera() override;
 
-	virtual void CreateShaderVariables(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList);
+	virtual void CreateShaderVariables(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
 	virtual void ReleaseShaderVariables();
-	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList *pd3dCommandList);
+	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList);
+
+	void SetFrameResourceIndex(UINT frameResourceIndex);
 
 	virtual void SetViewportsAndScissorRects(ID3D12GraphicsCommandList *pd3dCommandList);
 

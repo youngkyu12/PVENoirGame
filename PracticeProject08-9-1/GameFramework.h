@@ -31,7 +31,10 @@ public:
 public:
 	void OnDestroy();
 	void ReleaseObjects();
-	void WaitForGpuComplete();
+	UINT64 SignalCommandQueue();
+	void WaitForFenceValue(UINT64 fenceValue);
+	void WaitForFrameContext(UINT frameContextIndex);
+	void FlushGpu();
 
 	// Build
 public:
@@ -103,6 +106,7 @@ private:
 
 	// SwapChain Buffers / RTV
 	static const UINT					m_nSwapChainBuffers = 2;
+	static const UINT					m_nFrameContexts = 2;
 	UINT								m_nSwapChainBufferIndex = 0;
 
 	array<ComPtr<ID3D12Resource>, m_nSwapChainBuffers>			m_ppd3dSwapChainBackBuffers;
@@ -115,14 +119,25 @@ private:
 	D3D12_CPU_DESCRIPTOR_HANDLE			m_d3dDsvDescriptorCPUHandle;
 
 	// Command
-	ComPtr<ID3D12CommandAllocator>		m_pd3dCommandAllocator;
-	ComPtr<ID3D12CommandQueue>			m_pd3dCommandQueue;
-	ComPtr<ID3D12GraphicsCommandList>	m_pd3dCommandList;
-	ComPtr<ID3D12InfoQueue>				infoQueue;
+	struct FrameContext
+	{
+		ComPtr<ID3D12CommandAllocator>		commandAllocator;
+		ComPtr<ID3D12GraphicsCommandList>	commandList;
+		UINT64								fenceValue = 0;
+	};
+
+	array<FrameContext, m_nFrameContexts>	m_frameContexts;
+	UINT									m_nFrameContextIndex = 0;
+
+	// 현재 frame context를 기존 코드가 그대로 쓰도록 유지하는 호환용 alias.
+	ComPtr<ID3D12CommandAllocator>			m_pd3dCommandAllocator;
+	ComPtr<ID3D12CommandQueue>				m_pd3dCommandQueue;
+	ComPtr<ID3D12GraphicsCommandList>		m_pd3dCommandList;
+	ComPtr<ID3D12InfoQueue>					infoQueue;
 
 	// Sync
 	ComPtr<ID3D12Fence>					m_pd3dFence;
-	array<UINT64, m_nSwapChainBuffers>	m_nFenceValues;
+	UINT64								m_nNextFenceValue = 1;
 	HANDLE								m_hFenceEvent = nullptr;
 
 	// Timer
