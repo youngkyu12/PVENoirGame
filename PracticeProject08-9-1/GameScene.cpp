@@ -9290,7 +9290,7 @@ void CGameScene::UpdateFrameRenderState(CCamera* camera)
 	}
 	UpdateStaticTreeGridCullSelection(camera);
 	{
-		PROFILE_RENDER_SCOPE("UFRS::UpdateStaticOcclusionCullSelection");
+		PROFILE_RENDER_SCOPE("UFRS::BuildStaticVisibleListsForFrame");
 		BuildStaticVisibleListsForFrame(camera);
 	}
 	UpdateItemBillboardDistanceCullSelection(camera);

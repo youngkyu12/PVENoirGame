@@ -970,7 +970,7 @@ private:
 	bool                                m_bStaticOcclusionQueryResultsValid = false;
 	bool                                m_staticWorldLodDirty = false;
 	bool                                m_staticOcclusionCullSelectionLodDirty = false;
-	bool                                m_bStaticOcclusionCullingEnabled = true;
+	bool                                m_bStaticOcclusionCullingEnabled = false;
 	bool                                m_bStaticTreeGridCullingEnabled = true;
 	UINT                                m_staticOcclusionHideFrameThreshold = 8;
 	float                               m_staticOcclusionMinTestDistance = 50.0f;
@@ -1043,7 +1043,7 @@ private:
 	UINT                                m_skinnedOcclusionQueryCapacity = 0;
 	bool                                m_bSkinnedOcclusionQueryResourcesReady = false;
 	bool                                m_bSkinnedOcclusionQueryResultsValid = false;
-	bool                                m_bSkinnedOcclusionCullingEnabled = true;
+	bool                                m_bSkinnedOcclusionCullingEnabled = false;
 	UINT                                m_skinnedOcclusionHideFrameThreshold = 8;
 	float                               m_skinnedOcclusionMinTestDistance = 35.0f;
 	float                               m_skinnedOcclusionMaxCullExtentDistanceRatio = 0.30f;
