@@ -943,9 +943,6 @@ private:
 	std::vector<StaticInstanceGroup>     m_staticInstanceGroups;
 	std::vector<StaticRenderObjectCache> m_staticRenderObjectCache;
 
-	std::vector<int>                     m_staticActiveLodLevels;
-	std::vector<uint8_t>                 m_staticSceneVisibleFlags;
-	std::vector<uint8_t>                 m_staticShadowVisibleFlags;
 	std::vector<std::vector<UINT>>       m_staticGroupIndicesByObjectIndex;
 
 	std::vector<StaticWorldLodEntry>    m_staticWorldLodEntries;

@@ -2849,9 +2849,6 @@ void CGameScene::ReleaseObjects()
 	m_swordTrails.clear();
 
 	m_staticRenderObjectCache.clear();
-	m_staticActiveLodLevels.clear();
-	m_staticSceneVisibleFlags.clear();
-	m_staticShadowVisibleFlags.clear();
 	m_staticGroupIndicesByObjectIndex.clear();
 
 #ifndef USING_NETWORK
@@ -5318,32 +5315,6 @@ void CGameScene::BuildStaticVisibleListsForFrame(CCamera* camera)
 	const UINT objectCount =
 		static_cast< UINT >( m_staticBatch.objectRefs.size() );
 
-	if ( m_staticActiveLodLevels.size() != objectCount )
-	{
-		m_staticActiveLodLevels.assign(objectCount, -1);
-	}
-	else
-	{
-		std::fill(
-			m_staticActiveLodLevels.begin(),
-			m_staticActiveLodLevels.end(),
-			-1
-		);
-	}
-
-	if ( m_staticSceneVisibleFlags.size() != objectCount )
-	{
-		m_staticSceneVisibleFlags.assign(objectCount, 0);
-	}
-	else
-	{
-		std::fill(
-			m_staticSceneVisibleFlags.begin(),
-			m_staticSceneVisibleFlags.end(),
-			0
-		);
-	}
-
 	for ( StaticInstanceGroup& group : m_staticInstanceGroups )
 	{
 		group.visibleSceneObjectIndices.clear();
@@ -5369,8 +5340,6 @@ void CGameScene::BuildStaticVisibleListsForFrame(CCamera* camera)
 		const int activeLodLevel =
 			GetStaticObjectActiveLodLevel(objectIndex);
 
-		m_staticActiveLodLevels[objectIndex] = activeLodLevel;
-
 		if ( objectIndex < static_cast< UINT >(m_staticDistanceCullFlags.size()) &&
 			 m_staticDistanceCullFlags[objectIndex] != 0 )
 		{
@@ -5394,8 +5363,6 @@ void CGameScene::BuildStaticVisibleListsForFrame(CCamera* camera)
 		{
 			continue;
 		}
-
-		m_staticSceneVisibleFlags[objectIndex] = 1;
 
 		if ( objectIndex >= static_cast< UINT >(m_staticGroupIndicesByObjectIndex.size()) )
 			continue;
@@ -5425,32 +5392,6 @@ void CGameScene::BuildStaticShadowVisibleListsForFrame()
 	const UINT objectCount =
 		static_cast< UINT >( m_staticBatch.objectRefs.size() );
 
-	if ( m_staticActiveLodLevels.size() != objectCount )
-	{
-		m_staticActiveLodLevels.assign(objectCount, -1);
-	}
-	else
-	{
-		std::fill(
-			m_staticActiveLodLevels.begin(),
-			m_staticActiveLodLevels.end(),
-			-1
-		);
-	}
-
-	if ( m_staticShadowVisibleFlags.size() != objectCount )
-	{
-		m_staticShadowVisibleFlags.assign(objectCount, 0);
-	}
-	else
-	{
-		std::fill(
-			m_staticShadowVisibleFlags.begin(),
-			m_staticShadowVisibleFlags.end(),
-			0
-		);
-	}
-
 	for ( StaticInstanceGroup& group : m_staticInstanceGroups )
 	{
 		group.visibleShadowObjectIndices.clear();
@@ -5476,8 +5417,6 @@ void CGameScene::BuildStaticShadowVisibleListsForFrame()
 		const int activeLodLevel =
 			GetStaticObjectActiveLodLevel(objectIndex);
 
-		m_staticActiveLodLevels[objectIndex] = activeLodLevel;
-
 		if ( objectIndex < static_cast< UINT >(m_staticShadowCasterFlags.size()) &&
 			 m_staticShadowCasterFlags[objectIndex] == 0 )
 		{
@@ -5499,9 +5438,7 @@ void CGameScene::BuildStaticShadowVisibleListsForFrame()
 		if ( !IsStaticObjectInsideShadowBox(objectIndex) )
 			continue;
 
-		m_staticShadowVisibleFlags[objectIndex] = 1;
-
-		if ( objectIndex >= static_cast< UINT >( m_staticGroupIndicesByObjectIndex.size() ) )
+		if ( objectIndex >= static_cast< UINT >(m_staticGroupIndicesByObjectIndex.size()) )
 			continue;
 
 		const std::vector<UINT>& groupIndices =
