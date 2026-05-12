@@ -290,7 +290,7 @@ namespace
 		kStaticOcclusionCullSelectionMoveThreshold *
 		kStaticOcclusionCullSelectionMoveThreshold;
 	static constexpr float kStaticOcclusionCullSelectionYawThresholdDeg = 12.0f;
-	static constexpr bool kLogStaticOcclusionCullSelectionReason = true;
+	static constexpr bool kLogStaticOcclusionCullSelectionReason = false;
 	static constexpr UINT kLogStaticOcclusionCullSelectionSummaryInterval = 120;
 }
 
