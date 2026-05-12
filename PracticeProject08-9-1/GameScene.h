@@ -940,8 +940,12 @@ private:
     std::vector<StaticPlacementEntry>   m_staticPlacementEntries;
 	std::unordered_map<std::string, std::unordered_map<std::string, std::vector<AuthoredSubMeshOOBB>>> mSceneCubeBoxColliderTable;
 
-	std::vector<StaticInstanceGroup>    m_staticInstanceGroups;
+	std::vector<StaticInstanceGroup>     m_staticInstanceGroups;
 	std::vector<StaticRenderObjectCache> m_staticRenderObjectCache;
+
+	std::vector<int>                     m_staticActiveLodLevels;
+	std::vector<uint8_t>                 m_staticSceneVisibleFlags;
+	std::vector<uint8_t>                 m_staticShadowVisibleFlags;
 
 	std::vector<StaticWorldLodEntry>    m_staticWorldLodEntries;
 	std::vector<StaticOcclusionEntry>   m_staticOcclusionEntries;

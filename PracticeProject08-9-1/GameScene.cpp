@@ -2849,6 +2849,9 @@ void CGameScene::ReleaseObjects()
 	m_swordTrails.clear();
 
 	m_staticRenderObjectCache.clear();
+	m_staticActiveLodLevels.clear();
+	m_staticSceneVisibleFlags.clear();
+	m_staticShadowVisibleFlags.clear();
 
 #ifndef USING_NETWORK
 	m_monsterSpawnEntries.clear();
@@ -5291,56 +5294,96 @@ bool CGameScene::WriteStaticInstanceVertexFromCache(
 
 void CGameScene::BuildStaticVisibleListsForFrame(CCamera* camera)
 {
+	const UINT objectCount =
+		static_cast< UINT >( m_staticBatch.objectRefs.size() );
+
+	if ( m_staticActiveLodLevels.size() != objectCount )
+	{
+		m_staticActiveLodLevels.assign(objectCount, -1);
+	}
+	else
+	{
+		std::fill(
+			m_staticActiveLodLevels.begin(),
+			m_staticActiveLodLevels.end(),
+			-1
+		);
+	}
+
+	if ( m_staticSceneVisibleFlags.size() != objectCount )
+	{
+		m_staticSceneVisibleFlags.assign(objectCount, 0);
+	}
+	else
+	{
+		std::fill(
+			m_staticSceneVisibleFlags.begin(),
+			m_staticSceneVisibleFlags.end(),
+			0
+		);
+	}
+
+	for ( UINT objectIndex = 0; objectIndex < objectCount; ++objectIndex )
+	{
+		if ( objectIndex >= static_cast< UINT >(m_staticRenderObjectCache.size()) )
+			continue;
+
+		const StaticRenderObjectCache& cache =
+			m_staticRenderObjectCache[objectIndex];
+
+		if ( !cache.object )
+			continue;
+
+		if ( !cache.renderer )
+			continue;
+
+		if ( !cache.renderer->IsEnabled() )
+			continue;
+
+		m_staticActiveLodLevels[objectIndex] =
+			GetStaticObjectActiveLodLevel(objectIndex);
+
+		if ( objectIndex < static_cast< UINT >(m_staticDistanceCullFlags.size()) &&
+			 m_staticDistanceCullFlags[objectIndex] != 0 )
+		{
+			continue;
+		}
+
+		if ( objectIndex < static_cast< UINT >(m_staticTreeGridCullFlags.size()) &&
+			 m_staticTreeGridCullFlags[objectIndex] != 0 )
+		{
+			continue;
+		}
+
+		const bool cameraVisible =
+			( camera == nullptr ) || cache.object->IsVisible(camera);
+
+		if ( !cameraVisible )
+			continue;
+
+		if ( objectIndex < static_cast< UINT >(m_staticOcclusionCullFlags.size()) &&
+			 m_staticOcclusionCullFlags[objectIndex] != 0 )
+		{
+			continue;
+		}
+
+		m_staticSceneVisibleFlags[objectIndex] = 1;
+	}
+
 	for ( StaticInstanceGroup& group : m_staticInstanceGroups )
 	{
 		group.visibleSceneObjectIndices.clear();
 
 		for ( UINT objectIndex : group.objectIndices )
 		{
-			if ( objectIndex >= static_cast< UINT >( m_staticBatch.objectRefs.size() ) )
+			if ( objectIndex >= objectCount )
 				continue;
 
-			if ( objectIndex >= static_cast< UINT >( m_staticRenderObjectCache.size() ) )
+			if ( m_staticSceneVisibleFlags[objectIndex] == 0 )
 				continue;
 
-			if ( group.lodLevel != GetStaticObjectActiveLodLevel(objectIndex) )
+			if ( group.lodLevel != m_staticActiveLodLevels[objectIndex] )
 				continue;
-
-			const StaticRenderObjectCache& cache =
-				m_staticRenderObjectCache[objectIndex];
-
-			if ( !cache.object )
-				continue;
-
-			if ( !cache.renderer )
-				continue;
-
-			if ( !cache.renderer->IsEnabled() )
-				continue;
-
-			if ( objectIndex < static_cast< UINT >(m_staticDistanceCullFlags.size()) &&
-				 m_staticDistanceCullFlags[objectIndex] != 0 )
-			{
-				continue;
-			}
-
-			if ( objectIndex < static_cast< UINT >(m_staticTreeGridCullFlags.size()) &&
-				 m_staticTreeGridCullFlags[objectIndex] != 0 )
-			{
-				continue;
-			}
-
-			const bool cameraVisible =
-				( camera == nullptr ) || cache.object->IsVisible(camera);
-
-			if ( !cameraVisible )
-				continue;
-
-			if ( objectIndex < static_cast< UINT >(m_staticOcclusionCullFlags.size()) &&
-				 m_staticOcclusionCullFlags[objectIndex] != 0 )
-			{
-				continue;
-			}
 
 			group.visibleSceneObjectIndices.push_back(objectIndex);
 		}
@@ -5349,6 +5392,78 @@ void CGameScene::BuildStaticVisibleListsForFrame(CCamera* camera)
 
 void CGameScene::BuildStaticShadowVisibleListsForFrame()
 {
+	const UINT objectCount =
+		static_cast< UINT >( m_staticBatch.objectRefs.size() );
+
+	if ( m_staticActiveLodLevels.size() != objectCount )
+	{
+		m_staticActiveLodLevels.assign(objectCount, -1);
+	}
+	else
+	{
+		std::fill(
+			m_staticActiveLodLevels.begin(),
+			m_staticActiveLodLevels.end(),
+			-1
+		);
+	}
+
+	if ( m_staticShadowVisibleFlags.size() != objectCount )
+	{
+		m_staticShadowVisibleFlags.assign(objectCount, 0);
+	}
+	else
+	{
+		std::fill(
+			m_staticShadowVisibleFlags.begin(),
+			m_staticShadowVisibleFlags.end(),
+			0
+		);
+	}
+
+	for ( UINT objectIndex = 0; objectIndex < objectCount; ++objectIndex )
+	{
+		if ( objectIndex >= static_cast< UINT >(m_staticRenderObjectCache.size()) )
+			continue;
+
+		const StaticRenderObjectCache& cache =
+			m_staticRenderObjectCache[objectIndex];
+
+		if ( !cache.object )
+			continue;
+
+		if ( !cache.renderer )
+			continue;
+
+		if ( !cache.renderer->IsEnabled() )
+			continue;
+
+		m_staticActiveLodLevels[objectIndex] =
+			GetStaticObjectActiveLodLevel(objectIndex);
+
+		if ( objectIndex < static_cast< UINT >(m_staticShadowCasterFlags.size()) &&
+			 m_staticShadowCasterFlags[objectIndex] == 0 )
+		{
+			continue;
+		}
+
+		if ( objectIndex < static_cast< UINT >(m_staticDistanceCullFlags.size()) &&
+			 m_staticDistanceCullFlags[objectIndex] != 0 )
+		{
+			continue;
+		}
+
+		if ( objectIndex < static_cast< UINT >(m_staticTreeGridCullFlags.size()) &&
+			 m_staticTreeGridCullFlags[objectIndex] != 0 )
+		{
+			continue;
+		}
+
+		if ( !IsStaticObjectInsideShadowBox(objectIndex) )
+			continue;
+
+		m_staticShadowVisibleFlags[objectIndex] = 1;
+	}
 
 	for ( StaticInstanceGroup& group : m_staticInstanceGroups )
 	{
@@ -5356,46 +5471,13 @@ void CGameScene::BuildStaticShadowVisibleListsForFrame()
 
 		for ( UINT objectIndex : group.objectIndices )
 		{
-			if ( objectIndex >= static_cast< UINT >( m_staticBatch.objectRefs.size() ) )
+			if ( objectIndex >= objectCount )
 				continue;
 
-			if ( objectIndex >= static_cast< UINT >( m_staticRenderObjectCache.size() ) )
+			if ( m_staticShadowVisibleFlags[objectIndex] == 0 )
 				continue;
 
-			if ( group.lodLevel != GetStaticObjectActiveLodLevel(objectIndex) )
-				continue;
-
-			const StaticRenderObjectCache& cache =
-				m_staticRenderObjectCache[objectIndex];
-
-			if ( !cache.object )
-				continue;
-
-			if ( !cache.renderer )
-				continue;
-
-			if ( !cache.renderer->IsEnabled() )
-				continue;
-
-			if ( objectIndex < static_cast< UINT >(m_staticShadowCasterFlags.size()) &&
-				 m_staticShadowCasterFlags[objectIndex] == 0 )
-			{
-				continue;
-			}
-
-			if ( objectIndex < static_cast< UINT >(m_staticDistanceCullFlags.size()) &&
-				 m_staticDistanceCullFlags[objectIndex] != 0 )
-			{
-				continue;
-			}
-
-			if ( objectIndex < static_cast< UINT >(m_staticTreeGridCullFlags.size()) &&
-				 m_staticTreeGridCullFlags[objectIndex] != 0 )
-			{
-				continue;
-			}
-
-			if ( !IsStaticObjectInsideShadowBox(objectIndex) )
+			if ( group.lodLevel != m_staticActiveLodLevels[objectIndex] )
 				continue;
 
 			group.visibleShadowObjectIndices.push_back(objectIndex);
