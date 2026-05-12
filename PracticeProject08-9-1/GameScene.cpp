@@ -8,7 +8,6 @@
 #include <cmath>
 #include <fstream>
 #include <iomanip>
-#include <cstdio>
 #include <cctype>
 #include <unordered_map>
 #include <algorithm>
