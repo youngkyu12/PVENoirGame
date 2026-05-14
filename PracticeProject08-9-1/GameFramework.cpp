@@ -26,7 +26,7 @@ namespace
 {
 	using FramePacingClock = std::chrono::high_resolution_clock;
 
-	static constexpr bool kLogFramePacingDiagnostics = true;
+	static constexpr bool kLogFramePacingDiagnostics = false;
 
 	static constexpr double kFramePacingLogMinFrameMs = 16.0;
 	static constexpr double kFramePacingLogMinWaitMs = 1.0;
@@ -1505,7 +1505,7 @@ void CGameFramework::FrameAdvance()
 		}
 	}
 #endif
-	//CollisionSystem();
+	CollisionSystem();
 
 	const auto framePacingBeforeWait = FramePacingClock::now();
 
