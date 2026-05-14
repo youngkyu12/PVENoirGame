@@ -14,14 +14,17 @@ namespace Protocol
 
 struct RoomTimingConfig
 {
-	uint64 serverTickIntervalMs = 160;
+	uint64 serverTickIntervalMs = 16;
 	uint64 frameStateIntervalMs = 160;
 	uint64 enemyAiIntervalMs = 300;
 	uint64 clientReadyPollIntervalMs = 100;
 	uint64 gameStartDelayMs = 100;
 
-	float playerInputDtSec = 0.16f;
+	float playerInputDtSec = 0.016f;
 	float enemyAiDtSec = 0.3f;
+
+	float projectileDtSec = 0.016f;
+	uint64 projectileLifeTickMs = 16;
 
 	uint64 animClockIntervalMs = 160;
 	uint64 combatClockIntervalMs = 160;
@@ -71,10 +74,14 @@ public:
 	const RoomTimingConfig& GetTimingConfig() const { return m_timing; }
 	uint32 GetAnimClockTick() const
 	{
+		if (m_timing.animClockIntervalMs == 0)
+			return tick.load();
 		return static_cast<uint32>(m_elapsedServerMs / m_timing.animClockIntervalMs);
 	}
 	uint32 GetCombatClockTick() const
 	{
+		if (m_timing.combatClockIntervalMs == 0)
+			return tick.load();
 		return static_cast<uint32>(m_elapsedServerMs / m_timing.combatClockIntervalMs);
 	}
 

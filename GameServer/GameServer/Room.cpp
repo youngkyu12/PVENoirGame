@@ -142,7 +142,7 @@ void Room::Enter(PlayerRef player)
 	player->SetMaxHp(kHpPlayer);
 
 	// life-state 초기 정상화
-	player->OnRespawnEnter(tick.load()); // 위치를 내부에서 덮어쓰면 아래 순서 조정 필요
+	player->OnRespawnEnter(GetAnimClockTick()); // 위치를 내부에서 덮어쓰면 아래 순서 조정 필요
 	player->SetPosition(GetInitialPlayerSpawnPosition(player->playerId));
 
 	player->SetWeapon(

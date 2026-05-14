@@ -41,6 +41,8 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	const int32 packetMoveKeyCodes = (moveKeyCodes != 0) ? (keyCodes & kDirPacketMoveMask) : 0;
 	player->SetLastMoveKeyCodes(packetMoveKeyCodes);
 
+	const uint32 animClockTick = GetAnimClockTick();
+	const uint32 combatClockTick = GetCombatClockTick();
 	Protocol::AnimationType prevAnimState = player->GetAnimState();
 
 	if ((keyCodes & kDirLButton) != 0)
@@ -48,10 +50,10 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		switch (player->GetWeaponState())
 		{
 		case Protocol::WEAPON_TYPE_BOW:
-			if (player->GetWeapon().BeginAttack(tick.load()))
+			if (player->GetWeapon().BeginAttack(combatClockTick))
 			{
 				player->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
-				player->SetAnimTick(tick.load());
+				player->SetAnimTick(animClockTick);
 				//player->SetVelocity(GameMath::Vec3::Zero());
 			}
 			break;
@@ -89,7 +91,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	}
 
 	if (player->GetAnimState() != prevAnimState)
-		player->SetAnimTick(tick);
+		player->SetAnimTick(animClockTick);
 
 	GameMath::Vec3 look = player->GetLook();
 	GameMath::Vec3 right = player->GetRight();
