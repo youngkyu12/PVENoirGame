@@ -956,6 +956,197 @@ void CGameScene::RenderSkinnedOcclusionPass(ID3D12GraphicsCommandList* cmd, CCam
 	RestoreSceneRenderTargets(cmd, camera);
 }
 
+void CGameScene::RenderSpawnOcclusionPass(ID3D12GraphicsCommandList* cmd, CCamera* camera)
+{
+	if ( !cmd )
+		return;
+
+	if ( !camera )
+		return;
+
+	if ( !m_bSpawnOcclusionCullingEnabled )
+		return;
+
+	if ( !m_bSpawnOcclusionQueryResourcesReady )
+		return;
+
+	if ( m_spawnOcclusionEntries.empty() )
+		return;
+
+	if ( !m_staticOcclusionUnitBoxMesh )
+		return;
+
+	if ( !m_occlusionStaticShader )
+		return;
+
+	if ( !m_bSceneRenderTargetsReady )
+		return;
+
+	if ( !m_pd3dSpawnOcclusionInstanceBuffer )
+		return;
+
+	if ( !m_pMappedSpawnOcclusionInstanceBuffer )
+		return;
+
+	if ( m_staticOcclusionUnitBoxMesh->m_SubMeshes.empty() )
+		return;
+
+	const SubMesh& sm = m_staticOcclusionUnitBoxMesh->m_SubMeshes[0];
+	if ( sm.indices.empty() )
+		return;
+
+	cmd->SetGraphicsRootSignature(GetGraphicsRootSignature());
+
+	if ( m_pDescriptorHeap && m_pDescriptorHeap->m_pd3dCbvSrvDescriptorHeap )
+	{
+		cmd->SetDescriptorHeaps(1, m_pDescriptorHeap->m_pd3dCbvSrvDescriptorHeap.GetAddressOf());
+		cmd->SetGraphicsRootDescriptorTable(
+			ROOT_PARAMETER_GLOBAL_SRV,
+			m_pDescriptorHeap->GetGPUSrvDescriptorStartHandle()
+		);
+	}
+
+	camera->SetViewportsAndScissorRects(cmd);
+
+	cmd->OMSetRenderTargets(
+		0,
+		nullptr,
+		FALSE,
+		&m_sceneDsvHandle
+	);
+
+	m_occlusionStaticShader->Render(cmd, camera, &m_staticBatch);
+	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	m_spawnOcclusionCurrentFrameIssuedFlags.assign(m_spawnOcclusionEntries.size(), 0);
+
+	const XMFLOAT3 cameraPosition = camera->GetPosition();
+	const float minTestDistanceSq =
+		m_spawnOcclusionMinTestDistance * m_spawnOcclusionMinTestDistance;
+
+	for ( UINT queryIndex = 0; queryIndex < ( UINT ) m_spawnOcclusionEntries.size(); ++queryIndex )
+	{
+		SkinnedOcclusionEntry& entry = m_spawnOcclusionEntries[queryIndex];
+
+		bool issueRealQuery = true;
+
+		if ( !entry.enabled )
+			issueRealQuery = false;
+
+		if ( !entry.object )
+			issueRealQuery = false;
+
+		if ( entry.skinnedBatchObjectIndex == UINT_MAX )
+			issueRealQuery = false;
+
+		if ( entry.skinnedBatchObjectIndex >= ( UINT ) m_spawnBatch.objectRefs.size() )
+			issueRealQuery = false;
+
+		if ( issueRealQuery )
+		{
+			entry.hasWorldBounds =
+				TryBuildSkinnedOcclusionWorldBounds(entry.object, entry.assetName, entry.worldBounds);
+
+			if ( !entry.hasWorldBounds )
+				issueRealQuery = false;
+		}
+
+		if ( issueRealQuery )
+		{
+			if ( entry.skinnedBatchObjectIndex < ( UINT ) m_spawnDistanceCullFlags.size() )
+			{
+				if ( m_spawnDistanceCullFlags[entry.skinnedBatchObjectIndex] != 0 )
+					issueRealQuery = false;
+			}
+		}
+
+		if ( issueRealQuery )
+		{
+			if ( !entry.object->IsVisible(camera) )
+				issueRealQuery = false;
+		}
+
+		if ( issueRealQuery )
+		{
+			const float dx = cameraPosition.x - entry.worldBounds.Center.x;
+			const float dy = cameraPosition.y - entry.worldBounds.Center.y;
+			const float dz = cameraPosition.z - entry.worldBounds.Center.z;
+			const float distSq = dx * dx + dy * dy + dz * dz;
+
+			if ( distSq < minTestDistanceSq )
+			{
+				issueRealQuery = false;
+			}
+			else
+			{
+				const float dist = std::sqrt(distSq);
+				float maxExtent = entry.worldBounds.Extents.x;
+				if ( entry.worldBounds.Extents.y > maxExtent ) maxExtent = entry.worldBounds.Extents.y;
+				if ( entry.worldBounds.Extents.z > maxExtent ) maxExtent = entry.worldBounds.Extents.z;
+
+				if ( dist > 0.0001f )
+				{
+					const float extentDistanceRatio = maxExtent / dist;
+
+					if ( extentDistanceRatio > m_spawnOcclusionMaxCullExtentDistanceRatio )
+						issueRealQuery = false;
+				}
+			}
+		}
+
+		cmd->BeginQuery(
+			m_pd3dSpawnOcclusionQueryHeap.Get(),
+			D3D12_QUERY_TYPE_OCCLUSION,
+			queryIndex
+		);
+
+		if ( issueRealQuery )
+		{
+			m_spawnOcclusionCurrentFrameIssuedFlags[queryIndex] = 1;
+
+			const XMFLOAT4X4 world = BuildOcclusionWorldMatrixFromOOBB(entry.worldBounds);
+
+			StaticInstanceVertex& dst = m_pMappedSpawnOcclusionInstanceBuffer[queryIndex];
+			ZeroMemory(&dst, sizeof(dst));
+
+			dst.world0 = XMFLOAT4(world._11, world._12, world._13, world._14);
+			dst.world1 = XMFLOAT4(world._21, world._22, world._23, world._24);
+			dst.world2 = XMFLOAT4(world._31, world._32, world._33, world._34);
+			dst.world3 = XMFLOAT4(world._41, world._42, world._43, world._44);
+			dst.objectId = 0;
+
+			D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
+			vbViews[0] = sm.vbView;
+			vbViews[1].BufferLocation =
+				m_pd3dSpawnOcclusionInstanceBuffer->GetGPUVirtualAddress()
+				+ sizeof(StaticInstanceVertex) * queryIndex;
+			vbViews[1].SizeInBytes = sizeof(StaticInstanceVertex);
+			vbViews[1].StrideInBytes = sizeof(StaticInstanceVertex);
+
+			cmd->SetGraphicsRoot32BitConstant(ROOT_PARAMETER_MATERIAL_ID, 0u, 0);
+			cmd->IASetVertexBuffers(0, 2, vbViews);
+			cmd->IASetIndexBuffer(&sm.ibView);
+
+			cmd->DrawIndexedInstanced(
+				( UINT ) sm.indices.size(),
+				1,
+				0,
+				0,
+				0
+			);
+		}
+
+		cmd->EndQuery(
+			m_pd3dSpawnOcclusionQueryHeap.Get(),
+			D3D12_QUERY_TYPE_OCCLUSION,
+			queryIndex
+		);
+	}
+
+	ResolveSpawnOcclusionQueries(cmd);
+	RestoreSceneRenderTargets(cmd, camera);
+}
+
 void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 {
 	m_staticOcclusionCullFlags.assign(m_staticBatch.objectRefs.size(), 0);
@@ -1087,6 +1278,18 @@ void CGameScene::ResetSkinnedOcclusionEntries()
 	m_bSkinnedOcclusionQueryResultsValid = false;
 }
 
+void CGameScene::ResetSpawnOcclusionEntries()
+{
+	m_spawnOcclusionEntries.clear();
+	m_spawnOcclusionCullFlags.clear();
+	m_spawnOcclusionQuerySampleCounts.clear();
+	m_spawnOcclusionLastFrameIssuedFlags.clear();
+	m_spawnOcclusionCurrentFrameIssuedFlags.clear();
+	m_spawnOcclusionZeroSampleFrameCounts.clear();
+	m_spawnOcclusionQueryCapacity = 0;
+	m_bSpawnOcclusionQueryResultsValid = false;
+}
+
 void CGameScene::BuildSkinnedOcclusionEntries()
 {
 	ResetSkinnedOcclusionEntries();
@@ -1118,6 +1321,40 @@ void CGameScene::BuildSkinnedOcclusionEntries()
 			TryBuildSkinnedOcclusionWorldBounds(entry.object, entry.assetName, entry.worldBounds);
 
 		m_skinnedOcclusionEntries.push_back(std::move(entry));
+	}
+}
+
+void CGameScene::BuildSpawnOcclusionEntries()
+{
+	ResetSpawnOcclusionEntries();
+
+	m_spawnOcclusionCullFlags.assign(m_spawnBatch.objectRefs.size(), 0);
+
+	for ( const SkinnedWorldLodEntry& lodEntry : m_spawnWorldLodEntries )
+	{
+		if ( !lodEntry.object )
+			continue;
+
+		if ( lodEntry.skinnedBatchObjectIndex == UINT_MAX )
+			continue;
+
+		if ( lodEntry.skinnedBatchObjectIndex >= ( UINT ) m_spawnBatch.objectRefs.size() )
+			continue;
+
+		const std::string& assetName = lodEntry.assetName;
+
+		if ( !IsSkinnedOcclusionTargetAssetName(assetName) )
+			continue;
+
+		SkinnedOcclusionEntry entry{};
+		entry.object = lodEntry.object;
+		entry.skinnedBatchObjectIndex = lodEntry.skinnedBatchObjectIndex;
+		entry.assetName = assetName;
+		entry.enabled = true;
+		entry.hasWorldBounds =
+			TryBuildSkinnedOcclusionWorldBounds(entry.object, entry.assetName, entry.worldBounds);
+
+		m_spawnOcclusionEntries.push_back(std::move(entry));
 	}
 }
 
@@ -1260,6 +1497,146 @@ void CGameScene::BuildSkinnedOcclusionGpuResources(ID3D12Device* dev)
 	m_bSkinnedOcclusionQueryResourcesReady = true;
 }
 
+void CGameScene::BuildSpawnOcclusionGpuResources(ID3D12Device* dev)
+{
+	ReleaseSpawnOcclusionGpuResources();
+
+	if ( !dev )
+		return;
+
+	const UINT queryCount = ( UINT ) m_spawnOcclusionEntries.size();
+	m_spawnOcclusionQueryCapacity = queryCount;
+	m_spawnOcclusionQuerySampleCounts.assign(queryCount, 1ull);
+	m_spawnOcclusionLastFrameIssuedFlags.assign(queryCount, 0);
+	m_spawnOcclusionCurrentFrameIssuedFlags.assign(queryCount, 0);
+	m_spawnOcclusionZeroSampleFrameCounts.assign(queryCount, 0);
+	m_bSpawnOcclusionQueryResultsValid = false;
+
+	if ( queryCount == 0 )
+		return;
+
+	D3D12_QUERY_HEAP_DESC queryHeapDesc{};
+	queryHeapDesc.Count = queryCount;
+	queryHeapDesc.Type = D3D12_QUERY_HEAP_TYPE_OCCLUSION;
+	queryHeapDesc.NodeMask = 0;
+
+	HRESULT hr = dev->CreateQueryHeap(
+		&queryHeapDesc,
+		IID_PPV_ARGS(m_pd3dSpawnOcclusionQueryHeap.ReleaseAndGetAddressOf())
+	);
+
+	if ( FAILED(hr) )
+	{
+		OutputDebugStringA("[SkinnedOcclusion] CreateQueryHeap failed.\n");
+		return;
+	}
+
+	D3D12_HEAP_PROPERTIES readbackHeapProps{};
+	readbackHeapProps.Type = D3D12_HEAP_TYPE_READBACK;
+	readbackHeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	readbackHeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	readbackHeapProps.CreationNodeMask = 1;
+	readbackHeapProps.VisibleNodeMask = 1;
+
+	D3D12_RESOURCE_DESC readbackDesc{};
+	readbackDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	readbackDesc.Alignment = 0;
+	readbackDesc.Width = sizeof(UINT64) * queryCount;
+	readbackDesc.Height = 1;
+	readbackDesc.DepthOrArraySize = 1;
+	readbackDesc.MipLevels = 1;
+	readbackDesc.Format = DXGI_FORMAT_UNKNOWN;
+	readbackDesc.SampleDesc.Count = 1;
+	readbackDesc.SampleDesc.Quality = 0;
+	readbackDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	readbackDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	hr = dev->CreateCommittedResource(
+		&readbackHeapProps,
+		D3D12_HEAP_FLAG_NONE,
+		&readbackDesc,
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		nullptr,
+		IID_PPV_ARGS(m_pd3dSpawnOcclusionReadbackBuffer.ReleaseAndGetAddressOf())
+	);
+
+	if ( FAILED(hr) )
+	{
+		OutputDebugStringA("[SkinnedOcclusion] Create readback buffer failed.\n");
+		ReleaseSkinnedOcclusionGpuResources();
+		return;
+	}
+
+	D3D12_RANGE readRange{};
+	readRange.Begin = 0;
+	readRange.End = 0;
+
+	hr = m_pd3dSpawnOcclusionReadbackBuffer->Map(
+		0,
+		&readRange,
+		reinterpret_cast< void** >( &m_pMappedSpawnOcclusionReadbackBuffer )
+	);
+
+	if ( FAILED(hr) || !m_pMappedSpawnOcclusionReadbackBuffer )
+	{
+		OutputDebugStringA("[SkinnedOcclusion] Map readback buffer failed.\n");
+		ReleaseSkinnedOcclusionGpuResources();
+		return;
+	}
+
+	D3D12_HEAP_PROPERTIES uploadHeapProps{};
+	uploadHeapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+	uploadHeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	uploadHeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	uploadHeapProps.CreationNodeMask = 1;
+	uploadHeapProps.VisibleNodeMask = 1;
+
+	D3D12_RESOURCE_DESC instanceDesc{};
+	instanceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	instanceDesc.Alignment = 0;
+	instanceDesc.Width = sizeof(StaticInstanceVertex) * queryCount;
+	instanceDesc.Height = 1;
+	instanceDesc.DepthOrArraySize = 1;
+	instanceDesc.MipLevels = 1;
+	instanceDesc.Format = DXGI_FORMAT_UNKNOWN;
+	instanceDesc.SampleDesc.Count = 1;
+	instanceDesc.SampleDesc.Quality = 0;
+	instanceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	instanceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	hr = dev->CreateCommittedResource(
+		&uploadHeapProps,
+		D3D12_HEAP_FLAG_NONE,
+		&instanceDesc,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(m_pd3dSpawnOcclusionInstanceBuffer.ReleaseAndGetAddressOf())
+	);
+
+	if ( FAILED(hr) )
+	{
+		OutputDebugStringA("[SkinnedOcclusion] Create instance buffer failed.\n");
+		ReleaseSkinnedOcclusionGpuResources();
+		return;
+	}
+
+	hr = m_pd3dSpawnOcclusionInstanceBuffer->Map(
+		0,
+		nullptr,
+		reinterpret_cast< void** >( &m_pMappedSpawnOcclusionInstanceBuffer )
+	);
+
+	if ( FAILED(hr) || !m_pMappedSpawnOcclusionInstanceBuffer )
+	{
+		OutputDebugStringA("[SkinnedOcclusion] Map instance buffer failed.\n");
+		ReleaseSkinnedOcclusionGpuResources();
+		return;
+	}
+
+	m_bSpawnOcclusionQueryResourcesReady = true;
+}
+
+
 void CGameScene::ReleaseSkinnedOcclusionGpuResources()
 {
 	if ( m_pd3dSkinnedOcclusionInstanceBuffer )
@@ -1296,6 +1673,42 @@ void CGameScene::ReleaseSkinnedOcclusionGpuResources()
 	m_skinnedOcclusionZeroSampleFrameCounts.clear();
 }
 
+void CGameScene::ReleaseSpawnOcclusionGpuResources()
+{
+	if ( m_pd3dSpawnOcclusionInstanceBuffer )
+	{
+		if ( m_pMappedSpawnOcclusionInstanceBuffer )
+		{
+			m_pd3dSpawnOcclusionInstanceBuffer->Unmap(0, nullptr);
+			m_pMappedSpawnOcclusionInstanceBuffer = nullptr;
+		}
+
+		m_pd3dSpawnOcclusionInstanceBuffer.Reset();
+	}
+
+	if ( m_pd3dSpawnOcclusionReadbackBuffer )
+	{
+		if ( m_pMappedSpawnOcclusionReadbackBuffer )
+		{
+			m_pd3dSpawnOcclusionReadbackBuffer->Unmap(0, nullptr);
+			m_pMappedSpawnOcclusionReadbackBuffer = nullptr;
+		}
+
+		m_pd3dSpawnOcclusionReadbackBuffer.Reset();
+	}
+
+	if ( m_pd3dSpawnOcclusionQueryHeap )
+		m_pd3dSpawnOcclusionQueryHeap.Reset();
+
+	m_spawnOcclusionQueryCapacity = 0;
+	m_bSpawnOcclusionQueryResourcesReady = false;
+	m_bSpawnOcclusionQueryResultsValid = false;
+	m_spawnOcclusionQuerySampleCounts.clear();
+	m_spawnOcclusionLastFrameIssuedFlags.clear();
+	m_spawnOcclusionCurrentFrameIssuedFlags.clear();
+	m_spawnOcclusionZeroSampleFrameCounts.clear();
+}
+
 void CGameScene::BeginSkinnedOcclusionReadback()
 {
 	if ( !m_bSkinnedOcclusionQueryResourcesReady )
@@ -1318,6 +1731,31 @@ void CGameScene::BeginSkinnedOcclusionReadback()
 	{
 		m_skinnedOcclusionQuerySampleCounts[i] =
 			m_pMappedSkinnedOcclusionReadbackBuffer[i];
+	}
+}
+
+void CGameScene::BeginSpawnOcclusionReadback()
+{
+	if ( !m_bSpawnOcclusionQueryResourcesReady )
+		return;
+
+	if ( !m_bSpawnOcclusionQueryResultsValid )
+		return;
+
+	if ( !m_pMappedSpawnOcclusionReadbackBuffer )
+		return;
+
+	const UINT queryCount = ( UINT ) m_spawnOcclusionEntries.size();
+	if ( queryCount == 0 )
+		return;
+
+	if ( m_spawnOcclusionQuerySampleCounts.size() != queryCount )
+		m_spawnOcclusionQuerySampleCounts.assign(queryCount, 1ull);
+
+	for ( UINT i = 0; i < queryCount; ++i )
+	{
+		m_spawnOcclusionQuerySampleCounts[i] =
+			m_pMappedSpawnOcclusionReadbackBuffer[i];
 	}
 }
 
@@ -1344,6 +1782,31 @@ void CGameScene::ResolveSkinnedOcclusionQueries(ID3D12GraphicsCommandList* cmd)
 
 	m_skinnedOcclusionLastFrameIssuedFlags = m_skinnedOcclusionCurrentFrameIssuedFlags;
 	m_bSkinnedOcclusionQueryResultsValid = true;
+}
+
+void CGameScene::ResolveSpawnOcclusionQueries(ID3D12GraphicsCommandList* cmd)
+{
+	if ( !cmd )
+		return;
+
+	if ( !m_bSpawnOcclusionQueryResourcesReady )
+		return;
+
+	const UINT queryCount = ( UINT ) m_spawnOcclusionEntries.size();
+	if ( queryCount == 0 )
+		return;
+
+	cmd->ResolveQueryData(
+		m_pd3dSpawnOcclusionQueryHeap.Get(),
+		D3D12_QUERY_TYPE_OCCLUSION,
+		0,
+		queryCount,
+		m_pd3dSpawnOcclusionReadbackBuffer.Get(),
+		0
+	);
+
+	m_spawnOcclusionLastFrameIssuedFlags = m_spawnOcclusionCurrentFrameIssuedFlags;
+	m_bSpawnOcclusionQueryResultsValid = true;
 }
 
 void CGameScene::UpdateSkinnedOcclusionCullSelection(CCamera* camera)
@@ -1518,6 +1981,182 @@ void CGameScene::UpdateSkinnedOcclusionCullSelection(CCamera* camera)
 			const UINT followerIndex = followerSkinnedIt->second;
 			if ( followerIndex < ( UINT ) m_skinnedDistanceCullFlags.size() )
 				m_skinnedDistanceCullFlags[followerIndex] = 1;
+		}
+	}
+}
+
+void CGameScene::UpdateSpawnOcclusionCullSelection(CCamera* camera)
+{
+	m_spawnOcclusionCullFlags.assign(m_spawnBatch.objectRefs.size(), 0);
+
+	if ( !m_bSpawnOcclusionCullingEnabled )
+		return;
+
+	if ( !camera )
+		return;
+
+	const XMFLOAT3 cameraPosition = camera->GetPosition();
+	const float minTestDistanceSq =
+		m_spawnOcclusionMinTestDistance * m_spawnOcclusionMinTestDistance;
+
+	for ( size_t occlusionIndex = 0; occlusionIndex < m_spawnOcclusionEntries.size(); ++occlusionIndex )
+	{
+		SkinnedOcclusionEntry& entry = m_spawnOcclusionEntries[occlusionIndex];
+
+		if ( !entry.enabled )
+			continue;
+
+		if ( !entry.object )
+			continue;
+
+		if ( entry.skinnedBatchObjectIndex == UINT_MAX )
+			continue;
+
+		if ( entry.skinnedBatchObjectIndex >= ( UINT ) m_spawnOcclusionCullFlags.size() )
+			continue;
+
+		if ( occlusionIndex >= m_spawnOcclusionZeroSampleFrameCounts.size() )
+			continue;
+
+		entry.hasWorldBounds =
+			TryBuildSkinnedOcclusionWorldBounds(entry.object, entry.assetName, entry.worldBounds);
+
+		if ( !entry.hasWorldBounds )
+		{
+			m_spawnOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+			continue;
+		}
+
+		if ( entry.skinnedBatchObjectIndex < ( UINT ) m_spawnDistanceCullFlags.size() )
+		{
+			if ( m_spawnDistanceCullFlags[entry.skinnedBatchObjectIndex] != 0 )
+			{
+				m_spawnOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+				continue;
+			}
+		}
+
+		if ( !entry.object->IsVisible(camera) )
+		{
+			m_spawnOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+			continue;
+		}
+
+		const float dx = cameraPosition.x - entry.worldBounds.Center.x;
+		const float dy = cameraPosition.y - entry.worldBounds.Center.y;
+		const float dz = cameraPosition.z - entry.worldBounds.Center.z;
+		const float distSq = dx * dx + dy * dy + dz * dz;
+
+		if ( distSq < minTestDistanceSq )
+		{
+			m_spawnOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+			continue;
+		}
+
+		const float dist = std::sqrt(distSq);
+		float maxExtent = entry.worldBounds.Extents.x;
+		if ( entry.worldBounds.Extents.y > maxExtent ) maxExtent = entry.worldBounds.Extents.y;
+		if ( entry.worldBounds.Extents.z > maxExtent ) maxExtent = entry.worldBounds.Extents.z;
+
+		if ( dist > 0.0001f )
+		{
+			const float extentDistanceRatio = maxExtent / dist;
+
+			if ( extentDistanceRatio > m_spawnOcclusionMaxCullExtentDistanceRatio )
+			{
+				m_spawnOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+				continue;
+			}
+		}
+
+		if ( !m_bSpawnOcclusionQueryResultsValid )
+		{
+			m_spawnOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+			continue;
+		}
+
+		if ( occlusionIndex >= m_spawnOcclusionQuerySampleCounts.size() )
+		{
+			m_spawnOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+			continue;
+		}
+
+		if ( occlusionIndex >= m_spawnOcclusionLastFrameIssuedFlags.size() )
+		{
+			m_spawnOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+			continue;
+		}
+
+		if ( m_spawnOcclusionLastFrameIssuedFlags[occlusionIndex] == 0 )
+		{
+			m_spawnOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+			continue;
+		}
+
+		if ( m_spawnOcclusionQuerySampleCounts[occlusionIndex] == 0ull )
+		{
+			uint8_t& zeroFrameCount = m_spawnOcclusionZeroSampleFrameCounts[occlusionIndex];
+
+			if ( zeroFrameCount < 255 )
+				++zeroFrameCount;
+
+			if ( zeroFrameCount >= m_spawnOcclusionHideFrameThreshold )
+				m_spawnOcclusionCullFlags[entry.skinnedBatchObjectIndex] = 1;
+		}
+		else
+		{
+			m_spawnOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+		}
+	}
+
+	std::unordered_map<const CGameObject*, UINT> staticIndexByObject;
+	staticIndexByObject.reserve(m_staticBatch.objectRefs.size());
+
+	for ( UINT i = 0; i < ( UINT ) m_staticBatch.objectRefs.size(); ++i )
+	{
+		if ( m_staticBatch.objectRefs[i] )
+			staticIndexByObject[m_staticBatch.objectRefs[i]] = i;
+	}
+
+	std::unordered_map<const CGameObject*, UINT> skinnedIndexByObject;
+	skinnedIndexByObject.reserve(m_spawnBatch.objectRefs.size());
+
+	for ( UINT i = 0; i < ( UINT ) m_spawnBatch.objectRefs.size(); ++i )
+	{
+		if ( m_spawnBatch.objectRefs[i] )
+			skinnedIndexByObject[m_spawnBatch.objectRefs[i]] = i;
+	}
+
+	for ( const AttachmentBindSpec& spec : m_attachmentBinds )
+	{
+		if ( !spec.follower || !spec.target )
+			continue;
+
+		auto targetIt = skinnedIndexByObject.find(spec.target);
+		if ( targetIt == skinnedIndexByObject.end() )
+			continue;
+
+		const UINT targetIndex = targetIt->second;
+		if ( targetIndex >= ( UINT ) m_spawnOcclusionCullFlags.size() )
+			continue;
+
+		if ( m_spawnOcclusionCullFlags[targetIndex] == 0 )
+			continue;
+
+		auto followerStaticIt = staticIndexByObject.find(spec.follower);
+		if ( followerStaticIt != staticIndexByObject.end() )
+		{
+			const UINT followerIndex = followerStaticIt->second;
+			if ( followerIndex < ( UINT ) m_staticDistanceCullFlags.size() )
+				m_staticDistanceCullFlags[followerIndex] = 1;
+		}
+
+		auto followerSkinnedIt = skinnedIndexByObject.find(spec.follower);
+		if ( followerSkinnedIt != skinnedIndexByObject.end() )
+		{
+			const UINT followerIndex = followerSkinnedIt->second;
+			if ( followerIndex < ( UINT ) m_spawnDistanceCullFlags.size() )
+				m_spawnDistanceCullFlags[followerIndex] = 1;
 		}
 	}
 }

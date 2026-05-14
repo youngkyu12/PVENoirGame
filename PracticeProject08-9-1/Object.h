@@ -185,7 +185,7 @@ public:
 	CAnimController* EnsureAnimController();
 	CAnimController* GetAnimController() const;
 
-	void SetId(int id) { m_ID = id; }
+	void SetId(int id) { m_Id = id; }
 	void SetActive(bool b) { m_bEnabled = b; }
 	bool IsActive() { return m_bEnabled; }
 	void Reset();
@@ -215,7 +215,7 @@ protected:
 	ID3D12Device* m_pd3dDeviceForComponents = nullptr;
 	ID3D12GraphicsCommandList* m_pd3dCmdForComponents = nullptr;
 
-	int m_ID = 0;
+	int m_Id = 0;
 	bool m_bEnabled = true;
 
 	// Legacy / fallback resources (kept as-is)

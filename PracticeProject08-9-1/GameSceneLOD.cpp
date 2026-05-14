@@ -391,6 +391,123 @@ void CGameScene::UpdateSkinnedWorldLodSelection(CCamera* camera)
 	}
 }
 
+void CGameScene::UpdateSpawnWorldLodSelection(CCamera* camera)
+{
+	if ( !camera )
+	{
+		m_spawnDistanceCullFlags.clear();
+		return;
+	}
+
+	m_spawnDistanceCullFlags.assign(m_spawnBatch.objectRefs.size(), 0);
+
+	if ( m_spawnWorldLodEntries.empty() )
+	{
+		m_spawnWorldLodDirty = false;
+		return;
+	}
+
+	const XMFLOAT3 cameraPosition = camera->GetPosition();
+	bool anyLodChanged = false;
+
+	for ( SkinnedWorldLodEntry& entry : m_spawnWorldLodEntries )
+	{
+		if ( !entry.object ) continue;
+		if ( entry.skinnedBatchObjectIndex == UINT_MAX ) continue;
+		if ( entry.skinnedBatchObjectIndex >= ( UINT ) m_spawnDistanceCullFlags.size() ) continue;
+
+		const bool distanceCulled =
+			ComputeSkinnedWorldDistanceCulled(cameraPosition, entry);
+
+		entry.distanceCulled = distanceCulled;
+
+		if ( distanceCulled )
+		{
+			m_spawnDistanceCullFlags[entry.skinnedBatchObjectIndex] = 1;
+			continue;
+		}
+
+		int desiredLod = ComputeSkinnedWorldLodLevel(cameraPosition, entry);
+		desiredLod = ClampSkinnedWorldLodLevel(desiredLod);
+
+		int resolvedLod = desiredLod;
+		while ( resolvedLod > 0 && !entry.lodMeshes[( size_t ) resolvedLod] )
+			--resolvedLod;
+
+		std::shared_ptr<CMesh> targetMesh = entry.lodMeshes[( size_t ) resolvedLod];
+		if ( !targetMesh ) continue;
+
+		std::shared_ptr<CMesh> currentMesh = entry.object->GetMeshShared(0);
+		if ( entry.currentLod == resolvedLod && currentMesh.get() == targetMesh.get() )
+			continue;
+	}
+
+	// --------------------------------------------------------------------
+	// body가 culled 되면 attachment follower도 같이 culled 처리
+	// - static follower : sword, helmet 등
+	// - skinned follower: bow 등
+	// --------------------------------------------------------------------
+	std::unordered_map<const CGameObject*, UINT> staticIndexByObject;
+	staticIndexByObject.reserve(m_staticBatch.objectRefs.size());
+
+	for ( UINT i = 0; i < ( UINT ) m_staticBatch.objectRefs.size(); ++i )
+	{
+		if ( m_staticBatch.objectRefs[i] )
+			staticIndexByObject[m_staticBatch.objectRefs[i]] = i;
+	}
+
+	std::unordered_map<const CGameObject*, UINT> skinnedIndexByObject;
+	skinnedIndexByObject.reserve(m_spawnBatch.objectRefs.size());
+
+	for ( UINT i = 0; i < ( UINT ) m_spawnBatch.objectRefs.size(); ++i )
+	{
+		if ( m_spawnBatch.objectRefs[i] )
+			skinnedIndexByObject[m_spawnBatch.objectRefs[i]] = i;
+	}
+
+	for ( const AttachmentBindSpec& spec : m_attachmentBinds )
+	{
+		if ( !spec.follower || !spec.target )
+			continue;
+
+		auto targetIt = skinnedIndexByObject.find(spec.target);
+		if ( targetIt == skinnedIndexByObject.end() )
+			continue;
+
+		const UINT targetIndex = targetIt->second;
+		if ( targetIndex >= ( UINT ) m_spawnDistanceCullFlags.size() )
+			continue;
+
+		if ( m_spawnDistanceCullFlags[targetIndex] == 0 )
+			continue;
+
+		auto followerStaticIt = staticIndexByObject.find(spec.follower);
+		if ( followerStaticIt != staticIndexByObject.end() )
+		{
+			const UINT followerIndex = followerStaticIt->second;
+			if ( followerIndex < ( UINT ) m_staticDistanceCullFlags.size() )
+				m_staticDistanceCullFlags[followerIndex] = 1;
+		}
+
+		auto followerSkinnedIt = skinnedIndexByObject.find(spec.follower);
+		if ( followerSkinnedIt != skinnedIndexByObject.end() )
+		{
+			const UINT followerIndex = followerSkinnedIt->second;
+			if ( followerIndex < ( UINT ) m_spawnDistanceCullFlags.size() )
+				m_spawnDistanceCullFlags[followerIndex] = 1;
+		}
+	}
+
+	if ( anyLodChanged )
+	{
+		BuildSkinnedInstanceGroups();
+		m_spawnWorldLodDirty = true;
+	}
+	else
+	{
+		m_spawnWorldLodDirty = false;
+	}
+}
 // spawn
 
 void CGameScene::ResetSpawnWorldLodEntries()

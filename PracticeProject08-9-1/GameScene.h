@@ -483,17 +483,27 @@ private:
 	void ResetSkinnedWorldLodEntries();
 
 	void ResetSkinnedOcclusionEntries();
+	void ResetSpawnOcclusionEntries();
 	void BuildSkinnedOcclusionEntries();
+	void BuildSpawnOcclusionEntries();
 	void BuildSkinnedOcclusionGpuResources(ID3D12Device* dev);
+	void BuildSpawnOcclusionGpuResources(ID3D12Device* dev);
 	void ReleaseSkinnedOcclusionGpuResources();
+	void ReleaseSpawnOcclusionGpuResources();
 	void BeginSkinnedOcclusionReadback();
+	void BeginSpawnOcclusionReadback();
 	void RenderSkinnedOcclusionPass(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	void RenderSpawnOcclusionPass(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	void ResolveSkinnedOcclusionQueries(ID3D12GraphicsCommandList* cmd);
+	void ResolveSpawnOcclusionQueries(ID3D12GraphicsCommandList* cmd);
 	void UpdateSkinnedOcclusionCullSelection(CCamera* camera);
+
+	void UpdateSpawnOcclusionCullSelection(CCamera* camera);
 
 	int ComputeSkinnedWorldLodLevel(const XMFLOAT3& cameraPosition, const SkinnedWorldLodEntry& entry) const;
 	bool ComputeSkinnedWorldDistanceCulled(const XMFLOAT3& cameraPosition, const SkinnedWorldLodEntry& entry) const;
 	void UpdateSkinnedWorldLodSelection(CCamera* camera);
+	void UpdateSpawnWorldLodSelection(CCamera* camera);
 	void RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	void RenderTerrainObjects(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	void RenderSpawnInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
@@ -712,8 +722,11 @@ private:
 	bool IsStaticObjectInsideShadowBox(UINT objectIndex) const;
 	bool IsSkinnedObjectInsideShadowBox(UINT objectIndex) const;
 
+	bool IsSpawnObjectInsideShadowBox(UINT objectIndex) const;
+
 	void RenderShadowMap(ID3D12GraphicsCommandList* cmd);
 	void RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList* cmd);
+	void RenderSpawnInstanceGroupsToShadowMap(ID3D12GraphicsCommandList* cmd);
 	void RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandList* cmd);
 	void RestoreSceneRenderTargets(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
@@ -1071,7 +1084,30 @@ private:
 	std::vector<SkinnedWorldLodEntry>   m_spawnWorldLodEntries;
 	std::vector<uint8_t>                m_spawnDistanceCullFlags;
 
+	std::vector<SkinnedOcclusionEntry>  m_spawnOcclusionEntries;
+	std::vector<uint8_t>                m_spawnOcclusionCullFlags;
+	std::vector<int>                    m_spawnShadowOcclusionEntryIndices;
+	std::vector<UINT64>                 m_spawnOcclusionQuerySampleCounts;
+	std::vector<uint8_t>                m_spawnOcclusionLastFrameIssuedFlags;
+	std::vector<uint8_t>                m_spawnOcclusionCurrentFrameIssuedFlags;
+	std::vector<uint8_t>                m_spawnOcclusionZeroSampleFrameCounts;
+	ComPtr<ID3D12QueryHeap>             m_pd3dSpawnOcclusionQueryHeap;
+	ComPtr<ID3D12Resource>              m_pd3dSpawnOcclusionReadbackBuffer;
+	UINT64* m_pMappedSpawnOcclusionReadbackBuffer = nullptr;
+	ComPtr<ID3D12Resource>              m_pd3dSpawnOcclusionInstanceBuffer;
+	StaticInstanceVertex* m_pMappedSpawnOcclusionInstanceBuffer = nullptr;
+	UINT                                m_spawnOcclusionQueryCapacity = 0;
+	bool                                m_bSpawnOcclusionQueryResourcesReady = false;
+	bool                                m_bSpawnOcclusionQueryResultsValid = false;
+	bool                                m_bSpawnOcclusionCullingEnabled = true;
+	UINT                                m_spawnOcclusionHideFrameThreshold = 8;
+	float                               m_spawnOcclusionMinTestDistance = 35.0f;
+	float                               m_spawnOcclusionMaxCullExtentDistanceRatio = 0.30f;
+
 	bool                                m_spawnWorldLodDirty = false;
+	float                               m_spawnLodHysteresis = 5.0f;
+	float                               m_spawnCullHysteresis = 10.0f;
+
 	SkinnedInstanceVertex* m_pMappedSpawnInstanceBuffer = nullptr;
 	UINT                                m_spawnInstanceBufferCapacity = 0;
 
