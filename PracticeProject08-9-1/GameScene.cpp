@@ -5376,11 +5376,11 @@ void CGameScene::RenderSpawnInstanceGroups(ID3D12GraphicsCommandList* cmd, CCame
 			const UINT objectIndex = group.objectIndices[i];
 			if ( objectIndex >= ( UINT ) m_spawnBatch.objectRefs.size() ) continue;
 
-			if ( objectIndex < ( UINT ) m_spawnDistanceCullFlags.size() )
+			/*if ( objectIndex < ( UINT ) m_spawnDistanceCullFlags.size() )
 			{
 				if ( m_spawnDistanceCullFlags[objectIndex] != 0 )
 					continue;
-			}
+			}*/
 
 			if ( objectIndex < ( UINT ) m_spawnOcclusionCullFlags.size() )
 			{
@@ -5389,7 +5389,7 @@ void CGameScene::RenderSpawnInstanceGroups(ID3D12GraphicsCommandList* cmd, CCame
 			}
 
 			CGameObject* obj = m_spawnBatch.objectRefs[objectIndex];
-			if ( !obj ) continue;
+			if ( !obj || !obj->IsActive() ) continue;
 			if ( !obj->IsVisible(camera) ) continue;
 
 			auto* renderer = obj->GetComponent<CSkinnedMeshRendererComponent>();
@@ -6151,6 +6151,23 @@ void CGameScene::BuildSpawnBatch(
 
 		m_pd3dSpawnInstanceBuffer->Map(
 			0, nullptr, ( void** ) &m_pMappedSpawnInstanceBuffer);
+	}
+
+	if ( m_spawnBonePaletteCapacity > 0 )
+	{
+		const UINT bonePaletteBufferBytes =
+			sizeof(XMFLOAT4X4) * m_spawnBonePaletteCapacity;
+
+		m_pd3dSpawnBonePaletteBuffer = ::CreateBufferResource(
+			dev, cmd, nullptr,
+			bonePaletteBufferBytes,
+			D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr
+		);
+
+		m_pd3dSpawnBonePaletteBuffer->Map(
+			0, nullptr, ( void** ) &m_pMappedSpawnBonePaletteBuffer);
 	}
 
 	BuildSpawnOcclusionEntries();
@@ -9339,12 +9356,6 @@ void CGameScene::AnimateObjects(float dt)
 	{
 		if ( !m_spawnObjects[j] )
 			continue;
-
-		if ( j < ( UINT ) m_spawnDistanceCullFlags.size() )
-		{
-			if ( m_spawnDistanceCullFlags[j] != 0 )
-				continue;
-		}
 
 		if ( camera && !m_spawnObjects[j]->IsVisible(camera) )
 			continue;
