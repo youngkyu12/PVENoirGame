@@ -275,9 +275,6 @@ void Room::TickAdvance()
 		}
 	}
 
-	if (_collision)
-		_collision->OnUpdate();
-
 	UpdateDynamicGridState();
 
 

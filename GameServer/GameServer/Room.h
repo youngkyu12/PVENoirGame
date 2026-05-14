@@ -16,7 +16,7 @@ struct RoomTimingConfig
 {
 	uint64 serverTickIntervalMs = 16;
 	uint64 frameStateIntervalMs = 160;
-	uint64 enemyAiIntervalMs = 300;
+	uint64 enemyAiIntervalMs = 200;
 	uint64 clientReadyPollIntervalMs = 100;
 	uint64 gameStartDelayMs = 100;
 
@@ -26,8 +26,8 @@ struct RoomTimingConfig
 	float projectileDtSec = 0.016f;
 	uint64 projectileLifeTickMs = 16;
 
-	uint64 animClockIntervalMs = 160;
-	uint64 combatClockIntervalMs = 160;
+	uint64 animClockIntervalMs = 60;
+	uint64 combatClockIntervalMs = 60;
 };
 
 class Room : public JobQueue
