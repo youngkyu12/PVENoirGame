@@ -72,8 +72,29 @@ private:
 
 	bool WorldToGridCell(float worldX, float worldZ, int& outCellX, int& outCellZ) const;
 	int GridCellIndex(int cellX, int cellZ) const;
+	bool GetGridCellRangeForWorldBounds(
+		float minWorldX,
+		float maxWorldX,
+		float minWorldZ,
+		float maxWorldZ,
+		int& outMinCellX,
+		int& outMaxCellX,
+		int& outMinCellZ,
+		int& outMaxCellZ) const;
 
 	int MegaGridIndex(int megaX, int megaZ) const;
+	bool WorldToMegaGridCell(float worldX, float worldZ, int& outMegaX, int& outMegaZ) const;
+	bool GetMegaGridRangeForCircle(
+		const GameMath::Vec3& center,
+		float radius,
+		int& outMinMegaX,
+		int& outMaxMegaX,
+		int& outMinMegaZ,
+		int& outMaxMegaZ) const;
+	void CollectEnemyIdsInMegaGridRadius(
+		const GameMath::Vec3& center,
+		float radius,
+		std::vector<uint64>& outEnemyIds) const;
 	bool FineCellToMegaGridCell(int cellX, int cellZ, int& outMegaX, int& outMegaZ) const;
 	bool IsFineCellInsideMegaGridApproachZone(int megaX, int megaZ, int cellX, int cellZ) const;
 
@@ -89,6 +110,7 @@ private:
 	{
 		uint16_t buildingCount = 0;
 		float floorHeight = 0.0f;
+		std::vector<uint64> buildingIds;
 	};
 
 	struct GridDynamicCell
@@ -107,6 +129,8 @@ private:
 
 		int approachWidthCells = 200;
 		int approachHeightCells = 200;
+
+		std::vector<uint64> enemyIds;
 	};
 
 	struct GridDynamicTracker
@@ -119,6 +143,14 @@ private:
 
 	void AddDynamicCount(int cellX, int cellZ, EGridDynamicKind kind, int delta);
 	void RegisterStaticBuildingToGrid(BuildingRef building);
+	void CollectStaticBuildingIdsForWorldBounds(
+		float minWorldX,
+		float maxWorldX,
+		float minWorldZ,
+		float maxWorldZ,
+		std::vector<uint64>& outBuildingIds) const;
+	bool HasCollisionWithNearbyWorldStatic(const CColliderComponent* subject) const;
+	void RebuildMegaGridEnemyIds();
 
 	void ResetDynamicGridCounts();
 	bool TryGetTrackedCell(const CServerObject* obj, int& outCellX, int& outCellZ) const;
