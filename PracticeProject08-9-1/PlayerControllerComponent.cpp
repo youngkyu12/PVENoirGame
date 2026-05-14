@@ -71,8 +71,15 @@ void CPlayerControllerComponent::ApplyYawToOwnerTransform()
 
 void CPlayerControllerComponent::SetInputDirection(DWORD dwDirection)
 {
-    m_inputDir = dwDirection;
-    SyncAnimatorLocomotion();
+	if ( !m_inputEnabled )
+	{
+		m_inputDir = 0;
+		SyncAnimatorLocomotion();
+		return;
+	}
+
+	m_inputDir = dwDirection;
+	SyncAnimatorLocomotion();
 }
 
 
@@ -121,6 +128,7 @@ void CPlayerControllerComponent::MoveByYaw(
 	CGameObject* owner = GetOwner();
 	if ( !owner ) return;
 
+	if ( !m_inputEnabled ) return;
 	if ( IsOwnerActionLocked(owner) ) return;
 	if ( !dwDirection ) return;
 
@@ -179,8 +187,9 @@ void CPlayerControllerComponent::MoveByYaw(
 
 void CPlayerControllerComponent::MoveShift(const XMFLOAT3& shift, bool bUpdateVelocity)
 {
-    CGameObject* owner = GetOwner();
-    if (!owner) return;
+	CGameObject* owner = GetOwner();
+	if ( !owner ) return;
+	if ( !m_inputEnabled ) return;
 
     if (bUpdateVelocity)
     {
@@ -195,6 +204,9 @@ void CPlayerControllerComponent::MoveShift(const XMFLOAT3& shift, bool bUpdateVe
 
 void CPlayerControllerComponent::RotateTowardYawDegrees(float targetYawDeg, float turnSpeed, float dt)
 {
+	if ( !m_inputEnabled )
+		return;
+
 	float delta = WrapAngle180(targetYawDeg - m_yawDeg);
 
 	float alpha = turnSpeed * dt;
@@ -206,8 +218,9 @@ void CPlayerControllerComponent::RotateTowardYawDegrees(float targetYawDeg, floa
 
 void CPlayerControllerComponent::Rotate(float /*pitchDeg*/, float yawDeg, float /*rollDeg*/)
 {
-    CGameObject* owner = GetOwner();
-    if (IsOwnerActionLocked(owner)) return;
+	CGameObject* owner = GetOwner();
+	if ( !m_inputEnabled ) return;
+	if ( IsOwnerActionLocked(owner) ) return;
     if (yawDeg != 0.0f)
         SetYawDegrees(m_yawDeg + yawDeg);
 }
@@ -236,8 +249,15 @@ bool CPlayerControllerComponent::ShouldFaceCameraWhileActionActive() const
 
 void CPlayerControllerComponent::OnUpdate(float dt)
 {
-    // gravity
-    m_velocity = Vector3::Add(
+	if ( !m_inputEnabled )
+	{
+		m_velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		SyncAnimatorLocomotion();
+		return;
+	}
+
+	// gravity
+	m_velocity = Vector3::Add(
         m_velocity,
         Vector3::ScalarProduct(m_gravity, dt, false)
     );
@@ -277,8 +297,24 @@ void CPlayerControllerComponent::OnUpdate(float dt)
     SyncAnimatorLocomotion();
 }
 
+void CPlayerControllerComponent::SetInputEnabled(bool enabled)
+{
+	m_inputEnabled = enabled;
+
+	if ( !m_inputEnabled )
+	{
+		m_inputDir = 0;
+		m_isRunRequested = false;
+		m_velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		SyncAnimatorLocomotion();
+	}
+}
+
 void CPlayerControllerComponent::SetRunRequested(bool run)
 {
-    m_isRunRequested = run;
-    SyncAnimatorLocomotion();
+	if ( !m_inputEnabled )
+		run = false;
+
+	m_isRunRequested = run;
+	SyncAnimatorLocomotion();
 }

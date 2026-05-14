@@ -1,51 +1,94 @@
+//Shadows.hlsl
+#ifndef __SHADOWS_HLSL__
+#define __SHADOWS_HLSL__
+
 #include "Common.hlsl"
 #include "MaterialTexture.hlsl"
-#include "Lighting.hlsl"
+#include "RenderTypes.hlsl"
+#include "Skinned.hlsl"
 
-struct VertexIn
+struct VS_SHADOW_MAP_OUTPUT
 {
-    float3 PosL : POSITION;
-    float3 NormalL : NORMAL;
-    float2 TexC : TEXCOORD;
-    float4 TangentL : TANGENT;
+    float4 position : SV_POSITION;
+    float2 uv : TEXCOORD0;
+    nointerpolation uint materialId : MATERIAL_ID;
 };
 
-struct VertexOut
+VS_SHADOW_MAP_OUTPUT VSShadowMapStaticInstanced(
+    VS_TEXTURED_LIGHTING_INSTANCED_INPUT input)
 {
-    float4 PosH : SV_POSITION;
-    float2 TexC : TEXCOORD;
-};
+    VS_SHADOW_MAP_OUTPUT output;
 
-VertexOut VS(VertexIn vin)
-{
-    VertexOut vout = (VertexOut) 0.0f;
-	
-    // Transform to world space.
-    float4 posW = mul(float4(vin.PosL, 1.0f), gmtxGameObject);
-    
-    // Transform to homogeneous clip space.
-    float4 posV = mul(posW, gmtxView);
-    vout.PosH = mul(posV, gmtxProjection);
-	
-	// Output vertex attributes for interpolation across triangle.
-    vout.TexC = vin.TexC;
-	
-    return vout;
+    float4x4 mtxInstanceWorld = float4x4(
+        input.instWorld0,
+        input.instWorld1,
+        input.instWorld2,
+        input.instWorld3
+    );
+
+    float3 positionW =
+        (float3) mul(float4(input.position, 1.0f), mtxInstanceWorld);
+
+    output.position =
+        mul(float4(positionW, 1.0f), gmtxShadowViewProj);
+
+    output.uv = input.uv;
+
+    // static alpha-clip shadow에서는 draw call마다 gnMaterialID를 넣는다.
+    output.materialId = gnMaterialID;
+
+    return output;
 }
 
-// This is only used for alpha cut out geometry, so that shadows 
-// show up correctly.  Geometry that does not need to sample a
-// texture can use a NULL pixel shader for depth pass.
-void PS(VertexOut pin)
+VS_SHADOW_MAP_OUTPUT VSShadowMapSkinnedInstanced(
+    VS_SKINNED_INSTANCED_INPUT input)
 {
-	// Dynamically look up the texture in the array.
-    float4 diffuseAlbedo = gtxtGlobalTextures[1].Sample(gsamLinearWrap, pin.TexC);
+    VS_SHADOW_MAP_OUTPUT output;
 
+    float4x4 mtxInstanceWorld = float4x4(
+        input.instWorld0,
+        input.instWorld1,
+        input.instWorld2,
+        input.instWorld3
+    );
 
-#ifdef ALPHA_TEST
-    // Discard pixel if texture alpha < 0.1.  We do this test as soon 
-    // as possible in the shader so that we can potentially exit the
-    // shader early, thereby skipping the rest of the shader code.
-    clip(diffuseAlbedo.a - 0.1f);
+    float4 posSkinned =
+        SkinPosition4(
+            input.position,
+            input.blendIndices,
+            input.blendWeights,
+            input.instBoneBase
+        );
+
+    float4 positionW = mul(posSkinned, mtxInstanceWorld);
+
+    output.position =
+        mul(positionW, gmtxShadowViewProj);
+
+    output.uv = input.uv;
+    output.materialId = input.instMaterialId;
+
+    return output;
+}
+
+void PSShadowMapAlphaClip(VS_SHADOW_MAP_OUTPUT input)
+{
+    MATERIAL mat = gMaterials[input.materialId];
+
+    float2 diffuseUV =
+        GetDiffuseUV(input.materialId, input.uv);
+
+    float4 diffuseSample =
+        SampleTextureRGBA(
+            mat.TextureIndices.x,
+            diffuseUV,
+            float4(1.0f, 1.0f, 1.0f, 1.0f)
+        );
+
+    float alpha =
+        diffuseSample.a * mat.m_cDiffuse.a;
+
+    clip(alpha - 0.5f);
+}
+
 #endif
-}

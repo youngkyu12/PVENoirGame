@@ -469,7 +469,7 @@ SPAWN|index=446|type="SwordMan"|mega_id=6|mega=(2,1)|pos=(485,0,356)|yaw_deg=36.
 SPAWN|index=447|type="SwordMan"|mega_id=6|mega=(2,1)|pos=(368,0,391)|yaw_deg=64.268|rot=(0.000000,0.531905,0.000000,0.846804)|rule=zero_cell_in_center_200x200
 SPAWN|index=448|type="SwordMan"|mega_id=6|mega=(2,1)|pos=(437,0,437)|yaw_deg=126.496|rot=(0.000000,0.892962,0.000000,0.450132)|rule=zero_cell_in_center_200x200
 SPAWN|index=449|type="SwordMan"|mega_id=6|mega=(2,1)|pos=(315,0,306)|yaw_deg=341.545|rot=(0.000000,0.160354,0.000000,-0.987060)|rule=zero_cell_in_center_200x200
-SPAWN|index=450|type="Mutant"|mega_id=6|mega=(2,1)|pos=(328,0,472)|yaw_deg=219.271|rot=(0.000000,0.941848,0.000000,-0.336039)|rule=zero_cell_in_center_200x200
+SPAWN|index=450|type="Mutant"|mega_id=6|mega=(2,1)|pos=(400,0,400)|yaw_deg=219.271|rot=(0.000000,0.941848,0.000000,-0.336039)|rule=zero_cell_in_center_200x200
 SPAWN|index=451|type="Ghoul"|mega_id=7|mega=(0,2)|pos=(-418,0,703)|yaw_deg=140.850|rot=(0.000000,0.942203,0.000000,0.335042)|rule=zero_cell_in_center_200x200
 SPAWN|index=452|type="Ghoul"|mega_id=7|mega=(0,2)|pos=(-420,0,818)|yaw_deg=212.993|rot=(0.000000,0.958837,0.000000,-0.283959)|rule=zero_cell_in_center_200x200
 SPAWN|index=453|type="Ghoul"|mega_id=7|mega=(0,2)|pos=(-342,0,762)|yaw_deg=22.186|rot=(0.000000,0.192402,0.000000,0.981316)|rule=zero_cell_in_center_200x200
@@ -638,7 +638,7 @@ SPAWN|index=615|type="BowMan"|mega_id=8|mega=(1,2)|pos=(-99,0,771)|yaw_deg=310.1
 SPAWN|index=616|type="SwordMan"|mega_id=8|mega=(1,2)|pos=(18,0,768)|yaw_deg=122.318|rot=(0.000000,0.875960,0.000000,0.482384)|rule=zero_cell_in_center_200x200
 SPAWN|index=617|type="SwordMan"|mega_id=8|mega=(1,2)|pos=(-91,0,707)|yaw_deg=105.666|rot=(0.000000,0.796875,0.000000,0.604144)|rule=zero_cell_in_center_200x200
 SPAWN|index=618|type="SwordMan"|mega_id=8|mega=(1,2)|pos=(-47,0,886)|yaw_deg=68.895|rot=(0.000000,0.565650,0.000000,0.824645)|rule=zero_cell_in_center_200x200
-SPAWN|index=619|type="Mutant"|mega_id=8|mega=(1,2)|pos=(-36,0,810)|yaw_deg=227.701|rot=(0.000000,0.914605,0.000000,-0.404349)|rule=zero_cell_in_center_200x200
+SPAWN|index=619|type="Mutant"|mega_id=8|mega=(1,2)|pos=(0,0,800)|yaw_deg=227.701|rot=(0.000000,0.914605,0.000000,-0.404349)|rule=zero_cell_in_center_200x200
 SPAWN|index=620|type="Mutant"|mega_id=8|mega=(1,2)|pos=(91,0,803)|yaw_deg=111.024|rot=(0.000000,0.824244,0.000000,0.566235)|rule=zero_cell_in_center_200x200
 SPAWN|index=621|type="Mutant"|mega_id=8|mega=(1,2)|pos=(61,0,812)|yaw_deg=7.393|rot=(0.000000,0.064467,0.000000,0.997920)|rule=zero_cell_in_center_200x200
 SPAWN|index=622|type="Ghoul"|mega_id=9|mega=(2,2)|pos=(304,0,818)|yaw_deg=3.198|rot=(0.000000,0.027908,0.000000,0.999611)|rule=zero_cell_in_center_200x200

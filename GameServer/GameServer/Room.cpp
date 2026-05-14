@@ -52,8 +52,7 @@ namespace
 			&qx, &qy, &qz, &qw
 		);
 
-		if (matched != 9)
-			return false;
+		if (matched != 9) return false;
 
 		out.asset = asset;
 		out.objectName = objectName;
@@ -67,32 +66,28 @@ namespace
 		outEntries.clear();
 
 		const std::vector<std::string> candidates = {
-			"MapFIle/MapData_fullstage.txt",
-			"GameServer/MapFIle/MapData_fullstage.txt",
-			"../GameServer/MapFIle/MapData_fullstage.txt"
+			"MapFIle/MapData_fullstage(withBoss).txt",
+			"GameServer/MapFIle/MapData_fullstage(withBoss).txt",
+			"../GameServer/MapFIle/MapData_fullstage(withBoss).txt"
 		};
 
 		std::ifstream fin;
 		for (const auto& path : candidates)
 		{
 			fin.open(path);
-			if (fin.is_open())
-				break;
+			if (fin.is_open()) break;
 			fin.clear();
 		}
 
-		if (!fin.is_open())
-			return false;
+		if (!fin.is_open()) return false;
 
 		std::string line;
 		while (std::getline(fin, line))
 		{
 			PlacementEntry entry;
-			if (!ParsePlacementEntryLine(line, entry))
-				continue;
+			if (!ParsePlacementEntryLine(line, entry)) continue;
 			outEntries.push_back(std::move(entry));
 		}
-
 		return !outEntries.empty();
 	}
 
@@ -102,18 +97,59 @@ namespace
 		constexpr float kSpacingX = 4.0f;
 		return GameMath::Vec3(static_cast<float>(playerId) * kSpacingX, 0.0f, kBaseZ);
 	}
+
+	// ========================================
+	// HP / Attack Power Tables
+	// ========================================
+	constexpr int kHpPlayer = 100;
+	constexpr int kHpGhoul = 30;
+	constexpr int kHpBowMan = 120;
+	constexpr int kHpSwordMan = 120;
+	constexpr int kHpMutant = 240;
+	constexpr int kHpBoss = 4800;
+
+	constexpr int kAtkGhoul = 5;
+	constexpr int kAtkSword = 10;
+	constexpr int kAtkArcher = 10;
+	constexpr int kAtkMutant = 20;
+	constexpr int kAtkBoss = 50;
+
+	int GetEnemyHp(const string& typeName)
+	{
+		if (typeName == "Ghoul")    return kHpGhoul;
+		if (typeName == "BowMan")   return kHpBowMan;
+		if (typeName == "SwordMan") return kHpSwordMan;
+		if (typeName == "Mutant")   return kHpMutant;
+		if (typeName == "Boss")     return kHpBoss;
+		return kHpGhoul;
+	}
+
+	int GetEnemyAttackPower(const string& typeName)
+	{
+		if (typeName == "Ghoul")    return kAtkGhoul;
+		if (typeName == "BowMan")   return kAtkArcher;
+		if (typeName == "SwordMan") return kAtkSword;
+		if (typeName == "Mutant")   return kAtkMutant;
+		if (typeName == "Boss")     return kAtkBoss;
+		return kAtkGhoul;
+	}
 }
 
 void Room::Enter(PlayerRef player)
 {
 	player->Build();
 	player->SetPosition(GetInitialPlayerSpawnPosition(player->playerId));
+	player->SetMaxHp(kHpPlayer);
+
+	// life-state 초기 정상화
+	player->OnRespawnEnter(tick.load()); // 위치를 내부에서 덮어쓰면 아래 순서 조정 필요
+	player->SetPosition(GetInitialPlayerSpawnPosition(player->playerId));
 
 	player->SetWeapon(
-		static_cast<Protocol::WeaponType>(player->playerId + 1), 0);
+		static_cast<Protocol::WeaponType>(player->playerId + 2), 0);
 
 	players[player->playerId] = player;
-	player->SetActive(false);
+	player->SetActive(false); // 기존 참여/ready 정책 유지
 
 	RegisterDynamicCollider(player);
 }
@@ -125,16 +161,13 @@ void Room::Leave(PlayerRef player)
 		if (auto* collider = player->GetComponent<CColliderComponent>())
 			_collision->UnregisterCollider(collider);
 	}
-
 	players.erase(player->playerId);
 }
 
 void Room::BroadCastAll(SendBufferRef sendBuffer)
 {
 	for (auto& p : players)
-	{
 		p.second->ownerSession->Send(sendBuffer);
-	}
 }
 
 bool Room::LoadMonsterSpawnEntries(std::vector<MonsterSpawnEntry>& outEntries)
@@ -142,7 +175,7 @@ bool Room::LoadMonsterSpawnEntries(std::vector<MonsterSpawnEntry>& outEntries)
 	outEntries.clear();
 
 	const std::vector<std::string> candidates = {
-		"MapFIle/monster_spawn_points_little.txt",
+		"MapFIle/monster_spawn_points.txt",
 		"MapFIle/monster_spawn_points.txt",
 		"GameServer/MapFIle/monster_spawn_points_little.txt",
 		"GameServer/MapFIle/monster_spawn_points.txt",
@@ -154,49 +187,32 @@ bool Room::LoadMonsterSpawnEntries(std::vector<MonsterSpawnEntry>& outEntries)
 	for (const auto& path : candidates)
 	{
 		fin.open(path);
-		if (fin.is_open())
-			break;
+		if (fin.is_open()) break;
 		fin.clear();
 	}
-
-	if (!fin.is_open())
-		return false;
+	if (!fin.is_open()) return false;
 
 	std::string line;
 	while (std::getline(fin, line))
 	{
-		if (!line.empty() && line.back() == '\r')
-			line.pop_back();
-
-		if (line.rfind("SPAWN|", 0) != 0)
-			continue;
+		if (!line.empty() && line.back() == '\r') line.pop_back();
+		if (line.rfind("SPAWN|", 0) != 0) continue;
 
 		MonsterSpawnEntry entry{};
 		char type[32] = {};
-		int megaId = -1;
-		int megaX = -1;
-		int megaZ = -1;
-		float px = 0.0f;
-		float py = 0.0f;
-		float pz = 0.0f;
-		float yawDeg = 0.0f;
+		int megaId = -1, megaX = -1, megaZ = -1;
+		float px = 0.0f, py = 0.0f, pz = 0.0f, yawDeg = 0.0f;
 
 		const int matched = ::sscanf_s(
 			line.c_str(),
 			"SPAWN|index=%d|type=\"%31[^\"]\"|mega_id=%d|mega=(%d,%d)|pos=(%f,%f,%f)|yaw_deg=%f",
 			&entry.index,
 			type, static_cast<unsigned>(_countof(type)),
-			&megaId,
-			&megaX,
-			&megaZ,
-			&px,
-			&py,
-			&pz,
-			&yawDeg
+			&megaId, &megaX, &megaZ,
+			&px, &py, &pz, &yawDeg
 		);
 
-		if (matched != 9)
-			continue;
+		if (matched != 9) continue;
 
 		entry.type = type;
 		entry.position = GameMath::Vec3(px, py, pz);
@@ -204,10 +220,8 @@ bool Room::LoadMonsterSpawnEntries(std::vector<MonsterSpawnEntry>& outEntries)
 		outEntries.push_back(std::move(entry));
 	}
 
-	std::sort(outEntries.begin(), outEntries.end(), [](const MonsterSpawnEntry& a, const MonsterSpawnEntry& b)
-		{
-			return a.index < b.index;
-		});
+	std::sort(outEntries.begin(), outEntries.end(),
+		[](const MonsterSpawnEntry& a, const MonsterSpawnEntry& b) { return a.index < b.index; });
 
 	return !outEntries.empty();
 }
@@ -222,23 +236,19 @@ void Room::BuildRoom()
 	InitializeSpatialGrid();
 
 	std::vector<PlacementEntry> entries;
-
 	if (LoadPlacementEntries(entries))
 	{
 		uint64 buildingId = 1;
-		for (size_t entryIndex = 0; entryIndex < entries.size(); ++entryIndex)
+		for (const auto& e : entries)
 		{
-			const auto& e = entries[entryIndex];
 			auto building = std::make_shared<CBuilding>();
 			building->SetObjectId(buildingId);
 			building->SetPosition(e.position);
 			building->SetYaw(GameMath::NormalizeYaw(e.yawDeg));
 			building->SetBuildingType(ReportHelper::AssetToBuildingType(e.asset));
 			building->SetActive(true);
-
 			RegisterStaticCollider(building);
 			RegisterStaticBuildingToGrid(building);
-
 			buildings[buildingId] = building;
 			++buildingId;
 		}
@@ -264,26 +274,21 @@ void Room::BuildRoom()
 
 	m_navMesh = make_unique<CNavMesh>();
 	const std::vector<std::string> navCandidates = {
-		"MapFIle/FullStageNavmesh.nvm",
+		"MapFIle/FullStageNavmeshAll.nvm",
 		"MapFIle/Navmesh_FullStage.nvm",
-		"GameServer/MapFIle/FullStageNavmesh.nvm",
+		"GameServer/MapFIle/FullStageNavmeshAll.nvm",
 		"GameServer/MapFIle/Navmesh_FullStage.nvm"
 	};
 	for (const auto& path : navCandidates)
 	{
-		if (m_navMesh->LoadFromFile(path))
-			break;
+		if (m_navMesh->LoadFromFile(path)) break;
 	}
 
 	auto SampleEnemySpawn = [&](const GameMath::Vec3& desiredPos)
 		{
-			if (!m_navMesh)
-				return desiredPos;
-
+			if (!m_navMesh) return desiredPos;
 			GameMath::Vec3 projected{};
-			if (m_navMesh->SamplePosition(desiredPos, projected))
-				return projected;
-
+			if (m_navMesh->SamplePosition(desiredPos, projected)) return projected;
 			return desiredPos;
 		};
 
@@ -299,13 +304,9 @@ void Room::BuildRoom()
 
 	std::vector<MonsterSpawnEntry> spawnEntries;
 	if (!LoadMonsterSpawnEntries(spawnEntries))
-	{
 		cout << "[MonsterSpawn] load failed" << endl;
-	}
 	else
-	{
 		cout << "[MonsterSpawn] load success count=" << spawnEntries.size() << endl;
-	}
 
 	uint64 nextEnemyId = 0;
 	for (const MonsterSpawnEntry& spawn : spawnEntries)
@@ -329,6 +330,9 @@ void Room::BuildRoom()
 		auto enemy = make_shared<CEnemy>(enemyId, spawn.type, enemyType, nullptr);
 		enemy->Build(SampleEnemySpawn(spawn.position), GameMath::Vec3(0, 0, 0));
 		enemy->SetYaw(GameMath::NormalizeYaw(spawn.yawDeg));
+		enemy->SetMaxHp(GetEnemyHp(spawn.type));
+		enemy->SetAttackPower(GetEnemyAttackPower(spawn.type));
+
 		RegisterDynamicCollider(enemy);
 		enemies[enemyId] = enemy;
 	}
@@ -341,23 +345,19 @@ void Room::BuildRoom()
 
 void Room::StartGame(bool ready, uint32 index)
 {
-	if (players.find(index) == players.end())
-		return;
+	if (players.find(index) == players.end()) return;
 
 	static Vector<bool> p_ready(MaxPlayers);
 	p_ready[index] = ready;
 
 	static Atomic<bool> gameStarted = false;
 
-	const bool allReady = std::all_of(p_ready.begin(), p_ready.end(),
-		[](bool b) { return b; });
+	const bool allReady = std::all_of(p_ready.begin(), p_ready.end(), [](bool b) { return b; });
 
 	if (allReady && players.size() == MaxPlayers)
 	{
 		if (gameStarted.exchange(true) == false)
-		{
 			GRoom->DoAsync(&Room::MakeInitStruct, Protocol::S_GAME_START());
-		}
 	}
 	else
 	{
@@ -385,19 +385,15 @@ void Room::CheckClientReady()
 	}
 	else
 	{
-
 		GRoom->DoTimer(100, &Room::CheckClientReady);
-		//GRoom->CheckClientReady();
 	}
 }
 
 void Room::SetPlayerReady(bool ready, uint32 playerId)
 {
 	auto it = players.find(playerId);
-	if (it == players.end())
-		return;
-
-	it->second->SetActive(ready);   // ready 인자 사용
+	if (it == players.end()) return;
+	it->second->SetActive(ready);
 }
 
 GameAreaRef Room::GetArea(uint32 areaId)
@@ -407,7 +403,4 @@ GameAreaRef Room::GetArea(uint32 areaId)
 
 void Room::TransferPlayer(PlayerRef player, uint32 fromAreaId, uint32 toAreaId)
 {
-	//gameAreas[fromAreaId]->Leave(player);
-	//gameAreas[toAreaId]->Enter(player);
 }
-

@@ -1,24 +1,24 @@
 StaticWorldLocalOOBBReportBegin
-ObjectCount: 16
+ObjectCount: 18
 
 ObjectBegin
 PlacementIndex: 2
 AssetName: Building1
-ObjectName: building_1_16_77
-ObjectWorldPosition: (-60.000000, 0.000000, -70.000000)
+ObjectName: Building1
+ObjectWorldPosition: (-50.000000, 0.000000, -70.000000)
 ObjectWorldRotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
 ObjectWorldYawDeg: 0.000000
-OverallLocalOOBB.Center: (-12.465239, 9.466052, -6.662371)
+OverallLocalOOBB.Center: (-11.823916, 9.466051, -6.529075)
 OverallLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-OverallLocalOOBB.Extents: (15.422438, 10.576154, 11.225767)
-OverallLocalOOBB.Size: (30.844875, 21.152308, 22.451534)
+OverallLocalOOBB.Extents: (15.070550, 10.576153, 10.365855)
+OverallLocalOOBB.Size: (30.141100, 21.152306, 20.731710)
 MeshOOBBSetCount: 1
 MeshSetBegin
 MeshIndex: 0
-MeshLocalOOBB.Center: (-12.465239, 9.466052, -6.662371)
+MeshLocalOOBB.Center: (-11.823916, 9.466051, -6.529075)
 MeshLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-MeshLocalOOBB.Extents: (15.422438, 10.576154, 11.225767)
-MeshLocalOOBB.Size: (30.844875, 21.152308, 22.451534)
+MeshLocalOOBB.Extents: (15.070550, 10.576153, 10.365855)
+MeshLocalOOBB.Size: (30.141100, 21.152306, 20.731710)
 SubOOBBCount: 364
 SubOOBBBegin
 SubIndex: 0
@@ -2574,21 +2574,21 @@ ObjectEnd
 ObjectBegin
 PlacementIndex: 3
 AssetName: Building2
-ObjectName: building_2_58_99
-ObjectWorldPosition: (-60.000000, 0.000000, -40.000000)
+ObjectName: Building2
+ObjectWorldPosition: (-50.000000, 0.000000, -40.000000)
 ObjectWorldRotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
 ObjectWorldYawDeg: 0.000000
-OverallLocalOOBB.Center: (-5.738148, 10.066429, -7.497470)
+OverallLocalOOBB.Center: (-5.737967, 10.066429, -7.505671)
 OverallLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-OverallLocalOOBB.Extents: (9.355156, 11.639009, 10.589753)
-OverallLocalOOBB.Size: (18.710312, 23.278019, 21.179506)
+OverallLocalOOBB.Extents: (9.354975, 11.639009, 10.581551)
+OverallLocalOOBB.Size: (18.709949, 23.278019, 21.163101)
 MeshOOBBSetCount: 1
 MeshSetBegin
 MeshIndex: 0
-MeshLocalOOBB.Center: (-5.738148, 10.066429, -7.497470)
+MeshLocalOOBB.Center: (-5.737967, 10.066429, -7.505670)
 MeshLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-MeshLocalOOBB.Extents: (9.355156, 11.639009, 10.589753)
-MeshLocalOOBB.Size: (18.710312, 23.278019, 21.179506)
+MeshLocalOOBB.Extents: (9.354975, 11.639009, 10.581551)
+MeshLocalOOBB.Size: (18.709949, 23.278019, 21.163101)
 SubOOBBCount: 243
 SubOOBBBegin
 SubIndex: 0
@@ -4297,21 +4297,21 @@ ObjectEnd
 ObjectBegin
 PlacementIndex: 4
 AssetName: Building3
-ObjectName: building_3_15_118
-ObjectWorldPosition: (-60.000000, 0.000000, -10.000000)
+ObjectName: Building3
+ObjectWorldPosition: (-50.000000, 0.000000, -10.000000)
 ObjectWorldRotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
 ObjectWorldYawDeg: 0.000000
-OverallLocalOOBB.Center: (3.778507, 9.086025, -7.664803)
+OverallLocalOOBB.Center: (3.772150, 9.086024, -8.158065)
 OverallLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-OverallLocalOOBB.Extents: (15.549559, 13.078114, 11.694853)
-OverallLocalOOBB.Size: (31.099117, 26.156227, 23.389706)
+OverallLocalOOBB.Extents: (15.543201, 13.078113, 11.198945)
+OverallLocalOOBB.Size: (31.086403, 26.156225, 22.397890)
 MeshOOBBSetCount: 1
 MeshSetBegin
 MeshIndex: 0
-MeshLocalOOBB.Center: (3.778507, 9.086025, -7.664803)
+MeshLocalOOBB.Center: (3.772150, 9.086024, -8.158065)
 MeshLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-MeshLocalOOBB.Extents: (15.549559, 13.078114, 11.694853)
-MeshLocalOOBB.Size: (31.099117, 26.156227, 23.389706)
+MeshLocalOOBB.Extents: (15.543201, 13.078113, 11.198945)
+MeshLocalOOBB.Size: (31.086403, 26.156225, 22.397890)
 SubOOBBCount: 439
 SubOOBBBegin
 SubIndex: 0
@@ -7392,21 +7392,21 @@ ObjectEnd
 ObjectBegin
 PlacementIndex: 5
 AssetName: Building4
-ObjectName: building_4_183_41
-ObjectWorldPosition: (-60.000000, 0.000000, 20.000000)
+ObjectName: Building4
+ObjectWorldPosition: (-50.000000, 0.000000, 30.000000)
 ObjectWorldRotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
 ObjectWorldYawDeg: 0.000000
 OverallLocalOOBB.Center: (5.000000, 6.867060, -7.499999)
 OverallLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-OverallLocalOOBB.Extents: (10.000000, 7.152955, 8.187865)
-OverallLocalOOBB.Size: (20.000000, 14.305910, 16.375731)
+OverallLocalOOBB.Extents: (10.000000, 7.152956, 8.187865)
+OverallLocalOOBB.Size: (20.000000, 14.305911, 16.375731)
 MeshOOBBSetCount: 1
 MeshSetBegin
 MeshIndex: 0
 MeshLocalOOBB.Center: (5.000000, 6.867060, -7.499999)
 MeshLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-MeshLocalOOBB.Extents: (10.000000, 7.152955, 8.187865)
-MeshLocalOOBB.Size: (20.000000, 14.305910, 16.375731)
+MeshLocalOOBB.Extents: (10.000000, 7.152956, 8.187865)
+MeshLocalOOBB.Size: (20.000000, 14.305911, 16.375731)
 SubOOBBCount: 154
 SubOOBBBegin
 SubIndex: 0
@@ -8492,21 +8492,21 @@ ObjectEnd
 ObjectBegin
 PlacementIndex: 6
 AssetName: Building5
-ObjectName: building_5_11_9
-ObjectWorldPosition: (-60.000000, 0.000000, 50.000000)
+ObjectName: Building5
+ObjectWorldPosition: (-50.000000, 0.000000, 70.000000)
 ObjectWorldRotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
 ObjectWorldYawDeg: 0.000000
-OverallLocalOOBB.Center: (3.579614, 8.691927, -6.561579)
+OverallLocalOOBB.Center: (3.579433, 8.747415, -6.560671)
 OverallLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-OverallLocalOOBB.Extents: (11.094429, 9.153364, 8.540638)
-OverallLocalOOBB.Size: (22.188858, 18.306728, 17.081276)
+OverallLocalOOBB.Extents: (11.094249, 9.097877, 8.539728)
+OverallLocalOOBB.Size: (22.188498, 18.195753, 17.079456)
 MeshOOBBSetCount: 1
 MeshSetBegin
 MeshIndex: 0
-MeshLocalOOBB.Center: (3.579614, 8.691927, -6.561579)
+MeshLocalOOBB.Center: (3.579433, 8.747415, -6.560670)
 MeshLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-MeshLocalOOBB.Extents: (11.094429, 9.153364, 8.540638)
-MeshLocalOOBB.Size: (22.188858, 18.306728, 17.081276)
+MeshLocalOOBB.Extents: (11.094249, 9.097877, 8.539728)
+MeshLocalOOBB.Size: (22.188498, 18.195753, 17.079456)
 SubOOBBCount: 156
 SubOOBBBegin
 SubIndex: 0
@@ -9606,21 +9606,21 @@ ObjectEnd
 ObjectBegin
 PlacementIndex: 7
 AssetName: Building6
-ObjectName: building_6_51_23
-ObjectWorldPosition: (20.000000, 0.000000, -60.000000)
+ObjectName: Building6
+ObjectWorldPosition: (0.000000, 0.000000, -60.000000)
 ObjectWorldRotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
 ObjectWorldYawDeg: 0.000000
-OverallLocalOOBB.Center: (-4.999999, 9.592431, -6.884430)
+OverallLocalOOBB.Center: (-5.000000, 9.592431, -6.884432)
 OverallLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
 OverallLocalOOBB.Extents: (6.771052, 11.165011, 9.925312)
-OverallLocalOOBB.Size: (13.542105, 22.330023, 19.850624)
+OverallLocalOOBB.Size: (13.542104, 22.330023, 19.850624)
 MeshOOBBSetCount: 1
 MeshSetBegin
 MeshIndex: 0
-MeshLocalOOBB.Center: (-4.999999, 9.592431, -6.884430)
+MeshLocalOOBB.Center: (-5.000000, 9.592431, -6.884432)
 MeshLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
 MeshLocalOOBB.Extents: (6.771052, 11.165011, 9.925312)
-MeshLocalOOBB.Size: (13.542105, 22.330023, 19.850624)
+MeshLocalOOBB.Size: (13.542104, 22.330023, 19.850624)
 SubOOBBCount: 199
 SubOOBBBegin
 SubIndex: 0
@@ -11021,21 +11021,21 @@ ObjectEnd
 ObjectBegin
 PlacementIndex: 8
 AssetName: Building7
-ObjectName: building_7_52_26
-ObjectWorldPosition: (20.000000, 0.000000, -30.000000)
+ObjectName: Building7
+ObjectWorldPosition: (0.000000, 0.000000, -20.000000)
 ObjectWorldRotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
 ObjectWorldYawDeg: 0.000000
-OverallLocalOOBB.Center: (-4.878471, 10.533298, -6.328462)
+OverallLocalOOBB.Center: (-4.878472, 10.622213, -6.325556)
 OverallLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-OverallLocalOOBB.Extents: (7.916161, 13.568336, 7.529642)
-OverallLocalOOBB.Size: (15.832321, 27.136671, 15.059284)
+OverallLocalOOBB.Extents: (7.916161, 13.479420, 7.526735)
+OverallLocalOOBB.Size: (15.832322, 26.958839, 15.053471)
 MeshOOBBSetCount: 1
 MeshSetBegin
 MeshIndex: 0
-MeshLocalOOBB.Center: (-4.878471, 10.533298, -6.328462)
+MeshLocalOOBB.Center: (-4.878472, 10.622213, -6.325556)
 MeshLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-MeshLocalOOBB.Extents: (7.916161, 13.568336, 7.529642)
-MeshLocalOOBB.Size: (15.832321, 27.136671, 15.059284)
+MeshLocalOOBB.Extents: (7.916161, 13.479420, 7.526735)
+MeshLocalOOBB.Size: (15.832322, 26.958839, 15.053471)
 SubOOBBCount: 223
 SubOOBBBegin
 SubIndex: 0
@@ -12604,21 +12604,21 @@ ObjectEnd
 ObjectBegin
 PlacementIndex: 9
 AssetName: Building8
-ObjectName: building_8_21_39
-ObjectWorldPosition: (20.000000, 0.000000, 0.000000)
+ObjectName: Building8
+ObjectWorldPosition: (0.000000, 0.000000, 20.000000)
 ObjectWorldRotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
 ObjectWorldYawDeg: 0.000000
-OverallLocalOOBB.Center: (-7.481084, 10.958208, 12.307073)
+OverallLocalOOBB.Center: (-7.500000, 10.962928, 12.302621)
 OverallLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-OverallLocalOOBB.Extents: (9.781081, 12.052599, 13.683341)
-OverallLocalOOBB.Size: (19.562162, 24.105198, 27.366682)
+OverallLocalOOBB.Extents: (10.421356, 12.047879, 13.678718)
+OverallLocalOOBB.Size: (20.842712, 24.095758, 27.357435)
 MeshOOBBSetCount: 1
 MeshSetBegin
 MeshIndex: 0
-MeshLocalOOBB.Center: (-7.481083, 10.958208, 12.307073)
+MeshLocalOOBB.Center: (-7.500000, 10.962928, 12.302621)
 MeshLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-MeshLocalOOBB.Extents: (9.781081, 12.052599, 13.683341)
-MeshLocalOOBB.Size: (19.562162, 24.105198, 27.366682)
+MeshLocalOOBB.Extents: (10.421356, 12.047879, 13.678718)
+MeshLocalOOBB.Size: (20.842712, 24.095758, 27.357435)
 SubOOBBCount: 355
 SubOOBBBegin
 SubIndex: 0
@@ -15111,21 +15111,21 @@ ObjectEnd
 ObjectBegin
 PlacementIndex: 10
 AssetName: Building9
-ObjectName: building_9_46_192
-ObjectWorldPosition: (20.000000, 0.000000, 50.000000)
+ObjectName: Building9
+ObjectWorldPosition: (0.000000, 0.000000, 70.000000)
 ObjectWorldRotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
 ObjectWorldYawDeg: 0.000000
-OverallLocalOOBB.Center: (0.329183, 10.976768, -4.283354)
+OverallLocalOOBB.Center: (0.329184, 10.976768, -4.282445)
 OverallLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-OverallLocalOOBB.Extents: (6.203659, 13.061346, 6.477012)
-OverallLocalOOBB.Size: (12.407318, 26.122692, 12.954023)
+OverallLocalOOBB.Extents: (6.203659, 13.061346, 6.477920)
+OverallLocalOOBB.Size: (12.407317, 26.122692, 12.955839)
 MeshOOBBSetCount: 1
 MeshSetBegin
 MeshIndex: 0
-MeshLocalOOBB.Center: (0.329183, 10.976768, -4.283354)
+MeshLocalOOBB.Center: (0.329184, 10.976768, -4.282445)
 MeshLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-MeshLocalOOBB.Extents: (6.203659, 13.061346, 6.477012)
-MeshLocalOOBB.Size: (12.407318, 26.122692, 12.954023)
+MeshLocalOOBB.Extents: (6.203659, 13.061346, 6.477920)
+MeshLocalOOBB.Size: (12.407317, 26.122692, 12.955839)
 SubOOBBCount: 188
 SubOOBBBegin
 SubIndex: 0
@@ -16453,18 +16453,18 @@ ObjectName: VillageWall
 ObjectWorldPosition: (0.000000, 0.000000, 0.000000)
 ObjectWorldRotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
 ObjectWorldYawDeg: 0.000000
-OverallLocalOOBB.Center: (0.000000, 31.521999, 0.000000)
+OverallLocalOOBB.Center: (0.000000, 31.548637, 0.000000)
 OverallLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-OverallLocalOOBB.Extents: (112.135239, 32.078003, 111.734383)
-OverallLocalOOBB.Size: (224.270477, 64.156006, 223.468765)
+OverallLocalOOBB.Extents: (112.135239, 32.051365, 111.734375)
+OverallLocalOOBB.Size: (224.270477, 64.102730, 223.468750)
 MeshOOBBSetCount: 1
 MeshSetBegin
 MeshIndex: 0
-MeshLocalOOBB.Center: (-0.000004, 31.521999, 0.000000)
+MeshLocalOOBB.Center: (-0.000004, 31.548637, 0.000000)
 MeshLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-MeshLocalOOBB.Extents: (112.135239, 32.078003, 111.734383)
-MeshLocalOOBB.Size: (224.270477, 64.156006, 223.468765)
-SubOOBBCount: 179
+MeshLocalOOBB.Extents: (112.135239, 32.051365, 111.734375)
+MeshLocalOOBB.Size: (224.270477, 64.102730, 223.468750)
+SubOOBBCount: 156
 SubOOBBBegin
 SubIndex: 0
 SubLocalOOBB.Center: (104.974831, 31.800001, 104.974869)
@@ -16740,979 +16740,818 @@ SubLocalOOBB.Size: (6.000000, 8.000000, 12.000000)
 SubOOBBEnd
 SubOOBBBegin
 SubIndex: 39
-SubLocalOOBB.Center: (7.706284, 5.449990, 103.372986)
-SubLocalOOBB.RotationQuat: (0.707107, 0.000000, 0.000000, -0.707107)
-SubLocalOOBB.Extents: (2.999999, 4.000000, 6.000001)
-SubLocalOOBB.Size: (5.999998, 7.999999, 12.000002)
-SubOOBBEnd
-SubOOBBBegin
-SubIndex: 40
 SubLocalOOBB.Center: (-5.219000, 5.450000, 98.995003)
 SubLocalOOBB.RotationQuat: (0.000000, 0.707107, 0.707107, 0.000000)
 SubLocalOOBB.Extents: (0.600000, 0.700000, 6.000000)
 SubLocalOOBB.Size: (1.200000, 1.400000, 12.000000)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 41
+SubIndex: 40
 SubLocalOOBB.Center: (5.340000, 5.450000, 98.995003)
 SubLocalOOBB.RotationQuat: (0.000000, 0.707107, 0.707107, 0.000000)
 SubLocalOOBB.Extents: (0.600000, 0.700000, 6.000000)
 SubLocalOOBB.Size: (1.200000, 1.400000, 12.000000)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 42
-SubLocalOOBB.Center: (-5.218993, 5.449998, 98.994995)
-SubLocalOOBB.RotationQuat: (0.707107, 0.000000, 0.000000, -0.707107)
-SubLocalOOBB.Extents: (0.600000, 0.700000, 5.999999)
-SubLocalOOBB.Size: (1.200000, 1.400000, 11.999998)
-SubOOBBEnd
-SubOOBBBegin
-SubIndex: 43
-SubLocalOOBB.Center: (5.340020, 5.449998, 98.994987)
-SubLocalOOBB.RotationQuat: (0.707107, 0.000000, 0.000000, -0.707107)
-SubLocalOOBB.Extents: (0.600000, 0.700000, 5.999999)
-SubLocalOOBB.Size: (1.200000, 1.400000, 11.999998)
-SubOOBBEnd
-SubOOBBBegin
-SubIndex: 44
+SubIndex: 41
 SubLocalOOBB.Center: (6.765865, 6.564084, 96.943642)
 SubLocalOOBB.RotationQuat: (-0.388585, 0.000093, 0.921413, 0.000091)
 SubLocalOOBB.Extents: (0.207035, 7.060167, 2.394104)
 SubLocalOOBB.Size: (0.414071, 14.120334, 4.788208)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 45
+SubIndex: 42
 SubLocalOOBB.Center: (-6.629686, 6.565385, 96.946449)
 SubLocalOOBB.RotationQuat: (0.388585, -0.000095, 0.921413, 0.000094)
 SubLocalOOBB.Extents: (0.207035, 7.060167, 2.394104)
 SubLocalOOBB.Size: (0.414070, 14.120334, 4.788208)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 46
+SubIndex: 43
 SubLocalOOBB.Center: (5.306800, 5.444000, 107.433701)
 SubLocalOOBB.RotationQuat: (-0.707107, 0.000000, 0.000000, 0.707107)
 SubLocalOOBB.Extents: (0.600000, 0.700000, 6.000000)
 SubLocalOOBB.Size: (1.200000, 1.400000, 12.000000)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 47
+SubIndex: 44
 SubLocalOOBB.Center: (-5.252200, 5.444000, 107.433800)
 SubLocalOOBB.RotationQuat: (-0.707107, 0.000000, 0.000000, 0.707107)
 SubLocalOOBB.Extents: (0.600000, 0.700000, 6.000000)
 SubLocalOOBB.Size: (1.200000, 1.400000, 12.000000)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 48
-SubLocalOOBB.Center: (5.306841, 5.444001, 107.433746)
-SubLocalOOBB.RotationQuat: (0.000000, 0.707107, 0.707107, -0.000000)
-SubLocalOOBB.Extents: (0.600000, 0.700000, 6.000002)
-SubLocalOOBB.Size: (1.200001, 1.400000, 12.000005)
-SubOOBBEnd
-SubOOBBBegin
-SubIndex: 49
-SubLocalOOBB.Center: (-5.252179, 5.444001, 107.433754)
-SubLocalOOBB.RotationQuat: (0.000000, 0.707107, 0.707107, -0.000000)
-SubLocalOOBB.Extents: (0.600000, 0.700000, 6.000002)
-SubLocalOOBB.Size: (1.200001, 1.400000, 12.000005)
-SubOOBBEnd
-SubOOBBBegin
-SubIndex: 50
+SubIndex: 45
 SubLocalOOBB.Center: (-6.678026, 6.558087, 109.485100)
 SubLocalOOBB.RotationQuat: (0.921413, 0.000091, 0.388585, -0.000093)
 SubLocalOOBB.Extents: (0.207035, 7.060171, 2.394106)
 SubLocalOOBB.Size: (0.414071, 14.120341, 4.788211)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 51
+SubIndex: 46
 SubLocalOOBB.Center: (6.717535, 6.559389, 109.482292)
 SubLocalOOBB.RotationQuat: (0.921413, 0.000094, -0.388585, 0.000095)
 SubLocalOOBB.Extents: (0.207035, 7.060171, 2.394105)
 SubLocalOOBB.Size: (0.414071, 14.120341, 4.788210)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 52
+SubIndex: 47
 SubLocalOOBB.Center: (-71.378075, 21.275539, 103.473114)
 SubLocalOOBB.RotationQuat: (1.000000, 0.000000, 0.000000, -0.000000)
 SubLocalOOBB.Extents: (11.900000, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799999, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 53
+SubIndex: 48
 SubLocalOOBB.Center: (-47.578075, 21.275539, 103.473114)
 SubLocalOOBB.RotationQuat: (1.000000, 0.000000, 0.000000, -0.000000)
 SubLocalOOBB.Extents: (11.900000, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799999, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 54
+SubIndex: 49
 SubLocalOOBB.Center: (-23.778078, 21.275539, 103.473114)
 SubLocalOOBB.RotationQuat: (1.000000, 0.000000, 0.000000, -0.000000)
 SubLocalOOBB.Extents: (11.900000, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799999, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 55
+SubIndex: 50
 SubLocalOOBB.Center: (23.821920, 21.275539, 103.473114)
 SubLocalOOBB.RotationQuat: (1.000000, 0.000000, 0.000000, -0.000000)
 SubLocalOOBB.Extents: (11.900000, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799999, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 56
+SubIndex: 51
 SubLocalOOBB.Center: (47.621922, 21.275539, 103.473114)
 SubLocalOOBB.RotationQuat: (1.000000, 0.000000, 0.000000, -0.000000)
 SubLocalOOBB.Extents: (11.900000, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799999, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 57
+SubIndex: 52
 SubLocalOOBB.Center: (71.421921, 21.275539, 103.473114)
 SubLocalOOBB.RotationQuat: (1.000000, 0.000000, 0.000000, -0.000000)
 SubLocalOOBB.Extents: (11.900000, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799999, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 58
+SubIndex: 53
 SubLocalOOBB.Center: (95.221916, 21.275539, 103.473114)
 SubLocalOOBB.RotationQuat: (1.000000, 0.000000, 0.000000, -0.000000)
 SubLocalOOBB.Extents: (11.900000, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799999, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 59
+SubIndex: 54
 SubLocalOOBB.Center: (95.178078, 21.275539, -103.473114)
 SubLocalOOBB.RotationQuat: (0.000000, -0.000000, 1.000000, 0.000000)
 SubLocalOOBB.Extents: (11.900000, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799999, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 60
+SubIndex: 55
 SubLocalOOBB.Center: (83.278069, 18.091145, -98.268440)
 SubLocalOOBB.RotationQuat: (1.000000, 0.000000, 0.000000, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499375, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 61
+SubIndex: 56
 SubLocalOOBB.Center: (59.478069, 18.091145, -98.268440)
 SubLocalOOBB.RotationQuat: (1.000000, 0.000000, 0.000000, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499375, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 62
+SubIndex: 57
 SubLocalOOBB.Center: (35.678070, 18.091145, -98.268440)
 SubLocalOOBB.RotationQuat: (1.000000, 0.000000, 0.000000, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499375, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 63
+SubIndex: 58
 SubLocalOOBB.Center: (11.878062, 18.091145, -98.268440)
 SubLocalOOBB.RotationQuat: (1.000000, 0.000000, 0.000000, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499375, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 64
+SubIndex: 59
 SubLocalOOBB.Center: (-11.921930, 18.091145, -98.268440)
 SubLocalOOBB.RotationQuat: (1.000000, 0.000000, 0.000000, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499375, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 65
+SubIndex: 60
 SubLocalOOBB.Center: (-35.721931, 18.091145, -98.268440)
 SubLocalOOBB.RotationQuat: (1.000000, 0.000000, 0.000000, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499375, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 66
+SubIndex: 61
 SubLocalOOBB.Center: (-59.521946, 18.091145, -98.268440)
 SubLocalOOBB.RotationQuat: (1.000000, 0.000000, 0.000000, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499375, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 67
+SubIndex: 62
 SubLocalOOBB.Center: (-83.321953, 18.091145, -98.268440)
 SubLocalOOBB.RotationQuat: (1.000000, 0.000000, 0.000000, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499375, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 68
+SubIndex: 63
 SubLocalOOBB.Center: (-83.321938, 18.091145, -108.218132)
 SubLocalOOBB.RotationQuat: (0.000000, -0.000000, 1.000000, 0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499375, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 69
+SubIndex: 64
 SubLocalOOBB.Center: (-59.521938, 18.091145, -108.218132)
 SubLocalOOBB.RotationQuat: (0.000000, -0.000000, 1.000000, 0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499375, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 70
+SubIndex: 65
 SubLocalOOBB.Center: (-35.721939, 18.091145, -108.218132)
 SubLocalOOBB.RotationQuat: (0.000000, -0.000000, 1.000000, 0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499375, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 71
+SubIndex: 66
 SubLocalOOBB.Center: (-11.921933, 18.091145, -108.218132)
 SubLocalOOBB.RotationQuat: (0.000000, -0.000000, 1.000000, 0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499375, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 72
+SubIndex: 67
 SubLocalOOBB.Center: (11.878059, 18.091145, -108.218132)
 SubLocalOOBB.RotationQuat: (0.000000, -0.000000, 1.000000, 0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499375, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 73
+SubIndex: 68
 SubLocalOOBB.Center: (35.678062, 18.091145, -108.218132)
 SubLocalOOBB.RotationQuat: (0.000000, -0.000000, 1.000000, 0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499375, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 74
+SubIndex: 69
 SubLocalOOBB.Center: (59.478073, 18.091145, -108.218132)
 SubLocalOOBB.RotationQuat: (0.000000, -0.000000, 1.000000, 0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499375, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 75
+SubIndex: 70
 SubLocalOOBB.Center: (83.278084, 18.091145, -108.218132)
 SubLocalOOBB.RotationQuat: (0.000000, -0.000000, 1.000000, 0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499375, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 76
+SubIndex: 71
 SubLocalOOBB.Center: (7.656600, 5.454500, -103.374397)
 SubLocalOOBB.RotationQuat: (-0.707107, 0.000000, 0.000000, 0.707107)
 SubLocalOOBB.Extents: (3.000000, 4.000000, 6.000000)
 SubLocalOOBB.Size: (6.000000, 8.000000, 12.000000)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 77
+SubIndex: 72
 SubLocalOOBB.Center: (-7.706300, 5.454500, -103.374397)
 SubLocalOOBB.RotationQuat: (-0.707107, 0.000000, 0.000000, 0.707107)
 SubLocalOOBB.Extents: (3.000000, 4.000000, 6.000000)
 SubLocalOOBB.Size: (6.000000, 8.000000, 12.000000)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 78
-SubLocalOOBB.Center: (7.656615, 5.454509, -103.374367)
-SubLocalOOBB.RotationQuat: (-0.000000, 0.707107, 0.707107, -0.000000)
-SubLocalOOBB.Extents: (2.999999, 4.000000, 6.000001)
-SubLocalOOBB.Size: (5.999998, 7.999999, 12.000002)
-SubOOBBEnd
-SubOOBBBegin
-SubIndex: 79
-SubLocalOOBB.Center: (-7.706284, 5.454509, -103.374367)
-SubLocalOOBB.RotationQuat: (-0.000000, 0.707107, 0.707107, -0.000000)
-SubLocalOOBB.Extents: (2.999999, 4.000000, 6.000001)
-SubLocalOOBB.Size: (5.999998, 7.999999, 12.000002)
-SubOOBBEnd
-SubOOBBBegin
-SubIndex: 80
+SubIndex: 73
 SubLocalOOBB.Center: (5.219000, 5.450000, -98.995003)
 SubLocalOOBB.RotationQuat: (-0.707107, 0.000000, 0.000000, 0.707107)
 SubLocalOOBB.Extents: (0.600000, 0.700000, 6.000000)
 SubLocalOOBB.Size: (1.200000, 1.400000, 12.000000)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 81
+SubIndex: 74
 SubLocalOOBB.Center: (-5.340000, 5.450000, -98.995003)
 SubLocalOOBB.RotationQuat: (-0.707107, 0.000000, 0.000000, 0.707107)
 SubLocalOOBB.Extents: (0.600000, 0.700000, 6.000000)
 SubLocalOOBB.Size: (1.200000, 1.400000, 12.000000)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 82
-SubLocalOOBB.Center: (5.218993, 5.449998, -98.994995)
-SubLocalOOBB.RotationQuat: (-0.000000, 0.707107, 0.707107, -0.000000)
-SubLocalOOBB.Extents: (0.600000, 0.700000, 5.999999)
-SubLocalOOBB.Size: (1.200000, 1.400000, 11.999998)
-SubOOBBEnd
-SubOOBBBegin
-SubIndex: 83
-SubLocalOOBB.Center: (-5.340020, 5.449998, -98.994987)
-SubLocalOOBB.RotationQuat: (-0.000000, 0.707107, 0.707107, -0.000000)
-SubLocalOOBB.Extents: (0.600000, 0.700000, 5.999999)
-SubLocalOOBB.Size: (1.200000, 1.400000, 11.999998)
-SubOOBBEnd
-SubOOBBBegin
-SubIndex: 84
+SubIndex: 75
 SubLocalOOBB.Center: (-6.765865, 6.564084, -96.943642)
 SubLocalOOBB.RotationQuat: (0.921413, 0.000091, 0.388585, -0.000093)
 SubLocalOOBB.Extents: (0.207035, 7.060167, 2.394104)
 SubLocalOOBB.Size: (0.414071, 14.120334, 4.788208)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 85
+SubIndex: 76
 SubLocalOOBB.Center: (6.629686, 6.565385, -96.946449)
 SubLocalOOBB.RotationQuat: (0.921413, 0.000094, -0.388585, 0.000095)
 SubLocalOOBB.Extents: (0.207035, 7.060167, 2.394104)
 SubLocalOOBB.Size: (0.414070, 14.120334, 4.788208)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 86
+SubIndex: 77
 SubLocalOOBB.Center: (-5.306800, 5.444000, -107.433701)
 SubLocalOOBB.RotationQuat: (0.000000, 0.707107, 0.707107, 0.000000)
 SubLocalOOBB.Extents: (0.600000, 0.700000, 6.000000)
 SubLocalOOBB.Size: (1.200000, 1.400000, 12.000000)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 87
+SubIndex: 78
 SubLocalOOBB.Center: (5.252200, 5.444000, -107.433800)
 SubLocalOOBB.RotationQuat: (0.000000, 0.707107, 0.707107, 0.000000)
 SubLocalOOBB.Extents: (0.600000, 0.700000, 6.000000)
 SubLocalOOBB.Size: (1.200000, 1.400000, 12.000000)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 88
-SubLocalOOBB.Center: (-5.306841, 5.444001, -107.433746)
-SubLocalOOBB.RotationQuat: (-0.707107, 0.000000, 0.000000, 0.707107)
-SubLocalOOBB.Extents: (0.600000, 0.700000, 6.000002)
-SubLocalOOBB.Size: (1.200001, 1.400000, 12.000005)
-SubOOBBEnd
-SubOOBBBegin
-SubIndex: 89
-SubLocalOOBB.Center: (5.252179, 5.444001, -107.433754)
-SubLocalOOBB.RotationQuat: (-0.707107, 0.000000, 0.000000, 0.707107)
-SubLocalOOBB.Extents: (0.600000, 0.700000, 6.000002)
-SubLocalOOBB.Size: (1.200001, 1.400000, 12.000005)
-SubOOBBEnd
-SubOOBBBegin
-SubIndex: 90
+SubIndex: 79
 SubLocalOOBB.Center: (6.678026, 6.558087, -109.485100)
 SubLocalOOBB.RotationQuat: (-0.388585, 0.000093, 0.921413, 0.000091)
 SubLocalOOBB.Extents: (0.207035, 7.060171, 2.394106)
 SubLocalOOBB.Size: (0.414071, 14.120341, 4.788211)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 91
+SubIndex: 80
 SubLocalOOBB.Center: (-6.717535, 6.559389, -109.482292)
 SubLocalOOBB.RotationQuat: (0.388585, -0.000095, 0.921413, 0.000094)
 SubLocalOOBB.Extents: (0.207035, 7.060171, 2.394105)
 SubLocalOOBB.Size: (0.414071, 14.120341, 4.788210)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 92
+SubIndex: 81
 SubLocalOOBB.Center: (71.378075, 21.275539, -103.473114)
 SubLocalOOBB.RotationQuat: (0.000000, -0.000000, 1.000000, 0.000000)
 SubLocalOOBB.Extents: (11.900000, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799999, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 93
+SubIndex: 82
 SubLocalOOBB.Center: (47.578075, 21.275539, -103.473114)
 SubLocalOOBB.RotationQuat: (0.000000, -0.000000, 1.000000, 0.000000)
 SubLocalOOBB.Extents: (11.900000, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799999, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 94
+SubIndex: 83
 SubLocalOOBB.Center: (23.778078, 21.275539, -103.473114)
 SubLocalOOBB.RotationQuat: (0.000000, -0.000000, 1.000000, 0.000000)
 SubLocalOOBB.Extents: (11.900000, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799999, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 95
+SubIndex: 84
 SubLocalOOBB.Center: (-23.821920, 21.275539, -103.473114)
 SubLocalOOBB.RotationQuat: (0.000000, -0.000000, 1.000000, 0.000000)
 SubLocalOOBB.Extents: (11.900000, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799999, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 96
+SubIndex: 85
 SubLocalOOBB.Center: (-47.621922, 21.275539, -103.473114)
 SubLocalOOBB.RotationQuat: (0.000000, -0.000000, 1.000000, 0.000000)
 SubLocalOOBB.Extents: (11.900000, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799999, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 97
+SubIndex: 86
 SubLocalOOBB.Center: (-71.421921, 21.275539, -103.473114)
 SubLocalOOBB.RotationQuat: (0.000000, -0.000000, 1.000000, 0.000000)
 SubLocalOOBB.Extents: (11.900000, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799999, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 98
+SubIndex: 87
 SubLocalOOBB.Center: (-95.221916, 21.275539, -103.473114)
 SubLocalOOBB.RotationQuat: (0.000000, -0.000000, 1.000000, 0.000000)
 SubLocalOOBB.Extents: (11.900000, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799999, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 99
+SubIndex: 88
 SubLocalOOBB.Center: (-103.473114, 21.275539, -95.178078)
 SubLocalOOBB.RotationQuat: (0.707107, -0.000000, 0.707107, -0.000000)
 SubLocalOOBB.Extents: (11.899999, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799997, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 100
+SubIndex: 89
 SubLocalOOBB.Center: (-98.268440, 18.091145, -83.278069)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, -0.707107, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 101
+SubIndex: 90
 SubLocalOOBB.Center: (-98.268440, 18.091145, -59.478073)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, -0.707107, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 102
+SubIndex: 91
 SubLocalOOBB.Center: (-98.268440, 18.091145, -35.678074)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, -0.707107, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 103
+SubIndex: 92
 SubLocalOOBB.Center: (-98.268440, 18.091145, -11.878069)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, -0.707107, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 104
+SubIndex: 93
 SubLocalOOBB.Center: (-98.268440, 18.091145, 11.921922)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, -0.707107, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 105
+SubIndex: 94
 SubLocalOOBB.Center: (-98.268440, 18.091145, 35.721924)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, -0.707107, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 106
+SubIndex: 95
 SubLocalOOBB.Center: (-98.268440, 18.091145, 59.521931)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, -0.707107, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 107
+SubIndex: 96
 SubLocalOOBB.Center: (-98.268440, 18.091145, 83.321945)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, -0.707107, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 108
+SubIndex: 97
 SubLocalOOBB.Center: (-108.218132, 18.091145, 83.321922)
 SubLocalOOBB.RotationQuat: (0.707107, -0.000000, 0.707107, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 109
+SubIndex: 98
 SubLocalOOBB.Center: (-108.218132, 18.091145, 59.521927)
 SubLocalOOBB.RotationQuat: (0.707107, -0.000000, 0.707107, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 110
+SubIndex: 99
 SubLocalOOBB.Center: (-108.218132, 18.091145, 35.721931)
 SubLocalOOBB.RotationQuat: (0.707107, -0.000000, 0.707107, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 111
+SubIndex: 100
 SubLocalOOBB.Center: (-108.218132, 18.091145, 11.921925)
 SubLocalOOBB.RotationQuat: (0.707107, -0.000000, 0.707107, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 112
+SubIndex: 101
 SubLocalOOBB.Center: (-108.218132, 18.091145, -11.878066)
 SubLocalOOBB.RotationQuat: (0.707107, -0.000000, 0.707107, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 113
+SubIndex: 102
 SubLocalOOBB.Center: (-108.218132, 18.091145, -35.678066)
 SubLocalOOBB.RotationQuat: (0.707107, -0.000000, 0.707107, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 114
+SubIndex: 103
 SubLocalOOBB.Center: (-108.218132, 18.091145, -59.478077)
 SubLocalOOBB.RotationQuat: (0.707107, -0.000000, 0.707107, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 115
+SubIndex: 104
 SubLocalOOBB.Center: (-108.218132, 18.091145, -83.278084)
 SubLocalOOBB.RotationQuat: (0.707107, -0.000000, 0.707107, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 116
+SubIndex: 105
 SubLocalOOBB.Center: (-103.373001, 5.450000, -7.656600)
 SubLocalOOBB.RotationQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
 SubLocalOOBB.Extents: (3.000000, 4.000000, 6.000000)
 SubLocalOOBB.Size: (6.000000, 8.000000, 12.000000)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 117
+SubIndex: 106
 SubLocalOOBB.Center: (-103.373001, 5.450000, 7.706300)
 SubLocalOOBB.RotationQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
 SubLocalOOBB.Extents: (3.000000, 4.000000, 6.000000)
 SubLocalOOBB.Size: (6.000000, 8.000000, 12.000000)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 118
-SubLocalOOBB.Center: (-103.372993, 5.449990, -7.656622)
-SubLocalOOBB.RotationQuat: (0.500000, 0.500000, 0.500000, -0.500000)
-SubLocalOOBB.Extents: (2.999999, 4.000000, 6.000001)
-SubLocalOOBB.Size: (5.999997, 7.999999, 12.000002)
-SubOOBBEnd
-SubOOBBBegin
-SubIndex: 119
-SubLocalOOBB.Center: (-103.372986, 5.449990, 7.706276)
-SubLocalOOBB.RotationQuat: (0.500000, 0.500000, 0.500000, -0.500000)
-SubLocalOOBB.Extents: (2.999999, 4.000000, 6.000001)
-SubLocalOOBB.Size: (5.999997, 7.999999, 12.000002)
-SubOOBBEnd
-SubOOBBBegin
-SubIndex: 120
+SubIndex: 107
 SubLocalOOBB.Center: (-98.995003, 5.450000, -5.219000)
 SubLocalOOBB.RotationQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
 SubLocalOOBB.Extents: (0.600000, 0.700000, 6.000000)
 SubLocalOOBB.Size: (1.200000, 1.400000, 12.000000)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 121
+SubIndex: 108
 SubLocalOOBB.Center: (-98.995003, 5.450000, 5.340000)
 SubLocalOOBB.RotationQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
 SubLocalOOBB.Extents: (0.600000, 0.700000, 6.000000)
 SubLocalOOBB.Size: (1.200000, 1.400000, 12.000000)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 122
-SubLocalOOBB.Center: (-98.994995, 5.449998, -5.219000)
-SubLocalOOBB.RotationQuat: (0.500000, 0.500000, 0.500000, -0.500000)
-SubLocalOOBB.Extents: (0.600000, 0.700000, 5.999999)
-SubLocalOOBB.Size: (1.200000, 1.400000, 11.999998)
-SubOOBBEnd
-SubOOBBBegin
-SubIndex: 123
-SubLocalOOBB.Center: (-98.994987, 5.449998, 5.340012)
-SubLocalOOBB.RotationQuat: (0.500000, 0.500000, 0.500000, -0.500000)
-SubLocalOOBB.Extents: (0.600000, 0.700000, 5.999999)
-SubLocalOOBB.Size: (1.200000, 1.400000, 11.999998)
-SubOOBBEnd
-SubOOBBBegin
-SubIndex: 124
+SubIndex: 109
 SubLocalOOBB.Center: (-96.943642, 6.564084, 6.765857)
 SubLocalOOBB.RotationQuat: (0.926308, -0.000001, -0.376766, -0.000130)
 SubLocalOOBB.Extents: (0.207035, 7.060167, 2.394104)
 SubLocalOOBB.Size: (0.414071, 14.120334, 4.788208)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 125
+SubIndex: 110
 SubLocalOOBB.Center: (-96.946449, 6.565385, -6.629693)
 SubLocalOOBB.RotationQuat: (-0.376766, -0.000134, 0.926308, -0.000000)
 SubLocalOOBB.Extents: (0.207035, 7.060167, 2.394104)
 SubLocalOOBB.Size: (0.414070, 14.120334, 4.788207)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 126
+SubIndex: 111
 SubLocalOOBB.Center: (-107.433701, 5.444000, 5.306800)
 SubLocalOOBB.RotationQuat: (-0.500000, -0.500000, -0.500000, 0.500000)
 SubLocalOOBB.Extents: (0.600000, 0.700000, 6.000000)
 SubLocalOOBB.Size: (1.200000, 1.400000, 12.000000)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 127
+SubIndex: 112
 SubLocalOOBB.Center: (-107.433701, 5.444000, -5.252200)
 SubLocalOOBB.RotationQuat: (-0.500000, -0.500000, -0.500000, 0.500000)
 SubLocalOOBB.Extents: (0.600000, 0.700000, 6.000000)
 SubLocalOOBB.Size: (1.200000, 1.400000, 12.000000)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 128
-SubLocalOOBB.Center: (-107.433746, 5.444001, 5.306833)
-SubLocalOOBB.RotationQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
-SubLocalOOBB.Extents: (0.600000, 0.700000, 6.000002)
-SubLocalOOBB.Size: (1.200001, 1.400000, 12.000005)
-SubOOBBEnd
-SubOOBBBegin
-SubIndex: 129
-SubLocalOOBB.Center: (-107.433754, 5.444001, -5.252186)
-SubLocalOOBB.RotationQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
-SubLocalOOBB.Extents: (0.600000, 0.700000, 6.000002)
-SubLocalOOBB.Size: (1.200001, 1.400000, 12.000005)
-SubOOBBEnd
-SubOOBBBegin
-SubIndex: 130
+SubIndex: 113
 SubLocalOOBB.Center: (-109.485100, 6.558087, -6.678032)
 SubLocalOOBB.RotationQuat: (0.376766, 0.000130, 0.926308, -0.000001)
 SubLocalOOBB.Extents: (0.207035, 7.060171, 2.394105)
 SubLocalOOBB.Size: (0.414071, 14.120341, 4.788211)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 131
+SubIndex: 114
 SubLocalOOBB.Center: (-109.482292, 6.559389, 6.717527)
 SubLocalOOBB.RotationQuat: (0.926308, -0.000000, 0.376766, 0.000134)
 SubLocalOOBB.Extents: (0.207035, 7.060171, 2.394105)
 SubLocalOOBB.Size: (0.414071, 14.120341, 4.788210)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 132
+SubIndex: 115
 SubLocalOOBB.Center: (-103.473114, 21.275539, -71.378075)
 SubLocalOOBB.RotationQuat: (0.707107, -0.000000, 0.707107, -0.000000)
 SubLocalOOBB.Extents: (11.899999, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799997, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 133
+SubIndex: 116
 SubLocalOOBB.Center: (-103.473114, 21.275539, -47.578079)
 SubLocalOOBB.RotationQuat: (0.707107, -0.000000, 0.707107, -0.000000)
 SubLocalOOBB.Extents: (11.899999, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799997, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 134
+SubIndex: 117
 SubLocalOOBB.Center: (-103.473114, 21.275539, -23.778084)
 SubLocalOOBB.RotationQuat: (0.707107, -0.000000, 0.707107, -0.000000)
 SubLocalOOBB.Extents: (11.899999, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799997, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 135
+SubIndex: 118
 SubLocalOOBB.Center: (-103.473114, 21.275539, 23.821911)
 SubLocalOOBB.RotationQuat: (0.707107, -0.000000, 0.707107, -0.000000)
 SubLocalOOBB.Extents: (11.899999, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799997, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 136
+SubIndex: 119
 SubLocalOOBB.Center: (-103.473114, 21.275539, 47.621910)
 SubLocalOOBB.RotationQuat: (0.707107, -0.000000, 0.707107, -0.000000)
 SubLocalOOBB.Extents: (11.899999, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799997, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 137
+SubIndex: 120
 SubLocalOOBB.Center: (-103.473114, 21.275539, 71.421906)
 SubLocalOOBB.RotationQuat: (0.707107, -0.000000, 0.707107, -0.000000)
 SubLocalOOBB.Extents: (11.899999, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799997, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 138
+SubIndex: 121
 SubLocalOOBB.Center: (-103.473114, 21.275539, 95.221901)
 SubLocalOOBB.RotationQuat: (0.707107, -0.000000, 0.707107, -0.000000)
 SubLocalOOBB.Extents: (11.899999, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799997, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 139
+SubIndex: 122
 SubLocalOOBB.Center: (103.473114, 21.275539, 95.178085)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, -0.707107, -0.000000)
 SubLocalOOBB.Extents: (11.899999, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799997, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 140
+SubIndex: 123
 SubLocalOOBB.Center: (98.268440, 18.091145, 83.278076)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, 0.707107, 0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 141
+SubIndex: 124
 SubLocalOOBB.Center: (98.268440, 18.091145, 59.478081)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, 0.707107, 0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 142
+SubIndex: 125
 SubLocalOOBB.Center: (98.268440, 18.091145, 35.678082)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, 0.707107, 0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 143
+SubIndex: 126
 SubLocalOOBB.Center: (98.268440, 18.091145, 11.878077)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, 0.707107, 0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 144
+SubIndex: 127
 SubLocalOOBB.Center: (98.268440, 18.091145, -11.921914)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, 0.707107, 0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 145
+SubIndex: 128
 SubLocalOOBB.Center: (98.268440, 18.091145, -35.721916)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, 0.707107, 0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 146
+SubIndex: 129
 SubLocalOOBB.Center: (98.268440, 18.091145, -59.521923)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, 0.707107, 0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 147
+SubIndex: 130
 SubLocalOOBB.Center: (98.268440, 18.091145, -83.321938)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, 0.707107, 0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 148
+SubIndex: 131
 SubLocalOOBB.Center: (108.218132, 18.091145, -83.321915)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, -0.707107, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 149
+SubIndex: 132
 SubLocalOOBB.Center: (108.218132, 18.091145, -59.521919)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, -0.707107, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 150
+SubIndex: 133
 SubLocalOOBB.Center: (108.218132, 18.091145, -35.721924)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, -0.707107, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 151
+SubIndex: 134
 SubLocalOOBB.Center: (108.218132, 18.091145, -11.921917)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, -0.707107, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 152
+SubIndex: 135
 SubLocalOOBB.Center: (108.218132, 18.091145, 11.878074)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, -0.707107, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 153
+SubIndex: 136
 SubLocalOOBB.Center: (108.218132, 18.091145, 35.678074)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, -0.707107, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 154
+SubIndex: 137
 SubLocalOOBB.Center: (108.218132, 18.091145, 59.478085)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, -0.707107, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 155
+SubIndex: 138
 SubLocalOOBB.Center: (108.218132, 18.091145, 83.278091)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, -0.707107, -0.000000)
 SubLocalOOBB.Extents: (1.749687, 18.091145, 1.374846)
 SubLocalOOBB.Size: (3.499374, 36.182289, 2.749691)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 156
+SubIndex: 139
 SubLocalOOBB.Center: (103.373001, 5.450000, 7.656600)
 SubLocalOOBB.RotationQuat: (0.500000, 0.500000, 0.500000, -0.500000)
 SubLocalOOBB.Extents: (3.000000, 4.000000, 6.000000)
 SubLocalOOBB.Size: (6.000000, 8.000000, 12.000000)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 157
+SubIndex: 140
 SubLocalOOBB.Center: (103.373001, 5.450000, -7.706300)
 SubLocalOOBB.RotationQuat: (0.500000, 0.500000, 0.500000, -0.500000)
 SubLocalOOBB.Extents: (3.000000, 4.000000, 6.000000)
 SubLocalOOBB.Size: (6.000000, 8.000000, 12.000000)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 158
-SubLocalOOBB.Center: (103.372993, 5.449990, 7.656630)
-SubLocalOOBB.RotationQuat: (0.500000, -0.500000, -0.500000, -0.500000)
-SubLocalOOBB.Extents: (2.999999, 4.000000, 6.000001)
-SubLocalOOBB.Size: (5.999997, 7.999999, 12.000002)
-SubOOBBEnd
-SubOOBBBegin
-SubIndex: 159
-SubLocalOOBB.Center: (103.372986, 5.449990, -7.706268)
-SubLocalOOBB.RotationQuat: (0.500000, -0.500000, -0.500000, -0.500000)
-SubLocalOOBB.Extents: (2.999999, 4.000000, 6.000001)
-SubLocalOOBB.Size: (5.999997, 7.999999, 12.000002)
-SubOOBBEnd
-SubOOBBBegin
-SubIndex: 160
+SubIndex: 141
 SubLocalOOBB.Center: (98.995003, 5.450000, 5.219000)
 SubLocalOOBB.RotationQuat: (0.500000, 0.500000, 0.500000, -0.500000)
 SubLocalOOBB.Extents: (0.600000, 0.700000, 6.000000)
 SubLocalOOBB.Size: (1.200000, 1.400000, 12.000000)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 161
+SubIndex: 142
 SubLocalOOBB.Center: (98.995003, 5.450000, -5.340000)
 SubLocalOOBB.RotationQuat: (0.500000, 0.500000, 0.500000, -0.500000)
 SubLocalOOBB.Extents: (0.600000, 0.700000, 6.000000)
 SubLocalOOBB.Size: (1.200000, 1.400000, 12.000000)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 162
-SubLocalOOBB.Center: (98.994995, 5.449998, 5.219008)
-SubLocalOOBB.RotationQuat: (0.500000, -0.500000, -0.500000, -0.500000)
-SubLocalOOBB.Extents: (0.600000, 0.700000, 5.999999)
-SubLocalOOBB.Size: (1.200000, 1.400000, 11.999998)
-SubOOBBEnd
-SubOOBBBegin
-SubIndex: 163
-SubLocalOOBB.Center: (98.994987, 5.449998, -5.340004)
-SubLocalOOBB.RotationQuat: (0.500000, -0.500000, -0.500000, -0.500000)
-SubLocalOOBB.Extents: (0.600000, 0.700000, 5.999999)
-SubLocalOOBB.Size: (1.200000, 1.400000, 11.999998)
-SubOOBBEnd
-SubOOBBBegin
-SubIndex: 164
+SubIndex: 143
 SubLocalOOBB.Center: (96.943642, 6.564084, -6.765849)
 SubLocalOOBB.RotationQuat: (0.376766, 0.000130, 0.926308, -0.000001)
 SubLocalOOBB.Extents: (0.207035, 7.060167, 2.394104)
 SubLocalOOBB.Size: (0.414071, 14.120334, 4.788208)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 165
+SubIndex: 144
 SubLocalOOBB.Center: (96.946449, 6.565385, 6.629701)
 SubLocalOOBB.RotationQuat: (0.926308, -0.000000, 0.376766, 0.000134)
 SubLocalOOBB.Extents: (0.207035, 7.060167, 2.394104)
 SubLocalOOBB.Size: (0.414070, 14.120334, 4.788207)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 166
+SubIndex: 145
 SubLocalOOBB.Center: (107.433800, 5.444000, -5.306800)
 SubLocalOOBB.RotationQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
 SubLocalOOBB.Extents: (0.600000, 0.700000, 6.000000)
 SubLocalOOBB.Size: (1.200000, 1.400000, 12.000000)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 167
+SubIndex: 146
 SubLocalOOBB.Center: (107.433800, 5.444000, 5.252200)
 SubLocalOOBB.RotationQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
 SubLocalOOBB.Extents: (0.600000, 0.700000, 6.000000)
 SubLocalOOBB.Size: (1.200000, 1.400000, 12.000000)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 168
-SubLocalOOBB.Center: (107.433746, 5.444001, -5.306825)
-SubLocalOOBB.RotationQuat: (-0.500000, -0.500000, -0.500000, 0.500000)
-SubLocalOOBB.Extents: (0.600000, 0.700000, 6.000002)
-SubLocalOOBB.Size: (1.200001, 1.400000, 12.000005)
-SubOOBBEnd
-SubOOBBBegin
-SubIndex: 169
-SubLocalOOBB.Center: (107.433754, 5.444001, 5.252194)
-SubLocalOOBB.RotationQuat: (-0.500000, -0.500000, -0.500000, 0.500000)
-SubLocalOOBB.Extents: (0.600000, 0.700000, 6.000002)
-SubLocalOOBB.Size: (1.200001, 1.400000, 12.000005)
-SubOOBBEnd
-SubOOBBBegin
-SubIndex: 170
+SubIndex: 147
 SubLocalOOBB.Center: (109.485100, 6.558087, 6.678040)
 SubLocalOOBB.RotationQuat: (0.926308, -0.000001, -0.376766, -0.000130)
 SubLocalOOBB.Extents: (0.207035, 7.060171, 2.394105)
 SubLocalOOBB.Size: (0.414071, 14.120341, 4.788211)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 171
+SubIndex: 148
 SubLocalOOBB.Center: (109.482292, 6.559389, -6.717519)
 SubLocalOOBB.RotationQuat: (-0.376766, -0.000134, 0.926308, -0.000000)
 SubLocalOOBB.Extents: (0.207035, 7.060171, 2.394105)
 SubLocalOOBB.Size: (0.414071, 14.120341, 4.788210)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 172
+SubIndex: 149
 SubLocalOOBB.Center: (103.473114, 21.275539, 71.378082)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, -0.707107, -0.000000)
 SubLocalOOBB.Extents: (11.899999, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799997, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 173
+SubIndex: 150
 SubLocalOOBB.Center: (103.473114, 21.275539, 47.578087)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, -0.707107, -0.000000)
 SubLocalOOBB.Extents: (11.899999, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799997, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 174
+SubIndex: 151
 SubLocalOOBB.Center: (103.473114, 21.275539, 23.778091)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, -0.707107, -0.000000)
 SubLocalOOBB.Extents: (11.899999, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799997, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 175
+SubIndex: 152
 SubLocalOOBB.Center: (103.473114, 21.275539, -23.821903)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, -0.707107, -0.000000)
 SubLocalOOBB.Extents: (11.899999, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799997, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 176
+SubIndex: 153
 SubLocalOOBB.Center: (103.473114, 21.275539, -47.621902)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, -0.707107, -0.000000)
 SubLocalOOBB.Extents: (11.899999, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799997, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 177
+SubIndex: 154
 SubLocalOOBB.Center: (103.473114, 21.275539, -71.421898)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, -0.707107, -0.000000)
 SubLocalOOBB.Extents: (11.899999, 21.275539, 3.829825)
 SubLocalOOBB.Size: (23.799997, 42.551079, 7.659650)
 SubOOBBEnd
 SubOOBBBegin
-SubIndex: 178
+SubIndex: 155
 SubLocalOOBB.Center: (103.473114, 21.275539, -95.221893)
 SubLocalOOBB.RotationQuat: (0.707107, 0.000000, -0.707107, -0.000000)
 SubLocalOOBB.Extents: (11.899999, 21.275539, 3.829825)
@@ -17725,20 +17564,20 @@ ObjectBegin
 PlacementIndex: 12
 AssetName: Tree1
 ObjectName: Tree1
-ObjectWorldPosition: (60.000000, 0.000000, -80.000000)
+ObjectWorldPosition: (68.231483, 0.000000, -71.862289)
 ObjectWorldRotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
 ObjectWorldYawDeg: 0.000000
-OverallLocalOOBB.Center: (0.000000, 5.000000, 0.000000)
+OverallLocalOOBB.Center: (-1.589867, 13.302870, 0.178881)
 OverallLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-OverallLocalOOBB.Extents: (1.000000, 5.000000, 1.000000)
-OverallLocalOOBB.Size: (2.000000, 10.000000, 2.000000)
+OverallLocalOOBB.Extents: (9.315473, 13.302870, 8.603748)
+OverallLocalOOBB.Size: (18.630945, 26.605740, 17.207497)
 MeshOOBBSetCount: 1
 MeshSetBegin
 MeshIndex: 0
-MeshLocalOOBB.Center: (0.000000, 5.000000, 0.000000)
+MeshLocalOOBB.Center: (-1.589866, 13.302870, 0.178880)
 MeshLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-MeshLocalOOBB.Extents: (1.000000, 5.000000, 1.000000)
-MeshLocalOOBB.Size: (2.000000, 10.000000, 2.000000)
+MeshLocalOOBB.Extents: (9.315473, 13.302870, 8.603748)
+MeshLocalOOBB.Size: (18.630945, 26.605740, 17.207497)
 SubOOBBCount: 1
 SubOOBBBegin
 SubIndex: 0
@@ -17754,20 +17593,20 @@ ObjectBegin
 PlacementIndex: 13
 AssetName: Tree2
 ObjectName: Tree2
-ObjectWorldPosition: (60.000000, 0.000000, -50.000000)
+ObjectWorldPosition: (72.061234, 0.000000, -36.787842)
 ObjectWorldRotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
 ObjectWorldYawDeg: 0.000000
-OverallLocalOOBB.Center: (0.000000, 5.000000, 0.000000)
+OverallLocalOOBB.Center: (0.513367, 21.973366, -1.060505)
 OverallLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-OverallLocalOOBB.Extents: (1.000000, 5.000000, 1.000000)
-OverallLocalOOBB.Size: (2.000000, 10.000000, 2.000000)
+OverallLocalOOBB.Extents: (20.896294, 21.973366, 18.506538)
+OverallLocalOOBB.Size: (41.792587, 43.946732, 37.013077)
 MeshOOBBSetCount: 1
 MeshSetBegin
 MeshIndex: 0
-MeshLocalOOBB.Center: (0.000000, 5.000000, 0.000000)
+MeshLocalOOBB.Center: (0.513368, 21.973366, -1.060504)
 MeshLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-MeshLocalOOBB.Extents: (1.000000, 5.000000, 1.000000)
-MeshLocalOOBB.Size: (2.000000, 10.000000, 2.000000)
+MeshLocalOOBB.Extents: (20.896294, 21.973366, 18.506538)
+MeshLocalOOBB.Size: (41.792587, 43.946732, 37.013077)
 SubOOBBCount: 1
 SubOOBBBegin
 SubIndex: 0
@@ -17783,20 +17622,20 @@ ObjectBegin
 PlacementIndex: 14
 AssetName: Tree3
 ObjectName: Tree3
-ObjectWorldPosition: (60.000000, 0.000000, -20.000000)
+ObjectWorldPosition: (69.009987, 1.000000, 0.207486)
 ObjectWorldRotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
 ObjectWorldYawDeg: 0.000000
-OverallLocalOOBB.Center: (-0.620000, 5.000000, 0.125000)
+OverallLocalOOBB.Center: (0.397767, 17.709599, 1.556972)
 OverallLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-OverallLocalOOBB.Extents: (2.990000, 5.000000, 2.445000)
-OverallLocalOOBB.Size: (5.980000, 10.000000, 4.890000)
+OverallLocalOOBB.Extents: (7.631663, 18.709599, 8.030224)
+OverallLocalOOBB.Size: (15.263326, 37.419197, 16.060448)
 MeshOOBBSetCount: 1
 MeshSetBegin
 MeshIndex: 0
-MeshLocalOOBB.Center: (-0.620000, 5.000000, 0.125000)
+MeshLocalOOBB.Center: (0.397767, 17.709599, 1.556972)
 MeshLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-MeshLocalOOBB.Extents: (2.990000, 5.000000, 2.445000)
-MeshLocalOOBB.Size: (5.980000, 10.000000, 4.890000)
+MeshLocalOOBB.Extents: (7.631663, 18.709599, 8.030224)
+MeshLocalOOBB.Size: (15.263326, 37.419197, 16.060448)
 SubOOBBCount: 3
 SubOOBBBegin
 SubIndex: 0
@@ -17826,20 +17665,20 @@ ObjectBegin
 PlacementIndex: 15
 AssetName: Tree4
 ObjectName: Tree4
-ObjectWorldPosition: (60.000000, 0.000000, 10.000000)
+ObjectWorldPosition: (66.300110, 0.000000, 23.969749)
 ObjectWorldRotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
 ObjectWorldYawDeg: 0.000000
-OverallLocalOOBB.Center: (0.000000, 5.000000, 0.388000)
+OverallLocalOOBB.Center: (-0.075113, 9.570575, 0.175524)
 OverallLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-OverallLocalOOBB.Extents: (1.000000, 5.000000, 1.000000)
-OverallLocalOOBB.Size: (2.000000, 10.000000, 2.000000)
+OverallLocalOOBB.Extents: (5.577117, 9.570575, 4.853275)
+OverallLocalOOBB.Size: (11.154234, 19.141150, 9.706551)
 MeshOOBBSetCount: 1
 MeshSetBegin
 MeshIndex: 0
-MeshLocalOOBB.Center: (0.000000, 5.000000, 0.388000)
+MeshLocalOOBB.Center: (-0.075114, 9.570575, 0.175524)
 MeshLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-MeshLocalOOBB.Extents: (1.000000, 5.000000, 1.000000)
-MeshLocalOOBB.Size: (2.000000, 10.000000, 2.000000)
+MeshLocalOOBB.Extents: (5.577117, 9.570575, 4.853275)
+MeshLocalOOBB.Size: (11.154234, 19.141150, 9.706551)
 SubOOBBCount: 1
 SubOOBBBegin
 SubIndex: 0
@@ -17855,20 +17694,20 @@ ObjectBegin
 PlacementIndex: 16
 AssetName: Tree5
 ObjectName: Tree5
-ObjectWorldPosition: (60.000000, 0.000000, 40.000000)
+ObjectWorldPosition: (68.001503, 1.000000, 50.254910)
 ObjectWorldRotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
 ObjectWorldYawDeg: 0.000000
-OverallLocalOOBB.Center: (0.000000, 5.000000, 0.070000)
+OverallLocalOOBB.Center: (0.423637, 22.476757, -0.632082)
 OverallLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-OverallLocalOOBB.Extents: (1.000000, 5.000000, 1.000000)
-OverallLocalOOBB.Size: (2.000000, 10.000000, 2.000000)
+OverallLocalOOBB.Extents: (7.259125, 23.476757, 7.671366)
+OverallLocalOOBB.Size: (14.518250, 46.953514, 15.342732)
 MeshOOBBSetCount: 1
 MeshSetBegin
 MeshIndex: 0
-MeshLocalOOBB.Center: (0.000000, 5.000000, 0.070000)
+MeshLocalOOBB.Center: (0.423638, 22.476757, -0.632082)
 MeshLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-MeshLocalOOBB.Extents: (1.000000, 5.000000, 1.000000)
-MeshLocalOOBB.Size: (2.000000, 10.000000, 2.000000)
+MeshLocalOOBB.Extents: (7.259125, 23.476757, 7.671366)
+MeshLocalOOBB.Size: (14.518250, 46.953514, 15.342732)
 SubOOBBCount: 1
 SubOOBBBegin
 SubIndex: 0
@@ -17884,20 +17723,20 @@ ObjectBegin
 PlacementIndex: 17
 AssetName: Tree6
 ObjectName: Tree6
-ObjectWorldPosition: (60.000000, 0.000000, 70.000000)
+ObjectWorldPosition: (68.016647, 1.000000, 72.088173)
 ObjectWorldRotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
 ObjectWorldYawDeg: 0.000000
-OverallLocalOOBB.Center: (-0.910000, 5.000000, 1.486000)
+OverallLocalOOBB.Center: (-0.603506, 22.465734, 1.309227)
 OverallLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-OverallLocalOOBB.Extents: (3.860000, 5.000000, 1.824000)
-OverallLocalOOBB.Size: (7.720000, 10.000000, 3.648000)
+OverallLocalOOBB.Extents: (9.311745, 23.465734, 8.788678)
+OverallLocalOOBB.Size: (18.623489, 46.931469, 17.577356)
 MeshOOBBSetCount: 1
 MeshSetBegin
 MeshIndex: 0
-MeshLocalOOBB.Center: (-0.910000, 5.000000, 1.486000)
+MeshLocalOOBB.Center: (-0.603506, 22.465734, 1.309227)
 MeshLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
-MeshLocalOOBB.Extents: (3.860000, 5.000000, 1.824000)
-MeshLocalOOBB.Size: (7.720000, 10.000000, 3.648000)
+MeshLocalOOBB.Extents: (9.311745, 23.465734, 8.788678)
+MeshLocalOOBB.Size: (18.623489, 46.931469, 17.577356)
 SubOOBBCount: 3
 SubOOBBBegin
 SubIndex: 0
@@ -17919,6 +17758,1296 @@ SubLocalOOBB.Center: (1.950000, 5.000000, 2.310000)
 SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
 SubLocalOOBB.Extents: (1.000000, 5.000000, 1.000000)
 SubLocalOOBB.Size: (2.000000, 10.000000, 2.000000)
+SubOOBBEnd
+MeshSetEnd
+ObjectEnd
+
+ObjectBegin
+PlacementIndex: 18
+AssetName: Castle
+ObjectName: Castle
+ObjectWorldPosition: (0.000000, 0.000000, 400.000000)
+ObjectWorldRotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+ObjectWorldYawDeg: 0.000000
+OverallLocalOOBB.Center: (0.000046, 146.564148, 0.000031)
+OverallLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+OverallLocalOOBB.Extents: (205.343994, 146.564148, 205.343994)
+OverallLocalOOBB.Size: (410.687988, 293.128296, 410.687988)
+MeshOOBBSetCount: 1
+MeshSetBegin
+MeshIndex: 0
+MeshLocalOOBB.Center: (0.000046, 146.564148, 0.000038)
+MeshLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+MeshLocalOOBB.Extents: (205.343994, 146.564148, 205.343994)
+MeshLocalOOBB.Size: (410.687988, 293.128296, 410.687988)
+SubOOBBCount: 165
+SubOOBBBegin
+SubIndex: 0
+SubLocalOOBB.Center: (0.000000, 26.000000, -197.039993)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (5.200000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (10.400000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 1
+SubLocalOOBB.Center: (-0.041100, 26.000000, -162.855194)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (5.200000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (10.400000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 2
+SubLocalOOBB.Center: (-16.931200, 26.000000, -179.942993)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (4.188850, 20.830299, 5.276350)
+SubLocalOOBB.Size: (8.377700, 41.660599, 10.552700)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 3
+SubLocalOOBB.Center: (16.931200, 26.000000, -179.942993)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (4.188850, 20.830299, 5.276350)
+SubLocalOOBB.Size: (8.377700, 41.660599, 10.552700)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 4
+SubLocalOOBB.Center: (9.016000, 26.000000, -194.871994)
+SubLocalOOBB.RotationQuat: (0.000000, -0.224815, 0.000000, 0.974402)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 5
+SubLocalOOBB.Center: (-8.853600, 26.000000, -195.032806)
+SubLocalOOBB.RotationQuat: (0.000000, 0.974402, 0.000000, -0.224815)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 6
+SubLocalOOBB.Center: (-14.958400, 26.000000, -188.864807)
+SubLocalOOBB.RotationQuat: (0.000000, -0.845201, 0.000000, 0.534449)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 7
+SubLocalOOBB.Center: (-8.864800, 26.000000, -165.041595)
+SubLocalOOBB.RotationQuat: (0.000000, -0.219736, 0.000000, 0.975559)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 8
+SubLocalOOBB.Center: (8.864800, 26.000000, -165.041595)
+SubLocalOOBB.RotationQuat: (0.000000, 0.975559, 0.000000, -0.219736)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 9
+SubLocalOOBB.Center: (15.120800, 26.000000, -188.703201)
+SubLocalOOBB.RotationQuat: (0.000000, -0.534448, 0.000000, 0.845201)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 10
+SubLocalOOBB.Center: (-15.032800, 26.000000, -171.145599)
+SubLocalOOBB.RotationQuat: (0.000000, -0.530038, 0.000000, 0.847974)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 11
+SubLocalOOBB.Center: (14.896000, 26.000000, -171.025604)
+SubLocalOOBB.RotationQuat: (0.000000, -0.847974, 0.000000, 0.530038)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 12
+SubLocalOOBB.Center: (180.000000, 26.000000, -197.039993)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (5.200000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (10.400000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 13
+SubLocalOOBB.Center: (179.958801, 26.000000, -162.855194)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (5.200000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (10.400000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 14
+SubLocalOOBB.Center: (163.068802, 26.000000, -179.942993)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (4.188850, 20.830299, 5.276350)
+SubLocalOOBB.Size: (8.377700, 41.660599, 10.552700)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 15
+SubLocalOOBB.Center: (196.931198, 26.000000, -179.942993)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (4.188850, 20.830299, 5.276350)
+SubLocalOOBB.Size: (8.377700, 41.660599, 10.552700)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 16
+SubLocalOOBB.Center: (189.016006, 26.000000, -194.871994)
+SubLocalOOBB.RotationQuat: (0.000000, -0.224815, 0.000000, 0.974402)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 17
+SubLocalOOBB.Center: (171.146393, 26.000000, -195.032806)
+SubLocalOOBB.RotationQuat: (0.000000, 0.974402, 0.000000, -0.224815)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 18
+SubLocalOOBB.Center: (165.041595, 26.000000, -188.864807)
+SubLocalOOBB.RotationQuat: (0.000000, -0.845201, 0.000000, 0.534449)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 19
+SubLocalOOBB.Center: (171.135193, 26.000000, -165.041595)
+SubLocalOOBB.RotationQuat: (0.000000, -0.219736, 0.000000, 0.975559)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 20
+SubLocalOOBB.Center: (188.864807, 26.000000, -165.041595)
+SubLocalOOBB.RotationQuat: (0.000000, 0.975559, 0.000000, -0.219736)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 21
+SubLocalOOBB.Center: (195.120804, 26.000000, -188.703201)
+SubLocalOOBB.RotationQuat: (0.000000, -0.534448, 0.000000, 0.845201)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 22
+SubLocalOOBB.Center: (164.967194, 26.000000, -171.145599)
+SubLocalOOBB.RotationQuat: (0.000000, -0.530038, 0.000000, 0.847974)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 23
+SubLocalOOBB.Center: (194.895996, 26.000000, -171.025604)
+SubLocalOOBB.RotationQuat: (0.000000, -0.847974, 0.000000, 0.530038)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 24
+SubLocalOOBB.Center: (-180.000000, 26.000000, -197.039993)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (5.200000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (10.400000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 25
+SubLocalOOBB.Center: (-180.041199, 26.000000, -162.855194)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (5.200000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (10.400000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 26
+SubLocalOOBB.Center: (-196.931198, 26.000000, -179.942993)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (4.188850, 20.830299, 5.276350)
+SubLocalOOBB.Size: (8.377700, 41.660599, 10.552700)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 27
+SubLocalOOBB.Center: (-163.068802, 26.000000, -179.942993)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (4.188850, 20.830299, 5.276350)
+SubLocalOOBB.Size: (8.377700, 41.660599, 10.552700)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 28
+SubLocalOOBB.Center: (-170.983994, 26.000000, -194.871994)
+SubLocalOOBB.RotationQuat: (0.000000, -0.224815, 0.000000, 0.974402)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 29
+SubLocalOOBB.Center: (-188.853607, 26.000000, -195.032806)
+SubLocalOOBB.RotationQuat: (0.000000, 0.974402, 0.000000, -0.224815)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 30
+SubLocalOOBB.Center: (-194.958405, 26.000000, -188.864807)
+SubLocalOOBB.RotationQuat: (0.000000, -0.845201, 0.000000, 0.534449)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 31
+SubLocalOOBB.Center: (-188.864807, 26.000000, -165.041595)
+SubLocalOOBB.RotationQuat: (0.000000, -0.219736, 0.000000, 0.975559)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 32
+SubLocalOOBB.Center: (-171.135193, 26.000000, -165.041595)
+SubLocalOOBB.RotationQuat: (0.000000, 0.975559, 0.000000, -0.219736)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 33
+SubLocalOOBB.Center: (-164.879196, 26.000000, -188.703201)
+SubLocalOOBB.RotationQuat: (0.000000, -0.534448, 0.000000, 0.845201)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 34
+SubLocalOOBB.Center: (-195.032806, 26.000000, -171.145599)
+SubLocalOOBB.RotationQuat: (0.000000, -0.530038, 0.000000, 0.847974)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 35
+SubLocalOOBB.Center: (-165.104004, 26.000000, -171.025604)
+SubLocalOOBB.RotationQuat: (0.000000, -0.847974, 0.000000, 0.530038)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 36
+SubLocalOOBB.Center: (0.000000, 26.000000, 162.960007)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (5.200000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (10.400000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 37
+SubLocalOOBB.Center: (-0.041100, 26.000000, 197.144806)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (5.200000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (10.400000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 38
+SubLocalOOBB.Center: (-16.931200, 26.000000, 180.057007)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (4.188850, 20.830299, 5.276350)
+SubLocalOOBB.Size: (8.377700, 41.660599, 10.552700)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 39
+SubLocalOOBB.Center: (16.931200, 26.000000, 180.057007)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (4.188850, 20.830299, 5.276350)
+SubLocalOOBB.Size: (8.377700, 41.660599, 10.552700)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 40
+SubLocalOOBB.Center: (9.016000, 26.000000, 165.128006)
+SubLocalOOBB.RotationQuat: (0.000000, -0.224815, 0.000000, 0.974402)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 41
+SubLocalOOBB.Center: (-8.853600, 26.000000, 164.967194)
+SubLocalOOBB.RotationQuat: (0.000000, 0.974402, 0.000000, -0.224815)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 42
+SubLocalOOBB.Center: (-14.958400, 26.000000, 171.135193)
+SubLocalOOBB.RotationQuat: (0.000000, -0.845201, 0.000000, 0.534449)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 43
+SubLocalOOBB.Center: (-8.864800, 26.000000, 194.958405)
+SubLocalOOBB.RotationQuat: (0.000000, -0.219736, 0.000000, 0.975559)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 44
+SubLocalOOBB.Center: (8.864800, 26.000000, 194.958405)
+SubLocalOOBB.RotationQuat: (0.000000, 0.975559, 0.000000, -0.219736)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 45
+SubLocalOOBB.Center: (15.120800, 26.000000, 171.296799)
+SubLocalOOBB.RotationQuat: (0.000000, -0.534448, 0.000000, 0.845201)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 46
+SubLocalOOBB.Center: (-15.032800, 26.000000, 188.854401)
+SubLocalOOBB.RotationQuat: (0.000000, -0.530038, 0.000000, 0.847974)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 47
+SubLocalOOBB.Center: (14.896000, 26.000000, 188.974396)
+SubLocalOOBB.RotationQuat: (0.000000, -0.847974, 0.000000, 0.530038)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 48
+SubLocalOOBB.Center: (180.000000, 26.000000, 162.960007)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (5.200000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (10.400000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 49
+SubLocalOOBB.Center: (179.958801, 26.000000, 197.144806)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (5.200000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (10.400000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 50
+SubLocalOOBB.Center: (163.068802, 26.000000, 180.057007)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (4.188850, 20.830299, 5.276350)
+SubLocalOOBB.Size: (8.377700, 41.660599, 10.552700)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 51
+SubLocalOOBB.Center: (196.931198, 26.000000, 180.057007)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (4.188850, 20.830299, 5.276350)
+SubLocalOOBB.Size: (8.377700, 41.660599, 10.552700)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 52
+SubLocalOOBB.Center: (189.016006, 26.000000, 165.128006)
+SubLocalOOBB.RotationQuat: (0.000000, -0.224815, 0.000000, 0.974402)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 53
+SubLocalOOBB.Center: (171.146393, 26.000000, 164.967194)
+SubLocalOOBB.RotationQuat: (0.000000, 0.974402, 0.000000, -0.224815)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 54
+SubLocalOOBB.Center: (165.041595, 26.000000, 171.135193)
+SubLocalOOBB.RotationQuat: (0.000000, -0.845201, 0.000000, 0.534449)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 55
+SubLocalOOBB.Center: (171.135193, 26.000000, 194.958405)
+SubLocalOOBB.RotationQuat: (0.000000, -0.219736, 0.000000, 0.975559)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 56
+SubLocalOOBB.Center: (188.864807, 26.000000, 194.958405)
+SubLocalOOBB.RotationQuat: (0.000000, 0.975559, 0.000000, -0.219736)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 57
+SubLocalOOBB.Center: (195.120804, 26.000000, 171.296799)
+SubLocalOOBB.RotationQuat: (0.000000, -0.534448, 0.000000, 0.845201)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 58
+SubLocalOOBB.Center: (164.967194, 26.000000, 188.854401)
+SubLocalOOBB.RotationQuat: (0.000000, -0.530038, 0.000000, 0.847974)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 59
+SubLocalOOBB.Center: (194.895996, 26.000000, 188.974396)
+SubLocalOOBB.RotationQuat: (0.000000, -0.847974, 0.000000, 0.530038)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 60
+SubLocalOOBB.Center: (180.000000, 26.000000, -17.040001)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (5.200000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (10.400000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 61
+SubLocalOOBB.Center: (179.958801, 26.000000, 17.144800)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (5.200000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (10.400000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 62
+SubLocalOOBB.Center: (163.068802, 26.000000, 0.057000)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (4.188850, 20.830299, 5.276350)
+SubLocalOOBB.Size: (8.377700, 41.660599, 10.552700)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 63
+SubLocalOOBB.Center: (196.931198, 26.000000, 0.057000)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (4.188850, 20.830299, 5.276350)
+SubLocalOOBB.Size: (8.377700, 41.660599, 10.552700)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 64
+SubLocalOOBB.Center: (189.016006, 26.000000, -14.872000)
+SubLocalOOBB.RotationQuat: (0.000000, -0.224815, 0.000000, 0.974402)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 65
+SubLocalOOBB.Center: (171.146393, 26.000000, -15.032800)
+SubLocalOOBB.RotationQuat: (0.000000, 0.974402, 0.000000, -0.224815)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 66
+SubLocalOOBB.Center: (165.041595, 26.000000, -8.864800)
+SubLocalOOBB.RotationQuat: (0.000000, -0.845201, 0.000000, 0.534449)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 67
+SubLocalOOBB.Center: (171.135193, 26.000000, 14.958400)
+SubLocalOOBB.RotationQuat: (0.000000, -0.219736, 0.000000, 0.975559)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 68
+SubLocalOOBB.Center: (188.864807, 26.000000, 14.958400)
+SubLocalOOBB.RotationQuat: (0.000000, 0.975559, 0.000000, -0.219736)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 69
+SubLocalOOBB.Center: (195.120804, 26.000000, -8.703200)
+SubLocalOOBB.RotationQuat: (0.000000, -0.534448, 0.000000, 0.845201)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 70
+SubLocalOOBB.Center: (164.967194, 26.000000, 8.854400)
+SubLocalOOBB.RotationQuat: (0.000000, -0.530038, 0.000000, 0.847974)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 71
+SubLocalOOBB.Center: (194.895996, 26.000000, 8.974400)
+SubLocalOOBB.RotationQuat: (0.000000, -0.847974, 0.000000, 0.530038)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 72
+SubLocalOOBB.Center: (-180.000000, 26.000000, -17.040001)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (5.200000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (10.400000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 73
+SubLocalOOBB.Center: (-180.041199, 26.000000, 17.144800)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (5.200000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (10.400000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 74
+SubLocalOOBB.Center: (-196.931198, 26.000000, 0.057000)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (4.188850, 20.830299, 5.276350)
+SubLocalOOBB.Size: (8.377700, 41.660599, 10.552700)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 75
+SubLocalOOBB.Center: (-163.068802, 26.000000, 0.057000)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (4.188850, 20.830299, 5.276350)
+SubLocalOOBB.Size: (8.377700, 41.660599, 10.552700)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 76
+SubLocalOOBB.Center: (-170.983994, 26.000000, -14.872000)
+SubLocalOOBB.RotationQuat: (0.000000, -0.224815, 0.000000, 0.974402)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 77
+SubLocalOOBB.Center: (-188.853607, 26.000000, -15.032800)
+SubLocalOOBB.RotationQuat: (0.000000, 0.974402, 0.000000, -0.224815)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 78
+SubLocalOOBB.Center: (-194.958405, 26.000000, -8.864800)
+SubLocalOOBB.RotationQuat: (0.000000, -0.845201, 0.000000, 0.534449)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 79
+SubLocalOOBB.Center: (-188.864807, 26.000000, 14.958400)
+SubLocalOOBB.RotationQuat: (0.000000, -0.219736, 0.000000, 0.975559)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 80
+SubLocalOOBB.Center: (-171.135193, 26.000000, 14.958400)
+SubLocalOOBB.RotationQuat: (0.000000, 0.975559, 0.000000, -0.219736)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 81
+SubLocalOOBB.Center: (-164.879196, 26.000000, -8.703200)
+SubLocalOOBB.RotationQuat: (0.000000, -0.534448, 0.000000, 0.845201)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 82
+SubLocalOOBB.Center: (-195.032806, 26.000000, 8.854400)
+SubLocalOOBB.RotationQuat: (0.000000, -0.530038, 0.000000, 0.847974)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 83
+SubLocalOOBB.Center: (-165.104004, 26.000000, 8.974400)
+SubLocalOOBB.RotationQuat: (0.000000, -0.847974, 0.000000, 0.530038)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 84
+SubLocalOOBB.Center: (-180.000000, 26.000000, 162.960007)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (5.200000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (10.400000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 85
+SubLocalOOBB.Center: (-180.041199, 26.000000, 197.144806)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (5.200000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (10.400000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 86
+SubLocalOOBB.Center: (-196.931198, 26.000000, 180.057007)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (4.188850, 20.830299, 5.276350)
+SubLocalOOBB.Size: (8.377700, 41.660599, 10.552700)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 87
+SubLocalOOBB.Center: (-163.068802, 26.000000, 180.057007)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (4.188850, 20.830299, 5.276350)
+SubLocalOOBB.Size: (8.377700, 41.660599, 10.552700)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 88
+SubLocalOOBB.Center: (-170.983994, 26.000000, 165.128006)
+SubLocalOOBB.RotationQuat: (0.000000, -0.224815, 0.000000, 0.974402)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 89
+SubLocalOOBB.Center: (-188.853607, 26.000000, 164.967194)
+SubLocalOOBB.RotationQuat: (0.000000, 0.974402, 0.000000, -0.224815)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 90
+SubLocalOOBB.Center: (-194.958405, 26.000000, 171.135193)
+SubLocalOOBB.RotationQuat: (0.000000, -0.845201, 0.000000, 0.534449)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 91
+SubLocalOOBB.Center: (-188.864807, 26.000000, 194.958405)
+SubLocalOOBB.RotationQuat: (0.000000, -0.219736, 0.000000, 0.975559)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 92
+SubLocalOOBB.Center: (-171.135193, 26.000000, 194.958405)
+SubLocalOOBB.RotationQuat: (0.000000, 0.975559, 0.000000, -0.219736)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 93
+SubLocalOOBB.Center: (-164.879196, 26.000000, 171.296799)
+SubLocalOOBB.RotationQuat: (0.000000, -0.534448, 0.000000, 0.845201)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 94
+SubLocalOOBB.Center: (-195.032806, 26.000000, 188.854401)
+SubLocalOOBB.RotationQuat: (0.000000, -0.530038, 0.000000, 0.847974)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 95
+SubLocalOOBB.Center: (-165.104004, 26.000000, 188.974396)
+SubLocalOOBB.RotationQuat: (0.000000, -0.847974, 0.000000, 0.530038)
+SubLocalOOBB.Extents: (6.000000, 25.858500, 4.000000)
+SubLocalOOBB.Size: (12.000000, 51.716999, 8.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 96
+SubLocalOOBB.Center: (-34.399994, 16.042761, 173.814087)
+SubLocalOOBB.RotationQuat: (-0.707107, -0.000000, -0.000000, 0.707107)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 97
+SubLocalOOBB.Center: (-87.200012, 16.042761, 173.814087)
+SubLocalOOBB.RotationQuat: (-0.707107, -0.000000, -0.000000, 0.707107)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 98
+SubLocalOOBB.Center: (-140.000031, 16.042761, 173.814087)
+SubLocalOOBB.RotationQuat: (-0.707107, -0.000000, -0.000000, 0.707107)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 99
+SubLocalOOBB.Center: (34.400009, 16.042761, 173.814087)
+SubLocalOOBB.RotationQuat: (-0.707107, -0.000000, -0.000000, 0.707107)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 100
+SubLocalOOBB.Center: (87.200027, 16.042761, 173.814087)
+SubLocalOOBB.RotationQuat: (-0.707107, -0.000000, -0.000000, 0.707107)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 101
+SubLocalOOBB.Center: (140.000031, 16.042761, 173.814087)
+SubLocalOOBB.RotationQuat: (-0.707107, -0.000000, -0.000000, 0.707107)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 102
+SubLocalOOBB.Center: (34.399994, 16.042761, -173.814087)
+SubLocalOOBB.RotationQuat: (0.000000, 0.707107, 0.707107, -0.000000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 103
+SubLocalOOBB.Center: (-140.000000, 16.042761, -173.814087)
+SubLocalOOBB.RotationQuat: (0.000000, 0.707107, 0.707107, -0.000000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 104
+SubLocalOOBB.Center: (-87.200005, 16.042761, -173.814087)
+SubLocalOOBB.RotationQuat: (0.000000, 0.707107, 0.707107, -0.000000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 105
+SubLocalOOBB.Center: (-34.399998, 16.042761, -173.814087)
+SubLocalOOBB.RotationQuat: (0.000000, 0.707107, 0.707107, -0.000000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 106
+SubLocalOOBB.Center: (87.199997, 16.042761, -173.814087)
+SubLocalOOBB.RotationQuat: (0.000000, 0.707107, 0.707107, -0.000000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 107
+SubLocalOOBB.Center: (140.000000, 16.042761, -173.814087)
+SubLocalOOBB.RotationQuat: (0.000000, 0.707107, 0.707107, -0.000000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 108
+SubLocalOOBB.Center: (-173.814087, 16.042761, -38.000000)
+SubLocalOOBB.RotationQuat: (0.500000, 0.500000, 0.500000, -0.500000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 109
+SubLocalOOBB.Center: (-173.814087, 16.042761, 136.399994)
+SubLocalOOBB.RotationQuat: (0.500000, 0.500000, 0.500000, -0.500000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 110
+SubLocalOOBB.Center: (-173.814087, 16.042761, 83.599998)
+SubLocalOOBB.RotationQuat: (0.500000, 0.500000, 0.500000, -0.500000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 111
+SubLocalOOBB.Center: (-173.814087, 16.042761, 30.799992)
+SubLocalOOBB.RotationQuat: (0.500000, 0.500000, 0.500000, -0.500000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 112
+SubLocalOOBB.Center: (-173.814087, 16.042761, -90.800003)
+SubLocalOOBB.RotationQuat: (0.500000, 0.500000, 0.500000, -0.500000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 113
+SubLocalOOBB.Center: (-173.814087, 16.042761, -143.600006)
+SubLocalOOBB.RotationQuat: (0.500000, 0.500000, 0.500000, -0.500000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 114
+SubLocalOOBB.Center: (173.814087, 16.042761, 38.000000)
+SubLocalOOBB.RotationQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 115
+SubLocalOOBB.Center: (173.814087, 16.042761, -136.399994)
+SubLocalOOBB.RotationQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 116
+SubLocalOOBB.Center: (173.814087, 16.042761, -83.599998)
+SubLocalOOBB.RotationQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 117
+SubLocalOOBB.Center: (173.814087, 16.042761, -30.799992)
+SubLocalOOBB.RotationQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 118
+SubLocalOOBB.Center: (173.814087, 16.042761, 90.800003)
+SubLocalOOBB.RotationQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 119
+SubLocalOOBB.Center: (173.814087, 16.042761, 143.600006)
+SubLocalOOBB.RotationQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 120
+SubLocalOOBB.Center: (106.000000, 16.042761, -120.480804)
+SubLocalOOBB.RotationQuat: (0.000000, 0.707107, 0.707107, -0.000000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 121
+SubLocalOOBB.Center: (-105.200027, 16.042761, -120.480804)
+SubLocalOOBB.RotationQuat: (0.000000, 0.707107, 0.707107, -0.000000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 122
+SubLocalOOBB.Center: (-52.400032, 16.042761, -120.480804)
+SubLocalOOBB.RotationQuat: (0.000000, 0.707107, 0.707107, -0.000000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 123
+SubLocalOOBB.Center: (53.199993, 16.042761, -120.480804)
+SubLocalOOBB.RotationQuat: (0.000000, 0.707107, 0.707107, -0.000000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 124
+SubLocalOOBB.Center: (0.399986, 16.042761, -120.480804)
+SubLocalOOBB.RotationQuat: (0.000000, 0.707107, 0.707107, -0.000000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 125
+SubLocalOOBB.Center: (-106.000000, 16.042761, 120.480804)
+SubLocalOOBB.RotationQuat: (-0.707107, -0.000000, -0.000000, 0.707107)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 126
+SubLocalOOBB.Center: (105.200027, 16.042761, 120.480804)
+SubLocalOOBB.RotationQuat: (-0.707107, -0.000000, -0.000000, 0.707107)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 127
+SubLocalOOBB.Center: (52.400032, 16.042761, 120.480804)
+SubLocalOOBB.RotationQuat: (-0.707107, -0.000000, -0.000000, 0.707107)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 128
+SubLocalOOBB.Center: (-53.199993, 16.042761, 120.480804)
+SubLocalOOBB.RotationQuat: (-0.707107, -0.000000, -0.000000, 0.707107)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 129
+SubLocalOOBB.Center: (-0.399986, 16.042761, 120.480804)
+SubLocalOOBB.RotationQuat: (-0.707107, -0.000000, -0.000000, 0.707107)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 130
+SubLocalOOBB.Center: (-120.480804, 16.042761, -106.000000)
+SubLocalOOBB.RotationQuat: (0.500000, 0.500000, 0.500000, -0.500000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 131
+SubLocalOOBB.Center: (-120.480804, 16.042761, 105.200027)
+SubLocalOOBB.RotationQuat: (0.500000, 0.500000, 0.500000, -0.500000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 132
+SubLocalOOBB.Center: (-120.480804, 16.042761, 52.400032)
+SubLocalOOBB.RotationQuat: (0.500000, 0.500000, 0.500000, -0.500000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 133
+SubLocalOOBB.Center: (-120.480804, 16.042761, -53.199993)
+SubLocalOOBB.RotationQuat: (0.500000, 0.500000, 0.500000, -0.500000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 134
+SubLocalOOBB.Center: (-120.480804, 16.042761, -0.399986)
+SubLocalOOBB.RotationQuat: (0.500000, 0.500000, 0.500000, -0.500000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 135
+SubLocalOOBB.Center: (120.480804, 16.042761, 106.000000)
+SubLocalOOBB.RotationQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 136
+SubLocalOOBB.Center: (120.480804, 16.042761, -105.200027)
+SubLocalOOBB.RotationQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 137
+SubLocalOOBB.Center: (120.480804, 16.042761, -52.400032)
+SubLocalOOBB.RotationQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 138
+SubLocalOOBB.Center: (120.480804, 16.042761, 53.199993)
+SubLocalOOBB.RotationQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 139
+SubLocalOOBB.Center: (120.480804, 16.042761, 0.399986)
+SubLocalOOBB.RotationQuat: (-0.500000, 0.500000, 0.500000, 0.500000)
+SubLocalOOBB.Extents: (26.400002, 12.480804, 16.042761)
+SubLocalOOBB.Size: (52.800003, 24.961609, 32.085522)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 140
+SubLocalOOBB.Center: (0.305033, 7.390902, 107.254875)
+SubLocalOOBB.RotationQuat: (0.000000, -0.000000, 1.000000, 0.000000)
+SubLocalOOBB.Extents: (5.638313, 7.390912, 0.668168)
+SubLocalOOBB.Size: (11.276627, 14.781823, 1.336336)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 141
+SubLocalOOBB.Center: (6.796899, 6.808253, 105.596390)
+SubLocalOOBB.RotationQuat: (-0.500000, -0.000000, 0.866025, 0.000000)
+SubLocalOOBB.Extents: (0.200005, 6.808262, 2.300000)
+SubLocalOOBB.Size: (0.400009, 13.616524, 4.600000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 142
+SubLocalOOBB.Center: (-6.186814, 6.808253, 105.596390)
+SubLocalOOBB.RotationQuat: (0.000000, 0.500000, 0.000000, 0.866025)
+SubLocalOOBB.Extents: (0.200005, 6.808262, 2.300000)
+SubLocalOOBB.Size: (0.400009, 13.616524, 4.600000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 143
+SubLocalOOBB.Center: (0.305033, 7.390902, -201.745132)
+SubLocalOOBB.RotationQuat: (0.000000, -0.000000, 1.000000, 0.000000)
+SubLocalOOBB.Extents: (5.638313, 7.390912, 0.668168)
+SubLocalOOBB.Size: (11.276627, 14.781823, 1.336336)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 144
+SubLocalOOBB.Center: (6.796899, 6.808253, -203.403610)
+SubLocalOOBB.RotationQuat: (-0.500000, -0.000000, 0.866025, 0.000000)
+SubLocalOOBB.Extents: (0.200005, 6.808262, 2.300000)
+SubLocalOOBB.Size: (0.400009, 13.616524, 4.600000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 145
+SubLocalOOBB.Center: (-6.186814, 6.808253, -203.403610)
+SubLocalOOBB.RotationQuat: (0.000000, 0.500000, 0.000000, 0.866025)
+SubLocalOOBB.Extents: (0.200005, 6.808262, 2.300000)
+SubLocalOOBB.Size: (0.400009, 13.616524, 4.600000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 146
+SubLocalOOBB.Center: (-0.305033, 7.390902, 201.788132)
+SubLocalOOBB.RotationQuat: (1.000000, -0.000000, 0.000000, -0.000000)
+SubLocalOOBB.Extents: (5.638313, 7.390912, 0.668168)
+SubLocalOOBB.Size: (11.276627, 14.781823, 1.336336)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 147
+SubLocalOOBB.Center: (-6.796899, 6.808253, 203.446609)
+SubLocalOOBB.RotationQuat: (0.866025, -0.000000, 0.500000, -0.000000)
+SubLocalOOBB.Extents: (0.200005, 6.808262, 2.300000)
+SubLocalOOBB.Size: (0.400009, 13.616524, 4.600000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 148
+SubLocalOOBB.Center: (6.186814, 6.808253, 203.446609)
+SubLocalOOBB.RotationQuat: (-0.000000, 0.866025, 0.000000, -0.500000)
+SubLocalOOBB.Extents: (0.200005, 6.808262, 2.300000)
+SubLocalOOBB.Size: (0.400009, 13.616524, 4.600000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 149
+SubLocalOOBB.Center: (-0.305033, 7.390902, -107.254875)
+SubLocalOOBB.RotationQuat: (1.000000, -0.000000, 0.000000, -0.000000)
+SubLocalOOBB.Extents: (5.638313, 7.390912, 0.668168)
+SubLocalOOBB.Size: (11.276627, 14.781823, 1.336336)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 150
+SubLocalOOBB.Center: (-6.796899, 6.808253, -105.596390)
+SubLocalOOBB.RotationQuat: (0.866025, -0.000000, 0.500000, -0.000000)
+SubLocalOOBB.Extents: (0.200005, 6.808262, 2.300000)
+SubLocalOOBB.Size: (0.400009, 13.616524, 4.600000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 151
+SubLocalOOBB.Center: (6.186814, 6.808253, -105.596390)
+SubLocalOOBB.RotationQuat: (-0.000000, 0.866025, 0.000000, -0.500000)
+SubLocalOOBB.Extents: (0.200005, 6.808262, 2.300000)
+SubLocalOOBB.Size: (0.400009, 13.616524, 4.600000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 152
+SubLocalOOBB.Center: (201.788132, 7.390902, -0.304995)
+SubLocalOOBB.RotationQuat: (0.707107, 0.000000, -0.707107, -0.000000)
+SubLocalOOBB.Extents: (5.638313, 7.390912, 0.668168)
+SubLocalOOBB.Size: (11.276627, 14.781823, 1.336336)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 153
+SubLocalOOBB.Center: (203.446609, 6.808253, 6.186871)
+SubLocalOOBB.RotationQuat: (0.965926, 0.000000, -0.258819, -0.000000)
+SubLocalOOBB.Extents: (0.200005, 6.808262, 2.300000)
+SubLocalOOBB.Size: (0.400009, 13.616524, 4.600000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 154
+SubLocalOOBB.Center: (203.446609, 6.808253, -6.796842)
+SubLocalOOBB.RotationQuat: (0.000000, -0.258819, -0.000000, 0.965926)
+SubLocalOOBB.Extents: (0.200005, 6.808262, 2.300000)
+SubLocalOOBB.Size: (0.400009, 13.616524, 4.600000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 155
+SubLocalOOBB.Center: (-107.254875, 7.390902, -0.304995)
+SubLocalOOBB.RotationQuat: (0.707107, 0.000000, -0.707107, -0.000000)
+SubLocalOOBB.Extents: (5.638313, 7.390912, 0.668168)
+SubLocalOOBB.Size: (11.276627, 14.781823, 1.336336)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 156
+SubLocalOOBB.Center: (-105.596390, 6.808253, 6.186871)
+SubLocalOOBB.RotationQuat: (0.965926, 0.000000, -0.258819, -0.000000)
+SubLocalOOBB.Extents: (0.200005, 6.808262, 2.300000)
+SubLocalOOBB.Size: (0.400009, 13.616524, 4.600000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 157
+SubLocalOOBB.Center: (-105.596390, 6.808253, -6.796842)
+SubLocalOOBB.RotationQuat: (0.000000, -0.258819, -0.000000, 0.965926)
+SubLocalOOBB.Extents: (0.200005, 6.808262, 2.300000)
+SubLocalOOBB.Size: (0.400009, 13.616524, 4.600000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 158
+SubLocalOOBB.Center: (-201.788132, 7.390902, 0.304995)
+SubLocalOOBB.RotationQuat: (0.707107, -0.000000, 0.707107, -0.000000)
+SubLocalOOBB.Extents: (5.638313, 7.390912, 0.668168)
+SubLocalOOBB.Size: (11.276627, 14.781823, 1.336336)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 159
+SubLocalOOBB.Center: (-203.446609, 6.808253, -6.186871)
+SubLocalOOBB.RotationQuat: (0.258819, -0.000000, 0.965926, -0.000000)
+SubLocalOOBB.Extents: (0.200005, 6.808262, 2.300000)
+SubLocalOOBB.Size: (0.400009, 13.616524, 4.600000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 160
+SubLocalOOBB.Center: (-203.446609, 6.808253, 6.796842)
+SubLocalOOBB.RotationQuat: (0.000000, 0.965926, 0.000000, 0.258819)
+SubLocalOOBB.Extents: (0.200005, 6.808262, 2.300000)
+SubLocalOOBB.Size: (0.400009, 13.616524, 4.600000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 161
+SubLocalOOBB.Center: (107.254875, 7.390902, 0.299981)
+SubLocalOOBB.RotationQuat: (0.707107, -0.000000, 0.707107, -0.000000)
+SubLocalOOBB.Extents: (5.638313, 7.390912, 0.668168)
+SubLocalOOBB.Size: (11.276627, 14.781823, 1.336336)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 162
+SubLocalOOBB.Center: (105.596390, 6.808253, -6.191885)
+SubLocalOOBB.RotationQuat: (0.258819, -0.000000, 0.965926, -0.000000)
+SubLocalOOBB.Extents: (0.200005, 6.808262, 2.300000)
+SubLocalOOBB.Size: (0.400009, 13.616524, 4.600000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 163
+SubLocalOOBB.Center: (105.596390, 6.808253, 6.791828)
+SubLocalOOBB.RotationQuat: (0.000000, 0.965926, 0.000000, 0.258819)
+SubLocalOOBB.Extents: (0.200005, 6.808262, 2.300000)
+SubLocalOOBB.Size: (0.400009, 13.616524, 4.600000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 164
+SubLocalOOBB.Center: (-0.320040, 160.628281, 0.553935)
+SubLocalOOBB.RotationQuat: (0.000000, -0.000000, 1.000000, 0.000000)
+SubLocalOOBB.Extents: (108.553886, 132.500000, 108.553940)
+SubLocalOOBB.Size: (217.107773, 265.000000, 217.107880)
+SubOOBBEnd
+MeshSetEnd
+ObjectEnd
+
+ObjectBegin
+PlacementIndex: 19
+AssetName: Tower
+ObjectName: Tower
+ObjectWorldPosition: (31.700001, 0.000000, -57.491100)
+ObjectWorldRotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+ObjectWorldYawDeg: 0.000000
+OverallLocalOOBB.Center: (-0.062928, 53.995117, 2.151928)
+OverallLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+OverallLocalOOBB.Extents: (15.963807, 54.005119, 19.781227)
+OverallLocalOOBB.Size: (31.927614, 108.010239, 39.562454)
+MeshOOBBSetCount: 1
+MeshSetBegin
+MeshIndex: 0
+MeshLocalOOBB.Center: (-0.062928, 53.995117, 2.151929)
+MeshLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+MeshLocalOOBB.Extents: (15.963807, 54.005119, 19.781227)
+MeshLocalOOBB.Size: (31.927614, 108.010239, 39.562454)
+SubOOBBCount: 13
+SubOOBBBegin
+SubIndex: 0
+SubLocalOOBB.Center: (-0.062900, 109.989998, -29.274099)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (15.000000, 10.000000, 16.500000)
+SubLocalOOBB.Size: (30.000000, 20.000000, 33.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 1
+SubLocalOOBB.Center: (-0.062900, 109.989998, 27.287901)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (15.000000, 10.000000, 16.500000)
+SubLocalOOBB.Size: (30.000000, 20.000000, 33.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 2
+SubLocalOOBB.Center: (-24.932899, 109.989998, -0.069100)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (15.000000, 10.000000, 16.500000)
+SubLocalOOBB.Size: (30.000000, 20.000000, 33.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 3
+SubLocalOOBB.Center: (26.487101, 109.989998, -0.069100)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (15.000000, 10.000000, 16.500000)
+SubLocalOOBB.Size: (30.000000, 20.000000, 33.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 4
+SubLocalOOBB.Center: (-0.062900, 39.990002, -0.069100)
+SubLocalOOBB.RotationQuat: (0.000000, 0.000000, 0.000000, 1.000000)
+SubLocalOOBB.Extents: (15.000000, 60.000000, 16.500000)
+SubLocalOOBB.Size: (30.000000, 120.000000, 33.000000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 5
+SubLocalOOBB.Center: (-0.000014, 5.543180, 17.013357)
+SubLocalOOBB.RotationQuat: (1.000000, -0.000000, 0.000000, -0.000000)
+SubLocalOOBB.Extents: (4.228735, 5.543184, 1.102477)
+SubLocalOOBB.Size: (8.457470, 11.086368, 2.204955)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 6
+SubLocalOOBB.Center: (-4.868914, 5.106193, 19.749863)
+SubLocalOOBB.RotationQuat: (0.791782, -0.000000, 0.610804, -0.000000)
+SubLocalOOBB.Extents: (0.295472, 5.106196, 2.415000)
+SubLocalOOBB.Size: (0.590945, 10.212393, 4.830000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 7
+SubLocalOOBB.Center: (4.868871, 5.106193, 19.749861)
+SubLocalOOBB.RotationQuat: (-0.000000, 0.791782, 0.000000, -0.610804)
+SubLocalOOBB.Extents: (0.295473, 5.106196, 2.415000)
+SubLocalOOBB.Size: (0.590945, 10.212393, 4.830000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 8
+SubLocalOOBB.Center: (-0.000014, 102.154800, -9.417272)
+SubLocalOOBB.RotationQuat: (1.000000, -0.000000, 0.000000, -0.000000)
+SubLocalOOBB.Extents: (4.228735, 5.543184, 0.551239)
+SubLocalOOBB.Size: (8.457470, 11.086368, 1.102477)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 9
+SubLocalOOBB.Center: (-4.868914, 101.717812, -8.049020)
+SubLocalOOBB.RotationQuat: (0.855786, -0.000000, 0.517330, -0.000000)
+SubLocalOOBB.Extents: (0.161384, 5.106196, 1.769702)
+SubLocalOOBB.Size: (0.322769, 10.212393, 3.539404)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 10
+SubLocalOOBB.Center: (4.868871, 101.717812, -8.049020)
+SubLocalOOBB.RotationQuat: (-0.000000, 0.855786, 0.000000, -0.517330)
+SubLocalOOBB.Extents: (0.161384, 5.106196, 1.769702)
+SubLocalOOBB.Size: (0.322769, 10.212393, 3.539404)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 11
+SubLocalOOBB.Center: (0.000000, 98.000237, -11.200200)
+SubLocalOOBB.RotationQuat: (0.000000, -0.000000, 1.000000, 0.000000)
+SubLocalOOBB.Extents: (7.500000, 10.000000, 1.650000)
+SubLocalOOBB.Size: (15.000000, 20.000000, 3.300000)
+SubOOBBEnd
+SubOOBBBegin
+SubIndex: 12
+SubLocalOOBB.Center: (-0.062928, 89.989990, -0.069111)
+SubLocalOOBB.RotationQuat: (0.000000, -0.000000, 1.000000, 0.000000)
+SubLocalOOBB.Extents: (11.400000, 10.000000, 12.540001)
+SubLocalOOBB.Size: (22.799999, 20.000000, 25.080002)
 SubOOBBEnd
 MeshSetEnd
 ObjectEnd

@@ -8,6 +8,8 @@
 #include "ActorTagComponent.h"
 #include "MonsterAnimTypes.h"
 #include "GameSceneContentCatalog.h"
+#include "HealthComponent.h"
+#include "AttackPowerComponent.h"
 
 #include <memory>
 #include <vector>
@@ -57,9 +59,17 @@ namespace GameSceneObjectFactory
 
 		const std::unordered_map<std::string, std::vector<AuthoredSubMeshOOBB>>* authoredStaticSubMeshOOBBs = nullptr;
 
+		bool debugColliderBuildLog = false;
+		std::string debugColliderAssetName;
+		std::string debugColliderObjectName;
+
 		bool addArrowComponent = false;
 		bool addBulletComponent = false;
 		bool addMonsterWeaponHitbox = false;
+		bool addPlayerWeaponHitbox = false;
+
+		bool addAttackPower = false;
+		int attackPower = 0;
 	};
 
 	struct SkinnedRenderableDesc
@@ -93,6 +103,12 @@ namespace GameSceneObjectFactory
 
 		bool addMonsterCombat = false;
 		bool addMonsterWeaponHitbox = false;
+
+		bool addHealth = false;
+		int maxHp = 1;
+
+		bool addAttackPower = false;
+		int attackPower = 0;
 
 		const char* skeletonKey = nullptr;
 		const std::vector<GameSceneClipEntry>* clipEntries = nullptr;

@@ -1,8 +1,6 @@
 #pragma once
 //-----------------------------------------------------------------------------
 // File: ServerObject.h
-// 서버용 게임 오브젝트 기본 클래스
-// DirectX 의존성 없음
 //-----------------------------------------------------------------------------
 
 #ifndef COMMON_OWNER_TYPE
@@ -24,10 +22,7 @@ namespace Protocol
 #include "CTransformComponent.h"
 
 //-----------------------------------------------------------------------------
-// CServerObject: 서버용 게임 오브젝트
-// - Transform (위치, 회전)
-// - 컴포넌트 시스템
-// - 애니메이션 상태 (렌더링 없음)
+// CServerObject
 //-----------------------------------------------------------------------------
 class CServerObject
 {
@@ -36,7 +31,7 @@ public:
     virtual ~CServerObject();
 
     // ========================================
-    // Transform (편의 메서드)
+    // Transform
     // ========================================
     void SetPosition(float x, float y, float z);
     void SetPosition(const GameMath::Vec3& pos);
@@ -113,29 +108,53 @@ public:
     NetworkPlayerState ToNetworkState() const;
     void ApplyNetworkState(const NetworkPlayerState& state);
 
+    // ========================================
+    // HP / Damage
+    // ========================================
+    void SetMaxHp(int hp, bool fillCurrent = true)
+    {
+        m_maxHp = (hp < 1) ? 1 : hp;
+        if (fillCurrent) m_currentHp = m_maxHp;
+    }
+    int  GetMaxHp()     const { return m_maxHp; }
+    int  GetCurrentHp() const { return m_currentHp; }
+    bool IsDead()       const { return m_currentHp <= 0; }
 
-	// ========================================
-	// Active State (옵션)
+    bool TakeDamage(int damage)
+    {
+        if (damage <= 0 || IsDead()) return false;
+        m_currentHp -= damage;
+        if (m_currentHp < 0) m_currentHp = 0;
+        return true;
+    }
+
+    void ResetHpToMax() { m_currentHp = m_maxHp; }
+
+    void SetAttackPower(int ap) { m_attackPower = ap; }
+    int  GetAttackPower() const { return m_attackPower; }
+
+    // ========================================
+    // Active State
 private:
-	bool active = false; // 활성화 여부 (옵션)
+    bool active = false;
 public:
     bool IsActive() const { return active; }
-	void SetActive(bool b) { 
+    void SetActive(bool b) {
 
-        if(m_objectId == 0 && b != active)
+        if (m_objectId == 0 && b != active)
             cout << m_objectId << " goes to " << b
-                << " from " << active
-                << std::endl;
+            << " from " << active
+            << std::endl;
 
-        active = b; 
+        active = b;
     }
     // ========================================
 
 
 
-	// ========================================
-	// Transform Component (항상 존재)
-	// ========================================
+    // ========================================
+    // Transform Component
+    // ========================================
 
 public:
     // Animation state
@@ -143,17 +162,19 @@ public:
     int m_animTick = 0;
 
 protected:
-    // Transform 컴포넌트 (항상 존재)
     CCommonTransformComponent* m_pTransform = nullptr;
 
-    // Physics (컴포넌트 없이 직접 관리할 때 사용)
+    // Physics
     GameMath::Vec3 m_velocity = GameMath::Vec3::Zero();
     GameMath::Vec3 m_gravity = GameMath::Vec3::Zero();
     float m_friction = 0.f;
     float m_maxVelXZ = 0.f;
     float m_maxVelY = 0.f;
 
-
+    // HP
+    int m_maxHp = 1;
+    int m_currentHp = 1;
+    int m_attackPower = 0;
 
     // Identity
     uint64_t m_objectId = 0;
@@ -164,11 +185,9 @@ protected:
     bool m_bComponentsCreated = false;
 
     // Physics helper
-    void ApplyPhysics(float dt);    
+    void ApplyPhysics(float dt);
 
-    // 능동적인 행동이 가능한지 여부
-    // 예) 구르기, Hit, Die, 근접 공격 도중에는 다른 행동이 불가능하다
-    bool m_bpassive = true; 
+    bool m_bpassive = true;
 };
 
 //-----------------------------------------------------------------------------

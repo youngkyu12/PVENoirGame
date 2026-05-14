@@ -25,8 +25,21 @@ void CEnemy::UpdateAI(float dt)
 		m_monsterAI->OnUpdate(dt);
 }
 
-void CEnemy::ApplyHit(uint32 serverTick, uint32 hitDurationTicks)
+void CEnemy::ApplyHit(uint32 serverTick, int damage, uint32 hitDurationTicks)
 {
+	if (IsDead()) return;
+
+	TakeDamage(damage);
+
+	if (IsDead())
+	{
+		SetAnimState(Protocol::ANIMATION_TYPE_DIE);
+		SetAnimTick(serverTick);
+		SetVelocity(GameMath::Vec3::Zero());
+		m_hitEndTick = 0;
+		return;
+	}
+
 	SetAnimState(Protocol::ANIMATION_TYPE_HIT);
 	SetAnimTick(serverTick);
 	const uint32 endTick = serverTick + hitDurationTicks;
@@ -36,6 +49,12 @@ void CEnemy::ApplyHit(uint32 serverTick, uint32 hitDurationTicks)
 
 void CEnemy::Update(uint32 serverTick)
 {
+	if (GetAnimState() == Protocol::ANIMATION_TYPE_DIE)
+	{
+		SetVelocity(GameMath::Vec3::Zero());
+		return;
+	}
+
 	if (GetAnimState() == Protocol::ANIMATION_TYPE_HIT)
 	{
 		if (serverTick < m_hitEndTick)
