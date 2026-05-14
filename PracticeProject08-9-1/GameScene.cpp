@@ -3926,6 +3926,8 @@ void CGameScene::BuildLightsAndMaterials()
 	m_pMaterials = make_unique<MATERIALS>();
 	::ZeroMemory(m_pMaterials.get(), sizeof(MATERIALS));
 
+	AssetManager::BeginSceneMaterialBuild(m_pMaterials.get());
+
     m_pMaterials->m_pReflections[0] = {
         XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),
         XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),
