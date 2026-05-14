@@ -46,6 +46,7 @@ public:
 	void CreateSwapChain();
 	void CreateSwapChainRenderTargetViews();
 	void CreateDepthStencilView();
+	void CreateAudio();
 
 	void BuildObjects();
 

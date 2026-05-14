@@ -307,6 +307,51 @@ int CGameScene::ComputeSkinnedWorldLodLevel(
 	return 2;
 }
 
+int CGameScene::ComputeSpawnWorldLodLevel(
+	const XMFLOAT3& cameraPosition,
+	const SkinnedWorldLodEntry& entry) const
+{
+	if ( !entry.lodEnabled )
+		return 0;
+
+	const float dx = cameraPosition.x - entry.lodReferencePosition.x;
+	const float dy = cameraPosition.y - entry.lodReferencePosition.y;
+	const float dz = cameraPosition.z - entry.lodReferencePosition.z;
+
+	const float dist = std::sqrt(dx * dx + dy * dy + dz * dz);
+
+	float lodDistance01 = entry.lodDistance01;
+	if ( lodDistance01 < 0.0f ) lodDistance01 = 0.0f;
+
+	float lodDistance12 = entry.lodDistance12;
+	if ( lodDistance12 < lodDistance01 ) lodDistance12 = lodDistance01;
+
+	const float lod01Enter = lodDistance01 + m_spawnLodHysteresis;
+	const float lod01Exit = lodDistance01 - m_spawnLodHysteresis;
+	const float lod12Enter = lodDistance12 + m_spawnLodHysteresis;
+	const float lod12Exit = lodDistance12 - m_spawnLodHysteresis;
+
+	switch ( entry.currentLod )
+	{
+	case 0:
+		if ( dist >= lod01Enter ) return 1;
+		return 0;
+
+	case 1:
+		if ( dist < lod01Exit ) return 0;
+		if ( dist >= lod12Enter ) return 2;
+		return 1;
+
+	case 2:
+		if ( dist < lod12Exit ) return 1;
+		return 2;
+	}
+
+	if ( dist < lodDistance01 ) return 0;
+	if ( dist < lodDistance12 ) return 1;
+	return 2;
+}
+
 bool CGameScene::ComputeSkinnedWorldDistanceCulled(
 	const XMFLOAT3& cameraPosition,
 	const SkinnedWorldLodEntry& entry) const
@@ -326,6 +371,37 @@ bool CGameScene::ComputeSkinnedWorldDistanceCulled(
 
 	const float cullEnter = cullDistance + m_skinnedCullHysteresis;
 	float cullExit = cullDistance - m_skinnedCullHysteresis;
+	if ( cullExit < 0.0f ) cullExit = 0.0f;
+
+	if ( !entry.distanceCulled )
+	{
+		if ( dist >= cullEnter ) return true;
+		return false;
+	}
+
+	if ( dist < cullExit ) return false;
+	return true;
+}
+
+bool CGameScene::ComputeSpawnWorldDistanceCulled(
+	const XMFLOAT3& cameraPosition,
+	const SkinnedWorldLodEntry& entry) const
+{
+	if ( !entry.distanceCullEnabled )
+		return false;
+
+	const float dx = cameraPosition.x - entry.lodReferencePosition.x;
+	const float dy = cameraPosition.y - entry.lodReferencePosition.y;
+	const float dz = cameraPosition.z - entry.lodReferencePosition.z;
+
+	const float dist = std::sqrt(dx * dx + dy * dy + dz * dz);
+
+	// replace std::max usag
+	float cullDistance = entry.cullDistance;
+	if ( cullDistance < 0.0f ) cullDistance = 0.0f;
+
+	const float cullEnter = cullDistance + m_spawnCullHysteresis;
+	float cullExit = cullDistance - m_spawnCullHysteresis;
 	if ( cullExit < 0.0f ) cullExit = 0.0f;
 
 	if ( !entry.distanceCulled )
@@ -458,6 +534,99 @@ void CGameScene::UpdateSkinnedWorldLodSelection(CCamera* camera)
 	{
 		m_skinnedWorldLodDirty = false;
 	}
+}
+
+void CGameScene::UpdateSpawnWorldLodSelection(CCamera* camera)
+{
+	if ( !camera )
+	{
+		m_spawnDistanceCullFlags.clear();
+		return;
+	}
+
+	m_spawnDistanceCullFlags.assign(m_spawnBatch.objectRefs.size(), 0);
+
+	if ( m_spawnWorldLodEntries.empty() )
+	{
+		m_spawnWorldLodDirty = false;
+		return;
+	}
+
+	const XMFLOAT3 cameraPosition = camera->GetPosition();
+	bool anyLodChanged = false;
+
+	for ( SkinnedWorldLodEntry& entry : m_spawnWorldLodEntries )
+	{
+		if ( !entry.object ) continue;
+		if ( entry.skinnedBatchObjectIndex == UINT_MAX ) continue;
+		if ( entry.skinnedBatchObjectIndex >= ( UINT ) m_spawnDistanceCullFlags.size() ) continue;
+
+		const bool distanceCulled =
+			ComputeSpawnWorldDistanceCulled(cameraPosition, entry);
+
+		entry.distanceCulled = distanceCulled;
+
+		if ( distanceCulled )
+		{
+			m_spawnDistanceCullFlags[entry.skinnedBatchObjectIndex] = 1;
+			continue;
+		}
+
+		int desiredLod = ComputeSpawnWorldLodLevel(cameraPosition, entry);
+		desiredLod = ClampSkinnedWorldLodLevel(desiredLod);
+
+		int resolvedLod = desiredLod;
+		while ( resolvedLod > 0 && !entry.lodMeshes[( size_t ) resolvedLod] )
+			--resolvedLod;
+
+		std::shared_ptr<CMesh> targetMesh = entry.lodMeshes[( size_t ) resolvedLod];
+		if ( !targetMesh ) continue;
+
+		std::shared_ptr<CMesh> currentMesh = entry.object->GetMeshShared(0);
+		if ( entry.currentLod == resolvedLod && currentMesh.get() == targetMesh.get() )
+			continue;
+	}
+
+	// --------------------------------------------------------------------
+	// body가 culled 되면 attachment follower도 같이 culled 처리
+	// - static follower : sword, helmet 등
+	// - skinned follower: bow 등
+	// --------------------------------------------------------------------
+	std::unordered_map<const CGameObject*, UINT> staticIndexByObject;
+	staticIndexByObject.reserve(m_staticBatch.objectRefs.size());
+
+	for ( UINT i = 0; i < ( UINT ) m_staticBatch.objectRefs.size(); ++i )
+	{
+		if ( m_staticBatch.objectRefs[i] )
+			staticIndexByObject[m_staticBatch.objectRefs[i]] = i;
+	}
+
+	std::unordered_map<const CGameObject*, UINT> skinnedIndexByObject;
+	skinnedIndexByObject.reserve(m_spawnBatch.objectRefs.size());
+
+	for ( UINT i = 0; i < ( UINT ) m_spawnBatch.objectRefs.size(); ++i )
+	{
+		if ( m_spawnBatch.objectRefs[i] )
+			skinnedIndexByObject[m_spawnBatch.objectRefs[i]] = i;
+	}
+
+	if ( anyLodChanged )
+	{
+		BuildSpawnInstanceGroups();
+		m_spawnWorldLodDirty = true;
+	}
+	else
+	{
+		m_spawnWorldLodDirty = false;
+	}
+}
+// spawn
+
+void CGameScene::ResetSpawnWorldLodEntries()
+{
+	m_spawnWorldLodEntries.clear();
+	m_spawnDistanceCullFlags.clear();
+	m_spawnWorldLodDirty = false;
 }
 
 void CGameScene::BuildStaticWorldLodEntryIndexMap()

@@ -149,7 +149,7 @@ ComPtr<ID3D12Resource> CreateTextureResourceFromDDSFile(
 	d3dHeapPropertiesDesc.CreationNodeMask = 1;
 	d3dHeapPropertiesDesc.VisibleNodeMask = 1;
 
-	D3D12_RESOURCE_DESC d3dTextureResourceDesc = pd3dTexture->GetDesc();
+	//D3D12_RESOURCE_DESC d3dTextureResourceDesc = pd3dTexture->GetDesc();
 	UINT nSubResources = (UINT)vSubresources.size();
 	UINT64 nBytes = GetRequiredIntermediateSize(pd3dTexture.Get(), 0, nSubResources);
 	//	UINT nSubResources = d3dTextureResourceDesc.DepthOrArraySize * d3dTextureResourceDesc.MipLevels;

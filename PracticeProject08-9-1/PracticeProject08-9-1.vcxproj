@@ -190,6 +190,8 @@
     <ClInclude Include="DDSTextureLoader12.h" />
     <ClInclude Include="DepthFog.h" />
     <ClInclude Include="DescriptorHeap.h" />
+    <ClInclude Include="EnemyPool.h" />
+    <ClInclude Include="EnemySpawner.h" />
     <ClInclude Include="Enum.pb.h" />
     <ClInclude Include="FollowBoneComponent.h" />
     <ClInclude Include="GameFramework.h" />
@@ -239,6 +241,7 @@
     <ClInclude Include="Struct.pb.h" />
     <ClInclude Include="StructGenerator.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="TerrainComponent.h" />
     <ClInclude Include="Texture.h" />
     <ClInclude Include="Timer.h" />
     <ClInclude Include="MathHelper.h" />
@@ -267,6 +270,8 @@
     </ClCompile>
     <ClCompile Include="DepthFog.cpp" />
     <ClCompile Include="DescriptorHeap.cpp" />
+    <ClCompile Include="EnemyPool.cpp" />
+    <ClCompile Include="EnemySpawner.cpp" />
     <ClCompile Include="Enum.pb.cc">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
@@ -333,6 +338,7 @@
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="TerrainComponent.cpp" />
     <ClCompile Include="Texture.cpp" />
     <ClCompile Include="Timer.cpp" />
     <ClCompile Include="WeaponHitboxComponent.cpp" />
@@ -407,30 +413,40 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </None>
   </ItemGroup>
-  <ItemGroup>
-    <None Include="Billboard.hlsl">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <FileType>Document</FileType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Occlusion.hlsl">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <FileType>Document</FileType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="RenderTypes.hlsl">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <FileType>Document</FileType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="DepthFog.hlsl">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <FileType>Document</FileType>
-    </None>
-  </ItemGroup>
+ <ItemGroup>
+  <FxCompile Include="Shadow.hlsl">
+    <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+  </FxCompile>
+</ItemGroup>
+
+<ItemGroup>
+  <None Include="Billboard.hlsl">
+    <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    <FileType>Document</FileType>
+  </None>
+</ItemGroup>
+
+<ItemGroup>
+  <None Include="Occlusion.hlsl">
+    <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    <FileType>Document</FileType>
+  </None>
+</ItemGroup>
+
+<ItemGroup>
+  <None Include="RenderTypes.hlsl">
+    <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    <FileType>Document</FileType>
+  </None>
+</ItemGroup>
+
+<ItemGroup>
+  <None Include="DepthFog.hlsl">
+    <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    <FileType>Document</FileType>
+  </None>
+</ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

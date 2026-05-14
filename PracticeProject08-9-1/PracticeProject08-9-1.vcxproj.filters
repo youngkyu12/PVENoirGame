@@ -362,6 +362,7 @@
     <ClInclude Include="GameSceneAttachmentBinder.h">
       <Filter>Scene\GameScene</Filter>
     </ClInclude>
+    <ClInclude Include="TerrainComponent.h" />
     <ClInclude Include="Grid.h">
       <Filter>Grid</Filter>
     </ClInclude>
@@ -374,6 +375,8 @@
     <ClInclude Include="GameSceneHUD.h">
       <Filter>Scene\GameScene</Filter>
     </ClInclude>
+    <ClInclude Include="EnemyPool.h" />
+    <ClInclude Include="EnemySpawner.h" />
     <ClInclude Include="HealthComponent.h">
       <Filter>Components\Health&amp;AttackPower</Filter>
     </ClInclude>
@@ -550,6 +553,7 @@
     <ClCompile Include="GameSceneAttachmentBinder.cpp">
       <Filter>Scene\GameScene</Filter>
     </ClCompile>
+    <ClCompile Include="TerrainComponent.cpp" />
     <ClCompile Include="Grid.cpp">
       <Filter>Grid</Filter>
     </ClCompile>
@@ -568,6 +572,8 @@
     <ClCompile Include="GameSceneLOD.cpp">
       <Filter>Scene\GameScene</Filter>
     </ClCompile>
+    <ClCompile Include="EnemyPool.cpp" />
+    <ClCompile Include="EnemySpawner.cpp" />
     <ClCompile Include="HealthComponent.cpp">
       <Filter>Components\Health&amp;AttackPower</Filter>
     </ClCompile>
@@ -646,5 +652,10 @@
     <None Include="Shadows.hlsl">
       <Filter>Resource\HLSL</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shadow.hlsl">
+      <Filter>Resource\HLSL</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>
