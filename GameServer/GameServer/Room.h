@@ -30,6 +30,7 @@ public:
 
 public:
     void MakeFrameState(uint32 tick);
+	void FrameStateAdvance();
 	void MakeInitStruct(Protocol::S_GAME_START gameStartPkt);
 	void MakeEnterGameStruct(Protocol::S_ENTER_GAME enterGamePkt);
 

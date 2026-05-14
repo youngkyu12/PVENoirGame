@@ -27,10 +27,37 @@ namespace
 		kStateDie = 1u << 9
 	};
 
-	static uint32 BuildStateCode(const CServerObject& obj)
+	enum : int32
+	{
+		kDirForward = 1 << 0,
+		kDirBackward = 1 << 1,
+		kDirLeft = 1 << 2,
+		kDirRight = 1 << 3,
+		kDirMoveMask = kDirForward | kDirBackward | kDirLeft | kDirRight
+	};
+
+	static bool CanMoveWhileAttacking(Protocol::WeaponType weaponType)
+	{
+		return weaponType == Protocol::WEAPON_TYPE_BOW ||
+			weaponType == Protocol::WEAPON_TYPE_CANON;
+	}
+
+	static void AppendMoveKeyState(uint32& code, int32 moveKeyCodes)
+	{
+		if ((moveKeyCodes & kDirMoveMask) == 0)
+			return;
+
+		code |= kStateMove;
+		if (moveKeyCodes & kDirForward) code |= kStateUp;
+		if (moveKeyCodes & kDirBackward) code |= kStateDown;
+		if (moveKeyCodes & kDirRight) code |= kStateRight;
+		if (moveKeyCodes & kDirLeft) code |= kStateLeft;
+	}
+
+	static uint32 BuildStateCode(const Player& player)
 	{
 		uint32 code = 0;
-		const auto anim = obj.GetAnimState();
+		const auto anim = player.GetAnimState();
 
 		if (anim == Protocol::ANIMATION_TYPE_DIE)
 		{
@@ -43,20 +70,23 @@ namespace
 		if (anim == Protocol::ANIMATION_TYPE_RUN)    code |= kStateRun;
 		if (anim == Protocol::ANIMATION_TYPE_HIT)    code |= kStateHit;
 
-		const GameMath::Vec3 v = obj.GetVelocity();
-		constexpr float kEps = 1e-4f;
-
-		if (v.LengthSq() > kEps)
+		if (anim == Protocol::ANIMATION_TYPE_HIT ||
+			anim == Protocol::ANIMATION_TYPE_IDLE)
 		{
-			code |= kStateMove;
-			const float fwd = GameMath::Vec3::Dot(v, obj.GetLook());
-			const float str = GameMath::Vec3::Dot(v, obj.GetRight());
-
-			if (fwd > kEps) code |= kStateUp;
-			if (fwd < -kEps) code |= kStateDown;
-			if (str > kEps) code |= kStateRight;
-			if (str < -kEps) code |= kStateLeft;
+			return code;
 		}
+
+		if (anim == Protocol::ANIMATION_TYPE_ATTACK &&
+			!CanMoveWhileAttacking(player.GetWeaponState()))
+		{
+			return code;
+		}
+
+		const int32 moveKeyCodes =
+			(anim == Protocol::ANIMATION_TYPE_ROLL)
+			? player.GetRollMoveKeyCodes()
+			: player.GetLastMoveKeyCodes();
+		AppendMoveKeyState(code, moveKeyCodes);
 
 		return code;
 	}
@@ -102,10 +132,31 @@ namespace
 	}
 }
 
-void Room::MakeFrameState(uint32 tick)
+void Room::FrameStateAdvance()
 {
 	const auto frameStart = std::chrono::steady_clock::now();
 
+	MakeFrameState(tick.load());
+
+	const auto elapsedMs = static_cast<uint64>(
+		std::chrono::duration_cast<std::chrono::milliseconds>(
+			std::chrono::steady_clock::now() - frameStart).count());
+	constexpr uint64 kFrameStateIntervalMs = 160;
+	const uint64 nextDelayMs =
+		(elapsedMs >= kFrameStateIntervalMs) ? 0 : (kFrameStateIntervalMs - elapsedMs);
+	if (nextDelayMs == 0)
+	{
+		cout << "[FrameStateAdvance] next frame immediately (elapsed=" << elapsedMs << "ms)" << endl;
+		GRoom->DoAsync(&Room::FrameStateAdvance);
+	}
+	else
+	{
+		GRoom->DoTimer(nextDelayMs, &Room::FrameStateAdvance);
+	}
+}
+
+void Room::MakeFrameState(uint32 tick)
+{
 	constexpr float kEnemyViewRange = 200.0f;
 	constexpr float kEnemyViewRangeSq = kEnemyViewRange * kEnemyViewRange;
 	constexpr float kBulletViewRange = 100.0f;

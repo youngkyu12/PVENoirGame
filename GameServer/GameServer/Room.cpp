@@ -381,6 +381,7 @@ void Room::CheckClientReady()
 	{
 		std::cout << "Game Started!" << endl;
 		GRoom->DoTimer(100, &Room::TickAdvance);
+		GRoom->DoTimer(100, &Room::FrameStateAdvance);
 		GRoom->DoTimer(100, &Room::ProcessEnemyAI);
 	}
 	else

@@ -16,6 +16,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	if (player->IsDead() || player->IsInputBlocked())
 	{
 		player->SetVelocity(GameMath::Vec3::Zero());
+		player->ClearMoveKeyCodes();
 		return;
 	}
 
@@ -33,6 +34,12 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	constexpr int kDirLButton = 1 << 7;
 	constexpr int kDirRun = 1 << 8;
 	constexpr int kDirRoll = 1 << 9;
+	constexpr int kDirMoveMask = kDirForward | kDirBackward | kDirLeft | kDirRight;
+	constexpr int kDirPacketMoveMask = kDirMoveMask | kDirRun;
+
+	const int32 moveKeyCodes = keyCodes & kDirMoveMask;
+	const int32 packetMoveKeyCodes = (moveKeyCodes != 0) ? (keyCodes & kDirPacketMoveMask) : 0;
+	player->SetLastMoveKeyCodes(packetMoveKeyCodes);
 
 	Protocol::AnimationType prevAnimState = player->GetAnimState();
 
@@ -67,15 +74,19 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		prevAnimState != Protocol::ANIMATION_TYPE_ROLL &&
 		prevAnimState != Protocol::ANIMATION_TYPE_HIT)
 	{
-		player->SetAnimState(keyCodes & (kDirForward | kDirBackward | kDirLeft | kDirRight) ?
+		player->SetAnimState(moveKeyCodes != 0 ?
 			(keyCodes & kDirRun ? Protocol::ANIMATION_TYPE_RUN : Protocol::ANIMATION_TYPE_WALK) :
 			Protocol::ANIMATION_TYPE_IDLE);
 	}
 
-	player->SetAnimState(keyCodes & (kDirForward | kDirBackward | kDirLeft | kDirRight) &&
-		keyCodes & kDirRoll
-		&& (prevAnimState != Protocol::ANIMATION_TYPE_ROLL)
-		? Protocol::ANIMATION_TYPE_ROLL : player->GetAnimState());
+	const bool rollStarted = moveKeyCodes != 0 &&
+		(keyCodes & kDirRoll) != 0 &&
+		prevAnimState != Protocol::ANIMATION_TYPE_ROLL;
+	if (rollStarted)
+	{
+		player->SetRollMoveKeyCodes(packetMoveKeyCodes);
+		player->SetAnimState(Protocol::ANIMATION_TYPE_ROLL);
+	}
 
 	if (player->GetAnimState() != prevAnimState)
 		player->SetAnimTick(tick);
