@@ -6049,7 +6049,7 @@ void CGameScene::BuildSkinnedBatch(
 				return;
 
 			auto* ghoulAI = obj->AddComponent<CGhoulAIComponent>();
-			if ( !ghoulAI )
+			if ( ghoulAI )
 			{
 				ghoulAI->SetScene(this);
 				ghoulAI->SetEnabledAI(true);

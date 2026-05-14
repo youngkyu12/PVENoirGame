@@ -972,7 +972,7 @@ private:
 	bool                                m_bStaticOcclusionQueryResultsValid = false;
 	bool                                m_staticWorldLodDirty = false;
 	bool                                m_staticOcclusionCullSelectionLodDirty = false;
-	bool                                m_bStaticOcclusionCullingEnabled = false;
+	bool                                m_bStaticOcclusionCullingEnabled = true;
 	bool                                m_bStaticTreeGridCullingEnabled = true;
 	UINT                                m_staticOcclusionHideFrameThreshold = 8;
 	float                               m_staticOcclusionMinTestDistance = 50.0f;
