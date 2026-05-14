@@ -32,6 +32,7 @@ class EnemySpawner;
 class CStaticMeshRendererComponent;
 
 struct CB_GAMEOBJECT_INFO;
+
 struct AttachmentBindSpec
 {
     CGameObject* follower = nullptr;
@@ -216,6 +217,8 @@ struct StaticInstanceGroup
 
 	UINT instanceBufferStart = 0;
 	bool useTreeShader = false;
+
+	int lodLevel = 0;
 
 	std::vector<UINT> visibleSceneObjectIndices;
 	std::vector<UINT> visibleShadowObjectIndices;
@@ -515,6 +518,10 @@ private:
 
 	bool ShouldEvaluateSkinnedPoseThisFrame(UINT objectIndex, CCamera* camera) const;
 
+	int ResolveStaticWorldLodLevel(const StaticWorldLodEntry& entry, int desiredLod) const;
+	int GetStaticObjectActiveLodLevel(UINT objectIndex) const;
+	void BuildStaticWorldLodEntryIndexMap();
+
     // Frame / Render
 public:
     bool ProcessInput(UCHAR* pKeysBuffer) override;
@@ -531,6 +538,7 @@ public:
 		void RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 		void RebindFrameRenderState(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+		void SetFrameResourceIndex(UINT frameResourceIndex);
 
     // Input (messages) : 게임에서는 좌클릭 공격
 public:
@@ -801,12 +809,12 @@ private:
 
 	std::vector<ItemBillboardEntry>       m_itemBillboards;
 
-	ComPtr<ID3D12Resource>                m_pd3dItemBillboardInstanceBuffer;
-	ItemBillboardInstanceVertex* m_pMappedItemBillboardInstanceBuffer = nullptr;
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dItemBillboardInstanceBuffer;
+	std::array<ItemBillboardInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedItemBillboardInstanceBuffer = {};
 	UINT                                  m_itemBillboardInstanceBufferCapacity = 0;
 
-	ComPtr<ID3D12Resource>                m_pd3dTransparentItemBillboardInstanceBuffer;
-	ItemBillboardInstanceVertex* m_pMappedTransparentItemBillboardInstanceBuffer = nullptr;
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dTransparentItemBillboardInstanceBuffer;
+	std::array<ItemBillboardInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedTransparentItemBillboardInstanceBuffer = {};
 	UINT                                  m_transparentItemBillboardInstanceBufferCapacity = 0;
 
 	static constexpr UINT kMuzzleFlashMaxCount = 160;
@@ -815,8 +823,8 @@ private:
 
 	std::vector<MuzzleFlashEntry> m_muzzleFlashes;
 
-	ComPtr<ID3D12Resource> m_pd3dMuzzleFlashInstanceBuffer;
-	MuzzleFlashInstanceVertex* m_pMappedMuzzleFlashInstanceBuffer = nullptr;
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dMuzzleFlashInstanceBuffer;
+	std::array<MuzzleFlashInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedMuzzleFlashInstanceBuffer = {};
 	UINT m_muzzleFlashInstanceBufferCapacity = 0;
 
 	static constexpr UINT kSwordTrailMaxCount = 16;
@@ -828,8 +836,8 @@ private:
 
 	std::vector<SwordTrailEntry> m_swordTrails;
 
-	ComPtr<ID3D12Resource> m_pd3dSwordTrailVertexBuffer;
-	SwordTrailVertex* m_pMappedSwordTrailVertexBuffer = nullptr;
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dSwordTrailVertexBuffer;
+	std::array<SwordTrailVertex*, kSceneBatchFrameResourceCount> m_pMappedSwordTrailVertexBuffer = {};
 	UINT m_swordTrailVertexBufferCapacity = 0;
 
 	std::vector<CGameObject*> m_swordManRefs;
@@ -908,14 +916,20 @@ private:
     std::vector<std::unique_ptr<CGameObject>> m_lightObjects;
     CFollowTransformComponent* m_pPlayerSpotFollower = nullptr;
 
-    // GPU / Shader Variables (Game 전용)
-    ComPtr<ID3D12Resource> m_pd3dcbLights;
-    LIGHTS* m_pcbMappedLights = nullptr;
+	// GPU / Shader Variables (Game 전용)
+	static constexpr UINT kFrameResourceCount = 2;
 
-    std::unique_ptr<MATERIALS> m_pMaterials;
+	std::array<ComPtr<ID3D12Resource>, kFrameResourceCount> m_pd3dcbLights;
+	std::array<LIGHTS*, kFrameResourceCount> m_pcbMappedLights = {};
+	UINT m_nLightsCBElementBytes = 0;
 
-    ComPtr<ID3D12Resource> m_pd3dcbMaterials;
-    MATERIAL* m_pcbMappedMaterials = nullptr;
+	std::unique_ptr<MATERIALS> m_pMaterials;
+
+	std::array<ComPtr<ID3D12Resource>, kFrameResourceCount> m_pd3dcbMaterials;
+	std::array<MATERIALS*, kFrameResourceCount> m_pcbMappedMaterials = {};
+	UINT m_nMaterialsCBElementBytes = 0;
+
+	UINT m_nFrameResourceIndex = 0;
 
 	CDepthFogSystem                 m_depthFog;
 	float                           m_fElapsedTime = 0.0f;
@@ -968,11 +982,14 @@ private:
     std::vector<StaticPlacementEntry>   m_staticPlacementEntries;
 	std::unordered_map<std::string, std::unordered_map<std::string, std::vector<AuthoredSubMeshOOBB>>> mSceneCubeBoxColliderTable;
 
-	std::vector<StaticInstanceGroup>    m_staticInstanceGroups;
+	std::vector<StaticInstanceGroup>     m_staticInstanceGroups;
 	std::vector<StaticRenderObjectCache> m_staticRenderObjectCache;
+
+	std::vector<std::vector<UINT>>       m_staticGroupIndicesByObjectIndex;
 
 	std::vector<StaticWorldLodEntry>    m_staticWorldLodEntries;
 	std::vector<StaticOcclusionEntry>   m_staticOcclusionEntries;
+	std::vector<int> m_staticWorldLodEntryIndexByObjectIndex;
 
 	std::vector<uint8_t>                m_staticDistanceCullFlags;
 	std::vector<uint8_t>                m_staticOcclusionCullFlags;
@@ -996,6 +1013,7 @@ private:
 	bool                                m_bStaticOcclusionQueryResourcesReady = false;
 	bool                                m_bStaticOcclusionQueryResultsValid = false;
 	bool                                m_staticWorldLodDirty = false;
+	bool                                m_staticOcclusionCullSelectionLodDirty = false;
 	bool                                m_bStaticOcclusionCullingEnabled = true;
 	bool                                m_bStaticTreeGridCullingEnabled = true;
 	UINT                                m_staticOcclusionHideFrameThreshold = 8;
@@ -1006,15 +1024,22 @@ private:
 	float                               m_staticLodHysteresis = 15.0f;
 	float                               m_staticCullHysteresis = 20.0f;
 
-	std::shared_ptr<CMesh>              m_staticOcclusionUnitBoxMesh;
-	ComPtr<ID3D12Resource>              m_pd3dStaticOcclusionInstanceBuffer;
-	StaticInstanceVertex* m_pMappedStaticOcclusionInstanceBuffer = nullptr;
+	bool                                m_staticOcclusionCullSelectionCacheValid = false;
+	UINT                                m_staticOcclusionCullSelectionFrameCounter = 0;
+	UINT                                m_staticOcclusionCullSelectionLastUpdateFrame = 0;
+	XMFLOAT3                            m_staticOcclusionCullSelectionLastCameraPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	float                               m_staticOcclusionCullSelectionLastCameraYaw = 0.0f;
 
-	ComPtr<ID3D12Resource>              m_pd3dStaticInstanceBuffer;
-	StaticInstanceVertex* m_pMappedStaticInstanceBuffer = nullptr;
+	std::shared_ptr<CMesh>              m_staticOcclusionUnitBoxMesh;
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dStaticOcclusionInstanceBuffer;
+	std::array<StaticInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedStaticOcclusionInstanceBuffer = {};
+
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dStaticInstanceBuffer;
+	std::array<StaticInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedStaticInstanceBuffer = {};
 	UINT                                m_staticInstanceBufferCapacity = 0;
 
-	std::shared_ptr<CStaticObjectsShader>	m_treeStaticShader;
+	std::shared_ptr<CStaticObjectsShader>             m_treeStaticShader;
+	std::shared_ptr<CAlphaClipSkinnedObjectsShader>   m_skinnedAlphaClipShader;
 	std::unordered_set<const CGameObject*>	m_treeAlphaClipObjects;
 	std::unordered_set<const CGameObject*>	m_skinnedAlphaClipObjects;
 
@@ -1044,7 +1069,7 @@ private:
 	// skinned
 	std::vector<SkinnedInstanceGroup>   m_skinnedInstanceGroups;
 
-	ComPtr<ID3D12Resource>              m_pd3dSkinnedInstanceBuffer;
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dSkinnedInstanceBuffer;
 	std::vector<SkinnedWorldLodEntry>   m_skinnedWorldLodEntries;
 	std::vector<uint8_t>                m_skinnedDistanceCullFlags;
 
@@ -1058,8 +1083,8 @@ private:
 	ComPtr<ID3D12QueryHeap>             m_pd3dSkinnedOcclusionQueryHeap;
 	ComPtr<ID3D12Resource>              m_pd3dSkinnedOcclusionReadbackBuffer;
 	UINT64* m_pMappedSkinnedOcclusionReadbackBuffer = nullptr;
-	ComPtr<ID3D12Resource>              m_pd3dSkinnedOcclusionInstanceBuffer;
-	StaticInstanceVertex* m_pMappedSkinnedOcclusionInstanceBuffer = nullptr;
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dSkinnedOcclusionInstanceBuffer;
+	std::array<StaticInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedSkinnedOcclusionInstanceBuffer = {};
 	UINT                                m_skinnedOcclusionQueryCapacity = 0;
 	bool                                m_bSkinnedOcclusionQueryResourcesReady = false;
 	bool                                m_bSkinnedOcclusionQueryResultsValid = false;
@@ -1071,11 +1096,11 @@ private:
 	bool                                m_skinnedWorldLodDirty = false;
 	float                               m_skinnedLodHysteresis = 5.0f;
 	float                               m_skinnedCullHysteresis = 10.0f;
-	SkinnedInstanceVertex* m_pMappedSkinnedInstanceBuffer = nullptr;
+	std::array<SkinnedInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedSkinnedInstanceBuffer = {};
 	UINT                                m_skinnedInstanceBufferCapacity = 0;
 
-	ComPtr<ID3D12Resource>              m_pd3dSkinnedBonePaletteBuffer;
-	XMFLOAT4X4* m_pMappedSkinnedBonePaletteBuffer = nullptr;
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dSkinnedBonePaletteBuffer;
+	std::array<XMFLOAT4X4*, kSceneBatchFrameResourceCount> m_pMappedSkinnedBonePaletteBuffer = {};
 	UINT                                m_skinnedBonePaletteStride = 0;
 	UINT                                m_skinnedBonePaletteCapacity = 0;
 

@@ -30,6 +30,7 @@ extern ClientServiceRef g_clientService;
 
 // C의 런타임 헤더 파일입니다.
 #include <stdlib.h>
+#include <cstdio>
 #include <malloc.h>
 #include <memory>
 #include <tchar.h>
@@ -149,7 +150,7 @@ static void DBG_PrintF(const char* fmt, ...)
 // Render profiling log
 // ============================================================================
 // 1 = 켬, 0 = 끔
-#define LOG_RENDER_PROFILE 0
+#define LOG_RENDER_PROFILE 1
 
 // 너무 작은 함수까지 전부 찍기 싫으면 0.05f, 0.1f 같은 값으로 올리면 됨.
 // 일단 병목 찾는 단계에서는 0.0f 권장.
@@ -174,7 +175,7 @@ public:
 		const double elapsedMs =
 			std::chrono::duration<double, std::milli>(end - m_begin).count();
 
-		if ( elapsedMs >= LOG_RENDER_PROFILE_MIN_MS )
+		if ( elapsedMs >= LOG_RENDER_PROFILE_MIN_MS && elapsedMs >= 1.0f)
 		{
 			DBG_PrintF("[RenderProfile] %-55s : %.3f ms\n", m_name, elapsedMs);
 		}

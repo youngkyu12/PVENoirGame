@@ -283,6 +283,15 @@ namespace
 
 		return true;
 	}
+
+	static constexpr UINT kStaticOcclusionCullSelectionMaxReuseFrames = 60;
+	static constexpr float kStaticOcclusionCullSelectionMoveThreshold = 5.0f;
+	static constexpr float kStaticOcclusionCullSelectionMoveThresholdSq =
+		kStaticOcclusionCullSelectionMoveThreshold *
+		kStaticOcclusionCullSelectionMoveThreshold;
+	static constexpr float kStaticOcclusionCullSelectionYawThresholdDeg = 12.0f;
+	static constexpr bool kLogStaticOcclusionCullSelectionReason = false;
+	static constexpr UINT kLogStaticOcclusionCullSelectionSummaryInterval = 120;
 }
 
 void CGameScene::ResetStaticOcclusionEntries()
@@ -295,6 +304,13 @@ void CGameScene::ResetStaticOcclusionEntries()
 	m_staticOcclusionZeroSampleFrameCounts.clear();
 	m_staticOcclusionQueryCapacity = 0;
 	m_bStaticOcclusionQueryResultsValid = false;
+
+	m_staticOcclusionCullSelectionCacheValid = false;
+	m_staticOcclusionCullSelectionFrameCounter = 0;
+	m_staticOcclusionCullSelectionLastUpdateFrame = 0;
+	m_staticOcclusionCullSelectionLastCameraPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	m_staticOcclusionCullSelectionLastCameraYaw = 0.0f;
+	m_staticOcclusionCullSelectionLodDirty = false;
 }
 
 void CGameScene::BuildStaticOcclusionEntries()
@@ -465,33 +481,36 @@ void CGameScene::BuildStaticOcclusionGpuResources(ID3D12Device* dev)
 	instanceBufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 	instanceBufferDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
-	hr = dev->CreateCommittedResource(
-		&uploadHeapProps,
-		D3D12_HEAP_FLAG_NONE,
-		&instanceBufferDesc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(m_pd3dStaticOcclusionInstanceBuffer.ReleaseAndGetAddressOf())
-	);
-
-	if ( FAILED(hr) )
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
 	{
-		OutputDebugStringA("[Occlusion] Create occlusion instance buffer failed.\n");
-		ReleaseStaticOcclusionGpuResources();
-		return;
-	}
+		hr = dev->CreateCommittedResource(
+			&uploadHeapProps,
+			D3D12_HEAP_FLAG_NONE,
+			&instanceBufferDesc,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(m_pd3dStaticOcclusionInstanceBuffer[frameIndex].ReleaseAndGetAddressOf())
+		);
 
-	hr = m_pd3dStaticOcclusionInstanceBuffer->Map(
-		0,
-		nullptr,
-		reinterpret_cast< void** >( &m_pMappedStaticOcclusionInstanceBuffer )
-	);
+		if ( FAILED(hr) )
+		{
+			OutputDebugStringA("[Occlusion] Create occlusion instance buffer failed.\n");
+			ReleaseStaticOcclusionGpuResources();
+			return;
+		}
 
-	if ( FAILED(hr) || !m_pMappedStaticOcclusionInstanceBuffer )
-	{
-		OutputDebugStringA("[Occlusion] Map occlusion instance buffer failed.\n");
-		ReleaseStaticOcclusionGpuResources();
-		return;
+		hr = m_pd3dStaticOcclusionInstanceBuffer[frameIndex]->Map(
+			0,
+			nullptr,
+			reinterpret_cast< void** >( &m_pMappedStaticOcclusionInstanceBuffer[frameIndex] )
+		);
+
+		if ( FAILED(hr) || !m_pMappedStaticOcclusionInstanceBuffer[frameIndex] )
+		{
+			OutputDebugStringA("[Occlusion] Map occlusion instance buffer failed.\n");
+			ReleaseStaticOcclusionGpuResources();
+			return;
+		}
 	}
 
 	m_bStaticOcclusionQueryResourcesReady = true;
@@ -499,15 +518,20 @@ void CGameScene::BuildStaticOcclusionGpuResources(ID3D12Device* dev)
 
 void CGameScene::ReleaseStaticOcclusionGpuResources()
 {
-	if ( m_pd3dStaticOcclusionInstanceBuffer )
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
 	{
-		if ( m_pMappedStaticOcclusionInstanceBuffer )
+		if ( m_pd3dStaticOcclusionInstanceBuffer[frameIndex] )
 		{
-			m_pd3dStaticOcclusionInstanceBuffer->Unmap(0, nullptr);
-			m_pMappedStaticOcclusionInstanceBuffer = nullptr;
+			if ( m_pMappedStaticOcclusionInstanceBuffer[frameIndex] )
+			{
+				m_pd3dStaticOcclusionInstanceBuffer[frameIndex]->Unmap(0, nullptr);
+				m_pMappedStaticOcclusionInstanceBuffer[frameIndex] = nullptr;
+			}
+
+			m_pd3dStaticOcclusionInstanceBuffer[frameIndex].Reset();
 		}
 
-		m_pd3dStaticOcclusionInstanceBuffer.Reset();
+		m_pMappedStaticOcclusionInstanceBuffer[frameIndex] = nullptr;
 	}
 
 	if ( m_pd3dStaticOcclusionReadbackBuffer )
@@ -609,10 +633,18 @@ void CGameScene::RenderStaticOcclusionPass(ID3D12GraphicsCommandList* cmd, CCame
 	if ( !m_bSceneRenderTargetsReady )
 		return;
 
-	if ( !m_pd3dStaticOcclusionInstanceBuffer )
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	ID3D12Resource* staticOcclusionInstanceBuffer =
+		m_pd3dStaticOcclusionInstanceBuffer[frameIndex].Get();
+
+	StaticInstanceVertex* mappedStaticOcclusionInstanceBuffer =
+		m_pMappedStaticOcclusionInstanceBuffer[frameIndex];
+
+	if ( !staticOcclusionInstanceBuffer )
 		return;
 
-	if ( !m_pMappedStaticOcclusionInstanceBuffer )
+	if ( !mappedStaticOcclusionInstanceBuffer )
 		return;
 
 	if ( m_staticOcclusionUnitBoxMesh->m_SubMeshes.empty() )
@@ -724,7 +756,7 @@ void CGameScene::RenderStaticOcclusionPass(ID3D12GraphicsCommandList* cmd, CCame
 
 			const XMFLOAT4X4 world = BuildOcclusionWorldMatrixFromOOBB(entry.worldBounds);
 
-			StaticInstanceVertex& dst = m_pMappedStaticOcclusionInstanceBuffer[queryIndex];
+			StaticInstanceVertex& dst = mappedStaticOcclusionInstanceBuffer[queryIndex];
 			ZeroMemory(&dst, sizeof(dst));
 
 			dst.world0 = XMFLOAT4(world._11, world._12, world._13, world._14);
@@ -736,7 +768,7 @@ void CGameScene::RenderStaticOcclusionPass(ID3D12GraphicsCommandList* cmd, CCame
 			D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
 			vbViews[0] = sm.vbView;
 			vbViews[1].BufferLocation =
-				m_pd3dStaticOcclusionInstanceBuffer->GetGPUVirtualAddress()
+				staticOcclusionInstanceBuffer->GetGPUVirtualAddress()
 				+ sizeof(StaticInstanceVertex) * queryIndex;
 			vbViews[1].SizeInBytes = sizeof(StaticInstanceVertex);
 			vbViews[1].StrideInBytes = sizeof(StaticInstanceVertex);
@@ -791,10 +823,18 @@ void CGameScene::RenderSkinnedOcclusionPass(ID3D12GraphicsCommandList* cmd, CCam
 	if ( !m_bSceneRenderTargetsReady )
 		return;
 
-	if ( !m_pd3dSkinnedOcclusionInstanceBuffer )
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	ID3D12Resource* skinnedOcclusionInstanceBuffer =
+		m_pd3dSkinnedOcclusionInstanceBuffer[frameIndex].Get();
+
+	StaticInstanceVertex* mappedSkinnedOcclusionInstanceBuffer =
+		m_pMappedSkinnedOcclusionInstanceBuffer[frameIndex];
+
+	if ( !skinnedOcclusionInstanceBuffer )
 		return;
 
-	if ( !m_pMappedSkinnedOcclusionInstanceBuffer )
+	if ( !mappedSkinnedOcclusionInstanceBuffer )
 		return;
 
 	if ( m_staticOcclusionUnitBoxMesh->m_SubMeshes.empty() )
@@ -915,7 +955,7 @@ void CGameScene::RenderSkinnedOcclusionPass(ID3D12GraphicsCommandList* cmd, CCam
 
 			const XMFLOAT4X4 world = BuildOcclusionWorldMatrixFromOOBB(entry.worldBounds);
 
-			StaticInstanceVertex& dst = m_pMappedSkinnedOcclusionInstanceBuffer[queryIndex];
+			StaticInstanceVertex& dst = mappedSkinnedOcclusionInstanceBuffer[queryIndex];
 			ZeroMemory(&dst, sizeof(dst));
 
 			dst.world0 = XMFLOAT4(world._11, world._12, world._13, world._14);
@@ -927,7 +967,7 @@ void CGameScene::RenderSkinnedOcclusionPass(ID3D12GraphicsCommandList* cmd, CCam
 			D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
 			vbViews[0] = sm.vbView;
 			vbViews[1].BufferLocation =
-				m_pd3dSkinnedOcclusionInstanceBuffer->GetGPUVirtualAddress()
+				skinnedOcclusionInstanceBuffer->GetGPUVirtualAddress()
 				+ sizeof(StaticInstanceVertex) * queryIndex;
 			vbViews[1].SizeInBytes = sizeof(StaticInstanceVertex);
 			vbViews[1].StrideInBytes = sizeof(StaticInstanceVertex);
@@ -1149,15 +1189,250 @@ void CGameScene::RenderSpawnOcclusionPass(ID3D12GraphicsCommandList* cmd, CCamer
 
 void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 {
-	m_staticOcclusionCullFlags.assign(m_staticBatch.objectRefs.size(), 0);
+	const size_t objectCount = m_staticBatch.objectRefs.size();
+
+	++m_staticOcclusionCullSelectionFrameCounter;
+
+	auto ClearStaticOcclusionCullState =
+		[ this, objectCount ] ()
+		{
+			if ( objectCount == 0 )
+			{
+				m_staticOcclusionCullFlags.clear();
+			}
+			else if ( m_staticOcclusionCullFlags.size() != objectCount )
+			{
+				m_staticOcclusionCullFlags.assign(objectCount, 0);
+			}
+			else
+			{
+				std::fill(
+					m_staticOcclusionCullFlags.begin(),
+					m_staticOcclusionCullFlags.end(),
+					0
+				);
+			}
+
+			std::fill(
+				m_staticOcclusionZeroSampleFrameCounts.begin(),
+				m_staticOcclusionZeroSampleFrameCounts.end(),
+				0
+			);
+
+			m_staticOcclusionCullSelectionCacheValid = false;
+		};
 
 	if ( !m_bStaticOcclusionCullingEnabled )
+	{
+		if ( kLogStaticOcclusionCullSelectionReason )
+			OutputDebugStringA("[StaticOcclusionCull][CLEAR] disabled\n");
+
+		ClearStaticOcclusionCullState();
 		return;
+	}
 
 	if ( !camera )
+	{
+		if ( kLogStaticOcclusionCullSelectionReason )
+			OutputDebugStringA("[StaticOcclusionCull][CLEAR] no camera\n");
+
+		ClearStaticOcclusionCullState();
 		return;
+	}
+
+	if ( objectCount == 0 )
+	{
+		if ( kLogStaticOcclusionCullSelectionReason )
+			OutputDebugStringA("[StaticOcclusionCull][CLEAR] objectCount zero\n");
+
+		ClearStaticOcclusionCullState();
+		return;
+	}
+
+	if ( !m_bStaticOcclusionQueryResultsValid )
+	{
+		if ( kLogStaticOcclusionCullSelectionReason )
+			OutputDebugStringA("[StaticOcclusionCull][CLEAR] query results invalid\n");
+
+		ClearStaticOcclusionCullState();
+		return;
+	}
 
 	const XMFLOAT3 cameraPosition = camera->GetPosition();
+	const float cameraYaw = camera->GetYaw();
+
+	bool shouldUpdateSelection = false;
+
+	bool reasonCacheInvalid = false;
+	bool reasonFlagSizeChanged = false;
+	bool reasonStaticWorldLodDirty = false;
+	bool reasonMaxReuse = false;
+	bool reasonCameraMove = false;
+	bool reasonCameraYaw = false;
+
+	UINT framesSinceLastUpdate =
+		m_staticOcclusionCullSelectionFrameCounter -
+		m_staticOcclusionCullSelectionLastUpdateFrame;
+
+	float movedDistanceSq = 0.0f;
+	float yawDelta = 0.0f;
+
+	if ( !m_staticOcclusionCullSelectionCacheValid )
+	{
+		shouldUpdateSelection = true;
+		reasonCacheInvalid = true;
+	}
+
+	if ( m_staticOcclusionCullFlags.size() != objectCount )
+	{
+		shouldUpdateSelection = true;
+		reasonFlagSizeChanged = true;
+	}
+
+	if ( m_staticOcclusionCullSelectionLodDirty )
+	{
+		shouldUpdateSelection = true;
+		reasonStaticWorldLodDirty = true;
+	}
+
+	if ( framesSinceLastUpdate >= kStaticOcclusionCullSelectionMaxReuseFrames )
+	{
+		shouldUpdateSelection = true;
+		reasonMaxReuse = true;
+	}
+
+	{
+		const float dx =
+			cameraPosition.x -
+			m_staticOcclusionCullSelectionLastCameraPosition.x;
+
+		const float dy =
+			cameraPosition.y -
+			m_staticOcclusionCullSelectionLastCameraPosition.y;
+
+		const float dz =
+			cameraPosition.z -
+			m_staticOcclusionCullSelectionLastCameraPosition.z;
+
+		movedDistanceSq = dx * dx + dy * dy + dz * dz;
+
+		if ( movedDistanceSq >= kStaticOcclusionCullSelectionMoveThresholdSq )
+		{
+			shouldUpdateSelection = true;
+			reasonCameraMove = true;
+		}
+		else
+		{
+			yawDelta =
+				cameraYaw -
+				m_staticOcclusionCullSelectionLastCameraYaw;
+
+			while ( yawDelta > 180.0f )
+				yawDelta -= 360.0f;
+
+			while ( yawDelta < -180.0f )
+				yawDelta += 360.0f;
+
+			if ( std::fabs(yawDelta) >= kStaticOcclusionCullSelectionYawThresholdDeg )
+			{
+				shouldUpdateSelection = true;
+				reasonCameraYaw = true;
+			}
+		}
+	}
+
+	static UINT s_staticOcclusionReuseCount = 0;
+	static UINT s_staticOcclusionFullUpdateCount = 0;
+	static UINT s_reasonCacheInvalidCount = 0;
+	static UINT s_reasonFlagSizeChangedCount = 0;
+	static UINT s_reasonStaticWorldLodDirtyCount = 0;
+	static UINT s_reasonMaxReuseCount = 0;
+	static UINT s_reasonCameraMoveCount = 0;
+	static UINT s_reasonCameraYawCount = 0;
+
+	if ( !shouldUpdateSelection )
+	{
+		++s_staticOcclusionReuseCount;
+
+		if ( kLogStaticOcclusionCullSelectionReason &&
+			 ( m_staticOcclusionCullSelectionFrameCounter %
+				 kLogStaticOcclusionCullSelectionSummaryInterval ) == 0 )
+		{
+			char buf[512];
+			sprintf_s(
+				buf,
+				"[StaticOcclusionCull][SUMMARY] frame=%u reuse=%u full=%u "
+				"cache=%u size=%u lodDirty=%u maxReuse=%u camMove=%u camYaw=%u\n",
+				m_staticOcclusionCullSelectionFrameCounter,
+				s_staticOcclusionReuseCount,
+				s_staticOcclusionFullUpdateCount,
+				s_reasonCacheInvalidCount,
+				s_reasonFlagSizeChangedCount,
+				s_reasonStaticWorldLodDirtyCount,
+				s_reasonMaxReuseCount,
+				s_reasonCameraMoveCount,
+				s_reasonCameraYawCount
+			);
+			OutputDebugStringA(buf);
+		}
+
+		return;
+	}
+
+	++s_staticOcclusionFullUpdateCount;
+
+	if ( reasonCacheInvalid ) ++s_reasonCacheInvalidCount;
+	if ( reasonFlagSizeChanged ) ++s_reasonFlagSizeChangedCount;
+	if ( reasonStaticWorldLodDirty ) ++s_reasonStaticWorldLodDirtyCount;
+	if ( reasonMaxReuse ) ++s_reasonMaxReuseCount;
+	if ( reasonCameraMove ) ++s_reasonCameraMoveCount;
+	if ( reasonCameraYaw ) ++s_reasonCameraYawCount;
+
+	if ( kLogStaticOcclusionCullSelectionReason )
+	{
+		char buf[1024];
+		sprintf_s(
+			buf,
+			"[StaticOcclusionCull][FULL] frame=%u "
+			"cache=%d size=%d lodDirty=%d maxReuse=%d camMove=%d camYaw=%d "
+			"framesSince=%u moveSq=%.3f yawDelta=%.3f objectCount=%zu entryCount=%zu "
+			"queryValid=%d\n",
+			m_staticOcclusionCullSelectionFrameCounter,
+			reasonCacheInvalid ? 1 : 0,
+			reasonFlagSizeChanged ? 1 : 0,
+			reasonStaticWorldLodDirty ? 1 : 0,
+			reasonMaxReuse ? 1 : 0,
+			reasonCameraMove ? 1 : 0,
+			reasonCameraYaw ? 1 : 0,
+			framesSinceLastUpdate,
+			movedDistanceSq,
+			yawDelta,
+			objectCount,
+			m_staticOcclusionEntries.size(),
+			m_bStaticOcclusionQueryResultsValid ? 1 : 0
+		);
+		OutputDebugStringA(buf);
+	}
+
+	if ( m_staticOcclusionCullFlags.size() != objectCount )
+	{
+		m_staticOcclusionCullFlags.assign(objectCount, 0);
+	}
+	else
+	{
+		std::fill(
+			m_staticOcclusionCullFlags.begin(),
+			m_staticOcclusionCullFlags.end(),
+			0
+		);
+	}
+
+	m_staticOcclusionCullSelectionCacheValid = true;
+	m_staticOcclusionCullSelectionLastUpdateFrame =
+		m_staticOcclusionCullSelectionFrameCounter;
+	m_staticOcclusionCullSelectionLastCameraPosition = cameraPosition;
+	m_staticOcclusionCullSelectionLastCameraYaw = cameraYaw;
+
 	const float minTestDistanceSq =
 		m_staticOcclusionMinTestDistance * m_staticOcclusionMinTestDistance;
 
@@ -1211,8 +1486,8 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 
 		const float dist = std::sqrt(distSq);
 		float maxExtent = entry.worldBounds.Extents.x;
-		if (entry.worldBounds.Extents.y > maxExtent) maxExtent = entry.worldBounds.Extents.y;
-		if (entry.worldBounds.Extents.z > maxExtent) maxExtent = entry.worldBounds.Extents.z;
+		if ( entry.worldBounds.Extents.y > maxExtent ) maxExtent = entry.worldBounds.Extents.y;
+		if ( entry.worldBounds.Extents.z > maxExtent ) maxExtent = entry.worldBounds.Extents.z;
 
 		if ( dist > 0.0001f )
 		{
@@ -1223,12 +1498,6 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 				m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
 				continue;
 			}
-		}
-
-		if ( !m_bStaticOcclusionQueryResultsValid )
-		{
-			m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
-			continue;
 		}
 
 		if ( occlusionIndex >= m_staticOcclusionQuerySampleCounts.size() )
@@ -1251,7 +1520,8 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 
 		if ( m_staticOcclusionQuerySampleCounts[occlusionIndex] == 0ull )
 		{
-			uint8_t& zeroFrameCount = m_staticOcclusionZeroSampleFrameCounts[occlusionIndex];
+			uint8_t& zeroFrameCount =
+				m_staticOcclusionZeroSampleFrameCounts[occlusionIndex];
 
 			if ( zeroFrameCount < 255 )
 				++zeroFrameCount;
@@ -1465,33 +1735,36 @@ void CGameScene::BuildSkinnedOcclusionGpuResources(ID3D12Device* dev)
 	instanceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 	instanceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
-	hr = dev->CreateCommittedResource(
-		&uploadHeapProps,
-		D3D12_HEAP_FLAG_NONE,
-		&instanceDesc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(m_pd3dSkinnedOcclusionInstanceBuffer.ReleaseAndGetAddressOf())
-	);
-
-	if ( FAILED(hr) )
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
 	{
-		OutputDebugStringA("[SkinnedOcclusion] Create instance buffer failed.\n");
-		ReleaseSkinnedOcclusionGpuResources();
-		return;
-	}
+		hr = dev->CreateCommittedResource(
+			&uploadHeapProps,
+			D3D12_HEAP_FLAG_NONE,
+			&instanceDesc,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(m_pd3dSkinnedOcclusionInstanceBuffer[frameIndex].ReleaseAndGetAddressOf())
+		);
 
-	hr = m_pd3dSkinnedOcclusionInstanceBuffer->Map(
-		0,
-		nullptr,
-		reinterpret_cast< void** >( &m_pMappedSkinnedOcclusionInstanceBuffer )
-	);
+		if ( FAILED(hr) )
+		{
+			OutputDebugStringA("[SkinnedOcclusion] Create instance buffer failed.\n");
+			ReleaseSkinnedOcclusionGpuResources();
+			return;
+		}
 
-	if ( FAILED(hr) || !m_pMappedSkinnedOcclusionInstanceBuffer )
-	{
-		OutputDebugStringA("[SkinnedOcclusion] Map instance buffer failed.\n");
-		ReleaseSkinnedOcclusionGpuResources();
-		return;
+		hr = m_pd3dSkinnedOcclusionInstanceBuffer[frameIndex]->Map(
+			0,
+			nullptr,
+			reinterpret_cast< void** >( &m_pMappedSkinnedOcclusionInstanceBuffer[frameIndex] )
+		);
+
+		if ( FAILED(hr) || !m_pMappedSkinnedOcclusionInstanceBuffer[frameIndex] )
+		{
+			OutputDebugStringA("[SkinnedOcclusion] Map instance buffer failed.\n");
+			ReleaseSkinnedOcclusionGpuResources();
+			return;
+		}
 	}
 
 	m_bSkinnedOcclusionQueryResourcesReady = true;
@@ -1639,15 +1912,20 @@ void CGameScene::BuildSpawnOcclusionGpuResources(ID3D12Device* dev)
 
 void CGameScene::ReleaseSkinnedOcclusionGpuResources()
 {
-	if ( m_pd3dSkinnedOcclusionInstanceBuffer )
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
 	{
-		if ( m_pMappedSkinnedOcclusionInstanceBuffer )
+		if ( m_pd3dSkinnedOcclusionInstanceBuffer[frameIndex] )
 		{
-			m_pd3dSkinnedOcclusionInstanceBuffer->Unmap(0, nullptr);
-			m_pMappedSkinnedOcclusionInstanceBuffer = nullptr;
+			if ( m_pMappedSkinnedOcclusionInstanceBuffer[frameIndex] )
+			{
+				m_pd3dSkinnedOcclusionInstanceBuffer[frameIndex]->Unmap(0, nullptr);
+				m_pMappedSkinnedOcclusionInstanceBuffer[frameIndex] = nullptr;
+			}
+
+			m_pd3dSkinnedOcclusionInstanceBuffer[frameIndex].Reset();
 		}
 
-		m_pd3dSkinnedOcclusionInstanceBuffer.Reset();
+		m_pMappedSkinnedOcclusionInstanceBuffer[frameIndex] = nullptr;
 	}
 
 	if ( m_pd3dSkinnedOcclusionReadbackBuffer )

@@ -42,6 +42,7 @@ public:
 	);
 
 	void ReleaseResources();
+	void SetFrameResourceIndex(UINT frameResourceIndex);
 	void BindConstantBuffer(ID3D12GraphicsCommandList* cmd) const;
 
 	void UpdateData(
@@ -62,11 +63,13 @@ public:
 
 	bool IsReady() const
 	{
+		const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
 		return
 			m_pd3dShadowMap &&
 			m_pd3dShadowDsvHeap &&
-			m_pd3dcbShadow &&
-			m_pcbMappedShadow &&
+			m_pd3dcbShadow[frameIndex] &&
+			m_pcbMappedShadow[frameIndex] &&
 			m_shadowMapSrvIndex != UINT_MAX;
 	}
 
@@ -83,8 +86,11 @@ private:
 	ComPtr<ID3D12DescriptorHeap> m_pd3dShadowDsvHeap;
 	ComPtr<ID3D12Resource> m_pd3dShadowMap;
 
-	ComPtr<ID3D12Resource> m_pd3dcbShadow;
-	CB_SHADOW* m_pcbMappedShadow = nullptr;
+	static constexpr UINT kFrameResourceCount = 2;
+
+	std::array<ComPtr<ID3D12Resource>, kFrameResourceCount> m_pd3dcbShadow;
+	std::array<CB_SHADOW*, kFrameResourceCount> m_pcbMappedShadow = {};
+	UINT m_nFrameResourceIndex = 0;
 
 	CB_SHADOW m_shadowData{};
 
