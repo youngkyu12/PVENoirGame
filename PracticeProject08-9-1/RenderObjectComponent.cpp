@@ -33,6 +33,17 @@ void CRenderObjectComponent::OnDestroy()
     m_isExternal = false;
 }
 
+void CRenderObjectComponent::OnReset()
+{
+	if ( m_mapped )
+	{
+		XMStoreFloat4x4(&m_mapped->m_xmf4x4World, XMMatrixTranspose(XMMatrixIdentity()));
+		m_mapped->TexTransform = Matrix4x4::Identity();
+		m_mapped->ShadowTransform = Matrix4x4::Identity();
+		m_mapped->m_nObjectID = m_objectId;
+	}
+}
+
 void CRenderObjectComponent::BindExternal(CB_GAMEOBJECT_INFO* mapped, D3D12_GPU_DESCRIPTOR_HANDLE cbvGpu)
 {
     // 로컬이 있었다면 해제(외부로 전환)

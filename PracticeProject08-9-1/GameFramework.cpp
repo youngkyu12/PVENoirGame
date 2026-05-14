@@ -75,17 +75,7 @@ bool CGameFramework::OnCreate(HINSTANCE hInstance, HWND hMainWnd)
 		GLOBAL_CBV_CAPACITY,
 		GLOBAL_SRV_CAPACITY);
 
-	m_pAudioManager = std::make_unique<CAudioManager>();
-	m_pAudioManager->Initialize();
-
-	if ( auto* music = m_pAudioManager->GetMusicDirector() )
-	{
-		music->RegisterMusic(EMusicState::Menu, "Assets/Audio/MainMenuBGM_Test.mp3");
-		music->RegisterMusic(EMusicState::Gameplay, "Assets/Audio/ForestBGMWithBird.wav");
-		music->SetCrossFadeSeconds(1.5f);
-	}
-
-	m_SceneManager.SetAudioManager(m_pAudioManager.get());
+	CreateAudio();
 
 	BuildObjects();
 
@@ -530,8 +520,7 @@ void CGameFramework::CreateDepthStencilView()
 		&d3dResourceDesc,
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
 		&d3dClearValue,
-		IID_PPV_ARGS(m_pd3dDepthStencilBuffer.ReleaseAndGetAddressOf())
-	);
+		IID_PPV_ARGS(m_pd3dDepthStencilBuffer.ReleaseAndGetAddressOf()));
 
 	m_d3dDsvDescriptorCPUHandle = m_pd3dDsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 
@@ -540,6 +529,21 @@ void CGameFramework::CreateDepthStencilView()
 		nullptr,
 		m_d3dDsvDescriptorCPUHandle
 	);
+}
+
+void CGameFramework::CreateAudio()
+{
+	m_pAudioManager = std::make_unique<CAudioManager>();
+	m_pAudioManager->Initialize();
+
+	if ( auto* music = m_pAudioManager->GetMusicDirector() )
+	{
+		music->RegisterMusic(EMusicState::Menu, "Assets/Audio/MainMenuBGM_Test.mp3");
+		music->RegisterMusic(EMusicState::Gameplay, "Assets/Audio/ForestBGMWithBird.wav");
+		music->SetCrossFadeSeconds(1.5f);
+	}
+
+	m_SceneManager.SetAudioManager(m_pAudioManager.get());
 }
 
 void CGameFramework::BuildObjects()
@@ -1560,8 +1564,7 @@ void CGameFramework::FrameAdvance()
 			// 1) Geometry pass -> offscreen MRT only
 			m_pPostProcessingShader->OnPrepareSceneRenderTargets(
 				m_pd3dCommandList.Get(),
-				&m_d3dDsvDescriptorCPUHandle
-			);
+				&m_d3dDsvDescriptorCPUHandle);
 
 			D3D12_CPU_DESCRIPTOR_HANDLE sceneRtvs[8] = {};
 			UINT sceneRtvCount = 0;

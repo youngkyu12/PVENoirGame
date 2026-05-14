@@ -41,7 +41,7 @@ void CSkinningComponent::Enable(ID3D12Device* dev, int nBones)
 
     m_cbBone->Map(0, nullptr, (void**)&m_mapped);
 
-    // ÃÊ±â identity(ÀüÄ¡)
+    // ì´ˆê¸° identity(ì „ì¹˜)
     XMFLOAT4X4 I;
     XMStoreFloat4x4(&I, XMMatrixTranspose(XMMatrixIdentity()));
     for (int i = 0; i < m_nBones; ++i)
@@ -73,4 +73,16 @@ void CSkinningComponent::Upload(const XMFLOAT4X4* boneMats, int nMats)
         m = XMMatrixTranspose(m);
         XMStoreFloat4x4(&m_mapped[i], m);
     }
+}
+
+void CSkinningComponent::OnReset()
+{
+	if ( !m_skinned || !m_mapped || m_nBones <= 0 )
+		return;
+
+	XMFLOAT4X4 I;
+	XMStoreFloat4x4(&I, XMMatrixTranspose(XMMatrixIdentity()));
+
+	for ( int i = 0; i < m_nBones; ++i )
+		m_mapped[i] = I;
 }
