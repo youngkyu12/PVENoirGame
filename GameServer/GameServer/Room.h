@@ -22,6 +22,8 @@ struct RoomTimingConfig
 
 	float playerInputDtSec = 0.016f;
 	float enemyAiDtSec = 0.3f;
+	float enemyAiWakeRange = 100.0f;
+	float enemyAiSleepRange = 120.0f;
 
 	float projectileDtSec = 0.016f;
 	uint64 projectileLifeTickMs = 16;
@@ -98,6 +100,8 @@ private:
 	void FireArrow(PlayerRef shooter, float speed, uint32 lifeTicks);
 	void FireCannonball(PlayerRef shooter);
 	ProjectileRef AcquireFromPool(Vector<ProjectileRef>& pool);
+	void WakeEnemiesNearPlayer(const PlayerRef& player);
+	bool IsEnemyNearAnyPlayerExact(const GameMath::Vec3& enemyPos, float rangeSq) const;
 
 	void InitializeSpatialGrid();
 	void ShutdownSpatialGrid();
@@ -242,6 +246,7 @@ private:
 	std::vector<GridDynamicTracker> m_monsterGridTrackers;
 	std::vector<GridDynamicTracker> m_arrowGridTrackers;
 	std::vector<GridDynamicTracker> m_bulletGridTrackers;
+	std::unordered_set<uint64> m_aiAwakeEnemyIds;
     //array<GameAreaRef, 9> gameAreas; // 9°³ ±¸¿ª
 
 	RoomTimingConfig m_timing;

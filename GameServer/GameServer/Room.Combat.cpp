@@ -27,27 +27,6 @@ namespace
 		}
 	}
 
-	static bool IsEnemyNearAnyPlayer(const map<uint64, PlayerRef>& players, const GameMath::Vec3& enemyPos, float rangeSq)
-	{
-		for (const auto& playerPair : players)
-		{
-			const PlayerRef& player = playerPair.second;
-			if (!player) continue;
-			if (DistSqXZ(player->GetPosition(), enemyPos) <= rangeSq)
-				return true;
-		}
-		return false;
-	}
-
-	static void UpdateEnemyAIChunk(const std::vector<EnemyRef>& activeEnemies, size_t beginIndex, size_t endIndex, float dt)
-	{
-		for (size_t i = beginIndex; i < endIndex; ++i)
-		{
-			const EnemyRef& enemy = activeEnemies[i];
-			if (!enemy) continue;
-			enemy->UpdateAI(dt);
-		}
-	}
 
 	bool IsInArcXZ(
 		const GameMath::Vec3& attackerPos,
@@ -71,34 +50,80 @@ namespace
 	}
 }
 
+bool Room::IsEnemyNearAnyPlayerExact(const GameMath::Vec3& enemyPos, float rangeSq) const
+{
+	for (const auto& playerPair : players)
+	{
+		const PlayerRef& player = playerPair.second;
+		if (!player) continue;
+		if (player->IsDead()) continue;
+		if (GameMath::DistSqXZ(player->GetPosition(), enemyPos) <= rangeSq)
+			return true;
+	}
+
+	return false;
+}
+
+void Room::WakeEnemiesNearPlayer(const PlayerRef& player)
+{
+	if (!player) return;
+	if (player->IsDead()) return;
+
+	const float wakeRange = m_timing.enemyAiWakeRange;
+	const float wakeRangeSq = wakeRange * wakeRange;
+
+	std::vector<uint64> candidateEnemyIds;
+	CollectEnemyIdsInMegaGridRadius(player->GetPosition(), wakeRange, candidateEnemyIds);
+
+	for (uint64 enemyId : candidateEnemyIds)
+	{
+		auto enemyIt = enemies.find(enemyId);
+		if (enemyIt == enemies.end()) continue;
+
+		const EnemyRef& enemy = enemyIt->second;
+		if (!enemy) continue;
+		if (enemy->IsDead()) continue;
+		if (GameMath::DistSqXZ(player->GetPosition(), enemy->GetPosition()) > wakeRangeSq) continue;
+
+		m_aiAwakeEnemyIds.insert(enemyId);
+	}
+}
+
 void Room::ProcessEnemyAI()
 {
 	const auto frameStart = std::chrono::steady_clock::now();
 
-	constexpr float kEnemyAiActiveRange = 100.0f;
-	constexpr float kEnemyAiActiveRangeSq = kEnemyAiActiveRange * kEnemyAiActiveRange;
 	const float fixedDtSec = m_timing.enemyAiDtSec;
-	constexpr size_t kEnemyAiChunkSize = 32;
+	const float sleepRange = m_timing.enemyAiSleepRange;
+	const float sleepRangeSq = sleepRange * sleepRange;
+	const uint32 animClockTick = GetAnimClockTick();
 
-	std::vector<EnemyRef> activeEnemies;
-	activeEnemies.reserve(enemies.size());
-
-	for (auto& enemyPair : enemies)
+	for (auto it = m_aiAwakeEnemyIds.begin(); it != m_aiAwakeEnemyIds.end();)
 	{
-		auto& enemy = enemyPair.second;
-		if (!enemy) continue;
-		if (enemy->IsDead()) continue;
+		const uint64 enemyId = *it;
+		auto enemyIt = enemies.find(enemyId);
+		if (enemyIt == enemies.end() || !enemyIt->second || enemyIt->second->IsDead())
+		{
+			it = m_aiAwakeEnemyIds.erase(it);
+			continue;
+		}
 
-		if (IsEnemyNearAnyPlayer(players, enemy->GetPosition(), kEnemyAiActiveRangeSq))
-			activeEnemies.push_back(enemy);
-		else
+		EnemyRef& enemy = enemyIt->second;
+		if (!IsEnemyNearAnyPlayerExact(enemy->GetPosition(), sleepRangeSq))
+		{
 			enemy->SetVelocity(GameMath::Vec3::Zero());
-	}
+			if (enemy->GetAnimState() == Protocol::ANIMATION_TYPE_RUN)
+			{
+				enemy->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
+				enemy->SetAnimTick(animClockTick);
+			}
 
-	for (size_t beginIndex = 0; beginIndex < activeEnemies.size(); beginIndex += kEnemyAiChunkSize)
-	{
-		const size_t endIndex = (std::min)(beginIndex + kEnemyAiChunkSize, activeEnemies.size());
-		UpdateEnemyAIChunk(activeEnemies, beginIndex, endIndex, fixedDtSec);
+			it = m_aiAwakeEnemyIds.erase(it);
+			continue;
+		}
+
+		enemy->UpdateAI(fixedDtSec);
+		++it;
 	}
 
 	const auto elapsedMs = static_cast<uint64>(
@@ -124,12 +149,12 @@ void Room::TickAdvance()
 	const uint32 animClockTick = GetAnimClockTick();
 	const uint32 combatClockTick = GetCombatClockTick();
 
-
 	for (auto player : players)
 	{
 		const GameMath::Vec3 prevPos = player.second->GetPosition();
 		player.second->Update(animClockTick);
 		ResolveWorldStaticCollision(player.second, prevPos);
+		WakeEnemiesNearPlayer(player.second);
 	}
 
 	for (auto& [pid, player] : players)
