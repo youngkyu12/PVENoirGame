@@ -8,7 +8,7 @@ void Player::Update(uint32 serverTick)
     {
         SetVelocity(GameMath::Vec3::Zero());
 
-        constexpr uint32 kRespawnDelayTicks = 80; // ~5s (60ms * 80)
+        constexpr uint32 kRespawnDelayTicks = 32; // ~5s (160ms * 32)
         if (serverTick >= m_deathTick + kRespawnDelayTicks)
         {
             OnRespawnEnter(serverTick);

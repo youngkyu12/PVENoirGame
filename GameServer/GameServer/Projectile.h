@@ -8,11 +8,11 @@ public:
 	CProjectile() = default;
 	~CProjectile() override = default;
 
-	void Activate(const GameMath::Vec3& pos, const GameMath::Vec3& vel, int32 lifetimeTicks, uint64 ownerId, Protocol::BulletType type)
+	void Activate(const GameMath::Vec3& pos, const GameMath::Vec3& vel, int32 lifetimeTicks, uint64 lifetimeTickMs, uint64 ownerId, Protocol::BulletType type)
 	{
 		SetPosition(pos);
 		SetVelocity(vel);
-		m_remainingTicks = (lifetimeTicks > 0) ? lifetimeTicks : 0;
+		m_remainingMs = (lifetimeTicks > 0) ? static_cast<uint64>(lifetimeTicks) * lifetimeTickMs : 0;
 		m_ownerObjectId = ownerId;
 		m_bulletType = type;
 		m_active = true;
@@ -22,7 +22,7 @@ public:
 	void Deactivate()
 	{
 		m_active = false;
-		m_remainingTicks = 0;
+		m_remainingMs = 0;
 		m_ownerObjectId = 0;
 		m_bulletType = Protocol::BULLET_TYPE_NONE;
 		SetVelocity(GameMath::Vec3::Zero());
@@ -34,22 +34,28 @@ public:
 
 	void Update(uint32 /*serverTick*/) override
 	{
+		Update(0.06f, 60);
+	}
+
+	void Update(float dtSec, uint64 elapsedMs)
+	{
 		if (!m_active)
 			return;
 
-		constexpr float kServerTickDtSec = 0.06f;
-		Move(GetVelocity() * kServerTickDtSec);
+		Move(GetVelocity() * dtSec);
 
-		if (m_remainingTicks > 0)
-			--m_remainingTicks;
-
-		if (m_remainingTicks <= 0)
+		if (elapsedMs >= m_remainingMs)
+		{
 			Deactivate();
+			return;
+		}
+
+		m_remainingMs -= elapsedMs;
 	}
 
 private:
 	bool m_active = false;
 	uint64 m_ownerObjectId = 0;
 	Protocol::BulletType m_bulletType = Protocol::BULLET_TYPE_NONE;
-	int32 m_remainingTicks = 0;
+	uint64 m_remainingMs = 0;
 };
