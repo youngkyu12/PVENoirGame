@@ -8187,6 +8187,138 @@ bool CGameScene::ShouldEvaluateSkinnedPoseThisFrame(UINT objectIndex, CCamera* c
 #endif
 }
 
+#ifdef USING_NETWORK
+void CGameScene::PushNetworkFrameSnapshot(const FrameSnapshot& snapshot)
+{
+	if (snapshot.frameId <= m_lastReceivedServerTick)
+		return;
+
+	m_lastReceivedServerTick = snapshot.frameId;
+	m_frameSnapshotBuffer.push_back(snapshot);
+
+	while (m_frameSnapshotBuffer.size() > kMaxNetworkFrameSnapshotBufferSize)
+		m_frameSnapshotBuffer.pop_front();
+}
+
+FrameSnapshot CGameScene::BuildInterpolatedFrameSnapshot(const FrameSnapshot& latestSnapshot) const
+{
+	FrameSnapshot displaySnapshot = latestSnapshot;
+
+	if (m_lastReceivedServerTick <= kNetworkInterpolationDelayTicks)
+		return displaySnapshot;
+
+	const uint64_t renderTick = m_lastReceivedServerTick - kNetworkInterpolationDelayTicks;
+
+	const FrameSnapshot* older = nullptr;
+	const FrameSnapshot* newer = nullptr;
+	float alpha = 0.0f;
+	if (!GetInterpolationSnapshots(renderTick, older, newer, alpha) || !older || !newer)
+		return displaySnapshot;
+
+	for (PlayerState& state : displaySnapshot.players)
+	{
+		if (static_cast<int>(state.id) == m_localPlayerSlot)
+			continue;
+
+		const PlayerState* oldState = FindPlayerState(*older, state.id);
+		const PlayerState* newState = FindPlayerState(*newer, state.id);
+		if (!oldState || !newState)
+			continue;
+
+		state.position = LerpPosition(oldState->position, newState->position, alpha);
+		state.yaw = LerpYawDegrees(oldState->yaw, newState->yaw, alpha);
+	}
+
+	for (EnemyState& state : displaySnapshot.enemies)
+	{
+		const EnemyState* oldState = FindEnemyState(*older, state.id);
+		const EnemyState* newState = FindEnemyState(*newer, state.id);
+		if (!oldState || !newState)
+			continue;
+
+		state.position = LerpPosition(oldState->position, newState->position, alpha);
+		state.yaw = LerpYawDegrees(oldState->yaw, newState->yaw, alpha);
+	}
+
+	return displaySnapshot;
+}
+
+bool CGameScene::GetInterpolationSnapshots(
+	uint64_t renderTick,
+	const FrameSnapshot*& older,
+	const FrameSnapshot*& newer,
+	float& alpha) const
+{
+	older = nullptr;
+	newer = nullptr;
+	alpha = 0.0f;
+
+	if (m_frameSnapshotBuffer.size() < 2)
+		return false;
+
+	for (size_t i = 1; i < m_frameSnapshotBuffer.size(); ++i)
+	{
+		const FrameSnapshot& a = m_frameSnapshotBuffer[i - 1];
+		const FrameSnapshot& b = m_frameSnapshotBuffer[i];
+		if (a.frameId > renderTick || renderTick > b.frameId)
+			continue;
+
+		older = &a;
+		newer = &b;
+
+		const uint64_t tickSpan = b.frameId - a.frameId;
+		if (tickSpan > 0)
+			alpha = static_cast<float>(renderTick - a.frameId) / static_cast<float>(tickSpan);
+
+		if (alpha < 0.0f) alpha = 0.0f;
+		if (alpha > 1.0f) alpha = 1.0f;
+		return true;
+	}
+
+	return false;
+}
+
+const PlayerState* CGameScene::FindPlayerState(const FrameSnapshot& snapshot, uint64_t id)
+{
+	for (const PlayerState& state : snapshot.players)
+	{
+		if (state.id == id)
+			return &state;
+	}
+	return nullptr;
+}
+
+const EnemyState* CGameScene::FindEnemyState(const FrameSnapshot& snapshot, uint64_t id)
+{
+	for (const EnemyState& state : snapshot.enemies)
+	{
+		if (state.id == id)
+			return &state;
+	}
+	return nullptr;
+}
+
+XMFLOAT3 CGameScene::LerpPosition(const XMFLOAT3& a, const XMFLOAT3& b, float t)
+{
+	return XMFLOAT3(
+		a.x + (b.x - a.x) * t,
+		a.y + (b.y - a.y) * t,
+		a.z + (b.z - a.z) * t);
+}
+
+float CGameScene::LerpYawDegrees(float a, float b, float t)
+{
+	float delta = b - a;
+	while (delta > 180.0f) delta -= 360.0f;
+	while (delta < -180.0f) delta += 360.0f;
+
+	float result = a + delta * t;
+	while (result >= 360.0f) result -= 360.0f;
+	while (result < 0.0f) result += 360.0f;
+	return result;
+}
+#endif
+
 void CGameScene::AnimateObjects(float dt)
 {
 	m_fElapsedTime = dt;
@@ -8208,7 +8340,11 @@ void CGameScene::AnimateObjects(float dt)
     DequeueNetworkMessage(NetworkMessageType::FrameState);
     if (std::holds_alternative<FrameSnapshot>(m_pendingNetworkMessage.data))
     {
-        const FrameSnapshot& snapshot = std::get<FrameSnapshot>(m_pendingNetworkMessage.data);
+        const FrameSnapshot& receivedSnapshot = std::get<FrameSnapshot>(m_pendingNetworkMessage.data);
+		PushNetworkFrameSnapshot(receivedSnapshot);
+		const FrameSnapshot& latestSnapshot =
+			m_frameSnapshotBuffer.empty() ? receivedSnapshot : m_frameSnapshotBuffer.back();
+		FrameSnapshot snapshot = BuildInterpolatedFrameSnapshot(latestSnapshot);
 
         // Player 좌표 업데이트
         for (const auto& state : snapshot.players)

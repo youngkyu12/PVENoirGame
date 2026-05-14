@@ -17,6 +17,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <cstdint>
+#include <deque>
 
 class CMaterial;
 class CMesh;
@@ -886,6 +887,25 @@ private:
 	float                           m_localPlayerRespawnTimer = 0.0f;
 
 #ifdef USING_NETWORK
+	std::deque<FrameSnapshot> m_frameSnapshotBuffer;
+	uint64_t m_lastReceivedServerTick = 0;
+
+	static constexpr uint64_t kNetworkInterpolationDelayTicks = 2;
+	static constexpr size_t kMaxNetworkFrameSnapshotBufferSize = 8;
+
+	void PushNetworkFrameSnapshot(const FrameSnapshot& snapshot);
+	FrameSnapshot BuildInterpolatedFrameSnapshot(const FrameSnapshot& latestSnapshot) const;
+	bool GetInterpolationSnapshots(
+		uint64_t renderTick,
+		const FrameSnapshot*& older,
+		const FrameSnapshot*& newer,
+		float& alpha) const;
+
+	static const PlayerState* FindPlayerState(const FrameSnapshot& snapshot, uint64_t id);
+	static const EnemyState* FindEnemyState(const FrameSnapshot& snapshot, uint64_t id);
+	static XMFLOAT3 LerpPosition(const XMFLOAT3& a, const XMFLOAT3& b, float t);
+	static float LerpYawDegrees(float a, float b, float t);
+
 	std::unordered_map<uint64_t, uint32_t> m_prevPlayerNetworkStateCode;
 #endif
 
