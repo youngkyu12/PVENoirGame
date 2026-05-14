@@ -62,7 +62,7 @@ namespace
 		if (anim == Protocol::ANIMATION_TYPE_DIE)
 		{
 			code |= kStateDie;
-			return code; // dead에서는 이동 플래그 강제 차단
+			return code; // Dead objects do not send movement flags.
 		}
 
 		if (anim == Protocol::ANIMATION_TYPE_ATTACK) code |= kStateAttack;
@@ -141,9 +141,9 @@ void Room::FrameStateAdvance()
 	const auto elapsedMs = static_cast<uint64>(
 		std::chrono::duration_cast<std::chrono::milliseconds>(
 			std::chrono::steady_clock::now() - frameStart).count());
-	constexpr uint64 kFrameStateIntervalMs = 160;
+	const uint64 frameStateIntervalMs = m_timing.frameStateIntervalMs;
 	const uint64 nextDelayMs =
-		(elapsedMs >= kFrameStateIntervalMs) ? 0 : (kFrameStateIntervalMs - elapsedMs);
+		(elapsedMs >= frameStateIntervalMs) ? 0 : (frameStateIntervalMs - elapsedMs);
 	if (nextDelayMs == 0)
 	{
 		cout << "[FrameStateAdvance] next frame immediately (elapsed=" << elapsedMs << "ms)" << endl;
@@ -317,7 +317,7 @@ void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
 	for (auto& player : players)
 		player.second->SetActive(false);
 
-	GRoom->DoTimer(100, &Room::CheckClientReady);
+	GRoom->DoTimer(m_timing.clientReadyPollIntervalMs, &Room::CheckClientReady);
 }
 
 void Room::MakeEnterGameStruct(Protocol::S_ENTER_GAME enterGamePkt)

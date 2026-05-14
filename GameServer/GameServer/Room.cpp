@@ -229,6 +229,7 @@ bool Room::LoadMonsterSpawnEntries(std::vector<MonsterSpawnEntry>& outEntries)
 void Room::BuildRoom()
 {
 	buildings.clear();
+	m_elapsedServerMs = static_cast<uint64>(tick.load()) * m_timing.serverTickIntervalMs;
 	enemies.clear();
 	m_arrowPool.clear();
 	m_bulletPool.clear();
@@ -380,13 +381,14 @@ void Room::CheckClientReady()
 	if (allPlayerBuilt)
 	{
 		std::cout << "Game Started!" << endl;
-		GRoom->DoTimer(100, &Room::TickAdvance);
-		GRoom->DoTimer(100, &Room::FrameStateAdvance);
-		GRoom->DoTimer(100, &Room::ProcessEnemyAI);
+		const uint64 startDelayMs = m_timing.gameStartDelayMs;
+		GRoom->DoTimer(startDelayMs, &Room::TickAdvance);
+		GRoom->DoTimer(startDelayMs, &Room::FrameStateAdvance);
+		GRoom->DoTimer(startDelayMs, &Room::ProcessEnemyAI);
 	}
 	else
 	{
-		GRoom->DoTimer(100, &Room::CheckClientReady);
+		GRoom->DoTimer(m_timing.clientReadyPollIntervalMs, &Room::CheckClientReady);
 	}
 }
 

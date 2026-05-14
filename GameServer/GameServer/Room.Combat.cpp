@@ -77,7 +77,7 @@ void Room::ProcessEnemyAI()
 
 	constexpr float kEnemyAiActiveRange = 100.0f;
 	constexpr float kEnemyAiActiveRangeSq = kEnemyAiActiveRange * kEnemyAiActiveRange;
-	constexpr float kFixedDtSec = 0.3f;
+	const float fixedDtSec = m_timing.enemyAiDtSec;
 	constexpr size_t kEnemyAiChunkSize = 32;
 
 	std::vector<EnemyRef> activeEnemies;
@@ -98,13 +98,14 @@ void Room::ProcessEnemyAI()
 	for (size_t beginIndex = 0; beginIndex < activeEnemies.size(); beginIndex += kEnemyAiChunkSize)
 	{
 		const size_t endIndex = (std::min)(beginIndex + kEnemyAiChunkSize, activeEnemies.size());
-		UpdateEnemyAIChunk(activeEnemies, beginIndex, endIndex, kFixedDtSec);
+		UpdateEnemyAIChunk(activeEnemies, beginIndex, endIndex, fixedDtSec);
 	}
 
 	const auto elapsedMs = static_cast<uint64>(
 		std::chrono::duration_cast<std::chrono::milliseconds>(
 			std::chrono::steady_clock::now() - frameStart).count());
-	const uint64 nextDelayMs = (elapsedMs >= 300) ? 0 : (300 - elapsedMs);
+	const uint64 enemyAiIntervalMs = m_timing.enemyAiIntervalMs;
+	const uint64 nextDelayMs = (elapsedMs >= enemyAiIntervalMs) ? 0 : (enemyAiIntervalMs - elapsedMs);
 	if (nextDelayMs == 0)
 	{
 		cout << "Warning: Enemy AI processing is taking too long (" << elapsedMs << " ms)" 
@@ -281,7 +282,8 @@ void Room::TickAdvance()
 	const auto elapsedMs = static_cast<uint64>(
 		std::chrono::duration_cast<std::chrono::milliseconds>(
 			std::chrono::steady_clock::now() - frameStart).count());
-	const uint64 nextDelayMs = (elapsedMs >= 160) ? 0 : (160 - elapsedMs);
+	const uint64 serverTickIntervalMs = m_timing.serverTickIntervalMs;
+	const uint64 nextDelayMs = (elapsedMs >= serverTickIntervalMs) ? 0 : (serverTickIntervalMs - elapsedMs);
 	if (nextDelayMs == 0)
 	{
 		cout << "[TickAdvance] next tick immediately (elapsed=" << elapsedMs << "ms)" << endl;
@@ -291,6 +293,7 @@ void Room::TickAdvance()
 	{
 		GRoom->DoTimer(nextDelayMs, &Room::TickAdvance);
 	}
+	m_elapsedServerMs += m_timing.serverTickIntervalMs;
 	++tick;
 }
 

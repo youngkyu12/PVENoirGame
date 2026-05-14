@@ -12,6 +12,21 @@ namespace Protocol
     struct S_ENTER_GAME;
 }
 
+struct RoomTimingConfig
+{
+	uint64 serverTickIntervalMs = 160;
+	uint64 frameStateIntervalMs = 160;
+	uint64 enemyAiIntervalMs = 300;
+	uint64 clientReadyPollIntervalMs = 100;
+	uint64 gameStartDelayMs = 100;
+
+	float playerInputDtSec = 0.16f;
+	float enemyAiDtSec = 0.3f;
+
+	uint64 animClockIntervalMs = 160;
+	uint64 combatClockIntervalMs = 160;
+};
+
 class Room : public JobQueue
 {
 public:
@@ -52,6 +67,16 @@ public:
 	const map<uint64, PlayerRef>& GetPlayers() const { return players; }
 	const CNavMesh* GetNavMesh() const { return m_navMesh.get(); }
 	uint32 GetTick() const { return tick.load(); }
+	uint64 GetElapsedServerMs() const { return m_elapsedServerMs; }
+	const RoomTimingConfig& GetTimingConfig() const { return m_timing; }
+	uint32 GetAnimClockTick() const
+	{
+		return static_cast<uint32>(m_elapsedServerMs / m_timing.animClockIntervalMs);
+	}
+	uint32 GetCombatClockTick() const
+	{
+		return static_cast<uint32>(m_elapsedServerMs / m_timing.combatClockIntervalMs);
+	}
 
 private:
 	void InitializeCollisionSystem();
@@ -211,6 +236,9 @@ private:
 	std::vector<GridDynamicTracker> m_arrowGridTrackers;
 	std::vector<GridDynamicTracker> m_bulletGridTrackers;
     //array<GameAreaRef, 9> gameAreas; // 9°³ ±¸¿ª
+
+	RoomTimingConfig m_timing;
+	uint64 m_elapsedServerMs = 0;
 
     Atomic<uint32> tick = 0;
 };
