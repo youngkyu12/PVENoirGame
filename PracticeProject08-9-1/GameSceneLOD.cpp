@@ -242,6 +242,51 @@ int CGameScene::ComputeSkinnedWorldLodLevel(
 	return 2;
 }
 
+int CGameScene::ComputeSpawnWorldLodLevel(
+	const XMFLOAT3& cameraPosition,
+	const SkinnedWorldLodEntry& entry) const
+{
+	if ( !entry.lodEnabled )
+		return 0;
+
+	const float dx = cameraPosition.x - entry.lodReferencePosition.x;
+	const float dy = cameraPosition.y - entry.lodReferencePosition.y;
+	const float dz = cameraPosition.z - entry.lodReferencePosition.z;
+
+	const float dist = std::sqrt(dx * dx + dy * dy + dz * dz);
+
+	float lodDistance01 = entry.lodDistance01;
+	if ( lodDistance01 < 0.0f ) lodDistance01 = 0.0f;
+
+	float lodDistance12 = entry.lodDistance12;
+	if ( lodDistance12 < lodDistance01 ) lodDistance12 = lodDistance01;
+
+	const float lod01Enter = lodDistance01 + m_spawnLodHysteresis;
+	const float lod01Exit = lodDistance01 - m_spawnLodHysteresis;
+	const float lod12Enter = lodDistance12 + m_spawnLodHysteresis;
+	const float lod12Exit = lodDistance12 - m_spawnLodHysteresis;
+
+	switch ( entry.currentLod )
+	{
+	case 0:
+		if ( dist >= lod01Enter ) return 1;
+		return 0;
+
+	case 1:
+		if ( dist < lod01Exit ) return 0;
+		if ( dist >= lod12Enter ) return 2;
+		return 1;
+
+	case 2:
+		if ( dist < lod12Exit ) return 1;
+		return 2;
+	}
+
+	if ( dist < lodDistance01 ) return 0;
+	if ( dist < lodDistance12 ) return 1;
+	return 2;
+}
+
 bool CGameScene::ComputeSkinnedWorldDistanceCulled(
 	const XMFLOAT3& cameraPosition,
 	const SkinnedWorldLodEntry& entry) const
@@ -261,6 +306,37 @@ bool CGameScene::ComputeSkinnedWorldDistanceCulled(
 
 	const float cullEnter = cullDistance + m_skinnedCullHysteresis;
 	float cullExit = cullDistance - m_skinnedCullHysteresis;
+	if ( cullExit < 0.0f ) cullExit = 0.0f;
+
+	if ( !entry.distanceCulled )
+	{
+		if ( dist >= cullEnter ) return true;
+		return false;
+	}
+
+	if ( dist < cullExit ) return false;
+	return true;
+}
+
+bool CGameScene::ComputeSpawnWorldDistanceCulled(
+	const XMFLOAT3& cameraPosition,
+	const SkinnedWorldLodEntry& entry) const
+{
+	if ( !entry.distanceCullEnabled )
+		return false;
+
+	const float dx = cameraPosition.x - entry.lodReferencePosition.x;
+	const float dy = cameraPosition.y - entry.lodReferencePosition.y;
+	const float dz = cameraPosition.z - entry.lodReferencePosition.z;
+
+	const float dist = std::sqrt(dx * dx + dy * dy + dz * dz);
+
+	// replace std::max usag
+	float cullDistance = entry.cullDistance;
+	if ( cullDistance < 0.0f ) cullDistance = 0.0f;
+
+	const float cullEnter = cullDistance + m_spawnCullHysteresis;
+	float cullExit = cullDistance - m_spawnCullHysteresis;
 	if ( cullExit < 0.0f ) cullExit = 0.0f;
 
 	if ( !entry.distanceCulled )
@@ -417,7 +493,7 @@ void CGameScene::UpdateSpawnWorldLodSelection(CCamera* camera)
 		if ( entry.skinnedBatchObjectIndex >= ( UINT ) m_spawnDistanceCullFlags.size() ) continue;
 
 		const bool distanceCulled =
-			ComputeSkinnedWorldDistanceCulled(cameraPosition, entry);
+			ComputeSpawnWorldDistanceCulled(cameraPosition, entry);
 
 		entry.distanceCulled = distanceCulled;
 
@@ -427,7 +503,7 @@ void CGameScene::UpdateSpawnWorldLodSelection(CCamera* camera)
 			continue;
 		}
 
-		int desiredLod = ComputeSkinnedWorldLodLevel(cameraPosition, entry);
+		int desiredLod = ComputeSpawnWorldLodLevel(cameraPosition, entry);
 		desiredLod = ClampSkinnedWorldLodLevel(desiredLod);
 
 		int resolvedLod = desiredLod;
@@ -465,42 +541,9 @@ void CGameScene::UpdateSpawnWorldLodSelection(CCamera* camera)
 			skinnedIndexByObject[m_spawnBatch.objectRefs[i]] = i;
 	}
 
-	for ( const AttachmentBindSpec& spec : m_attachmentBinds )
-	{
-		if ( !spec.follower || !spec.target )
-			continue;
-
-		auto targetIt = skinnedIndexByObject.find(spec.target);
-		if ( targetIt == skinnedIndexByObject.end() )
-			continue;
-
-		const UINT targetIndex = targetIt->second;
-		if ( targetIndex >= ( UINT ) m_spawnDistanceCullFlags.size() )
-			continue;
-
-		if ( m_spawnDistanceCullFlags[targetIndex] == 0 )
-			continue;
-
-		auto followerStaticIt = staticIndexByObject.find(spec.follower);
-		if ( followerStaticIt != staticIndexByObject.end() )
-		{
-			const UINT followerIndex = followerStaticIt->second;
-			if ( followerIndex < ( UINT ) m_staticDistanceCullFlags.size() )
-				m_staticDistanceCullFlags[followerIndex] = 1;
-		}
-
-		auto followerSkinnedIt = skinnedIndexByObject.find(spec.follower);
-		if ( followerSkinnedIt != skinnedIndexByObject.end() )
-		{
-			const UINT followerIndex = followerSkinnedIt->second;
-			if ( followerIndex < ( UINT ) m_spawnDistanceCullFlags.size() )
-				m_spawnDistanceCullFlags[followerIndex] = 1;
-		}
-	}
-
 	if ( anyLodChanged )
 	{
-		BuildSkinnedInstanceGroups();
+		BuildSpawnInstanceGroups();
 		m_spawnWorldLodDirty = true;
 	}
 	else
