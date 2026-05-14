@@ -65,6 +65,83 @@ namespace
 		}
 	}
 
+	static bool GetColliderWorldXZBounds(
+		const CColliderComponent& collider,
+		float& outMinX,
+		float& outMaxX,
+		float& outMinZ,
+		float& outMaxZ)
+	{
+		bool hasBounds = false;
+
+		auto IncludePoint = [&](float x, float z)
+			{
+				if (!hasBounds)
+				{
+					outMinX = outMaxX = x;
+					outMinZ = outMaxZ = z;
+					hasBounds = true;
+					return;
+				}
+
+				outMinX = (std::min)(outMinX, x);
+				outMaxX = (std::max)(outMaxX, x);
+				outMinZ = (std::min)(outMinZ, z);
+				outMaxZ = (std::max)(outMaxZ, z);
+			};
+
+		auto IncludeOOBB = [&](const BoundingOrientedBox& box)
+			{
+				XMFLOAT3 corners[8] = {};
+				box.GetCorners(corners);
+				for (const XMFLOAT3& corner : corners)
+					IncludePoint(corner.x, corner.z);
+			};
+
+		auto IncludeCapsule = [&](const BoundingCapsule& capsule)
+			{
+				IncludePoint(capsule.p0.x - capsule.Radius, capsule.p0.z - capsule.Radius);
+				IncludePoint(capsule.p0.x + capsule.Radius, capsule.p0.z + capsule.Radius);
+				IncludePoint(capsule.p1.x - capsule.Radius, capsule.p1.z - capsule.Radius);
+				IncludePoint(capsule.p1.x + capsule.Radius, capsule.p1.z + capsule.Radius);
+			};
+
+		switch (collider.GetType())
+		{
+		case EColliderType::AABB:
+		{
+			const BoundingBox& box = collider.GetAABB();
+			IncludePoint(box.Center.x - box.Extents.x, box.Center.z - box.Extents.z);
+			IncludePoint(box.Center.x + box.Extents.x, box.Center.z + box.Extents.z);
+			break;
+		}
+		case EColliderType::OOBB:
+		{
+			IncludeOOBB(collider.GetOOBB());
+			for (const BoundingOrientedBox& subBox : collider.GetSubOOBBs())
+				IncludeOOBB(subBox);
+			break;
+		}
+		case EColliderType::BSphere:
+		{
+			const BoundingSphere& sphere = collider.GetBSphere();
+			IncludePoint(sphere.Center.x - sphere.Radius, sphere.Center.z - sphere.Radius);
+			IncludePoint(sphere.Center.x + sphere.Radius, sphere.Center.z + sphere.Radius);
+			break;
+		}
+		case EColliderType::BCapsule:
+		{
+			IncludeCapsule(collider.GetBCapsule());
+			for (const BoundingCapsule& subCapsule : collider.GetSubBCapsules())
+				IncludeCapsule(subCapsule);
+			break;
+		}
+		default:
+			break;
+		}
+
+		return hasBounds;
+	}
 	static StaticWorldReportCache g_staticWorldReportCache;
 	static bool g_staticWorldReportLoaded = false;
 
@@ -168,6 +245,41 @@ void Room::RegisterStaticCollider(BuildingRef building)
 	}
 }
 
+bool Room::HasCollisionWithNearbyWorldStatic(const CColliderComponent* subject) const
+{
+	if (!_collision || !subject)
+		return false;
+
+	if (!m_spatialGridInitialized)
+		return _collision->HasCollisionWithWorldStatic(subject);
+
+	float minX = 0.0f;
+	float maxX = 0.0f;
+	float minZ = 0.0f;
+	float maxZ = 0.0f;
+	if (!GetColliderWorldXZBounds(*subject, minX, maxX, minZ, maxZ))
+		return _collision->HasCollisionWithWorldStatic(subject);
+
+	std::vector<uint64> buildingIds;
+	CollectStaticBuildingIdsForWorldBounds(minX, maxX, minZ, maxZ, buildingIds);
+
+	for (uint64 buildingId : buildingIds)
+	{
+		auto it = buildings.find(buildingId);
+		if (it == buildings.end()) continue;
+
+		const BuildingRef& building = it->second;
+		if (!building) continue;
+
+		auto* candidate = building->GetComponent<CColliderComponent>();
+		if (!candidate) continue;
+
+		if (_collision->TestIntersection(subject, candidate))
+			return true;
+	}
+
+	return false;
+}
 void Room::ResolveWorldStaticCollision(const shared_ptr<CServerObject>& obj, const GameMath::Vec3& previousPos)
 {
 	if (!_collision || !obj)
@@ -178,7 +290,7 @@ void Room::ResolveWorldStaticCollision(const shared_ptr<CServerObject>& obj, con
 		return;
 
 	collider->OnUpdate(0.0f);
-	if (_collision->HasCollisionWithWorldStatic(collider))
+	if (HasCollisionWithNearbyWorldStatic(collider))
 	{
 		obj->SetPosition(previousPos);
 		collider->OnUpdate(0.0f);
@@ -203,7 +315,7 @@ GameMath::Vec3 Room::ResolvePreBlockedShift(const shared_ptr<CServerObject>& obj
 		{
 			obj->SetPosition(testPos);
 			collider->OnUpdate(0.0f);
-			return _collision->HasCollisionWithWorldStatic(collider);
+			return HasCollisionWithNearbyWorldStatic(collider);
 		};
 
 	GameMath::Vec3 resolvedShift = desiredShift;

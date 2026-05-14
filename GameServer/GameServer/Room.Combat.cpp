@@ -77,7 +77,7 @@ void Room::ProcessEnemyAI()
 
 	constexpr float kEnemyAiActiveRange = 100.0f;
 	constexpr float kEnemyAiActiveRangeSq = kEnemyAiActiveRange * kEnemyAiActiveRange;
-	constexpr float kFixedDtSec = 0.06f;
+	constexpr float kFixedDtSec = 0.3f;
 	constexpr size_t kEnemyAiChunkSize = 32;
 
 	std::vector<EnemyRef> activeEnemies;
@@ -104,8 +104,17 @@ void Room::ProcessEnemyAI()
 	const auto elapsedMs = static_cast<uint64>(
 		std::chrono::duration_cast<std::chrono::milliseconds>(
 			std::chrono::steady_clock::now() - frameStart).count());
-	const uint64 nextDelayMs = (elapsedMs >= 60) ? 0 : (60 - elapsedMs);
-	GRoom->DoTimer(nextDelayMs, &Room::ProcessEnemyAI);
+	const uint64 nextDelayMs = (elapsedMs >= 300) ? 0 : (300 - elapsedMs);
+	if (nextDelayMs == 0)
+	{
+		cout << "Warning: Enemy AI processing is taking too long (" << elapsedMs << " ms)" 
+			<< endl;
+		GRoom->DoAsync(&Room::ProcessEnemyAI);
+	}
+	else
+	{
+		GRoom->DoTimer(nextDelayMs, &Room::ProcessEnemyAI);
+	}
 }
 
 void Room::TickAdvance()
@@ -273,8 +282,16 @@ void Room::TickAdvance()
 	const auto elapsedMs = static_cast<uint64>(
 		std::chrono::duration_cast<std::chrono::milliseconds>(
 			std::chrono::steady_clock::now() - frameStart).count());
-	const uint64 nextDelayMs = (elapsedMs >= 60) ? 0 : (60 - elapsedMs);
-	GRoom->DoTimer(nextDelayMs, &Room::TickAdvance);
+	const uint64 nextDelayMs = (elapsedMs >= 160) ? 0 : (160 - elapsedMs);
+	if (nextDelayMs == 0)
+	{
+		cout << "[TickAdvance] next tick immediately (elapsed=" << elapsedMs << "ms)" << endl;
+		GRoom->DoAsync(&Room::TickAdvance);
+	}
+	else
+	{
+		GRoom->DoTimer(nextDelayMs, &Room::TickAdvance);
+	}
 	++tick;
 }
 

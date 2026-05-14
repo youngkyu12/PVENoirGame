@@ -9,6 +9,7 @@
 #include "ClientPacketHandler.h"
 
 #include <unordered_map>
+#include <vector>
 
 namespace
 {
@@ -111,6 +112,7 @@ void Room::MakeFrameState(uint32 tick)
 	constexpr float kBulletViewRangeSq = kBulletViewRange * kBulletViewRange;
 
 	std::unordered_map<uint64, uint32> s_EnemyStateCodeCache;
+	RebuildMegaGridEnemyIds();
 
 	for (auto& viewerPair : players)
 	{
@@ -148,24 +150,31 @@ void Room::MakeFrameState(uint32 tick)
 
 		const GameMath::Vec3 viewerPos = viewer->GetPosition();
 
-		for (auto& enemyMap : enemies)
+		std::vector<uint64> visibleEnemyIds;
+		CollectEnemyIdsInMegaGridRadius(viewerPos, kEnemyViewRange, visibleEnemyIds);
+
+		for (uint64 enemyId : visibleEnemyIds)
 		{
-			EnemyRef& enemy = enemyMap.second;
+			auto it = enemies.find(enemyId);
+			if (it == enemies.end())
+				continue;
+
+			EnemyRef& enemy = it->second;
 			if (!enemy)
 				continue;
 
-			if (abs(GameMath::DistSqXZ(viewerPos, enemy->GetPosition())) > kEnemyViewRangeSq)
+			if (GameMath::DistSqXZ(viewerPos, enemy->GetPosition()) > kEnemyViewRangeSq)
 				continue;
 
-			if(s_EnemyStateCodeCache.find(enemyMap.first) == s_EnemyStateCodeCache.end())
-				s_EnemyStateCodeCache[enemyMap.first] = BuildEnemyStateCode(*enemy);
+			if (s_EnemyStateCodeCache.find(enemyId) == s_EnemyStateCodeCache.end())
+				s_EnemyStateCodeCache[enemyId] = BuildEnemyStateCode(*enemy);
 
 			auto e = frameStatePkt.add_enemies();
-			e->set_id(enemyMap.first);
+			e->set_id(enemyId);
 			e->set_enemytype(enemy->type);
 			e->set_weapontype(enemy->GetWeaponState());
 			Protocol::Animation* anim = e->mutable_animation();
-			anim->set_statecode(s_EnemyStateCodeCache[enemyMap.first]);
+			anim->set_statecode(s_EnemyStateCodeCache[enemyId]);
 			anim->set_animationtick(enemy->GetAnimTick());
 
 			Protocol::Transform* transform = e->mutable_transform();
