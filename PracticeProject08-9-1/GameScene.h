@@ -12,8 +12,9 @@
 #include "Grid.h"
 #include "DepthFog.h"
 #include "GameSceneHUD.h"
-//#include "ShadowMap.h"
+#include "ShadowMap.h"
 
+#include <unordered_map>
 #include <unordered_set>
 #include <cstdint>
 
@@ -27,8 +28,10 @@ class CGameObject;
 class CCollisionSystem;
 class CTexture;
 class CNavMesh;
+class CStaticMeshRendererComponent;
 
 struct CB_GAMEOBJECT_INFO;
+
 struct AttachmentBindSpec
 {
     CGameObject* follower = nullptr;
@@ -57,6 +60,154 @@ struct StaticInstanceVertex
 	UINT pad[3] = { 0, 0, 0 };
 };
 
+struct ItemBillboardInstanceVertex
+{
+	XMFLOAT4 world0 = XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f);
+	XMFLOAT4 world1 = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
+	XMFLOAT4 world2 = XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f);
+	XMFLOAT4 world3 = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+
+	UINT materialId = 0;
+	UINT pad[3] = { 0, 0, 0 };
+};
+
+enum class EMuzzleFlashKind : UINT
+{
+	Core = 0,
+	Ring = 1,
+	Spark = 2,
+	Blood = 3,
+};
+
+struct MuzzleFlashInstanceVertex
+{
+	XMFLOAT4 world0 = XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f);
+	XMFLOAT4 world1 = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
+	XMFLOAT4 world2 = XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f);
+	XMFLOAT4 world3 = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+
+	// rgb = 색상, a = 전체 alpha 계수
+	XMFLOAT4 color = XMFLOAT4(1.0f, 0.65f, 0.12f, 1.0f);
+
+	// x = ageRatio, y = intensity, z = rotationRad, w = seed
+	XMFLOAT4 params0 = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
+
+	// x = kind (0=core, 1=ring, 2=spark)
+	// y = reserved
+	// z = reserved
+	// w = reserved
+	XMFLOAT4 params1 = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+};
+
+struct MuzzleFlashEntry
+{
+	bool active = false;
+	EMuzzleFlashKind kind = EMuzzleFlashKind::Core;
+
+	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT3 velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	float age = 0.0f;
+	float lifetime = 0.08f;
+
+	float startWidth = 0.65f;
+	float startHeight = 0.65f;
+
+	float endWidth = 1.25f;
+	float endHeight = 1.25f;
+
+	float rotationRad = 0.0f;
+	float intensity = 1.0f;
+	float drag = 0.0f;
+	float gravity = 0.0f;
+	float seed = 0.0f;
+
+	XMFLOAT4 color = XMFLOAT4(1.0f, 0.62f, 0.10f, 1.0f);
+};
+
+struct SwordTrailVertex
+{
+	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT2 uv = XMFLOAT2(0.0f, 0.0f);
+	XMFLOAT4 color = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+};
+
+struct SwordTrailSample
+{
+	XMFLOAT3 root = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT3 tip = XMFLOAT3(0.0f, 0.0f, 0.0f);
+};
+
+enum class EWeaponTrailKind : UINT
+{
+	Sword = 0,
+	Axe = 1,
+};
+
+struct SwordTrailEntry
+{
+	bool active = false;
+
+	EWeaponTrailKind kind = EWeaponTrailKind::Sword;
+
+	CGameObject* owner = nullptr;
+
+	// 이름은 SwordTrailEntry지만, 실제로는 검/도끼 공용 weapon trail로 사용한다.
+	CGameObject* weaponObject = nullptr;
+
+	float age = 0.0f;
+
+	float startDelay = 0.340f;
+	float sampleDuration = 0.240f;
+	float fadeDuration = 0.120f;
+
+	// 무기 local space에서 trail ribbon의 양 끝점.
+	// sword: 손잡이 쪽 ~ 칼끝
+	// axe: 도끼날 근처 짧은 구간
+	XMFLOAT3 rootLocal = XMFLOAT3(0.0f, 0.0f, 0.10f);
+	XMFLOAT3 tipLocal = XMFLOAT3(0.0f, 0.0f, 1.45f);
+
+	// root/tip 사이 폭 조절.
+	// 도끼는 날이 끝자락에만 있으므로 이 값을 줄이면 된다.
+	float widthScale = 1.0f;
+
+	XMFLOAT4 color = XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f);
+
+	std::vector<SwordTrailSample> samples;
+};
+
+enum class EItemBillboardKind : UINT
+{
+	Key = 0,
+};
+
+struct ItemBillboardEntry
+{
+	bool active = true;
+	bool distanceCulled = false;
+
+	// 추가: true면 transparent pass에서 그림
+	bool transparent = false;
+
+	EItemBillboardKind kind = EItemBillboardKind::Key;
+
+	// 1~9. 유효하지 않으면 -1.
+	int megaGridNumber = -1;
+
+	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	float width = 1.0f;
+	float height = 1.0f;
+	float yOffset = 1.0f;
+
+	float cullDistance = 35.0f;
+
+	float pickupRadius = 1.25f;
+	float pickupHeightTolerance = 2.0f;
+
+	UINT materialId = 0;
+};
+
 struct StaticInstanceGroup
 {
 	std::shared_ptr<CMesh> mesh;
@@ -65,6 +216,24 @@ struct StaticInstanceGroup
 
 	UINT instanceBufferStart = 0;
 	bool useTreeShader = false;
+
+	int lodLevel = 0;
+
+	std::vector<UINT> visibleSceneObjectIndices;
+	std::vector<UINT> visibleShadowObjectIndices;
+};
+
+struct StaticRenderObjectCache
+{
+	CGameObject* object = nullptr;
+	CStaticMeshRendererComponent* renderer = nullptr;
+
+	bool dynamicWorldMatrix = false;
+
+	XMFLOAT4 world0 = XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f);
+	XMFLOAT4 world1 = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
+	XMFLOAT4 world2 = XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f);
+	XMFLOAT4 world3 = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
 };
 
 struct StaticWorldLodEntry
@@ -158,16 +327,6 @@ struct SkinnedInstanceGroup
 	bool useAlphaClipShader = false;
 };
 
-struct CB_SHADOW
-{
-	XMFLOAT4X4 shadowViewProj{};
-	XMFLOAT4X4 shadowTransform{};
-
-	XMFLOAT4 shadowLightPos = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
-	XMFLOAT4 shadowParams0 = XMFLOAT4(2048.0f, 0.0008f, 0.0040f, 1.0f);
-	XMUINT4  shadowParams1 = XMUINT4(UINT_MAX, 0u, 0u, 0u);
-};
-
 // ============================================================================
 // GameScene
 // ============================================================================
@@ -231,6 +390,13 @@ private:
 	void BindFrameRootParameters(ID3D12GraphicsCommandList* cmd);
 
 	void BuildStaticInstanceGroups();
+
+	void BuildStaticRenderObjectCache();
+	bool IsDynamicStaticRenderObject(const CGameObject* obj) const;
+	bool WriteStaticInstanceVertexFromCache(StaticInstanceVertex& dst, UINT objectIndex) const;
+	void BuildStaticVisibleListsForFrame(CCamera* camera);
+	void BuildStaticShadowVisibleListsForFrame();
+
 	void ResetStaticWorldLodEntries();
 
 	void ResetStaticOcclusionEntries();
@@ -250,6 +416,59 @@ private:
 	bool IsStaticTreeObject(const CGameObject* obj) const;
 	void RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
+	std::shared_ptr<CTexture> m_keyItemTexture;
+	void BuildItemBillboardBatch(
+		ID3D12Device* dev,
+		ID3D12GraphicsCommandList* cmd,
+		UINT rtCount,
+		DXGI_FORMAT* rtvFormats,
+		DXGI_FORMAT dsvFormat
+	);
+
+	void ReleaseItemBillboardGpuResources();
+
+	void UpdateItemBillboardDistanceCullSelection(CCamera* camera);
+	void RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	void RenderTransparentItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
+	void BuildMuzzleFlashBatch(
+		ID3D12Device* dev,
+		ID3D12GraphicsCommandList* cmd,
+		DXGI_FORMAT dsvFormat
+	);
+
+	void ReleaseMuzzleFlashGpuResources();
+
+	void SpawnMuzzleFlash(const XMFLOAT3& position, const XMFLOAT3& direction);
+	void SpawnBloodSplash(
+		CGameObject* victim,
+		const XMFLOAT3* hitPosition = nullptr,
+		const XMFLOAT3* hitDirection = nullptr
+	);
+	void UpdateMuzzleFlashes(float dt);
+	void RenderMuzzleFlashes(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
+	void BuildSwordTrailBatch(
+		ID3D12Device* dev,
+		ID3D12GraphicsCommandList* cmd,
+		DXGI_FORMAT dsvFormat
+	);
+
+	void ReleaseSwordTrailGpuResources();
+
+	void BeginSwordTrail(CGameObject* owner);
+	void BeginAxeTrail(CGameObject* owner);
+	void UpdateSwordTrails(float dt);
+	void RenderSwordTrails(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
+	void UpdateItemBillboardPickupCollision();
+	bool DoesPlayerOverlapItemBillboard(const CGameObject* player, const ItemBillboardEntry& item) const;
+
+	std::shared_ptr<CMesh> CreateItemBillboardQuadMesh(
+		ID3D12Device* dev,
+		ID3D12GraphicsCommandList* cmd
+	);
+
 	void BuildSkinnedInstanceGroups();
 	void ResetSkinnedWorldLodEntries();
 
@@ -266,6 +485,11 @@ private:
 	bool ComputeSkinnedWorldDistanceCulled(const XMFLOAT3& cameraPosition, const SkinnedWorldLodEntry& entry) const;
 	void UpdateSkinnedWorldLodSelection(CCamera* camera);
 	void RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	bool ShouldEvaluateSkinnedPoseThisFrame(UINT objectIndex, CCamera* camera) const;
+
+	int ResolveStaticWorldLodLevel(const StaticWorldLodEntry& entry, int desiredLod) const;
+	int GetStaticObjectActiveLodLevel(UINT objectIndex) const;
+	void BuildStaticWorldLodEntryIndexMap();
 
     // Frame / Render
 public:
@@ -283,6 +507,7 @@ public:
 		void RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 		void RebindFrameRenderState(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+		void SetFrameResourceIndex(UINT frameResourceIndex);
 
     // Input (messages) : 게임에서는 좌클릭 공격
 public:
@@ -300,7 +525,9 @@ public:
 
     // Game-only API
 public:
-    void SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex);
+	void SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex);
+	void SetKeyItemDiffuseSrvIndex(UINT srvIndex);
+	void SetTransparentItemDiffuseSrvIndex(UINT srvIndex); 
 	void SetInactiveOverlayVisible(bool visible)
 	{
 		m_bInactiveOverlayVisible = visible;
@@ -338,12 +565,12 @@ public:
 
     CGameObject* GetPlayerBySlot(int slot) const; // slot: 0..3
     bool IsLocalPlayer(const CGameObject* obj) const;
+	bool IsLocalPlayerDead() const { return m_bLocalPlayerDead; }
 	bool RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& previousPos);
     
 	void RequestFireArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f, float yOffset = 0.0f);
 	bool IsLocalPlayerInsideMegaGridCenter() const;
 
-#ifndef USING_NETWORK
 	void SetMegaGridApproachZoneSize(int megaX, int megaZ, int widthCells, int heightCells);
 	void SetMegaGridCleared(int megaX, int megaZ, bool cleared = true);
 	void SetMegaGridEventOccurred(int megaX, int megaZ, bool occurred = true);
@@ -351,10 +578,62 @@ public:
 	bool HasMegaGridPlayerApproached(int megaX, int megaZ) const;
 	bool IsMegaGridCleared(int megaX, int megaZ) const;
 	bool HasMegaGridEventOccurred(int megaX, int megaZ) const;
-#endif
 
 private:
+private:
 #ifndef USING_NETWORK
+	struct DoorPortalSubBoxRef
+	{
+		size_t meshSetIndex = static_cast< size_t >( -1 );
+		size_t subIndex = static_cast< size_t >( -1 );
+	};
+
+	using TowerDoorSubBoxRef = DoorPortalSubBoxRef;
+
+	struct TowerDoorPortalEntry
+	{
+		CGameObject* tower = nullptr;
+		CColliderComponent* collider = nullptr;
+
+		std::vector<DoorPortalSubBoxRef> doorARefs;
+		std::vector<DoorPortalSubBoxRef> doorBRefs;
+
+		int cooldownFrames = 0;
+	};
+
+	struct CastleDoorPortalPair
+	{
+		int sourceDoorIndex = -1;
+		int targetDoorIndex = -1;
+
+		std::vector<DoorPortalSubBoxRef> sourceRefs;
+		std::vector<DoorPortalSubBoxRef> targetRefs;
+	};
+
+	struct CastleDoorPortalEntry
+	{
+		CGameObject* castle = nullptr;
+		CColliderComponent* collider = nullptr;
+
+		std::array<std::vector<DoorPortalSubBoxRef>, 8> doorRefsByIndex;
+		std::vector<CastleDoorPortalPair> pairs;
+
+		int cooldownFrames = 0;
+	};
+
+	void RegisterTowerDoorPortal(CGameObject* tower);
+	void RegisterCastleDoorPortal(CGameObject* castle);
+
+	void TickTowerDoorPortalCooldowns();
+	bool IsTowerDoorPortalOnCooldown() const;
+
+	int CountClearedMegaGrids() const;
+	bool CanUseCastleDoorPortal() const;
+
+	bool TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog = false);
+	bool TryTeleportLocalPlayerByCastleDoorPortal(bool forceLog = false);
+#endif
+
 	using EGridDynamicKind = CSceneGrid::EDynamicKind;
 	using GridDynamicTracker = CSceneGrid::DynamicTracker;
 
@@ -380,8 +659,21 @@ private:
 	void RebuildDynamicGridState();
 	void UpdateDynamicGridState();
 	void UpdateMegaGridState();
+
+	void RegisterMonsterToMegaGrid(CGameObject* monster, const XMFLOAT3& spawnPosition, UINT skinnedBatchObjectIndex);
+	int GetLocalPlayerMegaGridNumberForMonsterTick() const;
+	bool ShouldSkipMonsterByMegaGrid(const CGameObject* monster, UINT skinnedBatchObjectIndex, int activeMegaGridNumber) const;
+
+	uint16_t ComputeStaticObjectMegaGridMask(CGameObject* obj) const;
+	uint16_t ComputeObjectCurrentMegaGridMask(const CGameObject* obj) const;
+	uint16_t GetCollisionMegaGridMaskForObject(const CGameObject* obj) const;
+	bool ShouldKeepCollisionPairByMegaGrid(const CColliderComponent* a, const CColliderComponent* b) const;
+
+	void MarkLocalPlayerEnteredCastleCenterMegaGrid(); 
+	bool IsLocalPlayerInsideCastleCenterMegaGridFullArea() const;
+	void UpdateCastleCenterMegaGridState();
+
 	void DumpStaticGridOccupancyLog() const;
-#endif
 
 #ifndef USING_NETWORK
 	struct MonsterSpawnEntry
@@ -406,10 +698,6 @@ private:
 	void BuildDepthFogResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
 	void RenderDepthFog(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
-	void BuildShadowResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
-	void UpdateShadowData();
-
-	bool IsWorldOOBBInsideShadowBox(const BoundingOrientedBox& box) const;
 	bool IsStaticObjectInsideShadowBox(UINT objectIndex) const;
 	bool IsSkinnedObjectInsideShadowBox(UINT objectIndex) const;
 
@@ -418,13 +706,15 @@ private:
 	void RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandList* cmd);
 	void RestoreSceneRenderTargets(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
-#ifndef USING_NETWORK
 	int GetLocalPlayerMegaGridNumberForDepthFog() const;
-#endif
 	void UpdateDepthFogState(float dt);
 
     // slot 0..3 플레이어 포인터(소유는 m_skinnedObjects가 함)
     std::array<CGameObject*, 4> m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
+
+	std::array<bool, 4> m_playerFootstepTrackingValid = { false, false, false, false };
+	std::array<int, 4> m_playerFootstepMode = { 0, 0, 0, 0 }; // 0=None, 1=Walk, 2=Run
+	std::array<float, 4> m_playerFootstepPrevNormalizedTime = { 0.0f, 0.0f, 0.0f, 0.0f };
 
     int m_localPlayerSlot;
     // ------------------------------------------------------------------------
@@ -433,6 +723,7 @@ private:
     UINT m_grassCount = 1;
     UINT m_groundCount = 1;
     UINT m_villagewallCount = 1;
+	UINT m_castleCount = 1;
 	UINT m_dirtRoadCount = 1;
 
     UINT m_building1Count = 1;
@@ -470,9 +761,57 @@ private:
     SCENE_SKINNED_BATCH m_skinnedBatch;
 	SCENE_COLLIDER_BATCH m_colliderBatch;
 
-    std::vector<CGameObject*> m_swordManRefs;
-    std::vector<CGameObject*> m_bowManRefs;
-    std::vector<CGameObject*> m_MutantRefs;
+	static constexpr UINT kItemBillboardKeyMaterialId = MAX_MATERIALS - 1;
+	static constexpr UINT kTransparentItemBillboardMaterialId = MAX_MATERIALS - 2;
+	static constexpr UINT kKeyItemBillboardCount = 7;
+
+	std::shared_ptr<CItemBillboardShader> m_itemBillboardShader;
+	std::shared_ptr<CTransparentItemBillboardShader> m_transparentItemBillboardShader;
+
+	std::shared_ptr<CMesh>                m_itemBillboardQuadMesh;
+
+	std::vector<ItemBillboardEntry>       m_itemBillboards;
+
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dItemBillboardInstanceBuffer;
+	std::array<ItemBillboardInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedItemBillboardInstanceBuffer = {};
+	UINT                                  m_itemBillboardInstanceBufferCapacity = 0;
+
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dTransparentItemBillboardInstanceBuffer;
+	std::array<ItemBillboardInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedTransparentItemBillboardInstanceBuffer = {};
+	UINT                                  m_transparentItemBillboardInstanceBufferCapacity = 0;
+
+	static constexpr UINT kMuzzleFlashMaxCount = 160;
+
+	std::shared_ptr<CMuzzleFlashBillboardShader> m_muzzleFlashShader;
+
+	std::vector<MuzzleFlashEntry> m_muzzleFlashes;
+
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dMuzzleFlashInstanceBuffer;
+	std::array<MuzzleFlashInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedMuzzleFlashInstanceBuffer = {};
+	UINT m_muzzleFlashInstanceBufferCapacity = 0;
+
+	static constexpr UINT kSwordTrailMaxCount = 16;
+	static constexpr UINT kSwordTrailMaxSamples = 12;
+	static constexpr UINT kSwordTrailMaxVertices =
+		kSwordTrailMaxCount * kSwordTrailMaxSamples * 2;
+
+	std::shared_ptr<CSwordTrailShader> m_swordTrailShader;
+
+	std::vector<SwordTrailEntry> m_swordTrails;
+
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dSwordTrailVertexBuffer;
+	std::array<SwordTrailVertex*, kSceneBatchFrameResourceCount> m_pMappedSwordTrailVertexBuffer = {};
+	UINT m_swordTrailVertexBufferCapacity = 0;
+
+	std::vector<CGameObject*> m_swordManRefs;
+	std::vector<CGameObject*> m_bowManRefs;
+	std::vector<CGameObject*> m_MutantRefs;
+	std::vector<CGameObject*> m_bossRefs;
+
+	// 6, 8번 메가그리드에서 열쇠를 해금하는 첫 Mutant.
+	// key = mutant object, value = megaGridNumber.
+	std::unordered_map<CGameObject*, int> m_mutantKeyTriggerMegaByObject;
+	std::array<bool, CSceneGrid::kMegaGridCount + 1> m_mutantKeyTriggerRegisteredByMega = {};
 
     std::vector<CGameObject*> m_helmetRefs;
 
@@ -493,6 +832,7 @@ private:
 
 	std::array<CGameObject*, 4> m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr };
 	std::array<bool, 4> m_prevBowReleasePhase = { false, false, false, false };
+	std::array<bool, 4> m_prevBowLoadPhase = { false, false, false, false };
 	std::vector<CGameObject*> m_preparedBowmanArrows;
 	std::vector<bool> m_prevEnemyBowReleasePhase;
 
@@ -505,25 +845,65 @@ private:
 	void RequestPrepareBowmanArrow(CGameObject* bowman, float pullBackDistance);
 	void RequestReleasePreparedBowmanArrow(CGameObject* bowman, float speed, float lifeSec = 3.0f);
 	void RequestFireBullet(CGameObject* shooter, float speed, float lifeSec = 3.0f);
+	void RequestPlayerAttackSfx(CGameObject* player);
 
+	void UpdatePlayerBowSfxOnly();
 	void UpdatePreparedBowArrows();
+	void UpdateLocalPlayerDeathAndRespawn(float dt);
+	void BeginLocalPlayerDeath(CGameObject* player);
+	void RespawnLocalPlayer(CGameObject* player);
+	void SetLocalPlayerControlEnabled(bool enabled);
+	void CancelLocalPlayerPreparedActions();
+
+	void UpdatePlayerFootstepSfx();
+	void ResetPlayerFootstepSfxState();
+	void PlayPlayerFootstepSfx(CGameObject* player);
+
+	void UpdateMonsterDeathStates();
+	void BeginMonsterDeath(CGameObject* monster);
+	void CancelMonsterPreparedActions(CGameObject* monster);
+	bool IsMonsterDead(const CGameObject* monster) const;
+
+	void MarkMegaGridClearedByNumber(int megaGridNumber);
+	bool AreAllMonstersInMegaGridDead(int megaGridNumber) const;
+	void UpdateMegaGridClearStateFromMonsterDeaths();
+
+	void RegisterMutantKeyTriggerIfNeeded(CGameObject* mutant, int megaGridNumber);
+	void UnlockKeyBillboardForMegaGrid(int megaGridNumber);
+	void HandleMutantKeyTriggerDeath(CGameObject* monster);
 
     std::array<CGameObject*, 3> m_demoFighters = { nullptr, nullptr, nullptr };
 
     std::vector<std::unique_ptr<CGameObject>> m_lightObjects;
     CFollowTransformComponent* m_pPlayerSpotFollower = nullptr;
 
-    // GPU / Shader Variables (Game 전용)
-    ComPtr<ID3D12Resource> m_pd3dcbLights;
-    LIGHTS* m_pcbMappedLights = nullptr;
+	// GPU / Shader Variables (Game 전용)
+	static constexpr UINT kFrameResourceCount = 2;
 
-    std::unique_ptr<MATERIALS> m_pMaterials;
+	std::array<ComPtr<ID3D12Resource>, kFrameResourceCount> m_pd3dcbLights;
+	std::array<LIGHTS*, kFrameResourceCount> m_pcbMappedLights = {};
+	UINT m_nLightsCBElementBytes = 0;
 
-    ComPtr<ID3D12Resource> m_pd3dcbMaterials;
-    MATERIAL* m_pcbMappedMaterials = nullptr;
+	std::unique_ptr<MATERIALS> m_pMaterials;
+
+	std::array<ComPtr<ID3D12Resource>, kFrameResourceCount> m_pd3dcbMaterials;
+	std::array<MATERIALS*, kFrameResourceCount> m_pcbMappedMaterials = {};
+	UINT m_nMaterialsCBElementBytes = 0;
+
+	UINT m_nFrameResourceIndex = 0;
 
 	CDepthFogSystem                 m_depthFog;
 	float                           m_fElapsedTime = 0.0f;
+
+	bool                            m_bLocalPlayerDead = false;
+	bool                            m_bLocalPlayerRespawnUsed = false;
+	float                           m_localPlayerRespawnTimer = 0.0f;
+
+#ifdef USING_NETWORK
+	std::unordered_map<uint64_t, uint32_t> m_prevPlayerNetworkStateCode;
+#endif
+
+	std::unordered_set<CGameObject*> m_deadMonsters;
 
     unique_ptr<CCollisionSystem> m_Collision;
 	std::unique_ptr<CNavMesh> m_navMesh;
@@ -531,17 +911,18 @@ private:
 #ifndef USING_NETWORK
 	std::vector<MonsterSpawnEntry>	m_monsterSpawnEntries;
 
+	std::vector<TowerDoorPortalEntry> m_towerDoorPortals;
+	std::vector<CastleDoorPortalEntry> m_castleDoorPortals;
+#endif
+
 	CSceneGrid m_sceneGrid;
 
 	std::array<GridDynamicTracker, 4> m_playerGridTrackers = {};
 	std::vector<GridDynamicTracker> m_monsterGridTrackers;
 	std::vector<GridDynamicTracker> m_arrowGridTrackers;
 	std::vector<GridDynamicTracker> m_bulletGridTrackers;
-#endif
 
-	/*std::unique_ptr<ShadowMap> mShadowMap;
-	std::shared_ptr<CShadowShader> mShadowShader;
-	ComPtr<ID3D12DescriptorHeap> m_pd3dShadowDsvDescriptorHeap;*/
+	std::vector<int> m_skinnedMonsterMegaGridNumbers;
 
 private:
     bool LoadStaticPlacementFile(const std::string& filePath);
@@ -560,8 +941,11 @@ private:
 	std::unordered_map<std::string, std::unordered_map<std::string, std::vector<AuthoredSubMeshOOBB>>> mSceneCubeBoxColliderTable;
 
 	std::vector<StaticInstanceGroup>    m_staticInstanceGroups;
+	std::vector<StaticRenderObjectCache> m_staticRenderObjectCache;
+
 	std::vector<StaticWorldLodEntry>    m_staticWorldLodEntries;
 	std::vector<StaticOcclusionEntry>   m_staticOcclusionEntries;
+	std::vector<int> m_staticWorldLodEntryIndexByObjectIndex;
 
 	std::vector<uint8_t>                m_staticDistanceCullFlags;
 	std::vector<uint8_t>                m_staticOcclusionCullFlags;
@@ -570,6 +954,9 @@ private:
 	std::vector<uint8_t>                m_staticShadowCasterFlags;
 	std::vector<UINT>                   m_staticTreeObjectIndices;
 	std::vector<int>                    m_staticShadowOcclusionEntryIndices;
+
+	std::vector<uint16_t>               m_staticCollisionMegaGridMasks;
+	std::unordered_map<const CGameObject*, uint16_t> m_collisionMegaGridMaskByObject;
 
 	std::vector<UINT64>                 m_staticOcclusionQuerySampleCounts;
 	std::vector<uint8_t>                m_staticOcclusionLastFrameIssuedFlags;
@@ -593,14 +980,15 @@ private:
 	float                               m_staticCullHysteresis = 20.0f;
 
 	std::shared_ptr<CMesh>              m_staticOcclusionUnitBoxMesh;
-	ComPtr<ID3D12Resource>              m_pd3dStaticOcclusionInstanceBuffer;
-	StaticInstanceVertex* m_pMappedStaticOcclusionInstanceBuffer = nullptr;
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dStaticOcclusionInstanceBuffer;
+	std::array<StaticInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedStaticOcclusionInstanceBuffer = {};
 
-	ComPtr<ID3D12Resource>              m_pd3dStaticInstanceBuffer;
-	StaticInstanceVertex* m_pMappedStaticInstanceBuffer = nullptr;
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dStaticInstanceBuffer;
+	std::array<StaticInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedStaticInstanceBuffer = {};
 	UINT                                m_staticInstanceBufferCapacity = 0;
 
-	std::shared_ptr<CStaticObjectsShader>	m_treeStaticShader;
+	std::shared_ptr<CStaticObjectsShader>             m_treeStaticShader;
+	std::shared_ptr<CAlphaClipSkinnedObjectsShader>   m_skinnedAlphaClipShader;
 	std::unordered_set<const CGameObject*>	m_treeAlphaClipObjects;
 	std::unordered_set<const CGameObject*>	m_skinnedAlphaClipObjects;
 
@@ -611,22 +999,8 @@ private:
 	std::shared_ptr<CShadowMapAlphaClipSkinnedShader>     m_shadowAlphaClipSkinnedShader;
 
 	CGameSceneHUD                       m_hud;
-	ComPtr<ID3D12DescriptorHeap>        m_pd3dShadowDsvHeap;
-	ComPtr<ID3D12Resource>              m_pd3dShadowMap;
-	ComPtr<ID3D12Resource>              m_pd3dcbShadow;
-	CB_SHADOW* m_pcbMappedShadow = nullptr;
-	CB_SHADOW                           m_shadowData{};
+	CShadowMapSystem					m_shadowMap;
 
-	XMFLOAT4X4                          m_shadowView{};
-
-	UINT                                m_shadowMapSize = 2048;
-	UINT                                m_shadowMapSrvIndex = UINT_MAX;
-	float                               m_shadowOrthoHalfSize = 45.0f;
-	float                               m_shadowNearZ = 1.0f;
-	float                               m_shadowFarZ = 160.0f;
-
-	D3D12_VIEWPORT                      m_shadowViewport = { 0.0f, 0.0f, 2048.0f, 2048.0f, 0.0f, 1.0f };
-	D3D12_RECT                          m_shadowScissorRect = { 0, 0, 2048, 2048 };
 	std::array<D3D12_CPU_DESCRIPTOR_HANDLE, 8> m_sceneRtvHandles = {};
 	D3D12_CPU_DESCRIPTOR_HANDLE                m_sceneDsvHandle = {};
 	UINT                                       m_sceneRenderTargetCount = 0;
@@ -637,11 +1011,13 @@ private:
 	bool                                m_bWasLocalPlayerInsideMegaGridCenter = false;
 	bool                                m_bShowShadowMapOverlay = true;
 
+	bool m_bLocalPlayerInsideCastleCenterMegaGrid = false;
+
 	bool GetPauseOverlayRect(XMFLOAT4& outRect) const;
 
 	std::vector<SkinnedInstanceGroup>   m_skinnedInstanceGroups;
 
-	ComPtr<ID3D12Resource>              m_pd3dSkinnedInstanceBuffer;
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dSkinnedInstanceBuffer;
 	std::vector<SkinnedWorldLodEntry>   m_skinnedWorldLodEntries;
 	std::vector<uint8_t>                m_skinnedDistanceCullFlags;
 
@@ -655,8 +1031,8 @@ private:
 	ComPtr<ID3D12QueryHeap>             m_pd3dSkinnedOcclusionQueryHeap;
 	ComPtr<ID3D12Resource>              m_pd3dSkinnedOcclusionReadbackBuffer;
 	UINT64* m_pMappedSkinnedOcclusionReadbackBuffer = nullptr;
-	ComPtr<ID3D12Resource>              m_pd3dSkinnedOcclusionInstanceBuffer;
-	StaticInstanceVertex* m_pMappedSkinnedOcclusionInstanceBuffer = nullptr;
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dSkinnedOcclusionInstanceBuffer;
+	std::array<StaticInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedSkinnedOcclusionInstanceBuffer = {};
 	UINT                                m_skinnedOcclusionQueryCapacity = 0;
 	bool                                m_bSkinnedOcclusionQueryResourcesReady = false;
 	bool                                m_bSkinnedOcclusionQueryResultsValid = false;
@@ -668,11 +1044,11 @@ private:
 	bool                                m_skinnedWorldLodDirty = false;
 	float                               m_skinnedLodHysteresis = 5.0f;
 	float                               m_skinnedCullHysteresis = 10.0f;
-	SkinnedInstanceVertex* m_pMappedSkinnedInstanceBuffer = nullptr;
+	std::array<SkinnedInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedSkinnedInstanceBuffer = {};
 	UINT                                m_skinnedInstanceBufferCapacity = 0;
 
-	ComPtr<ID3D12Resource>              m_pd3dSkinnedBonePaletteBuffer;
-	XMFLOAT4X4* m_pMappedSkinnedBonePaletteBuffer = nullptr;
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dSkinnedBonePaletteBuffer;
+	std::array<XMFLOAT4X4*, kSceneBatchFrameResourceCount> m_pMappedSkinnedBonePaletteBuffer = {};
 	UINT                                m_skinnedBonePaletteStride = 0;
 	UINT                                m_skinnedBonePaletteCapacity = 0;
 	
@@ -681,6 +1057,8 @@ private:
 	ID3D12GraphicsCommandList* cmd
 	);
 public:
-    bool IsPointInPauseOverlay(POINT clientPt) const;
+	bool IsPointInPauseOverlay(POINT clientPt) const;
+	bool IsPointInResumeButton(POINT clientPt) const;
+	bool IsPointInExitButton(POINT clientPt) const;
 
 };

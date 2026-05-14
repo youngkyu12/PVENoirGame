@@ -72,6 +72,7 @@ void CGameScene::ResetStaticWorldLodEntries()
 	m_staticWorldLodEntries.clear();
 	m_staticDistanceCullFlags.clear();
 	m_staticTreeGridCullFlags.clear();
+	m_staticWorldLodEntryIndexByObjectIndex.clear();
 	m_staticWorldLodDirty = false;
 }
 
@@ -156,14 +157,15 @@ bool CGameScene::ComputeStaticWorldDistanceCulled(
 
 void CGameScene::UpdateStaticWorldLodSelection(CCamera* camera)
 {
+	PROFILE_RENDER_SCOPE("StaticLOD::Total");
+
 	if ( !camera )
 	{
 		m_staticDistanceCullFlags.clear();
 		return;
 	}
-
 	m_staticDistanceCullFlags.assign(m_staticBatch.objectRefs.size(), 0);
-
+	
 	if ( m_staticWorldLodEntries.empty() )
 	{
 		m_staticWorldLodDirty = false;
@@ -171,23 +173,61 @@ void CGameScene::UpdateStaticWorldLodSelection(CCamera* camera)
 	}
 
 	const XMFLOAT3 cameraPosition = camera->GetPosition();
+	bool anyLodChanged = false;
+	UINT changedCount = 0;
 
-	for ( StaticWorldLodEntry& entry : m_staticWorldLodEntries )
 	{
-		if ( !entry.object ) continue;
-		if ( entry.staticBatchObjectIndex == UINT_MAX ) continue;
-		if ( entry.staticBatchObjectIndex >= ( UINT ) m_staticDistanceCullFlags.size() ) continue;
+		for ( StaticWorldLodEntry& entry : m_staticWorldLodEntries )
+		{
+			if ( !entry.object )
+				continue;
 
-		const bool distanceCulled =
-			ComputeStaticWorldDistanceCulled(cameraPosition, entry);
+			if ( entry.staticBatchObjectIndex == UINT_MAX )
+				continue;
 
-		entry.distanceCulled = distanceCulled;
+			if ( entry.staticBatchObjectIndex >=
+				 static_cast< UINT >( m_staticDistanceCullFlags.size() ) )
+			{
+				continue;
+			}
 
-		if ( distanceCulled )
-			m_staticDistanceCullFlags[entry.staticBatchObjectIndex] = 1;
+			const bool distanceCulled =
+				ComputeStaticWorldDistanceCulled(cameraPosition, entry);
+
+			entry.distanceCulled = distanceCulled;
+
+			if ( distanceCulled )
+			{
+				m_staticDistanceCullFlags[entry.staticBatchObjectIndex] = 1;
+				continue;
+			}
+
+			if ( !entry.lodEnabled )
+				continue;
+
+			int desiredLod = ComputeStaticWorldLodLevel(cameraPosition, entry);
+			desiredLod = ClampStaticWorldLodLevel(desiredLod);
+
+			const int resolvedLod =
+				ResolveStaticWorldLodLevel(entry, desiredLod);
+
+			if ( entry.currentLod == resolvedLod )
+				continue;
+
+			entry.currentLod = resolvedLod;
+			anyLodChanged = true;
+			++changedCount;
+		}
 	}
 
-	m_staticWorldLodDirty = false;
+	m_staticWorldLodDirty = anyLodChanged;
+
+	if ( changedCount > 0 )
+	{
+		char buf[128];
+		sprintf_s(buf, "[StaticLOD] changed=%u\n", changedCount);
+		OutputDebugStringA(buf);
+	}
 }
 
 void CGameScene::ResetSkinnedWorldLodEntries()
@@ -322,6 +362,10 @@ void CGameScene::UpdateSkinnedWorldLodSelection(CCamera* camera)
 		std::shared_ptr<CMesh> currentMesh = entry.object->GetMeshShared(0);
 		if ( entry.currentLod == resolvedLod && currentMesh.get() == targetMesh.get() )
 			continue;
+
+		entry.object->SetMesh(0, targetMesh);
+		entry.currentLod = resolvedLod;
+		anyLodChanged = true;
 	}
 
 	// --------------------------------------------------------------------
@@ -389,4 +433,73 @@ void CGameScene::UpdateSkinnedWorldLodSelection(CCamera* camera)
 	{
 		m_skinnedWorldLodDirty = false;
 	}
+}
+
+void CGameScene::BuildStaticWorldLodEntryIndexMap()
+{
+	m_staticWorldLodEntryIndexByObjectIndex.assign(
+		m_staticBatch.objectRefs.size(),
+		-1
+	);
+
+	for ( int entryIndex = 0;
+		  entryIndex < static_cast< int >(m_staticWorldLodEntries.size());
+		  ++entryIndex )
+	{
+		const StaticWorldLodEntry& entry = m_staticWorldLodEntries[entryIndex];
+
+		if ( entry.staticBatchObjectIndex == UINT_MAX )
+			continue;
+
+		if ( entry.staticBatchObjectIndex >=
+			 static_cast< UINT >(m_staticWorldLodEntryIndexByObjectIndex.size()) )
+		{
+			continue;
+		}
+
+		m_staticWorldLodEntryIndexByObjectIndex[entry.staticBatchObjectIndex] =
+			entryIndex;
+	}
+}
+
+int CGameScene::ResolveStaticWorldLodLevel(
+	const StaticWorldLodEntry& entry,
+	int desiredLod) const
+{
+	int resolvedLod = ClampStaticWorldLodLevel(desiredLod);
+
+	while ( resolvedLod > 0 &&
+			!entry.lodMeshes[static_cast< size_t >( resolvedLod )] )
+	{
+		--resolvedLod;
+	}
+
+	if ( !entry.lodMeshes[static_cast< size_t >( resolvedLod )] )
+		return 0;
+
+	return resolvedLod;
+}
+
+int CGameScene::GetStaticObjectActiveLodLevel(UINT objectIndex) const
+{
+	if ( objectIndex >=
+		 static_cast< UINT >( m_staticWorldLodEntryIndexByObjectIndex.size() ) )
+	{
+		return 0;
+	}
+
+	const int entryIndex = m_staticWorldLodEntryIndexByObjectIndex[objectIndex];
+
+	if ( entryIndex < 0 ||
+		 entryIndex >= static_cast< int >(m_staticWorldLodEntries.size()) )
+	{
+		return 0;
+	}
+
+	const StaticWorldLodEntry& entry = m_staticWorldLodEntries[entryIndex];
+
+	if ( !entry.lodEnabled )
+		return 0;
+
+	return ResolveStaticWorldLodLevel(entry, entry.currentLod);
 }

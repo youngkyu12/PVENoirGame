@@ -174,8 +174,11 @@ BuiltAsset AssetManager::BuildAssetInternal(
 
         auto mat = std::make_shared<CMaterial>();
 
-        const UINT materialId = s_nextMaterialID++;
-        assert(materialId < MAX_MATERIALS);
+		while ( s_nextMaterialID == ( MAX_MATERIALS - 1 ) )
+			++s_nextMaterialID;
+
+		const UINT materialId = s_nextMaterialID++;
+		assert(materialId < ( MAX_MATERIALS - 1 ));
 
         mat->SetMaterialID(materialId);
 		mat->SetDiffuseTextureName(sm.diffuseTextureName);

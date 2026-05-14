@@ -7,6 +7,15 @@
 
 class CTransformComponent;
 
+struct SubOOBBMeta
+{
+	std::string meshName;
+	std::string authoringPath;
+
+	size_t sourceSubMeshIndex = static_cast< size_t >( -1 );
+	size_t authoredBoxIndex = static_cast< size_t >( -1 );
+};
+
 struct MeshOOBBSet
 {
 	BoundingOrientedBox LocalMeshOOBB;
@@ -14,6 +23,8 @@ struct MeshOOBBSet
 
 	vector<BoundingOrientedBox> LocalSubOOBBs;
 	vector<BoundingOrientedBox> WorldSubOOBBs;
+
+	vector<SubOOBBMeta> SubOOBBMetas;
 };
 
 struct AuthoredSubMeshOOBB
@@ -78,6 +89,7 @@ public:
 
 	bool IntersectsBoneCapsulesHierarchical(const BoundingOrientedBox& box) const;
 	bool IntersectsBoneCapsulesHierarchical(const BoundingCapsule& capsule) const;
+	bool IntersectsBoneCapsulesHierarchical(const BoundingSphere& sphere) const;
 
 	void BuildBoneCapsulesFromSkeleton();
 	void UpdateBoneCapsulesFromCurrentPose();
@@ -143,8 +155,18 @@ public:
 
 	bool IntersectsActiveWeaponBoneCapsulesAgainstBody(const CColliderComponent& targetBody) const;
 
+	void SetColliderBuildLogEnabled(
+		bool enabled,
+		const std::string& assetName = std::string(),
+		const std::string& objectName = std::string()
+	);
+
 private:
 	void RebuildWeaponBoneCapsuleSelection();
+
+	bool mDebugColliderBuildLogEnabled = false;
+	std::string mDebugColliderAssetName;
+	std::string mDebugColliderObjectName;
 
 private:
 	std::vector<std::string> mWeaponBoneRootNames;

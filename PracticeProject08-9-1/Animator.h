@@ -30,8 +30,11 @@ public:
 
     bool Play(const std::string& clipName, bool loop = true, float startTime = 0.0f);
     void SetTime(float timeSec);
-    void Stop();
-    void Update(float dt);
+	void Stop();
+
+	void Update(float dt);
+	void UpdateTimeOnly(float dt);
+	void EvaluateCurrentPoseOnly();
 
     const std::string& GetCurrentClipName() const;
     const std::vector<XMFLOAT4X4>& GetFinalBoneMatrices() const;
@@ -84,8 +87,9 @@ private:
         float alpha,
         std::vector<XMFLOAT4X4>& out);
 
-    void BuildUpperBodyBoneWeights(const std::string& rootBoneName);
-    void UpdateUpperBodyOverlay(float dt);
+	void BuildUpperBodyBoneWeights(const std::string& rootBoneName);
+	void UpdateUpperBodyOverlayTimeOnly(float dt);
+	void ApplyUpperBodyOverlayToCurrentPoseOnly();
 
     void BlendLocalPosesMaskedTRS(const std::vector<XMFLOAT4X4>& A,
         const std::vector<XMFLOAT4X4>& B,

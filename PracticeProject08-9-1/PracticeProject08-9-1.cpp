@@ -9,6 +9,8 @@
 #include "Session.h"
 #include "BufferReader.h"
 #include "ServerPacketHandler.h"
+#include <fstream>
+#include <string>
 
 
 
@@ -61,7 +63,6 @@ public:
 	{
 		//cout << "Disconnected" << endl
 		// 연결을 끊을 때 해당 세션을 정리한다
-		LSendBufferChunk->Reset();
 	}
 };
 
@@ -198,14 +199,50 @@ bool CheckEnd()
 	return g_End.load();
 }
 
+static void LoadServerConfig(std::wstring& outIp, uint16& outPort)
+{
+	outIp = L"127.0.0.1";
+	outPort = 7777;
+
+	const std::vector<std::string> candidates = {
+		"NetworkSettings/ServerInformation.txt",
+		"../PracticeProject08-9-1/NetworkSettings/ServerInformation.txt"
+	};
+
+	std::ifstream fin;
+	for (const auto& path : candidates)
+	{
+		fin.open(path);
+		if (fin.is_open()) break;
+		fin.clear();
+	}
+	if (!fin.is_open()) return;
+
+	std::string ip;
+	int port = 0;
+	if (std::getline(fin, ip) && fin >> port)
+	{
+		if (!ip.empty() && ip.back() == '\r') ip.pop_back();
+		if (!ip.empty() && port > 0 && port <= 65535)
+		{
+			outIp = std::wstring(ip.begin(), ip.end());
+			outPort = static_cast<uint16>(port);
+		}
+	}
+}
+
 void NetworkLoop()
 {
 	ServerPacketHandler::Init();
 
 	this_thread::sleep_for(1s);
 
+	std::wstring serverIp;
+	uint16 serverPort;
+	LoadServerConfig(serverIp, serverPort);
+
 	g_clientService = MakeShared<ClientService>(
-		NetAddress(L"127.0.0.1", 7777),
+		NetAddress(serverIp.c_str(), serverPort),
 		MakeShared<IocpCore>(),
 		MakeShared<ServerSession>, // TODO : SessionManager 등
 		1);

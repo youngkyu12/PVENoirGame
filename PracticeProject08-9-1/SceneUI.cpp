@@ -222,6 +222,18 @@ bool CSceneUI::GetSpriteRect(int spriteIndex, XMFLOAT4& outRect) const
 	return true;
 }
 
+bool CSceneUI::SetSpriteRect(int spriteIndex, const XMFLOAT4& rect)
+{
+	if ( spriteIndex < 0 )
+		return false;
+
+	if ( spriteIndex >= static_cast< int >(m_sprites.size()) )
+		return false;
+
+	m_sprites[static_cast< size_t >(spriteIndex)].rect = rect;
+	return true;
+}
+
 bool CSceneUI::IsPointInSprite(int spriteIndex, POINT pt) const
 {
 	XMFLOAT4 rect{};

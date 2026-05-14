@@ -37,7 +37,7 @@ public:
 		if (!m_active)
 			return;
 
-		constexpr float kServerTickDtSec = 0.03f;
+		constexpr float kServerTickDtSec = 0.06f;
 		Move(GetVelocity() * kServerTickDtSec);
 
 		if (m_remainingTicks > 0)

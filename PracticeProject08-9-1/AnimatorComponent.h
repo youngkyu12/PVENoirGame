@@ -63,4 +63,11 @@ private:
 	std::unique_ptr<CAnimController>        m_pController;
 	std::unique_ptr<CMonsterAnimController> m_pMonsterController;
 	bool                                    m_bSkeletonBound = false;
+
+public:
+	void SetPoseEvaluationEnabled(bool enabled) { m_poseEvaluationEnabled = enabled; }
+	bool IsPoseEvaluationEnabled() const { return m_poseEvaluationEnabled; }
+
+private:
+	bool m_poseEvaluationEnabled = true;
 };

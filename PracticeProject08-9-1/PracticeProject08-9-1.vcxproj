@@ -177,6 +177,7 @@
     <ClInclude Include="AnimController.h" />
     <ClInclude Include="ArrowComponent.h" />
     <ClInclude Include="AssetManager.h" />
+    <ClInclude Include="AttackPowerComponent.h" />
     <ClInclude Include="AudioComponent.h" />
     <ClInclude Include="AudioManager.h" />
     <ClInclude Include="BoundingCapsule.h" />
@@ -201,6 +202,7 @@
     <ClInclude Include="GlobalEnum.h" />
     <ClInclude Include="GlobalValues.h" />
     <ClInclude Include="Grid.h" />
+    <ClInclude Include="HealthComponent.h" />
     <ClInclude Include="InitStruct.pb.h" />
     <ClInclude Include="LightComponent.h" />
     <ClInclude Include="LightTypes.h" />
@@ -274,6 +276,8 @@
     <ClCompile Include="GameFramework.cpp" />
     <ClCompile Include="GameScene.cpp" />
     <ClCompile Include="GameSceneAttachmentBinder.cpp" />
+    <ClCompile Include="GameSceneAudio.cpp" />
+    <ClCompile Include="GameSceneBillboard.cpp" />
     <ClCompile Include="GameSceneContentCatalog.cpp" />
     <ClCompile Include="GameSceneHUD.cpp" />
     <ClCompile Include="GameSceneLOD.cpp" />
@@ -282,6 +286,7 @@
     <ClCompile Include="GhoulAIComponent.cpp" />
     <ClCompile Include="GlobalValues.cpp" />
     <ClCompile Include="Grid.cpp" />
+    <ClCompile Include="HealthComponent.cpp" />
     <ClCompile Include="InitStruct.pb.cc">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
@@ -400,6 +405,30 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <FileType>Document</FileType>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Billboard.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Occlusion.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="RenderTypes.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="DepthFog.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <FileType>Document</FileType>
     </None>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

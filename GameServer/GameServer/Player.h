@@ -1,6 +1,7 @@
 #pragma once
 #include "ServerObject.h"
 #include "CWeapon.h"
+#include "ColliderComponent.h"
 
 class Player : public CServerObject
 {
@@ -19,18 +20,23 @@ public:
 public:
 	virtual void Update(uint32 serverTick) override;
 	void Build();
+	void ApplyHit(uint32 serverTick, int damage, uint32 hitDurationTicks = 10);
+	void Respawn(uint32 serverTick);
 
 private:
-	//PlayerControllerComponentRef controller;
 	CWeapon weapon;
+	uint32 m_hitEndTick = 0;
+	uint32 m_deathTick = 0;
 
 public:
 	void SetWeapon(Protocol::WeaponType& type, uint32& currentBullets)
 	{
+		weapon.CancelAttack();
 		weapon.SetWeapon(std::move(type), std::move(currentBullets));
 	}
 	void SetWeapon(Protocol::WeaponType&& type, uint32&& currentBullets)
 	{
+		weapon.CancelAttack();
 		weapon.SetWeapon(std::move(type), std::move(currentBullets));
 	}
 
@@ -41,11 +47,27 @@ public:
 
 	void SetBullet(Protocol::BulletType&& type, uint32& currentBullets)
 	{
+		weapon.CancelAttack();
 		weapon.SetBullet(std::move(type), currentBullets);
 	}
 
 	bool CanFire(uint32 serverTick) const { return weapon.CanFire(serverTick); }
 	void OnFired(uint32 serverTick) { weapon.OnFired(serverTick); }
 
-};
+public:
+	enum class EPlayerLifeState : uint8
+	{
+		Alive = 0,
+		DeadAnimating,
+		Respawning
+	};
 
+	EPlayerLifeState GetLifeState() const { return m_lifeState; }
+	bool IsInputBlocked() const { return m_lifeState != EPlayerLifeState::Alive; }
+
+	void OnDeathEnter(uint32 serverTick);
+	void OnRespawnEnter(uint32 serverTick);
+
+private:
+	EPlayerLifeState m_lifeState = EPlayerLifeState::Alive;
+};

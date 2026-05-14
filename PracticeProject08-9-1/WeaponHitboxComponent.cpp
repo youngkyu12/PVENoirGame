@@ -5,9 +5,6 @@
 #include "WeaponHitboxComponent.h"
 
 #include "Object.h"
-#include "AnimatorComponent.h"
-#include "AnimController.h"
-#include "PlayerEquipmentComponent.h"
 #include "ColliderComponent.h"
 
 CWeaponHitboxComponent::CWeaponHitboxComponent(CGameObject* owner)
@@ -15,93 +12,70 @@ CWeaponHitboxComponent::CWeaponHitboxComponent(CGameObject* owner)
 {
 }
 
-void CWeaponHitboxComponent::OnCreate(ID3D12Device* /*dev*/, ID3D12GraphicsCommandList* /*cmd*/)
+void CWeaponHitboxComponent::OnCreate(
+	ID3D12Device* /*dev*/,
+	ID3D12GraphicsCommandList* /*cmd*/)
 {
-	m_bPrevHitboxActive = false;
-	DisableAllWeaponColliders();
+	m_bHitboxActive = false;
+	m_hitTargets.clear();
+
+	if ( CGameObject* owner = GetOwner() )
+	{
+		if ( auto* collider = owner->GetComponent<CColliderComponent>() )
+			collider->SetCollisionEnabled(false);
+	}
 }
 
 void CWeaponHitboxComponent::OnUpdate(float /*dt*/)
 {
-	CGameObject* owner = GetOwner();
-	if ( !owner )
-		return;
-
-	auto* equip = owner->GetComponent<CPlayerEquipmentComponent>();
-	if ( !equip )
-	{
-		DisableAllWeaponColliders();
-		m_bPrevHitboxActive = false;
-		return;
-	}
-
-	CAnimController* ctrl = nullptr;
-
-	if ( auto* animComp = owner->GetComponent<CAnimatorComponent>() )
-		ctrl = animComp->GetController();
-
-	if ( !ctrl )
-		ctrl = owner->GetAnimController();
-
-	const bool shouldEnableMeleeHitbox =
-		( ctrl != nullptr ) && ctrl->IsMeleeAttackHitboxActive();
-
-	// 기본은 전부 끔
-	DisableAllWeaponColliders();
-
-	// 공격 시작/종료 경계에서 히트 캐시 초기화
-	if ( shouldEnableMeleeHitbox != m_bPrevHitboxActive )
-		ClearHitTargets();
-
-	if ( shouldEnableMeleeHitbox )
-	{
-		const EWeaponType equipped = equip->GetEquippedWeapon();
-
-		if ( equipped == EWeaponType::Sword || equipped == EWeaponType::Axe )
-		{
-			CGameObject* weaponObj = equip->GetEquippedWeaponObject();
-			if ( weaponObj )
-			{
-				if ( auto* collider = weaponObj->GetComponent<CColliderComponent>() )
-					collider->SetCollisionEnabled(true);
-			}
-		}
-	}
-
-	m_bPrevHitboxActive = shouldEnableMeleeHitbox;
+	// 무기 hitbox 활성/비활성은 GameScene::UpdateSwordTrails()에서 제어한다.
 }
 
-void CWeaponHitboxComponent::DisableAllWeaponColliders()
+void CWeaponHitboxComponent::SetHitboxActive(bool active)
 {
-	CGameObject* owner = GetOwner();
-	if ( !owner )
-		return;
-
-	auto* equip = owner->GetComponent<CPlayerEquipmentComponent>();
-	if ( !equip )
-		return;
-
-	auto DisableOne = [ ] (CGameObject* weaponObj)
+	if ( m_bHitboxActive == active )
+	{
+		if ( CGameObject* owner = GetOwner() )
 		{
-			if ( !weaponObj ) return;
-			if ( auto* collider = weaponObj->GetComponent<CColliderComponent>() )
-				collider->SetCollisionEnabled(false);
-		};
+			if ( auto* collider = owner->GetComponent<CColliderComponent>() )
+				collider->SetCollisionEnabled(active);
+		}
 
-	DisableOne(equip->GetWeaponObject(EWeaponType::Sword));
-	DisableOne(equip->GetWeaponObject(EWeaponType::Axe));
-	DisableOne(equip->GetWeaponObject(EWeaponType::Bow));
-	DisableOne(equip->GetWeaponObject(EWeaponType::Gun));
+		return;
+	}
+
+	m_bHitboxActive = active;
+
+	if ( active )
+		ClearHitTargets();
+
+	if ( CGameObject* owner = GetOwner() )
+	{
+		if ( auto* collider = owner->GetComponent<CColliderComponent>() )
+		{
+			collider->SetCollisionEnabled(active);
+
+			if ( active )
+				collider->UpdateWorldBounds();
+		}
+	}
 }
 
 bool CWeaponHitboxComponent::CanHitTarget(CGameObject* target) const
 {
-	if ( !target ) return false;
-	return ( m_hitTargets.find(target) == m_hitTargets.end() );
+	if ( !m_bHitboxActive )
+		return false;
+
+	if ( !target )
+		return false;
+
+	return m_hitTargets.find(target) == m_hitTargets.end();
 }
 
 void CWeaponHitboxComponent::MarkHitTarget(CGameObject* target)
 {
-	if ( !target ) return;
+	if ( !target )
+		return;
+
 	m_hitTargets.insert(target);
 }

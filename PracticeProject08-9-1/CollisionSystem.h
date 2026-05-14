@@ -3,15 +3,27 @@
 #include <vector>
 #include <unordered_map>
 #include <string>
+#include <functional>
 
 class CColliderComponent;
+class CGameObject;
 
 class CCollisionSystem
 {
 public:
+	using HitEffectCallback =
+		std::function<void(CGameObject* weaponObject, CGameObject* targetObject)>;
+
+	using PairCandidateFilter =
+		std::function<bool(const CColliderComponent* a, const CColliderComponent* b)>;
+
+public:
 	explicit CCollisionSystem();
 
+	void SetHitEffectCallback(HitEffectCallback callback);
+
 	void OnUpdate();
+	void OnUpdateFiltered(const PairCandidateFilter& filter);
 
 	void RegisterCollider(CColliderComponent* c);
 	void UnregisterCollider(CColliderComponent* c);
@@ -28,4 +40,6 @@ private:
 
 private:
 	std::vector<CColliderComponent*> mColliders;
+
+	HitEffectCallback mHitEffectCallback;
 };
