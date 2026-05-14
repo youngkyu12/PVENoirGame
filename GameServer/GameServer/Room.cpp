@@ -231,6 +231,7 @@ void Room::BuildRoom()
 	buildings.clear();
 	m_elapsedServerMs = static_cast<uint64>(tick.load()) * m_timing.serverTickIntervalMs;
 	enemies.clear();
+	m_aiAwakeEnemyIds.clear();
 	m_arrowPool.clear();
 	m_bulletPool.clear();
 	InitializeCollisionSystem();
@@ -342,6 +343,7 @@ void Room::BuildRoom()
 		RegisterDynamicCollider(playerPair.second);
 
 	RebuildDynamicGridState();
+	RebuildMegaGridEnemyIds();
 }
 
 void Room::StartGame(bool ready, uint32 index)
@@ -369,6 +371,7 @@ void Room::StartGame(bool ready, uint32 index)
 
 void Room::EndGame()
 {
+	m_aiAwakeEnemyIds.clear();
 	ShutdownSpatialGrid();
 }
 
