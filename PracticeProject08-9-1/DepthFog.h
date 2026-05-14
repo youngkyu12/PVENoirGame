@@ -54,6 +54,7 @@ public:
 	);
 
 	void SetSourceSrvIndices(UINT sceneColorSrvIndex, UINT sceneDepthSrvIndex);
+	void SetFrameResourceIndex(UINT frameResourceIndex);
 	void SetPassEnabled(bool enabled) { m_passEnabled = enabled; }
 	bool IsPassEnabled() const { return m_passEnabled; }
 
@@ -68,8 +69,11 @@ public:
 private:
 	std::shared_ptr<CDepthFogShader> m_shader;
 
-	ComPtr<ID3D12Resource> m_cbFog;
-	CB_FOG* m_mappedFog = nullptr;
+	static constexpr UINT kFrameResourceCount = 2;
+
+	std::array<ComPtr<ID3D12Resource>, kFrameResourceCount> m_cbFog;
+	std::array<CB_FOG*, kFrameResourceCount> m_mappedFog = {};
+	UINT m_nFrameResourceIndex = 0;
 
 	CB_FOG m_fogData{};
 	CB_FOG m_zoneDensePreset{};

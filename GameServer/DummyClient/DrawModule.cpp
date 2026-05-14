@@ -25,6 +25,7 @@
 #pragma comment (lib, "glu32.lib")
 
 #include "DummyClientWorldView.h"
+#include "Enum.pb.h"
 
 HDC			hDC = NULL;		// Private GDI Device Context
 HGLRC		hRC = NULL;		// Permanent Rendering Context
@@ -71,6 +72,66 @@ namespace
 			float x = 0.0f;
 			float y = 0.0f;
 			WorldToGL(point.x, point.z, x, y);
+			glVertex3f(x, y, -1.0f);
+		}
+		glEnd();
+	}
+
+	void StaticObjectColor(int type, float& r, float& g, float& b)
+	{
+		switch (static_cast<Protocol::BuildingType>(type))
+		{
+		case Protocol::BUILDING_TYPE_BUILDING1:
+		case Protocol::BUILDING_TYPE_BUILDING2:
+		case Protocol::BUILDING_TYPE_BUILDING3:
+		case Protocol::BUILDING_TYPE_BUILDING4:
+		case Protocol::BUILDING_TYPE_BUILDING5:
+		case Protocol::BUILDING_TYPE_BUILDING6:
+		case Protocol::BUILDING_TYPE_BUILDING7:
+		case Protocol::BUILDING_TYPE_BUILDING8:
+		case Protocol::BUILDING_TYPE_BUILDING9:
+			r = 0.45f;
+			g = 0.45f;
+			b = 0.52f;
+			return;
+		case Protocol::BUILDING_TYPE_VILLAGE_WALL:
+			r = 0.85f;
+			g = 0.70f;
+			b = 0.35f;
+			return;
+		case Protocol::BUILDING_TYPE_TOWER:
+			r = 0.70f;
+			g = 0.45f;
+			b = 0.95f;
+			return;
+		case Protocol::BUILDING_TYPE_CASTLE:
+			r = 0.95f;
+			g = 0.95f;
+			b = 0.25f;
+			return;
+		default:
+			r = 0.35f;
+			g = 0.75f;
+			b = 0.35f;
+			return;
+		}
+	}
+
+	void DrawStaticObjectList(const std::vector<DrawStaticObject>& objects)
+	{
+		glPointSize(5.0f);
+		glBegin(GL_POINTS);
+		for (const DrawStaticObject& object : objects)
+		{
+			float r = 1.0f;
+			float g = 1.0f;
+			float b = 1.0f;
+			StaticObjectColor(object.type, r, g, b);
+			glColor3f(r, g, b);
+
+			float x = 0.0f;
+			float y = 0.0f;
+			WorldToGL(object.x, object.z, x, y);
 			glVertex3f(x, y, -1.0f);
 		}
 		glEnd();
@@ -179,8 +240,14 @@ int DrawGLScene(GLvoid)									// Here's Where We Do All The Drawing
 	glRasterPos2f(-0.98f, 0.84f);
 	glPrint("Clients: %d / 4", GetConnectedStressClientCount());
 	glRasterPos2f(-0.98f, 0.76f);
-	glPrint("Players: %d  Enemies: %d", static_cast<int>(snapshot.players.size()), static_cast<int>(snapshot.enemies.size()));
+	glPrint("Players: %d  Enemies: %d  Static: %d",
+		static_cast<int>(snapshot.players.size()),
+		static_cast<int>(snapshot.enemies.size()),
+		static_cast<int>(snapshot.staticObjects.size()));
+	glRasterPos2f(-0.98f, 0.68f);
+	glPrint("Static: gray=Building gold=Wall purple=Tower yellow=Castle");
 
+	DrawStaticObjectList(snapshot.staticObjects);
 	DrawPointList(snapshot.enemies, 1.0f, 0.15f, 0.15f, 4.0f);
 	DrawPointList(snapshot.players, 0.1f, 0.75f, 1.0f, 8.0f);
 

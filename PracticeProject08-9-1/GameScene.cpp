@@ -8,7 +8,6 @@
 #include <cmath>
 #include <fstream>
 #include <iomanip>
-#include <cstdio>
 #include <cctype>
 #include <unordered_map>
 #include <algorithm>
@@ -364,6 +363,47 @@ namespace
 		return "Assets/Audio/Walk_Block1.wav";
 	}
 
+	struct StaticGroupKey
+	{
+		const CMesh* mesh = nullptr;
+		UINT subMeshIndex = 0;
+		bool useTreeShader = false;
+		int lodLevel = 0;
+
+		bool operator==(const StaticGroupKey& rhs) const
+		{
+			return mesh == rhs.mesh &&
+				subMeshIndex == rhs.subMeshIndex &&
+				useTreeShader == rhs.useTreeShader &&
+				lodLevel == rhs.lodLevel;
+		}
+	};
+
+	struct StaticGroupKeyHash
+	{
+		size_t operator()(const StaticGroupKey& k) const
+		{
+			size_t h = std::hash<const void*>{}( k.mesh );
+
+			h ^= std::hash<UINT>{}( k.subMeshIndex )
+				+ 0x9e3779b9
+				+ ( h << 6 )
+				+ ( h >> 2 );
+
+			h ^= std::hash<bool>{}( k.useTreeShader )
+				+ 0x9e3779b9
+				+ ( h << 6 )
+				+ ( h >> 2 );
+
+			h ^= std::hash<int>{}( k.lodLevel )
+				+ 0x9e3779b9
+				+ ( h << 6 )
+				+ ( h >> 2 );
+
+			return h;
+		}
+	};
+
 	// -----------------------------------------------------------------------------
 	// HP
 	// -----------------------------------------------------------------------------
@@ -387,8 +427,6 @@ namespace
 	static constexpr int kAttackPowerEnemyArrow = 10;
 	static constexpr int kAttackPowerMutant = 20;
 	static constexpr int kAttackPowerBoss = 50;
-
-	static constexpr UINT kOfflineGhoulAICount = 200;
 
 	static constexpr float kDisableVillageTreeCullPlayerHeight = 3.0f;
 
@@ -770,6 +808,100 @@ CGameScene::CGameScene()
 	m_deadMonsters.clear();
 
 	m_bLocalPlayerInsideCastleCenterMegaGrid = false;
+}
+
+void CGameScene::SetFrameResourceIndex(UINT frameResourceIndex)
+{
+	m_nFrameResourceIndex = frameResourceIndex % kFrameResourceCount;
+
+	m_depthFog.SetFrameResourceIndex(m_nFrameResourceIndex);
+	m_shadowMap.SetFrameResourceIndex(m_nFrameResourceIndex);
+
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	if ( m_staticBatch.cbElementBytes > 0 &&
+		 m_staticBatch.mappedGameObjects[frameIndex] &&
+		 m_staticBatch.baseCbvGpu[frameIndex].ptr != 0 )
+	{
+		for ( UINT objectIndex = 0;
+			  objectIndex < static_cast< UINT >(m_staticBatch.objectRefs.size());
+			  ++objectIndex )
+		{
+			CGameObject* obj = m_staticBatch.objectRefs[objectIndex];
+
+			if ( !obj )
+				continue;
+
+			CB_GAMEOBJECT_INFO* cb =
+				reinterpret_cast< CB_GAMEOBJECT_INFO* >(
+					reinterpret_cast< UINT8* >(m_staticBatch.mappedGameObjects[frameIndex]) +
+					objectIndex * m_staticBatch.cbElementBytes
+				);
+
+			obj->SetCbvGPUDescriptorHandlePtr(
+				m_staticBatch.baseCbvGpu[frameIndex].ptr +
+				static_cast< UINT64 >( objectIndex ) * m_staticBatch.cbvInc
+			);
+
+			obj->SetMappedGameObjectCB(cb);
+		}
+	}
+
+	if ( m_skinnedBatch.cbElementBytes > 0 &&
+		 m_skinnedBatch.mappedGameObjects[frameIndex] &&
+		 m_skinnedBatch.baseCbvGpu[frameIndex].ptr != 0 )
+	{
+		for ( UINT objectIndex = 0;
+			  objectIndex < static_cast< UINT >(m_skinnedBatch.objectRefs.size());
+			  ++objectIndex )
+		{
+			CGameObject* obj = m_skinnedBatch.objectRefs[objectIndex];
+
+			if ( !obj )
+				continue;
+
+			CB_GAMEOBJECT_INFO* cb =
+				reinterpret_cast< CB_GAMEOBJECT_INFO* >(
+					reinterpret_cast< UINT8* >(m_skinnedBatch.mappedGameObjects[frameIndex]) +
+					objectIndex * m_skinnedBatch.cbElementBytes
+				);
+
+			obj->SetCbvGPUDescriptorHandlePtr(
+				m_skinnedBatch.baseCbvGpu[frameIndex].ptr +
+				static_cast< UINT64 >( objectIndex ) * m_skinnedBatch.cbvInc
+			);
+
+			obj->SetMappedGameObjectCB(cb);
+		}
+	}
+
+	if ( m_colliderBatch.cbElementBytes > 0 &&
+		 m_colliderBatch.mappedGameObjects[frameIndex] &&
+		 m_colliderBatch.baseCbvGpu[frameIndex].ptr != 0 )
+	{
+		for ( UINT objectIndex = 0;
+			  objectIndex < static_cast< UINT >(m_colliderBatch.objectRefs.size());
+			  ++objectIndex )
+		{
+			CGameObject* obj = m_colliderBatch.objectRefs[objectIndex];
+
+			if ( !obj )
+				continue;
+
+			CB_GAMEOBJECT_INFO* cb =
+				reinterpret_cast< CB_GAMEOBJECT_INFO* >(
+					reinterpret_cast< UINT8* >(m_colliderBatch.mappedGameObjects[frameIndex]) +
+					objectIndex * m_colliderBatch.cbElementBytes
+				);
+
+			obj->SetCbvGPUDescriptorHandlePtr(
+				m_colliderBatch.baseCbvGpu[frameIndex].ptr +
+				static_cast< UINT64 >( objectIndex ) * m_colliderBatch.cbvInc
+			);
+
+			obj->SetMappedGameObjectCB(cb);
+		}
+	}
 }
 
 void CGameScene::InitializeSpatialGrid()
@@ -2677,10 +2809,6 @@ void CGameScene::ReleaseObjects()
 	m_prevEnemyBowReleasePhase.clear();
 
 	m_hud.ReleaseResources();
-	// mShadowMap.reset();
-	// mShadowShader.reset();
-	// if ( m_pd3dShadowDsvDescriptorHeap )
-	//     m_pd3dShadowDsvDescriptorHeap.Reset();
 	m_depthFog.ReleaseResources();
 
 	m_occlusionStaticShader.reset();
@@ -2688,6 +2816,7 @@ void CGameScene::ReleaseObjects()
 	m_shadowAlphaClipStaticShader.reset();
 	m_shadowSkinnedShader.reset();
 	m_shadowAlphaClipSkinnedShader.reset();
+	m_skinnedAlphaClipShader.reset();
 
 	m_sceneRenderTargetCount = 0;
 	m_bSceneRenderTargetsReady = false;
@@ -2721,6 +2850,7 @@ void CGameScene::ReleaseObjects()
 	m_swordTrails.clear();
 
 	m_staticRenderObjectCache.clear();
+	m_staticGroupIndicesByObjectIndex.clear();
 
 #ifndef USING_NETWORK
 	m_monsterSpawnEntries.clear();
@@ -2848,89 +2978,143 @@ void CGameScene::ReleaseShaderVariables()
 	ReleaseStaticOcclusionGpuResources();
 	ReleaseSkinnedOcclusionGpuResources();
 
-	if ( m_pd3dStaticInstanceBuffer )
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
 	{
-		if ( m_pMappedStaticInstanceBuffer )
+		if ( m_pd3dStaticInstanceBuffer[frameIndex] )
 		{
-			m_pd3dStaticInstanceBuffer->Unmap(0, NULL);
-			m_pMappedStaticInstanceBuffer = nullptr;
+			if ( m_pMappedStaticInstanceBuffer[frameIndex] )
+			{
+				m_pd3dStaticInstanceBuffer[frameIndex]->Unmap(0, NULL);
+				m_pMappedStaticInstanceBuffer[frameIndex] = nullptr;
+			}
+
+			m_pd3dStaticInstanceBuffer[frameIndex].Reset();
 		}
-		m_pd3dStaticInstanceBuffer.Reset();
+
+		m_pMappedStaticInstanceBuffer[frameIndex] = nullptr;
 	}
+
 	m_staticInstanceBufferCapacity = 0;
 
-	if ( m_pd3dSkinnedInstanceBuffer )
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
 	{
-		if ( m_pMappedSkinnedInstanceBuffer )
+		if ( m_pd3dSkinnedInstanceBuffer[frameIndex] )
 		{
-			m_pd3dSkinnedInstanceBuffer->Unmap(0, NULL);
-			m_pMappedSkinnedInstanceBuffer = nullptr;
+			if ( m_pMappedSkinnedInstanceBuffer[frameIndex] )
+			{
+				m_pd3dSkinnedInstanceBuffer[frameIndex]->Unmap(0, NULL);
+				m_pMappedSkinnedInstanceBuffer[frameIndex] = nullptr;
+			}
+
+			m_pd3dSkinnedInstanceBuffer[frameIndex].Reset();
 		}
-		m_pd3dSkinnedInstanceBuffer.Reset();
+
+		m_pMappedSkinnedInstanceBuffer[frameIndex] = nullptr;
 	}
+
 	m_skinnedInstanceBufferCapacity = 0;
 
-	if ( m_pd3dSkinnedBonePaletteBuffer )
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
 	{
-		if ( m_pMappedSkinnedBonePaletteBuffer )
+		if ( m_pd3dSkinnedBonePaletteBuffer[frameIndex] )
 		{
-			m_pd3dSkinnedBonePaletteBuffer->Unmap(0, NULL);
-			m_pMappedSkinnedBonePaletteBuffer = nullptr;
+			if ( m_pMappedSkinnedBonePaletteBuffer[frameIndex] )
+			{
+				m_pd3dSkinnedBonePaletteBuffer[frameIndex]->Unmap(0, NULL);
+				m_pMappedSkinnedBonePaletteBuffer[frameIndex] = nullptr;
+			}
+
+			m_pd3dSkinnedBonePaletteBuffer[frameIndex].Reset();
 		}
-		m_pd3dSkinnedBonePaletteBuffer.Reset();
+
+		m_pMappedSkinnedBonePaletteBuffer[frameIndex] = nullptr;
 	}
+
 	m_skinnedBonePaletteStride = 0;
 	m_skinnedBonePaletteCapacity = 0;
 
 	// ---- Static batch CB ----
-	if ( m_staticBatch.cbGameObjects )
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
 	{
-		if ( m_staticBatch.mappedGameObjects )
+		if ( m_staticBatch.cbGameObjects[frameIndex] )
 		{
-			m_staticBatch.cbGameObjects->Unmap(0, NULL);
-			m_staticBatch.mappedGameObjects = nullptr;
+			if ( m_staticBatch.mappedGameObjects[frameIndex] )
+			{
+				m_staticBatch.cbGameObjects[frameIndex]->Unmap(0, NULL);
+				m_staticBatch.mappedGameObjects[frameIndex] = nullptr;
+			}
+
+			m_staticBatch.cbGameObjects[frameIndex].Reset();
 		}
-		m_staticBatch.cbGameObjects.Reset();
+
+		m_staticBatch.mappedGameObjects[frameIndex] = nullptr;
+		m_staticBatch.baseCbvGpu[frameIndex] = D3D12_GPU_DESCRIPTOR_HANDLE{ 0 };
 	}
 
+	// ---- Skinned batch CB ----
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+	{
+		if ( m_skinnedBatch.cbGameObjects[frameIndex] )
+		{
+			if ( m_skinnedBatch.mappedGameObjects[frameIndex] )
+			{
+				m_skinnedBatch.cbGameObjects[frameIndex]->Unmap(0, NULL);
+				m_skinnedBatch.mappedGameObjects[frameIndex] = nullptr;
+			}
 
-    // ---- Skinned batch CB ----
-    if (m_skinnedBatch.cbGameObjects)
-    {
-        if (m_skinnedBatch.mappedGameObjects)
-        {
-            m_skinnedBatch.cbGameObjects->Unmap(0, NULL);
-            m_skinnedBatch.mappedGameObjects = nullptr;
-        }
-        m_skinnedBatch.cbGameObjects.Reset();
-    }
+			m_skinnedBatch.cbGameObjects[frameIndex].Reset();
+		}
 
-    if (m_pd3dcbLights)
-    {
-        m_pd3dcbLights->Unmap(0, NULL);
-        m_pd3dcbLights.Reset();
-    }
-    m_pcbMappedLights = nullptr;
+		m_skinnedBatch.mappedGameObjects[frameIndex] = nullptr;
+		m_skinnedBatch.baseCbvGpu[frameIndex] = D3D12_GPU_DESCRIPTOR_HANDLE{ 0 };
+	}
 
-    if (m_pd3dcbMaterials)
-    {
-        m_pd3dcbMaterials->Unmap(0, NULL);
-        m_pd3dcbMaterials.Reset();
-    }
-    m_pcbMappedMaterials = nullptr;
+	for ( UINT i = 0; i < kFrameResourceCount; ++i )
+	{
+		if ( m_pd3dcbLights[i] )
+		{
+			m_pd3dcbLights[i]->Unmap(0, NULL);
+			m_pd3dcbLights[i].Reset();
+		}
+
+		m_pcbMappedLights[i] = nullptr;
+	}
+
+	m_nLightsCBElementBytes = 0;
+
+	for ( UINT i = 0; i < kFrameResourceCount; ++i )
+	{
+		if ( m_pd3dcbMaterials[i] )
+		{
+			m_pd3dcbMaterials[i]->Unmap(0, NULL);
+			m_pd3dcbMaterials[i].Reset();
+		}
+
+		m_pcbMappedMaterials[i] = nullptr;
+	}
+
+	m_nMaterialsCBElementBytes = 0;
+	m_nFrameResourceIndex = 0;
 
 	m_depthFog.ReleaseConstantBuffer();
 
 	m_shadowMap.ReleaseResources();
 
-	if ( m_colliderBatch.cbGameObjects )
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
 	{
-		if ( m_colliderBatch.mappedGameObjects )
+		if ( m_colliderBatch.cbGameObjects[frameIndex] )
 		{
-			m_colliderBatch.cbGameObjects->Unmap(0, NULL);
-			m_colliderBatch.mappedGameObjects = nullptr;
+			if ( m_colliderBatch.mappedGameObjects[frameIndex] )
+			{
+				m_colliderBatch.cbGameObjects[frameIndex]->Unmap(0, NULL);
+				m_colliderBatch.mappedGameObjects[frameIndex] = nullptr;
+			}
+
+			m_colliderBatch.cbGameObjects[frameIndex].Reset();
 		}
-		m_colliderBatch.cbGameObjects.Reset();
+
+		m_colliderBatch.mappedGameObjects[frameIndex] = nullptr;
+		m_colliderBatch.baseCbvGpu[frameIndex] = D3D12_GPU_DESCRIPTOR_HANDLE{ 0 };
 	}
 
 	m_hud.ReleaseResources();
@@ -3108,6 +3292,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	auto pStaticShader = std::make_shared<CStaticObjectsShader>();
 	auto pTreeStaticShader = std::make_shared<CTreeStaticObjectsShader>();
 	auto pSkinnedShader = std::make_shared<CSkinnedObjectsShader>();
+	auto pSkinnedAlphaClipShader = std::make_shared<CAlphaClipSkinnedObjectsShader>();
 	auto pColliderShader = std::make_shared<CDiffusedShader>();
 	auto pOcclusionStaticShader = std::make_shared<COcclusionStaticShader>();
 	auto pShadowStaticShader = std::make_shared<CShadowMapStaticShader>();
@@ -3118,6 +3303,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_staticBatch.shader = pStaticShader;
 	m_treeStaticShader = pTreeStaticShader;
 	m_skinnedBatch.shader = pSkinnedShader;
+	m_skinnedAlphaClipShader = pSkinnedAlphaClipShader;
 	m_colliderBatch.shader = pColliderShader;
 	m_occlusionStaticShader = pOcclusionStaticShader;
 	m_shadowStaticShader = pShadowStaticShader;
@@ -3194,6 +3380,14 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		DXGI_FORMAT_D24_UNORM_S8_UINT
 	);
 
+	pSkinnedAlphaClipShader->CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		kRTCount,
+		rtvFormats,
+		kDsvFormat
+	);
+
 	BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
 	BuildItemBillboardBatch(dev, cmd, kRTCount, rtvFormats, kDsvFormat);
 	
@@ -3249,7 +3443,10 @@ void CGameScene::BuildStaticWorldSubmeshOOBBDebugObjects(
 	ID3D12GraphicsCommandList* cmd)
 {
 	if ( !dev || !cmd ) return;
-	if ( !m_colliderBatch.mappedGameObjects ) return;
+
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	if ( !m_colliderBatch.mappedGameObjects[frameIndex] ) return;
 
 	for ( auto& ownerObj : m_staticObjects )
 	{
@@ -3278,14 +3475,16 @@ void CGameScene::BuildStaticWorldSubmeshOOBBDebugObjects(
 				auto debugObj = std::make_unique<CGameObject>(1);
 
 				auto* cb = reinterpret_cast< CB_GAMEOBJECT_INFO* >(
-					reinterpret_cast< UINT8* >( m_colliderBatch.mappedGameObjects ) +
+					reinterpret_cast< UINT8* >( m_colliderBatch.mappedGameObjects[frameIndex] ) +
 					i * m_colliderBatch.cbElementBytes
 				);
 
-				debugObj->SetMappedGameObjectCB(cb);
 				debugObj->SetCbvGPUDescriptorHandlePtr(
-					m_colliderBatch.baseCbvGpu.ptr + ( UINT64 ) i * m_colliderBatch.cbvInc
+					m_colliderBatch.baseCbvGpu[frameIndex].ptr +
+					static_cast< UINT64 >( i ) * m_colliderBatch.cbvInc
 				);
+
+				debugObj->SetMappedGameObjectCB(cb);
 
 				debugObj->AddComponent<CColliderMeshRendererComponent>();
 				auto* debugCollider = debugObj->AddComponent<CColliderComponent>(EColliderType::OOBB);
@@ -3847,23 +4046,55 @@ void CGameScene::BuildLightsAndMaterials()
 
 void CGameScene::CreateShaderVariables(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
-    UINT ncbElementBytes = ((sizeof(LIGHTS) + 255) & ~255);
-    m_pd3dcbLights = ::CreateBufferResource(
-        dev, cmd, nullptr,
-        ncbElementBytes,
-        D3D12_HEAP_TYPE_UPLOAD,
-        D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
-        nullptr);
-    m_pd3dcbLights->Map(0, nullptr, (void**)&m_pcbMappedLights);
+	m_nLightsCBElementBytes = ( ( sizeof(LIGHTS) + 255 ) & ~255 );
 
-    UINT ncbMaterialBytes = ((sizeof(MATERIALS) + 255) & ~255);
-    m_pd3dcbMaterials = ::CreateBufferResource(
-        dev, cmd, nullptr,
-        ncbMaterialBytes,
-        D3D12_HEAP_TYPE_UPLOAD,
-        D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
-        nullptr);
-    m_pd3dcbMaterials->Map(0, nullptr, (void**)&m_pcbMappedMaterials);
+	for ( UINT i = 0; i < kFrameResourceCount; ++i )
+	{
+		m_pd3dcbLights[i] = ::CreateBufferResource(
+			dev,
+			cmd,
+			nullptr,
+			m_nLightsCBElementBytes,
+			D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+			nullptr
+		);
+
+		if ( m_pd3dcbLights[i] )
+		{
+			m_pd3dcbLights[i]->Map(
+				0,
+				nullptr,
+				reinterpret_cast< void** >( &m_pcbMappedLights[i] )
+			);
+		}
+	}
+
+	m_nMaterialsCBElementBytes = ( ( sizeof(MATERIALS) + 255 ) & ~255 );
+
+	for ( UINT i = 0; i < kFrameResourceCount; ++i )
+	{
+		m_pd3dcbMaterials[i] = ::CreateBufferResource(
+			dev,
+			cmd,
+			nullptr,
+			m_nMaterialsCBElementBytes,
+			D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+			nullptr
+		);
+
+		if ( m_pd3dcbMaterials[i] )
+		{
+			m_pd3dcbMaterials[i]->Map(
+				0,
+				nullptr,
+				reinterpret_cast< void** >( &m_pcbMappedMaterials[i] )
+			);
+		}
+	}
+
+	m_nFrameResourceIndex = 0;
 
 	m_depthFog.CreateConstantBuffer(dev, cmd);
 }
@@ -3892,26 +4123,36 @@ void CGameScene::BuildStaticBatch(
 	);
 
 	b->cbElementBytes = ( ( sizeof(CB_GAMEOBJECT_INFO) + 255 ) & ~255 );
-
-	b->cbGameObjects = ::CreateBufferResource(
-		dev, cmd, nullptr,
-		b->cbElementBytes * cap,
-		D3D12_HEAP_TYPE_UPLOAD,
-		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
-		nullptr
-	);
-
-	b->cbGameObjects->Map(0, nullptr, ( void** ) &b->mappedGameObjects);
-
-	b->baseCbvGpu = m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
 	b->cbvInc = ::gnCbvSrvDescriptorIncrementSize;
 
-	m_pDescriptorHeap->CreateConstantBufferViews(
-		dev,
-		cap,
-		b->cbGameObjects.Get(),
-		b->cbElementBytes
-	);
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+	{
+		b->cbGameObjects[frameIndex] = ::CreateBufferResource(
+			dev, cmd, nullptr,
+			b->cbElementBytes * cap,
+			D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+			nullptr
+		);
+
+		if ( b->cbGameObjects[frameIndex] )
+		{
+			b->cbGameObjects[frameIndex]->Map(
+				0,
+				nullptr,
+				reinterpret_cast< void** >( &b->mappedGameObjects[frameIndex] )
+			);
+		}
+
+		b->baseCbvGpu[frameIndex] = m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
+
+		m_pDescriptorHeap->CreateConstantBufferViews(
+			dev,
+			cap,
+			b->cbGameObjects[frameIndex].Get(),
+			b->cbElementBytes
+		);
+	}
 
 	m_treeAlphaClipObjects.clear();
 	m_terrainRefs.clear();
@@ -3952,16 +4193,19 @@ void CGameScene::BuildStaticBatch(
 
 	auto MakeStaticContext = [ & ] (UINT objectIndex)
 		{
+			const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
 			GameSceneObjectFactory::CreateContext ctx{};
 			ctx.device = dev;
 			ctx.cmd = cmd;
 			ctx.mappedGameObjectCB =
 				reinterpret_cast< CB_GAMEOBJECT_INFO* >(
-					reinterpret_cast< UINT8* >( b->mappedGameObjects ) +
+					reinterpret_cast< UINT8* >( b->mappedGameObjects[frameIndex] ) +
 					objectIndex * b->cbElementBytes
 				);
 			ctx.cbvGpuHandle.ptr =
-				b->baseCbvGpu.ptr + ( UINT64 ) objectIndex * b->cbvInc;
+				b->baseCbvGpu[frameIndex].ptr +
+				static_cast< UINT64 >( objectIndex ) * b->cbvInc;
 			return ctx;
 		};
 
@@ -4181,6 +4425,17 @@ void CGameScene::BuildStaticBatch(
 				lodEntry.lodDistance12 = 120.0f;
 				lodEntry.cullDistance = 500.0f;
 			}
+			else if ( placement.assetName == "Tower" ) {
+				lodEntry.lodDistance01 = 200.0f;
+				lodEntry.lodDistance12 = 500.0f;
+				lodEntry.cullDistance = 800.0f;
+			}
+			else if ( placement.assetName == "Castle" ) {
+				lodEntry.lodDistance01 = 400.0f;
+				lodEntry.lodDistance12 = 600.0f;
+				lodEntry.cullDistance = 1000.0f;
+			}
+
 			else
 			{
 				lodEntry.cullDistance = 400.0f;
@@ -4608,14 +4863,20 @@ void CGameScene::BuildStaticBatch(
 
 	m_staticTreeGridCullFlags.assign(m_staticBatch.objectRefs.size(), 0);
 
-	if ( m_pd3dStaticInstanceBuffer )
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
 	{
-		if ( m_pMappedStaticInstanceBuffer )
+		if ( m_pd3dStaticInstanceBuffer[frameIndex] )
 		{
-			m_pd3dStaticInstanceBuffer->Unmap(0, NULL);
-			m_pMappedStaticInstanceBuffer = nullptr;
+			if ( m_pMappedStaticInstanceBuffer[frameIndex] )
+			{
+				m_pd3dStaticInstanceBuffer[frameIndex]->Unmap(0, NULL);
+				m_pMappedStaticInstanceBuffer[frameIndex] = nullptr;
+			}
+
+			m_pd3dStaticInstanceBuffer[frameIndex].Reset();
 		}
-		m_pd3dStaticInstanceBuffer.Reset();
+
+		m_pMappedStaticInstanceBuffer[frameIndex] = nullptr;
 	}
 
 	if ( m_staticInstanceBufferCapacity > 0 )
@@ -4629,16 +4890,27 @@ void CGameScene::BuildStaticBatch(
 			m_staticInstanceBufferCapacity *
 			kStaticInstancePassCount;
 
-		m_pd3dStaticInstanceBuffer = ::CreateBufferResource(
-			dev, cmd, nullptr,
-			instanceBufferBytes,
-			D3D12_HEAP_TYPE_UPLOAD,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr
-		);
+		for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+		{
+			m_pd3dStaticInstanceBuffer[frameIndex] = ::CreateBufferResource(
+				dev,
+				cmd,
+				nullptr,
+				instanceBufferBytes,
+				D3D12_HEAP_TYPE_UPLOAD,
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				nullptr
+			);
 
-		m_pd3dStaticInstanceBuffer->Map(
-			0, nullptr, ( void** ) &m_pMappedStaticInstanceBuffer);
+			if ( m_pd3dStaticInstanceBuffer[frameIndex] )
+			{
+				m_pd3dStaticInstanceBuffer[frameIndex]->Map(
+					0,
+					nullptr,
+					reinterpret_cast< void** >( &m_pMappedStaticInstanceBuffer[frameIndex] )
+				);
+			}
+		}
 	}
 }
 
@@ -4681,71 +4953,174 @@ void CGameScene::UpdateStaticTreeGridCullSelection(CCamera* camera)
 
 void CGameScene::BuildStaticInstanceGroups()
 {
-	m_staticInstanceGroups.clear();
+	PROFILE_RENDER_SCOPE("BuildStaticInstanceGroups::Total");
 
-	for ( UINT objectIndex = 0; objectIndex < ( UINT ) m_staticBatch.objectRefs.size(); ++objectIndex )
+	m_staticInstanceGroups.clear();
+	BuildStaticWorldLodEntryIndexMap();
+
+	std::unordered_map<StaticGroupKey, size_t, StaticGroupKeyHash> groupIndexByKey;
+	groupIndexByKey.reserve(m_staticBatch.objectRefs.size() * 4);
+
+	m_staticInstanceGroups.reserve(m_staticBatch.objectRefs.size() * 2);
+
+	auto AddObjectToGroup =
+		[ & ](
+			UINT objectIndex,
+			const std::shared_ptr<CMesh>& mesh,
+			int lodLevel,
+			bool useTreeShader)
+		{
+			if ( !mesh )
+				return;
+
+			const UINT subMeshCount =
+				static_cast< UINT >( mesh->m_SubMeshes.size() );
+
+			for ( UINT subMeshIndex = 0; subMeshIndex < subMeshCount; ++subMeshIndex )
+			{
+				StaticGroupKey key{};
+				key.mesh = mesh.get();
+				key.subMeshIndex = subMeshIndex;
+				key.useTreeShader = useTreeShader;
+				key.lodLevel = lodLevel;
+
+				size_t groupIndex = 0;
+
+				auto it = groupIndexByKey.find(key);
+
+				if ( it == groupIndexByKey.end() )
+				{
+					StaticInstanceGroup group{};
+					group.mesh = mesh;
+					group.subMeshIndex = subMeshIndex;
+					group.useTreeShader = useTreeShader;
+					group.lodLevel = lodLevel;
+
+					groupIndex = m_staticInstanceGroups.size();
+					m_staticInstanceGroups.push_back(std::move(group));
+
+					groupIndexByKey.emplace(key, groupIndex);
+				}
+				else
+				{
+					groupIndex = it->second;
+				}
+
+				m_staticInstanceGroups[groupIndex].objectIndices.push_back(objectIndex);
+			}
+		};
+
+	for ( UINT objectIndex = 0;
+		  objectIndex < static_cast< UINT >(m_staticBatch.objectRefs.size());
+		  ++objectIndex )
 	{
 		CGameObject* obj = m_staticBatch.objectRefs[objectIndex];
+		if ( !obj )
+			continue;
+
 		const bool useTreeShader =
 			( m_treeAlphaClipObjects.find(obj) != m_treeAlphaClipObjects.end() );
-		if ( !obj ) continue;
 
+		int lodEntryIndex = -1;
+		if ( objectIndex <
+			 static_cast< UINT >(m_staticWorldLodEntryIndexByObjectIndex.size()) )
+		{
+			lodEntryIndex = m_staticWorldLodEntryIndexByObjectIndex[objectIndex];
+		}
+
+		const bool hasLodEntry =
+			( lodEntryIndex >= 0 &&
+			  lodEntryIndex < static_cast< int >(m_staticWorldLodEntries.size()) );
+
+		if ( hasLodEntry )
+		{
+			const StaticWorldLodEntry& entry =
+				m_staticWorldLodEntries[lodEntryIndex];
+
+			if ( entry.lodEnabled )
+			{
+				bool registeredResolvedLods[3] = { false, false, false };
+
+				for ( int lodLevel = 0; lodLevel < 3; ++lodLevel )
+				{
+					const int resolvedLod =
+						ResolveStaticWorldLodLevel(entry, lodLevel);
+
+					if ( resolvedLod < 0 || resolvedLod > 2 )
+						continue;
+
+					if ( registeredResolvedLods[resolvedLod] )
+						continue;
+
+					registeredResolvedLods[resolvedLod] = true;
+
+					std::shared_ptr<CMesh> lodMesh =
+						entry.lodMeshes[static_cast< size_t >( resolvedLod )];
+
+					AddObjectToGroup(
+						objectIndex,
+						lodMesh,
+						resolvedLod,
+						useTreeShader
+					);
+				}
+
+				continue;
+			}
+		}
+
+		// LOD 대상이 아닌 일반 static object는 기존처럼 현재 mesh만 등록.
 		const int meshCount = obj->GetMeshCount();
+
 		for ( int meshIndex = 0; meshIndex < meshCount; ++meshIndex )
 		{
 			std::shared_ptr<CMesh> mesh = obj->GetMeshShared(meshIndex);
-			if ( !mesh ) continue;
-
-			for ( UINT subMeshIndex = 0; subMeshIndex < ( UINT ) mesh->m_SubMeshes.size(); ++subMeshIndex )
-			{
-				StaticInstanceGroup* targetGroup = nullptr;
-
-				for ( StaticInstanceGroup& group : m_staticInstanceGroups )
-				{
-					if ( group.mesh.get() == mesh.get() &&
-						group.subMeshIndex == subMeshIndex &&
-						group.useTreeShader == useTreeShader )
-					{
-						targetGroup = &group;
-						break;
-					}
-				}
-
-				if ( !targetGroup )
-				{
-					StaticInstanceGroup newGroup{};
-					newGroup.mesh = mesh;
-					newGroup.subMeshIndex = subMeshIndex;
-					newGroup.useTreeShader = useTreeShader;
-					m_staticInstanceGroups.push_back(std::move(newGroup));
-					targetGroup = &m_staticInstanceGroups.back();
-				}
-
-				targetGroup->objectIndices.push_back(objectIndex);
-			}
+			AddObjectToGroup(objectIndex, mesh, 0, useTreeShader);
 		}
 	}
 
 	std::sort(
-	m_staticInstanceGroups.begin(),
-	m_staticInstanceGroups.end(),
-	[ ] (const StaticInstanceGroup& a, const StaticInstanceGroup& b)
-	{
-		if ( a.useTreeShader != b.useTreeShader )
-			return a.useTreeShader < b.useTreeShader; // opaque 먼저, tree alpha-clip 나중
+		m_staticInstanceGroups.begin(),
+		m_staticInstanceGroups.end(),
+		[ ] (const StaticInstanceGroup& a, const StaticInstanceGroup& b)
+		{
+			if ( a.useTreeShader != b.useTreeShader )
+				return a.useTreeShader < b.useTreeShader;
 
-		if ( a.mesh.get() != b.mesh.get() )
-			return a.mesh.get() < b.mesh.get();
+			if ( a.mesh.get() != b.mesh.get() )
+				return a.mesh.get() < b.mesh.get();
 
-		return a.subMeshIndex < b.subMeshIndex;
-	}
+			if ( a.subMeshIndex != b.subMeshIndex )
+				return a.subMeshIndex < b.subMeshIndex;
+
+			return a.lodLevel < b.lodLevel;
+		}
 	);
 
+	m_staticGroupIndicesByObjectIndex.clear();
+	m_staticGroupIndicesByObjectIndex.resize(m_staticBatch.objectRefs.size());
+
+	for ( UINT groupIndex = 0;
+		  groupIndex < static_cast< UINT >(m_staticInstanceGroups.size());
+		  ++groupIndex )
+	{
+		const StaticInstanceGroup& group = m_staticInstanceGroups[groupIndex];
+
+		for ( UINT objectIndex : group.objectIndices )
+		{
+			if ( objectIndex >= static_cast< UINT >(m_staticGroupIndicesByObjectIndex.size()) )
+				continue;
+
+			m_staticGroupIndicesByObjectIndex[objectIndex].push_back(groupIndex);
+		}
+	}
+
 	UINT runningStart = 0;
+
 	for ( StaticInstanceGroup& group : m_staticInstanceGroups )
 	{
 		group.instanceBufferStart = runningStart;
-		runningStart += ( UINT ) group.objectIndices.size();
+		runningStart += static_cast< UINT >(group.objectIndices.size());
 	}
 
 	m_staticInstanceBufferCapacity = runningStart;
@@ -5036,53 +5411,75 @@ bool CGameScene::WriteStaticInstanceVertexFromCache(
 
 void CGameScene::BuildStaticVisibleListsForFrame(CCamera* camera)
 {
+	PROFILE_RENDER_SCOPE("GameScene::BuildStaticVisibleListsForFrame");
+
+	const UINT objectCount =
+		static_cast< UINT >( m_staticBatch.objectRefs.size() );
+
 	for ( StaticInstanceGroup& group : m_staticInstanceGroups )
 	{
 		group.visibleSceneObjectIndices.clear();
+	}
 
-		for ( UINT objectIndex : group.objectIndices )
+	for ( UINT objectIndex = 0; objectIndex < objectCount; ++objectIndex )
+	{
+		if ( objectIndex >= static_cast< UINT >(m_staticRenderObjectCache.size()) )
+			continue;
+
+		const StaticRenderObjectCache& cache =
+			m_staticRenderObjectCache[objectIndex];
+
+		if ( !cache.object )
+			continue;
+
+		if ( !cache.renderer )
+			continue;
+
+		if ( !cache.renderer->IsEnabled() )
+			continue;
+
+		const int activeLodLevel =
+			GetStaticObjectActiveLodLevel(objectIndex);
+
+		if ( objectIndex < static_cast< UINT >(m_staticDistanceCullFlags.size()) &&
+			 m_staticDistanceCullFlags[objectIndex] != 0 )
 		{
-			if ( objectIndex >= static_cast< UINT >( m_staticBatch.objectRefs.size() ) )
+			continue;
+		}
+
+		if ( objectIndex < static_cast< UINT >(m_staticTreeGridCullFlags.size()) &&
+			 m_staticTreeGridCullFlags[objectIndex] != 0 )
+		{
+			continue;
+		}
+
+		const bool cameraVisible =
+			( camera == nullptr ) || cache.object->IsVisible(camera);
+
+		if ( !cameraVisible )
+			continue;
+
+		if ( objectIndex < static_cast< UINT >(m_staticOcclusionCullFlags.size()) &&
+			 m_staticOcclusionCullFlags[objectIndex] != 0 )
+		{
+			continue;
+		}
+
+		if ( objectIndex >= static_cast< UINT >(m_staticGroupIndicesByObjectIndex.size()) )
+			continue;
+
+		const std::vector<UINT>& groupIndices =
+			m_staticGroupIndicesByObjectIndex[objectIndex];
+
+		for ( UINT groupIndex : groupIndices )
+		{
+			if ( groupIndex >= static_cast< UINT >( m_staticInstanceGroups.size() ) )
 				continue;
 
-			if ( objectIndex >= static_cast< UINT >( m_staticRenderObjectCache.size() ) )
+			StaticInstanceGroup& group = m_staticInstanceGroups[groupIndex];
+
+			if ( group.lodLevel != activeLodLevel )
 				continue;
-
-			const StaticRenderObjectCache& cache =
-				m_staticRenderObjectCache[objectIndex];
-
-			if ( !cache.object )
-				continue;
-
-			if ( !cache.renderer )
-				continue;
-
-			if ( !cache.renderer->IsEnabled() )
-				continue;
-
-			if ( objectIndex < static_cast< UINT >(m_staticDistanceCullFlags.size()) &&
-				 m_staticDistanceCullFlags[objectIndex] != 0 )
-			{
-				continue;
-			}
-
-			if ( objectIndex < static_cast< UINT >(m_staticTreeGridCullFlags.size()) &&
-				 m_staticTreeGridCullFlags[objectIndex] != 0 )
-			{
-				continue;
-			}
-
-			const bool cameraVisible =
-				( camera == nullptr ) || cache.object->IsVisible(camera);
-
-			if ( !cameraVisible )
-				continue;
-
-			if ( objectIndex < static_cast< UINT >(m_staticOcclusionCullFlags.size()) &&
-				 m_staticOcclusionCullFlags[objectIndex] != 0 )
-			{
-				continue;
-			}
 
 			group.visibleSceneObjectIndices.push_back(objectIndex);
 		}
@@ -5091,49 +5488,71 @@ void CGameScene::BuildStaticVisibleListsForFrame(CCamera* camera)
 
 void CGameScene::BuildStaticShadowVisibleListsForFrame()
 {
+	PROFILE_RENDER_SCOPE("GameScene::BuildStaticShadowVisibleListsForFrame");
+
+	const UINT objectCount =
+		static_cast< UINT >( m_staticBatch.objectRefs.size() );
+
 	for ( StaticInstanceGroup& group : m_staticInstanceGroups )
 	{
 		group.visibleShadowObjectIndices.clear();
+	}
 
-		for ( UINT objectIndex : group.objectIndices )
+	for ( UINT objectIndex = 0; objectIndex < objectCount; ++objectIndex )
+	{
+		if ( objectIndex >= static_cast< UINT >(m_staticRenderObjectCache.size()) )
+			continue;
+
+		const StaticRenderObjectCache& cache =
+			m_staticRenderObjectCache[objectIndex];
+
+		if ( !cache.object )
+			continue;
+
+		if ( !cache.renderer )
+			continue;
+
+		if ( !cache.renderer->IsEnabled() )
+			continue;
+
+		const int activeLodLevel =
+			GetStaticObjectActiveLodLevel(objectIndex);
+
+		if ( objectIndex < static_cast< UINT >(m_staticShadowCasterFlags.size()) &&
+			 m_staticShadowCasterFlags[objectIndex] == 0 )
 		{
-			if ( objectIndex >= static_cast< UINT >( m_staticBatch.objectRefs.size() ) )
+			continue;
+		}
+
+		if ( objectIndex < static_cast< UINT >(m_staticDistanceCullFlags.size()) &&
+			 m_staticDistanceCullFlags[objectIndex] != 0 )
+		{
+			continue;
+		}
+
+		if ( objectIndex < static_cast< UINT >(m_staticTreeGridCullFlags.size()) &&
+			 m_staticTreeGridCullFlags[objectIndex] != 0 )
+		{
+			continue;
+		}
+
+		if ( !IsStaticObjectInsideShadowBox(objectIndex) )
+			continue;
+
+		if ( objectIndex >= static_cast< UINT >(m_staticGroupIndicesByObjectIndex.size()) )
+			continue;
+
+		const std::vector<UINT>& groupIndices =
+			m_staticGroupIndicesByObjectIndex[objectIndex];
+
+		for ( UINT groupIndex : groupIndices )
+		{
+			if ( groupIndex >= static_cast< UINT >( m_staticInstanceGroups.size() ) )
 				continue;
 
-			if ( objectIndex >= static_cast< UINT >( m_staticRenderObjectCache.size() ) )
-				continue;
+			StaticInstanceGroup& group = m_staticInstanceGroups[groupIndex];
 
-			const StaticRenderObjectCache& cache =
-				m_staticRenderObjectCache[objectIndex];
-
-			if ( !cache.object )
-				continue;
-
-			if ( !cache.renderer )
-				continue;
-
-			if ( !cache.renderer->IsEnabled() )
-				continue;
-
-			if ( objectIndex < static_cast< UINT >(m_staticShadowCasterFlags.size()) &&
-				 m_staticShadowCasterFlags[objectIndex] == 0 )
-			{
-				continue;
-			}
-
-			if ( objectIndex < static_cast< UINT >(m_staticDistanceCullFlags.size()) &&
-				 m_staticDistanceCullFlags[objectIndex] != 0 )
-			{
-				continue;
-			}
-
-			if ( objectIndex < static_cast< UINT >(m_staticTreeGridCullFlags.size()) &&
-				 m_staticTreeGridCullFlags[objectIndex] != 0 )
-			{
-				continue;
-			}
-
-			if ( !IsStaticObjectInsideShadowBox(objectIndex) )
+			if ( group.lodLevel != activeLodLevel )
 				continue;
 
 			group.visibleShadowObjectIndices.push_back(objectIndex);
@@ -5146,8 +5565,17 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 	PROFILE_RENDER_SCOPE("GameScene::RenderStaticInstanceGroups");
 
 	if ( !cmd ) return;
-	if ( !m_pd3dStaticInstanceBuffer ) return;
-	if ( !m_pMappedStaticInstanceBuffer ) return;
+
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	ID3D12Resource* staticInstanceBuffer =
+		m_pd3dStaticInstanceBuffer[frameIndex].Get();
+
+	StaticInstanceVertex* mappedStaticInstanceBuffer =
+		m_pMappedStaticInstanceBuffer[frameIndex];
+
+	if ( !staticInstanceBuffer ) return;
+	if ( !mappedStaticInstanceBuffer ) return;
 
 	bool lastUseTreeShader = false;
 	bool hasBoundAnyShader = false;
@@ -5180,7 +5608,7 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 			const UINT objectIndex = group.visibleSceneObjectIndices[i];
 
 			StaticInstanceVertex& dst =
-				m_pMappedStaticInstanceBuffer[instanceBase + visibleInstanceCount];
+				mappedStaticInstanceBuffer[instanceBase + visibleInstanceCount];
 
 			if ( !WriteStaticInstanceVertexFromCache(dst, objectIndex) )
 				continue;
@@ -5194,7 +5622,7 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 		D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
 		vbViews[0] = sm.vbView;
 		vbViews[1].BufferLocation =
-			m_pd3dStaticInstanceBuffer->GetGPUVirtualAddress() +
+			staticInstanceBuffer->GetGPUVirtualAddress() +
 			( UINT64 ) ( sizeof(StaticInstanceVertex) * instanceBase );
 		vbViews[1].SizeInBytes = sizeof(StaticInstanceVertex) * visibleInstanceCount;
 		vbViews[1].StrideInBytes = sizeof(StaticInstanceVertex);
@@ -5234,16 +5662,34 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	if ( !cmd ) return;
-	if ( !m_pd3dSkinnedInstanceBuffer ) return;
-	if ( !m_pMappedSkinnedInstanceBuffer ) return;
-	if ( !m_pd3dSkinnedBonePaletteBuffer ) return;
-	if ( !m_pMappedSkinnedBonePaletteBuffer ) return;
+
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	ID3D12Resource* skinnedInstanceBuffer =
+		m_pd3dSkinnedInstanceBuffer[frameIndex].Get();
+
+	SkinnedInstanceVertex* mappedSkinnedInstanceBuffer =
+		m_pMappedSkinnedInstanceBuffer[frameIndex];
+
+	ID3D12Resource* skinnedBonePaletteBuffer =
+		m_pd3dSkinnedBonePaletteBuffer[frameIndex].Get();
+
+	XMFLOAT4X4* mappedSkinnedBonePaletteBuffer =
+		m_pMappedSkinnedBonePaletteBuffer[frameIndex];
+
+	if ( !skinnedInstanceBuffer ) return;
+	if ( !mappedSkinnedInstanceBuffer ) return;
+	if ( !skinnedBonePaletteBuffer ) return;
+	if ( !mappedSkinnedBonePaletteBuffer ) return;
 
 	cmd->SetGraphicsRootShaderResourceView(
 		ROOT_PARAMETER_BONE_PALETTE,
-		m_pd3dSkinnedBonePaletteBuffer->GetGPUVirtualAddress()
+		skinnedBonePaletteBuffer->GetGPUVirtualAddress()
 	);
 	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	bool lastUseAlphaClipShader = false;
+	bool hasBoundAnyShader = false;
 
 	for ( const SkinnedInstanceGroup& group : m_skinnedInstanceGroups )
 	{
@@ -5297,7 +5743,7 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 			const SubMesh& objSm = objMesh->m_SubMeshes[group.subMeshIndex];
 
 			SkinnedInstanceVertex& dst =
-				m_pMappedSkinnedInstanceBuffer[instanceBase + visibleInstanceCount];
+				mappedSkinnedInstanceBuffer[instanceBase + visibleInstanceCount];
 
 			const XMFLOAT4X4& W = obj->GetWorldMatrix();
 
@@ -5315,7 +5761,7 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 			if ( srcBoneMats && boneCount > 0 )
 			{
 				memcpy(
-					m_pMappedSkinnedBonePaletteBuffer + dst.bonePaletteBase,
+					mappedSkinnedBonePaletteBuffer + dst.bonePaletteBase,
 					srcBoneMats,
 					sizeof(XMFLOAT4X4) * boneCount
 				);
@@ -5326,10 +5772,31 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 
 		if ( visibleInstanceCount == 0 ) continue;
 
+		if ( !hasBoundAnyShader || lastUseAlphaClipShader != group.useAlphaClipShader )
+		{
+			if ( group.useAlphaClipShader && m_skinnedAlphaClipShader )
+			{
+				m_skinnedAlphaClipShader->Render(cmd, camera, &m_skinnedBatch);
+			}
+			else
+			{
+				m_skinnedBatch.shader->Render(cmd, camera, &m_skinnedBatch);
+			}
+
+			// shader->Render()가 PSO/root state를 만질 수 있으므로 bone palette를 다시 보장.
+			cmd->SetGraphicsRootShaderResourceView(
+				ROOT_PARAMETER_BONE_PALETTE,
+				skinnedBonePaletteBuffer->GetGPUVirtualAddress()
+			);
+
+			lastUseAlphaClipShader = group.useAlphaClipShader;
+			hasBoundAnyShader = true;
+		}
+
 		D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
 		vbViews[0] = repSm.vbView;
 		vbViews[1].BufferLocation =
-			m_pd3dSkinnedInstanceBuffer->GetGPUVirtualAddress() +
+			skinnedInstanceBuffer->GetGPUVirtualAddress() +
 			( UINT64 ) ( sizeof(SkinnedInstanceVertex) * instanceBase );
 		vbViews[1].SizeInBytes = sizeof(SkinnedInstanceVertex) * visibleInstanceCount;
 		vbViews[1].StrideInBytes = sizeof(SkinnedInstanceVertex);
@@ -5475,8 +5942,17 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 	PROFILE_RENDER_SCOPE("GameScene::RenderStaticInstanceGroupsToShadowMap");
 
 	if ( !cmd ) return;
-	if ( !m_pd3dStaticInstanceBuffer ) return;
-	if ( !m_pMappedStaticInstanceBuffer ) return;
+
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	ID3D12Resource* staticInstanceBuffer =
+		m_pd3dStaticInstanceBuffer[frameIndex].Get();
+
+	StaticInstanceVertex* mappedStaticInstanceBuffer =
+		m_pMappedStaticInstanceBuffer[frameIndex];
+
+	if ( !staticInstanceBuffer ) return;
+	if ( !mappedStaticInstanceBuffer ) return;
 	if ( !m_shadowStaticShader ) return;
 	if ( !m_shadowAlphaClipStaticShader ) return;
 
@@ -5516,7 +5992,7 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 			const UINT objectIndex = group.visibleShadowObjectIndices[i];
 
 			StaticInstanceVertex& dst =
-				m_pMappedStaticInstanceBuffer[instanceBase + visibleInstanceCount];
+				mappedStaticInstanceBuffer[instanceBase + visibleInstanceCount];
 
 			if ( !WriteStaticInstanceVertexFromCache(dst, objectIndex) )
 				continue;
@@ -5541,8 +6017,8 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 		D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
 		vbViews[0] = sm.vbView;
 		vbViews[1].BufferLocation =
-			m_pd3dStaticInstanceBuffer->GetGPUVirtualAddress() +
-			( UINT64 ) ( sizeof(StaticInstanceVertex) * instanceBase );
+			staticInstanceBuffer->GetGPUVirtualAddress() +
+			( UINT64 ) ( sizeof(StaticInstanceVertex) * instanceBase ); 
 		vbViews[1].SizeInBytes = sizeof(StaticInstanceVertex) * visibleInstanceCount;
 		vbViews[1].StrideInBytes = sizeof(StaticInstanceVertex);
 
@@ -6213,26 +6689,36 @@ void CGameScene::BuildSkinnedBatch(
 	);
 
 	b->cbElementBytes = ( ( sizeof(CB_GAMEOBJECT_INFO) + 255 ) & ~255 );
-
-	b->cbGameObjects = ::CreateBufferResource(
-		dev, cmd, nullptr,
-		b->cbElementBytes * cap,
-		D3D12_HEAP_TYPE_UPLOAD,
-		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
-		nullptr
-	);
-
-	b->cbGameObjects->Map(0, nullptr, ( void** ) &b->mappedGameObjects);
-
-	b->baseCbvGpu = m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
 	b->cbvInc = ::gnCbvSrvDescriptorIncrementSize;
 
-	m_pDescriptorHeap->CreateConstantBufferViews(
-		dev,
-		cap,
-		b->cbGameObjects.Get(),
-		b->cbElementBytes
-	);
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+	{
+		b->cbGameObjects[frameIndex] = ::CreateBufferResource(
+			dev, cmd, nullptr,
+			b->cbElementBytes * cap,
+			D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+			nullptr
+		);
+
+		if ( b->cbGameObjects[frameIndex] )
+		{
+			b->cbGameObjects[frameIndex]->Map(
+				0,
+				nullptr,
+				reinterpret_cast< void** >( &b->mappedGameObjects[frameIndex] )
+			);
+		}
+
+		b->baseCbvGpu[frameIndex] = m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
+
+		m_pDescriptorHeap->CreateConstantBufferViews(
+			dev,
+			cap,
+			b->cbGameObjects[frameIndex].Get(),
+			b->cbElementBytes
+		);
+	}
 
 	m_skinnedObjects.clear();
 	m_skinnedAlphaClipObjects.clear();
@@ -6248,16 +6734,19 @@ void CGameScene::BuildSkinnedBatch(
 
 	auto MakeSkinnedContext = [ & ] (UINT objectIndex)
 		{
+			const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
 			GameSceneObjectFactory::CreateContext ctx{};
 			ctx.device = dev;
 			ctx.cmd = cmd;
 			ctx.mappedGameObjectCB =
 				reinterpret_cast< CB_GAMEOBJECT_INFO* >(
-					reinterpret_cast< UINT8* >( b->mappedGameObjects ) +
+					reinterpret_cast< UINT8* >( b->mappedGameObjects[frameIndex] ) +
 					objectIndex * b->cbElementBytes
 				);
 			ctx.cbvGpuHandle.ptr =
-				b->baseCbvGpu.ptr + ( UINT64 ) objectIndex * b->cbvInc;
+				b->baseCbvGpu[frameIndex].ptr +
+				static_cast< UINT64 >( objectIndex ) * b->cbvInc;
 			return ctx;
 		};
 
@@ -7240,24 +7729,36 @@ void CGameScene::BuildSkinnedBatch(
 
 	BuildSkinnedInstanceGroups();
 
-	if ( m_pd3dSkinnedInstanceBuffer )
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
 	{
-		if ( m_pMappedSkinnedInstanceBuffer )
+		if ( m_pd3dSkinnedInstanceBuffer[frameIndex] )
 		{
-			m_pd3dSkinnedInstanceBuffer->Unmap(0, NULL);
-			m_pMappedSkinnedInstanceBuffer = nullptr;
+			if ( m_pMappedSkinnedInstanceBuffer[frameIndex] )
+			{
+				m_pd3dSkinnedInstanceBuffer[frameIndex]->Unmap(0, NULL);
+				m_pMappedSkinnedInstanceBuffer[frameIndex] = nullptr;
+			}
+
+			m_pd3dSkinnedInstanceBuffer[frameIndex].Reset();
 		}
-		m_pd3dSkinnedInstanceBuffer.Reset();
+
+		m_pMappedSkinnedInstanceBuffer[frameIndex] = nullptr;
 	}
 
-	if ( m_pd3dSkinnedBonePaletteBuffer )
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
 	{
-		if ( m_pMappedSkinnedBonePaletteBuffer )
+		if ( m_pd3dSkinnedBonePaletteBuffer[frameIndex] )
 		{
-			m_pd3dSkinnedBonePaletteBuffer->Unmap(0, NULL);
-			m_pMappedSkinnedBonePaletteBuffer = nullptr;
+			if ( m_pMappedSkinnedBonePaletteBuffer[frameIndex] )
+			{
+				m_pd3dSkinnedBonePaletteBuffer[frameIndex]->Unmap(0, NULL);
+				m_pMappedSkinnedBonePaletteBuffer[frameIndex] = nullptr;
+			}
+
+			m_pd3dSkinnedBonePaletteBuffer[frameIndex].Reset();
 		}
-		m_pd3dSkinnedBonePaletteBuffer.Reset();
+
+		m_pMappedSkinnedBonePaletteBuffer[frameIndex] = nullptr;
 	}
 
 	m_skinnedBonePaletteStride = 1;
@@ -7285,16 +7786,27 @@ void CGameScene::BuildSkinnedBatch(
 			m_skinnedInstanceBufferCapacity *
 			kSkinnedInstancePassCount;
 
-		m_pd3dSkinnedInstanceBuffer = ::CreateBufferResource(
-			dev, cmd, nullptr,
-			instanceBufferBytes,
-			D3D12_HEAP_TYPE_UPLOAD,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr
-		);
+		for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+		{
+			m_pd3dSkinnedInstanceBuffer[frameIndex] = ::CreateBufferResource(
+				dev,
+				cmd,
+				nullptr,
+				instanceBufferBytes,
+				D3D12_HEAP_TYPE_UPLOAD,
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				nullptr
+			);
 
-		m_pd3dSkinnedInstanceBuffer->Map(
-			0, nullptr, ( void** ) &m_pMappedSkinnedInstanceBuffer);
+			if ( m_pd3dSkinnedInstanceBuffer[frameIndex] )
+			{
+				m_pd3dSkinnedInstanceBuffer[frameIndex]->Map(
+					0,
+					nullptr,
+					reinterpret_cast< void** >( &m_pMappedSkinnedInstanceBuffer[frameIndex] )
+				);
+			}
+		}
 	}
 
 	if ( m_skinnedBonePaletteCapacity > 0 )
@@ -7302,16 +7814,27 @@ void CGameScene::BuildSkinnedBatch(
 		const UINT bonePaletteBufferBytes =
 			sizeof(XMFLOAT4X4) * m_skinnedBonePaletteCapacity;
 
-		m_pd3dSkinnedBonePaletteBuffer = ::CreateBufferResource(
-			dev, cmd, nullptr,
-			bonePaletteBufferBytes,
-			D3D12_HEAP_TYPE_UPLOAD,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr
-		);
+		for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+		{
+			m_pd3dSkinnedBonePaletteBuffer[frameIndex] = ::CreateBufferResource(
+				dev,
+				cmd,
+				nullptr,
+				bonePaletteBufferBytes,
+				D3D12_HEAP_TYPE_UPLOAD,
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				nullptr
+			);
 
-		m_pd3dSkinnedBonePaletteBuffer->Map(
-			0, nullptr, ( void** ) &m_pMappedSkinnedBonePaletteBuffer);
+			if ( m_pd3dSkinnedBonePaletteBuffer[frameIndex] )
+			{
+				m_pd3dSkinnedBonePaletteBuffer[frameIndex]->Map(
+					0,
+					nullptr,
+					reinterpret_cast< void** >( &m_pMappedSkinnedBonePaletteBuffer[frameIndex] )
+				);
+			}
+		}
 	}
 
 	BuildSkinnedOcclusionEntries();
@@ -7406,26 +7929,36 @@ void CGameScene::BuildColliderBatch(
 	);
 
 	b->cbElementBytes = ( ( sizeof(CB_GAMEOBJECT_INFO) + 255 ) & ~255 );
-
-	b->cbGameObjects = ::CreateBufferResource(
-		dev, cmd, nullptr,
-		b->cbElementBytes * cap,
-		D3D12_HEAP_TYPE_UPLOAD,
-		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
-		nullptr
-	);
-
-	b->cbGameObjects->Map(0, nullptr, ( void** ) &b->mappedGameObjects);
-
-	b->baseCbvGpu = m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
 	b->cbvInc = ::gnCbvSrvDescriptorIncrementSize;
 
-	m_pDescriptorHeap->CreateConstantBufferViews(
-		dev,
-		cap,
-		b->cbGameObjects.Get(),
-		b->cbElementBytes
-	);
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+	{
+		b->cbGameObjects[frameIndex] = ::CreateBufferResource(
+			dev, cmd, nullptr,
+			b->cbElementBytes * cap,
+			D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+			nullptr
+		);
+
+		if ( b->cbGameObjects[frameIndex] )
+		{
+			b->cbGameObjects[frameIndex]->Map(
+				0,
+				nullptr,
+				reinterpret_cast< void** >( &b->mappedGameObjects[frameIndex] )
+			);
+		}
+
+		b->baseCbvGpu[frameIndex] = m_pDescriptorHeap->GetGPUCbvDescriptorNextHandle();
+
+		m_pDescriptorHeap->CreateConstantBufferViews(
+			dev,
+			cap,
+			b->cbGameObjects[frameIndex].Get(),
+			b->cbElementBytes
+		);
+	}
 
 	m_staticObjects.clear();
 	m_staticObjects.reserve(cap);
@@ -7604,9 +8137,11 @@ void CGameScene::RenderShadowMap(ID3D12GraphicsCommandList* cmd)
 	if ( !m_shadowStaticShader ) return;
 	if ( !m_shadowSkinnedShader ) return;
 
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
 	const D3D12_GPU_VIRTUAL_ADDRESS materialCbGpuAddress =
-		m_pd3dcbMaterials
-		? m_pd3dcbMaterials->GetGPUVirtualAddress()
+		m_pd3dcbMaterials[frameIndex]
+		? m_pd3dcbMaterials[frameIndex]->GetGPUVirtualAddress()
 		: 0;
 
 	const bool begun =
@@ -7645,8 +8180,6 @@ void CGameScene::RestoreSceneRenderTargets(ID3D12GraphicsCommandList* cmd, CCame
 
 void CGameScene::RenderShadowPrePass(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
-	PROFILE_RENDER_SCOPE("GameScene::RenderShadowPrePass(total)");
-
 	if ( !cmd )
 		return;
 
@@ -7660,15 +8193,12 @@ void CGameScene::RenderShadowPrePass(ID3D12GraphicsCommandList* cmd, CCamera* ca
 		UpdateShaderVariables(cmd);
 
 		BindFrameRootParameters(cmd);
-
-		BuildStaticShadowVisibleListsForFrame();
+		{
+			PROFILE_RENDER_SCOPE("GameScene::RenderShadowPrePass::BuildShadowVisibleLists");
+			BuildStaticShadowVisibleListsForFrame();
+		}
 	}
-
-	{
-		PROFILE_RENDER_SCOPE("GameScene::RenderShadowPrePass::RenderShadowMap");
-		RenderShadowMap(cmd);
-	}
-
+	RenderShadowMap(cmd);
 	RestoreSceneRenderTargets(cmd, camera);
 }
 
@@ -9436,29 +9966,35 @@ void CGameScene::CollisionObjects()
 void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
 {
 	PROFILE_RENDER_SCOPE("GameScene::UpdateShaderVariables");
-    if (m_pcbMappedLights)
-    {
-        ::ZeroMemory(m_pcbMappedLights, sizeof(LIGHTS));
-		m_pcbMappedLights->m_xmf4GlobalAmbient = XMFLOAT4(0.20f, 0.20f, 0.20f, 1.0f);
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
 
-        UINT li = 0;
-        for (auto& obj : m_lightObjects)
-        {
-            if (!obj) continue;
+	LIGHTS* mappedLights = m_pcbMappedLights[frameIndex];
 
-            auto* lc = obj->GetComponent<CLightComponent>();
-            if (!lc) continue;
-            if (!lc->IsEnabled()) continue;
-            if (li >= MAX_LIGHTS) break;
+	if ( mappedLights )
+	{
+		::ZeroMemory(mappedLights, sizeof(LIGHTS));
+		mappedLights->m_xmf4GlobalAmbient = XMFLOAT4(0.20f, 0.20f, 0.20f, 1.0f);
 
-            lc->Fill(m_pcbMappedLights->m_pLights[li]);
-            ++li;
-        }
-    }
+		UINT li = 0;
+		for ( auto& obj : m_lightObjects )
+		{
+			if ( !obj ) continue;
 
-    if (m_pcbMappedMaterials && m_pMaterials)
-        ::memcpy(m_pcbMappedMaterials, m_pMaterials.get(), sizeof(MATERIALS));
-	
+			auto* lc = obj->GetComponent<CLightComponent>();
+			if ( !lc ) continue;
+			if ( !lc->IsEnabled() ) continue;
+			if ( li >= MAX_LIGHTS ) break;
+
+			lc->Fill(mappedLights->m_pLights[li]);
+			++li;
+		}
+	}
+
+	MATERIALS* mappedMaterials = m_pcbMappedMaterials[frameIndex];
+
+	if ( mappedMaterials && m_pMaterials )
+		::memcpy(mappedMaterials, m_pMaterials.get(), sizeof(MATERIALS));
+
 	CGameObject* shadowFocus = GetPlayer();
 	if ( !shadowFocus )
 		shadowFocus = GetPlayerBySlot(0);
@@ -9503,50 +10039,59 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
 		m_hud.SetHealthRatio(hpRatio);
 	}
 
-    if (m_staticBatch.mappedGameObjects && !m_staticBatch.objectRefs.empty())
-    {
-        const UINT ncb = m_staticBatch.cbElementBytes;
 
-        for (UINT j = 0; j < (UINT)m_staticBatch.objectRefs.size(); ++j)
-        {
-            auto* obj = m_staticBatch.objectRefs[j];
-            if (!obj) continue;
+	if ( m_staticBatch.mappedGameObjects[frameIndex] && !m_staticBatch.objectRefs.empty() )
+	{
+		const UINT ncb = m_staticBatch.cbElementBytes;
 
-            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)m_staticBatch.mappedGameObjects + j * ncb);
+		for ( UINT j = 0; j < static_cast< UINT >(m_staticBatch.objectRefs.size()); ++j )
+		{
+			auto* obj = m_staticBatch.objectRefs[j];
+			if ( !obj ) continue;
 
-            const XMFLOAT4X4& W = obj->GetWorldMatrix();
+			auto* cb =
+				reinterpret_cast< CB_GAMEOBJECT_INFO* >(
+					reinterpret_cast< UINT8* >(m_staticBatch.mappedGameObjects[frameIndex]) +
+					j * ncb
+				);
 
-            XMStoreFloat4x4(
-                &cb->m_xmf4x4World,
-                XMMatrixTranspose(XMLoadFloat4x4(&W))
-            );
+			const XMFLOAT4X4& W = obj->GetWorldMatrix();
 
-            cb->m_nObjectID = j;
-        }
-    }
+			XMStoreFloat4x4(
+				&cb->m_xmf4x4World,
+				XMMatrixTranspose(XMLoadFloat4x4(&W))
+			);
 
-    if (m_skinnedBatch.mappedGameObjects && !m_skinnedBatch.objectRefs.empty())
-    {
-        const UINT ncb = m_skinnedBatch.cbElementBytes;
+			cb->m_nObjectID = j;
+		}
+	}
 
-        for (UINT j = 0; j < (UINT)m_skinnedBatch.objectRefs.size(); ++j)
-        {
-            auto* obj = m_skinnedBatch.objectRefs[j];
-            if (!obj) continue;
+	if ( m_skinnedBatch.mappedGameObjects[frameIndex] && !m_skinnedBatch.objectRefs.empty() )
+	{
+		const UINT ncb = m_skinnedBatch.cbElementBytes;
 
-            auto* cb = (CB_GAMEOBJECT_INFO*)((UINT8*)m_skinnedBatch.mappedGameObjects + j * ncb);
+		for ( UINT j = 0; j < static_cast< UINT >(m_skinnedBatch.objectRefs.size()); ++j )
+		{
+			auto* obj = m_skinnedBatch.objectRefs[j];
+			if ( !obj ) continue;
 
-            const XMFLOAT4X4& W = obj->GetWorldMatrix();
+			auto* cb =
+				reinterpret_cast< CB_GAMEOBJECT_INFO* >(
+					reinterpret_cast< UINT8* >(m_skinnedBatch.mappedGameObjects[frameIndex]) +
+					j * ncb
+				);
 
-            XMStoreFloat4x4(
-                &cb->m_xmf4x4World,
-                XMMatrixTranspose(XMLoadFloat4x4(&W))
-            );
+			const XMFLOAT4X4& W = obj->GetWorldMatrix();
 
-            cb->m_nObjectID = j;
-        }
-    }
-
+			XMStoreFloat4x4(
+				&cb->m_xmf4x4World,
+				XMMatrixTranspose(XMLoadFloat4x4(&W))
+			);
+      
+      cb->m_nObjectID = j;
+		}
+	}
+      
 	if ( m_spawnBatch.mappedGameObjects && !m_spawnBatch.objectRefs.empty() )
 	{
 		const UINT ncb = m_spawnBatch.cbElementBytes;
@@ -9569,16 +10114,20 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
 		}
 	}
 
-	if ( m_colliderBatch.mappedGameObjects && !m_colliderBatch.objectRefs.empty() )
+	if ( m_colliderBatch.mappedGameObjects[frameIndex] && !m_colliderBatch.objectRefs.empty() )
 	{
 		const UINT ncb = m_colliderBatch.cbElementBytes;
 
-		for ( UINT j = 0; j < ( UINT ) m_colliderBatch.objectRefs.size(); ++j )
+		for ( UINT j = 0; j < static_cast< UINT >(m_colliderBatch.objectRefs.size()); ++j )
 		{
 			auto* obj = m_colliderBatch.objectRefs[j];
 			if ( !obj ) continue;
 
-			auto* cb = ( CB_GAMEOBJECT_INFO* ) ( ( UINT8* ) m_colliderBatch.mappedGameObjects + j * ncb );
+			auto* cb =
+				reinterpret_cast< CB_GAMEOBJECT_INFO* >(
+					reinterpret_cast< UINT8* >(m_colliderBatch.mappedGameObjects[frameIndex]) +
+					j * ncb
+				);
 
 			const XMFLOAT4X4& W = obj->GetWorldMatrix();
 
@@ -9605,25 +10154,38 @@ void CGameScene::OnPrepareRender(ID3D12GraphicsCommandList* cmd, CCamera* camera
 
 void CGameScene::UpdateFrameRenderState(CCamera* camera)
 {
-	PROFILE_RENDER_SCOPE("GameScene::UpdateFrameRenderState");
+	PROFILE_RENDER_SCOPE("GameScene::UpdateFrameRenderState(total)");
 
 	if ( !camera )
 		return;
 
-	UpdateStaticWorldLodSelection(camera);
-	BeginStaticOcclusionReadback();
-	UpdateStaticOcclusionCullSelection(camera);
+	{
+		PROFILE_RENDER_SCOPE("UFRS::UpdateStaticWorldLodSelection");
+		UpdateStaticWorldLodSelection(camera);
+	}
+		BeginStaticOcclusionReadback();
+	{
+		PROFILE_RENDER_SCOPE("UFRS::UpdateStaticOcclusionCullSelection");
+		UpdateStaticOcclusionCullSelection(camera);
+	}
 	UpdateStaticTreeGridCullSelection(camera);
-
-	BuildStaticVisibleListsForFrame(camera);
-
+	{
+		PROFILE_RENDER_SCOPE("UFRS::BuildStaticVisibleListsForFrame");
+		BuildStaticVisibleListsForFrame(camera);
+	}
 	UpdateItemBillboardDistanceCullSelection(camera);
-
-	UpdateSkinnedWorldLodSelection(camera);
+	
+	{
+		PROFILE_RENDER_SCOPE("UFRS::UpdateSkinnedWorldLodSelection");
+		UpdateSkinnedWorldLodSelection(camera);
+	}
 	BeginSkinnedOcclusionReadback();
-	UpdateSkinnedOcclusionCullSelection(camera);
 
-	UpdateSpawnWorldLodSelection(camera);
+	{
+		PROFILE_RENDER_SCOPE("UFRS::UpdateSkinnedOcclusionCullSelection");
+		UpdateSkinnedOcclusionCullSelection(camera);
+	}
+  UpdateSpawnWorldLodSelection(camera);
 	BeginSpawnOcclusionReadback();
 	UpdateSpawnOcclusionCullSelection(camera);
 }
@@ -9635,19 +10197,21 @@ void CGameScene::BindFrameRootParameters(ID3D12GraphicsCommandList* cmd)
 	if ( !cmd )
 		return;
 
-	if ( m_pd3dcbLights )
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	if ( m_pd3dcbLights[frameIndex] )
 	{
 		cmd->SetGraphicsRootConstantBufferView(
 			ROOT_PARAMETER_LIGHT,
-			m_pd3dcbLights->GetGPUVirtualAddress()
+			m_pd3dcbLights[frameIndex]->GetGPUVirtualAddress()
 		);
 	}
 
-	if ( m_pd3dcbMaterials )
+	if ( m_pd3dcbMaterials[frameIndex] )
 	{
 		cmd->SetGraphicsRootConstantBufferView(
 			ROOT_PARAMETER_MATERIAL,
-			m_pd3dcbMaterials->GetGPUVirtualAddress()
+			m_pd3dcbMaterials[frameIndex]->GetGPUVirtualAddress()
 		);
 	}
 
@@ -9657,10 +10221,7 @@ void CGameScene::BindFrameRootParameters(ID3D12GraphicsCommandList* cmd)
 
 void CGameScene::RebindFrameRenderState(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
-	PROFILE_RENDER_SCOPE("GameScene::RebindFrameRenderState");
-
-	if ( !cmd )
-		return;
+	if ( !cmd ) return;
 
 	CScene::OnPrepareRender(cmd, camera);
 	BindFrameRootParameters(cmd);
@@ -9688,7 +10249,6 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 
 	if ( m_staticBatch.shader )
 	{
-		PROFILE_RENDER_SCOPE("GameScene::RenderSceneGeometry::StaticInstances");
 		RenderStaticInstanceGroups(cmd, camera);
 	}
 
@@ -9699,7 +10259,6 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 
 	if ( m_skinnedBatch.shader )
 	{
-		m_skinnedBatch.shader->Render(cmd, camera, &m_skinnedBatch);
 		RenderSkinnedInstanceGroups(cmd, camera);
 	}
 

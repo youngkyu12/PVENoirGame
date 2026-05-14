@@ -14,6 +14,11 @@ CShadowMapSystem::~CShadowMapSystem()
 	ReleaseResources();
 }
 
+void CShadowMapSystem::SetFrameResourceIndex(UINT frameResourceIndex)
+{
+	m_nFrameResourceIndex = frameResourceIndex % kFrameResourceCount;
+}
+
 void CShadowMapSystem::BuildResources(
 	ID3D12Device* dev,
 	ID3D12GraphicsCommandList* cmd,
@@ -121,24 +126,29 @@ void CShadowMapSystem::BuildResources(
 
 	const UINT cbBytes = ( sizeof(CB_SHADOW) + 255u ) & ~255u;
 
-	m_pd3dcbShadow = ::CreateBufferResource(
-		dev,
-		nullptr,
-		nullptr,
-		cbBytes,
-		D3D12_HEAP_TYPE_UPLOAD,
-		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
-		nullptr
-	);
-
-	if ( m_pd3dcbShadow )
+	for ( UINT i = 0; i < kFrameResourceCount; ++i )
 	{
-		m_pd3dcbShadow->Map(
-			0,
+		m_pd3dcbShadow[i] = ::CreateBufferResource(
+			dev,
 			nullptr,
-			reinterpret_cast< void** >( &m_pcbMappedShadow )
+			nullptr,
+			cbBytes,
+			D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+			nullptr
 		);
+
+		if ( m_pd3dcbShadow[i] )
+		{
+			m_pd3dcbShadow[i]->Map(
+				0,
+				nullptr,
+				reinterpret_cast< void** >( &m_pcbMappedShadow[i] )
+			);
+		}
 	}
+
+	m_nFrameResourceIndex = 0;
 
 	m_shadowData.shadowParams0 = XMFLOAT4(
 		static_cast< float >( m_shadowMapSize ),
@@ -159,15 +169,20 @@ void CShadowMapSystem::BuildResources(
 
 void CShadowMapSystem::ReleaseResources()
 {
-	if ( m_pd3dcbShadow )
+	for ( UINT i = 0; i < kFrameResourceCount; ++i )
 	{
-		if ( m_pcbMappedShadow )
+		if ( m_pd3dcbShadow[i] )
 		{
-			m_pd3dcbShadow->Unmap(0, nullptr);
-			m_pcbMappedShadow = nullptr;
+			if ( m_pcbMappedShadow[i] )
+			{
+				m_pd3dcbShadow[i]->Unmap(0, nullptr);
+				m_pcbMappedShadow[i] = nullptr;
+			}
+
+			m_pd3dcbShadow[i].Reset();
 		}
 
-		m_pd3dcbShadow.Reset();
+		m_pcbMappedShadow[i] = nullptr;
 	}
 
 	if ( m_pd3dShadowMap )
@@ -179,6 +194,7 @@ void CShadowMapSystem::ReleaseResources()
 	m_shadowMapSrvIndex = UINT_MAX;
 	m_shadowData = CB_SHADOW{};
 	m_shadowView = XMFLOAT4X4{};
+	m_nFrameResourceIndex = 0;
 }
 
 void CShadowMapSystem::BindConstantBuffer(ID3D12GraphicsCommandList* cmd) const
@@ -186,12 +202,14 @@ void CShadowMapSystem::BindConstantBuffer(ID3D12GraphicsCommandList* cmd) const
 	if ( !cmd )
 		return;
 
-	if ( !m_pd3dcbShadow )
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	if ( !m_pd3dcbShadow[frameIndex] )
 		return;
 
 	cmd->SetGraphicsRootConstantBufferView(
 		ROOT_PARAMETER_SHADOW,
-		m_pd3dcbShadow->GetGPUVirtualAddress()
+		m_pd3dcbShadow[frameIndex]->GetGPUVirtualAddress()
 	);
 }
 
@@ -299,10 +317,12 @@ void CShadowMapSystem::UpdateData(
 
 void CShadowMapSystem::UploadConstantBuffer()
 {
-	if ( !m_pcbMappedShadow )
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	if ( !m_pcbMappedShadow[frameIndex] )
 		return;
 
-	memcpy(m_pcbMappedShadow, &m_shadowData, sizeof(CB_SHADOW));
+	memcpy(m_pcbMappedShadow[frameIndex], &m_shadowData, sizeof(CB_SHADOW));
 }
 
 bool CShadowMapSystem::BeginRender(
@@ -363,9 +383,14 @@ bool CShadowMapSystem::BeginRender(
 		);
 	}
 
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	if ( !m_pd3dcbShadow[frameIndex] )
+		return false;
+
 	cmd->SetGraphicsRootConstantBufferView(
 		ROOT_PARAMETER_SHADOW,
-		m_pd3dcbShadow->GetGPUVirtualAddress()
+		m_pd3dcbShadow[frameIndex]->GetGPUVirtualAddress()
 	);
 
 	return true;
