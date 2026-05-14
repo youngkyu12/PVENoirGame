@@ -501,7 +501,9 @@ private:
 	void UpdateSpawnOcclusionCullSelection(CCamera* camera);
 
 	int ComputeSkinnedWorldLodLevel(const XMFLOAT3& cameraPosition, const SkinnedWorldLodEntry& entry) const;
+	int ComputeSpawnWorldLodLevel(const XMFLOAT3& cameraPosition, const SkinnedWorldLodEntry& entry) const;
 	bool ComputeSkinnedWorldDistanceCulled(const XMFLOAT3& cameraPosition, const SkinnedWorldLodEntry& entry) const;
+	bool ComputeSpawnWorldDistanceCulled(const XMFLOAT3& cameraPosition, const SkinnedWorldLodEntry& entry) const;
 	void UpdateSkinnedWorldLodSelection(CCamera* camera);
 	void UpdateSpawnWorldLodSelection(CCamera* camera);
 	void RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
