@@ -4140,6 +4140,7 @@ void CGameScene::BuildStaticBatch(
 	}
 
 	m_treeAlphaClipObjects.clear();
+	m_treeAlphaClipObjects.reserve(cap);
 
 	m_staticObjects.clear();
 	m_staticObjects.reserve(cap);
@@ -4149,7 +4150,10 @@ void CGameScene::BuildStaticBatch(
 
 #ifndef USING_NETWORK
 	m_towerDoorPortals.clear();
+	m_towerDoorPortals.reserve(m_towerCount);
+
 	m_castleDoorPortals.clear();
+	m_castleDoorPortals.reserve(m_castleCount);
 #endif
 
 	m_staticShadowCasterFlags.clear();
@@ -4159,6 +4163,7 @@ void CGameScene::BuildStaticBatch(
 	m_staticTreeObjectIndices.reserve(cap);
 
 	m_staticShadowOcclusionEntryIndices.clear();
+	m_staticShadowOcclusionEntryIndices.reserve(cap);
 
 	m_staticCollisionMegaGridMasks.clear();
 	m_staticCollisionMegaGridMasks.reserve(cap);
@@ -4167,7 +4172,9 @@ void CGameScene::BuildStaticBatch(
 	m_collisionMegaGridMaskByObject.reserve(cap + m_skinnedBatch.capacity);
 
 	b->count = 0;
+
 	ResetStaticWorldLodEntries();
+	m_staticWorldLodEntries.reserve(m_staticPlacementEntries.size());
 
 	std::vector<size_t> exportedWorldStaticPlacementIndices;
 	std::vector<CGameObject*> exportedWorldStaticObjects;
@@ -5122,6 +5129,7 @@ void CGameScene::BuildStaticInstanceGroups()
 void CGameScene::BuildSkinnedInstanceGroups()
 {
 	m_skinnedInstanceGroups.clear();
+	m_skinnedInstanceGroups.reserve(m_skinnedBatch.objectRefs.size() * 2);
 
 	for ( UINT objectIndex = 0; objectIndex < ( UINT ) m_skinnedBatch.objectRefs.size(); ++objectIndex )
 	{
@@ -6058,14 +6066,19 @@ void CGameScene::BuildSkinnedBatch(
 	}
 
 	m_skinnedObjects.clear();
+
 	m_skinnedAlphaClipObjects.clear();
+	m_skinnedAlphaClipObjects.reserve(cap);
+
 	m_skinnedObjects.reserve(cap);
 
 	b->objectRefs.clear();
 	b->objectRefs.reserve(cap);
 
 	b->count = 0;
+
 	ResetSkinnedWorldLodEntries();
+	m_skinnedWorldLodEntries.reserve(cap);
 
 	m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
 
