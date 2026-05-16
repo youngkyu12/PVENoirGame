@@ -2464,8 +2464,10 @@ void CGameScene::RegisterMonsterToMegaGrid(
 	if ( megaNumber <= 0 )
 		return;
 
-	m_collisionMegaGridMaskByObject[monster] =
+	const uint16_t monsterMegaGridMask =
 		static_cast< uint16_t >( 1u << ( megaNumber - 1 ) );
+
+	SetObjectCollisionMegaGridMask(monster, monsterMegaGridMask, true);
 
 	const int zeroBased = megaNumber - 1;
 	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
@@ -2614,16 +2616,54 @@ uint16_t CGameScene::ComputeObjectCurrentMegaGridMask(const CGameObject* obj) co
 	return static_cast< uint16_t >( 1u << bit );
 }
 
-uint16_t CGameScene::GetCollisionMegaGridMaskForObject(const CGameObject* obj) const
+void CGameScene::SetObjectCollisionMegaGridMask(
+	CGameObject* obj,
+	uint16_t mask,
+	bool fixedMask)
 {
 	if ( !obj )
-		return 0;
+		return;
 
-	const auto it = m_collisionMegaGridMaskByObject.find(obj);
-	if ( it != m_collisionMegaGridMaskByObject.end() )
-		return it->second;
+	CColliderComponent* collider = obj->GetComponent<CColliderComponent>();
+	if ( !collider )
+		return;
 
-	return ComputeObjectCurrentMegaGridMask(obj);
+	collider->SetCollisionMegaGridMask(mask);
+	collider->SetCollisionMegaGridMaskFixed(fixedMask);
+}
+
+void CGameScene::RefreshDynamicCollisionMegaGridMasks()
+{
+	auto RefreshObject = [ this ] (CGameObject* obj)
+		{
+			if ( !obj )
+				return;
+
+			CColliderComponent* collider = obj->GetComponent<CColliderComponent>();
+			if ( !collider )
+				return;
+
+			if ( collider->IsCollisionMegaGridMaskFixed() )
+				return;
+
+			const uint16_t mask = ComputeObjectCurrentMegaGridMask(obj);
+			collider->SetCollisionMegaGridMask(mask);
+		};
+
+	// 플레이어는 위치가 계속 변한다.
+	for ( CGameObject* player : m_playersBySlot )
+		RefreshObject(player);
+
+	// static batch에 있지만 transform이 변하는 gameplay object들.
+	for ( CGameObject* obj : m_staticGameplayTickObjects )
+		RefreshObject(obj);
+
+	// PlayerBow / EnemyBow는 skinned batch 쪽이므로 staticGameplayTickObjects에 없다.
+	for ( CGameObject* obj : m_PlayerBowRefs )
+		RefreshObject(obj);
+
+	for ( CGameObject* obj : m_EnemyBowRefs )
+		RefreshObject(obj);
 }
 
 bool CGameScene::ShouldKeepCollisionPairByMegaGrid(
@@ -2633,13 +2673,8 @@ bool CGameScene::ShouldKeepCollisionPairByMegaGrid(
 	if ( !a || !b )
 		return false;
 
-	// 월드 지형/건물과 플레이어, 몬스터, 투사체, 무기 충돌은 grid mask로 필터링한다.
-	// 정적 건물은 위치 1점이 아니라 m_staticCollisionMegaGridMasks를 우선 사용한다.
-	const CGameObject* objA = a->GetOwner();
-	const CGameObject* objB = b->GetOwner();
-
-	const uint16_t maskA = GetCollisionMegaGridMaskForObject(objA);
-	const uint16_t maskB = GetCollisionMegaGridMaskForObject(objB);
+	const uint16_t maskA = a->GetCollisionMegaGridMask();
+	const uint16_t maskB = b->GetCollisionMegaGridMask();
 
 	// grid 밖으로 나간 투사체/오브젝트는 충돌 후보에서 제거.
 	if ( maskA == 0 || maskB == 0 )
@@ -2783,7 +2818,6 @@ void CGameScene::ReleaseObjects()
 	m_staticTreeObjectIndices.clear();
 	m_staticShadowOcclusionEntryIndices.clear();
 	m_staticCollisionMegaGridMasks.clear();
-	m_collisionMegaGridMaskByObject.clear();
 	m_skinnedShadowOcclusionEntryIndices.clear();
 
 #ifndef USING_NETWORK
@@ -4209,9 +4243,6 @@ void CGameScene::BuildStaticBatch(
 	m_staticDynamicWorldMatrixFlags.clear();
 	m_staticDynamicWorldMatrixFlags.reserve(cap);
 
-	m_collisionMegaGridMaskByObject.clear();
-	m_collisionMegaGridMaskByObject.reserve(cap + m_skinnedBatch.capacity);
-
 	b->count = 0;
 
 	ResetStaticWorldLodEntries();
@@ -4494,8 +4525,7 @@ void CGameScene::BuildStaticBatch(
 		const uint16_t collisionMegaGridMask =
 			createWorldStaticCollider ? ComputeStaticObjectMegaGridMask(raw) : 0;
 
-		if ( collisionMegaGridMask != 0 )
-			m_collisionMegaGridMaskByObject[raw] = collisionMegaGridMask;
+		SetObjectCollisionMegaGridMask(raw, collisionMegaGridMask, true);
 
 		m_staticObjects.push_back(std::move(obj));
 		b->objectRefs.push_back(raw);
@@ -4565,6 +4595,7 @@ void CGameScene::BuildStaticBatch(
 				continue;
 
 			CGameObject* raw = obj.get();
+			SetObjectCollisionMegaGridMask(raw, 0, false);
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(0);
@@ -4619,6 +4650,7 @@ void CGameScene::BuildStaticBatch(
 				continue;
 
 			CGameObject* raw = obj.get();
+			SetObjectCollisionMegaGridMask(raw, 0, false);
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(0);
@@ -4662,6 +4694,7 @@ void CGameScene::BuildStaticBatch(
 				continue;
 
 			CGameObject* raw = obj.get();
+			SetObjectCollisionMegaGridMask(raw, 0, false);
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(0);
@@ -4716,6 +4749,7 @@ void CGameScene::BuildStaticBatch(
 				continue;
 
 			CGameObject* raw = obj.get();
+			SetObjectCollisionMegaGridMask(raw, 0, false);
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(1);
@@ -4770,6 +4804,7 @@ void CGameScene::BuildStaticBatch(
 				continue;
 
 			CGameObject* raw = obj.get();
+			SetObjectCollisionMegaGridMask(raw, 0, false);
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(1);
@@ -4817,6 +4852,7 @@ void CGameScene::BuildStaticBatch(
 				continue;
 
 			CGameObject* raw = obj.get();
+			SetObjectCollisionMegaGridMask(raw, 0, false);
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(1);
@@ -4870,6 +4906,7 @@ void CGameScene::BuildStaticBatch(
 				continue;
 
 			CGameObject* raw = obj.get();
+			SetObjectCollisionMegaGridMask(raw, 0, false);
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(1);
@@ -7076,6 +7113,7 @@ void CGameScene::BuildSkinnedBatch(
 
 			m_skinnedObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
+			SetObjectCollisionMegaGridMask(raw, 0, false);
 			b->count = ( UINT ) b->objectRefs.size();
 		}
 	}
@@ -7128,6 +7166,7 @@ void CGameScene::BuildSkinnedBatch(
 
 			m_skinnedObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
+			SetObjectCollisionMegaGridMask(raw, 0, false);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_PlayerBowRefs.push_back(raw);
@@ -7182,6 +7221,7 @@ void CGameScene::BuildSkinnedBatch(
 
 			m_skinnedObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
+			SetObjectCollisionMegaGridMask(raw, 0, false);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_EnemyBowRefs.push_back(raw);
@@ -9312,6 +9352,8 @@ void CGameScene::AnimateObjects(float dt)
 void CGameScene::CollisionObjects()
 {
 	if ( !m_Collision ) return;
+
+	RefreshDynamicCollisionMegaGridMasks();
 
 	m_Collision->OnUpdateFiltered(
 		[ this ](
