@@ -698,8 +698,19 @@ private:
 
 	uint16_t ComputeStaticObjectMegaGridMask(CGameObject* obj) const;
 	uint16_t ComputeObjectCurrentMegaGridMask(const CGameObject* obj) const;
-	uint16_t GetCollisionMegaGridMaskForObject(const CGameObject* obj) const;
-	bool ShouldKeepCollisionPairByMegaGrid(const CColliderComponent* a, const CColliderComponent* b) const;
+
+	void SetObjectCollisionMegaGridMask(
+		CGameObject* obj,
+		uint16_t mask,
+		bool fixedMask
+	);
+
+	void RefreshDynamicCollisionMegaGridMasks();
+
+	bool ShouldKeepCollisionPairByMegaGrid(
+		const CColliderComponent* a,
+		const CColliderComponent* b
+	) const;
 
 	void MarkLocalPlayerEnteredCastleCenterMegaGrid(); 
 	bool IsLocalPlayerInsideCastleCenterMegaGridFullArea() const;
@@ -992,7 +1003,6 @@ private:
 	std::vector<int>                    m_staticShadowOcclusionEntryIndices;
 
 	std::vector<uint16_t>               m_staticCollisionMegaGridMasks;
-	std::unordered_map<const CGameObject*, uint16_t> m_collisionMegaGridMaskByObject;
 
 	std::vector<UINT64>                 m_staticOcclusionQuerySampleCounts;
 	std::vector<uint8_t>                m_staticOcclusionLastFrameIssuedFlags;
