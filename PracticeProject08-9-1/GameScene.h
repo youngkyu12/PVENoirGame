@@ -29,6 +29,11 @@ class CCollisionSystem;
 class CTexture;
 class CNavMesh;
 class CStaticMeshRendererComponent;
+class CSkinnedMeshRendererComponent;
+class CSkinningComponent;
+class CAnimatorComponent;
+class CHealthComponent;
+class CActorTagComponent;
 
 struct CB_GAMEOBJECT_INFO;
 
@@ -327,6 +332,21 @@ struct SkinnedInstanceGroup
 	bool useAlphaClipShader = false;
 };
 
+struct SkinnedComponentCache
+{
+	CGameObject* object = nullptr;
+
+	CSkinnedMeshRendererComponent* renderer = nullptr;
+	CSkinningComponent* skinning = nullptr;
+	CAnimatorComponent* animator = nullptr;
+	CHealthComponent* health = nullptr;
+	CActorTagComponent* actorTag = nullptr;
+	CColliderComponent* collider = nullptr;
+
+	bool isNpc = false;
+	bool isPlayer = false;
+};
+
 // ============================================================================
 // GameScene
 // ============================================================================
@@ -468,6 +488,18 @@ private:
 		ID3D12Device* dev,
 		ID3D12GraphicsCommandList* cmd
 	);
+
+	void BuildSkinnedComponentCache();
+	const SkinnedComponentCache* GetSkinnedComponentCache(UINT objectIndex) const;
+
+	bool WriteSkinnedInstanceVertexFromCache(
+		SkinnedInstanceVertex& dst,
+		const SkinnedComponentCache& cache,
+		UINT objectIndex,
+		UINT meshIndex,
+		UINT subMeshIndex,
+		XMFLOAT4X4* mappedSkinnedBonePaletteBuffer
+	) const;
 
 	void BuildSkinnedInstanceGroups();
 	void ResetSkinnedWorldLodEntries();
@@ -1025,6 +1057,7 @@ private:
 	bool GetPauseOverlayRect(XMFLOAT4& outRect) const;
 
 	std::vector<SkinnedInstanceGroup>   m_skinnedInstanceGroups;
+	std::vector<SkinnedComponentCache>  m_skinnedComponentCache;
 
 	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dSkinnedInstanceBuffer;
 	std::vector<SkinnedWorldLodEntry>   m_skinnedWorldLodEntries;
