@@ -1,7 +1,6 @@
 #pragma once
 
 class CGameObject;
-class CCamera;
 
 class EnemySpawner
 {

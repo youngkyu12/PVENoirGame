@@ -29,6 +29,7 @@ class CCollisionSystem;
 class CTexture;
 class CNavMesh;
 class CStaticMeshRendererComponent;
+class EnemySpawner;
 
 struct CB_GAMEOBJECT_INFO;
 
@@ -752,6 +753,7 @@ private:
 	UINT m_PlayerAxeCount = 4;
 	UINT m_PlayerGunCount = 4;
 	UINT m_ColliderCount = 0;
+	UINT m_EnemySpawnCount = 0;
 
     std::vector<std::unique_ptr<CGameObject>> m_staticObjects;
     std::vector<std::unique_ptr<CGameObject>> m_skinnedObjects;
@@ -822,6 +824,7 @@ private:
 
     std::vector<CGameObject*> m_EnemySwordRefs;
     std::vector<CGameObject*> m_EnemyBowRefs;
+	std::vector<CGameObject*> m_EnemySpawnRefs;
 
     std::vector<AttachmentBindSpec> m_attachmentBinds;
 
@@ -907,6 +910,10 @@ private:
 
     unique_ptr<CCollisionSystem> m_Collision;
 	std::unique_ptr<CNavMesh> m_navMesh;
+
+	std::unique_ptr<EnemySpawner> m_enemySpawner;
+	float m_enemySpawnAccumulatorSec = 0.0f;
+	float m_enemySpawnIntervalSec = 5.0f;
 
 #ifndef USING_NETWORK
 	std::vector<MonsterSpawnEntry>	m_monsterSpawnEntries;
