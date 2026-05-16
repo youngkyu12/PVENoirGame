@@ -4488,12 +4488,16 @@ void CGameScene::BuildStaticBatch(
 				lodEntry.lodDistance12 = 120.0f;
 				lodEntry.cullDistance = 500.0f;
 			}
-			else if ( placement.assetName == "Tower" ) {
-				lodEntry.lodDistance01 = 200.0f;
+			else if ( 
+				placement.assetName == "Tower" ) 
+			{
+				lodEntry.lodDistance01 = 300.0f;
 				lodEntry.lodDistance12 = 500.0f;
 				lodEntry.cullDistance = 800.0f;
 			}
-			else if ( placement.assetName == "Castle" ) {
+			else if (
+				placement.assetName == "Castle" ) 
+			{
 				lodEntry.lodDistance01 = 400.0f;
 				lodEntry.lodDistance12 = 600.0f;
 				lodEntry.cullDistance = 1000.0f;
@@ -4501,6 +4505,8 @@ void CGameScene::BuildStaticBatch(
 
 			else
 			{
+				lodEntry.lodDistance01 = 100.0f;
+				lodEntry.lodDistance12 = 300.0f;
 				lodEntry.cullDistance = 400.0f;
 			}
 
