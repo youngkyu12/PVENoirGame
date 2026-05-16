@@ -2468,8 +2468,13 @@ bool CGameScene::ShouldSkipMonsterByMegaGrid(
 	if ( activeMegaGridNumber <= 0 )
 		return false;
 
-	auto* tag = monster->GetComponent<CActorTagComponent>();
-	if ( !tag || tag->kind != EActorKind::NPC )
+	const SkinnedComponentCache* cache =
+		GetSkinnedComponentCache(skinnedBatchObjectIndex);
+
+	if ( !cache || cache->object != monster )
+		return false;
+
+	if ( !cache->isNpc )
 		return false;
 
 	if ( skinnedBatchObjectIndex >= static_cast< UINT >( m_skinnedMonsterMegaGridNumbers.size() ) )
@@ -2787,7 +2792,10 @@ void CGameScene::ReleaseObjects()
 	ResetStaticWorldLodEntries();
 	ResetStaticOcclusionEntries();
 	m_staticOcclusionUnitBoxMesh.reset();
+
 	m_skinnedInstanceGroups.clear();
+	m_skinnedComponentCache.clear();
+
 	ResetSkinnedWorldLodEntries();
 	ResetSkinnedOcclusionEntries();
 
@@ -3389,13 +3397,10 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 #endif
 	BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
 
-	for ( CGameObject* obj : m_skinnedBatch.objectRefs )
+	for ( const SkinnedComponentCache& cache : m_skinnedComponentCache )
 	{
-		if ( !obj )
-			continue;
-
-		if ( auto* hp = obj->GetComponent<CHealthComponent>() )
-			hp->SetAudioManager(m_pAudioManager);
+		if ( cache.health )
+			cache.health->SetAudioManager(m_pAudioManager);
 	}
 
 	LinkSceneObjects();
@@ -5126,6 +5131,127 @@ void CGameScene::BuildStaticInstanceGroups()
 	}
 }
 
+void CGameScene::BuildSkinnedComponentCache()
+{
+	m_skinnedComponentCache.clear();
+
+	const UINT objectCount =
+		static_cast< UINT >( m_skinnedBatch.objectRefs.size() );
+
+	m_skinnedComponentCache.resize(objectCount);
+
+	for ( UINT objectIndex = 0; objectIndex < objectCount; ++objectIndex )
+	{
+		CGameObject* obj = m_skinnedBatch.objectRefs[objectIndex];
+
+		SkinnedComponentCache& cache = m_skinnedComponentCache[objectIndex];
+		cache = SkinnedComponentCache{};
+		cache.object = obj;
+
+		if ( !obj )
+			continue;
+
+		cache.renderer = obj->GetComponent<CSkinnedMeshRendererComponent>();
+		cache.skinning = obj->GetComponent<CSkinningComponent>();
+		cache.animator = obj->GetComponent<CAnimatorComponent>();
+		cache.health = obj->GetComponent<CHealthComponent>();
+		cache.actorTag = obj->GetComponent<CActorTagComponent>();
+		cache.collider = obj->GetComponent<CColliderComponent>();
+
+		if ( cache.actorTag )
+		{
+			cache.isNpc = ( cache.actorTag->kind == EActorKind::NPC );
+			cache.isPlayer = ( cache.actorTag->kind == EActorKind::Player );
+		}
+	}
+}
+
+const SkinnedComponentCache* CGameScene::GetSkinnedComponentCache(UINT objectIndex) const
+{
+	if ( objectIndex >= static_cast< UINT >( m_skinnedComponentCache.size() ) )
+		return nullptr;
+
+	return &m_skinnedComponentCache[objectIndex];
+}
+
+bool CGameScene::WriteSkinnedInstanceVertexFromCache(
+	SkinnedInstanceVertex& dst,
+	const SkinnedComponentCache& cache,
+	UINT objectIndex,
+	UINT meshIndex,
+	UINT subMeshIndex,
+	XMFLOAT4X4* mappedSkinnedBonePaletteBuffer) const
+{
+	CGameObject* obj = cache.object;
+	if ( !obj )
+		return false;
+
+	if ( !cache.renderer || !cache.renderer->IsEnabled() )
+		return false;
+
+	CSkinningComponent* skin = cache.skinning;
+	if ( !skin || !skin->IsSkinned() )
+		return false;
+
+	std::shared_ptr<CMesh> objMesh = obj->GetMeshShared(static_cast< int >( meshIndex ));
+	if ( !objMesh )
+		return false;
+
+	if ( subMeshIndex >= objMesh->m_SubMeshes.size() )
+		return false;
+
+	if ( objectIndex >= static_cast< UINT >( m_skinnedBonePaletteBaseByObject.size() ) )
+		return false;
+
+	if ( objectIndex >= static_cast< UINT >( m_skinnedBonePaletteCountByObject.size() ) )
+		return false;
+
+	const UINT bonePaletteBase = m_skinnedBonePaletteBaseByObject[objectIndex];
+
+	const UINT reservedBoneCount =
+		m_skinnedBonePaletteCountByObject[objectIndex];
+
+	if ( reservedBoneCount == 0 )
+		return false;
+
+	if ( bonePaletteBase >= m_skinnedBonePaletteCapacity )
+		return false;
+
+	if ( reservedBoneCount > m_skinnedBonePaletteCapacity - bonePaletteBase )
+		return false;
+
+	const SubMesh& objSm = objMesh->m_SubMeshes[subMeshIndex];
+
+	const XMFLOAT4X4& W = obj->GetWorldMatrix();
+
+	dst.world0 = XMFLOAT4(W._11, W._12, W._13, W._14);
+	dst.world1 = XMFLOAT4(W._21, W._22, W._23, W._24);
+	dst.world2 = XMFLOAT4(W._31, W._32, W._33, W._34);
+	dst.world3 = XMFLOAT4(W._41, W._42, W._43, W._44);
+
+	dst.materialId = ( objSm.materialId == 0xFFFFFFFFu ) ? 0u : objSm.materialId;
+	dst.bonePaletteBase = bonePaletteBase;
+
+	const XMFLOAT4X4* srcBoneMats = skin->GetMappedBoneMatrices();
+	const UINT boneCount = static_cast< UINT >( skin->GetBoneCount() );
+
+	if ( mappedSkinnedBonePaletteBuffer && srcBoneMats && boneCount > 0 )
+	{
+		UINT copyBoneCount = boneCount;
+
+		if ( copyBoneCount > reservedBoneCount )
+			copyBoneCount = reservedBoneCount;
+
+		memcpy(
+			mappedSkinnedBonePaletteBuffer + bonePaletteBase,
+			srcBoneMats,
+			sizeof(XMFLOAT4X4) * copyBoneCount
+		);
+	}
+
+	return true;
+}
+
 void CGameScene::BuildSkinnedInstanceGroups()
 {
 	m_skinnedInstanceGroups.clear();
@@ -5633,70 +5759,27 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 					continue;
 			}
 
-			CGameObject* obj = m_skinnedBatch.objectRefs[objectIndex];
-			if ( !obj ) continue;
-			if ( !obj->IsVisible(camera) ) continue;
+			const SkinnedComponentCache* cache =
+				GetSkinnedComponentCache(objectIndex);
 
-			auto* renderer = obj->GetComponent<CSkinnedMeshRendererComponent>();
-			if ( !renderer ) continue;
-			if ( !renderer->IsEnabled() ) continue;
+			if ( !cache || !cache->object )
+				continue;
 
-			auto* skin = obj->GetComponent<CSkinningComponent>();
-			if ( !skin ) continue;
-			if ( !skin->IsSkinned() ) continue;
-
-			std::shared_ptr<CMesh> objMesh = obj->GetMeshShared(( int ) group.meshIndex); 
-			if ( !objMesh ) continue;
-			if ( group.subMeshIndex >= objMesh->m_SubMeshes.size() ) continue;
-
-			const SubMesh& objSm = objMesh->m_SubMeshes[group.subMeshIndex];
+			if ( !cache->object->IsVisible(camera) )
+				continue;
 
 			SkinnedInstanceVertex& dst =
 				mappedSkinnedInstanceBuffer[instanceBase + visibleInstanceCount];
 
-			const XMFLOAT4X4& W = obj->GetWorldMatrix();
-
-			dst.world0 = XMFLOAT4(W._11, W._12, W._13, W._14);
-			dst.world1 = XMFLOAT4(W._21, W._22, W._23, W._24);
-			dst.world2 = XMFLOAT4(W._31, W._32, W._33, W._34);
-			dst.world3 = XMFLOAT4(W._41, W._42, W._43, W._44);
-
-			dst.materialId = ( objSm.materialId == 0xFFFFFFFFu ) ? 0u : objSm.materialId;
-
-			if ( objectIndex >= static_cast< UINT >( m_skinnedBonePaletteBaseByObject.size() ) )
-				continue;
-
-			if ( objectIndex >= static_cast< UINT >( m_skinnedBonePaletteCountByObject.size() ) )
-				continue;
-
-			dst.bonePaletteBase = m_skinnedBonePaletteBaseByObject[objectIndex];
-
-			const UINT reservedBoneCount =
-				m_skinnedBonePaletteCountByObject[objectIndex];
-
-			if ( reservedBoneCount == 0 )
-				continue;
-
-			if ( dst.bonePaletteBase >= m_skinnedBonePaletteCapacity )
-				continue;
-
-			if ( reservedBoneCount > m_skinnedBonePaletteCapacity - dst.bonePaletteBase )
-				continue;
-
-			const XMFLOAT4X4* srcBoneMats = skin->GetMappedBoneMatrices();
-			const UINT boneCount = static_cast< UINT >( skin->GetBoneCount() );
-
-			if ( srcBoneMats && boneCount > 0 )
+			if ( !WriteSkinnedInstanceVertexFromCache(
+				dst,
+				*cache,
+				objectIndex,
+				group.meshIndex,
+				group.subMeshIndex,
+				mappedSkinnedBonePaletteBuffer) )
 			{
-				int min = boneCount;
-				if ( min > reservedBoneCount ) min = reservedBoneCount;
-				const UINT copyBoneCount = min;
-
-				memcpy(
-					mappedSkinnedBonePaletteBuffer + dst.bonePaletteBase,
-					srcBoneMats,
-					sizeof(XMFLOAT4X4) * copyBoneCount
-				);
+				continue;
 			}
 
 			++visibleInstanceCount;
@@ -5914,69 +5997,24 @@ void CGameScene::RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandLis
 			if ( !IsSkinnedObjectInsideShadowBox(objectIndex) )
 				continue;
 
-			CGameObject* obj = m_skinnedBatch.objectRefs[objectIndex];
-			if ( !obj ) continue;
+			const SkinnedComponentCache* cache =
+				GetSkinnedComponentCache(objectIndex);
 
-			auto* renderer = obj->GetComponent<CSkinnedMeshRendererComponent>();
-			if ( !renderer ) continue;
-			if ( !renderer->IsEnabled() ) continue;
-
-			auto* skin = obj->GetComponent<CSkinningComponent>();
-			if ( !skin ) continue;
-			if ( !skin->IsSkinned() ) continue;
-
-			std::shared_ptr<CMesh> objMesh = obj->GetMeshShared(( int ) group.meshIndex);
-			if ( !objMesh ) continue;
-			if ( group.subMeshIndex >= objMesh->m_SubMeshes.size() ) continue;
-
-			const SubMesh& objSm = objMesh->m_SubMeshes[group.subMeshIndex];
+			if ( !cache || !cache->object )
+				continue;
 
 			SkinnedInstanceVertex& dst =
 				mappedSkinnedInstanceBuffer[instanceBase + visibleInstanceCount];
 
-			const XMFLOAT4X4& W = obj->GetWorldMatrix();
-
-			dst.world0 = XMFLOAT4(W._11, W._12, W._13, W._14);
-			dst.world1 = XMFLOAT4(W._21, W._22, W._23, W._24);
-			dst.world2 = XMFLOAT4(W._31, W._32, W._33, W._34);
-			dst.world3 = XMFLOAT4(W._41, W._42, W._43, W._44);
-
-			dst.materialId = ( objSm.materialId == 0xFFFFFFFFu ) ? 0u : objSm.materialId;
-
-			if ( objectIndex >= static_cast< UINT >( m_skinnedBonePaletteBaseByObject.size() ) )
-				continue;
-
-			if ( objectIndex >= static_cast< UINT >( m_skinnedBonePaletteCountByObject.size() ) )
-				continue;
-
-			dst.bonePaletteBase = m_skinnedBonePaletteBaseByObject[objectIndex];
-
-			const UINT reservedBoneCount =
-				m_skinnedBonePaletteCountByObject[objectIndex];
-
-			if ( reservedBoneCount == 0 )
-				continue;
-
-			if ( dst.bonePaletteBase >= m_skinnedBonePaletteCapacity )
-				continue;
-
-			if ( reservedBoneCount > m_skinnedBonePaletteCapacity - dst.bonePaletteBase )
-				continue;
-
-			const XMFLOAT4X4* srcBoneMats = skin->GetMappedBoneMatrices();
-			const UINT boneCount = static_cast< UINT >( skin->GetBoneCount() );
-
-			if ( srcBoneMats && boneCount > 0 )
+			if ( !WriteSkinnedInstanceVertexFromCache(
+				dst,
+				*cache,
+				objectIndex,
+				group.meshIndex,
+				group.subMeshIndex,
+				mappedSkinnedBonePaletteBuffer) )
 			{
-				int min = boneCount;
-				if ( min > reservedBoneCount ) min = reservedBoneCount;
-				const UINT copyBoneCount = min;
-
-				memcpy(
-					mappedSkinnedBonePaletteBuffer + dst.bonePaletteBase,
-					srcBoneMats,
-					sizeof(XMFLOAT4X4) * copyBoneCount
-				);
+				continue;
 			}
 
 			++visibleInstanceCount;
@@ -7077,6 +7115,7 @@ void CGameScene::BuildSkinnedBatch(
 	m_preparedBowmanArrows.assign(m_bowManRefs.size(), nullptr);
 	m_prevEnemyBowReleasePhase.assign(m_bowManRefs.size(), false);
 
+	BuildSkinnedComponentCache();
 	BuildSkinnedInstanceGroups();
 
 	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
@@ -7124,19 +7163,19 @@ void CGameScene::BuildSkinnedBatch(
 
 	for ( UINT i = 0; i < skinnedObjectCount; ++i )
 	{
-		CGameObject* obj = m_skinnedBatch.objectRefs[i];
+		const SkinnedComponentCache* cache = GetSkinnedComponentCache(i);
 
 		UINT boneCount = 1;
 
-		if ( obj )
+		if ( cache && cache->object )
 		{
-			if ( auto* skin = obj->GetComponent<CSkinningComponent>() )
+			if ( cache->skinning )
 			{
-				boneCount = static_cast< UINT >(skin->GetBoneCount());
+				boneCount = static_cast< UINT >(cache->skinning->GetBoneCount());
 			}
 			else
 			{
-				boneCount = static_cast< UINT >( obj->GetBoneCount() );
+				boneCount = static_cast< UINT >( cache->object->GetBoneCount() );
 			}
 
 			if ( boneCount == 0 )
@@ -8381,24 +8420,21 @@ void CGameScene::BeginMonsterDeath(CGameObject* monster)
 
 void CGameScene::UpdateMonsterDeathStates()
 {
-	for ( CGameObject* obj : m_skinnedBatch.objectRefs )
+	for ( const SkinnedComponentCache& cache : m_skinnedComponentCache )
 	{
+		CGameObject* obj = cache.object;
 		if ( !obj )
 			continue;
 
-		auto* tag = obj->GetComponent<CActorTagComponent>();
-		if ( !tag || tag->kind != EActorKind::NPC )
+		if ( !cache.isNpc )
 			continue;
 
-		auto* hp = obj->GetComponent<CHealthComponent>();
-		if ( !hp )
+		if ( !cache.health )
 			continue;
 
-		if ( hp->IsDead() )
+		if ( cache.health->IsDead() )
 			BeginMonsterDeath(obj);
 	}
-
-	UpdateMegaGridClearStateFromMonsterDeaths();
 }
 
 void CGameScene::BeginLocalPlayerDeath(CGameObject* player)
@@ -8772,13 +8808,12 @@ bool CGameScene::ProcessInput(UCHAR* /*pKeysBuffer*/)
 
 bool CGameScene::ShouldEvaluateSkinnedPoseThisFrame(UINT objectIndex, CCamera* camera) const
 {
-	if ( objectIndex >= static_cast< UINT >( m_skinnedBatch.objectRefs.size() ) )
+	const SkinnedComponentCache* cache = GetSkinnedComponentCache(objectIndex);
+
+	if ( !cache || !cache->object )
 		return false;
 
-	CGameObject* obj = m_skinnedBatch.objectRefs[objectIndex];
-
-	if ( !obj )
-		return false;
+	CGameObject* obj = cache->object;
 
 	// 비네트워크 모드는 클라이언트가 실제 판정도 하므로 보수적으로 full pose 유지.
 #ifndef USING_NETWORK
@@ -8788,9 +8823,7 @@ bool CGameScene::ShouldEvaluateSkinnedPoseThisFrame(UINT objectIndex, CCamera* c
 	if ( IsLocalPlayer(obj) )
 		return true;
 
-	auto* renderer = obj->GetComponent<CSkinnedMeshRendererComponent>();
-
-	if ( !renderer || !renderer->IsEnabled() )
+	if ( !cache->renderer || !cache->renderer->IsEnabled() )
 		return false;
 
 	const bool distanceCulled =
@@ -8811,8 +8844,6 @@ bool CGameScene::ShouldEvaluateSkinnedPoseThisFrame(UINT objectIndex, CCamera* c
 		!occlusionCulled && frustumVisible;
 
 	// Shadow pass에서도 렌더될 수 있으면 pose를 갱신한다.
-	// 이미 RenderSkinnedInstanceGroupsToShadowMap()도 distance cull +
-	// IsSkinnedObjectInsideShadowBox() 기준으로 걸러낸다.
 	const bool shadowVisible =
 		IsSkinnedObjectInsideShadowBox(objectIndex);
 
@@ -9145,18 +9176,19 @@ void CGameScene::AnimateObjects(float dt)
 	const int activeMonsterMegaGridNumber = -1;
 #endif
 
-	for ( UINT j = 0; j < static_cast< UINT >(m_skinnedObjects.size()); ++j )
+	for ( UINT j = 0; j < static_cast< UINT >(m_skinnedComponentCache.size()); ++j )
 	{
-		if ( !m_skinnedObjects[j] )
-			continue;
+		const SkinnedComponentCache& cache = m_skinnedComponentCache[j];
 
-		CGameObject* obj = m_skinnedObjects[j].get();
+		CGameObject* obj = cache.object;
+		if ( !obj )
+			continue;
 
 #ifndef USING_NETWORK
 		if ( ShouldSkipMonsterByMegaGrid(obj, j, activeMonsterMegaGridNumber) )
 		{
-			if ( auto* animComp = obj->GetComponent<CAnimatorComponent>() )
-				animComp->SetPoseEvaluationEnabled(false);
+			if ( cache.animator )
+				cache.animator->SetPoseEvaluationEnabled(false);
 
 			continue;
 		}
@@ -9169,10 +9201,8 @@ void CGameScene::AnimateObjects(float dt)
 		const bool shouldEvaluatePose = true;
 #endif
 
-		if ( auto* animComp = obj->GetComponent<CAnimatorComponent>() )
-		{
-			animComp->SetPoseEvaluationEnabled(shouldEvaluatePose);
-		}
+		if ( cache.animator )
+			cache.animator->SetPoseEvaluationEnabled(shouldEvaluatePose);
 
 		obj->Animate(dt);
 	}
