@@ -412,7 +412,6 @@ private:
 	void BuildStaticInstanceGroups();
 
 	void BuildStaticRenderObjectCache();
-	bool IsDynamicStaticRenderObject(const CGameObject* obj) const;
 	void BuildStaticGameplayTickList();
 	bool WriteStaticInstanceVertexFromCache(StaticInstanceVertex& dst, UINT objectIndex) const;
 	void BuildStaticVisibleListsForFrame(CCamera* camera);
@@ -987,6 +986,7 @@ private:
 	std::vector<uint8_t>                m_staticOcclusionCullFlags;
 	std::vector<uint8_t>                m_staticTreeGridCullFlags;
 
+	std::vector<uint8_t>                m_staticDynamicWorldMatrixFlags;
 	std::vector<uint8_t>                m_staticShadowCasterFlags;
 	std::vector<UINT>                   m_staticTreeObjectIndices;
 	std::vector<int>                    m_staticShadowOcclusionEntryIndices;
