@@ -46,6 +46,7 @@
 #include "AttackPowerComponent.h"
 #include "AudioManager.h"
 #include "MusicDirector.h"
+#include "EnemySpawner.h"
 
 #include "ThreadManager.h"
 #include "Service.h"
@@ -3247,6 +3248,8 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
 	m_helmetCount = m_MutantCount;
 
+	m_EnemySpawnCount = 200;
+
 #ifdef USING_NETWORK
 	const UINT worldStaticCount = static_cast< UINT >( m_staticPlacementEntries.size() );
 #else
@@ -3271,7 +3274,8 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		m_bossCount +
 		m_PlayerCount +
 		m_PlayerBowCount +
-		m_bowManCount;
+		m_bowManCount +
+		m_EnemySpawnCount;
 
 	m_colliderBatch.capacity = m_staticBatch.capacity + m_skinnedBatch.capacity;
 
@@ -3389,6 +3393,12 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	//BuildStaticWorldSubmeshOOBBDebugObjects(dev, cmd);
 #endif
 	BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
+
+	if ( !m_enemySpawner )
+		m_enemySpawner = std::make_unique<EnemySpawner>();
+
+	m_enemySpawner->Initialize(m_EnemySpawnRefs);
+	m_enemySpawnAccumulatorSec = 0.0f;
 
 	for ( CGameObject* obj : m_skinnedBatch.objectRefs )
 	{
@@ -5559,6 +5569,7 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 			}
 
 			CGameObject* obj = m_skinnedBatch.objectRefs[objectIndex];
+			if ( !obj->GetActive() ) continue;
 			if ( !obj ) continue;
 			if ( !obj->IsVisible(camera) ) continue;
 
@@ -6146,6 +6157,7 @@ void CGameScene::BuildSkinnedBatch(
 		const UINT countW = m_ghoulCount;
 #else
 		const UINT countW = static_cast< UINT >( ghoulSpawns.size() );
+		const UINT countEnemySpawn = m_EnemySpawnCount;
 #endif
 
 		const auto& ghoulClips = GetGhoulClipEntries();
@@ -6270,6 +6282,89 @@ void CGameScene::BuildSkinnedBatch(
 			);
 
 			m_skinnedObjects.push_back(std::move(obj));
+			b->objectRefs.push_back(raw);
+			b->count = ( UINT ) b->objectRefs.size();
+		}
+
+		for ( UINT k = 0; k < countEnemySpawn; ++k )
+		{
+			if ( b->objectRefs.size() >= b->capacity ) break;
+
+			const UINT i = ( UINT ) b->objectRefs.size();
+
+			XMFLOAT3 pos{};
+			float yaw = 180.0f;
+
+#ifdef USING_NETWORK
+			if ( !GetNetworkEnemySpawn(enemyIndex, pos, yaw) )
+				break;
+#else
+			if ( k >= m_EnemySpawnCount )
+				break;
+#endif
+
+			GameSceneObjectFactory::SkinnedRenderableDesc createDesc{};
+			createDesc.ctx = MakeSkinnedContext(i);
+			createDesc.mesh = ghoulBaseMesh;
+			createDesc.position = pos;
+			createDesc.yawDeg = yaw;
+
+			ApplyMonsterBodyCollider(createDesc);
+
+			createDesc.addAnimator = true;
+			createDesc.addActorTag = true;
+			createDesc.actorKind = EActorKind::NPC;
+			createDesc.playerControl = EPlayerControl::None;
+			createDesc.playerSlot = -1;
+
+			createDesc.addMonsterCombat = true;
+			createDesc.addMonsterWeaponHitbox = true;
+
+			createDesc.addHealth = true;
+			createDesc.maxHp = kHpGhoul;
+
+			createDesc.addAttackPower = true;
+			createDesc.attackPower = kAttackPowerGhoul;
+
+			createDesc.skeletonKey = "Ghoul";
+			createDesc.clipEntries = &ghoulClips;
+
+			createDesc.initMonsterController = true;
+			createDesc.monsterInitialState = EMonsterAnimState::Idle;
+			createDesc.monsterProfile.idleClip = "Idle";
+			createDesc.monsterProfile.moveClip = "Walk";
+			createDesc.monsterProfile.runClip = "Run";
+			createDesc.monsterProfile.hitClip = "Hit";
+			createDesc.monsterProfile.attackClip = "Attack";
+			createDesc.monsterProfile.deathClip = "Death";
+
+			createDesc.useOwnerBoneWeaponCapsules = true;
+			createDesc.monsterWeaponConfigs.push_back(
+				{ "Attack", 0.20f, 0.55f, { "hand_r" } }
+			);
+
+			auto obj = GameSceneObjectFactory::CreateSkinnedRenderable(createDesc);
+			if ( !obj )
+				continue;
+
+#ifndef USING_NETWORK
+			AttachGhoulAIToMonster(obj);
+#endif
+
+			++enemyIndex;
+
+			CGameObject* raw = obj.get();
+
+			RegisterMonsterToMegaGrid(raw, pos, i);
+
+			RegisterSkinnedCullEntry(
+				raw, i, "Ghoul", pos,
+				ghoulLodMeshes, true,
+				35.0f, 90.0f, 120.0f
+			);
+
+			m_skinnedObjects.push_back(std::move(obj));
+			m_EnemySpawnRefs.push_back(raw);
 			b->objectRefs.push_back(raw);
 			b->count = ( UINT ) b->objectRefs.size();
 		}
@@ -8672,6 +8767,15 @@ void CGameScene::AnimateObjects(float dt)
 {
 	m_fElapsedTime = dt;
 
+	CGameObject* local = GetPlayer();
+	if ( !local )
+		local = GetPlayerBySlot(0);
+
+	if ( m_enemySpawner )
+	{
+		m_enemySpawner->Update(dt, local->GetPosition());
+	}
+
 	UpdateMuzzleFlashes(dt);
 	UpdateSwordTrails(dt);
 
@@ -9021,6 +9125,8 @@ void CGameScene::AnimateObjects(float dt)
 		{
 			animComp->SetPoseEvaluationEnabled(shouldEvaluatePose);
 		}
+
+		if ( !obj->GetActive() ) continue;
 
 		obj->Animate(dt);
 	}

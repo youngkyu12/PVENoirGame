@@ -383,6 +383,7 @@
     <ClInclude Include="ShadowMap.h">
       <Filter>ShadowMap</Filter>
     </ClInclude>
+    <ClInclude Include="EnemySpawner.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -580,6 +581,7 @@
     <ClCompile Include="ShadowMap.cpp">
       <Filter>ShadowMap</Filter>
     </ClCompile>
+    <ClCompile Include="EnemySpawner.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PracticeProject08-9-1.rc">
