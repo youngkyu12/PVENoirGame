@@ -22,26 +22,6 @@
 
 #include <chrono>
 
-namespace
-{
-	using FramePacingClock = std::chrono::high_resolution_clock;
-
-	static constexpr bool kLogFramePacingDiagnostics = false;
-
-	static constexpr double kFramePacingLogMinFrameMs = 16.0;
-	static constexpr double kFramePacingLogMinWaitMs = 1.0;
-	static constexpr double kFramePacingLogMinPresentMs = 1.0;
-
-	static constexpr UINT64 kFramePacingSummaryInterval = 120;
-
-	static double GetFramePacingElapsedMs(
-		FramePacingClock::time_point begin,
-		FramePacingClock::time_point end)
-	{
-		return std::chrono::duration<double, std::milli>(end - begin).count();
-	}
-}
-
 CGameFramework::CGameFramework()
 {
 	_tcscpy_s(m_pszFrameRate, _T("LabProject ("));
@@ -75,7 +55,17 @@ bool CGameFramework::OnCreate(HINSTANCE hInstance, HWND hMainWnd)
 		GLOBAL_CBV_CAPACITY,
 		GLOBAL_SRV_CAPACITY);
 
-	CreateAudio();
+	m_pAudioManager = std::make_unique<CAudioManager>();
+	m_pAudioManager->Initialize();
+
+	if ( auto* music = m_pAudioManager->GetMusicDirector() )
+	{
+		music->RegisterMusic(EMusicState::Menu, "Assets/Audio/MainMenuBGM_Test.mp3");
+		music->RegisterMusic(EMusicState::Gameplay, "Assets/Audio/ForestBGMWithBird.wav");
+		music->SetCrossFadeSeconds(1.5f);
+	}
+
+	m_SceneManager.SetAudioManager(m_pAudioManager.get());
 
 	BuildObjects();
 
@@ -204,48 +194,7 @@ void CGameFramework::WaitForFrameContext(UINT frameContextIndex)
 	if ( frameContextIndex >= m_nFrameContexts )
 		return;
 
-	const UINT64 targetFenceValue =
-		m_frameContexts[frameContextIndex].fenceValue;
-
-	if ( targetFenceValue == 0 )
-		return;
-
-	const UINT64 completedBefore =
-		m_pd3dFence ? m_pd3dFence->GetCompletedValue() : 0;
-
-	if ( completedBefore >= targetFenceValue )
-		return;
-
-	const auto waitBegin = FramePacingClock::now();
-
-	WaitForFenceValue(targetFenceValue);
-
-	const auto waitEnd = FramePacingClock::now();
-
-	const double waitMs =
-		GetFramePacingElapsedMs(waitBegin, waitEnd);
-
-	const UINT64 completedAfter =
-		m_pd3dFence ? m_pd3dFence->GetCompletedValue() : 0;
-
-	if ( kLogFramePacingDiagnostics &&
-		 waitMs >= kFramePacingLogMinWaitMs )
-	{
-		char buf[512];
-
-		sprintf_s(
-			buf,
-			"[FramePacing][WAIT] ctx=%u target=%llu completedBefore=%llu completedAfter=%llu pendingBefore=%llu waitMs=%.3f\n",
-			frameContextIndex,
-			static_cast< unsigned long long >( targetFenceValue ),
-			static_cast< unsigned long long >( completedBefore ),
-			static_cast< unsigned long long >( completedAfter ),
-			static_cast< unsigned long long >( targetFenceValue - completedBefore ),
-			waitMs
-		);
-
-		OutputDebugStringA(buf);
-	}
+	WaitForFenceValue(m_frameContexts[frameContextIndex].fenceValue);
 }
 
 void CGameFramework::FlushGpu()
@@ -520,7 +469,8 @@ void CGameFramework::CreateDepthStencilView()
 		&d3dResourceDesc,
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
 		&d3dClearValue,
-		IID_PPV_ARGS(m_pd3dDepthStencilBuffer.ReleaseAndGetAddressOf()));
+		IID_PPV_ARGS(m_pd3dDepthStencilBuffer.ReleaseAndGetAddressOf())
+	);
 
 	m_d3dDsvDescriptorCPUHandle = m_pd3dDsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 
@@ -529,21 +479,6 @@ void CGameFramework::CreateDepthStencilView()
 		nullptr,
 		m_d3dDsvDescriptorCPUHandle
 	);
-}
-
-void CGameFramework::CreateAudio()
-{
-	m_pAudioManager = std::make_unique<CAudioManager>();
-	m_pAudioManager->Initialize();
-
-	if ( auto* music = m_pAudioManager->GetMusicDirector() )
-	{
-		music->RegisterMusic(EMusicState::Menu, "Assets/Audio/MainMenuBGM_Test.mp3");
-		music->RegisterMusic(EMusicState::Gameplay, "Assets/Audio/ForestBGMWithBird.wav");
-		music->SetCrossFadeSeconds(1.5f);
-	}
-
-	m_SceneManager.SetAudioManager(m_pAudioManager.get());
 }
 
 void CGameFramework::BuildObjects()
@@ -1457,13 +1392,6 @@ void CGameFramework::FrameAdvance()
 {
 	PROFILE_RENDER_SCOPE("Framework::FrameAdvance(total)");
 
-	static UINT64 s_framePacingFrameId = 0;
-	++s_framePacingFrameId;
-
-	const auto framePacingFrameBegin = FramePacingClock::now();
-	const UINT framePacingContextIndex = m_nFrameContextIndex;
-	const UINT framePacingSwapIndexBegin = m_nSwapChainBufferIndex;
-
 	HRESULT hResult;
 
 
@@ -1511,14 +1439,10 @@ void CGameFramework::FrameAdvance()
 #endif
 	CollisionSystem();
 
-	const auto framePacingBeforeWait = FramePacingClock::now();
-
 	{
 		PROFILE_RENDER_SCOPE("Framework::WaitForFrameContext");
 		WaitForFrameContext(m_nFrameContextIndex);
 	}
-
-	const auto framePacingAfterWait = FramePacingClock::now();
 
 	m_pd3dCommandAllocator = m_frameContexts[m_nFrameContextIndex].commandAllocator;
 	m_pd3dCommandList = m_frameContexts[m_nFrameContextIndex].commandList;
@@ -1564,7 +1488,8 @@ void CGameFramework::FrameAdvance()
 			// 1) Geometry pass -> offscreen MRT only
 			m_pPostProcessingShader->OnPrepareSceneRenderTargets(
 				m_pd3dCommandList.Get(),
-				&m_d3dDsvDescriptorCPUHandle);
+				&m_d3dDsvDescriptorCPUHandle
+			);
 
 			D3D12_CPU_DESCRIPTOR_HANDLE sceneRtvs[8] = {};
 			UINT sceneRtvCount = 0;
@@ -1662,75 +1587,12 @@ void CGameFramework::FrameAdvance()
 
 	m_frameContexts[m_nFrameContextIndex].fenceValue = SignalCommandQueue();
 
-	const UINT64 framePacingSubmittedFenceValue =
-		m_frameContexts[m_nFrameContextIndex].fenceValue;
-
-	const auto framePacingAfterSubmit = FramePacingClock::now();
-	const auto framePacingBeforePresent = FramePacingClock::now();
-
 	{
 		PROFILE_RENDER_SCOPE("Framework::FrameAdvance::Present");
 		m_pdxgiSwapChain->Present(0, 0);
 	}
 
-	const auto framePacingAfterPresent = FramePacingClock::now();
-
 	MoveToNextFrame();
-
-	const auto framePacingFrameEnd = FramePacingClock::now();
-
-	if ( kLogFramePacingDiagnostics )
-	{
-		const double preWaitMs =
-			GetFramePacingElapsedMs(framePacingFrameBegin, framePacingBeforeWait);
-
-		const double waitMs =
-			GetFramePacingElapsedMs(framePacingBeforeWait, framePacingAfterWait);
-
-		const double recordSubmitMs =
-			GetFramePacingElapsedMs(framePacingAfterWait, framePacingAfterSubmit);
-
-		const double presentMs =
-			GetFramePacingElapsedMs(framePacingBeforePresent, framePacingAfterPresent);
-
-		const double totalMs =
-			GetFramePacingElapsedMs(framePacingFrameBegin, framePacingFrameEnd);
-
-		const UINT64 completedAtEnd =
-			m_pd3dFence ? m_pd3dFence->GetCompletedValue() : 0;
-
-		const bool shouldLogFrame =
-			( totalMs >= kFramePacingLogMinFrameMs ) ||
-			( waitMs >= kFramePacingLogMinWaitMs ) ||
-			( presentMs >= kFramePacingLogMinPresentMs ) ||
-			( ( s_framePacingFrameId % kFramePacingSummaryInterval ) == 0 );
-
-		if ( shouldLogFrame )
-		{
-			char buf[1024];
-
-			sprintf_s(
-				buf,
-				"[FramePacing][FRAME] id=%llu ctx=%u nextCtx=%u swap=%u->%u "
-				"preWait=%.3f wait=%.3f recordSubmit=%.3f present=%.3f total=%.3f "
-				"submittedFence=%llu completedEnd=%llu\n",
-				static_cast< unsigned long long >( s_framePacingFrameId ),
-				framePacingContextIndex,
-				m_nFrameContextIndex,
-				framePacingSwapIndexBegin,
-				m_nSwapChainBufferIndex,
-				preWaitMs,
-				waitMs,
-				recordSubmitMs,
-				presentMs,
-				totalMs,
-				static_cast< unsigned long long >( framePacingSubmittedFenceValue ),
-				static_cast< unsigned long long >( completedAtEnd )
-			);
-
-			OutputDebugStringA(buf);
-		}
-	}
 
 
 	// 현재 프레임이 화면에 실제로 표시된 뒤,

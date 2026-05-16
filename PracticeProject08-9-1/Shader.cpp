@@ -1781,26 +1781,3 @@ void CTextureToFullScreenShader::Render(ID3D12GraphicsCommandList* pd3dCommandLi
 {
 	CPostProcessingShader::Render(pd3dCommandList, pCamera, pContext);
 }
-
-CTerrainShader::CTerrainShader()
-{
-}
-
-CTerrainShader::~CTerrainShader()
-{
-}
-
-D3D12_INPUT_LAYOUT_DESC CTerrainShader::CreateInputLayout()
-{
-	return D3D12_INPUT_LAYOUT_DESC();
-}
-
-D3D12_SHADER_BYTECODE CTerrainShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
-{
-	return D3D12_SHADER_BYTECODE();
-}
-
-D3D12_SHADER_BYTECODE CTerrainShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
-{
-	return D3D12_SHADER_BYTECODE();
-}

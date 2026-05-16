@@ -28,7 +28,6 @@ class CGameObject;
 class CCollisionSystem;
 class CTexture;
 class CNavMesh;
-class EnemySpawner;
 class CStaticMeshRendererComponent;
 
 struct CB_GAMEOBJECT_INFO;
@@ -375,17 +374,6 @@ private:
         DXGI_FORMAT dsvFormat
     );
 
-	void BuildSpawnBatch(
-		ID3D12Device* dev,
-		ID3D12GraphicsCommandList* cmd,
-		const std::shared_ptr<CSkinnedObjectsShader>& shader
-	);
-
-	void BuildTerrainObjects(
-		ID3D12Device* dev,
-		ID3D12GraphicsCommandList* cmd
-	);
-
 	void BuildColliderBatch(
 		ID3D12Device* dev,
 		ID3D12GraphicsCommandList* cmd,
@@ -482,40 +470,21 @@ private:
 	);
 
 	void BuildSkinnedInstanceGroups();
-	void BuildSpawnInstanceGroups();
 	void ResetSkinnedWorldLodEntries();
 
 	void ResetSkinnedOcclusionEntries();
-	void ResetSpawnOcclusionEntries();
 	void BuildSkinnedOcclusionEntries();
-	void BuildSpawnOcclusionEntries();
 	void BuildSkinnedOcclusionGpuResources(ID3D12Device* dev);
-	void BuildSpawnOcclusionGpuResources(ID3D12Device* dev);
 	void ReleaseSkinnedOcclusionGpuResources();
-	void ReleaseSpawnOcclusionGpuResources();
 	void BeginSkinnedOcclusionReadback();
-	void BeginSpawnOcclusionReadback();
 	void RenderSkinnedOcclusionPass(ID3D12GraphicsCommandList* cmd, CCamera* camera);
-	void RenderSpawnOcclusionPass(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	void ResolveSkinnedOcclusionQueries(ID3D12GraphicsCommandList* cmd);
-	void ResolveSpawnOcclusionQueries(ID3D12GraphicsCommandList* cmd);
 	void UpdateSkinnedOcclusionCullSelection(CCamera* camera);
 
-	void UpdateSpawnOcclusionCullSelection(CCamera* camera);
-
 	int ComputeSkinnedWorldLodLevel(const XMFLOAT3& cameraPosition, const SkinnedWorldLodEntry& entry) const;
-	int ComputeSpawnWorldLodLevel(const XMFLOAT3& cameraPosition, const SkinnedWorldLodEntry& entry) const;
 	bool ComputeSkinnedWorldDistanceCulled(const XMFLOAT3& cameraPosition, const SkinnedWorldLodEntry& entry) const;
-	bool ComputeSpawnWorldDistanceCulled(const XMFLOAT3& cameraPosition, const SkinnedWorldLodEntry& entry) const;
 	void UpdateSkinnedWorldLodSelection(CCamera* camera);
-	void UpdateSpawnWorldLodSelection(CCamera* camera);
 	void RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
-	void RenderTerrainObjects(ID3D12GraphicsCommandList* cmd, CCamera* camera);
-	void RenderSpawnInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
-
-	//spawn
-	void ResetSpawnWorldLodEntries();
-
 	bool ShouldEvaluateSkinnedPoseThisFrame(UINT objectIndex, CCamera* camera) const;
 
 	int ResolveStaticWorldLodLevel(const StaticWorldLodEntry& entry, int desiredLod) const;
@@ -732,11 +701,8 @@ private:
 	bool IsStaticObjectInsideShadowBox(UINT objectIndex) const;
 	bool IsSkinnedObjectInsideShadowBox(UINT objectIndex) const;
 
-	bool IsSpawnObjectInsideShadowBox(UINT objectIndex) const;
-
 	void RenderShadowMap(ID3D12GraphicsCommandList* cmd);
 	void RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList* cmd);
-	void RenderSpawnInstanceGroupsToShadowMap(ID3D12GraphicsCommandList* cmd);
 	void RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandList* cmd);
 	void RestoreSceneRenderTargets(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
@@ -786,17 +752,14 @@ private:
 	UINT m_PlayerAxeCount = 4;
 	UINT m_PlayerGunCount = 4;
 	UINT m_ColliderCount = 0;
-	UINT m_SpawnObjectsCount = 0;
 
     std::vector<std::unique_ptr<CGameObject>> m_staticObjects;
     std::vector<std::unique_ptr<CGameObject>> m_skinnedObjects;
 	std::vector<std::unique_ptr<CGameObject>> m_colliderObjects;
-	std::vector<std::unique_ptr<CGameObject>> m_spawnObjects;
 
     SCENE_STATIC_BATCH  m_staticBatch;
     SCENE_SKINNED_BATCH m_skinnedBatch;
 	SCENE_COLLIDER_BATCH m_colliderBatch;
-	SCENE_SKINNED_BATCH m_spawnBatch;
 
 	static constexpr UINT kItemBillboardKeyMaterialId = MAX_MATERIALS - 1;
 	static constexpr UINT kTransparentItemBillboardMaterialId = MAX_MATERIALS - 2;
@@ -859,8 +822,6 @@ private:
 
     std::vector<CGameObject*> m_EnemySwordRefs;
     std::vector<CGameObject*> m_EnemyBowRefs;
-	std::vector<CGameObject*> m_terrainRefs;
-	std::vector<CGameObject*> m_SpawnObectsRefs;
 
     std::vector<AttachmentBindSpec> m_attachmentBinds;
 
@@ -946,9 +907,6 @@ private:
 
     unique_ptr<CCollisionSystem> m_Collision;
 	std::unique_ptr<CNavMesh> m_navMesh;
-	std::unique_ptr<EnemySpawner> m_enemySpawner;
-	float m_enemySpawnAccumulatorSec = 0.0f;
-	float m_enemySpawnIntervalSec = 5.0f;
 
 #ifndef USING_NETWORK
 	std::vector<MonsterSpawnEntry>	m_monsterSpawnEntries;
@@ -982,10 +940,8 @@ private:
     std::vector<StaticPlacementEntry>   m_staticPlacementEntries;
 	std::unordered_map<std::string, std::unordered_map<std::string, std::vector<AuthoredSubMeshOOBB>>> mSceneCubeBoxColliderTable;
 
-	std::vector<StaticInstanceGroup>     m_staticInstanceGroups;
+	std::vector<StaticInstanceGroup>    m_staticInstanceGroups;
 	std::vector<StaticRenderObjectCache> m_staticRenderObjectCache;
-
-	std::vector<std::vector<UINT>>       m_staticGroupIndicesByObjectIndex;
 
 	std::vector<StaticWorldLodEntry>    m_staticWorldLodEntries;
 	std::vector<StaticOcclusionEntry>   m_staticOcclusionEntries;
@@ -1013,7 +969,6 @@ private:
 	bool                                m_bStaticOcclusionQueryResourcesReady = false;
 	bool                                m_bStaticOcclusionQueryResultsValid = false;
 	bool                                m_staticWorldLodDirty = false;
-	bool                                m_staticOcclusionCullSelectionLodDirty = false;
 	bool                                m_bStaticOcclusionCullingEnabled = true;
 	bool                                m_bStaticTreeGridCullingEnabled = true;
 	UINT                                m_staticOcclusionHideFrameThreshold = 8;
@@ -1023,12 +978,6 @@ private:
 	float                               m_staticLodDistance12 = 80.0f;
 	float                               m_staticLodHysteresis = 15.0f;
 	float                               m_staticCullHysteresis = 20.0f;
-
-	bool                                m_staticOcclusionCullSelectionCacheValid = false;
-	UINT                                m_staticOcclusionCullSelectionFrameCounter = 0;
-	UINT                                m_staticOcclusionCullSelectionLastUpdateFrame = 0;
-	XMFLOAT3                            m_staticOcclusionCullSelectionLastCameraPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	float                               m_staticOcclusionCullSelectionLastCameraYaw = 0.0f;
 
 	std::shared_ptr<CMesh>              m_staticOcclusionUnitBoxMesh;
 	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dStaticOcclusionInstanceBuffer;
@@ -1066,7 +1015,6 @@ private:
 
 	bool GetPauseOverlayRect(XMFLOAT4& outRect) const;
 
-	// skinned
 	std::vector<SkinnedInstanceGroup>   m_skinnedInstanceGroups;
 
 	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dSkinnedInstanceBuffer;
@@ -1103,46 +1051,7 @@ private:
 	std::array<XMFLOAT4X4*, kSceneBatchFrameResourceCount> m_pMappedSkinnedBonePaletteBuffer = {};
 	UINT                                m_skinnedBonePaletteStride = 0;
 	UINT                                m_skinnedBonePaletteCapacity = 0;
-
-	// spawn
-	std::vector<SkinnedInstanceGroup>   m_spawnInstanceGroups;
-
-	ComPtr<ID3D12Resource>              m_pd3dSpawnInstanceBuffer;
-	std::vector<SkinnedWorldLodEntry>   m_spawnWorldLodEntries;
-	std::vector<uint8_t>                m_spawnDistanceCullFlags;
-
-	std::vector<SkinnedOcclusionEntry>  m_spawnOcclusionEntries;
-	std::vector<uint8_t>                m_spawnOcclusionCullFlags;
-	std::vector<int>                    m_spawnShadowOcclusionEntryIndices;
-	std::vector<UINT64>                 m_spawnOcclusionQuerySampleCounts;
-	std::vector<uint8_t>                m_spawnOcclusionLastFrameIssuedFlags;
-	std::vector<uint8_t>                m_spawnOcclusionCurrentFrameIssuedFlags;
-	std::vector<uint8_t>                m_spawnOcclusionZeroSampleFrameCounts;
-	ComPtr<ID3D12QueryHeap>             m_pd3dSpawnOcclusionQueryHeap;
-	ComPtr<ID3D12Resource>              m_pd3dSpawnOcclusionReadbackBuffer;
-	UINT64* m_pMappedSpawnOcclusionReadbackBuffer = nullptr;
-	ComPtr<ID3D12Resource>              m_pd3dSpawnOcclusionInstanceBuffer;
-	StaticInstanceVertex* m_pMappedSpawnOcclusionInstanceBuffer = nullptr;
-	UINT                                m_spawnOcclusionQueryCapacity = 0;
-	bool                                m_bSpawnOcclusionQueryResourcesReady = false;
-	bool                                m_bSpawnOcclusionQueryResultsValid = false;
-	bool                                m_bSpawnOcclusionCullingEnabled = true;
-	UINT                                m_spawnOcclusionHideFrameThreshold = 8;
-	float                               m_spawnOcclusionMinTestDistance = 35.0f;
-	float                               m_spawnOcclusionMaxCullExtentDistanceRatio = 0.30f;
-
-	bool                                m_spawnWorldLodDirty = false;
-	float                               m_spawnLodHysteresis = 5.0f;
-	float                               m_spawnCullHysteresis = 10.0f;
-
-	SkinnedInstanceVertex* m_pMappedSpawnInstanceBuffer = nullptr;
-	UINT                                m_spawnInstanceBufferCapacity = 0;
-
-	ComPtr<ID3D12Resource>              m_pd3dSpawnBonePaletteBuffer;
-	XMFLOAT4X4* m_pMappedSpawnBonePaletteBuffer = nullptr;
-	UINT                                m_spawnBonePaletteStride = 0;
-	UINT                                m_spawnBonePaletteCapacity = 0;
-
+	
 	void BuildStaticWorldSubmeshOOBBDebugObjects(
 	ID3D12Device* dev,
 	ID3D12GraphicsCommandList* cmd
