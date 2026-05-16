@@ -250,16 +250,6 @@ namespace
 		out3 = XMFLOAT4(W._41, W._42, W._43, W._44);
 	}
 
-	static bool ContainsGameObjectPtr(
-		const std::vector<CGameObject*>& refs,
-		const CGameObject* obj)
-	{
-		if ( !obj )
-			return false;
-
-		return std::find(refs.begin(), refs.end(), obj) != refs.end();
-	}
-
 	static XMFLOAT3 GetSafeObjectForward(const CGameObject* obj)
 	{
 		if ( !obj )
@@ -2788,6 +2778,7 @@ void CGameScene::ReleaseObjects()
 	m_skinnedAlphaClipObjects.clear();
 
 	m_staticTreeGridCullFlags.clear();
+	m_staticDynamicWorldMatrixFlags.clear();
 	m_staticShadowCasterFlags.clear();
 	m_staticTreeObjectIndices.clear();
 	m_staticShadowOcclusionEntryIndices.clear();
@@ -4215,6 +4206,9 @@ void CGameScene::BuildStaticBatch(
 	m_staticCollisionMegaGridMasks.clear();
 	m_staticCollisionMegaGridMasks.reserve(cap);
 
+	m_staticDynamicWorldMatrixFlags.clear();
+	m_staticDynamicWorldMatrixFlags.reserve(cap);
+
 	m_collisionMegaGridMaskByObject.clear();
 	m_collisionMegaGridMaskByObject.reserve(cap + m_skinnedBatch.capacity);
 
@@ -4507,6 +4501,7 @@ void CGameScene::BuildStaticBatch(
 		b->objectRefs.push_back(raw);
 		m_staticShadowCasterFlags.push_back(castsShadow ? 1 : 0);
 		m_staticCollisionMegaGridMasks.push_back(collisionMegaGridMask);
+		m_staticDynamicWorldMatrixFlags.push_back(0);
 		b->count = ( UINT ) b->objectRefs.size();
 	}
 
@@ -4574,6 +4569,7 @@ void CGameScene::BuildStaticBatch(
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(0);
 			m_staticCollisionMegaGridMasks.push_back(0);
+			m_staticDynamicWorldMatrixFlags.push_back(1);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_arrowRefs.push_back(raw);
@@ -4627,6 +4623,7 @@ void CGameScene::BuildStaticBatch(
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(0);
 			m_staticCollisionMegaGridMasks.push_back(0);
+			m_staticDynamicWorldMatrixFlags.push_back(1);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_bulletRefs.push_back(raw);
@@ -4669,6 +4666,7 @@ void CGameScene::BuildStaticBatch(
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(0);
 			m_staticCollisionMegaGridMasks.push_back(0);
+			m_staticDynamicWorldMatrixFlags.push_back(1);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_helmetRefs.push_back(raw);
@@ -4722,6 +4720,7 @@ void CGameScene::BuildStaticBatch(
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(1);
 			m_staticCollisionMegaGridMasks.push_back(0);
+			m_staticDynamicWorldMatrixFlags.push_back(1);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_PlayerSwordRefs.push_back(raw);
@@ -4775,6 +4774,7 @@ void CGameScene::BuildStaticBatch(
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(1);
 			m_staticCollisionMegaGridMasks.push_back(0);
+			m_staticDynamicWorldMatrixFlags.push_back(1);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_PlayerAxeRefs.push_back(raw);
@@ -4821,6 +4821,7 @@ void CGameScene::BuildStaticBatch(
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(1);
 			m_staticCollisionMegaGridMasks.push_back(0);
+			m_staticDynamicWorldMatrixFlags.push_back(1);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_PlayerGunRefs.push_back(raw);
@@ -4873,6 +4874,7 @@ void CGameScene::BuildStaticBatch(
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(1);
 			m_staticCollisionMegaGridMasks.push_back(0);
+			m_staticDynamicWorldMatrixFlags.push_back(1);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_EnemySwordRefs.push_back(raw);
@@ -5400,60 +5402,37 @@ void CGameScene::BuildSkinnedInstanceGroups()
 	m_skinnedInstanceBufferCapacity = runningStart;
 }
 
-bool CGameScene::IsDynamicStaticRenderObject(const CGameObject* obj) const
-{
-	if ( !obj )
-		return false;
-
-	// static batch에 들어가지만 transform이 바뀔 수 있는 오브젝트들.
-	// PlayerBow / EnemyBow는 현재 skinned batch 쪽이므로 여기서 제외한다.
-	if ( ContainsGameObjectPtr(m_helmetRefs, obj) )
-		return true;
-
-	if ( ContainsGameObjectPtr(m_PlayerSwordRefs, obj) )
-		return true;
-
-	if ( ContainsGameObjectPtr(m_PlayerAxeRefs, obj) )
-		return true;
-
-	if ( ContainsGameObjectPtr(m_PlayerGunRefs, obj) )
-		return true;
-
-	if ( ContainsGameObjectPtr(m_EnemySwordRefs, obj) )
-		return true;
-
-	if ( ContainsGameObjectPtr(m_arrowRefs, obj) )
-		return true;
-
-	if ( ContainsGameObjectPtr(m_bulletRefs, obj) )
-		return true;
-
-	return false;
-}
-
 void CGameScene::BuildStaticGameplayTickList()
 {
 	m_staticGameplayTickObjects.clear();
-	m_staticGameplayTickObjects.reserve(
+
+	const size_t total =
 		m_helmetRefs.size() +
 		m_PlayerSwordRefs.size() +
 		m_PlayerAxeRefs.size() +
 		m_PlayerGunRefs.size() +
 		m_EnemySwordRefs.size() +
 		m_arrowRefs.size() +
-		m_bulletRefs.size()
-	);
+		m_bulletRefs.size();
 
-	for ( CGameObject* obj : m_staticBatch.objectRefs )
-	{
-		if ( !obj )
-			continue;
+	m_staticGameplayTickObjects.reserve(total);
 
-		if ( !IsDynamicStaticRenderObject(obj) )
-			continue;
+	auto AppendRefs = [ this ] (const std::vector<CGameObject*>& refs)
+		{
+			for ( CGameObject* obj : refs )
+			{
+				if ( obj )
+					m_staticGameplayTickObjects.push_back(obj);
+			}
+		};
 
-		m_staticGameplayTickObjects.push_back(obj);
-	}
+	AppendRefs(m_helmetRefs);
+	AppendRefs(m_PlayerSwordRefs);
+	AppendRefs(m_PlayerAxeRefs);
+	AppendRefs(m_PlayerGunRefs);
+	AppendRefs(m_EnemySwordRefs);
+	AppendRefs(m_arrowRefs);
+	AppendRefs(m_bulletRefs);
 
 	char buf[256];
 	sprintf_s(
@@ -5481,7 +5460,10 @@ void CGameScene::BuildStaticRenderObjectCache()
 			continue;
 
 		cache.renderer = obj->GetComponent<CStaticMeshRendererComponent>();
-		cache.dynamicWorldMatrix = IsDynamicStaticRenderObject(obj);
+
+		cache.dynamicWorldMatrix =
+			( i < static_cast< UINT >(m_staticDynamicWorldMatrixFlags.size()) ) &&
+			( m_staticDynamicWorldMatrixFlags[i] != 0 );
 
 		const XMFLOAT4X4& W = obj->GetWorldMatrix();
 
