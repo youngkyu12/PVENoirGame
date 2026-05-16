@@ -402,6 +402,47 @@ namespace
 		}
 	};
 
+	struct SkinnedGroupKey
+	{
+		std::string geometryKey;
+		UINT meshIndex = 0;
+		UINT subMeshIndex = 0;
+		bool useAlphaClipShader = false;
+
+		bool operator==(const SkinnedGroupKey& rhs) const
+		{
+			return geometryKey == rhs.geometryKey &&
+				meshIndex == rhs.meshIndex &&
+				subMeshIndex == rhs.subMeshIndex &&
+				useAlphaClipShader == rhs.useAlphaClipShader;
+		}
+	};
+
+	struct SkinnedGroupKeyHash
+	{
+		size_t operator()(const SkinnedGroupKey& k) const
+		{
+			size_t h = std::hash<std::string>{}( k.geometryKey );
+
+			h ^= std::hash<UINT>{}( k.meshIndex )
+				+ 0x9e3779b9
+				+ ( h << 6 )
+				+ ( h >> 2 );
+
+			h ^= std::hash<UINT>{}( k.subMeshIndex )
+				+ 0x9e3779b9
+				+ ( h << 6 )
+				+ ( h >> 2 );
+
+			h ^= std::hash<bool>{}( k.useAlphaClipShader )
+				+ 0x9e3779b9
+				+ ( h << 6 )
+				+ ( h >> 2 );
+
+			return h;
+		}
+	};
+
 	// -----------------------------------------------------------------------------
 	// HP
 	// -----------------------------------------------------------------------------
@@ -5260,21 +5301,30 @@ void CGameScene::BuildSkinnedInstanceGroups()
 	m_skinnedInstanceGroups.clear();
 	m_skinnedInstanceGroups.reserve(m_skinnedBatch.objectRefs.size() * 2);
 
-	for ( UINT objectIndex = 0; objectIndex < ( UINT ) m_skinnedBatch.objectRefs.size(); ++objectIndex )
+	std::unordered_map<SkinnedGroupKey, size_t, SkinnedGroupKeyHash> groupIndexByKey;
+	groupIndexByKey.reserve(m_skinnedBatch.objectRefs.size() * 2);
+
+	for ( UINT objectIndex = 0;
+		  objectIndex < static_cast< UINT >(m_skinnedBatch.objectRefs.size());
+		  ++objectIndex )
 	{
 		CGameObject* obj = m_skinnedBatch.objectRefs[objectIndex];
-		if ( !obj ) continue;
+		if ( !obj )
+			continue;
 
 		const bool useAlphaClipShader =
 			( m_skinnedAlphaClipObjects.find(obj) != m_skinnedAlphaClipObjects.end() );
 
 		const int meshCount = obj->GetMeshCount();
+
 		for ( int meshIndex = 0; meshIndex < meshCount; ++meshIndex )
 		{
 			std::shared_ptr<CMesh> mesh = obj->GetMeshShared(meshIndex);
-			if ( !mesh ) continue;
+			if ( !mesh )
+				continue;
 
 			std::string geometryKey = mesh->GetSourceMeshPath();
+
 			if ( geometryKey.empty() )
 			{
 				char buf[64];
@@ -5282,62 +5332,69 @@ void CGameScene::BuildSkinnedInstanceGroups()
 				geometryKey = buf;
 			}
 
-			for ( UINT subMeshIndex = 0; subMeshIndex < ( UINT ) mesh->m_SubMeshes.size(); ++subMeshIndex )
+			const UINT subMeshCount =
+				static_cast< UINT >( mesh->m_SubMeshes.size() );
+
+			for ( UINT subMeshIndex = 0; subMeshIndex < subMeshCount; ++subMeshIndex )
 			{
-				SkinnedInstanceGroup* targetGroup = nullptr;
+				SkinnedGroupKey key{};
+				key.geometryKey = geometryKey;
+				key.meshIndex = static_cast< UINT >(meshIndex);
+				key.subMeshIndex = subMeshIndex;
+				key.useAlphaClipShader = useAlphaClipShader;
 
-				for ( SkinnedInstanceGroup& group : m_skinnedInstanceGroups )
-				{
-					if ( group.geometryKey == geometryKey &&
-						group.meshIndex == ( UINT ) meshIndex &&
-						group.subMeshIndex == subMeshIndex &&
-						group.useAlphaClipShader == useAlphaClipShader )
-					{
-						targetGroup = &group;
-						break;
-					}
-				}
+				size_t groupIndex = 0;
 
-				if ( !targetGroup )
+				auto it = groupIndexByKey.find(key);
+
+				if ( it == groupIndexByKey.end() )
 				{
 					SkinnedInstanceGroup newGroup{};
 					newGroup.geometryKey = geometryKey;
 					newGroup.mesh = mesh;
+					newGroup.meshIndex = static_cast< UINT >( meshIndex );
 					newGroup.subMeshIndex = subMeshIndex;
-					newGroup.meshIndex = ( UINT ) meshIndex;
 					newGroup.useAlphaClipShader = useAlphaClipShader;
+
+					groupIndex = m_skinnedInstanceGroups.size();
 					m_skinnedInstanceGroups.push_back(std::move(newGroup));
-					targetGroup = &m_skinnedInstanceGroups.back();
+
+					groupIndexByKey.emplace(std::move(key), groupIndex);
+				}
+				else
+				{
+					groupIndex = it->second;
 				}
 
-				targetGroup->objectIndices.push_back(objectIndex);
+				m_skinnedInstanceGroups[groupIndex].objectIndices.push_back(objectIndex);
 			}
 		}
 	}
 
 	std::sort(
-	m_skinnedInstanceGroups.begin(),
-	m_skinnedInstanceGroups.end(),
-	[ ] (const SkinnedInstanceGroup& a, const SkinnedInstanceGroup& b)
-	{
-		if ( a.useAlphaClipShader != b.useAlphaClipShader )
-			return a.useAlphaClipShader < b.useAlphaClipShader; // opaque 먼저, alpha-clip 나중
+		m_skinnedInstanceGroups.begin(),
+		m_skinnedInstanceGroups.end(),
+		[ ] (const SkinnedInstanceGroup& a, const SkinnedInstanceGroup& b)
+		{
+			if ( a.useAlphaClipShader != b.useAlphaClipShader )
+				return a.useAlphaClipShader < b.useAlphaClipShader; // opaque 먼저, alpha-clip 나중
 
-		if ( a.geometryKey != b.geometryKey )
-			return a.geometryKey < b.geometryKey;
+			if ( a.geometryKey != b.geometryKey )
+				return a.geometryKey < b.geometryKey;
 
-		if ( a.meshIndex != b.meshIndex )
-			return a.meshIndex < b.meshIndex;
+			if ( a.meshIndex != b.meshIndex )
+				return a.meshIndex < b.meshIndex;
 
-		return a.subMeshIndex < b.subMeshIndex;
-	}
+			return a.subMeshIndex < b.subMeshIndex;
+		}
 	);
 
 	UINT runningStart = 0;
+
 	for ( SkinnedInstanceGroup& group : m_skinnedInstanceGroups )
 	{
 		group.instanceBufferStart = runningStart;
-		runningStart += ( UINT ) group.objectIndices.size();
+		runningStart += static_cast< UINT >(group.objectIndices.size());
 	}
 
 	m_skinnedInstanceBufferCapacity = runningStart;
