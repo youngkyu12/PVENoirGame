@@ -1058,7 +1058,13 @@ private:
 
 	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dSkinnedBonePaletteBuffer;
 	std::array<XMFLOAT4X4*, kSceneBatchFrameResourceCount> m_pMappedSkinnedBonePaletteBuffer = {};
-	UINT                                m_skinnedBonePaletteStride = 0;
+
+	// objectIndex -> bone palette 시작 offset
+	std::vector<UINT>                   m_skinnedBonePaletteBaseByObject;
+
+	// objectIndex -> 이 object에 예약된 bone matrix 개수
+	std::vector<UINT>                   m_skinnedBonePaletteCountByObject;
+
 	UINT                                m_skinnedBonePaletteCapacity = 0;
 	
 	void BuildStaticWorldSubmeshOOBBDebugObjects(

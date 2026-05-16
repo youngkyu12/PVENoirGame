@@ -3028,7 +3028,8 @@ void CGameScene::ReleaseShaderVariables()
 		m_pMappedSkinnedBonePaletteBuffer[frameIndex] = nullptr;
 	}
 
-	m_skinnedBonePaletteStride = 0;
+	m_skinnedBonePaletteBaseByObject.clear();
+	m_skinnedBonePaletteCountByObject.clear();
 	m_skinnedBonePaletteCapacity = 0;
 
 	// ---- Static batch CB ----
@@ -5653,17 +5654,40 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 			dst.world3 = XMFLOAT4(W._41, W._42, W._43, W._44);
 
 			dst.materialId = ( objSm.materialId == 0xFFFFFFFFu ) ? 0u : objSm.materialId;
-			dst.bonePaletteBase = objectIndex * m_skinnedBonePaletteStride;
+
+			if ( objectIndex >= static_cast< UINT >( m_skinnedBonePaletteBaseByObject.size() ) )
+				continue;
+
+			if ( objectIndex >= static_cast< UINT >( m_skinnedBonePaletteCountByObject.size() ) )
+				continue;
+
+			dst.bonePaletteBase = m_skinnedBonePaletteBaseByObject[objectIndex];
+
+			const UINT reservedBoneCount =
+				m_skinnedBonePaletteCountByObject[objectIndex];
+
+			if ( reservedBoneCount == 0 )
+				continue;
+
+			if ( dst.bonePaletteBase >= m_skinnedBonePaletteCapacity )
+				continue;
+
+			if ( reservedBoneCount > m_skinnedBonePaletteCapacity - dst.bonePaletteBase )
+				continue;
 
 			const XMFLOAT4X4* srcBoneMats = skin->GetMappedBoneMatrices();
-			const UINT boneCount = ( UINT ) skin->GetBoneCount();
+			const UINT boneCount = static_cast< UINT >( skin->GetBoneCount() );
 
 			if ( srcBoneMats && boneCount > 0 )
 			{
+				int min = boneCount;
+				if ( min > reservedBoneCount ) min = reservedBoneCount;
+				const UINT copyBoneCount = min;
+
 				memcpy(
 					mappedSkinnedBonePaletteBuffer + dst.bonePaletteBase,
 					srcBoneMats,
-					sizeof(XMFLOAT4X4) * boneCount
+					sizeof(XMFLOAT4X4) * copyBoneCount
 				);
 			}
 
@@ -5910,17 +5934,40 @@ void CGameScene::RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandLis
 			dst.world3 = XMFLOAT4(W._41, W._42, W._43, W._44);
 
 			dst.materialId = ( objSm.materialId == 0xFFFFFFFFu ) ? 0u : objSm.materialId;
-			dst.bonePaletteBase = objectIndex * m_skinnedBonePaletteStride;
+
+			if ( objectIndex >= static_cast< UINT >( m_skinnedBonePaletteBaseByObject.size() ) )
+				continue;
+
+			if ( objectIndex >= static_cast< UINT >( m_skinnedBonePaletteCountByObject.size() ) )
+				continue;
+
+			dst.bonePaletteBase = m_skinnedBonePaletteBaseByObject[objectIndex];
+
+			const UINT reservedBoneCount =
+				m_skinnedBonePaletteCountByObject[objectIndex];
+
+			if ( reservedBoneCount == 0 )
+				continue;
+
+			if ( dst.bonePaletteBase >= m_skinnedBonePaletteCapacity )
+				continue;
+
+			if ( reservedBoneCount > m_skinnedBonePaletteCapacity - dst.bonePaletteBase )
+				continue;
 
 			const XMFLOAT4X4* srcBoneMats = skin->GetMappedBoneMatrices();
-			const UINT boneCount = ( UINT ) skin->GetBoneCount();
+			const UINT boneCount = static_cast< UINT >( skin->GetBoneCount() );
 
 			if ( srcBoneMats && boneCount > 0 )
 			{
+				int min = boneCount;
+				if ( min > reservedBoneCount ) min = reservedBoneCount;
+				const UINT copyBoneCount = min;
+
 				memcpy(
 					mappedSkinnedBonePaletteBuffer + dst.bonePaletteBase,
 					srcBoneMats,
-					sizeof(XMFLOAT4X4) * boneCount
+					sizeof(XMFLOAT4X4) * copyBoneCount
 				);
 			}
 
@@ -7051,19 +7098,45 @@ void CGameScene::BuildSkinnedBatch(
 		m_pMappedSkinnedBonePaletteBuffer[frameIndex] = nullptr;
 	}
 
-	m_skinnedBonePaletteStride = 1;
-	for ( UINT i = 0; i < ( UINT ) m_skinnedBatch.objectRefs.size(); ++i )
+	m_skinnedBonePaletteBaseByObject.clear();
+	m_skinnedBonePaletteCountByObject.clear();
+
+	const UINT skinnedObjectCount =
+		static_cast< UINT >( m_skinnedBatch.objectRefs.size() );
+
+	m_skinnedBonePaletteBaseByObject.resize(skinnedObjectCount, 0);
+	m_skinnedBonePaletteCountByObject.resize(skinnedObjectCount, 0);
+
+	UINT runningBonePaletteBase = 0;
+
+	for ( UINT i = 0; i < skinnedObjectCount; ++i )
 	{
 		CGameObject* obj = m_skinnedBatch.objectRefs[i];
-		if ( !obj ) continue;
 
-		const UINT boneCount = ( UINT ) obj->GetBoneCount();
-		if ( boneCount > m_skinnedBonePaletteStride )
-			m_skinnedBonePaletteStride = boneCount;
+		UINT boneCount = 1;
+
+		if ( obj )
+		{
+			if ( auto* skin = obj->GetComponent<CSkinningComponent>() )
+			{
+				boneCount = static_cast< UINT >(skin->GetBoneCount());
+			}
+			else
+			{
+				boneCount = static_cast< UINT >( obj->GetBoneCount() );
+			}
+
+			if ( boneCount == 0 )
+				boneCount = 1;
+		}
+
+		m_skinnedBonePaletteBaseByObject[i] = runningBonePaletteBase;
+		m_skinnedBonePaletteCountByObject[i] = boneCount;
+
+		runningBonePaletteBase += boneCount;
 	}
 
-	m_skinnedBonePaletteCapacity =
-		m_skinnedBonePaletteStride * ( UINT ) m_skinnedBatch.objectRefs.size();
+	m_skinnedBonePaletteCapacity = runningBonePaletteBase;
 
 	if ( m_skinnedInstanceBufferCapacity > 0 )
 	{
