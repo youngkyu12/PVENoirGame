@@ -82,9 +82,3 @@ const std::unordered_map<std::string, int>& CModelComponent::GetBoneNameToIndex(
     std::shared_ptr<CMesh> m0 = GetMeshShared(0);
     return m0 ? m0->GetBoneNameToIndex() : empty;
 }
-
-void CModelComponent::OnReset()
-{
-	// Pool 재사용 시 모델/메시는 유지한다.
-	// (초기화로 비우면 재설정 비용이 커지고 렌더링 참조가 끊긴다.)
-}

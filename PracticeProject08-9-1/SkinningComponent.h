@@ -29,7 +29,6 @@ public:
     void Upload(const XMFLOAT4X4* boneMats, int nMats);
 
     void OnDestroy() override { Disable(); }
-	void OnReset() override;
 
 	const XMFLOAT4X4* GetMappedBoneMatrices() const { return m_mapped; }
 

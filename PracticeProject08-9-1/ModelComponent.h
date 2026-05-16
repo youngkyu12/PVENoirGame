@@ -29,7 +29,6 @@ public:
     const std::vector<std::shared_ptr<CMesh>>& GetMeshes() const;
 
     void ReleaseUploadBuffers();
-	void OnReset() override;
 
     int GetMaxBoneCount() const;
 
