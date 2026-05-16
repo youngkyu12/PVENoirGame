@@ -2856,6 +2856,7 @@ void CGameScene::ReleaseObjects()
 	m_swordTrails.clear();
 
 	m_staticRenderObjectCache.clear();
+	m_staticGameplayTickObjects.clear();
 	m_staticGroupIndicesByObjectIndex.clear();
 
 #ifndef USING_NETWORK
@@ -4854,6 +4855,8 @@ void CGameScene::BuildStaticBatch(
 
 	BuildStaticOcclusionUnitBoxMesh(dev, cmd);
 	BuildStaticOcclusionGpuResources(dev);
+
+	BuildStaticGameplayTickList();
 	BuildStaticInstanceGroups();
 	BuildStaticRenderObjectCache();
 
@@ -5369,6 +5372,40 @@ bool CGameScene::IsDynamicStaticRenderObject(const CGameObject* obj) const
 		return true;
 
 	return false;
+}
+
+void CGameScene::BuildStaticGameplayTickList()
+{
+	m_staticGameplayTickObjects.clear();
+	m_staticGameplayTickObjects.reserve(
+		m_helmetRefs.size() +
+		m_PlayerSwordRefs.size() +
+		m_PlayerAxeRefs.size() +
+		m_PlayerGunRefs.size() +
+		m_EnemySwordRefs.size() +
+		m_arrowRefs.size() +
+		m_bulletRefs.size()
+	);
+
+	for ( CGameObject* obj : m_staticBatch.objectRefs )
+	{
+		if ( !obj )
+			continue;
+
+		if ( !IsDynamicStaticRenderObject(obj) )
+			continue;
+
+		m_staticGameplayTickObjects.push_back(obj);
+	}
+
+	char buf[256];
+	sprintf_s(
+		buf,
+		"[StaticGameplayTickList] tickObjects=%zu / staticObjects=%zu\n",
+		m_staticGameplayTickObjects.size(),
+		m_staticBatch.objectRefs.size()
+	);
+	OutputDebugStringA(buf);
 }
 
 void CGameScene::BuildStaticRenderObjectCache()
@@ -9210,31 +9247,14 @@ void CGameScene::AnimateObjects(float dt)
 	UpdateDynamicGridState();
 	UpdatePlayerFootstepSfx();
 
-	for ( UINT j = 0; j < ( UINT ) m_staticObjects.size(); ++j )
+	for ( CGameObject* obj : m_staticGameplayTickObjects )
 	{
-		if ( !m_staticObjects[j] )
+		if ( !obj )
 			continue;
 
-		if ( j < ( UINT ) m_staticDistanceCullFlags.size() )
-		{
-			if ( m_staticDistanceCullFlags[j] != 0 )
-				continue;
-		}
-
-		if ( j < ( UINT ) m_staticOcclusionCullFlags.size() )
-		{
-			if ( m_staticOcclusionCullFlags[j] != 0 )
-				continue;
-		}
-
-		if ( j < ( UINT ) m_staticTreeGridCullFlags.size() )
-		{
-			if ( m_staticTreeGridCullFlags[j] != 0 )
-				continue;
-		}
-
-		m_staticObjects[j]->Animate(dt);
+		obj->Animate(dt);
 	}
+
 #ifdef USING_NETWORK
 	UpdatePlayerBowSfxOnly();
 #else
