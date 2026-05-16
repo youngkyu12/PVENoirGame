@@ -413,6 +413,7 @@ private:
 
 	void BuildStaticRenderObjectCache();
 	bool IsDynamicStaticRenderObject(const CGameObject* obj) const;
+	void BuildStaticGameplayTickList();
 	bool WriteStaticInstanceVertexFromCache(StaticInstanceVertex& dst, UINT objectIndex) const;
 	void BuildStaticVisibleListsForFrame(CCamera* camera);
 	void BuildStaticShadowVisibleListsForFrame();
@@ -974,6 +975,7 @@ private:
 
 	std::vector<StaticInstanceGroup>     m_staticInstanceGroups;
 	std::vector<StaticRenderObjectCache> m_staticRenderObjectCache;
+	std::vector<CGameObject*>            m_staticGameplayTickObjects;
 
 	std::vector<std::vector<UINT>>       m_staticGroupIndicesByObjectIndex;
 
