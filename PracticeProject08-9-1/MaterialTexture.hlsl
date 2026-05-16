@@ -55,9 +55,8 @@ float2 ApplyUVST(float2 uv, float4 uvST)
     return uv * uvST.xy + uvST.zw;
 }
 
-float2 GetDiffuseUV(uint materialId, float2 baseUV)
+float2 GetDiffuseUVFromMaterial(MATERIAL mat, float2 baseUV)
 {
-    MATERIAL mat = gMaterials[materialId];
     return ApplyWrap2D(
         ApplyUVST(baseUV, mat.DiffuseUVST),
         mat.WrapModes0.x,
@@ -65,9 +64,8 @@ float2 GetDiffuseUV(uint materialId, float2 baseUV)
     );
 }
 
-float2 GetNormalUV(uint materialId, float2 baseUV)
+float2 GetNormalUVFromMaterial(MATERIAL mat, float2 baseUV)
 {
-    MATERIAL mat = gMaterials[materialId];
     return ApplyWrap2D(
         ApplyUVST(baseUV, mat.NormalUVST),
         mat.WrapModes0.z,
@@ -75,9 +73,8 @@ float2 GetNormalUV(uint materialId, float2 baseUV)
     );
 }
 
-float2 GetEmissiveUV(uint materialId, float2 baseUV)
+float2 GetEmissiveUVFromMaterial(MATERIAL mat, float2 baseUV)
 {
-    MATERIAL mat = gMaterials[materialId];
     return ApplyWrap2D(
         ApplyUVST(baseUV, mat.EmissiveUVST),
         mat.WrapModes1.x,
@@ -85,9 +82,8 @@ float2 GetEmissiveUV(uint materialId, float2 baseUV)
     );
 }
 
-float2 GetSpecularUV(uint materialId, float2 baseUV)
+float2 GetSpecularUVFromMaterial(MATERIAL mat, float2 baseUV)
 {
-    MATERIAL mat = gMaterials[materialId];
     return ApplyWrap2D(
         ApplyUVST(baseUV, mat.SpecularUVST),
         mat.WrapModes1.z,
@@ -95,13 +91,32 @@ float2 GetSpecularUV(uint materialId, float2 baseUV)
     );
 }
 
+float2 GetDiffuseUV(uint materialId, float2 baseUV)
+{
+    return GetDiffuseUVFromMaterial(gMaterials[materialId], baseUV);
+}
+
+float2 GetNormalUV(uint materialId, float2 baseUV)
+{
+    return GetNormalUVFromMaterial(gMaterials[materialId], baseUV);
+}
+
+float2 GetEmissiveUV(uint materialId, float2 baseUV)
+{
+    return GetEmissiveUVFromMaterial(gMaterials[materialId], baseUV);
+}
+
+float2 GetSpecularUV(uint materialId, float2 baseUV)
+{
+    return GetSpecularUVFromMaterial(gMaterials[materialId], baseUV);
+}
+
 float4 SampleTextureRGBA(uint packedIndex, float2 uv, float4 fallbackColor)
 {
     uint textureIndex = DecodePackedTextureIndex(packedIndex);
 
-    if (textureIndex == INVALID_TEXTURE_INDEX)
-        return fallbackColor;
-
+    // INVALID_TEXTURE_INDEX == 0xffffffffu 이므로
+    // textureIndex >= MAX_GLOBAL_SRVS 조건에 같이 걸린다.
     if (textureIndex >= MAX_GLOBAL_SRVS)
         return fallbackColor;
 
@@ -114,7 +129,9 @@ float CalcShadowFactor(float4 shadowPosH, float3 normalW, float3 vToLight)
         return 1.0f;
 
     const uint shadowMapIdx = gvShadowParams1.x;
-    if (shadowMapIdx == 0xffffffffu || shadowMapIdx >= MAX_GLOBAL_SRVS)
+
+    // 0xffffffffu도 MAX_GLOBAL_SRVS보다 크므로 이 조건 하나로 충분하다.
+    if (shadowMapIdx >= MAX_GLOBAL_SRVS)
         return 1.0f;
 
     float invW = rcp(max(0.0001f, shadowPosH.w));
@@ -127,11 +144,12 @@ float CalcShadowFactor(float4 shadowPosH, float3 normalW, float3 vToLight)
         return 1.0f;
     }
 
-    float ndotl = saturate(dot(normalize(normalW), normalize(vToLight)));
+    // 호출부에서 normalW, vToLight를 이미 normalize해서 넘긴다는 전제.
+    float ndotl = saturate(dot(normalW, vToLight));
     float bias = max(gvShadowParams0.y, gvShadowParams0.z * (1.0f - ndotl));
 
-    const float shadowMapSize = max(gvShadowParams0.x, 1.0f);
-    const float2 texelSize = float2(1.0f / shadowMapSize, 1.0f / shadowMapSize);
+    const float invShadowMapSize = rcp(max(gvShadowParams0.x, 1.0f));
+    const float2 texelSize = float2(invShadowMapSize, invShadowMapSize);
 
     float shadowSum = 0.0f;
 
@@ -151,8 +169,7 @@ float CalcShadowFactor(float4 shadowPosH, float3 normalW, float3 vToLight)
         }
     }
 
-    const float shadowLit = shadowSum / 9.0f;
-    return lerp(1.0f, shadowLit, saturate(gvShadowParams0.w));
+    return lerp(1.0f, shadowSum * (1.0f / 9.0f), saturate(gvShadowParams0.w));
 }
 
 float3 GetNormalWFromMap(uint packedNormal, float3 normalW_in, float4 tangentW_in, float2 uv)
@@ -160,9 +177,8 @@ float3 GetNormalWFromMap(uint packedNormal, float3 normalW_in, float4 tangentW_i
     float3 N = normalize(normalW_in);
 
     uint normalIndex = DecodePackedTextureIndex(packedNormal);
-    if (normalIndex == INVALID_TEXTURE_INDEX)
-        return N;
 
+    // INVALID_TEXTURE_INDEX도 이 조건에 포함된다.
     if (normalIndex >= MAX_GLOBAL_SRVS)
         return N;
 
@@ -174,8 +190,7 @@ float3 GetNormalWFromMap(uint packedNormal, float3 normalW_in, float4 tangentW_i
 
     float3 B = normalize(cross(N, T) * tangentW_in.w);
 
-    float3 nW = normalize(T * nTS.x + B * nTS.y + N * nTS.z);
-    return nW;
+    return normalize(T * nTS.x + B * nTS.y + N * nTS.z);
 }
 
 #endif

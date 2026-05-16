@@ -45,12 +45,8 @@ float3 BlinnPhong(
     float3 specularColor,
     float shininess)
 {
-    if (shininess <= 0.0f)
-        return texColor.rgb * fDiffuseFactor;
-
-    if (specularColor.r <= 0.0f &&
-        specularColor.g <= 0.0f &&
-        specularColor.b <= 0.0f)
+    if (shininess <= 0.0f ||
+        max(max(specularColor.r, specularColor.g), specularColor.b) <= 0.0f)
     {
         return texColor.rgb * fDiffuseFactor;
     }
@@ -59,7 +55,8 @@ float3 BlinnPhong(
 
     float roughnessFactor =
         (shininess + 8.0f) *
-        pow(max(dot(vHalf, vNormal), 0.0f), shininess) / 8.0f;
+        pow(max(dot(vHalf, vNormal), 0.0f), shininess) *
+        0.125f;
 
     float3 fresnelFactor = SchlickFresnel(specularColor, vHalf, vToLight);
     float3 specAlbedo = fresnelFactor * roughnessFactor;
@@ -70,63 +67,66 @@ float3 BlinnPhong(
 
 float4 DirectionalLight(
     int nIndex,
-    uint materialId,
-    float3 vNormal,
+    float3 N,
     float3 vToCamera,
     float4 texColor,
     float3 specularColor,
     float shininess,
     float4 shadowPosH)
 {
-    MATERIAL mat = gMaterials[materialId];
     float3 vToLight = normalize(-gLights[nIndex].m_vDirection);
-    float ndotl = saturate(dot(vToLight, normalize(vNormal)));
+    float ndotl = saturate(dot(vToLight, N));
 
     float3 lightStrength = gLights[nIndex].m_cDiffuse.rgb * ndotl;
+
     float3 litColor = BlinnPhong(
         lightStrength,
         vToLight,
-        normalize(vNormal),
+        N,
         vToCamera,
         texColor,
         specularColor,
         shininess
     );
 
-    float shadowFactor = CalcShadowFactor(shadowPosH, vNormal, vToLight);
+    float shadowFactor = CalcShadowFactor(shadowPosH, N, vToLight);
 
     float3 ambientColor =
         gLights[nIndex].m_cAmbient.rgb *
         texColor.rgb;
 
-    return float4(ambientColor + (litColor * shadowFactor), 0.0f);
+    return float4(ambientColor + litColor * shadowFactor, 0.0f);
 }
 
 float4 PointLight(
     int nIndex,
-    uint materialId,
     float3 vPosition,
-    float3 vNormal,
+    float3 N,
     float3 vToCamera,
     float4 texColor,
     float3 specularColor,
     float shininess)
 {
-    MATERIAL mat = gMaterials[materialId];
     float3 vToLight = gLights[nIndex].m_vPosition - vPosition;
-    float fDistance = length(vToLight);
 
-    if (fDistance <= gLights[nIndex].m_fRange && fDistance > 1e-6f)
+    float distSq = dot(vToLight, vToLight);
+    float range = gLights[nIndex].m_fRange;
+    float rangeSq = range * range;
+
+    if (distSq <= rangeSq && distSq > 1e-12f)
     {
-        vToLight /= fDistance;
+        float invDistance = rsqrt(distSq);
+        float fDistance = distSq * invDistance;
 
-        float fDiffuseFactor = saturate(dot(vToLight, normalize(vNormal)));
+        vToLight *= invDistance;
+
+        float fDiffuseFactor = saturate(dot(vToLight, N));
         float3 lightStrength = gLights[nIndex].m_cDiffuse.rgb * fDiffuseFactor;
 
         float3 litColor = BlinnPhong(
             lightStrength,
             vToLight,
-            normalize(vNormal),
+            N,
             vToCamera,
             texColor,
             specularColor,
@@ -138,10 +138,10 @@ float4 PointLight(
             texColor.rgb;
 
         float fAttenuationFactor =
-            1.0f / dot(
+            rcp(dot(
                 gLights[nIndex].m_vAttenuation,
                 float3(1.0f, fDistance, fDistance * fDistance)
-            );
+            ));
 
         return float4(ambientColor + litColor, 0.0f) * fAttenuationFactor;
     }
@@ -151,38 +151,43 @@ float4 PointLight(
 
 float4 SpotLight(
     int nIndex,
-    uint materialId,
     float3 vPosition,
-    float3 vNormal,
+    float3 N,
     float3 vToCamera,
     float4 texColor,
     float3 specularColor,
     float shininess)
 {
-    MATERIAL mat = gMaterials[materialId];
-
     float3 vToLight = gLights[nIndex].m_vPosition - vPosition;
-    float fDistance = length(vToLight);
 
-    if (fDistance <= gLights[nIndex].m_fRange && fDistance > 1e-6f)
+    float distSq = dot(vToLight, vToLight);
+    float range = gLights[nIndex].m_fRange;
+    float rangeSq = range * range;
+
+    if (distSq <= rangeSq && distSq > 1e-12f)
     {
-        vToLight /= fDistance;
+        float invDistance = rsqrt(distSq);
+        float fDistance = distSq * invDistance;
 
-        float fDiffuseFactor = saturate(dot(vToLight, normalize(vNormal)));
+        vToLight *= invDistance;
+
+        float fDiffuseFactor = saturate(dot(vToLight, N));
         float3 lightStrength = gLights[nIndex].m_cDiffuse.rgb * fDiffuseFactor;
 
         float3 litColor = BlinnPhong(
             lightStrength,
             vToLight,
-            normalize(vNormal),
+            N,
             vToCamera,
             texColor,
             specularColor,
             shininess
         );
 
+        float3 lightDir = normalize(gLights[nIndex].m_vDirection);
+
 #ifdef _WITH_THETA_PHI_CONES
-        float fAlpha = saturate(dot(-vToLight, normalize(gLights[nIndex].m_vDirection)));
+        float fAlpha = saturate(dot(-vToLight, lightDir));
         float fSpotFactor = pow(
             max(
                 (fAlpha - gLights[nIndex].m_fPhi) /
@@ -193,19 +198,20 @@ float4 SpotLight(
         );
 #else
         float fSpotFactor = pow(
-            saturate(dot(-vToLight, normalize(gLights[nIndex].m_vDirection))),
+            saturate(dot(-vToLight, lightDir)),
             gLights[nIndex].m_fFalloff
         );
 #endif
+
         float3 ambientColor =
             gLights[nIndex].m_cAmbient.rgb *
             texColor.rgb;
 
         float fAttenuationFactor =
-            1.0f / dot(
+            rcp(dot(
                 gLights[nIndex].m_vAttenuation,
                 float3(1.0f, fDistance, fDistance * fDistance)
-            );
+            ));
 
         return float4(ambientColor + litColor, 0.0f) * fAttenuationFactor * fSpotFactor;
     }
@@ -223,13 +229,12 @@ float4 Lighting(
     float shininess,
     float4 shadowPosH)
 {
-    MATERIAL mat = gMaterials[materialId];
-    float3 vCameraPosition = float3(gvCameraPosition.x, gvCameraPosition.y, gvCameraPosition.z);
-    float3 vToCamera = normalize(vCameraPosition - vPosition);
-
+    float3 vToCamera = normalize(gvCameraPosition - vPosition);
     float3 N = normalize(vNormal);
+
     float4 cColor = float4(0.0f, 0.0f, 0.0f, 0.0f);
 
+    [unroll]
     for (int i = 0; i < MAX_LIGHTS; i++)
     {
         if (!gLights[i].m_bEnable)
@@ -239,7 +244,6 @@ float4 Lighting(
         {
             cColor += DirectionalLight(
                 i,
-                materialId,
                 N,
                 vToCamera,
                 texColor,
@@ -252,7 +256,6 @@ float4 Lighting(
         {
             cColor += PointLight(
                 i,
-                materialId,
                 vPosition,
                 N,
                 vToCamera,
@@ -265,7 +268,6 @@ float4 Lighting(
         {
             cColor += SpotLight(
                 i,
-                materialId,
                 vPosition,
                 N,
                 vToCamera,
