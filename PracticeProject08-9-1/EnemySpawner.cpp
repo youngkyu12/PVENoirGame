@@ -6,6 +6,10 @@ void EnemySpawner::Initialize(const std::vector<CGameObject*>& spawnObjects)
 {
 	m_SpawnObjects = spawnObjects;
 
+	mElapsedTime = 0.0f;
+	flag = false;
+	mSpawnerPosition = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
+
 	m_freeList.clear();
 	m_freeList.reserve(m_SpawnObjects.size());
 
@@ -88,7 +92,17 @@ void EnemySpawner::RemoveEnemy(CGameObject* enemy)
 	auto it = std::find(m_SpawnObjects.begin(), m_SpawnObjects.end(), enemy);
 	if ( it == m_SpawnObjects.end() )
 		return;
-	(*it)->SetActive(false);
+	
+	const size_t index = static_cast< size_t >(
+		std::distance(m_SpawnObjects.begin(), it)
+	);
+
+	enemy->SetActive(false);
+
+	if ( std::find(m_freeList.begin(), m_freeList.end(), index) == m_freeList.end() )
+	{
+		m_freeList.push_back(index);
+	}
 }
 
 const std::vector<CGameObject*>& EnemySpawner::GetActiveEnemies() const

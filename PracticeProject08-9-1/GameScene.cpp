@@ -2927,7 +2927,6 @@ void CGameScene::ReleaseObjects()
 
 	m_staticRenderObjectCache.clear();
 	m_staticGameplayTickObjects.clear();
-	m_staticGroupIndicesByObjectIndex.clear();
 
 #ifndef USING_NETWORK
 	m_monsterSpawnEntries.clear();
@@ -3473,11 +3472,13 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 #endif
 	BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
 
+#ifndef USING_NETWORK
 	if ( !m_enemySpawner )
 		m_enemySpawner = std::make_unique<EnemySpawner>();
 
 	m_enemySpawner->Initialize(m_EnemySpawnRefs);
 	m_enemySpawnAccumulatorSec = 0.0f;
+#endif
 
 	for ( const SkinnedComponentCache& cache : m_skinnedComponentCache )
 	{
@@ -6356,7 +6357,7 @@ void CGameScene::BuildSkinnedBatch(
 			entry.lodDistance12 = lodDistance12;
 			entry.lodMeshes = lodMeshes;
 
-			entry.distanceCullEnabled = true;
+			entry.distanceCullEnabled = false;
 			entry.distanceCulled = false;
 			entry.cullDistance = cullDistance;
 
@@ -9096,10 +9097,12 @@ void CGameScene::AnimateObjects(float dt)
 	if ( !local )
 		local = GetPlayerBySlot(0);
 
-	if ( m_enemySpawner )
+#ifndef USING_NETWORK
+	if ( m_enemySpawner && local )
 	{
 		m_enemySpawner->Update(dt, local->GetPosition());
 	}
+#endif
 
 	UpdateMuzzleFlashes(dt);
 	UpdateSwordTrails(dt);
