@@ -70,6 +70,11 @@ bool CCollisionSystem::IsPairIntersecting(const CColliderComponent* a, const CCo
 	return false;
 }
 
+bool CCollisionSystem::TestIntersection(const CColliderComponent* a, const CColliderComponent* b) const
+{
+	return IsPairIntersecting(a, b);
+}
+
 bool CCollisionSystem::HasCollisionWithWorldStatic(const CColliderComponent* subject) const
 {
 	if (!subject)

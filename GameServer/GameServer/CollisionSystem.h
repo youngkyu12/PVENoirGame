@@ -15,6 +15,7 @@ public:
 	void RegisterCollider(CColliderComponent* c);
 	void UnregisterCollider(CColliderComponent* c);
 
+	bool TestIntersection(const CColliderComponent* a, const CColliderComponent* b) const;
 	bool HasCollisionWithWorldStatic(const CColliderComponent* subject) const;
 
 	size_t GetCollidersNum() const;

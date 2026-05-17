@@ -142,7 +142,7 @@ void Room::Enter(PlayerRef player)
 	player->SetMaxHp(kHpPlayer);
 
 	// life-state 초기 정상화
-	player->OnRespawnEnter(tick.load()); // 위치를 내부에서 덮어쓰면 아래 순서 조정 필요
+	player->OnRespawnEnter(GetAnimClockTick()); // 위치를 내부에서 덮어쓰면 아래 순서 조정 필요
 	player->SetPosition(GetInitialPlayerSpawnPosition(player->playerId));
 
 	player->SetWeapon(
@@ -229,7 +229,9 @@ bool Room::LoadMonsterSpawnEntries(std::vector<MonsterSpawnEntry>& outEntries)
 void Room::BuildRoom()
 {
 	buildings.clear();
+	m_elapsedServerMs = static_cast<uint64>(tick.load()) * m_timing.serverTickIntervalMs;
 	enemies.clear();
+	m_aiAwakeEnemyIds.clear();
 	m_arrowPool.clear();
 	m_bulletPool.clear();
 	InitializeCollisionSystem();
@@ -341,6 +343,7 @@ void Room::BuildRoom()
 		RegisterDynamicCollider(playerPair.second);
 
 	RebuildDynamicGridState();
+	RebuildMegaGridEnemyIds();
 }
 
 void Room::StartGame(bool ready, uint32 index)
@@ -368,6 +371,7 @@ void Room::StartGame(bool ready, uint32 index)
 
 void Room::EndGame()
 {
+	m_aiAwakeEnemyIds.clear();
 	ShutdownSpatialGrid();
 }
 
@@ -380,12 +384,14 @@ void Room::CheckClientReady()
 	if (allPlayerBuilt)
 	{
 		std::cout << "Game Started!" << endl;
-		GRoom->DoTimer(100, &Room::TickAdvance);
-		GRoom->DoTimer(100, &Room::ProcessEnemyAI);
+		const uint64 startDelayMs = m_timing.gameStartDelayMs;
+		GRoom->DoTimer(startDelayMs, &Room::TickAdvance);
+		GRoom->DoTimer(startDelayMs, &Room::FrameStateAdvance);
+		GRoom->DoTimer(startDelayMs, &Room::ProcessEnemyAI);
 	}
 	else
 	{
-		GRoom->DoTimer(100, &Room::CheckClientReady);
+		GRoom->DoTimer(m_timing.clientReadyPollIntervalMs, &Room::CheckClientReady);
 	}
 }
 
