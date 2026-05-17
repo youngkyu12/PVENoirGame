@@ -8355,10 +8355,31 @@ void CGameScene::AnimateObjects(float dt)
             if (!player) continue;
 
 
-            // 로컬 플레이어는 서버 좌표로 덮어쓰지 않음 (선택적)
-            // if (slot == m_localPlayerSlot) continue;
+            if (slot == m_localPlayerSlot)
+            {
+                const XMFLOAT3 currentPos = player->GetPosition();
+                const float dx = state.position.x - currentPos.x;
+                const float dy = state.position.y - currentPos.y;
+                const float dz = state.position.z - currentPos.z;
+                const float distSq = dx * dx + dy * dy + dz * dz;
 
-            player->SetPosition(state.position.x, state.position.y, state.position.z);
+                if (distSq > 4.0f)
+                {
+                    player->SetPosition(state.position.x, state.position.y, state.position.z);
+                }
+                else if (distSq > 0.0001f)
+                {
+                    constexpr float kLocalCorrectionAlpha = 0.35f;
+                    player->SetPosition(
+                        currentPos.x + dx * kLocalCorrectionAlpha,
+                        currentPos.y + dy * kLocalCorrectionAlpha,
+                        currentPos.z + dz * kLocalCorrectionAlpha);
+                }
+            }
+            else
+            {
+                player->SetPosition(state.position.x, state.position.y, state.position.z);
+            }
 
             // yaw 회전 적용
             if (auto* tr = player->GetComponent<CTransformComponent>())

@@ -1169,7 +1169,8 @@ void CGameFramework::ProcessInput()
 		if ( dwDirection && !pc->IsActionLockedByAnimation() )
 		{
 			const XMFLOAT3 prevPos = playerObj->GetPosition();
-			pc->MoveByYaw(dwDirection, 5.0f * dt, cameraYawDeg, false);
+			const float moveSpeed = bRunRequested ? 10.0f : 5.0f;
+			pc->MoveByYaw(dwDirection, moveSpeed * dt, cameraYawDeg, false);
 			if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
 				gameScene->RollbackLocalPlayerMoveIfCollidingWorldStatic(prevPos);
 		}

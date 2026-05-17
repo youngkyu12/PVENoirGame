@@ -117,14 +117,15 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	if (keyCodes & kDirRight)
 	{
 		moveDirection += right;
-		fDistance *= 0.5f;
 	}
 
 	if (keyCodes & kDirLeft)
 	{
 		moveDirection -= right;
-		fDistance *= 0.5f;
 	}
+
+	if (GameMath::Vec3::Dot(moveDirection, moveDirection) > 1e-8f)
+		moveDirection = moveDirection.Normalized();
 
 	switch (player->GetAnimState())
 	{
@@ -152,6 +153,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		case Protocol::ANIMATION_TYPE_RUN:
 		{
 			fDistance *= 2.0f;
+			break;
 		}
 		case Protocol::ANIMATION_TYPE_WALK:
 		{
@@ -184,15 +186,10 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	}
 	shift += moveDirection * fDistance;
 
-	const float moveMul = (player->GetAnimState() == Protocol::ANIMATION_TYPE_RUN
-		&& !(player->GetAnimState() == Protocol::ANIMATION_TYPE_ROLL 
-			|| player->GetAnimState() == Protocol::ANIMATION_TYPE_ATTACK)) 
-		? 2.0f : 1.0f;
-	GameMath::Vec3 desiredShift = shift * moveMul;
+	GameMath::Vec3 desiredShift = shift;
 
 	if (GameMath::Vec3::Dot(desiredShift, desiredShift) > 1e-8f)
 		desiredShift = ResolvePreBlockedShift(player, desiredShift);
 
-	shift = desiredShift / moveMul;
-	player->SetVelocity(shift);
+	player->SetVelocity(desiredShift);
 }
