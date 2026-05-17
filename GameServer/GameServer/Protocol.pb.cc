@@ -114,7 +114,8 @@ constexpr C_INPUT::C_INPUT(
   : playerid_(uint64_t{0u})
   , keycodes_(0)
   , deltax_(0)
-  , deltay_(0){}
+  , deltay_(0)
+  , clientdeltatime_(0){}
 struct C_INPUTDefaultTypeInternal {
   constexpr C_INPUTDefaultTypeInternal()
     : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
@@ -204,6 +205,7 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_Protocol_2eproto::offsets[] PR
   PROTOBUF_FIELD_OFFSET(::Protocol::C_INPUT, keycodes_),
   PROTOBUF_FIELD_OFFSET(::Protocol::C_INPUT, deltax_),
   PROTOBUF_FIELD_OFFSET(::Protocol::C_INPUT, deltay_),
+  PROTOBUF_FIELD_OFFSET(::Protocol::C_INPUT, clientdeltatime_),
   ~0u,  // no _has_bits_
   PROTOBUF_FIELD_OFFSET(::Protocol::S_FRAME_STATE, _internal_metadata_),
   ~0u,  // no _extensions_
@@ -223,7 +225,7 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOB
   { 36, -1, sizeof(::Protocol::S_GAME_START)},
   { 43, -1, sizeof(::Protocol::C_CLIENT_READY)},
   { 50, -1, sizeof(::Protocol::C_INPUT)},
-  { 59, -1, sizeof(::Protocol::S_FRAME_STATE)},
+  { 60, -1, sizeof(::Protocol::S_FRAME_STATE)},
 };
 
 static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] = {
@@ -251,13 +253,13 @@ const char descriptor_table_protodef_Protocol_2eproto[] PROTOBUF_SECTION_VARIABL
   "eady\030\003 \001(\010\"G\n\014S_GAME_START\022(\n\ninitStruct"
   "\030\001 \001(\0132\024.Protocol.InitStruct\022\r\n\005mapId\030\002 "
   "\001(\t\"1\n\016C_CLIENT_READY\022\020\n\010playerId\030\001 \001(\r\022"
-  "\r\n\005ready\030\002 \001(\010\"M\n\007C_INPUT\022\020\n\010playerid\030\001 "
+  "\r\n\005ready\030\002 \001(\010\"f\n\007C_INPUT\022\020\n\010playerid\030\001 "
   "\001(\004\022\020\n\010keyCodes\030\002 \001(\005\022\016\n\006deltaX\030\003 \001(\002\022\016\n"
-  "\006deltaY\030\004 \001(\002\"\213\001\n\rS_FRAME_STATE\022\022\n\nserve"
-  "rTick\030\001 \001(\r\022!\n\007players\030\002 \003(\0132\020.Protocol."
-  "Player\022 \n\007enemies\030\003 \003(\0132\017.Protocol.Enemy"
-  "\022!\n\007bullets\030\004 \003(\0132\020.Protocol.Bulletb\006pro"
-  "to3"
+  "\006deltaY\030\004 \001(\002\022\027\n\017clientDeltaTime\030\005 \001(\002\"\213"
+  "\001\n\rS_FRAME_STATE\022\022\n\nserverTick\030\001 \001(\r\022!\n\007"
+  "players\030\002 \003(\0132\020.Protocol.Player\022 \n\007enemi"
+  "es\030\003 \003(\0132\017.Protocol.Enemy\022!\n\007bullets\030\004 \003"
+  "(\0132\020.Protocol.Bulletb\006proto3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_Protocol_2eproto_deps[3] = {
   &::descriptor_table_Enum_2eproto,
@@ -266,7 +268,7 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor
 };
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_Protocol_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_Protocol_2eproto = {
-  false, false, 723, descriptor_table_protodef_Protocol_2eproto, "Protocol.proto", 
+  false, false, 748, descriptor_table_protodef_Protocol_2eproto, "Protocol.proto", 
   &descriptor_table_Protocol_2eproto_once, descriptor_table_Protocol_2eproto_deps, 3, 9,
   schemas, file_default_instances, TableStruct_Protocol_2eproto::offsets,
   file_level_metadata_Protocol_2eproto, file_level_enum_descriptors_Protocol_2eproto, file_level_service_descriptors_Protocol_2eproto,
@@ -1909,16 +1911,16 @@ C_INPUT::C_INPUT(const C_INPUT& from)
   : ::PROTOBUF_NAMESPACE_ID::Message() {
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   ::memcpy(&playerid_, &from.playerid_,
-    static_cast<size_t>(reinterpret_cast<char*>(&deltay_) -
-    reinterpret_cast<char*>(&playerid_)) + sizeof(deltay_));
+    static_cast<size_t>(reinterpret_cast<char*>(&clientdeltatime_) -
+    reinterpret_cast<char*>(&playerid_)) + sizeof(clientdeltatime_));
   // @@protoc_insertion_point(copy_constructor:Protocol.C_INPUT)
 }
 
 void C_INPUT::SharedCtor() {
 ::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
     reinterpret_cast<char*>(&playerid_) - reinterpret_cast<char*>(this)),
-    0, static_cast<size_t>(reinterpret_cast<char*>(&deltay_) -
-    reinterpret_cast<char*>(&playerid_)) + sizeof(deltay_));
+    0, static_cast<size_t>(reinterpret_cast<char*>(&clientdeltatime_) -
+    reinterpret_cast<char*>(&playerid_)) + sizeof(clientdeltatime_));
 }
 
 C_INPUT::~C_INPUT() {
@@ -1948,8 +1950,8 @@ void C_INPUT::Clear() {
   (void) cached_has_bits;
 
   ::memset(&playerid_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&deltay_) -
-      reinterpret_cast<char*>(&playerid_)) + sizeof(deltay_));
+      reinterpret_cast<char*>(&clientdeltatime_) -
+      reinterpret_cast<char*>(&playerid_)) + sizeof(clientdeltatime_));
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
@@ -1984,6 +1986,13 @@ const char* C_INPUT::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::in
       case 4:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 37)) {
           deltay_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<float>(ptr);
+          ptr += sizeof(float);
+        } else goto handle_unusual;
+        continue;
+      // float clientDeltaTime = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 45)) {
+          clientdeltatime_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<float>(ptr);
           ptr += sizeof(float);
         } else goto handle_unusual;
         continue;
@@ -2040,6 +2049,12 @@ failure:
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteFloatToArray(4, this->_internal_deltay(), target);
   }
 
+  // float clientDeltaTime = 5;
+  if (!(this->clientdeltatime() <= 0 && this->clientdeltatime() >= 0)) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteFloatToArray(5, this->_internal_clientdeltatime(), target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -2077,6 +2092,11 @@ size_t C_INPUT::ByteSizeLong() const {
 
   // float deltaY = 4;
   if (!(this->deltay() <= 0 && this->deltay() >= 0)) {
+    total_size += 1 + 4;
+  }
+
+  // float clientDeltaTime = 5;
+  if (!(this->clientdeltatime() <= 0 && this->clientdeltatime() >= 0)) {
     total_size += 1 + 4;
   }
 
@@ -2123,6 +2143,9 @@ void C_INPUT::MergeFrom(const C_INPUT& from) {
   if (!(from.deltay() <= 0 && from.deltay() >= 0)) {
     _internal_set_deltay(from._internal_deltay());
   }
+  if (!(from.clientdeltatime() <= 0 && from.clientdeltatime() >= 0)) {
+    _internal_set_clientdeltatime(from._internal_clientdeltatime());
+  }
 }
 
 void C_INPUT::CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) {
@@ -2147,8 +2170,8 @@ void C_INPUT::InternalSwap(C_INPUT* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(C_INPUT, deltay_)
-      + sizeof(C_INPUT::deltay_)
+      PROTOBUF_FIELD_OFFSET(C_INPUT, clientdeltatime_)
+      + sizeof(C_INPUT::clientdeltatime_)
       - PROTOBUF_FIELD_OFFSET(C_INPUT, playerid_)>(
           reinterpret_cast<char*>(&playerid_),
           reinterpret_cast<char*>(&other->playerid_));

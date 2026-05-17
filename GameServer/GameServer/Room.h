@@ -46,7 +46,7 @@ public:
 
 public:
     void TickAdvance();
-    void ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float deltaY);
+    void ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float deltaY, float clientDeltaTime);
 
 public:
     void MakeFrameState(uint32 tick);
