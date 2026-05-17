@@ -890,7 +890,7 @@ private:
 	std::deque<FrameSnapshot> m_frameSnapshotBuffer;
 	uint64_t m_lastReceivedServerTick = 0;
 
-	static constexpr uint64_t kNetworkInterpolationDelayTicks = 2;
+	static constexpr uint64_t kNetworkInterpolationDelayTicks = 6;
 	static constexpr size_t kMaxNetworkFrameSnapshotBufferSize = 8;
 
 	void PushNetworkFrameSnapshot(const FrameSnapshot& snapshot);

@@ -8354,43 +8354,40 @@ void CGameScene::AnimateObjects(float dt)
             CGameObject* player = GetPlayerBySlot(slot);
             if (!player) continue;
 
+			const bool isLocalPlayer = ( slot == m_localPlayerSlot );
 
-            if (slot == m_localPlayerSlot)
+			if (isLocalPlayer)
             {
+				constexpr float kLocalPlayerServerSnapDistance = 1.5f;
+				constexpr float kLocalPlayerServerSnapDistanceSq =
+					kLocalPlayerServerSnapDistance * kLocalPlayerServerSnapDistance;
+
                 const XMFLOAT3 currentPos = player->GetPosition();
                 const float dx = state.position.x - currentPos.x;
                 const float dy = state.position.y - currentPos.y;
                 const float dz = state.position.z - currentPos.z;
                 const float distSq = dx * dx + dy * dy + dz * dz;
 
-                if (distSq > 4.0f)
+                if (distSq > kLocalPlayerServerSnapDistanceSq)
                 {
                     player->SetPosition(state.position.x, state.position.y, state.position.z);
-                }
-                else if (distSq > 0.0001f)
-                {
-                    constexpr float kLocalCorrectionAlpha = 0.35f;
-                    player->SetPosition(
-                        currentPos.x + dx * kLocalCorrectionAlpha,
-                        currentPos.y + dy * kLocalCorrectionAlpha,
-                        currentPos.z + dz * kLocalCorrectionAlpha);
+
+					if ( auto* tr = player->GetComponent<CTransformComponent>() )
+						tr->SetYawDegrees(state.yaw);
+
+					if ( auto* controller = player->GetComponent<CPlayerControllerComponent>() )
+						controller->SetYawDegrees(state.yaw);
                 }
             }
             else
             {
                 player->SetPosition(state.position.x, state.position.y, state.position.z);
-            }
 
-            // yaw 회전 적용
-            if (auto* tr = player->GetComponent<CTransformComponent>())
-            {
-                tr->SetYawDegrees(state.yaw);
-            } 
-
-			if ( slot == m_localPlayerSlot )
-			{
-				if ( auto* controller = player->GetComponent<CPlayerControllerComponent>() )
-					controller->SetYawDegrees(state.yaw);
+				// yaw 회전 적용
+				if (auto* tr = player->GetComponent<CTransformComponent>())
+				{
+					tr->SetYawDegrees(state.yaw);
+				}
 			}
 			
 			if ( auto wc = player->GetComponent<CPlayerEquipmentComponent>() )

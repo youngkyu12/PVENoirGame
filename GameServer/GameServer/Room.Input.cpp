@@ -2,7 +2,7 @@
 #include "Room.h"
 #include "Player.h"
 
-void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float deltaY)
+void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float deltaY, float clientDeltaTime)
 {
 	auto it = players.find(playerId);
 	if (it == players.end())
@@ -97,7 +97,13 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	GameMath::Vec3 right = player->GetRight();
 
 	const float speed = 5.0f;
-	const float dt = m_timing.playerInputDtSec;
+	float dt = clientDeltaTime;
+	if (!(dt > 0.0f))
+		dt = m_timing.playerInputDtSec;
+	if (dt < 0.001f)
+		dt = 0.001f;
+	if (dt > 0.05f)
+		dt = 0.05f;
 	float fDistance = speed * dt;
 
 	GameMath::Vec3 shift = GameMath::Vec3::Zero();

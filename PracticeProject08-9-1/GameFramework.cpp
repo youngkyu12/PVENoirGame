@@ -1139,10 +1139,11 @@ void CGameFramework::ProcessInput()
 		inputPkt.set_deltax(cxDelta);
 		inputPkt.set_deltay(cyDelta);
 
+		const float dt = m_GameTimer.GetTimeElapsed();
+		inputPkt.set_clientdeltatime(dt);
+
 		auto sendBuffer = ServerPacketHandler::MakeSendBuffer(inputPkt);
 		g_clientService->BroadCast(sendBuffer);
-
-		const float dt = m_GameTimer.GetTimeElapsed();
 
 		// --------------------------------------------------------------------
 		// 1) 카메라는 항상 마우스로 회전한다. (공격/구르기 중에도 가능)
