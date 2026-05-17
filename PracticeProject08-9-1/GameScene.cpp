@@ -46,6 +46,7 @@
 #include "AttackPowerComponent.h"
 #include "AudioManager.h"
 #include "MusicDirector.h"
+#include "EnemySpawner.h"
 
 #include "ThreadManager.h"
 #include "Service.h"
@@ -251,16 +252,6 @@ namespace
 		out3 = XMFLOAT4(W._41, W._42, W._43, W._44);
 	}
 
-	static bool ContainsGameObjectPtr(
-		const std::vector<CGameObject*>& refs,
-		const CGameObject* obj)
-	{
-		if ( !obj )
-			return false;
-
-		return std::find(refs.begin(), refs.end(), obj) != refs.end();
-	}
-
 	static XMFLOAT3 GetSafeObjectForward(const CGameObject* obj)
 	{
 		if ( !obj )
@@ -395,6 +386,47 @@ namespace
 				+ ( h >> 2 );
 
 			h ^= std::hash<int>{}( k.lodLevel )
+				+ 0x9e3779b9
+				+ ( h << 6 )
+				+ ( h >> 2 );
+
+			return h;
+		}
+	};
+
+	struct SkinnedGroupKey
+	{
+		std::string geometryKey;
+		UINT meshIndex = 0;
+		UINT subMeshIndex = 0;
+		bool useAlphaClipShader = false;
+
+		bool operator==(const SkinnedGroupKey& rhs) const
+		{
+			return geometryKey == rhs.geometryKey &&
+				meshIndex == rhs.meshIndex &&
+				subMeshIndex == rhs.subMeshIndex &&
+				useAlphaClipShader == rhs.useAlphaClipShader;
+		}
+	};
+
+	struct SkinnedGroupKeyHash
+	{
+		size_t operator()(const SkinnedGroupKey& k) const
+		{
+			size_t h = std::hash<std::string>{}( k.geometryKey );
+
+			h ^= std::hash<UINT>{}( k.meshIndex )
+				+ 0x9e3779b9
+				+ ( h << 6 )
+				+ ( h >> 2 );
+
+			h ^= std::hash<UINT>{}( k.subMeshIndex )
+				+ 0x9e3779b9
+				+ ( h << 6 )
+				+ ( h >> 2 );
+
+			h ^= std::hash<bool>{}( k.useAlphaClipShader )
 				+ 0x9e3779b9
 				+ ( h << 6 )
 				+ ( h >> 2 );
@@ -2436,8 +2468,10 @@ void CGameScene::RegisterMonsterToMegaGrid(
 	if ( megaNumber <= 0 )
 		return;
 
-	m_collisionMegaGridMaskByObject[monster] =
+	const uint16_t monsterMegaGridMask =
 		static_cast< uint16_t >( 1u << ( megaNumber - 1 ) );
+
+	SetObjectCollisionMegaGridMask(monster, monsterMegaGridMask, true);
 
 	const int zeroBased = megaNumber - 1;
 	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
@@ -2471,8 +2505,13 @@ bool CGameScene::ShouldSkipMonsterByMegaGrid(
 	if ( activeMegaGridNumber <= 0 )
 		return false;
 
-	auto* tag = monster->GetComponent<CActorTagComponent>();
-	if ( !tag || tag->kind != EActorKind::NPC )
+	const SkinnedComponentCache* cache =
+		GetSkinnedComponentCache(skinnedBatchObjectIndex);
+
+	if ( !cache || cache->object != monster )
+		return false;
+
+	if ( !cache->isNpc )
 		return false;
 
 	if ( skinnedBatchObjectIndex >= static_cast< UINT >( m_skinnedMonsterMegaGridNumbers.size() ) )
@@ -2581,16 +2620,54 @@ uint16_t CGameScene::ComputeObjectCurrentMegaGridMask(const CGameObject* obj) co
 	return static_cast< uint16_t >( 1u << bit );
 }
 
-uint16_t CGameScene::GetCollisionMegaGridMaskForObject(const CGameObject* obj) const
+void CGameScene::SetObjectCollisionMegaGridMask(
+	CGameObject* obj,
+	uint16_t mask,
+	bool fixedMask)
 {
 	if ( !obj )
-		return 0;
+		return;
 
-	const auto it = m_collisionMegaGridMaskByObject.find(obj);
-	if ( it != m_collisionMegaGridMaskByObject.end() )
-		return it->second;
+	CColliderComponent* collider = obj->GetComponent<CColliderComponent>();
+	if ( !collider )
+		return;
 
-	return ComputeObjectCurrentMegaGridMask(obj);
+	collider->SetCollisionMegaGridMask(mask);
+	collider->SetCollisionMegaGridMaskFixed(fixedMask);
+}
+
+void CGameScene::RefreshDynamicCollisionMegaGridMasks()
+{
+	auto RefreshObject = [ this ] (CGameObject* obj)
+		{
+			if ( !obj )
+				return;
+
+			CColliderComponent* collider = obj->GetComponent<CColliderComponent>();
+			if ( !collider )
+				return;
+
+			if ( collider->IsCollisionMegaGridMaskFixed() )
+				return;
+
+			const uint16_t mask = ComputeObjectCurrentMegaGridMask(obj);
+			collider->SetCollisionMegaGridMask(mask);
+		};
+
+	// 플레이어는 위치가 계속 변한다.
+	for ( CGameObject* player : m_playersBySlot )
+		RefreshObject(player);
+
+	// static batch에 있지만 transform이 변하는 gameplay object들.
+	for ( CGameObject* obj : m_staticGameplayTickObjects )
+		RefreshObject(obj);
+
+	// PlayerBow / EnemyBow는 skinned batch 쪽이므로 staticGameplayTickObjects에 없다.
+	for ( CGameObject* obj : m_PlayerBowRefs )
+		RefreshObject(obj);
+
+	for ( CGameObject* obj : m_EnemyBowRefs )
+		RefreshObject(obj);
 }
 
 bool CGameScene::ShouldKeepCollisionPairByMegaGrid(
@@ -2600,13 +2677,8 @@ bool CGameScene::ShouldKeepCollisionPairByMegaGrid(
 	if ( !a || !b )
 		return false;
 
-	// 월드 지형/건물과 플레이어, 몬스터, 투사체, 무기 충돌은 grid mask로 필터링한다.
-	// 정적 건물은 위치 1점이 아니라 m_staticCollisionMegaGridMasks를 우선 사용한다.
-	const CGameObject* objA = a->GetOwner();
-	const CGameObject* objB = b->GetOwner();
-
-	const uint16_t maskA = GetCollisionMegaGridMaskForObject(objA);
-	const uint16_t maskB = GetCollisionMegaGridMaskForObject(objB);
+	const uint16_t maskA = a->GetCollisionMegaGridMask();
+	const uint16_t maskB = b->GetCollisionMegaGridMask();
 
 	// grid 밖으로 나간 투사체/오브젝트는 충돌 후보에서 제거.
 	if ( maskA == 0 || maskB == 0 )
@@ -2745,11 +2817,11 @@ void CGameScene::ReleaseObjects()
 	m_skinnedAlphaClipObjects.clear();
 
 	m_staticTreeGridCullFlags.clear();
+	m_staticDynamicWorldMatrixFlags.clear();
 	m_staticShadowCasterFlags.clear();
 	m_staticTreeObjectIndices.clear();
 	m_staticShadowOcclusionEntryIndices.clear();
 	m_staticCollisionMegaGridMasks.clear();
-	m_collisionMegaGridMaskByObject.clear();
 	m_skinnedShadowOcclusionEntryIndices.clear();
 
 #ifndef USING_NETWORK
@@ -2790,7 +2862,10 @@ void CGameScene::ReleaseObjects()
 	ResetStaticWorldLodEntries();
 	ResetStaticOcclusionEntries();
 	m_staticOcclusionUnitBoxMesh.reset();
+
 	m_skinnedInstanceGroups.clear();
+	m_skinnedComponentCache.clear();
+
 	ResetSkinnedWorldLodEntries();
 	ResetSkinnedOcclusionEntries();
 
@@ -2851,6 +2926,7 @@ void CGameScene::ReleaseObjects()
 	m_swordTrails.clear();
 
 	m_staticRenderObjectCache.clear();
+	m_staticGameplayTickObjects.clear();
 
 #ifndef USING_NETWORK
 	m_monsterSpawnEntries.clear();
@@ -3030,7 +3106,8 @@ void CGameScene::ReleaseShaderVariables()
 		m_pMappedSkinnedBonePaletteBuffer[frameIndex] = nullptr;
 	}
 
-	m_skinnedBonePaletteStride = 0;
+	m_skinnedBonePaletteBaseByObject.clear();
+	m_skinnedBonePaletteCountByObject.clear();
 	m_skinnedBonePaletteCapacity = 0;
 
 	// ---- Static batch CB ----
@@ -3247,6 +3324,9 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
 	m_helmetCount = m_MutantCount;
 
+	m_EnemySpawnCount = 200;
+	m_terrainCount = 1;
+
 #ifdef USING_NETWORK
 	const UINT worldStaticCount = static_cast< UINT >( m_staticPlacementEntries.size() );
 #else
@@ -3261,7 +3341,8 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		m_PlayerSwordCount +
 		m_PlayerAxeCount +
 		m_PlayerGunCount +
-		m_swordManCount;
+		m_swordManCount +
+		m_terrainCount;
 
 	m_skinnedBatch.capacity =
 		m_ghoulCount +
@@ -3271,7 +3352,8 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		m_bossCount +
 		m_PlayerCount +
 		m_PlayerBowCount +
-		m_bowManCount;
+		m_bowManCount +
+		m_EnemySpawnCount;
 
 	m_colliderBatch.capacity = m_staticBatch.capacity + m_skinnedBatch.capacity;
 
@@ -3390,13 +3472,18 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 #endif
 	BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
 
-	for ( CGameObject* obj : m_skinnedBatch.objectRefs )
-	{
-		if ( !obj )
-			continue;
+#ifndef USING_NETWORK
+	if ( !m_enemySpawner )
+		m_enemySpawner = std::make_unique<EnemySpawner>();
 
-		if ( auto* hp = obj->GetComponent<CHealthComponent>() )
-			hp->SetAudioManager(m_pAudioManager);
+	m_enemySpawner->Initialize(m_EnemySpawnRefs);
+	m_enemySpawnAccumulatorSec = 0.0f;
+#endif
+
+	for ( const SkinnedComponentCache& cache : m_skinnedComponentCache )
+	{
+		if ( cache.health )
+			cache.health->SetAudioManager(m_pAudioManager);
 	}
 
 	LinkSceneObjects();
@@ -3928,6 +4015,8 @@ void CGameScene::BuildLightsAndMaterials()
 	m_pMaterials = make_unique<MATERIALS>();
 	::ZeroMemory(m_pMaterials.get(), sizeof(MATERIALS));
 
+	AssetManager::BeginSceneMaterialBuild(m_pMaterials.get());
+
     m_pMaterials->m_pReflections[0] = {
         XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),
         XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),
@@ -4139,6 +4228,7 @@ void CGameScene::BuildStaticBatch(
 	}
 
 	m_treeAlphaClipObjects.clear();
+	m_treeAlphaClipObjects.reserve(cap);
 
 	m_staticObjects.clear();
 	m_staticObjects.reserve(cap);
@@ -4148,7 +4238,10 @@ void CGameScene::BuildStaticBatch(
 
 #ifndef USING_NETWORK
 	m_towerDoorPortals.clear();
+	m_towerDoorPortals.reserve(m_towerCount);
+
 	m_castleDoorPortals.clear();
+	m_castleDoorPortals.reserve(m_castleCount);
 #endif
 
 	m_staticShadowCasterFlags.clear();
@@ -4158,15 +4251,18 @@ void CGameScene::BuildStaticBatch(
 	m_staticTreeObjectIndices.reserve(cap);
 
 	m_staticShadowOcclusionEntryIndices.clear();
+	m_staticShadowOcclusionEntryIndices.reserve(cap);
 
 	m_staticCollisionMegaGridMasks.clear();
 	m_staticCollisionMegaGridMasks.reserve(cap);
 
-	m_collisionMegaGridMaskByObject.clear();
-	m_collisionMegaGridMaskByObject.reserve(cap + m_skinnedBatch.capacity);
+	m_staticDynamicWorldMatrixFlags.clear();
+	m_staticDynamicWorldMatrixFlags.reserve(cap);
 
 	b->count = 0;
+
 	ResetStaticWorldLodEntries();
+	m_staticWorldLodEntries.reserve(m_staticPlacementEntries.size());
 
 	std::vector<size_t> exportedWorldStaticPlacementIndices;
 	std::vector<CGameObject*> exportedWorldStaticObjects;
@@ -4408,8 +4504,25 @@ void CGameScene::BuildStaticBatch(
 				lodEntry.lodDistance12 = 120.0f;
 				lodEntry.cullDistance = 500.0f;
 			}
+			else if ( 
+				placement.assetName == "Tower" ) 
+			{
+				lodEntry.lodDistance01 = 300.0f;
+				lodEntry.lodDistance12 = 500.0f;
+				lodEntry.cullDistance = 800.0f;
+			}
+			else if (
+				placement.assetName == "Castle" ) 
+			{
+				lodEntry.lodDistance01 = 400.0f;
+				lodEntry.lodDistance12 = 600.0f;
+				lodEntry.cullDistance = 1000.0f;
+			}
+
 			else
 			{
+				lodEntry.lodDistance01 = 100.0f;
+				lodEntry.lodDistance12 = 300.0f;
 				lodEntry.cullDistance = 400.0f;
 			}
 
@@ -4434,6 +4547,65 @@ void CGameScene::BuildStaticBatch(
 		const uint16_t collisionMegaGridMask =
 			createWorldStaticCollider ? ComputeStaticObjectMegaGridMask(raw) : 0;
 
+		SetObjectCollisionMegaGridMask(raw, collisionMegaGridMask, true);
+
+		m_staticObjects.push_back(std::move(obj));
+		b->objectRefs.push_back(raw);
+		m_staticShadowCasterFlags.push_back(castsShadow ? 1 : 0);
+		m_staticCollisionMegaGridMasks.push_back(collisionMegaGridMask);
+		m_staticDynamicWorldMatrixFlags.push_back(0);
+		b->count = ( UINT ) b->objectRefs.size();
+	}
+
+	// Terrain 연결
+	/*for ( UINT k = 0; k < m_terrainCount; ++k )
+	{
+		if ( b->objectRefs.size() >= b->capacity ) break;
+
+		const UINT i = ( UINT ) b->objectRefs.size();
+		const StaticPlacementEntry& placement = m_staticPlacementEntries[k];
+
+		const bool createWorldStaticCollider = false;
+		const bool isStaticWorldLodTarget = false;
+		const bool enableDistanceCull = false;
+
+		std::shared_ptr<CMesh> selectedMesh = nullptr;
+
+		if ( !selectedMesh )
+		{
+			
+			
+		}
+
+		if ( !selectedMesh )
+			continue;
+
+		GameSceneObjectFactory::StaticRenderableDesc createDesc{};
+		createDesc.ctx = MakeStaticContext(i);
+		createDesc.mesh = selectedMesh;
+		createDesc.position = placement.pos;
+		createDesc.yawDeg = placement.yawDeg;
+
+		createDesc.addCollider = false;
+		const bool logCastleVillageWallColliderBuild = false;
+
+		createDesc.debugColliderBuildLog = logCastleVillageWallColliderBuild;
+		createDesc.debugColliderAssetName = placement.assetName;
+		createDesc.debugColliderObjectName = placement.objectName;
+
+		auto obj = GameSceneObjectFactory::CreateStaticRenderable(createDesc);
+		if ( !obj )
+			continue;
+
+		CGameObject* raw = obj.get();
+
+		const bool castsShadow = false;
+
+		RegisterStaticPlacementToGrid(placement, raw);
+
+		const uint16_t collisionMegaGridMask =
+			createWorldStaticCollider ? ComputeStaticObjectMegaGridMask(raw) : 0;
+
 		if ( collisionMegaGridMask != 0 )
 			m_collisionMegaGridMaskByObject[raw] = collisionMegaGridMask;
 
@@ -4442,7 +4614,7 @@ void CGameScene::BuildStaticBatch(
 		m_staticShadowCasterFlags.push_back(castsShadow ? 1 : 0);
 		m_staticCollisionMegaGridMasks.push_back(collisionMegaGridMask);
 		b->count = ( UINT ) b->objectRefs.size();
-	}
+	}*/
 
 #ifndef USING_NETWORK
 	if ( kEnableStaticWorldLocalOOBBReportExport )
@@ -4504,10 +4676,12 @@ void CGameScene::BuildStaticBatch(
 				continue;
 
 			CGameObject* raw = obj.get();
+			SetObjectCollisionMegaGridMask(raw, 0, false);
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(0);
 			m_staticCollisionMegaGridMasks.push_back(0);
+			m_staticDynamicWorldMatrixFlags.push_back(1);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_arrowRefs.push_back(raw);
@@ -4557,10 +4731,12 @@ void CGameScene::BuildStaticBatch(
 				continue;
 
 			CGameObject* raw = obj.get();
+			SetObjectCollisionMegaGridMask(raw, 0, false);
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(0);
 			m_staticCollisionMegaGridMasks.push_back(0);
+			m_staticDynamicWorldMatrixFlags.push_back(1);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_bulletRefs.push_back(raw);
@@ -4599,10 +4775,12 @@ void CGameScene::BuildStaticBatch(
 				continue;
 
 			CGameObject* raw = obj.get();
+			SetObjectCollisionMegaGridMask(raw, 0, false);
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(0);
 			m_staticCollisionMegaGridMasks.push_back(0);
+			m_staticDynamicWorldMatrixFlags.push_back(1);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_helmetRefs.push_back(raw);
@@ -4652,10 +4830,12 @@ void CGameScene::BuildStaticBatch(
 				continue;
 
 			CGameObject* raw = obj.get();
+			SetObjectCollisionMegaGridMask(raw, 0, false);
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(1);
 			m_staticCollisionMegaGridMasks.push_back(0);
+			m_staticDynamicWorldMatrixFlags.push_back(1);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_PlayerSwordRefs.push_back(raw);
@@ -4705,10 +4885,12 @@ void CGameScene::BuildStaticBatch(
 				continue;
 
 			CGameObject* raw = obj.get();
+			SetObjectCollisionMegaGridMask(raw, 0, false);
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(1);
 			m_staticCollisionMegaGridMasks.push_back(0);
+			m_staticDynamicWorldMatrixFlags.push_back(1);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_PlayerAxeRefs.push_back(raw);
@@ -4751,10 +4933,12 @@ void CGameScene::BuildStaticBatch(
 				continue;
 
 			CGameObject* raw = obj.get();
+			SetObjectCollisionMegaGridMask(raw, 0, false);
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(1);
 			m_staticCollisionMegaGridMasks.push_back(0);
+			m_staticDynamicWorldMatrixFlags.push_back(1);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_PlayerGunRefs.push_back(raw);
@@ -4803,10 +4987,12 @@ void CGameScene::BuildStaticBatch(
 				continue;
 
 			CGameObject* raw = obj.get();
+			SetObjectCollisionMegaGridMask(raw, 0, false);
 			m_staticObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			m_staticShadowCasterFlags.push_back(1);
 			m_staticCollisionMegaGridMasks.push_back(0);
+			m_staticDynamicWorldMatrixFlags.push_back(1);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_EnemySwordRefs.push_back(raw);
@@ -4830,6 +5016,8 @@ void CGameScene::BuildStaticBatch(
 
 	BuildStaticOcclusionUnitBoxMesh(dev, cmd);
 	BuildStaticOcclusionGpuResources(dev);
+
+	BuildStaticGameplayTickList();
 	BuildStaticInstanceGroups();
 	BuildStaticRenderObjectCache();
 
@@ -5089,25 +5277,156 @@ void CGameScene::BuildStaticInstanceGroups()
 	}
 }
 
+void CGameScene::BuildSkinnedComponentCache()
+{
+	m_skinnedComponentCache.clear();
+
+	const UINT objectCount =
+		static_cast< UINT >( m_skinnedBatch.objectRefs.size() );
+
+	m_skinnedComponentCache.resize(objectCount);
+
+	for ( UINT objectIndex = 0; objectIndex < objectCount; ++objectIndex )
+	{
+		CGameObject* obj = m_skinnedBatch.objectRefs[objectIndex];
+
+		SkinnedComponentCache& cache = m_skinnedComponentCache[objectIndex];
+		cache = SkinnedComponentCache{};
+		cache.object = obj;
+
+		if ( !obj )
+			continue;
+
+		cache.renderer = obj->GetComponent<CSkinnedMeshRendererComponent>();
+		cache.skinning = obj->GetComponent<CSkinningComponent>();
+		cache.animator = obj->GetComponent<CAnimatorComponent>();
+		cache.health = obj->GetComponent<CHealthComponent>();
+		cache.actorTag = obj->GetComponent<CActorTagComponent>();
+		cache.collider = obj->GetComponent<CColliderComponent>();
+
+		if ( cache.actorTag )
+		{
+			cache.isNpc = ( cache.actorTag->kind == EActorKind::NPC );
+			cache.isPlayer = ( cache.actorTag->kind == EActorKind::Player );
+		}
+	}
+}
+
+const SkinnedComponentCache* CGameScene::GetSkinnedComponentCache(UINT objectIndex) const
+{
+	if ( objectIndex >= static_cast< UINT >( m_skinnedComponentCache.size() ) )
+		return nullptr;
+
+	return &m_skinnedComponentCache[objectIndex];
+}
+
+bool CGameScene::WriteSkinnedInstanceVertexFromCache(
+	SkinnedInstanceVertex& dst,
+	const SkinnedComponentCache& cache,
+	UINT objectIndex,
+	UINT meshIndex,
+	UINT subMeshIndex,
+	XMFLOAT4X4* mappedSkinnedBonePaletteBuffer) const
+{
+	CGameObject* obj = cache.object;
+	if ( !obj )
+		return false;
+
+	if ( !cache.renderer || !cache.renderer->IsEnabled() )
+		return false;
+
+	CSkinningComponent* skin = cache.skinning;
+	if ( !skin || !skin->IsSkinned() )
+		return false;
+
+	std::shared_ptr<CMesh> objMesh = obj->GetMeshShared(static_cast< int >( meshIndex ));
+	if ( !objMesh )
+		return false;
+
+	if ( subMeshIndex >= objMesh->m_SubMeshes.size() )
+		return false;
+
+	if ( objectIndex >= static_cast< UINT >( m_skinnedBonePaletteBaseByObject.size() ) )
+		return false;
+
+	if ( objectIndex >= static_cast< UINT >( m_skinnedBonePaletteCountByObject.size() ) )
+		return false;
+
+	const UINT bonePaletteBase = m_skinnedBonePaletteBaseByObject[objectIndex];
+
+	const UINT reservedBoneCount =
+		m_skinnedBonePaletteCountByObject[objectIndex];
+
+	if ( reservedBoneCount == 0 )
+		return false;
+
+	if ( bonePaletteBase >= m_skinnedBonePaletteCapacity )
+		return false;
+
+	if ( reservedBoneCount > m_skinnedBonePaletteCapacity - bonePaletteBase )
+		return false;
+
+	const SubMesh& objSm = objMesh->m_SubMeshes[subMeshIndex];
+
+	const XMFLOAT4X4& W = obj->GetWorldMatrix();
+
+	dst.world0 = XMFLOAT4(W._11, W._12, W._13, W._14);
+	dst.world1 = XMFLOAT4(W._21, W._22, W._23, W._24);
+	dst.world2 = XMFLOAT4(W._31, W._32, W._33, W._34);
+	dst.world3 = XMFLOAT4(W._41, W._42, W._43, W._44);
+
+	dst.materialId = ( objSm.materialId == 0xFFFFFFFFu ) ? 0u : objSm.materialId;
+	dst.bonePaletteBase = bonePaletteBase;
+
+	const XMFLOAT4X4* srcBoneMats = skin->GetMappedBoneMatrices();
+	const UINT boneCount = static_cast< UINT >( skin->GetBoneCount() );
+
+	if ( mappedSkinnedBonePaletteBuffer && srcBoneMats && boneCount > 0 )
+	{
+		UINT copyBoneCount = boneCount;
+
+		if ( copyBoneCount > reservedBoneCount )
+			copyBoneCount = reservedBoneCount;
+
+		memcpy(
+			mappedSkinnedBonePaletteBuffer + bonePaletteBase,
+			srcBoneMats,
+			sizeof(XMFLOAT4X4) * copyBoneCount
+		);
+	}
+
+	return true;
+}
+
 void CGameScene::BuildSkinnedInstanceGroups()
 {
 	m_skinnedInstanceGroups.clear();
+	m_skinnedInstanceGroups.reserve(m_skinnedBatch.objectRefs.size() * 2);
 
-	for ( UINT objectIndex = 0; objectIndex < ( UINT ) m_skinnedBatch.objectRefs.size(); ++objectIndex )
+	std::unordered_map<SkinnedGroupKey, size_t, SkinnedGroupKeyHash> groupIndexByKey;
+	groupIndexByKey.reserve(m_skinnedBatch.objectRefs.size() * 2);
+
+	for ( UINT objectIndex = 0;
+		  objectIndex < static_cast< UINT >(m_skinnedBatch.objectRefs.size());
+		  ++objectIndex )
 	{
 		CGameObject* obj = m_skinnedBatch.objectRefs[objectIndex];
-		if ( !obj ) continue;
+		if ( !obj )
+			continue;
 
 		const bool useAlphaClipShader =
 			( m_skinnedAlphaClipObjects.find(obj) != m_skinnedAlphaClipObjects.end() );
 
 		const int meshCount = obj->GetMeshCount();
+
 		for ( int meshIndex = 0; meshIndex < meshCount; ++meshIndex )
 		{
 			std::shared_ptr<CMesh> mesh = obj->GetMeshShared(meshIndex);
-			if ( !mesh ) continue;
+			if ( !mesh )
+				continue;
 
 			std::string geometryKey = mesh->GetSourceMeshPath();
+
 			if ( geometryKey.empty() )
 			{
 				char buf[64];
@@ -5115,96 +5434,114 @@ void CGameScene::BuildSkinnedInstanceGroups()
 				geometryKey = buf;
 			}
 
-			for ( UINT subMeshIndex = 0; subMeshIndex < ( UINT ) mesh->m_SubMeshes.size(); ++subMeshIndex )
+			const UINT subMeshCount =
+				static_cast< UINT >( mesh->m_SubMeshes.size() );
+
+			for ( UINT subMeshIndex = 0; subMeshIndex < subMeshCount; ++subMeshIndex )
 			{
-				SkinnedInstanceGroup* targetGroup = nullptr;
+				SkinnedGroupKey key{};
+				key.geometryKey = geometryKey;
+				key.meshIndex = static_cast< UINT >(meshIndex);
+				key.subMeshIndex = subMeshIndex;
+				key.useAlphaClipShader = useAlphaClipShader;
 
-				for ( SkinnedInstanceGroup& group : m_skinnedInstanceGroups )
-				{
-					if ( group.geometryKey == geometryKey &&
-						group.meshIndex == ( UINT ) meshIndex &&
-						group.subMeshIndex == subMeshIndex &&
-						group.useAlphaClipShader == useAlphaClipShader )
-					{
-						targetGroup = &group;
-						break;
-					}
-				}
+				size_t groupIndex = 0;
 
-				if ( !targetGroup )
+				auto it = groupIndexByKey.find(key);
+
+				if ( it == groupIndexByKey.end() )
 				{
 					SkinnedInstanceGroup newGroup{};
 					newGroup.geometryKey = geometryKey;
 					newGroup.mesh = mesh;
+					newGroup.meshIndex = static_cast< UINT >( meshIndex );
 					newGroup.subMeshIndex = subMeshIndex;
-					newGroup.meshIndex = ( UINT ) meshIndex;
 					newGroup.useAlphaClipShader = useAlphaClipShader;
+
+					groupIndex = m_skinnedInstanceGroups.size();
 					m_skinnedInstanceGroups.push_back(std::move(newGroup));
-					targetGroup = &m_skinnedInstanceGroups.back();
+
+					groupIndexByKey.emplace(std::move(key), groupIndex);
+				}
+				else
+				{
+					groupIndex = it->second;
 				}
 
-				targetGroup->objectIndices.push_back(objectIndex);
+				m_skinnedInstanceGroups[groupIndex].objectIndices.push_back(objectIndex);
 			}
 		}
 	}
 
 	std::sort(
-	m_skinnedInstanceGroups.begin(),
-	m_skinnedInstanceGroups.end(),
-	[ ] (const SkinnedInstanceGroup& a, const SkinnedInstanceGroup& b)
-	{
-		if ( a.useAlphaClipShader != b.useAlphaClipShader )
-			return a.useAlphaClipShader < b.useAlphaClipShader; // opaque 먼저, alpha-clip 나중
+		m_skinnedInstanceGroups.begin(),
+		m_skinnedInstanceGroups.end(),
+		[ ] (const SkinnedInstanceGroup& a, const SkinnedInstanceGroup& b)
+		{
+			if ( a.useAlphaClipShader != b.useAlphaClipShader )
+				return a.useAlphaClipShader < b.useAlphaClipShader; // opaque 먼저, alpha-clip 나중
 
-		if ( a.geometryKey != b.geometryKey )
-			return a.geometryKey < b.geometryKey;
+			if ( a.geometryKey != b.geometryKey )
+				return a.geometryKey < b.geometryKey;
 
-		if ( a.meshIndex != b.meshIndex )
-			return a.meshIndex < b.meshIndex;
+			if ( a.meshIndex != b.meshIndex )
+				return a.meshIndex < b.meshIndex;
 
-		return a.subMeshIndex < b.subMeshIndex;
-	}
+			return a.subMeshIndex < b.subMeshIndex;
+		}
 	);
 
 	UINT runningStart = 0;
+
 	for ( SkinnedInstanceGroup& group : m_skinnedInstanceGroups )
 	{
 		group.instanceBufferStart = runningStart;
-		runningStart += ( UINT ) group.objectIndices.size();
+		runningStart += static_cast< UINT >(group.objectIndices.size());
 	}
 
 	m_skinnedInstanceBufferCapacity = runningStart;
 }
 
-bool CGameScene::IsDynamicStaticRenderObject(const CGameObject* obj) const
+void CGameScene::BuildStaticGameplayTickList()
 {
-	if ( !obj )
-		return false;
+	m_staticGameplayTickObjects.clear();
 
-	// static batch에 들어가지만 transform이 바뀔 수 있는 오브젝트들.
-	// PlayerBow / EnemyBow는 현재 skinned batch 쪽이므로 여기서 제외한다.
-	if ( ContainsGameObjectPtr(m_helmetRefs, obj) )
-		return true;
+	const size_t total =
+		m_helmetRefs.size() +
+		m_PlayerSwordRefs.size() +
+		m_PlayerAxeRefs.size() +
+		m_PlayerGunRefs.size() +
+		m_EnemySwordRefs.size() +
+		m_arrowRefs.size() +
+		m_bulletRefs.size();
 
-	if ( ContainsGameObjectPtr(m_PlayerSwordRefs, obj) )
-		return true;
+	m_staticGameplayTickObjects.reserve(total);
 
-	if ( ContainsGameObjectPtr(m_PlayerAxeRefs, obj) )
-		return true;
+	auto AppendRefs = [ this ] (const std::vector<CGameObject*>& refs)
+		{
+			for ( CGameObject* obj : refs )
+			{
+				if ( obj )
+					m_staticGameplayTickObjects.push_back(obj);
+			}
+		};
 
-	if ( ContainsGameObjectPtr(m_PlayerGunRefs, obj) )
-		return true;
+	AppendRefs(m_helmetRefs);
+	AppendRefs(m_PlayerSwordRefs);
+	AppendRefs(m_PlayerAxeRefs);
+	AppendRefs(m_PlayerGunRefs);
+	AppendRefs(m_EnemySwordRefs);
+	AppendRefs(m_arrowRefs);
+	AppendRefs(m_bulletRefs);
 
-	if ( ContainsGameObjectPtr(m_EnemySwordRefs, obj) )
-		return true;
-
-	if ( ContainsGameObjectPtr(m_arrowRefs, obj) )
-		return true;
-
-	if ( ContainsGameObjectPtr(m_bulletRefs, obj) )
-		return true;
-
-	return false;
+	char buf[256];
+	sprintf_s(
+		buf,
+		"[StaticGameplayTickList] tickObjects=%zu / staticObjects=%zu\n",
+		m_staticGameplayTickObjects.size(),
+		m_staticBatch.objectRefs.size()
+	);
+	OutputDebugStringA(buf);
 }
 
 void CGameScene::BuildStaticRenderObjectCache()
@@ -5223,7 +5560,10 @@ void CGameScene::BuildStaticRenderObjectCache()
 			continue;
 
 		cache.renderer = obj->GetComponent<CStaticMeshRendererComponent>();
-		cache.dynamicWorldMatrix = IsDynamicStaticRenderObject(obj);
+
+		cache.dynamicWorldMatrix =
+			( i < static_cast< UINT >(m_staticDynamicWorldMatrixFlags.size()) ) &&
+			( m_staticDynamicWorldMatrixFlags[i] != 0 );
 
 		const XMFLOAT4X4& W = obj->GetWorldMatrix();
 
@@ -5559,6 +5899,7 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 			}
 
 			CGameObject* obj = m_skinnedBatch.objectRefs[objectIndex];
+			if ( !obj->GetActive() ) continue;
 			if ( !obj ) continue;
 			if ( !obj->IsVisible(camera) ) continue;
 
@@ -5569,36 +5910,27 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 			auto* skin = obj->GetComponent<CSkinningComponent>();
 			if ( !skin ) continue;
 			if ( !skin->IsSkinned() ) continue;
+			const SkinnedComponentCache* cache =
+				GetSkinnedComponentCache(objectIndex);
 
-			std::shared_ptr<CMesh> objMesh = obj->GetMeshShared(( int ) group.meshIndex); 
-			if ( !objMesh ) continue;
-			if ( group.subMeshIndex >= objMesh->m_SubMeshes.size() ) continue;
+			if ( !cache || !cache->object )
+				continue;
 
-			const SubMesh& objSm = objMesh->m_SubMeshes[group.subMeshIndex];
+			if ( !cache->object->IsVisible(camera) )
+				continue;
 
 			SkinnedInstanceVertex& dst =
 				mappedSkinnedInstanceBuffer[instanceBase + visibleInstanceCount];
 
-			const XMFLOAT4X4& W = obj->GetWorldMatrix();
-
-			dst.world0 = XMFLOAT4(W._11, W._12, W._13, W._14);
-			dst.world1 = XMFLOAT4(W._21, W._22, W._23, W._24);
-			dst.world2 = XMFLOAT4(W._31, W._32, W._33, W._34);
-			dst.world3 = XMFLOAT4(W._41, W._42, W._43, W._44);
-
-			dst.materialId = ( objSm.materialId == 0xFFFFFFFFu ) ? 0u : objSm.materialId;
-			dst.bonePaletteBase = objectIndex * m_skinnedBonePaletteStride;
-
-			const XMFLOAT4X4* srcBoneMats = skin->GetMappedBoneMatrices();
-			const UINT boneCount = ( UINT ) skin->GetBoneCount();
-
-			if ( srcBoneMats && boneCount > 0 )
+			if ( !WriteSkinnedInstanceVertexFromCache(
+				dst,
+				*cache,
+				objectIndex,
+				group.meshIndex,
+				group.subMeshIndex,
+				mappedSkinnedBonePaletteBuffer) )
 			{
-				memcpy(
-					mappedSkinnedBonePaletteBuffer + dst.bonePaletteBase,
-					srcBoneMats,
-					sizeof(XMFLOAT4X4) * boneCount
-				);
+				continue;
 			}
 
 			++visibleInstanceCount;
@@ -5816,46 +6148,24 @@ void CGameScene::RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandLis
 			if ( !IsSkinnedObjectInsideShadowBox(objectIndex) )
 				continue;
 
-			CGameObject* obj = m_skinnedBatch.objectRefs[objectIndex];
-			if ( !obj ) continue;
+			const SkinnedComponentCache* cache =
+				GetSkinnedComponentCache(objectIndex);
 
-			auto* renderer = obj->GetComponent<CSkinnedMeshRendererComponent>();
-			if ( !renderer ) continue;
-			if ( !renderer->IsEnabled() ) continue;
-
-			auto* skin = obj->GetComponent<CSkinningComponent>();
-			if ( !skin ) continue;
-			if ( !skin->IsSkinned() ) continue;
-
-			std::shared_ptr<CMesh> objMesh = obj->GetMeshShared(( int ) group.meshIndex);
-			if ( !objMesh ) continue;
-			if ( group.subMeshIndex >= objMesh->m_SubMeshes.size() ) continue;
-
-			const SubMesh& objSm = objMesh->m_SubMeshes[group.subMeshIndex];
+			if ( !cache || !cache->object )
+				continue;
 
 			SkinnedInstanceVertex& dst =
 				mappedSkinnedInstanceBuffer[instanceBase + visibleInstanceCount];
 
-			const XMFLOAT4X4& W = obj->GetWorldMatrix();
-
-			dst.world0 = XMFLOAT4(W._11, W._12, W._13, W._14);
-			dst.world1 = XMFLOAT4(W._21, W._22, W._23, W._24);
-			dst.world2 = XMFLOAT4(W._31, W._32, W._33, W._34);
-			dst.world3 = XMFLOAT4(W._41, W._42, W._43, W._44);
-
-			dst.materialId = ( objSm.materialId == 0xFFFFFFFFu ) ? 0u : objSm.materialId;
-			dst.bonePaletteBase = objectIndex * m_skinnedBonePaletteStride;
-
-			const XMFLOAT4X4* srcBoneMats = skin->GetMappedBoneMatrices();
-			const UINT boneCount = ( UINT ) skin->GetBoneCount();
-
-			if ( srcBoneMats && boneCount > 0 )
+			if ( !WriteSkinnedInstanceVertexFromCache(
+				dst,
+				*cache,
+				objectIndex,
+				group.meshIndex,
+				group.subMeshIndex,
+				mappedSkinnedBonePaletteBuffer) )
 			{
-				memcpy(
-					mappedSkinnedBonePaletteBuffer + dst.bonePaletteBase,
-					srcBoneMats,
-					sizeof(XMFLOAT4X4) * boneCount
-				);
+				continue;
 			}
 
 			++visibleInstanceCount;
@@ -5945,14 +6255,19 @@ void CGameScene::BuildSkinnedBatch(
 	}
 
 	m_skinnedObjects.clear();
+
 	m_skinnedAlphaClipObjects.clear();
+	m_skinnedAlphaClipObjects.reserve(cap);
+
 	m_skinnedObjects.reserve(cap);
 
 	b->objectRefs.clear();
 	b->objectRefs.reserve(cap);
 
 	b->count = 0;
+
 	ResetSkinnedWorldLodEntries();
+	m_skinnedWorldLodEntries.reserve(cap);
 
 	m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
 
@@ -6042,7 +6357,7 @@ void CGameScene::BuildSkinnedBatch(
 			entry.lodDistance12 = lodDistance12;
 			entry.lodMeshes = lodMeshes;
 
-			entry.distanceCullEnabled = true;
+			entry.distanceCullEnabled = false;
 			entry.distanceCulled = false;
 			entry.cullDistance = cullDistance;
 
@@ -6146,6 +6461,7 @@ void CGameScene::BuildSkinnedBatch(
 		const UINT countW = m_ghoulCount;
 #else
 		const UINT countW = static_cast< UINT >( ghoulSpawns.size() );
+		const UINT countEnemySpawn = m_EnemySpawnCount;
 #endif
 
 		const auto& ghoulClips = GetGhoulClipEntries();
@@ -6270,6 +6586,89 @@ void CGameScene::BuildSkinnedBatch(
 			);
 
 			m_skinnedObjects.push_back(std::move(obj));
+			b->objectRefs.push_back(raw);
+			b->count = ( UINT ) b->objectRefs.size();
+		}
+
+		for ( UINT k = 0; k < countEnemySpawn; ++k )
+		{
+			if ( b->objectRefs.size() >= b->capacity ) break;
+
+			const UINT i = ( UINT ) b->objectRefs.size();
+
+			XMFLOAT3 pos{};
+			float yaw = 180.0f;
+
+#ifdef USING_NETWORK
+			if ( !GetNetworkEnemySpawn(enemyIndex, pos, yaw) )
+				break;
+#else
+			if ( k >= m_EnemySpawnCount )
+				break;
+#endif
+
+			GameSceneObjectFactory::SkinnedRenderableDesc createDesc{};
+			createDesc.ctx = MakeSkinnedContext(i);
+			createDesc.mesh = ghoulBaseMesh;
+			createDesc.position = pos;
+			createDesc.yawDeg = yaw;
+
+			ApplyMonsterBodyCollider(createDesc);
+
+			createDesc.addAnimator = true;
+			createDesc.addActorTag = true;
+			createDesc.actorKind = EActorKind::NPC;
+			createDesc.playerControl = EPlayerControl::None;
+			createDesc.playerSlot = -1;
+
+			createDesc.addMonsterCombat = true;
+			createDesc.addMonsterWeaponHitbox = true;
+
+			createDesc.addHealth = true;
+			createDesc.maxHp = kHpGhoul;
+
+			createDesc.addAttackPower = true;
+			createDesc.attackPower = kAttackPowerGhoul;
+
+			createDesc.skeletonKey = "Ghoul";
+			createDesc.clipEntries = &ghoulClips;
+
+			createDesc.initMonsterController = true;
+			createDesc.monsterInitialState = EMonsterAnimState::Idle;
+			createDesc.monsterProfile.idleClip = "Idle";
+			createDesc.monsterProfile.moveClip = "Walk";
+			createDesc.monsterProfile.runClip = "Run";
+			createDesc.monsterProfile.hitClip = "Hit";
+			createDesc.monsterProfile.attackClip = "Attack";
+			createDesc.monsterProfile.deathClip = "Death";
+
+			createDesc.useOwnerBoneWeaponCapsules = true;
+			createDesc.monsterWeaponConfigs.push_back(
+				{ "Attack", 0.20f, 0.55f, { "hand_r" } }
+			);
+
+			auto obj = GameSceneObjectFactory::CreateSkinnedRenderable(createDesc);
+			if ( !obj )
+				continue;
+
+#ifndef USING_NETWORK
+			AttachGhoulAIToMonster(obj);
+#endif
+
+			++enemyIndex;
+
+			CGameObject* raw = obj.get();
+
+			RegisterMonsterToMegaGrid(raw, pos, i);
+
+			RegisterSkinnedCullEntry(
+				raw, i, "Ghoul", pos,
+				ghoulLodMeshes, true,
+				35.0f, 90.0f, 120.0f
+			);
+
+			m_skinnedObjects.push_back(std::move(obj));
+			m_EnemySpawnRefs.push_back(raw);
 			b->objectRefs.push_back(raw);
 			b->count = ( UINT ) b->objectRefs.size();
 		}
@@ -6836,6 +7235,7 @@ void CGameScene::BuildSkinnedBatch(
 
 			m_skinnedObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
+			SetObjectCollisionMegaGridMask(raw, 0, false);
 			b->count = ( UINT ) b->objectRefs.size();
 		}
 	}
@@ -6888,6 +7288,7 @@ void CGameScene::BuildSkinnedBatch(
 
 			m_skinnedObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
+			SetObjectCollisionMegaGridMask(raw, 0, false);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_PlayerBowRefs.push_back(raw);
@@ -6942,6 +7343,7 @@ void CGameScene::BuildSkinnedBatch(
 
 			m_skinnedObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
+			SetObjectCollisionMegaGridMask(raw, 0, false);
 			b->count = ( UINT ) b->objectRefs.size();
 
 			m_EnemyBowRefs.push_back(raw);
@@ -6951,6 +7353,7 @@ void CGameScene::BuildSkinnedBatch(
 	m_preparedBowmanArrows.assign(m_bowManRefs.size(), nullptr);
 	m_prevEnemyBowReleasePhase.assign(m_bowManRefs.size(), false);
 
+	BuildSkinnedComponentCache();
 	BuildSkinnedInstanceGroups();
 
 	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
@@ -6985,19 +7388,45 @@ void CGameScene::BuildSkinnedBatch(
 		m_pMappedSkinnedBonePaletteBuffer[frameIndex] = nullptr;
 	}
 
-	m_skinnedBonePaletteStride = 1;
-	for ( UINT i = 0; i < ( UINT ) m_skinnedBatch.objectRefs.size(); ++i )
-	{
-		CGameObject* obj = m_skinnedBatch.objectRefs[i];
-		if ( !obj ) continue;
+	m_skinnedBonePaletteBaseByObject.clear();
+	m_skinnedBonePaletteCountByObject.clear();
 
-		const UINT boneCount = ( UINT ) obj->GetBoneCount();
-		if ( boneCount > m_skinnedBonePaletteStride )
-			m_skinnedBonePaletteStride = boneCount;
+	const UINT skinnedObjectCount =
+		static_cast< UINT >( m_skinnedBatch.objectRefs.size() );
+
+	m_skinnedBonePaletteBaseByObject.resize(skinnedObjectCount, 0);
+	m_skinnedBonePaletteCountByObject.resize(skinnedObjectCount, 0);
+
+	UINT runningBonePaletteBase = 0;
+
+	for ( UINT i = 0; i < skinnedObjectCount; ++i )
+	{
+		const SkinnedComponentCache* cache = GetSkinnedComponentCache(i);
+
+		UINT boneCount = 1;
+
+		if ( cache && cache->object )
+		{
+			if ( cache->skinning )
+			{
+				boneCount = static_cast< UINT >(cache->skinning->GetBoneCount());
+			}
+			else
+			{
+				boneCount = static_cast< UINT >( cache->object->GetBoneCount() );
+			}
+
+			if ( boneCount == 0 )
+				boneCount = 1;
+		}
+
+		m_skinnedBonePaletteBaseByObject[i] = runningBonePaletteBase;
+		m_skinnedBonePaletteCountByObject[i] = boneCount;
+
+		runningBonePaletteBase += boneCount;
 	}
 
-	m_skinnedBonePaletteCapacity =
-		m_skinnedBonePaletteStride * ( UINT ) m_skinnedBatch.objectRefs.size();
+	m_skinnedBonePaletteCapacity = runningBonePaletteBase;
 
 	if ( m_skinnedInstanceBufferCapacity > 0 )
 	{
@@ -8229,24 +8658,21 @@ void CGameScene::BeginMonsterDeath(CGameObject* monster)
 
 void CGameScene::UpdateMonsterDeathStates()
 {
-	for ( CGameObject* obj : m_skinnedBatch.objectRefs )
+	for ( const SkinnedComponentCache& cache : m_skinnedComponentCache )
 	{
+		CGameObject* obj = cache.object;
 		if ( !obj )
 			continue;
 
-		auto* tag = obj->GetComponent<CActorTagComponent>();
-		if ( !tag || tag->kind != EActorKind::NPC )
+		if ( !cache.isNpc )
 			continue;
 
-		auto* hp = obj->GetComponent<CHealthComponent>();
-		if ( !hp )
+		if ( !cache.health )
 			continue;
 
-		if ( hp->IsDead() )
+		if ( cache.health->IsDead() )
 			BeginMonsterDeath(obj);
 	}
-
-	UpdateMegaGridClearStateFromMonsterDeaths();
 }
 
 void CGameScene::BeginLocalPlayerDeath(CGameObject* player)
@@ -8620,13 +9046,12 @@ bool CGameScene::ProcessInput(UCHAR* /*pKeysBuffer*/)
 
 bool CGameScene::ShouldEvaluateSkinnedPoseThisFrame(UINT objectIndex, CCamera* camera) const
 {
-	if ( objectIndex >= static_cast< UINT >( m_skinnedBatch.objectRefs.size() ) )
+	const SkinnedComponentCache* cache = GetSkinnedComponentCache(objectIndex);
+
+	if ( !cache || !cache->object )
 		return false;
 
-	CGameObject* obj = m_skinnedBatch.objectRefs[objectIndex];
-
-	if ( !obj )
-		return false;
+	CGameObject* obj = cache->object;
 
 	// 비네트워크 모드는 클라이언트가 실제 판정도 하므로 보수적으로 full pose 유지.
 #ifndef USING_NETWORK
@@ -8636,9 +9061,7 @@ bool CGameScene::ShouldEvaluateSkinnedPoseThisFrame(UINT objectIndex, CCamera* c
 	if ( IsLocalPlayer(obj) )
 		return true;
 
-	auto* renderer = obj->GetComponent<CSkinnedMeshRendererComponent>();
-
-	if ( !renderer || !renderer->IsEnabled() )
+	if ( !cache->renderer || !cache->renderer->IsEnabled() )
 		return false;
 
 	const bool distanceCulled =
@@ -8659,8 +9082,6 @@ bool CGameScene::ShouldEvaluateSkinnedPoseThisFrame(UINT objectIndex, CCamera* c
 		!occlusionCulled && frustumVisible;
 
 	// Shadow pass에서도 렌더될 수 있으면 pose를 갱신한다.
-	// 이미 RenderSkinnedInstanceGroupsToShadowMap()도 distance cull +
-	// IsSkinnedObjectInsideShadowBox() 기준으로 걸러낸다.
 	const bool shadowVisible =
 		IsSkinnedObjectInsideShadowBox(objectIndex);
 
@@ -8671,6 +9092,17 @@ bool CGameScene::ShouldEvaluateSkinnedPoseThisFrame(UINT objectIndex, CCamera* c
 void CGameScene::AnimateObjects(float dt)
 {
 	m_fElapsedTime = dt;
+
+	CGameObject* local = GetPlayer();
+	if ( !local )
+		local = GetPlayerBySlot(0);
+
+#ifndef USING_NETWORK
+	if ( m_enemySpawner && local )
+	{
+		m_enemySpawner->Update(dt, local->GetPosition());
+	}
+#endif
 
 	UpdateMuzzleFlashes(dt);
 	UpdateSwordTrails(dt);
@@ -8993,18 +9425,19 @@ void CGameScene::AnimateObjects(float dt)
 	const int activeMonsterMegaGridNumber = -1;
 #endif
 
-	for ( UINT j = 0; j < static_cast< UINT >(m_skinnedObjects.size()); ++j )
+	for ( UINT j = 0; j < static_cast< UINT >(m_skinnedComponentCache.size()); ++j )
 	{
-		if ( !m_skinnedObjects[j] )
-			continue;
+		const SkinnedComponentCache& cache = m_skinnedComponentCache[j];
 
-		CGameObject* obj = m_skinnedObjects[j].get();
+		CGameObject* obj = cache.object;
+		if ( !obj )
+			continue;
 
 #ifndef USING_NETWORK
 		if ( ShouldSkipMonsterByMegaGrid(obj, j, activeMonsterMegaGridNumber) )
 		{
-			if ( auto* animComp = obj->GetComponent<CAnimatorComponent>() )
-				animComp->SetPoseEvaluationEnabled(false);
+			if ( cache.animator )
+				cache.animator->SetPoseEvaluationEnabled(false);
 
 			continue;
 		}
@@ -9017,10 +9450,10 @@ void CGameScene::AnimateObjects(float dt)
 		const bool shouldEvaluatePose = true;
 #endif
 
-		if ( auto* animComp = obj->GetComponent<CAnimatorComponent>() )
-		{
-			animComp->SetPoseEvaluationEnabled(shouldEvaluatePose);
-		}
+		if ( cache.animator )
+			cache.animator->SetPoseEvaluationEnabled(shouldEvaluatePose);
+
+		if ( !obj->GetActive() ) continue;
 
 		obj->Animate(dt);
 	}
@@ -9028,31 +9461,14 @@ void CGameScene::AnimateObjects(float dt)
 	UpdateDynamicGridState();
 	UpdatePlayerFootstepSfx();
 
-	for ( UINT j = 0; j < ( UINT ) m_staticObjects.size(); ++j )
+	for ( CGameObject* obj : m_staticGameplayTickObjects )
 	{
-		if ( !m_staticObjects[j] )
+		if ( !obj )
 			continue;
 
-		if ( j < ( UINT ) m_staticDistanceCullFlags.size() )
-		{
-			if ( m_staticDistanceCullFlags[j] != 0 )
-				continue;
-		}
-
-		if ( j < ( UINT ) m_staticOcclusionCullFlags.size() )
-		{
-			if ( m_staticOcclusionCullFlags[j] != 0 )
-				continue;
-		}
-
-		if ( j < ( UINT ) m_staticTreeGridCullFlags.size() )
-		{
-			if ( m_staticTreeGridCullFlags[j] != 0 )
-				continue;
-		}
-
-		m_staticObjects[j]->Animate(dt);
+		obj->Animate(dt);
 	}
+
 #ifdef USING_NETWORK
 	UpdatePlayerBowSfxOnly();
 #else
@@ -9071,6 +9487,8 @@ void CGameScene::AnimateObjects(float dt)
 void CGameScene::CollisionObjects()
 {
 	if ( !m_Collision ) return;
+
+	RefreshDynamicCollisionMegaGridMasks();
 
 	m_Collision->OnUpdateFiltered(
 		[ this ](

@@ -561,6 +561,13 @@ D3D12_SHADER_BYTECODE CSkinnedObjectsShader::CreatePixelShader(ID3DBlob** ppd3dS
 	return( CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSTexturedLightingToMultipleRTs", "ps_5_1", ppd3dShaderBlob) );
 }
 
+D3D12_RASTERIZER_DESC CSkinnedObjectsShader::CreateRasterizerState()
+{
+	D3D12_RASTERIZER_DESC rs = CShader::CreateRasterizerState();
+	rs.CullMode = D3D12_CULL_MODE_NONE;
+	return rs;
+}
+
 D3D12_INPUT_LAYOUT_DESC CSkinnedObjectsShader::CreateInputLayout()
 {
 	UINT nInputElementDescs = 12;
