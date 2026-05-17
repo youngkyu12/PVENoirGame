@@ -737,6 +737,7 @@ private:
     UINT m_building8Count = 1;
     UINT m_building9Count = 1;
 	UINT m_towerCount = 1;
+	UINT m_terrainCount = 1;
 
     UINT m_ghoulCount = 4;
     UINT m_swordManCount = 3;

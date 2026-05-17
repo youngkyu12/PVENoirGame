@@ -153,6 +153,11 @@ std::unique_ptr<CGameObject> GameSceneObjectFactory::CreateStaticRenderable(cons
 	return obj;
 }
 
+std::unique_ptr<CGameObject> GameSceneObjectFactory::CreateTerrainRenderable(const StaticRenderableDesc& desc)
+{
+	return std::unique_ptr<CGameObject>();
+}
+
 std::unique_ptr<CGameObject> GameSceneObjectFactory::CreateSkinnedRenderable(const SkinnedRenderableDesc& desc)
 {
 	if ( !desc.ctx.device || !desc.ctx.cmd )
