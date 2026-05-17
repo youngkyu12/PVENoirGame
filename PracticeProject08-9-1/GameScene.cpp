@@ -6357,7 +6357,7 @@ void CGameScene::BuildSkinnedBatch(
 			entry.lodDistance12 = lodDistance12;
 			entry.lodMeshes = lodMeshes;
 
-			entry.distanceCullEnabled = false;
+			entry.distanceCullEnabled = true;
 			entry.distanceCulled = false;
 			entry.cullDistance = cullDistance;
 
