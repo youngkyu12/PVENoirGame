@@ -9,6 +9,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <memory>
 
 class CMesh;
@@ -66,6 +67,8 @@ public:
 		const AssetBuildDesc& desc
 	);
 
+	static void BeginSceneMaterialBuild(MATERIALS* pMaterials);
+
 	static bool LoadCachedClip(
 		CMesh* mesh,
 		const std::string& skeletonKey,
@@ -111,9 +114,13 @@ private:
 	);
 
 private:
-    static std::unordered_map<std::string, BuiltAsset> s_assetCache;
-    static std::unordered_map<std::string, std::shared_ptr<CMaterial>> s_materialCache;
-    static std::unordered_map<std::string, std::shared_ptr<CTexture>> s_textureCache;
+	static std::unordered_map<std::string, BuiltAsset> s_assetCache;
+	static std::unordered_map<std::string, std::shared_ptr<CMaterial>> s_materialCache;
+	static std::unordered_map<std::string, std::shared_ptr<CTexture>> s_textureCache;
 	static std::unordered_map<std::string, AnimationClip> s_clipCache;
-    static UINT s_nextMaterialID;
+
+	static std::unordered_map<MATERIALS*, std::unordered_set<std::string>>
+		s_appliedAssetKeysByMaterials;
+
+	static UINT s_nextMaterialID;
 };

@@ -75,8 +75,7 @@ void PSShadowMapAlphaClip(VS_SHADOW_MAP_OUTPUT input)
 {
     MATERIAL mat = gMaterials[input.materialId];
 
-    float2 diffuseUV =
-        GetDiffuseUV(input.materialId, input.uv);
+    float2 diffuseUV = GetDiffuseUVFromMaterial(mat, input.uv);
 
     float4 diffuseSample =
         SampleTextureRGBA(

@@ -179,6 +179,7 @@ public:
 
 	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob);
 	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob);
+	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
 
 	virtual D3D12_INPUT_LAYOUT_DESC CreateInputLayout();
 	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext);
