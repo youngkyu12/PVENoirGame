@@ -283,15 +283,6 @@ namespace
 
 		return true;
 	}
-
-	static constexpr UINT kStaticOcclusionCullSelectionMaxReuseFrames = 60;
-	static constexpr float kStaticOcclusionCullSelectionMoveThreshold = 5.0f;
-	static constexpr float kStaticOcclusionCullSelectionMoveThresholdSq =
-		kStaticOcclusionCullSelectionMoveThreshold *
-		kStaticOcclusionCullSelectionMoveThreshold;
-	static constexpr float kStaticOcclusionCullSelectionYawThresholdDeg = 12.0f;
-	static constexpr bool kLogStaticOcclusionCullSelectionReason = false;
-	static constexpr UINT kLogStaticOcclusionCullSelectionSummaryInterval = 120;
 }
 
 void CGameScene::ResetStaticOcclusionEntries()
@@ -304,13 +295,6 @@ void CGameScene::ResetStaticOcclusionEntries()
 	m_staticOcclusionZeroSampleFrameCounts.clear();
 	m_staticOcclusionQueryCapacity = 0;
 	m_bStaticOcclusionQueryResultsValid = false;
-
-	m_staticOcclusionCullSelectionCacheValid = false;
-	m_staticOcclusionCullSelectionFrameCounter = 0;
-	m_staticOcclusionCullSelectionLastUpdateFrame = 0;
-	m_staticOcclusionCullSelectionLastCameraPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	m_staticOcclusionCullSelectionLastCameraYaw = 0.0f;
-	m_staticOcclusionCullSelectionLodDirty = false;
 }
 
 void CGameScene::BuildStaticOcclusionEntries()
@@ -998,250 +982,15 @@ void CGameScene::RenderSkinnedOcclusionPass(ID3D12GraphicsCommandList* cmd, CCam
 
 void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 {
-	const size_t objectCount = m_staticBatch.objectRefs.size();
-
-	++m_staticOcclusionCullSelectionFrameCounter;
-
-	auto ClearStaticOcclusionCullState =
-		[ this, objectCount ] ()
-		{
-			if ( objectCount == 0 )
-			{
-				m_staticOcclusionCullFlags.clear();
-			}
-			else if ( m_staticOcclusionCullFlags.size() != objectCount )
-			{
-				m_staticOcclusionCullFlags.assign(objectCount, 0);
-			}
-			else
-			{
-				std::fill(
-					m_staticOcclusionCullFlags.begin(),
-					m_staticOcclusionCullFlags.end(),
-					0
-				);
-			}
-
-			std::fill(
-				m_staticOcclusionZeroSampleFrameCounts.begin(),
-				m_staticOcclusionZeroSampleFrameCounts.end(),
-				0
-			);
-
-			m_staticOcclusionCullSelectionCacheValid = false;
-		};
+	m_staticOcclusionCullFlags.assign(m_staticBatch.objectRefs.size(), 0);
 
 	if ( !m_bStaticOcclusionCullingEnabled )
-	{
-		if ( kLogStaticOcclusionCullSelectionReason )
-			OutputDebugStringA("[StaticOcclusionCull][CLEAR] disabled\n");
-
-		ClearStaticOcclusionCullState();
 		return;
-	}
 
 	if ( !camera )
-	{
-		if ( kLogStaticOcclusionCullSelectionReason )
-			OutputDebugStringA("[StaticOcclusionCull][CLEAR] no camera\n");
-
-		ClearStaticOcclusionCullState();
 		return;
-	}
-
-	if ( objectCount == 0 )
-	{
-		if ( kLogStaticOcclusionCullSelectionReason )
-			OutputDebugStringA("[StaticOcclusionCull][CLEAR] objectCount zero\n");
-
-		ClearStaticOcclusionCullState();
-		return;
-	}
-
-	if ( !m_bStaticOcclusionQueryResultsValid )
-	{
-		if ( kLogStaticOcclusionCullSelectionReason )
-			OutputDebugStringA("[StaticOcclusionCull][CLEAR] query results invalid\n");
-
-		ClearStaticOcclusionCullState();
-		return;
-	}
 
 	const XMFLOAT3 cameraPosition = camera->GetPosition();
-	const float cameraYaw = camera->GetYaw();
-
-	bool shouldUpdateSelection = false;
-
-	bool reasonCacheInvalid = false;
-	bool reasonFlagSizeChanged = false;
-	bool reasonStaticWorldLodDirty = false;
-	bool reasonMaxReuse = false;
-	bool reasonCameraMove = false;
-	bool reasonCameraYaw = false;
-
-	UINT framesSinceLastUpdate =
-		m_staticOcclusionCullSelectionFrameCounter -
-		m_staticOcclusionCullSelectionLastUpdateFrame;
-
-	float movedDistanceSq = 0.0f;
-	float yawDelta = 0.0f;
-
-	if ( !m_staticOcclusionCullSelectionCacheValid )
-	{
-		shouldUpdateSelection = true;
-		reasonCacheInvalid = true;
-	}
-
-	if ( m_staticOcclusionCullFlags.size() != objectCount )
-	{
-		shouldUpdateSelection = true;
-		reasonFlagSizeChanged = true;
-	}
-
-	if ( m_staticOcclusionCullSelectionLodDirty )
-	{
-		shouldUpdateSelection = true;
-		reasonStaticWorldLodDirty = true;
-	}
-
-	if ( framesSinceLastUpdate >= kStaticOcclusionCullSelectionMaxReuseFrames )
-	{
-		shouldUpdateSelection = true;
-		reasonMaxReuse = true;
-	}
-
-	{
-		const float dx =
-			cameraPosition.x -
-			m_staticOcclusionCullSelectionLastCameraPosition.x;
-
-		const float dy =
-			cameraPosition.y -
-			m_staticOcclusionCullSelectionLastCameraPosition.y;
-
-		const float dz =
-			cameraPosition.z -
-			m_staticOcclusionCullSelectionLastCameraPosition.z;
-
-		movedDistanceSq = dx * dx + dy * dy + dz * dz;
-
-		if ( movedDistanceSq >= kStaticOcclusionCullSelectionMoveThresholdSq )
-		{
-			shouldUpdateSelection = true;
-			reasonCameraMove = true;
-		}
-		else
-		{
-			yawDelta =
-				cameraYaw -
-				m_staticOcclusionCullSelectionLastCameraYaw;
-
-			while ( yawDelta > 180.0f )
-				yawDelta -= 360.0f;
-
-			while ( yawDelta < -180.0f )
-				yawDelta += 360.0f;
-
-			if ( std::fabs(yawDelta) >= kStaticOcclusionCullSelectionYawThresholdDeg )
-			{
-				shouldUpdateSelection = true;
-				reasonCameraYaw = true;
-			}
-		}
-	}
-
-	static UINT s_staticOcclusionReuseCount = 0;
-	static UINT s_staticOcclusionFullUpdateCount = 0;
-	static UINT s_reasonCacheInvalidCount = 0;
-	static UINT s_reasonFlagSizeChangedCount = 0;
-	static UINT s_reasonStaticWorldLodDirtyCount = 0;
-	static UINT s_reasonMaxReuseCount = 0;
-	static UINT s_reasonCameraMoveCount = 0;
-	static UINT s_reasonCameraYawCount = 0;
-
-	if ( !shouldUpdateSelection )
-	{
-		++s_staticOcclusionReuseCount;
-
-		if ( kLogStaticOcclusionCullSelectionReason &&
-			 ( m_staticOcclusionCullSelectionFrameCounter %
-				 kLogStaticOcclusionCullSelectionSummaryInterval ) == 0 )
-		{
-			char buf[512];
-			sprintf_s(
-				buf,
-				"[StaticOcclusionCull][SUMMARY] frame=%u reuse=%u full=%u "
-				"cache=%u size=%u lodDirty=%u maxReuse=%u camMove=%u camYaw=%u\n",
-				m_staticOcclusionCullSelectionFrameCounter,
-				s_staticOcclusionReuseCount,
-				s_staticOcclusionFullUpdateCount,
-				s_reasonCacheInvalidCount,
-				s_reasonFlagSizeChangedCount,
-				s_reasonStaticWorldLodDirtyCount,
-				s_reasonMaxReuseCount,
-				s_reasonCameraMoveCount,
-				s_reasonCameraYawCount
-			);
-			OutputDebugStringA(buf);
-		}
-
-		return;
-	}
-
-	++s_staticOcclusionFullUpdateCount;
-
-	if ( reasonCacheInvalid ) ++s_reasonCacheInvalidCount;
-	if ( reasonFlagSizeChanged ) ++s_reasonFlagSizeChangedCount;
-	if ( reasonStaticWorldLodDirty ) ++s_reasonStaticWorldLodDirtyCount;
-	if ( reasonMaxReuse ) ++s_reasonMaxReuseCount;
-	if ( reasonCameraMove ) ++s_reasonCameraMoveCount;
-	if ( reasonCameraYaw ) ++s_reasonCameraYawCount;
-
-	if ( kLogStaticOcclusionCullSelectionReason )
-	{
-		char buf[1024];
-		sprintf_s(
-			buf,
-			"[StaticOcclusionCull][FULL] frame=%u "
-			"cache=%d size=%d lodDirty=%d maxReuse=%d camMove=%d camYaw=%d "
-			"framesSince=%u moveSq=%.3f yawDelta=%.3f objectCount=%zu entryCount=%zu "
-			"queryValid=%d\n",
-			m_staticOcclusionCullSelectionFrameCounter,
-			reasonCacheInvalid ? 1 : 0,
-			reasonFlagSizeChanged ? 1 : 0,
-			reasonStaticWorldLodDirty ? 1 : 0,
-			reasonMaxReuse ? 1 : 0,
-			reasonCameraMove ? 1 : 0,
-			reasonCameraYaw ? 1 : 0,
-			framesSinceLastUpdate,
-			movedDistanceSq,
-			yawDelta,
-			objectCount,
-			m_staticOcclusionEntries.size(),
-			m_bStaticOcclusionQueryResultsValid ? 1 : 0
-		);
-		OutputDebugStringA(buf);
-	}
-
-	if ( m_staticOcclusionCullFlags.size() != objectCount )
-	{
-		m_staticOcclusionCullFlags.assign(objectCount, 0);
-	}
-	else
-	{
-		std::fill(
-			m_staticOcclusionCullFlags.begin(),
-			m_staticOcclusionCullFlags.end(),
-			0
-		);
-	}
-
-	m_staticOcclusionCullSelectionCacheValid = true;
-	m_staticOcclusionCullSelectionLastUpdateFrame =
-		m_staticOcclusionCullSelectionFrameCounter;
-	m_staticOcclusionCullSelectionLastCameraPosition = cameraPosition;
-	m_staticOcclusionCullSelectionLastCameraYaw = cameraYaw;
-
 	const float minTestDistanceSq =
 		m_staticOcclusionMinTestDistance * m_staticOcclusionMinTestDistance;
 
@@ -1295,8 +1044,8 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 
 		const float dist = std::sqrt(distSq);
 		float maxExtent = entry.worldBounds.Extents.x;
-		if ( entry.worldBounds.Extents.y > maxExtent ) maxExtent = entry.worldBounds.Extents.y;
-		if ( entry.worldBounds.Extents.z > maxExtent ) maxExtent = entry.worldBounds.Extents.z;
+		if (entry.worldBounds.Extents.y > maxExtent) maxExtent = entry.worldBounds.Extents.y;
+		if (entry.worldBounds.Extents.z > maxExtent) maxExtent = entry.worldBounds.Extents.z;
 
 		if ( dist > 0.0001f )
 		{
@@ -1307,6 +1056,12 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 				m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
 				continue;
 			}
+		}
+
+		if ( !m_bStaticOcclusionQueryResultsValid )
+		{
+			m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+			continue;
 		}
 
 		if ( occlusionIndex >= m_staticOcclusionQuerySampleCounts.size() )
@@ -1329,8 +1084,7 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 
 		if ( m_staticOcclusionQuerySampleCounts[occlusionIndex] == 0ull )
 		{
-			uint8_t& zeroFrameCount =
-				m_staticOcclusionZeroSampleFrameCounts[occlusionIndex];
+			uint8_t& zeroFrameCount = m_staticOcclusionZeroSampleFrameCounts[occlusionIndex];
 
 			if ( zeroFrameCount < 255 )
 				++zeroFrameCount;

@@ -134,5 +134,6 @@ namespace GameSceneObjectFactory
 	);
 
 	std::unique_ptr<CGameObject> CreateStaticRenderable(const StaticRenderableDesc& desc);
+	std::unique_ptr<CGameObject> CreateTerrainRenderable(const StaticRenderableDesc& desc);
 	std::unique_ptr<CGameObject> CreateSkinnedRenderable(const SkinnedRenderableDesc& desc);
 }

@@ -190,6 +190,7 @@
     <ClInclude Include="DDSTextureLoader12.h" />
     <ClInclude Include="DepthFog.h" />
     <ClInclude Include="DescriptorHeap.h" />
+    <ClInclude Include="EnemySpawner.h" />
     <ClInclude Include="Enum.pb.h" />
     <ClInclude Include="FollowBoneComponent.h" />
     <ClInclude Include="GameFramework.h" />
@@ -267,6 +268,7 @@
     </ClCompile>
     <ClCompile Include="DepthFog.cpp" />
     <ClCompile Include="DescriptorHeap.cpp" />
+    <ClCompile Include="EnemySpawner.cpp" />
     <ClCompile Include="Enum.pb.cc">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
