@@ -3249,6 +3249,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_helmetCount = m_MutantCount;
 
 	m_EnemySpawnCount = 200;
+	m_terrainCount = 1;
 
 #ifdef USING_NETWORK
 	const UINT worldStaticCount = static_cast< UINT >( m_staticPlacementEntries.size() );
@@ -3264,7 +3265,8 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		m_PlayerSwordCount +
 		m_PlayerAxeCount +
 		m_PlayerGunCount +
-		m_swordManCount;
+		m_swordManCount +
+		m_terrainCount;
 
 	m_skinnedBatch.capacity =
 		m_ghoulCount +
@@ -4453,6 +4455,65 @@ void CGameScene::BuildStaticBatch(
 		m_staticCollisionMegaGridMasks.push_back(collisionMegaGridMask);
 		b->count = ( UINT ) b->objectRefs.size();
 	}
+
+	// Terrain 연결
+	/*for ( UINT k = 0; k < m_terrainCount; ++k )
+	{
+		if ( b->objectRefs.size() >= b->capacity ) break;
+
+		const UINT i = ( UINT ) b->objectRefs.size();
+		const StaticPlacementEntry& placement = m_staticPlacementEntries[k];
+
+		const bool createWorldStaticCollider = false;
+		const bool isStaticWorldLodTarget = false;
+		const bool enableDistanceCull = false;
+
+		std::shared_ptr<CMesh> selectedMesh = nullptr;
+
+		if ( !selectedMesh )
+		{
+			
+			
+		}
+
+		if ( !selectedMesh )
+			continue;
+
+		GameSceneObjectFactory::StaticRenderableDesc createDesc{};
+		createDesc.ctx = MakeStaticContext(i);
+		createDesc.mesh = selectedMesh;
+		createDesc.position = placement.pos;
+		createDesc.yawDeg = placement.yawDeg;
+
+		createDesc.addCollider = false;
+		const bool logCastleVillageWallColliderBuild = false;
+
+		createDesc.debugColliderBuildLog = logCastleVillageWallColliderBuild;
+		createDesc.debugColliderAssetName = placement.assetName;
+		createDesc.debugColliderObjectName = placement.objectName;
+
+		auto obj = GameSceneObjectFactory::CreateStaticRenderable(createDesc);
+		if ( !obj )
+			continue;
+
+		CGameObject* raw = obj.get();
+
+		const bool castsShadow = false;
+
+		RegisterStaticPlacementToGrid(placement, raw);
+
+		const uint16_t collisionMegaGridMask =
+			createWorldStaticCollider ? ComputeStaticObjectMegaGridMask(raw) : 0;
+
+		if ( collisionMegaGridMask != 0 )
+			m_collisionMegaGridMaskByObject[raw] = collisionMegaGridMask;
+
+		m_staticObjects.push_back(std::move(obj));
+		b->objectRefs.push_back(raw);
+		m_staticShadowCasterFlags.push_back(castsShadow ? 1 : 0);
+		m_staticCollisionMegaGridMasks.push_back(collisionMegaGridMask);
+		b->count = ( UINT ) b->objectRefs.size();
+	}*/
 
 #ifndef USING_NETWORK
 	if ( kEnableStaticWorldLocalOOBBReportExport )
