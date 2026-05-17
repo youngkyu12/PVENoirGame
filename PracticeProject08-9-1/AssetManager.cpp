@@ -16,6 +16,10 @@ std::unordered_map<std::string, BuiltAsset> AssetManager::s_assetCache;
 std::unordered_map<std::string, std::shared_ptr<CMaterial>> AssetManager::s_materialCache;
 std::unordered_map<std::string, std::shared_ptr<CTexture>> AssetManager::s_textureCache;
 std::unordered_map<std::string, AnimationClip> AssetManager::s_clipCache;
+
+std::unordered_map<MATERIALS*, std::unordered_set<std::string>>
+AssetManager::s_appliedAssetKeysByMaterials;
+
 UINT AssetManager::s_nextMaterialID = 0;
 
 namespace
@@ -65,35 +69,52 @@ namespace
 }
 
 BuiltAsset AssetManager::BuildAsset(
-    ID3D12Device* device,
-    ID3D12GraphicsCommandList* cmd,
-    MATERIALS* pMaterials,
-    const AssetBuildDesc& desc)
+	ID3D12Device* device,
+	ID3D12GraphicsCommandList* cmd,
+	MATERIALS* pMaterials,
+	const AssetBuildDesc& desc)
 {
-    const std::string assetKey = MakeAssetKey(desc);
+	const std::string assetKey = MakeAssetKey(desc);
 
-    auto it = s_assetCache.find(assetKey);
-    if (it == s_assetCache.end())
-    {
-        BuiltAsset built = BuildAssetInternal(device, cmd, desc);
-        it = s_assetCache.emplace(assetKey, std::move(built)).first;
-    }
+	auto it = s_assetCache.find(assetKey);
+	if ( it == s_assetCache.end() )
+	{
+		BuiltAsset built = BuildAssetInternal(device, cmd, desc);
+		it = s_assetCache.emplace(assetKey, std::move(built)).first;
+	}
 
-    if (pMaterials)
-    {
-        ApplyBuiltAssetToSceneMaterials(it->second, pMaterials);
-    }
+	if ( pMaterials )
+	{
+		auto& appliedAssetKeys = s_appliedAssetKeysByMaterials[pMaterials];
 
-    return it->second;
+		const bool firstApplyToThisMaterialTable =
+			appliedAssetKeys.insert(assetKey).second;
+
+		if ( firstApplyToThisMaterialTable )
+		{
+			ApplyBuiltAssetToSceneMaterials(it->second, pMaterials);
+		}
+	}
+
+	return it->second;
+}
+
+void AssetManager::BeginSceneMaterialBuild(MATERIALS* pMaterials)
+{
+	if ( !pMaterials )
+		return;
+
+	s_appliedAssetKeysByMaterials[pMaterials].clear();
 }
 
 void AssetManager::ClearCache()
 {
-    s_assetCache.clear();
-    s_materialCache.clear();
-    s_textureCache.clear();
+	s_assetCache.clear();
+	s_materialCache.clear();
+	s_textureCache.clear();
 	s_clipCache.clear();
-    s_nextMaterialID = 0;
+	s_appliedAssetKeysByMaterials.clear();
+	s_nextMaterialID = 0;
 }
 
 BuiltAsset AssetManager::BuildAssetInternal(

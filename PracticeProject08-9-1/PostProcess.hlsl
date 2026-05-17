@@ -7,20 +7,18 @@
 
 float4 VSPostProcessing(uint nVertexID : SV_VertexID) : SV_POSITION
 {
-    if (nVertexID == 0)
-        return float4(-1.0f, +1.0f, 0.0f, 1.0f);
-    if (nVertexID == 1)
-        return float4(+1.0f, +1.0f, 0.0f, 1.0f);
-    if (nVertexID == 2)
-        return float4(+1.0f, -1.0f, 0.0f, 1.0f);
-    if (nVertexID == 3)
-        return float4(-1.0f, +1.0f, 0.0f, 1.0f);
-    if (nVertexID == 4)
-        return float4(+1.0f, -1.0f, 0.0f, 1.0f);
-    if (nVertexID == 5)
-        return float4(-1.0f, -1.0f, 0.0f, 1.0f);
+    static const float4 kPos[6] =
+    {
+        float4(-1.0f, +1.0f, 0.0f, 1.0f),
+        float4(+1.0f, +1.0f, 0.0f, 1.0f),
+        float4(+1.0f, -1.0f, 0.0f, 1.0f),
 
-    return float4(0, 0, 0, 0);
+        float4(-1.0f, +1.0f, 0.0f, 1.0f),
+        float4(+1.0f, -1.0f, 0.0f, 1.0f),
+        float4(-1.0f, -1.0f, 0.0f, 1.0f)
+    };
+
+    return (nVertexID < 6) ? kPos[nVertexID] : float4(0, 0, 0, 0);
 }
 
 float4 PSPostProcessing(float4 position : SV_POSITION) : SV_Target
