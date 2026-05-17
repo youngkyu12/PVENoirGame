@@ -15,8 +15,8 @@ namespace Protocol
 struct RoomTimingConfig
 {
 	uint64 serverTickIntervalMs = 16;
-	uint64 frameStateIntervalMs = 160;
-	uint64 enemyAiIntervalMs = 200;
+	uint64 frameStateIntervalMs = 100;
+	uint64 enemyAiIntervalMs = 250;
 	uint64 clientReadyPollIntervalMs = 100;
 	uint64 gameStartDelayMs = 100;
 
