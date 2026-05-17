@@ -29,6 +29,7 @@ class CCollisionSystem;
 class CTexture;
 class CNavMesh;
 class CStaticMeshRendererComponent;
+class EnemySpawner;
 class CSkinnedMeshRendererComponent;
 class CSkinningComponent;
 class CAnimatorComponent;
@@ -779,6 +780,7 @@ private:
     UINT m_building8Count = 1;
     UINT m_building9Count = 1;
 	UINT m_towerCount = 1;
+	UINT m_terrainCount = 1;
 
     UINT m_ghoulCount = 4;
     UINT m_swordManCount = 3;
@@ -795,6 +797,7 @@ private:
 	UINT m_PlayerAxeCount = 4;
 	UINT m_PlayerGunCount = 4;
 	UINT m_ColliderCount = 0;
+	UINT m_EnemySpawnCount = 0;
 
     std::vector<std::unique_ptr<CGameObject>> m_staticObjects;
     std::vector<std::unique_ptr<CGameObject>> m_skinnedObjects;
@@ -865,6 +868,7 @@ private:
 
     std::vector<CGameObject*> m_EnemySwordRefs;
     std::vector<CGameObject*> m_EnemyBowRefs;
+	std::vector<CGameObject*> m_EnemySpawnRefs;
 
     std::vector<AttachmentBindSpec> m_attachmentBinds;
 
@@ -951,6 +955,10 @@ private:
     unique_ptr<CCollisionSystem> m_Collision;
 	std::unique_ptr<CNavMesh> m_navMesh;
 
+	std::unique_ptr<EnemySpawner> m_enemySpawner;
+	float m_enemySpawnAccumulatorSec = 0.0f;
+	float m_enemySpawnIntervalSec = 5.0f;
+
 #ifndef USING_NETWORK
 	std::vector<MonsterSpawnEntry>	m_monsterSpawnEntries;
 
@@ -983,11 +991,9 @@ private:
     std::vector<StaticPlacementEntry>   m_staticPlacementEntries;
 	std::unordered_map<std::string, std::unordered_map<std::string, std::vector<AuthoredSubMeshOOBB>>> mSceneCubeBoxColliderTable;
 
-	std::vector<StaticInstanceGroup>     m_staticInstanceGroups;
+	std::vector<StaticInstanceGroup>    m_staticInstanceGroups;
 	std::vector<StaticRenderObjectCache> m_staticRenderObjectCache;
 	std::vector<CGameObject*>            m_staticGameplayTickObjects;
-
-	std::vector<std::vector<UINT>>       m_staticGroupIndicesByObjectIndex;
 
 	std::vector<StaticWorldLodEntry>    m_staticWorldLodEntries;
 	std::vector<StaticOcclusionEntry>   m_staticOcclusionEntries;
@@ -1015,7 +1021,6 @@ private:
 	bool                                m_bStaticOcclusionQueryResourcesReady = false;
 	bool                                m_bStaticOcclusionQueryResultsValid = false;
 	bool                                m_staticWorldLodDirty = false;
-	bool                                m_staticOcclusionCullSelectionLodDirty = false;
 	bool                                m_bStaticOcclusionCullingEnabled = true;
 	bool                                m_bStaticTreeGridCullingEnabled = true;
 	UINT                                m_staticOcclusionHideFrameThreshold = 8;
@@ -1025,12 +1030,6 @@ private:
 	float                               m_staticLodDistance12 = 80.0f;
 	float                               m_staticLodHysteresis = 15.0f;
 	float                               m_staticCullHysteresis = 20.0f;
-
-	bool                                m_staticOcclusionCullSelectionCacheValid = false;
-	UINT                                m_staticOcclusionCullSelectionFrameCounter = 0;
-	UINT                                m_staticOcclusionCullSelectionLastUpdateFrame = 0;
-	XMFLOAT3                            m_staticOcclusionCullSelectionLastCameraPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	float                               m_staticOcclusionCullSelectionLastCameraYaw = 0.0f;
 
 	std::shared_ptr<CMesh>              m_staticOcclusionUnitBoxMesh;
 	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dStaticOcclusionInstanceBuffer;
