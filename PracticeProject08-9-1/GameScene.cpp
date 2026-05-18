@@ -6589,7 +6589,7 @@ void CGameScene::BuildSkinnedBatch(
 			b->objectRefs.push_back(raw);
 			b->count = ( UINT ) b->objectRefs.size();
 		}
-
+#ifndef USING_NETWORK
 		for ( UINT k = 0; k < countEnemySpawn; ++k )
 		{
 			if ( b->objectRefs.size() >= b->capacity ) break;
@@ -6599,13 +6599,11 @@ void CGameScene::BuildSkinnedBatch(
 			XMFLOAT3 pos{};
 			float yaw = 180.0f;
 
-#ifdef USING_NETWORK
-			if ( !GetNetworkEnemySpawn(enemyIndex, pos, yaw) )
-				break;
-#else
+
+
 			if ( k >= m_EnemySpawnCount )
 				break;
-#endif
+
 
 			GameSceneObjectFactory::SkinnedRenderableDesc createDesc{};
 			createDesc.ctx = MakeSkinnedContext(i);
@@ -6672,6 +6670,7 @@ void CGameScene::BuildSkinnedBatch(
 			b->objectRefs.push_back(raw);
 			b->count = ( UINT ) b->objectRefs.size();
 		}
+#endif
 	}
 
 	// ------------------------------------------------------------------------
