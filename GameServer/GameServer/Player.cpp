@@ -16,7 +16,7 @@ void Player::Update(uint32 serverTick)
         return;
     }
 
-    Move(m_velocity * ((GetAnimState() == Protocol::ANIMATION_TYPE_RUN) + 1));
+    Move(m_velocity);
     SetVelocity(GameMath::Vec3::Zero());
 
     if (m_animState != Protocol::ANIMATION_TYPE_IDLE)
