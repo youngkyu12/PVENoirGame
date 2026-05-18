@@ -615,6 +615,9 @@
     <ClCompile Include="EnemySpawner.cpp">
       <Filter>EnemySpawner</Filter>
     </ClCompile>
+    <ClCompile Include="GameSceneBuild.cpp">
+      <Filter>Scene\GameScene</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PracticeProject08-9-1.rc">
