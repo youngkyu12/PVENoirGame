@@ -75,21 +75,6 @@ namespace GameSceneHelper
 
 	static constexpr ELocalStagePreset kLocalStagePreset = ELocalStagePreset::FullStage;
 
-	static constexpr float kFootstepSfxVolume = 0.04f;
-
-	bool IsWalkClipName(const std::string& clipName);
-	bool IsRunClipName(const std::string& clipName);
-	int GetFootstepModeFromClipName(const std::string& clipName);
-
-	bool CrossedNormalizedEvent(
-		float prevNormalized,
-		float curNormalized,
-		float eventNormalized
-	);
-
-	const char* SelectRandomFootstepGrassSfxPath();
-	const char* SelectRandomFootstepBlockSfxPath();
-
 	struct StaticGroupKey
 	{
 		const CMesh* mesh = nullptr;

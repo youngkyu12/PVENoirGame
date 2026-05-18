@@ -3,19 +3,7 @@
 //-----------------------------------------------------------------------------
 
 #include "stdafx.h"
-#include "GameScene.h"
-
-#include <algorithm>
-#include <random>
-
-#include "Material.h"
-#include "Texture.h"
-#include "Mesh.h"
-#include "Camera.h"
-#include "Object.h"
-#include "PlayerEquipmentComponent.h"
-#include "WeaponHitboxComponent.h"
-#include "ColliderComponent.h"
+#include "GameScenePrivate.h"
 
 namespace
 {
