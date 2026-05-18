@@ -20,7 +20,7 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 #else
 	m_bSimulateLocalPlayerMonsterAttackCollision = false;
 	m_bSimulateLocalAI = false;
-	m_bSimulateLocalEnemySpawner = true;
+	m_bSimulateLocalEnemySpawner = false;
 	m_bSimulateLocalPlayerWorldStaticRollback = true;
 	m_bSimulateLocalTeleport = true;
 	m_bSimulateLocalItemPickup = true;
@@ -304,19 +304,11 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
 
 #ifndef USING_NETWORK
-	if ( m_bSimulateLocalEnemySpawner )
-	{
-		if ( !m_enemySpawner )
-			m_enemySpawner = std::make_unique<EnemySpawner>();
+	if ( !m_enemySpawner )
+		m_enemySpawner = std::make_unique<EnemySpawner>();
 
-		m_enemySpawner->Initialize(m_EnemySpawnRefs);
-		m_enemySpawnAccumulatorSec = 0.0f;
-	}
-	else
-	{
-		m_enemySpawner.reset();
-		m_enemySpawnAccumulatorSec = 0.0f;
-	}
+	m_enemySpawner->Initialize(m_EnemySpawnRefs);
+	m_enemySpawnAccumulatorSec = 0.0f;
 #endif
 
 	for ( const SkinnedComponentCache& cache : m_skinnedComponentCache )
