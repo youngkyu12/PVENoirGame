@@ -51,12 +51,21 @@ CGameScene::CGameScene()
 	m_bulletRefs.shrink_to_fit();
 
 	m_navMesh.reset();
-	isSimulateCollisionsystem = false;
-	isSimulateAI = false;
+
+	m_bSimulateLocalPlayerMonsterAttackCollision = true;
+	m_bSimulateLocalAI = true;
+	m_bSimulateLocalEnemySpawner = true;
+	m_bSimulateLocalPlayerWorldStaticRollback = true;
+	m_bSimulateLocalTeleport = true;
+	m_bSimulateLocalItemPickup = true;
 
 #ifdef USING_NETWORK
-	isSimulateCollisionsystem = false;
-	isSimulateAI = false;
+	m_bSimulateLocalPlayerMonsterAttackCollision = false;
+	m_bSimulateLocalAI = false;
+	m_bSimulateLocalEnemySpawner = false;
+	m_bSimulateLocalPlayerWorldStaticRollback = false;
+	m_bSimulateLocalTeleport = false;
+	m_bSimulateLocalItemPickup = false;
 #endif
 
 	m_bLocalPlayerDead = false;
@@ -4588,6 +4597,9 @@ void CGameScene::UpdateLocalPlayerDeathAndRespawn(float dt)
 
 bool CGameScene::RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& previousPos)
 {
+	if ( !m_bSimulateLocalPlayerWorldStaticRollback )
+		return false;
+
 	CGameObject* localPlayer = GetPlayer();
 	if ( !localPlayer ) return false;
 	if ( !m_Collision ) return false;
@@ -4647,23 +4659,19 @@ bool CGameScene::RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& p
 	localPlayer->SetPosition(currentPos);
 	collider->UpdateWorldBounds();
 
-	if ( TryTeleportLocalPlayerByTowerDoorPortal(true) )
-		return true;
+	if ( m_bSimulateLocalTeleport )
+	{
+		if ( TryTeleportLocalPlayerByTowerDoorPortal(true) )
+			return true;
 
-	if ( TryTeleportLocalPlayerByCastleDoorPortal(true) )
-		return true;
+		if ( TryTeleportLocalPlayerByCastleDoorPortal(true) )
+			return true;
+	}
 #endif
 
 #ifndef USING_NETWORK
-	if ( IsTowerDoorPortalOnCooldown() )
+	if ( m_bSimulateLocalTeleport && IsTowerDoorPortalOnCooldown() )
 	{
-		if ( kEnableTowerDoorPortalCollisionLog )
-		{
-			OutputDebugStringA(
-				"[DoorPortal][ROLLBACK_SKIP_DURING_COOLDOWN] skip normal world-static rollback after portal teleport\n"
-			);
-		}
-
 		localPlayer->SetPosition(currentPos);
 		collider->UpdateWorldBounds();
 		return true;
@@ -5044,7 +5052,7 @@ void CGameScene::AnimateObjects(float dt)
 		local = GetPlayerBySlot(0);
 
 #ifndef USING_NETWORK
-	if ( m_enemySpawner && local )
+	if ( m_bSimulateLocalEnemySpawner && m_enemySpawner && local )
 	{
 		m_enemySpawner->Update(dt, local->GetPosition());
 	}
@@ -5457,26 +5465,65 @@ void CGameScene::AnimateObjects(float dt)
 
 void CGameScene::CollisionObjects()
 {
-	if ( !m_Collision ) return;
-	if ( !isSimulateCollisionsystem ) return;
-
-	RefreshDynamicCollisionMegaGridMasks();
-
-	m_Collision->OnUpdateFiltered(
-		[ this ](
+	auto IsLocalPlayerMonsterAttackCollisionPair =
+		[ ](
 			const CColliderComponent* a,
 			const CColliderComponent* b) -> bool
 		{
-			return ShouldKeepCollisionPairByMegaGrid(a, b);
-		}
-	);
+			if ( !a || !b )
+				return false;
+
+			const uint32_t layerA = static_cast< uint32_t >( a->GetLayer() );
+			const uint32_t layerB = static_cast< uint32_t >( b->GetLayer() );
+
+			const bool playerWeaponHitsMonster =
+				( layerA == kCollisionLayerPlayerWeapon &&
+				  layerB == kCollisionLayerMonster ) ||
+				( layerB == kCollisionLayerPlayerWeapon &&
+				  layerA == kCollisionLayerMonster );
+
+			const bool monsterWeaponHitsPlayer =
+				( layerA == kCollisionLayerMonsterWeapon &&
+				  layerB == kCollisionLayerPlayer ) ||
+				( layerB == kCollisionLayerMonsterWeapon &&
+				  layerA == kCollisionLayerPlayer );
+
+			return playerWeaponHitsMonster || monsterWeaponHitsPlayer;
+		};
+
+	if ( m_Collision )
+	{
+		RefreshDynamicCollisionMegaGridMasks();
+
+		m_Collision->OnUpdateFiltered(
+			[ this, &IsLocalPlayerMonsterAttackCollisionPair ](
+				const CColliderComponent* a,
+				const CColliderComponent* b) -> bool
+			{
+				if ( !m_bSimulateLocalPlayerMonsterAttackCollision &&
+					 IsLocalPlayerMonsterAttackCollisionPair(a, b) )
+				{
+					return false;
+				}
+
+				return ShouldKeepCollisionPairByMegaGrid(a, b);
+			}
+		);
+	}
 
 	// 아이템 빌보드는 CGameObject/Collider가 아니므로 별도 overlap 판정.
-	UpdateItemBillboardPickupCollision();
+	if ( m_bSimulateLocalItemPickup )
+	{
+		UpdateItemBillboardPickupCollision();
+	}
 
 #ifndef USING_NETWORK
-	TickTowerDoorPortalCooldowns();
-	TryTeleportLocalPlayerByTowerDoorPortal();
+	if ( m_bSimulateLocalTeleport )
+	{
+		TickTowerDoorPortalCooldowns();
+		TryTeleportLocalPlayerByTowerDoorPortal();
+		TryTeleportLocalPlayerByCastleDoorPortal();
+	}
 #endif
 
 	UpdateMonsterDeathStates();

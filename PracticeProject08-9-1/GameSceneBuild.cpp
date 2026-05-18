@@ -8,9 +8,29 @@
 
 using namespace GameSceneHelper;
 
+void CGameScene::ConfigureLocalGameplaySimulationSwitches()
+{
+#ifdef USING_NETWORK
+	m_bSimulateLocalPlayerMonsterAttackCollision = false;
+	m_bSimulateLocalAI = false;
+	m_bSimulateLocalEnemySpawner = true;
+	m_bSimulateLocalPlayerWorldStaticRollback = true;
+	m_bSimulateLocalTeleport = false;
+	m_bSimulateLocalItemPickup = true;
+#else
+	m_bSimulateLocalPlayerMonsterAttackCollision = false;
+	m_bSimulateLocalAI = false;
+	m_bSimulateLocalEnemySpawner = true;
+	m_bSimulateLocalPlayerWorldStaticRollback = true;
+	m_bSimulateLocalTeleport = true;
+	m_bSimulateLocalItemPickup = true;
+#endif
+}
 
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
+	ConfigureLocalGameplaySimulationSwitches();
+
 	ResetPlayerFootstepSfxState();
 	m_deadMonsters.clear();
 	m_bLocalPlayerDead = false;
@@ -284,11 +304,19 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
 
 #ifndef USING_NETWORK
-	if ( !m_enemySpawner )
-		m_enemySpawner = std::make_unique<EnemySpawner>();
+	if ( m_bSimulateLocalEnemySpawner )
+	{
+		if ( !m_enemySpawner )
+			m_enemySpawner = std::make_unique<EnemySpawner>();
 
-	m_enemySpawner->Initialize(m_EnemySpawnRefs);
-	m_enemySpawnAccumulatorSec = 0.0f;
+		m_enemySpawner->Initialize(m_EnemySpawnRefs);
+		m_enemySpawnAccumulatorSec = 0.0f;
+	}
+	else
+	{
+		m_enemySpawner.reset();
+		m_enemySpawnAccumulatorSec = 0.0f;
+	}
 #endif
 
 	for ( const SkinnedComponentCache& cache : m_skinnedComponentCache )
@@ -1315,6 +1343,9 @@ void CGameScene::BuildSkinnedBatch(
 	auto AttachGhoulAIToMonster =
 		[ this ] (std::unique_ptr<CGameObject>& obj)
 		{
+			if ( !m_bSimulateLocalAI )
+				return;
+
 			if ( !obj )
 				return;
 
@@ -1322,7 +1353,8 @@ void CGameScene::BuildSkinnedBatch(
 				return;
 
 			auto* ghoulAI = obj->AddComponent<CGhoulAIComponent>();
-			if ( isSimulateAI && ghoulAI )
+
+			if ( ghoulAI )
 			{
 				ghoulAI->SetScene(this);
 				ghoulAI->SetEnabledAI(true);

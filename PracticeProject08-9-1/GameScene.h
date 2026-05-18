@@ -374,9 +374,9 @@ protected:
 private:
 	//void InitShadowMap(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
     void BuildLightsAndMaterials();
-    void BuildObjectsCollider() override;
+	void BuildObjectsCollider() override;
 
-    void CreateShaderVariables(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
+	void CreateShaderVariables(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
 
     void BuildStaticBatch(
         ID3D12Device* dev,
@@ -984,9 +984,6 @@ private:
     unique_ptr<CCollisionSystem> m_Collision;
 	std::unique_ptr<CNavMesh> m_navMesh;
 
-	bool isSimulateCollisionsystem = true;
-	bool isSimulateAI = true;
-
 	std::unique_ptr<EnemySpawner> m_enemySpawner;
 	float m_enemySpawnAccumulatorSec = 0.0f;
 	float m_enemySpawnIntervalSec = 5.0f;
@@ -1152,4 +1149,13 @@ public:
 	bool IsPointInResumeButton(POINT clientPt) const;
 	bool IsPointInExitButton(POINT clientPt) const;
 
+private:
+	bool m_bSimulateLocalPlayerMonsterAttackCollision = true;
+	bool m_bSimulateLocalAI = true;
+	bool m_bSimulateLocalEnemySpawner = true;
+	bool m_bSimulateLocalPlayerWorldStaticRollback = true;
+	bool m_bSimulateLocalTeleport = true;
+	bool m_bSimulateLocalItemPickup = true;
+
+	void ConfigureLocalGameplaySimulationSwitches();
 };
