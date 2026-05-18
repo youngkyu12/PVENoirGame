@@ -3,15 +3,7 @@
 //-----------------------------------------------------------------------------
 
 #include "stdafx.h"
-#include "GameScene.h"
-
-#include <algorithm>
-#include <cmath>
-#include <unordered_map>
-
-#include "Camera.h"
-#include "Mesh.h"
-#include "Object.h"
+#include "GameScenePrivate.h"
 
 namespace
 {
@@ -22,48 +14,11 @@ namespace
 		return lodLevel;
 	}
 
-	static bool BuildStaticLodMeshBinPath(
-		const std::string& baseMeshBinPath,
-		int lodLevel,
-		std::string& outMeshBinPath)
-	{
-		const size_t dotPos = baseMeshBinPath.find_last_of('.');
-		if ( dotPos == std::string::npos )
-			return false;
-
-		const int clampedLodLevel = ClampStaticWorldLodLevel(lodLevel);
-
-		outMeshBinPath = baseMeshBinPath.substr(0, dotPos);
-		outMeshBinPath += "_LOD";
-		outMeshBinPath += std::to_string(clampedLodLevel);
-		outMeshBinPath += baseMeshBinPath.substr(dotPos);
-
-		return true;
-	}
-
 	static int ClampSkinnedWorldLodLevel(int lodLevel)
 	{
 		if ( lodLevel < 0 ) return 0;
 		if ( lodLevel > 2 ) return 2;
 		return lodLevel;
-	}
-
-	static bool BuildSkinnedLodMeshBinPath(
-		const std::string& baseMeshBinPath,
-		int lodLevel,
-		std::string& outMeshBinPath)
-	{
-		const size_t dotPos = baseMeshBinPath.find_last_of('.');
-		if ( dotPos == std::string::npos )
-			return false;
-
-		const int clampedLodLevel = ClampSkinnedWorldLodLevel(lodLevel);
-
-		outMeshBinPath = baseMeshBinPath.substr(0, dotPos);
-		outMeshBinPath += "_LOD";
-		outMeshBinPath += std::to_string(clampedLodLevel);
-		outMeshBinPath += baseMeshBinPath.substr(dotPos);
-		return true;
 	}
 }
 
