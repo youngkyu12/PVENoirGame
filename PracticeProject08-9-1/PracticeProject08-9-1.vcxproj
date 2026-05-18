@@ -197,8 +197,10 @@
     <ClInclude Include="GameScene.h" />
     <ClInclude Include="GameSceneAttachmentBinder.h" />
     <ClInclude Include="GameSceneContentCatalog.h" />
+    <ClInclude Include="GameSceneHelper.h" />
     <ClInclude Include="GameSceneHUD.h" />
     <ClInclude Include="GameSceneObjectFactory.h" />
+    <ClInclude Include="GameScenePrivate.h" />
     <ClInclude Include="GhoulAIComponent.h" />
     <ClInclude Include="GlobalEnum.h" />
     <ClInclude Include="GlobalValues.h" />
@@ -281,6 +283,7 @@
     <ClCompile Include="GameSceneAudio.cpp" />
     <ClCompile Include="GameSceneBillboard.cpp" />
     <ClCompile Include="GameSceneContentCatalog.cpp" />
+    <ClCompile Include="GameSceneHelper.cpp" />
     <ClCompile Include="GameSceneHUD.cpp" />
     <ClCompile Include="GameSceneLOD.cpp" />
     <ClCompile Include="GameSceneObjectFactory.cpp" />
