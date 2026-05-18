@@ -561,6 +561,13 @@ D3D12_SHADER_BYTECODE CSkinnedObjectsShader::CreatePixelShader(ID3DBlob** ppd3dS
 	return( CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSTexturedLightingToMultipleRTs", "ps_5_1", ppd3dShaderBlob) );
 }
 
+D3D12_RASTERIZER_DESC CSkinnedObjectsShader::CreateRasterizerState()
+{
+	D3D12_RASTERIZER_DESC rs = CShader::CreateRasterizerState();
+	rs.CullMode = D3D12_CULL_MODE_NONE;
+	return rs;
+}
+
 D3D12_INPUT_LAYOUT_DESC CSkinnedObjectsShader::CreateInputLayout()
 {
 	UINT nInputElementDescs = 12;
@@ -1048,6 +1055,27 @@ D3D12_RASTERIZER_DESC CShadowMapAlphaClipSkinnedShader::CreateRasterizerState()
 	rs.DepthBias = 12000;
 	rs.SlopeScaledDepthBias = 0.75f;
 	rs.DepthBiasClamp = 0.0f;
+	return rs;
+}
+
+D3D12_SHADER_BYTECODE CAlphaClipSkinnedObjectsShader::CreatePixelShader(
+	ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(
+		L"Shaders.hlsl",
+		"PSTexturedLightingToMultipleRTs_AlphaClip",
+		"ps_5_1",
+		ppd3dShaderBlob
+	);
+}
+
+D3D12_RASTERIZER_DESC CAlphaClipSkinnedObjectsShader::CreateRasterizerState()
+{
+	D3D12_RASTERIZER_DESC rs = CShader::CreateRasterizerState();
+
+	// 활/잎/얇은 alpha-cutout 계열은 backface culling 때문에 비어 보일 수 있음.
+	rs.CullMode = D3D12_CULL_MODE_NONE;
+
 	return rs;
 }
 

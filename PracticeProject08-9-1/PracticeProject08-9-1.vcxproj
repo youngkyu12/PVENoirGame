@@ -190,14 +190,17 @@
     <ClInclude Include="DDSTextureLoader12.h" />
     <ClInclude Include="DepthFog.h" />
     <ClInclude Include="DescriptorHeap.h" />
+    <ClInclude Include="EnemySpawner.h" />
     <ClInclude Include="Enum.pb.h" />
     <ClInclude Include="FollowBoneComponent.h" />
     <ClInclude Include="GameFramework.h" />
     <ClInclude Include="GameScene.h" />
     <ClInclude Include="GameSceneAttachmentBinder.h" />
     <ClInclude Include="GameSceneContentCatalog.h" />
+    <ClInclude Include="GameSceneHelper.h" />
     <ClInclude Include="GameSceneHUD.h" />
     <ClInclude Include="GameSceneObjectFactory.h" />
+    <ClInclude Include="GameScenePrivate.h" />
     <ClInclude Include="GhoulAIComponent.h" />
     <ClInclude Include="GlobalEnum.h" />
     <ClInclude Include="GlobalValues.h" />
@@ -267,6 +270,7 @@
     </ClCompile>
     <ClCompile Include="DepthFog.cpp" />
     <ClCompile Include="DescriptorHeap.cpp" />
+    <ClCompile Include="EnemySpawner.cpp" />
     <ClCompile Include="Enum.pb.cc">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
@@ -278,7 +282,9 @@
     <ClCompile Include="GameSceneAttachmentBinder.cpp" />
     <ClCompile Include="GameSceneAudio.cpp" />
     <ClCompile Include="GameSceneBillboard.cpp" />
+    <ClCompile Include="GameSceneBuild.cpp" />
     <ClCompile Include="GameSceneContentCatalog.cpp" />
+    <ClCompile Include="GameSceneHelper.cpp" />
     <ClCompile Include="GameSceneHUD.cpp" />
     <ClCompile Include="GameSceneLOD.cpp" />
     <ClCompile Include="GameSceneObjectFactory.cpp" />

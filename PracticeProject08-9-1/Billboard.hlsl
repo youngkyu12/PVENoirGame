@@ -60,7 +60,7 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSItemBillboardUnlitAlphaClip(
     uint materialId = input.materialId;
     MATERIAL mat = gMaterials[materialId];
 
-    float2 diffuseUV = GetDiffuseUV(materialId, input.uv);
+    float2 diffuseUV = GetDiffuseUVFromMaterial(mat, input.uv);
 
     float4 diffuseSample = SampleTextureRGBA(
         mat.TextureIndices.x,
@@ -91,7 +91,7 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSItemBillboardUnlitTransparent(
     uint materialId = input.materialId;
     MATERIAL mat = gMaterials[materialId];
 
-    float2 diffuseUV = GetDiffuseUV(materialId, input.uv);
+    float2 diffuseUV = GetDiffuseUVFromMaterial(mat, input.uv);
 
     float4 diffuseSample = SampleTextureRGBA(
         mat.TextureIndices.x,
@@ -121,7 +121,7 @@ float4 PSItemBillboardUnlitTransparentForward(
     uint materialId = input.materialId;
     MATERIAL mat = gMaterials[materialId];
 
-    float2 diffuseUV = GetDiffuseUV(materialId, input.uv);
+    float2 diffuseUV = GetDiffuseUVFromMaterial(mat, input.uv);
 
     float4 diffuseSample = SampleTextureRGBA(
         mat.TextureIndices.x,
@@ -215,7 +215,6 @@ float4 PSMuzzleFlashProcedural(
     float2 p = input.uv * 2.0f - 1.0f;
 
     float r = length(p);
-    float angle = atan2(p.y, p.x);
 
     float ageRatio = saturate(input.params0.x);
     float intensity = input.params0.y;
@@ -228,6 +227,8 @@ float4 PSMuzzleFlashProcedural(
 
     if (kind < 0.5f)
     {
+        float angle = atan2(p.y, p.x);
+        
         float core = saturate(1.0f - r * 2.8f);
         core = pow(core, 1.35f);
 
@@ -328,6 +329,7 @@ float4 PSMuzzleFlashProcedural(
         // blood
         float2 q = p;
 
+        float angle = atan2(p.y, p.x);
         // seed 기반으로 모양을 약간 찌그러뜨린다.
         float wobble =
         0.82f +

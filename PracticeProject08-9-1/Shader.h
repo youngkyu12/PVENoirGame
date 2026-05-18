@@ -179,6 +179,7 @@ public:
 
 	virtual D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob);
 	virtual D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob);
+	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
 
 	virtual D3D12_INPUT_LAYOUT_DESC CreateInputLayout();
 	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList* pd3dCommandList, void* pContext);
@@ -292,6 +293,17 @@ class CShadowMapAlphaClipSkinnedShader final : public CShadowMapSkinnedShader
 public:
 	CShadowMapAlphaClipSkinnedShader() = default;
 	~CShadowMapAlphaClipSkinnedShader() override = default;
+
+public:
+	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
+	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
+};
+
+class CAlphaClipSkinnedObjectsShader final : public CSkinnedObjectsShader
+{
+public:
+	CAlphaClipSkinnedObjectsShader() = default;
+	~CAlphaClipSkinnedObjectsShader() override = default;
 
 public:
 	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;

@@ -72,6 +72,9 @@ public:
 	virtual void OnPrepareRender(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera);
 	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera = nullptr);
 
+	void SetActive(bool b) { m_bEnabled = b; }
+	bool GetActive() { return m_bEnabled; }
+
 	// Camera Visible
 public:
 	bool IsVisible(CCamera* pCamera = nullptr);
@@ -226,6 +229,8 @@ protected:
 
 	// Shader (per-object)
 	std::shared_ptr<CShader> m_pShader;
+
+	bool m_bEnabled = true;
 };
 
 
