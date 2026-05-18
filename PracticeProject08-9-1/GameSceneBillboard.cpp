@@ -1295,6 +1295,9 @@ bool CGameScene::DoesPlayerOverlapItemBillboard(
 
 void CGameScene::UpdateItemBillboardPickupCollision()
 {
+	if ( !m_bSimulateLocalItemPickup )
+		return;
+
 	for ( ItemBillboardEntry& item : m_itemBillboards )
 	{
 		if ( !item.active )
