@@ -8,7 +8,7 @@ void Player::Update(uint32 serverTick)
     {
         SetVelocity(GameMath::Vec3::Zero());
 
-        constexpr uint32 kRespawnDelayTicks = 80; // ~5s (60ms * 80)
+        constexpr uint32 kRespawnDelayTicks = 32; // ~5s (160ms * 32)
         if (serverTick >= m_deathTick + kRespawnDelayTicks)
         {
             OnRespawnEnter(serverTick);
@@ -83,6 +83,7 @@ void Player::OnDeathEnter(uint32 serverTick)
     SetAnimState(Protocol::ANIMATION_TYPE_DIE);
     SetAnimTick(serverTick);
     SetVelocity(GameMath::Vec3::Zero());
+    ClearMoveKeyCodes();
     m_deathTick = serverTick;
 
     if (auto* collider = GetComponent<CColliderComponent>())
@@ -101,6 +102,7 @@ void Player::OnRespawnEnter(uint32 serverTick)
     SetPosition(GameMath::Vec3(0.0f, 0.0f, -200.0f));
 	SetYaw(180.0f);
     SetVelocity(GameMath::Vec3::Zero());
+    ClearMoveKeyCodes();
     SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
     SetAnimTick(serverTick);
 

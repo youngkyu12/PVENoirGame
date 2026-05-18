@@ -17,6 +17,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <cstdint>
+#include <deque>
 
 class CMaterial;
 class CMesh;
@@ -292,7 +293,7 @@ struct SkinnedWorldLodEntry
 
 	std::array<std::shared_ptr<CMesh>, 3> lodMeshes = { nullptr, nullptr, nullptr };
 
-	bool distanceCullEnabled = false;
+	bool distanceCullEnabled = true;
 	bool distanceCulled = false;
 	float cullDistance = 1000000.0f;
 };
@@ -514,8 +515,18 @@ private:
 	void ResolveSkinnedOcclusionQueries(ID3D12GraphicsCommandList* cmd);
 	void UpdateSkinnedOcclusionCullSelection(CCamera* camera);
 
-	int ComputeSkinnedWorldLodLevel(const XMFLOAT3& cameraPosition, const SkinnedWorldLodEntry& entry) const;
-	bool ComputeSkinnedWorldDistanceCulled(const XMFLOAT3& cameraPosition, const SkinnedWorldLodEntry& entry) const;
+	int ComputeSkinnedWorldLodLevel(
+	const XMFLOAT3& cameraPosition,
+	const XMFLOAT3& objectPosition,
+	const SkinnedWorldLodEntry& entry
+	) const;
+
+	bool ComputeSkinnedWorldDistanceCulled(
+		const XMFLOAT3& cameraPosition,
+		const XMFLOAT3& objectPosition,
+		const SkinnedWorldLodEntry& entry
+	) const; 
+	
 	void UpdateSkinnedWorldLodSelection(CCamera* camera);
 	void RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	bool ShouldEvaluateSkinnedPoseThisFrame(UINT objectIndex, CCamera* camera) const;
@@ -947,6 +958,25 @@ private:
 	float                           m_localPlayerRespawnTimer = 0.0f;
 
 #ifdef USING_NETWORK
+	std::deque<FrameSnapshot> m_frameSnapshotBuffer;
+	uint64_t m_lastReceivedServerTick = 0;
+
+	static constexpr uint64_t kNetworkInterpolationDelayTicks = 2;
+	static constexpr size_t kMaxNetworkFrameSnapshotBufferSize = 8;
+
+	void PushNetworkFrameSnapshot(const FrameSnapshot& snapshot);
+	FrameSnapshot BuildInterpolatedFrameSnapshot(const FrameSnapshot& latestSnapshot) const;
+	bool GetInterpolationSnapshots(
+		uint64_t renderTick,
+		const FrameSnapshot*& older,
+		const FrameSnapshot*& newer,
+		float& alpha) const;
+
+	static const PlayerState* FindPlayerState(const FrameSnapshot& snapshot, uint64_t id);
+	static const EnemyState* FindEnemyState(const FrameSnapshot& snapshot, uint64_t id);
+	static XMFLOAT3 LerpPosition(const XMFLOAT3& a, const XMFLOAT3& b, float t);
+	static float LerpYawDegrees(float a, float b, float t);
+
 	std::unordered_map<uint64_t, uint32_t> m_prevPlayerNetworkStateCode;
 #endif
 

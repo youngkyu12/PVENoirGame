@@ -82,9 +82,132 @@ int Room::GridCellIndex(int cellX, int cellZ) const
 	return (cellZ * kGridWidth) + cellX;
 }
 
+bool Room::GetGridCellRangeForWorldBounds(
+	float minWorldX,
+	float maxWorldX,
+	float minWorldZ,
+	float maxWorldZ,
+	int& outMinCellX,
+	int& outMaxCellX,
+	int& outMinCellZ,
+	int& outMaxCellZ) const
+{
+	if (!m_spatialGridInitialized) return false;
+	if (maxWorldX < minWorldX) std::swap(maxWorldX, minWorldX);
+	if (maxWorldZ < minWorldZ) std::swap(maxWorldZ, minWorldZ);
+
+	if (maxWorldX < static_cast<float>(kGridMinX) || minWorldX > static_cast<float>(kGridMaxX)) return false;
+	if (maxWorldZ < static_cast<float>(kGridMinZ) || minWorldZ > static_cast<float>(kGridMaxZ)) return false;
+
+	minWorldX = std::clamp(minWorldX, static_cast<float>(kGridMinX), static_cast<float>(kGridMaxX));
+	maxWorldX = std::clamp(maxWorldX, static_cast<float>(kGridMinX), static_cast<float>(kGridMaxX));
+	minWorldZ = std::clamp(minWorldZ, static_cast<float>(kGridMinZ), static_cast<float>(kGridMaxZ));
+	maxWorldZ = std::clamp(maxWorldZ, static_cast<float>(kGridMinZ), static_cast<float>(kGridMaxZ));
+
+	int minCellX = static_cast<int>(std::floor(minWorldX)) - kGridMinX;
+	int maxCellX = static_cast<int>(std::ceil(maxWorldX)) - kGridMinX - 1;
+	int minCellZ = static_cast<int>(std::floor(minWorldZ)) - kGridMinZ;
+	int maxCellZ = static_cast<int>(std::ceil(maxWorldZ)) - kGridMinZ - 1;
+
+	minCellX = std::clamp(minCellX, 0, kGridWidth - 1);
+	minCellZ = std::clamp(minCellZ, 0, kGridHeight - 1);
+	maxCellX = std::clamp(maxCellX, 0, kGridWidth - 1);
+	maxCellZ = std::clamp(maxCellZ, 0, kGridHeight - 1);
+
+	if (maxCellX < minCellX) maxCellX = minCellX;
+	if (maxCellZ < minCellZ) maxCellZ = minCellZ;
+
+	outMinCellX = minCellX;
+	outMaxCellX = maxCellX;
+	outMinCellZ = minCellZ;
+	outMaxCellZ = maxCellZ;
+	return true;
+}
+
 int Room::MegaGridIndex(int megaX, int megaZ) const
 {
 	return (megaZ * kMegaGridCols) + megaX;
+}
+
+bool Room::WorldToMegaGridCell(float worldX, float worldZ, int& outMegaX, int& outMegaZ) const
+{
+	int cellX = -1;
+	int cellZ = -1;
+	if (!WorldToGridCell(worldX, worldZ, cellX, cellZ))
+		return false;
+
+	return FineCellToMegaGridCell(cellX, cellZ, outMegaX, outMegaZ);
+}
+
+bool Room::GetMegaGridRangeForCircle(
+	const GameMath::Vec3& center,
+	float radius,
+	int& outMinMegaX,
+	int& outMaxMegaX,
+	int& outMinMegaZ,
+	int& outMaxMegaZ) const
+{
+	if (radius < 0.0f) radius = 0.0f;
+
+	int minCellX = -1;
+	int maxCellX = -1;
+	int minCellZ = -1;
+	int maxCellZ = -1;
+	if (!GetGridCellRangeForWorldBounds(
+		center.x - radius,
+		center.x + radius,
+		center.z - radius,
+		center.z + radius,
+		minCellX,
+		maxCellX,
+		minCellZ,
+		maxCellZ))
+	{
+		return false;
+	}
+
+	int minMegaX = -1;
+	int minMegaZ = -1;
+	int maxMegaX = -1;
+	int maxMegaZ = -1;
+	if (!FineCellToMegaGridCell(minCellX, minCellZ, minMegaX, minMegaZ)) return false;
+	if (!FineCellToMegaGridCell(maxCellX, maxCellZ, maxMegaX, maxMegaZ)) return false;
+
+	outMinMegaX = (std::min)(minMegaX, maxMegaX);
+	outMaxMegaX = (std::max)(minMegaX, maxMegaX);
+	outMinMegaZ = (std::min)(minMegaZ, maxMegaZ);
+	outMaxMegaZ = (std::max)(minMegaZ, maxMegaZ);
+	return true;
+}
+
+void Room::CollectEnemyIdsInMegaGridRadius(
+	const GameMath::Vec3& center,
+	float radius,
+	std::vector<uint64>& outEnemyIds) const
+{
+	outEnemyIds.clear();
+	if (!m_spatialGridInitialized) return;
+
+	int minMegaX = -1;
+	int maxMegaX = -1;
+	int minMegaZ = -1;
+	int maxMegaZ = -1;
+	if (!GetMegaGridRangeForCircle(center, radius, minMegaX, maxMegaX, minMegaZ, maxMegaZ))
+		return;
+
+	std::unordered_set<uint64> uniqueIds;
+	for (int z = minMegaZ; z <= maxMegaZ; ++z)
+	{
+		for (int x = minMegaX; x <= maxMegaX; ++x)
+		{
+			const MegaGridCell& cell = m_megaGridCells[static_cast<size_t>(MegaGridIndex(x, z))];
+			for (uint64 enemyId : cell.enemyIds)
+			{
+				if (uniqueIds.insert(enemyId).second)
+					outEnemyIds.push_back(enemyId);
+			}
+		}
+	}
 }
 
 bool Room::FineCellToMegaGridCell(int cellX, int cellZ, int& outMegaX, int& outMegaZ) const
@@ -223,11 +346,78 @@ void Room::RegisterStaticBuildingToGrid(BuildingRef building)
 	for (int cellIndex : touchedCells)
 	{
 		if (cellIndex < 0 || cellIndex >= kGridCellCount) continue;
-		++m_gridStaticCells[static_cast<size_t>(cellIndex)].buildingCount;
-		m_gridStaticCells[static_cast<size_t>(cellIndex)].floorHeight = 0.0f;
+		GridStaticCell& cell = m_gridStaticCells[static_cast<size_t>(cellIndex)];
+		++cell.buildingCount;
+		cell.floorHeight = 0.0f;
+
+		const uint64 buildingId = building->GetObjectId();
+		if (std::find(cell.buildingIds.begin(), cell.buildingIds.end(), buildingId) == cell.buildingIds.end())
+			cell.buildingIds.push_back(buildingId);
 	}
 }
 
+void Room::CollectStaticBuildingIdsForWorldBounds(
+	float minWorldX,
+	float maxWorldX,
+	float minWorldZ,
+	float maxWorldZ,
+	std::vector<uint64>& outBuildingIds) const
+{
+	outBuildingIds.clear();
+	if (!m_spatialGridInitialized) return;
+
+	int minCellX = -1;
+	int maxCellX = -1;
+	int minCellZ = -1;
+	int maxCellZ = -1;
+	if (!GetGridCellRangeForWorldBounds(
+		minWorldX,
+		maxWorldX,
+		minWorldZ,
+		maxWorldZ,
+		minCellX,
+		maxCellX,
+		minCellZ,
+		maxCellZ))
+	{
+		return;
+	}
+
+	std::unordered_set<uint64> uniqueIds;
+	for (int z = minCellZ; z <= maxCellZ; ++z)
+	{
+		for (int x = minCellX; x <= maxCellX; ++x)
+		{
+			const GridStaticCell& cell = m_gridStaticCells[static_cast<size_t>(GridCellIndex(x, z))];
+			for (uint64 buildingId : cell.buildingIds)
+			{
+				if (uniqueIds.insert(buildingId).second)
+					outBuildingIds.push_back(buildingId);
+			}
+		}
+	}
+}
+
+void Room::RebuildMegaGridEnemyIds()
+{
+	if (!m_spatialGridInitialized) return;
+
+	for (MegaGridCell& cell : m_megaGridCells)
+		cell.enemyIds.clear();
+
+	for (auto& [enemyId, enemy] : enemies)
+	{
+		if (!enemy) continue;
+
+		int megaX = -1;
+		int megaZ = -1;
+		const GameMath::Vec3 pos = enemy->GetPosition();
+		if (!WorldToMegaGridCell(pos.x, pos.z, megaX, megaZ))
+			continue;
+
+		m_megaGridCells[static_cast<size_t>(MegaGridIndex(megaX, megaZ))].enemyIds.push_back(enemyId);
+	}
+}
 void Room::ResetDynamicGridCounts()
 {
 	for (GridDynamicCell& cell : m_gridDynamicCells)
