@@ -96,7 +96,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	GameMath::Vec3 look = player->GetLook();
 	GameMath::Vec3 right = player->GetRight();
 
-	const float speed = 10.0f;
+	const float speed = 5.0f;
 	float dt = clientDeltaTime;
 	if (!(dt > 0.0f))
 		dt = m_timing.playerInputDtSec;
@@ -197,7 +197,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	if (GameMath::Vec3::Dot(desiredShift, desiredShift) > 1e-8f)
 		desiredShift = ResolvePreBlockedShift(player, desiredShift);
 
-	player->SetVelocity(desiredShift);
+	player->SetVelocity(player->GetVelocity() + desiredShift);
 
 	cout << "=====" << player->GetObjectId() << " Input Access!" << 
 		 "=====" << endl << endl;

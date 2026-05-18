@@ -1248,7 +1248,9 @@ void CGameFramework::ProcessInput()
 		inputPkt.set_deltax(cxDelta);
 		inputPkt.set_deltay(cyDelta);
 
-		const float dt = m_GameTimer.GetTimeElapsed();
+		float dt = m_GameTimer.GetTimeElapsed();
+		if (dt < 0.001f) dt = 0.001f;
+		if (dt > 0.05f)  dt = 0.05f;
 		inputPkt.set_clientdeltatime(dt);
 
 		auto sendBuffer = ServerPacketHandler::MakeSendBuffer(inputPkt);
@@ -1279,11 +1281,11 @@ void CGameFramework::ProcessInput()
 		if ( dwDirection && !pc->IsActionLockedByAnimation() )
 		{
 			// Network mode: local prediction movement is disabled; server snapshots drive position.
-			const XMFLOAT3 prevPos = playerObj->GetPosition();
-			const float moveSpeed = bRunRequested ? 10.0f : 5.0f;
-			pc->MoveByYaw(dwDirection, moveSpeed * dt, cameraYawDeg, false);
-			if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
-				gameScene->RollbackLocalPlayerMoveIfCollidingWorldStatic(prevPos);
+			//const XMFLOAT3 prevPos = playerObj->GetPosition();
+			//const float moveSpeed = bRunRequested ? 10.0f : 5.0f;
+			//pc->MoveByYaw(dwDirection, moveSpeed * dt, cameraYawDeg, false);
+			//if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
+			//	gameScene->RollbackLocalPlayerMoveIfCollidingWorldStatic(prevPos);
 		}
 
 		pc->SetInputDirection(static_cast< uint32_t >( dwDirection ));
