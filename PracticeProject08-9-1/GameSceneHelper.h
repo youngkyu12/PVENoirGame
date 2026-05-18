@@ -181,8 +181,6 @@ namespace GameSceneHelper
 	static constexpr int kAttackPowerMutant = 20;
 	static constexpr int kAttackPowerBoss = 50;
 
-	static constexpr UINT kOfflineGhoulAICount = 200;
-
 	static constexpr float kDisableVillageTreeCullPlayerHeight = 3.0f;
 
 	static constexpr int kCastleCenterMegaGridX = 1;

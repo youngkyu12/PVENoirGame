@@ -1312,7 +1312,6 @@ void CGameScene::BuildSkinnedBatch(
 			return ctx;
 		};
 
-#ifndef USING_NETWORK
 	auto AttachGhoulAIToMonster =
 		[ this ] (std::unique_ptr<CGameObject>& obj)
 		{
@@ -1323,13 +1322,12 @@ void CGameScene::BuildSkinnedBatch(
 				return;
 
 			auto* ghoulAI = obj->AddComponent<CGhoulAIComponent>();
-			if ( ghoulAI )
+			if ( isSimulateAI && ghoulAI )
 			{
 				ghoulAI->SetScene(this);
 				ghoulAI->SetEnabledAI(true);
 			}
 		};
-#endif
 
 	auto ApplyPlayerBodyCollider =
 		[ ] (GameSceneObjectFactory::SkinnedRenderableDesc& desc)

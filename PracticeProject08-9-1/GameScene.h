@@ -624,7 +624,6 @@ public:
 	bool HasMegaGridEventOccurred(int megaX, int megaZ) const;
 
 private:
-private:
 #ifndef USING_NETWORK
 	struct DoorPortalSubBoxRef
 	{
@@ -984,6 +983,9 @@ private:
 
     unique_ptr<CCollisionSystem> m_Collision;
 	std::unique_ptr<CNavMesh> m_navMesh;
+
+	bool isSimulateCollisionsystem = true;
+	bool isSimulateAI = true;
 
 	std::unique_ptr<EnemySpawner> m_enemySpawner;
 	float m_enemySpawnAccumulatorSec = 0.0f;

@@ -51,10 +51,18 @@ CGameScene::CGameScene()
 	m_bulletRefs.shrink_to_fit();
 
 	m_navMesh.reset();
+	isSimulateCollisionsystem = false;
+	isSimulateAI = false;
+
+#ifdef USING_NETWORK
+	isSimulateCollisionsystem = false;
+	isSimulateAI = false;
+#endif
 
 	m_bLocalPlayerDead = false;
 	m_bLocalPlayerRespawnUsed = false;
 	m_localPlayerRespawnTimer = 0.0f;
+
 #ifdef USING_NETWORK
 	m_prevPlayerNetworkStateCode.clear();
 #endif
@@ -5450,6 +5458,7 @@ void CGameScene::AnimateObjects(float dt)
 void CGameScene::CollisionObjects()
 {
 	if ( !m_Collision ) return;
+	if ( !isSimulateCollisionsystem ) return;
 
 	RefreshDynamicCollisionMegaGridMasks();
 
