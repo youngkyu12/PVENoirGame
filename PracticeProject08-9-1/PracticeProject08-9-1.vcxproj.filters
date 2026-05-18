@@ -384,6 +384,12 @@
       <Filter>ShadowMap</Filter>
     </ClInclude>
     <ClInclude Include="EnemySpawner.h" />
+    <ClInclude Include="GameSceneHelper.h">
+      <Filter>Scene\GameScene</Filter>
+    </ClInclude>
+    <ClInclude Include="GameScenePrivate.h">
+      <Filter>Scene\GameScene</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -582,6 +588,9 @@
       <Filter>ShadowMap</Filter>
     </ClCompile>
     <ClCompile Include="EnemySpawner.cpp" />
+    <ClCompile Include="GameSceneHelper.cpp">
+      <Filter>Scene\GameScene</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PracticeProject08-9-1.rc">
