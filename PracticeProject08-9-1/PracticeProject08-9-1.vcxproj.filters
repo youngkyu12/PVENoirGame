@@ -164,6 +164,24 @@
     <Filter Include="ShadowMap">
       <UniqueIdentifier>{4004a651-92e4-4af2-b222-2eb75c2e37e5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Scene\GameScene\GameSceneAttachmentBinder">
+      <UniqueIdentifier>{75471584-926c-408e-a72a-f01d62ee858b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene\GameScene\GameSceneContentCatalog">
+      <UniqueIdentifier>{575edd73-58a9-4694-a566-a8c942bd7e0d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene\GameScene\GameSceneHelper">
+      <UniqueIdentifier>{07137118-864a-4a0d-a2d0-cb706e6814b6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene\GameScene\GameSceneHUD">
+      <UniqueIdentifier>{eeb33e69-f4dc-48b7-aa7b-4f7d80c4044b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene\GameScene\GameSceneObjectFactory">
+      <UniqueIdentifier>{8ebe87ca-6343-4559-a84b-d9c718eabacd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="EnemySpawner">
+      <UniqueIdentifier>{57fff3bd-1740-43c3-a1a4-367610ca4ec0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animator.h">
@@ -310,7 +328,6 @@
     <ClInclude Include="BulletComponent.h">
       <Filter>Components\Bullet</Filter>
     </ClInclude>
-    <ClInclude Include="MathHelper.h" />
     <ClInclude Include="BoundingCapsule.h">
       <Filter>BoundingCapsule</Filter>
     </ClInclude>
@@ -353,15 +370,6 @@
     <ClInclude Include="GameScene.h">
       <Filter>Scene\GameScene</Filter>
     </ClInclude>
-    <ClInclude Include="GameSceneContentCatalog.h">
-      <Filter>Scene\GameScene</Filter>
-    </ClInclude>
-    <ClInclude Include="GameSceneObjectFactory.h">
-      <Filter>Scene\GameScene</Filter>
-    </ClInclude>
-    <ClInclude Include="GameSceneAttachmentBinder.h">
-      <Filter>Scene\GameScene</Filter>
-    </ClInclude>
     <ClInclude Include="Grid.h">
       <Filter>Grid</Filter>
     </ClInclude>
@@ -370,9 +378,6 @@
     </ClInclude>
     <ClInclude Include="SceneUI.h">
       <Filter>SceneUI</Filter>
-    </ClInclude>
-    <ClInclude Include="GameSceneHUD.h">
-      <Filter>Scene\GameScene</Filter>
     </ClInclude>
     <ClInclude Include="HealthComponent.h">
       <Filter>Components\Health&amp;AttackPower</Filter>
@@ -383,7 +388,30 @@
     <ClInclude Include="ShadowMap.h">
       <Filter>ShadowMap</Filter>
     </ClInclude>
-    <ClInclude Include="EnemySpawner.h" />
+    <ClInclude Include="GameSceneAttachmentBinder.h">
+      <Filter>Scene\GameScene\GameSceneAttachmentBinder</Filter>
+    </ClInclude>
+    <ClInclude Include="GameSceneContentCatalog.h">
+      <Filter>Scene\GameScene\GameSceneContentCatalog</Filter>
+    </ClInclude>
+    <ClInclude Include="GameSceneHelper.h">
+      <Filter>Scene\GameScene\GameSceneHelper</Filter>
+    </ClInclude>
+    <ClInclude Include="GameSceneHUD.h">
+      <Filter>Scene\GameScene\GameSceneHUD</Filter>
+    </ClInclude>
+    <ClInclude Include="GameSceneObjectFactory.h">
+      <Filter>Scene\GameScene\GameSceneObjectFactory</Filter>
+    </ClInclude>
+    <ClInclude Include="GameScenePrivate.h">
+      <Filter>Scene\GameScene\GameSceneHelper</Filter>
+    </ClInclude>
+    <ClInclude Include="MathHelper.h">
+      <Filter>PCH</Filter>
+    </ClInclude>
+    <ClInclude Include="EnemySpawner.h">
+      <Filter>EnemySpawner</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -542,15 +570,6 @@
     <ClCompile Include="GameScene.cpp">
       <Filter>Scene\GameScene</Filter>
     </ClCompile>
-    <ClCompile Include="GameSceneContentCatalog.cpp">
-      <Filter>Scene\GameScene</Filter>
-    </ClCompile>
-    <ClCompile Include="GameSceneObjectFactory.cpp">
-      <Filter>Scene\GameScene</Filter>
-    </ClCompile>
-    <ClCompile Include="GameSceneAttachmentBinder.cpp">
-      <Filter>Scene\GameScene</Filter>
-    </ClCompile>
     <ClCompile Include="Grid.cpp">
       <Filter>Grid</Filter>
     </ClCompile>
@@ -559,9 +578,6 @@
     </ClCompile>
     <ClCompile Include="SceneUI.cpp">
       <Filter>SceneUI</Filter>
-    </ClCompile>
-    <ClCompile Include="GameSceneHUD.cpp">
-      <Filter>Scene\GameScene</Filter>
     </ClCompile>
     <ClCompile Include="GameSceneOcclusion.cpp">
       <Filter>Scene\GameScene</Filter>
@@ -581,7 +597,27 @@
     <ClCompile Include="ShadowMap.cpp">
       <Filter>ShadowMap</Filter>
     </ClCompile>
-    <ClCompile Include="EnemySpawner.cpp" />
+    <ClCompile Include="GameSceneAttachmentBinder.cpp">
+      <Filter>Scene\GameScene\GameSceneAttachmentBinder</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneContentCatalog.cpp">
+      <Filter>Scene\GameScene\GameSceneContentCatalog</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneHelper.cpp">
+      <Filter>Scene\GameScene\GameSceneHelper</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneHUD.cpp">
+      <Filter>Scene\GameScene\GameSceneHUD</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneObjectFactory.cpp">
+      <Filter>Scene\GameScene\GameSceneObjectFactory</Filter>
+    </ClCompile>
+    <ClCompile Include="EnemySpawner.cpp">
+      <Filter>EnemySpawner</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneBuild.cpp">
+      <Filter>Scene\GameScene</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PracticeProject08-9-1.rc">

@@ -3,42 +3,11 @@
 //-----------------------------------------------------------------------------
 
 #include "stdafx.h"
-#include "GameScene.h"
-
-#include <algorithm>
-#include <cmath>
-#include <unordered_map>
-
-#include "Camera.h"
-#include "ColliderComponent.h"
-#include "GlobalValues.h"
-#include "Mesh.h"
-#include "Object.h"
+#include "GameScenePrivate.h"
+#include "GameSceneHelper.h"
 
 namespace
 {
-	static XMFLOAT4X4 BuildOcclusionWorldMatrixFromOOBB(const BoundingOrientedBox& box)
-	{
-		XMFLOAT4X4 out{};
-
-		const XMMATRIX S = XMMatrixScaling(
-			box.Extents.x * 2.0f,
-			box.Extents.y * 2.0f,
-			box.Extents.z * 2.0f
-		);
-
-		const XMMATRIX R = XMMatrixRotationQuaternion(XMLoadFloat4(&box.Orientation));
-
-		const XMMATRIX T = XMMatrixTranslation(
-			box.Center.x,
-			box.Center.y,
-			box.Center.z
-		);
-
-		XMStoreFloat4x4(&out, S * R * T);
-		return out;
-	}
-
 	static std::shared_ptr<CMesh> CreateStaticOcclusionLocalUnitBoxMesh(
 		ID3D12Device* dev,
 		ID3D12GraphicsCommandList* cmd)
@@ -738,7 +707,8 @@ void CGameScene::RenderStaticOcclusionPass(ID3D12GraphicsCommandList* cmd, CCame
 		{
 			m_staticOcclusionCurrentFrameIssuedFlags[queryIndex] = 1;
 
-			const XMFLOAT4X4 world = BuildOcclusionWorldMatrixFromOOBB(entry.worldBounds);
+			const XMFLOAT4X4 world =
+				GameSceneHelper::BuildWorldMatrixFromOOBB(entry.worldBounds);
 
 			StaticInstanceVertex& dst = mappedStaticOcclusionInstanceBuffer[queryIndex];
 			ZeroMemory(&dst, sizeof(dst));
@@ -937,7 +907,8 @@ void CGameScene::RenderSkinnedOcclusionPass(ID3D12GraphicsCommandList* cmd, CCam
 		{
 			m_skinnedOcclusionCurrentFrameIssuedFlags[queryIndex] = 1;
 
-			const XMFLOAT4X4 world = BuildOcclusionWorldMatrixFromOOBB(entry.worldBounds);
+			const XMFLOAT4X4 world =
+				GameSceneHelper::BuildWorldMatrixFromOOBB(entry.worldBounds);
 
 			StaticInstanceVertex& dst = mappedSkinnedOcclusionInstanceBuffer[queryIndex];
 			ZeroMemory(&dst, sizeof(dst));
