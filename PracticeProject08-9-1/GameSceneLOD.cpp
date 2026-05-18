@@ -3,15 +3,7 @@
 //-----------------------------------------------------------------------------
 
 #include "stdafx.h"
-#include "GameScene.h"
-
-#include <algorithm>
-#include <cmath>
-#include <unordered_map>
-
-#include "Camera.h"
-#include "Mesh.h"
-#include "Object.h"
+#include "GameScenePrivate.h"
 
 namespace
 {
@@ -22,48 +14,11 @@ namespace
 		return lodLevel;
 	}
 
-	static bool BuildStaticLodMeshBinPath(
-		const std::string& baseMeshBinPath,
-		int lodLevel,
-		std::string& outMeshBinPath)
-	{
-		const size_t dotPos = baseMeshBinPath.find_last_of('.');
-		if ( dotPos == std::string::npos )
-			return false;
-
-		const int clampedLodLevel = ClampStaticWorldLodLevel(lodLevel);
-
-		outMeshBinPath = baseMeshBinPath.substr(0, dotPos);
-		outMeshBinPath += "_LOD";
-		outMeshBinPath += std::to_string(clampedLodLevel);
-		outMeshBinPath += baseMeshBinPath.substr(dotPos);
-
-		return true;
-	}
-
 	static int ClampSkinnedWorldLodLevel(int lodLevel)
 	{
 		if ( lodLevel < 0 ) return 0;
 		if ( lodLevel > 2 ) return 2;
 		return lodLevel;
-	}
-
-	static bool BuildSkinnedLodMeshBinPath(
-		const std::string& baseMeshBinPath,
-		int lodLevel,
-		std::string& outMeshBinPath)
-	{
-		const size_t dotPos = baseMeshBinPath.find_last_of('.');
-		if ( dotPos == std::string::npos )
-			return false;
-
-		const int clampedLodLevel = ClampSkinnedWorldLodLevel(lodLevel);
-
-		outMeshBinPath = baseMeshBinPath.substr(0, dotPos);
-		outMeshBinPath += "_LOD";
-		outMeshBinPath += std::to_string(clampedLodLevel);
-		outMeshBinPath += baseMeshBinPath.substr(dotPos);
-		return true;
 	}
 }
 
@@ -221,13 +176,6 @@ void CGameScene::UpdateStaticWorldLodSelection(CCamera* camera)
 	}
 
 	m_staticWorldLodDirty = anyLodChanged;
-
-	if ( changedCount > 0 )
-	{
-		char buf[128];
-		sprintf_s(buf, "[StaticLOD] changed=%u\n", changedCount);
-		OutputDebugStringA(buf);
-	}
 }
 
 void CGameScene::ResetSkinnedWorldLodEntries()
@@ -239,77 +187,116 @@ void CGameScene::ResetSkinnedWorldLodEntries()
 
 int CGameScene::ComputeSkinnedWorldLodLevel(
 	const XMFLOAT3& cameraPosition,
+	const XMFLOAT3& objectPosition,
 	const SkinnedWorldLodEntry& entry) const
 {
 	if ( !entry.lodEnabled )
 		return 0;
 
-	const float dx = cameraPosition.x - entry.lodReferencePosition.x;
-	const float dy = cameraPosition.y - entry.lodReferencePosition.y;
-	const float dz = cameraPosition.z - entry.lodReferencePosition.z;
+	const float dx = cameraPosition.x - objectPosition.x;
+	const float dy = cameraPosition.y - objectPosition.y;
+	const float dz = cameraPosition.z - objectPosition.z;
 
-	const float dist = std::sqrt(dx * dx + dy * dy + dz * dz);
+	const float distSq = dx * dx + dy * dy + dz * dz;
 
 	float lodDistance01 = entry.lodDistance01;
-	if ( lodDistance01 < 0.0f ) lodDistance01 = 0.0f;
+	if ( lodDistance01 < 0.0f )
+		lodDistance01 = 0.0f;
 
 	float lodDistance12 = entry.lodDistance12;
-	if ( lodDistance12 < lodDistance01 ) lodDistance12 = lodDistance01;
+	if ( lodDistance12 < lodDistance01 )
+		lodDistance12 = lodDistance01;
 
 	const float lod01Enter = lodDistance01 + m_skinnedLodHysteresis;
-	const float lod01Exit = lodDistance01 - m_skinnedLodHysteresis;
+	float lod01Exit = lodDistance01 - m_skinnedLodHysteresis;
+	if ( lod01Exit < 0.0f )
+		lod01Exit = 0.0f;
+
 	const float lod12Enter = lodDistance12 + m_skinnedLodHysteresis;
-	const float lod12Exit = lodDistance12 - m_skinnedLodHysteresis;
+	float lod12Exit = lodDistance12 - m_skinnedLodHysteresis;
+	if ( lod12Exit < 0.0f )
+		lod12Exit = 0.0f;
+
+	const float lodDistance01Sq = lodDistance01 * lodDistance01;
+	const float lodDistance12Sq = lodDistance12 * lodDistance12;
+	const float lod01EnterSq = lod01Enter * lod01Enter;
+	const float lod01ExitSq = lod01Exit * lod01Exit;
+	const float lod12EnterSq = lod12Enter * lod12Enter;
+	const float lod12ExitSq = lod12Exit * lod12Exit;
 
 	switch ( entry.currentLod )
 	{
 	case 0:
-		if ( dist >= lod01Enter ) return 1;
+		if ( distSq >= lod01EnterSq )
+			return 1;
 		return 0;
 
 	case 1:
-		if ( dist < lod01Exit ) return 0;
-		if ( dist >= lod12Enter ) return 2;
+		if ( distSq < lod01ExitSq )
+			return 0;
+
+		if ( distSq >= lod12EnterSq )
+			return 2;
+
 		return 1;
 
 	case 2:
-		if ( dist < lod12Exit ) return 1;
+		if ( distSq < lod12ExitSq )
+			return 1;
+
 		return 2;
+
+	default:
+		break;
 	}
 
-	if ( dist < lodDistance01 ) return 0;
-	if ( dist < lodDistance12 ) return 1;
+	if ( distSq < lodDistance01Sq )
+		return 0;
+
+	if ( distSq < lodDistance12Sq )
+		return 1;
+
 	return 2;
 }
 
 bool CGameScene::ComputeSkinnedWorldDistanceCulled(
 	const XMFLOAT3& cameraPosition,
+	const XMFLOAT3& objectPosition,
 	const SkinnedWorldLodEntry& entry) const
 {
 	if ( !entry.distanceCullEnabled )
 		return false;
 
-	const float dx = cameraPosition.x - entry.lodReferencePosition.x;
-	const float dy = cameraPosition.y - entry.lodReferencePosition.y;
-	const float dz = cameraPosition.z - entry.lodReferencePosition.z;
+	const float dx = cameraPosition.x - objectPosition.x;
+	const float dy = cameraPosition.y - objectPosition.y;
+	const float dz = cameraPosition.z - objectPosition.z;
 
-	const float dist = std::sqrt(dx * dx + dy * dy + dz * dz);
+	const float distSq = dx * dx + dy * dy + dz * dz;
 
-	// replace std::max usag
 	float cullDistance = entry.cullDistance;
-	if ( cullDistance < 0.0f ) cullDistance = 0.0f;
+	if ( cullDistance < 0.0f )
+		cullDistance = 0.0f;
 
 	const float cullEnter = cullDistance + m_skinnedCullHysteresis;
+
 	float cullExit = cullDistance - m_skinnedCullHysteresis;
-	if ( cullExit < 0.0f ) cullExit = 0.0f;
+	if ( cullExit < 0.0f )
+		cullExit = 0.0f;
+
+	const float cullEnterSq = cullEnter * cullEnter;
+	const float cullExitSq = cullExit * cullExit;
 
 	if ( !entry.distanceCulled )
 	{
-		if ( dist >= cullEnter ) return true;
+		if ( distSq >= cullEnterSq )
+			return true;
+
 		return false;
 	}
 
-	if ( dist < cullExit ) return false;
+	if ( distSq < cullExitSq )
+		return false;
+
 	return true;
 }
 
@@ -338,8 +325,14 @@ void CGameScene::UpdateSkinnedWorldLodSelection(CCamera* camera)
 		if ( entry.skinnedBatchObjectIndex == UINT_MAX ) continue;
 		if ( entry.skinnedBatchObjectIndex >= ( UINT ) m_skinnedDistanceCullFlags.size() ) continue;
 
+		const XMFLOAT3 objectPosition = entry.object->GetPosition();
+
 		const bool distanceCulled =
-			ComputeSkinnedWorldDistanceCulled(cameraPosition, entry);
+			ComputeSkinnedWorldDistanceCulled(
+				cameraPosition,
+				objectPosition,
+				entry
+			);
 
 		entry.distanceCulled = distanceCulled;
 
@@ -349,7 +342,13 @@ void CGameScene::UpdateSkinnedWorldLodSelection(CCamera* camera)
 			continue;
 		}
 
-		int desiredLod = ComputeSkinnedWorldLodLevel(cameraPosition, entry);
+		int desiredLod =
+			ComputeSkinnedWorldLodLevel(
+				cameraPosition,
+				objectPosition,
+				entry
+			);
+
 		desiredLod = ClampSkinnedWorldLodLevel(desiredLod);
 
 		int resolvedLod = desiredLod;

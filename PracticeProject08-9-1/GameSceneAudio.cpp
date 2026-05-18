@@ -3,18 +3,7 @@
 //-----------------------------------------------------------------------------
 
 #include "stdafx.h"
-#include "GameScene.h"
-
-#include <random>
-#include <string>
-
-#include "Object.h"
-#include "Animator.h"
-#include "AnimatorComponent.h"
-#include "AnimController.h"
-#include "PlayerEquipmentComponent.h"
-#include "AudioManager.h"
-
+#include "GameScenePrivate.h"
 
 namespace
 {

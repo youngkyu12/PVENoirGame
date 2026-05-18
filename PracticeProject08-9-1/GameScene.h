@@ -293,7 +293,7 @@ struct SkinnedWorldLodEntry
 
 	std::array<std::shared_ptr<CMesh>, 3> lodMeshes = { nullptr, nullptr, nullptr };
 
-	bool distanceCullEnabled = false;
+	bool distanceCullEnabled = true;
 	bool distanceCulled = false;
 	float cullDistance = 1000000.0f;
 };
@@ -515,8 +515,18 @@ private:
 	void ResolveSkinnedOcclusionQueries(ID3D12GraphicsCommandList* cmd);
 	void UpdateSkinnedOcclusionCullSelection(CCamera* camera);
 
-	int ComputeSkinnedWorldLodLevel(const XMFLOAT3& cameraPosition, const SkinnedWorldLodEntry& entry) const;
-	bool ComputeSkinnedWorldDistanceCulled(const XMFLOAT3& cameraPosition, const SkinnedWorldLodEntry& entry) const;
+	int ComputeSkinnedWorldLodLevel(
+	const XMFLOAT3& cameraPosition,
+	const XMFLOAT3& objectPosition,
+	const SkinnedWorldLodEntry& entry
+	) const;
+
+	bool ComputeSkinnedWorldDistanceCulled(
+		const XMFLOAT3& cameraPosition,
+		const XMFLOAT3& objectPosition,
+		const SkinnedWorldLodEntry& entry
+	) const; 
+	
 	void UpdateSkinnedWorldLodSelection(CCamera* camera);
 	void RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	bool ShouldEvaluateSkinnedPoseThisFrame(UINT objectIndex, CCamera* camera) const;
