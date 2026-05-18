@@ -9,6 +9,7 @@
 #include "ClientPacketHandler.h"
 
 #include <unordered_map>
+#include <vector>
 
 namespace
 {
@@ -26,15 +27,42 @@ namespace
 		kStateDie = 1u << 9
 	};
 
-	static uint32 BuildStateCode(const CServerObject& obj)
+	enum : int32
+	{
+		kDirForward = 1 << 0,
+		kDirBackward = 1 << 1,
+		kDirLeft = 1 << 2,
+		kDirRight = 1 << 3,
+		kDirMoveMask = kDirForward | kDirBackward | kDirLeft | kDirRight
+	};
+
+	static bool CanMoveWhileAttacking(Protocol::WeaponType weaponType)
+	{
+		return weaponType == Protocol::WEAPON_TYPE_BOW ||
+			weaponType == Protocol::WEAPON_TYPE_CANON;
+	}
+
+	static void AppendMoveKeyState(uint32& code, int32 moveKeyCodes)
+	{
+		if ((moveKeyCodes & kDirMoveMask) == 0)
+			return;
+
+		code |= kStateMove;
+		if (moveKeyCodes & kDirForward) code |= kStateUp;
+		if (moveKeyCodes & kDirBackward) code |= kStateDown;
+		if (moveKeyCodes & kDirRight) code |= kStateRight;
+		if (moveKeyCodes & kDirLeft) code |= kStateLeft;
+	}
+
+	static uint32 BuildStateCode(const Player& player)
 	{
 		uint32 code = 0;
-		const auto anim = obj.GetAnimState();
+		const auto anim = player.GetAnimState();
 
 		if (anim == Protocol::ANIMATION_TYPE_DIE)
 		{
 			code |= kStateDie;
-			return code; // dead에서는 이동 플래그 강제 차단
+			return code; // Dead objects do not send movement flags.
 		}
 
 		if (anim == Protocol::ANIMATION_TYPE_ATTACK) code |= kStateAttack;
@@ -42,20 +70,23 @@ namespace
 		if (anim == Protocol::ANIMATION_TYPE_RUN)    code |= kStateRun;
 		if (anim == Protocol::ANIMATION_TYPE_HIT)    code |= kStateHit;
 
-		const GameMath::Vec3 v = obj.GetVelocity();
-		constexpr float kEps = 1e-4f;
-
-		if (v.LengthSq() > kEps)
+		if (anim == Protocol::ANIMATION_TYPE_HIT ||
+			anim == Protocol::ANIMATION_TYPE_IDLE)
 		{
-			code |= kStateMove;
-			const float fwd = GameMath::Vec3::Dot(v, obj.GetLook());
-			const float str = GameMath::Vec3::Dot(v, obj.GetRight());
-
-			if (fwd > kEps) code |= kStateUp;
-			if (fwd < -kEps) code |= kStateDown;
-			if (str > kEps) code |= kStateRight;
-			if (str < -kEps) code |= kStateLeft;
+			return code;
 		}
+
+		if (anim == Protocol::ANIMATION_TYPE_ATTACK &&
+			!CanMoveWhileAttacking(player.GetWeaponState()))
+		{
+			return code;
+		}
+
+		const int32 moveKeyCodes =
+			(anim == Protocol::ANIMATION_TYPE_ROLL)
+			? player.GetRollMoveKeyCodes()
+			: player.GetLastMoveKeyCodes();
+		AppendMoveKeyState(code, moveKeyCodes);
 
 		return code;
 	}
@@ -101,16 +132,38 @@ namespace
 	}
 }
 
-void Room::MakeFrameState(uint32 tick)
+void Room::FrameStateAdvance()
 {
 	const auto frameStart = std::chrono::steady_clock::now();
 
+	MakeFrameState(tick.load());
+
+	const auto elapsedMs = static_cast<uint64>(
+		std::chrono::duration_cast<std::chrono::milliseconds>(
+			std::chrono::steady_clock::now() - frameStart).count());
+	const uint64 frameStateIntervalMs = m_timing.frameStateIntervalMs;
+	const uint64 nextDelayMs =
+		(elapsedMs >= frameStateIntervalMs) ? 0 : (frameStateIntervalMs - elapsedMs);
+	if (nextDelayMs == 0)
+	{
+		cout << "[FrameStateAdvance] next frame immediately (elapsed=" << elapsedMs << "ms)" << endl;
+		GRoom->DoAsync(&Room::FrameStateAdvance);
+	}
+	else
+	{
+		GRoom->DoTimer(nextDelayMs, &Room::FrameStateAdvance);
+	}
+}
+
+void Room::MakeFrameState(uint32 tick)
+{
 	constexpr float kEnemyViewRange = 200.0f;
 	constexpr float kEnemyViewRangeSq = kEnemyViewRange * kEnemyViewRange;
 	constexpr float kBulletViewRange = 100.0f;
 	constexpr float kBulletViewRangeSq = kBulletViewRange * kBulletViewRange;
 
 	std::unordered_map<uint64, uint32> s_EnemyStateCodeCache;
+	RebuildMegaGridEnemyIds();
 
 	for (auto& viewerPair : players)
 	{
@@ -148,24 +201,31 @@ void Room::MakeFrameState(uint32 tick)
 
 		const GameMath::Vec3 viewerPos = viewer->GetPosition();
 
-		for (auto& enemyMap : enemies)
+		std::vector<uint64> visibleEnemyIds;
+		CollectEnemyIdsInMegaGridRadius(viewerPos, kEnemyViewRange, visibleEnemyIds);
+
+		for (uint64 enemyId : visibleEnemyIds)
 		{
-			EnemyRef& enemy = enemyMap.second;
+			auto it = enemies.find(enemyId);
+			if (it == enemies.end())
+				continue;
+
+			EnemyRef& enemy = it->second;
 			if (!enemy)
 				continue;
 
-			if (abs(GameMath::DistSqXZ(viewerPos, enemy->GetPosition())) > kEnemyViewRangeSq)
+			if (GameMath::DistSqXZ(viewerPos, enemy->GetPosition()) > kEnemyViewRangeSq)
 				continue;
 
-			if(s_EnemyStateCodeCache.find(enemyMap.first) == s_EnemyStateCodeCache.end())
-				s_EnemyStateCodeCache[enemyMap.first] = BuildEnemyStateCode(*enemy);
+			if (s_EnemyStateCodeCache.find(enemyId) == s_EnemyStateCodeCache.end())
+				s_EnemyStateCodeCache[enemyId] = BuildEnemyStateCode(*enemy);
 
 			auto e = frameStatePkt.add_enemies();
-			e->set_id(enemyMap.first);
+			e->set_id(enemyId);
 			e->set_enemytype(enemy->type);
 			e->set_weapontype(enemy->GetWeaponState());
 			Protocol::Animation* anim = e->mutable_animation();
-			anim->set_statecode(s_EnemyStateCodeCache[enemyMap.first]);
+			anim->set_statecode(s_EnemyStateCodeCache[enemyId]);
 			anim->set_animationtick(enemy->GetAnimTick());
 
 			Protocol::Transform* transform = e->mutable_transform();
@@ -257,7 +317,7 @@ void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
 	for (auto& player : players)
 		player.second->SetActive(false);
 
-	GRoom->DoTimer(100, &Room::CheckClientReady);
+	GRoom->DoTimer(m_timing.clientReadyPollIntervalMs, &Room::CheckClientReady);
 }
 
 void Room::MakeEnterGameStruct(Protocol::S_ENTER_GAME enterGamePkt)

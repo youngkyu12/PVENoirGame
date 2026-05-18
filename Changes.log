@@ -336,3 +336,71 @@ Shader - Scene 역할 정리.
 
 <이현석 2026-05-07>
 - 플레이어 공격 시 파티클 이펙트 추가
+
+<송영준 2026-04-29 ~ 2026-04-30>
+1. 근접 공격 피격 판정 구현
+- 플레이어 → 적, 적 → 플레이어 양방향 근접 공격 피격 판정 구현
+- 공격 방향과 사정거리 기반 ArcXZ 판정으로 처리
+
+2. HP, 피격, 사망 서버 로직 구현
+- 피격 시 HP 차감 및 Hit 상태 전이
+- HP가 0이 되면 Die 상태로 전이
+
+<송영준 2026-05-01 ~ 2026-05-03>
+1. Dead 상태머신 완성
+- 사망 이후 상태 전이 흐름 구현 완료
+
+2. NavMesh 전체 스테이지 로드
+- FullStageNavmeshAll.nvm 로드 지원
+
+3. Castle, Tower 충돌 타입 인식 추가
+- 건물 타입 테이블에 Castle, Tower 추가 및 충돌 처리 적용
+
+4. 서버 정보 파일화
+- IP/포트를 텍스트 파일로 분리해 빌드 없이 변경 가능하도록 수정
+
+5. Static OOBB 리포트 갱신
+
+6. 탄환 발사 시작 좌표 조정
+
+<송영준 2026-05-04 ~ 2026-05-05>
+1. 화살 발사 타이밍 조정
+2. 안개 처리 서버에서도 작동하도록 수정
+3. 탄환 충돌 처리 버그 수정
+
+<송영준 2026-05-07 ~ 2026-05-08>
+1. 활 이동 중 발사 허용
+- 이동 상태에서도 활 발사가 가능하도록 로직 수정
+
+2. DummyClient 개발 착수
+- 부하 테스트용 클라이언트 개발 시작
+
+3. 클라이언트 예측 이동 정확도 보정 중
+
+<송영준 2026-05-11>
+1. DummyClient 구현
+- 127.0.0.1:7777에 세션 4개를 연결해 주기적 입력을 전송하는 부하 테스트 클라이언트 완성
+
+2. IP 설정 분리로 불필요한 빌드 제거
+- 서버 IP 변경 시 리빌드가 발생하지 않도록 구성 수정
+
+<송영준 2026-05-14>
+* 클라이언트 예측 이동 오차 원인 분석
+- 서버 권위 위치와 클라이언트 예측 위치 사이의 오차 발생 원인 파악 중
+
+<송영준 2026-05-15>
+1. Grid id bucket 기반 broadphase 최적화
+- GridStaticCell에 buildingIds 추가, 정적 충돌 후보를 FineGrid 셀 단위로 제한
+  (HasCollisionWithNearbyWorldStatic / CollectStaticBuildingIdsForWorldBounds)
+- MegaGridCell에 enemyIds 추가, 패킷 관심 반경 및 AI wake-up 후보를 MegaGrid 단위로 수집
+  (RebuildMegaGridEnemyIds / CollectEnemyIdsInMegaGridRadius)
+
+2. FrameState 분리
+- MakeFrameState를 FrameStateAdvance()로 분리해 TickAdvance()와 독립적인 주기로 실행
+
+3. 틱 주기 변수화 (RoomTimingConfig)
+- 서버 틱/dt/간격 값을 하드코딩에서 RoomTimingConfig 구조체로 추출
+- AnimClockTick / CombatClockTick 논리 클럭 분리
+
+4. 수치 복구
+- 예측 이동 관련 간극 수치 및 부활 주기를 기존 값으로 복구
