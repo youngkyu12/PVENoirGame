@@ -14,6 +14,7 @@
 #include "Object.h"
 #include "AnimatorComponent.h"
 #include "AnimController.h"
+#include "PlayerControllerComponent.h"
 #include "MonsterAnimController.h"
 #include "ActorTagComponent.h"
 #include "HealthComponent.h"
@@ -179,6 +180,23 @@ void CMonsterAIComponent::SetTarget(CGameObject* target)
 {
 	m_pTarget = target;
 	m_repathTimer = 0.0f;
+}
+
+bool CMonsterAIComponent::ForceChaseTarget(CGameObject* target)
+{
+	if ( !target )
+		return false;
+
+	if ( auto* hp = target->GetComponent<CHealthComponent>() )
+	{
+		if ( hp->IsDead() )
+			return false;
+	}
+
+	SetTarget(target);
+	ClearPath();
+	m_repathTimer = 0.0f;
+	return true;
 }
 
 void CMonsterAIComponent::ClearTarget()
@@ -361,7 +379,7 @@ bool CMonsterAIComponent::AcquireTarget()
 			return false;
 	}
 
-	if ( !IsObjectInChaseStartRange(player) )
+	if ( !ShouldAcquireTargetFromIdle(player) )
 		return false;
 
 	SetTarget(player);
@@ -441,6 +459,112 @@ bool CMonsterAIComponent::ShouldMoveTowardsTarget() const
 bool CMonsterAIComponent::CanStartAttackAgainstTarget() const
 {
 	return true;
+}
+
+bool CMonsterAIComponent::IsObjectInChaseStartCone(CGameObject* obj) const
+{
+	CGameObject* owner = GetOwner();
+	if ( !owner || !obj )
+		return false;
+
+	const XMFLOAT3 ownerPos = owner->GetPosition();
+	const XMFLOAT3 targetPos = obj->GetPosition();
+
+	XMFLOAT3 toTarget(
+		targetPos.x - ownerPos.x,
+		0.0f,
+		targetPos.z - ownerPos.z
+	);
+
+	const float toTargetLenSq =
+		( toTarget.x * toTarget.x ) + ( toTarget.z * toTarget.z );
+
+	if ( toTargetLenSq <= 1.0e-8f )
+		return true;
+
+	const float invTargetLen = 1.0f / std::sqrt(toTargetLenSq);
+	toTarget.x *= invTargetLen;
+	toTarget.z *= invTargetLen;
+
+	const XMFLOAT4X4& world = owner->GetWorldMatrix();
+
+	XMFLOAT3 forward(
+		world._31,
+		0.0f,
+		world._33
+	);
+
+	const float forwardLenSq =
+		( forward.x * forward.x ) + ( forward.z * forward.z );
+
+	if ( forwardLenSq <= 1.0e-8f )
+	{
+		if ( auto* tr = owner->GetComponent<CTransformComponent>() )
+		{
+			// fallback: transform의 world matrix가 아직 갱신 전이어도
+			// object world matrix 기준과 동일한 forward를 다시 시도한다.
+			const XMFLOAT4X4& fallbackWorld = owner->GetWorldMatrix();
+			forward = XMFLOAT3(fallbackWorld._31, 0.0f, fallbackWorld._33);
+		}
+	}
+
+	const float fallbackForwardLenSq =
+		( forward.x * forward.x ) + ( forward.z * forward.z );
+
+	if ( fallbackForwardLenSq <= 1.0e-8f )
+		return false;
+
+	const float invForwardLen = 1.0f / std::sqrt(fallbackForwardLenSq);
+	forward.x *= invForwardLen;
+	forward.z *= invForwardLen;
+
+	const float dot =
+		( forward.x * toTarget.x ) + ( forward.z * toTarget.z );
+
+	return dot >= m_chaseStartConeCosHalfAngle;
+}
+
+bool CMonsterAIComponent::IsPlayerRunning(CGameObject* player) const
+{
+	if ( !player )
+		return false;
+
+	if ( auto* controller = player->GetComponent<CPlayerControllerComponent>() )
+	{
+		return controller->IsRunRequested();
+	}
+
+	if ( auto* animComp = player->GetComponent<CAnimatorComponent>() )
+	{
+		if ( auto* ctrl = animComp->GetController() )
+		{
+			return ctrl->IsRunRequested();
+		}
+	}
+
+	if ( auto* ctrl = player->GetAnimController() )
+	{
+		return ctrl->IsRunRequested();
+	}
+
+	return false;
+}
+
+bool CMonsterAIComponent::ShouldAcquireTargetFromIdle(CGameObject* candidate) const
+{
+	if ( !candidate )
+		return false;
+
+	if ( !IsObjectInChaseStartRange(candidate) )
+		return false;
+
+	if ( IsObjectInChaseStartCone(candidate) )
+		return true;
+
+	if ( IsPlayerRunning(candidate) )
+		return true;
+
+	return false;
 }
 
 bool CMonsterAIComponent::ShouldRepath() const

@@ -34,6 +34,8 @@ public:
 	void SetTarget(CGameObject* target);
 	CGameObject* GetTarget() const { return m_pTarget; }
 
+	bool ForceChaseTarget(CGameObject* target);
+
 	void ClearTarget();
 
 public:
@@ -119,6 +121,10 @@ protected:
 
 	bool IsAIActionLockedByAnimation() const;
 
+	bool IsObjectInChaseStartCone(CGameObject* obj) const;
+	bool IsPlayerRunning(CGameObject* player) const;
+	bool ShouldAcquireTargetFromIdle(CGameObject* candidate) const;
+
 	bool EnsureMovementBoundsInitialized();
 	XMFLOAT3 ClampPointToMovementBounds(const XMFLOAT3& p) const;
 	XMFLOAT3 GetTargetMoveGoalPosition() const;
@@ -153,6 +159,7 @@ protected:
 
 	float m_chaseStartRange = 12.0f;
 	float m_chaseStopRange = 12.0f;
+	float m_chaseStartConeCosHalfAngle = 0.5f;
 
 	float m_attackRange = 1.5f;
 	float m_moveSpeed = 2.0f;

@@ -20,7 +20,7 @@ CGhoulAIComponent::CGhoulAIComponent(CGameObject* owner)
 	SetPathPointReachDistance(0.20f);
 	SetGoalReachDistance(0.85f);
 
-	SetChaseRanges(25.0f, 50.0f);
+	SetChaseRanges(10.0f, 50.0f);
 	SetAttackRange(1.5f);
 	SetAttackCooldown(1.0f);
 }
