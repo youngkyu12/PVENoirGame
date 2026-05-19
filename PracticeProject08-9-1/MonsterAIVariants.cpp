@@ -54,6 +54,10 @@ CSwordManAIComponent::CSwordManAIComponent(CGameObject* owner)
 	SetAttackRange(3.0f);
 
 	SetAttackCooldown(1.0f);
+
+	SetPatrolEnabled(true);
+	SetPatrolHalfDistance(5.0f);
+	SetPatrolTurnSpeedDegrees(240.0f);
 }
 
 bool CSwordManAIComponent::TryPerformAttack()
@@ -87,6 +91,10 @@ CBowManAIComponent::CBowManAIComponent(CGameObject* owner)
 	SetAttackRange(25.0f);
 
 	SetAttackCooldown(1.0f);
+
+	SetPatrolEnabled(true);
+	SetPatrolHalfDistance(5.0f);
+	SetPatrolTurnSpeedDegrees(240.0f);
 }
 
 bool CBowManAIComponent::CanStartAttackAgainstTarget() const
