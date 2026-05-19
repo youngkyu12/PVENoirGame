@@ -161,11 +161,15 @@ CBossAIComponent::CBossAIComponent(CGameObject* owner)
 	: CMonsterAIComponent(owner)
 {
 	SetMoveSpeed(2.0f);
+
+	SetChaseRunAnimationEnabled(false);
+	SetWalkMoveSpeedScale(1.0f);
+
 	SetRepathInterval(0.35f);
 	SetPathPointReachDistance(0.20f);
 	SetGoalReachDistance(0.85f);
 
-	SetChaseRanges(50.0f, 50.0f); 
+	SetChaseRanges(50.0f, 50.0f);
 	SetAttackRange(3.75f);
 
 	SetAttackCooldown(1.0f);

@@ -1032,6 +1032,34 @@ void CMonsterAIComponent::SetMonsterLocomotionState(EMonsterAnimState state)
 	}
 }
 
+float CMonsterAIComponent::GetChaseMoveSpeed() const
+{
+	// m_moveSpeed는 run 기준 속도.
+	return m_moveSpeed;
+}
+
+float CMonsterAIComponent::GetWalkMoveSpeed() const
+{
+	const float scale =
+		( m_walkMoveSpeedScale > 0.0f )
+		? m_walkMoveSpeedScale
+		: 1.0f;
+
+	return m_moveSpeed * scale;
+}
+
+EMonsterAnimState CMonsterAIComponent::GetChaseLocomotionState() const
+{
+	return m_bChaseUsesRunAnimation
+		? EMonsterAnimState::Run
+		: EMonsterAnimState::Move;
+}
+
+EMonsterAnimState CMonsterAIComponent::GetWalkLocomotionState() const
+{
+	return EMonsterAnimState::Move;
+}
+
 XMFLOAT3 CMonsterAIComponent::GetOwnerPosition() const
 {
 	if ( !GetOwner() )
@@ -1242,7 +1270,7 @@ bool CMonsterAIComponent::TryMoveDirectlyToTarget(float dt)
 	if ( !CanMoveNow() )
 		return false;
 
-	const float moveDistance = m_moveSpeed * dt;
+	const float moveDistance = GetChaseMoveSpeed() * dt;
 	if ( moveDistance <= 0.0f )
 		return false;
 
@@ -1255,7 +1283,7 @@ bool CMonsterAIComponent::TryMoveDirectlyToTarget(float dt)
 	m_currentPath.clear();
 	m_currentPathIndex = 0;
 
-	SetMonsterLocomotionState(EMonsterAnimState::Run);
+	SetMonsterLocomotionState(GetChaseLocomotionState());
 	return MoveTowards(goalPos, moveDistance);
 }
 
@@ -1305,7 +1333,7 @@ bool CMonsterAIComponent::FollowCurrentPath(float dt)
 	if ( dt <= 0.0f )
 		return false;
 
-	const float moveDistance = m_moveSpeed * dt;
+	const float moveDistance = GetChaseMoveSpeed() * dt;
 	if ( moveDistance <= 0.0f )
 		return false;
 
@@ -1351,7 +1379,7 @@ bool CMonsterAIComponent::FollowCurrentPath(float dt)
 			}
 		}
 
-		SetMonsterLocomotionState(EMonsterAnimState::Run);
+		SetMonsterLocomotionState(GetChaseLocomotionState());
 		MoveTowards(waypoint, moveDistance);
 		return true;
 	}
@@ -1384,7 +1412,7 @@ bool CMonsterAIComponent::UpdateReturnHome(float dt)
 		return true;
 	}
 
-	const float moveDistance = m_moveSpeed * dt;
+	const float moveDistance = GetWalkMoveSpeed() * dt;
 	if ( moveDistance <= 0.0f )
 		return false;
 
@@ -1400,7 +1428,7 @@ bool CMonsterAIComponent::UpdateReturnHome(float dt)
 			continue;
 		}
 
-		SetMonsterLocomotionState(EMonsterAnimState::Run);
+		SetMonsterLocomotionState(GetWalkLocomotionState());
 		MoveTowardsNoClamp(waypoint, moveDistance);
 		return true;
 	}
@@ -1608,11 +1636,11 @@ bool CMonsterAIComponent::UpdateIdlePatrol(float dt)
 		return true;
 	}
 
-	const float moveDistance = m_moveSpeed * dt;
+	const float moveDistance = GetWalkMoveSpeed() * dt;
 	if ( moveDistance <= 0.0f )
 		return true;
 
-	SetMonsterLocomotionState(EMonsterAnimState::Run);
+	SetMonsterLocomotionState(GetWalkLocomotionState());
 	MoveTowardsNoClamp(endpoint, moveDistance);
 	return true;
 }
