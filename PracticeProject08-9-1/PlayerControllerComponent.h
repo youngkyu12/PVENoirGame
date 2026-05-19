@@ -69,6 +69,7 @@ public:
 public:
 	void SetRunRequested(bool run);
 	bool IsRunRequested() const { return m_isRunRequested; }
+	bool IsRunLocomotionActive() const;
 
 	void SetInputEnabled(bool enabled);
 	bool IsInputEnabled() const { return m_inputEnabled; }

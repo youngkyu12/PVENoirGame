@@ -531,21 +531,18 @@ bool CMonsterAIComponent::IsPlayerRunning(CGameObject* player) const
 
 	if ( auto* controller = player->GetComponent<CPlayerControllerComponent>() )
 	{
-		return controller->IsRunRequested();
+		if ( controller->IsRunLocomotionActive() )
+			return true;
 	}
 
 	if ( auto* animComp = player->GetComponent<CAnimatorComponent>() )
 	{
 		if ( auto* ctrl = animComp->GetController() )
-		{
-			return ctrl->IsRunRequested();
-		}
+			return ctrl->IsRunLocomotionActive();
 	}
 
 	if ( auto* ctrl = player->GetAnimController() )
-	{
-		return ctrl->IsRunRequested();
-	}
+		return ctrl->IsRunLocomotionActive();
 
 	return false;
 }
