@@ -54,6 +54,8 @@ CGameScene::CGameScene()
 
 	m_bSimulateLocalPlayerMonsterAttackCollision = true;
 	m_bSimulateLocalAI = true;
+	m_bSimulateLocalMonsterChase = true;
+	m_bPrevLocalMonsterChaseToggleKeyDown = false;
 	m_bSimulateLocalEnemySpawner = true;
 	m_bSimulateLocalPlayerWorldStaticRollback = true;
 	m_bSimulateLocalTeleport = true;
@@ -62,6 +64,7 @@ CGameScene::CGameScene()
 #ifdef USING_NETWORK
 	m_bSimulateLocalPlayerMonsterAttackCollision = false;
 	m_bSimulateLocalAI = false;
+	m_bSimulateLocalMonsterChase = false;
 	m_bSimulateLocalEnemySpawner = false;
 	m_bSimulateLocalPlayerWorldStaticRollback = false;
 	m_bSimulateLocalTeleport = false;
@@ -1802,6 +1805,75 @@ void CGameScene::ResetMonsterToHomeForMegaGridSkip(CGameObject* monster) const
 		return;
 
 	if ( ResetAI(monster->GetComponent<CMonsterAIComponent>()) )
+		return;
+}
+
+void CGameScene::SetLocalMonsterChaseEnabled(bool enabled)
+{
+	if ( m_bSimulateLocalMonsterChase == enabled )
+		return;
+
+	m_bSimulateLocalMonsterChase = enabled;
+
+	if ( !enabled )
+	{
+		OutputDebugStringA("[MonsterAI] Local monster chase disabled\n");
+		StopAllLocalMonsterChaseAndReturnHome();
+	}
+	else
+	{
+		OutputDebugStringA("[MonsterAI] Local monster chase enabled\n");
+	}
+}
+
+void CGameScene::StopAllLocalMonsterChaseAndReturnHome()
+{
+	for ( const SkinnedComponentCache& cache : m_skinnedComponentCache )
+	{
+		if ( !cache.object )
+			continue;
+
+		if ( !cache.isNpc )
+			continue;
+
+		StopMonsterChaseAndReturnHome(cache.object);
+	}
+}
+
+void CGameScene::StopMonsterChaseAndReturnHome(CGameObject* monster) const
+{
+	if ( !monster )
+		return;
+
+	if ( IsMonsterDead(monster) )
+		return;
+
+	auto StopAI =
+		[ ] (CMonsterAIComponent* ai) -> bool
+		{
+			if ( !ai )
+				return false;
+
+			ai->StopChaseAndReturnHome();
+			return true;
+		};
+
+	if ( StopAI(monster->GetComponent<CGhoulAIComponent>()) )
+		return;
+
+	if ( StopAI(monster->GetComponent<CSwordManAIComponent>()) )
+		return;
+
+	if ( StopAI(monster->GetComponent<CBowManAIComponent>()) )
+		return;
+
+	if ( StopAI(monster->GetComponent<CMutantAIComponent>()) )
+		return;
+
+	if ( StopAI(monster->GetComponent<CBossAIComponent>()) )
+		return;
+
+	if ( StopAI(monster->GetComponent<CMonsterAIComponent>()) )
 		return;
 }
 
@@ -4901,8 +4973,29 @@ void CGameScene::RequestFireBullet(CGameObject* shooter, float speed, float life
 	}
 }
 
-bool CGameScene::ProcessInput(UCHAR* /*pKeysBuffer*/)
+bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 {
+#ifndef USING_NETWORK
+	if ( !pKeysBuffer )
+	{
+		m_bPrevLocalMonsterChaseToggleKeyDown = false;
+		return false;
+	}
+
+	const bool qDown = ( pKeysBuffer['Q'] & 0xF0 ) != 0;
+
+	if ( qDown && !m_bPrevLocalMonsterChaseToggleKeyDown )
+	{
+		SetLocalMonsterChaseEnabled(!m_bSimulateLocalMonsterChase);
+		m_bPrevLocalMonsterChaseToggleKeyDown = true;
+		return true;
+	}
+
+	m_bPrevLocalMonsterChaseToggleKeyDown = qDown;
+#else
+	UNREFERENCED_PARAMETER(pKeysBuffer);
+#endif
+
 	return false;
 }
 

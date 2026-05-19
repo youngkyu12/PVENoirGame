@@ -13,6 +13,7 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 #ifdef USING_NETWORK
 	m_bSimulateLocalPlayerMonsterAttackCollision = false;
 	m_bSimulateLocalAI = false;
+	m_bSimulateLocalMonsterChase = false;
 	m_bSimulateLocalEnemySpawner = true;
 	m_bSimulateLocalPlayerWorldStaticRollback = true;
 	m_bSimulateLocalTeleport = false;
@@ -20,11 +21,14 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 #else
 	m_bSimulateLocalPlayerMonsterAttackCollision = false;
 	m_bSimulateLocalAI = true;
+	m_bSimulateLocalMonsterChase = true;
 	m_bSimulateLocalEnemySpawner = true;
 	m_bSimulateLocalPlayerWorldStaticRollback = true;
 	m_bSimulateLocalTeleport = true;
 	m_bSimulateLocalItemPickup = true;
 #endif
+
+	m_bPrevLocalMonsterChaseToggleKeyDown = false;
 }
 
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)

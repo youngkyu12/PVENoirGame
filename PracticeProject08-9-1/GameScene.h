@@ -614,6 +614,7 @@ public:
     
 	void RequestFireArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f, float yOffset = 0.0f);
 	bool IsLocalPlayerInsideMegaGridCenter() const;
+	bool IsLocalMonsterChaseEnabled() const { return m_bSimulateLocalMonsterChase; }
 
 	void SetMegaGridApproachZoneSize(int megaX, int megaZ, int widthCells, int heightCells);
 	void SetMegaGridCleared(int megaX, int megaZ, bool cleared = true);
@@ -707,6 +708,10 @@ private:
 	int GetLocalPlayerMegaGridNumberForMonsterTick() const;
 	bool ShouldSkipMonsterByMegaGrid(const CGameObject* monster, UINT skinnedBatchObjectIndex, int activeMegaGridNumber) const;
 	void ResetMonsterToHomeForMegaGridSkip(CGameObject* monster) const;
+
+	void SetLocalMonsterChaseEnabled(bool enabled);
+	void StopAllLocalMonsterChaseAndReturnHome();
+	void StopMonsterChaseAndReturnHome(CGameObject* monster) const;
 
 	uint16_t ComputeStaticObjectMegaGridMask(CGameObject* obj) const;
 	uint16_t ComputeObjectCurrentMegaGridMask(const CGameObject* obj) const;
@@ -1153,6 +1158,10 @@ public:
 private:
 	bool m_bSimulateLocalPlayerMonsterAttackCollision = true;
 	bool m_bSimulateLocalAI = true;
+
+	bool m_bSimulateLocalMonsterChase = true;
+	bool m_bPrevLocalMonsterChaseToggleKeyDown = false;
+
 	bool m_bSimulateLocalEnemySpawner = true;
 	bool m_bSimulateLocalPlayerWorldStaticRollback = true;
 	bool m_bSimulateLocalTeleport = true;
