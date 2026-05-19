@@ -42,6 +42,9 @@ public:
 	void SetEnabledAI(bool enabled) { m_bAIEnabled = enabled; }
 	bool IsAIEnabled() const { return m_bAIEnabled; }
 
+	void SetMegaGridTickGateBlocked(bool blocked);
+	bool IsMegaGridTickGateBlocked() const { return m_bMegaGridTickGateBlocked; }
+
 	void SetDetectRange(float v) { SetChaseStopRange(v); }
 
 	void SetChaseStartRange(float v)
@@ -156,6 +159,7 @@ protected:
 	CGameObject* m_pTarget = nullptr;
 
 	bool m_bAIEnabled = true;
+	bool m_bMegaGridTickGateBlocked = false;
 
 	float m_chaseStartRange = 12.0f;
 	float m_chaseStopRange = 12.0f;
@@ -181,6 +185,7 @@ protected:
 	float m_movementMaxX = 0.0f;
 	float m_movementMinZ = 0.0f;
 	float m_movementMaxZ = 0.0f;
+
 
 	std::vector<int> m_trianglePath;
 	std::vector<XMFLOAT3> m_currentPath;
