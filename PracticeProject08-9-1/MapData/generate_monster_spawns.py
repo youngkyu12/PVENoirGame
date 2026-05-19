@@ -71,6 +71,23 @@ APPROACH_HEIGHT = 200
 # False면 non-boss 몬스터끼리는 같은 좌표를 쓰지 않는다.
 ALLOW_SHARED_NON_BOSS_CELLS = False
 
+# SwordMan / BowMan 순찰용.
+# 생성 위치 기준 forward/backward 각각 5m, 총 10m 구간이 모두 0 셀이어야 한다.
+PATROL_MONSTER_TYPES = {"SwordMan", "BowMan"}
+PATROL_FORWARD_BACK_CLEARANCE_METERS = 5.0
+PATROL_SAMPLE_STEP_METERS = 0.5
+PATROL_RANDOM_YAW_TRIES_PER_CELL = 24
+
+# 랜덤 yaw가 실패했을 때 시도할 고정 방향.
+# DX12 yaw 기준 forward = (sin(yaw), cos(yaw)) 가정.
+PATROL_FALLBACK_YAWS = (
+    0.0, 90.0, 180.0, 270.0,
+    45.0, 135.0, 225.0, 315.0,
+)
+
+# 순찰 구간도 중앙 200x200 안에 머물게 할지 여부.
+PATROL_MUST_STAY_IN_CENTER_SPAWN_AREA = True
+
 # 결과 TXT에 기록할 기본 y 값. 필요하면 몬스터별로 바꾸면 된다.
 MONSTER_Y: Dict[str, int] = {
     "Ghoul": 0,
@@ -333,21 +350,136 @@ def iter_zero_cells_in_mega_spawn_area(
             if grid_rows[cell_z][cell_x] == "0":
                 yield (world_x, world_z)
 
+def is_world_position_inside_spawn_area(
+    info: MegaGridInfo,
+    world_x: float,
+    world_z: float,
+) -> bool:
+    return (
+        info.spawn_x_min <= world_x < info.spawn_x_max_exclusive
+        and info.spawn_z_min <= world_z < info.spawn_z_max_exclusive
+    )
+
+
+def is_world_position_zero_cell(
+    grid_rows: List[str],
+    world_x: float,
+    world_z: float,
+) -> bool:
+    cell_x = int(math.floor(world_x)) - GRID_MIN_X
+    cell_z = int(math.floor(world_z)) - GRID_MIN_Z
+
+    if cell_x < 0 or cell_x >= GRID_WIDTH:
+        return False
+
+    if cell_z < 0 or cell_z >= GRID_HEIGHT:
+        return False
+
+    return grid_rows[cell_z][cell_x] == "0"
+
+
+def is_patrol_forward_back_segment_clear(
+    grid_rows: List[str],
+    info: MegaGridInfo,
+    x: int,
+    z: int,
+    yaw_deg: float,
+) -> bool:
+    yaw_rad = math.radians(yaw_deg)
+
+    # Yaw 0도일 때 +Z를 바라본다는 기존 yaw quaternion / DX12 관례에 맞춤.
+    forward_x = math.sin(yaw_rad)
+    forward_z = math.cos(yaw_rad)
+
+    sample_count = int(
+        math.ceil(PATROL_FORWARD_BACK_CLEARANCE_METERS / PATROL_SAMPLE_STEP_METERS)
+    )
+
+    for i in range(-sample_count, sample_count + 1):
+        dist = i * PATROL_SAMPLE_STEP_METERS
+        dist = max(
+            -PATROL_FORWARD_BACK_CLEARANCE_METERS,
+            min(PATROL_FORWARD_BACK_CLEARANCE_METERS, dist),
+        )
+
+        sample_x = x + forward_x * dist
+        sample_z = z + forward_z * dist
+
+        if PATROL_MUST_STAY_IN_CENTER_SPAWN_AREA:
+            if not is_world_position_inside_spawn_area(info, sample_x, sample_z):
+                return False
+
+        if not is_world_position_zero_cell(grid_rows, sample_x, sample_z):
+            return False
+
+    return True
+
+
+def try_build_patrol_spawn_entry(
+    monster_type: str,
+    grid_rows: List[str],
+    info: MegaGridInfo,
+    y: int,
+    rng: random.Random,
+    candidate_positions: List[Tuple[int, int]],
+) -> SpawnEntry | None:
+    candidates = list(candidate_positions)
+    rng.shuffle(candidates)
+
+    for x, z in candidates:
+        for _ in range(PATROL_RANDOM_YAW_TRIES_PER_CELL):
+            yaw_deg = random_yaw_deg(rng)
+
+            if is_patrol_forward_back_segment_clear(
+                grid_rows=grid_rows,
+                info=info,
+                x=x,
+                z=z,
+                yaw_deg=yaw_deg,
+            ):
+                return build_spawn_entry_with_yaw(
+                    monster_type=monster_type,
+                    info=info,
+                    x=x,
+                    y=y,
+                    z=z,
+                    yaw_deg=yaw_deg,
+                    spawn_rule="zero_cell_in_center_200x200_with_10m_patrol_clearance",
+                )
+
+        for yaw_deg in PATROL_FALLBACK_YAWS:
+            if is_patrol_forward_back_segment_clear(
+                grid_rows=grid_rows,
+                info=info,
+                x=x,
+                z=z,
+                yaw_deg=yaw_deg,
+            ):
+                return build_spawn_entry_with_yaw(
+                    monster_type=monster_type,
+                    info=info,
+                    x=x,
+                    y=y,
+                    z=z,
+                    yaw_deg=yaw_deg,
+                    spawn_rule="zero_cell_in_center_200x200_with_10m_patrol_clearance",
+                )
+
+    return None
 
 def random_yaw_deg(rng: random.Random) -> float:
     return rng.uniform(0.0, 360.0)
 
 
-def build_spawn_entry(
+def build_spawn_entry_with_yaw(
     monster_type: str,
     info: MegaGridInfo,
     x: int,
     y: int,
     z: int,
-    rng: random.Random,
+    yaw_deg: float,
     spawn_rule: str,
 ) -> SpawnEntry:
-    yaw_deg = random_yaw_deg(rng)
     qx, qy, qz, qw = yaw_deg_to_quaternion_y(yaw_deg)
 
     return SpawnEntry(
@@ -367,6 +499,26 @@ def build_spawn_entry(
     )
 
 
+def build_spawn_entry(
+    monster_type: str,
+    info: MegaGridInfo,
+    x: int,
+    y: int,
+    z: int,
+    rng: random.Random,
+    spawn_rule: str,
+) -> SpawnEntry:
+    return build_spawn_entry_with_yaw(
+        monster_type=monster_type,
+        info=info,
+        x=x,
+        y=y,
+        z=z,
+        yaw_deg=random_yaw_deg(rng),
+        spawn_rule=spawn_rule,
+    )
+
+
 def generate_spawns_for_mega_grid(
     grid_rows: List[str],
     info: MegaGridInfo,
@@ -374,10 +526,18 @@ def generate_spawns_for_mega_grid(
     rng: random.Random,
 ) -> Tuple[List[SpawnEntry], int]:
     available_zero_cells = list(iter_zero_cells_in_mega_spawn_area(grid_rows, info))
-    spawns: List[SpawnEntry] = []
 
-    non_boss_total = sum(counts.get(monster, 0) for monster in MONSTER_ORDER if monster != "Boss")
-    boss_total = counts.get("Boss", 0)
+    spawns_by_type: Dict[str, List[SpawnEntry]] = {
+        monster: [] for monster in MONSTER_ORDER
+    }
+
+    used_cells: set[Tuple[int, int]] = set()
+
+    non_boss_total = sum(
+        counts.get(monster, 0)
+        for monster in MONSTER_ORDER
+        if monster != "Boss"
+    )
 
     if not ALLOW_SHARED_NON_BOSS_CELLS and non_boss_total > len(available_zero_cells):
         raise ValueError(
@@ -385,40 +545,89 @@ def generate_spawns_for_mega_grid(
             f"요청={non_boss_total}, 사용가능={len(available_zero_cells)}"
         )
 
-    if ALLOW_SHARED_NON_BOSS_CELLS:
-        chosen_positions: List[Tuple[int, int]] = [
-            rng.choice(available_zero_cells) for _ in range(non_boss_total)
-        ] if non_boss_total > 0 else []
-    else:
-        chosen_positions = rng.sample(available_zero_cells, non_boss_total) if non_boss_total > 0 else []
+    def get_available_positions_for_non_boss() -> List[Tuple[int, int]]:
+        if ALLOW_SHARED_NON_BOSS_CELLS:
+            return available_zero_cells
 
-    cursor = 0
+        return [
+            pos for pos in available_zero_cells
+            if pos not in used_cells
+        ]
+
+    # -------------------------------------------------------------------------
+    # 1) 제약이 강한 순찰 몬스터부터 배치한다.
+    #    Ghoul을 먼저 랜덤 배치해버리면 BowMan/SwordMan용 10m 빈 구간 후보를
+    #    불필요하게 소비할 수 있기 때문이다.
+    # -------------------------------------------------------------------------
     for monster in MONSTER_ORDER:
+        if monster not in PATROL_MONSTER_TYPES:
+            continue
+
         count = counts.get(monster, 0)
         if count <= 0:
             continue
 
         y = MONSTER_Y.get(monster, 0)
 
-        if monster == "Boss":
-            for _ in range(count):
-                spawns.append(
-                    build_spawn_entry(
-                        monster_type=monster,
-                        info=info,
-                        x=info.center_x,
-                        y=y,
-                        z=info.center_z,
-                        rng=rng,
-                        spawn_rule="boss_center_ignore_occupancy",
-                    )
+        for _ in range(count):
+            candidates = get_available_positions_for_non_boss()
+
+            entry = try_build_patrol_spawn_entry(
+                monster_type=monster,
+                grid_rows=grid_rows,
+                info=info,
+                y=y,
+                rng=rng,
+                candidate_positions=candidates,
+            )
+
+            if entry is None:
+                raise ValueError(
+                    f"mega_id={info.mega_id}, monster={monster} 배치 실패: "
+                    f"앞뒤 각각 {PATROL_FORWARD_BACK_CLEARANCE_METERS:.1f}m, "
+                    f"총 {PATROL_FORWARD_BACK_CLEARANCE_METERS * 2.0:.1f}m "
+                    f"순찰 가능 0 셀 구간을 찾지 못함."
                 )
+
+            spawns_by_type[monster].append(entry)
+
+            if not ALLOW_SHARED_NON_BOSS_CELLS:
+                used_cells.add((entry.x, entry.z))
+
+    # -------------------------------------------------------------------------
+    # 2) 순찰 제약이 없는 일반 non-boss 몬스터 배치.
+    # -------------------------------------------------------------------------
+    for monster in MONSTER_ORDER:
+        if monster == "Boss":
             continue
 
-        for _ in range(count):
-            x, z = chosen_positions[cursor]
-            cursor += 1
-            spawns.append(
+        if monster in PATROL_MONSTER_TYPES:
+            continue
+
+        count = counts.get(monster, 0)
+        if count <= 0:
+            continue
+
+        y = MONSTER_Y.get(monster, 0)
+
+        if ALLOW_SHARED_NON_BOSS_CELLS:
+            chosen_positions = [
+                rng.choice(available_zero_cells)
+                for _ in range(count)
+            ]
+        else:
+            candidates = get_available_positions_for_non_boss()
+
+            if count > len(candidates):
+                raise ValueError(
+                    f"mega_id={info.mega_id}, monster={monster} 배치 실패: "
+                    f"남은 0 셀이 부족함. 요청={count}, 남음={len(candidates)}"
+                )
+
+            chosen_positions = rng.sample(candidates, count)
+
+        for x, z in chosen_positions:
+            spawns_by_type[monster].append(
                 build_spawn_entry(
                     monster_type=monster,
                     info=info,
@@ -429,6 +638,34 @@ def generate_spawns_for_mega_grid(
                     spawn_rule="zero_cell_in_center_200x200",
                 )
             )
+
+            if not ALLOW_SHARED_NON_BOSS_CELLS:
+                used_cells.add((x, z))
+
+    # -------------------------------------------------------------------------
+    # 3) Boss는 기존처럼 점유 로그 무시 + 메가그리드 중심 배치.
+    # -------------------------------------------------------------------------
+    boss_total = counts.get("Boss", 0)
+    if boss_total > 0:
+        y = MONSTER_Y.get("Boss", 0)
+
+        for _ in range(boss_total):
+            spawns_by_type["Boss"].append(
+                build_spawn_entry(
+                    monster_type="Boss",
+                    info=info,
+                    x=info.center_x,
+                    y=y,
+                    z=info.center_z,
+                    rng=rng,
+                    spawn_rule="boss_center_ignore_occupancy",
+                )
+            )
+
+    # 출력 순서는 기존 MONSTER_ORDER 유지.
+    spawns: List[SpawnEntry] = []
+    for monster in MONSTER_ORDER:
+        spawns.extend(spawns_by_type[monster])
 
     return spawns, len(available_zero_cells)
 
