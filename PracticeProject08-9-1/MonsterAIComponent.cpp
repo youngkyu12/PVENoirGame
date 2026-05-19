@@ -124,6 +124,39 @@ namespace
 
 		return XMConvertToDegrees(std::atan2(siny_cosp, cosy_cosp));
 	}
+
+	static float NormalizeYawDegrees180(float yawDeg)
+	{
+		while ( yawDeg > 180.0f )
+			yawDeg -= 360.0f;
+
+		while ( yawDeg < -180.0f )
+			yawDeg += 360.0f;
+
+		return yawDeg;
+	}
+
+	static float NormalizeYawDegrees360(float yawDeg)
+	{
+		while ( yawDeg >= 360.0f )
+			yawDeg -= 360.0f;
+
+		while ( yawDeg < 0.0f )
+			yawDeg += 360.0f;
+
+		return yawDeg;
+	}
+
+	static XMFLOAT3 ForwardFromYawDegrees(float yawDeg)
+	{
+		const float yawRad = XMConvertToRadians(yawDeg);
+
+		return XMFLOAT3(
+			std::sin(yawRad),
+			0.0f,
+			std::cos(yawRad)
+		);
+	}
 }
 
 CMonsterAIComponent::CMonsterAIComponent(CGameObject* owner)
@@ -184,6 +217,10 @@ void CMonsterAIComponent::OnUpdate(float dt)
 
 		if ( !AcquireTarget() )
 		{
+			// SwordMan / BowMan은 target이 없고 복귀 중도 아니면 순찰한다.
+			if ( UpdateIdlePatrol(dt) )
+				return;
+
 			ClearPath();
 			SetMonsterLocomotionState(EMonsterAnimState::Idle);
 			return;
@@ -193,9 +230,13 @@ void CMonsterAIComponent::OnUpdate(float dt)
 	if ( !HasValidTarget() )
 	{
 		if ( m_bReturningHome )
+		{
 			UpdateReturnHome(dt);
-		else
+		}
+		else if ( !UpdateIdlePatrol(dt) )
+		{
 			SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		}
 
 		return;
 	}
@@ -211,6 +252,7 @@ void CMonsterAIComponent::SetTarget(CGameObject* target)
 	if ( target )
 	{
 		ClearReturnHomePath();
+		ResetPatrolState();
 	}
 }
 
@@ -274,6 +316,8 @@ void CMonsterAIComponent::SetHomeTransform(const XMFLOAT3& position, float yawDe
 	m_homePosition = position;
 	m_homeYawDeg = yawDeg;
 	m_bHomeTransformCaptured = true;
+
+	ResetPatrolState();
 }
 
 void CMonsterAIComponent::CaptureHomeTransformFromOwner()
@@ -326,6 +370,7 @@ void CMonsterAIComponent::ResetToHomeTransformForMegaGridSkip()
 
 	ClearPath();
 	ClearReturnHomePath();
+	ResetPatrolState();
 
 	owner->SetPosition(m_homePosition);
 
@@ -529,6 +574,7 @@ bool CMonsterAIComponent::BeginReturnHome()
 	m_pTarget = nullptr;
 	ClearPath();
 	ClearReturnHomePath();
+	ResetPatrolState();
 
 	if ( IsAtHome() )
 	{
@@ -1360,6 +1406,214 @@ bool CMonsterAIComponent::UpdateReturnHome(float dt)
 	}
 
 	ResetToHomeTransformForMegaGridSkip();
+	return true;
+}
+
+void CMonsterAIComponent::SetPatrolEnabled(bool enabled)
+{
+	if ( m_bPatrolEnabled == enabled )
+		return;
+
+	m_bPatrolEnabled = enabled;
+
+	if ( !enabled )
+		ResetPatrolState();
+}
+
+void CMonsterAIComponent::ResetPatrolState()
+{
+	m_bPatrolInitialized = false;
+	m_bPatrolTurning = false;
+	m_patrolTargetSign = 1;
+	m_patrolTurnTargetYawDeg = 0.0f;
+}
+
+bool CMonsterAIComponent::EnsurePatrolInitialized()
+{
+	if ( !m_bPatrolEnabled )
+		return false;
+
+	if ( m_bPatrolInitialized )
+		return true;
+
+	if ( !EnsureHomeTransformCaptured() )
+		return false;
+
+	m_patrolTargetSign = 1;
+	m_bPatrolTurning = false;
+	m_patrolTurnTargetYawDeg =
+		GetPatrolFacingYawDegreesForTargetSign(m_patrolTargetSign);
+
+	m_bPatrolInitialized = true;
+	return true;
+}
+
+XMFLOAT3 CMonsterAIComponent::GetPatrolEndpoint(int targetSign) const
+{
+	const int sign = ( targetSign < 0 ) ? -1 : 1;
+
+	const XMFLOAT3 forward = ForwardFromYawDegrees(m_homeYawDeg);
+
+	return XMFLOAT3(
+		m_homePosition.x + forward.x * m_patrolHalfDistance * static_cast< float >(sign),
+		m_homePosition.y,
+		m_homePosition.z + forward.z * m_patrolHalfDistance * static_cast< float >(sign)
+	);
+}
+
+float CMonsterAIComponent::GetPatrolFacingYawDegreesForTargetSign(int targetSign) const
+{
+	if ( targetSign < 0 )
+		return NormalizeYawDegrees360(m_homeYawDeg + 180.0f);
+
+	return NormalizeYawDegrees360(m_homeYawDeg);
+}
+
+float CMonsterAIComponent::GetOwnerYawDegrees() const
+{
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return 0.0f;
+
+	if ( auto* tr = owner->GetComponent<CTransformComponent>() )
+		return QuaternionToYawDegreesLocal(tr->rotation);
+
+	const XMFLOAT4X4& world = owner->GetWorldMatrix();
+
+	const float fx = world._31;
+	const float fz = world._33;
+
+	if ( ( fx * fx + fz * fz ) <= 1.0e-8f )
+		return 0.0f;
+
+	return XMConvertToDegrees(std::atan2(fx, fz));
+}
+
+void CMonsterAIComponent::SetOwnerYawDegrees(float yawDeg)
+{
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return;
+
+	yawDeg = NormalizeYawDegrees360(yawDeg);
+
+	if ( auto* tr = owner->GetComponent<CTransformComponent>() )
+	{
+		tr->SetYawDegrees(yawDeg);
+		return;
+	}
+
+	const float currentYaw = GetOwnerYawDegrees();
+	const float deltaYaw = NormalizeYawDegrees180(yawDeg - currentYaw);
+
+	owner->Rotate(0.0f, deltaYaw, 0.0f);
+}
+
+bool CMonsterAIComponent::RotateOwnerYawTowards(float targetYawDeg, float maxStepDeg)
+{
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return false;
+
+	if ( maxStepDeg <= 0.0f )
+		return false;
+
+	targetYawDeg = NormalizeYawDegrees360(targetYawDeg);
+
+	const float currentYaw = GetOwnerYawDegrees();
+	const float deltaYaw = NormalizeYawDegrees180(targetYawDeg - currentYaw);
+
+	const float absDelta = std::fabs(deltaYaw);
+
+	if ( absDelta <= 0.5f )
+	{
+		SetOwnerYawDegrees(targetYawDeg);
+		return true;
+	}
+
+	const float step =
+		std::clamp(deltaYaw, -maxStepDeg, maxStepDeg);
+
+	SetOwnerYawDegrees(currentYaw + step);
+
+	return absDelta <= maxStepDeg;
+}
+
+bool CMonsterAIComponent::UpdateIdlePatrol(float dt)
+{
+	if ( !m_bPatrolEnabled )
+		return false;
+
+	if ( HasValidTarget() )
+		return false;
+
+	if ( m_bReturningHome )
+		return false;
+
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return false;
+
+	if ( IsDeadByHealth(owner) )
+		return false;
+
+	if ( !EnsurePatrolInitialized() )
+		return false;
+
+	if ( dt <= 0.0f )
+	{
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		return true;
+	}
+
+	if ( !CanMoveNow() )
+	{
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		return true;
+	}
+
+	if ( m_bPatrolTurning )
+	{
+		SetMonsterLocomotionState(EMonsterAnimState::Move);
+
+		const bool finishedTurn =
+			RotateOwnerYawTowards(
+				m_patrolTurnTargetYawDeg,
+				m_patrolTurnSpeedDegrees * dt
+			);
+
+		if ( finishedTurn )
+			m_bPatrolTurning = false;
+
+		return true;
+	}
+
+	const XMFLOAT3 endpoint = GetPatrolEndpoint(m_patrolTargetSign);
+	const float distToEndpoint = DistanceXZ(owner->GetPosition(), endpoint);
+
+	if ( distToEndpoint <= m_patrolEndpointReachDistance )
+	{
+		m_patrolTargetSign = -m_patrolTargetSign;
+		m_patrolTurnTargetYawDeg =
+			GetPatrolFacingYawDegreesForTargetSign(m_patrolTargetSign);
+		m_bPatrolTurning = true;
+
+		SetMonsterLocomotionState(EMonsterAnimState::Move);
+
+		RotateOwnerYawTowards(
+			m_patrolTurnTargetYawDeg,
+			m_patrolTurnSpeedDegrees * dt
+		);
+
+		return true;
+	}
+
+	const float moveDistance = m_moveSpeed * dt;
+	if ( moveDistance <= 0.0f )
+		return true;
+
+	SetMonsterLocomotionState(EMonsterAnimState::Run);
+	MoveTowardsNoClamp(endpoint, moveDistance);
 	return true;
 }
 

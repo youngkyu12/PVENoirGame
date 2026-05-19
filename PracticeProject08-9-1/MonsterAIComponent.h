@@ -43,6 +43,18 @@ public:
 	void CaptureHomeTransformFromOwner();
 
 	void ResetToHomeTransformForMegaGridSkip();
+	void SetPatrolEnabled(bool enabled);
+	bool IsPatrolEnabled() const { return m_bPatrolEnabled; }
+
+	void SetPatrolHalfDistance(float v)
+	{
+		m_patrolHalfDistance = ( v > 0.0f ) ? v : 0.0f;
+	}
+
+	void SetPatrolTurnSpeedDegrees(float v)
+	{
+		m_patrolTurnSpeedDegrees = ( v > 0.0f ) ? v : 360.0f;
+	}
 
 public:
 	void SetEnabledAI(bool enabled) { m_bAIEnabled = enabled; }
@@ -139,6 +151,17 @@ protected:
 	bool UpdateReturnHome(float dt);
 	void ClearReturnHomePath();
 
+	bool UpdateIdlePatrol(float dt);
+	void ResetPatrolState();
+	bool EnsurePatrolInitialized();
+
+	XMFLOAT3 GetPatrolEndpoint(int targetSign) const;
+	float GetPatrolFacingYawDegreesForTargetSign(int targetSign) const;
+
+	float GetOwnerYawDegrees() const;
+	void SetOwnerYawDegrees(float yawDeg);
+	bool RotateOwnerYawTowards(float targetYawDeg, float maxStepDeg);
+
 	bool IsAtHome(float tolerance = 0.20f) const;
 
 	bool FaceTowardsNoClamp(const XMFLOAT3& targetPos);
@@ -184,6 +207,17 @@ protected:
 	std::vector<int> m_returnTrianglePath;
 	std::vector<XMFLOAT3> m_returnPath;
 	size_t m_returnPathIndex = 0;
+
+	bool m_bPatrolEnabled = false;
+	bool m_bPatrolInitialized = false;
+	bool m_bPatrolTurning = false;
+
+	int m_patrolTargetSign = 1;
+
+	float m_patrolHalfDistance = 5.0f;
+	float m_patrolTurnSpeedDegrees = 240.0f;
+	float m_patrolEndpointReachDistance = 0.15f;
+	float m_patrolTurnTargetYawDeg = 0.0f;
 
 	float m_chaseStartRange = 12.0f;
 	float m_chaseStopRange = 12.0f;

@@ -5548,9 +5548,6 @@ void CGameScene::AnimateObjects(float dt)
 #ifndef USING_NETWORK
 		if ( ShouldSkipMonsterByMegaGrid(obj, j, activeMonsterMegaGridNumber) )
 		{
-			// 플레이어가 이 몬스터의 400x400 메가그리드 밖에 있다.
-			// 이 경우 복귀 이동을 시뮬레이션하지 않고 생성 위치로 즉시 되돌린 뒤,
-			// 기존처럼 AI/애니메이션 update 자체를 skip한다.
 			ResetMonsterToHomeForMegaGridSkip(obj);
 
 			if ( cache.animator )
