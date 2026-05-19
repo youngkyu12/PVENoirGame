@@ -5465,7 +5465,7 @@ void CGameScene::AnimateObjects(float dt)
 
 void CGameScene::CollisionObjects()
 {
-	auto IsLocalPlayerMonsterAttackCollisionPair =
+	auto IsPlayerMonsterAttackCollisionCandidate =
 		[ ](
 			const CColliderComponent* a,
 			const CColliderComponent* b) -> bool
@@ -5482,36 +5482,47 @@ void CGameScene::CollisionObjects()
 				( layerB == kCollisionLayerPlayerWeapon &&
 				  layerA == kCollisionLayerMonster );
 
+			if ( playerWeaponHitsMonster )
+				return true;
+
 			const bool monsterWeaponHitsPlayer =
 				( layerA == kCollisionLayerMonsterWeapon &&
 				  layerB == kCollisionLayerPlayer ) ||
 				( layerB == kCollisionLayerMonsterWeapon &&
 				  layerA == kCollisionLayerPlayer );
 
-			return playerWeaponHitsMonster || monsterWeaponHitsPlayer;
+			if ( monsterWeaponHitsPlayer )
+				return true;
+
+			const bool monsterBodyWeaponCapsuleHitsPlayerBody =
+				( layerA == kCollisionLayerMonster &&
+				  layerB == kCollisionLayerPlayer ) ||
+				( layerB == kCollisionLayerMonster &&
+				  layerA == kCollisionLayerPlayer );
+
+			if ( monsterBodyWeaponCapsuleHitsPlayerBody )
+				return true;
+
+			return false;
 		};
 
-	if ( m_Collision )
+	if ( m_bSimulateLocalPlayerMonsterAttackCollision && m_Collision )
 	{
 		RefreshDynamicCollisionMegaGridMasks();
 
 		m_Collision->OnUpdateFiltered(
-			[ this, &IsLocalPlayerMonsterAttackCollisionPair ](
+			[ this, &IsPlayerMonsterAttackCollisionCandidate ](
 				const CColliderComponent* a,
 				const CColliderComponent* b) -> bool
 			{
-				if ( !m_bSimulateLocalPlayerMonsterAttackCollision &&
-					 IsLocalPlayerMonsterAttackCollisionPair(a, b) )
-				{
+				if ( !IsPlayerMonsterAttackCollisionCandidate(a, b) )
 					return false;
-				}
 
 				return ShouldKeepCollisionPairByMegaGrid(a, b);
 			}
 		);
 	}
 
-	// 아이템 빌보드는 CGameObject/Collider가 아니므로 별도 overlap 판정.
 	if ( m_bSimulateLocalItemPickup )
 	{
 		UpdateItemBillboardPickupCollision();
