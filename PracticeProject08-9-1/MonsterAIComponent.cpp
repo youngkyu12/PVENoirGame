@@ -133,9 +133,6 @@ void CMonsterAIComponent::OnUpdate(float dt)
 	if ( !m_bAIEnabled )
 		return;
 
-	if ( m_bMegaGridTickGateBlocked )
-		return;
-
 	if ( !GetOwner() )
 		return;
 
@@ -177,21 +174,6 @@ void CMonsterAIComponent::OnUpdate(float dt)
 	}
 
 	UpdateBehavior(dt);
-}
-
-void CMonsterAIComponent::SetMegaGridTickGateBlocked(bool blocked)
-{
-	if ( m_bMegaGridTickGateBlocked == blocked )
-		return;
-
-	m_bMegaGridTickGateBlocked = blocked;
-
-	if ( blocked )
-	{
-		ClearTarget();
-		ClearPath();
-		SetMonsterLocomotionState(EMonsterAnimState::Idle);
-	}
 }
 
 void CMonsterAIComponent::SetTarget(CGameObject* target)
@@ -504,36 +486,35 @@ bool CMonsterAIComponent::IsObjectInChaseStartCone(CGameObject* obj) const
 	toTarget.x *= invTargetLen;
 	toTarget.z *= invTargetLen;
 
-	XMFLOAT3 forward(0.0f, 0.0f, 1.0f);
+	const XMFLOAT4X4& world = owner->GetWorldMatrix();
 
-	if ( auto* tr = owner->GetComponent<CTransformComponent>() )
-	{
-		forward = tr->GetLook();
-	}
-	else
-	{
-		forward = owner->GetLook();
-	}
+	XMFLOAT3 forward(
+		world._31,
+		0.0f,
+		world._33
+	);
 
-	forward.y = 0.0f;
-
-	float forwardLenSq =
+	const float forwardLenSq =
 		( forward.x * forward.x ) + ( forward.z * forward.z );
 
 	if ( forwardLenSq <= 1.0e-8f )
 	{
-		// 최후 fallback.
-		const XMFLOAT4X4& world = owner->GetWorldMatrix();
-		forward = XMFLOAT3(world._31, 0.0f, world._33);
-
-		forwardLenSq =
-			( forward.x * forward.x ) + ( forward.z * forward.z );
+		if ( auto* tr = owner->GetComponent<CTransformComponent>() )
+		{
+			// fallback: transform의 world matrix가 아직 갱신 전이어도
+			// object world matrix 기준과 동일한 forward를 다시 시도한다.
+			const XMFLOAT4X4& fallbackWorld = owner->GetWorldMatrix();
+			forward = XMFLOAT3(fallbackWorld._31, 0.0f, fallbackWorld._33);
+		}
 	}
 
-	if ( forwardLenSq <= 1.0e-8f )
+	const float fallbackForwardLenSq =
+		( forward.x * forward.x ) + ( forward.z * forward.z );
+
+	if ( fallbackForwardLenSq <= 1.0e-8f )
 		return false;
 
-	const float invForwardLen = 1.0f / std::sqrt(forwardLenSq);
+	const float invForwardLen = 1.0f / std::sqrt(fallbackForwardLenSq);
 	forward.x *= invForwardLen;
 	forward.z *= invForwardLen;
 

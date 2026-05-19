@@ -1719,9 +1719,6 @@ void CGameScene::RegisterMonsterToMegaGrid(
 
 int CGameScene::GetLocalPlayerMegaGridNumberForMonsterTick() const
 {
-	if ( !m_sceneGrid.IsInitialized() )
-		return -1;
-
 	CGameObject* player = GetPlayer();
 
 	if ( !player )
@@ -1731,29 +1728,7 @@ int CGameScene::GetLocalPlayerMegaGridNumberForMonsterTick() const
 		return -1;
 
 	const XMFLOAT3 pos = player->GetPosition();
-
-	int cellX = -1;
-	int cellZ = -1;
-
-	if ( !m_sceneGrid.WorldToCell(pos.x, pos.z, cellX, cellZ) )
-		return -1;
-
-	int megaX = -1;
-	int megaZ = -1;
-
-	if ( !m_sceneGrid.FineCellToMegaGridCell(cellX, cellZ, megaX, megaZ) )
-		return -1;
-
-	if ( !m_sceneGrid.IsFineCellInsideMegaGridApproachZone(
-		megaX,
-		megaZ,
-		cellX,
-		cellZ) )
-	{
-		return -1;
-	}
-
-	return ( megaZ * CSceneGrid::kMegaGridCols ) + megaX + 1;
+	return m_sceneGrid.MegaGridNumberFromWorldPosition(pos.x, pos.z);
 }
 
 bool CGameScene::ShouldSkipMonsterByMegaGrid(
@@ -1762,6 +1737,9 @@ bool CGameScene::ShouldSkipMonsterByMegaGrid(
 	int activeMegaGridNumber) const
 {
 	if ( !monster )
+		return false;
+
+	if ( activeMegaGridNumber <= 0 )
 		return false;
 
 	const SkinnedComponentCache* cache =
@@ -1773,9 +1751,6 @@ bool CGameScene::ShouldSkipMonsterByMegaGrid(
 	if ( !cache->isNpc )
 		return false;
 
-	if ( activeMegaGridNumber <= 0 )
-		return true;
-
 	if ( skinnedBatchObjectIndex >= static_cast< UINT >( m_skinnedMonsterMegaGridNumbers.size() ) )
 		return false;
 
@@ -1786,42 +1761,6 @@ bool CGameScene::ShouldSkipMonsterByMegaGrid(
 		return false;
 
 	return monsterMegaGridNumber != activeMegaGridNumber;
-}
-
-void CGameScene::SetMonsterAIMegaGridTickGateBlocked(
-	CGameObject* monster,
-	bool blocked) const
-{
-	if ( !monster )
-		return;
-
-	auto SetBlocked =
-		[ blocked ] (CMonsterAIComponent* ai) -> bool
-		{
-			if ( !ai )
-				return false;
-
-			ai->SetMegaGridTickGateBlocked(blocked);
-			return true;
-		};
-
-	if ( SetBlocked(monster->GetComponent<CGhoulAIComponent>()) )
-		return;
-
-	if ( SetBlocked(monster->GetComponent<CSwordManAIComponent>()) )
-		return;
-
-	if ( SetBlocked(monster->GetComponent<CBowManAIComponent>()) )
-		return;
-
-	if ( SetBlocked(monster->GetComponent<CMutantAIComponent>()) )
-		return;
-
-	if ( SetBlocked(monster->GetComponent<CBossAIComponent>()) )
-		return;
-
-	if ( SetBlocked(monster->GetComponent<CMonsterAIComponent>()) )
-		return;
 }
 
 uint16_t CGameScene::ComputeStaticObjectMegaGridMask(CGameObject* obj) const
@@ -5474,15 +5413,12 @@ void CGameScene::AnimateObjects(float dt)
 			continue;
 
 #ifndef USING_NETWORK
-		const bool blockMonsterAIByMegaGrid =
-			ShouldSkipMonsterByMegaGrid(obj, j, activeMonsterMegaGridNumber);
-
-		if ( cache.isNpc )
+		if ( ShouldSkipMonsterByMegaGrid(obj, j, activeMonsterMegaGridNumber) )
 		{
-			SetMonsterAIMegaGridTickGateBlocked(
-				obj,
-				blockMonsterAIByMegaGrid
-			);
+			if ( cache.animator )
+				cache.animator->SetPoseEvaluationEnabled(false);
+
+			continue;
 		}
 #endif
 
