@@ -1871,6 +1871,7 @@ void CGameScene::BuildSkinnedBatch(
 			createDesc.monsterInitialState = EMonsterAnimState::Idle;
 			createDesc.monsterProfile.idleClip = "Idle";
 			createDesc.monsterProfile.moveClip = "Walk";
+			createDesc.monsterProfile.runClip = "Run";
 			createDesc.monsterProfile.hitClip = "Hit";
 			createDesc.monsterProfile.attackClip = "Attack";
 			createDesc.monsterProfile.deathClip = "Death";
@@ -1980,6 +1981,7 @@ void CGameScene::BuildSkinnedBatch(
 			createDesc.monsterInitialState = EMonsterAnimState::Idle;
 			createDesc.monsterProfile.idleClip = "Idle";
 			createDesc.monsterProfile.moveClip = "Walk";
+			createDesc.monsterProfile.runClip = "Run";
 			createDesc.monsterProfile.hitClip = "Hit";
 			createDesc.monsterProfile.deathClip = "Death";
 			createDesc.monsterProfile.attackClip = "Bow_Load";
@@ -2096,6 +2098,7 @@ void CGameScene::BuildSkinnedBatch(
 			createDesc.monsterInitialState = EMonsterAnimState::Idle;
 			createDesc.monsterProfile.idleClip = "Idle";
 			createDesc.monsterProfile.moveClip = "Walk";
+			createDesc.monsterProfile.runClip = "Run";
 			createDesc.monsterProfile.hitClip = "Hit";
 			createDesc.monsterProfile.attackClip = "Attack";
 			createDesc.monsterProfile.deathClip = "Death";

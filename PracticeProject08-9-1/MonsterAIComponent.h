@@ -86,6 +86,16 @@ public:
 	void SetGoalReachDistance(float v) { m_goalReachDistance = v; }
 	void SetFacingYawOffsetDegrees(float v) { m_facingYawOffsetDegrees = v; }
 
+	void SetWalkMoveSpeedScale(float v)
+	{
+		m_walkMoveSpeedScale = ( v > 0.0f ) ? v : 1.0f;
+	}
+
+	void SetChaseRunAnimationEnabled(bool enabled)
+	{
+		m_bChaseUsesRunAnimation = enabled;
+	}
+
 	float GetDetectRange() const { return m_chaseStopRange; }
 	float GetChaseStartRange() const { return m_chaseStartRange; }
 	float GetChaseStopRange() const { return m_chaseStopRange; }
@@ -178,6 +188,12 @@ protected:
 	CMonsterAnimController* GetMonsterAnimController() const;
 	void SetMonsterLocomotionState(EMonsterAnimState state);
 
+	float GetChaseMoveSpeed() const;
+	float GetWalkMoveSpeed() const;
+
+	EMonsterAnimState GetChaseLocomotionState() const;
+	EMonsterAnimState GetWalkLocomotionState() const;
+
 	XMFLOAT3 GetOwnerPosition() const;
 	bool FaceTowards(const XMFLOAT3& targetPos);
 	bool MoveTowards(const XMFLOAT3& targetPos, float maxStepDistance);
@@ -224,7 +240,11 @@ protected:
 	float m_chaseStartConeCosHalfAngle = 0.5f;
 
 	float m_attackRange = 1.5f;
+
 	float m_moveSpeed = 2.0f;
+	float m_walkMoveSpeedScale = 0.5f;
+	bool m_bChaseUsesRunAnimation = true;
+
 	float m_attackCooldown = 1.0f;
 	float m_repathInterval = 0.35f;
 
