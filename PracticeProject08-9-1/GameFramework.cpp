@@ -1281,11 +1281,11 @@ void CGameFramework::ProcessInput()
 		if ( dwDirection && !pc->IsActionLockedByAnimation() )
 		{
 			// Network mode: local prediction movement is disabled; server snapshots drive position.
-			//const XMFLOAT3 prevPos = playerObj->GetPosition();
-			//const float moveSpeed = bRunRequested ? 10.0f : 5.0f;
-			//pc->MoveByYaw(dwDirection, moveSpeed * dt, cameraYawDeg, false);
-			//if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
-			//	gameScene->RollbackLocalPlayerMoveIfCollidingWorldStatic(prevPos);
+			const XMFLOAT3 prevPos = playerObj->GetPosition();
+			const float moveSpeed = bRunRequested ? 10.0f : 5.0f;
+			pc->MoveByYaw(dwDirection, moveSpeed * dt, cameraYawDeg, false);
+			if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
+				gameScene->RollbackLocalPlayerMoveIfCollidingWorldStatic(prevPos);
 		}
 
 		pc->SetInputDirection(static_cast< uint32_t >( dwDirection ));
