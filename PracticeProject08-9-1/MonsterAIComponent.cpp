@@ -379,6 +379,9 @@ bool CMonsterAIComponent::AcquireTarget()
 			return false;
 	}
 
+	if ( !CanChaseTargetByMegaGridCenter(player) )
+		return false;
+
 	if ( !ShouldAcquireTargetFromIdle(player) )
 		return false;
 
@@ -391,6 +394,13 @@ void CMonsterAIComponent::UpdateBehavior(float dt)
 	if ( !HasValidTarget() )
 	{
 		ClearPath();
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		return;
+	}
+
+	if ( !CanChaseTargetByMegaGridCenter(m_pTarget) )
+	{
+		ClearTarget();
 		SetMonsterLocomotionState(EMonsterAnimState::Idle);
 		return;
 	}
@@ -562,6 +572,20 @@ bool CMonsterAIComponent::ShouldAcquireTargetFromIdle(CGameObject* candidate) co
 		return true;
 
 	return false;
+}
+
+bool CMonsterAIComponent::CanChaseTargetByMegaGridCenter(CGameObject* target) const
+{
+	if ( !target )
+		return false;
+
+	if ( !m_pScene )
+		return true;
+
+	if ( !m_pScene->IsLocalPlayer(target) )
+		return true;
+
+	return m_pScene->IsLocalPlayerInsideMegaGridCenter();
 }
 
 bool CMonsterAIComponent::ShouldRepath() const

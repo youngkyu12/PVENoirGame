@@ -124,6 +124,7 @@ protected:
 	bool IsObjectInChaseStartCone(CGameObject* obj) const;
 	bool IsPlayerRunning(CGameObject* player) const;
 	bool ShouldAcquireTargetFromIdle(CGameObject* candidate) const;
+	bool CanChaseTargetByMegaGridCenter(CGameObject* target) const;
 
 	bool EnsureMovementBoundsInitialized();
 	XMFLOAT3 ClampPointToMovementBounds(const XMFLOAT3& p) const;
