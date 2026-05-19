@@ -1332,8 +1332,19 @@ void CGameScene::BuildSkinnedBatch(
 			return ctx;
 		};
 
-	auto AttachGhoulAIToMonster =
-		[ this ] (std::unique_ptr<CGameObject>& obj)
+	enum class ELocalMonsterAIKind
+	{
+		Ghoul,
+		SwordMan,
+		BowMan,
+		Mutant,
+		Boss
+	};
+
+	auto AttachMonsterAIToMonster =
+		[ this ](
+			std::unique_ptr<CGameObject>& obj,
+			ELocalMonsterAIKind kind)
 		{
 			if ( !m_bSimulateLocalAI )
 				return;
@@ -1341,15 +1352,80 @@ void CGameScene::BuildSkinnedBatch(
 			if ( !obj )
 				return;
 
-			if ( obj->GetComponent<CGhoulAIComponent>() )
-				return;
-
-			auto* ghoulAI = obj->AddComponent<CGhoulAIComponent>();
-
-			if ( ghoulAI )
+			switch ( kind )
 			{
-				ghoulAI->SetScene(this);
-				ghoulAI->SetEnabledAI(true);
+			case ELocalMonsterAIKind::Ghoul:
+			{
+				if ( obj->GetComponent<CGhoulAIComponent>() )
+					return;
+
+				auto* ai = obj->AddComponent<CGhoulAIComponent>();
+				if ( ai )
+				{
+					ai->SetScene(this);
+					ai->SetEnabledAI(true);
+				}
+				break;
+			}
+
+			case ELocalMonsterAIKind::SwordMan:
+			{
+				if ( obj->GetComponent<CSwordManAIComponent>() )
+					return;
+
+				auto* ai = obj->AddComponent<CSwordManAIComponent>();
+				if ( ai )
+				{
+					ai->SetScene(this);
+					ai->SetEnabledAI(true);
+				}
+				break;
+			}
+
+			case ELocalMonsterAIKind::BowMan:
+			{
+				if ( obj->GetComponent<CBowManAIComponent>() )
+					return;
+
+				auto* ai = obj->AddComponent<CBowManAIComponent>();
+				if ( ai )
+				{
+					ai->SetScene(this);
+					ai->SetEnabledAI(true);
+				}
+				break;
+			}
+
+			case ELocalMonsterAIKind::Mutant:
+			{
+				if ( obj->GetComponent<CMutantAIComponent>() )
+					return;
+
+				auto* ai = obj->AddComponent<CMutantAIComponent>();
+				if ( ai )
+				{
+					ai->SetScene(this);
+					ai->SetEnabledAI(true);
+				}
+				break;
+			}
+
+			case ELocalMonsterAIKind::Boss:
+			{
+				if ( obj->GetComponent<CBossAIComponent>() )
+					return;
+
+				auto* ai = obj->AddComponent<CBossAIComponent>();
+				if ( ai )
+				{
+					ai->SetScene(this);
+					ai->SetEnabledAI(true);
+				}
+				break;
+			}
+
+			default:
+				break;
 			}
 		};
 
@@ -1615,7 +1691,7 @@ void CGameScene::BuildSkinnedBatch(
 				continue;
 
 #ifndef USING_NETWORK
-			AttachGhoulAIToMonster(obj);
+			AttachMonsterAIToMonster(obj, ELocalMonsterAIKind::Ghoul);
 #endif
 
 			++enemyIndex;
@@ -1695,7 +1771,7 @@ void CGameScene::BuildSkinnedBatch(
 				continue;
 
 #ifndef USING_NETWORK
-			AttachGhoulAIToMonster(obj);
+			AttachMonsterAIToMonster(obj, ELocalMonsterAIKind::Ghoul);
 #endif
 
 			++enemyIndex;
@@ -1800,9 +1876,8 @@ void CGameScene::BuildSkinnedBatch(
 				continue;
 
 #ifndef USING_NETWORK
-			AttachGhoulAIToMonster(obj);
+			AttachMonsterAIToMonster(obj, ELocalMonsterAIKind::SwordMan);
 #endif
-
 			++enemyIndex;
 
 			CGameObject* raw = obj.get();
@@ -1912,7 +1987,7 @@ void CGameScene::BuildSkinnedBatch(
 				continue;
 
 #ifndef USING_NETWORK
-			AttachGhoulAIToMonster(obj);
+			AttachMonsterAIToMonster(obj, ELocalMonsterAIKind::BowMan);
 #endif
 
 			++enemyIndex;
@@ -2031,7 +2106,7 @@ void CGameScene::BuildSkinnedBatch(
 				continue;
 
 #ifndef USING_NETWORK
-			AttachGhoulAIToMonster(obj);
+			AttachMonsterAIToMonster(obj, ELocalMonsterAIKind::Mutant);
 #endif
 
 			++enemyIndex;
@@ -2161,7 +2236,7 @@ void CGameScene::BuildSkinnedBatch(
 				continue;
 
 #ifndef USING_NETWORK
-			AttachGhoulAIToMonster(obj);
+			AttachMonsterAIToMonster(obj, ELocalMonsterAIKind::Boss);
 #endif
 
 			++enemyIndex;
