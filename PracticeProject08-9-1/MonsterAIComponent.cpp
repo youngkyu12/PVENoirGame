@@ -223,13 +223,47 @@ float CMonsterAIComponent::GetDistanceToPointXZ(const XMFLOAT3& p) const
 
 bool CMonsterAIComponent::IsTargetInDetectRange() const
 {
-	if ( !HasValidTarget() || !GetOwner() )
+	// 기존 이름 호환용.
+	// 이제 detect range는 chase stop range와 같은 의미로 취급한다.
+	return IsTargetInChaseStopRange();
+}
+
+bool CMonsterAIComponent::IsObjectInChaseStartRange(CGameObject* obj) const
+{
+	if ( !obj || !GetOwner() )
 		return false;
 
 	const float distSq =
-		DistanceSqXZ(GetOwner()->GetPosition(), m_pTarget->GetPosition());
+		DistanceSqXZ(GetOwner()->GetPosition(), obj->GetPosition());
 
-	return distSq <= ( m_detectRange * m_detectRange );
+	return distSq <= ( m_chaseStartRange * m_chaseStartRange );
+}
+
+bool CMonsterAIComponent::IsObjectInChaseStopRange(CGameObject* obj) const
+{
+	if ( !obj || !GetOwner() )
+		return false;
+
+	const float distSq =
+		DistanceSqXZ(GetOwner()->GetPosition(), obj->GetPosition());
+
+	return distSq <= ( m_chaseStopRange * m_chaseStopRange );
+}
+
+bool CMonsterAIComponent::IsTargetInChaseStartRange() const
+{
+	if ( !HasValidTarget() )
+		return false;
+
+	return IsObjectInChaseStartRange(m_pTarget);
+}
+
+bool CMonsterAIComponent::IsTargetInChaseStopRange() const
+{
+	if ( !HasValidTarget() )
+		return false;
+
+	return IsObjectInChaseStopRange(m_pTarget);
 }
 
 bool CMonsterAIComponent::IsTargetInAttackRange() const
@@ -314,13 +348,20 @@ void CMonsterAIComponent::ClearPath()
 
 bool CMonsterAIComponent::AcquireTarget()
 {
-	// 기본 정책:
-	// 싱글플레이 현재 단계에서는 local player를 타겟으로 삼는다.
 	if ( !m_pScene )
 		return false;
 
 	CGameObject* player = m_pScene->GetPlayer();
 	if ( !player )
+		return false;
+
+	if ( auto* hp = player->GetComponent<CHealthComponent>() )
+	{
+		if ( hp->IsDead() )
+			return false;
+	}
+
+	if ( !IsObjectInChaseStartRange(player) )
 		return false;
 
 	SetTarget(player);
@@ -336,15 +377,13 @@ void CMonsterAIComponent::UpdateBehavior(float dt)
 		return;
 	}
 
-	// 감지 범위 밖이면 추적 중단
-	if ( !IsTargetInDetectRange() )
+	if ( !IsTargetInChaseStopRange() )
 	{
-		ClearPath();
+		ClearTarget();
 		SetMonsterLocomotionState(EMonsterAnimState::Idle);
 		return;
 	}
 
-	// 공격 범위면 이동 정지 + 공격
 	if ( IsTargetInAttackRange() && CanStartAttackAgainstTarget() )
 	{
 		ClearPath();
@@ -361,7 +400,6 @@ void CMonsterAIComponent::UpdateBehavior(float dt)
 		return;
 	}
 
-	// 이동 가능하면 경로 추적
 	if ( !ShouldMoveTowardsTarget() )
 	{
 		SetMonsterLocomotionState(EMonsterAnimState::Idle);
