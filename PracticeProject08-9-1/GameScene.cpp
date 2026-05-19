@@ -4073,29 +4073,27 @@ bool CGameScene::IsLocalPlayerInsideMegaGridCenter() const
 	if ( !m_sceneGrid.IsInitialized() )
 		return false;
 
-	if ( m_localPlayerSlot < 0 ||
-		 m_localPlayerSlot >= static_cast< int >(m_playerGridTrackers.size()) )
-	{
+	CGameObject* localPlayer = GetPlayer();
+
+	if ( !localPlayer )
+		localPlayer = GetPlayerBySlot(0);
+
+	if ( !localPlayer )
 		return false;
-	}
 
-	const GridDynamicTracker& tracker =
-		m_playerGridTrackers[static_cast< size_t >(m_localPlayerSlot)];
+	const XMFLOAT3 pos = localPlayer->GetPosition();
 
-	if ( !tracker.occupied )
+	int cellX = -1;
+	int cellZ = -1;
+
+	if ( !m_sceneGrid.WorldToCell(pos.x, pos.z, cellX, cellZ) )
 		return false;
 
 	int megaX = -1;
 	int megaZ = -1;
 
-	if ( !m_sceneGrid.FineCellToMegaGridCell(
-		tracker.prevCellX,
-		tracker.prevCellZ,
-		megaX,
-		megaZ) )
-	{
+	if ( !m_sceneGrid.FineCellToMegaGridCell(cellX, cellZ, megaX, megaZ) )
 		return false;
-	}
 
 	if ( megaX == kCastleCenterMegaGridX &&
 		 megaZ == kCastleCenterMegaGridZ )
@@ -4110,8 +4108,8 @@ bool CGameScene::IsLocalPlayerInsideMegaGridCenter() const
 	return m_sceneGrid.IsFineCellInsideMegaGridApproachZone(
 		megaX,
 		megaZ,
-		tracker.prevCellX,
-		tracker.prevCellZ
+		cellX,
+		cellZ
 	);
 }
 
@@ -5397,13 +5395,6 @@ void CGameScene::AnimateObjects(float dt)
 
 	CCamera* camera = GetMainCamera();
 
-#ifndef USING_NETWORK
-	const int activeMonsterMegaGridNumber =
-		GetLocalPlayerMegaGridNumberForMonsterTick();
-#else
-	const int activeMonsterMegaGridNumber = -1;
-#endif
-
 	for ( UINT j = 0; j < static_cast< UINT >(m_skinnedComponentCache.size()); ++j )
 	{
 		const SkinnedComponentCache& cache = m_skinnedComponentCache[j];
@@ -5411,16 +5402,6 @@ void CGameScene::AnimateObjects(float dt)
 		CGameObject* obj = cache.object;
 		if ( !obj )
 			continue;
-
-#ifndef USING_NETWORK
-		if ( ShouldSkipMonsterByMegaGrid(obj, j, activeMonsterMegaGridNumber) )
-		{
-			if ( cache.animator )
-				cache.animator->SetPoseEvaluationEnabled(false);
-
-			continue;
-		}
-#endif
 
 #ifdef USING_NETWORK
 		const bool shouldEvaluatePose =
