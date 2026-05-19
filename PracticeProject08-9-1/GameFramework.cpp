@@ -1280,16 +1280,20 @@ void CGameFramework::ProcessInput()
 
 		pc->SetRunRequested(bRunRequested);
 
+		pc->SetInputDirection(static_cast< uint32_t >( dwDirection ));
+
 		if ( dwDirection && !pc->IsActionLockedByAnimation() )
 		{
 			const XMFLOAT3 prevPos = playerObj->GetPosition();
-			const float moveSpeed = bRunRequested ? 10.0f : 5.0f;
-			pc->MoveByYaw(dwDirection, moveSpeed * dt, cameraYawDeg, false);
-			if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
-				gameScene->RollbackLocalPlayerMoveIfCollidingWorldStatic(prevPos);
-		}
 
-		pc->SetInputDirection(static_cast< uint32_t >( dwDirection ));
+			const float moveSpeed = pc->IsEffectiveRunRequested() ? 10.0f : 5.0f;
+			pc->MoveByYaw(dwDirection, moveSpeed * dt, cameraYawDeg, false);
+
+			if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
+			{
+				gameScene->RollbackLocalPlayerMoveIfCollidingWorldStatic(prevPos);
+			}
+		}
 
 		XMFLOAT3 cameraTarget = playerObj->GetPosition();
 		cameraTarget.y += 1.7f;
@@ -1337,11 +1341,13 @@ void CGameFramework::ProcessInput()
 		// --------------------------------------------------------------------
 		pc->SetRunRequested(bRunRequested);
 
+		pc->SetInputDirection(static_cast< uint32_t >( dwDirection ));
+
 		if ( dwDirection && !pc->IsActionLockedByAnimation() )
 		{
 			const XMFLOAT3 prevPos = playerObj->GetPosition();
 
-			const float moveSpeed = bRunRequested ? 10.0f : 5.0f;
+			const float moveSpeed = pc->IsEffectiveRunRequested() ? 10.0f : 5.0f;
 			pc->MoveByYaw(dwDirection, moveSpeed * dt, cameraYawDeg, false);
 
 			if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
@@ -1349,9 +1355,6 @@ void CGameFramework::ProcessInput()
 				gameScene->RollbackLocalPlayerMoveIfCollidingWorldStatic(prevPos);
 			}
 		}
-
-		// 애니메이터 방향 비트는 항상 갱신
-		pc->SetInputDirection(static_cast< uint32_t >( dwDirection ));
 
 		XMFLOAT3 cameraTarget = playerObj->GetPosition();
 		cameraTarget.y += 1.7f;

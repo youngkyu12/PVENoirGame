@@ -182,15 +182,18 @@ std::string CAnimController::ResolveIdleClip() const
 
 std::string CAnimController::ResolveMoveClip() const
 {
-    if (!m_usePlayerClipSet)
-        return m_moveClip;
+	if ( !m_usePlayerClipSet )
+		return m_moveClip;
 
-    const std::string suffix = BuildDirectionSuffix(m_moveDirBits);
-    if (suffix.empty())
-        return ResolveIdleClip();
+	const std::string suffix = BuildDirectionSuffix(m_moveDirBits);
+	if ( suffix.empty() )
+		return ResolveIdleClip();
 
-    const char* prefix = m_bRunRequested ? "Run_" : "Walk_";
-    return std::string(prefix) + suffix;
+	const bool useRun =
+		m_bRunRequested && CanUseRunLocomotion();
+
+	const char* prefix = useRun ? "Run_" : "Walk_";
+	return std::string(prefix) + suffix;
 }
 
 std::string CAnimController::ResolveHitClip() const
@@ -1040,6 +1043,22 @@ void CAnimController::LocalUpdate(float dt)
 	if ( m_actionPhase == EActionPhase::None )
 		m_state = targetState;
 
+}
+
+bool CAnimController::CanUseRunLocomotion() const
+{
+	switch ( m_actionPhase )
+	{
+	case EActionPhase::AttackGeneric:
+	case EActionPhase::AttackBowLoad:
+	case EActionPhase::AttackBowRelease:
+		return false;
+
+	default:
+		break;
+	}
+
+	return true;
 }
 
 bool CAnimController::IsRunLocomotionActive() const
