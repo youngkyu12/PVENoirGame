@@ -374,14 +374,14 @@ void CMonsterAIComponent::UpdateBehavior(float dt)
 		return;
 	}
 
-	if ( ShouldRepath() || !HasPath() )
-	{
-		RebuildPathToTarget();
-	}
-
 	if ( TryMoveDirectlyToTarget(dt) )
 	{
 		return;
+	}
+
+	if ( ShouldRepath() || !HasPath() )
+	{
+		RebuildPathToTarget();
 	}
 
 	if ( HasPath() )
@@ -391,7 +391,7 @@ void CMonsterAIComponent::UpdateBehavior(float dt)
 	else
 	{
 		SetMonsterLocomotionState(EMonsterAnimState::Idle);
-		FaceTowards(m_pTarget->GetPosition());
+		FaceTowards(GetTargetMoveGoalPosition());
 	}
 }
 
@@ -672,26 +672,50 @@ bool CMonsterAIComponent::TryMoveDirectlyToTarget(float dt)
 	if ( dt <= 0.0f )
 		return false;
 
+	if ( !CanMoveNow() )
+		return false;
+
 	const float moveDistance = m_moveSpeed * dt;
 	if ( moveDistance <= 0.0f )
 		return false;
 
-	// 현재 경로가 없으면 직선 이동을 확정할 근거가 없으므로 false.
-	if ( !HasPath() )
+	const XMFLOAT3 goalPos = GetTargetMoveGoalPosition();
+
+	if ( !HasDirectNavMeshLineTo(goalPos) )
 		return false;
 
-	// FindPath 결과가 매우 짧으면 사실상 직선 경로로 본다.
-	// NavMesh Raycast가 없는 상태에서 쓰는 보수적 fallback.
-	const size_t remainingCount =
-		( m_currentPathIndex < m_currentPath.size() )
-		? ( m_currentPath.size() - m_currentPathIndex )
-		: 0;
-
-	if ( remainingCount > 1 )
-		return false;
+	m_trianglePath.clear();
+	m_currentPath.clear();
+	m_currentPathIndex = 0;
 
 	SetMonsterLocomotionState(EMonsterAnimState::Run);
-	return MoveTowards(GetTargetMoveGoalPosition(), moveDistance);
+	return MoveTowards(goalPos, moveDistance);
+}
+
+bool CMonsterAIComponent::HasDirectNavMeshLineTo(const XMFLOAT3& targetPos) const
+{
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return false;
+
+	CNavMesh* nav = GetNavMesh();
+	if ( !nav || !nav->IsLoaded() )
+		return false;
+
+	XMFLOAT3 startPos{};
+	XMFLOAT3 goalPos{};
+
+	if ( !nav->SamplePosition(owner->GetPosition(), startPos, nullptr, 1.0f) )
+		return false;
+
+	const XMFLOAT3 clampedTargetPos = ClampPointToMovementBounds(targetPos);
+
+	if ( !nav->SamplePosition(clampedTargetPos, goalPos, nullptr, 1.0f) )
+		return false;
+
+	goalPos = ClampPointToMovementBounds(goalPos);
+
+	return nav->HasLineOfSight(startPos, goalPos, 1.0f);
 }
 
 bool CMonsterAIComponent::FollowCurrentPath(float dt)
@@ -723,6 +747,35 @@ bool CMonsterAIComponent::FollowCurrentPath(float dt)
 		{
 			++m_currentPathIndex;
 			continue;
+		}
+
+		const XMFLOAT3 ownerPos = GetOwner()->GetPosition();
+		const XMFLOAT3 goalPos = GetTargetMoveGoalPosition();
+
+		const float toWaypointX = waypoint.x - ownerPos.x;
+		const float toWaypointZ = waypoint.z - ownerPos.z;
+		const float toGoalX = goalPos.x - ownerPos.x;
+		const float toGoalZ = goalPos.z - ownerPos.z;
+
+		const float waypointLenSq =
+			( toWaypointX * toWaypointX ) + ( toWaypointZ * toWaypointZ );
+
+		const float goalLenSq =
+			( toGoalX * toGoalX ) + ( toGoalZ * toGoalZ );
+
+		if ( waypointLenSq > 1.0e-6f && goalLenSq > 1.0e-6f )
+		{
+			const float dot =
+				( toWaypointX * toGoalX ) + ( toWaypointZ * toGoalZ );
+
+			// 현재 waypoint가 목표 반대 방향에 있으면,
+			// 기존 path가 현 상황에 안 맞는 것으로 보고 다음 frame에 재경로한다.
+			if ( dot < 0.0f )
+			{
+				ClearPath();
+				m_repathTimer = 0.0f;
+				return false;
+			}
 		}
 
 		SetMonsterLocomotionState(EMonsterAnimState::Run);
