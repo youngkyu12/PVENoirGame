@@ -54,7 +54,7 @@
 #include "MonsterCombatComponent.h"
 #include "NavMesh.h"
 #include "MonsterAIComponent.h"
-#include "GhoulAIComponent.h"
+#include "MonsterAIVariants.h"
 #include "HealthComponent.h"
 #include "AttackPowerComponent.h"
 
