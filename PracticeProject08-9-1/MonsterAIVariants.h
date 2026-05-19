@@ -60,6 +60,7 @@ public:
 	}
 
 protected:
+	bool CanStartAttackAgainstTarget() const override;
 	bool TryPerformAttack() override;
 };
 

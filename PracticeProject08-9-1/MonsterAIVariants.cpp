@@ -94,8 +94,20 @@ CBowManAIComponent::CBowManAIComponent(CGameObject* owner)
 	SetAttackCooldown(1.0f);
 }
 
+bool CBowManAIComponent::CanStartAttackAgainstTarget() const
+{
+	CGameObject* target = GetTarget();
+	if ( !target )
+		return false;
+
+	return HasDirectNavMeshLineTo(target->GetPosition(), false);
+}
+
 bool CBowManAIComponent::TryPerformAttack()
 {
+	if ( !CanStartAttackAgainstTarget() )
+		return false;
+
 	auto* animComp = GetAnimatorComponent();
 	if ( !animComp )
 		return false;

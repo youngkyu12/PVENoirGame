@@ -81,12 +81,14 @@ protected:
 	virtual void UpdateBehavior(float dt);
 	virtual bool TryPerformAttack() = 0;
 
-	// 이동 정책
+	// 이동/공격 정책
 	virtual bool ShouldMoveTowardsTarget() const;
 	virtual bool ShouldRepath() const;
 	virtual bool CanMoveNow() const;
 	virtual bool CanThinkNow() const;
 	virtual bool CanAttackNowByState() const;
+
+	virtual bool CanStartAttackAgainstTarget() const;
 
 	bool IsAIActionLockedByAnimation() const;
 
@@ -108,8 +110,9 @@ protected:
 	bool TryMoveDirectlyToTarget(float dt);
 	bool FollowCurrentPath(float dt);
 
-	bool HasDirectNavMeshLineTo(const XMFLOAT3& targetPos) const;
-
+	bool HasDirectNavMeshLineTo(
+		const XMFLOAT3& targetPos,
+		bool clampTargetToMovementBounds = true) const;
 	bool SampleNavMeshPosition(const XMFLOAT3& inPos, XMFLOAT3& outPos, int* outTri = nullptr) const;
 
 	void UpdateCooldowns(float dt);
