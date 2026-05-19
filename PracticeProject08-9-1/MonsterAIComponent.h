@@ -38,6 +38,11 @@ public:
 
 	void ClearTarget();
 
+	void SetHomeTransform(const XMFLOAT3& position, float yawDeg);
+	void CaptureHomeTransformFromOwner();
+
+	void ResetToHomeTransformForMegaGridSkip();
+
 public:
 	void SetEnabledAI(bool enabled) { m_bAIEnabled = enabled; }
 	bool IsAIEnabled() const { return m_bAIEnabled; }
@@ -126,6 +131,18 @@ protected:
 	bool ShouldAcquireTargetFromIdle(CGameObject* candidate) const;
 	bool CanChaseTargetByMegaGridCenter(CGameObject* target) const;
 
+	bool EnsureHomeTransformCaptured();
+
+	bool BeginReturnHome();
+	bool BuildReturnPathToHomeOnce();
+	bool UpdateReturnHome(float dt);
+	void ClearReturnHomePath();
+
+	bool IsAtHome(float tolerance = 0.20f) const;
+
+	bool FaceTowardsNoClamp(const XMFLOAT3& targetPos);
+	bool MoveTowardsNoClamp(const XMFLOAT3& targetPos, float maxStepDistance);
+
 	bool EnsureMovementBoundsInitialized();
 	XMFLOAT3 ClampPointToMovementBounds(const XMFLOAT3& p) const;
 	XMFLOAT3 GetTargetMoveGoalPosition() const;
@@ -157,6 +174,15 @@ protected:
 	CGameObject* m_pTarget = nullptr;
 
 	bool m_bAIEnabled = true;
+
+	bool m_bHomeTransformCaptured = false;
+	XMFLOAT3 m_homePosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	float m_homeYawDeg = 0.0f;
+
+	bool m_bReturningHome = false;
+	std::vector<int> m_returnTrianglePath;
+	std::vector<XMFLOAT3> m_returnPath;
+	size_t m_returnPathIndex = 0;
 
 	float m_chaseStartRange = 12.0f;
 	float m_chaseStopRange = 12.0f;

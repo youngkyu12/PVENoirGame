@@ -18,6 +18,7 @@
 #include "MonsterAnimController.h"
 #include "ActorTagComponent.h"
 #include "HealthComponent.h"
+#include "ColliderComponent.h"
 
 namespace
 {
@@ -115,6 +116,14 @@ namespace
 
 		return true;
 	}
+
+	static float QuaternionToYawDegreesLocal(const XMFLOAT4& q)
+	{
+		const float siny_cosp = 2.0f * ( q.w * q.y + q.x * q.z );
+		const float cosy_cosp = 1.0f - 2.0f * ( q.y * q.y + q.z * q.z );
+
+		return XMConvertToDegrees(std::atan2(siny_cosp, cosy_cosp));
+	}
 }
 
 CMonsterAIComponent::CMonsterAIComponent(CGameObject* owner)
@@ -136,10 +145,13 @@ void CMonsterAIComponent::OnUpdate(float dt)
 	if ( !GetOwner() )
 		return;
 
+	EnsureHomeTransformCaptured();
+
 	if ( IsDeadByHealth(GetOwner()) )
 	{
 		ClearTarget();
 		ClearPath();
+		ClearReturnHomePath();
 		return;
 	}
 
@@ -157,19 +169,34 @@ void CMonsterAIComponent::OnUpdate(float dt)
 		return;
 	}
 
+	if ( m_pTarget && !HasValidTarget() )
+	{
+		BeginReturnHome();
+	}
+
 	if ( !HasValidTarget() )
 	{
+		if ( m_bReturningHome )
+		{
+			UpdateReturnHome(dt);
+			return;
+		}
+
 		if ( !AcquireTarget() )
 		{
-			ClearTarget();
 			ClearPath();
+			SetMonsterLocomotionState(EMonsterAnimState::Idle);
 			return;
 		}
 	}
 
 	if ( !HasValidTarget() )
 	{
-		ClearPath();
+		if ( m_bReturningHome )
+			UpdateReturnHome(dt);
+		else
+			SetMonsterLocomotionState(EMonsterAnimState::Idle);
+
 		return;
 	}
 
@@ -180,6 +207,11 @@ void CMonsterAIComponent::SetTarget(CGameObject* target)
 {
 	m_pTarget = target;
 	m_repathTimer = 0.0f;
+
+	if ( target )
+	{
+		ClearReturnHomePath();
+	}
 }
 
 bool CMonsterAIComponent::ForceChaseTarget(CGameObject* target)
@@ -203,6 +235,79 @@ void CMonsterAIComponent::ClearTarget()
 {
 	m_pTarget = nullptr;
 	ClearPath();
+}
+
+void CMonsterAIComponent::SetHomeTransform(const XMFLOAT3& position, float yawDeg)
+{
+	m_homePosition = position;
+	m_homeYawDeg = yawDeg;
+	m_bHomeTransformCaptured = true;
+}
+
+void CMonsterAIComponent::CaptureHomeTransformFromOwner()
+{
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return;
+
+	const XMFLOAT3 pos = owner->GetPosition();
+
+	float yawDeg = 0.0f;
+
+	if ( auto* tr = owner->GetComponent<CTransformComponent>() )
+	{
+		yawDeg = QuaternionToYawDegreesLocal(tr->rotation);
+	}
+	else
+	{
+		const XMFLOAT4X4& world = owner->GetWorldMatrix();
+
+		const float fx = world._31;
+		const float fz = world._33;
+
+		if ( ( fx * fx + fz * fz ) > 1.0e-8f )
+			yawDeg = XMConvertToDegrees(std::atan2(fx, fz));
+	}
+
+	SetHomeTransform(pos, yawDeg);
+}
+
+bool CMonsterAIComponent::EnsureHomeTransformCaptured()
+{
+	if ( m_bHomeTransformCaptured )
+		return true;
+
+	CaptureHomeTransformFromOwner();
+	return m_bHomeTransformCaptured;
+}
+
+void CMonsterAIComponent::ResetToHomeTransformForMegaGridSkip()
+{
+	if ( !EnsureHomeTransformCaptured() )
+		return;
+
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return;
+
+	m_pTarget = nullptr;
+
+	ClearPath();
+	ClearReturnHomePath();
+
+	owner->SetPosition(m_homePosition);
+
+	if ( auto* tr = owner->GetComponent<CTransformComponent>() )
+	{
+		tr->SetYawDegrees(m_homeYawDeg);
+	}
+
+	if ( auto* collider = owner->GetComponent<CColliderComponent>() )
+	{
+		collider->UpdateWorldBounds();
+	}
+
+	SetMonsterLocomotionState(EMonsterAnimState::Idle);
 }
 
 bool CMonsterAIComponent::HasValidTarget() const
@@ -364,6 +469,94 @@ void CMonsterAIComponent::ClearPath()
 	SetMonsterLocomotionState(EMonsterAnimState::Idle);
 }
 
+void CMonsterAIComponent::ClearReturnHomePath()
+{
+	m_bReturningHome = false;
+	m_returnTrianglePath.clear();
+	m_returnPath.clear();
+	m_returnPathIndex = 0;
+}
+
+bool CMonsterAIComponent::IsAtHome(float tolerance) const
+{
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return false;
+
+	const float distSq =
+		DistanceSqXZ(owner->GetPosition(), m_homePosition);
+
+	return distSq <= ( tolerance * tolerance );
+}
+
+bool CMonsterAIComponent::BeginReturnHome()
+{
+	if ( !EnsureHomeTransformCaptured() )
+		return false;
+
+	m_pTarget = nullptr;
+	ClearPath();
+	ClearReturnHomePath();
+
+	if ( IsAtHome() )
+	{
+		ResetToHomeTransformForMegaGridSkip();
+		return true;
+	}
+
+	return BuildReturnPathToHomeOnce();
+}
+
+bool CMonsterAIComponent::BuildReturnPathToHomeOnce()
+{
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return false;
+
+	CNavMesh* nav = GetNavMesh();
+	if ( !nav || !nav->IsLoaded() )
+		return false;
+
+	m_returnTrianglePath.clear();
+	m_returnPath.clear();
+	m_returnPathIndex = 0;
+
+	XMFLOAT3 startPos{};
+	XMFLOAT3 goalPos{};
+
+	if ( !SampleNavMeshPosition(owner->GetPosition(), startPos) )
+		return false;
+
+	if ( !SampleNavMeshPosition(m_homePosition, goalPos) )
+		return false;
+
+	if ( !nav->FindPath(startPos, goalPos, m_returnTrianglePath, m_returnPath) )
+		return false;
+
+	while ( m_returnPathIndex < m_returnPath.size() )
+	{
+		if ( DistanceXZ(owner->GetPosition(), m_returnPath[m_returnPathIndex]) >
+			 m_pathPointReachDistance )
+		{
+			break;
+		}
+
+		++m_returnPathIndex;
+	}
+
+	m_bReturningHome =
+		!m_returnPath.empty() &&
+		( m_returnPathIndex < m_returnPath.size() );
+
+	if ( !m_bReturningHome && IsAtHome() )
+	{
+		ResetToHomeTransformForMegaGridSkip();
+		return true;
+	}
+
+	return m_bReturningHome;
+}
+
 bool CMonsterAIComponent::AcquireTarget()
 {
 	if ( !m_pScene )
@@ -400,15 +593,13 @@ void CMonsterAIComponent::UpdateBehavior(float dt)
 
 	if ( !CanChaseTargetByMegaGridCenter(m_pTarget) )
 	{
-		ClearTarget();
-		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		BeginReturnHome();
 		return;
 	}
 
 	if ( !IsTargetInChaseStopRange() )
 	{
-		ClearTarget();
-		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		BeginReturnHome();
 		return;
 	}
 
@@ -852,6 +1043,107 @@ bool CMonsterAIComponent::MoveTowards(const XMFLOAT3& targetPos, float maxStepDi
 	return true;
 }
 
+bool CMonsterAIComponent::FaceTowardsNoClamp(const XMFLOAT3& targetPos)
+{
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return false;
+
+	if ( IsAIActionLockedByAnimation() )
+		return false;
+
+	const XMFLOAT3 pos = owner->GetPosition();
+
+	XMFLOAT3 dir(
+		targetPos.x - pos.x,
+		0.0f,
+		targetPos.z - pos.z
+	);
+
+	const float lenSq = ( dir.x * dir.x ) + ( dir.z * dir.z );
+	if ( lenSq <= 1.0e-8f )
+		return false;
+
+	const float invLen = 1.0f / std::sqrt(lenSq);
+	dir.x *= invLen;
+	dir.z *= invLen;
+
+	if ( auto* tr = owner->GetComponent<CTransformComponent>() )
+	{
+		tr->SetLookDirection(dir, XMFLOAT3(0.0f, 1.0f, 0.0f));
+
+		if ( std::fabs(m_facingYawOffsetDegrees) > 1.0e-6f )
+		{
+			tr->RotateWorldEulerDegrees(
+				0.0f,
+				m_facingYawOffsetDegrees,
+				0.0f
+			);
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+bool CMonsterAIComponent::MoveTowardsNoClamp(
+	const XMFLOAT3& targetPos,
+	float maxStepDistance)
+{
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return false;
+
+	if ( !CanMoveNow() )
+		return false;
+
+	if ( maxStepDistance <= 0.0f )
+		return false;
+
+	const XMFLOAT3 pos = owner->GetPosition();
+
+	XMFLOAT3 delta(
+		targetPos.x - pos.x,
+		0.0f,
+		targetPos.z - pos.z
+	);
+
+	const float lenSq = ( delta.x * delta.x ) + ( delta.z * delta.z );
+	if ( lenSq <= 1.0e-8f )
+		return false;
+
+	const float len = std::sqrt(lenSq);
+	const float step = ( maxStepDistance < len ) ? maxStepDistance : len;
+	const float invLen = 1.0f / len;
+
+	XMFLOAT3 dir(
+		delta.x * invLen,
+		0.0f,
+		delta.z * invLen
+	);
+
+	FaceTowardsNoClamp(targetPos);
+
+	XMFLOAT3 newPos(
+		pos.x + dir.x * step,
+		pos.y,
+		pos.z + dir.z * step
+	);
+
+	XMFLOAT3 sampled{};
+	if ( SampleNavMeshPosition(newPos, sampled) )
+	{
+		owner->SetPosition(sampled);
+	}
+	else
+	{
+		owner->SetPosition(newPos);
+	}
+
+	return true;
+}
+
 bool CMonsterAIComponent::TryMoveDirectlyToTarget(float dt)
 {
 	if ( !GetOwner() || !m_pTarget )
@@ -979,6 +1271,55 @@ bool CMonsterAIComponent::FollowCurrentPath(float dt)
 
 	SetMonsterLocomotionState(EMonsterAnimState::Idle);
 	return false;
+}
+
+bool CMonsterAIComponent::UpdateReturnHome(float dt)
+{
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return false;
+
+	if ( !m_bReturningHome )
+		return false;
+
+	if ( IsAtHome() )
+	{
+		ResetToHomeTransformForMegaGridSkip();
+		return true;
+	}
+
+	if ( dt <= 0.0f )
+		return false;
+
+	if ( !CanMoveNow() )
+	{
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		return true;
+	}
+
+	const float moveDistance = m_moveSpeed * dt;
+	if ( moveDistance <= 0.0f )
+		return false;
+
+	while ( m_returnPathIndex < m_returnPath.size() )
+	{
+		const XMFLOAT3 waypoint = m_returnPath[m_returnPathIndex];
+
+		const float dist = GetDistanceToPointXZ(waypoint);
+
+		if ( dist <= m_pathPointReachDistance )
+		{
+			++m_returnPathIndex;
+			continue;
+		}
+
+		SetMonsterLocomotionState(EMonsterAnimState::Run);
+		MoveTowardsNoClamp(waypoint, moveDistance);
+		return true;
+	}
+
+	ResetToHomeTransformForMegaGridSkip();
+	return true;
 }
 
 bool CMonsterAIComponent::SampleNavMeshPosition(const XMFLOAT3& inPos, XMFLOAT3& outPos, int* outTri) const
