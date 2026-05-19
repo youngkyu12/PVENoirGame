@@ -40,6 +40,23 @@ static bool IsOwnerActionLocked(CGameObject* owner)
     return false;
 }
 
+static bool CanOwnerUseRunLocomotion(CGameObject* owner)
+{
+	if ( !owner )
+		return true;
+
+	if ( auto* animComp = owner->GetComponent<CAnimatorComponent>() )
+	{
+		if ( auto* ctrl = animComp->GetController() )
+			return ctrl->CanUseRunLocomotion();
+	}
+
+	if ( auto* ctrl = owner->GetAnimController() )
+		return ctrl->CanUseRunLocomotion();
+
+	return true;
+}
+
 CPlayerControllerComponent::CPlayerControllerComponent(CGameObject* owner)
     : CComponentT<CPlayerControllerComponent>(owner)
 {
@@ -92,7 +109,7 @@ void CPlayerControllerComponent::SyncAnimatorLocomotion()
 		m_inputDir & ( kDirForward | kDirBackward | kDirLeft | kDirRight );
 
 	const float speed = ( horizontalDirBits ? 1.0f : 0.0f );
-	const bool runRequested = ( horizontalDirBits != 0 ) && m_isRunRequested;
+	const bool runRequested = IsEffectiveRunRequested();
 
     if (auto* animComp = owner->GetComponent<CAnimatorComponent>())
     {
@@ -320,6 +337,23 @@ void CPlayerControllerComponent::SetRunRequested(bool run)
 
 	m_isRunRequested = run;
 	SyncAnimatorLocomotion();
+}
+
+bool CPlayerControllerComponent::IsEffectiveRunRequested() const
+{
+	if ( !m_inputEnabled )
+		return false;
+
+	const DWORD horizontalDirBits =
+		m_inputDir & ( kDirForward | kDirBackward | kDirLeft | kDirRight );
+
+	if ( horizontalDirBits == 0 )
+		return false;
+
+	if ( !m_isRunRequested )
+		return false;
+
+	return CanOwnerUseRunLocomotion(GetOwner());
 }
 
 bool CPlayerControllerComponent::IsRunLocomotionActive() const
