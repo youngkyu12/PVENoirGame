@@ -345,7 +345,7 @@ void CMonsterAIComponent::UpdateBehavior(float dt)
 	}
 
 	// 공격 범위면 이동 정지 + 공격
-	if ( IsTargetInAttackRange() )
+	if ( IsTargetInAttackRange() && CanStartAttackAgainstTarget() )
 	{
 		ClearPath();
 		SetMonsterLocomotionState(EMonsterAnimState::Idle);
@@ -396,6 +396,11 @@ void CMonsterAIComponent::UpdateBehavior(float dt)
 }
 
 bool CMonsterAIComponent::ShouldMoveTowardsTarget() const
+{
+	return true;
+}
+
+bool CMonsterAIComponent::CanStartAttackAgainstTarget() const
 {
 	return true;
 }
@@ -692,7 +697,9 @@ bool CMonsterAIComponent::TryMoveDirectlyToTarget(float dt)
 	return MoveTowards(goalPos, moveDistance);
 }
 
-bool CMonsterAIComponent::HasDirectNavMeshLineTo(const XMFLOAT3& targetPos) const
+bool CMonsterAIComponent::HasDirectNavMeshLineTo(
+	const XMFLOAT3& targetPos,
+	bool clampTargetToMovementBounds) const
 {
 	CGameObject* owner = GetOwner();
 	if ( !owner )
@@ -708,12 +715,16 @@ bool CMonsterAIComponent::HasDirectNavMeshLineTo(const XMFLOAT3& targetPos) cons
 	if ( !nav->SamplePosition(owner->GetPosition(), startPos, nullptr, 1.0f) )
 		return false;
 
-	const XMFLOAT3 clampedTargetPos = ClampPointToMovementBounds(targetPos);
+	const XMFLOAT3 desiredTargetPos =
+		clampTargetToMovementBounds
+		? ClampPointToMovementBounds(targetPos)
+		: targetPos;
 
-	if ( !nav->SamplePosition(clampedTargetPos, goalPos, nullptr, 1.0f) )
+	if ( !nav->SamplePosition(desiredTargetPos, goalPos, nullptr, 1.0f) )
 		return false;
 
-	goalPos = ClampPointToMovementBounds(goalPos);
+	if ( clampTargetToMovementBounds )
+		goalPos = ClampPointToMovementBounds(goalPos);
 
 	return nav->HasLineOfSight(startPos, goalPos, 1.0f);
 }
@@ -801,14 +812,16 @@ void CMonsterAIComponent::UpdateCooldowns(float dt)
 	if ( dt <= 0.0f )
 		return;
 
-	if ( m_attackCooldownRemaining > 0.0f )
+	const bool actionLocked = IsAIActionLockedByAnimation();
+
+	if ( !actionLocked && m_attackCooldownRemaining > 0.0f )
 	{
 		m_attackCooldownRemaining -= dt;
 		if ( m_attackCooldownRemaining < 0.0f )
 			m_attackCooldownRemaining = 0.0f;
 	}
 
-	if ( m_postAttackMoveLockRemaining > 0.0f )
+	if ( !actionLocked && m_postAttackMoveLockRemaining > 0.0f )
 	{
 		m_postAttackMoveLockRemaining -= dt;
 		if ( m_postAttackMoveLockRemaining < 0.0f )
