@@ -1739,9 +1739,6 @@ bool CGameScene::ShouldSkipMonsterByMegaGrid(
 	if ( !monster )
 		return false;
 
-	if ( activeMegaGridNumber <= 0 )
-		return false;
-
 	const SkinnedComponentCache* cache =
 		GetSkinnedComponentCache(skinnedBatchObjectIndex);
 
@@ -1751,16 +1748,61 @@ bool CGameScene::ShouldSkipMonsterByMegaGrid(
 	if ( !cache->isNpc )
 		return false;
 
-	if ( skinnedBatchObjectIndex >= static_cast< UINT >( m_skinnedMonsterMegaGridNumbers.size() ) )
+	if ( activeMegaGridNumber <= 0 )
+		return true;
+
+	if ( skinnedBatchObjectIndex >=
+		 static_cast< UINT >( m_skinnedMonsterMegaGridNumbers.size() ) )
+	{
 		return false;
+	}
 
 	const int monsterMegaGridNumber =
-		m_skinnedMonsterMegaGridNumbers[( size_t ) skinnedBatchObjectIndex];
+		m_skinnedMonsterMegaGridNumbers[
+			static_cast< size_t >( skinnedBatchObjectIndex )
+		];
 
 	if ( monsterMegaGridNumber <= 0 )
 		return false;
 
 	return monsterMegaGridNumber != activeMegaGridNumber;
+}
+
+void CGameScene::ResetMonsterToHomeForMegaGridSkip(CGameObject* monster) const
+{
+	if ( !monster )
+		return;
+
+	if ( IsMonsterDead(monster) )
+		return;
+
+	auto ResetAI =
+		[ ] (CMonsterAIComponent* ai) -> bool
+		{
+			if ( !ai )
+				return false;
+
+			ai->ResetToHomeTransformForMegaGridSkip();
+			return true;
+		};
+
+	if ( ResetAI(monster->GetComponent<CGhoulAIComponent>()) )
+		return;
+
+	if ( ResetAI(monster->GetComponent<CSwordManAIComponent>()) )
+		return;
+
+	if ( ResetAI(monster->GetComponent<CBowManAIComponent>()) )
+		return;
+
+	if ( ResetAI(monster->GetComponent<CMutantAIComponent>()) )
+		return;
+
+	if ( ResetAI(monster->GetComponent<CBossAIComponent>()) )
+		return;
+
+	if ( ResetAI(monster->GetComponent<CMonsterAIComponent>()) )
+		return;
 }
 
 uint16_t CGameScene::ComputeStaticObjectMegaGridMask(CGameObject* obj) const
@@ -5395,6 +5437,13 @@ void CGameScene::AnimateObjects(float dt)
 
 	CCamera* camera = GetMainCamera();
 
+#ifndef USING_NETWORK
+	const int activeMonsterMegaGridNumber =
+		GetLocalPlayerMegaGridNumberForMonsterTick();
+#else
+	const int activeMonsterMegaGridNumber = -1;
+#endif
+
 	for ( UINT j = 0; j < static_cast< UINT >(m_skinnedComponentCache.size()); ++j )
 	{
 		const SkinnedComponentCache& cache = m_skinnedComponentCache[j];
@@ -5402,6 +5451,21 @@ void CGameScene::AnimateObjects(float dt)
 		CGameObject* obj = cache.object;
 		if ( !obj )
 			continue;
+
+#ifndef USING_NETWORK
+		if ( ShouldSkipMonsterByMegaGrid(obj, j, activeMonsterMegaGridNumber) )
+		{
+			// 플레이어가 이 몬스터의 400x400 메가그리드 밖에 있다.
+			// 이 경우 복귀 이동을 시뮬레이션하지 않고 생성 위치로 즉시 되돌린 뒤,
+			// 기존처럼 AI/애니메이션 update 자체를 skip한다.
+			ResetMonsterToHomeForMegaGridSkip(obj);
+
+			if ( cache.animator )
+				cache.animator->SetPoseEvaluationEnabled(false);
+
+			continue;
+		}
+#endif
 
 #ifdef USING_NETWORK
 		const bool shouldEvaluatePose =
@@ -5413,7 +5477,8 @@ void CGameScene::AnimateObjects(float dt)
 		if ( cache.animator )
 			cache.animator->SetPoseEvaluationEnabled(shouldEvaluatePose);
 
-		if ( !obj->GetActive() ) continue;
+		if ( !obj->GetActive() )
+			continue;
 
 		obj->Animate(dt);
 	}
