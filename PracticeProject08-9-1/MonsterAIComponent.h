@@ -40,7 +40,24 @@ public:
 	void SetEnabledAI(bool enabled) { m_bAIEnabled = enabled; }
 	bool IsAIEnabled() const { return m_bAIEnabled; }
 
-	void SetDetectRange(float v) { m_detectRange = v; }
+	void SetDetectRange(float v) { SetChaseStopRange(v); }
+
+	void SetChaseStartRange(float v)
+	{
+		m_chaseStartRange = ( v > 0.0f ) ? v : 0.0f;
+	}
+
+	void SetChaseStopRange(float v)
+	{
+		m_chaseStopRange = ( v > 0.0f ) ? v : 0.0f;
+	}
+
+	void SetChaseRanges(float startRange, float stopRange)
+	{
+		SetChaseStartRange(startRange);
+		SetChaseStopRange(stopRange);
+	}
+
 	void SetAttackRange(float v) { m_attackRange = v; }
 	void SetMoveSpeed(float v) { m_moveSpeed = v; }
 	void SetAttackCooldown(float v) { m_attackCooldown = v; }
@@ -48,8 +65,11 @@ public:
 	void SetPathPointReachDistance(float v) { m_pathPointReachDistance = v; }
 	void SetGoalReachDistance(float v) { m_goalReachDistance = v; }
 	void SetFacingYawOffsetDegrees(float v) { m_facingYawOffsetDegrees = v; }
-	
-	float GetDetectRange() const { return m_detectRange; }
+
+	float GetDetectRange() const { return m_chaseStopRange; }
+	float GetChaseStartRange() const { return m_chaseStartRange; }
+	float GetChaseStopRange() const { return m_chaseStopRange; }
+
 	float GetAttackRange() const { return m_attackRange; }
 	float GetMoveSpeed() const { return m_moveSpeed; }
 	float GetAttackCooldown() const { return m_attackCooldown; }
@@ -66,6 +86,13 @@ public:
 	float GetDistanceToPointXZ(const XMFLOAT3& p) const;
 
 	bool IsTargetInDetectRange() const;
+
+	bool IsObjectInChaseStartRange(CGameObject* obj) const;
+	bool IsObjectInChaseStopRange(CGameObject* obj) const;
+
+	bool IsTargetInChaseStartRange() const;
+	bool IsTargetInChaseStopRange() const;
+
 	bool IsTargetInAttackRange() const;
 
 	bool CanAttackNow() const;
@@ -124,7 +151,9 @@ protected:
 
 	bool m_bAIEnabled = true;
 
-	float m_detectRange = 12.0f;
+	float m_chaseStartRange = 12.0f;
+	float m_chaseStopRange = 12.0f;
+
 	float m_attackRange = 1.5f;
 	float m_moveSpeed = 2.0f;
 	float m_attackCooldown = 1.0f;
