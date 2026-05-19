@@ -108,6 +108,8 @@ protected:
 	bool TryMoveDirectlyToTarget(float dt);
 	bool FollowCurrentPath(float dt);
 
+	bool HasDirectNavMeshLineTo(const XMFLOAT3& targetPos) const;
+
 	bool SampleNavMeshPosition(const XMFLOAT3& inPos, XMFLOAT3& outPos, int* outTri = nullptr) const;
 
 	void UpdateCooldowns(float dt);

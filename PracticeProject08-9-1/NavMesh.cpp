@@ -141,6 +141,44 @@ namespace
 		return DistanceSqXZ(a, b) <= kPointEqualEpsilonSq;
 	}
 
+	static bool SegmentSegmentIntersectXZParam(
+	const XMFLOAT3& p0,
+	const XMFLOAT3& p1,
+	const XMFLOAT3& q0,
+	const XMFLOAT3& q1,
+	float& outT,
+	float& outU)
+	{
+		const float rx = p1.x - p0.x;
+		const float rz = p1.z - p0.z;
+
+		const float sx = q1.x - q0.x;
+		const float sz = q1.z - q0.z;
+
+		const float denom = ( rx * sz ) - ( rz * sx );
+
+		if ( std::fabs(denom) <= 1.0e-6f )
+			return false;
+
+		const float qpx = q0.x - p0.x;
+		const float qpz = q0.z - p0.z;
+
+		const float t = ( qpx * sz - qpz * sx ) / denom;
+		const float u = ( qpx * rz - qpz * rx ) / denom;
+
+		constexpr float kIntersectEps = 1.0e-4f;
+
+		if ( t < -kIntersectEps || t > 1.0f + kIntersectEps )
+			return false;
+
+		if ( u < -kIntersectEps || u > 1.0f + kIntersectEps )
+			return false;
+
+		outT = std::clamp(t, 0.0f, 1.0f);
+		outU = std::clamp(u, 0.0f, 1.0f);
+		return true;
+	}
+
 	static bool ComputeBarycentricXZ(
 		const XMFLOAT3& p,
 		const XMFLOAT3& a,
@@ -891,6 +929,137 @@ bool CNavMesh::SamplePosition(
 		*outTriangleIndex = triIndex;
 
 	return true;
+}
+
+bool CNavMesh::HasLineOfSight(
+	const XMFLOAT3& startPos,
+	const XMFLOAT3& goalPos,
+	float maxEndpointSearchDistanceXZ) const
+{
+	if ( !m_bLoaded )
+		return false;
+
+	XMFLOAT3 startProj{};
+	XMFLOAT3 goalProj{};
+	int startTri = -1;
+	int goalTri = -1;
+
+	if ( !SamplePosition(startPos, startProj, &startTri, maxEndpointSearchDistanceXZ) )
+		return false;
+
+	if ( !SamplePosition(goalPos, goalProj, &goalTri, maxEndpointSearchDistanceXZ) )
+		return false;
+
+	if ( startTri < 0 || goalTri < 0 )
+		return false;
+
+	if ( startTri == goalTri )
+		return true;
+
+	const float segLenSq = DistanceSqXZ(startProj, goalProj);
+	if ( segLenSq <= kPointEqualEpsilonSq )
+		return true;
+
+	const int triCount = static_cast< int >(m_triangles.size());
+
+	int currentTri = startTri;
+	int previousTri = -1;
+	float currentT = 0.0f;
+
+	// 직선이 정상적인 navmesh를 통과한다면 같은 triangle을 무한히 돌 이유가 없다.
+	// vertex 관통/부동소수 오차 방지를 위해 triCount보다 약간 여유를 둔다.
+	for ( int stepGuard = 0; stepGuard < triCount + 8; ++stepGuard )
+	{
+		if ( currentTri == goalTri )
+			return true;
+
+		if ( currentTri < 0 || currentTri >= triCount )
+			return false;
+
+		const NAVMESH_TRIANGLE& tri = m_triangles[currentTri];
+
+		float bestT = FLT_MAX;
+		int bestNeighbor = -1;
+		bool foundExit = false;
+
+		for ( int edgeIndex = 0; edgeIndex < 3; ++edgeIndex )
+		{
+			uint32_t ia = 0;
+			uint32_t ib = 0;
+			GetTriangleEdgeVertexIndices(tri, edgeIndex, ia, ib);
+
+			if ( ia >= m_vertices.size() || ib >= m_vertices.size() )
+				continue;
+
+			const XMFLOAT3& a = m_vertices[ia];
+			const XMFLOAT3& b = m_vertices[ib];
+
+			float t = 0.0f;
+			float u = 0.0f;
+
+			if ( !SegmentSegmentIntersectXZParam(startProj, goalProj, a, b, t, u) )
+				continue;
+
+			if ( t <= currentT + 1.0e-4f )
+				continue;
+
+			const int neighbor = GetTriangleNeighbor(tri, edgeIndex);
+
+			if ( !foundExit || t < bestT - 1.0e-4f )
+			{
+				foundExit = true;
+				bestT = t;
+				bestNeighbor = neighbor;
+			}
+			else if ( std::fabs(t - bestT) <= 1.0e-4f )
+			{
+				const bool currentValid =
+					( bestNeighbor >= 0 && bestNeighbor < triCount );
+
+				const bool candidateValid =
+					( neighbor >= 0 && neighbor < triCount );
+
+				if ( candidateValid && !currentValid )
+				{
+					bestNeighbor = neighbor;
+				}
+				else if ( candidateValid && currentValid )
+				{
+					if ( bestNeighbor == previousTri && neighbor != previousTri )
+						bestNeighbor = neighbor;
+
+					if ( neighbor == goalTri )
+						bestNeighbor = neighbor;
+				}
+			}
+		}
+
+		if ( !foundExit )
+		{
+			return currentTri == goalTri;
+		}
+
+		if ( bestT >= 1.0f - 1.0e-4f )
+		{
+			return true;
+		}
+
+		if ( bestNeighbor < 0 || bestNeighbor >= triCount )
+		{
+			return false;
+		}
+
+		if ( bestNeighbor == previousTri )
+		{
+			return false;
+		}
+
+		previousTri = currentTri;
+		currentTri = bestNeighbor;
+		currentT = bestT;
+	}
+
+	return false;
 }
 
 bool CNavMesh::GetTriangleCentroid(int triangleIndex, XMFLOAT3& outCentroid) const
