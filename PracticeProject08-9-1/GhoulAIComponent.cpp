@@ -30,17 +30,17 @@ bool CGhoulAIComponent::AcquireTarget()
 	if ( !scene )
 		return false;
 
-	CGameObject* player0 = scene->GetPlayerBySlot(0);
-	if ( !player0 )
+	CGameObject* player = scene->GetPlayer();
+	if ( !player )
 		return false;
 
-	if ( auto* hp = player0->GetComponent<CHealthComponent>() )
+	if ( auto* hp = player->GetComponent<CHealthComponent>() )
 	{
 		if ( hp->IsDead() )
 			return false;
 	}
 
-	SetTarget(player0);
+	SetTarget(player);
 	return true;
 }
 

@@ -10,6 +10,7 @@
 
 #include "GameScene.h"
 #include "NavMesh.h"
+#include "Grid.h"
 #include "Object.h"
 #include "AnimatorComponent.h"
 #include "AnimController.h"
@@ -47,6 +48,72 @@ namespace
 	{
 		return ( std::fabs(v) <= 1e-6f );
 	}
+
+	static bool ComputeMegaGridCenterMovementBounds(
+	const XMFLOAT3& pos,
+	float& outMinX,
+	float& outMaxX,
+	float& outMinZ,
+	float& outMaxZ)
+	{
+		if ( pos.x < static_cast< float >(CSceneGrid::kGridMinX) ||
+			 pos.x > static_cast< float >( CSceneGrid::kGridMaxX ) )
+		{
+			return false;
+		}
+
+		if ( pos.z < static_cast< float >(CSceneGrid::kGridMinZ) ||
+			 pos.z > static_cast< float >( CSceneGrid::kGridMaxZ ) )
+		{
+			return false;
+		}
+
+		int cellX = static_cast< int >( std::floor(pos.x) ) - CSceneGrid::kGridMinX;
+		int cellZ = static_cast< int >( std::floor(pos.z) ) - CSceneGrid::kGridMinZ;
+
+		if ( cellX == CSceneGrid::kGridWidth )
+			cellX = CSceneGrid::kGridWidth - 1;
+
+		if ( cellZ == CSceneGrid::kGridHeight )
+			cellZ = CSceneGrid::kGridHeight - 1;
+
+		if ( cellX < 0 || cellX >= CSceneGrid::kGridWidth )
+			return false;
+
+		if ( cellZ < 0 || cellZ >= CSceneGrid::kGridHeight )
+			return false;
+
+		const int megaX = cellX / CSceneGrid::kMegaGridCellWidth;
+		const int megaZ = cellZ / CSceneGrid::kMegaGridCellHeight;
+
+		if ( megaX < 0 || megaX >= CSceneGrid::kMegaGridCols )
+			return false;
+
+		if ( megaZ < 0 || megaZ >= CSceneGrid::kMegaGridRows )
+			return false;
+
+		const float megaMinX =
+			static_cast< float >(CSceneGrid::kGridMinX + megaX * CSceneGrid::kMegaGridCellWidth);
+
+		const float megaMinZ =
+			static_cast< float >(CSceneGrid::kGridMinZ + megaZ * CSceneGrid::kMegaGridCellHeight);
+
+		const float centerX =
+			megaMinX + static_cast< float >(CSceneGrid::kMegaGridCellWidth) * 0.5f;
+
+		const float centerZ =
+			megaMinZ + static_cast< float >( CSceneGrid::kMegaGridCellHeight ) * 0.5f;
+
+		constexpr float kMonsterMoveCenterSize = 200.0f;
+		constexpr float kMonsterMoveCenterHalf = kMonsterMoveCenterSize * 0.5f;
+
+		outMinX = centerX - kMonsterMoveCenterHalf;
+		outMaxX = centerX + kMonsterMoveCenterHalf;
+		outMinZ = centerZ - kMonsterMoveCenterHalf;
+		outMaxZ = centerZ + kMonsterMoveCenterHalf;
+
+		return true;
+	}
 }
 
 CMonsterAIComponent::CMonsterAIComponent(CGameObject* owner)
@@ -78,11 +145,16 @@ void CMonsterAIComponent::OnUpdate(float dt)
 	if ( !m_pScene )
 		return;
 
-	if ( !CanThinkNow() )
-		return;
+	EnsureMovementBoundsInitialized();
 
 	UpdateCooldowns(dt);
 	UpdatePathTimers(dt);
+
+	if ( !CanThinkNow() )
+	{
+		ClearPath();
+		return;
+	}
 
 	if ( !HasValidTarget() )
 	{
@@ -208,8 +280,12 @@ bool CMonsterAIComponent::RebuildPathToTarget()
 	if ( !SampleNavMeshPosition(GetOwner()->GetPosition(), startPos) )
 		return false;
 
-	if ( !SampleNavMeshPosition(m_pTarget->GetPosition(), goalPos) )
+	const XMFLOAT3 moveGoalPos = GetTargetMoveGoalPosition();
+
+	if ( !SampleNavMeshPosition(moveGoalPos, goalPos) )
 		return false;
+
+	goalPos = ClampPointToMovementBounds(goalPos);
 
 	if ( !nav->FindPath(startPos, goalPos, m_trianglePath, m_currentPath) )
 		return false;
@@ -340,7 +416,7 @@ bool CMonsterAIComponent::ShouldRepath() const
 		return true;
 
 	const XMFLOAT3& lastPoint = m_currentPath.back();
-	const XMFLOAT3 targetPos = m_pTarget->GetPosition();
+	const XMFLOAT3 targetPos = GetTargetMoveGoalPosition();
 
 	const float goalDeltaSq = DistanceSqXZ(lastPoint, targetPos);
 	return goalDeltaSq > ( m_goalReachDistance * m_goalReachDistance );
@@ -351,6 +427,9 @@ bool CMonsterAIComponent::CanMoveNow() const
 	if ( m_postAttackMoveLockRemaining > 0.0f )
 		return false;
 
+	if ( IsAIActionLockedByAnimation() )
+		return false;
+
 	return true;
 }
 
@@ -359,18 +438,81 @@ bool CMonsterAIComponent::CanThinkNow() const
 	if ( IsDeadByHealth(GetOwner()) )
 		return false;
 
+	if ( IsAIActionLockedByAnimation() )
+		return false;
+
 	return true;
 }
 
 bool CMonsterAIComponent::CanAttackNowByState() const
 {
-	if ( auto* ctrl = GetMonsterAnimController() )
-	{
-		if ( ctrl->IsBusy() )
-			return false;
-	}
+	if ( IsAIActionLockedByAnimation() )
+		return false;
 
 	return true;
+}
+
+bool CMonsterAIComponent::IsAIActionLockedByAnimation() const
+{
+	if ( auto* ctrl = GetMonsterAnimController() )
+	{
+		if ( ctrl->BlocksAIControl() )
+			return true;
+	}
+
+	return false;
+}
+
+bool CMonsterAIComponent::EnsureMovementBoundsInitialized()
+{
+	if ( m_bMovementBoundsInitialized )
+		return true;
+
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return false;
+
+	float minX = 0.0f;
+	float maxX = 0.0f;
+	float minZ = 0.0f;
+	float maxZ = 0.0f;
+
+	if ( !ComputeMegaGridCenterMovementBounds(
+		owner->GetPosition(),
+		minX,
+		maxX,
+		minZ,
+		maxZ) )
+	{
+		return false;
+	}
+
+	m_movementMinX = minX;
+	m_movementMaxX = maxX;
+	m_movementMinZ = minZ;
+	m_movementMaxZ = maxZ;
+	m_bMovementBoundsInitialized = true;
+
+	return true;
+}
+
+XMFLOAT3 CMonsterAIComponent::ClampPointToMovementBounds(const XMFLOAT3& p) const
+{
+	if ( !m_bMovementBoundsInitialized )
+		return p;
+
+	XMFLOAT3 out = p;
+	out.x = std::clamp(out.x, m_movementMinX, m_movementMaxX);
+	out.z = std::clamp(out.z, m_movementMinZ, m_movementMaxZ);
+	return out;
+}
+
+XMFLOAT3 CMonsterAIComponent::GetTargetMoveGoalPosition() const
+{
+	if ( !m_pTarget )
+		return GetOwnerPosition();
+
+	return ClampPointToMovementBounds(m_pTarget->GetPosition());
 }
 
 CNavMesh* CMonsterAIComponent::GetNavMesh() const
@@ -438,13 +580,14 @@ bool CMonsterAIComponent::FaceTowards(const XMFLOAT3& targetPos)
 	if ( !owner )
 		return false;
 
+	if ( IsAIActionLockedByAnimation() )
+		return false;
+
+	const XMFLOAT3 faceTargetPos = ClampPointToMovementBounds(targetPos);
+
 	XMFLOAT3 pos = owner->GetPosition();
 
-	XMFLOAT3 dir(
-		targetPos.x - pos.x,
-		0.0f,
-		targetPos.z - pos.z
-	);
+	XMFLOAT3 dir(faceTargetPos.x - pos.x, 0.0f, faceTargetPos.z - pos.z);
 
 	const float lenSq = ( dir.x * dir.x ) + ( dir.z * dir.z );
 	if ( lenSq <= 1e-8f )
@@ -475,16 +618,17 @@ bool CMonsterAIComponent::MoveTowards(const XMFLOAT3& targetPos, float maxStepDi
 	if ( !owner )
 		return false;
 
+	if ( !CanMoveNow() )
+		return false;
+
 	if ( maxStepDistance <= 0.0f )
 		return false;
 
+	const XMFLOAT3 moveTargetPos = ClampPointToMovementBounds(targetPos);
+
 	XMFLOAT3 pos = owner->GetPosition();
 
-	XMFLOAT3 delta(
-		targetPos.x - pos.x,
-		0.0f,
-		targetPos.z - pos.z
-	);
+	XMFLOAT3 delta(moveTargetPos.x - pos.x, 0.0f, moveTargetPos.z - pos.z);
 
 	const float lenSq = ( delta.x * delta.x ) + ( delta.z * delta.z );
 	if ( lenSq <= 1e-8f )
@@ -494,13 +638,9 @@ bool CMonsterAIComponent::MoveTowards(const XMFLOAT3& targetPos, float maxStepDi
 	const float step = ( maxStepDistance < len ) ? maxStepDistance : len;
 	const float invLen = 1.0f / len;
 
-	XMFLOAT3 dir(
-		delta.x * invLen,
-		0.0f,
-		delta.z * invLen
-	);
+	XMFLOAT3 dir(delta.x * invLen, 0.0f, delta.z * invLen);
 
-	FaceTowards(targetPos);
+	FaceTowards(moveTargetPos);
 
 	XMFLOAT3 newPos(
 		pos.x + dir.x * step,
@@ -508,11 +648,13 @@ bool CMonsterAIComponent::MoveTowards(const XMFLOAT3& targetPos, float maxStepDi
 		pos.z + dir.z * step
 	);
 
+	newPos = ClampPointToMovementBounds(newPos);
+
 	// NavMesh 위로 다시 샘플링
 	XMFLOAT3 sampled{};
 	if ( SampleNavMeshPosition(newPos, sampled) )
 	{
-		owner->SetPosition(sampled);
+		owner->SetPosition(ClampPointToMovementBounds(sampled));
 	}
 	else
 	{
@@ -549,7 +691,7 @@ bool CMonsterAIComponent::TryMoveDirectlyToTarget(float dt)
 		return false;
 
 	SetMonsterLocomotionState(EMonsterAnimState::Run);
-	return MoveTowards(m_pTarget->GetPosition(), moveDistance);
+	return MoveTowards(GetTargetMoveGoalPosition(), moveDistance);
 }
 
 bool CMonsterAIComponent::FollowCurrentPath(float dt)
@@ -572,7 +714,9 @@ bool CMonsterAIComponent::FollowCurrentPath(float dt)
 
 	while ( m_currentPathIndex < m_currentPath.size() )
 	{
-		const XMFLOAT3& waypoint = m_currentPath[m_currentPathIndex];
+		const XMFLOAT3 waypoint =
+			ClampPointToMovementBounds(m_currentPath[m_currentPathIndex]);
+
 		const float dist = GetDistanceToPointXZ(waypoint);
 
 		if ( dist <= m_pathPointReachDistance )

@@ -19,8 +19,8 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 	m_bSimulateLocalItemPickup = true;
 #else
 	m_bSimulateLocalPlayerMonsterAttackCollision = false;
-	m_bSimulateLocalAI = false;
-	m_bSimulateLocalEnemySpawner = false;
+	m_bSimulateLocalAI = true;
+	m_bSimulateLocalEnemySpawner = true;
 	m_bSimulateLocalPlayerWorldStaticRollback = true;
 	m_bSimulateLocalTeleport = true;
 	m_bSimulateLocalItemPickup = true;

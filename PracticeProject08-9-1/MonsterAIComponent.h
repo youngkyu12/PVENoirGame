@@ -88,6 +88,12 @@ protected:
 	virtual bool CanThinkNow() const;
 	virtual bool CanAttackNowByState() const;
 
+	bool IsAIActionLockedByAnimation() const;
+
+	bool EnsureMovementBoundsInitialized();
+	XMFLOAT3 ClampPointToMovementBounds(const XMFLOAT3& p) const;
+	XMFLOAT3 GetTargetMoveGoalPosition() const;
+
 protected:
 	CNavMesh* GetNavMesh() const;
 	CAnimatorComponent* GetAnimatorComponent() const;
@@ -128,6 +134,12 @@ protected:
 	float m_postAttackMoveLockDuration = 0.25f;
 
 	float m_repathTimer = 0.0f;
+	bool m_bMovementBoundsInitialized = false;
+
+	float m_movementMinX = 0.0f;
+	float m_movementMaxX = 0.0f;
+	float m_movementMinZ = 0.0f;
+	float m_movementMaxZ = 0.0f;
 
 	std::vector<int> m_trianglePath;
 	std::vector<XMFLOAT3> m_currentPath;
