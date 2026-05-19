@@ -3446,6 +3446,85 @@ void CGameScene::BuildObjectsCollider()
 			if ( !targetObject )
 				return;
 
+			auto IsNpcMonsterObject =
+				[ ] (CGameObject* obj) -> bool
+				{
+					if ( !obj )
+						return false;
+
+					auto* tag = obj->GetComponent<CActorTagComponent>();
+					return tag && tag->kind == EActorKind::NPC;
+				};
+
+			auto IsPlayerWeaponObject =
+				[ ] (CGameObject* obj) -> bool
+				{
+					if ( !obj )
+						return false;
+
+					auto* collider = obj->GetComponent<CColliderComponent>();
+					if ( !collider )
+						return false;
+
+					return collider->GetLayer() == kCollisionLayerPlayerWeapon;
+				};
+
+			auto ForceMonsterAIChaseLocalPlayer =
+				[ this ] (CGameObject* monster)
+				{
+					if ( !monster )
+						return;
+
+					CGameObject* player = GetPlayer();
+					if ( !player )
+						player = GetPlayerBySlot(0);
+
+					if ( !player )
+						return;
+
+					if ( auto* ai = monster->GetComponent<CGhoulAIComponent>() )
+					{
+						ai->ForceChaseTarget(player);
+						return;
+					}
+
+					if ( auto* ai = monster->GetComponent<CSwordManAIComponent>() )
+					{
+						ai->ForceChaseTarget(player);
+						return;
+					}
+
+					if ( auto* ai = monster->GetComponent<CBowManAIComponent>() )
+					{
+						ai->ForceChaseTarget(player);
+						return;
+					}
+
+					if ( auto* ai = monster->GetComponent<CMutantAIComponent>() )
+					{
+						ai->ForceChaseTarget(player);
+						return;
+					}
+
+					if ( auto* ai = monster->GetComponent<CBossAIComponent>() )
+					{
+						ai->ForceChaseTarget(player);
+						return;
+					}
+
+					// Component 시스템이 base 타입 조회를 지원하는 경우의 fallback.
+					if ( auto* ai = monster->GetComponent<CMonsterAIComponent>() )
+					{
+						ai->ForceChaseTarget(player);
+						return;
+					}
+				};
+
+			if ( IsNpcMonsterObject(targetObject) && IsPlayerWeaponObject(weaponObject) )
+			{
+				ForceMonsterAIChaseLocalPlayer(targetObject);
+			}
+
 			XMFLOAT3 hitDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
 
 			if ( weaponObject )
