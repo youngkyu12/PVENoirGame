@@ -1186,9 +1186,14 @@ void CGameFramework::ProcessInput()
 		if (pKeysBuffer[VK_PRIOR] & 0xF0) dwDirection |= DIR_UP;
 		if (pKeysBuffer[VK_NEXT] & 0xF0)  dwDirection |= DIR_DOWN;
 
-		bRunRequested =
+		const bool shiftDown =
 			( ( pKeysBuffer[VK_LSHIFT] & 0xF0 ) != 0 ) ||
 			( ( pKeysBuffer[VK_SHIFT] & 0xF0 ) != 0 );
+
+		const DWORD horizontalDirBits =
+			dwDirection & ( DIR_FORWARD | DIR_BACKWARD | DIR_LEFT | DIR_RIGHT );
+
+		bRunRequested = shiftDown && ( horizontalDirBits != 0 );
 
 		static bool s_prevSpaceDown = false;
 		const bool spaceDown = ( pKeysBuffer[VK_SPACE] & 0xF0 ) != 0;

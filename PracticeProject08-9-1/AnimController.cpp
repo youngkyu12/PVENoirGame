@@ -1042,6 +1042,48 @@ void CAnimController::LocalUpdate(float dt)
 
 }
 
+bool CAnimController::IsRunLocomotionActive() const
+{
+	if ( !m_pOwner )
+		return false;
+
+	if ( !m_usePlayerClipSet )
+		return false;
+
+	// 구르기, 피격, 사망, 공격 등 액션 중에는
+	// Shift + WASD 입력이 들어와도 AI 감지용 "달리기"로 취급하지 않는다.
+	if ( m_actionPhase != EActionPhase::None )
+		return false;
+
+	const uint32_t horizontalDirBits =
+		m_moveDirBits & ( DIR_FORWARD | DIR_BACKWARD | DIR_LEFT | DIR_RIGHT );
+
+	if ( horizontalDirBits == 0 )
+		return false;
+
+	if ( !m_bRunRequested )
+		return false;
+
+	if ( m_state != EAnimState::Move )
+		return false;
+
+	CAnimator* anim = nullptr;
+
+	if ( auto* animComp = m_pOwner->GetComponent<CAnimatorComponent>() )
+		anim = animComp->GetAnimator();
+
+	if ( !anim )
+		anim = m_pOwner->GetAnimator();
+
+	if ( !anim )
+		return false;
+
+	const std::string& currentClip = anim->GetCurrentClipName();
+
+	// 실제 Run_* locomotion clip이 현재 재생 중일 때만 true.
+	return currentClip.rfind("Run_", 0) == 0;
+}
+
 bool CAnimController::IsActionLocked() const
 {
 	if ( m_actionPhase == EActionPhase::None )
