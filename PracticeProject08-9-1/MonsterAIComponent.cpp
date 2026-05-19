@@ -219,6 +219,9 @@ bool CMonsterAIComponent::ForceChaseTarget(CGameObject* target)
 	if ( !target )
 		return false;
 
+	if ( m_pScene && !m_pScene->IsLocalMonsterChaseEnabled() )
+		return false;
+
 	if ( auto* hp = target->GetComponent<CHealthComponent>() )
 	{
 		if ( hp->IsDead() )
@@ -235,6 +238,35 @@ void CMonsterAIComponent::ClearTarget()
 {
 	m_pTarget = nullptr;
 	ClearPath();
+}
+
+void CMonsterAIComponent::StopChaseAndReturnHome()
+{
+	CGameObject* owner = GetOwner();
+
+	if ( !owner )
+		return;
+
+	if ( IsDeadByHealth(owner) )
+	{
+		ClearTarget();
+		ClearPath();
+		ClearReturnHomePath();
+		return;
+	}
+
+	EnsureHomeTransformCaptured();
+
+	if ( IsAtHome() )
+	{
+		ClearTarget();
+		ClearPath();
+		ClearReturnHomePath();
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		return;
+	}
+
+	BeginReturnHome();
 }
 
 void CMonsterAIComponent::SetHomeTransform(const XMFLOAT3& position, float yawDeg)
@@ -566,6 +598,9 @@ bool CMonsterAIComponent::AcquireTarget()
 	if ( !player )
 		return false;
 
+	if ( m_pScene && !m_pScene->IsLocalMonsterChaseEnabled() )
+		return false;
+
 	if ( auto* hp = player->GetComponent<CHealthComponent>() )
 	{
 		if ( hp->IsDead() )
@@ -588,6 +623,12 @@ void CMonsterAIComponent::UpdateBehavior(float dt)
 	{
 		ClearPath();
 		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		return;
+	}
+
+	if ( m_pScene && !m_pScene->IsLocalMonsterChaseEnabled() )
+	{
+		BeginReturnHome();
 		return;
 	}
 

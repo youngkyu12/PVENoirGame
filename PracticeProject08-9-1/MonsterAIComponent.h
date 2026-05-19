@@ -37,6 +37,7 @@ public:
 	bool ForceChaseTarget(CGameObject* target);
 
 	void ClearTarget();
+	void StopChaseAndReturnHome();
 
 	void SetHomeTransform(const XMFLOAT3& position, float yawDeg);
 	void CaptureHomeTransformFromOwner();
