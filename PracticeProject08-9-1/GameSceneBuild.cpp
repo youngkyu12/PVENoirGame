@@ -136,7 +136,6 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_helmetCount = m_MutantCount;
 
 	m_EnemySpawnCount = 200;
-	m_terrainCount = 1;
 
 #ifdef USING_NETWORK
 	const UINT worldStaticCount = static_cast< UINT >( m_staticPlacementEntries.size() );
@@ -152,8 +151,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		m_PlayerSwordCount +
 		m_PlayerAxeCount +
 		m_PlayerGunCount +
-		m_swordManCount +
-		m_terrainCount;
+		m_swordManCount;
 
 	m_skinnedBatch.capacity =
 		m_ghoulCount +
@@ -274,6 +272,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		kDsvFormat
 	);
 
+	CreateTerrainData();
 	BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
 	BuildItemBillboardBatch(dev, cmd, kRTCount, rtvFormats, kDsvFormat);
 
@@ -318,6 +317,22 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(iamReady);
 	g_clientService->BroadCast(sendBuffer);
 #endif
+}
+
+void CGameScene::CreateTerrainData()
+{
+	XMFLOAT3 xmf3Scale(8.0f, 2.0f, 8.0f);
+	XMFLOAT4 xmf4Color(0.0f, 0.2f, 0.0f, 0.0f);
+
+	m_TerrainData = std::make_shared<TerrainData>(
+		_T("Image/HeightMap.raw"),
+		257,
+		257,
+		257,
+		257,
+		xmf3Scale,
+		xmf4Color
+	);
 }
 
 void CGameScene::BuildStaticBatch(
@@ -457,6 +472,9 @@ void CGameScene::BuildStaticBatch(
 		AssetType resolvedAssetType{};
 		if ( !ResolveStaticAssetDesc(placement.assetName, desc, &resolvedAssetType) )
 			continue;
+
+		if ( placement.assetName == "Terrain" )
+			desc.terrainData = m_TerrainData;
 
 		std::shared_ptr<CMesh> selectedMesh = nullptr;
 		std::array<std::shared_ptr<CMesh>, 3> loadedLodMeshes = { nullptr, nullptr, nullptr };
@@ -2604,6 +2622,7 @@ void CGameScene::ResetStaticPlacementCounts()
 {
 	m_grassCount = 0;
 	m_groundCount = 0;
+	m_terrainCount = 0;
 	m_villagewallCount = 0;
 	m_castleCount = 0;
 	m_dirtRoadCount = 0;
@@ -2628,6 +2647,7 @@ void CGameScene::ApplyStaticPlacementCounts()
 	{
 		if ( e.assetName == "Grass" )       ++m_grassCount;
 		else if ( e.assetName == "Ground" )      ++m_groundCount;
+		else if ( e.assetName == "Terrain" )     ++m_terrainCount;
 		else if ( e.assetName == "VillageWall" ) ++m_villagewallCount;
 		else if ( e.assetName == "Castle" )    ++m_castleCount;
 		else if ( e.assetName == "DirtRoad" )    ++m_dirtRoadCount;
@@ -2746,6 +2766,9 @@ bool CGameScene::LoadStaticPlacementFile(const std::string& filePath)
 	if ( !fin.is_open() )
 		return false;
 
+	const size_t TerrainPlacementCount = 9;
+	size_t terrainCount = 0;
+
 	std::string line;
 	while ( std::getline(fin, line) )
 	{
@@ -2760,9 +2783,19 @@ bool CGameScene::LoadStaticPlacementFile(const std::string& filePath)
 			continue;
 
 		entry.yawDeg = QuaternionToYawDegrees(entry.rot);
+
+		if ( entry.assetName == "Grass" && terrainCount < TerrainPlacementCount )
+		{
+			StaticPlacementEntry terrainEntry = entry;
+			terrainEntry.assetName = "Terrain";
+			terrainEntry.objectName = "Terrain";
+			m_staticPlacementEntries.push_back(std::move(terrainEntry));
+			++terrainCount;
+		}
+
 		m_staticPlacementEntries.push_back(std::move(entry));
 	}
-
+	
 	ApplyStaticPlacementCounts();
 	return !m_staticPlacementEntries.empty();
 }

@@ -278,6 +278,11 @@ bool ResolveStaticAssetPathDesc(const std::string& assetName, StaticAssetPathDes
 		outDesc = { AssetType::Grass, "Assets/GroundPlane/Mesh/Grass.bin", "Assets/GroundPlane/Texture" };
 		return true;
 	}
+	if ( assetName == "Terrain" )
+	{
+		outDesc = { AssetType::Terrain, "", "Assets/GroundPlane/Texture" };
+		return true;
+	}
 	if ( assetName == "Ground" )
 	{
 		outDesc = { AssetType::Ground, "Assets/GroundPlane/Mesh/Ground.bin", "Assets/GroundPlane/Texture" };
@@ -385,6 +390,7 @@ bool ResolveStaticAssetPathDesc(const std::string& assetName, StaticAssetPathDes
 bool IsStaticWorldLodSupportedAssetName(const std::string& assetName)
 {
 	if ( assetName == "Grass" ) return false;
+	if ( assetName == "Terrain" ) return false;
 	if ( assetName == "Ground" ) return false;
 	if ( assetName == "DirtRoad" ) return false;
 
@@ -416,6 +422,7 @@ bool IsStaticWorldLodSupportedAssetName(const std::string& assetName)
 bool ShouldUseStaticWorldDistanceCull(const std::string& assetName)
 {
 	if ( assetName == "Grass" ) return false;
+	if ( assetName == "Terrain" ) return false;
 	if ( assetName == "Ground" ) return false;
 	if ( assetName == "DirtRoad" ) return false;
 	if ( assetName == "VillageWall" ) return false;
@@ -493,6 +500,7 @@ bool ResolveGhoulSkinnedLodAssetDesc(int lodLevel, AssetBuildDesc& outDesc)
 bool ShouldCreateWorldStaticCollider(const std::string& assetName)
 {
 	if ( assetName == "Grass" )    return false;
+	if ( assetName == "Terrain" )    return false;
 	if ( assetName == "Ground" )   return false;
 	if ( assetName == "DirtRoad" ) return false;
 	return true;

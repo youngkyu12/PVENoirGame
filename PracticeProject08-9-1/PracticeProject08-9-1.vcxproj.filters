@@ -412,6 +412,9 @@
     <ClInclude Include="EnemySpawner.h">
       <Filter>EnemySpawner</Filter>
     </ClInclude>
+    <ClInclude Include="TerrainData.h" />
+    <ClInclude Include="TerrainComponent.h" />
+    <ClInclude Include="HeightMapImage.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -618,6 +621,9 @@
     <ClCompile Include="GameSceneBuild.cpp">
       <Filter>Scene\GameScene</Filter>
     </ClCompile>
+    <ClCompile Include="TerrainData.cpp" />
+    <ClCompile Include="TerrainComponent.cpp" />
+    <ClCompile Include="HeightMapImage.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PracticeProject08-9-1.rc">

@@ -36,6 +36,7 @@ class CSkinningComponent;
 class CAnimatorComponent;
 class CHealthComponent;
 class CActorTagComponent;
+class TerrainData;
 
 struct CB_GAMEOBJECT_INFO;
 
@@ -367,6 +368,8 @@ public:
     // Build
 public:
     void BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd) override;
+
+	void CreateTerrainData();
 
 protected:
     void CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target) override;
@@ -1140,6 +1143,9 @@ private:
 	std::vector<UINT>                   m_skinnedBonePaletteCountByObject;
 
 	UINT                                m_skinnedBonePaletteCapacity = 0;
+
+	// Terrain
+	std::shared_ptr<TerrainData> m_TerrainData;
 	
 	void BuildStaticWorldSubmeshOOBBDebugObjects(
 	ID3D12Device* dev,

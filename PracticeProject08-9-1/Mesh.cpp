@@ -8,6 +8,7 @@
 #include "Mesh.h"
 #include "Animator.h"
 #include "Object.h"
+#include "HeightMapImage.h"
 
 static std::string NormalizeMaterialLikeName(const std::string& text)
 {
@@ -1483,3 +1484,213 @@ CCapsuleMeshDiffused::CCapsuleMeshDiffused(
 	sm.ibView.Format = DXGI_FORMAT_R32_UINT;
 	sm.ibView.SizeInBytes = ibSize;
 }
+
+CHeightMapGridMesh::CHeightMapGridMesh(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList, 
+	int nBlockWidth, int nBlockLength, int nWidth, int nLength, 
+	XMFLOAT3 xmf3Scale, XMFLOAT4 xmf4Color, void* pContext)
+	: CMesh(pd3dDevice, pd3dCommandList)
+{
+	m_nWidth = 0;
+	m_nLength = 0;
+	m_xmf3Scale = xmf3Scale;
+
+	if ( !pd3dDevice || !pd3dCommandList || nWidth < 2 || nLength < 2 )
+		return;
+
+	m_Bones.clear();
+	m_BoneNameToIndex.clear();
+	m_SubMeshes.clear();
+	m_bSkinnedMesh = false;
+
+	// 현재 CMesh::Render()는 m_SubMeshes 기반의 triangle list를 렌더링한다.
+	m_d3dPrimitiveTopology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	m_nWidth = nWidth;
+	m_nLength = nLength;
+
+	HeightMapImage* pHeightMapImage = static_cast< HeightMapImage* >( pContext );
+
+	int cxQuadsPerBlock = nBlockWidth - 1;
+	int czQuadsPerBlock = nBlockLength - 1;
+	if ( cxQuadsPerBlock <= 0 || czQuadsPerBlock <= 0 )
+		return;
+
+	long cxBlocks = (m_nWidth - 1 + cxQuadsPerBlock - 1) / cxQuadsPerBlock;
+	long czBlocks = (m_nLength - 1 + czQuadsPerBlock - 1) / czQuadsPerBlock;
+
+	m_SubMeshes.resize(static_cast< size_t >( cxBlocks ) * static_cast< size_t >( czBlocks ));
+
+	for (int z = 0, zStart = 0; z < czBlocks; z++)
+	{
+		for (int x = 0, xStart = 0; x < cxBlocks; x++)
+		{
+			xStart = x * cxQuadsPerBlock;
+			zStart = z * czQuadsPerBlock;
+
+			const int blockWidth = min(nBlockWidth, m_nWidth - xStart);
+			const int blockLength = min(nBlockLength, m_nLength - zStart);
+			if ( blockWidth < 2 || blockLength < 2 )
+				continue;
+
+			SubMesh& sm = m_SubMeshes[static_cast< size_t >( z ) * static_cast< size_t >( cxBlocks ) + static_cast< size_t >( x )];
+
+			const size_t vertexCount = static_cast< size_t >( blockWidth ) * static_cast< size_t >( blockLength );
+			sm.positions.reserve(vertexCount);
+			sm.normals.reserve(vertexCount);
+			sm.uvs.reserve(vertexCount);
+			sm.tangents.reserve(vertexCount);
+			sm.boneIndices.reserve(vertexCount);
+			sm.boneWeights.reserve(vertexCount);
+
+			for ( int localZ = 0; localZ < blockLength; ++localZ )
+			{
+				const int heightMapZ = zStart + localZ;
+				for ( int localX = 0; localX < blockWidth; ++localX )
+				{
+					const int heightMapX = xStart + localX;
+					const float height = pHeightMapImage ? OnGetHeight(heightMapX, heightMapZ, pContext) : 0.0f;
+					const XMFLOAT3 position(
+						heightMapX * m_xmf3Scale.x,
+						height,
+						heightMapZ * m_xmf3Scale.z
+					);
+
+					sm.positions.push_back(position);
+					sm.normals.push_back(pHeightMapImage ? pHeightMapImage->GetHeightMapNormal(heightMapX, heightMapZ) : XMFLOAT3(0.0f, 1.0f, 0.0f));
+
+					const float u = ( m_nWidth > 1 ) ? static_cast< float >( heightMapX ) / static_cast< float>( m_nWidth - 1 ) : 0.0f;
+					const float v = ( m_nLength > 1 ) ? static_cast< float >( heightMapZ ) / static_cast< float >( m_nLength - 1 ) : 0.0f;
+					sm.uvs.emplace_back(u, v);
+					sm.tangents.emplace_back(1.0f, 0.0f, 0.0f, 1.0f);
+					sm.boneIndices.emplace_back(0, 0, 0, 0);
+					sm.boneWeights.emplace_back(1.0f, 0.0f, 0.0f, 0.0f);
+
+					sm.subMeshMin.x = min(sm.subMeshMin.x, position.x);
+					sm.subMeshMin.y = min(sm.subMeshMin.y, position.y);
+					sm.subMeshMin.z = min(sm.subMeshMin.z, position.z);
+
+					sm.subMeshMax.x = max(sm.subMeshMax.x, position.x);
+					sm.subMeshMax.y = max(sm.subMeshMax.y, position.y);
+					sm.subMeshMax.z = max(sm.subMeshMax.z, position.z);
+				}
+			}
+
+			MeshMin.x = min(MeshMin.x, sm.subMeshMin.x);
+			MeshMin.y = min(MeshMin.y, sm.subMeshMin.y);
+			MeshMin.z = min(MeshMin.z, sm.subMeshMin.z);
+
+			MeshMax.x = max(MeshMax.x, sm.subMeshMax.x);
+			MeshMax.y = max(MeshMax.y, sm.subMeshMax.y);
+			MeshMax.z = max(MeshMax.z, sm.subMeshMax.z);
+
+			sm.indices.reserve(static_cast< size_t >( blockWidth - 1 ) * static_cast< size_t >( blockLength - 1 ) * 6);
+			for ( int localZ = 0; localZ < blockLength - 1; ++localZ )
+			{
+				for ( int localX = 0; localX < blockWidth - 1; ++localX )
+				{
+					const UINT i0 = static_cast< UINT >( localX + ( localZ * blockWidth ) );
+					const UINT i1 = static_cast< UINT >( ( localX + 1 ) + ( localZ * blockWidth ) );
+					const UINT i2 = static_cast< UINT >( localX + ( ( localZ + 1 ) * blockWidth ) );
+					const UINT i3 = static_cast< UINT >( ( localX + 1 ) + ( ( localZ + 1 ) * blockWidth ) );
+
+					sm.indices.push_back(i0);
+					sm.indices.push_back(i2);
+					sm.indices.push_back(i1);
+
+					sm.indices.push_back(i1);
+					sm.indices.push_back(i2);
+					sm.indices.push_back(i3);
+				}
+			}
+
+			std::vector<SkinnedVertex> vertices(sm.positions.size());
+			for ( size_t i = 0; i < sm.positions.size(); ++i )
+			{
+				SkinnedVertex v{};
+				v.position = sm.positions[i];
+				v.normal = sm.normals[i];
+				v.uv = sm.uvs[i];
+				v.tangent = sm.tangents[i];
+				v.boneIndices[0] = 0;
+				v.boneIndices[1] = 0;
+				v.boneIndices[2] = 0;
+				v.boneIndices[3] = 0;
+				v.boneWeights[0] = 1.0f;
+				v.boneWeights[1] = 0.0f;
+				v.boneWeights[2] = 0.0f;
+				v.boneWeights[3] = 0.0f;
+				vertices[i] = v;
+			}
+
+			const UINT vbSize = static_cast< UINT >( sizeof(SkinnedVertex) * vertices.size() );
+			const UINT ibSize = static_cast< UINT >( sizeof(UINT) * sm.indices.size() );
+
+			sm.vb = ::CreateBufferResource(
+				pd3dDevice,
+				pd3dCommandList,
+				vertices.data(),
+				vbSize,
+				D3D12_HEAP_TYPE_DEFAULT,
+				D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+				&sm.vbUpload
+			);
+
+			sm.ib = ::CreateBufferResource(
+				pd3dDevice,
+				pd3dCommandList,
+				sm.indices.data(),
+				ibSize,
+				D3D12_HEAP_TYPE_DEFAULT,
+				D3D12_RESOURCE_STATE_INDEX_BUFFER,
+				&sm.ibUpload
+			);
+
+			sm.vbView.BufferLocation = sm.vb->GetGPUVirtualAddress();
+			sm.vbView.SizeInBytes = vbSize;
+			sm.vbView.StrideInBytes = sizeof(SkinnedVertex);
+
+			sm.ibView.BufferLocation = sm.ib->GetGPUVirtualAddress();
+			sm.ibView.SizeInBytes = ibSize;
+			sm.ibView.Format = DXGI_FORMAT_R32_UINT;
+		}
+	}
+}
+
+CHeightMapGridMesh::~CHeightMapGridMesh()
+{
+}
+
+//높이 맵 이미지의 픽셀 값을 지형의 높이로 반환한다. 
+float CHeightMapGridMesh::OnGetHeight(int x, int z, void* pContext)
+{
+	HeightMapImage* pHeightMapImage = (HeightMapImage*)pContext;
+	BYTE* pHeightMapPixels = pHeightMapImage->GetHeightMapPixels();
+	XMFLOAT3 xmf3Scale = pHeightMapImage->GetScale();
+	int nWidth = pHeightMapImage->GetHeightMapWidth();
+	float fHeight = pHeightMapPixels[x + (z * nWidth)] * xmf3Scale.y;
+	return(fHeight);
+}
+
+XMFLOAT4 CHeightMapGridMesh::OnGetColor(int x, int z, void* pContext)
+{
+	// 조명의 방향 벡터(정점에서 조명까지의 벡터)이다.
+	XMFLOAT3 xmf3LightDirection = XMFLOAT3(-1.0f, 1.0f, 1.0f);
+	xmf3LightDirection = Vector3::Normalize(xmf3LightDirection);
+	HeightMapImage* pHeightMapImage = (HeightMapImage*)pContext;
+	XMFLOAT3 xmf3Scale = pHeightMapImage->GetScale();
+	// 조명의 색상(세기, 밝기)이다. 
+	XMFLOAT4 xmf4IncidentLightColor(0.9f, 0.8f, 0.4f, 1.0f);
+	// 정점 (x, z)에서 조명이 반사되는 양(비율)은 정점 (x, z)의 법선 벡터와 조명의 방향 벡터의 내적(cos)과 
+	// 인접한 3개의 정점 (x+1, z), (x, z+1), (x+1, z+1)의 법선 벡터와 조명의 방향 벡터의 내적을 평균하여 구한다. 
+	// 정점 (x, z)의 색상은 조명 색상(세기)과 반사되는 양(비율)을 곱한 값이다.*/
+	float fScale = Vector3::DotProduct(pHeightMapImage->GetHeightMapNormal(x, z), xmf3LightDirection);
+	fScale += Vector3::DotProduct(pHeightMapImage->GetHeightMapNormal(x + 1, z), xmf3LightDirection);
+	fScale += Vector3::DotProduct(pHeightMapImage->GetHeightMapNormal(x + 1, z + 1), xmf3LightDirection);
+	fScale += Vector3::DotProduct(pHeightMapImage->GetHeightMapNormal(x, z + 1), xmf3LightDirection);
+	fScale = (fScale / 4.0f) + 0.05f;
+	if (fScale > 1.0f) fScale = 1.0f;
+	if (fScale < 0.25f) fScale = 0.25f;
+	//fScale은 조명 색상(밝기)이 반사되는 비율이다.
+	XMFLOAT4 xmf4Color = Vector4::Multiply(fScale, xmf4IncidentLightColor);
+	return(xmf4Color);
+}
+
