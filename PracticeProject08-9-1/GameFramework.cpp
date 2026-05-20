@@ -1485,9 +1485,6 @@ void CGameFramework::FrameAdvance()
 	if ( gameScene )
 		gameScene->SetFrameResourceIndex(m_nFrameContextIndex);
 
-	if ( scene && !gameScene )
-		scene->OnPrepareRender(m_pd3dCommandList.Get(), m_pCamera);
-
 	if ( m_nDrawOption == DRAW_SCENE_COLOR )
 	{
 		m_pd3dCommandList->ClearDepthStencilView(
