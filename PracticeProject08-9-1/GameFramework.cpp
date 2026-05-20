@@ -1121,20 +1121,27 @@ void CGameFramework::ProcessInput()
 	if ( GetKeyboardState(pKeysBuffer) && scene )
 		bProcessedByScene = scene->ProcessInput(pKeysBuffer);
 
-	// Demo: 0/1/2/3 -> Player slot(0/1/2/3) Attack (edge trigger)
-	static bool s_prevDown[4] = { false, false, false, false };
+	// Demo: U/I/O/P -> Player slot(0/1/2/3) Attack (edge trigger)
+	static bool s_prevDemoAttackDown[4] = { false, false, false, false };
+	static constexpr int kDemoAttackKeys[4] =
+	{
+		'U', // slot 0
+		'I', // slot 1
+		'O', // slot 2
+		'P'  // slot 3
+	};
+
 	for ( int slot = 0; slot < 4; ++slot )
 	{
-		// 0 키는 총 사운드 튜닝용으로 사용.
-		if ( slot == 0 )
-			continue;
+		const bool down = ( pKeysBuffer[kDemoAttackKeys[slot]] & 0xF0 ) != 0;
 
-		const bool down = ( pKeysBuffer['0' + slot] & 0xF0 ) != 0;
-		if ( down && !s_prevDown[slot] )
+		if ( down && !s_prevDemoAttackDown[slot] )
 		{
-			if ( scene ) scene->RequestPlayerAttackBySlot(slot);
+			if ( scene )
+				scene->RequestPlayerAttackBySlot(slot);
 		}
-		s_prevDown[slot] = down;
+
+		s_prevDemoAttackDown[slot] = down;
 	}
 
 	CGameObject* playerObj = ( scene ? scene->GetPlayer() : nullptr );

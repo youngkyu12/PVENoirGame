@@ -18,6 +18,7 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 	m_bSimulateLocalPlayerWorldStaticRollback = true;
 	m_bSimulateLocalTeleport = false;
 	m_bSimulateLocalItemPickup = true;
+	m_bSimulateLocalStageTeleport = false;
 #else
 	m_bSimulateLocalPlayerMonsterAttackCollision = false;
 	m_bSimulateLocalAI = true;
@@ -26,9 +27,11 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 	m_bSimulateLocalPlayerWorldStaticRollback = true;
 	m_bSimulateLocalTeleport = true;
 	m_bSimulateLocalItemPickup = true;
+	m_bSimulateLocalStageTeleport = true;
 #endif
 
 	m_bPrevLocalMonsterChaseToggleKeyDown = false;
+	m_bPrevLocalStageTeleportKeyDown.fill(false);
 }
 
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
@@ -105,7 +108,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		}
 	}
 #else
-	m_localPlayerSlot = 3;
+	m_localPlayerSlot = 0;
 
 	const GameSceneStageFileSet& stageFiles = GetLocalStageFileSet(kLocalStagePreset);
 

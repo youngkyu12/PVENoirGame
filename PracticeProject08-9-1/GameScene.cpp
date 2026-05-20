@@ -60,6 +60,8 @@ CGameScene::CGameScene()
 	m_bSimulateLocalPlayerWorldStaticRollback = true;
 	m_bSimulateLocalTeleport = true;
 	m_bSimulateLocalItemPickup = true;
+	m_bSimulateLocalStageTeleport = true;
+	m_bPrevLocalStageTeleportKeyDown.fill(false);
 
 #ifdef USING_NETWORK
 	m_bSimulateLocalPlayerMonsterAttackCollision = false;
@@ -68,7 +70,9 @@ CGameScene::CGameScene()
 	m_bSimulateLocalEnemySpawner = false;
 	m_bSimulateLocalPlayerWorldStaticRollback = false;
 	m_bSimulateLocalTeleport = false;
-	m_bSimulateLocalItemPickup = false;
+	m_bSimulateLocalItemPickup = true;
+	m_bSimulateLocalStageTeleport = false;
+	m_bPrevLocalStageTeleportKeyDown.fill(false);
 #endif
 
 	m_bLocalPlayerDead = false;
@@ -1687,6 +1691,98 @@ void CGameScene::UpdateMegaGridState()
 			m_sceneGrid.SetMegaGridPlayerApproached(megaX, megaZ, true);
 		}
 	}
+}
+
+XMFLOAT3 CGameScene::ComputeLocalStageTeleportPosition(int megaGridNumber) const
+{
+	// 입력 번호:
+	// 789
+	// 456
+	// 123
+	//
+	// 현재 CSceneGrid도 megaNumber = megaZ * 3 + megaX + 1 구조다.
+	// 2번 메가그리드 중심이 (0, 0, 0)이 되도록 world grid가 잡혀 있다.
+	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+		return XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	const int zeroBased = megaGridNumber - 1;
+	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+	const int megaZ = zeroBased / CSceneGrid::kMegaGridRows;
+
+	const float centerX =
+		static_cast< float >(
+			CSceneGrid::kGridMinX +
+			megaX * CSceneGrid::kMegaGridCellWidth +
+			CSceneGrid::kMegaGridCellWidth / 2
+		);
+
+	const float centerZ =
+		static_cast< float >(
+			CSceneGrid::kGridMinZ +
+			megaZ * CSceneGrid::kMegaGridCellHeight +
+			CSceneGrid::kMegaGridCellHeight / 2
+		);
+
+	XMFLOAT3 dst{};
+	dst.x = centerX;
+	dst.y = 0.0f;
+	dst.z = centerZ + ( megaGridNumber == 5 ? -200.0f : -150.0f );
+
+	return dst;
+}
+
+bool CGameScene::TryTeleportLocalPlayerToMegaGridByNumber(int megaGridNumber)
+{
+#ifndef USING_NETWORK
+	if ( !m_bSimulateLocalStageTeleport )
+		return false;
+
+	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+		return false;
+
+	if ( m_bLocalPlayerDead )
+		return false;
+
+	CGameObject* player = GetPlayer();
+	if ( !player )
+		player = GetPlayerBySlot(0);
+
+	if ( !player )
+		return false;
+
+	const XMFLOAT3 dst = ComputeLocalStageTeleportPosition(megaGridNumber);
+
+	player->SetPosition(dst);
+
+	if ( auto* collider = player->GetComponent<CColliderComponent>() )
+	{
+		collider->UpdateWorldBounds();
+	}
+
+	if ( auto* controller = player->GetComponent<CPlayerControllerComponent>() )
+	{
+		controller->SetVelocity(XMFLOAT3(0.0f, 0.0f, 0.0f));
+		controller->SetInputDirection(static_cast< DWORD >( 0 ));
+		controller->SetRunRequested(false);
+	}
+
+	if ( auto* camera = GetMainCamera() )
+	{
+		XMFLOAT3 cameraTarget = dst;
+		cameraTarget.y += 1.7f;
+
+		camera->Update(cameraTarget, 0.0f);
+		camera->SetLookAt(cameraTarget);
+		camera->RegenerateViewMatrix();
+	}
+
+	UpdateDynamicGridState();
+
+	return true;
+#else
+	UNREFERENCED_PARAMETER(megaGridNumber);
+	return false;
+#endif
 }
 
 void CGameScene::RegisterMonsterToMegaGrid(
@@ -4979,9 +5075,13 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 	if ( !pKeysBuffer )
 	{
 		m_bPrevLocalMonsterChaseToggleKeyDown = false;
+		m_bPrevLocalStageTeleportKeyDown.fill(false);
 		return false;
 	}
 
+	// ---------------------------------------------------------------------
+	// Q: 로컬 몬스터 추적 on/off
+	// ---------------------------------------------------------------------
 	const bool qDown = ( pKeysBuffer['Q'] & 0xF0 ) != 0;
 
 	if ( qDown && !m_bPrevLocalMonsterChaseToggleKeyDown )
@@ -4992,6 +5092,47 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 	}
 
 	m_bPrevLocalMonsterChaseToggleKeyDown = qDown;
+
+	// ---------------------------------------------------------------------
+	// 1~9: 로컬 스테이지 메가그리드 강제 텔레포트
+	//
+	// 배치:
+	// 789
+	// 456
+	// 123
+	//
+	// false이면 입력 상태만 갱신하고 실제 텔레포트는 하지 않는다.
+	// ---------------------------------------------------------------------
+	for ( int megaGridNumber = 1;
+		  megaGridNumber <= CSceneGrid::kMegaGridCount;
+		  ++megaGridNumber )
+	{
+		const bool down =
+			( pKeysBuffer['0' + megaGridNumber] & 0xF0 ) != 0;
+
+		const bool prevDown =
+			m_bPrevLocalStageTeleportKeyDown[
+				static_cast< size_t >( megaGridNumber )
+			];
+
+		if ( down && !prevDown )
+		{
+			m_bPrevLocalStageTeleportKeyDown[
+				static_cast< size_t >( megaGridNumber )
+			] = true;
+
+			if ( m_bSimulateLocalStageTeleport )
+			{
+				return TryTeleportLocalPlayerToMegaGridByNumber(megaGridNumber);
+			}
+
+			return false;
+		}
+
+		m_bPrevLocalStageTeleportKeyDown[
+			static_cast< size_t >( megaGridNumber )
+		] = down;
+	}
 #else
 	UNREFERENCED_PARAMETER(pKeysBuffer);
 #endif
