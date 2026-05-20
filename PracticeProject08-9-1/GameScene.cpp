@@ -59,6 +59,7 @@ CGameScene::CGameScene()
 	m_localPlayerRespawnTimer = 0.0f;
 #ifdef USING_NETWORK
 	m_prevPlayerNetworkStateCode.clear();
+	m_prevEnemyNetworkStateCode.clear();
 #endif
 	m_deadMonsters.clear();
 
@@ -2132,6 +2133,7 @@ void CGameScene::ReleaseObjects()
 	m_localPlayerRespawnTimer = 0.0f;
 #ifdef USING_NETWORK
 	m_prevPlayerNetworkStateCode.clear();
+	m_prevEnemyNetworkStateCode.clear();
 #endif
 	m_deadMonsters.clear();
 	m_skinnedMonsterMegaGridNumbers.clear();
@@ -5061,6 +5063,21 @@ void CGameScene::AnimateObjects(float dt)
 
 #ifdef USING_NETWORK
     DequeueNetworkMessage(NetworkMessageType::FrameState);
+
+	std::unordered_map<uint64_t, CGameObject*> npcById;
+	{
+		UINT npcIndex = 0;
+		for ( UINT j = 0; j < ( UINT ) m_skinnedObjects.size(); ++j )
+		{
+			auto* obj = m_skinnedObjects[j].get();
+			if ( !obj ) continue;
+			auto* tag = obj->GetComponent<CActorTagComponent>();
+			if ( !tag || tag->kind != EActorKind::NPC ) continue;
+			npcById[npcIndex] = obj;
+			++npcIndex;
+		}
+	}
+
     if (std::holds_alternative<FrameSnapshot>(m_pendingNetworkMessage.data))
     {
         const FrameSnapshot& receivedSnapshot = std::get<FrameSnapshot>(m_pendingNetworkMessage.data);
@@ -5228,22 +5245,6 @@ void CGameScene::AnimateObjects(float dt)
 
 
 		// Enemy 좌표 업데이트
-		// 1) NPC 인덱스 → 오브젝트 매핑 구축
-		std::unordered_map<uint64_t, CGameObject*> npcById;
-		{
-			UINT npcIndex = 0;
-			for ( UINT j = 0; j < ( UINT ) m_skinnedObjects.size(); ++j )
-			{
-				auto* obj = m_skinnedObjects[j].get();
-				if ( !obj ) continue;
-				auto* tag = obj->GetComponent<CActorTagComponent>();
-				if ( !tag || tag->kind != EActorKind::NPC ) continue;
-				npcById[npcIndex] = obj;
-				++npcIndex;
-			}
-		}
-
-		// 2) snapshot enemy를 ID 기준으로 적용
 		for ( const auto& state : snapshot.enemies )
 		{
 			auto it = npcById.find(state.id);
@@ -5267,10 +5268,9 @@ void CGameScene::AnimateObjects(float dt)
 
 					ctrl->SetLocomotionState(locomotionState);
 
-					static std::unordered_map<uint64_t, uint32_t> s_prevEnemyStateCode;
 					const uint32_t prevStateCode =
-						( s_prevEnemyStateCode.find(state.id) != s_prevEnemyStateCode.end() )
-						? s_prevEnemyStateCode[state.id]
+						( m_prevEnemyNetworkStateCode.find(state.id) != m_prevEnemyNetworkStateCode.end() )
+						? m_prevEnemyNetworkStateCode[state.id]
 						: 0u;
 					const DecodedAnimStateCode prevDecoded = DecodeStateCode(prevStateCode);
 
@@ -5294,7 +5294,7 @@ void CGameScene::AnimateObjects(float dt)
 						ctrl->RequestCommand(EMonsterAnimCommand::Attack);
 					}
 
-					s_prevEnemyStateCode[state.id] = state.animation.stateCode;
+					m_prevEnemyNetworkStateCode[state.id] = state.animation.stateCode;
 					ctrl->Update(0.0f);
 				}
 			}
@@ -5436,6 +5436,25 @@ void CGameScene::AnimateObjects(float dt)
 					ac->SetAnimState(EAnimState::Attack);
 				else
 					ac->SetAnimState(decoded.hasMove ? EAnimState::Move : EAnimState::Idle);
+			}
+		}
+
+		for ( const auto& [id, stateCode] : m_prevEnemyNetworkStateCode )
+		{
+			auto it = npcById.find(id);
+			if ( it == npcById.end() ) continue;
+
+			auto* obj = it->second;
+			if ( auto* animComp = obj->GetComponent<CAnimatorComponent>() )
+			{
+				if ( auto* ctrl = animComp->EnsureMonsterController() )
+				{
+					const DecodedAnimStateCode decoded = DecodeStateCode(stateCode);
+					EMonsterAnimState locomotionState = EMonsterAnimState::Idle;
+					if ( decoded.hasMove )
+						locomotionState = decoded.run ? EMonsterAnimState::Run : EMonsterAnimState::Move;
+					ctrl->SetLocomotionState(locomotionState);
+				}
 			}
 		}
 	}

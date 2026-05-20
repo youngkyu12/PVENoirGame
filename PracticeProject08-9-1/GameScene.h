@@ -980,6 +980,7 @@ private:
 	static float LerpYawDegrees(float a, float b, float t);
 
 	std::unordered_map<uint64_t, uint32_t> m_prevPlayerNetworkStateCode;
+	std::unordered_map<uint64_t, uint32_t> m_prevEnemyNetworkStateCode;
 #endif
 
 	std::unordered_set<CGameObject*> m_deadMonsters;
