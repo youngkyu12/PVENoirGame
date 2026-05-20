@@ -1516,6 +1516,9 @@ void CGameScene::BuildSkinnedBatch(
 	const UINT fighterCount = m_PlayerCount;
 	const XMFLOAT3 playerBase(0.0f, 0.0f, -150.0f);
 
+	m_ghoulRefs.clear();
+	m_ghoulRefs.reserve(m_ghoulCount + m_EnemySpawnCount);
+
 	m_swordManRefs.clear();
 	m_swordManRefs.reserve(m_swordManCount);
 
@@ -1734,6 +1737,8 @@ void CGameScene::BuildSkinnedBatch(
 			m_skinnedObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			b->count = ( UINT ) b->objectRefs.size();
+
+			m_ghoulRefs.push_back(raw);
 		}
 #ifndef USING_NETWORK
 		for ( UINT k = 0; k < countEnemySpawn; ++k )
@@ -1813,6 +1818,7 @@ void CGameScene::BuildSkinnedBatch(
 
 			m_skinnedObjects.push_back(std::move(obj));
 			m_EnemySpawnRefs.push_back(raw);
+			m_ghoulRefs.push_back(raw);
 			b->objectRefs.push_back(raw);
 			b->count = ( UINT ) b->objectRefs.size();
 		}
@@ -2504,7 +2510,9 @@ void CGameScene::BuildSkinnedBatch(
 	m_prevBowManSfxLoadPhase.assign(m_bowManRefs.size(), false);
 
 	m_monsterFootstepSfxStates.assign(
-		m_swordManRefs.size() + m_bowManRefs.size(),
+		m_ghoulRefs.size() +
+		m_swordManRefs.size() +
+		m_bowManRefs.size(),
 		MonsterFootstepSfxState{}
 	);
 
