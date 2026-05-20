@@ -7,6 +7,20 @@
 #include "GameSceneHelper.h"
 
 using namespace GameSceneHelper;
+namespace
+{
+	template <typename T>
+	void ClearVectorAndFreeMemory(std::vector<T>& v)
+	{
+		std::vector<T>().swap(v);
+	}
+
+	template <typename T>
+	void ClearUnorderedSetAndFreeMemory(std::unordered_set<T>& s)
+	{
+		std::unordered_set<T>().swap(s);
+	}
+}
 
 void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 {
@@ -333,10 +347,12 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		local = GetPlayerBySlot(0);
 
 	CreateMainCamera(dev, cmd, local);
-	//InitShadowMap(dev, cmd);
 	BuildObjectsCollider();
 
 	RebuildDynamicGridState();
+
+	ReleaseBuildOnlySceneData();
+
 #ifdef USING_NETWORK
 	Protocol::C_CLIENT_READY iamReady;
 
@@ -3579,4 +3595,37 @@ void CGameScene::BuildObjectsCollider()
 		if ( obj )
 			m_Collision->RegisterCollider(obj->GetComponent<CColliderComponent>());
 	}
+}
+
+void CGameScene::ReleaseBuildOnlySceneData()
+{
+	// ---------------------------------------------------------------------
+	// 1) 파일 로딩 원본 데이터
+	// ---------------------------------------------------------------------
+	ClearVectorAndFreeMemory(m_staticPlacementEntries);
+
+	{
+		auto empty = decltype( mSceneCubeBoxColliderTable ){};
+		mSceneCubeBoxColliderTable.swap(empty);
+	}
+
+#ifndef USING_NETWORK
+	ClearVectorAndFreeMemory(m_monsterSpawnEntries);
+#endif
+
+	// ---------------------------------------------------------------------
+	// 2) build 중간 캐시 / 현재 런타임에서 직접 참조하지 않는 캐시
+	// ---------------------------------------------------------------------
+	ClearVectorAndFreeMemory(m_staticCollisionMegaGridMasks);
+
+	// BuildStaticRenderObjectCache() 이후에는
+	// StaticRenderObjectCache::dynamicWorldMatrix로 복사되어 있음.
+	ClearVectorAndFreeMemory(m_staticDynamicWorldMatrixFlags);
+
+	// BuildStaticInstanceGroups() 내부에서만 필요한 objectIndex -> lodEntryIndex 맵.
+	ClearVectorAndFreeMemory(m_staticWorldLodEntryIndexByObjectIndex);
+
+	// InstanceGroup 생성 이후 shader 분류 정보는 group에 저장되어 있음.
+	ClearUnorderedSetAndFreeMemory(m_treeAlphaClipObjects);
+	ClearUnorderedSetAndFreeMemory(m_skinnedAlphaClipObjects);
 }
