@@ -15,7 +15,7 @@
 CGhoulAIComponent::CGhoulAIComponent(CGameObject* owner)
 	: CMonsterAIComponent(owner)
 {
-	SetMoveSpeed(2.0f);
+	SetMoveSpeeds(1.0f, 2.0f);
 	SetRepathInterval(0.35f);
 	SetPathPointReachDistance(0.20f);
 	SetGoalReachDistance(0.85f);
@@ -45,7 +45,7 @@ bool CGhoulAIComponent::TryPerformAttack()
 CSwordManAIComponent::CSwordManAIComponent(CGameObject* owner)
 	: CMonsterAIComponent(owner)
 {
-	SetMoveSpeed(2.0f);
+	SetMoveSpeeds(4.0f, 8.0f);
 	SetRepathInterval(0.35f);
 	SetPathPointReachDistance(0.20f);
 	SetGoalReachDistance(0.85f);
@@ -80,7 +80,7 @@ bool CSwordManAIComponent::TryPerformAttack()
 CBowManAIComponent::CBowManAIComponent(CGameObject* owner)
 	: CMonsterAIComponent(owner)
 {
-	SetMoveSpeed(2.0f);
+	SetMoveSpeeds(4.0f, 8.0f);
 	SetRepathInterval(0.35f);
 	SetPathPointReachDistance(0.20f);
 	SetGoalReachDistance(0.85f);
@@ -129,7 +129,7 @@ bool CBowManAIComponent::TryPerformAttack()
 CMutantAIComponent::CMutantAIComponent(CGameObject* owner)
 	: CMonsterAIComponent(owner)
 {
-	SetMoveSpeed(2.0f);
+	SetMoveSpeeds(5.0f, 12.0f);
 	SetRepathInterval(0.35f);
 	SetPathPointReachDistance(0.20f);
 	SetGoalReachDistance(0.85f);
@@ -160,10 +160,9 @@ bool CMutantAIComponent::TryPerformAttack()
 CBossAIComponent::CBossAIComponent(CGameObject* owner)
 	: CMonsterAIComponent(owner)
 {
-	SetMoveSpeed(2.0f);
+	SetMoveSpeeds(8.0f, 8.0f);
 
 	SetChaseRunAnimationEnabled(false);
-	SetWalkMoveSpeedScale(1.0f);
 
 	SetRepathInterval(0.35f);
 	SetPathPointReachDistance(0.20f);

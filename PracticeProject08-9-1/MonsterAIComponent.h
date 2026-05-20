@@ -79,17 +79,30 @@ public:
 	}
 
 	void SetAttackRange(float v) { m_attackRange = v; }
-	void SetMoveSpeed(float v) { m_moveSpeed = v; }
+
+	void SetMoveSpeed(float v) { SetRunMoveSpeed(v); }
+
+	void SetWalkMoveSpeed(float v)
+	{
+		m_walkMoveSpeed = ( v > 0.0f ) ? v : 0.0f;
+	}
+
+	void SetRunMoveSpeed(float v)
+	{
+		m_runMoveSpeed = ( v > 0.0f ) ? v : 0.0f;
+	}
+
+	void SetMoveSpeeds(float walkSpeed, float runSpeed)
+	{
+		SetWalkMoveSpeed(walkSpeed);
+		SetRunMoveSpeed(runSpeed);
+	}
+
 	void SetAttackCooldown(float v) { m_attackCooldown = v; }
 	void SetRepathInterval(float v) { m_repathInterval = v; }
 	void SetPathPointReachDistance(float v) { m_pathPointReachDistance = v; }
 	void SetGoalReachDistance(float v) { m_goalReachDistance = v; }
 	void SetFacingYawOffsetDegrees(float v) { m_facingYawOffsetDegrees = v; }
-
-	void SetWalkMoveSpeedScale(float v)
-	{
-		m_walkMoveSpeedScale = ( v > 0.0f ) ? v : 1.0f;
-	}
 
 	void SetChaseRunAnimationEnabled(bool enabled)
 	{
@@ -101,7 +114,10 @@ public:
 	float GetChaseStopRange() const { return m_chaseStopRange; }
 
 	float GetAttackRange() const { return m_attackRange; }
-	float GetMoveSpeed() const { return m_moveSpeed; }
+	float GetMoveSpeed() const { return m_runMoveSpeed; }
+
+	float GetWalkMoveSpeedValue() const { return m_walkMoveSpeed; }
+	float GetRunMoveSpeedValue() const { return m_runMoveSpeed; }
 	float GetAttackCooldown() const { return m_attackCooldown; }
 	float GetRepathInterval() const { return m_repathInterval; }
 	float GetPathPointReachDistance() const { return m_pathPointReachDistance; }
@@ -241,8 +257,9 @@ protected:
 
 	float m_attackRange = 1.5f;
 
-	float m_moveSpeed = 2.0f;
-	float m_walkMoveSpeedScale = 0.5f;
+	float m_walkMoveSpeed = 1.0f;
+	float m_runMoveSpeed = 2.0f;
+
 	bool m_bChaseUsesRunAnimation = true;
 
 	float m_attackCooldown = 1.0f;
