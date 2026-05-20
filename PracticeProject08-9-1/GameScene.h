@@ -704,6 +704,9 @@ private:
 	void UpdateDynamicGridState();
 	void UpdateMegaGridState();
 
+	bool TryTeleportLocalPlayerToMegaGridByNumber(int megaGridNumber);
+	XMFLOAT3 ComputeLocalStageTeleportPosition(int megaGridNumber) const;
+
 	void RegisterMonsterToMegaGrid(CGameObject* monster, const XMFLOAT3& spawnPosition, UINT skinnedBatchObjectIndex);
 	int GetLocalPlayerMegaGridNumberForMonsterTick() const;
 	bool ShouldSkipMonsterByMegaGrid(const CGameObject* monster, UINT skinnedBatchObjectIndex, int activeMegaGridNumber) const;
@@ -1166,6 +1169,9 @@ private:
 	bool m_bSimulateLocalPlayerWorldStaticRollback = true;
 	bool m_bSimulateLocalTeleport = true;
 	bool m_bSimulateLocalItemPickup = true;
+
+	bool m_bSimulateLocalStageTeleport = true;
+	std::array<bool, CSceneGrid::kMegaGridCount + 1> m_bPrevLocalStageTeleportKeyDown = {};
 
 	void ConfigureLocalGameplaySimulationSwitches();
 };
