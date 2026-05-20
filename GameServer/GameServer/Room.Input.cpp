@@ -199,9 +199,9 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 
 	player->SetVelocity(player->GetVelocity() + desiredShift);
 
-	cout << "=====" << player->GetObjectId() << " Input Access!" << 
-		 "=====" << endl << endl;
-	cout << "desiredShift:" << desiredShift.x << ", " << desiredShift.y << ", " << desiredShift.z << endl;
-	cout << "Client DeltaTime: " << clientDeltaTime << endl;
-	cout << "==============================================" << endl;
+	//cout << "=====" << player->GetObjectId() << " Input Access!" << 
+	//	 "=====" << endl << endl;
+	//cout << "desiredShift:" << desiredShift.x << ", " << desiredShift.y << ", " << desiredShift.z << endl;
+	//cout << "Client DeltaTime: " << clientDeltaTime << endl;
+	//cout << "==============================================" << endl;
 }
