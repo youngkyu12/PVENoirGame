@@ -962,9 +962,11 @@ private:
 #ifdef USING_NETWORK
 	std::deque<FrameSnapshot> m_frameSnapshotBuffer;
 	uint64_t m_lastReceivedServerTick = 0;
+	float m_timeSinceLastFramePacket = 0.0f;
 
 	static constexpr uint64_t kNetworkInterpolationDelayTicks = 6;
 	static constexpr size_t kMaxNetworkFrameSnapshotBufferSize = 8;
+	static constexpr float kServerTickSeconds = 1.0f / 60.0f;
 
 	void PushNetworkFrameSnapshot(const FrameSnapshot& snapshot);
 	FrameSnapshot BuildInterpolatedFrameSnapshot(const FrameSnapshot& latestSnapshot) const;
