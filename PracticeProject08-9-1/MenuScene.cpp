@@ -103,8 +103,6 @@ void CMenuScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 	if ( !camera )
 		camera = m_pMainCamera;
 
-	CScene::OnPrepareRender(cmd, camera);
-
 	m_menuUI.SetSpriteVisible(m_startButtonSpriteIndex, !m_showLoading);
 	m_menuUI.SetSpriteVisible(m_loadingSpriteIndex, m_showLoading);
 
