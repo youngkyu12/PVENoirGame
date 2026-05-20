@@ -1022,6 +1022,7 @@ private:
 	const std::vector<CGameObject*>& objects
 	) const;
 	void ResetStaticPlacementCounts();
+	void ReleaseBuildOnlySceneData();
     void ApplyStaticPlacementCounts();
     static float QuaternionToYawDegrees(const XMFLOAT4& q);
 
