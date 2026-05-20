@@ -4921,7 +4921,8 @@ FrameSnapshot CGameScene::BuildInterpolatedFrameSnapshot(const FrameSnapshot& la
 	if (m_lastReceivedServerTick <= kNetworkInterpolationDelayTicks)
 		return displaySnapshot;
 
-	const uint64_t renderTick = m_lastReceivedServerTick - kNetworkInterpolationDelayTicks;
+	const uint64_t ticksElapsed = static_cast<uint64_t>(m_timeSinceLastFramePacket / kServerTickSeconds);
+	const uint64_t renderTick = m_lastReceivedServerTick + ticksElapsed - kNetworkInterpolationDelayTicks;
 
 	const FrameSnapshot* older = nullptr;
 	const FrameSnapshot* newer = nullptr;
@@ -5082,6 +5083,7 @@ void CGameScene::AnimateObjects(float dt)
     {
         const FrameSnapshot& receivedSnapshot = std::get<FrameSnapshot>(m_pendingNetworkMessage.data);
 		PushNetworkFrameSnapshot(receivedSnapshot);
+		m_timeSinceLastFramePacket = 0.0f;
 		const FrameSnapshot& latestSnapshot =
 			m_frameSnapshotBuffer.empty() ? receivedSnapshot : m_frameSnapshotBuffer.back();
 		FrameSnapshot snapshot = BuildInterpolatedFrameSnapshot(latestSnapshot);
@@ -5418,6 +5420,8 @@ void CGameScene::AnimateObjects(float dt)
     }
 	else
 	{
+		m_timeSinceLastFramePacket += dt;
+
 		// 이전 state code를 따라가면서 그때의 애니메이션을 유지
 		for ( const auto& [id, stateCode] : m_prevPlayerNetworkStateCode )
 		{
@@ -5457,6 +5461,7 @@ void CGameScene::AnimateObjects(float dt)
 				}
 			}
 		}
+
 	}
 #endif
 
