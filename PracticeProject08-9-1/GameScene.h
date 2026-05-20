@@ -37,6 +37,11 @@ class CAnimatorComponent;
 class CHealthComponent;
 class CActorTagComponent;
 
+namespace FMOD
+{
+	class Channel;
+}
+
 struct CB_GAMEOBJECT_INFO;
 
 struct AttachmentBindSpec
@@ -899,8 +904,58 @@ private:
 	std::array<CGameObject*, 4> m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr };
 	std::array<bool, 4> m_prevBowReleasePhase = { false, false, false, false };
 	std::array<bool, 4> m_prevBowLoadPhase = { false, false, false, false };
+
 	std::vector<CGameObject*> m_preparedBowmanArrows;
+
 	std::vector<bool> m_prevEnemyBowReleasePhase;
+
+	enum class EMonsterSfxKind : uint8_t
+	{
+		None = 0,
+		Footstep,
+		SwordWhoosh,
+		BowLoading,
+		BowRelease
+	};
+
+	struct MonsterFootstepSfxState
+	{
+		bool valid = false;
+		int mode = 0; // 0=None, 1=Walk, 2=Run
+		float prevNormalizedTime = 0.0f;
+	};
+
+	struct PendingMonsterSfx
+	{
+		EMonsterSfxKind kind = EMonsterSfxKind::None;
+		CGameObject* owner = nullptr;
+		const char* path = nullptr;
+
+		float timer = 0.0f;
+		float originalDelay = 0.0f;
+		float volume = 1.0f;
+
+		bool followOwner = true;
+	};
+
+	struct ActiveMonsterSfx
+	{
+		EMonsterSfxKind kind = EMonsterSfxKind::None;
+		FMOD::Channel* channel = nullptr;
+
+		CGameObject* followTarget = nullptr;
+
+		XMFLOAT3 prevPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		bool hasPrevPosition = false;
+	};
+
+	std::vector<MonsterFootstepSfxState> m_monsterFootstepSfxStates;
+
+	std::vector<bool> m_prevSwordManAttackPhase;
+	std::vector<bool> m_prevBowManSfxLoadPhase;
+
+	std::vector<PendingMonsterSfx> m_pendingMonsterSfxList;
+	std::vector<ActiveMonsterSfx> m_activeMonsterSfxList;
 
 	int GetPlayerSlotFromObject(const CGameObject* obj) const;
 	int GetBowManIndexFromObject(const CGameObject* obj) const;
@@ -924,6 +979,35 @@ private:
 	void UpdatePlayerFootstepSfx();
 	void ResetPlayerFootstepSfxState();
 	void PlayPlayerFootstepSfx(CGameObject* player);
+
+	void ResetMonsterSfxState();
+
+	void UpdateMonsterSfx(float dt);
+	void UpdateMonsterFootstepSfx();
+	void UpdateMonsterAttackSfx();
+
+	void TrackMonsterFootstepSfx(
+		CGameObject* monster,
+		MonsterFootstepSfxState& state
+	);
+
+	void PlayMonsterFootstepSfx(CGameObject* monster);
+
+	void RequestSwordManAttackSfx(CGameObject* swordman);
+	void RequestBowManLoadSfx(CGameObject* bowman);
+
+	void ScheduleMonsterSfx(
+		EMonsterSfxKind kind,
+		CGameObject* owner,
+		const char* soundPath,
+		float delaySeconds,
+		float volume,
+		bool followOwner = true
+	);
+
+	void UpdatePendingMonsterSfx(float dt);
+	void PlayPendingMonsterSfxAt(size_t index);
+	void UpdateActiveMonsterSfx();
 
 	void UpdateMonsterDeathStates();
 	void BeginMonsterDeath(CGameObject* monster);

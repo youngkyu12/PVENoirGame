@@ -53,6 +53,8 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	ConfigureLocalGameplaySimulationSwitches();
 
 	ResetPlayerFootstepSfxState();
+	ResetMonsterSfxState();
+
 	m_deadMonsters.clear();
 	m_bLocalPlayerDead = false;
 	m_bLocalPlayerRespawnUsed = false;
@@ -2498,6 +2500,16 @@ void CGameScene::BuildSkinnedBatch(
 	m_preparedBowmanArrows.assign(m_bowManRefs.size(), nullptr);
 	m_prevEnemyBowReleasePhase.assign(m_bowManRefs.size(), false);
 
+	m_prevSwordManAttackPhase.assign(m_swordManRefs.size(), false);
+	m_prevBowManSfxLoadPhase.assign(m_bowManRefs.size(), false);
+
+	m_monsterFootstepSfxStates.assign(
+		m_swordManRefs.size() + m_bowManRefs.size(),
+		MonsterFootstepSfxState{}
+	);
+
+	m_pendingMonsterSfxList.clear();
+	m_activeMonsterSfxList.clear();
 	BuildSkinnedComponentCache();
 	BuildSkinnedInstanceGroups();
 

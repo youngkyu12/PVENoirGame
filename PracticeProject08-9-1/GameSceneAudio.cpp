@@ -78,6 +78,68 @@ namespace
 
 		return "Assets/Audio/Walk_Block1.wav";
 	}
+
+	static constexpr float kMonsterFootstepSfxVolume = 0.04f;
+
+	static constexpr float kMonsterSwordWhooshDelaySeconds = 13.0f / 60.0f;
+	static constexpr float kMonsterBowLoadingSfxDelaySeconds = 5.0f / 60.0f;
+	static constexpr float kMonsterBowReleaseSfxDelayFromLoadSeconds = 26.0f / 60.0f;
+
+	static constexpr float kMonsterSwordWhooshVolume = 0.5f;
+	static constexpr float kMonsterBowLoadingSfxVolume = 2.0f;
+	static constexpr float kMonsterBowReleaseSfxVolume = 2.0f;
+
+	static bool IsMonsterWalkClipName(const std::string& clipName)
+	{
+		return clipName == "Walk" || clipName.rfind("Walk_", 0) == 0;
+	}
+
+	static bool IsMonsterRunClipName(const std::string& clipName)
+	{
+		return clipName == "Run" || clipName.rfind("Run_", 0) == 0;
+	}
+
+	static int GetMonsterFootstepModeFromClipName(const std::string& clipName)
+	{
+		if ( IsMonsterWalkClipName(clipName) )
+			return 1;
+
+		if ( IsMonsterRunClipName(clipName) )
+			return 2;
+
+		return 0;
+	}
+
+	static const char* SelectRandomMonsterFootstepBlockSfxPath()
+	{
+		static std::mt19937 rng{ std::random_device{}( ) };
+		static std::uniform_int_distribution<int> dist(1, 3);
+
+		switch ( dist(rng) )
+		{
+		case 1: return "Assets/Audio/Walk_Block1.wav";
+		case 2: return "Assets/Audio/Walk_Block2.wav";
+		case 3: return "Assets/Audio/Walk_Block3.wav";
+		default: break;
+		}
+
+		return "Assets/Audio/Walk_Block1.wav";
+	}
+
+	static const char* GetMonsterSwordManWhooshPath()
+	{
+		return "Assets/Audio/Whoosh_Sword2.wav";
+	}
+
+	static const char* GetMonsterBowLoadingSfxPath()
+	{
+		return "Assets/Audio/Bow_Loading.mp3";
+	}
+
+	static const char* GetMonsterBowReleaseSfxPath()
+	{
+		return "Assets/Audio/Bow_Release.mp3";
+	}
 }
 
 void CGameScene::RequestPlayerAttackSfx(CGameObject* player)
@@ -117,6 +179,17 @@ void CGameScene::ResetPlayerFootstepSfxState()
 	m_playerFootstepTrackingValid = { false, false, false, false };
 	m_playerFootstepMode = { 0, 0, 0, 0 };
 	m_playerFootstepPrevNormalizedTime = { 0.0f, 0.0f, 0.0f, 0.0f };
+}
+
+void CGameScene::ResetMonsterSfxState()
+{
+	m_monsterFootstepSfxStates.clear();
+
+	m_prevSwordManAttackPhase.clear();
+	m_prevBowManSfxLoadPhase.clear();
+
+	m_pendingMonsterSfxList.clear();
+	m_activeMonsterSfxList.clear();
 }
 
 void CGameScene::PlayPlayerFootstepSfx(CGameObject* player)
@@ -319,5 +392,406 @@ void CGameScene::UpdatePlayerBowSfxOnly()
 
 		m_prevBowLoadPhase[slotIndex] = isBowLoad;
 		m_prevBowReleasePhase[slotIndex] = isBowRelease;
+	}
+}
+
+void CGameScene::UpdateMonsterSfx(float dt)
+{
+	UpdateActiveMonsterSfx();
+
+	UpdateMonsterFootstepSfx();
+	UpdateMonsterAttackSfx();
+
+	UpdatePendingMonsterSfx(dt);
+
+	UpdateActiveMonsterSfx();
+}
+
+void CGameScene::UpdateMonsterFootstepSfx()
+{
+	const size_t requiredStateCount =
+		m_swordManRefs.size() +
+		m_bowManRefs.size();
+
+	if ( m_monsterFootstepSfxStates.size() < requiredStateCount )
+	{
+		m_monsterFootstepSfxStates.resize(requiredStateCount);
+	}
+
+	size_t stateIndex = 0;
+
+	auto TickGroup =
+		[ this, &stateIndex ] (const std::vector<CGameObject*>& monsters)
+		{
+			for ( CGameObject* monster : monsters )
+			{
+				if ( stateIndex >= m_monsterFootstepSfxStates.size() )
+					return;
+
+				TrackMonsterFootstepSfx(
+					monster,
+					m_monsterFootstepSfxStates[stateIndex]
+				);
+
+				++stateIndex;
+			}
+		};
+
+	TickGroup(m_swordManRefs);
+	TickGroup(m_bowManRefs);
+
+	// 추후 Ghoul/Mutant/Boss도 발소리 추가 시:
+	// TickGroup(m_MutantRefs);
+	// TickGroup(m_bossRefs);
+	// 같은 식으로 추가하면 된다.
+}
+
+void CGameScene::TrackMonsterFootstepSfx(
+	CGameObject* monster,
+	MonsterFootstepSfxState& state)
+{
+	if ( !monster || IsMonsterDead(monster) )
+	{
+		state = MonsterFootstepSfxState{};
+		return;
+	}
+
+	CAnimator* anim = nullptr;
+
+	if ( auto* animComp = monster->GetComponent<CAnimatorComponent>() )
+		anim = animComp->GetAnimator();
+
+	if ( !anim )
+		anim = monster->GetAnimator();
+
+	if ( !anim || !anim->IsPlaying() )
+	{
+		state = MonsterFootstepSfxState{};
+		return;
+	}
+
+	const std::string& clipName = anim->GetCurrentClipName();
+	const int mode = GetMonsterFootstepModeFromClipName(clipName);
+
+	if ( mode == 0 )
+	{
+		state = MonsterFootstepSfxState{};
+		return;
+	}
+
+	const float duration = anim->GetCurrentClipDuration();
+	if ( duration <= 1.0e-6f )
+	{
+		state = MonsterFootstepSfxState{};
+		return;
+	}
+
+	float curNormalized = anim->GetCurrentTime() / duration;
+
+	if ( curNormalized < 0.0f ) curNormalized = 0.0f;
+	if ( curNormalized > 1.0f ) curNormalized = 1.0f;
+
+	// Walk/Run 진입 첫 프레임에는 기준점만 잡고 발소리는 내지 않는다.
+	if ( !state.valid || state.mode != mode )
+	{
+		state.valid = true;
+		state.mode = mode;
+		state.prevNormalizedTime = curNormalized;
+		return;
+	}
+
+	const float prevNormalized = state.prevNormalizedTime;
+
+	bool shouldPlayFootstep = false;
+
+	if ( mode == 1 ) // Walk: 21 keyframes, foot contact at 2, 11
+	{
+		constexpr float kWalkFootstep0 = ( 2.0f - 1.0f ) / ( 21.0f - 1.0f );
+		constexpr float kWalkFootstep1 = ( 11.0f - 1.0f ) / ( 21.0f - 1.0f );
+
+		shouldPlayFootstep =
+			CrossedNormalizedEvent(prevNormalized, curNormalized, kWalkFootstep0) ||
+			CrossedNormalizedEvent(prevNormalized, curNormalized, kWalkFootstep1);
+	}
+	else if ( mode == 2 ) // Run: 16 keyframes, foot contact at 2, 10
+	{
+		constexpr float kRunFootstep0 = ( 2.0f - 1.0f ) / ( 16.0f - 1.0f );
+		constexpr float kRunFootstep1 = ( 10.0f - 1.0f ) / ( 16.0f - 1.0f );
+
+		shouldPlayFootstep =
+			CrossedNormalizedEvent(prevNormalized, curNormalized, kRunFootstep0) ||
+			CrossedNormalizedEvent(prevNormalized, curNormalized, kRunFootstep1);
+	}
+
+	if ( shouldPlayFootstep )
+		PlayMonsterFootstepSfx(monster);
+
+	state.prevNormalizedTime = curNormalized;
+}
+
+void CGameScene::PlayMonsterFootstepSfx(CGameObject* monster)
+{
+	if ( !monster )
+		return;
+
+	ScheduleMonsterSfx(
+		EMonsterSfxKind::Footstep,
+		monster,
+		SelectRandomMonsterFootstepBlockSfxPath(),
+		0.0f,
+		kMonsterFootstepSfxVolume,
+		false
+	);
+}
+
+void CGameScene::UpdateMonsterAttackSfx()
+{
+	if ( m_prevSwordManAttackPhase.size() < m_swordManRefs.size() )
+		m_prevSwordManAttackPhase.resize(m_swordManRefs.size(), false);
+
+	for ( size_t i = 0; i < m_swordManRefs.size(); ++i )
+	{
+		CGameObject* swordman = m_swordManRefs[i];
+
+		if ( !swordman || IsMonsterDead(swordman) )
+		{
+			m_prevSwordManAttackPhase[i] = false;
+			continue;
+		}
+
+		bool isAttack = false;
+
+		if ( auto* animComp = swordman->GetComponent<CAnimatorComponent>() )
+		{
+			if ( auto* ctrl = animComp->EnsureMonsterController() )
+			{
+				isAttack = ctrl->IsAttackPrimaryPhase();
+			}
+		}
+
+		if ( isAttack && !m_prevSwordManAttackPhase[i] )
+		{
+			RequestSwordManAttackSfx(swordman);
+		}
+
+		m_prevSwordManAttackPhase[i] = isAttack;
+	}
+
+	if ( m_prevBowManSfxLoadPhase.size() < m_bowManRefs.size() )
+		m_prevBowManSfxLoadPhase.resize(m_bowManRefs.size(), false);
+
+	for ( size_t i = 0; i < m_bowManRefs.size(); ++i )
+	{
+		CGameObject* bowman = m_bowManRefs[i];
+
+		if ( !bowman || IsMonsterDead(bowman) )
+		{
+			m_prevBowManSfxLoadPhase[i] = false;
+			continue;
+		}
+
+		bool isBowLoad = false;
+
+		if ( auto* animComp = bowman->GetComponent<CAnimatorComponent>() )
+		{
+			if ( auto* ctrl = animComp->EnsureMonsterController() )
+			{
+				isBowLoad = ctrl->IsAttackPrimaryPhase(); // Bow_Load
+			}
+		}
+
+		// 플레이어 활과 동일하게 Bow_Load 진입 순간에 Loading 사운드를 예약하고,
+		// Release 사운드는 Bow_Load 시작 기준 26/60초 뒤에 예약한다.
+		if ( isBowLoad && !m_prevBowManSfxLoadPhase[i] )
+		{
+			RequestBowManLoadSfx(bowman);
+		}
+
+		m_prevBowManSfxLoadPhase[i] = isBowLoad;
+	}
+}
+
+void CGameScene::RequestSwordManAttackSfx(CGameObject* swordman)
+{
+	ScheduleMonsterSfx(
+		EMonsterSfxKind::SwordWhoosh,
+		swordman,
+		GetMonsterSwordManWhooshPath(),
+		kMonsterSwordWhooshDelaySeconds,
+		kMonsterSwordWhooshVolume,
+		true
+	);
+}
+
+void CGameScene::RequestBowManLoadSfx(CGameObject* bowman)
+{
+	ScheduleMonsterSfx(
+		EMonsterSfxKind::BowLoading,
+		bowman,
+		GetMonsterBowLoadingSfxPath(),
+		kMonsterBowLoadingSfxDelaySeconds,
+		kMonsterBowLoadingSfxVolume,
+		true
+	);
+
+	ScheduleMonsterSfx(
+		EMonsterSfxKind::BowRelease,
+		bowman,
+		GetMonsterBowReleaseSfxPath(),
+		kMonsterBowReleaseSfxDelayFromLoadSeconds,
+		kMonsterBowReleaseSfxVolume,
+		true
+	);
+}
+
+void CGameScene::ScheduleMonsterSfx(
+	EMonsterSfxKind kind,
+	CGameObject* owner,
+	const char* soundPath,
+	float delaySeconds,
+	float volume,
+	bool followOwner)
+{
+	if ( kind == EMonsterSfxKind::None )
+		return;
+
+	if ( !owner )
+		return;
+
+	if ( IsMonsterDead(owner) )
+		return;
+
+	if ( !soundPath || !soundPath[0] )
+		return;
+
+	PendingMonsterSfx sfx{};
+	sfx.kind = kind;
+	sfx.owner = owner;
+	sfx.path = soundPath;
+	sfx.timer = delaySeconds;
+	sfx.originalDelay = delaySeconds;
+	sfx.volume = volume;
+	sfx.followOwner = followOwner;
+
+	m_pendingMonsterSfxList.push_back(sfx);
+
+	if ( delaySeconds <= 0.0f )
+		PlayPendingMonsterSfxAt(m_pendingMonsterSfxList.size() - 1);
+}
+
+void CGameScene::UpdatePendingMonsterSfx(float dt)
+{
+	for ( size_t i = 0; i < m_pendingMonsterSfxList.size(); )
+	{
+		PendingMonsterSfx& sfx = m_pendingMonsterSfxList[i];
+
+		if ( !sfx.owner || IsMonsterDead(sfx.owner) )
+		{
+			m_pendingMonsterSfxList.erase(m_pendingMonsterSfxList.begin() + i);
+			continue;
+		}
+
+		if ( sfx.timer > 0.0f )
+		{
+			sfx.timer -= dt;
+
+			if ( sfx.timer > 0.0f )
+			{
+				++i;
+				continue;
+			}
+		}
+
+		PlayPendingMonsterSfxAt(i);
+	}
+}
+
+void CGameScene::PlayPendingMonsterSfxAt(size_t index)
+{
+	if ( index >= m_pendingMonsterSfxList.size() )
+		return;
+
+	const PendingMonsterSfx played = m_pendingMonsterSfxList[index];
+
+	m_pendingMonsterSfxList.erase(m_pendingMonsterSfxList.begin() + index);
+
+	if ( !m_pAudioManager )
+		return;
+
+	if ( !played.owner || IsMonsterDead(played.owner) )
+		return;
+
+	if ( !played.path || !played.path[0] )
+		return;
+
+	const XMFLOAT3 pos = played.owner->GetPosition();
+
+	FMOD::Channel* channel = m_pAudioManager->PlaySound3D(
+		played.path,
+		pos,
+		false,
+		false,
+		played.volume,
+		false
+	);
+
+	if ( channel && played.followOwner )
+	{
+		ActiveMonsterSfx active{};
+		active.kind = played.kind;
+		active.channel = channel;
+		active.followTarget = played.owner;
+		active.prevPosition = pos;
+		active.hasPrevPosition = true;
+
+		m_activeMonsterSfxList.push_back(active);
+	}
+}
+
+void CGameScene::UpdateActiveMonsterSfx()
+{
+	if ( !m_pAudioManager )
+	{
+		m_activeMonsterSfxList.clear();
+		return;
+	}
+
+	for ( size_t i = 0; i < m_activeMonsterSfxList.size(); )
+	{
+		ActiveMonsterSfx& active = m_activeMonsterSfxList[i];
+
+		if ( !active.channel || !active.followTarget || IsMonsterDead(active.followTarget) )
+		{
+			m_activeMonsterSfxList.erase(m_activeMonsterSfxList.begin() + i);
+			continue;
+		}
+
+		if ( !m_pAudioManager->IsChannelPlaying(active.channel) )
+		{
+			m_activeMonsterSfxList.erase(m_activeMonsterSfxList.begin() + i);
+			continue;
+		}
+
+		const XMFLOAT3 pos = active.followTarget->GetPosition();
+
+		XMFLOAT3 vel(0.0f, 0.0f, 0.0f);
+
+		if ( active.hasPrevPosition )
+		{
+			vel.x = pos.x - active.prevPosition.x;
+			vel.y = pos.y - active.prevPosition.y;
+			vel.z = pos.z - active.prevPosition.z;
+		}
+
+		m_pAudioManager->SetChannel3DAttributes(
+			active.channel,
+			pos,
+			vel
+		);
+
+		active.prevPosition = pos;
+		active.hasPrevPosition = true;
+
+		++i;
 	}
 }
