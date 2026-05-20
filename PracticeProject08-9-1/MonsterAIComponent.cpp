@@ -1034,18 +1034,12 @@ void CMonsterAIComponent::SetMonsterLocomotionState(EMonsterAnimState state)
 
 float CMonsterAIComponent::GetChaseMoveSpeed() const
 {
-	// m_moveSpeed는 run 기준 속도.
-	return m_moveSpeed;
+	return m_runMoveSpeed;
 }
 
 float CMonsterAIComponent::GetWalkMoveSpeed() const
 {
-	const float scale =
-		( m_walkMoveSpeedScale > 0.0f )
-		? m_walkMoveSpeedScale
-		: 1.0f;
-
-	return m_moveSpeed * scale;
+	return m_walkMoveSpeed;
 }
 
 EMonsterAnimState CMonsterAIComponent::GetChaseLocomotionState() const
