@@ -1533,6 +1533,13 @@ CHeightMapGridMesh::CHeightMapGridMesh(ID3D12Device* pd3dDevice, ID3D12GraphicsC
 
 			SubMesh& sm = m_SubMeshes[static_cast< size_t >( z ) * static_cast< size_t >( cxBlocks ) + static_cast< size_t >( x )];
 
+			sm.materialName = "Grass";
+			sm.diffuseTextureName = "grass_diff";
+			sm.normalTextureName = "grass_normal";
+			sm.diffuseColor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+			sm.emissiveColor = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+			sm.specularColor = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+
 			const size_t vertexCount = static_cast< size_t >( blockWidth ) * static_cast< size_t >( blockLength );
 			sm.positions.reserve(vertexCount);
 			sm.normals.reserve(vertexCount);
