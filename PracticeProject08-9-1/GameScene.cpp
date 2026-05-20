@@ -46,9 +46,11 @@ CGameScene::CGameScene()
 
     m_arrowRefs.clear();
     m_arrowRefs.shrink_to_fit();
+	m_networkArrowById.clear();
 
 	m_bulletRefs.clear();
 	m_bulletRefs.shrink_to_fit();
+	m_networkBulletById.clear();
 
 	m_navMesh.reset();
 
@@ -2076,6 +2078,8 @@ void CGameScene::ReleaseObjects()
 	m_helmetRefs.clear();
 	m_arrowRefs.clear();
 	m_bulletRefs.clear();
+	m_networkArrowById.clear();
+	m_networkBulletById.clear();
 
 	m_attachmentBinds.clear();
 	m_staticInstanceGroups.clear();
@@ -5297,8 +5301,33 @@ void CGameScene::AnimateObjects(float dt)
 		}
 
 		// Projectile 동기화
-		size_t usedArrowCount = 0;
-		size_t usedBulletCount = 0;
+		std::unordered_set<uint64_t> visibleArrowIds;
+		std::unordered_set<uint64_t> visibleBulletIds;
+
+		auto AcquireNetworkProjectile = [] (
+			const std::vector<CGameObject*>& refs,
+			const std::unordered_map<uint64_t, CGameObject*>& activeById) -> CGameObject*
+		{
+			for ( CGameObject* obj : refs )
+			{
+				if ( !obj ) continue;
+
+				bool inUse = false;
+				for ( const auto& pair : activeById )
+				{
+					if ( pair.second == obj )
+					{
+						inUse = true;
+						break;
+					}
+				}
+
+				if ( !inUse )
+					return obj;
+			}
+
+			return nullptr;
+		};
 
 		for (const auto& b : snapshot.bullets)
 		{
@@ -5306,25 +5335,43 @@ void CGameScene::AnimateObjects(float dt)
 
 			if (isArrow)
 			{
-				if (usedArrowCount >= m_arrowRefs.size())
-					continue;
+				visibleArrowIds.insert(b.id);
 
-				CGameObject* arrowObj = m_arrowRefs[usedArrowCount++];
+				CGameObject* arrowObj = nullptr;
+				auto it = m_networkArrowById.find(b.id);
+				if ( it != m_networkArrowById.end() )
+					arrowObj = it->second;
+				else
+				{
+					arrowObj = AcquireNetworkProjectile(m_arrowRefs, m_networkArrowById);
+					if ( arrowObj )
+						m_networkArrowById[b.id] = arrowObj;
+				}
+
 				if (!arrowObj) continue;
 
 				if ( auto* arrow = arrowObj->GetComponent<CArrowComponent>() )
 				{
 					arrow->Activate(b.position, b.velocity, 2.0f);
-					auto arrowtransform = arrowObj->GetComponent<CTransformComponent>();
-					arrowtransform->SetLookDirection(b.velocity);
+					if ( auto* arrowtransform = arrowObj->GetComponent<CTransformComponent>() )
+						arrowtransform->SetLookDirection(b.velocity);
 				}
 			}
 			else
 			{
-				if (usedBulletCount >= m_bulletRefs.size())
-					continue;
+				visibleBulletIds.insert(b.id);
 
-				CGameObject* bulletObj = m_bulletRefs[usedBulletCount++];
+				CGameObject* bulletObj = nullptr;
+				auto it = m_networkBulletById.find(b.id);
+				if ( it != m_networkBulletById.end() )
+					bulletObj = it->second;
+				else
+				{
+					bulletObj = AcquireNetworkProjectile(m_bulletRefs, m_networkBulletById);
+					if ( bulletObj )
+						m_networkBulletById[b.id] = bulletObj;
+				}
+
 				if (!bulletObj) continue;
 
 				if ( auto* bullet = bulletObj->GetComponent<CBulletComponent>() )
@@ -5334,18 +5381,36 @@ void CGameScene::AnimateObjects(float dt)
 			}
 		}
 
-		for (size_t i = usedArrowCount; i < m_arrowRefs.size(); ++i)
+		for ( auto it = m_networkArrowById.begin(); it != m_networkArrowById.end(); )
 		{
-			if (!m_arrowRefs[i]) continue;
-			if (auto* arrow = m_arrowRefs[i]->GetComponent<CArrowComponent>())
-				arrow->Deactivate();
+			if ( visibleArrowIds.find(it->first) != visibleArrowIds.end() )
+			{
+				++it;
+				continue;
+			}
+
+			if ( it->second )
+			{
+				if ( auto* arrow = it->second->GetComponent<CArrowComponent>() )
+					arrow->Deactivate();
+			}
+			it = m_networkArrowById.erase(it);
 		}
 
-		for (size_t i = usedBulletCount; i < m_bulletRefs.size(); ++i)
+		for ( auto it = m_networkBulletById.begin(); it != m_networkBulletById.end(); )
 		{
-			if (!m_bulletRefs[i]) continue;
-			if (auto* bullet = m_bulletRefs[i]->GetComponent<CBulletComponent>())
-				bullet->Deactivate();
+			if ( visibleBulletIds.find(it->first) != visibleBulletIds.end() )
+			{
+				++it;
+				continue;
+			}
+
+			if ( it->second )
+			{
+				if ( auto* bullet = it->second->GetComponent<CBulletComponent>() )
+					bullet->Deactivate();
+			}
+			it = m_networkBulletById.erase(it);
 		}
 
 		// 사용이 끝난 data는 기본값으로 초기화 (선택적)
