@@ -5715,7 +5715,9 @@ void CGameScene::AnimateObjects(float dt)
 	}
 
 	UpdateDynamicGridState();
+
 	UpdatePlayerFootstepSfx();
+	UpdateMonsterSfx(dt);
 
 	for ( CGameObject* obj : m_staticGameplayTickObjects )
 	{
