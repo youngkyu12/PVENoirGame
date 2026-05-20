@@ -873,6 +873,7 @@ private:
 	std::array<SwordTrailVertex*, kSceneBatchFrameResourceCount> m_pMappedSwordTrailVertexBuffer = {};
 	UINT m_swordTrailVertexBufferCapacity = 0;
 
+	std::vector<CGameObject*> m_ghoulRefs;
 	std::vector<CGameObject*> m_swordManRefs;
 	std::vector<CGameObject*> m_bowManRefs;
 	std::vector<CGameObject*> m_MutantRefs;
@@ -916,6 +917,12 @@ private:
 		SwordWhoosh,
 		BowLoading,
 		BowRelease
+	};
+
+	enum class EMonsterFootstepProfile : uint8_t
+	{
+		Humanoid = 0, // SwordMan / BowMan
+		Ghoul
 	};
 
 	struct MonsterFootstepSfxState
@@ -988,7 +995,8 @@ private:
 
 	void TrackMonsterFootstepSfx(
 		CGameObject* monster,
-		MonsterFootstepSfxState& state
+		MonsterFootstepSfxState& state,
+		EMonsterFootstepProfile profile
 	);
 
 	void PlayMonsterFootstepSfx(CGameObject* monster);

@@ -2292,6 +2292,7 @@ void CGameScene::ReleaseObjects()
 	m_colliderObjects.clear();
 	m_ColliderCount = 0;
 
+	m_ghoulRefs.clear();
 	m_swordManRefs.clear();
 	m_bowManRefs.clear();
 	m_MutantRefs.clear();
@@ -2325,7 +2326,9 @@ void CGameScene::ReleaseObjects()
     m_EnemyBowRefs.clear();
 
 	ResetPlayerFootstepSfxState();
-	m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr };
+	ResetMonsterSfxState();
+
+	m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr }; 
 	m_prevBowLoadPhase = { false, false, false, false };
 	m_prevBowReleasePhase = { false, false, false, false };
 	m_preparedBowmanArrows.clear();
