@@ -1326,6 +1326,7 @@ private:
 	bool m_bSimulateLocalPlayerWorldStaticRollback = true;
 	bool m_bSimulateLocalTeleport = true;
 	bool m_bSimulateLocalItemPickup = true;
+	bool m_bCanBossStageDirectly = false;
 
 	bool m_bSimulateLocalStageTeleport = true;
 	std::array<bool, CSceneGrid::kMegaGridCount + 1> m_bPrevLocalStageTeleportKeyDown = {};
