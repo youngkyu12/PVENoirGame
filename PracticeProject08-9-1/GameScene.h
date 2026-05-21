@@ -1318,7 +1318,13 @@ public:
 
 private:
 	bool m_bSimulateLocalPlayerMonsterAttackCollision = true;
+
 	bool m_bSimulateLocalAI = true;
+	bool m_bSimulateLocalGhoulAI = true;
+	bool m_bSimulateLocalBowManAI = true;
+	bool m_bSimulateLocalSwordManAI = true;
+	bool m_bSimulateLocalMutantAI = true;
+	bool m_bSimulateLocalBossAI = true;
 
 	bool m_bSimulateLocalMonsterChase = true;
 	bool m_bPrevLocalMonsterChaseToggleKeyDown = false;

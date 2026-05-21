@@ -54,6 +54,12 @@ CGameScene::CGameScene()
 
 	m_bSimulateLocalPlayerMonsterAttackCollision = true;
 	m_bSimulateLocalAI = true;
+	m_bSimulateLocalGhoulAI = true;
+	m_bSimulateLocalBowManAI = true;
+	m_bSimulateLocalSwordManAI = true;
+	m_bSimulateLocalMutantAI = true;
+	m_bSimulateLocalBossAI = true;
+
 	m_bSimulateLocalMonsterChase = true;
 	m_bPrevLocalMonsterChaseToggleKeyDown = false;
 	m_bSimulateLocalEnemySpawner = true;
@@ -67,6 +73,13 @@ CGameScene::CGameScene()
 #ifdef USING_NETWORK
 	m_bSimulateLocalPlayerMonsterAttackCollision = false;
 	m_bSimulateLocalAI = false;
+
+	m_bSimulateLocalGhoulAI = false;
+	m_bSimulateLocalBowManAI = false;
+	m_bSimulateLocalSwordManAI = false;
+	m_bSimulateLocalMutantAI = false;
+	m_bSimulateLocalBossAI = false;
+
 	m_bSimulateLocalMonsterChase = false;
 	m_bSimulateLocalEnemySpawner = false;
 	m_bSimulateLocalPlayerWorldStaticRollback = false;
