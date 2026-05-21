@@ -60,6 +60,7 @@ CGameScene::CGameScene()
 	m_bSimulateLocalPlayerWorldStaticRollback = true;
 	m_bSimulateLocalTeleport = true;
 	m_bSimulateLocalItemPickup = true;
+	m_bCanBossStageDirectly = false;
 	m_bSimulateLocalStageTeleport = true;
 	m_bPrevLocalStageTeleportKeyDown.fill(false);
 
@@ -71,6 +72,7 @@ CGameScene::CGameScene()
 	m_bSimulateLocalPlayerWorldStaticRollback = false;
 	m_bSimulateLocalTeleport = false;
 	m_bSimulateLocalItemPickup = true;
+	m_bCanBossStageDirectly = false;
 	m_bSimulateLocalStageTeleport = false;
 	m_bPrevLocalStageTeleportKeyDown.fill(false);
 #endif
@@ -645,6 +647,8 @@ int CGameScene::CountClearedMegaGrids() const
 
 bool CGameScene::CanUseCastleDoorPortal() const
 {
+	if ( m_bCanBossStageDirectly )
+		return true;
 	return CountClearedMegaGrids() >= kRequiredClearedMegaGridCountForCastlePortal;
 }
 

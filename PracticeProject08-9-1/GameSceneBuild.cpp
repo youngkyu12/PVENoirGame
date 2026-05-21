@@ -32,6 +32,7 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 	m_bSimulateLocalPlayerWorldStaticRollback = true;
 	m_bSimulateLocalTeleport = false;
 	m_bSimulateLocalItemPickup = true;
+	m_bCanBossStageDirectly = false;
 	m_bSimulateLocalStageTeleport = false;
 #else
 	m_bSimulateLocalPlayerMonsterAttackCollision = false;
@@ -41,6 +42,7 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 	m_bSimulateLocalPlayerWorldStaticRollback = true;
 	m_bSimulateLocalTeleport = true;
 	m_bSimulateLocalItemPickup = true;
+	m_bCanBossStageDirectly = true;
 	m_bSimulateLocalStageTeleport = true;
 #endif
 
