@@ -99,5 +99,40 @@ public:
 	}
 
 protected:
+	bool AcquireTarget() override;
+	void UpdateBehavior(float dt) override;
 	bool TryPerformAttack() override;
+
+private:
+	enum class EBossAttackIntent : uint8_t
+	{
+		Melee = 0,
+		Spell
+	};
+
+private:
+	void UpdateBossCooldowns(float dt);
+	bool IsPlayerInsideBossBattleZone(CGameObject* player) const;
+	bool CanStartBossAction() const;
+
+	bool TryPerformBossCommand(EMonsterAnimCommand command);
+	bool TryPerformMeleeAttack();
+	bool TryPerformSpellAttack();
+
+	void ConsumeBossMeleeCooldown();
+	void ConsumeBossSpellCooldown();
+
+private:
+	EBossAttackIntent m_pendingAttackIntent = EBossAttackIntent::Melee;
+
+	float m_bossMeleeRange = 7.0f;
+	float m_bossPreferredSpellRange = 12.0f;
+
+	float m_bossGlobalActionCooldown = 0.8f;
+	float m_bossMeleeCooldown = 2.0f;
+	float m_bossSpellCooldown = 3.5f;
+
+	float m_bossGlobalActionCooldownRemaining = 0.0f;
+	float m_bossMeleeCooldownRemaining = 0.0f;
+	float m_bossSpellCooldownRemaining = 0.0f;
 };
