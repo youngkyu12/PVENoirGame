@@ -26,7 +26,15 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 {
 #ifdef USING_NETWORK
 	m_bSimulateLocalPlayerMonsterAttackCollision = false;
+
 	m_bSimulateLocalAI = false;
+
+	m_bSimulateLocalGhoulAI = false;
+	m_bSimulateLocalBowManAI = false;
+	m_bSimulateLocalSwordManAI = false;
+	m_bSimulateLocalMutantAI = false;
+	m_bSimulateLocalBossAI = false;
+
 	m_bSimulateLocalMonsterChase = false;
 	m_bSimulateLocalEnemySpawner = true;
 	m_bSimulateLocalPlayerWorldStaticRollback = true;
@@ -36,7 +44,15 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 	m_bSimulateLocalStageTeleport = false;
 #else
 	m_bSimulateLocalPlayerMonsterAttackCollision = false;
+
 	m_bSimulateLocalAI = true;
+
+	m_bSimulateLocalGhoulAI = false;
+	m_bSimulateLocalBowManAI = false;
+	m_bSimulateLocalSwordManAI = false;
+	m_bSimulateLocalMutantAI = false;
+	m_bSimulateLocalBossAI = true;
+
 	m_bSimulateLocalMonsterChase = true;
 	m_bSimulateLocalEnemySpawner = true;
 	m_bSimulateLocalPlayerWorldStaticRollback = true;
@@ -45,6 +61,15 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 	m_bCanBossStageDirectly = true;
 	m_bSimulateLocalStageTeleport = true;
 #endif
+
+	if ( !m_bSimulateLocalAI )
+	{
+		m_bSimulateLocalGhoulAI = false;
+		m_bSimulateLocalBowManAI = false;
+		m_bSimulateLocalSwordManAI = false;
+		m_bSimulateLocalMutantAI = false;
+		m_bSimulateLocalBossAI = false;
+	}
 
 	m_bPrevLocalMonsterChaseToggleKeyDown = false;
 	m_bPrevLocalStageTeleportKeyDown.fill(false);
@@ -1368,12 +1393,42 @@ void CGameScene::BuildSkinnedBatch(
 		Boss
 	};
 
+	auto ShouldAttachLocalMonsterAI =
+		[ this ] (ELocalMonsterAIKind kind) -> bool
+		{
+			if ( !m_bSimulateLocalAI )
+				return false;
+
+			switch ( kind )
+			{
+			case ELocalMonsterAIKind::Ghoul:
+				return m_bSimulateLocalGhoulAI;
+
+			case ELocalMonsterAIKind::BowMan:
+				return m_bSimulateLocalBowManAI;
+
+			case ELocalMonsterAIKind::SwordMan:
+				return m_bSimulateLocalSwordManAI;
+
+			case ELocalMonsterAIKind::Mutant:
+				return m_bSimulateLocalMutantAI;
+
+			case ELocalMonsterAIKind::Boss:
+				return m_bSimulateLocalBossAI;
+
+			default:
+				break;
+			}
+
+			return false;
+		};
+
 	auto AttachMonsterAIToMonster =
-		[ this ](
+		[ this, &ShouldAttachLocalMonsterAI ](
 			std::unique_ptr<CGameObject>& obj,
 			ELocalMonsterAIKind kind)
 		{
-			if ( !m_bSimulateLocalAI )
+			if ( !ShouldAttachLocalMonsterAI(kind) )
 				return;
 
 			if ( !obj )
