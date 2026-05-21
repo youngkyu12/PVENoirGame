@@ -2514,7 +2514,8 @@ void CGameScene::BuildSkinnedBatch(
 	m_monsterFootstepSfxStates.assign(
 		m_ghoulRefs.size() +
 		m_swordManRefs.size() +
-		m_bowManRefs.size(),
+		m_bowManRefs.size() +
+		m_MutantRefs.size(),
 		MonsterFootstepSfxState{}
 	);
 

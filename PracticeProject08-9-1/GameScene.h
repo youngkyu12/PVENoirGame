@@ -985,7 +985,8 @@ private:
 	enum class EMonsterFootstepProfile : uint8_t
 	{
 		Humanoid = 0, // SwordMan / BowMan
-		Ghoul
+		Ghoul,
+		Mutant
 	};
 
 	struct MonsterFootstepSfxState

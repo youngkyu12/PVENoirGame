@@ -412,7 +412,8 @@ void CGameScene::UpdateMonsterFootstepSfx()
 	const size_t requiredStateCount =
 		m_ghoulRefs.size() +
 		m_swordManRefs.size() +
-		m_bowManRefs.size();
+		m_bowManRefs.size() +
+		m_MutantRefs.size();
 
 	if ( m_monsterFootstepSfxStates.size() < requiredStateCount )
 	{
@@ -444,6 +445,7 @@ void CGameScene::UpdateMonsterFootstepSfx()
 	TickGroup(m_ghoulRefs, EMonsterFootstepProfile::Ghoul);
 	TickGroup(m_swordManRefs, EMonsterFootstepProfile::Humanoid);
 	TickGroup(m_bowManRefs, EMonsterFootstepProfile::Humanoid);
+	TickGroup(m_MutantRefs, EMonsterFootstepProfile::Mutant);
 }
 
 void CGameScene::TrackMonsterFootstepSfx(
@@ -512,7 +514,6 @@ void CGameScene::TrackMonsterFootstepSfx(
 			// Ghoul Walk:
 			// 총 90 keyframes.
 			// 발 접지 frame = 11, 54.
-			// normalized = (frame - 1) / (keyframeCount - 1)
 			constexpr float kGhoulWalkFootstep0 = ( 11.0f - 1.0f ) / ( 90.0f - 1.0f );
 			constexpr float kGhoulWalkFootstep1 = ( 54.0f - 1.0f ) / ( 90.0f - 1.0f );
 
@@ -525,7 +526,6 @@ void CGameScene::TrackMonsterFootstepSfx(
 			// Ghoul Run:
 			// 총 94 keyframes.
 			// 발 접지 frame = 11, 35, 58, 81.
-			// 한 clip 안에 4걸음이 들어 있다.
 			constexpr float kGhoulRunFootstep0 = ( 11.0f - 1.0f ) / ( 94.0f - 1.0f );
 			constexpr float kGhoulRunFootstep1 = ( 35.0f - 1.0f ) / ( 94.0f - 1.0f );
 			constexpr float kGhoulRunFootstep2 = ( 58.0f - 1.0f ) / ( 94.0f - 1.0f );
@@ -536,6 +536,34 @@ void CGameScene::TrackMonsterFootstepSfx(
 				CrossedNormalizedEvent(prevNormalized, curNormalized, kGhoulRunFootstep1) ||
 				CrossedNormalizedEvent(prevNormalized, curNormalized, kGhoulRunFootstep2) ||
 				CrossedNormalizedEvent(prevNormalized, curNormalized, kGhoulRunFootstep3);
+		}
+	}
+	else if ( profile == EMonsterFootstepProfile::Mutant )
+	{
+		if ( mode == 1 )
+		{
+			// Mutant Walk:
+			// 총 35 keyframes.
+			// 발 접지 frame = 6, 21.
+			// normalized = (frame - 1) / (keyframeCount - 1)
+			constexpr float kMutantWalkFootstep0 = ( 6.0f - 1.0f ) / ( 35.0f - 1.0f );
+			constexpr float kMutantWalkFootstep1 = ( 21.0f - 1.0f ) / ( 35.0f - 1.0f );
+
+			shouldPlayFootstep =
+				CrossedNormalizedEvent(prevNormalized, curNormalized, kMutantWalkFootstep0) ||
+				CrossedNormalizedEvent(prevNormalized, curNormalized, kMutantWalkFootstep1);
+		}
+		else if ( mode == 2 )
+		{
+			// Mutant Run:
+			// 총 21 keyframes.
+			// 발 접지 frame = 4, 14.
+			constexpr float kMutantRunFootstep0 = ( 4.0f - 1.0f ) / ( 21.0f - 1.0f );
+			constexpr float kMutantRunFootstep1 = ( 14.0f - 1.0f ) / ( 21.0f - 1.0f );
+
+			shouldPlayFootstep =
+				CrossedNormalizedEvent(prevNormalized, curNormalized, kMutantRunFootstep0) ||
+				CrossedNormalizedEvent(prevNormalized, curNormalized, kMutantRunFootstep1);
 		}
 	}
 	else
