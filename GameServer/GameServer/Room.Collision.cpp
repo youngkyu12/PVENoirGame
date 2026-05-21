@@ -422,7 +422,7 @@ void Room::RegisterDoorPortal(BuildingRef building)
 
 	if (building->GetBuildingType() == Protocol::BUILDING_TYPE_TOWER)
 	{
-		if (subBoxes.size() <= 11)
+		if (subBoxes.size() <= 10)
 			return;
 
 		TowerDoorPortalEntry entry{};
@@ -434,7 +434,6 @@ void Room::RegisterDoorPortal(BuildingRef building)
 		entry.doorBRefs.push_back(DoorPortalSubBoxRef{ 8 });
 		entry.doorBRefs.push_back(DoorPortalSubBoxRef{ 9 });
 		entry.doorBRefs.push_back(DoorPortalSubBoxRef{ 10 });
-		entry.doorBRefs.push_back(DoorPortalSubBoxRef{ 11 });
 		m_towerDoorPortals.push_back(std::move(entry));
 		return;
 	}
