@@ -2,6 +2,7 @@
 #include "Room.h"
 #include "Player.h"
 #include "Enemy.h"
+#include "ColliderComponent.h"
 #include "Projectile.h"
 
 #include <algorithm>
@@ -149,13 +150,26 @@ void Room::TickAdvance()
 	const uint32 animClockTick = GetAnimClockTick();
 	const uint32 combatClockTick = GetCombatClockTick();
 
+	TickDoorPortalCooldowns();
+
 	for (auto player : players)
 	{
+		if (!player.second) continue;
+
 		const GameMath::Vec3 prevPos = player.second->GetPosition();
 		player.second->Update(animClockTick);
-		ResolveWorldStaticCollision(player.second, prevPos);
+
+		const bool teleported =
+			TryTeleportPlayerByTowerDoorPortal(player.second) ||
+			TryTeleportPlayerByCastleDoorPortal(player.second);
+
+		if (!teleported)
+			ResolveWorldStaticCollision(player.second, prevPos);
+
 		WakeEnemiesNearPlayer(player.second);
 	}
+
+	RefreshDynamicCollisionMegaGridMasks();
 
 	for (auto& [pid, player] : players)
 	{
@@ -187,12 +201,19 @@ void Room::TickAdvance()
 	{
 		if (!p->IsActive()) continue;
 		p->Update(m_timing.projectileDtSec, m_timing.serverTickIntervalMs);
+		const uint16_t projectileMask = ComputeObjectCurrentMegaGridMask(p.get());
 
 		constexpr float kHitRadiusSq = 1.0f;
 		for (auto& enemyPair : enemies)
 		{
 			auto& enemy = enemyPair.second;
 			if (enemy->IsDead()) continue;
+			uint16_t enemyMask = 0;
+			if (auto* enemyCollider = enemy->GetComponent<CColliderComponent>())
+				enemyMask = enemyCollider->GetCollisionMegaGridMask();
+			if (enemyMask == 0)
+				enemyMask = ComputeObjectCurrentMegaGridMask(enemy.get());
+			if (projectileMask != 0 && enemyMask != 0 && (projectileMask & enemyMask) == 0) continue;
 			//const GameMath::Vec3 d = enemy->GetPosition() - p->GetPosition();
 
 			float distSq = GameMath::DistSqXZ(enemy->GetPosition(), p->GetPosition());
@@ -211,12 +232,19 @@ void Room::TickAdvance()
 	{
 		if (!p->IsActive()) continue;
 		p->Update(m_timing.projectileDtSec, m_timing.serverTickIntervalMs);
+		const uint16_t projectileMask = ComputeObjectCurrentMegaGridMask(p.get());
 
 		constexpr float kHitRadiusSq = 1.0f;
 		for (auto& enemyPair : enemies)
 		{
 			auto& enemy = enemyPair.second;
 			if (enemy->IsDead()) continue;
+			uint16_t enemyMask = 0;
+			if (auto* enemyCollider = enemy->GetComponent<CColliderComponent>())
+				enemyMask = enemyCollider->GetCollisionMegaGridMask();
+			if (enemyMask == 0)
+				enemyMask = ComputeObjectCurrentMegaGridMask(enemy.get());
+			if (projectileMask != 0 && enemyMask != 0 && (projectileMask & enemyMask) == 0) continue;
 			//const GameMath::Vec3 d = enemy->GetPosition() - p->GetPosition();
 
 			float distSq = GameMath::DistSqXZ(enemy->GetPosition(), p->GetPosition());
@@ -258,6 +286,13 @@ void Room::TickAdvance()
 		for (auto& [eid, enemy] : enemies)
 		{
 			if (enemy->IsDead()) continue;
+			const uint16_t playerMask = ComputeObjectCurrentMegaGridMask(player.get());
+			uint16_t enemyMask = 0;
+			if (auto* enemyCollider = enemy->GetComponent<CColliderComponent>())
+				enemyMask = enemyCollider->GetCollisionMegaGridMask();
+			if (enemyMask == 0)
+				enemyMask = ComputeObjectCurrentMegaGridMask(enemy.get());
+			if (playerMask != 0 && enemyMask != 0 && (playerMask & enemyMask) == 0) continue;
 			if (IsInArcXZ(player->GetPosition(), player->GetLook(),
 				enemy->GetPosition(), reach, halfAngleDeg))
 			{
@@ -292,6 +327,13 @@ void Room::TickAdvance()
 		for (auto& [pid, player] : players)
 		{
 			if (player->IsDead()) continue;
+			uint16_t enemyMask = 0;
+			if (auto* enemyCollider = enemy->GetComponent<CColliderComponent>())
+				enemyMask = enemyCollider->GetCollisionMegaGridMask();
+			if (enemyMask == 0)
+				enemyMask = ComputeObjectCurrentMegaGridMask(enemy.get());
+			const uint16_t playerMask = ComputeObjectCurrentMegaGridMask(player.get());
+			if (enemyMask != 0 && playerMask != 0 && (enemyMask & playerMask) == 0) continue;
 			if (IsInArcXZ(enemy->GetPosition(), enemy->GetLook(),
 				player->GetPosition(), reach, halfAngleDeg))
 			{

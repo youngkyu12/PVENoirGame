@@ -153,3 +153,21 @@ void CCollisionSystem::OnUpdate()
 		}
 	}
 }
+
+void CCollisionSystem::OnUpdateFiltered(const CollisionPairFilter& filter)
+{
+	const size_t n = mColliders.size();
+	for (size_t i = 0; i < n; ++i)
+	{
+		auto* a = mColliders[i];
+		if (!a) continue;
+
+		for (size_t j = i + 1; j < n; ++j)
+		{
+			auto* b = mColliders[j];
+			if (!b) continue;
+			if (filter && !filter(a, b)) continue;
+			HandlePair(a, b);
+		}
+	}
+}
