@@ -3248,6 +3248,16 @@ bool CGameScene::ExportStaticWorldLocalOOBBReport(
 			{
 				fout << "SubOOBBBegin\n";
 				fout << "SubIndex: " << subIndex << "\n";
+
+				if ( subIndex < set.SubOOBBMetas.size() )
+				{
+					fout << "SubMeshName: " << set.SubOOBBMetas[subIndex].meshName << "\n";
+				}
+				else
+				{
+					fout << "SubMeshName: " << "\n";
+				}
+
 				WriteOOBB("SubLocalOOBB.", set.LocalSubOOBBs[subIndex]);
 				fout << "SubOOBBEnd\n";
 			}
