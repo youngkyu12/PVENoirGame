@@ -310,6 +310,113 @@ namespace
 		trail.age = 0.0f;
 		trail.samples.clear();
 	}
+
+	static XMFLOAT3 TransformMonsterSwordTrailLocalPoint(
+	const XMFLOAT4X4& world,
+	const XMFLOAT3& localPoint)
+	{
+		XMVECTOR p = XMLoadFloat3(&localPoint);
+		XMMATRIX W = XMLoadFloat4x4(&world);
+
+		XMVECTOR out = XMVector3TransformCoord(p, W);
+
+		XMFLOAT3 result{};
+		XMStoreFloat3(&result, out);
+		return result;
+	}
+
+	static void ComputeMonsterSwordTrailRootTip(
+		const MonsterSwordTrailEntry& trail,
+		XMFLOAT3& outRoot,
+		XMFLOAT3& outTip)
+	{
+		if ( !trail.weaponObject )
+		{
+			outRoot = XMFLOAT3(0.0f, 0.0f, 0.0f);
+			outTip = XMFLOAT3(0.0f, 0.0f, 0.0f);
+			return;
+		}
+
+		const XMFLOAT4X4& W = trail.weaponObject->GetWorldMatrix();
+
+		XMFLOAT3 root = TransformMonsterSwordTrailLocalPoint(W, trail.rootLocal);
+		XMFLOAT3 tip = TransformMonsterSwordTrailLocalPoint(W, trail.tipLocal);
+
+		if ( trail.widthScale != 1.0f )
+		{
+			XMVECTOR rootV = XMLoadFloat3(&root);
+			XMVECTOR tipV = XMLoadFloat3(&tip);
+
+			XMVECTOR center = XMVectorScale(rootV + tipV, 0.5f);
+			XMVECTOR half = XMVectorScale(tipV - rootV, 0.5f * trail.widthScale);
+
+			rootV = center - half;
+			tipV = center + half;
+
+			XMStoreFloat3(&root, rootV);
+			XMStoreFloat3(&tip, tipV);
+		}
+
+		outRoot = root;
+		outTip = tip;
+	}
+
+	static MonsterSwordTrailEntry* AcquireFreeMonsterSwordTrailEntry(
+		std::vector<MonsterSwordTrailEntry>& trails)
+	{
+		for ( MonsterSwordTrailEntry& trail : trails )
+		{
+			if ( !trail.active )
+				return &trail;
+		}
+
+		return nullptr;
+	}
+
+	static bool AppendMonsterSwordTrailSample(
+		MonsterSwordTrailEntry& trail,
+		UINT maxSamples)
+	{
+		if ( !trail.weaponObject )
+			return false;
+
+		MonsterSwordTrailSample sample{};
+		ComputeMonsterSwordTrailRootTip(
+			trail,
+			sample.root,
+			sample.tip
+		);
+
+		if ( !trail.samples.empty() )
+		{
+			const MonsterSwordTrailSample& last = trail.samples.back();
+
+			const float dx = sample.tip.x - last.tip.x;
+			const float dy = sample.tip.y - last.tip.y;
+			const float dz = sample.tip.z - last.tip.z;
+
+			const float movedSq = dx * dx + dy * dy + dz * dz;
+
+			if ( movedSq < 0.0004f )
+				return true;
+		}
+
+		trail.samples.push_back(sample);
+
+		while ( trail.samples.size() > maxSamples )
+			trail.samples.erase(trail.samples.begin());
+
+		return true;
+	}
+
+	static void FinishMonsterSwordTrailEntry(MonsterSwordTrailEntry& trail)
+	{
+		trail.active = false;
+		trail.owner = nullptr;
+		trail.weaponObject = nullptr;
+		trail.age = 0.0f;
+		trail.samples.clear();
+	}
 }
 
 std::shared_ptr<CMesh> CGameScene::CreateItemBillboardQuadMesh(
@@ -602,6 +709,7 @@ void CGameScene::BuildItemBillboardBatch(
 
 		BuildMuzzleFlashBatch(dev, cmd, dsvFormat);
 		BuildSwordTrailBatch(dev, cmd, dsvFormat);
+		BuildMonsterSwordTrailBatch(dev, cmd, dsvFormat);
 	}
 }
 
@@ -715,6 +823,61 @@ void CGameScene::BuildSwordTrailBatch(
 	}
 }
 
+void CGameScene::BuildMonsterSwordTrailBatch(
+	ID3D12Device* dev,
+	ID3D12GraphicsCommandList* cmd,
+	DXGI_FORMAT dsvFormat)
+{
+	if ( !dev || !cmd )
+		return;
+
+	m_monsterSwordTrailShader = std::make_shared<CSwordTrailShader>();
+
+	DXGI_FORMAT rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+	m_monsterSwordTrailShader->CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		1,
+		&rtvFormat,
+		dsvFormat
+	);
+
+	m_monsterSwordTrails.clear();
+	m_monsterSwordTrails.resize(kMonsterSwordTrailMaxCount);
+
+	m_monsterSwordTrailVertexBufferCapacity = kMonsterSwordTrailMaxVertices;
+
+	const UINT bufferBytes =
+		sizeof(MonsterSwordTrailVertex) *
+		m_monsterSwordTrailVertexBufferCapacity;
+
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+	{
+		m_pd3dMonsterSwordTrailVertexBuffer[frameIndex] =
+			::CreateBufferResource(
+				dev,
+				cmd,
+				nullptr,
+				bufferBytes,
+				D3D12_HEAP_TYPE_UPLOAD,
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				nullptr
+			);
+
+		if ( m_pd3dMonsterSwordTrailVertexBuffer[frameIndex] )
+		{
+			m_pd3dMonsterSwordTrailVertexBuffer[frameIndex]->Map(
+				0,
+				nullptr,
+				reinterpret_cast< void** >(
+					&m_pMappedMonsterSwordTrailVertexBuffer[frameIndex]
+					)
+			);
+		}
+	}
+}
+
 void CGameScene::ReleaseMuzzleFlashGpuResources()
 {
 	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
@@ -755,6 +918,27 @@ void CGameScene::ReleaseSwordTrailGpuResources()
 	}
 
 	m_swordTrailVertexBufferCapacity = 0;
+}
+
+void CGameScene::ReleaseMonsterSwordTrailGpuResources()
+{
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+	{
+		if ( m_pd3dMonsterSwordTrailVertexBuffer[frameIndex] )
+		{
+			if ( m_pMappedMonsterSwordTrailVertexBuffer[frameIndex] )
+			{
+				m_pd3dMonsterSwordTrailVertexBuffer[frameIndex]->Unmap(0, nullptr);
+				m_pMappedMonsterSwordTrailVertexBuffer[frameIndex] = nullptr;
+			}
+
+			m_pd3dMonsterSwordTrailVertexBuffer[frameIndex].Reset();
+		}
+
+		m_pMappedMonsterSwordTrailVertexBuffer[frameIndex] = nullptr;
+	}
+
+	m_monsterSwordTrailVertexBufferCapacity = 0;
 }
 
 void CGameScene::SpawnMuzzleFlash(
@@ -1114,6 +1298,58 @@ void CGameScene::BeginAxeTrail(CGameObject* owner)
 	trail->samples.reserve(kSwordTrailMaxSamples);
 }
 
+void CGameScene::BeginSwordManSwordTrail(CGameObject* swordman)
+{
+	if ( !swordman )
+		return;
+
+	if ( IsMonsterDead(swordman) )
+		return;
+
+	const int swordManIndex = GetSwordManIndexFromObject(swordman);
+	if ( swordManIndex < 0 )
+		return;
+
+	const size_t index = static_cast< size_t >(swordManIndex);
+
+	if ( index >= m_EnemySwordRefs.size() )
+		return;
+
+	CGameObject* swordObject = m_EnemySwordRefs[index];
+	if ( !swordObject )
+		return;
+
+	MonsterSwordTrailEntry* trail =
+		AcquireFreeMonsterSwordTrailEntry(m_monsterSwordTrails);
+
+	if ( !trail )
+		return;
+
+	trail->active = true;
+
+	trail->owner = swordman;
+	trail->weaponObject = swordObject;
+
+	trail->age = 0.0f;
+
+	// SwordMan은 플레이어 sword attack과 같은 애니메이션 타이밍.
+	trail->startDelay = 0.340f;
+	trail->sampleDuration = 0.240f;
+	trail->fadeDuration = 0.120f;
+
+	// SwordMan 에셋/메시가 플레이어 대비 1.5배.
+	trail->rootLocal = XMFLOAT3(0.0f, 0.0f, 0.10f * 1.5f);
+	trail->tipLocal = XMFLOAT3(0.0f, 0.0f, 1.45f * 1.5f);
+
+	trail->widthScale = 1.0f;
+
+	// 일단 플레이어 검과 같은 색.
+	trail->color = XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f);
+
+	trail->samples.clear();
+	trail->samples.reserve(kMonsterSwordTrailMaxSamples);
+}
+
 void CGameScene::UpdateMuzzleFlashes(float dt)
 {
 	if ( dt <= 0.0f )
@@ -1199,6 +1435,59 @@ void CGameScene::UpdateSwordTrails(float dt)
 	}
 }
 
+void CGameScene::UpdateMonsterSwordTrails(float dt)
+{
+	if ( dt <= 0.0f )
+		return;
+
+	for ( MonsterSwordTrailEntry& trail : m_monsterSwordTrails )
+	{
+		if ( !trail.active )
+			continue;
+
+		if ( !trail.owner || IsMonsterDead(trail.owner) )
+		{
+			FinishMonsterSwordTrailEntry(trail);
+			continue;
+		}
+
+		if ( !trail.weaponObject )
+		{
+			FinishMonsterSwordTrailEntry(trail);
+			continue;
+		}
+
+		trail.age += dt;
+
+		const float totalLife =
+			trail.startDelay +
+			trail.sampleDuration +
+			trail.fadeDuration;
+
+		if ( trail.age >= totalLife )
+		{
+			FinishMonsterSwordTrailEntry(trail);
+			continue;
+		}
+
+		if ( trail.age < trail.startDelay )
+			continue;
+
+		const float sampleAge = trail.age - trail.startDelay;
+
+		const bool sampleWindowActive =
+			( sampleAge <= trail.sampleDuration );
+
+		if ( sampleWindowActive )
+		{
+			AppendMonsterSwordTrailSample(
+				trail,
+				kMonsterSwordTrailMaxSamples
+			);
+		}
+	}
+}
+
 void CGameScene::ReleaseItemBillboardGpuResources()
 {
 	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
@@ -1239,6 +1528,7 @@ void CGameScene::ReleaseItemBillboardGpuResources()
 
 	ReleaseMuzzleFlashGpuResources();
 	ReleaseSwordTrailGpuResources();
+	ReleaseMonsterSwordTrailGpuResources();
 }
 
 void CGameScene::UpdateItemBillboardDistanceCullSelection(CCamera* camera)
@@ -1719,6 +2009,137 @@ void CGameScene::RenderSwordTrails(
 		swordTrailVertexBuffer->GetGPUVirtualAddress();
 	vbView.SizeInBytes = sizeof(SwordTrailVertex) * vertexCursor;
 	vbView.StrideInBytes = sizeof(SwordTrailVertex);
+
+	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	cmd->IASetVertexBuffers(0, 1, &vbView);
+	cmd->IASetIndexBuffer(nullptr);
+
+	for ( const DrawRange& range : drawRanges )
+	{
+		if ( range.vertexCount < 4 ) continue;
+
+		cmd->DrawInstanced(range.vertexCount, 1, range.startVertex, 0);
+	}
+}
+
+void CGameScene::RenderMonsterSwordTrails(
+	ID3D12GraphicsCommandList* cmd,
+	CCamera* camera)
+{
+	if ( !cmd ) return;
+	if ( !camera ) return;
+	if ( !m_monsterSwordTrailShader ) return;
+
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	ID3D12Resource* vertexBuffer =
+		m_pd3dMonsterSwordTrailVertexBuffer[frameIndex].Get();
+
+	MonsterSwordTrailVertex* mappedVertexBuffer =
+		m_pMappedMonsterSwordTrailVertexBuffer[frameIndex];
+
+	if ( !vertexBuffer ) return;
+	if ( !mappedVertexBuffer ) return;
+	if ( m_monsterSwordTrailVertexBufferCapacity == 0 ) return;
+
+	struct DrawRange
+	{
+		UINT startVertex = 0;
+		UINT vertexCount = 0;
+	};
+
+	std::vector<DrawRange> drawRanges;
+	drawRanges.reserve(m_monsterSwordTrails.size());
+
+	UINT vertexCursor = 0;
+
+	for ( const MonsterSwordTrailEntry& trail : m_monsterSwordTrails )
+	{
+		if ( !trail.active )
+			continue;
+
+		const size_t sampleCount = trail.samples.size();
+
+		if ( sampleCount < 2 )
+			continue;
+
+		const UINT neededVertices =
+			static_cast< UINT >(sampleCount * 2);
+
+		if ( vertexCursor + neededVertices > m_monsterSwordTrailVertexBufferCapacity )
+			break;
+
+		float trailFade = 1.0f;
+
+		const float sampleAge = trail.age - trail.startDelay;
+
+		if ( sampleAge < 0.0f )
+			continue;
+
+		if ( sampleAge > trail.sampleDuration )
+		{
+			const float fadeAge = sampleAge - trail.sampleDuration;
+			const float denom =
+				( trail.fadeDuration > 1.0e-6f )
+				? trail.fadeDuration
+				: 1.0e-6f;
+
+			trailFade =
+				1.0f - std::clamp(fadeAge / denom, 0.0f, 1.0f);
+		}
+
+		const UINT startVertex = vertexCursor;
+
+		for ( size_t i = 0; i < sampleCount; ++i )
+		{
+			const float u =
+				( sampleCount > 1 )
+				? static_cast< float >( i ) /
+				static_cast< float >( sampleCount - 1 )
+				: 1.0f;
+
+			const float ageAlpha = std::clamp(u, 0.0f, 1.0f);
+			const float alpha = trailFade * ageAlpha * 0.75f;
+
+			const XMFLOAT4 color =
+				XMFLOAT4(
+					trail.color.x,
+					trail.color.y,
+					trail.color.z,
+					alpha * trail.color.w
+				);
+
+			const MonsterSwordTrailSample& sample = trail.samples[i];
+
+			MonsterSwordTrailVertex& v0 =
+				mappedVertexBuffer[vertexCursor++];
+
+			v0.position = sample.root;
+			v0.uv = XMFLOAT2(u, 0.0f);
+			v0.color = color;
+
+			MonsterSwordTrailVertex& v1 =
+				mappedVertexBuffer[vertexCursor++];
+
+			v1.position = sample.tip;
+			v1.uv = XMFLOAT2(u, 1.0f);
+			v1.color = color;
+		}
+
+		DrawRange range{};
+		range.startVertex = startVertex;
+		range.vertexCount = neededVertices;
+		drawRanges.push_back(range);
+	}
+
+	if ( drawRanges.empty() ) return;
+
+	m_monsterSwordTrailShader->Render(cmd, camera, nullptr);
+
+	D3D12_VERTEX_BUFFER_VIEW vbView{};
+	vbView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
+	vbView.SizeInBytes = sizeof(MonsterSwordTrailVertex) * vertexCursor;
+	vbView.StrideInBytes = sizeof(MonsterSwordTrailVertex);
 
 	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	cmd->IASetVertexBuffers(0, 1, &vbView);
