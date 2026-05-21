@@ -615,6 +615,7 @@ void CGameScene::UpdateMonsterAttackSfx()
 		if ( isAttack && !m_prevSwordManAttackPhase[i] )
 		{
 			RequestSwordManAttackSfx(swordman);
+			BeginSwordManSwordTrail(swordman);
 		}
 
 		m_prevSwordManAttackPhase[i] = isAttack;

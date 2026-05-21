@@ -188,6 +188,44 @@ struct SwordTrailEntry
 	std::vector<SwordTrailSample> samples;
 };
 
+struct MonsterSwordTrailVertex
+{
+	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT2 uv = XMFLOAT2(0.0f, 0.0f);
+	XMFLOAT4 color = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+};
+
+struct MonsterSwordTrailSample
+{
+	XMFLOAT3 root = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT3 tip = XMFLOAT3(0.0f, 0.0f, 0.0f);
+};
+
+struct MonsterSwordTrailEntry
+{
+	bool active = false;
+
+	CGameObject* owner = nullptr;
+	CGameObject* weaponObject = nullptr;
+
+	float age = 0.0f;
+
+	// SwordMan은 플레이어 sword attack과 애니메이션 타이밍이 동일하다.
+	float startDelay = 0.340f;
+	float sampleDuration = 0.240f;
+	float fadeDuration = 0.120f;
+
+	// SwordMan 에셋/메시가 플레이어 대비 1.5배이므로 local trail 구간도 1.5배.
+	XMFLOAT3 rootLocal = XMFLOAT3(0.0f, 0.0f, 0.15f);
+	XMFLOAT3 tipLocal = XMFLOAT3(0.0f, 0.0f, 2.175f);
+
+	float widthScale = 1.0f;
+
+	XMFLOAT4 color = XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f);
+
+	std::vector<MonsterSwordTrailSample> samples;
+};
+
 enum class EItemBillboardKind : UINT
 {
 	Key = 0,
@@ -487,6 +525,18 @@ private:
 	void BeginAxeTrail(CGameObject* owner);
 	void UpdateSwordTrails(float dt);
 	void RenderSwordTrails(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
+	void BuildMonsterSwordTrailBatch(
+	ID3D12Device* dev,
+	ID3D12GraphicsCommandList* cmd,
+	DXGI_FORMAT dsvFormat
+	);
+
+	void ReleaseMonsterSwordTrailGpuResources();
+
+	void BeginSwordManSwordTrail(CGameObject* swordman);
+	void UpdateMonsterSwordTrails(float dt);
+	void RenderMonsterSwordTrails(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 	void UpdateItemBillboardPickupCollision();
 	bool DoesPlayerOverlapItemBillboard(const CGameObject* player, const ItemBillboardEntry& item) const;
@@ -873,6 +923,19 @@ private:
 	std::array<SwordTrailVertex*, kSceneBatchFrameResourceCount> m_pMappedSwordTrailVertexBuffer = {};
 	UINT m_swordTrailVertexBufferCapacity = 0;
 
+	static constexpr UINT kMonsterSwordTrailMaxCount = 32;
+	static constexpr UINT kMonsterSwordTrailMaxSamples = 12;
+	static constexpr UINT kMonsterSwordTrailMaxVertices =
+		kMonsterSwordTrailMaxCount * kMonsterSwordTrailMaxSamples * 2;
+
+	std::shared_ptr<CSwordTrailShader> m_monsterSwordTrailShader;
+
+	std::vector<MonsterSwordTrailEntry> m_monsterSwordTrails;
+
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dMonsterSwordTrailVertexBuffer;
+	std::array<MonsterSwordTrailVertex*, kSceneBatchFrameResourceCount> m_pMappedMonsterSwordTrailVertexBuffer = {};
+	UINT m_monsterSwordTrailVertexBufferCapacity = 0;
+
 	std::vector<CGameObject*> m_ghoulRefs;
 	std::vector<CGameObject*> m_swordManRefs;
 	std::vector<CGameObject*> m_bowManRefs;
@@ -966,6 +1029,7 @@ private:
 
 	int GetPlayerSlotFromObject(const CGameObject* obj) const;
 	int GetBowManIndexFromObject(const CGameObject* obj) const;
+	int GetSwordManIndexFromObject(const CGameObject* obj) const;
 
 	void RequestPrepareArrow(CGameObject* shooter, float pullBackDistance);
 	void RequestReleasePreparedArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f);

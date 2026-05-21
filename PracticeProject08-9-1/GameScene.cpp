@@ -2370,10 +2370,15 @@ void CGameScene::ReleaseObjects()
 	m_keyItemTexture.reset();
 
 	ReleaseItemBillboardGpuResources();
+
 	m_muzzleFlashShader.reset();
 	m_muzzleFlashes.clear();
+
 	m_swordTrailShader.reset();
 	m_swordTrails.clear();
+
+	m_monsterSwordTrailShader.reset();
+	m_monsterSwordTrails.clear();
 
 	m_staticRenderObjectCache.clear();
 	m_staticGameplayTickObjects.clear();
@@ -4006,6 +4011,19 @@ int CGameScene::GetBowManIndexFromObject(const CGameObject* obj) const
 	return -1;
 }
 
+int CGameScene::GetSwordManIndexFromObject(const CGameObject* obj) const
+{
+	if ( !obj ) return -1;
+
+	for ( size_t i = 0; i < m_swordManRefs.size(); ++i )
+	{
+		if ( m_swordManRefs[i] == obj )
+			return static_cast< int >(i);
+	}
+
+	return -1;
+}
+
 void CGameScene::RequestPrepareArrow(CGameObject* shooter, float pullBackDistance)
 {
     if (!shooter) return;
@@ -5337,6 +5355,7 @@ void CGameScene::AnimateObjects(float dt)
 
 	UpdateMuzzleFlashes(dt);
 	UpdateSwordTrails(dt);
+	UpdateMonsterSwordTrails(dt);
 
 	UpdateMonsterDeathStates();
 
@@ -6166,6 +6185,11 @@ void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* c
 	if ( m_swordTrailShader )
 	{
 		RenderSwordTrails(cmd, camera);
+	}
+
+	if ( m_monsterSwordTrailShader )
+	{
+		RenderMonsterSwordTrails(cmd, camera);
 	}
 
 	if ( m_muzzleFlashShader )
