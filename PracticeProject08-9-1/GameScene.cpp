@@ -69,6 +69,8 @@ CGameScene::CGameScene()
 
 	m_bBossSummonVisualFadeOutStarted = false;
 	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
+	m_bBossShockwaveActive = false;
+	m_bossShockwaveAgeSec = 0.0f;
 	m_bBossSummonSequenceStarted = false;
 	m_bBossSummonCircleFadeAgeSec = 0.0f;
 	m_pendingBossStageBoss = nullptr;
@@ -101,6 +103,8 @@ CGameScene::CGameScene()
 
 	m_bBossSummonVisualFadeOutStarted = false;
 	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
+	m_bBossShockwaveActive = false;
+	m_bossShockwaveAgeSec = 0.0f;
 	m_bBossSummonSequenceStarted = false;
 	m_bBossSummonCircleFadeAgeSec = 0.0f;
 	m_pendingBossStageBoss = nullptr;
@@ -2349,6 +2353,8 @@ void CGameScene::ReleaseObjects()
 
 	m_bBossSummonVisualFadeOutStarted = false;
 	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
+	m_bBossShockwaveActive = false;
+	m_bossShockwaveAgeSec = 0.0f;
 
 	m_bBossStageBossActivated = false;
 	m_bBossSummonSequenceStarted = false;
@@ -3980,6 +3986,19 @@ void CGameScene::SetBossSummonGlowAlpha(float alpha)
 	mat.m_xmf4Diffuse.w = alpha * 0.30f;
 }
 
+void CGameScene::SetBossShockwaveAlpha(float alpha)
+{
+	if ( !m_pMaterials )
+		return;
+
+	alpha = std::clamp(alpha, 0.0f, 1.0f);
+
+	MATERIAL& mat =
+		m_pMaterials->m_pReflections[kBossShockwaveMaterialId];
+
+	mat.m_xmf4Diffuse.w = alpha;
+}
+
 void CGameScene::SetBossSummonVisualAlpha(float alpha)
 {
 	alpha = std::clamp(alpha, 0.0f, 1.0f);
@@ -5243,7 +5262,19 @@ bool CGameScene::TryActivateBossStageBoss()
 		return false;
 	}
 
+	XMFLOAT3 shockwaveCenter = XMFLOAT3(400.0f, 0.0f, 0.0f);
+
+	const auto bossPosIt = m_bossStageBossPositionStates.find(boss);
+	if ( bossPosIt != m_bossStageBossPositionStates.end() )
+		shockwaveCenter = bossPosIt->second.originalPosition;
+	else
+		shockwaveCenter = boss->GetPosition();
+
+	shockwaveCenter.y = 0.0f;
+
 	SetBossStageBossActive(boss, true, true);
+
+	SpawnBossShockwave(shockwaveCenter);
 
 	m_bBossStageBossActivated = true;
 	m_bBossSummonSequenceStarted = false;
@@ -6250,6 +6281,7 @@ void CGameScene::AnimateObjects(float dt)
 
 	UpdateBossSummonVisualFadeOut(dt);
 	UpdateBossStageSummonSequence(dt);
+	UpdateBossShockwave(dt);
 
 	if ( m_bSimulateLocalEnemySpawner && m_enemySpawner && local )
 	{
