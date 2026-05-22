@@ -623,7 +623,7 @@ void CGameScene::BuildItemBillboardBatch(
 	};
 
 	m_itemBillboards.clear();
-	m_itemBillboards.reserve(kKeyItemBillboardCount + 1);
+	m_itemBillboards.reserve(kKeyItemBillboardCount + 3);
 
 	for ( UINT i = 0; i < kKeyItemBillboardCount; ++i )
 	{
@@ -720,6 +720,34 @@ void CGameScene::BuildItemBillboardBatch(
 		summonCircle.materialId = kBossSummonCircleMaterialId;
 
 		m_itemBillboards.push_back(summonCircle);
+	}
+
+	{
+		ItemBillboardEntry shockwave{};
+
+		shockwave.active = false;
+		shockwave.distanceCulled = true;
+
+		shockwave.transparent = true;
+		shockwave.kind = EItemBillboardKind::BossShockwave;
+		shockwave.megaGridNumber = -1;
+
+		shockwave.position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+		shockwave.width = 0.0f;
+		shockwave.height = 0.0f;
+
+		// BossSummonCircle보다 살짝 위.
+		shockwave.yOffset = 0.075f;
+
+		shockwave.cullDistance = 1000000.0f;
+
+		shockwave.pickupRadius = 0.0f;
+		shockwave.pickupHeightTolerance = 0.0f;
+
+		shockwave.materialId = kBossShockwaveMaterialId;
+
+		m_itemBillboards.push_back(shockwave);
 	}
 
 	m_itemBillboardInstanceBufferCapacity =
@@ -1781,6 +1809,151 @@ void CGameScene::SpawnBossSummonVisuals(const XMFLOAT3& center, float alpha)
 	SetBossSummonVisualAlpha(alpha);
 }
 
+void CGameScene::SpawnBossShockwave(const XMFLOAT3& center)
+{
+	for ( ItemBillboardEntry& item : m_itemBillboards )
+	{
+		if ( item.kind != EItemBillboardKind::BossShockwave )
+			continue;
+
+		XMFLOAT3 fixedCenter = center;
+		fixedCenter.y = 0.0f;
+
+		item.active = true;
+		item.distanceCulled = false;
+		item.transparent = true;
+
+		item.position = fixedCenter;
+
+		const float correctedRadius =
+			kBossShockwaveStartRadius / kBossShockwaveShaderRingCenter;
+
+		item.width = correctedRadius * 2.0f;
+		item.height = correctedRadius * 2.0f;
+
+		// BossSummonCircle가 0.05f이므로 충격파를 살짝 더 위에 둔다.
+		// z-fighting 방지용이다.
+		item.yOffset = 0.075f;
+
+		item.cullDistance = 1000000.0f;
+
+		item.pickupRadius = 0.0f;
+		item.pickupHeightTolerance = 0.0f;
+
+		item.materialId = kBossShockwaveMaterialId;
+
+		m_bBossShockwaveActive = true;
+		m_bossShockwaveAgeSec = 0.0f;
+
+		SetBossShockwaveAlpha(1.0f);
+
+		return;
+	}
+
+	OutputDebugStringA("[BossShockwave] spawn failed: BossShockwave entry not found.\n");
+}
+
+void CGameScene::UpdateBossShockwave(float dt)
+{
+#ifndef USING_NETWORK
+	if ( !m_bBossShockwaveActive )
+		return;
+
+	if ( dt < 0.0f )
+		dt = 0.0f;
+
+	m_bossShockwaveAgeSec += dt;
+
+	const float totalDuration =
+		kBossShockwaveExpandDurationSec + kBossShockwaveFadeDurationSec;
+
+	if ( m_bossShockwaveAgeSec >= totalDuration )
+	{
+		m_bBossShockwaveActive = false;
+		m_bossShockwaveAgeSec = 0.0f;
+
+		for ( ItemBillboardEntry& item : m_itemBillboards )
+		{
+			if ( item.kind != EItemBillboardKind::BossShockwave )
+				continue;
+
+			item.active = false;
+			item.distanceCulled = true;
+			item.width = 0.0f;
+			item.height = 0.0f;
+		}
+
+		SetBossShockwaveAlpha(0.0f);
+		return;
+	}
+
+	float radius = kBossShockwaveMaxRadius;
+	float alpha = 1.0f;
+
+	if ( m_bossShockwaveAgeSec < kBossShockwaveExpandDurationSec )
+	{
+		const float t =
+			( kBossShockwaveExpandDurationSec > 1.0e-6f )
+			? std::clamp(
+				m_bossShockwaveAgeSec / kBossShockwaveExpandDurationSec,
+				0.0f,
+				1.0f
+			)
+			: 1.0f;
+
+		// 초반에는 빠르게, 끝에서는 살짝 감속.
+		const float easeOut = 1.0f - ( 1.0f - t ) * ( 1.0f - t );
+
+		radius =
+			kBossShockwaveStartRadius +
+			( kBossShockwaveMaxRadius - kBossShockwaveStartRadius ) * easeOut;
+
+		alpha = 1.0f;
+	}
+	else
+	{
+		const float fadeAge =
+			m_bossShockwaveAgeSec - kBossShockwaveExpandDurationSec;
+
+		const float fadeT =
+			( kBossShockwaveFadeDurationSec > 1.0e-6f )
+			? std::clamp(
+				fadeAge / kBossShockwaveFadeDurationSec,
+				0.0f,
+				1.0f
+			)
+			: 1.0f;
+
+		radius = kBossShockwaveMaxRadius;
+		alpha = 1.0f - fadeT;
+	}
+
+	// HLSL ring 중심이 uv 반지름 0.94 지점이므로,
+	// 실제 ring 중심 반지름이 radius가 되도록 billboard 전체 크기를 보정한다.
+	const float correctedRadius =
+		radius / kBossShockwaveShaderRingCenter;
+
+	for ( ItemBillboardEntry& item : m_itemBillboards )
+	{
+		if ( item.kind != EItemBillboardKind::BossShockwave )
+			continue;
+
+		item.active = true;
+		item.distanceCulled = false;
+		item.transparent = true;
+
+		item.width = correctedRadius * 2.0f;
+		item.height = correctedRadius * 2.0f;
+		item.yOffset = 0.075f;
+		item.materialId = kBossShockwaveMaterialId;
+	}
+
+	SetBossShockwaveAlpha(alpha);
+#else
+	UNREFERENCED_PARAMETER(dt);
+#endif
+}
+
 void CGameScene::RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	if ( !cmd ) return;
@@ -1976,7 +2149,8 @@ void CGameScene::RenderTransparentItemBillboards(
 			mappedTransparentItemBillboardInstanceBuffer[visibleInstanceCount];
 
 		if ( item->kind == EItemBillboardKind::BossSummonCircle ||
-			item->kind == EItemBillboardKind::BossSummonGlow )
+			item->kind == EItemBillboardKind::BossSummonGlow ||
+			item->kind == EItemBillboardKind::BossShockwave )
 		{
 			StoreXZPlaneItemBillboardWorldRows(
 				dst,

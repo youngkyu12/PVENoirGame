@@ -7,6 +7,7 @@
 #include "RenderTypes.hlsl"
 
 #define BOSS_SUMMON_GLOW_MATERIAL_ID (MAX_MATERIALS - 4)
+#define BOSS_SHOCKWAVE_MATERIAL_ID   (MAX_MATERIALS - 5)
 
 // -----------------------------------------------------------------------------
 // Item Billboard
@@ -74,6 +75,53 @@ float4 MakeBossSummonGlowColor(float2 uv, float4 materialDiffuse)
     return float4(color, alpha);
 }
 
+float4 MakeBossShockwaveColor(float2 uv, float4 materialDiffuse)
+{
+    float2 p = uv * 2.0f - 1.0f;
+    float r = length(p);
+
+    // quad 바깥 원형 영역 제거.
+    float circleMask = 1.0f - smoothstep(0.995f, 1.0f, r);
+
+    // 충격파 본체: 바깥쪽에 두꺼운 원형 ring.
+    // CPU 쪽에서 ring 중심 0.94 기준으로 크기를 보정한다.
+    float ringCenter = 0.94f;
+    float ringWidth = 0.055f;
+
+    float ring =
+        1.0f - smoothstep(
+            ringWidth * 0.55f,
+            ringWidth,
+            abs(r - ringCenter)
+        );
+
+    // ring 바로 안쪽에 약한 꼬리. 지면을 훑는 느낌.
+    float innerTrail =
+        smoothstep(0.62f, 0.84f, r) *
+        (1.0f - smoothstep(0.84f, ringCenter, r));
+
+    // 선두부를 더 밝게.
+    float leading =
+        1.0f - smoothstep(
+            0.0f,
+            ringWidth * 0.40f,
+            abs(r - ringCenter)
+        );
+
+    float alpha =
+        (ring * 0.90f + innerTrail * 0.22f + leading * 0.35f) *
+        circleMask *
+        materialDiffuse.a;
+
+    alpha = saturate(alpha);
+
+    float brightness = 1.0f + leading * 1.25f;
+
+    float3 rgb = materialDiffuse.rgb * brightness;
+
+    return float4(rgb, alpha);
+}
+
 PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSItemBillboardUnlitAlphaClip(
     VS_TEXTURED_LIGHTING_OUTPUT input,
     uint nPrimitiveID : SV_PrimitiveID)
@@ -120,15 +168,19 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSItemBillboardUnlitTransparent(
     {
         texColor = MakeBossSummonGlowColor(input.uv, mat.m_cDiffuse);
     }
+    else if (materialId == BOSS_SHOCKWAVE_MATERIAL_ID)
+    {
+        texColor = MakeBossShockwaveColor(input.uv, mat.m_cDiffuse);
+    }
     else
     {
         float2 diffuseUV = GetDiffuseUVFromMaterial(mat, input.uv);
 
         float4 diffuseSample = SampleTextureRGBA(
-            mat.TextureIndices.x,
-            diffuseUV,
-            float4(1.0f, 1.0f, 1.0f, 0.0f)
-        );
+        mat.TextureIndices.x,
+        diffuseUV,
+        float4(1.0f, 1.0f, 1.0f, 0.0f)
+    );
 
         texColor.rgb = diffuseSample.rgb * mat.m_cDiffuse.rgb;
         texColor.a = diffuseSample.a * mat.m_cDiffuse.a;
@@ -158,15 +210,19 @@ float4 PSItemBillboardUnlitTransparentForward(
     {
         color = MakeBossSummonGlowColor(input.uv, mat.m_cDiffuse);
     }
+    else if (materialId == BOSS_SHOCKWAVE_MATERIAL_ID)
+    {
+        color = MakeBossShockwaveColor(input.uv, mat.m_cDiffuse);
+    }
     else
     {
         float2 diffuseUV = GetDiffuseUVFromMaterial(mat, input.uv);
 
         float4 diffuseSample = SampleTextureRGBA(
-            mat.TextureIndices.x,
-            diffuseUV,
-            float4(1.0f, 1.0f, 1.0f, 0.0f)
-        );
+        mat.TextureIndices.x,
+        diffuseUV,
+        float4(1.0f, 1.0f, 1.0f, 0.0f)
+    );
 
         color.rgb = diffuseSample.rgb * mat.m_cDiffuse.rgb;
         color.a = diffuseSample.a * mat.m_cDiffuse.a;

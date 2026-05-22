@@ -231,6 +231,7 @@ enum class EItemBillboardKind : UINT
 	Key = 0,
 	BossSummonCircle = 1,
 	BossSummonGlow = 2,
+	BossShockwave = 3,
 };
 
 struct ItemBillboardEntry
@@ -552,7 +553,11 @@ private:
 	void SpawnBossSummonCircle(const XMFLOAT3& center, float alpha);
 	void SpawnBossSummonGlow(const XMFLOAT3& center, float alpha);
 	void SpawnBossSummonVisuals(const XMFLOAT3& center, float alpha);
-	
+
+	void SetBossShockwaveAlpha(float alpha);
+	void SpawnBossShockwave(const XMFLOAT3& center);
+	void UpdateBossShockwave(float dt);
+
 	CGameObject* FindBossStageBossInMegaGrid(int megaGridNumber) const;
 	
 	std::shared_ptr<CMesh> CreateItemBillboardQuadMesh(
@@ -901,6 +906,7 @@ private:
 	static constexpr UINT kTransparentItemBillboardMaterialId = MAX_MATERIALS - 2;
 	static constexpr UINT kBossSummonCircleMaterialId = MAX_MATERIALS - 3;
 	static constexpr UINT kBossSummonGlowMaterialId = MAX_MATERIALS - 4;
+	static constexpr UINT kBossShockwaveMaterialId = MAX_MATERIALS - 5;
 
 	static constexpr UINT kKeyItemBillboardCount = 7;
 
@@ -1391,6 +1397,18 @@ private:
 
 	bool m_bBossSummonVisualFadeOutStarted = false;
 	float m_bBossSummonVisualFadeOutAgeSec = 0.0f;
+
+	static constexpr float kBossShockwaveStartRadius = 3.0f;
+	static constexpr float kBossShockwaveMaxRadius = 50.0f;
+	static constexpr float kBossShockwaveExpandDurationSec = 0.80f;
+	static constexpr float kBossShockwaveFadeDurationSec = 0.40f;
+
+	// HLSL에서 충격파 ring 중심이 uv 반지름 약 0.94 지점에 있으므로,
+	// CPU billboard 크기 보정에 사용한다.
+	static constexpr float kBossShockwaveShaderRingCenter = 0.94f;
+
+	bool m_bBossShockwaveActive = false;
+	float m_bossShockwaveAgeSec = 0.0f;
 
 	struct BossStageBossPositionState
 	{
