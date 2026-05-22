@@ -918,6 +918,14 @@ bool CMonsterAIComponent::CanAttackNowByState() const
 	return true;
 }
 
+bool CMonsterAIComponent::CanRotateNow() const
+{
+	if ( IsAIActionLockedByAnimation() )
+		return false;
+
+	return true;
+}
+
 bool CMonsterAIComponent::IsAIActionLockedByAnimation() const
 {
 	if ( auto* ctrl = GetMonsterAnimController() )
@@ -1068,7 +1076,7 @@ bool CMonsterAIComponent::FaceTowards(const XMFLOAT3& targetPos)
 	if ( !owner )
 		return false;
 
-	if ( IsAIActionLockedByAnimation() )
+	if ( !CanRotateNow() )
 		return false;
 
 	const XMFLOAT3 faceTargetPos = ClampPointToMovementBounds(targetPos);
@@ -1158,7 +1166,7 @@ bool CMonsterAIComponent::FaceTowardsNoClamp(const XMFLOAT3& targetPos)
 	if ( !owner )
 		return false;
 
-	if ( IsAIActionLockedByAnimation() )
+	if ( !CanRotateNow() )
 		return false;
 
 	const XMFLOAT3 pos = owner->GetPosition();

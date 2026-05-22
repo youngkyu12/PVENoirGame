@@ -103,6 +103,10 @@ protected:
 	void UpdateBehavior(float dt) override;
 	bool TryPerformAttack() override;
 
+	bool CanMoveNow() const override;
+	bool CanThinkNow() const override;
+	bool CanRotateNow() const override;
+
 private:
 	enum class EBossAttackIntent : uint8_t
 	{

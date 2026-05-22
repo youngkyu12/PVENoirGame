@@ -160,6 +160,7 @@ protected:
 	virtual bool CanMoveNow() const;
 	virtual bool CanThinkNow() const;
 	virtual bool CanAttackNowByState() const;
+	virtual bool CanRotateNow() const;
 
 	virtual bool CanStartAttackAgainstTarget() const;
 
