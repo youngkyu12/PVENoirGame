@@ -73,6 +73,7 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 
 	m_bPrevLocalMonsterChaseToggleKeyDown = false;
 	m_bPrevDebugDamageMegaGrid5KeyDown = false;
+	m_bBossStageBossActivated = false;
 	m_bPrevLocalStageTeleportKeyDown.fill(false);
 }
 
@@ -84,6 +85,8 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	ResetMonsterSfxState();
 
 	m_deadMonsters.clear();
+	m_bBossStageBossActivated = false;
+
 	m_bLocalPlayerDead = false;
 	m_bLocalPlayerRespawnUsed = false;
 	m_localPlayerRespawnTimer = 0.0f;
@@ -2336,6 +2339,10 @@ void CGameScene::BuildSkinnedBatch(
 			CGameObject* raw = obj.get();
 
 			m_bossRefs.push_back(raw);
+
+#ifndef USING_NETWORK
+			SetBossStageBossActive(raw, false, false);
+#endif
 
 			RegisterMonsterToMegaGrid(raw, pos, i);
 
