@@ -230,6 +230,7 @@ enum class EItemBillboardKind : UINT
 {
 	Key = 0,
 	BossSummonCircle = 1,
+	BossSummonGlow = 2,
 };
 
 struct ItemBillboardEntry
@@ -543,13 +544,17 @@ private:
 	void UpdateItemBillboardPickupCollision();
 	bool DoesPlayerOverlapItemBillboard(const CGameObject* player, const ItemBillboardEntry& item) const;
 
-	void SpawnBossSummonCircle(const XMFLOAT3& center, float alpha = 1.0f);
 	void SetBossSummonCircleAlpha(float alpha);
+	void SetBossSummonGlowAlpha(float alpha);
+	void SetBossSummonVisualAlpha(float alpha);
+	void SetBossSummonVisualActive(bool active);
 
+	void SpawnBossSummonCircle(const XMFLOAT3& center, float alpha);
+	void SpawnBossSummonGlow(const XMFLOAT3& center, float alpha);
+	void SpawnBossSummonVisuals(const XMFLOAT3& center, float alpha);
+	
 	CGameObject* FindBossStageBossInMegaGrid(int megaGridNumber) const;
-	bool TryBeginBossStageSummonSequence();
-	void UpdateBossStageSummonSequence(float dt);
-
+	
 	std::shared_ptr<CMesh> CreateItemBillboardQuadMesh(
 		ID3D12Device* dev,
 		ID3D12GraphicsCommandList* cmd
@@ -636,7 +641,8 @@ public:
 	void SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex);
 	void SetKeyItemDiffuseSrvIndex(UINT srvIndex);
 	void SetTransparentItemDiffuseSrvIndex(UINT srvIndex);
-	void SetBossSummonCircleDiffuseSrvIndex(UINT srvIndex); 
+	void SetBossSummonCircleDiffuseSrvIndex(UINT srvIndex);
+	
 	void SetInactiveOverlayVisible(bool visible)
 	{
 		m_bInactiveOverlayVisible = visible;
@@ -894,6 +900,7 @@ private:
 	static constexpr UINT kItemBillboardKeyMaterialId = MAX_MATERIALS - 1;
 	static constexpr UINT kTransparentItemBillboardMaterialId = MAX_MATERIALS - 2;
 	static constexpr UINT kBossSummonCircleMaterialId = MAX_MATERIALS - 3;
+	static constexpr UINT kBossSummonGlowMaterialId = MAX_MATERIALS - 4;
 
 	static constexpr UINT kKeyItemBillboardCount = 7;
 
@@ -1116,9 +1123,15 @@ private:
 	void DamagePreBossMonstersInMegaGrid(int megaGridNumber, int damage);
 
 	void SetBossStageBossActive(CGameObject* boss, bool active, bool playAppear);
-	bool TryActivateBossStageBoss();
 
-	void SetBossStageBossAIEnabled(CGameObject* boss, bool enabled);
+	bool TryBeginBossStageSummonSequence();
+	bool TryActivateBossStageBoss();
+	void UpdateBossStageSummonSequence(float dt);
+
+	void StartBossSummonVisualFadeOut();
+	void UpdateBossSummonVisualFadeOut(float dt);
+
+	void SetBossStageBossAIEnabled(CGameObject* boss, bool enabled); 
 	void RegisterBossStageBossOriginalPosition(CGameObject* boss, const XMFLOAT3& originalPosition);
 	void MoveBossStageBossToHiddenPosition(CGameObject* boss);
 	void ScheduleBossStageBossPositionRestore(CGameObject* boss, int delayFrames);
@@ -1370,10 +1383,14 @@ private:
 
 	static constexpr float kBossStageBossHiddenYOffset = -100.0f;
 	static constexpr float kBossSummonCircleFadeInDurationSec = 3.0f;
+	static constexpr float kBossSummonCircleFadeOutDurationSec = 1.0f;
 
 	bool m_bBossSummonSequenceStarted = false;
 	float m_bBossSummonCircleFadeAgeSec = 0.0f;
 	CGameObject* m_pendingBossStageBoss = nullptr;
+
+	bool m_bBossSummonVisualFadeOutStarted = false;
+	float m_bBossSummonVisualFadeOutAgeSec = 0.0f;
 
 	struct BossStageBossPositionState
 	{

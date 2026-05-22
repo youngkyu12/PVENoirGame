@@ -6,6 +6,8 @@
 #include "MaterialTexture.hlsl"
 #include "RenderTypes.hlsl"
 
+#define BOSS_SUMMON_GLOW_MATERIAL_ID (MAX_MATERIALS - 4)
+
 // -----------------------------------------------------------------------------
 // Item Billboard
 // -----------------------------------------------------------------------------
@@ -51,6 +53,27 @@ VS_TEXTURED_LIGHTING_OUTPUT VSItemBillboardInstanced(
     return output;
 }
 
+float4 MakeBossSummonGlowColor(float2 uv, float4 materialDiffuse)
+{
+    float2 p = uv * 2.0f - 1.0f;
+    float r = length(p);
+
+    // 원 밖은 완전 제거.
+    // 0.0 ~ 0.72: 비교적 균일한 연두색 빛
+    // 0.72 ~ 1.0: 가장자리로 갈수록 부드럽게 사라짐
+    float circleMask = 1.0f - smoothstep(0.72f, 1.0f, r);
+
+    // 중심부를 살짝 더 밝게. 너무 세면 바닥 전체가 덮이므로 약하게.
+    float centerBoost = 1.0f - smoothstep(0.0f, 0.85f, r);
+    float intensity = 0.75f + centerBoost * 0.25f;
+
+    float alpha = materialDiffuse.a * circleMask;
+
+    float3 color = saturate(materialDiffuse.rgb * intensity);
+
+    return float4(color, alpha);
+}
+
 PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSItemBillboardUnlitAlphaClip(
     VS_TEXTURED_LIGHTING_OUTPUT input,
     uint nPrimitiveID : SV_PrimitiveID)
@@ -91,17 +114,25 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSItemBillboardUnlitTransparent(
     uint materialId = input.materialId;
     MATERIAL mat = gMaterials[materialId];
 
-    float2 diffuseUV = GetDiffuseUVFromMaterial(mat, input.uv);
-
-    float4 diffuseSample = SampleTextureRGBA(
-        mat.TextureIndices.x,
-        diffuseUV,
-        float4(1.0f, 1.0f, 1.0f, 0.0f)
-    );
-
     float4 texColor;
-    texColor.rgb = diffuseSample.rgb * mat.m_cDiffuse.rgb;
-    texColor.a = diffuseSample.a * mat.m_cDiffuse.a;
+
+    if (materialId == BOSS_SUMMON_GLOW_MATERIAL_ID)
+    {
+        texColor = MakeBossSummonGlowColor(input.uv, mat.m_cDiffuse);
+    }
+    else
+    {
+        float2 diffuseUV = GetDiffuseUVFromMaterial(mat, input.uv);
+
+        float4 diffuseSample = SampleTextureRGBA(
+            mat.TextureIndices.x,
+            diffuseUV,
+            float4(1.0f, 1.0f, 1.0f, 0.0f)
+        );
+
+        texColor.rgb = diffuseSample.rgb * mat.m_cDiffuse.rgb;
+        texColor.a = diffuseSample.a * mat.m_cDiffuse.a;
+    }
 
     clip(texColor.a - 0.001f);
 
@@ -121,17 +152,25 @@ float4 PSItemBillboardUnlitTransparentForward(
     uint materialId = input.materialId;
     MATERIAL mat = gMaterials[materialId];
 
-    float2 diffuseUV = GetDiffuseUVFromMaterial(mat, input.uv);
-
-    float4 diffuseSample = SampleTextureRGBA(
-        mat.TextureIndices.x,
-        diffuseUV,
-        float4(1.0f, 1.0f, 1.0f, 0.0f)
-    );
-
     float4 color;
-    color.rgb = diffuseSample.rgb * mat.m_cDiffuse.rgb;
-    color.a = diffuseSample.a * mat.m_cDiffuse.a;
+
+    if (materialId == BOSS_SUMMON_GLOW_MATERIAL_ID)
+    {
+        color = MakeBossSummonGlowColor(input.uv, mat.m_cDiffuse);
+    }
+    else
+    {
+        float2 diffuseUV = GetDiffuseUVFromMaterial(mat, input.uv);
+
+        float4 diffuseSample = SampleTextureRGBA(
+            mat.TextureIndices.x,
+            diffuseUV,
+            float4(1.0f, 1.0f, 1.0f, 0.0f)
+        );
+
+        color.rgb = diffuseSample.rgb * mat.m_cDiffuse.rgb;
+        color.a = diffuseSample.a * mat.m_cDiffuse.a;
+    }
 
     clip(color.a - 0.001f);
 
