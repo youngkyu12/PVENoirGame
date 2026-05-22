@@ -228,7 +228,7 @@ private:
 	void RegisterDoorPortal(BuildingRef building);
 	void TickDoorPortalCooldowns();
 	void ProcessDoorPortals();
-	bool TryTeleportPlayerByTowerDoorPortal(const PlayerRef& player);
+	bool TryTeleportPlayerByTowerDoorPortal(const PlayerRef& player, const GameMath::Vec3& prevPos);
 	bool TryTeleportPlayerByCastleDoorPortal(const PlayerRef& player);
 	bool CanUseCastleDoorPortal() const;
 	int CountClearedMegaGrids() const;

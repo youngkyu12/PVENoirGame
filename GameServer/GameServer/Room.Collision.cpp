@@ -608,14 +608,14 @@ void Room::ProcessDoorPortals()
 		if (!player || player->IsDead())
 			continue;
 
-		if (TryTeleportPlayerByTowerDoorPortal(player))
+		if (TryTeleportPlayerByTowerDoorPortal(player, player->GetPosition()))
 			continue;
 
 		TryTeleportPlayerByCastleDoorPortal(player);
 	}
 }
 
-bool Room::TryTeleportPlayerByTowerDoorPortal(const PlayerRef& player)
+bool Room::TryTeleportPlayerByTowerDoorPortal(const PlayerRef& player, const GameMath::Vec3& prevPos)
 {
 	if (!player || player->IsDead())
 		return false;
@@ -730,7 +730,7 @@ bool Room::TryTeleportPlayerByTowerDoorPortal(const PlayerRef& player)
 			float sideSign = 1.0f;
 			if (hasSourceNormal)
 			{
-				XMVECTOR playerV = XMVectorSet(playerPos.x, playerPos.y, playerPos.z, 0.0f);
+				XMVECTOR playerV = XMVectorSet(prevPos.x, prevPos.y, prevPos.z, 0.0f);
 				XMVECTOR sourceToPlayer = XMVectorSetY(playerV - sourceV, 0.0f);
 				const float sideDot = XMVectorGetX(XMVector3Dot(sourceToPlayer, sourceNormal));
 				sideSign = (sideDot >= 0.0f) ? 1.0f : -1.0f;
