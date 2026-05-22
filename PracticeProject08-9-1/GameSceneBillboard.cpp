@@ -1674,7 +1674,7 @@ void CGameScene::UpdateItemBillboardPickupCollision()
 	}
 }
 
-void CGameScene::SpawnBossSummonCircle(const XMFLOAT3& center)
+void CGameScene::SpawnBossSummonCircle(const XMFLOAT3& center, float alpha)
 {
 	for ( ItemBillboardEntry& item : m_itemBillboards )
 	{
@@ -1702,13 +1702,16 @@ void CGameScene::SpawnBossSummonCircle(const XMFLOAT3& center)
 
 		item.materialId = kBossSummonCircleMaterialId;
 
+		SetBossSummonCircleAlpha(alpha);
+
 		char buf[256];
 		sprintf_s(
 			buf,
-			"[BossSummonCircle] spawn center=(%.3f, %.3f, %.3f) size=(100,100)\n",
+			"[BossSummonCircle] spawn center=(%.3f, %.3f, %.3f) size=(100,100) alpha=%.3f\n",
 			item.position.x,
 			item.position.y,
-			item.position.z
+			item.position.z,
+			std::clamp(alpha, 0.0f, 1.0f)
 		);
 		OutputDebugStringA(buf);
 

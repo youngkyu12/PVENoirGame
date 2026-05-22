@@ -73,7 +73,12 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 
 	m_bPrevLocalMonsterChaseToggleKeyDown = false;
 	m_bPrevDebugDamageMegaGrid5KeyDown = false;
+
 	m_bBossStageBossActivated = false;
+	m_bBossSummonSequenceStarted = false;
+	m_bBossSummonCircleFadeAgeSec = 0.0f;
+	m_pendingBossStageBoss = nullptr;
+
 	m_bPrevLocalStageTeleportKeyDown.fill(false);
 }
 
@@ -85,7 +90,12 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	ResetMonsterSfxState();
 
 	m_deadMonsters.clear();
+
 	m_bBossStageBossActivated = false;
+	m_bBossSummonSequenceStarted = false;
+	m_bBossSummonCircleFadeAgeSec = 0.0f;
+	m_pendingBossStageBoss = nullptr;
+
 	m_bossStageBossPositionStates.clear();
 
 	m_bLocalPlayerDead = false;
@@ -3418,7 +3428,7 @@ void CGameScene::BuildLightsAndMaterials()
 			m_pMaterials->m_pReflections[kBossSummonCircleMaterialId];
 
 		bossSummonMat.m_xmf4Ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
-		bossSummonMat.m_xmf4Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+		bossSummonMat.m_xmf4Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f);
 		bossSummonMat.m_xmf4Specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
 		bossSummonMat.m_xmf4Emissive = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
 

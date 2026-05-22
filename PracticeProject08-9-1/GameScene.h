@@ -543,7 +543,12 @@ private:
 	void UpdateItemBillboardPickupCollision();
 	bool DoesPlayerOverlapItemBillboard(const CGameObject* player, const ItemBillboardEntry& item) const;
 
-	void SpawnBossSummonCircle(const XMFLOAT3& center);
+	void SpawnBossSummonCircle(const XMFLOAT3& center, float alpha = 1.0f);
+	void SetBossSummonCircleAlpha(float alpha);
+
+	CGameObject* FindBossStageBossInMegaGrid(int megaGridNumber) const;
+	bool TryBeginBossStageSummonSequence();
+	void UpdateBossStageSummonSequence(float dt);
 
 	std::shared_ptr<CMesh> CreateItemBillboardQuadMesh(
 		ID3D12Device* dev,
@@ -1364,6 +1369,11 @@ private:
 	bool m_bBossStageBossActivated = false;
 
 	static constexpr float kBossStageBossHiddenYOffset = -100.0f;
+	static constexpr float kBossSummonCircleFadeInDurationSec = 3.0f;
+
+	bool m_bBossSummonSequenceStarted = false;
+	float m_bBossSummonCircleFadeAgeSec = 0.0f;
+	CGameObject* m_pendingBossStageBoss = nullptr;
 
 	struct BossStageBossPositionState
 	{

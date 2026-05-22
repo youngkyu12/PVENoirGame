@@ -59,8 +59,12 @@ CGameScene::CGameScene()
 	m_bSimulateLocalSwordManAI = true;
 	m_bSimulateLocalMutantAI = true;
 	m_bSimulateLocalBossAI = true;
+
 	m_bPrevDebugDamageMegaGrid5KeyDown = false;
 	m_bBossStageBossActivated = false;
+	m_bBossSummonSequenceStarted = false;
+	m_bBossSummonCircleFadeAgeSec = 0.0f;
+	m_pendingBossStageBoss = nullptr;
 
 	m_bSimulateLocalMonsterChase = true;
 	m_bPrevLocalMonsterChaseToggleKeyDown = false;
@@ -80,8 +84,12 @@ CGameScene::CGameScene()
 	m_bSimulateLocalSwordManAI = false;
 	m_bSimulateLocalMutantAI = false;
 	m_bSimulateLocalBossAI = false;
+
 	m_bPrevDebugDamageMegaGrid5KeyDown = false;
 	m_bBossStageBossActivated = false;
+	m_bBossSummonSequenceStarted = false;
+	m_bBossSummonCircleFadeAgeSec = 0.0f;
+	m_pendingBossStageBoss = nullptr;
 
 	m_bSimulateLocalMonsterChase = false;
 	m_bPrevLocalMonsterChaseToggleKeyDown = false;
@@ -2320,6 +2328,11 @@ void CGameScene::ReleaseObjects()
 	m_bossRefs.clear();
 	m_bossStageBossPositionStates.clear();
 
+	m_bBossStageBossActivated = false;
+	m_bBossSummonSequenceStarted = false;
+	m_bBossSummonCircleFadeAgeSec = 0.0f;
+	m_pendingBossStageBoss = nullptr;
+
 	m_mutantKeyTriggerMegaByObject.clear();
 	m_mutantKeyTriggerRegisteredByMega.fill(false);
 
@@ -3919,6 +3932,19 @@ void CGameScene::SetBossSummonCircleDiffuseSrvIndex(UINT srvIndex)
 	);
 }
 
+void CGameScene::SetBossSummonCircleAlpha(float alpha)
+{
+	if ( !m_pMaterials )
+		return;
+
+	alpha = std::clamp(alpha, 0.0f, 1.0f);
+
+	MATERIAL& mat =
+		m_pMaterials->m_pReflections[kBossSummonCircleMaterialId];
+
+	mat.m_xmf4Diffuse.w = alpha;
+}
+
 CGameObject* CGameScene::GetDemoFighter(int index) const
 {
     if (index < 0 || index >= 3) return nullptr;
@@ -4960,27 +4986,6 @@ void CGameScene::SetBossStageBossActive(
 
 	const bool useHiddenAppearSpawn = playAppear;
 
-	if ( playAppear )
-	{
-		XMFLOAT3 summonCenter = XMFLOAT3(400.0f, 0.0f, 0.0f);
-
-		auto it = m_bossStageBossPositionStates.find(boss);
-
-		if ( it != m_bossStageBossPositionStates.end() )
-		{
-			summonCenter = it->second.originalPosition;
-		}
-		else
-		{
-			// fallback. 보스가 이미 hidden y로 내려가 있어도 x/z는 유지되므로 사용 가능.
-			summonCenter = boss->GetPosition();
-		}
-
-		summonCenter.y = 0.0f;
-
-		SpawnBossSummonCircle(summonCenter);
-	}
-
 	// Appear 시작 프레임에는 보스를 지하에 둔다.
 	// renderer/active 타이밍 문제가 남아 있어도 첫 노출은 y=-100 근처라 화면에 보이지 않는다.
 	if ( useHiddenAppearSpawn )
@@ -5087,36 +5092,161 @@ void CGameScene::SetBossStageBossActive(
 	OutputDebugStringA(buf);
 }
 
-bool CGameScene::TryActivateBossStageBoss()
+CGameObject* CGameScene::FindBossStageBossInMegaGrid(int megaGridNumber) const
 {
 #ifndef USING_NETWORK
-	if ( m_bBossStageBossActivated )
-		return false;
-
-	if ( !AreAllPreBossMonstersInMegaGridDead(5) )
-		return false;
+	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+		return nullptr;
 
 	for ( CGameObject* boss : m_bossRefs )
 	{
 		if ( !boss )
 			continue;
 
-		const XMFLOAT3 pos = boss->GetPosition();
-		const int megaNumber =
+		XMFLOAT3 pos = boss->GetPosition();
+
+		const auto it =
+			m_bossStageBossPositionStates.find(boss);
+
+		if ( it != m_bossStageBossPositionStates.end() )
+			pos = it->second.originalPosition;
+
+		const int bossMegaNumber =
 			m_sceneGrid.MegaGridNumberFromWorldPosition(pos.x, pos.z);
 
-		if ( megaNumber != 5 )
-			continue;
-
-		SetBossStageBossActive(boss, true, true);
-		m_bBossStageBossActivated = true;
-
-		OutputDebugStringA("[BossStage] MegaGrid 5 boss activated with Appear.\n");
-		return true;
+		if ( bossMegaNumber == megaGridNumber )
+			return boss;
 	}
+#else
+	UNREFERENCED_PARAMETER(megaGridNumber);
+#endif
+
+	return nullptr;
+}
+
+bool CGameScene::TryBeginBossStageSummonSequence()
+{
+#ifndef USING_NETWORK
+	if ( m_bBossStageBossActivated )
+		return false;
+
+	if ( m_bBossSummonSequenceStarted )
+		return false;
+
+	if ( !AreAllPreBossMonstersInMegaGridDead(5) )
+		return false;
+
+	CGameObject* boss = FindBossStageBossInMegaGrid(5);
+
+	if ( !boss )
+	{
+		OutputDebugStringA("[BossStage] summon sequence failed: boss not found in mega grid 5.\n");
+		return false;
+	}
+
+	XMFLOAT3 summonCenter = XMFLOAT3(400.0f, 0.0f, 0.0f);
+
+	const auto it = m_bossStageBossPositionStates.find(boss);
+
+	if ( it != m_bossStageBossPositionStates.end() )
+		summonCenter = it->second.originalPosition;
+	else
+		summonCenter = boss->GetPosition();
+
+	summonCenter.y = 0.0f;
+
+	m_pendingBossStageBoss = boss;
+	m_bBossSummonSequenceStarted = true;
+	m_bBossSummonCircleFadeAgeSec = 0.0f;
+
+	// 전멸 직후 마법진은 active 상태로 만들되 완전 투명 상태에서 시작한다.
+	SpawnBossSummonCircle(summonCenter, 0.0f);
+
+	OutputDebugStringA("[BossStage] summon circle fade-in sequence started.\n");
+
+	return true;
 #endif
 
 	return false;
+}
+
+bool CGameScene::TryActivateBossStageBoss()
+{
+#ifndef USING_NETWORK
+	if ( m_bBossStageBossActivated )
+		return false;
+
+	CGameObject* boss = m_pendingBossStageBoss;
+
+	if ( !boss )
+		boss = FindBossStageBossInMegaGrid(5);
+
+	if ( !boss )
+	{
+		OutputDebugStringA("[BossStage] boss activation failed: boss not found.\n");
+		return false;
+	}
+
+	SetBossStageBossActive(boss, true, true);
+
+	m_bBossStageBossActivated = true;
+	m_bBossSummonSequenceStarted = false;
+	m_bBossSummonCircleFadeAgeSec = kBossSummonCircleFadeInDurationSec;
+	m_pendingBossStageBoss = nullptr;
+
+	OutputDebugStringA("[BossStage] MegaGrid 5 boss activated after summon circle fade-in.\n");
+
+	return true;
+#endif
+
+	return false;
+}
+
+void CGameScene::UpdateBossStageSummonSequence(float dt)
+{
+#ifndef USING_NETWORK
+	if ( !m_bBossSummonSequenceStarted )
+		return;
+
+	if ( m_bBossStageBossActivated )
+		return;
+
+	if ( !m_pendingBossStageBoss )
+	{
+		m_bBossSummonSequenceStarted = false;
+		m_bBossSummonCircleFadeAgeSec = 0.0f;
+		SetBossSummonCircleAlpha(0.0f);
+
+		OutputDebugStringA("[BossStage] summon sequence aborted: pending boss is null.\n");
+		return;
+	}
+
+	if ( dt < 0.0f )
+		dt = 0.0f;
+
+	m_bBossSummonCircleFadeAgeSec += dt;
+
+	if ( m_bBossSummonCircleFadeAgeSec > kBossSummonCircleFadeInDurationSec )
+		m_bBossSummonCircleFadeAgeSec = kBossSummonCircleFadeInDurationSec;
+
+	const float alpha =
+		( kBossSummonCircleFadeInDurationSec > 1.0e-6f )
+		? std::clamp(
+			m_bBossSummonCircleFadeAgeSec / kBossSummonCircleFadeInDurationSec,
+			0.0f,
+			1.0f
+		)
+		: 1.0f;
+
+	SetBossSummonCircleAlpha(alpha);
+
+	if ( alpha < 1.0f )
+		return;
+
+	TryActivateBossStageBoss();
+#else
+	UNREFERENCED_PARAMETER(dt);
+#endif
 }
 
 void CGameScene::RegisterMutantKeyTriggerIfNeeded(
@@ -5210,8 +5340,8 @@ void CGameScene::UpdateMegaGridClearStateFromMonsterDeaths()
 	}
 
 	// 5번 메가그리드: 보스 등장 전 기본 배치 몬스터가 모두 죽으면
-	// 숨겨둔 보스를 활성화하고 Appear를 1회 실행한다.
-	TryActivateBossStageBoss();
+// 보스를 바로 활성화하지 않고, 소환 마법진 fade-in부터 시작한다.
+	TryBeginBossStageSummonSequence();
 
 	// 5번 메가그리드: 최종 클리어는 보스 사망 시 처리.
 	if ( !m_sceneGrid.IsMegaGridCleared(1, 1) )
@@ -6010,6 +6140,7 @@ void CGameScene::AnimateObjects(float dt)
 #ifndef USING_NETWORK
 	UpdateBossStageBossPositionRestores();
 	UpdateBossStageBossRenderGate();
+	UpdateBossStageSummonSequence(dt);
 
 	if ( m_bSimulateLocalEnemySpawner && m_enemySpawner && local )
 	{
