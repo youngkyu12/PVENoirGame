@@ -72,6 +72,12 @@ CGameScene::CGameScene()
 	m_bBossShockwaveActive = false;
 	m_bossShockwaveAgeSec = 0.0f;
 	m_bossShockwaveCenter = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	m_bBossShockwavePushLocalPlayer = false;
+	m_bossShockwavePrevRadius = 0.0f;
+	m_bossShockwavePlayerInitialDistance = 0.0f;
+	m_bossShockwavePlayerPushDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
+
 	m_bBossSummonSequenceStarted = false;
 	m_bBossSummonCircleFadeAgeSec = 0.0f;
 	m_pendingBossStageBoss = nullptr;
@@ -108,6 +114,12 @@ CGameScene::CGameScene()
 	m_bBossShockwaveActive = false;
 	m_bossShockwaveAgeSec = 0.0f;
 	m_bossShockwaveCenter = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	m_bBossShockwavePushLocalPlayer = false;
+	m_bossShockwavePrevRadius = 0.0f;
+	m_bossShockwavePlayerInitialDistance = 0.0f;
+	m_bossShockwavePlayerPushDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
+
 	m_bBossSummonSequenceStarted = false;
 	m_bBossSummonCircleFadeAgeSec = 0.0f;
 	m_pendingBossStageBoss = nullptr;
@@ -2359,6 +2371,11 @@ void CGameScene::ReleaseObjects()
 	m_bBossShockwaveActive = false;
 	m_bossShockwaveAgeSec = 0.0f;
 	m_bossShockwaveCenter = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	m_bBossShockwavePushLocalPlayer = false;
+	m_bossShockwavePrevRadius = 0.0f;
+	m_bossShockwavePlayerInitialDistance = 0.0f;
+	m_bossShockwavePlayerPushDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
 
 	m_bBossStageBossActivated = false;
 	m_bBossSummonSequenceStarted = false;

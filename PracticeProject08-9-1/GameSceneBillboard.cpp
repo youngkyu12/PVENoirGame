@@ -1847,6 +1847,55 @@ void CGameScene::SpawnBossShockwave(const XMFLOAT3& center)
 	m_bBossShockwaveActive = true;
 	m_bossShockwaveAgeSec = 0.0f;
 
+	m_bossShockwavePrevRadius = kBossShockwaveStartRadius;
+	m_bBossShockwavePushLocalPlayer = false;
+	m_bossShockwavePlayerInitialDistance = 0.0f;
+	m_bossShockwavePlayerPushDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
+
+	CGameObject* localPlayer = GetPlayer();
+
+	if ( localPlayer && !m_bLocalPlayerDead )
+	{
+		const XMFLOAT3 playerPos = localPlayer->GetPosition();
+
+		const float dx = playerPos.x - fixedCenter.x;
+		const float dz = playerPos.z - fixedCenter.z;
+
+		const float distSq = dx * dx + dz * dz;
+
+		const float maxAffectRadius =
+			kBossShockwaveMaxRadius + kBossShockwavePlayerRangePadding;
+
+		const float maxAffectRadiusSq =
+			maxAffectRadius * maxAffectRadius;
+
+		if ( distSq <= maxAffectRadiusSq )
+		{
+			float dist = sqrtf(distSq);
+
+			XMFLOAT3 pushDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
+
+			if ( dist > kBossShockwavePlayerMinDirectionDistance )
+			{
+				const float invDist = 1.0f / dist;
+
+				pushDir.x = dx * invDist;
+				pushDir.y = 0.0f;
+				pushDir.z = dz * invDist;
+			}
+			else
+			{
+				// 플레이어가 거의 중심에 있으면 카메라 뒤쪽/전방 같은 기준이 없으므로
+				// 임시로 +Z 방향으로 밀어낸다.
+				dist = 0.0f;
+			}
+
+			m_bBossShockwavePushLocalPlayer = true;
+			m_bossShockwavePlayerInitialDistance = dist;
+			m_bossShockwavePlayerPushDir = pushDir;
+		}
+	}
+
 	SetBossShockwaveAlpha(1.0f);
 	SetBossShockwaveWallAlpha(0.72f);
 
@@ -1907,6 +1956,11 @@ void CGameScene::UpdateBossShockwave(float dt)
 	{
 		m_bBossShockwaveActive = false;
 		m_bossShockwaveAgeSec = 0.0f;
+
+		m_bBossShockwavePushLocalPlayer = false;
+		m_bossShockwavePrevRadius = 0.0f;
+		m_bossShockwavePlayerInitialDistance = 0.0f;
+		m_bossShockwavePlayerPushDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
 
 		for ( ItemBillboardEntry& item : m_itemBillboards )
 		{
@@ -1970,6 +2024,12 @@ void CGameScene::UpdateBossShockwave(float dt)
 		wallAlpha = ( 1.0f - fadeT ) * 0.72f;
 	}
 
+	ApplyBossShockwavePushToLocalPlayer(
+		m_bossShockwavePrevRadius,
+		radius
+	);
+
+	m_bossShockwavePrevRadius = radius;
 	const float correctedRadius =
 		radius / kBossShockwaveShaderRingCenter;
 
@@ -2036,6 +2096,94 @@ void CGameScene::UpdateBossShockwave(float dt)
 	SetBossShockwaveWallAlpha(wallAlpha);
 #else
 	UNREFERENCED_PARAMETER(dt);
+#endif
+}
+
+void CGameScene::ApplyBossShockwavePushToLocalPlayer(
+	float previousRadius,
+	float currentRadius)
+{
+#ifndef USING_NETWORK
+	if ( !m_bBossShockwavePushLocalPlayer )
+		return;
+
+	if ( currentRadius <= previousRadius )
+		return;
+
+	CGameObject* localPlayer = GetPlayer();
+	if ( !localPlayer )
+		return;
+
+	if ( m_bLocalPlayerDead )
+		return;
+
+	float playerStartDistance = m_bossShockwavePlayerInitialDistance;
+
+	if ( playerStartDistance < kBossShockwaveStartRadius )
+		playerStartDistance = kBossShockwaveStartRadius;
+
+	float prevCarryRadius = previousRadius;
+
+	if ( prevCarryRadius < playerStartDistance )
+		prevCarryRadius = playerStartDistance;
+
+	float currCarryRadius = currentRadius;
+
+	if ( currCarryRadius > kBossShockwaveMaxRadius )
+		currCarryRadius = kBossShockwaveMaxRadius;
+
+	const float pushDistance =
+		currCarryRadius - prevCarryRadius;
+
+	if ( pushDistance <= 0.0f )
+		return;
+
+	const XMFLOAT3 previousPos = localPlayer->GetPosition();
+
+	XMFLOAT3 pushedPos = previousPos;
+	pushedPos.x += m_bossShockwavePlayerPushDir.x * pushDistance;
+	pushedPos.z += m_bossShockwavePlayerPushDir.z * pushDistance;
+
+	localPlayer->SetPosition(pushedPos);
+
+	auto* collider = localPlayer->GetComponent<CColliderComponent>();
+
+	if ( collider )
+		collider->UpdateWorldBounds();
+
+	// 충격파에 의해 벽 안으로 밀려 들어가는 것은 막는다.
+	// RollbackLocalPlayerMoveIfCollidingWorldStatic()는 포탈 처리까지 들어가므로
+	// 여기서는 순수 world-static 충돌만 검사해서 원위치시킨다.
+	if ( collider && m_Collision )
+	{
+		if ( m_Collision->HasCollisionWithWorldStatic(collider) )
+		{
+			localPlayer->SetPosition(previousPos);
+			collider->UpdateWorldBounds();
+			return;
+		}
+	}
+
+	if ( auto* controller = localPlayer->GetComponent<CPlayerControllerComponent>() )
+	{
+		// 남아있는 입력/속도 때문에 충격파 밀림이 덜 보이는 것을 막는다.
+		controller->SetVelocity(XMFLOAT3(0.0f, 0.0f, 0.0f));
+	}
+
+	if ( auto* camera = GetMainCamera() )
+	{
+		XMFLOAT3 cameraTarget = localPlayer->GetPosition();
+		cameraTarget.y += 1.7f;
+
+		camera->Update(cameraTarget, 0.0f);
+		camera->SetLookAt(cameraTarget);
+		camera->RegenerateViewMatrix();
+	}
+
+	UpdateDynamicGridState();
+#else
+	UNREFERENCED_PARAMETER(previousRadius);
+	UNREFERENCED_PARAMETER(currentRadius);
 #endif
 }
 

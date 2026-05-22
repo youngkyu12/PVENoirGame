@@ -560,6 +560,11 @@ private:
 	void UpdateBossShockwave(float dt);
 	void SetBossShockwaveWallAlpha(float alpha);
 
+	void ApplyBossShockwavePushToLocalPlayer(
+		float previousRadius,
+		float currentRadius
+	);
+
 	CGameObject* FindBossStageBossInMegaGrid(int megaGridNumber) const;
 	
 	std::shared_ptr<CMesh> CreateItemBillboardQuadMesh(
@@ -1419,6 +1424,14 @@ private:
 	static constexpr float kBossShockwaveWallWidthScale = 1.35f;
 
 	XMFLOAT3 m_bossShockwaveCenter = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	static constexpr float kBossShockwavePlayerRangePadding = 1.25f;
+	static constexpr float kBossShockwavePlayerMinDirectionDistance = 0.25f;
+
+	bool m_bBossShockwavePushLocalPlayer = false;
+	float m_bossShockwavePrevRadius = 0.0f;
+	float m_bossShockwavePlayerInitialDistance = 0.0f;
+	XMFLOAT3 m_bossShockwavePlayerPushDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
 
 	struct BossStageBossPositionState
 	{
