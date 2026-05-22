@@ -32,6 +32,7 @@ public:
 
 	bool IsAttackPrimaryPhase() const { return m_actionPhase == EActionPhase::Attack; }
 	bool IsAttackChainPhase() const { return m_actionPhase == EActionPhase::AttackChainNext; }
+	bool IsSpellPhase() const { return m_actionPhase == EActionPhase::Spell; }
 
 private:
 	enum class EActionPhase : uint8_t
