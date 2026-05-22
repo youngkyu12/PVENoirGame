@@ -6,8 +6,9 @@
 #include "MaterialTexture.hlsl"
 #include "RenderTypes.hlsl"
 
-#define BOSS_SUMMON_GLOW_MATERIAL_ID (MAX_MATERIALS - 4)
-#define BOSS_SHOCKWAVE_MATERIAL_ID   (MAX_MATERIALS - 5)
+#define BOSS_SUMMON_GLOW_MATERIAL_ID      (MAX_MATERIALS - 4)
+#define BOSS_SHOCKWAVE_MATERIAL_ID        (MAX_MATERIALS - 5)
+#define BOSS_SHOCKWAVE_WALL_MATERIAL_ID   (MAX_MATERIALS - 6)
 
 // -----------------------------------------------------------------------------
 // Item Billboard
@@ -80,43 +81,64 @@ float4 MakeBossShockwaveColor(float2 uv, float4 materialDiffuse)
     float2 p = uv * 2.0f - 1.0f;
     float r = length(p);
 
-    // quad 바깥 원형 영역 제거.
-    float circleMask = 1.0f - smoothstep(0.995f, 1.0f, r);
+    float circleMask = 1.0f - smoothstep(0.992f, 1.0f, r);
 
-    // 충격파 본체: 바깥쪽에 두꺼운 원형 ring.
-    // CPU 쪽에서 ring 중심 0.94 기준으로 크기를 보정한다.
     float ringCenter = 0.94f;
-    float ringWidth = 0.055f;
+    float ringWidth = 0.080f;
 
     float ring =
         1.0f - smoothstep(
-            ringWidth * 0.55f,
+            ringWidth * 0.45f,
             ringWidth,
             abs(r - ringCenter)
         );
 
-    // ring 바로 안쪽에 약한 꼬리. 지면을 훑는 느낌.
     float innerTrail =
-        smoothstep(0.62f, 0.84f, r) *
-        (1.0f - smoothstep(0.84f, ringCenter, r));
+        smoothstep(0.48f, 0.82f, r) *
+        (1.0f - smoothstep(0.82f, ringCenter, r));
 
-    // 선두부를 더 밝게.
-    float leading =
-        1.0f - smoothstep(
-            0.0f,
-            ringWidth * 0.40f,
-            abs(r - ringCenter)
-        );
+    float ang = atan2(p.y, p.x);
+    float breakup =
+        0.88f +
+        0.12f * sin(ang * 10.0f + r * 26.0f);
 
     float alpha =
-        (ring * 0.90f + innerTrail * 0.22f + leading * 0.35f) *
+        (ring * 0.82f + innerTrail * 0.30f) *
+        breakup *
         circleMask *
         materialDiffuse.a;
 
     alpha = saturate(alpha);
 
-    float brightness = 1.0f + leading * 1.25f;
+    float dustShade = 0.88f + innerTrail * 0.18f;
+    float3 rgb = materialDiffuse.rgb * dustShade;
 
+    return float4(rgb, alpha);
+}
+
+float4 MakeBossShockwaveWallColor(float2 uv, float4 materialDiffuse)
+{
+    float x = abs(uv.x * 2.0f - 1.0f);
+
+    float sideFade = 1.0f - smoothstep(0.35f, 1.0f, x);
+    float topFade = 1.0f - smoothstep(0.55f, 1.0f, uv.y);
+    float bottomBoost = smoothstep(1.0f, 0.0f, uv.y);
+
+    float noise =
+        0.82f +
+        0.18f * sin(uv.x * 31.0f + uv.y * 11.0f) *
+        sin(uv.x * 17.0f - uv.y * 23.0f);
+
+    float alpha =
+        sideFade *
+        topFade *
+        (0.45f + bottomBoost * 0.55f) *
+        noise *
+        materialDiffuse.a;
+
+    alpha = saturate(alpha);
+
+    float brightness = 0.92f + 0.08f * bottomBoost;
     float3 rgb = materialDiffuse.rgb * brightness;
 
     return float4(rgb, alpha);
@@ -213,6 +235,10 @@ float4 PSItemBillboardUnlitTransparentForward(
     else if (materialId == BOSS_SHOCKWAVE_MATERIAL_ID)
     {
         color = MakeBossShockwaveColor(input.uv, mat.m_cDiffuse);
+    }
+    else if (materialId == BOSS_SHOCKWAVE_WALL_MATERIAL_ID)
+    {
+        color = MakeBossShockwaveWallColor(input.uv, mat.m_cDiffuse);
     }
     else
     {

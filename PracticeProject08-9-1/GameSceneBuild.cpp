@@ -3471,10 +3471,10 @@ void CGameScene::BuildLightsAndMaterials()
 
 		bossShockwaveMat.m_xmf4Ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 
-		// 약간 청록색 충격파. alpha는 Spawn/Update에서 조절한다.
-		bossShockwaveMat.m_xmf4Diffuse = XMFLOAT4(0.55f, 0.95f, 1.00f, 0.0f);
+		// 흙먼지/지면 바람 느낌의 갈색-회색
+		bossShockwaveMat.m_xmf4Diffuse = XMFLOAT4(0.46f, 0.42f, 0.36f, 0.0f);
 		bossShockwaveMat.m_xmf4Specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
-		bossShockwaveMat.m_xmf4Emissive = XMFLOAT4(0.55f, 0.95f, 1.00f, 1.0f);
+		bossShockwaveMat.m_xmf4Emissive = XMFLOAT4(0.06f, 0.05f, 0.04f, 1.0f);
 
 		bossShockwaveMat.m_xmn4TextureIndices = XMUINT4(0, 0, 0, 0);
 
@@ -3485,6 +3485,28 @@ void CGameScene::BuildLightsAndMaterials()
 
 		bossShockwaveMat.m_xmn4WrapModes0 = XMUINT4(0, 0, 0, 0);
 		bossShockwaveMat.m_xmn4WrapModes1 = XMUINT4(0, 0, 0, 0);
+	}
+
+	{
+		MATERIAL& bossShockwaveWallMat =
+			m_pMaterials->m_pReflections[kBossShockwaveWallMaterialId];
+
+		bossShockwaveWallMat.m_xmf4Ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+
+		// 바닥보다 약간 밝은 회갈색 먼지벽
+		bossShockwaveWallMat.m_xmf4Diffuse = XMFLOAT4(0.58f, 0.56f, 0.52f, 0.0f);
+		bossShockwaveWallMat.m_xmf4Specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+		bossShockwaveWallMat.m_xmf4Emissive = XMFLOAT4(0.03f, 0.03f, 0.03f, 1.0f);
+
+		bossShockwaveWallMat.m_xmn4TextureIndices = XMUINT4(0, 0, 0, 0);
+
+		bossShockwaveWallMat.m_xmf4DiffuseUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+		bossShockwaveWallMat.m_xmf4NormalUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+		bossShockwaveWallMat.m_xmf4EmissiveUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+		bossShockwaveWallMat.m_xmf4SpecularUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+
+		bossShockwaveWallMat.m_xmn4WrapModes0 = XMUINT4(0, 0, 0, 0);
+		bossShockwaveWallMat.m_xmn4WrapModes1 = XMUINT4(0, 0, 0, 0);
 	}
 }
 

@@ -71,6 +71,7 @@ CGameScene::CGameScene()
 	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
 	m_bBossShockwaveActive = false;
 	m_bossShockwaveAgeSec = 0.0f;
+	m_bossShockwaveCenter = XMFLOAT3(0.0f, 0.0f, 0.0f);
 	m_bBossSummonSequenceStarted = false;
 	m_bBossSummonCircleFadeAgeSec = 0.0f;
 	m_pendingBossStageBoss = nullptr;
@@ -84,6 +85,7 @@ CGameScene::CGameScene()
 	m_bCanBossStageDirectly = false;
 	m_bSimulateLocalStageTeleport = true;
 	m_bPrevLocalStageTeleportKeyDown.fill(false);
+
 #ifdef USING_NETWORK
 	m_bSimulateLocalPlayerMonsterAttackCollision = false;
 	m_bSimulateLocalAI = false;
@@ -105,6 +107,7 @@ CGameScene::CGameScene()
 	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
 	m_bBossShockwaveActive = false;
 	m_bossShockwaveAgeSec = 0.0f;
+	m_bossShockwaveCenter = XMFLOAT3(0.0f, 0.0f, 0.0f);
 	m_bBossSummonSequenceStarted = false;
 	m_bBossSummonCircleFadeAgeSec = 0.0f;
 	m_pendingBossStageBoss = nullptr;
@@ -2355,6 +2358,7 @@ void CGameScene::ReleaseObjects()
 	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
 	m_bBossShockwaveActive = false;
 	m_bossShockwaveAgeSec = 0.0f;
+	m_bossShockwaveCenter = XMFLOAT3(0.0f, 0.0f, 0.0f);
 
 	m_bBossStageBossActivated = false;
 	m_bBossSummonSequenceStarted = false;
@@ -3995,6 +3999,19 @@ void CGameScene::SetBossShockwaveAlpha(float alpha)
 
 	MATERIAL& mat =
 		m_pMaterials->m_pReflections[kBossShockwaveMaterialId];
+
+	mat.m_xmf4Diffuse.w = alpha;
+}
+
+void CGameScene::SetBossShockwaveWallAlpha(float alpha)
+{
+	if ( !m_pMaterials )
+		return;
+
+	alpha = std::clamp(alpha, 0.0f, 1.0f);
+
+	MATERIAL& mat =
+		m_pMaterials->m_pReflections[kBossShockwaveWallMaterialId];
 
 	mat.m_xmf4Diffuse.w = alpha;
 }

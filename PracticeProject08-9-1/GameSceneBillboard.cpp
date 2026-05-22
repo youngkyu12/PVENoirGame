@@ -623,7 +623,9 @@ void CGameScene::BuildItemBillboardBatch(
 	};
 
 	m_itemBillboards.clear();
-	m_itemBillboards.reserve(kKeyItemBillboardCount + 3);
+	m_itemBillboards.reserve(
+		kKeyItemBillboardCount + 3 + kBossShockwaveWallSegmentCount
+	);
 
 	for ( UINT i = 0; i < kKeyItemBillboardCount; ++i )
 	{
@@ -748,6 +750,33 @@ void CGameScene::BuildItemBillboardBatch(
 		shockwave.materialId = kBossShockwaveMaterialId;
 
 		m_itemBillboards.push_back(shockwave);
+	}
+
+	for ( UINT i = 0; i < kBossShockwaveWallSegmentCount; ++i )
+	{
+		ItemBillboardEntry shockwaveWall{};
+
+		shockwaveWall.active = false;
+		shockwaveWall.distanceCulled = true;
+
+		shockwaveWall.transparent = true;
+		shockwaveWall.kind = EItemBillboardKind::BossShockwaveWall;
+		shockwaveWall.megaGridNumber = -1;
+
+		shockwaveWall.position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+		shockwaveWall.width = 0.0f;
+		shockwaveWall.height = 0.0f;
+		shockwaveWall.yOffset = 0.0f;
+
+		shockwaveWall.cullDistance = 1000000.0f;
+
+		shockwaveWall.pickupRadius = 0.0f;
+		shockwaveWall.pickupHeightTolerance = 0.0f;
+
+		shockwaveWall.materialId = kBossShockwaveWallMaterialId;
+
+		m_itemBillboards.push_back(shockwaveWall);
 	}
 
 	m_itemBillboardInstanceBufferCapacity =
@@ -1811,46 +1840,53 @@ void CGameScene::SpawnBossSummonVisuals(const XMFLOAT3& center, float alpha)
 
 void CGameScene::SpawnBossShockwave(const XMFLOAT3& center)
 {
+	XMFLOAT3 fixedCenter = center;
+	fixedCenter.y = 0.0f;
+
+	m_bossShockwaveCenter = fixedCenter;
+	m_bBossShockwaveActive = true;
+	m_bossShockwaveAgeSec = 0.0f;
+
+	SetBossShockwaveAlpha(1.0f);
+	SetBossShockwaveWallAlpha(0.72f);
+
+	const float correctedRadius =
+		kBossShockwaveStartRadius / kBossShockwaveShaderRingCenter;
+
 	for ( ItemBillboardEntry& item : m_itemBillboards )
 	{
-		if ( item.kind != EItemBillboardKind::BossShockwave )
-			continue;
+		if ( item.kind == EItemBillboardKind::BossShockwave )
+		{
+			item.active = true;
+			item.distanceCulled = false;
+			item.transparent = true;
 
-		XMFLOAT3 fixedCenter = center;
-		fixedCenter.y = 0.0f;
+			item.position = fixedCenter;
+			item.width = correctedRadius * 2.0f;
+			item.height = correctedRadius * 2.0f;
+			item.yOffset = 0.075f;
+			item.cullDistance = 1000000.0f;
+			item.pickupRadius = 0.0f;
+			item.pickupHeightTolerance = 0.0f;
+			item.materialId = kBossShockwaveMaterialId;
+		}
+		else if ( item.kind == EItemBillboardKind::BossShockwaveWall )
+		{
+			item.active = true;
+			item.distanceCulled = false;
+			item.transparent = true;
 
-		item.active = true;
-		item.distanceCulled = false;
-		item.transparent = true;
+			item.position = fixedCenter;
+			item.width = kBossShockwaveWallMinWidth;
+			item.height = 0.25f;
+			item.yOffset = 0.15f;
 
-		item.position = fixedCenter;
-
-		const float correctedRadius =
-			kBossShockwaveStartRadius / kBossShockwaveShaderRingCenter;
-
-		item.width = correctedRadius * 2.0f;
-		item.height = correctedRadius * 2.0f;
-
-		// BossSummonCircle가 0.05f이므로 충격파를 살짝 더 위에 둔다.
-		// z-fighting 방지용이다.
-		item.yOffset = 0.075f;
-
-		item.cullDistance = 1000000.0f;
-
-		item.pickupRadius = 0.0f;
-		item.pickupHeightTolerance = 0.0f;
-
-		item.materialId = kBossShockwaveMaterialId;
-
-		m_bBossShockwaveActive = true;
-		m_bossShockwaveAgeSec = 0.0f;
-
-		SetBossShockwaveAlpha(1.0f);
-
-		return;
+			item.cullDistance = 1000000.0f;
+			item.pickupRadius = 0.0f;
+			item.pickupHeightTolerance = 0.0f;
+			item.materialId = kBossShockwaveWallMaterialId;
+		}
 	}
-
-	OutputDebugStringA("[BossShockwave] spawn failed: BossShockwave entry not found.\n");
 }
 
 void CGameScene::UpdateBossShockwave(float dt)
@@ -1874,8 +1910,11 @@ void CGameScene::UpdateBossShockwave(float dt)
 
 		for ( ItemBillboardEntry& item : m_itemBillboards )
 		{
-			if ( item.kind != EItemBillboardKind::BossShockwave )
+			if ( item.kind != EItemBillboardKind::BossShockwave &&
+				 item.kind != EItemBillboardKind::BossShockwaveWall )
+			{
 				continue;
+			}
 
 			item.active = false;
 			item.distanceCulled = true;
@@ -1884,11 +1923,13 @@ void CGameScene::UpdateBossShockwave(float dt)
 		}
 
 		SetBossShockwaveAlpha(0.0f);
+		SetBossShockwaveWallAlpha(0.0f);
 		return;
 	}
 
 	float radius = kBossShockwaveMaxRadius;
-	float alpha = 1.0f;
+	float floorAlpha = 1.0f;
+	float wallAlpha = 0.72f;
 
 	if ( m_bossShockwaveAgeSec < kBossShockwaveExpandDurationSec )
 	{
@@ -1901,14 +1942,14 @@ void CGameScene::UpdateBossShockwave(float dt)
 			)
 			: 1.0f;
 
-		// 초반에는 빠르게, 끝에서는 살짝 감속.
 		const float easeOut = 1.0f - ( 1.0f - t ) * ( 1.0f - t );
 
 		radius =
 			kBossShockwaveStartRadius +
 			( kBossShockwaveMaxRadius - kBossShockwaveStartRadius ) * easeOut;
 
-		alpha = 1.0f;
+		floorAlpha = 1.0f;
+		wallAlpha = 0.72f;
 	}
 	else
 	{
@@ -1925,14 +1966,14 @@ void CGameScene::UpdateBossShockwave(float dt)
 			: 1.0f;
 
 		radius = kBossShockwaveMaxRadius;
-		alpha = 1.0f - fadeT;
+		floorAlpha = 1.0f - fadeT;
+		wallAlpha = ( 1.0f - fadeT ) * 0.72f;
 	}
 
-	// HLSL ring 중심이 uv 반지름 0.94 지점이므로,
-	// 실제 ring 중심 반지름이 radius가 되도록 billboard 전체 크기를 보정한다.
 	const float correctedRadius =
 		radius / kBossShockwaveShaderRingCenter;
 
+	// 바닥 충격파 갱신
 	for ( ItemBillboardEntry& item : m_itemBillboards )
 	{
 		if ( item.kind != EItemBillboardKind::BossShockwave )
@@ -1942,13 +1983,57 @@ void CGameScene::UpdateBossShockwave(float dt)
 		item.distanceCulled = false;
 		item.transparent = true;
 
+		item.position = m_bossShockwaveCenter;
 		item.width = correctedRadius * 2.0f;
 		item.height = correctedRadius * 2.0f;
 		item.yOffset = 0.075f;
 		item.materialId = kBossShockwaveMaterialId;
 	}
 
-	SetBossShockwaveAlpha(alpha);
+	// 세로 먼지 벽 갱신
+	UINT wallIndex = 0;
+	const float timeRatio =
+		std::clamp(m_bossShockwaveAgeSec / totalDuration, 0.0f, 1.0f);
+
+	const float wallHeight =
+		kBossShockwaveWallMaxHeight * sinf(timeRatio * XM_PI);
+
+	const float arcLength =
+		std::max(
+			kBossShockwaveWallMinWidth,
+			( radius * XM_2PI / static_cast< float >( kBossShockwaveWallSegmentCount ) ) *
+			kBossShockwaveWallWidthScale
+		);
+
+	for ( ItemBillboardEntry& item : m_itemBillboards )
+	{
+		if ( item.kind != EItemBillboardKind::BossShockwaveWall )
+			continue;
+
+		const float angle =
+			( static_cast< float >( wallIndex ) / static_cast< float >( kBossShockwaveWallSegmentCount ) ) *
+			XM_2PI;
+
+		XMFLOAT3 pos = m_bossShockwaveCenter;
+		pos.x += cosf(angle) * radius;
+		pos.z += sinf(angle) * radius;
+		pos.y = 0.0f;
+
+		item.active = true;
+		item.distanceCulled = false;
+		item.transparent = true;
+
+		item.position = pos;
+		item.width = arcLength;
+		item.height = std::max(0.25f, wallHeight);
+		item.yOffset = item.height * 0.5f + 0.05f;
+		item.materialId = kBossShockwaveWallMaterialId;
+
+		++wallIndex;
+	}
+
+	SetBossShockwaveAlpha(floorAlpha);
+	SetBossShockwaveWallAlpha(wallAlpha);
 #else
 	UNREFERENCED_PARAMETER(dt);
 #endif
