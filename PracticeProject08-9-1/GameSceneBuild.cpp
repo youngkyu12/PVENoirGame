@@ -50,7 +50,7 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 	m_bSimulateLocalGhoulAI = false;
 	m_bSimulateLocalBowManAI = false;
 	m_bSimulateLocalSwordManAI = false;
-	m_bSimulateLocalMutantAI = true;
+	m_bSimulateLocalMutantAI = false;
 	m_bSimulateLocalBossAI = true;
 
 	m_bSimulateLocalMonsterChase = true;
@@ -71,12 +71,8 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 		m_bSimulateLocalBossAI = false;
 	}
 
-	m_mutantAttackSfxDelaySeconds = 0.0f;
-
 	m_bPrevLocalMonsterChaseToggleKeyDown = false;
 	m_bPrevLocalStageTeleportKeyDown.fill(false);
-	m_bPrevMutantAttackSfxDelayDecreaseKeyDown = false;
-	m_bPrevMutantAttackSfxDelayIncreaseKeyDown = false;
 }
 
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
@@ -2567,6 +2563,7 @@ void CGameScene::BuildSkinnedBatch(
 	m_preparedBowmanArrows.assign(m_bowManRefs.size(), nullptr);
 	m_prevEnemyBowReleasePhase.assign(m_bowManRefs.size(), false);
 
+	m_prevGhoulAttackPhase.assign(m_ghoulRefs.size(), false);
 	m_prevSwordManAttackPhase.assign(m_swordManRefs.size(), false);
 	m_prevMutantAttackPhase.assign(m_MutantRefs.size(), false);
 	m_prevBowManSfxLoadPhase.assign(m_bowManRefs.size(), false);

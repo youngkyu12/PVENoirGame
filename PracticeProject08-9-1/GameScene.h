@@ -979,6 +979,7 @@ private:
 		Footstep,
 		SwordWhoosh,
 		MutantWhoosh,
+		GhoulWhoosh,
 		BowLoading,
 		BowRelease
 	};
@@ -1023,13 +1024,10 @@ private:
 
 	std::vector<MonsterFootstepSfxState> m_monsterFootstepSfxStates;
 
+	std::vector<bool> m_prevGhoulAttackPhase;
 	std::vector<bool> m_prevSwordManAttackPhase;
 	std::vector<bool> m_prevMutantAttackPhase;
 	std::vector<bool> m_prevBowManSfxLoadPhase;
-
-	// Mutant 공격 사운드 튜닝용 delay.
-	// 기본값은 0초. ProcessInput()의 좌/우 방향키로 런타임 조절한다.
-	float m_mutantAttackSfxDelaySeconds = 0.0f;
 
 	std::vector<PendingMonsterSfx> m_pendingMonsterSfxList;
 	std::vector<ActiveMonsterSfx> m_activeMonsterSfxList;
@@ -1072,11 +1070,10 @@ private:
 
 	void PlayMonsterFootstepSfx(CGameObject* monster);
 
+	void RequestGhoulAttackSfx(CGameObject* ghoul);
 	void RequestSwordManAttackSfx(CGameObject* swordman);
 	void RequestMutantAttackSfx(CGameObject* mutant);
 	void RequestBowManLoadSfx(CGameObject* bowman);
-
-	void AdjustMutantAttackSfxDelay(float deltaSeconds);
 
 	void ScheduleMonsterSfx(
 		EMonsterSfxKind kind,
@@ -1346,9 +1343,6 @@ private:
 
 	bool m_bSimulateLocalStageTeleport = true;
 	std::array<bool, CSceneGrid::kMegaGridCount + 1> m_bPrevLocalStageTeleportKeyDown = {};
-
-	bool m_bPrevMutantAttackSfxDelayDecreaseKeyDown = false;
-	bool m_bPrevMutantAttackSfxDelayIncreaseKeyDown = false;
 
 	void ConfigureLocalGameplaySimulationSwitches();
 };
