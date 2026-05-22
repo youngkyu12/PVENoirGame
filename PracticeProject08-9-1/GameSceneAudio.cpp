@@ -88,6 +88,12 @@ namespace
 	static constexpr float kMonsterSwordWhooshVolume = 0.5f;
 	static constexpr float kMonsterBowLoadingSfxVolume = 2.0f;
 	static constexpr float kMonsterBowReleaseSfxVolume = 2.0f;
+	static constexpr float kMonsterMutantWhooshVolume = 0.5f;
+
+	static const char* GetMonsterMutantWhooshPath()
+	{
+		return "Assets/Audio/Whoosh_Sword2.wav";
+	}
 
 	static bool IsMonsterWalkClipName(const std::string& clipName)
 	{
@@ -186,6 +192,7 @@ void CGameScene::ResetMonsterSfxState()
 	m_monsterFootstepSfxStates.clear();
 
 	m_prevSwordManAttackPhase.clear();
+	m_prevMutantAttackPhase.clear();
 	m_prevBowManSfxLoadPhase.clear();
 
 	m_pendingMonsterSfxList.clear();
@@ -649,6 +656,37 @@ void CGameScene::UpdateMonsterAttackSfx()
 		m_prevSwordManAttackPhase[i] = isAttack;
 	}
 
+	if ( m_prevMutantAttackPhase.size() < m_MutantRefs.size() )
+		m_prevMutantAttackPhase.resize(m_MutantRefs.size(), false);
+
+	for ( size_t i = 0; i < m_MutantRefs.size(); ++i )
+	{
+		CGameObject* mutant = m_MutantRefs[i];
+
+		if ( !mutant || IsMonsterDead(mutant) )
+		{
+			m_prevMutantAttackPhase[i] = false;
+			continue;
+		}
+
+		bool isAttack = false;
+
+		if ( auto* animComp = mutant->GetComponent<CAnimatorComponent>() )
+		{
+			if ( auto* ctrl = animComp->EnsureMonsterController() )
+			{
+				isAttack = ctrl->IsAttackPrimaryPhase();
+			}
+		}
+
+		if ( isAttack && !m_prevMutantAttackPhase[i] )
+		{
+			RequestMutantAttackSfx(mutant);
+		}
+
+		m_prevMutantAttackPhase[i] = isAttack;
+	}
+
 	if ( m_prevBowManSfxLoadPhase.size() < m_bowManRefs.size() )
 		m_prevBowManSfxLoadPhase.resize(m_bowManRefs.size(), false);
 
@@ -691,6 +729,23 @@ void CGameScene::RequestSwordManAttackSfx(CGameObject* swordman)
 		GetMonsterSwordManWhooshPath(),
 		kMonsterSwordWhooshDelaySeconds,
 		kMonsterSwordWhooshVolume,
+		true
+	);
+}
+
+void CGameScene::RequestMutantAttackSfx(CGameObject* mutant)
+{
+	const float delaySeconds =
+		( m_mutantAttackSfxDelaySeconds < 0.0f )
+		? 0.0f
+		: m_mutantAttackSfxDelaySeconds;
+
+	ScheduleMonsterSfx(
+		EMonsterSfxKind::MutantWhoosh,
+		mutant,
+		GetMonsterMutantWhooshPath(),
+		delaySeconds,
+		kMonsterMutantWhooshVolume,
 		true
 	);
 }
@@ -866,4 +921,21 @@ void CGameScene::UpdateActiveMonsterSfx()
 
 		++i;
 	}
+}
+
+void CGameScene::AdjustMutantAttackSfxDelay(float deltaSeconds)
+{
+	m_mutantAttackSfxDelaySeconds += deltaSeconds;
+
+	if ( m_mutantAttackSfxDelaySeconds < 0.0f )
+		m_mutantAttackSfxDelaySeconds = 0.0f;
+
+	char buf[256];
+	sprintf_s(
+		buf,
+		"[MonsterSfx][MutantAttackDelay] delay=%.4f sec (%.1f ms)\n",
+		m_mutantAttackSfxDelaySeconds,
+		m_mutantAttackSfxDelaySeconds * 1000.0f
+	);
+	OutputDebugStringA(buf);
 }
