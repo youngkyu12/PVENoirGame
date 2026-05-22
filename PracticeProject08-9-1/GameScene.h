@@ -232,6 +232,7 @@ enum class EItemBillboardKind : UINT
 	BossSummonCircle = 1,
 	BossSummonGlow = 2,
 	BossShockwave = 3,
+	BossShockwaveWall = 4,
 };
 
 struct ItemBillboardEntry
@@ -557,6 +558,7 @@ private:
 	void SetBossShockwaveAlpha(float alpha);
 	void SpawnBossShockwave(const XMFLOAT3& center);
 	void UpdateBossShockwave(float dt);
+	void SetBossShockwaveWallAlpha(float alpha);
 
 	CGameObject* FindBossStageBossInMegaGrid(int megaGridNumber) const;
 	
@@ -907,6 +909,7 @@ private:
 	static constexpr UINT kBossSummonCircleMaterialId = MAX_MATERIALS - 3;
 	static constexpr UINT kBossSummonGlowMaterialId = MAX_MATERIALS - 4;
 	static constexpr UINT kBossShockwaveMaterialId = MAX_MATERIALS - 5;
+	static constexpr UINT kBossShockwaveWallMaterialId = MAX_MATERIALS - 6;
 
 	static constexpr UINT kKeyItemBillboardCount = 7;
 
@@ -1409,6 +1412,13 @@ private:
 
 	bool m_bBossShockwaveActive = false;
 	float m_bossShockwaveAgeSec = 0.0f;
+
+	static constexpr UINT  kBossShockwaveWallSegmentCount = 48;
+	static constexpr float kBossShockwaveWallMaxHeight = 3.5f;
+	static constexpr float kBossShockwaveWallMinWidth = 1.5f;
+	static constexpr float kBossShockwaveWallWidthScale = 1.35f;
+
+	XMFLOAT3 m_bossShockwaveCenter = XMFLOAT3(0.0f, 0.0f, 0.0f);
 
 	struct BossStageBossPositionState
 	{
