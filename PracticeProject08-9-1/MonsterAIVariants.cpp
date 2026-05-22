@@ -358,12 +358,13 @@ void CBossAIComponent::UpdateBehavior(float dt)
 		}
 	}
 
-	// 근거리인데 공격 쿨다운 중이면 제자리에서 플레이어만 바라본다.
-	// 이 단계에서는 후퇴/횡이동 패턴은 넣지 않는다.
 	if ( distanceToTarget <= m_bossMeleeRange )
 	{
 		ClearPath();
-		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+
+		if ( !IsAIActionLockedByAnimation() )
+			SetMonsterLocomotionState(EMonsterAnimState::Idle);
+
 		FaceTowards(target->GetPosition());
 		return;
 	}
@@ -397,6 +398,55 @@ bool CBossAIComponent::TryPerformAttack()
 		return TryPerformSpellAttack();
 
 	return TryPerformMeleeAttack();
+}
+
+bool CBossAIComponent::CanMoveNow() const
+{
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return false;
+
+	if ( auto* hp = owner->GetComponent<CHealthComponent>() )
+	{
+		if ( hp->IsDead() )
+			return false;
+	}
+
+	// 보스는 공격/스펠 애니메이션 중에도 이동 가능.
+	// m_postAttackMoveLockRemaining도 보스에게는 이동 제한으로 쓰지 않는다.
+	return true;
+}
+
+bool CBossAIComponent::CanThinkNow() const
+{
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return false;
+
+	if ( auto* hp = owner->GetComponent<CHealthComponent>() )
+	{
+		if ( hp->IsDead() )
+			return false;
+	}
+
+	// 보스는 공격/스펠 애니메이션 중에도 target 유지, 전투구역 체크, 이동 판단을 계속한다.
+	return true;
+}
+
+bool CBossAIComponent::CanRotateNow() const
+{
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return false;
+
+	if ( auto* hp = owner->GetComponent<CHealthComponent>() )
+	{
+		if ( hp->IsDead() )
+			return false;
+	}
+
+	// 보스는 공격/스펠 애니메이션 중에도 플레이어를 향해 회전 가능.
+	return true;
 }
 
 void CBossAIComponent::UpdateBossCooldowns(float dt)
