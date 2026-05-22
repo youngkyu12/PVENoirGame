@@ -88,11 +88,20 @@ namespace
 	static constexpr float kMonsterSwordWhooshVolume = 0.5f;
 	static constexpr float kMonsterBowLoadingSfxVolume = 2.0f;
 	static constexpr float kMonsterBowReleaseSfxVolume = 2.0f;
+	static constexpr float kMonsterMutantWhooshDelaySeconds = 0.2324f;
 	static constexpr float kMonsterMutantWhooshVolume = 0.5f;
+
+	static constexpr float kMonsterGhoulWhooshDelaySeconds = 0.1494f;
+	static constexpr float kMonsterGhoulWhooshVolume = 0.5f;
 
 	static const char* GetMonsterMutantWhooshPath()
 	{
 		return "Assets/Audio/Whoosh_Sword2.wav";
+	}
+
+	static const char* GetMonsterGhoulWhooshPath()
+	{
+		return "Assets/Audio/Whoosh_Sword3.wav";
 	}
 
 	static bool IsMonsterWalkClipName(const std::string& clipName)
@@ -191,6 +200,7 @@ void CGameScene::ResetMonsterSfxState()
 {
 	m_monsterFootstepSfxStates.clear();
 
+	m_prevGhoulAttackPhase.clear();
 	m_prevSwordManAttackPhase.clear();
 	m_prevMutantAttackPhase.clear();
 	m_prevBowManSfxLoadPhase.clear();
@@ -624,6 +634,37 @@ void CGameScene::PlayMonsterFootstepSfx(CGameObject* monster)
 
 void CGameScene::UpdateMonsterAttackSfx()
 {
+	if ( m_prevGhoulAttackPhase.size() < m_ghoulRefs.size() )
+		m_prevGhoulAttackPhase.resize(m_ghoulRefs.size(), false);
+
+	for ( size_t i = 0; i < m_ghoulRefs.size(); ++i )
+	{
+		CGameObject* ghoul = m_ghoulRefs[i];
+
+		if ( !ghoul || IsMonsterDead(ghoul) )
+		{
+			m_prevGhoulAttackPhase[i] = false;
+			continue;
+		}
+
+		bool isAttack = false;
+
+		if ( auto* animComp = ghoul->GetComponent<CAnimatorComponent>() )
+		{
+			if ( auto* ctrl = animComp->EnsureMonsterController() )
+			{
+				isAttack = ctrl->IsAttackPrimaryPhase();
+			}
+		}
+
+		if ( isAttack && !m_prevGhoulAttackPhase[i] )
+		{
+			RequestGhoulAttackSfx(ghoul);
+		}
+
+		m_prevGhoulAttackPhase[i] = isAttack;
+	}
+
 	if ( m_prevSwordManAttackPhase.size() < m_swordManRefs.size() )
 		m_prevSwordManAttackPhase.resize(m_swordManRefs.size(), false);
 
@@ -721,6 +762,18 @@ void CGameScene::UpdateMonsterAttackSfx()
 	}
 }
 
+void CGameScene::RequestGhoulAttackSfx(CGameObject* ghoul)
+{
+	ScheduleMonsterSfx(
+		EMonsterSfxKind::GhoulWhoosh,
+		ghoul,
+		GetMonsterGhoulWhooshPath(),
+		kMonsterGhoulWhooshDelaySeconds,
+		kMonsterGhoulWhooshVolume,
+		true
+	);
+}
+
 void CGameScene::RequestSwordManAttackSfx(CGameObject* swordman)
 {
 	ScheduleMonsterSfx(
@@ -735,16 +788,11 @@ void CGameScene::RequestSwordManAttackSfx(CGameObject* swordman)
 
 void CGameScene::RequestMutantAttackSfx(CGameObject* mutant)
 {
-	const float delaySeconds =
-		( m_mutantAttackSfxDelaySeconds < 0.0f )
-		? 0.0f
-		: m_mutantAttackSfxDelaySeconds;
-
 	ScheduleMonsterSfx(
 		EMonsterSfxKind::MutantWhoosh,
 		mutant,
 		GetMonsterMutantWhooshPath(),
-		delaySeconds,
+		kMonsterMutantWhooshDelaySeconds,
 		kMonsterMutantWhooshVolume,
 		true
 	);
@@ -921,21 +969,4 @@ void CGameScene::UpdateActiveMonsterSfx()
 
 		++i;
 	}
-}
-
-void CGameScene::AdjustMutantAttackSfxDelay(float deltaSeconds)
-{
-	m_mutantAttackSfxDelaySeconds += deltaSeconds;
-
-	if ( m_mutantAttackSfxDelaySeconds < 0.0f )
-		m_mutantAttackSfxDelaySeconds = 0.0f;
-
-	char buf[256];
-	sprintf_s(
-		buf,
-		"[MonsterSfx][MutantAttackDelay] delay=%.4f sec (%.1f ms)\n",
-		m_mutantAttackSfxDelaySeconds,
-		m_mutantAttackSfxDelaySeconds * 1000.0f
-	);
-	OutputDebugStringA(buf);
 }

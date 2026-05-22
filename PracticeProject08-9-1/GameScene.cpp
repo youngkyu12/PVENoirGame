@@ -69,11 +69,6 @@ CGameScene::CGameScene()
 	m_bCanBossStageDirectly = false;
 	m_bSimulateLocalStageTeleport = true;
 	m_bPrevLocalStageTeleportKeyDown.fill(false);
-
-	m_mutantAttackSfxDelaySeconds = 0.0f;
-	m_bPrevMutantAttackSfxDelayDecreaseKeyDown = false;
-	m_bPrevMutantAttackSfxDelayIncreaseKeyDown = false;
-
 #ifdef USING_NETWORK
 	m_bSimulateLocalPlayerMonsterAttackCollision = false;
 	m_bSimulateLocalAI = false;
@@ -92,10 +87,6 @@ CGameScene::CGameScene()
 	m_bCanBossStageDirectly = false;
 	m_bSimulateLocalStageTeleport = false;
 	m_bPrevLocalStageTeleportKeyDown.fill(false);
-
-	m_mutantAttackSfxDelaySeconds = 0.0f;
-	m_bPrevMutantAttackSfxDelayDecreaseKeyDown = false;
-	m_bPrevMutantAttackSfxDelayIncreaseKeyDown = false;
 #endif
 
 	m_bLocalPlayerDead = false;
@@ -5122,8 +5113,6 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 	{
 		m_bPrevLocalMonsterChaseToggleKeyDown = false;
 		m_bPrevLocalStageTeleportKeyDown.fill(false);
-		m_bPrevMutantAttackSfxDelayDecreaseKeyDown = false;
-		m_bPrevMutantAttackSfxDelayIncreaseKeyDown = false;
 		return false;
 	}
 
@@ -5140,39 +5129,6 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 	}
 
 	m_bPrevLocalMonsterChaseToggleKeyDown = qDown;
-
-	// ---------------------------------------------------------------------
-	// Left / Right: Mutant 공격 사운드 delay 튜닝
-	// Left  = -16.6ms
-	// Right = +16.6ms
-	// ---------------------------------------------------------------------
-	{
-		constexpr float kMutantAttackSfxDelayAdjustStepSeconds = 0.0166f;
-
-		const bool leftDown = ( pKeysBuffer[VK_LEFT] & 0xF0 ) != 0;
-		const bool rightDown = ( pKeysBuffer[VK_RIGHT] & 0xF0 ) != 0;
-
-		const bool decreasePressed =
-			leftDown && !m_bPrevMutantAttackSfxDelayDecreaseKeyDown;
-
-		const bool increasePressed =
-			rightDown && !m_bPrevMutantAttackSfxDelayIncreaseKeyDown;
-
-		m_bPrevMutantAttackSfxDelayDecreaseKeyDown = leftDown;
-		m_bPrevMutantAttackSfxDelayIncreaseKeyDown = rightDown;
-
-		if ( decreasePressed )
-		{
-			AdjustMutantAttackSfxDelay(-kMutantAttackSfxDelayAdjustStepSeconds);
-			return true;
-		}
-
-		if ( increasePressed )
-		{
-			AdjustMutantAttackSfxDelay(+kMutantAttackSfxDelayAdjustStepSeconds);
-			return true;
-		}
-	}
 
 	// ---------------------------------------------------------------------
 	// 1~9: 로컬 스테이지 메가그리드 강제 텔레포트
