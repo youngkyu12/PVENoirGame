@@ -602,7 +602,7 @@ void CGameScene::BuildItemBillboardBatch(
 		);
 
 		SetBossSummonCircleDiffuseSrvIndex(
-			m_bossSummonCircleTexture->GetBaseSrvIndex()
+	m_bossSummonCircleTexture->GetBaseSrvIndex()
 		);
 	}
 
@@ -659,6 +659,33 @@ void CGameScene::BuildItemBillboardBatch(
 		key.materialId = kTransparentItemBillboardMaterialId;
 
 		m_itemBillboards.push_back(key);
+	}
+
+	{
+		ItemBillboardEntry summonGlow{};
+
+		summonGlow.active = false;
+		summonGlow.distanceCulled = true;
+
+		summonGlow.transparent = true;
+		summonGlow.kind = EItemBillboardKind::BossSummonGlow;
+
+		summonGlow.megaGridNumber = 5;
+
+		summonGlow.position = XMFLOAT3(400.0f, 0.0f, 0.0f);
+
+		summonGlow.width = 110.0f;
+		summonGlow.height = 110.0f;
+		summonGlow.yOffset = 0.01f;
+
+		summonGlow.cullDistance = 1000000.0f;
+
+		summonGlow.pickupRadius = 0.0f;
+		summonGlow.pickupHeightTolerance = 0.0f;
+
+		summonGlow.materialId = kBossSummonGlowMaterialId;
+
+		m_itemBillboards.push_back(summonGlow);
 	}
 
 	{
@@ -1686,7 +1713,6 @@ void CGameScene::SpawnBossSummonCircle(const XMFLOAT3& center, float alpha)
 
 		item.active = true;
 		item.distanceCulled = false;
-
 		item.transparent = true;
 
 		item.position = fixedCenter;
@@ -1704,21 +1730,55 @@ void CGameScene::SpawnBossSummonCircle(const XMFLOAT3& center, float alpha)
 
 		SetBossSummonCircleAlpha(alpha);
 
-		char buf[256];
-		sprintf_s(
-			buf,
-			"[BossSummonCircle] spawn center=(%.3f, %.3f, %.3f) size=(100,100) alpha=%.3f\n",
-			item.position.x,
-			item.position.y,
-			item.position.z,
-			std::clamp(alpha, 0.0f, 1.0f)
-		);
-		OutputDebugStringA(buf);
+		return;
+	}
+
+	OutputDebugStringA("[BossSummonCircle] spawn failed: BossSummonCircle entry not found.\n");
+}
+
+void CGameScene::SpawnBossSummonGlow(const XMFLOAT3& center, float alpha)
+{
+	for ( ItemBillboardEntry& item : m_itemBillboards )
+	{
+		if ( item.kind != EItemBillboardKind::BossSummonGlow )
+			continue;
+
+		XMFLOAT3 fixedCenter = center;
+		fixedCenter.y = 0.0f;
+
+		item.active = true;
+		item.distanceCulled = false;
+		item.transparent = true;
+
+		item.position = fixedCenter;
+
+		item.width = 110.0f;
+		item.height = 110.0f;
+		item.yOffset = 0.01f;
+
+		item.cullDistance = 1000000.0f;
+
+		item.pickupRadius = 0.0f;
+		item.pickupHeightTolerance = 0.0f;
+
+		item.materialId = kBossSummonGlowMaterialId;
+
+		SetBossSummonGlowAlpha(alpha);
 
 		return;
 	}
 
-	OutputDebugStringA("[BossSummonCircle] spawn failed: BossSummonCircle item entry not found.\n");
+	OutputDebugStringA("[BossSummonGlow] spawn failed: BossSummonGlow entry not found.\n");
+}
+
+void CGameScene::SpawnBossSummonVisuals(const XMFLOAT3& center, float alpha)
+{
+	// 먼저 glow, 그 다음 circle.
+	// 같은 transparent pass 안에서 push 순서가 유지되면 circle이 glow 위에 올라온다.
+	SpawnBossSummonGlow(center, alpha);
+	SpawnBossSummonCircle(center, alpha);
+
+	SetBossSummonVisualAlpha(alpha);
 }
 
 void CGameScene::RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera)
@@ -1915,7 +1975,8 @@ void CGameScene::RenderTransparentItemBillboards(
 		ItemBillboardInstanceVertex& dst =
 			mappedTransparentItemBillboardInstanceBuffer[visibleInstanceCount];
 
-		if ( item->kind == EItemBillboardKind::BossSummonCircle )
+		if ( item->kind == EItemBillboardKind::BossSummonCircle ||
+			item->kind == EItemBillboardKind::BossSummonGlow )
 		{
 			StoreXZPlaneItemBillboardWorldRows(
 				dst,

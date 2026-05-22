@@ -62,6 +62,13 @@ CGameScene::CGameScene()
 
 	m_bPrevDebugDamageMegaGrid5KeyDown = false;
 	m_bBossStageBossActivated = false;
+
+	m_bBossSummonSequenceStarted = false;
+	m_bBossSummonCircleFadeAgeSec = 0.0f;
+	m_pendingBossStageBoss = nullptr;
+
+	m_bBossSummonVisualFadeOutStarted = false;
+	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
 	m_bBossSummonSequenceStarted = false;
 	m_bBossSummonCircleFadeAgeSec = 0.0f;
 	m_pendingBossStageBoss = nullptr;
@@ -87,6 +94,13 @@ CGameScene::CGameScene()
 
 	m_bPrevDebugDamageMegaGrid5KeyDown = false;
 	m_bBossStageBossActivated = false;
+
+	m_bBossSummonSequenceStarted = false;
+	m_bBossSummonCircleFadeAgeSec = 0.0f;
+	m_pendingBossStageBoss = nullptr;
+
+	m_bBossSummonVisualFadeOutStarted = false;
+	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
 	m_bBossSummonSequenceStarted = false;
 	m_bBossSummonCircleFadeAgeSec = 0.0f;
 	m_pendingBossStageBoss = nullptr;
@@ -2333,6 +2347,14 @@ void CGameScene::ReleaseObjects()
 	m_bBossSummonCircleFadeAgeSec = 0.0f;
 	m_pendingBossStageBoss = nullptr;
 
+	m_bBossSummonVisualFadeOutStarted = false;
+	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
+
+	m_bBossStageBossActivated = false;
+	m_bBossSummonSequenceStarted = false;
+	m_bBossSummonCircleFadeAgeSec = 0.0f;
+	m_pendingBossStageBoss = nullptr;
+
 	m_mutantKeyTriggerMegaByObject.clear();
 	m_mutantKeyTriggerRegisteredByMega.fill(false);
 
@@ -3945,6 +3967,42 @@ void CGameScene::SetBossSummonCircleAlpha(float alpha)
 	mat.m_xmf4Diffuse.w = alpha;
 }
 
+void CGameScene::SetBossSummonGlowAlpha(float alpha)
+{
+	if ( !m_pMaterials )
+		return;
+
+	alpha = std::clamp(alpha, 0.0f, 1.0f);
+
+	MATERIAL& mat =
+		m_pMaterials->m_pReflections[kBossSummonGlowMaterialId];
+
+	mat.m_xmf4Diffuse.w = alpha * 0.30f;
+}
+
+void CGameScene::SetBossSummonVisualAlpha(float alpha)
+{
+	alpha = std::clamp(alpha, 0.0f, 1.0f);
+
+	SetBossSummonCircleAlpha(alpha);
+	SetBossSummonGlowAlpha(alpha);
+}
+
+void CGameScene::SetBossSummonVisualActive(bool active)
+{
+	for ( ItemBillboardEntry& item : m_itemBillboards )
+	{
+		if ( item.kind != EItemBillboardKind::BossSummonCircle &&
+			 item.kind != EItemBillboardKind::BossSummonGlow )
+		{
+			continue;
+		}
+
+		item.active = active;
+		item.distanceCulled = false;
+	}
+}
+
 CGameObject* CGameScene::GetDemoFighter(int index) const
 {
     if (index < 0 || index >= 3) return nullptr;
@@ -5105,9 +5163,7 @@ CGameObject* CGameScene::FindBossStageBossInMegaGrid(int megaGridNumber) const
 
 		XMFLOAT3 pos = boss->GetPosition();
 
-		const auto it =
-			m_bossStageBossPositionStates.find(boss);
-
+		const auto it = m_bossStageBossPositionStates.find(boss);
 		if ( it != m_bossStageBossPositionStates.end() )
 			pos = it->second.originalPosition;
 
@@ -5147,7 +5203,6 @@ bool CGameScene::TryBeginBossStageSummonSequence()
 	XMFLOAT3 summonCenter = XMFLOAT3(400.0f, 0.0f, 0.0f);
 
 	const auto it = m_bossStageBossPositionStates.find(boss);
-
 	if ( it != m_bossStageBossPositionStates.end() )
 		summonCenter = it->second.originalPosition;
 	else
@@ -5159,11 +5214,12 @@ bool CGameScene::TryBeginBossStageSummonSequence()
 	m_bBossSummonSequenceStarted = true;
 	m_bBossSummonCircleFadeAgeSec = 0.0f;
 
-	// 전멸 직후 마법진은 active 상태로 만들되 완전 투명 상태에서 시작한다.
-	SpawnBossSummonCircle(summonCenter, 0.0f);
+	m_bBossSummonVisualFadeOutStarted = false;
+	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
 
-	OutputDebugStringA("[BossStage] summon circle fade-in sequence started.\n");
+	SpawnBossSummonVisuals(summonCenter, 0.0f);
 
+	OutputDebugStringA("[BossStage] summon visual fade-in sequence started.\n");
 	return true;
 #endif
 
@@ -5194,8 +5250,9 @@ bool CGameScene::TryActivateBossStageBoss()
 	m_bBossSummonCircleFadeAgeSec = kBossSummonCircleFadeInDurationSec;
 	m_pendingBossStageBoss = nullptr;
 
-	OutputDebugStringA("[BossStage] MegaGrid 5 boss activated after summon circle fade-in.\n");
+	StartBossSummonVisualFadeOut();
 
+	OutputDebugStringA("[BossStage] MegaGrid 5 boss activated after summon circle fade-in.\n");
 	return true;
 #endif
 
@@ -5215,7 +5272,9 @@ void CGameScene::UpdateBossStageSummonSequence(float dt)
 	{
 		m_bBossSummonSequenceStarted = false;
 		m_bBossSummonCircleFadeAgeSec = 0.0f;
-		SetBossSummonCircleAlpha(0.0f);
+
+		SetBossSummonVisualAlpha(0.0f);
+		SetBossSummonVisualActive(false);
 
 		OutputDebugStringA("[BossStage] summon sequence aborted: pending boss is null.\n");
 		return;
@@ -5238,12 +5297,60 @@ void CGameScene::UpdateBossStageSummonSequence(float dt)
 		)
 		: 1.0f;
 
-	SetBossSummonCircleAlpha(alpha);
+	SetBossSummonVisualAlpha(alpha);
 
 	if ( alpha < 1.0f )
 		return;
 
 	TryActivateBossStageBoss();
+#else
+	UNREFERENCED_PARAMETER(dt);
+#endif
+}
+
+void CGameScene::StartBossSummonVisualFadeOut()
+{
+#ifndef USING_NETWORK
+	m_bBossSummonVisualFadeOutStarted = true;
+	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
+
+	SetBossSummonVisualActive(true);
+	SetBossSummonVisualAlpha(1.0f);
+#endif
+}
+
+void CGameScene::UpdateBossSummonVisualFadeOut(float dt)
+{
+#ifndef USING_NETWORK
+	if ( !m_bBossSummonVisualFadeOutStarted )
+		return;
+
+	if ( dt < 0.0f )
+		dt = 0.0f;
+
+	m_bBossSummonVisualFadeOutAgeSec += dt;
+
+	const float t =
+		( kBossSummonCircleFadeOutDurationSec > 1.0e-6f )
+		? std::clamp(
+			m_bBossSummonVisualFadeOutAgeSec / kBossSummonCircleFadeOutDurationSec,
+			0.0f,
+			1.0f
+		)
+		: 1.0f;
+
+	const float alpha = 1.0f - t;
+
+	SetBossSummonVisualAlpha(alpha);
+
+	if ( t < 1.0f )
+		return;
+
+	SetBossSummonVisualAlpha(0.0f);
+	SetBossSummonVisualActive(false);
+
+	m_bBossSummonVisualFadeOutStarted = false;
+	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
 #else
 	UNREFERENCED_PARAMETER(dt);
 #endif
@@ -5340,7 +5447,7 @@ void CGameScene::UpdateMegaGridClearStateFromMonsterDeaths()
 	}
 
 	// 5번 메가그리드: 보스 등장 전 기본 배치 몬스터가 모두 죽으면
-// 보스를 바로 활성화하지 않고, 소환 마법진 fade-in부터 시작한다.
+	// 보스를 바로 활성화하지 않고, 소환 마법진 fade-in부터 시작한다.
 	TryBeginBossStageSummonSequence();
 
 	// 5번 메가그리드: 최종 클리어는 보스 사망 시 처리.
@@ -6140,6 +6247,8 @@ void CGameScene::AnimateObjects(float dt)
 #ifndef USING_NETWORK
 	UpdateBossStageBossPositionRestores();
 	UpdateBossStageBossRenderGate();
+
+	UpdateBossSummonVisualFadeOut(dt);
 	UpdateBossStageSummonSequence(dt);
 
 	if ( m_bSimulateLocalEnemySpawner && m_enemySpawner && local )
