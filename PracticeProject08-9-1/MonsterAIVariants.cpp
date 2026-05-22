@@ -84,6 +84,19 @@ namespace
 			( cellX >= zoneStartX && cellX < zoneEndX ) &&
 			( cellZ >= zoneStartZ && cellZ < zoneEndZ );
 	}
+
+	static float ComputeYawDegreesToPointXZ(
+	const XMFLOAT3& from,
+	const XMFLOAT3& to)
+	{
+		const float dx = to.x - from.x;
+		const float dz = to.z - from.z;
+
+		if ( ( dx * dx + dz * dz ) <= 1.0e-8f )
+			return 0.0f;
+
+		return XMConvertToDegrees(std::atan2(dx, dz));
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -256,7 +269,7 @@ CBossAIComponent::CBossAIComponent(CGameObject* owner)
 	// base cooldown은 boss global action cooldown과 맞춰둔다.
 	SetAttackCooldown(0.8f);
 
-	m_postAttackMoveLockDuration = 0.55f;
+	m_postAttackMoveLockDuration = 0.0f;
 
 	m_bossMeleeRange = 7.0f;
 	m_bossPreferredSpellRange = 12.0f;
@@ -268,6 +281,14 @@ CBossAIComponent::CBossAIComponent(CGameObject* owner)
 	m_bossGlobalActionCooldownRemaining = 0.0f;
 	m_bossMeleeCooldownRemaining = 0.0f;
 	m_bossSpellCooldownRemaining = 0.0f;
+
+	m_bBossWasMeleeActionPlaying = false;
+
+	m_bossPostMeleeTurnDuration = 0.25f;
+	m_bossPostMeleeTurnRemaining = 0.0f;
+	m_bossPostMeleeTurnSpeedDegrees = 900.0f;
+
+	m_bossSpellTurnSpeedDegrees = 720.0f;
 }
 
 bool CBossAIComponent::AcquireTarget()
@@ -324,23 +345,60 @@ void CBossAIComponent::UpdateBehavior(float dt)
 
 	const float distanceToTarget = GetDistanceToTargetXZ();
 
+	const bool meleeActionPlaying = IsBossMeleeActionPlaying();
+
+	if ( meleeActionPlaying )
+	{
+		m_bBossWasMeleeActionPlaying = true;
+
+		ClearPath();
+
+		// 근거리 공격 중에는 이동/회전 모두 금지.
+		// action clip은 MonsterAnimController가 유지하므로 locomotion state를 덮지 않는다.
+		return;
+	}
+
+	if ( m_bBossWasMeleeActionPlaying )
+	{
+		m_bBossWasMeleeActionPlaying = false;
+		m_bossPostMeleeTurnRemaining = m_bossPostMeleeTurnDuration;
+	}
+
+	if ( IsBossSpellActionPlaying() )
+	{
+		ClearPath();
+
+		// 원거리 공격 중에는 이동하지 않고, 플레이어 방향으로만 부드럽게 회전한다.
+		SmoothFaceTowardsTarget(
+			target,
+			dt,
+			m_bossSpellTurnSpeedDegrees
+		);
+
+		return;
+	}
+
+	if ( UpdateBossPostMeleeTurn(dt) )
+	{
+		return;
+	}
+
 	const bool canStartAction = CanStartBossAction();
 
 	if ( canStartAction )
 	{
 		if ( distanceToTarget <= m_bossMeleeRange )
 		{
-			if ( m_bossMeleeCooldownRemaining <= 0.0f )
-			{
-				ClearPath();
-				SetMonsterLocomotionState(EMonsterAnimState::Idle);
-				FaceTowards(target->GetPosition());
+			ClearPath();
+			SetMonsterLocomotionState(EMonsterAnimState::Idle);
 
-				if ( TryPerformMeleeAttack() )
-					ConsumeBossMeleeCooldown();
+			SmoothFaceTowardsTarget(
+				target,
+				dt,
+				m_bossPostMeleeTurnSpeedDegrees
+			);
 
-				return;
-			}
+			return;
 		}
 		else
 		{
@@ -412,8 +470,14 @@ bool CBossAIComponent::CanMoveNow() const
 			return false;
 	}
 
-	// 보스는 공격/스펠 애니메이션 중에도 이동 가능.
-	// m_postAttackMoveLockRemaining도 보스에게는 이동 제한으로 쓰지 않는다.
+	// 근거리 Attack / 원거리 Spell 중에는 이동하지 않는다.
+	if ( IsAIActionLockedByAnimation() )
+		return false;
+
+	// 근거리 공격 직후 자연 회전 중에도 이동하지 않는다.
+	if ( m_bossPostMeleeTurnRemaining > 0.0f )
+		return false;
+
 	return true;
 }
 
@@ -445,8 +509,107 @@ bool CBossAIComponent::CanRotateNow() const
 			return false;
 	}
 
-	// 보스는 공격/스펠 애니메이션 중에도 플레이어를 향해 회전 가능.
+	// 근거리 공격 중에는 회전 금지.
+	if ( IsBossMeleeActionPlaying() )
+		return false;
+
+	// Spell 중에는 회전 가능.
+	// 일반 추적/대기 중에도 회전 가능.
 	return true;
+}
+
+bool CBossAIComponent::IsBossMeleeActionPlaying() const
+{
+	auto* ctrl = GetMonsterAnimController();
+	if ( !ctrl )
+		return false;
+
+	return
+		ctrl->IsAttackPrimaryPhase() ||
+		ctrl->IsAttackChainPhase();
+}
+
+bool CBossAIComponent::IsBossSpellActionPlaying() const
+{
+	auto* ctrl = GetMonsterAnimController();
+	if ( !ctrl )
+		return false;
+
+	return ctrl->IsSpellPhase();
+}
+
+bool CBossAIComponent::SmoothFaceTowardsTarget(
+	CGameObject* target,
+	float dt,
+	float turnSpeedDegreesPerSec)
+{
+	if ( !target )
+		return false;
+
+	if ( dt <= 0.0f )
+		return false;
+
+	if ( turnSpeedDegreesPerSec <= 0.0f )
+		return false;
+
+	if ( !CanRotateNow() )
+		return false;
+
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return false;
+
+	const float targetYaw =
+		ComputeYawDegreesToPointXZ(
+			owner->GetPosition(),
+			target->GetPosition()
+		);
+
+	return RotateOwnerYawTowards(
+		targetYaw,
+		turnSpeedDegreesPerSec * dt
+	);
+}
+
+bool CBossAIComponent::UpdateBossPostMeleeTurn(float dt)
+{
+	if ( m_bossPostMeleeTurnRemaining <= 0.0f )
+		return false;
+
+	CGameObject* target = GetTarget();
+	if ( !target )
+	{
+		m_bossPostMeleeTurnRemaining = 0.0f;
+		return false;
+	}
+
+	ClearPath();
+	SetMonsterLocomotionState(EMonsterAnimState::Idle);
+
+	SmoothFaceTowardsTarget(
+		target,
+		dt,
+		m_bossPostMeleeTurnSpeedDegrees
+	);
+
+	if ( dt > 0.0f )
+	{
+		m_bossPostMeleeTurnRemaining -= dt;
+		if ( m_bossPostMeleeTurnRemaining < 0.0f )
+			m_bossPostMeleeTurnRemaining = 0.0f;
+	}
+
+	return true;
+}
+
+EMonsterAnimState CBossAIComponent::GetChaseLocomotionState() const
+{
+	return EMonsterAnimState::Idle;
+}
+
+EMonsterAnimState CBossAIComponent::GetWalkLocomotionState() const
+{
+	return EMonsterAnimState::Idle;
 }
 
 void CBossAIComponent::UpdateBossCooldowns(float dt)
@@ -539,12 +702,15 @@ void CBossAIComponent::ConsumeBossMeleeCooldown()
 {
 	m_bossGlobalActionCooldownRemaining = m_bossGlobalActionCooldown;
 	m_bossMeleeCooldownRemaining = m_bossMeleeCooldown;
-	m_postAttackMoveLockRemaining = m_postAttackMoveLockDuration;
+
+	// 실제 후처리는 melee action이 끝나는 순간
+	// m_bossPostMeleeTurnRemaining으로 시작한다.
 }
 
 void CBossAIComponent::ConsumeBossSpellCooldown()
 {
 	m_bossGlobalActionCooldownRemaining = m_bossGlobalActionCooldown;
 	m_bossSpellCooldownRemaining = m_bossSpellCooldown;
-	m_postAttackMoveLockRemaining = m_postAttackMoveLockDuration;
+
+	// Spell은 공격 중 회전만 허용하고, 종료 후 별도 이동 잠금은 두지 않는다.
 }

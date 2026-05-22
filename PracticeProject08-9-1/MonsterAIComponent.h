@@ -208,8 +208,8 @@ protected:
 	float GetChaseMoveSpeed() const;
 	float GetWalkMoveSpeed() const;
 
-	EMonsterAnimState GetChaseLocomotionState() const;
-	EMonsterAnimState GetWalkLocomotionState() const;
+	virtual EMonsterAnimState GetChaseLocomotionState() const;
+	virtual EMonsterAnimState GetWalkLocomotionState() const;
 
 	XMFLOAT3 GetOwnerPosition() const;
 	bool FaceTowards(const XMFLOAT3& targetPos);

@@ -107,6 +107,9 @@ protected:
 	bool CanThinkNow() const override;
 	bool CanRotateNow() const override;
 
+	EMonsterAnimState GetChaseLocomotionState() const override;
+	EMonsterAnimState GetWalkLocomotionState() const override;
+
 private:
 	enum class EBossAttackIntent : uint8_t
 	{
@@ -126,6 +129,17 @@ private:
 	void ConsumeBossMeleeCooldown();
 	void ConsumeBossSpellCooldown();
 
+	bool IsBossMeleeActionPlaying() const;
+	bool IsBossSpellActionPlaying() const;
+
+	bool SmoothFaceTowardsTarget(
+		CGameObject* target,
+		float dt,
+		float turnSpeedDegreesPerSec
+	);
+
+	bool UpdateBossPostMeleeTurn(float dt);
+
 private:
 	EBossAttackIntent m_pendingAttackIntent = EBossAttackIntent::Melee;
 
@@ -139,4 +153,12 @@ private:
 	float m_bossGlobalActionCooldownRemaining = 0.0f;
 	float m_bossMeleeCooldownRemaining = 0.0f;
 	float m_bossSpellCooldownRemaining = 0.0f;
+
+	bool m_bBossWasMeleeActionPlaying = false;
+
+	float m_bossPostMeleeTurnDuration = 0.25f;
+	float m_bossPostMeleeTurnRemaining = 0.0f;
+	float m_bossPostMeleeTurnSpeedDegrees = 900.0f;
+
+	float m_bossSpellTurnSpeedDegrees = 720.0f;
 };
