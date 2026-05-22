@@ -72,6 +72,7 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 	}
 
 	m_bPrevLocalMonsterChaseToggleKeyDown = false;
+	m_bPrevDebugDamageMegaGrid5KeyDown = false;
 	m_bPrevLocalStageTeleportKeyDown.fill(false);
 }
 
