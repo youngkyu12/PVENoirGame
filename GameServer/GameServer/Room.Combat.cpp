@@ -160,7 +160,7 @@ void Room::TickAdvance()
 		player.second->Update(animClockTick);
 
 		const bool teleported =
-			TryTeleportPlayerByTowerDoorPortal(player.second) ||
+			TryTeleportPlayerByTowerDoorPortal(player.second, prevPos) ||
 			TryTeleportPlayerByCastleDoorPortal(player.second);
 
 		if (!teleported)
