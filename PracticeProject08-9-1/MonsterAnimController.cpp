@@ -133,7 +133,7 @@ void CMonsterAnimController::Update(float dt)
 			break;
 
 		case EMonsterAnimCommand::Appear:
-			StartAction(anim, m_profile.appearClip, EActionPhase::Appear, m_profile.actionBlendTime, false);
+			StartAction(anim, m_profile.appearClip, EActionPhase::Appear, 0.0f, false);
 			break;
 
 		case EMonsterAnimCommand::Call:

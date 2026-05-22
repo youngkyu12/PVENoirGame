@@ -1106,6 +1106,16 @@ private:
 	void SetBossStageBossActive(CGameObject* boss, bool active, bool playAppear);
 	bool TryActivateBossStageBoss();
 
+	void SetBossStageBossAIEnabled(CGameObject* boss, bool enabled);
+	void RegisterBossStageBossOriginalPosition(CGameObject* boss, const XMFLOAT3& originalPosition);
+	void MoveBossStageBossToHiddenPosition(CGameObject* boss);
+	void ScheduleBossStageBossPositionRestore(CGameObject* boss, int delayFrames);
+	void UpdateBossStageBossPositionRestores();
+
+	bool IsBossStageBossRenderAllowed(const CGameObject* boss) const;
+	void SetBossStageBossRenderAllowed(CGameObject* boss, bool allowed);
+	void UpdateBossStageBossRenderGate();
+
 	void RegisterMutantKeyTriggerIfNeeded(CGameObject* mutant, int megaGridNumber);
 	void UnlockKeyBillboardForMegaGrid(int megaGridNumber);
 	void HandleMutantKeyTriggerDeath(CGameObject* monster);
@@ -1345,6 +1355,23 @@ private:
 	bool m_bPrevLocalMonsterChaseToggleKeyDown = false;
 	bool m_bPrevDebugDamageMegaGrid5KeyDown = false;
 	bool m_bBossStageBossActivated = false;
+
+	static constexpr float kBossStageBossHiddenYOffset = -100.0f;
+
+	struct BossStageBossPositionState
+	{
+		XMFLOAT3 originalPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+		int restoreFramesRemaining = 0;
+		bool pendingRestore = false;
+
+		// 보스 등장 직후 Appear action이 실제로 시작되기 전까지
+		// skinned render/shadow render에서 아예 제외하기 위한 게이트.
+		bool renderAllowed = false;
+		bool waitAppearBeforeRender = false;
+	};
+
+	std::unordered_map<CGameObject*, BossStageBossPositionState> m_bossStageBossPositionStates;
 
 	bool m_bSimulateLocalEnemySpawner = true;
 	bool m_bSimulateLocalPlayerWorldStaticRollback = true;

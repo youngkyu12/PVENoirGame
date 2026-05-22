@@ -2318,6 +2318,7 @@ void CGameScene::ReleaseObjects()
 	m_bowManRefs.clear();
 	m_MutantRefs.clear();
 	m_bossRefs.clear();
+	m_bossStageBossPositionStates.clear();
 
 	m_mutantKeyTriggerMegaByObject.clear();
 	m_mutantKeyTriggerRegisteredByMega.fill(false);
@@ -3424,8 +3425,14 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 			}
 
 			CGameObject* obj = m_skinnedBatch.objectRefs[objectIndex];
-			if ( !obj->GetActive() ) continue;
 			if ( !obj ) continue;
+			if ( !obj->GetActive() ) continue;
+
+#ifndef USING_NETWORK
+			if ( IsBossMonsterObject(obj) && !IsBossStageBossRenderAllowed(obj) )
+				continue;
+#endif
+
 			if ( !obj->IsVisible(camera) ) continue;
 
 			auto* renderer = obj->GetComponent<CSkinnedMeshRendererComponent>();
@@ -3669,6 +3676,15 @@ void CGameScene::RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandLis
 				if ( m_skinnedDistanceCullFlags[objectIndex] != 0 )
 					continue;
 			}
+
+			CGameObject* obj = m_skinnedBatch.objectRefs[objectIndex];
+			if ( !obj ) continue;
+			if ( !obj->GetActive() ) continue;
+
+#ifndef USING_NETWORK
+			if ( IsBossMonsterObject(obj) && !IsBossStageBossRenderAllowed(obj) )
+				continue;
+#endif
 
 			if ( !IsSkinnedObjectInsideShadowBox(objectIndex) )
 				continue;
@@ -4641,6 +4657,241 @@ void CGameScene::DamagePreBossMonstersInMegaGrid(int megaGridNumber, int damage)
 #endif
 }
 
+void CGameScene::SetBossStageBossAIEnabled(CGameObject* boss, bool enabled)
+{
+	if ( !boss )
+		return;
+
+	auto Configure =
+		[ enabled ] (CMonsterAIComponent* ai) -> bool
+		{
+			if ( !ai )
+				return false;
+
+			ai->SetEnabledAI(enabled);
+
+			if ( !enabled )
+			{
+				ai->ClearTarget();
+				ai->ClearPath();
+			}
+
+			return true;
+		};
+
+	if ( Configure(boss->GetComponent<CBossAIComponent>()) )
+		return;
+
+	Configure(boss->GetComponent<CMonsterAIComponent>());
+}
+
+void CGameScene::RegisterBossStageBossOriginalPosition(
+	CGameObject* boss,
+	const XMFLOAT3& originalPosition)
+{
+	if ( !boss )
+		return;
+
+	BossStageBossPositionState& state =
+		m_bossStageBossPositionStates[boss];
+
+	state.originalPosition = originalPosition;
+	state.restoreFramesRemaining = 0;
+	state.pendingRestore = false;
+
+	state.renderAllowed = false;
+	state.waitAppearBeforeRender = false;
+}
+
+void CGameScene::MoveBossStageBossToHiddenPosition(CGameObject* boss)
+{
+	if ( !boss )
+		return;
+
+	auto it = m_bossStageBossPositionStates.find(boss);
+
+	if ( it == m_bossStageBossPositionStates.end() )
+	{
+		// fallback: 현재 위치를 원래 위치로 간주한다.
+		RegisterBossStageBossOriginalPosition(boss, boss->GetPosition());
+		it = m_bossStageBossPositionStates.find(boss);
+	}
+
+	if ( it == m_bossStageBossPositionStates.end() )
+		return;
+
+	XMFLOAT3 hiddenPosition = it->second.originalPosition;
+	hiddenPosition.y += kBossStageBossHiddenYOffset;
+
+	boss->SetPosition(hiddenPosition);
+
+	if ( auto* collider = boss->GetComponent<CColliderComponent>() )
+	{
+		collider->SetEnabled(false);
+		collider->UpdateWorldBounds();
+	}
+}
+
+void CGameScene::ScheduleBossStageBossPositionRestore(
+	CGameObject* boss,
+	int delayFrames)
+{
+	if ( !boss )
+		return;
+
+	auto it = m_bossStageBossPositionStates.find(boss);
+
+	if ( it == m_bossStageBossPositionStates.end() )
+	{
+		// 원칙적으로는 BuildSkinnedBatch에서 이미 등록되어 있어야 한다.
+		// 그래도 누락됐을 경우 현재 위치를 원래 위치로 저장한다.
+		RegisterBossStageBossOriginalPosition(boss, boss->GetPosition());
+		it = m_bossStageBossPositionStates.find(boss);
+	}
+
+	if ( it == m_bossStageBossPositionStates.end() )
+		return;
+
+	it->second.restoreFramesRemaining = std::max(0, delayFrames);
+	it->second.pendingRestore = true;
+}
+
+void CGameScene::UpdateBossStageBossPositionRestores()
+{
+#ifndef USING_NETWORK
+	for ( auto& kv : m_bossStageBossPositionStates )
+	{
+		CGameObject* boss = kv.first;
+		BossStageBossPositionState& state = kv.second;
+
+		if ( !boss )
+			continue;
+
+		if ( !state.pendingRestore )
+			continue;
+
+		if ( state.restoreFramesRemaining > 0 )
+			--state.restoreFramesRemaining;
+
+		if ( state.restoreFramesRemaining > 0 )
+			continue;
+
+		boss->SetPosition(state.originalPosition);
+
+		if ( auto* collider = boss->GetComponent<CColliderComponent>() )
+		{
+			collider->SetEnabled(true);
+			collider->UpdateWorldBounds();
+		}
+
+		// 위치가 원래 자리로 돌아온 뒤부터 AI를 켠다.
+		// 지하에 있는 1프레임 동안 추적/이동이 끼어드는 것을 막는다.
+		SetBossStageBossAIEnabled(boss, true);
+
+		state.pendingRestore = false;
+
+		char buf[256];
+		sprintf_s(
+			buf,
+			"[BossStage] boss=%p restored to original position=(%.3f, %.3f, %.3f)\n",
+			static_cast< void* >( boss ),
+			state.originalPosition.x,
+			state.originalPosition.y,
+			state.originalPosition.z
+		);
+		OutputDebugStringA(buf);
+	}
+#endif
+}
+
+bool CGameScene::IsBossStageBossRenderAllowed(const CGameObject* boss) const
+{
+	if ( !boss )
+		return false;
+
+	if ( !IsBossMonsterObject(boss) )
+		return true;
+
+	const auto it =
+		m_bossStageBossPositionStates.find(
+			const_cast< CGameObject* >( boss )
+		);
+
+	if ( it == m_bossStageBossPositionStates.end() )
+		return false;
+
+	return it->second.renderAllowed;
+}
+
+void CGameScene::SetBossStageBossRenderAllowed(
+	CGameObject* boss,
+	bool allowed)
+{
+	if ( !boss )
+		return;
+
+	auto it = m_bossStageBossPositionStates.find(boss);
+
+	if ( it == m_bossStageBossPositionStates.end() )
+	{
+		RegisterBossStageBossOriginalPosition(boss, boss->GetPosition());
+		it = m_bossStageBossPositionStates.find(boss);
+	}
+
+	if ( it == m_bossStageBossPositionStates.end() )
+		return;
+
+	it->second.renderAllowed = allowed;
+}
+
+void CGameScene::UpdateBossStageBossRenderGate()
+{
+#ifndef USING_NETWORK
+	for ( auto& kv : m_bossStageBossPositionStates )
+	{
+		CGameObject* boss = kv.first;
+		BossStageBossPositionState& state = kv.second;
+
+		if ( !boss )
+			continue;
+
+		if ( state.renderAllowed )
+			continue;
+
+		if ( !state.waitAppearBeforeRender )
+			continue;
+
+		if ( !boss->GetActive() )
+			continue;
+
+		auto* renderer = boss->GetComponent<CSkinnedMeshRendererComponent>();
+
+		// 게이트가 열리기 전까지 renderer도 계속 꺼둔다.
+		if ( renderer )
+			renderer->SetEnabled(false);
+
+		auto* animComp = boss->GetComponent<CAnimatorComponent>();
+		if ( !animComp )
+			continue;
+
+		auto* ctrl = animComp->EnsureMonsterController();
+		if ( !ctrl )
+			continue;
+
+		if ( !ctrl->IsAppearPhase() )
+			continue;
+
+		state.renderAllowed = true;
+		state.waitAppearBeforeRender = false;
+
+		if ( renderer )
+			renderer->SetEnabled(true);
+
+		OutputDebugStringA("[BossStage] Boss render gate opened: Appear phase is active.\n");
+	}
+#endif
+}
+
 void CGameScene::SetBossStageBossActive(
 	CGameObject* boss,
 	bool active,
@@ -4654,38 +4905,8 @@ void CGameScene::SetBossStageBossActive(
 	auto* collider = boss->GetComponent<CColliderComponent>();
 	auto* weaponHitbox = boss->GetComponent<CMonsterWeaponHitboxComponent>();
 
-	auto ConfigureBossAI =
-		[ ] (CGameObject* obj, bool enabled) -> void
-		{
-			if ( !obj )
-				return;
-
-			auto Configure =
-				[ enabled ] (CMonsterAIComponent* ai) -> bool
-				{
-					if ( !ai )
-						return false;
-
-					ai->SetEnabledAI(enabled);
-
-					if ( !enabled )
-					{
-						ai->ClearTarget();
-						ai->ClearPath();
-					}
-
-					return true;
-				};
-
-			if ( Configure(obj->GetComponent<CBossAIComponent>()) )
-				return;
-
-			Configure(obj->GetComponent<CMonsterAIComponent>());
-		};
-
 	if ( !active )
 	{
-		// 비활성화는 렌더를 가장 먼저 끈다.
 		if ( renderer )
 			renderer->SetEnabled(false);
 
@@ -4695,10 +4916,20 @@ void CGameScene::SetBossStageBossActive(
 		if ( collider )
 			collider->SetEnabled(false);
 
-		ConfigureBossAI(boss, false);
+		SetBossStageBossAIEnabled(boss, false);
 
 		if ( animator )
 			animator->SetPoseEvaluationEnabled(false);
+
+		{
+			auto it = m_bossStageBossPositionStates.find(boss);
+
+			if ( it != m_bossStageBossPositionStates.end() )
+			{
+				it->second.renderAllowed = false;
+				it->second.waitAppearBeforeRender = false;
+			}
+		}
 
 		boss->SetActive(false);
 
@@ -4715,15 +4946,18 @@ void CGameScene::SetBossStageBossActive(
 		return;
 	}
 
-	// ---------------------------------------------------------------------
-	// 활성화:
-	// renderer는 아직 켜지 않는다.
-	// Appear 첫 pose를 만든 뒤에 renderer를 켜야 idle 1프레임 노출이 없다.
-	// ---------------------------------------------------------------------
+	const bool useHiddenAppearSpawn = playAppear;
+
+	// Appear 시작 프레임에는 보스를 지하에 둔다.
+	// renderer/active 타이밍 문제가 남아 있어도 첫 노출은 y=-100 근처라 화면에 보이지 않는다.
+	if ( useHiddenAppearSpawn )
+		MoveBossStageBossToHiddenPosition(boss);
+
 	if ( renderer )
 		renderer->SetEnabled(false);
 
-	ConfigureBossAI(boss, false);
+	// 원래 위치 복구 전까지 AI는 꺼둔다.
+	SetBossStageBossAIEnabled(boss, false);
 
 	boss->SetActive(true);
 
@@ -4735,22 +4969,28 @@ void CGameScene::SetBossStageBossActive(
 		{
 			if ( auto* ctrl = animator->EnsureMonsterController() )
 			{
-				// Appear는 pending command로만 남기지 말고,
-				// 즉시 controller에 반영한다.
 				ctrl->RequestCommand(EMonsterAnimCommand::Appear);
 				ctrl->Update(0.0f);
 			}
 
-			// 현재 프레임 렌더 전에 Appear 0프레임 pose를 스킨/본 팔레트 쪽에 반영한다.
-			// AI는 아직 꺼져 있으므로 여기서 target 획득/행동이 끼어들지 않는다.
 			boss->Animate(0.0f);
 		}
 	}
 
+	// 위치 복구 전까지 collider도 꺼둔다.
+	// 지하 위치의 collider가 플레이어나 충돌 시스템에 걸리는 것을 방지한다.
 	if ( collider )
 	{
-		collider->SetEnabled(true);
-		collider->UpdateWorldBounds();
+		if ( useHiddenAppearSpawn )
+		{
+			collider->SetEnabled(false);
+			collider->UpdateWorldBounds();
+		}
+		else
+		{
+			collider->SetEnabled(true);
+			collider->UpdateWorldBounds();
+		}
 	}
 
 	if ( weaponHitbox )
@@ -4761,21 +5001,55 @@ void CGameScene::SetBossStageBossActive(
 
 	m_deadMonsters.erase(boss);
 
-	// Appear 첫 pose가 준비된 후에만 renderer를 켠다.
-	if ( renderer )
-		renderer->SetEnabled(true);
+	if ( playAppear )
+	{
+		auto it = m_bossStageBossPositionStates.find(boss);
 
-	// AI는 renderer를 켠 뒤에 활성화한다.
-	// 그래야 Appear 준비 중 AI가 locomotion/target 갱신으로 끼어들지 않는다.
-	ConfigureBossAI(boss, true);
+		if ( it == m_bossStageBossPositionStates.end() )
+		{
+			RegisterBossStageBossOriginalPosition(boss, boss->GetPosition());
+			it = m_bossStageBossPositionStates.find(boss);
+		}
+
+		if ( it != m_bossStageBossPositionStates.end() )
+		{
+			it->second.renderAllowed = false;
+			it->second.waitAppearBeforeRender = true;
+		}
+
+		// Appear phase가 실제로 확인되기 전까지 renderer도 꺼둔다.
+		if ( renderer )
+			renderer->SetEnabled(false);
+
+		// ctrl->Update(0.0f) 직후 이미 Appear phase가 잡힌 경우에는
+		// 같은 프레임 안에서도 render gate를 열 수 있다.
+		UpdateBossStageBossRenderGate();
+	}
+	else
+	{
+		SetBossStageBossRenderAllowed(boss, true);
+
+		if ( renderer )
+			renderer->SetEnabled(true);
+	}
+
+	if ( useHiddenAppearSpawn )
+	{
+		ScheduleBossStageBossPositionRestore(boss, 1);
+	}
+	else
+	{
+		SetBossStageBossAIEnabled(boss, true);
+	}
 
 	char buf[256];
 	sprintf_s(
 		buf,
-		"[BossStage] boss=%p active=%d playAppear=%d\n",
+		"[BossStage] boss=%p active=%d playAppear=%d hiddenAppear=%d\n",
 		static_cast< void* >( boss ),
 		active ? 1 : 0,
-		playAppear ? 1 : 0
+		playAppear ? 1 : 0,
+		useHiddenAppearSpawn ? 1 : 0
 	);
 	OutputDebugStringA(buf);
 }
@@ -5701,6 +5975,9 @@ void CGameScene::AnimateObjects(float dt)
 		local = GetPlayerBySlot(0);
 
 #ifndef USING_NETWORK
+	UpdateBossStageBossPositionRestores();
+	UpdateBossStageBossRenderGate();
+
 	if ( m_bSimulateLocalEnemySpawner && m_enemySpawner && local )
 	{
 		m_enemySpawner->Update(dt, local->GetPosition());
