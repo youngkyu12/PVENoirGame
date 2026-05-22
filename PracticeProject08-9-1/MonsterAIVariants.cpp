@@ -392,6 +392,19 @@ void CBossAIComponent::UpdateBehavior(float dt)
 			ClearPath();
 			SetMonsterLocomotionState(EMonsterAnimState::Idle);
 
+			if ( m_bossMeleeCooldownRemaining <= 0.0f )
+			{
+				// 공격 시작 직전에는 일단 플레이어를 향하게 한다.
+				// 공격 중에는 IsBossMeleeActionPlaying() 분기에서 회전이 막힌다.
+				FaceTowards(target->GetPosition());
+
+				if ( TryPerformMeleeAttack() )
+					ConsumeBossMeleeCooldown();
+
+				return;
+			}
+
+			// 근거리지만 melee cooldown 중이면 부드럽게 바라보기만 한다.
 			SmoothFaceTowardsTarget(
 				target,
 				dt,
@@ -423,7 +436,12 @@ void CBossAIComponent::UpdateBehavior(float dt)
 		if ( !IsAIActionLockedByAnimation() )
 			SetMonsterLocomotionState(EMonsterAnimState::Idle);
 
-		FaceTowards(target->GetPosition());
+		SmoothFaceTowardsTarget(
+			target,
+			dt,
+			m_bossPostMeleeTurnSpeedDegrees
+		);
+
 		return;
 	}
 
