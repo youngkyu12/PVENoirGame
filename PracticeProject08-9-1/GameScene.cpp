@@ -59,6 +59,7 @@ CGameScene::CGameScene()
 	m_bSimulateLocalSwordManAI = true;
 	m_bSimulateLocalMutantAI = true;
 	m_bSimulateLocalBossAI = true;
+	m_bPrevDebugDamageMegaGrid5KeyDown = false;
 
 	m_bSimulateLocalMonsterChase = true;
 	m_bPrevLocalMonsterChaseToggleKeyDown = false;
@@ -78,8 +79,10 @@ CGameScene::CGameScene()
 	m_bSimulateLocalSwordManAI = false;
 	m_bSimulateLocalMutantAI = false;
 	m_bSimulateLocalBossAI = false;
+	m_bPrevDebugDamageMegaGrid5KeyDown = false;
 
 	m_bSimulateLocalMonsterChase = false;
+	m_bPrevLocalMonsterChaseToggleKeyDown = false;
 	m_bSimulateLocalEnemySpawner = false;
 	m_bSimulateLocalPlayerWorldStaticRollback = false;
 	m_bSimulateLocalTeleport = false;
@@ -4510,6 +4513,132 @@ bool CGameScene::AreAllMonstersInMegaGridDead(int megaGridNumber) const
 	return true;
 }
 
+bool CGameScene::IsBossMonsterObject(const CGameObject* monster) const
+{
+	if ( !monster )
+		return false;
+
+	return std::find(
+		m_bossRefs.begin(),
+		m_bossRefs.end(),
+		monster
+	) != m_bossRefs.end();
+}
+
+bool CGameScene::IsEnemySpawnerMonsterObject(const CGameObject* monster) const
+{
+	if ( !monster )
+		return false;
+
+	return std::find(
+		m_EnemySpawnRefs.begin(),
+		m_EnemySpawnRefs.end(),
+		monster
+	) != m_EnemySpawnRefs.end();
+}
+
+bool CGameScene::AreAllPreBossMonstersInMegaGridDead(int megaGridNumber) const
+{
+	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+		return false;
+
+	const int zeroBased = megaGridNumber - 1;
+	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+	const std::vector<CGameObject*>& monsters =
+		m_sceneGrid.GetMegaGridMonsters(megaX, megaZ);
+
+	bool hasPreBossMonster = false;
+
+	for ( const CGameObject* monster : monsters )
+	{
+		if ( !monster )
+			continue;
+
+		// 보스는 "보스 등장 조건" 검사에서 제외한다.
+		if ( IsBossMonsterObject(monster) )
+			continue;
+
+		// 에네미 스포너 풀/스포너 생성 몬스터는 제외한다.
+		if ( IsEnemySpawnerMonsterObject(monster) )
+			continue;
+
+		hasPreBossMonster = true;
+
+		if ( !IsMonsterDead(monster) )
+			return false;
+	}
+
+	// 5번에 원래 배치 몬스터가 하나도 없으면 보스 조건을 만족한 것으로 보지 않는다.
+	return hasPreBossMonster;
+}
+
+void CGameScene::DamagePreBossMonstersInMegaGrid(int megaGridNumber, int damage)
+{
+#ifndef USING_NETWORK
+	if ( damage <= 0 )
+		return;
+
+	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+		return;
+
+	const int zeroBased = megaGridNumber - 1;
+	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+	const std::vector<CGameObject*>& monsters =
+		m_sceneGrid.GetMegaGridMonsters(megaX, megaZ);
+
+	int damagedCount = 0;
+
+	for ( CGameObject* monster : monsters )
+	{
+		if ( !monster )
+			continue;
+
+		if ( IsBossMonsterObject(monster) )
+			continue;
+
+		if ( IsEnemySpawnerMonsterObject(monster) )
+			continue;
+
+		if ( IsMonsterDead(monster) )
+			continue;
+
+		auto* hp = monster->GetComponent<CHealthComponent>();
+		if ( !hp )
+			continue;
+
+		hp->TakeDamage(damage);
+
+		hp->RequestHitSfx();
+		SpawnBloodSplash(monster, nullptr, nullptr);
+
+		if ( hp->IsDead() )
+			BeginMonsterDeath(monster);
+
+		++damagedCount;
+	}
+
+	UpdateMegaGridClearStateFromMonsterDeaths();
+
+	char buf[256];
+	sprintf_s(
+		buf,
+		"[BossStageTest] DamagePreBossMonstersInMegaGrid mega=%d damage=%d damaged=%d allDead=%d\n",
+		megaGridNumber,
+		damage,
+		damagedCount,
+		AreAllPreBossMonstersInMegaGridDead(megaGridNumber) ? 1 : 0
+	);
+	OutputDebugStringA(buf);
+#else
+	UNREFERENCED_PARAMETER(megaGridNumber);
+	UNREFERENCED_PARAMETER(damage);
+#endif
+}
+
 void CGameScene::RegisterMutantKeyTriggerIfNeeded(
 	CGameObject* mutant,
 	int megaGridNumber)
@@ -4600,7 +4729,22 @@ void CGameScene::UpdateMegaGridClearStateFromMonsterDeaths()
 			MarkMegaGridClearedByNumber(2);
 	}
 
-	// 5번 메가그리드: 보스 사망 시 클리어.
+	// 5번 메가그리드: 보스 등장 전 원래 배치 몬스터 전멸 여부.
+	// 이 단계에서는 실제 보스 생성은 하지 않고 조건만 확인한다.
+	if ( AreAllPreBossMonstersInMegaGridDead(5) )
+	{
+		// 다음 단계에서 여기서 SpawnBoss 또는 ActivateBoss를 호출하면 된다.
+		// 지금은 테스트/로그만 유지한다.
+		static bool s_bossStagePreBossClearLogged = false;
+
+		if ( !s_bossStagePreBossClearLogged )
+		{
+			s_bossStagePreBossClearLogged = true;
+			OutputDebugStringA("[BossStage] MegaGrid 5 pre-boss monsters all dead. Boss can spawn.\n");
+		}
+	}
+
+	// 5번 메가그리드: 최종 클리어는 보스 사망 시 처리.
 	if ( !m_sceneGrid.IsMegaGridCleared(1, 1) )
 	{
 		for ( const CGameObject* boss : m_bossRefs )
@@ -5112,6 +5256,7 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 	if ( !pKeysBuffer )
 	{
 		m_bPrevLocalMonsterChaseToggleKeyDown = false;
+		m_bPrevDebugDamageMegaGrid5KeyDown = false;
 		m_bPrevLocalStageTeleportKeyDown.fill(false);
 		return false;
 	}
@@ -5129,6 +5274,21 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 	}
 
 	m_bPrevLocalMonsterChaseToggleKeyDown = qDown;
+
+	// ---------------------------------------------------------------------
+	// Enter: 테스트용. 5번 메가그리드의 보스/스포너 제외 몬스터에게 1000 대미지.
+	// ---------------------------------------------------------------------
+	const bool enterDown = ( pKeysBuffer[VK_RETURN] & 0xF0 ) != 0;
+
+	if ( enterDown && !m_bPrevDebugDamageMegaGrid5KeyDown )
+	{
+		m_bPrevDebugDamageMegaGrid5KeyDown = true;
+
+		DamagePreBossMonstersInMegaGrid(5, 1000);
+		return true;
+	}
+
+	m_bPrevDebugDamageMegaGrid5KeyDown = enterDown;
 
 	// ---------------------------------------------------------------------
 	// 1~9: 로컬 스테이지 메가그리드 강제 텔레포트

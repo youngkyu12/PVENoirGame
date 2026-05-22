@@ -1097,6 +1097,12 @@ private:
 	bool AreAllMonstersInMegaGridDead(int megaGridNumber) const;
 	void UpdateMegaGridClearStateFromMonsterDeaths();
 
+	bool IsBossMonsterObject(const CGameObject* monster) const;
+	bool IsEnemySpawnerMonsterObject(const CGameObject* monster) const;
+
+	bool AreAllPreBossMonstersInMegaGridDead(int megaGridNumber) const;
+	void DamagePreBossMonstersInMegaGrid(int megaGridNumber, int damage);
+
 	void RegisterMutantKeyTriggerIfNeeded(CGameObject* mutant, int megaGridNumber);
 	void UnlockKeyBillboardForMegaGrid(int megaGridNumber);
 	void HandleMutantKeyTriggerDeath(CGameObject* monster);
@@ -1334,6 +1340,7 @@ private:
 
 	bool m_bSimulateLocalMonsterChase = true;
 	bool m_bPrevLocalMonsterChaseToggleKeyDown = false;
+	bool m_bPrevDebugDamageMegaGrid5KeyDown = false;
 
 	bool m_bSimulateLocalEnemySpawner = true;
 	bool m_bSimulateLocalPlayerWorldStaticRollback = true;
