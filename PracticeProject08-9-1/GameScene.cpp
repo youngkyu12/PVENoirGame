@@ -60,6 +60,7 @@ CGameScene::CGameScene()
 	m_bSimulateLocalMutantAI = true;
 	m_bSimulateLocalBossAI = true;
 	m_bPrevDebugDamageMegaGrid5KeyDown = false;
+	m_bBossStageBossActivated = false;
 
 	m_bSimulateLocalMonsterChase = true;
 	m_bPrevLocalMonsterChaseToggleKeyDown = false;
@@ -80,6 +81,7 @@ CGameScene::CGameScene()
 	m_bSimulateLocalMutantAI = false;
 	m_bSimulateLocalBossAI = false;
 	m_bPrevDebugDamageMegaGrid5KeyDown = false;
+	m_bBossStageBossActivated = false;
 
 	m_bSimulateLocalMonsterChase = false;
 	m_bPrevLocalMonsterChaseToggleKeyDown = false;
@@ -4639,6 +4641,177 @@ void CGameScene::DamagePreBossMonstersInMegaGrid(int megaGridNumber, int damage)
 #endif
 }
 
+void CGameScene::SetBossStageBossActive(
+	CGameObject* boss,
+	bool active,
+	bool playAppear)
+{
+	if ( !boss )
+		return;
+
+	auto* renderer = boss->GetComponent<CSkinnedMeshRendererComponent>();
+	auto* animator = boss->GetComponent<CAnimatorComponent>();
+	auto* collider = boss->GetComponent<CColliderComponent>();
+	auto* weaponHitbox = boss->GetComponent<CMonsterWeaponHitboxComponent>();
+
+	auto ConfigureBossAI =
+		[ ] (CGameObject* obj, bool enabled) -> void
+		{
+			if ( !obj )
+				return;
+
+			auto Configure =
+				[ enabled ] (CMonsterAIComponent* ai) -> bool
+				{
+					if ( !ai )
+						return false;
+
+					ai->SetEnabledAI(enabled);
+
+					if ( !enabled )
+					{
+						ai->ClearTarget();
+						ai->ClearPath();
+					}
+
+					return true;
+				};
+
+			if ( Configure(obj->GetComponent<CBossAIComponent>()) )
+				return;
+
+			Configure(obj->GetComponent<CMonsterAIComponent>());
+		};
+
+	if ( !active )
+	{
+		// 비활성화는 렌더를 가장 먼저 끈다.
+		if ( renderer )
+			renderer->SetEnabled(false);
+
+		if ( weaponHitbox )
+			weaponHitbox->SetEnabled(false);
+
+		if ( collider )
+			collider->SetEnabled(false);
+
+		ConfigureBossAI(boss, false);
+
+		if ( animator )
+			animator->SetPoseEvaluationEnabled(false);
+
+		boss->SetActive(false);
+
+		char buf[256];
+		sprintf_s(
+			buf,
+			"[BossStage] boss=%p active=%d playAppear=%d\n",
+			static_cast< void* >( boss ),
+			active ? 1 : 0,
+			playAppear ? 1 : 0
+		);
+		OutputDebugStringA(buf);
+
+		return;
+	}
+
+	// ---------------------------------------------------------------------
+	// 활성화:
+	// renderer는 아직 켜지 않는다.
+	// Appear 첫 pose를 만든 뒤에 renderer를 켜야 idle 1프레임 노출이 없다.
+	// ---------------------------------------------------------------------
+	if ( renderer )
+		renderer->SetEnabled(false);
+
+	ConfigureBossAI(boss, false);
+
+	boss->SetActive(true);
+
+	if ( animator )
+	{
+		animator->SetPoseEvaluationEnabled(true);
+
+		if ( playAppear )
+		{
+			if ( auto* ctrl = animator->EnsureMonsterController() )
+			{
+				// Appear는 pending command로만 남기지 말고,
+				// 즉시 controller에 반영한다.
+				ctrl->RequestCommand(EMonsterAnimCommand::Appear);
+				ctrl->Update(0.0f);
+			}
+
+			// 현재 프레임 렌더 전에 Appear 0프레임 pose를 스킨/본 팔레트 쪽에 반영한다.
+			// AI는 아직 꺼져 있으므로 여기서 target 획득/행동이 끼어들지 않는다.
+			boss->Animate(0.0f);
+		}
+	}
+
+	if ( collider )
+	{
+		collider->SetEnabled(true);
+		collider->UpdateWorldBounds();
+	}
+
+	if ( weaponHitbox )
+		weaponHitbox->SetEnabled(false);
+
+	if ( auto* hp = boss->GetComponent<CHealthComponent>() )
+		hp->ResetToMax();
+
+	m_deadMonsters.erase(boss);
+
+	// Appear 첫 pose가 준비된 후에만 renderer를 켠다.
+	if ( renderer )
+		renderer->SetEnabled(true);
+
+	// AI는 renderer를 켠 뒤에 활성화한다.
+	// 그래야 Appear 준비 중 AI가 locomotion/target 갱신으로 끼어들지 않는다.
+	ConfigureBossAI(boss, true);
+
+	char buf[256];
+	sprintf_s(
+		buf,
+		"[BossStage] boss=%p active=%d playAppear=%d\n",
+		static_cast< void* >( boss ),
+		active ? 1 : 0,
+		playAppear ? 1 : 0
+	);
+	OutputDebugStringA(buf);
+}
+
+bool CGameScene::TryActivateBossStageBoss()
+{
+#ifndef USING_NETWORK
+	if ( m_bBossStageBossActivated )
+		return false;
+
+	if ( !AreAllPreBossMonstersInMegaGridDead(5) )
+		return false;
+
+	for ( CGameObject* boss : m_bossRefs )
+	{
+		if ( !boss )
+			continue;
+
+		const XMFLOAT3 pos = boss->GetPosition();
+		const int megaNumber =
+			m_sceneGrid.MegaGridNumberFromWorldPosition(pos.x, pos.z);
+
+		if ( megaNumber != 5 )
+			continue;
+
+		SetBossStageBossActive(boss, true, true);
+		m_bBossStageBossActivated = true;
+
+		OutputDebugStringA("[BossStage] MegaGrid 5 boss activated with Appear.\n");
+		return true;
+	}
+#endif
+
+	return false;
+}
+
 void CGameScene::RegisterMutantKeyTriggerIfNeeded(
 	CGameObject* mutant,
 	int megaGridNumber)
@@ -4729,20 +4902,9 @@ void CGameScene::UpdateMegaGridClearStateFromMonsterDeaths()
 			MarkMegaGridClearedByNumber(2);
 	}
 
-	// 5번 메가그리드: 보스 등장 전 원래 배치 몬스터 전멸 여부.
-	// 이 단계에서는 실제 보스 생성은 하지 않고 조건만 확인한다.
-	if ( AreAllPreBossMonstersInMegaGridDead(5) )
-	{
-		// 다음 단계에서 여기서 SpawnBoss 또는 ActivateBoss를 호출하면 된다.
-		// 지금은 테스트/로그만 유지한다.
-		static bool s_bossStagePreBossClearLogged = false;
-
-		if ( !s_bossStagePreBossClearLogged )
-		{
-			s_bossStagePreBossClearLogged = true;
-			OutputDebugStringA("[BossStage] MegaGrid 5 pre-boss monsters all dead. Boss can spawn.\n");
-		}
-	}
+	// 5번 메가그리드: 보스 등장 전 기본 배치 몬스터가 모두 죽으면
+	// 숨겨둔 보스를 활성화하고 Appear를 1회 실행한다.
+	TryActivateBossStageBoss();
 
 	// 5번 메가그리드: 최종 클리어는 보스 사망 시 처리.
 	if ( !m_sceneGrid.IsMegaGridCleared(1, 1) )
@@ -4870,6 +5032,8 @@ void CGameScene::BeginMonsterDeath(CGameObject* monster)
 
 void CGameScene::UpdateMonsterDeathStates()
 {
+	bool deathStateChanged = false;
+
 	for ( const SkinnedComponentCache& cache : m_skinnedComponentCache )
 	{
 		CGameObject* obj = cache.object;
@@ -4883,8 +5047,22 @@ void CGameScene::UpdateMonsterDeathStates()
 			continue;
 
 		if ( cache.health->IsDead() )
+		{
+			const bool wasAlreadyDead =
+				( m_deadMonsters.find(obj) != m_deadMonsters.end() );
+
 			BeginMonsterDeath(obj);
+
+			if ( !wasAlreadyDead &&
+				 m_deadMonsters.find(obj) != m_deadMonsters.end() )
+			{
+				deathStateChanged = true;
+			}
+		}
 	}
+
+	if ( deathStateChanged )
+		UpdateMegaGridClearStateFromMonsterDeaths();
 }
 
 void CGameScene::BeginLocalPlayerDeath(CGameObject* player)
@@ -5883,6 +6061,15 @@ void CGameScene::AnimateObjects(float dt)
 		CGameObject* obj = cache.object;
 		if ( !obj )
 			continue;
+#ifndef USING_NETWORK
+		if ( IsBossMonsterObject(obj) && !obj->GetActive() )
+		{
+			if ( cache.animator )
+				cache.animator->SetPoseEvaluationEnabled(false);
+
+			continue;
+		}
+#endif
 
 #ifndef USING_NETWORK
 		if ( ShouldSkipMonsterByMegaGrid(obj, j, activeMonsterMegaGridNumber) )
