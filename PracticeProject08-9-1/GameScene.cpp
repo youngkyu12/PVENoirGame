@@ -2390,6 +2390,7 @@ void CGameScene::ReleaseObjects()
 	m_itemBillboardQuadMesh.reset();
 	m_itemBillboards.clear();
 	m_keyItemTexture.reset();
+	m_bossSummonCircleTexture.reset();
 
 	ReleaseItemBillboardGpuResources();
 
@@ -2438,6 +2439,9 @@ void CGameScene::ReleaseUploadBuffers()
 
 	if ( m_keyItemTexture )
 		m_keyItemTexture->ReleaseUploadBuffers();
+
+	if ( m_bossSummonCircleTexture )
+		m_bossSummonCircleTexture->ReleaseUploadBuffers();
 }
 
 void CGameScene::ReleaseShaderVariables()
@@ -3907,6 +3911,14 @@ void CGameScene::SetTransparentItemDiffuseSrvIndex(UINT srvIndex)
 	);
 }
 
+void CGameScene::SetBossSummonCircleDiffuseSrvIndex(UINT srvIndex)
+{
+	SetMaterialDiffuseSrvIndex(
+		static_cast< int >( kBossSummonCircleMaterialId ),
+		srvIndex
+	);
+}
+
 CGameObject* CGameScene::GetDemoFighter(int index) const
 {
     if (index < 0 || index >= 3) return nullptr;
@@ -4947,6 +4959,27 @@ void CGameScene::SetBossStageBossActive(
 	}
 
 	const bool useHiddenAppearSpawn = playAppear;
+
+	if ( playAppear )
+	{
+		XMFLOAT3 summonCenter = XMFLOAT3(400.0f, 0.0f, 0.0f);
+
+		auto it = m_bossStageBossPositionStates.find(boss);
+
+		if ( it != m_bossStageBossPositionStates.end() )
+		{
+			summonCenter = it->second.originalPosition;
+		}
+		else
+		{
+			// fallback. 보스가 이미 hidden y로 내려가 있어도 x/z는 유지되므로 사용 가능.
+			summonCenter = boss->GetPosition();
+		}
+
+		summonCenter.y = 0.0f;
+
+		SpawnBossSummonCircle(summonCenter);
+	}
 
 	// Appear 시작 프레임에는 보스를 지하에 둔다.
 	// renderer/active 타이밍 문제가 남아 있어도 첫 노출은 y=-100 근처라 화면에 보이지 않는다.

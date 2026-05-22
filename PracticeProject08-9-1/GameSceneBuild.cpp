@@ -3413,6 +3413,25 @@ void CGameScene::BuildLightsAndMaterials()
 		transparentMat.m_xmn4WrapModes0 = XMUINT4(0, 0, 0, 0);
 		transparentMat.m_xmn4WrapModes1 = XMUINT4(0, 0, 0, 0);
 	}
+	{
+		MATERIAL& bossSummonMat =
+			m_pMaterials->m_pReflections[kBossSummonCircleMaterialId];
+
+		bossSummonMat.m_xmf4Ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+		bossSummonMat.m_xmf4Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+		bossSummonMat.m_xmf4Specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+		bossSummonMat.m_xmf4Emissive = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+
+		bossSummonMat.m_xmn4TextureIndices = XMUINT4(0, 0, 0, 0);
+
+		bossSummonMat.m_xmf4DiffuseUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+		bossSummonMat.m_xmf4NormalUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+		bossSummonMat.m_xmf4EmissiveUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+		bossSummonMat.m_xmf4SpecularUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+
+		bossSummonMat.m_xmn4WrapModes0 = XMUINT4(0, 0, 0, 0);
+		bossSummonMat.m_xmn4WrapModes1 = XMUINT4(0, 0, 0, 0);
+	}
 }
 
 void CGameScene::CreateShaderVariables(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)

@@ -229,6 +229,7 @@ struct MonsterSwordTrailEntry
 enum class EItemBillboardKind : UINT
 {
 	Key = 0,
+	BossSummonCircle = 1,
 };
 
 struct ItemBillboardEntry
@@ -482,6 +483,7 @@ private:
 	void RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 	std::shared_ptr<CTexture> m_keyItemTexture;
+	std::shared_ptr<CTexture> m_bossSummonCircleTexture;
 	void BuildItemBillboardBatch(
 		ID3D12Device* dev,
 		ID3D12GraphicsCommandList* cmd,
@@ -540,6 +542,8 @@ private:
 
 	void UpdateItemBillboardPickupCollision();
 	bool DoesPlayerOverlapItemBillboard(const CGameObject* player, const ItemBillboardEntry& item) const;
+
+	void SpawnBossSummonCircle(const XMFLOAT3& center);
 
 	std::shared_ptr<CMesh> CreateItemBillboardQuadMesh(
 		ID3D12Device* dev,
@@ -626,7 +630,8 @@ public:
 public:
 	void SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex);
 	void SetKeyItemDiffuseSrvIndex(UINT srvIndex);
-	void SetTransparentItemDiffuseSrvIndex(UINT srvIndex); 
+	void SetTransparentItemDiffuseSrvIndex(UINT srvIndex);
+	void SetBossSummonCircleDiffuseSrvIndex(UINT srvIndex); 
 	void SetInactiveOverlayVisible(bool visible)
 	{
 		m_bInactiveOverlayVisible = visible;
@@ -883,6 +888,8 @@ private:
 
 	static constexpr UINT kItemBillboardKeyMaterialId = MAX_MATERIALS - 1;
 	static constexpr UINT kTransparentItemBillboardMaterialId = MAX_MATERIALS - 2;
+	static constexpr UINT kBossSummonCircleMaterialId = MAX_MATERIALS - 3;
+
 	static constexpr UINT kKeyItemBillboardCount = 7;
 
 	std::shared_ptr<CItemBillboardShader> m_itemBillboardShader;

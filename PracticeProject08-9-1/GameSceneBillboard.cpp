@@ -583,6 +583,29 @@ void CGameScene::BuildItemBillboardBatch(
 		SetTransparentItemDiffuseSrvIndex(m_keyItemTexture->GetBaseSrvIndex());
 	}
 
+	{
+		m_bossSummonCircleTexture =
+			std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
+
+		m_bossSummonCircleTexture->LoadTextureFromFile(
+			dev,
+			cmd,
+			L"Assets/Particle/mhj.dds",
+			RESOURCE_TEXTURE2D,
+			0
+		);
+
+		CScene::m_pDescriptorHeap->CreateShaderResourceViews(
+			dev,
+			m_bossSummonCircleTexture.get(),
+			ROOT_PARAMETER_GLOBAL_SRV
+		);
+
+		SetBossSummonCircleDiffuseSrvIndex(
+			m_bossSummonCircleTexture->GetBaseSrvIndex()
+		);
+	}
+
 	m_itemBillboardQuadMesh = CreateItemBillboardQuadMesh(dev, cmd);
 
 	if ( !m_itemBillboardQuadMesh )
@@ -600,7 +623,7 @@ void CGameScene::BuildItemBillboardBatch(
 	};
 
 	m_itemBillboards.clear();
-	m_itemBillboards.reserve(kKeyItemBillboardCount);
+	m_itemBillboards.reserve(kKeyItemBillboardCount + 1);
 
 	for ( UINT i = 0; i < kKeyItemBillboardCount; ++i )
 	{
@@ -636,6 +659,40 @@ void CGameScene::BuildItemBillboardBatch(
 		key.materialId = kTransparentItemBillboardMaterialId;
 
 		m_itemBillboards.push_back(key);
+	}
+
+	{
+		ItemBillboardEntry summonCircle{};
+
+		// 처음에는 그리지 않는다.
+		// 보스가 실제 활성화될 때 SpawnBossSummonCircle()에서 active=true로 바꾼다.
+		summonCircle.active = false;
+		summonCircle.distanceCulled = true;
+
+		summonCircle.transparent = true;
+		summonCircle.kind = EItemBillboardKind::BossSummonCircle;
+
+		summonCircle.megaGridNumber = 5;
+
+		// fallback 위치. 실제 보스 활성화 시점에 보스 원래 위치로 다시 세팅한다.
+		summonCircle.position = XMFLOAT3(400.0f, 0.0f, 0.0f);
+
+		// x 100, z 100 크기.
+		summonCircle.width = 100.0f;
+		summonCircle.height = 100.0f;
+
+		// 지면과 z-fighting 방지용. 좌표상 중심은 y=0으로 유지하고 렌더만 살짝 띄운다.
+		summonCircle.yOffset = 0.05f;
+
+		summonCircle.cullDistance = 1000000.0f;
+
+		// pickup 대상이 아니므로 의미 없는 값.
+		summonCircle.pickupRadius = 0.0f;
+		summonCircle.pickupHeightTolerance = 0.0f;
+
+		summonCircle.materialId = kBossSummonCircleMaterialId;
+
+		m_itemBillboards.push_back(summonCircle);
 	}
 
 	m_itemBillboardInstanceBufferCapacity =
@@ -1593,6 +1650,9 @@ void CGameScene::UpdateItemBillboardPickupCollision()
 		if ( !item.active )
 			continue;
 
+		if ( item.kind != EItemBillboardKind::Key )
+			continue;
+
 		for ( int slot = 0; slot < 4; ++slot )
 		{
 			CGameObject* player = GetPlayerBySlot(slot);
@@ -1612,6 +1672,50 @@ void CGameScene::UpdateItemBillboardPickupCollision()
 			}
 		}
 	}
+}
+
+void CGameScene::SpawnBossSummonCircle(const XMFLOAT3& center)
+{
+	for ( ItemBillboardEntry& item : m_itemBillboards )
+	{
+		if ( item.kind != EItemBillboardKind::BossSummonCircle )
+			continue;
+
+		XMFLOAT3 fixedCenter = center;
+		fixedCenter.y = 0.0f;
+
+		item.active = true;
+		item.distanceCulled = false;
+
+		item.transparent = true;
+
+		item.position = fixedCenter;
+
+		item.width = 100.0f;
+		item.height = 100.0f;
+		item.yOffset = 0.05f;
+
+		item.cullDistance = 1000000.0f;
+
+		item.pickupRadius = 0.0f;
+		item.pickupHeightTolerance = 0.0f;
+
+		item.materialId = kBossSummonCircleMaterialId;
+
+		char buf[256];
+		sprintf_s(
+			buf,
+			"[BossSummonCircle] spawn center=(%.3f, %.3f, %.3f) size=(100,100)\n",
+			item.position.x,
+			item.position.y,
+			item.position.z
+		);
+		OutputDebugStringA(buf);
+
+		return;
+	}
+
+	OutputDebugStringA("[BossSummonCircle] spawn failed: BossSummonCircle item entry not found.\n");
 }
 
 void CGameScene::RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera)
@@ -1694,6 +1798,34 @@ void CGameScene::RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* c
 	cmd->IASetIndexBuffer(&sm.ibView);
 
 	cmd->DrawIndexedInstanced(static_cast< UINT >( sm.indices.size() ), visibleInstanceCount, 0, 0, 0);
+}
+
+static void StoreXZPlaneItemBillboardWorldRows(
+	ItemBillboardInstanceVertex& dst,
+	const XMFLOAT3& center,
+	float yOffset,
+	float width,
+	float depth,
+	UINT materialId)
+{
+	// item billboard quad의 local vertex는:
+	// x: -0.5 ~ +0.5
+	// y: -0.5 ~ +0.5
+	// z: 0
+	//
+	// 이를 world XZ 평면으로 눕힌다.
+	// local x -> world x
+	// local y -> world z
+	// local z -> world y normal axis
+	dst.world0 = XMFLOAT4(width, 0.0f, 0.0f, 0.0f);
+	dst.world1 = XMFLOAT4(0.0f, 0.0f, depth, 0.0f);
+	dst.world2 = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
+	dst.world3 = XMFLOAT4(center.x, center.y + yOffset, center.z, 1.0f);
+
+	dst.materialId = materialId;
+	dst.pad[0] = 0;
+	dst.pad[1] = 0;
+	dst.pad[2] = 0;
 }
 
 void CGameScene::RenderTransparentItemBillboards(
@@ -1780,15 +1912,29 @@ void CGameScene::RenderTransparentItemBillboards(
 		ItemBillboardInstanceVertex& dst =
 			mappedTransparentItemBillboardInstanceBuffer[visibleInstanceCount];
 
-		StoreCylindricalBillboardWorldRows(
-			dst,
-			item->position,
-			item->yOffset,
-			item->width,
-			item->height,
-			targetPos,
-			item->materialId
-		);
+		if ( item->kind == EItemBillboardKind::BossSummonCircle )
+		{
+			StoreXZPlaneItemBillboardWorldRows(
+				dst,
+				item->position,
+				item->yOffset,
+				item->width,
+				item->height,
+				item->materialId
+			);
+		}
+		else
+		{
+			StoreCylindricalBillboardWorldRows(
+				dst,
+				item->position,
+				item->yOffset,
+				item->width,
+				item->height,
+				targetPos,
+				item->materialId
+			);
+		}
 
 		++visibleInstanceCount;
 	}
