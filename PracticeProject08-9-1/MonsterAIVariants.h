@@ -156,6 +156,10 @@ private:
 
 	bool m_bBossWasMeleeActionPlaying = false;
 
+	bool m_bBossOpeningSpellPending = true;
+	bool m_bBossOpeningSpellRequested = false;
+	float m_bossOpeningSpellRequestAgeSec = 0.0f;
+
 	float m_bossPostMeleeTurnDuration = 0.25f;
 	float m_bossPostMeleeTurnRemaining = 0.0f;
 	float m_bossPostMeleeTurnSpeedDegrees = 900.0f;

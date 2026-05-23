@@ -283,6 +283,9 @@ CBossAIComponent::CBossAIComponent(CGameObject* owner)
 	m_bossSpellCooldownRemaining = 0.0f;
 
 	m_bBossWasMeleeActionPlaying = false;
+	m_bBossOpeningSpellPending = true;
+	m_bBossOpeningSpellRequested = false;
+	m_bossOpeningSpellRequestAgeSec = 0.0f;
 
 	m_bossPostMeleeTurnDuration = 0.25f;
 	m_bossPostMeleeTurnRemaining = 0.0f;
@@ -323,6 +326,12 @@ void CBossAIComponent::UpdateBehavior(float dt)
 
 	if ( !HasValidTarget() )
 	{
+		if ( m_bBossOpeningSpellPending )
+		{
+			m_bBossOpeningSpellRequested = false;
+			m_bossOpeningSpellRequestAgeSec = 0.0f;
+		}
+
 		ClearPath();
 		SetMonsterLocomotionState(EMonsterAnimState::Idle);
 		return;
@@ -339,6 +348,12 @@ void CBossAIComponent::UpdateBehavior(float dt)
 	CGameObject* target = GetTarget();
 	if ( !IsPlayerInsideBossBattleZone(target) )
 	{
+		if ( m_bBossOpeningSpellPending )
+		{
+			m_bBossOpeningSpellRequested = false;
+			m_bossOpeningSpellRequestAgeSec = 0.0f;
+		}
+
 		BeginReturnHome();
 		return;
 	}
@@ -368,6 +383,23 @@ void CBossAIComponent::UpdateBehavior(float dt)
 	{
 		ClearPath();
 
+		if ( m_bBossOpeningSpellPending )
+		{
+			m_bBossOpeningSpellPending = false;
+			m_bBossOpeningSpellRequested = false;
+			m_bossOpeningSpellRequestAgeSec = 0.0f;
+
+			ConsumeBossSpellCooldown();
+
+			char buf[256];
+			sprintf_s(
+				buf,
+				"[BossAI][OpeningSpell] confirmed spell phase. boss=%p\n",
+				static_cast< void* >( GetOwner() )
+			);
+			OutputDebugStringA(buf);
+		}
+
 		// 원거리 공격 중에는 이동하지 않고, 플레이어 방향으로만 부드럽게 회전한다.
 		SmoothFaceTowardsTarget(
 			target,
@@ -384,6 +416,138 @@ void CBossAIComponent::UpdateBehavior(float dt)
 	}
 
 	const bool canStartAction = CanStartBossAction();
+
+	if ( m_bBossOpeningSpellPending )
+	{
+		ClearPath();
+
+		// 중요:
+		// 이미 Spell 요청을 한 뒤에는 SetMonsterLocomotionState(Idle)을 다시 호출하지 않는다.
+		// Spell 전환 대기 중에 Idle을 계속 밀어 넣으면 Spell 전환이 덮여서
+		// spellPlaying=0 상태로 굳을 수 있다.
+		if ( m_bBossOpeningSpellRequested )
+		{
+			m_bossOpeningSpellRequestAgeSec += dt;
+
+			if ( target )
+			{
+				SmoothFaceTowardsTarget(
+					target,
+					dt,
+					m_bossSpellTurnSpeedDegrees
+				);
+			}
+
+			if ( m_bossOpeningSpellRequestAgeSec >= 0.50f )
+			{
+				char buf[512];
+				sprintf_s(
+					buf,
+					"[BossAI][OpeningSpell] waiting after request. boss=%p age=%.3f dist=%.3f canStart=%d locked=%d meleePlaying=%d spellPlaying=%d\n",
+					static_cast< void* >( GetOwner() ),
+					m_bossOpeningSpellRequestAgeSec,
+					distanceToTarget,
+					canStartAction ? 1 : 0,
+					IsAIActionLockedByAnimation() ? 1 : 0,
+					IsBossMeleeActionPlaying() ? 1 : 0,
+					IsBossSpellActionPlaying() ? 1 : 0
+				);
+				OutputDebugStringA(buf);
+
+				// 0.5초 동안 SpellPhase로 안 들어갔고 현재 action lock도 없다면,
+				// 이전 요청은 컨트롤러에서 소비되지 않은 것으로 보고 다시 시도하게 한다.
+				if ( !IsAIActionLockedByAnimation() && !IsBossSpellActionPlaying() )
+				{
+					OutputDebugStringA(
+						"[BossAI][OpeningSpell] retry spell request next frame.\n"
+					);
+
+					m_bBossOpeningSpellRequested = false;
+				}
+
+				m_bossOpeningSpellRequestAgeSec = 0.0f;
+			}
+
+			return;
+		}
+
+		if ( !canStartAction )
+		{
+			SetMonsterLocomotionState(EMonsterAnimState::Idle);
+
+			if ( target )
+			{
+				SmoothFaceTowardsTarget(
+					target,
+					dt,
+					m_bossSpellTurnSpeedDegrees
+				);
+			}
+
+			static float s_openingBlockedLogAge = 0.0f;
+			s_openingBlockedLogAge += dt;
+
+			if ( s_openingBlockedLogAge >= 0.50f )
+			{
+				char buf[512];
+				sprintf_s(
+					buf,
+					"[BossAI][OpeningSpell] blocked before request. boss=%p dist=%.3f globalCd=%.3f spellCd=%.3f locked=%d\n",
+					static_cast< void* >( GetOwner() ),
+					distanceToTarget,
+					m_bossGlobalActionCooldownRemaining,
+					m_bossSpellCooldownRemaining,
+					IsAIActionLockedByAnimation() ? 1 : 0
+				);
+				OutputDebugStringA(buf);
+
+				s_openingBlockedLogAge = 0.0f;
+			}
+
+			return;
+		}
+
+		// 여기서만 Idle을 세팅한다.
+		// 즉, Spell 요청 직전 1회만 locomotion을 정리한다.
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		FaceTowards(target->GetPosition());
+
+		const bool requestResult = TryPerformSpellAttack();
+
+		if ( requestResult )
+		{
+			m_bBossOpeningSpellRequested = true;
+			m_bossOpeningSpellRequestAgeSec = 0.0f;
+
+			char buf[512];
+			sprintf_s(
+				buf,
+				"[BossAI][OpeningSpell] request spell. boss=%p dist=%.3f globalCd=%.3f spellCd=%.3f lockedAfter=%d\n",
+				static_cast< void* >( GetOwner() ),
+				distanceToTarget,
+				m_bossGlobalActionCooldownRemaining,
+				m_bossSpellCooldownRemaining,
+				IsAIActionLockedByAnimation() ? 1 : 0
+			);
+			OutputDebugStringA(buf);
+		}
+		else
+		{
+			char buf[512];
+			sprintf_s(
+				buf,
+				"[BossAI][OpeningSpell] request failed. boss=%p dist=%.3f globalCd=%.3f spellCd=%.3f locked=%d\n",
+				static_cast< void* >( GetOwner() ),
+				distanceToTarget,
+				m_bossGlobalActionCooldownRemaining,
+				m_bossSpellCooldownRemaining,
+				IsAIActionLockedByAnimation() ? 1 : 0
+			);
+			OutputDebugStringA(buf);
+		}
+
+		return;
+	}
 
 	if ( canStartAction )
 	{
