@@ -1356,12 +1356,13 @@ void CGameScene::SpawnBloodSplash(
 	static std::uniform_real_distribution<float> rotDist(0.0f, XM_2PI);
 	static std::uniform_real_distribution<float> seedDist(0.0f, 1000.0f);
 	static std::uniform_real_distribution<float> unitDist(-1.0f, 1.0f);
-	static std::uniform_real_distribution<float> lifeDist(0.24f, 0.48f);
-	static std::uniform_real_distribution<float> speedDist(2.4f, 6.2f);
-	static std::uniform_real_distribution<float> sideDist(-1.35f, 1.35f);
-	static std::uniform_real_distribution<float> liftDist(0.55f, 1.85f);
-	static std::uniform_real_distribution<float> sizeDist(0.18f, 0.36f);
+	static std::uniform_real_distribution<float> lifeDist(0.30f, 0.62f);
+	static std::uniform_real_distribution<float> speedDist(4.0f, 9.4f);
+	static std::uniform_real_distribution<float> sideDist(-2.80f, 2.80f);
+	static std::uniform_real_distribution<float> liftDist(0.75f, 2.65f);
+	static std::uniform_real_distribution<float> sizeDist(0.16f, 0.34f);
 	static std::uniform_real_distribution<float> alphaDist(0.46f, 0.68f);
+	constexpr float kBloodParticleVisualScale = 2.0f;
 
 	const XMFLOAT3 basePos =
 		hitPosition ? *hitPosition : GetBloodSplashFallbackPosition(victim);
@@ -1384,7 +1385,7 @@ void CGameScene::SpawnBloodSplash(
 	else
 		right = XMVector3Normalize(right);
 
-	constexpr int kBloodParticleCount = 30;
+	constexpr int kBloodParticleCount = 60;
 
 	for ( int i = 0; i < kBloodParticleCount; ++i )
 	{
@@ -1398,7 +1399,7 @@ void CGameScene::SpawnBloodSplash(
 
 		XMVECTOR vel =
 			XMVectorAdd(
-				XMVectorScale(baseDir, 1.0f + unitDist(rng) * 0.35f),
+				XMVectorScale(baseDir, 1.15f + unitDist(rng) * 0.55f),
 				XMVectorAdd(
 					XMVectorScale(right, side),
 					XMVectorScale(up, lift)
@@ -1415,16 +1416,16 @@ void CGameScene::SpawnBloodSplash(
 		XMFLOAT3 vel3{};
 		XMStoreFloat3(&vel3, vel);
 
-		const float jitterX = unitDist(rng) * 0.08f;
-		const float jitterY = unitDist(rng) * 0.10f;
-		const float jitterZ = unitDist(rng) * 0.08f;
+		const float jitterX = unitDist(rng) * 0.22f;
+		const float jitterY = unitDist(rng) * 0.18f;
+		const float jitterZ = unitDist(rng) * 0.22f;
 
 		XMFLOAT3 pos = basePos;
 		pos.x += jitterX;
 		pos.y += jitterY;
 		pos.z += jitterZ;
 
-		const float size = sizeDist(rng);
+		const float size = sizeDist(rng) * kBloodParticleVisualScale;
 		const float alpha = alphaDist(rng);
 
 		e->active = true;
@@ -1446,7 +1447,7 @@ void CGameScene::SpawnBloodSplash(
 
 		e->intensity = 1.0f + unitDist(rng) * 0.15f;
 
-		e->drag = 2.2f;
+		e->drag = 1.35f;
 		e->gravity = 4.2f;
 		e->seed = seedDist(rng);
 
