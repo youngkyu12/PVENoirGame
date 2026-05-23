@@ -48,6 +48,13 @@ public:
 
 	int SpawnMegaGrid(int megaGridNumber);
 
+	CGameObject* SpawnEnemyAt(
+		int megaGridNumber,
+		EEnemySpawnerEnemyKind kind,
+		const DirectX::XMFLOAT3& position,
+		float yawDeg
+	);
+
 	void RemoveEnemy(CGameObject* enemy);
 
 public:
@@ -55,7 +62,11 @@ public:
 	int GetActiveEnemyCount() const;
 
 private:
-	CGameObject* ActivateEntry(size_t entryIndex);
+	CGameObject* ActivateEntry(
+		size_t entryIndex,
+		const DirectX::XMFLOAT3* overridePosition = nullptr,
+		const float* overrideYawDeg = nullptr
+	);
 
 private:
 	std::vector<EnemySpawnerPoolEntry> m_spawnEntries;

@@ -35,7 +35,10 @@ void EnemySpawner::Initialize(const std::vector<EnemySpawnerPoolEntry>& spawnObj
 	}
 }
 
-CGameObject* EnemySpawner::ActivateEntry(size_t entryIndex)
+CGameObject* EnemySpawner::ActivateEntry(
+	size_t entryIndex,
+	const DirectX::XMFLOAT3* overridePosition,
+	const float* overrideYawDeg)
 {
 	if ( entryIndex >= m_spawnEntries.size() )
 		return nullptr;
@@ -46,7 +49,25 @@ CGameObject* EnemySpawner::ActivateEntry(size_t entryIndex)
 	if ( !enemy )
 		return nullptr;
 
-	enemy->SetPosition(entry.spawnPosition);
+	const DirectX::XMFLOAT3 finalPosition =
+		overridePosition ? *overridePosition : entry.spawnPosition;
+
+	enemy->SetPosition(finalPosition);
+
+	if ( overrideYawDeg )
+	{
+		if ( auto* tr = enemy->GetComponent<CTransformComponent>() )
+		{
+			tr->SetYawDegrees(*overrideYawDeg);
+		}
+		else
+		{
+			// CTransformComponent가 없을 경우 최소한 기존 yaw에서 delta 회전.
+			// 일반 CGameObject에는 보통 TransformComponent가 있으므로 거의 타지 않는다.
+			enemy->Rotate(0.0f, *overrideYawDeg, 0.0f);
+		}
+	}
+
 	enemy->SetActive(true);
 
 	if ( auto* collider = enemy->GetComponent<CColliderComponent>() )
@@ -84,6 +105,36 @@ CGameObject* EnemySpawner::SpawnEnemy(
 		m_freeList.pop_back();
 
 		return ActivateEntry(entryIndex);
+	}
+
+	return nullptr;
+}
+
+CGameObject* EnemySpawner::SpawnEnemyAt(
+	int megaGridNumber,
+	EEnemySpawnerEnemyKind kind,
+	const DirectX::XMFLOAT3& position,
+	float yawDeg)
+{
+	for ( size_t cursor = 0; cursor < m_freeList.size(); ++cursor )
+	{
+		const size_t entryIndex = m_freeList[cursor];
+
+		if ( entryIndex >= m_spawnEntries.size() )
+			continue;
+
+		const EnemySpawnerPoolEntry& entry = m_spawnEntries[entryIndex];
+
+		if ( entry.megaGridNumber != megaGridNumber )
+			continue;
+
+		if ( entry.kind != kind )
+			continue;
+
+		m_freeList[cursor] = m_freeList.back();
+		m_freeList.pop_back();
+
+		return ActivateEntry(entryIndex, &position, &yawDeg);
 	}
 
 	return nullptr;

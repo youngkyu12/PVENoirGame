@@ -756,6 +756,8 @@ public:
 	bool IsLocalPlayerInsideMegaGridCenter() const;
 	bool IsLocalMonsterChaseEnabled() const { return m_bSimulateLocalMonsterChase; }
 
+	void NotifyMonsterChaseStarted(CGameObject* monster);
+
 	void SetMegaGridApproachZoneSize(int megaX, int megaZ, int widthCells, int heightCells);
 	void SetMegaGridCleared(int megaX, int megaZ, bool cleared = true);
 	void SetMegaGridEventOccurred(int megaX, int megaZ, bool occurred = true);
@@ -862,6 +864,26 @@ private:
 	int SpawnPreparedEnemiesInMegaGrid(int megaGridNumber);
 	int TryRunEnemySpawnerEventForMegaGrid(int megaGridNumber);
 
+	bool BeginEnemySpawnerTimedGhoulWave(int megaGridNumber);
+	void UpdateEnemySpawnerTimedGhoulWaves(float dt);
+
+	int SpawnEnemySpawnerDoorGhoulBatch(
+		int megaGridNumber,
+		int batchIndex
+	);
+
+	XMFLOAT3 ComputeEnemySpawnerDoorGhoulSpawnPosition(
+		int megaGridNumber,
+		int wallIndex,
+		int slotIndex
+	) const;
+
+	float ComputeEnemySpawnerDoorGhoulSpawnYawDeg(
+		int wallIndex
+	) const;
+
+	void ResetEnemySpawnerTimedGhoulWaveStates();
+
 	void RegisterMonsterToMegaGrid(CGameObject* monster, const XMFLOAT3& spawnPosition, UINT skinnedBatchObjectIndex);
 	int GetLocalPlayerMegaGridNumberForMonsterTick() const;
 	bool ShouldSkipMonsterByMegaGrid(const CGameObject* monster, UINT skinnedBatchObjectIndex, int activeMegaGridNumber) const;
@@ -892,6 +914,16 @@ private:
 	void UpdateCastleCenterMegaGridState();
 
 	void DumpStaticGridOccupancyLog() const;
+
+	struct EnemySpawnerTimedGhoulWaveState
+	{
+		bool active = false;
+
+		// 0~9. Begin 시 0번 batch를 즉시 생성하고, 이후 nextBatchIndex는 1부터 시작한다.
+		int nextBatchIndex = 0;
+
+		float accumulatorSec = 0.0f;
+	};
 
 #ifndef USING_NETWORK
 	struct MonsterSpawnEntry
@@ -974,6 +1006,19 @@ private:
 
 	static constexpr UINT kEnemySpawnerMega6GhoulCount = 200;
 	static constexpr UINT kEnemySpawnerMega8GhoulCount = 200;
+
+	static constexpr int kEnemySpawnerDoorWallCount = 4;
+	static constexpr int kEnemySpawnerDoorSlotsPerWall = 5;
+	static constexpr int kEnemySpawnerDoorBatchCount = 10;
+	static constexpr float kEnemySpawnerDoorBatchIntervalSec = 1.0f;
+
+	// 200x200 벽의 원래 경계는 center +/- 100.
+	// 요구사항에 따라 300 -> 301, 500 -> 499로 치환하므로 center +/- 99.
+	static constexpr float kEnemySpawnerDoorWallHalfExtent = 99.0f;
+
+	// 문 중앙 10m 안에서 5마리를 2m 간격으로 배치.
+	// 실제 offset은 -4, -2, 0, +2, +4.
+	static constexpr float kEnemySpawnerDoorSlotSpacing = 2.0f;
 
 	static constexpr UINT kEnemySpawnerMega5GhoulCount = 60;
 	static constexpr UINT kEnemySpawnerMega5BowManCount = 10;
@@ -1321,6 +1366,11 @@ private:
 	std::unique_ptr<CNavMesh> m_navMesh;
 
 	std::unique_ptr<EnemySpawner> m_enemySpawner;
+
+	std::array<
+		EnemySpawnerTimedGhoulWaveState,
+		CSceneGrid::kMegaGridCount + 1
+	> m_enemySpawnerTimedGhoulWaves = {};
 
 #ifndef USING_NETWORK
 	std::vector<MonsterSpawnEntry>	m_monsterSpawnEntries;

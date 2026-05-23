@@ -92,6 +92,7 @@ CGameScene::CGameScene()
 	m_bCanBossStageDirectly = false;
 	m_bSimulateLocalStageTeleport = true;
 	m_bPrevLocalStageTeleportKeyDown.fill(false);
+	ResetEnemySpawnerTimedGhoulWaveStates();
 
 #ifdef USING_NETWORK
 	m_bSimulateLocalPlayerMonsterAttackCollision = false;
@@ -1798,58 +1799,6 @@ XMFLOAT3 CGameScene::ComputeLocalStageTeleportPosition(int megaGridNumber) const
 	return dst;
 }
 
-XMFLOAT3 CGameScene::ComputeEnemySpawnerSpawnPosition(
-	int megaGridNumber,
-	UINT localIndex,
-	UINT localCount) const
-{
-	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
-		return XMFLOAT3(0.0f, 0.0f, 0.0f);
-
-	if ( localCount == 0 )
-		localCount = 1;
-
-	const int zeroBased = megaGridNumber - 1;
-	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
-	const int megaZ = zeroBased / CSceneGrid::kMegaGridRows;
-
-	const float centerX =
-		static_cast< float >(
-			CSceneGrid::kGridMinX +
-			megaX * CSceneGrid::kMegaGridCellWidth +
-			CSceneGrid::kMegaGridCellWidth / 2
-		);
-
-	const float centerZ =
-		static_cast< float >(
-			CSceneGrid::kGridMinZ +
-			megaZ * CSceneGrid::kMegaGridCellHeight +
-			CSceneGrid::kMegaGridCellHeight / 2
-		);
-
-	const UINT columns = std::max< UINT >(
-		1,
-		static_cast< UINT >( std::ceil(std::sqrt(static_cast< float >( localCount ))) )
-	);
-
-	const UINT rows = ( localCount + columns - 1 ) / columns;
-
-	const UINT col = localIndex % columns;
-	const UINT row = localIndex / columns;
-
-	constexpr float kSpawnSpacing = 3.0f;
-
-	const float totalWidth = static_cast< float >( columns > 0 ? columns - 1 : 0 ) * kSpawnSpacing;
-	const float totalDepth = static_cast< float >( rows > 0 ? rows - 1 : 0 ) * kSpawnSpacing;
-
-	XMFLOAT3 pos{};
-	pos.x = centerX + static_cast< float >( col ) * kSpawnSpacing - totalWidth * 0.5f;
-	pos.y = 0.0f;
-	pos.z = centerZ + static_cast< float >( row ) * kSpawnSpacing - totalDepth * 0.5f;
-
-	return pos;
-}
-
 bool CGameScene::IsMegaGridNumberCleared(int megaGridNumber) const
 {
 	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
@@ -1972,6 +1921,21 @@ int CGameScene::TryRunEnemySpawnerEventForMegaGrid(int megaGridNumber)
 		return 0;
 	}
 
+	if ( megaGridNumber == 6 || megaGridNumber == 8 )
+	{
+		const bool started =
+			BeginEnemySpawnerTimedGhoulWave(megaGridNumber);
+
+		if ( started )
+		{
+			m_sceneGrid.SetMegaGridEventOccurred(megaX, megaZ, true);
+			return 1;
+		}
+
+		return 0;
+	}
+
+	// 5번 등 기존 즉시 스폰 이벤트는 기존 방식 유지.
 	const int spawnedCount = SpawnPreparedEnemiesInMegaGrid(megaGridNumber);
 
 	if ( spawnedCount > 0 )
@@ -1983,6 +1947,130 @@ int CGameScene::TryRunEnemySpawnerEventForMegaGrid(int megaGridNumber)
 #else
 	UNREFERENCED_PARAMETER(megaGridNumber);
 	return 0;
+#endif
+}
+
+bool CGameScene::BeginEnemySpawnerTimedGhoulWave(int megaGridNumber)
+{
+#ifndef USING_NETWORK
+	if ( !m_bSimulateLocalEnemySpawner )
+		return false;
+
+	if ( !m_enemySpawner )
+		return false;
+
+	if ( megaGridNumber != 6 && megaGridNumber != 8 )
+		return false;
+
+	if ( megaGridNumber < 1 ||
+		 megaGridNumber > CSceneGrid::kMegaGridCount )
+	{
+		return false;
+	}
+
+	EnemySpawnerTimedGhoulWaveState& state =
+		m_enemySpawnerTimedGhoulWaves[( size_t ) megaGridNumber];
+
+	if ( state.active )
+		return false;
+
+	state = EnemySpawnerTimedGhoulWaveState{};
+	state.active = true;
+	state.nextBatchIndex = 0;
+	state.accumulatorSec = 0.0f;
+
+	// 가동 즉시 0번 batch 생성.
+	const int spawnedNow =
+		SpawnEnemySpawnerDoorGhoulBatch(
+			megaGridNumber,
+			state.nextBatchIndex
+		);
+
+	if ( spawnedNow <= 0 )
+	{
+		state = EnemySpawnerTimedGhoulWaveState{};
+		return false;
+	}
+
+	++state.nextBatchIndex;
+
+	if ( state.nextBatchIndex >= kEnemySpawnerDoorBatchCount )
+		state.active = false;
+
+	char buf[256];
+	sprintf_s(
+		buf,
+		"[EnemySpawnerWave] started. mega=%d firstBatchSpawned=%d\n",
+		megaGridNumber,
+		spawnedNow
+	);
+	OutputDebugStringA(buf);
+
+	return true;
+#else
+	UNREFERENCED_PARAMETER(megaGridNumber);
+	return false;
+#endif
+}
+
+void CGameScene::UpdateEnemySpawnerTimedGhoulWaves(float dt)
+{
+#ifndef USING_NETWORK
+	if ( !m_bSimulateLocalEnemySpawner )
+		return;
+
+	if ( !m_enemySpawner )
+		return;
+
+	if ( dt < 0.0f )
+		dt = 0.0f;
+
+	const int targetMegaGrids[2] = { 6, 8 };
+
+	for ( int megaGridNumber : targetMegaGrids )
+	{
+		EnemySpawnerTimedGhoulWaveState& state =
+			m_enemySpawnerTimedGhoulWaves[( size_t ) megaGridNumber];
+
+		if ( !state.active )
+			continue;
+
+		state.accumulatorSec += dt;
+
+		while ( state.active &&
+				state.accumulatorSec >= kEnemySpawnerDoorBatchIntervalSec )
+		{
+			state.accumulatorSec -= kEnemySpawnerDoorBatchIntervalSec;
+
+			if ( state.nextBatchIndex >= kEnemySpawnerDoorBatchCount )
+			{
+				state.active = false;
+				break;
+			}
+
+			SpawnEnemySpawnerDoorGhoulBatch(
+				megaGridNumber,
+				state.nextBatchIndex
+			);
+
+			++state.nextBatchIndex;
+
+			if ( state.nextBatchIndex >= kEnemySpawnerDoorBatchCount )
+			{
+				state.active = false;
+
+				char buf[256];
+				sprintf_s(
+					buf,
+					"[EnemySpawnerWave] finished. mega=%d\n",
+					megaGridNumber
+				);
+				OutputDebugStringA(buf);
+			}
+		}
+	}
+#else
+	UNREFERENCED_PARAMETER(dt);
 #endif
 }
 
@@ -2038,6 +2126,185 @@ bool CGameScene::TryTeleportLocalPlayerToMegaGridByNumber(int megaGridNumber)
 	UNREFERENCED_PARAMETER(megaGridNumber);
 	return false;
 #endif
+}
+
+int CGameScene::SpawnEnemySpawnerDoorGhoulBatch(
+	int megaGridNumber,
+	int batchIndex)
+{
+#ifndef USING_NETWORK
+	if ( !m_bSimulateLocalEnemySpawner )
+		return 0;
+
+	if ( !m_enemySpawner )
+		return 0;
+
+	if ( megaGridNumber != 6 && megaGridNumber != 8 )
+		return 0;
+
+	if ( batchIndex < 0 || batchIndex >= kEnemySpawnerDoorBatchCount )
+		return 0;
+
+	int spawnedCount = 0;
+
+	for ( int wallIndex = 0; wallIndex < kEnemySpawnerDoorWallCount; ++wallIndex )
+	{
+		const float yawDeg =
+			ComputeEnemySpawnerDoorGhoulSpawnYawDeg(wallIndex);
+
+		for ( int slotIndex = 0; slotIndex < kEnemySpawnerDoorSlotsPerWall; ++slotIndex )
+		{
+			const XMFLOAT3 pos =
+				ComputeEnemySpawnerDoorGhoulSpawnPosition(
+					megaGridNumber,
+					wallIndex,
+					slotIndex
+				);
+
+			CGameObject* ghoul =
+				m_enemySpawner->SpawnEnemyAt(
+					megaGridNumber,
+					EEnemySpawnerEnemyKind::Ghoul,
+					pos,
+					yawDeg
+				);
+
+			if ( !ghoul )
+				continue;
+
+			if ( auto* ai = ghoul->GetComponent<CEnemySpawnerGhoulAIComponent>() )
+			{
+				// activation 위치/yaw를 기준 home으로 박아야
+				// 60m 강제 직진 방향이 정확히 문 -> 중앙이 된다.
+				ai->SetHomeTransform(pos, yawDeg);
+				ai->ConfigureSpawnerGhoulAI(megaGridNumber, 60.0f);
+			}
+
+			++spawnedCount;
+		}
+	}
+
+	char buf[256];
+	sprintf_s(
+		buf,
+		"[EnemySpawnerWave] mega=%d batch=%d spawned=%d\n",
+		megaGridNumber,
+		batchIndex,
+		spawnedCount
+	);
+	OutputDebugStringA(buf);
+
+	return spawnedCount;
+#else
+	UNREFERENCED_PARAMETER(megaGridNumber);
+	UNREFERENCED_PARAMETER(batchIndex);
+	return 0;
+#endif
+}
+
+XMFLOAT3 CGameScene::ComputeEnemySpawnerDoorGhoulSpawnPosition(
+	int megaGridNumber,
+	int wallIndex,
+	int slotIndex) const
+{
+	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+		return XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	if ( wallIndex < 0 )
+		wallIndex = 0;
+
+	if ( wallIndex >= kEnemySpawnerDoorWallCount )
+		wallIndex = kEnemySpawnerDoorWallCount - 1;
+
+	if ( slotIndex < 0 )
+		slotIndex = 0;
+
+	if ( slotIndex >= kEnemySpawnerDoorSlotsPerWall )
+		slotIndex = kEnemySpawnerDoorSlotsPerWall - 1;
+
+	const int zeroBased = megaGridNumber - 1;
+	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+	const float centerX =
+		static_cast< float >(
+			CSceneGrid::kGridMinX +
+			megaX * CSceneGrid::kMegaGridCellWidth +
+			CSceneGrid::kMegaGridCellWidth / 2
+		);
+
+	const float centerZ =
+		static_cast< float >(
+			CSceneGrid::kGridMinZ +
+			megaZ * CSceneGrid::kMegaGridCellHeight +
+			CSceneGrid::kMegaGridCellHeight / 2
+		);
+
+	const float offset =
+		( static_cast< float >( slotIndex ) -
+		  static_cast< float >( kEnemySpawnerDoorSlotsPerWall - 1 ) * 0.5f )
+		* kEnemySpawnerDoorSlotSpacing;
+
+	XMFLOAT3 pos(0.0f, 0.0f, 0.0f);
+
+	switch ( wallIndex )
+	{
+	case 0:
+		pos.x = centerX - kEnemySpawnerDoorWallHalfExtent;
+		pos.z = centerZ + offset;
+		break;
+
+	case 1:
+		pos.x = centerX + kEnemySpawnerDoorWallHalfExtent;
+		pos.z = centerZ + offset;
+		break;
+
+	case 2:
+		pos.x = centerX + offset;
+		pos.z = centerZ - kEnemySpawnerDoorWallHalfExtent;
+		break;
+
+	case 3:
+	default:
+		pos.x = centerX + offset;
+		pos.z = centerZ + kEnemySpawnerDoorWallHalfExtent;
+		break;
+	}
+
+	pos.y = 0.0f;
+	return pos;
+}
+
+float CGameScene::ComputeEnemySpawnerDoorGhoulSpawnYawDeg(
+	int wallIndex) const
+{
+	switch ( wallIndex )
+	{
+	case 0:
+		// left wall -> center, +X
+		return 90.0f;
+
+	case 1:
+		// right wall -> center, -X
+		return -90.0f;
+
+	case 2:
+		// bottom wall -> center, +Z
+		return 0.0f;
+
+	case 3:
+	default:
+		// top wall -> center, -Z
+		return 180.0f;
+	}
+}
+
+void CGameScene::ResetEnemySpawnerTimedGhoulWaveStates()
+{
+	for ( EnemySpawnerTimedGhoulWaveState& state : m_enemySpawnerTimedGhoulWaves )
+	{
+		state = EnemySpawnerTimedGhoulWaveState{};
+	}
 }
 
 void CGameScene::RegisterMonsterToMegaGrid(
@@ -2480,6 +2747,25 @@ void CGameScene::DumpStaticGridOccupancyLog() const
 	m_sceneGrid.DumpStaticGridOccupancyLog();
 }
 
+void CGameScene::NotifyMonsterChaseStarted(CGameObject* monster)
+{
+#ifndef USING_NETWORK
+	if ( !monster )
+		return;
+
+	const auto it = m_mutantKeyTriggerMegaByObject.find(monster);
+	if ( it == m_mutantKeyTriggerMegaByObject.end() )
+		return;
+
+	const int megaGridNumber = it->second;
+
+	// 6/8번 열쇠 담당 1번째 뮤턴트가 추적을 시작하면 스포너 이벤트 가동.
+	TryRunEnemySpawnerEventForMegaGrid(megaGridNumber);
+#else
+	UNREFERENCED_PARAMETER(monster);
+#endif
+}
+
 void CGameScene::SetMegaGridApproachZoneSize(int megaX, int megaZ, int widthCells, int heightCells)
 {
 	m_sceneGrid.SetMegaGridApproachZoneSize(megaX, megaZ, widthCells, heightCells);
@@ -2618,6 +2904,8 @@ void CGameScene::ReleaseObjects()
 	m_EnemySpawnRefs.clear();
 	m_enemySpawnPoolEntries.clear();
 	m_enemySpawner.reset();
+
+	ResetEnemySpawnerTimedGhoulWaveStates();
 
 	ResetPlayerFootstepSfxState();
 	ResetMonsterSfxState();
@@ -6697,6 +6985,8 @@ void CGameScene::AnimateObjects(float dt)
 	UpdateBossSummonVisualFadeOut(dt);
 	UpdateBossStageSummonSequence(dt);
 	UpdateBossShockwave(dt);
+
+	UpdateEnemySpawnerTimedGhoulWaves(dt);
 #endif
 
 	UpdateMuzzleFlashes(dt);
