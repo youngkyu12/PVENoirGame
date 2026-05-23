@@ -65,9 +65,23 @@ void CAnimator::SetSkeleton(const std::vector<Bone>& bones,
     // (pelvis/spine 캐시 및 로그 제거)
 }
 
+void CAnimator::AddClip(AnimationClipRef clip)
+{
+	if ( !clip )
+		return;
+
+	if ( clip->name.empty() )
+		return;
+
+	m_Clips[clip->name] = std::move(clip);
+}
+
 void CAnimator::AddClip(const AnimationClip& clip)
 {
-    m_Clips[clip.name] = clip;
+	// 기존 호출부 호환용.
+	// 다음 단계에서 GameSceneObjectFactory / CAnimatorComponent가
+	// shared_ptr<const AnimationClip>를 직접 넘기게 되면 이 경로는 제거 가능하다.
+	AddClip(std::make_shared<AnimationClip>(clip));
 }
 
 bool CAnimator::HasClip(const std::string& name) const
@@ -77,8 +91,8 @@ bool CAnimator::HasClip(const std::string& name) const
 
 bool CAnimator::Play(const std::string& clipName, bool loop, float startTime)
 {
-    AnimationClip* clip = FindClipPtr(clipName);
-    if (!clip) return false;
+	const AnimationClip* clip = FindClipPtr(clipName);
+	if ( !clip ) return false;
 
     m_CurrentClipName = clipName;
     m_fCurrentTime = startTime;
@@ -123,7 +137,7 @@ void CAnimator::UpdateTimeOnly(float dt)
 	if ( !m_bPlaying )
 		return;
 
-	AnimationClip* cur = FindClipPtr(m_CurrentClipName);
+	const AnimationClip* cur = FindClipPtr(m_CurrentClipName);
 	if ( !cur )
 		return;
 
@@ -137,7 +151,7 @@ void CAnimator::UpdateTimeOnly(float dt)
 		return;
 	}
 
-	AnimationClip* nxt = FindClipPtr(m_NextClipName);
+	const AnimationClip* nxt = FindClipPtr(m_NextClipName);
 
 	if ( !nxt )
 	{
@@ -182,7 +196,7 @@ void CAnimator::EvaluateCurrentPoseOnly()
 	if ( !m_bPlaying )
 		return;
 
-	AnimationClip* cur = FindClipPtr(m_CurrentClipName);
+	const AnimationClip* cur = FindClipPtr(m_CurrentClipName);
 	if ( !cur )
 		return;
 
@@ -200,7 +214,7 @@ void CAnimator::EvaluateCurrentPoseOnly()
 		return;
 	}
 
-	AnimationClip* nxt = FindClipPtr(m_NextClipName);
+	const AnimationClip* nxt = FindClipPtr(m_NextClipName);
 
 	if ( !nxt )
 	{
@@ -234,26 +248,31 @@ void CAnimator::EvaluateCurrentPoseOnly()
 	BuildGlobalAndFinalFromLocal();
 }
 
-AnimationClip* CAnimator::FindClipPtr(const std::string& name)
+const AnimationClip* CAnimator::FindClipPtr(const std::string& name) const
 {
-    auto it = m_Clips.find(name);
-    if (it == m_Clips.end()) return nullptr;
-    return &it->second;
+	auto it = m_Clips.find(name);
+	if ( it == m_Clips.end() )
+		return nullptr;
+
+	if ( !it->second )
+		return nullptr;
+
+	return it->second.get();
 }
 
-void CAnimator::AdvanceTime(AnimationClip* clip, float& time, float dt, bool loop)
+void CAnimator::AdvanceTime(const AnimationClip* clip, float& time, float dt, bool loop)
 {
-    if (!clip) return;
-    time += dt;
+	if ( !clip ) return;
+	time += dt;
 
-    if (clip->duration <= 0.0f) { time = 0.0f; return; }
+	if ( clip->duration <= 0.0f ) { time = 0.0f; return; }
 
-    if (time >= clip->duration)
-    {
-        if (loop) time = fmodf(time, clip->duration);
-        else      time = clip->duration;
-    }
-    if (time < 0.0f) time = 0.0f;
+	if ( time >= clip->duration )
+	{
+		if ( loop ) time = fmodf(time, clip->duration);
+		else      time = clip->duration;
+	}
+	if ( time < 0.0f ) time = 0.0f;
 }
 
 void CAnimator::BlendLocalPosesTRS(const std::vector<XMFLOAT4X4>& A,
@@ -541,7 +560,7 @@ void CAnimator::BuildUpperBodyBoneWeights(const std::string& rootBoneName)
 
 bool CAnimator::PlayUpperBodyOverlay(const std::string& clipName, bool loop, float startTime, float blendTimeSec)
 {
-    AnimationClip* clip = FindClipPtr(clipName);
+	const AnimationClip* clip = FindClipPtr(clipName);
     if (!clip) return false;
     if (m_Skeleton.empty()) return false;
 
@@ -612,7 +631,7 @@ void CAnimator::UpdateUpperBodyOverlayTimeOnly(float dt)
 	if ( !m_bUpperBodyOverlay )
 		return;
 
-	AnimationClip* overlay = FindClipPtr(m_UpperBodyClipName);
+	const  AnimationClip* overlay = FindClipPtr(m_UpperBodyClipName);
 
 	if ( !overlay )
 	{
@@ -662,7 +681,7 @@ void CAnimator::ApplyUpperBodyOverlayToCurrentPoseOnly()
 	if ( !m_bUpperBodyOverlay )
 		return;
 
-	AnimationClip* overlay = FindClipPtr(m_UpperBodyClipName);
+	const  AnimationClip* overlay = FindClipPtr(m_UpperBodyClipName);
 
 	if ( !overlay )
 	{
@@ -920,7 +939,7 @@ bool CAnimator::GetGlobalBoneMatrix(int boneIndex, XMFLOAT4X4& outMatrix) const
 
 bool CAnimator::CrossFade(const std::string& nextClipName, float blendTimeSec, bool loop, float startTime)
 {
-    AnimationClip* next = FindClipPtr(nextClipName);
+	const AnimationClip* next = FindClipPtr(nextClipName);
     if (!next) return false;
 
     if (!m_bPlaying || m_CurrentClipName.empty())
@@ -984,51 +1003,67 @@ const std::vector<XMFLOAT4X4>& CAnimator::GetFinalBoneMatrices() const
 
 float CAnimator::GetClipDuration(const std::string& clipName) const
 {
-	auto it = m_Clips.find(clipName);
-	if ( it == m_Clips.end() ) return 0.0f;
-	return it->second.duration;
+	const AnimationClip* clip = FindClipPtr(clipName);
+	if ( !clip )
+		return 0.0f;
+
+	return clip->duration;
 }
 
 float CAnimator::GetCurrentClipDuration() const
 {
-    auto it = m_Clips.find(m_CurrentClipName);
-    if (it == m_Clips.end()) return 0.0f;
-    return it->second.duration;
+	const AnimationClip* clip = FindClipPtr(m_CurrentClipName);
+	if ( !clip )
+		return 0.0f;
+
+	return clip->duration;
 }
 
 float CAnimator::GetUpperBodyOverlayDuration() const
 {
-    auto it = m_Clips.find(m_UpperBodyClipName);
-    if (it == m_Clips.end()) return 0.0f;
-    return it->second.duration;
+	const AnimationClip* clip = FindClipPtr(m_UpperBodyClipName);
+	if ( !clip )
+		return 0.0f;
+
+	return clip->duration;
 }
 
 bool CAnimator::IsCurrentClipFinished(float eps) const
 {
-    if (!m_bPlaying) return false;
-    if (m_bLoop) return false; // loop면 "끝" 개념 없음
+	if ( !m_bPlaying )
+		return false;
 
-    auto it = m_Clips.find(m_CurrentClipName);
-    if (it == m_Clips.end()) return false;
+	if ( m_bLoop )
+		return false; // loop면 "끝" 개념 없음
 
-    const float dur = it->second.duration;
-    if (dur <= 0.0f) return true;
+	const AnimationClip* clip = FindClipPtr(m_CurrentClipName);
+	if ( !clip )
+		return false;
 
-    // AdvanceTime에서 non-loop는 time을 duration으로 clamp하므로,
-    // duration - eps 이상이면 끝으로 본다.
-    return (m_fCurrentTime >= (dur - eps));
+	const float dur = clip->duration;
+	if ( dur <= 0.0f )
+		return true;
+
+	// AdvanceTime에서 non-loop는 time을 duration으로 clamp하므로,
+	// duration - eps 이상이면 끝으로 본다.
+	return ( m_fCurrentTime >= ( dur - eps ) );
 }
 
 bool CAnimator::IsUpperBodyOverlayFinished(float eps) const
 {
-    if (!m_bUpperBodyOverlay) return false;
-    if (m_bUpperBodyLoop) return false;
+	if ( !m_bUpperBodyOverlay )
+		return false;
 
-    auto it = m_Clips.find(m_UpperBodyClipName);
-    if (it == m_Clips.end()) return false;
+	if ( m_bUpperBodyLoop )
+		return false;
 
-    const float dur = it->second.duration;
-    if (dur <= 0.0f) return true;
+	const AnimationClip* clip = FindClipPtr(m_UpperBodyClipName);
+	if ( !clip )
+		return false;
 
-    return (m_fUpperBodyTime >= (dur - eps));
+	const float dur = clip->duration;
+	if ( dur <= 0.0f )
+		return true;
+
+	return ( m_fUpperBodyTime >= ( dur - eps ) );
 }

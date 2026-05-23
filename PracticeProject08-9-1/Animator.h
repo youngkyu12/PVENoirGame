@@ -6,6 +6,8 @@
 #include "stdafx.h"
 #include "AnimatorData.h"
 
+#include <memory>
+
 /*
     ============================================================
     CAnimator
@@ -19,14 +21,18 @@
 class CAnimator
 {
 public:
-    CAnimator() = default;
-    ~CAnimator() = default;
+	using AnimationClipRef = std::shared_ptr<const AnimationClip>;
 
 public:
-    void SetSkeleton(const std::vector<Bone>& bones,
-        const std::unordered_map<std::string, int>& boneNameToIndex);
+	CAnimator() = default;
+	~CAnimator() = default;
 
-    void AddClip(const AnimationClip& clip);
+public:
+	void SetSkeleton(const std::vector<Bone>& bones,
+		const std::unordered_map<std::string, int>& boneNameToIndex);
+
+	void AddClip(AnimationClipRef clip);
+	void AddClip(const AnimationClip& clip);
 
     bool Play(const std::string& clipName, bool loop = true, float startTime = 0.0f);
     void SetTime(float timeSec);
@@ -76,10 +82,10 @@ public:
     void ClearVisualYawOffset();
 
 private:
-    AnimationClip* FindClipPtr(const std::string& name);
+	const AnimationClip* FindClipPtr(const std::string& name) const;
 
-    void AdvanceTime(AnimationClip* clip, float& time, float dt, bool loop);
-    void BuildGlobalAndFinalFromLocal();
+	void AdvanceTime(const AnimationClip* clip, float& time, float dt, bool loop); 
+	void BuildGlobalAndFinalFromLocal();
 
     // LocalPose(A/B)는 행렬을 TRS로 분해 후 (T,S는 lerp / R은 slerp)로 블렌딩한다.
     void BlendLocalPosesTRS(const std::vector<XMFLOAT4X4>& A,
@@ -102,11 +108,11 @@ private:
     void ApplyVisualYawOffsetToLocalPose();
 
 private:
-    std::vector<Bone> m_Skeleton;
+	std::vector<Bone> m_Skeleton;
 
-    std::unordered_map<std::string, AnimationClip> m_Clips;
+	std::unordered_map<std::string, AnimationClipRef> m_Clips;
 
-    std::string m_CurrentClipName;
+	std::string m_CurrentClipName;
 
     float m_fCurrentTime = 0.0f;
     bool  m_bPlaying = false;
