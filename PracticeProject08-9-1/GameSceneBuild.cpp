@@ -101,6 +101,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_bLocalPlayerDead = false;
 	m_bLocalPlayerRespawnUsed = false;
 	m_localPlayerRespawnTimer = 0.0f;
+	ResetBossPoisonProjectileState();
 
 #ifdef USING_NETWORK
 	m_prevPlayerNetworkStateCode.clear();

@@ -137,6 +137,30 @@ struct MuzzleFlashEntry
 	XMFLOAT4 color = XMFLOAT4(1.0f, 0.62f, 0.10f, 1.0f);
 };
 
+struct BossPoisonProjectileEntry
+{
+	bool active = false;
+
+	CGameObject* owner = nullptr;
+
+	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT3 direction = XMFLOAT3(0.0f, 0.0f, 1.0f);
+	XMFLOAT3 velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	// 중앙 보라색 구체 기준.
+	float coreDiameter = 4.0f;
+	float coreRadius = 2.0f;
+
+	// 나중에 렌더링 단계에서 녹색 가스 외곽 billboard 크기로 사용.
+	float gasDiameter = 6.0f;
+
+	float speed = 18.0f;
+
+	// 플레이어와 충돌해도 사라지지 않으므로,
+	// 이후 다단히트 방지용으로 슬롯별 hit 기록을 둘 수 있게 미리 둔다.
+	std::array<bool, 4> hitPlayerSlots = { false, false, false, false };
+};
+
 struct SwordTrailVertex
 {
 	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
@@ -564,6 +588,16 @@ private:
 		float previousRadius,
 		float currentRadius
 	);
+
+	void ResetBossPoisonProjectileState();
+
+	bool UpdateBossPoisonProjectileDebugInput(UCHAR* pKeysBuffer);
+
+	void UpdateBossPoisonProjectileSpellCasts(float dt);
+	void SpawnBossPoisonProjectile(CGameObject* boss);
+	void UpdateBossPoisonProjectiles(float dt);
+
+	BossPoisonProjectileEntry* AcquireFreeBossPoisonProjectileEntry();
 
 	CGameObject* FindBossStageBossInMegaGrid(int megaGridNumber) const;
 	
@@ -1432,6 +1466,47 @@ private:
 	float m_bossShockwavePrevRadius = 0.0f;
 	float m_bossShockwavePlayerInitialDistance = 0.0f;
 	XMFLOAT3 m_bossShockwavePlayerPushDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
+
+	static constexpr UINT  kBossPoisonProjectileMaxCount = 8;
+
+	static constexpr float kBossPoisonProjectileCoreDiameter = 4.0f;
+	static constexpr float kBossPoisonProjectileCoreRadius = 2.0f;
+	static constexpr float kBossPoisonProjectileGasDiameter = 6.0f;
+
+	static constexpr float kBossPoisonProjectileDefaultLaunchDelaySec = 0.35f;
+	static constexpr float kBossPoisonProjectileDefaultLaunchHeight = 3.0f;
+	static constexpr float kBossPoisonProjectileDefaultSpeed = 18.0f;
+	static constexpr float kBossPoisonProjectileForwardOffset = 4.0f;
+
+	static constexpr float kBossPoisonProjectileDelayStep = 0.025f;
+	static constexpr float kBossPoisonProjectileHeightStep = 0.10f;
+
+	static constexpr float kBossPoisonProjectileStageHalfExtent = 110.0f;
+
+	struct BossPoisonSpellCastState
+	{
+		bool wasSpellPhase = false;
+		bool pendingFire = false;
+		bool fired = false;
+		float spellAgeSec = 0.0f;
+	};
+
+	std::vector<BossPoisonProjectileEntry> m_bossPoisonProjectiles;
+	std::unordered_map<CGameObject*, BossPoisonSpellCastState> m_bossPoisonSpellCastStates;
+
+	float m_bossPoisonProjectileLaunchDelaySec =
+		kBossPoisonProjectileDefaultLaunchDelaySec;
+
+	float m_bossPoisonProjectileLaunchHeight =
+		kBossPoisonProjectileDefaultLaunchHeight;
+
+	float m_bossPoisonProjectileSpeed =
+		kBossPoisonProjectileDefaultSpeed;
+
+	bool m_bPrevBossPoisonDelayDecKeyDown = false;
+	bool m_bPrevBossPoisonDelayIncKeyDown = false;
+	bool m_bPrevBossPoisonHeightIncKeyDown = false;
+	bool m_bPrevBossPoisonHeightDecKeyDown = false;
 
 	struct BossStageBossPositionState
 	{

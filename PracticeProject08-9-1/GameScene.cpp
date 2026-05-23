@@ -77,6 +77,7 @@ CGameScene::CGameScene()
 	m_bossShockwavePrevRadius = 0.0f;
 	m_bossShockwavePlayerInitialDistance = 0.0f;
 	m_bossShockwavePlayerPushDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
+	ResetBossPoisonProjectileState();
 
 	m_bBossSummonSequenceStarted = false;
 	m_bBossSummonCircleFadeAgeSec = 0.0f;
@@ -119,6 +120,7 @@ CGameScene::CGameScene()
 	m_bossShockwavePrevRadius = 0.0f;
 	m_bossShockwavePlayerInitialDistance = 0.0f;
 	m_bossShockwavePlayerPushDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
+	ResetBossPoisonProjectileState();
 
 	m_bBossSummonSequenceStarted = false;
 	m_bBossSummonCircleFadeAgeSec = 0.0f;
@@ -2376,6 +2378,23 @@ void CGameScene::ReleaseObjects()
 	m_bossShockwavePrevRadius = 0.0f;
 	m_bossShockwavePlayerInitialDistance = 0.0f;
 	m_bossShockwavePlayerPushDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
+
+	m_bossPoisonProjectiles.clear();
+	m_bossPoisonSpellCastStates.clear();
+
+	m_bossPoisonProjectileLaunchDelaySec =
+		kBossPoisonProjectileDefaultLaunchDelaySec;
+
+	m_bossPoisonProjectileLaunchHeight =
+		kBossPoisonProjectileDefaultLaunchHeight;
+
+	m_bossPoisonProjectileSpeed =
+		kBossPoisonProjectileDefaultSpeed;
+
+	m_bPrevBossPoisonDelayDecKeyDown = false;
+	m_bPrevBossPoisonDelayIncKeyDown = false;
+	m_bPrevBossPoisonHeightIncKeyDown = false;
+	m_bPrevBossPoisonHeightDecKeyDown = false;
 
 	m_bBossStageBossActivated = false;
 	m_bBossSummonSequenceStarted = false;
@@ -6045,8 +6064,17 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 		m_bPrevLocalMonsterChaseToggleKeyDown = false;
 		m_bPrevDebugDamageMegaGrid5KeyDown = false;
 		m_bPrevLocalStageTeleportKeyDown.fill(false);
+
+		m_bPrevBossPoisonDelayDecKeyDown = false;
+		m_bPrevBossPoisonDelayIncKeyDown = false;
+		m_bPrevBossPoisonHeightIncKeyDown = false;
+		m_bPrevBossPoisonHeightDecKeyDown = false;
+
 		return false;
 	}
+
+	if ( UpdateBossPoisonProjectileDebugInput(pKeysBuffer) )
+		return true;
 
 	// ---------------------------------------------------------------------
 	// Q: 로컬 몬스터 추적 on/off
@@ -6714,6 +6742,11 @@ void CGameScene::AnimateObjects(float dt)
 
 		obj->Animate(dt);
 	}
+
+#ifndef USING_NETWORK
+	UpdateBossPoisonProjectileSpellCasts(dt);
+	UpdateBossPoisonProjectiles(dt);
+#endif
 
 	UpdateDynamicGridState();
 
