@@ -284,6 +284,8 @@ CBossAIComponent::CBossAIComponent(CGameObject* owner)
 	m_bossSpellCooldownRemaining = 0.0f;
 
 	m_bBossWasMeleeActionPlaying = false;
+	m_bBossHitReactionPolicyConfigured = false;
+
 	m_bBossOpeningSpellPending = true;
 	m_bBossOpeningSpellRequested = false;
 	m_bossOpeningSpellRequestAgeSec = 0.0f;
@@ -332,8 +334,32 @@ bool CBossAIComponent::AcquireTarget()
 	return true;
 }
 
+void CBossAIComponent::ConfigureBossHitReactionPolicy()
+{
+	if ( m_bBossHitReactionPolicyConfigured )
+		return;
+
+	auto* ctrl = GetMonsterAnimController();
+
+	if ( !ctrl )
+		return;
+
+	// 보스:
+	// 1) action 중에는 Hit 애니메이션으로 캔슬되지 않음.
+	// 2) Hit 애니메이션이 한번 허용되면 일정 시간 동안 추가 Hit 애니메이션 무시.
+	// 3) 이건 애니메이션만 막는 슈퍼아머이며, 대미지는 그대로 받음.
+	ctrl->SetHitReactionPolicy(
+		true,
+		kBossHitReactionAnimSuperArmorSec
+	);
+
+	m_bBossHitReactionPolicyConfigured = true;
+}
+
 void CBossAIComponent::UpdateBehavior(float dt)
 {
+	ConfigureBossHitReactionPolicy();
+
 	UpdateBossCooldowns(dt);
 
 	if ( !HasValidTarget() )

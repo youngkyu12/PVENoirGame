@@ -43,7 +43,7 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 	m_bCanBossStageDirectly = false;
 	m_bSimulateLocalStageTeleport = false;
 #else
-	m_bSimulateLocalPlayerMonsterAttackCollision = false;
+	m_bSimulateLocalPlayerMonsterAttackCollision = true;
 
 	m_bSimulateLocalAI = true;
 
