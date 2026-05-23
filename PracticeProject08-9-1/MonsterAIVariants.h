@@ -119,6 +119,8 @@ private:
 
 private:
 	void UpdateBossCooldowns(float dt);
+	void ConfigureBossHitReactionPolicy();
+
 	bool IsPlayerInsideBossBattleZone(CGameObject* player) const;
 	bool CanStartBossAction() const;
 
@@ -165,6 +167,9 @@ private:
 	float m_bossSpellCooldownRemaining = 0.0f;
 
 	bool m_bBossWasMeleeActionPlaying = false;
+
+	static constexpr float kBossHitReactionAnimSuperArmorSec = 1.0f;
+	bool m_bBossHitReactionPolicyConfigured = false;
 
 	bool m_bBossOpeningSpellPending = true;
 	bool m_bBossOpeningSpellRequested = false;
