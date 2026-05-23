@@ -1503,7 +1503,7 @@ private:
 
 	static constexpr float kBossPoisonProjectileCoreDiameter = 4.0f;
 	static constexpr float kBossPoisonProjectileCoreRadius = 2.0f;
-	static constexpr float kBossPoisonProjectileGasDiameter = 6.0f;
+	static constexpr float kBossPoisonProjectileGasDiameter = 8.0f;
 
 	static constexpr float kBossPoisonProjectileLaunchDelaySec = 1.025f;
 	static constexpr float kBossPoisonProjectileLaunchHeight = 3.3f;
