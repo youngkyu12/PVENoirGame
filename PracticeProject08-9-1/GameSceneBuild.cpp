@@ -1059,7 +1059,7 @@ void CGameScene::BuildStaticBatch(
 			createDesc.addPlayerWeaponHitbox = true;
 
 			createDesc.addAttackPower = true;
-			createDesc.attackPower = kAttackPowerPlayerSword;
+			createDesc.attackPower = GetCurrentPlayerSwordAttackPower();
 
 			auto obj = GameSceneObjectFactory::CreateStaticRenderable(createDesc);
 			if ( !obj )
@@ -1114,7 +1114,7 @@ void CGameScene::BuildStaticBatch(
 			createDesc.addPlayerWeaponHitbox = true;
 
 			createDesc.addAttackPower = true;
-			createDesc.attackPower = kAttackPowerPlayerAxe;
+			createDesc.attackPower = GetCurrentPlayerAxeAttackPower();
 
 			auto obj = GameSceneObjectFactory::CreateStaticRenderable(createDesc);
 			if ( !obj )

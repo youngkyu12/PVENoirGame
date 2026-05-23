@@ -170,10 +170,29 @@ namespace GameSceneHelper
 	// -------------------------------------------------------------------------
 	// Attack power
 	// -------------------------------------------------------------------------
-	static constexpr int kAttackPowerPlayerSword = 10;
-	static constexpr int kAttackPowerPlayerAxe = 15;
-	static constexpr int kAttackPowerPlayerArrow = 15;
-	static constexpr int kAttackPowerPlayerBullet = 8;
+	static constexpr int kPlayerWeaponDamageTierCount = 3;
+	static constexpr int kPlayerWeaponDamageMaxTierIndex = kPlayerWeaponDamageTierCount - 1;
+
+	// tier index: 0=1단계, 1=2단계, 2=3단계
+	static constexpr std::array<int, kPlayerWeaponDamageTierCount> kAttackPowerPlayerArrowByTier =
+	{
+		15, 30, 50
+	};
+
+	static constexpr std::array<int, kPlayerWeaponDamageTierCount> kAttackPowerPlayerBulletByTier =
+	{
+		8, 18, 35
+	};
+
+	static constexpr std::array<int, kPlayerWeaponDamageTierCount> kAttackPowerPlayerAxeByTier =
+	{
+		15, 30, 50
+	};
+
+	static constexpr std::array<int, kPlayerWeaponDamageTierCount> kAttackPowerPlayerSwordByTier =
+	{
+		10, 20, 40
+	};
 
 	static constexpr int kAttackPowerGhoul = 5;
 	static constexpr int kAttackPowerEnemySword = 10;

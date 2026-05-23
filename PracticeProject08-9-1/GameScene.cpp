@@ -146,6 +146,7 @@ CGameScene::CGameScene()
 #ifdef USING_NETWORK
 	m_prevPlayerNetworkStateCode.clear();
 #endif
+	m_playerWeaponDamageTierIndex = 0;
 	m_deadMonsters.clear();
 
 	m_bLocalPlayerInsideCastleCenterMegaGrid = false;
@@ -2293,6 +2294,7 @@ void CGameScene::SetMegaGridApproachZoneSize(int megaX, int megaZ, int widthCell
 void CGameScene::SetMegaGridCleared(int megaX, int megaZ, bool cleared)
 {
 	m_sceneGrid.SetMegaGridCleared(megaX, megaZ, cleared);
+	RefreshPlayerWeaponDamageTierFromClearedMegaGrids();
 }
 
 void CGameScene::SetMegaGridEventOccurred(int megaX, int megaZ, bool occurred)
@@ -2451,6 +2453,7 @@ void CGameScene::ReleaseObjects()
 #ifdef USING_NETWORK
 	m_prevPlayerNetworkStateCode.clear();
 #endif
+	m_playerWeaponDamageTierIndex = 0;
 	m_deadMonsters.clear();
 	m_skinnedMonsterMegaGridNumbers.clear();
 
@@ -4248,9 +4251,9 @@ void CGameScene::RequestPrepareArrow(CGameObject* shooter, float pullBackDistanc
 
         if (arrow->IsActive()) continue;
 
-		SetObjectAttackPower(arrowObj, kAttackPowerPlayerArrow);
+		SetObjectAttackPower(arrowObj, GetCurrentPlayerArrowAttackPower());
 
-		arrow->Prepare(bowObj, shooter, pullBackDistance, true, true);
+		arrow->Prepare(bowObj, shooter, pullBackDistance, true, true); 
 		m_preparedPlayerArrows[( size_t ) slot] = arrowObj;
 		return;
     }
@@ -4652,6 +4655,102 @@ bool CGameScene::IsMonsterDead(const CGameObject* monster) const
 	return false;
 }
 
+int CGameScene::ComputePlayerWeaponDamageTierIndexFromClearedMegaGrids() const
+{
+	int clearedCount = 0;
+
+	for ( int megaNumber = 1; megaNumber <= CSceneGrid::kMegaGridCount; ++megaNumber )
+	{
+		const int zeroBased = megaNumber - 1;
+		const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+		const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+		if ( m_sceneGrid.IsMegaGridCleared(megaX, megaZ) )
+			++clearedCount;
+	}
+
+	return std::clamp(
+		clearedCount,
+		0,
+		kPlayerWeaponDamageMaxTierIndex
+	);
+}
+
+int CGameScene::GetCurrentPlayerSwordAttackPower() const
+{
+	const int tier = std::clamp(
+		m_playerWeaponDamageTierIndex,
+		0,
+		kPlayerWeaponDamageMaxTierIndex
+	);
+
+	return kAttackPowerPlayerSwordByTier[static_cast< size_t >( tier )];
+}
+
+int CGameScene::GetCurrentPlayerAxeAttackPower() const
+{
+	const int tier = std::clamp(
+		m_playerWeaponDamageTierIndex,
+		0,
+		kPlayerWeaponDamageMaxTierIndex
+	);
+
+	return kAttackPowerPlayerAxeByTier[static_cast< size_t >( tier )];
+}
+
+int CGameScene::GetCurrentPlayerArrowAttackPower() const
+{
+	const int tier = std::clamp(
+		m_playerWeaponDamageTierIndex,
+		0,
+		kPlayerWeaponDamageMaxTierIndex
+	);
+
+	return kAttackPowerPlayerArrowByTier[static_cast< size_t >( tier )];
+}
+
+int CGameScene::GetCurrentPlayerBulletAttackPower() const
+{
+	const int tier = std::clamp(
+		m_playerWeaponDamageTierIndex,
+		0,
+		kPlayerWeaponDamageMaxTierIndex
+	);
+
+	return kAttackPowerPlayerBulletByTier[static_cast< size_t >( tier )];
+}
+
+void CGameScene::RefreshPlayerWeaponAttackPowers()
+{
+	const int swordDamage = GetCurrentPlayerSwordAttackPower();
+	const int axeDamage = GetCurrentPlayerAxeAttackPower();
+	const int arrowDamage = GetCurrentPlayerArrowAttackPower();
+	const int bulletDamage = GetCurrentPlayerBulletAttackPower();
+
+	for ( CGameObject* obj : m_PlayerSwordRefs )
+		SetObjectAttackPower(obj, swordDamage);
+
+	for ( CGameObject* obj : m_PlayerAxeRefs )
+		SetObjectAttackPower(obj, axeDamage);
+
+	for ( CGameObject* obj : m_preparedPlayerArrows )
+		SetObjectAttackPower(obj, arrowDamage);
+
+	for ( CGameObject* obj : m_bulletRefs )
+		SetObjectAttackPower(obj, bulletDamage);
+}
+
+void CGameScene::RefreshPlayerWeaponDamageTierFromClearedMegaGrids()
+{
+	const int newTier = ComputePlayerWeaponDamageTierIndexFromClearedMegaGrids();
+
+	if ( newTier == m_playerWeaponDamageTierIndex )
+		return;
+
+	m_playerWeaponDamageTierIndex = newTier;
+	RefreshPlayerWeaponAttackPowers();
+}
+
 void CGameScene::MarkMegaGridClearedByNumber(int megaGridNumber)
 {
 	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
@@ -4665,6 +4764,7 @@ void CGameScene::MarkMegaGridClearedByNumber(int megaGridNumber)
 		return;
 
 	m_sceneGrid.SetMegaGridCleared(megaX, megaZ, true);
+	RefreshPlayerWeaponDamageTierFromClearedMegaGrids();
 }
 
 bool CGameScene::AreAllMonstersInMegaGridDead(int megaGridNumber) const
@@ -5948,7 +6048,9 @@ void CGameScene::RequestFireArrow(CGameObject* shooter, float speed, float lifeS
         auto* arrow = arrowObj->GetComponent<CArrowComponent>();
         if (!arrow) continue;
 
-        if (arrow->IsActive()) continue;
+		if ( arrow->IsActive() ) continue;
+
+		SetObjectAttackPower(arrowObj, GetCurrentPlayerArrowAttackPower());
 
 		arrow->Activate(startPos, vel, lifeSec, true);
 		return;
@@ -5980,7 +6082,7 @@ void CGameScene::RequestFireBullet(CGameObject* shooter, float speed, float life
 		if ( !bullet ) continue;
 		if ( bullet->IsActive() ) continue;
 
-		SetObjectAttackPower(bulletObj, kAttackPowerPlayerBullet);
+		SetObjectAttackPower(bulletObj, GetCurrentPlayerBulletAttackPower());
 
 		if ( bullet->FireFromObjects(spawnSource, directionSource, speed, lifeSec, true) )
 		{
