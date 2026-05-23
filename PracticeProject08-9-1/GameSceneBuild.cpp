@@ -219,9 +219,39 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_PlayerAxeCount = m_PlayerCount;
 	m_PlayerGunCount = m_PlayerCount;
 
-	m_helmetCount = m_MutantCount;
+#ifndef USING_NETWORK
+	m_EnemySpawnGhoulCount =
+		kEnemySpawnerMega6GhoulCount +
+		kEnemySpawnerMega8GhoulCount +
+		kEnemySpawnerMega5GhoulCount;
 
-	m_EnemySpawnCount = 200;
+	m_EnemySpawnBowManCount = kEnemySpawnerMega5BowManCount;
+	m_EnemySpawnSwordManCount = kEnemySpawnerMega5SwordManCount;
+	m_EnemySpawnMutantCount = kEnemySpawnerMega5MutantCount;
+
+	m_EnemySpawnCount =
+		m_EnemySpawnGhoulCount +
+		m_EnemySpawnBowManCount +
+		m_EnemySpawnSwordManCount +
+		m_EnemySpawnMutantCount;
+
+	// 스포너 몬스터도 실제 CGameObject 풀로 미리 만들어야 하므로
+	// 타입별 총량에 더한다.
+	// 단, 실제 기본 배치 루프는 spawn file 개수만 돌고,
+	// 스포너 풀은 별도 루프에서 생성한다.
+	m_ghoulCount += m_EnemySpawnGhoulCount;
+	m_bowManCount += m_EnemySpawnBowManCount;
+	m_swordManCount += m_EnemySpawnSwordManCount;
+	m_MutantCount += m_EnemySpawnMutantCount;
+#else
+	m_EnemySpawnGhoulCount = 0;
+	m_EnemySpawnBowManCount = 0;
+	m_EnemySpawnSwordManCount = 0;
+	m_EnemySpawnMutantCount = 0;
+	m_EnemySpawnCount = 0;
+#endif
+
+	m_helmetCount = m_MutantCount;
 	m_terrainCount = 1;
 
 #ifdef USING_NETWORK
@@ -249,8 +279,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		m_bossCount +
 		m_PlayerCount +
 		m_PlayerBowCount +
-		m_bowManCount +
-		m_EnemySpawnCount;
+		m_bowManCount;
 
 	m_colliderBatch.capacity = m_staticBatch.capacity + m_skinnedBatch.capacity;
 
@@ -373,8 +402,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	if ( !m_enemySpawner )
 		m_enemySpawner = std::make_unique<EnemySpawner>();
 
-	m_enemySpawner->Initialize(m_EnemySpawnRefs);
-	m_enemySpawnAccumulatorSec = 0.0f;
+	m_enemySpawner->Initialize(m_enemySpawnPoolEntries);
 #endif
 
 	for ( const SkinnedComponentCache& cache : m_skinnedComponentCache )
@@ -1590,7 +1618,7 @@ void CGameScene::BuildSkinnedBatch(
 	const XMFLOAT3 playerBase(0.0f, 0.0f, -150.0f);
 
 	m_ghoulRefs.clear();
-	m_ghoulRefs.reserve(m_ghoulCount + m_EnemySpawnCount);
+	m_ghoulRefs.reserve(m_ghoulCount);
 
 	m_swordManRefs.clear();
 	m_swordManRefs.reserve(m_swordManCount);
@@ -1600,6 +1628,12 @@ void CGameScene::BuildSkinnedBatch(
 
 	m_MutantRefs.clear();
 	m_MutantRefs.reserve(m_MutantCount);
+
+	m_EnemySpawnRefs.clear();
+	m_EnemySpawnRefs.reserve(m_EnemySpawnCount);
+
+	m_enemySpawnPoolEntries.clear();
+	m_enemySpawnPoolEntries.reserve(m_EnemySpawnCount);
 
 	m_bossRefs.clear();
 	m_bossRefs.reserve(m_bossCount);
@@ -1645,6 +1679,29 @@ void CGameScene::BuildSkinnedBatch(
 	UINT enemyIndex = 0;
 
 #ifndef USING_NETWORK
+	auto RegisterEnemySpawnerPoolObject =
+		[ this ](
+			CGameObject* raw,
+			EEnemySpawnerEnemyKind kind,
+			int megaGridNumber,
+			const XMFLOAT3& spawnPosition)
+		{
+			if ( !raw )
+				return;
+
+			raw->SetActive(false);
+
+			m_EnemySpawnRefs.push_back(raw);
+
+			EnemySpawnerPoolEntry entry{};
+			entry.object = raw;
+			entry.kind = kind;
+			entry.megaGridNumber = megaGridNumber;
+			entry.spawnPosition = spawnPosition;
+
+			m_enemySpawnPoolEntries.push_back(entry);
+		};
+
 	auto GatherLocalMonsterSpawns = [ this ] (const char* typeName)
 		{
 			std::vector<const MonsterSpawnEntry*> result;
@@ -1683,7 +1740,6 @@ void CGameScene::BuildSkinnedBatch(
 		const UINT countW = m_ghoulCount;
 #else
 		const UINT countW = static_cast< UINT >( ghoulSpawns.size() );
-		const UINT countEnemySpawn = m_EnemySpawnCount;
 #endif
 
 		const auto& ghoulClips = GetGhoulClipEntries();
@@ -1814,87 +1870,95 @@ void CGameScene::BuildSkinnedBatch(
 			m_ghoulRefs.push_back(raw);
 		}
 #ifndef USING_NETWORK
-		for ( UINT k = 0; k < countEnemySpawn; ++k )
-		{
-			if ( b->objectRefs.size() >= b->capacity ) break;
+		auto CreateEnemySpawnGhoulPool =
+			[ & ] (int megaGridNumber, UINT count)
+			{
+				for ( UINT k = 0; k < count; ++k )
+				{
+					if ( b->objectRefs.size() >= b->capacity )
+						break;
 
-			const UINT i = ( UINT ) b->objectRefs.size();
+					const UINT i = static_cast< UINT >(b->objectRefs.size());
 
-			XMFLOAT3 pos{};
-			float yaw = 180.0f;
+					const XMFLOAT3 pos =
+						ComputeEnemySpawnerSpawnPosition(megaGridNumber, k, count);
 
+					const float yaw = 180.0f;
 
+					GameSceneObjectFactory::SkinnedRenderableDesc createDesc{};
+					createDesc.ctx = MakeSkinnedContext(i);
+					createDesc.mesh = ghoulBaseMesh;
+					createDesc.position = pos;
+					createDesc.yawDeg = yaw;
 
-			if ( k >= m_EnemySpawnCount )
-				break;
+					ApplyMonsterBodyCollider(createDesc);
 
+					createDesc.addAnimator = true;
+					createDesc.addActorTag = true;
+					createDesc.actorKind = EActorKind::NPC;
+					createDesc.playerControl = EPlayerControl::None;
+					createDesc.playerSlot = -1;
 
-			GameSceneObjectFactory::SkinnedRenderableDesc createDesc{};
-			createDesc.ctx = MakeSkinnedContext(i);
-			createDesc.mesh = ghoulBaseMesh;
-			createDesc.position = pos;
-			createDesc.yawDeg = yaw;
+					createDesc.addMonsterCombat = true;
+					createDesc.addMonsterWeaponHitbox = true;
 
-			ApplyMonsterBodyCollider(createDesc);
+					createDesc.addHealth = true;
+					createDesc.maxHp = kHpGhoul;
 
-			createDesc.addAnimator = true;
-			createDesc.addActorTag = true;
-			createDesc.actorKind = EActorKind::NPC;
-			createDesc.playerControl = EPlayerControl::None;
-			createDesc.playerSlot = -1;
+					createDesc.addAttackPower = true;
+					createDesc.attackPower = kAttackPowerGhoul;
 
-			createDesc.addMonsterCombat = true;
-			createDesc.addMonsterWeaponHitbox = true;
+					createDesc.skeletonKey = "Ghoul";
+					createDesc.clipEntries = &ghoulClips;
 
-			createDesc.addHealth = true;
-			createDesc.maxHp = kHpGhoul;
+					createDesc.initMonsterController = true;
+					createDesc.monsterInitialState = EMonsterAnimState::Idle;
+					createDesc.monsterProfile.idleClip = "Idle";
+					createDesc.monsterProfile.moveClip = "Walk";
+					createDesc.monsterProfile.runClip = "Run";
+					createDesc.monsterProfile.hitClip = "Hit";
+					createDesc.monsterProfile.attackClip = "Attack";
+					createDesc.monsterProfile.deathClip = "Death";
 
-			createDesc.addAttackPower = true;
-			createDesc.attackPower = kAttackPowerGhoul;
+					createDesc.useOwnerBoneWeaponCapsules = true;
+					createDesc.monsterWeaponConfigs.push_back(
+						{ "Attack", 0.20f, 0.55f, { "hand_r" } }
+					);
 
-			createDesc.skeletonKey = "Ghoul";
-			createDesc.clipEntries = &ghoulClips;
+					auto obj = GameSceneObjectFactory::CreateSkinnedRenderable(createDesc);
+					if ( !obj )
+						continue;
 
-			createDesc.initMonsterController = true;
-			createDesc.monsterInitialState = EMonsterAnimState::Idle;
-			createDesc.monsterProfile.idleClip = "Idle";
-			createDesc.monsterProfile.moveClip = "Walk";
-			createDesc.monsterProfile.runClip = "Run";
-			createDesc.monsterProfile.hitClip = "Hit";
-			createDesc.monsterProfile.attackClip = "Attack";
-			createDesc.monsterProfile.deathClip = "Death";
+					AttachMonsterAIToMonster(obj, ELocalMonsterAIKind::Ghoul);
 
-			createDesc.useOwnerBoneWeaponCapsules = true;
-			createDesc.monsterWeaponConfigs.push_back(
-				{ "Attack", 0.20f, 0.55f, { "hand_r" } }
-			);
+					CGameObject* raw = obj.get();
 
-			auto obj = GameSceneObjectFactory::CreateSkinnedRenderable(createDesc);
-			if ( !obj )
-				continue;
+					RegisterMonsterToMegaGrid(raw, pos, i);
 
-#ifndef USING_NETWORK
-			AttachMonsterAIToMonster(obj, ELocalMonsterAIKind::Ghoul);
-#endif
+					RegisterSkinnedCullEntry(
+						raw, i, "Ghoul", pos,
+						ghoulLodMeshes, true,
+						35.0f, 90.0f, 120.0f
+					);
 
-			++enemyIndex;
+					RegisterEnemySpawnerPoolObject(
+						raw,
+						EEnemySpawnerEnemyKind::Ghoul,
+						megaGridNumber,
+						pos
+					);
 
-			CGameObject* raw = obj.get();
+					m_skinnedObjects.push_back(std::move(obj));
+					b->objectRefs.push_back(raw);
+					b->count = static_cast< UINT >( b->objectRefs.size() );
 
-			RegisterMonsterToMegaGrid(raw, pos, i);
+					m_ghoulRefs.push_back(raw);
+				}
+			};
 
-			RegisterSkinnedCullEntry(
-				raw, i, "Ghoul", pos,
-				ghoulLodMeshes, true,
-				35.0f, 90.0f, 120.0f
-			);
-
-			m_skinnedObjects.push_back(std::move(obj));
-			m_EnemySpawnRefs.push_back(raw);
-			m_ghoulRefs.push_back(raw);
-			b->objectRefs.push_back(raw);
-			b->count = ( UINT ) b->objectRefs.size();
-		}
+		CreateEnemySpawnGhoulPool(6, kEnemySpawnerMega6GhoulCount);
+		CreateEnemySpawnGhoulPool(8, kEnemySpawnerMega8GhoulCount);
+		CreateEnemySpawnGhoulPool(5, kEnemySpawnerMega5GhoulCount);
 #endif
 	}
 
@@ -2006,6 +2070,91 @@ void CGameScene::BuildSkinnedBatch(
 
 			m_swordManRefs.push_back(raw);
 		}
+#ifndef USING_NETWORK
+		auto CreateEnemySpawnSwordManPool =
+			[ & ] (int megaGridNumber, UINT count)
+			{
+				for ( UINT k = 0; k < count; ++k )
+				{
+					if ( b->objectRefs.size() >= b->capacity )
+						break;
+
+					const UINT i = static_cast< UINT >(b->objectRefs.size());
+
+					const XMFLOAT3 pos =
+						ComputeEnemySpawnerSpawnPosition(megaGridNumber, k, count);
+
+					const float yaw = 180.0f;
+
+					GameSceneObjectFactory::SkinnedRenderableDesc createDesc{};
+					createDesc.ctx = MakeSkinnedContext(i);
+					createDesc.mesh = swordManAsset.mesh;
+					createDesc.position = pos;
+					createDesc.yawDeg = yaw;
+
+					ApplyMonsterBodyCollider(createDesc);
+
+					createDesc.addAnimator = true;
+					createDesc.addActorTag = true;
+					createDesc.actorKind = EActorKind::NPC;
+					createDesc.playerControl = EPlayerControl::None;
+					createDesc.playerSlot = -1;
+
+					createDesc.addMonsterCombat = true;
+
+					createDesc.addHealth = true;
+					createDesc.maxHp = kHpSwordMan;
+
+					createDesc.skeletonKey = "EnemySword";
+					createDesc.clipEntries = &swordClips;
+
+					createDesc.initMonsterController = true;
+					createDesc.monsterInitialState = EMonsterAnimState::Idle;
+					createDesc.monsterProfile.idleClip = "Idle";
+					createDesc.monsterProfile.moveClip = "Walk";
+					createDesc.monsterProfile.runClip = "Run";
+					createDesc.monsterProfile.hitClip = "Hit";
+					createDesc.monsterProfile.attackClip = "Attack";
+					createDesc.monsterProfile.deathClip = "Death";
+
+					auto obj = GameSceneObjectFactory::CreateSkinnedRenderable(createDesc);
+					if ( !obj )
+						continue;
+
+					AttachMonsterAIToMonster(obj, ELocalMonsterAIKind::SwordMan);
+
+					CGameObject* raw = obj.get();
+
+					RegisterMonsterToMegaGrid(raw, pos, i);
+
+					std::array<std::shared_ptr<CMesh>, 3> noLodMeshes =
+					{
+						swordManAsset.mesh, nullptr, nullptr
+					};
+
+					RegisterSkinnedCullEntry(
+						raw, i, "SwordMan", pos,
+						noLodMeshes, false,
+						0.0f, 0.0f, 90.0f
+					);
+
+					RegisterEnemySpawnerPoolObject(
+						raw,
+						EEnemySpawnerEnemyKind::SwordMan,
+						megaGridNumber,
+						pos
+					);
+
+					m_skinnedObjects.push_back(std::move(obj));
+					b->objectRefs.push_back(raw);
+					b->count = static_cast< UINT >( b->objectRefs.size() );
+
+					m_swordManRefs.push_back(raw);
+				}
+			};
+
+		CreateEnemySpawnSwordManPool(5, kEnemySpawnerMega5SwordManCount);
+#endif
 	}
 
 	// ------------------------------------------------------------------------
@@ -2119,6 +2268,93 @@ void CGameScene::BuildSkinnedBatch(
 
 			m_bowManRefs.push_back(raw);
 		}
+#ifndef USING_NETWORK
+		auto CreateEnemySpawnBowManPool =
+			[ & ] (int megaGridNumber, UINT count)
+			{
+				for ( UINT k = 0; k < count; ++k )
+				{
+					if ( b->objectRefs.size() >= b->capacity )
+						break;
+
+					const UINT i = static_cast< UINT >(b->objectRefs.size());
+
+					const XMFLOAT3 pos =
+						ComputeEnemySpawnerSpawnPosition(megaGridNumber, k, count);
+
+					const float yaw = 180.0f;
+
+					GameSceneObjectFactory::SkinnedRenderableDesc createDesc{};
+					createDesc.ctx = MakeSkinnedContext(i);
+					createDesc.mesh = bowManAsset.mesh;
+					createDesc.position = pos;
+					createDesc.yawDeg = yaw;
+
+					ApplyMonsterBodyCollider(createDesc);
+
+					createDesc.addAnimator = true;
+					createDesc.addActorTag = true;
+					createDesc.actorKind = EActorKind::NPC;
+					createDesc.playerControl = EPlayerControl::None;
+					createDesc.playerSlot = -1;
+
+					createDesc.addMonsterCombat = true;
+
+					createDesc.addHealth = true;
+					createDesc.maxHp = kHpBowMan;
+
+					createDesc.skeletonKey = "EnemyBow";
+					createDesc.clipEntries = &bowManClips;
+
+					createDesc.initMonsterController = true;
+					createDesc.monsterInitialState = EMonsterAnimState::Idle;
+					createDesc.monsterProfile.idleClip = "Idle";
+					createDesc.monsterProfile.moveClip = "Walk";
+					createDesc.monsterProfile.runClip = "Run";
+					createDesc.monsterProfile.hitClip = "Hit";
+					createDesc.monsterProfile.deathClip = "Death";
+					createDesc.monsterProfile.attackClip = "Bow_Load";
+					createDesc.monsterProfile.attackNextClip = "Bow_Release";
+					createDesc.monsterProfile.attackHasChain = true;
+
+					auto obj = GameSceneObjectFactory::CreateSkinnedRenderable(createDesc);
+					if ( !obj )
+						continue;
+
+					AttachMonsterAIToMonster(obj, ELocalMonsterAIKind::BowMan);
+
+					CGameObject* raw = obj.get();
+
+					RegisterMonsterToMegaGrid(raw, pos, i);
+
+					std::array<std::shared_ptr<CMesh>, 3> noLodMeshes =
+					{
+						bowManAsset.mesh, nullptr, nullptr
+					};
+
+					RegisterSkinnedCullEntry(
+						raw, i, "BowMan", pos,
+						noLodMeshes, false,
+						0.0f, 0.0f, 100.0f
+					);
+
+					RegisterEnemySpawnerPoolObject(
+						raw,
+						EEnemySpawnerEnemyKind::BowMan,
+						megaGridNumber,
+						pos
+					);
+
+					m_skinnedObjects.push_back(std::move(obj));
+					b->objectRefs.push_back(raw);
+					b->count = static_cast< UINT >( b->objectRefs.size() );
+
+					m_bowManRefs.push_back(raw);
+				}
+			};
+
+		CreateEnemySpawnBowManPool(5, kEnemySpawnerMega5BowManCount);
+#endif
 	}
 
 	// ------------------------------------------------------------------------
@@ -2244,6 +2480,100 @@ void CGameScene::BuildSkinnedBatch(
 
 			m_MutantRefs.push_back(raw);
 		}
+#ifndef USING_NETWORK
+		auto CreateEnemySpawnMutantPool =
+			[ & ] (int megaGridNumber, UINT count)
+			{
+				for ( UINT k = 0; k < count; ++k )
+				{
+					if ( b->objectRefs.size() >= b->capacity )
+						break;
+
+					const UINT i = static_cast< UINT >(b->objectRefs.size());
+
+					const XMFLOAT3 pos =
+						ComputeEnemySpawnerSpawnPosition(megaGridNumber, k, count);
+
+					const float yaw = 180.0f;
+
+					GameSceneObjectFactory::SkinnedRenderableDesc createDesc{};
+					createDesc.ctx = MakeSkinnedContext(i);
+					createDesc.mesh = mutantAsset.mesh;
+					createDesc.position = pos;
+					createDesc.yawDeg = yaw;
+
+					ApplyMonsterBodyCollider(createDesc);
+
+					createDesc.addAnimator = true;
+					createDesc.addActorTag = true;
+					createDesc.actorKind = EActorKind::NPC;
+					createDesc.playerControl = EPlayerControl::None;
+					createDesc.playerSlot = -1;
+
+					createDesc.addMonsterCombat = true;
+					createDesc.addMonsterWeaponHitbox = true;
+
+					createDesc.addHealth = true;
+					createDesc.maxHp = kHpMutant;
+
+					createDesc.addAttackPower = true;
+					createDesc.attackPower = kAttackPowerMutant;
+
+					createDesc.skeletonKey = "Mutant";
+					createDesc.clipEntries = &mutantClips;
+
+					createDesc.initMonsterController = true;
+					createDesc.monsterInitialState = EMonsterAnimState::Idle;
+					createDesc.monsterProfile.idleClip = "Idle";
+					createDesc.monsterProfile.moveClip = "Walk";
+					createDesc.monsterProfile.runClip = "Run";
+					createDesc.monsterProfile.hitClip = "Hit";
+					createDesc.monsterProfile.attackClip = "Attack";
+					createDesc.monsterProfile.deathClip = "Death";
+
+					createDesc.useOwnerBoneWeaponCapsules = true;
+					createDesc.monsterWeaponConfigs.push_back(
+						{ "Attack", 0.20f, 0.55f, { "CATRigRArmPalm" } }
+					);
+
+					auto obj = GameSceneObjectFactory::CreateSkinnedRenderable(createDesc);
+					if ( !obj )
+						continue;
+
+					AttachMonsterAIToMonster(obj, ELocalMonsterAIKind::Mutant);
+
+					CGameObject* raw = obj.get();
+
+					RegisterMonsterToMegaGrid(raw, pos, i);
+
+					std::array<std::shared_ptr<CMesh>, 3> noLodMeshes =
+					{
+						mutantAsset.mesh, nullptr, nullptr
+					};
+
+					RegisterSkinnedCullEntry(
+						raw, i, "Mutant", pos,
+						noLodMeshes, false,
+						0.0f, 0.0f, 110.0f
+					);
+
+					RegisterEnemySpawnerPoolObject(
+						raw,
+						EEnemySpawnerEnemyKind::Mutant,
+						megaGridNumber,
+						pos
+					);
+
+					m_skinnedObjects.push_back(std::move(obj));
+					b->objectRefs.push_back(raw);
+					b->count = static_cast< UINT >( b->objectRefs.size() );
+
+					m_MutantRefs.push_back(raw);
+				}
+			};
+
+		CreateEnemySpawnMutantPool(5, kEnemySpawnerMega5MutantCount);
+#endif
 	}
 
 	// ------------------------------------------------------------------------
