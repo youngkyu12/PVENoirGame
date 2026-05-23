@@ -34,7 +34,7 @@ public:
 	void SetTarget(CGameObject* target);
 	CGameObject* GetTarget() const { return m_pTarget; }
 
-	bool ForceChaseTarget(CGameObject* target);
+	virtual bool ForceChaseTarget(CGameObject* target);
 
 	void ClearTarget();
 	void StopChaseAndReturnHome();

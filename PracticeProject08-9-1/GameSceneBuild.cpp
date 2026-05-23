@@ -1432,6 +1432,7 @@ void CGameScene::BuildSkinnedBatch(
 	enum class ELocalMonsterAIKind
 	{
 		Ghoul,
+		EnemySpawnerGhoul,
 		SwordMan,
 		BowMan,
 		Mutant,
@@ -1447,6 +1448,9 @@ void CGameScene::BuildSkinnedBatch(
 			switch ( kind )
 			{
 			case ELocalMonsterAIKind::Ghoul:
+				return m_bSimulateLocalGhoulAI;
+
+			case ELocalMonsterAIKind::EnemySpawnerGhoul:
 				return m_bSimulateLocalGhoulAI;
 
 			case ELocalMonsterAIKind::BowMan:
@@ -1487,6 +1491,20 @@ void CGameScene::BuildSkinnedBatch(
 					return;
 
 				auto* ai = obj->AddComponent<CGhoulAIComponent>();
+				if ( ai )
+				{
+					ai->SetScene(this);
+					ai->SetEnabledAI(true);
+				}
+				break;
+			}
+
+			case ELocalMonsterAIKind::EnemySpawnerGhoul:
+			{
+				if ( obj->GetComponent<CEnemySpawnerGhoulAIComponent>() )
+					return;
+
+				auto* ai = obj->AddComponent<CEnemySpawnerGhoulAIComponent>();
 				if ( ai )
 				{
 					ai->SetScene(this);
@@ -1930,9 +1948,25 @@ void CGameScene::BuildSkinnedBatch(
 					if ( !obj )
 						continue;
 
-					AttachMonsterAIToMonster(obj, ELocalMonsterAIKind::Ghoul);
+					const bool useSpawnerRushGhoulAI =
+						( megaGridNumber == 6 || megaGridNumber == 8 );
+
+					AttachMonsterAIToMonster(
+						obj,
+						useSpawnerRushGhoulAI
+							? ELocalMonsterAIKind::EnemySpawnerGhoul
+							: ELocalMonsterAIKind::Ghoul
+					);
 
 					CGameObject* raw = obj.get();
+
+					if ( useSpawnerRushGhoulAI )
+					{
+						if ( auto* ai = raw->GetComponent<CEnemySpawnerGhoulAIComponent>() )
+						{
+							ai->ConfigureSpawnerGhoulAI(megaGridNumber, 60.0f);
+						}
+					}
 
 					RegisterMonsterToMegaGrid(raw, pos, i);
 

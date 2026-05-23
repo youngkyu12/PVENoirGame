@@ -2199,6 +2199,12 @@ void CGameScene::StopMonsterChaseAndReturnHome(CGameObject* monster) const
 	if ( IsMonsterDead(monster) )
 		return;
 
+	if ( auto* ai = monster->GetComponent<CEnemySpawnerGhoulAIComponent>() )
+	{
+		ai->ClearTarget();
+		return;
+	}
+
 	auto StopAI =
 		[ ] (CMonsterAIComponent* ai) -> bool
 		{
@@ -4456,6 +4462,9 @@ bool CGameScene::ForceMonsterAIChaseTarget(CGameObject* monster, CGameObject* ta
 {
 	if ( !monster || !target )
 		return false;
+
+	if ( auto* ai = monster->GetComponent<CEnemySpawnerGhoulAIComponent>() )
+		return ai->ForceChaseTarget(target);
 
 	if ( auto* ai = monster->GetComponent<CGhoulAIComponent>() )
 		return ai->ForceChaseTarget(target);
