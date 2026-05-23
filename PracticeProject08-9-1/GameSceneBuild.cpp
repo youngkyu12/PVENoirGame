@@ -1762,7 +1762,17 @@ void CGameScene::BuildSkinnedBatch(
 			if ( !raw )
 				return;
 
+			XMFLOAT3 inactivePosition = spawnPosition;
+			inactivePosition.y = kEnemySpawnerInactiveY;
+
 			raw->SetActive(false);
+			raw->SetPosition(inactivePosition);
+
+			if ( auto* collider = raw->GetComponent<CColliderComponent>() )
+			{
+				collider->SetEnabled(false);
+				collider->UpdateWorldBounds();
+			}
 
 			m_EnemySpawnRefs.push_back(raw);
 
@@ -1770,6 +1780,10 @@ void CGameScene::BuildSkinnedBatch(
 			entry.object = raw;
 			entry.kind = kind;
 			entry.megaGridNumber = megaGridNumber;
+
+			// 중요:
+			// entry.spawnPosition은 실제 활성화 위치로 남겨야 한다.
+			// 여기를 inactivePosition으로 넣으면 SpawnMegaGrid() 때 -100에서 생성된다.
 			entry.spawnPosition = spawnPosition;
 
 			m_enemySpawnPoolEntries.push_back(entry);

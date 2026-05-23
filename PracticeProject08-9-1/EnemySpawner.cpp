@@ -25,11 +25,17 @@ void EnemySpawner::Initialize(const std::vector<EnemySpawnerPoolEntry>& spawnObj
 		if ( !enemy )
 			continue;
 
+		DirectX::XMFLOAT3 inactivePosition = entry.spawnPosition;
+		inactivePosition.y = -100.0f;
+
 		enemy->SetActive(false);
-		enemy->SetPosition(entry.spawnPosition);
+		enemy->SetPosition(inactivePosition);
 
 		if ( auto* collider = enemy->GetComponent<CColliderComponent>() )
+		{
+			collider->SetEnabled(false);
 			collider->UpdateWorldBounds();
+		}
 
 		m_freeList.push_back(i);
 	}
@@ -204,7 +210,19 @@ void EnemySpawner::RemoveEnemy(CGameObject* enemy)
 		if ( m_spawnEntries[i].object != enemy )
 			continue;
 
+		DirectX::XMFLOAT3 inactivePosition =
+			m_spawnEntries[i].spawnPosition;
+
+		inactivePosition.y = -100.0f;
+
 		enemy->SetActive(false);
+		enemy->SetPosition(inactivePosition);
+
+		if ( auto* collider = enemy->GetComponent<CColliderComponent>() )
+		{
+			collider->SetEnabled(false);
+			collider->UpdateWorldBounds();
+		}
 
 		auto activeIt = std::find(
 			m_activeEnemies.begin(),
