@@ -60,12 +60,8 @@ float4 MakeBossSummonGlowColor(float2 uv, float4 materialDiffuse)
     float2 p = uv * 2.0f - 1.0f;
     float r = length(p);
 
-    // 원 밖은 완전 제거.
-    // 0.0 ~ 0.72: 비교적 균일한 연두색 빛
-    // 0.72 ~ 1.0: 가장자리로 갈수록 부드럽게 사라짐
     float circleMask = 1.0f - smoothstep(0.72f, 1.0f, r);
 
-    // 중심부를 살짝 더 밝게. 너무 세면 바닥 전체가 덮이므로 약하게.
     float centerBoost = 1.0f - smoothstep(0.0f, 0.85f, r);
     float intensity = 0.75f + centerBoost * 0.25f;
 
@@ -365,8 +361,6 @@ float4 PSMuzzleFlashProcedural(
 
         alpha = saturate(shape * fade * input.color.a);
 
-        // 불꽃 팔레트:
-        // 중심은 노란 불꽃, 중간은 주황, 외곽은 붉은 불꽃.
         float radial = saturate(r);
 
         float3 hotYellow = float3(1.0f, 0.78f, 0.22f);
@@ -385,10 +379,8 @@ float4 PSMuzzleFlashProcedural(
             smoothstep(0.55f, 1.0f, radial)
         );
 
-        // 입력 색상으로 약간 tint만 준다.
         color *= lerp(float3(1.0f, 1.0f, 1.0f), input.color.rgb, 0.20f);
 
-        // additive 포화로 하얘지는 것을 줄이기 위해 상한을 둔다.
         color *= min(intensity, 1.55f);
     }
     else if (kind < 1.5f)
@@ -441,7 +433,6 @@ float4 PSMuzzleFlashProcedural(
 
         color = lerp(sparkOrange, sparkYellow, sparkHot);
 
-        // 입력 색상 반영은 약하게. 너무 많이 곱하면 다시 하얘질 수 있음.
         color *= lerp(float3(1.0f, 1.0f, 1.0f), input.color.rgb, 0.25f);
         color *= min(intensity, 1.30f);
     }
@@ -451,7 +442,6 @@ float4 PSMuzzleFlashProcedural(
         float2 q = p;
 
         float angle = atan2(p.y, p.x);
-        // seed 기반으로 모양을 약간 찌그러뜨린다.
         float wobble =
         0.82f +
         0.18f * sin(angle * 5.0f + seed * 11.37f) +
@@ -462,7 +452,6 @@ float4 PSMuzzleFlashProcedural(
         float blob = saturate(1.0f - rr * 1.55f);
         blob = pow(blob, 0.55f);
 
-        // 중심보다 한쪽에 살짝 뭉친 핏방울 느낌.
         float lobe =
         saturate(1.0f - length(float2(q.x * 1.5f, q.y * 2.4f + 0.35f)) * 1.5f);
 
@@ -476,7 +465,6 @@ float4 PSMuzzleFlashProcedural(
         float3 darkBlood = float3(0.18f, 0.0f, 0.0f);
         float3 redBlood = input.color.rgb;
 
-        // 중심은 조금 더 선명한 붉은색, 가장자리는 어둡게.
         color = lerp(darkBlood, redBlood, saturate(shape * 1.4f));
         color *= input.params0.y;
 
@@ -491,7 +479,6 @@ float4 PSMuzzleFlashProcedural(
 
         float angle = atan2(q.y, q.x);
 
-        // 너무 별 모양/스파크처럼 보이지 않게, 낮은 주파수로 크게 찌그러뜨린다.
         float wobble =
         0.84f +
         0.12f * sin(angle * 3.0f + seed * 7.31f) +
@@ -499,11 +486,9 @@ float4 PSMuzzleFlashProcedural(
 
         float rr = r / max(wobble, 0.22f);
 
-        // 중심이 강한 점처럼 찍히지 않게 body를 완만하게 만든다.
         float body =
         1.0f - smoothstep(0.05f, 0.82f, rr);
 
-        // 바깥쪽 연무 영역을 넓게 잡는다.
         float softEdge =
         1.0f - smoothstep(0.46f, 1.18f, rr);
 
@@ -519,11 +504,8 @@ float4 PSMuzzleFlashProcedural(
 
         float fade = saturate(1.0f - ageRatio);
 
-        // 처음에는 비교적 진하고, 끝으로 갈수록 부드럽게 사라진다.
-        // fade^2는 너무 빨리 꺼져서 큰 가스가 남는 느낌이 약하므로 조금 완만하게 한다.
         float softFade = fade * (0.65f + 0.35f * fade);
 
-        // 중심부를 밝게 찍지 않고, 넓은 softEdge 위주로 alpha를 만든다.
         alpha =
         saturate(
             (body * 0.28f + softEdge * 0.62f) *
@@ -539,7 +521,6 @@ float4 PSMuzzleFlashProcedural(
         float3 darkGreen = float3(0.010f, 0.145f, 0.012f);
         float3 dustGreen = input.color.rgb;
 
-        // 중심부도 밝은 형광으로 가지 않게 한다.
         color =
         lerp(
             veryDarkGreen,
@@ -554,52 +535,40 @@ float4 PSMuzzleFlashProcedural(
             saturate(body * 0.35f + center * 0.12f)
         );
 
-        // intensity도 낮게 들어오지만, 셰이더에서도 상한을 더 낮춘다.
         color *= min(intensity, 0.65f);
     }
     else
     {
         // boss melee slash
-        // quad UV는 아래쪽이 uv.y=1이므로 p.y를 뒤집어
-        // q.y=-1이 실제 월드 아래, q.y=+1이 실제 월드 위가 되게 한다.
         float2 q = float2(p.x, -p.y);
 
         const float PI = 3.14159265f;
 
-        // q.y 기준으로 아래(-1) -> 위(+1)
         float t = saturate((q.y + 0.92f) / 1.84f);
 
-        // 보스 기준 좌하단 -> 우상단으로 강하게 기울어진 중심선.
-        // 기존보다 x 이동량을 크게 늘려서 수직 기둥처럼 보이지 않게 한다.
         float curveX =
-        -0.92f +
-        1.62f * t +
-        0.18f * sin(t * PI) -
-        0.04f * t * t;
+            -0.92f +
+            1.62f * t +
+            0.18f * sin(t * PI) -
+            0.04f * t * t;
 
         float curveY =
-        -0.92f +
-        1.84f * t;
+            -0.92f +
+            1.84f * t;
 
         float2 curvePos = float2(curveX, curveY);
         float2 d = q - curvePos;
 
-        // 칼날 거리 계산.
-        // x/y 비율을 조절해서 대각선으로 넓게 솟는 덩어리감을 만든다.
         d.x *= 0.72f;
         d.y *= 0.82f;
         
-        // 현재 두께의 약 2/3.
-        // 이전 값: lerp(0.60, 0.24, t), root add 0.20
         float bladeWidth =
         lerp(0.40f, 0.16f, t);
 
-        // 지면에서 솟는 뿌리 부분은 유지하되, 기존보다 얇게.
         bladeWidth +=
             0.13f *
             (1.0f - smoothstep(0.00f, 0.32f, t));
 
-        // 끝부분은 살짝만 얇게.
         bladeWidth *=
             1.0f -
             0.34f * smoothstep(0.76f, 1.0f, t);
@@ -622,7 +591,6 @@ float4 PSMuzzleFlashProcedural(
             distToBlade
         );
 
-        // 우상단 갈고리/꼬리.
         float2 tipLocal =
         q - float2(0.78f, 0.74f);
 
@@ -642,8 +610,6 @@ float4 PSMuzzleFlashProcedural(
         bladeBody = max(bladeBody, tipHook * 0.72f);
         bladeCore = max(bladeCore, tipHook * 0.42f);
 
-        // 좌하단 -> 우상단 방향 reveal.
-        // q.y만 쓰면 수직으로 켜지므로, q.x를 섞어서 대각선 진행 방향을 만든다.
         float slashCoord =
         saturate(
             (q.y + q.x * 0.62f + 1.55f) / 3.10f
@@ -745,8 +711,6 @@ VS_MUZZLE_FLASH_BILLBOARD_OUTPUT VSBossPoisonProjectileBillboardInstanced(
         input.instWorld3
     );
 
-    // 독가스 투사체는 수명 기반 grow를 쓰지 않는다.
-    // CPU 쪽 gasDiameter가 곧 실제 billboard 지름이다.
     float3 localPos = input.position.xyz;
 
     float3 positionW =
@@ -775,13 +739,9 @@ float4 PSBossPoisonProjectileProcedural(
     float gasDiameter = max(input.params0.z, coreDiameter + 0.001f);
     float seed = input.params0.w;
 
-    // p-space에서 r=1은 gas billboard 반지름.
-    // coreDiameter / gasDiameter == coreRadius / gasRadius.
     float coreRadiusUv = saturate(coreDiameter / gasDiameter);
 
-    // ---------------------------------------------------------------------
     // 1. 보라색 코어
-    // ---------------------------------------------------------------------
     float coreEdgeNoise =
         0.030f *
         (
@@ -792,7 +752,6 @@ float4 PSBossPoisonProjectileProcedural(
 
     float noisyCoreRadius = coreRadiusUv + coreEdgeNoise;
 
-    // 중심부는 확실히 보라색으로 남긴다.
     float coreInner =
         1.0f - smoothstep(
             noisyCoreRadius * 0.38f,
@@ -800,7 +759,6 @@ float4 PSBossPoisonProjectileProcedural(
             r
         );
 
-    // 가장자리는 넓게 흐린다.
     float coreOuter =
         1.0f - smoothstep(
             noisyCoreRadius * 0.64f,
@@ -818,7 +776,6 @@ float4 PSBossPoisonProjectileProcedural(
             r
         );
 
-    // 기존보다 어둡지만, 너무 죽지 않게 채도는 남긴다.
     float3 coreColorDark = float3(0.14f, 0.018f, 0.26f);
     float3 coreColorMid = float3(0.44f, 0.080f, 0.62f);
 
@@ -829,14 +786,8 @@ float4 PSBossPoisonProjectileProcedural(
             saturate(coreCenter * 0.58f + coreOuter * 0.16f)
         );
 
-    // ---------------------------------------------------------------------
-    // 2. 연속형 초록 독가스
-    //
-    // 기존처럼 8개/4개 blob을 max로 찍지 않는다.
-    // 그 방식이 각져 보이는 원인이다.
-    // 여기서는 연속적인 sin-noise 층으로 가스를 만든다.
-    // ---------------------------------------------------------------------
-    float n1 =
+     // 2. 연속형 초록 독가스
+     float n1 =
         sin(p.x * 5.7f + seed * 1.91f) *
         sin(p.y * 4.9f - seed * 1.17f);
 
@@ -855,12 +806,8 @@ float4 PSBossPoisonProjectileProcedural(
             n3 * 0.09f
         );
 
-    // 노이즈를 너무 날카롭게 쓰지 말고 부드럽게 만든다.
     cloudNoise = smoothstep(0.22f, 0.92f, cloudNoise);
 
-    // 가스를 중앙 쪽으로 더 모은다.
-    // r=0 근처부터 r=0.8 근처까지 넓게 존재하지만,
-    // 바깥쪽만 강한 고리처럼 보이지 않게 한다.
     float centeredGas =
         1.0f - smoothstep(
             0.10f,
@@ -878,23 +825,15 @@ float4 PSBossPoisonProjectileProcedural(
     float gasShape =
         saturate(centeredGas * 0.72f + outerGas * 0.42f);
 
-    // 바깥 경계는 부드럽게 제거.
     float outerFade =
         1.0f - smoothstep(0.96f, 1.10f, r);
 
     gasShape *= outerFade;
 
-    // 기본 가스 alpha.
     float gasAlpha =
         saturate(gasShape * cloudNoise * 0.70f);
 
-    // ---------------------------------------------------------------------
     // 3. 코어 위에 올라오는 앞쪽 가스 베일
-    //
-    // 별도의 각진 blob을 만들지 않고,
-    // 코어 영역 위에 부드러운 반투명 베일을 얹는다.
-    // 이 값이 보라색을 완전히 죽이면 안 된다.
-    // ---------------------------------------------------------------------
     float veilNoise =
         saturate(
             0.55f +
@@ -915,9 +854,7 @@ float4 PSBossPoisonProjectileProcedural(
     float frontVeilAlpha =
         saturate(veilArea * veilNoise * 0.18f);
 
-    // ---------------------------------------------------------------------
     // 4. 색상
-    // ---------------------------------------------------------------------
     float gasShade =
         saturate(
             0.70f +
@@ -935,14 +872,7 @@ float4 PSBossPoisonProjectileProcedural(
             gasShade
         );
 
-    // ---------------------------------------------------------------------
     // 5. 최종 합성
-    //
-    // 핵심:
-    // - coreAlpha가 높은 중앙부에서는 gas가 약하게만 섞인다.
-    // - coreAlpha가 낮은 외곽에서는 gas가 강하게 보인다.
-    // - frontVeil은 코어 위를 살짝 덮지만 보라색을 죽이지 않는다.
-    // ---------------------------------------------------------------------
     float gasOverCoreSuppression =
         lerp(1.0f, 0.16f, coreAlpha);
 
@@ -1021,8 +951,6 @@ float4 PSSwordTrailProcedural(VS_SWORD_TRAIL_OUTPUT input) : SV_TARGET
 
     clip(alpha - 0.002f);
 
-    // 기존처럼 완전 흰색 core로 가지 않고,
-    // 입력 색을 밝게 만든 정도로만 중심부를 만든다.
     float3 baseColor = saturate(input.color.rgb);
 
     float3 edgeColor = baseColor * 0.55f;
@@ -1030,7 +958,6 @@ float4 PSSwordTrailProcedural(VS_SWORD_TRAIL_OUTPUT input) : SV_TARGET
 
     float3 color = lerp(edgeColor, coreColor, center);
 
-    // 검 끝 쪽 강조도 색을 유지한 채 밝기만 조금 올린다.
     color *= lerp(0.85f, 1.15f, headBoost);
 
     return float4(color, alpha);

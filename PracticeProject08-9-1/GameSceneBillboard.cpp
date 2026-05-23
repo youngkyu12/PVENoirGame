@@ -1578,7 +1578,7 @@ void CGameScene::SpawnBossMeleeSlashEffect(CGameObject* boss)
 
 			// 시작점을 기존보다 조금 더 보스 기준 왼쪽으로 보낸다.
 			// 너무 왼쪽이면 -0.35f 정도로 줄이고, 더 왼쪽이면 -0.80f 정도로 키워라.
-			constexpr float kBossMeleeSlashRootLeftExtraOffset = -0.55f;
+			constexpr float kBossMeleeSlashRootLeftExtraOffset = -1.85f;
 
 			// 시작점을 바닥 위가 아니라 바닥 아래에서 시작하게 만든다.
 			// bossPos.y가 지면 기준이면 root가 약 1.20m 아래에서 시작한다.
@@ -1681,14 +1681,6 @@ void CGameScene::SpawnBossMeleeSlashEffect(CGameObject* boss)
 		31.7f
 	);
 
-	char buf[256];
-	sprintf_s(
-		buf,
-		"[BossMeleeSlash][Spawn] boss=%p delay=%.4f sec\n",
-		static_cast< void* >( boss ),
-		m_bossMeleeSlashLaunchDelaySec
-	);
-	OutputDebugStringA(buf);
 #else
 	UNREFERENCED_PARAMETER(boss);
 #endif
@@ -2807,8 +2799,8 @@ void CGameScene::UpdateBossMeleeSlashCasts(float dt)
 		}
 
 		if ( state.pendingSpawn &&
-			 !state.spawned &&
-			 state.meleeAgeSec >= m_bossMeleeSlashLaunchDelaySec )
+			!state.spawned &&
+			 state.meleeAgeSec >= kBossMeleeSlashLaunchDelaySec )
 		{
 			SpawnBossMeleeSlashEffect(boss);
 
