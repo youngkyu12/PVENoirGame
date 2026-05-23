@@ -490,6 +490,144 @@ float4 PSMuzzleFlashProcedural(
     return float4(color, alpha);
 }
 
+VS_MUZZLE_FLASH_BILLBOARD_OUTPUT VSBossPoisonProjectileBillboardInstanced(
+    VS_MUZZLE_FLASH_BILLBOARD_INPUT input)
+{
+    VS_MUZZLE_FLASH_BILLBOARD_OUTPUT output;
+
+    float4x4 mtxInstanceWorld = float4x4(
+        input.instWorld0,
+        input.instWorld1,
+        input.instWorld2,
+        input.instWorld3
+    );
+
+    // 독가스 투사체는 수명 기반 grow를 쓰지 않는다.
+    // CPU 쪽 gasDiameter가 곧 실제 billboard 지름이다.
+    float3 localPos = input.position.xyz;
+
+    float3 positionW =
+        (float3) mul(float4(localPos, 1.0f), mtxInstanceWorld);
+
+    output.position =
+        mul(mul(float4(positionW, 1.0f), gmtxView), gmtxProjection);
+
+    output.uv = input.uv;
+    output.color = input.instColor;
+    output.params0 = input.instParams0;
+    output.params1 = input.instParams1;
+
+    return output;
+}
+
+float4 PSBossPoisonProjectileProcedural(
+    VS_MUZZLE_FLASH_BILLBOARD_OUTPUT input) : SV_TARGET
+{
+    float2 p = input.uv * 2.0f - 1.0f;
+
+    float r = length(p);
+    float angle = atan2(p.y, p.x);
+
+    float coreDiameter = max(input.params0.y, 0.001f);
+    float gasDiameter = max(input.params0.z, coreDiameter + 0.001f);
+    float seed = input.params0.w;
+
+    // p-space에서 r=1은 gas billboard 반지름.
+    // coreDiameter / gasDiameter == coreRadius / gasRadius.
+    float coreRadiusUv = saturate(coreDiameter / gasDiameter);
+
+    // ---------------------------------------------------------------------
+    // 녹색 독가스 외곽
+    // ---------------------------------------------------------------------
+    float wobble =
+        0.88f +
+        0.08f * sin(angle * 5.0f + seed * 1.73f) +
+        0.05f * sin(angle * 11.0f - seed * 0.91f) +
+        0.03f * sin((p.x + p.y) * 19.0f + seed * 0.37f);
+
+    float gasR = r / max(wobble, 0.25f);
+
+    float gasBody =
+        1.0f - smoothstep(0.58f, 1.00f, gasR);
+
+    float gasOuterSoft =
+        1.0f - smoothstep(0.78f, 1.05f, gasR);
+
+    // 중앙 보라 구체와 완전히 같은 영역에 녹색이 덮이지 않게 약하게 비운다.
+    float gasHole =
+        smoothstep(coreRadiusUv * 0.62f, coreRadiusUv * 0.98f, r);
+
+    float gasNoise =
+        0.82f +
+        0.18f * sin(p.x * 21.0f + seed * 2.11f) *
+        sin(p.y * 17.0f - seed * 1.41f);
+
+    float gasAlpha =
+        gasBody *
+        gasOuterSoft *
+        gasHole *
+        gasNoise *
+        0.58f;
+
+    gasAlpha = saturate(gasAlpha);
+
+    // ---------------------------------------------------------------------
+    // 중앙 보라색 구체
+    // ---------------------------------------------------------------------
+    float coreSolid =
+        1.0f - smoothstep(
+            coreRadiusUv * 0.62f,
+            coreRadiusUv * 0.86f,
+            r
+        );
+
+    float coreSoft =
+        1.0f - smoothstep(
+            coreRadiusUv * 0.82f,
+            coreRadiusUv * 1.05f,
+            r
+        );
+
+    float coreHighlight =
+        1.0f - smoothstep(
+            0.0f,
+            coreRadiusUv * 0.48f,
+            length(p - float2(-0.18f, 0.20f))
+        );
+
+    float coreAlpha =
+        saturate(coreSolid * 0.95f + coreSoft * 0.35f);
+
+    float3 coreColor =
+        lerp(
+            float3(0.25f, 0.04f, 0.38f),
+            float3(0.56f, 0.16f, 0.76f),
+            saturate(coreSoft + coreHighlight * 0.28f)
+        );
+
+    float3 gasColor =
+        lerp(
+            float3(0.05f, 0.34f, 0.09f),
+            float3(0.24f, 0.82f, 0.18f),
+            saturate(gasNoise)
+        );
+
+    float outAlpha = max(coreAlpha, gasAlpha);
+
+    float coreWeight =
+        coreAlpha / max(coreAlpha + gasAlpha, 0.001f);
+
+    float3 outColor =
+        lerp(gasColor, coreColor, saturate(coreWeight));
+
+    // 전체 alpha 계수.
+    outAlpha *= input.color.a;
+
+    clip(outAlpha - 0.004f);
+
+    return float4(outColor, saturate(outAlpha));
+}
+
 // -----------------------------------------------------------------------------
 // Sword / Axe Trail Billboard Ribbon
 // -----------------------------------------------------------------------------

@@ -156,6 +156,9 @@ struct BossPoisonProjectileEntry
 
 	float speed = 18.0f;
 
+	// 가스 외곽 procedural 흔들림용.
+	float visualSeed = 0.0f;
+
 	// 플레이어와 충돌해도 사라지지 않으므로,
 	// 이후 다단히트 방지용으로 슬롯별 hit 기록을 둘 수 있게 미리 둔다.
 	std::array<bool, 4> hitPlayerSlots = { false, false, false, false };
@@ -593,9 +596,18 @@ private:
 
 	bool UpdateBossPoisonProjectileDebugInput(UCHAR* pKeysBuffer);
 
+	void BuildBossPoisonProjectileBatch(
+		ID3D12Device* dev,
+		ID3D12GraphicsCommandList* cmd,
+		DXGI_FORMAT dsvFormat
+	);
+
+	void ReleaseBossPoisonProjectileGpuResources();
+
 	void UpdateBossPoisonProjectileSpellCasts(float dt);
 	void SpawnBossPoisonProjectile(CGameObject* boss);
 	void UpdateBossPoisonProjectiles(float dt);
+	void RenderBossPoisonProjectiles(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 	BossPoisonProjectileEntry* AcquireFreeBossPoisonProjectileEntry();
 
@@ -976,6 +988,12 @@ private:
 	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dMuzzleFlashInstanceBuffer;
 	std::array<MuzzleFlashInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedMuzzleFlashInstanceBuffer = {};
 	UINT m_muzzleFlashInstanceBufferCapacity = 0;
+
+	std::shared_ptr<CBossPoisonProjectileBillboardShader> m_bossPoisonProjectileShader;
+
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dBossPoisonProjectileInstanceBuffer;
+	std::array<MuzzleFlashInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedBossPoisonProjectileInstanceBuffer = {};
+	UINT m_bossPoisonProjectileInstanceBufferCapacity = 0;
 
 	static constexpr UINT kSwordTrailMaxCount = 16;
 	static constexpr UINT kSwordTrailMaxSamples = 12;

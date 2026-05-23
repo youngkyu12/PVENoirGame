@@ -2478,6 +2478,8 @@ void CGameScene::ReleaseObjects()
 	m_muzzleFlashShader.reset();
 	m_muzzleFlashes.clear();
 
+	m_bossPoisonProjectileShader.reset();
+
 	m_swordTrailShader.reset();
 	m_swordTrails.clear();
 
@@ -2528,6 +2530,7 @@ void CGameScene::ReleaseUploadBuffers()
 void CGameScene::ReleaseShaderVariables()
 {
 	ReleaseItemBillboardGpuResources();
+	ReleaseBossPoisonProjectileGpuResources();
 	ReleaseStaticOcclusionGpuResources();
 	ReleaseSkinnedOcclusionGpuResources();
 
@@ -7192,6 +7195,11 @@ void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* c
 	if ( m_transparentItemBillboardShader )
 	{
 		RenderTransparentItemBillboards(cmd, camera);
+	}
+
+	if ( m_bossPoisonProjectileShader )
+	{
+		RenderBossPoisonProjectiles(cmd, camera);
 	}
 
 	if ( m_swordTrailShader )

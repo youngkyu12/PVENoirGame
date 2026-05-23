@@ -849,6 +849,7 @@ void CGameScene::BuildItemBillboardBatch(
 		}
 
 		BuildMuzzleFlashBatch(dev, cmd, dsvFormat);
+		BuildBossPoisonProjectileBatch(dev, cmd, dsvFormat);
 		BuildSwordTrailBatch(dev, cmd, dsvFormat);
 		BuildMonsterSwordTrailBatch(dev, cmd, dsvFormat);
 	}
@@ -904,6 +905,63 @@ void CGameScene::BuildMuzzleFlashBatch(
 				nullptr,
 				reinterpret_cast< void** >(
 					&m_pMappedMuzzleFlashInstanceBuffer[frameIndex]
+					)
+			);
+		}
+	}
+}
+
+void CGameScene::BuildBossPoisonProjectileBatch(
+	ID3D12Device* dev,
+	ID3D12GraphicsCommandList* cmd,
+	DXGI_FORMAT dsvFormat)
+{
+	if ( !dev || !cmd )
+		return;
+
+	m_bossPoisonProjectileShader =
+		std::make_shared<CBossPoisonProjectileBillboardShader>();
+
+	DXGI_FORMAT rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+	m_bossPoisonProjectileShader->CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		1,
+		&rtvFormat,
+		dsvFormat
+	);
+
+	if ( m_bossPoisonProjectiles.size() != kBossPoisonProjectileMaxCount )
+		m_bossPoisonProjectiles.resize(kBossPoisonProjectileMaxCount);
+
+	m_bossPoisonProjectileInstanceBufferCapacity =
+		kBossPoisonProjectileMaxCount;
+
+	const UINT instanceBufferBytes =
+		sizeof(MuzzleFlashInstanceVertex) *
+		m_bossPoisonProjectileInstanceBufferCapacity;
+
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+	{
+		m_pd3dBossPoisonProjectileInstanceBuffer[frameIndex] =
+			::CreateBufferResource(
+				dev,
+				cmd,
+				nullptr,
+				instanceBufferBytes,
+				D3D12_HEAP_TYPE_UPLOAD,
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				nullptr
+			);
+
+		if ( m_pd3dBossPoisonProjectileInstanceBuffer[frameIndex] )
+		{
+			m_pd3dBossPoisonProjectileInstanceBuffer[frameIndex]->Map(
+				0,
+				nullptr,
+				reinterpret_cast< void** >(
+					&m_pMappedBossPoisonProjectileInstanceBuffer[frameIndex]
 					)
 			);
 		}
@@ -1038,6 +1096,27 @@ void CGameScene::ReleaseMuzzleFlashGpuResources()
 	}
 
 	m_muzzleFlashInstanceBufferCapacity = 0;
+}
+
+void CGameScene::ReleaseBossPoisonProjectileGpuResources()
+{
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+	{
+		if ( m_pd3dBossPoisonProjectileInstanceBuffer[frameIndex] )
+		{
+			if ( m_pMappedBossPoisonProjectileInstanceBuffer[frameIndex] )
+			{
+				m_pd3dBossPoisonProjectileInstanceBuffer[frameIndex]->Unmap(0, nullptr);
+				m_pMappedBossPoisonProjectileInstanceBuffer[frameIndex] = nullptr;
+			}
+
+			m_pd3dBossPoisonProjectileInstanceBuffer[frameIndex].Reset();
+		}
+
+		m_pMappedBossPoisonProjectileInstanceBuffer[frameIndex] = nullptr;
+	}
+
+	m_bossPoisonProjectileInstanceBufferCapacity = 0;
 }
 
 void CGameScene::ReleaseSwordTrailGpuResources()
@@ -2452,6 +2531,9 @@ void CGameScene::SpawnBossPoisonProjectile(CGameObject* boss)
 	entry->coreRadius = kBossPoisonProjectileCoreRadius;
 	entry->gasDiameter = kBossPoisonProjectileGasDiameter;
 
+	static UINT s_bossPoisonProjectileVisualSeed = 1;
+	entry->visualSeed = static_cast< float >( s_bossPoisonProjectileVisualSeed++ );
+
 	entry->hitPlayerSlots.fill(false);
 
 	char buf[512];
@@ -2874,6 +2956,148 @@ void CGameScene::RenderMuzzleFlashes(
 	cmd->IASetIndexBuffer(&sm.ibView);
 
 	cmd->DrawIndexedInstanced(static_cast< UINT >( sm.indices.size() ), visibleInstanceCount, 0, 0, 0);
+}
+
+void CGameScene::RenderBossPoisonProjectiles(
+	ID3D12GraphicsCommandList* cmd,
+	CCamera* camera)
+{
+	if ( !cmd ) return;
+	if ( !camera ) return;
+	if ( !m_bossPoisonProjectileShader ) return;
+	if ( !m_itemBillboardQuadMesh ) return;
+
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	ID3D12Resource* instanceBuffer =
+		m_pd3dBossPoisonProjectileInstanceBuffer[frameIndex].Get();
+
+	MuzzleFlashInstanceVertex* mappedInstanceBuffer =
+		m_pMappedBossPoisonProjectileInstanceBuffer[frameIndex];
+
+	if ( !instanceBuffer ) return;
+	if ( !mappedInstanceBuffer ) return;
+	if ( m_bossPoisonProjectileInstanceBufferCapacity == 0 ) return;
+	if ( m_itemBillboardQuadMesh->m_SubMeshes.empty() ) return;
+
+	const SubMesh& sm = m_itemBillboardQuadMesh->m_SubMeshes[0];
+
+	if ( sm.indices.empty() )
+		return;
+
+	const XMFLOAT3 cameraPos = camera->GetPosition();
+
+	std::vector<const BossPoisonProjectileEntry*> visibleProjectiles;
+	visibleProjectiles.reserve(m_bossPoisonProjectiles.size());
+
+	for ( const BossPoisonProjectileEntry& entry : m_bossPoisonProjectiles )
+	{
+		if ( entry.active )
+			visibleProjectiles.push_back(&entry);
+	}
+
+	if ( visibleProjectiles.empty() )
+		return;
+
+	std::sort(
+		visibleProjectiles.begin(),
+		visibleProjectiles.end(),
+		[ &cameraPos ](
+			const BossPoisonProjectileEntry* a,
+			const BossPoisonProjectileEntry* b)
+		{
+			const float adx = a->position.x - cameraPos.x;
+			const float ady = a->position.y - cameraPos.y;
+			const float adz = a->position.z - cameraPos.z;
+
+			const float bdx = b->position.x - cameraPos.x;
+			const float bdy = b->position.y - cameraPos.y;
+			const float bdz = b->position.z - cameraPos.z;
+
+			const float aDistSq = adx * adx + ady * ady + adz * adz;
+			const float bDistSq = bdx * bdx + bdy * bdy + bdz * bdz;
+
+			// alpha blend는 뒤에서 앞으로.
+			return aDistSq > bDistSq;
+		}
+	);
+
+	UINT visibleInstanceCount = 0;
+
+	for ( const BossPoisonProjectileEntry* entry : visibleProjectiles )
+	{
+		if ( !entry )
+			continue;
+
+		if ( visibleInstanceCount >= m_bossPoisonProjectileInstanceBufferCapacity )
+			break;
+
+		MuzzleFlashInstanceVertex& dst =
+			mappedInstanceBuffer[visibleInstanceCount];
+
+		StoreMuzzleFlashWorldRows(
+			dst,
+			entry->position,
+			entry->gasDiameter,
+			entry->gasDiameter,
+			cameraPos
+		);
+
+		// color.a만 전체 alpha 계수로 쓴다. 실제 보라/녹색은 HLSL에서 만든다.
+		dst.color = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+
+		// x = unused
+		// y = coreDiameter
+		// z = gasDiameter
+		// w = visualSeed
+		dst.params0 = XMFLOAT4(
+			0.0f,
+			entry->coreDiameter,
+			entry->gasDiameter,
+			entry->visualSeed
+		);
+
+		// x = coreRadius
+		// y = speed
+		// z/w = reserved
+		dst.params1 = XMFLOAT4(
+			entry->coreRadius,
+			entry->speed,
+			0.0f,
+			0.0f
+		);
+
+		++visibleInstanceCount;
+	}
+
+	if ( visibleInstanceCount == 0 )
+		return;
+
+	m_bossPoisonProjectileShader->Render(cmd, camera, nullptr);
+
+	D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
+	vbViews[0] = sm.vbView;
+
+	vbViews[1].BufferLocation =
+		instanceBuffer->GetGPUVirtualAddress();
+
+	vbViews[1].SizeInBytes =
+		sizeof(MuzzleFlashInstanceVertex) * visibleInstanceCount;
+
+	vbViews[1].StrideInBytes =
+		sizeof(MuzzleFlashInstanceVertex);
+
+	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	cmd->IASetVertexBuffers(0, 2, vbViews);
+	cmd->IASetIndexBuffer(&sm.ibView);
+
+	cmd->DrawIndexedInstanced(
+		static_cast< UINT >( sm.indices.size() ),
+		visibleInstanceCount,
+		0,
+		0,
+		0
+	);
 }
 
 void CGameScene::RenderSwordTrails(
