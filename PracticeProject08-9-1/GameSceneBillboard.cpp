@@ -1327,7 +1327,7 @@ void CGameScene::SpawnBloodSplash(
 	static std::uniform_real_distribution<float> sideDist(-1.35f, 1.35f);
 	static std::uniform_real_distribution<float> liftDist(0.55f, 1.85f);
 	static std::uniform_real_distribution<float> sizeDist(0.18f, 0.36f);
-	static std::uniform_real_distribution<float> alphaDist(0.70f, 1.00f);
+	static std::uniform_real_distribution<float> alphaDist(0.46f, 0.68f);
 
 	const XMFLOAT3 basePos =
 		hitPosition ? *hitPosition : GetBloodSplashFallbackPosition(victim);
@@ -2563,6 +2563,148 @@ void CGameScene::UpdateBossPoisonProjectileSpellCasts(float dt)
 #endif
 }
 
+void CGameScene::SpawnBossPoisonProjectileDust(BossPoisonProjectileEntry& entry)
+{
+#ifndef USING_NETWORK
+	if ( !entry.active )
+		return;
+
+	static std::mt19937 rng{ std::random_device{}( ) };
+
+	static std::uniform_real_distribution<float> unitDist(-1.0f, 1.0f);
+	static std::uniform_real_distribution<float> speedDist(
+		kBossPoisonDustMinScatterSpeed,
+		kBossPoisonDustMaxScatterSpeed
+	);
+	static std::uniform_real_distribution<float> lifeDist(
+		kBossPoisonDustMinLifetimeSec,
+		kBossPoisonDustMaxLifetimeSec
+	);
+	static std::uniform_real_distribution<float> sizeDist(
+		kBossPoisonDustMinSize,
+		kBossPoisonDustMaxSize
+	);
+	static std::uniform_real_distribution<float> alphaDist(0.86f, 1.00f);
+	static std::uniform_real_distribution<float> rotDist(0.0f, XM_2PI);
+	static std::uniform_real_distribution<float> seedDist(0.0f, 1000.0f);
+
+	XMVECTOR forward = XMLoadFloat3(&entry.direction);
+	forward = XMVectorSetY(forward, 0.0f);
+
+	if ( XMVectorGetX(XMVector3LengthSq(forward)) <= 1.0e-8f )
+		forward = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+	else
+		forward = XMVector3Normalize(forward);
+
+	const XMVECTOR projectileVelocity = XMLoadFloat3(&entry.velocity);
+	const XMVECTOR inheritedVelocity =
+		XMVectorScale(
+			projectileVelocity,
+			kBossPoisonDustProjectileVelocityInherit
+		);
+
+	for ( UINT i = 0; i < kBossPoisonDustParticlesPerEmit; ++i )
+	{
+		MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashes);
+
+		if ( !e )
+			return;
+
+		XMVECTOR scatterDir = XMVectorZero();
+
+		// 구 전체에서 랜덤 방향을 뽑은 뒤,
+		// 이동 방향과 내적이 양수면 반전해서 반대쪽 반구로 보낸다.
+		for ( int attempt = 0; attempt < 8; ++attempt )
+		{
+			scatterDir = XMVectorSet(
+				unitDist(rng),
+				unitDist(rng),
+				unitDist(rng),
+				0.0f
+			);
+
+			if ( XMVectorGetX(XMVector3LengthSq(scatterDir)) > 1.0e-6f )
+				break;
+		}
+
+		if ( XMVectorGetX(XMVector3LengthSq(scatterDir)) <= 1.0e-6f )
+		{
+			scatterDir = XMVectorNegate(forward);
+		}
+		else
+		{
+			scatterDir = XMVector3Normalize(scatterDir);
+
+			const float dotForward =
+				XMVectorGetX(XMVector3Dot(scatterDir, forward));
+
+			if ( dotForward > 0.0f )
+				scatterDir = XMVectorNegate(scatterDir);
+		}
+
+		const float scatterSpeed = speedDist(rng);
+
+		XMVECTOR vel =
+			XMVectorAdd(
+				inheritedVelocity,
+				XMVectorScale(scatterDir, scatterSpeed)
+			);
+
+		XMFLOAT3 vel3{};
+		XMStoreFloat3(&vel3, vel);
+
+		XMVECTOR pos =
+			XMLoadFloat3(&entry.position) +
+			XMVectorScale(scatterDir, kBossPoisonDustSpawnOffsetRadius);
+
+		XMFLOAT3 pos3{};
+		XMStoreFloat3(&pos3, pos);
+
+		const float size = sizeDist(rng);
+		const float alpha = alphaDist(rng);
+		const float life = lifeDist(rng);
+
+		e->active = true;
+		e->kind = EMuzzleFlashKind::PoisonDust;
+
+		e->position = pos3;
+		e->velocity = vel3;
+
+		e->age = 0.0f;
+		e->lifetime = life;
+
+		// 작은 점이 아니라, 투사체 뒤에 남는 독가스 덩어리처럼 보이게 크게 만든다.
+		// 가로/세로 비율을 매번 다르게 해서 같은 모양이 반복되는 느낌을 줄인다.
+		const float startAspectX = 0.85f + unitDist(rng) * 0.18f;
+		const float startAspectY = 0.80f + unitDist(rng) * 0.20f;
+
+		e->startWidth = size * startAspectX;
+		e->startHeight = size * startAspectY;
+
+		// 시간이 지나면서 크게 부풀고 옅어진다.
+		const float endScaleX = 2.10f + unitDist(rng) * 0.35f;
+		const float endScaleY = 1.95f + unitDist(rng) * 0.35f;
+
+		e->endWidth = size * endScaleX;
+		e->endHeight = size * endScaleY;
+
+		e->rotationRad = rotDist(rng);
+
+		// additive 계열 파티클처럼 번쩍이지 않도록 밝기 계수를 낮춘다.
+		e->intensity = 0.72f + unitDist(rng) * 0.12f;
+
+		e->drag = kBossPoisonDustDrag;
+		e->gravity = kBossPoisonDustGravity;
+		e->seed = seedDist(rng);
+
+		// 밝은 형광 초록이 아니라, 어두운 독가스 녹색.
+		e->color = XMFLOAT4(0.015f, 0.24f, 0.020f, alpha);
+	}
+#else
+	UNREFERENCED_PARAMETER(entry);
+#endif
+}
+
 void CGameScene::SpawnBossPoisonProjectile(CGameObject* boss)
 {
 #ifndef USING_NETWORK
@@ -2624,6 +2766,8 @@ void CGameScene::SpawnBossPoisonProjectile(CGameObject* boss)
 
 	static UINT s_bossPoisonProjectileVisualSeed = 1;
 	entry->visualSeed = static_cast< float >( s_bossPoisonProjectileVisualSeed++ );
+
+	entry->dustEmitAccumulatorSec = 0.0f;
 
 	entry->hitPlayerSlots.fill(false);
 
@@ -2696,6 +2840,19 @@ void CGameScene::UpdateBossPoisonProjectiles(float dt)
 		entry.position.z += entry.velocity.z * dt;
 
 		ApplyBossPoisonProjectilePlayerHits(entry);
+
+		entry.dustEmitAccumulatorSec += dt;
+
+		int dustEmitLoopGuard = 0;
+
+		while ( entry.dustEmitAccumulatorSec >= kBossPoisonDustEmitIntervalSec &&
+				dustEmitLoopGuard < 3 )
+		{
+			entry.dustEmitAccumulatorSec -= kBossPoisonDustEmitIntervalSec;
+			SpawnBossPoisonProjectileDust(entry);
+
+			++dustEmitLoopGuard;
+		}
 
 		// 중앙 구체 반지름 2m를 고려해서 벽에 닿는 시점에 제거.
 		if ( entry.position.x <= minX + entry.coreRadius ||

@@ -445,7 +445,7 @@ float4 PSMuzzleFlashProcedural(
         color *= lerp(float3(1.0f, 1.0f, 1.0f), input.color.rgb, 0.25f);
         color *= min(intensity, 1.30f);
     }
-    else
+    else if (kind < 3.5f)
     {
         // blood
         float2 q = p;
@@ -483,6 +483,79 @@ float4 PSMuzzleFlashProcedural(
         clip(alpha - 0.01f);
 
         return float4(color, alpha);
+    }
+    else
+    {
+    // poison dust
+        float2 q = p;
+
+        float angle = atan2(q.y, q.x);
+
+    // 너무 별 모양/스파크처럼 보이지 않게, 낮은 주파수로 크게 찌그러뜨린다.
+        float wobble =
+        0.84f +
+        0.12f * sin(angle * 3.0f + seed * 7.31f) +
+        0.07f * sin(angle * 6.0f - seed * 2.17f);
+
+        float rr = r / max(wobble, 0.22f);
+
+    // 중심이 강한 점처럼 찍히지 않게 body를 완만하게 만든다.
+        float body =
+        1.0f - smoothstep(0.05f, 0.82f, rr);
+
+    // 바깥쪽 연무 영역을 넓게 잡는다.
+        float softEdge =
+        1.0f - smoothstep(0.46f, 1.18f, rr);
+
+        float noise =
+        0.72f +
+        0.18f *
+        sin(q.x * 7.0f + seed * 1.71f) *
+        sin(q.y * 6.0f - seed * 0.93f) +
+        0.10f *
+        sin((q.x + q.y) * 4.5f + seed * 2.33f);
+
+        noise = saturate(noise);
+
+        float fade = saturate(1.0f - ageRatio);
+
+    // 처음에는 비교적 진하고, 끝으로 갈수록 부드럽게 사라진다.
+    // fade^2는 너무 빨리 꺼져서 큰 가스가 남는 느낌이 약하므로 조금 완만하게 한다.
+        float softFade = fade * (0.65f + 0.35f * fade);
+
+    // 중심부를 밝게 찍지 않고, 넓은 softEdge 위주로 alpha를 만든다.
+        alpha =
+        saturate(
+            (body * 0.28f + softEdge * 0.62f) *
+            noise *
+            softFade *
+            input.color.a
+        );
+
+        float center =
+        1.0f - smoothstep(0.0f, 0.58f, rr);
+
+        float3 veryDarkGreen = float3(0.000f, 0.055f, 0.004f);
+        float3 darkGreen = float3(0.010f, 0.145f, 0.012f);
+        float3 dustGreen = input.color.rgb;
+
+    // 중심부도 밝은 형광으로 가지 않게 한다.
+        color =
+        lerp(
+            veryDarkGreen,
+            darkGreen,
+            saturate(softEdge * 0.85f)
+        );
+
+        color =
+        lerp(
+            color,
+            dustGreen,
+            saturate(body * 0.35f + center * 0.12f)
+        );
+
+    // intensity도 낮게 들어오지만, 셰이더에서도 상한을 더 낮춘다.
+        color *= min(intensity, 0.65f);
     }
 
     clip(alpha - 0.002f);
