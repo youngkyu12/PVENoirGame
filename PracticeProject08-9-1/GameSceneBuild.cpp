@@ -3727,6 +3727,7 @@ void CGameScene::BuildLightsAndMaterials()
 	m_lightObjects.clear();
 	m_lightObjects.reserve(1);
 	m_pPlayerSpotFollower = nullptr;
+	m_bMegaGrid5DirectionalLightProfileActive = false;
 
 	// [0] Directional Light only
 	{
