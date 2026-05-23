@@ -89,6 +89,7 @@ enum class EMuzzleFlashKind : UINT
 	Ring = 1,
 	Spark = 2,
 	Blood = 3,
+	PoisonDust = 4,
 };
 
 struct MuzzleFlashInstanceVertex
@@ -104,7 +105,7 @@ struct MuzzleFlashInstanceVertex
 	// x = ageRatio, y = intensity, z = rotationRad, w = seed
 	XMFLOAT4 params0 = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
 
-	// x = kind (0=core, 1=ring, 2=spark)
+	// x = kind (0=core, 1=ring, 2=spark, 3=blood, 4=poison dust)
 	// y = reserved
 	// z = reserved
 	// w = reserved
@@ -158,6 +159,9 @@ struct BossPoisonProjectileEntry
 
 	// 가스 외곽 procedural 흔들림용.
 	float visualSeed = 0.0f;
+
+	// 작은 독가스 가루 방출 주기 제어용.
+	float dustEmitAccumulatorSec = 0.0f;
 
 	// 플레이어와 충돌해도 사라지지 않으므로,
 	// 이후 다단히트 방지용으로 슬롯별 hit 기록을 둘 수 있게 미리 둔다.
@@ -607,6 +611,8 @@ private:
 	void UpdateBossPoisonProjectiles(float dt);
 	void RenderBossPoisonProjectiles(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
+	void SpawnBossPoisonProjectileDust(BossPoisonProjectileEntry& entry);
+
 	void ApplyBossPoisonProjectilePlayerHits(BossPoisonProjectileEntry& entry);
 	bool DoesBossPoisonProjectileOverlapPlayer(
 		const BossPoisonProjectileEntry& entry,
@@ -993,7 +999,7 @@ private:
 	std::array<ItemBillboardInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedTransparentItemBillboardInstanceBuffer = {};
 	UINT                                  m_transparentItemBillboardInstanceBufferCapacity = 0;
 
-	static constexpr UINT kMuzzleFlashMaxCount = 160;
+	static constexpr UINT kMuzzleFlashMaxCount = 512;
 
 	std::shared_ptr<CMuzzleFlashBillboardShader> m_muzzleFlashShader;
 
@@ -1519,6 +1525,30 @@ private:
 	static constexpr float kBossPoisonProjectilePlayerHalfHeight = 1.15f;
 
 	static constexpr float kBossPoisonProjectileStageHalfExtent = 110.0f;
+
+	static constexpr float kBossPoisonDustEmitIntervalSec = 0.20f;
+	static constexpr UINT  kBossPoisonDustParticlesPerEmit = 5;
+
+	static constexpr float kBossPoisonDustMinLifetimeSec = 1.05f;
+	static constexpr float kBossPoisonDustMaxLifetimeSec = 1.55f;
+
+	static constexpr float kBossPoisonDustMinSize = 1.60f;
+	static constexpr float kBossPoisonDustMaxSize = 3.00f;
+
+	static constexpr float kBossPoisonDustMinScatterSpeed = 0.75f;
+	static constexpr float kBossPoisonDustMaxScatterSpeed = 2.25f;
+
+	// 투사체 속도를 조금만 상속한다.
+	// 너무 많이 상속하면 독가스 가루가 투사체를 따라가버려서 궤적에 남지 않는다.
+	static constexpr float kBossPoisonDustProjectileVelocityInherit = 0.08f;
+
+	// 독가스라서 9.8보다 훨씬 작은 중력.
+	static constexpr float kBossPoisonDustGravity = 1.20f;
+
+	static constexpr float kBossPoisonDustDrag = 0.75f;
+
+	// 생성 직후 투사체 중심에서 아주 살짝 떨어뜨려 겹침을 줄인다.
+	static constexpr float kBossPoisonDustSpawnOffsetRadius = 0.35f;
 
 	struct BossPoisonSpellCastState
 	{
