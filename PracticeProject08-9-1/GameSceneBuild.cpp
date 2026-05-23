@@ -89,6 +89,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	ResetPlayerFootstepSfxState();
 	ResetMonsterSfxState();
 
+	m_playerWeaponOwnerByObject.clear();
 	m_deadMonsters.clear();
 
 	m_bBossStageBossActivated = false;
@@ -4015,60 +4016,15 @@ void CGameScene::BuildObjectsCollider()
 					return collider->GetLayer() == kCollisionLayerPlayerWeapon;
 				};
 
-			auto ForceMonsterAIChaseLocalPlayer =
-				[ this ] (CGameObject* monster)
-				{
-					if ( !monster )
-						return;
-
-					CGameObject* player = GetPlayer();
-					if ( !player )
-						player = GetPlayerBySlot(0);
-
-					if ( !player )
-						return;
-
-					if ( auto* ai = monster->GetComponent<CGhoulAIComponent>() )
-					{
-						ai->ForceChaseTarget(player);
-						return;
-					}
-
-					if ( auto* ai = monster->GetComponent<CSwordManAIComponent>() )
-					{
-						ai->ForceChaseTarget(player);
-						return;
-					}
-
-					if ( auto* ai = monster->GetComponent<CBowManAIComponent>() )
-					{
-						ai->ForceChaseTarget(player);
-						return;
-					}
-
-					if ( auto* ai = monster->GetComponent<CMutantAIComponent>() )
-					{
-						ai->ForceChaseTarget(player);
-						return;
-					}
-
-					if ( auto* ai = monster->GetComponent<CBossAIComponent>() )
-					{
-						ai->ForceChaseTarget(player);
-						return;
-					}
-
-					// Component 시스템이 base 타입 조회를 지원하는 경우의 fallback.
-					if ( auto* ai = monster->GetComponent<CMonsterAIComponent>() )
-					{
-						ai->ForceChaseTarget(player);
-						return;
-					}
-				};
-
 			if ( IsNpcMonsterObject(targetObject) && IsPlayerWeaponObject(weaponObject) )
 			{
-				ForceMonsterAIChaseLocalPlayer(targetObject);
+				CGameObject* attacker =
+					ResolvePlayerAttackerFromPlayerWeapon(weaponObject);
+
+				if ( attacker )
+				{
+					ForceMonsterAIChaseTarget(targetObject, attacker);
+				}
 			}
 
 			XMFLOAT3 hitDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
