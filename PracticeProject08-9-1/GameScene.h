@@ -121,7 +121,6 @@ struct MuzzleFlashEntry
 	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
 	XMFLOAT3 velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
 
-	// BossMeleeSlash처럼 카메라 빌보드가 아니라 월드 방향 고정 billboard가 필요한 경우 사용.
 	XMFLOAT3 axisRight = XMFLOAT3(1.0f, 0.0f, 0.0f);
 	XMFLOAT3 axisUp = XMFLOAT3(0.0f, 1.0f, 0.0f);
 	XMFLOAT3 axisForward = XMFLOAT3(0.0f, 0.0f, 1.0f);
@@ -154,23 +153,13 @@ struct BossPoisonProjectileEntry
 	XMFLOAT3 direction = XMFLOAT3(0.0f, 0.0f, 1.0f);
 	XMFLOAT3 velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
 
-	// 중앙 보라색 구체 기준.
 	float coreDiameter = 4.0f;
 	float coreRadius = 2.0f;
-
-	// 나중에 렌더링 단계에서 녹색 가스 외곽 billboard 크기로 사용.
 	float gasDiameter = 6.0f;
-
 	float speed = 18.0f;
-
-	// 가스 외곽 procedural 흔들림용.
 	float visualSeed = 0.0f;
-
-	// 작은 독가스 가루 방출 주기 제어용.
 	float dustEmitAccumulatorSec = 0.0f;
 
-	// 플레이어와 충돌해도 사라지지 않으므로,
-	// 이후 다단히트 방지용으로 슬롯별 hit 기록을 둘 수 있게 미리 둔다.
 	std::array<bool, 4> hitPlayerSlots = { false, false, false, false };
 };
 
@@ -201,7 +190,6 @@ struct SwordTrailEntry
 
 	CGameObject* owner = nullptr;
 
-	// 이름은 SwordTrailEntry지만, 실제로는 검/도끼 공용 weapon trail로 사용한다.
 	CGameObject* weaponObject = nullptr;
 
 	float age = 0.0f;
@@ -211,13 +199,10 @@ struct SwordTrailEntry
 	float fadeDuration = 0.120f;
 
 	// 무기 local space에서 trail ribbon의 양 끝점.
-	// sword: 손잡이 쪽 ~ 칼끝
-	// axe: 도끼날 근처 짧은 구간
 	XMFLOAT3 rootLocal = XMFLOAT3(0.0f, 0.0f, 0.10f);
 	XMFLOAT3 tipLocal = XMFLOAT3(0.0f, 0.0f, 1.45f);
 
 	// root/tip 사이 폭 조절.
-	// 도끼는 날이 끝자락에만 있으므로 이 값을 줄이면 된다.
 	float widthScale = 1.0f;
 
 	XMFLOAT4 color = XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f);
@@ -247,12 +232,10 @@ struct MonsterSwordTrailEntry
 
 	float age = 0.0f;
 
-	// SwordMan은 플레이어 sword attack과 애니메이션 타이밍이 동일하다.
 	float startDelay = 0.340f;
 	float sampleDuration = 0.240f;
 	float fadeDuration = 0.120f;
 
-	// SwordMan 에셋/메시가 플레이어 대비 1.5배이므로 local trail 구간도 1.5배.
 	XMFLOAT3 rootLocal = XMFLOAT3(0.0f, 0.0f, 0.15f);
 	XMFLOAT3 tipLocal = XMFLOAT3(0.0f, 0.0f, 2.175f);
 
@@ -277,7 +260,6 @@ struct ItemBillboardEntry
 	bool active = true;
 	bool distanceCulled = false;
 
-	// 추가: true면 transparent pass에서 그림
 	bool transparent = false;
 
 	EItemBillboardKind kind = EItemBillboardKind::Key;
@@ -1055,8 +1037,6 @@ private:
 	std::vector<CGameObject*> m_MutantRefs;
 	std::vector<CGameObject*> m_bossRefs;
 
-	// 6, 8번 메가그리드에서 열쇠를 해금하는 첫 Mutant.
-	// key = mutant object, value = megaGridNumber.
 	std::unordered_map<CGameObject*, int> m_mutantKeyTriggerMegaByObject;
 	std::array<bool, CSceneGrid::kMegaGridCount + 1> m_mutantKeyTriggerRegisteredByMega = {};
 
@@ -1443,10 +1423,8 @@ private:
 	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dSkinnedBonePaletteBuffer;
 	std::array<XMFLOAT4X4*, kSceneBatchFrameResourceCount> m_pMappedSkinnedBonePaletteBuffer = {};
 
-	// objectIndex -> bone palette 시작 offset
 	std::vector<UINT>                   m_skinnedBonePaletteBaseByObject;
 
-	// objectIndex -> 이 object에 예약된 bone matrix 개수
 	std::vector<UINT>                   m_skinnedBonePaletteCountByObject;
 
 	UINT                                m_skinnedBonePaletteCapacity = 0;
@@ -1491,8 +1469,6 @@ private:
 	static constexpr float kBossShockwaveExpandDurationSec = 0.80f;
 	static constexpr float kBossShockwaveFadeDurationSec = 0.40f;
 
-	// HLSL에서 충격파 ring 중심이 uv 반지름 약 0.94 지점에 있으므로,
-	// CPU billboard 크기 보정에 사용한다.
 	static constexpr float kBossShockwaveShaderRingCenter = 0.94f;
 
 	bool m_bBossShockwaveActive = false;
@@ -1546,16 +1522,12 @@ private:
 	static constexpr float kBossPoisonDustMinScatterSpeed = 0.75f;
 	static constexpr float kBossPoisonDustMaxScatterSpeed = 2.25f;
 
-	// 투사체 속도를 조금만 상속한다.
-	// 너무 많이 상속하면 독가스 가루가 투사체를 따라가버려서 궤적에 남지 않는다.
 	static constexpr float kBossPoisonDustProjectileVelocityInherit = 0.08f;
 
-	// 독가스라서 9.8보다 훨씬 작은 중력.
 	static constexpr float kBossPoisonDustGravity = 1.20f;
 
 	static constexpr float kBossPoisonDustDrag = 0.75f;
 
-	// 생성 직후 투사체 중심에서 아주 살짝 떨어뜨려 겹침을 줄인다.
 	static constexpr float kBossPoisonDustSpawnOffsetRadius = 0.35f;
 
 	static constexpr float kBossMeleeSlashLaunchDelaySec = 0.430f;
@@ -1588,8 +1560,6 @@ private:
 		int restoreFramesRemaining = 0;
 		bool pendingRestore = false;
 
-		// 보스 등장 직후 Appear action이 실제로 시작되기 전까지
-		// skinned render/shadow render에서 아예 제외하기 위한 게이트.
 		bool renderAllowed = false;
 		bool waitAppearBeforeRender = false;
 	};

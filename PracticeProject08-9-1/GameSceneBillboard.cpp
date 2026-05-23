@@ -200,7 +200,6 @@ namespace
 
 		XMFLOAT3 p = victim->GetPosition();
 
-		// 현재 오브젝트 원점이 발 쪽이므로 피격점 정보가 없으면 약 1m 위.
 		p.y += 1.0f;
 
 		return p;
@@ -252,9 +251,6 @@ namespace
 		XMFLOAT3 root = TransformLocalPoint(W, trail.rootLocal);
 		XMFLOAT3 tip = TransformLocalPoint(W, trail.tipLocal);
 
-		// root-tip 사이 폭을 center 기준으로 조절한다.
-		// widthScale < 1.0f : 더 얇은/짧은 trail
-		// widthScale > 1.0f : 더 넓은 trail
 		if ( trail.widthScale != 1.0f )
 		{
 			XMVECTOR rootV = XMLoadFloat3(&root);
@@ -300,7 +296,6 @@ namespace
 			sample.tip
 		);
 
-		// 같은 위치가 너무 많이 쌓이는 것을 약간 방지.
 		if ( !trail.samples.empty() )
 		{
 			const SwordTrailSample& last = trail.samples.back();
@@ -334,8 +329,6 @@ namespace
 			return;
 		}
 
-		// 검/도끼에 hitbox component가 빠져 있으면 다중 히트 방지 없이 데미지가 들어갈 수 있으므로
-		// 안전하게 collider를 꺼 둔다.
 		if ( auto* collider = weaponObject->GetComponent<CColliderComponent>() )
 			collider->SetCollisionEnabled(false);
 	}
@@ -492,7 +485,7 @@ std::shared_ptr<CMesh> CGameScene::CreateItemBillboardQuadMesh(
 
 	const ITEM_BILLBOARD_VERTEX vertices[4] =
 	{
-		// position                  normal              uv                  tangent
+		// position						normal						uv					tangent
 		{ XMFLOAT3(-0.5f, -0.5f, 0.0f), XMFLOAT3(0.0f, 0.0f, 1.0f), XMFLOAT2(0.0f, 1.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
 		{ XMFLOAT3(-0.5f, +0.5f, 0.0f), XMFLOAT3(0.0f, 0.0f, 1.0f), XMFLOAT2(0.0f, 0.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
 		{ XMFLOAT3(+0.5f, +0.5f, 0.0f), XMFLOAT3(0.0f, 0.0f, 1.0f), XMFLOAT2(1.0f, 0.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
@@ -697,7 +690,6 @@ void CGameScene::BuildItemBillboardBatch(
 				key.position.z
 			);
 
-		// 6, 8번 메가그리드의 열쇠는 해당 메가그리드 첫 Mutant 사망 전까지 숨기고 획득 불가.
 		if ( key.megaGridNumber == 6 || key.megaGridNumber == 8 )
 		{
 			key.active = false;
@@ -749,8 +741,6 @@ void CGameScene::BuildItemBillboardBatch(
 	{
 		ItemBillboardEntry summonCircle{};
 
-		// 처음에는 그리지 않는다.
-		// 보스가 실제 활성화될 때 SpawnBossSummonCircle()에서 active=true로 바꾼다.
 		summonCircle.active = false;
 		summonCircle.distanceCulled = true;
 
@@ -759,19 +749,15 @@ void CGameScene::BuildItemBillboardBatch(
 
 		summonCircle.megaGridNumber = 5;
 
-		// fallback 위치. 실제 보스 활성화 시점에 보스 원래 위치로 다시 세팅한다.
 		summonCircle.position = XMFLOAT3(400.0f, 0.0f, 0.0f);
 
-		// x 100, z 100 크기.
 		summonCircle.width = 100.0f;
 		summonCircle.height = 100.0f;
 
-		// 지면과 z-fighting 방지용. 좌표상 중심은 y=0으로 유지하고 렌더만 살짝 띄운다.
 		summonCircle.yOffset = 0.05f;
 
 		summonCircle.cullDistance = 1000000.0f;
 
-		// pickup 대상이 아니므로 의미 없는 값.
 		summonCircle.pickupRadius = 0.0f;
 		summonCircle.pickupHeightTolerance = 0.0f;
 
@@ -795,7 +781,6 @@ void CGameScene::BuildItemBillboardBatch(
 		shockwave.width = 0.0f;
 		shockwave.height = 0.0f;
 
-		// BossSummonCircle보다 살짝 위.
 		shockwave.yOffset = 0.075f;
 
 		shockwave.cullDistance = 1000000.0f;
@@ -921,7 +906,6 @@ void CGameScene::BuildMuzzleFlashBatch(
 
 	m_muzzleFlashShader = std::make_shared<CMuzzleFlashBillboardShader>();
 
-	// forward pass용. 실제 swapchain format이 다르면 그 format으로 바꿔야 함.
 	DXGI_FORMAT rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 	m_muzzleFlashShader->CreateShader(
@@ -1266,7 +1250,6 @@ void CGameScene::SpawnMuzzleFlash(
 			e->gravity = 0.0f;
 			e->seed = seedDist(rng);
 
-			// 불꽃 중심부: 강한 주황/적황색
 			e->color = XMFLOAT4(1.0f, 0.32f, 0.04f, alpha);
 		};
 
@@ -1294,7 +1277,6 @@ void CGameScene::SpawnMuzzleFlash(
 			e->gravity = 0.0f;
 			e->seed = seedDist(rng);
 
-			// 충격 링: 붉은 외곽 불꽃 느낌
 			e->color = XMFLOAT4(1.0f, 0.28f, 0.03f, 0.75f);
 		};
 
@@ -1345,18 +1327,14 @@ void CGameScene::SpawnMuzzleFlash(
 			e->gravity = 0.0f;
 			e->seed = seedDist(rng);
 
-			// 스파크: 노란 심지 + 주황 불티
 			e->color = XMFLOAT4(1.0f, 0.52f, 0.08f, 1.0f);
 		};
 
-	// 코어 flash를 2장 겹친다
 	spawnCore(0.55f * 1.10f, 0.045f, 2.2f, 1.0f);
 	spawnCore( 0.80f * 1.10f, 0.065f, 1.5f, 0.75f);
 
-	// 충격 링
 	spawnRing();
 
-	// spark
 	constexpr int kMuzzleFlashSparkCount = 14;
 
 	for ( int i = 0; i < kMuzzleFlashSparkCount; ++i )
@@ -1391,7 +1369,6 @@ void CGameScene::SpawnBloodSplash(
 	const XMVECTOR fallbackDir = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
 	XMVECTOR baseDir = SafeNormalize3OrDefault(hitDirection, fallbackDir);
 
-	// 수평 기준으로 피가 앞/옆/위로 튀도록 한다.
 	baseDir = XMVectorSetY(baseDir, 0.0f);
 
 	if ( XMVectorGetX(XMVector3LengthSq(baseDir)) <= 1.0e-8f )
@@ -1459,25 +1436,20 @@ void CGameScene::SpawnBloodSplash(
 		e->age = 0.0f;
 		e->lifetime = lifeDist(rng);
 
-		// 시작은 살짝 크고, 시간이 지나며 작아지게 한다.
 		e->startWidth = size;
 		e->startHeight = size * ( 0.85f + unitDist(rng) * 0.25f );
 
-		// 시간이 지나면서 너무 작아지지 않게 유지.
-		// 기존 0.35배는 너무 빨리 사라져 보인다.
 		e->endWidth = size * 0.75f;
 		e->endHeight = size * 0.65f;
 
 		e->rotationRad = rotDist(rng);
 
-		// Blood branch에서는 intensity를 밝기/농도 계수로 사용.
 		e->intensity = 1.0f + unitDist(rng) * 0.15f;
 
 		e->drag = 2.2f;
 		e->gravity = 4.2f;
 		e->seed = seedDist(rng);
 
-		// 어두운 붉은색. additive 포화 방지를 위해 너무 밝게 두지 않는다.
 		e->color = XMFLOAT4(0.55f, 0.015f, 0.01f, alpha);
 	}
 }
@@ -1570,22 +1542,13 @@ void CGameScene::SpawnBossMeleeSlashEffect(CGameObject* boss)
 
 			*e = MuzzleFlashEntry{};
 
-			// 셰이더의 BossMeleeSlash 중심선은 t=0에서 대략 q=(-0.92, -0.92)이다.
-			// quad local 좌표로는 (-0.46, -0.46)이므로,
-			// 이 좌하단 시작점을 먼저 월드 위치에 맞추고 center를 역산한다.
 			constexpr float kBossMeleeSlashRootLocalX = -0.46f;
 			constexpr float kBossMeleeSlashRootLocalY = -0.46f;
 
-			// 시작점을 기존보다 조금 더 보스 기준 왼쪽으로 보낸다.
-			// 너무 왼쪽이면 -0.35f 정도로 줄이고, 더 왼쪽이면 -0.80f 정도로 키워라.
 			constexpr float kBossMeleeSlashRootLeftExtraOffset = -1.85f;
 
-			// 시작점을 바닥 위가 아니라 바닥 아래에서 시작하게 만든다.
-			// bossPos.y가 지면 기준이면 root가 약 1.20m 아래에서 시작한다.
 			constexpr float kBossMeleeSlashRootSinkY = -1.20f;
 
-			// 이 값이 실제 "지면 아래에서 솟아나는 시작점" 위치다.
-			// forwardOffset / sideOffset은 quad center가 아니라 root 위치 기준이다.
 			XMVECTOR root =
 				XMLoadFloat3(&bossPos) +
 				XMVectorScale(forward, forwardOffset) +
@@ -1599,7 +1562,6 @@ void CGameScene::SpawnBossMeleeSlashEffect(CGameObject* boss)
 			XMFLOAT3 centerF{};
 			XMStoreFloat3(&centerF, center);
 
-			// root가 바닥 아래에서 시작하도록 center.y를 root 기준으로 역산한다.
 			centerF.y =
 				bossPos.y +
 				kBossMeleeSlashRootSinkY +
@@ -1716,11 +1678,9 @@ void CGameScene::BeginSwordTrail(CGameObject* owner)
 	trail->sampleDuration = 0.240f;
 	trail->fadeDuration = 0.120f;
 
-	// 검 모델의 길이 방향이 local Z가 아니면 여기만 바꿔라.
 	trail->rootLocal = XMFLOAT3(0.0f, 0.0f, 0.10f);
 	trail->tipLocal = XMFLOAT3(0.0f, 0.0f, 1.45f);
 
-	// 검은 전체 날 길이를 쓰므로 1.0.
 	trail->widthScale = 1.0f;
 
 	// 검 궤적 색상: 푸른빛.
@@ -1756,19 +1716,13 @@ void CGameScene::BeginAxeTrail(CGameObject* owner)
 	trail->age = 0.0f;
 	ResetPlayerMeleeWeaponHitbox(axeObject);
 
-	// 최종 튜닝값 고정.
-	// 공격 accepted 이후 0.530초부터 0.690초까지 도끼 궤적을 샘플링한다.
 	trail->startDelay = 0.530f;
 	trail->sampleDuration = 0.160f; // 0.690f - 0.530f
 	trail->fadeDuration = 0.120f;
 
-	// 도끼는 날이 끝자락에만 있으므로 root를 tip에 가깝게 둔다.
 	trail->rootLocal = XMFLOAT3(0.0f, 0.0f, 0.80f);
 	trail->tipLocal = XMFLOAT3(0.0f, 0.0f, 1.45f);
 
-	// 도끼 궤적 폭 조절 핵심값.
-	// 작게 할수록 날 끝부분에만 짧게 붙는다.
-	// 0.45~0.80 사이에서 튜닝 추천.
 	trail->widthScale = 0.80f;
 
 	// 도끼 궤적 색상: 검과 동일한 푸른빛.
@@ -1812,18 +1766,15 @@ void CGameScene::BeginSwordManSwordTrail(CGameObject* swordman)
 
 	trail->age = 0.0f;
 
-	// SwordMan은 플레이어 sword attack과 같은 애니메이션 타이밍.
 	trail->startDelay = 0.340f;
 	trail->sampleDuration = 0.240f;
 	trail->fadeDuration = 0.120f;
 
-	// SwordMan 에셋/메시가 플레이어 대비 1.5배.
 	trail->rootLocal = XMFLOAT3(0.0f, 0.0f, 0.10f * 1.5f);
 	trail->tipLocal = XMFLOAT3(0.0f, 0.0f, 1.45f * 1.5f);
 
 	trail->widthScale = 1.0f;
 
-	// 일단 플레이어 검과 같은 색.
 	trail->color = XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f);
 
 	trail->samples.clear();
@@ -1894,7 +1845,6 @@ void CGameScene::UpdateSwordTrails(float dt)
 			continue;
 		}
 
-		// 준비 동작 구간: trail도 샘플링하지 않고, 공격 판정도 끈다.
 		if ( trail.age < trail.startDelay )
 		{
 			SetPlayerMeleeWeaponHitboxActive(trail.weaponObject, false);
@@ -1903,7 +1853,6 @@ void CGameScene::UpdateSwordTrails(float dt)
 
 		const float sampleAge = trail.age - trail.startDelay;
 
-		// startDelay 이후 sampleDuration 동안만 trail을 샘플링하고 공격 판정도 켠다.
 		const bool hitWindowActive = ( sampleAge <= trail.sampleDuration );
 
 		SetPlayerMeleeWeaponHitboxActive(trail.weaponObject, hitWindowActive);
@@ -2046,7 +1995,6 @@ bool CGameScene::DoesPlayerOverlapItemBillboard(
 
 	const XMFLOAT3 playerPos = player->GetPosition();
 
-	// 죽었거나 비활성 처리된 오브젝트가 지하/멀리 내려가는 패턴을 피하기 위한 방어.
 	if ( playerPos.y < -100.0f )
 		return false;
 
@@ -2169,8 +2117,6 @@ void CGameScene::SpawnBossSummonGlow(const XMFLOAT3& center, float alpha)
 
 void CGameScene::SpawnBossSummonVisuals(const XMFLOAT3& center, float alpha)
 {
-	// 먼저 glow, 그 다음 circle.
-	// 같은 transparent pass 안에서 push 순서가 유지되면 circle이 glow 위에 올라온다.
 	SpawnBossSummonGlow(center, alpha);
 	SpawnBossSummonCircle(center, alpha);
 
@@ -2224,8 +2170,6 @@ void CGameScene::SpawnBossShockwave(const XMFLOAT3& center)
 			}
 			else
 			{
-				// 플레이어가 거의 중심에 있으면 카메라 뒤쪽/전방 같은 기준이 없으므로
-				// 임시로 +Z 방향으로 밀어낸다.
 				dist = 0.0f;
 			}
 
@@ -2490,9 +2434,6 @@ void CGameScene::ApplyBossShockwavePushToLocalPlayer(
 	if ( collider )
 		collider->UpdateWorldBounds();
 
-	// 충격파에 의해 벽 안으로 밀려 들어가는 것은 막는다.
-	// RollbackLocalPlayerMoveIfCollidingWorldStatic()는 포탈 처리까지 들어가므로
-	// 여기서는 순수 world-static 충돌만 검사해서 원위치시킨다.
 	if ( collider && m_Collision )
 	{
 		if ( m_Collision->HasCollisionWithWorldStatic(collider) )
@@ -2505,7 +2446,6 @@ void CGameScene::ApplyBossShockwavePushToLocalPlayer(
 
 	if ( auto* controller = localPlayer->GetComponent<CPlayerControllerComponent>() )
 	{
-		// 남아있는 입력/속도 때문에 충격파 밀림이 덜 보이는 것을 막는다.
 		controller->SetVelocity(XMFLOAT3(0.0f, 0.0f, 0.0f));
 	}
 
@@ -2688,20 +2628,6 @@ void CGameScene::ApplyBossPoisonProjectileHitToPlayer(
 		}
 	}
 
-	char buf[512];
-	sprintf_s(
-		buf,
-		"[BossPoison][HitPlayer] slot=%d damage=%d hp=%d/%d dead=%d projectilePos=(%.3f, %.3f, %.3f)\n",
-		playerSlot,
-		kBossPoisonProjectileDamage,
-		hp->GetCurrentHp(),
-		hp->GetMaxHp(),
-		deadAfterHit ? 1 : 0,
-		entry.position.x,
-		entry.position.y,
-		entry.position.z
-	);
-	OutputDebugStringA(buf);
 #else
 	UNREFERENCED_PARAMETER(entry);
 	UNREFERENCED_PARAMETER(playerSlot);
@@ -2855,19 +2781,6 @@ void CGameScene::UpdateBossPoisonProjectileSpellCasts(float dt)
 
 		if ( !isSpellPhase )
 		{
-			if ( state.wasSpellPhase )
-			{
-				char buf[256];
-				sprintf_s(
-					buf,
-					"[BossPoison][SpellEnd] boss=%p age=%.4f fired=%d\n",
-					static_cast< void* >( boss ),
-					state.spellAgeSec,
-					state.fired ? 1 : 0
-				);
-				OutputDebugStringA(buf);
-			}
-
 			state = BossPoisonSpellCastState{};
 			continue;
 		}
@@ -2948,8 +2861,6 @@ void CGameScene::SpawnBossPoisonProjectileDust(BossPoisonProjectileEntry& entry)
 
 		XMVECTOR scatterDir = XMVectorZero();
 
-		// 구 전체에서 랜덤 방향을 뽑은 뒤,
-		// 이동 방향과 내적이 양수면 반전해서 반대쪽 반구로 보낸다.
 		for ( int attempt = 0; attempt < 8; ++attempt )
 		{
 			scatterDir = XMVectorSet(
@@ -3009,15 +2920,12 @@ void CGameScene::SpawnBossPoisonProjectileDust(BossPoisonProjectileEntry& entry)
 		e->age = 0.0f;
 		e->lifetime = life;
 
-		// 작은 점이 아니라, 투사체 뒤에 남는 독가스 덩어리처럼 보이게 크게 만든다.
-		// 가로/세로 비율을 매번 다르게 해서 같은 모양이 반복되는 느낌을 줄인다.
 		const float startAspectX = 0.85f + unitDist(rng) * 0.18f;
 		const float startAspectY = 0.80f + unitDist(rng) * 0.20f;
 
 		e->startWidth = size * startAspectX;
 		e->startHeight = size * startAspectY;
 
-		// 시간이 지나면서 크게 부풀고 옅어진다.
 		const float endScaleX = 2.10f + unitDist(rng) * 0.35f;
 		const float endScaleY = 1.95f + unitDist(rng) * 0.35f;
 
@@ -3026,14 +2934,12 @@ void CGameScene::SpawnBossPoisonProjectileDust(BossPoisonProjectileEntry& entry)
 
 		e->rotationRad = rotDist(rng);
 
-		// additive 계열 파티클처럼 번쩍이지 않도록 밝기 계수를 낮춘다.
 		e->intensity = 0.72f + unitDist(rng) * 0.12f;
 
 		e->drag = kBossPoisonDustDrag;
 		e->gravity = kBossPoisonDustGravity;
 		e->seed = seedDist(rng);
 
-		// 밝은 형광 초록이 아니라, 어두운 독가스 녹색.
 		e->color = XMFLOAT4(0.015f, 0.24f, 0.020f, alpha);
 	}
 #else
@@ -3052,9 +2958,6 @@ void CGameScene::SpawnBossPoisonProjectile(CGameObject* boss)
 
 	if ( !entry )
 	{
-		OutputDebugStringA(
-			"[BossPoison][FireFailed] no free projectile entry.\n"
-		);
 		return;
 	}
 
@@ -3067,7 +2970,6 @@ void CGameScene::SpawnBossPoisonProjectile(CGameObject* boss)
 
 	if ( lenSq <= 1.0e-8f )
 	{
-		// fallback. 정상이라면 보스 world matrix의 forward를 사용한다.
 		dir = XMFLOAT3(0.0f, 0.0f, 1.0f);
 		lenSq = 1.0f;
 	}
@@ -3106,23 +3008,6 @@ void CGameScene::SpawnBossPoisonProjectile(CGameObject* boss)
 	entry->dustEmitAccumulatorSec = 0.0f;
 
 	entry->hitPlayerSlots.fill(false);
-
-	char buf[512];
-	sprintf_s(
-		buf,
-		"[BossPoison][Fire] boss=%p pos=(%.3f, %.3f, %.3f) dir=(%.3f, %.3f, %.3f) speed=%.3f delay=%.4f height=%.3f\n",
-		static_cast< void* >( boss ),
-		spawnPos.x,
-		spawnPos.y,
-		spawnPos.z,
-		dir.x,
-		dir.y,
-		dir.z,
-		entry->speed,
-		kBossPoisonProjectileLaunchDelaySec,
-		kBossPoisonProjectileLaunchHeight
-	);
-	OutputDebugStringA(buf);
 #else
 	UNREFERENCED_PARAMETER(boss);
 #endif
@@ -3190,26 +3075,11 @@ void CGameScene::UpdateBossPoisonProjectiles(float dt)
 			++dustEmitLoopGuard;
 		}
 
-		// 중앙 구체 반지름 2m를 고려해서 벽에 닿는 시점에 제거.
 		if ( entry.position.x <= minX + entry.coreRadius ||
 			 entry.position.x >= maxX - entry.coreRadius ||
 			 entry.position.z <= minZ + entry.coreRadius ||
 			 entry.position.z >= maxZ - entry.coreRadius )
 		{
-			char buf[512];
-			sprintf_s(
-				buf,
-				"[BossPoison][DespawnWall] pos=(%.3f, %.3f, %.3f) boundsX=(%.3f, %.3f) boundsZ=(%.3f, %.3f)\n",
-				entry.position.x,
-				entry.position.y,
-				entry.position.z,
-				minX,
-				maxX,
-				minZ,
-				maxZ
-			);
-			OutputDebugStringA(buf);
-
 			entry = BossPoisonProjectileEntry{};
 		}
 	}
@@ -3308,15 +3178,6 @@ static void StoreXZPlaneItemBillboardWorldRows(
 	float depth,
 	UINT materialId)
 {
-	// item billboard quad의 local vertex는:
-	// x: -0.5 ~ +0.5
-	// y: -0.5 ~ +0.5
-	// z: 0
-	//
-	// 이를 world XZ 평면으로 눕힌다.
-	// local x -> world x
-	// local y -> world z
-	// local z -> world y normal axis
 	dst.world0 = XMFLOAT4(width, 0.0f, 0.0f, 0.0f);
 	dst.world1 = XMFLOAT4(0.0f, 0.0f, depth, 0.0f);
 	dst.world2 = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
@@ -3392,7 +3253,6 @@ void CGameScene::RenderTransparentItemBillboards(
 			const float aDistSq = adx * adx + ady * ady + adz * adz;
 			const float bDistSq = bdx * bdx + bdy * bdy + bdz * bdz;
 
-			// transparent는 뒤에서 앞으로
 			return aDistSq > bDistSq;
 		}
 	);
@@ -3625,7 +3485,6 @@ void CGameScene::RenderBossPoisonProjectiles(
 			const float aDistSq = adx * adx + ady * ady + adz * adz;
 			const float bDistSq = bdx * bdx + bdy * bdy + bdz * bdz;
 
-			// alpha blend는 뒤에서 앞으로.
 			return aDistSq > bDistSq;
 		}
 	);
@@ -3651,7 +3510,6 @@ void CGameScene::RenderBossPoisonProjectiles(
 			cameraPos
 		);
 
-		// color.a만 전체 alpha 계수로 쓴다. 실제 보라/녹색은 HLSL에서 만든다.
 		dst.color = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 
 		// x = unused
@@ -3759,7 +3617,6 @@ void CGameScene::RenderSwordTrails(
 
 		const float sampleAge = trail.age - trail.startDelay;
 
-		// startDelay 이전에는 샘플도 없겠지만, 방어적으로 렌더하지 않게 처리.
 		if ( sampleAge < 0.0f )
 			continue;
 
@@ -3777,7 +3634,6 @@ void CGameScene::RenderSwordTrails(
 		{
 			const float u = ( sampleCount > 1 ) ? static_cast< float >( i ) / static_cast< float >( sampleCount - 1 ) : 1.0f;
 
-			// 오래된 샘플은 약하게, 최신 샘플은 강하게.
 			const float ageAlpha = std::clamp(u, 0.0f, 1.0f);
 			const float alpha = trailFade * ageAlpha * 0.75f;
 

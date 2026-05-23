@@ -426,14 +426,6 @@ void CBossAIComponent::UpdateBehavior(float dt)
 			m_bossOpeningSpellRequestAgeSec = 0.0f;
 
 			ConsumeBossSpellCooldown();
-
-			char buf[256];
-			sprintf_s(
-				buf,
-				"[BossAI][OpeningSpell] confirmed spell phase. boss=%p\n",
-				static_cast< void* >( GetOwner() )
-			);
-			OutputDebugStringA(buf);
 		}
 
 		// 원거리 공격 중에는 이동하지 않고, 플레이어 방향으로만 부드럽게 회전한다.
@@ -476,28 +468,10 @@ void CBossAIComponent::UpdateBehavior(float dt)
 
 			if ( m_bossOpeningSpellRequestAgeSec >= 0.50f )
 			{
-				char buf[512];
-				sprintf_s(
-					buf,
-					"[BossAI][OpeningSpell] waiting after request. boss=%p age=%.3f dist=%.3f canStart=%d locked=%d meleePlaying=%d spellPlaying=%d\n",
-					static_cast< void* >( GetOwner() ),
-					m_bossOpeningSpellRequestAgeSec,
-					distanceToTarget,
-					canStartAction ? 1 : 0,
-					IsAIActionLockedByAnimation() ? 1 : 0,
-					IsBossMeleeActionPlaying() ? 1 : 0,
-					IsBossSpellActionPlaying() ? 1 : 0
-				);
-				OutputDebugStringA(buf);
-
 				// 0.5초 동안 SpellPhase로 안 들어갔고 현재 action lock도 없다면,
 				// 이전 요청은 컨트롤러에서 소비되지 않은 것으로 보고 다시 시도하게 한다.
 				if ( !IsAIActionLockedByAnimation() && !IsBossSpellActionPlaying() )
 				{
-					OutputDebugStringA(
-						"[BossAI][OpeningSpell] retry spell request next frame.\n"
-					);
-
 					m_bBossOpeningSpellRequested = false;
 				}
 
@@ -525,18 +499,6 @@ void CBossAIComponent::UpdateBehavior(float dt)
 
 			if ( s_openingBlockedLogAge >= 0.50f )
 			{
-				char buf[512];
-				sprintf_s(
-					buf,
-					"[BossAI][OpeningSpell] blocked before request. boss=%p dist=%.3f globalCd=%.3f spellCd=%.3f locked=%d\n",
-					static_cast< void* >( GetOwner() ),
-					distanceToTarget,
-					m_bossGlobalActionCooldownRemaining,
-					m_bossSpellCooldownRemaining,
-					IsAIActionLockedByAnimation() ? 1 : 0
-				);
-				OutputDebugStringA(buf);
-
 				s_openingBlockedLogAge = 0.0f;
 			}
 
@@ -554,34 +516,8 @@ void CBossAIComponent::UpdateBehavior(float dt)
 		{
 			m_bBossOpeningSpellRequested = true;
 			m_bossOpeningSpellRequestAgeSec = 0.0f;
-
-			char buf[512];
-			sprintf_s(
-				buf,
-				"[BossAI][OpeningSpell] request spell. boss=%p dist=%.3f globalCd=%.3f spellCd=%.3f lockedAfter=%d\n",
-				static_cast< void* >( GetOwner() ),
-				distanceToTarget,
-				m_bossGlobalActionCooldownRemaining,
-				m_bossSpellCooldownRemaining,
-				IsAIActionLockedByAnimation() ? 1 : 0
-			);
-			OutputDebugStringA(buf);
 		}
-		else
-		{
-			char buf[512];
-			sprintf_s(
-				buf,
-				"[BossAI][OpeningSpell] request failed. boss=%p dist=%.3f globalCd=%.3f spellCd=%.3f locked=%d\n",
-				static_cast< void* >( GetOwner() ),
-				distanceToTarget,
-				m_bossGlobalActionCooldownRemaining,
-				m_bossSpellCooldownRemaining,
-				IsAIActionLockedByAnimation() ? 1 : 0
-			);
-			OutputDebugStringA(buf);
-		}
-
+		
 		return;
 	}
 
@@ -1034,23 +970,6 @@ void CBossAIComponent::BeginBossPostMeleeEvade()
 
 	ClearPath();
 	SetMonsterLocomotionState(EMonsterAnimState::Idle);
-
-	char buf[512];
-	sprintf_s(
-		buf,
-		"[BossAI][PostMeleeEvade] begin pos=(%.3f, %.3f, %.3f) target=(%.3f, %.3f, %.3f) dir=(%.3f, %.3f, %.3f) dist=%.3f\n",
-		pos.x,
-		pos.y,
-		pos.z,
-		target.x,
-		target.y,
-		target.z,
-		m_bossPostMeleeEvadeDirection.x,
-		m_bossPostMeleeEvadeDirection.y,
-		m_bossPostMeleeEvadeDirection.z,
-		dist
-	);
-	OutputDebugStringA(buf);
 }
 
 bool CBossAIComponent::UpdateBossPostMeleeEvade(float dt)
@@ -1137,8 +1056,6 @@ bool CBossAIComponent::UpdateBossPostMeleeEvade(float dt)
 
 		m_bBossPostMeleeEvading = false;
 		m_bossPostMeleeEvadeRemainingDistance = 0.0f;
-
-		OutputDebugStringA("[BossAI][PostMeleeEvade] end.\n");
 	}
 
 	return true;

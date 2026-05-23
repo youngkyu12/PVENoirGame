@@ -4949,17 +4949,6 @@ void CGameScene::UpdateBossStageBossPositionRestores()
 		SetBossStageBossAIEnabled(boss, true);
 
 		state.pendingRestore = false;
-
-		char buf[256];
-		sprintf_s(
-			buf,
-			"[BossStage] boss=%p restored to original position=(%.3f, %.3f, %.3f)\n",
-			static_cast< void* >( boss ),
-			state.originalPosition.x,
-			state.originalPosition.y,
-			state.originalPosition.z
-		);
-		OutputDebugStringA(buf);
 	}
 #endif
 }
@@ -5046,8 +5035,6 @@ void CGameScene::UpdateBossStageBossRenderGate()
 
 		if ( renderer )
 			renderer->SetEnabled(true);
-
-		OutputDebugStringA("[BossStage] Boss render gate opened: Appear phase is active.\n");
 	}
 #endif
 }
@@ -5092,17 +5079,6 @@ void CGameScene::SetBossStageBossActive(
 		}
 
 		boss->SetActive(false);
-
-		char buf[256];
-		sprintf_s(
-			buf,
-			"[BossStage] boss=%p active=%d playAppear=%d\n",
-			static_cast< void* >( boss ),
-			active ? 1 : 0,
-			playAppear ? 1 : 0
-		);
-		OutputDebugStringA(buf);
-
 		return;
 	}
 
@@ -5201,17 +5177,6 @@ void CGameScene::SetBossStageBossActive(
 	{
 		SetBossStageBossAIEnabled(boss, true);
 	}
-
-	char buf[256];
-	sprintf_s(
-		buf,
-		"[BossStage] boss=%p active=%d playAppear=%d hiddenAppear=%d\n",
-		static_cast< void* >( boss ),
-		active ? 1 : 0,
-		playAppear ? 1 : 0,
-		useHiddenAppearSpawn ? 1 : 0
-	);
-	OutputDebugStringA(buf);
 }
 
 CGameObject* CGameScene::FindBossStageBossInMegaGrid(int megaGridNumber) const
@@ -5260,7 +5225,6 @@ bool CGameScene::TryBeginBossStageSummonSequence()
 
 	if ( !boss )
 	{
-		OutputDebugStringA("[BossStage] summon sequence failed: boss not found in mega grid 5.\n");
 		return false;
 	}
 
@@ -5283,7 +5247,6 @@ bool CGameScene::TryBeginBossStageSummonSequence()
 
 	SpawnBossSummonVisuals(summonCenter, 0.0f);
 
-	OutputDebugStringA("[BossStage] summon visual fade-in sequence started.\n");
 	return true;
 #endif
 
@@ -5303,7 +5266,6 @@ bool CGameScene::TryActivateBossStageBoss()
 
 	if ( !boss )
 	{
-		OutputDebugStringA("[BossStage] boss activation failed: boss not found.\n");
 		return false;
 	}
 
@@ -5328,7 +5290,6 @@ bool CGameScene::TryActivateBossStageBoss()
 
 	StartBossSummonVisualFadeOut();
 
-	OutputDebugStringA("[BossStage] MegaGrid 5 boss activated after summon circle fade-in.\n");
 	return true;
 #endif
 
@@ -5352,7 +5313,6 @@ void CGameScene::UpdateBossStageSummonSequence(float dt)
 		SetBossSummonVisualAlpha(0.0f);
 		SetBossSummonVisualActive(false);
 
-		OutputDebugStringA("[BossStage] summon sequence aborted: pending boss is null.\n");
 		return;
 	}
 
