@@ -22,6 +22,8 @@
 #include <vector>
 #include <array>
 #include <memory>
+#include <psapi.h>
+#pragma comment(lib, "Psapi.lib")
 
 #include "AnimatorComponent.h"
 #include "AnimatorData.h"
