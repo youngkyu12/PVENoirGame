@@ -1190,6 +1190,15 @@ private:
 	bool AreAllMonstersInMegaGridDead(int megaGridNumber) const;
 	void UpdateMegaGridClearStateFromMonsterDeaths();
 
+	int ComputePlayerWeaponDamageTierIndexFromClearedMegaGrids() const;
+	void RefreshPlayerWeaponDamageTierFromClearedMegaGrids();
+	void RefreshPlayerWeaponAttackPowers();
+
+	int GetCurrentPlayerSwordAttackPower() const;
+	int GetCurrentPlayerAxeAttackPower() const;
+	int GetCurrentPlayerArrowAttackPower() const;
+	int GetCurrentPlayerBulletAttackPower() const;
+
 	bool IsBossMonsterObject(const CGameObject* monster) const;
 	bool IsEnemySpawnerMonsterObject(const CGameObject* monster) const;
 
@@ -1269,6 +1278,7 @@ private:
 	std::unordered_map<uint64_t, uint32_t> m_prevPlayerNetworkStateCode;
 #endif
 
+	int m_playerWeaponDamageTierIndex = 0; 
 	std::unordered_set<CGameObject*> m_deadMonsters;
 
     unique_ptr<CCollisionSystem> m_Collision;
