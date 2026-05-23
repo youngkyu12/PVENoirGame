@@ -537,95 +537,197 @@ float4 PSBossPoisonProjectileProcedural(
     float coreRadiusUv = saturate(coreDiameter / gasDiameter);
 
     // ---------------------------------------------------------------------
-    // 녹색 독가스 외곽
+    // 1. 보라색 코어
     // ---------------------------------------------------------------------
-    float wobble =
-        0.88f +
-        0.08f * sin(angle * 5.0f + seed * 1.73f) +
-        0.05f * sin(angle * 11.0f - seed * 0.91f) +
-        0.03f * sin((p.x + p.y) * 19.0f + seed * 0.37f);
+    float coreEdgeNoise =
+        0.030f *
+        (
+            sin(angle * 5.0f + seed * 1.37f) * 0.45f +
+            sin(angle * 9.0f - seed * 0.73f) * 0.35f +
+            sin((p.x - p.y) * 6.5f + seed * 2.11f) * 0.20f
+        );
 
-    float gasR = r / max(wobble, 0.25f);
+    float noisyCoreRadius = coreRadiusUv + coreEdgeNoise;
 
-    float gasBody =
-        1.0f - smoothstep(0.58f, 1.00f, gasR);
-
-    float gasOuterSoft =
-        1.0f - smoothstep(0.78f, 1.05f, gasR);
-
-    // 중앙 보라 구체와 완전히 같은 영역에 녹색이 덮이지 않게 약하게 비운다.
-    float gasHole =
-        smoothstep(coreRadiusUv * 0.62f, coreRadiusUv * 0.98f, r);
-
-    float gasNoise =
-        0.82f +
-        0.18f * sin(p.x * 21.0f + seed * 2.11f) *
-        sin(p.y * 17.0f - seed * 1.41f);
-
-    float gasAlpha =
-        gasBody *
-        gasOuterSoft *
-        gasHole *
-        gasNoise *
-        0.58f;
-
-    gasAlpha = saturate(gasAlpha);
-
-    // ---------------------------------------------------------------------
-    // 중앙 보라색 구체
-    // ---------------------------------------------------------------------
-    float coreSolid =
+    // 중심부는 확실히 보라색으로 남긴다.
+    float coreInner =
         1.0f - smoothstep(
-            coreRadiusUv * 0.62f,
-            coreRadiusUv * 0.86f,
+            noisyCoreRadius * 0.38f,
+            noisyCoreRadius * 0.72f,
             r
         );
 
-    float coreSoft =
+    // 가장자리는 넓게 흐린다.
+    float coreOuter =
         1.0f - smoothstep(
-            coreRadiusUv * 0.82f,
-            coreRadiusUv * 1.05f,
+            noisyCoreRadius * 0.64f,
+            noisyCoreRadius * 1.18f,
             r
-        );
-
-    float coreHighlight =
-        1.0f - smoothstep(
-            0.0f,
-            coreRadiusUv * 0.48f,
-            length(p - float2(-0.18f, 0.20f))
         );
 
     float coreAlpha =
-        saturate(coreSolid * 0.95f + coreSoft * 0.35f);
+        saturate(coreInner * 0.88f + coreOuter * 0.36f);
+
+    float coreCenter =
+        1.0f - smoothstep(
+            0.0f,
+            noisyCoreRadius * 0.62f,
+            r
+        );
+
+    // 기존보다 어둡지만, 너무 죽지 않게 채도는 남긴다.
+    float3 coreColorDark = float3(0.14f, 0.018f, 0.26f);
+    float3 coreColorMid = float3(0.44f, 0.080f, 0.62f);
 
     float3 coreColor =
         lerp(
-            float3(0.25f, 0.04f, 0.38f),
-            float3(0.56f, 0.16f, 0.76f),
-            saturate(coreSoft + coreHighlight * 0.28f)
+            coreColorDark,
+            coreColorMid,
+            saturate(coreCenter * 0.58f + coreOuter * 0.16f)
+        );
+
+    // ---------------------------------------------------------------------
+    // 2. 연속형 초록 독가스
+    //
+    // 기존처럼 8개/4개 blob을 max로 찍지 않는다.
+    // 그 방식이 각져 보이는 원인이다.
+    // 여기서는 연속적인 sin-noise 층으로 가스를 만든다.
+    // ---------------------------------------------------------------------
+    float n1 =
+        sin(p.x * 5.7f + seed * 1.91f) *
+        sin(p.y * 4.9f - seed * 1.17f);
+
+    float n2 =
+        sin((p.x + p.y) * 7.3f + seed * 2.41f) *
+        sin((p.x - p.y) * 6.1f - seed * 0.83f);
+
+    float n3 =
+        sin(angle * 6.0f + r * 7.0f + seed * 1.29f);
+
+    float cloudNoise =
+        saturate(
+            0.58f +
+            n1 * 0.20f +
+            n2 * 0.13f +
+            n3 * 0.09f
+        );
+
+    // 노이즈를 너무 날카롭게 쓰지 말고 부드럽게 만든다.
+    cloudNoise = smoothstep(0.22f, 0.92f, cloudNoise);
+
+    // 가스를 중앙 쪽으로 더 모은다.
+    // r=0 근처부터 r=0.8 근처까지 넓게 존재하지만,
+    // 바깥쪽만 강한 고리처럼 보이지 않게 한다.
+    float centeredGas =
+        1.0f - smoothstep(
+            0.10f,
+            0.88f,
+            r
+        );
+
+    float outerGas =
+        1.0f - smoothstep(
+            0.70f,
+            1.06f,
+            r
+        );
+
+    float gasShape =
+        saturate(centeredGas * 0.72f + outerGas * 0.42f);
+
+    // 바깥 경계는 부드럽게 제거.
+    float outerFade =
+        1.0f - smoothstep(0.96f, 1.10f, r);
+
+    gasShape *= outerFade;
+
+    // 기본 가스 alpha.
+    float gasAlpha =
+        saturate(gasShape * cloudNoise * 0.70f);
+
+    // ---------------------------------------------------------------------
+    // 3. 코어 위에 올라오는 앞쪽 가스 베일
+    //
+    // 별도의 각진 blob을 만들지 않고,
+    // 코어 영역 위에 부드러운 반투명 베일을 얹는다.
+    // 이 값이 보라색을 완전히 죽이면 안 된다.
+    // ---------------------------------------------------------------------
+    float veilNoise =
+        saturate(
+            0.55f +
+            sin(p.x * 8.3f + seed * 2.17f) * 0.16f +
+            sin(p.y * 7.1f - seed * 1.43f) * 0.14f +
+            sin((p.x + p.y) * 5.2f + seed * 0.77f) * 0.10f
+        );
+
+    veilNoise = smoothstep(0.28f, 0.88f, veilNoise);
+
+    float veilArea =
+        1.0f - smoothstep(
+            coreRadiusUv * 0.05f,
+            coreRadiusUv * 1.38f,
+            r
+        );
+
+    float frontVeilAlpha =
+        saturate(veilArea * veilNoise * 0.18f);
+
+    // ---------------------------------------------------------------------
+    // 4. 색상
+    // ---------------------------------------------------------------------
+    float gasShade =
+        saturate(
+            0.70f +
+            0.30f *
+            (
+                0.5f +
+                0.5f * sin(p.x * 10.0f + p.y * 8.0f + seed * 1.7f)
+            )
         );
 
     float3 gasColor =
         lerp(
-            float3(0.05f, 0.34f, 0.09f),
-            float3(0.24f, 0.82f, 0.18f),
-            saturate(gasNoise)
+            float3(0.035f, 0.25f, 0.045f),
+            float3(0.16f, 0.68f, 0.14f),
+            gasShade
         );
 
-    float outAlpha = max(coreAlpha, gasAlpha);
+    // ---------------------------------------------------------------------
+    // 5. 최종 합성
+    //
+    // 핵심:
+    // - coreAlpha가 높은 중앙부에서는 gas가 약하게만 섞인다.
+    // - coreAlpha가 낮은 외곽에서는 gas가 강하게 보인다.
+    // - frontVeil은 코어 위를 살짝 덮지만 보라색을 죽이지 않는다.
+    // ---------------------------------------------------------------------
+    float gasOverCoreSuppression =
+        lerp(1.0f, 0.16f, coreAlpha);
 
-    float coreWeight =
-        coreAlpha / max(coreAlpha + gasAlpha, 0.001f);
+    float backGasBlend =
+        saturate(gasAlpha * gasOverCoreSuppression);
 
     float3 outColor =
-        lerp(gasColor, coreColor, saturate(coreWeight));
+        lerp(coreColor, gasColor, backGasBlend);
 
-    // 전체 alpha 계수.
+    float frontGasBlend =
+        saturate(frontVeilAlpha * 0.85f);
+
+    outColor =
+        lerp(outColor, gasColor, frontGasBlend);
+
+    float outAlpha =
+        saturate(
+            coreAlpha * 0.94f +
+            gasAlpha * 0.62f +
+            frontVeilAlpha * 0.70f
+        );
+
+    outAlpha *= outerFade;
     outAlpha *= input.color.a;
 
     clip(outAlpha - 0.004f);
 
-    return float4(outColor, saturate(outAlpha));
+    return float4(outColor, outAlpha);
 }
 
 // -----------------------------------------------------------------------------
