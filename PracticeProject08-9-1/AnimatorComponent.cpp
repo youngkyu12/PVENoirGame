@@ -99,16 +99,6 @@ void CAnimatorComponent::AddClip(AnimationClipRef clip)
 	anim->AddClip(std::move(clip));
 }
 
-void CAnimatorComponent::AddClip(const AnimationClip& clip)
-{
-	CAnimator* anim = EnsureAnimator();
-	if ( !anim )
-		return;
-
-	SyncSkeletonIfPossible();
-	anim->AddClip(clip);
-}
-
 bool CAnimatorComponent::HasClip(const char* name) const
 {
     if (!m_pAnimator) return false;

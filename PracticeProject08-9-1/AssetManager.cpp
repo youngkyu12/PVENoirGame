@@ -367,33 +367,6 @@ AssetManager::AnimationClipRef AssetManager::LoadCachedClipRef(
 	return clipRef;
 }
 
-bool AssetManager::LoadCachedClip(
-	CMesh* mesh,
-	const std::string& skeletonKey,
-	const char* animBinPath,
-	const char* clipName,
-	AnimationClip& outClip,
-	float timeScale)
-{
-	AnimationClipRef clipRef = LoadCachedClipRef(
-		mesh,
-		skeletonKey,
-		animBinPath,
-		clipName,
-		timeScale
-	);
-
-	if ( !clipRef )
-		return false;
-
-	// 기존 호출부 호환용.
-	// 다음 단계에서 GameSceneObjectFactory / CAnimatorComponent 쪽을 바꾸면
-	// 이 복사 경로는 더 이상 쓰지 않게 된다.
-	outClip = *clipRef;
-	return true;
-}
-
-
 std::wstring AssetManager::ResolveTexturePath(
     AssetType /*type*/,
     const std::string& textureRoot,

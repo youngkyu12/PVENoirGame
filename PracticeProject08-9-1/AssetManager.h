@@ -80,15 +80,6 @@ public:
 		float timeScale = 1.0f
 	);
 
-	static bool LoadCachedClip(
-		CMesh* mesh,
-		const std::string& skeletonKey,
-		const char* animBinPath,
-		const char* clipName,
-		AnimationClip& outClip,
-		float timeScale = 1.0f
-	);
-
 	static void ClearCache();
 
 private:
