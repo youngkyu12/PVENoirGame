@@ -609,6 +609,22 @@ private:
 	void UpdateBossPoisonProjectiles(float dt);
 	void RenderBossPoisonProjectiles(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
+	void ApplyBossPoisonProjectilePlayerHits(BossPoisonProjectileEntry& entry);
+	bool DoesBossPoisonProjectileOverlapPlayer(
+		const BossPoisonProjectileEntry& entry,
+		const CGameObject* player
+	) const;
+
+	void ApplyBossPoisonProjectileHitToPlayer(
+		BossPoisonProjectileEntry& entry,
+		int playerSlot,
+		CGameObject* player
+	);
+
+	bool IsBossPoisonProjectilePlayerRollInvincible(
+		const CGameObject* player
+	) const;
+
 	BossPoisonProjectileEntry* AcquireFreeBossPoisonProjectileEntry();
 
 	CGameObject* FindBossStageBossInMegaGrid(int megaGridNumber) const;
@@ -1495,6 +1511,14 @@ private:
 	static constexpr float kBossPoisonProjectileDefaultLaunchHeight = 3.0f;
 	static constexpr float kBossPoisonProjectileDefaultSpeed = 18.0f;
 	static constexpr float kBossPoisonProjectileForwardOffset = 4.0f;
+
+	static constexpr int   kBossPoisonProjectileDamage = 50;
+
+	static constexpr float kBossPoisonProjectilePlayerHitCenterYOffset = 1.0f;
+
+	static constexpr float kBossPoisonProjectilePlayerCollisionRadius = 0.65f;
+
+	static constexpr float kBossPoisonProjectilePlayerHalfHeight = 1.15f;
 
 	static constexpr float kBossPoisonProjectileDelayStep = 0.025f;
 	static constexpr float kBossPoisonProjectileHeightStep = 0.10f;

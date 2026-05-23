@@ -2376,6 +2376,197 @@ CGameScene::AcquireFreeBossPoisonProjectileEntry()
 	return nullptr;
 }
 
+bool CGameScene::IsBossPoisonProjectilePlayerRollInvincible(
+	const CGameObject* player) const
+{
+	if ( !player )
+		return false;
+
+	if ( auto* animComp = player->GetComponent<CAnimatorComponent>() )
+	{
+		if ( auto* ctrl = animComp->GetController() )
+			return ctrl->IsRollPhase();
+	}
+
+	if ( auto* ctrl = player->GetAnimController() )
+		return ctrl->IsRollPhase();
+
+	return false;
+}
+
+bool CGameScene::DoesBossPoisonProjectileOverlapPlayer(
+	const BossPoisonProjectileEntry& entry,
+	const CGameObject* player) const
+{
+	if ( !entry.active )
+		return false;
+
+	if ( !player )
+		return false;
+
+	const XMFLOAT3 playerBasePos = player->GetPosition();
+
+	XMFLOAT3 playerHitCenter = playerBasePos;
+	playerHitCenter.y += kBossPoisonProjectilePlayerHitCenterYOffset;
+
+	const float gasRadius = entry.gasDiameter * 0.5f;
+
+	const float hitRadius =
+		gasRadius + kBossPoisonProjectilePlayerCollisionRadius;
+
+	const float dx = entry.position.x - playerHitCenter.x;
+	const float dz = entry.position.z - playerHitCenter.z;
+
+	const float distSqXZ = dx * dx + dz * dz;
+
+	if ( distSqXZ > hitRadius * hitRadius )
+		return false;
+
+	const float verticalTolerance =
+		gasRadius + kBossPoisonProjectilePlayerHalfHeight;
+
+	const float dy = fabsf(entry.position.y - playerHitCenter.y);
+
+	if ( dy > verticalTolerance )
+		return false;
+
+	return true;
+}
+
+void CGameScene::ApplyBossPoisonProjectileHitToPlayer(
+	BossPoisonProjectileEntry& entry,
+	int playerSlot,
+	CGameObject* player)
+{
+#ifndef USING_NETWORK
+	if ( playerSlot < 0 || playerSlot >= 4 )
+		return;
+
+	if ( !player )
+		return;
+
+	const size_t slotIndex = static_cast< size_t >(playerSlot);
+
+	if ( entry.hitPlayerSlots[slotIndex] )
+		return;
+
+	if ( playerSlot == m_localPlayerSlot && m_bLocalPlayerDead )
+		return;
+
+	if ( IsBossPoisonProjectilePlayerRollInvincible(player) )
+		return;
+
+	auto* hp = player->GetComponent<CHealthComponent>();
+
+	if ( !hp )
+		return;
+
+	if ( hp->IsDead() )
+		return;
+
+	const bool damaged =
+		hp->TakeDamage(kBossPoisonProjectileDamage);
+
+	if ( !damaged )
+		return;
+
+	entry.hitPlayerSlots[slotIndex] = true;
+
+	XMFLOAT3 hitDir = entry.direction;
+
+	if ( hitDir.x * hitDir.x + hitDir.z * hitDir.z <= 1.0e-8f )
+		hitDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
+
+	SpawnBloodSplash(player, nullptr, &hitDir);
+
+	const bool deadAfterHit = hp->IsDead();
+
+	if ( deadAfterHit )
+	{
+		if ( playerSlot == m_localPlayerSlot )
+		{
+			BeginLocalPlayerDeath(player);
+		}
+		else
+		{
+			if ( auto* animComp = player->GetComponent<CAnimatorComponent>() )
+			{
+				if ( auto* ctrl = animComp->EnsureController() )
+				{
+					ctrl->RequestDeath();
+				}
+			}
+			else if ( auto* ctrl = player->GetAnimController() )
+			{
+				ctrl->RequestDeath();
+			}
+		}
+	}
+	else
+	{
+		if ( auto* animComp = player->GetComponent<CAnimatorComponent>() )
+		{
+			if ( auto* ctrl = animComp->EnsureController() )
+			{
+				ctrl->RequestHit();
+			}
+		}
+		else if ( auto* ctrl = player->GetAnimController() )
+		{
+			ctrl->RequestHit();
+		}
+	}
+
+	char buf[512];
+	sprintf_s(
+		buf,
+		"[BossPoison][HitPlayer] slot=%d damage=%d hp=%d/%d dead=%d projectilePos=(%.3f, %.3f, %.3f)\n",
+		playerSlot,
+		kBossPoisonProjectileDamage,
+		hp->GetCurrentHp(),
+		hp->GetMaxHp(),
+		deadAfterHit ? 1 : 0,
+		entry.position.x,
+		entry.position.y,
+		entry.position.z
+	);
+	OutputDebugStringA(buf);
+#else
+	UNREFERENCED_PARAMETER(entry);
+	UNREFERENCED_PARAMETER(playerSlot);
+	UNREFERENCED_PARAMETER(player);
+#endif
+}
+
+void CGameScene::ApplyBossPoisonProjectilePlayerHits(
+	BossPoisonProjectileEntry& entry)
+{
+#ifndef USING_NETWORK
+	if ( !entry.active )
+		return;
+
+	for ( int slot = 0; slot < 4; ++slot )
+	{
+		const size_t slotIndex = static_cast< size_t >(slot);
+
+		if ( entry.hitPlayerSlots[slotIndex] )
+			continue;
+
+		CGameObject* player = GetPlayerBySlot(slot);
+
+		if ( !player )
+			continue;
+
+		if ( !DoesBossPoisonProjectileOverlapPlayer(entry, player) )
+			continue;
+
+		ApplyBossPoisonProjectileHitToPlayer(entry, slot, player);
+	}
+#else
+	UNREFERENCED_PARAMETER(entry);
+#endif
+}
+
 void CGameScene::UpdateBossPoisonProjectileSpellCasts(float dt)
 {
 #ifndef USING_NETWORK
@@ -2603,6 +2794,8 @@ void CGameScene::UpdateBossPoisonProjectiles(float dt)
 		entry.position.x += entry.velocity.x * dt;
 		entry.position.y += entry.velocity.y * dt;
 		entry.position.z += entry.velocity.z * dt;
+
+		ApplyBossPoisonProjectilePlayerHits(entry);
 
 		// 중앙 구체 반지름 2m를 고려해서 벽에 닿는 시점에 제거.
 		if ( entry.position.x <= minX + entry.coreRadius ||
