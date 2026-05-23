@@ -90,6 +90,7 @@ enum class EMuzzleFlashKind : UINT
 	Spark = 2,
 	Blood = 3,
 	PoisonDust = 4,
+	BossMeleeSlash = 5,
 };
 
 struct MuzzleFlashInstanceVertex
@@ -105,7 +106,7 @@ struct MuzzleFlashInstanceVertex
 	// x = ageRatio, y = intensity, z = rotationRad, w = seed
 	XMFLOAT4 params0 = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
 
-	// x = kind (0=core, 1=ring, 2=spark, 3=blood, 4=poison dust)
+	// x = kind (0=core, 1=ring, 2=spark, 3=blood, 4=poison dust, 5=boss melee slash)
 	// y = reserved
 	// z = reserved
 	// w = reserved
@@ -119,6 +120,11 @@ struct MuzzleFlashEntry
 
 	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
 	XMFLOAT3 velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	// BossMeleeSlash처럼 카메라 빌보드가 아니라 월드 방향 고정 billboard가 필요한 경우 사용.
+	XMFLOAT3 axisRight = XMFLOAT3(1.0f, 0.0f, 0.0f);
+	XMFLOAT3 axisUp = XMFLOAT3(0.0f, 1.0f, 0.0f);
+	XMFLOAT3 axisForward = XMFLOAT3(0.0f, 0.0f, 1.0f);
 
 	float age = 0.0f;
 	float lifetime = 0.08f;
@@ -546,6 +552,7 @@ private:
 		const XMFLOAT3* hitPosition = nullptr,
 		const XMFLOAT3* hitDirection = nullptr
 	);
+	void SpawnBossMeleeSlashEffect(CGameObject* boss);
 	void UpdateMuzzleFlashes(float dt);
 	void RenderMuzzleFlashes(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
@@ -607,6 +614,7 @@ private:
 	void ReleaseBossPoisonProjectileGpuResources();
 
 	void UpdateBossPoisonProjectileSpellCasts(float dt);
+	void UpdateBossMeleeSlashCasts(float dt);
 	void SpawnBossPoisonProjectile(CGameObject* boss);
 	void UpdateBossPoisonProjectiles(float dt);
 	void RenderBossPoisonProjectiles(ID3D12GraphicsCommandList* cmd, CCamera* camera);
@@ -1549,6 +1557,25 @@ private:
 
 	// 생성 직후 투사체 중심에서 아주 살짝 떨어뜨려 겹침을 줄인다.
 	static constexpr float kBossPoisonDustSpawnOffsetRadius = 0.35f;
+
+	static constexpr float kBossMeleeSlashDelayAdjustStepSec = 0.010f;
+	static constexpr float kBossMeleeSlashDelayMinSec = 0.000f;
+	static constexpr float kBossMeleeSlashDelayMaxSec = 2.000f;
+
+	float m_bossMeleeSlashLaunchDelaySec = 0.450f;
+
+	bool m_bPrevBossMeleeSlashDelayLeftKeyDown = false;
+	bool m_bPrevBossMeleeSlashDelayRightKeyDown = false;
+
+	struct BossMeleeSlashCastState
+	{
+		bool wasMeleePhase = false;
+		bool pendingSpawn = false;
+		bool spawned = false;
+		float meleeAgeSec = 0.0f;
+	};
+
+	std::unordered_map<CGameObject*, BossMeleeSlashCastState> m_bossMeleeSlashCastStates;
 
 	struct BossPoisonSpellCastState
 	{

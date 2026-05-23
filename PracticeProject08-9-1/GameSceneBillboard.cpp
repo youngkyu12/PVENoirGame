@@ -125,6 +125,62 @@ namespace
 		dst.world3 = XMFLOAT4(c.x, c.y, c.z, 1.0f);
 	}
 
+	static void StoreOrientedMuzzleFlashWorldRows(
+		MuzzleFlashInstanceVertex& dst,
+		const XMFLOAT3& centerPosition,
+		const XMFLOAT3& rightAxis,
+		const XMFLOAT3& upAxis,
+		const XMFLOAT3& forwardAxis,
+		float width,
+		float height)
+	{
+		XMVECTOR right = XMLoadFloat3(&rightAxis);
+		XMVECTOR up = XMLoadFloat3(&upAxis);
+		XMVECTOR forward = XMLoadFloat3(&forwardAxis);
+
+		if ( XMVectorGetX(XMVector3LengthSq(right)) <= 1.0e-8f )
+			right = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+		else
+			right = XMVector3Normalize(right);
+
+		if ( XMVectorGetX(XMVector3LengthSq(up)) <= 1.0e-8f )
+			up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+		else
+			up = XMVector3Normalize(up);
+
+		if ( XMVectorGetX(XMVector3LengthSq(forward)) <= 1.0e-8f )
+		{
+			forward = XMVector3Cross(right, up);
+
+			if ( XMVectorGetX(XMVector3LengthSq(forward)) <= 1.0e-8f )
+				forward = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+			else
+				forward = XMVector3Normalize(forward);
+		}
+		else
+		{
+			forward = XMVector3Normalize(forward);
+		}
+
+		const XMVECTOR scaledRight = XMVectorScale(right, width);
+		const XMVECTOR scaledUp = XMVectorScale(up, height);
+
+		XMFLOAT3 r{};
+		XMFLOAT3 u{};
+		XMFLOAT3 f{};
+		XMFLOAT3 c{};
+
+		XMStoreFloat3(&r, scaledRight);
+		XMStoreFloat3(&u, scaledUp);
+		XMStoreFloat3(&f, forward);
+		XMStoreFloat3(&c, XMLoadFloat3(&centerPosition));
+
+		dst.world0 = XMFLOAT4(r.x, r.y, r.z, 0.0f);
+		dst.world1 = XMFLOAT4(u.x, u.y, u.z, 0.0f);
+		dst.world2 = XMFLOAT4(f.x, f.y, f.z, 0.0f);
+		dst.world3 = XMFLOAT4(c.x, c.y, c.z, 1.0f);
+	}
+
 	static MuzzleFlashEntry* AcquireFreeMuzzleFlashEntry(
 		std::vector<MuzzleFlashEntry>& flashes)
 	{
@@ -1426,6 +1482,218 @@ void CGameScene::SpawnBloodSplash(
 	}
 }
 
+void CGameScene::SpawnBossMeleeSlashEffect(CGameObject* boss)
+{
+#ifndef USING_NETWORK
+	if ( !boss )
+		return;
+
+	if ( IsMonsterDead(boss) )
+		return;
+
+	static std::mt19937 rng{ std::random_device{}( ) };
+	static std::uniform_real_distribution<float> seedDist(0.0f, 1000.0f);
+
+	const XMFLOAT3 bossPos = boss->GetPosition();
+
+	const XMVECTOR worldUp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+
+	const XMFLOAT4X4& bossWorldF = boss->GetWorldMatrix();
+	const XMMATRIX bossWorld = XMLoadFloat4x4(&bossWorldF);
+
+	XMVECTOR forward =
+		XMVector3TransformNormal(
+			XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f),
+			bossWorld
+		);
+
+	forward = XMVectorSetY(forward, 0.0f);
+
+	if ( XMVectorGetX(XMVector3LengthSq(forward)) <= 1.0e-8f )
+	{
+		CGameObject* player = GetPlayer();
+
+		if ( !player )
+			player = GetPlayerBySlot(0);
+
+		if ( player )
+		{
+			const XMFLOAT3 playerPos = player->GetPosition();
+
+			forward =
+				XMLoadFloat3(&playerPos) -
+				XMLoadFloat3(&bossPos);
+
+			forward = XMVectorSetY(forward, 0.0f);
+		}
+	}
+
+	if ( XMVectorGetX(XMVector3LengthSq(forward)) <= 1.0e-8f )
+		forward = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+	else
+		forward = XMVector3Normalize(forward);
+
+	XMVECTOR right = XMVector3Cross(worldUp, forward);
+
+	if ( XMVectorGetX(XMVector3LengthSq(right)) <= 1.0e-8f )
+		right = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+	else
+		right = XMVector3Normalize(right);
+
+	XMFLOAT3 forwardF{};
+	XMFLOAT3 rightF{};
+	XMFLOAT3 upF{};
+
+	XMStoreFloat3(&forwardF, forward);
+	XMStoreFloat3(&rightF, right);
+	XMStoreFloat3(&upF, worldUp);
+
+	auto SpawnSlashLayer =
+		[&](
+			float width,
+			float height,
+			float life,
+			float startScale,
+			float endScale,
+			float intensity,
+			float alpha,
+			float forwardOffset,
+			float sideOffset,
+			float verticalOffset,
+			const XMFLOAT3& rgb,
+			float seedBias)
+		{
+			MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashes);
+
+			if ( !e )
+				return;
+
+			*e = MuzzleFlashEntry{};
+
+			// 셰이더의 BossMeleeSlash 중심선은 t=0에서 대략 q=(-0.92, -0.92)이다.
+			// quad local 좌표로는 (-0.46, -0.46)이므로,
+			// 이 좌하단 시작점을 먼저 월드 위치에 맞추고 center를 역산한다.
+			constexpr float kBossMeleeSlashRootLocalX = -0.46f;
+			constexpr float kBossMeleeSlashRootLocalY = -0.46f;
+
+			// 시작점을 기존보다 조금 더 보스 기준 왼쪽으로 보낸다.
+			// 너무 왼쪽이면 -0.35f 정도로 줄이고, 더 왼쪽이면 -0.80f 정도로 키워라.
+			constexpr float kBossMeleeSlashRootLeftExtraOffset = -0.55f;
+
+			// 시작점을 바닥 위가 아니라 바닥 아래에서 시작하게 만든다.
+			// bossPos.y가 지면 기준이면 root가 약 1.20m 아래에서 시작한다.
+			constexpr float kBossMeleeSlashRootSinkY = -1.20f;
+
+			// 이 값이 실제 "지면 아래에서 솟아나는 시작점" 위치다.
+			// forwardOffset / sideOffset은 quad center가 아니라 root 위치 기준이다.
+			XMVECTOR root =
+				XMLoadFloat3(&bossPos) +
+				XMVectorScale(forward, forwardOffset) +
+				XMVectorScale(right, sideOffset + kBossMeleeSlashRootLeftExtraOffset);
+
+			XMVECTOR center =
+				root -
+				XMVectorScale(right, width * kBossMeleeSlashRootLocalX) -
+				XMVectorScale(worldUp, height * kBossMeleeSlashRootLocalY);
+
+			XMFLOAT3 centerF{};
+			XMStoreFloat3(&centerF, center);
+
+			// root가 바닥 아래에서 시작하도록 center.y를 root 기준으로 역산한다.
+			centerF.y =
+				bossPos.y +
+				kBossMeleeSlashRootSinkY +
+				verticalOffset -
+				height * kBossMeleeSlashRootLocalY;
+
+			e->active = true;
+			e->kind = EMuzzleFlashKind::BossMeleeSlash;
+
+			e->position = centerF;
+			e->velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+			e->axisRight = rightF;
+			e->axisUp = upF;
+			e->axisForward = forwardF;
+
+			e->age = 0.0f;
+			e->lifetime = life;
+
+			e->startWidth = width * startScale;
+			e->startHeight = height * startScale;
+			e->endWidth = width * endScale;
+			e->endHeight = height * endScale;
+
+			e->rotationRad = 0.0f;
+			e->intensity = intensity;
+			e->drag = 0.0f;
+			e->gravity = 0.0f;
+			e->seed = seedDist(rng) + seedBias;
+
+			e->color = XMFLOAT4(rgb.x, rgb.y, rgb.z, alpha);
+		};
+
+	// 1) 외곽 glow: 크게, 오래, 옅게.
+	SpawnSlashLayer(
+		12.8f,
+		13.4f,
+		0.56f,
+		0.96f,
+		1.08f,
+		0.78f,
+		0.38f,
+		1.35f,
+		-1.15f,
+		-0.15f,
+		XMFLOAT3(0.26f, 0.95f, 0.04f),
+		77.3f
+	);
+
+	// 2) 메인 칼날: 밝은 연두색.
+	SpawnSlashLayer(
+		11.8f,
+		12.5f,
+		0.46f,
+		0.94f,
+		1.03f,
+		1.10f,
+		0.92f,
+		1.50f,
+		-0.95f,
+		0.00f,
+		XMFLOAT3(0.58f, 1.00f, 0.08f),
+		0.0f
+	);
+
+	// 3) 내부 하이라이트: 흰빛 섞인 연두색.
+	SpawnSlashLayer(
+		8.8f,
+		10.8f,
+		0.32f,
+		0.92f,
+		0.98f,
+		1.35f,
+		0.68f,
+		1.65f,
+		-0.75f,
+		0.25f,
+		XMFLOAT3(0.88f, 1.00f, 0.55f),
+		31.7f
+	);
+
+	char buf[256];
+	sprintf_s(
+		buf,
+		"[BossMeleeSlash][Spawn] boss=%p delay=%.4f sec\n",
+		static_cast< void* >( boss ),
+		m_bossMeleeSlashLaunchDelaySec
+	);
+	OutputDebugStringA(buf);
+#else
+	UNREFERENCED_PARAMETER(boss);
+#endif
+}
+
 void CGameScene::BeginSwordTrail(CGameObject* owner)
 {
 	if ( !owner )
@@ -2272,6 +2540,7 @@ void CGameScene::ResetBossPoisonProjectileState()
 	m_bossPoisonProjectiles.resize(kBossPoisonProjectileMaxCount);
 
 	m_bossPoisonSpellCastStates.clear();
+	m_bossMeleeSlashCastStates.clear();
 }
 
 BossPoisonProjectileEntry*
@@ -2474,6 +2743,81 @@ void CGameScene::ApplyBossPoisonProjectilePlayerHits(
 	}
 #else
 	UNREFERENCED_PARAMETER(entry);
+#endif
+}
+
+void CGameScene::UpdateBossMeleeSlashCasts(float dt)
+{
+#ifndef USING_NETWORK
+	if ( dt < 0.0f )
+		dt = 0.0f;
+
+	for ( CGameObject* boss : m_bossRefs )
+	{
+		if ( !boss )
+			continue;
+
+		if ( !boss->GetActive() || IsMonsterDead(boss) )
+		{
+			m_bossMeleeSlashCastStates.erase(boss);
+			continue;
+		}
+
+		CAnimatorComponent* animComp =
+			boss->GetComponent<CAnimatorComponent>();
+
+		if ( !animComp )
+		{
+			m_bossMeleeSlashCastStates.erase(boss);
+			continue;
+		}
+
+		CMonsterAnimController* ctrl =
+			animComp->EnsureMonsterController();
+
+		if ( !ctrl )
+		{
+			m_bossMeleeSlashCastStates.erase(boss);
+			continue;
+		}
+
+		const bool isMeleePhase =
+			ctrl->IsAttackPrimaryPhase() ||
+			ctrl->IsAttackChainPhase();
+
+		BossMeleeSlashCastState& state =
+			m_bossMeleeSlashCastStates[boss];
+
+		if ( !isMeleePhase )
+		{
+			state = BossMeleeSlashCastState{};
+			continue;
+		}
+
+		if ( !state.wasMeleePhase )
+		{
+			state.wasMeleePhase = true;
+			state.pendingSpawn = true;
+			state.spawned = false;
+			state.meleeAgeSec = 0.0f;
+		}
+		else
+		{
+			state.meleeAgeSec += dt;
+		}
+
+		if ( state.pendingSpawn &&
+			 !state.spawned &&
+			 state.meleeAgeSec >= m_bossMeleeSlashLaunchDelaySec )
+		{
+			SpawnBossMeleeSlashEffect(boss);
+
+			state.spawned = true;
+			state.pendingSpawn = false;
+		}
+	}
+#else
+	UNREFERENCED_PARAMETER(dt);
 #endif
 }
 
@@ -3174,8 +3518,30 @@ void CGameScene::RenderMuzzleFlashes(
 		const float height = flash.startHeight + ( flash.endHeight - flash.startHeight ) * ageRatio;
 
 		MuzzleFlashInstanceVertex& dst =
-			mappedMuzzleFlashInstanceBuffer[visibleInstanceCount]; 
-		StoreMuzzleFlashWorldRows(dst, flash.position, width, height, cameraPos);
+			mappedMuzzleFlashInstanceBuffer[visibleInstanceCount];
+
+		if ( flash.kind == EMuzzleFlashKind::BossMeleeSlash )
+		{
+			StoreOrientedMuzzleFlashWorldRows(
+				dst,
+				flash.position,
+				flash.axisRight,
+				flash.axisUp,
+				flash.axisForward,
+				width,
+				height
+			);
+		}
+		else
+		{
+			StoreMuzzleFlashWorldRows(
+				dst,
+				flash.position,
+				width,
+				height,
+				cameraPos
+			);
+		}
 
 		dst.color = flash.color;
 		dst.params0 = XMFLOAT4(ageRatio, flash.intensity, flash.rotationRad, flash.seed);
