@@ -846,6 +846,9 @@ private:
 	void UpdateDynamicGridState();
 	void UpdateMegaGridState();
 
+	void UpdateMegaGrid5DirectionalLightState();
+	void ApplyMegaGrid5DirectionalLightProfile(bool enabled);
+
 	bool TryTeleportLocalPlayerToMegaGridByNumber(int megaGridNumber);
 	XMFLOAT3 ComputeLocalStageTeleportPosition(int megaGridNumber) const;
 
@@ -1480,6 +1483,7 @@ private:
 	bool                                m_bShowShadowMapOverlay = true;
 
 	bool m_bLocalPlayerInsideCastleCenterMegaGrid = false;
+	bool m_bMegaGrid5DirectionalLightProfileActive = false;
 
 	bool GetPauseOverlayRect(XMFLOAT4& outRect) const;
 

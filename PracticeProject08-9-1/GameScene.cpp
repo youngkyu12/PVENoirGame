@@ -151,6 +151,7 @@ CGameScene::CGameScene()
 	m_deadMonsters.clear();
 
 	m_bLocalPlayerInsideCastleCenterMegaGrid = false;
+	m_bMegaGrid5DirectionalLightProfileActive = false;
 }
 
 void CGameScene::SetFrameResourceIndex(UINT frameResourceIndex)
@@ -1698,6 +1699,7 @@ void CGameScene::RebuildDynamicGridState()
 
 	UpdateMegaGridState();
 	UpdateCastleCenterMegaGridState();
+	UpdateMegaGrid5DirectionalLightState();
 }
 
 void CGameScene::UpdateDynamicGridState()
@@ -1710,6 +1712,7 @@ void CGameScene::UpdateDynamicGridState()
 
 	UpdateMegaGridState();
 	UpdateCastleCenterMegaGridState();
+	UpdateMegaGrid5DirectionalLightState();
 }
 
 void CGameScene::UpdateMegaGridState()
@@ -1759,6 +1762,107 @@ void CGameScene::UpdateMegaGridState()
 			m_sceneGrid.SetMegaGridPlayerApproached(megaX, megaZ, true);
 		}
 	}
+}
+
+void CGameScene::UpdateMegaGrid5DirectionalLightState()
+{
+	if ( !m_sceneGrid.IsInitialized() )
+	{
+		ApplyMegaGrid5DirectionalLightProfile(false);
+		return;
+	}
+
+	CGameObject* player = GetPlayer();
+
+	if ( !player )
+		player = GetPlayerBySlot(0);
+
+	if ( !player )
+	{
+		ApplyMegaGrid5DirectionalLightProfile(false);
+		return;
+	}
+
+	const XMFLOAT3 pos = player->GetPosition();
+
+	const int megaGridNumber =
+		m_sceneGrid.MegaGridNumberFromWorldPosition(pos.x, pos.z);
+
+	const bool shouldUseMega5Light =
+		( megaGridNumber == 5 );
+
+	ApplyMegaGrid5DirectionalLightProfile(shouldUseMega5Light);
+}
+
+void CGameScene::ApplyMegaGrid5DirectionalLightProfile(bool enabled)
+{
+	if ( m_bMegaGrid5DirectionalLightProfileActive == enabled )
+		return;
+
+	CGameObject* directionalLightObject = nullptr;
+	CLightComponent* directionalLight = nullptr;
+
+	for ( const auto& lightObject : m_lightObjects )
+	{
+		if ( !lightObject )
+			continue;
+
+		auto* lc = lightObject->GetComponent<CLightComponent>();
+		if ( !lc )
+			continue;
+
+		if ( lc->type != ELightType::Directional )
+			continue;
+
+		directionalLightObject = lightObject.get();
+		directionalLight = lc;
+		break;
+	}
+
+	if ( !directionalLightObject || !directionalLight )
+		return;
+
+	if ( auto* tr = directionalLightObject->GetComponent<CTransformComponent>() )
+	{
+		if ( enabled )
+		{
+			tr->SetLookDirection(XMFLOAT3(0.0f, -1.0f, 0.0f));
+		}
+		else
+		{
+			tr->SetLookDirection(XMFLOAT3(1.0f, -1.0f, 0.3f));
+		}
+	}
+
+	if ( enabled )
+	{
+		directionalLight->diffuse =
+			XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
+	}
+	else
+	{
+		directionalLight->diffuse =
+			XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	}
+
+	m_bMegaGrid5DirectionalLightProfileActive = enabled;
+
+#ifndef USING_NETWORK
+	char buf[256];
+	sprintf_s(
+		buf,
+		"[DirectionalLight][Mega5Profile] enabled=%d dir=(%.1f, %.1f, %.1f) diffuse=(%.1f, %.1f, %.1f, %.1f)\n",
+		enabled ? 1 : 0,
+		enabled ? 0.0f : 1.0f,
+		-1.0f,
+		enabled ? 0.0f : 0.3f,
+		directionalLight->diffuse.x,
+		directionalLight->diffuse.y,
+		directionalLight->diffuse.z,
+		directionalLight->diffuse.w
+	);
+	OutputDebugStringA(buf);
+#endif
 }
 
 XMFLOAT3 CGameScene::ComputeLocalStageTeleportPosition(int megaGridNumber) const
