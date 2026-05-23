@@ -138,7 +138,17 @@ private:
 		float turnSpeedDegreesPerSec
 	);
 
-	bool UpdateBossPostMeleeTurn(float dt);
+	void CaptureBossMeleeAttackForward();
+	void BeginBossPostMeleeEvade();
+	bool UpdateBossPostMeleeEvade(float dt);
+
+	bool SelectBossPostMeleeEvadeDirection(XMFLOAT3& outDir) const;
+	bool IsBossPostMeleeEvadeDestinationValid(
+		const XMFLOAT3& from,
+		const XMFLOAT3& dir
+	) const;
+
+	XMFLOAT3 ClampBossPostMeleeEvadePointToStage(const XMFLOAT3& p) const;
 
 private:
 	EBossAttackIntent m_pendingAttackIntent = EBossAttackIntent::Melee;
@@ -160,8 +170,33 @@ private:
 	bool m_bBossOpeningSpellRequested = false;
 	float m_bossOpeningSpellRequestAgeSec = 0.0f;
 
-	float m_bossPostMeleeTurnDuration = 0.25f;
-	float m_bossPostMeleeTurnRemaining = 0.0f;
+	// 근거리 공격 후 즉시 거리를 벌리는 회피 이동.
+	// 보스는 공중 몬스터이므로 별도 이동 애니메이션 없이 Idle 유지.
+	static constexpr float kBossPostMeleeEvadeDistance = 10.0f;
+	static constexpr float kBossPostMeleeEvadeSpeed = 32.0f;
+
+	// 보스 스테이지는 중심 (0, 0, 400), 안전 판정은 210 x 210 사용.
+	static constexpr float kBossPostMeleeEvadeStageCenterX = 0.0f;
+	static constexpr float kBossPostMeleeEvadeStageCenterZ = 400.0f;
+	static constexpr float kBossPostMeleeEvadeStageHalfExtent = 105.0f;
+
+	// 보스 크기/벽 끼임 방지용 여유.
+	static constexpr float kBossPostMeleeEvadeStagePadding = 5.0f;
+
+	bool m_bBossPostMeleeEvading = false;
+
+	XMFLOAT3 m_bossMeleeAttackForward =
+		XMFLOAT3(0.0f, 0.0f, 1.0f);
+
+	XMFLOAT3 m_bossPostMeleeEvadeDirection =
+		XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	XMFLOAT3 m_bossPostMeleeEvadeTarget =
+		XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	float m_bossPostMeleeEvadeRemainingDistance = 0.0f;
+
+	// 회피 이동 중 플레이어를 바라보는 회전 속도.
 	float m_bossPostMeleeTurnSpeedDegrees = 900.0f;
 
 	float m_bossSpellTurnSpeedDegrees = 720.0f;
