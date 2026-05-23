@@ -317,21 +317,26 @@ bool CBossAIComponent::AcquireTarget()
 	if ( !scene->IsLocalMonsterChaseEnabled() )
 		return false;
 
-	CGameObject* player = scene->GetPlayer();
-	if ( !player )
-		return false;
-
-	if ( auto* hp = player->GetComponent<CHealthComponent>() )
+	for ( int slot = 0; slot < 4; ++slot )
 	{
-		if ( hp->IsDead() )
-			return false;
+		CGameObject* player = scene->GetPlayerBySlot(slot);
+		if ( !player )
+			continue;
+
+		if ( auto* hp = player->GetComponent<CHealthComponent>() )
+		{
+			if ( hp->IsDead() )
+				continue;
+		}
+
+		if ( !IsPlayerInsideBossBattleZone(player) )
+			continue;
+
+		SetTarget(player);
+		return true;
 	}
 
-	if ( !IsPlayerInsideBossBattleZone(player) )
-		return false;
-
-	SetTarget(player);
-	return true;
+	return false;
 }
 
 void CBossAIComponent::ConfigureBossHitReactionPolicy()

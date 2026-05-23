@@ -2599,13 +2599,15 @@ void CGameScene::ReleaseObjects()
 	ResetSkinnedWorldLodEntries();
 	ResetSkinnedOcclusionEntries();
 
-    m_PlayerSwordRefs.clear();
-    m_PlayerBowRefs.clear();
-    m_PlayerAxeRefs.clear();
-    m_PlayerGunRefs.clear();
+	m_PlayerSwordRefs.clear();
+	m_PlayerBowRefs.clear();
+	m_PlayerAxeRefs.clear();
+	m_PlayerGunRefs.clear();
 
-    m_EnemySwordRefs.clear();
-    m_EnemyBowRefs.clear();
+	m_playerWeaponOwnerByObject.clear();
+
+	m_EnemySwordRefs.clear();
+	m_EnemyBowRefs.clear();
 
 	m_EnemySpawnRefs.clear();
 	m_enemySpawnPoolEntries.clear();
@@ -4390,6 +4392,92 @@ int CGameScene::GetPlayerSlotFromObject(const CGameObject* obj) const
     return tag->playerSlot;
 }
 
+CGameObject* CGameScene::ResolvePlayerAttackerFromPlayerWeapon(CGameObject* weaponObject) const
+{
+	if ( !weaponObject )
+		return nullptr;
+
+	// 혹시 weaponObject 자체가 플레이어인 경우.
+	const int directPlayerSlot = GetPlayerSlotFromObject(weaponObject);
+	if ( directPlayerSlot >= 0 && directPlayerSlot < 4 )
+		return GetPlayerBySlot(directPlayerSlot);
+
+	// 화살/총알처럼 풀에서 재사용되는 오브젝트는 발사 시점에 owner map에 기록한다.
+	auto ownerIt = m_playerWeaponOwnerByObject.find(weaponObject);
+	if ( ownerIt != m_playerWeaponOwnerByObject.end() )
+	{
+		CGameObject* owner = ownerIt->second;
+
+		const int ownerSlot = GetPlayerSlotFromObject(owner);
+		if ( ownerSlot >= 0 && ownerSlot < 4 )
+			return owner;
+	}
+
+	// 검/도끼 같은 장착 무기는 slot 순서 ref로 역추적한다.
+	for ( int slot = 0; slot < 4; ++slot )
+	{
+		const size_t index = static_cast< size_t >(slot);
+
+		if ( index < m_PlayerSwordRefs.size() &&
+			 m_PlayerSwordRefs[index] == weaponObject )
+		{
+			return GetPlayerBySlot(slot);
+		}
+
+		if ( index < m_PlayerAxeRefs.size() &&
+			 m_PlayerAxeRefs[index] == weaponObject )
+		{
+			return GetPlayerBySlot(slot);
+		}
+
+		if ( index < m_PlayerBowRefs.size() &&
+			 m_PlayerBowRefs[index] == weaponObject )
+		{
+			return GetPlayerBySlot(slot);
+		}
+
+		if ( index < m_PlayerGunRefs.size() &&
+			 m_PlayerGunRefs[index] == weaponObject )
+		{
+			return GetPlayerBySlot(slot);
+		}
+
+		if ( index < m_preparedPlayerArrows.size() &&
+			 m_preparedPlayerArrows[index] == weaponObject )
+		{
+			return GetPlayerBySlot(slot);
+		}
+	}
+
+	return nullptr;
+}
+
+bool CGameScene::ForceMonsterAIChaseTarget(CGameObject* monster, CGameObject* target) const
+{
+	if ( !monster || !target )
+		return false;
+
+	if ( auto* ai = monster->GetComponent<CGhoulAIComponent>() )
+		return ai->ForceChaseTarget(target);
+
+	if ( auto* ai = monster->GetComponent<CSwordManAIComponent>() )
+		return ai->ForceChaseTarget(target);
+
+	if ( auto* ai = monster->GetComponent<CBowManAIComponent>() )
+		return ai->ForceChaseTarget(target);
+
+	if ( auto* ai = monster->GetComponent<CMutantAIComponent>() )
+		return ai->ForceChaseTarget(target);
+
+	if ( auto* ai = monster->GetComponent<CBossAIComponent>() )
+		return ai->ForceChaseTarget(target);
+
+	if ( auto* ai = monster->GetComponent<CMonsterAIComponent>() )
+		return ai->ForceChaseTarget(target);
+
+	return false;
+}
+
 int CGameScene::GetBowManIndexFromObject(const CGameObject* obj) const
 {
 	if ( !obj ) return -1;
@@ -4445,7 +4533,9 @@ void CGameScene::RequestPrepareArrow(CGameObject* shooter, float pullBackDistanc
 
 		SetObjectAttackPower(arrowObj, GetCurrentPlayerArrowAttackPower());
 
-		arrow->Prepare(bowObj, shooter, pullBackDistance, true, true); 
+		m_playerWeaponOwnerByObject[arrowObj] = shooter;
+
+		arrow->Prepare(bowObj, shooter, pullBackDistance, true, true);
 		m_preparedPlayerArrows[( size_t ) slot] = arrowObj;
 		return;
     }
@@ -4479,6 +4569,8 @@ void CGameScene::RequestPrepareBowmanArrow(CGameObject* bowman, float pullBackDi
 		if ( arrow->IsActive() ) continue;
 
 		SetObjectAttackPower(arrowObj, kAttackPowerEnemyArrow);
+
+		m_playerWeaponOwnerByObject.erase(arrowObj);
 
 		arrow->Prepare(bowObj, bowman, pullBackDistance, false, true);
 		m_preparedBowmanArrows[idx] = arrowObj;
@@ -4691,20 +4783,15 @@ CGameObject* CGameScene::GetPlayerBySlot(int slot) const
     return m_playersBySlot[(size_t)slot];
 }
 
-bool CGameScene::IsLocalPlayerInsideMegaGridCenter() const
+bool CGameScene::IsPlayerInsideMegaGridCenter(const CGameObject* player) const
 {
 	if ( !m_sceneGrid.IsInitialized() )
 		return false;
 
-	CGameObject* localPlayer = GetPlayer();
-
-	if ( !localPlayer )
-		localPlayer = GetPlayerBySlot(0);
-
-	if ( !localPlayer )
+	if ( !player )
 		return false;
 
-	const XMFLOAT3 pos = localPlayer->GetPosition();
+	const XMFLOAT3 pos = player->GetPosition();
 
 	int cellX = -1;
 	int cellZ = -1;
@@ -4724,7 +4811,12 @@ bool CGameScene::IsLocalPlayerInsideMegaGridCenter() const
 #ifdef USING_NETWORK
 		return true;
 #else
-		return m_bLocalPlayerInsideCastleCenterMegaGrid;
+		// 기존 로컬 플레이어의 Castle 포탈 진입 플래그는 그대로 유지한다.
+		// 단, slot 1~3 플레이어도 AI 타겟 후보로 쓸 수 있게 위치 기준은 허용한다.
+		if ( player == GetPlayer() || player == GetPlayerBySlot(m_localPlayerSlot) )
+			return m_bLocalPlayerInsideCastleCenterMegaGrid;
+
+		return true;
 #endif
 	}
 
@@ -4734,6 +4826,16 @@ bool CGameScene::IsLocalPlayerInsideMegaGridCenter() const
 		cellX,
 		cellZ
 	);
+}
+
+bool CGameScene::IsLocalPlayerInsideMegaGridCenter() const
+{
+	CGameObject* localPlayer = GetPlayer();
+
+	if ( !localPlayer )
+		localPlayer = GetPlayerBySlot(0);
+
+	return IsPlayerInsideMegaGridCenter(localPlayer);
 }
 
 int CGameScene::GetLocalPlayerMegaGridNumberForDepthFog() const
@@ -6244,6 +6346,8 @@ void CGameScene::RequestFireArrow(CGameObject* shooter, float speed, float lifeS
 
 		SetObjectAttackPower(arrowObj, GetCurrentPlayerArrowAttackPower());
 
+		m_playerWeaponOwnerByObject[arrowObj] = shooter;
+
 		arrow->Activate(startPos, vel, lifeSec, true);
 		return;
     }
@@ -6275,6 +6379,8 @@ void CGameScene::RequestFireBullet(CGameObject* shooter, float speed, float life
 		if ( bullet->IsActive() ) continue;
 
 		SetObjectAttackPower(bulletObj, GetCurrentPlayerBulletAttackPower());
+
+		m_playerWeaponOwnerByObject[bulletObj] = shooter;
 
 		if ( bullet->FireFromObjects(spawnSource, directionSource, speed, lifeSec, true) )
 		{

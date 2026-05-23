@@ -746,8 +746,9 @@ public:
     CGameObject* GetDemoFighter(int index) const;
     void RequestDemoFighterAttack(int index);
 
-    CGameObject* GetPlayerBySlot(int slot) const; // slot: 0..3
-    bool IsLocalPlayer(const CGameObject* obj) const;
+	CGameObject* GetPlayerBySlot(int slot) const; // slot: 0..3
+	bool IsLocalPlayer(const CGameObject* obj) const;
+	bool IsPlayerInsideMegaGridCenter(const CGameObject* player) const;
 	bool IsLocalPlayerDead() const { return m_bLocalPlayerDead; }
 	bool RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& previousPos);
     
@@ -1076,6 +1077,8 @@ private:
     std::vector<CGameObject*> m_PlayerAxeRefs;
     std::vector<CGameObject*> m_PlayerGunRefs;
 
+	std::unordered_map<CGameObject*, CGameObject*> m_playerWeaponOwnerByObject;
+
     std::vector<CGameObject*> m_EnemySwordRefs;
     std::vector<CGameObject*> m_EnemyBowRefs;
 	std::vector<CGameObject*> m_EnemySpawnRefs;
@@ -1158,6 +1161,9 @@ private:
 	int GetPlayerSlotFromObject(const CGameObject* obj) const;
 	int GetBowManIndexFromObject(const CGameObject* obj) const;
 	int GetSwordManIndexFromObject(const CGameObject* obj) const;
+
+	CGameObject* ResolvePlayerAttackerFromPlayerWeapon(CGameObject* weaponObject) const;
+	bool ForceMonsterAIChaseTarget(CGameObject* monster, CGameObject* target) const;
 
 	void RequestPrepareArrow(CGameObject* shooter, float pullBackDistance);
 	void RequestReleasePreparedArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f);

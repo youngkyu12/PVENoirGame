@@ -640,27 +640,32 @@ bool CMonsterAIComponent::AcquireTarget()
 	if ( !m_pScene )
 		return false;
 
-	CGameObject* player = m_pScene->GetPlayer();
-	if ( !player )
+	if ( !m_pScene->IsLocalMonsterChaseEnabled() )
 		return false;
 
-	if ( m_pScene && !m_pScene->IsLocalMonsterChaseEnabled() )
-		return false;
-
-	if ( auto* hp = player->GetComponent<CHealthComponent>() )
+	for ( int slot = 0; slot < 4; ++slot )
 	{
-		if ( hp->IsDead() )
-			return false;
+		CGameObject* player = m_pScene->GetPlayerBySlot(slot);
+		if ( !player )
+			continue;
+
+		if ( auto* hp = player->GetComponent<CHealthComponent>() )
+		{
+			if ( hp->IsDead() )
+				continue;
+		}
+
+		if ( !CanChaseTargetByMegaGridCenter(player) )
+			continue;
+
+		if ( !ShouldAcquireTargetFromIdle(player) )
+			continue;
+
+		SetTarget(player);
+		return true;
 	}
 
-	if ( !CanChaseTargetByMegaGridCenter(player) )
-		return false;
-
-	if ( !ShouldAcquireTargetFromIdle(player) )
-		return false;
-
-	SetTarget(player);
-	return true;
+	return false;
 }
 
 void CMonsterAIComponent::UpdateBehavior(float dt)
@@ -860,10 +865,11 @@ bool CMonsterAIComponent::CanChaseTargetByMegaGridCenter(CGameObject* target) co
 	if ( !m_pScene )
 		return true;
 
-	if ( !m_pScene->IsLocalPlayer(target) )
+	auto* tag = target->GetComponent<CActorTagComponent>();
+	if ( !tag || tag->kind != EActorKind::Player )
 		return true;
 
-	return m_pScene->IsLocalPlayerInsideMegaGridCenter();
+	return m_pScene->IsPlayerInsideMegaGridCenter(target);
 }
 
 bool CMonsterAIComponent::ShouldRepath() const
