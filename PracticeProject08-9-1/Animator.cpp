@@ -76,14 +76,6 @@ void CAnimator::AddClip(AnimationClipRef clip)
 	m_Clips[clip->name] = std::move(clip);
 }
 
-void CAnimator::AddClip(const AnimationClip& clip)
-{
-	// 기존 호출부 호환용.
-	// 다음 단계에서 GameSceneObjectFactory / CAnimatorComponent가
-	// shared_ptr<const AnimationClip>를 직접 넘기게 되면 이 경로는 제거 가능하다.
-	AddClip(std::make_shared<AnimationClip>(clip));
-}
-
 bool CAnimator::HasClip(const std::string& name) const
 {
     return (m_Clips.find(name) != m_Clips.end());

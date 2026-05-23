@@ -36,7 +36,6 @@ public:
 
 	// ---- clip/control wrappers ----
 	void AddClip(AnimationClipRef clip);
-	void AddClip(const AnimationClip& clip);
 	bool HasClip(const char* name) const;
 
     void SetSpeed(float s);

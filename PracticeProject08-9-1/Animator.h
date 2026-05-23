@@ -32,7 +32,6 @@ public:
 		const std::unordered_map<std::string, int>& boneNameToIndex);
 
 	void AddClip(AnimationClipRef clip);
-	void AddClip(const AnimationClip& clip);
 
     bool Play(const std::string& clipName, bool loop = true, float startTime = 0.0f);
     void SetTime(float timeSec);
