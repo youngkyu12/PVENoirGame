@@ -2187,6 +2187,369 @@ void CGameScene::ApplyBossShockwavePushToLocalPlayer(
 #endif
 }
 
+void CGameScene::ResetBossPoisonProjectileState()
+{
+	m_bossPoisonProjectiles.clear();
+	m_bossPoisonProjectiles.resize(kBossPoisonProjectileMaxCount);
+
+	m_bossPoisonSpellCastStates.clear();
+
+	m_bossPoisonProjectileLaunchDelaySec =
+		kBossPoisonProjectileDefaultLaunchDelaySec;
+
+	m_bossPoisonProjectileLaunchHeight =
+		kBossPoisonProjectileDefaultLaunchHeight;
+
+	m_bossPoisonProjectileSpeed =
+		kBossPoisonProjectileDefaultSpeed;
+
+	m_bPrevBossPoisonDelayDecKeyDown = false;
+	m_bPrevBossPoisonDelayIncKeyDown = false;
+	m_bPrevBossPoisonHeightIncKeyDown = false;
+	m_bPrevBossPoisonHeightDecKeyDown = false;
+}
+
+bool CGameScene::UpdateBossPoisonProjectileDebugInput(UCHAR* pKeysBuffer)
+{
+#ifndef USING_NETWORK
+	if ( !pKeysBuffer )
+		return false;
+
+	const bool delayDecDown = ( pKeysBuffer[VK_LEFT] & 0xF0 ) != 0;
+	const bool delayIncDown = ( pKeysBuffer[VK_RIGHT] & 0xF0 ) != 0;
+	const bool heightIncDown = ( pKeysBuffer[VK_UP] & 0xF0 ) != 0;
+	const bool heightDecDown = ( pKeysBuffer[VK_DOWN] & 0xF0 ) != 0;
+
+	bool changed = false;
+
+	if ( delayDecDown && !m_bPrevBossPoisonDelayDecKeyDown )
+	{
+		m_bossPoisonProjectileLaunchDelaySec -=
+			kBossPoisonProjectileDelayStep;
+
+		if ( m_bossPoisonProjectileLaunchDelaySec < 0.0f )
+			m_bossPoisonProjectileLaunchDelaySec = 0.0f;
+
+		changed = true;
+	}
+
+	if ( delayIncDown && !m_bPrevBossPoisonDelayIncKeyDown )
+	{
+		m_bossPoisonProjectileLaunchDelaySec +=
+			kBossPoisonProjectileDelayStep;
+
+		changed = true;
+	}
+
+	if ( heightIncDown && !m_bPrevBossPoisonHeightIncKeyDown )
+	{
+		m_bossPoisonProjectileLaunchHeight +=
+			kBossPoisonProjectileHeightStep;
+
+		changed = true;
+	}
+
+	if ( heightDecDown && !m_bPrevBossPoisonHeightDecKeyDown )
+	{
+		m_bossPoisonProjectileLaunchHeight -=
+			kBossPoisonProjectileHeightStep;
+
+		if ( m_bossPoisonProjectileLaunchHeight < 0.0f )
+			m_bossPoisonProjectileLaunchHeight = 0.0f;
+
+		changed = true;
+	}
+
+	m_bPrevBossPoisonDelayDecKeyDown = delayDecDown;
+	m_bPrevBossPoisonDelayIncKeyDown = delayIncDown;
+	m_bPrevBossPoisonHeightIncKeyDown = heightIncDown;
+	m_bPrevBossPoisonHeightDecKeyDown = heightDecDown;
+
+	if ( changed )
+	{
+		char buf[256];
+		sprintf_s(
+			buf,
+			"[BossPoison][Tuning] delay=%.4f sec height=%.3f speed=%.3f\n",
+			m_bossPoisonProjectileLaunchDelaySec,
+			m_bossPoisonProjectileLaunchHeight,
+			m_bossPoisonProjectileSpeed
+		);
+		OutputDebugStringA(buf);
+	}
+
+	return changed;
+#else
+	UNREFERENCED_PARAMETER(pKeysBuffer);
+	return false;
+#endif
+}
+
+BossPoisonProjectileEntry*
+CGameScene::AcquireFreeBossPoisonProjectileEntry()
+{
+	for ( BossPoisonProjectileEntry& entry : m_bossPoisonProjectiles )
+	{
+		if ( !entry.active )
+			return &entry;
+	}
+
+	return nullptr;
+}
+
+void CGameScene::UpdateBossPoisonProjectileSpellCasts(float dt)
+{
+#ifndef USING_NETWORK
+	if ( dt < 0.0f )
+		dt = 0.0f;
+
+	for ( CGameObject* boss : m_bossRefs )
+	{
+		if ( !boss )
+			continue;
+
+		if ( !boss->GetActive() || IsMonsterDead(boss) )
+		{
+			m_bossPoisonSpellCastStates.erase(boss);
+			continue;
+		}
+
+		CAnimatorComponent* animComp =
+			boss->GetComponent<CAnimatorComponent>();
+
+		if ( !animComp )
+		{
+			m_bossPoisonSpellCastStates.erase(boss);
+			continue;
+		}
+
+		CMonsterAnimController* ctrl =
+			animComp->EnsureMonsterController();
+
+		if ( !ctrl )
+		{
+			m_bossPoisonSpellCastStates.erase(boss);
+			continue;
+		}
+
+		const bool isSpellPhase = ctrl->IsSpellPhase();
+
+		BossPoisonSpellCastState& state =
+			m_bossPoisonSpellCastStates[boss];
+
+		if ( !isSpellPhase )
+		{
+			if ( state.wasSpellPhase )
+			{
+				char buf[256];
+				sprintf_s(
+					buf,
+					"[BossPoison][SpellEnd] boss=%p age=%.4f fired=%d\n",
+					static_cast< void* >( boss ),
+					state.spellAgeSec,
+					state.fired ? 1 : 0
+				);
+				OutputDebugStringA(buf);
+			}
+
+			state = BossPoisonSpellCastState{};
+			continue;
+		}
+
+		if ( !state.wasSpellPhase )
+		{
+			state.wasSpellPhase = true;
+			state.pendingFire = true;
+			state.fired = false;
+			state.spellAgeSec = 0.0f;
+
+			char buf[256];
+			sprintf_s(
+				buf,
+				"[BossPoison][SpellBegin] boss=%p delay=%.4f height=%.3f\n",
+				static_cast< void* >( boss ),
+				m_bossPoisonProjectileLaunchDelaySec,
+				m_bossPoisonProjectileLaunchHeight
+			);
+			OutputDebugStringA(buf);
+		}
+		else
+		{
+			state.spellAgeSec += dt;
+		}
+
+		if ( state.pendingFire &&
+			 !state.fired &&
+			 state.spellAgeSec >= m_bossPoisonProjectileLaunchDelaySec )
+		{
+			SpawnBossPoisonProjectile(boss);
+
+			state.fired = true;
+			state.pendingFire = false;
+		}
+	}
+#else
+	UNREFERENCED_PARAMETER(dt);
+#endif
+}
+
+void CGameScene::SpawnBossPoisonProjectile(CGameObject* boss)
+{
+#ifndef USING_NETWORK
+	if ( !boss )
+		return;
+
+	BossPoisonProjectileEntry* entry =
+		AcquireFreeBossPoisonProjectileEntry();
+
+	if ( !entry )
+	{
+		OutputDebugStringA(
+			"[BossPoison][FireFailed] no free projectile entry.\n"
+		);
+		return;
+	}
+
+	const XMFLOAT3 bossPos = boss->GetPosition();
+	const XMFLOAT4X4& world = boss->GetWorldMatrix();
+
+	XMFLOAT3 dir = XMFLOAT3(world._31, 0.0f, world._33);
+
+	float lenSq = dir.x * dir.x + dir.z * dir.z;
+
+	if ( lenSq <= 1.0e-8f )
+	{
+		// fallback. 정상이라면 보스 world matrix의 forward를 사용한다.
+		dir = XMFLOAT3(0.0f, 0.0f, 1.0f);
+		lenSq = 1.0f;
+	}
+
+	const float invLen = 1.0f / sqrtf(lenSq);
+
+	dir.x *= invLen;
+	dir.y = 0.0f;
+	dir.z *= invLen;
+
+	XMFLOAT3 spawnPos = bossPos;
+	spawnPos.y += m_bossPoisonProjectileLaunchHeight;
+	spawnPos.x += dir.x * kBossPoisonProjectileForwardOffset;
+	spawnPos.z += dir.z * kBossPoisonProjectileForwardOffset;
+
+	entry->active = true;
+	entry->owner = boss;
+
+	entry->position = spawnPos;
+	entry->direction = dir;
+
+	entry->speed = m_bossPoisonProjectileSpeed;
+	entry->velocity = XMFLOAT3(
+		dir.x * entry->speed,
+		0.0f,
+		dir.z * entry->speed
+	);
+
+	entry->coreDiameter = kBossPoisonProjectileCoreDiameter;
+	entry->coreRadius = kBossPoisonProjectileCoreRadius;
+	entry->gasDiameter = kBossPoisonProjectileGasDiameter;
+
+	entry->hitPlayerSlots.fill(false);
+
+	char buf[512];
+	sprintf_s(
+		buf,
+		"[BossPoison][Fire] boss=%p pos=(%.3f, %.3f, %.3f) dir=(%.3f, %.3f, %.3f) speed=%.3f delay=%.4f height=%.3f\n",
+		static_cast< void* >( boss ),
+		spawnPos.x,
+		spawnPos.y,
+		spawnPos.z,
+		dir.x,
+		dir.y,
+		dir.z,
+		entry->speed,
+		m_bossPoisonProjectileLaunchDelaySec,
+		m_bossPoisonProjectileLaunchHeight
+	);
+	OutputDebugStringA(buf);
+#else
+	UNREFERENCED_PARAMETER(boss);
+#endif
+}
+
+void CGameScene::UpdateBossPoisonProjectiles(float dt)
+{
+#ifndef USING_NETWORK
+	if ( dt <= 0.0f )
+		return;
+
+	const int bossMegaGridNumber = 5;
+	const int zeroBased = bossMegaGridNumber - 1;
+
+	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+	const float centerX =
+		static_cast< float >(
+			CSceneGrid::kGridMinX +
+			megaX * CSceneGrid::kMegaGridCellWidth +
+			CSceneGrid::kMegaGridCellWidth / 2
+		);
+
+	const float centerZ =
+		static_cast< float >(
+			CSceneGrid::kGridMinZ +
+			megaZ * CSceneGrid::kMegaGridCellHeight +
+			CSceneGrid::kMegaGridCellHeight / 2
+		);
+
+	const float minX =
+		centerX - kBossPoisonProjectileStageHalfExtent;
+
+	const float maxX =
+		centerX + kBossPoisonProjectileStageHalfExtent;
+
+	const float minZ =
+		centerZ - kBossPoisonProjectileStageHalfExtent;
+
+	const float maxZ =
+		centerZ + kBossPoisonProjectileStageHalfExtent;
+
+	for ( BossPoisonProjectileEntry& entry : m_bossPoisonProjectiles )
+	{
+		if ( !entry.active )
+			continue;
+
+		entry.position.x += entry.velocity.x * dt;
+		entry.position.y += entry.velocity.y * dt;
+		entry.position.z += entry.velocity.z * dt;
+
+		// 중앙 구체 반지름 2m를 고려해서 벽에 닿는 시점에 제거.
+		if ( entry.position.x <= minX + entry.coreRadius ||
+			 entry.position.x >= maxX - entry.coreRadius ||
+			 entry.position.z <= minZ + entry.coreRadius ||
+			 entry.position.z >= maxZ - entry.coreRadius )
+		{
+			char buf[512];
+			sprintf_s(
+				buf,
+				"[BossPoison][DespawnWall] pos=(%.3f, %.3f, %.3f) boundsX=(%.3f, %.3f) boundsZ=(%.3f, %.3f)\n",
+				entry.position.x,
+				entry.position.y,
+				entry.position.z,
+				minX,
+				maxX,
+				minZ,
+				maxZ
+			);
+			OutputDebugStringA(buf);
+
+			entry = BossPoisonProjectileEntry{};
+		}
+	}
+#else
+	UNREFERENCED_PARAMETER(dt);
+#endif
+}
+
 void CGameScene::RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	if ( !cmd ) return;
