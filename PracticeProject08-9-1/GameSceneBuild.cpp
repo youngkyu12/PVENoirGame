@@ -47,10 +47,10 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 
 	m_bSimulateLocalAI = true;
 
-	m_bSimulateLocalGhoulAI = false;
+	m_bSimulateLocalGhoulAI = true;
 	m_bSimulateLocalBowManAI = false;
 	m_bSimulateLocalSwordManAI = false;
-	m_bSimulateLocalMutantAI = false;
+	m_bSimulateLocalMutantAI = true;
 	m_bSimulateLocalBossAI = true;
 
 	m_bSimulateLocalMonsterChase = true;
@@ -91,6 +91,8 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
 	m_playerWeaponOwnerByObject.clear();
 	m_deadMonsters.clear();
+
+	ResetEnemySpawnerTimedGhoulWaveStates();
 
 	m_bBossStageBossActivated = false;
 	m_bBossSummonSequenceStarted = false;
@@ -1339,6 +1341,58 @@ void CGameScene::BuildStaticBatch(
 	}
 }
 
+XMFLOAT3 CGameScene::ComputeEnemySpawnerSpawnPosition(
+	int megaGridNumber,
+	UINT localIndex,
+	UINT localCount) const
+{
+	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+		return XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	if ( localCount == 0 )
+		localCount = 1;
+
+	const int zeroBased = megaGridNumber - 1;
+	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+	const int megaZ = zeroBased / CSceneGrid::kMegaGridRows;
+
+	const float centerX =
+		static_cast< float >(
+			CSceneGrid::kGridMinX +
+			megaX * CSceneGrid::kMegaGridCellWidth +
+			CSceneGrid::kMegaGridCellWidth / 2
+		);
+
+	const float centerZ =
+		static_cast< float >(
+			CSceneGrid::kGridMinZ +
+			megaZ * CSceneGrid::kMegaGridCellHeight +
+			CSceneGrid::kMegaGridCellHeight / 2
+		);
+
+	const UINT columns = std::max< UINT >(
+		1,
+		static_cast< UINT >( std::ceil(std::sqrt(static_cast< float >( localCount ))) )
+	);
+
+	const UINT rows = ( localCount + columns - 1 ) / columns;
+
+	const UINT col = localIndex % columns;
+	const UINT row = localIndex / columns;
+
+	constexpr float kSpawnSpacing = 3.0f;
+
+	const float totalWidth = static_cast< float >( columns > 0 ? columns - 1 : 0 ) * kSpawnSpacing;
+	const float totalDepth = static_cast< float >( rows > 0 ? rows - 1 : 0 ) * kSpawnSpacing;
+
+	XMFLOAT3 pos{};
+	pos.x = centerX + static_cast< float >( col ) * kSpawnSpacing - totalWidth * 0.5f;
+	pos.y = 0.0f;
+	pos.z = centerZ + static_cast< float >( row ) * kSpawnSpacing - totalDepth * 0.5f;
+
+	return pos;
+}
+
 void CGameScene::BuildSkinnedBatch(
 	ID3D12Device* dev,
 	ID3D12GraphicsCommandList* cmd,
@@ -1451,7 +1505,7 @@ void CGameScene::BuildSkinnedBatch(
 				return m_bSimulateLocalGhoulAI;
 
 			case ELocalMonsterAIKind::EnemySpawnerGhoul:
-				return m_bSimulateLocalGhoulAI;
+				return m_bSimulateLocalEnemySpawner;
 
 			case ELocalMonsterAIKind::BowMan:
 				return m_bSimulateLocalBowManAI;

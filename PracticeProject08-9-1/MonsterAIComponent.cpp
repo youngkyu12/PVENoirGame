@@ -246,6 +246,8 @@ void CMonsterAIComponent::OnUpdate(float dt)
 
 void CMonsterAIComponent::SetTarget(CGameObject* target)
 {
+	CGameObject* previousTarget = m_pTarget;
+
 	m_pTarget = target;
 	m_repathTimer = 0.0f;
 
@@ -253,6 +255,13 @@ void CMonsterAIComponent::SetTarget(CGameObject* target)
 	{
 		ClearReturnHomePath();
 		ResetPatrolState();
+
+		// target이 없던 상태에서 추적을 시작했거나,
+		// 다른 target으로 전환된 경우에만 알린다.
+		if ( m_pScene && previousTarget != target )
+		{
+			m_pScene->NotifyMonsterChaseStarted(GetOwner());
+		}
 	}
 }
 
