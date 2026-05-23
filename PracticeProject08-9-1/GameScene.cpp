@@ -1798,6 +1798,88 @@ XMFLOAT3 CGameScene::ComputeLocalStageTeleportPosition(int megaGridNumber) const
 	return dst;
 }
 
+XMFLOAT3 CGameScene::ComputeEnemySpawnerSpawnPosition(
+	int megaGridNumber,
+	UINT localIndex,
+	UINT localCount) const
+{
+	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+		return XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	if ( localCount == 0 )
+		localCount = 1;
+
+	const int zeroBased = megaGridNumber - 1;
+	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+	const int megaZ = zeroBased / CSceneGrid::kMegaGridRows;
+
+	const float centerX =
+		static_cast< float >(
+			CSceneGrid::kGridMinX +
+			megaX * CSceneGrid::kMegaGridCellWidth +
+			CSceneGrid::kMegaGridCellWidth / 2
+		);
+
+	const float centerZ =
+		static_cast< float >(
+			CSceneGrid::kGridMinZ +
+			megaZ * CSceneGrid::kMegaGridCellHeight +
+			CSceneGrid::kMegaGridCellHeight / 2
+		);
+
+	const UINT columns = std::max< UINT >(
+		1,
+		static_cast< UINT >( std::ceil(std::sqrt(static_cast< float >( localCount ))) )
+	);
+
+	const UINT rows = ( localCount + columns - 1 ) / columns;
+
+	const UINT col = localIndex % columns;
+	const UINT row = localIndex / columns;
+
+	constexpr float kSpawnSpacing = 3.0f;
+
+	const float totalWidth = static_cast< float >( columns > 0 ? columns - 1 : 0 ) * kSpawnSpacing;
+	const float totalDepth = static_cast< float >( rows > 0 ? rows - 1 : 0 ) * kSpawnSpacing;
+
+	XMFLOAT3 pos{};
+	pos.x = centerX + static_cast< float >( col ) * kSpawnSpacing - totalWidth * 0.5f;
+	pos.y = 0.0f;
+	pos.z = centerZ + static_cast< float >( row ) * kSpawnSpacing - totalDepth * 0.5f;
+
+	return pos;
+}
+
+int CGameScene::SpawnPreparedEnemiesInMegaGrid(int megaGridNumber)
+{
+#ifndef USING_NETWORK
+	if ( !m_bSimulateLocalEnemySpawner )
+		return 0;
+
+	if ( !m_enemySpawner )
+		return 0;
+
+	const int spawnedCount = m_enemySpawner->SpawnMegaGrid(megaGridNumber);
+
+	if ( spawnedCount > 0 )
+	{
+		char buf[256];
+		sprintf_s(
+			buf,
+			"[EnemySpawner] SpawnPreparedEnemiesInMegaGrid mega=%d spawned=%d\n",
+			megaGridNumber,
+			spawnedCount
+		);
+		OutputDebugStringA(buf);
+	}
+
+	return spawnedCount;
+#else
+	UNREFERENCED_PARAMETER(megaGridNumber);
+	return 0;
+#endif
+}
+
 bool CGameScene::TryTeleportLocalPlayerToMegaGridByNumber(int megaGridNumber)
 {
 #ifndef USING_NETWORK
@@ -2418,6 +2500,10 @@ void CGameScene::ReleaseObjects()
 
     m_EnemySwordRefs.clear();
     m_EnemyBowRefs.clear();
+
+	m_EnemySpawnRefs.clear();
+	m_enemySpawnPoolEntries.clear();
+	m_enemySpawner.reset();
 
 	ResetPlayerFootstepSfxState();
 	ResetMonsterSfxState();
@@ -6390,11 +6476,6 @@ void CGameScene::AnimateObjects(float dt)
 	UpdateBossSummonVisualFadeOut(dt);
 	UpdateBossStageSummonSequence(dt);
 	UpdateBossShockwave(dt);
-
-	if ( m_bSimulateLocalEnemySpawner && m_enemySpawner && local )
-	{
-		m_enemySpawner->Update(dt, local->GetPosition());
-	}
 #endif
 
 	UpdateMuzzleFlashes(dt);
