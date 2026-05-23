@@ -1850,6 +1850,49 @@ XMFLOAT3 CGameScene::ComputeEnemySpawnerSpawnPosition(
 	return pos;
 }
 
+bool CGameScene::IsMegaGridNumberCleared(int megaGridNumber) const
+{
+	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+		return false;
+
+	const int zeroBased = megaGridNumber - 1;
+	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+	return m_sceneGrid.IsMegaGridCleared(megaX, megaZ);
+}
+
+bool CGameScene::ShouldBlockEnemySpawnerByClearedPrerequisite(
+	int targetMegaGridNumber,
+	int& outBlockerMegaGridNumber) const
+{
+	outBlockerMegaGridNumber = -1;
+
+	switch ( targetMegaGridNumber )
+	{
+	case 6:
+		if ( IsMegaGridNumberCleared(3) )
+		{
+			outBlockerMegaGridNumber = 3;
+			return true;
+		}
+		break;
+
+	case 8:
+		if ( IsMegaGridNumberCleared(7) )
+		{
+			outBlockerMegaGridNumber = 7;
+			return true;
+		}
+		break;
+
+	default:
+		break;
+	}
+
+	return false;
+}
+
 int CGameScene::SpawnPreparedEnemiesInMegaGrid(int megaGridNumber)
 {
 #ifndef USING_NETWORK
@@ -1858,6 +1901,23 @@ int CGameScene::SpawnPreparedEnemiesInMegaGrid(int megaGridNumber)
 
 	if ( !m_enemySpawner )
 		return 0;
+
+	int blockerMegaGridNumber = -1;
+	if ( ShouldBlockEnemySpawnerByClearedPrerequisite(
+		megaGridNumber,
+		blockerMegaGridNumber) )
+	{
+		char buf[256];
+		sprintf_s(
+			buf,
+			"[EnemySpawner] blocked. targetMega=%d blockerMega=%d alreadyCleared=1\n",
+			megaGridNumber,
+			blockerMegaGridNumber
+		);
+		OutputDebugStringA(buf);
+
+		return 0;
+	}
 
 	const int spawnedCount = m_enemySpawner->SpawnMegaGrid(megaGridNumber);
 
@@ -1871,6 +1931,52 @@ int CGameScene::SpawnPreparedEnemiesInMegaGrid(int megaGridNumber)
 			spawnedCount
 		);
 		OutputDebugStringA(buf);
+	}
+
+	return spawnedCount;
+#else
+	UNREFERENCED_PARAMETER(megaGridNumber);
+	return 0;
+#endif
+}
+
+int CGameScene::TryRunEnemySpawnerEventForMegaGrid(int megaGridNumber)
+{
+#ifndef USING_NETWORK
+	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+		return 0;
+
+	const int zeroBased = megaGridNumber - 1;
+	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+	if ( m_sceneGrid.HasMegaGridEventOccurred(megaX, megaZ) )
+		return 0;
+
+	int blockerMegaGridNumber = -1;
+	if ( ShouldBlockEnemySpawnerByClearedPrerequisite(
+		megaGridNumber,
+		blockerMegaGridNumber) )
+	{
+		m_sceneGrid.SetMegaGridEventOccurred(megaX, megaZ, true);
+
+		char buf[256];
+		sprintf_s(
+			buf,
+			"[EnemySpawnerEvent] skipped. targetMega=%d blockerMega=%d alreadyCleared=1\n",
+			megaGridNumber,
+			blockerMegaGridNumber
+		);
+		OutputDebugStringA(buf);
+
+		return 0;
+	}
+
+	const int spawnedCount = SpawnPreparedEnemiesInMegaGrid(megaGridNumber);
+
+	if ( spawnedCount > 0 )
+	{
+		m_sceneGrid.SetMegaGridEventOccurred(megaX, megaZ, true);
 	}
 
 	return spawnedCount;

@@ -847,12 +847,19 @@ private:
 	XMFLOAT3 ComputeLocalStageTeleportPosition(int megaGridNumber) const;
 
 	XMFLOAT3 ComputeEnemySpawnerSpawnPosition(
-		int megaGridNumber,
-		UINT localIndex,
-		UINT localCount
-		) const;
+	int megaGridNumber,
+	UINT localIndex,
+	UINT localCount
+	) const;
+
+	bool IsMegaGridNumberCleared(int megaGridNumber) const;
+	bool ShouldBlockEnemySpawnerByClearedPrerequisite(
+		int targetMegaGridNumber,
+		int& outBlockerMegaGridNumber
+	) const;
 
 	int SpawnPreparedEnemiesInMegaGrid(int megaGridNumber);
+	int TryRunEnemySpawnerEventForMegaGrid(int megaGridNumber);
 
 	void RegisterMonsterToMegaGrid(CGameObject* monster, const XMFLOAT3& spawnPosition, UINT skinnedBatchObjectIndex);
 	int GetLocalPlayerMegaGridNumberForMonsterTick() const;
