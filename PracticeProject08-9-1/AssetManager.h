@@ -79,6 +79,8 @@ public:
 	);
 
 	static void ClearCache();
+	static void ReleaseUploadBuffers();
+	static void DumpMemoryReport(ID3D12Device* device);
 
 private:
     static BuiltAsset BuildAssetInternal(

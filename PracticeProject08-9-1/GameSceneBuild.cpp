@@ -86,6 +86,12 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
 	ConfigureLocalGameplaySimulationSwitches();
 
+#if defined(_DEBUG) || defined(DEBUG)
+	m_debugMemoryReportDevice = dev;
+	m_bDumpedAssetMemoryAfterUploadRelease = false;
+	DBG_ResetD3D12ResourceCreationStats();
+#endif
+
 	ResetPlayerFootstepSfxState();
 	ResetMonsterSfxState();
 
@@ -425,6 +431,12 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	RebuildDynamicGridState();
 
 	ReleaseBuildOnlySceneData();
+
+#if defined(_DEBUG) || defined(DEBUG)
+	OutputDebugStringA("\n[AssetMemory][GameScene] BEFORE AssetManager::ReleaseUploadBuffers()\n");
+	AssetManager::DumpMemoryReport(dev);
+	DBG_DumpD3D12ResourceCreationStats();
+#endif
 
 #ifdef USING_NETWORK
 	Protocol::C_CLIENT_READY iamReady;

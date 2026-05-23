@@ -130,6 +130,71 @@ struct SubMesh
 	D3D12_INDEX_BUFFER_VIEW  ibView{};
 };
 
+struct MeshMemoryReport
+{
+	size_t cpuSubMeshStructBytes = 0;
+	size_t cpuPositionBytes = 0;
+	size_t cpuNormalBytes = 0;
+	size_t cpuUvBytes = 0;
+	size_t cpuTangentBytes = 0;
+	size_t cpuBoneIndexBytes = 0;
+	size_t cpuBoneWeightBytes = 0;
+	size_t cpuIndexBytes = 0;
+	size_t cpuStringCapacityBytes = 0;
+
+	size_t cpuBoneBytes = 0;
+	size_t cpuBoneNameMapApproxBytes = 0;
+	size_t cpuBinMaterialBytes = 0;
+	size_t cpuBinMaterialNameMapApproxBytes = 0;
+
+	size_t gpuVertexBufferBytes = 0;
+	size_t gpuIndexBufferBytes = 0;
+	size_t uploadVertexBufferBytes = 0;
+	size_t uploadIndexBufferBytes = 0;
+
+	size_t legacyBoneDefaultBufferBytes = 0;
+	size_t legacyBoneUploadBufferBytes = 0;
+
+	uint64_t vertexCount = 0;
+	uint64_t indexCount = 0;
+	uint32_t subMeshCount = 0;
+	uint32_t boneCount = 0;
+	bool isSkinned = false;
+
+	size_t CpuBytes() const
+	{
+		return
+			cpuSubMeshStructBytes +
+			cpuPositionBytes +
+			cpuNormalBytes +
+			cpuUvBytes +
+			cpuTangentBytes +
+			cpuBoneIndexBytes +
+			cpuBoneWeightBytes +
+			cpuIndexBytes +
+			cpuStringCapacityBytes +
+			cpuBoneBytes +
+			cpuBoneNameMapApproxBytes +
+			cpuBinMaterialBytes +
+			cpuBinMaterialNameMapApproxBytes;
+	}
+
+	size_t GpuDefaultBytes() const
+	{
+		return gpuVertexBufferBytes + gpuIndexBufferBytes + legacyBoneDefaultBufferBytes;
+	}
+
+	size_t UploadBytes() const
+	{
+		return uploadVertexBufferBytes + uploadIndexBufferBytes + legacyBoneUploadBufferBytes;
+	}
+
+	size_t TotalBytes() const
+	{
+		return CpuBytes() + GpuDefaultBytes() + UploadBytes();
+	}
+};
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 class CMesh
@@ -145,6 +210,9 @@ public:
 	BOOL RayIntersectionByTriangle(XMVECTOR& xmRayOrigin, XMVECTOR& xmRayDirection, XMVECTOR v0, XMVECTOR v1, XMVECTOR v2, float* pfNearHitDistance);
 	XMFLOAT3 GetMeshMin() const;
 	XMFLOAT3 GetMeshMax() const;
+
+	MeshMemoryReport GetMemoryReport() const;
+	void DumpMemoryReport(const char* tag = nullptr) const;
 
 protected:
 	D3D12_PRIMITIVE_TOPOLOGY		m_d3dPrimitiveTopology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;

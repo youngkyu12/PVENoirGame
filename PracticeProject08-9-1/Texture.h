@@ -6,6 +6,22 @@
 #define RESOURCE_TEXTURE_CUBE		0x04
 #define RESOURCE_BUFFER				0x05
 
+struct TextureMemoryReport
+{
+	size_t objectSideBytes = 0;
+	size_t defaultResourceBytes = 0;
+	size_t uploadResourceBytes = 0;
+
+	uint32_t textureCount = 0;
+	uint32_t bufferCount = 0;
+	uint32_t nullResourceCount = 0;
+
+	size_t TotalBytes() const
+	{
+		return objectSideBytes + defaultResourceBytes + uploadResourceBytes;
+	}
+};
+
 class CTexture
 {
 public:
@@ -53,6 +69,10 @@ public:
 
 	UINT GetTextureType() { return(m_nTextureType); }
 	UINT GetTextureType(int nIndex) { return(m_pnResourceTypes[nIndex]); }
+	
+	TextureMemoryReport GetMemoryReport(ID3D12Device* device = nullptr) const;
+	void DumpMemoryReport(ID3D12Device* device = nullptr, const char* tag = nullptr) const;
+
 	DXGI_FORMAT GetBufferFormat(int nIndex) { return(m_pdxgiBufferFormats[nIndex]); }
 	int GetBufferElements(int nIndex) { return(m_pnBufferElements[nIndex]); }
 
@@ -75,7 +95,7 @@ public:
 	}
 
 private:
-	//±Û·Î¹ú SRV Ç® ½ÃÀÛ ½½·Ô
+	//ê¸€ë¡œë²Œ SRV í’€ ì‹œìž‘ ìŠ¬ë¡¯
 	UINT m_baseSrvIndex = UINT_MAX; 
 
 public:

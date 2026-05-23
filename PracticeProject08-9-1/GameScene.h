@@ -1271,6 +1271,11 @@ private:
 
 	UINT m_nFrameResourceIndex = 0;
 
+#if defined(_DEBUG) || defined(DEBUG)
+	ID3D12Device* m_debugMemoryReportDevice = nullptr;
+	bool m_bDumpedAssetMemoryAfterUploadRelease = false;
+#endif
+
 	CDepthFogSystem                 m_depthFog;
 	float                           m_fElapsedTime = 0.0f;
 

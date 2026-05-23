@@ -8,9 +8,15 @@
 #include "Material.h"
 #include "Texture.h"
 #include "Scene.h"
+#include "Animator.h"
+#include "DescriptorHeap.h"
 
 #include <filesystem>
 #include <cassert>
+#include <vector>
+#include <algorithm>
+#include <psapi.h>
+#pragma comment(lib, "Psapi.lib")
 
 std::unordered_map<std::string, BuiltAsset> AssetManager::s_assetCache;
 std::unordered_map<std::string, std::shared_ptr<CMaterial>> AssetManager::s_materialCache;
@@ -66,6 +72,79 @@ namespace
 
 		return key;
 	}
+
+	double AssetBytesToMiB(size_t bytes)
+	{
+		return static_cast< double >( bytes ) / ( 1024.0 * 1024.0 );
+	}
+
+	size_t StringCapacityBytesAsset(const std::string& s)
+	{
+		return s.capacity() + 1;
+	}
+
+	template <typename T>
+	size_t VectorCapacityBytesAsset(const std::vector<T>& v)
+	{
+		return sizeof(T) * v.capacity();
+	}
+
+	template <typename K, typename V>
+	size_t ApproxUnorderedMapBytesAsset(const std::unordered_map<K, V>& m)
+	{
+		return
+			m.bucket_count() * sizeof(void*) +
+			m.size() * ( sizeof(typename std::unordered_map<K, V>::value_type) + sizeof(void*) * 3 );
+	}
+
+	size_t EstimateBoneKeyframesBytesAsset(const BoneKeyframes& track, size_t& keyframeCount)
+	{
+		keyframeCount += track.keyframes.size();
+
+		size_t bytes = sizeof(BoneKeyframes);
+		bytes += StringCapacityBytesAsset(track.boneName);
+		bytes += VectorCapacityBytesAsset(track.keyframes);
+		return bytes;
+	}
+
+	size_t EstimateAnimationClipBytesAsset(const AnimationClip& clip, size_t& keyframeCount)
+	{
+		size_t bytes = sizeof(AnimationClip);
+		bytes += StringCapacityBytesAsset(clip.name);
+		bytes += VectorCapacityBytesAsset(clip.boneTracks);
+		bytes += ApproxUnorderedMapBytesAsset(clip.boneNameToTrack);
+
+		for ( const auto& track : clip.boneTracks )
+			bytes += EstimateBoneKeyframesBytesAsset(track, keyframeCount);
+
+		bytes += EstimateBoneKeyframesBytesAsset(clip.bindRootTrack, keyframeCount);
+
+		bytes += VectorCapacityBytesAsset(clip.m_RefLocalPose);
+		bytes += VectorCapacityBytesAsset(clip.m_refT);
+		bytes += VectorCapacityBytesAsset(clip.m_refR);
+		bytes += VectorCapacityBytesAsset(clip.m_refS);
+
+		return bytes;
+	}
+
+	struct MeshReportRow
+	{
+		std::string key;
+		MeshMemoryReport report{};
+	};
+
+	struct TextureReportRow
+	{
+		std::string key;
+		TextureMemoryReport report{};
+	};
+
+	struct ClipReportRow
+	{
+		std::string key;
+		size_t bytes = 0;
+		size_t keyframes = 0;
+	};
 }
 
 BuiltAsset AssetManager::BuildAsset(
@@ -115,6 +194,288 @@ void AssetManager::ClearCache()
 	s_clipCache.clear();
 	s_appliedAssetKeysByMaterials.clear();
 	s_nextMaterialID = 0;
+}
+
+void AssetManager::ReleaseUploadBuffers()
+{
+	for ( auto& kv : s_assetCache )
+	{
+		if ( kv.second.mesh )
+			kv.second.mesh->ReleaseUploadBuffers();
+	}
+
+	for ( auto& kv : s_textureCache )
+	{
+		if ( kv.second )
+			kv.second->ReleaseUploadBuffers();
+	}
+}
+
+void AssetManager::DumpMemoryReport(ID3D12Device* device)
+{
+#if defined(_DEBUG) || defined(DEBUG)
+	OutputDebugStringA("\n");
+	OutputDebugStringA("============================================================\n");
+	OutputDebugStringA("[AssetMemory] AssetManager memory report begin\n");
+	OutputDebugStringA("============================================================\n");
+
+	{
+		PROCESS_MEMORY_COUNTERS_EX pmc{};
+		if ( GetProcessMemoryInfo(
+			GetCurrentProcess(),
+			reinterpret_cast< PROCESS_MEMORY_COUNTERS* >( &pmc ),
+			sizeof(pmc)) )
+		{
+			char buf[512];
+			sprintf_s(
+				buf,
+				"[AssetMemory][Process] WorkingSet=%zu bytes (%.3f MiB), PrivateUsage=%zu bytes (%.3f MiB)\n",
+				static_cast< size_t >( pmc.WorkingSetSize ),
+				AssetBytesToMiB(static_cast< size_t >( pmc.WorkingSetSize )),
+				static_cast< size_t >( pmc.PrivateUsage ),
+				AssetBytesToMiB(static_cast< size_t >( pmc.PrivateUsage ))
+			);
+			OutputDebugStringA(buf);
+		}
+	}
+
+	size_t assetMapApproxBytes = 0;
+	assetMapApproxBytes += ApproxUnorderedMapBytesAsset(s_assetCache);
+	assetMapApproxBytes += ApproxUnorderedMapBytesAsset(s_materialCache);
+	assetMapApproxBytes += ApproxUnorderedMapBytesAsset(s_textureCache);
+	assetMapApproxBytes += ApproxUnorderedMapBytesAsset(s_clipCache);
+	assetMapApproxBytes += ApproxUnorderedMapBytesAsset(s_appliedAssetKeysByMaterials);
+
+	{
+		char buf[1024];
+		sprintf_s(
+			buf,
+			"[AssetMemory][CacheCounts] assets=%zu materials=%zu textures=%zu clips=%zu appliedMaterialTables=%zu cacheMapApprox=%.3f MiB\n",
+			s_assetCache.size(),
+			s_materialCache.size(),
+			s_textureCache.size(),
+			s_clipCache.size(),
+			s_appliedAssetKeysByMaterials.size(),
+			AssetBytesToMiB(assetMapApproxBytes)
+		);
+		OutputDebugStringA(buf);
+	}
+
+	std::vector<MeshReportRow> meshRows;
+	meshRows.reserve(s_assetCache.size());
+
+	size_t meshCpuTotal = 0;
+	size_t meshGpuDefaultTotal = 0;
+	size_t meshUploadTotal = 0;
+
+	for ( const auto& kv : s_assetCache )
+	{
+		const BuiltAsset& asset = kv.second;
+		if ( !asset.mesh )
+			continue;
+
+		MeshReportRow row{};
+		row.key = kv.first;
+		row.report = asset.mesh->GetMemoryReport();
+
+		meshCpuTotal += row.report.CpuBytes();
+		meshGpuDefaultTotal += row.report.GpuDefaultBytes();
+		meshUploadTotal += row.report.UploadBytes();
+
+		meshRows.push_back(std::move(row));
+	}
+
+	std::sort(
+		meshRows.begin(),
+		meshRows.end(),
+		[ ] (const MeshReportRow& a, const MeshReportRow& b)
+		{
+			return a.report.TotalBytes() > b.report.TotalBytes();
+		}
+	);
+
+	OutputDebugStringA("\n[AssetMemory] ---- Mesh cache top ----\n");
+
+	for ( size_t i = 0; i < meshRows.size() && i < 30; ++i )
+	{
+		const MeshReportRow& row = meshRows[i];
+		const MeshMemoryReport& r = row.report;
+
+		char buf[2048];
+		sprintf_s(
+			buf,
+			"[AssetMemory][MeshTop%02zu] total=%.3f MiB cpu=%.3f gpuDefault=%.3f upload=%.3f "
+			"skinned=%d subMeshes=%u bones=%u vertices=%llu indices=%llu key='%s'\n",
+			i,
+			AssetBytesToMiB(r.TotalBytes()),
+			AssetBytesToMiB(r.CpuBytes()),
+			AssetBytesToMiB(r.GpuDefaultBytes()),
+			AssetBytesToMiB(r.UploadBytes()),
+			r.isSkinned ? 1 : 0,
+			r.subMeshCount,
+			r.boneCount,
+			static_cast< unsigned long long >( r.vertexCount ),
+			static_cast< unsigned long long >( r.indexCount ),
+			row.key.c_str()
+		);
+		OutputDebugStringA(buf);
+
+		sprintf_s(
+			buf,
+			"    [MeshBreakdown] cpuPos=%.3f cpuNrm=%.3f cpuUv=%.3f cpuTan=%.3f cpuBoneIdx=%.3f cpuBoneW=%.3f cpuIdx=%.3f gpuVB=%.3f gpuIB=%.3f uploadVB=%.3f uploadIB=%.3f\n",
+			AssetBytesToMiB(r.cpuPositionBytes),
+			AssetBytesToMiB(r.cpuNormalBytes),
+			AssetBytesToMiB(r.cpuUvBytes),
+			AssetBytesToMiB(r.cpuTangentBytes),
+			AssetBytesToMiB(r.cpuBoneIndexBytes),
+			AssetBytesToMiB(r.cpuBoneWeightBytes),
+			AssetBytesToMiB(r.cpuIndexBytes),
+			AssetBytesToMiB(r.gpuVertexBufferBytes),
+			AssetBytesToMiB(r.gpuIndexBufferBytes),
+			AssetBytesToMiB(r.uploadVertexBufferBytes),
+			AssetBytesToMiB(r.uploadIndexBufferBytes)
+		);
+		OutputDebugStringA(buf);
+	}
+
+	std::vector<TextureReportRow> textureRows;
+	textureRows.reserve(s_textureCache.size());
+
+	size_t textureObjectSideTotal = 0;
+	size_t textureDefaultTotal = 0;
+	size_t textureUploadTotal = 0;
+
+	for ( const auto& kv : s_textureCache )
+	{
+		if ( !kv.second )
+			continue;
+
+		TextureReportRow row{};
+		row.key = kv.first;
+		row.report = kv.second->GetMemoryReport(device);
+
+		textureObjectSideTotal += row.report.objectSideBytes;
+		textureDefaultTotal += row.report.defaultResourceBytes;
+		textureUploadTotal += row.report.uploadResourceBytes;
+
+		textureRows.push_back(std::move(row));
+	}
+
+	std::sort(
+		textureRows.begin(),
+		textureRows.end(),
+		[ ] (const TextureReportRow& a, const TextureReportRow& b)
+		{
+			return a.report.TotalBytes() > b.report.TotalBytes();
+		}
+	);
+
+	OutputDebugStringA("\n[AssetMemory] ---- Texture cache top ----\n");
+
+	for ( size_t i = 0; i < textureRows.size() && i < 40; ++i )
+	{
+		const TextureReportRow& row = textureRows[i];
+		const TextureMemoryReport& r = row.report;
+
+		char buf[2048];
+		sprintf_s(
+			buf,
+			"[AssetMemory][TextureTop%02zu] total=%.3f MiB default=%.3f upload=%.3f objectSide=%.3f textures=%u buffers=%u null=%u key='%s'\n",
+			i,
+			AssetBytesToMiB(r.TotalBytes()),
+			AssetBytesToMiB(r.defaultResourceBytes),
+			AssetBytesToMiB(r.uploadResourceBytes),
+			AssetBytesToMiB(r.objectSideBytes),
+			r.textureCount,
+			r.bufferCount,
+			r.nullResourceCount,
+			row.key.c_str()
+		);
+		OutputDebugStringA(buf);
+	}
+
+	std::vector<ClipReportRow> clipRows;
+	clipRows.reserve(s_clipCache.size());
+
+	size_t clipCacheBytes = 0;
+	size_t clipCacheKeyframes = 0;
+
+	for ( const auto& kv : s_clipCache )
+	{
+		ClipReportRow row{};
+		row.key = kv.first;
+		row.bytes = EstimateAnimationClipBytesAsset(kv.second, row.keyframes);
+
+		clipCacheBytes += row.bytes;
+		clipCacheKeyframes += row.keyframes;
+
+		clipRows.push_back(std::move(row));
+	}
+
+	std::sort(
+		clipRows.begin(),
+		clipRows.end(),
+		[ ] (const ClipReportRow& a, const ClipReportRow& b)
+		{
+			return a.bytes > b.bytes;
+		}
+	);
+
+	OutputDebugStringA("\n[AssetMemory] ---- Animation clip cache top ----\n");
+
+	for ( size_t i = 0; i < clipRows.size() && i < 30; ++i )
+	{
+		const ClipReportRow& row = clipRows[i];
+
+		char buf[2048];
+		sprintf_s(
+			buf,
+			"[AssetMemory][ClipCacheTop%02zu] bytes=%zu (%.3f MiB) keyframes=%zu key='%s'\n",
+			i,
+			row.bytes,
+			AssetBytesToMiB(row.bytes),
+			row.keyframes,
+			row.key.c_str()
+		);
+		OutputDebugStringA(buf);
+	}
+
+	{
+		char buf[2048];
+		sprintf_s(
+			buf,
+			"\n[AssetMemory][Summary] "
+			"meshCpu=%.3f MiB meshGpuDefault=%.3f MiB meshUpload=%.3f MiB meshTotal=%.3f MiB | "
+			"textureDefault=%.3f MiB textureUpload=%.3f MiB textureObjectSide=%.3f MiB textureTotal=%.3f MiB | "
+			"clipCache=%.3f MiB clipCacheKeyframes=%zu | cacheMaps=%.3f MiB\n",
+			AssetBytesToMiB(meshCpuTotal),
+			AssetBytesToMiB(meshGpuDefaultTotal),
+			AssetBytesToMiB(meshUploadTotal),
+			AssetBytesToMiB(meshCpuTotal + meshGpuDefaultTotal + meshUploadTotal),
+			AssetBytesToMiB(textureDefaultTotal),
+			AssetBytesToMiB(textureUploadTotal),
+			AssetBytesToMiB(textureObjectSideTotal),
+			AssetBytesToMiB(textureDefaultTotal + textureUploadTotal + textureObjectSideTotal),
+			AssetBytesToMiB(clipCacheBytes),
+			clipCacheKeyframes,
+			AssetBytesToMiB(assetMapApproxBytes)
+		);
+		OutputDebugStringA(buf);
+	}
+
+	OutputDebugStringA("\n[AssetMemory] ---- Animator live copies ----\n");
+	CAnimator::DumpGlobalMemoryReport();
+
+	OutputDebugStringA("\n[AssetMemory] ---- Descriptor heap usage ----\n");
+	if ( CScene::m_pDescriptorHeap )
+		CScene::m_pDescriptorHeap->DumpUsageReport();
+	else
+		OutputDebugStringA("[DescriptorHeapMemory] CScene::m_pDescriptorHeap=null\n");
+
+	OutputDebugStringA("============================================================\n");
+	OutputDebugStringA("[AssetMemory] AssetManager memory report end\n");
+	OutputDebugStringA("============================================================\n\n");
+#endif
 }
 
 BuiltAsset AssetManager::BuildAssetInternal(

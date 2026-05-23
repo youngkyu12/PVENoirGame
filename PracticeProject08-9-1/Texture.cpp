@@ -5,6 +5,37 @@
 #include "stdafx.h"
 #include "Texture.h"
 
+namespace
+{
+	static double TextureBytesToMiB(size_t bytes)
+	{
+		return static_cast< double >( bytes ) / ( 1024.0 * 1024.0 );
+	}
+
+	static size_t ResourceAllocationBytes(ID3D12Device* device, ID3D12Resource* res)
+	{
+		if ( !res )
+			return 0;
+
+		const D3D12_RESOURCE_DESC desc = res->GetDesc();
+
+		if ( desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER )
+			return static_cast< size_t >( desc.Width );
+
+		if ( device )
+		{
+			const D3D12_RESOURCE_ALLOCATION_INFO info =
+				device->GetResourceAllocationInfo(0, 1, &desc);
+
+			return static_cast< size_t >( info.SizeInBytes );
+		}
+
+		// device가 없으면 정확한 texture allocation size를 알 수 없다.
+		// 일단 0으로 두고, AssetManager::DumpMemoryReport(device)에서 device를 넘겨 정확히 찍는다.
+		return 0;
+	}
+}
+
 CTexture::CTexture(int nTextures, UINT nTextureType, int nSamplers, int nRootParameters)
 {
 	m_nTextureType = nTextureType;
@@ -100,6 +131,73 @@ void CTexture::ReleaseUploadBuffers()
 			if (m_ppd3dTextureUploadBuffers[i])
 				m_ppd3dTextureUploadBuffers[i].Reset();
 	}
+}
+
+TextureMemoryReport CTexture::GetMemoryReport(ID3D12Device* device) const
+{
+	TextureMemoryReport r{};
+
+	r.textureCount = static_cast< uint32_t >(m_nTextures);
+
+	r.objectSideBytes += sizeof(CTexture);
+	r.objectSideBytes += sizeof(ComPtr<ID3D12Resource>) * m_ppd3dTextures.capacity();
+	r.objectSideBytes += sizeof(ComPtr<ID3D12Resource>) * m_ppd3dTextureUploadBuffers.capacity();
+
+	if ( m_nTextures > 0 )
+	{
+		r.objectSideBytes += sizeof(D3D12_GPU_DESCRIPTOR_HANDLE) * static_cast< size_t >( m_nTextures );
+		r.objectSideBytes += sizeof(UINT) * static_cast< size_t >( m_nTextures );
+		r.objectSideBytes += sizeof(DXGI_FORMAT) * static_cast< size_t >( m_nTextures );
+		r.objectSideBytes += sizeof(int) * static_cast< size_t >( m_nTextures );
+	}
+
+	if ( m_nRootParameters > 0 )
+		r.objectSideBytes += sizeof(int) * static_cast< size_t >( m_nRootParameters );
+
+	if ( m_nSamplers > 0 )
+		r.objectSideBytes += sizeof(D3D12_GPU_DESCRIPTOR_HANDLE) * static_cast< size_t >( m_nSamplers );
+
+	for ( int i = 0; i < m_nTextures; ++i )
+	{
+		ID3D12Resource* res = m_ppd3dTextures[i].Get();
+		ID3D12Resource* upload = m_ppd3dTextureUploadBuffers[i].Get();
+
+		if ( !res )
+		{
+			++r.nullResourceCount;
+			continue;
+		}
+
+		if ( m_pnResourceTypes && m_pnResourceTypes[i] == RESOURCE_BUFFER )
+			++r.bufferCount;
+
+		r.defaultResourceBytes += ResourceAllocationBytes(device, res);
+		r.uploadResourceBytes += ResourceAllocationBytes(device, upload);
+	}
+
+	return r;
+}
+
+void CTexture::DumpMemoryReport(ID3D12Device* device, const char* tag) const
+{
+#if defined(_DEBUG) || defined(DEBUG)
+	const TextureMemoryReport r = GetMemoryReport(device);
+
+	char buf[1024];
+	sprintf_s(
+		buf,
+		"[TextureMemory] %s textures=%u buffers=%u null=%u objectSide=%.3f MiB default=%.3f MiB upload=%.3f MiB total=%.3f MiB\n",
+		( tag ? tag : "" ),
+		r.textureCount,
+		r.bufferCount,
+		r.nullResourceCount,
+		TextureBytesToMiB(r.objectSideBytes),
+		TextureBytesToMiB(r.defaultResourceBytes),
+		TextureBytesToMiB(r.uploadResourceBytes),
+		TextureBytesToMiB(r.TotalBytes())
+	);
+	OutputDebugStringA(buf);
+#endif
 }
 
 void CTexture::LoadTextureFromFile(

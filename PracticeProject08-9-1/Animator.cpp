@@ -5,6 +5,74 @@
 #include "stdafx.h"
 #include "Animator.h"
 
+namespace
+{
+	static double AnimatorBytesToMiB(size_t bytes)
+	{
+		return static_cast< double >( bytes ) / ( 1024.0 * 1024.0 );
+	}
+
+	static size_t StringCapacityBytes_Anim(const std::string& s)
+	{
+		return s.capacity() + 1;
+	}
+
+	template <typename T>
+	static size_t VectorCapacityBytes_Anim(const std::vector<T>& v)
+	{
+		return sizeof(T) * v.capacity();
+	}
+
+	template <typename K, typename V>
+	static size_t ApproxUnorderedMapBytes_Anim(const std::unordered_map<K, V>& m)
+	{
+		return
+			m.bucket_count() * sizeof(void*) +
+			m.size() * ( sizeof(typename std::unordered_map<K, V>::value_type) + sizeof(void*) * 3 );
+	}
+
+	static size_t EstimateBoneKeyframesBytes(const BoneKeyframes& track)
+	{
+		size_t bytes = sizeof(BoneKeyframes);
+		bytes += StringCapacityBytes_Anim(track.boneName);
+		bytes += VectorCapacityBytes_Anim(track.keyframes);
+		return bytes;
+	}
+
+	static size_t EstimateAnimationClipBytes(const AnimationClip& clip, size_t* outKeyframeCount = nullptr)
+	{
+		size_t keyframeCount = 0;
+
+		size_t bytes = sizeof(AnimationClip);
+		bytes += StringCapacityBytes_Anim(clip.name);
+		bytes += VectorCapacityBytes_Anim(clip.boneTracks);
+		bytes += ApproxUnorderedMapBytes_Anim(clip.boneNameToTrack);
+
+		for ( const auto& track : clip.boneTracks )
+		{
+			bytes += EstimateBoneKeyframesBytes(track);
+			keyframeCount += track.keyframes.size();
+		}
+
+		bytes += EstimateBoneKeyframesBytes(clip.bindRootTrack);
+		keyframeCount += clip.bindRootTrack.keyframes.size();
+
+		bytes += VectorCapacityBytes_Anim(clip.m_RefLocalPose);
+		bytes += VectorCapacityBytes_Anim(clip.m_refT);
+		bytes += VectorCapacityBytes_Anim(clip.m_refR);
+		bytes += VectorCapacityBytes_Anim(clip.m_refS);
+
+		if ( outKeyframeCount )
+			*outKeyframeCount = keyframeCount;
+
+		return bytes;
+	}
+
+	static size_t g_animatorLiveClipBytes = 0;
+	static size_t g_animatorLiveClipCount = 0;
+	static size_t g_animatorLiveKeyframeCount = 0;
+}
+
 static void DecomposeTRS_M(const XMFLOAT4X4& M, XMFLOAT3& outT, XMFLOAT4& outR, XMFLOAT3& outS)
 {
     XMMATRIX m = XMLoadFloat4x4(&M);
@@ -39,6 +107,28 @@ static XMFLOAT4X4 ComposeTRS_M(const XMFLOAT3& t, const XMFLOAT4& r, const XMFLO
     return out;
 }
 
+CAnimator::~CAnimator()
+{
+	for ( const auto& kv : m_Clips )
+	{
+		size_t keyframes = 0;
+		const size_t bytes = EstimateAnimationClipBytes(kv.second, &keyframes);
+
+		if ( g_animatorLiveClipBytes >= bytes )
+			g_animatorLiveClipBytes -= bytes;
+		else
+			g_animatorLiveClipBytes = 0;
+
+		if ( g_animatorLiveClipCount > 0 )
+			--g_animatorLiveClipCount;
+
+		if ( g_animatorLiveKeyframeCount >= keyframes )
+			g_animatorLiveKeyframeCount -= keyframes;
+		else
+			g_animatorLiveKeyframeCount = 0;
+	}
+}
+
 void CAnimator::SetSkeleton(const std::vector<Bone>& bones,
     const std::unordered_map<std::string, int>& boneNameToIndex)
 {
@@ -67,7 +157,50 @@ void CAnimator::SetSkeleton(const std::vector<Bone>& bones,
 
 void CAnimator::AddClip(const AnimationClip& clip)
 {
-    m_Clips[clip.name] = clip;
+	auto oldIt = m_Clips.find(clip.name);
+	if ( oldIt != m_Clips.end() )
+	{
+		size_t oldKeyframes = 0;
+		const size_t oldBytes = EstimateAnimationClipBytes(oldIt->second, &oldKeyframes);
+
+		if ( g_animatorLiveClipBytes >= oldBytes )
+			g_animatorLiveClipBytes -= oldBytes;
+		else
+			g_animatorLiveClipBytes = 0;
+
+		if ( g_animatorLiveKeyframeCount >= oldKeyframes )
+			g_animatorLiveKeyframeCount -= oldKeyframes;
+		else
+			g_animatorLiveKeyframeCount = 0;
+	}
+	else
+	{
+		++g_animatorLiveClipCount;
+	}
+
+	m_Clips[clip.name] = clip;
+
+	size_t newKeyframes = 0;
+	const size_t newBytes = EstimateAnimationClipBytes(m_Clips[clip.name], &newKeyframes);
+
+	g_animatorLiveClipBytes += newBytes;
+	g_animatorLiveKeyframeCount += newKeyframes;
+}
+
+void CAnimator::DumpGlobalMemoryReport()
+{
+#if defined(_DEBUG) || defined(DEBUG)
+	char buf[1024];
+	sprintf_s(
+		buf,
+		"[AnimatorMemory][GlobalLiveCopies] clips=%zu keyframes=%zu approxBytes=%zu (%.3f MiB)\n",
+		g_animatorLiveClipCount,
+		g_animatorLiveKeyframeCount,
+		g_animatorLiveClipBytes,
+		AnimatorBytesToMiB(g_animatorLiveClipBytes)
+	);
+	OutputDebugStringA(buf);
+#endif
 }
 
 bool CAnimator::HasClip(const std::string& name) const

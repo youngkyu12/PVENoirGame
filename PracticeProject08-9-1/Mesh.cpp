@@ -9,6 +9,46 @@
 #include "Animator.h"
 #include "Object.h"
 
+namespace
+{
+	static double MeshBytesToMiB(size_t bytes)
+	{
+		return static_cast< double >( bytes ) / ( 1024.0 * 1024.0 );
+	}
+
+	template <typename T>
+	static size_t VectorCapacityBytes(const std::vector<T>& v)
+	{
+		return sizeof(T) * v.capacity();
+	}
+
+	static size_t StringCapacityBytes(const std::string& s)
+	{
+		return s.capacity() + 1;
+	}
+
+	static size_t ResourceBufferBytes(ID3D12Resource* res)
+	{
+		if ( !res )
+			return 0;
+
+		const D3D12_RESOURCE_DESC desc = res->GetDesc();
+
+		if ( desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER )
+			return static_cast< size_t >( desc.Width );
+
+		return 0;
+	}
+
+	template <typename K, typename V>
+	static size_t ApproxUnorderedMapBytes(const std::unordered_map<K, V>& m)
+	{
+		return
+			m.bucket_count() * sizeof(void*) +
+			m.size() * ( sizeof(typename std::unordered_map<K, V>::value_type) + sizeof(void*) * 3 );
+	}
+}
+
 static std::string NormalizeMaterialLikeName(const std::string& text)
 {
 	std::string out = text;
@@ -111,6 +151,7 @@ CMesh::CMesh(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandLis
 
 CMesh::~CMesh()
 {
+	ReleaseUploadBuffers();
     if (m_pd3dBoneIndexBuffer) m_pd3dBoneIndexBuffer->Release();
     if (m_pd3dBoneWeightBuffer) m_pd3dBoneWeightBuffer->Release();
     
@@ -127,12 +168,33 @@ CMesh::~CMesh()
 
 void CMesh::ReleaseUploadBuffers()
 {
-	if (m_pd3dBoneIndexUploadBuffer) m_pd3dBoneIndexUploadBuffer->Release();
-	if (m_pd3dBoneWeightUploadBuffer) m_pd3dBoneWeightUploadBuffer->Release();
+	if ( m_pd3dBoneIndexUploadBuffer )
+	{
+		m_pd3dBoneIndexUploadBuffer->Release();
+		m_pd3dBoneIndexUploadBuffer = NULL;
+	}
 
-	m_pd3dBoneIndexUploadBuffer = NULL;
-	m_pd3dBoneWeightUploadBuffer = NULL;
-};
+	if ( m_pd3dBoneWeightUploadBuffer )
+	{
+		m_pd3dBoneWeightUploadBuffer->Release();
+		m_pd3dBoneWeightUploadBuffer = NULL;
+	}
+
+	for ( auto& sm : m_SubMeshes )
+	{
+		if ( sm.vbUpload )
+		{
+			sm.vbUpload->Release();
+			sm.vbUpload = nullptr;
+		}
+
+		if ( sm.ibUpload )
+		{
+			sm.ibUpload->Release();
+			sm.ibUpload = nullptr;
+		}
+	}
+}
 
 void CMesh::Render(ID3D12GraphicsCommandList* pd3dCommandList)
 {
@@ -827,6 +889,106 @@ XMFLOAT3 CMesh::GetMeshMin() const
 XMFLOAT3 CMesh::GetMeshMax() const
 {
     return MeshMax;
+}
+
+MeshMemoryReport CMesh::GetMemoryReport() const
+{
+	MeshMemoryReport r{};
+
+	r.subMeshCount = static_cast< uint32_t >( m_SubMeshes.size() );
+	r.boneCount = static_cast< uint32_t >( m_Bones.size() );
+	r.isSkinned = m_bSkinnedMesh;
+
+	r.cpuSubMeshStructBytes = sizeof(SubMesh) * m_SubMeshes.capacity();
+
+	for ( const auto& sm : m_SubMeshes )
+	{
+		r.vertexCount += static_cast< uint64_t >( sm.positions.size() );
+		r.indexCount += static_cast< uint64_t >( sm.indices.size() );
+
+		r.cpuPositionBytes += VectorCapacityBytes(sm.positions);
+		r.cpuNormalBytes += VectorCapacityBytes(sm.normals);
+		r.cpuUvBytes += VectorCapacityBytes(sm.uvs);
+		r.cpuTangentBytes += VectorCapacityBytes(sm.tangents);
+		r.cpuBoneIndexBytes += VectorCapacityBytes(sm.boneIndices);
+		r.cpuBoneWeightBytes += VectorCapacityBytes(sm.boneWeights);
+		r.cpuIndexBytes += VectorCapacityBytes(sm.indices);
+
+		r.cpuStringCapacityBytes += StringCapacityBytes(sm.authoringPath);
+		r.cpuStringCapacityBytes += StringCapacityBytes(sm.meshName);
+		r.cpuStringCapacityBytes += StringCapacityBytes(sm.materialName);
+		r.cpuStringCapacityBytes += StringCapacityBytes(sm.diffuseTextureName);
+		r.cpuStringCapacityBytes += StringCapacityBytes(sm.normalTextureName);
+		r.cpuStringCapacityBytes += StringCapacityBytes(sm.emissiveTextureName);
+		r.cpuStringCapacityBytes += StringCapacityBytes(sm.specularTextureName);
+
+		r.gpuVertexBufferBytes += static_cast< size_t >( sm.vbView.SizeInBytes );
+		r.gpuIndexBufferBytes += static_cast< size_t >( sm.ibView.SizeInBytes );
+
+		r.uploadVertexBufferBytes += ResourceBufferBytes(sm.vbUpload);
+		r.uploadIndexBufferBytes += ResourceBufferBytes(sm.ibUpload);
+	}
+
+	r.cpuBoneBytes = VectorCapacityBytes(m_Bones);
+	r.cpuBoneNameMapApproxBytes = ApproxUnorderedMapBytes(m_BoneNameToIndex);
+
+	r.cpuBinMaterialBytes = sizeof(BinMaterial) * m_BinMaterials.capacity();
+	r.cpuBinMaterialNameMapApproxBytes = ApproxUnorderedMapBytes(m_BinMaterialNameToIndex);
+
+	for ( const auto& bm : m_BinMaterials )
+	{
+		r.cpuStringCapacityBytes += StringCapacityBytes(bm.name);
+		r.cpuStringCapacityBytes += StringCapacityBytes(bm.diffuseTextureName);
+		r.cpuStringCapacityBytes += StringCapacityBytes(bm.normalTextureName);
+		r.cpuStringCapacityBytes += StringCapacityBytes(bm.emissiveTextureName);
+		r.cpuStringCapacityBytes += StringCapacityBytes(bm.specularTextureName);
+	}
+
+	r.legacyBoneDefaultBufferBytes += ResourceBufferBytes(m_pd3dBoneIndexBuffer);
+	r.legacyBoneDefaultBufferBytes += ResourceBufferBytes(m_pd3dBoneWeightBuffer);
+	r.legacyBoneUploadBufferBytes += ResourceBufferBytes(m_pd3dBoneIndexUploadBuffer);
+	r.legacyBoneUploadBufferBytes += ResourceBufferBytes(m_pd3dBoneWeightUploadBuffer);
+
+	return r;
+}
+
+void CMesh::DumpMemoryReport(const char* tag) const
+{
+#if defined(_DEBUG) || defined(DEBUG)
+	const MeshMemoryReport r = GetMemoryReport();
+
+	char buf[2048];
+	sprintf_s(
+		buf,
+		"[MeshMemory] %s mesh='%s' skinned=%d subMeshes=%u bones=%u vertices=%llu indices=%llu "
+		"cpu=%.3f MiB gpuDefault=%.3f MiB upload=%.3f MiB total=%.3f MiB "
+		"cpuPos=%.3f cpuNrm=%.3f cpuUv=%.3f cpuTan=%.3f cpuBI=%.3f cpuBW=%.3f cpuIdx=%.3f "
+		"gpuVB=%.3f gpuIB=%.3f uploadVB=%.3f uploadIB=%.3f\n",
+		( tag ? tag : "" ),
+		m_sourceMeshPath.c_str(),
+		r.isSkinned ? 1 : 0,
+		r.subMeshCount,
+		r.boneCount,
+		static_cast< unsigned long long >( r.vertexCount ),
+		static_cast< unsigned long long >( r.indexCount ),
+		MeshBytesToMiB(r.CpuBytes()),
+		MeshBytesToMiB(r.GpuDefaultBytes()),
+		MeshBytesToMiB(r.UploadBytes()),
+		MeshBytesToMiB(r.TotalBytes()),
+		MeshBytesToMiB(r.cpuPositionBytes),
+		MeshBytesToMiB(r.cpuNormalBytes),
+		MeshBytesToMiB(r.cpuUvBytes),
+		MeshBytesToMiB(r.cpuTangentBytes),
+		MeshBytesToMiB(r.cpuBoneIndexBytes),
+		MeshBytesToMiB(r.cpuBoneWeightBytes),
+		MeshBytesToMiB(r.cpuIndexBytes),
+		MeshBytesToMiB(r.gpuVertexBufferBytes),
+		MeshBytesToMiB(r.gpuIndexBufferBytes),
+		MeshBytesToMiB(r.uploadVertexBufferBytes),
+		MeshBytesToMiB(r.uploadIndexBufferBytes)
+	);
+	OutputDebugStringA(buf);
+#endif
 }
 
 //==========================================================================

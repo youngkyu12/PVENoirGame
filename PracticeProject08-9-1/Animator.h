@@ -19,8 +19,11 @@
 class CAnimator
 {
 public:
-    CAnimator() = default;
-    ~CAnimator() = default;
+	CAnimator() = default;
+	~CAnimator();
+
+public:
+	static void DumpGlobalMemoryReport();
 
 public:
     void SetSkeleton(const std::vector<Bone>& bones,

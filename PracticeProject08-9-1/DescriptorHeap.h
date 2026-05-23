@@ -40,19 +40,19 @@ public:
 	void CreateShaderResourceView(ID3D12Device* pd3dDevice, CTexture* pTexture, int nIndex, UINT nRootParameterStartIndex);
 	void CreateShaderResourceView(ID3D12Device* pd3dDevice, CTexture* pTexture, int nIndex);
 
-	//±Û·Î¹ú SRV Ç®(½½·Ô) ÇÒ´ç
+	//ê¸€ë¡œë²Œ SRV í’€(ìŠ¬ë¡¯) í• ë‹¹
 	UINT AllocateSrvRange(UINT count);
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCPUSrvHandle(UINT srvIndex) const;
 	D3D12_GPU_DESCRIPTOR_HANDLE GetGPUSrvHandle(UINT srvIndex) const;
 
-	//±âÁ¸ ÇÔ¼öÀÇ "ÀÚµ¿ ÇÒ´ç" ¹öÀü (¿ÜºÎ index ÀÔ·Â Á¦°Å)
+	//ê¸°ì¡´ í•¨ìˆ˜ì˜ "ìë™ í• ë‹¹" ë²„ì „ (ì™¸ë¶€ index ì…ë ¥ ì œê±°)
 	void CreateShaderResourceViews(ID3D12Device* pd3dDevice, CTexture* pTexture, UINT nRootParameterStartIndex);
 
-	//±âÁ¸(·¹°Å½Ã) ¹öÀüÀº À¯Áö (Á¡Áø Æó±â¿ë)
+	//ê¸°ì¡´(ë ˆê±°ì‹œ) ë²„ì „ì€ ìœ ì§€ (ì ì§„ íê¸°ìš©)
 	void CreateShaderResourceViews(ID3D12Device* pd3dDevice, CTexture* pTexture, UINT nDescriptorHeapIndex, UINT nRootParameterStartIndex);
 
 private:
-	// Èü »ı¼º ½Ã º¸°ü (¹üÀ§ Ã¼Å©)
+	// í™ ìƒì„± ì‹œ ë³´ê´€ (ë²”ìœ„ ì²´í¬)
 	UINT m_nCbvDescriptors = 0;
 	UINT m_nSrvDescriptors = 0;
 	UINT m_nSrvAllocated = 0;
@@ -62,4 +62,5 @@ public:
 	UINT AllocateSrvRangeBack(UINT count);
 	void CreateShaderResourceViewsOther(ID3D12Device* pd3dDevice, CTexture* pTexture, UINT nRootParameterStartIndex);
 
+	void DumpUsageReport() const;
 };

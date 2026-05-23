@@ -2603,6 +2603,19 @@ void CGameScene::ReleaseUploadBuffers()
 
 	if ( m_bossSummonCircleTexture )
 		m_bossSummonCircleTexture->ReleaseUploadBuffers();
+
+	AssetManager::ReleaseUploadBuffers();
+
+#if defined(_DEBUG) || defined(DEBUG)
+	if ( !m_bDumpedAssetMemoryAfterUploadRelease && m_debugMemoryReportDevice )
+	{
+		m_bDumpedAssetMemoryAfterUploadRelease = true;
+
+		OutputDebugStringA("\n[AssetMemory][GameScene] AFTER AssetManager::ReleaseUploadBuffers()\n");
+		AssetManager::DumpMemoryReport(m_debugMemoryReportDevice);
+		DBG_DumpD3D12ResourceCreationStats();
+	}
+#endif
 }
 
 void CGameScene::ReleaseShaderVariables()

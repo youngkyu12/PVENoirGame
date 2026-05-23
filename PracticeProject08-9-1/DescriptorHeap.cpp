@@ -332,3 +332,51 @@ void CDescriptorHeap::CreateShaderResourceViewsOther(
 		baseIndex, 
 		nRootParameterStartIndex);
 }
+
+void CDescriptorHeap::DumpUsageReport() const
+{
+#if defined(_DEBUG) || defined(DEBUG)
+	if ( !m_pd3dCbvSrvDescriptorHeap )
+	{
+		OutputDebugStringA("[DescriptorHeapMemory] heap=null\n");
+		return;
+	}
+
+	UINT usedCbv = 0;
+	if ( m_d3dCbvCPUDescriptorStartHandle.ptr != 0 &&
+		m_d3dCbvCPUDescriptorNextHandle.ptr >= m_d3dCbvCPUDescriptorStartHandle.ptr )
+	{
+		usedCbv = static_cast< UINT >(
+			( m_d3dCbvCPUDescriptorNextHandle.ptr - m_d3dCbvCPUDescriptorStartHandle.ptr ) /
+			::gnCbvSrvDescriptorIncrementSize
+		);
+	}
+
+	const UINT frontSrvUsed = m_nSrvAllocated;
+	const UINT backSrvUsed =
+		( m_nSrvBack <= m_nSrvDescriptors )
+		? ( m_nSrvDescriptors - m_nSrvBack )
+		: 0;
+
+	const UINT totalSrvUsed = frontSrvUsed + backSrvUsed;
+	const UINT srvFree =
+		( m_nSrvDescriptors >= totalSrvUsed )
+		? ( m_nSrvDescriptors - totalSrvUsed )
+		: 0;
+
+	char buf[1024];
+	sprintf_s(
+		buf,
+		"[DescriptorHeapMemory] cbv used=%u/%u, srv front=%u back=%u total=%u/%u free=%u increment=%u\n",
+		usedCbv,
+		m_nCbvDescriptors,
+		frontSrvUsed,
+		backSrvUsed,
+		totalSrvUsed,
+		m_nSrvDescriptors,
+		srvFree,
+		::gnCbvSrvDescriptorIncrementSize
+	);
+	OutputDebugStringA(buf);
+#endif
+}
