@@ -18,8 +18,11 @@ struct AnimationClip;
 class CAnimatorComponent final : public CComponentT<CAnimatorComponent>
 {
 public:
-    explicit CAnimatorComponent(CGameObject* owner);
-    ~CAnimatorComponent() override;
+	using AnimationClipRef = std::shared_ptr<const AnimationClip>;
+
+public:
+	explicit CAnimatorComponent(CGameObject* owner);
+	~CAnimatorComponent() override;
 
     // ---- accessors ----
 	CAnimator* GetAnimator() const { return m_pAnimator.get(); }
@@ -31,9 +34,10 @@ public:
 	CAnimController* EnsureController();
 	CMonsterAnimController* EnsureMonsterController();
 
-    // ---- clip/control wrappers ----
-    void AddClip(const AnimationClip& clip);
-    bool HasClip(const char* name) const;
+	// ---- clip/control wrappers ----
+	void AddClip(AnimationClipRef clip);
+	void AddClip(const AnimationClip& clip);
+	bool HasClip(const char* name) const;
 
     void SetSpeed(float s);
     void SetIdleClip(const char* name);
