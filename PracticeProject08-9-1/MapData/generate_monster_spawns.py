@@ -7,7 +7,10 @@ generate_monster_spawns.py
 - DumpStaticGridOccupancyLog()가 출력한 1200 x 1200 정적 점유 로그(0/1)를 읽는다.
 - 각 메가그리드(3 x 3, 각 400 x 400) 중앙 200 x 200 구역 안에서,
   값이 0인 셀만 골라 몬스터 시작 위치를 만든다.
+- 5번 메가그리드의 non-boss 몬스터는 예외적으로 중앙 200 x 200 구역 안에서
+  셀 값(0/1)과 무관하게 생성한다.
 - Boss는 예외적으로 점유 로그를 무시하고 해당 메가그리드 정중앙에 배치한다.
+- 6, 8번 메가그리드에 Mutant가 1마리 이상 있으면 첫 Mutant는 점유 로그와 무관하게 해당 메가그리드 정중앙에 배치한다.
 - 결과는 DX12 쪽에서 나중에 파싱하기 쉬운 txt 파일로 저장한다.
 
 메가그리드 번호 규칙
@@ -70,6 +73,14 @@ APPROACH_HEIGHT = 200
 # 점유 가능한 0 셀을 여러 몬스터가 공유할지 여부.
 # False면 non-boss 몬스터끼리는 같은 좌표를 쓰지 않는다.
 ALLOW_SHARED_NON_BOSS_CELLS = False
+
+# 5번 메가그리드의 non-boss 몬스터는 중앙 200x200 안에서
+# 0/1 점유 로그와 무관하게 생성한다.
+NON_BOSS_IGNORE_OCCUPANCY_MEGA_IDS = {5}
+
+# 6, 8번 메가그리드에 Mutant가 1마리 이상 생성될 경우,
+# 첫 번째 Mutant는 0/1 점유 로그와 무관하게 해당 메가그리드 정중앙에 고정한다.
+FIRST_MUTANT_CENTER_MEGA_IDS = {6, 8}
 
 # SwordMan / BowMan 순찰용.
 # 생성 위치 기준 forward/backward 각각 5m, 총 10m 구간이 모두 0 셀이어야 한다.
@@ -350,6 +361,15 @@ def iter_zero_cells_in_mega_spawn_area(
             if grid_rows[cell_z][cell_x] == "0":
                 yield (world_x, world_z)
 
+
+def iter_all_cells_in_mega_spawn_area(
+    info: MegaGridInfo,
+) -> Iterable[Tuple[int, int]]:
+    for world_z in range(info.spawn_z_min, info.spawn_z_max_exclusive):
+        for world_x in range(info.spawn_x_min, info.spawn_x_max_exclusive):
+            yield (world_x, world_z)
+
+
 def is_world_position_inside_spawn_area(
     info: MegaGridInfo,
     world_x: float,
@@ -526,6 +546,16 @@ def generate_spawns_for_mega_grid(
     rng: random.Random,
 ) -> Tuple[List[SpawnEntry], int]:
     available_zero_cells = list(iter_zero_cells_in_mega_spawn_area(grid_rows, info))
+    ignore_non_boss_occupancy = info.mega_id in NON_BOSS_IGNORE_OCCUPANCY_MEGA_IDS
+
+    # 일반 메가그리드는 기존처럼 0 셀만 non-boss 후보로 사용한다.
+    # 5번 메가그리드는 예외적으로 중앙 200x200 전체를 후보로 사용한다.
+    available_non_boss_cells = (
+        list(iter_all_cells_in_mega_spawn_area(info))
+        if ignore_non_boss_occupancy
+        else available_zero_cells
+    )
+    available_non_boss_cell_set = set(available_non_boss_cells)
 
     spawns_by_type: Dict[str, List[SpawnEntry]] = {
         monster: [] for monster in MONSTER_ORDER
@@ -533,78 +563,130 @@ def generate_spawns_for_mega_grid(
 
     used_cells: set[Tuple[int, int]] = set()
 
+    force_first_mutant_to_center = (
+        info.mega_id in FIRST_MUTANT_CENTER_MEGA_IDS
+        and counts.get("Mutant", 0) > 0
+    )
+    center_pos = (info.center_x, info.center_z)
+
+    # 중앙 고정 Mutant는 점유 로그를 무시한다.
+    # 다만 중앙 좌표가 현재 non-boss 후보에 포함되어 있으면,
+    # ALLOW_SHARED_NON_BOSS_CELLS=False 기준에서 다른 non-boss 몬스터가
+    # 같은 좌표를 쓰지 않도록 미리 예약한다.
+    if (
+        force_first_mutant_to_center
+        and not ALLOW_SHARED_NON_BOSS_CELLS
+        and center_pos in available_non_boss_cell_set
+    ):
+        used_cells.add(center_pos)
+
+    def get_available_positions_for_non_boss() -> List[Tuple[int, int]]:
+        if ALLOW_SHARED_NON_BOSS_CELLS:
+            return available_non_boss_cells
+
+        return [
+            pos for pos in available_non_boss_cells
+            if pos not in used_cells
+        ]
+
     non_boss_total = sum(
         counts.get(monster, 0)
         for monster in MONSTER_ORDER
         if monster != "Boss"
     )
+    random_cell_non_boss_total = (
+        non_boss_total - 1
+        if force_first_mutant_to_center
+        else non_boss_total
+    )
 
-    if not ALLOW_SHARED_NON_BOSS_CELLS and non_boss_total > len(available_zero_cells):
+    if (
+        not ALLOW_SHARED_NON_BOSS_CELLS
+        and random_cell_non_boss_total > len(get_available_positions_for_non_boss())
+    ):
         raise ValueError(
-            f"mega_id={info.mega_id} 에 non-boss 몬스터를 배치할 0 셀이 부족함. "
-            f"요청={non_boss_total}, 사용가능={len(available_zero_cells)}"
+            f"mega_id={info.mega_id} 에 non-boss 몬스터를 배치할 후보 셀이 부족함. "
+            f"요청={non_boss_total}, "
+            f"중앙고정_mutant={int(force_first_mutant_to_center)}, "
+            f"랜덤셀필요={random_cell_non_boss_total}, "
+            f"사용가능={len(get_available_positions_for_non_boss())}, "
+            f"점유무시={int(ignore_non_boss_occupancy)}"
         )
 
-    def get_available_positions_for_non_boss() -> List[Tuple[int, int]]:
-        if ALLOW_SHARED_NON_BOSS_CELLS:
-            return available_zero_cells
-
-        return [
-            pos for pos in available_zero_cells
-            if pos not in used_cells
-        ]
+    if force_first_mutant_to_center:
+        y = MONSTER_Y.get("Mutant", 0)
+        spawns_by_type["Mutant"].append(
+            build_spawn_entry(
+                monster_type="Mutant",
+                info=info,
+                x=info.center_x,
+                y=y,
+                z=info.center_z,
+                rng=rng,
+                spawn_rule="first_mutant_center_in_mega_6_or_8_ignore_occupancy",
+            )
+        )
 
     # -------------------------------------------------------------------------
     # 1) 제약이 강한 순찰 몬스터부터 배치한다.
-    #    Ghoul을 먼저 랜덤 배치해버리면 BowMan/SwordMan용 10m 빈 구간 후보를
-    #    불필요하게 소비할 수 있기 때문이다.
+    #    단, 5번 메가그리드는 non-boss 점유 로그 무시 규칙이 우선이므로
+    #    BowMan/SwordMan도 일반 non-boss와 같은 방식으로 배치한다.
     # -------------------------------------------------------------------------
-    for monster in MONSTER_ORDER:
-        if monster not in PATROL_MONSTER_TYPES:
-            continue
+    if not ignore_non_boss_occupancy:
+        for monster in MONSTER_ORDER:
+            if monster not in PATROL_MONSTER_TYPES:
+                continue
 
-        count = counts.get(monster, 0)
-        if count <= 0:
-            continue
+            count = counts.get(monster, 0)
+            if count <= 0:
+                continue
 
-        y = MONSTER_Y.get(monster, 0)
+            y = MONSTER_Y.get(monster, 0)
 
-        for _ in range(count):
-            candidates = get_available_positions_for_non_boss()
+            for _ in range(count):
+                candidates = get_available_positions_for_non_boss()
 
-            entry = try_build_patrol_spawn_entry(
-                monster_type=monster,
-                grid_rows=grid_rows,
-                info=info,
-                y=y,
-                rng=rng,
-                candidate_positions=candidates,
-            )
-
-            if entry is None:
-                raise ValueError(
-                    f"mega_id={info.mega_id}, monster={monster} 배치 실패: "
-                    f"앞뒤 각각 {PATROL_FORWARD_BACK_CLEARANCE_METERS:.1f}m, "
-                    f"총 {PATROL_FORWARD_BACK_CLEARANCE_METERS * 2.0:.1f}m "
-                    f"순찰 가능 0 셀 구간을 찾지 못함."
+                entry = try_build_patrol_spawn_entry(
+                    monster_type=monster,
+                    grid_rows=grid_rows,
+                    info=info,
+                    y=y,
+                    rng=rng,
+                    candidate_positions=candidates,
                 )
 
-            spawns_by_type[monster].append(entry)
+                if entry is None:
+                    raise ValueError(
+                        f"mega_id={info.mega_id}, monster={monster} 배치 실패: "
+                        f"앞뒤 각각 {PATROL_FORWARD_BACK_CLEARANCE_METERS:.1f}m, "
+                        f"총 {PATROL_FORWARD_BACK_CLEARANCE_METERS * 2.0:.1f}m "
+                        f"순찰 가능 0 셀 구간을 찾지 못함."
+                    )
 
-            if not ALLOW_SHARED_NON_BOSS_CELLS:
-                used_cells.add((entry.x, entry.z))
+                spawns_by_type[monster].append(entry)
+
+                if not ALLOW_SHARED_NON_BOSS_CELLS:
+                    used_cells.add((entry.x, entry.z))
 
     # -------------------------------------------------------------------------
     # 2) 순찰 제약이 없는 일반 non-boss 몬스터 배치.
+    #    5번 메가그리드에서는 모든 non-boss 몬스터가 이 경로를 타며,
+    #    중앙 200x200 안에서 셀 값과 무관하게 배치된다.
     # -------------------------------------------------------------------------
     for monster in MONSTER_ORDER:
         if monster == "Boss":
             continue
 
-        if monster in PATROL_MONSTER_TYPES:
+        if monster in PATROL_MONSTER_TYPES and not ignore_non_boss_occupancy:
             continue
 
         count = counts.get(monster, 0)
+
+        # 6/8번 메가그리드에서는 첫 Mutant를 이미 중앙에 넣었으므로,
+        # 나머지 Mutant만 기존 0 셀 랜덤 규칙으로 배치한다.
+        if monster == "Mutant" and force_first_mutant_to_center:
+            count -= 1
+
         if count <= 0:
             continue
 
@@ -612,7 +694,7 @@ def generate_spawns_for_mega_grid(
 
         if ALLOW_SHARED_NON_BOSS_CELLS:
             chosen_positions = [
-                rng.choice(available_zero_cells)
+                rng.choice(available_non_boss_cells)
                 for _ in range(count)
             ]
         else:
@@ -621,10 +703,17 @@ def generate_spawns_for_mega_grid(
             if count > len(candidates):
                 raise ValueError(
                     f"mega_id={info.mega_id}, monster={monster} 배치 실패: "
-                    f"남은 0 셀이 부족함. 요청={count}, 남음={len(candidates)}"
+                    f"남은 후보 셀이 부족함. 요청={count}, 남음={len(candidates)}, "
+                    f"점유무시={int(ignore_non_boss_occupancy)}"
                 )
 
             chosen_positions = rng.sample(candidates, count)
+
+        spawn_rule = (
+            "ignore_occupancy_in_center_200x200"
+            if ignore_non_boss_occupancy
+            else "zero_cell_in_center_200x200"
+        )
 
         for x, z in chosen_positions:
             spawns_by_type[monster].append(
@@ -635,7 +724,7 @@ def generate_spawns_for_mega_grid(
                     y=y,
                     z=z,
                     rng=rng,
-                    spawn_rule="zero_cell_in_center_200x200",
+                    spawn_rule=spawn_rule,
                 )
             )
 
@@ -669,7 +758,6 @@ def generate_spawns_for_mega_grid(
 
     return spawns, len(available_zero_cells)
 
-
 # =============================================================================
 # 출력
 # =============================================================================
@@ -695,6 +783,7 @@ def build_txt_output(
         f"CONFIG|grid_min=({GRID_MIN_X},{GRID_MIN_Z})|grid_max_exclusive=({GRID_MAX_X},{GRID_MAX_Z})"
         f"|grid_size=({GRID_WIDTH},{GRID_HEIGHT})|mega_grid_size=({MEGA_GRID_CELL_WIDTH},{MEGA_GRID_CELL_HEIGHT})"
         f"|center_spawn_size=({APPROACH_WIDTH},{APPROACH_HEIGHT})|allow_shared_non_boss_cells={int(ALLOW_SHARED_NON_BOSS_CELLS)}"
+        f"|non_boss_ignore_occupancy_mega_ids={sorted(NON_BOSS_IGNORE_OCCUPANCY_MEGA_IDS)}"
         f"|rng_seed={'None' if RNG_SEED is None else RNG_SEED}"
     )
 
@@ -706,6 +795,12 @@ def build_txt_output(
             if monster != "Boss"
         )
         requested_boss = counts[mega_id].get("Boss", 0)
+        non_boss_occupancy_ignored = mega_id in NON_BOSS_IGNORE_OCCUPANCY_MEGA_IDS
+        available_non_boss_spawn_cells = (
+            APPROACH_WIDTH * APPROACH_HEIGHT
+            if non_boss_occupancy_ignored
+            else available_counts[mega_id]
+        )
 
         lines.append(
             f"MEGA|id={mega_id}|mega=({info.mega_x},{info.mega_z})"
@@ -715,6 +810,8 @@ def build_txt_output(
             f"|spawn_max_exclusive=({info.spawn_x_max_exclusive},{info.spawn_z_max_exclusive})"
             f"|center=({info.center_x},{info.center_z})"
             f"|available_zero_cells={available_counts[mega_id]}"
+            f"|available_non_boss_spawn_cells={available_non_boss_spawn_cells}"
+            f"|non_boss_occupancy_ignored={int(non_boss_occupancy_ignored)}"
             f"|requested_non_boss={requested_non_boss}"
             f"|requested_boss={requested_boss}"
         )
@@ -784,7 +881,8 @@ def main() -> None:
             f"[{info.world_z_min},{info.world_z_max_exclusive}) "
             f"spawn_center_area=[{info.spawn_x_min},{info.spawn_x_max_exclusive}) x "
             f"[{info.spawn_z_min},{info.spawn_z_max_exclusive}) "
-            f"available_zero_cells={available_counts[mega_id]}"
+            f"available_zero_cells={available_counts[mega_id]} "
+            f"non_boss_occupancy_ignored={int(mega_id in NON_BOSS_IGNORE_OCCUPANCY_MEGA_IDS)}"
         )
 
 
