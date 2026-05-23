@@ -2382,20 +2382,6 @@ void CGameScene::ReleaseObjects()
 	m_bossPoisonProjectiles.clear();
 	m_bossPoisonSpellCastStates.clear();
 
-	m_bossPoisonProjectileLaunchDelaySec =
-		kBossPoisonProjectileDefaultLaunchDelaySec;
-
-	m_bossPoisonProjectileLaunchHeight =
-		kBossPoisonProjectileDefaultLaunchHeight;
-
-	m_bossPoisonProjectileSpeed =
-		kBossPoisonProjectileDefaultSpeed;
-
-	m_bPrevBossPoisonDelayDecKeyDown = false;
-	m_bPrevBossPoisonDelayIncKeyDown = false;
-	m_bPrevBossPoisonHeightIncKeyDown = false;
-	m_bPrevBossPoisonHeightDecKeyDown = false;
-
 	m_bBossStageBossActivated = false;
 	m_bBossSummonSequenceStarted = false;
 	m_bBossSummonCircleFadeAgeSec = 0.0f;
@@ -6068,16 +6054,8 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 		m_bPrevDebugDamageMegaGrid5KeyDown = false;
 		m_bPrevLocalStageTeleportKeyDown.fill(false);
 
-		m_bPrevBossPoisonDelayDecKeyDown = false;
-		m_bPrevBossPoisonDelayIncKeyDown = false;
-		m_bPrevBossPoisonHeightIncKeyDown = false;
-		m_bPrevBossPoisonHeightDecKeyDown = false;
-
 		return false;
 	}
-
-	if ( UpdateBossPoisonProjectileDebugInput(pKeysBuffer) )
-		return true;
 
 	// ---------------------------------------------------------------------
 	// Q: 로컬 몬스터 추적 on/off
