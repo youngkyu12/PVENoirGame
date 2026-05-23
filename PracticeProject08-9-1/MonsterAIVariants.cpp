@@ -98,6 +98,36 @@ namespace
 
 		return XMConvertToDegrees(std::atan2(dx, dz));
 	}
+
+	static float DistanceSqXZLocal(const XMFLOAT3& a, const XMFLOAT3& b)
+	{
+		const float dx = a.x - b.x;
+		const float dz = a.z - b.z;
+		return dx * dx + dz * dz;
+	}
+
+	static XMFLOAT3 ForwardFromYawDegreesLocal(float yawDeg)
+	{
+		const float yawRad = XMConvertToRadians(yawDeg);
+
+		return XMFLOAT3(
+			std::sin(yawRad),
+			0.0f,
+			std::cos(yawRad)
+		);
+	}
+
+	static bool IsObjectDeadByHealthLocal(const CGameObject* obj)
+	{
+		if ( !obj )
+			return true;
+
+		auto* hp = obj->GetComponent<CHealthComponent>();
+		if ( !hp )
+			return false;
+
+		return hp->IsDead();
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -127,6 +157,444 @@ bool CGhoulAIComponent::TryPerformAttack()
 		return false;
 
 	ctrl->RequestCommand(EMonsterAnimCommand::Attack);
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+// Enemy Spawner Ghoul
+//-----------------------------------------------------------------------------
+CEnemySpawnerGhoulAIComponent::CEnemySpawnerGhoulAIComponent(CGameObject* owner)
+	: CGhoulAIComponent(owner)
+{
+	const float runSpeed = GetRunMoveSpeedValue();
+
+	// 이 AI는 배회/복귀/walk 이동이 없다.
+	// 혹시 walk speed가 호출되더라도 run speed와 같게 둔다.
+	SetMoveSpeeds(runSpeed, runSpeed);
+	SetChaseRunAnimationEnabled(true);
+	SetPatrolEnabled(false);
+
+	m_bInitialAdvanceActive = true;
+	m_initialAdvanceRemainingDistance = 60.0f;
+}
+
+void CEnemySpawnerGhoulAIComponent::ConfigureSpawnerGhoulAI(
+	int megaGridNumber,
+	float initialAdvanceDistance)
+{
+	m_spawnerMegaGridNumber = megaGridNumber;
+
+	m_initialAdvanceRemainingDistance =
+		( initialAdvanceDistance > 0.0f ) ? initialAdvanceDistance : 0.0f;
+
+	m_bInitialAdvanceActive =
+		( m_initialAdvanceRemainingDistance > 0.0f );
+}
+
+void CEnemySpawnerGhoulAIComponent::OnUpdate(float dt)
+{
+	if ( !m_bAIEnabled )
+		return;
+
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return;
+
+	EnsureHomeTransformCaptured();
+
+	if ( IsObjectDeadByHealthLocal(owner) )
+	{
+		ClearTarget();
+		ClearPath();
+		ClearReturnHomePath();
+		return;
+	}
+
+	if ( !m_pScene )
+		return;
+
+	UpdateCooldowns(dt);
+	UpdatePathTimers(dt);
+
+	if ( !CanThinkNow() )
+	{
+		ClearPath();
+		return;
+	}
+
+	// 갓 생성된 상태에서는 타겟 여부와 무관하게 먼저 60m 직진.
+	if ( m_bInitialAdvanceActive )
+	{
+		UpdateInitialAdvance(dt);
+		return;
+	}
+
+	// 이후에는 타겟이 없거나, 타겟이 100x100 밖으로 나가면 즉시 정지.
+	if ( !HasValidTarget() || !IsPlayerValidSpawnerTarget(m_pTarget) )
+	{
+		ClearTarget();
+		AcquireTarget();
+	}
+
+	UpdateBehavior(dt);
+}
+
+bool CEnemySpawnerGhoulAIComponent::ForceChaseTarget(CGameObject* target)
+{
+	if ( !target )
+		return false;
+
+	if ( m_pScene && !m_pScene->IsLocalMonsterChaseEnabled() )
+		return false;
+
+	if ( !IsPlayerValidSpawnerTarget(target) )
+		return false;
+
+	SetTarget(target);
+	ClearPath();
+	m_repathTimer = 0.0f;
+	return true;
+}
+
+bool CEnemySpawnerGhoulAIComponent::AcquireTarget()
+{
+	if ( !m_pScene )
+		return false;
+
+	if ( !m_pScene->IsLocalMonsterChaseEnabled() )
+		return false;
+
+	// 60m 강제 직진 중에는 타겟을 새로 잡지 않는다.
+	if ( m_bInitialAdvanceActive )
+		return false;
+
+	CGameObject* nearest = FindNearestPlayerInsideInnerEmptyZone();
+	if ( !nearest )
+		return false;
+
+	SetTarget(nearest);
+	return true;
+}
+
+void CEnemySpawnerGhoulAIComponent::UpdateBehavior(float dt)
+{
+	if ( m_pScene && !m_pScene->IsLocalMonsterChaseEnabled() )
+	{
+		ClearTarget();
+		ClearPath();
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		return;
+	}
+
+	if ( !HasValidTarget() || !IsPlayerValidSpawnerTarget(m_pTarget) )
+	{
+		ClearTarget();
+		ClearPath();
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		return;
+	}
+
+	if ( IsTargetInAttackRange() && CanStartAttackAgainstTarget() )
+	{
+		ClearPath();
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		FaceTowardsNoClamp(m_pTarget->GetPosition());
+
+		if ( CanAttackNow() )
+		{
+			if ( TryPerformAttack() )
+				ConsumeAttackCooldown();
+		}
+
+		return;
+	}
+
+	if ( !CanMoveNow() )
+	{
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		return;
+	}
+
+	if ( dt <= 0.0f )
+	{
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		return;
+	}
+
+	const float moveDistance = GetChaseMoveSpeed() * dt;
+	if ( moveDistance <= 0.0f )
+	{
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		return;
+	}
+
+	SetMonsterLocomotionState(EMonsterAnimState::Run);
+	MoveDirectNoNavTowards(m_pTarget->GetPosition(), moveDistance);
+}
+
+EMonsterAnimState CEnemySpawnerGhoulAIComponent::GetChaseLocomotionState() const
+{
+	return EMonsterAnimState::Run;
+}
+
+EMonsterAnimState CEnemySpawnerGhoulAIComponent::GetWalkLocomotionState() const
+{
+	return EMonsterAnimState::Run;
+}
+
+bool CEnemySpawnerGhoulAIComponent::UpdateInitialAdvance(float dt)
+{
+	if ( !m_bInitialAdvanceActive )
+		return false;
+
+	if ( m_initialAdvanceRemainingDistance <= 0.0f )
+	{
+		m_bInitialAdvanceActive = false;
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		return false;
+	}
+
+	if ( dt <= 0.0f )
+	{
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		return true;
+	}
+
+	if ( !CanMoveNow() )
+	{
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		return true;
+	}
+
+	float moveDistance = GetChaseMoveSpeed() * dt;
+
+	if ( moveDistance > m_initialAdvanceRemainingDistance )
+		moveDistance = m_initialAdvanceRemainingDistance;
+
+	if ( moveDistance <= 0.0f )
+	{
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		return true;
+	}
+
+	const XMFLOAT3 forward = ForwardFromYawDegreesLocal(m_homeYawDeg);
+
+	SetMonsterLocomotionState(EMonsterAnimState::Run);
+
+	if ( MoveDirectNoNavByDirection(forward, moveDistance) )
+	{
+		m_initialAdvanceRemainingDistance -= moveDistance;
+
+		if ( m_initialAdvanceRemainingDistance <= 0.0f )
+		{
+			m_initialAdvanceRemainingDistance = 0.0f;
+			m_bInitialAdvanceActive = false;
+			ClearTarget();
+			ClearPath();
+			SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		}
+	}
+
+	return true;
+}
+
+bool CEnemySpawnerGhoulAIComponent::IsPlayerValidSpawnerTarget(CGameObject* player) const
+{
+	if ( !player )
+		return false;
+
+	if ( !m_pScene )
+		return false;
+
+	bool isRegisteredPlayer = false;
+
+	for ( int slot = 0; slot < 4; ++slot )
+	{
+		if ( m_pScene->GetPlayerBySlot(slot) == player )
+		{
+			isRegisteredPlayer = true;
+			break;
+		}
+	}
+
+	if ( !isRegisteredPlayer )
+		return false;
+
+	if ( auto* hp = player->GetComponent<CHealthComponent>() )
+	{
+		if ( hp->IsDead() )
+			return false;
+	}
+
+	return IsWorldPositionInsideInnerEmptyZone(player->GetPosition());
+}
+
+bool CEnemySpawnerGhoulAIComponent::GetInnerEmptyZoneCenter(XMFLOAT3& outCenter) const
+{
+	if ( m_spawnerMegaGridNumber < 1 ||
+		 m_spawnerMegaGridNumber > CSceneGrid::kMegaGridCount )
+	{
+		return false;
+	}
+
+	const int zeroBased = m_spawnerMegaGridNumber - 1;
+	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+	outCenter.x =
+		static_cast< float >(
+			CSceneGrid::kGridMinX +
+			megaX * CSceneGrid::kMegaGridCellWidth +
+			CSceneGrid::kMegaGridCellWidth / 2
+		);
+
+	outCenter.y = 0.0f;
+
+	outCenter.z =
+		static_cast< float >(
+			CSceneGrid::kGridMinZ +
+			megaZ * CSceneGrid::kMegaGridCellHeight +
+			CSceneGrid::kMegaGridCellHeight / 2
+		);
+
+	return true;
+}
+
+bool CEnemySpawnerGhoulAIComponent::IsWorldPositionInsideInnerEmptyZone(
+	const XMFLOAT3& pos) const
+{
+	XMFLOAT3 center{};
+	if ( !GetInnerEmptyZoneCenter(center) )
+		return false;
+
+	const float minX = center.x - kInnerEmptyZoneHalfExtent;
+	const float maxX = center.x + kInnerEmptyZoneHalfExtent;
+	const float minZ = center.z - kInnerEmptyZoneHalfExtent;
+	const float maxZ = center.z + kInnerEmptyZoneHalfExtent;
+
+	// 요구사항: 경계선에 있으면 무시.
+	// 따라서 <=, >=가 아니라 strict comparison을 쓴다.
+	return
+		( pos.x > minX && pos.x < maxX ) &&
+		( pos.z > minZ && pos.z < maxZ );
+}
+
+CGameObject* CEnemySpawnerGhoulAIComponent::FindNearestPlayerInsideInnerEmptyZone() const
+{
+	if ( !m_pScene )
+		return nullptr;
+
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return nullptr;
+
+	CGameObject* bestPlayer = nullptr;
+	float bestDistSq = FLT_MAX;
+
+	const XMFLOAT3 ownerPos = owner->GetPosition();
+
+	for ( int slot = 0; slot < 4; ++slot )
+	{
+		CGameObject* player = m_pScene->GetPlayerBySlot(slot);
+		if ( !IsPlayerValidSpawnerTarget(player) )
+			continue;
+
+		const float distSq =
+			DistanceSqXZLocal(ownerPos, player->GetPosition());
+
+		if ( distSq < bestDistSq )
+		{
+			bestDistSq = distSq;
+			bestPlayer = player;
+		}
+	}
+
+	return bestPlayer;
+}
+
+bool CEnemySpawnerGhoulAIComponent::MoveDirectNoNavTowards(
+	const XMFLOAT3& targetPos,
+	float maxStepDistance)
+{
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return false;
+
+	if ( maxStepDistance <= 0.0f )
+		return false;
+
+	const XMFLOAT3 pos = owner->GetPosition();
+
+	XMFLOAT3 delta(
+		targetPos.x - pos.x,
+		0.0f,
+		targetPos.z - pos.z
+	);
+
+	const float lenSq = delta.x * delta.x + delta.z * delta.z;
+	if ( lenSq <= 1.0e-8f )
+		return false;
+
+	const float len = std::sqrt(lenSq);
+	const float invLen = 1.0f / len;
+
+	XMFLOAT3 dir(
+		delta.x * invLen,
+		0.0f,
+		delta.z * invLen
+	);
+
+	const float stepDistance =
+		( maxStepDistance < len ) ? maxStepDistance : len;
+
+	return MoveDirectNoNavByDirection(
+		dir,
+		stepDistance
+	);
+}
+
+bool CEnemySpawnerGhoulAIComponent::MoveDirectNoNavByDirection(
+	const XMFLOAT3& direction,
+	float maxStepDistance)
+{
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return false;
+
+	if ( maxStepDistance <= 0.0f )
+		return false;
+
+	XMFLOAT3 dir(direction.x, 0.0f, direction.z);
+
+	const float lenSq = dir.x * dir.x + dir.z * dir.z;
+	if ( lenSq <= 1.0e-8f )
+		return false;
+
+	const float invLen = 1.0f / std::sqrt(lenSq);
+	dir.x *= invLen;
+	dir.z *= invLen;
+
+	const XMFLOAT3 pos = owner->GetPosition();
+
+	const XMFLOAT3 lookTarget(
+		pos.x + dir.x,
+		pos.y,
+		pos.z + dir.z
+	);
+
+	FaceTowardsNoClamp(lookTarget);
+
+	XMFLOAT3 newPos(
+		pos.x + dir.x * maxStepDistance,
+		pos.y,
+		pos.z + dir.z * maxStepDistance
+	);
+
+	owner->SetPosition(newPos);
+
+	if ( auto* collider = owner->GetComponent<CColliderComponent>() )
+		collider->UpdateWorldBounds();
+
 	return true;
 }
 

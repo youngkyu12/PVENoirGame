@@ -9,7 +9,7 @@
 //-----------------------------------------------------------------------------
 // Ghoul
 //-----------------------------------------------------------------------------
-class CGhoulAIComponent final : public CMonsterAIComponent
+class CGhoulAIComponent : public CMonsterAIComponent
 {
 public:
 	explicit CGhoulAIComponent(CGameObject* owner);
@@ -23,6 +23,59 @@ public:
 
 protected:
 	bool TryPerformAttack() override;
+};
+
+//-----------------------------------------------------------------------------
+// Enemy Spawner Ghoul
+// 6 / 8번 메가그리드 스포너 전용.
+//-----------------------------------------------------------------------------
+class CEnemySpawnerGhoulAIComponent final : public CGhoulAIComponent
+{
+public:
+	explicit CEnemySpawnerGhoulAIComponent(CGameObject* owner);
+	~CEnemySpawnerGhoulAIComponent() override = default;
+
+public:
+	TypeId GetTypeId() const override
+	{
+		return CComponent::StaticTypeId<CEnemySpawnerGhoulAIComponent>();
+	}
+
+	void OnUpdate(float dt) override;
+
+	bool ForceChaseTarget(CGameObject* target) override;
+
+	void ConfigureSpawnerGhoulAI(
+		int megaGridNumber,
+		float initialAdvanceDistance = 60.0f
+	);
+
+protected:
+	bool AcquireTarget() override;
+	void UpdateBehavior(float dt) override;
+
+	EMonsterAnimState GetChaseLocomotionState() const override;
+	EMonsterAnimState GetWalkLocomotionState() const override;
+
+private:
+	bool UpdateInitialAdvance(float dt);
+
+	bool IsPlayerValidSpawnerTarget(CGameObject* player) const;
+	bool IsWorldPositionInsideInnerEmptyZone(const XMFLOAT3& pos) const;
+	bool GetInnerEmptyZoneCenter(XMFLOAT3& outCenter) const;
+
+	CGameObject* FindNearestPlayerInsideInnerEmptyZone() const;
+
+	bool MoveDirectNoNavTowards(const XMFLOAT3& targetPos, float maxStepDistance);
+	bool MoveDirectNoNavByDirection(const XMFLOAT3& direction, float maxStepDistance);
+
+private:
+	int m_spawnerMegaGridNumber = -1;
+
+	bool m_bInitialAdvanceActive = true;
+	float m_initialAdvanceRemainingDistance = 60.0f;
+
+	static constexpr float kInnerEmptyZoneHalfExtent = 50.0f;
 };
 
 //-----------------------------------------------------------------------------
