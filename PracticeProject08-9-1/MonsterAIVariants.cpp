@@ -7,6 +7,7 @@
 #include "AnimatorComponent.h"
 #include "MonsterAnimController.h"
 #include "HealthComponent.h"
+#include "ColliderComponent.h"
 
 namespace
 {
@@ -287,8 +288,19 @@ CBossAIComponent::CBossAIComponent(CGameObject* owner)
 	m_bBossOpeningSpellRequested = false;
 	m_bossOpeningSpellRequestAgeSec = 0.0f;
 
-	m_bossPostMeleeTurnDuration = 0.25f;
-	m_bossPostMeleeTurnRemaining = 0.0f;
+	m_bBossPostMeleeEvading = false;
+
+	m_bossMeleeAttackForward =
+		XMFLOAT3(0.0f, 0.0f, 1.0f);
+
+	m_bossPostMeleeEvadeDirection =
+		XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	m_bossPostMeleeEvadeTarget =
+		XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	m_bossPostMeleeEvadeRemainingDistance = 0.0f;
+
 	m_bossPostMeleeTurnSpeedDegrees = 900.0f;
 
 	m_bossSpellTurnSpeedDegrees = 720.0f;
@@ -376,7 +388,7 @@ void CBossAIComponent::UpdateBehavior(float dt)
 	if ( m_bBossWasMeleeActionPlaying )
 	{
 		m_bBossWasMeleeActionPlaying = false;
-		m_bossPostMeleeTurnRemaining = m_bossPostMeleeTurnDuration;
+		BeginBossPostMeleeEvade();
 	}
 
 	if ( IsBossSpellActionPlaying() )
@@ -410,7 +422,7 @@ void CBossAIComponent::UpdateBehavior(float dt)
 		return;
 	}
 
-	if ( UpdateBossPostMeleeTurn(dt) )
+	if ( UpdateBossPostMeleeEvade(dt) )
 	{
 		return;
 	}
@@ -656,8 +668,9 @@ bool CBossAIComponent::CanMoveNow() const
 	if ( IsAIActionLockedByAnimation() )
 		return false;
 
-	// 근거리 공격 직후 자연 회전 중에도 이동하지 않는다.
-	if ( m_bossPostMeleeTurnRemaining > 0.0f )
+	// 근거리 공격 후 회피 이동 중에는 일반 추적 이동을 막는다.
+	// 회피 이동 자체는 UpdateBossPostMeleeEvade()에서 직접 처리한다.
+	if ( m_bBossPostMeleeEvading )
 		return false;
 
 	return true;
@@ -753,32 +766,355 @@ bool CBossAIComponent::SmoothFaceTowardsTarget(
 	);
 }
 
-bool CBossAIComponent::UpdateBossPostMeleeTurn(float dt)
+void CBossAIComponent::CaptureBossMeleeAttackForward()
 {
-	if ( m_bossPostMeleeTurnRemaining <= 0.0f )
+	CGameObject* owner = GetOwner();
+
+	if ( !owner )
+	{
+		m_bossMeleeAttackForward =
+			XMFLOAT3(0.0f, 0.0f, 1.0f);
+		return;
+	}
+
+	const float yawDeg = GetOwnerYawDegrees();
+	const float yawRad = XMConvertToRadians(yawDeg);
+
+	XMFLOAT3 forward(
+		std::sin(yawRad),
+		0.0f,
+		std::cos(yawRad)
+	);
+
+	const float lenSq =
+		forward.x * forward.x +
+		forward.z * forward.z;
+
+	if ( lenSq <= 1.0e-8f )
+	{
+		m_bossMeleeAttackForward =
+			XMFLOAT3(0.0f, 0.0f, 1.0f);
+		return;
+	}
+
+	const float invLen = 1.0f / std::sqrt(lenSq);
+
+	forward.x *= invLen;
+	forward.y = 0.0f;
+	forward.z *= invLen;
+
+	m_bossMeleeAttackForward = forward;
+}
+
+XMFLOAT3 CBossAIComponent::ClampBossPostMeleeEvadePointToStage(
+	const XMFLOAT3& p) const
+{
+	const float minX =
+		kBossPostMeleeEvadeStageCenterX -
+		kBossPostMeleeEvadeStageHalfExtent +
+		kBossPostMeleeEvadeStagePadding;
+
+	const float maxX =
+		kBossPostMeleeEvadeStageCenterX +
+		kBossPostMeleeEvadeStageHalfExtent -
+		kBossPostMeleeEvadeStagePadding;
+
+	const float minZ =
+		kBossPostMeleeEvadeStageCenterZ -
+		kBossPostMeleeEvadeStageHalfExtent +
+		kBossPostMeleeEvadeStagePadding;
+
+	const float maxZ =
+		kBossPostMeleeEvadeStageCenterZ +
+		kBossPostMeleeEvadeStageHalfExtent -
+		kBossPostMeleeEvadeStagePadding;
+
+	XMFLOAT3 out = p;
+
+	if ( out.x < minX ) out.x = minX;
+	if ( out.x > maxX ) out.x = maxX;
+	if ( out.z < minZ ) out.z = minZ;
+	if ( out.z > maxZ ) out.z = maxZ;
+
+	return out;
+}
+
+bool CBossAIComponent::IsBossPostMeleeEvadeDestinationValid(
+	const XMFLOAT3& from,
+	const XMFLOAT3& dir) const
+{
+	const XMFLOAT3 dst(
+		from.x + dir.x * kBossPostMeleeEvadeDistance,
+		from.y,
+		from.z + dir.z * kBossPostMeleeEvadeDistance
+	);
+
+	const float minX =
+		kBossPostMeleeEvadeStageCenterX -
+		kBossPostMeleeEvadeStageHalfExtent +
+		kBossPostMeleeEvadeStagePadding;
+
+	const float maxX =
+		kBossPostMeleeEvadeStageCenterX +
+		kBossPostMeleeEvadeStageHalfExtent -
+		kBossPostMeleeEvadeStagePadding;
+
+	const float minZ =
+		kBossPostMeleeEvadeStageCenterZ -
+		kBossPostMeleeEvadeStageHalfExtent +
+		kBossPostMeleeEvadeStagePadding;
+
+	const float maxZ =
+		kBossPostMeleeEvadeStageCenterZ +
+		kBossPostMeleeEvadeStageHalfExtent -
+		kBossPostMeleeEvadeStagePadding;
+
+	if ( dst.x < minX || dst.x > maxX )
 		return false;
 
-	CGameObject* target = GetTarget();
-	if ( !target )
+	if ( dst.z < minZ || dst.z > maxZ )
+		return false;
+
+	return true;
+}
+
+bool CBossAIComponent::SelectBossPostMeleeEvadeDirection(
+	XMFLOAT3& outDir) const
+{
+	CGameObject* owner = GetOwner();
+
+	if ( !owner )
 	{
-		m_bossPostMeleeTurnRemaining = 0.0f;
+		outDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
 		return false;
 	}
+
+	XMFLOAT3 forward = m_bossMeleeAttackForward;
+
+	float forwardLenSq =
+		forward.x * forward.x +
+		forward.z * forward.z;
+
+	if ( forwardLenSq <= 1.0e-8f )
+	{
+		forward = XMFLOAT3(0.0f, 0.0f, 1.0f);
+		forwardLenSq = 1.0f;
+	}
+
+	const float invForwardLen = 1.0f / std::sqrt(forwardLenSq);
+
+	forward.x *= invForwardLen;
+	forward.y = 0.0f;
+	forward.z *= invForwardLen;
+
+	const XMFLOAT3 right(
+		forward.z,
+		0.0f,
+		-forward.x
+	);
+
+	const XMFLOAT3 left(
+		-right.x,
+		0.0f,
+		-right.z
+	);
+
+	const XMFLOAT3 back(
+		-forward.x,
+		0.0f,
+		-forward.z
+	);
+
+	const XMFLOAT3 pos = owner->GetPosition();
+
+	std::array<XMFLOAT3, 3> candidates =
+	{
+		left,
+		right,
+		back
+	};
+
+	std::array<int, 3> order = { 0, 1, 2 };
+
+	static std::mt19937 rng{ std::random_device{}( ) };
+	std::shuffle(order.begin(), order.end(), rng);
+
+	for ( int idx : order )
+	{
+		const XMFLOAT3& candidate = candidates[idx];
+
+		if ( IsBossPostMeleeEvadeDestinationValid(pos, candidate) )
+		{
+			outDir = candidate;
+			return true;
+		}
+	}
+
+	// 좌/우/뒤가 모두 막힌 경우에만 예외적으로 앞으로 이동.
+	outDir = forward;
+	return false;
+}
+
+void CBossAIComponent::BeginBossPostMeleeEvade()
+{
+	CGameObject* owner = GetOwner();
+
+	if ( !owner )
+		return;
+
+	XMFLOAT3 evadeDir{};
+	SelectBossPostMeleeEvadeDirection(evadeDir);
+
+	const XMFLOAT3 pos = owner->GetPosition();
+
+	XMFLOAT3 rawTarget(
+		pos.x + evadeDir.x * kBossPostMeleeEvadeDistance,
+		pos.y,
+		pos.z + evadeDir.z * kBossPostMeleeEvadeDistance
+	);
+
+	// 좌/우/뒤가 막혀서 앞으로 가는 경우도 stage 밖으로 튀지 않게 최종 clamp.
+	const XMFLOAT3 target =
+		ClampBossPostMeleeEvadePointToStage(rawTarget);
+
+	XMFLOAT3 delta(
+		target.x - pos.x,
+		0.0f,
+		target.z - pos.z
+	);
+
+	const float distSq =
+		delta.x * delta.x +
+		delta.z * delta.z;
+
+	if ( distSq <= 1.0e-6f )
+	{
+		m_bBossPostMeleeEvading = false;
+		m_bossPostMeleeEvadeRemainingDistance = 0.0f;
+		return;
+	}
+
+	const float dist = std::sqrt(distSq);
+	const float invDist = 1.0f / dist;
+
+	m_bossPostMeleeEvadeDirection =
+		XMFLOAT3(
+			delta.x * invDist,
+			0.0f,
+			delta.z * invDist
+		);
+
+	m_bossPostMeleeEvadeTarget = target;
+	m_bossPostMeleeEvadeRemainingDistance = dist;
+	m_bBossPostMeleeEvading = true;
 
 	ClearPath();
 	SetMonsterLocomotionState(EMonsterAnimState::Idle);
 
-	SmoothFaceTowardsTarget(
-		target,
-		dt,
-		m_bossPostMeleeTurnSpeedDegrees
+	char buf[512];
+	sprintf_s(
+		buf,
+		"[BossAI][PostMeleeEvade] begin pos=(%.3f, %.3f, %.3f) target=(%.3f, %.3f, %.3f) dir=(%.3f, %.3f, %.3f) dist=%.3f\n",
+		pos.x,
+		pos.y,
+		pos.z,
+		target.x,
+		target.y,
+		target.z,
+		m_bossPostMeleeEvadeDirection.x,
+		m_bossPostMeleeEvadeDirection.y,
+		m_bossPostMeleeEvadeDirection.z,
+		dist
+	);
+	OutputDebugStringA(buf);
+}
+
+bool CBossAIComponent::UpdateBossPostMeleeEvade(float dt)
+{
+	if ( !m_bBossPostMeleeEvading )
+		return false;
+
+	CGameObject* owner = GetOwner();
+
+	if ( !owner )
+	{
+		m_bBossPostMeleeEvading = false;
+		m_bossPostMeleeEvadeRemainingDistance = 0.0f;
+		return false;
+	}
+
+	CGameObject* target = GetTarget();
+
+	ClearPath();
+	SetMonsterLocomotionState(EMonsterAnimState::Idle);
+
+	// 회피 이동 중에도 플레이어를 계속 바라본다.
+	if ( target )
+	{
+		SmoothFaceTowardsTarget(
+			target,
+			dt,
+			m_bossPostMeleeTurnSpeedDegrees
+		);
+	}
+
+	if ( dt <= 0.0f )
+		return true;
+
+	const float maxStep =
+		kBossPostMeleeEvadeSpeed * dt;
+
+	float step = maxStep;
+
+	if ( step > m_bossPostMeleeEvadeRemainingDistance )
+		step = m_bossPostMeleeEvadeRemainingDistance;
+
+	if ( step <= 0.0f )
+	{
+		m_bBossPostMeleeEvading = false;
+		m_bossPostMeleeEvadeRemainingDistance = 0.0f;
+		return true;
+	}
+
+	const XMFLOAT3 oldPos = owner->GetPosition();
+
+	XMFLOAT3 newPos(
+		oldPos.x + m_bossPostMeleeEvadeDirection.x * step,
+		oldPos.y,
+		oldPos.z + m_bossPostMeleeEvadeDirection.z * step
 	);
 
-	if ( dt > 0.0f )
+	newPos = ClampBossPostMeleeEvadePointToStage(newPos);
+
+	owner->SetPosition(newPos);
+
+	if ( auto* collider = owner->GetComponent<CColliderComponent>() )
 	{
-		m_bossPostMeleeTurnRemaining -= dt;
-		if ( m_bossPostMeleeTurnRemaining < 0.0f )
-			m_bossPostMeleeTurnRemaining = 0.0f;
+		collider->UpdateWorldBounds();
+	}
+
+	const float movedDx = newPos.x - oldPos.x;
+	const float movedDz = newPos.z - oldPos.z;
+
+	const float movedDist =
+		std::sqrt(movedDx * movedDx + movedDz * movedDz);
+
+	m_bossPostMeleeEvadeRemainingDistance -= movedDist;
+
+	if ( m_bossPostMeleeEvadeRemainingDistance <= 0.03f ||
+		 movedDist <= 1.0e-5f )
+	{
+		owner->SetPosition(m_bossPostMeleeEvadeTarget);
+
+		if ( auto* collider = owner->GetComponent<CColliderComponent>() )
+		{
+			collider->UpdateWorldBounds();
+		}
+
+		m_bBossPostMeleeEvading = false;
+		m_bossPostMeleeEvadeRemainingDistance = 0.0f;
+
+		OutputDebugStringA("[BossAI][PostMeleeEvade] end.\n");
 	}
 
 	return true;
@@ -871,6 +1207,8 @@ bool CBossAIComponent::TryPerformBossCommand(EMonsterAnimCommand command)
 bool CBossAIComponent::TryPerformMeleeAttack()
 {
 	m_pendingAttackIntent = EBossAttackIntent::Melee;
+	CaptureBossMeleeAttackForward();
+
 	return TryPerformBossCommand(EMonsterAnimCommand::Attack);
 }
 
