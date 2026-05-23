@@ -393,7 +393,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	BuildItemBillboardBatch(dev, cmd, kRTCount, rtvFormats, kDsvFormat);
 
 #ifndef USING_NETWORK
-	//DumpStaticGridOccupancyLog();
+	DumpStaticGridOccupancyLog();
 	//BuildStaticWorldSubmeshOOBBDebugObjects(dev, cmd);
 #endif
 	BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
