@@ -484,14 +484,14 @@ float4 PSMuzzleFlashProcedural(
 
         return float4(color, alpha);
     }
-    else
+    else if (kind < 4.5f)
     {
-    // poison dust
+        // poison dust
         float2 q = p;
 
         float angle = atan2(q.y, q.x);
 
-    // 너무 별 모양/스파크처럼 보이지 않게, 낮은 주파수로 크게 찌그러뜨린다.
+        // 너무 별 모양/스파크처럼 보이지 않게, 낮은 주파수로 크게 찌그러뜨린다.
         float wobble =
         0.84f +
         0.12f * sin(angle * 3.0f + seed * 7.31f) +
@@ -499,11 +499,11 @@ float4 PSMuzzleFlashProcedural(
 
         float rr = r / max(wobble, 0.22f);
 
-    // 중심이 강한 점처럼 찍히지 않게 body를 완만하게 만든다.
+        // 중심이 강한 점처럼 찍히지 않게 body를 완만하게 만든다.
         float body =
         1.0f - smoothstep(0.05f, 0.82f, rr);
 
-    // 바깥쪽 연무 영역을 넓게 잡는다.
+        // 바깥쪽 연무 영역을 넓게 잡는다.
         float softEdge =
         1.0f - smoothstep(0.46f, 1.18f, rr);
 
@@ -519,11 +519,11 @@ float4 PSMuzzleFlashProcedural(
 
         float fade = saturate(1.0f - ageRatio);
 
-    // 처음에는 비교적 진하고, 끝으로 갈수록 부드럽게 사라진다.
-    // fade^2는 너무 빨리 꺼져서 큰 가스가 남는 느낌이 약하므로 조금 완만하게 한다.
+        // 처음에는 비교적 진하고, 끝으로 갈수록 부드럽게 사라진다.
+        // fade^2는 너무 빨리 꺼져서 큰 가스가 남는 느낌이 약하므로 조금 완만하게 한다.
         float softFade = fade * (0.65f + 0.35f * fade);
 
-    // 중심부를 밝게 찍지 않고, 넓은 softEdge 위주로 alpha를 만든다.
+        // 중심부를 밝게 찍지 않고, 넓은 softEdge 위주로 alpha를 만든다.
         alpha =
         saturate(
             (body * 0.28f + softEdge * 0.62f) *
@@ -539,7 +539,7 @@ float4 PSMuzzleFlashProcedural(
         float3 darkGreen = float3(0.010f, 0.145f, 0.012f);
         float3 dustGreen = input.color.rgb;
 
-    // 중심부도 밝은 형광으로 가지 않게 한다.
+        // 중심부도 밝은 형광으로 가지 않게 한다.
         color =
         lerp(
             veryDarkGreen,
@@ -554,8 +554,178 @@ float4 PSMuzzleFlashProcedural(
             saturate(body * 0.35f + center * 0.12f)
         );
 
-    // intensity도 낮게 들어오지만, 셰이더에서도 상한을 더 낮춘다.
+        // intensity도 낮게 들어오지만, 셰이더에서도 상한을 더 낮춘다.
         color *= min(intensity, 0.65f);
+    }
+    else
+    {
+        // boss melee slash
+        // quad UV는 아래쪽이 uv.y=1이므로 p.y를 뒤집어
+        // q.y=-1이 실제 월드 아래, q.y=+1이 실제 월드 위가 되게 한다.
+        float2 q = float2(p.x, -p.y);
+
+        const float PI = 3.14159265f;
+
+        // q.y 기준으로 아래(-1) -> 위(+1)
+        float t = saturate((q.y + 0.92f) / 1.84f);
+
+        // 보스 기준 좌하단 -> 우상단으로 강하게 기울어진 중심선.
+        // 기존보다 x 이동량을 크게 늘려서 수직 기둥처럼 보이지 않게 한다.
+        float curveX =
+        -0.92f +
+        1.62f * t +
+        0.18f * sin(t * PI) -
+        0.04f * t * t;
+
+        float curveY =
+        -0.92f +
+        1.84f * t;
+
+        float2 curvePos = float2(curveX, curveY);
+        float2 d = q - curvePos;
+
+        // 칼날 거리 계산.
+        // x/y 비율을 조절해서 대각선으로 넓게 솟는 덩어리감을 만든다.
+        d.x *= 0.72f;
+        d.y *= 0.82f;
+        
+        // 현재 두께의 약 2/3.
+        // 이전 값: lerp(0.60, 0.24, t), root add 0.20
+        float bladeWidth =
+        lerp(0.40f, 0.16f, t);
+
+        // 지면에서 솟는 뿌리 부분은 유지하되, 기존보다 얇게.
+        bladeWidth +=
+            0.13f *
+            (1.0f - smoothstep(0.00f, 0.32f, t));
+
+        // 끝부분은 살짝만 얇게.
+        bladeWidth *=
+            1.0f -
+            0.34f * smoothstep(0.76f, 1.0f, t);
+
+        float distToBlade = length(d);
+
+        float bladeBody =
+        1.0f -
+        smoothstep(
+            bladeWidth,
+            bladeWidth + 0.075f,
+            distToBlade
+        );
+
+        float bladeCore =
+        1.0f -
+        smoothstep(
+            bladeWidth * 0.15f,
+            bladeWidth * 0.52f,
+            distToBlade
+        );
+
+        // 우상단 갈고리/꼬리.
+        float2 tipLocal =
+        q - float2(0.78f, 0.74f);
+
+        tipLocal.x *= 1.10f;
+        tipLocal.y *= 0.58f;
+
+        float tipHook =
+        1.0f -
+        smoothstep(
+            0.15f,
+            0.30f,
+            length(tipLocal)
+        );
+
+        tipHook *= smoothstep(0.62f, 0.90f, t);
+
+        bladeBody = max(bladeBody, tipHook * 0.72f);
+        bladeCore = max(bladeCore, tipHook * 0.42f);
+
+        // 좌하단 -> 우상단 방향 reveal.
+        // q.y만 쓰면 수직으로 켜지므로, q.x를 섞어서 대각선 진행 방향을 만든다.
+        float slashCoord =
+        saturate(
+            (q.y + q.x * 0.62f + 1.55f) / 3.10f
+        );
+
+        float revealHead =
+        saturate(ageRatio * 1.55f);
+
+        float revealMask =
+        1.0f -
+        smoothstep(
+            revealHead - 0.08f,
+            revealHead + 0.10f,
+            slashCoord
+        );
+
+        float birthFade = smoothstep(0.00f, 0.07f, ageRatio);
+
+        float lifeFade =
+        1.0f -
+        smoothstep(0.72f, 1.00f, ageRatio);
+
+        float breakup =
+        0.88f +
+        0.12f *
+        sin(q.x * 16.0f + q.y * 7.0f + seed * 1.73f) *
+        sin(q.y * 19.0f - seed * 0.91f);
+
+        breakup = saturate(breakup);
+
+        float outerGlow =
+        1.0f -
+        smoothstep(
+            bladeWidth + 0.04f,
+            bladeWidth + 0.30f,
+            distToBlade
+        );
+
+        outerGlow *= revealMask;
+
+        alpha =
+        saturate(
+            (
+                bladeBody * 0.92f +
+                outerGlow * 0.30f
+            ) *
+            revealMask *
+            birthFade *
+            lifeFade *
+            breakup *
+            input.color.a
+        );
+
+        float edgeFactor =
+        saturate(bladeBody - bladeCore);
+
+        float3 edgeGreen = float3(0.045f, 0.42f, 0.00f);
+        float3 bodyGreen = input.color.rgb;
+        float3 innerGreen = float3(0.92f, 1.00f, 0.62f);
+
+        color =
+        lerp(
+            edgeGreen,
+            bodyGreen,
+            saturate(bladeBody)
+        );
+
+        color =
+        lerp(
+            color,
+            innerGreen,
+            saturate(bladeCore * 0.92f)
+        );
+
+        color =
+        lerp(
+            color,
+            edgeGreen,
+            saturate(edgeFactor * 0.20f)
+        );
+
+        color *= min(intensity, 1.45f);
     }
 
     clip(alpha - 0.002f);

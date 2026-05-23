@@ -137,6 +137,11 @@ CGameScene::CGameScene()
 	m_bPrevLocalStageTeleportKeyDown.fill(false);
 #endif
 
+	m_bossMeleeSlashCastStates.clear();
+	m_bossMeleeSlashLaunchDelaySec = 0.450f;
+	m_bPrevBossMeleeSlashDelayLeftKeyDown = false;
+	m_bPrevBossMeleeSlashDelayRightKeyDown = false;
+
 	m_bLocalPlayerDead = false;
 	m_bLocalPlayerRespawnUsed = false;
 	m_localPlayerRespawnTimer = 0.0f;
@@ -2381,6 +2386,7 @@ void CGameScene::ReleaseObjects()
 
 	m_bossPoisonProjectiles.clear();
 	m_bossPoisonSpellCastStates.clear();
+	m_bossMeleeSlashCastStates.clear();
 
 	m_bBossStageBossActivated = false;
 	m_bBossSummonSequenceStarted = false;
@@ -6054,6 +6060,9 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 		m_bPrevDebugDamageMegaGrid5KeyDown = false;
 		m_bPrevLocalStageTeleportKeyDown.fill(false);
 
+		m_bPrevBossMeleeSlashDelayLeftKeyDown = false;
+		m_bPrevBossMeleeSlashDelayRightKeyDown = false;
+
 		return false;
 	}
 
@@ -6085,6 +6094,64 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 	}
 
 	m_bPrevDebugDamageMegaGrid5KeyDown = enterDown;
+
+	// ---------------------------------------------------------------------
+	// Left / Right: 보스 근접 slash 이펙트 생성 딜레이 조절
+	// Left  = -0.010 sec
+	// Right = +0.010 sec
+	// ---------------------------------------------------------------------
+	const bool bossSlashDelayLeftDown =
+		( pKeysBuffer[VK_LEFT] & 0xF0 ) != 0;
+
+	const bool bossSlashDelayRightDown =
+		( pKeysBuffer[VK_RIGHT] & 0xF0 ) != 0;
+
+	bool bossSlashDelayAdjusted = false;
+
+	if ( bossSlashDelayLeftDown &&
+		 !m_bPrevBossMeleeSlashDelayLeftKeyDown )
+	{
+		m_bossMeleeSlashLaunchDelaySec =
+			std::clamp(
+				m_bossMeleeSlashLaunchDelaySec -
+				kBossMeleeSlashDelayAdjustStepSec,
+				kBossMeleeSlashDelayMinSec,
+				kBossMeleeSlashDelayMaxSec
+			);
+
+		bossSlashDelayAdjusted = true;
+	}
+
+	if ( bossSlashDelayRightDown &&
+		 !m_bPrevBossMeleeSlashDelayRightKeyDown )
+	{
+		m_bossMeleeSlashLaunchDelaySec =
+			std::clamp(
+				m_bossMeleeSlashLaunchDelaySec +
+				kBossMeleeSlashDelayAdjustStepSec,
+				kBossMeleeSlashDelayMinSec,
+				kBossMeleeSlashDelayMaxSec
+			);
+
+		bossSlashDelayAdjusted = true;
+	}
+
+	m_bPrevBossMeleeSlashDelayLeftKeyDown = bossSlashDelayLeftDown;
+	m_bPrevBossMeleeSlashDelayRightKeyDown = bossSlashDelayRightDown;
+
+	if ( bossSlashDelayAdjusted )
+	{
+		char buf[256];
+		sprintf_s(
+			buf,
+			"[BossMeleeSlash][Delay] delay=%.4f sec (%.1f ms)\n",
+			m_bossMeleeSlashLaunchDelaySec,
+			m_bossMeleeSlashLaunchDelaySec * 1000.0f
+		);
+		OutputDebugStringA(buf);
+
+		return true;
+	}
 
 	// ---------------------------------------------------------------------
 	// 1~9: 로컬 스테이지 메가그리드 강제 텔레포트
@@ -6725,6 +6792,7 @@ void CGameScene::AnimateObjects(float dt)
 	}
 
 #ifndef USING_NETWORK
+	UpdateBossMeleeSlashCasts(dt);
 	UpdateBossPoisonProjectileSpellCasts(dt);
 	UpdateBossPoisonProjectiles(dt);
 #endif
