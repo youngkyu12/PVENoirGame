@@ -15,7 +15,7 @@
 std::unordered_map<std::string, BuiltAsset> AssetManager::s_assetCache;
 std::unordered_map<std::string, std::shared_ptr<CMaterial>> AssetManager::s_materialCache;
 std::unordered_map<std::string, std::shared_ptr<CTexture>> AssetManager::s_textureCache;
-std::unordered_map<std::string, AnimationClip> AssetManager::s_clipCache;
+std::unordered_map<std::string, AssetManager::AnimationClipRef> AssetManager::s_clipCache;
 
 std::unordered_map<MATERIALS*, std::unordered_set<std::string>>
 AssetManager::s_appliedAssetKeysByMaterials;
@@ -330,16 +330,18 @@ std::string AssetManager::MakeClipKey(
 		std::to_string(timeScale);
 }
 
-bool AssetManager::LoadCachedClip(
+AssetManager::AnimationClipRef AssetManager::LoadCachedClipRef(
 	CMesh* mesh,
 	const std::string& skeletonKey,
 	const char* animBinPath,
 	const char* clipName,
-	AnimationClip& outClip,
 	float timeScale)
 {
-	if ( !mesh ) return false;
-	if ( !animBinPath || !clipName ) return false;
+	if ( !mesh )
+		return nullptr;
+
+	if ( !animBinPath || !clipName )
+		return nullptr;
 
 	const std::string key = MakeClipKey(
 		skeletonKey,
@@ -350,18 +352,44 @@ bool AssetManager::LoadCachedClip(
 
 	auto it = s_clipCache.find(key);
 	if ( it != s_clipCache.end() )
-	{
-		outClip = it->second;
-		return true;
-	}
+		return it->second;
 
-	AnimationClip clip{};
-	if ( !mesh->LoadAnimationFromBIN(animBinPath, clipName, clip, timeScale) )
+	auto clip = std::make_shared<AnimationClip>();
+
+	if ( !mesh->LoadAnimationFromBIN(animBinPath, clipName, *clip, timeScale) )
+		return nullptr;
+
+	clip->name = clipName;
+
+	AnimationClipRef clipRef = clip;
+	s_clipCache.emplace(key, clipRef);
+
+	return clipRef;
+}
+
+bool AssetManager::LoadCachedClip(
+	CMesh* mesh,
+	const std::string& skeletonKey,
+	const char* animBinPath,
+	const char* clipName,
+	AnimationClip& outClip,
+	float timeScale)
+{
+	AnimationClipRef clipRef = LoadCachedClipRef(
+		mesh,
+		skeletonKey,
+		animBinPath,
+		clipName,
+		timeScale
+	);
+
+	if ( !clipRef )
 		return false;
 
-	clip.name = clipName;
-	s_clipCache.emplace(key, clip);
-	outClip = clip;
+	// 기존 호출부 호환용.
+	// 다음 단계에서 GameSceneObjectFactory / CAnimatorComponent 쪽을 바꾸면
+	// 이 복사 경로는 더 이상 쓰지 않게 된다.
+	outClip = *clipRef;
 	return true;
 }
 
