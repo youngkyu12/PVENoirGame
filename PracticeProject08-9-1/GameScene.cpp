@@ -1635,7 +1635,7 @@ bool CGameScene::TryGetTrackedCell(const CGameObject* obj, int& outCellX, int& o
 
 	const XMFLOAT3 pos = obj->GetPosition();
 
-	if ( pos.y < -100.0f )
+	if ( pos.y <= kEnemySpawnerInactiveY )
 		return false;
 
 	return m_sceneGrid.WorldToCell(pos.x, pos.z, outCellX, outCellZ);

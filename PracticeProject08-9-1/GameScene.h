@@ -1007,6 +1007,8 @@ private:
 	static constexpr UINT kEnemySpawnerMega6GhoulCount = 200;
 	static constexpr UINT kEnemySpawnerMega8GhoulCount = 200;
 
+	static constexpr float kEnemySpawnerInactiveY = -100.0f;
+
 	static constexpr int kEnemySpawnerDoorWallCount = 4;
 	static constexpr int kEnemySpawnerDoorSlotsPerWall = 5;
 	static constexpr int kEnemySpawnerDoorBatchCount = 10;
