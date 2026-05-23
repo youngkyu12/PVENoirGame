@@ -594,8 +594,6 @@ private:
 
 	void ResetBossPoisonProjectileState();
 
-	bool UpdateBossPoisonProjectileDebugInput(UCHAR* pKeysBuffer);
-
 	void BuildBossPoisonProjectileBatch(
 		ID3D12Device* dev,
 		ID3D12GraphicsCommandList* cmd,
@@ -1507,9 +1505,9 @@ private:
 	static constexpr float kBossPoisonProjectileCoreRadius = 2.0f;
 	static constexpr float kBossPoisonProjectileGasDiameter = 6.0f;
 
-	static constexpr float kBossPoisonProjectileDefaultLaunchDelaySec = 0.35f;
-	static constexpr float kBossPoisonProjectileDefaultLaunchHeight = 3.0f;
-	static constexpr float kBossPoisonProjectileDefaultSpeed = 18.0f;
+	static constexpr float kBossPoisonProjectileLaunchDelaySec = 1.025f;
+	static constexpr float kBossPoisonProjectileLaunchHeight = 3.3f;
+	static constexpr float kBossPoisonProjectileSpeed = 18.0f;
 	static constexpr float kBossPoisonProjectileForwardOffset = 4.0f;
 
 	static constexpr int   kBossPoisonProjectileDamage = 50;
@@ -1519,9 +1517,6 @@ private:
 	static constexpr float kBossPoisonProjectilePlayerCollisionRadius = 0.65f;
 
 	static constexpr float kBossPoisonProjectilePlayerHalfHeight = 1.15f;
-
-	static constexpr float kBossPoisonProjectileDelayStep = 0.025f;
-	static constexpr float kBossPoisonProjectileHeightStep = 0.10f;
 
 	static constexpr float kBossPoisonProjectileStageHalfExtent = 110.0f;
 
@@ -1535,20 +1530,6 @@ private:
 
 	std::vector<BossPoisonProjectileEntry> m_bossPoisonProjectiles;
 	std::unordered_map<CGameObject*, BossPoisonSpellCastState> m_bossPoisonSpellCastStates;
-
-	float m_bossPoisonProjectileLaunchDelaySec =
-		kBossPoisonProjectileDefaultLaunchDelaySec;
-
-	float m_bossPoisonProjectileLaunchHeight =
-		kBossPoisonProjectileDefaultLaunchHeight;
-
-	float m_bossPoisonProjectileSpeed =
-		kBossPoisonProjectileDefaultSpeed;
-
-	bool m_bPrevBossPoisonDelayDecKeyDown = false;
-	bool m_bPrevBossPoisonDelayIncKeyDown = false;
-	bool m_bPrevBossPoisonHeightIncKeyDown = false;
-	bool m_bPrevBossPoisonHeightDecKeyDown = false;
 
 	struct BossStageBossPositionState
 	{

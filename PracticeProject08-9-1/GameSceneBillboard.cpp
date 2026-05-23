@@ -2272,96 +2272,6 @@ void CGameScene::ResetBossPoisonProjectileState()
 	m_bossPoisonProjectiles.resize(kBossPoisonProjectileMaxCount);
 
 	m_bossPoisonSpellCastStates.clear();
-
-	m_bossPoisonProjectileLaunchDelaySec =
-		kBossPoisonProjectileDefaultLaunchDelaySec;
-
-	m_bossPoisonProjectileLaunchHeight =
-		kBossPoisonProjectileDefaultLaunchHeight;
-
-	m_bossPoisonProjectileSpeed =
-		kBossPoisonProjectileDefaultSpeed;
-
-	m_bPrevBossPoisonDelayDecKeyDown = false;
-	m_bPrevBossPoisonDelayIncKeyDown = false;
-	m_bPrevBossPoisonHeightIncKeyDown = false;
-	m_bPrevBossPoisonHeightDecKeyDown = false;
-}
-
-bool CGameScene::UpdateBossPoisonProjectileDebugInput(UCHAR* pKeysBuffer)
-{
-#ifndef USING_NETWORK
-	if ( !pKeysBuffer )
-		return false;
-
-	const bool delayDecDown = ( pKeysBuffer[VK_LEFT] & 0xF0 ) != 0;
-	const bool delayIncDown = ( pKeysBuffer[VK_RIGHT] & 0xF0 ) != 0;
-	const bool heightIncDown = ( pKeysBuffer[VK_UP] & 0xF0 ) != 0;
-	const bool heightDecDown = ( pKeysBuffer[VK_DOWN] & 0xF0 ) != 0;
-
-	bool changed = false;
-
-	if ( delayDecDown && !m_bPrevBossPoisonDelayDecKeyDown )
-	{
-		m_bossPoisonProjectileLaunchDelaySec -=
-			kBossPoisonProjectileDelayStep;
-
-		if ( m_bossPoisonProjectileLaunchDelaySec < 0.0f )
-			m_bossPoisonProjectileLaunchDelaySec = 0.0f;
-
-		changed = true;
-	}
-
-	if ( delayIncDown && !m_bPrevBossPoisonDelayIncKeyDown )
-	{
-		m_bossPoisonProjectileLaunchDelaySec +=
-			kBossPoisonProjectileDelayStep;
-
-		changed = true;
-	}
-
-	if ( heightIncDown && !m_bPrevBossPoisonHeightIncKeyDown )
-	{
-		m_bossPoisonProjectileLaunchHeight +=
-			kBossPoisonProjectileHeightStep;
-
-		changed = true;
-	}
-
-	if ( heightDecDown && !m_bPrevBossPoisonHeightDecKeyDown )
-	{
-		m_bossPoisonProjectileLaunchHeight -=
-			kBossPoisonProjectileHeightStep;
-
-		if ( m_bossPoisonProjectileLaunchHeight < 0.0f )
-			m_bossPoisonProjectileLaunchHeight = 0.0f;
-
-		changed = true;
-	}
-
-	m_bPrevBossPoisonDelayDecKeyDown = delayDecDown;
-	m_bPrevBossPoisonDelayIncKeyDown = delayIncDown;
-	m_bPrevBossPoisonHeightIncKeyDown = heightIncDown;
-	m_bPrevBossPoisonHeightDecKeyDown = heightDecDown;
-
-	if ( changed )
-	{
-		char buf[256];
-		sprintf_s(
-			buf,
-			"[BossPoison][Tuning] delay=%.4f sec height=%.3f speed=%.3f\n",
-			m_bossPoisonProjectileLaunchDelaySec,
-			m_bossPoisonProjectileLaunchHeight,
-			m_bossPoisonProjectileSpeed
-		);
-		OutputDebugStringA(buf);
-	}
-
-	return changed;
-#else
-	UNREFERENCED_PARAMETER(pKeysBuffer);
-	return false;
-#endif
 }
 
 BossPoisonProjectileEntry*
@@ -2632,16 +2542,6 @@ void CGameScene::UpdateBossPoisonProjectileSpellCasts(float dt)
 			state.pendingFire = true;
 			state.fired = false;
 			state.spellAgeSec = 0.0f;
-
-			char buf[256];
-			sprintf_s(
-				buf,
-				"[BossPoison][SpellBegin] boss=%p delay=%.4f height=%.3f\n",
-				static_cast< void* >( boss ),
-				m_bossPoisonProjectileLaunchDelaySec,
-				m_bossPoisonProjectileLaunchHeight
-			);
-			OutputDebugStringA(buf);
 		}
 		else
 		{
@@ -2649,8 +2549,8 @@ void CGameScene::UpdateBossPoisonProjectileSpellCasts(float dt)
 		}
 
 		if ( state.pendingFire &&
-			 !state.fired &&
-			 state.spellAgeSec >= m_bossPoisonProjectileLaunchDelaySec )
+			!state.fired &&
+			state.spellAgeSec >= kBossPoisonProjectileLaunchDelaySec )
 		{
 			SpawnBossPoisonProjectile(boss);
 
@@ -2701,7 +2601,7 @@ void CGameScene::SpawnBossPoisonProjectile(CGameObject* boss)
 	dir.z *= invLen;
 
 	XMFLOAT3 spawnPos = bossPos;
-	spawnPos.y += m_bossPoisonProjectileLaunchHeight;
+	spawnPos.y += kBossPoisonProjectileLaunchHeight;
 	spawnPos.x += dir.x * kBossPoisonProjectileForwardOffset;
 	spawnPos.z += dir.z * kBossPoisonProjectileForwardOffset;
 
@@ -2711,7 +2611,7 @@ void CGameScene::SpawnBossPoisonProjectile(CGameObject* boss)
 	entry->position = spawnPos;
 	entry->direction = dir;
 
-	entry->speed = m_bossPoisonProjectileSpeed;
+	entry->speed = kBossPoisonProjectileSpeed;
 	entry->velocity = XMFLOAT3(
 		dir.x * entry->speed,
 		0.0f,
@@ -2739,8 +2639,8 @@ void CGameScene::SpawnBossPoisonProjectile(CGameObject* boss)
 		dir.y,
 		dir.z,
 		entry->speed,
-		m_bossPoisonProjectileLaunchDelaySec,
-		m_bossPoisonProjectileLaunchHeight
+		kBossPoisonProjectileLaunchDelaySec,
+		kBossPoisonProjectileLaunchHeight
 	);
 	OutputDebugStringA(buf);
 #else
