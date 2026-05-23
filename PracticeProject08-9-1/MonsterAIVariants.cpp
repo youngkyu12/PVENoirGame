@@ -358,8 +358,6 @@ void CBossAIComponent::ConfigureBossHitReactionPolicy()
 
 void CBossAIComponent::UpdateBehavior(float dt)
 {
-	ConfigureBossHitReactionPolicy();
-
 	UpdateBossCooldowns(dt);
 
 	if ( !HasValidTarget() )

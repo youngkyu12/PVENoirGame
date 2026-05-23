@@ -1558,14 +1558,7 @@ private:
 	// 생성 직후 투사체 중심에서 아주 살짝 떨어뜨려 겹침을 줄인다.
 	static constexpr float kBossPoisonDustSpawnOffsetRadius = 0.35f;
 
-	static constexpr float kBossMeleeSlashDelayAdjustStepSec = 0.010f;
-	static constexpr float kBossMeleeSlashDelayMinSec = 0.000f;
-	static constexpr float kBossMeleeSlashDelayMaxSec = 2.000f;
-
-	float m_bossMeleeSlashLaunchDelaySec = 0.450f;
-
-	bool m_bPrevBossMeleeSlashDelayLeftKeyDown = false;
-	bool m_bPrevBossMeleeSlashDelayRightKeyDown = false;
+	static constexpr float kBossMeleeSlashLaunchDelaySec = 0.430f;
 
 	struct BossMeleeSlashCastState
 	{
