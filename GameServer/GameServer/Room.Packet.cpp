@@ -102,32 +102,20 @@ namespace
 		if (anim == Protocol::ANIMATION_TYPE_RUN) code |= kStateRun;
 		if (anim == Protocol::ANIMATION_TYPE_HIT) code |= kStateHit;
 
-		static std::unordered_map<uint64, GameMath::Vec3> s_prevEnemyPos;
-
-		const uint64 enemyId = obj.GetObjectId();
-		const GameMath::Vec3 curPos = obj.GetPosition();
-		constexpr float kEps = 1e-4f;
-
-		auto it = s_prevEnemyPos.find(enemyId);
-		if (it != s_prevEnemyPos.end())
+		if (anim == Protocol::ANIMATION_TYPE_RUN)
 		{
-			const GameMath::Vec3& prevPos = it->second;
-			GameMath::Vec3 delta(curPos.x - prevPos.x, 0.0f, curPos.z - prevPos.z);
+			code |= kStateMove;
 
-			if (delta.LengthSq() > kEps)
-			{
-				code |= kStateMove;
+			constexpr float kEps = 1e-4f;
+			const GameMath::Vec3& moveDir = obj.GetLastMoveDir();
+			const float fwd = GameMath::Vec3::Dot(moveDir, obj.GetLook());
+			const float str = GameMath::Vec3::Dot(moveDir, obj.GetRight());
 
-				const float fwd = GameMath::Vec3::Dot(delta, obj.GetLook());
-				const float str = GameMath::Vec3::Dot(delta, obj.GetRight());
-
-				if (fwd > kEps) code |= kStateUp;
-				if (fwd < -kEps) code |= kStateDown;
-				if (str > kEps) code |= kStateRight;
-				if (str < -kEps) code |= kStateLeft;
-			}
+			if (fwd > kEps)  code |= kStateUp;
+			if (fwd < -kEps) code |= kStateDown;
+			if (str > kEps)  code |= kStateRight;
+			if (str < -kEps) code |= kStateLeft;
 		}
-		s_prevEnemyPos[enemyId] = curPos;
 		return code;
 	}
 }

@@ -185,6 +185,7 @@ bool CMonsterAI::MoveTowards(const GameMath::Vec3& goal, float maxStep)
 		GetOwner()->SetPosition(next);
 
 	GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_RUN);
+	GetOwner()->SetLastMoveDir(dir);
 	return true;
 }
 
