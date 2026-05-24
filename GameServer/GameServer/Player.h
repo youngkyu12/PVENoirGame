@@ -38,19 +38,19 @@ public:
 		const GameMath::Vec3& destination,
 		float yaw,
 		float forcedYawDelta = 0.0f,
-		bool hasForcedYawDelta = false)
+		int32 forcedTransformReason = 0)
 	{
 		m_pendingPortalTeleport.active = true;
 		m_pendingPortalTeleport.destination = destination;
 		m_pendingPortalTeleport.yaw = yaw;
 		m_pendingPortalTeleport.forcedYawDelta = forcedYawDelta;
-		m_pendingPortalTeleport.hasForcedYawDelta = hasForcedYawDelta;
+		m_pendingPortalTeleport.forcedTransformReason = forcedTransformReason;
 	}
 	bool ConsumePendingPortalTeleport(
 		GameMath::Vec3& outDestination,
 		float& outYaw,
 		float* outForcedYawDelta = nullptr,
-		bool* outHasForcedYawDelta = nullptr)
+		int32* outForcedTransformReason = nullptr)
 	{
 		if (!m_pendingPortalTeleport.active)
 			return false;
@@ -59,12 +59,29 @@ public:
 		outYaw = m_pendingPortalTeleport.yaw;
 		if (outForcedYawDelta)
 			*outForcedYawDelta = m_pendingPortalTeleport.forcedYawDelta;
-		if (outHasForcedYawDelta)
-			*outHasForcedYawDelta = m_pendingPortalTeleport.hasForcedYawDelta;
+		if (outForcedTransformReason)
+			*outForcedTransformReason = m_pendingPortalTeleport.forcedTransformReason;
 		m_pendingPortalTeleport = PendingPortalTeleport{};
 		return true;
 	}
 	void ClearPendingPortalTeleport() { m_pendingPortalTeleport = PendingPortalTeleport{}; }
+
+	void QueueForcedTransformYawDelta(float yawDelta, int32 reason)
+	{
+		m_pendingForcedTransform.active = true;
+		m_pendingForcedTransform.yawDelta = yawDelta;
+		m_pendingForcedTransform.reason = reason;
+	}
+	bool ConsumeForcedTransformYawDelta(float& outYawDelta, int32& outReason)
+	{
+		if (!m_pendingForcedTransform.active)
+			return false;
+
+		outYawDelta = m_pendingForcedTransform.yawDelta;
+		outReason = m_pendingForcedTransform.reason;
+		m_pendingForcedTransform = PendingForcedTransform{};
+		return true;
+	}
 
 private:
 	CWeapon weapon;
@@ -79,9 +96,17 @@ private:
 		GameMath::Vec3 destination = GameMath::Vec3::Zero();
 		float yaw = 0.0f;
 		float forcedYawDelta = 0.0f;
-		bool hasForcedYawDelta = false;
+		int32 forcedTransformReason = 0;
 	};
 	PendingPortalTeleport m_pendingPortalTeleport;
+
+	struct PendingForcedTransform
+	{
+		bool active = false;
+		float yawDelta = 0.0f;
+		int32 reason = 0;
+	};
+	PendingForcedTransform m_pendingForcedTransform;
 
 public:
 	void SetWeapon(Protocol::WeaponType& type, uint32& currentBullets)

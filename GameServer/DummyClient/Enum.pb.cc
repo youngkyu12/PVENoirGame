@@ -65,14 +65,16 @@ const char descriptor_table_protodef_Enum_2eproto[] PROTOBUF_SECTION_VARIABLE(pr
   "RD\020\001\022\023\n\017WEAPON_TYPE_BOW\020\002\022\023\n\017WEAPON_TYPE"
   "_AXE\020\003\022\025\n\021WEAPON_TYPE_CANON\020\004*U\n\nBulletT"
   "ype\022\024\n\020BULLET_TYPE_NONE\020\000\022\025\n\021BULLET_TYPE"
-  "_ARROW\020\001\022\032\n\026BULLET_TYPE_CANNONBALL\020\002*c\n\025"
-  "ForcedTransformReason\022 \n\034FORCED_TRANSFOR"
-  "M_REASON_NONE\020\000\022(\n$FORCED_TRANSFORM_REAS"
-  "ON_TOWER_PORTAL\020\001b\006proto3"
+  "_ARROW\020\001\022\032\n\026BULLET_TYPE_CANNONBALL\020\002*\263\001\n"
+  "\025ForcedTransformReason\022 \n\034FORCED_TRANSFO"
+  "RM_REASON_NONE\020\000\022(\n$FORCED_TRANSFORM_REA"
+  "SON_TOWER_PORTAL\020\001\022)\n%FORCED_TRANSFORM_R"
+  "EASON_CASTLE_PORTAL\020\002\022#\n\037FORCED_TRANSFOR"
+  "M_REASON_RESPAWN\020\003b\006proto3"
   ;
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_Enum_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_Enum_2eproto = {
-  false, false, 1745, descriptor_table_protodef_Enum_2eproto, "Enum.proto", 
+  false, false, 1826, descriptor_table_protodef_Enum_2eproto, "Enum.proto", 
   &descriptor_table_Enum_2eproto_once, nullptr, 0, 0,
   schemas, file_default_instances, TableStruct_Enum_2eproto::offsets,
   nullptr, file_level_enum_descriptors_Enum_2eproto, file_level_service_descriptors_Enum_2eproto,
@@ -272,6 +274,8 @@ bool ForcedTransformReason_IsValid(int value) {
   switch (value) {
     case 0:
     case 1:
+    case 2:
+    case 3:
       return true;
     default:
       return false;

@@ -788,7 +788,7 @@ bool Room::TryQueueTowerDoorPortalTeleport(const PlayerRef& player)
 				GameMath::Vec3(dst.x, dst.y, dst.z),
 				GameMath::NormalizeYaw(player->GetYaw() + 180.0f),
 				180.0f,
-				true);
+				Protocol::FORCED_TRANSFORM_REASON_TOWER_PORTAL);
 			portal.cooldownTicks = kTowerDoorPortalCooldownTicks;
 			return true;
 		};
@@ -921,9 +921,12 @@ bool Room::TryQueueCastleDoorPortalTeleport(const PlayerRef& player)
 			XMStoreFloat3(&dst, targetV + XMVectorScale(exitDir, kCastleDoorPortalExitOffset));
 			dst.y = playerPos.y;
 
+			const float targetYaw = YawFromHorizontalDirection(exitDir);
 			player->SetPendingPortalTeleport(
 				GameMath::Vec3(dst.x, dst.y, dst.z),
-				YawFromHorizontalDirection(exitDir));
+				targetYaw,
+				GameMath::NormalizeYaw(targetYaw - player->GetYaw()),
+				Protocol::FORCED_TRANSFORM_REASON_CASTLE_PORTAL);
 			portal.cooldownTicks = kCastleDoorPortalCooldownTicks;
 			MarkPlayerEnteredCastleCenterMegaGrid(player->playerId);
 			return true;
@@ -1088,7 +1091,10 @@ bool Room::TryTeleportPlayerByTowerDoorPortal(const PlayerRef& player)
 
 			player->SetPosition(GameMath::Vec3(dst.x, dst.y, dst.z));
 			player->SetYaw(GameMath::NormalizeYaw(player->GetYaw() + 180.0f));
-			SendTowerPortalForcedYawDelta(player, 180.0f);
+			SendForcedTransformYawDelta(
+				player,
+				180.0f,
+				Protocol::FORCED_TRANSFORM_REASON_TOWER_PORTAL);
 			player->SetVelocity(GameMath::Vec3::Zero());
 			player->ClearMoveKeyCodes();
 			playerCollider->OnUpdate(0.0f);
@@ -1225,8 +1231,14 @@ bool Room::TryTeleportPlayerByCastleDoorPortal(const PlayerRef& player)
 			XMStoreFloat3(&dst, targetV + XMVectorScale(exitDir, kCastleDoorPortalExitOffset));
 			dst.y = playerPos.y;
 
+			const float prevYaw = player->GetYaw();
+			const float targetYaw = YawFromHorizontalDirection(exitDir);
 			player->SetPosition(GameMath::Vec3(dst.x, dst.y, dst.z));
-			player->SetYaw(YawFromHorizontalDirection(exitDir));
+			player->SetYaw(targetYaw);
+			SendForcedTransformYawDelta(
+				player,
+				GameMath::NormalizeYaw(targetYaw - prevYaw),
+				Protocol::FORCED_TRANSFORM_REASON_CASTLE_PORTAL);
 			player->SetVelocity(GameMath::Vec3::Zero());
 			player->ClearMoveKeyCodes();
 			playerCollider->OnUpdate(0.0f);
