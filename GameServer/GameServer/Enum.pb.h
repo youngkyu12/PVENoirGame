@@ -349,12 +349,14 @@ inline bool BulletType_Parse(
 enum ForcedTransformReason : int {
   FORCED_TRANSFORM_REASON_NONE = 0,
   FORCED_TRANSFORM_REASON_TOWER_PORTAL = 1,
+  FORCED_TRANSFORM_REASON_CASTLE_PORTAL = 2,
+  FORCED_TRANSFORM_REASON_RESPAWN = 3,
   ForcedTransformReason_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
   ForcedTransformReason_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
 };
 bool ForcedTransformReason_IsValid(int value);
 constexpr ForcedTransformReason ForcedTransformReason_MIN = FORCED_TRANSFORM_REASON_NONE;
-constexpr ForcedTransformReason ForcedTransformReason_MAX = FORCED_TRANSFORM_REASON_TOWER_PORTAL;
+constexpr ForcedTransformReason ForcedTransformReason_MAX = FORCED_TRANSFORM_REASON_RESPAWN;
 constexpr int ForcedTransformReason_ARRAYSIZE = ForcedTransformReason_MAX + 1;
 
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* ForcedTransformReason_descriptor();

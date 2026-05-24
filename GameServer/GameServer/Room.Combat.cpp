@@ -159,19 +159,19 @@ void Room::TickAdvance()
 		GameMath::Vec3 portalDestination = GameMath::Vec3::Zero();
 		float portalYaw = 0.0f;
 		float forcedYawDelta = 0.0f;
-		bool hasForcedYawDelta = false;
+		int32 forcedTransformReason = 0;
 		if (player.second->ConsumePendingPortalTeleport(
 			portalDestination,
 			portalYaw,
 			&forcedYawDelta,
-			&hasForcedYawDelta))
+			&forcedTransformReason))
 		{
 			player.second->SetVelocity(GameMath::Vec3::Zero());
 			player.second->ClearMoveKeyCodes();
 			player.second->SetPosition(portalDestination);
 			player.second->SetYaw(portalYaw);
-			if (hasForcedYawDelta)
-				SendTowerPortalForcedYawDelta(player.second, forcedYawDelta);
+			if (forcedTransformReason != Protocol::FORCED_TRANSFORM_REASON_NONE)
+				SendForcedTransformYawDelta(player.second, forcedYawDelta, forcedTransformReason);
 
 			if (auto* collider = player.second->GetComponent<CColliderComponent>())
 				collider->OnUpdate(0.0f);
@@ -183,6 +183,14 @@ void Room::TickAdvance()
 
 		const GameMath::Vec3 prevPos = player.second->GetPosition();
 		player.second->Update(animClockTick);
+
+		int32 respawnForcedTransformReason = 0;
+		float respawnForcedYawDelta = 0.0f;
+		if (player.second->ConsumeForcedTransformYawDelta(respawnForcedYawDelta, respawnForcedTransformReason) &&
+			respawnForcedTransformReason != Protocol::FORCED_TRANSFORM_REASON_NONE)
+		{
+			SendForcedTransformYawDelta(player.second, respawnForcedYawDelta, respawnForcedTransformReason);
+		}
 
 		const bool teleported =
 			TryTeleportPlayerByTowerDoorPortal(player.second) ||

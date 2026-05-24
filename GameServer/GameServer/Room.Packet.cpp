@@ -262,7 +262,7 @@ void Room::MakeFrameState(uint32 tick)
 
 }
 
-void Room::SendTowerPortalForcedYawDelta(const PlayerRef& player, float yawDelta)
+void Room::SendForcedTransformYawDelta(const PlayerRef& player, float yawDelta, int32 reason)
 {
 	if (!player || !player->ownerSession)
 		return;
@@ -270,7 +270,7 @@ void Room::SendTowerPortalForcedYawDelta(const PlayerRef& player, float yawDelta
 	Protocol::S_FORCED_TRANSFORM pkt;
 	pkt.set_playerid(player->playerId);
 	pkt.set_yawdelta(yawDelta);
-	pkt.set_reason(Protocol::FORCED_TRANSFORM_REASON_TOWER_PORTAL);
+	pkt.set_reason(static_cast<Protocol::ForcedTransformReason>(reason));
 
 	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(pkt);
 	player->ownerSession->Send(sendBuffer);

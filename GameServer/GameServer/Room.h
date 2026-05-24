@@ -230,7 +230,7 @@ private:
 	void ProcessDoorPortals();
 	bool TryTeleportPlayerByTowerDoorPortal(const PlayerRef& player);
 	bool TryTeleportPlayerByCastleDoorPortal(const PlayerRef& player);
-	void SendTowerPortalForcedYawDelta(const PlayerRef& player, float yawDelta);
+	void SendForcedTransformYawDelta(const PlayerRef& player, float yawDelta, int32 reason);
 	bool TryQueuePortalTeleportFromBlockedMove(const PlayerRef& player, const GameMath::Vec3& desiredShift);
 	bool TryQueueTowerDoorPortalTeleport(const PlayerRef& player);
 	bool TryQueueCastleDoorPortalTeleport(const PlayerRef& player);
