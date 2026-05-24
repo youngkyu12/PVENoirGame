@@ -786,7 +786,9 @@ bool Room::TryQueueTowerDoorPortalTeleport(const PlayerRef& player)
 
 			player->SetPendingPortalTeleport(
 				GameMath::Vec3(dst.x, dst.y, dst.z),
-				GameMath::NormalizeYaw(player->GetYaw() + 180.0f));
+				GameMath::NormalizeYaw(player->GetYaw() + 180.0f),
+				180.0f,
+				true);
 			portal.cooldownTicks = kTowerDoorPortalCooldownTicks;
 			return true;
 		};
@@ -1086,6 +1088,7 @@ bool Room::TryTeleportPlayerByTowerDoorPortal(const PlayerRef& player)
 
 			player->SetPosition(GameMath::Vec3(dst.x, dst.y, dst.z));
 			player->SetYaw(GameMath::NormalizeYaw(player->GetYaw() + 180.0f));
+			SendTowerPortalForcedYawDelta(player, 180.0f);
 			player->SetVelocity(GameMath::Vec3::Zero());
 			player->ClearMoveKeyCodes();
 			playerCollider->OnUpdate(0.0f);

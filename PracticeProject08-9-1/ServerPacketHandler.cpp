@@ -208,3 +208,16 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 	return false;
 }
 
+bool Handle_S_FORCED_TRANSFORM(PacketSessionRef& session, Protocol::S_FORCED_TRANSFORM& pkt)
+{
+	UNREFERENCED_PARAMETER(session);
+
+	ForcedTransformEvent event{};
+	event.playerId = pkt.playerid();
+	event.yawDelta = pkt.yawdelta();
+	event.reason = static_cast<uint32_t>(pkt.reason());
+
+	g_NetworkQueue.PushForcedTransform(std::move(event));
+	return true;
+}
+

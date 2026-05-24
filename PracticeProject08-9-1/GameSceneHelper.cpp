@@ -283,6 +283,17 @@ namespace GameSceneHelper
 		return out;
 	}
 
+	float NormalizeYawDegrees180(float yaw)
+	{
+		while ( yaw > 180.0f )
+			yaw -= 360.0f;
+
+		while ( yaw <= -180.0f )
+			yaw += 360.0f;
+
+		return yaw;
+	}
+
 #ifndef USING_NETWORK
 	std::string NormalizeTowerDoorNameForMatch(const std::string& text)
 	{
@@ -306,17 +317,6 @@ namespace GameSceneHelper
 		}
 
 		return out;
-	}
-
-	float NormalizeYawDegrees180(float yaw)
-	{
-		while ( yaw > 180.0f )
-			yaw -= 360.0f;
-
-		while ( yaw <= -180.0f )
-			yaw += 360.0f;
-
-		return yaw;
 	}
 
 	bool IsTowerDoorFrame2Name(const std::string& meshName, const std::string& authoringPath)

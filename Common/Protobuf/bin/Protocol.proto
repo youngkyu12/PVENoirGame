@@ -13,8 +13,8 @@ message C_LOGIN
 message S_LOGIN
 {
 	bool success = 1;
-	repeated Player players = 2;	// id ¹ß±Ş ÀÌÀü
-	uint32 playerId = 3;	// id ¹ß±Ş ÀÌÈÄ
+	repeated Player players = 2;	// id ë°œê¸‰ ì´ì „
+	uint32 playerId = 3;	// id ë°œê¸‰ ì´í›„
 }
 
 message C_ENTER_GAME
@@ -39,12 +39,12 @@ message C_GAME_START
 
 message S_GAME_START
 {
-	// ¿ùµåÀÇ ÃÊ±â »óÅÂ¸¦ Àü´Ş
+	// ì›”ë“œì˜ ì´ˆê¸° ìƒíƒœë¥¼ ì „ë‹¬
 	InitStruct initStruct = 1;
 	string mapId = 2;
 }
 
-// °ÔÀÓÀÌ ½ÃÀÛµÈ ÈÄ, Å¬¶óÀÌ¾ğÆ®°¡ ÁØºñµÇ¾úÀ½À» ¼­¹ö¿¡ ¾Ë¸®´Â ¸Ş½ÃÁö
+// ê²Œì„ì´ ì‹œì‘ëœ í›„, í´ë¼ì´ì–¸íŠ¸ê°€ ì¤€ë¹„ë˜ì—ˆìŒì„ ì„œë²„ì— ì•Œë¦¬ëŠ” ë©”ì‹œì§€
 message C_CLIENT_READY
 {
 	uint32 playerId = 1;
@@ -53,9 +53,9 @@ message C_CLIENT_READY
 
 message C_INPUT
 {
-	// 1. Å°º¸µå ÀÔ·Â
+	// 1. í‚¤ë³´ë“œ ì…ë ¥
 	// 0: up, 1: down, 2: left, 3: right, 4: attack
-	// 2. ¸¶¿ì½º ÀÔ·Â
+	// 2. ë§ˆìš°ìŠ¤ ì…ë ¥
 	// deltaX, deltaY
 
 	uint64 playerid = 1;
@@ -67,9 +67,16 @@ message C_INPUT
 
 message S_FRAME_STATE
 {
-	// ¼­¹öÀÇ TickÀ» °°ÀÌ Àü¼Û
+	// ì„œë²„ì˜ Tickì„ ê°™ì´ ì „ì†¡
 	uint32 serverTick = 1;
 	repeated Player players = 2;
 	repeated Enemy enemies = 3;
 	repeated Bullet bullets = 4;
+}
+
+message S_FORCED_TRANSFORM
+{
+	uint64 playerId = 1;
+	float yawDelta = 2;
+	ForcedTransformReason reason = 3;
 }

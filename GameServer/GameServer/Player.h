@@ -34,19 +34,33 @@ public:
 	}
 
 	bool HasPendingPortalTeleport() const { return m_pendingPortalTeleport.active; }
-	void SetPendingPortalTeleport(const GameMath::Vec3& destination, float yaw)
+	void SetPendingPortalTeleport(
+		const GameMath::Vec3& destination,
+		float yaw,
+		float forcedYawDelta = 0.0f,
+		bool hasForcedYawDelta = false)
 	{
 		m_pendingPortalTeleport.active = true;
 		m_pendingPortalTeleport.destination = destination;
 		m_pendingPortalTeleport.yaw = yaw;
+		m_pendingPortalTeleport.forcedYawDelta = forcedYawDelta;
+		m_pendingPortalTeleport.hasForcedYawDelta = hasForcedYawDelta;
 	}
-	bool ConsumePendingPortalTeleport(GameMath::Vec3& outDestination, float& outYaw)
+	bool ConsumePendingPortalTeleport(
+		GameMath::Vec3& outDestination,
+		float& outYaw,
+		float* outForcedYawDelta = nullptr,
+		bool* outHasForcedYawDelta = nullptr)
 	{
 		if (!m_pendingPortalTeleport.active)
 			return false;
 
 		outDestination = m_pendingPortalTeleport.destination;
 		outYaw = m_pendingPortalTeleport.yaw;
+		if (outForcedYawDelta)
+			*outForcedYawDelta = m_pendingPortalTeleport.forcedYawDelta;
+		if (outHasForcedYawDelta)
+			*outHasForcedYawDelta = m_pendingPortalTeleport.hasForcedYawDelta;
 		m_pendingPortalTeleport = PendingPortalTeleport{};
 		return true;
 	}
@@ -64,6 +78,8 @@ private:
 		bool active = false;
 		GameMath::Vec3 destination = GameMath::Vec3::Zero();
 		float yaw = 0.0f;
+		float forcedYawDelta = 0.0f;
+		bool hasForcedYawDelta = false;
 	};
 	PendingPortalTeleport m_pendingPortalTeleport;
 

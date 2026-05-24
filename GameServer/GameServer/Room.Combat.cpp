@@ -158,12 +158,20 @@ void Room::TickAdvance()
 
 		GameMath::Vec3 portalDestination = GameMath::Vec3::Zero();
 		float portalYaw = 0.0f;
-		if (player.second->ConsumePendingPortalTeleport(portalDestination, portalYaw))
+		float forcedYawDelta = 0.0f;
+		bool hasForcedYawDelta = false;
+		if (player.second->ConsumePendingPortalTeleport(
+			portalDestination,
+			portalYaw,
+			&forcedYawDelta,
+			&hasForcedYawDelta))
 		{
 			player.second->SetVelocity(GameMath::Vec3::Zero());
 			player.second->ClearMoveKeyCodes();
 			player.second->SetPosition(portalDestination);
 			player.second->SetYaw(portalYaw);
+			if (hasForcedYawDelta)
+				SendTowerPortalForcedYawDelta(player.second, forcedYawDelta);
 
 			if (auto* collider = player.second->GetComponent<CColliderComponent>())
 				collider->OnUpdate(0.0f);
@@ -213,7 +221,7 @@ void Room::TickAdvance()
 		ResolveWorldStaticCollision(enemy.second, prevPos);
 	}
 
-	// È­»ì È÷Æ®
+	// í™”ì‚´ ížˆíŠ¸
 	for (auto& p : m_arrowPool)
 	{
 		if (!p->IsActive()) continue;
@@ -244,7 +252,7 @@ void Room::TickAdvance()
 		}
 	}
 
-	// Æ÷Åº È÷Æ®
+	// í¬íƒ„ ížˆíŠ¸
 	for (auto& p : m_bulletPool)
 	{
 		if (!p->IsActive()) continue;
@@ -275,7 +283,7 @@ void Room::TickAdvance()
 		}
 	}
 
-	// ÇÃ·¹ÀÌ¾î ±ÙÁ¢ °ø°Ý È÷Æ® ÆÇÁ¤
+	// í”Œë ˆì´ì–´ ê·¼ì ‘ ê³µê²© ížˆíŠ¸ íŒì •
 	for (auto& [pid, player] : players)
 	{
 		if (player->IsDead()) continue;
@@ -320,7 +328,7 @@ void Room::TickAdvance()
 		}
 	}
 
-	// Àû ±ÙÁ¢ °ø°Ý È÷Æ® ÆÇÁ¤
+	// ì  ê·¼ì ‘ ê³µê²© ížˆíŠ¸ íŒì •
 	for (auto& [eid, enemy] : enemies)
 	{
 		if (enemy->IsDead()) continue;

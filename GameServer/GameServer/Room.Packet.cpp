@@ -262,6 +262,20 @@ void Room::MakeFrameState(uint32 tick)
 
 }
 
+void Room::SendTowerPortalForcedYawDelta(const PlayerRef& player, float yawDelta)
+{
+	if (!player || !player->ownerSession)
+		return;
+
+	Protocol::S_FORCED_TRANSFORM pkt;
+	pkt.set_playerid(player->playerId);
+	pkt.set_yawdelta(yawDelta);
+	pkt.set_reason(Protocol::FORCED_TRANSFORM_REASON_TOWER_PORTAL);
+
+	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(pkt);
+	player->ownerSession->Send(sendBuffer);
+}
+
 void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
 {
 	gameStartPkt.set_mapid("MapData_fullstage_withBoss");

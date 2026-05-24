@@ -346,6 +346,31 @@ inline bool BulletType_Parse(
   return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<BulletType>(
     BulletType_descriptor(), name, value);
 }
+enum ForcedTransformReason : int {
+  FORCED_TRANSFORM_REASON_NONE = 0,
+  FORCED_TRANSFORM_REASON_TOWER_PORTAL = 1,
+  ForcedTransformReason_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
+  ForcedTransformReason_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
+};
+bool ForcedTransformReason_IsValid(int value);
+constexpr ForcedTransformReason ForcedTransformReason_MIN = FORCED_TRANSFORM_REASON_NONE;
+constexpr ForcedTransformReason ForcedTransformReason_MAX = FORCED_TRANSFORM_REASON_TOWER_PORTAL;
+constexpr int ForcedTransformReason_ARRAYSIZE = ForcedTransformReason_MAX + 1;
+
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* ForcedTransformReason_descriptor();
+template<typename T>
+inline const std::string& ForcedTransformReason_Name(T enum_t_value) {
+  static_assert(::std::is_same<T, ForcedTransformReason>::value ||
+    ::std::is_integral<T>::value,
+    "Incorrect type passed to function ForcedTransformReason_Name.");
+  return ::PROTOBUF_NAMESPACE_ID::internal::NameOfEnum(
+    ForcedTransformReason_descriptor(), enum_t_value);
+}
+inline bool ForcedTransformReason_Parse(
+    ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, ForcedTransformReason* value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<ForcedTransformReason>(
+    ForcedTransformReason_descriptor(), name, value);
+}
 // ===================================================================
 
 
@@ -417,6 +442,11 @@ template <> struct is_proto_enum< ::Protocol::BulletType> : ::std::true_type {};
 template <>
 inline const EnumDescriptor* GetEnumDescriptor< ::Protocol::BulletType>() {
   return ::Protocol::BulletType_descriptor();
+}
+template <> struct is_proto_enum< ::Protocol::ForcedTransformReason> : ::std::true_type {};
+template <>
+inline const EnumDescriptor* GetEnumDescriptor< ::Protocol::ForcedTransformReason>() {
+  return ::Protocol::ForcedTransformReason_descriptor();
 }
 
 PROTOBUF_NAMESPACE_CLOSE
