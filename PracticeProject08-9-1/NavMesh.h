@@ -86,6 +86,11 @@ public:
 		int* outTriangleIndex = nullptr,
 		float maxSearchDistanceXZ = FLT_MAX) const;
 
+	bool HasLineOfSight(
+		const XMFLOAT3& startPos,
+		const XMFLOAT3& goalPos,
+		float maxEndpointSearchDistanceXZ = 1.0f) const;
+
 public:
 	bool GetTriangleCentroid(int triangleIndex, XMFLOAT3& outCentroid) const;
 	bool GetTrianglePortal(int fromTriangle, int toTriangle, XMFLOAT3& outA, XMFLOAT3& outB) const;
