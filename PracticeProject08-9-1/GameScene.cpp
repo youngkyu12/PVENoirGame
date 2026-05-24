@@ -1037,6 +1037,41 @@ bool CGameScene::TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog)
 				dst.y = playerPos.y;
 			}
 
+			if ( m_Collision )
+			{
+				const XMFLOAT3 originalPos = player->GetPosition();
+				XMFLOAT3 resolvedDst = dst;
+				bool foundClearDestination = false;
+
+				const int maxResolveSteps =
+					static_cast< int >(
+						kTowerDoorPortalMaxVerticalResolveDistance /
+						kTowerDoorPortalVerticalResolveStep
+					);
+
+				for ( int step = 0; step <= maxResolveSteps; ++step )
+				{
+					player->SetPosition(resolvedDst);
+					playerCollider->UpdateWorldBounds();
+
+					if ( !m_Collision->HasCollisionWithWorldStatic(playerCollider) )
+					{
+						foundClearDestination = true;
+						break;
+					}
+
+					resolvedDst.y += kTowerDoorPortalVerticalResolveStep;
+				}
+
+				player->SetPosition(originalPos);
+				playerCollider->UpdateWorldBounds();
+
+				if ( !foundClearDestination )
+					return false;
+
+				dst = resolvedDst;
+			}
+
 			player->SetPosition(dst);
 
 			float oldCameraYaw = 0.0f;
