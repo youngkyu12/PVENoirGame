@@ -468,6 +468,9 @@ FodyWeavers.xsd
 # JetBrains Rider
 *.sln.iml
 
+# AI markdowns
+*AGENTS.md
+
 ### VisualStudio Patch ###
 # Additional files built by Visual Studio
 
