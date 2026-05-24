@@ -32,6 +32,8 @@ namespace
 	constexpr float kTowerDoorPortalUpperExitYOffset = 3.5f;
 	constexpr float kTowerDoorPortalUpperHeightThreshold = 10.0f;
 	constexpr int kRequiredClearedMegaGridCountForCastlePortal = 4;
+	constexpr bool kDebugForceCastleDoorPortalUnlocked = true;
+	constexpr bool kDebugCastleDoorPortalLog = false;
 
 	// Client: "Double Door Frame"
 	constexpr std::array<size_t, 3> kTowerDoorPortalLowerDoorSubIndices = { 5, 6, 7 };
@@ -447,7 +449,16 @@ void Room::RegisterDoorPortal(BuildingRef building)
 		return;
 
 	if (subBoxes.size() <= 163)
+	{
+		if constexpr (kDebugCastleDoorPortalLog)
+		{
+			cout << "[CastleDoorPortal][REGISTER_FAILED] castleId="
+				<< building->GetObjectId()
+				<< " subOOBBCount=" << subBoxes.size()
+				<< " requiredMin=164" << endl;
+		}
 		return;
+	}
 
 	CastleDoorPortalEntry entry{};
 	entry.castle = building;
@@ -486,6 +497,23 @@ void Room::RegisterDoorPortal(BuildingRef building)
 	AddPair(7, 6);
 
 	m_castleDoorPortals.push_back(std::move(entry));
+	if constexpr (kDebugCastleDoorPortalLog)
+	{
+		cout << "[CastleDoorPortal][REGISTER] castleId="
+			<< building->GetObjectId()
+			<< " subOOBBCount=" << subBoxes.size()
+			<< " pairCount=" << m_castleDoorPortals.back().pairs.size()
+			<< " doorCounts=["
+			<< m_castleDoorPortals.back().doorRefsByIndex[0].size() << ","
+			<< m_castleDoorPortals.back().doorRefsByIndex[1].size() << ","
+			<< m_castleDoorPortals.back().doorRefsByIndex[2].size() << ","
+			<< m_castleDoorPortals.back().doorRefsByIndex[3].size() << ","
+			<< m_castleDoorPortals.back().doorRefsByIndex[4].size() << ","
+			<< m_castleDoorPortals.back().doorRefsByIndex[5].size() << ","
+			<< m_castleDoorPortals.back().doorRefsByIndex[6].size() << ","
+			<< m_castleDoorPortals.back().doorRefsByIndex[7].size() << "]"
+			<< endl;
+	}
 }
 
 void Room::TickDoorPortalCooldowns()
@@ -536,6 +564,9 @@ int Room::CountClearedMegaGrids() const
 				++clearedCount;
 		}
 	}
+
+	if constexpr (kDebugForceCastleDoorPortalUnlocked)
+		clearedCount = (std::max)(clearedCount, kRequiredClearedMegaGridCountForCastlePortal);
 
 	return clearedCount;
 }
@@ -817,14 +848,32 @@ bool Room::TryQueueTowerDoorPortalTeleport(const PlayerRef& player)
 bool Room::TryQueueCastleDoorPortalTeleport(const PlayerRef& player)
 {
 	if (!CanUseCastleDoorPortal())
+	{
+		if constexpr (kDebugCastleDoorPortalLog)
+		{
+			cout << "[CastleDoorPortal][QUEUE_LOCKED] clearedMegaGrids="
+				<< CountClearedMegaGrids()
+				<< " required=" << kRequiredClearedMegaGridCountForCastlePortal
+				<< " portalCount=" << m_castleDoorPortals.size()
+				<< endl;
+		}
 		return false;
+	}
 
 	if (!player || player->IsDead())
 		return false;
 
 	auto* playerCollider = player->GetComponent<CColliderComponent>();
 	if (!playerCollider || playerCollider->GetType() != EColliderType::BCapsule)
+	{
+		if constexpr (kDebugCastleDoorPortalLog)
+		{
+			cout << "[CastleDoorPortal][QUEUE_NO_PLAYER_COLLIDER] playerId="
+				<< (player ? player->playerId : 0)
+				<< endl;
+		}
 		return false;
+	}
 
 	playerCollider->OnUpdate(0.0f);
 	const BoundingCapsule playerCapsule = playerCollider->GetBCapsule();
@@ -920,8 +969,42 @@ bool Room::TryQueueCastleDoorPortalTeleport(const PlayerRef& player)
 			XMFLOAT3 dst{};
 			XMStoreFloat3(&dst, targetV + XMVectorScale(exitDir, kCastleDoorPortalExitOffset));
 			dst.y = playerPos.y;
+			XMVECTOR selectedExitDir = exitDir;
 
-			const float targetYaw = YawFromHorizontalDirection(exitDir);
+			auto TryUseClearDestination = [&](XMVECTOR dir, float offset) -> bool
+				{
+					XMFLOAT3 candidate{};
+					XMStoreFloat3(&candidate, targetV + XMVectorScale(dir, offset));
+					candidate.y = playerPos.y;
+
+					player->SetPosition(GameMath::Vec3(candidate.x, candidate.y, candidate.z));
+					playerCollider->OnUpdate(0.0f);
+					if (HasCollisionWithNearbyWorldStatic(playerCollider))
+						return false;
+
+					dst = candidate;
+					selectedExitDir = dir;
+					return true;
+				};
+
+			const GameMath::Vec3 restorePos = player->GetPosition();
+			bool foundClearDestination = false;
+			for (float offset : { 2.0f, 3.5f, 5.0f, 7.0f, 10.0f })
+			{
+				if (TryUseClearDestination(exitDir, offset) ||
+					TryUseClearDestination(XMVectorNegate(exitDir), offset))
+				{
+					foundClearDestination = true;
+					break;
+				}
+			}
+			player->SetPosition(restorePos);
+			playerCollider->OnUpdate(0.0f);
+
+			if (!foundClearDestination)
+				return false;
+
+			const float targetYaw = YawFromHorizontalDirection(selectedExitDir);
 			player->SetPendingPortalTeleport(
 				GameMath::Vec3(dst.x, dst.y, dst.z),
 				targetYaw,
@@ -935,18 +1018,60 @@ bool Room::TryQueueCastleDoorPortalTeleport(const PlayerRef& player)
 	for (CastleDoorPortalEntry& portal : m_castleDoorPortals)
 	{
 		if (portal.cooldownTicks > 0 || !portal.collider)
+		{
+			if constexpr (kDebugCastleDoorPortalLog)
+			{
+				cout << "[CastleDoorPortal][QUEUE_SKIP_PORTAL] castleId="
+					<< (portal.castle ? portal.castle->GetObjectId() : 0)
+					<< " cooldownTicks=" << portal.cooldownTicks
+					<< " collider=" << (portal.collider ? 1 : 0)
+					<< endl;
+			}
 			continue;
+		}
 
 		for (const CastleDoorPortalPair& pair : portal.pairs)
 		{
-			if (!DoesDoorGroupIntersect(portal, pair.sourceRefs))
+			const bool hitSource = DoesDoorGroupIntersect(portal, pair.sourceRefs);
+			if constexpr (kDebugCastleDoorPortalLog)
+			{
+				cout << "[CastleDoorPortal][QUEUE_PAIR_TEST] castleId="
+					<< (portal.castle ? portal.castle->GetObjectId() : 0)
+					<< " playerId=" << player->playerId
+					<< " source=" << pair.sourceDoorIndex
+					<< " target=" << pair.targetDoorIndex
+					<< " sourceRefs=" << pair.sourceRefs.size()
+					<< " targetRefs=" << pair.targetRefs.size()
+					<< " hitSource=" << (hitSource ? 1 : 0)
+					<< endl;
+			}
+
+			if (!hitSource)
 				continue;
 
 			if (QueueCastleDoorPair(portal, pair))
+			{
+				if constexpr (kDebugCastleDoorPortalLog)
+				{
+					cout << "[CastleDoorPortal][QUEUE_TELEPORT] castleId="
+						<< (portal.castle ? portal.castle->GetObjectId() : 0)
+						<< " playerId=" << player->playerId
+						<< " source=" << pair.sourceDoorIndex
+						<< " target=" << pair.targetDoorIndex
+						<< endl;
+				}
 				return true;
+			}
 		}
 	}
 
+	if constexpr (kDebugCastleDoorPortalLog)
+	{
+		cout << "[CastleDoorPortal][QUEUE_NO_DOOR_HIT] playerId="
+			<< player->playerId
+			<< " portalCount=" << m_castleDoorPortals.size()
+			<< endl;
+	}
 	return false;
 }
 
@@ -1230,9 +1355,43 @@ bool Room::TryTeleportPlayerByCastleDoorPortal(const PlayerRef& player)
 			XMFLOAT3 dst{};
 			XMStoreFloat3(&dst, targetV + XMVectorScale(exitDir, kCastleDoorPortalExitOffset));
 			dst.y = playerPos.y;
+			XMVECTOR selectedExitDir = exitDir;
+
+			auto TryUseClearDestination = [&](XMVECTOR dir, float offset) -> bool
+				{
+					XMFLOAT3 candidate{};
+					XMStoreFloat3(&candidate, targetV + XMVectorScale(dir, offset));
+					candidate.y = playerPos.y;
+
+					player->SetPosition(GameMath::Vec3(candidate.x, candidate.y, candidate.z));
+					playerCollider->OnUpdate(0.0f);
+					if (HasCollisionWithNearbyWorldStatic(playerCollider))
+						return false;
+
+					dst = candidate;
+					selectedExitDir = dir;
+					return true;
+				};
+
+			const GameMath::Vec3 restorePos = player->GetPosition();
+			bool foundClearDestination = false;
+			for (float offset : { 2.0f, 3.5f, 5.0f, 7.0f, 10.0f })
+			{
+				if (TryUseClearDestination(exitDir, offset) ||
+					TryUseClearDestination(XMVectorNegate(exitDir), offset))
+				{
+					foundClearDestination = true;
+					break;
+				}
+			}
+			player->SetPosition(restorePos);
+			playerCollider->OnUpdate(0.0f);
+
+			if (!foundClearDestination)
+				return false;
 
 			const float prevYaw = player->GetYaw();
-			const float targetYaw = YawFromHorizontalDirection(exitDir);
+			const float targetYaw = YawFromHorizontalDirection(selectedExitDir);
 			player->SetPosition(GameMath::Vec3(dst.x, dst.y, dst.z));
 			player->SetYaw(targetYaw);
 			SendForcedTransformYawDelta(
