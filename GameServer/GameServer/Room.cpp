@@ -234,6 +234,7 @@ void Room::BuildRoom()
 	enemies.clear();
 	m_aiAwakeEnemyIds.clear();
 	m_castleCenterPlayerIds.clear();
+	m_meleeHitKeys.clear();
 	m_towerDoorPortals.clear();
 	m_castleDoorPortals.clear();
 	m_arrowPool.clear();

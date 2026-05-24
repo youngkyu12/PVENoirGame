@@ -28,6 +28,12 @@ namespace
 		}
 	}
 
+	uint64 MakeMeleeHitKey(uint64 attackerId, uint64 targetId, uint32 attackAnimTick)
+	{
+		return ((attackerId & 0xFFFFFu) << 44) |
+			((targetId & 0xFFFFFu) << 24) |
+			(static_cast<uint64>(attackAnimTick) & 0xFFFFFFu);
+	}
 
 	bool IsInArcXZ(
 		const GameMath::Vec3& attackerPos,
@@ -149,6 +155,9 @@ void Room::TickAdvance()
 	const auto frameStart = std::chrono::steady_clock::now();
 	const uint32 animClockTick = GetAnimClockTick();
 	const uint32 combatClockTick = GetCombatClockTick();
+
+	if (m_meleeHitKeys.size() > 4096)
+		m_meleeHitKeys.clear();
 
 	TickDoorPortalCooldowns();
 
@@ -329,6 +338,13 @@ void Room::TickAdvance()
 			if (IsInArcXZ(player->GetPosition(), player->GetLook(),
 				enemy->GetPosition(), reach, halfAngleDeg))
 			{
+				const uint64 hitKey = MakeMeleeHitKey(
+					player->GetObjectId(),
+					enemy->GetObjectId(),
+					player->GetAnimTick());
+				if (!m_meleeHitKeys.insert(hitKey).second)
+					continue;
+
 				cout << "Player " << player->GetObjectId() << " hits Enemy " << enemy->GetObjectId()
 					<< " (dmg=" << damage << " hp=" << enemy->GetCurrentHp() << ")" << endl;
 				enemy->ApplyHit(animClockTick, damage, 20);
@@ -370,6 +386,13 @@ void Room::TickAdvance()
 			if (IsInArcXZ(enemy->GetPosition(), enemy->GetLook(),
 				player->GetPosition(), reach, halfAngleDeg))
 			{
+				const uint64 hitKey = MakeMeleeHitKey(
+					enemy->GetObjectId(),
+					player->GetObjectId(),
+					enemy->GetAnimTick());
+				if (!m_meleeHitKeys.insert(hitKey).second)
+					continue;
+
 				player->ApplyHit(animClockTick, damage, 10);
 			}
 		}

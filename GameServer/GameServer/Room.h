@@ -299,6 +299,7 @@ private:
 	std::vector<GridDynamicTracker> m_bulletGridTrackers;
 	std::unordered_set<uint64> m_aiAwakeEnemyIds;
 	std::unordered_set<uint64> m_castleCenterPlayerIds;
+	std::unordered_set<uint64> m_meleeHitKeys;
 	std::vector<TowerDoorPortalEntry> m_towerDoorPortals;
 	std::vector<CastleDoorPortalEntry> m_castleDoorPortals;
     //array<GameAreaRef, 9> gameAreas; // 9개 구역
