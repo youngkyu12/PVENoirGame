@@ -250,6 +250,143 @@ bool Room::IsFineCellInsideMegaGridApproachZone(int megaX, int megaZ, int cellX,
 		(cellZ >= zoneStartZ && cellZ < zoneEndZ);
 }
 
+uint16_t Room::ComputeMegaGridMaskFromWorldPosition(const GameMath::Vec3& pos) const
+{
+	int megaX = -1;
+	int megaZ = -1;
+	if (!WorldToMegaGridCell(pos.x, pos.z, megaX, megaZ))
+		return 0;
+
+	const int bit = (megaZ * kMegaGridCols) + megaX;
+	return static_cast<uint16_t>(1u << bit);
+}
+
+uint16_t Room::ComputeObjectCurrentMegaGridMask(const CServerObject* obj) const
+{
+	if (!obj)
+		return 0;
+
+	return ComputeMegaGridMaskFromWorldPosition(obj->GetPosition());
+}
+
+uint16_t Room::ComputeStaticBuildingMegaGridMask(const BuildingRef& building) const
+{
+	if (!building)
+		return 0;
+
+	auto* collider = building->GetComponent<CColliderComponent>();
+	if (!collider)
+		return ComputeObjectCurrentMegaGridMask(building.get());
+
+	uint16_t mask = 0;
+	auto AddBoxMask = [&](const BoundingOrientedBox& box)
+		{
+			XMFLOAT3 corners[BoundingOrientedBox::CORNER_COUNT] = {};
+			box.GetCorners(corners);
+
+			float minX = corners[0].x;
+			float maxX = corners[0].x;
+			float minZ = corners[0].z;
+			float maxZ = corners[0].z;
+
+			for (int i = 1; i < BoundingOrientedBox::CORNER_COUNT; ++i)
+			{
+				minX = (std::min)(minX, corners[i].x);
+				maxX = (std::max)(maxX, corners[i].x);
+				minZ = (std::min)(minZ, corners[i].z);
+				maxZ = (std::max)(maxZ, corners[i].z);
+			}
+
+			int minCellX = -1;
+			int maxCellX = -1;
+			int minCellZ = -1;
+			int maxCellZ = -1;
+			if (!GetGridCellRangeForWorldBounds(minX, maxX, minZ, maxZ, minCellX, maxCellX, minCellZ, maxCellZ))
+				return;
+
+			int minMegaX = -1;
+			int minMegaZ = -1;
+			int maxMegaX = -1;
+			int maxMegaZ = -1;
+			if (!FineCellToMegaGridCell(minCellX, minCellZ, minMegaX, minMegaZ)) return;
+			if (!FineCellToMegaGridCell(maxCellX, maxCellZ, maxMegaX, maxMegaZ)) return;
+
+			for (int z = (std::min)(minMegaZ, maxMegaZ); z <= (std::max)(minMegaZ, maxMegaZ); ++z)
+			{
+				for (int x = (std::min)(minMegaX, maxMegaX); x <= (std::max)(minMegaX, maxMegaX); ++x)
+				{
+					const int bit = (z * kMegaGridCols) + x;
+					mask |= static_cast<uint16_t>(1u << bit);
+				}
+			}
+		};
+
+	for (const BoundingOrientedBox& subBox : collider->GetSubOOBBs())
+		AddBoxMask(subBox);
+
+	if (mask == 0 && collider->GetType() == EColliderType::OOBB)
+		AddBoxMask(collider->GetOOBB());
+
+	if (mask != 0)
+		return mask;
+
+	return ComputeObjectCurrentMegaGridMask(building.get());
+}
+
+void Room::SetObjectCollisionMegaGridMask(const shared_ptr<CServerObject>& obj, uint16_t mask, bool fixedMask)
+{
+	if (!obj)
+		return;
+
+	auto* collider = obj->GetComponent<CColliderComponent>();
+	if (!collider)
+		return;
+
+	collider->SetCollisionMegaGridMask(mask);
+	collider->SetCollisionMegaGridMaskFixed(fixedMask);
+}
+
+void Room::RefreshDynamicCollisionMegaGridMasks()
+{
+	auto RefreshObject = [this](const shared_ptr<CServerObject>& obj)
+		{
+			if (!obj)
+				return;
+
+			auto* collider = obj->GetComponent<CColliderComponent>();
+			if (!collider)
+				return;
+
+			if (collider->IsCollisionMegaGridMaskFixed())
+				return;
+
+			collider->SetCollisionMegaGridMask(ComputeObjectCurrentMegaGridMask(obj.get()));
+		};
+
+	for (auto& [pid, player] : players)
+		RefreshObject(player);
+
+	for (auto& p : m_arrowPool)
+		RefreshObject(p);
+
+	for (auto& p : m_bulletPool)
+		RefreshObject(p);
+}
+
+bool Room::ShouldKeepCollisionPairByMegaGrid(const CColliderComponent* a, const CColliderComponent* b) const
+{
+	if (!a || !b)
+		return false;
+
+	const uint16_t maskA = a->GetCollisionMegaGridMask();
+	const uint16_t maskB = b->GetCollisionMegaGridMask();
+
+	if (maskA == 0 || maskB == 0)
+		return false;
+
+	return (maskA & maskB) != 0;
+}
+
 void Room::AddDynamicCount(int cellX, int cellZ, EGridDynamicKind kind, int delta)
 {
 	if (!m_spatialGridInitialized) return;
@@ -566,10 +703,16 @@ void Room::UpdateMegaGridState()
 		if (!FineCellToMegaGridCell(tracker.prevCellX, tracker.prevCellZ, megaX, megaZ))
 			continue;
 
+		if (megaX == 1 && megaZ == 1)
+			continue;
+
 		if (!IsFineCellInsideMegaGridApproachZone(megaX, megaZ, tracker.prevCellX, tracker.prevCellZ))
 			continue;
 
 		MegaGridCell& megaCell = m_megaGridCells[static_cast<size_t>(MegaGridIndex(megaX, megaZ))];
 		megaCell.hasPlayerApproached = true;
 	}
+
+	UpdateCastleCenterMegaGridState();
+	RefreshDynamicCollisionMegaGridMasks();
 }

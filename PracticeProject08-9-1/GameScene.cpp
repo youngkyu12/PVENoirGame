@@ -46,9 +46,11 @@ CGameScene::CGameScene()
 
     m_arrowRefs.clear();
     m_arrowRefs.shrink_to_fit();
+	m_networkArrowById.clear();
 
 	m_bulletRefs.clear();
 	m_bulletRefs.shrink_to_fit();
+	m_networkBulletById.clear();
 
 	m_navMesh.reset();
 
@@ -146,6 +148,7 @@ CGameScene::CGameScene()
 
 #ifdef USING_NETWORK
 	m_prevPlayerNetworkStateCode.clear();
+	m_prevEnemyNetworkStateCode.clear();
 #endif
 	m_playerWeaponDamageTierIndex = 0;
 	m_deadMonsters.clear();
@@ -1125,6 +1128,41 @@ bool CGameScene::TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog)
 			else
 			{
 				dst.y = playerPos.y;
+			}
+
+			if ( m_Collision )
+			{
+				const XMFLOAT3 originalPos = player->GetPosition();
+				XMFLOAT3 resolvedDst = dst;
+				bool foundClearDestination = false;
+
+				const int maxResolveSteps =
+					static_cast< int >(
+						kTowerDoorPortalMaxVerticalResolveDistance /
+						kTowerDoorPortalVerticalResolveStep
+					);
+
+				for ( int step = 0; step <= maxResolveSteps; ++step )
+				{
+					player->SetPosition(resolvedDst);
+					playerCollider->UpdateWorldBounds();
+
+					if ( !m_Collision->HasCollisionWithWorldStatic(playerCollider) )
+					{
+						foundClearDestination = true;
+						break;
+					}
+
+					resolvedDst.y += kTowerDoorPortalVerticalResolveStep;
+				}
+
+				player->SetPosition(originalPos);
+				playerCollider->UpdateWorldBounds();
+
+				if ( !foundClearDestination )
+					return false;
+
+				dst = resolvedDst;
 			}
 
 			player->SetPosition(dst);
@@ -2982,6 +3020,8 @@ void CGameScene::ReleaseObjects()
 	m_helmetRefs.clear();
 	m_arrowRefs.clear();
 	m_bulletRefs.clear();
+	m_networkArrowById.clear();
+	m_networkBulletById.clear();
 
 	m_attachmentBinds.clear();
 	m_staticInstanceGroups.clear();
@@ -3044,6 +3084,7 @@ void CGameScene::ReleaseObjects()
 	m_localPlayerRespawnTimer = 0.0f;
 #ifdef USING_NETWORK
 	m_prevPlayerNetworkStateCode.clear();
+	m_prevEnemyNetworkStateCode.clear();
 #endif
 	m_playerWeaponDamageTierIndex = 0;
 	m_deadMonsters.clear();
@@ -6962,7 +7003,8 @@ FrameSnapshot CGameScene::BuildInterpolatedFrameSnapshot(const FrameSnapshot& la
 	if (m_lastReceivedServerTick <= kNetworkInterpolationDelayTicks)
 		return displaySnapshot;
 
-	const uint64_t renderTick = m_lastReceivedServerTick - kNetworkInterpolationDelayTicks;
+	const uint64_t ticksElapsed = static_cast<uint64_t>(m_timeSinceLastFramePacket / kServerTickSeconds);
+	const uint64_t renderTick = m_lastReceivedServerTick + ticksElapsed - kNetworkInterpolationDelayTicks;
 
 	const FrameSnapshot* older = nullptr;
 	const FrameSnapshot* newer = nullptr;
@@ -7109,10 +7151,26 @@ void CGameScene::AnimateObjects(float dt)
 
 #ifdef USING_NETWORK
     DequeueNetworkMessage(NetworkMessageType::FrameState);
+
+	std::unordered_map<uint64_t, CGameObject*> npcById;
+	{
+		UINT npcIndex = 0;
+		for ( UINT j = 0; j < ( UINT ) m_skinnedObjects.size(); ++j )
+		{
+			auto* obj = m_skinnedObjects[j].get();
+			if ( !obj ) continue;
+			auto* tag = obj->GetComponent<CActorTagComponent>();
+			if ( !tag || tag->kind != EActorKind::NPC ) continue;
+			npcById[npcIndex] = obj;
+			++npcIndex;
+		}
+	}
+
     if (std::holds_alternative<FrameSnapshot>(m_pendingNetworkMessage.data))
     {
         const FrameSnapshot& receivedSnapshot = std::get<FrameSnapshot>(m_pendingNetworkMessage.data);
 		PushNetworkFrameSnapshot(receivedSnapshot);
+		m_timeSinceLastFramePacket = 0.0f;
 		const FrameSnapshot& latestSnapshot =
 			m_frameSnapshotBuffer.empty() ? receivedSnapshot : m_frameSnapshotBuffer.back();
 		FrameSnapshot snapshot = BuildInterpolatedFrameSnapshot(latestSnapshot);
@@ -7125,43 +7183,40 @@ void CGameScene::AnimateObjects(float dt)
             CGameObject* player = GetPlayerBySlot(slot);
             if (!player) continue;
 
+			const bool isLocalPlayer = ( slot == m_localPlayerSlot );
 
-            if (slot == m_localPlayerSlot)
+			if (isLocalPlayer)
             {
+				constexpr float kLocalPlayerServerSnapDistance = 1.5f;
+				constexpr float kLocalPlayerServerSnapDistanceSq =
+					kLocalPlayerServerSnapDistance * kLocalPlayerServerSnapDistance;
+
                 const XMFLOAT3 currentPos = player->GetPosition();
                 const float dx = state.position.x - currentPos.x;
                 const float dy = state.position.y - currentPos.y;
                 const float dz = state.position.z - currentPos.z;
                 const float distSq = dx * dx + dy * dy + dz * dz;
 
-                if (distSq > 4.0f)
+                if (distSq > kLocalPlayerServerSnapDistanceSq)
                 {
                     player->SetPosition(state.position.x, state.position.y, state.position.z);
-                }
-                else if (distSq > 0.0001f)
-                {
-                    constexpr float kLocalCorrectionAlpha = 0.35f;
-                    player->SetPosition(
-                        currentPos.x + dx * kLocalCorrectionAlpha,
-                        currentPos.y + dy * kLocalCorrectionAlpha,
-                        currentPos.z + dz * kLocalCorrectionAlpha);
+
+					if ( auto* tr = player->GetComponent<CTransformComponent>() )
+						tr->SetYawDegrees(state.yaw);
+
+					if ( auto* controller = player->GetComponent<CPlayerControllerComponent>() )
+						controller->SetYawDegrees(state.yaw);
                 }
             }
             else
             {
                 player->SetPosition(state.position.x, state.position.y, state.position.z);
-            }
 
-            // yaw 회전 적용
-            if (auto* tr = player->GetComponent<CTransformComponent>())
-            {
-                tr->SetYawDegrees(state.yaw);
-            } 
-
-			if ( slot == m_localPlayerSlot )
-			{
-				if ( auto* controller = player->GetComponent<CPlayerControllerComponent>() )
-					controller->SetYawDegrees(state.yaw);
+				// yaw 회전 적용
+				if (auto* tr = player->GetComponent<CTransformComponent>())
+				{
+					tr->SetYawDegrees(state.yaw);
+				}
 			}
 			
 			if ( auto wc = player->GetComponent<CPlayerEquipmentComponent>() )
@@ -7279,22 +7334,6 @@ void CGameScene::AnimateObjects(float dt)
 
 
 		// Enemy 좌표 업데이트
-		// 1) NPC 인덱스 → 오브젝트 매핑 구축
-		std::unordered_map<uint64_t, CGameObject*> npcById;
-		{
-			UINT npcIndex = 0;
-			for ( UINT j = 0; j < ( UINT ) m_skinnedObjects.size(); ++j )
-			{
-				auto* obj = m_skinnedObjects[j].get();
-				if ( !obj ) continue;
-				auto* tag = obj->GetComponent<CActorTagComponent>();
-				if ( !tag || tag->kind != EActorKind::NPC ) continue;
-				npcById[npcIndex] = obj;
-				++npcIndex;
-			}
-		}
-
-		// 2) snapshot enemy를 ID 기준으로 적용
 		for ( const auto& state : snapshot.enemies )
 		{
 			auto it = npcById.find(state.id);
@@ -7318,10 +7357,9 @@ void CGameScene::AnimateObjects(float dt)
 
 					ctrl->SetLocomotionState(locomotionState);
 
-					static std::unordered_map<uint64_t, uint32_t> s_prevEnemyStateCode;
 					const uint32_t prevStateCode =
-						( s_prevEnemyStateCode.find(state.id) != s_prevEnemyStateCode.end() )
-						? s_prevEnemyStateCode[state.id]
+						( m_prevEnemyNetworkStateCode.find(state.id) != m_prevEnemyNetworkStateCode.end() )
+						? m_prevEnemyNetworkStateCode[state.id]
 						: 0u;
 					const DecodedAnimStateCode prevDecoded = DecodeStateCode(prevStateCode);
 
@@ -7345,15 +7383,40 @@ void CGameScene::AnimateObjects(float dt)
 						ctrl->RequestCommand(EMonsterAnimCommand::Attack);
 					}
 
-					s_prevEnemyStateCode[state.id] = state.animation.stateCode;
+					m_prevEnemyNetworkStateCode[state.id] = state.animation.stateCode;
 					ctrl->Update(0.0f);
 				}
 			}
 		}
 
 		// Projectile 동기화
-		size_t usedArrowCount = 0;
-		size_t usedBulletCount = 0;
+		std::unordered_set<uint64_t> visibleArrowIds;
+		std::unordered_set<uint64_t> visibleBulletIds;
+
+		auto AcquireNetworkProjectile = [] (
+			const std::vector<CGameObject*>& refs,
+			const std::unordered_map<uint64_t, CGameObject*>& activeById) -> CGameObject*
+		{
+			for ( CGameObject* obj : refs )
+			{
+				if ( !obj ) continue;
+
+				bool inUse = false;
+				for ( const auto& pair : activeById )
+				{
+					if ( pair.second == obj )
+					{
+						inUse = true;
+						break;
+					}
+				}
+
+				if ( !inUse )
+					return obj;
+			}
+
+			return nullptr;
+		};
 
 		for (const auto& b : snapshot.bullets)
 		{
@@ -7361,25 +7424,43 @@ void CGameScene::AnimateObjects(float dt)
 
 			if (isArrow)
 			{
-				if (usedArrowCount >= m_arrowRefs.size())
-					continue;
+				visibleArrowIds.insert(b.id);
 
-				CGameObject* arrowObj = m_arrowRefs[usedArrowCount++];
+				CGameObject* arrowObj = nullptr;
+				auto it = m_networkArrowById.find(b.id);
+				if ( it != m_networkArrowById.end() )
+					arrowObj = it->second;
+				else
+				{
+					arrowObj = AcquireNetworkProjectile(m_arrowRefs, m_networkArrowById);
+					if ( arrowObj )
+						m_networkArrowById[b.id] = arrowObj;
+				}
+
 				if (!arrowObj) continue;
 
 				if ( auto* arrow = arrowObj->GetComponent<CArrowComponent>() )
 				{
 					arrow->Activate(b.position, b.velocity, 2.0f);
-					auto arrowtransform = arrowObj->GetComponent<CTransformComponent>();
-					arrowtransform->SetLookDirection(b.velocity);
+					if ( auto* arrowtransform = arrowObj->GetComponent<CTransformComponent>() )
+						arrowtransform->SetLookDirection(b.velocity);
 				}
 			}
 			else
 			{
-				if (usedBulletCount >= m_bulletRefs.size())
-					continue;
+				visibleBulletIds.insert(b.id);
 
-				CGameObject* bulletObj = m_bulletRefs[usedBulletCount++];
+				CGameObject* bulletObj = nullptr;
+				auto it = m_networkBulletById.find(b.id);
+				if ( it != m_networkBulletById.end() )
+					bulletObj = it->second;
+				else
+				{
+					bulletObj = AcquireNetworkProjectile(m_bulletRefs, m_networkBulletById);
+					if ( bulletObj )
+						m_networkBulletById[b.id] = bulletObj;
+				}
+
 				if (!bulletObj) continue;
 
 				if ( auto* bullet = bulletObj->GetComponent<CBulletComponent>() )
@@ -7389,18 +7470,36 @@ void CGameScene::AnimateObjects(float dt)
 			}
 		}
 
-		for (size_t i = usedArrowCount; i < m_arrowRefs.size(); ++i)
+		for ( auto it = m_networkArrowById.begin(); it != m_networkArrowById.end(); )
 		{
-			if (!m_arrowRefs[i]) continue;
-			if (auto* arrow = m_arrowRefs[i]->GetComponent<CArrowComponent>())
-				arrow->Deactivate();
+			if ( visibleArrowIds.find(it->first) != visibleArrowIds.end() )
+			{
+				++it;
+				continue;
+			}
+
+			if ( it->second )
+			{
+				if ( auto* arrow = it->second->GetComponent<CArrowComponent>() )
+					arrow->Deactivate();
+			}
+			it = m_networkArrowById.erase(it);
 		}
 
-		for (size_t i = usedBulletCount; i < m_bulletRefs.size(); ++i)
+		for ( auto it = m_networkBulletById.begin(); it != m_networkBulletById.end(); )
 		{
-			if (!m_bulletRefs[i]) continue;
-			if (auto* bullet = m_bulletRefs[i]->GetComponent<CBulletComponent>())
-				bullet->Deactivate();
+			if ( visibleBulletIds.find(it->first) != visibleBulletIds.end() )
+			{
+				++it;
+				continue;
+			}
+
+			if ( it->second )
+			{
+				if ( auto* bullet = it->second->GetComponent<CBulletComponent>() )
+					bullet->Deactivate();
+			}
+			it = m_networkBulletById.erase(it);
 		}
 
 		// 사용이 끝난 data는 기본값으로 초기화 (선택적)
@@ -7408,6 +7507,8 @@ void CGameScene::AnimateObjects(float dt)
     }
 	else
 	{
+		m_timeSinceLastFramePacket += dt;
+
 		// 이전 state code를 따라가면서 그때의 애니메이션을 유지
 		for ( const auto& [id, stateCode] : m_prevPlayerNetworkStateCode )
 		{
@@ -7428,6 +7529,26 @@ void CGameScene::AnimateObjects(float dt)
 					ac->SetAnimState(decoded.hasMove ? EAnimState::Move : EAnimState::Idle);
 			}
 		}
+
+		for ( const auto& [id, stateCode] : m_prevEnemyNetworkStateCode )
+		{
+			auto it = npcById.find(id);
+			if ( it == npcById.end() ) continue;
+
+			auto* obj = it->second;
+			if ( auto* animComp = obj->GetComponent<CAnimatorComponent>() )
+			{
+				if ( auto* ctrl = animComp->EnsureMonsterController() )
+				{
+					const DecodedAnimStateCode decoded = DecodeStateCode(stateCode);
+					EMonsterAnimState locomotionState = EMonsterAnimState::Idle;
+					if ( decoded.hasMove )
+						locomotionState = decoded.run ? EMonsterAnimState::Run : EMonsterAnimState::Move;
+					ctrl->SetLocomotionState(locomotionState);
+				}
+			}
+		}
+
 	}
 #endif
 

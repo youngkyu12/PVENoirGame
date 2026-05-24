@@ -1267,6 +1267,7 @@ class C_INPUT final :
     kKeyCodesFieldNumber = 2,
     kDeltaXFieldNumber = 3,
     kDeltaYFieldNumber = 4,
+    kClientDeltaTimeFieldNumber = 5,
   };
   // uint64 playerid = 1;
   void clear_playerid();
@@ -1304,6 +1305,15 @@ class C_INPUT final :
   void _internal_set_deltay(float value);
   public:
 
+  // float clientDeltaTime = 5;
+  void clear_clientdeltatime();
+  float clientdeltatime() const;
+  void set_clientdeltatime(float value);
+  private:
+  float _internal_clientdeltatime() const;
+  void _internal_set_clientdeltatime(float value);
+  public:
+
   // @@protoc_insertion_point(class_scope:Protocol.C_INPUT)
  private:
   class _Internal;
@@ -1315,6 +1325,7 @@ class C_INPUT final :
   ::PROTOBUF_NAMESPACE_ID::int32 keycodes_;
   float deltax_;
   float deltay_;
+  float clientdeltatime_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_Protocol_2eproto;
 };
@@ -2070,6 +2081,26 @@ inline void C_INPUT::_internal_set_deltay(float value) {
 inline void C_INPUT::set_deltay(float value) {
   _internal_set_deltay(value);
   // @@protoc_insertion_point(field_set:Protocol.C_INPUT.deltaY)
+}
+
+// float clientDeltaTime = 5;
+inline void C_INPUT::clear_clientdeltatime() {
+  clientdeltatime_ = 0;
+}
+inline float C_INPUT::_internal_clientdeltatime() const {
+  return clientdeltatime_;
+}
+inline float C_INPUT::clientdeltatime() const {
+  // @@protoc_insertion_point(field_get:Protocol.C_INPUT.clientDeltaTime)
+  return _internal_clientdeltatime();
+}
+inline void C_INPUT::_internal_set_clientdeltatime(float value) {
+  
+  clientdeltatime_ = value;
+}
+inline void C_INPUT::set_clientdeltatime(float value) {
+  _internal_set_clientdeltatime(value);
+  // @@protoc_insertion_point(field_set:Protocol.C_INPUT.clientDeltaTime)
 }
 
 // -------------------------------------------------------------------
