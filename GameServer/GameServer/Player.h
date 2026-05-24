@@ -65,6 +65,7 @@ public:
 		return true;
 	}
 	void ClearPendingPortalTeleport() { m_pendingPortalTeleport = PendingPortalTeleport{}; }
+	void ClearPendingForcedTransform() { m_pendingForcedTransform = PendingForcedTransform{}; }
 
 	void QueueForcedTransformYawDelta(float yawDelta, int32 reason)
 	{
