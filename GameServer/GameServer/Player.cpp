@@ -54,6 +54,7 @@ void Player::Update(uint32 serverTick)
 void Player::Build()
 {
     ClearPendingPortalTeleport();
+	ClearPendingForcedTransform();
     SetPosition(0.0f, 0.0f, 0.0f);
     Rotate(0.0f, 0.0f, 0.0f);
     weapon.SetWeapon(Protocol::WEAPON_TYPE_SWORD, 0);
@@ -86,6 +87,7 @@ void Player::OnDeathEnter(uint32 serverTick)
     SetVelocity(GameMath::Vec3::Zero());
     ClearMoveKeyCodes();
     ClearPendingPortalTeleport();
+	ClearPendingForcedTransform();
     m_deathTick = serverTick;
 
     if (auto* collider = GetComponent<CColliderComponent>())
@@ -98,15 +100,19 @@ void Player::OnDeathEnter(uint32 serverTick)
 
 void Player::OnRespawnEnter(uint32 serverTick)
 {
+	const bool isActualRespawn = (m_lifeState == EPlayerLifeState::DeadAnimating);
     m_lifeState = EPlayerLifeState::Alive;
 
     ResetHpToMax();
 	const float prevYaw = GetYaw();
     SetPosition(GameMath::Vec3(0.0f, 0.0f, -200.0f));
 	SetYaw(180.0f);
-	QueueForcedTransformYawDelta(
-		GameMath::NormalizeYaw(GetYaw() - prevYaw),
-		Protocol::FORCED_TRANSFORM_REASON_RESPAWN);
+	if (isActualRespawn)
+	{
+		QueueForcedTransformYawDelta(
+			GameMath::NormalizeYaw(GetYaw() - prevYaw),
+			Protocol::FORCED_TRANSFORM_REASON_RESPAWN);
+	}
     SetVelocity(GameMath::Vec3::Zero());
     ClearMoveKeyCodes();
     ClearPendingPortalTeleport();
