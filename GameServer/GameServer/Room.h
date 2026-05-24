@@ -228,8 +228,11 @@ private:
 	void RegisterDoorPortal(BuildingRef building);
 	void TickDoorPortalCooldowns();
 	void ProcessDoorPortals();
-	bool TryTeleportPlayerByTowerDoorPortal(const PlayerRef& player, const GameMath::Vec3& prevPos);
+	bool TryTeleportPlayerByTowerDoorPortal(const PlayerRef& player);
 	bool TryTeleportPlayerByCastleDoorPortal(const PlayerRef& player);
+	bool TryQueuePortalTeleportFromBlockedMove(const PlayerRef& player, const GameMath::Vec3& desiredShift);
+	bool TryQueueTowerDoorPortalTeleport(const PlayerRef& player);
+	bool TryQueueCastleDoorPortalTeleport(const PlayerRef& player);
 	bool CanUseCastleDoorPortal() const;
 	int CountClearedMegaGrids() const;
 	void MarkPlayerEnteredCastleCenterMegaGrid(uint64 playerId);

@@ -156,11 +156,28 @@ void Room::TickAdvance()
 	{
 		if (!player.second) continue;
 
+		GameMath::Vec3 portalDestination = GameMath::Vec3::Zero();
+		float portalYaw = 0.0f;
+		if (player.second->ConsumePendingPortalTeleport(portalDestination, portalYaw))
+		{
+			player.second->SetVelocity(GameMath::Vec3::Zero());
+			player.second->ClearMoveKeyCodes();
+			player.second->SetPosition(portalDestination);
+			player.second->SetYaw(portalYaw);
+
+			if (auto* collider = player.second->GetComponent<CColliderComponent>())
+				collider->OnUpdate(0.0f);
+
+			UpdateDynamicGridState();
+			WakeEnemiesNearPlayer(player.second);
+			continue;
+		}
+
 		const GameMath::Vec3 prevPos = player.second->GetPosition();
 		player.second->Update(animClockTick);
 
 		const bool teleported =
-			TryTeleportPlayerByTowerDoorPortal(player.second, prevPos) ||
+			TryTeleportPlayerByTowerDoorPortal(player.second) ||
 			TryTeleportPlayerByCastleDoorPortal(player.second);
 
 		if (!teleported)
