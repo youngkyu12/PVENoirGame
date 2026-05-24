@@ -108,6 +108,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
 #ifdef USING_NETWORK
 	m_prevPlayerNetworkStateCode.clear();
+	m_prevEnemyNetworkStateCode.clear();
 
 	while ( false == g_GameStarted )
 	{

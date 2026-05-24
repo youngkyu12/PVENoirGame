@@ -33,12 +33,39 @@ public:
 		m_rollMoveKeyCodes = 0;
 	}
 
+	bool HasPendingPortalTeleport() const { return m_pendingPortalTeleport.active; }
+	void SetPendingPortalTeleport(const GameMath::Vec3& destination, float yaw)
+	{
+		m_pendingPortalTeleport.active = true;
+		m_pendingPortalTeleport.destination = destination;
+		m_pendingPortalTeleport.yaw = yaw;
+	}
+	bool ConsumePendingPortalTeleport(GameMath::Vec3& outDestination, float& outYaw)
+	{
+		if (!m_pendingPortalTeleport.active)
+			return false;
+
+		outDestination = m_pendingPortalTeleport.destination;
+		outYaw = m_pendingPortalTeleport.yaw;
+		m_pendingPortalTeleport = PendingPortalTeleport{};
+		return true;
+	}
+	void ClearPendingPortalTeleport() { m_pendingPortalTeleport = PendingPortalTeleport{}; }
+
 private:
 	CWeapon weapon;
 	uint32 m_hitEndTick = 0;
 	uint32 m_deathTick = 0;
 	int32 m_lastMoveKeyCodes = 0;
 	int32 m_rollMoveKeyCodes = 0;
+
+	struct PendingPortalTeleport
+	{
+		bool active = false;
+		GameMath::Vec3 destination = GameMath::Vec3::Zero();
+		float yaw = 0.0f;
+	};
+	PendingPortalTeleport m_pendingPortalTeleport;
 
 public:
 	void SetWeapon(Protocol::WeaponType& type, uint32& currentBullets)

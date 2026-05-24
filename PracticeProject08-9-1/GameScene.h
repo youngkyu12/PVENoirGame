@@ -1140,6 +1140,8 @@ private:
 	static constexpr UINT kBulletPoolSize = 32;
 	std::vector<CGameObject*> m_arrowRefs;
 	std::vector<CGameObject*> m_bulletRefs;
+	std::unordered_map<uint64_t, CGameObject*> m_networkArrowById;
+	std::unordered_map<uint64_t, CGameObject*> m_networkBulletById;
 
 	std::array<CGameObject*, 4> m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr };
 	std::array<bool, 4> m_prevBowReleasePhase = { false, false, false, false };
@@ -1344,9 +1346,11 @@ private:
 #ifdef USING_NETWORK
 	std::deque<FrameSnapshot> m_frameSnapshotBuffer;
 	uint64_t m_lastReceivedServerTick = 0;
+	float m_timeSinceLastFramePacket = 0.0f;
 
-	static constexpr uint64_t kNetworkInterpolationDelayTicks = 2;
+	static constexpr uint64_t kNetworkInterpolationDelayTicks = 6;
 	static constexpr size_t kMaxNetworkFrameSnapshotBufferSize = 8;
+	static constexpr float kServerTickSeconds = 1.0f / 60.0f;
 
 	void PushNetworkFrameSnapshot(const FrameSnapshot& snapshot);
 	FrameSnapshot BuildInterpolatedFrameSnapshot(const FrameSnapshot& latestSnapshot) const;
@@ -1362,6 +1366,7 @@ private:
 	static float LerpYawDegrees(float a, float b, float t);
 
 	std::unordered_map<uint64_t, uint32_t> m_prevPlayerNetworkStateCode;
+	std::unordered_map<uint64_t, uint32_t> m_prevEnemyNetworkStateCode;
 #endif
 
 	int m_playerWeaponDamageTierIndex = 0; 

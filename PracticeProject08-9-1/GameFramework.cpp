@@ -1260,10 +1260,13 @@ void CGameFramework::ProcessInput()
 		inputPkt.set_deltax(cxDelta);
 		inputPkt.set_deltay(cyDelta);
 
+		float dt = m_GameTimer.GetTimeElapsed();
+		if (dt < 0.001f) dt = 0.001f;
+		if (dt > 0.05f)  dt = 0.05f;
+		inputPkt.set_clientdeltatime(dt);
+
 		auto sendBuffer = ServerPacketHandler::MakeSendBuffer(inputPkt);
 		g_clientService->BroadCast(sendBuffer);
-
-		const float dt = m_GameTimer.GetTimeElapsed();
 
 		// --------------------------------------------------------------------
 		// 1) 카메라는 항상 마우스로 회전한다. (공격/구르기 중에도 가능)
@@ -1291,6 +1294,7 @@ void CGameFramework::ProcessInput()
 
 		if ( dwDirection && !pc->IsActionLockedByAnimation() )
 		{
+			// Network mode: local prediction movement is disabled; server snapshots drive position.
 			const XMFLOAT3 prevPos = playerObj->GetPosition();
 
 			const float moveSpeed = pc->IsEffectiveRunRequested() ? 10.0f : 5.0f;

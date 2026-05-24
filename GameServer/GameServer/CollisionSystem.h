@@ -1,6 +1,7 @@
 #pragma once
 
 #include "BaseComponent.h"
+#include <functional>
 #include <vector>
 
 class CColliderComponent;
@@ -11,6 +12,8 @@ public:
 	explicit CCollisionSystem();
 
 	void OnUpdate();
+	using CollisionPairFilter = std::function<bool(const CColliderComponent*, const CColliderComponent*)>;
+	void OnUpdateFiltered(const CollisionPairFilter& filter);
 
 	void RegisterCollider(CColliderComponent* c);
 	void UnregisterCollider(CColliderComponent* c);
