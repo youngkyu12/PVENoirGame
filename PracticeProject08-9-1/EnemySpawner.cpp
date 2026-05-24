@@ -1,84 +1,200 @@
+//-----------------------------------------------------------------------------
+// File: EnemySpawner.cpp
+//-----------------------------------------------------------------------------
+
 #include "stdafx.h"
 #include "EnemySpawner.h"
 #include "Object.h"
+#include "ColliderComponent.h"
 
-void EnemySpawner::Initialize(const std::vector<CGameObject*>& spawnObjects)
+void EnemySpawner::Initialize(const std::vector<EnemySpawnerPoolEntry>& spawnObjects)
 {
-	m_SpawnObjects = spawnObjects;
-
-	mElapsedTime = 0.0f;
-	flag = false;
-	mSpawnerPosition = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
+	m_spawnEntries = spawnObjects;
 
 	m_freeList.clear();
-	m_freeList.reserve(m_SpawnObjects.size());
+	m_freeList.reserve(m_spawnEntries.size());
 
-	for ( size_t i = 0; i < m_SpawnObjects.size(); ++i )
+	m_activeEnemies.clear();
+	m_activeEnemies.reserve(m_spawnEntries.size());
+
+	for ( size_t i = 0; i < m_spawnEntries.size(); ++i )
 	{
-		CGameObject* enemy = m_SpawnObjects[i];
+		EnemySpawnerPoolEntry& entry = m_spawnEntries[i];
 
+		CGameObject* enemy = entry.object;
 		if ( !enemy )
 			continue;
 
+		DirectX::XMFLOAT3 inactivePosition = entry.spawnPosition;
+		inactivePosition.y = -100.0f;
+
 		enemy->SetActive(false);
+		enemy->SetPosition(inactivePosition);
+
+		if ( auto* collider = enemy->GetComponent<CColliderComponent>() )
+		{
+			collider->SetEnabled(false);
+			collider->UpdateWorldBounds();
+		}
+
 		m_freeList.push_back(i);
 	}
 }
 
-void EnemySpawner::Update(float deltaTime, const DirectX::XMFLOAT3& position)
+CGameObject* EnemySpawner::ActivateEntry(
+	size_t entryIndex,
+	const DirectX::XMFLOAT3* overridePosition,
+	const float* overrideYawDeg)
 {
-
-	if ( deltaTime > 0.0f && mElapsedTime < 15.0f)
-		mElapsedTime += deltaTime;
-
-	if ( mElapsedTime > 10.0f && !flag) {
-		SetSpawnerPosition(position);
-		SpawnEnemy();
-		flag = true;
-	}
-
-}
-
-void EnemySpawner::SetSpawnerPosition(const DirectX::XMFLOAT3& position)
-{
-	mSpawnerPosition = position;
-}
-
-const DirectX::XMFLOAT3& EnemySpawner::GetSpawnerPosition() const
-{
-	return mSpawnerPosition;
-}
-
-CGameObject* EnemySpawner::SpawnEnemy()
-{
-	if ( m_freeList.empty() )
+	if ( entryIndex >= m_spawnEntries.size() )
 		return nullptr;
 
-	size_t index = m_freeList.back();
-	m_freeList.pop_back();
+	EnemySpawnerPoolEntry& entry = m_spawnEntries[entryIndex];
 
-	CGameObject* enemy = m_SpawnObjects[index];
-
+	CGameObject* enemy = entry.object;
 	if ( !enemy )
 		return nullptr;
 
+	const DirectX::XMFLOAT3 finalPosition =
+		overridePosition ? *overridePosition : entry.spawnPosition;
+
+	enemy->SetPosition(finalPosition);
+
+	if ( overrideYawDeg )
+	{
+		if ( auto* tr = enemy->GetComponent<CTransformComponent>() )
+		{
+			tr->SetYawDegrees(*overrideYawDeg);
+		}
+		else
+		{
+			// CTransformComponent가 없을 경우 최소한 기존 yaw에서 delta 회전.
+			// 일반 CGameObject에는 보통 TransformComponent가 있으므로 거의 타지 않는다.
+			enemy->Rotate(0.0f, *overrideYawDeg, 0.0f);
+		}
+	}
+
 	enemy->SetActive(true);
-	enemy->SetPosition(mSpawnerPosition);
+
+	if ( auto* collider = enemy->GetComponent<CColliderComponent>() )
+	{
+		collider->SetEnabled(true);
+		collider->UpdateWorldBounds();
+	}
+
+	if ( std::find(m_activeEnemies.begin(), m_activeEnemies.end(), enemy) == m_activeEnemies.end() )
+		m_activeEnemies.push_back(enemy);
+
 	return enemy;
 }
 
-int EnemySpawner::SpawnEnemies(int count)
+CGameObject* EnemySpawner::SpawnEnemy(
+	int megaGridNumber,
+	EEnemySpawnerEnemyKind kind)
+{
+	for ( size_t cursor = 0; cursor < m_freeList.size(); ++cursor )
+	{
+		const size_t entryIndex = m_freeList[cursor];
+
+		if ( entryIndex >= m_spawnEntries.size() )
+			continue;
+
+		const EnemySpawnerPoolEntry& entry = m_spawnEntries[entryIndex];
+
+		if ( entry.megaGridNumber != megaGridNumber )
+			continue;
+
+		if ( entry.kind != kind )
+			continue;
+
+		m_freeList[cursor] = m_freeList.back();
+		m_freeList.pop_back();
+
+		return ActivateEntry(entryIndex);
+	}
+
+	return nullptr;
+}
+
+CGameObject* EnemySpawner::SpawnEnemyAt(
+	int megaGridNumber,
+	EEnemySpawnerEnemyKind kind,
+	const DirectX::XMFLOAT3& position,
+	float yawDeg)
+{
+	for ( size_t cursor = 0; cursor < m_freeList.size(); ++cursor )
+	{
+		const size_t entryIndex = m_freeList[cursor];
+
+		if ( entryIndex >= m_spawnEntries.size() )
+			continue;
+
+		const EnemySpawnerPoolEntry& entry = m_spawnEntries[entryIndex];
+
+		if ( entry.megaGridNumber != megaGridNumber )
+			continue;
+
+		if ( entry.kind != kind )
+			continue;
+
+		m_freeList[cursor] = m_freeList.back();
+		m_freeList.pop_back();
+
+		return ActivateEntry(entryIndex, &position, &yawDeg);
+	}
+
+	return nullptr;
+}
+
+int EnemySpawner::SpawnEnemies(
+	int megaGridNumber,
+	EEnemySpawnerEnemyKind kind,
+	int count)
 {
 	if ( count <= 0 )
 		return 0;
 
 	int spawnedCount = 0;
+
 	for ( int i = 0; i < count; ++i )
 	{
-		if ( !SpawnEnemy() )
+		if ( !SpawnEnemy(megaGridNumber, kind) )
 			break;
 
 		++spawnedCount;
+	}
+
+	return spawnedCount;
+}
+
+int EnemySpawner::SpawnMegaGrid(int megaGridNumber)
+{
+	int spawnedCount = 0;
+
+	for ( size_t cursor = 0; cursor < m_freeList.size(); )
+	{
+		const size_t entryIndex = m_freeList[cursor];
+
+		if ( entryIndex >= m_spawnEntries.size() )
+		{
+			m_freeList[cursor] = m_freeList.back();
+			m_freeList.pop_back();
+			continue;
+		}
+
+		const EnemySpawnerPoolEntry& entry = m_spawnEntries[entryIndex];
+
+		if ( entry.megaGridNumber != megaGridNumber )
+		{
+			++cursor;
+			continue;
+		}
+
+		m_freeList[cursor] = m_freeList.back();
+		m_freeList.pop_back();
+
+		if ( ActivateEntry(entryIndex) )
+			++spawnedCount;
 	}
 
 	return spawnedCount;
@@ -89,28 +205,47 @@ void EnemySpawner::RemoveEnemy(CGameObject* enemy)
 	if ( !enemy )
 		return;
 
-	auto it = std::find(m_SpawnObjects.begin(), m_SpawnObjects.end(), enemy);
-	if ( it == m_SpawnObjects.end() )
-		return;
-	
-	const size_t index = static_cast< size_t >(
-		std::distance(m_SpawnObjects.begin(), it)
-	);
-
-	enemy->SetActive(false);
-
-	if ( std::find(m_freeList.begin(), m_freeList.end(), index) == m_freeList.end() )
+	for ( size_t i = 0; i < m_spawnEntries.size(); ++i )
 	{
-		m_freeList.push_back(index);
+		if ( m_spawnEntries[i].object != enemy )
+			continue;
+
+		DirectX::XMFLOAT3 inactivePosition =
+			m_spawnEntries[i].spawnPosition;
+
+		inactivePosition.y = -100.0f;
+
+		enemy->SetActive(false);
+		enemy->SetPosition(inactivePosition);
+
+		if ( auto* collider = enemy->GetComponent<CColliderComponent>() )
+		{
+			collider->SetEnabled(false);
+			collider->UpdateWorldBounds();
+		}
+
+		auto activeIt = std::find(
+			m_activeEnemies.begin(),
+			m_activeEnemies.end(),
+			enemy
+		);
+
+		if ( activeIt != m_activeEnemies.end() )
+			m_activeEnemies.erase(activeIt);
+
+		if ( std::find(m_freeList.begin(), m_freeList.end(), i) == m_freeList.end() )
+			m_freeList.push_back(i);
+
+		return;
 	}
 }
 
 const std::vector<CGameObject*>& EnemySpawner::GetActiveEnemies() const
 {
-	return m_SpawnObjects;
+	return m_activeEnemies;
 }
 
 int EnemySpawner::GetActiveEnemyCount() const
 {
-	return static_cast< int >( m_SpawnObjects.size() );
+	return static_cast< int >( m_activeEnemies.size() );
 }

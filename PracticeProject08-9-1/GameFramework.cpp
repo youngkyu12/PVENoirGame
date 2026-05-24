@@ -1121,20 +1121,27 @@ void CGameFramework::ProcessInput()
 	if ( GetKeyboardState(pKeysBuffer) && scene )
 		bProcessedByScene = scene->ProcessInput(pKeysBuffer);
 
-	// Demo: 0/1/2/3 -> Player slot(0/1/2/3) Attack (edge trigger)
-	static bool s_prevDown[4] = { false, false, false, false };
+	// Demo: U/I/O/P -> Player slot(0/1/2/3) Attack (edge trigger)
+	static bool s_prevDemoAttackDown[4] = { false, false, false, false };
+	static constexpr int kDemoAttackKeys[4] =
+	{
+		'U', // slot 0
+		'I', // slot 1
+		'O', // slot 2
+		'P'  // slot 3
+	};
+
 	for ( int slot = 0; slot < 4; ++slot )
 	{
-		// 0 키는 총 사운드 튜닝용으로 사용.
-		if ( slot == 0 )
-			continue;
+		const bool down = ( pKeysBuffer[kDemoAttackKeys[slot]] & 0xF0 ) != 0;
 
-		const bool down = ( pKeysBuffer['0' + slot] & 0xF0 ) != 0;
-		if ( down && !s_prevDown[slot] )
+		if ( down && !s_prevDemoAttackDown[slot] )
 		{
-			if ( scene ) scene->RequestPlayerAttackBySlot(slot);
+			if ( scene )
+				scene->RequestPlayerAttackBySlot(slot);
 		}
-		s_prevDown[slot] = down;
+
+		s_prevDemoAttackDown[slot] = down;
 	}
 
 	CGameObject* playerObj = ( scene ? scene->GetPlayer() : nullptr );
@@ -1186,9 +1193,14 @@ void CGameFramework::ProcessInput()
 		if (pKeysBuffer[VK_PRIOR] & 0xF0) dwDirection |= DIR_UP;
 		if (pKeysBuffer[VK_NEXT] & 0xF0)  dwDirection |= DIR_DOWN;
 
-		bRunRequested =
+		const bool shiftDown =
 			( ( pKeysBuffer[VK_LSHIFT] & 0xF0 ) != 0 ) ||
 			( ( pKeysBuffer[VK_SHIFT] & 0xF0 ) != 0 );
+
+		const DWORD horizontalDirBits =
+			dwDirection & ( DIR_FORWARD | DIR_BACKWARD | DIR_LEFT | DIR_RIGHT );
+
+		bRunRequested = shiftDown && ( horizontalDirBits != 0 );
 
 		static bool s_prevSpaceDown = false;
 		const bool spaceDown = ( pKeysBuffer[VK_SPACE] & 0xF0 ) != 0;
@@ -1275,16 +1287,20 @@ void CGameFramework::ProcessInput()
 
 		pc->SetRunRequested(bRunRequested);
 
+		pc->SetInputDirection(static_cast< uint32_t >( dwDirection ));
+
 		if ( dwDirection && !pc->IsActionLockedByAnimation() )
 		{
 			const XMFLOAT3 prevPos = playerObj->GetPosition();
-			const float moveSpeed = bRunRequested ? 10.0f : 5.0f;
-			pc->MoveByYaw(dwDirection, moveSpeed * dt, cameraYawDeg, false);
-			if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
-				gameScene->RollbackLocalPlayerMoveIfCollidingWorldStatic(prevPos);
-		}
 
-		pc->SetInputDirection(static_cast< uint32_t >( dwDirection ));
+			const float moveSpeed = pc->IsEffectiveRunRequested() ? 10.0f : 5.0f;
+			pc->MoveByYaw(dwDirection, moveSpeed * dt, cameraYawDeg, false);
+
+			if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
+			{
+				gameScene->RollbackLocalPlayerMoveIfCollidingWorldStatic(prevPos);
+			}
+		}
 
 		XMFLOAT3 cameraTarget = playerObj->GetPosition();
 		cameraTarget.y += 1.7f;
@@ -1332,11 +1348,13 @@ void CGameFramework::ProcessInput()
 		// --------------------------------------------------------------------
 		pc->SetRunRequested(bRunRequested);
 
+		pc->SetInputDirection(static_cast< uint32_t >( dwDirection ));
+
 		if ( dwDirection && !pc->IsActionLockedByAnimation() )
 		{
 			const XMFLOAT3 prevPos = playerObj->GetPosition();
 
-			const float moveSpeed = bRunRequested ? 10.0f : 5.0f;
+			const float moveSpeed = pc->IsEffectiveRunRequested() ? 10.0f : 5.0f;
 			pc->MoveByYaw(dwDirection, moveSpeed * dt, cameraYawDeg, false);
 
 			if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
@@ -1344,9 +1362,6 @@ void CGameFramework::ProcessInput()
 				gameScene->RollbackLocalPlayerMoveIfCollidingWorldStatic(prevPos);
 			}
 		}
-
-		// 애니메이터 방향 비트는 항상 갱신
-		pc->SetInputDirection(static_cast< uint32_t >( dwDirection ));
 
 		XMFLOAT3 cameraTarget = playerObj->GetPosition();
 		cameraTarget.y += 1.7f;
@@ -1469,9 +1484,6 @@ void CGameFramework::FrameAdvance()
 
 	if ( gameScene )
 		gameScene->SetFrameResourceIndex(m_nFrameContextIndex);
-
-	if ( scene && !gameScene )
-		scene->OnPrepareRender(m_pd3dCommandList.Get(), m_pCamera);
 
 	if ( m_nDrawOption == DRAW_SCENE_COLOR )
 	{
