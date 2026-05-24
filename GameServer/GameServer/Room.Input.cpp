@@ -12,6 +12,13 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	if (!player)
 		return;
 
+	if (player->HasPendingPortalTeleport())
+	{
+		player->SetVelocity(GameMath::Vec3::Zero());
+		player->ClearMoveKeyCodes();
+		return;
+	}
+
 	// [추가] 죽음/리스폰 중 입력 차단
 	if (player->IsDead() || player->IsInputBlocked())
 	{
@@ -195,7 +202,16 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	GameMath::Vec3 desiredShift = shift;
 
 	if (GameMath::Vec3::Dot(desiredShift, desiredShift) > 1e-8f)
+	{
+		if (TryQueuePortalTeleportFromBlockedMove(player, desiredShift))
+		{
+			player->SetVelocity(GameMath::Vec3::Zero());
+			player->ClearMoveKeyCodes();
+			return;
+		}
+
 		desiredShift = ResolvePreBlockedShift(player, desiredShift);
+	}
 
 	player->SetVelocity(player->GetVelocity() + desiredShift);
 

@@ -33,6 +33,12 @@ namespace
 	constexpr float kTowerDoorPortalUpperHeightThreshold = 10.0f;
 	constexpr int kRequiredClearedMegaGridCountForCastlePortal = 4;
 
+	// Client: "Double Door Frame"
+	constexpr std::array<size_t, 3> kTowerDoorPortalLowerDoorSubIndices = { 5, 6, 7 };
+
+	// Client: "Double Door Frame2"; sub-index 11 is the upper spot/back wall and is not a trigger.
+	constexpr std::array<size_t, 3> kTowerDoorPortalUpperDoorSubIndices = { 8, 9, 10 };
+
 	static bool ShouldCreateWorldStaticCollider(Protocol::BuildingType type)
 	{
 		switch (type)
@@ -422,18 +428,17 @@ void Room::RegisterDoorPortal(BuildingRef building)
 
 	if (building->GetBuildingType() == Protocol::BUILDING_TYPE_TOWER)
 	{
-		if (subBoxes.size() <= 10)
+		if (subBoxes.size() <= kTowerDoorPortalUpperDoorSubIndices.back())
 			return;
 
 		TowerDoorPortalEntry entry{};
 		entry.tower = building;
 		entry.collider = collider;
-		entry.doorARefs.push_back(DoorPortalSubBoxRef{ 5 });
-		entry.doorARefs.push_back(DoorPortalSubBoxRef{ 6 });
-		entry.doorARefs.push_back(DoorPortalSubBoxRef{ 7 });
-		entry.doorBRefs.push_back(DoorPortalSubBoxRef{ 8 });
-		entry.doorBRefs.push_back(DoorPortalSubBoxRef{ 9 });
-		entry.doorBRefs.push_back(DoorPortalSubBoxRef{ 10 });
+		for (size_t subIndex : kTowerDoorPortalLowerDoorSubIndices)
+			entry.doorARefs.push_back(DoorPortalSubBoxRef{ subIndex });
+
+		for (size_t subIndex : kTowerDoorPortalUpperDoorSubIndices)
+			entry.doorBRefs.push_back(DoorPortalSubBoxRef{ subIndex });
 		m_towerDoorPortals.push_back(std::move(entry));
 		return;
 	}
@@ -448,15 +453,15 @@ void Room::RegisterDoorPortal(BuildingRef building)
 	entry.castle = building;
 	entry.collider = collider;
 
-	const std::array<std::array<size_t, 2>, 8> doorSubIndices = {
-		std::array<size_t, 2>{ 141, 142 },
-		std::array<size_t, 2>{ 144, 145 },
-		std::array<size_t, 2>{ 147, 148 },
-		std::array<size_t, 2>{ 150, 151 },
-		std::array<size_t, 2>{ 153, 154 },
-		std::array<size_t, 2>{ 156, 157 },
-		std::array<size_t, 2>{ 159, 160 },
-		std::array<size_t, 2>{ 162, 163 }
+	const std::array<std::array<size_t, 3>, 8> doorSubIndices = {
+		std::array<size_t, 3>{ 140, 141, 142 },
+		std::array<size_t, 3>{ 143, 144, 145 },
+		std::array<size_t, 3>{ 146, 147, 148 },
+		std::array<size_t, 3>{ 149, 150, 151 },
+		std::array<size_t, 3>{ 152, 153, 154 },
+		std::array<size_t, 3>{ 155, 156, 157 },
+		std::array<size_t, 3>{ 158, 159, 160 },
+		std::array<size_t, 3>{ 161, 162, 163 }
 	};
 
 	for (size_t doorIndex = 0; doorIndex < doorSubIndices.size(); ++doorIndex)
@@ -608,14 +613,339 @@ void Room::ProcessDoorPortals()
 		if (!player || player->IsDead())
 			continue;
 
-		if (TryTeleportPlayerByTowerDoorPortal(player, player->GetPosition()))
+		if (TryTeleportPlayerByTowerDoorPortal(player))
 			continue;
 
 		TryTeleportPlayerByCastleDoorPortal(player);
 	}
 }
 
-bool Room::TryTeleportPlayerByTowerDoorPortal(const PlayerRef& player, const GameMath::Vec3& prevPos)
+bool Room::TryQueuePortalTeleportFromBlockedMove(const PlayerRef& player, const GameMath::Vec3& desiredShift)
+{
+	if (!player || player->IsDead() || player->HasPendingPortalTeleport())
+		return false;
+
+	auto* playerCollider = player->GetComponent<CColliderComponent>();
+	if (!playerCollider || playerCollider->GetType() != EColliderType::BCapsule)
+		return false;
+
+	const GameMath::Vec3 originPos = player->GetPosition();
+	const GameMath::Vec3 testPos = originPos + desiredShift;
+
+	player->SetPosition(testPos);
+	playerCollider->OnUpdate(0.0f);
+
+	const bool blocked = HasCollisionWithNearbyWorldStatic(playerCollider);
+	const bool queued =
+		blocked &&
+		(TryQueueTowerDoorPortalTeleport(player) ||
+		 TryQueueCastleDoorPortalTeleport(player));
+
+	player->SetPosition(originPos);
+	playerCollider->OnUpdate(0.0f);
+
+	return queued;
+}
+
+bool Room::TryQueueTowerDoorPortalTeleport(const PlayerRef& player)
+{
+	if (!player || player->IsDead())
+		return false;
+
+	auto* playerCollider = player->GetComponent<CColliderComponent>();
+	if (!playerCollider || playerCollider->GetType() != EColliderType::BCapsule)
+		return false;
+
+	playerCollider->OnUpdate(0.0f);
+	const BoundingCapsule playerCapsule = playerCollider->GetBCapsule();
+	const GameMath::Vec3 playerPos = player->GetPosition();
+
+	auto GetWorldBox = [](const TowerDoorPortalEntry& portal, const DoorPortalSubBoxRef& ref) -> const BoundingOrientedBox*
+		{
+			if (!portal.collider)
+				return nullptr;
+
+			const auto& boxes = portal.collider->GetSubOOBBs();
+			if (ref.subIndex >= boxes.size())
+				return nullptr;
+
+			return &boxes[ref.subIndex];
+		};
+
+	auto DoesDoorGroupIntersect = [&](const TowerDoorPortalEntry& portal, const std::vector<DoorPortalSubBoxRef>& refs) -> bool
+		{
+			for (const DoorPortalSubBoxRef& ref : refs)
+			{
+				const BoundingOrientedBox* box = GetWorldBox(portal, ref);
+				if (box && playerCapsule.Intersects(*box))
+					return true;
+			}
+
+			return false;
+		};
+
+	auto ComputeDoorGroupCenter = [&](const TowerDoorPortalEntry& portal, const std::vector<DoorPortalSubBoxRef>& refs, XMFLOAT3& outCenter) -> bool
+		{
+			XMVECTOR sum = XMVectorZero();
+			int count = 0;
+
+			for (const DoorPortalSubBoxRef& ref : refs)
+			{
+				const BoundingOrientedBox* box = GetWorldBox(portal, ref);
+				if (!box)
+					continue;
+
+				sum += XMLoadFloat3(&box->Center);
+				++count;
+			}
+
+			if (count <= 0)
+				return false;
+
+			XMStoreFloat3(&outCenter, XMVectorScale(sum, 1.0f / static_cast<float>(count)));
+			return true;
+		};
+
+	auto ComputeDoorGroupBottomY = [&](const TowerDoorPortalEntry& portal, const std::vector<DoorPortalSubBoxRef>& refs, float& outBottomY) -> bool
+		{
+			bool found = false;
+			float bottomY = FLT_MAX;
+
+			for (const DoorPortalSubBoxRef& ref : refs)
+			{
+				const BoundingOrientedBox* box = GetWorldBox(portal, ref);
+				if (!box)
+					continue;
+
+				XMFLOAT3 corners[BoundingOrientedBox::CORNER_COUNT] = {};
+				box->GetCorners(corners);
+				for (const XMFLOAT3& corner : corners)
+				{
+					if (!found || corner.y < bottomY)
+					{
+						bottomY = corner.y;
+						found = true;
+					}
+				}
+			}
+
+			if (!found)
+				return false;
+
+			outBottomY = bottomY;
+			return true;
+		};
+
+	auto QueueBetweenDoorGroups = [&](
+		TowerDoorPortalEntry& portal,
+		const std::vector<DoorPortalSubBoxRef>& sourceRefs,
+		const std::vector<DoorPortalSubBoxRef>& targetRefs) -> bool
+		{
+			XMFLOAT3 sourceCenter{};
+			XMFLOAT3 targetCenter{};
+			if (!ComputeDoorGroupCenter(portal, sourceRefs, sourceCenter))
+				return false;
+			if (!ComputeDoorGroupCenter(portal, targetRefs, targetCenter))
+				return false;
+
+			const BoundingOrientedBox* targetBox = targetRefs.empty() ? nullptr : GetWorldBox(portal, targetRefs.front());
+
+			XMVECTOR sourceV = XMLoadFloat3(&sourceCenter);
+			XMVECTOR targetV = XMLoadFloat3(&targetCenter);
+			XMVECTOR targetNormal = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+
+			const bool hasTargetNormal = targetBox && ComputeDoorHorizontalNormal(*targetBox, targetNormal);
+
+			XMVECTOR exitDir = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+			if (hasTargetNormal)
+			{
+				exitDir = XMVectorNegate(targetNormal);
+			}
+			else
+			{
+				exitDir = XMVectorSetY(targetV - sourceV, 0.0f);
+				const float lenSq = XMVectorGetX(XMVector3LengthSq(exitDir));
+				exitDir = (lenSq > 1.0e-6f) ? XMVector3Normalize(exitDir) : XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+			}
+
+			XMFLOAT3 dst{};
+			XMStoreFloat3(&dst, targetV + XMVectorScale(exitDir, kTowerDoorPortalExitOffset));
+
+			float targetBottomY = 0.0f;
+			if (ComputeDoorGroupBottomY(portal, targetRefs, targetBottomY))
+			{
+				dst.y = targetBottomY +
+					((targetBottomY > kTowerDoorPortalUpperHeightThreshold)
+						? kTowerDoorPortalUpperExitYOffset
+						: kTowerDoorPortalLowerExitYOffset);
+			}
+			else
+			{
+				dst.y = playerPos.y;
+			}
+
+			player->SetPendingPortalTeleport(
+				GameMath::Vec3(dst.x, dst.y, dst.z),
+				GameMath::NormalizeYaw(player->GetYaw() + 180.0f));
+			portal.cooldownTicks = kTowerDoorPortalCooldownTicks;
+			return true;
+		};
+
+	for (TowerDoorPortalEntry& portal : m_towerDoorPortals)
+	{
+		if (portal.cooldownTicks > 0 || !portal.collider)
+			continue;
+
+		const bool hitDoorA = DoesDoorGroupIntersect(portal, portal.doorARefs);
+		const bool hitDoorB = DoesDoorGroupIntersect(portal, portal.doorBRefs);
+
+		if (hitDoorA && hitDoorB)
+			continue;
+
+		if (hitDoorA)
+			return QueueBetweenDoorGroups(portal, portal.doorARefs, portal.doorBRefs);
+
+		if (hitDoorB)
+			return QueueBetweenDoorGroups(portal, portal.doorBRefs, portal.doorARefs);
+	}
+
+	return false;
+}
+
+bool Room::TryQueueCastleDoorPortalTeleport(const PlayerRef& player)
+{
+	if (!CanUseCastleDoorPortal())
+		return false;
+
+	if (!player || player->IsDead())
+		return false;
+
+	auto* playerCollider = player->GetComponent<CColliderComponent>();
+	if (!playerCollider || playerCollider->GetType() != EColliderType::BCapsule)
+		return false;
+
+	playerCollider->OnUpdate(0.0f);
+	const BoundingCapsule playerCapsule = playerCollider->GetBCapsule();
+	const GameMath::Vec3 playerPos = player->GetPosition();
+
+	auto GetWorldBox = [](const CastleDoorPortalEntry& portal, const DoorPortalSubBoxRef& ref) -> const BoundingOrientedBox*
+		{
+			if (!portal.collider)
+				return nullptr;
+
+			const auto& boxes = portal.collider->GetSubOOBBs();
+			if (ref.subIndex >= boxes.size())
+				return nullptr;
+
+			return &boxes[ref.subIndex];
+		};
+
+	auto DoesDoorGroupIntersect = [&](const CastleDoorPortalEntry& portal, const std::vector<DoorPortalSubBoxRef>& refs) -> bool
+		{
+			for (const DoorPortalSubBoxRef& ref : refs)
+			{
+				const BoundingOrientedBox* box = GetWorldBox(portal, ref);
+				if (box && playerCapsule.Intersects(*box))
+					return true;
+			}
+
+			return false;
+		};
+
+	auto ComputeDoorGroupCenter = [&](const CastleDoorPortalEntry& portal, const std::vector<DoorPortalSubBoxRef>& refs, XMFLOAT3& outCenter) -> bool
+		{
+			XMVECTOR sum = XMVectorZero();
+			int count = 0;
+
+			for (const DoorPortalSubBoxRef& ref : refs)
+			{
+				const BoundingOrientedBox* box = GetWorldBox(portal, ref);
+				if (!box)
+					continue;
+
+				sum += XMLoadFloat3(&box->Center);
+				++count;
+			}
+
+			if (count <= 0)
+				return false;
+
+			XMStoreFloat3(&outCenter, XMVectorScale(sum, 1.0f / static_cast<float>(count)));
+			return true;
+		};
+
+	auto QueueCastleDoorPair = [&](CastleDoorPortalEntry& portal, const CastleDoorPortalPair& pair) -> bool
+		{
+			XMFLOAT3 sourceCenter{};
+			XMFLOAT3 targetCenter{};
+			if (!ComputeDoorGroupCenter(portal, pair.sourceRefs, sourceCenter))
+				return false;
+			if (!ComputeDoorGroupCenter(portal, pair.targetRefs, targetCenter))
+				return false;
+
+			const BoundingOrientedBox* sourceBox = pair.sourceRefs.empty() ? nullptr : GetWorldBox(portal, pair.sourceRefs.front());
+			const BoundingOrientedBox* targetBox = pair.targetRefs.empty() ? nullptr : GetWorldBox(portal, pair.targetRefs.front());
+
+			XMVECTOR sourceV = XMLoadFloat3(&sourceCenter);
+			XMVECTOR targetV = XMLoadFloat3(&targetCenter);
+			XMVECTOR sourceNormal = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+			XMVECTOR targetNormal = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+
+			const bool hasSourceNormal = sourceBox && ComputeDoorHorizontalNormal(*sourceBox, sourceNormal);
+			const bool hasTargetNormal = targetBox && ComputeDoorHorizontalNormal(*targetBox, targetNormal);
+
+			float sideSign = 1.0f;
+			if (hasSourceNormal)
+			{
+				XMVECTOR playerV = XMVectorSet(playerPos.x, playerPos.y, playerPos.z, 0.0f);
+				XMVECTOR sourceToPlayer = XMVectorSetY(playerV - sourceV, 0.0f);
+				const float sideDot = XMVectorGetX(XMVector3Dot(sourceToPlayer, sourceNormal));
+				sideSign = (sideDot >= 0.0f) ? 1.0f : -1.0f;
+			}
+
+			XMVECTOR exitDir = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+			if (hasTargetNormal)
+			{
+				exitDir = XMVectorScale(targetNormal, sideSign);
+			}
+			else
+			{
+				exitDir = XMVectorSetY(targetV - sourceV, 0.0f);
+				const float lenSq = XMVectorGetX(XMVector3LengthSq(exitDir));
+				exitDir = (lenSq > 1.0e-6f) ? XMVector3Normalize(exitDir) : XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+			}
+
+			XMFLOAT3 dst{};
+			XMStoreFloat3(&dst, targetV + XMVectorScale(exitDir, kCastleDoorPortalExitOffset));
+			dst.y = playerPos.y;
+
+			player->SetPendingPortalTeleport(
+				GameMath::Vec3(dst.x, dst.y, dst.z),
+				YawFromHorizontalDirection(exitDir));
+			portal.cooldownTicks = kCastleDoorPortalCooldownTicks;
+			MarkPlayerEnteredCastleCenterMegaGrid(player->playerId);
+			return true;
+		};
+
+	for (CastleDoorPortalEntry& portal : m_castleDoorPortals)
+	{
+		if (portal.cooldownTicks > 0 || !portal.collider)
+			continue;
+
+		for (const CastleDoorPortalPair& pair : portal.pairs)
+		{
+			if (!DoesDoorGroupIntersect(portal, pair.sourceRefs))
+				continue;
+
+			if (QueueCastleDoorPair(portal, pair))
+				return true;
+		}
+	}
+
+	return false;
+}
+
+bool Room::TryTeleportPlayerByTowerDoorPortal(const PlayerRef& player)
 {
 	if (!player || player->IsDead())
 		return false;
@@ -716,30 +1046,20 @@ bool Room::TryTeleportPlayerByTowerDoorPortal(const PlayerRef& player, const Gam
 			if (!ComputeDoorGroupCenter(portal, targetRefs, targetCenter))
 				return false;
 
-			const BoundingOrientedBox* sourceBox = sourceRefs.empty() ? nullptr : GetWorldBox(portal, sourceRefs.front());
 			const BoundingOrientedBox* targetBox = targetRefs.empty() ? nullptr : GetWorldBox(portal, targetRefs.front());
 
 			XMVECTOR sourceV = XMLoadFloat3(&sourceCenter);
 			XMVECTOR targetV = XMLoadFloat3(&targetCenter);
-			XMVECTOR sourceNormal = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
 			XMVECTOR targetNormal = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
 
-			const bool hasSourceNormal = sourceBox && ComputeDoorHorizontalNormal(*sourceBox, sourceNormal);
 			const bool hasTargetNormal = targetBox && ComputeDoorHorizontalNormal(*targetBox, targetNormal);
-
-			float sideSign = 1.0f;
-			if (hasSourceNormal)
-			{
-				XMVECTOR playerV = XMVectorSet(prevPos.x, prevPos.y, prevPos.z, 0.0f);
-				XMVECTOR sourceToPlayer = XMVectorSetY(playerV - sourceV, 0.0f);
-				const float sideDot = XMVectorGetX(XMVector3Dot(sourceToPlayer, sourceNormal));
-				sideSign = (sideDot >= 0.0f) ? 1.0f : -1.0f;
-			}
 
 			XMVECTOR exitDir = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
 			if (hasTargetNormal)
 			{
-				exitDir = XMVectorScale(targetNormal, sideSign);
+				// Tower doors should exit toward the playable tower side. The report data uses
+				// the opposite horizontal normal for both lower and upper door groups.
+				exitDir = XMVectorNegate(targetNormal);
 			}
 			else
 			{
