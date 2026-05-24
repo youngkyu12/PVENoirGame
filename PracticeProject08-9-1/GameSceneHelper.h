@@ -246,6 +246,11 @@ namespace GameSceneHelper
 	void DebugPrintTowerDoorPortalOOBB(const char* tag, const BoundingOrientedBox& box);
 #endif
 
+	bool ResolveStageFileSetFromMapId(
+	const std::string& mapId,
+	GameSceneStageFileSet& outFileSet
+	);
+
 	bool ResolvePlacementFilePathFromMapId(
 		const std::string& mapId,
 		std::string& outPlacementFilePath

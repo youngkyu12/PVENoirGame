@@ -126,16 +126,22 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
 	const GameStartData& gameStartData = std::get<GameStartData>(m_pendingNetworkMessage.data);
 
-	std::string placementFilePath;
-	if ( !ResolvePlacementFilePathFromMapId(gameStartData.mapId, placementFilePath) )
+	GameSceneStageFileSet networkStageFiles{};
+	if ( !ResolveStageFileSetFromMapId(gameStartData.mapId, networkStageFiles) )
 	{
 		assert(false && "Unknown mapId received from server");
 		return;
 	}
 
-	if ( !LoadStaticPlacementFile(placementFilePath) )
+	if ( !LoadStaticPlacementFile(networkStageFiles.placementFilePath) )
 	{
 		assert(false && "Failed to load placement data for mapId");
+		return;
+	}
+
+	if ( !LoadSceneCubeBoxColliderReport(networkStageFiles.cubeColliderReportFilePath) )
+	{
+		assert(false && "Failed to load cube box collider report for mapId");
 		return;
 	}
 
