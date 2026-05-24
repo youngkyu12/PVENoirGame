@@ -3,6 +3,7 @@
 #include <mutex>
 #include <variant>
 #include <string>
+#include <cstdint>
 #include <DirectXMath.h>
 
 #include "GlobalEnum.h"
@@ -100,6 +101,13 @@ enum class NetworkMessageType
     FrameState
 };
 
+struct ForcedTransformEvent
+{
+    uint64_t playerId = 0;
+    float yawDelta = 0.0f;
+    uint32_t reason = 0;
+};
+
 struct NetworkMessage
 {
     NetworkMessageType type;
@@ -132,12 +140,20 @@ public:
         m_messages.push({ NetworkMessageType::FrameState, std::move(snapshot) });
     }
 
+    void PushForcedTransform(ForcedTransformEvent&& event)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_forcedTransforms.push(std::move(event));
+    }
+
 
     void Clear()
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         std::queue<NetworkMessage> empty;
         std::swap(m_messages, empty);
+        std::queue<ForcedTransformEvent> emptyForcedTransforms;
+        std::swap(m_forcedTransforms, emptyForcedTransforms);
 	}
 
     // 게임 스레드에서 호출
@@ -152,17 +168,29 @@ public:
 		{
 			out = std::move(m_messages.front());
 			m_messages.pop();
-		}
+        }
+        return true;
+    }
+
+    bool TryPopForcedTransform(ForcedTransformEvent& out)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (m_forcedTransforms.empty())
+            return false;
+
+        out = std::move(m_forcedTransforms.front());
+        m_forcedTransforms.pop();
         return true;
     }
 
     bool IsEmpty() const
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        return m_messages.empty();
+        return m_messages.empty() && m_forcedTransforms.empty();
     }
 
 private:
     std::queue<NetworkMessage> m_messages;
+    std::queue<ForcedTransformEvent> m_forcedTransforms;
     mutable std::mutex m_mutex;
 };

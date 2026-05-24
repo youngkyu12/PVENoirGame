@@ -7150,6 +7150,54 @@ void CGameScene::AnimateObjects(float dt)
     // ------------------------------------------------------------------------
 
 #ifdef USING_NETWORK
+	ForcedTransformEvent forcedTransformEvent{};
+	while (g_NetworkQueue.TryPopForcedTransform(forcedTransformEvent))
+	{
+		const int slot = static_cast<int>(forcedTransformEvent.playerId);
+		if (slot != m_localPlayerSlot)
+			continue;
+
+		CGameObject* player = GetPlayerBySlot(slot);
+		if (!player)
+			continue;
+
+		const float yawDeltaDeg = forcedTransformEvent.yawDelta;
+
+		CCamera* camera = GetMainCamera();
+		float targetYaw = 0.0f;
+		if (camera)
+		{
+			targetYaw = NormalizeYawDegrees180(camera->GetYaw() + yawDeltaDeg);
+			camera->GetYaw() = targetYaw;
+
+			XMFLOAT3 cameraTarget = player->GetPosition();
+			cameraTarget.y += 1.7f;
+			camera->Update(cameraTarget, 0.0f);
+			camera->SetLookAt(cameraTarget);
+			camera->RegenerateViewMatrix();
+		}
+		else if (auto* tr = player->GetComponent<CTransformComponent>())
+		{
+			targetYaw = NormalizeYawDegrees180(QuaternionToYawDegrees(tr->rotation) + yawDeltaDeg);
+		}
+		else
+		{
+			targetYaw = NormalizeYawDegrees180(yawDeltaDeg);
+		}
+
+		if (auto* controller = player->GetComponent<CPlayerControllerComponent>())
+		{
+			controller->SetYawDegrees(targetYaw);
+			controller->SetVelocity(XMFLOAT3(0.0f, 0.0f, 0.0f));
+			controller->SetInputDirection(static_cast<DWORD>(0));
+			controller->SetRunRequested(false);
+		}
+		else if (auto* tr = player->GetComponent<CTransformComponent>())
+		{
+			tr->SetYawDegrees(targetYaw);
+		}
+	}
+
     DequeueNetworkMessage(NetworkMessageType::FrameState);
 
 	std::unordered_map<uint64_t, CGameObject*> npcById;

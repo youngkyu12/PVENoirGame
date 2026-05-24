@@ -49,7 +49,7 @@ struct TableStruct_Protocol_2eproto {
     PROTOBUF_SECTION_VARIABLE(protodesc_cold);
   static const ::PROTOBUF_NAMESPACE_ID::internal::AuxiliaryParseTableField aux[]
     PROTOBUF_SECTION_VARIABLE(protodesc_cold);
-  static const ::PROTOBUF_NAMESPACE_ID::internal::ParseTable schema[9]
+  static const ::PROTOBUF_NAMESPACE_ID::internal::ParseTable schema[10]
     PROTOBUF_SECTION_VARIABLE(protodesc_cold);
   static const ::PROTOBUF_NAMESPACE_ID::internal::FieldMetadata field_metadata[];
   static const ::PROTOBUF_NAMESPACE_ID::internal::SerializationTable serialization_table[];
@@ -75,6 +75,9 @@ extern C_LOGINDefaultTypeInternal _C_LOGIN_default_instance_;
 class S_ENTER_GAME;
 struct S_ENTER_GAMEDefaultTypeInternal;
 extern S_ENTER_GAMEDefaultTypeInternal _S_ENTER_GAME_default_instance_;
+class S_FORCED_TRANSFORM;
+struct S_FORCED_TRANSFORMDefaultTypeInternal;
+extern S_FORCED_TRANSFORMDefaultTypeInternal _S_FORCED_TRANSFORM_default_instance_;
 class S_FRAME_STATE;
 struct S_FRAME_STATEDefaultTypeInternal;
 extern S_FRAME_STATEDefaultTypeInternal _S_FRAME_STATE_default_instance_;
@@ -92,6 +95,7 @@ template<> ::Protocol::C_GAME_START* Arena::CreateMaybeMessage<::Protocol::C_GAM
 template<> ::Protocol::C_INPUT* Arena::CreateMaybeMessage<::Protocol::C_INPUT>(Arena*);
 template<> ::Protocol::C_LOGIN* Arena::CreateMaybeMessage<::Protocol::C_LOGIN>(Arena*);
 template<> ::Protocol::S_ENTER_GAME* Arena::CreateMaybeMessage<::Protocol::S_ENTER_GAME>(Arena*);
+template<> ::Protocol::S_FORCED_TRANSFORM* Arena::CreateMaybeMessage<::Protocol::S_FORCED_TRANSFORM>(Arena*);
 template<> ::Protocol::S_FRAME_STATE* Arena::CreateMaybeMessage<::Protocol::S_FRAME_STATE>(Arena*);
 template<> ::Protocol::S_GAME_START* Arena::CreateMaybeMessage<::Protocol::S_GAME_START>(Arena*);
 template<> ::Protocol::S_LOGIN* Arena::CreateMaybeMessage<::Protocol::S_LOGIN>(Arena*);
@@ -1521,6 +1525,160 @@ class S_FRAME_STATE final :
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_Protocol_2eproto;
 };
+// -------------------------------------------------------------------
+
+class S_FORCED_TRANSFORM final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:Protocol.S_FORCED_TRANSFORM) */ {
+ public:
+  inline S_FORCED_TRANSFORM() : S_FORCED_TRANSFORM(nullptr) {}
+  ~S_FORCED_TRANSFORM() override;
+  explicit constexpr S_FORCED_TRANSFORM(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  S_FORCED_TRANSFORM(const S_FORCED_TRANSFORM& from);
+  S_FORCED_TRANSFORM(S_FORCED_TRANSFORM&& from) noexcept
+    : S_FORCED_TRANSFORM() {
+    *this = ::std::move(from);
+  }
+
+  inline S_FORCED_TRANSFORM& operator=(const S_FORCED_TRANSFORM& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline S_FORCED_TRANSFORM& operator=(S_FORCED_TRANSFORM&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const S_FORCED_TRANSFORM& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const S_FORCED_TRANSFORM* internal_default_instance() {
+    return reinterpret_cast<const S_FORCED_TRANSFORM*>(
+               &_S_FORCED_TRANSFORM_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    9;
+
+  friend void swap(S_FORCED_TRANSFORM& a, S_FORCED_TRANSFORM& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(S_FORCED_TRANSFORM* other) {
+    if (other == this) return;
+    if (GetOwningArena() == other->GetOwningArena()) {
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(S_FORCED_TRANSFORM* other) {
+    if (other == this) return;
+    GOOGLE_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  inline S_FORCED_TRANSFORM* New() const final {
+    return new S_FORCED_TRANSFORM();
+  }
+
+  S_FORCED_TRANSFORM* New(::PROTOBUF_NAMESPACE_ID::Arena* arena) const final {
+    return CreateMaybeMessage<S_FORCED_TRANSFORM>(arena);
+  }
+  void CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) final;
+  void MergeFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) final;
+  void CopyFrom(const S_FORCED_TRANSFORM& from);
+  void MergeFrom(const S_FORCED_TRANSFORM& from);
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::PROTOBUF_NAMESPACE_ID::uint8* _InternalSerialize(
+      ::PROTOBUF_NAMESPACE_ID::uint8* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _cached_size_.Get(); }
+
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(S_FORCED_TRANSFORM* other);
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
+    return "Protocol.S_FORCED_TRANSFORM";
+  }
+  protected:
+  explicit S_FORCED_TRANSFORM(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  private:
+  static void ArenaDtor(void* object);
+  inline void RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kPlayerIdFieldNumber = 1,
+    kYawDeltaFieldNumber = 2,
+    kReasonFieldNumber = 3,
+  };
+  // uint64 playerId = 1;
+  void clear_playerid();
+  ::PROTOBUF_NAMESPACE_ID::uint64 playerid() const;
+  void set_playerid(::PROTOBUF_NAMESPACE_ID::uint64 value);
+  private:
+  ::PROTOBUF_NAMESPACE_ID::uint64 _internal_playerid() const;
+  void _internal_set_playerid(::PROTOBUF_NAMESPACE_ID::uint64 value);
+  public:
+
+  // float yawDelta = 2;
+  void clear_yawdelta();
+  float yawdelta() const;
+  void set_yawdelta(float value);
+  private:
+  float _internal_yawdelta() const;
+  void _internal_set_yawdelta(float value);
+  public:
+
+  // .Protocol.ForcedTransformReason reason = 3;
+  void clear_reason();
+  ::Protocol::ForcedTransformReason reason() const;
+  void set_reason(::Protocol::ForcedTransformReason value);
+  private:
+  ::Protocol::ForcedTransformReason _internal_reason() const;
+  void _internal_set_reason(::Protocol::ForcedTransformReason value);
+  public:
+
+  // @@protoc_insertion_point(class_scope:Protocol.S_FORCED_TRANSFORM)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  ::PROTOBUF_NAMESPACE_ID::uint64 playerid_;
+  float yawdelta_;
+  int reason_;
+  mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  friend struct ::TableStruct_Protocol_2eproto;
+};
 // ===================================================================
 
 
@@ -2235,9 +2393,75 @@ S_FRAME_STATE::bullets() const {
   return bullets_;
 }
 
+// -------------------------------------------------------------------
+
+// S_FORCED_TRANSFORM
+
+// uint64 playerId = 1;
+inline void S_FORCED_TRANSFORM::clear_playerid() {
+  playerid_ = uint64_t{0u};
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint64 S_FORCED_TRANSFORM::_internal_playerid() const {
+  return playerid_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint64 S_FORCED_TRANSFORM::playerid() const {
+  // @@protoc_insertion_point(field_get:Protocol.S_FORCED_TRANSFORM.playerId)
+  return _internal_playerid();
+}
+inline void S_FORCED_TRANSFORM::_internal_set_playerid(::PROTOBUF_NAMESPACE_ID::uint64 value) {
+  
+  playerid_ = value;
+}
+inline void S_FORCED_TRANSFORM::set_playerid(::PROTOBUF_NAMESPACE_ID::uint64 value) {
+  _internal_set_playerid(value);
+  // @@protoc_insertion_point(field_set:Protocol.S_FORCED_TRANSFORM.playerId)
+}
+
+// float yawDelta = 2;
+inline void S_FORCED_TRANSFORM::clear_yawdelta() {
+  yawdelta_ = 0;
+}
+inline float S_FORCED_TRANSFORM::_internal_yawdelta() const {
+  return yawdelta_;
+}
+inline float S_FORCED_TRANSFORM::yawdelta() const {
+  // @@protoc_insertion_point(field_get:Protocol.S_FORCED_TRANSFORM.yawDelta)
+  return _internal_yawdelta();
+}
+inline void S_FORCED_TRANSFORM::_internal_set_yawdelta(float value) {
+  
+  yawdelta_ = value;
+}
+inline void S_FORCED_TRANSFORM::set_yawdelta(float value) {
+  _internal_set_yawdelta(value);
+  // @@protoc_insertion_point(field_set:Protocol.S_FORCED_TRANSFORM.yawDelta)
+}
+
+// .Protocol.ForcedTransformReason reason = 3;
+inline void S_FORCED_TRANSFORM::clear_reason() {
+  reason_ = 0;
+}
+inline ::Protocol::ForcedTransformReason S_FORCED_TRANSFORM::_internal_reason() const {
+  return static_cast< ::Protocol::ForcedTransformReason >(reason_);
+}
+inline ::Protocol::ForcedTransformReason S_FORCED_TRANSFORM::reason() const {
+  // @@protoc_insertion_point(field_get:Protocol.S_FORCED_TRANSFORM.reason)
+  return _internal_reason();
+}
+inline void S_FORCED_TRANSFORM::_internal_set_reason(::Protocol::ForcedTransformReason value) {
+  
+  reason_ = value;
+}
+inline void S_FORCED_TRANSFORM::set_reason(::Protocol::ForcedTransformReason value) {
+  _internal_set_reason(value);
+  // @@protoc_insertion_point(field_set:Protocol.S_FORCED_TRANSFORM.reason)
+}
+
 #ifdef __GNUC__
   #pragma GCC diagnostic pop
 #endif  // __GNUC__
+// -------------------------------------------------------------------
+
 // -------------------------------------------------------------------
 
 // -------------------------------------------------------------------

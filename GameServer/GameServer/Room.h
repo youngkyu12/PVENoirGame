@@ -37,10 +37,10 @@ class Room : public JobQueue
 public:
     void Enter(PlayerRef player);
     void Leave(PlayerRef player);
-    void BroadCastAll(SendBufferRef sendBuffer); // ÀüÃ¼ °øÁö¿ë
+    void BroadCastAll(SendBufferRef sendBuffer); // ì „ì²´ ê³µì§€ìš©
 
 public:
-    void BuildRoom(); // ¹æ ÃÊ±âÈ­ (°ÔÀÓ ½ÃÀÛ Àü)
+    void BuildRoom(); // ë°© ì´ˆê¸°í™” (ê²Œì„ ì‹œì‘ ì „)
     void StartGame(bool ready, uint32 index);
     void EndGame();
 
@@ -54,11 +54,11 @@ public:
 	void MakeInitStruct(Protocol::S_GAME_START gameStartPkt);
 	void MakeEnterGameStruct(Protocol::S_ENTER_GAME enterGamePkt);
 
-	// TODO: ¸ğµç ÇÃ·¹ÀÌ¾î°¡ ready¸¦ º¸³Â´ÂÁö È®ÀÎÇÏ´Â ÇÔ¼ö
+	// TODO: ëª¨ë“  í”Œë ˆì´ì–´ê°€ readyë¥¼ ë³´ëƒˆëŠ”ì§€ í™•ì¸í•˜ëŠ” í•¨ìˆ˜
     void CheckClientReady();
 
 public:
-	// Enemy¿¡ ´ëÇÑ AI Ã³¸® ÇÔ¼ö¸¦ ¿öÄ¿ ¾²·¹µå°¡ ²¨³» ¾µ ¼ö ÀÖµµ·Ï µû·Î ÇÔ¼ö¸¦ ÆÇ´Ù
+	// Enemyì— ëŒ€í•œ AI ì²˜ë¦¬ í•¨ìˆ˜ë¥¼ ì›Œì»¤ ì“°ë ˆë“œê°€ êº¼ë‚´ ì“¸ ìˆ˜ ìˆë„ë¡ ë”°ë¡œ í•¨ìˆ˜ë¥¼ íŒë‹¤
 	void ProcessEnemyAI();
 
 public:
@@ -230,6 +230,7 @@ private:
 	void ProcessDoorPortals();
 	bool TryTeleportPlayerByTowerDoorPortal(const PlayerRef& player);
 	bool TryTeleportPlayerByCastleDoorPortal(const PlayerRef& player);
+	void SendTowerPortalForcedYawDelta(const PlayerRef& player, float yawDelta);
 	bool TryQueuePortalTeleportFromBlockedMove(const PlayerRef& player, const GameMath::Vec3& desiredShift);
 	bool TryQueueTowerDoorPortalTeleport(const PlayerRef& player);
 	bool TryQueueCastleDoorPortalTeleport(const PlayerRef& player);
@@ -282,10 +283,10 @@ private:
 	std::unique_ptr<CCollisionSystem> _collision;
 
     USE_LOCK;
-    map<uint64, PlayerRef> players; // ÀüÃ¼ ÇÃ·¹ÀÌ¾î ÂüÁ¶
-	map<uint64, EnemyRef> fighters; //  Æ¯¼ö Àû ÂüÁ¶ (¿É¼Ç)
-	map<uint64, EnemyRef> enemies; // ÀüÃ¼ Àû ÂüÁ¶ (¿É¼Ç)
-	map<uint64, BuildingRef> buildings; // ¸Ê ÆÄÀÏ ±â¹İ Á¤Àû ¿ÀºêÁ§Æ®
+    map<uint64, PlayerRef> players; // ì „ì²´ í”Œë ˆì´ì–´ ì°¸ì¡°
+	map<uint64, EnemyRef> fighters; //  íŠ¹ìˆ˜ ì  ì°¸ì¡° (ì˜µì…˜)
+	map<uint64, EnemyRef> enemies; // ì „ì²´ ì  ì°¸ì¡° (ì˜µì…˜)
+	map<uint64, BuildingRef> buildings; // ë§µ íŒŒì¼ ê¸°ë°˜ ì •ì  ì˜¤ë¸Œì íŠ¸
 
 	bool m_spatialGridInitialized = false;
 	std::vector<GridStaticCell> m_gridStaticCells;
@@ -300,7 +301,7 @@ private:
 	std::unordered_set<uint64> m_castleCenterPlayerIds;
 	std::vector<TowerDoorPortalEntry> m_towerDoorPortals;
 	std::vector<CastleDoorPortalEntry> m_castleDoorPortals;
-    //array<GameAreaRef, 9> gameAreas; // 9°³ ±¸¿ª
+    //array<GameAreaRef, 9> gameAreas; // 9ê°œ êµ¬ì—­
 
 	RoomTimingConfig m_timing;
 	uint64 m_elapsedServerMs = 0;
