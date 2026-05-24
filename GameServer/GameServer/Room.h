@@ -100,6 +100,7 @@ private:
 	void FireArrow(PlayerRef shooter, float speed, uint32 lifeTicks);
 	void FireCannonball(PlayerRef shooter);
 	ProjectileRef AcquireFromPool(Vector<ProjectileRef>& pool);
+	void UpdateKeyPickupCollision();
 	void WakeEnemiesNearPlayer(const PlayerRef& player);
 	bool IsEnemyNearAnyPlayerExact(const GameMath::Vec3& enemyPos, float rangeSq) const;
 
@@ -182,6 +183,23 @@ private:
 		int prevCellX = -1;
 		int prevCellZ = -1;
 		bool occupied = false;
+	};
+
+	struct KeyEntry
+	{
+		float x, y, z;
+		int megaGridIndex;
+	};
+
+	static constexpr int kKeyCount = 7;
+	static constexpr KeyEntry kKeyPositions[kKeyCount] = {
+		{  380.0f, 100.5f,  -24.0f, 2 }, // megaGrid 3
+		{  400.0f,   0.0f,  400.0f, 5 }, // megaGrid 6
+		{  400.0f,   0.0f,  800.0f, 8 }, // megaGrid 9
+		{    0.0f,   0.0f,  800.0f, 7 }, // megaGrid 8
+		{ -430.0f, 100.5f,  774.0f, 6 }, // megaGrid 7
+		{ -400.0f,   0.0f,  400.0f, 3 }, // megaGrid 4
+		{ -400.0f,   0.0f,    0.0f, 0 }, // megaGrid 1
 	};
 
 	struct DoorPortalSubBoxRef
@@ -299,6 +317,7 @@ private:
 	std::vector<GridDynamicTracker> m_bulletGridTrackers;
 	std::unordered_set<uint64> m_aiAwakeEnemyIds;
 	std::unordered_set<uint64> m_castleCenterPlayerIds;
+	std::unordered_set<uint64> m_meleeHitKeys;
 	std::vector<TowerDoorPortalEntry> m_towerDoorPortals;
 	std::vector<CastleDoorPortalEntry> m_castleDoorPortals;
     //array<GameAreaRef, 9> gameAreas; // 9개 구역
