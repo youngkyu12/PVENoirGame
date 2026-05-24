@@ -201,6 +201,8 @@ namespace GameSceneHelper
 	static constexpr float kTowerDoorPortalLowerExitYOffset = 0.0f;
 	static constexpr float kTowerDoorPortalUpperExitYOffset = 3.5f;
 	static constexpr float kTowerDoorPortalUpperHeightThreshold = 10.0f;
+	static constexpr float kTowerDoorPortalVerticalResolveStep = 0.25f;
+	static constexpr float kTowerDoorPortalMaxVerticalResolveDistance = 8.0f;
 	static constexpr float kTowerDoorPortalPlayerYawOffsetFromCamera = 0.0f;
 
 	static constexpr bool kEnableTowerDoorPortalCollisionLog = false;
