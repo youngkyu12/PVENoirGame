@@ -7333,14 +7333,45 @@ void CGameScene::AnimateObjects(float dt)
         }
 
 
-		// Enemy 좌표 업데이트
+		// Enemy 좌표 업데이트 (Dead Reckoning + 서버 교정)
 		for ( const auto& state : snapshot.enemies )
 		{
 			auto it = npcById.find(state.id);
 			if ( it == npcById.end() ) continue;
 
 			auto* obj = it->second;
-			obj->SetPosition(state.position.x, state.position.y, state.position.z);
+
+			// 이동 방향 벡터 (yaw → forward)
+			const float yawRad = XMConvertToRadians(state.yaw);
+			const XMFLOAT3 moveDir(std::sinf(yawRad), 0.0f, std::cosf(yawRad));
+
+			// 이동 속도 (애니메이션 상태로 결정)
+			const DecodedAnimStateCode decodedDR = DecodeStateCode(state.animation.stateCode);
+			float drSpeed = 0.0f;
+			if ( decodedDR.hasMove && !decodedDR.die && !decodedDR.hit )
+			{
+				if ( auto* ai = obj->GetComponent<CMonsterAIComponent>() )
+					drSpeed = decodedDR.run ? ai->GetRunMoveSpeedValue() : ai->GetWalkMoveSpeedValue();
+				else
+					drSpeed = decodedDR.run ? 2.0f : 1.0f;
+			}
+
+			// DR 상태 갱신: 최초엔 서버 위치로 초기화, 이후엔 소프트 교정
+			EnemyDRState& dr = m_enemyDRStates[state.id];
+			if ( !dr.initialized )
+			{
+				dr.predictedPos = state.position;
+				dr.initialized  = true;
+			}
+			else
+			{
+				constexpr float kCorrectionAlpha = 0.35f;
+				dr.predictedPos = LerpPosition(dr.predictedPos, state.position, kCorrectionAlpha);
+			}
+			dr.moveDir = moveDir;
+			dr.speed   = drSpeed;
+
+			obj->SetPosition(dr.predictedPos.x, dr.predictedPos.y, dr.predictedPos.z);
 
 			if ( auto* tr = obj->GetComponent<CTransformComponent>() )
 				tr->SetYawDegrees(state.yaw);
@@ -7547,6 +7578,18 @@ void CGameScene::AnimateObjects(float dt)
 					ctrl->SetLocomotionState(locomotionState);
 				}
 			}
+
+			// Dead Reckoning: 마지막으로 받은 이동 방향/속도로 매 프레임 전진
+			auto drIt = m_enemyDRStates.find(id);
+			if ( drIt == m_enemyDRStates.end() ) continue;
+
+			EnemyDRState& dr = drIt->second;
+			if ( !dr.initialized || dr.speed <= 0.0f ) continue;
+
+			dr.predictedPos.x += dr.moveDir.x * dr.speed * dt;
+			dr.predictedPos.z += dr.moveDir.z * dr.speed * dt;
+
+			obj->SetPosition(dr.predictedPos.x, dr.predictedPos.y, dr.predictedPos.z);
 		}
 
 	}
