@@ -343,12 +343,6 @@
     <ClInclude Include="NavMesh.h">
       <Filter>NavMesh</Filter>
     </ClInclude>
-    <ClInclude Include="MonsterAIComponent.h">
-      <Filter>Components\AIComponent</Filter>
-    </ClInclude>
-    <ClInclude Include="GhoulAIComponent.h">
-      <Filter>Components\AIComponent</Filter>
-    </ClInclude>
     <ClInclude Include="WeaponHitboxComponent.h">
       <Filter>Components\WeaponHitboxComponent</Filter>
     </ClInclude>
@@ -411,6 +405,12 @@
     </ClInclude>
     <ClInclude Include="EnemySpawner.h">
       <Filter>EnemySpawner</Filter>
+    </ClInclude>
+    <ClInclude Include="MonsterAIVariants.h">
+      <Filter>Components\AIComponent</Filter>
+    </ClInclude>
+    <ClInclude Include="MonsterAIComponent.h">
+      <Filter>Components\AIComponent</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -543,12 +543,6 @@
     <ClCompile Include="NavMesh.cpp">
       <Filter>NavMesh</Filter>
     </ClCompile>
-    <ClCompile Include="MonsterAIComponent.cpp">
-      <Filter>Components\AIComponent</Filter>
-    </ClCompile>
-    <ClCompile Include="GhoulAIComponent.cpp">
-      <Filter>Components\AIComponent</Filter>
-    </ClCompile>
     <ClCompile Include="WeaponHitboxComponent.cpp">
       <Filter>Components\WeaponHitboxComponent</Filter>
     </ClCompile>
@@ -617,6 +611,12 @@
     </ClCompile>
     <ClCompile Include="GameSceneBuild.cpp">
       <Filter>Scene\GameScene</Filter>
+    </ClCompile>
+    <ClCompile Include="MonsterAIVariants.cpp">
+      <Filter>Components\AIComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="MonsterAIComponent.cpp">
+      <Filter>Components\AIComponent</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
