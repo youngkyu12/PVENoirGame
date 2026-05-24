@@ -399,7 +399,7 @@ void Room::TickAdvance()
 	}
 
 	UpdateDynamicGridState();
-
+	UpdateKeyPickupCollision();
 
 	const auto elapsedMs = static_cast<uint64>(
 		std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -426,6 +426,42 @@ ProjectileRef Room::AcquireFromPool(Vector<ProjectileRef>& pool)
 		if (!p->IsActive()) return p;
 	}
 	return nullptr;
+}
+
+void Room::UpdateKeyPickupCollision()
+{
+	constexpr float kPickupRadiusSq = 1.25f * 1.25f;
+	constexpr float kPickupYTolerance = 2.0f;
+
+	for (const auto& key : kKeyPositions)
+	{
+		MegaGridCell& cell = m_megaGridCells[static_cast<size_t>(key.megaGridIndex)];
+		if (cell.isCleared)
+			continue;
+
+		for (auto& [pid, player] : players)
+		{
+			if (!player || player->IsDead())
+				continue;
+
+			const GameMath::Vec3 pos = player->GetPosition();
+			if (pos.y < -100.0f)
+				continue;
+
+			const float dx = pos.x - key.x;
+			const float dz = pos.z - key.z;
+			if (dx * dx + dz * dz > kPickupRadiusSq)
+				continue;
+
+			if (std::abs(pos.y - key.y) > kPickupYTolerance)
+				continue;
+
+			cell.isCleared = true;
+			cout << "[Key Pickup] MegaGrid " << (key.megaGridIndex + 1)
+				<< " cleared by Player " << player->GetObjectId() << endl;
+			break;
+		}
+	}
 }
 
 void Room::FireArrow(PlayerRef shooter, float speed, uint32 lifeTicks)
