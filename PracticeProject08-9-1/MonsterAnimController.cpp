@@ -41,6 +41,27 @@ std::string CMonsterAnimController::ResolveLocomotionClip() const
 	}
 }
 
+bool CMonsterAnimController::CanAcceptHitReactionCommand() const
+{
+	if ( m_hitReactionAnimSuperArmorRemainingSec > 0.0f )
+		return false;
+
+	if ( !m_bHitReactionOnlyWhenNoAction )
+		return true;
+
+	// 보스용:
+	// 현재 Attack / Spell / Hit / Appear / Call / Death 등 action 중이면
+	// Hit 애니메이션을 받지 않는다.
+	if ( m_actionPhase != EActionPhase::None )
+		return false;
+
+	// Spell / Attack 등이 pending으로 들어온 직후에도 Hit으로 덮지 않는다.
+	if ( m_pendingCommand != EMonsterAnimCommand::None )
+		return false;
+
+	return true;
+}
+
 bool CMonsterAnimController::StartAction(CAnimator* anim, const std::string& clipName, EActionPhase phase, float blendTimeSec, bool loop)
 {
 	if ( !anim ) return false;
@@ -73,10 +94,23 @@ void CMonsterAnimController::RequestCommand(EMonsterAnimCommand cmd)
 		return;
 	}
 
-	// Hit도 높은 우선순위로 받아서 현재 액션을 끊게 한다
+	// Hit은 기본적으로는 기존처럼 높은 우선순위.
+	// 단, 보스처럼 hit reaction policy가 설정된 경우에는
+	// 현재 action 중이거나 애니메이션 슈퍼아머 시간 중이면 Hit 애니메이션만 무시한다.
+	// 대미지/피격 사운드/피 튀김은 호출한 쪽에서 이미 처리하므로 여기서는 애니메이션만 필터링한다.
 	if ( cmd == EMonsterAnimCommand::Hit )
 	{
+		if ( !CanAcceptHitReactionCommand() )
+			return;
+
 		m_pendingCommand = cmd;
+
+		if ( m_hitReactionAnimSuperArmorDurationSec > 0.0f )
+		{
+			m_hitReactionAnimSuperArmorRemainingSec =
+				m_hitReactionAnimSuperArmorDurationSec;
+		}
+
 		return;
 	}
 
@@ -111,7 +145,13 @@ void CMonsterAnimController::StartLocomotionIfNeeded(CAnimator* anim)
 
 void CMonsterAnimController::Update(float dt)
 {
-	( void ) dt;
+	if ( dt > 0.0f && m_hitReactionAnimSuperArmorRemainingSec > 0.0f )
+	{
+		m_hitReactionAnimSuperArmorRemainingSec -= dt;
+
+		if ( m_hitReactionAnimSuperArmorRemainingSec < 0.0f )
+			m_hitReactionAnimSuperArmorRemainingSec = 0.0f;
+	}
 
 	CAnimator* anim = ResolveAnimator();
 	if ( !anim ) return;
@@ -133,7 +173,7 @@ void CMonsterAnimController::Update(float dt)
 			break;
 
 		case EMonsterAnimCommand::Appear:
-			StartAction(anim, m_profile.appearClip, EActionPhase::Appear, m_profile.actionBlendTime, false);
+			StartAction(anim, m_profile.appearClip, EActionPhase::Appear, 0.0f, false);
 			break;
 
 		case EMonsterAnimCommand::Call:
