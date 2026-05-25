@@ -1037,6 +1037,7 @@ class Player final :
     kPlayerTypeFieldNumber = 3,
     kPlayerStateFieldNumber = 4,
     kWeaponTypeFieldNumber = 7,
+    kHpFieldNumber = 8,
   };
   // string name = 2;
   void clear_name();
@@ -1124,6 +1125,15 @@ class Player final :
   void _internal_set_weapontype(::Protocol::WeaponType value);
   public:
 
+  // uint32 hp = 8;
+  void clear_hp();
+  ::PROTOBUF_NAMESPACE_ID::uint32 hp() const;
+  void set_hp(::PROTOBUF_NAMESPACE_ID::uint32 value);
+  private:
+  ::PROTOBUF_NAMESPACE_ID::uint32 _internal_hp() const;
+  void _internal_set_hp(::PROTOBUF_NAMESPACE_ID::uint32 value);
+  public:
+
   // @@protoc_insertion_point(class_scope:Protocol.Player)
  private:
   class _Internal;
@@ -1138,6 +1148,7 @@ class Player final :
   int playertype_;
   int playerstate_;
   int weapontype_;
+  ::PROTOBUF_NAMESPACE_ID::uint32 hp_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_Struct_2eproto;
 };
@@ -2421,6 +2432,26 @@ inline void Player::_internal_set_weapontype(::Protocol::WeaponType value) {
 inline void Player::set_weapontype(::Protocol::WeaponType value) {
   _internal_set_weapontype(value);
   // @@protoc_insertion_point(field_set:Protocol.Player.weaponType)
+}
+
+// uint32 hp = 8;
+inline void Player::clear_hp() {
+  hp_ = 0u;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint32 Player::_internal_hp() const {
+  return hp_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint32 Player::hp() const {
+  // @@protoc_insertion_point(field_get:Protocol.Player.hp)
+  return _internal_hp();
+}
+inline void Player::_internal_set_hp(::PROTOBUF_NAMESPACE_ID::uint32 value) {
+  
+  hp_ = value;
+}
+inline void Player::set_hp(::PROTOBUF_NAMESPACE_ID::uint32 value) {
+  _internal_set_hp(value);
+  // @@protoc_insertion_point(field_set:Protocol.Player.hp)
 }
 
 // -------------------------------------------------------------------

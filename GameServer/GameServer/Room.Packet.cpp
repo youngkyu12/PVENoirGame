@@ -172,6 +172,7 @@ void Room::MakeFrameState(uint32 tick)
 			p->set_id(player->playerId);
 			p->set_name(player->name);
 			p->set_playertype(player->type);
+			p->set_hp(static_cast<uint32>(player->GetCurrentHp()));
 
 			Protocol::Animation* anim = p->mutable_animation();
 			anim->set_statecode(BuildStateCode(*player));
@@ -291,6 +292,7 @@ void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
 		p->set_id(player->playerId);
 		p->set_name(player->name);
 		p->set_playertype(player->type);
+		p->set_hp(static_cast<uint32>(player->GetCurrentHp()));
 
 		Protocol::Transform* transform = p->mutable_transform();
 		Protocol::Vec3f* position = transform->mutable_position();
