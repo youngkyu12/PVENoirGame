@@ -96,10 +96,16 @@ namespace
 
 	static constexpr float kBossSummonSfxVolume = 5.0f;
 	static constexpr float kBossSummonCircleSfxVolume = 1.0f;
+	static constexpr float kBossShockwaveWindSfxVolume = 1.0f;
 
 	static const char* GetBossSummonSfxPath()
 	{
 		return "Assets/Audio/BossSummon.wav";
+	}
+
+	static const char* GetBossShockwaveWindSfxPath()
+	{
+		return "Assets/Audio/BossSummonWind.wav";
 	}
 
 	static const char* GetBossSummonCircleSfxPath1()
@@ -208,6 +214,132 @@ void CGameScene::PlayBossSummonCircleSfxAt(const XMFLOAT3& position)
 			false                          // startPaused
 		);
 	}
+}
+
+void CGameScene::PlayBossShockwaveWindSfxAt(const XMFLOAT3& position)
+{
+	ResetBossShockwaveWindSfxTracking();
+
+	if ( !m_pAudioManager )
+		return;
+
+	const char* path = GetBossShockwaveWindSfxPath();
+
+	if ( !path || !path[0] )
+		return;
+
+	FMOD::Channel* channel = m_pAudioManager->PlaySound3D(
+		path,
+		position,
+		false,                         // loop: 1회 재생
+		false,                         // stream
+		kBossShockwaveWindSfxVolume,
+		false                          // startPaused
+	);
+
+	if ( !channel )
+		return;
+
+	m_bossShockwaveWindSfxChannel = channel;
+	m_bossShockwaveWindSfxPrevPosition = position;
+	m_bossShockwaveWindSfxHasPrevPosition = true;
+	m_bBossShockwaveWindSfxTrackingActive = true;
+
+#if defined(_DEBUG)
+	char buf[512];
+	sprintf_s(
+		buf,
+		"[BossShockwaveWindSfx][Start] sound=\"%s\" volume=%.2f pos=(%.3f, %.3f, %.3f)\n",
+		path,
+		kBossShockwaveWindSfxVolume,
+		position.x,
+		position.y,
+		position.z
+	);
+	OutputDebugStringA(buf);
+#endif
+}
+
+void CGameScene::UpdateBossShockwaveWindSfx(float currentRadius)
+{
+	if ( !m_bBossShockwaveWindSfxTrackingActive )
+		return;
+
+	if ( !m_pAudioManager || !m_bossShockwaveWindSfxChannel )
+	{
+		ResetBossShockwaveWindSfxTracking();
+		return;
+	}
+
+	if ( !m_pAudioManager->IsChannelPlaying(m_bossShockwaveWindSfxChannel) )
+	{
+		ResetBossShockwaveWindSfxTracking();
+		return;
+	}
+
+	float radius = std::clamp(currentRadius, 0.0f, kBossShockwaveMaxRadius);
+
+	XMFLOAT3 dir = m_bossShockwaveWindSfxDirection;
+
+	// 로컬 플레이어 기준으로 충격파 원 위의 가장 가까운 지점을 사운드 발생점으로 쓴다.
+	// 즉, 사운드가 중앙에 고정되지 않고 플레이어 쪽으로 퍼지는 충격파 전면을 따라간다.
+	CGameObject* localPlayer = GetPlayer();
+
+	if ( localPlayer && !m_bLocalPlayerDead )
+	{
+		const XMFLOAT3 playerPos = localPlayer->GetPosition();
+
+		const float dx = playerPos.x - m_bossShockwaveCenter.x;
+		const float dz = playerPos.z - m_bossShockwaveCenter.z;
+		const float distSq = dx * dx + dz * dz;
+
+		const float minDirDistSq =
+			kBossShockwavePlayerMinDirectionDistance *
+			kBossShockwavePlayerMinDirectionDistance;
+
+		if ( distSq > minDirDistSq )
+		{
+			const float invDist = 1.0f / sqrtf(distSq);
+
+			dir.x = dx * invDist;
+			dir.y = 0.0f;
+			dir.z = dz * invDist;
+
+			m_bossShockwaveWindSfxDirection = dir;
+		}
+	}
+
+	XMFLOAT3 sourcePos = m_bossShockwaveCenter;
+	sourcePos.x += dir.x * radius;
+	sourcePos.y = 0.0f;
+	sourcePos.z += dir.z * radius;
+
+	XMFLOAT3 velocity(0.0f, 0.0f, 0.0f);
+
+	if ( m_bossShockwaveWindSfxHasPrevPosition )
+	{
+		velocity.x = sourcePos.x - m_bossShockwaveWindSfxPrevPosition.x;
+		velocity.y = sourcePos.y - m_bossShockwaveWindSfxPrevPosition.y;
+		velocity.z = sourcePos.z - m_bossShockwaveWindSfxPrevPosition.z;
+	}
+
+	m_pAudioManager->SetChannel3DAttributes(
+		m_bossShockwaveWindSfxChannel,
+		sourcePos,
+		velocity
+	);
+
+	m_bossShockwaveWindSfxPrevPosition = sourcePos;
+	m_bossShockwaveWindSfxHasPrevPosition = true;
+}
+
+void CGameScene::ResetBossShockwaveWindSfxTracking()
+{
+	m_bBossShockwaveWindSfxTrackingActive = false;
+	m_bossShockwaveWindSfxChannel = nullptr;
+	m_bossShockwaveWindSfxDirection = XMFLOAT3(0.0f, 0.0f, 1.0f);
+	m_bossShockwaveWindSfxPrevPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	m_bossShockwaveWindSfxHasPrevPosition = false;
 }
 
 void CGameScene::RequestPlayerAttackSfx(CGameObject* player)

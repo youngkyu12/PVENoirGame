@@ -1259,6 +1259,10 @@ private:
 	void PlayBossSummonSfxAt(const XMFLOAT3& position);
 	void PlayBossSummonCircleSfxAt(const XMFLOAT3& position);
 
+	void PlayBossShockwaveWindSfxAt(const XMFLOAT3& position);
+	void UpdateBossShockwaveWindSfx(float currentRadius);
+	void ResetBossShockwaveWindSfxTracking();
+
 	void ScheduleMonsterSfx(
 		EMonsterSfxKind kind,
 		CGameObject* owner,
@@ -1596,6 +1600,12 @@ private:
 	float m_bossShockwavePrevRadius = 0.0f;
 	float m_bossShockwavePlayerInitialDistance = 0.0f;
 	XMFLOAT3 m_bossShockwavePlayerPushDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
+
+	bool m_bBossShockwaveWindSfxTrackingActive = false;
+	FMOD::Channel* m_bossShockwaveWindSfxChannel = nullptr;
+	XMFLOAT3 m_bossShockwaveWindSfxDirection = XMFLOAT3(0.0f, 0.0f, 1.0f);
+	XMFLOAT3 m_bossShockwaveWindSfxPrevPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	bool m_bossShockwaveWindSfxHasPrevPosition = false;
 
 	static constexpr UINT  kBossPoisonProjectileMaxCount = 8;
 
