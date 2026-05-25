@@ -104,6 +104,13 @@ private:
 	void WakeEnemiesNearPlayer(const PlayerRef& player);
 	bool IsEnemyNearAnyPlayerExact(const GameMath::Vec3& enemyPos, float rangeSq) const;
 
+	GameMath::Vec3 ComputeSpawnerDoorPosition(int megaGrid, int wall, int slot) const;
+	float ComputeSpawnerDoorYaw(int wall) const;
+	CEnemy* ActivateSpawnerEnemy(int megaGrid, Protocol::EnemyType type, const GameMath::Vec3& pos, float yawDeg);
+	int ActivateSpawnerDoorBatch(int megaGrid, int batchIndex);
+	bool BeginSpawnerWave(int megaGrid);
+	void UpdateSpawnerWaves(float dt);
+
 	void InitializeSpatialGrid();
 	void ShutdownSpatialGrid();
 	void InitializeMegaGridState();
@@ -175,6 +182,13 @@ private:
 		int approachHeightCells = 200;
 
 		std::vector<uint64> enemyIds;
+	};
+
+	struct SpawnerWaveState
+	{
+		bool  active         = false;
+		int   nextBatchIndex = 0;
+		float accumulatorSec = 0.0f;
 	};
 
 	struct GridDynamicTracker
@@ -296,13 +310,6 @@ private:
 	static constexpr int kArrowPoolSize = 64;
 	static constexpr int kBulletPoolSize = 64;
 
-	// EnemySpawner pool 크기 (클라이언트 상수와 동일)
-	static constexpr int kSpawnerMega6GhoulCount   = 200;
-	static constexpr int kSpawnerMega8GhoulCount   = 200;
-	static constexpr int kSpawnerMega5GhoulCount   = 60;
-	static constexpr int kSpawnerMega5BowManCount  = 10;
-	static constexpr int kSpawnerMega5SwordManCount = 10;
-	static constexpr int kSpawnerMega5MutantCount  = 5;
 	Vector<ProjectileRef> m_arrowPool;
 	Vector<ProjectileRef> m_bulletPool;
 
@@ -326,6 +333,8 @@ private:
 	std::unordered_set<uint64> m_aiAwakeEnemyIds;
 	std::unordered_set<uint64> m_castleCenterPlayerIds;
 	std::unordered_set<uint64> m_meleeHitKeys;
+	std::unordered_map<uint64, int> m_poolEnemyMegaGrid;
+	std::array<SpawnerWaveState, kMegaGridCount + 1> m_spawnerWaveStates = {};
 	std::vector<TowerDoorPortalEntry> m_towerDoorPortals;
 	std::vector<CastleDoorPortalEntry> m_castleDoorPortals;
     //array<GameAreaRef, 9> gameAreas; // 9개 구역

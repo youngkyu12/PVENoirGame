@@ -2,6 +2,22 @@
 #include "Room.h"
 #include "Player.h"
 
+namespace
+{
+	constexpr int kDirForward        = 1 << 0;
+	constexpr int kDirBackward       = 1 << 1;
+	constexpr int kDirLeft           = 1 << 2;
+	constexpr int kDirRight          = 1 << 3;
+	constexpr int kDirLButton        = 1 << 7;
+	constexpr int kDirRun            = 1 << 8;
+	constexpr int kDirRoll           = 1 << 9;
+	constexpr int kDirMoveMask       = kDirForward | kDirBackward | kDirLeft | kDirRight;
+	constexpr int kDirPacketMoveMask = kDirMoveMask | kDirRun;
+
+	constexpr float kPlayerWalkSpeed     = 5.0f;
+	constexpr float kPlayerRunMultiplier = 2.0f;
+}
+
 void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float deltaY, float clientDeltaTime)
 {
 	auto it = players.find(playerId);
@@ -19,7 +35,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		return;
 	}
 
-	// [Ãß°¡] Á×À½/¸®½ºÆù Áß ÀÔ·Â Â÷´Ü
+	// [ï¿½ß°ï¿½] ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ô·ï¿½ ï¿½ï¿½ï¿½ï¿½
 	if (player->IsDead() || player->IsInputBlocked())
 	{
 		player->SetVelocity(GameMath::Vec3::Zero());
@@ -33,16 +49,6 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		float currentYaw = player->GetYaw();
 		player->SetYaw(GameMath::NormalizeYaw(currentYaw + deltaX));
 	}
-
-	constexpr int kDirForward = 1 << 0;
-	constexpr int kDirBackward = 1 << 1;
-	constexpr int kDirLeft = 1 << 2;
-	constexpr int kDirRight = 1 << 3;
-	constexpr int kDirLButton = 1 << 7;
-	constexpr int kDirRun = 1 << 8;
-	constexpr int kDirRoll = 1 << 9;
-	constexpr int kDirMoveMask = kDirForward | kDirBackward | kDirLeft | kDirRight;
-	constexpr int kDirPacketMoveMask = kDirMoveMask | kDirRun;
 
 	const int32 moveKeyCodes = keyCodes & kDirMoveMask;
 	const int32 packetMoveKeyCodes = (moveKeyCodes != 0) ? (keyCodes & kDirPacketMoveMask) : 0;
@@ -77,7 +83,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 			break;
 		}
 
-		// °ø°Ý ¾Ö´Ï¸ÞÀÌ¼ÇÀÌ ½ÃÀÛµÇ¸é ÀÌµ¿ ÀÔ·ÂÀº ¹«½ÃµÇ¾î¾ß ÇÑ´Ù
+		// ï¿½ï¿½ï¿½ï¿½ ï¿½Ö´Ï¸ï¿½ï¿½Ì¼ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ÛµÇ¸ï¿½ ï¿½Ìµï¿½ ï¿½Ô·ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ÃµÇ¾ï¿½ï¿½ ï¿½Ñ´ï¿½
 	}
 	else if (prevAnimState != Protocol::ANIMATION_TYPE_ATTACK &&
 		prevAnimState != Protocol::ANIMATION_TYPE_ROLL &&
@@ -103,7 +109,6 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	GameMath::Vec3 look = player->GetLook();
 	GameMath::Vec3 right = player->GetRight();
 
-	const float speed = 5.0f;
 	float dt = clientDeltaTime;
 	if (!(dt > 0.0f))
 		dt = m_timing.playerInputDtSec;
@@ -111,12 +116,12 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		dt = 0.001f;
 	if (dt > 0.05f)
 		dt = 0.05f;
-	float fDistance = speed * dt;
+	float fDistance = kPlayerWalkSpeed * dt;
 
 	GameMath::Vec3 shift = GameMath::Vec3::Zero();
 	GameMath::Vec3 moveDirection = GameMath::Vec3::Zero();
 
-	// ÀÌµ¿ ¹æÇâ¿¡ µû¶ó fdistaance Á¶Àý
+	// ï¿½Ìµï¿½ ï¿½ï¿½ï¿½â¿¡ ï¿½ï¿½ï¿½ï¿½ fdistaance ï¿½ï¿½ï¿½ï¿½
 	if (keyCodes & kDirForward)
 	{
 		moveDirection += look;
@@ -145,7 +150,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 
 		case Protocol::ANIMATION_TYPE_ROLL:
 		{
-			// ±¸¸£±â´Â ±âÁ¸ »óÅÂ¸¦ °è¼Ó À¯Áö
+			// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â¸ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 			break;
 		}
 		case Protocol::ANIMATION_TYPE_ATTACK:
@@ -154,18 +159,18 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 				(player->GetWeaponState() == Protocol::WEAPON_TYPE_BOW ||
 				 player->GetWeaponState() == Protocol::WEAPON_TYPE_CANON);
 			if (!canMoveWhileAttacking)
-				fDistance *= 0.0f; // °ø°Ý µµÁß¿¡´Â ÀÌµ¿ ¼Óµµ = 0
+				fDistance *= 0.0f; // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ß¿ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½Óµï¿½ = 0
 			break;
 		}
 		case Protocol::ANIMATION_TYPE_IDLE:
 		{
-			// IDLEµµ ÀÌµ¿ÇÏ¸é ¾ÈµÊ
+			// IDLEï¿½ï¿½ ï¿½Ìµï¿½ï¿½Ï¸ï¿½ ï¿½Èµï¿½
 			fDistance *= 0.0f;
 			break;
 		}
 		case Protocol::ANIMATION_TYPE_RUN:
 		{
-			fDistance *= 2.0f;
+			fDistance *= kPlayerRunMultiplier;
 			break;
 		}
 		case Protocol::ANIMATION_TYPE_WALK:
@@ -182,18 +187,18 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 
 	if(player->GetAnimState() == Protocol::ANIMATION_TYPE_ROLL)
 	{
-		// ±¸¸£±â´Â ÀÌµ¿ ¹æÇâÀÌ °íÁ¤µÇ¾î¾ß ÇÑ´Ù
+		// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ç¾ï¿½ï¿½ ï¿½Ñ´ï¿½
 		if (prevAnimState == Protocol::ANIMATION_TYPE_IDLE || prevAnimState == Protocol::ANIMATION_TYPE_WALK || prevAnimState == Protocol::ANIMATION_TYPE_RUN)
 		{
-			// ±¸¸£±â°¡ ½ÃÀÛµÈ ½ÃÁ¡À¸·Î, ´ç½Ã ÀÔ·ÂµÈ ¹æÇâÅ° ±âÁØÀ¸·Î Á¶Á¤ÇÔ
-			// ÀÌ¹Ì ¹æÇâÅ° Á¤º¸ ¹Ý¿µÀº ¾Õ¿¡¼­ Çß´Ù. ³Ñ±ä´Ù
+			// ï¿½ï¿½ï¿½ï¿½ï¿½â°¡ ï¿½ï¿½ï¿½Ûµï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ ï¿½Ô·Âµï¿½ ï¿½ï¿½ï¿½ï¿½Å° ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+			// ï¿½Ì¹ï¿½ ï¿½ï¿½ï¿½ï¿½Å° ï¿½ï¿½ï¿½ï¿½ ï¿½Ý¿ï¿½ï¿½ï¿½ ï¿½Õ¿ï¿½ï¿½ï¿½ ï¿½ß´ï¿½. ï¿½Ñ±ï¿½ï¿½
 			
 
 			//moveDirection = player->GetLook();
 		}
 		else
 		{
-			// ¿ø·¡ÀÇ ¼Óµµ/¹æÇâÀ» À¯Áö
+			// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Óµï¿½/ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 			moveDirection = player->GetVelocity().Normalized();
 		}
 	}
