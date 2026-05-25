@@ -330,10 +330,11 @@ void Room::BuildRoom()
 
 		nextEnemyId = std::max(nextEnemyId, enemyId + 1);
 
-		const bool isArcher = (spawn.type == "BowMan");
-		const Protocol::EnemyType enemyType = isArcher
-			? Protocol::ENEMY_TYPE_ARCHER
-			: Protocol::ENEMY_TYPE_BASIC;
+		Protocol::EnemyType enemyType = Protocol::ENEMY_TYPE_BASIC;
+		if      (spawn.type == "BowMan")   enemyType = Protocol::ENEMY_TYPE_ARCHER;
+		else if (spawn.type == "SwordMan") enemyType = Protocol::ENEMY_TYPE_WARRIOR;
+		else if (spawn.type == "Mutant")   enemyType = Protocol::ENEMY_TYPE_MUTANT;
+		else if (spawn.type == "Boss")     enemyType = Protocol::ENEMY_TYPE_BOSS;
 
 		auto enemy = make_shared<CEnemy>(enemyId, spawn.type, enemyType, nullptr);
 		enemy->Build(SampleEnemySpawn(spawn.position), GameMath::Vec3(0, 0, 0));
@@ -356,8 +357,8 @@ void Room::BuildRoom()
 		{ 8, "Ghoul",    kSpawnerMega8GhoulCount,    Protocol::ENEMY_TYPE_BASIC  },
 		{ 5, "Ghoul",    kSpawnerMega5GhoulCount,    Protocol::ENEMY_TYPE_BASIC  },
 		{ 5, "BowMan",   kSpawnerMega5BowManCount,   Protocol::ENEMY_TYPE_ARCHER },
-		{ 5, "SwordMan", kSpawnerMega5SwordManCount, Protocol::ENEMY_TYPE_BASIC  },
-		{ 5, "Mutant",   kSpawnerMega5MutantCount,   Protocol::ENEMY_TYPE_BASIC  },
+		{ 5, "SwordMan", kSpawnerMega5SwordManCount, Protocol::ENEMY_TYPE_WARRIOR },
+		{ 5, "Mutant",   kSpawnerMega5MutantCount,   Protocol::ENEMY_TYPE_MUTANT  },
 	};
 	for (const auto& spec : spawnerSpecs)
 	{

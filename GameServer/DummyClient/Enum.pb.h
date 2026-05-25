@@ -148,12 +148,13 @@ enum EnemyType : int {
   ENEMY_TYPE_ARCHER = 2,
   ENEMY_TYPE_WARRIOR = 3,
   ENEMY_TYPE_BOSS = 4,
+  ENEMY_TYPE_MUTANT = 5,
   EnemyType_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
   EnemyType_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
 };
 bool EnemyType_IsValid(int value);
 constexpr EnemyType EnemyType_MIN = ENEMY_TYPE_NONE;
-constexpr EnemyType EnemyType_MAX = ENEMY_TYPE_BOSS;
+constexpr EnemyType EnemyType_MAX = ENEMY_TYPE_MUTANT;
 constexpr int EnemyType_ARRAYSIZE = EnemyType_MAX + 1;
 
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* EnemyType_descriptor();
