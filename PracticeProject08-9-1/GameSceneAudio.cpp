@@ -94,11 +94,17 @@ namespace
 	static constexpr float kMonsterGhoulWhooshDelaySeconds = 0.1494f;
 	static constexpr float kMonsterGhoulWhooshVolume = 0.5f;
 
-	static constexpr float kBossSummonSfxVolume = 2.0f;
+	static constexpr float kBossSummonSfxVolume = 5.0f;
+	static constexpr float kBossSummonCircleSfxVolume = 1.0f;
 
 	static const char* GetBossSummonSfxPath()
 	{
 		return "Assets/Audio/BossSummon.wav";
+	}
+
+	static const char* GetBossSummonCircleSfxPath1()
+	{
+		return "Assets/Audio/mhj.wav";
 	}
 
 	static const char* GetMonsterMutantWhooshPath()
@@ -182,6 +188,26 @@ void CGameScene::PlayBossSummonSfxAt(const XMFLOAT3& position)
 		kBossSummonSfxVolume,
 		false                  // startPaused
 	);
+}
+
+void CGameScene::PlayBossSummonCircleSfxAt(const XMFLOAT3& position)
+{
+	if ( !m_pAudioManager )
+		return;
+
+	const char* path = GetBossSummonCircleSfxPath1();
+
+	if ( path && path[0] )
+	{
+		m_pAudioManager->PlaySound3D(
+			path,
+			position,
+			false,                         // loop: 1회 재생
+			false,                         // stream
+			kBossSummonCircleSfxVolume,
+			false                          // startPaused
+		);
+	}
 }
 
 void CGameScene::RequestPlayerAttackSfx(CGameObject* player)
