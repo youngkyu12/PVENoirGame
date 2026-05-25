@@ -11,10 +11,31 @@
 
 namespace
 {
-	constexpr int kAtkPlayerSword = 10;
-	constexpr int kAtkPlayerAxe = 15;
-	constexpr int kAtkPlayerArrow = 15;
+	// 플레이어 무기 피해량
+	constexpr int kAtkPlayerSword  = 10;
+	constexpr int kAtkPlayerAxe    = 15;
+	constexpr int kAtkPlayerArrow  = 15;
 	constexpr int kAtkPlayerBullet = 8;
+
+	// 투사체 히트 판정
+	constexpr float kProjectileHitRadiusSq = 1.0f;
+	constexpr float kProjectileHitYTol     = 1.0f;
+
+	// 근접 공격 유효 프레임 (애님 클락 기준)
+	constexpr int kMeleeHitFrameStart = 5;
+	constexpr int kMeleeHitFrameEnd   = 15;
+
+	// 근접 공격 사거리 / 판정 각도
+	constexpr float kMeleeReachSword         = 2.0f;
+	constexpr float kMeleeReachAxe           = 2.5f;
+	constexpr float kMeleeReachPlayerDefault = 1.5f;
+	constexpr float kMeleeReachEnemyDefault  = 5.0f;
+	constexpr float kMeleeHalfAngleSword     = 45.0f;
+	constexpr float kMeleeHalfAngleDefault   = 90.0f;
+
+	// 포탄
+	constexpr float kBulletSpeed     = 18.0f;
+	constexpr int   kBulletLifeTicks = 100;
 
 	int GetPlayerAttackPower(Protocol::WeaponType weapon)
 	{
@@ -246,7 +267,6 @@ void Room::TickAdvance()
 		p->Update(m_timing.projectileDtSec, m_timing.serverTickIntervalMs);
 		const uint16_t projectileMask = ComputeObjectCurrentMegaGridMask(p.get());
 
-		constexpr float kHitRadiusSq = 1.0f;
 		for (auto& enemyPair : enemies)
 		{
 			auto& enemy = enemyPair.second;
@@ -257,11 +277,10 @@ void Room::TickAdvance()
 			if (enemyMask == 0)
 				enemyMask = ComputeObjectCurrentMegaGridMask(enemy.get());
 			if (projectileMask != 0 && enemyMask != 0 && (projectileMask & enemyMask) == 0) continue;
-			//const GameMath::Vec3 d = enemy->GetPosition() - p->GetPosition();
 
-			float distSq = GameMath::DistSqXZ(enemy->GetPosition(), p->GetPosition());
-			const bool hit = distSq <= kHitRadiusSq
-				&& enemy->GetPosition().y - p->GetPosition().y <= 1.0f;
+			const float distSq = GameMath::DistSqXZ(enemy->GetPosition(), p->GetPosition());
+			const bool hit = distSq <= kProjectileHitRadiusSq
+				&& enemy->GetPosition().y - p->GetPosition().y <= kProjectileHitYTol;
 			if (!hit) continue;
 
 			enemy->ApplyHit(animClockTick, kAtkPlayerArrow, 20);
@@ -277,7 +296,6 @@ void Room::TickAdvance()
 		p->Update(m_timing.projectileDtSec, m_timing.serverTickIntervalMs);
 		const uint16_t projectileMask = ComputeObjectCurrentMegaGridMask(p.get());
 
-		constexpr float kHitRadiusSq = 1.0f;
 		for (auto& enemyPair : enemies)
 		{
 			auto& enemy = enemyPair.second;
@@ -288,11 +306,10 @@ void Room::TickAdvance()
 			if (enemyMask == 0)
 				enemyMask = ComputeObjectCurrentMegaGridMask(enemy.get());
 			if (projectileMask != 0 && enemyMask != 0 && (projectileMask & enemyMask) == 0) continue;
-			//const GameMath::Vec3 d = enemy->GetPosition() - p->GetPosition();
 
-			float distSq = GameMath::DistSqXZ(enemy->GetPosition(), p->GetPosition());
-			const bool hit = distSq <= kHitRadiusSq
-				&& enemy->GetPosition().y - p->GetPosition().y <= 1.0f;
+			const float distSq = GameMath::DistSqXZ(enemy->GetPosition(), p->GetPosition());
+			const bool hit = distSq <= kProjectileHitRadiusSq
+				&& enemy->GetPosition().y - p->GetPosition().y <= kProjectileHitYTol;
 			if (!hit) continue;
 
 			enemy->ApplyHit(animClockTick, kAtkPlayerBullet, 20);
@@ -312,18 +329,16 @@ void Room::TickAdvance()
 			weaponType == Protocol::WEAPON_TYPE_CANON) continue;
 
 		const int elapsed = static_cast<int>(animClockTick) - player->GetAnimTick();
-		constexpr int kHitFrameStart = 5;
-		constexpr int kHitFrameEnd = 15;
-		if (elapsed < kHitFrameStart || elapsed > kHitFrameEnd) continue;
+		if (elapsed < kMeleeHitFrameStart || elapsed > kMeleeHitFrameEnd) continue;
 
 		const int damage = GetPlayerAttackPower(weaponType);
 
 		float reach, halfAngleDeg;
 		switch (weaponType)
 		{
-		case Protocol::WEAPON_TYPE_SWORD: reach = 2.0f; halfAngleDeg = 45.0f; break;
-		case Protocol::WEAPON_TYPE_AXE:   reach = 2.5f; halfAngleDeg = 45.0f; break;
-		default:                          reach = 1.5f; halfAngleDeg = 90.0f; break;
+		case Protocol::WEAPON_TYPE_SWORD: reach = kMeleeReachSword; halfAngleDeg = kMeleeHalfAngleSword;   break;
+		case Protocol::WEAPON_TYPE_AXE:   reach = kMeleeReachAxe;   halfAngleDeg = kMeleeHalfAngleSword;   break;
+		default:                          reach = kMeleeReachPlayerDefault; halfAngleDeg = kMeleeHalfAngleDefault; break;
 		}
 
 		for (auto& [eid, enemy] : enemies)
@@ -360,18 +375,16 @@ void Room::TickAdvance()
 		if (enemy->GetAnimState() != Protocol::ANIMATION_TYPE_ATTACK) continue;
 
 		const int elapsed = static_cast<int>(animClockTick) - enemy->GetAnimTick();
-		constexpr int kHitFrameStart = 5;
-		constexpr int kHitFrameEnd = 15;
-		if (elapsed < kHitFrameStart || elapsed > kHitFrameEnd) continue;
+		if (elapsed < kMeleeHitFrameStart || elapsed > kMeleeHitFrameEnd) continue;
 
 		const int damage = enemy->GetAttackPower();
 
 		float reach, halfAngleDeg;
 		switch (enemy->GetWeaponState())
 		{
-		case Protocol::WEAPON_TYPE_SWORD: reach = 2.0f; halfAngleDeg = 45.0f; break;
-		case Protocol::WEAPON_TYPE_AXE:   reach = 2.5f; halfAngleDeg = 45.0f; break;
-		default:                          reach = 5.0f; halfAngleDeg = 90.0f; break;
+		case Protocol::WEAPON_TYPE_SWORD: reach = kMeleeReachSword; halfAngleDeg = kMeleeHalfAngleSword;  break;
+		case Protocol::WEAPON_TYPE_AXE:   reach = kMeleeReachAxe;   halfAngleDeg = kMeleeHalfAngleSword;  break;
+		default:                          reach = kMeleeReachEnemyDefault; halfAngleDeg = kMeleeHalfAngleDefault; break;
 		}
 
 		for (auto& [pid, player] : players)
@@ -401,6 +414,7 @@ void Room::TickAdvance()
 
 	UpdateDynamicGridState();
 	UpdateKeyPickupCollision();
+	UpdateSpawnerWaves(m_timing.playerInputDtSec);
 
 	const auto elapsedMs = static_cast<uint64>(
 		std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -497,8 +511,6 @@ void Room::FireCannonball(PlayerRef shooter)
 		shooter->GetUp() * 1.5665f +
 		shooter->GetLook() * 0.2778f;
 	const GameMath::Vec3 forward = shooter->GetLook().Normalized();
-	constexpr float kBulletSpeed = 18.0f;
-	constexpr int   kBulletLifeTicks = 100;
 
 	p->Activate(origin, forward * kBulletSpeed, kBulletLifeTicks, m_timing.projectileLifeTickMs, shooter->GetObjectId(), Protocol::BULLET_TYPE_CANNONBALL);
 	shooter->OnFired(GetCombatClockTick());

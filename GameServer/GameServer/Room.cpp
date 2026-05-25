@@ -101,18 +101,36 @@ namespace
 	// ========================================
 	// HP / Attack Power Tables
 	// ========================================
-	constexpr int kHpPlayer = 100;
-	constexpr int kHpGhoul = 30;
-	constexpr int kHpBowMan = 120;
+	constexpr int kHpPlayer   = 100;
+	constexpr int kHpGhoul    = 30;
+	constexpr int kHpBowMan   = 120;
 	constexpr int kHpSwordMan = 120;
-	constexpr int kHpMutant = 240;
-	constexpr int kHpBoss = 4800;
+	constexpr int kHpMutant   = 240;
+	constexpr int kHpBoss     = 4800;
 
-	constexpr int kAtkGhoul = 5;
-	constexpr int kAtkSword = 10;
+	constexpr int kAtkGhoul  = 5;
+	constexpr int kAtkSword  = 10;
 	constexpr int kAtkArcher = 10;
 	constexpr int kAtkMutant = 20;
-	constexpr int kAtkBoss = 50;
+	constexpr int kAtkBoss   = 50;
+
+	// ========================================
+	// EnemySpawner — Pool 수량 (클라이언트 상수와 동일)
+	// ========================================
+	constexpr int kSpawnerMega6GhoulCount    = 200;
+	constexpr int kSpawnerMega8GhoulCount    = 200;
+	constexpr int kSpawnerMega5GhoulCount    = 60;
+	constexpr int kSpawnerMega5SwordManCount = 10;
+	constexpr int kSpawnerMega5BowManCount   = 10;
+	constexpr int kSpawnerMega5MutantCount   = 5;
+
+	// EnemySpawner — 스폰 문 지오메트리 / 웨이브 타이밍
+	constexpr int   kSpawnerWallCount        = 4;
+	constexpr int   kSpawnerSlotsPerWall     = 5;
+	constexpr int   kSpawnerBatchCount       = 10;
+	constexpr float kSpawnerBatchIntervalSec = 1.0f;
+	constexpr float kSpawnerWallHalfExtent   = 99.0f;
+	constexpr float kSpawnerSlotSpacing      = 2.0f;
 
 	int GetEnemyHp(const string& typeName)
 	{
@@ -362,6 +380,7 @@ void Room::BuildRoom()
 			RegisterDynamicCollider(dormant);
 			SetObjectCollisionMegaGridMask(dormant, 0, true);
 			enemies[enemyId] = dormant;
+			m_poolEnemyMegaGrid[enemyId] = spec.megaGrid;
 		}
 	};
 
@@ -459,4 +478,141 @@ GameAreaRef Room::GetArea(uint32 areaId)
 
 void Room::TransferPlayer(PlayerRef player, uint32 fromAreaId, uint32 toAreaId)
 {
+}
+
+// ============================================================
+// Phase 3 — 스폰 문 위치 / 방향 계산 (클라이언트 동일 계산식)
+// ============================================================
+
+GameMath::Vec3 Room::ComputeSpawnerDoorPosition(int megaGrid, int wall, int slot) const
+{
+	const int zeroBased = megaGrid - 1;
+	const int mgX = zeroBased % kMegaGridCols;
+	const int mgZ = zeroBased / kMegaGridCols;
+
+	const float centerX = kGridMinX + mgX * kMegaGridCellWidth  + kMegaGridCellWidth  * 0.5f;
+	const float centerZ = kGridMinZ + mgZ * kMegaGridCellHeight + kMegaGridCellHeight * 0.5f;
+
+	wall = std::clamp(wall, 0, kSpawnerWallCount - 1);
+	slot = std::clamp(slot, 0, kSpawnerSlotsPerWall - 1);
+
+	const float offset =
+		(static_cast<float>(slot) - static_cast<float>(kSpawnerSlotsPerWall - 1) * 0.5f)
+		* kSpawnerSlotSpacing;
+
+	switch (wall)
+	{
+	case 0: return { centerX - kSpawnerWallHalfExtent, 0.0f, centerZ + offset }; // left  → +X
+	case 1: return { centerX + kSpawnerWallHalfExtent, 0.0f, centerZ + offset }; // right → -X
+	case 2: return { centerX + offset, 0.0f, centerZ - kSpawnerWallHalfExtent }; // bottom→ +Z
+	default:return { centerX + offset, 0.0f, centerZ + kSpawnerWallHalfExtent }; // top   → -Z
+	}
+}
+
+float Room::ComputeSpawnerDoorYaw(int wall) const
+{
+	switch (wall)
+	{
+	case 0: return  90.0f;  // left  → center (+X)
+	case 1: return -90.0f;  // right → center (-X)
+	case 2: return   0.0f;  // bottom→ center (+Z)
+	default:return 180.0f;  // top   → center (-Z)
+	}
+}
+
+// ============================================================
+// Phase 4 — dormant enemy 활성화
+// ============================================================
+
+CEnemy* Room::ActivateSpawnerEnemy(int megaGrid, Protocol::EnemyType type,
+                                   const GameMath::Vec3& pos, float yawDeg)
+{
+	for (auto& [eid, enemy] : enemies)
+	{
+		if (enemy->IsActive()) continue;
+		if (enemy->type != type) continue;
+
+		auto it = m_poolEnemyMegaGrid.find(eid);
+		if (it == m_poolEnemyMegaGrid.end() || it->second != megaGrid) continue;
+
+		enemy->SetPosition(pos);
+		enemy->SetYaw(yawDeg);
+		enemy->ResetHpToMax();
+		enemy->SetActive(true);
+		SetObjectCollisionMegaGridMask(enemy, ComputeObjectCurrentMegaGridMask(enemy.get()), true);
+		return enemy.get();
+	}
+	return nullptr;
+}
+
+int Room::ActivateSpawnerDoorBatch(int megaGrid, int batchIndex)
+{
+	if (batchIndex < 0 || batchIndex >= kSpawnerBatchCount) return 0;
+
+	int activated = 0;
+	for (int wall = 0; wall < kSpawnerWallCount; ++wall)
+	{
+		const float yaw = ComputeSpawnerDoorYaw(wall);
+		for (int slot = 0; slot < kSpawnerSlotsPerWall; ++slot)
+		{
+			const GameMath::Vec3 pos = ComputeSpawnerDoorPosition(megaGrid, wall, slot);
+			if (ActivateSpawnerEnemy(megaGrid, Protocol::ENEMY_TYPE_BASIC, pos, yaw))
+				++activated;
+		}
+	}
+	return activated;
+}
+
+bool Room::BeginSpawnerWave(int megaGrid)
+{
+	if (megaGrid < 1 || megaGrid > kMegaGridCount) return false;
+
+	SpawnerWaveState& state = m_spawnerWaveStates[static_cast<size_t>(megaGrid)];
+	if (state.active) return false;
+
+	state = SpawnerWaveState{};
+	state.active = true;
+
+	const int spawned = ActivateSpawnerDoorBatch(megaGrid, state.nextBatchIndex++);
+	if (spawned <= 0)
+	{
+		state = SpawnerWaveState{};
+		return false;
+	}
+
+	if (state.nextBatchIndex >= kSpawnerBatchCount)
+		state.active = false;
+
+	return true;
+}
+
+// ============================================================
+// Phase 5 — 웨이브 타이머 (TickAdvance 에서 호출)
+// ============================================================
+
+void Room::UpdateSpawnerWaves(float dt)
+{
+	for (int mg = 1; mg <= kMegaGridCount; ++mg)
+	{
+		SpawnerWaveState& state = m_spawnerWaveStates[static_cast<size_t>(mg)];
+		if (!state.active) continue;
+
+		state.accumulatorSec += dt;
+
+		while (state.active && state.accumulatorSec >= kSpawnerBatchIntervalSec)
+		{
+			state.accumulatorSec -= kSpawnerBatchIntervalSec;
+
+			if (state.nextBatchIndex >= kSpawnerBatchCount)
+			{
+				state.active = false;
+				break;
+			}
+
+			ActivateSpawnerDoorBatch(mg, state.nextBatchIndex++);
+
+			if (state.nextBatchIndex >= kSpawnerBatchCount)
+				state.active = false;
+		}
+	}
 }
