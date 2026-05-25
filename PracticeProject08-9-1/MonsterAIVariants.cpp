@@ -880,12 +880,7 @@ bool CBossStageMonsterAIComponent::IsPlayerValidBossStageTarget(CGameObject* pla
 			return false;
 	}
 
-	// 현재 보스 AI도 이 기준을 5번 보스 전투구역 판정으로 쓰고 있으므로,
-	// 일반 보스 스테이지 몬스터도 동일 기준을 사용한다.
-	return IsWorldPositionInsideMegaGridCenterZone(
-		player->GetPosition(),
-		5
-	);
+	return m_pScene->IsPlayerInsideBossStageBattleArea(player);
 }
 
 bool CBossStageMonsterAIComponent::HasAnyValidPlayerInsideBossStage() const
@@ -2008,12 +2003,11 @@ bool CBossAIComponent::IsPlayerInsideBossBattleZone(CGameObject* player) const
 	{
 		if ( !scene->IsLocalPlayer(player) )
 			return false;
+
+		return scene->IsPlayerInsideBossStageBattleArea(player);
 	}
 
-	return IsWorldPositionInsideMegaGridCenterZone(
-		player->GetPosition(),
-		5
-	);
+	return false;
 }
 
 bool CBossAIComponent::CanStartBossAction() const

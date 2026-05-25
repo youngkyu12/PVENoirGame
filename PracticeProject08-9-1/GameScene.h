@@ -749,6 +749,7 @@ public:
 	CGameObject* GetPlayerBySlot(int slot) const; // slot: 0..3
 	bool IsLocalPlayer(const CGameObject* obj) const;
 	bool IsPlayerInsideMegaGridCenter(const CGameObject* player) const;
+	bool IsPlayerInsideBossStageBattleArea(const CGameObject* player) const;
 	bool IsLocalPlayerDead() const { return m_bLocalPlayerDead; }
 	bool RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& previousPos);
     
