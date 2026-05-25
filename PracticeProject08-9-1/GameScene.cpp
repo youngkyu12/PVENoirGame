@@ -6097,6 +6097,7 @@ bool CGameScene::TryBeginBossStageSummonSequence()
 	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
 
 	SpawnBossSummonVisuals(summonCenter, 0.0f);
+	PlayBossSummonCircleSfxAt(summonCenter);
 
 	return true;
 #endif

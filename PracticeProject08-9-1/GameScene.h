@@ -1257,6 +1257,7 @@ private:
 	void RequestBowManLoadSfx(CGameObject* bowman);
 
 	void PlayBossSummonSfxAt(const XMFLOAT3& position);
+	void PlayBossSummonCircleSfxAt(const XMFLOAT3& position);
 
 	void ScheduleMonsterSfx(
 		EMonsterSfxKind kind,
