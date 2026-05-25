@@ -553,7 +553,7 @@ int Room::CountClearedMegaGrids() const
 			for (uint64 enemyId : cell.enemyIds)
 			{
 				auto it = enemies.find(enemyId);
-				if (it == enemies.end() || !it->second || it->second->IsDead())
+				if (it == enemies.end() || !it->second || !it->second->IsActive() || it->second->IsDead())
 					continue;
 
 				allDead = false;

@@ -89,6 +89,7 @@ void Room::WakeEnemiesNearPlayer(const PlayerRef& player)
 
 		const EnemyRef& enemy = enemyIt->second;
 		if (!enemy) continue;
+		if (!enemy->IsActive()) continue;
 		if (enemy->IsDead()) continue;
 		if (GameMath::DistSqXZ(player->GetPosition(), enemy->GetPosition()) > wakeRangeSq) continue;
 
@@ -109,7 +110,7 @@ void Room::ProcessEnemyAI()
 	{
 		const uint64 enemyId = *it;
 		auto enemyIt = enemies.find(enemyId);
-		if (enemyIt == enemies.end() || !enemyIt->second || enemyIt->second->IsDead())
+		if (enemyIt == enemies.end() || !enemyIt->second || !enemyIt->second->IsActive() || enemyIt->second->IsDead())
 		{
 			it = m_aiAwakeEnemyIds.erase(it);
 			continue;

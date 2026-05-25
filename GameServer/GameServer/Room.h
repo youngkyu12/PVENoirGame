@@ -295,6 +295,14 @@ private:
 	std::unique_ptr<CNavMesh> m_navMesh;
 	static constexpr int kArrowPoolSize = 64;
 	static constexpr int kBulletPoolSize = 64;
+
+	// EnemySpawner pool 크기 (클라이언트 상수와 동일)
+	static constexpr int kSpawnerMega6GhoulCount   = 200;
+	static constexpr int kSpawnerMega8GhoulCount   = 200;
+	static constexpr int kSpawnerMega5GhoulCount   = 60;
+	static constexpr int kSpawnerMega5BowManCount  = 10;
+	static constexpr int kSpawnerMega5SwordManCount = 10;
+	static constexpr int kSpawnerMega5MutantCount  = 5;
 	Vector<ProjectileRef> m_arrowPool;
 	Vector<ProjectileRef> m_bulletPool;
 
