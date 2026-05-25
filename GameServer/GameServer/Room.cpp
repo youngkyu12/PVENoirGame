@@ -316,58 +316,34 @@ void Room::BuildRoom()
 	else
 		cout << "[MonsterSpawn] load success count=" << spawnEntries.size() << endl;
 
-	// 클라이언트 BuildSkinnedBatch 타입 루프 순서와 동일하게 정렬
-	// (Ghoul → SwordMan → BowMan → Mutant → Boss)
-	// 이 순서로 enemyId를 0부터 순번 부여해야 npcById 매핑이 일치한다.
-	auto spawnTypeOrder = [](const std::string& t) -> int {
-		if (t == "Ghoul")    return 0;
-		if (t == "SwordMan") return 1;
-		if (t == "BowMan")   return 2;
-		if (t == "Mutant")   return 3;
-		if (t == "Boss")     return 4;
-		return 5;
-	};
-	std::stable_sort(spawnEntries.begin(), spawnEntries.end(),
-		[&spawnTypeOrder](const MonsterSpawnEntry& a, const MonsterSpawnEntry& b) {
-			return spawnTypeOrder(a.type) < spawnTypeOrder(b.type);
-		});
-
+	// enemyId를 클라이언트 BuildSkinnedBatch 루프 순서와 완전히 일치하도록 부여한다.
+	// 각 타입 그룹 내에서 일반 적(spawn file) → 풀 적(dormant) 순으로 묶어서 연속 ID를 부여하면
+	// 클라이언트의 npcById[npcIndex] == state.id 가 성립한다.
+	// 순서: Ghoul → SwordMan → BowMan → Mutant → Boss
 	uint64 nextEnemyId = 0;
-	for (const MonsterSpawnEntry& spawn : spawnEntries)
-	{
-		const uint64 enemyId = nextEnemyId++;
 
+	auto makeSpawnEnemy = [&](const MonsterSpawnEntry& spawn)
+	{
 		Protocol::EnemyType enemyType = Protocol::ENEMY_TYPE_BASIC;
 		if      (spawn.type == "BowMan")   enemyType = Protocol::ENEMY_TYPE_ARCHER;
 		else if (spawn.type == "SwordMan") enemyType = Protocol::ENEMY_TYPE_WARRIOR;
 		else if (spawn.type == "Mutant")   enemyType = Protocol::ENEMY_TYPE_MUTANT;
 		else if (spawn.type == "Boss")     enemyType = Protocol::ENEMY_TYPE_BOSS;
 
+		const uint64 enemyId = nextEnemyId++;
 		auto enemy = make_shared<CEnemy>(enemyId, spawn.type, enemyType, nullptr);
 		enemy->Build(SampleEnemySpawn(spawn.position), GameMath::Vec3(0, 0, 0));
 		enemy->SetYaw(GameMath::NormalizeYaw(spawn.yawDeg));
 		enemy->SetMaxHp(GetEnemyHp(spawn.type));
 		enemy->SetAttackPower(GetEnemyAttackPower(spawn.type));
 		enemy->SetActive(true);
-
 		RegisterDynamicCollider(enemy);
 		SetObjectCollisionMegaGridMask(enemy, ComputeObjectCurrentMegaGridMask(enemy.get()), true);
 		enemies[enemyId] = enemy;
-	}
-
-	// EnemySpawner pool: 클라이언트와 동일한 구성으로 dormant enemy 사전 등록 (active=false)
-	// 클라이언트 m_skinnedObjects의 NPC 순번과 서버 enemyId가 일치해야 하므로
-	// 파일 로드 enemy 직후에 동일한 순서로 등록한다.
-	struct SpawnerPoolSpec { int megaGrid; const char* type; int count; Protocol::EnemyType enemyType; };
-	const SpawnerPoolSpec spawnerSpecs[] = {
-		{ 6, "Ghoul",    kSpawnerMega6GhoulCount,    Protocol::ENEMY_TYPE_BASIC  },
-		{ 8, "Ghoul",    kSpawnerMega8GhoulCount,    Protocol::ENEMY_TYPE_BASIC  },
-		{ 5, "Ghoul",    kSpawnerMega5GhoulCount,    Protocol::ENEMY_TYPE_BASIC  },
-		{ 5, "SwordMan", kSpawnerMega5SwordManCount, Protocol::ENEMY_TYPE_WARRIOR },
-		{ 5, "BowMan",   kSpawnerMega5BowManCount,   Protocol::ENEMY_TYPE_ARCHER },
-		{ 5, "Mutant",   kSpawnerMega5MutantCount,   Protocol::ENEMY_TYPE_MUTANT  },
 	};
-	for (const auto& spec : spawnerSpecs)
+
+	struct SpawnerPoolSpec { int megaGrid; const char* type; int count; Protocol::EnemyType enemyType; };
+	auto makePoolEnemies = [&](const SpawnerPoolSpec& spec)
 	{
 		const int zeroBased = spec.megaGrid - 1;
 		const int mgX = zeroBased % kMegaGridCols;
@@ -377,21 +353,38 @@ void Room::BuildRoom()
 
 		for (int i = 0; i < spec.count; ++i)
 		{
-			while (enemies.find(nextEnemyId) != enemies.end())
-				++nextEnemyId;
-
-			auto dormant = make_shared<CEnemy>(nextEnemyId, spec.type, spec.enemyType, nullptr);
+			const uint64 enemyId = nextEnemyId++;
+			auto dormant = make_shared<CEnemy>(enemyId, spec.type, spec.enemyType, nullptr);
 			dormant->Build(GameMath::Vec3(centerX, -100.0f, centerZ), GameMath::Vec3::Zero());
 			dormant->SetMaxHp(GetEnemyHp(spec.type));
 			dormant->SetAttackPower(GetEnemyAttackPower(spec.type));
 			dormant->SetActive(false);
-
 			RegisterDynamicCollider(dormant);
-			SetObjectCollisionMegaGridMask(dormant, 0, true); // 충돌 마스크 0: dormant 동안 충돌 제외
-			enemies[nextEnemyId] = dormant;
-			++nextEnemyId;
+			SetObjectCollisionMegaGridMask(dormant, 0, true);
+			enemies[enemyId] = dormant;
 		}
-	}
+	};
+
+	// Ghoul: 일반 → 풀(Mega6, Mega8, Mega5)
+	for (const auto& s : spawnEntries) if (s.type == "Ghoul")   makeSpawnEnemy(s);
+	makePoolEnemies({ 6, "Ghoul",    kSpawnerMega6GhoulCount,    Protocol::ENEMY_TYPE_BASIC   });
+	makePoolEnemies({ 8, "Ghoul",    kSpawnerMega8GhoulCount,    Protocol::ENEMY_TYPE_BASIC   });
+	makePoolEnemies({ 5, "Ghoul",    kSpawnerMega5GhoulCount,    Protocol::ENEMY_TYPE_BASIC   });
+
+	// SwordMan: 일반 → 풀
+	for (const auto& s : spawnEntries) if (s.type == "SwordMan") makeSpawnEnemy(s);
+	makePoolEnemies({ 5, "SwordMan", kSpawnerMega5SwordManCount, Protocol::ENEMY_TYPE_WARRIOR });
+
+	// BowMan: 일반 → 풀
+	for (const auto& s : spawnEntries) if (s.type == "BowMan")  makeSpawnEnemy(s);
+	makePoolEnemies({ 5, "BowMan",   kSpawnerMega5BowManCount,   Protocol::ENEMY_TYPE_ARCHER  });
+
+	// Mutant: 일반 → 풀
+	for (const auto& s : spawnEntries) if (s.type == "Mutant")  makeSpawnEnemy(s);
+	makePoolEnemies({ 5, "Mutant",   kSpawnerMega5MutantCount,   Protocol::ENEMY_TYPE_MUTANT  });
+
+	// Boss: 일반만
+	for (const auto& s : spawnEntries) if (s.type == "Boss")    makeSpawnEnemy(s);
 
 	for (auto& playerPair : players)
 	{
