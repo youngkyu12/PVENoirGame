@@ -6621,6 +6621,17 @@ bool CGameScene::RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& p
 		return false;
 	}
 
+#ifdef USING_NETWORK
+	// A server teleport can be valid in the authoritative collision set while
+	// overlapping a client-only static collider. Do not trap prediction at an
+	// already-overlapping origin; let server-validated input move it back out.
+	const bool hitWorldStaticAtPreviousPos = TestPositionAgainstWorldStatic(previousPos);
+	localPlayer->SetPosition(currentPos);
+	collider->UpdateWorldBounds();
+	if ( hitWorldStaticAtPreviousPos )
+		return false;
+#endif
+
 #ifndef USING_NETWORK
 	if ( kEnableTowerDoorPortalCollisionLog )
 	{
