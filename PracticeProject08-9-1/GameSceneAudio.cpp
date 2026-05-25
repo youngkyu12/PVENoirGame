@@ -94,6 +94,13 @@ namespace
 	static constexpr float kMonsterGhoulWhooshDelaySeconds = 0.1494f;
 	static constexpr float kMonsterGhoulWhooshVolume = 0.5f;
 
+	static constexpr float kBossSummonSfxVolume = 2.0f;
+
+	static const char* GetBossSummonSfxPath()
+	{
+		return "Assets/Audio/BossSummon.wav";
+	}
+
 	static const char* GetMonsterMutantWhooshPath()
 	{
 		return "Assets/Audio/Whoosh_Sword2.wav";
@@ -155,6 +162,26 @@ namespace
 	{
 		return "Assets/Audio/Bow_Release.mp3";
 	}
+}
+
+void CGameScene::PlayBossSummonSfxAt(const XMFLOAT3& position)
+{
+	if ( !m_pAudioManager )
+		return;
+
+	const char* path = GetBossSummonSfxPath();
+
+	if ( !path || !path[0] )
+		return;
+
+	m_pAudioManager->PlaySound3D(
+		path,
+		position,
+		false,                 // loop: 1회 재생
+		false,                 // stream
+		kBossSummonSfxVolume,
+		false                  // startPaused
+	);
 }
 
 void CGameScene::RequestPlayerAttackSfx(CGameObject* player)

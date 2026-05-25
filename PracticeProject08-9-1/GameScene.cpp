@@ -5920,6 +5920,21 @@ void CGameScene::SetBossStageBossActive(
 
 	const bool useHiddenAppearSpawn = playAppear;
 
+	XMFLOAT3 bossSummonSfxPosition = boss->GetPosition();
+
+	if ( useHiddenAppearSpawn )
+	{
+		const auto posIt = m_bossStageBossPositionStates.find(boss);
+
+		if ( posIt != m_bossStageBossPositionStates.end() )
+			bossSummonSfxPosition = posIt->second.originalPosition;
+	}
+
+	// BossSummon.wav는 보스를 y=-100으로 내리기 전에,
+	// 반드시 원래 등장 위치 기준으로 1회 재생한다.
+	if ( useHiddenAppearSpawn )
+		PlayBossSummonSfxAt(bossSummonSfxPosition);
+
 	// Appear 시작 프레임에는 보스를 지하에 둔다.
 	// renderer/active 타이밍 문제가 남아 있어도 첫 노출은 y=-100 근처라 화면에 보이지 않는다.
 	if ( useHiddenAppearSpawn )
