@@ -5275,6 +5275,47 @@ bool CGameScene::IsPlayerInsideMegaGridCenter(const CGameObject* player) const
 	);
 }
 
+bool CGameScene::IsPlayerInsideBossStageBattleArea(const CGameObject* player) const
+{
+	if ( !m_sceneGrid.IsInitialized() )
+		return false;
+
+	if ( !player )
+		return false;
+
+	const XMFLOAT3 pos = player->GetPosition();
+
+	int cellX = -1;
+	int cellZ = -1;
+
+	if ( !m_sceneGrid.WorldToCell(pos.x, pos.z, cellX, cellZ) )
+		return false;
+
+	int megaX = -1;
+	int megaZ = -1;
+
+	if ( !m_sceneGrid.FineCellToMegaGridCell(cellX, cellZ, megaX, megaZ) )
+		return false;
+
+	if ( megaX != kCastleCenterMegaGridX ||
+		 megaZ != kCastleCenterMegaGridZ )
+	{
+		return false;
+	}
+
+#ifdef USING_NETWORK
+	return true;
+#else
+	// 로컬 플레이어는 Castle 포탈 진입 플래그로만 보스성 내부 판정.
+	// 즉 200x200 approach zone을 쓰지 않는다.
+	if ( player == GetPlayer() || player == GetPlayerBySlot(m_localPlayerSlot) )
+		return m_bLocalPlayerInsideCastleCenterMegaGrid;
+
+	// 로컬 테스트용 slot 1~3 플레이어는 중앙 메가그리드 400x400 안에 있으면 허용.
+	return true;
+#endif
+}
+
 bool CGameScene::IsLocalPlayerInsideMegaGridCenter() const
 {
 	CGameObject* localPlayer = GetPlayer();
