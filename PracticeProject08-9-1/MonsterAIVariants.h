@@ -79,6 +79,63 @@ private:
 };
 
 //-----------------------------------------------------------------------------
+// Boss Stage Monster
+// 5번 메가그리드 전용.
+// - target 획득 조건: 플레이어가 5번 보스 스테이지에 있는가
+// - chase 이동: navmesh 없이 target 방향 직진
+// - target 없음: 기존 return-home 로직 사용
+// - SwordMan / BowMan patrol 전후 이동 없음
+//-----------------------------------------------------------------------------
+class CBossStageMonsterAIComponent final : public CMonsterAIComponent
+{
+public:
+	enum class EKind : uint8_t
+	{
+		Ghoul = 0,
+		SwordMan,
+		BowMan,
+		Mutant
+	};
+
+public:
+	explicit CBossStageMonsterAIComponent(CGameObject* owner);
+	~CBossStageMonsterAIComponent() override = default;
+
+public:
+	TypeId GetTypeId() const override
+	{
+		return CComponent::StaticTypeId<CBossStageMonsterAIComponent>();
+	}
+
+	void OnUpdate(float dt) override;
+
+	bool ForceChaseTarget(CGameObject* target) override;
+
+	void ConfigureBossStageMonsterAI(EKind kind);
+
+protected:
+	bool AcquireTarget() override;
+	void UpdateBehavior(float dt) override;
+
+	bool CanStartAttackAgainstTarget() const override;
+	bool TryPerformAttack() override;
+
+	EMonsterAnimState GetChaseLocomotionState() const override;
+	EMonsterAnimState GetWalkLocomotionState() const override;
+
+private:
+	bool IsPlayerValidBossStageTarget(CGameObject* player) const;
+	bool HasAnyValidPlayerInsideBossStage() const;
+	CGameObject* FindNearestPlayerInsideBossStage() const;
+
+	bool MoveDirectNoNavTowards(const XMFLOAT3& targetPos, float maxStepDistance);
+	bool MoveDirectNoNavByDirection(const XMFLOAT3& direction, float maxStepDistance);
+
+private:
+	EKind m_kind = EKind::Ghoul;
+};
+
+//-----------------------------------------------------------------------------
 // SwordMan
 //-----------------------------------------------------------------------------
 class CSwordManAIComponent final : public CMonsterAIComponent

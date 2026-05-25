@@ -1561,6 +1561,7 @@ private:
 	bool m_bSimulateLocalSwordManAI = true;
 	bool m_bSimulateLocalMutantAI = true;
 	bool m_bSimulateLocalBossAI = true;
+	bool m_bSimulateLocalBossStageMonsterAI = true;
 
 	bool m_bSimulateLocalMonsterChase = true;
 	bool m_bPrevLocalMonsterChaseToggleKeyDown = false;
