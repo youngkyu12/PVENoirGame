@@ -3005,6 +3005,8 @@ void CGameScene::ReleaseObjects()
 	m_bossShockwavePlayerInitialDistance = 0.0f;
 	m_bossShockwavePlayerPushDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
 
+	ResetBossShockwaveWindSfxTracking();
+
 	m_bossPoisonProjectiles.clear();
 	m_bossPoisonSpellCastStates.clear();
 	m_bossMeleeSlashCastStates.clear();

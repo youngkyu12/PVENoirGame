@@ -2138,6 +2138,8 @@ void CGameScene::SpawnBossShockwave(const XMFLOAT3& center)
 	m_bossShockwavePlayerInitialDistance = 0.0f;
 	m_bossShockwavePlayerPushDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
 
+	m_bossShockwaveWindSfxDirection = XMFLOAT3(0.0f, 0.0f, 1.0f);
+
 	CGameObject* localPlayer = GetPlayer();
 
 	if ( localPlayer && !m_bLocalPlayerDead )
@@ -2148,6 +2150,25 @@ void CGameScene::SpawnBossShockwave(const XMFLOAT3& center)
 		const float dz = playerPos.z - fixedCenter.z;
 
 		const float distSq = dx * dx + dz * dz;
+		float dist = sqrtf(distSq);
+
+		XMFLOAT3 radialDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
+
+		if ( dist > kBossShockwavePlayerMinDirectionDistance )
+		{
+			const float invDist = 1.0f / dist;
+
+			radialDir.x = dx * invDist;
+			radialDir.y = 0.0f;
+			radialDir.z = dz * invDist;
+		}
+		else
+		{
+			dist = 0.0f;
+		}
+
+		// 바람 사운드는 이 방향으로 퍼지는 충격파 전면을 따라간다.
+		m_bossShockwaveWindSfxDirection = radialDir;
 
 		const float maxAffectRadius =
 			kBossShockwaveMaxRadius + kBossShockwavePlayerRangePadding;
@@ -2157,28 +2178,15 @@ void CGameScene::SpawnBossShockwave(const XMFLOAT3& center)
 
 		if ( distSq <= maxAffectRadiusSq )
 		{
-			float dist = sqrtf(distSq);
-
-			XMFLOAT3 pushDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
-
-			if ( dist > kBossShockwavePlayerMinDirectionDistance )
-			{
-				const float invDist = 1.0f / dist;
-
-				pushDir.x = dx * invDist;
-				pushDir.y = 0.0f;
-				pushDir.z = dz * invDist;
-			}
-			else
-			{
-				dist = 0.0f;
-			}
-
 			m_bBossShockwavePushLocalPlayer = true;
 			m_bossShockwavePlayerInitialDistance = dist;
-			m_bossShockwavePlayerPushDir = pushDir;
+			m_bossShockwavePlayerPushDir = radialDir;
 		}
 	}
+
+	// 바람 생성 순간에는 보스/충격파 중심에서 1회 재생한다.
+	// 이후 UpdateBossShockwaveWindSfx()가 충격파 반지름에 맞춰 위치를 이동시킨다.
+	PlayBossShockwaveWindSfxAt(fixedCenter);
 
 	SetBossShockwaveAlpha(1.0f);
 	SetBossShockwaveWallAlpha(0.72f);
@@ -2246,6 +2254,8 @@ void CGameScene::UpdateBossShockwave(float dt)
 		m_bossShockwavePlayerInitialDistance = 0.0f;
 		m_bossShockwavePlayerPushDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
 
+		ResetBossShockwaveWindSfxTracking();
+
 		for ( ItemBillboardEntry& item : m_itemBillboards )
 		{
 			if ( item.kind != EItemBillboardKind::BossShockwave &&
@@ -2308,10 +2318,8 @@ void CGameScene::UpdateBossShockwave(float dt)
 		wallAlpha = ( 1.0f - fadeT ) * 0.72f;
 	}
 
-	ApplyBossShockwavePushToLocalPlayer(
-		m_bossShockwavePrevRadius,
-		radius
-	);
+	ApplyBossShockwavePushToLocalPlayer(m_bossShockwavePrevRadius, radius);
+	UpdateBossShockwaveWindSfx(radius);
 
 	m_bossShockwavePrevRadius = radius;
 	const float correctedRadius =
