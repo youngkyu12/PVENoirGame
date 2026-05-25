@@ -96,11 +96,20 @@ namespace
 
 	static constexpr float kBossSummonSfxVolume = 5.0f;
 	static constexpr float kBossSummonCircleSfxVolume = 1.0f;
+
+	static constexpr float kBossAttackSfxDelaySeconds = 0.3320f;
+	static constexpr float kBossAttackSfxVolume = 1.0f;
+
 	static constexpr float kBossShockwaveWindSfxVolume = 1.0f;
 
 	static const char* GetBossSummonSfxPath()
 	{
 		return "Assets/Audio/BossSummon.wav";
+	}
+
+	static const char* GetBossAttackSfxPath()
+	{
+		return "Assets/Audio/BossAttack.wav";
 	}
 
 	static const char* GetBossShockwaveWindSfxPath()
@@ -1002,6 +1011,27 @@ void CGameScene::RequestBowManLoadSfx(CGameObject* bowman)
 		kMonsterBowReleaseSfxVolume,
 		true
 	);
+}
+
+void CGameScene::RequestBossAttackSfx(CGameObject* boss)
+{
+	ScheduleMonsterSfx(
+		EMonsterSfxKind::BossAttack,
+		boss,
+		GetBossAttackSfxPath(),
+		kBossAttackSfxDelaySeconds,
+		kBossAttackSfxVolume,
+		true
+	);
+
+	char buf[256];
+	sprintf_s(
+		buf,
+		"[BossAttackSfx][Request] delay=%.4f sec (%.1f ms)\n",
+		kBossAttackSfxDelaySeconds,
+		kBossAttackSfxDelaySeconds * 1000.0f
+	);
+	OutputDebugStringA(buf);
 }
 
 void CGameScene::ScheduleMonsterSfx(
