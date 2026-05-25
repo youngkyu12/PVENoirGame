@@ -34,6 +34,7 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 	m_bSimulateLocalSwordManAI = false;
 	m_bSimulateLocalMutantAI = false;
 	m_bSimulateLocalBossAI = false;
+	m_bSimulateLocalBossStageMonsterAI = false;
 
 	m_bSimulateLocalMonsterChase = false;
 	m_bSimulateLocalEnemySpawner = true;
@@ -52,6 +53,7 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 	m_bSimulateLocalSwordManAI = false;
 	m_bSimulateLocalMutantAI = false;
 	m_bSimulateLocalBossAI = true;
+	m_bSimulateLocalBossStageMonsterAI = true;
 
 	m_bSimulateLocalMonsterChase = true;
 	m_bSimulateLocalEnemySpawner = true;
@@ -69,6 +71,7 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 		m_bSimulateLocalSwordManAI = false;
 		m_bSimulateLocalMutantAI = false;
 		m_bSimulateLocalBossAI = false;
+		m_bSimulateLocalBossStageMonsterAI = false;
 	}
 
 	m_bPrevLocalMonsterChaseToggleKeyDown = false;
@@ -1494,6 +1497,12 @@ void CGameScene::BuildSkinnedBatch(
 	{
 		Ghoul,
 		EnemySpawnerGhoul,
+
+		BossStageGhoul,
+		BossStageSwordMan,
+		BossStageBowMan,
+		BossStageMutant,
+
 		SwordMan,
 		BowMan,
 		Mutant,
@@ -1513,6 +1522,12 @@ void CGameScene::BuildSkinnedBatch(
 
 			case ELocalMonsterAIKind::EnemySpawnerGhoul:
 				return m_bSimulateLocalEnemySpawner;
+
+			case ELocalMonsterAIKind::BossStageGhoul:
+			case ELocalMonsterAIKind::BossStageSwordMan:
+			case ELocalMonsterAIKind::BossStageBowMan:
+			case ELocalMonsterAIKind::BossStageMutant:
+				return m_bSimulateLocalBossStageMonsterAI;
 
 			case ELocalMonsterAIKind::BowMan:
 				return m_bSimulateLocalBowManAI;
@@ -1569,6 +1584,74 @@ void CGameScene::BuildSkinnedBatch(
 				if ( ai )
 				{
 					ai->SetScene(this);
+					ai->SetEnabledAI(true);
+				}
+				break;
+			}
+
+			case ELocalMonsterAIKind::BossStageGhoul:
+			{
+				if ( obj->GetComponent<CBossStageMonsterAIComponent>() )
+					return;
+
+				auto* ai = obj->AddComponent<CBossStageMonsterAIComponent>();
+				if ( ai )
+				{
+					ai->SetScene(this);
+					ai->ConfigureBossStageMonsterAI(
+						CBossStageMonsterAIComponent::EKind::Ghoul
+					);
+					ai->SetEnabledAI(true);
+				}
+				break;
+			}
+
+			case ELocalMonsterAIKind::BossStageSwordMan:
+			{
+				if ( obj->GetComponent<CBossStageMonsterAIComponent>() )
+					return;
+
+				auto* ai = obj->AddComponent<CBossStageMonsterAIComponent>();
+				if ( ai )
+				{
+					ai->SetScene(this);
+					ai->ConfigureBossStageMonsterAI(
+						CBossStageMonsterAIComponent::EKind::SwordMan
+					);
+					ai->SetEnabledAI(true);
+				}
+				break;
+			}
+
+			case ELocalMonsterAIKind::BossStageBowMan:
+			{
+				if ( obj->GetComponent<CBossStageMonsterAIComponent>() )
+					return;
+
+				auto* ai = obj->AddComponent<CBossStageMonsterAIComponent>();
+				if ( ai )
+				{
+					ai->SetScene(this);
+					ai->ConfigureBossStageMonsterAI(
+						CBossStageMonsterAIComponent::EKind::BowMan
+					);
+					ai->SetEnabledAI(true);
+				}
+				break;
+			}
+
+			case ELocalMonsterAIKind::BossStageMutant:
+			{
+				if ( obj->GetComponent<CBossStageMonsterAIComponent>() )
+					return;
+
+				auto* ai = obj->AddComponent<CBossStageMonsterAIComponent>();
+				if ( ai )
+				{
+					ai->SetScene(this);
+					ai->ConfigureBossStageMonsterAI(
+						CBossStageMonsterAIComponent::EKind::Mutant
+					);
 					ai->SetEnabledAI(true);
 				}
 				break;
@@ -1942,7 +2025,15 @@ void CGameScene::BuildSkinnedBatch(
 				continue;
 
 #ifndef USING_NETWORK
-			AttachMonsterAIToMonster(obj, ELocalMonsterAIKind::Ghoul);
+			const int spawnMegaGridNumber =
+				m_sceneGrid.MegaGridNumberFromWorldPosition(pos.x, pos.z);
+
+			AttachMonsterAIToMonster(
+				obj,
+				( spawnMegaGridNumber == 5 )
+					? ELocalMonsterAIKind::BossStageGhoul
+					: ELocalMonsterAIKind::Ghoul
+			);
 #endif
 
 			++enemyIndex;
@@ -2026,12 +2117,16 @@ void CGameScene::BuildSkinnedBatch(
 					const bool useSpawnerRushGhoulAI =
 						( megaGridNumber == 6 || megaGridNumber == 8 );
 
-					AttachMonsterAIToMonster(
-						obj,
-						useSpawnerRushGhoulAI
-							? ELocalMonsterAIKind::EnemySpawnerGhoul
-							: ELocalMonsterAIKind::Ghoul
-					);
+					const ELocalMonsterAIKind ghoulAIKind =
+						( megaGridNumber == 5 )
+						? ELocalMonsterAIKind::BossStageGhoul
+						: (
+							useSpawnerRushGhoulAI
+								? ELocalMonsterAIKind::EnemySpawnerGhoul
+								: ELocalMonsterAIKind::Ghoul
+						);
+
+					AttachMonsterAIToMonster(obj, ghoulAIKind);
 
 					CGameObject* raw = obj.get();
 
@@ -2155,7 +2250,15 @@ void CGameScene::BuildSkinnedBatch(
 				continue;
 
 #ifndef USING_NETWORK
-			AttachMonsterAIToMonster(obj, ELocalMonsterAIKind::SwordMan);
+			const int spawnMegaGridNumber =
+				m_sceneGrid.MegaGridNumberFromWorldPosition(pos.x, pos.z);
+
+			AttachMonsterAIToMonster(
+				obj,
+				( spawnMegaGridNumber == 5 )
+					? ELocalMonsterAIKind::BossStageSwordMan
+					: ELocalMonsterAIKind::SwordMan
+			);
 #endif
 			++enemyIndex;
 
@@ -2231,8 +2334,12 @@ void CGameScene::BuildSkinnedBatch(
 					if ( !obj )
 						continue;
 
-					AttachMonsterAIToMonster(obj, ELocalMonsterAIKind::SwordMan);
-
+					AttachMonsterAIToMonster(
+						obj,
+						( megaGridNumber == 5 )
+							? ELocalMonsterAIKind::BossStageSwordMan
+							: ELocalMonsterAIKind::SwordMan
+					);
 					CGameObject* raw = obj.get();
 
 					RegisterMonsterToMegaGrid(raw, pos, i);
@@ -2352,7 +2459,15 @@ void CGameScene::BuildSkinnedBatch(
 				continue;
 
 #ifndef USING_NETWORK
-			AttachMonsterAIToMonster(obj, ELocalMonsterAIKind::BowMan);
+			const int spawnMegaGridNumber =
+				m_sceneGrid.MegaGridNumberFromWorldPosition(pos.x, pos.z);
+
+			AttachMonsterAIToMonster(
+				obj,
+				( spawnMegaGridNumber == 5 )
+					? ELocalMonsterAIKind::BossStageBowMan
+					: ELocalMonsterAIKind::BowMan
+			);
 #endif
 
 			++enemyIndex;
@@ -2431,7 +2546,12 @@ void CGameScene::BuildSkinnedBatch(
 					if ( !obj )
 						continue;
 
-					AttachMonsterAIToMonster(obj, ELocalMonsterAIKind::BowMan);
+					AttachMonsterAIToMonster(
+						obj,
+						( megaGridNumber == 5 )
+							? ELocalMonsterAIKind::BossStageBowMan
+							: ELocalMonsterAIKind::BowMan
+					);
 
 					CGameObject* raw = obj.get();
 
@@ -2559,7 +2679,15 @@ void CGameScene::BuildSkinnedBatch(
 				continue;
 
 #ifndef USING_NETWORK
-			AttachMonsterAIToMonster(obj, ELocalMonsterAIKind::Mutant);
+			const int spawnMegaGridNumber =
+				m_sceneGrid.MegaGridNumberFromWorldPosition(pos.x, pos.z);
+
+			AttachMonsterAIToMonster(
+				obj,
+				( spawnMegaGridNumber == 5 )
+					? ELocalMonsterAIKind::BossStageMutant
+					: ELocalMonsterAIKind::Mutant
+			);
 #endif
 
 			++enemyIndex;
@@ -2650,8 +2778,12 @@ void CGameScene::BuildSkinnedBatch(
 					if ( !obj )
 						continue;
 
-					AttachMonsterAIToMonster(obj, ELocalMonsterAIKind::Mutant);
-
+					AttachMonsterAIToMonster(
+						obj,
+						( megaGridNumber == 5 )
+							? ELocalMonsterAIKind::BossStageMutant
+							: ELocalMonsterAIKind::Mutant
+					);
 					CGameObject* raw = obj.get();
 
 					RegisterMonsterToMegaGrid(raw, pos, i);

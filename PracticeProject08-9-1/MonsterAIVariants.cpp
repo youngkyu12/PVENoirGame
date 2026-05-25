@@ -599,6 +599,429 @@ bool CEnemySpawnerGhoulAIComponent::MoveDirectNoNavByDirection(
 }
 
 //-----------------------------------------------------------------------------
+// Boss Stage Monster
+//-----------------------------------------------------------------------------
+CBossStageMonsterAIComponent::CBossStageMonsterAIComponent(CGameObject* owner)
+	: CMonsterAIComponent(owner)
+{
+	ConfigureBossStageMonsterAI(EKind::Ghoul);
+}
+
+void CBossStageMonsterAIComponent::ConfigureBossStageMonsterAI(EKind kind)
+{
+	m_kind = kind;
+
+	SetRepathInterval(0.35f);
+	SetPathPointReachDistance(0.20f);
+	SetGoalReachDistance(0.85f);
+
+	// 추적 시작/종료 거리는 5번 보스 스테이지 AI에서는 쓰지 않는다.
+	// 실제 추적 여부는 플레이어가 5번 보스 스테이지에 있는지만 본다.
+	SetChaseRanges(1000000.0f, 1000000.0f);
+
+	SetAttackCooldown(1.0f);
+	SetChaseRunAnimationEnabled(true);
+
+	// SwordMan / BowMan의 기존 전후 patrol 이동 제거.
+	SetPatrolEnabled(false);
+
+	switch ( m_kind )
+	{
+	case EKind::Ghoul:
+		SetMoveSpeeds(1.0f, 2.0f);
+		SetAttackRange(1.5f);
+		break;
+
+	case EKind::SwordMan:
+		SetMoveSpeeds(4.0f, 8.0f);
+		SetAttackRange(3.0f);
+		break;
+
+	case EKind::BowMan:
+		SetMoveSpeeds(4.0f, 8.0f);
+		SetAttackRange(25.0f);
+		break;
+
+	case EKind::Mutant:
+		SetMoveSpeeds(5.0f, 12.0f);
+		SetAttackRange(2.7f);
+		break;
+
+	default:
+		SetMoveSpeeds(1.0f, 2.0f);
+		SetAttackRange(1.5f);
+		break;
+	}
+}
+
+void CBossStageMonsterAIComponent::OnUpdate(float dt)
+{
+	if ( !m_bAIEnabled )
+		return;
+
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return;
+
+	EnsureHomeTransformCaptured();
+
+	if ( IsObjectDeadByHealthLocal(owner) )
+	{
+		ClearTarget();
+		ClearPath();
+		ClearReturnHomePath();
+		return;
+	}
+
+	if ( !m_pScene )
+		return;
+
+	UpdateCooldowns(dt);
+	UpdatePathTimers(dt);
+
+	if ( !CanThinkNow() )
+	{
+		ClearPath();
+		return;
+	}
+
+	const bool hasBossStagePlayer = HasAnyValidPlayerInsideBossStage();
+
+	if ( !hasBossStagePlayer )
+	{
+		ClearTarget();
+
+		if ( !IsAtHome() )
+		{
+			if ( !m_bReturningHome )
+				BeginReturnHome();
+
+			if ( m_bReturningHome )
+			{
+				UpdateReturnHome(dt);
+				return;
+			}
+		}
+
+		ClearPath();
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		return;
+	}
+
+	if ( !HasValidTarget() || !IsPlayerValidBossStageTarget(m_pTarget) )
+	{
+		ClearTarget();
+		AcquireTarget();
+	}
+
+	if ( !HasValidTarget() )
+	{
+		if ( !IsAtHome() )
+		{
+			if ( !m_bReturningHome )
+				BeginReturnHome();
+
+			if ( m_bReturningHome )
+			{
+				UpdateReturnHome(dt);
+				return;
+			}
+		}
+
+		ClearPath();
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		return;
+	}
+
+	UpdateBehavior(dt);
+}
+
+bool CBossStageMonsterAIComponent::ForceChaseTarget(CGameObject* target)
+{
+	if ( !target )
+		return false;
+
+	if ( m_pScene && !m_pScene->IsLocalMonsterChaseEnabled() )
+		return false;
+
+	if ( !IsPlayerValidBossStageTarget(target) )
+		return false;
+
+	SetTarget(target);
+	ClearPath();
+	m_repathTimer = 0.0f;
+	return true;
+}
+
+bool CBossStageMonsterAIComponent::AcquireTarget()
+{
+	if ( !m_pScene )
+		return false;
+
+	if ( !m_pScene->IsLocalMonsterChaseEnabled() )
+		return false;
+
+	CGameObject* nearest = FindNearestPlayerInsideBossStage();
+	if ( !nearest )
+		return false;
+
+	SetTarget(nearest);
+	return true;
+}
+
+void CBossStageMonsterAIComponent::UpdateBehavior(float dt)
+{
+	if ( m_pScene && !m_pScene->IsLocalMonsterChaseEnabled() )
+	{
+		BeginReturnHome();
+		return;
+	}
+
+	if ( !HasValidTarget() || !IsPlayerValidBossStageTarget(m_pTarget) )
+	{
+		BeginReturnHome();
+		return;
+	}
+
+	if ( IsTargetInAttackRange() && CanStartAttackAgainstTarget() )
+	{
+		ClearPath();
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		FaceTowardsNoClamp(m_pTarget->GetPosition());
+
+		if ( CanAttackNow() )
+		{
+			if ( TryPerformAttack() )
+				ConsumeAttackCooldown();
+		}
+
+		return;
+	}
+
+	if ( !CanMoveNow() )
+	{
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		return;
+	}
+
+	if ( dt <= 0.0f )
+	{
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		return;
+	}
+
+	const float moveDistance = GetChaseMoveSpeed() * dt;
+	if ( moveDistance <= 0.0f )
+	{
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		return;
+	}
+
+	SetMonsterLocomotionState(GetChaseLocomotionState());
+	MoveDirectNoNavTowards(m_pTarget->GetPosition(), moveDistance);
+}
+
+bool CBossStageMonsterAIComponent::CanStartAttackAgainstTarget() const
+{
+	// 5번 메가그리드는 뻥 뚫린 구조로 취급한다.
+	// 따라서 BowMan도 navmesh line-of-sight 판정을 하지 않는다.
+	return true;
+}
+
+bool CBossStageMonsterAIComponent::TryPerformAttack()
+{
+	auto* animComp = GetAnimatorComponent();
+	if ( !animComp )
+		return false;
+
+	auto* ctrl = animComp->EnsureMonsterController();
+	if ( !ctrl )
+		return false;
+
+	ctrl->RequestCommand(EMonsterAnimCommand::Attack);
+	return true;
+}
+
+EMonsterAnimState CBossStageMonsterAIComponent::GetChaseLocomotionState() const
+{
+	return EMonsterAnimState::Run;
+}
+
+EMonsterAnimState CBossStageMonsterAIComponent::GetWalkLocomotionState() const
+{
+	return EMonsterAnimState::Move;
+}
+
+bool CBossStageMonsterAIComponent::IsPlayerValidBossStageTarget(CGameObject* player) const
+{
+	if ( !player )
+		return false;
+
+	if ( !m_pScene )
+		return false;
+
+	bool isRegisteredPlayer = false;
+
+	for ( int slot = 0; slot < 4; ++slot )
+	{
+		if ( m_pScene->GetPlayerBySlot(slot) == player )
+		{
+			isRegisteredPlayer = true;
+			break;
+		}
+	}
+
+	if ( !isRegisteredPlayer )
+		return false;
+
+	if ( auto* hp = player->GetComponent<CHealthComponent>() )
+	{
+		if ( hp->IsDead() )
+			return false;
+	}
+
+	// 현재 보스 AI도 이 기준을 5번 보스 전투구역 판정으로 쓰고 있으므로,
+	// 일반 보스 스테이지 몬스터도 동일 기준을 사용한다.
+	return IsWorldPositionInsideMegaGridCenterZone(
+		player->GetPosition(),
+		5
+	);
+}
+
+bool CBossStageMonsterAIComponent::HasAnyValidPlayerInsideBossStage() const
+{
+	if ( !m_pScene )
+		return false;
+
+	for ( int slot = 0; slot < 4; ++slot )
+	{
+		if ( IsPlayerValidBossStageTarget(m_pScene->GetPlayerBySlot(slot)) )
+			return true;
+	}
+
+	return false;
+}
+
+CGameObject* CBossStageMonsterAIComponent::FindNearestPlayerInsideBossStage() const
+{
+	if ( !m_pScene )
+		return nullptr;
+
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return nullptr;
+
+	CGameObject* bestPlayer = nullptr;
+	float bestDistSq = FLT_MAX;
+
+	const XMFLOAT3 ownerPos = owner->GetPosition();
+
+	for ( int slot = 0; slot < 4; ++slot )
+	{
+		CGameObject* player = m_pScene->GetPlayerBySlot(slot);
+		if ( !IsPlayerValidBossStageTarget(player) )
+			continue;
+
+		const float distSq =
+			DistanceSqXZLocal(ownerPos, player->GetPosition());
+
+		if ( distSq < bestDistSq )
+		{
+			bestDistSq = distSq;
+			bestPlayer = player;
+		}
+	}
+
+	return bestPlayer;
+}
+
+bool CBossStageMonsterAIComponent::MoveDirectNoNavTowards(
+	const XMFLOAT3& targetPos,
+	float maxStepDistance)
+{
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return false;
+
+	if ( maxStepDistance <= 0.0f )
+		return false;
+
+	const XMFLOAT3 pos = owner->GetPosition();
+
+	XMFLOAT3 delta(
+		targetPos.x - pos.x,
+		0.0f,
+		targetPos.z - pos.z
+	);
+
+	const float lenSq = delta.x * delta.x + delta.z * delta.z;
+	if ( lenSq <= 1.0e-8f )
+		return false;
+
+	const float len = std::sqrt(lenSq);
+	const float invLen = 1.0f / len;
+
+	XMFLOAT3 dir(
+		delta.x * invLen,
+		0.0f,
+		delta.z * invLen
+	);
+
+	const float stepDistance =
+		( maxStepDistance < len ) ? maxStepDistance : len;
+
+	return MoveDirectNoNavByDirection(
+		dir,
+		stepDistance
+	);
+}
+
+bool CBossStageMonsterAIComponent::MoveDirectNoNavByDirection(
+	const XMFLOAT3& direction,
+	float maxStepDistance)
+{
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return false;
+
+	if ( maxStepDistance <= 0.0f )
+		return false;
+
+	XMFLOAT3 dir(direction.x, 0.0f, direction.z);
+
+	const float lenSq = dir.x * dir.x + dir.z * dir.z;
+	if ( lenSq <= 1.0e-8f )
+		return false;
+
+	const float invLen = 1.0f / std::sqrt(lenSq);
+	dir.x *= invLen;
+	dir.z *= invLen;
+
+	const XMFLOAT3 pos = owner->GetPosition();
+
+	const XMFLOAT3 lookTarget(
+		pos.x + dir.x,
+		pos.y,
+		pos.z + dir.z
+	);
+
+	FaceTowardsNoClamp(lookTarget);
+
+	XMFLOAT3 newPos(
+		pos.x + dir.x * maxStepDistance,
+		pos.y,
+		pos.z + dir.z * maxStepDistance
+	);
+
+	owner->SetPosition(newPos);
+
+	if ( auto* collider = owner->GetComponent<CColliderComponent>() )
+		collider->UpdateWorldBounds();
+
+	return true;
+}
+
+//-----------------------------------------------------------------------------
 // SwordMan
 //-----------------------------------------------------------------------------
 CSwordManAIComponent::CSwordManAIComponent(CGameObject* owner)

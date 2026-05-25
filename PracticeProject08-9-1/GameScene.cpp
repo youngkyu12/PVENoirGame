@@ -4898,6 +4898,9 @@ bool CGameScene::ForceMonsterAIChaseTarget(CGameObject* monster, CGameObject* ta
 	if ( !monster || !target )
 		return false;
 
+	if ( auto* ai = monster->GetComponent<CBossStageMonsterAIComponent>() )
+		return ai->ForceChaseTarget(target);
+
 	if ( auto* ai = monster->GetComponent<CEnemySpawnerGhoulAIComponent>() )
 		return ai->ForceChaseTarget(target);
 
