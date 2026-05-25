@@ -4217,38 +4217,6 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 
 		cmd->DrawIndexedInstanced(( UINT ) repSm.indices.size(), visibleInstanceCount, 0, 0, 0);
 	}
-
-#ifdef USING_NETWORK
-	{
-		static int sDbgFrame = 0;
-		if ( ++sDbgFrame >= 60 )
-		{
-			sDbgFrame = 0;
-
-			auto countVisible = [&] (const std::vector<CGameObject*>& refs) -> int {
-				int n = 0;
-				for ( CGameObject* obj : refs )
-					if ( obj && obj->GetActive() && obj->IsVisible(camera) ) ++n;
-				return n;
-			};
-
-			const int sw = countVisible(m_swordManRefs);
-			const int bw = countVisible(m_bowManRefs);
-			const int mw = countVisible(m_MutantRefs);
-			const int bsw = countVisible(m_bossRefs);
-
-			if ( sw + bw + mw + bsw > 0 )
-			{
-				std::string msg =
-					"[Render] non-Ghoul visible  SwordMan=" + std::to_string(sw) +
-					"  BowMan=" + std::to_string(bw) +
-					"  Mutant=" + std::to_string(mw) +
-					"  Boss="   + std::to_string(bsw) + "\n";
-				OutputDebugStringA(msg.c_str());
-			}
-		}
-	}
-#endif
 }
 
 void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList* cmd)
