@@ -2727,6 +2727,8 @@ void CGameScene::UpdateBossMeleeSlashCasts(float dt)
 			state.pendingSpawn = true;
 			state.spawned = false;
 			state.meleeAgeSec = 0.0f;
+
+			RequestBossAttackSfx(boss);
 		}
 		else
 		{

@@ -1159,7 +1159,8 @@ private:
 		MutantWhoosh,
 		GhoulWhoosh,
 		BowLoading,
-		BowRelease
+		BowRelease,
+		BossAttack
 	};
 
 	enum class EMonsterFootstepProfile : uint8_t
@@ -1255,6 +1256,7 @@ private:
 	void RequestSwordManAttackSfx(CGameObject* swordman);
 	void RequestMutantAttackSfx(CGameObject* mutant);
 	void RequestBowManLoadSfx(CGameObject* bowman);
+	void RequestBossAttackSfx(CGameObject* boss);
 
 	void PlayBossSummonSfxAt(const XMFLOAT3& position);
 	void PlayBossSummonCircleSfxAt(const XMFLOAT3& position);
@@ -1563,6 +1565,7 @@ private:
 	bool m_bSimulateLocalMonsterChase = true;
 	bool m_bPrevLocalMonsterChaseToggleKeyDown = false;
 	bool m_bPrevDebugDamageMegaGrid5KeyDown = false;
+
 	bool m_bBossStageBossActivated = false;
 
 	static constexpr float kBossStageBossHiddenYOffset = -100.0f;
