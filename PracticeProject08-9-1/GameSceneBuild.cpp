@@ -1744,7 +1744,7 @@ void CGameScene::BuildSkinnedBatch(
 			return true;
 		};
 
-	auto GetNetworkPlayerSpawn = [ & ] (UINT index, XMFLOAT3& outPos, float& outYaw, EWeaponType& outWeapon) -> bool
+	auto GetNetworkPlayerSpawn = [ & ] (UINT index, XMFLOAT3& outPos, float& outYaw, EWeaponType& outWeapon, uint32_t& outHp) -> bool
 		{
 			if ( index >= static_cast< UINT >( gameStartData.players.size() ) )
 				return false;
@@ -1753,6 +1753,7 @@ void CGameScene::BuildSkinnedBatch(
 			outPos = state.position;
 			outYaw = state.yaw;
 			outWeapon = state.weaponType;
+			outHp = state.hp;
 			return true;
 		};
 #endif
@@ -2852,7 +2853,8 @@ void CGameScene::BuildSkinnedBatch(
 
 #ifdef USING_NETWORK
 			EWeaponType initialWeapon = EWeaponType::Sword;
-			if ( !GetNetworkPlayerSpawn(k, pos, yaw, initialWeapon) )
+			uint32_t initialHp = static_cast<uint32_t>(kHpPlayer);
+			if ( !GetNetworkPlayerSpawn(k, pos, yaw, initialWeapon, initialHp) )
 				break;
 #else
 			pos.x = playerBase.x + 2.0f * ( float ) slot;
@@ -2897,6 +2899,11 @@ void CGameScene::BuildSkinnedBatch(
 			if ( auto* equipComp = obj->GetComponent<CPlayerEquipmentComponent>() )
 			{
 				equipComp->SetLoadout(initialWeapon);
+			}
+
+			if ( auto* hp = obj->GetComponent<CHealthComponent>() )
+			{
+				hp->SetCurrentHp(static_cast<int>(initialHp));
 			}
 #endif
 

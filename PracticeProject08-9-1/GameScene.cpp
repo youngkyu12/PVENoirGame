@@ -7235,6 +7235,9 @@ void CGameScene::AnimateObjects(float dt)
 
 			if (isLocalPlayer)
             {
+				if ( auto* hp = player->GetComponent<CHealthComponent>() )
+					hp->SetCurrentHp(static_cast<int>(state.hp));
+
 				constexpr float kLocalPlayerServerSnapDistance = 1.5f;
 				constexpr float kLocalPlayerServerSnapDistanceSq =
 					kLocalPlayerServerSnapDistance * kLocalPlayerServerSnapDistance;
@@ -7337,6 +7340,9 @@ void CGameScene::AnimateObjects(float dt)
 					if ( !prevDecoded.hit )
 					{
 						SpawnBloodSplash(player, nullptr, nullptr);
+
+						if ( auto* hp = player->GetComponent<CHealthComponent>() )
+							hp->RequestHitSfx();
 					}
 
 					ac->RequestHit();
