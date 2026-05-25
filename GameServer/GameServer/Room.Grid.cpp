@@ -545,6 +545,7 @@ void Room::RebuildMegaGridEnemyIds()
 	for (auto& [enemyId, enemy] : enemies)
 	{
 		if (!enemy) continue;
+		if (!enemy->IsActive()) continue;
 
 		int megaX = -1;
 		int megaZ = -1;

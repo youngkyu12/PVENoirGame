@@ -340,10 +340,49 @@ void Room::BuildRoom()
 		enemy->SetYaw(GameMath::NormalizeYaw(spawn.yawDeg));
 		enemy->SetMaxHp(GetEnemyHp(spawn.type));
 		enemy->SetAttackPower(GetEnemyAttackPower(spawn.type));
+		enemy->SetActive(true);
 
 		RegisterDynamicCollider(enemy);
 		SetObjectCollisionMegaGridMask(enemy, ComputeObjectCurrentMegaGridMask(enemy.get()), true);
 		enemies[enemyId] = enemy;
+	}
+
+	// EnemySpawner pool: 클라이언트와 동일한 구성으로 dormant enemy 사전 등록 (active=false)
+	// 클라이언트 m_skinnedObjects의 NPC 순번과 서버 enemyId가 일치해야 하므로
+	// 파일 로드 enemy 직후에 동일한 순서로 등록한다.
+	struct SpawnerPoolSpec { int megaGrid; const char* type; int count; Protocol::EnemyType enemyType; };
+	const SpawnerPoolSpec spawnerSpecs[] = {
+		{ 6, "Ghoul",    kSpawnerMega6GhoulCount,    Protocol::ENEMY_TYPE_BASIC  },
+		{ 8, "Ghoul",    kSpawnerMega8GhoulCount,    Protocol::ENEMY_TYPE_BASIC  },
+		{ 5, "Ghoul",    kSpawnerMega5GhoulCount,    Protocol::ENEMY_TYPE_BASIC  },
+		{ 5, "BowMan",   kSpawnerMega5BowManCount,   Protocol::ENEMY_TYPE_ARCHER },
+		{ 5, "SwordMan", kSpawnerMega5SwordManCount, Protocol::ENEMY_TYPE_BASIC  },
+		{ 5, "Mutant",   kSpawnerMega5MutantCount,   Protocol::ENEMY_TYPE_BASIC  },
+	};
+	for (const auto& spec : spawnerSpecs)
+	{
+		const int zeroBased = spec.megaGrid - 1;
+		const int mgX = zeroBased % kMegaGridCols;
+		const int mgZ = zeroBased / kMegaGridCols;
+		const float centerX = kGridMinX + mgX * kMegaGridCellWidth  + kMegaGridCellWidth  * 0.5f;
+		const float centerZ = kGridMinZ + mgZ * kMegaGridCellHeight + kMegaGridCellHeight * 0.5f;
+
+		for (int i = 0; i < spec.count; ++i)
+		{
+			while (enemies.find(nextEnemyId) != enemies.end())
+				++nextEnemyId;
+
+			auto dormant = make_shared<CEnemy>(nextEnemyId, spec.type, spec.enemyType, nullptr);
+			dormant->Build(GameMath::Vec3(centerX, -100.0f, centerZ), GameMath::Vec3::Zero());
+			dormant->SetMaxHp(GetEnemyHp(spec.type));
+			dormant->SetAttackPower(GetEnemyAttackPower(spec.type));
+			dormant->SetActive(false);
+
+			RegisterDynamicCollider(dormant);
+			SetObjectCollisionMegaGridMask(dormant, 0, true); // 충돌 마스크 0: dormant 동안 충돌 제외
+			enemies[nextEnemyId] = dormant;
+			++nextEnemyId;
+		}
 	}
 
 	for (auto& playerPair : players)

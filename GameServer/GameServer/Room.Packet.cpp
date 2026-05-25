@@ -201,6 +201,8 @@ void Room::MakeFrameState(uint32 tick)
 			EnemyRef& enemy = it->second;
 			if (!enemy)
 				continue;
+			if (!enemy->IsActive())
+				continue;
 
 			if (GameMath::DistSqXZ(viewerPos, enemy->GetPosition()) > kEnemyViewRangeSq)
 				continue;
