@@ -170,6 +170,13 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 			break;
 		}
 	}
+
+	OutputDebugStringA(("[BuildSkinnedBatch] enemy type counts from server:\n"
+		"  Ghoul   = " + std::to_string(m_ghoulCount)    + "\n"
+		"  SwordMan= " + std::to_string(m_swordManCount) + "\n"
+		"  BowMan  = " + std::to_string(m_bowManCount)   + "\n"
+		"  Mutant  = " + std::to_string(m_MutantCount)   + "\n"
+		"  Boss    = " + std::to_string(m_bossCount)     + "\n").c_str());
 #else
 	m_localPlayerSlot = 0;
 

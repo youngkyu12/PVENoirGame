@@ -316,19 +316,26 @@ void Room::BuildRoom()
 	else
 		cout << "[MonsterSpawn] load success count=" << spawnEntries.size() << endl;
 
+	// 클라이언트 BuildSkinnedBatch 타입 루프 순서와 동일하게 정렬
+	// (Ghoul → SwordMan → BowMan → Mutant → Boss)
+	// 이 순서로 enemyId를 0부터 순번 부여해야 npcById 매핑이 일치한다.
+	auto spawnTypeOrder = [](const std::string& t) -> int {
+		if (t == "Ghoul")    return 0;
+		if (t == "SwordMan") return 1;
+		if (t == "BowMan")   return 2;
+		if (t == "Mutant")   return 3;
+		if (t == "Boss")     return 4;
+		return 5;
+	};
+	std::stable_sort(spawnEntries.begin(), spawnEntries.end(),
+		[&spawnTypeOrder](const MonsterSpawnEntry& a, const MonsterSpawnEntry& b) {
+			return spawnTypeOrder(a.type) < spawnTypeOrder(b.type);
+		});
+
 	uint64 nextEnemyId = 0;
 	for (const MonsterSpawnEntry& spawn : spawnEntries)
 	{
-		uint64 enemyId = 0;
-		if (spawn.index >= 0 && enemies.find(static_cast<uint64>(spawn.index)) == enemies.end())
-			enemyId = static_cast<uint64>(spawn.index);
-		else
-			enemyId = nextEnemyId;
-
-		while (enemies.find(enemyId) != enemies.end())
-			++enemyId;
-
-		nextEnemyId = std::max(nextEnemyId, enemyId + 1);
+		const uint64 enemyId = nextEnemyId++;
 
 		Protocol::EnemyType enemyType = Protocol::ENEMY_TYPE_BASIC;
 		if      (spawn.type == "BowMan")   enemyType = Protocol::ENEMY_TYPE_ARCHER;
@@ -356,8 +363,8 @@ void Room::BuildRoom()
 		{ 6, "Ghoul",    kSpawnerMega6GhoulCount,    Protocol::ENEMY_TYPE_BASIC  },
 		{ 8, "Ghoul",    kSpawnerMega8GhoulCount,    Protocol::ENEMY_TYPE_BASIC  },
 		{ 5, "Ghoul",    kSpawnerMega5GhoulCount,    Protocol::ENEMY_TYPE_BASIC  },
-		{ 5, "BowMan",   kSpawnerMega5BowManCount,   Protocol::ENEMY_TYPE_ARCHER },
 		{ 5, "SwordMan", kSpawnerMega5SwordManCount, Protocol::ENEMY_TYPE_WARRIOR },
+		{ 5, "BowMan",   kSpawnerMega5BowManCount,   Protocol::ENEMY_TYPE_ARCHER },
 		{ 5, "Mutant",   kSpawnerMega5MutantCount,   Protocol::ENEMY_TYPE_MUTANT  },
 	};
 	for (const auto& spec : spawnerSpecs)
