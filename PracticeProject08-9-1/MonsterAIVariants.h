@@ -326,8 +326,8 @@ private:
 	float m_bossCallTurnSpeedDegrees = 720.0f;
 
 	static constexpr float kBossCallLiftHeight = 3.0f;
-	static constexpr float kBossCallRiseDuration = 0.75f;
-	static constexpr float kBossCallDescendDuration = 3.0f;
+	static constexpr float kBossCallRiseDuration = 1.50f;
+	static constexpr float kBossCallDescendDuration = 2.0f;
 
 	bool m_bBossCallRising = false;
 	bool m_bBossCallRiseCompletedForCurrentCall = false;

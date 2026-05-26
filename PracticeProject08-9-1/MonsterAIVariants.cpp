@@ -1510,6 +1510,16 @@ void CBossAIComponent::BeginBossCallRise()
 	m_bBossCallDescending = false;
 	m_bBossCallDescendPendingOnCallEnd = false;
 
+	if ( CGameScene* scene = GetScene() )
+	{
+		const int nextCallIndex = m_bossExecutedCallCount + 1;
+
+		scene->BeginBossCallMonsterSummonVisuals(
+			nextCallIndex,
+			kBossCallRiseDuration
+		);
+	}
+
 	ClearPath();
 	SetMonsterLocomotionState(EMonsterAnimState::Idle);
 }

@@ -253,6 +253,7 @@ enum class EItemBillboardKind : UINT
 	BossSummonGlow = 2,
 	BossShockwave = 3,
 	BossShockwaveWall = 4,
+	BossCallSummonCircle = 5,
 };
 
 struct ItemBillboardEntry
@@ -571,6 +572,17 @@ private:
 	void SetBossSummonVisualAlpha(float alpha);
 	void SetBossSummonVisualActive(bool active);
 
+	void SetBossCallSummonCircleAlpha(float alpha);
+	void StartBossCallSummonCircleFadeOut();
+	void UpdateBossCallSummonCircles(float dt);
+	void ClearBossCallSummonCircleVisuals();
+
+	float GetBossCallSummonCircleSize(EEnemySpawnerEnemyKind kind) const;
+	void AddBossCallSummonCircle(
+		const XMFLOAT3& center,
+		EEnemySpawnerEnemyKind kind
+	);
+
 	void SpawnBossSummonCircle(const XMFLOAT3& center, float alpha);
 	void SpawnBossSummonGlow(const XMFLOAT3& center, float alpha);
 	void SpawnBossSummonVisuals(const XMFLOAT3& center, float alpha);
@@ -710,7 +722,8 @@ public:
 	void SetKeyItemDiffuseSrvIndex(UINT srvIndex);
 	void SetTransparentItemDiffuseSrvIndex(UINT srvIndex);
 	void SetBossSummonCircleDiffuseSrvIndex(UINT srvIndex);
-	
+	void SetBossCallSummonCircleDiffuseSrvIndex(UINT srvIndex);
+
 	void SetInactiveOverlayVisible(bool visible)
 	{
 		m_bInactiveOverlayVisible = visible;
@@ -756,6 +769,11 @@ public:
 	void RequestFireArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f, float yOffset = 0.0f);
 	bool IsLocalPlayerInsideMegaGridCenter() const;
 	bool IsLocalMonsterChaseEnabled() const { return m_bSimulateLocalMonsterChase; }
+
+	void BeginBossCallMonsterSummonVisuals(
+		int callIndex,
+		float fadeInDurationSec
+	);
 
 	int SpawnBossCallMonsters(int callIndex);
 
@@ -1058,6 +1076,7 @@ private:
 	static constexpr UINT kBossSummonGlowMaterialId = MAX_MATERIALS - 4;
 	static constexpr UINT kBossShockwaveMaterialId = MAX_MATERIALS - 5;
 	static constexpr UINT kBossShockwaveWallMaterialId = MAX_MATERIALS - 6;
+	static constexpr UINT kBossCallSummonCircleMaterialId = MAX_MATERIALS - 7;
 
 	static constexpr UINT kKeyItemBillboardCount = 7;
 
@@ -1578,8 +1597,29 @@ private:
 	bool m_bBossStageBossActivated = false;
 
 	static constexpr float kBossStageBossHiddenYOffset = -100.0f;
+
 	static constexpr float kBossSummonCircleFadeInDurationSec = 3.0f;
 	static constexpr float kBossSummonCircleFadeOutDurationSec = 1.0f;
+
+	static constexpr UINT kBossCallSummonCircleMaxCount = 64;
+	static constexpr float kBossCallSummonCircleFadeOutDurationSec = 1.0f;
+
+	struct BossCallSummonCircleVisualState
+	{
+		bool active = false;
+		bool fadingIn = false;
+		bool fadingOut = false;
+
+		float ageSec = 0.0f;
+		float durationSec = 0.0f;
+		float alpha = 0.0f;
+	};
+
+	BossCallSummonCircleVisualState m_bossCallSummonCircleVisualState{};
+	std::vector<size_t> m_activeBossCallSummonCircleItemIndices;
+
+	int m_bossCallSummonPlanCallIndex = -1;
+	std::vector<EnemySpawnerPreviewEntry> m_bossCallSummonPlanEntries;
 
 	bool m_bBossSummonSequenceStarted = false;
 	float m_bBossSummonCircleFadeAgeSec = 0.0f;

@@ -651,7 +651,11 @@ void CGameScene::BuildItemBillboardBatch(
 		);
 
 		SetBossSummonCircleDiffuseSrvIndex(
-	m_bossSummonCircleTexture->GetBaseSrvIndex()
+			m_bossSummonCircleTexture->GetBaseSrvIndex()
+		);
+
+		SetBossCallSummonCircleDiffuseSrvIndex(
+			m_bossSummonCircleTexture->GetBaseSrvIndex()
 		);
 	}
 
@@ -673,7 +677,10 @@ void CGameScene::BuildItemBillboardBatch(
 
 	m_itemBillboards.clear();
 	m_itemBillboards.reserve(
-		kKeyItemBillboardCount + 3 + kBossShockwaveWallSegmentCount
+		kKeyItemBillboardCount +
+		3 +
+		kBossShockwaveWallSegmentCount +
+		kBossCallSummonCircleMaxCount
 	);
 
 	for ( UINT i = 0; i < kKeyItemBillboardCount; ++i )
@@ -818,6 +825,32 @@ void CGameScene::BuildItemBillboardBatch(
 		shockwaveWall.materialId = kBossShockwaveWallMaterialId;
 
 		m_itemBillboards.push_back(shockwaveWall);
+	}
+
+	for ( UINT i = 0; i < kBossCallSummonCircleMaxCount; ++i )
+	{
+		ItemBillboardEntry circle{};
+		circle.active = false;
+		circle.distanceCulled = true;
+		circle.transparent = true;
+
+		circle.kind = EItemBillboardKind::BossCallSummonCircle;
+		circle.megaGridNumber = 5;
+
+		circle.position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+		circle.width = 1.0f;
+		circle.height = 1.0f;
+		circle.yOffset = 0.05f;
+
+		circle.cullDistance = 1000000.0f;
+
+		circle.pickupRadius = 0.0f;
+		circle.pickupHeightTolerance = 0.0f;
+
+		circle.materialId = kBossCallSummonCircleMaterialId;
+
+		m_itemBillboards.push_back(circle);
 	}
 
 	m_itemBillboardInstanceBufferCapacity =
@@ -2124,6 +2157,274 @@ void CGameScene::SpawnBossSummonVisuals(const XMFLOAT3& center, float alpha)
 	SetBossSummonVisualAlpha(alpha);
 }
 
+void CGameScene::SetBossCallSummonCircleAlpha(float alpha)
+{
+	if ( !m_pMaterials )
+		return;
+
+	alpha = std::clamp(alpha, 0.0f, 1.0f);
+
+	MATERIAL& mat =
+		m_pMaterials->m_pReflections[kBossCallSummonCircleMaterialId];
+
+	mat.m_xmf4Diffuse.w = alpha;
+
+	m_bossCallSummonCircleVisualState.alpha = alpha;
+}
+
+float CGameScene::GetBossCallSummonCircleSize(
+	EEnemySpawnerEnemyKind kind) const
+{
+	switch ( kind )
+	{
+	case EEnemySpawnerEnemyKind::Ghoul:
+		return 2.0f;
+
+	case EEnemySpawnerEnemyKind::SwordMan:
+	case EEnemySpawnerEnemyKind::BowMan:
+		return 4.0f;
+
+	case EEnemySpawnerEnemyKind::Mutant:
+		return 4.0f;
+
+	default:
+		return 1.0f;
+	}
+}
+
+void CGameScene::ClearBossCallSummonCircleVisuals()
+{
+	m_activeBossCallSummonCircleItemIndices.clear();
+
+	for ( ItemBillboardEntry& item : m_itemBillboards )
+	{
+		if ( item.kind != EItemBillboardKind::BossCallSummonCircle )
+			continue;
+
+		item.active = false;
+		item.distanceCulled = true;
+		item.width = 0.0f;
+		item.height = 0.0f;
+	}
+
+	m_bossCallSummonCircleVisualState = BossCallSummonCircleVisualState{};
+	SetBossCallSummonCircleAlpha(0.0f);
+}
+
+void CGameScene::AddBossCallSummonCircle(
+	const XMFLOAT3& center,
+	EEnemySpawnerEnemyKind kind)
+{
+	const float size = GetBossCallSummonCircleSize(kind);
+
+	for ( size_t i = 0; i < m_itemBillboards.size(); ++i )
+	{
+		ItemBillboardEntry& item = m_itemBillboards[i];
+
+		if ( item.kind != EItemBillboardKind::BossCallSummonCircle )
+			continue;
+
+		if ( item.active )
+			continue;
+
+		XMFLOAT3 fixedCenter = center;
+		fixedCenter.y = 0.0f;
+
+		item.active = true;
+		item.distanceCulled = false;
+		item.transparent = true;
+
+		item.position = fixedCenter;
+
+		item.width = size;
+		item.height = size;
+		item.yOffset = 0.05f;
+
+		item.cullDistance = 1000000.0f;
+
+		item.pickupRadius = 0.0f;
+		item.pickupHeightTolerance = 0.0f;
+
+		item.materialId = kBossCallSummonCircleMaterialId;
+
+		m_activeBossCallSummonCircleItemIndices.push_back(i);
+		return;
+	}
+
+	OutputDebugStringA(
+		"[BossCallSummonCircle] add failed: no free BossCallSummonCircle entry.\n"
+	);
+}
+
+void CGameScene::BeginBossCallMonsterSummonVisuals(
+	int callIndex,
+	float fadeInDurationSec)
+{
+#ifndef USING_NETWORK
+	ClearBossCallSummonCircleVisuals();
+
+	m_bossCallSummonPlanCallIndex = -1;
+	m_bossCallSummonPlanEntries.clear();
+
+	if ( !m_enemySpawner )
+		return;
+
+	if ( callIndex < 1 || callIndex > 3 )
+		return;
+
+	m_bossCallSummonPlanCallIndex = callIndex;
+
+	constexpr int megaGridNumber = 5;
+
+	auto AddPreviewKind =
+		[ & ](
+			EEnemySpawnerEnemyKind kind,
+			int count
+		)
+		{
+			if ( count <= 0 )
+				return;
+
+			std::vector<EnemySpawnerPreviewEntry> previews;
+			previews.reserve(static_cast< size_t >( count ));
+
+			const int found =
+				m_enemySpawner->PeekSpawnEntries(
+					megaGridNumber,
+					kind,
+					count,
+					previews
+				);
+
+			for ( const EnemySpawnerPreviewEntry& preview : previews )
+			{
+				m_bossCallSummonPlanEntries.push_back(preview);
+
+				AddBossCallSummonCircle(
+					preview.spawnPosition,
+					preview.kind
+				);
+			}
+		};
+
+	switch ( callIndex )
+	{
+	case 1:
+		AddPreviewKind(EEnemySpawnerEnemyKind::Ghoul, 30);
+		break;
+
+	case 2:
+		AddPreviewKind(EEnemySpawnerEnemyKind::Ghoul, 20);
+		AddPreviewKind(EEnemySpawnerEnemyKind::BowMan, 5);
+		AddPreviewKind(EEnemySpawnerEnemyKind::SwordMan, 5);
+		break;
+
+	case 3:
+		AddPreviewKind(EEnemySpawnerEnemyKind::Ghoul, 20);
+		AddPreviewKind(EEnemySpawnerEnemyKind::BowMan, 5);
+		AddPreviewKind(EEnemySpawnerEnemyKind::SwordMan, 5);
+		AddPreviewKind(EEnemySpawnerEnemyKind::Mutant, 5);
+		break;
+
+	default:
+		break;
+	}
+
+	if ( m_activeBossCallSummonCircleItemIndices.empty() )
+		return;
+
+	m_bossCallSummonCircleVisualState = BossCallSummonCircleVisualState{};
+	m_bossCallSummonCircleVisualState.active = true;
+	m_bossCallSummonCircleVisualState.fadingIn = true;
+	m_bossCallSummonCircleVisualState.fadingOut = false;
+	m_bossCallSummonCircleVisualState.ageSec = 0.0f;
+	m_bossCallSummonCircleVisualState.durationSec =
+		( fadeInDurationSec > 1.0e-6f ) ? fadeInDurationSec : 0.001f;
+	m_bossCallSummonCircleVisualState.alpha = 0.0f;
+
+	SetBossCallSummonCircleAlpha(0.0f);
+#else
+	UNREFERENCED_PARAMETER(callIndex);
+	UNREFERENCED_PARAMETER(fadeInDurationSec);
+#endif
+}
+
+void CGameScene::StartBossCallSummonCircleFadeOut()
+{
+#ifndef USING_NETWORK
+	if ( !m_bossCallSummonCircleVisualState.active )
+		return;
+
+	if ( m_activeBossCallSummonCircleItemIndices.empty() )
+		return;
+
+	m_bossCallSummonCircleVisualState.fadingIn = false;
+	m_bossCallSummonCircleVisualState.fadingOut = true;
+	m_bossCallSummonCircleVisualState.ageSec = 0.0f;
+	m_bossCallSummonCircleVisualState.durationSec =
+		( kBossCallSummonCircleFadeOutDurationSec > 1.0e-6f )
+		? kBossCallSummonCircleFadeOutDurationSec
+		: 0.001f;
+#endif
+}
+
+void CGameScene::UpdateBossCallSummonCircles(float dt)
+{
+#ifndef USING_NETWORK
+	if ( !m_bossCallSummonCircleVisualState.active )
+		return;
+
+	if ( dt < 0.0f )
+		dt = 0.0f;
+
+	BossCallSummonCircleVisualState& state =
+		m_bossCallSummonCircleVisualState;
+
+	state.ageSec += dt;
+
+	const float duration =
+		( state.durationSec > 1.0e-6f )
+		? state.durationSec
+		: 0.001f;
+
+	const float t =
+		std::clamp(
+			state.ageSec / duration,
+			0.0f,
+			1.0f
+		);
+
+	if ( state.fadingIn )
+	{
+		SetBossCallSummonCircleAlpha(t);
+
+		if ( t >= 1.0f )
+		{
+			state.fadingIn = false;
+			state.ageSec = 0.0f;
+			state.durationSec = 0.0f;
+			SetBossCallSummonCircleAlpha(1.0f);
+		}
+
+		return;
+	}
+
+	if ( state.fadingOut )
+	{
+		SetBossCallSummonCircleAlpha(1.0f - t);
+
+		if ( t >= 1.0f )
+		{
+			ClearBossCallSummonCircleVisuals();
+		}
+
+		return;
+	}
+#else
+	UNREFERENCED_PARAMETER(dt);
+#endif
+}
+
 void CGameScene::SpawnBossShockwave(const XMFLOAT3& center)
 {
 	XMFLOAT3 fixedCenter = center;
@@ -3285,7 +3586,8 @@ void CGameScene::RenderTransparentItemBillboards(
 
 		if ( item->kind == EItemBillboardKind::BossSummonCircle ||
 			item->kind == EItemBillboardKind::BossSummonGlow ||
-			item->kind == EItemBillboardKind::BossShockwave )
+			item->kind == EItemBillboardKind::BossShockwave ||
+			item->kind == EItemBillboardKind::BossCallSummonCircle )
 		{
 			StoreXZPlaneItemBillboardWorldRows(
 				dst,
