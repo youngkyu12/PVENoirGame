@@ -777,6 +777,11 @@ public:
 
 	int SpawnBossCallMonsters(int callIndex);
 
+	float GetBossCallMonsterSpawnDelaySec() const
+	{
+		return kBossCallMonsterSpawnDelaySec;
+	}
+
 	void NotifyMonsterChaseStarted(CGameObject* monster);
 
 	void SetMegaGridApproachZoneSize(int megaX, int megaZ, int widthCells, int heightCells);
@@ -1593,6 +1598,8 @@ private:
 	bool m_bSimulateLocalMonsterChase = true;
 	bool m_bPrevLocalMonsterChaseToggleKeyDown = false;
 	bool m_bPrevDebugDamageMegaGrid5KeyDown = false;
+
+	static constexpr float kBossCallMonsterSpawnDelaySec = 1.0f;
 
 	bool m_bBossStageBossActivated = false;
 

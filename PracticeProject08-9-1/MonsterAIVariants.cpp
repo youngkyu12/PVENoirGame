@@ -282,6 +282,95 @@ bool CEnemySpawnerGhoulAIComponent::AcquireTarget()
 	return true;
 }
 
+void CBossAIComponent::ScheduleBossCallMonsterSpawn()
+{
+	m_bBossCallMonsterSpawnPending = true;
+	m_bossCallMonsterSpawnPendingCallIndex = m_bossExecutedCallCount;
+	m_bossCallMonsterSpawnElapsedSec = 0.0f;
+	m_bossCallMonsterSpawnDelaySec = 0.0f;
+
+	if ( CGameScene* scene = GetScene() )
+	{
+		m_bossCallMonsterSpawnDelaySec =
+			scene->GetBossCallMonsterSpawnDelaySec();
+	}
+
+	if ( m_bossCallMonsterSpawnDelaySec < 0.0f )
+		m_bossCallMonsterSpawnDelaySec = 0.0f;
+
+#ifndef USING_NETWORK
+	{
+		char buf[256];
+		sprintf_s(
+			buf,
+			"[BossCallSpawnDelay][Schedule] call=%d delay=%.4f sec (%.1f ms)\n",
+			m_bossCallMonsterSpawnPendingCallIndex,
+			m_bossCallMonsterSpawnDelaySec,
+			m_bossCallMonsterSpawnDelaySec * 1000.0f
+		);
+		OutputDebugStringA(buf);
+	}
+#endif
+
+	if ( m_bossCallMonsterSpawnDelaySec <= 1.0e-6f )
+	{
+		ExecuteBossCallMonsterSpawn("immediate");
+	}
+}
+
+bool CBossAIComponent::UpdateBossCallMonsterSpawnDelay(float dt)
+{
+	if ( !m_bBossCallMonsterSpawnPending )
+		return false;
+
+	if ( dt > 0.0f )
+		m_bossCallMonsterSpawnElapsedSec += dt;
+
+	if ( m_bossCallMonsterSpawnElapsedSec + 1.0e-6f <
+		 m_bossCallMonsterSpawnDelaySec )
+	{
+		return true;
+	}
+
+	ExecuteBossCallMonsterSpawn("delay_elapsed");
+	return true;
+}
+
+void CBossAIComponent::ExecuteBossCallMonsterSpawn(const char* reason)
+{
+	if ( !m_bBossCallMonsterSpawnPending )
+		return;
+
+	const int callIndex = m_bossCallMonsterSpawnPendingCallIndex;
+
+	m_bBossCallMonsterSpawnPending = false;
+	m_bossCallMonsterSpawnPendingCallIndex = -1;
+
+#ifndef USING_NETWORK
+	{
+		char buf[320];
+		sprintf_s(
+			buf,
+			"[BossCallSpawnDelay][Fire] call=%d reason=%s delay=%.4f sec (%.1f ms) elapsed=%.4f sec\n",
+			callIndex,
+			reason ? reason : "unknown",
+			m_bossCallMonsterSpawnDelaySec,
+			m_bossCallMonsterSpawnDelaySec * 1000.0f,
+			m_bossCallMonsterSpawnElapsedSec
+		);
+		OutputDebugStringA(buf);
+	}
+#endif
+
+	if ( CGameScene* scene = GetScene() )
+	{
+		scene->SpawnBossCallMonsters(callIndex);
+	}
+
+	m_bossCallMonsterSpawnDelaySec = 0.0f;
+	m_bossCallMonsterSpawnElapsedSec = 0.0f;
+}
+
 bool CBossAIComponent::UpdateBossCallSequence(
 	float dt,
 	CGameObject* target,
@@ -295,6 +384,11 @@ bool CBossAIComponent::UpdateBossCallSequence(
 
 	if ( m_bBossCallDescendPendingOnCallEnd && !IsBossCallActionPlaying() )
 	{
+		if ( m_bBossCallMonsterSpawnPending )
+		{
+			ExecuteBossCallMonsterSpawn("call_end_flush");
+		}
+
 		BeginBossCallDescend();
 	}
 
@@ -305,7 +399,8 @@ bool CBossAIComponent::UpdateBossCallSequence(
 	{
 		ClearPath();
 
-		// Call phase에 실제로 진입한 순간에만 pending을 소비하고 몬스터를 소환한다.
+		// Call phase에 실제로 진입한 순간에 pending을 소비한다.
+		// 단, 실제 몬스터 생성은 즉시 하지 않고 delay 타이머를 예약한다.
 		if ( m_bBossCallConsumePendingOnStart )
 		{
 			if ( m_bossPendingCallCount > 0 )
@@ -315,16 +410,16 @@ bool CBossAIComponent::UpdateBossCallSequence(
 
 			++m_bossExecutedCallCount;
 
-			if ( CGameScene* scene = GetScene() )
-			{
-				scene->SpawnBossCallMonsters(m_bossExecutedCallCount);
-			}
+			ScheduleBossCallMonsterSpawn();
 
 			ConsumeBossCallCooldown();
 
 			m_bBossCallDescendPendingOnCallEnd = true;
 			m_bBossCallRiseCompletedForCurrentCall = false;
 		}
+
+		// Call 애니메이션 시작 후 delay가 지난 시점에 실제 소환.
+		UpdateBossCallMonsterSpawnDelay(dt);
 
 		m_bBossCallCommandRequested = false;
 		m_bossCallRequestAgeSec = 0.0f;
@@ -1348,6 +1443,11 @@ void CBossAIComponent::ResetBossCallState()
 	m_bBossCallCommandRequested = false;
 	m_bBossCallConsumePendingOnStart = false;
 	m_bossCallRequestAgeSec = 0.0f;
+
+	m_bBossCallMonsterSpawnPending = false;
+	m_bossCallMonsterSpawnPendingCallIndex = -1;
+	m_bossCallMonsterSpawnDelaySec = 0.0f;
+	m_bossCallMonsterSpawnElapsedSec = 0.0f;
 
 	m_bBossCallRising = false;
 	m_bBossCallRiseCompletedForCurrentCall = false;

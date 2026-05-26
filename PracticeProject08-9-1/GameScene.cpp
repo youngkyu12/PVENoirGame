@@ -63,6 +63,7 @@ CGameScene::CGameScene()
 	m_bSimulateLocalBossAI = true;
 
 	m_bPrevDebugDamageMegaGrid5KeyDown = false;
+
 	m_bBossStageBossActivated = false;
 
 	m_bBossSummonSequenceStarted = false;
@@ -2053,21 +2054,6 @@ int CGameScene::SpawnBossCallMonsters(int callIndex)
 		 !m_bossCallSummonPlanEntries.empty() )
 	{
 		int kindSpawned[4] = { 0, 0, 0, 0 };
-
-#ifndef USING_NETWORK
-		{
-			char buf[256];
-			sprintf_s(
-				buf,
-				"[BossCallSpawn][PlanBegin] call=%d planCount=%zu circleCount=%zu\n",
-				callIndex,
-				m_bossCallSummonPlanEntries.size(),
-				m_activeBossCallSummonCircleItemIndices.size()
-			);
-			OutputDebugStringA(buf);
-		}
-#endif
-
 		for ( size_t i = 0; i < m_bossCallSummonPlanEntries.size(); ++i )
 		{
 			const EnemySpawnerPreviewEntry& preview =
@@ -2086,60 +2072,7 @@ int CGameScene::SpawnBossCallMonsters(int callIndex)
 				if ( kindIndex >= 0 && kindIndex < 4 )
 					++kindSpawned[kindIndex];
 			}
-
-#ifndef USING_NETWORK
-			{
-				XMFLOAT3 actualPos = XMFLOAT3(0.0f, 0.0f, 0.0f);
-				if ( spawned )
-					actualPos = spawned->GetPosition();
-
-				const float dx = actualPos.x - preview.spawnPosition.x;
-				const float dy = actualPos.y - preview.spawnPosition.y;
-				const float dz = actualPos.z - preview.spawnPosition.z;
-
-				char buf[768];
-				sprintf_s(
-					buf,
-					"[BossCallSpawn][PlanEntry] call=%d plan=%zu entry=%zu previewObj=%p spawnedObj=%p kind=%d success=%d previewPos=(%.3f, %.3f, %.3f) actualPos=(%.3f, %.3f, %.3f) delta=(%.3f, %.3f, %.3f)\n",
-					callIndex,
-					i,
-					preview.entryIndex,
-					static_cast< void* >( preview.object ),
-					static_cast< void* >( spawned ),
-					static_cast< int >( preview.kind ),
-					success ? 1 : 0,
-					preview.spawnPosition.x,
-					preview.spawnPosition.y,
-					preview.spawnPosition.z,
-					actualPos.x,
-					actualPos.y,
-					actualPos.z,
-					dx,
-					dy,
-					dz
-				);
-				OutputDebugStringA(buf);
-			}
-#endif
 		}
-
-#ifndef USING_NETWORK
-		{
-			char buf[512];
-			sprintf_s(
-				buf,
-				"[BossCallSpawn][PlanSummary] call=%d spawnedTotal=%d ghoul=%d sword=%d bow=%d mutant=%d planCount=%zu\n",
-				callIndex,
-				spawnedTotal,
-				kindSpawned[static_cast< int >( EEnemySpawnerEnemyKind::Ghoul )],
-				kindSpawned[static_cast< int >( EEnemySpawnerEnemyKind::SwordMan )],
-				kindSpawned[static_cast< int >( EEnemySpawnerEnemyKind::BowMan )],
-				kindSpawned[static_cast< int >( EEnemySpawnerEnemyKind::Mutant )],
-				m_bossCallSummonPlanEntries.size()
-			);
-			OutputDebugStringA(buf);
-		}
-#endif
 
 		m_bossCallSummonPlanCallIndex = -1;
 		m_bossCallSummonPlanEntries.clear();
@@ -2147,22 +2080,6 @@ int CGameScene::SpawnBossCallMonsters(int callIndex)
 		StartBossCallSummonCircleFadeOut();
 		return spawnedTotal;
 	}
-
-	// 2) fallback:
-	// 마법진 preview 없이 직접 SpawnBossCallMonsters가 호출된 경우만 기존 방식 사용.
-#ifndef USING_NETWORK
-	{
-		char buf[256];
-		sprintf_s(
-			buf,
-			"[BossCallSpawn][Fallback] call=%d planCall=%d planCount=%zu\n",
-			callIndex,
-			m_bossCallSummonPlanCallIndex,
-			m_bossCallSummonPlanEntries.size()
-		);
-		OutputDebugStringA(buf);
-	}
-#endif
 
 	auto SpawnKind =
 		[ & ](
@@ -2181,19 +2098,6 @@ int CGameScene::SpawnBossCallMonsters(int callIndex)
 				);
 
 			spawnedTotal += spawned;
-
-#ifndef USING_NETWORK
-			char buf[256];
-			sprintf_s(
-				buf,
-				"[BossCallSpawn][FallbackKind] call=%d kind=%d requested=%d spawned=%d\n",
-				callIndex,
-				static_cast< int >( kind ),
-				count,
-				spawned
-			);
-			OutputDebugStringA(buf);
-#endif
 		};
 
 	switch ( callIndex )
@@ -2246,16 +2150,6 @@ int CGameScene::TryRunEnemySpawnerEventForMegaGrid(int megaGridNumber)
 		blockerMegaGridNumber) )
 	{
 		m_sceneGrid.SetMegaGridEventOccurred(megaX, megaZ, true);
-
-		char buf[256];
-		sprintf_s(
-			buf,
-			"[EnemySpawnerEvent] skipped. targetMega=%d blockerMega=%d alreadyCleared=1\n",
-			megaGridNumber,
-			blockerMegaGridNumber
-		);
-		OutputDebugStringA(buf);
-
 		return 0;
 	}
 
