@@ -450,6 +450,10 @@ void Room::UpdateKeyPickupCollision()
 
 	for (const auto& key : kKeyPositions)
 	{
+		const int megaGrid = key.megaGridIndex + 1;
+		if (!m_keyPickupUnlockedByMegaGrid[static_cast<size_t>(megaGrid)])
+			continue;
+
 		MegaGridCell& cell = m_megaGridCells[static_cast<size_t>(key.megaGridIndex)];
 		if (cell.isCleared)
 			continue;

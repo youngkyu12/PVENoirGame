@@ -254,6 +254,10 @@ void Room::BuildRoom()
 	m_aiAwakeEnemyIds.clear();
 	m_castleCenterPlayerIds.clear();
 	m_meleeHitKeys.clear();
+	m_spawnerKeyMutantIds.clear();
+	m_keyPickupUnlockedByMegaGrid.fill(true);
+	m_keyPickupUnlockedByMegaGrid[6] = false;
+	m_keyPickupUnlockedByMegaGrid[8] = false;
 	m_towerDoorPortals.clear();
 	m_castleDoorPortals.clear();
 	m_arrowPool.clear();
@@ -670,4 +674,20 @@ void Room::OnMonsterFirstChase(uint64 enemyId)
 		cell.hasEventOccurred = true;
 		cout << "[Spawner] MegaGrid " << megaGrid << " wave triggered by enemy " << enemyId << endl;
 	}
+}
+
+void Room::OnMonsterDeath(uint64 enemyId)
+{
+	auto it = m_spawnerKeyMutantIds.find(enemyId);
+	if (it == m_spawnerKeyMutantIds.end()) return;
+
+	const int megaGrid = it->second;
+	if (megaGrid == 6 || megaGrid == 8)
+	{
+		m_keyPickupUnlockedByMegaGrid[static_cast<size_t>(megaGrid)] = true;
+		cout << "[Key Unlock] MegaGrid " << megaGrid
+			<< " unlocked by enemy " << enemyId << " death" << endl;
+	}
+
+	m_spawnerKeyMutantIds.erase(it);
 }
