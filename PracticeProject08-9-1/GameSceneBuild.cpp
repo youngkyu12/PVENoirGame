@@ -34,6 +34,7 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 	m_bSimulateLocalSwordManAI = false;
 	m_bSimulateLocalMutantAI = false;
 	m_bSimulateLocalBossAI = false;
+	m_bSimulateLocalBossSummon = false;
 	m_bSimulateLocalBossStageMonsterAI = false;
 
 	m_bSimulateLocalMonsterChase = false;
@@ -53,6 +54,7 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 	m_bSimulateLocalSwordManAI = false;
 	m_bSimulateLocalMutantAI = false;
 	m_bSimulateLocalBossAI = true;
+	m_bSimulateLocalBossSummon = true;
 	m_bSimulateLocalBossStageMonsterAI = false;
 
 	m_bSimulateLocalMonsterChase = true;
@@ -71,7 +73,13 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 		m_bSimulateLocalSwordManAI = false;
 		m_bSimulateLocalMutantAI = false;
 		m_bSimulateLocalBossAI = false;
+		m_bSimulateLocalBossSummon = false;
 		m_bSimulateLocalBossStageMonsterAI = false;
+	}
+
+	if ( m_bSimulateLocalBossAI )
+	{
+		m_bSimulateLocalBossSummon = true;
 	}
 
 	m_bPrevLocalMonsterChaseToggleKeyDown = false;
@@ -1584,7 +1592,7 @@ void CGameScene::BuildSkinnedBatch(
 				return m_bSimulateLocalMutantAI;
 
 			case ELocalMonsterAIKind::Boss:
-				return m_bSimulateLocalBossAI;
+				return m_bSimulateLocalBossAI || m_bSimulateLocalBossSummon;
 
 			default:
 				break;
@@ -1752,8 +1760,18 @@ void CGameScene::BuildSkinnedBatch(
 				auto* ai = obj->AddComponent<CBossAIComponent>();
 				if ( ai )
 				{
+					const bool bossCombatAIEnabled = m_bSimulateLocalBossAI;
+					const bool bossSummonEnabled =
+						m_bSimulateLocalBossSummon || bossCombatAIEnabled;
+
 					ai->SetScene(this);
-					ai->SetEnabledAI(true);
+					ai->ConfigureBossSimulation(
+						bossCombatAIEnabled,
+						bossSummonEnabled
+					);
+					ai->SetEnabledAI(
+						bossCombatAIEnabled || bossSummonEnabled
+					);
 				}
 				break;
 			}

@@ -282,6 +282,65 @@ bool CEnemySpawnerGhoulAIComponent::AcquireTarget()
 	return true;
 }
 
+bool CBossAIComponent::UpdateBossCallSequence(
+	float dt,
+	CGameObject* target,
+	bool allowStartPendingCall)
+{
+	if ( !m_bBossSummonEnabled )
+		return false;
+
+	if ( UpdateBossCallRise(dt) )
+		return true;
+
+	if ( m_bBossCallDescendPendingOnCallEnd && !IsBossCallActionPlaying() )
+	{
+		BeginBossCallDescend();
+	}
+
+	if ( UpdateBossCallDescend(dt) )
+		return true;
+
+	if ( IsBossCallActionPlaying() )
+	{
+		ClearPath();
+
+		// Call phase에 실제로 진입한 순간에만 pending을 소비하고 몬스터를 소환한다.
+		if ( m_bBossCallConsumePendingOnStart )
+		{
+			if ( m_bossPendingCallCount > 0 )
+				--m_bossPendingCallCount;
+
+			m_bBossCallConsumePendingOnStart = false;
+
+			++m_bossExecutedCallCount;
+
+			if ( CGameScene* scene = GetScene() )
+			{
+				scene->SpawnBossCallMonsters(m_bossExecutedCallCount);
+			}
+
+			ConsumeBossCallCooldown();
+
+			m_bBossCallDescendPendingOnCallEnd = true;
+			m_bBossCallRiseCompletedForCurrentCall = false;
+		}
+
+		m_bBossCallCommandRequested = false;
+		m_bossCallRequestAgeSec = 0.0f;
+
+		return true;
+	}
+
+	if ( allowStartPendingCall && HasPendingBossCall() )
+	{
+		TryRequestPendingBossCall(target, dt);
+		return true;
+	}
+
+	return false;
+}
+
 void CEnemySpawnerGhoulAIComponent::UpdateBehavior(float dt)
 {
 	if ( m_pScene && !m_pScene->IsLocalMonsterChaseEnabled() )
@@ -1178,6 +1237,9 @@ CBossAIComponent::CBossAIComponent(CGameObject* owner)
 	m_bBossWasMeleeActionPlaying = false;
 	m_bBossHitReactionPolicyConfigured = false;
 
+	m_bBossCombatAIEnabled = true;
+	m_bBossSummonEnabled = true;
+
 	m_bBossOpeningSpellPending = true;
 	m_bBossOpeningSpellRequested = false;
 	m_bossOpeningSpellRequestAgeSec = 0.0f;
@@ -1203,6 +1265,80 @@ CBossAIComponent::CBossAIComponent(CGameObject* owner)
 	ResetBossCallState();
 }
 
+void CBossAIComponent::ConfigureBossSimulation(
+	bool combatAIEnabled,
+	bool summonEnabled)
+{
+	m_bBossCombatAIEnabled = combatAIEnabled;
+
+	// combat AI가 켜지면 summon은 항상 켜져야 한다.
+	m_bBossSummonEnabled = summonEnabled || combatAIEnabled;
+
+	if ( !m_bBossCombatAIEnabled )
+	{
+		ClearTarget();
+		ClearPath();
+
+		m_bBossOpeningSpellRequested = false;
+		m_bossOpeningSpellRequestAgeSec = 0.0f;
+
+		m_bBossWasMeleeActionPlaying = false;
+		m_bBossPostMeleeEvading = false;
+		m_bossPostMeleeEvadeRemainingDistance = 0.0f;
+	}
+}
+
+void CBossAIComponent::OnUpdate(float dt)
+{
+	// 전투 AI가 켜진 일반 보스는 기존 base 흐름을 그대로 쓴다.
+	if ( m_bBossCombatAIEnabled )
+	{
+		CMonsterAIComponent::OnUpdate(dt);
+		return;
+	}
+
+	if ( !m_bAIEnabled )
+		return;
+
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return;
+
+	EnsureHomeTransformCaptured();
+
+	if ( IsObjectDeadByHealthLocal(owner) )
+	{
+		ClearTarget();
+		ClearPath();
+		ClearReturnHomePath();
+		return;
+	}
+
+	if ( !m_pScene )
+		return;
+
+	ConfigureBossHitReactionPolicy();
+
+	UpdateBossCooldowns(dt);
+
+	if ( m_bBossSummonEnabled )
+		UpdateBossCallThresholdState();
+
+	// summon-only 모드에서는 추적/공격 target을 절대 유지하지 않는다.
+	ClearTarget();
+	ClearPath();
+	SetMonsterLocomotionState(EMonsterAnimState::Idle);
+
+	if ( !m_bBossSummonEnabled )
+		return;
+
+	// target 없이도 상승 -> Call -> 하강이 가능해야 한다.
+	if ( UpdateBossCallSequence(dt, nullptr, true) )
+		return;
+
+	SetMonsterLocomotionState(EMonsterAnimState::Idle);
+}
+
 void CBossAIComponent::ResetBossCallState()
 {
 	m_bossCallThresholdMask = 0;
@@ -1225,6 +1361,13 @@ void CBossAIComponent::ResetBossCallState()
 
 	m_bossCallDescendStartY = 0.0f;
 	m_bossCallDescendElapsedSec = 0.0f;
+}
+
+void CBossAIComponent::ResetBossOpeningSpellState()
+{
+	m_bBossOpeningSpellPending = true;
+	m_bBossOpeningSpellRequested = false;
+	m_bossOpeningSpellRequestAgeSec = 0.0f;
 }
 
 bool CBossAIComponent::AcquireTarget()
@@ -1282,6 +1425,9 @@ void CBossAIComponent::ConfigureBossHitReactionPolicy()
 
 void CBossAIComponent::UpdateBossCallThresholdState()
 {
+	if ( !m_bBossSummonEnabled )
+		return;
+
 	CGameObject* owner = GetOwner();
 	if ( !owner )
 		return;
@@ -1558,48 +1704,8 @@ void CBossAIComponent::UpdateBehavior(float dt)
 
 	const float distanceToTarget = GetDistanceToTargetXZ();
 
-	if ( IsBossCallActionPlaying() )
+	if ( UpdateBossCallSequence(dt, target, false) )
 	{
-		ClearPath();
-
-		// Call phase에 실제로 진입한 순간에만 pending을 소비하고 몬스터를 소환한다.
-		// RequestCommand 직후 바로 소비하면 애니메이션 전환 실패 시 소환 타이밍이 어긋날 수 있다.
-		if ( m_bBossCallConsumePendingOnStart )
-		{
-			if ( m_bossPendingCallCount > 0 )
-				--m_bossPendingCallCount;
-
-			m_bBossCallConsumePendingOnStart = false;
-
-			++m_bossExecutedCallCount;
-
-			if ( CGameScene* scene = GetScene() )
-			{
-				scene->SpawnBossCallMonsters(m_bossExecutedCallCount);
-			}
-
-			ConsumeBossCallCooldown();
-
-			// Call 애니메이션이 끝난 뒤 3초간 하강해야 하므로 예약한다.
-			m_bBossCallDescendPendingOnCallEnd = true;
-			m_bBossCallRiseCompletedForCurrentCall = false;
-
-#ifndef USING_NETWORK
-			char buf[256];
-			sprintf_s(
-				buf,
-				"[BossCall][SpawnTriggered] call=%d pending=%d\n",
-				m_bossExecutedCallCount,
-				m_bossPendingCallCount
-			);
-			OutputDebugStringA(buf);
-#endif
-		}
-
-		m_bBossCallCommandRequested = false;
-		m_bossCallRequestAgeSec = 0.0f;
-
-		// Call 중에는 이동/공격/회전 판단을 하지 않는다.
 		return;
 	}
 
@@ -1654,7 +1760,7 @@ void CBossAIComponent::UpdateBehavior(float dt)
 
 	if ( HasPendingBossCall() )
 	{
-		if ( TryRequestPendingBossCall(target, dt) )
+		if ( UpdateBossCallSequence(dt, target, true) )
 			return;
 
 		return;
@@ -2377,6 +2483,9 @@ bool CBossAIComponent::CanStartBossAction() const
 bool CBossAIComponent::TryRequestPendingBossCall(CGameObject* target, float dt)
 {
 	ClearPath();
+
+	if ( !m_bBossSummonEnabled )
+		return false;
 
 	if ( !HasPendingBossCall() )
 		return false;
