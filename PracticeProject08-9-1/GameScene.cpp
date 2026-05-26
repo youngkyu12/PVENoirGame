@@ -1904,6 +1904,34 @@ void CGameScene::ApplyMegaGrid5DirectionalLightProfile(bool enabled)
 #endif
 }
 
+XMFLOAT3 CGameScene::ComputeMegaGridCenterPosition(
+	int megaGridNumber,
+	float y) const
+{
+	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+		return XMFLOAT3(0.0f, y, 0.0f);
+
+	const int zeroBased = megaGridNumber - 1;
+	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+	const float centerX =
+		static_cast< float >(
+			CSceneGrid::kGridMinX +
+			megaX * CSceneGrid::kMegaGridCellWidth +
+			CSceneGrid::kMegaGridCellWidth / 2
+		);
+
+	const float centerZ =
+		static_cast< float >(
+			CSceneGrid::kGridMinZ +
+			megaZ * CSceneGrid::kMegaGridCellHeight +
+			CSceneGrid::kMegaGridCellHeight / 2
+		);
+
+	return XMFLOAT3(centerX, y, centerZ);
+}
+
 XMFLOAT3 CGameScene::ComputeLocalStageTeleportPosition(int megaGridNumber) const
 {
 	// 입력 번호:
@@ -2275,6 +2303,19 @@ bool CGameScene::BeginEnemySpawnerTimedGhoulWave(int megaGridNumber)
 		state = EnemySpawnerTimedGhoulWaveState{};
 		return false;
 	}
+
+	const int sirenMegaGridNumber =
+		( megaGridNumber == 6 )
+		? 3
+		: 7;
+
+	const XMFLOAT3 sirenPosition =
+		ComputeMegaGridCenterPosition(
+			sirenMegaGridNumber,
+			50.0f
+		);
+
+	PlayEnemySpawnerSirenSfxAt(sirenPosition);
 
 	++state.nextBatchIndex;
 
