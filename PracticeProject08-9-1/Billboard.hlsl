@@ -537,7 +537,7 @@ float4 PSMuzzleFlashProcedural(
 
         color *= min(intensity, 0.65f);
     }
-    else
+    else if (kind < 5.5f)
     {
         // boss melee slash
         float2 q = float2(p.x, -p.y);
@@ -692,6 +692,140 @@ float4 PSMuzzleFlashProcedural(
         );
 
         color *= min(intensity, 1.45f);
+    }
+    else if (kind < 6.5f)
+    {
+    // magic circle glow
+    // ÃÑ±¸È­¿°°ú ¿ÏÀüÈ÷ ´Ù¸¥ ÃÊ·Ï»ö ¹æ»çÇü glow.
+        float angle = atan2(p.y, p.x);
+
+        float wobble =
+        0.90f +
+        0.06f * sin(angle * 5.0f + seed * 4.71f) +
+        0.04f * sin(angle * 11.0f - seed * 1.93f);
+
+        float rr = r / max(wobble, 0.20f);
+
+        float core =
+        1.0f - smoothstep(0.00f, 0.34f, rr);
+
+        float innerGlow =
+        1.0f - smoothstep(0.12f, 0.72f, rr);
+
+        float outerGlow =
+        1.0f - smoothstep(0.32f, 1.18f, rr);
+
+        float rim =
+        1.0f -
+        saturate(
+            abs(rr - 0.62f) / 0.26f
+        );
+
+        rim = smoothstep(0.0f, 1.0f, rim);
+
+        float birthFade = smoothstep(0.00f, 0.10f, ageRatio);
+        float deathFade = 1.0f - smoothstep(0.58f, 1.00f, ageRatio);
+
+        float pulse =
+        0.88f +
+        0.12f * sin(seed * 3.17f + ageRatio * 10.0f);
+
+        float shape =
+            core * 0.20f +
+            innerGlow * 0.34f +
+            outerGlow * 0.42f +
+            rim * 0.18f;
+
+        alpha =
+        saturate(
+            shape *
+            birthFade *
+            deathFade *
+            pulse *
+            input.color.a
+        );
+
+        float3 deepGreen = float3(0.00f, 0.20f, 0.02f);
+        float3 magicGreen = input.color.rgb;
+        float3 hotGreen = float3(0.72f, 1.00f, 0.58f);
+
+        color =
+        lerp(
+            deepGreen,
+            magicGreen,
+            saturate(innerGlow * 0.90f + rim * 0.35f)
+        );
+
+        color =
+        lerp(
+            color,
+            hotGreen,
+            saturate(core * 0.75f)
+        );
+
+    // °­ÇÑ additive glow.
+        color *= min(intensity, 1.35f);
+    }
+    else
+    {
+    // magic circle afterimage
+    // ÀÛ°í ºÎÀ¯ÇÏ´Â ÃÊ·Ï ÀÜ±¤. Spark/ÃÑ±¸ ºÒ²É ÇüÅÂ ¾Æ´Ô.
+        float2 q = p;
+
+        float angle = atan2(q.y, q.x);
+
+        float wobble =
+        0.82f +
+        0.10f * sin(angle * 4.0f + seed * 5.13f) +
+        0.08f * sin(angle * 9.0f - seed * 2.61f);
+
+        float rr = r / max(wobble, 0.18f);
+
+        float body =
+        1.0f - smoothstep(0.04f, 0.78f, rr);
+
+        float soft =
+        1.0f - smoothstep(0.30f, 1.12f, rr);
+
+        float noise =
+        0.78f +
+        0.12f * sin(q.x * 8.0f + seed * 1.77f) *
+        sin(q.y * 7.0f - seed * 0.84f) +
+        0.10f * sin((q.x - q.y) * 5.0f + seed * 2.23f);
+
+        noise = saturate(noise);
+
+        float birthFade = smoothstep(0.00f, 0.12f, ageRatio);
+        float deathFade = 1.0f - smoothstep(0.45f, 1.00f, ageRatio);
+
+        alpha =
+            saturate(
+               (body * 0.24f + soft * 0.32f) *
+               noise *
+               birthFade *
+               deathFade *
+               input.color.a
+           );
+
+        float3 darkGreen = float3(0.00f, 0.14f, 0.015f);
+        float3 magicGreen = input.color.rgb;
+        float3 paleGreen = float3(0.58f, 1.00f, 0.48f);
+
+        color =
+        lerp(
+            darkGreen,
+            magicGreen,
+            saturate(soft)
+        );
+
+        color =
+        lerp(
+            color,
+            paleGreen,
+            saturate(body * 0.45f)
+        );
+
+        color *= min(intensity, 1.10f);
     }
 
     clip(alpha - 0.002f);

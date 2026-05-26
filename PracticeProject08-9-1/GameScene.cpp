@@ -3255,6 +3255,9 @@ void CGameScene::ReleaseObjects()
 
 	m_bossPoisonProjectileShader.reset();
 
+	m_bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
+	m_bossCallSummonGlowParticleEmitAccumulatorSec = 0.0f;
+
 	m_swordTrailShader.reset();
 	m_swordTrails.clear();
 
@@ -6399,6 +6402,7 @@ void CGameScene::UpdateBossStageSummonSequence(float dt)
 	{
 		m_bBossSummonSequenceStarted = false;
 		m_bBossSummonCircleFadeAgeSec = 0.0f;
+		m_bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
 
 		SetBossSummonVisualAlpha(0.0f);
 		SetBossSummonVisualActive(false);
@@ -6424,6 +6428,23 @@ void CGameScene::UpdateBossStageSummonSequence(float dt)
 		: 1.0f;
 
 	SetBossSummonVisualAlpha(alpha);
+
+	if ( m_pendingBossStageBoss )
+	{
+		XMFLOAT3 center = m_pendingBossStageBoss->GetPosition();
+		center.y = 0.05f;
+
+		EmitMagicCircleGlowParticles(
+			center,
+			110.0f,
+			alpha,
+			dt,
+			m_bossSummonGlowParticleEmitAccumulatorSec,
+			kBossSummonGlowParticleEmitIntervalSec,
+			kBossSummonGlowParticlesPerEmit,
+			kBossSummonGlowParticleIntensityScale
+		);
+	}
 
 	if ( alpha < 1.0f )
 		return;
@@ -6469,6 +6490,37 @@ void CGameScene::UpdateBossSummonVisualFadeOut(float dt)
 
 	SetBossSummonVisualAlpha(alpha);
 
+	if ( alpha > 0.001f )
+	{
+		XMFLOAT3 center = XMFLOAT3(400.0f, 0.0f, 400.0f);
+
+		if ( m_pendingBossStageBoss )
+		{
+			center = m_pendingBossStageBoss->GetPosition();
+		}
+		else if ( !m_bossRefs.empty() && m_bossRefs[0] )
+		{
+			center = m_bossRefs[0]->GetPosition();
+
+			const auto it = m_bossStageBossPositionStates.find(m_bossRefs[0]);
+			if ( it != m_bossStageBossPositionStates.end() )
+				center = it->second.originalPosition;
+		}
+
+		center.y = 0.05f;
+
+		EmitMagicCircleGlowParticles(
+			center,
+			110.0f,
+			alpha,
+			dt,
+			m_bossSummonGlowParticleEmitAccumulatorSec,
+			kBossSummonGlowParticleEmitIntervalSec,
+			kBossSummonGlowParticlesPerEmit,
+			kBossSummonGlowParticleIntensityScale
+		);
+	}
+
 	if ( t < 1.0f )
 		return;
 
@@ -6477,6 +6529,7 @@ void CGameScene::UpdateBossSummonVisualFadeOut(float dt)
 
 	m_bBossSummonVisualFadeOutStarted = false;
 	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
+	m_bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
 #else
 	UNREFERENCED_PARAMETER(dt);
 #endif

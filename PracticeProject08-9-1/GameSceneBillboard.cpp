@@ -1376,6 +1376,192 @@ void CGameScene::SpawnMuzzleFlash(
 	}
 }
 
+void CGameScene::SpawnMagicCircleGlowParticle(
+	const XMFLOAT3& center,
+	float circleSize,
+	float alpha,
+	float intensityScale,
+	float glowSizeScale,
+	float afterimageSizeScale)
+{
+	if ( alpha <= 0.001f )
+		return;
+
+	static std::mt19937 rng{ std::random_device{}( ) };
+
+	static std::uniform_real_distribution<float> zeroOneDist(0.0f, 1.0f);
+	static std::uniform_real_distribution<float> unitDist(-1.0f, 1.0f);
+	static std::uniform_real_distribution<float> rotDist(0.0f, XM_2PI);
+	static std::uniform_real_distribution<float> seedDist(0.0f, 1000.0f);
+
+	const float brightness = std::clamp(alpha, 0.0f, 1.0f);
+
+	const float circleRadius =
+		std::max(0.25f, circleSize * 0.5f);
+
+	const float angle =
+		zeroOneDist(rng) * XM_2PI;
+
+	// 마법진 내부/외곽에 고르게 분포.
+	const float r =
+		std::sqrt(zeroOneDist(rng)) * circleRadius;
+
+	XMFLOAT3 pos = center;
+	pos.x += std::cos(angle) * r;
+	pos.z += std::sin(angle) * r;
+	pos.y = center.y + kMagicCircleGlowParticleYOffset + zeroOneDist(rng) * 0.08f;
+
+	const float outwardSpeed =
+		0.03f + zeroOneDist(rng) * 0.12f;
+
+	const float upwardSpeed =
+		0.02f + zeroOneDist(rng) * 0.08f;
+
+	XMFLOAT3 velocity{};
+	velocity.x = std::cos(angle) * outwardSpeed;
+	velocity.y = upwardSpeed;
+	velocity.z = std::sin(angle) * outwardSpeed;
+
+	// ---------------------------------------------------------------------
+	// 1) 큰 초록 빛번짐.
+	// 총구화염 Core/Ring 사용 금지. MagicCircleGlow 전용 kind 사용.
+	// ---------------------------------------------------------------------
+	{
+		MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashes);
+		if ( !e )
+			return;
+
+		const float safeGlowSizeScale =
+			std::max(0.01f, glowSizeScale);
+
+		const float baseSize =
+			std::max(
+				0.35f,
+				circleSize * ( 0.10f + zeroOneDist(rng) * 0.08f )
+			) * safeGlowSizeScale;
+
+		e->active = true;
+		e->kind = EMuzzleFlashKind::MagicCircleGlow;
+
+		e->position = pos;
+		e->velocity = velocity;
+
+		e->age = 0.0f;
+		e->lifetime = 0.38f + zeroOneDist(rng) * 0.24f;
+
+		e->startWidth = baseSize;
+		e->startHeight = baseSize;
+		e->endWidth = baseSize * 1.45f;
+		e->endHeight = baseSize * 1.45f;
+
+		e->intensity = intensityScale * ( 0.85f + brightness * 0.65f );
+
+		e->color = XMFLOAT4(
+			0.16f,
+			0.95f,
+			0.24f,
+			std::clamp(0.18f + brightness * 0.32f, 0.0f, 0.55f)
+		);
+	}
+
+	// ---------------------------------------------------------------------
+	// 2) 잔광/부유 입자.
+	// 작은 초록 흔적. 이것도 총구화염 Spark 사용 금지.
+	// ---------------------------------------------------------------------
+	{
+		MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashes);
+		if ( !e )
+			return;
+
+		const float safeAfterimageSizeScale =
+			std::max(0.01f, afterimageSizeScale);
+
+		const float moteSize =
+			std::max(
+				0.18f,
+				circleSize * ( 0.045f + zeroOneDist(rng) * 0.045f )
+			) * safeAfterimageSizeScale;
+
+		e->active = true;
+		e->kind = EMuzzleFlashKind::MagicCircleAfterimage;
+
+		e->position = pos;
+		e->velocity = XMFLOAT3(
+			velocity.x * ( 0.45f + zeroOneDist(rng) * 0.30f ),
+			0.08f + zeroOneDist(rng) * 0.20f,
+			velocity.z * ( 0.45f + zeroOneDist(rng) * 0.30f )
+		);
+
+		e->lifetime = 0.45f + zeroOneDist(rng) * 0.35f;
+
+		e->endWidth = moteSize * 1.35f;
+		e->endHeight = moteSize * 1.35f;
+
+		e->intensity = intensityScale * ( 0.75f + brightness * 0.55f );
+		e->gravity = 0.0f;
+
+		e->color = XMFLOAT4(
+			0.10f,
+			0.90f,
+			0.18f,
+			std::clamp(0.16f + brightness * 0.28f, 0.0f, 0.45f)
+		);
+	}
+}
+
+void CGameScene::EmitMagicCircleGlowParticles(
+	const XMFLOAT3& center,
+	float circleSize,
+	float alpha,
+	float dt,
+	float& accumulator,
+	float emitIntervalSec,
+	int particlesPerEmit,
+	float intensityScale)
+{
+	if ( dt <= 0.0f )
+		return;
+
+	if ( alpha <= 0.001f )
+		return;
+
+	if ( circleSize <= 0.0f )
+		return;
+
+	emitIntervalSec =
+		( emitIntervalSec > 1.0e-6f )
+		? emitIntervalSec
+		: 0.001f;
+
+	accumulator += dt;
+
+	if ( accumulator < emitIntervalSec )
+		return;
+
+	int emitCount =
+		static_cast< int >(accumulator / emitIntervalSec);
+
+	accumulator =
+		std::fmod(accumulator, emitIntervalSec);
+
+	// 프레임 드랍 시 한 번에 폭발적으로 생성되는 것 방지.
+	if ( emitCount > 3 )
+		emitCount = 3;
+
+	for ( int n = 0; n < emitCount; ++n )
+	{
+		for ( int i = 0; i < particlesPerEmit; ++i )
+		{
+			SpawnMagicCircleGlowParticle(
+				center,
+				circleSize,
+				alpha,
+				intensityScale
+			);
+		}
+	}
+}
+
 void CGameScene::SpawnBloodSplash(
 	CGameObject* victim,
 	const XMFLOAT3* hitPosition,
@@ -2208,6 +2394,8 @@ void CGameScene::ClearBossCallSummonCircleVisuals()
 	}
 
 	m_bossCallSummonCircleVisualState = BossCallSummonCircleVisualState{};
+	m_bossCallSummonGlowParticleEmitAccumulatorSec = 0.0f;
+
 	SetBossCallSummonCircleAlpha(0.0f);
 }
 
@@ -2428,6 +2616,85 @@ void CGameScene::StartBossCallSummonCircleFadeOut()
 #endif
 }
 
+void CGameScene::EmitBossCallSummonCircleGlowParticles(
+	float dt,
+	float alpha)
+{
+#ifndef USING_NETWORK
+	if ( dt <= 0.0f )
+		return;
+
+	if ( alpha <= 0.001f )
+		return;
+
+	if ( m_activeBossCallSummonCircleItemIndices.empty() )
+		return;
+
+	const float emitIntervalSec =
+		( kBossCallSummonGlowParticleEmitIntervalSec > 1.0e-6f )
+		? kBossCallSummonGlowParticleEmitIntervalSec
+		: 0.001f;
+
+	m_bossCallSummonGlowParticleEmitAccumulatorSec += dt;
+
+	if ( m_bossCallSummonGlowParticleEmitAccumulatorSec < emitIntervalSec )
+		return;
+
+	int emitCount =
+		static_cast< int >(
+			m_bossCallSummonGlowParticleEmitAccumulatorSec /
+			emitIntervalSec
+		);
+
+	m_bossCallSummonGlowParticleEmitAccumulatorSec =
+		std::fmod(
+			m_bossCallSummonGlowParticleEmitAccumulatorSec,
+			emitIntervalSec
+		);
+
+	if ( emitCount > 3 )
+		emitCount = 3;
+
+	for ( size_t itemIndex : m_activeBossCallSummonCircleItemIndices )
+	{
+		if ( itemIndex >= m_itemBillboards.size() )
+			continue;
+
+		const ItemBillboardEntry& item = m_itemBillboards[itemIndex];
+
+		if ( !item.active )
+			continue;
+
+		if ( item.kind != EItemBillboardKind::BossCallSummonCircle )
+			continue;
+
+		XMFLOAT3 center = item.position;
+		center.y += item.yOffset;
+
+		const float circleSize =
+			std::max(item.width, item.height);
+
+		for ( int n = 0; n < emitCount; ++n )
+		{
+			for ( int i = 0; i < kBossCallSummonGlowParticlesPerEmit; ++i )
+			{
+				SpawnMagicCircleGlowParticle(
+					center,
+					circleSize,
+					alpha,
+					kBossCallSummonGlowParticleIntensityScale,
+					kBossCallSummonGlowParticleSizeScale,
+					kBossCallSummonAfterimageParticleSizeScale
+				);
+			}
+		}
+	}
+#else
+	UNREFERENCED_PARAMETER(dt);
+	UNREFERENCED_PARAMETER(alpha);
+#endif
+}
+
 void CGameScene::UpdateBossCallSummonCircles(float dt)
 {
 #ifndef USING_NETWORK
@@ -2456,7 +2723,10 @@ void CGameScene::UpdateBossCallSummonCircles(float dt)
 
 	if ( state.fadingIn )
 	{
-		SetBossCallSummonCircleAlpha(t);
+		const float alpha = t;
+
+		SetBossCallSummonCircleAlpha(alpha);
+		EmitBossCallSummonCircleGlowParticles(dt, alpha);
 
 		if ( t >= 1.0f )
 		{
@@ -2471,7 +2741,10 @@ void CGameScene::UpdateBossCallSummonCircles(float dt)
 
 	if ( state.fadingOut )
 	{
-		SetBossCallSummonCircleAlpha(1.0f - t);
+		const float alpha = 1.0f - t;
+
+		SetBossCallSummonCircleAlpha(alpha);
+		EmitBossCallSummonCircleGlowParticles(dt, alpha);
 
 		if ( t >= 1.0f )
 		{
