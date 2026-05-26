@@ -6032,6 +6032,9 @@ void CGameScene::SetBossStageBossActive(
 	if ( auto* hp = boss->GetComponent<CHealthComponent>() )
 		hp->ResetToMax();
 
+	if ( auto* bossAI = boss->GetComponent<CBossAIComponent>() )
+		bossAI->ResetBossCallState();
+
 	m_deadMonsters.erase(boss);
 
 	if ( playAppear )

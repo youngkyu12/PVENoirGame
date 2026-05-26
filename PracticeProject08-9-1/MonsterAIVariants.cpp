@@ -1192,6 +1192,19 @@ CBossAIComponent::CBossAIComponent(CGameObject* owner)
 	m_bossPostMeleeTurnSpeedDegrees = 900.0f;
 
 	m_bossSpellTurnSpeedDegrees = 720.0f;
+
+	m_bossCallTurnSpeedDegrees = 720.0f;
+	ResetBossCallState();
+}
+
+void CBossAIComponent::ResetBossCallState()
+{
+	m_bossCallThresholdMask = 0;
+	m_bossPendingCallCount = 0;
+
+	m_bBossCallCommandRequested = false;
+	m_bBossCallConsumePendingOnStart = false;
+	m_bossCallRequestAgeSec = 0.0f;
 }
 
 bool CBossAIComponent::AcquireTarget()
@@ -1247,9 +1260,70 @@ void CBossAIComponent::ConfigureBossHitReactionPolicy()
 	m_bBossHitReactionPolicyConfigured = true;
 }
 
+void CBossAIComponent::UpdateBossCallThresholdState()
+{
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return;
+
+	auto* hp = owner->GetComponent<CHealthComponent>();
+	if ( !hp )
+		return;
+
+	if ( hp->IsDead() )
+		return;
+
+	const int maxHp = hp->GetMaxHp();
+	const int currentHp = hp->GetCurrentHp();
+
+	if ( maxHp <= 0 )
+		return;
+
+	auto CheckThreshold =
+		[ & ](
+			uint8_t bit,
+			int numerator
+		)
+		{
+			const uint8_t mask =
+				static_cast< uint8_t >( 1u << bit );
+
+			if ( ( m_bossCallThresholdMask & mask ) != 0 )
+				return;
+
+			// current / max <= numerator / 4
+			// float 오차 방지를 위해 정수 비교.
+			const int64_t lhs =
+				static_cast< int64_t >( currentHp ) * 4;
+
+			const int64_t rhs =
+				static_cast< int64_t >( maxHp ) * numerator;
+
+			if ( lhs <= rhs )
+			{
+				m_bossCallThresholdMask |= mask;
+				++m_bossPendingCallCount;
+			}
+		};
+
+	// 실제 전투 중 순서:
+	// 3/4 이하 -> 2/4 이하 -> 1/4 이하
+	CheckThreshold(0, 3);
+	CheckThreshold(1, 2);
+	CheckThreshold(2, 1);
+}
+
+bool CBossAIComponent::HasPendingBossCall() const
+{
+	return m_bossPendingCallCount > 0;
+}
+
 void CBossAIComponent::UpdateBehavior(float dt)
 {
+	ConfigureBossHitReactionPolicy();
+
 	UpdateBossCooldowns(dt);
+	UpdateBossCallThresholdState();
 
 	if ( !HasValidTarget() )
 	{
@@ -1286,6 +1360,29 @@ void CBossAIComponent::UpdateBehavior(float dt)
 	}
 
 	const float distanceToTarget = GetDistanceToTargetXZ();
+
+	if ( IsBossCallActionPlaying() )
+	{
+		ClearPath();
+
+		// Call phase 진입이 확인된 순간에 pending 1개를 실제 소비한다.
+		// RequestCommand가 실패하거나 전환되지 않은 경우 pending을 잃지 않기 위함.
+		if ( m_bBossCallConsumePendingOnStart )
+		{
+			if ( m_bossPendingCallCount > 0 )
+				--m_bossPendingCallCount;
+
+			m_bBossCallConsumePendingOnStart = false;
+			ConsumeBossCallCooldown();
+		}
+
+		m_bBossCallCommandRequested = false;
+		m_bossCallRequestAgeSec = 0.0f;
+
+		// Call 중에는 이동/일반 공격 판단을 하지 않는다.
+		// Call 자체는 MonsterAnimController action clip이 유지한다.
+		return;
+	}
 
 	const bool meleeActionPlaying = IsBossMeleeActionPlaying();
 
@@ -1335,6 +1432,14 @@ void CBossAIComponent::UpdateBehavior(float dt)
 	}
 
 	const bool canStartAction = CanStartBossAction();
+
+	if ( HasPendingBossCall() )
+	{
+		if ( TryRequestPendingBossCall(target, dt) )
+			return;
+
+		return;
+	}
 
 	if ( m_bBossOpeningSpellPending )
 	{
@@ -1497,6 +1602,9 @@ void CBossAIComponent::UpdateBehavior(float dt)
 
 bool CBossAIComponent::TryPerformAttack()
 {
+	if ( m_pendingAttackIntent == EBossAttackIntent::Call )
+		return TryPerformCall();
+
 	if ( m_pendingAttackIntent == EBossAttackIntent::Spell )
 		return TryPerformSpellAttack();
 
@@ -1559,6 +1667,11 @@ bool CBossAIComponent::CanRotateNow() const
 	if ( IsBossMeleeActionPlaying() )
 		return false;
 
+	// Call 중에도 회전 금지.
+	// Call은 소환 연출용 action이므로 도중에 회전으로 비틀리지 않게 둔다.
+	if ( IsBossCallActionPlaying() )
+		return false;
+
 	// Spell 중에는 회전 가능.
 	// 일반 추적/대기 중에도 회전 가능.
 	return true;
@@ -1582,6 +1695,15 @@ bool CBossAIComponent::IsBossSpellActionPlaying() const
 		return false;
 
 	return ctrl->IsSpellPhase();
+}
+
+bool CBossAIComponent::IsBossCallActionPlaying() const
+{
+	auto* ctrl = GetMonsterAnimController();
+	if ( !ctrl )
+		return false;
+
+	return ctrl->IsCallPhase();
 }
 
 bool CBossAIComponent::SmoothFaceTowardsTarget(
@@ -2021,6 +2143,78 @@ bool CBossAIComponent::CanStartBossAction() const
 	return true;
 }
 
+bool CBossAIComponent::TryRequestPendingBossCall(CGameObject* target, float dt)
+{
+	ClearPath();
+
+	if ( !HasPendingBossCall() )
+		return false;
+
+	if ( m_bBossCallCommandRequested )
+	{
+		m_bossCallRequestAgeSec += dt;
+
+		// Call 전환 대기 중에는 Idle을 계속 덮어쓰지 않는다.
+		// 대신 action lock이 없을 때만 플레이어를 바라보게 한다.
+		if ( target && !IsAIActionLockedByAnimation() )
+		{
+			SmoothFaceTowardsTarget(
+				target,
+				dt,
+				m_bossCallTurnSpeedDegrees
+			);
+		}
+
+		if ( m_bossCallRequestAgeSec >= 0.50f )
+		{
+			// 0.5초 동안 Call phase로 진입하지 못했고 현재 action lock도 없다면
+			// 요청이 소비되지 않은 것으로 보고 재시도한다.
+			if ( !IsAIActionLockedByAnimation() && !IsBossCallActionPlaying() )
+			{
+				m_bBossCallCommandRequested = false;
+				m_bBossCallConsumePendingOnStart = false;
+			}
+
+			m_bossCallRequestAgeSec = 0.0f;
+		}
+
+		return true;
+	}
+
+	if ( !CanStartBossAction() )
+	{
+		// Hit 중이거나 다른 action lock 중이면 여기서 기다린다.
+		// 즉, Hit 중 조건 충족 시 Hit 종료 후 Call 실행.
+		if ( !IsAIActionLockedByAnimation() )
+			SetMonsterLocomotionState(EMonsterAnimState::Idle);
+
+		if ( target && !IsAIActionLockedByAnimation() )
+		{
+			SmoothFaceTowardsTarget(
+				target,
+				dt,
+				m_bossCallTurnSpeedDegrees
+			);
+		}
+
+		return true;
+	}
+
+	SetMonsterLocomotionState(EMonsterAnimState::Idle);
+
+	if ( target )
+		FaceTowards(target->GetPosition());
+
+	if ( TryPerformCall() )
+	{
+		m_bBossCallCommandRequested = true;
+		m_bBossCallConsumePendingOnStart = true;
+		m_bossCallRequestAgeSec = 0.0f;
+	}
+
+	return true;
+}
+
 bool CBossAIComponent::TryPerformBossCommand(EMonsterAnimCommand command)
 {
 	auto* animComp = GetAnimatorComponent();
@@ -2049,6 +2243,12 @@ bool CBossAIComponent::TryPerformSpellAttack()
 	return TryPerformBossCommand(EMonsterAnimCommand::Spell);
 }
 
+bool CBossAIComponent::TryPerformCall()
+{
+	m_pendingAttackIntent = EBossAttackIntent::Call;
+	return TryPerformBossCommand(EMonsterAnimCommand::Call);
+}
+
 void CBossAIComponent::ConsumeBossMeleeCooldown()
 {
 	m_bossGlobalActionCooldownRemaining = m_bossGlobalActionCooldown;
@@ -2064,4 +2264,12 @@ void CBossAIComponent::ConsumeBossSpellCooldown()
 	m_bossSpellCooldownRemaining = m_bossSpellCooldown;
 
 	// Spell은 공격 중 회전만 허용하고, 종료 후 별도 이동 잠금은 두지 않는다.
+}
+
+void CBossAIComponent::ConsumeBossCallCooldown()
+{
+	m_bossGlobalActionCooldownRemaining = m_bossGlobalActionCooldown;
+
+	// Call은 HP 임계값 기반 1회성 예약 액션이므로 별도 Call cooldown은 두지 않는다.
+	// 실제 소환은 이후 GameScene/Spawner 연동 단계에서 Call phase 중 타이밍을 잡아 처리하면 된다.
 }
