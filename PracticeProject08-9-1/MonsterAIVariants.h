@@ -238,7 +238,15 @@ private:
 	bool HasPendingBossCall() const;
 	bool TryRequestPendingBossCall(CGameObject* target, float dt);
 
-	bool IsPlayerInsideBossBattleZone(CGameObject* player) const;
+	void BeginBossCallRise();
+	bool UpdateBossCallRise(float dt);
+
+	void BeginBossCallDescend();
+	bool UpdateBossCallDescend(float dt);
+
+	bool IsBossCallVerticalSequenceActive() const;
+
+	bool IsPlayerInsideBossBattleZone(CGameObject* player) const; 
 	bool CanStartBossAction() const;
 
 	bool TryPerformBossCommand(EMonsterAnimCommand command);
@@ -291,8 +299,6 @@ private:
 	static constexpr float kBossHitReactionAnimSuperArmorSec = 1.0f;
 	bool m_bBossHitReactionPolicyConfigured = false;
 
-	// HP 75%, 50%, 25% 진입 시 각각 1회씩 Call 예약.
-	// bit 0 = 3/4 이하, bit 1 = 2/4 이하, bit 2 = 1/4 이하.
 	uint8_t m_bossCallThresholdMask = 0;
 	int m_bossPendingCallCount = 0;
 	int m_bossExecutedCallCount = 0;
@@ -302,21 +308,34 @@ private:
 	float m_bossCallRequestAgeSec = 0.0f;
 	float m_bossCallTurnSpeedDegrees = 720.0f;
 
+	static constexpr float kBossCallLiftHeight = 3.0f;
+	static constexpr float kBossCallRiseDuration = 0.75f;
+	static constexpr float kBossCallDescendDuration = 3.0f;
+
+	bool m_bBossCallRising = false;
+	bool m_bBossCallRiseCompletedForCurrentCall = false;
+	bool m_bBossCallDescendPendingOnCallEnd = false;
+	bool m_bBossCallDescending = false;
+
+	float m_bossCallBaseY = 0.0f;
+
+	float m_bossCallRiseStartY = 0.0f;
+	float m_bossCallRiseElapsedSec = 0.0f;
+
+	float m_bossCallDescendStartY = 0.0f;
+	float m_bossCallDescendElapsedSec = 0.0f;
+
 	bool m_bBossOpeningSpellPending = true;
 	bool m_bBossOpeningSpellRequested = false;
 	float m_bossOpeningSpellRequestAgeSec = 0.0f;
 
-	// 근거리 공격 후 즉시 거리를 벌리는 회피 이동.
-	// 보스는 공중 몬스터이므로 별도 이동 애니메이션 없이 Idle 유지.
 	static constexpr float kBossPostMeleeEvadeDistance = 10.0f;
 	static constexpr float kBossPostMeleeEvadeSpeed = 32.0f;
 
-	// 보스 스테이지는 중심 (0, 0, 400), 안전 판정은 210 x 210 사용.
 	static constexpr float kBossPostMeleeEvadeStageCenterX = 0.0f;
 	static constexpr float kBossPostMeleeEvadeStageCenterZ = 400.0f;
 	static constexpr float kBossPostMeleeEvadeStageHalfExtent = 105.0f;
 
-	// 보스 크기/벽 끼임 방지용 여유.
 	static constexpr float kBossPostMeleeEvadeStagePadding = 5.0f;
 
 	bool m_bBossPostMeleeEvading = false;
