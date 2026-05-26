@@ -42,6 +42,53 @@ void CMonsterAI::OnUpdate(float dt)
 
 	m_repathTimer -= dt;
 
+	// 직선 이동 모드 (spawner pool Ghoul)
+	if (m_useDirectMove)
+	{
+		if (m_initialAdvanceDist > 0.f)
+		{
+			const float step = m_moveSpeed * dt;
+			const auto pos = GetOwner()->GetPosition();
+			const GameMath::Vec3 next(
+				pos.x + m_initialAdvanceDir.x * step,
+				pos.y,
+				pos.z + m_initialAdvanceDir.z * step);
+			FaceTowards(next);
+			GetOwner()->SetPosition(next);
+			GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_RUN);
+			GetOwner()->SetLastMoveDir(m_initialAdvanceDir);
+			m_initialAdvanceDist = std::max(0.f, m_initialAdvanceDist - step);
+			return;
+		}
+
+		if (!AcquireTarget())
+		{
+			m_pTarget = nullptr;
+			GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
+			return;
+		}
+
+		const auto myPos = GetOwner()->GetPosition();
+		const auto targetPos = m_pTarget->GetPosition();
+		const float distSq = DistSqXZ(myPos, targetPos);
+
+		if (distSq <= m_attackRange * m_attackRange)
+		{
+			FaceTowards(targetPos);
+			if (m_attackCooldownRemaining <= 0.f)
+			{
+				GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
+				GetOwner()->SetAnimTick(GRoom->GetAnimClockTick());
+				m_attackCooldownRemaining = m_attackCooldownSec;
+			}
+			return;
+		}
+
+		MoveDirectTowards(targetPos, m_moveSpeed * dt);
+		return;
+	}
+
+	// 일반 NavMesh 모드
 	if (!AcquireTarget())
 	{
 		m_pTarget = nullptr;
@@ -92,10 +139,18 @@ bool CMonsterAI::AcquireTarget()
 	float bestSq = FLT_MAX;
 	const auto myPos = GetOwner()->GetPosition();
 
+	const float innerZoneSq = (m_innerZoneRadius > 0.f) ? (m_innerZoneRadius * m_innerZoneRadius) : -1.f;
+
 	for (const auto& [id, player] : GRoom->GetPlayers())
 	{
 		if (!player) continue;
 		if (player->IsDead()) continue;
+
+		if (innerZoneSq >= 0.f)
+		{
+			if (DistSqXZ(m_innerZoneCenter, player->GetPosition()) > innerZoneSq)
+				continue;
+		}
 
 		const float dSq = DistSqXZ(myPos, player->GetPosition());
 		if (dSq < bestSq)
@@ -105,7 +160,15 @@ bool CMonsterAI::AcquireTarget()
 		}
 	}
 
+	const bool hadTarget = (m_pTarget != nullptr);
 	m_pTarget = nearest;
+
+	if (!hadTarget && m_pTarget != nullptr && !m_hasNotifiedFirstChase)
+	{
+		m_hasNotifiedFirstChase = true;
+		GRoom->OnMonsterFirstChase(GetOwner()->GetObjectId());
+	}
+
 	return m_pTarget != nullptr;
 }
 
@@ -209,6 +272,36 @@ bool CMonsterAI::FollowCurrentPath(float dt)
 		return MoveTowards(wp, moveDistance);
 	}
 	return false;
+}
+
+bool CMonsterAI::MoveDirectTowards(const GameMath::Vec3& goal, float maxStep)
+{
+	const auto pos = GetOwner()->GetPosition();
+	GameMath::Vec3 d(goal.x - pos.x, 0.f, goal.z - pos.z);
+	const float len = d.LengthXZ();
+	if (len <= 1e-6f) return false;
+
+	const float step = (maxStep < len) ? maxStep : len;
+	const GameMath::Vec3 dir(d.x / len, 0.f, d.z / len);
+	FaceTowards(goal);
+	GetOwner()->SetPosition(GameMath::Vec3(pos.x + dir.x * step, pos.y, pos.z + dir.z * step));
+	GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_RUN);
+	GetOwner()->SetLastMoveDir(dir);
+	return true;
+}
+
+void CMonsterAI::SetDirectMoveMode(float advanceDist, const GameMath::Vec3& homeDir, float innerZoneRadius, const GameMath::Vec3& zoneCenter)
+{
+	m_useDirectMove = true;
+	m_initialAdvanceDist = advanceDist;
+	m_initialAdvanceDir = homeDir;
+	m_innerZoneRadius = innerZoneRadius;
+	m_innerZoneCenter = zoneCenter;
+	m_hasNotifiedFirstChase = false;
+	m_pTarget = nullptr;
+	m_currentPath.clear();
+	m_trianglePath.clear();
+	m_currentPathIndex = 0;
 }
 
 void CMonsterAI::ConfigureFromWeapon(Protocol::WeaponType weaponType)

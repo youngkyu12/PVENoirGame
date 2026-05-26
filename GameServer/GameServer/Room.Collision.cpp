@@ -531,6 +531,12 @@ void Room::TickDoorPortalCooldowns()
 	}
 }
 
+bool Room::IsMegaGridCleared(int megaGrid) const
+{
+	if (megaGrid < 1 || megaGrid > kMegaGridCount) return false;
+	return m_megaGridCells[static_cast<size_t>(megaGrid - 1)].isCleared;
+}
+
 int Room::CountClearedMegaGrids() const
 {
 	int clearedCount = 0;
