@@ -5816,6 +5816,37 @@ void CGameScene::SetBossStageBossAIEnabled(CGameObject* boss, bool enabled)
 	if ( !boss )
 		return;
 
+	if ( auto* bossAI = boss->GetComponent<CBossAIComponent>() )
+	{
+		const bool bossCombatAIEnabled =
+			enabled && m_bSimulateLocalBossAI;
+
+		const bool bossSummonEnabled =
+			enabled &&
+			(
+				m_bSimulateLocalBossSummon ||
+				m_bSimulateLocalBossAI
+			);
+
+		const bool effectiveAIEnabled =
+			bossCombatAIEnabled || bossSummonEnabled;
+
+		bossAI->ConfigureBossSimulation(
+			bossCombatAIEnabled,
+			bossSummonEnabled
+		);
+
+		bossAI->SetEnabledAI(effectiveAIEnabled);
+
+		if ( !bossCombatAIEnabled )
+		{
+			bossAI->ClearTarget();
+			bossAI->ClearPath();
+		}
+
+		return;
+	}
+
 	auto Configure =
 		[ enabled ] (CMonsterAIComponent* ai) -> bool
 		{
@@ -5832,9 +5863,6 @@ void CGameScene::SetBossStageBossAIEnabled(CGameObject* boss, bool enabled)
 
 			return true;
 		};
-
-	if ( Configure(boss->GetComponent<CBossAIComponent>()) )
-		return;
 
 	Configure(boss->GetComponent<CMonsterAIComponent>());
 }
@@ -6145,7 +6173,12 @@ void CGameScene::SetBossStageBossActive(
 		hp->ResetToMax();
 
 	if ( auto* bossAI = boss->GetComponent<CBossAIComponent>() )
+	{
 		bossAI->ResetBossCallState();
+
+		if ( playAppear )
+			bossAI->ResetBossOpeningSpellState();
+	}
 
 	m_deadMonsters.erase(boss);
 

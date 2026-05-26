@@ -209,6 +209,14 @@ public:
 	}
 
 	void ResetBossCallState();
+	void ResetBossOpeningSpellState();
+
+	void ConfigureBossSimulation(
+		bool combatAIEnabled,
+		bool summonEnabled
+	);
+
+	void OnUpdate(float dt) override;
 
 protected:
 	bool AcquireTarget() override;
@@ -246,6 +254,12 @@ private:
 
 	bool IsBossCallVerticalSequenceActive() const;
 
+	bool UpdateBossCallSequence(
+		float dt,
+		CGameObject* target,
+		bool allowStartPendingCall
+	);
+
 	bool IsPlayerInsideBossBattleZone(CGameObject* player) const; 
 	bool CanStartBossAction() const;
 
@@ -282,6 +296,9 @@ private:
 
 private:
 	EBossAttackIntent m_pendingAttackIntent = EBossAttackIntent::Melee;
+
+	bool m_bBossCombatAIEnabled = true;
+	bool m_bBossSummonEnabled = true;
 
 	float m_bossMeleeRange = 7.0f;
 	float m_bossPreferredSpellRange = 12.0f;
