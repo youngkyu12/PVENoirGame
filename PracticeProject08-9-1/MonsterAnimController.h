@@ -42,6 +42,7 @@ public:
 	bool IsAttackPrimaryPhase() const { return m_actionPhase == EActionPhase::Attack; }
 	bool IsAttackChainPhase() const { return m_actionPhase == EActionPhase::AttackChainNext; }
 	bool IsSpellPhase() const { return m_actionPhase == EActionPhase::Spell; }
+	bool IsCallPhase() const { return m_actionPhase == EActionPhase::Call; }
 	bool IsAppearPhase() const { return m_actionPhase == EActionPhase::Appear; }
 
 private:

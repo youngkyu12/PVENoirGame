@@ -208,6 +208,8 @@ public:
 		return CComponent::StaticTypeId<CBossAIComponent>();
 	}
 
+	void ResetBossCallState();
+
 protected:
 	bool AcquireTarget() override;
 	void UpdateBehavior(float dt) override;
@@ -224,12 +226,17 @@ private:
 	enum class EBossAttackIntent : uint8_t
 	{
 		Melee = 0,
-		Spell
+		Spell,
+		Call
 	};
 
 private:
 	void UpdateBossCooldowns(float dt);
 	void ConfigureBossHitReactionPolicy();
+
+	void UpdateBossCallThresholdState();
+	bool HasPendingBossCall() const;
+	bool TryRequestPendingBossCall(CGameObject* target, float dt);
 
 	bool IsPlayerInsideBossBattleZone(CGameObject* player) const;
 	bool CanStartBossAction() const;
@@ -237,12 +244,15 @@ private:
 	bool TryPerformBossCommand(EMonsterAnimCommand command);
 	bool TryPerformMeleeAttack();
 	bool TryPerformSpellAttack();
+	bool TryPerformCall();
 
 	void ConsumeBossMeleeCooldown();
 	void ConsumeBossSpellCooldown();
+	void ConsumeBossCallCooldown();
 
 	bool IsBossMeleeActionPlaying() const;
 	bool IsBossSpellActionPlaying() const;
+	bool IsBossCallActionPlaying() const;
 
 	bool SmoothFaceTowardsTarget(
 		CGameObject* target,
@@ -280,6 +290,16 @@ private:
 
 	static constexpr float kBossHitReactionAnimSuperArmorSec = 1.0f;
 	bool m_bBossHitReactionPolicyConfigured = false;
+
+	// HP 75%, 50%, 25% 진입 시 각각 1회씩 Call 예약.
+	// bit 0 = 3/4 이하, bit 1 = 2/4 이하, bit 2 = 1/4 이하.
+	uint8_t m_bossCallThresholdMask = 0;
+	int m_bossPendingCallCount = 0;
+
+	bool m_bBossCallCommandRequested = false;
+	bool m_bBossCallConsumePendingOnStart = false;
+	float m_bossCallRequestAgeSec = 0.0f;
+	float m_bossCallTurnSpeedDegrees = 720.0f;
 
 	bool m_bBossOpeningSpellPending = true;
 	bool m_bBossOpeningSpellRequested = false;
