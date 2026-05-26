@@ -181,7 +181,8 @@ namespace GameSceneHelper
 
 	static constexpr std::array<int, kPlayerWeaponDamageTierCount> kAttackPowerPlayerBulletByTier =
 	{
-		8, 18, 35
+		600, 600, 600
+		//8, 18, 35
 	};
 
 	static constexpr std::array<int, kPlayerWeaponDamageTierCount> kAttackPowerPlayerAxeByTier =

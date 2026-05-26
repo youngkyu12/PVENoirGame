@@ -180,7 +180,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		}
 	}
 #else
-	m_localPlayerSlot = 0;
+	m_localPlayerSlot = 3;
 
 	const GameSceneStageFileSet& stageFiles = GetLocalStageFileSet(kLocalStagePreset);
 
@@ -1403,6 +1403,51 @@ XMFLOAT3 CGameScene::ComputeEnemySpawnerSpawnPosition(
 	return pos;
 }
 
+XMFLOAT3 CGameScene::ComputeBossCallMonsterSpawnPosition() const
+{
+	// 5번 메가그리드 중심.
+	constexpr int megaGridNumber = 5;
+
+	const int zeroBased = megaGridNumber - 1;
+	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+	const float centerX =
+		static_cast< float >(
+			CSceneGrid::kGridMinX +
+			megaX * CSceneGrid::kMegaGridCellWidth +
+			CSceneGrid::kMegaGridCellWidth / 2
+		);
+
+	const float centerZ =
+		static_cast< float >(
+			CSceneGrid::kGridMinZ +
+			megaZ * CSceneGrid::kMegaGridCellHeight +
+			CSceneGrid::kMegaGridCellHeight / 2
+		);
+
+	// 200 x 200 내부 랜덤.
+	constexpr float halfExtent = 100.0f;
+
+	static std::mt19937 rng{ std::random_device{}( ) };
+	std::uniform_real_distribution<float> dist(-halfExtent, halfExtent);
+
+	XMFLOAT3 pos{};
+	pos.x = centerX + dist(rng);
+	pos.y = 0.0f;
+	pos.z = centerZ + dist(rng);
+
+	return pos;
+}
+
+float CGameScene::ComputeBossCallMonsterSpawnYawDeg() const
+{
+	static std::mt19937 rng{ std::random_device{}( ) };
+	std::uniform_real_distribution<float> dist(-180.0f, 180.0f);
+
+	return dist(rng);
+}
+
 void CGameScene::BuildSkinnedBatch(
 	ID3D12Device* dev,
 	ID3D12GraphicsCommandList* cmd,
@@ -2066,9 +2111,14 @@ void CGameScene::BuildSkinnedBatch(
 					const UINT i = static_cast< UINT >(b->objectRefs.size());
 
 					const XMFLOAT3 pos =
-						ComputeEnemySpawnerSpawnPosition(megaGridNumber, k, count);
+						( megaGridNumber == 5 )
+						? ComputeBossCallMonsterSpawnPosition()
+						: ComputeEnemySpawnerSpawnPosition(megaGridNumber, k, count);
 
-					const float yaw = 180.0f;
+					const float yaw =
+						( megaGridNumber == 5 )
+						? ComputeBossCallMonsterSpawnYawDeg()
+						: 180.0f;
 
 					GameSceneObjectFactory::SkinnedRenderableDesc createDesc{};
 					createDesc.ctx = MakeSkinnedContext(i);
@@ -2295,9 +2345,14 @@ void CGameScene::BuildSkinnedBatch(
 					const UINT i = static_cast< UINT >(b->objectRefs.size());
 
 					const XMFLOAT3 pos =
-						ComputeEnemySpawnerSpawnPosition(megaGridNumber, k, count);
+						( megaGridNumber == 5 )
+						? ComputeBossCallMonsterSpawnPosition()
+						: ComputeEnemySpawnerSpawnPosition(megaGridNumber, k, count);
 
-					const float yaw = 180.0f;
+					const float yaw =
+						( megaGridNumber == 5 )
+						? ComputeBossCallMonsterSpawnYawDeg()
+						: 180.0f;
 
 					GameSceneObjectFactory::SkinnedRenderableDesc createDesc{};
 					createDesc.ctx = MakeSkinnedContext(i);
@@ -2505,9 +2560,14 @@ void CGameScene::BuildSkinnedBatch(
 					const UINT i = static_cast< UINT >(b->objectRefs.size());
 
 					const XMFLOAT3 pos =
-						ComputeEnemySpawnerSpawnPosition(megaGridNumber, k, count);
+						( megaGridNumber == 5 )
+						? ComputeBossCallMonsterSpawnPosition()
+						: ComputeEnemySpawnerSpawnPosition(megaGridNumber, k, count);
 
-					const float yaw = 180.0f;
+					const float yaw =
+						( megaGridNumber == 5 )
+						? ComputeBossCallMonsterSpawnYawDeg()
+						: 180.0f;
 
 					GameSceneObjectFactory::SkinnedRenderableDesc createDesc{};
 					createDesc.ctx = MakeSkinnedContext(i);
@@ -2730,9 +2790,14 @@ void CGameScene::BuildSkinnedBatch(
 					const UINT i = static_cast< UINT >(b->objectRefs.size());
 
 					const XMFLOAT3 pos =
-						ComputeEnemySpawnerSpawnPosition(megaGridNumber, k, count);
+						( megaGridNumber == 5 )
+						? ComputeBossCallMonsterSpawnPosition()
+						: ComputeEnemySpawnerSpawnPosition(megaGridNumber, k, count);
 
-					const float yaw = 180.0f;
+					const float yaw =
+						( megaGridNumber == 5 )
+						? ComputeBossCallMonsterSpawnYawDeg()
+						: 180.0f;
 
 					GameSceneObjectFactory::SkinnedRenderableDesc createDesc{};
 					createDesc.ctx = MakeSkinnedContext(i);

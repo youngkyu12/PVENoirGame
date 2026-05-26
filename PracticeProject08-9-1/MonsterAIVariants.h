@@ -295,6 +295,7 @@ private:
 	// bit 0 = 3/4 이하, bit 1 = 2/4 이하, bit 2 = 1/4 이하.
 	uint8_t m_bossCallThresholdMask = 0;
 	int m_bossPendingCallCount = 0;
+	int m_bossExecutedCallCount = 0;
 
 	bool m_bBossCallCommandRequested = false;
 	bool m_bBossCallConsumePendingOnStart = false;
