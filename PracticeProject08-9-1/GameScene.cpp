@@ -2031,6 +2031,95 @@ int CGameScene::SpawnPreparedEnemiesInMegaGrid(int megaGridNumber)
 #endif
 }
 
+int CGameScene::SpawnBossCallMonsters(int callIndex)
+{
+#ifndef USING_NETWORK
+	if ( !m_bSimulateLocalEnemySpawner )
+		return 0;
+
+	if ( !m_enemySpawner )
+		return 0;
+
+	if ( callIndex < 1 || callIndex > 3 )
+		return 0;
+
+	constexpr int megaGridNumber = 5;
+
+	int spawnedTotal = 0;
+
+	auto SpawnKind =
+		[ & ](
+			EEnemySpawnerEnemyKind kind,
+			int count
+		)
+		{
+			if ( count <= 0 )
+				return;
+
+			const int spawned =
+				m_enemySpawner->SpawnEnemies(
+					megaGridNumber,
+					kind,
+					count
+				);
+
+			spawnedTotal += spawned;
+
+#ifndef USING_NETWORK
+			char buf[256];
+			sprintf_s(
+				buf,
+				"[BossCallSpawn][Kind] call=%d kind=%d requested=%d spawned=%d\n",
+				callIndex,
+				static_cast< int >( kind ),
+				count,
+				spawned
+			);
+			OutputDebugStringA(buf);
+#endif
+		};
+
+	switch ( callIndex )
+	{
+	case 1:
+		SpawnKind(EEnemySpawnerEnemyKind::Ghoul, 30);
+		break;
+
+	case 2:
+		SpawnKind(EEnemySpawnerEnemyKind::Ghoul, 20);
+		SpawnKind(EEnemySpawnerEnemyKind::BowMan, 5);
+		SpawnKind(EEnemySpawnerEnemyKind::SwordMan, 5);
+		break;
+
+	case 3:
+		SpawnKind(EEnemySpawnerEnemyKind::Ghoul, 20);
+		SpawnKind(EEnemySpawnerEnemyKind::BowMan, 5);
+		SpawnKind(EEnemySpawnerEnemyKind::SwordMan, 5);
+		SpawnKind(EEnemySpawnerEnemyKind::Mutant, 5);
+		break;
+
+	default:
+		break;
+	}
+
+#ifndef USING_NETWORK
+	char buf[256];
+	sprintf_s(
+		buf,
+		"[BossCallSpawn] call=%d spawnedTotal=%d\n",
+		callIndex,
+		spawnedTotal
+	);
+	OutputDebugStringA(buf);
+#endif
+
+	return spawnedTotal;
+#else
+	UNREFERENCED_PARAMETER(callIndex);
+	return 0;
+#endif
+}
+
 int CGameScene::TryRunEnemySpawnerEventForMegaGrid(int megaGridNumber)
 {
 #ifndef USING_NETWORK
@@ -2077,7 +2166,30 @@ int CGameScene::TryRunEnemySpawnerEventForMegaGrid(int megaGridNumber)
 		return 0;
 	}
 
-	// 5번 등 기존 즉시 스폰 이벤트는 기존 방식 유지.
+	// 5번 메가그리드 스포너 풀은 보스 Call 전용으로 사용한다.
+	// 접근 이벤트에서 미리 SpawnMegaGrid(5)를 호출하면
+	// Call용 풀을 전부 소모하므로 여기서는 아무 것도 하지 않는다.
+	if ( megaGridNumber == 5 )
+	{
+		// 5번 메가그리드 스포너 풀은 보스 Call 전용으로 사용한다.
+		// 접근 이벤트에서 SpawnMegaGrid(5)를 호출하면 Call용 풀을 전부 소모한다.
+		return 0;
+	}
+
+	if ( megaGridNumber == 6 || megaGridNumber == 8 )
+	{
+		const bool started =
+			BeginEnemySpawnerTimedGhoulWave(megaGridNumber);
+
+		if ( started )
+		{
+			m_sceneGrid.SetMegaGridEventOccurred(megaX, megaZ, true);
+			return 1;
+		}
+
+		return 0;
+	}
+
 	const int spawnedCount = SpawnPreparedEnemiesInMegaGrid(megaGridNumber);
 
 	if ( spawnedCount > 0 )

@@ -1201,6 +1201,7 @@ void CBossAIComponent::ResetBossCallState()
 {
 	m_bossCallThresholdMask = 0;
 	m_bossPendingCallCount = 0;
+	m_bossExecutedCallCount = 0;
 
 	m_bBossCallCommandRequested = false;
 	m_bBossCallConsumePendingOnStart = false;
@@ -1365,22 +1366,40 @@ void CBossAIComponent::UpdateBehavior(float dt)
 	{
 		ClearPath();
 
-		// Call phase 진입이 확인된 순간에 pending 1개를 실제 소비한다.
-		// RequestCommand가 실패하거나 전환되지 않은 경우 pending을 잃지 않기 위함.
+		// Call phase에 실제로 진입한 순간에만 pending을 소비하고 몬스터를 소환한다.
+		// RequestCommand 직후 바로 소비하면 애니메이션 전환 실패 시 소환 타이밍이 어긋날 수 있다.
 		if ( m_bBossCallConsumePendingOnStart )
 		{
 			if ( m_bossPendingCallCount > 0 )
 				--m_bossPendingCallCount;
 
 			m_bBossCallConsumePendingOnStart = false;
+
+			++m_bossExecutedCallCount;
+
+			if ( CGameScene* scene = GetScene() )
+			{
+				scene->SpawnBossCallMonsters(m_bossExecutedCallCount);
+			}
+
 			ConsumeBossCallCooldown();
+
+#ifndef USING_NETWORK
+			char buf[256];
+			sprintf_s(
+				buf,
+				"[BossCall][SpawnTriggered] call=%d pending=%d\n",
+				m_bossExecutedCallCount,
+				m_bossPendingCallCount
+			);
+			OutputDebugStringA(buf);
+#endif
 		}
 
 		m_bBossCallCommandRequested = false;
 		m_bossCallRequestAgeSec = 0.0f;
 
-		// Call 중에는 이동/일반 공격 판단을 하지 않는다.
-		// Call 자체는 MonsterAnimController action clip이 유지한다.
+		// Call 중에는 이동/공격/회전 판단을 하지 않는다.
 		return;
 	}
 

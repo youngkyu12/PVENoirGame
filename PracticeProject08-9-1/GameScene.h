@@ -757,6 +757,8 @@ public:
 	bool IsLocalPlayerInsideMegaGridCenter() const;
 	bool IsLocalMonsterChaseEnabled() const { return m_bSimulateLocalMonsterChase; }
 
+	int SpawnBossCallMonsters(int callIndex);
+
 	void NotifyMonsterChaseStarted(CGameObject* monster);
 
 	void SetMegaGridApproachZoneSize(int megaX, int megaZ, int widthCells, int heightCells);
@@ -854,12 +856,16 @@ private:
 	XMFLOAT3 ComputeLocalStageTeleportPosition(int megaGridNumber) const;
 
 	XMFLOAT3 ComputeEnemySpawnerSpawnPosition(
-	int megaGridNumber,
-	UINT localIndex,
-	UINT localCount
+		int megaGridNumber,
+		UINT localIndex,
+		UINT localCount
 	) const;
 
+	XMFLOAT3 ComputeBossCallMonsterSpawnPosition() const;
+	float ComputeBossCallMonsterSpawnYawDeg() const;
+
 	bool IsMegaGridNumberCleared(int megaGridNumber) const;
+
 	bool ShouldBlockEnemySpawnerByClearedPrerequisite(
 		int targetMegaGridNumber,
 		int& outBlockerMegaGridNumber
@@ -1026,7 +1032,7 @@ private:
 	// 실제 offset은 -4, -2, 0, +2, +4.
 	static constexpr float kEnemySpawnerDoorSlotSpacing = 2.0f;
 
-	static constexpr UINT kEnemySpawnerMega5GhoulCount = 60;
+	static constexpr UINT kEnemySpawnerMega5GhoulCount = 70;
 	static constexpr UINT kEnemySpawnerMega5BowManCount = 10;
 	static constexpr UINT kEnemySpawnerMega5SwordManCount = 10;
 	static constexpr UINT kEnemySpawnerMega5MutantCount = 5;
