@@ -12,12 +12,14 @@ public:
 	explicit CMonsterAI(OwnerT* owner);
 
 	void OnUpdate(float dt) override;
+	void SetDirectMoveMode(float advanceDist, const GameMath::Vec3& homeDir, float innerZoneRadius, const GameMath::Vec3& zoneCenter);
 
 private:
 	bool AcquireTarget();
 	bool RebuildPathToTarget();
 	bool FollowCurrentPath(float dt);
 	bool MoveTowards(const GameMath::Vec3& goal, float maxStep);
+	bool MoveDirectTowards(const GameMath::Vec3& goal, float maxStep);
 	void FaceTowards(const GameMath::Vec3& goal);
 	bool SampleNavMeshPosition(const GameMath::Vec3& in, GameMath::Vec3& out) const;
 	const CNavMesh* GetNavMesh() const;
@@ -40,4 +42,12 @@ private:
 	std::vector<int> m_trianglePath;
 	std::vector<GameMath::Vec3> m_currentPath;
 	size_t m_currentPathIndex = 0;
+
+	// spawner pool
+	bool m_useDirectMove = false;
+	float m_initialAdvanceDist = 0.f;
+	GameMath::Vec3 m_initialAdvanceDir{};
+	float m_innerZoneRadius = 0.f;
+	GameMath::Vec3 m_innerZoneCenter{};
+	bool m_hasNotifiedFirstChase = false;
 };

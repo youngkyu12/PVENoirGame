@@ -63,6 +63,7 @@ public:
 
 public:
     void SetPlayerReady(bool ready, uint32 playerId);
+	void OnMonsterFirstChase(uint64 enemyId);
 
 public:
     GameAreaRef GetArea(uint32 areaId);
@@ -103,6 +104,8 @@ private:
 	void UpdateKeyPickupCollision();
 	void WakeEnemiesNearPlayer(const PlayerRef& player);
 	bool IsEnemyNearAnyPlayerExact(const GameMath::Vec3& enemyPos, float rangeSq) const;
+
+	bool IsMegaGridCleared(int megaGrid) const;
 
 	GameMath::Vec3 ComputeSpawnerDoorPosition(int megaGrid, int wall, int slot) const;
 	float ComputeSpawnerDoorYaw(int wall) const;
@@ -283,6 +286,7 @@ private:
 	struct MonsterSpawnEntry
 	{
 		int index = -1;
+		int megaId = -1;
 		std::string type;
 		GameMath::Vec3 position = GameMath::Vec3::Zero();
 		float yawDeg = 0.0f;
@@ -334,6 +338,7 @@ private:
 	std::unordered_set<uint64> m_castleCenterPlayerIds;
 	std::unordered_set<uint64> m_meleeHitKeys;
 	std::unordered_map<uint64, int> m_poolEnemyMegaGrid;
+	std::unordered_map<uint64, int> m_spawnerKeyMutantIds;
 	std::array<SpawnerWaveState, kMegaGridCount + 1> m_spawnerWaveStates = {};
 	std::vector<TowerDoorPortalEntry> m_towerDoorPortals;
 	std::vector<CastleDoorPortalEntry> m_castleDoorPortals;

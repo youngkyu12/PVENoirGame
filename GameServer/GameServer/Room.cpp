@@ -233,6 +233,7 @@ bool Room::LoadMonsterSpawnEntries(std::vector<MonsterSpawnEntry>& outEntries)
 
 		if (matched != 9) continue;
 
+		entry.megaId = megaId;
 		entry.type = type;
 		entry.position = GameMath::Vec3(px, py, pz);
 		entry.yawDeg = yawDeg;
@@ -339,6 +340,8 @@ void Room::BuildRoom()
 	// 클라이언트의 npcById[npcIndex] == state.id 가 성립한다.
 	// 순서: Ghoul → SwordMan → BowMan → Mutant → Boss
 	uint64 nextEnemyId = 0;
+	uint64 mega6TriggerMutantId = UINT64_MAX;
+	uint64 mega8TriggerMutantId = UINT64_MAX;
 
 	auto makeSpawnEnemy = [&](const MonsterSpawnEntry& spawn)
 	{
@@ -358,6 +361,14 @@ void Room::BuildRoom()
 		RegisterDynamicCollider(enemy);
 		SetObjectCollisionMegaGridMask(enemy, ComputeObjectCurrentMegaGridMask(enemy.get()), true);
 		enemies[enemyId] = enemy;
+
+		if (spawn.type == "Mutant")
+		{
+			if (mega6TriggerMutantId == UINT64_MAX && spawn.megaId == 6)
+				mega6TriggerMutantId = enemyId;
+			if (mega8TriggerMutantId == UINT64_MAX && spawn.megaId == 8)
+				mega8TriggerMutantId = enemyId;
+		}
 	};
 
 	struct SpawnerPoolSpec { int megaGrid; const char* type; int count; Protocol::EnemyType enemyType; };
@@ -404,6 +415,9 @@ void Room::BuildRoom()
 
 	// Boss: 일반만
 	for (const auto& s : spawnEntries) if (s.type == "Boss")    makeSpawnEnemy(s);
+
+	if (mega6TriggerMutantId != UINT64_MAX) m_spawnerKeyMutantIds[mega6TriggerMutantId] = 6;
+	if (mega8TriggerMutantId != UINT64_MAX) m_spawnerKeyMutantIds[mega8TriggerMutantId] = 8;
 
 	for (auto& playerPair : players)
 	{
@@ -540,6 +554,23 @@ CEnemy* Room::ActivateSpawnerEnemy(int megaGrid, Protocol::EnemyType type,
 		enemy->ResetHpToMax();
 		enemy->SetActive(true);
 		SetObjectCollisionMegaGridMask(enemy, ComputeObjectCurrentMegaGridMask(enemy.get()), true);
+
+		const int zeroBased = megaGrid - 1;
+		const int mgX = zeroBased % kMegaGridCols;
+		const int mgZ = zeroBased / kMegaGridCols;
+		const GameMath::Vec3 megaCenter(
+			kGridMinX + mgX * kMegaGridCellWidth  + kMegaGridCellWidth  * 0.5f,
+			0.f,
+			kGridMinZ + mgZ * kMegaGridCellHeight + kMegaGridCellHeight * 0.5f);
+		GameMath::Vec3 toCenter(megaCenter.x - pos.x, 0.f, megaCenter.z - pos.z);
+		const float len = toCenter.LengthXZ();
+		const GameMath::Vec3 homeDir = (len > 1e-6f)
+			? GameMath::Vec3(toCenter.x / len, 0.f, toCenter.z / len)
+			: GameMath::Vec3(0.f, 0.f, 1.f);
+
+		if (CMonsterAI* ai = enemy->GetMonsterAI())
+			ai->SetDirectMoveMode(60.f, homeDir, 50.f, megaCenter);
+
 		return enemy.get();
 	}
 	return nullptr;
@@ -614,5 +645,29 @@ void Room::UpdateSpawnerWaves(float dt)
 			if (state.nextBatchIndex >= kSpawnerBatchCount)
 				state.active = false;
 		}
+	}
+}
+
+// ============================================================
+// Phase 6 — 트리거 연결
+// ============================================================
+
+void Room::OnMonsterFirstChase(uint64 enemyId)
+{
+	auto it = m_spawnerKeyMutantIds.find(enemyId);
+	if (it == m_spawnerKeyMutantIds.end()) return;
+
+	const int megaGrid = it->second;
+
+	if (megaGrid == 6 && IsMegaGridCleared(3)) return;
+	if (megaGrid == 8 && IsMegaGridCleared(7)) return;
+
+	MegaGridCell& cell = m_megaGridCells[static_cast<size_t>(megaGrid - 1)];
+	if (cell.hasEventOccurred) return;
+
+	if (BeginSpawnerWave(megaGrid))
+	{
+		cell.hasEventOccurred = true;
+		cout << "[Spawner] MegaGrid " << megaGrid << " wave triggered by enemy " << enemyId << endl;
 	}
 }
