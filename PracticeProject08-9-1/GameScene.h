@@ -91,6 +91,8 @@ enum class EMuzzleFlashKind : UINT
 	Blood = 3,
 	PoisonDust = 4,
 	BossMeleeSlash = 5,
+	MagicCircleGlow = 6,
+	MagicCircleAfterimage = 7,
 };
 
 struct MuzzleFlashInstanceVertex
@@ -106,7 +108,9 @@ struct MuzzleFlashInstanceVertex
 	// x = ageRatio, y = intensity, z = rotationRad, w = seed
 	XMFLOAT4 params0 = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
 
-	// x = kind (0=core, 1=ring, 2=spark, 3=blood, 4=poison dust, 5=boss melee slash)
+	// x = kind
+	// 0=core, 1=ring, 2=spark, 3=blood, 4=poison dust,
+	// 5=boss melee slash, 6=magic circle glow, 7=magic circle afterimage
 	// y = reserved
 	// z = reserved
 	// w = reserved
@@ -536,6 +540,32 @@ private:
 		const XMFLOAT3* hitDirection = nullptr
 	);
 	void SpawnBossMeleeSlashEffect(CGameObject* boss);
+
+	void SpawnMagicCircleGlowParticle(
+		const XMFLOAT3& center,
+		float circleSize,
+		float alpha,
+		float intensityScale,
+		float glowSizeScale = 1.0f,
+		float afterimageSizeScale = 1.0f
+	);
+
+	void EmitMagicCircleGlowParticles(
+		const XMFLOAT3& center,
+		float circleSize,
+		float alpha,
+		float dt,
+		float& accumulator,
+		float emitIntervalSec,
+		int particlesPerEmit,
+		float intensityScale
+	);
+
+	void EmitBossCallSummonCircleGlowParticles(
+		float dt,
+		float alpha
+	);
+
 	void UpdateMuzzleFlashes(float dt);
 	void RenderMuzzleFlashes(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
@@ -1100,7 +1130,7 @@ private:
 	std::array<ItemBillboardInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedTransparentItemBillboardInstanceBuffer = {};
 	UINT                                  m_transparentItemBillboardInstanceBufferCapacity = 0;
 
-	static constexpr UINT kMuzzleFlashMaxCount = 1024;
+	static constexpr UINT kMuzzleFlashMaxCount = 4096;
 
 	std::shared_ptr<CMuzzleFlashBillboardShader> m_muzzleFlashShader;
 
@@ -1614,6 +1644,23 @@ private:
 	static constexpr UINT kBossCallSummonCircleMaxCount = 64;
 	static constexpr float kBossCallSummonCircleFadeOutDurationSec = 1.0f;
 
+	static constexpr float kMagicCircleGlowParticleYOffset = 0.12f;
+
+	// 보스 본인 등장 마법진: 1개짜리 대형 마법진이므로 입자 수는 조금 유지하되 강도/크기를 낮춘다.
+	static constexpr float kBossSummonGlowParticleEmitIntervalSec = 0.060f;
+	static constexpr int   kBossSummonGlowParticlesPerEmit = 4;
+	static constexpr float kBossSummonGlowParticleIntensityScale = 0.75f;
+
+	// 보스 Call 몬스터 소환 마법진: 30~35개가 동시에 뜨므로 개별 마법진당 발생량을 낮게 유지한다.
+	static constexpr float kBossCallSummonGlowParticleEmitIntervalSec = 0.090f;
+	static constexpr int   kBossCallSummonGlowParticlesPerEmit = 1;
+	static constexpr float kBossCallSummonGlowParticleIntensityScale = 0.65f;
+
+	// 보스 Call 몬스터 소환 마법진 전용 파티클 크기 배율.
+	// 보스 본인 등장 마법진에는 적용하지 않는다.
+	static constexpr float kBossCallSummonGlowParticleSizeScale = 1.85f;
+	static constexpr float kBossCallSummonAfterimageParticleSizeScale = 1.55f;
+
 	struct BossCallSummonCircleVisualState
 	{
 		bool active = false;
@@ -1628,6 +1675,8 @@ private:
 	BossCallSummonCircleVisualState m_bossCallSummonCircleVisualState{};
 	std::vector<size_t> m_activeBossCallSummonCircleItemIndices;
 
+	float m_bossCallSummonGlowParticleEmitAccumulatorSec = 0.0f;
+
 	int m_bossCallSummonPlanCallIndex = -1;
 	std::vector<EnemySpawnerPreviewEntry> m_bossCallSummonPlanEntries;
 
@@ -1637,6 +1686,8 @@ private:
 
 	bool m_bBossSummonVisualFadeOutStarted = false;
 	float m_bBossSummonVisualFadeOutAgeSec = 0.0f;
+
+	float m_bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
 
 	static constexpr float kBossShockwaveStartRadius = 3.0f;
 	static constexpr float kBossShockwaveMaxRadius = 50.0f;
