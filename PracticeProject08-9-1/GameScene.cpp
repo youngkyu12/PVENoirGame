@@ -2051,9 +2051,13 @@ int CGameScene::SpawnBossCallMonsters(int callIndex)
 	// 1) 정상 경로:
 	// 상승 시작 시점에 preview한 정확한 entryIndex들을 그대로 활성화한다.
 	if ( m_bossCallSummonPlanCallIndex == callIndex &&
-		 !m_bossCallSummonPlanEntries.empty() )
+	 !m_bossCallSummonPlanEntries.empty() )
 	{
 		int kindSpawned[4] = { 0, 0, 0, 0 };
+
+		XMFLOAT3 spawnedPosSum = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		int spawnedPosCount = 0;
+
 		for ( size_t i = 0; i < m_bossCallSummonPlanEntries.size(); ++i )
 		{
 			const EnemySpawnerPreviewEntry& preview =
@@ -2071,7 +2075,26 @@ int CGameScene::SpawnBossCallMonsters(int callIndex)
 				const int kindIndex = static_cast< int >( preview.kind );
 				if ( kindIndex >= 0 && kindIndex < 4 )
 					++kindSpawned[kindIndex];
+
+				const XMFLOAT3 pos = spawned->GetPosition();
+				spawnedPosSum.x += pos.x;
+				spawnedPosSum.y += pos.y;
+				spawnedPosSum.z += pos.z;
+				++spawnedPosCount;
 			}
+		}
+
+		if ( spawnedPosCount > 0 )
+		{
+			const float invCount =
+				1.0f / static_cast< float >( spawnedPosCount );
+
+			XMFLOAT3 sfxPos{};
+			sfxPos.x = spawnedPosSum.x * invCount;
+			sfxPos.y = spawnedPosSum.y * invCount;
+			sfxPos.z = spawnedPosSum.z * invCount;
+
+			PlayBossCallMonsterSpawnSfxAt(sfxPos);
 		}
 
 		m_bossCallSummonPlanCallIndex = -1;
@@ -2121,6 +2144,12 @@ int CGameScene::SpawnBossCallMonsters(int callIndex)
 
 	default:
 		break;
+	}
+
+	if ( spawnedTotal > 0 )
+	{
+		XMFLOAT3 sfxPos = XMFLOAT3(400.0f, 0.0f, 400.0f);
+		PlayBossCallMonsterSpawnSfxAt(sfxPos);
 	}
 
 	StartBossCallSummonCircleFadeOut();

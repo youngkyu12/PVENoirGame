@@ -1292,6 +1292,9 @@ private:
 	void PlayBossSummonSfxAt(const XMFLOAT3& position);
 	void PlayBossSummonCircleSfxAt(const XMFLOAT3& position);
 
+	void PlayBossCallSummonCircleSfxAt(const XMFLOAT3& position);
+	void PlayBossCallMonsterSpawnSfxAt(const XMFLOAT3& position);
+
 	void PlayBossShockwaveWindSfxAt(const XMFLOAT3& position);
 	void UpdateBossShockwaveWindSfx(float currentRadius);
 	void ResetBossShockwaveWindSfxTracking();

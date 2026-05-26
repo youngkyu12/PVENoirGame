@@ -2331,7 +2331,21 @@ void CGameScene::BeginBossCallMonsterSummonVisuals(
 	}
 
 	if ( m_activeBossCallSummonCircleItemIndices.empty() )
+	{
+#ifndef USING_NETWORK
+		char buf[256];
+		sprintf_s(
+			buf,
+			"[BossCallSummonCircle][BeginFailed] call=%d plan=%zu activeCircle=0\n",
+			callIndex,
+			m_bossCallSummonPlanEntries.size()
+		);
+		OutputDebugStringA(buf);
+#endif
+		m_bossCallSummonPlanCallIndex = -1;
+		m_bossCallSummonPlanEntries.clear();
 		return;
+	}
 
 	m_bossCallSummonCircleVisualState = BossCallSummonCircleVisualState{};
 	m_bossCallSummonCircleVisualState.active = true;
@@ -2343,6 +2357,52 @@ void CGameScene::BeginBossCallMonsterSummonVisuals(
 	m_bossCallSummonCircleVisualState.alpha = 0.0f;
 
 	SetBossCallSummonCircleAlpha(0.0f);
+
+	{
+		XMFLOAT3 sfxPos = XMFLOAT3(400.0f, 0.0f, 400.0f);
+
+		if ( !m_bossCallSummonPlanEntries.empty() )
+		{
+			XMFLOAT3 sum = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+			for ( const EnemySpawnerPreviewEntry& entry :
+				  m_bossCallSummonPlanEntries )
+			{
+				sum.x += entry.spawnPosition.x;
+				sum.y += entry.spawnPosition.y;
+				sum.z += entry.spawnPosition.z;
+			}
+
+			const float invCount =
+				1.0f /
+				static_cast< float >( m_bossCallSummonPlanEntries.size() );
+
+			sfxPos.x = sum.x * invCount;
+			sfxPos.y = sum.y * invCount;
+			sfxPos.z = sum.z * invCount;
+		}
+
+		sfxPos.y = 0.0f;
+
+		PlayBossCallSummonCircleSfxAt(sfxPos);
+
+#ifndef USING_NETWORK
+		char buf[512];
+		sprintf_s(
+			buf,
+			"[BossCallSummonCircle][Begin] call=%d plan=%zu activeCircle=%zu fadeIn=%.3f sfxPos=(%.3f, %.3f, %.3f)\n",
+			callIndex,
+			m_bossCallSummonPlanEntries.size(),
+			m_activeBossCallSummonCircleItemIndices.size(),
+			m_bossCallSummonCircleVisualState.durationSec,
+			sfxPos.x,
+			sfxPos.y,
+			sfxPos.z
+		);
+		OutputDebugStringA(buf);
+#endif
+	}
+
 #else
 	UNREFERENCED_PARAMETER(callIndex);
 	UNREFERENCED_PARAMETER(fadeInDurationSec);
