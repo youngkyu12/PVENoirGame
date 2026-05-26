@@ -2047,6 +2047,123 @@ int CGameScene::SpawnBossCallMonsters(int callIndex)
 
 	int spawnedTotal = 0;
 
+	// 1) 정상 경로:
+	// 상승 시작 시점에 preview한 정확한 entryIndex들을 그대로 활성화한다.
+	if ( m_bossCallSummonPlanCallIndex == callIndex &&
+		 !m_bossCallSummonPlanEntries.empty() )
+	{
+		int kindSpawned[4] = { 0, 0, 0, 0 };
+
+#ifndef USING_NETWORK
+		{
+			char buf[256];
+			sprintf_s(
+				buf,
+				"[BossCallSpawn][PlanBegin] call=%d planCount=%zu circleCount=%zu\n",
+				callIndex,
+				m_bossCallSummonPlanEntries.size(),
+				m_activeBossCallSummonCircleItemIndices.size()
+			);
+			OutputDebugStringA(buf);
+		}
+#endif
+
+		for ( size_t i = 0; i < m_bossCallSummonPlanEntries.size(); ++i )
+		{
+			const EnemySpawnerPreviewEntry& preview =
+				m_bossCallSummonPlanEntries[i];
+
+			CGameObject* spawned =
+				m_enemySpawner->SpawnPreviewEntry(preview);
+
+			const bool success = ( spawned != nullptr );
+
+			if ( success )
+			{
+				++spawnedTotal;
+
+				const int kindIndex = static_cast< int >( preview.kind );
+				if ( kindIndex >= 0 && kindIndex < 4 )
+					++kindSpawned[kindIndex];
+			}
+
+#ifndef USING_NETWORK
+			{
+				XMFLOAT3 actualPos = XMFLOAT3(0.0f, 0.0f, 0.0f);
+				if ( spawned )
+					actualPos = spawned->GetPosition();
+
+				const float dx = actualPos.x - preview.spawnPosition.x;
+				const float dy = actualPos.y - preview.spawnPosition.y;
+				const float dz = actualPos.z - preview.spawnPosition.z;
+
+				char buf[768];
+				sprintf_s(
+					buf,
+					"[BossCallSpawn][PlanEntry] call=%d plan=%zu entry=%zu previewObj=%p spawnedObj=%p kind=%d success=%d previewPos=(%.3f, %.3f, %.3f) actualPos=(%.3f, %.3f, %.3f) delta=(%.3f, %.3f, %.3f)\n",
+					callIndex,
+					i,
+					preview.entryIndex,
+					static_cast< void* >( preview.object ),
+					static_cast< void* >( spawned ),
+					static_cast< int >( preview.kind ),
+					success ? 1 : 0,
+					preview.spawnPosition.x,
+					preview.spawnPosition.y,
+					preview.spawnPosition.z,
+					actualPos.x,
+					actualPos.y,
+					actualPos.z,
+					dx,
+					dy,
+					dz
+				);
+				OutputDebugStringA(buf);
+			}
+#endif
+		}
+
+#ifndef USING_NETWORK
+		{
+			char buf[512];
+			sprintf_s(
+				buf,
+				"[BossCallSpawn][PlanSummary] call=%d spawnedTotal=%d ghoul=%d sword=%d bow=%d mutant=%d planCount=%zu\n",
+				callIndex,
+				spawnedTotal,
+				kindSpawned[static_cast< int >( EEnemySpawnerEnemyKind::Ghoul )],
+				kindSpawned[static_cast< int >( EEnemySpawnerEnemyKind::SwordMan )],
+				kindSpawned[static_cast< int >( EEnemySpawnerEnemyKind::BowMan )],
+				kindSpawned[static_cast< int >( EEnemySpawnerEnemyKind::Mutant )],
+				m_bossCallSummonPlanEntries.size()
+			);
+			OutputDebugStringA(buf);
+		}
+#endif
+
+		m_bossCallSummonPlanCallIndex = -1;
+		m_bossCallSummonPlanEntries.clear();
+
+		StartBossCallSummonCircleFadeOut();
+		return spawnedTotal;
+	}
+
+	// 2) fallback:
+	// 마법진 preview 없이 직접 SpawnBossCallMonsters가 호출된 경우만 기존 방식 사용.
+#ifndef USING_NETWORK
+	{
+		char buf[256];
+		sprintf_s(
+			buf,
+			"[BossCallSpawn][Fallback] call=%d planCall=%d planCount=%zu\n",
+			callIndex,
+			m_bossCallSummonPlanCallIndex,
+			m_bossCallSummonPlanEntries.size()
+		);
+		OutputDebugStringA(buf);
+	}
+#endif
+
 	auto SpawnKind =
 		[ & ](
 			EEnemySpawnerEnemyKind kind,
@@ -2069,7 +2186,7 @@ int CGameScene::SpawnBossCallMonsters(int callIndex)
 			char buf[256];
 			sprintf_s(
 				buf,
-				"[BossCallSpawn][Kind] call=%d kind=%d requested=%d spawned=%d\n",
+				"[BossCallSpawn][FallbackKind] call=%d kind=%d requested=%d spawned=%d\n",
 				callIndex,
 				static_cast< int >( kind ),
 				count,
@@ -2102,17 +2219,7 @@ int CGameScene::SpawnBossCallMonsters(int callIndex)
 		break;
 	}
 
-#ifndef USING_NETWORK
-	char buf[256];
-	sprintf_s(
-		buf,
-		"[BossCallSpawn] call=%d spawnedTotal=%d\n",
-		callIndex,
-		spawnedTotal
-	);
-	OutputDebugStringA(buf);
-#endif
-
+	StartBossCallSummonCircleFadeOut();
 	return spawnedTotal;
 #else
 	UNREFERENCED_PARAMETER(callIndex);
@@ -3209,6 +3316,12 @@ void CGameScene::ReleaseObjects()
 
 	m_itemBillboardQuadMesh.reset();
 	m_itemBillboards.clear();
+	m_activeBossCallSummonCircleItemIndices.clear();
+	m_bossCallSummonCircleVisualState = BossCallSummonCircleVisualState{};
+
+	m_bossCallSummonPlanCallIndex = -1;
+	m_bossCallSummonPlanEntries.clear();
+
 	m_keyItemTexture.reset();
 	m_bossSummonCircleTexture.reset();
 
@@ -4738,6 +4851,14 @@ void CGameScene::SetBossSummonCircleDiffuseSrvIndex(UINT srvIndex)
 {
 	SetMaterialDiffuseSrvIndex(
 		static_cast< int >( kBossSummonCircleMaterialId ),
+		srvIndex
+	);
+}
+
+void CGameScene::SetBossCallSummonCircleDiffuseSrvIndex(UINT srvIndex)
+{
+	SetMaterialDiffuseSrvIndex(
+		static_cast< int >( kBossCallSummonCircleMaterialId ),
 		srvIndex
 	);
 }
@@ -7341,6 +7462,7 @@ void CGameScene::AnimateObjects(float dt)
 	UpdateBossSummonVisualFadeOut(dt);
 	UpdateBossStageSummonSequence(dt);
 	UpdateBossShockwave(dt);
+	UpdateBossCallSummonCircles(dt);
 
 	UpdateEnemySpawnerTimedGhoulWaves(dt);
 #endif

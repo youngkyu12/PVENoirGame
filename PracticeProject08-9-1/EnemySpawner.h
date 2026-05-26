@@ -26,6 +26,16 @@ struct EnemySpawnerPoolEntry
 	DirectX::XMFLOAT3 spawnPosition = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
 };
 
+struct EnemySpawnerPreviewEntry
+{
+	size_t entryIndex = static_cast< size_t >( -1 );
+
+	CGameObject* object = nullptr;
+	EEnemySpawnerEnemyKind kind = EEnemySpawnerEnemyKind::Ghoul;
+	int megaGridNumber = -1;
+	DirectX::XMFLOAT3 spawnPosition = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
+};
+
 class EnemySpawner
 {
 public:
@@ -41,9 +51,20 @@ public:
 	);
 
 	int SpawnEnemies(
+	int megaGridNumber,
+	EEnemySpawnerEnemyKind kind,
+	int count
+	);
+
+	int PeekSpawnEntries(
 		int megaGridNumber,
 		EEnemySpawnerEnemyKind kind,
-		int count
+		int count,
+		std::vector<EnemySpawnerPreviewEntry>& outEntries
+	) const;
+
+	CGameObject* SpawnPreviewEntry(
+		const EnemySpawnerPreviewEntry& preview
 	);
 
 	int SpawnMegaGrid(int megaGridNumber);
