@@ -97,6 +97,9 @@ namespace
 	static constexpr float kBossSummonSfxVolume = 5.0f;
 	static constexpr float kBossSummonCircleSfxVolume = 1.0f;
 
+	static constexpr float kBossCallSummonCircleSfxVolume = 1.0f;
+	static constexpr float kBossCallMonsterSpawnSfxVolume = 1.0f;
+
 	static constexpr float kBossAttackSfxDelaySeconds = 0.3320f;
 	static constexpr float kBossAttackSfxVolume = 1.0f;
 
@@ -105,6 +108,11 @@ namespace
 	static const char* GetBossSummonSfxPath()
 	{
 		return "Assets/Audio/BossSummon.wav";
+	}
+
+	static const char* GetBossCallMonsterSpawnSfxPath()
+	{
+		return "Assets/Audio/Summon.wav";
 	}
 
 	static const char* GetBossAttackSfxPath()
@@ -120,6 +128,11 @@ namespace
 	static const char* GetBossSummonCircleSfxPath1()
 	{
 		return "Assets/Audio/mhj.wav";
+	}
+
+	static const char* GetBossCallSummonCircleSfxPath()
+	{
+		return "Assets/Audio/mhj2.wav";
 	}
 
 	static const char* GetMonsterMutantWhooshPath()
@@ -223,6 +236,46 @@ void CGameScene::PlayBossSummonCircleSfxAt(const XMFLOAT3& position)
 			false                          // startPaused
 		);
 	}
+}
+
+void CGameScene::PlayBossCallSummonCircleSfxAt(const XMFLOAT3& position)
+{
+	if ( !m_pAudioManager )
+		return;
+
+	const char* path = GetBossCallSummonCircleSfxPath();
+
+	if ( !path || !path[0] )
+		return;
+
+	m_pAudioManager->PlaySound3D(
+		path,
+		position,
+		false,                         // loop: 1회 재생
+		false,                         // stream
+		kBossCallSummonCircleSfxVolume,
+		false                          // startPaused
+	);
+}
+
+void CGameScene::PlayBossCallMonsterSpawnSfxAt(const XMFLOAT3& position)
+{
+	if ( !m_pAudioManager )
+		return;
+
+	const char* path = GetBossCallMonsterSpawnSfxPath();
+
+	if ( !path || !path[0] )
+		return;
+
+	m_pAudioManager->PlaySound3D(
+		path,
+		position,
+		false,                         // loop: 1회 재생
+		false,                         // stream
+		kBossCallMonsterSpawnSfxVolume,
+		false                          // startPaused
+	);
 }
 
 void CGameScene::PlayBossShockwaveWindSfxAt(const XMFLOAT3& position)

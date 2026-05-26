@@ -298,20 +298,6 @@ void CBossAIComponent::ScheduleBossCallMonsterSpawn()
 	if ( m_bossCallMonsterSpawnDelaySec < 0.0f )
 		m_bossCallMonsterSpawnDelaySec = 0.0f;
 
-#ifndef USING_NETWORK
-	{
-		char buf[256];
-		sprintf_s(
-			buf,
-			"[BossCallSpawnDelay][Schedule] call=%d delay=%.4f sec (%.1f ms)\n",
-			m_bossCallMonsterSpawnPendingCallIndex,
-			m_bossCallMonsterSpawnDelaySec,
-			m_bossCallMonsterSpawnDelaySec * 1000.0f
-		);
-		OutputDebugStringA(buf);
-	}
-#endif
-
 	if ( m_bossCallMonsterSpawnDelaySec <= 1.0e-6f )
 	{
 		ExecuteBossCallMonsterSpawn("immediate");
@@ -345,22 +331,6 @@ void CBossAIComponent::ExecuteBossCallMonsterSpawn(const char* reason)
 
 	m_bBossCallMonsterSpawnPending = false;
 	m_bossCallMonsterSpawnPendingCallIndex = -1;
-
-#ifndef USING_NETWORK
-	{
-		char buf[320];
-		sprintf_s(
-			buf,
-			"[BossCallSpawnDelay][Fire] call=%d reason=%s delay=%.4f sec (%.1f ms) elapsed=%.4f sec\n",
-			callIndex,
-			reason ? reason : "unknown",
-			m_bossCallMonsterSpawnDelaySec,
-			m_bossCallMonsterSpawnDelaySec * 1000.0f,
-			m_bossCallMonsterSpawnElapsedSec
-		);
-		OutputDebugStringA(buf);
-	}
-#endif
 
 	if ( CGameScene* scene = GetScene() )
 	{
