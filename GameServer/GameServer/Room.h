@@ -64,6 +64,7 @@ public:
 public:
     void SetPlayerReady(bool ready, uint32 playerId);
 	void OnMonsterFirstChase(uint64 enemyId);
+	void OnMonsterDeath(uint64 enemyId);
 
 public:
     GameAreaRef GetArea(uint32 areaId);
@@ -340,6 +341,7 @@ private:
 	std::unordered_map<uint64, int> m_poolEnemyMegaGrid;
 	std::unordered_map<uint64, int> m_spawnerKeyMutantIds;
 	std::array<SpawnerWaveState, kMegaGridCount + 1> m_spawnerWaveStates = {};
+	std::array<bool, kMegaGridCount + 1> m_keyPickupUnlockedByMegaGrid = {};
 	std::vector<TowerDoorPortalEntry> m_towerDoorPortals;
 	std::vector<CastleDoorPortalEntry> m_castleDoorPortals;
     //array<GameAreaRef, 9> gameAreas; // 9개 구역
