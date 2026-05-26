@@ -260,6 +260,10 @@ private:
 		bool allowStartPendingCall
 	);
 
+	void ScheduleBossCallMonsterSpawn();
+	bool UpdateBossCallMonsterSpawnDelay(float dt);
+	void ExecuteBossCallMonsterSpawn(const char* reason);
+
 	bool IsPlayerInsideBossBattleZone(CGameObject* player) const; 
 	bool CanStartBossAction() const;
 
@@ -324,6 +328,14 @@ private:
 	bool m_bBossCallConsumePendingOnStart = false;
 	float m_bossCallRequestAgeSec = 0.0f;
 	float m_bossCallTurnSpeedDegrees = 720.0f;
+
+	// Call 애니메이션 시작 후 실제 몬스터 생성 딜레이.
+	// 딜레이 값 자체는 GameScene에서 조절하고,
+	// 보스 AI는 Call phase 시작 시점에 그 값을 읽어 예약한다.
+	bool m_bBossCallMonsterSpawnPending = false;
+	int m_bossCallMonsterSpawnPendingCallIndex = -1;
+	float m_bossCallMonsterSpawnDelaySec = 0.0f;
+	float m_bossCallMonsterSpawnElapsedSec = 0.0f;
 
 	static constexpr float kBossCallLiftHeight = 3.0f;
 	static constexpr float kBossCallRiseDuration = 1.50f;
