@@ -128,6 +128,12 @@ namespace
 
 		return hp->IsDead();
 	}
+
+	static float SmoothStep01Local(float t)
+	{
+		t = std::clamp(t, 0.0f, 1.0f);
+		return t * t * ( 3.0f - 2.0f * t );
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -1206,6 +1212,19 @@ void CBossAIComponent::ResetBossCallState()
 	m_bBossCallCommandRequested = false;
 	m_bBossCallConsumePendingOnStart = false;
 	m_bossCallRequestAgeSec = 0.0f;
+
+	m_bBossCallRising = false;
+	m_bBossCallRiseCompletedForCurrentCall = false;
+	m_bBossCallDescendPendingOnCallEnd = false;
+	m_bBossCallDescending = false;
+
+	m_bossCallBaseY = 0.0f;
+
+	m_bossCallRiseStartY = 0.0f;
+	m_bossCallRiseElapsedSec = 0.0f;
+
+	m_bossCallDescendStartY = 0.0f;
+	m_bossCallDescendElapsedSec = 0.0f;
 }
 
 bool CBossAIComponent::AcquireTarget()
@@ -1319,6 +1338,168 @@ bool CBossAIComponent::HasPendingBossCall() const
 	return m_bossPendingCallCount > 0;
 }
 
+bool CBossAIComponent::IsBossCallVerticalSequenceActive() const
+{
+	return
+		m_bBossCallRising ||
+		m_bBossCallDescending ||
+		m_bBossCallDescendPendingOnCallEnd;
+}
+
+void CBossAIComponent::BeginBossCallRise()
+{
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return;
+
+	const XMFLOAT3 pos = owner->GetPosition();
+
+	m_bossCallBaseY = pos.y;
+
+	m_bossCallRiseStartY = pos.y;
+	m_bossCallRiseElapsedSec = 0.0f;
+
+	m_bBossCallRising = true;
+	m_bBossCallRiseCompletedForCurrentCall = false;
+	m_bBossCallDescending = false;
+	m_bBossCallDescendPendingOnCallEnd = false;
+
+	ClearPath();
+	SetMonsterLocomotionState(EMonsterAnimState::Idle);
+}
+
+bool CBossAIComponent::UpdateBossCallRise(float dt)
+{
+	if ( !m_bBossCallRising )
+		return false;
+
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+	{
+		m_bBossCallRising = false;
+		return false;
+	}
+
+	ClearPath();
+	SetMonsterLocomotionState(EMonsterAnimState::Idle);
+
+	if ( dt > 0.0f )
+		m_bossCallRiseElapsedSec += dt;
+
+	const float duration =
+		( kBossCallRiseDuration > 0.0f )
+		? kBossCallRiseDuration
+		: 0.001f;
+
+	const float t =
+		std::clamp(
+			m_bossCallRiseElapsedSec / duration,
+			0.0f,
+			1.0f
+		);
+
+	const float easedT = SmoothStep01Local(t);
+
+	XMFLOAT3 pos = owner->GetPosition();
+	pos.y = m_bossCallRiseStartY + kBossCallLiftHeight * easedT;
+	owner->SetPosition(pos);
+
+	if ( auto* collider = owner->GetComponent<CColliderComponent>() )
+		collider->UpdateWorldBounds();
+
+	if ( t >= 1.0f )
+	{
+		pos.y = m_bossCallBaseY + kBossCallLiftHeight;
+		owner->SetPosition(pos);
+
+		if ( auto* collider = owner->GetComponent<CColliderComponent>() )
+			collider->UpdateWorldBounds();
+
+		m_bBossCallRising = false;
+		m_bBossCallRiseCompletedForCurrentCall = true;
+		m_bossCallRiseElapsedSec = 0.0f;
+
+		// 이번 프레임에 바로 Call 요청 단계로 넘어갈 수 있게 false 반환.
+		return false;
+	}
+
+	return true;
+}
+
+void CBossAIComponent::BeginBossCallDescend()
+{
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+		return;
+
+	const XMFLOAT3 pos = owner->GetPosition();
+
+	m_bossCallDescendStartY = pos.y;
+	m_bossCallDescendElapsedSec = 0.0f;
+
+	m_bBossCallDescending = true;
+	m_bBossCallDescendPendingOnCallEnd = false;
+
+	ClearPath();
+	SetMonsterLocomotionState(EMonsterAnimState::Idle);
+}
+
+bool CBossAIComponent::UpdateBossCallDescend(float dt)
+{
+	if ( !m_bBossCallDescending )
+		return false;
+
+	CGameObject* owner = GetOwner();
+	if ( !owner )
+	{
+		m_bBossCallDescending = false;
+		return false;
+	}
+
+	ClearPath();
+	SetMonsterLocomotionState(EMonsterAnimState::Idle);
+
+	if ( dt > 0.0f )
+		m_bossCallDescendElapsedSec += dt;
+
+	const float duration =
+		( kBossCallDescendDuration > 0.0f )
+		? kBossCallDescendDuration
+		: 0.001f;
+
+	const float t =
+		std::clamp(
+			m_bossCallDescendElapsedSec / duration,
+			0.0f,
+			1.0f
+		);
+
+	// 등속 하강.
+	XMFLOAT3 pos = owner->GetPosition();
+	pos.y =
+		m_bossCallDescendStartY +
+		( m_bossCallBaseY - m_bossCallDescendStartY ) * t;
+
+	owner->SetPosition(pos);
+
+	if ( auto* collider = owner->GetComponent<CColliderComponent>() )
+		collider->UpdateWorldBounds();
+
+	if ( t >= 1.0f )
+	{
+		pos.y = m_bossCallBaseY;
+		owner->SetPosition(pos);
+
+		if ( auto* collider = owner->GetComponent<CColliderComponent>() )
+			collider->UpdateWorldBounds();
+
+		m_bBossCallDescending = false;
+		m_bossCallDescendElapsedSec = 0.0f;
+	}
+
+	return true;
+}
+
 void CBossAIComponent::UpdateBehavior(float dt)
 {
 	ConfigureBossHitReactionPolicy();
@@ -1360,6 +1541,21 @@ void CBossAIComponent::UpdateBehavior(float dt)
 		return;
 	}
 
+	if ( UpdateBossCallRise(dt) )
+	{
+		return;
+	}
+
+	if ( m_bBossCallDescendPendingOnCallEnd && !IsBossCallActionPlaying() )
+	{
+		BeginBossCallDescend();
+	}
+
+	if ( UpdateBossCallDescend(dt) )
+	{
+		return;
+	}
+
 	const float distanceToTarget = GetDistanceToTargetXZ();
 
 	if ( IsBossCallActionPlaying() )
@@ -1383,6 +1579,10 @@ void CBossAIComponent::UpdateBehavior(float dt)
 			}
 
 			ConsumeBossCallCooldown();
+
+			// Call 애니메이션이 끝난 뒤 3초간 하강해야 하므로 예약한다.
+			m_bBossCallDescendPendingOnCallEnd = true;
+			m_bBossCallRiseCompletedForCurrentCall = false;
 
 #ifndef USING_NETWORK
 			char buf[256];
@@ -1651,6 +1851,10 @@ bool CBossAIComponent::CanMoveNow() const
 	if ( m_bBossPostMeleeEvading )
 		return false;
 
+	// Call 전 상승 / Call 후 하강 중에는 일반 이동 금지.
+	if ( IsBossCallVerticalSequenceActive() )
+		return false;
+
 	return true;
 }
 
@@ -1684,6 +1888,11 @@ bool CBossAIComponent::CanRotateNow() const
 
 	// 근거리 공격 중에는 회전 금지.
 	if ( IsBossMeleeActionPlaying() )
+		return false;
+
+	// Call 전 상승 / Call 후 하강 중에도 회전 금지.
+	// Idle 상태로 수직 연출만 수행한다.
+	if ( IsBossCallVerticalSequenceActive() )
 		return false;
 
 	// Call 중에도 회전 금지.
@@ -2153,6 +2362,9 @@ bool CBossAIComponent::IsPlayerInsideBossBattleZone(CGameObject* player) const
 
 bool CBossAIComponent::CanStartBossAction() const
 {
+	if ( IsBossCallVerticalSequenceActive() )
+		return false;
+
 	if ( IsAIActionLockedByAnimation() )
 		return false;
 
@@ -2168,6 +2380,12 @@ bool CBossAIComponent::TryRequestPendingBossCall(CGameObject* target, float dt)
 
 	if ( !HasPendingBossCall() )
 		return false;
+
+	if ( m_bBossCallRising || m_bBossCallDescending || m_bBossCallDescendPendingOnCallEnd )
+	{
+		SetMonsterLocomotionState(EMonsterAnimState::Idle);
+		return true;
+	}
 
 	if ( m_bBossCallCommandRequested )
 	{
@@ -2203,7 +2421,7 @@ bool CBossAIComponent::TryRequestPendingBossCall(CGameObject* target, float dt)
 	if ( !CanStartBossAction() )
 	{
 		// Hit 중이거나 다른 action lock 중이면 여기서 기다린다.
-		// 즉, Hit 중 조건 충족 시 Hit 종료 후 Call 실행.
+		// 즉, Hit 중 조건 충족 시 Hit 종료 후 상승 -> Call 실행.
 		if ( !IsAIActionLockedByAnimation() )
 			SetMonsterLocomotionState(EMonsterAnimState::Idle);
 
@@ -2223,6 +2441,12 @@ bool CBossAIComponent::TryRequestPendingBossCall(CGameObject* target, float dt)
 
 	if ( target )
 		FaceTowards(target->GetPosition());
+
+	if ( !m_bBossCallRiseCompletedForCurrentCall )
+	{
+		BeginBossCallRise();
+		return true;
+	}
 
 	if ( TryPerformCall() )
 	{
