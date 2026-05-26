@@ -907,6 +907,7 @@ private:
 
 	bool TryTeleportLocalPlayerToMegaGridByNumber(int megaGridNumber);
 	XMFLOAT3 ComputeLocalStageTeleportPosition(int megaGridNumber) const;
+	XMFLOAT3 ComputeMegaGridCenterPosition(int megaGridNumber, float y) const;
 
 	XMFLOAT3 ComputeEnemySpawnerSpawnPosition(
 		int megaGridNumber,
@@ -1325,7 +1326,9 @@ private:
 	void PlayBossCallSummonCircleSfxAt(const XMFLOAT3& position);
 	void PlayBossCallMonsterSpawnSfxAt(const XMFLOAT3& position);
 
-	void PlayBossShockwaveWindSfxAt(const XMFLOAT3& position);
+	void PlayEnemySpawnerSirenSfxAt(const XMFLOAT3& position);
+
+	void PlayBossShockwaveWindSfxAt(const XMFLOAT3& position); 
 	void UpdateBossShockwaveWindSfx(float currentRadius);
 	void ResetBossShockwaveWindSfxTracking();
 

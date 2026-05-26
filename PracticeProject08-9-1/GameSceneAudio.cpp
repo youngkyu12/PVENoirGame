@@ -100,6 +100,8 @@ namespace
 	static constexpr float kBossCallSummonCircleSfxVolume = 1.0f;
 	static constexpr float kBossCallMonsterSpawnSfxVolume = 1.0f;
 
+	static constexpr float kEnemySpawnerSirenSfxVolume = 1.0f;
+
 	static constexpr float kBossAttackSfxDelaySeconds = 0.3320f;
 	static constexpr float kBossAttackSfxVolume = 1.0f;
 
@@ -113,6 +115,11 @@ namespace
 	static const char* GetBossCallMonsterSpawnSfxPath()
 	{
 		return "Assets/Audio/Summon.wav";
+	}
+
+	static const char* GetEnemySpawnerSirenSfxPath()
+	{
+		return "Assets/Audio/siren.wav";
 	}
 
 	static const char* GetBossAttackSfxPath()
@@ -276,6 +283,40 @@ void CGameScene::PlayBossCallMonsterSpawnSfxAt(const XMFLOAT3& position)
 		kBossCallMonsterSpawnSfxVolume,
 		false                          // startPaused
 	);
+}
+
+void CGameScene::PlayEnemySpawnerSirenSfxAt(const XMFLOAT3& position)
+{
+	if ( !m_pAudioManager )
+		return;
+
+	const char* path = GetEnemySpawnerSirenSfxPath();
+
+	if ( !path || !path[0] )
+		return;
+
+	m_pAudioManager->PlaySound3D(
+		path,
+		position,
+		false,                         // loop: 1회 재생
+		false,                         // stream
+		kEnemySpawnerSirenSfxVolume,
+		false                          // startPaused
+	);
+
+#if defined(_DEBUG)
+	char buf[512];
+	sprintf_s(
+		buf,
+		"[EnemySpawnerSirenSfx] sound=\"%s\" volume=%.2f pos=(%.3f, %.3f, %.3f)\n",
+		path,
+		kEnemySpawnerSirenSfxVolume,
+		position.x,
+		position.y,
+		position.z
+	);
+	OutputDebugStringA(buf);
+#endif
 }
 
 void CGameScene::PlayBossShockwaveWindSfxAt(const XMFLOAT3& position)
