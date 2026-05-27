@@ -695,8 +695,8 @@ float4 PSMuzzleFlashProcedural(
     }
     else if (kind < 6.5f)
     {
-    // magic circle glow
-    // ÃÑ±¸È­¿°°ú ¿ÏÀüÈ÷ ´Ù¸¥ ÃÊ·Ï»ö ¹æ»çÇü glow.
+        // magic circle glow
+        // ÃÑ±¸È­¿°°ú ¿ÏÀüÈ÷ ´Ù¸¥ ÃÊ·Ï»ö ¹æ»çÇü glow.
         float angle = atan2(p.y, p.x);
 
         float wobble =
@@ -763,13 +763,13 @@ float4 PSMuzzleFlashProcedural(
             saturate(core * 0.75f)
         );
 
-    // °­ÇÑ additive glow.
+        // °­ÇÑ additive glow.
         color *= min(intensity, 1.35f);
     }
-    else
+    else if (kind < 7.5f)
     {
-    // magic circle afterimage
-    // ÀÛ°í ºÎÀ¯ÇÏ´Â ÃÊ·Ï ÀÜ±¤. Spark/ÃÑ±¸ ºÒ²É ÇüÅÂ ¾Æ´Ô.
+        // magic circle afterimage
+        // ÀÛ°í ºÎÀ¯ÇÏ´Â ÃÊ·Ï ÀÜ±¤. Spark/ÃÑ±¸ ºÒ²É ÇüÅÂ ¾Æ´Ô.
         float2 q = p;
 
         float angle = atan2(q.y, q.x);
@@ -826,6 +826,80 @@ float4 PSMuzzleFlashProcedural(
         );
 
         color *= min(intensity, 1.10f);
+    }
+    else
+    {
+        // gold firework
+        // ¹«±â ·¹º§¾÷ Àü¿ë ±Ýºû ÆøÁ× ÀÔÀÚ.
+        float2 q = p;
+
+        float angle = atan2(q.y, q.x);
+
+        float core =
+        1.0f - smoothstep(0.00f, 0.30f, r);
+
+        float innerGlow =
+        1.0f - smoothstep(0.08f, 0.62f, r);
+
+        float outerGlow =
+        1.0f - smoothstep(0.32f, 1.15f, r);
+
+        float rays =
+        abs(cos(angle * 5.0f + seed * 3.41f));
+
+        rays = pow(rays, 18.0f);
+        rays *= 1.0f - smoothstep(0.10f, 0.95f, r);
+
+        float noise =
+        0.84f +
+        0.10f * sin(q.x * 10.0f + seed * 1.77f) *
+        sin(q.y * 9.0f - seed * 0.91f) +
+        0.06f * sin((q.x + q.y) * 13.0f + seed * 2.29f);
+
+        noise = saturate(noise);
+
+        float birthFade = smoothstep(0.00f, 0.08f, ageRatio);
+        float deathFade = 1.0f - smoothstep(0.55f, 1.00f, ageRatio);
+
+        float sparkle =
+        0.86f +
+        0.14f * sin(seed * 4.73f + ageRatio * 24.0f);
+
+        float shape =
+        core * 0.70f +
+        innerGlow * 0.28f +
+        outerGlow * 0.24f +
+        rays * 0.42f;
+
+        alpha =
+        saturate(
+            shape *
+            birthFade *
+            deathFade *
+            noise *
+            sparkle *
+            input.color.a
+        );
+
+        float3 deepGold = float3(0.46f, 0.21f, 0.02f);
+        float3 gold = input.color.rgb;
+        float3 hotGold = float3(1.00f, 0.92f, 0.42f);
+
+        color =
+        lerp(
+            deepGold,
+            gold,
+            saturate(innerGlow + rays * 0.35f)
+        );
+
+        color =
+        lerp(
+            color,
+            hotGold,
+            saturate(core * 0.85f + rays * 0.22f)
+        );
+
+        color *= min(intensity, 1.60f);
     }
 
     clip(alpha - 0.002f);

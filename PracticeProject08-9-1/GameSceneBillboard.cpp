@@ -234,6 +234,21 @@ namespace
 		return result;
 	}
 
+	static XMFLOAT3 GetWeaponFireworkOrigin(CGameObject* weaponObject)
+	{
+		if ( !weaponObject )
+			return XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+		const XMFLOAT4X4& W = weaponObject->GetWorldMatrix();
+
+		// 무기 pivot 기준. 너무 손 안쪽에 붙어 보이면 y만 살짝 올린다.
+		return XMFLOAT3(
+			W._41,
+			W._42 + 0.18f,
+			W._43
+		);
+	}
+
 	static void ComputeWeaponTrailRootTip(
 	const SwordTrailEntry& trail,
 	XMFLOAT3& outRoot,
@@ -1373,6 +1388,168 @@ void CGameScene::SpawnMuzzleFlash(
 	for ( int i = 0; i < kMuzzleFlashSparkCount; ++i )
 	{
 		spawnSpark(rotDist(rng));
+	}
+}
+
+void CGameScene::SpawnGoldFireworkBurstAtWeapon(CGameObject* weaponObject)
+{
+	if ( !weaponObject )
+		return;
+
+	static std::mt19937 rng{ std::random_device{}( ) };
+
+	static std::uniform_real_distribution<float> zeroOneDist(0.0f, 1.0f);
+	static std::uniform_real_distribution<float> unitDist(-1.0f, 1.0f);
+	static std::uniform_real_distribution<float> rotDist(0.0f, XM_2PI);
+	static std::uniform_real_distribution<float> seedDist(0.0f, 1000.0f);
+
+	const XMFLOAT3 origin = GetWeaponFireworkOrigin(weaponObject);
+
+	constexpr int kGoldFireworkParticleCount = 72;
+
+	for ( int i = 0; i < kGoldFireworkParticleCount; ++i )
+	{
+		MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashes);
+		if ( !e )
+			return;
+
+		// 구 표면에 가까운 전방위 랜덤 방향.
+		const float y = unitDist(rng);
+		const float theta = zeroOneDist(rng) * XM_2PI;
+		const float horizontalRadius =
+			std::sqrt(std::max(0.0f, 1.0f - y * y));
+
+		XMVECTOR dir = XMVectorSet(
+			std::cos(theta) * horizontalRadius,
+			y,
+			std::sin(theta) * horizontalRadius,
+			0.0f
+		);
+
+		if ( XMVectorGetX(XMVector3LengthSq(dir)) <= 1.0e-8f )
+			dir = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+		else
+			dir = XMVector3Normalize(dir);
+
+		// 무기 중심에서 완전히 같은 점에 겹치지 않도록 아주 약간만 퍼뜨린다.
+		const float spawnJitter = 0.04f + zeroOneDist(rng) * 0.08f;
+
+		XMVECTOR posV =
+			XMLoadFloat3(&origin) +
+			XMVectorScale(dir, spawnJitter);
+
+		XMFLOAT3 pos{};
+		XMStoreFloat3(&pos, posV);
+
+		// 너무 차이나지는 않게, 그러나 입자별 차이는 나게.
+		const float speed = 3.20f + zeroOneDist(rng) * 2.20f;
+		const float life = 0.72f + zeroOneDist(rng) * 0.42f;
+		const float startSize = 0.16f + zeroOneDist(rng) * 0.12f;
+		const float endSize = 0.025f + zeroOneDist(rng) * 0.025f;
+
+		XMVECTOR velV = XMVectorScale(dir, speed);
+
+		XMFLOAT3 vel{};
+		XMStoreFloat3(&vel, velV);
+
+		e->active = true;
+		e->kind = EMuzzleFlashKind::GoldFirework;
+
+		e->position = pos;
+		e->velocity = vel;
+
+		e->age = 0.0f;
+		e->lifetime = life;
+
+		// 시간이 지날수록 작아지게 한다.
+		e->startWidth = startSize;
+		e->startHeight = startSize;
+		e->endWidth = endSize;
+		e->endHeight = endSize;
+
+		e->rotationRad = rotDist(rng);
+		e->intensity = 1.15f + zeroOneDist(rng) * 0.45f;
+
+		// 독가스 중력 수치(kBossPoisonDustGravity = 1.20f)를 기준으로 약간만 랜덤화.
+		e->gravity = kBossPoisonDustGravity * ( 0.85f + zeroOneDist(rng) * 0.30f );
+
+		// 공중에서 너무 멀리 날아가지 않도록 약한 감속.
+		e->drag = 0.35f + zeroOneDist(rng) * 0.30f;
+
+		e->seed = seedDist(rng);
+
+		// 금빛 계열 안에서만 미세 랜덤.
+		const float warm = zeroOneDist(rng);
+
+		e->color = XMFLOAT4(
+			1.00f,
+			0.66f + warm * 0.16f,
+			0.10f + warm * 0.12f,
+			0.92f
+		);
+	}
+}
+
+void CGameScene::SpawnWeaponLevelUpFireworks()
+{
+	for ( int slot = 0; slot < 4; ++slot )
+	{
+		CGameObject* player = GetPlayerBySlot(slot);
+		if ( !player )
+			continue;
+
+		if ( !player->GetActive() )
+			continue;
+
+		CGameObject* weaponObject = nullptr;
+
+		if ( auto* equip = player->GetComponent<CPlayerEquipmentComponent>() )
+		{
+			const EWeaponType equippedWeapon = equip->GetEquippedWeapon();
+			weaponObject = equip->GetWeaponObject(equippedWeapon);
+		}
+
+		// fallback: 장비 컴포넌트에서 못 얻은 경우 기존 slot 순서 ref로 복구.
+		if ( !weaponObject )
+		{
+			const size_t index = static_cast< size_t >( slot );
+
+			auto PickActiveWeaponRef =
+				[ index ] (const std::vector<CGameObject*>& refs) -> CGameObject*
+				{
+					if ( index >= refs.size() )
+						return nullptr;
+
+					CGameObject* obj = refs[index];
+					if ( !obj )
+						return nullptr;
+
+					if ( !obj->GetActive() )
+						return nullptr;
+
+					return obj;
+				};
+
+			if ( !weaponObject )
+				weaponObject = PickActiveWeaponRef(m_PlayerSwordRefs);
+
+			if ( !weaponObject )
+				weaponObject = PickActiveWeaponRef(m_PlayerAxeRefs);
+
+			if ( !weaponObject )
+				weaponObject = PickActiveWeaponRef(m_PlayerBowRefs);
+
+			if ( !weaponObject )
+				weaponObject = PickActiveWeaponRef(m_PlayerGunRefs);
+		}
+
+		if ( !weaponObject )
+			continue;
+
+		if ( !weaponObject->GetActive() )
+			continue;
+
+		SpawnGoldFireworkBurstAtWeapon(weaponObject);
 	}
 }
 

@@ -93,6 +93,7 @@ enum class EMuzzleFlashKind : UINT
 	BossMeleeSlash = 5,
 	MagicCircleGlow = 6,
 	MagicCircleAfterimage = 7,
+	GoldFirework = 8,
 };
 
 struct MuzzleFlashInstanceVertex
@@ -110,7 +111,8 @@ struct MuzzleFlashInstanceVertex
 
 	// x = kind
 	// 0=core, 1=ring, 2=spark, 3=blood, 4=poison dust,
-	// 5=boss melee slash, 6=magic circle glow, 7=magic circle afterimage
+	// 5=boss melee slash, 6=magic circle glow, 7=magic circle afterimage,
+	// 8=gold firework
 	// y = reserved
 	// z = reserved
 	// w = reserved
@@ -540,6 +542,9 @@ private:
 		const XMFLOAT3* hitDirection = nullptr
 	);
 	void SpawnBossMeleeSlashEffect(CGameObject* boss);
+
+	void SpawnWeaponLevelUpFireworks();
+	void SpawnGoldFireworkBurstAtWeapon(CGameObject* weaponObject);
 
 	void SpawnMagicCircleGlowParticle(
 		const XMFLOAT3& center,
