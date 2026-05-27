@@ -1637,7 +1637,8 @@ void CGameScene::SpawnMagicCircleGlowParticle(
 	float alpha,
 	float intensityScale,
 	float glowSizeScale,
-	float afterimageSizeScale)
+	float afterimageSizeScale,
+	float lifetimeScale)
 {
 	if ( alpha <= 0.001f )
 		return;
@@ -1650,6 +1651,8 @@ void CGameScene::SpawnMagicCircleGlowParticle(
 	static std::uniform_real_distribution<float> seedDist(0.0f, 1000.0f);
 
 	const float brightness = std::clamp(alpha, 0.0f, 1.0f);
+	const float safeLifetimeScale =
+		std::max(0.01f, lifetimeScale);
 
 	const float circleRadius =
 		std::max(0.25f, circleSize * 0.5f);
@@ -1702,7 +1705,9 @@ void CGameScene::SpawnMagicCircleGlowParticle(
 		e->velocity = velocity;
 
 		e->age = 0.0f;
-		e->lifetime = 0.38f + zeroOneDist(rng) * 0.24f;
+		e->lifetime =
+			( 0.38f + zeroOneDist(rng) * 0.24f ) *
+			safeLifetimeScale;
 
 		e->startWidth = baseSize;
 		e->startHeight = baseSize;
@@ -1747,7 +1752,9 @@ void CGameScene::SpawnMagicCircleGlowParticle(
 			velocity.z * ( 0.45f + zeroOneDist(rng) * 0.30f )
 		);
 
-		e->lifetime = 0.45f + zeroOneDist(rng) * 0.35f;
+		e->lifetime =
+			( 0.45f + zeroOneDist(rng) * 0.35f ) *
+			safeLifetimeScale;
 
 		e->endWidth = moteSize * 1.35f;
 		e->endHeight = moteSize * 1.35f;
@@ -3077,7 +3084,8 @@ void CGameScene::EmitBossCallSummonCircleGlowParticles(
 					alpha,
 					kBossCallSummonGlowParticleIntensityScale,
 					kBossCallSummonGlowParticleSizeScale,
-					kBossCallSummonAfterimageParticleSizeScale
+					kBossCallSummonAfterimageParticleSizeScale,
+					kBossCallSummonGlowParticleLifetimeScale
 				);
 			}
 		}
@@ -3144,6 +3152,15 @@ void CGameScene::UpdateBossCallSummonCircles(float dt)
 			ClearBossCallSummonCircleVisuals();
 		}
 
+		return;
+	}
+
+	// fade-in 완료 후 실제 몬스터 생성 전까지도
+	// 마법진 잔광을 계속 발생시킨다.
+	if ( state.active )
+	{
+		SetBossCallSummonCircleAlpha(1.0f);
+		EmitBossCallSummonCircleGlowParticles(dt, 1.0f);
 		return;
 	}
 #else

@@ -580,7 +580,8 @@ private:
 		float alpha,
 		float intensityScale,
 		float glowSizeScale = 1.0f,
-		float afterimageSizeScale = 1.0f
+		float afterimageSizeScale = 1.0f,
+		float lifetimeScale = 1.0f
 	);
 
 	void EmitMagicCircleGlowParticles(
@@ -1726,7 +1727,7 @@ private:
 	static constexpr float kBossSummonCircleFadeOutDurationSec = 1.0f;
 
 	static constexpr UINT kBossCallSummonCircleMaxCount = 64;
-	static constexpr float kBossCallSummonCircleFadeOutDurationSec = 1.0f;
+	static constexpr float kBossCallSummonCircleFadeOutDurationSec = 1.8f;
 
 	static constexpr float kMagicCircleGlowParticleYOffset = 0.12f;
 
@@ -1744,6 +1745,10 @@ private:
 	// 보스 본인 등장 마법진에는 적용하지 않는다.
 	static constexpr float kBossCallSummonGlowParticleSizeScale = 2.60f;
 	static constexpr float kBossCallSummonAfterimageParticleSizeScale = 2.20f;
+
+	// 보스 Call 몬스터 소환 마법진 전용 파티클 유지 시간 배율.
+	// 보스 본인 등장 마법진에는 적용하지 않는다.
+	static constexpr float kBossCallSummonGlowParticleLifetimeScale = 1.80f;
 
 	struct BossCallSummonCircleVisualState
 	{
