@@ -6810,6 +6810,11 @@ void CGameScene::BeginMonsterDeath(CGameObject* monster)
 
 	m_deadMonsters.insert(monster);
 
+	if ( IsBossMonsterObject(monster) )
+	{
+		PlayBossDeathSfxAt(monster->GetPosition());
+	}
+
 	HandleMutantKeyTriggerDeath(monster);
 
 	CancelMonsterPreparedActions(monster);

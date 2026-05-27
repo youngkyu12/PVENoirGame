@@ -107,6 +107,7 @@ namespace
 	static constexpr float kBossAttackSfxVolume = 1.0f;
 
 	static constexpr float kBossSpellSfxVolume = 1.0f;
+	static constexpr float kBossDeathSfxVolume = 1.0f;
 
 	static constexpr float kBossShockwaveWindSfxVolume = 1.0f;
 
@@ -133,6 +134,11 @@ namespace
 	static const char* GetBossSpellSfxPath()
 	{
 		return "Assets/Audio/BossSpell.wav";
+	}
+
+	static const char* GetBossDeathSfxPath()
+	{
+		return "Assets/Audio/BossDeath.wav";
 	}
 
 	static const char* GetBossShockwaveWindSfxPath()
@@ -334,6 +340,26 @@ void CGameScene::PlayBossSpellSfxAt(const XMFLOAT3& position)
 		false,                 // loop: 1회 재생
 		false,                 // stream
 		kBossSpellSfxVolume,
+		false                  // startPaused
+	);
+}
+
+void CGameScene::PlayBossDeathSfxAt(const XMFLOAT3& position)
+{
+	if ( !m_pAudioManager )
+		return;
+
+	const char* path = GetBossDeathSfxPath();
+
+	if ( !path || !path[0] )
+		return;
+
+	m_pAudioManager->PlaySound3D(
+		path,
+		position,
+		false,                 // loop: 1회 재생
+		false,                 // stream
+		kBossDeathSfxVolume,
 		false                  // startPaused
 	);
 }
