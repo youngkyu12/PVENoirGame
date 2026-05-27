@@ -86,7 +86,7 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* dev)
     pd3dDescriptorRanges[1].RegisterSpace = 0;
     pd3dDescriptorRanges[1].OffsetInDescriptorsFromTableStart = 0;
 
-    D3D12_ROOT_PARAMETER pd3dRootParameters[11] = {};
+    D3D12_ROOT_PARAMETER pd3dRootParameters[12] = {};
 
     pd3dRootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     pd3dRootParameters[0].Descriptor.ShaderRegister = 1;
@@ -121,7 +121,7 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* dev)
     pd3dRootParameters[6].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
     pd3dRootParameters[6].DescriptorTable.NumDescriptorRanges = 1;
     pd3dRootParameters[6].DescriptorTable.pDescriptorRanges = &pd3dDescriptorRanges[1];
-    pd3dRootParameters[6].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    pd3dRootParameters[6].ShaderVisibility =  D3D12_SHADER_VISIBILITY_ALL;
 
     pd3dRootParameters[7].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
     pd3dRootParameters[7].Constants.Num32BitValues = 1;
@@ -143,6 +143,11 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* dev)
 	pd3dRootParameters[10].Descriptor.ShaderRegister = 8; // b8
 	pd3dRootParameters[10].Descriptor.RegisterSpace = 0;
 	pd3dRootParameters[10].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	pd3dRootParameters[11].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	pd3dRootParameters[11].Descriptor.ShaderRegister = 9; // b9
+	pd3dRootParameters[11].Descriptor.RegisterSpace = 0;
+	pd3dRootParameters[11].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	D3D12_STATIC_SAMPLER_DESC d3dSamplerDescs[2] = {};
 

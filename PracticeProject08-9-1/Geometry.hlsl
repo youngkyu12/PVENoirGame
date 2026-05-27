@@ -96,7 +96,7 @@ VS_TEXTURED_LIGHTING_OUTPUT VSTexturedLightingInstanced(VS_TEXTURED_LIGHTING_INS
         input.instWorld0,
         input.instWorld1,
         input.instWorld2,
-        input.instWorld3
+        input.instWorld3 
     );
 
     output.normalW = mul(input.normal, (float3x3) mtxInstanceWorld);
@@ -119,7 +119,7 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
     PS_MULTIPLE_RENDER_TARGETS_OUTPUT output;
 
     uint materialId = input.materialId;
-    MATERIAL mat = gMaterials[materialId];
+    MATERIAL mat = gMaterials[materialId]; 
 
     float2 diffuseUV = GetDiffuseUVFromMaterial(mat, input.uv);
     float2 normalUV = GetNormalUVFromMaterial(mat, input.uv);

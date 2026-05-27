@@ -2049,6 +2049,7 @@ void CGameScene::ReleaseObjects()
 	m_castleDoorPortals.clear();
 #endif
 
+	m_terrainObjects.clear();
 	m_staticObjects.clear();
 	m_skinnedObjects.clear();
 
@@ -2397,7 +2398,8 @@ void CGameScene::BuildStaticInstanceGroups()
 			UINT objectIndex,
 			const std::shared_ptr<CMesh>& mesh,
 			int lodLevel,
-			bool useTreeShader)
+			bool useTreeShader,
+			bool useTerrainShader)
 		{
 			if ( !mesh )
 				return;
@@ -2411,6 +2413,7 @@ void CGameScene::BuildStaticInstanceGroups()
 				key.mesh = mesh.get();
 				key.subMeshIndex = subMeshIndex;
 				key.useTreeShader = useTreeShader;
+				key.useTerrainShader = useTerrainShader;
 				key.lodLevel = lodLevel;
 
 				size_t groupIndex = 0;
@@ -2423,6 +2426,7 @@ void CGameScene::BuildStaticInstanceGroups()
 					group.mesh = mesh;
 					group.subMeshIndex = subMeshIndex;
 					group.useTreeShader = useTreeShader;
+					group.useTerrainShader = useTerrainShader;
 					group.lodLevel = lodLevel;
 
 					groupIndex = m_staticInstanceGroups.size();
@@ -2449,6 +2453,9 @@ void CGameScene::BuildStaticInstanceGroups()
 
 		const bool useTreeShader =
 			( m_treeAlphaClipObjects.find(obj) != m_treeAlphaClipObjects.end() );
+
+		const bool useTerrainShader =
+			( m_terrainObjects.find(obj) != m_terrainObjects.end() );
 
 		int lodEntryIndex = -1;
 		if ( objectIndex <
@@ -2490,7 +2497,8 @@ void CGameScene::BuildStaticInstanceGroups()
 						objectIndex,
 						lodMesh,
 						resolvedLod,
-						useTreeShader
+						useTreeShader,
+						useTerrainShader
 					);
 				}
 
@@ -2504,7 +2512,7 @@ void CGameScene::BuildStaticInstanceGroups()
 		for ( int meshIndex = 0; meshIndex < meshCount; ++meshIndex )
 		{
 			std::shared_ptr<CMesh> mesh = obj->GetMeshShared(meshIndex);
-			AddObjectToGroup(objectIndex, mesh, 0, useTreeShader);
+			AddObjectToGroup(objectIndex, mesh, 0, useTreeShader, useTerrainShader);
 		}
 	}
 
@@ -2515,6 +2523,9 @@ void CGameScene::BuildStaticInstanceGroups()
 		{
 			if ( a.useTreeShader != b.useTreeShader )
 				return a.useTreeShader < b.useTreeShader;
+
+			if ( a.useTerrainShader != b.useTerrainShader )
+				return a.useTerrainShader < b.useTerrainShader;
 
 			if ( a.mesh.get() != b.mesh.get() )
 				return a.mesh.get() < b.mesh.get();
@@ -3020,8 +3031,7 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 	if ( !staticInstanceBuffer ) return;
 	if ( !mappedStaticInstanceBuffer ) return;
 
-	bool lastUseTreeShader = false;
-	bool hasBoundAnyShader = false;
+	int lastShaderKind = -1; // 0=static, 1=tree, 2=terrain
 
 	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -3070,9 +3080,21 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 		vbViews[1].SizeInBytes = sizeof(StaticInstanceVertex) * visibleInstanceCount;
 		vbViews[1].StrideInBytes = sizeof(StaticInstanceVertex);
 
-		if ( !hasBoundAnyShader || lastUseTreeShader != group.useTreeShader )
+		const int shaderKind =
+			group.useTerrainShader ? 2 :
+			group.useTreeShader ? 1 :
+			0;
+
+		if ( lastShaderKind != shaderKind )
 		{
-			if ( group.useTreeShader )
+			if ( shaderKind == 2 )
+			{
+				if ( m_terrainShader )
+					m_terrainShader->Render(cmd, camera, &m_staticBatch);
+				else if ( m_staticBatch.shader )
+					m_staticBatch.shader->Render(cmd, camera, &m_staticBatch);
+			}
+			else if ( shaderKind == 1 )
 			{
 				if ( m_treeStaticShader )
 					m_treeStaticShader->Render(cmd, camera, &m_staticBatch);
@@ -3085,8 +3107,7 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 					m_staticBatch.shader->Render(cmd, camera, &m_staticBatch);
 			}
 
-			lastUseTreeShader = group.useTreeShader;
-			hasBoundAnyShader = true;
+			lastShaderKind = shaderKind;
 		}
 
 		const UINT mid = ( sm.materialId == 0xFFFFFFFFu ) ? 0u : sm.materialId;
@@ -3097,6 +3118,12 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 
 		cmd->IASetVertexBuffers(0, 2, vbViews);
 		cmd->IASetIndexBuffer(&sm.ibView);
+
+		cmd->IASetPrimitiveTopology(
+			group.useTerrainShader
+			? D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP
+			: D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST
+		);
 
 		cmd->DrawIndexedInstanced(( UINT ) sm.indices.size(), visibleInstanceCount, 0, 0, 0);
 	}
@@ -5531,6 +5558,56 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
 		}
 	}
 
+	TERRAIN* mappedTerrain = m_pcbMappedTerrain[frameIndex];
+
+	if ( mappedTerrain )
+	{
+		const XMFLOAT3 terrainScale = m_TerrainData->GetScale();
+		const UINT heightMapSrvIndex = m_TerrainData->GetsrvIndex();
+
+		mappedTerrain->gvTerrainScale = XMFLOAT4(
+			terrainScale.x,
+			terrainScale.y,
+			terrainScale.z,
+			(heightMapSrvIndex == UINT_MAX) ? 0.0f : 1.0f
+		);
+
+		mappedTerrain->gvTerrainHeightMapSize = XMFLOAT4(
+			static_cast<float>(m_TerrainData->GetHeightMapWidth()),
+			static_cast<float>(m_TerrainData->GetHeightMapLength()),
+			0.0f,
+			0.0f
+		);
+
+		mappedTerrain->gvTerrainTextureIndices = XMUINT4(
+			heightMapSrvIndex,
+			UINT_MAX,
+			UINT_MAX,
+			UINT_MAX
+		);
+
+		mappedTerrain->gvTerrainDiffuseTextureIndices = XMUINT4(
+			m_TerrainData->GetGrassDiffuseSrvIndex(),
+			m_TerrainData->GetGroundDiffuseSrvIndex(),
+			m_TerrainData->GetDirtDiffuseSrvIndex(),
+			UINT_MAX
+		);
+
+		mappedTerrain->gvTerrainNormalTextureIndices = XMUINT4(
+			m_TerrainData->GetGrassNormalSrvIndex(),
+			m_TerrainData->GetGroundNormalSrvIndex(),
+			m_TerrainData->GetDirtNormalSrvIndex(),
+			UINT_MAX
+		);
+
+		mappedTerrain->gvTerrainBlendParams = XMFLOAT4(
+			400.0f,
+			200.0f,
+			4.0f,
+			0.08f
+		);
+	}
+
 	m_shadowMap.UpdateData(shadowFocus, directionalLightObj);
 	m_shadowMap.UploadConstantBuffer();
 
@@ -5700,6 +5777,14 @@ void CGameScene::BindFrameRootParameters(ID3D12GraphicsCommandList* cmd)
 		cmd->SetGraphicsRootConstantBufferView(
 			ROOT_PARAMETER_MATERIAL,
 			m_pd3dcbMaterials[frameIndex]->GetGPUVirtualAddress()
+		);
+	}
+
+	if ( m_pd3dcbTerrain[frameIndex] )
+	{
+		cmd->SetGraphicsRootConstantBufferView(
+			ROOT_PARAMETER_TERRAIN,
+			m_pd3dcbTerrain[frameIndex]->GetGPUVirtualAddress()
 		);
 	}
 

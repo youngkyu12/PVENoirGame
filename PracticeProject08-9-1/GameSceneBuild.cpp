@@ -183,6 +183,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	auto pShadowAlphaClipStaticShader = std::make_shared<CShadowMapAlphaClipStaticShader>();
 	auto pShadowSkinnedShader = std::make_shared<CShadowMapSkinnedShader>();
 	auto pShadowAlphaClipSkinnedShader = std::make_shared<CShadowMapAlphaClipSkinnedShader>();
+	auto pTerrainShader = std::make_shared<CTerrainShader>();
 
 	m_staticBatch.shader = pStaticShader;
 	m_treeStaticShader = pTreeStaticShader;
@@ -194,6 +195,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_shadowAlphaClipStaticShader = pShadowAlphaClipStaticShader;
 	m_shadowSkinnedShader = pShadowSkinnedShader;
 	m_shadowAlphaClipSkinnedShader = pShadowAlphaClipSkinnedShader;
+	m_terrainShader = pTerrainShader;
 
 	DXGI_FORMAT rtvFormats[5] =
 	{
@@ -272,7 +274,15 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		kDsvFormat
 	);
 
-	CreateTerrainData();
+	pTerrainShader->CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		kRTCount,
+		rtvFormats,
+		kDsvFormat
+	);
+
+	CreateTerrainData(dev, cmd);
 	BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
 	BuildItemBillboardBatch(dev, cmd, kRTCount, rtvFormats, kDsvFormat);
 
@@ -319,20 +329,71 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 #endif
 }
 
-void CGameScene::CreateTerrainData()
+void CGameScene::CreateTerrainData(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
-	XMFLOAT3 xmf3Scale(8.0f, 2.0f, 8.0f);
+	XMFLOAT3 xmf3Scale(kTerrainHorizontalScale, 1.0f, kTerrainHorizontalScale);
 	XMFLOAT4 xmf4Color(0.0f, 0.2f, 0.0f, 0.0f);
+
+	auto LoadTerrainTexture = [&](const wchar_t* path) -> std::shared_ptr<CTexture>
+		{
+			auto texture = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
+			texture->LoadTextureFromFile(
+				dev,
+				cmd,
+				path,
+				RESOURCE_TEXTURE2D,
+				0
+			);
+
+			m_pDescriptorHeap->CreateShaderResourceViewsOther(
+				dev,
+				texture.get(),
+				ROOT_PARAMETER_GLOBAL_SRV
+			);
+
+			return texture;
+		};
 
 	m_TerrainData = std::make_shared<TerrainData>(
 		_T("Image/HeightMap.raw"),
-		257,
-		257,
-		257,
-		257,
+		kTerrainHeightMapSamples,
+		kTerrainHeightMapSamples,
+		kTerrainHeightMapSamples,
+		kTerrainHeightMapSamples,
 		xmf3Scale,
 		xmf4Color
 	);
+
+	if (dev && cmd && m_pDescriptorHeap)
+	{
+		m_TerrainData->SetHeightMapTexture(
+			LoadTerrainTexture(L"Image/HeightMap(Flipped).dds")
+		);
+
+		m_TerrainData->SetGrassDiffuseTexture(
+			LoadTerrainTexture(L"Assets/GroundPlane/Texture/grass_diff.dds")
+		);
+
+		m_TerrainData->SetGroundDiffuseTexture(
+			LoadTerrainTexture(L"Assets/GroundPlane/Texture/ground_diff.dds")
+		);
+
+		m_TerrainData->SetDirtDiffuseTexture(
+			LoadTerrainTexture(L"Assets/GroundPlane/Texture/dirt_diff.dds")
+		);
+
+		m_TerrainData->SetGrassNormalTexture(
+			LoadTerrainTexture(L"Assets/GroundPlane/Texture/grass_normal.dds")
+		);
+
+		m_TerrainData->SetGroundNormalTexture(
+			LoadTerrainTexture(L"Assets/GroundPlane/Texture/ground_nm.dds")
+		);
+
+		m_TerrainData->SetDirtNormalTexture(
+			LoadTerrainTexture(L"Assets/GroundPlane/Texture/dirt_normal.dds")
+		);
+	}
 }
 
 void CGameScene::BuildStaticBatch(
@@ -600,6 +661,9 @@ void CGameScene::BuildStaticBatch(
 
 		CGameObject* raw = obj.get();
 
+		if ( placement.assetName == "Terrain" )
+			m_terrainObjects.insert(raw);
+
 #ifndef USING_NETWORK
 		if ( placement.assetName == "Tower" )
 		{
@@ -722,65 +786,6 @@ void CGameScene::BuildStaticBatch(
 		m_staticDynamicWorldMatrixFlags.push_back(0);
 		b->count = ( UINT ) b->objectRefs.size();
 	}
-
-	// Terrain 연결
-	/*for ( UINT k = 0; k < m_terrainCount; ++k )
-	{
-		if ( b->objectRefs.size() >= b->capacity ) break;
-
-		const UINT i = ( UINT ) b->objectRefs.size();
-		const StaticPlacementEntry& placement = m_staticPlacementEntries[k];
-
-		const bool createWorldStaticCollider = false;
-		const bool isStaticWorldLodTarget = false;
-		const bool enableDistanceCull = false;
-
-		std::shared_ptr<CMesh> selectedMesh = nullptr;
-
-		if ( !selectedMesh )
-		{
-
-
-		}
-
-		if ( !selectedMesh )
-			continue;
-
-		GameSceneObjectFactory::StaticRenderableDesc createDesc{};
-		createDesc.ctx = MakeStaticContext(i);
-		createDesc.mesh = selectedMesh;
-		createDesc.position = placement.pos;
-		createDesc.yawDeg = placement.yawDeg;
-
-		createDesc.addCollider = false;
-		const bool logCastleVillageWallColliderBuild = false;
-
-		createDesc.debugColliderBuildLog = logCastleVillageWallColliderBuild;
-		createDesc.debugColliderAssetName = placement.assetName;
-		createDesc.debugColliderObjectName = placement.objectName;
-
-		auto obj = GameSceneObjectFactory::CreateStaticRenderable(createDesc);
-		if ( !obj )
-			continue;
-
-		CGameObject* raw = obj.get();
-
-		const bool castsShadow = false;
-
-		RegisterStaticPlacementToGrid(placement, raw);
-
-		const uint16_t collisionMegaGridMask =
-			createWorldStaticCollider ? ComputeStaticObjectMegaGridMask(raw) : 0;
-
-		if ( collisionMegaGridMask != 0 )
-			m_collisionMegaGridMaskByObject[raw] = collisionMegaGridMask;
-
-		m_staticObjects.push_back(std::move(obj));
-		b->objectRefs.push_back(raw);
-		m_staticShadowCasterFlags.push_back(castsShadow ? 1 : 0);
-		m_staticCollisionMegaGridMasks.push_back(collisionMegaGridMask);
-		b->count = ( UINT ) b->objectRefs.size();
-	}*/
 
 #ifndef USING_NETWORK
 	if ( kEnableStaticWorldLocalOOBBReportExport )
@@ -2789,6 +2794,8 @@ bool CGameScene::LoadStaticPlacementFile(const std::string& filePath)
 			StaticPlacementEntry terrainEntry = entry;
 			terrainEntry.assetName = "Terrain";
 			terrainEntry.objectName = "Terrain";
+			terrainEntry.pos.x -= kTerrainHalfWorldSize;
+			terrainEntry.pos.z -= kTerrainHalfWorldSize;
 			m_staticPlacementEntries.push_back(std::move(terrainEntry));
 			++terrainCount;
 		}
@@ -2955,7 +2962,7 @@ void CGameScene::BuildStaticWorldSubmeshOOBBDebugObjects(
 				std::shared_ptr<CMesh> debugMesh =
 					std::make_shared<CBoxMeshDiffused>(dev, cmd, debugCollider);
 
-				debugObj->SetMesh(0, debugMesh);
+				debugObj->SetMesh(0,  std::make_shared<CBoxMeshDiffused>(dev, cmd, debugCollider));
 
 				// bake 끝났으니 object transform은 identity로 돌려야 이중 변환이 안 생김
 				debugObj->SetWorldMatrix(BuildIdentityMatrix4x4());
@@ -3277,6 +3284,30 @@ void CGameScene::CreateShaderVariables(ID3D12Device* dev, ID3D12GraphicsCommandL
 				0,
 				nullptr,
 				reinterpret_cast< void** >( &m_pcbMappedMaterials[i] )
+			);
+		}
+	}
+
+	m_nTerrainCBElementBytes = ( ( sizeof(TERRAIN) + 255 ) & ~255 );
+
+	for ( UINT i = 0; i < kFrameResourceCount; ++i )
+	{
+		m_pd3dcbTerrain[i] = ::CreateBufferResource(
+			dev,
+			cmd,
+			nullptr,
+			m_nTerrainCBElementBytes,
+			D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+			nullptr
+		);
+
+		if ( m_pd3dcbTerrain[i] )
+		{
+			m_pd3dcbTerrain[i]->Map(
+				0,
+				nullptr,
+				reinterpret_cast< void** >( &m_pcbMappedTerrain[i] )
 			);
 		}
 	}

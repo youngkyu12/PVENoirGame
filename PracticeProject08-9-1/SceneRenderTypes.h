@@ -54,6 +54,24 @@ struct MATERIALS
     MATERIAL m_pReflections[MAX_MATERIALS];
 };
 
+struct TERRAIN
+{
+	XMFLOAT4 gvTerrainScale;
+	XMFLOAT4 gvTerrainHeightMapSize;
+
+	// x = height map, y/z/w unused
+	XMUINT4 gvTerrainTextureIndices;
+
+	// x = grass, y = ground, z = dirt, w = unused
+	XMUINT4 gvTerrainDiffuseTextureIndices;
+
+	// x = grass normal, y = ground normal, z = dirt normal, w = unused
+	XMUINT4 gvTerrainNormalTextureIndices;
+
+	// x = mega grid size, y = village size, z = blend width, w = uv scale
+	XMFLOAT4 gvTerrainBlendParams;
+};
+
 // -----------------------------------------------------------------------------
 // Scene-owned batches (Shader::Render()에서 참조)
 // -----------------------------------------------------------------------------

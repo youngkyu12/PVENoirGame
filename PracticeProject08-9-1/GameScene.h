@@ -224,6 +224,7 @@ struct StaticInstanceGroup
 
 	UINT instanceBufferStart = 0;
 	bool useTreeShader = false;
+	bool useTerrainShader = false;
 
 	int lodLevel = 0;
 
@@ -369,7 +370,7 @@ public:
 public:
     void BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd) override;
 
-	void CreateTerrainData();
+	void CreateTerrainData(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
 
 protected:
     void CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target) override;
@@ -951,6 +952,10 @@ private:
 	std::array<MATERIALS*, kFrameResourceCount> m_pcbMappedMaterials = {};
 	UINT m_nMaterialsCBElementBytes = 0;
 
+	std::array<ComPtr<ID3D12Resource>, kFrameResourceCount> m_pd3dcbTerrain;
+	std::array<TERRAIN*, kFrameResourceCount> m_pcbMappedTerrain = {};
+	UINT m_nTerrainCBElementBytes = 0;
+
 	UINT m_nFrameResourceIndex = 0;
 
 	CDepthFogSystem                 m_depthFog;
@@ -1146,6 +1151,8 @@ private:
 
 	// Terrain
 	std::shared_ptr<TerrainData> m_TerrainData;
+	std::shared_ptr<CTerrainShader> m_terrainShader;
+	std::unordered_set<CGameObject*> m_terrainObjects;
 	
 	void BuildStaticWorldSubmeshOOBBDebugObjects(
 	ID3D12Device* dev,
