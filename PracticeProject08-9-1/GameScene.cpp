@@ -3072,6 +3072,29 @@ void CGameScene::DumpStaticGridOccupancyLog() const
 	m_sceneGrid.DumpStaticGridOccupancyLog();
 }
 
+const std::vector<CGameObject*>& CGameScene::GetMegaGridMonstersByWorldPosition(
+	const XMFLOAT3& worldPos) const
+{
+	static const std::vector<CGameObject*> kEmpty;
+
+	if ( !m_sceneGrid.IsInitialized() )
+		return kEmpty;
+
+	int megaX = -1;
+	int megaZ = -1;
+
+	if ( !m_sceneGrid.TryGetMegaGridFromWorldPosition(
+		worldPos.x,
+		worldPos.z,
+		megaX,
+		megaZ) )
+	{
+		return kEmpty;
+	}
+
+	return m_sceneGrid.GetMegaGridMonsters(megaX, megaZ);
+}
+
 void CGameScene::NotifyMonsterChaseStarted(CGameObject* monster)
 {
 #ifndef USING_NETWORK
