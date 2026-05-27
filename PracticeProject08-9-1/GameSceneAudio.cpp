@@ -105,6 +105,8 @@ namespace
 	static constexpr float kBossAttackSfxDelaySeconds = 0.3320f;
 	static constexpr float kBossAttackSfxVolume = 1.0f;
 
+	static constexpr float kBossSpellSfxVolume = 1.0f;
+
 	static constexpr float kBossShockwaveWindSfxVolume = 1.0f;
 
 	static const char* GetBossSummonSfxPath()
@@ -125,6 +127,11 @@ namespace
 	static const char* GetBossAttackSfxPath()
 	{
 		return "Assets/Audio/BossAttack.wav";
+	}
+
+	static const char* GetBossSpellSfxPath()
+	{
+		return "Assets/Audio/BossSpell.wav";
 	}
 
 	static const char* GetBossShockwaveWindSfxPath()
@@ -311,6 +318,40 @@ void CGameScene::PlayEnemySpawnerSirenSfxAt(const XMFLOAT3& position)
 		"[EnemySpawnerSirenSfx] sound=\"%s\" volume=%.2f pos=(%.3f, %.3f, %.3f)\n",
 		path,
 		kEnemySpawnerSirenSfxVolume,
+		position.x,
+		position.y,
+		position.z
+	);
+	OutputDebugStringA(buf);
+#endif
+}
+
+void CGameScene::PlayBossSpellSfxAt(const XMFLOAT3& position)
+{
+	if ( !m_pAudioManager )
+		return;
+
+	const char* path = GetBossSpellSfxPath();
+
+	if ( !path || !path[0] )
+		return;
+
+	m_pAudioManager->PlaySound3D(
+		path,
+		position,
+		false,                 // loop: 1회 재생
+		false,                 // stream
+		kBossSpellSfxVolume,
+		false                  // startPaused
+	);
+
+#if defined(_DEBUG)
+	char buf[512];
+	sprintf_s(
+		buf,
+		"[BossSpellSfx] sound=\"%s\" volume=%.2f pos=(%.3f, %.3f, %.3f)\n",
+		path,
+		kBossSpellSfxVolume,
 		position.x,
 		position.y,
 		position.z
