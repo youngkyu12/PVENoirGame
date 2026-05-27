@@ -1381,6 +1381,7 @@ private:
 	void UpdatePlayerFootstepSfx();
 	void ResetPlayerFootstepSfxState();
 	void PlayPlayerFootstepSfx(CGameObject* player);
+	void PlayPlayerDeathSfxAt(const XMFLOAT3& position);
 
 	void ResetMonsterSfxState();
 

@@ -6891,6 +6891,8 @@ void CGameScene::BeginLocalPlayerDeath(CGameObject* player)
 	m_bLocalPlayerDead = true;
 	m_localPlayerRespawnTimer = 0.0f;
 
+	PlayPlayerDeathSfxAt(player->GetPosition());
+
 	SetLocalPlayerControlEnabled(false);
 	CancelLocalPlayerPreparedActions();
 
