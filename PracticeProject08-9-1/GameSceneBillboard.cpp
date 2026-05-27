@@ -2974,21 +2974,6 @@ void CGameScene::BeginBossCallMonsterSummonVisuals(
 
 		PlayBossCallSummonCircleSfxAt(sfxPos);
 
-#ifndef USING_NETWORK
-		char buf[512];
-		sprintf_s(
-			buf,
-			"[BossCallSummonCircle][Begin] call=%d plan=%zu activeCircle=%zu fadeIn=%.3f sfxPos=(%.3f, %.3f, %.3f)\n",
-			callIndex,
-			m_bossCallSummonPlanEntries.size(),
-			m_activeBossCallSummonCircleItemIndices.size(),
-			m_bossCallSummonCircleVisualState.durationSec,
-			sfxPos.x,
-			sfxPos.y,
-			sfxPos.z
-		);
-		OutputDebugStringA(buf);
-#endif
 	}
 
 #else

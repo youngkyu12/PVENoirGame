@@ -8,6 +8,7 @@
 namespace
 {
 	static constexpr float kFootstepSfxVolume = 0.04f;
+	static constexpr float kPlayerDeathSfxVolume = 1.0f;
 
 	static bool IsWalkClipName(const std::string& clipName)
 	{
@@ -210,6 +211,11 @@ namespace
 	{
 		return "Assets/Audio/Bow_Release.mp3";
 	}
+
+	static const char* GetPlayerDeathSfxPath()
+	{
+		return "Assets/Audio/death.wav";
+	}
 }
 
 void CGameScene::PlayBossSummonSfxAt(const XMFLOAT3& position)
@@ -310,20 +316,6 @@ void CGameScene::PlayEnemySpawnerSirenSfxAt(const XMFLOAT3& position)
 		kEnemySpawnerSirenSfxVolume,
 		false                          // startPaused
 	);
-
-#if defined(_DEBUG)
-	char buf[512];
-	sprintf_s(
-		buf,
-		"[EnemySpawnerSirenSfx] sound=\"%s\" volume=%.2f pos=(%.3f, %.3f, %.3f)\n",
-		path,
-		kEnemySpawnerSirenSfxVolume,
-		position.x,
-		position.y,
-		position.z
-	);
-	OutputDebugStringA(buf);
-#endif
 }
 
 void CGameScene::PlayBossSpellSfxAt(const XMFLOAT3& position)
@@ -344,20 +336,6 @@ void CGameScene::PlayBossSpellSfxAt(const XMFLOAT3& position)
 		kBossSpellSfxVolume,
 		false                  // startPaused
 	);
-
-#if defined(_DEBUG)
-	char buf[512];
-	sprintf_s(
-		buf,
-		"[BossSpellSfx] sound=\"%s\" volume=%.2f pos=(%.3f, %.3f, %.3f)\n",
-		path,
-		kBossSpellSfxVolume,
-		position.x,
-		position.y,
-		position.z
-	);
-	OutputDebugStringA(buf);
-#endif
 }
 
 void CGameScene::PlayBossShockwaveWindSfxAt(const XMFLOAT3& position)
@@ -389,19 +367,6 @@ void CGameScene::PlayBossShockwaveWindSfxAt(const XMFLOAT3& position)
 	m_bossShockwaveWindSfxHasPrevPosition = true;
 	m_bBossShockwaveWindSfxTrackingActive = true;
 
-#if defined(_DEBUG)
-	char buf[512];
-	sprintf_s(
-		buf,
-		"[BossShockwaveWindSfx][Start] sound=\"%s\" volume=%.2f pos=(%.3f, %.3f, %.3f)\n",
-		path,
-		kBossShockwaveWindSfxVolume,
-		position.x,
-		position.y,
-		position.z
-	);
-	OutputDebugStringA(buf);
-#endif
 }
 
 void CGameScene::UpdateBossShockwaveWindSfx(float currentRadius)
@@ -566,21 +531,26 @@ void CGameScene::PlayPlayerFootstepSfx(CGameObject* player)
 		kFootstepSfxVolume,
 		false                  // startPaused
 	);
+}
 
-#if defined(_DEBUG)
-	char buf[512];
-	sprintf_s(
-		buf,
-		"[FootstepSfx] sound=\"%s\" volume=%.2f owner=%p pos=(%.3f, %.3f, %.3f)\n",
+void CGameScene::PlayPlayerDeathSfxAt(const XMFLOAT3& position)
+{
+	if ( !m_pAudioManager )
+		return;
+
+	const char* path = GetPlayerDeathSfxPath();
+
+	if ( !path || !path[0] )
+		return;
+
+	m_pAudioManager->PlaySound3D(
 		path,
-		kFootstepSfxVolume,
-		static_cast< void* >( player ),
-		pos.x,
-		pos.y,
-		pos.z
+		position,
+		false,                 // loop: 1회 재생
+		false,                 // stream
+		kPlayerDeathSfxVolume,
+		false                  // startPaused
 	);
-	OutputDebugStringA(buf);
-#endif
 }
 
 void CGameScene::UpdatePlayerFootstepSfx()
