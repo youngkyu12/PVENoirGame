@@ -143,6 +143,9 @@ private:
 	std::vector<BoneCapsuleLink> mBoneCapsuleLinks;
 	std::vector<BoundingCapsule> mWorldBoneCapsules;
 
+	uint16_t m_collisionMegaGridMask = 0;
+	bool m_collisionMegaGridMaskFixed = false;
+
 public:
 	void SetWeaponBoneCapsuleRoots(const std::vector<std::string>& rootBoneNames);
 	void ClearWeaponBoneCapsuleRoots();
@@ -160,6 +163,26 @@ public:
 		const std::string& assetName = std::string(),
 		const std::string& objectName = std::string()
 	);
+
+	void SetCollisionMegaGridMask(uint16_t mask)
+	{
+		m_collisionMegaGridMask = mask;
+	}
+
+	uint16_t GetCollisionMegaGridMask() const
+	{
+		return m_collisionMegaGridMask;
+	}
+
+	void SetCollisionMegaGridMaskFixed(bool fixed)
+	{
+		m_collisionMegaGridMaskFixed = fixed;
+	}
+
+	bool IsCollisionMegaGridMaskFixed() const
+	{
+		return m_collisionMegaGridMaskFixed;
+	}
 
 private:
 	void RebuildWeaponBoneCapsuleSelection();

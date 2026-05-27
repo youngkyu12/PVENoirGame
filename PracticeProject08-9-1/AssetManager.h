@@ -9,6 +9,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <memory>
 
 class CMesh;
@@ -59,6 +60,9 @@ struct BuiltAsset
 class AssetManager
 {
 public:
+	using AnimationClipRef = std::shared_ptr<const AnimationClip>;
+
+public:
 	static BuiltAsset BuildAsset(
 		ID3D12Device* device,
 		ID3D12GraphicsCommandList* cmd,
@@ -66,12 +70,13 @@ public:
 		const AssetBuildDesc& desc
 	);
 
-	static bool LoadCachedClip(
+	static void BeginSceneMaterialBuild(MATERIALS* pMaterials);
+
+	static AnimationClipRef LoadCachedClipRef(
 		CMesh* mesh,
 		const std::string& skeletonKey,
 		const char* animBinPath,
 		const char* clipName,
-		AnimationClip& outClip,
 		float timeScale = 1.0f
 	);
 
@@ -111,9 +116,13 @@ private:
 	);
 
 private:
-    static std::unordered_map<std::string, BuiltAsset> s_assetCache;
-    static std::unordered_map<std::string, std::shared_ptr<CMaterial>> s_materialCache;
-    static std::unordered_map<std::string, std::shared_ptr<CTexture>> s_textureCache;
-	static std::unordered_map<std::string, AnimationClip> s_clipCache;
-    static UINT s_nextMaterialID;
+	static std::unordered_map<std::string, BuiltAsset> s_assetCache;
+	static std::unordered_map<std::string, std::shared_ptr<CMaterial>> s_materialCache;
+	static std::unordered_map<std::string, std::shared_ptr<CTexture>> s_textureCache;
+	static std::unordered_map<std::string, AnimationClipRef> s_clipCache;
+
+	static std::unordered_map<MATERIALS*, std::unordered_set<std::string>>
+		s_appliedAssetKeysByMaterials;
+
+	static UINT s_nextMaterialID;
 };

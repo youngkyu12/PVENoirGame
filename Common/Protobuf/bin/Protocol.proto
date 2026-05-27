@@ -62,6 +62,7 @@ message C_INPUT
 	int32 keyCodes = 2; 
 	float deltaX = 3;
 	float deltaY = 4;
+	float clientDeltaTime = 5;
 }
 
 message S_FRAME_STATE

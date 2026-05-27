@@ -26,7 +26,7 @@ void CMonsterAI::OnUpdate(float dt)
 	if (animState == Protocol::ANIMATION_TYPE_ATTACK)
 	{
 		constexpr int kAttackDurationTicks = 20;
-		const int elapsed = static_cast<int>(GRoom->GetTick()) - GetOwner()->GetAnimTick();
+		const int elapsed = static_cast<int>(GRoom->GetAnimClockTick()) - GetOwner()->GetAnimTick();
 		if (elapsed <= kAttackDurationTicks)
 			return;
 
@@ -66,7 +66,7 @@ void CMonsterAI::OnUpdate(float dt)
 		if (m_attackCooldownRemaining <= 0.f)
 		{
 			GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
-			GetOwner()->SetAnimTick(GRoom->GetTick());
+			GetOwner()->SetAnimTick(GRoom->GetAnimClockTick());
 			m_attackCooldownRemaining = m_attackCooldownSec;
 		}
 		return;
@@ -185,6 +185,7 @@ bool CMonsterAI::MoveTowards(const GameMath::Vec3& goal, float maxStep)
 		GetOwner()->SetPosition(next);
 
 	GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_RUN);
+	GetOwner()->SetLastMoveDir(dir);
 	return true;
 }
 

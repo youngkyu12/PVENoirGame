@@ -82,9 +82,132 @@ int Room::GridCellIndex(int cellX, int cellZ) const
 	return (cellZ * kGridWidth) + cellX;
 }
 
+bool Room::GetGridCellRangeForWorldBounds(
+	float minWorldX,
+	float maxWorldX,
+	float minWorldZ,
+	float maxWorldZ,
+	int& outMinCellX,
+	int& outMaxCellX,
+	int& outMinCellZ,
+	int& outMaxCellZ) const
+{
+	if (!m_spatialGridInitialized) return false;
+	if (maxWorldX < minWorldX) std::swap(maxWorldX, minWorldX);
+	if (maxWorldZ < minWorldZ) std::swap(maxWorldZ, minWorldZ);
+
+	if (maxWorldX < static_cast<float>(kGridMinX) || minWorldX > static_cast<float>(kGridMaxX)) return false;
+	if (maxWorldZ < static_cast<float>(kGridMinZ) || minWorldZ > static_cast<float>(kGridMaxZ)) return false;
+
+	minWorldX = std::clamp(minWorldX, static_cast<float>(kGridMinX), static_cast<float>(kGridMaxX));
+	maxWorldX = std::clamp(maxWorldX, static_cast<float>(kGridMinX), static_cast<float>(kGridMaxX));
+	minWorldZ = std::clamp(minWorldZ, static_cast<float>(kGridMinZ), static_cast<float>(kGridMaxZ));
+	maxWorldZ = std::clamp(maxWorldZ, static_cast<float>(kGridMinZ), static_cast<float>(kGridMaxZ));
+
+	int minCellX = static_cast<int>(std::floor(minWorldX)) - kGridMinX;
+	int maxCellX = static_cast<int>(std::ceil(maxWorldX)) - kGridMinX - 1;
+	int minCellZ = static_cast<int>(std::floor(minWorldZ)) - kGridMinZ;
+	int maxCellZ = static_cast<int>(std::ceil(maxWorldZ)) - kGridMinZ - 1;
+
+	minCellX = std::clamp(minCellX, 0, kGridWidth - 1);
+	minCellZ = std::clamp(minCellZ, 0, kGridHeight - 1);
+	maxCellX = std::clamp(maxCellX, 0, kGridWidth - 1);
+	maxCellZ = std::clamp(maxCellZ, 0, kGridHeight - 1);
+
+	if (maxCellX < minCellX) maxCellX = minCellX;
+	if (maxCellZ < minCellZ) maxCellZ = minCellZ;
+
+	outMinCellX = minCellX;
+	outMaxCellX = maxCellX;
+	outMinCellZ = minCellZ;
+	outMaxCellZ = maxCellZ;
+	return true;
+}
+
 int Room::MegaGridIndex(int megaX, int megaZ) const
 {
 	return (megaZ * kMegaGridCols) + megaX;
+}
+
+bool Room::WorldToMegaGridCell(float worldX, float worldZ, int& outMegaX, int& outMegaZ) const
+{
+	int cellX = -1;
+	int cellZ = -1;
+	if (!WorldToGridCell(worldX, worldZ, cellX, cellZ))
+		return false;
+
+	return FineCellToMegaGridCell(cellX, cellZ, outMegaX, outMegaZ);
+}
+
+bool Room::GetMegaGridRangeForCircle(
+	const GameMath::Vec3& center,
+	float radius,
+	int& outMinMegaX,
+	int& outMaxMegaX,
+	int& outMinMegaZ,
+	int& outMaxMegaZ) const
+{
+	if (radius < 0.0f) radius = 0.0f;
+
+	int minCellX = -1;
+	int maxCellX = -1;
+	int minCellZ = -1;
+	int maxCellZ = -1;
+	if (!GetGridCellRangeForWorldBounds(
+		center.x - radius,
+		center.x + radius,
+		center.z - radius,
+		center.z + radius,
+		minCellX,
+		maxCellX,
+		minCellZ,
+		maxCellZ))
+	{
+		return false;
+	}
+
+	int minMegaX = -1;
+	int minMegaZ = -1;
+	int maxMegaX = -1;
+	int maxMegaZ = -1;
+	if (!FineCellToMegaGridCell(minCellX, minCellZ, minMegaX, minMegaZ)) return false;
+	if (!FineCellToMegaGridCell(maxCellX, maxCellZ, maxMegaX, maxMegaZ)) return false;
+
+	outMinMegaX = (std::min)(minMegaX, maxMegaX);
+	outMaxMegaX = (std::max)(minMegaX, maxMegaX);
+	outMinMegaZ = (std::min)(minMegaZ, maxMegaZ);
+	outMaxMegaZ = (std::max)(minMegaZ, maxMegaZ);
+	return true;
+}
+
+void Room::CollectEnemyIdsInMegaGridRadius(
+	const GameMath::Vec3& center,
+	float radius,
+	std::vector<uint64>& outEnemyIds) const
+{
+	outEnemyIds.clear();
+	if (!m_spatialGridInitialized) return;
+
+	int minMegaX = -1;
+	int maxMegaX = -1;
+	int minMegaZ = -1;
+	int maxMegaZ = -1;
+	if (!GetMegaGridRangeForCircle(center, radius, minMegaX, maxMegaX, minMegaZ, maxMegaZ))
+		return;
+
+	std::unordered_set<uint64> uniqueIds;
+	for (int z = minMegaZ; z <= maxMegaZ; ++z)
+	{
+		for (int x = minMegaX; x <= maxMegaX; ++x)
+		{
+			const MegaGridCell& cell = m_megaGridCells[static_cast<size_t>(MegaGridIndex(x, z))];
+			for (uint64 enemyId : cell.enemyIds)
+			{
+				if (uniqueIds.insert(enemyId).second)
+					outEnemyIds.push_back(enemyId);
+			}
+		}
+	}
 }
 
 bool Room::FineCellToMegaGridCell(int cellX, int cellZ, int& outMegaX, int& outMegaZ) const
@@ -125,6 +248,143 @@ bool Room::IsFineCellInsideMegaGridApproachZone(int megaX, int megaZ, int cellX,
 	return
 		(cellX >= zoneStartX && cellX < zoneEndX) &&
 		(cellZ >= zoneStartZ && cellZ < zoneEndZ);
+}
+
+uint16_t Room::ComputeMegaGridMaskFromWorldPosition(const GameMath::Vec3& pos) const
+{
+	int megaX = -1;
+	int megaZ = -1;
+	if (!WorldToMegaGridCell(pos.x, pos.z, megaX, megaZ))
+		return 0;
+
+	const int bit = (megaZ * kMegaGridCols) + megaX;
+	return static_cast<uint16_t>(1u << bit);
+}
+
+uint16_t Room::ComputeObjectCurrentMegaGridMask(const CServerObject* obj) const
+{
+	if (!obj)
+		return 0;
+
+	return ComputeMegaGridMaskFromWorldPosition(obj->GetPosition());
+}
+
+uint16_t Room::ComputeStaticBuildingMegaGridMask(const BuildingRef& building) const
+{
+	if (!building)
+		return 0;
+
+	auto* collider = building->GetComponent<CColliderComponent>();
+	if (!collider)
+		return ComputeObjectCurrentMegaGridMask(building.get());
+
+	uint16_t mask = 0;
+	auto AddBoxMask = [&](const BoundingOrientedBox& box)
+		{
+			XMFLOAT3 corners[BoundingOrientedBox::CORNER_COUNT] = {};
+			box.GetCorners(corners);
+
+			float minX = corners[0].x;
+			float maxX = corners[0].x;
+			float minZ = corners[0].z;
+			float maxZ = corners[0].z;
+
+			for (int i = 1; i < BoundingOrientedBox::CORNER_COUNT; ++i)
+			{
+				minX = (std::min)(minX, corners[i].x);
+				maxX = (std::max)(maxX, corners[i].x);
+				minZ = (std::min)(minZ, corners[i].z);
+				maxZ = (std::max)(maxZ, corners[i].z);
+			}
+
+			int minCellX = -1;
+			int maxCellX = -1;
+			int minCellZ = -1;
+			int maxCellZ = -1;
+			if (!GetGridCellRangeForWorldBounds(minX, maxX, minZ, maxZ, minCellX, maxCellX, minCellZ, maxCellZ))
+				return;
+
+			int minMegaX = -1;
+			int minMegaZ = -1;
+			int maxMegaX = -1;
+			int maxMegaZ = -1;
+			if (!FineCellToMegaGridCell(minCellX, minCellZ, minMegaX, minMegaZ)) return;
+			if (!FineCellToMegaGridCell(maxCellX, maxCellZ, maxMegaX, maxMegaZ)) return;
+
+			for (int z = (std::min)(minMegaZ, maxMegaZ); z <= (std::max)(minMegaZ, maxMegaZ); ++z)
+			{
+				for (int x = (std::min)(minMegaX, maxMegaX); x <= (std::max)(minMegaX, maxMegaX); ++x)
+				{
+					const int bit = (z * kMegaGridCols) + x;
+					mask |= static_cast<uint16_t>(1u << bit);
+				}
+			}
+		};
+
+	for (const BoundingOrientedBox& subBox : collider->GetSubOOBBs())
+		AddBoxMask(subBox);
+
+	if (mask == 0 && collider->GetType() == EColliderType::OOBB)
+		AddBoxMask(collider->GetOOBB());
+
+	if (mask != 0)
+		return mask;
+
+	return ComputeObjectCurrentMegaGridMask(building.get());
+}
+
+void Room::SetObjectCollisionMegaGridMask(const shared_ptr<CServerObject>& obj, uint16_t mask, bool fixedMask)
+{
+	if (!obj)
+		return;
+
+	auto* collider = obj->GetComponent<CColliderComponent>();
+	if (!collider)
+		return;
+
+	collider->SetCollisionMegaGridMask(mask);
+	collider->SetCollisionMegaGridMaskFixed(fixedMask);
+}
+
+void Room::RefreshDynamicCollisionMegaGridMasks()
+{
+	auto RefreshObject = [this](const shared_ptr<CServerObject>& obj)
+		{
+			if (!obj)
+				return;
+
+			auto* collider = obj->GetComponent<CColliderComponent>();
+			if (!collider)
+				return;
+
+			if (collider->IsCollisionMegaGridMaskFixed())
+				return;
+
+			collider->SetCollisionMegaGridMask(ComputeObjectCurrentMegaGridMask(obj.get()));
+		};
+
+	for (auto& [pid, player] : players)
+		RefreshObject(player);
+
+	for (auto& p : m_arrowPool)
+		RefreshObject(p);
+
+	for (auto& p : m_bulletPool)
+		RefreshObject(p);
+}
+
+bool Room::ShouldKeepCollisionPairByMegaGrid(const CColliderComponent* a, const CColliderComponent* b) const
+{
+	if (!a || !b)
+		return false;
+
+	const uint16_t maskA = a->GetCollisionMegaGridMask();
+	const uint16_t maskB = b->GetCollisionMegaGridMask();
+
+	if (maskA == 0 || maskB == 0)
+		return false;
+
+	return (maskA & maskB) != 0;
 }
 
 void Room::AddDynamicCount(int cellX, int cellZ, EGridDynamicKind kind, int delta)
@@ -223,11 +483,78 @@ void Room::RegisterStaticBuildingToGrid(BuildingRef building)
 	for (int cellIndex : touchedCells)
 	{
 		if (cellIndex < 0 || cellIndex >= kGridCellCount) continue;
-		++m_gridStaticCells[static_cast<size_t>(cellIndex)].buildingCount;
-		m_gridStaticCells[static_cast<size_t>(cellIndex)].floorHeight = 0.0f;
+		GridStaticCell& cell = m_gridStaticCells[static_cast<size_t>(cellIndex)];
+		++cell.buildingCount;
+		cell.floorHeight = 0.0f;
+
+		const uint64 buildingId = building->GetObjectId();
+		if (std::find(cell.buildingIds.begin(), cell.buildingIds.end(), buildingId) == cell.buildingIds.end())
+			cell.buildingIds.push_back(buildingId);
 	}
 }
 
+void Room::CollectStaticBuildingIdsForWorldBounds(
+	float minWorldX,
+	float maxWorldX,
+	float minWorldZ,
+	float maxWorldZ,
+	std::vector<uint64>& outBuildingIds) const
+{
+	outBuildingIds.clear();
+	if (!m_spatialGridInitialized) return;
+
+	int minCellX = -1;
+	int maxCellX = -1;
+	int minCellZ = -1;
+	int maxCellZ = -1;
+	if (!GetGridCellRangeForWorldBounds(
+		minWorldX,
+		maxWorldX,
+		minWorldZ,
+		maxWorldZ,
+		minCellX,
+		maxCellX,
+		minCellZ,
+		maxCellZ))
+	{
+		return;
+	}
+
+	std::unordered_set<uint64> uniqueIds;
+	for (int z = minCellZ; z <= maxCellZ; ++z)
+	{
+		for (int x = minCellX; x <= maxCellX; ++x)
+		{
+			const GridStaticCell& cell = m_gridStaticCells[static_cast<size_t>(GridCellIndex(x, z))];
+			for (uint64 buildingId : cell.buildingIds)
+			{
+				if (uniqueIds.insert(buildingId).second)
+					outBuildingIds.push_back(buildingId);
+			}
+		}
+	}
+}
+
+void Room::RebuildMegaGridEnemyIds()
+{
+	if (!m_spatialGridInitialized) return;
+
+	for (MegaGridCell& cell : m_megaGridCells)
+		cell.enemyIds.clear();
+
+	for (auto& [enemyId, enemy] : enemies)
+	{
+		if (!enemy) continue;
+
+		int megaX = -1;
+		int megaZ = -1;
+		const GameMath::Vec3 pos = enemy->GetPosition();
+		if (!WorldToMegaGridCell(pos.x, pos.z, megaX, megaZ))
+			continue;
+
+		m_megaGridCells[static_cast<size_t>(MegaGridIndex(megaX, megaZ))].enemyIds.push_back(enemyId);
+	}
+}
 void Room::ResetDynamicGridCounts()
 {
 	for (GridDynamicCell& cell : m_gridDynamicCells)
@@ -376,10 +703,16 @@ void Room::UpdateMegaGridState()
 		if (!FineCellToMegaGridCell(tracker.prevCellX, tracker.prevCellZ, megaX, megaZ))
 			continue;
 
+		if (megaX == 1 && megaZ == 1)
+			continue;
+
 		if (!IsFineCellInsideMegaGridApproachZone(megaX, megaZ, tracker.prevCellX, tracker.prevCellZ))
 			continue;
 
 		MegaGridCell& megaCell = m_megaGridCells[static_cast<size_t>(MegaGridIndex(megaX, megaZ))];
 		megaCell.hasPlayerApproached = true;
 	}
+
+	UpdateCastleCenterMegaGridState();
+	RefreshDynamicCollisionMegaGridMasks();
 }
