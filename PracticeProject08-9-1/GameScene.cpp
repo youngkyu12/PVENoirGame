@@ -2105,6 +2105,10 @@ int CGameScene::SpawnBossCallMonsters(int callIndex)
 					++kindSpawned[kindIndex];
 
 				const XMFLOAT3 pos = spawned->GetPosition();
+
+				// 실제 몬스터가 생성된 바로 그 타이밍에 WWW 빛 연출 생성.
+				SpawnBossCallSummonWwwEffect(pos, preview.kind);
+
 				spawnedPosSum.x += pos.x;
 				spawnedPosSum.y += pos.y;
 				spawnedPosSum.z += pos.z;
@@ -2141,14 +2145,30 @@ int CGameScene::SpawnBossCallMonsters(int callIndex)
 			if ( count <= 0 )
 				return;
 
-			const int spawned =
-				m_enemySpawner->SpawnEnemies(
-					megaGridNumber,
-					kind,
-					count
-				);
+			std::vector<EnemySpawnerPreviewEntry> previews;
+			previews.reserve(static_cast< size_t >( count ));
 
-			spawnedTotal += spawned;
+			m_enemySpawner->PeekSpawnEntries(
+				megaGridNumber,
+				kind,
+				count,
+				previews
+			);
+
+			for ( const EnemySpawnerPreviewEntry& preview : previews )
+			{
+				CGameObject* spawned =
+					m_enemySpawner->SpawnPreviewEntry(preview);
+
+				if ( !spawned )
+					continue;
+
+				++spawnedTotal;
+
+				const XMFLOAT3 pos = spawned->GetPosition();
+
+				SpawnBossCallSummonWwwEffect(pos, preview.kind);
+			}
 		};
 
 	switch ( callIndex )
@@ -3328,6 +3348,9 @@ void CGameScene::ReleaseObjects()
 	m_monsterSwordTrailShader.reset();
 	m_monsterSwordTrails.clear();
 
+	m_bossCallSummonWwwShader.reset();
+	m_bossCallSummonWwwEntries.clear();
+
 	m_staticRenderObjectCache.clear();
 	m_staticGameplayTickObjects.clear();
 
@@ -3373,6 +3396,7 @@ void CGameScene::ReleaseShaderVariables()
 {
 	ReleaseItemBillboardGpuResources();
 	ReleaseBossPoisonProjectileGpuResources();
+	ReleaseBossCallSummonWwwGpuResources();
 	ReleaseStaticOcclusionGpuResources();
 	ReleaseSkinnedOcclusionGpuResources();
 
@@ -7507,6 +7531,7 @@ void CGameScene::AnimateObjects(float dt)
 	UpdateBossStageSummonSequence(dt);
 	UpdateBossShockwave(dt);
 	UpdateBossCallSummonCircles(dt);
+	UpdateBossCallSummonWwwEffects(dt);
 
 	UpdateEnemySpawnerTimedGhoulWaves(dt);
 #endif
@@ -8432,6 +8457,11 @@ void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* c
 	if ( m_transparentItemBillboardShader )
 	{
 		RenderTransparentItemBillboards(cmd, camera);
+	}
+
+	if ( m_bossCallSummonWwwShader )
+	{
+		RenderBossCallSummonWwwEffects(cmd, camera);
 	}
 
 	if ( m_bossPoisonProjectileShader )

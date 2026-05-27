@@ -941,6 +941,7 @@ void CGameScene::BuildItemBillboardBatch(
 		BuildBossPoisonProjectileBatch(dev, cmd, dsvFormat);
 		BuildSwordTrailBatch(dev, cmd, dsvFormat);
 		BuildMonsterSwordTrailBatch(dev, cmd, dsvFormat);
+		BuildBossCallSummonWwwBatch(dev, cmd, dsvFormat);
 	}
 }
 
@@ -1165,6 +1166,62 @@ void CGameScene::BuildMonsterSwordTrailBatch(
 	}
 }
 
+void CGameScene::BuildBossCallSummonWwwBatch(
+	ID3D12Device* dev,
+	ID3D12GraphicsCommandList* cmd,
+	DXGI_FORMAT dsvFormat)
+{
+	if ( !dev || !cmd )
+		return;
+
+	m_bossCallSummonWwwShader = std::make_shared<CSwordTrailShader>();
+
+	DXGI_FORMAT rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+	m_bossCallSummonWwwShader->CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		1,
+		&rtvFormat,
+		dsvFormat
+	);
+
+	m_bossCallSummonWwwEntries.clear();
+	m_bossCallSummonWwwEntries.resize(kBossCallSummonWwwMaxCount);
+
+	m_bossCallSummonWwwVertexBufferCapacity =
+		kBossCallSummonWwwMaxVertices;
+
+	const UINT bufferBytes =
+		sizeof(SwordTrailVertex) *
+		m_bossCallSummonWwwVertexBufferCapacity;
+
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+	{
+		m_pd3dBossCallSummonWwwVertexBuffer[frameIndex] =
+			::CreateBufferResource(
+				dev,
+				cmd,
+				nullptr,
+				bufferBytes,
+				D3D12_HEAP_TYPE_UPLOAD,
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				nullptr
+			);
+
+		if ( m_pd3dBossCallSummonWwwVertexBuffer[frameIndex] )
+		{
+			m_pd3dBossCallSummonWwwVertexBuffer[frameIndex]->Map(
+				0,
+				nullptr,
+				reinterpret_cast< void** >(
+					&m_pMappedBossCallSummonWwwVertexBuffer[frameIndex]
+					)
+			);
+		}
+	}
+}
+
 void CGameScene::ReleaseMuzzleFlashGpuResources()
 {
 	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
@@ -1247,6 +1304,27 @@ void CGameScene::ReleaseMonsterSwordTrailGpuResources()
 	}
 
 	m_monsterSwordTrailVertexBufferCapacity = 0;
+}
+
+void CGameScene::ReleaseBossCallSummonWwwGpuResources()
+{
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+	{
+		if ( m_pd3dBossCallSummonWwwVertexBuffer[frameIndex] )
+		{
+			if ( m_pMappedBossCallSummonWwwVertexBuffer[frameIndex] )
+			{
+				m_pd3dBossCallSummonWwwVertexBuffer[frameIndex]->Unmap(0, nullptr);
+				m_pMappedBossCallSummonWwwVertexBuffer[frameIndex] = nullptr;
+			}
+
+			m_pd3dBossCallSummonWwwVertexBuffer[frameIndex].Reset();
+		}
+
+		m_pMappedBossCallSummonWwwVertexBuffer[frameIndex] = nullptr;
+	}
+
+	m_bossCallSummonWwwVertexBufferCapacity = 0;
 }
 
 void CGameScene::SpawnMuzzleFlash(
@@ -1684,6 +1762,144 @@ void CGameScene::SpawnMagicCircleGlowParticle(
 			std::clamp(0.16f + brightness * 0.28f, 0.0f, 0.45f)
 		);
 	}
+}
+
+void CGameScene::SpawnBossCallSummonWwwEffect(
+	const XMFLOAT3& center,
+	EEnemySpawnerEnemyKind kind)
+{
+#ifndef USING_NETWORK
+	static std::mt19937 rng{ std::random_device{}( ) };
+
+	static std::uniform_real_distribution<float> zeroOneDist(0.0f, 1.0f);
+	static std::uniform_real_distribution<float> lifeDist(0.95f, 1.30f);
+	static std::uniform_real_distribution<float> seedDist(0.0f, 1000.0f);
+
+	BossCallSummonWwwEntry* entry = nullptr;
+
+	for ( BossCallSummonWwwEntry& candidate : m_bossCallSummonWwwEntries )
+	{
+		if ( candidate.active )
+			continue;
+
+		entry = &candidate;
+		break;
+	}
+
+	if ( !entry )
+		return;
+
+	const float circleSize = GetBossCallSummonCircleSize(kind);
+	const float radius = std::max(0.10f, circleSize * 0.5f);
+
+	XMFLOAT3 fixedCenter = center;
+	fixedCenter.y = 0.0f;
+
+	*entry = BossCallSummonWwwEntry{};
+
+	entry->active = true;
+	entry->center = fixedCenter;
+
+	entry->radius = radius;
+	entry->maxHeight = radius * 2.0f;
+
+	entry->age = 0.0f;
+	entry->lifetime = lifeDist(rng);
+
+	entry->retargetTimer = 0.0f;
+	entry->seed = seedDist(rng);
+
+	// 잔광 색상과 동일 계열.
+	entry->color = XMFLOAT4(0.10f, 0.90f, 0.18f, 0.78f);
+
+	for ( UINT i = 0; i < kBossCallSummonWwwPeakCount; ++i )
+	{
+		const float h = zeroOneDist(rng) * entry->maxHeight;
+
+		entry->peakHeights[i] = h;
+		entry->targetPeakHeights[i] = zeroOneDist(rng) * entry->maxHeight;
+
+		entry->peakMoveSpeeds[i] =
+			entry->maxHeight * ( 2.8f + zeroOneDist(rng) * 4.2f );
+	}
+#else
+	UNREFERENCED_PARAMETER(center);
+	UNREFERENCED_PARAMETER(kind);
+#endif
+}
+
+void CGameScene::UpdateBossCallSummonWwwEffects(float dt)
+{
+#ifndef USING_NETWORK
+	if ( dt <= 0.0f )
+		return;
+
+	static std::mt19937 rng{ std::random_device{}( ) };
+
+	static std::uniform_real_distribution<float> zeroOneDist(0.0f, 1.0f);
+
+	for ( BossCallSummonWwwEntry& entry : m_bossCallSummonWwwEntries )
+	{
+		if ( !entry.active )
+			continue;
+
+		entry.age += dt;
+
+		if ( entry.age >= entry.lifetime )
+		{
+			entry.active = false;
+			continue;
+		}
+
+		entry.retargetTimer -= dt;
+
+		if ( entry.retargetTimer <= 0.0f )
+		{
+			// 모든 꼭짓점을 매번 동시에 바꾸면 규칙적으로 보이므로,
+			// 일부 꼭짓점만 랜덤하게 새 목표 높이를 받는다.
+			for ( UINT i = 0; i < kBossCallSummonWwwPeakCount; ++i )
+			{
+				if ( zeroOneDist(rng) < 0.68f )
+				{
+					entry.targetPeakHeights[i] =
+						zeroOneDist(rng) * entry.maxHeight;
+
+					entry.peakMoveSpeeds[i] =
+						entry.maxHeight *
+						( 2.4f + zeroOneDist(rng) * 5.0f );
+				}
+			}
+
+			entry.retargetTimer =
+				0.035f + zeroOneDist(rng) * 0.085f;
+		}
+
+		for ( UINT i = 0; i < kBossCallSummonWwwPeakCount; ++i )
+		{
+			const float target = entry.targetPeakHeights[i];
+			const float current = entry.peakHeights[i];
+
+			const float maxStep =
+				entry.peakMoveSpeeds[i] * dt;
+
+			const float delta =
+				std::clamp(
+					target - current,
+					-maxStep,
+					maxStep
+				);
+
+			entry.peakHeights[i] =
+				std::clamp(
+					current + delta,
+					0.0f,
+					entry.maxHeight
+				);
+		}
+	}
+#else
+	UNREFERENCED_PARAMETER(dt);
+#endif
 }
 
 void CGameScene::EmitMagicCircleGlowParticles(
@@ -4511,6 +4727,318 @@ void CGameScene::RenderSwordTrails(
 
 		cmd->DrawInstanced(range.vertexCount, 1, range.startVertex, 0);
 	}
+}
+
+void CGameScene::RenderBossCallSummonWwwEffects(
+	ID3D12GraphicsCommandList* cmd,
+	CCamera* camera)
+{
+#ifndef USING_NETWORK
+	if ( !cmd ) return;
+	if ( !camera ) return;
+	if ( !m_bossCallSummonWwwShader ) return;
+
+	const UINT frameIndex = m_nFrameResourceIndex % kSceneBatchFrameResourceCount;
+
+	ID3D12Resource* vertexBuffer =
+		m_pd3dBossCallSummonWwwVertexBuffer[frameIndex].Get();
+
+	SwordTrailVertex* mappedVertexBuffer =
+		m_pMappedBossCallSummonWwwVertexBuffer[frameIndex];
+
+	if ( !vertexBuffer ) return;
+	if ( !mappedVertexBuffer ) return;
+	if ( m_bossCallSummonWwwVertexBufferCapacity == 0 ) return;
+
+	struct DrawRange
+	{
+		UINT startVertex = 0;
+		UINT vertexCount = 0;
+	};
+
+	std::vector<DrawRange> fillRanges;
+	std::vector<DrawRange> outlineRanges;
+
+	fillRanges.reserve(m_bossCallSummonWwwEntries.size());
+	outlineRanges.reserve(m_bossCallSummonWwwEntries.size());
+
+	UINT vertexCursor = 0;
+
+	auto Smooth01 =
+		[ ] (float x) -> float
+		{
+			x = std::clamp(x, 0.0f, 1.0f);
+			return x * x * ( 3.0f - 2.0f * x );
+		};
+
+	auto ComputePoint =
+		[ ](
+			const BossCallSummonWwwEntry& entry,
+			UINT wrappedPoint
+		) -> XMFLOAT3
+		{
+			const UINT basePointCount =
+				kBossCallSummonWwwPeakCount * 2;
+
+			wrappedPoint %= basePointCount;
+
+			const bool isPeak =
+				( wrappedPoint & 1u ) != 0u;
+
+			const UINT peakIndex =
+				( wrappedPoint / 2u ) %
+				kBossCallSummonWwwPeakCount;
+
+			const float angle =
+				XM_2PI *
+				static_cast< float >( wrappedPoint ) /
+				static_cast< float >( basePointCount );
+
+			const float cx = std::cos(angle);
+			const float sz = std::sin(angle);
+
+			const float y =
+				isPeak
+				? entry.peakHeights[peakIndex]
+				: 0.0f;
+
+				XMFLOAT3 p{};
+				p.x = entry.center.x + cx * entry.radius;
+				p.y = entry.center.y + y;
+				p.z = entry.center.z + sz * entry.radius;
+
+				return p;
+		};
+
+	for ( const BossCallSummonWwwEntry& entry : m_bossCallSummonWwwEntries )
+	{
+		if ( !entry.active )
+			continue;
+
+		const UINT neededFillVertices =
+			kBossCallSummonWwwFillVertexCount;
+
+		const UINT neededOutlineVertices =
+			kBossCallSummonWwwOutlineVertexCount;
+
+		const UINT neededVertices =
+			neededFillVertices + neededOutlineVertices;
+
+		if ( vertexCursor + neededVertices >
+			 m_bossCallSummonWwwVertexBufferCapacity )
+		{
+			break;
+		}
+
+		const float ageRatio =
+			( entry.lifetime > 1.0e-6f )
+			? std::clamp(entry.age / entry.lifetime, 0.0f, 1.0f)
+			: 1.0f;
+
+		const float birth =
+			Smooth01(ageRatio / 0.12f);
+
+		const float death =
+			1.0f -
+			Smooth01(( ageRatio - 0.62f ) / 0.38f);
+
+		const float alpha =
+			std::clamp(
+				entry.color.w * birth * death,
+				0.0f,
+				1.0f
+			);
+
+		if ( alpha <= 0.002f )
+			continue;
+
+		const UINT basePointCount =
+			kBossCallSummonWwwPeakCount * 2;
+
+		// -----------------------------------------------------------------
+		// 1) WWW 내부 채움.
+		// 각 peak마다 bottom_i -> peak_i -> bottom_i+1 삼각형을 만든다.
+		// RGB는 잔광과 동일하게 쓰고, additive 과노출 방지를 위해 alpha만 낮춘다.
+		// -----------------------------------------------------------------
+		{
+			const UINT fillStartVertex = vertexCursor;
+
+			const float fillAlpha =
+				std::clamp(alpha * 0.38f, 0.0f, 1.0f);
+
+			const XMFLOAT4 fillColor(
+				entry.color.x,
+				entry.color.y,
+				entry.color.z,
+				fillAlpha
+			);
+
+			for ( UINT peakIndex = 0;
+				  peakIndex < kBossCallSummonWwwPeakCount;
+				  ++peakIndex )
+			{
+				const UINT bottomAIndex =
+					peakIndex * 2u;
+
+				const UINT peakPointIndex =
+					peakIndex * 2u + 1u;
+
+				const UINT bottomBIndex =
+					( peakIndex * 2u + 2u ) % basePointCount;
+
+				const XMFLOAT3 bottomA =
+					ComputePoint(entry, bottomAIndex);
+
+				const XMFLOAT3 peak =
+					ComputePoint(entry, peakPointIndex);
+
+				const XMFLOAT3 bottomB =
+					ComputePoint(entry, bottomBIndex);
+
+				SwordTrailVertex& v0 =
+					mappedVertexBuffer[vertexCursor++];
+
+				v0.position = bottomA;
+				v0.uv = XMFLOAT2(1.0f, 0.5f);
+				v0.color = fillColor;
+
+				SwordTrailVertex& v1 =
+					mappedVertexBuffer[vertexCursor++];
+
+				v1.position = peak;
+				v1.uv = XMFLOAT2(1.0f, 0.5f);
+				v1.color = fillColor;
+
+				SwordTrailVertex& v2 =
+					mappedVertexBuffer[vertexCursor++];
+
+				v2.position = bottomB;
+				v2.uv = XMFLOAT2(1.0f, 0.5f);
+				v2.color = fillColor;
+			}
+
+			DrawRange fillRange{};
+			fillRange.startVertex = fillStartVertex;
+			fillRange.vertexCount = vertexCursor - fillStartVertex;
+
+			if ( fillRange.vertexCount >= 3 )
+				fillRanges.push_back(fillRange);
+		}
+
+		// -----------------------------------------------------------------
+		// 2) WWW 외곽선.
+		// 기존처럼 원 둘레를 따라 두께 있는 TRIANGLESTRIP을 만든다.
+		// -----------------------------------------------------------------
+		{
+			const float halfThickness =
+				std::max(0.035f, entry.radius * 0.030f);
+
+			const UINT outlineStartVertex = vertexCursor;
+
+			const XMFLOAT4 outlineColor(
+				entry.color.x,
+				entry.color.y,
+				entry.color.z,
+				alpha
+			);
+
+			for ( UINT pointIndex = 0;
+				  pointIndex < kBossCallSummonWwwPathPointCount;
+				  ++pointIndex )
+			{
+				const UINT wrappedPoint =
+					pointIndex % basePointCount;
+
+				const float angle =
+					XM_2PI *
+					static_cast< float >(wrappedPoint) /
+					static_cast< float >(basePointCount);
+
+				const float cx = std::cos(angle);
+				const float sz = std::sin(angle);
+
+				const XMFLOAT3 radial(cx, 0.0f, sz);
+				const XMFLOAT3 p =
+					ComputePoint(entry, wrappedPoint);
+
+				SwordTrailVertex& v0 =
+					mappedVertexBuffer[vertexCursor++];
+
+				v0.position = XMFLOAT3(
+					p.x - radial.x * halfThickness,
+					p.y,
+					p.z - radial.z * halfThickness
+				);
+
+				v0.uv = XMFLOAT2(1.0f, 0.0f);
+				v0.color = outlineColor;
+
+				SwordTrailVertex& v1 =
+					mappedVertexBuffer[vertexCursor++];
+
+				v1.position = XMFLOAT3(
+					p.x + radial.x * halfThickness,
+					p.y,
+					p.z + radial.z * halfThickness
+				);
+
+				v1.uv = XMFLOAT2(1.0f, 1.0f);
+				v1.color = outlineColor;
+			}
+
+			DrawRange outlineRange{};
+			outlineRange.startVertex = outlineStartVertex;
+			outlineRange.vertexCount = vertexCursor - outlineStartVertex;
+
+			if ( outlineRange.vertexCount >= 4 )
+				outlineRanges.push_back(outlineRange);
+		}
+	}
+
+	if ( fillRanges.empty() && outlineRanges.empty() )
+		return;
+
+	m_bossCallSummonWwwShader->Render(cmd, camera, nullptr);
+
+	D3D12_VERTEX_BUFFER_VIEW vbView{};
+	vbView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
+	vbView.SizeInBytes = sizeof(SwordTrailVertex) * vertexCursor;
+	vbView.StrideInBytes = sizeof(SwordTrailVertex);
+
+	cmd->IASetVertexBuffers(0, 1, &vbView);
+	cmd->IASetIndexBuffer(nullptr);
+
+	// 내부 면 먼저 그림.
+	if ( !fillRanges.empty() )
+	{
+		cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		for ( const DrawRange& range : fillRanges )
+		{
+			if ( range.vertexCount < 3 )
+				continue;
+
+			cmd->DrawInstanced(range.vertexCount, 1, range.startVertex, 0);
+		}
+	}
+
+	// 외곽선은 나중에 그려서 WWW 윤곽이 살아나게 한다.
+	if ( !outlineRanges.empty() )
+	{
+		cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+		for ( const DrawRange& range : outlineRanges )
+		{
+			if ( range.vertexCount < 4 )
+				continue;
+
+			cmd->DrawInstanced(range.vertexCount, 1, range.startVertex, 0);
+		}
+	}
+#else
+	UNREFERENCED_PARAMETER(cmd);
+	UNREFERENCED_PARAMETER(camera);
+#endif
 }
 
 void CGameScene::RenderMonsterSwordTrails(
