@@ -1411,6 +1411,7 @@ private:
 
 	void PlayEnemySpawnerSirenSfxAt(const XMFLOAT3& position);
 	void PlayBossSpellSfxAt(const XMFLOAT3& position);
+	void PlayBossDeathSfxAt(const XMFLOAT3& position);
 
 	void PlayBossShockwaveWindSfxAt(const XMFLOAT3& position);
 	void UpdateBossShockwaveWindSfx(float currentRadius);
