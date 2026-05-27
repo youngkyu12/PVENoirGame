@@ -10,3 +10,4 @@
 #include "PostProcess.hlsl"
 #include "DepthFog.hlsl"
 #include "Shadows.hlsl"
+#include "Terrain.hlsl"

@@ -691,4 +691,9 @@
       <Filter>Resource\HLSL</Filter>
     </None>
   </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Terrain.hlsl">
+      <Filter>Resource\HLSL</Filter>
+    </FxCompile>
+  </ItemGroup>
 </Project>

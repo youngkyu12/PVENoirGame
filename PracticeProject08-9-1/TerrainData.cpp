@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "TerrainData.h"
 #include "HeightMapImage.h"
+#include "Texture.h"
 
 TerrainData::TerrainData(
 	LPCTSTR pFileName, int nWidth, int nLength, int nBlockWidth, int nBlockLength, 
@@ -107,7 +108,89 @@ int TerrainData::GetnBlockLength() const
 	return m_nBlockLength;
 }
 
+void TerrainData::SetHeightMapTexture(std::shared_ptr<CTexture> texture)
+{
+	m_heightMapTexture = texture;
+	srvHeightMapIndex = texture ? texture->GetBaseSrvIndex() : UINT_MAX;
+}
+
+void TerrainData::SetHeightMapSrvIndex(UINT srvIndex)
+{
+	srvHeightMapIndex = srvIndex;
+}
+
+UINT TerrainData::GetsrvIndex() const
+{
+	return srvHeightMapIndex;
+}
+
 HeightMapImage* TerrainData::GetHeightMapImage() const
 {
 	return m_heightMapImage;
+}
+
+void TerrainData::SetGrassDiffuseTexture(std::shared_ptr<CTexture> texture)
+{
+	m_grassDiffuseTexture = texture;
+	srvGrassDiffuseIndex = texture ? texture->GetBaseSrvIndex() : UINT_MAX;
+}
+
+void TerrainData::SetGroundDiffuseTexture(std::shared_ptr<CTexture> texture)
+{
+	m_groundDiffuseTexture = texture;
+	srvGroundDiffuseIndex = texture ? texture->GetBaseSrvIndex() : UINT_MAX;
+}
+
+void TerrainData::SetDirtDiffuseTexture(std::shared_ptr<CTexture> texture)
+{
+	m_dirtDiffuseTexture = texture;
+	srvDirtDiffuseIndex = texture ? texture->GetBaseSrvIndex() : UINT_MAX;
+}
+
+void TerrainData::SetGrassNormalTexture(std::shared_ptr<CTexture> texture)
+{
+	m_grassNormalTexture = texture;
+	srvGrassNormalIndex = texture ? texture->GetBaseSrvIndex() : UINT_MAX;
+}
+
+void TerrainData::SetGroundNormalTexture(std::shared_ptr<CTexture> texture)
+{
+	m_groundNormalTexture = texture;
+	srvGroundNormalIndex = texture ? texture->GetBaseSrvIndex() : UINT_MAX;
+}
+
+void TerrainData::SetDirtNormalTexture(std::shared_ptr<CTexture> texture)
+{
+	m_dirtNormalTexture = texture;
+	srvDirtNormalIndex = texture ? texture->GetBaseSrvIndex() : UINT_MAX;
+}
+
+UINT TerrainData::GetGrassDiffuseSrvIndex() const
+{
+	return srvGrassDiffuseIndex;
+}
+
+UINT TerrainData::GetGroundDiffuseSrvIndex() const
+{
+	return srvGroundDiffuseIndex;
+}
+
+UINT TerrainData::GetDirtDiffuseSrvIndex() const
+{
+	return srvDirtDiffuseIndex;
+}
+
+UINT TerrainData::GetGrassNormalSrvIndex() const
+{
+	return srvGrassNormalIndex;
+}
+
+UINT TerrainData::GetGroundNormalSrvIndex() const
+{
+	return srvGroundNormalIndex;
+}
+
+UINT TerrainData::GetDirtNormalSrvIndex() const
+{
+	return srvDirtNormalIndex;
 }

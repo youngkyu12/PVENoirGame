@@ -1,6 +1,8 @@
 #pragma once
+#include <memory>
 
 class HeightMapImage;
+class CTexture;
 
 class TerrainData
 {
@@ -28,7 +30,27 @@ public:
 	float GetWorldLength() const;
 	int GetnBlockWidth() const;
 	int GetnBlockLength() const;
+	void SetHeightMapTexture(std::shared_ptr<CTexture> texture);
+	void SetHeightMapSrvIndex(UINT srvIndex);
+
+	UINT GetsrvIndex() const;
 	HeightMapImage* GetHeightMapImage() const;
+
+	void SetGrassDiffuseTexture(std::shared_ptr<CTexture> texture);
+	void SetGroundDiffuseTexture(std::shared_ptr<CTexture> texture);
+	void SetDirtDiffuseTexture(std::shared_ptr<CTexture> texture);
+
+	void SetGrassNormalTexture(std::shared_ptr<CTexture> texture);
+	void SetGroundNormalTexture(std::shared_ptr<CTexture> texture);
+	void SetDirtNormalTexture(std::shared_ptr<CTexture> texture);
+
+	UINT GetGrassDiffuseSrvIndex() const;
+	UINT GetGroundDiffuseSrvIndex() const;
+	UINT GetDirtDiffuseSrvIndex() const;
+
+	UINT GetGrassNormalSrvIndex() const;
+	UINT GetGroundNormalSrvIndex() const;
+	UINT GetDirtNormalSrvIndex() const;
 
 private:
 	HeightMapImage* m_heightMapImage = nullptr;
@@ -40,4 +62,23 @@ private:
 	int m_nBlockLength = 0;
 
 	XMFLOAT3 m_xmf3Scale;
+
+	std::shared_ptr<CTexture> m_heightMapTexture;
+	UINT srvHeightMapIndex = UINT_MAX;
+
+	std::shared_ptr<CTexture> m_grassDiffuseTexture;
+	std::shared_ptr<CTexture> m_groundDiffuseTexture;
+	std::shared_ptr<CTexture> m_dirtDiffuseTexture;
+
+	std::shared_ptr<CTexture> m_grassNormalTexture;
+	std::shared_ptr<CTexture> m_groundNormalTexture;
+	std::shared_ptr<CTexture> m_dirtNormalTexture;
+
+	UINT srvGrassDiffuseIndex = UINT_MAX;
+	UINT srvGroundDiffuseIndex = UINT_MAX;
+	UINT srvDirtDiffuseIndex = UINT_MAX;
+
+	UINT srvGrassNormalIndex = UINT_MAX;
+	UINT srvGroundNormalIndex = UINT_MAX;
+	UINT srvDirtNormalIndex = UINT_MAX;
 };

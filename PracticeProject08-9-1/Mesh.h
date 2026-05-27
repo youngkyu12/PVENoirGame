@@ -74,6 +74,25 @@ struct BinMaterial
 	BinMaterialTexTransform normalTransform{};
 	BinMaterialTexTransform emissiveTransform{};
 	BinMaterialTexTransform specularTransform{};
+
+	void Init()
+	{
+		name.clear();
+
+		diffuseTextureName.clear();
+		normalTextureName.clear();
+		emissiveTextureName.clear();
+		specularTextureName.clear();
+
+		diffuseColor  = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+		emissiveColor = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+		specularColor = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+
+		diffuseTransform  = BinMaterialTexTransform{};
+		normalTransform   = BinMaterialTexTransform{};
+		emissiveTransform = BinMaterialTexTransform{};
+		specularTransform = BinMaterialTexTransform{};
+	}
 };
 
 struct SubMesh
@@ -205,13 +224,13 @@ public:
 	const std::vector<BinMaterial>& GetBinMaterials() const { return m_BinMaterials; }
 	const std::string& GetSourceMeshPath() const { return m_sourceMeshPath; }
 
-private:
+protected:
 	std::vector<BinMaterial> m_BinMaterials;
 	std::unordered_map<std::string, uint32_t> m_BinMaterialNameToIndex; // 있으면 편함(선택)
 
 };
 
-class CHeightMapGridMesh : public CMesh
+class CGridMesh : public CMesh
 {
 protected:
 	//격자의 크기(가로: x-방향, 세로: z-방향)이다.
@@ -225,11 +244,11 @@ protected:
 	XMFLOAT3 m_xmf3Scale;
 
 public:
-	CHeightMapGridMesh(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList
+	CGridMesh(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList
 		* pd3dCommandList, int nBlockWidth, int nBlockLength, int nWidth, int nLength, XMFLOAT3 xmf3Scale =
 		XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT4 xmf4Color = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f), void
 		* pContext = NULL);
-	virtual ~CHeightMapGridMesh();
+	virtual ~CGridMesh();
 
 	XMFLOAT3 GetScale() { return(m_xmf3Scale); }
 	int GetWidth() { return(m_nWidth); }

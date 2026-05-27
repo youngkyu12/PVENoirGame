@@ -132,7 +132,7 @@ std::shared_ptr<CMesh> AssetManager::CreateMesh(
 		if (!heightMap)
 			return nullptr;
 		
-		return std::make_shared<CHeightMapGridMesh>(
+		return std::make_shared<CGridMesh>(
 			device,
 			cmd,
 			desc.terrainData->GetnBlockWidth(),
