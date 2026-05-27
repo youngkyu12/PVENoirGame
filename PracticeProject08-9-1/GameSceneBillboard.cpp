@@ -4063,6 +4063,8 @@ void CGameScene::SpawnBossPoisonProjectile(CGameObject* boss)
 	entry->dustEmitAccumulatorSec = 0.0f;
 
 	entry->hitPlayerSlots.fill(false);
+
+	PlayBossSpellSfxAt(spawnPos);
 #else
 	UNREFERENCED_PARAMETER(boss);
 #endif
