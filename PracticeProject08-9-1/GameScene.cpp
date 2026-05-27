@@ -5747,13 +5747,17 @@ void CGameScene::RefreshPlayerWeaponAttackPowers()
 
 void CGameScene::RefreshPlayerWeaponDamageTierFromClearedMegaGrids()
 {
+	const int oldTier = m_playerWeaponDamageTierIndex;
 	const int newTier = ComputePlayerWeaponDamageTierIndexFromClearedMegaGrids();
 
-	if ( newTier == m_playerWeaponDamageTierIndex )
+	if ( newTier == oldTier )
 		return;
 
 	m_playerWeaponDamageTierIndex = newTier;
 	RefreshPlayerWeaponAttackPowers();
+
+	if ( newTier > oldTier )
+		SpawnWeaponLevelUpFireworks();
 }
 
 void CGameScene::MarkMegaGridClearedByNumber(int megaGridNumber)
