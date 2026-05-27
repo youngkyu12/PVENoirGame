@@ -253,4 +253,5 @@ namespace GameSceneHelper
 	constexpr float kTerrainHorizontalScale = 
 		kTerrainWorldSize / static_cast<float>(kTerrainHeightMapSamples - 1);
 	constexpr float kTerrainHalfWorldSize = kTerrainWorldSize * 0.5f;
+
 }

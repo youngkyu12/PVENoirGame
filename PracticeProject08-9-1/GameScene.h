@@ -1153,6 +1153,16 @@ private:
 	std::shared_ptr<TerrainData> m_TerrainData;
 	std::shared_ptr<CTerrainShader> m_terrainShader;
 	std::unordered_set<CGameObject*> m_terrainObjects;
+
+
+	bool ShouldAttachStaticObjectToTerrain(const std::string& assetName)
+	{
+		return
+			assetName != "Terrain" &&
+			assetName != "Grass" &&
+			assetName != "Ground" &&
+			assetName != "DirtRoad";
+	}
 	
 	void BuildStaticWorldSubmeshOOBBDebugObjects(
 	ID3D12Device* dev,

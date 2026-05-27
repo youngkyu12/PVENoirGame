@@ -413,6 +413,7 @@
       <Filter>EnemySpawner</Filter>
     </ClInclude>
     <ClInclude Include="TerrainData.h" />
+    <ClInclude Include="TerrainAttachComponent.h" />
     <ClInclude Include="TerrainComponent.h" />
     <ClInclude Include="HeightMapImage.h" />
   </ItemGroup>
@@ -622,6 +623,7 @@
       <Filter>Scene\GameScene</Filter>
     </ClCompile>
     <ClCompile Include="TerrainData.cpp" />
+    <ClCompile Include="TerrainAttachComponent.cpp" />
     <ClCompile Include="TerrainComponent.cpp" />
     <ClCompile Include="HeightMapImage.cpp" />
   </ItemGroup>
