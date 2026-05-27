@@ -252,6 +252,34 @@ struct MonsterSwordTrailEntry
 	std::vector<MonsterSwordTrailSample> samples;
 };
 
+static constexpr UINT kBossCallSummonWwwPeakCount = 16;
+
+struct BossCallSummonWwwEntry
+{
+	bool active = false;
+
+	XMFLOAT3 center = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	// 마법진 정사각형 한 변이 지름이므로 radius = circleSize * 0.5f.
+	float radius = 1.0f;
+
+	// 요구사항상 WWW 높이는 마법진 반지름 길이.
+	float maxHeight = 1.0f;
+
+	float age = 0.0f;
+	float lifetime = 1.10f;
+
+	float retargetTimer = 0.0f;
+
+	std::array<float, kBossCallSummonWwwPeakCount> peakHeights = {};
+	std::array<float, kBossCallSummonWwwPeakCount> targetPeakHeights = {};
+	std::array<float, kBossCallSummonWwwPeakCount> peakMoveSpeeds = {};
+
+	float seed = 0.0f;
+
+	XMFLOAT4 color = XMFLOAT4(0.10f, 0.90f, 0.18f, 0.75f);
+};
+
 enum class EItemBillboardKind : UINT
 {
 	Key = 0,
@@ -588,9 +616,9 @@ private:
 	void RenderSwordTrails(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 	void BuildMonsterSwordTrailBatch(
-	ID3D12Device* dev,
-	ID3D12GraphicsCommandList* cmd,
-	DXGI_FORMAT dsvFormat
+		ID3D12Device* dev,
+		ID3D12GraphicsCommandList* cmd,
+		DXGI_FORMAT dsvFormat
 	);
 
 	void ReleaseMonsterSwordTrailGpuResources();
@@ -598,6 +626,22 @@ private:
 	void BeginSwordManSwordTrail(CGameObject* swordman);
 	void UpdateMonsterSwordTrails(float dt);
 	void RenderMonsterSwordTrails(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
+	void BuildBossCallSummonWwwBatch(
+		ID3D12Device* dev,
+		ID3D12GraphicsCommandList* cmd,
+		DXGI_FORMAT dsvFormat
+	);
+
+	void ReleaseBossCallSummonWwwGpuResources();
+
+	void SpawnBossCallSummonWwwEffect(
+		const XMFLOAT3& center,
+		EEnemySpawnerEnemyKind kind
+	);
+
+	void UpdateBossCallSummonWwwEffects(float dt);
+	void RenderBossCallSummonWwwEffects(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 	void UpdateItemBillboardPickupCollision();
 	bool DoesPlayerOverlapItemBillboard(const CGameObject* player, const ItemBillboardEntry& item) const;
@@ -1182,6 +1226,34 @@ private:
 	std::array<MonsterSwordTrailVertex*, kSceneBatchFrameResourceCount> m_pMappedMonsterSwordTrailVertexBuffer = {};
 	UINT m_monsterSwordTrailVertexBufferCapacity = 0;
 
+	static constexpr UINT kBossCallSummonWwwMaxCount = 64;
+
+	static constexpr UINT kBossCallSummonWwwPathPointCount =
+		kBossCallSummonWwwPeakCount * 2 + 1;
+
+	// 외곽선: path point마다 안쪽/바깥쪽 2개 vertex.
+	static constexpr UINT kBossCallSummonWwwOutlineVertexCount =
+		kBossCallSummonWwwPathPointCount * 2;
+
+	// 내부 채움: W 한 개당 삼각형 1개, 삼각형당 vertex 3개.
+	static constexpr UINT kBossCallSummonWwwFillVertexCount =
+		kBossCallSummonWwwPeakCount * 3;
+
+	static constexpr UINT kBossCallSummonWwwMaxVertices =
+		kBossCallSummonWwwMaxCount *
+		(
+			kBossCallSummonWwwOutlineVertexCount +
+			kBossCallSummonWwwFillVertexCount
+		);
+
+	std::shared_ptr<CSwordTrailShader> m_bossCallSummonWwwShader;
+
+	std::vector<BossCallSummonWwwEntry> m_bossCallSummonWwwEntries;
+
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dBossCallSummonWwwVertexBuffer;
+	std::array<SwordTrailVertex*, kSceneBatchFrameResourceCount> m_pMappedBossCallSummonWwwVertexBuffer = {};
+	UINT m_bossCallSummonWwwVertexBufferCapacity = 0;
+
 	std::vector<CGameObject*> m_ghoulRefs;
 	std::vector<CGameObject*> m_swordManRefs;
 	std::vector<CGameObject*> m_bowManRefs;
@@ -1670,8 +1742,8 @@ private:
 
 	// 보스 Call 몬스터 소환 마법진 전용 파티클 크기 배율.
 	// 보스 본인 등장 마법진에는 적용하지 않는다.
-	static constexpr float kBossCallSummonGlowParticleSizeScale = 1.85f;
-	static constexpr float kBossCallSummonAfterimageParticleSizeScale = 1.55f;
+	static constexpr float kBossCallSummonGlowParticleSizeScale = 2.60f;
+	static constexpr float kBossCallSummonAfterimageParticleSizeScale = 2.20f;
 
 	struct BossCallSummonCircleVisualState
 	{
