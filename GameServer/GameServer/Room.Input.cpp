@@ -2,7 +2,7 @@
 #include "Room.h"
 #include "Player.h"
 
-void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float deltaY)
+void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float deltaY, float clientDeltaTime)
 {
 	auto it = players.find(playerId);
 	if (it == players.end())
@@ -12,10 +12,18 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	if (!player)
 		return;
 
+	if (player->HasPendingPortalTeleport())
+	{
+		player->SetVelocity(GameMath::Vec3::Zero());
+		player->ClearMoveKeyCodes();
+		return;
+	}
+
 	// [추가] 죽음/리스폰 중 입력 차단
 	if (player->IsDead() || player->IsInputBlocked())
 	{
 		player->SetVelocity(GameMath::Vec3::Zero());
+		player->ClearMoveKeyCodes();
 		return;
 	}
 
@@ -33,7 +41,15 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	constexpr int kDirLButton = 1 << 7;
 	constexpr int kDirRun = 1 << 8;
 	constexpr int kDirRoll = 1 << 9;
+	constexpr int kDirMoveMask = kDirForward | kDirBackward | kDirLeft | kDirRight;
+	constexpr int kDirPacketMoveMask = kDirMoveMask | kDirRun;
 
+	const int32 moveKeyCodes = keyCodes & kDirMoveMask;
+	const int32 packetMoveKeyCodes = (moveKeyCodes != 0) ? (keyCodes & kDirPacketMoveMask) : 0;
+	player->SetLastMoveKeyCodes(packetMoveKeyCodes);
+
+	const uint32 animClockTick = GetAnimClockTick();
+	const uint32 combatClockTick = GetCombatClockTick();
 	Protocol::AnimationType prevAnimState = player->GetAnimState();
 
 	if ((keyCodes & kDirLButton) != 0)
@@ -41,10 +57,10 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		switch (player->GetWeaponState())
 		{
 		case Protocol::WEAPON_TYPE_BOW:
-			if (player->GetWeapon().BeginAttack(tick.load()))
+			if (player->GetWeapon().BeginAttack(combatClockTick))
 			{
 				player->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
-				player->SetAnimTick(tick.load());
+				player->SetAnimTick(animClockTick);
 				//player->SetVelocity(GameMath::Vec3::Zero());
 			}
 			break;
@@ -67,24 +83,34 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		prevAnimState != Protocol::ANIMATION_TYPE_ROLL &&
 		prevAnimState != Protocol::ANIMATION_TYPE_HIT)
 	{
-		player->SetAnimState(keyCodes & (kDirForward | kDirBackward | kDirLeft | kDirRight) ?
+		player->SetAnimState(moveKeyCodes != 0 ?
 			(keyCodes & kDirRun ? Protocol::ANIMATION_TYPE_RUN : Protocol::ANIMATION_TYPE_WALK) :
 			Protocol::ANIMATION_TYPE_IDLE);
 	}
 
-	player->SetAnimState(keyCodes & (kDirForward | kDirBackward | kDirLeft | kDirRight) &&
-		keyCodes & kDirRoll
-		&& (prevAnimState != Protocol::ANIMATION_TYPE_ROLL)
-		? Protocol::ANIMATION_TYPE_ROLL : player->GetAnimState());
+	const bool rollStarted = moveKeyCodes != 0 &&
+		(keyCodes & kDirRoll) != 0 &&
+		prevAnimState != Protocol::ANIMATION_TYPE_ROLL;
+	if (rollStarted)
+	{
+		player->SetRollMoveKeyCodes(packetMoveKeyCodes);
+		player->SetAnimState(Protocol::ANIMATION_TYPE_ROLL);
+	}
 
 	if (player->GetAnimState() != prevAnimState)
-		player->SetAnimTick(tick);
+		player->SetAnimTick(animClockTick);
 
 	GameMath::Vec3 look = player->GetLook();
 	GameMath::Vec3 right = player->GetRight();
 
 	const float speed = 5.0f;
-	const float dt = 0.06f;
+	float dt = clientDeltaTime;
+	if (!(dt > 0.0f))
+		dt = m_timing.playerInputDtSec;
+	if (dt < 0.001f)
+		dt = 0.001f;
+	if (dt > 0.05f)
+		dt = 0.05f;
 	float fDistance = speed * dt;
 
 	GameMath::Vec3 shift = GameMath::Vec3::Zero();
@@ -104,14 +130,15 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	if (keyCodes & kDirRight)
 	{
 		moveDirection += right;
-		fDistance *= 0.5f;
 	}
 
 	if (keyCodes & kDirLeft)
 	{
 		moveDirection -= right;
-		fDistance *= 0.5f;
 	}
+
+	if (GameMath::Vec3::Dot(moveDirection, moveDirection) > 1e-8f)
+		moveDirection = moveDirection.Normalized();
 
 	switch (player->GetAnimState())
 	{
@@ -139,6 +166,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		case Protocol::ANIMATION_TYPE_RUN:
 		{
 			fDistance *= 2.0f;
+			break;
 		}
 		case Protocol::ANIMATION_TYPE_WALK:
 		{
@@ -171,15 +199,25 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	}
 	shift += moveDirection * fDistance;
 
-	const float moveMul = (player->GetAnimState() == Protocol::ANIMATION_TYPE_RUN
-		&& !(player->GetAnimState() == Protocol::ANIMATION_TYPE_ROLL 
-			|| player->GetAnimState() == Protocol::ANIMATION_TYPE_ATTACK)) 
-		? 2.0f : 1.0f;
-	GameMath::Vec3 desiredShift = shift * moveMul;
+	GameMath::Vec3 desiredShift = shift;
 
 	if (GameMath::Vec3::Dot(desiredShift, desiredShift) > 1e-8f)
-		desiredShift = ResolvePreBlockedShift(player, desiredShift);
+	{
+		if (TryQueuePortalTeleportFromBlockedMove(player, desiredShift))
+		{
+			player->SetVelocity(GameMath::Vec3::Zero());
+			player->ClearMoveKeyCodes();
+			return;
+		}
 
-	shift = desiredShift / moveMul;
-	player->SetVelocity(shift);
+		desiredShift = ResolvePreBlockedShift(player, desiredShift);
+	}
+
+	player->SetVelocity(player->GetVelocity() + desiredShift);
+
+	//cout << "=====" << player->GetObjectId() << " Input Access!" << 
+	//	 "=====" << endl << endl;
+	//cout << "desiredShift:" << desiredShift.x << ", " << desiredShift.y << ", " << desiredShift.z << endl;
+	//cout << "Client DeltaTime: " << clientDeltaTime << endl;
+	//cout << "==============================================" << endl;
 }

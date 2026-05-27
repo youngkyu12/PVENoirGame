@@ -60,7 +60,7 @@ float4 PSTextured(VS_TEXTURED_OUTPUT input, uint nPrimitiveID : SV_PrimitiveID) 
 {
     MATERIAL mat = gMaterials[gnMaterialID];
 
-    float2 diffuseUV = GetDiffuseUV(gnMaterialID, input.uv);
+    float2 diffuseUV = GetDiffuseUVFromMaterial(mat, input.uv);
 
     float4 diffuseSample = SampleTextureRGBA(
         mat.TextureIndices.x,
@@ -121,11 +121,11 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
     uint materialId = input.materialId;
     MATERIAL mat = gMaterials[materialId];
 
-    float2 diffuseUV = GetDiffuseUV(materialId, input.uv);
-    float2 normalUV = GetNormalUV(materialId, input.uv);
-    float2 emissiveUV = GetEmissiveUV(materialId, input.uv);
-    float2 specularUV = GetSpecularUV(materialId, input.uv);
-
+    float2 diffuseUV = GetDiffuseUVFromMaterial(mat, input.uv);
+    float2 normalUV = GetNormalUVFromMaterial(mat, input.uv);
+    float2 emissiveUV = GetEmissiveUVFromMaterial(mat, input.uv);
+    float2 specularUV = GetSpecularUVFromMaterial(mat, input.uv);
+    
     float4 diffuseSample = SampleTextureRGBA(
         mat.TextureIndices.x,
         diffuseUV,
@@ -179,11 +179,11 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs_AlphaClip(
     uint materialId = input.materialId;
     MATERIAL mat = gMaterials[materialId];
 
-    float2 diffuseUV = GetDiffuseUV(materialId, input.uv);
-    float2 normalUV = GetNormalUV(materialId, input.uv);
-    float2 emissiveUV = GetEmissiveUV(materialId, input.uv);
-    float2 specularUV = GetSpecularUV(materialId, input.uv);
-
+    float2 diffuseUV = GetDiffuseUVFromMaterial(mat, input.uv);
+    float2 normalUV = GetNormalUVFromMaterial(mat, input.uv);
+    float2 emissiveUV = GetEmissiveUVFromMaterial(mat, input.uv);
+    float2 specularUV = GetSpecularUVFromMaterial(mat, input.uv);
+    
     float4 diffuseSample = SampleTextureRGBA(
         mat.TextureIndices.x,
         diffuseUV,

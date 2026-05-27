@@ -1,6 +1,7 @@
 #pragma once
 
 #include "BaseComponent.h"
+#include <functional>
 #include <vector>
 
 class CColliderComponent;
@@ -11,10 +12,13 @@ public:
 	explicit CCollisionSystem();
 
 	void OnUpdate();
+	using CollisionPairFilter = std::function<bool(const CColliderComponent*, const CColliderComponent*)>;
+	void OnUpdateFiltered(const CollisionPairFilter& filter);
 
 	void RegisterCollider(CColliderComponent* c);
 	void UnregisterCollider(CColliderComponent* c);
 
+	bool TestIntersection(const CColliderComponent* a, const CColliderComponent* b) const;
 	bool HasCollisionWithWorldStatic(const CColliderComponent* subject) const;
 
 	size_t GetCollidersNum() const;

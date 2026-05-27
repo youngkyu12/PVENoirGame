@@ -86,13 +86,17 @@ CMonsterAnimController* CAnimatorComponent::EnsureMonsterController()
 	return m_pMonsterController.get();
 }
 
-void CAnimatorComponent::AddClip(const AnimationClip& clip)
+void CAnimatorComponent::AddClip(AnimationClipRef clip)
 {
-    CAnimator* anim = EnsureAnimator();
-    if (!anim) return;
+	CAnimator* anim = EnsureAnimator();
+	if ( !anim )
+		return;
 
-    SyncSkeletonIfPossible();
-    anim->AddClip(clip);
+	if ( !clip )
+		return;
+
+	SyncSkeletonIfPossible();
+	anim->AddClip(std::move(clip));
 }
 
 bool CAnimatorComponent::HasClip(const char* name) const

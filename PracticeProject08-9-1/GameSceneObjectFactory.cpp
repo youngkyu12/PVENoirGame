@@ -35,17 +35,17 @@ namespace
 
 		for ( const auto& clipInfo : clipList )
 		{
-			AnimationClip clip{};
-			if ( AssetManager::LoadCachedClip(
-				mesh,
-				skeletonKey,
-				clipInfo.filePath,
-				clipInfo.clipName,
-				clip,
-				1.0f) )
-			{
+			AssetManager::AnimationClipRef clip =
+				AssetManager::LoadCachedClipRef(
+					mesh,
+					skeletonKey,
+					clipInfo.filePath,
+					clipInfo.clipName,
+					1.0f
+				);
+
+			if ( clip )
 				animComp->AddClip(clip);
-			}
 		}
 	}
 }
@@ -60,13 +60,11 @@ void GameSceneObjectFactory::PreloadClipSet(
 
 	for ( const auto& clipInfo : clipList )
 	{
-		AnimationClip clip{};
-		AssetManager::LoadCachedClip(
+		AssetManager::LoadCachedClipRef(
 			mesh,
 			skeletonKey,
 			clipInfo.filePath,
 			clipInfo.clipName,
-			clip,
 			1.0f
 		);
 	}
@@ -151,6 +149,11 @@ std::unique_ptr<CGameObject> GameSceneObjectFactory::CreateStaticRenderable(cons
 	obj->CreateComponents(desc.ctx.device, desc.ctx.cmd);
 
 	return obj;
+}
+
+std::unique_ptr<CGameObject> GameSceneObjectFactory::CreateTerrainRenderable(const StaticRenderableDesc& desc)
+{
+	return std::unique_ptr<CGameObject>();
 }
 
 std::unique_ptr<CGameObject> GameSceneObjectFactory::CreateSkinnedRenderable(const SkinnedRenderableDesc& desc)

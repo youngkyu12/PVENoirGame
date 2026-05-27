@@ -13,10 +13,12 @@
 #include "DepthFog.h"
 #include "GameSceneHUD.h"
 #include "ShadowMap.h"
+#include "EnemySpawner.h"
 
 #include <unordered_map>
 #include <unordered_set>
 #include <cstdint>
+#include <deque>
 
 class CMaterial;
 class CMesh;
@@ -29,6 +31,16 @@ class CCollisionSystem;
 class CTexture;
 class CNavMesh;
 class CStaticMeshRendererComponent;
+class CSkinnedMeshRendererComponent;
+class CSkinningComponent;
+class CAnimatorComponent;
+class CHealthComponent;
+class CActorTagComponent;
+
+namespace FMOD
+{
+	class Channel;
+}
 
 struct CB_GAMEOBJECT_INFO;
 
@@ -77,6 +89,8 @@ enum class EMuzzleFlashKind : UINT
 	Ring = 1,
 	Spark = 2,
 	Blood = 3,
+	PoisonDust = 4,
+	BossMeleeSlash = 5,
 };
 
 struct MuzzleFlashInstanceVertex
@@ -92,7 +106,7 @@ struct MuzzleFlashInstanceVertex
 	// x = ageRatio, y = intensity, z = rotationRad, w = seed
 	XMFLOAT4 params0 = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
 
-	// x = kind (0=core, 1=ring, 2=spark)
+	// x = kind (0=core, 1=ring, 2=spark, 3=blood, 4=poison dust, 5=boss melee slash)
 	// y = reserved
 	// z = reserved
 	// w = reserved
@@ -106,6 +120,10 @@ struct MuzzleFlashEntry
 
 	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
 	XMFLOAT3 velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	XMFLOAT3 axisRight = XMFLOAT3(1.0f, 0.0f, 0.0f);
+	XMFLOAT3 axisUp = XMFLOAT3(0.0f, 1.0f, 0.0f);
+	XMFLOAT3 axisForward = XMFLOAT3(0.0f, 0.0f, 1.0f);
 
 	float age = 0.0f;
 	float lifetime = 0.08f;
@@ -123,6 +141,26 @@ struct MuzzleFlashEntry
 	float seed = 0.0f;
 
 	XMFLOAT4 color = XMFLOAT4(1.0f, 0.62f, 0.10f, 1.0f);
+};
+
+struct BossPoisonProjectileEntry
+{
+	bool active = false;
+
+	CGameObject* owner = nullptr;
+
+	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT3 direction = XMFLOAT3(0.0f, 0.0f, 1.0f);
+	XMFLOAT3 velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	float coreDiameter = 4.0f;
+	float coreRadius = 2.0f;
+	float gasDiameter = 6.0f;
+	float speed = 18.0f;
+	float visualSeed = 0.0f;
+	float dustEmitAccumulatorSec = 0.0f;
+
+	std::array<bool, 4> hitPlayerSlots = { false, false, false, false };
 };
 
 struct SwordTrailVertex
@@ -152,7 +190,6 @@ struct SwordTrailEntry
 
 	CGameObject* owner = nullptr;
 
-	// 이름은 SwordTrailEntry지만, 실제로는 검/도끼 공용 weapon trail로 사용한다.
 	CGameObject* weaponObject = nullptr;
 
 	float age = 0.0f;
@@ -162,13 +199,10 @@ struct SwordTrailEntry
 	float fadeDuration = 0.120f;
 
 	// 무기 local space에서 trail ribbon의 양 끝점.
-	// sword: 손잡이 쪽 ~ 칼끝
-	// axe: 도끼날 근처 짧은 구간
 	XMFLOAT3 rootLocal = XMFLOAT3(0.0f, 0.0f, 0.10f);
 	XMFLOAT3 tipLocal = XMFLOAT3(0.0f, 0.0f, 1.45f);
 
 	// root/tip 사이 폭 조절.
-	// 도끼는 날이 끝자락에만 있으므로 이 값을 줄이면 된다.
 	float widthScale = 1.0f;
 
 	XMFLOAT4 color = XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f);
@@ -176,9 +210,49 @@ struct SwordTrailEntry
 	std::vector<SwordTrailSample> samples;
 };
 
+struct MonsterSwordTrailVertex
+{
+	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT2 uv = XMFLOAT2(0.0f, 0.0f);
+	XMFLOAT4 color = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+};
+
+struct MonsterSwordTrailSample
+{
+	XMFLOAT3 root = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT3 tip = XMFLOAT3(0.0f, 0.0f, 0.0f);
+};
+
+struct MonsterSwordTrailEntry
+{
+	bool active = false;
+
+	CGameObject* owner = nullptr;
+	CGameObject* weaponObject = nullptr;
+
+	float age = 0.0f;
+
+	float startDelay = 0.340f;
+	float sampleDuration = 0.240f;
+	float fadeDuration = 0.120f;
+
+	XMFLOAT3 rootLocal = XMFLOAT3(0.0f, 0.0f, 0.15f);
+	XMFLOAT3 tipLocal = XMFLOAT3(0.0f, 0.0f, 2.175f);
+
+	float widthScale = 1.0f;
+
+	XMFLOAT4 color = XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f);
+
+	std::vector<MonsterSwordTrailSample> samples;
+};
+
 enum class EItemBillboardKind : UINT
 {
 	Key = 0,
+	BossSummonCircle = 1,
+	BossSummonGlow = 2,
+	BossShockwave = 3,
+	BossShockwaveWall = 4,
 };
 
 struct ItemBillboardEntry
@@ -186,7 +260,6 @@ struct ItemBillboardEntry
 	bool active = true;
 	bool distanceCulled = false;
 
-	// 추가: true면 transparent pass에서 그림
 	bool transparent = false;
 
 	EItemBillboardKind kind = EItemBillboardKind::Key;
@@ -286,7 +359,7 @@ struct SkinnedWorldLodEntry
 
 	std::array<std::shared_ptr<CMesh>, 3> lodMeshes = { nullptr, nullptr, nullptr };
 
-	bool distanceCullEnabled = false;
+	bool distanceCullEnabled = true;
 	bool distanceCulled = false;
 	float cullDistance = 1000000.0f;
 };
@@ -327,6 +400,21 @@ struct SkinnedInstanceGroup
 	bool useAlphaClipShader = false;
 };
 
+struct SkinnedComponentCache
+{
+	CGameObject* object = nullptr;
+
+	CSkinnedMeshRendererComponent* renderer = nullptr;
+	CSkinningComponent* skinning = nullptr;
+	CAnimatorComponent* animator = nullptr;
+	CHealthComponent* health = nullptr;
+	CActorTagComponent* actorTag = nullptr;
+	CColliderComponent* collider = nullptr;
+
+	bool isNpc = false;
+	bool isPlayer = false;
+};
+
 // ============================================================================
 // GameScene
 // ============================================================================
@@ -352,9 +440,9 @@ protected:
 private:
 	//void InitShadowMap(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
     void BuildLightsAndMaterials();
-    void BuildObjectsCollider() override;
+	void BuildObjectsCollider() override;
 
-    void CreateShaderVariables(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
+	void CreateShaderVariables(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
 
     void BuildStaticBatch(
         ID3D12Device* dev,
@@ -392,7 +480,7 @@ private:
 	void BuildStaticInstanceGroups();
 
 	void BuildStaticRenderObjectCache();
-	bool IsDynamicStaticRenderObject(const CGameObject* obj) const;
+	void BuildStaticGameplayTickList();
 	bool WriteStaticInstanceVertexFromCache(StaticInstanceVertex& dst, UINT objectIndex) const;
 	void BuildStaticVisibleListsForFrame(CCamera* camera);
 	void BuildStaticShadowVisibleListsForFrame();
@@ -417,6 +505,7 @@ private:
 	void RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 	std::shared_ptr<CTexture> m_keyItemTexture;
+	std::shared_ptr<CTexture> m_bossSummonCircleTexture;
 	void BuildItemBillboardBatch(
 		ID3D12Device* dev,
 		ID3D12GraphicsCommandList* cmd,
@@ -445,6 +534,7 @@ private:
 		const XMFLOAT3* hitPosition = nullptr,
 		const XMFLOAT3* hitDirection = nullptr
 	);
+	void SpawnBossMeleeSlashEffect(CGameObject* boss);
 	void UpdateMuzzleFlashes(float dt);
 	void RenderMuzzleFlashes(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
@@ -461,13 +551,94 @@ private:
 	void UpdateSwordTrails(float dt);
 	void RenderSwordTrails(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
+	void BuildMonsterSwordTrailBatch(
+	ID3D12Device* dev,
+	ID3D12GraphicsCommandList* cmd,
+	DXGI_FORMAT dsvFormat
+	);
+
+	void ReleaseMonsterSwordTrailGpuResources();
+
+	void BeginSwordManSwordTrail(CGameObject* swordman);
+	void UpdateMonsterSwordTrails(float dt);
+	void RenderMonsterSwordTrails(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
 	void UpdateItemBillboardPickupCollision();
 	bool DoesPlayerOverlapItemBillboard(const CGameObject* player, const ItemBillboardEntry& item) const;
 
+	void SetBossSummonCircleAlpha(float alpha);
+	void SetBossSummonGlowAlpha(float alpha);
+	void SetBossSummonVisualAlpha(float alpha);
+	void SetBossSummonVisualActive(bool active);
+
+	void SpawnBossSummonCircle(const XMFLOAT3& center, float alpha);
+	void SpawnBossSummonGlow(const XMFLOAT3& center, float alpha);
+	void SpawnBossSummonVisuals(const XMFLOAT3& center, float alpha);
+
+	void SetBossShockwaveAlpha(float alpha);
+	void SpawnBossShockwave(const XMFLOAT3& center);
+	void UpdateBossShockwave(float dt);
+	void SetBossShockwaveWallAlpha(float alpha);
+
+	void ApplyBossShockwavePushToLocalPlayer(
+		float previousRadius,
+		float currentRadius
+	);
+
+	void ResetBossPoisonProjectileState();
+
+	void BuildBossPoisonProjectileBatch(
+		ID3D12Device* dev,
+		ID3D12GraphicsCommandList* cmd,
+		DXGI_FORMAT dsvFormat
+	);
+
+	void ReleaseBossPoisonProjectileGpuResources();
+
+	void UpdateBossPoisonProjectileSpellCasts(float dt);
+	void UpdateBossMeleeSlashCasts(float dt);
+	void SpawnBossPoisonProjectile(CGameObject* boss);
+	void UpdateBossPoisonProjectiles(float dt);
+	void RenderBossPoisonProjectiles(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
+	void SpawnBossPoisonProjectileDust(BossPoisonProjectileEntry& entry);
+
+	void ApplyBossPoisonProjectilePlayerHits(BossPoisonProjectileEntry& entry);
+	bool DoesBossPoisonProjectileOverlapPlayer(
+		const BossPoisonProjectileEntry& entry,
+		const CGameObject* player
+	) const;
+
+	void ApplyBossPoisonProjectileHitToPlayer(
+		BossPoisonProjectileEntry& entry,
+		int playerSlot,
+		CGameObject* player
+	);
+
+	bool IsBossPoisonProjectilePlayerRollInvincible(
+		const CGameObject* player
+	) const;
+
+	BossPoisonProjectileEntry* AcquireFreeBossPoisonProjectileEntry();
+
+	CGameObject* FindBossStageBossInMegaGrid(int megaGridNumber) const;
+	
 	std::shared_ptr<CMesh> CreateItemBillboardQuadMesh(
 		ID3D12Device* dev,
 		ID3D12GraphicsCommandList* cmd
 	);
+
+	void BuildSkinnedComponentCache();
+	const SkinnedComponentCache* GetSkinnedComponentCache(UINT objectIndex) const;
+
+	bool WriteSkinnedInstanceVertexFromCache(
+		SkinnedInstanceVertex& dst,
+		const SkinnedComponentCache& cache,
+		UINT objectIndex,
+		UINT meshIndex,
+		UINT subMeshIndex,
+		XMFLOAT4X4* mappedSkinnedBonePaletteBuffer
+	) const;
 
 	void BuildSkinnedInstanceGroups();
 	void ResetSkinnedWorldLodEntries();
@@ -481,8 +652,18 @@ private:
 	void ResolveSkinnedOcclusionQueries(ID3D12GraphicsCommandList* cmd);
 	void UpdateSkinnedOcclusionCullSelection(CCamera* camera);
 
-	int ComputeSkinnedWorldLodLevel(const XMFLOAT3& cameraPosition, const SkinnedWorldLodEntry& entry) const;
-	bool ComputeSkinnedWorldDistanceCulled(const XMFLOAT3& cameraPosition, const SkinnedWorldLodEntry& entry) const;
+	int ComputeSkinnedWorldLodLevel(
+	const XMFLOAT3& cameraPosition,
+	const XMFLOAT3& objectPosition,
+	const SkinnedWorldLodEntry& entry
+	) const;
+
+	bool ComputeSkinnedWorldDistanceCulled(
+		const XMFLOAT3& cameraPosition,
+		const XMFLOAT3& objectPosition,
+		const SkinnedWorldLodEntry& entry
+	) const; 
+	
 	void UpdateSkinnedWorldLodSelection(CCamera* camera);
 	void RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	bool ShouldEvaluateSkinnedPoseThisFrame(UINT objectIndex, CCamera* camera) const;
@@ -527,7 +708,9 @@ public:
 public:
 	void SetMaterialDiffuseSrvIndex(int materialId, UINT srvIndex);
 	void SetKeyItemDiffuseSrvIndex(UINT srvIndex);
-	void SetTransparentItemDiffuseSrvIndex(UINT srvIndex); 
+	void SetTransparentItemDiffuseSrvIndex(UINT srvIndex);
+	void SetBossSummonCircleDiffuseSrvIndex(UINT srvIndex);
+	
 	void SetInactiveOverlayVisible(bool visible)
 	{
 		m_bInactiveOverlayVisible = visible;
@@ -563,13 +746,17 @@ public:
     CGameObject* GetDemoFighter(int index) const;
     void RequestDemoFighterAttack(int index);
 
-    CGameObject* GetPlayerBySlot(int slot) const; // slot: 0..3
-    bool IsLocalPlayer(const CGameObject* obj) const;
+	CGameObject* GetPlayerBySlot(int slot) const; // slot: 0..3
+	bool IsLocalPlayer(const CGameObject* obj) const;
+	bool IsPlayerInsideMegaGridCenter(const CGameObject* player) const;
 	bool IsLocalPlayerDead() const { return m_bLocalPlayerDead; }
 	bool RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& previousPos);
     
 	void RequestFireArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f, float yOffset = 0.0f);
 	bool IsLocalPlayerInsideMegaGridCenter() const;
+	bool IsLocalMonsterChaseEnabled() const { return m_bSimulateLocalMonsterChase; }
+
+	void NotifyMonsterChaseStarted(CGameObject* monster);
 
 	void SetMegaGridApproachZoneSize(int megaX, int megaZ, int widthCells, int heightCells);
 	void SetMegaGridCleared(int megaX, int megaZ, bool cleared = true);
@@ -579,7 +766,6 @@ public:
 	bool IsMegaGridCleared(int megaX, int megaZ) const;
 	bool HasMegaGridEventOccurred(int megaX, int megaZ) const;
 
-private:
 private:
 #ifndef USING_NETWORK
 	struct DoorPortalSubBoxRef
@@ -660,20 +846,87 @@ private:
 	void UpdateDynamicGridState();
 	void UpdateMegaGridState();
 
+	void UpdateMegaGrid5DirectionalLightState();
+	void ApplyMegaGrid5DirectionalLightProfile(bool enabled);
+
+	bool TryTeleportLocalPlayerToMegaGridByNumber(int megaGridNumber);
+	XMFLOAT3 ComputeLocalStageTeleportPosition(int megaGridNumber) const;
+
+	XMFLOAT3 ComputeEnemySpawnerSpawnPosition(
+	int megaGridNumber,
+	UINT localIndex,
+	UINT localCount
+	) const;
+
+	bool IsMegaGridNumberCleared(int megaGridNumber) const;
+	bool ShouldBlockEnemySpawnerByClearedPrerequisite(
+		int targetMegaGridNumber,
+		int& outBlockerMegaGridNumber
+	) const;
+
+	int SpawnPreparedEnemiesInMegaGrid(int megaGridNumber);
+	int TryRunEnemySpawnerEventForMegaGrid(int megaGridNumber);
+
+	bool BeginEnemySpawnerTimedGhoulWave(int megaGridNumber);
+	void UpdateEnemySpawnerTimedGhoulWaves(float dt);
+
+	int SpawnEnemySpawnerDoorGhoulBatch(
+		int megaGridNumber,
+		int batchIndex
+	);
+
+	XMFLOAT3 ComputeEnemySpawnerDoorGhoulSpawnPosition(
+		int megaGridNumber,
+		int wallIndex,
+		int slotIndex
+	) const;
+
+	float ComputeEnemySpawnerDoorGhoulSpawnYawDeg(
+		int wallIndex
+	) const;
+
+	void ResetEnemySpawnerTimedGhoulWaveStates();
+
 	void RegisterMonsterToMegaGrid(CGameObject* monster, const XMFLOAT3& spawnPosition, UINT skinnedBatchObjectIndex);
 	int GetLocalPlayerMegaGridNumberForMonsterTick() const;
 	bool ShouldSkipMonsterByMegaGrid(const CGameObject* monster, UINT skinnedBatchObjectIndex, int activeMegaGridNumber) const;
+	void ResetMonsterToHomeForMegaGridSkip(CGameObject* monster) const;
+
+	void SetLocalMonsterChaseEnabled(bool enabled);
+	void StopAllLocalMonsterChaseAndReturnHome();
+	void StopMonsterChaseAndReturnHome(CGameObject* monster) const;
 
 	uint16_t ComputeStaticObjectMegaGridMask(CGameObject* obj) const;
 	uint16_t ComputeObjectCurrentMegaGridMask(const CGameObject* obj) const;
-	uint16_t GetCollisionMegaGridMaskForObject(const CGameObject* obj) const;
-	bool ShouldKeepCollisionPairByMegaGrid(const CColliderComponent* a, const CColliderComponent* b) const;
+
+	void SetObjectCollisionMegaGridMask(
+		CGameObject* obj,
+		uint16_t mask,
+		bool fixedMask
+	);
+
+	void RefreshDynamicCollisionMegaGridMasks();
+
+	bool ShouldKeepCollisionPairByMegaGrid(
+		const CColliderComponent* a,
+		const CColliderComponent* b
+	) const;
 
 	void MarkLocalPlayerEnteredCastleCenterMegaGrid(); 
 	bool IsLocalPlayerInsideCastleCenterMegaGridFullArea() const;
 	void UpdateCastleCenterMegaGridState();
 
 	void DumpStaticGridOccupancyLog() const;
+
+	struct EnemySpawnerTimedGhoulWaveState
+	{
+		bool active = false;
+
+		// 0~9. Begin 시 0번 batch를 즉시 생성하고, 이후 nextBatchIndex는 1부터 시작한다.
+		int nextBatchIndex = 0;
+
+		float accumulatorSec = 0.0f;
+	};
 
 #ifndef USING_NETWORK
 	struct MonsterSpawnEntry
@@ -736,6 +989,7 @@ private:
     UINT m_building8Count = 1;
     UINT m_building9Count = 1;
 	UINT m_towerCount = 1;
+	UINT m_terrainCount = 1;
 
     UINT m_ghoulCount = 4;
     UINT m_swordManCount = 3;
@@ -753,6 +1007,36 @@ private:
 	UINT m_PlayerGunCount = 4;
 	UINT m_ColliderCount = 0;
 
+	static constexpr UINT kEnemySpawnerMega6GhoulCount = 200;
+	static constexpr UINT kEnemySpawnerMega8GhoulCount = 200;
+
+	static constexpr float kEnemySpawnerInactiveY = -100.0f;
+
+	static constexpr int kEnemySpawnerDoorWallCount = 4;
+	static constexpr int kEnemySpawnerDoorSlotsPerWall = 5;
+	static constexpr int kEnemySpawnerDoorBatchCount = 10;
+	static constexpr float kEnemySpawnerDoorBatchIntervalSec = 1.0f;
+
+	// 200x200 벽의 원래 경계는 center +/- 100.
+	// 요구사항에 따라 300 -> 301, 500 -> 499로 치환하므로 center +/- 99.
+	static constexpr float kEnemySpawnerDoorWallHalfExtent = 99.0f;
+
+	// 문 중앙 10m 안에서 5마리를 2m 간격으로 배치.
+	// 실제 offset은 -4, -2, 0, +2, +4.
+	static constexpr float kEnemySpawnerDoorSlotSpacing = 2.0f;
+
+	static constexpr UINT kEnemySpawnerMega5GhoulCount = 60;
+	static constexpr UINT kEnemySpawnerMega5BowManCount = 10;
+	static constexpr UINT kEnemySpawnerMega5SwordManCount = 10;
+	static constexpr UINT kEnemySpawnerMega5MutantCount = 5;
+
+	UINT m_EnemySpawnCount = 0;
+
+	UINT m_EnemySpawnGhoulCount = 0;
+	UINT m_EnemySpawnBowManCount = 0;
+	UINT m_EnemySpawnSwordManCount = 0;
+	UINT m_EnemySpawnMutantCount = 0;
+
     std::vector<std::unique_ptr<CGameObject>> m_staticObjects;
     std::vector<std::unique_ptr<CGameObject>> m_skinnedObjects;
 	std::vector<std::unique_ptr<CGameObject>> m_colliderObjects;
@@ -763,6 +1047,11 @@ private:
 
 	static constexpr UINT kItemBillboardKeyMaterialId = MAX_MATERIALS - 1;
 	static constexpr UINT kTransparentItemBillboardMaterialId = MAX_MATERIALS - 2;
+	static constexpr UINT kBossSummonCircleMaterialId = MAX_MATERIALS - 3;
+	static constexpr UINT kBossSummonGlowMaterialId = MAX_MATERIALS - 4;
+	static constexpr UINT kBossShockwaveMaterialId = MAX_MATERIALS - 5;
+	static constexpr UINT kBossShockwaveWallMaterialId = MAX_MATERIALS - 6;
+
 	static constexpr UINT kKeyItemBillboardCount = 7;
 
 	std::shared_ptr<CItemBillboardShader> m_itemBillboardShader;
@@ -780,7 +1069,7 @@ private:
 	std::array<ItemBillboardInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedTransparentItemBillboardInstanceBuffer = {};
 	UINT                                  m_transparentItemBillboardInstanceBufferCapacity = 0;
 
-	static constexpr UINT kMuzzleFlashMaxCount = 160;
+	static constexpr UINT kMuzzleFlashMaxCount = 1024;
 
 	std::shared_ptr<CMuzzleFlashBillboardShader> m_muzzleFlashShader;
 
@@ -789,6 +1078,12 @@ private:
 	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dMuzzleFlashInstanceBuffer;
 	std::array<MuzzleFlashInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedMuzzleFlashInstanceBuffer = {};
 	UINT m_muzzleFlashInstanceBufferCapacity = 0;
+
+	std::shared_ptr<CBossPoisonProjectileBillboardShader> m_bossPoisonProjectileShader;
+
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dBossPoisonProjectileInstanceBuffer;
+	std::array<MuzzleFlashInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedBossPoisonProjectileInstanceBuffer = {};
+	UINT m_bossPoisonProjectileInstanceBufferCapacity = 0;
 
 	static constexpr UINT kSwordTrailMaxCount = 16;
 	static constexpr UINT kSwordTrailMaxSamples = 12;
@@ -803,13 +1098,25 @@ private:
 	std::array<SwordTrailVertex*, kSceneBatchFrameResourceCount> m_pMappedSwordTrailVertexBuffer = {};
 	UINT m_swordTrailVertexBufferCapacity = 0;
 
+	static constexpr UINT kMonsterSwordTrailMaxCount = 32;
+	static constexpr UINT kMonsterSwordTrailMaxSamples = 12;
+	static constexpr UINT kMonsterSwordTrailMaxVertices =
+		kMonsterSwordTrailMaxCount * kMonsterSwordTrailMaxSamples * 2;
+
+	std::shared_ptr<CSwordTrailShader> m_monsterSwordTrailShader;
+
+	std::vector<MonsterSwordTrailEntry> m_monsterSwordTrails;
+
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dMonsterSwordTrailVertexBuffer;
+	std::array<MonsterSwordTrailVertex*, kSceneBatchFrameResourceCount> m_pMappedMonsterSwordTrailVertexBuffer = {};
+	UINT m_monsterSwordTrailVertexBufferCapacity = 0;
+
+	std::vector<CGameObject*> m_ghoulRefs;
 	std::vector<CGameObject*> m_swordManRefs;
 	std::vector<CGameObject*> m_bowManRefs;
 	std::vector<CGameObject*> m_MutantRefs;
 	std::vector<CGameObject*> m_bossRefs;
 
-	// 6, 8번 메가그리드에서 열쇠를 해금하는 첫 Mutant.
-	// key = mutant object, value = megaGridNumber.
 	std::unordered_map<CGameObject*, int> m_mutantKeyTriggerMegaByObject;
 	std::array<bool, CSceneGrid::kMegaGridCount + 1> m_mutantKeyTriggerRegisteredByMega = {};
 
@@ -820,8 +1127,12 @@ private:
     std::vector<CGameObject*> m_PlayerAxeRefs;
     std::vector<CGameObject*> m_PlayerGunRefs;
 
+	std::unordered_map<CGameObject*, CGameObject*> m_playerWeaponOwnerByObject;
+
     std::vector<CGameObject*> m_EnemySwordRefs;
     std::vector<CGameObject*> m_EnemyBowRefs;
+	std::vector<CGameObject*> m_EnemySpawnRefs;
+	std::vector<EnemySpawnerPoolEntry> m_enemySpawnPoolEntries;
 
     std::vector<AttachmentBindSpec> m_attachmentBinds;
 
@@ -829,15 +1140,82 @@ private:
 	static constexpr UINT kBulletPoolSize = 32;
 	std::vector<CGameObject*> m_arrowRefs;
 	std::vector<CGameObject*> m_bulletRefs;
+	std::unordered_map<uint64_t, CGameObject*> m_networkArrowById;
+	std::unordered_map<uint64_t, CGameObject*> m_networkBulletById;
 
 	std::array<CGameObject*, 4> m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr };
 	std::array<bool, 4> m_prevBowReleasePhase = { false, false, false, false };
 	std::array<bool, 4> m_prevBowLoadPhase = { false, false, false, false };
+
 	std::vector<CGameObject*> m_preparedBowmanArrows;
+
 	std::vector<bool> m_prevEnemyBowReleasePhase;
+
+	enum class EMonsterSfxKind : uint8_t
+	{
+		None = 0,
+		Footstep,
+		SwordWhoosh,
+		MutantWhoosh,
+		GhoulWhoosh,
+		BowLoading,
+		BowRelease
+	};
+
+	enum class EMonsterFootstepProfile : uint8_t
+	{
+		Humanoid = 0, // SwordMan / BowMan
+		Ghoul,
+		Mutant
+	};
+
+	struct MonsterFootstepSfxState
+	{
+		bool valid = false;
+		int mode = 0; // 0=None, 1=Walk, 2=Run
+		float prevNormalizedTime = 0.0f;
+	};
+
+	struct PendingMonsterSfx
+	{
+		EMonsterSfxKind kind = EMonsterSfxKind::None;
+		CGameObject* owner = nullptr;
+		const char* path = nullptr;
+
+		float timer = 0.0f;
+		float originalDelay = 0.0f;
+		float volume = 1.0f;
+
+		bool followOwner = true;
+	};
+
+	struct ActiveMonsterSfx
+	{
+		EMonsterSfxKind kind = EMonsterSfxKind::None;
+		FMOD::Channel* channel = nullptr;
+
+		CGameObject* followTarget = nullptr;
+
+		XMFLOAT3 prevPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		bool hasPrevPosition = false;
+	};
+
+	std::vector<MonsterFootstepSfxState> m_monsterFootstepSfxStates;
+
+	std::vector<bool> m_prevGhoulAttackPhase;
+	std::vector<bool> m_prevSwordManAttackPhase;
+	std::vector<bool> m_prevMutantAttackPhase;
+	std::vector<bool> m_prevBowManSfxLoadPhase;
+
+	std::vector<PendingMonsterSfx> m_pendingMonsterSfxList;
+	std::vector<ActiveMonsterSfx> m_activeMonsterSfxList;
 
 	int GetPlayerSlotFromObject(const CGameObject* obj) const;
 	int GetBowManIndexFromObject(const CGameObject* obj) const;
+	int GetSwordManIndexFromObject(const CGameObject* obj) const;
+
+	CGameObject* ResolvePlayerAttackerFromPlayerWeapon(CGameObject* weaponObject) const;
+	bool ForceMonsterAIChaseTarget(CGameObject* monster, CGameObject* target) const;
 
 	void RequestPrepareArrow(CGameObject* shooter, float pullBackDistance);
 	void RequestReleasePreparedArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f);
@@ -859,6 +1237,38 @@ private:
 	void ResetPlayerFootstepSfxState();
 	void PlayPlayerFootstepSfx(CGameObject* player);
 
+	void ResetMonsterSfxState();
+
+	void UpdateMonsterSfx(float dt);
+	void UpdateMonsterFootstepSfx();
+	void UpdateMonsterAttackSfx();
+
+	void TrackMonsterFootstepSfx(
+		CGameObject* monster,
+		MonsterFootstepSfxState& state,
+		EMonsterFootstepProfile profile
+	);
+
+	void PlayMonsterFootstepSfx(CGameObject* monster);
+
+	void RequestGhoulAttackSfx(CGameObject* ghoul);
+	void RequestSwordManAttackSfx(CGameObject* swordman);
+	void RequestMutantAttackSfx(CGameObject* mutant);
+	void RequestBowManLoadSfx(CGameObject* bowman);
+
+	void ScheduleMonsterSfx(
+		EMonsterSfxKind kind,
+		CGameObject* owner,
+		const char* soundPath,
+		float delaySeconds,
+		float volume,
+		bool followOwner = true
+	);
+
+	void UpdatePendingMonsterSfx(float dt);
+	void PlayPendingMonsterSfxAt(size_t index);
+	void UpdateActiveMonsterSfx();
+
 	void UpdateMonsterDeathStates();
 	void BeginMonsterDeath(CGameObject* monster);
 	void CancelMonsterPreparedActions(CGameObject* monster);
@@ -867,6 +1277,40 @@ private:
 	void MarkMegaGridClearedByNumber(int megaGridNumber);
 	bool AreAllMonstersInMegaGridDead(int megaGridNumber) const;
 	void UpdateMegaGridClearStateFromMonsterDeaths();
+
+	int ComputePlayerWeaponDamageTierIndexFromClearedMegaGrids() const;
+	void RefreshPlayerWeaponDamageTierFromClearedMegaGrids();
+	void RefreshPlayerWeaponAttackPowers();
+
+	int GetCurrentPlayerSwordAttackPower() const;
+	int GetCurrentPlayerAxeAttackPower() const;
+	int GetCurrentPlayerArrowAttackPower() const;
+	int GetCurrentPlayerBulletAttackPower() const;
+
+	bool IsBossMonsterObject(const CGameObject* monster) const;
+	bool IsEnemySpawnerMonsterObject(const CGameObject* monster) const;
+
+	bool AreAllPreBossMonstersInMegaGridDead(int megaGridNumber) const;
+	void DamagePreBossMonstersInMegaGrid(int megaGridNumber, int damage);
+
+	void SetBossStageBossActive(CGameObject* boss, bool active, bool playAppear);
+
+	bool TryBeginBossStageSummonSequence();
+	bool TryActivateBossStageBoss();
+	void UpdateBossStageSummonSequence(float dt);
+
+	void StartBossSummonVisualFadeOut();
+	void UpdateBossSummonVisualFadeOut(float dt);
+
+	void SetBossStageBossAIEnabled(CGameObject* boss, bool enabled); 
+	void RegisterBossStageBossOriginalPosition(CGameObject* boss, const XMFLOAT3& originalPosition);
+	void MoveBossStageBossToHiddenPosition(CGameObject* boss);
+	void ScheduleBossStageBossPositionRestore(CGameObject* boss, int delayFrames);
+	void UpdateBossStageBossPositionRestores();
+
+	bool IsBossStageBossRenderAllowed(const CGameObject* boss) const;
+	void SetBossStageBossRenderAllowed(CGameObject* boss, bool allowed);
+	void UpdateBossStageBossRenderGate();
 
 	void RegisterMutantKeyTriggerIfNeeded(CGameObject* mutant, int megaGridNumber);
 	void UnlockKeyBillboardForMegaGrid(int megaGridNumber);
@@ -900,13 +1344,43 @@ private:
 	float                           m_localPlayerRespawnTimer = 0.0f;
 
 #ifdef USING_NETWORK
+	std::deque<FrameSnapshot> m_frameSnapshotBuffer;
+	uint64_t m_lastReceivedServerTick = 0;
+	float m_timeSinceLastFramePacket = 0.0f;
+
+	static constexpr uint64_t kNetworkInterpolationDelayTicks = 6;
+	static constexpr size_t kMaxNetworkFrameSnapshotBufferSize = 8;
+	static constexpr float kServerTickSeconds = 1.0f / 60.0f;
+
+	void PushNetworkFrameSnapshot(const FrameSnapshot& snapshot);
+	FrameSnapshot BuildInterpolatedFrameSnapshot(const FrameSnapshot& latestSnapshot) const;
+	bool GetInterpolationSnapshots(
+		uint64_t renderTick,
+		const FrameSnapshot*& older,
+		const FrameSnapshot*& newer,
+		float& alpha) const;
+
+	static const PlayerState* FindPlayerState(const FrameSnapshot& snapshot, uint64_t id);
+	static const EnemyState* FindEnemyState(const FrameSnapshot& snapshot, uint64_t id);
+	static XMFLOAT3 LerpPosition(const XMFLOAT3& a, const XMFLOAT3& b, float t);
+	static float LerpYawDegrees(float a, float b, float t);
+
 	std::unordered_map<uint64_t, uint32_t> m_prevPlayerNetworkStateCode;
+	std::unordered_map<uint64_t, uint32_t> m_prevEnemyNetworkStateCode;
 #endif
 
+	int m_playerWeaponDamageTierIndex = 0; 
 	std::unordered_set<CGameObject*> m_deadMonsters;
 
     unique_ptr<CCollisionSystem> m_Collision;
 	std::unique_ptr<CNavMesh> m_navMesh;
+
+	std::unique_ptr<EnemySpawner> m_enemySpawner;
+
+	std::array<
+		EnemySpawnerTimedGhoulWaveState,
+		CSceneGrid::kMegaGridCount + 1
+	> m_enemySpawnerTimedGhoulWaves = {};
 
 #ifndef USING_NETWORK
 	std::vector<MonsterSpawnEntry>	m_monsterSpawnEntries;
@@ -933,6 +1407,7 @@ private:
 	const std::vector<CGameObject*>& objects
 	) const;
 	void ResetStaticPlacementCounts();
+	void ReleaseBuildOnlySceneData();
     void ApplyStaticPlacementCounts();
     static float QuaternionToYawDegrees(const XMFLOAT4& q);
 
@@ -942,6 +1417,7 @@ private:
 
 	std::vector<StaticInstanceGroup>    m_staticInstanceGroups;
 	std::vector<StaticRenderObjectCache> m_staticRenderObjectCache;
+	std::vector<CGameObject*>            m_staticGameplayTickObjects;
 
 	std::vector<StaticWorldLodEntry>    m_staticWorldLodEntries;
 	std::vector<StaticOcclusionEntry>   m_staticOcclusionEntries;
@@ -951,12 +1427,12 @@ private:
 	std::vector<uint8_t>                m_staticOcclusionCullFlags;
 	std::vector<uint8_t>                m_staticTreeGridCullFlags;
 
+	std::vector<uint8_t>                m_staticDynamicWorldMatrixFlags;
 	std::vector<uint8_t>                m_staticShadowCasterFlags;
 	std::vector<UINT>                   m_staticTreeObjectIndices;
 	std::vector<int>                    m_staticShadowOcclusionEntryIndices;
 
 	std::vector<uint16_t>               m_staticCollisionMegaGridMasks;
-	std::unordered_map<const CGameObject*, uint16_t> m_collisionMegaGridMaskByObject;
 
 	std::vector<UINT64>                 m_staticOcclusionQuerySampleCounts;
 	std::vector<uint8_t>                m_staticOcclusionLastFrameIssuedFlags;
@@ -1012,10 +1488,12 @@ private:
 	bool                                m_bShowShadowMapOverlay = true;
 
 	bool m_bLocalPlayerInsideCastleCenterMegaGrid = false;
+	bool m_bMegaGrid5DirectionalLightProfileActive = false;
 
 	bool GetPauseOverlayRect(XMFLOAT4& outRect) const;
 
 	std::vector<SkinnedInstanceGroup>   m_skinnedInstanceGroups;
+	std::vector<SkinnedComponentCache>  m_skinnedComponentCache;
 
 	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dSkinnedInstanceBuffer;
 	std::vector<SkinnedWorldLodEntry>   m_skinnedWorldLodEntries;
@@ -1049,7 +1527,11 @@ private:
 
 	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dSkinnedBonePaletteBuffer;
 	std::array<XMFLOAT4X4*, kSceneBatchFrameResourceCount> m_pMappedSkinnedBonePaletteBuffer = {};
-	UINT                                m_skinnedBonePaletteStride = 0;
+
+	std::vector<UINT>                   m_skinnedBonePaletteBaseByObject;
+
+	std::vector<UINT>                   m_skinnedBonePaletteCountByObject;
+
 	UINT                                m_skinnedBonePaletteCapacity = 0;
 	
 	void BuildStaticWorldSubmeshOOBBDebugObjects(
@@ -1061,4 +1543,142 @@ public:
 	bool IsPointInResumeButton(POINT clientPt) const;
 	bool IsPointInExitButton(POINT clientPt) const;
 
+private:
+	bool m_bSimulateLocalPlayerMonsterAttackCollision = true;
+
+	bool m_bSimulateLocalAI = true;
+	bool m_bSimulateLocalGhoulAI = true;
+	bool m_bSimulateLocalBowManAI = true;
+	bool m_bSimulateLocalSwordManAI = true;
+	bool m_bSimulateLocalMutantAI = true;
+	bool m_bSimulateLocalBossAI = true;
+
+	bool m_bSimulateLocalMonsterChase = true;
+	bool m_bPrevLocalMonsterChaseToggleKeyDown = false;
+	bool m_bPrevDebugDamageMegaGrid5KeyDown = false;
+	bool m_bBossStageBossActivated = false;
+
+	static constexpr float kBossStageBossHiddenYOffset = -100.0f;
+	static constexpr float kBossSummonCircleFadeInDurationSec = 3.0f;
+	static constexpr float kBossSummonCircleFadeOutDurationSec = 1.0f;
+
+	bool m_bBossSummonSequenceStarted = false;
+	float m_bBossSummonCircleFadeAgeSec = 0.0f;
+	CGameObject* m_pendingBossStageBoss = nullptr;
+
+	bool m_bBossSummonVisualFadeOutStarted = false;
+	float m_bBossSummonVisualFadeOutAgeSec = 0.0f;
+
+	static constexpr float kBossShockwaveStartRadius = 3.0f;
+	static constexpr float kBossShockwaveMaxRadius = 50.0f;
+	static constexpr float kBossShockwaveExpandDurationSec = 0.80f;
+	static constexpr float kBossShockwaveFadeDurationSec = 0.40f;
+
+	static constexpr float kBossShockwaveShaderRingCenter = 0.94f;
+
+	bool m_bBossShockwaveActive = false;
+	float m_bossShockwaveAgeSec = 0.0f;
+
+	static constexpr UINT  kBossShockwaveWallSegmentCount = 48;
+	static constexpr float kBossShockwaveWallMaxHeight = 3.5f;
+	static constexpr float kBossShockwaveWallMinWidth = 1.5f;
+	static constexpr float kBossShockwaveWallWidthScale = 1.35f;
+
+	XMFLOAT3 m_bossShockwaveCenter = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	static constexpr float kBossShockwavePlayerRangePadding = 1.25f;
+	static constexpr float kBossShockwavePlayerMinDirectionDistance = 0.25f;
+
+	bool m_bBossShockwavePushLocalPlayer = false;
+	float m_bossShockwavePrevRadius = 0.0f;
+	float m_bossShockwavePlayerInitialDistance = 0.0f;
+	XMFLOAT3 m_bossShockwavePlayerPushDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
+
+	static constexpr UINT  kBossPoisonProjectileMaxCount = 8;
+
+	static constexpr float kBossPoisonProjectileCoreDiameter = 4.0f;
+	static constexpr float kBossPoisonProjectileCoreRadius = 2.0f;
+	static constexpr float kBossPoisonProjectileGasDiameter = 8.0f;
+
+	static constexpr float kBossPoisonProjectileLaunchDelaySec = 1.025f;
+	static constexpr float kBossPoisonProjectileLaunchHeight = 3.3f;
+	static constexpr float kBossPoisonProjectileSpeed = 18.0f;
+	static constexpr float kBossPoisonProjectileForwardOffset = 4.0f;
+
+	static constexpr int   kBossPoisonProjectileDamage = 50;
+
+	static constexpr float kBossPoisonProjectilePlayerHitCenterYOffset = 1.0f;
+
+	static constexpr float kBossPoisonProjectilePlayerCollisionRadius = 0.65f;
+
+	static constexpr float kBossPoisonProjectilePlayerHalfHeight = 1.15f;
+
+	static constexpr float kBossPoisonProjectileStageHalfExtent = 110.0f;
+
+	static constexpr float kBossPoisonDustEmitIntervalSec = 0.20f;
+	static constexpr UINT  kBossPoisonDustParticlesPerEmit = 5;
+
+	static constexpr float kBossPoisonDustMinLifetimeSec = 1.05f;
+	static constexpr float kBossPoisonDustMaxLifetimeSec = 1.55f;
+
+	static constexpr float kBossPoisonDustMinSize = 1.60f;
+	static constexpr float kBossPoisonDustMaxSize = 3.00f;
+
+	static constexpr float kBossPoisonDustMinScatterSpeed = 0.75f;
+	static constexpr float kBossPoisonDustMaxScatterSpeed = 2.25f;
+
+	static constexpr float kBossPoisonDustProjectileVelocityInherit = 0.08f;
+
+	static constexpr float kBossPoisonDustGravity = 1.20f;
+
+	static constexpr float kBossPoisonDustDrag = 0.75f;
+
+	static constexpr float kBossPoisonDustSpawnOffsetRadius = 0.35f;
+
+	static constexpr float kBossMeleeSlashLaunchDelaySec = 0.430f;
+
+	struct BossMeleeSlashCastState
+	{
+		bool wasMeleePhase = false;
+		bool pendingSpawn = false;
+		bool spawned = false;
+		float meleeAgeSec = 0.0f;
+	};
+
+	std::unordered_map<CGameObject*, BossMeleeSlashCastState> m_bossMeleeSlashCastStates;
+
+	struct BossPoisonSpellCastState
+	{
+		bool wasSpellPhase = false;
+		bool pendingFire = false;
+		bool fired = false;
+		float spellAgeSec = 0.0f;
+	};
+
+	std::vector<BossPoisonProjectileEntry> m_bossPoisonProjectiles;
+	std::unordered_map<CGameObject*, BossPoisonSpellCastState> m_bossPoisonSpellCastStates;
+
+	struct BossStageBossPositionState
+	{
+		XMFLOAT3 originalPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+		int restoreFramesRemaining = 0;
+		bool pendingRestore = false;
+
+		bool renderAllowed = false;
+		bool waitAppearBeforeRender = false;
+	};
+
+	std::unordered_map<CGameObject*, BossStageBossPositionState> m_bossStageBossPositionStates;
+
+	bool m_bSimulateLocalEnemySpawner = true;
+	bool m_bSimulateLocalPlayerWorldStaticRollback = true;
+	bool m_bSimulateLocalTeleport = true;
+	bool m_bSimulateLocalItemPickup = true;
+	bool m_bCanBossStageDirectly = false;
+
+	bool m_bSimulateLocalStageTeleport = true;
+	std::array<bool, CSceneGrid::kMegaGridCount + 1> m_bPrevLocalStageTeleportKeyDown = {};
+
+	void ConfigureLocalGameplaySimulationSwitches();
 };

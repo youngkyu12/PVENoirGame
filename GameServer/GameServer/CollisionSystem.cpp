@@ -70,6 +70,11 @@ bool CCollisionSystem::IsPairIntersecting(const CColliderComponent* a, const CCo
 	return false;
 }
 
+bool CCollisionSystem::TestIntersection(const CColliderComponent* a, const CColliderComponent* b) const
+{
+	return IsPairIntersecting(a, b);
+}
+
 bool CCollisionSystem::HasCollisionWithWorldStatic(const CColliderComponent* subject) const
 {
 	if (!subject)
@@ -144,6 +149,24 @@ void CCollisionSystem::OnUpdate()
 		{
 			auto* b = mColliders[j];
 			if (!b) continue;
+			HandlePair(a, b);
+		}
+	}
+}
+
+void CCollisionSystem::OnUpdateFiltered(const CollisionPairFilter& filter)
+{
+	const size_t n = mColliders.size();
+	for (size_t i = 0; i < n; ++i)
+	{
+		auto* a = mColliders[i];
+		if (!a) continue;
+
+		for (size_t j = i + 1; j < n; ++j)
+		{
+			auto* b = mColliders[j];
+			if (!b) continue;
+			if (filter && !filter(a, b)) continue;
 			HandlePair(a, b);
 		}
 	}

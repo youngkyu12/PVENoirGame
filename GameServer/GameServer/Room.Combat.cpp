@@ -2,6 +2,7 @@
 #include "Room.h"
 #include "Player.h"
 #include "Enemy.h"
+#include "ColliderComponent.h"
 #include "Projectile.h"
 
 #include <algorithm>
@@ -27,27 +28,6 @@ namespace
 		}
 	}
 
-	static bool IsEnemyNearAnyPlayer(const map<uint64, PlayerRef>& players, const GameMath::Vec3& enemyPos, float rangeSq)
-	{
-		for (const auto& playerPair : players)
-		{
-			const PlayerRef& player = playerPair.second;
-			if (!player) continue;
-			if (DistSqXZ(player->GetPosition(), enemyPos) <= rangeSq)
-				return true;
-		}
-		return false;
-	}
-
-	static void UpdateEnemyAIChunk(const std::vector<EnemyRef>& activeEnemies, size_t beginIndex, size_t endIndex, float dt)
-	{
-		for (size_t i = beginIndex; i < endIndex; ++i)
-		{
-			const EnemyRef& enemy = activeEnemies[i];
-			if (!enemy) continue;
-			enemy->UpdateAI(dt);
-		}
-	}
 
 	bool IsInArcXZ(
 		const GameMath::Vec3& attackerPos,
@@ -71,62 +51,149 @@ namespace
 	}
 }
 
+bool Room::IsEnemyNearAnyPlayerExact(const GameMath::Vec3& enemyPos, float rangeSq) const
+{
+	for (const auto& playerPair : players)
+	{
+		const PlayerRef& player = playerPair.second;
+		if (!player) continue;
+		if (player->IsDead()) continue;
+		if (GameMath::DistSqXZ(player->GetPosition(), enemyPos) <= rangeSq)
+			return true;
+	}
+
+	return false;
+}
+
+void Room::WakeEnemiesNearPlayer(const PlayerRef& player)
+{
+	if (!player) return;
+	if (player->IsDead()) return;
+
+	const float wakeRange = m_timing.enemyAiWakeRange;
+	const float wakeRangeSq = wakeRange * wakeRange;
+
+	std::vector<uint64> candidateEnemyIds;
+	CollectEnemyIdsInMegaGridRadius(player->GetPosition(), wakeRange, candidateEnemyIds);
+
+	for (uint64 enemyId : candidateEnemyIds)
+	{
+		auto enemyIt = enemies.find(enemyId);
+		if (enemyIt == enemies.end()) continue;
+
+		const EnemyRef& enemy = enemyIt->second;
+		if (!enemy) continue;
+		if (enemy->IsDead()) continue;
+		if (GameMath::DistSqXZ(player->GetPosition(), enemy->GetPosition()) > wakeRangeSq) continue;
+
+		m_aiAwakeEnemyIds.insert(enemyId);
+	}
+}
+
 void Room::ProcessEnemyAI()
 {
 	const auto frameStart = std::chrono::steady_clock::now();
 
-	constexpr float kEnemyAiActiveRange = 100.0f;
-	constexpr float kEnemyAiActiveRangeSq = kEnemyAiActiveRange * kEnemyAiActiveRange;
-	constexpr float kFixedDtSec = 0.06f;
-	constexpr size_t kEnemyAiChunkSize = 32;
+	const float fixedDtSec = m_timing.enemyAiDtSec;
+	const float sleepRange = m_timing.enemyAiSleepRange;
+	const float sleepRangeSq = sleepRange * sleepRange;
+	const uint32 animClockTick = GetAnimClockTick();
 
-	std::vector<EnemyRef> activeEnemies;
-	activeEnemies.reserve(enemies.size());
-
-	for (auto& enemyPair : enemies)
+	for (auto it = m_aiAwakeEnemyIds.begin(); it != m_aiAwakeEnemyIds.end();)
 	{
-		auto& enemy = enemyPair.second;
-		if (!enemy) continue;
-		if (enemy->IsDead()) continue;
+		const uint64 enemyId = *it;
+		auto enemyIt = enemies.find(enemyId);
+		if (enemyIt == enemies.end() || !enemyIt->second || enemyIt->second->IsDead())
+		{
+			it = m_aiAwakeEnemyIds.erase(it);
+			continue;
+		}
 
-		if (IsEnemyNearAnyPlayer(players, enemy->GetPosition(), kEnemyAiActiveRangeSq))
-			activeEnemies.push_back(enemy);
-		else
+		EnemyRef& enemy = enemyIt->second;
+		if (!IsEnemyNearAnyPlayerExact(enemy->GetPosition(), sleepRangeSq))
+		{
 			enemy->SetVelocity(GameMath::Vec3::Zero());
-	}
+			if (enemy->GetAnimState() == Protocol::ANIMATION_TYPE_RUN)
+			{
+				enemy->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
+				enemy->SetAnimTick(animClockTick);
+			}
 
-	for (size_t beginIndex = 0; beginIndex < activeEnemies.size(); beginIndex += kEnemyAiChunkSize)
-	{
-		const size_t endIndex = (std::min)(beginIndex + kEnemyAiChunkSize, activeEnemies.size());
-		UpdateEnemyAIChunk(activeEnemies, beginIndex, endIndex, kFixedDtSec);
+			it = m_aiAwakeEnemyIds.erase(it);
+			continue;
+		}
+
+		enemy->UpdateAI(fixedDtSec);
+		++it;
 	}
 
 	const auto elapsedMs = static_cast<uint64>(
 		std::chrono::duration_cast<std::chrono::milliseconds>(
 			std::chrono::steady_clock::now() - frameStart).count());
-	const uint64 nextDelayMs = (elapsedMs >= 60) ? 0 : (60 - elapsedMs);
-	GRoom->DoTimer(nextDelayMs, &Room::ProcessEnemyAI);
+	const uint64 enemyAiIntervalMs = m_timing.enemyAiIntervalMs;
+	const uint64 nextDelayMs = (elapsedMs >= enemyAiIntervalMs) ? 0 : (enemyAiIntervalMs - elapsedMs);
+	if (nextDelayMs == 0)
+	{
+		cout << "Warning: Enemy AI processing is taking too long (" << elapsedMs << " ms)" 
+			<< endl;
+		GRoom->DoAsync(&Room::ProcessEnemyAI);
+	}
+	else
+	{
+		GRoom->DoTimer(nextDelayMs, &Room::ProcessEnemyAI);
+	}
 }
 
 void Room::TickAdvance()
 {
 	const auto frameStart = std::chrono::steady_clock::now();
+	const uint32 animClockTick = GetAnimClockTick();
+	const uint32 combatClockTick = GetCombatClockTick();
 
+	TickDoorPortalCooldowns();
 
-	MakeFrameState(tick.load());
 	for (auto player : players)
 	{
+		if (!player.second) continue;
+
+		GameMath::Vec3 portalDestination = GameMath::Vec3::Zero();
+		float portalYaw = 0.0f;
+		if (player.second->ConsumePendingPortalTeleport(portalDestination, portalYaw))
+		{
+			player.second->SetVelocity(GameMath::Vec3::Zero());
+			player.second->ClearMoveKeyCodes();
+			player.second->SetPosition(portalDestination);
+			player.second->SetYaw(portalYaw);
+
+			if (auto* collider = player.second->GetComponent<CColliderComponent>())
+				collider->OnUpdate(0.0f);
+
+			UpdateDynamicGridState();
+			WakeEnemiesNearPlayer(player.second);
+			continue;
+		}
+
 		const GameMath::Vec3 prevPos = player.second->GetPosition();
-		player.second->Update(tick);
-		ResolveWorldStaticCollision(player.second, prevPos);
+		player.second->Update(animClockTick);
+
+		const bool teleported =
+			TryTeleportPlayerByTowerDoorPortal(player.second) ||
+			TryTeleportPlayerByCastleDoorPortal(player.second);
+
+		if (!teleported)
+			ResolveWorldStaticCollision(player.second, prevPos);
+
+		WakeEnemiesNearPlayer(player.second);
 	}
+
+	RefreshDynamicCollisionMegaGridMasks();
 
 	for (auto& [pid, player] : players)
 	{
 		if (!player) continue;
 		if (player->IsDead()) continue;
 
-		WeaponFireRequest req = player->GetWeapon().UpdateAttack(tick.load());
+		WeaponFireRequest req = player->GetWeapon().UpdateAttack(combatClockTick);
 		if (!req.fire) continue;
 
 		switch (req.bulletType)
@@ -142,7 +209,7 @@ void Room::TickAdvance()
 	for (auto enemy : enemies)
 	{
 		const GameMath::Vec3 prevPos = enemy.second->GetPosition();
-		enemy.second->Update(tick);
+		enemy.second->Update(animClockTick);
 		ResolveWorldStaticCollision(enemy.second, prevPos);
 	}
 
@@ -150,13 +217,20 @@ void Room::TickAdvance()
 	for (auto& p : m_arrowPool)
 	{
 		if (!p->IsActive()) continue;
-		p->Update(tick);
+		p->Update(m_timing.projectileDtSec, m_timing.serverTickIntervalMs);
+		const uint16_t projectileMask = ComputeObjectCurrentMegaGridMask(p.get());
 
 		constexpr float kHitRadiusSq = 1.0f;
 		for (auto& enemyPair : enemies)
 		{
 			auto& enemy = enemyPair.second;
 			if (enemy->IsDead()) continue;
+			uint16_t enemyMask = 0;
+			if (auto* enemyCollider = enemy->GetComponent<CColliderComponent>())
+				enemyMask = enemyCollider->GetCollisionMegaGridMask();
+			if (enemyMask == 0)
+				enemyMask = ComputeObjectCurrentMegaGridMask(enemy.get());
+			if (projectileMask != 0 && enemyMask != 0 && (projectileMask & enemyMask) == 0) continue;
 			//const GameMath::Vec3 d = enemy->GetPosition() - p->GetPosition();
 
 			float distSq = GameMath::DistSqXZ(enemy->GetPosition(), p->GetPosition());
@@ -164,7 +238,7 @@ void Room::TickAdvance()
 				&& enemy->GetPosition().y - p->GetPosition().y <= 1.0f;
 			if (!hit) continue;
 
-			enemy->ApplyHit(tick.load(), kAtkPlayerArrow, 20);
+			enemy->ApplyHit(animClockTick, kAtkPlayerArrow, 20);
 			p->Deactivate();
 			break;
 		}
@@ -174,13 +248,20 @@ void Room::TickAdvance()
 	for (auto& p : m_bulletPool)
 	{
 		if (!p->IsActive()) continue;
-		p->Update(tick);
+		p->Update(m_timing.projectileDtSec, m_timing.serverTickIntervalMs);
+		const uint16_t projectileMask = ComputeObjectCurrentMegaGridMask(p.get());
 
 		constexpr float kHitRadiusSq = 1.0f;
 		for (auto& enemyPair : enemies)
 		{
 			auto& enemy = enemyPair.second;
 			if (enemy->IsDead()) continue;
+			uint16_t enemyMask = 0;
+			if (auto* enemyCollider = enemy->GetComponent<CColliderComponent>())
+				enemyMask = enemyCollider->GetCollisionMegaGridMask();
+			if (enemyMask == 0)
+				enemyMask = ComputeObjectCurrentMegaGridMask(enemy.get());
+			if (projectileMask != 0 && enemyMask != 0 && (projectileMask & enemyMask) == 0) continue;
 			//const GameMath::Vec3 d = enemy->GetPosition() - p->GetPosition();
 
 			float distSq = GameMath::DistSqXZ(enemy->GetPosition(), p->GetPosition());
@@ -188,7 +269,7 @@ void Room::TickAdvance()
 				&& enemy->GetPosition().y - p->GetPosition().y <= 1.0f;
 			if (!hit) continue;
 
-			enemy->ApplyHit(tick.load(), kAtkPlayerBullet, 20);
+			enemy->ApplyHit(animClockTick, kAtkPlayerBullet, 20);
 			p->Deactivate();
 			break;
 		}
@@ -204,7 +285,7 @@ void Room::TickAdvance()
 		if (weaponType == Protocol::WEAPON_TYPE_BOW ||
 			weaponType == Protocol::WEAPON_TYPE_CANON) continue;
 
-		const int elapsed = static_cast<int>(tick.load()) - player->GetAnimTick();
+		const int elapsed = static_cast<int>(animClockTick) - player->GetAnimTick();
 		constexpr int kHitFrameStart = 5;
 		constexpr int kHitFrameEnd = 15;
 		if (elapsed < kHitFrameStart || elapsed > kHitFrameEnd) continue;
@@ -222,12 +303,19 @@ void Room::TickAdvance()
 		for (auto& [eid, enemy] : enemies)
 		{
 			if (enemy->IsDead()) continue;
+			const uint16_t playerMask = ComputeObjectCurrentMegaGridMask(player.get());
+			uint16_t enemyMask = 0;
+			if (auto* enemyCollider = enemy->GetComponent<CColliderComponent>())
+				enemyMask = enemyCollider->GetCollisionMegaGridMask();
+			if (enemyMask == 0)
+				enemyMask = ComputeObjectCurrentMegaGridMask(enemy.get());
+			if (playerMask != 0 && enemyMask != 0 && (playerMask & enemyMask) == 0) continue;
 			if (IsInArcXZ(player->GetPosition(), player->GetLook(),
 				enemy->GetPosition(), reach, halfAngleDeg))
 			{
 				cout << "Player " << player->GetObjectId() << " hits Enemy " << enemy->GetObjectId()
 					<< " (dmg=" << damage << " hp=" << enemy->GetCurrentHp() << ")" << endl;
-				enemy->ApplyHit(tick.load(), damage, 20);
+				enemy->ApplyHit(animClockTick, damage, 20);
 			}
 		}
 	}
@@ -238,7 +326,7 @@ void Room::TickAdvance()
 		if (enemy->IsDead()) continue;
 		if (enemy->GetAnimState() != Protocol::ANIMATION_TYPE_ATTACK) continue;
 
-		const int elapsed = static_cast<int>(tick.load()) - enemy->GetAnimTick();
+		const int elapsed = static_cast<int>(animClockTick) - enemy->GetAnimTick();
 		constexpr int kHitFrameStart = 5;
 		constexpr int kHitFrameEnd = 15;
 		if (elapsed < kHitFrameStart || elapsed > kHitFrameEnd) continue;
@@ -256,16 +344,20 @@ void Room::TickAdvance()
 		for (auto& [pid, player] : players)
 		{
 			if (player->IsDead()) continue;
+			uint16_t enemyMask = 0;
+			if (auto* enemyCollider = enemy->GetComponent<CColliderComponent>())
+				enemyMask = enemyCollider->GetCollisionMegaGridMask();
+			if (enemyMask == 0)
+				enemyMask = ComputeObjectCurrentMegaGridMask(enemy.get());
+			const uint16_t playerMask = ComputeObjectCurrentMegaGridMask(player.get());
+			if (enemyMask != 0 && playerMask != 0 && (enemyMask & playerMask) == 0) continue;
 			if (IsInArcXZ(enemy->GetPosition(), enemy->GetLook(),
 				player->GetPosition(), reach, halfAngleDeg))
 			{
-				player->ApplyHit(tick.load(), damage, 10);
+				player->ApplyHit(animClockTick, damage, 10);
 			}
 		}
 	}
-
-	if (_collision)
-		_collision->OnUpdate();
 
 	UpdateDynamicGridState();
 
@@ -273,8 +365,18 @@ void Room::TickAdvance()
 	const auto elapsedMs = static_cast<uint64>(
 		std::chrono::duration_cast<std::chrono::milliseconds>(
 			std::chrono::steady_clock::now() - frameStart).count());
-	const uint64 nextDelayMs = (elapsedMs >= 60) ? 0 : (60 - elapsedMs);
-	GRoom->DoTimer(nextDelayMs, &Room::TickAdvance);
+	const uint64 serverTickIntervalMs = m_timing.serverTickIntervalMs;
+	const uint64 nextDelayMs = (elapsedMs >= serverTickIntervalMs) ? 0 : (serverTickIntervalMs - elapsedMs);
+	if (nextDelayMs == 0)
+	{
+		cout << "[TickAdvance] next tick immediately (elapsed=" << elapsedMs << "ms)" << endl;
+		GRoom->DoAsync(&Room::TickAdvance);
+	}
+	else
+	{
+		GRoom->DoTimer(nextDelayMs, &Room::TickAdvance);
+	}
+	m_elapsedServerMs += m_timing.serverTickIntervalMs;
 	++tick;
 }
 
@@ -302,13 +404,13 @@ void Room::FireArrow(PlayerRef shooter, float speed, uint32 lifeTicks)
 		shooter->GetLook() * 0.5657f;
 	const GameMath::Vec3 forward = shooter->GetLook().Normalized();
 
-	p->Activate(origin, forward * speed, lifeTicks, shooter->GetObjectId(), Protocol::BULLET_TYPE_ARROW);
-	shooter->OnFired(tick.load());
+	p->Activate(origin, forward * speed, lifeTicks, m_timing.projectileLifeTickMs, shooter->GetObjectId(), Protocol::BULLET_TYPE_ARROW);
+	shooter->OnFired(GetCombatClockTick());
 }
 
 void Room::FireCannonball(PlayerRef shooter)
 {
-	if (!shooter || !shooter->CanFire(tick.load())) return;
+	if (!shooter || !shooter->CanFire(GetCombatClockTick())) return;
 	if (shooter->IsDead()) return;
 
 	auto p = AcquireFromPool(m_bulletPool);
@@ -322,7 +424,7 @@ void Room::FireCannonball(PlayerRef shooter)
 	constexpr float kBulletSpeed = 18.0f;
 	constexpr int   kBulletLifeTicks = 100;
 
-	p->Activate(origin, forward * kBulletSpeed, kBulletLifeTicks, shooter->GetObjectId(), Protocol::BULLET_TYPE_CANNONBALL);
-	shooter->OnFired(tick.load());
+	p->Activate(origin, forward * kBulletSpeed, kBulletLifeTicks, m_timing.projectileLifeTickMs, shooter->GetObjectId(), Protocol::BULLET_TYPE_CANNONBALL);
+	shooter->OnFired(GetCombatClockTick());
 	shooter->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
 }

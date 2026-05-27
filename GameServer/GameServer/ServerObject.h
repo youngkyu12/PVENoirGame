@@ -80,6 +80,9 @@ public:
     void SetAnimTick(int t) { m_animTick = t; }
     int GetAnimTick() const { return m_animTick; }
 
+    void SetLastMoveDir(const GameMath::Vec3& dir) { m_lastMoveDir = dir; }
+    const GameMath::Vec3& GetLastMoveDir() const { return m_lastMoveDir; }
+
     // ========================================
     // ID / Type
     // ========================================
@@ -160,6 +163,7 @@ public:
     // Animation state
     Protocol::AnimationType m_animState = Protocol::ANIMATION_TYPE_IDLE;
     int m_animTick = 0;
+    GameMath::Vec3 m_lastMoveDir = GameMath::Vec3::Zero();
 
 protected:
     CCommonTransformComponent* m_pTransform = nullptr;

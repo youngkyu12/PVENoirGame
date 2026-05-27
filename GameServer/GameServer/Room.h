@@ -12,6 +12,26 @@ namespace Protocol
     struct S_ENTER_GAME;
 }
 
+struct RoomTimingConfig
+{
+	uint64 serverTickIntervalMs = 16;
+	uint64 frameStateIntervalMs = 100;
+	uint64 enemyAiIntervalMs = 250;
+	uint64 clientReadyPollIntervalMs = 100;
+	uint64 gameStartDelayMs = 100;
+
+	float playerInputDtSec = 0.016f;
+	float enemyAiDtSec = 0.3f;
+	float enemyAiWakeRange = 100.0f;
+	float enemyAiSleepRange = 120.0f;
+
+	float projectileDtSec = 0.016f;
+	uint64 projectileLifeTickMs = 16;
+
+	uint64 animClockIntervalMs = 60;
+	uint64 combatClockIntervalMs = 60;
+};
+
 class Room : public JobQueue
 {
 public:
@@ -26,10 +46,11 @@ public:
 
 public:
     void TickAdvance();
-    void ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float deltaY);
+    void ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float deltaY, float clientDeltaTime);
 
 public:
     void MakeFrameState(uint32 tick);
+	void FrameStateAdvance();
 	void MakeInitStruct(Protocol::S_GAME_START gameStartPkt);
 	void MakeEnterGameStruct(Protocol::S_ENTER_GAME enterGamePkt);
 
@@ -51,6 +72,20 @@ public:
 	const map<uint64, PlayerRef>& GetPlayers() const { return players; }
 	const CNavMesh* GetNavMesh() const { return m_navMesh.get(); }
 	uint32 GetTick() const { return tick.load(); }
+	uint64 GetElapsedServerMs() const { return m_elapsedServerMs; }
+	const RoomTimingConfig& GetTimingConfig() const { return m_timing; }
+	uint32 GetAnimClockTick() const
+	{
+		if (m_timing.animClockIntervalMs == 0)
+			return tick.load();
+		return static_cast<uint32>(m_elapsedServerMs / m_timing.animClockIntervalMs);
+	}
+	uint32 GetCombatClockTick() const
+	{
+		if (m_timing.combatClockIntervalMs == 0)
+			return tick.load();
+		return static_cast<uint32>(m_elapsedServerMs / m_timing.combatClockIntervalMs);
+	}
 
 private:
 	void InitializeCollisionSystem();
@@ -65,6 +100,8 @@ private:
 	void FireArrow(PlayerRef shooter, float speed, uint32 lifeTicks);
 	void FireCannonball(PlayerRef shooter);
 	ProjectileRef AcquireFromPool(Vector<ProjectileRef>& pool);
+	void WakeEnemiesNearPlayer(const PlayerRef& player);
+	bool IsEnemyNearAnyPlayerExact(const GameMath::Vec3& enemyPos, float rangeSq) const;
 
 	void InitializeSpatialGrid();
 	void ShutdownSpatialGrid();
@@ -72,10 +109,37 @@ private:
 
 	bool WorldToGridCell(float worldX, float worldZ, int& outCellX, int& outCellZ) const;
 	int GridCellIndex(int cellX, int cellZ) const;
+	bool GetGridCellRangeForWorldBounds(
+		float minWorldX,
+		float maxWorldX,
+		float minWorldZ,
+		float maxWorldZ,
+		int& outMinCellX,
+		int& outMaxCellX,
+		int& outMinCellZ,
+		int& outMaxCellZ) const;
 
 	int MegaGridIndex(int megaX, int megaZ) const;
+	bool WorldToMegaGridCell(float worldX, float worldZ, int& outMegaX, int& outMegaZ) const;
+	bool GetMegaGridRangeForCircle(
+		const GameMath::Vec3& center,
+		float radius,
+		int& outMinMegaX,
+		int& outMaxMegaX,
+		int& outMinMegaZ,
+		int& outMaxMegaZ) const;
+	void CollectEnemyIdsInMegaGridRadius(
+		const GameMath::Vec3& center,
+		float radius,
+		std::vector<uint64>& outEnemyIds) const;
 	bool FineCellToMegaGridCell(int cellX, int cellZ, int& outMegaX, int& outMegaZ) const;
 	bool IsFineCellInsideMegaGridApproachZone(int megaX, int megaZ, int cellX, int cellZ) const;
+	uint16_t ComputeMegaGridMaskFromWorldPosition(const GameMath::Vec3& pos) const;
+	uint16_t ComputeObjectCurrentMegaGridMask(const CServerObject* obj) const;
+	uint16_t ComputeStaticBuildingMegaGridMask(const BuildingRef& building) const;
+	void SetObjectCollisionMegaGridMask(const shared_ptr<CServerObject>& obj, uint16_t mask, bool fixedMask);
+	void RefreshDynamicCollisionMegaGridMasks();
+	bool ShouldKeepCollisionPairByMegaGrid(const CColliderComponent* a, const CColliderComponent* b) const;
 
 	enum class EGridDynamicKind : uint8_t
 	{
@@ -89,6 +153,7 @@ private:
 	{
 		uint16_t buildingCount = 0;
 		float floorHeight = 0.0f;
+		std::vector<uint64> buildingIds;
 	};
 
 	struct GridDynamicCell
@@ -107,6 +172,8 @@ private:
 
 		int approachWidthCells = 200;
 		int approachHeightCells = 200;
+
+		std::vector<uint64> enemyIds;
 	};
 
 	struct GridDynamicTracker
@@ -117,8 +184,60 @@ private:
 		bool occupied = false;
 	};
 
+	struct DoorPortalSubBoxRef
+	{
+		size_t subIndex = static_cast<size_t>(-1);
+	};
+
+	struct TowerDoorPortalEntry
+	{
+		BuildingRef tower;
+		CColliderComponent* collider = nullptr;
+		std::vector<DoorPortalSubBoxRef> doorARefs;
+		std::vector<DoorPortalSubBoxRef> doorBRefs;
+		int cooldownTicks = 0;
+	};
+
+	struct CastleDoorPortalPair
+	{
+		int sourceDoorIndex = -1;
+		int targetDoorIndex = -1;
+		std::vector<DoorPortalSubBoxRef> sourceRefs;
+		std::vector<DoorPortalSubBoxRef> targetRefs;
+	};
+
+	struct CastleDoorPortalEntry
+	{
+		BuildingRef castle;
+		CColliderComponent* collider = nullptr;
+		std::array<std::vector<DoorPortalSubBoxRef>, 8> doorRefsByIndex;
+		std::vector<CastleDoorPortalPair> pairs;
+		int cooldownTicks = 0;
+	};
+
 	void AddDynamicCount(int cellX, int cellZ, EGridDynamicKind kind, int delta);
 	void RegisterStaticBuildingToGrid(BuildingRef building);
+	void CollectStaticBuildingIdsForWorldBounds(
+		float minWorldX,
+		float maxWorldX,
+		float minWorldZ,
+		float maxWorldZ,
+		std::vector<uint64>& outBuildingIds) const;
+	bool HasCollisionWithNearbyWorldStatic(const CColliderComponent* subject) const;
+	void RebuildMegaGridEnemyIds();
+	void RegisterDoorPortal(BuildingRef building);
+	void TickDoorPortalCooldowns();
+	void ProcessDoorPortals();
+	bool TryTeleportPlayerByTowerDoorPortal(const PlayerRef& player);
+	bool TryTeleportPlayerByCastleDoorPortal(const PlayerRef& player);
+	bool TryQueuePortalTeleportFromBlockedMove(const PlayerRef& player, const GameMath::Vec3& desiredShift);
+	bool TryQueueTowerDoorPortalTeleport(const PlayerRef& player);
+	bool TryQueueCastleDoorPortalTeleport(const PlayerRef& player);
+	bool CanUseCastleDoorPortal() const;
+	int CountClearedMegaGrids() const;
+	void MarkPlayerEnteredCastleCenterMegaGrid(uint64 playerId);
+	bool IsPlayerInsideCastleCenterMegaGridFullArea(uint64 playerId) const;
+	void UpdateCastleCenterMegaGridState();
 
 	void ResetDynamicGridCounts();
 	bool TryGetTrackedCell(const CServerObject* obj, int& outCellX, int& outCellZ) const;
@@ -177,7 +296,14 @@ private:
 	std::vector<GridDynamicTracker> m_monsterGridTrackers;
 	std::vector<GridDynamicTracker> m_arrowGridTrackers;
 	std::vector<GridDynamicTracker> m_bulletGridTrackers;
+	std::unordered_set<uint64> m_aiAwakeEnemyIds;
+	std::unordered_set<uint64> m_castleCenterPlayerIds;
+	std::vector<TowerDoorPortalEntry> m_towerDoorPortals;
+	std::vector<CastleDoorPortalEntry> m_castleDoorPortals;
     //array<GameAreaRef, 9> gameAreas; // 9°³ ±¸¿ª
+
+	RoomTimingConfig m_timing;
+	uint64 m_elapsedServerMs = 0;
 
     Atomic<uint32> tick = 0;
 };

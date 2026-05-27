@@ -15,7 +15,11 @@
 std::unordered_map<std::string, BuiltAsset> AssetManager::s_assetCache;
 std::unordered_map<std::string, std::shared_ptr<CMaterial>> AssetManager::s_materialCache;
 std::unordered_map<std::string, std::shared_ptr<CTexture>> AssetManager::s_textureCache;
-std::unordered_map<std::string, AnimationClip> AssetManager::s_clipCache;
+std::unordered_map<std::string, AssetManager::AnimationClipRef> AssetManager::s_clipCache;
+
+std::unordered_map<MATERIALS*, std::unordered_set<std::string>>
+AssetManager::s_appliedAssetKeysByMaterials;
+
 UINT AssetManager::s_nextMaterialID = 0;
 
 namespace
@@ -65,35 +69,52 @@ namespace
 }
 
 BuiltAsset AssetManager::BuildAsset(
-    ID3D12Device* device,
-    ID3D12GraphicsCommandList* cmd,
-    MATERIALS* pMaterials,
-    const AssetBuildDesc& desc)
+	ID3D12Device* device,
+	ID3D12GraphicsCommandList* cmd,
+	MATERIALS* pMaterials,
+	const AssetBuildDesc& desc)
 {
-    const std::string assetKey = MakeAssetKey(desc);
+	const std::string assetKey = MakeAssetKey(desc);
 
-    auto it = s_assetCache.find(assetKey);
-    if (it == s_assetCache.end())
-    {
-        BuiltAsset built = BuildAssetInternal(device, cmd, desc);
-        it = s_assetCache.emplace(assetKey, std::move(built)).first;
-    }
+	auto it = s_assetCache.find(assetKey);
+	if ( it == s_assetCache.end() )
+	{
+		BuiltAsset built = BuildAssetInternal(device, cmd, desc);
+		it = s_assetCache.emplace(assetKey, std::move(built)).first;
+	}
 
-    if (pMaterials)
-    {
-        ApplyBuiltAssetToSceneMaterials(it->second, pMaterials);
-    }
+	if ( pMaterials )
+	{
+		auto& appliedAssetKeys = s_appliedAssetKeysByMaterials[pMaterials];
 
-    return it->second;
+		const bool firstApplyToThisMaterialTable =
+			appliedAssetKeys.insert(assetKey).second;
+
+		if ( firstApplyToThisMaterialTable )
+		{
+			ApplyBuiltAssetToSceneMaterials(it->second, pMaterials);
+		}
+	}
+
+	return it->second;
+}
+
+void AssetManager::BeginSceneMaterialBuild(MATERIALS* pMaterials)
+{
+	if ( !pMaterials )
+		return;
+
+	s_appliedAssetKeysByMaterials[pMaterials].clear();
 }
 
 void AssetManager::ClearCache()
 {
-    s_assetCache.clear();
-    s_materialCache.clear();
-    s_textureCache.clear();
+	s_assetCache.clear();
+	s_materialCache.clear();
+	s_textureCache.clear();
 	s_clipCache.clear();
-    s_nextMaterialID = 0;
+	s_appliedAssetKeysByMaterials.clear();
+	s_nextMaterialID = 0;
 }
 
 BuiltAsset AssetManager::BuildAssetInternal(
@@ -309,16 +330,18 @@ std::string AssetManager::MakeClipKey(
 		std::to_string(timeScale);
 }
 
-bool AssetManager::LoadCachedClip(
+AssetManager::AnimationClipRef AssetManager::LoadCachedClipRef(
 	CMesh* mesh,
 	const std::string& skeletonKey,
 	const char* animBinPath,
 	const char* clipName,
-	AnimationClip& outClip,
 	float timeScale)
 {
-	if ( !mesh ) return false;
-	if ( !animBinPath || !clipName ) return false;
+	if ( !mesh )
+		return nullptr;
+
+	if ( !animBinPath || !clipName )
+		return nullptr;
 
 	const std::string key = MakeClipKey(
 		skeletonKey,
@@ -329,21 +352,20 @@ bool AssetManager::LoadCachedClip(
 
 	auto it = s_clipCache.find(key);
 	if ( it != s_clipCache.end() )
-	{
-		outClip = it->second;
-		return true;
-	}
+		return it->second;
 
-	AnimationClip clip{};
-	if ( !mesh->LoadAnimationFromBIN(animBinPath, clipName, clip, timeScale) )
-		return false;
+	auto clip = std::make_shared<AnimationClip>();
 
-	clip.name = clipName;
-	s_clipCache.emplace(key, clip);
-	outClip = clip;
-	return true;
+	if ( !mesh->LoadAnimationFromBIN(animBinPath, clipName, *clip, timeScale) )
+		return nullptr;
+
+	clip->name = clipName;
+
+	AnimationClipRef clipRef = clip;
+	s_clipCache.emplace(key, clipRef);
+
+	return clipRef;
 }
-
 
 std::wstring AssetManager::ResolveTexturePath(
     AssetType /*type*/,

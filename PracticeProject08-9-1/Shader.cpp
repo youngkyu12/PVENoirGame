@@ -561,6 +561,13 @@ D3D12_SHADER_BYTECODE CSkinnedObjectsShader::CreatePixelShader(ID3DBlob** ppd3dS
 	return( CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSTexturedLightingToMultipleRTs", "ps_5_1", ppd3dShaderBlob) );
 }
 
+D3D12_RASTERIZER_DESC CSkinnedObjectsShader::CreateRasterizerState()
+{
+	D3D12_RASTERIZER_DESC rs = CShader::CreateRasterizerState();
+	rs.CullMode = D3D12_CULL_MODE_NONE;
+	return rs;
+}
+
 D3D12_INPUT_LAYOUT_DESC CSkinnedObjectsShader::CreateInputLayout()
 {
 	UINT nInputElementDescs = 12;
@@ -831,6 +838,99 @@ D3D12_DEPTH_STENCIL_DESC CMuzzleFlashBillboardShader::CreateDepthStencilState()
 	ds.DepthEnable = TRUE;
 
 	// 이펙트는 depth buffer에 쓰지 않음
+	ds.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	ds.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+
+	return ds;
+}
+
+D3D12_INPUT_LAYOUT_DESC CBossPoisonProjectileBillboardShader::CreateInputLayout()
+{
+	UINT nInputElementDescs = 11;
+	auto* desc = new D3D12_INPUT_ELEMENT_DESC[nInputElementDescs];
+
+	desc[0] = { "POSITION",        0, DXGI_FORMAT_R32G32B32_FLOAT,    0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   0 };
+	desc[1] = { "NORMAL",          0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   0 };
+	desc[2] = { "TEXCOORD",        0, DXGI_FORMAT_R32G32_FLOAT,       0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   0 };
+	desc[3] = { "TANGENT",         0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,   0 };
+
+	desc[4] = { "INSTANCE_WORLD",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1,  0, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+	desc[5] = { "INSTANCE_WORLD",  1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 16, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+	desc[6] = { "INSTANCE_WORLD",  2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 32, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+	desc[7] = { "INSTANCE_WORLD",  3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 48, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+
+	desc[8] = { "INSTANCE_COLOR",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 64, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+	desc[9] = { "INSTANCE_PARAMS", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 80, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+	desc[10] = { "INSTANCE_PARAMS", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 96, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 };
+
+	D3D12_INPUT_LAYOUT_DESC layout{};
+	layout.pInputElementDescs = desc;
+	layout.NumElements = nInputElementDescs;
+	return layout;
+}
+
+D3D12_SHADER_BYTECODE CBossPoisonProjectileBillboardShader::CreateVertexShader(
+	ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(
+		L"Shaders.hlsl",
+		"VSBossPoisonProjectileBillboardInstanced",
+		"vs_5_1",
+		ppd3dShaderBlob
+	);
+}
+
+D3D12_SHADER_BYTECODE CBossPoisonProjectileBillboardShader::CreatePixelShader(
+	ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(
+		L"Shaders.hlsl",
+		"PSBossPoisonProjectileProcedural",
+		"ps_5_1",
+		ppd3dShaderBlob
+	);
+}
+
+D3D12_RASTERIZER_DESC CBossPoisonProjectileBillboardShader::CreateRasterizerState()
+{
+	D3D12_RASTERIZER_DESC rs = CShader::CreateRasterizerState();
+	rs.CullMode = D3D12_CULL_MODE_NONE;
+	return rs;
+}
+
+D3D12_BLEND_DESC CBossPoisonProjectileBillboardShader::CreateBlendState()
+{
+	D3D12_BLEND_DESC bs{};
+	bs.AlphaToCoverageEnable = FALSE;
+	bs.IndependentBlendEnable = FALSE;
+
+	D3D12_RENDER_TARGET_BLEND_DESC rt{};
+	rt.BlendEnable = TRUE;
+	rt.LogicOpEnable = FALSE;
+
+	// 독가스 구체는 additive가 아니라 일반 alpha blend.
+	// 중앙 구체가 하얗게 타지 않고 보라색 불투명 덩어리처럼 보여야 한다.
+	rt.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	rt.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	rt.BlendOp = D3D12_BLEND_OP_ADD;
+
+	rt.SrcBlendAlpha = D3D12_BLEND_ONE;
+	rt.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+	rt.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+
+	rt.LogicOp = D3D12_LOGIC_OP_NOOP;
+	rt.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+	bs.RenderTarget[0] = rt;
+
+	return bs;
+}
+
+D3D12_DEPTH_STENCIL_DESC CBossPoisonProjectileBillboardShader::CreateDepthStencilState()
+{
+	D3D12_DEPTH_STENCIL_DESC ds = CShader::CreateDepthStencilState();
+
+	ds.DepthEnable = TRUE;
 	ds.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 	ds.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 
