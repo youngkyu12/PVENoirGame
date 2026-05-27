@@ -134,6 +134,283 @@ namespace
 		t = std::clamp(t, 0.0f, 1.0f);
 		return t * t * ( 3.0f - 2.0f * t );
 	}
+
+	static uint32_t HashPointerToU32Local(const void* ptr)
+	{
+		uint64_t x =
+			static_cast< uint64_t >(
+				reinterpret_cast< uintptr_t >( ptr )
+			);
+
+		x ^= x >> 33;
+		x *= 0xff51afd7ed558ccdULL;
+		x ^= x >> 33;
+		x *= 0xc4ceb9fe1a85ec53ULL;
+		x ^= x >> 33;
+
+		return static_cast< uint32_t >( x ^ ( x >> 32 ) );
+	}
+
+	static float Hash01Local(uint32_t h)
+	{
+		return
+			static_cast< float >( h & 0x00FFFFFFu ) /
+			static_cast< float >( 0x01000000u );
+	}
+
+	static bool NormalizeXZLocal(XMFLOAT3& v)
+	{
+		const float lenSq = v.x * v.x + v.z * v.z;
+
+		if ( lenSq <= 1.0e-8f )
+			return false;
+
+		const float invLen = 1.0f / std::sqrt(lenSq);
+
+		v.x *= invLen;
+		v.y = 0.0f;
+		v.z *= invLen;
+
+		return true;
+	}
+
+	static float LengthXZLocal(const XMFLOAT3& v)
+	{
+		return std::sqrt(v.x * v.x + v.z * v.z);
+	}
+
+	static float Clamp01Local(float v)
+	{
+		return std::clamp(v, 0.0f, 1.0f);
+	}
+
+	static float ComputeStableChaseSpeedScaleLocal(CGameObject* owner)
+	{
+		const uint32_t h =
+			HashPointerToU32Local(owner) ^ 0x9E3779B9u;
+
+		// 몬스터별 고정 0.96 ~ 1.04배.
+		// 같은 속도로 완전히 동기화되는 현상을 줄인다.
+		return 0.96f + Hash01Local(h) * 0.08f;
+	}
+
+	static float ComputeSlotBlendByDistanceLocal(
+		float distanceToTarget,
+		float attackRange,
+		float slotStartDistance,
+		float slotFullDistance)
+	{
+		// 멀리서는 거의 직진.
+		const float denominatorFar =
+			( slotStartDistance - slotFullDistance > 0.001f )
+			? ( slotStartDistance - slotFullDistance )
+			: 0.001f;
+
+		const float farBlend =
+			Clamp01Local(
+				( slotStartDistance - distanceToTarget ) /
+				denominatorFar
+			);
+
+		// 너무 가까워지면 슬롯 보정을 줄인다.
+		// 그래야 melee 몬스터가 최종적으로 공격 사거리 안으로 들어올 수 있다.
+		const float nearFadeStart = attackRange + 8.0f;
+		const float nearFadeEnd = attackRange + 2.0f;
+
+		const float denominatorNear =
+			( nearFadeStart - nearFadeEnd > 0.001f )
+			? ( nearFadeStart - nearFadeEnd )
+			: 0.001f;
+
+		const float nearBlend =
+			Clamp01Local(
+				( distanceToTarget - nearFadeEnd ) /
+				denominatorNear
+			);
+
+		float min = farBlend;
+		if ( min > nearBlend ) min = nearBlend;
+		return SmoothStep01Local(min);
+	}
+
+	static XMFLOAT3 ComputeSeparationDirectionLocal(
+	CGameObject* owner,
+	CGameScene* scene,
+	float separationRadius)
+	{
+		XMFLOAT3 out(0.0f, 0.0f, 0.0f);
+
+		if ( !owner || !scene )
+			return out;
+
+		if ( separationRadius <= 0.0f )
+			return out;
+
+		const XMFLOAT3 ownerPos = owner->GetPosition();
+
+		const std::vector<CGameObject*>& neighbors =
+			scene->GetMegaGridMonstersByWorldPosition(ownerPos);
+
+		if ( neighbors.empty() )
+			return out;
+
+		const float radiusSq = separationRadius * separationRadius;
+
+		for ( CGameObject* other : neighbors )
+		{
+			if ( !other || other == owner )
+				continue;
+
+			if ( !other->GetActive() )
+				continue;
+
+			if ( IsObjectDeadByHealthLocal(other) )
+				continue;
+
+			const XMFLOAT3 otherPos = other->GetPosition();
+
+			// 비활성 풀/숨김 오브젝트 방어.
+			if ( otherPos.y < -50.0f )
+				continue;
+
+			const float dx = ownerPos.x - otherPos.x;
+			const float dz = ownerPos.z - otherPos.z;
+
+			const float distSq = dx * dx + dz * dz;
+
+			if ( distSq <= 1.0e-6f || distSq > radiusSq )
+				continue;
+
+			const float dist = std::sqrt(distSq);
+
+			// 반경 경계에서 갑자기 튀지 않도록 제곱 감쇠.
+			const float t = 1.0f - ( dist / separationRadius );
+			const float strength = t * t;
+
+			out.x += ( dx / dist ) * strength;
+			out.z += ( dz / dist ) * strength;
+		}
+
+		// 여기서 정규화하면 아주 작은 회피도 강한 회피가 되어 방향이 튄다.
+		// 따라서 길이가 1을 넘는 경우만 cap한다.
+		const float lenSq = out.x * out.x + out.z * out.z;
+
+		if ( lenSq > 1.0f )
+		{
+			const float invLen = 1.0f / std::sqrt(lenSq);
+			out.x *= invLen;
+			out.z *= invLen;
+		}
+
+		out.y = 0.0f;
+		return out;
+	}
+
+	static bool ComputeCrowdChaseDirectionLocal(
+		CGameObject* owner,
+		CGameScene* scene,
+		const XMFLOAT3& targetPos,
+		float attackRange,
+		float slotRadiusMin,
+		float slotRadiusMax,
+		float slotStartDistance,
+		float slotFullDistance,
+		float separationRadius,
+		float separationWeight,
+		float orbitWeight,
+		XMFLOAT3& outDirection,
+		float& outGoalDistance)
+	{
+		outDirection = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		outGoalDistance = 0.0f;
+
+		if ( !owner )
+			return false;
+
+		const XMFLOAT3 ownerPos = owner->GetPosition();
+
+		XMFLOAT3 toTarget(
+			targetPos.x - ownerPos.x,
+			0.0f,
+			targetPos.z - ownerPos.z
+		);
+
+		const float targetDistance = LengthXZLocal(toTarget);
+
+		if ( targetDistance <= 1.0e-6f )
+			return false;
+
+		XMFLOAT3 directTargetDir = toTarget;
+
+		if ( !NormalizeXZLocal(directTargetDir) )
+			return false;
+
+		const float slotBlend =
+			ComputeSlotBlendByDistanceLocal(
+				targetDistance,
+				attackRange,
+				slotStartDistance,
+				slotFullDistance
+			);
+
+		XMFLOAT3 chaseGoal = targetPos;
+
+		if ( slotBlend > 1.0e-4f )
+		{
+			const uint32_t h0 =
+				HashPointerToU32Local(owner);
+
+			const uint32_t h1 =
+				h0 * 1664525u + 1013904223u;
+
+			const float angle =
+				Hash01Local(h0) * XM_2PI;
+
+			const float radius =
+				slotRadiusMin +
+				( slotRadiusMax - slotRadiusMin ) * Hash01Local(h1);
+
+			chaseGoal.x += std::cos(angle) * radius * slotBlend;
+			chaseGoal.z += std::sin(angle) * radius * slotBlend;
+		}
+
+		XMFLOAT3 seek(
+			chaseGoal.x - ownerPos.x,
+			0.0f,
+			chaseGoal.z - ownerPos.z
+		);
+
+		outGoalDistance = LengthXZLocal(seek);
+
+		if ( !NormalizeXZLocal(seek) )
+			seek = directTargetDir;
+
+		XMFLOAT3 finalDir = seek;
+
+		const XMFLOAT3 separation =
+			ComputeSeparationDirectionLocal(
+				owner,
+				scene,
+				separationRadius
+			);
+
+		// slotBlend가 0에 가까운 구간에서는 steering도 약하게 만든다.
+		// 그래야 목표점/공격 사거리 근처에서 separation이 방향을 뒤집지 않는다.
+		const float steeringBlend = slotBlend;
+
+		finalDir.x += separation.x * separationWeight * steeringBlend;
+		finalDir.z += separation.z * separationWeight * steeringBlend;
+
+		// orbit/tangent는 현재 증상 기준으로 과하다.
+		// 이 값은 몬스터를 자연스럽게 퍼뜨리는 수준을 넘어
+		// 플레이어 주변에서 좌우 회전/공전 움직임을 만들 수 있으므로 제거한다.
+
+		if ( !NormalizeXZLocal(finalDir) )
+			finalDir = seek;
+
+		outDirection = finalDir;
+		return true;
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -653,29 +930,36 @@ bool CEnemySpawnerGhoulAIComponent::MoveDirectNoNavTowards(
 	if ( maxStepDistance <= 0.0f )
 		return false;
 
-	const XMFLOAT3 pos = owner->GetPosition();
+	XMFLOAT3 dir{};
+	float goalDistance = 0.0f;
 
-	XMFLOAT3 delta(
-		targetPos.x - pos.x,
-		0.0f,
-		targetPos.z - pos.z
-	);
-
-	const float lenSq = delta.x * delta.x + delta.z * delta.z;
-	if ( lenSq <= 1.0e-8f )
+	if ( !ComputeCrowdChaseDirectionLocal(
+		owner,
+		m_pScene,
+		targetPos,
+		GetAttackRange(),
+		2.0f,   // slotRadiusMin
+		6.0f,   // slotRadiusMax
+		32.0f,  // slotStartDistance
+		18.0f,  // slotFullDistance
+		3.0f,   // separationRadius
+		1.20f,  // separationWeight
+		0.0f,   // orbitWeight: 좌우 회전/공전 방지
+		dir,
+		goalDistance) )
+	{
 		return false;
+	}
 
-	const float len = std::sqrt(lenSq);
-	const float invLen = 1.0f / len;
+	maxStepDistance *= ComputeStableChaseSpeedScaleLocal(owner);
 
-	XMFLOAT3 dir(
-		delta.x * invLen,
-		0.0f,
-		delta.z * invLen
-	);
+	float stepDistance = maxStepDistance;
 
-	const float stepDistance =
-		( maxStepDistance < len ) ? maxStepDistance : len;
+	if ( goalDistance > 0.0f && stepDistance > goalDistance )
+		stepDistance = goalDistance;
+
+	if ( stepDistance <= 0.0f )
+		return false;
 
 	return MoveDirectNoNavByDirection(
 		dir,
@@ -1071,29 +1355,92 @@ bool CBossStageMonsterAIComponent::MoveDirectNoNavTowards(
 	if ( maxStepDistance <= 0.0f )
 		return false;
 
-	const XMFLOAT3 pos = owner->GetPosition();
+	float slotRadiusMin = 2.0f;
+	float slotRadiusMax = 6.0f;
+	float slotStartDistance = 36.0f;
+	float slotFullDistance = 20.0f;
+	float separationRadius = 3.0f;
+	float separationWeight = 1.15f;
+	float orbitWeight = 0.00f;
 
-	XMFLOAT3 delta(
-		targetPos.x - pos.x,
-		0.0f,
-		targetPos.z - pos.z
-	);
+	switch ( m_kind )
+	{
+	case EKind::Ghoul:
+		slotRadiusMin = 2.0f;
+		slotRadiusMax = 6.0f;
+		slotStartDistance = 36.0f;
+		slotFullDistance = 20.0f;
+		separationRadius = 3.0f;
+		separationWeight = 1.15f;
+		orbitWeight = 0.00f;
+		break;
 
-	const float lenSq = delta.x * delta.x + delta.z * delta.z;
-	if ( lenSq <= 1.0e-8f )
+	case EKind::SwordMan:
+		slotRadiusMin = 3.0f;
+		slotRadiusMax = 8.0f;
+		slotStartDistance = 42.0f;
+		slotFullDistance = 24.0f;
+		separationRadius = 3.5f;
+		separationWeight = 1.20f;
+		orbitWeight = 0.00f;
+		break;
+
+	case EKind::BowMan:
+		// BowMan은 플레이어 정중앙으로 겹치지 않고
+		// 중거리 주변 슬롯을 잡도록 한다.
+		slotRadiusMin = 14.0f;
+		slotRadiusMax = 24.0f;
+		slotStartDistance = 70.0f;
+		slotFullDistance = 45.0f;
+		separationRadius = 4.0f;
+		separationWeight = 1.05f;
+		orbitWeight = 0.00f;
+		break;
+
+	case EKind::Mutant:
+		slotRadiusMin = 4.0f;
+		slotRadiusMax = 9.0f;
+		slotStartDistance = 48.0f;
+		slotFullDistance = 28.0f;
+		separationRadius = 4.5f;
+		separationWeight = 1.30f;
+		orbitWeight = 0.00f;
+		break;
+
+	default:
+		break;
+	}
+
+	XMFLOAT3 dir{};
+	float goalDistance = 0.0f;
+
+	if ( !ComputeCrowdChaseDirectionLocal(
+		owner,
+		m_pScene,
+		targetPos,
+		GetAttackRange(),
+		slotRadiusMin,
+		slotRadiusMax,
+		slotStartDistance,
+		slotFullDistance,
+		separationRadius,
+		separationWeight,
+		orbitWeight,
+		dir,
+		goalDistance) )
+	{
 		return false;
+	}
 
-	const float len = std::sqrt(lenSq);
-	const float invLen = 1.0f / len;
+	maxStepDistance *= ComputeStableChaseSpeedScaleLocal(owner);
 
-	XMFLOAT3 dir(
-		delta.x * invLen,
-		0.0f,
-		delta.z * invLen
-	);
+	float stepDistance = maxStepDistance;
 
-	const float stepDistance =
-		( maxStepDistance < len ) ? maxStepDistance : len;
+	if ( goalDistance > 0.0f && stepDistance > goalDistance )
+		stepDistance = goalDistance;
+
+	if ( stepDistance <= 0.0f )
+		return false;
 
 	return MoveDirectNoNavByDirection(
 		dir,

@@ -800,6 +800,10 @@ public:
 	bool IsLocalPlayerInsideMegaGridCenter() const;
 	bool IsLocalMonsterChaseEnabled() const { return m_bSimulateLocalMonsterChase; }
 
+	const std::vector<CGameObject*>& GetMegaGridMonstersByWorldPosition(
+		const XMFLOAT3& worldPos
+	) const;
+
 	void BeginBossCallMonsterSummonVisuals(
 		int callIndex,
 		float fadeInDurationSec
