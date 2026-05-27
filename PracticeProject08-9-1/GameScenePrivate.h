@@ -57,6 +57,7 @@
 #include "GhoulAIComponent.h"
 #include "HealthComponent.h"
 #include "AttackPowerComponent.h"
+#include "TerrainAttachComponent.h"
 
 #include "AudioManager.h"
 #include "MusicDirector.h"

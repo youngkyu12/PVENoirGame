@@ -8,7 +8,6 @@
 
 using namespace GameSceneHelper;
 
-
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
 	ResetPlayerFootstepSfxState();
@@ -663,6 +662,8 @@ void CGameScene::BuildStaticBatch(
 
 		if ( placement.assetName == "Terrain" )
 			m_terrainObjects.insert(raw);
+		else if ( m_TerrainData && ShouldAttachStaticObjectToTerrain(placement.assetName) )
+			raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
 
 #ifndef USING_NETWORK
 		if ( placement.assetName == "Tower" )
@@ -1622,6 +1623,8 @@ void CGameScene::BuildSkinnedBatch(
 			++enemyIndex;
 
 			CGameObject* raw = obj.get();
+			if ( m_TerrainData )
+				raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
 
 			RegisterMonsterToMegaGrid(raw, pos, i);
 
@@ -1702,6 +1705,8 @@ void CGameScene::BuildSkinnedBatch(
 			++enemyIndex;
 
 			CGameObject* raw = obj.get();
+			if ( m_TerrainData )
+				raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
 
 			RegisterMonsterToMegaGrid(raw, pos, i);
 
@@ -1807,6 +1812,8 @@ void CGameScene::BuildSkinnedBatch(
 			++enemyIndex;
 
 			CGameObject* raw = obj.get();
+			if ( m_TerrainData )
+				raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
 
 			RegisterMonsterToMegaGrid(raw, pos, i);
 
@@ -1919,6 +1926,8 @@ void CGameScene::BuildSkinnedBatch(
 			++enemyIndex;
 
 			CGameObject* raw = obj.get();
+			if ( m_TerrainData )
+				raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
 
 			RegisterMonsterToMegaGrid(raw, pos, i);
 
@@ -2038,6 +2047,8 @@ void CGameScene::BuildSkinnedBatch(
 			++enemyIndex;
 
 			CGameObject* raw = obj.get();
+			if ( m_TerrainData )
+				raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
 
 			RegisterMonsterToMegaGrid(raw, pos, i);
 
@@ -2168,6 +2179,8 @@ void CGameScene::BuildSkinnedBatch(
 			++enemyIndex;
 
 			CGameObject* raw = obj.get();
+			if ( m_TerrainData )
+				raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
 
 			m_bossRefs.push_back(raw);
 
@@ -2270,6 +2283,9 @@ void CGameScene::BuildSkinnedBatch(
 #endif
 
 			CGameObject* raw = obj.get();
+			if ( m_TerrainData )
+				raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
+
 			if ( auto* equip = raw->GetComponent<CPlayerEquipmentComponent>() )
 			{
 				equip->SetAudioManager(m_pAudioManager);
