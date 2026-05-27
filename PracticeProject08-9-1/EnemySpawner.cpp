@@ -167,6 +167,83 @@ int EnemySpawner::SpawnEnemies(
 	return spawnedCount;
 }
 
+int EnemySpawner::PeekSpawnEntries(
+	int megaGridNumber,
+	EEnemySpawnerEnemyKind kind,
+	int count,
+	std::vector<EnemySpawnerPreviewEntry>& outEntries) const
+{
+	if ( count <= 0 )
+		return 0;
+
+	int foundCount = 0;
+
+	for ( size_t cursor = 0;
+		  cursor < m_freeList.size() && foundCount < count;
+		  ++cursor )
+	{
+		const size_t entryIndex = m_freeList[cursor];
+
+		if ( entryIndex >= m_spawnEntries.size() )
+			continue;
+
+		const EnemySpawnerPoolEntry& entry = m_spawnEntries[entryIndex];
+
+		if ( entry.megaGridNumber != megaGridNumber )
+			continue;
+
+		if ( entry.kind != kind )
+			continue;
+
+		EnemySpawnerPreviewEntry preview{};
+		preview.entryIndex = entryIndex;
+		preview.object = entry.object;
+		preview.kind = entry.kind;
+		preview.megaGridNumber = entry.megaGridNumber;
+		preview.spawnPosition = entry.spawnPosition;
+
+		outEntries.push_back(preview);
+		++foundCount;
+	}
+
+	return foundCount;
+}
+
+CGameObject* EnemySpawner::SpawnPreviewEntry(
+	const EnemySpawnerPreviewEntry& preview)
+{
+	const size_t entryIndex = preview.entryIndex;
+
+	if ( entryIndex >= m_spawnEntries.size() )
+		return nullptr;
+
+	EnemySpawnerPoolEntry& entry = m_spawnEntries[entryIndex];
+
+	// preview 시점과 실제 spawn 시점의 엔트리가 같은지 검증.
+	if ( entry.object != preview.object )
+		return nullptr;
+
+	if ( entry.kind != preview.kind )
+		return nullptr;
+
+	if ( entry.megaGridNumber != preview.megaGridNumber )
+		return nullptr;
+
+	for ( size_t cursor = 0; cursor < m_freeList.size(); ++cursor )
+	{
+		if ( m_freeList[cursor] != entryIndex )
+			continue;
+
+		m_freeList[cursor] = m_freeList.back();
+		m_freeList.pop_back();
+
+		return ActivateEntry(entryIndex);
+	}
+
+	// 이미 다른 경로에서 활성화됐거나 freeList에서 빠진 경우.
+	return nullptr;
+}
+
 int EnemySpawner::SpawnMegaGrid(int megaGridNumber)
 {
 	int spawnedCount = 0;
