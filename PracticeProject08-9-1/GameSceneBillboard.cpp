@@ -234,6 +234,21 @@ namespace
 		return result;
 	}
 
+	static XMFLOAT3 GetWeaponFireworkOrigin(CGameObject* weaponObject)
+	{
+		if ( !weaponObject )
+			return XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+		const XMFLOAT4X4& W = weaponObject->GetWorldMatrix();
+
+		// 무기 pivot 기준. 너무 손 안쪽에 붙어 보이면 y만 살짝 올린다.
+		return XMFLOAT3(
+			W._41,
+			W._42 + 0.18f,
+			W._43
+		);
+	}
+
 	static void ComputeWeaponTrailRootTip(
 	const SwordTrailEntry& trail,
 	XMFLOAT3& outRoot,
@@ -651,7 +666,11 @@ void CGameScene::BuildItemBillboardBatch(
 		);
 
 		SetBossSummonCircleDiffuseSrvIndex(
-	m_bossSummonCircleTexture->GetBaseSrvIndex()
+			m_bossSummonCircleTexture->GetBaseSrvIndex()
+		);
+
+		SetBossCallSummonCircleDiffuseSrvIndex(
+			m_bossSummonCircleTexture->GetBaseSrvIndex()
 		);
 	}
 
@@ -673,7 +692,10 @@ void CGameScene::BuildItemBillboardBatch(
 
 	m_itemBillboards.clear();
 	m_itemBillboards.reserve(
-		kKeyItemBillboardCount + 3 + kBossShockwaveWallSegmentCount
+		kKeyItemBillboardCount +
+		3 +
+		kBossShockwaveWallSegmentCount +
+		kBossCallSummonCircleMaxCount
 	);
 
 	for ( UINT i = 0; i < kKeyItemBillboardCount; ++i )
@@ -820,6 +842,32 @@ void CGameScene::BuildItemBillboardBatch(
 		m_itemBillboards.push_back(shockwaveWall);
 	}
 
+	for ( UINT i = 0; i < kBossCallSummonCircleMaxCount; ++i )
+	{
+		ItemBillboardEntry circle{};
+		circle.active = false;
+		circle.distanceCulled = true;
+		circle.transparent = true;
+
+		circle.kind = EItemBillboardKind::BossCallSummonCircle;
+		circle.megaGridNumber = 5;
+
+		circle.position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+		circle.width = 1.0f;
+		circle.height = 1.0f;
+		circle.yOffset = 0.05f;
+
+		circle.cullDistance = 1000000.0f;
+
+		circle.pickupRadius = 0.0f;
+		circle.pickupHeightTolerance = 0.0f;
+
+		circle.materialId = kBossCallSummonCircleMaterialId;
+
+		m_itemBillboards.push_back(circle);
+	}
+
 	m_itemBillboardInstanceBufferCapacity =
 		static_cast< UINT >( m_itemBillboards.size() );
 
@@ -893,6 +941,7 @@ void CGameScene::BuildItemBillboardBatch(
 		BuildBossPoisonProjectileBatch(dev, cmd, dsvFormat);
 		BuildSwordTrailBatch(dev, cmd, dsvFormat);
 		BuildMonsterSwordTrailBatch(dev, cmd, dsvFormat);
+		BuildBossCallSummonWwwBatch(dev, cmd, dsvFormat);
 	}
 }
 
@@ -1117,6 +1166,62 @@ void CGameScene::BuildMonsterSwordTrailBatch(
 	}
 }
 
+void CGameScene::BuildBossCallSummonWwwBatch(
+	ID3D12Device* dev,
+	ID3D12GraphicsCommandList* cmd,
+	DXGI_FORMAT dsvFormat)
+{
+	if ( !dev || !cmd )
+		return;
+
+	m_bossCallSummonWwwShader = std::make_shared<CSwordTrailShader>();
+
+	DXGI_FORMAT rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+	m_bossCallSummonWwwShader->CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		1,
+		&rtvFormat,
+		dsvFormat
+	);
+
+	m_bossCallSummonWwwEntries.clear();
+	m_bossCallSummonWwwEntries.resize(kBossCallSummonWwwMaxCount);
+
+	m_bossCallSummonWwwVertexBufferCapacity =
+		kBossCallSummonWwwMaxVertices;
+
+	const UINT bufferBytes =
+		sizeof(SwordTrailVertex) *
+		m_bossCallSummonWwwVertexBufferCapacity;
+
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+	{
+		m_pd3dBossCallSummonWwwVertexBuffer[frameIndex] =
+			::CreateBufferResource(
+				dev,
+				cmd,
+				nullptr,
+				bufferBytes,
+				D3D12_HEAP_TYPE_UPLOAD,
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				nullptr
+			);
+
+		if ( m_pd3dBossCallSummonWwwVertexBuffer[frameIndex] )
+		{
+			m_pd3dBossCallSummonWwwVertexBuffer[frameIndex]->Map(
+				0,
+				nullptr,
+				reinterpret_cast< void** >(
+					&m_pMappedBossCallSummonWwwVertexBuffer[frameIndex]
+					)
+			);
+		}
+	}
+}
+
 void CGameScene::ReleaseMuzzleFlashGpuResources()
 {
 	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
@@ -1199,6 +1304,27 @@ void CGameScene::ReleaseMonsterSwordTrailGpuResources()
 	}
 
 	m_monsterSwordTrailVertexBufferCapacity = 0;
+}
+
+void CGameScene::ReleaseBossCallSummonWwwGpuResources()
+{
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+	{
+		if ( m_pd3dBossCallSummonWwwVertexBuffer[frameIndex] )
+		{
+			if ( m_pMappedBossCallSummonWwwVertexBuffer[frameIndex] )
+			{
+				m_pd3dBossCallSummonWwwVertexBuffer[frameIndex]->Unmap(0, nullptr);
+				m_pMappedBossCallSummonWwwVertexBuffer[frameIndex] = nullptr;
+			}
+
+			m_pd3dBossCallSummonWwwVertexBuffer[frameIndex].Reset();
+		}
+
+		m_pMappedBossCallSummonWwwVertexBuffer[frameIndex] = nullptr;
+	}
+
+	m_bossCallSummonWwwVertexBufferCapacity = 0;
 }
 
 void CGameScene::SpawnMuzzleFlash(
@@ -1340,6 +1466,499 @@ void CGameScene::SpawnMuzzleFlash(
 	for ( int i = 0; i < kMuzzleFlashSparkCount; ++i )
 	{
 		spawnSpark(rotDist(rng));
+	}
+}
+
+void CGameScene::SpawnGoldFireworkBurstAtWeapon(CGameObject* weaponObject)
+{
+	if ( !weaponObject )
+		return;
+
+	static std::mt19937 rng{ std::random_device{}( ) };
+
+	static std::uniform_real_distribution<float> zeroOneDist(0.0f, 1.0f);
+	static std::uniform_real_distribution<float> unitDist(-1.0f, 1.0f);
+	static std::uniform_real_distribution<float> rotDist(0.0f, XM_2PI);
+	static std::uniform_real_distribution<float> seedDist(0.0f, 1000.0f);
+
+	const XMFLOAT3 origin = GetWeaponFireworkOrigin(weaponObject);
+
+	constexpr int kGoldFireworkParticleCount = 72;
+
+	for ( int i = 0; i < kGoldFireworkParticleCount; ++i )
+	{
+		MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashes);
+		if ( !e )
+			return;
+
+		// 구 표면에 가까운 전방위 랜덤 방향.
+		const float y = unitDist(rng);
+		const float theta = zeroOneDist(rng) * XM_2PI;
+		const float horizontalRadius =
+			std::sqrt(std::max(0.0f, 1.0f - y * y));
+
+		XMVECTOR dir = XMVectorSet(
+			std::cos(theta) * horizontalRadius,
+			y,
+			std::sin(theta) * horizontalRadius,
+			0.0f
+		);
+
+		if ( XMVectorGetX(XMVector3LengthSq(dir)) <= 1.0e-8f )
+			dir = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+		else
+			dir = XMVector3Normalize(dir);
+
+		// 무기 중심에서 완전히 같은 점에 겹치지 않도록 아주 약간만 퍼뜨린다.
+		const float spawnJitter = 0.04f + zeroOneDist(rng) * 0.08f;
+
+		XMVECTOR posV =
+			XMLoadFloat3(&origin) +
+			XMVectorScale(dir, spawnJitter);
+
+		XMFLOAT3 pos{};
+		XMStoreFloat3(&pos, posV);
+
+		// 너무 차이나지는 않게, 그러나 입자별 차이는 나게.
+		const float speed = 3.20f + zeroOneDist(rng) * 2.20f;
+		const float life = 0.72f + zeroOneDist(rng) * 0.42f;
+		const float startSize = 0.16f + zeroOneDist(rng) * 0.12f;
+		const float endSize = 0.025f + zeroOneDist(rng) * 0.025f;
+
+		XMVECTOR velV = XMVectorScale(dir, speed);
+
+		XMFLOAT3 vel{};
+		XMStoreFloat3(&vel, velV);
+
+		e->active = true;
+		e->kind = EMuzzleFlashKind::GoldFirework;
+
+		e->position = pos;
+		e->velocity = vel;
+
+		e->age = 0.0f;
+		e->lifetime = life;
+
+		// 시간이 지날수록 작아지게 한다.
+		e->startWidth = startSize;
+		e->startHeight = startSize;
+		e->endWidth = endSize;
+		e->endHeight = endSize;
+
+		e->rotationRad = rotDist(rng);
+		e->intensity = 1.15f + zeroOneDist(rng) * 0.45f;
+
+		// 독가스 중력 수치(kBossPoisonDustGravity = 1.20f)를 기준으로 약간만 랜덤화.
+		e->gravity = kBossPoisonDustGravity * ( 0.85f + zeroOneDist(rng) * 0.30f );
+
+		// 공중에서 너무 멀리 날아가지 않도록 약한 감속.
+		e->drag = 0.35f + zeroOneDist(rng) * 0.30f;
+
+		e->seed = seedDist(rng);
+
+		// 금빛 계열 안에서만 미세 랜덤.
+		const float warm = zeroOneDist(rng);
+
+		e->color = XMFLOAT4(
+			1.00f,
+			0.66f + warm * 0.16f,
+			0.10f + warm * 0.12f,
+			0.92f
+		);
+	}
+}
+
+void CGameScene::SpawnWeaponLevelUpFireworks()
+{
+	for ( int slot = 0; slot < 4; ++slot )
+	{
+		CGameObject* player = GetPlayerBySlot(slot);
+		if ( !player )
+			continue;
+
+		if ( !player->GetActive() )
+			continue;
+
+		CGameObject* weaponObject = nullptr;
+
+		if ( auto* equip = player->GetComponent<CPlayerEquipmentComponent>() )
+		{
+			const EWeaponType equippedWeapon = equip->GetEquippedWeapon();
+			weaponObject = equip->GetWeaponObject(equippedWeapon);
+		}
+
+		// fallback: 장비 컴포넌트에서 못 얻은 경우 기존 slot 순서 ref로 복구.
+		if ( !weaponObject )
+		{
+			const size_t index = static_cast< size_t >( slot );
+
+			auto PickActiveWeaponRef =
+				[ index ] (const std::vector<CGameObject*>& refs) -> CGameObject*
+				{
+					if ( index >= refs.size() )
+						return nullptr;
+
+					CGameObject* obj = refs[index];
+					if ( !obj )
+						return nullptr;
+
+					if ( !obj->GetActive() )
+						return nullptr;
+
+					return obj;
+				};
+
+			if ( !weaponObject )
+				weaponObject = PickActiveWeaponRef(m_PlayerSwordRefs);
+
+			if ( !weaponObject )
+				weaponObject = PickActiveWeaponRef(m_PlayerAxeRefs);
+
+			if ( !weaponObject )
+				weaponObject = PickActiveWeaponRef(m_PlayerBowRefs);
+
+			if ( !weaponObject )
+				weaponObject = PickActiveWeaponRef(m_PlayerGunRefs);
+		}
+
+		if ( !weaponObject )
+			continue;
+
+		if ( !weaponObject->GetActive() )
+			continue;
+
+		SpawnGoldFireworkBurstAtWeapon(weaponObject);
+	}
+}
+
+void CGameScene::SpawnMagicCircleGlowParticle(
+	const XMFLOAT3& center,
+	float circleSize,
+	float alpha,
+	float intensityScale,
+	float glowSizeScale,
+	float afterimageSizeScale,
+	float lifetimeScale)
+{
+	if ( alpha <= 0.001f )
+		return;
+
+	static std::mt19937 rng{ std::random_device{}( ) };
+
+	static std::uniform_real_distribution<float> zeroOneDist(0.0f, 1.0f);
+	static std::uniform_real_distribution<float> unitDist(-1.0f, 1.0f);
+	static std::uniform_real_distribution<float> rotDist(0.0f, XM_2PI);
+	static std::uniform_real_distribution<float> seedDist(0.0f, 1000.0f);
+
+	const float brightness = std::clamp(alpha, 0.0f, 1.0f);
+	const float safeLifetimeScale =
+		std::max(0.01f, lifetimeScale);
+
+	const float circleRadius =
+		std::max(0.25f, circleSize * 0.5f);
+
+	const float angle =
+		zeroOneDist(rng) * XM_2PI;
+
+	// 마법진 내부/외곽에 고르게 분포.
+	const float r =
+		std::sqrt(zeroOneDist(rng)) * circleRadius;
+
+	XMFLOAT3 pos = center;
+	pos.x += std::cos(angle) * r;
+	pos.z += std::sin(angle) * r;
+	pos.y = center.y + kMagicCircleGlowParticleYOffset + zeroOneDist(rng) * 0.08f;
+
+	const float outwardSpeed =
+		0.03f + zeroOneDist(rng) * 0.12f;
+
+	const float upwardSpeed =
+		0.02f + zeroOneDist(rng) * 0.08f;
+
+	XMFLOAT3 velocity{};
+	velocity.x = std::cos(angle) * outwardSpeed;
+	velocity.y = upwardSpeed;
+	velocity.z = std::sin(angle) * outwardSpeed;
+
+	// ---------------------------------------------------------------------
+	// 1) 큰 초록 빛번짐.
+	// 총구화염 Core/Ring 사용 금지. MagicCircleGlow 전용 kind 사용.
+	// ---------------------------------------------------------------------
+	{
+		MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashes);
+		if ( !e )
+			return;
+
+		const float safeGlowSizeScale =
+			std::max(0.01f, glowSizeScale);
+
+		const float baseSize =
+			std::max(
+				0.35f,
+				circleSize * ( 0.10f + zeroOneDist(rng) * 0.08f )
+			) * safeGlowSizeScale;
+
+		e->active = true;
+		e->kind = EMuzzleFlashKind::MagicCircleGlow;
+
+		e->position = pos;
+		e->velocity = velocity;
+
+		e->age = 0.0f;
+		e->lifetime =
+			( 0.38f + zeroOneDist(rng) * 0.24f ) *
+			safeLifetimeScale;
+
+		e->startWidth = baseSize;
+		e->startHeight = baseSize;
+		e->endWidth = baseSize * 1.45f;
+		e->endHeight = baseSize * 1.45f;
+
+		e->intensity = intensityScale * ( 0.85f + brightness * 0.65f );
+
+		e->color = XMFLOAT4(
+			0.16f,
+			0.95f,
+			0.24f,
+			std::clamp(0.18f + brightness * 0.32f, 0.0f, 0.55f)
+		);
+	}
+
+	// ---------------------------------------------------------------------
+	// 2) 잔광/부유 입자.
+	// 작은 초록 흔적. 이것도 총구화염 Spark 사용 금지.
+	// ---------------------------------------------------------------------
+	{
+		MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashes);
+		if ( !e )
+			return;
+
+		const float safeAfterimageSizeScale =
+			std::max(0.01f, afterimageSizeScale);
+
+		const float moteSize =
+			std::max(
+				0.18f,
+				circleSize * ( 0.045f + zeroOneDist(rng) * 0.045f )
+			) * safeAfterimageSizeScale;
+
+		e->active = true;
+		e->kind = EMuzzleFlashKind::MagicCircleAfterimage;
+
+		e->position = pos;
+		e->velocity = XMFLOAT3(
+			velocity.x * ( 0.45f + zeroOneDist(rng) * 0.30f ),
+			0.08f + zeroOneDist(rng) * 0.20f,
+			velocity.z * ( 0.45f + zeroOneDist(rng) * 0.30f )
+		);
+
+		e->lifetime =
+			( 0.45f + zeroOneDist(rng) * 0.35f ) *
+			safeLifetimeScale;
+
+		e->endWidth = moteSize * 1.35f;
+		e->endHeight = moteSize * 1.35f;
+
+		e->intensity = intensityScale * ( 0.75f + brightness * 0.55f );
+		e->gravity = 0.0f;
+
+		e->color = XMFLOAT4(
+			0.10f,
+			0.90f,
+			0.18f,
+			std::clamp(0.16f + brightness * 0.28f, 0.0f, 0.45f)
+		);
+	}
+}
+
+void CGameScene::SpawnBossCallSummonWwwEffect(
+	const XMFLOAT3& center,
+	EEnemySpawnerEnemyKind kind)
+{
+#ifndef USING_NETWORK
+	static std::mt19937 rng{ std::random_device{}( ) };
+
+	static std::uniform_real_distribution<float> zeroOneDist(0.0f, 1.0f);
+	static std::uniform_real_distribution<float> lifeDist(0.95f, 1.30f);
+	static std::uniform_real_distribution<float> seedDist(0.0f, 1000.0f);
+
+	BossCallSummonWwwEntry* entry = nullptr;
+
+	for ( BossCallSummonWwwEntry& candidate : m_bossCallSummonWwwEntries )
+	{
+		if ( candidate.active )
+			continue;
+
+		entry = &candidate;
+		break;
+	}
+
+	if ( !entry )
+		return;
+
+	const float circleSize = GetBossCallSummonCircleSize(kind);
+	const float radius = std::max(0.10f, circleSize * 0.5f);
+
+	XMFLOAT3 fixedCenter = center;
+	fixedCenter.y = 0.0f;
+
+	*entry = BossCallSummonWwwEntry{};
+
+	entry->active = true;
+	entry->center = fixedCenter;
+
+	entry->radius = radius;
+	entry->maxHeight = radius * 2.0f;
+
+	entry->age = 0.0f;
+	entry->lifetime = lifeDist(rng);
+
+	entry->retargetTimer = 0.0f;
+	entry->seed = seedDist(rng);
+
+	// 잔광 색상과 동일 계열.
+	entry->color = XMFLOAT4(0.10f, 0.90f, 0.18f, 0.78f);
+
+	for ( UINT i = 0; i < kBossCallSummonWwwPeakCount; ++i )
+	{
+		const float h = zeroOneDist(rng) * entry->maxHeight;
+
+		entry->peakHeights[i] = h;
+		entry->targetPeakHeights[i] = zeroOneDist(rng) * entry->maxHeight;
+
+		entry->peakMoveSpeeds[i] =
+			entry->maxHeight * ( 2.8f + zeroOneDist(rng) * 4.2f );
+	}
+#else
+	UNREFERENCED_PARAMETER(center);
+	UNREFERENCED_PARAMETER(kind);
+#endif
+}
+
+void CGameScene::UpdateBossCallSummonWwwEffects(float dt)
+{
+#ifndef USING_NETWORK
+	if ( dt <= 0.0f )
+		return;
+
+	static std::mt19937 rng{ std::random_device{}( ) };
+
+	static std::uniform_real_distribution<float> zeroOneDist(0.0f, 1.0f);
+
+	for ( BossCallSummonWwwEntry& entry : m_bossCallSummonWwwEntries )
+	{
+		if ( !entry.active )
+			continue;
+
+		entry.age += dt;
+
+		if ( entry.age >= entry.lifetime )
+		{
+			entry.active = false;
+			continue;
+		}
+
+		entry.retargetTimer -= dt;
+
+		if ( entry.retargetTimer <= 0.0f )
+		{
+			// 모든 꼭짓점을 매번 동시에 바꾸면 규칙적으로 보이므로,
+			// 일부 꼭짓점만 랜덤하게 새 목표 높이를 받는다.
+			for ( UINT i = 0; i < kBossCallSummonWwwPeakCount; ++i )
+			{
+				if ( zeroOneDist(rng) < 0.68f )
+				{
+					entry.targetPeakHeights[i] =
+						zeroOneDist(rng) * entry.maxHeight;
+
+					entry.peakMoveSpeeds[i] =
+						entry.maxHeight *
+						( 2.4f + zeroOneDist(rng) * 5.0f );
+				}
+			}
+
+			entry.retargetTimer =
+				0.035f + zeroOneDist(rng) * 0.085f;
+		}
+
+		for ( UINT i = 0; i < kBossCallSummonWwwPeakCount; ++i )
+		{
+			const float target = entry.targetPeakHeights[i];
+			const float current = entry.peakHeights[i];
+
+			const float maxStep =
+				entry.peakMoveSpeeds[i] * dt;
+
+			const float delta =
+				std::clamp(
+					target - current,
+					-maxStep,
+					maxStep
+				);
+
+			entry.peakHeights[i] =
+				std::clamp(
+					current + delta,
+					0.0f,
+					entry.maxHeight
+				);
+		}
+	}
+#else
+	UNREFERENCED_PARAMETER(dt);
+#endif
+}
+
+void CGameScene::EmitMagicCircleGlowParticles(
+	const XMFLOAT3& center,
+	float circleSize,
+	float alpha,
+	float dt,
+	float& accumulator,
+	float emitIntervalSec,
+	int particlesPerEmit,
+	float intensityScale)
+{
+	if ( dt <= 0.0f )
+		return;
+
+	if ( alpha <= 0.001f )
+		return;
+
+	if ( circleSize <= 0.0f )
+		return;
+
+	emitIntervalSec =
+		( emitIntervalSec > 1.0e-6f )
+		? emitIntervalSec
+		: 0.001f;
+
+	accumulator += dt;
+
+	if ( accumulator < emitIntervalSec )
+		return;
+
+	int emitCount =
+		static_cast< int >(accumulator / emitIntervalSec);
+
+	accumulator =
+		std::fmod(accumulator, emitIntervalSec);
+
+	// 프레임 드랍 시 한 번에 폭발적으로 생성되는 것 방지.
+	if ( emitCount > 3 )
+		emitCount = 3;
+
+	for ( int n = 0; n < emitCount; ++n )
+	{
+		for ( int i = 0; i < particlesPerEmit; ++i )
+		{
+			SpawnMagicCircleGlowParticle(
+				center,
+				circleSize,
+				alpha,
+				intensityScale
+			);
+		}
 	}
 }
 
@@ -2124,6 +2743,431 @@ void CGameScene::SpawnBossSummonVisuals(const XMFLOAT3& center, float alpha)
 	SetBossSummonVisualAlpha(alpha);
 }
 
+void CGameScene::SetBossCallSummonCircleAlpha(float alpha)
+{
+	if ( !m_pMaterials )
+		return;
+
+	alpha = std::clamp(alpha, 0.0f, 1.0f);
+
+	MATERIAL& mat =
+		m_pMaterials->m_pReflections[kBossCallSummonCircleMaterialId];
+
+	mat.m_xmf4Diffuse.w = alpha;
+
+	m_bossCallSummonCircleVisualState.alpha = alpha;
+}
+
+float CGameScene::GetBossCallSummonCircleSize(
+	EEnemySpawnerEnemyKind kind) const
+{
+	switch ( kind )
+	{
+	case EEnemySpawnerEnemyKind::Ghoul:
+		return 2.0f;
+
+	case EEnemySpawnerEnemyKind::SwordMan:
+	case EEnemySpawnerEnemyKind::BowMan:
+		return 4.0f;
+
+	case EEnemySpawnerEnemyKind::Mutant:
+		return 4.0f;
+
+	default:
+		return 1.0f;
+	}
+}
+
+void CGameScene::ClearBossCallSummonCircleVisuals()
+{
+	m_activeBossCallSummonCircleItemIndices.clear();
+
+	for ( ItemBillboardEntry& item : m_itemBillboards )
+	{
+		if ( item.kind != EItemBillboardKind::BossCallSummonCircle )
+			continue;
+
+		item.active = false;
+		item.distanceCulled = true;
+		item.width = 0.0f;
+		item.height = 0.0f;
+	}
+
+	m_bossCallSummonCircleVisualState = BossCallSummonCircleVisualState{};
+	m_bossCallSummonGlowParticleEmitAccumulatorSec = 0.0f;
+
+	SetBossCallSummonCircleAlpha(0.0f);
+}
+
+void CGameScene::AddBossCallSummonCircle(
+	const XMFLOAT3& center,
+	EEnemySpawnerEnemyKind kind)
+{
+	const float size = GetBossCallSummonCircleSize(kind);
+
+	for ( size_t i = 0; i < m_itemBillboards.size(); ++i )
+	{
+		ItemBillboardEntry& item = m_itemBillboards[i];
+
+		if ( item.kind != EItemBillboardKind::BossCallSummonCircle )
+			continue;
+
+		if ( item.active )
+			continue;
+
+		XMFLOAT3 fixedCenter = center;
+		fixedCenter.y = 0.0f;
+
+		item.active = true;
+		item.distanceCulled = false;
+		item.transparent = true;
+
+		item.position = fixedCenter;
+
+		item.width = size;
+		item.height = size;
+		item.yOffset = 0.05f;
+
+		item.cullDistance = 1000000.0f;
+
+		item.pickupRadius = 0.0f;
+		item.pickupHeightTolerance = 0.0f;
+
+		item.materialId = kBossCallSummonCircleMaterialId;
+
+		m_activeBossCallSummonCircleItemIndices.push_back(i);
+		return;
+	}
+
+	OutputDebugStringA(
+		"[BossCallSummonCircle] add failed: no free BossCallSummonCircle entry.\n"
+	);
+}
+
+void CGameScene::BeginBossCallMonsterSummonVisuals(
+	int callIndex,
+	float fadeInDurationSec)
+{
+#ifndef USING_NETWORK
+	ClearBossCallSummonCircleVisuals();
+
+	m_bossCallSummonPlanCallIndex = -1;
+	m_bossCallSummonPlanEntries.clear();
+
+	if ( !m_enemySpawner )
+		return;
+
+	if ( callIndex < 1 || callIndex > 3 )
+		return;
+
+	m_bossCallSummonPlanCallIndex = callIndex;
+
+	constexpr int megaGridNumber = 5;
+
+	auto AddPreviewKind =
+		[ & ](
+			EEnemySpawnerEnemyKind kind,
+			int count
+		)
+		{
+			if ( count <= 0 )
+				return;
+
+			std::vector<EnemySpawnerPreviewEntry> previews;
+			previews.reserve(static_cast< size_t >( count ));
+
+			const int found =
+				m_enemySpawner->PeekSpawnEntries(
+					megaGridNumber,
+					kind,
+					count,
+					previews
+				);
+
+			for ( const EnemySpawnerPreviewEntry& preview : previews )
+			{
+				m_bossCallSummonPlanEntries.push_back(preview);
+
+				AddBossCallSummonCircle(
+					preview.spawnPosition,
+					preview.kind
+				);
+			}
+		};
+
+	switch ( callIndex )
+	{
+	case 1:
+		AddPreviewKind(EEnemySpawnerEnemyKind::Ghoul, 30);
+		break;
+
+	case 2:
+		AddPreviewKind(EEnemySpawnerEnemyKind::Ghoul, 20);
+		AddPreviewKind(EEnemySpawnerEnemyKind::BowMan, 5);
+		AddPreviewKind(EEnemySpawnerEnemyKind::SwordMan, 5);
+		break;
+
+	case 3:
+		AddPreviewKind(EEnemySpawnerEnemyKind::Ghoul, 20);
+		AddPreviewKind(EEnemySpawnerEnemyKind::BowMan, 5);
+		AddPreviewKind(EEnemySpawnerEnemyKind::SwordMan, 5);
+		AddPreviewKind(EEnemySpawnerEnemyKind::Mutant, 5);
+		break;
+
+	default:
+		break;
+	}
+
+	if ( m_activeBossCallSummonCircleItemIndices.empty() )
+	{
+#ifndef USING_NETWORK
+		char buf[256];
+		sprintf_s(
+			buf,
+			"[BossCallSummonCircle][BeginFailed] call=%d plan=%zu activeCircle=0\n",
+			callIndex,
+			m_bossCallSummonPlanEntries.size()
+		);
+		OutputDebugStringA(buf);
+#endif
+		m_bossCallSummonPlanCallIndex = -1;
+		m_bossCallSummonPlanEntries.clear();
+		return;
+	}
+
+	m_bossCallSummonCircleVisualState = BossCallSummonCircleVisualState{};
+	m_bossCallSummonCircleVisualState.active = true;
+	m_bossCallSummonCircleVisualState.fadingIn = true;
+	m_bossCallSummonCircleVisualState.fadingOut = false;
+	m_bossCallSummonCircleVisualState.ageSec = 0.0f;
+	m_bossCallSummonCircleVisualState.durationSec =
+		( fadeInDurationSec > 1.0e-6f ) ? fadeInDurationSec : 0.001f;
+	m_bossCallSummonCircleVisualState.alpha = 0.0f;
+
+	SetBossCallSummonCircleAlpha(0.0f);
+
+	{
+		XMFLOAT3 sfxPos = XMFLOAT3(400.0f, 0.0f, 400.0f);
+
+		if ( !m_bossCallSummonPlanEntries.empty() )
+		{
+			XMFLOAT3 sum = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+			for ( const EnemySpawnerPreviewEntry& entry :
+				  m_bossCallSummonPlanEntries )
+			{
+				sum.x += entry.spawnPosition.x;
+				sum.y += entry.spawnPosition.y;
+				sum.z += entry.spawnPosition.z;
+			}
+
+			const float invCount =
+				1.0f /
+				static_cast< float >( m_bossCallSummonPlanEntries.size() );
+
+			sfxPos.x = sum.x * invCount;
+			sfxPos.y = sum.y * invCount;
+			sfxPos.z = sum.z * invCount;
+		}
+
+		sfxPos.y = 0.0f;
+
+		PlayBossCallSummonCircleSfxAt(sfxPos);
+
+#ifndef USING_NETWORK
+		char buf[512];
+		sprintf_s(
+			buf,
+			"[BossCallSummonCircle][Begin] call=%d plan=%zu activeCircle=%zu fadeIn=%.3f sfxPos=(%.3f, %.3f, %.3f)\n",
+			callIndex,
+			m_bossCallSummonPlanEntries.size(),
+			m_activeBossCallSummonCircleItemIndices.size(),
+			m_bossCallSummonCircleVisualState.durationSec,
+			sfxPos.x,
+			sfxPos.y,
+			sfxPos.z
+		);
+		OutputDebugStringA(buf);
+#endif
+	}
+
+#else
+	UNREFERENCED_PARAMETER(callIndex);
+	UNREFERENCED_PARAMETER(fadeInDurationSec);
+#endif
+}
+
+void CGameScene::StartBossCallSummonCircleFadeOut()
+{
+#ifndef USING_NETWORK
+	if ( !m_bossCallSummonCircleVisualState.active )
+		return;
+
+	if ( m_activeBossCallSummonCircleItemIndices.empty() )
+		return;
+
+	m_bossCallSummonCircleVisualState.fadingIn = false;
+	m_bossCallSummonCircleVisualState.fadingOut = true;
+	m_bossCallSummonCircleVisualState.ageSec = 0.0f;
+	m_bossCallSummonCircleVisualState.durationSec =
+		( kBossCallSummonCircleFadeOutDurationSec > 1.0e-6f )
+		? kBossCallSummonCircleFadeOutDurationSec
+		: 0.001f;
+#endif
+}
+
+void CGameScene::EmitBossCallSummonCircleGlowParticles(
+	float dt,
+	float alpha)
+{
+#ifndef USING_NETWORK
+	if ( dt <= 0.0f )
+		return;
+
+	if ( alpha <= 0.001f )
+		return;
+
+	if ( m_activeBossCallSummonCircleItemIndices.empty() )
+		return;
+
+	const float emitIntervalSec =
+		( kBossCallSummonGlowParticleEmitIntervalSec > 1.0e-6f )
+		? kBossCallSummonGlowParticleEmitIntervalSec
+		: 0.001f;
+
+	m_bossCallSummonGlowParticleEmitAccumulatorSec += dt;
+
+	if ( m_bossCallSummonGlowParticleEmitAccumulatorSec < emitIntervalSec )
+		return;
+
+	int emitCount =
+		static_cast< int >(
+			m_bossCallSummonGlowParticleEmitAccumulatorSec /
+			emitIntervalSec
+		);
+
+	m_bossCallSummonGlowParticleEmitAccumulatorSec =
+		std::fmod(
+			m_bossCallSummonGlowParticleEmitAccumulatorSec,
+			emitIntervalSec
+		);
+
+	if ( emitCount > 3 )
+		emitCount = 3;
+
+	for ( size_t itemIndex : m_activeBossCallSummonCircleItemIndices )
+	{
+		if ( itemIndex >= m_itemBillboards.size() )
+			continue;
+
+		const ItemBillboardEntry& item = m_itemBillboards[itemIndex];
+
+		if ( !item.active )
+			continue;
+
+		if ( item.kind != EItemBillboardKind::BossCallSummonCircle )
+			continue;
+
+		XMFLOAT3 center = item.position;
+		center.y += item.yOffset;
+
+		const float circleSize =
+			std::max(item.width, item.height);
+
+		for ( int n = 0; n < emitCount; ++n )
+		{
+			for ( int i = 0; i < kBossCallSummonGlowParticlesPerEmit; ++i )
+			{
+				SpawnMagicCircleGlowParticle(
+					center,
+					circleSize,
+					alpha,
+					kBossCallSummonGlowParticleIntensityScale,
+					kBossCallSummonGlowParticleSizeScale,
+					kBossCallSummonAfterimageParticleSizeScale,
+					kBossCallSummonGlowParticleLifetimeScale
+				);
+			}
+		}
+	}
+#else
+	UNREFERENCED_PARAMETER(dt);
+	UNREFERENCED_PARAMETER(alpha);
+#endif
+}
+
+void CGameScene::UpdateBossCallSummonCircles(float dt)
+{
+#ifndef USING_NETWORK
+	if ( !m_bossCallSummonCircleVisualState.active )
+		return;
+
+	if ( dt < 0.0f )
+		dt = 0.0f;
+
+	BossCallSummonCircleVisualState& state =
+		m_bossCallSummonCircleVisualState;
+
+	state.ageSec += dt;
+
+	const float duration =
+		( state.durationSec > 1.0e-6f )
+		? state.durationSec
+		: 0.001f;
+
+	const float t =
+		std::clamp(
+			state.ageSec / duration,
+			0.0f,
+			1.0f
+		);
+
+	if ( state.fadingIn )
+	{
+		const float alpha = t;
+
+		SetBossCallSummonCircleAlpha(alpha);
+		EmitBossCallSummonCircleGlowParticles(dt, alpha);
+
+		if ( t >= 1.0f )
+		{
+			state.fadingIn = false;
+			state.ageSec = 0.0f;
+			state.durationSec = 0.0f;
+			SetBossCallSummonCircleAlpha(1.0f);
+		}
+
+		return;
+	}
+
+	if ( state.fadingOut )
+	{
+		const float alpha = 1.0f - t;
+
+		SetBossCallSummonCircleAlpha(alpha);
+		EmitBossCallSummonCircleGlowParticles(dt, alpha);
+
+		if ( t >= 1.0f )
+		{
+			ClearBossCallSummonCircleVisuals();
+		}
+
+		return;
+	}
+
+	// fade-in 완료 후 실제 몬스터 생성 전까지도
+	// 마법진 잔광을 계속 발생시킨다.
+	if ( state.active )
+	{
+		SetBossCallSummonCircleAlpha(1.0f);
+		EmitBossCallSummonCircleGlowParticles(dt, 1.0f);
+		return;
+	}
+#else
+	UNREFERENCED_PARAMETER(dt);
+#endif
+}
+
 void CGameScene::SpawnBossShockwave(const XMFLOAT3& center)
 {
 	XMFLOAT3 fixedCenter = center;
@@ -2138,6 +3182,8 @@ void CGameScene::SpawnBossShockwave(const XMFLOAT3& center)
 	m_bossShockwavePlayerInitialDistance = 0.0f;
 	m_bossShockwavePlayerPushDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
 
+	m_bossShockwaveWindSfxDirection = XMFLOAT3(0.0f, 0.0f, 1.0f);
+
 	CGameObject* localPlayer = GetPlayer();
 
 	if ( localPlayer && !m_bLocalPlayerDead )
@@ -2148,6 +3194,25 @@ void CGameScene::SpawnBossShockwave(const XMFLOAT3& center)
 		const float dz = playerPos.z - fixedCenter.z;
 
 		const float distSq = dx * dx + dz * dz;
+		float dist = sqrtf(distSq);
+
+		XMFLOAT3 radialDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
+
+		if ( dist > kBossShockwavePlayerMinDirectionDistance )
+		{
+			const float invDist = 1.0f / dist;
+
+			radialDir.x = dx * invDist;
+			radialDir.y = 0.0f;
+			radialDir.z = dz * invDist;
+		}
+		else
+		{
+			dist = 0.0f;
+		}
+
+		// 바람 사운드는 이 방향으로 퍼지는 충격파 전면을 따라간다.
+		m_bossShockwaveWindSfxDirection = radialDir;
 
 		const float maxAffectRadius =
 			kBossShockwaveMaxRadius + kBossShockwavePlayerRangePadding;
@@ -2157,28 +3222,15 @@ void CGameScene::SpawnBossShockwave(const XMFLOAT3& center)
 
 		if ( distSq <= maxAffectRadiusSq )
 		{
-			float dist = sqrtf(distSq);
-
-			XMFLOAT3 pushDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
-
-			if ( dist > kBossShockwavePlayerMinDirectionDistance )
-			{
-				const float invDist = 1.0f / dist;
-
-				pushDir.x = dx * invDist;
-				pushDir.y = 0.0f;
-				pushDir.z = dz * invDist;
-			}
-			else
-			{
-				dist = 0.0f;
-			}
-
 			m_bBossShockwavePushLocalPlayer = true;
 			m_bossShockwavePlayerInitialDistance = dist;
-			m_bossShockwavePlayerPushDir = pushDir;
+			m_bossShockwavePlayerPushDir = radialDir;
 		}
 	}
+
+	// 바람 생성 순간에는 보스/충격파 중심에서 1회 재생한다.
+	// 이후 UpdateBossShockwaveWindSfx()가 충격파 반지름에 맞춰 위치를 이동시킨다.
+	PlayBossShockwaveWindSfxAt(fixedCenter);
 
 	SetBossShockwaveAlpha(1.0f);
 	SetBossShockwaveWallAlpha(0.72f);
@@ -2246,6 +3298,8 @@ void CGameScene::UpdateBossShockwave(float dt)
 		m_bossShockwavePlayerInitialDistance = 0.0f;
 		m_bossShockwavePlayerPushDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
 
+		ResetBossShockwaveWindSfxTracking();
+
 		for ( ItemBillboardEntry& item : m_itemBillboards )
 		{
 			if ( item.kind != EItemBillboardKind::BossShockwave &&
@@ -2308,10 +3362,8 @@ void CGameScene::UpdateBossShockwave(float dt)
 		wallAlpha = ( 1.0f - fadeT ) * 0.72f;
 	}
 
-	ApplyBossShockwavePushToLocalPlayer(
-		m_bossShockwavePrevRadius,
-		radius
-	);
+	ApplyBossShockwavePushToLocalPlayer(m_bossShockwavePrevRadius, radius);
+	UpdateBossShockwaveWindSfx(radius);
 
 	m_bossShockwavePrevRadius = radius;
 	const float correctedRadius =
@@ -2719,6 +3771,8 @@ void CGameScene::UpdateBossMeleeSlashCasts(float dt)
 			state.pendingSpawn = true;
 			state.spawned = false;
 			state.meleeAgeSec = 0.0f;
+
+			RequestBossAttackSfx(boss);
 		}
 		else
 		{
@@ -3275,7 +4329,8 @@ void CGameScene::RenderTransparentItemBillboards(
 
 		if ( item->kind == EItemBillboardKind::BossSummonCircle ||
 			item->kind == EItemBillboardKind::BossSummonGlow ||
-			item->kind == EItemBillboardKind::BossShockwave )
+			item->kind == EItemBillboardKind::BossShockwave ||
+			item->kind == EItemBillboardKind::BossCallSummonCircle )
 		{
 			StoreXZPlaneItemBillboardWorldRows(
 				dst,
@@ -3689,6 +4744,318 @@ void CGameScene::RenderSwordTrails(
 
 		cmd->DrawInstanced(range.vertexCount, 1, range.startVertex, 0);
 	}
+}
+
+void CGameScene::RenderBossCallSummonWwwEffects(
+	ID3D12GraphicsCommandList* cmd,
+	CCamera* camera)
+{
+#ifndef USING_NETWORK
+	if ( !cmd ) return;
+	if ( !camera ) return;
+	if ( !m_bossCallSummonWwwShader ) return;
+
+	const UINT frameIndex = m_nFrameResourceIndex % kSceneBatchFrameResourceCount;
+
+	ID3D12Resource* vertexBuffer =
+		m_pd3dBossCallSummonWwwVertexBuffer[frameIndex].Get();
+
+	SwordTrailVertex* mappedVertexBuffer =
+		m_pMappedBossCallSummonWwwVertexBuffer[frameIndex];
+
+	if ( !vertexBuffer ) return;
+	if ( !mappedVertexBuffer ) return;
+	if ( m_bossCallSummonWwwVertexBufferCapacity == 0 ) return;
+
+	struct DrawRange
+	{
+		UINT startVertex = 0;
+		UINT vertexCount = 0;
+	};
+
+	std::vector<DrawRange> fillRanges;
+	std::vector<DrawRange> outlineRanges;
+
+	fillRanges.reserve(m_bossCallSummonWwwEntries.size());
+	outlineRanges.reserve(m_bossCallSummonWwwEntries.size());
+
+	UINT vertexCursor = 0;
+
+	auto Smooth01 =
+		[ ] (float x) -> float
+		{
+			x = std::clamp(x, 0.0f, 1.0f);
+			return x * x * ( 3.0f - 2.0f * x );
+		};
+
+	auto ComputePoint =
+		[ ](
+			const BossCallSummonWwwEntry& entry,
+			UINT wrappedPoint
+		) -> XMFLOAT3
+		{
+			const UINT basePointCount =
+				kBossCallSummonWwwPeakCount * 2;
+
+			wrappedPoint %= basePointCount;
+
+			const bool isPeak =
+				( wrappedPoint & 1u ) != 0u;
+
+			const UINT peakIndex =
+				( wrappedPoint / 2u ) %
+				kBossCallSummonWwwPeakCount;
+
+			const float angle =
+				XM_2PI *
+				static_cast< float >( wrappedPoint ) /
+				static_cast< float >( basePointCount );
+
+			const float cx = std::cos(angle);
+			const float sz = std::sin(angle);
+
+			const float y =
+				isPeak
+				? entry.peakHeights[peakIndex]
+				: 0.0f;
+
+				XMFLOAT3 p{};
+				p.x = entry.center.x + cx * entry.radius;
+				p.y = entry.center.y + y;
+				p.z = entry.center.z + sz * entry.radius;
+
+				return p;
+		};
+
+	for ( const BossCallSummonWwwEntry& entry : m_bossCallSummonWwwEntries )
+	{
+		if ( !entry.active )
+			continue;
+
+		const UINT neededFillVertices =
+			kBossCallSummonWwwFillVertexCount;
+
+		const UINT neededOutlineVertices =
+			kBossCallSummonWwwOutlineVertexCount;
+
+		const UINT neededVertices =
+			neededFillVertices + neededOutlineVertices;
+
+		if ( vertexCursor + neededVertices >
+			 m_bossCallSummonWwwVertexBufferCapacity )
+		{
+			break;
+		}
+
+		const float ageRatio =
+			( entry.lifetime > 1.0e-6f )
+			? std::clamp(entry.age / entry.lifetime, 0.0f, 1.0f)
+			: 1.0f;
+
+		const float birth =
+			Smooth01(ageRatio / 0.12f);
+
+		const float death =
+			1.0f -
+			Smooth01(( ageRatio - 0.62f ) / 0.38f);
+
+		const float alpha =
+			std::clamp(
+				entry.color.w * birth * death,
+				0.0f,
+				1.0f
+			);
+
+		if ( alpha <= 0.002f )
+			continue;
+
+		const UINT basePointCount =
+			kBossCallSummonWwwPeakCount * 2;
+
+		// -----------------------------------------------------------------
+		// 1) WWW 내부 채움.
+		// 각 peak마다 bottom_i -> peak_i -> bottom_i+1 삼각형을 만든다.
+		// RGB는 잔광과 동일하게 쓰고, additive 과노출 방지를 위해 alpha만 낮춘다.
+		// -----------------------------------------------------------------
+		{
+			const UINT fillStartVertex = vertexCursor;
+
+			const float fillAlpha =
+				std::clamp(alpha * 0.38f, 0.0f, 1.0f);
+
+			const XMFLOAT4 fillColor(
+				entry.color.x,
+				entry.color.y,
+				entry.color.z,
+				fillAlpha
+			);
+
+			for ( UINT peakIndex = 0;
+				  peakIndex < kBossCallSummonWwwPeakCount;
+				  ++peakIndex )
+			{
+				const UINT bottomAIndex =
+					peakIndex * 2u;
+
+				const UINT peakPointIndex =
+					peakIndex * 2u + 1u;
+
+				const UINT bottomBIndex =
+					( peakIndex * 2u + 2u ) % basePointCount;
+
+				const XMFLOAT3 bottomA =
+					ComputePoint(entry, bottomAIndex);
+
+				const XMFLOAT3 peak =
+					ComputePoint(entry, peakPointIndex);
+
+				const XMFLOAT3 bottomB =
+					ComputePoint(entry, bottomBIndex);
+
+				SwordTrailVertex& v0 =
+					mappedVertexBuffer[vertexCursor++];
+
+				v0.position = bottomA;
+				v0.uv = XMFLOAT2(1.0f, 0.5f);
+				v0.color = fillColor;
+
+				SwordTrailVertex& v1 =
+					mappedVertexBuffer[vertexCursor++];
+
+				v1.position = peak;
+				v1.uv = XMFLOAT2(1.0f, 0.5f);
+				v1.color = fillColor;
+
+				SwordTrailVertex& v2 =
+					mappedVertexBuffer[vertexCursor++];
+
+				v2.position = bottomB;
+				v2.uv = XMFLOAT2(1.0f, 0.5f);
+				v2.color = fillColor;
+			}
+
+			DrawRange fillRange{};
+			fillRange.startVertex = fillStartVertex;
+			fillRange.vertexCount = vertexCursor - fillStartVertex;
+
+			if ( fillRange.vertexCount >= 3 )
+				fillRanges.push_back(fillRange);
+		}
+
+		// -----------------------------------------------------------------
+		// 2) WWW 외곽선.
+		// 기존처럼 원 둘레를 따라 두께 있는 TRIANGLESTRIP을 만든다.
+		// -----------------------------------------------------------------
+		{
+			const float halfThickness =
+				std::max(0.035f, entry.radius * 0.030f);
+
+			const UINT outlineStartVertex = vertexCursor;
+
+			const XMFLOAT4 outlineColor(
+				entry.color.x,
+				entry.color.y,
+				entry.color.z,
+				alpha
+			);
+
+			for ( UINT pointIndex = 0;
+				  pointIndex < kBossCallSummonWwwPathPointCount;
+				  ++pointIndex )
+			{
+				const UINT wrappedPoint =
+					pointIndex % basePointCount;
+
+				const float angle =
+					XM_2PI *
+					static_cast< float >(wrappedPoint) /
+					static_cast< float >(basePointCount);
+
+				const float cx = std::cos(angle);
+				const float sz = std::sin(angle);
+
+				const XMFLOAT3 radial(cx, 0.0f, sz);
+				const XMFLOAT3 p =
+					ComputePoint(entry, wrappedPoint);
+
+				SwordTrailVertex& v0 =
+					mappedVertexBuffer[vertexCursor++];
+
+				v0.position = XMFLOAT3(
+					p.x - radial.x * halfThickness,
+					p.y,
+					p.z - radial.z * halfThickness
+				);
+
+				v0.uv = XMFLOAT2(1.0f, 0.0f);
+				v0.color = outlineColor;
+
+				SwordTrailVertex& v1 =
+					mappedVertexBuffer[vertexCursor++];
+
+				v1.position = XMFLOAT3(
+					p.x + radial.x * halfThickness,
+					p.y,
+					p.z + radial.z * halfThickness
+				);
+
+				v1.uv = XMFLOAT2(1.0f, 1.0f);
+				v1.color = outlineColor;
+			}
+
+			DrawRange outlineRange{};
+			outlineRange.startVertex = outlineStartVertex;
+			outlineRange.vertexCount = vertexCursor - outlineStartVertex;
+
+			if ( outlineRange.vertexCount >= 4 )
+				outlineRanges.push_back(outlineRange);
+		}
+	}
+
+	if ( fillRanges.empty() && outlineRanges.empty() )
+		return;
+
+	m_bossCallSummonWwwShader->Render(cmd, camera, nullptr);
+
+	D3D12_VERTEX_BUFFER_VIEW vbView{};
+	vbView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
+	vbView.SizeInBytes = sizeof(SwordTrailVertex) * vertexCursor;
+	vbView.StrideInBytes = sizeof(SwordTrailVertex);
+
+	cmd->IASetVertexBuffers(0, 1, &vbView);
+	cmd->IASetIndexBuffer(nullptr);
+
+	// 내부 면 먼저 그림.
+	if ( !fillRanges.empty() )
+	{
+		cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		for ( const DrawRange& range : fillRanges )
+		{
+			if ( range.vertexCount < 3 )
+				continue;
+
+			cmd->DrawInstanced(range.vertexCount, 1, range.startVertex, 0);
+		}
+	}
+
+	// 외곽선은 나중에 그려서 WWW 윤곽이 살아나게 한다.
+	if ( !outlineRanges.empty() )
+	{
+		cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+		for ( const DrawRange& range : outlineRanges )
+		{
+			if ( range.vertexCount < 4 )
+				continue;
+
+			cmd->DrawInstanced(range.vertexCount, 1, range.startVertex, 0);
+		}
+	}
+#else
+	UNREFERENCED_PARAMETER(cmd);
+	UNREFERENCED_PARAMETER(camera);
+#endif
 }
 
 void CGameScene::RenderMonsterSwordTrails(
