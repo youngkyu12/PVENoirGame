@@ -197,6 +197,7 @@
     <ClInclude Include="GameScene.h" />
     <ClInclude Include="GameSceneAttachmentBinder.h" />
     <ClInclude Include="GameSceneContentCatalog.h" />
+    <ClInclude Include="GameSceneFrameUploadBuffer.h" />
     <ClInclude Include="GameSceneHelper.h" />
     <ClInclude Include="GameSceneHUD.h" />
     <ClInclude Include="GameSceneObjectFactory.h" />

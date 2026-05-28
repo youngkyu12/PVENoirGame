@@ -1049,36 +1049,10 @@ void CGameScene::BuildMuzzleFlashBatch(
 	m_muzzleFlashes.clear();
 	m_muzzleFlashes.resize(kMuzzleFlashMaxCount);
 
-	m_muzzleFlashInstanceBufferCapacity = kMuzzleFlashMaxCount;
-
-	const UINT instanceBufferBytes =
-		sizeof(MuzzleFlashInstanceVertex) *
-		m_muzzleFlashInstanceBufferCapacity;
-
-	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+	m_muzzleFlashInstanceBuffer.Create(dev, cmd, kMuzzleFlashMaxCount, [ dev, cmd ] (UINT bufferBytes)
 	{
-		m_pd3dMuzzleFlashInstanceBuffer[frameIndex] =
-			::CreateBufferResource(
-				dev,
-				cmd,
-				nullptr,
-				instanceBufferBytes,
-				D3D12_HEAP_TYPE_UPLOAD,
-				D3D12_RESOURCE_STATE_GENERIC_READ,
-				nullptr
-			);
-
-		if ( m_pd3dMuzzleFlashInstanceBuffer[frameIndex] )
-		{
-			m_pd3dMuzzleFlashInstanceBuffer[frameIndex]->Map(
-				0,
-				nullptr,
-				reinterpret_cast< void** >(
-					&m_pMappedMuzzleFlashInstanceBuffer[frameIndex]
-					)
-			);
-		}
-	}
+		return ::CreateBufferResource(dev, cmd, nullptr, bufferBytes, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr);
+	});
 }
 
 void CGameScene::BuildBossPoisonProjectileBatch(
@@ -1360,23 +1334,7 @@ void CGameScene::BuildBossCallSummonWwwBatch(
 
 void CGameScene::ReleaseMuzzleFlashGpuResources()
 {
-	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
-	{
-		if ( m_pd3dMuzzleFlashInstanceBuffer[frameIndex] )
-		{
-			if ( m_pMappedMuzzleFlashInstanceBuffer[frameIndex] )
-			{
-				m_pd3dMuzzleFlashInstanceBuffer[frameIndex]->Unmap(0, nullptr);
-				m_pMappedMuzzleFlashInstanceBuffer[frameIndex] = nullptr;
-			}
-
-			m_pd3dMuzzleFlashInstanceBuffer[frameIndex].Reset();
-		}
-
-		m_pMappedMuzzleFlashInstanceBuffer[frameIndex] = nullptr;
-	}
-
-	m_muzzleFlashInstanceBufferCapacity = 0;
+	m_muzzleFlashInstanceBuffer.Release();
 }
 
 void CGameScene::ReleaseBossPoisonProjectileGpuResources()
@@ -4374,14 +4332,12 @@ void CGameScene::RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* c
 
 	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
 
-	ID3D12Resource* itemBillboardInstanceBuffer =
-		m_pd3dItemBillboardInstanceBuffer[frameIndex].Get();
-
-	ItemBillboardInstanceVertex* mappedItemBillboardInstanceBuffer =
-		m_pMappedItemBillboardInstanceBuffer[frameIndex];
+	ID3D12Resource* itemBillboardInstanceBuffer = m_pd3dItemBillboardInstanceBuffer[frameIndex].Get();
+	ItemBillboardInstanceVertex* mappedItemBillboardInstanceBuffer = m_pMappedItemBillboardInstanceBuffer[frameIndex];
 
 	if ( !itemBillboardInstanceBuffer ) return;
 	if ( !mappedItemBillboardInstanceBuffer ) return;
+	if ( m_itemBillboardInstanceBufferCapacity == 0 ) return;
 	if ( m_itemBillboardQuadMesh->m_SubMeshes.empty() ) return;
 
 	const SubMesh& sm = m_itemBillboardQuadMesh->m_SubMeshes[0];
@@ -4612,17 +4568,15 @@ void CGameScene::RenderMuzzleFlashes(
 	if ( !m_muzzleFlashShader ) return;
 	if ( !m_itemBillboardQuadMesh ) return;
 
-	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+	const UINT frameIndex = m_nFrameResourceIndex % kSceneBatchFrameResourceCount;
 
-	ID3D12Resource* muzzleFlashInstanceBuffer =
-		m_pd3dMuzzleFlashInstanceBuffer[frameIndex].Get();
-
-	MuzzleFlashInstanceVertex* mappedMuzzleFlashInstanceBuffer =
-		m_pMappedMuzzleFlashInstanceBuffer[frameIndex];
+	ID3D12Resource* muzzleFlashInstanceBuffer = m_muzzleFlashInstanceBuffer.Resource(frameIndex);
+	MuzzleFlashInstanceVertex* mappedMuzzleFlashInstanceBuffer = m_muzzleFlashInstanceBuffer.Mapped(frameIndex);
+	const UINT muzzleFlashInstanceBufferCapacity = m_muzzleFlashInstanceBuffer.Capacity();
 
 	if ( !muzzleFlashInstanceBuffer ) return;
 	if ( !mappedMuzzleFlashInstanceBuffer ) return;
-	if ( m_muzzleFlashInstanceBufferCapacity == 0 ) return;
+	if ( muzzleFlashInstanceBufferCapacity == 0 ) return;
 	if ( m_itemBillboardQuadMesh->m_SubMeshes.empty() ) return;
 
 	const SubMesh& sm = m_itemBillboardQuadMesh->m_SubMeshes[0];
@@ -4639,7 +4593,7 @@ void CGameScene::RenderMuzzleFlashes(
 		if ( !flash.active )
 			continue;
 
-		if ( visibleInstanceCount >= m_muzzleFlashInstanceBufferCapacity )
+		if ( visibleInstanceCount >= muzzleFlashInstanceBufferCapacity )
 			break;
 
 		const float ageRatio = ( flash.lifetime > 1.0e-6f ) ? std::clamp(flash.age / flash.lifetime, 0.0f, 1.0f) : 1.0f;

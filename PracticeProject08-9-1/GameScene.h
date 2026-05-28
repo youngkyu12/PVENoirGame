@@ -8,6 +8,7 @@
 #include "Shader.h"
 #include "LightTypes.h"
 #include "SceneRenderTypes.h"
+#include "GameSceneFrameUploadBuffer.h"
 #include "ColliderComponent.h"
 #include "Grid.h"
 #include "DepthFog.h"
@@ -1217,9 +1218,7 @@ private:
 
 	std::vector<MuzzleFlashEntry> m_muzzleFlashes;
 
-	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dMuzzleFlashInstanceBuffer;
-	std::array<MuzzleFlashInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedMuzzleFlashInstanceBuffer = {};
-	UINT m_muzzleFlashInstanceBufferCapacity = 0;
+	FrameUploadVertexBuffer<MuzzleFlashInstanceVertex, kSceneBatchFrameResourceCount> m_muzzleFlashInstanceBuffer;
 
 	std::shared_ptr<CBossPoisonProjectileBillboardShader> m_bossPoisonProjectileShader;
 
