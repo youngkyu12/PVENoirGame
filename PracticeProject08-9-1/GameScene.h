@@ -283,6 +283,13 @@ struct MonsterSwordTrailEntry
 	std::vector<MonsterSwordTrailSample> samples;
 };
 
+struct MonsterSwordTrailEffectState
+{
+	std::shared_ptr<CSwordTrailShader> shader;
+	std::vector<MonsterSwordTrailEntry> entries;
+	FrameUploadVertexBuffer<MonsterSwordTrailVertex, kSceneBatchFrameResourceCount> vertexBuffer;
+};
+
 struct ArrowTrailSample
 {
 	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
@@ -296,6 +303,13 @@ struct ArrowTrailEntry
 	CGameObject* arrowObject = nullptr;
 
 	std::deque<ArrowTrailSample> samples;
+};
+
+struct ArrowTrailEffectState
+{
+	std::shared_ptr<CSwordTrailShader> shader;
+	std::vector<ArrowTrailEntry> entries;
+	FrameUploadVertexBuffer<SwordTrailVertex, kSceneBatchFrameResourceCount> vertexBuffer;
 };
 
 static constexpr UINT kBossCallSummonWwwPeakCount = 16;
@@ -324,6 +338,13 @@ struct BossCallSummonWwwEntry
 	float seed = 0.0f;
 
 	XMFLOAT4 color = XMFLOAT4(0.10f, 0.90f, 0.18f, 0.75f);
+};
+
+struct BossCallSummonWwwEffectState
+{
+	std::shared_ptr<CSwordTrailShader> shader;
+	std::vector<BossCallSummonWwwEntry> entries;
+	FrameUploadVertexBuffer<SwordTrailVertex, kSceneBatchFrameResourceCount> vertexBuffer;
 };
 
 enum class EItemBillboardKind : UINT
@@ -360,6 +381,39 @@ struct ItemBillboardEntry
 	float pickupHeightTolerance = 2.0f;
 
 	UINT materialId = 0;
+};
+
+struct BossCallSummonCircleVisualState
+{
+	bool active = false;
+	bool fadingIn = false;
+	bool fadingOut = false;
+
+	float ageSec = 0.0f;
+	float durationSec = 0.0f;
+	float alpha = 0.0f;
+};
+
+struct ItemBillboardState
+{
+	std::shared_ptr<CTexture> keyTexture;
+	std::shared_ptr<CTexture> bossSummonCircleTexture;
+
+	std::shared_ptr<CItemBillboardShader> shader;
+	std::shared_ptr<CTransparentItemBillboardShader> transparentShader;
+
+	std::shared_ptr<CMesh> quadMesh;
+
+	std::vector<ItemBillboardEntry> entries;
+
+	FrameUploadVertexBuffer<ItemBillboardInstanceVertex, kSceneBatchFrameResourceCount> instanceBuffer;
+	FrameUploadVertexBuffer<ItemBillboardInstanceVertex, kSceneBatchFrameResourceCount> transparentInstanceBuffer;
+
+	BossCallSummonCircleVisualState bossCallSummonCircleVisual;
+	std::vector<size_t> activeBossCallSummonCircleItemIndices;
+
+	float bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
+	float bossCallSummonGlowParticleEmitAccumulatorSec = 0.0f;
 };
 
 struct StaticInstanceGroup
@@ -585,8 +639,6 @@ private:
 	bool IsStaticTreeObject(const CGameObject* obj) const;
 	void RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
-	std::shared_ptr<CTexture> m_keyItemTexture;
-	std::shared_ptr<CTexture> m_bossSummonCircleTexture;
 	void BuildItemBillboardBatch(
 		ID3D12Device* dev,
 		ID3D12GraphicsCommandList* cmd,
@@ -1228,15 +1280,7 @@ private:
 
 	static constexpr UINT kKeyItemBillboardCount = 7;
 
-	std::shared_ptr<CItemBillboardShader> m_itemBillboardShader;
-	std::shared_ptr<CTransparentItemBillboardShader> m_transparentItemBillboardShader;
-
-	std::shared_ptr<CMesh>                m_itemBillboardQuadMesh;
-
-	std::vector<ItemBillboardEntry>       m_itemBillboards;
-
-	FrameUploadVertexBuffer<ItemBillboardInstanceVertex, kSceneBatchFrameResourceCount> m_itemBillboardInstanceBuffer;
-	FrameUploadVertexBuffer<ItemBillboardInstanceVertex, kSceneBatchFrameResourceCount> m_transparentItemBillboardInstanceBuffer;
+	ItemBillboardState m_itemBillboardState;
 
 	static constexpr UINT kMuzzleFlashMaxCount = 4096;
 
@@ -1255,22 +1299,14 @@ private:
 	static constexpr UINT kMonsterSwordTrailMaxVertices =
 		kMonsterSwordTrailMaxCount * kMonsterSwordTrailMaxSamples * 2;
 
-	std::shared_ptr<CSwordTrailShader> m_monsterSwordTrailShader;
-
-	std::vector<MonsterSwordTrailEntry> m_monsterSwordTrails;
-
-	FrameUploadVertexBuffer<MonsterSwordTrailVertex, kSceneBatchFrameResourceCount> m_monsterSwordTrailVertexBuffer;
+	MonsterSwordTrailEffectState m_monsterSwordTrailEffect;
 
 	static constexpr UINT kArrowTrailMaxCount = 32;
 	static constexpr UINT kArrowTrailMaxSamples = 12;
 	static constexpr UINT kArrowTrailMaxVertices =
 		kArrowTrailMaxCount * kArrowTrailMaxSamples * 2;
 
-	std::shared_ptr<CSwordTrailShader> m_arrowTrailShader;
-
-	std::vector<ArrowTrailEntry> m_arrowTrails;
-
-	FrameUploadVertexBuffer<SwordTrailVertex, kSceneBatchFrameResourceCount> m_arrowTrailVertexBuffer;
+	ArrowTrailEffectState m_arrowTrailEffect;
 
 	static constexpr UINT kBossCallSummonWwwMaxCount = 64;
 
@@ -1292,11 +1328,7 @@ private:
 			kBossCallSummonWwwFillVertexCount
 		);
 
-	std::shared_ptr<CSwordTrailShader> m_bossCallSummonWwwShader;
-
-	std::vector<BossCallSummonWwwEntry> m_bossCallSummonWwwEntries;
-
-	FrameUploadVertexBuffer<SwordTrailVertex, kSceneBatchFrameResourceCount> m_bossCallSummonWwwVertexBuffer;
+	BossCallSummonWwwEffectState m_bossCallSummonWwwEffect;
 
 	std::vector<CGameObject*> m_ghoulRefs;
 	std::vector<CGameObject*> m_swordManRefs;
@@ -1796,22 +1828,6 @@ private:
 	// 보스 본인 등장 마법진에는 적용하지 않는다.
 	static constexpr float kBossCallSummonGlowParticleLifetimeScale = 1.80f;
 
-	struct BossCallSummonCircleVisualState
-	{
-		bool active = false;
-		bool fadingIn = false;
-		bool fadingOut = false;
-
-		float ageSec = 0.0f;
-		float durationSec = 0.0f;
-		float alpha = 0.0f;
-	};
-
-	BossCallSummonCircleVisualState m_bossCallSummonCircleVisualState{};
-	std::vector<size_t> m_activeBossCallSummonCircleItemIndices;
-
-	float m_bossCallSummonGlowParticleEmitAccumulatorSec = 0.0f;
-
 	int m_bossCallSummonPlanCallIndex = -1;
 	std::vector<EnemySpawnerPreviewEntry> m_bossCallSummonPlanEntries;
 
@@ -1821,8 +1837,6 @@ private:
 
 	bool m_bBossSummonVisualFadeOutStarted = false;
 	float m_bBossSummonVisualFadeOutAgeSec = 0.0f;
-
-	float m_bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
 
 	static constexpr float kBossShockwaveStartRadius = 3.0f;
 	static constexpr float kBossShockwaveMaxRadius = 50.0f;

@@ -672,20 +672,15 @@ std::shared_ptr<CMesh> CGameScene::CreateItemBillboardQuadMesh(
 }
 
 
-void CGameScene::BuildItemBillboardBatch(
-	ID3D12Device* dev,
-	ID3D12GraphicsCommandList* cmd,
-	UINT rtCount,
-	DXGI_FORMAT* rtvFormats,
-	DXGI_FORMAT dsvFormat)
+void CGameScene::BuildItemBillboardBatch(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, UINT rtCount, DXGI_FORMAT* rtvFormats, DXGI_FORMAT dsvFormat)
 {
 	if ( !dev || !cmd )
 		return;
 
-	m_itemBillboards.clear();
+	m_itemBillboardState.entries.clear();
 
-	m_itemBillboardShader = std::make_shared<CItemBillboardShader>();
-	m_itemBillboardShader->CreateShader(
+	m_itemBillboardState.shader = std::make_shared<CItemBillboardShader>();
+	m_itemBillboardState.shader->CreateShader(
 		dev,
 		m_pd3dGraphicsRootSignature.Get(),
 		rtCount,
@@ -693,12 +688,11 @@ void CGameScene::BuildItemBillboardBatch(
 		dsvFormat
 	);
 
-	m_transparentItemBillboardShader =
-		std::make_shared<CTransparentItemBillboardShader>();
+	m_itemBillboardState.transparentShader = std::make_shared<CTransparentItemBillboardShader>();
 
 	DXGI_FORMAT transparentRtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
-	m_transparentItemBillboardShader->CreateShader(
+	m_itemBillboardState.transparentShader->CreateShader(
 		dev,
 		m_pd3dGraphicsRootSignature.Get(),
 		1,
@@ -707,9 +701,9 @@ void CGameScene::BuildItemBillboardBatch(
 	);
 
 	{
-		m_keyItemTexture = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
+		m_itemBillboardState.keyTexture = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
 
-		m_keyItemTexture->LoadTextureFromFile(
+		m_itemBillboardState.keyTexture->LoadTextureFromFile(
 			dev,
 			cmd,
 			L"Assets/UI/Key.dds",
@@ -719,19 +713,18 @@ void CGameScene::BuildItemBillboardBatch(
 
 		CScene::m_pDescriptorHeap->CreateShaderResourceViews(
 			dev,
-			m_keyItemTexture.get(),
+			m_itemBillboardState.keyTexture.get(),
 			ROOT_PARAMETER_GLOBAL_SRV
 		);
 
-		SetKeyItemDiffuseSrvIndex(m_keyItemTexture->GetBaseSrvIndex());
-		SetTransparentItemDiffuseSrvIndex(m_keyItemTexture->GetBaseSrvIndex());
+		SetKeyItemDiffuseSrvIndex(m_itemBillboardState.keyTexture->GetBaseSrvIndex());
+		SetTransparentItemDiffuseSrvIndex(m_itemBillboardState.keyTexture->GetBaseSrvIndex());
 	}
 
 	{
-		m_bossSummonCircleTexture =
-			std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
+		m_itemBillboardState.bossSummonCircleTexture = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
 
-		m_bossSummonCircleTexture->LoadTextureFromFile(
+		m_itemBillboardState.bossSummonCircleTexture->LoadTextureFromFile(
 			dev,
 			cmd,
 			L"Assets/Particle/mhj.dds",
@@ -741,22 +734,22 @@ void CGameScene::BuildItemBillboardBatch(
 
 		CScene::m_pDescriptorHeap->CreateShaderResourceViews(
 			dev,
-			m_bossSummonCircleTexture.get(),
+			m_itemBillboardState.bossSummonCircleTexture.get(),
 			ROOT_PARAMETER_GLOBAL_SRV
 		);
 
 		SetBossSummonCircleDiffuseSrvIndex(
-			m_bossSummonCircleTexture->GetBaseSrvIndex()
+			m_itemBillboardState.bossSummonCircleTexture->GetBaseSrvIndex()
 		);
 
 		SetBossCallSummonCircleDiffuseSrvIndex(
-			m_bossSummonCircleTexture->GetBaseSrvIndex()
+			m_itemBillboardState.bossSummonCircleTexture->GetBaseSrvIndex()
 		);
 	}
 
-	m_itemBillboardQuadMesh = CreateItemBillboardQuadMesh(dev, cmd);
+	m_itemBillboardState.quadMesh = CreateItemBillboardQuadMesh(dev, cmd);
 
-	if ( !m_itemBillboardQuadMesh )
+	if ( !m_itemBillboardState.quadMesh )
 		return;
 
 	const std::array<XMFLOAT3, kKeyItemBillboardCount> keyPositions =
@@ -770,8 +763,8 @@ void CGameScene::BuildItemBillboardBatch(
 		XMFLOAT3(-400.0f, 0.0f, 0.0f)
 	};
 
-	m_itemBillboards.clear();
-	m_itemBillboards.reserve(
+	m_itemBillboardState.entries.clear();
+	m_itemBillboardState.entries.reserve(
 		kKeyItemBillboardCount +
 		3 +
 		kBossShockwaveWallSegmentCount +
@@ -810,7 +803,7 @@ void CGameScene::BuildItemBillboardBatch(
 		key.transparent = true;
 		key.materialId = kTransparentItemBillboardMaterialId;
 
-		m_itemBillboards.push_back(key);
+		m_itemBillboardState.entries.push_back(key);
 	}
 
 	{
@@ -837,7 +830,7 @@ void CGameScene::BuildItemBillboardBatch(
 
 		summonGlow.materialId = kBossSummonGlowMaterialId;
 
-		m_itemBillboards.push_back(summonGlow);
+		m_itemBillboardState.entries.push_back(summonGlow);
 	}
 
 	{
@@ -865,7 +858,7 @@ void CGameScene::BuildItemBillboardBatch(
 
 		summonCircle.materialId = kBossSummonCircleMaterialId;
 
-		m_itemBillboards.push_back(summonCircle);
+		m_itemBillboardState.entries.push_back(summonCircle);
 	}
 
 	{
@@ -892,7 +885,7 @@ void CGameScene::BuildItemBillboardBatch(
 
 		shockwave.materialId = kBossShockwaveMaterialId;
 
-		m_itemBillboards.push_back(shockwave);
+		m_itemBillboardState.entries.push_back(shockwave);
 	}
 
 	for ( UINT i = 0; i < kBossShockwaveWallSegmentCount; ++i )
@@ -919,7 +912,7 @@ void CGameScene::BuildItemBillboardBatch(
 
 		shockwaveWall.materialId = kBossShockwaveWallMaterialId;
 
-		m_itemBillboards.push_back(shockwaveWall);
+		m_itemBillboardState.entries.push_back(shockwaveWall);
 	}
 
 	for ( UINT i = 0; i < kBossCallSummonCircleMaxCount; ++i )
@@ -945,24 +938,26 @@ void CGameScene::BuildItemBillboardBatch(
 
 		circle.materialId = kBossCallSummonCircleMaterialId;
 
-		m_itemBillboards.push_back(circle);
+		m_itemBillboardState.entries.push_back(circle);
 	}
 
-	const UINT itemBillboardInstanceBufferCapacity = static_cast< UINT >( m_itemBillboards.size() );
+	const UINT itemBillboardInstanceBufferCapacity =
+		static_cast< UINT >( m_itemBillboardState.entries.size() );
 
 	if ( itemBillboardInstanceBufferCapacity == 0 )
 		return;
 
-	m_itemBillboardInstanceBuffer.Create(dev, cmd, itemBillboardInstanceBufferCapacity, [ dev, cmd ] (UINT bufferBytes)
+	m_itemBillboardState.instanceBuffer.Create(dev, cmd, itemBillboardInstanceBufferCapacity, [ dev, cmd ] (UINT bufferBytes)
 	{
 		return ::CreateBufferResource(dev, cmd, nullptr, bufferBytes, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr);
 	});
 
-	const UINT transparentItemBillboardInstanceBufferCapacity = static_cast< UINT >( m_itemBillboards.size() );
+	const UINT transparentItemBillboardInstanceBufferCapacity =
+		static_cast< UINT >( m_itemBillboardState.entries.size() );
 
 	if ( transparentItemBillboardInstanceBufferCapacity > 0 )
 	{
-		m_transparentItemBillboardInstanceBuffer.Create(dev, cmd, transparentItemBillboardInstanceBufferCapacity, [ dev, cmd ] (UINT bufferBytes)
+		m_itemBillboardState.transparentInstanceBuffer.Create(dev, cmd, transparentItemBillboardInstanceBufferCapacity, [ dev, cmd ] (UINT bufferBytes)
 		{
 			return ::CreateBufferResource(dev, cmd, nullptr, bufferBytes, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr);
 		});
@@ -1059,11 +1054,11 @@ void CGameScene::BuildMonsterSwordTrailBatch(ID3D12Device* dev, ID3D12GraphicsCo
 	if ( !dev || !cmd )
 		return;
 
-	m_monsterSwordTrailShader = std::make_shared<CSwordTrailShader>();
+	m_monsterSwordTrailEffect.shader = std::make_shared<CSwordTrailShader>();
 
 	DXGI_FORMAT rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
-	m_monsterSwordTrailShader->CreateShader(
+	m_monsterSwordTrailEffect.shader->CreateShader(
 		dev,
 		m_pd3dGraphicsRootSignature.Get(),
 		1,
@@ -1071,10 +1066,10 @@ void CGameScene::BuildMonsterSwordTrailBatch(ID3D12Device* dev, ID3D12GraphicsCo
 		dsvFormat
 	);
 
-	m_monsterSwordTrails.clear();
-	m_monsterSwordTrails.resize(kMonsterSwordTrailMaxCount);
+	m_monsterSwordTrailEffect.entries.clear();
+	m_monsterSwordTrailEffect.entries.resize(kMonsterSwordTrailMaxCount);
 
-	m_monsterSwordTrailVertexBuffer.Create(dev, cmd, kMonsterSwordTrailMaxVertices, [ dev, cmd ] (UINT bufferBytes)
+	m_monsterSwordTrailEffect.vertexBuffer.Create(dev, cmd, kMonsterSwordTrailMaxVertices, [ dev, cmd ] (UINT bufferBytes)
 	{
 		return ::CreateBufferResource(dev, cmd, nullptr, bufferBytes, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr);
 	});
@@ -1085,11 +1080,11 @@ void CGameScene::BuildArrowTrailBatch(ID3D12Device* dev, ID3D12GraphicsCommandLi
 	if ( !dev || !cmd )
 		return;
 
-	m_arrowTrailShader = std::make_shared<CSwordTrailShader>();
+	m_arrowTrailEffect.shader = std::make_shared<CSwordTrailShader>();
 
 	DXGI_FORMAT rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
-	m_arrowTrailShader->CreateShader(
+	m_arrowTrailEffect.shader->CreateShader(
 		dev,
 		m_pd3dGraphicsRootSignature.Get(),
 		1,
@@ -1097,10 +1092,10 @@ void CGameScene::BuildArrowTrailBatch(ID3D12Device* dev, ID3D12GraphicsCommandLi
 		dsvFormat
 	);
 
-	m_arrowTrails.clear();
-	m_arrowTrails.resize(kArrowTrailMaxCount);
+	m_arrowTrailEffect.entries.clear();
+	m_arrowTrailEffect.entries.resize(kArrowTrailMaxCount);
 
-	m_arrowTrailVertexBuffer.Create(dev, cmd, kArrowTrailMaxVertices, [ dev, cmd ] (UINT bufferBytes)
+	m_arrowTrailEffect.vertexBuffer.Create(dev, cmd, kArrowTrailMaxVertices, [ dev, cmd ] (UINT bufferBytes)
 	{
 		return ::CreateBufferResource(dev, cmd, nullptr, bufferBytes, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr);
 	});
@@ -1111,11 +1106,11 @@ void CGameScene::BuildBossCallSummonWwwBatch(ID3D12Device* dev, ID3D12GraphicsCo
 	if ( !dev || !cmd )
 		return;
 
-	m_bossCallSummonWwwShader = std::make_shared<CSwordTrailShader>();
+	m_bossCallSummonWwwEffect.shader = std::make_shared<CSwordTrailShader>();
 
 	DXGI_FORMAT rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
-	m_bossCallSummonWwwShader->CreateShader(
+	m_bossCallSummonWwwEffect.shader->CreateShader(
 		dev,
 		m_pd3dGraphicsRootSignature.Get(),
 		1,
@@ -1123,10 +1118,10 @@ void CGameScene::BuildBossCallSummonWwwBatch(ID3D12Device* dev, ID3D12GraphicsCo
 		dsvFormat
 	);
 
-	m_bossCallSummonWwwEntries.clear();
-	m_bossCallSummonWwwEntries.resize(kBossCallSummonWwwMaxCount);
+	m_bossCallSummonWwwEffect.entries.clear();
+	m_bossCallSummonWwwEffect.entries.resize(kBossCallSummonWwwMaxCount);
 
-	m_bossCallSummonWwwVertexBuffer.Create(dev, cmd, kBossCallSummonWwwMaxVertices, [ dev, cmd ] (UINT bufferBytes)
+	m_bossCallSummonWwwEffect.vertexBuffer.Create(dev, cmd, kBossCallSummonWwwMaxVertices, [ dev, cmd ] (UINT bufferBytes)
 	{
 		return ::CreateBufferResource(dev, cmd, nullptr, bufferBytes, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr);
 	});
@@ -1149,17 +1144,17 @@ void CGameScene::ReleaseSwordTrailGpuResources()
 
 void CGameScene::ReleaseMonsterSwordTrailGpuResources()
 {
-	m_monsterSwordTrailVertexBuffer.Release();
+	m_monsterSwordTrailEffect.vertexBuffer.Release();
 }
 
 void CGameScene::ReleaseArrowTrailGpuResources()
 {
-	m_arrowTrailVertexBuffer.Release();
+	m_arrowTrailEffect.vertexBuffer.Release();
 }
 
 void CGameScene::ReleaseBossCallSummonWwwGpuResources()
 {
-	m_bossCallSummonWwwVertexBuffer.Release();
+	m_bossCallSummonWwwEffect.vertexBuffer.Release();
 }
 
 void CGameScene::ReleaseAllGameSceneEffectGpuResources()
@@ -1630,7 +1625,7 @@ void CGameScene::SpawnBossCallSummonWwwEffect(
 
 	BossCallSummonWwwEntry* entry = nullptr;
 
-	for ( BossCallSummonWwwEntry& candidate : m_bossCallSummonWwwEntries )
+	for ( BossCallSummonWwwEntry& candidate : m_bossCallSummonWwwEffect.entries )
 	{
 		if ( candidate.active )
 			continue;
@@ -1691,7 +1686,7 @@ void CGameScene::UpdateBossCallSummonWwwEffects(float dt)
 
 	static std::uniform_real_distribution<float> zeroOneDist(0.0f, 1.0f);
 
-	for ( BossCallSummonWwwEntry& entry : m_bossCallSummonWwwEntries )
+	for ( BossCallSummonWwwEntry& entry : m_bossCallSummonWwwEffect.entries )
 	{
 		if ( !entry.active )
 			continue;
@@ -2220,7 +2215,7 @@ void CGameScene::BeginSwordManSwordTrail(CGameObject* swordman)
 		return;
 
 	MonsterSwordTrailEntry* trail =
-		AcquireFreeMonsterSwordTrailEntry(m_monsterSwordTrails);
+		AcquireFreeMonsterSwordTrailEntry(m_monsterSwordTrailEffect.entries);
 
 	if ( !trail )
 		return;
@@ -2335,7 +2330,7 @@ void CGameScene::UpdateMonsterSwordTrails(float dt)
 	if ( dt <= 0.0f )
 		return;
 
-	for ( MonsterSwordTrailEntry& trail : m_monsterSwordTrails )
+	for ( MonsterSwordTrailEntry& trail : m_monsterSwordTrailEffect.entries )
 	{
 		if ( !trail.active )
 			continue;
@@ -2391,7 +2386,7 @@ void CGameScene::UpdateArrowTrails(float dt)
 	constexpr float kArrowTrailSampleLifetimeSec = 0.260f;
 
 	// 기존 trail sample age 증가 및 만료 처리.
-	for ( ArrowTrailEntry& trail : m_arrowTrails )
+	for ( ArrowTrailEntry& trail : m_arrowTrailEffect.entries )
 	{
 		if ( !trail.active )
 			continue;
@@ -2440,11 +2435,11 @@ void CGameScene::UpdateArrowTrails(float dt)
 			continue;
 
 		ArrowTrailEntry* trail =
-			FindArrowTrailEntry(m_arrowTrails, arrowObj);
+			FindArrowTrailEntry(m_arrowTrailEffect.entries, arrowObj);
 
 		if ( !trail )
 		{
-			trail = AcquireFreeArrowTrailEntry(m_arrowTrails);
+			trail = AcquireFreeArrowTrailEntry(m_arrowTrailEffect.entries);
 			if ( !trail )
 				continue;
 
@@ -2463,8 +2458,8 @@ void CGameScene::UpdateArrowTrails(float dt)
 
 void CGameScene::ReleaseItemBillboardGpuResources()
 {
-	m_itemBillboardInstanceBuffer.Release();
-	m_transparentItemBillboardInstanceBuffer.Release();
+	m_itemBillboardState.instanceBuffer.Release();
+	m_itemBillboardState.transparentInstanceBuffer.Release();
 }
 
 void CGameScene::UpdateItemBillboardDistanceCullSelection(CCamera* camera)
@@ -2474,7 +2469,7 @@ void CGameScene::UpdateItemBillboardDistanceCullSelection(CCamera* camera)
 
 	const XMFLOAT3 cameraPos = camera->GetPosition();
 
-	for ( ItemBillboardEntry& item : m_itemBillboards )
+	for ( ItemBillboardEntry& item : m_itemBillboardState.entries )
 	{
 		if ( !item.active )
 		{
@@ -2523,7 +2518,7 @@ void CGameScene::UpdateItemBillboardPickupCollision()
 	if ( !m_bSimulateLocalItemPickup )
 		return;
 
-	for ( ItemBillboardEntry& item : m_itemBillboards )
+	for ( ItemBillboardEntry& item : m_itemBillboardState.entries )
 	{
 		if ( !item.active )
 			continue;
@@ -2554,7 +2549,7 @@ void CGameScene::UpdateItemBillboardPickupCollision()
 
 void CGameScene::SpawnBossSummonCircle(const XMFLOAT3& center, float alpha)
 {
-	for ( ItemBillboardEntry& item : m_itemBillboards )
+	for ( ItemBillboardEntry& item : m_itemBillboardState.entries )
 	{
 		if ( item.kind != EItemBillboardKind::BossSummonCircle )
 			continue;
@@ -2589,7 +2584,7 @@ void CGameScene::SpawnBossSummonCircle(const XMFLOAT3& center, float alpha)
 
 void CGameScene::SpawnBossSummonGlow(const XMFLOAT3& center, float alpha)
 {
-	for ( ItemBillboardEntry& item : m_itemBillboards )
+	for ( ItemBillboardEntry& item : m_itemBillboardState.entries )
 	{
 		if ( item.kind != EItemBillboardKind::BossSummonGlow )
 			continue;
@@ -2642,7 +2637,7 @@ void CGameScene::SetBossCallSummonCircleAlpha(float alpha)
 
 	mat.m_xmf4Diffuse.w = alpha;
 
-	m_bossCallSummonCircleVisualState.alpha = alpha;
+	m_itemBillboardState.bossCallSummonCircleVisual.alpha = alpha;
 }
 
 float CGameScene::GetBossCallSummonCircleSize(
@@ -2667,9 +2662,9 @@ float CGameScene::GetBossCallSummonCircleSize(
 
 void CGameScene::ClearBossCallSummonCircleVisuals()
 {
-	m_activeBossCallSummonCircleItemIndices.clear();
+	m_itemBillboardState.activeBossCallSummonCircleItemIndices.clear();
 
-	for ( ItemBillboardEntry& item : m_itemBillboards )
+	for ( ItemBillboardEntry& item : m_itemBillboardState.entries )
 	{
 		if ( item.kind != EItemBillboardKind::BossCallSummonCircle )
 			continue;
@@ -2680,8 +2675,8 @@ void CGameScene::ClearBossCallSummonCircleVisuals()
 		item.height = 0.0f;
 	}
 
-	m_bossCallSummonCircleVisualState = BossCallSummonCircleVisualState{};
-	m_bossCallSummonGlowParticleEmitAccumulatorSec = 0.0f;
+	m_itemBillboardState.bossCallSummonCircleVisual = BossCallSummonCircleVisualState{};
+	m_itemBillboardState.bossCallSummonGlowParticleEmitAccumulatorSec = 0.0f;
 
 	SetBossCallSummonCircleAlpha(0.0f);
 }
@@ -2692,9 +2687,9 @@ void CGameScene::AddBossCallSummonCircle(
 {
 	const float size = GetBossCallSummonCircleSize(kind);
 
-	for ( size_t i = 0; i < m_itemBillboards.size(); ++i )
+	for ( size_t i = 0; i < m_itemBillboardState.entries.size(); ++i )
 	{
-		ItemBillboardEntry& item = m_itemBillboards[i];
+		ItemBillboardEntry& item = m_itemBillboardState.entries[i];
 
 		if ( item.kind != EItemBillboardKind::BossCallSummonCircle )
 			continue;
@@ -2722,7 +2717,7 @@ void CGameScene::AddBossCallSummonCircle(
 
 		item.materialId = kBossCallSummonCircleMaterialId;
 
-		m_activeBossCallSummonCircleItemIndices.push_back(i);
+		m_itemBillboardState.activeBossCallSummonCircleItemIndices.push_back(i);
 		return;
 	}
 
@@ -2805,7 +2800,7 @@ void CGameScene::BeginBossCallMonsterSummonVisuals(
 		break;
 	}
 
-	if ( m_activeBossCallSummonCircleItemIndices.empty() )
+	if ( m_itemBillboardState.activeBossCallSummonCircleItemIndices.empty() )
 	{
 #ifndef USING_NETWORK
 		char buf[256];
@@ -2822,14 +2817,14 @@ void CGameScene::BeginBossCallMonsterSummonVisuals(
 		return;
 	}
 
-	m_bossCallSummonCircleVisualState = BossCallSummonCircleVisualState{};
-	m_bossCallSummonCircleVisualState.active = true;
-	m_bossCallSummonCircleVisualState.fadingIn = true;
-	m_bossCallSummonCircleVisualState.fadingOut = false;
-	m_bossCallSummonCircleVisualState.ageSec = 0.0f;
-	m_bossCallSummonCircleVisualState.durationSec =
+	m_itemBillboardState.bossCallSummonCircleVisual = BossCallSummonCircleVisualState{};
+	m_itemBillboardState.bossCallSummonCircleVisual.active = true;
+	m_itemBillboardState.bossCallSummonCircleVisual.fadingIn = true;
+	m_itemBillboardState.bossCallSummonCircleVisual.fadingOut = false;
+	m_itemBillboardState.bossCallSummonCircleVisual.ageSec = 0.0f;
+	m_itemBillboardState.bossCallSummonCircleVisual.durationSec =
 		( fadeInDurationSec > 1.0e-6f ) ? fadeInDurationSec : 0.001f;
-	m_bossCallSummonCircleVisualState.alpha = 0.0f;
+	m_itemBillboardState.bossCallSummonCircleVisual.alpha = 0.0f;
 
 	SetBossCallSummonCircleAlpha(0.0f);
 
@@ -2872,16 +2867,16 @@ void CGameScene::BeginBossCallMonsterSummonVisuals(
 void CGameScene::StartBossCallSummonCircleFadeOut()
 {
 #ifndef USING_NETWORK
-	if ( !m_bossCallSummonCircleVisualState.active )
+	if ( !m_itemBillboardState.bossCallSummonCircleVisual.active )
 		return;
 
-	if ( m_activeBossCallSummonCircleItemIndices.empty() )
+	if ( m_itemBillboardState.activeBossCallSummonCircleItemIndices.empty() )
 		return;
 
-	m_bossCallSummonCircleVisualState.fadingIn = false;
-	m_bossCallSummonCircleVisualState.fadingOut = true;
-	m_bossCallSummonCircleVisualState.ageSec = 0.0f;
-	m_bossCallSummonCircleVisualState.durationSec =
+	m_itemBillboardState.bossCallSummonCircleVisual.fadingIn = false;
+	m_itemBillboardState.bossCallSummonCircleVisual.fadingOut = true;
+	m_itemBillboardState.bossCallSummonCircleVisual.ageSec = 0.0f;
+	m_itemBillboardState.bossCallSummonCircleVisual.durationSec =
 		( kBossCallSummonCircleFadeOutDurationSec > 1.0e-6f )
 		? kBossCallSummonCircleFadeOutDurationSec
 		: 0.001f;
@@ -2899,7 +2894,7 @@ void CGameScene::EmitBossCallSummonCircleGlowParticles(
 	if ( alpha <= 0.001f )
 		return;
 
-	if ( m_activeBossCallSummonCircleItemIndices.empty() )
+	if ( m_itemBillboardState.activeBossCallSummonCircleItemIndices.empty() )
 		return;
 
 	const float emitIntervalSec =
@@ -2907,32 +2902,32 @@ void CGameScene::EmitBossCallSummonCircleGlowParticles(
 		? kBossCallSummonGlowParticleEmitIntervalSec
 		: 0.001f;
 
-	m_bossCallSummonGlowParticleEmitAccumulatorSec += dt;
+	m_itemBillboardState.bossCallSummonGlowParticleEmitAccumulatorSec += dt;
 
-	if ( m_bossCallSummonGlowParticleEmitAccumulatorSec < emitIntervalSec )
+	if ( m_itemBillboardState.bossCallSummonGlowParticleEmitAccumulatorSec < emitIntervalSec )
 		return;
 
 	int emitCount =
 		static_cast< int >(
-			m_bossCallSummonGlowParticleEmitAccumulatorSec /
+			m_itemBillboardState.bossCallSummonGlowParticleEmitAccumulatorSec /
 			emitIntervalSec
 		);
 
-	m_bossCallSummonGlowParticleEmitAccumulatorSec =
+	m_itemBillboardState.bossCallSummonGlowParticleEmitAccumulatorSec =
 		std::fmod(
-			m_bossCallSummonGlowParticleEmitAccumulatorSec,
+			m_itemBillboardState.bossCallSummonGlowParticleEmitAccumulatorSec,
 			emitIntervalSec
 		);
 
 	if ( emitCount > 3 )
 		emitCount = 3;
 
-	for ( size_t itemIndex : m_activeBossCallSummonCircleItemIndices )
+	for ( size_t itemIndex : m_itemBillboardState.activeBossCallSummonCircleItemIndices )
 	{
-		if ( itemIndex >= m_itemBillboards.size() )
+		if ( itemIndex >= m_itemBillboardState.entries.size() )
 			continue;
 
-		const ItemBillboardEntry& item = m_itemBillboards[itemIndex];
+		const ItemBillboardEntry& item = m_itemBillboardState.entries[itemIndex];
 
 		if ( !item.active )
 			continue;
@@ -2971,14 +2966,14 @@ void CGameScene::EmitBossCallSummonCircleGlowParticles(
 void CGameScene::UpdateBossCallSummonCircles(float dt)
 {
 #ifndef USING_NETWORK
-	if ( !m_bossCallSummonCircleVisualState.active )
+	if ( !m_itemBillboardState.bossCallSummonCircleVisual.active )
 		return;
 
 	if ( dt < 0.0f )
 		dt = 0.0f;
 
 	BossCallSummonCircleVisualState& state =
-		m_bossCallSummonCircleVisualState;
+		m_itemBillboardState.bossCallSummonCircleVisual;
 
 	state.ageSec += dt;
 
@@ -3110,7 +3105,7 @@ void CGameScene::SpawnBossShockwave(const XMFLOAT3& center)
 	const float correctedRadius =
 		kBossShockwaveStartRadius / kBossShockwaveShaderRingCenter;
 
-	for ( ItemBillboardEntry& item : m_itemBillboards )
+	for ( ItemBillboardEntry& item : m_itemBillboardState.entries )
 	{
 		if ( item.kind == EItemBillboardKind::BossShockwave )
 		{
@@ -3172,7 +3167,7 @@ void CGameScene::UpdateBossShockwave(float dt)
 
 		ResetBossShockwaveWindSfxTracking();
 
-		for ( ItemBillboardEntry& item : m_itemBillboards )
+		for ( ItemBillboardEntry& item : m_itemBillboardState.entries )
 		{
 			if ( item.kind != EItemBillboardKind::BossShockwave &&
 				 item.kind != EItemBillboardKind::BossShockwaveWall )
@@ -3242,7 +3237,7 @@ void CGameScene::UpdateBossShockwave(float dt)
 		radius / kBossShockwaveShaderRingCenter;
 
 	// 바닥 충격파 갱신
-	for ( ItemBillboardEntry& item : m_itemBillboards )
+	for ( ItemBillboardEntry& item : m_itemBillboardState.entries )
 	{
 		if ( item.kind != EItemBillboardKind::BossShockwave )
 			continue;
@@ -3273,7 +3268,7 @@ void CGameScene::UpdateBossShockwave(float dt)
 			kBossShockwaveWallWidthScale
 		);
 
-	for ( ItemBillboardEntry& item : m_itemBillboards )
+	for ( ItemBillboardEntry& item : m_itemBillboardState.entries )
 	{
 		if ( item.kind != EItemBillboardKind::BossShockwaveWall )
 			continue;
@@ -4020,21 +4015,21 @@ void CGameScene::RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* c
 {
 	if ( !cmd ) return;
 	if ( !camera ) return;
-	if ( !m_itemBillboardShader ) return;
-	if ( !m_itemBillboardQuadMesh ) return;
+	if ( !m_itemBillboardState.shader ) return;
+	if ( !m_itemBillboardState.quadMesh ) return;
 
 	const UINT frameIndex = m_nFrameResourceIndex % kSceneBatchFrameResourceCount;
 
-	ID3D12Resource* itemBillboardInstanceBuffer = m_itemBillboardInstanceBuffer.Resource(frameIndex);
-	ItemBillboardInstanceVertex* mappedItemBillboardInstanceBuffer = m_itemBillboardInstanceBuffer.Mapped(frameIndex);
-	const UINT itemBillboardInstanceBufferCapacity = m_itemBillboardInstanceBuffer.Capacity();
+	ID3D12Resource* itemBillboardInstanceBuffer = m_itemBillboardState.instanceBuffer.Resource(frameIndex);
+	ItemBillboardInstanceVertex* mappedItemBillboardInstanceBuffer = m_itemBillboardState.instanceBuffer.Mapped(frameIndex);
+	const UINT itemBillboardInstanceBufferCapacity = m_itemBillboardState.instanceBuffer.Capacity();
 
 	if ( !itemBillboardInstanceBuffer ) return;
 	if ( !mappedItemBillboardInstanceBuffer ) return;
 	if ( itemBillboardInstanceBufferCapacity == 0 ) return;
-	if ( m_itemBillboardQuadMesh->m_SubMeshes.empty() ) return;
+	if ( m_itemBillboardState.quadMesh->m_SubMeshes.empty() ) return;
 
-	const SubMesh& sm = m_itemBillboardQuadMesh->m_SubMeshes[0];
+	const SubMesh& sm = m_itemBillboardState.quadMesh->m_SubMeshes[0];
 
 	if ( sm.indices.empty() )
 		return;
@@ -4043,7 +4038,7 @@ void CGameScene::RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* c
 
 	UINT visibleInstanceCount = 0;
 
-	for ( const ItemBillboardEntry& item : m_itemBillboards )
+	for ( const ItemBillboardEntry& item : m_itemBillboardState.entries )
 	{
 		if ( !item.active )
 			continue;
@@ -4076,7 +4071,7 @@ void CGameScene::RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* c
 	if ( visibleInstanceCount == 0 )
 		return;
 
-	m_itemBillboardShader->Render(cmd, camera, nullptr);
+	m_itemBillboardState.shader->Render(cmd, camera, nullptr);
 
 	D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
 	vbViews[0] = sm.vbView;
@@ -4116,37 +4111,35 @@ static void StoreXZPlaneItemBillboardWorldRows(
 	dst.pad[2] = 0;
 }
 
-void CGameScene::RenderTransparentItemBillboards(
-	ID3D12GraphicsCommandList* cmd,
-	CCamera* camera)
+void CGameScene::RenderTransparentItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	if ( !cmd ) return;
 	if ( !camera ) return;
-	if ( !m_transparentItemBillboardShader ) return;
-	if ( !m_itemBillboardQuadMesh ) return;
+	if ( !m_itemBillboardState.transparentShader ) return;
+	if ( !m_itemBillboardState.quadMesh ) return;
 
 	const UINT frameIndex = m_nFrameResourceIndex % kSceneBatchFrameResourceCount;
 
-	ID3D12Resource* transparentItemBillboardInstanceBuffer = m_transparentItemBillboardInstanceBuffer.Resource(frameIndex);
-	ItemBillboardInstanceVertex* mappedTransparentItemBillboardInstanceBuffer = m_transparentItemBillboardInstanceBuffer.Mapped(frameIndex);
-	const UINT transparentItemBillboardInstanceBufferCapacity = m_transparentItemBillboardInstanceBuffer.Capacity();
+	ID3D12Resource* transparentItemBillboardInstanceBuffer = m_itemBillboardState.transparentInstanceBuffer.Resource(frameIndex);
+	ItemBillboardInstanceVertex* mappedTransparentItemBillboardInstanceBuffer = m_itemBillboardState.transparentInstanceBuffer.Mapped(frameIndex);
+	const UINT transparentItemBillboardInstanceBufferCapacity = m_itemBillboardState.transparentInstanceBuffer.Capacity();
 
 	if ( !transparentItemBillboardInstanceBuffer ) return;
 	if ( !mappedTransparentItemBillboardInstanceBuffer ) return;
 	if ( transparentItemBillboardInstanceBufferCapacity == 0 ) return;
-	if ( m_itemBillboardQuadMesh->m_SubMeshes.empty() ) return;
+	if ( m_itemBillboardState.quadMesh->m_SubMeshes.empty() ) return;
 
-	const SubMesh& sm = m_itemBillboardQuadMesh->m_SubMeshes[0];
+	const SubMesh& sm = m_itemBillboardState.quadMesh->m_SubMeshes[0];
 
 	if ( sm.indices.empty() )
 		return;
 
-	const XMFLOAT3 cameraPos = camera->GetPosition();
+	const XMFLOAT3 targetPos = camera->GetPosition();
 
 	std::vector<const ItemBillboardEntry*> visibleItems;
-	visibleItems.reserve(m_itemBillboards.size());
+	visibleItems.reserve(m_itemBillboardState.entries.size());
 
-	for ( const ItemBillboardEntry& item : m_itemBillboards )
+	for ( const ItemBillboardEntry& item : m_itemBillboardState.entries )
 	{
 		if ( !item.active )
 			continue;
@@ -4160,30 +4153,25 @@ void CGameScene::RenderTransparentItemBillboards(
 		visibleItems.push_back(&item);
 	}
 
-	if ( visibleItems.empty() )
-		return;
-
 	std::sort(
 		visibleItems.begin(),
 		visibleItems.end(),
-		[ &cameraPos ] (const ItemBillboardEntry* a, const ItemBillboardEntry* b)
+		[ &targetPos ] (const ItemBillboardEntry* a, const ItemBillboardEntry* b)
 		{
-			const float adx = a->position.x - cameraPos.x;
-			const float ady = a->position.y - cameraPos.y;
-			const float adz = a->position.z - cameraPos.z;
+			const float ax = a->position.x - targetPos.x;
+			const float ay = a->position.y - targetPos.y;
+			const float az = a->position.z - targetPos.z;
 
-			const float bdx = b->position.x - cameraPos.x;
-			const float bdy = b->position.y - cameraPos.y;
-			const float bdz = b->position.z - cameraPos.z;
+			const float bx = b->position.x - targetPos.x;
+			const float by = b->position.y - targetPos.y;
+			const float bz = b->position.z - targetPos.z;
 
-			const float aDistSq = adx * adx + ady * ady + adz * adz;
-			const float bDistSq = bdx * bdx + bdy * bdy + bdz * bdz;
+			const float ad = ax * ax + ay * ay + az * az;
+			const float bd = bx * bx + by * by + bz * bz;
 
-			return aDistSq > bDistSq;
+			return ad > bd;
 		}
 	);
-
-	const XMFLOAT3 targetPos = camera->GetPosition();
 
 	UINT visibleInstanceCount = 0;
 
@@ -4231,7 +4219,7 @@ void CGameScene::RenderTransparentItemBillboards(
 	if ( visibleInstanceCount == 0 )
 		return;
 
-	m_transparentItemBillboardShader->Render(cmd, camera, nullptr);
+	m_itemBillboardState.transparentShader->Render(cmd, camera, nullptr);
 
 	D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
 	vbViews[0] = sm.vbView;
@@ -4257,7 +4245,7 @@ void CGameScene::RenderMuzzleFlashes(ID3D12GraphicsCommandList* cmd, CCamera* ca
 	if ( !cmd ) return;
 	if ( !camera ) return;
 	if ( !m_muzzleFlashEffect.shader ) return;
-	if ( !m_itemBillboardQuadMesh ) return;
+	if ( !m_itemBillboardState.quadMesh ) return;
 
 	const UINT frameIndex = m_nFrameResourceIndex % kSceneBatchFrameResourceCount;
 
@@ -4268,9 +4256,9 @@ void CGameScene::RenderMuzzleFlashes(ID3D12GraphicsCommandList* cmd, CCamera* ca
 	if ( !muzzleFlashInstanceBuffer ) return;
 	if ( !mappedMuzzleFlashInstanceBuffer ) return;
 	if ( muzzleFlashInstanceBufferCapacity == 0 ) return;
-	if ( m_itemBillboardQuadMesh->m_SubMeshes.empty() ) return;
+	if ( m_itemBillboardState.quadMesh->m_SubMeshes.empty() ) return;
 
-	const SubMesh& sm = m_itemBillboardQuadMesh->m_SubMeshes[0];
+	const SubMesh& sm = m_itemBillboardState.quadMesh->m_SubMeshes[0];
 
 	if ( sm.indices.empty() )
 		return;
@@ -4287,10 +4275,18 @@ void CGameScene::RenderMuzzleFlashes(ID3D12GraphicsCommandList* cmd, CCamera* ca
 		if ( visibleInstanceCount >= muzzleFlashInstanceBufferCapacity )
 			break;
 
-		const float ageRatio = ( flash.lifetime > 1.0e-6f ) ? std::clamp(flash.age / flash.lifetime, 0.0f, 1.0f) : 1.0f;
+		const float ageRatio =
+			( flash.lifetime > 1.0e-6f )
+			? std::clamp(flash.age / flash.lifetime, 0.0f, 1.0f)
+			: 1.0f;
 
-		const float width = flash.startWidth + ( flash.endWidth - flash.startWidth ) * ageRatio;
-		const float height = flash.startHeight + ( flash.endHeight - flash.startHeight ) * ageRatio;
+		const float width =
+			flash.startWidth +
+			( flash.endWidth - flash.startWidth ) * ageRatio;
+
+		const float height =
+			flash.startHeight +
+			( flash.endHeight - flash.startHeight ) * ageRatio;
 
 		MuzzleFlashInstanceVertex& dst =
 			mappedMuzzleFlashInstanceBuffer[visibleInstanceCount];
@@ -4346,7 +4342,13 @@ void CGameScene::RenderMuzzleFlashes(ID3D12GraphicsCommandList* cmd, CCamera* ca
 	cmd->IASetVertexBuffers(0, 2, vbViews);
 	cmd->IASetIndexBuffer(&sm.ibView);
 
-	cmd->DrawIndexedInstanced(static_cast< UINT >( sm.indices.size() ), visibleInstanceCount, 0, 0, 0);
+	cmd->DrawIndexedInstanced(
+		static_cast< UINT >( sm.indices.size() ),
+		visibleInstanceCount,
+		0,
+		0,
+		0
+	);
 }
 
 void CGameScene::RenderBossPoisonProjectiles(ID3D12GraphicsCommandList* cmd, CCamera* camera)
@@ -4354,7 +4356,7 @@ void CGameScene::RenderBossPoisonProjectiles(ID3D12GraphicsCommandList* cmd, CCa
 	if ( !cmd ) return;
 	if ( !camera ) return;
 	if ( !m_bossPoisonProjectileEffect.shader ) return;
-	if ( !m_itemBillboardQuadMesh ) return;
+	if ( !m_itemBillboardState.quadMesh ) return;
 
 	const UINT frameIndex = m_nFrameResourceIndex % kSceneBatchFrameResourceCount;
 
@@ -4365,9 +4367,9 @@ void CGameScene::RenderBossPoisonProjectiles(ID3D12GraphicsCommandList* cmd, CCa
 	if ( !instanceBuffer ) return;
 	if ( !mappedInstanceBuffer ) return;
 	if ( bossPoisonProjectileInstanceBufferCapacity == 0 ) return;
-	if ( m_itemBillboardQuadMesh->m_SubMeshes.empty() ) return;
+	if ( m_itemBillboardState.quadMesh->m_SubMeshes.empty() ) return;
 
-	const SubMesh& sm = m_itemBillboardQuadMesh->m_SubMeshes[0];
+	const SubMesh& sm = m_itemBillboardState.quadMesh->m_SubMeshes[0];
 
 	if ( sm.indices.empty() )
 		return;
@@ -4389,9 +4391,7 @@ void CGameScene::RenderBossPoisonProjectiles(ID3D12GraphicsCommandList* cmd, CCa
 	std::sort(
 		visibleProjectiles.begin(),
 		visibleProjectiles.end(),
-		[ &cameraPos ](
-			const BossPoisonProjectileEntry* a,
-			const BossPoisonProjectileEntry* b)
+		[ &cameraPos ] (const BossPoisonProjectileEntry* a, const BossPoisonProjectileEntry* b)
 		{
 			const float adx = a->position.x - cameraPos.x;
 			const float ady = a->position.y - cameraPos.y;
@@ -4431,10 +4431,6 @@ void CGameScene::RenderBossPoisonProjectiles(ID3D12GraphicsCommandList* cmd, CCa
 
 		dst.color = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 
-		// x = unused
-		// y = coreDiameter
-		// z = gasDiameter
-		// w = visualSeed
 		dst.params0 = XMFLOAT4(
 			0.0f,
 			entry->coreDiameter,
@@ -4442,9 +4438,6 @@ void CGameScene::RenderBossPoisonProjectiles(ID3D12GraphicsCommandList* cmd, CCa
 			entry->visualSeed
 		);
 
-		// x = coreRadius
-		// y = speed
-		// z/w = reserved
 		dst.params1 = XMFLOAT4(
 			entry->coreRadius,
 			entry->speed,
@@ -4610,13 +4603,13 @@ void CGameScene::RenderBossCallSummonWwwEffects(ID3D12GraphicsCommandList* cmd, 
 #ifndef USING_NETWORK
 	if ( !cmd ) return;
 	if ( !camera ) return;
-	if ( !m_bossCallSummonWwwShader ) return;
+	if ( !m_bossCallSummonWwwEffect.shader ) return;
 
 	const UINT frameIndex = m_nFrameResourceIndex % kSceneBatchFrameResourceCount;
 
-	ID3D12Resource* vertexBuffer = m_bossCallSummonWwwVertexBuffer.Resource(frameIndex);
-	SwordTrailVertex* mappedVertexBuffer = m_bossCallSummonWwwVertexBuffer.Mapped(frameIndex);
-	const UINT bossCallSummonWwwVertexBufferCapacity = m_bossCallSummonWwwVertexBuffer.Capacity();
+	ID3D12Resource* vertexBuffer = m_bossCallSummonWwwEffect.vertexBuffer.Resource(frameIndex);
+	SwordTrailVertex* mappedVertexBuffer = m_bossCallSummonWwwEffect.vertexBuffer.Mapped(frameIndex);
+	const UINT bossCallSummonWwwVertexBufferCapacity = m_bossCallSummonWwwEffect.vertexBuffer.Capacity();
 
 	if ( !vertexBuffer ) return;
 	if ( !mappedVertexBuffer ) return;
@@ -4631,8 +4624,8 @@ void CGameScene::RenderBossCallSummonWwwEffects(ID3D12GraphicsCommandList* cmd, 
 	std::vector<DrawRange> fillRanges;
 	std::vector<DrawRange> outlineRanges;
 
-	fillRanges.reserve(m_bossCallSummonWwwEntries.size());
-	outlineRanges.reserve(m_bossCallSummonWwwEntries.size());
+	fillRanges.reserve(m_bossCallSummonWwwEffect.entries.size());
+	outlineRanges.reserve(m_bossCallSummonWwwEffect.entries.size());
 
 	UINT vertexCursor = 0;
 
@@ -4682,7 +4675,7 @@ void CGameScene::RenderBossCallSummonWwwEffects(ID3D12GraphicsCommandList* cmd, 
 				return p;
 		};
 
-	for ( const BossCallSummonWwwEntry& entry : m_bossCallSummonWwwEntries )
+	for ( const BossCallSummonWwwEntry& entry : m_bossCallSummonWwwEffect.entries )
 	{
 		if ( !entry.active )
 			continue;
@@ -4869,7 +4862,7 @@ void CGameScene::RenderBossCallSummonWwwEffects(ID3D12GraphicsCommandList* cmd, 
 	if ( fillRanges.empty() && outlineRanges.empty() )
 		return;
 
-	m_bossCallSummonWwwShader->Render(cmd, camera, nullptr);
+	m_bossCallSummonWwwEffect.shader->Render(cmd, camera, nullptr);
 
 	D3D12_VERTEX_BUFFER_VIEW vbView{};
 	vbView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
@@ -4918,13 +4911,13 @@ void CGameScene::RenderMonsterSwordTrails(
 {
 	if ( !cmd ) return;
 	if ( !camera ) return;
-	if ( !m_monsterSwordTrailShader ) return;
+	if ( !m_monsterSwordTrailEffect.shader ) return;
 
 	const UINT frameIndex = m_nFrameResourceIndex % kSceneBatchFrameResourceCount;
 
-	ID3D12Resource* vertexBuffer = m_monsterSwordTrailVertexBuffer.Resource(frameIndex);
-	MonsterSwordTrailVertex* mappedVertexBuffer = m_monsterSwordTrailVertexBuffer.Mapped(frameIndex);
-	const UINT monsterSwordTrailVertexBufferCapacity = m_monsterSwordTrailVertexBuffer.Capacity();
+	ID3D12Resource* vertexBuffer = m_monsterSwordTrailEffect.vertexBuffer.Resource(frameIndex);
+	MonsterSwordTrailVertex* mappedVertexBuffer = m_monsterSwordTrailEffect.vertexBuffer.Mapped(frameIndex);
+	const UINT monsterSwordTrailVertexBufferCapacity = m_monsterSwordTrailEffect.vertexBuffer.Capacity();
 
 	if ( !vertexBuffer ) return;
 	if ( !mappedVertexBuffer ) return;
@@ -4937,11 +4930,11 @@ void CGameScene::RenderMonsterSwordTrails(
 	};
 
 	std::vector<DrawRange> drawRanges;
-	drawRanges.reserve(m_monsterSwordTrails.size());
+	drawRanges.reserve(m_monsterSwordTrailEffect.entries.size());
 
 	UINT vertexCursor = 0;
 
-	for ( const MonsterSwordTrailEntry& trail : m_monsterSwordTrails )
+	for ( const MonsterSwordTrailEntry& trail : m_monsterSwordTrailEffect.entries )
 	{
 		if ( !trail.active )
 			continue;
@@ -5022,7 +5015,7 @@ void CGameScene::RenderMonsterSwordTrails(
 
 	if ( drawRanges.empty() ) return;
 
-	m_monsterSwordTrailShader->Render(cmd, camera, nullptr);
+	m_monsterSwordTrailEffect.shader->Render(cmd, camera, nullptr);
 
 	D3D12_VERTEX_BUFFER_VIEW vbView{};
 	vbView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
@@ -5045,13 +5038,13 @@ void CGameScene::RenderArrowTrails(ID3D12GraphicsCommandList* cmd, CCamera* came
 {
 	if ( !cmd ) return;
 	if ( !camera ) return;
-	if ( !m_arrowTrailShader ) return;
+	if ( !m_arrowTrailEffect.shader ) return;
 
 	const UINT frameIndex = m_nFrameResourceIndex % kSceneBatchFrameResourceCount;
 
-	ID3D12Resource* vertexBuffer = m_arrowTrailVertexBuffer.Resource(frameIndex);
-	SwordTrailVertex* mappedVertexBuffer = m_arrowTrailVertexBuffer.Mapped(frameIndex);
-	const UINT arrowTrailVertexBufferCapacity = m_arrowTrailVertexBuffer.Capacity();
+	ID3D12Resource* vertexBuffer = m_arrowTrailEffect.vertexBuffer.Resource(frameIndex);
+	SwordTrailVertex* mappedVertexBuffer = m_arrowTrailEffect.vertexBuffer.Mapped(frameIndex);
+	const UINT arrowTrailVertexBufferCapacity = m_arrowTrailEffect.vertexBuffer.Capacity();
 
 	if ( !vertexBuffer ) return;
 	if ( !mappedVertexBuffer ) return;
@@ -5064,7 +5057,7 @@ void CGameScene::RenderArrowTrails(ID3D12GraphicsCommandList* cmd, CCamera* came
 	};
 
 	std::vector<DrawRange> drawRanges;
-	drawRanges.reserve(m_arrowTrails.size());
+	drawRanges.reserve(m_arrowTrailEffect.entries.size());
 
 	UINT vertexCursor = 0;
 
@@ -5073,7 +5066,7 @@ void CGameScene::RenderArrowTrails(ID3D12GraphicsCommandList* cmd, CCamera* came
 	constexpr float kArrowTrailSampleLifetimeSec = 0.260f;
 	constexpr float kArrowTrailHalfWidth = 0.075f;
 
-	for ( const ArrowTrailEntry& trail : m_arrowTrails )
+	for ( const ArrowTrailEntry& trail : m_arrowTrailEffect.entries )
 	{
 		if ( !trail.active )
 			continue;
@@ -5201,7 +5194,7 @@ void CGameScene::RenderArrowTrails(ID3D12GraphicsCommandList* cmd, CCamera* came
 	if ( drawRanges.empty() )
 		return;
 
-	m_arrowTrailShader->Render(cmd, camera, nullptr);
+	m_arrowTrailEffect.shader->Render(cmd, camera, nullptr);
 
 	D3D12_VERTEX_BUFFER_VIEW vbView{};
 	vbView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();

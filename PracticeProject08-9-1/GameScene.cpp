@@ -3172,8 +3172,8 @@ CGameScene::~CGameScene()
 
 void CGameScene::ReleaseObjects()
 {
-    m_staticBatch.shader.reset();
-    m_skinnedBatch.shader.reset();
+	m_staticBatch.shader.reset();
+	m_skinnedBatch.shader.reset();
 
 	m_treeStaticShader.reset();
 	m_treeAlphaClipObjects.clear();
@@ -3195,13 +3195,13 @@ void CGameScene::ReleaseObjects()
 	m_staticObjects.clear();
 	m_skinnedObjects.clear();
 
-    m_lightObjects.clear();
-    m_pPlayerSpotFollower = nullptr;
+	m_lightObjects.clear();
+	m_pPlayerSpotFollower = nullptr;
 
-    m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
+	m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
 
-    m_staticBatch.objectRefs.clear();
-    m_skinnedBatch.objectRefs.clear();
+	m_staticBatch.objectRefs.clear();
+	m_skinnedBatch.objectRefs.clear();
 
 	m_colliderBatch.shader.reset();
 	m_colliderBatch.objectRefs.clear();
@@ -3282,7 +3282,7 @@ void CGameScene::ReleaseObjects()
 	ResetPlayerFootstepSfxState();
 	ResetMonsterSfxState();
 
-	m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr }; 
+	m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr };
 	m_prevBowLoadPhase = { false, false, false, false };
 	m_prevBowReleasePhase = { false, false, false, false };
 	m_preparedBowmanArrows.clear();
@@ -3310,21 +3310,26 @@ void CGameScene::ReleaseObjects()
 	m_bLocalPlayerDead = false;
 	m_bLocalPlayerRespawnUsed = false;
 	m_localPlayerRespawnTimer = 0.0f;
+
 #ifdef USING_NETWORK
 	m_prevPlayerNetworkStateCode.clear();
 	m_prevEnemyNetworkStateCode.clear();
 #endif
+
 	m_playerWeaponDamageTierIndex = 0;
 	m_deadMonsters.clear();
 	m_skinnedMonsterMegaGridNumbers.clear();
 
-	m_itemBillboardShader.reset();
-	m_transparentItemBillboardShader.reset();
-
-	m_itemBillboardQuadMesh.reset();
-	m_itemBillboards.clear();
-	m_activeBossCallSummonCircleItemIndices.clear();
-	m_bossCallSummonCircleVisualState = BossCallSummonCircleVisualState{};
+	m_itemBillboardState.shader.reset();
+	m_itemBillboardState.transparentShader.reset();
+	m_itemBillboardState.quadMesh.reset();
+	m_itemBillboardState.keyTexture.reset();
+	m_itemBillboardState.bossSummonCircleTexture.reset();
+	m_itemBillboardState.entries.clear();
+	m_itemBillboardState.activeBossCallSummonCircleItemIndices.clear();
+	m_itemBillboardState.bossCallSummonCircleVisual = BossCallSummonCircleVisualState{};
+	m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
+	m_itemBillboardState.bossCallSummonGlowParticleEmitAccumulatorSec = 0.0f;
 
 	m_bossCallSummonPlanCallIndex = -1;
 	m_bossCallSummonPlanEntries.clear();
@@ -3336,20 +3341,17 @@ void CGameScene::ReleaseObjects()
 
 	m_bossPoisonProjectileEffect.shader.reset();
 
-	m_bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
-	m_bossCallSummonGlowParticleEmitAccumulatorSec = 0.0f;
-
 	m_swordTrailEffect.shader.reset();
 	m_swordTrailEffect.entries.clear();
 
-	m_monsterSwordTrailShader.reset();
-	m_monsterSwordTrails.clear();
+	m_monsterSwordTrailEffect.shader.reset();
+	m_monsterSwordTrailEffect.entries.clear();
 
-	m_arrowTrailShader.reset();
-	m_arrowTrails.clear();
+	m_arrowTrailEffect.shader.reset();
+	m_arrowTrailEffect.entries.clear();
 
-	m_bossCallSummonWwwShader.reset();
-	m_bossCallSummonWwwEntries.clear();
+	m_bossCallSummonWwwEffect.shader.reset();
+	m_bossCallSummonWwwEffect.entries.clear();
 
 	m_staticRenderObjectCache.clear();
 	m_staticGameplayTickObjects.clear();
@@ -3367,29 +3369,30 @@ void CGameScene::ReleaseObjects()
 
 void CGameScene::ReleaseUploadBuffers()
 {
-    for (UINT j = 0; j < (UINT)m_staticObjects.size(); ++j)
-    {
-        if (!m_staticObjects[j]) continue;
-        m_staticObjects[j]->ReleaseUploadBuffers();
-    }
-    for (UINT j = 0; j < (UINT)m_skinnedObjects.size(); ++j)
-    {
-        if (!m_skinnedObjects[j]) continue;
-        m_skinnedObjects[j]->ReleaseUploadBuffers();
-    }
+	for ( UINT j = 0; j < ( UINT ) m_staticObjects.size(); ++j )
+	{
+		if ( !m_staticObjects[j] ) continue;
+		m_staticObjects[j]->ReleaseUploadBuffers();
+	}
+
+	for ( UINT j = 0; j < ( UINT ) m_skinnedObjects.size(); ++j )
+	{
+		if ( !m_skinnedObjects[j] ) continue;
+		m_skinnedObjects[j]->ReleaseUploadBuffers();
+	}
 
 #ifdef _WITH_BATCH_MATERIAL
-    if (m_staticBatch.material)  m_staticBatch.material->ReleaseUploadBuffers();
+	if ( m_staticBatch.material ) m_staticBatch.material->ReleaseUploadBuffers();
 #endif
 
-	if ( m_itemBillboardQuadMesh )
-		m_itemBillboardQuadMesh->ReleaseUploadBuffers();
+	if ( m_itemBillboardState.quadMesh )
+		m_itemBillboardState.quadMesh->ReleaseUploadBuffers();
 
-	if ( m_keyItemTexture )
-		m_keyItemTexture->ReleaseUploadBuffers();
+	if ( m_itemBillboardState.keyTexture )
+		m_itemBillboardState.keyTexture->ReleaseUploadBuffers();
 
-	if ( m_bossSummonCircleTexture )
-		m_bossSummonCircleTexture->ReleaseUploadBuffers();
+	if ( m_itemBillboardState.bossSummonCircleTexture )
+		m_itemBillboardState.bossSummonCircleTexture->ReleaseUploadBuffers();
 }
 
 void CGameScene::ReleaseShaderVariables()
@@ -4937,7 +4940,7 @@ void CGameScene::SetBossSummonVisualAlpha(float alpha)
 
 void CGameScene::SetBossSummonVisualActive(bool active)
 {
-	for ( ItemBillboardEntry& item : m_itemBillboards )
+	for ( ItemBillboardEntry& item : m_itemBillboardState.entries )
 	{
 		if ( item.kind != EItemBillboardKind::BossSummonCircle &&
 			 item.kind != EItemBillboardKind::BossSummonGlow )
@@ -6492,7 +6495,7 @@ void CGameScene::UpdateBossStageSummonSequence(float dt)
 	{
 		m_bBossSummonSequenceStarted = false;
 		m_bBossSummonCircleFadeAgeSec = 0.0f;
-		m_bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
+		m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
 
 		SetBossSummonVisualAlpha(0.0f);
 		SetBossSummonVisualActive(false);
@@ -6529,7 +6532,7 @@ void CGameScene::UpdateBossStageSummonSequence(float dt)
 			110.0f,
 			alpha,
 			dt,
-			m_bossSummonGlowParticleEmitAccumulatorSec,
+			m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec,
 			kBossSummonGlowParticleEmitIntervalSec,
 			kBossSummonGlowParticlesPerEmit,
 			kBossSummonGlowParticleIntensityScale
@@ -6604,7 +6607,7 @@ void CGameScene::UpdateBossSummonVisualFadeOut(float dt)
 			110.0f,
 			alpha,
 			dt,
-			m_bossSummonGlowParticleEmitAccumulatorSec,
+			m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec,
 			kBossSummonGlowParticleEmitIntervalSec,
 			kBossSummonGlowParticlesPerEmit,
 			kBossSummonGlowParticleIntensityScale
@@ -6619,7 +6622,7 @@ void CGameScene::UpdateBossSummonVisualFadeOut(float dt)
 
 	m_bBossSummonVisualFadeOutStarted = false;
 	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
-	m_bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
+	m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
 #else
 	UNREFERENCED_PARAMETER(dt);
 #endif
@@ -6659,7 +6662,7 @@ void CGameScene::UnlockKeyBillboardForMegaGrid(int megaGridNumber)
 	if ( megaGridNumber != 6 && megaGridNumber != 8 )
 		return;
 
-	for ( ItemBillboardEntry& item : m_itemBillboards )
+	for ( ItemBillboardEntry& item : m_itemBillboardState.entries )
 	{
 		if ( item.kind != EItemBillboardKind::Key )
 			continue;
@@ -8392,7 +8395,7 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 		RenderStaticInstanceGroups(cmd, camera);
 	}
 
-	if ( m_itemBillboardShader )
+	if ( m_itemBillboardState.shader )
 	{
 		RenderItemBillboards(cmd, camera);
 	}
@@ -8461,12 +8464,12 @@ void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* c
 
 	BindFrameRootParameters(cmd);
 
-	if ( m_transparentItemBillboardShader )
+	if ( m_itemBillboardState.transparentShader )
 	{
 		RenderTransparentItemBillboards(cmd, camera);
 	}
 
-	if ( m_bossCallSummonWwwShader )
+	if ( m_bossCallSummonWwwEffect.shader )
 	{
 		RenderBossCallSummonWwwEffects(cmd, camera);
 	}
@@ -8481,12 +8484,12 @@ void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* c
 		RenderSwordTrails(cmd, camera);
 	}
 
-	if ( m_monsterSwordTrailShader )
+	if ( m_monsterSwordTrailEffect.shader )
 	{
 		RenderMonsterSwordTrails(cmd, camera);
 	}
 
-	if ( m_arrowTrailShader )
+	if ( m_arrowTrailEffect.shader )
 	{
 		RenderArrowTrails(cmd, camera);
 	}
