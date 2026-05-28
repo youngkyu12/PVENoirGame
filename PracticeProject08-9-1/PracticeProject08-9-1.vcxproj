@@ -196,6 +196,7 @@
     <ClInclude Include="GameFramework.h" />
     <ClInclude Include="GameScene.h" />
     <ClInclude Include="GameSceneAttachmentBinder.h" />
+    <ClInclude Include="GameSceneBillboardCommon.h" />
     <ClInclude Include="GameSceneBillboardTypes.h" />
     <ClInclude Include="GameSceneContentCatalog.h" />
     <ClInclude Include="GameSceneFrameUploadBuffer.h" />
@@ -284,6 +285,7 @@
     <ClCompile Include="GameSceneAttachmentBinder.cpp" />
     <ClCompile Include="GameSceneAudio.cpp" />
     <ClCompile Include="GameSceneBillboard.cpp" />
+    <ClCompile Include="GameSceneBillboardCommon.cpp" />
     <ClCompile Include="GameSceneBuild.cpp" />
     <ClCompile Include="GameSceneContentCatalog.cpp" />
     <ClCompile Include="GameSceneHelper.cpp" />

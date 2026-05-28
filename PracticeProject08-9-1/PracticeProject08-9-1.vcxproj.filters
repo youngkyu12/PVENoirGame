@@ -421,6 +421,9 @@
     <ClInclude Include="GameSceneBillboardTypes.h">
       <Filter>Scene\GameScene\Billboard</Filter>
     </ClInclude>
+    <ClInclude Include="GameSceneBillboardCommon.h">
+      <Filter>Scene\GameScene\Billboard</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -625,6 +628,9 @@
       <Filter>Components\AIComponent</Filter>
     </ClCompile>
     <ClCompile Include="GameSceneBillboard.cpp">
+      <Filter>Scene\GameScene\Billboard</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneBillboardCommon.cpp">
       <Filter>Scene\GameScene\Billboard</Filter>
     </ClCompile>
   </ItemGroup>
