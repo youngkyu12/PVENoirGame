@@ -164,23 +164,26 @@
     <Filter Include="ShadowMap">
       <UniqueIdentifier>{4004a651-92e4-4af2-b222-2eb75c2e37e5}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Scene\GameScene\GameSceneAttachmentBinder">
-      <UniqueIdentifier>{75471584-926c-408e-a72a-f01d62ee858b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Scene\GameScene\GameSceneContentCatalog">
-      <UniqueIdentifier>{575edd73-58a9-4694-a566-a8c942bd7e0d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Scene\GameScene\GameSceneHelper">
-      <UniqueIdentifier>{07137118-864a-4a0d-a2d0-cb706e6814b6}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Scene\GameScene\GameSceneHUD">
-      <UniqueIdentifier>{eeb33e69-f4dc-48b7-aa7b-4f7d80c4044b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Scene\GameScene\GameSceneObjectFactory">
-      <UniqueIdentifier>{8ebe87ca-6343-4559-a84b-d9c718eabacd}</UniqueIdentifier>
-    </Filter>
     <Filter Include="EnemySpawner">
       <UniqueIdentifier>{57fff3bd-1740-43c3-a1a4-367610ca4ec0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene\GameScene\Billboard">
+      <UniqueIdentifier>{7c58d22c-1efc-4bfd-8136-984c437466f6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene\GameScene\ObjectFactory">
+      <UniqueIdentifier>{8ebe87ca-6343-4559-a84b-d9c718eabacd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene\GameScene\HUD">
+      <UniqueIdentifier>{eeb33e69-f4dc-48b7-aa7b-4f7d80c4044b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene\GameScene\Helper">
+      <UniqueIdentifier>{07137118-864a-4a0d-a2d0-cb706e6814b6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene\GameScene\ContentCatalog">
+      <UniqueIdentifier>{575edd73-58a9-4694-a566-a8c942bd7e0d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene\GameScene\AttachmentBinder">
+      <UniqueIdentifier>{75471584-926c-408e-a72a-f01d62ee858b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -383,22 +386,22 @@
       <Filter>ShadowMap</Filter>
     </ClInclude>
     <ClInclude Include="GameSceneAttachmentBinder.h">
-      <Filter>Scene\GameScene\GameSceneAttachmentBinder</Filter>
+      <Filter>Scene\GameScene\AttachmentBinder</Filter>
     </ClInclude>
     <ClInclude Include="GameSceneContentCatalog.h">
-      <Filter>Scene\GameScene\GameSceneContentCatalog</Filter>
+      <Filter>Scene\GameScene\ContentCatalog</Filter>
     </ClInclude>
     <ClInclude Include="GameSceneHelper.h">
-      <Filter>Scene\GameScene\GameSceneHelper</Filter>
+      <Filter>Scene\GameScene\Helper</Filter>
     </ClInclude>
     <ClInclude Include="GameSceneHUD.h">
-      <Filter>Scene\GameScene\GameSceneHUD</Filter>
+      <Filter>Scene\GameScene\HUD</Filter>
     </ClInclude>
     <ClInclude Include="GameSceneObjectFactory.h">
-      <Filter>Scene\GameScene\GameSceneObjectFactory</Filter>
+      <Filter>Scene\GameScene\ObjectFactory</Filter>
     </ClInclude>
     <ClInclude Include="GameScenePrivate.h">
-      <Filter>Scene\GameScene\GameSceneHelper</Filter>
+      <Filter>Scene\GameScene\Helper</Filter>
     </ClInclude>
     <ClInclude Include="MathHelper.h">
       <Filter>PCH</Filter>
@@ -413,7 +416,10 @@
       <Filter>Components\AIComponent</Filter>
     </ClInclude>
     <ClInclude Include="GameSceneFrameUploadBuffer.h">
-      <Filter>Scene\GameScene\GameSceneHelper</Filter>
+      <Filter>Scene\GameScene\Billboard</Filter>
+    </ClInclude>
+    <ClInclude Include="GameSceneBillboardTypes.h">
+      <Filter>Scene\GameScene\Billboard</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -585,9 +591,6 @@
     <ClCompile Include="HealthComponent.cpp">
       <Filter>Components\Health&amp;AttackPower</Filter>
     </ClCompile>
-    <ClCompile Include="GameSceneBillboard.cpp">
-      <Filter>Scene\GameScene</Filter>
-    </ClCompile>
     <ClCompile Include="GameSceneAudio.cpp">
       <Filter>Scene\GameScene</Filter>
     </ClCompile>
@@ -595,19 +598,19 @@
       <Filter>ShadowMap</Filter>
     </ClCompile>
     <ClCompile Include="GameSceneAttachmentBinder.cpp">
-      <Filter>Scene\GameScene\GameSceneAttachmentBinder</Filter>
+      <Filter>Scene\GameScene\AttachmentBinder</Filter>
     </ClCompile>
     <ClCompile Include="GameSceneContentCatalog.cpp">
-      <Filter>Scene\GameScene\GameSceneContentCatalog</Filter>
+      <Filter>Scene\GameScene\ContentCatalog</Filter>
     </ClCompile>
     <ClCompile Include="GameSceneHelper.cpp">
-      <Filter>Scene\GameScene\GameSceneHelper</Filter>
+      <Filter>Scene\GameScene\Helper</Filter>
     </ClCompile>
     <ClCompile Include="GameSceneHUD.cpp">
-      <Filter>Scene\GameScene\GameSceneHUD</Filter>
+      <Filter>Scene\GameScene\HUD</Filter>
     </ClCompile>
     <ClCompile Include="GameSceneObjectFactory.cpp">
-      <Filter>Scene\GameScene\GameSceneObjectFactory</Filter>
+      <Filter>Scene\GameScene\ObjectFactory</Filter>
     </ClCompile>
     <ClCompile Include="EnemySpawner.cpp">
       <Filter>EnemySpawner</Filter>
@@ -620,6 +623,9 @@
     </ClCompile>
     <ClCompile Include="MonsterAIComponent.cpp">
       <Filter>Components\AIComponent</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneBillboard.cpp">
+      <Filter>Scene\GameScene\Billboard</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
