@@ -3233,8 +3233,8 @@ void CGameScene::ReleaseObjects()
 
 	ResetBossShockwaveWindSfxTracking();
 
-	m_bossPoisonProjectiles.clear();
-	m_bossPoisonSpellCastStates.clear();
+	m_bossPoisonProjectileEffect.entries.clear();
+	m_bossPoisonProjectileEffect.spellCastStates.clear();
 	m_bossMeleeSlashCastStates.clear();
 
 	m_bBossStageBossActivated = false;
@@ -3334,7 +3334,7 @@ void CGameScene::ReleaseObjects()
 	m_muzzleFlashEffect.shader.reset();
 	m_muzzleFlashEffect.entries.clear();
 
-	m_bossPoisonProjectileShader.reset();
+	m_bossPoisonProjectileEffect.shader.reset();
 
 	m_bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
 	m_bossCallSummonGlowParticleEmitAccumulatorSec = 0.0f;
@@ -8471,7 +8471,7 @@ void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* c
 		RenderBossCallSummonWwwEffects(cmd, camera);
 	}
 
-	if ( m_bossPoisonProjectileShader )
+	if ( m_bossPoisonProjectileEffect.shader )
 	{
 		RenderBossPoisonProjectiles(cmd, camera);
 	}

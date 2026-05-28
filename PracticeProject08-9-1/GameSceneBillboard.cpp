@@ -1007,12 +1007,11 @@ void CGameScene::BuildBossPoisonProjectileBatch(ID3D12Device* dev, ID3D12Graphic
 	if ( !dev || !cmd )
 		return;
 
-	m_bossPoisonProjectileShader =
-		std::make_shared<CBossPoisonProjectileBillboardShader>();
+	m_bossPoisonProjectileEffect.shader = std::make_shared<CBossPoisonProjectileBillboardShader>();
 
 	DXGI_FORMAT rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
-	m_bossPoisonProjectileShader->CreateShader(
+	m_bossPoisonProjectileEffect.shader->CreateShader(
 		dev,
 		m_pd3dGraphicsRootSignature.Get(),
 		1,
@@ -1020,10 +1019,10 @@ void CGameScene::BuildBossPoisonProjectileBatch(ID3D12Device* dev, ID3D12Graphic
 		dsvFormat
 	);
 
-	if ( m_bossPoisonProjectiles.size() != kBossPoisonProjectileMaxCount )
-		m_bossPoisonProjectiles.resize(kBossPoisonProjectileMaxCount);
+	if ( m_bossPoisonProjectileEffect.entries.size() != kBossPoisonProjectileMaxCount )
+		m_bossPoisonProjectileEffect.entries.resize(kBossPoisonProjectileMaxCount);
 
-	m_bossPoisonProjectileInstanceBuffer.Create(dev, cmd, kBossPoisonProjectileMaxCount, [ dev, cmd ] (UINT bufferBytes)
+	m_bossPoisonProjectileEffect.instanceBuffer.Create(dev, cmd, kBossPoisonProjectileMaxCount, [ dev, cmd ] (UINT bufferBytes)
 	{
 		return ::CreateBufferResource(dev, cmd, nullptr, bufferBytes, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr);
 	});
@@ -1140,7 +1139,7 @@ void CGameScene::ReleaseMuzzleFlashGpuResources()
 
 void CGameScene::ReleaseBossPoisonProjectileGpuResources()
 {
-	m_bossPoisonProjectileInstanceBuffer.Release();
+	m_bossPoisonProjectileEffect.instanceBuffer.Release();
 }
 
 void CGameScene::ReleaseSwordTrailGpuResources()
@@ -3394,17 +3393,16 @@ void CGameScene::ApplyBossShockwavePushToLocalPlayer(
 
 void CGameScene::ResetBossPoisonProjectileState()
 {
-	m_bossPoisonProjectiles.clear();
-	m_bossPoisonProjectiles.resize(kBossPoisonProjectileMaxCount);
+	m_bossPoisonProjectileEffect.entries.clear();
+	m_bossPoisonProjectileEffect.entries.resize(kBossPoisonProjectileMaxCount);
 
-	m_bossPoisonSpellCastStates.clear();
+	m_bossPoisonProjectileEffect.spellCastStates.clear();
 	m_bossMeleeSlashCastStates.clear();
 }
 
-BossPoisonProjectileEntry*
-CGameScene::AcquireFreeBossPoisonProjectileEntry()
+BossPoisonProjectileEntry* CGameScene::AcquireFreeBossPoisonProjectileEntry()
 {
-	for ( BossPoisonProjectileEntry& entry : m_bossPoisonProjectiles )
+	for ( BossPoisonProjectileEntry& entry : m_bossPoisonProjectileEffect.entries )
 	{
 		if ( !entry.active )
 			return &entry;
@@ -3680,7 +3678,7 @@ void CGameScene::UpdateBossPoisonProjectileSpellCasts(float dt)
 
 		if ( !boss->GetActive() || IsMonsterDead(boss) )
 		{
-			m_bossPoisonSpellCastStates.erase(boss);
+			m_bossPoisonProjectileEffect.spellCastStates.erase(boss);
 			continue;
 		}
 
@@ -3689,7 +3687,7 @@ void CGameScene::UpdateBossPoisonProjectileSpellCasts(float dt)
 
 		if ( !animComp )
 		{
-			m_bossPoisonSpellCastStates.erase(boss);
+			m_bossPoisonProjectileEffect.spellCastStates.erase(boss);
 			continue;
 		}
 
@@ -3698,14 +3696,14 @@ void CGameScene::UpdateBossPoisonProjectileSpellCasts(float dt)
 
 		if ( !ctrl )
 		{
-			m_bossPoisonSpellCastStates.erase(boss);
+			m_bossPoisonProjectileEffect.spellCastStates.erase(boss);
 			continue;
 		}
 
 		const bool isSpellPhase = ctrl->IsSpellPhase();
 
 		BossPoisonSpellCastState& state =
-			m_bossPoisonSpellCastStates[boss];
+			m_bossPoisonProjectileEffect.spellCastStates[boss];
 
 		if ( !isSpellPhase )
 		{
@@ -3981,7 +3979,7 @@ void CGameScene::UpdateBossPoisonProjectiles(float dt)
 	const float maxZ =
 		centerZ + kBossPoisonProjectileStageHalfExtent;
 
-	for ( BossPoisonProjectileEntry& entry : m_bossPoisonProjectiles )
+	for ( BossPoisonProjectileEntry& entry : m_bossPoisonProjectileEffect.entries )
 	{
 		if ( !entry.active )
 			continue;
@@ -4351,20 +4349,18 @@ void CGameScene::RenderMuzzleFlashes(ID3D12GraphicsCommandList* cmd, CCamera* ca
 	cmd->DrawIndexedInstanced(static_cast< UINT >( sm.indices.size() ), visibleInstanceCount, 0, 0, 0);
 }
 
-void CGameScene::RenderBossPoisonProjectiles(
-	ID3D12GraphicsCommandList* cmd,
-	CCamera* camera)
+void CGameScene::RenderBossPoisonProjectiles(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	if ( !cmd ) return;
 	if ( !camera ) return;
-	if ( !m_bossPoisonProjectileShader ) return;
+	if ( !m_bossPoisonProjectileEffect.shader ) return;
 	if ( !m_itemBillboardQuadMesh ) return;
 
 	const UINT frameIndex = m_nFrameResourceIndex % kSceneBatchFrameResourceCount;
 
-	ID3D12Resource* instanceBuffer = m_bossPoisonProjectileInstanceBuffer.Resource(frameIndex);
-	MuzzleFlashInstanceVertex* mappedInstanceBuffer = m_bossPoisonProjectileInstanceBuffer.Mapped(frameIndex);
-	const UINT bossPoisonProjectileInstanceBufferCapacity = m_bossPoisonProjectileInstanceBuffer.Capacity();
+	ID3D12Resource* instanceBuffer = m_bossPoisonProjectileEffect.instanceBuffer.Resource(frameIndex);
+	MuzzleFlashInstanceVertex* mappedInstanceBuffer = m_bossPoisonProjectileEffect.instanceBuffer.Mapped(frameIndex);
+	const UINT bossPoisonProjectileInstanceBufferCapacity = m_bossPoisonProjectileEffect.instanceBuffer.Capacity();
 
 	if ( !instanceBuffer ) return;
 	if ( !mappedInstanceBuffer ) return;
@@ -4379,9 +4375,9 @@ void CGameScene::RenderBossPoisonProjectiles(
 	const XMFLOAT3 cameraPos = camera->GetPosition();
 
 	std::vector<const BossPoisonProjectileEntry*> visibleProjectiles;
-	visibleProjectiles.reserve(m_bossPoisonProjectiles.size());
+	visibleProjectiles.reserve(m_bossPoisonProjectileEffect.entries.size());
 
-	for ( const BossPoisonProjectileEntry& entry : m_bossPoisonProjectiles )
+	for ( const BossPoisonProjectileEntry& entry : m_bossPoisonProjectileEffect.entries )
 	{
 		if ( entry.active )
 			visibleProjectiles.push_back(&entry);
@@ -4462,7 +4458,7 @@ void CGameScene::RenderBossPoisonProjectiles(
 	if ( visibleInstanceCount == 0 )
 		return;
 
-	m_bossPoisonProjectileShader->Render(cmd, camera, nullptr);
+	m_bossPoisonProjectileEffect.shader->Render(cmd, camera, nullptr);
 
 	D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
 	vbViews[0] = sm.vbView;
