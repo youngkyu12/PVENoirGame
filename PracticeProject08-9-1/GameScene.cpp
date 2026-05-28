@@ -3348,6 +3348,9 @@ void CGameScene::ReleaseObjects()
 	m_monsterSwordTrailShader.reset();
 	m_monsterSwordTrails.clear();
 
+	m_arrowTrailShader.reset();
+	m_arrowTrails.clear();
+
 	m_bossCallSummonWwwShader.reset();
 	m_bossCallSummonWwwEntries.clear();
 
@@ -3397,6 +3400,7 @@ void CGameScene::ReleaseShaderVariables()
 	ReleaseItemBillboardGpuResources();
 	ReleaseBossPoisonProjectileGpuResources();
 	ReleaseBossCallSummonWwwGpuResources();
+	ReleaseArrowTrailGpuResources();
 	ReleaseStaticOcclusionGpuResources();
 	ReleaseSkinnedOcclusionGpuResources();
 
@@ -8039,6 +8043,8 @@ void CGameScene::AnimateObjects(float dt)
 	UpdatePreparedBowArrows();
 #endif
 
+	UpdateArrowTrails(dt);
+
 	for ( UINT j = 0; j < ( UINT ) m_lightObjects.size(); ++j )
 	{
 		if ( !m_lightObjects[j] )
@@ -8484,6 +8490,11 @@ void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* c
 	if ( m_monsterSwordTrailShader )
 	{
 		RenderMonsterSwordTrails(cmd, camera);
+	}
+
+	if ( m_arrowTrailShader )
+	{
+		RenderArrowTrails(cmd, camera);
 	}
 
 	if ( m_muzzleFlashShader )

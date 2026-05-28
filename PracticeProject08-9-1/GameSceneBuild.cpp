@@ -50,11 +50,11 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 	m_bSimulateLocalAI = true;
 
 	m_bSimulateLocalGhoulAI = false;
-	m_bSimulateLocalBowManAI = false;
+	m_bSimulateLocalBowManAI = true;
 	m_bSimulateLocalSwordManAI = false;
 	m_bSimulateLocalMutantAI = false;
-	m_bSimulateLocalBossAI = true;
-	m_bSimulateLocalBossSummon = true;
+	m_bSimulateLocalBossAI = false;
+	m_bSimulateLocalBossSummon = false;
 	m_bSimulateLocalBossStageMonsterAI = false;
 
 	m_bSimulateLocalMonsterChase = true;
@@ -188,7 +188,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		}
 	}
 #else
-	m_localPlayerSlot = 3;
+	m_localPlayerSlot = 0;
 
 	const GameSceneStageFileSet& stageFiles = GetLocalStageFileSet(kLocalStagePreset);
 

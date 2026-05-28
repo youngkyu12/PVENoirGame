@@ -252,6 +252,21 @@ struct MonsterSwordTrailEntry
 	std::vector<MonsterSwordTrailSample> samples;
 };
 
+struct ArrowTrailSample
+{
+	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	float age = 0.0f;
+};
+
+struct ArrowTrailEntry
+{
+	bool active = false;
+
+	CGameObject* arrowObject = nullptr;
+
+	std::deque<ArrowTrailSample> samples;
+};
+
 static constexpr UINT kBossCallSummonWwwPeakCount = 16;
 
 struct BossCallSummonWwwEntry
@@ -627,6 +642,17 @@ private:
 	void BeginSwordManSwordTrail(CGameObject* swordman);
 	void UpdateMonsterSwordTrails(float dt);
 	void RenderMonsterSwordTrails(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
+	void BuildArrowTrailBatch(
+		ID3D12Device* dev,
+		ID3D12GraphicsCommandList* cmd,
+		DXGI_FORMAT dsvFormat
+	);
+
+	void ReleaseArrowTrailGpuResources();
+
+	void UpdateArrowTrails(float dt);
+	void RenderArrowTrails(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 	void BuildBossCallSummonWwwBatch(
 		ID3D12Device* dev,
@@ -1226,6 +1252,19 @@ private:
 	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dMonsterSwordTrailVertexBuffer;
 	std::array<MonsterSwordTrailVertex*, kSceneBatchFrameResourceCount> m_pMappedMonsterSwordTrailVertexBuffer = {};
 	UINT m_monsterSwordTrailVertexBufferCapacity = 0;
+
+	static constexpr UINT kArrowTrailMaxCount = 32;
+	static constexpr UINT kArrowTrailMaxSamples = 12;
+	static constexpr UINT kArrowTrailMaxVertices =
+		kArrowTrailMaxCount * kArrowTrailMaxSamples * 2;
+
+	std::shared_ptr<CSwordTrailShader> m_arrowTrailShader;
+
+	std::vector<ArrowTrailEntry> m_arrowTrails;
+
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dArrowTrailVertexBuffer;
+	std::array<SwordTrailVertex*, kSceneBatchFrameResourceCount> m_pMappedArrowTrailVertexBuffer = {};
+	UINT m_arrowTrailVertexBufferCapacity = 0;
 
 	static constexpr UINT kBossCallSummonWwwMaxCount = 64;
 
