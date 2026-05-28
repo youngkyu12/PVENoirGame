@@ -1033,11 +1033,11 @@ void CGameScene::BuildSwordTrailBatch(ID3D12Device* dev, ID3D12GraphicsCommandLi
 	if ( !dev || !cmd )
 		return;
 
-	m_swordTrailShader = std::make_shared<CSwordTrailShader>();
+	m_swordTrailEffect.shader = std::make_shared<CSwordTrailShader>();
 
 	DXGI_FORMAT rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
-	m_swordTrailShader->CreateShader(
+	m_swordTrailEffect.shader->CreateShader(
 		dev,
 		m_pd3dGraphicsRootSignature.Get(),
 		1,
@@ -1045,10 +1045,10 @@ void CGameScene::BuildSwordTrailBatch(ID3D12Device* dev, ID3D12GraphicsCommandLi
 		dsvFormat
 	);
 
-	m_swordTrails.clear();
-	m_swordTrails.resize(kSwordTrailMaxCount);
+	m_swordTrailEffect.entries.clear();
+	m_swordTrailEffect.entries.resize(kSwordTrailMaxCount);
 
-	m_swordTrailVertexBuffer.Create(dev, cmd, kSwordTrailMaxVertices, [ dev, cmd ] (UINT bufferBytes)
+	m_swordTrailEffect.vertexBuffer.Create(dev, cmd, kSwordTrailMaxVertices, [ dev, cmd ] (UINT bufferBytes)
 	{
 		return ::CreateBufferResource(dev, cmd, nullptr, bufferBytes, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr);
 	});
@@ -1144,7 +1144,7 @@ void CGameScene::ReleaseBossPoisonProjectileGpuResources()
 
 void CGameScene::ReleaseSwordTrailGpuResources()
 {
-	m_swordTrailVertexBuffer.Release();
+	m_swordTrailEffect.vertexBuffer.Release();
 }
 
 void CGameScene::ReleaseMonsterSwordTrailGpuResources()
@@ -2127,7 +2127,7 @@ void CGameScene::BeginSwordTrail(CGameObject* owner)
 	if ( !swordObject )
 		return;
 
-	SwordTrailEntry* trail = AcquireFreeSwordTrailEntry(m_swordTrails);
+	SwordTrailEntry* trail = AcquireFreeSwordTrailEntry(m_swordTrailEffect.entries);
 	if ( !trail )
 		return;
 
@@ -2169,7 +2169,7 @@ void CGameScene::BeginAxeTrail(CGameObject* owner)
 	if ( !axeObject )
 		return;
 
-	SwordTrailEntry* trail = AcquireFreeSwordTrailEntry(m_swordTrails);
+	SwordTrailEntry* trail = AcquireFreeSwordTrailEntry(m_swordTrailEffect.entries);
 	if ( !trail )
 		return;
 
@@ -2287,7 +2287,7 @@ void CGameScene::UpdateSwordTrails(float dt)
 	if ( dt <= 0.0f )
 		return;
 
-	for ( SwordTrailEntry& trail : m_swordTrails )
+	for ( SwordTrailEntry& trail : m_swordTrailEffect.entries )
 	{
 		if ( !trail.active )
 			continue;
@@ -4489,13 +4489,13 @@ void CGameScene::RenderSwordTrails( ID3D12GraphicsCommandList* cmd, CCamera* cam
 {
 	if ( !cmd ) return;
 	if ( !camera ) return;
-	if ( !m_swordTrailShader ) return;
+	if ( !m_swordTrailEffect.shader ) return;
 
 	const UINT frameIndex = m_nFrameResourceIndex % kSceneBatchFrameResourceCount;
 
-	ID3D12Resource* swordTrailVertexBuffer = m_swordTrailVertexBuffer.Resource(frameIndex);
-	SwordTrailVertex* mappedSwordTrailVertexBuffer = m_swordTrailVertexBuffer.Mapped(frameIndex);
-	const UINT swordTrailVertexBufferCapacity = m_swordTrailVertexBuffer.Capacity();
+	ID3D12Resource* swordTrailVertexBuffer = m_swordTrailEffect.vertexBuffer.Resource(frameIndex);
+	SwordTrailVertex* mappedSwordTrailVertexBuffer = m_swordTrailEffect.vertexBuffer.Mapped(frameIndex);
+	const UINT swordTrailVertexBufferCapacity = m_swordTrailEffect.vertexBuffer.Capacity();
 
 	if ( !swordTrailVertexBuffer ) return;
 	if ( !mappedSwordTrailVertexBuffer ) return;
@@ -4508,11 +4508,11 @@ void CGameScene::RenderSwordTrails( ID3D12GraphicsCommandList* cmd, CCamera* cam
 	};
 
 	std::vector<DrawRange> drawRanges;
-	drawRanges.reserve(m_swordTrails.size());
+	drawRanges.reserve(m_swordTrailEffect.entries.size());
 
 	UINT vertexCursor = 0;
 
-	for ( const SwordTrailEntry& trail : m_swordTrails )
+	for ( const SwordTrailEntry& trail : m_swordTrailEffect.entries )
 	{
 		if ( !trail.active )
 			continue;
@@ -4585,7 +4585,7 @@ void CGameScene::RenderSwordTrails( ID3D12GraphicsCommandList* cmd, CCamera* cam
 
 	if ( drawRanges.empty() ) return;
 
-	m_swordTrailShader->Render(cmd, camera, nullptr);
+	m_swordTrailEffect.shader->Render(cmd, camera, nullptr);
 
 	D3D12_VERTEX_BUFFER_VIEW vbView{};
 	vbView.BufferLocation =

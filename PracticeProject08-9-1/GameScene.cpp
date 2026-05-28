@@ -3339,8 +3339,8 @@ void CGameScene::ReleaseObjects()
 	m_bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
 	m_bossCallSummonGlowParticleEmitAccumulatorSec = 0.0f;
 
-	m_swordTrailShader.reset();
-	m_swordTrails.clear();
+	m_swordTrailEffect.shader.reset();
+	m_swordTrailEffect.entries.clear();
 
 	m_monsterSwordTrailShader.reset();
 	m_monsterSwordTrails.clear();
@@ -8476,7 +8476,7 @@ void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* c
 		RenderBossPoisonProjectiles(cmd, camera);
 	}
 
-	if ( m_swordTrailShader )
+	if ( m_swordTrailEffect.shader )
 	{
 		RenderSwordTrails(cmd, camera);
 	}
