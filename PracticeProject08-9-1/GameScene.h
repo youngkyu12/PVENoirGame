@@ -1204,13 +1204,8 @@ private:
 
 	std::vector<ItemBillboardEntry>       m_itemBillboards;
 
-	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dItemBillboardInstanceBuffer;
-	std::array<ItemBillboardInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedItemBillboardInstanceBuffer = {};
-	UINT                                  m_itemBillboardInstanceBufferCapacity = 0;
-
-	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dTransparentItemBillboardInstanceBuffer;
-	std::array<ItemBillboardInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedTransparentItemBillboardInstanceBuffer = {};
-	UINT                                  m_transparentItemBillboardInstanceBufferCapacity = 0;
+	FrameUploadVertexBuffer<ItemBillboardInstanceVertex, kSceneBatchFrameResourceCount> m_itemBillboardInstanceBuffer;
+	FrameUploadVertexBuffer<ItemBillboardInstanceVertex, kSceneBatchFrameResourceCount> m_transparentItemBillboardInstanceBuffer;
 
 	static constexpr UINT kMuzzleFlashMaxCount = 4096;
 
@@ -1244,9 +1239,7 @@ private:
 
 	std::vector<MonsterSwordTrailEntry> m_monsterSwordTrails;
 
-	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dMonsterSwordTrailVertexBuffer;
-	std::array<MonsterSwordTrailVertex*, kSceneBatchFrameResourceCount> m_pMappedMonsterSwordTrailVertexBuffer = {};
-	UINT m_monsterSwordTrailVertexBufferCapacity = 0;
+	FrameUploadVertexBuffer<MonsterSwordTrailVertex, kSceneBatchFrameResourceCount> m_monsterSwordTrailVertexBuffer;
 
 	static constexpr UINT kArrowTrailMaxCount = 32;
 	static constexpr UINT kArrowTrailMaxSamples = 12;
@@ -1257,9 +1250,7 @@ private:
 
 	std::vector<ArrowTrailEntry> m_arrowTrails;
 
-	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dArrowTrailVertexBuffer;
-	std::array<SwordTrailVertex*, kSceneBatchFrameResourceCount> m_pMappedArrowTrailVertexBuffer = {};
-	UINT m_arrowTrailVertexBufferCapacity = 0;
+	FrameUploadVertexBuffer<SwordTrailVertex, kSceneBatchFrameResourceCount> m_arrowTrailVertexBuffer;
 
 	static constexpr UINT kBossCallSummonWwwMaxCount = 64;
 
@@ -1285,9 +1276,7 @@ private:
 
 	std::vector<BossCallSummonWwwEntry> m_bossCallSummonWwwEntries;
 
-	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dBossCallSummonWwwVertexBuffer;
-	std::array<SwordTrailVertex*, kSceneBatchFrameResourceCount> m_pMappedBossCallSummonWwwVertexBuffer = {};
-	UINT m_bossCallSummonWwwVertexBufferCapacity = 0;
+	FrameUploadVertexBuffer<SwordTrailVertex, kSceneBatchFrameResourceCount> m_bossCallSummonWwwVertexBuffer;
 
 	std::vector<CGameObject*> m_ghoulRefs;
 	std::vector<CGameObject*> m_swordManRefs;
