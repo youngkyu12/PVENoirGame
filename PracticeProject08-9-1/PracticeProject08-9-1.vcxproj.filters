@@ -648,6 +648,12 @@
     <ClCompile Include="GameSceneBossSummonEffects.cpp">
       <Filter>Scene\GameScene\Billboard</Filter>
     </ClCompile>
+    <ClCompile Include="GameSceneBossShockwaveEffects.cpp">
+      <Filter>Scene\GameScene\Billboard</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneBossCombatEffectCasts.cpp">
+      <Filter>Scene\GameScene\Billboard</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PracticeProject08-9-1.rc">
