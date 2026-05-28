@@ -1222,9 +1222,7 @@ private:
 
 	std::shared_ptr<CBossPoisonProjectileBillboardShader> m_bossPoisonProjectileShader;
 
-	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dBossPoisonProjectileInstanceBuffer;
-	std::array<MuzzleFlashInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedBossPoisonProjectileInstanceBuffer = {};
-	UINT m_bossPoisonProjectileInstanceBufferCapacity = 0;
+	FrameUploadVertexBuffer<MuzzleFlashInstanceVertex, kSceneBatchFrameResourceCount> m_bossPoisonProjectileInstanceBuffer;
 
 	static constexpr UINT kSwordTrailMaxCount = 16;
 	static constexpr UINT kSwordTrailMaxSamples = 12;

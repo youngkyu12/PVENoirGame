@@ -50,11 +50,11 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 	m_bSimulateLocalAI = true;
 
 	m_bSimulateLocalGhoulAI = false;
-	m_bSimulateLocalBowManAI = true;
+	m_bSimulateLocalBowManAI = false;
 	m_bSimulateLocalSwordManAI = false;
 	m_bSimulateLocalMutantAI = false;
-	m_bSimulateLocalBossAI = false;
-	m_bSimulateLocalBossSummon = false;
+	m_bSimulateLocalBossAI = true;
+	m_bSimulateLocalBossSummon = true;
 	m_bSimulateLocalBossStageMonsterAI = false;
 
 	m_bSimulateLocalMonsterChase = true;

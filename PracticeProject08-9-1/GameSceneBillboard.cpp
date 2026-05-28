@@ -1055,10 +1055,7 @@ void CGameScene::BuildMuzzleFlashBatch(
 	});
 }
 
-void CGameScene::BuildBossPoisonProjectileBatch(
-	ID3D12Device* dev,
-	ID3D12GraphicsCommandList* cmd,
-	DXGI_FORMAT dsvFormat)
+void CGameScene::BuildBossPoisonProjectileBatch(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, DXGI_FORMAT dsvFormat)
 {
 	if ( !dev || !cmd )
 		return;
@@ -1079,37 +1076,10 @@ void CGameScene::BuildBossPoisonProjectileBatch(
 	if ( m_bossPoisonProjectiles.size() != kBossPoisonProjectileMaxCount )
 		m_bossPoisonProjectiles.resize(kBossPoisonProjectileMaxCount);
 
-	m_bossPoisonProjectileInstanceBufferCapacity =
-		kBossPoisonProjectileMaxCount;
-
-	const UINT instanceBufferBytes =
-		sizeof(MuzzleFlashInstanceVertex) *
-		m_bossPoisonProjectileInstanceBufferCapacity;
-
-	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+	m_bossPoisonProjectileInstanceBuffer.Create(dev, cmd, kBossPoisonProjectileMaxCount, [ dev, cmd ] (UINT bufferBytes)
 	{
-		m_pd3dBossPoisonProjectileInstanceBuffer[frameIndex] =
-			::CreateBufferResource(
-				dev,
-				cmd,
-				nullptr,
-				instanceBufferBytes,
-				D3D12_HEAP_TYPE_UPLOAD,
-				D3D12_RESOURCE_STATE_GENERIC_READ,
-				nullptr
-			);
-
-		if ( m_pd3dBossPoisonProjectileInstanceBuffer[frameIndex] )
-		{
-			m_pd3dBossPoisonProjectileInstanceBuffer[frameIndex]->Map(
-				0,
-				nullptr,
-				reinterpret_cast< void** >(
-					&m_pMappedBossPoisonProjectileInstanceBuffer[frameIndex]
-					)
-			);
-		}
-	}
+		return ::CreateBufferResource(dev, cmd, nullptr, bufferBytes, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr);
+	});
 }
 
 void CGameScene::BuildSwordTrailBatch(
@@ -1339,23 +1309,7 @@ void CGameScene::ReleaseMuzzleFlashGpuResources()
 
 void CGameScene::ReleaseBossPoisonProjectileGpuResources()
 {
-	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
-	{
-		if ( m_pd3dBossPoisonProjectileInstanceBuffer[frameIndex] )
-		{
-			if ( m_pMappedBossPoisonProjectileInstanceBuffer[frameIndex] )
-			{
-				m_pd3dBossPoisonProjectileInstanceBuffer[frameIndex]->Unmap(0, nullptr);
-				m_pMappedBossPoisonProjectileInstanceBuffer[frameIndex] = nullptr;
-			}
-
-			m_pd3dBossPoisonProjectileInstanceBuffer[frameIndex].Reset();
-		}
-
-		m_pMappedBossPoisonProjectileInstanceBuffer[frameIndex] = nullptr;
-	}
-
-	m_bossPoisonProjectileInstanceBufferCapacity = 0;
+	m_bossPoisonProjectileInstanceBuffer.Release();
 }
 
 void CGameScene::ReleaseSwordTrailGpuResources()
@@ -4667,17 +4621,15 @@ void CGameScene::RenderBossPoisonProjectiles(
 	if ( !m_bossPoisonProjectileShader ) return;
 	if ( !m_itemBillboardQuadMesh ) return;
 
-	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+	const UINT frameIndex = m_nFrameResourceIndex % kSceneBatchFrameResourceCount;
 
-	ID3D12Resource* instanceBuffer =
-		m_pd3dBossPoisonProjectileInstanceBuffer[frameIndex].Get();
-
-	MuzzleFlashInstanceVertex* mappedInstanceBuffer =
-		m_pMappedBossPoisonProjectileInstanceBuffer[frameIndex];
+	ID3D12Resource* instanceBuffer = m_bossPoisonProjectileInstanceBuffer.Resource(frameIndex);
+	MuzzleFlashInstanceVertex* mappedInstanceBuffer = m_bossPoisonProjectileInstanceBuffer.Mapped(frameIndex);
+	const UINT bossPoisonProjectileInstanceBufferCapacity = m_bossPoisonProjectileInstanceBuffer.Capacity();
 
 	if ( !instanceBuffer ) return;
 	if ( !mappedInstanceBuffer ) return;
-	if ( m_bossPoisonProjectileInstanceBufferCapacity == 0 ) return;
+	if ( bossPoisonProjectileInstanceBufferCapacity == 0 ) return;
 	if ( m_itemBillboardQuadMesh->m_SubMeshes.empty() ) return;
 
 	const SubMesh& sm = m_itemBillboardQuadMesh->m_SubMeshes[0];
@@ -4728,7 +4680,7 @@ void CGameScene::RenderBossPoisonProjectiles(
 		if ( !entry )
 			continue;
 
-		if ( visibleInstanceCount >= m_bossPoisonProjectileInstanceBufferCapacity )
+		if ( visibleInstanceCount >= bossPoisonProjectileInstanceBufferCapacity )
 			break;
 
 		MuzzleFlashInstanceVertex& dst =
