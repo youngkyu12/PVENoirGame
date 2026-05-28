@@ -292,6 +292,7 @@
     <ClCompile Include="GameSceneHUD.cpp" />
     <ClCompile Include="GameSceneItemBillboard.cpp" />
     <ClCompile Include="GameSceneLOD.cpp" />
+    <ClCompile Include="GameSceneMuzzleFlashEffects.cpp" />
     <ClCompile Include="GameSceneObjectFactory.cpp" />
     <ClCompile Include="GameSceneOcclusion.cpp" />
     <ClCompile Include="GlobalValues.cpp" />
