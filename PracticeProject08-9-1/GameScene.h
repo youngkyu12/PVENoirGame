@@ -1233,9 +1233,7 @@ private:
 
 	std::vector<SwordTrailEntry> m_swordTrails;
 
-	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dSwordTrailVertexBuffer;
-	std::array<SwordTrailVertex*, kSceneBatchFrameResourceCount> m_pMappedSwordTrailVertexBuffer = {};
-	UINT m_swordTrailVertexBufferCapacity = 0;
+	FrameUploadVertexBuffer<SwordTrailVertex, kSceneBatchFrameResourceCount> m_swordTrailVertexBuffer;
 
 	static constexpr UINT kMonsterSwordTrailMaxCount = 32;
 	static constexpr UINT kMonsterSwordTrailMaxSamples = 12;

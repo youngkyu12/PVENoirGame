@@ -1105,35 +1105,10 @@ void CGameScene::BuildSwordTrailBatch(
 	m_swordTrails.clear();
 	m_swordTrails.resize(kSwordTrailMaxCount);
 
-	m_swordTrailVertexBufferCapacity = kSwordTrailMaxVertices;
-
-	const UINT bufferBytes =
-		sizeof(SwordTrailVertex) * m_swordTrailVertexBufferCapacity;
-
-	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+	m_swordTrailVertexBuffer.Create(dev, cmd, kSwordTrailMaxVertices, [ dev, cmd ] (UINT bufferBytes)
 	{
-		m_pd3dSwordTrailVertexBuffer[frameIndex] =
-			::CreateBufferResource(
-				dev,
-				cmd,
-				nullptr,
-				bufferBytes,
-				D3D12_HEAP_TYPE_UPLOAD,
-				D3D12_RESOURCE_STATE_GENERIC_READ,
-				nullptr
-			);
-
-		if ( m_pd3dSwordTrailVertexBuffer[frameIndex] )
-		{
-			m_pd3dSwordTrailVertexBuffer[frameIndex]->Map(
-				0,
-				nullptr,
-				reinterpret_cast< void** >(
-					&m_pMappedSwordTrailVertexBuffer[frameIndex]
-					)
-			);
-		}
-	}
+		return ::CreateBufferResource(dev, cmd, nullptr, bufferBytes, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr);
+	});
 }
 
 void CGameScene::BuildMonsterSwordTrailBatch(
@@ -1314,23 +1289,7 @@ void CGameScene::ReleaseBossPoisonProjectileGpuResources()
 
 void CGameScene::ReleaseSwordTrailGpuResources()
 {
-	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
-	{
-		if ( m_pd3dSwordTrailVertexBuffer[frameIndex] )
-		{
-			if ( m_pMappedSwordTrailVertexBuffer[frameIndex] )
-			{
-				m_pd3dSwordTrailVertexBuffer[frameIndex]->Unmap(0, nullptr);
-				m_pMappedSwordTrailVertexBuffer[frameIndex] = nullptr;
-			}
-
-			m_pd3dSwordTrailVertexBuffer[frameIndex].Reset();
-		}
-
-		m_pMappedSwordTrailVertexBuffer[frameIndex] = nullptr;
-	}
-
-	m_swordTrailVertexBufferCapacity = 0;
+	m_swordTrailVertexBuffer.Release();
 }
 
 void CGameScene::ReleaseMonsterSwordTrailGpuResources()
@@ -4750,25 +4709,21 @@ void CGameScene::RenderBossPoisonProjectiles(
 	);
 }
 
-void CGameScene::RenderSwordTrails(
-	ID3D12GraphicsCommandList* cmd,
-	CCamera* camera)
+void CGameScene::RenderSwordTrails( ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	if ( !cmd ) return;
 	if ( !camera ) return;
 	if ( !m_swordTrailShader ) return;
 
-	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+	const UINT frameIndex = m_nFrameResourceIndex % kSceneBatchFrameResourceCount;
 
-	ID3D12Resource* swordTrailVertexBuffer =
-		m_pd3dSwordTrailVertexBuffer[frameIndex].Get();
-
-	SwordTrailVertex* mappedSwordTrailVertexBuffer =
-		m_pMappedSwordTrailVertexBuffer[frameIndex];
+	ID3D12Resource* swordTrailVertexBuffer = m_swordTrailVertexBuffer.Resource(frameIndex);
+	SwordTrailVertex* mappedSwordTrailVertexBuffer = m_swordTrailVertexBuffer.Mapped(frameIndex);
+	const UINT swordTrailVertexBufferCapacity = m_swordTrailVertexBuffer.Capacity();
 
 	if ( !swordTrailVertexBuffer ) return;
 	if ( !mappedSwordTrailVertexBuffer ) return;
-	if ( m_swordTrailVertexBufferCapacity == 0 ) return;
+	if ( swordTrailVertexBufferCapacity == 0 ) return;
 
 	struct DrawRange
 	{
@@ -4794,7 +4749,7 @@ void CGameScene::RenderSwordTrails(
 		const UINT neededVertices =
 			static_cast< UINT >(sampleCount * 2);
 
-		if ( vertexCursor + neededVertices > m_swordTrailVertexBufferCapacity )
+		if ( vertexCursor + neededVertices > swordTrailVertexBufferCapacity )
 			break;
 
 		float trailFade = 1.0f;
