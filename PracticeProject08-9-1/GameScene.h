@@ -566,8 +566,9 @@ private:
 	);
 
 	void ReleaseItemBillboardGpuResources();
+	void ReleaseAllGameSceneEffectGpuResources();
 
-	void UpdateItemBillboardDistanceCullSelection(CCamera* camera);
+	void UpdateItemBillboardDistanceCullSelection(CCamera* camera); 
 	void RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	void RenderTransparentItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
