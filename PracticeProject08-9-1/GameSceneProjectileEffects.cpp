@@ -253,6 +253,80 @@ void CGameScene::ApplyBossPoisonProjectilePlayerHits(
 }
 
 
+void CGameScene::UpdateBossPoisonProjectileSpellCasts(float dt)
+{
+#ifndef USING_NETWORK
+	if ( dt < 0.0f )
+		dt = 0.0f;
+
+	for ( CGameObject* boss : m_bossRefs )
+	{
+		if ( !boss )
+			continue;
+
+		if ( !boss->GetActive() || IsMonsterDead(boss) )
+		{
+			m_bossPoisonProjectileEffect.spellCastStates.erase(boss);
+			continue;
+		}
+
+		CAnimatorComponent* animComp =
+			boss->GetComponent<CAnimatorComponent>();
+
+		if ( !animComp )
+		{
+			m_bossPoisonProjectileEffect.spellCastStates.erase(boss);
+			continue;
+		}
+
+		CMonsterAnimController* ctrl =
+			animComp->EnsureMonsterController();
+
+		if ( !ctrl )
+		{
+			m_bossPoisonProjectileEffect.spellCastStates.erase(boss);
+			continue;
+		}
+
+		const bool isSpellPhase = ctrl->IsSpellPhase();
+
+		BossPoisonSpellCastState& state =
+			m_bossPoisonProjectileEffect.spellCastStates[boss];
+
+		if ( !isSpellPhase )
+		{
+			state = BossPoisonSpellCastState{};
+			continue;
+		}
+
+		if ( !state.wasSpellPhase )
+		{
+			state.wasSpellPhase = true;
+			state.pendingFire = true;
+			state.fired = false;
+			state.spellAgeSec = 0.0f;
+		}
+		else
+		{
+			state.spellAgeSec += dt;
+		}
+
+		if ( state.pendingFire &&
+			!state.fired &&
+			state.spellAgeSec >= kBossPoisonProjectileLaunchDelaySec )
+		{
+			SpawnBossPoisonProjectile(boss);
+
+			state.fired = true;
+			state.pendingFire = false;
+		}
+	}
+#else
+	UNREFERENCED_PARAMETER(dt);
+#endif
+}
+
+
 void CGameScene::SpawnBossPoisonProjectileDust(BossPoisonProjectileEntry& entry)
 {
 #ifndef USING_NETWORK

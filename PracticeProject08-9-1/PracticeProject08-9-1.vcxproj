@@ -296,6 +296,7 @@
     <ClCompile Include="GameSceneObjectFactory.cpp" />
     <ClCompile Include="GameSceneOcclusion.cpp" />
     <ClCompile Include="GameSceneProjectileEffects.cpp" />
+    <ClCompile Include="GameSceneTrailEffects.cpp" />
     <ClCompile Include="GlobalValues.cpp" />
     <ClCompile Include="Grid.cpp" />
     <ClCompile Include="HealthComponent.cpp" />
