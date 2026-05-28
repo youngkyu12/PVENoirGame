@@ -286,6 +286,7 @@
     <ClCompile Include="GameSceneAudio.cpp" />
     <ClCompile Include="GameSceneBillboard.cpp" />
     <ClCompile Include="GameSceneBillboardCommon.cpp" />
+    <ClCompile Include="GameSceneBossSummonEffects.cpp" />
     <ClCompile Include="GameSceneBuild.cpp" />
     <ClCompile Include="GameSceneContentCatalog.cpp" />
     <ClCompile Include="GameSceneHelper.cpp" />
