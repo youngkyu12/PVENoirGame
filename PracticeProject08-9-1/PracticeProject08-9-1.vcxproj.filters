@@ -412,6 +412,9 @@
     <ClInclude Include="MonsterAIComponent.h">
       <Filter>Components\AIComponent</Filter>
     </ClInclude>
+    <ClInclude Include="GameSceneFrameUploadBuffer.h">
+      <Filter>Scene\GameScene\GameSceneHelper</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
