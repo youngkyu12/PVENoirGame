@@ -240,6 +240,13 @@ struct SwordTrailEntry
 	std::vector<SwordTrailSample> samples;
 };
 
+struct SwordTrailEffectState
+{
+	std::shared_ptr<CSwordTrailShader> shader;
+	std::vector<SwordTrailEntry> entries;
+	FrameUploadVertexBuffer<SwordTrailVertex, kSceneBatchFrameResourceCount> vertexBuffer;
+};
+
 struct MonsterSwordTrailVertex
 {
 	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
@@ -1241,11 +1248,7 @@ private:
 	static constexpr UINT kSwordTrailMaxVertices =
 		kSwordTrailMaxCount * kSwordTrailMaxSamples * 2;
 
-	std::shared_ptr<CSwordTrailShader> m_swordTrailShader;
-
-	std::vector<SwordTrailEntry> m_swordTrails;
-
-	FrameUploadVertexBuffer<SwordTrailVertex, kSceneBatchFrameResourceCount> m_swordTrailVertexBuffer;
+	SwordTrailEffectState m_swordTrailEffect;
 
 	static constexpr UINT kMonsterSwordTrailMaxCount = 32;
 	static constexpr UINT kMonsterSwordTrailMaxSamples = 12;
