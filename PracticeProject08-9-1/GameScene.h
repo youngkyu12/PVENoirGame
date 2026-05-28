@@ -150,6 +150,13 @@ struct MuzzleFlashEntry
 	XMFLOAT4 color = XMFLOAT4(1.0f, 0.62f, 0.10f, 1.0f);
 };
 
+struct MuzzleFlashEffectState
+{
+	std::shared_ptr<CMuzzleFlashBillboardShader> shader;
+	std::vector<MuzzleFlashEntry> entries;
+	FrameUploadVertexBuffer<MuzzleFlashInstanceVertex, kSceneBatchFrameResourceCount> instanceBuffer;
+};
+
 struct BossPoisonProjectileEntry
 {
 	bool active = false;
@@ -1210,11 +1217,7 @@ private:
 
 	static constexpr UINT kMuzzleFlashMaxCount = 4096;
 
-	std::shared_ptr<CMuzzleFlashBillboardShader> m_muzzleFlashShader;
-
-	std::vector<MuzzleFlashEntry> m_muzzleFlashes;
-
-	FrameUploadVertexBuffer<MuzzleFlashInstanceVertex, kSceneBatchFrameResourceCount> m_muzzleFlashInstanceBuffer;
+	MuzzleFlashEffectState m_muzzleFlashEffect;
 
 	std::shared_ptr<CBossPoisonProjectileBillboardShader> m_bossPoisonProjectileShader;
 

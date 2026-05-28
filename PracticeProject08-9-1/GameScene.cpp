@@ -3331,6 +3331,9 @@ void CGameScene::ReleaseObjects()
 
 	ReleaseAllGameSceneEffectGpuResources();
 
+	m_muzzleFlashEffect.shader.reset();
+	m_muzzleFlashEffect.entries.clear();
+
 	m_bossPoisonProjectileShader.reset();
 
 	m_bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
@@ -8488,7 +8491,7 @@ void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* c
 		RenderArrowTrails(cmd, camera);
 	}
 
-	if ( m_muzzleFlashShader )
+	if ( m_muzzleFlashEffect.shader )
 	{
 		RenderMuzzleFlashes(cmd, camera);
 	}

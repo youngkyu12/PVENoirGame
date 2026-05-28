@@ -981,11 +981,11 @@ void CGameScene::BuildMuzzleFlashBatch(ID3D12Device* dev, ID3D12GraphicsCommandL
 	if ( !dev || !cmd )
 		return;
 
-	m_muzzleFlashShader = std::make_shared<CMuzzleFlashBillboardShader>();
+	m_muzzleFlashEffect.shader = std::make_shared<CMuzzleFlashBillboardShader>();
 
 	DXGI_FORMAT rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
-	m_muzzleFlashShader->CreateShader(
+	m_muzzleFlashEffect.shader->CreateShader(
 		dev,
 		m_pd3dGraphicsRootSignature.Get(),
 		1,
@@ -993,10 +993,10 @@ void CGameScene::BuildMuzzleFlashBatch(ID3D12Device* dev, ID3D12GraphicsCommandL
 		dsvFormat
 	);
 
-	m_muzzleFlashes.clear();
-	m_muzzleFlashes.resize(kMuzzleFlashMaxCount);
+	m_muzzleFlashEffect.entries.clear();
+	m_muzzleFlashEffect.entries.resize(kMuzzleFlashMaxCount);
 
-	m_muzzleFlashInstanceBuffer.Create(dev, cmd, kMuzzleFlashMaxCount, [ dev, cmd ] (UINT bufferBytes)
+	m_muzzleFlashEffect.instanceBuffer.Create(dev, cmd, kMuzzleFlashMaxCount, [ dev, cmd ] (UINT bufferBytes)
 	{
 		return ::CreateBufferResource(dev, cmd, nullptr, bufferBytes, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr);
 	});
@@ -1135,7 +1135,7 @@ void CGameScene::BuildBossCallSummonWwwBatch(ID3D12Device* dev, ID3D12GraphicsCo
 
 void CGameScene::ReleaseMuzzleFlashGpuResources()
 {
-	m_muzzleFlashInstanceBuffer.Release();
+	m_muzzleFlashEffect.instanceBuffer.Release();
 }
 
 void CGameScene::ReleaseBossPoisonProjectileGpuResources()
@@ -1201,7 +1201,7 @@ void CGameScene::SpawnMuzzleFlash(
 
 	auto spawnCore = [ & ] (float size, float life, float intensity, float alpha)
 		{
-			MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashes);
+			MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashEffect.entries);
 			if ( !e ) return;
 
 			e->active = true;
@@ -1228,7 +1228,7 @@ void CGameScene::SpawnMuzzleFlash(
 
 	auto spawnRing = [ & ] ()
 		{
-			MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashes);
+			MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashEffect.entries);
 			if ( !e ) return;
 
 			e->active = true;
@@ -1255,7 +1255,7 @@ void CGameScene::SpawnMuzzleFlash(
 
 	auto spawnSpark = [ & ] (float baseRot)
 		{
-			MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashes);
+			MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashEffect.entries);
 			if ( !e ) return;
 
 			const float side = unitDist(rng) * 0.35f;
@@ -1334,7 +1334,7 @@ void CGameScene::SpawnGoldFireworkBurstAtWeapon(CGameObject* weaponObject)
 
 	for ( int i = 0; i < kGoldFireworkParticleCount; ++i )
 	{
-		MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashes);
+		MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashEffect.entries);
 		if ( !e )
 			return;
 
@@ -1532,7 +1532,7 @@ void CGameScene::SpawnMagicCircleGlowParticle(
 	// 총구화염 Core/Ring 사용 금지. MagicCircleGlow 전용 kind 사용.
 	// ---------------------------------------------------------------------
 	{
-		MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashes);
+		MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashEffect.entries);
 		if ( !e )
 			return;
 
@@ -1576,7 +1576,7 @@ void CGameScene::SpawnMagicCircleGlowParticle(
 	// 작은 초록 흔적. 이것도 총구화염 Spark 사용 금지.
 	// ---------------------------------------------------------------------
 	{
-		MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashes);
+		MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashEffect.entries);
 		if ( !e )
 			return;
 
@@ -1855,7 +1855,7 @@ void CGameScene::SpawnBloodSplash(
 
 	for ( int i = 0; i < kBloodParticleCount; ++i )
 	{
-		MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashes);
+		MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashEffect.entries);
 		if ( !e )
 			return;
 
@@ -2002,7 +2002,7 @@ void CGameScene::SpawnBossMeleeSlashEffect(CGameObject* boss)
 			const XMFLOAT3& rgb,
 			float seedBias)
 		{
-			MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashes);
+			MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashEffect.entries);
 
 			if ( !e )
 				return;
@@ -2253,7 +2253,7 @@ void CGameScene::UpdateMuzzleFlashes(float dt)
 	if ( dt <= 0.0f )
 		return;
 
-	for ( MuzzleFlashEntry& flash : m_muzzleFlashes )
+	for ( MuzzleFlashEntry& flash : m_muzzleFlashEffect.entries )
 	{
 		if ( !flash.active )
 			continue;
@@ -3782,7 +3782,7 @@ void CGameScene::SpawnBossPoisonProjectileDust(BossPoisonProjectileEntry& entry)
 
 	for ( UINT i = 0; i < kBossPoisonDustParticlesPerEmit; ++i )
 	{
-		MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashes);
+		MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashEffect.entries);
 
 		if ( !e )
 			return;
@@ -4254,20 +4254,18 @@ void CGameScene::RenderTransparentItemBillboards(
 	cmd->DrawIndexedInstanced(static_cast< UINT >( sm.indices.size() ), visibleInstanceCount, 0, 0, 0);
 }
 
-void CGameScene::RenderMuzzleFlashes(
-	ID3D12GraphicsCommandList* cmd,
-	CCamera* camera)
+void CGameScene::RenderMuzzleFlashes(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	if ( !cmd ) return;
 	if ( !camera ) return;
-	if ( !m_muzzleFlashShader ) return;
+	if ( !m_muzzleFlashEffect.shader ) return;
 	if ( !m_itemBillboardQuadMesh ) return;
 
 	const UINT frameIndex = m_nFrameResourceIndex % kSceneBatchFrameResourceCount;
 
-	ID3D12Resource* muzzleFlashInstanceBuffer = m_muzzleFlashInstanceBuffer.Resource(frameIndex);
-	MuzzleFlashInstanceVertex* mappedMuzzleFlashInstanceBuffer = m_muzzleFlashInstanceBuffer.Mapped(frameIndex);
-	const UINT muzzleFlashInstanceBufferCapacity = m_muzzleFlashInstanceBuffer.Capacity();
+	ID3D12Resource* muzzleFlashInstanceBuffer = m_muzzleFlashEffect.instanceBuffer.Resource(frameIndex);
+	MuzzleFlashInstanceVertex* mappedMuzzleFlashInstanceBuffer = m_muzzleFlashEffect.instanceBuffer.Mapped(frameIndex);
+	const UINT muzzleFlashInstanceBufferCapacity = m_muzzleFlashEffect.instanceBuffer.Capacity();
 
 	if ( !muzzleFlashInstanceBuffer ) return;
 	if ( !mappedMuzzleFlashInstanceBuffer ) return;
@@ -4283,7 +4281,7 @@ void CGameScene::RenderMuzzleFlashes(
 
 	UINT visibleInstanceCount = 0;
 
-	for ( const MuzzleFlashEntry& flash : m_muzzleFlashes )
+	for ( const MuzzleFlashEntry& flash : m_muzzleFlashEffect.entries )
 	{
 		if ( !flash.active )
 			continue;
@@ -4332,7 +4330,7 @@ void CGameScene::RenderMuzzleFlashes(
 	if ( visibleInstanceCount == 0 )
 		return;
 
-	m_muzzleFlashShader->Render(cmd, camera, nullptr);
+	m_muzzleFlashEffect.shader->Render(cmd, camera, nullptr);
 
 	D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
 	vbViews[0] = sm.vbView;
