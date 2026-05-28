@@ -177,6 +177,22 @@ struct BossPoisonProjectileEntry
 	std::array<bool, 4> hitPlayerSlots = { false, false, false, false };
 };
 
+struct BossPoisonSpellCastState
+{
+	bool wasSpellPhase = false;
+	bool pendingFire = false;
+	bool fired = false;
+	float spellAgeSec = 0.0f;
+};
+
+struct BossPoisonProjectileEffectState
+{
+	std::shared_ptr<CBossPoisonProjectileBillboardShader> shader;
+	std::vector<BossPoisonProjectileEntry> entries;
+	std::unordered_map<CGameObject*, BossPoisonSpellCastState> spellCastStates;
+	FrameUploadVertexBuffer<MuzzleFlashInstanceVertex, kSceneBatchFrameResourceCount> instanceBuffer;
+};
+
 struct SwordTrailVertex
 {
 	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
@@ -1218,10 +1234,7 @@ private:
 	static constexpr UINT kMuzzleFlashMaxCount = 4096;
 
 	MuzzleFlashEffectState m_muzzleFlashEffect;
-
-	std::shared_ptr<CBossPoisonProjectileBillboardShader> m_bossPoisonProjectileShader;
-
-	FrameUploadVertexBuffer<MuzzleFlashInstanceVertex, kSceneBatchFrameResourceCount> m_bossPoisonProjectileInstanceBuffer;
+	BossPoisonProjectileEffectState m_bossPoisonProjectileEffect;
 
 	static constexpr UINT kSwordTrailMaxCount = 16;
 	static constexpr UINT kSwordTrailMaxSamples = 12;
@@ -1892,17 +1905,7 @@ private:
 
 	std::unordered_map<CGameObject*, BossMeleeSlashCastState> m_bossMeleeSlashCastStates;
 
-	struct BossPoisonSpellCastState
-	{
-		bool wasSpellPhase = false;
-		bool pendingFire = false;
-		bool fired = false;
-		float spellAgeSec = 0.0f;
-	};
-
-	std::vector<BossPoisonProjectileEntry> m_bossPoisonProjectiles;
-	std::unordered_map<CGameObject*, BossPoisonSpellCastState> m_bossPoisonSpellCastStates;
-
+	
 	struct BossStageBossPositionState
 	{
 		XMFLOAT3 originalPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
