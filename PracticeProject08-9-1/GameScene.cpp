@@ -3329,13 +3329,7 @@ void CGameScene::ReleaseObjects()
 	m_bossCallSummonPlanCallIndex = -1;
 	m_bossCallSummonPlanEntries.clear();
 
-	m_keyItemTexture.reset();
-	m_bossSummonCircleTexture.reset();
-
-	ReleaseItemBillboardGpuResources();
-
-	m_muzzleFlashShader.reset();
-	m_muzzleFlashes.clear();
+	ReleaseAllGameSceneEffectGpuResources();
 
 	m_bossPoisonProjectileShader.reset();
 
@@ -3397,10 +3391,7 @@ void CGameScene::ReleaseUploadBuffers()
 
 void CGameScene::ReleaseShaderVariables()
 {
-	ReleaseItemBillboardGpuResources();
-	ReleaseBossPoisonProjectileGpuResources();
-	ReleaseBossCallSummonWwwGpuResources();
-	ReleaseArrowTrailGpuResources();
+	ReleaseAllGameSceneEffectGpuResources();
 	ReleaseStaticOcclusionGpuResources();
 	ReleaseSkinnedOcclusionGpuResources();
 

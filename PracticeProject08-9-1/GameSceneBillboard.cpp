@@ -1163,6 +1163,17 @@ void CGameScene::ReleaseBossCallSummonWwwGpuResources()
 	m_bossCallSummonWwwVertexBuffer.Release();
 }
 
+void CGameScene::ReleaseAllGameSceneEffectGpuResources()
+{
+	ReleaseItemBillboardGpuResources();
+	ReleaseMuzzleFlashGpuResources();
+	ReleaseBossPoisonProjectileGpuResources();
+	ReleaseSwordTrailGpuResources();
+	ReleaseMonsterSwordTrailGpuResources();
+	ReleaseArrowTrailGpuResources();
+	ReleaseBossCallSummonWwwGpuResources();
+}
+
 void CGameScene::SpawnMuzzleFlash(
 	const XMFLOAT3& position,
 	const XMFLOAT3& direction)
@@ -2455,10 +2466,6 @@ void CGameScene::ReleaseItemBillboardGpuResources()
 {
 	m_itemBillboardInstanceBuffer.Release();
 	m_transparentItemBillboardInstanceBuffer.Release();
-
-	ReleaseMuzzleFlashGpuResources();
-	ReleaseSwordTrailGpuResources();
-	ReleaseMonsterSwordTrailGpuResources();
 }
 
 void CGameScene::UpdateItemBillboardDistanceCullSelection(CCamera* camera)
