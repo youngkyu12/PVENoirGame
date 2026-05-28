@@ -642,6 +642,9 @@
     <ClCompile Include="GameSceneProjectileEffects.cpp">
       <Filter>Scene\GameScene\Billboard</Filter>
     </ClCompile>
+    <ClCompile Include="GameSceneTrailEffects.cpp">
+      <Filter>Scene\GameScene\Billboard</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PracticeProject08-9-1.rc">
