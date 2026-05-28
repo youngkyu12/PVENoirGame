@@ -481,6 +481,86 @@ namespace
 		trail.age = 0.0f;
 		trail.samples.clear();
 	}
+
+	static ArrowTrailEntry* FindArrowTrailEntry(
+	std::vector<ArrowTrailEntry>& trails,
+	CGameObject* arrowObject)
+	{
+		if ( !arrowObject )
+			return nullptr;
+
+		for ( ArrowTrailEntry& trail : trails )
+		{
+			if ( !trail.active )
+				continue;
+
+			if ( trail.arrowObject == arrowObject )
+				return &trail;
+		}
+
+		return nullptr;
+	}
+
+	static ArrowTrailEntry* AcquireFreeArrowTrailEntry(
+		std::vector<ArrowTrailEntry>& trails)
+	{
+		for ( ArrowTrailEntry& trail : trails )
+		{
+			if ( !trail.active )
+				return &trail;
+		}
+
+		// 전부 사용 중이면 이미 화살 연결이 끊겨 fade-out만 남은 엔트리를 재사용한다.
+		for ( ArrowTrailEntry& trail : trails )
+		{
+			if ( trail.arrowObject == nullptr )
+			{
+				trail.samples.clear();
+				trail.active = false;
+				return &trail;
+			}
+		}
+
+		return nullptr;
+	}
+
+	static void ResetArrowTrailEntry(ArrowTrailEntry& trail)
+	{
+		trail.active = false;
+		trail.arrowObject = nullptr;
+		trail.samples.clear();
+	}
+
+	static void AppendArrowTrailSample(
+		ArrowTrailEntry& trail,
+		const XMFLOAT3& position,
+		UINT maxSamples)
+	{
+		constexpr float kMinArrowTrailSampleDistanceSq = 0.010f; // 약 10cm
+
+		if ( !trail.samples.empty() )
+		{
+			const ArrowTrailSample& last = trail.samples.back();
+
+			const float dx = position.x - last.position.x;
+			const float dy = position.y - last.position.y;
+			const float dz = position.z - last.position.z;
+
+			const float movedSq = dx * dx + dy * dy + dz * dz;
+
+			if ( movedSq < kMinArrowTrailSampleDistanceSq )
+				return;
+		}
+
+		ArrowTrailSample sample{};
+		sample.position = position;
+		sample.age = 0.0f;
+
+		trail.samples.push_back(sample);
+
+		while ( trail.samples.size() > maxSamples )
+			trail.samples.pop_front();
+	}
 }
 
 std::shared_ptr<CMesh> CGameScene::CreateItemBillboardQuadMesh(
@@ -941,6 +1021,7 @@ void CGameScene::BuildItemBillboardBatch(
 		BuildBossPoisonProjectileBatch(dev, cmd, dsvFormat);
 		BuildSwordTrailBatch(dev, cmd, dsvFormat);
 		BuildMonsterSwordTrailBatch(dev, cmd, dsvFormat);
+		BuildArrowTrailBatch(dev, cmd, dsvFormat);
 		BuildBossCallSummonWwwBatch(dev, cmd, dsvFormat);
 	}
 }
@@ -1166,6 +1247,61 @@ void CGameScene::BuildMonsterSwordTrailBatch(
 	}
 }
 
+void CGameScene::BuildArrowTrailBatch(
+	ID3D12Device* dev,
+	ID3D12GraphicsCommandList* cmd,
+	DXGI_FORMAT dsvFormat)
+{
+	if ( !dev || !cmd )
+		return;
+
+	m_arrowTrailShader = std::make_shared<CSwordTrailShader>();
+
+	DXGI_FORMAT rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+	m_arrowTrailShader->CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		1,
+		&rtvFormat,
+		dsvFormat
+	);
+
+	m_arrowTrails.clear();
+	m_arrowTrails.resize(kArrowTrailMaxCount);
+
+	m_arrowTrailVertexBufferCapacity = kArrowTrailMaxVertices;
+
+	const UINT bufferBytes =
+		sizeof(SwordTrailVertex) *
+		m_arrowTrailVertexBufferCapacity;
+
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+	{
+		m_pd3dArrowTrailVertexBuffer[frameIndex] =
+			::CreateBufferResource(
+				dev,
+				cmd,
+				nullptr,
+				bufferBytes,
+				D3D12_HEAP_TYPE_UPLOAD,
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				nullptr
+			);
+
+		if ( m_pd3dArrowTrailVertexBuffer[frameIndex] )
+		{
+			m_pd3dArrowTrailVertexBuffer[frameIndex]->Map(
+				0,
+				nullptr,
+				reinterpret_cast< void** >(
+					&m_pMappedArrowTrailVertexBuffer[frameIndex]
+					)
+			);
+		}
+	}
+}
+
 void CGameScene::BuildBossCallSummonWwwBatch(
 	ID3D12Device* dev,
 	ID3D12GraphicsCommandList* cmd,
@@ -1304,6 +1440,27 @@ void CGameScene::ReleaseMonsterSwordTrailGpuResources()
 	}
 
 	m_monsterSwordTrailVertexBufferCapacity = 0;
+}
+
+void CGameScene::ReleaseArrowTrailGpuResources()
+{
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+	{
+		if ( m_pd3dArrowTrailVertexBuffer[frameIndex] )
+		{
+			if ( m_pMappedArrowTrailVertexBuffer[frameIndex] )
+			{
+				m_pd3dArrowTrailVertexBuffer[frameIndex]->Unmap(0, nullptr);
+				m_pMappedArrowTrailVertexBuffer[frameIndex] = nullptr;
+			}
+
+			m_pd3dArrowTrailVertexBuffer[frameIndex].Reset();
+		}
+
+		m_pMappedArrowTrailVertexBuffer[frameIndex] = nullptr;
+	}
+
+	m_arrowTrailVertexBufferCapacity = 0;
 }
 
 void CGameScene::ReleaseBossCallSummonWwwGpuResources()
@@ -2534,6 +2691,84 @@ void CGameScene::UpdateMonsterSwordTrails(float dt)
 				kMonsterSwordTrailMaxSamples
 			);
 		}
+	}
+}
+
+void CGameScene::UpdateArrowTrails(float dt)
+{
+	if ( dt <= 0.0f )
+		return;
+
+	constexpr float kArrowTrailSampleLifetimeSec = 0.260f;
+
+	// 기존 trail sample age 증가 및 만료 처리.
+	for ( ArrowTrailEntry& trail : m_arrowTrails )
+	{
+		if ( !trail.active )
+			continue;
+
+		for ( ArrowTrailSample& sample : trail.samples )
+			sample.age += dt;
+
+		while ( !trail.samples.empty() &&
+				trail.samples.front().age >= kArrowTrailSampleLifetimeSec )
+		{
+			trail.samples.pop_front();
+		}
+
+		if ( trail.arrowObject )
+		{
+			CArrowComponent* arrow =
+				trail.arrowObject->GetComponent<CArrowComponent>();
+
+			const bool launched =
+				arrow &&
+				arrow->IsActive() &&
+				!arrow->IsPrepared();
+
+			if ( !launched )
+				trail.arrowObject = nullptr;
+		}
+
+		if ( !trail.arrowObject && trail.samples.empty() )
+			ResetArrowTrailEntry(trail);
+	}
+
+	// 현재 발사 중인 화살 위치를 trail에 샘플링한다.
+	for ( CGameObject* arrowObj : m_arrowRefs )
+	{
+		if ( !arrowObj )
+			continue;
+
+		CArrowComponent* arrow =
+			arrowObj->GetComponent<CArrowComponent>();
+
+		if ( !arrow )
+			continue;
+
+		// 준비 중인 화살은 활에 붙어 있으므로 잔상 생성 금지.
+		if ( !arrow->IsActive() || arrow->IsPrepared() )
+			continue;
+
+		ArrowTrailEntry* trail =
+			FindArrowTrailEntry(m_arrowTrails, arrowObj);
+
+		if ( !trail )
+		{
+			trail = AcquireFreeArrowTrailEntry(m_arrowTrails);
+			if ( !trail )
+				continue;
+
+			*trail = ArrowTrailEntry{};
+			trail->active = true;
+			trail->arrowObject = arrowObj;
+		}
+
+		AppendArrowTrailSample(
+			*trail,
+			arrowObj->GetPosition(),
+			kArrowTrailMaxSamples
+		);
 	}
 }
 
@@ -5171,6 +5406,190 @@ void CGameScene::RenderMonsterSwordTrails(
 	for ( const DrawRange& range : drawRanges )
 	{
 		if ( range.vertexCount < 4 ) continue;
+
+		cmd->DrawInstanced(range.vertexCount, 1, range.startVertex, 0);
+	}
+}
+
+void CGameScene::RenderArrowTrails(
+	ID3D12GraphicsCommandList* cmd,
+	CCamera* camera)
+{
+	if ( !cmd ) return;
+	if ( !camera ) return;
+	if ( !m_arrowTrailShader ) return;
+
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	ID3D12Resource* vertexBuffer =
+		m_pd3dArrowTrailVertexBuffer[frameIndex].Get();
+
+	SwordTrailVertex* mappedVertexBuffer =
+		m_pMappedArrowTrailVertexBuffer[frameIndex];
+
+	if ( !vertexBuffer ) return;
+	if ( !mappedVertexBuffer ) return;
+	if ( m_arrowTrailVertexBufferCapacity == 0 ) return;
+
+	struct DrawRange
+	{
+		UINT startVertex = 0;
+		UINT vertexCount = 0;
+	};
+
+	std::vector<DrawRange> drawRanges;
+	drawRanges.reserve(m_arrowTrails.size());
+
+	UINT vertexCursor = 0;
+
+	const XMFLOAT3 cameraPos = camera->GetPosition();
+
+	constexpr float kArrowTrailSampleLifetimeSec = 0.260f;
+	constexpr float kArrowTrailHalfWidth = 0.075f;
+
+	for ( const ArrowTrailEntry& trail : m_arrowTrails )
+	{
+		if ( !trail.active )
+			continue;
+
+		const size_t sampleCount = trail.samples.size();
+
+		if ( sampleCount < 2 )
+			continue;
+
+		const UINT neededVertices =
+			static_cast< UINT >(sampleCount * 2);
+
+		if ( vertexCursor + neededVertices > m_arrowTrailVertexBufferCapacity )
+			break;
+
+		const UINT startVertex = vertexCursor;
+
+		for ( size_t i = 0; i < sampleCount; ++i )
+		{
+			const float u =
+				( sampleCount > 1 )
+				? static_cast< float >( i ) /
+				static_cast< float >( sampleCount - 1 )
+				: 1.0f;
+
+			const ArrowTrailSample& sample = trail.samples[i];
+
+			const XMFLOAT3& prevPos =
+				trail.samples[
+					( i > 0 ) ? i - 1 : i
+				].position;
+
+			const XMFLOAT3& nextPos =
+				trail.samples[
+					( i + 1 < sampleCount ) ? i + 1 : i
+				].position;
+
+			XMVECTOR dir =
+				XMLoadFloat3(&nextPos) -
+				XMLoadFloat3(&prevPos);
+
+			if ( XMVectorGetX(XMVector3LengthSq(dir)) <= 1.0e-8f )
+				dir = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+			else
+				dir = XMVector3Normalize(dir);
+
+			XMVECTOR posV = XMLoadFloat3(&sample.position);
+			XMVECTOR viewDir = XMLoadFloat3(&cameraPos) - posV;
+
+			if ( XMVectorGetX(XMVector3LengthSq(viewDir)) <= 1.0e-8f )
+				viewDir = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+			else
+				viewDir = XMVector3Normalize(viewDir);
+
+			XMVECTOR side = XMVector3Cross(viewDir, dir);
+
+			if ( XMVectorGetX(XMVector3LengthSq(side)) <= 1.0e-8f )
+			{
+				const XMVECTOR up =
+					XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+
+				side = XMVector3Cross(up, dir);
+			}
+
+			if ( XMVectorGetX(XMVector3LengthSq(side)) <= 1.0e-8f )
+				side = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+			else
+				side = XMVector3Normalize(side);
+
+			const float ageFade =
+				1.0f -
+				std::clamp(
+					sample.age / kArrowTrailSampleLifetimeSec,
+					0.0f,
+					1.0f
+				);
+
+			// 꼬리 쪽은 약하고, 화살 현재 위치에 가까울수록 선명하게.
+			const float headFade =
+				std::clamp(u, 0.0f, 1.0f);
+
+			const float alpha =
+				ageFade *
+				( 0.20f + headFade * 0.80f ) *
+				0.72f;
+
+			const XMFLOAT4 color =
+				XMFLOAT4(
+					0.86f,
+					0.94f,
+					1.0f,
+					alpha
+				);
+
+			const XMVECTOR offset =
+				XMVectorScale(side, kArrowTrailHalfWidth);
+
+			XMFLOAT3 p0{};
+			XMFLOAT3 p1{};
+
+			XMStoreFloat3(&p0, posV - offset);
+			XMStoreFloat3(&p1, posV + offset);
+
+			SwordTrailVertex& v0 =
+				mappedVertexBuffer[vertexCursor++];
+
+			v0.position = p0;
+			v0.uv = XMFLOAT2(u, 0.0f);
+			v0.color = color;
+
+			SwordTrailVertex& v1 =
+				mappedVertexBuffer[vertexCursor++];
+
+			v1.position = p1;
+			v1.uv = XMFLOAT2(u, 1.0f);
+			v1.color = color;
+		}
+
+		DrawRange range{};
+		range.startVertex = startVertex;
+		range.vertexCount = neededVertices;
+		drawRanges.push_back(range);
+	}
+
+	if ( drawRanges.empty() )
+		return;
+
+	m_arrowTrailShader->Render(cmd, camera, nullptr);
+
+	D3D12_VERTEX_BUFFER_VIEW vbView{};
+	vbView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
+	vbView.SizeInBytes = sizeof(SwordTrailVertex) * vertexCursor;
+	vbView.StrideInBytes = sizeof(SwordTrailVertex);
+
+	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	cmd->IASetVertexBuffers(0, 1, &vbView);
+	cmd->IASetIndexBuffer(nullptr);
+
+	for ( const DrawRange& range : drawRanges )
+	{
+		if ( range.vertexCount < 4 )
+			continue;
 
 		cmd->DrawInstanced(range.vertexCount, 1, range.startVertex, 0);
 	}
