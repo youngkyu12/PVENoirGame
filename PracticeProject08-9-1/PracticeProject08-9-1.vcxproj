@@ -290,6 +290,7 @@
     <ClCompile Include="GameSceneContentCatalog.cpp" />
     <ClCompile Include="GameSceneHelper.cpp" />
     <ClCompile Include="GameSceneHUD.cpp" />
+    <ClCompile Include="GameSceneItemBillboard.cpp" />
     <ClCompile Include="GameSceneLOD.cpp" />
     <ClCompile Include="GameSceneObjectFactory.cpp" />
     <ClCompile Include="GameSceneOcclusion.cpp" />
