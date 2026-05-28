@@ -8,7 +8,6 @@
 #include "Shader.h"
 #include "LightTypes.h"
 #include "SceneRenderTypes.h"
-#include "GameSceneFrameUploadBuffer.h"
 #include "GameSceneBillboardTypes.h"
 #include "ColliderComponent.h"
 #include "Grid.h"
