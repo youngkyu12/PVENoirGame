@@ -156,6 +156,17 @@ CGameScene::CGameScene()
 
 	m_bLocalPlayerInsideCastleCenterMegaGrid = false;
 	m_bMegaGrid5DirectionalLightProfileActive = false;
+
+	m_inventoryItemCounts.fill(0);
+}
+
+void CGameScene::InitializeInventoryItemCounts()
+{
+#ifdef USING_NETWORK
+	m_inventoryItemCounts = { 0, 0, 0, 0 };
+#else
+	m_inventoryItemCounts = { 0, 0, 0, 0 };
+#endif
 }
 
 void CGameScene::SetFrameResourceIndex(UINT frameResourceIndex)

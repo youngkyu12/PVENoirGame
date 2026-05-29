@@ -344,6 +344,8 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
 	BuildLightsAndMaterials();
 	m_hud.BuildResources(dev, cmd, GetGraphicsRootSignature());
+	InitializeInventoryItemCounts();
+	m_hud.SetInventoryItemCounts(m_inventoryItemCounts);
 	m_hud.SetInactiveOverlayVisible(m_bInactiveOverlayVisible);
 	BuildDepthFogResources(dev, cmd);
 	m_shadowMap.BuildResources(dev, cmd, m_pDescriptorHeap.get());
