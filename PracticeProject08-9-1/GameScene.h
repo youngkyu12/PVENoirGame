@@ -390,10 +390,14 @@ private:
 		DXGI_FORMAT dsvFormat
 	);
 
+	void BuildMonsterArrowTrailBatch(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, DXGI_FORMAT dsvFormat);
+
 	void ReleaseArrowTrailGpuResources();
+	void ReleaseMonsterArrowTrailGpuResources();
 
 	void UpdateArrowTrails(float dt);
 	void RenderArrowTrails(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	void RenderMonsterArrowTrails(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 	void BuildBossCallSummonWwwBatch(
 		ID3D12Device* dev,
@@ -964,6 +968,13 @@ private:
 		kArrowTrailMaxCount * kArrowTrailMaxSamples * 2;
 
 	ArrowTrailEffectState m_arrowTrailEffect;
+
+	static constexpr UINT kMonsterArrowTrailMaxCount = 32;
+	static constexpr UINT kMonsterArrowTrailMaxSamples = 12;
+	static constexpr UINT kMonsterArrowTrailMaxVertices =
+		kMonsterArrowTrailMaxCount * kMonsterArrowTrailMaxSamples * 2;
+
+	ArrowTrailEffectState m_monsterArrowTrailEffect;
 
 	static constexpr UINT kBossCallSummonWwwMaxCount = 64;
 

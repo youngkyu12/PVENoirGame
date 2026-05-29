@@ -3350,6 +3350,9 @@ void CGameScene::ReleaseObjects()
 	m_arrowTrailEffect.shader.reset();
 	m_arrowTrailEffect.entries.clear();
 
+	m_monsterArrowTrailEffect.shader.reset();
+	m_monsterArrowTrailEffect.entries.clear();
+
 	m_bossCallSummonWwwEffect.shader.reset();
 	m_bossCallSummonWwwEffect.entries.clear();
 
@@ -8492,6 +8495,11 @@ void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* c
 	if ( m_arrowTrailEffect.shader )
 	{
 		RenderArrowTrails(cmd, camera);
+	}
+
+	if ( m_monsterArrowTrailEffect.shader )
+	{
+		RenderMonsterArrowTrails(cmd, camera);
 	}
 
 	if ( m_muzzleFlashEffect.shader )
