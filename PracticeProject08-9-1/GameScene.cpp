@@ -5773,6 +5773,58 @@ void CGameScene::RefreshPlayerWeaponAttackPowers()
 		SetObjectAttackPower(obj, bulletDamage);
 }
 
+void CGameScene::RefreshPlayerWeaponEffectVisuals()
+{
+	const int visualLevelIndex = GetPlayerWeaponEffectLevelIndex();
+
+	for ( SwordTrailEntry& trail : m_swordTrailEffect.entries )
+	{
+		if ( !trail.active )
+			continue;
+
+		switch ( trail.kind )
+		{
+		case EWeaponTrailKind::Sword:
+		{
+			const PlayerMeleeTrailVisualDesc& visual = m_playerSwordTrailVisualDescs[static_cast< size_t >( visualLevelIndex )];
+			trail.rootLocal = visual.rootLocal;
+			trail.tipLocal = visual.tipLocal;
+			trail.widthScale = visual.widthScale;
+			trail.color = visual.color;
+			trail.alphaScale = visual.alphaScale;
+		}
+		break;
+
+		case EWeaponTrailKind::Axe:
+		{
+			const PlayerMeleeTrailVisualDesc& visual = m_playerAxeTrailVisualDescs[static_cast< size_t >( visualLevelIndex )];
+			trail.rootLocal = visual.rootLocal;
+			trail.tipLocal = visual.tipLocal;
+			trail.widthScale = visual.widthScale;
+			trail.color = visual.color;
+			trail.alphaScale = visual.alphaScale;
+		}
+		break;
+
+		default:
+			break;
+		}
+	}
+
+	for ( ArrowTrailEntry& trail : m_arrowTrailEffect.entries )
+	{
+		if ( !trail.active )
+			continue;
+
+		const PlayerArrowTrailVisualDesc& visual = m_playerArrowTrailVisualDescs[static_cast< size_t >( visualLevelIndex )];
+		trail.halfWidth = visual.halfWidth;
+		trail.color = visual.color;
+		trail.tailAlpha = visual.tailAlpha;
+		trail.headAlpha = visual.headAlpha;
+		trail.alphaScale = visual.alphaScale;
+	}
+}
+
 void CGameScene::RefreshPlayerWeaponDamageTierFromClearedMegaGrids()
 {
 	const int oldTier = m_playerWeaponDamageTierIndex;
@@ -5782,7 +5834,9 @@ void CGameScene::RefreshPlayerWeaponDamageTierFromClearedMegaGrids()
 		return;
 
 	m_playerWeaponDamageTierIndex = newTier;
+
 	RefreshPlayerWeaponAttackPowers();
+	RefreshPlayerWeaponEffectVisuals();
 
 	if ( newTier > oldTier )
 		SpawnWeaponLevelUpFireworks();
