@@ -339,6 +339,27 @@ void CPlayerControllerComponent::SetRunRequested(bool run)
 	SyncAnimatorLocomotion();
 }
 
+void CPlayerControllerComponent::SetWalkMoveSpeed(float speed)
+{
+	m_walkMoveSpeed = speed > 0.0f ? speed : 0.0f;
+}
+
+void CPlayerControllerComponent::SetRunMoveSpeed(float speed)
+{
+	m_runMoveSpeed = speed > 0.0f ? speed : 0.0f;
+}
+
+void CPlayerControllerComponent::SetMoveSpeeds(float walkSpeed, float runSpeed)
+{
+	SetWalkMoveSpeed(walkSpeed);
+	SetRunMoveSpeed(runSpeed);
+}
+
+float CPlayerControllerComponent::GetCurrentMoveSpeed() const
+{
+	return IsEffectiveRunRequested() ? m_runMoveSpeed : m_walkMoveSpeed;
+}
+
 bool CPlayerControllerComponent::IsEffectiveRunRequested() const
 {
 	if ( !m_inputEnabled )
