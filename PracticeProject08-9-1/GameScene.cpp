@@ -160,15 +160,6 @@ CGameScene::CGameScene()
 	m_inventoryItemCounts.fill(0);
 }
 
-void CGameScene::InitializeInventoryItemCounts()
-{
-#ifdef USING_NETWORK
-	m_inventoryItemCounts = { 0, 0, 0, 0 };
-#else
-	m_inventoryItemCounts = { 0, 0, 0, 0 };
-#endif
-}
-
 void CGameScene::SetFrameResourceIndex(UINT frameResourceIndex)
 {
 	m_nFrameResourceIndex = frameResourceIndex % kFrameResourceCount;

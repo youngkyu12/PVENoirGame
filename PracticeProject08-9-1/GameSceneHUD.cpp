@@ -22,6 +22,7 @@ void CGameSceneHUD::ReleaseResources()
 	m_inventorySpriteIndices.fill(-1);
 	m_inventoryIconSpriteIndices.fill(-1);
 	m_inventoryItemCounts.fill(0);
+	m_inventoryCountGlyphSpriteIndices.fill(-1);
 	m_hpFillOriginalRect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f); 
 	m_healthRatio = 1.0f;
 
@@ -40,6 +41,7 @@ void CGameSceneHUD::BuildResources(
 	m_exitSpriteIndex = -1;
 	m_inventorySpriteIndices.fill(-1);
 	m_inventoryIconSpriteIndices.fill(-1);
+	m_inventoryCountGlyphSpriteIndices.fill(-1);
 
 	// --------------------------------------------------------------------
 	// UI layout tuning block
@@ -94,14 +96,14 @@ void CGameSceneHUD::BuildResources(
 	// Inventory layer
 	// rect = (centerX, centerY, width, height)
 	// --------------------------------------------------------------------
-	const float inventorySlotWidth = 60.0f;
-	const float inventorySlotHeight = 60.0f;
+	const float inventorySlotWidth = 72.0f;
+	const float inventorySlotHeight = 72.0f;
 	const float inventoryRightMargin = 10.0f;
 	const float inventoryBottomMargin = 10.0f;
 	const float inventoryTotalWidth = inventorySlotWidth * static_cast< float >( kInventorySlotCount );
 	const float inventoryStartCenterX = screenW - inventoryRightMargin - inventoryTotalWidth + inventorySlotWidth * 0.5f;
 	const float inventoryCenterY = screenH - inventoryBottomMargin - inventorySlotHeight * 0.5f;
-	const float inventoryIconSize = inventorySlotWidth * 0.98f;
+	const float inventoryIconSize = inventorySlotWidth * 0.92f;
 	const char* inventorySpriteNames[kInventorySlotCount] = { "InventorySlot0", "InventorySlot1", "InventorySlot2", "InventorySlot3" };
 	const char* inventoryIconSpriteNames[kInventorySlotCount] = { "InventoryPotionHeal", "InventoryPotionAttackUp", "InventoryPotionDefenceUp", "InventoryPotionSpeedUp" };
 	const wchar_t* inventoryIconTexturePaths[kInventorySlotCount] = { L"Assets/UI/Potion_Heal.dds", L"Assets/UI/Potion_AttackUP.dds", L"Assets/UI/Potion_DeffenceUP.dds", L"Assets/UI/Potion_SpeedUP.dds" };
@@ -112,6 +114,30 @@ void CGameSceneHUD::BuildResources(
 		m_inventorySpriteIndices[i] = m_ui.AddSprite(dev, cmd, inventorySpriteNames[i], L"Assets/UI/Inventory.dds", XMFLOAT4(centerX, inventoryCenterY, inventorySlotWidth, inventorySlotHeight), CSceneUI::ELayer::Frame, true);
 		m_inventoryIconSpriteIndices[i] = m_ui.AddSprite(dev, cmd, inventoryIconSpriteNames[i], inventoryIconTexturePaths[i], XMFLOAT4(centerX, inventoryCenterY, inventoryIconSize, inventoryIconSize), CSceneUI::ELayer::Content, true);
 	}
+
+	const wchar_t* inventoryCountGlyphTexturePaths[kInventoryCountGlyphTypeCount] = { L"Assets/UI/Text_x.dds", L"Assets/UI/Text_0.dds", L"Assets/UI/Text_1.dds", L"Assets/UI/Text_2.dds", L"Assets/UI/Text_3.dds", L"Assets/UI/Text_4.dds", L"Assets/UI/Text_5.dds", L"Assets/UI/Text_6.dds", L"Assets/UI/Text_7.dds", L"Assets/UI/Text_8.dds", L"Assets/UI/Text_9.dds" };
+
+	for ( int slot = 0; slot < kInventorySlotCount; ++slot )
+	{
+		for ( int charIndex = 0; charIndex < kInventoryCountTextMaxChars; ++charIndex )
+		{
+			for ( int glyphIndex = 0; glyphIndex < kInventoryCountGlyphTypeCount; ++glyphIndex )
+			{
+				char spriteName[64] = {};
+				sprintf_s(spriteName, "InventoryCount_%d_%d_%d", slot, charIndex, glyphIndex);
+
+				const int flatIndex = InventoryCountGlyphFlatIndex(slot, charIndex, glyphIndex);
+
+				m_inventoryCountGlyphSpriteIndices[flatIndex] = m_ui.AddSprite(dev, cmd, spriteName, inventoryCountGlyphTexturePaths[glyphIndex], XMFLOAT4(0.0f, 0.0f, 36.0f, 42.0f), CSceneUI::ELayer::Content, false);
+
+				if ( m_inventoryCountGlyphSpriteIndices[flatIndex] >= 0 )
+					m_ui.SetSpriteEffectKind(m_inventoryCountGlyphSpriteIndices[flatIndex], 2);
+			}
+		}
+	}
+
+	for ( int slot = 0; slot < kInventorySlotCount; ++slot )
+		UpdateInventoryCountTextSprites(slot);
 
 	const XMFLOAT4 pauseRect(
 		screenW * 0.5f,
@@ -196,7 +222,89 @@ void CGameSceneHUD::SetInventoryItemCounts(const std::array<int, kInventorySlotC
 	for ( int i = 0; i < kInventorySlotCount; ++i )
 	{
 		m_inventoryItemCounts[i] = counts[i] < 0 ? 0 : counts[i];
-		if ( m_inventoryIconSpriteIndices[i] >= 0 ) m_ui.SetSpriteVisible(m_inventoryIconSpriteIndices[i], true);
+
+		const bool empty = ( m_inventoryItemCounts[i] <= 0 );
+
+		if ( m_inventoryIconSpriteIndices[i] >= 0 )
+		{
+			m_ui.SetSpriteVisible(m_inventoryIconSpriteIndices[i], true);
+			m_ui.SetSpriteEffectKind(m_inventoryIconSpriteIndices[i], empty ? 1 : 0);
+		}
+
+		UpdateInventoryCountTextSprites(i);
+	}
+}
+
+void CGameSceneHUD::UpdateInventoryCountTextSprites(int slot)
+{
+	if ( slot < 0 || slot >= kInventorySlotCount )
+		return;
+
+	for ( int charIndex = 0; charIndex < kInventoryCountTextMaxChars; ++charIndex )
+	{
+		for ( int glyphIndex = 0; glyphIndex < kInventoryCountGlyphTypeCount; ++glyphIndex )
+		{
+			const int flatIndex = InventoryCountGlyphFlatIndex(slot, charIndex, glyphIndex);
+
+			const int textSpriteIndex = m_inventoryCountGlyphSpriteIndices[flatIndex];
+			if ( textSpriteIndex >= 0 )
+				m_ui.SetSpriteVisible(textSpriteIndex, false);
+		}
+	}
+
+	XMFLOAT4 slotRect{};
+	if ( !m_ui.GetSpriteRect(m_inventorySpriteIndices[slot], slotRect) )
+		return;
+
+	int displayCount = m_inventoryItemCounts[slot];
+
+	if ( displayCount < 0 )
+		displayCount = 0;
+
+	if ( displayCount > 999 )
+		displayCount = 999;
+
+	std::string text = "x" + std::to_string(displayCount);
+
+	if ( static_cast< int >( text.size() ) > kInventoryCountTextMaxChars )
+		text = text.substr(0, kInventoryCountTextMaxChars);
+
+	const float charWidth = 36.0f;
+	const float charHeight = 42.0f;
+	const float charAdvance = 13.0f;
+	const float rightPadding = -8.0f;
+	const float bottomPadding = -8.0f;
+
+	const int charCount = static_cast< int >( text.size() );
+	const float totalWidth = charWidth + charAdvance * static_cast< float >( charCount - 1 );
+	const float rightEdge = slotRect.x + slotRect.z * 0.5f - rightPadding;
+	const float bottomEdge = slotRect.y + slotRect.w * 0.5f - bottomPadding;
+	const float firstCenterX = rightEdge - totalWidth + charWidth * 0.5f;
+	const float centerY = bottomEdge - charHeight * 0.5f;
+
+	for ( int charIndex = 0; charIndex < charCount && charIndex < kInventoryCountTextMaxChars; ++charIndex )
+	{
+		const char ch = text[static_cast< size_t >(charIndex)];
+
+		int glyphIndex = -1;
+
+		if ( ch == 'x' || ch == 'X' )
+			glyphIndex = 0;
+		else if ( ch >= '0' && ch <= '9' )
+			glyphIndex = 1 + ( ch - '0' );
+
+		if ( glyphIndex < 0 || glyphIndex >= kInventoryCountGlyphTypeCount )
+			continue;
+
+		const int flatIndex = InventoryCountGlyphFlatIndex(slot, charIndex, glyphIndex);
+		const float centerX = firstCenterX + charAdvance * static_cast< float >(charIndex);
+
+		const int textSpriteIndex = m_inventoryCountGlyphSpriteIndices[flatIndex];
+		if ( textSpriteIndex >= 0 )
+		{
+			m_ui.SetSpriteRect(textSpriteIndex, XMFLOAT4(centerX, centerY, charWidth, charHeight));
+			m_ui.SetSpriteVisible(textSpriteIndex, true);
+		}
 	}
 }
 
