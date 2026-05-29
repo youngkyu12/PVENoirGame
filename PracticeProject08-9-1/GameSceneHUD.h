@@ -49,6 +49,14 @@ private:
 	std::array<int, kInventorySlotCount> m_inventoryIconSpriteIndices = { -1, -1, -1, -1 };
 	std::array<int, kInventorySlotCount> m_inventoryItemCounts = { 0, 0, 0, 0 };
 
+	static constexpr int kInventoryCountTextMaxDigits = 3;
+	static constexpr int kInventoryCountTextMaxChars = 1 + kInventoryCountTextMaxDigits;
+	static constexpr int kInventoryCountGlyphTypeCount = 11;
+	std::array<int, kInventorySlotCount* kInventoryCountTextMaxChars* kInventoryCountGlyphTypeCount> m_inventoryCountGlyphSpriteIndices = {};
+	
+	static constexpr int InventoryCountGlyphFlatIndex(int slot, int charIndex, int glyphIndex) { return ( slot * kInventoryCountTextMaxChars + charIndex ) * kInventoryCountGlyphTypeCount + glyphIndex; }
+	void UpdateInventoryCountTextSprites(int slot);
+
 	XMFLOAT4 m_hpFillOriginalRect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 	float m_healthRatio = 1.0f;
 

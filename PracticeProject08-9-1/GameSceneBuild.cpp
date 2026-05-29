@@ -93,6 +93,15 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 	m_bPrevLocalStageTeleportKeyDown.fill(false);
 }
 
+void CGameScene::InitializeInventoryItemCounts()
+{
+#ifdef USING_NETWORK
+	m_inventoryItemCounts = { 0, 0, 0, 0 };
+#else
+	m_inventoryItemCounts = { 1, 1, 0, 0 };
+#endif
+}
+
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
 	ConfigureLocalGameplaySimulationSwitches();

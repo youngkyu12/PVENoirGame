@@ -176,7 +176,7 @@ void CSceneUI::RenderSprite(ID3D12GraphicsCommandList* cmd, CCamera* camera, int
 		return;
 
 	PS_CB_DRAW_OPTIONS opt{};
-	opt.m_xmn4DrawOptions = XMINT4('T', 0, 0, 0);
+	opt.m_xmn4DrawOptions = XMINT4('T', sprite.effectKind, 0, 0);
 	opt.m_xmu4PostSrvIdx0 = XMUINT4(sprite.srvIndex, 0, 0, 0);
 	opt.m_xmu4PostSrvIdx1 = XMUINT4(0, 0, 0, 0);
 	opt.m_xmf4UiRect = sprite.rect;
@@ -206,6 +206,18 @@ void CSceneUI::SetLayerVisible(ELayer layer, bool visible)
 		return;
 
 	m_layerVisible[index] = visible;
+}
+
+bool CSceneUI::SetSpriteEffectKind(int spriteIndex, int effectKind)
+{
+	if ( !IsValidSpriteIndex(spriteIndex) )
+		return false;
+
+	if ( effectKind < 0 )
+		effectKind = 0;
+
+	m_sprites[static_cast< size_t >(spriteIndex)].effectKind = effectKind;
+	return true;
 }
 
 bool CSceneUI::GetSpriteRect(int spriteIndex, XMFLOAT4& outRect) const
