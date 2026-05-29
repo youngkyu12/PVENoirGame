@@ -29,6 +29,7 @@ class CTransparentItemBillboardShader;
 class CMuzzleFlashBillboardShader;
 class CBossPoisonProjectileBillboardShader;
 class CSwordTrailShader;
+class CGunSmokeBillboardShader;
 
 struct ItemBillboardInstanceVertex
 {
@@ -52,6 +53,7 @@ enum class EMuzzleFlashKind : UINT
 	MagicCircleGlow = 6,
 	MagicCircleAfterimage = 7,
 	GoldFirework = 8,
+	GunSmoke = 9,
 };
 
 struct MuzzleFlashInstanceVertex
@@ -70,7 +72,7 @@ struct MuzzleFlashInstanceVertex
 	// x = kind
 	// 0=core, 1=ring, 2=spark, 3=blood, 4=poison dust,
 	// 5=boss melee slash, 6=magic circle glow, 7=magic circle afterimage,
-	// 8=gold firework
+	// 8=gold firework, 9=gun smoke
 	// y = reserved
 	// z = reserved
 	// w = reserved
@@ -110,6 +112,13 @@ struct MuzzleFlashEntry
 struct MuzzleFlashEffectState
 {
 	std::shared_ptr<CMuzzleFlashBillboardShader> shader;
+	std::vector<MuzzleFlashEntry> entries;
+	FrameUploadVertexBuffer<MuzzleFlashInstanceVertex, kSceneBatchFrameResourceCount> instanceBuffer;
+};
+
+struct GunSmokeEffectState
+{
+	std::shared_ptr<CGunSmokeBillboardShader> shader;
 	std::vector<MuzzleFlashEntry> entries;
 	FrameUploadVertexBuffer<MuzzleFlashInstanceVertex, kSceneBatchFrameResourceCount> instanceBuffer;
 };

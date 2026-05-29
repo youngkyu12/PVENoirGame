@@ -405,6 +405,7 @@ void CGameScene::BuildItemBillboardBatch(ID3D12Device* dev, ID3D12GraphicsComman
 		});
 
 		BuildMuzzleFlashBatch(dev, cmd, dsvFormat);
+		BuildGunSmokeBatch(dev, cmd, dsvFormat);
 		BuildBossPoisonProjectileBatch(dev, cmd, dsvFormat);
 		BuildSwordTrailBatch(dev, cmd, dsvFormat);
 		BuildMonsterSwordTrailBatch(dev, cmd, dsvFormat);

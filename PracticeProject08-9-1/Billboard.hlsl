@@ -827,6 +827,61 @@ float4 PSMuzzleFlashProcedural(
 
         color *= min(intensity, 1.10f);
     }
+    else if (kind > 8.5f && kind < 9.5f)
+    {
+        // gun smoke
+        float2 q = p;
+
+        float angle = atan2(q.y, q.x);
+
+        float wobble =
+            0.78f +
+            0.14f * sin(angle * 3.0f + seed * 4.73f) +
+            0.08f * sin(angle * 7.0f - seed * 2.19f);
+
+        float rr = r / max(wobble, 0.18f);
+
+        float body =
+            1.0f - smoothstep(0.04f, 0.72f, rr);
+
+        float softEdge =
+            1.0f - smoothstep(0.36f, 1.15f, rr);
+
+        float noise =
+            0.70f +
+            0.18f * sin(q.x * 6.0f + seed * 1.31f) * sin(q.y * 5.0f - seed * 0.91f) +
+            0.12f * sin((q.x + q.y) * 9.0f + seed * 2.43f);
+
+        noise = saturate(noise);
+
+        float birthFade = smoothstep(0.00f, 0.12f, ageRatio);
+        float deathFade = 1.0f - smoothstep(0.40f, 1.00f, ageRatio);
+
+        float shape =
+            body * 0.36f +
+            softEdge * 0.52f;
+
+        alpha =
+            saturate(
+                shape *
+                noise *
+                birthFade *
+                deathFade *
+                input.color.a
+            );
+
+        float3 nearBlack = float3(0.002f, 0.002f, 0.002f);
+        float3 smokeColor = input.color.rgb;
+
+        color =
+            lerp(
+                nearBlack,
+                smokeColor,
+                saturate(softEdge * 0.85f + body * 0.20f)
+            );
+
+        color *= min(intensity, 1.0f);
+    }
     else
     {
         // gold firework
