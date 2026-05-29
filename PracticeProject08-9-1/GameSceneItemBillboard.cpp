@@ -148,7 +148,7 @@ void CGameScene::BuildItemBillboardBatch(ID3D12Device* dev, ID3D12GraphicsComman
 		m_itemBillboardState.keyTexture->LoadTextureFromFile(
 			dev,
 			cmd,
-			L"Assets/UI/Key.dds",
+			L"Assets/Particle/Key.dds",
 			RESOURCE_TEXTURE2D,
 			0
 		);

@@ -43,6 +43,9 @@ private:
 
 	int m_hpFillSpriteIndex = -1;
 
+	static constexpr int kInventorySlotCount = 5;
+	std::array<int, kInventorySlotCount> m_inventorySpriteIndices = { -1, -1, -1, -1, -1 };
+
 	XMFLOAT4 m_hpFillOriginalRect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 	float m_healthRatio = 1.0f;
 
