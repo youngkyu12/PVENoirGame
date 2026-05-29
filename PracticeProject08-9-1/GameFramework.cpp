@@ -1179,6 +1179,11 @@ void CGameFramework::ProcessInput()
 		if (pKeysBuffer[VK_LSHIFT] & 0xF0 || pKeysBuffer[VK_SHIFT] & 0xF0)    keyCodes |= (1 << 8); // Run
 		if (pKeysBuffer[VK_SPACE] & 0xF0) keyCodes |= (1 << 9); // Roll
 
+		if ( pKeysBuffer['1'] & 0xF0 ) keyCodes |= ( 1 << 10 ); // Inventory slot 0 use request
+		if ( pKeysBuffer['2'] & 0xF0 ) keyCodes |= ( 1 << 11 ); // Inventory slot 1 use request
+		if ( pKeysBuffer['3'] & 0xF0 ) keyCodes |= ( 1 << 12 ); // Inventory slot 2 use request
+		if ( pKeysBuffer['4'] & 0xF0 ) keyCodes |= ( 1 << 13 ); // Inventory slot 3 use request
+
 		inputPkt.set_playerid(g_myPlayerId);
 		inputPkt.set_keycodes(keyCodes);
 

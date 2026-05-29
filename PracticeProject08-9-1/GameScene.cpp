@@ -158,6 +158,7 @@ CGameScene::CGameScene()
 	m_bMegaGrid5DirectionalLightProfileActive = false;
 
 	m_inventoryItemCounts.fill(0);
+	m_bPrevInventoryUseKeyDown.fill(false);
 }
 
 void CGameScene::SetFrameResourceIndex(UINT frameResourceIndex)
@@ -4961,6 +4962,38 @@ void CGameScene::SetBossSummonVisualActive(bool active)
 	}
 }
 
+void CGameScene::SetInventoryItemCounts(const std::array<int, CGameSceneHUD::kInventorySlotCount>& counts)
+{
+	for ( int i = 0; i < CGameSceneHUD::kInventorySlotCount; ++i )
+		m_inventoryItemCounts[i] = counts[i] < 0 ? 0 : counts[i];
+
+	m_hud.SetInventoryItemCounts(m_inventoryItemCounts);
+}
+
+bool CGameScene::RequestUseInventoryItemSlot(int slot)
+{
+	if ( slot < 0 || slot >= CGameSceneHUD::kInventorySlotCount )
+		return false;
+
+#ifdef USING_NETWORK
+	// 네트워크 모드에서는 클라이언트가 직접 수량을 차감하지 않는다.
+	// 서버가 사용 승인/수량 변경을 처리한 뒤 SetInventoryItemCounts()로 동기화하면 된다.
+	return false;
+#else
+	if ( m_inventoryItemCounts[static_cast< size_t >(slot)] <= 0 )
+		return false;
+
+	--m_inventoryItemCounts[static_cast< size_t >( slot )];
+	m_hud.SetInventoryItemCounts(m_inventoryItemCounts);
+
+	char buf[128];
+	sprintf_s(buf, "[Inventory] Use slot=%d remain=%d\n", slot, m_inventoryItemCounts[static_cast< size_t >( slot )]);
+	OutputDebugStringA(buf);
+
+	return true;
+#endif
+}
+
 CGameObject* CGameScene::GetDemoFighter(int index) const
 {
     if (index < 0 || index >= 3) return nullptr;
@@ -7328,6 +7361,7 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 		m_bPrevLocalMonsterChaseToggleKeyDown = false;
 		m_bPrevDebugDamageMegaGrid5KeyDown = false;
 		m_bPrevLocalStageTeleportKeyDown.fill(false);
+		m_bPrevInventoryUseKeyDown.fill(false);
 
 		return false;
 	}
@@ -7361,6 +7395,22 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 
 	m_bPrevDebugDamageMegaGrid5KeyDown = enterDown;
 
+	const bool stageTeleportModifierDown = ( ( pKeysBuffer[VK_LSHIFT] & 0xF0 ) != 0 ) || ( ( pKeysBuffer[VK_RSHIFT] & 0xF0 ) != 0 );
+
+	// ---------------------------------------------------------------------
+	// 1~4: 인벤토리 아이템 사용 요청
+	// ---------------------------------------------------------------------
+	for ( int slot = 0; slot < CGameSceneHUD::kInventorySlotCount; ++slot )
+	{
+		const bool down = ( pKeysBuffer['1' + slot] & 0xF0 ) != 0;
+		const bool prevDown = m_bPrevInventoryUseKeyDown[static_cast< size_t >(slot)];
+
+		if ( down && !prevDown && !stageTeleportModifierDown )
+			RequestUseInventoryItemSlot(slot);
+
+		m_bPrevInventoryUseKeyDown[static_cast< size_t >(slot)] = down;
+	}
+
 	// ---------------------------------------------------------------------
 	// Shift + 1~9: 로컬 스테이지 메가그리드 강제 텔레포트
 	//
@@ -7372,8 +7422,6 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 	// 숫자키 단독 입력은 아이템 사용 등에 넘기기 위해 여기서 consume하지 않는다.
 	// false이면 입력 상태만 갱신하고 실제 텔레포트는 하지 않는다.
 	// ---------------------------------------------------------------------
-	const bool stageTeleportModifierDown = ( ( pKeysBuffer[VK_LSHIFT] & 0xF0 ) != 0 ) || ( ( pKeysBuffer[VK_RSHIFT] & 0xF0 ) != 0 );
-
 	for ( int megaGridNumber = 1; megaGridNumber <= CSceneGrid::kMegaGridCount; ++megaGridNumber )
 	{
 		const bool down = ( pKeysBuffer['0' + megaGridNumber] & 0xF0 ) != 0;
