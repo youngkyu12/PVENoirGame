@@ -1302,7 +1302,7 @@ void CGameFramework::ProcessInput()
 			// Network mode: local prediction movement is disabled; server snapshots drive position.
 			const XMFLOAT3 prevPos = playerObj->GetPosition();
 
-			const float moveSpeed = pc->IsEffectiveRunRequested() ? 10.0f : 5.0f;
+			const float moveSpeed = pc->GetCurrentMoveSpeed();
 			pc->MoveByYaw(dwDirection, moveSpeed * dt, cameraYawDeg, false);
 
 			if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
@@ -1363,7 +1363,7 @@ void CGameFramework::ProcessInput()
 		{
 			const XMFLOAT3 prevPos = playerObj->GetPosition();
 
-			const float moveSpeed = pc->IsEffectiveRunRequested() ? 10.0f : 5.0f;
+			const float moveSpeed = pc->GetCurrentMoveSpeed();
 			pc->MoveByYaw(dwDirection, moveSpeed * dt, cameraYawDeg, false);
 
 			if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )

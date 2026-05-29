@@ -72,6 +72,13 @@ public:
 	bool IsEffectiveRunRequested() const;
 	bool IsRunLocomotionActive() const;
 
+	void SetWalkMoveSpeed(float speed);
+	void SetRunMoveSpeed(float speed);
+	void SetMoveSpeeds(float walkSpeed, float runSpeed);
+	float GetWalkMoveSpeed() const { return m_walkMoveSpeed; }
+	float GetRunMoveSpeed() const { return m_runMoveSpeed; }
+	float GetCurrentMoveSpeed() const;
+
 	void SetInputEnabled(bool enabled);
 	bool IsInputEnabled() const { return m_inputEnabled; }
 
@@ -88,6 +95,9 @@ private:
 	float    m_maxVelXZ = 0.0f;
 	float    m_maxVelY = 0.0f;
 	float    m_friction = 0.0f;
+
+	float    m_walkMoveSpeed = 5.0f;
+	float    m_runMoveSpeed = 10.0f;
 
 	DWORD    m_inputDir = 0;
 	bool     m_isRunRequested = false;
