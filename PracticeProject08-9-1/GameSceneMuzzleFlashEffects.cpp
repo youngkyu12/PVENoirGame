@@ -93,8 +93,6 @@ void CGameScene::ReleaseMuzzleFlashGpuResources()
 	m_muzzleFlashEffect.instanceBuffer.Release();
 }
 
-
-
 void CGameScene::SpawnMuzzleFlash(const XMFLOAT3& position, const XMFLOAT3& direction)
 {
 	static std::mt19937 rng{ std::random_device{}( ) };
@@ -103,6 +101,8 @@ void CGameScene::SpawnMuzzleFlash(const XMFLOAT3& position, const XMFLOAT3& dire
 	static std::uniform_real_distribution<float> seedDist(0.0f, 1000.0f);
 	static std::uniform_real_distribution<float> unitDist(-1.0f, 1.0f);
 	static std::uniform_real_distribution<float> sparkSpeedBaseDist(2.2f, 4.8f);
+
+	const PlayerGunMuzzleFlashVisualDesc& visual = GetPlayerGunMuzzleFlashVisualDesc();
 
 	XMVECTOR dirV = XMLoadFloat3(&direction);
 	if ( XMVectorGetX(XMVector3LengthSq(dirV)) <= 1.0e-8f )
@@ -118,7 +118,7 @@ void CGameScene::SpawnMuzzleFlash(const XMFLOAT3& position, const XMFLOAT3& dire
 	else
 		right = XMVector3Normalize(right);
 
-	auto spawnCore = [ & ] (float size, float life, float intensity, float alpha)
+	auto spawnCore = [ & ] (const PlayerGunMuzzleFlashCoreVisualDesc& core, float life)
 		{
 			MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashEffect.entries);
 			if ( !e ) return;
@@ -131,18 +131,18 @@ void CGameScene::SpawnMuzzleFlash(const XMFLOAT3& position, const XMFLOAT3& dire
 			e->age = 0.0f;
 			e->lifetime = life;
 
-			e->startWidth = size;
-			e->startHeight = size;
-			e->endWidth = size * 1.7f;
-			e->endHeight = size * 1.7f;
+			e->startWidth = core.size;
+			e->startHeight = core.size;
+			e->endWidth = core.size * core.endSizeScale;
+			e->endHeight = core.size * core.endSizeScale;
 
 			e->rotationRad = rotDist(rng);
-			e->intensity = intensity;
+			e->intensity = core.intensity;
 			e->drag = 0.0f;
 			e->gravity = 0.0f;
 			e->seed = seedDist(rng);
 
-			e->color = XMFLOAT4(1.0f, 0.32f, 0.04f, alpha);
+			e->color = core.color;
 		};
 
 	auto spawnRing = [ & ] ()
@@ -158,18 +158,18 @@ void CGameScene::SpawnMuzzleFlash(const XMFLOAT3& position, const XMFLOAT3& dire
 			e->age = 0.0f;
 			e->lifetime = 0.06f;
 
-			e->startWidth = 0.20f * 1.10f;
-			e->startHeight = 0.20f * 1.10f;
-			e->endWidth = 1.15f * 1.10f;
-			e->endHeight = 1.15f * 1.10f;
+			e->startWidth = visual.ring.startSize;
+			e->startHeight = visual.ring.startSize;
+			e->endWidth = visual.ring.endSize;
+			e->endHeight = visual.ring.endSize;
 
 			e->rotationRad = rotDist(rng);
-			e->intensity = 1.2f;
+			e->intensity = visual.ring.intensity;
 			e->drag = 0.0f;
 			e->gravity = 0.0f;
 			e->seed = seedDist(rng);
 
-			e->color = XMFLOAT4(1.0f, 0.28f, 0.03f, 0.75f);
+			e->color = visual.ring.color;
 		};
 
 	auto spawnSpark = [ & ] (float baseRot)
@@ -177,18 +177,11 @@ void CGameScene::SpawnMuzzleFlash(const XMFLOAT3& position, const XMFLOAT3& dire
 			MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashEffect.entries);
 			if ( !e ) return;
 
-			const float side = unitDist(rng) * 0.35f;
-			const float lift = unitDist(rng) * 0.18f + 0.12f;
-			const float speed = sparkSpeedBaseDist(rng) * 1.10f;
+			const float side = unitDist(rng) * visual.spark.sideScale;
+			const float lift = unitDist(rng) * visual.spark.liftScale + visual.spark.liftBase;
+			const float speed = sparkSpeedBaseDist(rng) * visual.spark.speedScale;
 
-			XMVECTOR vel =
-				XMVectorAdd(
-					XMVectorScale(dirV, 1.0f),
-					XMVectorAdd(
-						XMVectorScale(right, side),
-						XMVectorScale(up, lift)
-					)
-				);
+			XMVECTOR vel = XMVectorAdd(XMVectorScale(dirV, 1.0f), XMVectorAdd(XMVectorScale(right, side), XMVectorScale(up, lift)));
 
 			if ( XMVectorGetX(XMVector3LengthSq(vel)) <= 1.0e-8f )
 				vel = dirV;
@@ -208,28 +201,26 @@ void CGameScene::SpawnMuzzleFlash(const XMFLOAT3& position, const XMFLOAT3& dire
 			e->age = 0.0f;
 			e->lifetime = 0.07f;
 
-			e->startWidth = 0.10f;
-			e->startHeight = 0.42f;
-			e->endWidth = 0.05f;
-			e->endHeight = 0.28f;
+			e->startWidth = visual.spark.startWidth;
+			e->startHeight = visual.spark.startHeight;
+			e->endWidth = visual.spark.endWidth;
+			e->endHeight = visual.spark.endHeight;
 
-			e->rotationRad = baseRot + unitDist(rng) * 0.35f;
-			e->intensity = 1.4f;
-			e->drag = 5.5f;
+			e->rotationRad = baseRot + unitDist(rng) * visual.spark.rotationJitter;
+			e->intensity = visual.spark.intensity;
+			e->drag = visual.spark.drag;
 			e->gravity = 0.0f;
 			e->seed = seedDist(rng);
 
-			e->color = XMFLOAT4(1.0f, 0.52f, 0.08f, 1.0f);
+			e->color = visual.spark.color;
 		};
 
-	spawnCore(0.55f * 1.10f, 0.045f, 2.2f, 1.0f);
-	spawnCore(0.80f * 1.10f, 0.065f, 1.5f, 0.75f);
+	spawnCore(visual.cores[0], 0.045f);
+	spawnCore(visual.cores[1], 0.065f);
 
 	spawnRing();
 
-	constexpr int kMuzzleFlashSparkCount = 14;
-
-	for ( int i = 0; i < kMuzzleFlashSparkCount; ++i )
+	for ( int i = 0; i < visual.spark.count; ++i )
 	{
 		spawnSpark(rotDist(rng));
 	}

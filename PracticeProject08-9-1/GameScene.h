@@ -359,11 +359,7 @@ private:
 	void UpdateMuzzleFlashes(float dt);
 	void RenderMuzzleFlashes(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
-	void BuildSwordTrailBatch(
-		ID3D12Device* dev,
-		ID3D12GraphicsCommandList* cmd,
-		DXGI_FORMAT dsvFormat
-	);
+	void BuildSwordTrailBatch(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, DXGI_FORMAT dsvFormat);
 
 	void ReleaseSwordTrailGpuResources();
 
@@ -944,6 +940,100 @@ private:
 	ItemBillboardState m_itemBillboardState;
 
 	static constexpr UINT kMuzzleFlashMaxCount = 4096;
+
+	static constexpr int kPlayerWeaponEffectLevelCount = 3;
+
+	struct PlayerMeleeTrailVisualDesc
+	{
+		XMFLOAT3 rootLocal = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		XMFLOAT3 tipLocal = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		float widthScale = 1.0f;
+		XMFLOAT4 color = XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f);
+		float alphaScale = 0.75f;
+	};
+
+	struct PlayerArrowTrailVisualDesc
+	{
+		float halfWidth = 0.075f;
+		XMFLOAT4 color = XMFLOAT4(0.86f, 0.94f, 1.0f, 1.0f);
+		float tailAlpha = 0.20f;
+		float headAlpha = 0.80f;
+		float alphaScale = 0.72f;
+	};
+
+	struct PlayerGunMuzzleFlashCoreVisualDesc
+	{
+		float size = 1.0f;
+		float endSizeScale = 1.70f;
+		float intensity = 1.0f;
+		XMFLOAT4 color = XMFLOAT4(1.0f, 0.32f, 0.04f, 1.0f);
+	};
+
+	struct PlayerGunMuzzleFlashRingVisualDesc
+	{
+		float startSize = 0.20f * 1.10f;
+		float endSize = 1.15f * 1.10f;
+		float intensity = 1.20f;
+		XMFLOAT4 color = XMFLOAT4(1.0f, 0.28f, 0.03f, 0.75f);
+	};
+
+	struct PlayerGunMuzzleFlashSparkVisualDesc
+	{
+		int count = 14;
+		float sideScale = 0.35f;
+		float liftScale = 0.18f;
+		float liftBase = 0.12f;
+		float speedScale = 1.10f;
+		float startWidth = 0.10f;
+		float startHeight = 0.42f;
+		float endWidth = 0.05f;
+		float endHeight = 0.28f;
+		float rotationJitter = 0.35f;
+		float intensity = 1.40f;
+		float drag = 5.50f;
+		XMFLOAT4 color = XMFLOAT4(1.0f, 0.52f, 0.08f, 1.0f);
+	};
+
+	struct PlayerGunMuzzleFlashVisualDesc
+	{
+		std::array<PlayerGunMuzzleFlashCoreVisualDesc, 2> cores = {};
+		PlayerGunMuzzleFlashRingVisualDesc ring = {};
+		PlayerGunMuzzleFlashSparkVisualDesc spark = {};
+	};
+
+	int GetPlayerWeaponEffectLevelIndex() const;
+	const PlayerMeleeTrailVisualDesc& GetPlayerSwordTrailVisualDesc() const;
+	const PlayerMeleeTrailVisualDesc& GetPlayerAxeTrailVisualDesc() const;
+	const PlayerArrowTrailVisualDesc& GetPlayerArrowTrailVisualDesc() const;
+	const PlayerGunMuzzleFlashVisualDesc& GetPlayerGunMuzzleFlashVisualDesc() const;
+
+	const std::array<PlayerMeleeTrailVisualDesc, kPlayerWeaponEffectLevelCount> m_playerSwordTrailVisualDescs =
+	{ {
+		PlayerMeleeTrailVisualDesc{ XMFLOAT3(0.0f, 0.0f, 0.10f), XMFLOAT3(0.0f, 0.0f, 1.45f), 1.0f, XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f), 0.75f },
+		PlayerMeleeTrailVisualDesc{ XMFLOAT3(0.0f, 0.0f, 0.10f), XMFLOAT3(0.0f, 0.0f, 1.45f), 1.0f, XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f), 0.75f },
+		PlayerMeleeTrailVisualDesc{ XMFLOAT3(0.0f, 0.0f, 0.10f), XMFLOAT3(0.0f, 0.0f, 1.45f), 1.0f, XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f), 0.75f }
+	} };
+
+	const std::array<PlayerMeleeTrailVisualDesc, kPlayerWeaponEffectLevelCount> m_playerAxeTrailVisualDescs =
+	{ {
+		PlayerMeleeTrailVisualDesc{ XMFLOAT3(0.0f, 0.0f, 0.80f), XMFLOAT3(0.0f, 0.0f, 1.45f), 0.80f, XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f), 0.75f },
+		PlayerMeleeTrailVisualDesc{ XMFLOAT3(0.0f, 0.0f, 0.80f), XMFLOAT3(0.0f, 0.0f, 1.45f), 0.80f, XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f), 0.75f },
+		PlayerMeleeTrailVisualDesc{ XMFLOAT3(0.0f, 0.0f, 0.80f), XMFLOAT3(0.0f, 0.0f, 1.45f), 0.80f, XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f), 0.75f }
+	} };
+
+	const std::array<PlayerArrowTrailVisualDesc, kPlayerWeaponEffectLevelCount> m_playerArrowTrailVisualDescs =
+	{ {
+		PlayerArrowTrailVisualDesc{ 0.075f, XMFLOAT4(0.86f, 0.94f, 1.0f, 1.0f), 0.20f, 0.80f, 0.72f },
+		PlayerArrowTrailVisualDesc{ 0.075f, XMFLOAT4(0.86f, 0.94f, 1.0f, 1.0f), 0.20f, 0.80f, 0.72f },
+		PlayerArrowTrailVisualDesc{ 0.075f, XMFLOAT4(0.86f, 0.94f, 1.0f, 1.0f), 0.20f, 0.80f, 0.72f }
+	} };
+
+	const std::array<PlayerGunMuzzleFlashVisualDesc, kPlayerWeaponEffectLevelCount> m_playerGunMuzzleFlashVisualDescs =
+	{ {
+		PlayerGunMuzzleFlashVisualDesc{ {{ PlayerGunMuzzleFlashCoreVisualDesc{ 0.55f * 1.10f, 1.70f, 2.20f, XMFLOAT4(1.0f, 0.32f, 0.04f, 1.0f) }, PlayerGunMuzzleFlashCoreVisualDesc{ 0.80f * 1.10f, 1.70f, 1.50f, XMFLOAT4(1.0f, 0.32f, 0.04f, 0.75f) } }}, PlayerGunMuzzleFlashRingVisualDesc{}, PlayerGunMuzzleFlashSparkVisualDesc{} },
+		PlayerGunMuzzleFlashVisualDesc{ {{ PlayerGunMuzzleFlashCoreVisualDesc{ 0.55f * 1.10f, 1.70f, 2.20f, XMFLOAT4(1.0f, 0.32f, 0.04f, 1.0f) }, PlayerGunMuzzleFlashCoreVisualDesc{ 0.80f * 1.10f, 1.70f, 1.50f, XMFLOAT4(1.0f, 0.32f, 0.04f, 0.75f) } }}, PlayerGunMuzzleFlashRingVisualDesc{}, PlayerGunMuzzleFlashSparkVisualDesc{} },
+		PlayerGunMuzzleFlashVisualDesc{ {{ PlayerGunMuzzleFlashCoreVisualDesc{ 0.55f * 1.10f, 1.70f, 2.20f, XMFLOAT4(1.0f, 0.32f, 0.04f, 1.0f) }, PlayerGunMuzzleFlashCoreVisualDesc{ 0.80f * 1.10f, 1.70f, 1.50f, XMFLOAT4(1.0f, 0.32f, 0.04f, 0.75f) } }}, PlayerGunMuzzleFlashRingVisualDesc{}, PlayerGunMuzzleFlashSparkVisualDesc{} }
+	} };
 
 	MuzzleFlashEffectState m_muzzleFlashEffect;
 	BossPoisonProjectileEffectState m_bossPoisonProjectileEffect;
