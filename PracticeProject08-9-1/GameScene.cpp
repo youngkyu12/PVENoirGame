@@ -7362,44 +7362,34 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 	m_bPrevDebugDamageMegaGrid5KeyDown = enterDown;
 
 	// ---------------------------------------------------------------------
-	// 1~9: 로컬 스테이지 메가그리드 강제 텔레포트
+	// Shift + 1~9: 로컬 스테이지 메가그리드 강제 텔레포트
 	//
 	// 배치:
 	// 789
 	// 456
 	// 123
 	//
+	// 숫자키 단독 입력은 아이템 사용 등에 넘기기 위해 여기서 consume하지 않는다.
 	// false이면 입력 상태만 갱신하고 실제 텔레포트는 하지 않는다.
 	// ---------------------------------------------------------------------
-	for ( int megaGridNumber = 1;
-		  megaGridNumber <= CSceneGrid::kMegaGridCount;
-		  ++megaGridNumber )
-	{
-		const bool down =
-			( pKeysBuffer['0' + megaGridNumber] & 0xF0 ) != 0;
+	const bool stageTeleportModifierDown = ( ( pKeysBuffer[VK_LSHIFT] & 0xF0 ) != 0 ) || ( ( pKeysBuffer[VK_RSHIFT] & 0xF0 ) != 0 );
 
-		const bool prevDown =
-			m_bPrevLocalStageTeleportKeyDown[
-				static_cast< size_t >( megaGridNumber )
-			];
+	for ( int megaGridNumber = 1; megaGridNumber <= CSceneGrid::kMegaGridCount; ++megaGridNumber )
+	{
+		const bool down = ( pKeysBuffer['0' + megaGridNumber] & 0xF0 ) != 0;
+		const bool prevDown = m_bPrevLocalStageTeleportKeyDown[static_cast< size_t >( megaGridNumber )];
 
 		if ( down && !prevDown )
 		{
-			m_bPrevLocalStageTeleportKeyDown[
-				static_cast< size_t >( megaGridNumber )
-			] = true;
+			m_bPrevLocalStageTeleportKeyDown[static_cast< size_t >( megaGridNumber )] = true;
 
-			if ( m_bSimulateLocalStageTeleport )
-			{
+			if ( stageTeleportModifierDown && m_bSimulateLocalStageTeleport )
 				return TryTeleportLocalPlayerToMegaGridByNumber(megaGridNumber);
-			}
 
 			return false;
 		}
 
-		m_bPrevLocalStageTeleportKeyDown[
-			static_cast< size_t >( megaGridNumber )
-		] = down;
+		m_bPrevLocalStageTeleportKeyDown[static_cast< size_t >( megaGridNumber )] = down;
 	}
 #else
 	UNREFERENCED_PARAMETER(pKeysBuffer);
