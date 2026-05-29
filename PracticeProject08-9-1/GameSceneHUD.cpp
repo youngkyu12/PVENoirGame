@@ -98,7 +98,7 @@ void CGameSceneHUD::BuildResources(
 	const float inventoryTotalWidth = inventorySlotWidth * static_cast< float >( kInventorySlotCount );
 	const float inventoryStartCenterX = screenW - inventoryRightMargin - inventoryTotalWidth + inventorySlotWidth * 0.5f;
 	const float inventoryCenterY = screenH - inventoryBottomMargin - inventorySlotHeight * 0.5f;
-	const char* inventorySpriteNames[kInventorySlotCount] = { "InventorySlot0", "InventorySlot1", "InventorySlot2", "InventorySlot3", "InventorySlot4" };
+	const char* inventorySpriteNames[kInventorySlotCount] = { "InventorySlot0", "InventorySlot1", "InventorySlot2", "InventorySlot3" };
 
 	for ( int i = 0; i < kInventorySlotCount; ++i )
 	{
