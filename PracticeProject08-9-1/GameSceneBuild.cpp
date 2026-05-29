@@ -354,7 +354,7 @@ void CGameScene::CreateTerrainData(ID3D12Device* dev, ID3D12GraphicsCommandList*
 		};
 
 	m_TerrainData = std::make_shared<TerrainData>(
-		_T("Image/HeightMap.raw"),
+		_T("Image/terrain.raw"),
 		kTerrainHeightMapSamples,
 		kTerrainHeightMapSamples,
 		kTerrainHeightMapSamples,
@@ -366,7 +366,7 @@ void CGameScene::CreateTerrainData(ID3D12Device* dev, ID3D12GraphicsCommandList*
 	if (dev && cmd && m_pDescriptorHeap)
 	{
 		m_TerrainData->SetHeightMapTexture(
-			LoadTerrainTexture(L"Image/HeightMap(Flipped).dds")
+			LoadTerrainTexture(L"Image/terrain(Flipped).dds")
 		);
 
 		m_TerrainData->SetGrassDiffuseTexture(

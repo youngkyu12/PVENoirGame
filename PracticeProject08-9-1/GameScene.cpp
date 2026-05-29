@@ -5603,7 +5603,7 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
 		mappedTerrain->gvTerrainBlendParams = XMFLOAT4(
 			400.0f,
 			200.0f,
-			4.0f,
+			1.0f,
 			0.08f
 		);
 	}
