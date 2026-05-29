@@ -5817,6 +5817,7 @@ void CGameScene::RefreshPlayerWeaponEffectVisuals()
 			continue;
 
 		const PlayerArrowTrailVisualDesc& visual = m_playerArrowTrailVisualDescs[static_cast< size_t >( visualLevelIndex )];
+		trail.sampleLifetimeSec = visual.sampleLifetimeSec;
 		trail.halfWidth = visual.halfWidth;
 		trail.color = visual.color;
 		trail.tailAlpha = visual.tailAlpha;

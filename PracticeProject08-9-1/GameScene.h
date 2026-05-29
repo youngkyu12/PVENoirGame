@@ -954,6 +954,7 @@ private:
 
 	struct PlayerArrowTrailVisualDesc
 	{
+		float sampleLifetimeSec = 0.260f;
 		float halfWidth = 0.075f;
 		XMFLOAT4 color = XMFLOAT4(0.86f, 0.94f, 1.0f, 1.0f);
 		float tailAlpha = 0.20f;
@@ -1023,9 +1024,9 @@ private:
 
 	const std::array<PlayerArrowTrailVisualDesc, kPlayerWeaponEffectLevelCount> m_playerArrowTrailVisualDescs =
 	{ {
-		PlayerArrowTrailVisualDesc{ 0.075f, XMFLOAT4(0.86f, 0.94f, 1.0f, 1.0f), 0.20f, 0.80f, 0.72f },
-		PlayerArrowTrailVisualDesc{ 0.075f, XMFLOAT4(0.86f, 0.94f, 1.0f, 1.0f), 0.20f, 0.80f, 0.72f },
-		PlayerArrowTrailVisualDesc{ 0.075f, XMFLOAT4(0.86f, 0.94f, 1.0f, 1.0f), 0.20f, 0.80f, 0.72f }
+		PlayerArrowTrailVisualDesc{ 0.260f, 0.075f, XMFLOAT4(0.86f, 0.94f, 1.00f, 1.0f), 0.20f, 0.80f, 0.72f },
+		PlayerArrowTrailVisualDesc{ 0.340f, 0.085f, XMFLOAT4(0.18f, 0.62f, 1.00f, 1.0f), 0.20f, 0.80f, 0.72f },
+		PlayerArrowTrailVisualDesc{ 0.440f, 0.096f, XMFLOAT4(1.00f, 0.00f, 0.00f, 1.0f), 0.20f, 0.80f, 0.72f }
 	} };
 
 	const std::array<PlayerGunMuzzleFlashVisualDesc, kPlayerWeaponEffectLevelCount> m_playerGunMuzzleFlashVisualDescs =
