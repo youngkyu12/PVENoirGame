@@ -98,7 +98,102 @@ void CGameScene::InitializeInventoryItemCounts()
 #ifdef USING_NETWORK
 	m_inventoryItemCounts = { 0, 0, 0, 0 };
 #else
-	m_inventoryItemCounts = { 1, 1, 0, 0 };
+	m_inventoryItemCounts = { 10, 10, 10, 10 };
+#endif
+}
+
+bool CGameScene::TryBeginLocalPlayerMoveSpeedPotion()
+{
+#ifndef USING_NETWORK
+	if ( m_bLocalPlayerDead )
+		return false;
+
+	CGameObject* localPlayer = GetPlayer();
+	if ( !localPlayer )
+		localPlayer = GetPlayerBySlot(0);
+
+	if ( !localPlayer )
+		return false;
+
+	CPlayerControllerComponent* pc = localPlayer->GetComponent<CPlayerControllerComponent>();
+	if ( !pc )
+		return false;
+
+	if ( !m_bMoveSpeedPotionActive )
+	{
+		m_moveSpeedPotionOriginalWalkSpeed = pc->GetWalkMoveSpeed();
+		m_moveSpeedPotionOriginalRunSpeed = pc->GetRunMoveSpeed();
+	}
+
+	pc->SetMoveSpeeds(kMoveSpeedPotionWalkSpeed, kMoveSpeedPotionRunSpeed);
+
+	m_bMoveSpeedPotionActive = true;
+	m_moveSpeedPotionRemainingSec = kMoveSpeedPotionDurationSec;
+	m_moveSpeedPotionLastLoggedSecond = static_cast< int >( kMoveSpeedPotionDurationSec );
+
+	char buf[192];
+	sprintf_s(buf, "[Inventory][SpeedPotion] start remaining=%d walk=%.1f run=%.1f\n", m_moveSpeedPotionLastLoggedSecond, kMoveSpeedPotionWalkSpeed, kMoveSpeedPotionRunSpeed);
+	OutputDebugStringA(buf);
+
+	return true;
+#else
+	return false;
+#endif
+}
+
+void CGameScene::UpdateLocalPlayerMoveSpeedPotion(float dt)
+{
+#ifndef USING_NETWORK
+	if ( !m_bMoveSpeedPotionActive )
+		return;
+
+	if ( dt < 0.0f )
+		dt = 0.0f;
+
+	m_moveSpeedPotionRemainingSec -= dt;
+
+	if ( m_moveSpeedPotionRemainingSec <= 0.0f )
+	{
+		RestoreLocalPlayerMoveSpeedPotion();
+		return;
+	}
+
+	const int remainingSecond = static_cast< int >( m_moveSpeedPotionRemainingSec + 0.999f );
+
+	if ( remainingSecond != m_moveSpeedPotionLastLoggedSecond )
+	{
+		m_moveSpeedPotionLastLoggedSecond = remainingSecond;
+
+		char buf[128];
+		sprintf_s(buf, "[Inventory][SpeedPotion] remaining=%d\n", remainingSecond);
+		OutputDebugStringA(buf);
+	}
+#else
+	UNREFERENCED_PARAMETER(dt);
+#endif
+}
+
+void CGameScene::RestoreLocalPlayerMoveSpeedPotion()
+{
+#ifndef USING_NETWORK
+	CGameObject* localPlayer = GetPlayer();
+	if ( !localPlayer )
+		localPlayer = GetPlayerBySlot(0);
+
+	if ( localPlayer )
+	{
+		CPlayerControllerComponent* pc = localPlayer->GetComponent<CPlayerControllerComponent>();
+		if ( pc )
+			pc->SetMoveSpeeds(m_moveSpeedPotionOriginalWalkSpeed, m_moveSpeedPotionOriginalRunSpeed);
+	}
+
+	m_bMoveSpeedPotionActive = false;
+	m_moveSpeedPotionRemainingSec = 0.0f;
+	m_moveSpeedPotionLastLoggedSecond = -1;
+
+	char buf[160];
+	sprintf_s(buf, "[Inventory][SpeedPotion] expired restore walk=%.1f run=%.1f\n", m_moveSpeedPotionOriginalWalkSpeed, m_moveSpeedPotionOriginalRunSpeed);
+	OutputDebugStringA(buf);
 #endif
 }
 
