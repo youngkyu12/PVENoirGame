@@ -597,6 +597,9 @@ public:
 
 	void SetDepthFogPassEnabled(bool enabled) { m_depthFog.SetPassEnabled(enabled); }
 
+	bool RequestUseInventoryItemSlot(int slot);
+	void SetInventoryItemCounts(const std::array<int, CGameSceneHUD::kInventorySlotCount>& counts);
+
 	CNavMesh* GetNavMesh() { return m_navMesh.get(); }
 	const CNavMesh* GetNavMesh() const { return m_navMesh.get(); }
 
@@ -1497,6 +1500,7 @@ private:
 	std::shared_ptr<CShadowMapAlphaClipSkinnedShader>     m_shadowAlphaClipSkinnedShader;
 
 	std::array<int, CGameSceneHUD::kInventorySlotCount> m_inventoryItemCounts = { 0, 0, 0, 0 };
+	std::array<bool, CGameSceneHUD::kInventorySlotCount> m_bPrevInventoryUseKeyDown = { false, false, false, false };
 
 	CGameSceneHUD                       m_hud;
 	CShadowMapSystem					m_shadowMap;
