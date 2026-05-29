@@ -71,6 +71,43 @@ namespace
 			( clipName.rfind("Run_", 0) == 0 );
 	}
 
+	static bool ShouldUseGunIdleUpperBodyLocomotionOverlay(CAnimator* anim, EWeaponType weapon, const std::string& baseClipName)
+	{
+		if ( weapon != EWeaponType::Gun )
+			return false;
+
+		if ( IsLocomotionClipName(baseClipName) )
+			return true;
+
+		if ( !anim )
+			return false;
+
+		if ( !anim->IsBlending() )
+			return false;
+
+		return IsLocomotionClipName(anim->GetCurrentClipName());
+	}
+
+	static void SyncGunIdleUpperBodyLocomotionOverlay(CAnimator* anim, EWeaponType weapon, const std::string& baseClipName, const std::string& idleClipName, bool actionPhaseActive)
+	{
+		if ( !anim )
+			return;
+
+		const bool idleOverlayActive = anim->IsUpperBodyOverlayActive() && ( anim->GetUpperBodyOverlayClipName() == idleClipName );
+		const bool shouldOverlay = !actionPhaseActive && ShouldUseGunIdleUpperBodyLocomotionOverlay(anim, weapon, baseClipName) && !idleClipName.empty() && anim->HasClip(idleClipName);
+
+		if ( shouldOverlay )
+		{
+			if ( !idleOverlayActive )
+				anim->PlayUpperBodyOverlay(idleClipName, true, 0.0f, 0.0f);
+
+			return;
+		}
+
+		if ( idleOverlayActive )
+			anim->StopUpperBodyOverlay(true);
+	}
+
 	static float ComputeLocomotionPhaseMatchedStartTime(CAnimator* anim, const std::string& targetClip)
 	{
 		if ( !anim )
@@ -115,7 +152,17 @@ namespace
 		}
 
 		if ( currentClip == targetClip )
+		{
+			if ( anim->IsBlending() )
+			{
+				const float currentTime = anim->GetCurrentTime();
+
+				if ( !anim->CrossFade(targetClip, 0.0f, true, currentTime) )
+					anim->Play(targetClip, true, currentTime);
+			}
+
 			return;
+		}
 
 		const float startTime = ComputeLocomotionPhaseMatchedStartTime(anim, targetClip);
 
@@ -522,7 +569,7 @@ void CAnimController::NetworkUpdate(float dt)
 
    //         //if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
    //         //    anim->Play(targetClip, true, 0.0f);
-			////	이현석: 이동 상태 전환 시 normalized time을 새 클립 duration에 맞게 환산해서 넘김
+			////	이동 상태 전환 시 normalized time을 새 클립 duration에 맞게 환산해서 넘김
 			//StartLocomotionClipPreservePhase(anim, targetClip, kBlendTime);
    //     }
    // }
@@ -666,17 +713,12 @@ void CAnimController::NetworkUpdate(float dt)
     {
         anim->Play(targetClip, true, 0.0f);
     }
-    else if (anim->GetCurrentClipName() != targetClip)
-    {
-        if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
-            anim->Play(targetClip, true, 0.0f);
-		//	이현석: 이동 상태 전환 시 normalized time을 새 클립 duration에 맞게 환산해서 넘김
-		//	if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
-		//		anim->Play(targetClip, true, 0.0f);
-		//	위의 2줄 지우고 밑으로 교체
+	else if ( anim->GetCurrentClipName() != targetClip )
+	{
 		StartLocomotionClipPreservePhase(anim, targetClip, kBlendTime);
-
-    }
+	}
+	const std::string upperBodyIdleClip = ResolveIdleClip();
+	SyncGunIdleUpperBodyLocomotionOverlay(anim, weapon, targetClip, upperBodyIdleClip, m_actionPhase != EActionPhase::None);
 }
 
 void CAnimController::LocalUpdate(float dt)
@@ -1040,9 +1082,11 @@ void CAnimController::LocalUpdate(float dt)
 	constexpr float kBlendTime = 0.15f;
 	StartLocomotionClipPreservePhase(anim, targetClip, kBlendTime);
 
+	const std::string upperBodyIdleClip = ResolveIdleClip();
+	SyncGunIdleUpperBodyLocomotionOverlay(anim, weapon, targetClip, upperBodyIdleClip, m_actionPhase != EActionPhase::None);
+
 	if ( m_actionPhase == EActionPhase::None )
 		m_state = targetState;
-
 }
 
 bool CAnimController::CanUseRunLocomotion() const
