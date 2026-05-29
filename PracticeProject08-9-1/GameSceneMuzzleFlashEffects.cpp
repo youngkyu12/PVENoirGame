@@ -88,9 +88,34 @@ void CGameScene::BuildMuzzleFlashBatch(ID3D12Device* dev, ID3D12GraphicsCommandL
 	});
 }
 
+void CGameScene::BuildGunSmokeBatch(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, DXGI_FORMAT dsvFormat)
+{
+	if ( !dev || !cmd )
+		return;
+
+	m_gunSmokeEffect.shader = std::make_shared<CGunSmokeBillboardShader>();
+
+	DXGI_FORMAT rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+	m_gunSmokeEffect.shader->CreateShader(dev, m_pd3dGraphicsRootSignature.Get(), 1, &rtvFormat, dsvFormat);
+
+	m_gunSmokeEffect.entries.clear();
+	m_gunSmokeEffect.entries.resize(kGunSmokeMaxCount);
+
+	m_gunSmokeEffect.instanceBuffer.Create(dev, cmd, kGunSmokeMaxCount, [ dev, cmd ] (UINT bufferBytes)
+	{
+		return ::CreateBufferResource(dev, cmd, nullptr, bufferBytes, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr);
+	});
+}
+
 void CGameScene::ReleaseMuzzleFlashGpuResources()
 {
 	m_muzzleFlashEffect.instanceBuffer.Release();
+}
+
+void CGameScene::ReleaseGunSmokeGpuResources()
+{
+	m_gunSmokeEffect.instanceBuffer.Release();
 }
 
 void CGameScene::SpawnMuzzleFlash(const XMFLOAT3& position, const XMFLOAT3& direction)
@@ -223,6 +248,91 @@ void CGameScene::SpawnMuzzleFlash(const XMFLOAT3& position, const XMFLOAT3& dire
 	for ( int i = 0; i < visual.spark.count; ++i )
 	{
 		spawnSpark(rotDist(rng));
+	}
+
+	SpawnGunSmoke(position, direction);
+}
+
+void CGameScene::SpawnGunSmoke(const XMFLOAT3& position, const XMFLOAT3& direction)
+{
+	static std::mt19937 rng{ std::random_device{}( ) };
+	static std::uniform_real_distribution<float> zeroOneDist(0.0f, 1.0f);
+	static std::uniform_real_distribution<float> unitDist(-1.0f, 1.0f);
+	static std::uniform_real_distribution<float> rotDist(0.0f, XM_2PI);
+	static std::uniform_real_distribution<float> seedDist(0.0f, 1000.0f);
+
+	const PlayerGunMuzzleFlashVisualDesc& visual = GetPlayerGunMuzzleFlashVisualDesc();
+	const PlayerGunSmokeVisualDesc& smoke = visual.smoke;
+
+	if ( smoke.count <= 0 )
+		return;
+
+	XMVECTOR dirV = XMLoadFloat3(&direction);
+	if ( XMVectorGetX(XMVector3LengthSq(dirV)) <= 1.0e-8f )
+		dirV = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+	else
+		dirV = XMVector3Normalize(dirV);
+
+	const XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+
+	XMVECTOR right = XMVector3Cross(up, dirV);
+	if ( XMVectorGetX(XMVector3LengthSq(right)) <= 1.0e-8f )
+		right = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+	else
+		right = XMVector3Normalize(right);
+
+	auto RandRange = [ & ] (float minValue, float maxValue)
+		{
+			return minValue + ( maxValue - minValue ) * zeroOneDist(rng);
+		};
+
+	for ( int i = 0; i < smoke.count; ++i )
+	{
+		MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_gunSmokeEffect.entries);
+		if ( !e )
+			return;
+
+		const float spawnRightOffset = RandRange(smoke.spawnRightOffsetMin, smoke.spawnRightOffsetMax);
+		const float spawnForwardJitter = unitDist(rng) * smoke.spawnForwardJitter;
+		const float spawnUpJitter = unitDist(rng) * smoke.spawnUpJitter;
+
+		XMVECTOR posV = XMLoadFloat3(&position) + XMVectorScale(right, spawnRightOffset) + XMVectorScale(dirV, spawnForwardJitter) + XMVectorScale(up, spawnUpJitter);
+
+		XMFLOAT3 pos{};
+		XMStoreFloat3(&pos, posV);
+
+		const float rightSpeed = RandRange(smoke.rightSpeedMin, smoke.rightSpeedMax);
+		const float forwardSpeed = RandRange(smoke.forwardSpeedMin, smoke.forwardSpeedMax);
+		const float liftSpeed = RandRange(smoke.liftSpeedMin, smoke.liftSpeedMax);
+
+		XMVECTOR velV = XMVectorScale(right, rightSpeed) + XMVectorScale(dirV, forwardSpeed) + XMVectorScale(up, liftSpeed);
+
+		XMFLOAT3 vel{};
+		XMStoreFloat3(&vel, velV);
+
+		const float startSize = RandRange(smoke.startSizeMin, smoke.startSizeMax);
+		const float endSizeScale = RandRange(smoke.endSizeScaleMin, smoke.endSizeScaleMax);
+		const float endSize = startSize * endSizeScale;
+
+		e->active = true;
+		e->kind = EMuzzleFlashKind::GunSmoke;
+		e->position = pos;
+		e->velocity = vel;
+
+		e->age = 0.0f;
+		e->lifetime = RandRange(smoke.lifetimeMin, smoke.lifetimeMax);
+
+		e->startWidth = startSize;
+		e->startHeight = startSize * RandRange(0.78f, 1.12f);
+		e->endWidth = endSize;
+		e->endHeight = endSize * RandRange(0.86f, 1.20f);
+
+		e->rotationRad = rotDist(rng);
+		e->intensity = 1.0f;
+		e->drag = smoke.drag;
+		e->gravity = smoke.gravity;
+		e->seed = seedDist(rng);
+		e->color = smoke.color;
 	}
 }
 
@@ -582,10 +692,7 @@ void CGameScene::EmitMagicCircleGlowParticles(
 	}
 }
 
-void CGameScene::SpawnBloodSplash(
-	CGameObject* victim,
-	const XMFLOAT3* hitPosition,
-	const XMFLOAT3* hitDirection)
+void CGameScene::SpawnBloodSplash(CGameObject* victim, const XMFLOAT3* hitPosition, const XMFLOAT3* hitDirection)
 {
 	if ( !victim )
 		return;
@@ -924,7 +1031,40 @@ void CGameScene::UpdateMuzzleFlashes(float dt)
 	}
 }
 
+void CGameScene::UpdateGunSmokes(float dt)
+{
+	if ( dt <= 0.0f )
+		return;
 
+	for ( MuzzleFlashEntry& smoke : m_gunSmokeEffect.entries )
+	{
+		if ( !smoke.active )
+			continue;
+
+		smoke.age += dt;
+
+		if ( smoke.age >= smoke.lifetime )
+		{
+			smoke.active = false;
+			smoke.age = 0.0f;
+			continue;
+		}
+
+		smoke.position.x += smoke.velocity.x * dt;
+		smoke.position.y += smoke.velocity.y * dt;
+		smoke.position.z += smoke.velocity.z * dt;
+
+		if ( smoke.gravity != 0.0f )
+			smoke.velocity.y -= smoke.gravity * dt;
+
+		float df = 1.0f - smoke.drag * dt;
+		const float dragFactor = ( df > 0.0f ) ? df : 0.0f;
+
+		smoke.velocity.x *= dragFactor;
+		smoke.velocity.y *= dragFactor;
+		smoke.velocity.z *= dragFactor;
+	}
+}
 
 void CGameScene::RenderMuzzleFlashes(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
@@ -1035,4 +1175,74 @@ void CGameScene::RenderMuzzleFlashes(ID3D12GraphicsCommandList* cmd, CCamera* ca
 		0,
 		0
 	);
+}
+
+void CGameScene::RenderGunSmokes(ID3D12GraphicsCommandList* cmd, CCamera* camera)
+{
+	if ( !cmd ) return;
+	if ( !camera ) return;
+	if ( !m_gunSmokeEffect.shader ) return;
+	if ( !m_itemBillboardState.quadMesh ) return;
+
+	const UINT frameIndex = m_nFrameResourceIndex % kSceneBatchFrameResourceCount;
+
+	ID3D12Resource* instanceBuffer = m_gunSmokeEffect.instanceBuffer.Resource(frameIndex);
+	MuzzleFlashInstanceVertex* mappedInstanceBuffer = m_gunSmokeEffect.instanceBuffer.Mapped(frameIndex);
+	const UINT instanceBufferCapacity = m_gunSmokeEffect.instanceBuffer.Capacity();
+
+	if ( !instanceBuffer ) return;
+	if ( !mappedInstanceBuffer ) return;
+	if ( instanceBufferCapacity == 0 ) return;
+	if ( m_itemBillboardState.quadMesh->m_SubMeshes.empty() ) return;
+
+	const SubMesh& sm = m_itemBillboardState.quadMesh->m_SubMeshes[0];
+
+	if ( sm.indices.empty() )
+		return;
+
+	const XMFLOAT3 cameraPos = camera->GetPosition();
+
+	UINT visibleInstanceCount = 0;
+
+	for ( const MuzzleFlashEntry& smoke : m_gunSmokeEffect.entries )
+	{
+		if ( !smoke.active )
+			continue;
+
+		if ( visibleInstanceCount >= instanceBufferCapacity )
+			break;
+
+		const float ageRatio = ( smoke.lifetime > 1.0e-6f ) ? std::clamp(smoke.age / smoke.lifetime, 0.0f, 1.0f) : 1.0f;
+
+		const float width = smoke.startWidth + ( smoke.endWidth - smoke.startWidth ) * ageRatio;
+		const float height = smoke.startHeight + ( smoke.endHeight - smoke.startHeight ) * ageRatio;
+
+		MuzzleFlashInstanceVertex& dst = mappedInstanceBuffer[visibleInstanceCount];
+
+		StoreMuzzleFlashWorldRows(dst, smoke.position, width, height, cameraPos);
+
+		dst.color = smoke.color;
+		dst.params0 = XMFLOAT4(ageRatio, smoke.intensity, smoke.rotationRad, smoke.seed);
+		dst.params1 = XMFLOAT4(static_cast< float >( static_cast< UINT >( smoke.kind ) ), 0.0f, 0.0f, 0.0f);
+
+		++visibleInstanceCount;
+	}
+
+	if ( visibleInstanceCount == 0 )
+		return;
+
+	m_gunSmokeEffect.shader->Render(cmd, camera, nullptr);
+
+	D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
+	vbViews[0] = sm.vbView;
+
+	vbViews[1].BufferLocation = instanceBuffer->GetGPUVirtualAddress();
+	vbViews[1].SizeInBytes = sizeof(MuzzleFlashInstanceVertex) * visibleInstanceCount;
+	vbViews[1].StrideInBytes = sizeof(MuzzleFlashInstanceVertex);
+
+	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	cmd->IASetVertexBuffers(0, 2, vbViews);
+	cmd->IASetIndexBuffer(&sm.ibView);
+
+	cmd->DrawIndexedInstanced(static_cast< UINT >( sm.indices.size() ), visibleInstanceCount, 0, 0, 0);
 }

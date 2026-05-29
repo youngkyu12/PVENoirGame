@@ -9,6 +9,7 @@ void CGameScene::ReleaseAllGameSceneEffectGpuResources()
 {
 	ReleaseItemBillboardGpuResources();
 	ReleaseMuzzleFlashGpuResources();
+	ReleaseGunSmokeGpuResources();
 	ReleaseBossPoisonProjectileGpuResources();
 	ReleaseSwordTrailGpuResources();
 	ReleaseMonsterSwordTrailGpuResources();

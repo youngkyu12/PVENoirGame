@@ -3339,6 +3339,9 @@ void CGameScene::ReleaseObjects()
 	m_muzzleFlashEffect.shader.reset();
 	m_muzzleFlashEffect.entries.clear();
 
+	m_gunSmokeEffect.shader.reset();
+	m_gunSmokeEffect.entries.clear();
+
 	m_bossPoisonProjectileEffect.shader.reset();
 
 	m_swordTrailEffect.shader.reset();
@@ -7603,6 +7606,7 @@ void CGameScene::AnimateObjects(float dt)
 #endif
 
 	UpdateMuzzleFlashes(dt);
+	UpdateGunSmokes(dt);
 	UpdateSwordTrails(dt);
 	UpdateMonsterSwordTrails(dt);
 
@@ -8555,6 +8559,11 @@ void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* c
 	if ( m_monsterArrowTrailEffect.shader )
 	{
 		RenderMonsterArrowTrails(cmd, camera);
+	}
+
+	if ( m_gunSmokeEffect.shader )
+	{
+		RenderGunSmokes(cmd, camera);
 	}
 
 	if ( m_muzzleFlashEffect.shader )

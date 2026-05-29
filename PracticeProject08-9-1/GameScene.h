@@ -311,20 +311,17 @@ private:
 	void RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	void RenderTransparentItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
-	void BuildMuzzleFlashBatch(
-		ID3D12Device* dev,
-		ID3D12GraphicsCommandList* cmd,
-		DXGI_FORMAT dsvFormat
-	);
+	void BuildMuzzleFlashBatch(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, DXGI_FORMAT dsvFormat);
 
 	void ReleaseMuzzleFlashGpuResources();
 
 	void SpawnMuzzleFlash(const XMFLOAT3& position, const XMFLOAT3& direction);
-	void SpawnBloodSplash(
-		CGameObject* victim,
-		const XMFLOAT3* hitPosition = nullptr,
-		const XMFLOAT3* hitDirection = nullptr
-	);
+	void BuildGunSmokeBatch(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, DXGI_FORMAT dsvFormat);
+	void ReleaseGunSmokeGpuResources();
+	void SpawnGunSmoke(const XMFLOAT3& position, const XMFLOAT3& direction);
+	void UpdateGunSmokes(float dt);
+	void RenderGunSmokes(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	void SpawnBloodSplash(CGameObject* victim, const XMFLOAT3* hitPosition = nullptr, const XMFLOAT3* hitDirection = nullptr);
 	void SpawnBossMeleeSlashEffect(CGameObject* boss);
 
 	void SpawnWeaponLevelUpFireworks();
@@ -995,11 +992,36 @@ private:
 		XMFLOAT4 color = XMFLOAT4(1.0f, 0.52f, 0.08f, 1.0f);
 	};
 
+	struct PlayerGunSmokeVisualDesc
+	{
+		int count = 5;
+		float lifetimeMin = 0.42f;
+		float lifetimeMax = 0.62f;
+		float startSizeMin = 0.20f;
+		float startSizeMax = 0.34f;
+		float endSizeScaleMin = 2.10f;
+		float endSizeScaleMax = 2.70f;
+		float rightSpeedMin = 0.95f;
+		float rightSpeedMax = 1.80f;
+		float forwardSpeedMin = -0.18f;
+		float forwardSpeedMax = 0.42f;
+		float liftSpeedMin = 0.20f;
+		float liftSpeedMax = 0.55f;
+		float spawnRightOffsetMin = 0.05f;
+		float spawnRightOffsetMax = 0.18f;
+		float spawnForwardJitter = 0.10f;
+		float spawnUpJitter = 0.07f;
+		float drag = 1.10f;
+		float gravity = 0.03f;
+		XMFLOAT4 color = XMFLOAT4(0.015f, 0.014f, 0.013f, 0.38f);
+	};
+
 	struct PlayerGunMuzzleFlashVisualDesc
 	{
 		std::array<PlayerGunMuzzleFlashCoreVisualDesc, 2> cores = {};
 		PlayerGunMuzzleFlashRingVisualDesc ring = {};
 		PlayerGunMuzzleFlashSparkVisualDesc spark = {};
+		PlayerGunSmokeVisualDesc smoke = {};
 	};
 
 	int GetPlayerWeaponEffectLevelIndex() const;
@@ -1031,12 +1053,15 @@ private:
 
 	const std::array<PlayerGunMuzzleFlashVisualDesc, kPlayerWeaponEffectLevelCount> m_playerGunMuzzleFlashVisualDescs =
 	{ {
-		PlayerGunMuzzleFlashVisualDesc{ {{ PlayerGunMuzzleFlashCoreVisualDesc{ 0.55f * 1.10f, 1.70f, 2.20f, XMFLOAT4(1.00f, 0.32f, 0.04f, 1.00f) }, PlayerGunMuzzleFlashCoreVisualDesc{ 0.80f * 1.10f, 1.70f, 1.50f, XMFLOAT4(1.00f, 0.32f, 0.04f, 0.75f) } }}, PlayerGunMuzzleFlashRingVisualDesc{ 0.20f * 1.10f, 1.15f * 1.10f, 1.20f, XMFLOAT4(1.00f, 0.28f, 0.03f, 0.75f) }, PlayerGunMuzzleFlashSparkVisualDesc{ 14, 0.35f, 0.18f, 0.12f, 1.10f, 0.10f, 0.42f, 0.05f, 0.28f, 0.35f, 1.40f, 5.50f, XMFLOAT4(1.00f, 0.52f, 0.08f, 1.00f) } },
-		PlayerGunMuzzleFlashVisualDesc{ {{ PlayerGunMuzzleFlashCoreVisualDesc{ 0.70f, 1.82f, 2.55f, XMFLOAT4(1.00f, 0.44f, 0.05f, 1.00f) }, PlayerGunMuzzleFlashCoreVisualDesc{ 1.02f, 1.82f, 1.85f, XMFLOAT4(1.00f, 0.36f, 0.04f, 0.84f) } }}, PlayerGunMuzzleFlashRingVisualDesc{ 0.27f, 1.48f, 1.45f, XMFLOAT4(1.00f, 0.34f, 0.03f, 0.82f) }, PlayerGunMuzzleFlashSparkVisualDesc{ 18, 0.42f, 0.22f, 0.15f, 1.22f, 0.12f, 0.50f, 0.055f, 0.32f, 0.42f, 1.62f, 5.20f, XMFLOAT4(1.00f, 0.62f, 0.10f, 1.00f) } },
-		PlayerGunMuzzleFlashVisualDesc{ {{ PlayerGunMuzzleFlashCoreVisualDesc{ 0.86f, 1.95f, 2.95f, XMFLOAT4(1.00f, 0.55f, 0.08f, 1.00f) }, PlayerGunMuzzleFlashCoreVisualDesc{ 1.24f, 1.95f, 2.18f, XMFLOAT4(1.00f, 0.28f, 0.02f, 0.90f) } }}, PlayerGunMuzzleFlashRingVisualDesc{ 0.34f, 1.78f, 1.75f, XMFLOAT4(1.00f, 0.25f, 0.02f, 0.88f) }, PlayerGunMuzzleFlashSparkVisualDesc{ 24, 0.50f, 0.28f, 0.18f, 1.36f, 0.145f, 0.62f, 0.065f, 0.38f, 0.52f, 1.88f, 4.85f, XMFLOAT4(1.00f, 0.70f, 0.12f, 1.00f) } }
+		PlayerGunMuzzleFlashVisualDesc{ {{ PlayerGunMuzzleFlashCoreVisualDesc{ 0.55f * 1.10f, 1.70f, 2.20f, XMFLOAT4(1.00f, 0.32f, 0.04f, 1.00f) }, PlayerGunMuzzleFlashCoreVisualDesc{ 0.80f * 1.10f, 1.70f, 1.50f, XMFLOAT4(1.00f, 0.32f, 0.04f, 0.75f) } }}, PlayerGunMuzzleFlashRingVisualDesc{ 0.20f * 1.10f, 1.15f * 1.10f, 1.20f, XMFLOAT4(1.00f, 0.28f, 0.03f, 0.75f) }, PlayerGunMuzzleFlashSparkVisualDesc{ 14, 0.35f, 0.18f, 0.12f, 1.10f, 0.10f, 0.42f, 0.05f, 0.28f, 0.35f, 1.40f, 5.50f, XMFLOAT4(1.00f, 0.52f, 0.08f, 1.00f) }, PlayerGunSmokeVisualDesc{ 5, 0.42f, 0.62f, 0.20f, 0.34f, 2.10f, 2.70f, 0.95f, 1.80f, -0.18f, 0.42f, 0.20f, 0.55f, 0.05f, 0.18f, 0.10f, 0.07f, 1.10f, 0.03f, XMFLOAT4(0.015f, 0.014f, 0.013f, 0.38f) } },
+		PlayerGunMuzzleFlashVisualDesc{ {{ PlayerGunMuzzleFlashCoreVisualDesc{ 0.70f, 1.82f, 2.55f, XMFLOAT4(1.00f, 0.44f, 0.05f, 1.00f) }, PlayerGunMuzzleFlashCoreVisualDesc{ 1.02f, 1.82f, 1.85f, XMFLOAT4(1.00f, 0.36f, 0.04f, 0.84f) } }}, PlayerGunMuzzleFlashRingVisualDesc{ 0.27f, 1.48f, 1.45f, XMFLOAT4(1.00f, 0.34f, 0.03f, 0.82f) }, PlayerGunMuzzleFlashSparkVisualDesc{ 18, 0.42f, 0.22f, 0.15f, 1.22f, 0.12f, 0.50f, 0.055f, 0.32f, 0.42f, 1.62f, 5.20f, XMFLOAT4(1.00f, 0.62f, 0.10f, 1.00f) }, PlayerGunSmokeVisualDesc{ 8, 0.50f, 0.76f, 0.26f, 0.44f, 2.25f, 2.95f, 1.20f, 2.35f, -0.22f, 0.52f, 0.25f, 0.70f, 0.07f, 0.24f, 0.14f, 0.10f, 1.00f, 0.02f, XMFLOAT4(0.018f, 0.017f, 0.016f, 0.44f) } },
+		PlayerGunMuzzleFlashVisualDesc{ {{ PlayerGunMuzzleFlashCoreVisualDesc{ 0.86f, 1.95f, 2.95f, XMFLOAT4(1.00f, 0.55f, 0.08f, 1.00f) }, PlayerGunMuzzleFlashCoreVisualDesc{ 1.24f, 1.95f, 2.18f, XMFLOAT4(1.00f, 0.28f, 0.02f, 0.90f) } }}, PlayerGunMuzzleFlashRingVisualDesc{ 0.34f, 1.78f, 1.75f, XMFLOAT4(1.00f, 0.25f, 0.02f, 0.88f) }, PlayerGunMuzzleFlashSparkVisualDesc{ 24, 0.50f, 0.28f, 0.18f, 1.36f, 0.145f, 0.62f, 0.065f, 0.38f, 0.52f, 1.88f, 4.85f, XMFLOAT4(1.00f, 0.70f, 0.12f, 1.00f) }, PlayerGunSmokeVisualDesc{ 12, 0.60f, 0.90f, 0.34f, 0.58f, 2.45f, 3.25f, 1.45f, 2.90f, -0.28f, 0.64f, 0.30f, 0.88f, 0.09f, 0.31f, 0.18f, 0.13f, 0.90f, 0.015f, XMFLOAT4(0.020f, 0.019f, 0.018f, 0.52f) } }
 	} };
 
 	MuzzleFlashEffectState m_muzzleFlashEffect;
+	static constexpr UINT kGunSmokeMaxCount = 512;
+	GunSmokeEffectState m_gunSmokeEffect;
+
 	BossPoisonProjectileEffectState m_bossPoisonProjectileEffect;
 
 	static constexpr UINT kSwordTrailMaxCount = 16;
