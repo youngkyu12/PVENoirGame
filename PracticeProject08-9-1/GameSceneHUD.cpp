@@ -20,7 +20,9 @@ void CGameSceneHUD::ReleaseResources()
 
 	m_hpFillSpriteIndex = -1;
 	m_inventorySpriteIndices.fill(-1);
-	m_hpFillOriginalRect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	m_inventoryIconSpriteIndices.fill(-1);
+	m_inventoryItemCounts.fill(0);
+	m_hpFillOriginalRect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f); 
 	m_healthRatio = 1.0f;
 
 	m_inactiveOverlayVisible = false;
@@ -37,6 +39,7 @@ void CGameSceneHUD::BuildResources(
 	m_resumeSpriteIndex = -1;
 	m_exitSpriteIndex = -1;
 	m_inventorySpriteIndices.fill(-1);
+	m_inventoryIconSpriteIndices.fill(-1);
 
 	// --------------------------------------------------------------------
 	// UI layout tuning block
@@ -98,12 +101,16 @@ void CGameSceneHUD::BuildResources(
 	const float inventoryTotalWidth = inventorySlotWidth * static_cast< float >( kInventorySlotCount );
 	const float inventoryStartCenterX = screenW - inventoryRightMargin - inventoryTotalWidth + inventorySlotWidth * 0.5f;
 	const float inventoryCenterY = screenH - inventoryBottomMargin - inventorySlotHeight * 0.5f;
+	const float inventoryIconSize = inventorySlotWidth * 0.98f;
 	const char* inventorySpriteNames[kInventorySlotCount] = { "InventorySlot0", "InventorySlot1", "InventorySlot2", "InventorySlot3" };
+	const char* inventoryIconSpriteNames[kInventorySlotCount] = { "InventoryPotionHeal", "InventoryPotionAttackUp", "InventoryPotionDefenceUp", "InventoryPotionSpeedUp" };
+	const wchar_t* inventoryIconTexturePaths[kInventorySlotCount] = { L"Assets/UI/Potion_Heal.dds", L"Assets/UI/Potion_AttackUP.dds", L"Assets/UI/Potion_DeffenceUP.dds", L"Assets/UI/Potion_SpeedUP.dds" };
 
 	for ( int i = 0; i < kInventorySlotCount; ++i )
 	{
 		const float centerX = inventoryStartCenterX + inventorySlotWidth * static_cast< float >(i);
 		m_inventorySpriteIndices[i] = m_ui.AddSprite(dev, cmd, inventorySpriteNames[i], L"Assets/UI/Inventory.dds", XMFLOAT4(centerX, inventoryCenterY, inventorySlotWidth, inventorySlotHeight), CSceneUI::ELayer::Frame, true);
+		m_inventoryIconSpriteIndices[i] = m_ui.AddSprite(dev, cmd, inventoryIconSpriteNames[i], inventoryIconTexturePaths[i], XMFLOAT4(centerX, inventoryCenterY, inventoryIconSize, inventoryIconSize), CSceneUI::ELayer::Content, true);
 	}
 
 	const XMFLOAT4 pauseRect(
@@ -182,6 +189,15 @@ void CGameSceneHUD::SetHealthRatio(float ratio)
 		m_hpFillSpriteIndex,
 		XMFLOAT4(newCenterX, originalCenterY, newWidth, originalHeight)
 	);
+}
+
+void CGameSceneHUD::SetInventoryItemCounts(const std::array<int, kInventorySlotCount>& counts)
+{
+	for ( int i = 0; i < kInventorySlotCount; ++i )
+	{
+		m_inventoryItemCounts[i] = counts[i] < 0 ? 0 : counts[i];
+		if ( m_inventoryIconSpriteIndices[i] >= 0 ) m_ui.SetSpriteVisible(m_inventoryIconSpriteIndices[i], true);
+	}
 }
 
 void CGameSceneHUD::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)

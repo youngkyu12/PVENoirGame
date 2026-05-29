@@ -841,6 +841,7 @@ private:
 	int GetLocalPlayerMegaGridNumberForDepthFog() const;
 	void UpdateDepthFogState(float dt);
 
+	void InitializeInventoryItemCounts();
     // slot 0..3 플레이어 포인터(소유는 m_skinnedObjects가 함)
     std::array<CGameObject*, 4> m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
 
@@ -1494,6 +1495,8 @@ private:
 	std::shared_ptr<CShadowMapAlphaClipStaticShader>      m_shadowAlphaClipStaticShader;
 	std::shared_ptr<CShadowMapSkinnedShader>              m_shadowSkinnedShader;
 	std::shared_ptr<CShadowMapAlphaClipSkinnedShader>     m_shadowAlphaClipSkinnedShader;
+
+	std::array<int, CGameSceneHUD::kInventorySlotCount> m_inventoryItemCounts = { 0, 0, 0, 0 };
 
 	CGameSceneHUD                       m_hud;
 	CShadowMapSystem					m_shadowMap;

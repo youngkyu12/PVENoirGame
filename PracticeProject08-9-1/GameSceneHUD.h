@@ -11,6 +11,7 @@ class CCamera;
 class CGameSceneHUD final
 {
 public:
+	static constexpr int kInventorySlotCount = 4;
 	void ReleaseResources();
 
 	void BuildResources(
@@ -22,6 +23,7 @@ public:
 	void Render(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	
 	void SetHealthRatio(float ratio);
+	void SetInventoryItemCounts(const std::array<int, kInventorySlotCount>& counts);
 
 	void SetInactiveOverlayVisible(bool visible);
 	bool IsInactiveOverlayVisible() const { return m_inactiveOverlayVisible; }
@@ -43,8 +45,9 @@ private:
 
 	int m_hpFillSpriteIndex = -1;
 
-	static constexpr int kInventorySlotCount = 4;
 	std::array<int, kInventorySlotCount> m_inventorySpriteIndices = { -1, -1, -1, -1 };
+	std::array<int, kInventorySlotCount> m_inventoryIconSpriteIndices = { -1, -1, -1, -1 };
+	std::array<int, kInventorySlotCount> m_inventoryItemCounts = { 0, 0, 0, 0 };
 
 	XMFLOAT4 m_hpFillOriginalRect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 	float m_healthRatio = 1.0f;
