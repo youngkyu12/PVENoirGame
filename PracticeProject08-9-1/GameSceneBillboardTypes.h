@@ -257,6 +257,7 @@ struct ArrowTrailSample
 
 struct ArrowTrailEntry
 {
+	float sampleLifetimeSec = 0.260f;
 	float halfWidth = 0.075f;
 	XMFLOAT4 color = XMFLOAT4(0.86f, 0.94f, 1.0f, 1.0f);
 	float tailAlpha = 0.20f;

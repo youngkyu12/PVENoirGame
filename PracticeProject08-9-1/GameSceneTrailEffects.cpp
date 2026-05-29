@@ -717,8 +717,6 @@ void CGameScene::UpdateArrowTrails(float dt)
 	if ( dt <= 0.0f )
 		return;
 
-	constexpr float kArrowTrailSampleLifetimeSec = 0.260f;
-
 	auto UpdateExistingTrailEntries = [ & ] (ArrowTrailEffectState& effect)
 		{
 			for ( ArrowTrailEntry& trail : effect.entries )
@@ -729,7 +727,9 @@ void CGameScene::UpdateArrowTrails(float dt)
 				for ( ArrowTrailSample& sample : trail.samples )
 					sample.age += dt;
 
-				while ( !trail.samples.empty() && trail.samples.front().age >= kArrowTrailSampleLifetimeSec )
+				const float sampleLifetimeSec = std::max(0.001f, trail.sampleLifetimeSec);
+
+				while ( !trail.samples.empty() && trail.samples.front().age >= sampleLifetimeSec )
 				{
 					trail.samples.pop_front();
 				}
@@ -785,6 +785,7 @@ void CGameScene::UpdateArrowTrails(float dt)
 			{
 				const PlayerArrowTrailVisualDesc& visual = GetPlayerArrowTrailVisualDesc();
 
+				trail->sampleLifetimeSec = visual.sampleLifetimeSec;
 				trail->halfWidth = visual.halfWidth;
 				trail->color = visual.color;
 				trail->tailAlpha = visual.tailAlpha;
@@ -1064,8 +1065,6 @@ void CGameScene::RenderArrowTrails(ID3D12GraphicsCommandList* cmd, CCamera* came
 
 	const XMFLOAT3 cameraPos = camera->GetPosition();
 
-	constexpr float kArrowTrailSampleLifetimeSec = 0.260f;
-
 	for ( const ArrowTrailEntry& trail : m_arrowTrailEffect.entries )
 	{
 		if ( !trail.active )
@@ -1120,7 +1119,8 @@ void CGameScene::RenderArrowTrails(ID3D12GraphicsCommandList* cmd, CCamera* came
 			else
 				side = XMVector3Normalize(side);
 
-			const float ageFade = 1.0f - std::clamp(sample.age / kArrowTrailSampleLifetimeSec, 0.0f, 1.0f);
+			const float sampleLifetimeSec = std::max(0.001f, trail.sampleLifetimeSec);
+			const float ageFade = 1.0f - std::clamp(sample.age / sampleLifetimeSec, 0.0f, 1.0f);
 			const float headFade = std::clamp(u, 0.0f, 1.0f);
 			const float alpha = ageFade * ( trail.tailAlpha + headFade * trail.headAlpha ) * trail.alphaScale * trail.color.w;
 
