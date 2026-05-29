@@ -845,6 +845,9 @@ private:
 	void UpdateDepthFogState(float dt);
 
 	void InitializeInventoryItemCounts();
+	bool TryBeginLocalPlayerMoveSpeedPotion();
+	void UpdateLocalPlayerMoveSpeedPotion(float dt);
+	void RestoreLocalPlayerMoveSpeedPotion();
     // slot 0..3 플레이어 포인터(소유는 m_skinnedObjects가 함)
     std::array<CGameObject*, 4> m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
 
@@ -1501,6 +1504,16 @@ private:
 
 	std::array<int, CGameSceneHUD::kInventorySlotCount> m_inventoryItemCounts = { 0, 0, 0, 0 };
 	std::array<bool, CGameSceneHUD::kInventorySlotCount> m_bPrevInventoryUseKeyDown = { false, false, false, false };
+
+	static constexpr float kMoveSpeedPotionDurationSec = 60.0f;
+	static constexpr float kMoveSpeedPotionWalkSpeed = 10.0f;
+	static constexpr float kMoveSpeedPotionRunSpeed = 20.0f;
+
+	bool m_bMoveSpeedPotionActive = false;
+	float m_moveSpeedPotionRemainingSec = 0.0f;
+	float m_moveSpeedPotionOriginalWalkSpeed = 5.0f;
+	float m_moveSpeedPotionOriginalRunSpeed = 10.0f;
+	int m_moveSpeedPotionLastLoggedSecond = -1;
 
 	CGameSceneHUD                       m_hud;
 	CShadowMapSystem					m_shadowMap;

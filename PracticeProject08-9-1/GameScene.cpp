@@ -159,6 +159,12 @@ CGameScene::CGameScene()
 
 	m_inventoryItemCounts.fill(0);
 	m_bPrevInventoryUseKeyDown.fill(false);
+
+	m_bMoveSpeedPotionActive = false;
+	m_moveSpeedPotionRemainingSec = 0.0f;
+	m_moveSpeedPotionOriginalWalkSpeed = 5.0f;
+	m_moveSpeedPotionOriginalRunSpeed = 10.0f;
+	m_moveSpeedPotionLastLoggedSecond = -1;
 }
 
 void CGameScene::SetFrameResourceIndex(UINT frameResourceIndex)
@@ -3291,6 +3297,12 @@ void CGameScene::ReleaseObjects()
 	m_preparedBowmanArrows.clear();
 	m_prevEnemyBowReleasePhase.clear();
 
+	m_bMoveSpeedPotionActive = false;
+	m_moveSpeedPotionRemainingSec = 0.0f;
+	m_moveSpeedPotionOriginalWalkSpeed = 5.0f;
+	m_moveSpeedPotionOriginalRunSpeed = 10.0f;
+	m_moveSpeedPotionLastLoggedSecond = -1;
+
 	m_hud.ReleaseResources();
 	m_depthFog.ReleaseResources();
 
@@ -5019,10 +5031,13 @@ bool CGameScene::RequestUseInventoryItemSlot(int slot)
 
 	case 1:
 	case 2:
-	case 3:
-		// TODO: 공격력 증가 / 방어력 증가 / 이동속도 증가 포션 효과 구현 위치.
+		// TODO: 공격력 증가 / 방어력 증가 포션 효과 구현 위치.
 		// 아직 효과는 없지만, 기존 요청대로 수량만 감소시키기 위해 true 처리한다.
 		itemEffectApplied = true;
+		break;
+
+	case 3:
+		itemEffectApplied = TryBeginLocalPlayerMoveSpeedPotion();
 		break;
 
 	default:
@@ -7682,6 +7697,8 @@ void CGameScene::AnimateObjects(float dt)
 		local = GetPlayerBySlot(0);
 
 #ifndef USING_NETWORK
+	UpdateLocalPlayerMoveSpeedPotion(dt);
+
 	UpdateBossStageBossPositionRestores();
 	UpdateBossStageBossRenderGate();
 
