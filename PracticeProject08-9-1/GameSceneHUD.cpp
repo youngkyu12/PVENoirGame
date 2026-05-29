@@ -19,6 +19,7 @@ void CGameSceneHUD::ReleaseResources()
 	m_exitSpriteIndex = -1;
 
 	m_hpFillSpriteIndex = -1;
+	m_inventorySpriteIndices.fill(-1);
 	m_hpFillOriginalRect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 	m_healthRatio = 1.0f;
 
@@ -35,6 +36,7 @@ void CGameSceneHUD::BuildResources(
 	m_pauseSpriteIndex = -1;
 	m_resumeSpriteIndex = -1;
 	m_exitSpriteIndex = -1;
+	m_inventorySpriteIndices.fill(-1);
 
 	// --------------------------------------------------------------------
 	// UI layout tuning block
@@ -84,6 +86,25 @@ void CGameSceneHUD::BuildResources(
 	// --------------------------------------------------------------------
 	const float screenW = static_cast< float >( FRAME_BUFFER_WIDTH );
 	const float screenH = static_cast< float >( FRAME_BUFFER_HEIGHT );
+
+	// --------------------------------------------------------------------
+	// Inventory layer
+	// rect = (centerX, centerY, width, height)
+	// --------------------------------------------------------------------
+	const float inventorySlotWidth = 60.0f;
+	const float inventorySlotHeight = 60.0f;
+	const float inventoryRightMargin = 10.0f;
+	const float inventoryBottomMargin = 10.0f;
+	const float inventoryTotalWidth = inventorySlotWidth * static_cast< float >( kInventorySlotCount );
+	const float inventoryStartCenterX = screenW - inventoryRightMargin - inventoryTotalWidth + inventorySlotWidth * 0.5f;
+	const float inventoryCenterY = screenH - inventoryBottomMargin - inventorySlotHeight * 0.5f;
+	const char* inventorySpriteNames[kInventorySlotCount] = { "InventorySlot0", "InventorySlot1", "InventorySlot2", "InventorySlot3", "InventorySlot4" };
+
+	for ( int i = 0; i < kInventorySlotCount; ++i )
+	{
+		const float centerX = inventoryStartCenterX + inventorySlotWidth * static_cast< float >(i);
+		m_inventorySpriteIndices[i] = m_ui.AddSprite(dev, cmd, inventorySpriteNames[i], L"Assets/UI/Inventory.dds", XMFLOAT4(centerX, inventoryCenterY, inventorySlotWidth, inventorySlotHeight), CSceneUI::ELayer::Frame, true);
+	}
 
 	const XMFLOAT4 pauseRect(
 		screenW * 0.5f,
