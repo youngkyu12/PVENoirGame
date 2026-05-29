@@ -194,6 +194,8 @@ struct SwordTrailEntry
 
 	XMFLOAT4 color = XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f);
 
+	float alphaScale = 0.75f;
+
 	std::vector<SwordTrailSample> samples;
 };
 
@@ -255,6 +257,12 @@ struct ArrowTrailSample
 
 struct ArrowTrailEntry
 {
+	float halfWidth = 0.075f;
+	XMFLOAT4 color = XMFLOAT4(0.86f, 0.94f, 1.0f, 1.0f);
+	float tailAlpha = 0.20f;
+	float headAlpha = 0.80f;
+	float alphaScale = 0.72f;
+
 	bool active = false;
 
 	CGameObject* arrowObject = nullptr;

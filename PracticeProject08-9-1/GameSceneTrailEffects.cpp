@@ -335,7 +335,30 @@ namespace
 	}
 }
 
+int CGameScene::GetPlayerWeaponEffectLevelIndex() const
+{
+	return std::clamp(m_playerWeaponDamageTierIndex, 0, kPlayerWeaponEffectLevelCount - 1);
+}
 
+const CGameScene::PlayerMeleeTrailVisualDesc& CGameScene::GetPlayerSwordTrailVisualDesc() const
+{
+	return m_playerSwordTrailVisualDescs[static_cast< size_t >( GetPlayerWeaponEffectLevelIndex() )];
+}
+
+const CGameScene::PlayerMeleeTrailVisualDesc& CGameScene::GetPlayerAxeTrailVisualDesc() const
+{
+	return m_playerAxeTrailVisualDescs[static_cast< size_t >( GetPlayerWeaponEffectLevelIndex() )];
+}
+
+const CGameScene::PlayerArrowTrailVisualDesc& CGameScene::GetPlayerArrowTrailVisualDesc() const
+{
+	return m_playerArrowTrailVisualDescs[static_cast< size_t >( GetPlayerWeaponEffectLevelIndex() )];
+}
+
+const CGameScene::PlayerGunMuzzleFlashVisualDesc& CGameScene::GetPlayerGunMuzzleFlashVisualDesc() const
+{
+	return m_playerGunMuzzleFlashVisualDescs[static_cast< size_t >( GetPlayerWeaponEffectLevelIndex() )];
+}
 
 void CGameScene::BuildSwordTrailBatch(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, DXGI_FORMAT dsvFormat)
 {
@@ -472,6 +495,8 @@ void CGameScene::BeginSwordTrail(CGameObject* owner)
 	if ( !trail )
 		return;
 
+	const PlayerMeleeTrailVisualDesc& visual = GetPlayerSwordTrailVisualDesc();
+
 	trail->active = true;
 	trail->kind = EWeaponTrailKind::Sword;
 
@@ -485,13 +510,11 @@ void CGameScene::BeginSwordTrail(CGameObject* owner)
 	trail->sampleDuration = 0.240f;
 	trail->fadeDuration = 0.120f;
 
-	trail->rootLocal = XMFLOAT3(0.0f, 0.0f, 0.10f);
-	trail->tipLocal = XMFLOAT3(0.0f, 0.0f, 1.45f);
-
-	trail->widthScale = 1.0f;
-
-	// 검 궤적 색상: 푸른빛.
-	trail->color = XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f);
+	trail->rootLocal = visual.rootLocal;
+	trail->tipLocal = visual.tipLocal;
+	trail->widthScale = visual.widthScale;
+	trail->color = visual.color;
+	trail->alphaScale = visual.alphaScale;
 
 	trail->samples.clear();
 	trail->samples.reserve(kSwordTrailMaxSamples);
@@ -514,6 +537,8 @@ void CGameScene::BeginAxeTrail(CGameObject* owner)
 	if ( !trail )
 		return;
 
+	const PlayerMeleeTrailVisualDesc& visual = GetPlayerAxeTrailVisualDesc();
+
 	trail->active = true;
 	trail->kind = EWeaponTrailKind::Axe;
 
@@ -524,16 +549,14 @@ void CGameScene::BeginAxeTrail(CGameObject* owner)
 	ResetPlayerMeleeWeaponHitbox(axeObject);
 
 	trail->startDelay = 0.530f;
-	trail->sampleDuration = 0.160f; // 0.690f - 0.530f
+	trail->sampleDuration = 0.160f;
 	trail->fadeDuration = 0.120f;
 
-	trail->rootLocal = XMFLOAT3(0.0f, 0.0f, 0.80f);
-	trail->tipLocal = XMFLOAT3(0.0f, 0.0f, 1.45f);
-
-	trail->widthScale = 0.80f;
-
-	// 도끼 궤적 색상: 검과 동일한 푸른빛.
-	trail->color = XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f);
+	trail->rootLocal = visual.rootLocal;
+	trail->tipLocal = visual.tipLocal;
+	trail->widthScale = visual.widthScale;
+	trail->color = visual.color;
+	trail->alphaScale = visual.alphaScale;
 
 	trail->samples.clear();
 	trail->samples.reserve(kSwordTrailMaxSamples);
@@ -696,8 +719,7 @@ void CGameScene::UpdateArrowTrails(float dt)
 
 	constexpr float kArrowTrailSampleLifetimeSec = 0.260f;
 
-	auto UpdateExistingTrailEntries =
-		[ & ] (ArrowTrailEffectState& effect)
+	auto UpdateExistingTrailEntries = [ & ] (ArrowTrailEffectState& effect)
 		{
 			for ( ArrowTrailEntry& trail : effect.entries )
 			{
@@ -707,21 +729,15 @@ void CGameScene::UpdateArrowTrails(float dt)
 				for ( ArrowTrailSample& sample : trail.samples )
 					sample.age += dt;
 
-				while ( !trail.samples.empty() &&
-						trail.samples.front().age >= kArrowTrailSampleLifetimeSec )
+				while ( !trail.samples.empty() && trail.samples.front().age >= kArrowTrailSampleLifetimeSec )
 				{
 					trail.samples.pop_front();
 				}
 
 				if ( trail.arrowObject )
 				{
-					CArrowComponent* arrow =
-						trail.arrowObject->GetComponent<CArrowComponent>();
-
-					const bool launched =
-						arrow &&
-						arrow->IsActive() &&
-						!arrow->IsPrepared();
+					CArrowComponent* arrow = trail.arrowObject->GetComponent<CArrowComponent>();
+					const bool launched = arrow && arrow->IsActive() && !arrow->IsPrepared();
 
 					if ( !launched )
 						trail.arrowObject = nullptr;
@@ -735,38 +751,25 @@ void CGameScene::UpdateArrowTrails(float dt)
 	UpdateExistingTrailEntries(m_arrowTrailEffect);
 	UpdateExistingTrailEntries(m_monsterArrowTrailEffect);
 
-	// 현재 발사 중인 화살 위치를 플레이어용 / 몬스터용 trail state에 나눠 샘플링한다.
 	for ( CGameObject* arrowObj : m_arrowRefs )
 	{
 		if ( !arrowObj )
 			continue;
 
-		CArrowComponent* arrow =
-			arrowObj->GetComponent<CArrowComponent>();
+		CArrowComponent* arrow = arrowObj->GetComponent<CArrowComponent>();
 
 		if ( !arrow )
 			continue;
 
-		// 준비 중인 화살은 활에 붙어 있으므로 잔상 생성 금지.
 		if ( !arrow->IsActive() || arrow->IsPrepared() )
 			continue;
 
-		const bool isPlayerArrow =
-			( m_playerWeaponOwnerByObject.find(arrowObj) !=
-			  m_playerWeaponOwnerByObject.end() );
+		const bool isPlayerArrow = ( m_playerWeaponOwnerByObject.find(arrowObj) != m_playerWeaponOwnerByObject.end() );
 
-		ArrowTrailEffectState& targetEffect =
-			isPlayerArrow
-			? m_arrowTrailEffect
-			: m_monsterArrowTrailEffect;
+		ArrowTrailEffectState& targetEffect = isPlayerArrow ? m_arrowTrailEffect : m_monsterArrowTrailEffect;
+		const UINT targetMaxSamples = isPlayerArrow ? kArrowTrailMaxSamples : kMonsterArrowTrailMaxSamples;
 
-		const UINT targetMaxSamples =
-			isPlayerArrow
-			? kArrowTrailMaxSamples
-			: kMonsterArrowTrailMaxSamples;
-
-		ArrowTrailEntry* trail =
-			FindArrowTrailEntry(targetEffect.entries, arrowObj);
+		ArrowTrailEntry* trail = FindArrowTrailEntry(targetEffect.entries, arrowObj);
 
 		if ( !trail )
 		{
@@ -777,13 +780,20 @@ void CGameScene::UpdateArrowTrails(float dt)
 			*trail = ArrowTrailEntry{};
 			trail->active = true;
 			trail->arrowObject = arrowObj;
+
+			if ( isPlayerArrow )
+			{
+				const PlayerArrowTrailVisualDesc& visual = GetPlayerArrowTrailVisualDesc();
+
+				trail->halfWidth = visual.halfWidth;
+				trail->color = visual.color;
+				trail->tailAlpha = visual.tailAlpha;
+				trail->headAlpha = visual.headAlpha;
+				trail->alphaScale = visual.alphaScale;
+			}
 		}
 
-		AppendArrowTrailSample(
-			*trail,
-			arrowObj->GetPosition(),
-			targetMaxSamples
-		);
+		AppendArrowTrailSample(*trail, arrowObj->GetPosition(), targetMaxSamples);
 	}
 }
 
@@ -824,8 +834,7 @@ void CGameScene::RenderSwordTrails(ID3D12GraphicsCommandList* cmd, CCamera* came
 		if ( sampleCount < 2 )
 			continue;
 
-		const UINT neededVertices =
-			static_cast< UINT >(sampleCount * 2);
+		const UINT neededVertices = static_cast< UINT >(sampleCount * 2);
 
 		if ( vertexCursor + neededVertices > swordTrailVertexBufferCapacity )
 			break;
@@ -850,29 +859,20 @@ void CGameScene::RenderSwordTrails(ID3D12GraphicsCommandList* cmd, CCamera* came
 		for ( size_t i = 0; i < sampleCount; ++i )
 		{
 			const float u = ( sampleCount > 1 ) ? static_cast< float >( i ) / static_cast< float >( sampleCount - 1 ) : 1.0f;
-
 			const float ageAlpha = std::clamp(u, 0.0f, 1.0f);
-			const float alpha = trailFade * ageAlpha * 0.75f;
+			const float alpha = trailFade * ageAlpha * trail.alphaScale;
 
-			const XMFLOAT4 color =
-				XMFLOAT4(
-					trail.color.x,
-					trail.color.y,
-					trail.color.z,
-					alpha * trail.color.w
-				);
+			const XMFLOAT4 color = XMFLOAT4(trail.color.x, trail.color.y, trail.color.z, alpha * trail.color.w);
 
 			const SwordTrailSample& sample = trail.samples[i];
 
-			SwordTrailVertex& v0 =
-				mappedSwordTrailVertexBuffer[vertexCursor++];
+			SwordTrailVertex& v0 = mappedSwordTrailVertexBuffer[vertexCursor++];
 
 			v0.position = sample.root;
 			v0.uv = XMFLOAT2(u, 0.0f);
 			v0.color = color;
 
-			SwordTrailVertex& v1 =
-				mappedSwordTrailVertexBuffer[vertexCursor++];
+			SwordTrailVertex& v1 = mappedSwordTrailVertexBuffer[vertexCursor++];
 
 			v1.position = sample.tip;
 			v1.uv = XMFLOAT2(u, 1.0f);
@@ -885,13 +885,13 @@ void CGameScene::RenderSwordTrails(ID3D12GraphicsCommandList* cmd, CCamera* came
 		drawRanges.push_back(range);
 	}
 
-	if ( drawRanges.empty() ) return;
+	if ( drawRanges.empty() )
+		return;
 
 	m_swordTrailEffect.shader->Render(cmd, camera, nullptr);
 
 	D3D12_VERTEX_BUFFER_VIEW vbView{};
-	vbView.BufferLocation =
-		swordTrailVertexBuffer->GetGPUVirtualAddress();
+	vbView.BufferLocation = swordTrailVertexBuffer->GetGPUVirtualAddress();
 	vbView.SizeInBytes = sizeof(SwordTrailVertex) * vertexCursor;
 	vbView.StrideInBytes = sizeof(SwordTrailVertex);
 
@@ -901,14 +901,14 @@ void CGameScene::RenderSwordTrails(ID3D12GraphicsCommandList* cmd, CCamera* came
 
 	for ( const DrawRange& range : drawRanges )
 	{
-		if ( range.vertexCount < 4 ) continue;
+		if ( range.vertexCount < 4 )
+			continue;
 
 		cmd->DrawInstanced(range.vertexCount, 1, range.startVertex, 0);
 	}
 }
-void CGameScene::RenderMonsterSwordTrails(
-	ID3D12GraphicsCommandList* cmd,
-	CCamera* camera)
+
+void CGameScene::RenderMonsterSwordTrails(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	if ( !cmd ) return;
 	if ( !camera ) return;
@@ -1065,7 +1065,6 @@ void CGameScene::RenderArrowTrails(ID3D12GraphicsCommandList* cmd, CCamera* came
 	const XMFLOAT3 cameraPos = camera->GetPosition();
 
 	constexpr float kArrowTrailSampleLifetimeSec = 0.260f;
-	constexpr float kArrowTrailHalfWidth = 0.075f;
 
 	for ( const ArrowTrailEntry& trail : m_arrowTrailEffect.entries )
 	{
@@ -1077,8 +1076,7 @@ void CGameScene::RenderArrowTrails(ID3D12GraphicsCommandList* cmd, CCamera* came
 		if ( sampleCount < 2 )
 			continue;
 
-		const UINT neededVertices =
-			static_cast< UINT >(sampleCount * 2);
+		const UINT neededVertices = static_cast< UINT >(sampleCount * 2);
 
 		if ( vertexCursor + neededVertices > arrowTrailVertexBufferCapacity )
 			break;
@@ -1087,27 +1085,14 @@ void CGameScene::RenderArrowTrails(ID3D12GraphicsCommandList* cmd, CCamera* came
 
 		for ( size_t i = 0; i < sampleCount; ++i )
 		{
-			const float u =
-				( sampleCount > 1 )
-				? static_cast< float >( i ) /
-				static_cast< float >( sampleCount - 1 )
-				: 1.0f;
+			const float u = ( sampleCount > 1 ) ? static_cast< float >( i ) / static_cast< float >( sampleCount - 1 ) : 1.0f;
 
 			const ArrowTrailSample& sample = trail.samples[i];
 
-			const XMFLOAT3& prevPos =
-				trail.samples[
-					( i > 0 ) ? i - 1 : i
-				].position;
+			const XMFLOAT3& prevPos = trail.samples[( i > 0 ) ? i - 1 : i].position;
+			const XMFLOAT3& nextPos = trail.samples[( i + 1 < sampleCount ) ? i + 1 : i].position;
 
-			const XMFLOAT3& nextPos =
-				trail.samples[
-					( i + 1 < sampleCount ) ? i + 1 : i
-				].position;
-
-			XMVECTOR dir =
-				XMLoadFloat3(&nextPos) -
-				XMLoadFloat3(&prevPos);
+			XMVECTOR dir = XMLoadFloat3(&nextPos) - XMLoadFloat3(&prevPos);
 
 			if ( XMVectorGetX(XMVector3LengthSq(dir)) <= 1.0e-8f )
 				dir = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
@@ -1126,9 +1111,7 @@ void CGameScene::RenderArrowTrails(ID3D12GraphicsCommandList* cmd, CCamera* came
 
 			if ( XMVectorGetX(XMVector3LengthSq(side)) <= 1.0e-8f )
 			{
-				const XMVECTOR up =
-					XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-
+				const XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 				side = XMVector3Cross(up, dir);
 			}
 
@@ -1137,33 +1120,13 @@ void CGameScene::RenderArrowTrails(ID3D12GraphicsCommandList* cmd, CCamera* came
 			else
 				side = XMVector3Normalize(side);
 
-			const float ageFade =
-				1.0f -
-				std::clamp(
-					sample.age / kArrowTrailSampleLifetimeSec,
-					0.0f,
-					1.0f
-				);
+			const float ageFade = 1.0f - std::clamp(sample.age / kArrowTrailSampleLifetimeSec, 0.0f, 1.0f);
+			const float headFade = std::clamp(u, 0.0f, 1.0f);
+			const float alpha = ageFade * ( trail.tailAlpha + headFade * trail.headAlpha ) * trail.alphaScale * trail.color.w;
 
-			// 꼬리 쪽은 약하고, 화살 현재 위치에 가까울수록 선명하게.
-			const float headFade =
-				std::clamp(u, 0.0f, 1.0f);
+			const XMFLOAT4 color = XMFLOAT4(trail.color.x, trail.color.y, trail.color.z, alpha);
 
-			const float alpha =
-				ageFade *
-				( 0.20f + headFade * 0.80f ) *
-				0.72f;
-
-			const XMFLOAT4 color =
-				XMFLOAT4(
-					0.86f,
-					0.94f,
-					1.0f,
-					alpha
-				);
-
-			const XMVECTOR offset =
-				XMVectorScale(side, kArrowTrailHalfWidth);
+			const XMVECTOR offset = XMVectorScale(side, trail.halfWidth);
 
 			XMFLOAT3 p0{};
 			XMFLOAT3 p1{};
@@ -1171,15 +1134,13 @@ void CGameScene::RenderArrowTrails(ID3D12GraphicsCommandList* cmd, CCamera* came
 			XMStoreFloat3(&p0, posV - offset);
 			XMStoreFloat3(&p1, posV + offset);
 
-			SwordTrailVertex& v0 =
-				mappedVertexBuffer[vertexCursor++];
+			SwordTrailVertex& v0 = mappedVertexBuffer[vertexCursor++];
 
 			v0.position = p0;
 			v0.uv = XMFLOAT2(u, 0.0f);
 			v0.color = color;
 
-			SwordTrailVertex& v1 =
-				mappedVertexBuffer[vertexCursor++];
+			SwordTrailVertex& v1 = mappedVertexBuffer[vertexCursor++];
 
 			v1.position = p1;
 			v1.uv = XMFLOAT2(u, 1.0f);
