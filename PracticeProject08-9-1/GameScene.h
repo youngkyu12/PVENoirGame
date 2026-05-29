@@ -1009,16 +1009,16 @@ private:
 
 	const std::array<PlayerMeleeTrailVisualDesc, kPlayerWeaponEffectLevelCount> m_playerSwordTrailVisualDescs =
 	{ {
-		PlayerMeleeTrailVisualDesc{ XMFLOAT3(0.0f, 0.0f, 0.10f), XMFLOAT3(0.0f, 0.0f, 1.45f), 1.0f, XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f), 0.75f },
-		PlayerMeleeTrailVisualDesc{ XMFLOAT3(0.0f, 0.0f, 0.10f), XMFLOAT3(0.0f, 0.0f, 1.45f), 1.0f, XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f), 0.75f },
-		PlayerMeleeTrailVisualDesc{ XMFLOAT3(0.0f, 0.0f, 0.10f), XMFLOAT3(0.0f, 0.0f, 1.45f), 1.0f, XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f), 0.75f }
+		PlayerMeleeTrailVisualDesc{ XMFLOAT3(0.0f, 0.0f, 0.10f), XMFLOAT3(0.0f, 0.0f, 1.45f), 1.00f, XMFLOAT4(0.55f, 0.80f, 1.00f, 1.0f), 0.75f },
+		PlayerMeleeTrailVisualDesc{ XMFLOAT3(0.0f, 0.0f, 0.10f), XMFLOAT3(0.0f, 0.0f, 1.52f), 1.12f, XMFLOAT4(0.18f, 0.62f, 1.00f, 1.0f), 0.86f },
+		PlayerMeleeTrailVisualDesc{ XMFLOAT3(0.0f, 0.0f, 0.10f), XMFLOAT3(0.0f, 0.0f, 1.60f), 1.25f, XMFLOAT4(1.00f, 0.00f, 0.00f, 1.0f), 0.94f }
 	} };
 
 	const std::array<PlayerMeleeTrailVisualDesc, kPlayerWeaponEffectLevelCount> m_playerAxeTrailVisualDescs =
 	{ {
-		PlayerMeleeTrailVisualDesc{ XMFLOAT3(0.0f, 0.0f, 0.80f), XMFLOAT3(0.0f, 0.0f, 1.45f), 0.80f, XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f), 0.75f },
-		PlayerMeleeTrailVisualDesc{ XMFLOAT3(0.0f, 0.0f, 0.80f), XMFLOAT3(0.0f, 0.0f, 1.45f), 0.80f, XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f), 0.75f },
-		PlayerMeleeTrailVisualDesc{ XMFLOAT3(0.0f, 0.0f, 0.80f), XMFLOAT3(0.0f, 0.0f, 1.45f), 0.80f, XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f), 0.75f }
+		PlayerMeleeTrailVisualDesc{ XMFLOAT3(0.0f, 0.0f, 0.80f), XMFLOAT3(0.0f, 0.0f, 1.45f), 0.80f, XMFLOAT4(0.55f, 0.80f, 1.00f, 1.0f), 0.75f },
+		PlayerMeleeTrailVisualDesc{ XMFLOAT3(0.0f, 0.0f, 0.78f), XMFLOAT3(0.0f, 0.0f, 1.52f), 0.92f, XMFLOAT4(0.18f, 0.62f, 1.00f, 1.0f), 0.86f },
+		PlayerMeleeTrailVisualDesc{ XMFLOAT3(0.0f, 0.0f, 0.76f), XMFLOAT3(0.0f, 0.0f, 1.60f), 1.05f, XMFLOAT4(1.00f, 0.00f, 0.00f, 1.0f), 0.94f }
 	} };
 
 	const std::array<PlayerArrowTrailVisualDesc, kPlayerWeaponEffectLevelCount> m_playerArrowTrailVisualDescs =
