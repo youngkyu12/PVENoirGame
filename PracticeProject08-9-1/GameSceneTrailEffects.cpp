@@ -415,6 +415,26 @@ void CGameScene::BuildArrowTrailBatch(ID3D12Device* dev, ID3D12GraphicsCommandLi
 	});
 }
 
+void CGameScene::BuildMonsterArrowTrailBatch( ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, DXGI_FORMAT dsvFormat)
+{
+	if ( !dev || !cmd )
+		return;
+
+	m_monsterArrowTrailEffect.shader = std::make_shared<CSwordTrailShader>();
+
+	DXGI_FORMAT rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+	m_monsterArrowTrailEffect.shader->CreateShader(dev, m_pd3dGraphicsRootSignature.Get(), 1, &rtvFormat, dsvFormat);
+
+	m_monsterArrowTrailEffect.entries.clear();
+	m_monsterArrowTrailEffect.entries.resize(kMonsterArrowTrailMaxCount);
+
+	m_monsterArrowTrailEffect.vertexBuffer.Create(dev, cmd, kMonsterArrowTrailMaxVertices, [ dev, cmd ] (UINT bufferBytes)
+		{
+			return ::CreateBufferResource(dev, cmd, nullptr, bufferBytes, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr);
+		});
+}
+
 void CGameScene::ReleaseSwordTrailGpuResources()
 {
 	m_swordTrailEffect.vertexBuffer.Release();
@@ -428,6 +448,11 @@ void CGameScene::ReleaseMonsterSwordTrailGpuResources()
 void CGameScene::ReleaseArrowTrailGpuResources()
 {
 	m_arrowTrailEffect.vertexBuffer.Release();
+}
+
+void CGameScene::ReleaseMonsterArrowTrailGpuResources()
+{
+	m_monsterArrowTrailEffect.vertexBuffer.Release();
 }
 
 void CGameScene::BeginSwordTrail(CGameObject* owner)
@@ -671,40 +696,46 @@ void CGameScene::UpdateArrowTrails(float dt)
 
 	constexpr float kArrowTrailSampleLifetimeSec = 0.260f;
 
-	// 기존 trail sample age 증가 및 만료 처리.
-	for ( ArrowTrailEntry& trail : m_arrowTrailEffect.entries )
-	{
-		if ( !trail.active )
-			continue;
-
-		for ( ArrowTrailSample& sample : trail.samples )
-			sample.age += dt;
-
-		while ( !trail.samples.empty() &&
-				trail.samples.front().age >= kArrowTrailSampleLifetimeSec )
+	auto UpdateExistingTrailEntries =
+		[ & ] (ArrowTrailEffectState& effect)
 		{
-			trail.samples.pop_front();
-		}
+			for ( ArrowTrailEntry& trail : effect.entries )
+			{
+				if ( !trail.active )
+					continue;
 
-		if ( trail.arrowObject )
-		{
-			CArrowComponent* arrow =
-				trail.arrowObject->GetComponent<CArrowComponent>();
+				for ( ArrowTrailSample& sample : trail.samples )
+					sample.age += dt;
 
-			const bool launched =
-				arrow &&
-				arrow->IsActive() &&
-				!arrow->IsPrepared();
+				while ( !trail.samples.empty() &&
+						trail.samples.front().age >= kArrowTrailSampleLifetimeSec )
+				{
+					trail.samples.pop_front();
+				}
 
-			if ( !launched )
-				trail.arrowObject = nullptr;
-		}
+				if ( trail.arrowObject )
+				{
+					CArrowComponent* arrow =
+						trail.arrowObject->GetComponent<CArrowComponent>();
 
-		if ( !trail.arrowObject && trail.samples.empty() )
-			ResetArrowTrailEntry(trail);
-	}
+					const bool launched =
+						arrow &&
+						arrow->IsActive() &&
+						!arrow->IsPrepared();
 
-	// 현재 발사 중인 화살 위치를 trail에 샘플링한다.
+					if ( !launched )
+						trail.arrowObject = nullptr;
+				}
+
+				if ( !trail.arrowObject && trail.samples.empty() )
+					ResetArrowTrailEntry(trail);
+			}
+		};
+
+	UpdateExistingTrailEntries(m_arrowTrailEffect);
+	UpdateExistingTrailEntries(m_monsterArrowTrailEffect);
+
+	// 현재 발사 중인 화살 위치를 플레이어용 / 몬스터용 trail state에 나눠 샘플링한다.
 	for ( CGameObject* arrowObj : m_arrowRefs )
 	{
 		if ( !arrowObj )
@@ -720,12 +751,26 @@ void CGameScene::UpdateArrowTrails(float dt)
 		if ( !arrow->IsActive() || arrow->IsPrepared() )
 			continue;
 
+		const bool isPlayerArrow =
+			( m_playerWeaponOwnerByObject.find(arrowObj) !=
+			  m_playerWeaponOwnerByObject.end() );
+
+		ArrowTrailEffectState& targetEffect =
+			isPlayerArrow
+			? m_arrowTrailEffect
+			: m_monsterArrowTrailEffect;
+
+		const UINT targetMaxSamples =
+			isPlayerArrow
+			? kArrowTrailMaxSamples
+			: kMonsterArrowTrailMaxSamples;
+
 		ArrowTrailEntry* trail =
-			FindArrowTrailEntry(m_arrowTrailEffect.entries, arrowObj);
+			FindArrowTrailEntry(targetEffect.entries, arrowObj);
 
 		if ( !trail )
 		{
-			trail = AcquireFreeArrowTrailEntry(m_arrowTrailEffect.entries);
+			trail = AcquireFreeArrowTrailEntry(targetEffect.entries);
 			if ( !trail )
 				continue;
 
@@ -737,7 +782,7 @@ void CGameScene::UpdateArrowTrails(float dt)
 		AppendArrowTrailSample(
 			*trail,
 			arrowObj->GetPosition(),
-			kArrowTrailMaxSamples
+			targetMaxSamples
 		);
 	}
 }
@@ -1151,6 +1196,171 @@ void CGameScene::RenderArrowTrails(ID3D12GraphicsCommandList* cmd, CCamera* came
 		return;
 
 	m_arrowTrailEffect.shader->Render(cmd, camera, nullptr);
+
+	D3D12_VERTEX_BUFFER_VIEW vbView{};
+	vbView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
+	vbView.SizeInBytes = sizeof(SwordTrailVertex) * vertexCursor;
+	vbView.StrideInBytes = sizeof(SwordTrailVertex);
+
+	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	cmd->IASetVertexBuffers(0, 1, &vbView);
+	cmd->IASetIndexBuffer(nullptr);
+
+	for ( const DrawRange& range : drawRanges )
+	{
+		if ( range.vertexCount < 4 )
+			continue;
+
+		cmd->DrawInstanced(range.vertexCount, 1, range.startVertex, 0);
+	}
+}
+
+void CGameScene::RenderMonsterArrowTrails(ID3D12GraphicsCommandList* cmd, CCamera* camera)
+{
+	if ( !cmd ) return;
+	if ( !camera ) return;
+	if ( !m_monsterArrowTrailEffect.shader ) return;
+
+	const UINT frameIndex = m_nFrameResourceIndex % kSceneBatchFrameResourceCount;
+
+	ID3D12Resource* vertexBuffer = m_monsterArrowTrailEffect.vertexBuffer.Resource(frameIndex);
+	SwordTrailVertex* mappedVertexBuffer = m_monsterArrowTrailEffect.vertexBuffer.Mapped(frameIndex);
+	const UINT arrowTrailVertexBufferCapacity = m_monsterArrowTrailEffect.vertexBuffer.Capacity();
+
+	if ( !vertexBuffer ) return;
+	if ( !mappedVertexBuffer ) return;
+	if ( arrowTrailVertexBufferCapacity == 0 ) return;
+
+	struct DrawRange
+	{
+		UINT startVertex = 0;
+		UINT vertexCount = 0;
+	};
+
+	std::vector<DrawRange> drawRanges;
+	drawRanges.reserve(m_monsterArrowTrailEffect.entries.size());
+
+	UINT vertexCursor = 0;
+
+	const XMFLOAT3 cameraPos = camera->GetPosition();
+
+	constexpr float kArrowTrailSampleLifetimeSec = 0.260f;
+	constexpr float kArrowTrailHalfWidth = 0.075f;
+
+	for ( const ArrowTrailEntry& trail : m_monsterArrowTrailEffect.entries )
+	{
+		if ( !trail.active )
+			continue;
+
+		const size_t sampleCount = trail.samples.size();
+
+		if ( sampleCount < 2 )
+			continue;
+
+		const UINT neededVertices = static_cast< UINT >(sampleCount * 2);
+
+		if ( vertexCursor + neededVertices > arrowTrailVertexBufferCapacity )
+			break;
+
+		const UINT startVertex = vertexCursor;
+
+		for ( size_t i = 0; i < sampleCount; ++i )
+		{
+			const float u =
+				( sampleCount > 1 )
+				? static_cast< float >( i ) / static_cast< float >( sampleCount - 1 )
+				: 1.0f;
+
+			const ArrowTrailSample& sample = trail.samples[i];
+
+			const XMFLOAT3& prevPos =
+				trail.samples[( i > 0 ) ? i - 1 : i].position;
+
+			const XMFLOAT3& nextPos =
+				trail.samples[( i + 1 < sampleCount ) ? i + 1 : i].position;
+
+			XMVECTOR dir = XMLoadFloat3(&nextPos) - XMLoadFloat3(&prevPos);
+
+			if ( XMVectorGetX(XMVector3LengthSq(dir)) <= 1.0e-8f )
+				dir = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+			else
+				dir = XMVector3Normalize(dir);
+
+			XMVECTOR posV = XMLoadFloat3(&sample.position);
+			XMVECTOR viewDir = XMLoadFloat3(&cameraPos) - posV;
+
+			if ( XMVectorGetX(XMVector3LengthSq(viewDir)) <= 1.0e-8f )
+				viewDir = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+			else
+				viewDir = XMVector3Normalize(viewDir);
+
+			XMVECTOR side = XMVector3Cross(viewDir, dir);
+
+			if ( XMVectorGetX(XMVector3LengthSq(side)) <= 1.0e-8f )
+			{
+				const XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+				side = XMVector3Cross(up, dir);
+			}
+
+			if ( XMVectorGetX(XMVector3LengthSq(side)) <= 1.0e-8f )
+				side = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+			else
+				side = XMVector3Normalize(side);
+
+			const float ageFade =
+				1.0f -
+				std::clamp(
+					sample.age / kArrowTrailSampleLifetimeSec,
+					0.0f,
+					1.0f
+				);
+
+			const float headFade = std::clamp(u, 0.0f, 1.0f);
+
+			const float alpha =
+				ageFade *
+				( 0.20f + headFade * 0.80f ) *
+				0.72f;
+
+			const XMFLOAT4 color =
+				XMFLOAT4(
+					0.86f,
+					0.94f,
+					1.0f,
+					alpha
+				);
+
+			const XMVECTOR offset = XMVectorScale(side, kArrowTrailHalfWidth);
+
+			XMFLOAT3 p0{};
+			XMFLOAT3 p1{};
+
+			XMStoreFloat3(&p0, posV - offset);
+			XMStoreFloat3(&p1, posV + offset);
+
+			SwordTrailVertex& v0 = mappedVertexBuffer[vertexCursor++];
+
+			v0.position = p0;
+			v0.uv = XMFLOAT2(u, 0.0f);
+			v0.color = color;
+
+			SwordTrailVertex& v1 = mappedVertexBuffer[vertexCursor++];
+
+			v1.position = p1;
+			v1.uv = XMFLOAT2(u, 1.0f);
+			v1.color = color;
+		}
+
+		DrawRange range{};
+		range.startVertex = startVertex;
+		range.vertexCount = neededVertices;
+		drawRanges.push_back(range);
+	}
+
+	if ( drawRanges.empty() )
+		return;
+
+	m_monsterArrowTrailEffect.shader->Render(cmd, camera, nullptr);
 
 	D3D12_VERTEX_BUFFER_VIEW vbView{};
 	vbView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();

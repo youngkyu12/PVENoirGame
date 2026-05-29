@@ -13,5 +13,6 @@ void CGameScene::ReleaseAllGameSceneEffectGpuResources()
 	ReleaseSwordTrailGpuResources();
 	ReleaseMonsterSwordTrailGpuResources();
 	ReleaseArrowTrailGpuResources();
+	ReleaseMonsterArrowTrailGpuResources();
 	ReleaseBossCallSummonWwwGpuResources();
 }

@@ -723,11 +723,5 @@ void CGameScene::RenderBossPoisonProjectiles(ID3D12GraphicsCommandList* cmd, CCa
 	cmd->IASetVertexBuffers(0, 2, vbViews);
 	cmd->IASetIndexBuffer(&sm.ibView);
 
-	cmd->DrawIndexedInstanced(
-		static_cast< UINT >( sm.indices.size() ),
-		visibleInstanceCount,
-		0,
-		0,
-		0
-	);
+	cmd->DrawIndexedInstanced( static_cast< UINT >( sm.indices.size() ), visibleInstanceCount, 0, 0, 0);
 }

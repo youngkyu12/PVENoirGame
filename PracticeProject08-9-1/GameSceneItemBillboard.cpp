@@ -409,6 +409,7 @@ void CGameScene::BuildItemBillboardBatch(ID3D12Device* dev, ID3D12GraphicsComman
 		BuildSwordTrailBatch(dev, cmd, dsvFormat);
 		BuildMonsterSwordTrailBatch(dev, cmd, dsvFormat);
 		BuildArrowTrailBatch(dev, cmd, dsvFormat);
+		BuildMonsterArrowTrailBatch(dev, cmd, dsvFormat);
 		BuildBossCallSummonWwwBatch(dev, cmd, dsvFormat);
 	}
 }
