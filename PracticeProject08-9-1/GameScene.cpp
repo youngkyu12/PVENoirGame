@@ -165,6 +165,10 @@ CGameScene::CGameScene()
 	m_moveSpeedPotionOriginalWalkSpeed = 5.0f;
 	m_moveSpeedPotionOriginalRunSpeed = 10.0f;
 	m_moveSpeedPotionLastLoggedSecond = -1;
+
+	m_bAttackPowerPotionActive = false;
+	m_attackPowerPotionRemainingSec = 0.0f;
+	m_attackPowerPotionLastLoggedSecond = -1;
 }
 
 void CGameScene::SetFrameResourceIndex(UINT frameResourceIndex)
@@ -3303,6 +3307,10 @@ void CGameScene::ReleaseObjects()
 	m_moveSpeedPotionOriginalRunSpeed = 10.0f;
 	m_moveSpeedPotionLastLoggedSecond = -1;
 
+	m_bAttackPowerPotionActive = false;
+	m_attackPowerPotionRemainingSec = 0.0f;
+	m_attackPowerPotionLastLoggedSecond = -1;
+
 	m_hud.ReleaseResources();
 	m_depthFog.ReleaseResources();
 
@@ -5030,8 +5038,11 @@ bool CGameScene::RequestUseInventoryItemSlot(int slot)
 	}
 
 	case 1:
+		itemEffectApplied = TryBeginLocalPlayerAttackPowerPotion();
+		break;
+
 	case 2:
-		// TODO: 공격력 증가 / 방어력 증가 포션 효과 구현 위치.
+		// TODO: 방어력 증가 포션 효과 구현 위치.
 		// 아직 효과는 없지만, 기존 요청대로 수량만 감소시키기 위해 true 처리한다.
 		itemEffectApplied = true;
 		break;
@@ -5813,46 +5824,30 @@ int CGameScene::ComputePlayerWeaponDamageTierIndexFromClearedMegaGrids() const
 
 int CGameScene::GetCurrentPlayerSwordAttackPower() const
 {
-	const int tier = std::clamp(
-		m_playerWeaponDamageTierIndex,
-		0,
-		kPlayerWeaponDamageMaxTierIndex
-	);
-
-	return kAttackPowerPlayerSwordByTier[static_cast< size_t >( tier )];
+	const int tier = std::clamp(m_playerWeaponDamageTierIndex, 0, kPlayerWeaponDamageMaxTierIndex);
+	const int baseAttackPower = kAttackPowerPlayerSwordByTier[static_cast< size_t >( tier )];
+	return ApplyLocalPlayerAttackPowerPotionMultiplier(baseAttackPower);
 }
 
 int CGameScene::GetCurrentPlayerAxeAttackPower() const
 {
-	const int tier = std::clamp(
-		m_playerWeaponDamageTierIndex,
-		0,
-		kPlayerWeaponDamageMaxTierIndex
-	);
-
-	return kAttackPowerPlayerAxeByTier[static_cast< size_t >( tier )];
+	const int tier = std::clamp(m_playerWeaponDamageTierIndex, 0, kPlayerWeaponDamageMaxTierIndex);
+	const int baseAttackPower = kAttackPowerPlayerAxeByTier[static_cast< size_t >( tier )];
+	return ApplyLocalPlayerAttackPowerPotionMultiplier(baseAttackPower);
 }
 
 int CGameScene::GetCurrentPlayerArrowAttackPower() const
 {
-	const int tier = std::clamp(
-		m_playerWeaponDamageTierIndex,
-		0,
-		kPlayerWeaponDamageMaxTierIndex
-	);
-
-	return kAttackPowerPlayerArrowByTier[static_cast< size_t >( tier )];
+	const int tier = std::clamp(m_playerWeaponDamageTierIndex, 0, kPlayerWeaponDamageMaxTierIndex);
+	const int baseAttackPower = kAttackPowerPlayerArrowByTier[static_cast< size_t >( tier )];
+	return ApplyLocalPlayerAttackPowerPotionMultiplier(baseAttackPower);
 }
 
 int CGameScene::GetCurrentPlayerBulletAttackPower() const
 {
-	const int tier = std::clamp(
-		m_playerWeaponDamageTierIndex,
-		0,
-		kPlayerWeaponDamageMaxTierIndex
-	);
-
-	return kAttackPowerPlayerBulletByTier[static_cast< size_t >( tier )];
+	const int tier = std::clamp(m_playerWeaponDamageTierIndex, 0, kPlayerWeaponDamageMaxTierIndex);
+	const int baseAttackPower = kAttackPowerPlayerBulletByTier[static_cast< size_t >( tier )];
+	return ApplyLocalPlayerAttackPowerPotionMultiplier(baseAttackPower);
 }
 
 void CGameScene::RefreshPlayerWeaponAttackPowers()
@@ -7698,6 +7693,7 @@ void CGameScene::AnimateObjects(float dt)
 
 #ifndef USING_NETWORK
 	UpdateLocalPlayerMoveSpeedPotion(dt);
+	UpdateLocalPlayerAttackPowerPotion(dt);
 
 	UpdateBossStageBossPositionRestores();
 	UpdateBossStageBossRenderGate();

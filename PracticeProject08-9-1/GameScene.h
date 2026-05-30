@@ -848,7 +848,12 @@ private:
 	bool TryBeginLocalPlayerMoveSpeedPotion();
 	void UpdateLocalPlayerMoveSpeedPotion(float dt);
 	void RestoreLocalPlayerMoveSpeedPotion();
-    // slot 0..3 플레이어 포인터(소유는 m_skinnedObjects가 함)
+	bool TryBeginLocalPlayerAttackPowerPotion();
+	void UpdateLocalPlayerAttackPowerPotion(float dt);
+	void RestoreLocalPlayerAttackPowerPotion();
+	int ApplyLocalPlayerAttackPowerPotionMultiplier(int attackPower) const;
+    
+	// slot 0..3 플레이어 포인터(소유는 m_skinnedObjects가 함)
     std::array<CGameObject*, 4> m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
 
 	std::array<bool, 4> m_playerFootstepTrackingValid = { false, false, false, false };
@@ -1514,6 +1519,13 @@ private:
 	float m_moveSpeedPotionOriginalWalkSpeed = 5.0f;
 	float m_moveSpeedPotionOriginalRunSpeed = 10.0f;
 	int m_moveSpeedPotionLastLoggedSecond = -1;
+
+	static constexpr float kAttackPowerPotionDurationSec = 60.0f;
+	static constexpr int kAttackPowerPotionMultiplier = 2;
+
+	bool m_bAttackPowerPotionActive = false;
+	float m_attackPowerPotionRemainingSec = 0.0f;
+	int m_attackPowerPotionLastLoggedSecond = -1;
 
 	CGameSceneHUD                       m_hud;
 	CShadowMapSystem					m_shadowMap;
