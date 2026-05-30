@@ -293,6 +293,7 @@
     <ClCompile Include="GameSceneContentCatalog.cpp" />
     <ClCompile Include="GameSceneHelper.cpp" />
     <ClCompile Include="GameSceneHUD.cpp" />
+    <ClCompile Include="GameSceneInventory.cpp" />
     <ClCompile Include="GameSceneItemBillboard.cpp" />
     <ClCompile Include="GameSceneLOD.cpp" />
     <ClCompile Include="GameSceneMuzzleFlashEffects.cpp" />
