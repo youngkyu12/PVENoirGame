@@ -159,21 +159,6 @@ CGameScene::CGameScene()
 
 	m_inventoryItemCounts.fill(0);
 	m_bPrevInventoryUseKeyDown.fill(false);
-
-	m_bMoveSpeedPotionActive = false;
-	m_moveSpeedPotionRemainingSec = 0.0f;
-	m_moveSpeedPotionOriginalWalkSpeed = 5.0f;
-	m_moveSpeedPotionOriginalRunSpeed = 10.0f;
-	m_moveSpeedPotionLastLoggedSecond = -1;
-
-	m_bAttackPowerPotionActive = false;
-	m_attackPowerPotionRemainingSec = 0.0f;
-	m_attackPowerPotionLastLoggedSecond = -1;
-
-	m_bDefensePotionActive = false;
-	m_defensePotionRemainingSec = 0.0f;
-	m_defensePotionOriginalIncomingDamageScale = 1.0f;
-	m_defensePotionLastLoggedSecond = -1;
 }
 
 void CGameScene::SetFrameResourceIndex(UINT frameResourceIndex)
@@ -3305,21 +3290,6 @@ void CGameScene::ReleaseObjects()
 	m_prevBowReleasePhase = { false, false, false, false };
 	m_preparedBowmanArrows.clear();
 	m_prevEnemyBowReleasePhase.clear();
-
-	m_bMoveSpeedPotionActive = false;
-	m_moveSpeedPotionRemainingSec = 0.0f;
-	m_moveSpeedPotionOriginalWalkSpeed = 5.0f;
-	m_moveSpeedPotionOriginalRunSpeed = 10.0f;
-	m_moveSpeedPotionLastLoggedSecond = -1;
-
-	m_bAttackPowerPotionActive = false;
-	m_attackPowerPotionRemainingSec = 0.0f;
-	m_attackPowerPotionLastLoggedSecond = -1;
-
-	m_bDefensePotionActive = false;
-	m_defensePotionRemainingSec = 0.0f;
-	m_defensePotionOriginalIncomingDamageScale = 1.0f;
-	m_defensePotionLastLoggedSecond = -1;
 
 	m_hud.ReleaseResources();
 	m_depthFog.ReleaseResources();
