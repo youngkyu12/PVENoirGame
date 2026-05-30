@@ -221,7 +221,7 @@ void CGameScene::BuildItemBillboardBatch(ID3D12Device* dev, ID3D12GraphicsComman
 		{
 			L"Assets/UI/Potion_Heal.dds",
 			L"Assets/UI/Potion_AttackUP.dds",
-			L"Assets/UI/Potion_DeffenceUP.dds",
+			L"Assets/UI/Potion_DefenseUP.dds",
 			L"Assets/UI/Potion_SpeedUP.dds"
 		};
 
