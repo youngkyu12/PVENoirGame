@@ -857,7 +857,7 @@ private:
 	bool TryBeginLocalPlayerAttackPowerPotion();
 	void UpdateLocalPlayerAttackPowerPotion(float dt);
 	void RestoreLocalPlayerAttackPowerPotion();
-	int ApplyLocalPlayerAttackPowerPotionMultiplier(int attackPower) const;
+	int ApplyPlayerAttackPowerPotionMultiplier(int playerSlot, int attackPower) const;
 	bool TryBeginLocalPlayerDefensePotion();
 	void UpdateLocalPlayerDefensePotion(float dt);
 	void RestoreLocalPlayerDefensePotion();
@@ -1322,12 +1322,13 @@ private:
 	int ComputePlayerWeaponDamageTierIndexFromClearedMegaGrids() const;
 	void RefreshPlayerWeaponDamageTierFromClearedMegaGrids();
 	void RefreshPlayerWeaponAttackPowers();
+	void RefreshPlayerWeaponAttackPowersForSlot(int playerSlot);
 	void RefreshPlayerWeaponEffectVisuals();
 
-	int GetCurrentPlayerSwordAttackPower() const;
-	int GetCurrentPlayerAxeAttackPower() const;
-	int GetCurrentPlayerArrowAttackPower() const;
-	int GetCurrentPlayerBulletAttackPower() const;
+	int GetPlayerSwordAttackPower(int playerSlot) const;
+	int GetPlayerAxeAttackPower(int playerSlot) const;
+	int GetPlayerArrowAttackPower(int playerSlot) const;
+	int GetPlayerBulletAttackPower(int playerSlot) const;
 
 	bool IsBossMonsterObject(const CGameObject* monster) const;
 	bool IsEnemySpawnerMonsterObject(const CGameObject* monster) const;
