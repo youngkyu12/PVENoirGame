@@ -24,6 +24,7 @@ public:
 	
 	void SetHealthRatio(float ratio);
 	void SetInventoryItemCounts(const std::array<int, kInventorySlotCount>& counts);
+	void SetInventoryCooldownRatio(int slot, float ratio);
 
 	void SetInactiveOverlayVisible(bool visible);
 	bool IsInactiveOverlayVisible() const { return m_inactiveOverlayVisible; }
@@ -47,6 +48,8 @@ private:
 
 	std::array<int, kInventorySlotCount> m_inventorySpriteIndices = { -1, -1, -1, -1 };
 	std::array<int, kInventorySlotCount> m_inventoryIconSpriteIndices = { -1, -1, -1, -1 };
+	std::array<int, kInventorySlotCount> m_inventoryCooldownSpriteIndices = { -1, -1, -1, -1 };
+	std::array<XMFLOAT4, kInventorySlotCount> m_inventoryCooldownOriginalRects = {};
 	std::array<int, kInventorySlotCount> m_inventoryItemCounts = { 0, 0, 0, 0 };
 
 	static constexpr int kInventoryCountTextMaxDigits = 3;

@@ -8,6 +8,20 @@
 
 using namespace GameSceneHelper;
 
+namespace
+{
+	float Clamp01(float value)
+	{
+		if ( value < 0.0f )
+			return 0.0f;
+
+		if ( value > 1.0f )
+			return 1.0f;
+
+		return value;
+	}
+}
+
 void CGameScene::InitializeInventoryItemCounts()
 {
 #ifdef USING_NETWORK
@@ -20,6 +34,12 @@ void CGameScene::InitializeInventoryItemCounts()
 bool CGameScene::TryBeginLocalPlayerMoveSpeedPotion()
 {
 #ifndef USING_NETWORK
+	if ( m_bMoveSpeedPotionActive )
+	{
+		OutputDebugStringA("[Inventory][SpeedPotion] blocked: already active\n");
+		return false;
+	}
+
 	if ( m_bLocalPlayerDead )
 		return false;
 
@@ -45,6 +65,7 @@ bool CGameScene::TryBeginLocalPlayerMoveSpeedPotion()
 	m_bMoveSpeedPotionActive = true;
 	m_moveSpeedPotionRemainingSec = kMoveSpeedPotionDurationSec;
 	m_moveSpeedPotionLastLoggedSecond = static_cast< int >( kMoveSpeedPotionDurationSec );
+	m_hud.SetInventoryCooldownRatio(3, 1.0f);
 
 	char buf[192];
 	sprintf_s(buf, "[Inventory][SpeedPotion] start remaining=%d walk=%.1f run=%.1f\n", m_moveSpeedPotionLastLoggedSecond, kMoveSpeedPotionWalkSpeed, kMoveSpeedPotionRunSpeed);
@@ -66,6 +87,7 @@ void CGameScene::UpdateLocalPlayerMoveSpeedPotion(float dt)
 		dt = 0.0f;
 
 	m_moveSpeedPotionRemainingSec -= dt;
+	m_hud.SetInventoryCooldownRatio(3, Clamp01(m_moveSpeedPotionRemainingSec / kMoveSpeedPotionDurationSec));
 
 	if ( m_moveSpeedPotionRemainingSec <= 0.0f )
 	{
@@ -105,6 +127,7 @@ void CGameScene::RestoreLocalPlayerMoveSpeedPotion()
 	m_bMoveSpeedPotionActive = false;
 	m_moveSpeedPotionRemainingSec = 0.0f;
 	m_moveSpeedPotionLastLoggedSecond = -1;
+	m_hud.SetInventoryCooldownRatio(3, 0.0f);
 
 	char buf[160];
 	sprintf_s(buf, "[Inventory][SpeedPotion] expired restore walk=%.1f run=%.1f\n", m_moveSpeedPotionOriginalWalkSpeed, m_moveSpeedPotionOriginalRunSpeed);
@@ -115,6 +138,12 @@ void CGameScene::RestoreLocalPlayerMoveSpeedPotion()
 bool CGameScene::TryBeginLocalPlayerAttackPowerPotion()
 {
 #ifndef USING_NETWORK
+	if ( m_bAttackPowerPotionActive )
+	{
+		OutputDebugStringA("[Inventory][AttackPotion] blocked: already active\n");
+		return false;
+	}
+
 	if ( m_bLocalPlayerDead )
 		return false;
 
@@ -128,6 +157,7 @@ bool CGameScene::TryBeginLocalPlayerAttackPowerPotion()
 	m_bAttackPowerPotionActive = true;
 	m_attackPowerPotionRemainingSec = kAttackPowerPotionDurationSec;
 	m_attackPowerPotionLastLoggedSecond = static_cast< int >( kAttackPowerPotionDurationSec );
+	m_hud.SetInventoryCooldownRatio(1, 1.0f);
 
 	RefreshPlayerWeaponAttackPowers();
 
@@ -151,6 +181,7 @@ void CGameScene::UpdateLocalPlayerAttackPowerPotion(float dt)
 		dt = 0.0f;
 
 	m_attackPowerPotionRemainingSec -= dt;
+	m_hud.SetInventoryCooldownRatio(1, Clamp01(m_attackPowerPotionRemainingSec / kAttackPowerPotionDurationSec));
 
 	if ( m_attackPowerPotionRemainingSec <= 0.0f )
 	{
@@ -182,6 +213,7 @@ void CGameScene::RestoreLocalPlayerAttackPowerPotion()
 	m_bAttackPowerPotionActive = false;
 	m_attackPowerPotionRemainingSec = 0.0f;
 	m_attackPowerPotionLastLoggedSecond = -1;
+	m_hud.SetInventoryCooldownRatio(1, 0.0f);
 
 	RefreshPlayerWeaponAttackPowers();
 
@@ -202,6 +234,12 @@ int CGameScene::ApplyLocalPlayerAttackPowerPotionMultiplier(int attackPower) con
 bool CGameScene::TryBeginLocalPlayerDefensePotion()
 {
 #ifndef USING_NETWORK
+	if ( m_bDefensePotionActive )
+	{
+		OutputDebugStringA("[Inventory][DefensePotion] blocked: already active\n");
+		return false;
+	}
+
 	if ( m_bLocalPlayerDead )
 		return false;
 
@@ -227,6 +265,7 @@ bool CGameScene::TryBeginLocalPlayerDefensePotion()
 	m_bDefensePotionActive = true;
 	m_defensePotionRemainingSec = kDefensePotionDurationSec;
 	m_defensePotionLastLoggedSecond = static_cast< int >( kDefensePotionDurationSec );
+	m_hud.SetInventoryCooldownRatio(2, 1.0f);
 
 	char buf[192];
 	sprintf_s(buf, "[Inventory][DefensePotion] start remaining=%d incomingDamageScale=%.2f\n", m_defensePotionLastLoggedSecond, kDefensePotionIncomingDamageScale);
@@ -248,6 +287,7 @@ void CGameScene::UpdateLocalPlayerDefensePotion(float dt)
 		dt = 0.0f;
 
 	m_defensePotionRemainingSec -= dt;
+	m_hud.SetInventoryCooldownRatio(2, Clamp01(m_defensePotionRemainingSec / kDefensePotionDurationSec));
 
 	if ( m_defensePotionRemainingSec <= 0.0f )
 	{
@@ -291,6 +331,7 @@ void CGameScene::RestoreLocalPlayerDefensePotion()
 	m_defensePotionRemainingSec = 0.0f;
 	m_defensePotionOriginalIncomingDamageScale = 1.0f;
 	m_defensePotionLastLoggedSecond = -1;
+	m_hud.SetInventoryCooldownRatio(2, 0.0f);
 
 	OutputDebugStringA("[Inventory][DefensePotion] expired restore incoming damage scale\n");
 #endif

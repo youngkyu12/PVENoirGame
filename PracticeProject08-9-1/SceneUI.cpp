@@ -99,6 +99,24 @@ int CSceneUI::AddSprite(
 	return static_cast< int >( m_sprites.size() - 1 );
 }
 
+int CSceneUI::AddSolidRect(const char* name, const XMFLOAT4& rect, ELayer layer, bool visible)
+{
+	SpriteEntry entry{};
+
+	if ( name )
+		entry.name = name;
+
+	entry.texture = nullptr;
+	entry.srvIndex = UINT_MAX;
+	entry.rect = rect;
+	entry.layer = layer;
+	entry.visible = visible;
+	entry.effectKind = 3;
+
+	m_sprites.push_back(std::move(entry));
+	return static_cast< int >( m_sprites.size() - 1 );
+}
+
 int CSceneUI::AddFitSprite(
 	ID3D12Device* dev,
 	ID3D12GraphicsCommandList* cmd,
@@ -172,12 +190,14 @@ void CSceneUI::RenderSprite(ID3D12GraphicsCommandList* cmd, CCamera* camera, int
 	if ( !sprite.visible )
 		return;
 
-	if ( sprite.srvIndex == UINT_MAX )
+	const bool solidRect = ( sprite.effectKind == 3 );
+
+	if ( !solidRect && sprite.srvIndex == UINT_MAX )
 		return;
 
 	PS_CB_DRAW_OPTIONS opt{};
-	opt.m_xmn4DrawOptions = XMINT4('T', sprite.effectKind, 0, 0);
-	opt.m_xmu4PostSrvIdx0 = XMUINT4(sprite.srvIndex, 0, 0, 0);
+	opt.m_xmn4DrawOptions = XMINT4(solidRect ? 'S' : 'T', sprite.effectKind, 0, 0);
+	opt.m_xmu4PostSrvIdx0 = XMUINT4(solidRect ? 0 : sprite.srvIndex, 0, 0, 0);
 	opt.m_xmu4PostSrvIdx1 = XMUINT4(0, 0, 0, 0);
 	opt.m_xmf4UiRect = sprite.rect;
 	opt.m_xmf4Viewport = XMFLOAT4(
