@@ -16,6 +16,7 @@ public:
 	void SetChaseRanges(float startRange, float stopRange);
 	void SetAttackRange(float range) { m_attackRange = range; }
 	void SetMoveSpeed(float speed)   { m_moveSpeed   = speed; }
+	void SetHomePosition(const GameMath::Vec3& pos) { m_homePosition = pos; }
 
 private:
 	bool AcquireTarget();
@@ -27,6 +28,11 @@ private:
 	bool SampleNavMeshPosition(const GameMath::Vec3& in, GameMath::Vec3& out) const;
 	const CNavMesh* GetNavMesh() const;
 	void ConfigureFromWeapon(Protocol::WeaponType weaponType);
+
+	bool IsAtHome() const;
+	bool BeginReturnHome();
+	bool UpdateReturnHome(float dt);
+	bool HasDirectNavMeshLineTo(const GameMath::Vec3& target) const;
 
 private:
 	CServerObject* m_pTarget = nullptr;
@@ -49,6 +55,13 @@ private:
 	std::vector<int> m_trianglePath;
 	std::vector<GameMath::Vec3> m_currentPath;
 	size_t m_currentPathIndex = 0;
+
+	// return-to-home
+	GameMath::Vec3 m_homePosition{};
+	bool           m_bReturningHome  = false;
+	std::vector<int>             m_returnTrianglePath;
+	std::vector<GameMath::Vec3>  m_returnPath;
+	size_t         m_returnPathIndex = 0;
 
 	// spawner pool
 	bool m_useDirectMove = false;

@@ -397,6 +397,7 @@ void Room::BuildRoom()
 		SetObjectCollisionMegaGridMask(enemy, ComputeObjectCurrentMegaGridMask(enemy.get()), true);
 		enemies[enemyId] = enemy;
 		applyMonsterAIParams(enemy.get(), spawn.type);
+		enemy->GetMonsterAI()->SetHomePosition(enemy->GetPosition());
 
 		if (spawn.type == "Mutant")
 		{
@@ -606,7 +607,10 @@ CEnemy* Room::ActivateSpawnerEnemy(int megaGrid, Protocol::EnemyType type,
 			: GameMath::Vec3(0.f, 0.f, 1.f);
 
 		if (CMonsterAI* ai = enemy->GetMonsterAI())
+		{
+			ai->SetHomePosition(pos);
 			ai->SetDirectMoveMode(60.f, homeDir, 50.f, megaCenter);
+		}
 
 		return enemy.get();
 	}

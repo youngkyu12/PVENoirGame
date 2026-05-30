@@ -89,15 +89,29 @@ void CMonsterAI::OnUpdate(float dt)
 	}
 
 	// 일반 NavMesh 모드
+
+	// 귀환 중이면 귀환만 처리 (재감지 없음)
+	if (m_bReturningHome)
+	{
+		UpdateReturnHome(dt);
+		return;
+	}
+
 	if (!AcquireTarget())
 	{
 		m_pTarget = nullptr;
 		m_currentPath.clear();
 		m_trianglePath.clear();
 		m_currentPathIndex = 0;
-		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
+
+		if (!IsAtHome())
+			BeginReturnHome();
+		else
+			GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
 		return;
 	}
+
+	m_bReturningHome = false;
 
 	const auto myPos = GetOwner()->GetPosition();
 	const auto targetPos = m_pTarget->GetPosition();
@@ -119,9 +133,18 @@ void CMonsterAI::OnUpdate(float dt)
 		return;
 	}
 
-	bool repathChanged = false;
+	// 직선 LOS 통과 시 A* 생략
+	if (HasDirectNavMeshLineTo(targetPos))
+	{
+		m_currentPath.clear();
+		m_trianglePath.clear();
+		m_currentPathIndex = 0;
+		MoveTowards(targetPos, m_moveSpeed * dt);
+		return;
+	}
+
 	if (m_repathTimer <= 0.f || m_currentPath.empty() || m_currentPathIndex >= m_currentPath.size())
-		repathChanged = RebuildPathToTarget();
+		RebuildPathToTarget();
 
 	const bool followingPath = FollowCurrentPath(dt);
 	if (!followingPath)
@@ -354,6 +377,10 @@ void CMonsterAI::SetDirectMoveMode(float advanceDist, const GameMath::Vec3& home
 	m_currentPath.clear();
 	m_trianglePath.clear();
 	m_currentPathIndex = 0;
+	m_bReturningHome = false;
+	m_returnPath.clear();
+	m_returnTrianglePath.clear();
+	m_returnPathIndex = 0;
 }
 
 void CMonsterAI::ConfigureFromWeapon(Protocol::WeaponType weaponType)
@@ -386,4 +413,90 @@ void CMonsterAI::ConfigureFromWeapon(Protocol::WeaponType weaponType)
 		m_chaseStopRange  = 50.0f;
 		break;
 	}
+}
+
+bool CMonsterAI::IsAtHome() const
+{
+	constexpr float kHomeTolerance = 0.2f;
+	return GameMath::DistSqXZ(GetOwner()->GetPosition(), m_homePosition) <= kHomeTolerance * kHomeTolerance;
+}
+
+bool CMonsterAI::BeginReturnHome()
+{
+	m_bReturningHome = true;
+	m_pTarget = nullptr;
+	m_currentPath.clear();
+	m_trianglePath.clear();
+	m_currentPathIndex = 0;
+	m_returnPath.clear();
+	m_returnTrianglePath.clear();
+	m_returnPathIndex = 0;
+
+	if (IsAtHome())
+	{
+		m_bReturningHome = false;
+		return true;
+	}
+
+	const CNavMesh* nav = GetNavMesh();
+	if (!nav || !nav->IsLoaded()) { m_bReturningHome = false; return false; }
+
+	GameMath::Vec3 startPos{}, goalPos{};
+	if (!SampleNavMeshPosition(GetOwner()->GetPosition(), startPos)) { m_bReturningHome = false; return false; }
+	if (!SampleNavMeshPosition(m_homePosition, goalPos))             { m_bReturningHome = false; return false; }
+
+	if (!nav->FindPath(startPos, goalPos, m_returnTrianglePath, m_returnPath))
+	{ m_bReturningHome = false; return false; }
+
+	m_returnPathIndex = 0;
+	return true;
+}
+
+bool CMonsterAI::UpdateReturnHome(float dt)
+{
+	if (IsAtHome())
+	{
+		m_bReturningHome = false;
+		m_returnPath.clear();
+		m_returnTrianglePath.clear();
+		m_returnPathIndex = 0;
+		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
+		return true;
+	}
+
+	if (m_returnPath.empty() || m_returnPathIndex >= m_returnPath.size())
+	{
+		BeginReturnHome();
+		return false;
+	}
+
+	const float moveDistance = m_moveSpeed * dt;
+
+	while (m_returnPathIndex < m_returnPath.size())
+	{
+		const auto& wp = m_returnPath[m_returnPathIndex];
+		if (DistSqXZ(GetOwner()->GetPosition(), wp) <= m_pathPointReachDistance * m_pathPointReachDistance)
+		{
+			++m_returnPathIndex;
+			continue;
+		}
+
+		MoveTowards(wp, moveDistance);
+		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_WALK);
+		return false;
+	}
+
+	if (IsAtHome())
+	{
+		m_bReturningHome = false;
+		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
+	}
+	return false;
+}
+
+bool CMonsterAI::HasDirectNavMeshLineTo(const GameMath::Vec3& target) const
+{
+	const CNavMesh* nav = GetNavMesh();
+	if (!nav || !nav->IsLoaded()) return false;
+	return nav->HasLineOfSight(GetOwner()->GetPosition(), target);
 }
