@@ -955,7 +955,11 @@ private:
 	static constexpr UINT kKeyItemBillboardCount = 7;
 	static constexpr UINT kPotionItemKindCount = 4;
 	static constexpr UINT kPotionItemMaxCountPerKind = 50;
-	static constexpr UINT kPotionItemBillboardCount = kPotionItemKindCount * kPotionItemMaxCountPerKind;
+	static constexpr UINT kPotionItemCountPerMegaGrid = 6;
+	static constexpr UINT kPotionItemSpawnMegaGridCount = 8;
+	static constexpr UINT kPotionItemSpawnCountPerKind = kPotionItemCountPerMegaGrid * kPotionItemSpawnMegaGridCount;
+	static constexpr UINT kPotionItemBillboardCount = kPotionItemKindCount * kPotionItemSpawnCountPerKind;
+	static_assert( kPotionItemSpawnCountPerKind <= kPotionItemMaxCountPerKind, "Potion item spawn count exceeds max count per kind." );
 
 	ItemBillboardState m_itemBillboardState;
 

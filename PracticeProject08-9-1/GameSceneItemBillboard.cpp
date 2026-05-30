@@ -116,13 +116,11 @@ std::shared_ptr<CMesh> CGameScene::CreateItemBillboardQuadMesh(ID3D12Device* dev
 
 void CGameScene::AddPotionItemBillboardEntries()
 {
-	const std::array<XMFLOAT3, kPotionItemKindCount> potionPositions =
-	{
-		XMFLOAT3(0.0f, 0.0f, -140.0f),
-		XMFLOAT3(2.0f, 0.0f, -140.0f),
-		XMFLOAT3(4.0f, 0.0f, -140.0f),
-		XMFLOAT3(6.0f, 0.0f, -140.0f)
-	};
+#ifdef USING_NETWORK
+	return;
+#else
+	if ( !m_sceneGrid.IsInitialized() )
+		return;
 
 	const std::array<EItemBillboardKind, kPotionItemKindCount> potionKinds =
 	{
@@ -140,41 +138,104 @@ void CGameScene::AddPotionItemBillboardEntries()
 		kMoveSpeedPotionItemBillboardMaterialId
 	};
 
+	const std::array<int, kPotionItemSpawnMegaGridCount> targetMegaGridNumbers =
+	{
+		1, 2, 3, 4, 6, 7, 8, 9
+	};
+
+	static constexpr int kPotionPlacementCenterSizeCells = 200;
+
+	std::mt19937 rng{ std::random_device{}( ) };
+
+	std::unordered_set<int> usedPotionCells;
+	usedPotionCells.reserve(kPotionItemBillboardCount * 2);
+
 	for ( UINT slot = 0; slot < kPotionItemKindCount; ++slot )
 	{
-		for ( UINT i = 0; i < kPotionItemMaxCountPerKind; ++i )
+		for ( int megaGridNumber : targetMegaGridNumbers )
 		{
-			ItemBillboardEntry potion{};
+			const int zeroBasedMegaGridNumber = megaGridNumber - 1;
+			const int megaX = zeroBasedMegaGridNumber % CSceneGrid::kMegaGridCols;
+			const int megaZ = zeroBasedMegaGridNumber / CSceneGrid::kMegaGridCols;
 
-			potion.active = true;
-			potion.distanceCulled = false;
-			potion.transparent = true;
+			const int megaStartCellX = megaX * CSceneGrid::kMegaGridCellWidth;
+			const int megaStartCellZ = megaZ * CSceneGrid::kMegaGridCellHeight;
 
-			potion.kind = potionKinds[slot];
-			potion.inventorySlot = static_cast< int >(slot);
+			const int centerStartCellX = megaStartCellX + ( ( CSceneGrid::kMegaGridCellWidth - kPotionPlacementCenterSizeCells ) / 2 );
+			const int centerStartCellZ = megaStartCellZ + ( ( CSceneGrid::kMegaGridCellHeight - kPotionPlacementCenterSizeCells ) / 2 );
+			const int centerEndCellX = centerStartCellX + kPotionPlacementCenterSizeCells;
+			const int centerEndCellZ = centerStartCellZ + kPotionPlacementCenterSizeCells;
 
-			potion.position = potionPositions[slot];
+			std::vector<int> candidateCells;
+			candidateCells.reserve(kPotionPlacementCenterSizeCells * kPotionPlacementCenterSizeCells);
 
-			potion.megaGridNumber =
-				m_sceneGrid.MegaGridNumberFromWorldPosition(
-					potion.position.x,
-					potion.position.z
-				);
+			for ( int cellZ = centerStartCellZ; cellZ < centerEndCellZ; ++cellZ )
+			{
+				for ( int cellX = centerStartCellX; cellX < centerEndCellX; ++cellX )
+				{
+					if ( m_sceneGrid.IsStaticBuildingCell(cellX, cellZ) )
+						continue;
 
-			potion.width = 1.25f;
-			potion.height = 1.25f;
-			potion.yOffset = 1.20f;
+					const int cellIndex = m_sceneGrid.GridCellIndex(cellX, cellZ);
 
-			potion.cullDistance = 300.0f;
+					if ( usedPotionCells.find(cellIndex) != usedPotionCells.end() )
+						continue;
 
-			potion.pickupRadius = 1.25f;
-			potion.pickupHeightTolerance = 2.0f;
+					candidateCells.push_back(cellIndex);
+				}
+			}
 
-			potion.materialId = potionMaterialIds[slot];
+			std::shuffle(candidateCells.begin(), candidateCells.end(), rng);
 
-			m_itemBillboardState.entries.push_back(potion);
+			const UINT spawnCount = std::min<UINT>(kPotionItemCountPerMegaGrid, static_cast< UINT >( candidateCells.size() ));
+
+			if ( spawnCount < kPotionItemCountPerMegaGrid )
+			{
+				char buf[192];
+				sprintf_s(buf, "[PotionItemSpawn] warning: slot=%u megaGrid=%d spawnCount=%u requested=%u\n", slot, megaGridNumber, spawnCount, kPotionItemCountPerMegaGrid);
+				OutputDebugStringA(buf);
+			}
+
+			for ( UINT i = 0; i < spawnCount; ++i )
+			{
+				const int cellIndex = candidateCells[static_cast< size_t >(i)];
+				const int cellX = cellIndex % CSceneGrid::kGridWidth;
+				const int cellZ = cellIndex / CSceneGrid::kGridWidth;
+
+				usedPotionCells.insert(cellIndex);
+
+				ItemBillboardEntry potion{};
+
+				potion.active = true;
+				potion.distanceCulled = false;
+				potion.transparent = true;
+
+				potion.kind = potionKinds[slot];
+				potion.inventorySlot = static_cast< int >( slot );
+				potion.megaGridNumber = megaGridNumber;
+
+				potion.position = XMFLOAT3(static_cast< float >( CSceneGrid::kGridMinX + cellX ) + 0.5f, 0.0f, static_cast< float >( CSceneGrid::kGridMinZ + cellZ ) + 0.5f);
+
+				potion.width = 1.25f;
+				potion.height = 1.25f;
+				potion.yOffset = 1.20f;
+
+				potion.cullDistance = 300.0f;
+
+				potion.pickupRadius = 1.25f;
+				potion.pickupHeightTolerance = 2.0f;
+
+				potion.materialId = potionMaterialIds[slot];
+
+				m_itemBillboardState.entries.push_back(potion);
+			}
 		}
 	}
+
+	char buf[160];
+	sprintf_s(buf, "[PotionItemSpawn] complete count=%zu perKind=%u\n", m_itemBillboardState.entries.size(), kPotionItemSpawnCountPerKind);
+	OutputDebugStringA(buf);
+#endif
 }
 
 void CGameScene::BuildItemBillboardBatch(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, UINT rtCount, DXGI_FORMAT* rtvFormats, DXGI_FORMAT dsvFormat)
