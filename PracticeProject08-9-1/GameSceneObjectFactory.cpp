@@ -21,6 +21,7 @@
 #include "BulletComponent.h"
 #include "HealthComponent.h"
 #include "AttackPowerComponent.h"
+#include "TerrainAttachComponent.h"
 
 namespace
 {
@@ -90,10 +91,6 @@ std::unique_ptr<CGameObject> GameSceneObjectFactory::CreateStaticRenderable(cons
 	if ( desc.addStaticMeshRenderer )
 		obj->AddComponent<CStaticMeshRendererComponent>();
 
-	// 여기다가 TerrainAttachComponent 생성
-	// if ( desc.addTerrainAttach)
-	//		obj->AddComponent<CTerrainAttachComponent>();
-
 	if ( desc.addCollider )
 	{
 		auto* collider = obj->AddComponent<CColliderComponent>(desc.colliderType);
@@ -132,6 +129,9 @@ std::unique_ptr<CGameObject> GameSceneObjectFactory::CreateStaticRenderable(cons
 
 	if ( desc.addPlayerWeaponHitbox )
 		obj->AddComponent<CWeaponHitboxComponent>();
+
+	if ( desc.addTerrainAttach )
+		obj->AddComponent<CTerrainAttachComponent>(desc.terrainData);
 
 	if ( desc.addAttackPower )
 	{

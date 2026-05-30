@@ -289,6 +289,17 @@ public:
 	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
 };
 
+class CShadowMapTerrainShader final : public CShadowMapStaticShader
+{
+public:
+	CShadowMapTerrainShader() = default;
+	~CShadowMapTerrainShader() override = default;
+
+public:
+	D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob) override;
+	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
+};
+
 class CShadowMapSkinnedShader : public CSkinnedObjectsShader
 {
 public:

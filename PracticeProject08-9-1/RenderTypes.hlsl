@@ -37,6 +37,13 @@ struct VS_TEXTURED_LIGHTING_OUTPUT
     float4 shadowPosH : TEXCOORD1;
 };
 
+struct VS_SHADOW_MAP_OUTPUT
+{
+    float4 position : SV_POSITION;
+    float2 uv : TEXCOORD0;
+    nointerpolation uint materialId : MATERIAL_ID;
+};
+
 struct PS_MULTIPLE_RENDER_TARGETS_OUTPUT
 {
     float4 color : SV_TARGET0;

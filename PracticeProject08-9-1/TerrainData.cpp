@@ -37,14 +37,12 @@ void TerrainData::SetScale(const XMFLOAT3& scale)
 	m_xmf3Scale = scale;
 }
 
-float TerrainData::GetHeight(float localX, float loaclZ) const
+float TerrainData::GetHeight(float localX, float loaclZ, bool bReverseQuad) const
 {
 	if (!m_heightMapImage)
 		return 0.0f;
 
-	return m_heightMapImage->GetHeight(
-		localX / m_xmf3Scale.x,
-		loaclZ / m_xmf3Scale.z) * m_xmf3Scale.y;
+	return m_heightMapImage->GetHeight(localX, loaclZ, bReverseQuad) * m_xmf3Scale.y;
 }
 
 XMFLOAT3 TerrainData::GetNormal(float localX, float loaclZ) const

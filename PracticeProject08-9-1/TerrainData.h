@@ -19,7 +19,7 @@ public:
 	void SetSize(int width, int length);
 	void SetScale(const XMFLOAT3& scale);
 
-	float GetHeight(float localX, float loaclZ) const;
+	float GetHeight(float localX, float loaclZ, bool bReverseQuad = false) const;
 	XMFLOAT3 GetNormal(float localX, float loaclZ) const;
 	int GetHeightMapWidth() const;
 	int GetHeightMapLength() const;

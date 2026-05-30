@@ -288,4 +288,37 @@ float4 PSTerrain(VS_TEXTURED_LIGHTING_OUTPUT input) : SV_TARGET
     return texColor;
 }
 
+VS_SHADOW_MAP_OUTPUT VSShadowMapTerrainInstanced(
+      VS_TEXTURED_LIGHTING_INSTANCED_INPUT input)
+{
+    VS_SHADOW_MAP_OUTPUT output;
+
+    float4x4 mtxInstanceWorld = float4x4(
+          input.instWorld0,
+          input.instWorld1,
+          input.instWorld2,
+          input.instWorld3
+      );
+
+    const float3 terrainScale = GetTerrainScale();
+
+    if (gvTerrainTextureIndices.x < MAX_GLOBAL_SRVS)
+    {
+        const float x = input.position.x / terrainScale.x;
+        const float z = input.position.z / terrainScale.z;
+        input.position.y = GetTerrainHeight(x, z) * 255.0f * terrainScale.y;
+    }
+
+    float3 positionW =
+          (float3) mul(float4(input.position, 1.0f), mtxInstanceWorld);
+
+    output.position =
+          mul(float4(positionW, 1.0f), gmtxShadowViewProj);
+
+    output.uv = input.uv;
+    output.materialId = gnMaterialID;
+
+    return output;
+}
+
 #endif
