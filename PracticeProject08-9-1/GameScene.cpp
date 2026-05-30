@@ -169,6 +169,11 @@ CGameScene::CGameScene()
 	m_bAttackPowerPotionActive = false;
 	m_attackPowerPotionRemainingSec = 0.0f;
 	m_attackPowerPotionLastLoggedSecond = -1;
+
+	m_bDefensePotionActive = false;
+	m_defensePotionRemainingSec = 0.0f;
+	m_defensePotionOriginalIncomingDamageScale = 1.0f;
+	m_defensePotionLastLoggedSecond = -1;
 }
 
 void CGameScene::SetFrameResourceIndex(UINT frameResourceIndex)
@@ -3310,6 +3315,11 @@ void CGameScene::ReleaseObjects()
 	m_bAttackPowerPotionActive = false;
 	m_attackPowerPotionRemainingSec = 0.0f;
 	m_attackPowerPotionLastLoggedSecond = -1;
+
+	m_bDefensePotionActive = false;
+	m_defensePotionRemainingSec = 0.0f;
+	m_defensePotionOriginalIncomingDamageScale = 1.0f;
+	m_defensePotionLastLoggedSecond = -1;
 
 	m_hud.ReleaseResources();
 	m_depthFog.ReleaseResources();
@@ -7607,6 +7617,7 @@ void CGameScene::AnimateObjects(float dt)
 #ifndef USING_NETWORK
 	UpdateLocalPlayerMoveSpeedPotion(dt);
 	UpdateLocalPlayerAttackPowerPotion(dt);
+	UpdateLocalPlayerDefensePotion(dt);
 
 	UpdateBossStageBossPositionRestores();
 	UpdateBossStageBossRenderGate();

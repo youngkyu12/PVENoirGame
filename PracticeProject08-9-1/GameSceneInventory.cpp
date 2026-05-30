@@ -8,8 +8,6 @@
 
 using namespace GameSceneHelper;
 
-
-
 void CGameScene::InitializeInventoryItemCounts()
 {
 #ifdef USING_NETWORK
@@ -201,7 +199,102 @@ int CGameScene::ApplyLocalPlayerAttackPowerPotionMultiplier(int attackPower) con
 	return attackPower;
 }
 
+bool CGameScene::TryBeginLocalPlayerDefensePotion()
+{
+#ifndef USING_NETWORK
+	if ( m_bLocalPlayerDead )
+		return false;
 
+	CGameObject* localPlayer = GetPlayer();
+	if ( !localPlayer )
+		localPlayer = GetPlayerBySlot(0);
+
+	if ( !localPlayer )
+		return false;
+
+	CHealthComponent* hp = localPlayer->GetComponent<CHealthComponent>();
+	if ( !hp )
+		return false;
+
+	if ( hp->IsDead() )
+		return false;
+
+	if ( !m_bDefensePotionActive )
+		m_defensePotionOriginalIncomingDamageScale = hp->GetIncomingDamageScale();
+
+	hp->SetIncomingDamageScale(kDefensePotionIncomingDamageScale);
+
+	m_bDefensePotionActive = true;
+	m_defensePotionRemainingSec = kDefensePotionDurationSec;
+	m_defensePotionLastLoggedSecond = static_cast< int >( kDefensePotionDurationSec );
+
+	char buf[192];
+	sprintf_s(buf, "[Inventory][DefensePotion] start remaining=%d incomingDamageScale=%.2f\n", m_defensePotionLastLoggedSecond, kDefensePotionIncomingDamageScale);
+	OutputDebugStringA(buf);
+
+	return true;
+#else
+	return false;
+#endif
+}
+
+void CGameScene::UpdateLocalPlayerDefensePotion(float dt)
+{
+#ifndef USING_NETWORK
+	if ( !m_bDefensePotionActive )
+		return;
+
+	if ( dt < 0.0f )
+		dt = 0.0f;
+
+	m_defensePotionRemainingSec -= dt;
+
+	if ( m_defensePotionRemainingSec <= 0.0f )
+	{
+		RestoreLocalPlayerDefensePotion();
+		return;
+	}
+
+	const int remainingSecond = static_cast< int >( m_defensePotionRemainingSec + 0.999f );
+
+	if ( remainingSecond != m_defensePotionLastLoggedSecond )
+	{
+		m_defensePotionLastLoggedSecond = remainingSecond;
+
+		char buf[128];
+		sprintf_s(buf, "[Inventory][DefensePotion] remaining=%d\n", remainingSecond);
+		OutputDebugStringA(buf);
+	}
+#else
+	UNREFERENCED_PARAMETER(dt);
+#endif
+}
+
+void CGameScene::RestoreLocalPlayerDefensePotion()
+{
+#ifndef USING_NETWORK
+	if ( !m_bDefensePotionActive )
+		return;
+
+	CGameObject* localPlayer = GetPlayer();
+	if ( !localPlayer )
+		localPlayer = GetPlayerBySlot(0);
+
+	if ( localPlayer )
+	{
+		CHealthComponent* hp = localPlayer->GetComponent<CHealthComponent>();
+		if ( hp )
+			hp->SetIncomingDamageScale(m_defensePotionOriginalIncomingDamageScale);
+	}
+
+	m_bDefensePotionActive = false;
+	m_defensePotionRemainingSec = 0.0f;
+	m_defensePotionOriginalIncomingDamageScale = 1.0f;
+	m_defensePotionLastLoggedSecond = -1;
+
+	OutputDebugStringA("[Inventory][DefensePotion] expired restore incoming damage scale\n");
+#endif
+}
 
 void CGameScene::SetInventoryItemCounts(const std::array<int, CGameSceneHUD::kInventorySlotCount>& counts)
 {
@@ -263,9 +356,7 @@ bool CGameScene::RequestUseInventoryItemSlot(int slot)
 		break;
 
 	case 2:
-		// TODO: 방어력 증가 포션 효과 구현 위치.
-		// 아직 효과는 없지만, 기존 요청대로 수량만 감소시키기 위해 true 처리한다.
-		itemEffectApplied = true;
+		itemEffectApplied = TryBeginLocalPlayerDefensePotion();
 		break;
 
 	case 3:

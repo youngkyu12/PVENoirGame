@@ -852,7 +852,10 @@ private:
 	void UpdateLocalPlayerAttackPowerPotion(float dt);
 	void RestoreLocalPlayerAttackPowerPotion();
 	int ApplyLocalPlayerAttackPowerPotionMultiplier(int attackPower) const;
-    
+	bool TryBeginLocalPlayerDefensePotion();
+	void UpdateLocalPlayerDefensePotion(float dt);
+	void RestoreLocalPlayerDefensePotion();
+
 	// slot 0..3 플레이어 포인터(소유는 m_skinnedObjects가 함)
     std::array<CGameObject*, 4> m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
 
@@ -1526,6 +1529,14 @@ private:
 	bool m_bAttackPowerPotionActive = false;
 	float m_attackPowerPotionRemainingSec = 0.0f;
 	int m_attackPowerPotionLastLoggedSecond = -1;
+
+	static constexpr float kDefensePotionDurationSec = 60.0f;
+	static constexpr float kDefensePotionIncomingDamageScale = 0.5f;
+
+	bool m_bDefensePotionActive = false;
+	float m_defensePotionRemainingSec = 0.0f;
+	float m_defensePotionOriginalIncomingDamageScale = 1.0f;
+	int m_defensePotionLastLoggedSecond = -1;
 
 	CGameSceneHUD                       m_hud;
 	CShadowMapSystem					m_shadowMap;
