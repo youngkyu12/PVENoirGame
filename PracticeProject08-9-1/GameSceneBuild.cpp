@@ -435,6 +435,8 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	}
 
 	LinkSceneObjects();
+	AttachInventoryComponentsToPlayers();
+	SyncLocalInventoryToHud();
 
 	CreateShaderVariables(dev, cmd);
 
@@ -4283,6 +4285,72 @@ void CGameScene::LinkSceneObjects()
 #endif
 
 	GameSceneAttachmentBinder::LinkSceneObjects(input, m_attachmentBinds);
+}
+
+void CGameScene::AttachInventoryComponentsToPlayers()
+{
+	for ( int slot = 0; slot < 4; ++slot )
+	{
+		CGameObject* player = GetPlayerBySlot(slot);
+		if ( !player )
+			continue;
+
+		CInventoryComponent* inventory = player->GetComponent<CInventoryComponent>();
+		if ( !inventory )
+			inventory = player->AddComponent<CInventoryComponent>();
+
+		if ( !inventory )
+			continue;
+
+		std::array<int, CInventoryComponent::kInventorySlotCount> counts = { 0, 0, 0, 0 };
+		const int copyCount = ( CInventoryComponent::kInventorySlotCount < CGameSceneHUD::kInventorySlotCount ) ? CInventoryComponent::kInventorySlotCount : CGameSceneHUD::kInventorySlotCount;
+
+		for ( int i = 0; i < copyCount; ++i )
+			counts[static_cast< size_t >(i)] = m_inventoryItemCounts[static_cast< size_t >(i)];
+
+		inventory->SetItemCounts(counts);
+
+		char buf[160];
+		sprintf_s(buf, "[InventoryComponent] attached slot=%d player=%p inventory=%p\n", slot, static_cast< void* >(player), static_cast< void* >(inventory));
+		OutputDebugStringA(buf);
+	}
+}
+
+CInventoryComponent* CGameScene::GetInventoryByPlayerSlot(int slot) const
+{
+	CGameObject* player = GetPlayerBySlot(slot);
+	if ( !player )
+		return nullptr;
+
+	return player->GetComponent<CInventoryComponent>();
+}
+
+CInventoryComponent* CGameScene::GetLocalPlayerInventory() const
+{
+	return GetInventoryByPlayerSlot(m_localPlayerSlot);
+}
+
+void CGameScene::SyncLocalInventoryToHud()
+{
+	std::array<int, CGameSceneHUD::kInventorySlotCount> hudCounts = { 0, 0, 0, 0 };
+
+	CInventoryComponent* inventory = GetLocalPlayerInventory();
+
+	if ( inventory )
+	{
+		const std::array<int, CInventoryComponent::kInventorySlotCount>& inventoryCounts = inventory->GetItemCounts();
+		const int copyCount = ( CInventoryComponent::kInventorySlotCount < CGameSceneHUD::kInventorySlotCount ) ? CInventoryComponent::kInventorySlotCount : CGameSceneHUD::kInventorySlotCount;
+		for ( int i = 0; i < copyCount; ++i )
+			hudCounts[static_cast< size_t >(i)] = inventoryCounts[static_cast< size_t >(i)];
+	}
+
+	m_hud.SetInventoryItemCounts(hudCounts);
+
+	for ( int slot = 0; slot < CGameSceneHUD::kInventorySlotCount; ++slot )
+	{
+		const float cooldownRatio = inventory ? inventory->GetCooldownRatio(slot) : 0.0f;
+		m_hud.SetInventoryCooldownRatio(slot, cooldownRatio);
+	}
 }
 
 void CGameScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target)

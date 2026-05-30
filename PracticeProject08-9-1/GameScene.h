@@ -37,6 +37,7 @@ class CSkinningComponent;
 class CAnimatorComponent;
 class CHealthComponent;
 class CActorTagComponent;
+class CInventoryComponent;
 
 namespace FMOD
 {
@@ -843,6 +844,11 @@ private:
 
 	int GetLocalPlayerMegaGridNumberForDepthFog() const;
 	void UpdateDepthFogState(float dt);
+
+	void AttachInventoryComponentsToPlayers();
+	CInventoryComponent* GetInventoryByPlayerSlot(int slot) const;
+	CInventoryComponent* GetLocalPlayerInventory() const;
+	void SyncLocalInventoryToHud();
 
 	void InitializeInventoryItemCounts();
 	bool TryBeginLocalPlayerMoveSpeedPotion();
