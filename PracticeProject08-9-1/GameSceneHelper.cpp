@@ -449,9 +449,9 @@ namespace GameSceneHelper
 	}
 #endif
 
-	bool ResolvePlacementFilePathFromMapId(
-		const std::string& mapId,
-		std::string& outPlacementFilePath)
+	bool ResolveStageFileSetFromMapId(
+	const std::string& mapId,
+	GameSceneStageFileSet& outFileSet)
 	{
 		std::string normalized = ToLowerAscii(TrimString(mapId));
 
@@ -468,7 +468,12 @@ namespace GameSceneHelper
 			normalized == "map_fullstage" ||
 			normalized == "mapdata_fullstage" )
 		{
-			outPlacementFilePath = "MapData/MapData_fullstage(NoTree).txt";
+			outFileSet = {
+				"MapData/MapData_fullstage(NoTree).txt",
+				"MapData/Navmesh_FullStage.nvm",
+				"MapData/CubeBoxColliderReport.txt",
+				"MapData/monster_spawn_points.txt"
+			};
 			return true;
 		}
 
@@ -476,7 +481,12 @@ namespace GameSceneHelper
 			normalized == "map_fullstage_tree" ||
 			normalized == "mapdata_fullstage_tree" )
 		{
-			outPlacementFilePath = "MapData/MapData_fullstage.txt";
+			outFileSet = {
+				"MapData/MapData_fullstage.txt",
+				"MapData/Navmesh_FullStage.nvm",
+				"MapData/CubeBoxColliderReport.txt",
+				"MapData/monster_spawn_points.txt"
+			};
 			return true;
 		}
 
@@ -487,7 +497,12 @@ namespace GameSceneHelper
 			normalized == "mapdata_fullstage_withboss" ||
 			normalized == "mapdata_fullstage_with_boss" )
 		{
-			outPlacementFilePath = "MapData/MapData_fullstage(withBoss).txt";
+			outFileSet = {
+				"MapData/MapData_fullstage(withBoss).txt",
+				"MapData/FullStageNavmeshAll.nvm",
+				"MapData/CubeBoxColliderReportWithCastle.txt",
+				"MapData/monster_spawn_points.txt"
+			};
 			return true;
 		}
 
@@ -495,7 +510,12 @@ namespace GameSceneHelper
 			normalized == "map_stage1" ||
 			normalized == "mapdata_stage1" )
 		{
-			outPlacementFilePath = "MapData/MapData_stage1_with_Tree.txt";
+			outFileSet = {
+				"MapData/MapData_stage1_with_Tree.txt",
+				"MapData/Navmesh_Stage1.nvm",
+				"MapData/CubeBoxColliderReport.txt",
+				"MapData/monster_spawn_points_little.txt"
+			};
 			return true;
 		}
 
@@ -504,11 +524,29 @@ namespace GameSceneHelper
 			normalized == "map_tst" ||
 			normalized == "mapdata_tst" )
 		{
-			outPlacementFilePath = "MapData/MapData_tst.txt";
+			outFileSet = {
+				"MapData/MapData_tst.txt",
+				"MapData/Navmesh_tst.nvm",
+				"MapData/CubeBoxColliderReportWithCastle.txt",
+				"MapData/monster_spawn_points_little.txt"
+			};
 			return true;
 		}
 
 		return false;
+	}
+
+	bool ResolvePlacementFilePathFromMapId(
+		const std::string& mapId,
+		std::string& outPlacementFilePath)
+	{
+		GameSceneStageFileSet fileSet{};
+
+		if ( !ResolveStageFileSetFromMapId(mapId, fileSet) )
+			return false;
+
+		outPlacementFilePath = fileSet.placementFilePath;
+		return true;
 	}
 
 	void TriggerMonsterTestCommand(

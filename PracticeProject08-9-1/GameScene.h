@@ -91,6 +91,9 @@ enum class EMuzzleFlashKind : UINT
 	Blood = 3,
 	PoisonDust = 4,
 	BossMeleeSlash = 5,
+	MagicCircleGlow = 6,
+	MagicCircleAfterimage = 7,
+	GoldFirework = 8,
 };
 
 struct MuzzleFlashInstanceVertex
@@ -106,7 +109,10 @@ struct MuzzleFlashInstanceVertex
 	// x = ageRatio, y = intensity, z = rotationRad, w = seed
 	XMFLOAT4 params0 = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
 
-	// x = kind (0=core, 1=ring, 2=spark, 3=blood, 4=poison dust, 5=boss melee slash)
+	// x = kind
+	// 0=core, 1=ring, 2=spark, 3=blood, 4=poison dust,
+	// 5=boss melee slash, 6=magic circle glow, 7=magic circle afterimage,
+	// 8=gold firework
 	// y = reserved
 	// z = reserved
 	// w = reserved
@@ -246,6 +252,34 @@ struct MonsterSwordTrailEntry
 	std::vector<MonsterSwordTrailSample> samples;
 };
 
+static constexpr UINT kBossCallSummonWwwPeakCount = 16;
+
+struct BossCallSummonWwwEntry
+{
+	bool active = false;
+
+	XMFLOAT3 center = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	// 마법진 정사각형 한 변이 지름이므로 radius = circleSize * 0.5f.
+	float radius = 1.0f;
+
+	// 요구사항상 WWW 높이는 마법진 반지름 길이.
+	float maxHeight = 1.0f;
+
+	float age = 0.0f;
+	float lifetime = 1.10f;
+
+	float retargetTimer = 0.0f;
+
+	std::array<float, kBossCallSummonWwwPeakCount> peakHeights = {};
+	std::array<float, kBossCallSummonWwwPeakCount> targetPeakHeights = {};
+	std::array<float, kBossCallSummonWwwPeakCount> peakMoveSpeeds = {};
+
+	float seed = 0.0f;
+
+	XMFLOAT4 color = XMFLOAT4(0.10f, 0.90f, 0.18f, 0.75f);
+};
+
 enum class EItemBillboardKind : UINT
 {
 	Key = 0,
@@ -253,6 +287,7 @@ enum class EItemBillboardKind : UINT
 	BossSummonGlow = 2,
 	BossShockwave = 3,
 	BossShockwaveWall = 4,
+	BossCallSummonCircle = 5,
 };
 
 struct ItemBillboardEntry
@@ -535,6 +570,36 @@ private:
 		const XMFLOAT3* hitDirection = nullptr
 	);
 	void SpawnBossMeleeSlashEffect(CGameObject* boss);
+
+	void SpawnWeaponLevelUpFireworks();
+	void SpawnGoldFireworkBurstAtWeapon(CGameObject* weaponObject);
+
+	void SpawnMagicCircleGlowParticle(
+		const XMFLOAT3& center,
+		float circleSize,
+		float alpha,
+		float intensityScale,
+		float glowSizeScale = 1.0f,
+		float afterimageSizeScale = 1.0f,
+		float lifetimeScale = 1.0f
+	);
+
+	void EmitMagicCircleGlowParticles(
+		const XMFLOAT3& center,
+		float circleSize,
+		float alpha,
+		float dt,
+		float& accumulator,
+		float emitIntervalSec,
+		int particlesPerEmit,
+		float intensityScale
+	);
+
+	void EmitBossCallSummonCircleGlowParticles(
+		float dt,
+		float alpha
+	);
+
 	void UpdateMuzzleFlashes(float dt);
 	void RenderMuzzleFlashes(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
@@ -552,9 +617,9 @@ private:
 	void RenderSwordTrails(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 	void BuildMonsterSwordTrailBatch(
-	ID3D12Device* dev,
-	ID3D12GraphicsCommandList* cmd,
-	DXGI_FORMAT dsvFormat
+		ID3D12Device* dev,
+		ID3D12GraphicsCommandList* cmd,
+		DXGI_FORMAT dsvFormat
 	);
 
 	void ReleaseMonsterSwordTrailGpuResources();
@@ -563,6 +628,22 @@ private:
 	void UpdateMonsterSwordTrails(float dt);
 	void RenderMonsterSwordTrails(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
+	void BuildBossCallSummonWwwBatch(
+		ID3D12Device* dev,
+		ID3D12GraphicsCommandList* cmd,
+		DXGI_FORMAT dsvFormat
+	);
+
+	void ReleaseBossCallSummonWwwGpuResources();
+
+	void SpawnBossCallSummonWwwEffect(
+		const XMFLOAT3& center,
+		EEnemySpawnerEnemyKind kind
+	);
+
+	void UpdateBossCallSummonWwwEffects(float dt);
+	void RenderBossCallSummonWwwEffects(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
 	void UpdateItemBillboardPickupCollision();
 	bool DoesPlayerOverlapItemBillboard(const CGameObject* player, const ItemBillboardEntry& item) const;
 
@@ -570,6 +651,17 @@ private:
 	void SetBossSummonGlowAlpha(float alpha);
 	void SetBossSummonVisualAlpha(float alpha);
 	void SetBossSummonVisualActive(bool active);
+
+	void SetBossCallSummonCircleAlpha(float alpha);
+	void StartBossCallSummonCircleFadeOut();
+	void UpdateBossCallSummonCircles(float dt);
+	void ClearBossCallSummonCircleVisuals();
+
+	float GetBossCallSummonCircleSize(EEnemySpawnerEnemyKind kind) const;
+	void AddBossCallSummonCircle(
+		const XMFLOAT3& center,
+		EEnemySpawnerEnemyKind kind
+	);
 
 	void SpawnBossSummonCircle(const XMFLOAT3& center, float alpha);
 	void SpawnBossSummonGlow(const XMFLOAT3& center, float alpha);
@@ -710,7 +802,8 @@ public:
 	void SetKeyItemDiffuseSrvIndex(UINT srvIndex);
 	void SetTransparentItemDiffuseSrvIndex(UINT srvIndex);
 	void SetBossSummonCircleDiffuseSrvIndex(UINT srvIndex);
-	
+	void SetBossCallSummonCircleDiffuseSrvIndex(UINT srvIndex);
+
 	void SetInactiveOverlayVisible(bool visible)
 	{
 		m_bInactiveOverlayVisible = visible;
@@ -749,12 +842,29 @@ public:
 	CGameObject* GetPlayerBySlot(int slot) const; // slot: 0..3
 	bool IsLocalPlayer(const CGameObject* obj) const;
 	bool IsPlayerInsideMegaGridCenter(const CGameObject* player) const;
+	bool IsPlayerInsideBossStageBattleArea(const CGameObject* player) const;
 	bool IsLocalPlayerDead() const { return m_bLocalPlayerDead; }
 	bool RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& previousPos);
     
 	void RequestFireArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f, float yOffset = 0.0f);
 	bool IsLocalPlayerInsideMegaGridCenter() const;
 	bool IsLocalMonsterChaseEnabled() const { return m_bSimulateLocalMonsterChase; }
+
+	const std::vector<CGameObject*>& GetMegaGridMonstersByWorldPosition(
+		const XMFLOAT3& worldPos
+	) const;
+
+	void BeginBossCallMonsterSummonVisuals(
+		int callIndex,
+		float fadeInDurationSec
+	);
+
+	int SpawnBossCallMonsters(int callIndex);
+
+	float GetBossCallMonsterSpawnDelaySec() const
+	{
+		return kBossCallMonsterSpawnDelaySec;
+	}
 
 	void NotifyMonsterChaseStarted(CGameObject* monster);
 
@@ -851,14 +961,19 @@ private:
 
 	bool TryTeleportLocalPlayerToMegaGridByNumber(int megaGridNumber);
 	XMFLOAT3 ComputeLocalStageTeleportPosition(int megaGridNumber) const;
+	XMFLOAT3 ComputeMegaGridCenterPosition(int megaGridNumber, float y) const;
 
 	XMFLOAT3 ComputeEnemySpawnerSpawnPosition(
-	int megaGridNumber,
-	UINT localIndex,
-	UINT localCount
+		int megaGridNumber,
+		UINT localIndex,
+		UINT localCount
 	) const;
 
+	XMFLOAT3 ComputeBossCallMonsterSpawnPosition() const;
+	float ComputeBossCallMonsterSpawnYawDeg() const;
+
 	bool IsMegaGridNumberCleared(int megaGridNumber) const;
+
 	bool ShouldBlockEnemySpawnerByClearedPrerequisite(
 		int targetMegaGridNumber,
 		int& outBlockerMegaGridNumber
@@ -1025,7 +1140,7 @@ private:
 	// 실제 offset은 -4, -2, 0, +2, +4.
 	static constexpr float kEnemySpawnerDoorSlotSpacing = 2.0f;
 
-	static constexpr UINT kEnemySpawnerMega5GhoulCount = 60;
+	static constexpr UINT kEnemySpawnerMega5GhoulCount = 70;
 	static constexpr UINT kEnemySpawnerMega5BowManCount = 10;
 	static constexpr UINT kEnemySpawnerMega5SwordManCount = 10;
 	static constexpr UINT kEnemySpawnerMega5MutantCount = 5;
@@ -1051,6 +1166,7 @@ private:
 	static constexpr UINT kBossSummonGlowMaterialId = MAX_MATERIALS - 4;
 	static constexpr UINT kBossShockwaveMaterialId = MAX_MATERIALS - 5;
 	static constexpr UINT kBossShockwaveWallMaterialId = MAX_MATERIALS - 6;
+	static constexpr UINT kBossCallSummonCircleMaterialId = MAX_MATERIALS - 7;
 
 	static constexpr UINT kKeyItemBillboardCount = 7;
 
@@ -1069,7 +1185,7 @@ private:
 	std::array<ItemBillboardInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedTransparentItemBillboardInstanceBuffer = {};
 	UINT                                  m_transparentItemBillboardInstanceBufferCapacity = 0;
 
-	static constexpr UINT kMuzzleFlashMaxCount = 1024;
+	static constexpr UINT kMuzzleFlashMaxCount = 4096;
 
 	std::shared_ptr<CMuzzleFlashBillboardShader> m_muzzleFlashShader;
 
@@ -1110,6 +1226,34 @@ private:
 	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dMonsterSwordTrailVertexBuffer;
 	std::array<MonsterSwordTrailVertex*, kSceneBatchFrameResourceCount> m_pMappedMonsterSwordTrailVertexBuffer = {};
 	UINT m_monsterSwordTrailVertexBufferCapacity = 0;
+
+	static constexpr UINT kBossCallSummonWwwMaxCount = 64;
+
+	static constexpr UINT kBossCallSummonWwwPathPointCount =
+		kBossCallSummonWwwPeakCount * 2 + 1;
+
+	// 외곽선: path point마다 안쪽/바깥쪽 2개 vertex.
+	static constexpr UINT kBossCallSummonWwwOutlineVertexCount =
+		kBossCallSummonWwwPathPointCount * 2;
+
+	// 내부 채움: W 한 개당 삼각형 1개, 삼각형당 vertex 3개.
+	static constexpr UINT kBossCallSummonWwwFillVertexCount =
+		kBossCallSummonWwwPeakCount * 3;
+
+	static constexpr UINT kBossCallSummonWwwMaxVertices =
+		kBossCallSummonWwwMaxCount *
+		(
+			kBossCallSummonWwwOutlineVertexCount +
+			kBossCallSummonWwwFillVertexCount
+		);
+
+	std::shared_ptr<CSwordTrailShader> m_bossCallSummonWwwShader;
+
+	std::vector<BossCallSummonWwwEntry> m_bossCallSummonWwwEntries;
+
+	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dBossCallSummonWwwVertexBuffer;
+	std::array<SwordTrailVertex*, kSceneBatchFrameResourceCount> m_pMappedBossCallSummonWwwVertexBuffer = {};
+	UINT m_bossCallSummonWwwVertexBufferCapacity = 0;
 
 	std::vector<CGameObject*> m_ghoulRefs;
 	std::vector<CGameObject*> m_swordManRefs;
@@ -1159,7 +1303,8 @@ private:
 		MutantWhoosh,
 		GhoulWhoosh,
 		BowLoading,
-		BowRelease
+		BowRelease,
+		BossAttack
 	};
 
 	enum class EMonsterFootstepProfile : uint8_t
@@ -1255,6 +1400,19 @@ private:
 	void RequestSwordManAttackSfx(CGameObject* swordman);
 	void RequestMutantAttackSfx(CGameObject* mutant);
 	void RequestBowManLoadSfx(CGameObject* bowman);
+	void RequestBossAttackSfx(CGameObject* boss);
+
+	void PlayBossSummonSfxAt(const XMFLOAT3& position);
+	void PlayBossSummonCircleSfxAt(const XMFLOAT3& position);
+
+	void PlayBossCallSummonCircleSfxAt(const XMFLOAT3& position);
+	void PlayBossCallMonsterSpawnSfxAt(const XMFLOAT3& position);
+
+	void PlayEnemySpawnerSirenSfxAt(const XMFLOAT3& position);
+
+	void PlayBossShockwaveWindSfxAt(const XMFLOAT3& position); 
+	void UpdateBossShockwaveWindSfx(float currentRadius);
+	void ResetBossShockwaveWindSfxTracking();
 
 	void ScheduleMonsterSfx(
 		EMonsterSfxKind kind,
@@ -1561,15 +1719,64 @@ private:
 	bool m_bSimulateLocalSwordManAI = true;
 	bool m_bSimulateLocalMutantAI = true;
 	bool m_bSimulateLocalBossAI = true;
+	bool m_bSimulateLocalBossSummon = true;
+	bool m_bSimulateLocalBossStageMonsterAI = true;
 
 	bool m_bSimulateLocalMonsterChase = true;
 	bool m_bPrevLocalMonsterChaseToggleKeyDown = false;
 	bool m_bPrevDebugDamageMegaGrid5KeyDown = false;
+
+	static constexpr float kBossCallMonsterSpawnDelaySec = 1.0f;
+
 	bool m_bBossStageBossActivated = false;
 
 	static constexpr float kBossStageBossHiddenYOffset = -100.0f;
+
 	static constexpr float kBossSummonCircleFadeInDurationSec = 3.0f;
 	static constexpr float kBossSummonCircleFadeOutDurationSec = 1.0f;
+
+	static constexpr UINT kBossCallSummonCircleMaxCount = 64;
+	static constexpr float kBossCallSummonCircleFadeOutDurationSec = 1.8f;
+
+	static constexpr float kMagicCircleGlowParticleYOffset = 0.12f;
+
+	// 보스 본인 등장 마법진: 1개짜리 대형 마법진이므로 입자 수는 조금 유지하되 강도/크기를 낮춘다.
+	static constexpr float kBossSummonGlowParticleEmitIntervalSec = 0.060f;
+	static constexpr int   kBossSummonGlowParticlesPerEmit = 4;
+	static constexpr float kBossSummonGlowParticleIntensityScale = 0.75f;
+
+	// 보스 Call 몬스터 소환 마법진: 30~35개가 동시에 뜨므로 개별 마법진당 발생량을 낮게 유지한다.
+	static constexpr float kBossCallSummonGlowParticleEmitIntervalSec = 0.090f;
+	static constexpr int   kBossCallSummonGlowParticlesPerEmit = 1;
+	static constexpr float kBossCallSummonGlowParticleIntensityScale = 0.65f;
+
+	// 보스 Call 몬스터 소환 마법진 전용 파티클 크기 배율.
+	// 보스 본인 등장 마법진에는 적용하지 않는다.
+	static constexpr float kBossCallSummonGlowParticleSizeScale = 2.60f;
+	static constexpr float kBossCallSummonAfterimageParticleSizeScale = 2.20f;
+
+	// 보스 Call 몬스터 소환 마법진 전용 파티클 유지 시간 배율.
+	// 보스 본인 등장 마법진에는 적용하지 않는다.
+	static constexpr float kBossCallSummonGlowParticleLifetimeScale = 1.80f;
+
+	struct BossCallSummonCircleVisualState
+	{
+		bool active = false;
+		bool fadingIn = false;
+		bool fadingOut = false;
+
+		float ageSec = 0.0f;
+		float durationSec = 0.0f;
+		float alpha = 0.0f;
+	};
+
+	BossCallSummonCircleVisualState m_bossCallSummonCircleVisualState{};
+	std::vector<size_t> m_activeBossCallSummonCircleItemIndices;
+
+	float m_bossCallSummonGlowParticleEmitAccumulatorSec = 0.0f;
+
+	int m_bossCallSummonPlanCallIndex = -1;
+	std::vector<EnemySpawnerPreviewEntry> m_bossCallSummonPlanEntries;
 
 	bool m_bBossSummonSequenceStarted = false;
 	float m_bBossSummonCircleFadeAgeSec = 0.0f;
@@ -1577,6 +1784,8 @@ private:
 
 	bool m_bBossSummonVisualFadeOutStarted = false;
 	float m_bBossSummonVisualFadeOutAgeSec = 0.0f;
+
+	float m_bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
 
 	static constexpr float kBossShockwaveStartRadius = 3.0f;
 	static constexpr float kBossShockwaveMaxRadius = 50.0f;
@@ -1602,6 +1811,12 @@ private:
 	float m_bossShockwavePrevRadius = 0.0f;
 	float m_bossShockwavePlayerInitialDistance = 0.0f;
 	XMFLOAT3 m_bossShockwavePlayerPushDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
+
+	bool m_bBossShockwaveWindSfxTrackingActive = false;
+	FMOD::Channel* m_bossShockwaveWindSfxChannel = nullptr;
+	XMFLOAT3 m_bossShockwaveWindSfxDirection = XMFLOAT3(0.0f, 0.0f, 1.0f);
+	XMFLOAT3 m_bossShockwaveWindSfxPrevPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	bool m_bossShockwaveWindSfxHasPrevPosition = false;
 
 	static constexpr UINT  kBossPoisonProjectileMaxCount = 8;
 
