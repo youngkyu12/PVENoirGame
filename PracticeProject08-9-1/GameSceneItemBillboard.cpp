@@ -652,10 +652,6 @@ void CGameScene::UpdateItemBillboardPickupCollision()
 
 				inventory->AddItemCount(item.inventorySlot, 1);
 
-				char buf[192];
-				sprintf_s(buf, "[ItemPickup][Potion] playerSlot=%d inventorySlot=%d player=%p\n", playerSlot, item.inventorySlot, static_cast< void* >( player ));
-				OutputDebugStringA(buf);
-
 				if ( playerSlot == m_localPlayerSlot )
 					SyncLocalInventoryToHud();
 			}
@@ -666,10 +662,6 @@ void CGameScene::UpdateItemBillboardPickupCollision()
 			if ( isKeyItem )
 			{
 				MarkMegaGridClearedByNumber(item.megaGridNumber);
-
-				char buf[160];
-				sprintf_s(buf, "[ItemPickup][Key] playerSlot=%d megaGrid=%d player=%p\n", playerSlot, item.megaGridNumber, static_cast< void* >( player ));
-				OutputDebugStringA(buf);
 			}
 
 			break;

@@ -4331,10 +4331,6 @@ void CGameScene::AttachInventoryComponentsToPlayers()
 			counts[static_cast< size_t >(i)] = m_inventoryItemCounts[static_cast< size_t >(i)];
 
 		inventory->SetItemCounts(counts);
-
-		char buf[160];
-		sprintf_s(buf, "[InventoryComponent] attached slot=%d player=%p inventory=%p\n", slot, static_cast< void* >(player), static_cast< void* >(inventory));
-		OutputDebugStringA(buf);
 	}
 }
 

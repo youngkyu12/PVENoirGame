@@ -6707,15 +6707,6 @@ void CGameScene::RegisterMutantKeyTriggerIfNeeded(
 
 	m_mutantKeyTriggerRegisteredByMega[( size_t ) megaGridNumber] = true;
 	m_mutantKeyTriggerMegaByObject[mutant] = megaGridNumber;
-
-	char buf[256];
-	sprintf_s(
-		buf,
-		"[MutantKeyTrigger] Registered first Mutant for mega grid %d. mutant=%p\n",
-		megaGridNumber,
-		static_cast< void* >( mutant )
-	);
-	OutputDebugStringA(buf);
 }
 
 void CGameScene::UnlockKeyBillboardForMegaGrid(int megaGridNumber)
@@ -6741,14 +6732,6 @@ void CGameScene::UnlockKeyBillboardForMegaGrid(int megaGridNumber)
 
 		item.active = true;
 		item.distanceCulled = false;
-
-		char buf[256];
-		sprintf_s(
-			buf,
-			"[MutantKeyTrigger] Key billboard unlocked for mega grid %d.\n",
-			megaGridNumber
-		);
-		OutputDebugStringA(buf);
 
 		return;
 	}
@@ -7383,7 +7366,7 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 
 	m_bPrevDebugDamageMegaGrid5KeyDown = enterDown;
 
-	const bool stageTeleportModifierDown = ( ( pKeysBuffer[VK_LSHIFT] & 0xF0 ) != 0 ) || ( ( pKeysBuffer[VK_RSHIFT] & 0xF0 ) != 0 );
+	const bool stageTeleportModifierDown = ( ( pKeysBuffer[VK_LCONTROL] & 0xF0 ) != 0 ) || ( ( pKeysBuffer[VK_RCONTROL] & 0xF0 ) != 0 );
 
 	// ---------------------------------------------------------------------
 	// 1~4: 인벤토리 아이템 사용 요청
@@ -7400,7 +7383,7 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 	}
 
 	// ---------------------------------------------------------------------
-	// Shift + 1~9: 로컬 스테이지 메가그리드 강제 텔레포트
+	// Ctrl + 1~9: 로컬 스테이지 메가그리드 강제 텔레포트
 	//
 	// 배치:
 	// 789
@@ -7410,6 +7393,7 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 	// 숫자키 단독 입력은 아이템 사용 등에 넘기기 위해 여기서 consume하지 않는다.
 	// false이면 입력 상태만 갱신하고 실제 텔레포트는 하지 않는다.
 	// ---------------------------------------------------------------------
+
 	for ( int megaGridNumber = 1; megaGridNumber <= CSceneGrid::kMegaGridCount; ++megaGridNumber )
 	{
 		const bool down = ( pKeysBuffer['0' + megaGridNumber] & 0xF0 ) != 0;

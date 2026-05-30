@@ -65,7 +65,7 @@ private:
 
 	static constexpr int kHealPotionRecoverAmount = 20;
 
-	static constexpr float kMoveSpeedPotionDurationSec = 60.0f;
+	static constexpr float kMoveSpeedPotionDurationSec = 10.0f;
 	static constexpr float kMoveSpeedPotionWalkSpeed = 10.0f;
 	static constexpr float kMoveSpeedPotionRunSpeed = 20.0f;
 
@@ -75,7 +75,7 @@ private:
 	float m_moveSpeedPotionOriginalRunSpeed = 10.0f;
 	int m_moveSpeedPotionLastLoggedSecond = -1;
 
-	static constexpr float kAttackPowerPotionDurationSec = 60.0f;
+	static constexpr float kAttackPowerPotionDurationSec = 10.0f;
 	static constexpr int kAttackPowerPotionMultiplier = 2;
 
 	bool m_bAttackPowerPotionActive = false;
@@ -83,7 +83,7 @@ private:
 	int m_attackPowerPotionLastLoggedSecond = -1;
 	bool m_bAttackPowerDirty = false;
 
-	static constexpr float kDefensePotionDurationSec = 60.0f;
+	static constexpr float kDefensePotionDurationSec = 10.0f;
 	static constexpr float kDefensePotionIncomingDamageScale = 0.5f;
 
 	bool m_bDefensePotionActive = false;
