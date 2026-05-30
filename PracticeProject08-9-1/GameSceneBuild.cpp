@@ -34,6 +34,8 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 	m_bSimulateLocalSwordManAI = false;
 	m_bSimulateLocalMutantAI = false;
 	m_bSimulateLocalBossAI = false;
+	m_bSimulateLocalBossSummon = false;
+	m_bSimulateLocalBossStageMonsterAI = false;
 
 	m_bSimulateLocalMonsterChase = false;
 	m_bSimulateLocalEnemySpawner = true;
@@ -47,11 +49,13 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 
 	m_bSimulateLocalAI = true;
 
-	m_bSimulateLocalGhoulAI = true;
+	m_bSimulateLocalGhoulAI = false;
 	m_bSimulateLocalBowManAI = false;
 	m_bSimulateLocalSwordManAI = false;
-	m_bSimulateLocalMutantAI = true;
-	m_bSimulateLocalBossAI = true;
+	m_bSimulateLocalMutantAI = false;
+	m_bSimulateLocalBossAI = false;
+	m_bSimulateLocalBossSummon = true;
+	m_bSimulateLocalBossStageMonsterAI = true;
 
 	m_bSimulateLocalMonsterChase = true;
 	m_bSimulateLocalEnemySpawner = true;
@@ -69,6 +73,13 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 		m_bSimulateLocalSwordManAI = false;
 		m_bSimulateLocalMutantAI = false;
 		m_bSimulateLocalBossAI = false;
+		m_bSimulateLocalBossSummon = false;
+		m_bSimulateLocalBossStageMonsterAI = false;
+	}
+
+	if ( m_bSimulateLocalBossAI )
+	{
+		m_bSimulateLocalBossSummon = true;
 	}
 
 	m_bPrevLocalMonsterChaseToggleKeyDown = false;
@@ -126,16 +137,22 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
 	const GameStartData& gameStartData = std::get<GameStartData>(m_pendingNetworkMessage.data);
 
-	std::string placementFilePath;
-	if ( !ResolvePlacementFilePathFromMapId(gameStartData.mapId, placementFilePath) )
+	GameSceneStageFileSet networkStageFiles{};
+	if ( !ResolveStageFileSetFromMapId(gameStartData.mapId, networkStageFiles) )
 	{
 		assert(false && "Unknown mapId received from server");
 		return;
 	}
 
-	if ( !LoadStaticPlacementFile(placementFilePath) )
+	if ( !LoadStaticPlacementFile(networkStageFiles.placementFilePath) )
 	{
 		assert(false && "Failed to load placement data for mapId");
+		return;
+	}
+
+	if ( !LoadSceneCubeBoxColliderReport(networkStageFiles.cubeColliderReportFilePath) )
+	{
+		assert(false && "Failed to load cube box collider report for mapId");
 		return;
 	}
 
@@ -178,7 +195,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		"  Mutant  = " + std::to_string(m_MutantCount)   + "\n"
 		"  Boss    = " + std::to_string(m_bossCount)     + "\n").c_str());
 #else
-	m_localPlayerSlot = 0;
+	m_localPlayerSlot = 3;
 
 	const GameSceneStageFileSet& stageFiles = GetLocalStageFileSet(kLocalStagePreset);
 
@@ -404,7 +421,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	BuildItemBillboardBatch(dev, cmd, kRTCount, rtvFormats, kDsvFormat);
 
 #ifndef USING_NETWORK
-	DumpStaticGridOccupancyLog();
+	//DumpStaticGridOccupancyLog();
 	//BuildStaticWorldSubmeshOOBBDebugObjects(dev, cmd);
 #endif
 	BuildSkinnedBatch(dev, cmd, pSkinnedShader, kRTCount, rtvFormats, kDsvFormat);
@@ -1401,6 +1418,51 @@ XMFLOAT3 CGameScene::ComputeEnemySpawnerSpawnPosition(
 	return pos;
 }
 
+XMFLOAT3 CGameScene::ComputeBossCallMonsterSpawnPosition() const
+{
+	// 5번 메가그리드 중심.
+	constexpr int megaGridNumber = 5;
+
+	const int zeroBased = megaGridNumber - 1;
+	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+	const float centerX =
+		static_cast< float >(
+			CSceneGrid::kGridMinX +
+			megaX * CSceneGrid::kMegaGridCellWidth +
+			CSceneGrid::kMegaGridCellWidth / 2
+		);
+
+	const float centerZ =
+		static_cast< float >(
+			CSceneGrid::kGridMinZ +
+			megaZ * CSceneGrid::kMegaGridCellHeight +
+			CSceneGrid::kMegaGridCellHeight / 2
+		);
+
+	// 200 x 200 내부 랜덤.
+	constexpr float halfExtent = 100.0f;
+
+	static std::mt19937 rng{ std::random_device{}( ) };
+	std::uniform_real_distribution<float> dist(-halfExtent, halfExtent);
+
+	XMFLOAT3 pos{};
+	pos.x = centerX + dist(rng);
+	pos.y = 0.0f;
+	pos.z = centerZ + dist(rng);
+
+	return pos;
+}
+
+float CGameScene::ComputeBossCallMonsterSpawnYawDeg() const
+{
+	static std::mt19937 rng{ std::random_device{}( ) };
+	std::uniform_real_distribution<float> dist(-180.0f, 180.0f);
+
+	return dist(rng);
+}
+
 void CGameScene::BuildSkinnedBatch(
 	ID3D12Device* dev,
 	ID3D12GraphicsCommandList* cmd,
@@ -1495,6 +1557,12 @@ void CGameScene::BuildSkinnedBatch(
 	{
 		Ghoul,
 		EnemySpawnerGhoul,
+
+		BossStageGhoul,
+		BossStageSwordMan,
+		BossStageBowMan,
+		BossStageMutant,
+
 		SwordMan,
 		BowMan,
 		Mutant,
@@ -1515,6 +1583,12 @@ void CGameScene::BuildSkinnedBatch(
 			case ELocalMonsterAIKind::EnemySpawnerGhoul:
 				return m_bSimulateLocalEnemySpawner;
 
+			case ELocalMonsterAIKind::BossStageGhoul:
+			case ELocalMonsterAIKind::BossStageSwordMan:
+			case ELocalMonsterAIKind::BossStageBowMan:
+			case ELocalMonsterAIKind::BossStageMutant:
+				return m_bSimulateLocalBossStageMonsterAI;
+
 			case ELocalMonsterAIKind::BowMan:
 				return m_bSimulateLocalBowManAI;
 
@@ -1525,7 +1599,7 @@ void CGameScene::BuildSkinnedBatch(
 				return m_bSimulateLocalMutantAI;
 
 			case ELocalMonsterAIKind::Boss:
-				return m_bSimulateLocalBossAI;
+				return m_bSimulateLocalBossAI || m_bSimulateLocalBossSummon;
 
 			default:
 				break;
@@ -1570,6 +1644,74 @@ void CGameScene::BuildSkinnedBatch(
 				if ( ai )
 				{
 					ai->SetScene(this);
+					ai->SetEnabledAI(true);
+				}
+				break;
+			}
+
+			case ELocalMonsterAIKind::BossStageGhoul:
+			{
+				if ( obj->GetComponent<CBossStageMonsterAIComponent>() )
+					return;
+
+				auto* ai = obj->AddComponent<CBossStageMonsterAIComponent>();
+				if ( ai )
+				{
+					ai->SetScene(this);
+					ai->ConfigureBossStageMonsterAI(
+						CBossStageMonsterAIComponent::EKind::Ghoul
+					);
+					ai->SetEnabledAI(true);
+				}
+				break;
+			}
+
+			case ELocalMonsterAIKind::BossStageSwordMan:
+			{
+				if ( obj->GetComponent<CBossStageMonsterAIComponent>() )
+					return;
+
+				auto* ai = obj->AddComponent<CBossStageMonsterAIComponent>();
+				if ( ai )
+				{
+					ai->SetScene(this);
+					ai->ConfigureBossStageMonsterAI(
+						CBossStageMonsterAIComponent::EKind::SwordMan
+					);
+					ai->SetEnabledAI(true);
+				}
+				break;
+			}
+
+			case ELocalMonsterAIKind::BossStageBowMan:
+			{
+				if ( obj->GetComponent<CBossStageMonsterAIComponent>() )
+					return;
+
+				auto* ai = obj->AddComponent<CBossStageMonsterAIComponent>();
+				if ( ai )
+				{
+					ai->SetScene(this);
+					ai->ConfigureBossStageMonsterAI(
+						CBossStageMonsterAIComponent::EKind::BowMan
+					);
+					ai->SetEnabledAI(true);
+				}
+				break;
+			}
+
+			case ELocalMonsterAIKind::BossStageMutant:
+			{
+				if ( obj->GetComponent<CBossStageMonsterAIComponent>() )
+					return;
+
+				auto* ai = obj->AddComponent<CBossStageMonsterAIComponent>();
+				if ( ai )
+				{
+					ai->SetScene(this);
+					ai->ConfigureBossStageMonsterAI(
+						CBossStageMonsterAIComponent::EKind::Mutant
+					);
 					ai->SetEnabledAI(true);
 				}
 				break;
@@ -1625,8 +1767,18 @@ void CGameScene::BuildSkinnedBatch(
 				auto* ai = obj->AddComponent<CBossAIComponent>();
 				if ( ai )
 				{
+					const bool bossCombatAIEnabled = m_bSimulateLocalBossAI;
+					const bool bossSummonEnabled =
+						m_bSimulateLocalBossSummon || bossCombatAIEnabled;
+
 					ai->SetScene(this);
-					ai->SetEnabledAI(true);
+					ai->ConfigureBossSimulation(
+						bossCombatAIEnabled,
+						bossSummonEnabled
+					);
+					ai->SetEnabledAI(
+						bossCombatAIEnabled || bossSummonEnabled
+					);
 				}
 				break;
 			}
@@ -1944,7 +2096,15 @@ void CGameScene::BuildSkinnedBatch(
 				continue;
 
 #ifndef USING_NETWORK
-			AttachMonsterAIToMonster(obj, ELocalMonsterAIKind::Ghoul);
+			const int spawnMegaGridNumber =
+				m_sceneGrid.MegaGridNumberFromWorldPosition(pos.x, pos.z);
+
+			AttachMonsterAIToMonster(
+				obj,
+				( spawnMegaGridNumber == 5 )
+					? ELocalMonsterAIKind::BossStageGhoul
+					: ELocalMonsterAIKind::Ghoul
+			);
 #endif
 
 			++enemyIndex;
@@ -1977,9 +2137,14 @@ void CGameScene::BuildSkinnedBatch(
 					const UINT i = static_cast< UINT >(b->objectRefs.size());
 
 					const XMFLOAT3 pos =
-						ComputeEnemySpawnerSpawnPosition(megaGridNumber, k, count);
+						( megaGridNumber == 5 )
+						? ComputeBossCallMonsterSpawnPosition()
+						: ComputeEnemySpawnerSpawnPosition(megaGridNumber, k, count);
 
-					const float yaw = 180.0f;
+					const float yaw =
+						( megaGridNumber == 5 )
+						? ComputeBossCallMonsterSpawnYawDeg()
+						: 180.0f;
 
 					GameSceneObjectFactory::SkinnedRenderableDesc createDesc{};
 					createDesc.ctx = MakeSkinnedContext(i);
@@ -2028,12 +2193,16 @@ void CGameScene::BuildSkinnedBatch(
 					const bool useSpawnerRushGhoulAI =
 						( megaGridNumber == 6 || megaGridNumber == 8 );
 
-					AttachMonsterAIToMonster(
-						obj,
-						useSpawnerRushGhoulAI
-							? ELocalMonsterAIKind::EnemySpawnerGhoul
-							: ELocalMonsterAIKind::Ghoul
-					);
+					const ELocalMonsterAIKind ghoulAIKind =
+						( megaGridNumber == 5 )
+						? ELocalMonsterAIKind::BossStageGhoul
+						: (
+							useSpawnerRushGhoulAI
+								? ELocalMonsterAIKind::EnemySpawnerGhoul
+								: ELocalMonsterAIKind::Ghoul
+						);
+
+					AttachMonsterAIToMonster(obj, ghoulAIKind);
 
 					CGameObject* raw = obj.get();
 
@@ -2157,7 +2326,15 @@ void CGameScene::BuildSkinnedBatch(
 				continue;
 
 #ifndef USING_NETWORK
-			AttachMonsterAIToMonster(obj, ELocalMonsterAIKind::SwordMan);
+			const int spawnMegaGridNumber =
+				m_sceneGrid.MegaGridNumberFromWorldPosition(pos.x, pos.z);
+
+			AttachMonsterAIToMonster(
+				obj,
+				( spawnMegaGridNumber == 5 )
+					? ELocalMonsterAIKind::BossStageSwordMan
+					: ELocalMonsterAIKind::SwordMan
+			);
 #endif
 			++enemyIndex;
 
@@ -2194,9 +2371,14 @@ void CGameScene::BuildSkinnedBatch(
 					const UINT i = static_cast< UINT >(b->objectRefs.size());
 
 					const XMFLOAT3 pos =
-						ComputeEnemySpawnerSpawnPosition(megaGridNumber, k, count);
+						( megaGridNumber == 5 )
+						? ComputeBossCallMonsterSpawnPosition()
+						: ComputeEnemySpawnerSpawnPosition(megaGridNumber, k, count);
 
-					const float yaw = 180.0f;
+					const float yaw =
+						( megaGridNumber == 5 )
+						? ComputeBossCallMonsterSpawnYawDeg()
+						: 180.0f;
 
 					GameSceneObjectFactory::SkinnedRenderableDesc createDesc{};
 					createDesc.ctx = MakeSkinnedContext(i);
@@ -2233,8 +2415,12 @@ void CGameScene::BuildSkinnedBatch(
 					if ( !obj )
 						continue;
 
-					AttachMonsterAIToMonster(obj, ELocalMonsterAIKind::SwordMan);
-
+					AttachMonsterAIToMonster(
+						obj,
+						( megaGridNumber == 5 )
+							? ELocalMonsterAIKind::BossStageSwordMan
+							: ELocalMonsterAIKind::SwordMan
+					);
 					CGameObject* raw = obj.get();
 
 					RegisterMonsterToMegaGrid(raw, pos, i);
@@ -2354,7 +2540,15 @@ void CGameScene::BuildSkinnedBatch(
 				continue;
 
 #ifndef USING_NETWORK
-			AttachMonsterAIToMonster(obj, ELocalMonsterAIKind::BowMan);
+			const int spawnMegaGridNumber =
+				m_sceneGrid.MegaGridNumberFromWorldPosition(pos.x, pos.z);
+
+			AttachMonsterAIToMonster(
+				obj,
+				( spawnMegaGridNumber == 5 )
+					? ELocalMonsterAIKind::BossStageBowMan
+					: ELocalMonsterAIKind::BowMan
+			);
 #endif
 
 			++enemyIndex;
@@ -2392,9 +2586,14 @@ void CGameScene::BuildSkinnedBatch(
 					const UINT i = static_cast< UINT >(b->objectRefs.size());
 
 					const XMFLOAT3 pos =
-						ComputeEnemySpawnerSpawnPosition(megaGridNumber, k, count);
+						( megaGridNumber == 5 )
+						? ComputeBossCallMonsterSpawnPosition()
+						: ComputeEnemySpawnerSpawnPosition(megaGridNumber, k, count);
 
-					const float yaw = 180.0f;
+					const float yaw =
+						( megaGridNumber == 5 )
+						? ComputeBossCallMonsterSpawnYawDeg()
+						: 180.0f;
 
 					GameSceneObjectFactory::SkinnedRenderableDesc createDesc{};
 					createDesc.ctx = MakeSkinnedContext(i);
@@ -2433,7 +2632,12 @@ void CGameScene::BuildSkinnedBatch(
 					if ( !obj )
 						continue;
 
-					AttachMonsterAIToMonster(obj, ELocalMonsterAIKind::BowMan);
+					AttachMonsterAIToMonster(
+						obj,
+						( megaGridNumber == 5 )
+							? ELocalMonsterAIKind::BossStageBowMan
+							: ELocalMonsterAIKind::BowMan
+					);
 
 					CGameObject* raw = obj.get();
 
@@ -2561,7 +2765,15 @@ void CGameScene::BuildSkinnedBatch(
 				continue;
 
 #ifndef USING_NETWORK
-			AttachMonsterAIToMonster(obj, ELocalMonsterAIKind::Mutant);
+			const int spawnMegaGridNumber =
+				m_sceneGrid.MegaGridNumberFromWorldPosition(pos.x, pos.z);
+
+			AttachMonsterAIToMonster(
+				obj,
+				( spawnMegaGridNumber == 5 )
+					? ELocalMonsterAIKind::BossStageMutant
+					: ELocalMonsterAIKind::Mutant
+			);
 #endif
 
 			++enemyIndex;
@@ -2604,9 +2816,14 @@ void CGameScene::BuildSkinnedBatch(
 					const UINT i = static_cast< UINT >(b->objectRefs.size());
 
 					const XMFLOAT3 pos =
-						ComputeEnemySpawnerSpawnPosition(megaGridNumber, k, count);
+						( megaGridNumber == 5 )
+						? ComputeBossCallMonsterSpawnPosition()
+						: ComputeEnemySpawnerSpawnPosition(megaGridNumber, k, count);
 
-					const float yaw = 180.0f;
+					const float yaw =
+						( megaGridNumber == 5 )
+						? ComputeBossCallMonsterSpawnYawDeg()
+						: 180.0f;
 
 					GameSceneObjectFactory::SkinnedRenderableDesc createDesc{};
 					createDesc.ctx = MakeSkinnedContext(i);
@@ -2652,8 +2869,12 @@ void CGameScene::BuildSkinnedBatch(
 					if ( !obj )
 						continue;
 
-					AttachMonsterAIToMonster(obj, ELocalMonsterAIKind::Mutant);
-
+					AttachMonsterAIToMonster(
+						obj,
+						( megaGridNumber == 5 )
+							? ELocalMonsterAIKind::BossStageMutant
+							: ELocalMonsterAIKind::Mutant
+					);
 					CGameObject* raw = obj.get();
 
 					RegisterMonsterToMegaGrid(raw, pos, i);
@@ -3892,6 +4113,27 @@ void CGameScene::BuildLightsAndMaterials()
 
 		bossSummonMat.m_xmn4WrapModes0 = XMUINT4(0, 0, 0, 0);
 		bossSummonMat.m_xmn4WrapModes1 = XMUINT4(0, 0, 0, 0);
+	}
+
+	{
+		MATERIAL& bossCallSummonMat =
+			m_pMaterials->m_pReflections[kBossCallSummonCircleMaterialId];
+
+		bossCallSummonMat.m_xmf4Ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+
+		bossCallSummonMat.m_xmf4Diffuse = XMFLOAT4(0.70f, 1.00f, 0.72f, 0.0f);
+		bossCallSummonMat.m_xmf4Specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+		bossCallSummonMat.m_xmf4Emissive = XMFLOAT4(0.70f, 1.00f, 0.72f, 1.0f);
+
+		bossCallSummonMat.m_xmn4TextureIndices = XMUINT4(0, 0, 0, 0);
+
+		bossCallSummonMat.m_xmf4DiffuseUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+		bossCallSummonMat.m_xmf4NormalUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+		bossCallSummonMat.m_xmf4EmissiveUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+		bossCallSummonMat.m_xmf4SpecularUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+
+		bossCallSummonMat.m_xmn4WrapModes0 = XMUINT4(0, 0, 0, 0);
+		bossCallSummonMat.m_xmn4WrapModes1 = XMUINT4(0, 0, 0, 0);
 	}
 
 	{
