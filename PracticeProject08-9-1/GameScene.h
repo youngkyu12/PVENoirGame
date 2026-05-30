@@ -305,6 +305,8 @@ private:
 		DXGI_FORMAT dsvFormat
 	);
 
+	void AddPotionItemBillboardEntries();
+
 	void ReleaseItemBillboardGpuResources();
 	void ReleaseAllGameSceneEffectGpuResources();
 
@@ -944,7 +946,16 @@ private:
 	static constexpr UINT kBossShockwaveWallMaterialId = MAX_MATERIALS - 6;
 	static constexpr UINT kBossCallSummonCircleMaterialId = MAX_MATERIALS - 7;
 
+	static constexpr UINT kPotionItemBillboardMaterialBaseId = MAX_MATERIALS - 11;
+	static constexpr UINT kHealPotionItemBillboardMaterialId = MAX_MATERIALS - 11;
+	static constexpr UINT kAttackPotionItemBillboardMaterialId = MAX_MATERIALS - 10;
+	static constexpr UINT kDefensePotionItemBillboardMaterialId = MAX_MATERIALS - 9;
+	static constexpr UINT kMoveSpeedPotionItemBillboardMaterialId = MAX_MATERIALS - 8;
+
 	static constexpr UINT kKeyItemBillboardCount = 7;
+	static constexpr UINT kPotionItemKindCount = 4;
+	static constexpr UINT kPotionItemMaxCountPerKind = 50;
+	static constexpr UINT kPotionItemBillboardCount = kPotionItemKindCount * kPotionItemMaxCountPerKind;
 
 	ItemBillboardState m_itemBillboardState;
 

@@ -3327,6 +3327,10 @@ void CGameScene::ReleaseObjects()
 	m_itemBillboardState.transparentShader.reset();
 	m_itemBillboardState.quadMesh.reset();
 	m_itemBillboardState.keyTexture.reset();
+
+	for ( std::shared_ptr<CTexture>& potionTexture : m_itemBillboardState.potionTextures )
+		potionTexture.reset();
+
 	m_itemBillboardState.bossSummonCircleTexture.reset();
 	m_itemBillboardState.entries.clear();
 	m_itemBillboardState.activeBossCallSummonCircleItemIndices.clear();
@@ -3399,6 +3403,12 @@ void CGameScene::ReleaseUploadBuffers()
 
 	if ( m_itemBillboardState.keyTexture )
 		m_itemBillboardState.keyTexture->ReleaseUploadBuffers();
+
+	for ( std::shared_ptr<CTexture>& potionTexture : m_itemBillboardState.potionTextures )
+	{
+		if ( potionTexture )
+			potionTexture->ReleaseUploadBuffers();
+	}
 
 	if ( m_itemBillboardState.bossSummonCircleTexture )
 		m_itemBillboardState.bossSummonCircleTexture->ReleaseUploadBuffers();
