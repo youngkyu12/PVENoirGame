@@ -415,6 +415,20 @@ void CMonsterAI::ConfigureFromWeapon(Protocol::WeaponType weaponType)
 	}
 }
 
+void CMonsterAI::ResetToHome()
+{
+	m_pTarget         = nullptr;
+	m_isChasing       = false;
+	m_bReturningHome  = false;
+	m_currentPath.clear();
+	m_trianglePath.clear();
+	m_currentPathIndex = 0;
+	m_returnPath.clear();
+	m_returnTrianglePath.clear();
+	m_returnPathIndex  = 0;
+	GetOwner()->SetPosition(m_homePosition);
+}
+
 bool CMonsterAI::IsAtHome() const
 {
 	constexpr float kHomeTolerance = 0.2f;
