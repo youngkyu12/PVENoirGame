@@ -224,8 +224,9 @@ void CGameScene::RestoreLocalPlayerAttackPowerPotion()
 int CGameScene::ApplyLocalPlayerAttackPowerPotionMultiplier(int attackPower) const
 {
 #ifndef USING_NETWORK
-	if ( m_bAttackPowerPotionActive )
-		return attackPower * kAttackPowerPotionMultiplier;
+	CInventoryComponent* inventory = GetLocalPlayerInventory();
+	if ( inventory )
+		return inventory->ApplyAttackPowerMultiplier(attackPower);
 #endif
 
 	return attackPower;
@@ -340,9 +341,22 @@ void CGameScene::RestoreLocalPlayerDefensePotion()
 void CGameScene::SetInventoryItemCounts(const std::array<int, CGameSceneHUD::kInventorySlotCount>& counts)
 {
 	for ( int i = 0; i < CGameSceneHUD::kInventorySlotCount; ++i )
-		m_inventoryItemCounts[i] = counts[i] < 0 ? 0 : counts[i];
+		m_inventoryItemCounts[static_cast< size_t >(i)] = counts[static_cast< size_t >(i)] < 0 ? 0 : counts[static_cast< size_t >( i )];
 
-	m_hud.SetInventoryItemCounts(m_inventoryItemCounts);
+	CInventoryComponent* inventory = GetLocalPlayerInventory();
+
+	if ( inventory )
+	{
+		std::array<int, CInventoryComponent::kInventorySlotCount> inventoryCounts = { 0, 0, 0, 0 };
+		const int copyCount = ( CInventoryComponent::kInventorySlotCount < CGameSceneHUD::kInventorySlotCount ) ? CInventoryComponent::kInventorySlotCount : CGameSceneHUD::kInventorySlotCount;
+
+		for ( int i = 0; i < copyCount; ++i )
+			inventoryCounts[static_cast< size_t >(i)] = m_inventoryItemCounts[static_cast< size_t >(i)];
+
+		inventory->SetItemCounts(inventoryCounts);
+	}
+
+	SyncLocalInventoryToHud();
 }
 
 bool CGameScene::RequestUseInventoryItemSlot(int slot)
@@ -355,68 +369,24 @@ bool CGameScene::RequestUseInventoryItemSlot(int slot)
 	// 현재 Framework::ProcessInput()에서 bit 10~13으로 사용 요청은 서버에 전달되므로, 서버가 승인한 결과를 SetInventoryItemCounts() 및 서버 HP 동기화로 반영하면 된다.
 	return false;
 #else
-	if ( m_inventoryItemCounts[static_cast< size_t >(slot)] <= 0 )
+	if ( m_bLocalPlayerDead )
 		return false;
 
-	bool itemEffectApplied = false;
+	CInventoryComponent* inventory = GetLocalPlayerInventory();
+	if ( !inventory )
+		return false;
 
-	switch ( slot )
+	const CInventoryComponent::EUseResult result = inventory->UseItemSlot(slot);
+	if ( result == CInventoryComponent::EUseResult::Failed )
+		return false;
+
+	if ( result == CInventoryComponent::EUseResult::AttackPowerStateChanged )
 	{
-	case 0:
-	{
-		constexpr int kHealPotionRecoverAmount = 20;
-
-		CGameObject* localPlayer = GetPlayer();
-		if ( !localPlayer )
-			localPlayer = GetPlayerBySlot(0);
-
-		if ( !localPlayer )
-			return false;
-
-		if ( m_bLocalPlayerDead )
-			return false;
-
-		CHealthComponent* hp = localPlayer->GetComponent<CHealthComponent>();
-		if ( !hp )
-			return false;
-
-		if ( hp->IsDead() )
-			return false;
-
-		if ( hp->GetCurrentHp() >= hp->GetMaxHp() )
-			return false;
-
-		const int hpBefore = hp->GetCurrentHp();
-		hp->Heal(kHealPotionRecoverAmount);
-		itemEffectApplied = ( hp->GetCurrentHp() > hpBefore );
-		break;
+		RefreshPlayerWeaponAttackPowers();
+		inventory->ConsumeAttackPowerDirty();
 	}
 
-	case 1:
-		itemEffectApplied = TryBeginLocalPlayerAttackPowerPotion();
-		break;
-
-	case 2:
-		itemEffectApplied = TryBeginLocalPlayerDefensePotion();
-		break;
-
-	case 3:
-		itemEffectApplied = TryBeginLocalPlayerMoveSpeedPotion();
-		break;
-
-	default:
-		return false;
-	}
-
-	if ( !itemEffectApplied )
-		return false;
-
-	--m_inventoryItemCounts[static_cast< size_t >( slot )];
-	m_hud.SetInventoryItemCounts(m_inventoryItemCounts);
-
-	char buf[160];
-	sprintf_s(buf, "[Inventory] Use slot=%d remain=%d\n", slot, m_inventoryItemCounts[static_cast< size_t >( slot )]);
-	OutputDebugStringA(buf);
+	SyncLocalInventoryToHud();
 
 	return true;
 #endif

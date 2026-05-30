@@ -7615,10 +7615,6 @@ void CGameScene::AnimateObjects(float dt)
 		local = GetPlayerBySlot(0);
 
 #ifndef USING_NETWORK
-	UpdateLocalPlayerMoveSpeedPotion(dt);
-	UpdateLocalPlayerAttackPowerPotion(dt);
-	UpdateLocalPlayerDefensePotion(dt);
-
 	UpdateBossStageBossPositionRestores();
 	UpdateBossStageBossRenderGate();
 
@@ -8102,6 +8098,16 @@ void CGameScene::AnimateObjects(float dt)
 
 		obj->Animate(dt);
 	}
+
+#ifndef USING_NETWORK
+	if ( CInventoryComponent* inventory = GetLocalPlayerInventory() )
+	{
+		if ( inventory->ConsumeAttackPowerDirty() )
+			RefreshPlayerWeaponAttackPowers();
+	}
+
+	SyncLocalInventoryToHud();
+#endif
 
 #ifndef USING_NETWORK
 	UpdateBossMeleeSlashCasts(dt);
