@@ -5265,7 +5265,7 @@ void CGameScene::RequestPrepareArrow(CGameObject* shooter, float pullBackDistanc
 
         if (arrow->IsActive()) continue;
 
-		SetObjectAttackPower(arrowObj, GetCurrentPlayerArrowAttackPower());
+		SetObjectAttackPower(arrowObj, GetPlayerArrowAttackPower(slot));
 
 		m_playerWeaponOwnerByObject[arrowObj] = shooter;
 
@@ -5745,52 +5745,55 @@ int CGameScene::ComputePlayerWeaponDamageTierIndexFromClearedMegaGrids() const
 	);
 }
 
-int CGameScene::GetCurrentPlayerSwordAttackPower() const
+int CGameScene::GetPlayerSwordAttackPower(int playerSlot) const
 {
 	const int tier = std::clamp(m_playerWeaponDamageTierIndex, 0, kPlayerWeaponDamageMaxTierIndex);
 	const int baseAttackPower = kAttackPowerPlayerSwordByTier[static_cast< size_t >( tier )];
-	return ApplyLocalPlayerAttackPowerPotionMultiplier(baseAttackPower);
+	return ApplyPlayerAttackPowerPotionMultiplier(playerSlot, baseAttackPower);
 }
 
-int CGameScene::GetCurrentPlayerAxeAttackPower() const
+int CGameScene::GetPlayerAxeAttackPower(int playerSlot) const
 {
 	const int tier = std::clamp(m_playerWeaponDamageTierIndex, 0, kPlayerWeaponDamageMaxTierIndex);
 	const int baseAttackPower = kAttackPowerPlayerAxeByTier[static_cast< size_t >( tier )];
-	return ApplyLocalPlayerAttackPowerPotionMultiplier(baseAttackPower);
+	return ApplyPlayerAttackPowerPotionMultiplier(playerSlot, baseAttackPower);
 }
 
-int CGameScene::GetCurrentPlayerArrowAttackPower() const
+int CGameScene::GetPlayerArrowAttackPower(int playerSlot) const
 {
 	const int tier = std::clamp(m_playerWeaponDamageTierIndex, 0, kPlayerWeaponDamageMaxTierIndex);
 	const int baseAttackPower = kAttackPowerPlayerArrowByTier[static_cast< size_t >( tier )];
-	return ApplyLocalPlayerAttackPowerPotionMultiplier(baseAttackPower);
+	return ApplyPlayerAttackPowerPotionMultiplier(playerSlot, baseAttackPower);
 }
 
-int CGameScene::GetCurrentPlayerBulletAttackPower() const
+int CGameScene::GetPlayerBulletAttackPower(int playerSlot) const
 {
 	const int tier = std::clamp(m_playerWeaponDamageTierIndex, 0, kPlayerWeaponDamageMaxTierIndex);
 	const int baseAttackPower = kAttackPowerPlayerBulletByTier[static_cast< size_t >( tier )];
-	return ApplyLocalPlayerAttackPowerPotionMultiplier(baseAttackPower);
+	return ApplyPlayerAttackPowerPotionMultiplier(playerSlot, baseAttackPower);
+}
+
+void CGameScene::RefreshPlayerWeaponAttackPowersForSlot(int playerSlot)
+{
+	if ( playerSlot < 0 || playerSlot >= 4 )
+		return;
+
+	const size_t index = static_cast< size_t >(playerSlot);
+
+	if ( index < m_PlayerSwordRefs.size() )
+		SetObjectAttackPower(m_PlayerSwordRefs[index], GetPlayerSwordAttackPower(playerSlot));
+
+	if ( index < m_PlayerAxeRefs.size() )
+		SetObjectAttackPower(m_PlayerAxeRefs[index], GetPlayerAxeAttackPower(playerSlot));
+
+	if ( index < m_preparedPlayerArrows.size() && m_preparedPlayerArrows[index] )
+		SetObjectAttackPower(m_preparedPlayerArrows[index], GetPlayerArrowAttackPower(playerSlot));
 }
 
 void CGameScene::RefreshPlayerWeaponAttackPowers()
 {
-	const int swordDamage = GetCurrentPlayerSwordAttackPower();
-	const int axeDamage = GetCurrentPlayerAxeAttackPower();
-	const int arrowDamage = GetCurrentPlayerArrowAttackPower();
-	const int bulletDamage = GetCurrentPlayerBulletAttackPower();
-
-	for ( CGameObject* obj : m_PlayerSwordRefs )
-		SetObjectAttackPower(obj, swordDamage);
-
-	for ( CGameObject* obj : m_PlayerAxeRefs )
-		SetObjectAttackPower(obj, axeDamage);
-
-	for ( CGameObject* obj : m_preparedPlayerArrows )
-		SetObjectAttackPower(obj, arrowDamage);
-
-	for ( CGameObject* obj : m_bulletRefs )
-		SetObjectAttackPower(obj, bulletDamage);
+	for ( int slot = 0; slot < 4; ++slot )
+		RefreshPlayerWeaponAttackPowersForSlot(slot);
 }
 
 void CGameScene::RefreshPlayerWeaponEffectVisuals()
@@ -7255,14 +7258,18 @@ void CGameScene::RequestFireArrow(CGameObject* shooter, float speed, float lifeS
         startPos.y += yOffset;
     }
 
-    const XMFLOAT3 vel =
-    {
-        dirN.x * speed,
-        dirN.y * speed,
-        dirN.z * speed
-    };
+	const XMFLOAT3 vel =
+	{
+		dirN.x * speed,
+		dirN.y * speed,
+		dirN.z * speed
+	};
 
-    for (CGameObject* arrowObj : m_arrowRefs)
+	const int slot = GetPlayerSlotFromObject(shooter);
+	if ( slot < 0 || slot >= 4 )
+		return;
+
+	for ( CGameObject* arrowObj : m_arrowRefs )
     {
         if (!arrowObj) continue;
 
@@ -7271,7 +7278,7 @@ void CGameScene::RequestFireArrow(CGameObject* shooter, float speed, float lifeS
 
 		if ( arrow->IsActive() ) continue;
 
-		SetObjectAttackPower(arrowObj, GetCurrentPlayerArrowAttackPower());
+		SetObjectAttackPower(arrowObj, GetPlayerArrowAttackPower(slot));
 
 		m_playerWeaponOwnerByObject[arrowObj] = shooter;
 
@@ -7297,6 +7304,10 @@ void CGameScene::RequestFireBullet(CGameObject* shooter, float speed, float life
 	CGameObject* spawnSource = gunObj ? gunObj : shooter;
 	CGameObject* directionSource = shooter;
 
+	const int slot = GetPlayerSlotFromObject(shooter);
+	if ( slot < 0 || slot >= 4 )
+		return;
+
 	for ( CGameObject* bulletObj : m_bulletRefs )
 	{
 		if ( !bulletObj ) continue;
@@ -7305,7 +7316,7 @@ void CGameScene::RequestFireBullet(CGameObject* shooter, float speed, float life
 		if ( !bullet ) continue;
 		if ( bullet->IsActive() ) continue;
 
-		SetObjectAttackPower(bulletObj, GetCurrentPlayerBulletAttackPower());
+		SetObjectAttackPower(bulletObj, GetPlayerBulletAttackPower(slot));
 
 		m_playerWeaponOwnerByObject[bulletObj] = shooter;
 
@@ -8103,7 +8114,7 @@ void CGameScene::AnimateObjects(float dt)
 	if ( CInventoryComponent* inventory = GetLocalPlayerInventory() )
 	{
 		if ( inventory->ConsumeAttackPowerDirty() )
-			RefreshPlayerWeaponAttackPowers();
+			RefreshPlayerWeaponAttackPowersForSlot(m_localPlayerSlot);
 	}
 
 	SyncLocalInventoryToHud();

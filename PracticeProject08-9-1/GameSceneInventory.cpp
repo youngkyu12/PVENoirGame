@@ -221,12 +221,17 @@ void CGameScene::RestoreLocalPlayerAttackPowerPotion()
 #endif
 }
 
-int CGameScene::ApplyLocalPlayerAttackPowerPotionMultiplier(int attackPower) const
+int CGameScene::ApplyPlayerAttackPowerPotionMultiplier(int playerSlot, int attackPower) const
 {
 #ifndef USING_NETWORK
-	CInventoryComponent* inventory = GetLocalPlayerInventory();
+	if ( playerSlot < 0 || playerSlot >= 4 )
+		return attackPower;
+
+	CInventoryComponent* inventory = GetInventoryByPlayerSlot(playerSlot);
 	if ( inventory )
 		return inventory->ApplyAttackPowerMultiplier(attackPower);
+#else
+	UNREFERENCED_PARAMETER(playerSlot);
 #endif
 
 	return attackPower;
@@ -382,7 +387,7 @@ bool CGameScene::RequestUseInventoryItemSlot(int slot)
 
 	if ( result == CInventoryComponent::EUseResult::AttackPowerStateChanged )
 	{
-		RefreshPlayerWeaponAttackPowers();
+		RefreshPlayerWeaponAttackPowersForSlot(m_localPlayerSlot);
 		inventory->ConsumeAttackPowerDirty();
 	}
 
