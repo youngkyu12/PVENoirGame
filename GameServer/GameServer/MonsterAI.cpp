@@ -478,6 +478,8 @@ bool CMonsterAI::UpdateReturnHome(float dt)
 		return true;
 	}
 
+	GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_WALK);
+
 	if (m_returnPath.empty() || m_returnPathIndex >= m_returnPath.size())
 	{
 		BeginReturnHome();
@@ -500,11 +502,6 @@ bool CMonsterAI::UpdateReturnHome(float dt)
 		return false;
 	}
 
-	if (IsAtHome())
-	{
-		m_bReturningHome = false;
-		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
-	}
 	return false;
 }
 
