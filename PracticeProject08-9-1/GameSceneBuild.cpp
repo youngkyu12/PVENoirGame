@@ -4362,9 +4362,13 @@ void CGameScene::SyncLocalInventoryToHud()
 	{
 		const std::array<int, CInventoryComponent::kInventorySlotCount>& inventoryCounts = inventory->GetItemCounts();
 		const int copyCount = ( CInventoryComponent::kInventorySlotCount < CGameSceneHUD::kInventorySlotCount ) ? CInventoryComponent::kInventorySlotCount : CGameSceneHUD::kInventorySlotCount;
+
 		for ( int i = 0; i < copyCount; ++i )
 			hudCounts[static_cast< size_t >(i)] = inventoryCounts[static_cast< size_t >(i)];
 	}
+
+	for ( int i = 0; i < CGameSceneHUD::kInventorySlotCount; ++i )
+		m_inventoryItemCounts[static_cast< size_t >(i)] = hudCounts[static_cast< size_t >(i)];
 
 	m_hud.SetInventoryItemCounts(hudCounts);
 

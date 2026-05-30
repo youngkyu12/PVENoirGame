@@ -548,7 +548,6 @@ bool CGameScene::DoesPlayerOverlapItemBillboard(const CGameObject* player, const
 	return true;
 }
 
-
 void CGameScene::UpdateItemBillboardPickupCollision()
 {
 	if ( !m_bSimulateLocalItemPickup )
@@ -559,26 +558,60 @@ void CGameScene::UpdateItemBillboardPickupCollision()
 		if ( !item.active )
 			continue;
 
-		if ( item.kind != EItemBillboardKind::Key )
+		const bool isKeyItem = ( item.kind == EItemBillboardKind::Key );
+
+		const bool isPotionItem =
+			item.kind == EItemBillboardKind::HealPotion ||
+			item.kind == EItemBillboardKind::AttackPowerPotion ||
+			item.kind == EItemBillboardKind::DefensePotion ||
+			item.kind == EItemBillboardKind::MoveSpeedPotion;
+
+		if ( !isKeyItem && !isPotionItem )
 			continue;
 
-		for ( int slot = 0; slot < 4; ++slot )
+		for ( int playerSlot = 0; playerSlot < 4; ++playerSlot )
 		{
-			CGameObject* player = GetPlayerBySlot(slot);
+			CGameObject* player = GetPlayerBySlot(playerSlot);
 
 			if ( !player )
 				continue;
 
-			if ( DoesPlayerOverlapItemBillboard(player, item) )
+			if ( !DoesPlayerOverlapItemBillboard(player, item) )
+				continue;
+
+			if ( isPotionItem )
 			{
-				item.active = false;
-				item.distanceCulled = true;
+				if ( item.inventorySlot < 0 || item.inventorySlot >= CInventoryComponent::kInventorySlotCount )
+					break;
 
-				if ( item.kind == EItemBillboardKind::Key )
-					MarkMegaGridClearedByNumber(item.megaGridNumber);
+				CInventoryComponent* inventory = player->GetComponent<CInventoryComponent>();
 
-				break;
+				if ( !inventory )
+					break;
+
+				inventory->AddItemCount(item.inventorySlot, 1);
+
+				char buf[192];
+				sprintf_s(buf, "[ItemPickup][Potion] playerSlot=%d inventorySlot=%d player=%p\n", playerSlot, item.inventorySlot, static_cast< void* >( player ));
+				OutputDebugStringA(buf);
+
+				if ( playerSlot == m_localPlayerSlot )
+					SyncLocalInventoryToHud();
 			}
+
+			item.active = false;
+			item.distanceCulled = true;
+
+			if ( isKeyItem )
+			{
+				MarkMegaGridClearedByNumber(item.megaGridNumber);
+
+				char buf[160];
+				sprintf_s(buf, "[ItemPickup][Key] playerSlot=%d megaGrid=%d player=%p\n", playerSlot, item.megaGridNumber, static_cast< void* >( player ));
+				OutputDebugStringA(buf);
+			}
+
+			break;
 		}
 	}
 }
