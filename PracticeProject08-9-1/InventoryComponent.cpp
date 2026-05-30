@@ -91,10 +91,6 @@ CInventoryComponent::EUseResult CInventoryComponent::UseItemSlot(int slot)
 
 	--m_itemCounts[static_cast< size_t >( slot )];
 
-	char buf[160];
-	sprintf_s(buf, "[InventoryComponent] Use slot=%d remain=%d owner=%p\n", slot, m_itemCounts[static_cast< size_t >( slot )], static_cast< void* >( m_pOwner ));
-	OutputDebugStringA(buf);
-
 	return attackPowerStateChanged ? EUseResult::AttackPowerStateChanged : EUseResult::Used;
 }
 
@@ -181,7 +177,6 @@ bool CInventoryComponent::TryBeginMoveSpeedPotion()
 {
 	if ( m_bMoveSpeedPotionActive )
 	{
-		OutputDebugStringA("[InventoryComponent][SpeedPotion] blocked: already active\n");
 		return false;
 	}
 
@@ -205,10 +200,6 @@ bool CInventoryComponent::TryBeginMoveSpeedPotion()
 	m_moveSpeedPotionRemainingSec = kMoveSpeedPotionDurationSec;
 	m_moveSpeedPotionLastLoggedSecond = static_cast< int >( kMoveSpeedPotionDurationSec );
 
-	char buf[192];
-	sprintf_s(buf, "[InventoryComponent][SpeedPotion] start remaining=%d walk=%.1f run=%.1f owner=%p\n", m_moveSpeedPotionLastLoggedSecond, kMoveSpeedPotionWalkSpeed, kMoveSpeedPotionRunSpeed, static_cast< void* >( m_pOwner ));
-	OutputDebugStringA(buf);
-
 	return true;
 }
 
@@ -230,10 +221,6 @@ void CInventoryComponent::UpdateMoveSpeedPotion(float dt)
 	if ( remainingSecond != m_moveSpeedPotionLastLoggedSecond )
 	{
 		m_moveSpeedPotionLastLoggedSecond = remainingSecond;
-
-		char buf[128];
-		sprintf_s(buf, "[InventoryComponent][SpeedPotion] remaining=%d owner=%p\n", remainingSecond, static_cast< void* >( m_pOwner ));
-		OutputDebugStringA(buf);
 	}
 }
 
@@ -252,17 +239,12 @@ void CInventoryComponent::RestoreMoveSpeedPotion()
 	m_bMoveSpeedPotionActive = false;
 	m_moveSpeedPotionRemainingSec = 0.0f;
 	m_moveSpeedPotionLastLoggedSecond = -1;
-
-	char buf[192];
-	sprintf_s(buf, "[InventoryComponent][SpeedPotion] expired restore walk=%.1f run=%.1f owner=%p\n", m_moveSpeedPotionOriginalWalkSpeed, m_moveSpeedPotionOriginalRunSpeed, static_cast< void* >( m_pOwner ));
-	OutputDebugStringA(buf);
 }
 
 bool CInventoryComponent::TryBeginAttackPowerPotion()
 {
 	if ( m_bAttackPowerPotionActive )
 	{
-		OutputDebugStringA("[InventoryComponent][AttackPotion] blocked: already active\n");
 		return false;
 	}
 
@@ -277,10 +259,6 @@ bool CInventoryComponent::TryBeginAttackPowerPotion()
 	m_attackPowerPotionRemainingSec = kAttackPowerPotionDurationSec;
 	m_attackPowerPotionLastLoggedSecond = static_cast< int >( kAttackPowerPotionDurationSec );
 	m_bAttackPowerDirty = true;
-
-	char buf[192];
-	sprintf_s(buf, "[InventoryComponent][AttackPotion] start remaining=%d multiplier=%d owner=%p\n", m_attackPowerPotionLastLoggedSecond, kAttackPowerPotionMultiplier, static_cast< void* >( m_pOwner ));
-	OutputDebugStringA(buf);
 
 	return true;
 }
@@ -303,10 +281,6 @@ void CInventoryComponent::UpdateAttackPowerPotion(float dt)
 	if ( remainingSecond != m_attackPowerPotionLastLoggedSecond )
 	{
 		m_attackPowerPotionLastLoggedSecond = remainingSecond;
-
-		char buf[128];
-		sprintf_s(buf, "[InventoryComponent][AttackPotion] remaining=%d owner=%p\n", remainingSecond, static_cast< void* >( m_pOwner ));
-		OutputDebugStringA(buf);
 	}
 }
 
@@ -319,17 +293,12 @@ void CInventoryComponent::RestoreAttackPowerPotion()
 	m_attackPowerPotionRemainingSec = 0.0f;
 	m_attackPowerPotionLastLoggedSecond = -1;
 	m_bAttackPowerDirty = true;
-
-	char buf[128];
-	sprintf_s(buf, "[InventoryComponent][AttackPotion] expired restore attack power owner=%p\n", static_cast< void* >( m_pOwner ));
-	OutputDebugStringA(buf);
 }
 
 bool CInventoryComponent::TryBeginDefensePotion()
 {
 	if ( m_bDefensePotionActive )
 	{
-		OutputDebugStringA("[InventoryComponent][DefensePotion] blocked: already active\n");
 		return false;
 	}
 
@@ -349,10 +318,6 @@ bool CInventoryComponent::TryBeginDefensePotion()
 	m_bDefensePotionActive = true;
 	m_defensePotionRemainingSec = kDefensePotionDurationSec;
 	m_defensePotionLastLoggedSecond = static_cast< int >( kDefensePotionDurationSec );
-
-	char buf[192];
-	sprintf_s(buf, "[InventoryComponent][DefensePotion] start remaining=%d incomingDamageScale=%.2f owner=%p\n", m_defensePotionLastLoggedSecond, kDefensePotionIncomingDamageScale, static_cast< void* >( m_pOwner ));
-	OutputDebugStringA(buf);
 
 	return true;
 }
@@ -375,10 +340,6 @@ void CInventoryComponent::UpdateDefensePotion(float dt)
 	if ( remainingSecond != m_defensePotionLastLoggedSecond )
 	{
 		m_defensePotionLastLoggedSecond = remainingSecond;
-
-		char buf[128];
-		sprintf_s(buf, "[InventoryComponent][DefensePotion] remaining=%d owner=%p\n", remainingSecond, static_cast< void* >( m_pOwner ));
-		OutputDebugStringA(buf);
 	}
 }
 
@@ -398,8 +359,4 @@ void CInventoryComponent::RestoreDefensePotion()
 	m_defensePotionRemainingSec = 0.0f;
 	m_defensePotionOriginalIncomingDamageScale = 1.0f;
 	m_defensePotionLastLoggedSecond = -1;
-
-	char buf[128];
-	sprintf_s(buf, "[InventoryComponent][DefensePotion] expired restore incoming damage scale owner=%p\n", static_cast< void* >( m_pOwner ));
-	OutputDebugStringA(buf);
 }
