@@ -6945,6 +6945,18 @@ void CGameScene::BeginLocalPlayerDeath(CGameObject* player)
 	if ( m_bLocalPlayerDead )
 		return;
 
+#ifndef USING_NETWORK
+	if ( CInventoryComponent* inventory = player->GetComponent<CInventoryComponent>() )
+	{
+		inventory->ForceRestoreAllEffects();
+
+		if ( inventory->ConsumeAttackPowerDirty() )
+			RefreshPlayerWeaponAttackPowersForSlot(m_localPlayerSlot);
+
+		SyncLocalInventoryToHud();
+	}
+#endif
+
 	m_bLocalPlayerDead = true;
 	m_localPlayerRespawnTimer = 0.0f;
 
@@ -6977,7 +6989,10 @@ void CGameScene::RespawnLocalPlayer(CGameObject* player)
 	player->SetPosition(kLocalPlayerRespawnPosition);
 
 	if ( auto* hp = player->GetComponent<CHealthComponent>() )
+	{
 		hp->ResetToMax();
+		hp->SetIncomingDamageScale(1.0f);
+	}
 
 	if ( auto* collider = player->GetComponent<CColliderComponent>() )
 	{
