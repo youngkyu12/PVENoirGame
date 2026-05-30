@@ -987,6 +987,16 @@ D3D12_SHADER_BYTECODE CShadowMapAlphaClipStaticShader::CreatePixelShader(ID3DBlo
 	);
 }
 
+D3D12_SHADER_BYTECODE CShadowMapTerrainShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(
+		L"Shaders.hlsl",
+		"VSShadowMapTerrainInstanced",
+		"vs_5_1",
+		ppd3dShaderBlob
+	);
+}
+
 D3D12_RASTERIZER_DESC CShadowMapStaticShader::CreateRasterizerState()
 {
 	D3D12_RASTERIZER_DESC rs = CShader::CreateRasterizerState();
@@ -1004,6 +1014,13 @@ D3D12_RASTERIZER_DESC CShadowMapAlphaClipStaticShader::CreateRasterizerState()
 	rs.DepthBias = 12000;
 	rs.SlopeScaledDepthBias = 0.75f;
 	rs.DepthBiasClamp = 0.0f;
+	return rs;
+}
+
+D3D12_RASTERIZER_DESC CShadowMapTerrainShader::CreateRasterizerState()
+{
+	D3D12_RASTERIZER_DESC rs = CShadowMapStaticShader::CreateRasterizerState();
+	rs.CullMode = D3D12_CULL_MODE_NONE;
 	return rs;
 }
 

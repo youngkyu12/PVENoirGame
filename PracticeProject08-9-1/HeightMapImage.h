@@ -18,7 +18,7 @@ public:
 	~HeightMapImage(void);
 
 	//높이 맵 이미지에서 (x, z) 위치의 픽셀 값에 기반한 지형의 높이를 반환한다.
-	float GetHeight(float x, float z);
+	float GetHeight(float x, float z, bool bReverseQuad);
 
 	//높이 맵 이미지에서 (x, z) 위치의 법선 벡터를 반환한다.
 	XMFLOAT3 GetHeightMapNormal(int x, int z);

@@ -2114,6 +2114,7 @@ void CGameScene::ReleaseObjects()
 	m_shadowSkinnedShader.reset();
 	m_shadowAlphaClipSkinnedShader.reset();
 	m_skinnedAlphaClipShader.reset();
+	m_shadowTerrainShader.reset();
 
 	m_sceneRenderTargetCount = 0;
 	m_bSceneRenderTargetsReady = false;
@@ -3288,8 +3289,9 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 	if ( !mappedStaticInstanceBuffer ) return;
 	if ( !m_shadowStaticShader ) return;
 	if ( !m_shadowAlphaClipStaticShader ) return;
+	if ( !m_shadowTerrainShader ) return;
 
-	bool lastUseAlphaClipShader = false;
+	int lastShaderKind = -1; // 0=static, 1=tree alpha-clip, 2=terrain
 	bool hasBoundAnyShader = false;
 
 	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -3336,14 +3338,21 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 		if ( visibleInstanceCount == 0 )
 			continue;
 
-		if ( !hasBoundAnyShader || lastUseAlphaClipShader != group.useTreeShader )
+		const int shaderKind =
+			group.useTerrainShader ? 2 :
+			group.useTreeShader ? 1 :
+			0;
+
+		if ( !hasBoundAnyShader || lastShaderKind != shaderKind )
 		{
-			if ( group.useTreeShader )
+			if ( shaderKind == 2 )
+				m_shadowTerrainShader->Render(cmd, nullptr, &m_staticBatch);
+			else if ( shaderKind == 1 )
 				m_shadowAlphaClipStaticShader->Render(cmd, nullptr, &m_staticBatch);
 			else
 				m_shadowStaticShader->Render(cmd, nullptr, &m_staticBatch);
 
-			lastUseAlphaClipShader = group.useTreeShader;
+			lastShaderKind = shaderKind;
 			hasBoundAnyShader = true;
 		}
 
@@ -3368,6 +3377,12 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 
 		cmd->IASetVertexBuffers(0, 2, vbViews);
 		cmd->IASetIndexBuffer(&sm.ibView);
+
+		cmd->IASetPrimitiveTopology(
+			group.useTerrainShader
+			? D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP
+			: D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST
+		);
 
 		cmd->DrawIndexedInstanced(( UINT ) sm.indices.size(), visibleInstanceCount, 0, 0, 0);
 	}

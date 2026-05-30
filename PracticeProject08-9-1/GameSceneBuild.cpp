@@ -183,6 +183,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	auto pShadowSkinnedShader = std::make_shared<CShadowMapSkinnedShader>();
 	auto pShadowAlphaClipSkinnedShader = std::make_shared<CShadowMapAlphaClipSkinnedShader>();
 	auto pTerrainShader = std::make_shared<CTerrainShader>();
+	auto pShadowTerrainShader = std::make_shared<CShadowMapTerrainShader>();
 
 	m_staticBatch.shader = pStaticShader;
 	m_treeStaticShader = pTreeStaticShader;
@@ -195,6 +196,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_shadowSkinnedShader = pShadowSkinnedShader;
 	m_shadowAlphaClipSkinnedShader = pShadowAlphaClipSkinnedShader;
 	m_terrainShader = pTerrainShader;
+	m_shadowTerrainShader = pShadowTerrainShader;
 
 	DXGI_FORMAT rtvFormats[5] =
 	{
@@ -279,6 +281,14 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		kRTCount,
 		rtvFormats,
 		kDsvFormat
+	);
+
+	pShadowTerrainShader->CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		0,
+		nullptr,
+		DXGI_FORMAT_D24_UNORM_S8_UINT
 	);
 
 	CreateTerrainData(dev, cmd);
@@ -607,6 +617,9 @@ void CGameScene::BuildStaticBatch(
 		createDesc.colliderType = EColliderType::OOBB;
 		createDesc.colliderLayer = kCollisionLayerWorldStatic;
 		createDesc.colliderMask = CollisionBit(kCollisionLayerPlayer);
+		
+		createDesc.addTerrainAttach = ShouldAttachObjectToTerrain(placement.assetName);
+		createDesc.terrainData = m_TerrainData;
 
 		const bool logCastleVillageWallColliderBuild =
 			kEnableCastleVillageWallColliderBuildLog &&
@@ -662,8 +675,6 @@ void CGameScene::BuildStaticBatch(
 
 		if ( placement.assetName == "Terrain" )
 			m_terrainObjects.insert(raw);
-		else if ( m_TerrainData && ShouldAttachStaticObjectToTerrain(placement.assetName) )
-			raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
 
 #ifndef USING_NETWORK
 		if ( placement.assetName == "Tower" )
@@ -2641,12 +2652,9 @@ void CGameScene::BuildColliderBatch(
 
 void CGameScene::ResetStaticPlacementCounts()
 {
-	m_grassCount = 0;
-	m_groundCount = 0;
 	m_terrainCount = 0;
 	m_villagewallCount = 0;
 	m_castleCount = 0;
-	m_dirtRoadCount = 0;
 
 	m_building1Count = 0;
 	m_building2Count = 0;
@@ -2666,12 +2674,9 @@ void CGameScene::ApplyStaticPlacementCounts()
 
 	for ( const auto& e : m_staticPlacementEntries )
 	{
-		if ( e.assetName == "Grass" )       ++m_grassCount;
-		else if ( e.assetName == "Ground" )      ++m_groundCount;
-		else if ( e.assetName == "Terrain" )     ++m_terrainCount;
+		if ( e.assetName == "Terrain" )     ++m_terrainCount;
 		else if ( e.assetName == "VillageWall" ) ++m_villagewallCount;
 		else if ( e.assetName == "Castle" )    ++m_castleCount;
-		else if ( e.assetName == "DirtRoad" )    ++m_dirtRoadCount;
 		else if ( e.assetName == "Building1" )   ++m_building1Count;
 		else if ( e.assetName == "Building2" )   ++m_building2Count;
 		else if ( e.assetName == "Building3" )   ++m_building3Count;
@@ -2804,18 +2809,6 @@ bool CGameScene::LoadStaticPlacementFile(const std::string& filePath)
 			continue;
 
 		entry.yawDeg = QuaternionToYawDegrees(entry.rot);
-
-		if ( entry.assetName == "Grass" && terrainCount < TerrainPlacementCount )
-		{
-			StaticPlacementEntry terrainEntry = entry;
-			terrainEntry.assetName = "Terrain";
-			terrainEntry.objectName = "Terrain";
-			terrainEntry.pos.x -= kTerrainHalfWorldSize;
-			terrainEntry.pos.z -= kTerrainHalfWorldSize;
-			m_staticPlacementEntries.push_back(std::move(terrainEntry));
-			++terrainCount;
-		}
-
 		m_staticPlacementEntries.push_back(std::move(entry));
 	}
 	

@@ -71,24 +71,14 @@ void CTerrainAttachComponent::SnapToTerrain()
 
 	XMFLOAT3 pos = owner->GetPosition();
 	const XMFLOAT3 terrainScale = m_terrainData->GetScale();
-	const float terrainSize =
-		static_cast<float>(m_terrainData->GetWidthCount() - 1) * terrainScale.x;
-	if (terrainSize <= 0.0f)
-		return;
+	int z = (int)(pos.z / terrainScale.z);
+	bool bReverseQuad = ((z % 2) != 0);
+	float fHeight = m_terrainData->GetHeight(pos.x, pos.z, bReverseQuad);
 
-	const float halfTerrainSize = terrainSize * 0.5f;
-	const float centerX = RoundToNearestTileCenter(pos.x, terrainSize);
-	const float centerZ = RoundToNearestZTileCenter(pos.z, terrainSize);
-	const float originX = centerX - halfTerrainSize;
-	const float originZ = centerZ - halfTerrainSize;
+	if (pos.y < fHeight)
+	{
+		pos.y = fHeight;
+		owner->SetPosition(pos);
+	}
 
-	const float maxLocalX =
-		static_cast<float>(m_terrainData->GetWidthCount() - 2) * terrainScale.x;
-	const float maxLocalZ =
-		static_cast<float>(m_terrainData->GetLengthCount() - 2) * terrainScale.z;
-	const float localX = std::clamp(pos.x - originX, 0.0f, maxLocalX);
-	const float localZ = std::clamp(pos.z - originZ, 0.0f, maxLocalZ);
-	const float terrainHeight = m_terrainData->GetHeight(localX, localZ);
-	pos.y = terrainHeight + m_heightOffset;
-	owner->SetPosition(pos);
 }

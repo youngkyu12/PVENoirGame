@@ -1085,6 +1085,7 @@ private:
 	std::shared_ptr<COcclusionStaticShader>               m_occlusionStaticShader;
 	std::shared_ptr<CShadowMapStaticShader>               m_shadowStaticShader;
 	std::shared_ptr<CShadowMapAlphaClipStaticShader>      m_shadowAlphaClipStaticShader;
+	std::shared_ptr<CShadowMapTerrainShader>			  m_shadowTerrainShader;
 	std::shared_ptr<CShadowMapSkinnedShader>              m_shadowSkinnedShader;
 	std::shared_ptr<CShadowMapAlphaClipSkinnedShader>     m_shadowAlphaClipSkinnedShader;
 
@@ -1155,13 +1156,9 @@ private:
 	std::unordered_set<CGameObject*> m_terrainObjects;
 
 
-	bool ShouldAttachStaticObjectToTerrain(const std::string& assetName)
+	bool ShouldAttachObjectToTerrain(const std::string& assetName)
 	{
-		return
-			assetName != "Terrain" &&
-			assetName != "Grass" &&
-			assetName != "Ground" &&
-			assetName != "DirtRoad";
+		return assetName != "Terrain";
 	}
 	
 	void BuildStaticWorldSubmeshOOBBDebugObjects(
