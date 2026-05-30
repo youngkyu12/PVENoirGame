@@ -197,6 +197,93 @@ void CGameScene::RestoreLocalPlayerMoveSpeedPotion()
 #endif
 }
 
+bool CGameScene::TryBeginLocalPlayerAttackPowerPotion()
+{
+#ifndef USING_NETWORK
+	if ( m_bLocalPlayerDead )
+		return false;
+
+	CGameObject* localPlayer = GetPlayer();
+	if ( !localPlayer )
+		localPlayer = GetPlayerBySlot(0);
+
+	if ( !localPlayer )
+		return false;
+
+	m_bAttackPowerPotionActive = true;
+	m_attackPowerPotionRemainingSec = kAttackPowerPotionDurationSec;
+	m_attackPowerPotionLastLoggedSecond = static_cast< int >( kAttackPowerPotionDurationSec );
+
+	RefreshPlayerWeaponAttackPowers();
+
+	char buf[192];
+	sprintf_s(buf, "[Inventory][AttackPotion] start remaining=%d multiplier=%d\n", m_attackPowerPotionLastLoggedSecond, kAttackPowerPotionMultiplier);
+	OutputDebugStringA(buf);
+
+	return true;
+#else
+	return false;
+#endif
+}
+
+void CGameScene::UpdateLocalPlayerAttackPowerPotion(float dt)
+{
+#ifndef USING_NETWORK
+	if ( !m_bAttackPowerPotionActive )
+		return;
+
+	if ( dt < 0.0f )
+		dt = 0.0f;
+
+	m_attackPowerPotionRemainingSec -= dt;
+
+	if ( m_attackPowerPotionRemainingSec <= 0.0f )
+	{
+		RestoreLocalPlayerAttackPowerPotion();
+		return;
+	}
+
+	const int remainingSecond = static_cast< int >( m_attackPowerPotionRemainingSec + 0.999f );
+
+	if ( remainingSecond != m_attackPowerPotionLastLoggedSecond )
+	{
+		m_attackPowerPotionLastLoggedSecond = remainingSecond;
+
+		char buf[128];
+		sprintf_s(buf, "[Inventory][AttackPotion] remaining=%d\n", remainingSecond);
+		OutputDebugStringA(buf);
+	}
+#else
+	UNREFERENCED_PARAMETER(dt);
+#endif
+}
+
+void CGameScene::RestoreLocalPlayerAttackPowerPotion()
+{
+#ifndef USING_NETWORK
+	if ( !m_bAttackPowerPotionActive )
+		return;
+
+	m_bAttackPowerPotionActive = false;
+	m_attackPowerPotionRemainingSec = 0.0f;
+	m_attackPowerPotionLastLoggedSecond = -1;
+
+	RefreshPlayerWeaponAttackPowers();
+
+	OutputDebugStringA("[Inventory][AttackPotion] expired restore attack power\n");
+#endif
+}
+
+int CGameScene::ApplyLocalPlayerAttackPowerPotionMultiplier(int attackPower) const
+{
+#ifndef USING_NETWORK
+	if ( m_bAttackPowerPotionActive )
+		return attackPower * kAttackPowerPotionMultiplier;
+#endif
+
+	return attackPower;
+}
+
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
 	ConfigureLocalGameplaySimulationSwitches();
