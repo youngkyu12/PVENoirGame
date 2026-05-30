@@ -61,6 +61,7 @@ public:
 		ELayer layer,
 		bool visible = true
 	);
+	int AddSolidRect(const char* name, const XMFLOAT4& rect, ELayer layer, bool visible = true);
 
 	int AddFitSprite(
 		ID3D12Device* dev,

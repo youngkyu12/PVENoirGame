@@ -77,6 +77,10 @@ VS_SCREEN_RECT_TEXTURED_OUTPUT VSScreenRectSamplingTextured(uint nVertexID : SV_
 
 float4 PSScreenRectSamplingTextured(VS_SCREEN_RECT_TEXTURED_OUTPUT input) : SV_Target
 {
+    // 'S' = solid cooldown rect
+    if (gvDrawOptions.x == 83)
+        return float4(0.0f, 0.0f, 0.0f, 0.55f);
+
     uint idx = 0xFFFFFFFFu;
 
     switch (gvDrawOptions.x)

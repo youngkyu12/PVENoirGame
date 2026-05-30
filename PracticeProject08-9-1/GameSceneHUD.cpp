@@ -21,6 +21,8 @@ void CGameSceneHUD::ReleaseResources()
 	m_hpFillSpriteIndex = -1;
 	m_inventorySpriteIndices.fill(-1);
 	m_inventoryIconSpriteIndices.fill(-1);
+	m_inventoryCooldownSpriteIndices.fill(-1);
+	for ( XMFLOAT4& rect : m_inventoryCooldownOriginalRects ) rect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 	m_inventoryItemCounts.fill(0);
 	m_inventoryCountGlyphSpriteIndices.fill(-1);
 	m_hpFillOriginalRect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f); 
@@ -41,6 +43,8 @@ void CGameSceneHUD::BuildResources(
 	m_exitSpriteIndex = -1;
 	m_inventorySpriteIndices.fill(-1);
 	m_inventoryIconSpriteIndices.fill(-1);
+	m_inventoryCooldownSpriteIndices.fill(-1);
+	for ( XMFLOAT4& rect : m_inventoryCooldownOriginalRects ) rect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 	m_inventoryCountGlyphSpriteIndices.fill(-1);
 
 	// --------------------------------------------------------------------
@@ -113,6 +117,16 @@ void CGameSceneHUD::BuildResources(
 		const float centerX = inventoryStartCenterX + inventorySlotWidth * static_cast< float >(i);
 		m_inventorySpriteIndices[i] = m_ui.AddSprite(dev, cmd, inventorySpriteNames[i], L"Assets/UI/Inventory.dds", XMFLOAT4(centerX, inventoryCenterY, inventorySlotWidth, inventorySlotHeight), CSceneUI::ELayer::Frame, true);
 		m_inventoryIconSpriteIndices[i] = m_ui.AddSprite(dev, cmd, inventoryIconSpriteNames[i], inventoryIconTexturePaths[i], XMFLOAT4(centerX, inventoryCenterY, inventoryIconSize, inventoryIconSize), CSceneUI::ELayer::Content, true);
+	}
+
+	for ( int slot = 0; slot < kInventorySlotCount; ++slot )
+	{
+		const float centerX = inventoryStartCenterX + inventorySlotWidth * static_cast< float >(slot);
+		char cooldownSpriteName[64] = {};
+		sprintf_s(cooldownSpriteName, "InventoryCooldown_%d", slot);
+
+		m_inventoryCooldownOriginalRects[slot] = XMFLOAT4(centerX, inventoryCenterY, inventorySlotWidth, inventorySlotHeight);
+		m_inventoryCooldownSpriteIndices[slot] = m_ui.AddSolidRect(cooldownSpriteName, m_inventoryCooldownOriginalRects[slot], CSceneUI::ELayer::Content, false);
 	}
 
 	const wchar_t* inventoryCountGlyphTexturePaths[kInventoryCountGlyphTypeCount] = { L"Assets/UI/Text_x.dds", L"Assets/UI/Text_0.dds", L"Assets/UI/Text_1.dds", L"Assets/UI/Text_2.dds", L"Assets/UI/Text_3.dds", L"Assets/UI/Text_4.dds", L"Assets/UI/Text_5.dds", L"Assets/UI/Text_6.dds", L"Assets/UI/Text_7.dds", L"Assets/UI/Text_8.dds", L"Assets/UI/Text_9.dds" };
@@ -233,6 +247,38 @@ void CGameSceneHUD::SetInventoryItemCounts(const std::array<int, kInventorySlotC
 
 		UpdateInventoryCountTextSprites(i);
 	}
+}
+
+void CGameSceneHUD::SetInventoryCooldownRatio(int slot, float ratio)
+{
+	if ( slot < 0 || slot >= kInventorySlotCount )
+		return;
+
+	if ( ratio < 0.0f )
+		ratio = 0.0f;
+
+	if ( ratio > 1.0f )
+		ratio = 1.0f;
+
+	const int spriteIndex = m_inventoryCooldownSpriteIndices[slot];
+
+	if ( spriteIndex < 0 )
+		return;
+
+	const XMFLOAT4 originalRect = m_inventoryCooldownOriginalRects[slot];
+
+	if ( ratio <= 0.001f || originalRect.z <= 0.0f || originalRect.w <= 0.0f )
+	{
+		m_ui.SetSpriteVisible(spriteIndex, false);
+		return;
+	}
+
+	const float newHeight = originalRect.w * ratio;
+	const float bottomY = originalRect.y + originalRect.w * 0.5f;
+	const float newCenterY = bottomY - newHeight * 0.5f;
+
+	m_ui.SetSpriteRect(spriteIndex, XMFLOAT4(originalRect.x, newCenterY, originalRect.z, newHeight));
+	m_ui.SetSpriteVisible(spriteIndex, true);
 }
 
 void CGameSceneHUD::UpdateInventoryCountTextSprites(int slot)
