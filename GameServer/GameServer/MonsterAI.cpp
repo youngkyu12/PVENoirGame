@@ -160,6 +160,30 @@ bool CMonsterAI::AcquireTarget()
 		}
 	}
 
+	// two-threshold chase detection
+	if (nearest != nullptr)
+	{
+		if (!m_isChasing)
+		{
+			if (bestSq > m_chaseStartRange * m_chaseStartRange)
+				nearest = nullptr;
+			else
+				m_isChasing = true;
+		}
+		else
+		{
+			if (bestSq > m_chaseStopRange * m_chaseStopRange)
+			{
+				m_isChasing = false;
+				nearest = nullptr;
+			}
+		}
+	}
+	else
+	{
+		m_isChasing = false;
+	}
+
 	const bool hadTarget = (m_pTarget != nullptr);
 	m_pTarget = nearest;
 
@@ -269,6 +293,26 @@ bool CMonsterAI::FollowCurrentPath(float dt)
 			++m_currentPathIndex;
 			continue;
 		}
+
+		// waypoint가 목표 반대 방향이면 경로를 버리고 다음 틱에 재탐색
+		if (m_pTarget != nullptr)
+		{
+			const auto myPos    = GetOwner()->GetPosition();
+			const auto goalPos  = m_pTarget->GetPosition();
+			const float toWpX   = wp.x - myPos.x;
+			const float toWpZ   = wp.z - myPos.z;
+			const float toGoalX = goalPos.x - myPos.x;
+			const float toGoalZ = goalPos.z - myPos.z;
+			if (toWpX * toGoalX + toWpZ * toGoalZ < 0.f)
+			{
+				m_currentPath.clear();
+				m_trianglePath.clear();
+				m_currentPathIndex = 0;
+				m_repathTimer = 0.f;
+				return false;
+			}
+		}
+
 		return MoveTowards(wp, moveDistance);
 	}
 	return false;
@@ -290,6 +334,13 @@ bool CMonsterAI::MoveDirectTowards(const GameMath::Vec3& goal, float maxStep)
 	return true;
 }
 
+void CMonsterAI::SetChaseRanges(float startRange, float stopRange)
+{
+	m_chaseStartRange = startRange;
+	m_chaseStopRange  = stopRange;
+	m_isChasing       = false;
+}
+
 void CMonsterAI::SetDirectMoveMode(float advanceDist, const GameMath::Vec3& homeDir, float innerZoneRadius, const GameMath::Vec3& zoneCenter)
 {
 	m_useDirectMove = true;
@@ -298,6 +349,7 @@ void CMonsterAI::SetDirectMoveMode(float advanceDist, const GameMath::Vec3& home
 	m_innerZoneRadius = innerZoneRadius;
 	m_innerZoneCenter = zoneCenter;
 	m_hasNotifiedFirstChase = false;
+	m_isChasing = false;
 	m_pTarget = nullptr;
 	m_currentPath.clear();
 	m_trianglePath.clear();
@@ -310,20 +362,28 @@ void CMonsterAI::ConfigureFromWeapon(Protocol::WeaponType weaponType)
 	{
 	case Protocol::WEAPON_TYPE_BOW:
 	case Protocol::WEAPON_TYPE_CANON:
-		m_attackRange = 15.0f;
-		m_meleeArcDeg = 360.0f;
+		m_attackRange     = 15.0f;
+		m_meleeArcDeg     = 360.0f;
+		m_chaseStartRange = 50.0f;   // BowMan
+		m_chaseStopRange  = 50.0f;
 		break;
 	case Protocol::WEAPON_TYPE_SWORD:
-		m_attackRange = 2.0f;
-		m_meleeArcDeg = 90.0f;
+		m_attackRange     = 2.0f;
+		m_meleeArcDeg     = 90.0f;
+		m_chaseStartRange = 35.0f;   // SwordMan
+		m_chaseStopRange  = 50.0f;
 		break;
 	case Protocol::WEAPON_TYPE_AXE:
-		m_attackRange = 2.5f;
-		m_meleeArcDeg = 90.0f;
+		m_attackRange     = 2.5f;
+		m_meleeArcDeg     = 90.0f;
+		m_chaseStartRange = 10.0f;   // Ghoul
+		m_chaseStopRange  = 50.0f;
 		break;
 	default:
-		m_attackRange = 2.0f;
-		m_meleeArcDeg = 180.0f;
+		m_attackRange     = 2.0f;
+		m_meleeArcDeg     = 180.0f;
+		m_chaseStartRange = 25.0f;   // Mutant
+		m_chaseStopRange  = 50.0f;
 		break;
 	}
 }
