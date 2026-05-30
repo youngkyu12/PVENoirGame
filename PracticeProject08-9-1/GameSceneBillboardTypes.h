@@ -330,6 +330,10 @@ enum class EItemBillboardKind : UINT
 	BossShockwave = 3,
 	BossShockwaveWall = 4,
 	BossCallSummonCircle = 5,
+	HealPotion = 6,
+	AttackPowerPotion = 7,
+	DefensePotion = 8,
+	MoveSpeedPotion = 9,
 };
 
 struct ItemBillboardEntry
@@ -343,6 +347,9 @@ struct ItemBillboardEntry
 
 	// 1~9. 유효하지 않으면 -1.
 	int megaGridNumber = -1;
+
+	// 인벤토리 슬롯 0~3. 아이템 획득 대상이 아니면 -1.
+	int inventorySlot = -1;
 
 	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
 
@@ -372,6 +379,7 @@ struct BossCallSummonCircleVisualState
 struct ItemBillboardState
 {
 	std::shared_ptr<CTexture> keyTexture;
+	std::array<std::shared_ptr<CTexture>, 4> potionTextures = {};
 	std::shared_ptr<CTexture> bossSummonCircleTexture;
 
 	std::shared_ptr<CItemBillboardShader> shader;

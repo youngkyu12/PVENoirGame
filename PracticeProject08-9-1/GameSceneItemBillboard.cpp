@@ -114,6 +114,69 @@ std::shared_ptr<CMesh> CGameScene::CreateItemBillboardQuadMesh(ID3D12Device* dev
 	return mesh;
 }
 
+void CGameScene::AddPotionItemBillboardEntries()
+{
+	const std::array<XMFLOAT3, kPotionItemKindCount> potionPositions =
+	{
+		XMFLOAT3(0.0f, 0.0f, -140.0f),
+		XMFLOAT3(2.0f, 0.0f, -140.0f),
+		XMFLOAT3(4.0f, 0.0f, -140.0f),
+		XMFLOAT3(6.0f, 0.0f, -140.0f)
+	};
+
+	const std::array<EItemBillboardKind, kPotionItemKindCount> potionKinds =
+	{
+		EItemBillboardKind::HealPotion,
+		EItemBillboardKind::AttackPowerPotion,
+		EItemBillboardKind::DefensePotion,
+		EItemBillboardKind::MoveSpeedPotion
+	};
+
+	const std::array<UINT, kPotionItemKindCount> potionMaterialIds =
+	{
+		kHealPotionItemBillboardMaterialId,
+		kAttackPotionItemBillboardMaterialId,
+		kDefensePotionItemBillboardMaterialId,
+		kMoveSpeedPotionItemBillboardMaterialId
+	};
+
+	for ( UINT slot = 0; slot < kPotionItemKindCount; ++slot )
+	{
+		for ( UINT i = 0; i < kPotionItemMaxCountPerKind; ++i )
+		{
+			ItemBillboardEntry potion{};
+
+			potion.active = true;
+			potion.distanceCulled = false;
+			potion.transparent = true;
+
+			potion.kind = potionKinds[slot];
+			potion.inventorySlot = static_cast< int >(slot);
+
+			potion.position = potionPositions[slot];
+
+			potion.megaGridNumber =
+				m_sceneGrid.MegaGridNumberFromWorldPosition(
+					potion.position.x,
+					potion.position.z
+				);
+
+			potion.width = 1.25f;
+			potion.height = 1.25f;
+			potion.yOffset = 1.20f;
+
+			potion.cullDistance = 300.0f;
+
+			potion.pickupRadius = 1.25f;
+			potion.pickupHeightTolerance = 2.0f;
+
+			potion.materialId = potionMaterialIds[slot];
+
+			m_itemBillboardState.entries.push_back(potion);
+		}
+	}
+}
+
 void CGameScene::BuildItemBillboardBatch(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, UINT rtCount, DXGI_FORMAT* rtvFormats, DXGI_FORMAT dsvFormat)
 {
 	if ( !dev || !cmd )
@@ -145,22 +208,33 @@ void CGameScene::BuildItemBillboardBatch(ID3D12Device* dev, ID3D12GraphicsComman
 	{
 		m_itemBillboardState.keyTexture = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
 
-		m_itemBillboardState.keyTexture->LoadTextureFromFile(
-			dev,
-			cmd,
-			L"Assets/Particle/Key.dds",
-			RESOURCE_TEXTURE2D,
-			0
-		);
+		m_itemBillboardState.keyTexture->LoadTextureFromFile(dev, cmd, L"Assets/Particle/Key.dds", RESOURCE_TEXTURE2D, 0);
 
-		CScene::m_pDescriptorHeap->CreateShaderResourceViews(
-			dev,
-			m_itemBillboardState.keyTexture.get(),
-			ROOT_PARAMETER_GLOBAL_SRV
-		);
+		CScene::m_pDescriptorHeap->CreateShaderResourceViews(dev, m_itemBillboardState.keyTexture.get(), ROOT_PARAMETER_GLOBAL_SRV);
 
 		SetKeyItemDiffuseSrvIndex(m_itemBillboardState.keyTexture->GetBaseSrvIndex());
 		SetTransparentItemDiffuseSrvIndex(m_itemBillboardState.keyTexture->GetBaseSrvIndex());
+	}
+
+	{
+		const std::array<const wchar_t*, kPotionItemKindCount> potionTexturePaths =
+		{
+			L"Assets/UI/Potion_Heal.dds",
+			L"Assets/UI/Potion_AttackUP.dds",
+			L"Assets/UI/Potion_DeffenceUP.dds",
+			L"Assets/UI/Potion_SpeedUP.dds"
+		};
+
+		for ( UINT i = 0; i < kPotionItemKindCount; ++i )
+		{
+			m_itemBillboardState.potionTextures[i] = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
+
+			m_itemBillboardState.potionTextures[i]->LoadTextureFromFile(dev, cmd, potionTexturePaths[i], RESOURCE_TEXTURE2D, 0);
+
+			CScene::m_pDescriptorHeap->CreateShaderResourceViews(dev, m_itemBillboardState.potionTextures[i].get(), ROOT_PARAMETER_GLOBAL_SRV);
+
+			SetMaterialDiffuseSrvIndex(static_cast< int >(kPotionItemBillboardMaterialBaseId + i), m_itemBillboardState.potionTextures[i]->GetBaseSrvIndex());
+		}
 	}
 
 	{
@@ -208,6 +282,7 @@ void CGameScene::BuildItemBillboardBatch(ID3D12Device* dev, ID3D12GraphicsComman
 	m_itemBillboardState.entries.clear();
 	m_itemBillboardState.entries.reserve(
 		kKeyItemBillboardCount +
+		kPotionItemBillboardCount +
 		3 +
 		kBossShockwaveWallSegmentCount +
 		kBossCallSummonCircleMaxCount
@@ -247,6 +322,8 @@ void CGameScene::BuildItemBillboardBatch(ID3D12Device* dev, ID3D12GraphicsComman
 
 		m_itemBillboardState.entries.push_back(key);
 	}
+
+	AddPotionItemBillboardEntries();
 
 	{
 		ItemBillboardEntry summonGlow{};
