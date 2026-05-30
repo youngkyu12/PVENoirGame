@@ -371,11 +371,11 @@ void Room::BuildRoom()
 	{
 		auto* ai = e->GetMonsterAI();
 		if (!ai) return;
-		if      (t == "Ghoul")   { ai->SetChaseRanges(10.f,      50.f);       ai->SetAttackRange(1.5f);  ai->SetMoveSpeed(2.f);  }
-		else if (t == "SwordMan"){ ai->SetChaseRanges(35.f,      50.f);       ai->SetAttackRange(3.0f);  ai->SetMoveSpeed(8.f);  }
-		else if (t == "BowMan")  { ai->SetChaseRanges(50.f,      50.f);       ai->SetAttackRange(25.f);  ai->SetMoveSpeed(8.f);  }
-		else if (t == "Mutant")  { ai->SetChaseRanges(25.f,      50.f);       ai->SetAttackRange(2.7f);  ai->SetMoveSpeed(12.f); }
-		else if (t == "Boss")    { ai->SetChaseRanges(1000000.f, 1000000.f);  ai->SetAttackRange(7.0f);  ai->SetMoveSpeed(6.f);  }
+		const MonsterAIParam* p = GetMonsterAIParam(t);
+		if (!p) return;
+		ai->SetChaseRanges(p->chaseStart, p->chaseStop);
+		ai->SetAttackRange(p->attackRange);
+		ai->SetMoveSpeed(p->moveSpeed);
 	};
 
 	auto makeSpawnEnemy = [&](const MonsterSpawnEntry& spawn)
