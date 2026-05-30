@@ -132,6 +132,26 @@ namespace
 	constexpr float kSpawnerWallHalfExtent   = 99.0f;
 	constexpr float kSpawnerSlotSpacing      = 2.0f;
 
+	// ========================================
+	// MonsterAI — Per-type parameters
+	// ========================================
+	struct MonsterAIParam { float chaseStart; float chaseStop; float attackRange; float moveSpeed; };
+	constexpr MonsterAIParam kAI_Ghoul    {  10.f,       50.f,   1.5f,  2.f };
+	constexpr MonsterAIParam kAI_SwordMan {  35.f,       50.f,   3.0f,  8.f };
+	constexpr MonsterAIParam kAI_BowMan   {  50.f,       50.f,  25.0f,  8.f };
+	constexpr MonsterAIParam kAI_Mutant   {  25.f,       50.f,   2.7f, 12.f };
+	constexpr MonsterAIParam kAI_Boss     { 1e6f,        1e6f,   7.0f,  6.f };
+
+	const MonsterAIParam* GetMonsterAIParam(const string& typeName)
+	{
+		if (typeName == "Ghoul")    return &kAI_Ghoul;
+		if (typeName == "SwordMan") return &kAI_SwordMan;
+		if (typeName == "BowMan")   return &kAI_BowMan;
+		if (typeName == "Mutant")   return &kAI_Mutant;
+		if (typeName == "Boss")     return &kAI_Boss;
+		return nullptr;
+	}
+
 	int GetEnemyHp(const string& typeName)
 	{
 		if (typeName == "Ghoul")    return kHpGhoul;
