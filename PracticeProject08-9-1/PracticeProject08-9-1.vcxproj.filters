@@ -654,6 +654,9 @@
     <ClCompile Include="GameSceneBossCombatEffectCasts.cpp">
       <Filter>Scene\GameScene\Billboard</Filter>
     </ClCompile>
+    <ClCompile Include="GameSceneInventory.cpp">
+      <Filter>Scene\GameScene</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PracticeProject08-9-1.rc">
