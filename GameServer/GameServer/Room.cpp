@@ -347,6 +347,17 @@ void Room::BuildRoom()
 	uint64 mega6TriggerMutantId = UINT64_MAX;
 	uint64 mega8TriggerMutantId = UINT64_MAX;
 
+	auto applyMonsterAIParams = [](CEnemy* e, const std::string& t)
+	{
+		auto* ai = e->GetMonsterAI();
+		if (!ai) return;
+		if      (t == "Ghoul")   { ai->SetChaseRanges(10.f,      50.f);       ai->SetAttackRange(1.5f);  ai->SetMoveSpeed(2.f);  }
+		else if (t == "SwordMan"){ ai->SetChaseRanges(35.f,      50.f);       ai->SetAttackRange(3.0f);  ai->SetMoveSpeed(8.f);  }
+		else if (t == "BowMan")  { ai->SetChaseRanges(50.f,      50.f);       ai->SetAttackRange(25.f);  ai->SetMoveSpeed(8.f);  }
+		else if (t == "Mutant")  { ai->SetChaseRanges(25.f,      50.f);       ai->SetAttackRange(2.7f);  ai->SetMoveSpeed(12.f); }
+		else if (t == "Boss")    { ai->SetChaseRanges(1000000.f, 1000000.f);  ai->SetAttackRange(7.0f);  ai->SetMoveSpeed(6.f);  }
+	};
+
 	auto makeSpawnEnemy = [&](const MonsterSpawnEntry& spawn)
 	{
 		Protocol::EnemyType enemyType = Protocol::ENEMY_TYPE_BASIC;
@@ -365,6 +376,7 @@ void Room::BuildRoom()
 		RegisterDynamicCollider(enemy);
 		SetObjectCollisionMegaGridMask(enemy, ComputeObjectCurrentMegaGridMask(enemy.get()), true);
 		enemies[enemyId] = enemy;
+		applyMonsterAIParams(enemy.get(), spawn.type);
 
 		if (spawn.type == "Mutant")
 		{
@@ -395,6 +407,7 @@ void Room::BuildRoom()
 			RegisterDynamicCollider(dormant);
 			SetObjectCollisionMegaGridMask(dormant, 0, true);
 			enemies[enemyId] = dormant;
+			applyMonsterAIParams(dormant.get(), spec.type);
 			m_poolEnemyMegaGrid[enemyId] = spec.megaGrid;
 		}
 	};

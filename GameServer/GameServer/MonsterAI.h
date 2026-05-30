@@ -13,6 +13,9 @@ public:
 
 	void OnUpdate(float dt) override;
 	void SetDirectMoveMode(float advanceDist, const GameMath::Vec3& homeDir, float innerZoneRadius, const GameMath::Vec3& zoneCenter);
+	void SetChaseRanges(float startRange, float stopRange);
+	void SetAttackRange(float range) { m_attackRange = range; }
+	void SetMoveSpeed(float speed)   { m_moveSpeed   = speed; }
 
 private:
 	bool AcquireTarget();
@@ -29,12 +32,16 @@ private:
 	CServerObject* m_pTarget = nullptr;
 	float m_detectRange = 99999.0f;
 	float m_attackRange = 1.5f;
-	float m_meleeArcDeg = 360.0f;     // ±ÙÁ¢ °ø°Ý ºÎÃ¤²Ã °¢µµ
+	float m_meleeArcDeg = 360.0f;     // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã¤ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	float m_moveSpeed = 2.0f;
 	float m_attackCooldownSec = 1.0f;
 	float m_repathInterval = 0.15f;
 	float m_pathPointReachDistance = 0.10f;
 	float m_goalReachDistance = 0.25f;
+
+	float m_chaseStartRange = 99999.0f;
+	float m_chaseStopRange  = 99999.0f;
+	bool  m_isChasing       = false;
 
 	float m_attackCooldownRemaining = 0.f;
 	float m_repathTimer = 0.f;
