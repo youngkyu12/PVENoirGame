@@ -17,6 +17,7 @@ public:
 	void SetAttackRange(float range) { m_attackRange = range; }
 	void SetMoveSpeed(float speed)   { m_moveSpeed   = speed; }
 	void SetHomePosition(const GameMath::Vec3& pos) { m_homePosition = pos; }
+	void ResetToHome();
 
 private:
 	bool AcquireTarget();
