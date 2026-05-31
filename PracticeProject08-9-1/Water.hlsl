@@ -50,7 +50,7 @@ VS_WATER_OUTPUT VSWaterInstanced(VS_TEXTURED_LIGHTING_INSTANCED_INPUT input)
     );
 
     float4 positionW = mul(float4(input.position, 1.0f), mtxInstanceWorld);
-    positionW.y = gvWaterParams.y;
+    positionW.y = 2.0f;
 
     output.positionW = positionW.xyz;
     output.normalW = normalize(mul(input.normal, (float3x3)mtxInstanceWorld));

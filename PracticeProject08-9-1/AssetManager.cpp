@@ -147,7 +147,7 @@ std::shared_ptr<CMesh> AssetManager::CreateMesh(
 	}
 	else if(desc.type == AssetType::Water)
 	{
-		XMFLOAT3 xmf3Scale(1.0f, 1.0f, 1.0f);
+		XMFLOAT3 xmf3Scale(200.0f / 256.0f, 1.0f, 200.0f / 256.0f);
 		XMFLOAT4 xmf4Color(0.0f, 0.5f, 0.0f, 0.0f);
 
 		return std::make_shared<CWaterGridMesh>(
@@ -155,8 +155,8 @@ std::shared_ptr<CMesh> AssetManager::CreateMesh(
 			cmd,
 			257,
 			257,
-			17,
-			17,
+			257,
+			257,
 			xmf3Scale,
 			xmf4Color,
 			nullptr
