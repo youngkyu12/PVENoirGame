@@ -1179,6 +1179,11 @@ void CGameFramework::ProcessInput()
 		if (pKeysBuffer[VK_LSHIFT] & 0xF0 || pKeysBuffer[VK_SHIFT] & 0xF0)    keyCodes |= (1 << 8); // Run
 		if (pKeysBuffer[VK_SPACE] & 0xF0) keyCodes |= (1 << 9); // Roll
 
+		if ( pKeysBuffer['1'] & 0xF0 ) keyCodes |= ( 1 << 10 ); // Inventory slot 0 use request
+		if ( pKeysBuffer['2'] & 0xF0 ) keyCodes |= ( 1 << 11 ); // Inventory slot 1 use request
+		if ( pKeysBuffer['3'] & 0xF0 ) keyCodes |= ( 1 << 12 ); // Inventory slot 2 use request
+		if ( pKeysBuffer['4'] & 0xF0 ) keyCodes |= ( 1 << 13 ); // Inventory slot 3 use request
+
 		inputPkt.set_playerid(g_myPlayerId);
 		inputPkt.set_keycodes(keyCodes);
 
@@ -1297,7 +1302,7 @@ void CGameFramework::ProcessInput()
 			// Network mode: local prediction movement is disabled; server snapshots drive position.
 			const XMFLOAT3 prevPos = playerObj->GetPosition();
 
-			const float moveSpeed = pc->IsEffectiveRunRequested() ? 10.0f : 5.0f;
+			const float moveSpeed = pc->GetCurrentMoveSpeed();
 			pc->MoveByYaw(dwDirection, moveSpeed * dt, cameraYawDeg, false);
 
 			if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
@@ -1358,7 +1363,7 @@ void CGameFramework::ProcessInput()
 		{
 			const XMFLOAT3 prevPos = playerObj->GetPosition();
 
-			const float moveSpeed = pc->IsEffectiveRunRequested() ? 10.0f : 5.0f;
+			const float moveSpeed = pc->GetCurrentMoveSpeed();
 			pc->MoveByYaw(dwDirection, moveSpeed * dt, cameraYawDeg, false);
 
 			if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )

@@ -143,6 +143,8 @@ public:
 	void AddStaticTouchedCells(const std::unordered_set<int>& touchedCells);
 	void MarkTreeCullBlockerCells(const std::unordered_set<int>& touchedCells);
 
+	bool IsStaticBuildingCell(int cellX, int cellZ) const;
+
 	void DumpStaticGridOccupancyLog() const;
 
 private:

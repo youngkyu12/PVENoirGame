@@ -8,6 +8,7 @@
 #include "Shader.h"
 #include "LightTypes.h"
 #include "SceneRenderTypes.h"
+#include "GameSceneBillboardTypes.h"
 #include "ColliderComponent.h"
 #include "Grid.h"
 #include "DepthFog.h"
@@ -36,6 +37,7 @@ class CSkinningComponent;
 class CAnimatorComponent;
 class CHealthComponent;
 class CActorTagComponent;
+class CInventoryComponent;
 
 namespace FMOD
 {
@@ -70,250 +72,6 @@ struct StaticInstanceVertex
 
 	UINT objectId = 0;
 	UINT pad[3] = { 0, 0, 0 };
-};
-
-struct ItemBillboardInstanceVertex
-{
-	XMFLOAT4 world0 = XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f);
-	XMFLOAT4 world1 = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
-	XMFLOAT4 world2 = XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f);
-	XMFLOAT4 world3 = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
-
-	UINT materialId = 0;
-	UINT pad[3] = { 0, 0, 0 };
-};
-
-enum class EMuzzleFlashKind : UINT
-{
-	Core = 0,
-	Ring = 1,
-	Spark = 2,
-	Blood = 3,
-	PoisonDust = 4,
-	BossMeleeSlash = 5,
-	MagicCircleGlow = 6,
-	MagicCircleAfterimage = 7,
-	GoldFirework = 8,
-};
-
-struct MuzzleFlashInstanceVertex
-{
-	XMFLOAT4 world0 = XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f);
-	XMFLOAT4 world1 = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
-	XMFLOAT4 world2 = XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f);
-	XMFLOAT4 world3 = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
-
-	// rgb = 색상, a = 전체 alpha 계수
-	XMFLOAT4 color = XMFLOAT4(1.0f, 0.65f, 0.12f, 1.0f);
-
-	// x = ageRatio, y = intensity, z = rotationRad, w = seed
-	XMFLOAT4 params0 = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
-
-	// x = kind
-	// 0=core, 1=ring, 2=spark, 3=blood, 4=poison dust,
-	// 5=boss melee slash, 6=magic circle glow, 7=magic circle afterimage,
-	// 8=gold firework
-	// y = reserved
-	// z = reserved
-	// w = reserved
-	XMFLOAT4 params1 = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
-};
-
-struct MuzzleFlashEntry
-{
-	bool active = false;
-	EMuzzleFlashKind kind = EMuzzleFlashKind::Core;
-
-	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	XMFLOAT3 velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
-
-	XMFLOAT3 axisRight = XMFLOAT3(1.0f, 0.0f, 0.0f);
-	XMFLOAT3 axisUp = XMFLOAT3(0.0f, 1.0f, 0.0f);
-	XMFLOAT3 axisForward = XMFLOAT3(0.0f, 0.0f, 1.0f);
-
-	float age = 0.0f;
-	float lifetime = 0.08f;
-
-	float startWidth = 0.65f;
-	float startHeight = 0.65f;
-
-	float endWidth = 1.25f;
-	float endHeight = 1.25f;
-
-	float rotationRad = 0.0f;
-	float intensity = 1.0f;
-	float drag = 0.0f;
-	float gravity = 0.0f;
-	float seed = 0.0f;
-
-	XMFLOAT4 color = XMFLOAT4(1.0f, 0.62f, 0.10f, 1.0f);
-};
-
-struct BossPoisonProjectileEntry
-{
-	bool active = false;
-
-	CGameObject* owner = nullptr;
-
-	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	XMFLOAT3 direction = XMFLOAT3(0.0f, 0.0f, 1.0f);
-	XMFLOAT3 velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
-
-	float coreDiameter = 4.0f;
-	float coreRadius = 2.0f;
-	float gasDiameter = 6.0f;
-	float speed = 18.0f;
-	float visualSeed = 0.0f;
-	float dustEmitAccumulatorSec = 0.0f;
-
-	std::array<bool, 4> hitPlayerSlots = { false, false, false, false };
-};
-
-struct SwordTrailVertex
-{
-	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	XMFLOAT2 uv = XMFLOAT2(0.0f, 0.0f);
-	XMFLOAT4 color = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-};
-
-struct SwordTrailSample
-{
-	XMFLOAT3 root = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	XMFLOAT3 tip = XMFLOAT3(0.0f, 0.0f, 0.0f);
-};
-
-enum class EWeaponTrailKind : UINT
-{
-	Sword = 0,
-	Axe = 1,
-};
-
-struct SwordTrailEntry
-{
-	bool active = false;
-
-	EWeaponTrailKind kind = EWeaponTrailKind::Sword;
-
-	CGameObject* owner = nullptr;
-
-	CGameObject* weaponObject = nullptr;
-
-	float age = 0.0f;
-
-	float startDelay = 0.340f;
-	float sampleDuration = 0.240f;
-	float fadeDuration = 0.120f;
-
-	// 무기 local space에서 trail ribbon의 양 끝점.
-	XMFLOAT3 rootLocal = XMFLOAT3(0.0f, 0.0f, 0.10f);
-	XMFLOAT3 tipLocal = XMFLOAT3(0.0f, 0.0f, 1.45f);
-
-	// root/tip 사이 폭 조절.
-	float widthScale = 1.0f;
-
-	XMFLOAT4 color = XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f);
-
-	std::vector<SwordTrailSample> samples;
-};
-
-struct MonsterSwordTrailVertex
-{
-	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	XMFLOAT2 uv = XMFLOAT2(0.0f, 0.0f);
-	XMFLOAT4 color = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-};
-
-struct MonsterSwordTrailSample
-{
-	XMFLOAT3 root = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	XMFLOAT3 tip = XMFLOAT3(0.0f, 0.0f, 0.0f);
-};
-
-struct MonsterSwordTrailEntry
-{
-	bool active = false;
-
-	CGameObject* owner = nullptr;
-	CGameObject* weaponObject = nullptr;
-
-	float age = 0.0f;
-
-	float startDelay = 0.340f;
-	float sampleDuration = 0.240f;
-	float fadeDuration = 0.120f;
-
-	XMFLOAT3 rootLocal = XMFLOAT3(0.0f, 0.0f, 0.15f);
-	XMFLOAT3 tipLocal = XMFLOAT3(0.0f, 0.0f, 2.175f);
-
-	float widthScale = 1.0f;
-
-	XMFLOAT4 color = XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f);
-
-	std::vector<MonsterSwordTrailSample> samples;
-};
-
-static constexpr UINT kBossCallSummonWwwPeakCount = 16;
-
-struct BossCallSummonWwwEntry
-{
-	bool active = false;
-
-	XMFLOAT3 center = XMFLOAT3(0.0f, 0.0f, 0.0f);
-
-	// 마법진 정사각형 한 변이 지름이므로 radius = circleSize * 0.5f.
-	float radius = 1.0f;
-
-	// 요구사항상 WWW 높이는 마법진 반지름 길이.
-	float maxHeight = 1.0f;
-
-	float age = 0.0f;
-	float lifetime = 1.10f;
-
-	float retargetTimer = 0.0f;
-
-	std::array<float, kBossCallSummonWwwPeakCount> peakHeights = {};
-	std::array<float, kBossCallSummonWwwPeakCount> targetPeakHeights = {};
-	std::array<float, kBossCallSummonWwwPeakCount> peakMoveSpeeds = {};
-
-	float seed = 0.0f;
-
-	XMFLOAT4 color = XMFLOAT4(0.10f, 0.90f, 0.18f, 0.75f);
-};
-
-enum class EItemBillboardKind : UINT
-{
-	Key = 0,
-	BossSummonCircle = 1,
-	BossSummonGlow = 2,
-	BossShockwave = 3,
-	BossShockwaveWall = 4,
-	BossCallSummonCircle = 5,
-};
-
-struct ItemBillboardEntry
-{
-	bool active = true;
-	bool distanceCulled = false;
-
-	bool transparent = false;
-
-	EItemBillboardKind kind = EItemBillboardKind::Key;
-
-	// 1~9. 유효하지 않으면 -1.
-	int megaGridNumber = -1;
-
-	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
-
-	float width = 1.0f;
-	float height = 1.0f;
-	float yOffset = 1.0f;
-
-	float cullDistance = 35.0f;
-
-	float pickupRadius = 1.25f;
-	float pickupHeightTolerance = 2.0f;
-
-	UINT materialId = 0;
 };
 
 struct StaticInstanceGroup
@@ -539,8 +297,6 @@ private:
 	bool IsStaticTreeObject(const CGameObject* obj) const;
 	void RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
-	std::shared_ptr<CTexture> m_keyItemTexture;
-	std::shared_ptr<CTexture> m_bossSummonCircleTexture;
 	void BuildItemBillboardBatch(
 		ID3D12Device* dev,
 		ID3D12GraphicsCommandList* cmd,
@@ -549,26 +305,26 @@ private:
 		DXGI_FORMAT dsvFormat
 	);
 
-	void ReleaseItemBillboardGpuResources();
+	void AddPotionItemBillboardEntries();
 
-	void UpdateItemBillboardDistanceCullSelection(CCamera* camera);
+	void ReleaseItemBillboardGpuResources();
+	void ReleaseAllGameSceneEffectGpuResources();
+
+	void UpdateItemBillboardDistanceCullSelection(CCamera* camera); 
 	void RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	void RenderTransparentItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
-	void BuildMuzzleFlashBatch(
-		ID3D12Device* dev,
-		ID3D12GraphicsCommandList* cmd,
-		DXGI_FORMAT dsvFormat
-	);
+	void BuildMuzzleFlashBatch(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, DXGI_FORMAT dsvFormat);
 
 	void ReleaseMuzzleFlashGpuResources();
 
 	void SpawnMuzzleFlash(const XMFLOAT3& position, const XMFLOAT3& direction);
-	void SpawnBloodSplash(
-		CGameObject* victim,
-		const XMFLOAT3* hitPosition = nullptr,
-		const XMFLOAT3* hitDirection = nullptr
-	);
+	void BuildGunSmokeBatch(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, DXGI_FORMAT dsvFormat);
+	void ReleaseGunSmokeGpuResources();
+	void SpawnGunSmoke(const XMFLOAT3& position, const XMFLOAT3& direction);
+	void UpdateGunSmokes(float dt);
+	void RenderGunSmokes(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	void SpawnBloodSplash(CGameObject* victim, const XMFLOAT3* hitPosition = nullptr, const XMFLOAT3* hitDirection = nullptr);
 	void SpawnBossMeleeSlashEffect(CGameObject* boss);
 
 	void SpawnWeaponLevelUpFireworks();
@@ -603,11 +359,7 @@ private:
 	void UpdateMuzzleFlashes(float dt);
 	void RenderMuzzleFlashes(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
-	void BuildSwordTrailBatch(
-		ID3D12Device* dev,
-		ID3D12GraphicsCommandList* cmd,
-		DXGI_FORMAT dsvFormat
-	);
+	void BuildSwordTrailBatch(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, DXGI_FORMAT dsvFormat);
 
 	void ReleaseSwordTrailGpuResources();
 
@@ -627,6 +379,21 @@ private:
 	void BeginSwordManSwordTrail(CGameObject* swordman);
 	void UpdateMonsterSwordTrails(float dt);
 	void RenderMonsterSwordTrails(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
+	void BuildArrowTrailBatch(
+		ID3D12Device* dev,
+		ID3D12GraphicsCommandList* cmd,
+		DXGI_FORMAT dsvFormat
+	);
+
+	void BuildMonsterArrowTrailBatch(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, DXGI_FORMAT dsvFormat);
+
+	void ReleaseArrowTrailGpuResources();
+	void ReleaseMonsterArrowTrailGpuResources();
+
+	void UpdateArrowTrails(float dt);
+	void RenderArrowTrails(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	void RenderMonsterArrowTrails(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 	void BuildBossCallSummonWwwBatch(
 		ID3D12Device* dev,
@@ -832,6 +599,9 @@ public:
 	}
 
 	void SetDepthFogPassEnabled(bool enabled) { m_depthFog.SetPassEnabled(enabled); }
+
+	bool RequestUseInventoryItemSlot(int slot);
+	void SetInventoryItemCounts(const std::array<int, CGameSceneHUD::kInventorySlotCount>& counts);
 
 	CNavMesh* GetNavMesh() { return m_navMesh.get(); }
 	const CNavMesh* GetNavMesh() const { return m_navMesh.get(); }
@@ -1077,7 +847,15 @@ private:
 	int GetLocalPlayerMegaGridNumberForDepthFog() const;
 	void UpdateDepthFogState(float dt);
 
-    // slot 0..3 플레이어 포인터(소유는 m_skinnedObjects가 함)
+	void AttachInventoryComponentsToPlayers();
+	CInventoryComponent* GetInventoryByPlayerSlot(int slot) const;
+	CInventoryComponent* GetLocalPlayerInventory() const;
+	void SyncLocalInventoryToHud();
+
+	void InitializeInventoryItemCounts();
+	int ApplyPlayerAttackPowerPotionMultiplier(int playerSlot, int attackPower) const;
+
+	// slot 0..3 플레이어 포인터(소유는 m_skinnedObjects가 함)
     std::array<CGameObject*, 4> m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
 
 	std::array<bool, 4> m_playerFootstepTrackingValid = { false, false, false, false };
@@ -1168,64 +946,178 @@ private:
 	static constexpr UINT kBossShockwaveWallMaterialId = MAX_MATERIALS - 6;
 	static constexpr UINT kBossCallSummonCircleMaterialId = MAX_MATERIALS - 7;
 
+	static constexpr UINT kPotionItemBillboardMaterialBaseId = MAX_MATERIALS - 11;
+	static constexpr UINT kHealPotionItemBillboardMaterialId = MAX_MATERIALS - 11;
+	static constexpr UINT kAttackPotionItemBillboardMaterialId = MAX_MATERIALS - 10;
+	static constexpr UINT kDefensePotionItemBillboardMaterialId = MAX_MATERIALS - 9;
+	static constexpr UINT kMoveSpeedPotionItemBillboardMaterialId = MAX_MATERIALS - 8;
+
 	static constexpr UINT kKeyItemBillboardCount = 7;
+	static constexpr UINT kPotionItemKindCount = 4;
+	static constexpr UINT kPotionItemMaxCountPerKind = 50;
+	static constexpr UINT kPotionItemCountPerMegaGrid = 6;
+	static constexpr UINT kPotionItemSpawnMegaGridCount = 8;
+	static constexpr UINT kPotionItemSpawnCountPerKind = kPotionItemCountPerMegaGrid * kPotionItemSpawnMegaGridCount;
+	static constexpr UINT kPotionItemBillboardCount = kPotionItemKindCount * kPotionItemSpawnCountPerKind;
+	static_assert( kPotionItemSpawnCountPerKind <= kPotionItemMaxCountPerKind, "Potion item spawn count exceeds max count per kind." );
 
-	std::shared_ptr<CItemBillboardShader> m_itemBillboardShader;
-	std::shared_ptr<CTransparentItemBillboardShader> m_transparentItemBillboardShader;
-
-	std::shared_ptr<CMesh>                m_itemBillboardQuadMesh;
-
-	std::vector<ItemBillboardEntry>       m_itemBillboards;
-
-	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dItemBillboardInstanceBuffer;
-	std::array<ItemBillboardInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedItemBillboardInstanceBuffer = {};
-	UINT                                  m_itemBillboardInstanceBufferCapacity = 0;
-
-	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dTransparentItemBillboardInstanceBuffer;
-	std::array<ItemBillboardInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedTransparentItemBillboardInstanceBuffer = {};
-	UINT                                  m_transparentItemBillboardInstanceBufferCapacity = 0;
+	ItemBillboardState m_itemBillboardState;
 
 	static constexpr UINT kMuzzleFlashMaxCount = 4096;
 
-	std::shared_ptr<CMuzzleFlashBillboardShader> m_muzzleFlashShader;
+	static constexpr int kPlayerWeaponEffectLevelCount = 3;
 
-	std::vector<MuzzleFlashEntry> m_muzzleFlashes;
+	struct PlayerMeleeTrailVisualDesc
+	{
+		XMFLOAT3 rootLocal = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		XMFLOAT3 tipLocal = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		float widthScale = 1.0f;
+		XMFLOAT4 color = XMFLOAT4(0.55f, 0.80f, 1.0f, 1.0f);
+		float alphaScale = 0.75f;
+	};
 
-	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dMuzzleFlashInstanceBuffer;
-	std::array<MuzzleFlashInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedMuzzleFlashInstanceBuffer = {};
-	UINT m_muzzleFlashInstanceBufferCapacity = 0;
+	struct PlayerArrowTrailVisualDesc
+	{
+		float sampleLifetimeSec = 0.260f;
+		float halfWidth = 0.075f;
+		XMFLOAT4 color = XMFLOAT4(0.86f, 0.94f, 1.0f, 1.0f);
+		float tailAlpha = 0.20f;
+		float headAlpha = 0.80f;
+		float alphaScale = 0.72f;
+	};
 
-	std::shared_ptr<CBossPoisonProjectileBillboardShader> m_bossPoisonProjectileShader;
+	struct PlayerGunMuzzleFlashCoreVisualDesc
+	{
+		float size = 1.0f;
+		float endSizeScale = 1.70f;
+		float intensity = 1.0f;
+		XMFLOAT4 color = XMFLOAT4(1.0f, 0.32f, 0.04f, 1.0f);
+	};
 
-	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dBossPoisonProjectileInstanceBuffer;
-	std::array<MuzzleFlashInstanceVertex*, kSceneBatchFrameResourceCount> m_pMappedBossPoisonProjectileInstanceBuffer = {};
-	UINT m_bossPoisonProjectileInstanceBufferCapacity = 0;
+	struct PlayerGunMuzzleFlashRingVisualDesc
+	{
+		float startSize = 0.20f * 1.10f;
+		float endSize = 1.15f * 1.10f;
+		float intensity = 1.20f;
+		XMFLOAT4 color = XMFLOAT4(1.0f, 0.28f, 0.03f, 0.75f);
+	};
+
+	struct PlayerGunMuzzleFlashSparkVisualDesc
+	{
+		int count = 14;
+		float sideScale = 0.35f;
+		float liftScale = 0.18f;
+		float liftBase = 0.12f;
+		float speedScale = 1.10f;
+		float startWidth = 0.10f;
+		float startHeight = 0.42f;
+		float endWidth = 0.05f;
+		float endHeight = 0.28f;
+		float rotationJitter = 0.35f;
+		float intensity = 1.40f;
+		float drag = 5.50f;
+		XMFLOAT4 color = XMFLOAT4(1.0f, 0.52f, 0.08f, 1.0f);
+	};
+
+	struct PlayerGunSmokeVisualDesc
+	{
+		int count = 5;
+		float lifetimeMin = 0.42f;
+		float lifetimeMax = 0.62f;
+		float startSizeMin = 0.20f;
+		float startSizeMax = 0.34f;
+		float endSizeScaleMin = 2.10f;
+		float endSizeScaleMax = 2.70f;
+		float rightSpeedMin = 0.95f;
+		float rightSpeedMax = 1.80f;
+		float forwardSpeedMin = -0.18f;
+		float forwardSpeedMax = 0.42f;
+		float liftSpeedMin = 0.20f;
+		float liftSpeedMax = 0.55f;
+		float spawnRightOffsetMin = 0.05f;
+		float spawnRightOffsetMax = 0.18f;
+		float spawnForwardJitter = 0.10f;
+		float spawnUpJitter = 0.07f;
+		float drag = 1.10f;
+		float gravity = 0.03f;
+		XMFLOAT4 color = XMFLOAT4(0.015f, 0.014f, 0.013f, 0.38f);
+	};
+
+	struct PlayerGunMuzzleFlashVisualDesc
+	{
+		std::array<PlayerGunMuzzleFlashCoreVisualDesc, 2> cores = {};
+		PlayerGunMuzzleFlashRingVisualDesc ring = {};
+		PlayerGunMuzzleFlashSparkVisualDesc spark = {};
+		PlayerGunSmokeVisualDesc smoke = {};
+	};
+
+	int GetPlayerWeaponEffectLevelIndex() const;
+	const PlayerMeleeTrailVisualDesc& GetPlayerSwordTrailVisualDesc() const;
+	const PlayerMeleeTrailVisualDesc& GetPlayerAxeTrailVisualDesc() const;
+	const PlayerArrowTrailVisualDesc& GetPlayerArrowTrailVisualDesc() const;
+	const PlayerGunMuzzleFlashVisualDesc& GetPlayerGunMuzzleFlashVisualDesc() const;
+
+	const std::array<PlayerMeleeTrailVisualDesc, kPlayerWeaponEffectLevelCount> m_playerSwordTrailVisualDescs =
+	{ {
+		PlayerMeleeTrailVisualDesc{ XMFLOAT3(0.0f, 0.0f, 0.10f), XMFLOAT3(0.0f, 0.0f, 1.45f), 1.00f, XMFLOAT4(0.55f, 0.80f, 1.00f, 1.0f), 0.75f },
+		PlayerMeleeTrailVisualDesc{ XMFLOAT3(0.0f, 0.0f, 0.10f), XMFLOAT3(0.0f, 0.0f, 1.52f), 1.12f, XMFLOAT4(0.18f, 0.62f, 1.00f, 1.0f), 0.86f },
+		PlayerMeleeTrailVisualDesc{ XMFLOAT3(0.0f, 0.0f, 0.10f), XMFLOAT3(0.0f, 0.0f, 1.60f), 1.25f, XMFLOAT4(1.00f, 0.00f, 0.00f, 1.0f), 0.94f }
+	} };
+
+	const std::array<PlayerMeleeTrailVisualDesc, kPlayerWeaponEffectLevelCount> m_playerAxeTrailVisualDescs =
+	{ {
+		PlayerMeleeTrailVisualDesc{ XMFLOAT3(0.0f, 0.0f, 0.80f), XMFLOAT3(0.0f, 0.0f, 1.45f), 0.80f, XMFLOAT4(0.55f, 0.80f, 1.00f, 1.0f), 0.75f },
+		PlayerMeleeTrailVisualDesc{ XMFLOAT3(0.0f, 0.0f, 0.78f), XMFLOAT3(0.0f, 0.0f, 1.52f), 0.92f, XMFLOAT4(0.18f, 0.62f, 1.00f, 1.0f), 0.86f },
+		PlayerMeleeTrailVisualDesc{ XMFLOAT3(0.0f, 0.0f, 0.76f), XMFLOAT3(0.0f, 0.0f, 1.60f), 1.05f, XMFLOAT4(1.00f, 0.00f, 0.00f, 1.0f), 0.94f }
+	} };
+
+	const std::array<PlayerArrowTrailVisualDesc, kPlayerWeaponEffectLevelCount> m_playerArrowTrailVisualDescs =
+	{ {
+		PlayerArrowTrailVisualDesc{ 0.260f, 0.075f, XMFLOAT4(0.86f, 0.94f, 1.00f, 1.0f), 0.20f, 0.80f, 0.72f },
+		PlayerArrowTrailVisualDesc{ 0.340f, 0.085f, XMFLOAT4(0.18f, 0.62f, 1.00f, 1.0f), 0.20f, 0.80f, 0.72f },
+		PlayerArrowTrailVisualDesc{ 0.440f, 0.096f, XMFLOAT4(1.00f, 0.00f, 0.00f, 1.0f), 0.20f, 0.80f, 0.72f }
+	} };
+
+	const std::array<PlayerGunMuzzleFlashVisualDesc, kPlayerWeaponEffectLevelCount> m_playerGunMuzzleFlashVisualDescs =
+	{ {
+		PlayerGunMuzzleFlashVisualDesc{ {{ PlayerGunMuzzleFlashCoreVisualDesc{ 0.55f * 1.10f, 1.70f, 2.20f, XMFLOAT4(1.00f, 0.32f, 0.04f, 1.00f) }, PlayerGunMuzzleFlashCoreVisualDesc{ 0.80f * 1.10f, 1.70f, 1.50f, XMFLOAT4(1.00f, 0.32f, 0.04f, 0.75f) } }}, PlayerGunMuzzleFlashRingVisualDesc{ 0.20f * 1.10f, 1.15f * 1.10f, 1.20f, XMFLOAT4(1.00f, 0.28f, 0.03f, 0.75f) }, PlayerGunMuzzleFlashSparkVisualDesc{ 14, 0.35f, 0.18f, 0.12f, 1.10f, 0.10f, 0.42f, 0.05f, 0.28f, 0.35f, 1.40f, 5.50f, XMFLOAT4(1.00f, 0.52f, 0.08f, 1.00f) }, PlayerGunSmokeVisualDesc{ 5, 0.42f, 0.62f, 0.20f, 0.34f, 2.10f, 2.70f, 0.95f, 1.80f, -0.18f, 0.42f, 0.20f, 0.55f, 0.05f, 0.18f, 0.10f, 0.07f, 1.10f, 0.03f, XMFLOAT4(0.015f, 0.014f, 0.013f, 0.38f) } },
+		PlayerGunMuzzleFlashVisualDesc{ {{ PlayerGunMuzzleFlashCoreVisualDesc{ 0.70f, 1.82f, 2.55f, XMFLOAT4(1.00f, 0.44f, 0.05f, 1.00f) }, PlayerGunMuzzleFlashCoreVisualDesc{ 1.02f, 1.82f, 1.85f, XMFLOAT4(1.00f, 0.36f, 0.04f, 0.84f) } }}, PlayerGunMuzzleFlashRingVisualDesc{ 0.27f, 1.48f, 1.45f, XMFLOAT4(1.00f, 0.34f, 0.03f, 0.82f) }, PlayerGunMuzzleFlashSparkVisualDesc{ 18, 0.42f, 0.22f, 0.15f, 1.22f, 0.12f, 0.50f, 0.055f, 0.32f, 0.42f, 1.62f, 5.20f, XMFLOAT4(1.00f, 0.62f, 0.10f, 1.00f) }, PlayerGunSmokeVisualDesc{ 8, 0.50f, 0.76f, 0.26f, 0.44f, 2.25f, 2.95f, 1.20f, 2.35f, -0.22f, 0.52f, 0.25f, 0.70f, 0.07f, 0.24f, 0.14f, 0.10f, 1.00f, 0.02f, XMFLOAT4(0.018f, 0.017f, 0.016f, 0.44f) } },
+		PlayerGunMuzzleFlashVisualDesc{ {{ PlayerGunMuzzleFlashCoreVisualDesc{ 0.86f, 1.95f, 2.95f, XMFLOAT4(1.00f, 0.55f, 0.08f, 1.00f) }, PlayerGunMuzzleFlashCoreVisualDesc{ 1.24f, 1.95f, 2.18f, XMFLOAT4(1.00f, 0.28f, 0.02f, 0.90f) } }}, PlayerGunMuzzleFlashRingVisualDesc{ 0.34f, 1.78f, 1.75f, XMFLOAT4(1.00f, 0.25f, 0.02f, 0.88f) }, PlayerGunMuzzleFlashSparkVisualDesc{ 24, 0.50f, 0.28f, 0.18f, 1.36f, 0.145f, 0.62f, 0.065f, 0.38f, 0.52f, 1.88f, 4.85f, XMFLOAT4(1.00f, 0.70f, 0.12f, 1.00f) }, PlayerGunSmokeVisualDesc{ 12, 0.60f, 0.90f, 0.34f, 0.58f, 2.45f, 3.25f, 1.45f, 2.90f, -0.28f, 0.64f, 0.30f, 0.88f, 0.09f, 0.31f, 0.18f, 0.13f, 0.90f, 0.015f, XMFLOAT4(0.020f, 0.019f, 0.018f, 0.52f) } }
+	} };
+
+	MuzzleFlashEffectState m_muzzleFlashEffect;
+	static constexpr UINT kGunSmokeMaxCount = 512;
+	GunSmokeEffectState m_gunSmokeEffect;
+
+	BossPoisonProjectileEffectState m_bossPoisonProjectileEffect;
 
 	static constexpr UINT kSwordTrailMaxCount = 16;
 	static constexpr UINT kSwordTrailMaxSamples = 12;
 	static constexpr UINT kSwordTrailMaxVertices =
 		kSwordTrailMaxCount * kSwordTrailMaxSamples * 2;
 
-	std::shared_ptr<CSwordTrailShader> m_swordTrailShader;
-
-	std::vector<SwordTrailEntry> m_swordTrails;
-
-	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dSwordTrailVertexBuffer;
-	std::array<SwordTrailVertex*, kSceneBatchFrameResourceCount> m_pMappedSwordTrailVertexBuffer = {};
-	UINT m_swordTrailVertexBufferCapacity = 0;
+	SwordTrailEffectState m_swordTrailEffect;
 
 	static constexpr UINT kMonsterSwordTrailMaxCount = 32;
 	static constexpr UINT kMonsterSwordTrailMaxSamples = 12;
 	static constexpr UINT kMonsterSwordTrailMaxVertices =
 		kMonsterSwordTrailMaxCount * kMonsterSwordTrailMaxSamples * 2;
 
-	std::shared_ptr<CSwordTrailShader> m_monsterSwordTrailShader;
+	MonsterSwordTrailEffectState m_monsterSwordTrailEffect;
 
-	std::vector<MonsterSwordTrailEntry> m_monsterSwordTrails;
+	static constexpr UINT kArrowTrailMaxCount = 32;
+	static constexpr UINT kArrowTrailMaxSamples = 12;
+	static constexpr UINT kArrowTrailMaxVertices =
+		kArrowTrailMaxCount * kArrowTrailMaxSamples * 2;
 
-	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dMonsterSwordTrailVertexBuffer;
-	std::array<MonsterSwordTrailVertex*, kSceneBatchFrameResourceCount> m_pMappedMonsterSwordTrailVertexBuffer = {};
-	UINT m_monsterSwordTrailVertexBufferCapacity = 0;
+	ArrowTrailEffectState m_arrowTrailEffect;
+
+	static constexpr UINT kMonsterArrowTrailMaxCount = 32;
+	static constexpr UINT kMonsterArrowTrailMaxSamples = 12;
+	static constexpr UINT kMonsterArrowTrailMaxVertices =
+		kMonsterArrowTrailMaxCount * kMonsterArrowTrailMaxSamples * 2;
+
+	ArrowTrailEffectState m_monsterArrowTrailEffect;
 
 	static constexpr UINT kBossCallSummonWwwMaxCount = 64;
 
@@ -1247,13 +1139,7 @@ private:
 			kBossCallSummonWwwFillVertexCount
 		);
 
-	std::shared_ptr<CSwordTrailShader> m_bossCallSummonWwwShader;
-
-	std::vector<BossCallSummonWwwEntry> m_bossCallSummonWwwEntries;
-
-	std::array<ComPtr<ID3D12Resource>, kSceneBatchFrameResourceCount> m_pd3dBossCallSummonWwwVertexBuffer;
-	std::array<SwordTrailVertex*, kSceneBatchFrameResourceCount> m_pMappedBossCallSummonWwwVertexBuffer = {};
-	UINT m_bossCallSummonWwwVertexBufferCapacity = 0;
+	BossCallSummonWwwEffectState m_bossCallSummonWwwEffect;
 
 	std::vector<CGameObject*> m_ghoulRefs;
 	std::vector<CGameObject*> m_swordManRefs;
@@ -1381,6 +1267,7 @@ private:
 	void UpdatePlayerFootstepSfx();
 	void ResetPlayerFootstepSfxState();
 	void PlayPlayerFootstepSfx(CGameObject* player);
+	void PlayPlayerDeathSfxAt(const XMFLOAT3& position);
 
 	void ResetMonsterSfxState();
 
@@ -1409,8 +1296,10 @@ private:
 	void PlayBossCallMonsterSpawnSfxAt(const XMFLOAT3& position);
 
 	void PlayEnemySpawnerSirenSfxAt(const XMFLOAT3& position);
+	void PlayBossSpellSfxAt(const XMFLOAT3& position);
+	void PlayBossDeathSfxAt(const XMFLOAT3& position);
 
-	void PlayBossShockwaveWindSfxAt(const XMFLOAT3& position); 
+	void PlayBossShockwaveWindSfxAt(const XMFLOAT3& position);
 	void UpdateBossShockwaveWindSfx(float currentRadius);
 	void ResetBossShockwaveWindSfxTracking();
 
@@ -1439,11 +1328,13 @@ private:
 	int ComputePlayerWeaponDamageTierIndexFromClearedMegaGrids() const;
 	void RefreshPlayerWeaponDamageTierFromClearedMegaGrids();
 	void RefreshPlayerWeaponAttackPowers();
+	void RefreshPlayerWeaponAttackPowersForSlot(int playerSlot);
+	void RefreshPlayerWeaponEffectVisuals();
 
-	int GetCurrentPlayerSwordAttackPower() const;
-	int GetCurrentPlayerAxeAttackPower() const;
-	int GetCurrentPlayerArrowAttackPower() const;
-	int GetCurrentPlayerBulletAttackPower() const;
+	int GetPlayerSwordAttackPower(int playerSlot) const;
+	int GetPlayerAxeAttackPower(int playerSlot) const;
+	int GetPlayerArrowAttackPower(int playerSlot) const;
+	int GetPlayerBulletAttackPower(int playerSlot) const;
 
 	bool IsBossMonsterObject(const CGameObject* monster) const;
 	bool IsEnemySpawnerMonsterObject(const CGameObject* monster) const;
@@ -1632,6 +1523,9 @@ private:
 	std::shared_ptr<CShadowMapSkinnedShader>              m_shadowSkinnedShader;
 	std::shared_ptr<CShadowMapAlphaClipSkinnedShader>     m_shadowAlphaClipSkinnedShader;
 
+	std::array<int, CGameSceneHUD::kInventorySlotCount> m_inventoryItemCounts = { 0, 0, 0, 0 };
+	std::array<bool, CGameSceneHUD::kInventorySlotCount> m_bPrevInventoryUseKeyDown = { false, false, false, false };
+
 	CGameSceneHUD                       m_hud;
 	CShadowMapSystem					m_shadowMap;
 
@@ -1750,22 +1644,6 @@ private:
 	// 보스 본인 등장 마법진에는 적용하지 않는다.
 	static constexpr float kBossCallSummonGlowParticleLifetimeScale = 1.80f;
 
-	struct BossCallSummonCircleVisualState
-	{
-		bool active = false;
-		bool fadingIn = false;
-		bool fadingOut = false;
-
-		float ageSec = 0.0f;
-		float durationSec = 0.0f;
-		float alpha = 0.0f;
-	};
-
-	BossCallSummonCircleVisualState m_bossCallSummonCircleVisualState{};
-	std::vector<size_t> m_activeBossCallSummonCircleItemIndices;
-
-	float m_bossCallSummonGlowParticleEmitAccumulatorSec = 0.0f;
-
 	int m_bossCallSummonPlanCallIndex = -1;
 	std::vector<EnemySpawnerPreviewEntry> m_bossCallSummonPlanEntries;
 
@@ -1775,8 +1653,6 @@ private:
 
 	bool m_bBossSummonVisualFadeOutStarted = false;
 	float m_bBossSummonVisualFadeOutAgeSec = 0.0f;
-
-	float m_bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
 
 	static constexpr float kBossShockwaveStartRadius = 3.0f;
 	static constexpr float kBossShockwaveMaxRadius = 50.0f;
@@ -1862,17 +1738,7 @@ private:
 
 	std::unordered_map<CGameObject*, BossMeleeSlashCastState> m_bossMeleeSlashCastStates;
 
-	struct BossPoisonSpellCastState
-	{
-		bool wasSpellPhase = false;
-		bool pendingFire = false;
-		bool fired = false;
-		float spellAgeSec = 0.0f;
-	};
-
-	std::vector<BossPoisonProjectileEntry> m_bossPoisonProjectiles;
-	std::unordered_map<CGameObject*, BossPoisonSpellCastState> m_bossPoisonSpellCastStates;
-
+	
 	struct BossStageBossPositionState
 	{
 		XMFLOAT3 originalPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);

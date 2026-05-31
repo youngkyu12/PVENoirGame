@@ -53,9 +53,9 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 	m_bSimulateLocalBowManAI = false;
 	m_bSimulateLocalSwordManAI = false;
 	m_bSimulateLocalMutantAI = false;
-	m_bSimulateLocalBossAI = false;
+	m_bSimulateLocalBossAI = true;
 	m_bSimulateLocalBossSummon = true;
-	m_bSimulateLocalBossStageMonsterAI = true;
+	m_bSimulateLocalBossStageMonsterAI = false;
 
 	m_bSimulateLocalMonsterChase = true;
 	m_bSimulateLocalEnemySpawner = true;
@@ -188,7 +188,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		}
 	}
 #else
-	m_localPlayerSlot = 3;
+	m_localPlayerSlot = 0;
 
 	const GameSceneStageFileSet& stageFiles = GetLocalStageFileSet(kLocalStagePreset);
 
@@ -344,6 +344,8 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
 	BuildLightsAndMaterials();
 	m_hud.BuildResources(dev, cmd, GetGraphicsRootSignature());
+	InitializeInventoryItemCounts();
+	m_hud.SetInventoryItemCounts(m_inventoryItemCounts);
 	m_hud.SetInactiveOverlayVisible(m_bInactiveOverlayVisible);
 	BuildDepthFogResources(dev, cmd);
 	m_shadowMap.BuildResources(dev, cmd, m_pDescriptorHeap.get());
@@ -433,6 +435,8 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	}
 
 	LinkSceneObjects();
+	AttachInventoryComponentsToPlayers();
+	SyncLocalInventoryToHud();
 
 	CreateShaderVariables(dev, cmd);
 
@@ -1108,7 +1112,7 @@ void CGameScene::BuildStaticBatch(
 			createDesc.addPlayerWeaponHitbox = true;
 
 			createDesc.addAttackPower = true;
-			createDesc.attackPower = GetCurrentPlayerSwordAttackPower();
+			createDesc.attackPower = GetPlayerSwordAttackPower(static_cast< int >( k ));
 
 			auto obj = GameSceneObjectFactory::CreateStaticRenderable(createDesc);
 			if ( !obj )
@@ -1163,7 +1167,7 @@ void CGameScene::BuildStaticBatch(
 			createDesc.addPlayerWeaponHitbox = true;
 
 			createDesc.addAttackPower = true;
-			createDesc.attackPower = GetCurrentPlayerAxeAttackPower();
+			createDesc.attackPower = GetPlayerAxeAttackPower(static_cast< int >( k ));
 
 			auto obj = GameSceneObjectFactory::CreateStaticRenderable(createDesc);
 			if ( !obj )
@@ -4082,6 +4086,28 @@ void CGameScene::BuildLightsAndMaterials()
 	}
 
 	{
+		for ( UINT i = 0; i < kPotionItemKindCount; ++i )
+		{
+			MATERIAL& potionMat = m_pMaterials->m_pReflections[kPotionItemBillboardMaterialBaseId + i];
+
+			potionMat.m_xmf4Ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+			potionMat.m_xmf4Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+			potionMat.m_xmf4Specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+			potionMat.m_xmf4Emissive = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+
+			potionMat.m_xmn4TextureIndices = XMUINT4(0, 0, 0, 0);
+
+			potionMat.m_xmf4DiffuseUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+			potionMat.m_xmf4NormalUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+			potionMat.m_xmf4EmissiveUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+			potionMat.m_xmf4SpecularUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+
+			potionMat.m_xmn4WrapModes0 = XMUINT4(0, 0, 0, 0);
+			potionMat.m_xmn4WrapModes1 = XMUINT4(0, 0, 0, 0);
+		}
+	}
+
+	{
 		MATERIAL& bossSummonMat =
 			m_pMaterials->m_pReflections[kBossSummonCircleMaterialId];
 
@@ -4281,6 +4307,72 @@ void CGameScene::LinkSceneObjects()
 #endif
 
 	GameSceneAttachmentBinder::LinkSceneObjects(input, m_attachmentBinds);
+}
+
+void CGameScene::AttachInventoryComponentsToPlayers()
+{
+	for ( int slot = 0; slot < 4; ++slot )
+	{
+		CGameObject* player = GetPlayerBySlot(slot);
+		if ( !player )
+			continue;
+
+		CInventoryComponent* inventory = player->GetComponent<CInventoryComponent>();
+		if ( !inventory )
+			inventory = player->AddComponent<CInventoryComponent>();
+
+		if ( !inventory )
+			continue;
+
+		std::array<int, CInventoryComponent::kInventorySlotCount> counts = { 0, 0, 0, 0 };
+		const int copyCount = ( CInventoryComponent::kInventorySlotCount < CGameSceneHUD::kInventorySlotCount ) ? CInventoryComponent::kInventorySlotCount : CGameSceneHUD::kInventorySlotCount;
+
+		for ( int i = 0; i < copyCount; ++i )
+			counts[static_cast< size_t >(i)] = m_inventoryItemCounts[static_cast< size_t >(i)];
+
+		inventory->SetItemCounts(counts);
+	}
+}
+
+CInventoryComponent* CGameScene::GetInventoryByPlayerSlot(int slot) const
+{
+	CGameObject* player = GetPlayerBySlot(slot);
+	if ( !player )
+		return nullptr;
+
+	return player->GetComponent<CInventoryComponent>();
+}
+
+CInventoryComponent* CGameScene::GetLocalPlayerInventory() const
+{
+	return GetInventoryByPlayerSlot(m_localPlayerSlot);
+}
+
+void CGameScene::SyncLocalInventoryToHud()
+{
+	std::array<int, CGameSceneHUD::kInventorySlotCount> hudCounts = { 0, 0, 0, 0 };
+
+	CInventoryComponent* inventory = GetLocalPlayerInventory();
+
+	if ( inventory )
+	{
+		const std::array<int, CInventoryComponent::kInventorySlotCount>& inventoryCounts = inventory->GetItemCounts();
+		const int copyCount = ( CInventoryComponent::kInventorySlotCount < CGameSceneHUD::kInventorySlotCount ) ? CInventoryComponent::kInventorySlotCount : CGameSceneHUD::kInventorySlotCount;
+
+		for ( int i = 0; i < copyCount; ++i )
+			hudCounts[static_cast< size_t >(i)] = inventoryCounts[static_cast< size_t >(i)];
+	}
+
+	for ( int i = 0; i < CGameSceneHUD::kInventorySlotCount; ++i )
+		m_inventoryItemCounts[static_cast< size_t >(i)] = hudCounts[static_cast< size_t >(i)];
+
+	m_hud.SetInventoryItemCounts(hudCounts);
+
+	for ( int slot = 0; slot < CGameSceneHUD::kInventorySlotCount; ++slot )
+	{
+		const float cooldownRatio = inventory ? inventory->GetCooldownRatio(slot) : 0.0f;
+		m_hud.SetInventoryCooldownRatio(slot, cooldownRatio);
+	}
 }
 
 void CGameScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target)
