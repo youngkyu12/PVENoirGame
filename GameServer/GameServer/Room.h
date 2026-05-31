@@ -46,7 +46,7 @@ public:
 
 public:
     void TickAdvance();
-    void ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float deltaY);
+    void ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float deltaY, float clientDeltaTime);
 
 public:
     void MakeFrameState(uint32 tick);
@@ -134,6 +134,12 @@ private:
 		std::vector<uint64>& outEnemyIds) const;
 	bool FineCellToMegaGridCell(int cellX, int cellZ, int& outMegaX, int& outMegaZ) const;
 	bool IsFineCellInsideMegaGridApproachZone(int megaX, int megaZ, int cellX, int cellZ) const;
+	uint16_t ComputeMegaGridMaskFromWorldPosition(const GameMath::Vec3& pos) const;
+	uint16_t ComputeObjectCurrentMegaGridMask(const CServerObject* obj) const;
+	uint16_t ComputeStaticBuildingMegaGridMask(const BuildingRef& building) const;
+	void SetObjectCollisionMegaGridMask(const shared_ptr<CServerObject>& obj, uint16_t mask, bool fixedMask);
+	void RefreshDynamicCollisionMegaGridMasks();
+	bool ShouldKeepCollisionPairByMegaGrid(const CColliderComponent* a, const CColliderComponent* b) const;
 
 	enum class EGridDynamicKind : uint8_t
 	{
@@ -178,6 +184,37 @@ private:
 		bool occupied = false;
 	};
 
+	struct DoorPortalSubBoxRef
+	{
+		size_t subIndex = static_cast<size_t>(-1);
+	};
+
+	struct TowerDoorPortalEntry
+	{
+		BuildingRef tower;
+		CColliderComponent* collider = nullptr;
+		std::vector<DoorPortalSubBoxRef> doorARefs;
+		std::vector<DoorPortalSubBoxRef> doorBRefs;
+		int cooldownTicks = 0;
+	};
+
+	struct CastleDoorPortalPair
+	{
+		int sourceDoorIndex = -1;
+		int targetDoorIndex = -1;
+		std::vector<DoorPortalSubBoxRef> sourceRefs;
+		std::vector<DoorPortalSubBoxRef> targetRefs;
+	};
+
+	struct CastleDoorPortalEntry
+	{
+		BuildingRef castle;
+		CColliderComponent* collider = nullptr;
+		std::array<std::vector<DoorPortalSubBoxRef>, 8> doorRefsByIndex;
+		std::vector<CastleDoorPortalPair> pairs;
+		int cooldownTicks = 0;
+	};
+
 	void AddDynamicCount(int cellX, int cellZ, EGridDynamicKind kind, int delta);
 	void RegisterStaticBuildingToGrid(BuildingRef building);
 	void CollectStaticBuildingIdsForWorldBounds(
@@ -188,6 +225,19 @@ private:
 		std::vector<uint64>& outBuildingIds) const;
 	bool HasCollisionWithNearbyWorldStatic(const CColliderComponent* subject) const;
 	void RebuildMegaGridEnemyIds();
+	void RegisterDoorPortal(BuildingRef building);
+	void TickDoorPortalCooldowns();
+	void ProcessDoorPortals();
+	bool TryTeleportPlayerByTowerDoorPortal(const PlayerRef& player);
+	bool TryTeleportPlayerByCastleDoorPortal(const PlayerRef& player);
+	bool TryQueuePortalTeleportFromBlockedMove(const PlayerRef& player, const GameMath::Vec3& desiredShift);
+	bool TryQueueTowerDoorPortalTeleport(const PlayerRef& player);
+	bool TryQueueCastleDoorPortalTeleport(const PlayerRef& player);
+	bool CanUseCastleDoorPortal() const;
+	int CountClearedMegaGrids() const;
+	void MarkPlayerEnteredCastleCenterMegaGrid(uint64 playerId);
+	bool IsPlayerInsideCastleCenterMegaGridFullArea(uint64 playerId) const;
+	void UpdateCastleCenterMegaGridState();
 
 	void ResetDynamicGridCounts();
 	bool TryGetTrackedCell(const CServerObject* obj, int& outCellX, int& outCellZ) const;
@@ -247,6 +297,9 @@ private:
 	std::vector<GridDynamicTracker> m_arrowGridTrackers;
 	std::vector<GridDynamicTracker> m_bulletGridTrackers;
 	std::unordered_set<uint64> m_aiAwakeEnemyIds;
+	std::unordered_set<uint64> m_castleCenterPlayerIds;
+	std::vector<TowerDoorPortalEntry> m_towerDoorPortals;
+	std::vector<CastleDoorPortalEntry> m_castleDoorPortals;
     //array<GameAreaRef, 9> gameAreas; // 9°³ ±¸¿ª
 
 	RoomTimingConfig m_timing;

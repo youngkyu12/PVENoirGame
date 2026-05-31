@@ -184,18 +184,37 @@ namespace GameSceneHelper
 	// -------------------------------------------------------------------------
 	// Attack power
 	// -------------------------------------------------------------------------
-	static constexpr int kAttackPowerPlayerSword = 10;
-	static constexpr int kAttackPowerPlayerAxe = 15;
-	static constexpr int kAttackPowerPlayerArrow = 15;
-	static constexpr int kAttackPowerPlayerBullet = 8;
+	static constexpr int kPlayerWeaponDamageTierCount = 3;
+	static constexpr int kPlayerWeaponDamageMaxTierIndex = kPlayerWeaponDamageTierCount - 1;
+
+	// tier index: 0=1단계, 1=2단계, 2=3단계
+	static constexpr std::array<int, kPlayerWeaponDamageTierCount> kAttackPowerPlayerArrowByTier =
+	{
+		15, 30, 50
+	};
+
+	static constexpr std::array<int, kPlayerWeaponDamageTierCount> kAttackPowerPlayerBulletByTier =
+	{
+		600, 600, 600
+		//8, 18, 35
+	};
+
+	static constexpr std::array<int, kPlayerWeaponDamageTierCount> kAttackPowerPlayerAxeByTier =
+	{
+		15, 30, 50
+	};
+
+	static constexpr std::array<int, kPlayerWeaponDamageTierCount> kAttackPowerPlayerSwordByTier =
+	{
+		600, 600, 600
+		//10, 20, 40
+	};
 
 	static constexpr int kAttackPowerGhoul = 5;
 	static constexpr int kAttackPowerEnemySword = 10;
 	static constexpr int kAttackPowerEnemyArrow = 10;
 	static constexpr int kAttackPowerMutant = 20;
 	static constexpr int kAttackPowerBoss = 50;
-
-	static constexpr UINT kOfflineGhoulAICount = 200;
 
 	static constexpr float kDisableVillageTreeCullPlayerHeight = 3.0f;
 
@@ -215,6 +234,8 @@ namespace GameSceneHelper
 	static constexpr float kTowerDoorPortalLowerExitYOffset = 0.0f;
 	static constexpr float kTowerDoorPortalUpperExitYOffset = 3.5f;
 	static constexpr float kTowerDoorPortalUpperHeightThreshold = 10.0f;
+	static constexpr float kTowerDoorPortalVerticalResolveStep = 0.25f;
+	static constexpr float kTowerDoorPortalMaxVerticalResolveDistance = 8.0f;
 	static constexpr float kTowerDoorPortalPlayerYawOffsetFromCamera = 0.0f;
 
 	static constexpr bool kEnableTowerDoorPortalCollisionLog = false;
@@ -240,6 +261,11 @@ namespace GameSceneHelper
 	void DebugPrintTowerDoorPortalFloat3(const char* tag, const XMFLOAT3& v);
 	void DebugPrintTowerDoorPortalOOBB(const char* tag, const BoundingOrientedBox& box);
 #endif
+
+	bool ResolveStageFileSetFromMapId(
+	const std::string& mapId,
+	GameSceneStageFileSet& outFileSet
+	);
 
 	bool ResolvePlacementFilePathFromMapId(
 		const std::string& mapId,
