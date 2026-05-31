@@ -138,11 +138,22 @@ void Room::ProcessEnemyAI()
 		}
 
 		EnemyRef& enemy = enemyIt->second;
-		if (!IsEnemyNearAnyPlayerExact(enemy->GetPosition(), sleepRangeSq))
+		CMonsterAI* ai = enemy->GetMonsterAI();
+		if (ai && ai->IsOutsideHomeMegaGrid())
 		{
-			if (CMonsterAI* ai = enemy->GetMonsterAI())
-				ai->ResetToHome();
+			ai->ResetToHome();
 
+			enemy->SetVelocity(GameMath::Vec3::Zero());
+			enemy->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
+			enemy->SetAnimTick(animClockTick);
+
+			it = m_aiAwakeEnemyIds.erase(it);
+			continue;
+		}
+
+		if (!IsEnemyNearAnyPlayerExact(enemy->GetPosition(), sleepRangeSq) &&
+			(!ai || ai->IsAtHomeForAwakeRemoval()))
+		{
 			enemy->SetVelocity(GameMath::Vec3::Zero());
 			enemy->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
 			enemy->SetAnimTick(animClockTick);

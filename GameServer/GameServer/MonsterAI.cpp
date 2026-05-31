@@ -40,6 +40,13 @@ void CMonsterAI::OnUpdate(float dt)
 			m_attackCooldownRemaining = 0.f;
 	}
 
+	if (m_postAttackMoveLockRemaining > 0.f)
+	{
+		m_postAttackMoveLockRemaining -= dt;
+		if (m_postAttackMoveLockRemaining < 0.f)
+			m_postAttackMoveLockRemaining = 0.f;
+	}
+
 	m_repathTimer -= dt;
 
 	// 직선 이동 모드 (spawner pool Ghoul)
@@ -80,11 +87,15 @@ void CMonsterAI::OnUpdate(float dt)
 				GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
 				GetOwner()->SetAnimTick(GRoom->GetAnimClockTick());
 				m_attackCooldownRemaining = m_attackCooldownSec;
+				m_postAttackMoveLockRemaining = m_postAttackMoveLockDuration;
 			}
 			return;
 		}
 
-		MoveDirectTowards(targetPos, m_moveSpeed * dt);
+		if (CanMoveNow())
+			MoveDirectTowards(targetPos, m_moveSpeed * dt);
+		else
+			GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
 		return;
 	}
 
@@ -106,6 +117,8 @@ void CMonsterAI::OnUpdate(float dt)
 
 		if (!IsAtHome())
 			BeginReturnHome();
+		else if (UpdateIdlePatrol(dt))
+			return;
 		else
 			GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
 		return;
@@ -129,17 +142,25 @@ void CMonsterAI::OnUpdate(float dt)
 			GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
 			GetOwner()->SetAnimTick(GRoom->GetAnimClockTick());
 			m_attackCooldownRemaining = m_attackCooldownSec;
+			m_postAttackMoveLockRemaining = m_postAttackMoveLockDuration;
 		}
 		return;
 	}
 
+	if (!CanMoveNow())
+	{
+		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
+		return;
+	}
+
 	// 직선 LOS 통과 시 A* 생략
-	if (HasDirectNavMeshLineTo(targetPos))
+	const auto moveGoalPos = GetTargetMoveGoalPosition();
+	if (HasDirectNavMeshLineTo(moveGoalPos))
 	{
 		m_currentPath.clear();
 		m_trianglePath.clear();
 		m_currentPathIndex = 0;
-		MoveTowards(targetPos, m_moveSpeed * dt);
+		MoveTowards(moveGoalPos, m_moveSpeed * dt);
 		return;
 	}
 
@@ -174,6 +195,10 @@ bool CMonsterAI::AcquireTarget()
 			if (DistSqXZ(m_innerZoneCenter, player->GetPosition()) > innerZoneSq)
 				continue;
 		}
+		else if (!CanChaseTargetByMegaGrid(player.get()))
+		{
+			continue;
+		}
 
 		const float dSq = DistSqXZ(myPos, player->GetPosition());
 		if (dSq < bestSq)
@@ -188,14 +213,16 @@ bool CMonsterAI::AcquireTarget()
 	{
 		if (!m_isChasing)
 		{
-			if (bestSq > m_chaseStartRange * m_chaseStartRange)
+			if (bestSq > m_chaseStartRange * m_chaseStartRange ||
+				(!IsObjectInChaseStartCone(nearest) && !IsPlayerRunning(nearest)))
 				nearest = nullptr;
 			else
 				m_isChasing = true;
 		}
 		else
 		{
-			if (bestSq > m_chaseStopRange * m_chaseStopRange)
+			if (bestSq > m_chaseStopRange * m_chaseStopRange ||
+				!CanChaseTargetByMegaGrid(nearest))
 			{
 				m_isChasing = false;
 				nearest = nullptr;
@@ -242,7 +269,8 @@ bool CMonsterAI::RebuildPathToTarget()
 	GameMath::Vec3 startPos{};
 	GameMath::Vec3 goalPos{};
 	if (!SampleNavMeshPosition(GetOwner()->GetPosition(), startPos)) return false;
-	if (!SampleNavMeshPosition(m_pTarget->GetPosition(), goalPos))   return false;
+	if (!SampleNavMeshPosition(GetTargetMoveGoalPosition(), goalPos)) return false;
+	goalPos = ClampPointToMovementBounds(goalPos);
 
 	std::vector<int> newTrianglePath;
 	std::vector<GameMath::Vec3> newPath;
@@ -276,21 +304,25 @@ void CMonsterAI::FaceTowards(const GameMath::Vec3& goal)
 		tr->SetYawDegrees(yawDeg);
 }
 
-bool CMonsterAI::MoveTowards(const GameMath::Vec3& goal, float maxStep)
+bool CMonsterAI::MoveTowards(const GameMath::Vec3& goal, float maxStep, bool clampToMovementBounds)
 {
 	const auto pos = GetOwner()->GetPosition();
-	GameMath::Vec3 d(goal.x - pos.x, 0.f, goal.z - pos.z);
+	const GameMath::Vec3 moveGoal = clampToMovementBounds ? ClampPointToMovementBounds(goal) : goal;
+	GameMath::Vec3 d(moveGoal.x - pos.x, 0.f, moveGoal.z - pos.z);
 	const float len = d.LengthXZ();
 	if (len <= 1e-6f) return false;
 
 	const float step = (maxStep < len) ? maxStep : len;
 	const GameMath::Vec3 dir(d.x / len, 0.f, d.z / len);
-	FaceTowards(goal);
+	FaceTowards(moveGoal);
 
 	GameMath::Vec3 next(pos.x + dir.x * step, pos.y, pos.z + dir.z * step);
+	if (clampToMovementBounds)
+		next = ClampPointToMovementBounds(next);
+
 	GameMath::Vec3 sampled{};
 	if (SampleNavMeshPosition(next, sampled))
-		GetOwner()->SetPosition(sampled);
+		GetOwner()->SetPosition(clampToMovementBounds ? ClampPointToMovementBounds(sampled) : sampled);
 	else
 		GetOwner()->SetPosition(next);
 
@@ -309,7 +341,7 @@ bool CMonsterAI::FollowCurrentPath(float dt)
 
 	while (m_currentPathIndex < m_currentPath.size())
 	{
-		const auto& wp = m_currentPath[m_currentPathIndex];
+		const auto wp = ClampPointToMovementBounds(m_currentPath[m_currentPathIndex]);
 		if (DistSqXZ(GetOwner()->GetPosition(), wp) <=
 			m_pathPointReachDistance * m_pathPointReachDistance)
 		{
@@ -321,7 +353,7 @@ bool CMonsterAI::FollowCurrentPath(float dt)
 		if (m_pTarget != nullptr)
 		{
 			const auto myPos    = GetOwner()->GetPosition();
-			const auto goalPos  = m_pTarget->GetPosition();
+			const auto goalPos  = GetTargetMoveGoalPosition();
 			const float toWpX   = wp.x - myPos.x;
 			const float toWpZ   = wp.z - myPos.z;
 			const float toGoalX = goalPos.x - myPos.x;
@@ -357,6 +389,26 @@ bool CMonsterAI::MoveDirectTowards(const GameMath::Vec3& goal, float maxStep)
 	return true;
 }
 
+void CMonsterAI::SetHomePosition(const GameMath::Vec3& pos)
+{
+	m_homePosition = pos;
+	m_homeYawDeg = GetOwner() ? GetOwner()->GetYaw() : 0.f;
+	m_homeMegaGridNumber = GRoom ? GRoom->GetMegaGridNumberFromWorldPosition(pos) : 0;
+	m_bMovementBoundsInitialized = false;
+
+	if (GRoom && m_homeMegaGridNumber > 0)
+	{
+		m_bMovementBoundsInitialized = GRoom->GetMegaGridCenterMovementBounds(
+			m_homeMegaGridNumber,
+			m_movementMinX,
+			m_movementMaxX,
+			m_movementMinZ,
+			m_movementMaxZ);
+	}
+
+	ResetPatrolState();
+}
+
 void CMonsterAI::SetChaseRanges(float startRange, float stopRange)
 {
 	m_chaseStartRange = startRange;
@@ -381,6 +433,8 @@ void CMonsterAI::SetDirectMoveMode(float advanceDist, const GameMath::Vec3& home
 	m_returnPath.clear();
 	m_returnTrianglePath.clear();
 	m_returnPathIndex = 0;
+	m_bPatrolEnabled = false;
+	ResetPatrolState();
 }
 
 void CMonsterAI::ConfigureFromWeapon(Protocol::WeaponType weaponType)
@@ -426,7 +480,10 @@ void CMonsterAI::ResetToHome()
 	m_returnPath.clear();
 	m_returnTrianglePath.clear();
 	m_returnPathIndex  = 0;
+	m_postAttackMoveLockRemaining = 0.f;
+	ResetPatrolState();
 	GetOwner()->SetPosition(m_homePosition);
+	GetOwner()->SetYaw(m_homeYawDeg);
 }
 
 bool CMonsterAI::IsAtHome() const
@@ -453,16 +510,23 @@ bool CMonsterAI::BeginReturnHome()
 	}
 
 	const CNavMesh* nav = GetNavMesh();
-	if (!nav || !nav->IsLoaded()) { m_bReturningHome = false; return false; }
+	if (!nav || !nav->IsLoaded()) return false;
 
 	GameMath::Vec3 startPos{}, goalPos{};
-	if (!SampleNavMeshPosition(GetOwner()->GetPosition(), startPos)) { m_bReturningHome = false; return false; }
-	if (!SampleNavMeshPosition(m_homePosition, goalPos))             { m_bReturningHome = false; return false; }
+	if (!SampleNavMeshPosition(GetOwner()->GetPosition(), startPos)) return false;
+	if (!SampleNavMeshPosition(m_homePosition, goalPos))             return false;
 
 	if (!nav->FindPath(startPos, goalPos, m_returnTrianglePath, m_returnPath))
-	{ m_bReturningHome = false; return false; }
+		return false;
 
 	m_returnPathIndex = 0;
+	while (m_returnPathIndex < m_returnPath.size())
+	{
+		if (DistSqXZ(GetOwner()->GetPosition(), m_returnPath[m_returnPathIndex]) >
+			m_pathPointReachDistance * m_pathPointReachDistance)
+			break;
+		++m_returnPathIndex;
+	}
 	return true;
 }
 
@@ -497,11 +561,13 @@ bool CMonsterAI::UpdateReturnHome(float dt)
 			continue;
 		}
 
-		MoveTowards(wp, moveDistance);
+		MoveTowards(wp, moveDistance, false);
 		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_WALK);
 		return false;
 	}
 
+	ResetToHome();
+	GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
 	return false;
 }
 
@@ -510,4 +576,129 @@ bool CMonsterAI::HasDirectNavMeshLineTo(const GameMath::Vec3& target) const
 	const CNavMesh* nav = GetNavMesh();
 	if (!nav || !nav->IsLoaded()) return false;
 	return nav->HasLineOfSight(GetOwner()->GetPosition(), target);
+}
+
+bool CMonsterAI::CanMoveNow() const
+{
+	return m_postAttackMoveLockRemaining <= 0.f;
+}
+
+bool CMonsterAI::IsPlayerRunning(const CServerObject* player) const
+{
+	return player && player->GetAnimState() == Protocol::ANIMATION_TYPE_RUN;
+}
+
+bool CMonsterAI::IsObjectInChaseStartCone(const CServerObject* obj) const
+{
+	if (!obj || !GetOwner())
+		return false;
+
+	const auto ownerPos = GetOwner()->GetPosition();
+	const auto targetPos = obj->GetPosition();
+	GameMath::Vec3 toTarget(targetPos.x - ownerPos.x, 0.f, targetPos.z - ownerPos.z);
+	const float len = toTarget.LengthXZ();
+	if (len <= 1e-6f)
+		return true;
+
+	toTarget.x /= len;
+	toTarget.z /= len;
+
+	const auto forward = GetOwner()->GetLook().Normalized();
+	const float dot = forward.x * toTarget.x + forward.z * toTarget.z;
+	constexpr float kCosHalfAngle60 = 0.5f;
+	return dot >= kCosHalfAngle60;
+}
+
+bool CMonsterAI::CanChaseTargetByMegaGrid(const CServerObject* target) const
+{
+	if (!target || !GRoom)
+		return false;
+
+	return GRoom->IsPositionInsideMegaGridApproachZone(target->GetPosition());
+}
+
+GameMath::Vec3 CMonsterAI::ClampPointToMovementBounds(const GameMath::Vec3& p) const
+{
+	if (!m_bMovementBoundsInitialized)
+		return p;
+
+	return GameMath::Vec3(
+		std::clamp(p.x, m_movementMinX, m_movementMaxX),
+		p.y,
+		std::clamp(p.z, m_movementMinZ, m_movementMaxZ));
+}
+
+GameMath::Vec3 CMonsterAI::GetTargetMoveGoalPosition() const
+{
+	if (!m_pTarget)
+		return GetOwner() ? GetOwner()->GetPosition() : GameMath::Vec3::Zero();
+
+	return ClampPointToMovementBounds(m_pTarget->GetPosition());
+}
+
+bool CMonsterAI::IsOutsideHomeMegaGrid() const
+{
+	if (!GRoom || m_homeMegaGridNumber <= 0 || !GetOwner())
+		return false;
+
+	return !GRoom->IsPositionInsideMegaGridNumber(GetOwner()->GetPosition(), m_homeMegaGridNumber);
+}
+
+bool CMonsterAI::IsAtHomeForAwakeRemoval() const
+{
+	return IsAtHome();
+}
+
+void CMonsterAI::ResetPatrolState()
+{
+	m_bPatrolInitialized = false;
+	m_bPatrolTurning = false;
+	m_patrolTargetSign = 1;
+}
+
+GameMath::Vec3 CMonsterAI::GetPatrolEndpoint(int targetSign) const
+{
+	const int sign = (targetSign < 0) ? -1 : 1;
+	const GameMath::Vec3 forward = GameMath::YawToLook(m_homeYawDeg);
+	return GameMath::Vec3(
+		m_homePosition.x + forward.x * m_patrolHalfDistance * static_cast<float>(sign),
+		m_homePosition.y,
+		m_homePosition.z + forward.z * m_patrolHalfDistance * static_cast<float>(sign));
+}
+
+bool CMonsterAI::UpdateIdlePatrol(float dt)
+{
+	if (!m_bPatrolEnabled || m_bReturningHome || !GetOwner())
+		return false;
+
+	if (!m_bPatrolInitialized)
+	{
+		m_bPatrolInitialized = true;
+		m_bPatrolTurning = false;
+		m_patrolTargetSign = 1;
+	}
+
+	if (dt <= 0.f || !CanMoveNow())
+	{
+		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
+		return true;
+	}
+
+	const GameMath::Vec3 endpoint = GetPatrolEndpoint(m_patrolTargetSign);
+	if (DistSqXZ(GetOwner()->GetPosition(), endpoint) <=
+		m_patrolEndpointReachDistance * m_patrolEndpointReachDistance)
+	{
+		m_patrolTargetSign = -m_patrolTargetSign;
+		m_bPatrolTurning = true;
+		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_WALK);
+		return true;
+	}
+
+	const float moveDistance = m_moveSpeed * dt;
+	if (moveDistance <= 0.f)
+		return true;
+
+	MoveTowards(endpoint, moveDistance, false);
+	GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_WALK);
+	return true;
 }

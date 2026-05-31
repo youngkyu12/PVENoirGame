@@ -376,6 +376,7 @@ void Room::BuildRoom()
 		ai->SetChaseRanges(p->chaseStart, p->chaseStop);
 		ai->SetAttackRange(p->attackRange);
 		ai->SetMoveSpeed(p->moveSpeed);
+		ai->SetPatrolEnabled(t == "SwordMan" || t == "BowMan");
 	};
 
 	auto makeSpawnEnemy = [&](const MonsterSpawnEntry& spawn)
