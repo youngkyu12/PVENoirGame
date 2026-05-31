@@ -215,6 +215,7 @@ ENTRY|asset="Building4"|object="building_4_183_41"|pos=(77.42865,0,747.6928)|rot
 ENTRY|asset="Building9"|object="building_9_153_28"|pos=(57.39999,0,735.4)|rot=(0,-0.309017,0,0.951057)
 ENTRY|asset="Building2"|object="building_2_184_11"|pos=(77.2,0,718.9)|rot=(0,-0.707107,0,0.707107)
 ENTRY|asset="VillageWall"|object="VillageWall"|pos=(0,0,800)|rot=(0,0,0,1)
+ENTRY|asset="Water"|object="Water"|pos=(0,12.0,800)|rot=(0,0,0,1)
 ENTRY|asset="Terrain"|object="Terrain"|pos=(200,-0.01,-200)|rot=(0,0,0,1)
 ENTRY|asset="Building5"|object="building_5_11_9"|pos=(311.5,0,-79.6)|rot=(0,0,0,1)
 ENTRY|asset="Building5"|object="building_5_11_9 (1)"|pos=(326.6,0,-7.299988)|rot=(0,0,0,1)

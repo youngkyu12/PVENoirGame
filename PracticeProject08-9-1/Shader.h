@@ -174,6 +174,16 @@ public:
 	D3D12_RASTERIZER_DESC CreateRasterizerState() override;
 };
 
+class CWaterShader final : public CStaticObjectsShader
+{
+public:
+	CWaterShader() = default;
+	~CWaterShader() override = default;
+
+public:
+	D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob) override;
+	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
+};
 
 class CSkinnedObjectsShader : public CIlluminatedTexturedShader
 {

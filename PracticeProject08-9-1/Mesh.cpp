@@ -1490,6 +1490,16 @@ CGridMesh::CGridMesh(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCo
 	XMFLOAT3 xmf3Scale, XMFLOAT4 xmf4Color, void* pContext)
 	: CMesh(pd3dDevice, pd3dCommandList)
 {
+}
+
+CGridMesh::~CGridMesh()
+{
+}
+
+CHeightMapGridMesh::CHeightMapGridMesh(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList, 
+	int nBlockWidth, int nBlockLength, int nWidth, int nLength, XMFLOAT3 xmf3Scale, XMFLOAT4 xmf4Color, void* pContext)
+	: CGridMesh(pd3dDevice, pd3dCommandList, nBlockWidth, nBlockLength, nWidth, nLength, xmf3Scale, xmf4Color, pContext)
+{
 	m_d3dPrimitiveTopology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
 	m_nWidth = nWidth;
 	m_nLength = nLength;
@@ -1787,12 +1797,12 @@ CGridMesh::CGridMesh(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCo
 	sm.ibView.Format = DXGI_FORMAT_R32_UINT;
 }
 
-CGridMesh::~CGridMesh()
+CHeightMapGridMesh::~CHeightMapGridMesh()
 {
 }
 
 //높이 맵 이미지의 픽셀 값을 지형의 높이로 반환한다. 
-float CGridMesh::OnGetHeight(int x, int z, void* pContext)
+float CHeightMapGridMesh::OnGetHeight(int x, int z, void* pContext)
 {
 	HeightMapImage* pHeightMapImage = (HeightMapImage*)pContext;
 	BYTE* pHeightMapPixels = pHeightMapImage->GetHeightMapPixels();
@@ -1802,7 +1812,7 @@ float CGridMesh::OnGetHeight(int x, int z, void* pContext)
 	return(fHeight);
 }
 
-XMFLOAT4 CGridMesh::OnGetColor(int x, int z, void* pContext)
+XMFLOAT4 CHeightMapGridMesh::OnGetColor(int x, int z, void* pContext)
 {
 	// 조명의 방향 벡터(정점에서 조명까지의 벡터)이다.
 	XMFLOAT3 xmf3LightDirection = XMFLOAT3(-1.0f, 1.0f, 1.0f);
@@ -1826,3 +1836,215 @@ XMFLOAT4 CGridMesh::OnGetColor(int x, int z, void* pContext)
 	return(xmf4Color);
 }
 
+CWaterGridMesh::CWaterGridMesh(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList, int nBlockWidth, int nBlockLength, int nWidth, int nLength, XMFLOAT3 xmf3Scale, XMFLOAT4 xmf4Color, void* pContext)
+	: CGridMesh(pd3dDevice, pd3dCommandList, nBlockWidth, nBlockLength, nWidth, nLength, xmf3Scale, xmf4Color, pContext)
+{
+	m_d3dPrimitiveTopology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+	m_nWidth = nWidth;
+	m_nLength = nLength;
+	m_xmf3Scale = xmf3Scale;
+
+	if ( !pd3dDevice || !pd3dCommandList || nWidth < 2 || nLength < 2 )
+		return;
+
+	m_Bones.clear();
+	m_BoneNameToIndex.clear();
+	m_SubMeshes.clear();
+	m_bSkinnedMesh = false;
+
+	HeightMapImage* pHeightMapImage = static_cast< HeightMapImage* >(pContext);
+
+	int cxHeightMap = m_nWidth;
+	int czHeightMap = m_nLength;
+
+	if ( pHeightMapImage )
+	{
+		cxHeightMap = pHeightMapImage->GetHeightMapWidth();
+		czHeightMap = pHeightMapImage->GetHeightMapLength();
+	}
+
+	int cxQuadsPerBlock = nBlockWidth - 1;
+	int czQuadsPerBlock = nBlockLength - 1;
+	if ( cxQuadsPerBlock <= 0 || czQuadsPerBlock <= 0 )
+		return;
+
+	long cxBlocks = ( m_nWidth - 1 + cxQuadsPerBlock - 1 ) / cxQuadsPerBlock;
+	long czBlocks = ( m_nLength - 1 + czQuadsPerBlock - 1 ) / czQuadsPerBlock;
+
+
+	uint32_t boneCount = 0;
+	uint32_t materialCount = 0;
+	uint32_t subMeshCount = cxBlocks * czBlocks;
+
+	// 기존 데이터 정리
+	m_Bones.clear();
+	m_BoneNameToIndex.clear();
+	m_SubMeshes.clear();
+	m_BinMaterials.clear();
+	m_BinMaterialNameToIndex.clear();
+	MeshMin = XMFLOAT3(FLT_MAX, FLT_MAX, FLT_MAX);
+	MeshMax = XMFLOAT3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+	m_BinMaterials.clear();
+	m_BinMaterialNameToIndex.clear();
+	m_BinMaterials.reserve(materialCount);
+
+	m_SubMeshes.resize(subMeshCount);
+
+	SubMesh& sm = m_SubMeshes[0];
+
+	const int vertexWidth = m_nWidth;
+	const int vertexLength = m_nLength;
+	const size_t vertexCount =
+		static_cast< size_t >( vertexWidth ) * static_cast< size_t >( vertexLength );
+
+	sm.positions.reserve(vertexCount);
+	sm.normals.reserve(vertexCount);
+	sm.uvs.reserve(vertexCount);
+	sm.tangents.reserve(vertexCount);
+	sm.boneIndices.reserve(vertexCount);
+	sm.boneWeights.reserve(vertexCount);
+
+	sm.subMeshMin = XMFLOAT3(FLT_MAX, FLT_MAX, FLT_MAX);
+	sm.subMeshMax = XMFLOAT3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+	for ( int z = 0; z < vertexLength; ++z )
+	{
+		for ( int x = 0; x < vertexWidth; ++x )
+		{
+			const float height = pHeightMapImage
+				? OnGetHeight(x, z, pContext)
+				: 0.0f;
+
+			const XMFLOAT3 position(
+				x * m_xmf3Scale.x,
+				height,
+				z * m_xmf3Scale.z
+			);
+
+			sm.positions.push_back(position);
+
+			sm.normals.push_back(
+				pHeightMapImage
+				? pHeightMapImage->GetHeightMapNormal(x, z)
+				: XMFLOAT3(0.0f, 1.0f, 0.0f)
+			);
+
+			sm.uvs.emplace_back(
+				static_cast< float >( x ) / static_cast< float >( vertexWidth - 1 ),
+				static_cast< float >( vertexLength - 1 - z ) / static_cast< float >( vertexLength - 1 )
+			);
+
+			sm.tangents.emplace_back(1.0f, 0.0f, 0.0f, 1.0f);
+			sm.boneIndices.emplace_back(0, 0, 0, 0);
+			sm.boneWeights.emplace_back(1.0f, 0.0f, 0.0f, 0.0f);
+
+			sm.subMeshMin.x = min(sm.subMeshMin.x, position.x);
+			sm.subMeshMin.y = min(sm.subMeshMin.y, position.y);
+			sm.subMeshMin.z = min(sm.subMeshMin.z, position.z);
+
+			sm.subMeshMax.x = max(sm.subMeshMax.x, position.x);
+			sm.subMeshMax.y = max(sm.subMeshMax.y, position.y);
+			sm.subMeshMax.z = max(sm.subMeshMax.z, position.z);
+		}
+	}
+
+	MeshMin.x = min(MeshMin.x, sm.subMeshMin.x);
+	MeshMin.y = min(MeshMin.y, sm.subMeshMin.y);
+	MeshMin.z = min(MeshMin.z, sm.subMeshMin.z);
+
+	MeshMax.x = max(MeshMax.x, sm.subMeshMax.x);
+	MeshMax.y = max(MeshMax.y, sm.subMeshMax.y);
+	MeshMax.z = max(MeshMax.z, sm.subMeshMax.z);
+
+	const size_t stripIndexCount =
+		static_cast< size_t >( vertexWidth ) * 2 * static_cast< size_t >( vertexLength - 1 ) +
+		static_cast< size_t >( vertexLength - 2 );
+	sm.indices.reserve(stripIndexCount);
+
+	for ( int localZ = 0; localZ < vertexLength - 1; ++localZ )
+	{
+		if ( ( localZ % 2 ) == 0 )
+		{
+			for ( int localX = 0; localX < vertexWidth; ++localX )
+			{
+				if ( ( localX == 0 ) && ( localZ > 0 ) )
+					sm.indices.push_back(static_cast< UINT >(localX + localZ * vertexWidth));
+
+				sm.indices.push_back(static_cast< UINT >(localX + localZ * vertexWidth));
+				sm.indices.push_back(static_cast< UINT >(localX + ( localZ + 1 ) * vertexWidth));
+			}
+		}
+		else
+		{
+			for ( int localX = vertexWidth - 1; localX >= 0; --localX )
+			{
+				if ( localX == ( vertexWidth - 1 ) )
+					sm.indices.push_back(static_cast< UINT >( localX + localZ * vertexWidth ));
+
+				sm.indices.push_back(static_cast< UINT >( localX + localZ * vertexWidth ));
+				sm.indices.push_back(static_cast< UINT >( localX + ( localZ + 1 ) * vertexWidth ));
+			}
+		}
+	}
+
+	// 여기서 기존 코드처럼 SkinnedVertex 배열을 만들고
+	// CreateBufferResource로 sm.vb/sm.ib와 view를 생성하면 된다.
+	std::vector<SkinnedVertex> vertices(sm.positions.size());
+
+	for ( size_t i = 0; i < sm.positions.size(); ++i )
+	{
+		SkinnedVertex v{};
+		v.position = sm.positions[i];
+		v.normal = sm.normals[i];
+		v.uv = sm.uvs[i];
+		v.tangent = sm.tangents[i];
+
+		v.boneIndices[0] = 0;
+		v.boneIndices[1] = 0;
+		v.boneIndices[2] = 0;
+		v.boneIndices[3] = 0;
+
+		v.boneWeights[0] = 1.0f;
+		v.boneWeights[1] = 0.0f;
+		v.boneWeights[2] = 0.0f;
+		v.boneWeights[3] = 0.0f;
+
+		vertices[i] = v;
+	}
+
+	const UINT vbSize = static_cast< UINT >( sizeof(SkinnedVertex) * vertices.size() );
+	const UINT ibSize = static_cast< UINT >( sizeof(UINT) * sm.indices.size() );
+
+	sm.vb = ::CreateBufferResource(
+		pd3dDevice,
+		pd3dCommandList,
+		vertices.data(),
+		vbSize,
+		D3D12_HEAP_TYPE_DEFAULT,
+		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+		&sm.vbUpload
+	);
+
+	sm.vbView.BufferLocation = sm.vb->GetGPUVirtualAddress();
+	sm.vbView.SizeInBytes = vbSize;
+	sm.vbView.StrideInBytes = sizeof(SkinnedVertex);
+
+	sm.ib = ::CreateBufferResource(
+		pd3dDevice,
+		pd3dCommandList,
+		sm.indices.data(),
+		ibSize,
+		D3D12_HEAP_TYPE_DEFAULT,
+		D3D12_RESOURCE_STATE_INDEX_BUFFER,
+		&sm.ibUpload
+	);
+
+	sm.ibView.BufferLocation = sm.ib->GetGPUVirtualAddress();
+	sm.ibView.SizeInBytes = ibSize;
+	sm.ibView.Format = DXGI_FORMAT_R32_UINT;
+}
+
+CWaterGridMesh::~CWaterGridMesh()
+{
+}
