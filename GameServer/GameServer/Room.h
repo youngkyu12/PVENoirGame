@@ -76,6 +76,15 @@ public:
 	uint32 GetTick() const { return tick.load(); }
 	uint64 GetElapsedServerMs() const { return m_elapsedServerMs; }
 	const RoomTimingConfig& GetTimingConfig() const { return m_timing; }
+	int GetMegaGridNumberFromWorldPosition(const GameMath::Vec3& pos) const;
+	bool IsPositionInsideMegaGridNumber(const GameMath::Vec3& pos, int megaGridNumber) const;
+	bool IsPositionInsideMegaGridApproachZone(const GameMath::Vec3& pos) const;
+	bool GetMegaGridCenterMovementBounds(
+		int megaGridNumber,
+		float& outMinX,
+		float& outMaxX,
+		float& outMinZ,
+		float& outMaxZ) const;
 	uint32 GetAnimClockTick() const
 	{
 		if (m_timing.animClockIntervalMs == 0)

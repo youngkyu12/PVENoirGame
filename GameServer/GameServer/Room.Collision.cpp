@@ -491,10 +491,10 @@ void Room::RegisterDoorPortal(BuildingRef building)
 			entry.pairs.push_back(std::move(pair));
 		};
 
-	AddPair(1, 0);
-	AddPair(2, 4);
-	AddPair(3, 5);
-	AddPair(7, 6);
+	AddPair(1, 3);
+	AddPair(2, 0);
+	AddPair(4, 7);
+	AddPair(6, 5);
 
 	m_castleDoorPortals.push_back(std::move(entry));
 	if constexpr (kDebugCastleDoorPortalLog)
