@@ -248,10 +248,10 @@ namespace GameSceneHelper
 	bool ParseVector3Tuple(const std::string& text, XMFLOAT3& outValue);
 	bool ParseVector4Tuple(const std::string& text, XMFLOAT4& outValue);
 	std::string ToLowerAscii(const std::string& text);
+	float NormalizeYawDegrees180(float yaw);
 
 #ifndef USING_NETWORK
 	std::string NormalizeTowerDoorNameForMatch(const std::string& text);
-	float NormalizeYawDegrees180(float yaw);
 	bool IsTowerDoorFrame2Name(const std::string& meshName, const std::string& authoringPath);
 	int GetCastleDoorFrameIndexFromMeshName(const std::string& meshName);
 	const char* GetCastleDoorFrameDebugName(int index);

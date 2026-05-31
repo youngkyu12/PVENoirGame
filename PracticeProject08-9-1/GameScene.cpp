@@ -7147,6 +7147,17 @@ bool CGameScene::RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& p
 		return false;
 	}
 
+#ifdef USING_NETWORK
+	// A server teleport can be valid in the authoritative collision set while
+	// overlapping a client-side static collider that disagrees with it. Do not
+	// trap prediction at that origin; let server-validated input move it out.
+	const bool hitWorldStaticAtPreviousPos = TestPositionAgainstWorldStatic(previousPos);
+	localPlayer->SetPosition(currentPos);
+	collider->UpdateWorldBounds();
+	if ( hitWorldStaticAtPreviousPos )
+		return false;
+#endif
+
 #ifndef USING_NETWORK
 	if ( kEnableTowerDoorPortalCollisionLog )
 	{
@@ -7694,6 +7705,54 @@ void CGameScene::AnimateObjects(float dt)
     // ------------------------------------------------------------------------
 
 #ifdef USING_NETWORK
+	ForcedTransformEvent forcedTransformEvent{};
+	while (g_NetworkQueue.TryPopForcedTransform(forcedTransformEvent))
+	{
+		const int slot = static_cast<int>(forcedTransformEvent.playerId);
+		if (slot != m_localPlayerSlot)
+			continue;
+
+		CGameObject* player = GetPlayerBySlot(slot);
+		if (!player)
+			continue;
+
+		const float yawDeltaDeg = forcedTransformEvent.yawDelta;
+
+		CCamera* camera = GetMainCamera();
+		float targetYaw = 0.0f;
+		if (camera)
+		{
+			targetYaw = NormalizeYawDegrees180(camera->GetYaw() + yawDeltaDeg);
+			camera->GetYaw() = targetYaw;
+
+			XMFLOAT3 cameraTarget = player->GetPosition();
+			cameraTarget.y += 1.7f;
+			camera->Update(cameraTarget, 0.0f);
+			camera->SetLookAt(cameraTarget);
+			camera->RegenerateViewMatrix();
+		}
+		else if (auto* tr = player->GetComponent<CTransformComponent>())
+		{
+			targetYaw = NormalizeYawDegrees180(QuaternionToYawDegrees(tr->rotation) + yawDeltaDeg);
+		}
+		else
+		{
+			targetYaw = NormalizeYawDegrees180(yawDeltaDeg);
+		}
+
+		if (auto* controller = player->GetComponent<CPlayerControllerComponent>())
+		{
+			controller->SetYawDegrees(targetYaw);
+			controller->SetVelocity(XMFLOAT3(0.0f, 0.0f, 0.0f));
+			controller->SetInputDirection(static_cast<DWORD>(0));
+			controller->SetRunRequested(false);
+		}
+		else if (auto* tr = player->GetComponent<CTransformComponent>())
+		{
+			tr->SetYawDegrees(targetYaw);
+		}
+	}
+
     DequeueNetworkMessage(NetworkMessageType::FrameState);
 
 	std::unordered_map<uint64_t, CGameObject*> npcById;
@@ -7731,6 +7790,9 @@ void CGameScene::AnimateObjects(float dt)
 
 			if (isLocalPlayer)
             {
+				if ( auto* hp = player->GetComponent<CHealthComponent>() )
+					hp->SetCurrentHp(static_cast<int>(state.hp));
+
 				constexpr float kLocalPlayerServerSnapDistance = 1.5f;
 				constexpr float kLocalPlayerServerSnapDistanceSq =
 					kLocalPlayerServerSnapDistance * kLocalPlayerServerSnapDistance;
@@ -7833,6 +7895,9 @@ void CGameScene::AnimateObjects(float dt)
 					if ( !prevDecoded.hit )
 					{
 						SpawnBloodSplash(player, nullptr, nullptr);
+
+						if ( auto* hp = player->GetComponent<CHealthComponent>() )
+							hp->RequestHitSfx();
 					}
 
 					ac->RequestHit();
@@ -7877,14 +7942,45 @@ void CGameScene::AnimateObjects(float dt)
         }
 
 
-		// Enemy 좌표 업데이트
+		// Enemy 좌표 업데이트 (Dead Reckoning + 서버 교정)
 		for ( const auto& state : snapshot.enemies )
 		{
 			auto it = npcById.find(state.id);
 			if ( it == npcById.end() ) continue;
 
 			auto* obj = it->second;
-			obj->SetPosition(state.position.x, state.position.y, state.position.z);
+
+			// 이동 방향 벡터 (yaw → forward)
+			const float yawRad = XMConvertToRadians(state.yaw);
+			const XMFLOAT3 moveDir(std::sinf(yawRad), 0.0f, std::cosf(yawRad));
+
+			// 이동 속도 (애니메이션 상태로 결정)
+			const DecodedAnimStateCode decodedDR = DecodeStateCode(state.animation.stateCode);
+			float drSpeed = 0.0f;
+			if ( decodedDR.hasMove && !decodedDR.die && !decodedDR.hit )
+			{
+				if ( auto* ai = obj->GetComponent<CMonsterAIComponent>() )
+					drSpeed = decodedDR.run ? ai->GetRunMoveSpeedValue() : ai->GetWalkMoveSpeedValue();
+				else
+					drSpeed = decodedDR.run ? 2.0f : 1.0f;
+			}
+
+			// DR 상태 갱신: 최초엔 서버 위치로 초기화, 이후엔 소프트 교정
+			EnemyDRState& dr = m_enemyDRStates[state.id];
+			if ( !dr.initialized )
+			{
+				dr.predictedPos = state.position;
+				dr.initialized  = true;
+			}
+			else
+			{
+				constexpr float kCorrectionAlpha = 0.35f;
+				dr.predictedPos = LerpPosition(dr.predictedPos, state.position, kCorrectionAlpha);
+			}
+			dr.moveDir = moveDir;
+			dr.speed   = drSpeed;
+
+			obj->SetPosition(dr.predictedPos.x, dr.predictedPos.y, dr.predictedPos.z);
 
 			if ( auto* tr = obj->GetComponent<CTransformComponent>() )
 				tr->SetYawDegrees(state.yaw);
@@ -8091,6 +8187,18 @@ void CGameScene::AnimateObjects(float dt)
 					ctrl->SetLocomotionState(locomotionState);
 				}
 			}
+
+			// Dead Reckoning: 마지막으로 받은 이동 방향/속도로 매 프레임 전진
+			auto drIt = m_enemyDRStates.find(id);
+			if ( drIt == m_enemyDRStates.end() ) continue;
+
+			EnemyDRState& dr = drIt->second;
+			if ( !dr.initialized || dr.speed <= 0.0f ) continue;
+
+			dr.predictedPos.x += dr.moveDir.x * dr.speed * dt;
+			dr.predictedPos.z += dr.moveDir.z * dr.speed * dt;
+
+			obj->SetPosition(dr.predictedPos.x, dr.predictedPos.y, dr.predictedPos.z);
 		}
 
 	}

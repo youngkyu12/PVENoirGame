@@ -169,6 +169,25 @@ namespace
 		}
 	}
 
+	bool SegmentSegmentIntersectXZParam(
+		const GameMath::Vec3& p0, const GameMath::Vec3& p1,
+		const GameMath::Vec3& q0, const GameMath::Vec3& q1,
+		float& outT, float& outU)
+	{
+		const float dx = p1.x - p0.x;
+		const float dz = p1.z - p0.z;
+		const float ex = q1.x - q0.x;
+		const float ez = q1.z - q0.z;
+		const float denom = dx * ez - dz * ex;
+		if (fabsf(denom) < 1e-8f) return false;
+		const float fx = q0.x - p0.x;
+		const float fz = q0.z - p0.z;
+		outT = (fx * ez - fz * ex) / denom;
+		outU = (fx * dz - fz * dx) / denom;
+		return outT >= -1e-4f && outT <= 1.0f + 1e-4f &&
+		       outU >= -1e-4f && outU <= 1.0f + 1e-4f;
+	}
+
 	bool ComputeBarycentricXZ(const GameMath::Vec3& p, const GameMath::Vec3& a, const GameMath::Vec3& b, const GameMath::Vec3& c, float& u, float& v, float& w)
 	{
 		const float v0x = b.x - a.x;
@@ -669,4 +688,54 @@ bool CNavMesh::FindPath(const GameMath::Vec3& startPos, const GameMath::Vec3& go
 		return false;
 
 	return FindStraightPath(startProj, goalProj, outTrianglePath, outStraightPath);
+}
+
+bool CNavMesh::HasLineOfSight(const GameMath::Vec3& startPos, const GameMath::Vec3& goalPos) const
+{
+	if (!m_loaded) return false;
+
+	GameMath::Vec3 startProj{}, goalProj{};
+	int startTri = -1, goalTri = -1;
+	if (!SamplePosition(startPos, startProj, &startTri, 1.0f)) return false;
+	if (!SamplePosition(goalPos,  goalProj,  &goalTri,  1.0f)) return false;
+	if (startTri == goalTri) return true;
+
+	const int triCount = static_cast<int>(m_triangles.size());
+	int currentTri = startTri;
+	int prevTri    = -1;
+
+	for (int guard = 0; guard < triCount + 8; ++guard)
+	{
+		if (currentTri == goalTri) return true;
+
+		const NAVMESH_TRIANGLE& tri = m_triangles[currentTri];
+		float bestT      = FLT_MAX;
+		int   bestNeighbor = -2;
+
+		for (int edge = 0; edge < 3; ++edge)
+		{
+			const int neighbor = GetTriangleNeighbor(tri, edge);
+			if (neighbor == prevTri) continue;
+
+			uint32 ia, ib;
+			GetTriangleEdgeVertexIndices(tri, edge, ia, ib);
+
+			float t, u;
+			if (SegmentSegmentIntersectXZParam(startProj, goalProj, m_vertices[ia], m_vertices[ib], t, u))
+			{
+				if (t < bestT)
+				{
+					bestT        = t;
+					bestNeighbor = neighbor;
+				}
+			}
+		}
+
+		if (bestNeighbor == -2) return false;
+		if (bestNeighbor <  0)  return false;
+		prevTri    = currentTri;
+		currentTri = bestNeighbor;
+	}
+
+	return currentTri == goalTri;
 }

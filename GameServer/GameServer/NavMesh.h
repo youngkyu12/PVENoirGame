@@ -48,6 +48,7 @@ public:
 
 	bool SamplePosition(const GameMath::Vec3& worldPos, GameMath::Vec3& outProjectedPos, int* outTriangleIndex = nullptr, float maxSearchDistanceXZ = FLT_MAX) const;
 	bool FindPath(const GameMath::Vec3& startPos, const GameMath::Vec3& goalPos, std::vector<int>& outTrianglePath, std::vector<GameMath::Vec3>& outStraightPath) const;
+	bool HasLineOfSight(const GameMath::Vec3& startPos, const GameMath::Vec3& goalPos) const;
 
 private:
 	bool FindContainingTriangle(const GameMath::Vec3& worldPos, int& outTriangleIndex) const;
