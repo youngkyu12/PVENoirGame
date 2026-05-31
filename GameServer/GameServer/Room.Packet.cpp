@@ -102,7 +102,8 @@ namespace
 		if (anim == Protocol::ANIMATION_TYPE_RUN) code |= kStateRun;
 		if (anim == Protocol::ANIMATION_TYPE_HIT) code |= kStateHit;
 
-		if (anim == Protocol::ANIMATION_TYPE_RUN)
+		if (anim == Protocol::ANIMATION_TYPE_WALK ||
+			anim == Protocol::ANIMATION_TYPE_RUN)
 		{
 			code |= kStateMove;
 
