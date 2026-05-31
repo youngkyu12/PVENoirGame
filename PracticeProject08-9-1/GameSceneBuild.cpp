@@ -2305,6 +2305,9 @@ void CGameScene::BuildSkinnedBatch(
 
 					CGameObject* raw = obj.get();
 
+					if ( m_TerrainData )
+						raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
+
 					if ( useSpawnerRushGhoulAI )
 					{
 						if ( auto* ai = raw->GetComponent<CEnemySpawnerGhoulAIComponent>() )
@@ -2312,10 +2315,7 @@ void CGameScene::BuildSkinnedBatch(
 							ai->ConfigureSpawnerGhoulAI(megaGridNumber, 60.0f);
 						}
 					}
-
-			CGameObject* raw = obj.get();
-			if ( m_TerrainData )
-				raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
+					
 					RegisterMonsterToMegaGrid(raw, pos, i);
 
 					RegisterSkinnedCullEntry(
