@@ -106,6 +106,14 @@ float2 GetTerrainHeightMapSize()
 		: heightMapSize;
 }
 
+float2 GetTerrainHeightMapCoordFromCenteredLocalXZ(float2 localXZ)
+{
+    const float3 terrainScale = GetTerrainScale();
+    const float2 heightMapSize = GetTerrainHeightMapSize();
+    const float2 terrainWorldSize = (heightMapSize - 1.0f) * terrainScale.xz;
+    return (localXZ + terrainWorldSize * 0.5f) / terrainScale.xz;
+}
+
 float LoadTerrainHeightMapValue(uint x, uint z)
 {
 	const uint heightMapIndex = gvTerrainTextureIndices.x;
@@ -174,9 +182,8 @@ VS_TEXTURED_LIGHTING_OUTPUT VSTerrain(VS_TEXTURED_LIGHTING_INSTANCED_INPUT input
 
     if (gvTerrainTextureIndices.x < MAX_GLOBAL_SRVS)
     {
-        const float x = input.position.x / terrainScale.x;
-        const float z = input.position.z / terrainScale.z;
-        input.position.y = GetTerrainHeight(x, z) * 255.0f * terrainScale.y;
+        const float2 heightMapCoord = GetTerrainHeightMapCoordFromCenteredLocalXZ(input.position.xz);
+        input.position.y = GetTerrainHeight(heightMapCoord.x, heightMapCoord.y) * 255.0f * terrainScale.y;
     }
 
     output.normalW = mul(input.normal, (float3x3) mtxInstanceWorld);
@@ -304,9 +311,8 @@ VS_SHADOW_MAP_OUTPUT VSShadowMapTerrainInstanced(
 
     if (gvTerrainTextureIndices.x < MAX_GLOBAL_SRVS)
     {
-        const float x = input.position.x / terrainScale.x;
-        const float z = input.position.z / terrainScale.z;
-        input.position.y = GetTerrainHeight(x, z) * 255.0f * terrainScale.y;
+        const float2 heightMapCoord = GetTerrainHeightMapCoordFromCenteredLocalXZ(input.position.xz);
+        input.position.y = GetTerrainHeight(heightMapCoord.x, heightMapCoord.y) * 255.0f * terrainScale.y;
     }
 
     float3 positionW =

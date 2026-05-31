@@ -886,7 +886,13 @@ void CGameScene::BuildStaticBatch(
 		CGameObject* raw = obj.get();
 
 		if ( placement.assetName == "Terrain" )
+		{
 			m_terrainObjects.insert(raw);
+
+			if ( m_TerrainData )
+				m_TerrainData->SetWorldPosition(placement.pos);
+		}
+
 		if ( placement.assetName == "Water" )
 			m_waterObjects.insert(raw);
 

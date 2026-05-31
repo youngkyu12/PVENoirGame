@@ -41,8 +41,8 @@ float HeightMapImage::GetHeight(float fx, float fz, bool bReverseQuad)
 	fz = fz / m_xmf3Scale.z;
 
 	/*지형의 좌표 (fx, fz)는 이미지 좌표계이다. 높이 맵의 x-좌표와 z-좌표가 높이 맵의 범위를 벗어나면 지형의 높이는 0이다.*/
-	if ((fx < 0.0f) || (fz < 0.0f) || (fx >= m_nWidth) || (fz >= m_nLength)) return(0.0f);
-	
+	if ( ( fx < 0.0f ) || ( fz < 0.0f ) || ( fx >= ( m_nWidth - 1 ) ) || ( fz >= ( m_nLength - 1 ) ) ) return( 0.0f );
+
 	//높이 맵의 좌표의 정수 부분과 소수 부분을 계산한다.
 	int x = (int)fx;
 	int z = (int)fz;
