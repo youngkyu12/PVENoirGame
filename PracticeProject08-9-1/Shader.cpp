@@ -844,6 +844,66 @@ D3D12_DEPTH_STENCIL_DESC CMuzzleFlashBillboardShader::CreateDepthStencilState()
 	return ds;
 }
 
+D3D12_INPUT_LAYOUT_DESC CGunSmokeBillboardShader::CreateInputLayout()
+{
+	CMuzzleFlashBillboardShader muzzleShader;
+	return muzzleShader.CreateInputLayout();
+}
+
+D3D12_SHADER_BYTECODE CGunSmokeBillboardShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(L"Shaders.hlsl", "VSMuzzleFlashBillboardInstanced", "vs_5_1", ppd3dShaderBlob);
+}
+
+D3D12_SHADER_BYTECODE CGunSmokeBillboardShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSMuzzleFlashProcedural", "ps_5_1", ppd3dShaderBlob);
+}
+
+D3D12_RASTERIZER_DESC CGunSmokeBillboardShader::CreateRasterizerState()
+{
+	D3D12_RASTERIZER_DESC rs = CShader::CreateRasterizerState();
+	rs.CullMode = D3D12_CULL_MODE_NONE;
+	return rs;
+}
+
+D3D12_BLEND_DESC CGunSmokeBillboardShader::CreateBlendState()
+{
+	D3D12_BLEND_DESC bs{};
+	bs.AlphaToCoverageEnable = FALSE;
+	bs.IndependentBlendEnable = FALSE;
+
+	D3D12_RENDER_TARGET_BLEND_DESC rt{};
+	rt.BlendEnable = TRUE;
+	rt.LogicOpEnable = FALSE;
+
+	rt.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	rt.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	rt.BlendOp = D3D12_BLEND_OP_ADD;
+
+	rt.SrcBlendAlpha = D3D12_BLEND_ONE;
+	rt.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+	rt.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+
+	rt.LogicOp = D3D12_LOGIC_OP_NOOP;
+	rt.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+	bs.RenderTarget[0] = rt;
+
+	return bs;
+}
+
+D3D12_DEPTH_STENCIL_DESC CGunSmokeBillboardShader::CreateDepthStencilState()
+{
+	D3D12_DEPTH_STENCIL_DESC ds = CShader::CreateDepthStencilState();
+
+	ds.DepthEnable = TRUE;
+	ds.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	ds.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+
+	return ds;
+}
+
 D3D12_INPUT_LAYOUT_DESC CBossPoisonProjectileBillboardShader::CreateInputLayout()
 {
 	UINT nInputElementDescs = 11;

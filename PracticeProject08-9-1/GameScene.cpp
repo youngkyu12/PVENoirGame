@@ -156,6 +156,9 @@ CGameScene::CGameScene()
 
 	m_bLocalPlayerInsideCastleCenterMegaGrid = false;
 	m_bMegaGrid5DirectionalLightProfileActive = false;
+
+	m_inventoryItemCounts.fill(0);
+	m_bPrevInventoryUseKeyDown.fill(false);
 }
 
 void CGameScene::SetFrameResourceIndex(UINT frameResourceIndex)
@@ -3172,8 +3175,8 @@ CGameScene::~CGameScene()
 
 void CGameScene::ReleaseObjects()
 {
-    m_staticBatch.shader.reset();
-    m_skinnedBatch.shader.reset();
+	m_staticBatch.shader.reset();
+	m_skinnedBatch.shader.reset();
 
 	m_treeStaticShader.reset();
 	m_treeAlphaClipObjects.clear();
@@ -3195,13 +3198,13 @@ void CGameScene::ReleaseObjects()
 	m_staticObjects.clear();
 	m_skinnedObjects.clear();
 
-    m_lightObjects.clear();
-    m_pPlayerSpotFollower = nullptr;
+	m_lightObjects.clear();
+	m_pPlayerSpotFollower = nullptr;
 
-    m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
+	m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
 
-    m_staticBatch.objectRefs.clear();
-    m_skinnedBatch.objectRefs.clear();
+	m_staticBatch.objectRefs.clear();
+	m_skinnedBatch.objectRefs.clear();
 
 	m_colliderBatch.shader.reset();
 	m_colliderBatch.objectRefs.clear();
@@ -3233,8 +3236,8 @@ void CGameScene::ReleaseObjects()
 
 	ResetBossShockwaveWindSfxTracking();
 
-	m_bossPoisonProjectiles.clear();
-	m_bossPoisonSpellCastStates.clear();
+	m_bossPoisonProjectileEffect.entries.clear();
+	m_bossPoisonProjectileEffect.spellCastStates.clear();
 	m_bossMeleeSlashCastStates.clear();
 
 	m_bBossStageBossActivated = false;
@@ -3282,7 +3285,7 @@ void CGameScene::ReleaseObjects()
 	ResetPlayerFootstepSfxState();
 	ResetMonsterSfxState();
 
-	m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr }; 
+	m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr };
 	m_prevBowLoadPhase = { false, false, false, false };
 	m_prevBowReleasePhase = { false, false, false, false };
 	m_preparedBowmanArrows.clear();
@@ -3310,46 +3313,58 @@ void CGameScene::ReleaseObjects()
 	m_bLocalPlayerDead = false;
 	m_bLocalPlayerRespawnUsed = false;
 	m_localPlayerRespawnTimer = 0.0f;
+
 #ifdef USING_NETWORK
 	m_prevPlayerNetworkStateCode.clear();
 	m_prevEnemyNetworkStateCode.clear();
 #endif
+
 	m_playerWeaponDamageTierIndex = 0;
 	m_deadMonsters.clear();
 	m_skinnedMonsterMegaGridNumbers.clear();
 
-	m_itemBillboardShader.reset();
-	m_transparentItemBillboardShader.reset();
+	m_itemBillboardState.shader.reset();
+	m_itemBillboardState.transparentShader.reset();
+	m_itemBillboardState.quadMesh.reset();
+	m_itemBillboardState.keyTexture.reset();
 
-	m_itemBillboardQuadMesh.reset();
-	m_itemBillboards.clear();
-	m_activeBossCallSummonCircleItemIndices.clear();
-	m_bossCallSummonCircleVisualState = BossCallSummonCircleVisualState{};
+	for ( std::shared_ptr<CTexture>& potionTexture : m_itemBillboardState.potionTextures )
+		potionTexture.reset();
+
+	m_itemBillboardState.bossSummonCircleTexture.reset();
+	m_itemBillboardState.entries.clear();
+	m_itemBillboardState.activeBossCallSummonCircleItemIndices.clear();
+	m_itemBillboardState.bossCallSummonCircleVisual = BossCallSummonCircleVisualState{};
+	m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
+	m_itemBillboardState.bossCallSummonGlowParticleEmitAccumulatorSec = 0.0f;
 
 	m_bossCallSummonPlanCallIndex = -1;
 	m_bossCallSummonPlanEntries.clear();
 
-	m_keyItemTexture.reset();
-	m_bossSummonCircleTexture.reset();
+	ReleaseAllGameSceneEffectGpuResources();
 
-	ReleaseItemBillboardGpuResources();
+	m_muzzleFlashEffect.shader.reset();
+	m_muzzleFlashEffect.entries.clear();
 
-	m_muzzleFlashShader.reset();
-	m_muzzleFlashes.clear();
+	m_gunSmokeEffect.shader.reset();
+	m_gunSmokeEffect.entries.clear();
 
-	m_bossPoisonProjectileShader.reset();
+	m_bossPoisonProjectileEffect.shader.reset();
 
-	m_bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
-	m_bossCallSummonGlowParticleEmitAccumulatorSec = 0.0f;
+	m_swordTrailEffect.shader.reset();
+	m_swordTrailEffect.entries.clear();
 
-	m_swordTrailShader.reset();
-	m_swordTrails.clear();
+	m_monsterSwordTrailEffect.shader.reset();
+	m_monsterSwordTrailEffect.entries.clear();
 
-	m_monsterSwordTrailShader.reset();
-	m_monsterSwordTrails.clear();
+	m_arrowTrailEffect.shader.reset();
+	m_arrowTrailEffect.entries.clear();
 
-	m_bossCallSummonWwwShader.reset();
-	m_bossCallSummonWwwEntries.clear();
+	m_monsterArrowTrailEffect.shader.reset();
+	m_monsterArrowTrailEffect.entries.clear();
+
+	m_bossCallSummonWwwEffect.shader.reset();
+	m_bossCallSummonWwwEffect.entries.clear();
 
 	m_staticRenderObjectCache.clear();
 	m_staticGameplayTickObjects.clear();
@@ -3367,36 +3382,41 @@ void CGameScene::ReleaseObjects()
 
 void CGameScene::ReleaseUploadBuffers()
 {
-    for (UINT j = 0; j < (UINT)m_staticObjects.size(); ++j)
-    {
-        if (!m_staticObjects[j]) continue;
-        m_staticObjects[j]->ReleaseUploadBuffers();
-    }
-    for (UINT j = 0; j < (UINT)m_skinnedObjects.size(); ++j)
-    {
-        if (!m_skinnedObjects[j]) continue;
-        m_skinnedObjects[j]->ReleaseUploadBuffers();
-    }
+	for ( UINT j = 0; j < ( UINT ) m_staticObjects.size(); ++j )
+	{
+		if ( !m_staticObjects[j] ) continue;
+		m_staticObjects[j]->ReleaseUploadBuffers();
+	}
+
+	for ( UINT j = 0; j < ( UINT ) m_skinnedObjects.size(); ++j )
+	{
+		if ( !m_skinnedObjects[j] ) continue;
+		m_skinnedObjects[j]->ReleaseUploadBuffers();
+	}
 
 #ifdef _WITH_BATCH_MATERIAL
-    if (m_staticBatch.material)  m_staticBatch.material->ReleaseUploadBuffers();
+	if ( m_staticBatch.material ) m_staticBatch.material->ReleaseUploadBuffers();
 #endif
 
-	if ( m_itemBillboardQuadMesh )
-		m_itemBillboardQuadMesh->ReleaseUploadBuffers();
+	if ( m_itemBillboardState.quadMesh )
+		m_itemBillboardState.quadMesh->ReleaseUploadBuffers();
 
-	if ( m_keyItemTexture )
-		m_keyItemTexture->ReleaseUploadBuffers();
+	if ( m_itemBillboardState.keyTexture )
+		m_itemBillboardState.keyTexture->ReleaseUploadBuffers();
 
-	if ( m_bossSummonCircleTexture )
-		m_bossSummonCircleTexture->ReleaseUploadBuffers();
+	for ( std::shared_ptr<CTexture>& potionTexture : m_itemBillboardState.potionTextures )
+	{
+		if ( potionTexture )
+			potionTexture->ReleaseUploadBuffers();
+	}
+
+	if ( m_itemBillboardState.bossSummonCircleTexture )
+		m_itemBillboardState.bossSummonCircleTexture->ReleaseUploadBuffers();
 }
 
 void CGameScene::ReleaseShaderVariables()
 {
-	ReleaseItemBillboardGpuResources();
-	ReleaseBossPoisonProjectileGpuResources();
-	ReleaseBossCallSummonWwwGpuResources();
+	ReleaseAllGameSceneEffectGpuResources();
 	ReleaseStaticOcclusionGpuResources();
 	ReleaseSkinnedOcclusionGpuResources();
 
@@ -4939,7 +4959,7 @@ void CGameScene::SetBossSummonVisualAlpha(float alpha)
 
 void CGameScene::SetBossSummonVisualActive(bool active)
 {
-	for ( ItemBillboardEntry& item : m_itemBillboards )
+	for ( ItemBillboardEntry& item : m_itemBillboardState.entries )
 	{
 		if ( item.kind != EItemBillboardKind::BossSummonCircle &&
 			 item.kind != EItemBillboardKind::BossSummonGlow )
@@ -5225,7 +5245,7 @@ void CGameScene::RequestPrepareArrow(CGameObject* shooter, float pullBackDistanc
 
         if (arrow->IsActive()) continue;
 
-		SetObjectAttackPower(arrowObj, GetCurrentPlayerArrowAttackPower());
+		SetObjectAttackPower(arrowObj, GetPlayerArrowAttackPower(slot));
 
 		m_playerWeaponOwnerByObject[arrowObj] = shooter;
 
@@ -5705,68 +5725,108 @@ int CGameScene::ComputePlayerWeaponDamageTierIndexFromClearedMegaGrids() const
 	);
 }
 
-int CGameScene::GetCurrentPlayerSwordAttackPower() const
+int CGameScene::GetPlayerSwordAttackPower(int playerSlot) const
 {
-	const int tier = std::clamp(
-		m_playerWeaponDamageTierIndex,
-		0,
-		kPlayerWeaponDamageMaxTierIndex
-	);
-
-	return kAttackPowerPlayerSwordByTier[static_cast< size_t >( tier )];
+	const int tier = std::clamp(m_playerWeaponDamageTierIndex, 0, kPlayerWeaponDamageMaxTierIndex);
+	const int baseAttackPower = kAttackPowerPlayerSwordByTier[static_cast< size_t >( tier )];
+	return ApplyPlayerAttackPowerPotionMultiplier(playerSlot, baseAttackPower);
 }
 
-int CGameScene::GetCurrentPlayerAxeAttackPower() const
+int CGameScene::GetPlayerAxeAttackPower(int playerSlot) const
 {
-	const int tier = std::clamp(
-		m_playerWeaponDamageTierIndex,
-		0,
-		kPlayerWeaponDamageMaxTierIndex
-	);
-
-	return kAttackPowerPlayerAxeByTier[static_cast< size_t >( tier )];
+	const int tier = std::clamp(m_playerWeaponDamageTierIndex, 0, kPlayerWeaponDamageMaxTierIndex);
+	const int baseAttackPower = kAttackPowerPlayerAxeByTier[static_cast< size_t >( tier )];
+	return ApplyPlayerAttackPowerPotionMultiplier(playerSlot, baseAttackPower);
 }
 
-int CGameScene::GetCurrentPlayerArrowAttackPower() const
+int CGameScene::GetPlayerArrowAttackPower(int playerSlot) const
 {
-	const int tier = std::clamp(
-		m_playerWeaponDamageTierIndex,
-		0,
-		kPlayerWeaponDamageMaxTierIndex
-	);
-
-	return kAttackPowerPlayerArrowByTier[static_cast< size_t >( tier )];
+	const int tier = std::clamp(m_playerWeaponDamageTierIndex, 0, kPlayerWeaponDamageMaxTierIndex);
+	const int baseAttackPower = kAttackPowerPlayerArrowByTier[static_cast< size_t >( tier )];
+	return ApplyPlayerAttackPowerPotionMultiplier(playerSlot, baseAttackPower);
 }
 
-int CGameScene::GetCurrentPlayerBulletAttackPower() const
+int CGameScene::GetPlayerBulletAttackPower(int playerSlot) const
 {
-	const int tier = std::clamp(
-		m_playerWeaponDamageTierIndex,
-		0,
-		kPlayerWeaponDamageMaxTierIndex
-	);
+	const int tier = std::clamp(m_playerWeaponDamageTierIndex, 0, kPlayerWeaponDamageMaxTierIndex);
+	const int baseAttackPower = kAttackPowerPlayerBulletByTier[static_cast< size_t >( tier )];
+	return ApplyPlayerAttackPowerPotionMultiplier(playerSlot, baseAttackPower);
+}
 
-	return kAttackPowerPlayerBulletByTier[static_cast< size_t >( tier )];
+void CGameScene::RefreshPlayerWeaponAttackPowersForSlot(int playerSlot)
+{
+	if ( playerSlot < 0 || playerSlot >= 4 )
+		return;
+
+	const size_t index = static_cast< size_t >(playerSlot);
+
+	if ( index < m_PlayerSwordRefs.size() )
+		SetObjectAttackPower(m_PlayerSwordRefs[index], GetPlayerSwordAttackPower(playerSlot));
+
+	if ( index < m_PlayerAxeRefs.size() )
+		SetObjectAttackPower(m_PlayerAxeRefs[index], GetPlayerAxeAttackPower(playerSlot));
+
+	if ( index < m_preparedPlayerArrows.size() && m_preparedPlayerArrows[index] )
+		SetObjectAttackPower(m_preparedPlayerArrows[index], GetPlayerArrowAttackPower(playerSlot));
 }
 
 void CGameScene::RefreshPlayerWeaponAttackPowers()
 {
-	const int swordDamage = GetCurrentPlayerSwordAttackPower();
-	const int axeDamage = GetCurrentPlayerAxeAttackPower();
-	const int arrowDamage = GetCurrentPlayerArrowAttackPower();
-	const int bulletDamage = GetCurrentPlayerBulletAttackPower();
+	for ( int slot = 0; slot < 4; ++slot )
+		RefreshPlayerWeaponAttackPowersForSlot(slot);
+}
 
-	for ( CGameObject* obj : m_PlayerSwordRefs )
-		SetObjectAttackPower(obj, swordDamage);
+void CGameScene::RefreshPlayerWeaponEffectVisuals()
+{
+	const int visualLevelIndex = GetPlayerWeaponEffectLevelIndex();
 
-	for ( CGameObject* obj : m_PlayerAxeRefs )
-		SetObjectAttackPower(obj, axeDamage);
+	for ( SwordTrailEntry& trail : m_swordTrailEffect.entries )
+	{
+		if ( !trail.active )
+			continue;
 
-	for ( CGameObject* obj : m_preparedPlayerArrows )
-		SetObjectAttackPower(obj, arrowDamage);
+		switch ( trail.kind )
+		{
+		case EWeaponTrailKind::Sword:
+		{
+			const PlayerMeleeTrailVisualDesc& visual = m_playerSwordTrailVisualDescs[static_cast< size_t >( visualLevelIndex )];
+			trail.rootLocal = visual.rootLocal;
+			trail.tipLocal = visual.tipLocal;
+			trail.widthScale = visual.widthScale;
+			trail.color = visual.color;
+			trail.alphaScale = visual.alphaScale;
+		}
+		break;
 
-	for ( CGameObject* obj : m_bulletRefs )
-		SetObjectAttackPower(obj, bulletDamage);
+		case EWeaponTrailKind::Axe:
+		{
+			const PlayerMeleeTrailVisualDesc& visual = m_playerAxeTrailVisualDescs[static_cast< size_t >( visualLevelIndex )];
+			trail.rootLocal = visual.rootLocal;
+			trail.tipLocal = visual.tipLocal;
+			trail.widthScale = visual.widthScale;
+			trail.color = visual.color;
+			trail.alphaScale = visual.alphaScale;
+		}
+		break;
+
+		default:
+			break;
+		}
+	}
+
+	for ( ArrowTrailEntry& trail : m_arrowTrailEffect.entries )
+	{
+		if ( !trail.active )
+			continue;
+
+		const PlayerArrowTrailVisualDesc& visual = m_playerArrowTrailVisualDescs[static_cast< size_t >( visualLevelIndex )];
+		trail.sampleLifetimeSec = visual.sampleLifetimeSec;
+		trail.halfWidth = visual.halfWidth;
+		trail.color = visual.color;
+		trail.tailAlpha = visual.tailAlpha;
+		trail.headAlpha = visual.headAlpha;
+		trail.alphaScale = visual.alphaScale;
+	}
 }
 
 void CGameScene::RefreshPlayerWeaponDamageTierFromClearedMegaGrids()
@@ -5778,7 +5838,9 @@ void CGameScene::RefreshPlayerWeaponDamageTierFromClearedMegaGrids()
 		return;
 
 	m_playerWeaponDamageTierIndex = newTier;
+
 	RefreshPlayerWeaponAttackPowers();
+	RefreshPlayerWeaponEffectVisuals();
 
 	if ( newTier > oldTier )
 		SpawnWeaponLevelUpFireworks();
@@ -6494,7 +6556,7 @@ void CGameScene::UpdateBossStageSummonSequence(float dt)
 	{
 		m_bBossSummonSequenceStarted = false;
 		m_bBossSummonCircleFadeAgeSec = 0.0f;
-		m_bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
+		m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
 
 		SetBossSummonVisualAlpha(0.0f);
 		SetBossSummonVisualActive(false);
@@ -6531,7 +6593,7 @@ void CGameScene::UpdateBossStageSummonSequence(float dt)
 			110.0f,
 			alpha,
 			dt,
-			m_bossSummonGlowParticleEmitAccumulatorSec,
+			m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec,
 			kBossSummonGlowParticleEmitIntervalSec,
 			kBossSummonGlowParticlesPerEmit,
 			kBossSummonGlowParticleIntensityScale
@@ -6606,7 +6668,7 @@ void CGameScene::UpdateBossSummonVisualFadeOut(float dt)
 			110.0f,
 			alpha,
 			dt,
-			m_bossSummonGlowParticleEmitAccumulatorSec,
+			m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec,
 			kBossSummonGlowParticleEmitIntervalSec,
 			kBossSummonGlowParticlesPerEmit,
 			kBossSummonGlowParticleIntensityScale
@@ -6621,7 +6683,7 @@ void CGameScene::UpdateBossSummonVisualFadeOut(float dt)
 
 	m_bBossSummonVisualFadeOutStarted = false;
 	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
-	m_bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
+	m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
 #else
 	UNREFERENCED_PARAMETER(dt);
 #endif
@@ -6645,15 +6707,6 @@ void CGameScene::RegisterMutantKeyTriggerIfNeeded(
 
 	m_mutantKeyTriggerRegisteredByMega[( size_t ) megaGridNumber] = true;
 	m_mutantKeyTriggerMegaByObject[mutant] = megaGridNumber;
-
-	char buf[256];
-	sprintf_s(
-		buf,
-		"[MutantKeyTrigger] Registered first Mutant for mega grid %d. mutant=%p\n",
-		megaGridNumber,
-		static_cast< void* >( mutant )
-	);
-	OutputDebugStringA(buf);
 }
 
 void CGameScene::UnlockKeyBillboardForMegaGrid(int megaGridNumber)
@@ -6661,7 +6714,7 @@ void CGameScene::UnlockKeyBillboardForMegaGrid(int megaGridNumber)
 	if ( megaGridNumber != 6 && megaGridNumber != 8 )
 		return;
 
-	for ( ItemBillboardEntry& item : m_itemBillboards )
+	for ( ItemBillboardEntry& item : m_itemBillboardState.entries )
 	{
 		if ( item.kind != EItemBillboardKind::Key )
 			continue;
@@ -6679,14 +6732,6 @@ void CGameScene::UnlockKeyBillboardForMegaGrid(int megaGridNumber)
 
 		item.active = true;
 		item.distanceCulled = false;
-
-		char buf[256];
-		sprintf_s(
-			buf,
-			"[MutantKeyTrigger] Key billboard unlocked for mega grid %d.\n",
-			megaGridNumber
-		);
-		OutputDebugStringA(buf);
 
 		return;
 	}
@@ -6810,6 +6855,11 @@ void CGameScene::BeginMonsterDeath(CGameObject* monster)
 
 	m_deadMonsters.insert(monster);
 
+	if ( IsBossMonsterObject(monster) )
+	{
+		PlayBossDeathSfxAt(monster->GetPosition());
+	}
+
 	HandleMutantKeyTriggerDeath(monster);
 
 	CancelMonsterPreparedActions(monster);
@@ -6888,8 +6938,22 @@ void CGameScene::BeginLocalPlayerDeath(CGameObject* player)
 	if ( m_bLocalPlayerDead )
 		return;
 
+#ifndef USING_NETWORK
+	if ( CInventoryComponent* inventory = player->GetComponent<CInventoryComponent>() )
+	{
+		inventory->ForceRestoreAllEffects();
+
+		if ( inventory->ConsumeAttackPowerDirty() )
+			RefreshPlayerWeaponAttackPowersForSlot(m_localPlayerSlot);
+
+		SyncLocalInventoryToHud();
+	}
+#endif
+
 	m_bLocalPlayerDead = true;
 	m_localPlayerRespawnTimer = 0.0f;
+
+	PlayPlayerDeathSfxAt(player->GetPosition());
 
 	SetLocalPlayerControlEnabled(false);
 	CancelLocalPlayerPreparedActions();
@@ -6918,7 +6982,10 @@ void CGameScene::RespawnLocalPlayer(CGameObject* player)
 	player->SetPosition(kLocalPlayerRespawnPosition);
 
 	if ( auto* hp = player->GetComponent<CHealthComponent>() )
+	{
 		hp->ResetToMax();
+		hp->SetIncomingDamageScale(1.0f);
+	}
 
 	if ( auto* collider = player->GetComponent<CColliderComponent>() )
 	{
@@ -7180,14 +7247,18 @@ void CGameScene::RequestFireArrow(CGameObject* shooter, float speed, float lifeS
         startPos.y += yOffset;
     }
 
-    const XMFLOAT3 vel =
-    {
-        dirN.x * speed,
-        dirN.y * speed,
-        dirN.z * speed
-    };
+	const XMFLOAT3 vel =
+	{
+		dirN.x * speed,
+		dirN.y * speed,
+		dirN.z * speed
+	};
 
-    for (CGameObject* arrowObj : m_arrowRefs)
+	const int slot = GetPlayerSlotFromObject(shooter);
+	if ( slot < 0 || slot >= 4 )
+		return;
+
+	for ( CGameObject* arrowObj : m_arrowRefs )
     {
         if (!arrowObj) continue;
 
@@ -7196,7 +7267,7 @@ void CGameScene::RequestFireArrow(CGameObject* shooter, float speed, float lifeS
 
 		if ( arrow->IsActive() ) continue;
 
-		SetObjectAttackPower(arrowObj, GetCurrentPlayerArrowAttackPower());
+		SetObjectAttackPower(arrowObj, GetPlayerArrowAttackPower(slot));
 
 		m_playerWeaponOwnerByObject[arrowObj] = shooter;
 
@@ -7222,6 +7293,10 @@ void CGameScene::RequestFireBullet(CGameObject* shooter, float speed, float life
 	CGameObject* spawnSource = gunObj ? gunObj : shooter;
 	CGameObject* directionSource = shooter;
 
+	const int slot = GetPlayerSlotFromObject(shooter);
+	if ( slot < 0 || slot >= 4 )
+		return;
+
 	for ( CGameObject* bulletObj : m_bulletRefs )
 	{
 		if ( !bulletObj ) continue;
@@ -7230,7 +7305,7 @@ void CGameScene::RequestFireBullet(CGameObject* shooter, float speed, float life
 		if ( !bullet ) continue;
 		if ( bullet->IsActive() ) continue;
 
-		SetObjectAttackPower(bulletObj, GetCurrentPlayerBulletAttackPower());
+		SetObjectAttackPower(bulletObj, GetPlayerBulletAttackPower(slot));
 
 		m_playerWeaponOwnerByObject[bulletObj] = shooter;
 
@@ -7268,6 +7343,7 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 		m_bPrevLocalMonsterChaseToggleKeyDown = false;
 		m_bPrevDebugDamageMegaGrid5KeyDown = false;
 		m_bPrevLocalStageTeleportKeyDown.fill(false);
+		m_bPrevInventoryUseKeyDown.fill(false);
 
 		return false;
 	}
@@ -7301,45 +7377,50 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 
 	m_bPrevDebugDamageMegaGrid5KeyDown = enterDown;
 
+	const bool stageTeleportModifierDown = ( ( pKeysBuffer[VK_LCONTROL] & 0xF0 ) != 0 ) || ( ( pKeysBuffer[VK_RCONTROL] & 0xF0 ) != 0 );
+
 	// ---------------------------------------------------------------------
-	// 1~9: 로컬 스테이지 메가그리드 강제 텔레포트
+	// 1~4: 인벤토리 아이템 사용 요청
+	// ---------------------------------------------------------------------
+	for ( int slot = 0; slot < CGameSceneHUD::kInventorySlotCount; ++slot )
+	{
+		const bool down = ( pKeysBuffer['1' + slot] & 0xF0 ) != 0;
+		const bool prevDown = m_bPrevInventoryUseKeyDown[static_cast< size_t >(slot)];
+
+		if ( down && !prevDown && !stageTeleportModifierDown )
+			RequestUseInventoryItemSlot(slot);
+
+		m_bPrevInventoryUseKeyDown[static_cast< size_t >(slot)] = down;
+	}
+
+	// ---------------------------------------------------------------------
+	// Ctrl + 1~9: 로컬 스테이지 메가그리드 강제 텔레포트
 	//
 	// 배치:
 	// 789
 	// 456
 	// 123
 	//
+	// 숫자키 단독 입력은 아이템 사용 등에 넘기기 위해 여기서 consume하지 않는다.
 	// false이면 입력 상태만 갱신하고 실제 텔레포트는 하지 않는다.
 	// ---------------------------------------------------------------------
-	for ( int megaGridNumber = 1;
-		  megaGridNumber <= CSceneGrid::kMegaGridCount;
-		  ++megaGridNumber )
-	{
-		const bool down =
-			( pKeysBuffer['0' + megaGridNumber] & 0xF0 ) != 0;
 
-		const bool prevDown =
-			m_bPrevLocalStageTeleportKeyDown[
-				static_cast< size_t >( megaGridNumber )
-			];
+	for ( int megaGridNumber = 1; megaGridNumber <= CSceneGrid::kMegaGridCount; ++megaGridNumber )
+	{
+		const bool down = ( pKeysBuffer['0' + megaGridNumber] & 0xF0 ) != 0;
+		const bool prevDown = m_bPrevLocalStageTeleportKeyDown[static_cast< size_t >( megaGridNumber )];
 
 		if ( down && !prevDown )
 		{
-			m_bPrevLocalStageTeleportKeyDown[
-				static_cast< size_t >( megaGridNumber )
-			] = true;
+			m_bPrevLocalStageTeleportKeyDown[static_cast< size_t >( megaGridNumber )] = true;
 
-			if ( m_bSimulateLocalStageTeleport )
-			{
+			if ( stageTeleportModifierDown && m_bSimulateLocalStageTeleport )
 				return TryTeleportLocalPlayerToMegaGridByNumber(megaGridNumber);
-			}
 
 			return false;
 		}
 
-		m_bPrevLocalStageTeleportKeyDown[
-			static_cast< size_t >( megaGridNumber )
-		] = down;
+		m_bPrevLocalStageTeleportKeyDown[static_cast< size_t >( megaGridNumber )] = down;
 	}
 #else
 	UNREFERENCED_PARAMETER(pKeysBuffer);
@@ -7548,6 +7629,7 @@ void CGameScene::AnimateObjects(float dt)
 #endif
 
 	UpdateMuzzleFlashes(dt);
+	UpdateGunSmokes(dt);
 	UpdateSwordTrails(dt);
 	UpdateMonsterSwordTrails(dt);
 
@@ -8116,6 +8198,16 @@ void CGameScene::AnimateObjects(float dt)
 	}
 
 #ifndef USING_NETWORK
+	if ( CInventoryComponent* inventory = GetLocalPlayerInventory() )
+	{
+		if ( inventory->ConsumeAttackPowerDirty() )
+			RefreshPlayerWeaponAttackPowersForSlot(m_localPlayerSlot);
+	}
+
+	SyncLocalInventoryToHud();
+#endif
+
+#ifndef USING_NETWORK
 	UpdateBossMeleeSlashCasts(dt);
 	UpdateBossPoisonProjectileSpellCasts(dt);
 	UpdateBossPoisonProjectiles(dt);
@@ -8139,6 +8231,8 @@ void CGameScene::AnimateObjects(float dt)
 #else
 	UpdatePreparedBowArrows();
 #endif
+
+	UpdateArrowTrails(dt);
 
 	for ( UINT j = 0; j < ( UINT ) m_lightObjects.size(); ++j )
 	{
@@ -8493,7 +8587,7 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 		RenderStaticInstanceGroups(cmd, camera);
 	}
 
-	if ( m_itemBillboardShader )
+	if ( m_itemBillboardState.shader )
 	{
 		RenderItemBillboards(cmd, camera);
 	}
@@ -8562,32 +8656,47 @@ void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* c
 
 	BindFrameRootParameters(cmd);
 
-	if ( m_transparentItemBillboardShader )
+	if ( m_itemBillboardState.transparentShader )
 	{
 		RenderTransparentItemBillboards(cmd, camera);
 	}
 
-	if ( m_bossCallSummonWwwShader )
+	if ( m_bossCallSummonWwwEffect.shader )
 	{
 		RenderBossCallSummonWwwEffects(cmd, camera);
 	}
 
-	if ( m_bossPoisonProjectileShader )
+	if ( m_bossPoisonProjectileEffect.shader )
 	{
 		RenderBossPoisonProjectiles(cmd, camera);
 	}
 
-	if ( m_swordTrailShader )
+	if ( m_swordTrailEffect.shader )
 	{
 		RenderSwordTrails(cmd, camera);
 	}
 
-	if ( m_monsterSwordTrailShader )
+	if ( m_monsterSwordTrailEffect.shader )
 	{
 		RenderMonsterSwordTrails(cmd, camera);
 	}
 
-	if ( m_muzzleFlashShader )
+	if ( m_arrowTrailEffect.shader )
+	{
+		RenderArrowTrails(cmd, camera);
+	}
+
+	if ( m_monsterArrowTrailEffect.shader )
+	{
+		RenderMonsterArrowTrails(cmd, camera);
+	}
+
+	if ( m_gunSmokeEffect.shader )
+	{
+		RenderGunSmokes(cmd, camera);
+	}
+
+	if ( m_muzzleFlashEffect.shader )
 	{
 		RenderMuzzleFlashes(cmd, camera);
 	}
