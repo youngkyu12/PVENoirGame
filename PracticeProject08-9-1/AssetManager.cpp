@@ -8,6 +8,8 @@
 #include "Material.h"
 #include "Texture.h"
 #include "Scene.h"
+#include "HeightMapImage.h"
+#include "GameSceneHelper.h"
 
 #include <filesystem>
 #include <cassert>
@@ -117,17 +119,66 @@ void AssetManager::ClearCache()
 	s_nextMaterialID = 0;
 }
 
+std::shared_ptr<CMesh> AssetManager::CreateMesh(
+	ID3D12Device* device,
+	ID3D12GraphicsCommandList* cmd,
+	const AssetBuildDesc& desc)
+{
+	if (desc.type == AssetType::Terrain)
+	{
+		if (!desc.terrainData)
+			return nullptr;
+
+		HeightMapImage* heightMap = desc.terrainData->GetHeightMapImage();
+		if (!heightMap)
+			return nullptr;
+		
+		return std::make_shared<CHeightMapGridMesh>(
+			device,
+			cmd,
+			desc.terrainData->GetnBlockWidth(),
+			desc.terrainData->GetnBlockLength(),
+			desc.terrainData->GetWidthCount(),
+			desc.terrainData->GetLengthCount(),
+			desc.terrainData->GetScale(),
+			XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),
+			heightMap
+		);
+	}
+	else if(desc.type == AssetType::Water)
+	{
+		XMFLOAT3 xmf3Scale(200.0f / 256.0f, 1.0f, 200.0f / 256.0f);
+		XMFLOAT4 xmf4Color(0.0f, 0.5f, 0.0f, 0.0f);
+
+		return std::make_shared<CWaterGridMesh>(
+			device,
+			cmd,
+			257,
+			257,
+			257,
+			257,
+			xmf3Scale,
+			xmf4Color,
+			nullptr
+		);
+	}
+
+	if (desc.meshBinPath.empty())
+		return nullptr;
+
+	auto mesh = std::make_shared<CMesh>(device, cmd);
+	mesh->LoadMeshFromBIN(device, cmd, desc.meshBinPath.c_str());
+	return mesh;
+}
+
 BuiltAsset AssetManager::BuildAssetInternal(
     ID3D12Device* device,
     ID3D12GraphicsCommandList* cmd,
     const AssetBuildDesc& desc)
 {
-    auto mesh = std::make_shared<CMesh>(device, cmd);
-    mesh->LoadMeshFromBIN(
-        device,
-        cmd,
-        desc.meshBinPath.c_str()
-    );
+	auto mesh = CreateMesh(device, cmd, desc);
+	if (!mesh)
+		return {};
 
     constexpr UINT ROOTPARAM_TEX_SRV_TABLE = ROOT_PARAMETER_GLOBAL_SRV;
 
@@ -235,6 +286,7 @@ BuiltAsset AssetManager::BuildAssetInternal(
 
     return { mesh };
 }
+
 
 void AssetManager::ApplyBuiltAssetToSceneMaterials(
 	const BuiltAsset& asset,

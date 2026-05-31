@@ -80,6 +80,8 @@ namespace GameSceneHelper
 		const CMesh* mesh = nullptr;
 		UINT subMeshIndex = 0;
 		bool useTreeShader = false;
+		bool useTerrainShader = false;
+		bool useWaterShader = false;
 		int lodLevel = 0;
 
 		bool operator==(const StaticGroupKey& rhs) const
@@ -87,6 +89,8 @@ namespace GameSceneHelper
 			return mesh == rhs.mesh &&
 				subMeshIndex == rhs.subMeshIndex &&
 				useTreeShader == rhs.useTreeShader &&
+				useTerrainShader == rhs.useTerrainShader &&
+				useWaterShader == rhs.useWaterShader &&
 				lodLevel == rhs.lodLevel;
 		}
 	};
@@ -103,6 +107,16 @@ namespace GameSceneHelper
 				+ ( h >> 2 );
 
 			h ^= std::hash<bool>{}( k.useTreeShader )
+				+ 0x9e3779b9
+				+ ( h << 6 )
+				+ ( h >> 2 );
+
+			h ^= std::hash<bool>{}( k.useTerrainShader )
+				+ 0x9e3779b9
+				+ ( h << 6 )
+				+ ( h >> 2 );
+			
+			h ^= std::hash<bool>{}( k.useWaterShader )
 				+ 0x9e3779b9
 				+ ( h << 6 )
 				+ ( h >> 2 );
@@ -263,4 +277,14 @@ namespace GameSceneHelper
 		EMonsterAnimCommand cmd,
 		EMonsterAnimState locomotion = EMonsterAnimState::Idle
 	);
+
+	// -------------------------------------------------------------------------
+	// Terrain
+	// -------------------------------------------------------------------------
+	constexpr int kTerrainHeightMapSamples = 257;
+	constexpr float kTerrainWorldSize = 400.0f;
+	constexpr float kTerrainHorizontalScale = 
+		kTerrainWorldSize / static_cast<float>(kTerrainHeightMapSamples - 1);
+	constexpr float kTerrainHalfWorldSize = kTerrainWorldSize * 0.5f;
+
 }

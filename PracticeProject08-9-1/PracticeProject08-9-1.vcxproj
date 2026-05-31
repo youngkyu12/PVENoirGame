@@ -208,6 +208,7 @@
     <ClInclude Include="GlobalValues.h" />
     <ClInclude Include="Grid.h" />
     <ClInclude Include="HealthComponent.h" />
+    <ClInclude Include="HeightMapImage.h" />
     <ClInclude Include="InitStruct.pb.h" />
     <ClInclude Include="InventoryComponent.h" />
     <ClInclude Include="LightComponent.h" />
@@ -246,6 +247,9 @@
     <ClInclude Include="Struct.pb.h" />
     <ClInclude Include="StructGenerator.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="TerrainAttachComponent.h" />
+    <ClInclude Include="TerrainComponent.h" />
+    <ClInclude Include="TerrainData.h" />
     <ClInclude Include="Texture.h" />
     <ClInclude Include="Timer.h" />
     <ClInclude Include="MathHelper.h" />
@@ -305,6 +309,7 @@
     <ClCompile Include="GlobalValues.cpp" />
     <ClCompile Include="Grid.cpp" />
     <ClCompile Include="HealthComponent.cpp" />
+    <ClCompile Include="HeightMapImage.cpp" />
     <ClCompile Include="InitStruct.pb.cc">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
@@ -353,6 +358,9 @@
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="TerrainAttachComponent.cpp" />
+    <ClCompile Include="TerrainComponent.cpp" />
+    <ClCompile Include="TerrainData.cpp" />
     <ClCompile Include="Texture.cpp" />
     <ClCompile Include="Timer.cpp" />
     <ClCompile Include="WeaponHitboxComponent.cpp" />
@@ -450,6 +458,16 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <FileType>Document</FileType>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Terrain.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="Water.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
