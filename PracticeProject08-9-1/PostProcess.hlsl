@@ -77,6 +77,10 @@ VS_SCREEN_RECT_TEXTURED_OUTPUT VSScreenRectSamplingTextured(uint nVertexID : SV_
 
 float4 PSScreenRectSamplingTextured(VS_SCREEN_RECT_TEXTURED_OUTPUT input) : SV_Target
 {
+    // 'S' = solid cooldown rect
+    if (gvDrawOptions.x == 83)
+        return float4(0.0f, 0.0f, 0.0f, 0.55f);
+
     uint idx = 0xFFFFFFFFu;
 
     switch (gvDrawOptions.x)
@@ -109,7 +113,25 @@ float4 PSScreenRectSamplingTextured(VS_SCREEN_RECT_TEXTURED_OUTPUT input) : SV_T
         return float4(d, d, d, 1);
     }
 
-    return gtxtGlobalTextures[idx].Sample(gssDefaultSamplerState, input.uv);
+    float4 color = gtxtGlobalTextures[idx].Sample(gssDefaultSamplerState, input.uv);
+
+        // gvDrawOptions.y:
+    // 0 = normal
+    // 1 = disabled item icon: desaturate + darken
+    // 2 = count text: force white
+    if (gvDrawOptions.y == 1)
+    {
+        float gray = dot(color.rgb, float3(0.299f, 0.587f, 0.114f));
+        color.rgb = lerp(color.rgb, gray.xxx, 0.85f);
+        color.rgb *= 0.42f;
+        color.a *= 0.85f;
+    }
+    else if (gvDrawOptions.y == 2)
+    {
+        color.rgb = float3(1.0f, 1.0f, 1.0f);
+    }
+
+    return color;
 }
 
 #endif

@@ -110,7 +110,7 @@ bool Handle_C_INPUT(PacketSessionRef& session, Protocol::C_INPUT& pkt)
 
 	// TODO: 해당 플레이어의 id에 위치 업데이트 적용
 	GRoom->DoAsync(&Room::ProcessInput, pkt.playerid(), pkt.keycodes(), 
-		pkt.deltax(), pkt.deltay());
+		pkt.deltax(), pkt.deltay(), pkt.clientdeltatime());
 
 	return true;
 }

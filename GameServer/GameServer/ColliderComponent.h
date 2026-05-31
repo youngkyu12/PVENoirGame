@@ -47,6 +47,11 @@ public:
 	uint32_t GetMask() const { return mMask; }
 	bool IsTrigger() const { return mIsTrigger; }
 
+	void SetCollisionMegaGridMask(uint16_t mask) { m_collisionMegaGridMask = mask; }
+	uint16_t GetCollisionMegaGridMask() const { return m_collisionMegaGridMask; }
+	void SetCollisionMegaGridMaskFixed(bool fixed) { m_collisionMegaGridMaskFixed = fixed; }
+	bool IsCollisionMegaGridMaskFixed() const { return m_collisionMegaGridMaskFixed; }
+
 	void UpdateWorldBounds();
 
 private:
@@ -70,4 +75,6 @@ private:
 	uint32_t mLayer = 0;
 	uint32_t mMask = 0xFFFFFFFFu;
 	bool mIsTrigger = false;
+	uint16_t m_collisionMegaGridMask = 0;
+	bool m_collisionMegaGridMaskFixed = false;
 };

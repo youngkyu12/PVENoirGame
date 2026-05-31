@@ -196,18 +196,21 @@
     <ClInclude Include="GameFramework.h" />
     <ClInclude Include="GameScene.h" />
     <ClInclude Include="GameSceneAttachmentBinder.h" />
+    <ClInclude Include="GameSceneBillboardCommon.h" />
+    <ClInclude Include="GameSceneBillboardTypes.h" />
     <ClInclude Include="GameSceneContentCatalog.h" />
+    <ClInclude Include="GameSceneFrameUploadBuffer.h" />
     <ClInclude Include="GameSceneHelper.h" />
     <ClInclude Include="GameSceneHUD.h" />
     <ClInclude Include="GameSceneObjectFactory.h" />
     <ClInclude Include="GameScenePrivate.h" />
-    <ClInclude Include="GhoulAIComponent.h" />
     <ClInclude Include="GlobalEnum.h" />
     <ClInclude Include="GlobalValues.h" />
     <ClInclude Include="Grid.h" />
     <ClInclude Include="HealthComponent.h" />
     <ClInclude Include="HeightMapImage.h" />
     <ClInclude Include="InitStruct.pb.h" />
+    <ClInclude Include="InventoryComponent.h" />
     <ClInclude Include="LightComponent.h" />
     <ClInclude Include="LightTypes.h" />
     <ClInclude Include="Material.h" />
@@ -215,6 +218,7 @@
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="ModelComponent.h" />
     <ClInclude Include="MonsterAIComponent.h" />
+    <ClInclude Include="MonsterAIVariants.h" />
     <ClInclude Include="MonsterAnimController.h" />
     <ClInclude Include="MonsterAnimTypes.h" />
     <ClInclude Include="MonsterCombatComponent.h" />
@@ -286,14 +290,22 @@
     <ClCompile Include="GameSceneAttachmentBinder.cpp" />
     <ClCompile Include="GameSceneAudio.cpp" />
     <ClCompile Include="GameSceneBillboard.cpp" />
+    <ClCompile Include="GameSceneBillboardCommon.cpp" />
+    <ClCompile Include="GameSceneBossCombatEffectCasts.cpp" />
+    <ClCompile Include="GameSceneBossShockwaveEffects.cpp" />
+    <ClCompile Include="GameSceneBossSummonEffects.cpp" />
     <ClCompile Include="GameSceneBuild.cpp" />
     <ClCompile Include="GameSceneContentCatalog.cpp" />
     <ClCompile Include="GameSceneHelper.cpp" />
     <ClCompile Include="GameSceneHUD.cpp" />
+    <ClCompile Include="GameSceneInventory.cpp" />
+    <ClCompile Include="GameSceneItemBillboard.cpp" />
     <ClCompile Include="GameSceneLOD.cpp" />
+    <ClCompile Include="GameSceneMuzzleFlashEffects.cpp" />
     <ClCompile Include="GameSceneObjectFactory.cpp" />
     <ClCompile Include="GameSceneOcclusion.cpp" />
-    <ClCompile Include="GhoulAIComponent.cpp" />
+    <ClCompile Include="GameSceneProjectileEffects.cpp" />
+    <ClCompile Include="GameSceneTrailEffects.cpp" />
     <ClCompile Include="GlobalValues.cpp" />
     <ClCompile Include="Grid.cpp" />
     <ClCompile Include="HealthComponent.cpp" />
@@ -303,11 +315,13 @@
       <CallingConvention Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Cdecl</CallingConvention>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="InventoryComponent.cpp" />
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="MenuScene.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="ModelComponent.cpp" />
     <ClCompile Include="MonsterAIComponent.cpp" />
+    <ClCompile Include="MonsterAIVariants.cpp" />
     <ClCompile Include="MonsterAnimController.cpp" />
     <ClCompile Include="MonsterCombatComponent.cpp" />
     <ClCompile Include="MonsterWeaponHitboxComponent.cpp" />

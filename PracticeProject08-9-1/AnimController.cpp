@@ -71,6 +71,43 @@ namespace
 			( clipName.rfind("Run_", 0) == 0 );
 	}
 
+	static bool ShouldUseGunIdleUpperBodyLocomotionOverlay(CAnimator* anim, EWeaponType weapon, const std::string& baseClipName)
+	{
+		if ( weapon != EWeaponType::Gun )
+			return false;
+
+		if ( IsLocomotionClipName(baseClipName) )
+			return true;
+
+		if ( !anim )
+			return false;
+
+		if ( !anim->IsBlending() )
+			return false;
+
+		return IsLocomotionClipName(anim->GetCurrentClipName());
+	}
+
+	static void SyncGunIdleUpperBodyLocomotionOverlay(CAnimator* anim, EWeaponType weapon, const std::string& baseClipName, const std::string& idleClipName, bool actionPhaseActive)
+	{
+		if ( !anim )
+			return;
+
+		const bool idleOverlayActive = anim->IsUpperBodyOverlayActive() && ( anim->GetUpperBodyOverlayClipName() == idleClipName );
+		const bool shouldOverlay = !actionPhaseActive && ShouldUseGunIdleUpperBodyLocomotionOverlay(anim, weapon, baseClipName) && !idleClipName.empty() && anim->HasClip(idleClipName);
+
+		if ( shouldOverlay )
+		{
+			if ( !idleOverlayActive )
+				anim->PlayUpperBodyOverlay(idleClipName, true, 0.0f, 0.0f);
+
+			return;
+		}
+
+		if ( idleOverlayActive )
+			anim->StopUpperBodyOverlay(true);
+	}
+
 	static float ComputeLocomotionPhaseMatchedStartTime(CAnimator* anim, const std::string& targetClip)
 	{
 		if ( !anim )
@@ -115,7 +152,17 @@ namespace
 		}
 
 		if ( currentClip == targetClip )
+		{
+			if ( anim->IsBlending() )
+			{
+				const float currentTime = anim->GetCurrentTime();
+
+				if ( !anim->CrossFade(targetClip, 0.0f, true, currentTime) )
+					anim->Play(targetClip, true, currentTime);
+			}
+
 			return;
+		}
 
 		const float startTime = ComputeLocomotionPhaseMatchedStartTime(anim, targetClip);
 
@@ -182,15 +229,18 @@ std::string CAnimController::ResolveIdleClip() const
 
 std::string CAnimController::ResolveMoveClip() const
 {
-    if (!m_usePlayerClipSet)
-        return m_moveClip;
+	if ( !m_usePlayerClipSet )
+		return m_moveClip;
 
-    const std::string suffix = BuildDirectionSuffix(m_moveDirBits);
-    if (suffix.empty())
-        return ResolveIdleClip();
+	const std::string suffix = BuildDirectionSuffix(m_moveDirBits);
+	if ( suffix.empty() )
+		return ResolveIdleClip();
 
-    const char* prefix = m_bRunRequested ? "Run_" : "Walk_";
-    return std::string(prefix) + suffix;
+	const bool useRun =
+		m_bRunRequested && CanUseRunLocomotion();
+
+	const char* prefix = useRun ? "Run_" : "Walk_";
+	return std::string(prefix) + suffix;
 }
 
 std::string CAnimController::ResolveHitClip() const
@@ -519,7 +569,7 @@ void CAnimController::NetworkUpdate(float dt)
 
    //         //if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
    //         //    anim->Play(targetClip, true, 0.0f);
-			////	이현석: 이동 상태 전환 시 normalized time을 새 클립 duration에 맞게 환산해서 넘김
+			////	이동 상태 전환 시 normalized time을 새 클립 duration에 맞게 환산해서 넘김
 			//StartLocomotionClipPreservePhase(anim, targetClip, kBlendTime);
    //     }
    // }
@@ -663,17 +713,12 @@ void CAnimController::NetworkUpdate(float dt)
     {
         anim->Play(targetClip, true, 0.0f);
     }
-    else if (anim->GetCurrentClipName() != targetClip)
-    {
-        if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
-            anim->Play(targetClip, true, 0.0f);
-		//	이현석: 이동 상태 전환 시 normalized time을 새 클립 duration에 맞게 환산해서 넘김
-		//	if (!anim->CrossFade(targetClip, kBlendTime, true, 0.0f))
-		//		anim->Play(targetClip, true, 0.0f);
-		//	위의 2줄 지우고 밑으로 교체
+	else if ( anim->GetCurrentClipName() != targetClip )
+	{
 		StartLocomotionClipPreservePhase(anim, targetClip, kBlendTime);
-
-    }
+	}
+	const std::string upperBodyIdleClip = ResolveIdleClip();
+	SyncGunIdleUpperBodyLocomotionOverlay(anim, weapon, targetClip, upperBodyIdleClip, m_actionPhase != EActionPhase::None);
 }
 
 void CAnimController::LocalUpdate(float dt)
@@ -1037,9 +1082,69 @@ void CAnimController::LocalUpdate(float dt)
 	constexpr float kBlendTime = 0.15f;
 	StartLocomotionClipPreservePhase(anim, targetClip, kBlendTime);
 
+	const std::string upperBodyIdleClip = ResolveIdleClip();
+	SyncGunIdleUpperBodyLocomotionOverlay(anim, weapon, targetClip, upperBodyIdleClip, m_actionPhase != EActionPhase::None);
+
 	if ( m_actionPhase == EActionPhase::None )
 		m_state = targetState;
+}
 
+bool CAnimController::CanUseRunLocomotion() const
+{
+	switch ( m_actionPhase )
+	{
+	case EActionPhase::AttackGeneric:
+	case EActionPhase::AttackBowLoad:
+	case EActionPhase::AttackBowRelease:
+		return false;
+
+	default:
+		break;
+	}
+
+	return true;
+}
+
+bool CAnimController::IsRunLocomotionActive() const
+{
+	if ( !m_pOwner )
+		return false;
+
+	if ( !m_usePlayerClipSet )
+		return false;
+
+	// 구르기, 피격, 사망, 공격 등 액션 중에는
+	// Shift + WASD 입력이 들어와도 AI 감지용 "달리기"로 취급하지 않는다.
+	if ( m_actionPhase != EActionPhase::None )
+		return false;
+
+	const uint32_t horizontalDirBits =
+		m_moveDirBits & ( DIR_FORWARD | DIR_BACKWARD | DIR_LEFT | DIR_RIGHT );
+
+	if ( horizontalDirBits == 0 )
+		return false;
+
+	if ( !m_bRunRequested )
+		return false;
+
+	if ( m_state != EAnimState::Move )
+		return false;
+
+	CAnimator* anim = nullptr;
+
+	if ( auto* animComp = m_pOwner->GetComponent<CAnimatorComponent>() )
+		anim = animComp->GetAnimator();
+
+	if ( !anim )
+		anim = m_pOwner->GetAnimator();
+
+	if ( !anim )
+		return false;
+
+	const std::string& currentClip = anim->GetCurrentClipName();
+
+	// 실제 Run_* locomotion clip이 현재 재생 중일 때만 true.
+	return currentClip.rfind("Run_", 0) == 0;
 }
 
 bool CAnimController::IsActionLocked() const

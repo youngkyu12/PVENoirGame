@@ -62,6 +62,9 @@ struct BuiltAsset
 class AssetManager
 {
 public:
+	using AnimationClipRef = std::shared_ptr<const AnimationClip>;
+
+public:
 	static BuiltAsset BuildAsset(
 		ID3D12Device* device,
 		ID3D12GraphicsCommandList* cmd,
@@ -71,12 +74,11 @@ public:
 
 	static void BeginSceneMaterialBuild(MATERIALS* pMaterials);
 
-	static bool LoadCachedClip(
+	static AnimationClipRef LoadCachedClipRef(
 		CMesh* mesh,
 		const std::string& skeletonKey,
 		const char* animBinPath,
 		const char* clipName,
-		AnimationClip& outClip,
 		float timeScale = 1.0f
 	);
 
@@ -124,7 +126,7 @@ private:
 	static std::unordered_map<std::string, BuiltAsset> s_assetCache;
 	static std::unordered_map<std::string, std::shared_ptr<CMaterial>> s_materialCache;
 	static std::unordered_map<std::string, std::shared_ptr<CTexture>> s_textureCache;
-	static std::unordered_map<std::string, AnimationClip> s_clipCache;
+	static std::unordered_map<std::string, AnimationClipRef> s_clipCache;
 
 	static std::unordered_map<MATERIALS*, std::unordered_set<std::string>>
 		s_appliedAssetKeysByMaterials;

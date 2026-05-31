@@ -36,6 +36,7 @@ extern ClientServiceRef g_clientService;
 #include <math.h>
 #include <fstream>
 #include <functional>
+#include <cmath>
 
 #include <sstream>
 #include <string>

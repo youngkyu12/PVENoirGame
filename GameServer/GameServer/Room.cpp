@@ -152,6 +152,7 @@ void Room::Enter(PlayerRef player)
 	player->SetActive(false); // 기존 참여/ready 정책 유지
 
 	RegisterDynamicCollider(player);
+	SetObjectCollisionMegaGridMask(player, ComputeObjectCurrentMegaGridMask(player.get()), false);
 }
 
 void Room::Leave(PlayerRef player)
@@ -232,6 +233,9 @@ void Room::BuildRoom()
 	m_elapsedServerMs = static_cast<uint64>(tick.load()) * m_timing.serverTickIntervalMs;
 	enemies.clear();
 	m_aiAwakeEnemyIds.clear();
+	m_castleCenterPlayerIds.clear();
+	m_towerDoorPortals.clear();
+	m_castleDoorPortals.clear();
 	m_arrowPool.clear();
 	m_bulletPool.clear();
 	InitializeCollisionSystem();
@@ -251,6 +255,7 @@ void Room::BuildRoom()
 			building->SetActive(true);
 			RegisterStaticCollider(building);
 			RegisterStaticBuildingToGrid(building);
+			RegisterDoorPortal(building);
 			buildings[buildingId] = building;
 			++buildingId;
 		}
@@ -336,11 +341,15 @@ void Room::BuildRoom()
 		enemy->SetAttackPower(GetEnemyAttackPower(spawn.type));
 
 		RegisterDynamicCollider(enemy);
+		SetObjectCollisionMegaGridMask(enemy, ComputeObjectCurrentMegaGridMask(enemy.get()), true);
 		enemies[enemyId] = enemy;
 	}
 
 	for (auto& playerPair : players)
+	{
 		RegisterDynamicCollider(playerPair.second);
+		SetObjectCollisionMegaGridMask(playerPair.second, ComputeObjectCurrentMegaGridMask(playerPair.second.get()), false);
+	}
 
 	RebuildDynamicGridState();
 	RebuildMegaGridEnemyIds();

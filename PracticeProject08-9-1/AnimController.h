@@ -38,6 +38,8 @@ public:
 
     void SetRunRequested(bool run) { m_bRunRequested = run; }
     bool IsRunRequested() const { return m_bRunRequested; }
+	bool CanUseRunLocomotion() const;
+	bool IsRunLocomotionActive() const;
 
     void EnablePlayerClipSet(bool enable = true) { m_usePlayerClipSet = enable; }
     bool IsUsingPlayerClipSet() const { return m_usePlayerClipSet; }

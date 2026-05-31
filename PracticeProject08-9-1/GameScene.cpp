@@ -46,21 +46,119 @@ CGameScene::CGameScene()
 
     m_arrowRefs.clear();
     m_arrowRefs.shrink_to_fit();
+	m_networkArrowById.clear();
 
 	m_bulletRefs.clear();
 	m_bulletRefs.shrink_to_fit();
+	m_networkBulletById.clear();
 
 	m_navMesh.reset();
+
+	m_bSimulateLocalPlayerMonsterAttackCollision = true;
+	m_bSimulateLocalAI = true;
+	m_bSimulateLocalGhoulAI = true;
+	m_bSimulateLocalBowManAI = true;
+	m_bSimulateLocalSwordManAI = true;
+	m_bSimulateLocalMutantAI = true;
+	m_bSimulateLocalBossAI = true;
+
+	m_bPrevDebugDamageMegaGrid5KeyDown = false;
+
+	m_bBossStageBossActivated = false;
+
+	m_bBossSummonSequenceStarted = false;
+	m_bBossSummonCircleFadeAgeSec = 0.0f;
+	m_pendingBossStageBoss = nullptr;
+
+	m_bBossSummonVisualFadeOutStarted = false;
+	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
+	m_bBossShockwaveActive = false;
+	m_bossShockwaveAgeSec = 0.0f;
+	m_bossShockwaveCenter = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	m_bBossShockwavePushLocalPlayer = false;
+	m_bossShockwavePrevRadius = 0.0f;
+	m_bossShockwavePlayerInitialDistance = 0.0f;
+	m_bossShockwavePlayerPushDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
+	ResetBossPoisonProjectileState();
+
+	m_bBossSummonSequenceStarted = false;
+	m_bBossSummonCircleFadeAgeSec = 0.0f;
+	m_pendingBossStageBoss = nullptr;
+
+	m_bSimulateLocalMonsterChase = true;
+	m_bPrevLocalMonsterChaseToggleKeyDown = false;
+	m_bSimulateLocalEnemySpawner = true;
+	m_bSimulateLocalPlayerWorldStaticRollback = true;
+	m_bSimulateLocalTeleport = true;
+	m_bSimulateLocalItemPickup = true;
+	m_bCanBossStageDirectly = false;
+	m_bSimulateLocalStageTeleport = true;
+	m_bPrevLocalStageTeleportKeyDown.fill(false);
+	ResetEnemySpawnerTimedGhoulWaveStates();
+
+#ifdef USING_NETWORK
+	m_bSimulateLocalPlayerMonsterAttackCollision = false;
+	m_bSimulateLocalAI = false;
+
+	m_bSimulateLocalGhoulAI = false;
+	m_bSimulateLocalBowManAI = false;
+	m_bSimulateLocalSwordManAI = false;
+	m_bSimulateLocalMutantAI = false;
+	m_bSimulateLocalBossAI = false;
+
+	m_bPrevDebugDamageMegaGrid5KeyDown = false;
+	m_bBossStageBossActivated = false;
+
+	m_bBossSummonSequenceStarted = false;
+	m_bBossSummonCircleFadeAgeSec = 0.0f;
+	m_pendingBossStageBoss = nullptr;
+
+	m_bBossSummonVisualFadeOutStarted = false;
+	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
+	m_bBossShockwaveActive = false;
+	m_bossShockwaveAgeSec = 0.0f;
+	m_bossShockwaveCenter = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	m_bBossShockwavePushLocalPlayer = false;
+	m_bossShockwavePrevRadius = 0.0f;
+	m_bossShockwavePlayerInitialDistance = 0.0f;
+	m_bossShockwavePlayerPushDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
+	ResetBossPoisonProjectileState();
+
+	m_bBossSummonSequenceStarted = false;
+	m_bBossSummonCircleFadeAgeSec = 0.0f;
+	m_pendingBossStageBoss = nullptr;
+
+	m_bSimulateLocalMonsterChase = false;
+	m_bPrevLocalMonsterChaseToggleKeyDown = false;
+	m_bSimulateLocalEnemySpawner = false;
+	m_bSimulateLocalPlayerWorldStaticRollback = false;
+	m_bSimulateLocalTeleport = false;
+	m_bSimulateLocalItemPickup = true;
+	m_bCanBossStageDirectly = false;
+	m_bSimulateLocalStageTeleport = false;
+	m_bPrevLocalStageTeleportKeyDown.fill(false);
+#endif
+
+	m_bossMeleeSlashCastStates.clear();
 
 	m_bLocalPlayerDead = false;
 	m_bLocalPlayerRespawnUsed = false;
 	m_localPlayerRespawnTimer = 0.0f;
+
 #ifdef USING_NETWORK
 	m_prevPlayerNetworkStateCode.clear();
+	m_prevEnemyNetworkStateCode.clear();
 #endif
+	m_playerWeaponDamageTierIndex = 0;
 	m_deadMonsters.clear();
 
 	m_bLocalPlayerInsideCastleCenterMegaGrid = false;
+	m_bMegaGrid5DirectionalLightProfileActive = false;
+
+	m_inventoryItemCounts.fill(0);
+	m_bPrevInventoryUseKeyDown.fill(false);
 }
 
 void CGameScene::SetFrameResourceIndex(UINT frameResourceIndex)
@@ -621,6 +719,8 @@ int CGameScene::CountClearedMegaGrids() const
 
 bool CGameScene::CanUseCastleDoorPortal() const
 {
+	if ( m_bCanBossStageDirectly )
+		return true;
 	return CountClearedMegaGrids() >= kRequiredClearedMegaGridCountForCastlePortal;
 }
 
@@ -1032,6 +1132,41 @@ bool CGameScene::TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog)
 			else
 			{
 				dst.y = playerPos.y;
+			}
+
+			if ( m_Collision )
+			{
+				const XMFLOAT3 originalPos = player->GetPosition();
+				XMFLOAT3 resolvedDst = dst;
+				bool foundClearDestination = false;
+
+				const int maxResolveSteps =
+					static_cast< int >(
+						kTowerDoorPortalMaxVerticalResolveDistance /
+						kTowerDoorPortalVerticalResolveStep
+					);
+
+				for ( int step = 0; step <= maxResolveSteps; ++step )
+				{
+					player->SetPosition(resolvedDst);
+					playerCollider->UpdateWorldBounds();
+
+					if ( !m_Collision->HasCollisionWithWorldStatic(playerCollider) )
+					{
+						foundClearDestination = true;
+						break;
+					}
+
+					resolvedDst.y += kTowerDoorPortalVerticalResolveStep;
+				}
+
+				player->SetPosition(originalPos);
+				playerCollider->UpdateWorldBounds();
+
+				if ( !foundClearDestination )
+					return false;
+
+				dst = resolvedDst;
 			}
 
 			player->SetPosition(dst);
@@ -1543,7 +1678,7 @@ bool CGameScene::TryGetTrackedCell(const CGameObject* obj, int& outCellX, int& o
 
 	const XMFLOAT3 pos = obj->GetPosition();
 
-	if ( pos.y < -100.0f )
+	if ( pos.y <= kEnemySpawnerInactiveY )
 		return false;
 
 	return m_sceneGrid.WorldToCell(pos.x, pos.z, outCellX, outCellZ);
@@ -1606,6 +1741,7 @@ void CGameScene::RebuildDynamicGridState()
 
 	UpdateMegaGridState();
 	UpdateCastleCenterMegaGridState();
+	UpdateMegaGrid5DirectionalLightState();
 }
 
 void CGameScene::UpdateDynamicGridState()
@@ -1618,6 +1754,7 @@ void CGameScene::UpdateDynamicGridState()
 
 	UpdateMegaGridState();
 	UpdateCastleCenterMegaGridState();
+	UpdateMegaGrid5DirectionalLightState();
 }
 
 void CGameScene::UpdateMegaGridState()
@@ -1666,6 +1803,855 @@ void CGameScene::UpdateMegaGridState()
 		{
 			m_sceneGrid.SetMegaGridPlayerApproached(megaX, megaZ, true);
 		}
+	}
+}
+
+void CGameScene::UpdateMegaGrid5DirectionalLightState()
+{
+	if ( !m_sceneGrid.IsInitialized() )
+	{
+		ApplyMegaGrid5DirectionalLightProfile(false);
+		return;
+	}
+
+	CGameObject* player = GetPlayer();
+
+	if ( !player )
+		player = GetPlayerBySlot(0);
+
+	if ( !player )
+	{
+		ApplyMegaGrid5DirectionalLightProfile(false);
+		return;
+	}
+
+	const XMFLOAT3 pos = player->GetPosition();
+
+	const int megaGridNumber =
+		m_sceneGrid.MegaGridNumberFromWorldPosition(pos.x, pos.z);
+
+	const bool shouldUseMega5Light =
+		( megaGridNumber == 5 );
+
+	ApplyMegaGrid5DirectionalLightProfile(shouldUseMega5Light);
+}
+
+void CGameScene::ApplyMegaGrid5DirectionalLightProfile(bool enabled)
+{
+	if ( m_bMegaGrid5DirectionalLightProfileActive == enabled )
+		return;
+
+	CGameObject* directionalLightObject = nullptr;
+	CLightComponent* directionalLight = nullptr;
+
+	for ( const auto& lightObject : m_lightObjects )
+	{
+		if ( !lightObject )
+			continue;
+
+		auto* lc = lightObject->GetComponent<CLightComponent>();
+		if ( !lc )
+			continue;
+
+		if ( lc->type != ELightType::Directional )
+			continue;
+
+		directionalLightObject = lightObject.get();
+		directionalLight = lc;
+		break;
+	}
+
+	if ( !directionalLightObject || !directionalLight )
+		return;
+
+	if ( auto* tr = directionalLightObject->GetComponent<CTransformComponent>() )
+	{
+		if ( enabled )
+		{
+			tr->SetLookDirection(XMFLOAT3(0.0f, -1.0f, 0.0f));
+		}
+		else
+		{
+			tr->SetLookDirection(XMFLOAT3(1.0f, -1.0f, 0.3f));
+		}
+	}
+
+	if ( enabled )
+	{
+		directionalLight->diffuse =
+			XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
+	}
+	else
+	{
+		directionalLight->diffuse =
+			XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	}
+
+	m_bMegaGrid5DirectionalLightProfileActive = enabled;
+
+#ifndef USING_NETWORK
+	char buf[256];
+	sprintf_s(
+		buf,
+		"[DirectionalLight][Mega5Profile] enabled=%d dir=(%.1f, %.1f, %.1f) diffuse=(%.1f, %.1f, %.1f, %.1f)\n",
+		enabled ? 1 : 0,
+		enabled ? 0.0f : 1.0f,
+		-1.0f,
+		enabled ? 0.0f : 0.3f,
+		directionalLight->diffuse.x,
+		directionalLight->diffuse.y,
+		directionalLight->diffuse.z,
+		directionalLight->diffuse.w
+	);
+	OutputDebugStringA(buf);
+#endif
+}
+
+XMFLOAT3 CGameScene::ComputeMegaGridCenterPosition(
+	int megaGridNumber,
+	float y) const
+{
+	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+		return XMFLOAT3(0.0f, y, 0.0f);
+
+	const int zeroBased = megaGridNumber - 1;
+	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+	const float centerX =
+		static_cast< float >(
+			CSceneGrid::kGridMinX +
+			megaX * CSceneGrid::kMegaGridCellWidth +
+			CSceneGrid::kMegaGridCellWidth / 2
+		);
+
+	const float centerZ =
+		static_cast< float >(
+			CSceneGrid::kGridMinZ +
+			megaZ * CSceneGrid::kMegaGridCellHeight +
+			CSceneGrid::kMegaGridCellHeight / 2
+		);
+
+	return XMFLOAT3(centerX, y, centerZ);
+}
+
+XMFLOAT3 CGameScene::ComputeLocalStageTeleportPosition(int megaGridNumber) const
+{
+	// 입력 번호:
+	// 789
+	// 456
+	// 123
+	//
+	// 현재 CSceneGrid도 megaNumber = megaZ * 3 + megaX + 1 구조다.
+	// 2번 메가그리드 중심이 (0, 0, 0)이 되도록 world grid가 잡혀 있다.
+	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+		return XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	const int zeroBased = megaGridNumber - 1;
+	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+	const int megaZ = zeroBased / CSceneGrid::kMegaGridRows;
+
+	const float centerX =
+		static_cast< float >(
+			CSceneGrid::kGridMinX +
+			megaX * CSceneGrid::kMegaGridCellWidth +
+			CSceneGrid::kMegaGridCellWidth / 2
+		);
+
+	const float centerZ =
+		static_cast< float >(
+			CSceneGrid::kGridMinZ +
+			megaZ * CSceneGrid::kMegaGridCellHeight +
+			CSceneGrid::kMegaGridCellHeight / 2
+		);
+
+	XMFLOAT3 dst{};
+	dst.x = centerX;
+	dst.y = 0.0f;
+	dst.z = centerZ + ( megaGridNumber == 5 ? -200.0f : -150.0f );
+
+	return dst;
+}
+
+bool CGameScene::IsMegaGridNumberCleared(int megaGridNumber) const
+{
+	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+		return false;
+
+	const int zeroBased = megaGridNumber - 1;
+	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+	return m_sceneGrid.IsMegaGridCleared(megaX, megaZ);
+}
+
+bool CGameScene::ShouldBlockEnemySpawnerByClearedPrerequisite(
+	int targetMegaGridNumber,
+	int& outBlockerMegaGridNumber) const
+{
+	outBlockerMegaGridNumber = -1;
+
+	switch ( targetMegaGridNumber )
+	{
+	case 6:
+		if ( IsMegaGridNumberCleared(3) )
+		{
+			outBlockerMegaGridNumber = 3;
+			return true;
+		}
+		break;
+
+	case 8:
+		if ( IsMegaGridNumberCleared(7) )
+		{
+			outBlockerMegaGridNumber = 7;
+			return true;
+		}
+		break;
+
+	default:
+		break;
+	}
+
+	return false;
+}
+
+int CGameScene::SpawnPreparedEnemiesInMegaGrid(int megaGridNumber)
+{
+#ifndef USING_NETWORK
+	if ( !m_bSimulateLocalEnemySpawner )
+		return 0;
+
+	if ( !m_enemySpawner )
+		return 0;
+
+	int blockerMegaGridNumber = -1;
+	if ( ShouldBlockEnemySpawnerByClearedPrerequisite(
+		megaGridNumber,
+		blockerMegaGridNumber) )
+	{
+		char buf[256];
+		sprintf_s(
+			buf,
+			"[EnemySpawner] blocked. targetMega=%d blockerMega=%d alreadyCleared=1\n",
+			megaGridNumber,
+			blockerMegaGridNumber
+		);
+		OutputDebugStringA(buf);
+
+		return 0;
+	}
+
+	const int spawnedCount = m_enemySpawner->SpawnMegaGrid(megaGridNumber);
+
+	if ( spawnedCount > 0 )
+	{
+		char buf[256];
+		sprintf_s(
+			buf,
+			"[EnemySpawner] SpawnPreparedEnemiesInMegaGrid mega=%d spawned=%d\n",
+			megaGridNumber,
+			spawnedCount
+		);
+		OutputDebugStringA(buf);
+	}
+
+	return spawnedCount;
+#else
+	UNREFERENCED_PARAMETER(megaGridNumber);
+	return 0;
+#endif
+}
+
+int CGameScene::SpawnBossCallMonsters(int callIndex)
+{
+#ifndef USING_NETWORK
+	if ( !m_bSimulateLocalEnemySpawner )
+		return 0;
+
+	if ( !m_enemySpawner )
+		return 0;
+
+	if ( callIndex < 1 || callIndex > 3 )
+		return 0;
+
+	constexpr int megaGridNumber = 5;
+
+	int spawnedTotal = 0;
+
+	// 1) 정상 경로:
+	// 상승 시작 시점에 preview한 정확한 entryIndex들을 그대로 활성화한다.
+	if ( m_bossCallSummonPlanCallIndex == callIndex &&
+	 !m_bossCallSummonPlanEntries.empty() )
+	{
+		int kindSpawned[4] = { 0, 0, 0, 0 };
+
+		XMFLOAT3 spawnedPosSum = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		int spawnedPosCount = 0;
+
+		for ( size_t i = 0; i < m_bossCallSummonPlanEntries.size(); ++i )
+		{
+			const EnemySpawnerPreviewEntry& preview =
+				m_bossCallSummonPlanEntries[i];
+
+			CGameObject* spawned =
+				m_enemySpawner->SpawnPreviewEntry(preview);
+
+			const bool success = ( spawned != nullptr );
+
+			if ( success )
+			{
+				++spawnedTotal;
+
+				const int kindIndex = static_cast< int >( preview.kind );
+				if ( kindIndex >= 0 && kindIndex < 4 )
+					++kindSpawned[kindIndex];
+
+				const XMFLOAT3 pos = spawned->GetPosition();
+
+				// 실제 몬스터가 생성된 바로 그 타이밍에 WWW 빛 연출 생성.
+				SpawnBossCallSummonWwwEffect(pos, preview.kind);
+
+				spawnedPosSum.x += pos.x;
+				spawnedPosSum.y += pos.y;
+				spawnedPosSum.z += pos.z;
+				++spawnedPosCount;
+			}
+		}
+
+		if ( spawnedPosCount > 0 )
+		{
+			const float invCount =
+				1.0f / static_cast< float >( spawnedPosCount );
+
+			XMFLOAT3 sfxPos{};
+			sfxPos.x = spawnedPosSum.x * invCount;
+			sfxPos.y = spawnedPosSum.y * invCount;
+			sfxPos.z = spawnedPosSum.z * invCount;
+
+			PlayBossCallMonsterSpawnSfxAt(sfxPos);
+		}
+
+		m_bossCallSummonPlanCallIndex = -1;
+		m_bossCallSummonPlanEntries.clear();
+
+		StartBossCallSummonCircleFadeOut();
+		return spawnedTotal;
+	}
+
+	auto SpawnKind =
+		[ & ](
+			EEnemySpawnerEnemyKind kind,
+			int count
+		)
+		{
+			if ( count <= 0 )
+				return;
+
+			std::vector<EnemySpawnerPreviewEntry> previews;
+			previews.reserve(static_cast< size_t >( count ));
+
+			m_enemySpawner->PeekSpawnEntries(
+				megaGridNumber,
+				kind,
+				count,
+				previews
+			);
+
+			for ( const EnemySpawnerPreviewEntry& preview : previews )
+			{
+				CGameObject* spawned =
+					m_enemySpawner->SpawnPreviewEntry(preview);
+
+				if ( !spawned )
+					continue;
+
+				++spawnedTotal;
+
+				const XMFLOAT3 pos = spawned->GetPosition();
+
+				SpawnBossCallSummonWwwEffect(pos, preview.kind);
+			}
+		};
+
+	switch ( callIndex )
+	{
+	case 1:
+		SpawnKind(EEnemySpawnerEnemyKind::Ghoul, 30);
+		break;
+
+	case 2:
+		SpawnKind(EEnemySpawnerEnemyKind::Ghoul, 20);
+		SpawnKind(EEnemySpawnerEnemyKind::BowMan, 5);
+		SpawnKind(EEnemySpawnerEnemyKind::SwordMan, 5);
+		break;
+
+	case 3:
+		SpawnKind(EEnemySpawnerEnemyKind::Ghoul, 20);
+		SpawnKind(EEnemySpawnerEnemyKind::BowMan, 5);
+		SpawnKind(EEnemySpawnerEnemyKind::SwordMan, 5);
+		SpawnKind(EEnemySpawnerEnemyKind::Mutant, 5);
+		break;
+
+	default:
+		break;
+	}
+
+	if ( spawnedTotal > 0 )
+	{
+		XMFLOAT3 sfxPos = XMFLOAT3(400.0f, 0.0f, 400.0f);
+		PlayBossCallMonsterSpawnSfxAt(sfxPos);
+	}
+
+	StartBossCallSummonCircleFadeOut();
+	return spawnedTotal;
+#else
+	UNREFERENCED_PARAMETER(callIndex);
+	return 0;
+#endif
+}
+
+int CGameScene::TryRunEnemySpawnerEventForMegaGrid(int megaGridNumber)
+{
+#ifndef USING_NETWORK
+	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+		return 0;
+
+	const int zeroBased = megaGridNumber - 1;
+	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+	if ( m_sceneGrid.HasMegaGridEventOccurred(megaX, megaZ) )
+		return 0;
+
+	int blockerMegaGridNumber = -1;
+	if ( ShouldBlockEnemySpawnerByClearedPrerequisite(
+		megaGridNumber,
+		blockerMegaGridNumber) )
+	{
+		m_sceneGrid.SetMegaGridEventOccurred(megaX, megaZ, true);
+		return 0;
+	}
+
+	if ( megaGridNumber == 6 || megaGridNumber == 8 )
+	{
+		const bool started =
+			BeginEnemySpawnerTimedGhoulWave(megaGridNumber);
+
+		if ( started )
+		{
+			m_sceneGrid.SetMegaGridEventOccurred(megaX, megaZ, true);
+			return 1;
+		}
+
+		return 0;
+	}
+
+	// 5번 메가그리드 스포너 풀은 보스 Call 전용으로 사용한다.
+	// 접근 이벤트에서 미리 SpawnMegaGrid(5)를 호출하면
+	// Call용 풀을 전부 소모하므로 여기서는 아무 것도 하지 않는다.
+	if ( megaGridNumber == 5 )
+	{
+		// 5번 메가그리드 스포너 풀은 보스 Call 전용으로 사용한다.
+		// 접근 이벤트에서 SpawnMegaGrid(5)를 호출하면 Call용 풀을 전부 소모한다.
+		return 0;
+	}
+
+	if ( megaGridNumber == 6 || megaGridNumber == 8 )
+	{
+		const bool started =
+			BeginEnemySpawnerTimedGhoulWave(megaGridNumber);
+
+		if ( started )
+		{
+			m_sceneGrid.SetMegaGridEventOccurred(megaX, megaZ, true);
+			return 1;
+		}
+
+		return 0;
+	}
+
+	const int spawnedCount = SpawnPreparedEnemiesInMegaGrid(megaGridNumber);
+
+	if ( spawnedCount > 0 )
+	{
+		m_sceneGrid.SetMegaGridEventOccurred(megaX, megaZ, true);
+	}
+
+	return spawnedCount;
+#else
+	UNREFERENCED_PARAMETER(megaGridNumber);
+	return 0;
+#endif
+}
+
+bool CGameScene::BeginEnemySpawnerTimedGhoulWave(int megaGridNumber)
+{
+#ifndef USING_NETWORK
+	if ( !m_bSimulateLocalEnemySpawner )
+		return false;
+
+	if ( !m_enemySpawner )
+		return false;
+
+	if ( megaGridNumber != 6 && megaGridNumber != 8 )
+		return false;
+
+	if ( megaGridNumber < 1 ||
+		 megaGridNumber > CSceneGrid::kMegaGridCount )
+	{
+		return false;
+	}
+
+	EnemySpawnerTimedGhoulWaveState& state =
+		m_enemySpawnerTimedGhoulWaves[( size_t ) megaGridNumber];
+
+	if ( state.active )
+		return false;
+
+	state = EnemySpawnerTimedGhoulWaveState{};
+	state.active = true;
+	state.nextBatchIndex = 0;
+	state.accumulatorSec = 0.0f;
+
+	// 가동 즉시 0번 batch 생성.
+	const int spawnedNow =
+		SpawnEnemySpawnerDoorGhoulBatch(
+			megaGridNumber,
+			state.nextBatchIndex
+		);
+
+	if ( spawnedNow <= 0 )
+	{
+		state = EnemySpawnerTimedGhoulWaveState{};
+		return false;
+	}
+
+	const int sirenMegaGridNumber =
+		( megaGridNumber == 6 )
+		? 3
+		: 7;
+
+	const XMFLOAT3 sirenPosition =
+		ComputeMegaGridCenterPosition(
+			sirenMegaGridNumber,
+			50.0f
+		);
+
+	PlayEnemySpawnerSirenSfxAt(sirenPosition);
+
+	++state.nextBatchIndex;
+
+	if ( state.nextBatchIndex >= kEnemySpawnerDoorBatchCount )
+		state.active = false;
+
+	char buf[256];
+	sprintf_s(
+		buf,
+		"[EnemySpawnerWave] started. mega=%d firstBatchSpawned=%d\n",
+		megaGridNumber,
+		spawnedNow
+	);
+	OutputDebugStringA(buf);
+
+	return true;
+#else
+	UNREFERENCED_PARAMETER(megaGridNumber);
+	return false;
+#endif
+}
+
+void CGameScene::UpdateEnemySpawnerTimedGhoulWaves(float dt)
+{
+#ifndef USING_NETWORK
+	if ( !m_bSimulateLocalEnemySpawner )
+		return;
+
+	if ( !m_enemySpawner )
+		return;
+
+	if ( dt < 0.0f )
+		dt = 0.0f;
+
+	const int targetMegaGrids[2] = { 6, 8 };
+
+	for ( int megaGridNumber : targetMegaGrids )
+	{
+		EnemySpawnerTimedGhoulWaveState& state =
+			m_enemySpawnerTimedGhoulWaves[( size_t ) megaGridNumber];
+
+		if ( !state.active )
+			continue;
+
+		state.accumulatorSec += dt;
+
+		while ( state.active &&
+				state.accumulatorSec >= kEnemySpawnerDoorBatchIntervalSec )
+		{
+			state.accumulatorSec -= kEnemySpawnerDoorBatchIntervalSec;
+
+			if ( state.nextBatchIndex >= kEnemySpawnerDoorBatchCount )
+			{
+				state.active = false;
+				break;
+			}
+
+			SpawnEnemySpawnerDoorGhoulBatch(
+				megaGridNumber,
+				state.nextBatchIndex
+			);
+
+			++state.nextBatchIndex;
+
+			if ( state.nextBatchIndex >= kEnemySpawnerDoorBatchCount )
+			{
+				state.active = false;
+
+				char buf[256];
+				sprintf_s(
+					buf,
+					"[EnemySpawnerWave] finished. mega=%d\n",
+					megaGridNumber
+				);
+				OutputDebugStringA(buf);
+			}
+		}
+	}
+#else
+	UNREFERENCED_PARAMETER(dt);
+#endif
+}
+
+bool CGameScene::TryTeleportLocalPlayerToMegaGridByNumber(int megaGridNumber)
+{
+#ifndef USING_NETWORK
+	if ( !m_bSimulateLocalStageTeleport )
+		return false;
+
+	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+		return false;
+
+	if ( m_bLocalPlayerDead )
+		return false;
+
+	CGameObject* player = GetPlayer();
+	if ( !player )
+		player = GetPlayerBySlot(0);
+
+	if ( !player )
+		return false;
+
+	const XMFLOAT3 dst = ComputeLocalStageTeleportPosition(megaGridNumber);
+
+	player->SetPosition(dst);
+
+	if ( auto* collider = player->GetComponent<CColliderComponent>() )
+	{
+		collider->UpdateWorldBounds();
+	}
+
+	if ( auto* controller = player->GetComponent<CPlayerControllerComponent>() )
+	{
+		controller->SetVelocity(XMFLOAT3(0.0f, 0.0f, 0.0f));
+		controller->SetInputDirection(static_cast< DWORD >( 0 ));
+		controller->SetRunRequested(false);
+	}
+
+	if ( auto* camera = GetMainCamera() )
+	{
+		XMFLOAT3 cameraTarget = dst;
+		cameraTarget.y += 1.7f;
+
+		camera->Update(cameraTarget, 0.0f);
+		camera->SetLookAt(cameraTarget);
+		camera->RegenerateViewMatrix();
+	}
+
+	UpdateDynamicGridState();
+
+	return true;
+#else
+	UNREFERENCED_PARAMETER(megaGridNumber);
+	return false;
+#endif
+}
+
+int CGameScene::SpawnEnemySpawnerDoorGhoulBatch(
+	int megaGridNumber,
+	int batchIndex)
+{
+#ifndef USING_NETWORK
+	if ( !m_bSimulateLocalEnemySpawner )
+		return 0;
+
+	if ( !m_enemySpawner )
+		return 0;
+
+	if ( megaGridNumber != 6 && megaGridNumber != 8 )
+		return 0;
+
+	if ( batchIndex < 0 || batchIndex >= kEnemySpawnerDoorBatchCount )
+		return 0;
+
+	int spawnedCount = 0;
+
+	for ( int wallIndex = 0; wallIndex < kEnemySpawnerDoorWallCount; ++wallIndex )
+	{
+		const float yawDeg =
+			ComputeEnemySpawnerDoorGhoulSpawnYawDeg(wallIndex);
+
+		for ( int slotIndex = 0; slotIndex < kEnemySpawnerDoorSlotsPerWall; ++slotIndex )
+		{
+			const XMFLOAT3 pos =
+				ComputeEnemySpawnerDoorGhoulSpawnPosition(
+					megaGridNumber,
+					wallIndex,
+					slotIndex
+				);
+
+			CGameObject* ghoul =
+				m_enemySpawner->SpawnEnemyAt(
+					megaGridNumber,
+					EEnemySpawnerEnemyKind::Ghoul,
+					pos,
+					yawDeg
+				);
+
+			if ( !ghoul )
+				continue;
+
+			if ( auto* ai = ghoul->GetComponent<CEnemySpawnerGhoulAIComponent>() )
+			{
+				// activation 위치/yaw를 기준 home으로 박아야
+				// 60m 강제 직진 방향이 정확히 문 -> 중앙이 된다.
+				ai->SetHomeTransform(pos, yawDeg);
+				ai->ConfigureSpawnerGhoulAI(megaGridNumber, 60.0f);
+			}
+
+			++spawnedCount;
+		}
+	}
+
+	char buf[256];
+	sprintf_s(
+		buf,
+		"[EnemySpawnerWave] mega=%d batch=%d spawned=%d\n",
+		megaGridNumber,
+		batchIndex,
+		spawnedCount
+	);
+	OutputDebugStringA(buf);
+
+	return spawnedCount;
+#else
+	UNREFERENCED_PARAMETER(megaGridNumber);
+	UNREFERENCED_PARAMETER(batchIndex);
+	return 0;
+#endif
+}
+
+XMFLOAT3 CGameScene::ComputeEnemySpawnerDoorGhoulSpawnPosition(
+	int megaGridNumber,
+	int wallIndex,
+	int slotIndex) const
+{
+	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+		return XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	if ( wallIndex < 0 )
+		wallIndex = 0;
+
+	if ( wallIndex >= kEnemySpawnerDoorWallCount )
+		wallIndex = kEnemySpawnerDoorWallCount - 1;
+
+	if ( slotIndex < 0 )
+		slotIndex = 0;
+
+	if ( slotIndex >= kEnemySpawnerDoorSlotsPerWall )
+		slotIndex = kEnemySpawnerDoorSlotsPerWall - 1;
+
+	const int zeroBased = megaGridNumber - 1;
+	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+	const float centerX =
+		static_cast< float >(
+			CSceneGrid::kGridMinX +
+			megaX * CSceneGrid::kMegaGridCellWidth +
+			CSceneGrid::kMegaGridCellWidth / 2
+		);
+
+	const float centerZ =
+		static_cast< float >(
+			CSceneGrid::kGridMinZ +
+			megaZ * CSceneGrid::kMegaGridCellHeight +
+			CSceneGrid::kMegaGridCellHeight / 2
+		);
+
+	const float offset =
+		( static_cast< float >( slotIndex ) -
+		  static_cast< float >( kEnemySpawnerDoorSlotsPerWall - 1 ) * 0.5f )
+		* kEnemySpawnerDoorSlotSpacing;
+
+	XMFLOAT3 pos(0.0f, 0.0f, 0.0f);
+
+	switch ( wallIndex )
+	{
+	case 0:
+		pos.x = centerX - kEnemySpawnerDoorWallHalfExtent;
+		pos.z = centerZ + offset;
+		break;
+
+	case 1:
+		pos.x = centerX + kEnemySpawnerDoorWallHalfExtent;
+		pos.z = centerZ + offset;
+		break;
+
+	case 2:
+		pos.x = centerX + offset;
+		pos.z = centerZ - kEnemySpawnerDoorWallHalfExtent;
+		break;
+
+	case 3:
+	default:
+		pos.x = centerX + offset;
+		pos.z = centerZ + kEnemySpawnerDoorWallHalfExtent;
+		break;
+	}
+
+	pos.y = 0.0f;
+	return pos;
+}
+
+float CGameScene::ComputeEnemySpawnerDoorGhoulSpawnYawDeg(
+	int wallIndex) const
+{
+	switch ( wallIndex )
+	{
+	case 0:
+		// left wall -> center, +X
+		return 90.0f;
+
+	case 1:
+		// right wall -> center, -X
+		return -90.0f;
+
+	case 2:
+		// bottom wall -> center, +Z
+		return 0.0f;
+
+	case 3:
+	default:
+		// top wall -> center, -Z
+		return 180.0f;
+	}
+}
+
+void CGameScene::ResetEnemySpawnerTimedGhoulWaveStates()
+{
+	for ( EnemySpawnerTimedGhoulWaveState& state : m_enemySpawnerTimedGhoulWaves )
+	{
+		state = EnemySpawnerTimedGhoulWaveState{};
 	}
 }
 
@@ -1722,9 +2708,6 @@ bool CGameScene::ShouldSkipMonsterByMegaGrid(
 	if ( !monster )
 		return false;
 
-	if ( activeMegaGridNumber <= 0 )
-		return false;
-
 	const SkinnedComponentCache* cache =
 		GetSkinnedComponentCache(skinnedBatchObjectIndex);
 
@@ -1734,16 +2717,136 @@ bool CGameScene::ShouldSkipMonsterByMegaGrid(
 	if ( !cache->isNpc )
 		return false;
 
-	if ( skinnedBatchObjectIndex >= static_cast< UINT >( m_skinnedMonsterMegaGridNumbers.size() ) )
+	if ( activeMegaGridNumber <= 0 )
+		return true;
+
+	if ( skinnedBatchObjectIndex >=
+		 static_cast< UINT >( m_skinnedMonsterMegaGridNumbers.size() ) )
+	{
 		return false;
+	}
 
 	const int monsterMegaGridNumber =
-		m_skinnedMonsterMegaGridNumbers[( size_t ) skinnedBatchObjectIndex];
+		m_skinnedMonsterMegaGridNumbers[
+			static_cast< size_t >( skinnedBatchObjectIndex )
+		];
 
 	if ( monsterMegaGridNumber <= 0 )
 		return false;
 
 	return monsterMegaGridNumber != activeMegaGridNumber;
+}
+
+void CGameScene::ResetMonsterToHomeForMegaGridSkip(CGameObject* monster) const
+{
+	if ( !monster )
+		return;
+
+	if ( IsMonsterDead(monster) )
+		return;
+
+	auto ResetAI =
+		[ ] (CMonsterAIComponent* ai) -> bool
+		{
+			if ( !ai )
+				return false;
+
+			ai->ResetToHomeTransformForMegaGridSkip();
+			return true;
+		};
+
+	if ( ResetAI(monster->GetComponent<CGhoulAIComponent>()) )
+		return;
+
+	if ( ResetAI(monster->GetComponent<CSwordManAIComponent>()) )
+		return;
+
+	if ( ResetAI(monster->GetComponent<CBowManAIComponent>()) )
+		return;
+
+	if ( ResetAI(monster->GetComponent<CMutantAIComponent>()) )
+		return;
+
+	if ( ResetAI(monster->GetComponent<CBossAIComponent>()) )
+		return;
+
+	if ( ResetAI(monster->GetComponent<CMonsterAIComponent>()) )
+		return;
+}
+
+void CGameScene::SetLocalMonsterChaseEnabled(bool enabled)
+{
+	if ( m_bSimulateLocalMonsterChase == enabled )
+		return;
+
+	m_bSimulateLocalMonsterChase = enabled;
+
+	if ( !enabled )
+	{
+		OutputDebugStringA("[MonsterAI] Local monster chase disabled\n");
+		StopAllLocalMonsterChaseAndReturnHome();
+	}
+	else
+	{
+		OutputDebugStringA("[MonsterAI] Local monster chase enabled\n");
+	}
+}
+
+void CGameScene::StopAllLocalMonsterChaseAndReturnHome()
+{
+	for ( const SkinnedComponentCache& cache : m_skinnedComponentCache )
+	{
+		if ( !cache.object )
+			continue;
+
+		if ( !cache.isNpc )
+			continue;
+
+		StopMonsterChaseAndReturnHome(cache.object);
+	}
+}
+
+void CGameScene::StopMonsterChaseAndReturnHome(CGameObject* monster) const
+{
+	if ( !monster )
+		return;
+
+	if ( IsMonsterDead(monster) )
+		return;
+
+	if ( auto* ai = monster->GetComponent<CEnemySpawnerGhoulAIComponent>() )
+	{
+		ai->ClearTarget();
+		return;
+	}
+
+	auto StopAI =
+		[ ] (CMonsterAIComponent* ai) -> bool
+		{
+			if ( !ai )
+				return false;
+
+			ai->StopChaseAndReturnHome();
+			return true;
+		};
+
+	if ( StopAI(monster->GetComponent<CGhoulAIComponent>()) )
+		return;
+
+	if ( StopAI(monster->GetComponent<CSwordManAIComponent>()) )
+		return;
+
+	if ( StopAI(monster->GetComponent<CBowManAIComponent>()) )
+		return;
+
+	if ( StopAI(monster->GetComponent<CMutantAIComponent>()) )
+		return;
+
+	if ( StopAI(monster->GetComponent<CBossAIComponent>()) )
+		return;
+
+	if ( StopAI(monster->GetComponent<CMonsterAIComponent>()) )
+		return;
 }
 
 uint16_t CGameScene::ComputeStaticObjectMegaGridMask(CGameObject* obj) const
@@ -1992,6 +3095,48 @@ void CGameScene::DumpStaticGridOccupancyLog() const
 	m_sceneGrid.DumpStaticGridOccupancyLog();
 }
 
+const std::vector<CGameObject*>& CGameScene::GetMegaGridMonstersByWorldPosition(
+	const XMFLOAT3& worldPos) const
+{
+	static const std::vector<CGameObject*> kEmpty;
+
+	if ( !m_sceneGrid.IsInitialized() )
+		return kEmpty;
+
+	int megaX = -1;
+	int megaZ = -1;
+
+	if ( !m_sceneGrid.TryGetMegaGridFromWorldPosition(
+		worldPos.x,
+		worldPos.z,
+		megaX,
+		megaZ) )
+	{
+		return kEmpty;
+	}
+
+	return m_sceneGrid.GetMegaGridMonsters(megaX, megaZ);
+}
+
+void CGameScene::NotifyMonsterChaseStarted(CGameObject* monster)
+{
+#ifndef USING_NETWORK
+	if ( !monster )
+		return;
+
+	const auto it = m_mutantKeyTriggerMegaByObject.find(monster);
+	if ( it == m_mutantKeyTriggerMegaByObject.end() )
+		return;
+
+	const int megaGridNumber = it->second;
+
+	// 6/8번 열쇠 담당 1번째 뮤턴트가 추적을 시작하면 스포너 이벤트 가동.
+	TryRunEnemySpawnerEventForMegaGrid(megaGridNumber);
+#else
+	UNREFERENCED_PARAMETER(monster);
+#endif
+}
+
 void CGameScene::SetMegaGridApproachZoneSize(int megaX, int megaZ, int widthCells, int heightCells)
 {
 	m_sceneGrid.SetMegaGridApproachZoneSize(megaX, megaZ, widthCells, heightCells);
@@ -2000,6 +3145,7 @@ void CGameScene::SetMegaGridApproachZoneSize(int megaX, int megaZ, int widthCell
 void CGameScene::SetMegaGridCleared(int megaX, int megaZ, bool cleared)
 {
 	m_sceneGrid.SetMegaGridCleared(megaX, megaZ, cleared);
+	RefreshPlayerWeaponDamageTierFromClearedMegaGrids();
 }
 
 void CGameScene::SetMegaGridEventOccurred(int megaX, int megaZ, bool occurred)
@@ -2029,8 +3175,8 @@ CGameScene::~CGameScene()
 
 void CGameScene::ReleaseObjects()
 {
-    m_staticBatch.shader.reset();
-    m_skinnedBatch.shader.reset();
+	m_staticBatch.shader.reset();
+	m_skinnedBatch.shader.reset();
 
 	m_treeStaticShader.reset();
 	m_treeAlphaClipObjects.clear();
@@ -2053,23 +3199,52 @@ void CGameScene::ReleaseObjects()
 	m_staticObjects.clear();
 	m_skinnedObjects.clear();
 
-    m_lightObjects.clear();
-    m_pPlayerSpotFollower = nullptr;
+	m_lightObjects.clear();
+	m_pPlayerSpotFollower = nullptr;
 
-    m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
+	m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
 
-    m_staticBatch.objectRefs.clear();
-    m_skinnedBatch.objectRefs.clear();
+	m_staticBatch.objectRefs.clear();
+	m_skinnedBatch.objectRefs.clear();
 
 	m_colliderBatch.shader.reset();
 	m_colliderBatch.objectRefs.clear();
 	m_colliderObjects.clear();
 	m_ColliderCount = 0;
 
+	m_ghoulRefs.clear();
 	m_swordManRefs.clear();
 	m_bowManRefs.clear();
 	m_MutantRefs.clear();
 	m_bossRefs.clear();
+	m_bossStageBossPositionStates.clear();
+
+	m_bBossStageBossActivated = false;
+	m_bBossSummonSequenceStarted = false;
+	m_bBossSummonCircleFadeAgeSec = 0.0f;
+	m_pendingBossStageBoss = nullptr;
+
+	m_bBossSummonVisualFadeOutStarted = false;
+	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
+	m_bBossShockwaveActive = false;
+	m_bossShockwaveAgeSec = 0.0f;
+	m_bossShockwaveCenter = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	m_bBossShockwavePushLocalPlayer = false;
+	m_bossShockwavePrevRadius = 0.0f;
+	m_bossShockwavePlayerInitialDistance = 0.0f;
+	m_bossShockwavePlayerPushDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
+
+	ResetBossShockwaveWindSfxTracking();
+
+	m_bossPoisonProjectileEffect.entries.clear();
+	m_bossPoisonProjectileEffect.spellCastStates.clear();
+	m_bossMeleeSlashCastStates.clear();
+
+	m_bBossStageBossActivated = false;
+	m_bBossSummonSequenceStarted = false;
+	m_bBossSummonCircleFadeAgeSec = 0.0f;
+	m_pendingBossStageBoss = nullptr;
 
 	m_mutantKeyTriggerMegaByObject.clear();
 	m_mutantKeyTriggerRegisteredByMega.fill(false);
@@ -2077,6 +3252,8 @@ void CGameScene::ReleaseObjects()
 	m_helmetRefs.clear();
 	m_arrowRefs.clear();
 	m_bulletRefs.clear();
+	m_networkArrowById.clear();
+	m_networkBulletById.clear();
 
 	m_attachmentBinds.clear();
 	m_staticInstanceGroups.clear();
@@ -2090,15 +3267,25 @@ void CGameScene::ReleaseObjects()
 	ResetSkinnedWorldLodEntries();
 	ResetSkinnedOcclusionEntries();
 
-    m_PlayerSwordRefs.clear();
-    m_PlayerBowRefs.clear();
-    m_PlayerAxeRefs.clear();
-    m_PlayerGunRefs.clear();
+	m_PlayerSwordRefs.clear();
+	m_PlayerBowRefs.clear();
+	m_PlayerAxeRefs.clear();
+	m_PlayerGunRefs.clear();
 
-    m_EnemySwordRefs.clear();
-    m_EnemyBowRefs.clear();
+	m_playerWeaponOwnerByObject.clear();
+
+	m_EnemySwordRefs.clear();
+	m_EnemyBowRefs.clear();
+
+	m_EnemySpawnRefs.clear();
+	m_enemySpawnPoolEntries.clear();
+	m_enemySpawner.reset();
+
+	ResetEnemySpawnerTimedGhoulWaveStates();
 
 	ResetPlayerFootstepSfxState();
+	ResetMonsterSfxState();
+
 	m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr };
 	m_prevBowLoadPhase = { false, false, false, false };
 	m_prevBowReleasePhase = { false, false, false, false };
@@ -2128,24 +3315,58 @@ void CGameScene::ReleaseObjects()
 	m_bLocalPlayerDead = false;
 	m_bLocalPlayerRespawnUsed = false;
 	m_localPlayerRespawnTimer = 0.0f;
+
 #ifdef USING_NETWORK
 	m_prevPlayerNetworkStateCode.clear();
+	m_prevEnemyNetworkStateCode.clear();
 #endif
+
+	m_playerWeaponDamageTierIndex = 0;
 	m_deadMonsters.clear();
 	m_skinnedMonsterMegaGridNumbers.clear();
 
-	m_itemBillboardShader.reset();
-	m_transparentItemBillboardShader.reset();
+	m_itemBillboardState.shader.reset();
+	m_itemBillboardState.transparentShader.reset();
+	m_itemBillboardState.quadMesh.reset();
+	m_itemBillboardState.keyTexture.reset();
 
-	m_itemBillboardQuadMesh.reset();
-	m_itemBillboards.clear();
-	m_keyItemTexture.reset();
+	for ( std::shared_ptr<CTexture>& potionTexture : m_itemBillboardState.potionTextures )
+		potionTexture.reset();
 
-	ReleaseItemBillboardGpuResources();
-	m_muzzleFlashShader.reset();
-	m_muzzleFlashes.clear();
-	m_swordTrailShader.reset();
-	m_swordTrails.clear();
+	m_itemBillboardState.bossSummonCircleTexture.reset();
+	m_itemBillboardState.entries.clear();
+	m_itemBillboardState.activeBossCallSummonCircleItemIndices.clear();
+	m_itemBillboardState.bossCallSummonCircleVisual = BossCallSummonCircleVisualState{};
+	m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
+	m_itemBillboardState.bossCallSummonGlowParticleEmitAccumulatorSec = 0.0f;
+
+	m_bossCallSummonPlanCallIndex = -1;
+	m_bossCallSummonPlanEntries.clear();
+
+	ReleaseAllGameSceneEffectGpuResources();
+
+	m_muzzleFlashEffect.shader.reset();
+	m_muzzleFlashEffect.entries.clear();
+
+	m_gunSmokeEffect.shader.reset();
+	m_gunSmokeEffect.entries.clear();
+
+	m_bossPoisonProjectileEffect.shader.reset();
+
+	m_swordTrailEffect.shader.reset();
+	m_swordTrailEffect.entries.clear();
+
+	m_monsterSwordTrailEffect.shader.reset();
+	m_monsterSwordTrailEffect.entries.clear();
+
+	m_arrowTrailEffect.shader.reset();
+	m_arrowTrailEffect.entries.clear();
+
+	m_monsterArrowTrailEffect.shader.reset();
+	m_monsterArrowTrailEffect.entries.clear();
+
+	m_bossCallSummonWwwEffect.shader.reset();
+	m_bossCallSummonWwwEffect.entries.clear();
 
 	m_staticRenderObjectCache.clear();
 	m_staticGameplayTickObjects.clear();
@@ -2163,31 +3384,41 @@ void CGameScene::ReleaseObjects()
 
 void CGameScene::ReleaseUploadBuffers()
 {
-    for (UINT j = 0; j < (UINT)m_staticObjects.size(); ++j)
-    {
-        if (!m_staticObjects[j]) continue;
-        m_staticObjects[j]->ReleaseUploadBuffers();
-    }
-    for (UINT j = 0; j < (UINT)m_skinnedObjects.size(); ++j)
-    {
-        if (!m_skinnedObjects[j]) continue;
-        m_skinnedObjects[j]->ReleaseUploadBuffers();
-    }
+	for ( UINT j = 0; j < ( UINT ) m_staticObjects.size(); ++j )
+	{
+		if ( !m_staticObjects[j] ) continue;
+		m_staticObjects[j]->ReleaseUploadBuffers();
+	}
+
+	for ( UINT j = 0; j < ( UINT ) m_skinnedObjects.size(); ++j )
+	{
+		if ( !m_skinnedObjects[j] ) continue;
+		m_skinnedObjects[j]->ReleaseUploadBuffers();
+	}
 
 #ifdef _WITH_BATCH_MATERIAL
-    if (m_staticBatch.material)  m_staticBatch.material->ReleaseUploadBuffers();
+	if ( m_staticBatch.material ) m_staticBatch.material->ReleaseUploadBuffers();
 #endif
 
-	if ( m_itemBillboardQuadMesh )
-		m_itemBillboardQuadMesh->ReleaseUploadBuffers();
+	if ( m_itemBillboardState.quadMesh )
+		m_itemBillboardState.quadMesh->ReleaseUploadBuffers();
 
-	if ( m_keyItemTexture )
-		m_keyItemTexture->ReleaseUploadBuffers();
+	if ( m_itemBillboardState.keyTexture )
+		m_itemBillboardState.keyTexture->ReleaseUploadBuffers();
+
+	for ( std::shared_ptr<CTexture>& potionTexture : m_itemBillboardState.potionTextures )
+	{
+		if ( potionTexture )
+			potionTexture->ReleaseUploadBuffers();
+	}
+
+	if ( m_itemBillboardState.bossSummonCircleTexture )
+		m_itemBillboardState.bossSummonCircleTexture->ReleaseUploadBuffers();
 }
 
 void CGameScene::ReleaseShaderVariables()
 {
-	ReleaseItemBillboardGpuResources();
+	ReleaseAllGameSceneEffectGpuResources();
 	ReleaseStaticOcclusionGpuResources();
 	ReleaseSkinnedOcclusionGpuResources();
 
@@ -3214,8 +4445,14 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 			}
 
 			CGameObject* obj = m_skinnedBatch.objectRefs[objectIndex];
-			if ( !obj->GetActive() ) continue;
 			if ( !obj ) continue;
+			if ( !obj->GetActive() ) continue;
+
+#ifndef USING_NETWORK
+			if ( IsBossMonsterObject(obj) && !IsBossStageBossRenderAllowed(obj) )
+				continue;
+#endif
+
 			if ( !obj->IsVisible(camera) ) continue;
 
 			auto* renderer = obj->GetComponent<CSkinnedMeshRendererComponent>();
@@ -3474,6 +4711,15 @@ void CGameScene::RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandLis
 					continue;
 			}
 
+			CGameObject* obj = m_skinnedBatch.objectRefs[objectIndex];
+			if ( !obj ) continue;
+			if ( !obj->GetActive() ) continue;
+
+#ifndef USING_NETWORK
+			if ( IsBossMonsterObject(obj) && !IsBossStageBossRenderAllowed(obj) )
+				continue;
+#endif
+
 			if ( !IsSkinnedObjectInsideShadowBox(objectIndex) )
 				continue;
 
@@ -3695,6 +4941,97 @@ void CGameScene::SetTransparentItemDiffuseSrvIndex(UINT srvIndex)
 	);
 }
 
+void CGameScene::SetBossSummonCircleDiffuseSrvIndex(UINT srvIndex)
+{
+	SetMaterialDiffuseSrvIndex(
+		static_cast< int >( kBossSummonCircleMaterialId ),
+		srvIndex
+	);
+}
+
+void CGameScene::SetBossCallSummonCircleDiffuseSrvIndex(UINT srvIndex)
+{
+	SetMaterialDiffuseSrvIndex(
+		static_cast< int >( kBossCallSummonCircleMaterialId ),
+		srvIndex
+	);
+}
+
+void CGameScene::SetBossSummonCircleAlpha(float alpha)
+{
+	if ( !m_pMaterials )
+		return;
+
+	alpha = std::clamp(alpha, 0.0f, 1.0f);
+
+	MATERIAL& mat =
+		m_pMaterials->m_pReflections[kBossSummonCircleMaterialId];
+
+	mat.m_xmf4Diffuse.w = alpha;
+}
+
+void CGameScene::SetBossSummonGlowAlpha(float alpha)
+{
+	if ( !m_pMaterials )
+		return;
+
+	alpha = std::clamp(alpha, 0.0f, 1.0f);
+
+	MATERIAL& mat =
+		m_pMaterials->m_pReflections[kBossSummonGlowMaterialId];
+
+	mat.m_xmf4Diffuse.w = alpha * 0.30f;
+}
+
+void CGameScene::SetBossShockwaveAlpha(float alpha)
+{
+	if ( !m_pMaterials )
+		return;
+
+	alpha = std::clamp(alpha, 0.0f, 1.0f);
+
+	MATERIAL& mat =
+		m_pMaterials->m_pReflections[kBossShockwaveMaterialId];
+
+	mat.m_xmf4Diffuse.w = alpha;
+}
+
+void CGameScene::SetBossShockwaveWallAlpha(float alpha)
+{
+	if ( !m_pMaterials )
+		return;
+
+	alpha = std::clamp(alpha, 0.0f, 1.0f);
+
+	MATERIAL& mat =
+		m_pMaterials->m_pReflections[kBossShockwaveWallMaterialId];
+
+	mat.m_xmf4Diffuse.w = alpha;
+}
+
+void CGameScene::SetBossSummonVisualAlpha(float alpha)
+{
+	alpha = std::clamp(alpha, 0.0f, 1.0f);
+
+	SetBossSummonCircleAlpha(alpha);
+	SetBossSummonGlowAlpha(alpha);
+}
+
+void CGameScene::SetBossSummonVisualActive(bool active)
+{
+	for ( ItemBillboardEntry& item : m_itemBillboardState.entries )
+	{
+		if ( item.kind != EItemBillboardKind::BossSummonCircle &&
+			 item.kind != EItemBillboardKind::BossSummonGlow )
+		{
+			continue;
+		}
+
+		item.active = active;
+		item.distanceCulled = false;
+	}
+}
+
 CGameObject* CGameScene::GetDemoFighter(int index) const
 {
     if (index < 0 || index >= 3) return nullptr;
@@ -3823,6 +5160,98 @@ int CGameScene::GetPlayerSlotFromObject(const CGameObject* obj) const
     return tag->playerSlot;
 }
 
+CGameObject* CGameScene::ResolvePlayerAttackerFromPlayerWeapon(CGameObject* weaponObject) const
+{
+	if ( !weaponObject )
+		return nullptr;
+
+	// 혹시 weaponObject 자체가 플레이어인 경우.
+	const int directPlayerSlot = GetPlayerSlotFromObject(weaponObject);
+	if ( directPlayerSlot >= 0 && directPlayerSlot < 4 )
+		return GetPlayerBySlot(directPlayerSlot);
+
+	// 화살/총알처럼 풀에서 재사용되는 오브젝트는 발사 시점에 owner map에 기록한다.
+	auto ownerIt = m_playerWeaponOwnerByObject.find(weaponObject);
+	if ( ownerIt != m_playerWeaponOwnerByObject.end() )
+	{
+		CGameObject* owner = ownerIt->second;
+
+		const int ownerSlot = GetPlayerSlotFromObject(owner);
+		if ( ownerSlot >= 0 && ownerSlot < 4 )
+			return owner;
+	}
+
+	// 검/도끼 같은 장착 무기는 slot 순서 ref로 역추적한다.
+	for ( int slot = 0; slot < 4; ++slot )
+	{
+		const size_t index = static_cast< size_t >(slot);
+
+		if ( index < m_PlayerSwordRefs.size() &&
+			 m_PlayerSwordRefs[index] == weaponObject )
+		{
+			return GetPlayerBySlot(slot);
+		}
+
+		if ( index < m_PlayerAxeRefs.size() &&
+			 m_PlayerAxeRefs[index] == weaponObject )
+		{
+			return GetPlayerBySlot(slot);
+		}
+
+		if ( index < m_PlayerBowRefs.size() &&
+			 m_PlayerBowRefs[index] == weaponObject )
+		{
+			return GetPlayerBySlot(slot);
+		}
+
+		if ( index < m_PlayerGunRefs.size() &&
+			 m_PlayerGunRefs[index] == weaponObject )
+		{
+			return GetPlayerBySlot(slot);
+		}
+
+		if ( index < m_preparedPlayerArrows.size() &&
+			 m_preparedPlayerArrows[index] == weaponObject )
+		{
+			return GetPlayerBySlot(slot);
+		}
+	}
+
+	return nullptr;
+}
+
+bool CGameScene::ForceMonsterAIChaseTarget(CGameObject* monster, CGameObject* target) const
+{
+	if ( !monster || !target )
+		return false;
+
+	if ( auto* ai = monster->GetComponent<CBossStageMonsterAIComponent>() )
+		return ai->ForceChaseTarget(target);
+
+	if ( auto* ai = monster->GetComponent<CEnemySpawnerGhoulAIComponent>() )
+		return ai->ForceChaseTarget(target);
+
+	if ( auto* ai = monster->GetComponent<CGhoulAIComponent>() )
+		return ai->ForceChaseTarget(target);
+
+	if ( auto* ai = monster->GetComponent<CSwordManAIComponent>() )
+		return ai->ForceChaseTarget(target);
+
+	if ( auto* ai = monster->GetComponent<CBowManAIComponent>() )
+		return ai->ForceChaseTarget(target);
+
+	if ( auto* ai = monster->GetComponent<CMutantAIComponent>() )
+		return ai->ForceChaseTarget(target);
+
+	if ( auto* ai = monster->GetComponent<CBossAIComponent>() )
+		return ai->ForceChaseTarget(target);
+
+	if ( auto* ai = monster->GetComponent<CMonsterAIComponent>() )
+		return ai->ForceChaseTarget(target);
+
+	return false;
+}
+
 int CGameScene::GetBowManIndexFromObject(const CGameObject* obj) const
 {
 	if ( !obj ) return -1;
@@ -3830,6 +5259,19 @@ int CGameScene::GetBowManIndexFromObject(const CGameObject* obj) const
 	for ( size_t i = 0; i < m_bowManRefs.size(); ++i )
 	{
 		if ( m_bowManRefs[i] == obj )
+			return static_cast< int >(i);
+	}
+
+	return -1;
+}
+
+int CGameScene::GetSwordManIndexFromObject(const CGameObject* obj) const
+{
+	if ( !obj ) return -1;
+
+	for ( size_t i = 0; i < m_swordManRefs.size(); ++i )
+	{
+		if ( m_swordManRefs[i] == obj )
 			return static_cast< int >(i);
 	}
 
@@ -3863,7 +5305,9 @@ void CGameScene::RequestPrepareArrow(CGameObject* shooter, float pullBackDistanc
 
         if (arrow->IsActive()) continue;
 
-		SetObjectAttackPower(arrowObj, kAttackPowerPlayerArrow);
+		SetObjectAttackPower(arrowObj, GetPlayerArrowAttackPower(slot));
+
+		m_playerWeaponOwnerByObject[arrowObj] = shooter;
 
 		arrow->Prepare(bowObj, shooter, pullBackDistance, true, true);
 		m_preparedPlayerArrows[( size_t ) slot] = arrowObj;
@@ -3899,6 +5343,8 @@ void CGameScene::RequestPrepareBowmanArrow(CGameObject* bowman, float pullBackDi
 		if ( arrow->IsActive() ) continue;
 
 		SetObjectAttackPower(arrowObj, kAttackPowerEnemyArrow);
+
+		m_playerWeaponOwnerByObject.erase(arrowObj);
 
 		arrow->Prepare(bowObj, bowman, pullBackDistance, false, true);
 		m_preparedBowmanArrows[idx] = arrowObj;
@@ -4111,34 +5557,27 @@ CGameObject* CGameScene::GetPlayerBySlot(int slot) const
     return m_playersBySlot[(size_t)slot];
 }
 
-bool CGameScene::IsLocalPlayerInsideMegaGridCenter() const
+bool CGameScene::IsPlayerInsideMegaGridCenter(const CGameObject* player) const
 {
 	if ( !m_sceneGrid.IsInitialized() )
 		return false;
 
-	if ( m_localPlayerSlot < 0 ||
-		 m_localPlayerSlot >= static_cast< int >(m_playerGridTrackers.size()) )
-	{
+	if ( !player )
 		return false;
-	}
 
-	const GridDynamicTracker& tracker =
-		m_playerGridTrackers[static_cast< size_t >(m_localPlayerSlot)];
+	const XMFLOAT3 pos = player->GetPosition();
 
-	if ( !tracker.occupied )
+	int cellX = -1;
+	int cellZ = -1;
+
+	if ( !m_sceneGrid.WorldToCell(pos.x, pos.z, cellX, cellZ) )
 		return false;
 
 	int megaX = -1;
 	int megaZ = -1;
 
-	if ( !m_sceneGrid.FineCellToMegaGridCell(
-		tracker.prevCellX,
-		tracker.prevCellZ,
-		megaX,
-		megaZ) )
-	{
+	if ( !m_sceneGrid.FineCellToMegaGridCell(cellX, cellZ, megaX, megaZ) )
 		return false;
-	}
 
 	if ( megaX == kCastleCenterMegaGridX &&
 		 megaZ == kCastleCenterMegaGridZ )
@@ -4146,16 +5585,72 @@ bool CGameScene::IsLocalPlayerInsideMegaGridCenter() const
 #ifdef USING_NETWORK
 		return true;
 #else
-		return m_bLocalPlayerInsideCastleCenterMegaGrid;
+		// 기존 로컬 플레이어의 Castle 포탈 진입 플래그는 그대로 유지한다.
+		// 단, slot 1~3 플레이어도 AI 타겟 후보로 쓸 수 있게 위치 기준은 허용한다.
+		if ( player == GetPlayer() || player == GetPlayerBySlot(m_localPlayerSlot) )
+			return m_bLocalPlayerInsideCastleCenterMegaGrid;
+
+		return true;
 #endif
 	}
 
 	return m_sceneGrid.IsFineCellInsideMegaGridApproachZone(
 		megaX,
 		megaZ,
-		tracker.prevCellX,
-		tracker.prevCellZ
+		cellX,
+		cellZ
 	);
+}
+
+bool CGameScene::IsPlayerInsideBossStageBattleArea(const CGameObject* player) const
+{
+	if ( !m_sceneGrid.IsInitialized() )
+		return false;
+
+	if ( !player )
+		return false;
+
+	const XMFLOAT3 pos = player->GetPosition();
+
+	int cellX = -1;
+	int cellZ = -1;
+
+	if ( !m_sceneGrid.WorldToCell(pos.x, pos.z, cellX, cellZ) )
+		return false;
+
+	int megaX = -1;
+	int megaZ = -1;
+
+	if ( !m_sceneGrid.FineCellToMegaGridCell(cellX, cellZ, megaX, megaZ) )
+		return false;
+
+	if ( megaX != kCastleCenterMegaGridX ||
+		 megaZ != kCastleCenterMegaGridZ )
+	{
+		return false;
+	}
+
+#ifdef USING_NETWORK
+	return true;
+#else
+	// 로컬 플레이어는 Castle 포탈 진입 플래그로만 보스성 내부 판정.
+	// 즉 200x200 approach zone을 쓰지 않는다.
+	if ( player == GetPlayer() || player == GetPlayerBySlot(m_localPlayerSlot) )
+		return m_bLocalPlayerInsideCastleCenterMegaGrid;
+
+	// 로컬 테스트용 slot 1~3 플레이어는 중앙 메가그리드 400x400 안에 있으면 허용.
+	return true;
+#endif
+}
+
+bool CGameScene::IsLocalPlayerInsideMegaGridCenter() const
+{
+	CGameObject* localPlayer = GetPlayer();
+
+	if ( !localPlayer )
+		localPlayer = GetPlayerBySlot(0);
+
+	return IsPlayerInsideMegaGridCenter(localPlayer);
 }
 
 int CGameScene::GetLocalPlayerMegaGridNumberForDepthFog() const
@@ -4269,6 +5764,148 @@ bool CGameScene::IsMonsterDead(const CGameObject* monster) const
 	return false;
 }
 
+int CGameScene::ComputePlayerWeaponDamageTierIndexFromClearedMegaGrids() const
+{
+	int clearedCount = 0;
+
+	for ( int megaNumber = 1; megaNumber <= CSceneGrid::kMegaGridCount; ++megaNumber )
+	{
+		const int zeroBased = megaNumber - 1;
+		const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+		const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+		if ( m_sceneGrid.IsMegaGridCleared(megaX, megaZ) )
+			++clearedCount;
+	}
+
+	return std::clamp(
+		clearedCount,
+		0,
+		kPlayerWeaponDamageMaxTierIndex
+	);
+}
+
+int CGameScene::GetPlayerSwordAttackPower(int playerSlot) const
+{
+	const int tier = std::clamp(m_playerWeaponDamageTierIndex, 0, kPlayerWeaponDamageMaxTierIndex);
+	const int baseAttackPower = kAttackPowerPlayerSwordByTier[static_cast< size_t >( tier )];
+	return ApplyPlayerAttackPowerPotionMultiplier(playerSlot, baseAttackPower);
+}
+
+int CGameScene::GetPlayerAxeAttackPower(int playerSlot) const
+{
+	const int tier = std::clamp(m_playerWeaponDamageTierIndex, 0, kPlayerWeaponDamageMaxTierIndex);
+	const int baseAttackPower = kAttackPowerPlayerAxeByTier[static_cast< size_t >( tier )];
+	return ApplyPlayerAttackPowerPotionMultiplier(playerSlot, baseAttackPower);
+}
+
+int CGameScene::GetPlayerArrowAttackPower(int playerSlot) const
+{
+	const int tier = std::clamp(m_playerWeaponDamageTierIndex, 0, kPlayerWeaponDamageMaxTierIndex);
+	const int baseAttackPower = kAttackPowerPlayerArrowByTier[static_cast< size_t >( tier )];
+	return ApplyPlayerAttackPowerPotionMultiplier(playerSlot, baseAttackPower);
+}
+
+int CGameScene::GetPlayerBulletAttackPower(int playerSlot) const
+{
+	const int tier = std::clamp(m_playerWeaponDamageTierIndex, 0, kPlayerWeaponDamageMaxTierIndex);
+	const int baseAttackPower = kAttackPowerPlayerBulletByTier[static_cast< size_t >( tier )];
+	return ApplyPlayerAttackPowerPotionMultiplier(playerSlot, baseAttackPower);
+}
+
+void CGameScene::RefreshPlayerWeaponAttackPowersForSlot(int playerSlot)
+{
+	if ( playerSlot < 0 || playerSlot >= 4 )
+		return;
+
+	const size_t index = static_cast< size_t >(playerSlot);
+
+	if ( index < m_PlayerSwordRefs.size() )
+		SetObjectAttackPower(m_PlayerSwordRefs[index], GetPlayerSwordAttackPower(playerSlot));
+
+	if ( index < m_PlayerAxeRefs.size() )
+		SetObjectAttackPower(m_PlayerAxeRefs[index], GetPlayerAxeAttackPower(playerSlot));
+
+	if ( index < m_preparedPlayerArrows.size() && m_preparedPlayerArrows[index] )
+		SetObjectAttackPower(m_preparedPlayerArrows[index], GetPlayerArrowAttackPower(playerSlot));
+}
+
+void CGameScene::RefreshPlayerWeaponAttackPowers()
+{
+	for ( int slot = 0; slot < 4; ++slot )
+		RefreshPlayerWeaponAttackPowersForSlot(slot);
+}
+
+void CGameScene::RefreshPlayerWeaponEffectVisuals()
+{
+	const int visualLevelIndex = GetPlayerWeaponEffectLevelIndex();
+
+	for ( SwordTrailEntry& trail : m_swordTrailEffect.entries )
+	{
+		if ( !trail.active )
+			continue;
+
+		switch ( trail.kind )
+		{
+		case EWeaponTrailKind::Sword:
+		{
+			const PlayerMeleeTrailVisualDesc& visual = m_playerSwordTrailVisualDescs[static_cast< size_t >( visualLevelIndex )];
+			trail.rootLocal = visual.rootLocal;
+			trail.tipLocal = visual.tipLocal;
+			trail.widthScale = visual.widthScale;
+			trail.color = visual.color;
+			trail.alphaScale = visual.alphaScale;
+		}
+		break;
+
+		case EWeaponTrailKind::Axe:
+		{
+			const PlayerMeleeTrailVisualDesc& visual = m_playerAxeTrailVisualDescs[static_cast< size_t >( visualLevelIndex )];
+			trail.rootLocal = visual.rootLocal;
+			trail.tipLocal = visual.tipLocal;
+			trail.widthScale = visual.widthScale;
+			trail.color = visual.color;
+			trail.alphaScale = visual.alphaScale;
+		}
+		break;
+
+		default:
+			break;
+		}
+	}
+
+	for ( ArrowTrailEntry& trail : m_arrowTrailEffect.entries )
+	{
+		if ( !trail.active )
+			continue;
+
+		const PlayerArrowTrailVisualDesc& visual = m_playerArrowTrailVisualDescs[static_cast< size_t >( visualLevelIndex )];
+		trail.sampleLifetimeSec = visual.sampleLifetimeSec;
+		trail.halfWidth = visual.halfWidth;
+		trail.color = visual.color;
+		trail.tailAlpha = visual.tailAlpha;
+		trail.headAlpha = visual.headAlpha;
+		trail.alphaScale = visual.alphaScale;
+	}
+}
+
+void CGameScene::RefreshPlayerWeaponDamageTierFromClearedMegaGrids()
+{
+	const int oldTier = m_playerWeaponDamageTierIndex;
+	const int newTier = ComputePlayerWeaponDamageTierIndexFromClearedMegaGrids();
+
+	if ( newTier == oldTier )
+		return;
+
+	m_playerWeaponDamageTierIndex = newTier;
+
+	RefreshPlayerWeaponAttackPowers();
+	RefreshPlayerWeaponEffectVisuals();
+
+	if ( newTier > oldTier )
+		SpawnWeaponLevelUpFireworks();
+}
+
 void CGameScene::MarkMegaGridClearedByNumber(int megaGridNumber)
 {
 	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
@@ -4282,6 +5919,7 @@ void CGameScene::MarkMegaGridClearedByNumber(int megaGridNumber)
 		return;
 
 	m_sceneGrid.SetMegaGridCleared(megaX, megaZ, true);
+	RefreshPlayerWeaponDamageTierFromClearedMegaGrids();
 }
 
 bool CGameScene::AreAllMonstersInMegaGridDead(int megaGridNumber) const
@@ -4308,6 +5946,809 @@ bool CGameScene::AreAllMonstersInMegaGridDead(int megaGridNumber) const
 	return true;
 }
 
+bool CGameScene::IsBossMonsterObject(const CGameObject* monster) const
+{
+	if ( !monster )
+		return false;
+
+	return std::find(
+		m_bossRefs.begin(),
+		m_bossRefs.end(),
+		monster
+	) != m_bossRefs.end();
+}
+
+bool CGameScene::IsEnemySpawnerMonsterObject(const CGameObject* monster) const
+{
+	if ( !monster )
+		return false;
+
+	return std::find(
+		m_EnemySpawnRefs.begin(),
+		m_EnemySpawnRefs.end(),
+		monster
+	) != m_EnemySpawnRefs.end();
+}
+
+bool CGameScene::AreAllPreBossMonstersInMegaGridDead(int megaGridNumber) const
+{
+	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+		return false;
+
+	const int zeroBased = megaGridNumber - 1;
+	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+	const std::vector<CGameObject*>& monsters =
+		m_sceneGrid.GetMegaGridMonsters(megaX, megaZ);
+
+	bool hasPreBossMonster = false;
+
+	for ( const CGameObject* monster : monsters )
+	{
+		if ( !monster )
+			continue;
+
+		// 보스는 "보스 등장 조건" 검사에서 제외한다.
+		if ( IsBossMonsterObject(monster) )
+			continue;
+
+		// 에네미 스포너 풀/스포너 생성 몬스터는 제외한다.
+		if ( IsEnemySpawnerMonsterObject(monster) )
+			continue;
+
+		hasPreBossMonster = true;
+
+		if ( !IsMonsterDead(monster) )
+			return false;
+	}
+
+	// 5번에 원래 배치 몬스터가 하나도 없으면 보스 조건을 만족한 것으로 보지 않는다.
+	return hasPreBossMonster;
+}
+
+void CGameScene::DamagePreBossMonstersInMegaGrid(int megaGridNumber, int damage)
+{
+#ifndef USING_NETWORK
+	if ( damage <= 0 )
+		return;
+
+	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+		return;
+
+	const int zeroBased = megaGridNumber - 1;
+	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+	const std::vector<CGameObject*>& monsters =
+		m_sceneGrid.GetMegaGridMonsters(megaX, megaZ);
+
+	int damagedCount = 0;
+
+	for ( CGameObject* monster : monsters )
+	{
+		if ( !monster )
+			continue;
+
+		if ( IsBossMonsterObject(monster) )
+			continue;
+
+		if ( IsEnemySpawnerMonsterObject(monster) )
+			continue;
+
+		if ( IsMonsterDead(monster) )
+			continue;
+
+		auto* hp = monster->GetComponent<CHealthComponent>();
+		if ( !hp )
+			continue;
+
+		hp->TakeDamage(damage);
+
+		hp->RequestHitSfx();
+		SpawnBloodSplash(monster, nullptr, nullptr);
+
+		if ( hp->IsDead() )
+			BeginMonsterDeath(monster);
+
+		++damagedCount;
+	}
+
+	UpdateMegaGridClearStateFromMonsterDeaths();
+
+	char buf[256];
+	sprintf_s(
+		buf,
+		"[BossStageTest] DamagePreBossMonstersInMegaGrid mega=%d damage=%d damaged=%d allDead=%d\n",
+		megaGridNumber,
+		damage,
+		damagedCount,
+		AreAllPreBossMonstersInMegaGridDead(megaGridNumber) ? 1 : 0
+	);
+	OutputDebugStringA(buf);
+#else
+	UNREFERENCED_PARAMETER(megaGridNumber);
+	UNREFERENCED_PARAMETER(damage);
+#endif
+}
+
+void CGameScene::SetBossStageBossAIEnabled(CGameObject* boss, bool enabled)
+{
+	if ( !boss )
+		return;
+
+	if ( auto* bossAI = boss->GetComponent<CBossAIComponent>() )
+	{
+		const bool bossCombatAIEnabled =
+			enabled && m_bSimulateLocalBossAI;
+
+		const bool bossSummonEnabled =
+			enabled &&
+			(
+				m_bSimulateLocalBossSummon ||
+				m_bSimulateLocalBossAI
+			);
+
+		const bool effectiveAIEnabled =
+			bossCombatAIEnabled || bossSummonEnabled;
+
+		bossAI->ConfigureBossSimulation(
+			bossCombatAIEnabled,
+			bossSummonEnabled
+		);
+
+		bossAI->SetEnabledAI(effectiveAIEnabled);
+
+		if ( !bossCombatAIEnabled )
+		{
+			bossAI->ClearTarget();
+			bossAI->ClearPath();
+		}
+
+		return;
+	}
+
+	auto Configure =
+		[ enabled ] (CMonsterAIComponent* ai) -> bool
+		{
+			if ( !ai )
+				return false;
+
+			ai->SetEnabledAI(enabled);
+
+			if ( !enabled )
+			{
+				ai->ClearTarget();
+				ai->ClearPath();
+			}
+
+			return true;
+		};
+
+	Configure(boss->GetComponent<CMonsterAIComponent>());
+}
+
+void CGameScene::RegisterBossStageBossOriginalPosition(
+	CGameObject* boss,
+	const XMFLOAT3& originalPosition)
+{
+	if ( !boss )
+		return;
+
+	BossStageBossPositionState& state =
+		m_bossStageBossPositionStates[boss];
+
+	state.originalPosition = originalPosition;
+	state.restoreFramesRemaining = 0;
+	state.pendingRestore = false;
+
+	state.renderAllowed = false;
+	state.waitAppearBeforeRender = false;
+}
+
+void CGameScene::MoveBossStageBossToHiddenPosition(CGameObject* boss)
+{
+	if ( !boss )
+		return;
+
+	auto it = m_bossStageBossPositionStates.find(boss);
+
+	if ( it == m_bossStageBossPositionStates.end() )
+	{
+		// fallback: 현재 위치를 원래 위치로 간주한다.
+		RegisterBossStageBossOriginalPosition(boss, boss->GetPosition());
+		it = m_bossStageBossPositionStates.find(boss);
+	}
+
+	if ( it == m_bossStageBossPositionStates.end() )
+		return;
+
+	XMFLOAT3 hiddenPosition = it->second.originalPosition;
+	hiddenPosition.y += kBossStageBossHiddenYOffset;
+
+	boss->SetPosition(hiddenPosition);
+
+	if ( auto* collider = boss->GetComponent<CColliderComponent>() )
+	{
+		collider->SetEnabled(false);
+		collider->UpdateWorldBounds();
+	}
+}
+
+void CGameScene::ScheduleBossStageBossPositionRestore(
+	CGameObject* boss,
+	int delayFrames)
+{
+	if ( !boss )
+		return;
+
+	auto it = m_bossStageBossPositionStates.find(boss);
+
+	if ( it == m_bossStageBossPositionStates.end() )
+	{
+		// 원칙적으로는 BuildSkinnedBatch에서 이미 등록되어 있어야 한다.
+		// 그래도 누락됐을 경우 현재 위치를 원래 위치로 저장한다.
+		RegisterBossStageBossOriginalPosition(boss, boss->GetPosition());
+		it = m_bossStageBossPositionStates.find(boss);
+	}
+
+	if ( it == m_bossStageBossPositionStates.end() )
+		return;
+
+	it->second.restoreFramesRemaining = std::max(0, delayFrames);
+	it->second.pendingRestore = true;
+}
+
+void CGameScene::UpdateBossStageBossPositionRestores()
+{
+#ifndef USING_NETWORK
+	for ( auto& kv : m_bossStageBossPositionStates )
+	{
+		CGameObject* boss = kv.first;
+		BossStageBossPositionState& state = kv.second;
+
+		if ( !boss )
+			continue;
+
+		if ( !state.pendingRestore )
+			continue;
+
+		if ( state.restoreFramesRemaining > 0 )
+			--state.restoreFramesRemaining;
+
+		if ( state.restoreFramesRemaining > 0 )
+			continue;
+
+		boss->SetPosition(state.originalPosition);
+
+		if ( auto* collider = boss->GetComponent<CColliderComponent>() )
+		{
+			collider->SetEnabled(true);
+			collider->UpdateWorldBounds();
+		}
+
+		// 위치가 원래 자리로 돌아온 뒤부터 AI를 켠다.
+		// 지하에 있는 1프레임 동안 추적/이동이 끼어드는 것을 막는다.
+		SetBossStageBossAIEnabled(boss, true);
+
+		state.pendingRestore = false;
+	}
+#endif
+}
+
+bool CGameScene::IsBossStageBossRenderAllowed(const CGameObject* boss) const
+{
+	if ( !boss )
+		return false;
+
+	if ( !IsBossMonsterObject(boss) )
+		return true;
+
+	const auto it =
+		m_bossStageBossPositionStates.find(
+			const_cast< CGameObject* >( boss )
+		);
+
+	if ( it == m_bossStageBossPositionStates.end() )
+		return false;
+
+	return it->second.renderAllowed;
+}
+
+void CGameScene::SetBossStageBossRenderAllowed(
+	CGameObject* boss,
+	bool allowed)
+{
+	if ( !boss )
+		return;
+
+	auto it = m_bossStageBossPositionStates.find(boss);
+
+	if ( it == m_bossStageBossPositionStates.end() )
+	{
+		RegisterBossStageBossOriginalPosition(boss, boss->GetPosition());
+		it = m_bossStageBossPositionStates.find(boss);
+	}
+
+	if ( it == m_bossStageBossPositionStates.end() )
+		return;
+
+	it->second.renderAllowed = allowed;
+}
+
+void CGameScene::UpdateBossStageBossRenderGate()
+{
+#ifndef USING_NETWORK
+	for ( auto& kv : m_bossStageBossPositionStates )
+	{
+		CGameObject* boss = kv.first;
+		BossStageBossPositionState& state = kv.second;
+
+		if ( !boss )
+			continue;
+
+		if ( state.renderAllowed )
+			continue;
+
+		if ( !state.waitAppearBeforeRender )
+			continue;
+
+		if ( !boss->GetActive() )
+			continue;
+
+		auto* renderer = boss->GetComponent<CSkinnedMeshRendererComponent>();
+
+		// 게이트가 열리기 전까지 renderer도 계속 꺼둔다.
+		if ( renderer )
+			renderer->SetEnabled(false);
+
+		auto* animComp = boss->GetComponent<CAnimatorComponent>();
+		if ( !animComp )
+			continue;
+
+		auto* ctrl = animComp->EnsureMonsterController();
+		if ( !ctrl )
+			continue;
+
+		if ( !ctrl->IsAppearPhase() )
+			continue;
+
+		state.renderAllowed = true;
+		state.waitAppearBeforeRender = false;
+
+		if ( renderer )
+			renderer->SetEnabled(true);
+	}
+#endif
+}
+
+void CGameScene::SetBossStageBossActive(
+	CGameObject* boss,
+	bool active,
+	bool playAppear)
+{
+	if ( !boss )
+		return;
+
+	auto* renderer = boss->GetComponent<CSkinnedMeshRendererComponent>();
+	auto* animator = boss->GetComponent<CAnimatorComponent>();
+	auto* collider = boss->GetComponent<CColliderComponent>();
+	auto* weaponHitbox = boss->GetComponent<CMonsterWeaponHitboxComponent>();
+
+	if ( !active )
+	{
+		if ( renderer )
+			renderer->SetEnabled(false);
+
+		if ( weaponHitbox )
+			weaponHitbox->SetEnabled(false);
+
+		if ( collider )
+			collider->SetEnabled(false);
+
+		SetBossStageBossAIEnabled(boss, false);
+
+		if ( animator )
+			animator->SetPoseEvaluationEnabled(false);
+
+		{
+			auto it = m_bossStageBossPositionStates.find(boss);
+
+			if ( it != m_bossStageBossPositionStates.end() )
+			{
+				it->second.renderAllowed = false;
+				it->second.waitAppearBeforeRender = false;
+			}
+		}
+
+		boss->SetActive(false);
+		return;
+	}
+
+	const bool useHiddenAppearSpawn = playAppear;
+
+	XMFLOAT3 bossSummonSfxPosition = boss->GetPosition();
+
+	if ( useHiddenAppearSpawn )
+	{
+		const auto posIt = m_bossStageBossPositionStates.find(boss);
+
+		if ( posIt != m_bossStageBossPositionStates.end() )
+			bossSummonSfxPosition = posIt->second.originalPosition;
+	}
+
+	// BossSummon.wav는 보스를 y=-100으로 내리기 전에,
+	// 반드시 원래 등장 위치 기준으로 1회 재생한다.
+	if ( useHiddenAppearSpawn )
+		PlayBossSummonSfxAt(bossSummonSfxPosition);
+
+	// Appear 시작 프레임에는 보스를 지하에 둔다.
+	// renderer/active 타이밍 문제가 남아 있어도 첫 노출은 y=-100 근처라 화면에 보이지 않는다.
+	if ( useHiddenAppearSpawn )
+		MoveBossStageBossToHiddenPosition(boss);
+
+	if ( renderer )
+		renderer->SetEnabled(false);
+
+	// 원래 위치 복구 전까지 AI는 꺼둔다.
+	SetBossStageBossAIEnabled(boss, false);
+
+	boss->SetActive(true);
+
+	if ( animator )
+	{
+		animator->SetPoseEvaluationEnabled(true);
+
+		if ( playAppear )
+		{
+			if ( auto* ctrl = animator->EnsureMonsterController() )
+			{
+				ctrl->RequestCommand(EMonsterAnimCommand::Appear);
+				ctrl->Update(0.0f);
+			}
+
+			boss->Animate(0.0f);
+		}
+	}
+
+	// 위치 복구 전까지 collider도 꺼둔다.
+	// 지하 위치의 collider가 플레이어나 충돌 시스템에 걸리는 것을 방지한다.
+	if ( collider )
+	{
+		if ( useHiddenAppearSpawn )
+		{
+			collider->SetEnabled(false);
+			collider->UpdateWorldBounds();
+		}
+		else
+		{
+			collider->SetEnabled(true);
+			collider->UpdateWorldBounds();
+		}
+	}
+
+	if ( weaponHitbox )
+		weaponHitbox->SetEnabled(false);
+
+	if ( auto* hp = boss->GetComponent<CHealthComponent>() )
+		hp->ResetToMax();
+
+	if ( auto* bossAI = boss->GetComponent<CBossAIComponent>() )
+	{
+		bossAI->ResetBossCallState();
+
+		if ( playAppear )
+			bossAI->ResetBossOpeningSpellState();
+	}
+
+	m_deadMonsters.erase(boss);
+
+	if ( playAppear )
+	{
+		auto it = m_bossStageBossPositionStates.find(boss);
+
+		if ( it == m_bossStageBossPositionStates.end() )
+		{
+			RegisterBossStageBossOriginalPosition(boss, boss->GetPosition());
+			it = m_bossStageBossPositionStates.find(boss);
+		}
+
+		if ( it != m_bossStageBossPositionStates.end() )
+		{
+			it->second.renderAllowed = false;
+			it->second.waitAppearBeforeRender = true;
+		}
+
+		// Appear phase가 실제로 확인되기 전까지 renderer도 꺼둔다.
+		if ( renderer )
+			renderer->SetEnabled(false);
+
+		// ctrl->Update(0.0f) 직후 이미 Appear phase가 잡힌 경우에는
+		// 같은 프레임 안에서도 render gate를 열 수 있다.
+		UpdateBossStageBossRenderGate();
+	}
+	else
+	{
+		SetBossStageBossRenderAllowed(boss, true);
+
+		if ( renderer )
+			renderer->SetEnabled(true);
+	}
+
+	if ( useHiddenAppearSpawn )
+	{
+		ScheduleBossStageBossPositionRestore(boss, 1);
+	}
+	else
+	{
+		SetBossStageBossAIEnabled(boss, true);
+	}
+}
+
+CGameObject* CGameScene::FindBossStageBossInMegaGrid(int megaGridNumber) const
+{
+#ifndef USING_NETWORK
+	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+		return nullptr;
+
+	for ( CGameObject* boss : m_bossRefs )
+	{
+		if ( !boss )
+			continue;
+
+		XMFLOAT3 pos = boss->GetPosition();
+
+		const auto it = m_bossStageBossPositionStates.find(boss);
+		if ( it != m_bossStageBossPositionStates.end() )
+			pos = it->second.originalPosition;
+
+		const int bossMegaNumber =
+			m_sceneGrid.MegaGridNumberFromWorldPosition(pos.x, pos.z);
+
+		if ( bossMegaNumber == megaGridNumber )
+			return boss;
+	}
+#else
+	UNREFERENCED_PARAMETER(megaGridNumber);
+#endif
+
+	return nullptr;
+}
+
+bool CGameScene::TryBeginBossStageSummonSequence()
+{
+#ifndef USING_NETWORK
+	if ( m_bBossStageBossActivated )
+		return false;
+
+	if ( m_bBossSummonSequenceStarted )
+		return false;
+
+	if ( !AreAllPreBossMonstersInMegaGridDead(5) )
+		return false;
+
+	CGameObject* boss = FindBossStageBossInMegaGrid(5);
+
+	if ( !boss )
+	{
+		return false;
+	}
+
+	XMFLOAT3 summonCenter = XMFLOAT3(400.0f, 0.0f, 0.0f);
+
+	const auto it = m_bossStageBossPositionStates.find(boss);
+	if ( it != m_bossStageBossPositionStates.end() )
+		summonCenter = it->second.originalPosition;
+	else
+		summonCenter = boss->GetPosition();
+
+	summonCenter.y = 0.0f;
+
+	m_pendingBossStageBoss = boss;
+	m_bBossSummonSequenceStarted = true;
+	m_bBossSummonCircleFadeAgeSec = 0.0f;
+
+	m_bBossSummonVisualFadeOutStarted = false;
+	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
+
+	SpawnBossSummonVisuals(summonCenter, 0.0f);
+	PlayBossSummonCircleSfxAt(summonCenter);
+
+	return true;
+#endif
+
+	return false;
+}
+
+bool CGameScene::TryActivateBossStageBoss()
+{
+#ifndef USING_NETWORK
+	if ( m_bBossStageBossActivated )
+		return false;
+
+	CGameObject* boss = m_pendingBossStageBoss;
+
+	if ( !boss )
+		boss = FindBossStageBossInMegaGrid(5);
+
+	if ( !boss )
+	{
+		return false;
+	}
+
+	XMFLOAT3 shockwaveCenter = XMFLOAT3(400.0f, 0.0f, 0.0f);
+
+	const auto bossPosIt = m_bossStageBossPositionStates.find(boss);
+	if ( bossPosIt != m_bossStageBossPositionStates.end() )
+		shockwaveCenter = bossPosIt->second.originalPosition;
+	else
+		shockwaveCenter = boss->GetPosition();
+
+	shockwaveCenter.y = 0.0f;
+
+	SetBossStageBossActive(boss, true, true);
+
+	SpawnBossShockwave(shockwaveCenter);
+
+	m_bBossStageBossActivated = true;
+	m_bBossSummonSequenceStarted = false;
+	m_bBossSummonCircleFadeAgeSec = kBossSummonCircleFadeInDurationSec;
+	m_pendingBossStageBoss = nullptr;
+
+	StartBossSummonVisualFadeOut();
+
+	return true;
+#endif
+
+	return false;
+}
+
+void CGameScene::UpdateBossStageSummonSequence(float dt)
+{
+#ifndef USING_NETWORK
+	if ( !m_bBossSummonSequenceStarted )
+		return;
+
+	if ( m_bBossStageBossActivated )
+		return;
+
+	if ( !m_pendingBossStageBoss )
+	{
+		m_bBossSummonSequenceStarted = false;
+		m_bBossSummonCircleFadeAgeSec = 0.0f;
+		m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
+
+		SetBossSummonVisualAlpha(0.0f);
+		SetBossSummonVisualActive(false);
+
+		return;
+	}
+
+	if ( dt < 0.0f )
+		dt = 0.0f;
+
+	m_bBossSummonCircleFadeAgeSec += dt;
+
+	if ( m_bBossSummonCircleFadeAgeSec > kBossSummonCircleFadeInDurationSec )
+		m_bBossSummonCircleFadeAgeSec = kBossSummonCircleFadeInDurationSec;
+
+	const float alpha =
+		( kBossSummonCircleFadeInDurationSec > 1.0e-6f )
+		? std::clamp(
+			m_bBossSummonCircleFadeAgeSec / kBossSummonCircleFadeInDurationSec,
+			0.0f,
+			1.0f
+		)
+		: 1.0f;
+
+	SetBossSummonVisualAlpha(alpha);
+
+	if ( m_pendingBossStageBoss )
+	{
+		XMFLOAT3 center = m_pendingBossStageBoss->GetPosition();
+		center.y = 0.05f;
+
+		EmitMagicCircleGlowParticles(
+			center,
+			110.0f,
+			alpha,
+			dt,
+			m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec,
+			kBossSummonGlowParticleEmitIntervalSec,
+			kBossSummonGlowParticlesPerEmit,
+			kBossSummonGlowParticleIntensityScale
+		);
+	}
+
+	if ( alpha < 1.0f )
+		return;
+
+	TryActivateBossStageBoss();
+#else
+	UNREFERENCED_PARAMETER(dt);
+#endif
+}
+
+void CGameScene::StartBossSummonVisualFadeOut()
+{
+#ifndef USING_NETWORK
+	m_bBossSummonVisualFadeOutStarted = true;
+	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
+
+	SetBossSummonVisualActive(true);
+	SetBossSummonVisualAlpha(1.0f);
+#endif
+}
+
+void CGameScene::UpdateBossSummonVisualFadeOut(float dt)
+{
+#ifndef USING_NETWORK
+	if ( !m_bBossSummonVisualFadeOutStarted )
+		return;
+
+	if ( dt < 0.0f )
+		dt = 0.0f;
+
+	m_bBossSummonVisualFadeOutAgeSec += dt;
+
+	const float t =
+		( kBossSummonCircleFadeOutDurationSec > 1.0e-6f )
+		? std::clamp(
+			m_bBossSummonVisualFadeOutAgeSec / kBossSummonCircleFadeOutDurationSec,
+			0.0f,
+			1.0f
+		)
+		: 1.0f;
+
+	const float alpha = 1.0f - t;
+
+	SetBossSummonVisualAlpha(alpha);
+
+	if ( alpha > 0.001f )
+	{
+		XMFLOAT3 center = XMFLOAT3(400.0f, 0.0f, 400.0f);
+
+		if ( m_pendingBossStageBoss )
+		{
+			center = m_pendingBossStageBoss->GetPosition();
+		}
+		else if ( !m_bossRefs.empty() && m_bossRefs[0] )
+		{
+			center = m_bossRefs[0]->GetPosition();
+
+			const auto it = m_bossStageBossPositionStates.find(m_bossRefs[0]);
+			if ( it != m_bossStageBossPositionStates.end() )
+				center = it->second.originalPosition;
+		}
+
+		center.y = 0.05f;
+
+		EmitMagicCircleGlowParticles(
+			center,
+			110.0f,
+			alpha,
+			dt,
+			m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec,
+			kBossSummonGlowParticleEmitIntervalSec,
+			kBossSummonGlowParticlesPerEmit,
+			kBossSummonGlowParticleIntensityScale
+		);
+	}
+
+	if ( t < 1.0f )
+		return;
+
+	SetBossSummonVisualAlpha(0.0f);
+	SetBossSummonVisualActive(false);
+
+	m_bBossSummonVisualFadeOutStarted = false;
+	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
+	m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
+#else
+	UNREFERENCED_PARAMETER(dt);
+#endif
+}
+
 void CGameScene::RegisterMutantKeyTriggerIfNeeded(
 	CGameObject* mutant,
 	int megaGridNumber)
@@ -4326,15 +6767,6 @@ void CGameScene::RegisterMutantKeyTriggerIfNeeded(
 
 	m_mutantKeyTriggerRegisteredByMega[( size_t ) megaGridNumber] = true;
 	m_mutantKeyTriggerMegaByObject[mutant] = megaGridNumber;
-
-	char buf[256];
-	sprintf_s(
-		buf,
-		"[MutantKeyTrigger] Registered first Mutant for mega grid %d. mutant=%p\n",
-		megaGridNumber,
-		static_cast< void* >( mutant )
-	);
-	OutputDebugStringA(buf);
 }
 
 void CGameScene::UnlockKeyBillboardForMegaGrid(int megaGridNumber)
@@ -4342,7 +6774,7 @@ void CGameScene::UnlockKeyBillboardForMegaGrid(int megaGridNumber)
 	if ( megaGridNumber != 6 && megaGridNumber != 8 )
 		return;
 
-	for ( ItemBillboardEntry& item : m_itemBillboards )
+	for ( ItemBillboardEntry& item : m_itemBillboardState.entries )
 	{
 		if ( item.kind != EItemBillboardKind::Key )
 			continue;
@@ -4360,14 +6792,6 @@ void CGameScene::UnlockKeyBillboardForMegaGrid(int megaGridNumber)
 
 		item.active = true;
 		item.distanceCulled = false;
-
-		char buf[256];
-		sprintf_s(
-			buf,
-			"[MutantKeyTrigger] Key billboard unlocked for mega grid %d.\n",
-			megaGridNumber
-		);
-		OutputDebugStringA(buf);
 
 		return;
 	}
@@ -4398,7 +6822,11 @@ void CGameScene::UpdateMegaGridClearStateFromMonsterDeaths()
 			MarkMegaGridClearedByNumber(2);
 	}
 
-	// 5번 메가그리드: 보스 사망 시 클리어.
+	// 5번 메가그리드: 보스 등장 전 기본 배치 몬스터가 모두 죽으면
+	// 보스를 바로 활성화하지 않고, 소환 마법진 fade-in부터 시작한다.
+	TryBeginBossStageSummonSequence();
+
+	// 5번 메가그리드: 최종 클리어는 보스 사망 시 처리.
 	if ( !m_sceneGrid.IsMegaGridCleared(1, 1) )
 	{
 		for ( const CGameObject* boss : m_bossRefs )
@@ -4487,6 +6915,11 @@ void CGameScene::BeginMonsterDeath(CGameObject* monster)
 
 	m_deadMonsters.insert(monster);
 
+	if ( IsBossMonsterObject(monster) )
+	{
+		PlayBossDeathSfxAt(monster->GetPosition());
+	}
+
 	HandleMutantKeyTriggerDeath(monster);
 
 	CancelMonsterPreparedActions(monster);
@@ -4524,6 +6957,8 @@ void CGameScene::BeginMonsterDeath(CGameObject* monster)
 
 void CGameScene::UpdateMonsterDeathStates()
 {
+	bool deathStateChanged = false;
+
 	for ( const SkinnedComponentCache& cache : m_skinnedComponentCache )
 	{
 		CGameObject* obj = cache.object;
@@ -4537,8 +6972,22 @@ void CGameScene::UpdateMonsterDeathStates()
 			continue;
 
 		if ( cache.health->IsDead() )
+		{
+			const bool wasAlreadyDead =
+				( m_deadMonsters.find(obj) != m_deadMonsters.end() );
+
 			BeginMonsterDeath(obj);
+
+			if ( !wasAlreadyDead &&
+				 m_deadMonsters.find(obj) != m_deadMonsters.end() )
+			{
+				deathStateChanged = true;
+			}
+		}
 	}
+
+	if ( deathStateChanged )
+		UpdateMegaGridClearStateFromMonsterDeaths();
 }
 
 void CGameScene::BeginLocalPlayerDeath(CGameObject* player)
@@ -4549,8 +6998,22 @@ void CGameScene::BeginLocalPlayerDeath(CGameObject* player)
 	if ( m_bLocalPlayerDead )
 		return;
 
+#ifndef USING_NETWORK
+	if ( CInventoryComponent* inventory = player->GetComponent<CInventoryComponent>() )
+	{
+		inventory->ForceRestoreAllEffects();
+
+		if ( inventory->ConsumeAttackPowerDirty() )
+			RefreshPlayerWeaponAttackPowersForSlot(m_localPlayerSlot);
+
+		SyncLocalInventoryToHud();
+	}
+#endif
+
 	m_bLocalPlayerDead = true;
 	m_localPlayerRespawnTimer = 0.0f;
+
+	PlayPlayerDeathSfxAt(player->GetPosition());
 
 	SetLocalPlayerControlEnabled(false);
 	CancelLocalPlayerPreparedActions();
@@ -4579,7 +7042,10 @@ void CGameScene::RespawnLocalPlayer(CGameObject* player)
 	player->SetPosition(kLocalPlayerRespawnPosition);
 
 	if ( auto* hp = player->GetComponent<CHealthComponent>() )
+	{
 		hp->ResetToMax();
+		hp->SetIncomingDamageScale(1.0f);
+	}
 
 	if ( auto* collider = player->GetComponent<CColliderComponent>() )
 	{
@@ -4640,6 +7106,9 @@ void CGameScene::UpdateLocalPlayerDeathAndRespawn(float dt)
 
 bool CGameScene::RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& previousPos)
 {
+	if ( !m_bSimulateLocalPlayerWorldStaticRollback )
+		return false;
+
 	CGameObject* localPlayer = GetPlayer();
 	if ( !localPlayer ) return false;
 	if ( !m_Collision ) return false;
@@ -4699,23 +7168,19 @@ bool CGameScene::RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& p
 	localPlayer->SetPosition(currentPos);
 	collider->UpdateWorldBounds();
 
-	if ( TryTeleportLocalPlayerByTowerDoorPortal(true) )
-		return true;
+	if ( m_bSimulateLocalTeleport )
+	{
+		if ( TryTeleportLocalPlayerByTowerDoorPortal(true) )
+			return true;
 
-	if ( TryTeleportLocalPlayerByCastleDoorPortal(true) )
-		return true;
+		if ( TryTeleportLocalPlayerByCastleDoorPortal(true) )
+			return true;
+	}
 #endif
 
 #ifndef USING_NETWORK
-	if ( IsTowerDoorPortalOnCooldown() )
+	if ( m_bSimulateLocalTeleport && IsTowerDoorPortalOnCooldown() )
 	{
-		if ( kEnableTowerDoorPortalCollisionLog )
-		{
-			OutputDebugStringA(
-				"[DoorPortal][ROLLBACK_SKIP_DURING_COOLDOWN] skip normal world-static rollback after portal teleport\n"
-			);
-		}
-
 		localPlayer->SetPosition(currentPos);
 		collider->UpdateWorldBounds();
 		return true;
@@ -4831,21 +7296,29 @@ void CGameScene::RequestFireArrow(CGameObject* shooter, float speed, float lifeS
         startPos.y += yOffset;
     }
 
-    const XMFLOAT3 vel =
-    {
-        dirN.x * speed,
-        dirN.y * speed,
-        dirN.z * speed
-    };
+	const XMFLOAT3 vel =
+	{
+		dirN.x * speed,
+		dirN.y * speed,
+		dirN.z * speed
+	};
 
-    for (CGameObject* arrowObj : m_arrowRefs)
+	const int slot = GetPlayerSlotFromObject(shooter);
+	if ( slot < 0 || slot >= 4 )
+		return;
+
+	for ( CGameObject* arrowObj : m_arrowRefs )
     {
         if (!arrowObj) continue;
 
         auto* arrow = arrowObj->GetComponent<CArrowComponent>();
         if (!arrow) continue;
 
-        if (arrow->IsActive()) continue;
+		if ( arrow->IsActive() ) continue;
+
+		SetObjectAttackPower(arrowObj, GetPlayerArrowAttackPower(slot));
+
+		m_playerWeaponOwnerByObject[arrowObj] = shooter;
 
 		arrow->Activate(startPos, vel, lifeSec, true);
 		return;
@@ -4869,6 +7342,10 @@ void CGameScene::RequestFireBullet(CGameObject* shooter, float speed, float life
 	CGameObject* spawnSource = gunObj ? gunObj : shooter;
 	CGameObject* directionSource = shooter;
 
+	const int slot = GetPlayerSlotFromObject(shooter);
+	if ( slot < 0 || slot >= 4 )
+		return;
+
 	for ( CGameObject* bulletObj : m_bulletRefs )
 	{
 		if ( !bulletObj ) continue;
@@ -4877,7 +7354,9 @@ void CGameScene::RequestFireBullet(CGameObject* shooter, float speed, float life
 		if ( !bullet ) continue;
 		if ( bullet->IsActive() ) continue;
 
-		SetObjectAttackPower(bulletObj, kAttackPowerPlayerBullet);
+		SetObjectAttackPower(bulletObj, GetPlayerBulletAttackPower(slot));
+
+		m_playerWeaponOwnerByObject[bulletObj] = shooter;
 
 		if ( bullet->FireFromObjects(spawnSource, directionSource, speed, lifeSec, true) )
 		{
@@ -4905,8 +7384,97 @@ void CGameScene::RequestFireBullet(CGameObject* shooter, float speed, float life
 	}
 }
 
-bool CGameScene::ProcessInput(UCHAR* /*pKeysBuffer*/)
+bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 {
+#ifndef USING_NETWORK
+	if ( !pKeysBuffer )
+	{
+		m_bPrevLocalMonsterChaseToggleKeyDown = false;
+		m_bPrevDebugDamageMegaGrid5KeyDown = false;
+		m_bPrevLocalStageTeleportKeyDown.fill(false);
+		m_bPrevInventoryUseKeyDown.fill(false);
+
+		return false;
+	}
+
+	// ---------------------------------------------------------------------
+	// Q: 로컬 몬스터 추적 on/off
+	// ---------------------------------------------------------------------
+	const bool qDown = ( pKeysBuffer['Q'] & 0xF0 ) != 0;
+
+	if ( qDown && !m_bPrevLocalMonsterChaseToggleKeyDown )
+	{
+		SetLocalMonsterChaseEnabled(!m_bSimulateLocalMonsterChase);
+		m_bPrevLocalMonsterChaseToggleKeyDown = true;
+		return true;
+	}
+
+	m_bPrevLocalMonsterChaseToggleKeyDown = qDown;
+
+	// ---------------------------------------------------------------------
+	// Enter: 테스트용. 5번 메가그리드의 보스/스포너 제외 몬스터에게 1000 대미지.
+	// ---------------------------------------------------------------------
+	const bool enterDown = ( pKeysBuffer[VK_RETURN] & 0xF0 ) != 0;
+
+	if ( enterDown && !m_bPrevDebugDamageMegaGrid5KeyDown )
+	{
+		m_bPrevDebugDamageMegaGrid5KeyDown = true;
+
+		DamagePreBossMonstersInMegaGrid(5, 1000);
+		return true;
+	}
+
+	m_bPrevDebugDamageMegaGrid5KeyDown = enterDown;
+
+	const bool stageTeleportModifierDown = ( ( pKeysBuffer[VK_LCONTROL] & 0xF0 ) != 0 ) || ( ( pKeysBuffer[VK_RCONTROL] & 0xF0 ) != 0 );
+
+	// ---------------------------------------------------------------------
+	// 1~4: 인벤토리 아이템 사용 요청
+	// ---------------------------------------------------------------------
+	for ( int slot = 0; slot < CGameSceneHUD::kInventorySlotCount; ++slot )
+	{
+		const bool down = ( pKeysBuffer['1' + slot] & 0xF0 ) != 0;
+		const bool prevDown = m_bPrevInventoryUseKeyDown[static_cast< size_t >(slot)];
+
+		if ( down && !prevDown && !stageTeleportModifierDown )
+			RequestUseInventoryItemSlot(slot);
+
+		m_bPrevInventoryUseKeyDown[static_cast< size_t >(slot)] = down;
+	}
+
+	// ---------------------------------------------------------------------
+	// Ctrl + 1~9: 로컬 스테이지 메가그리드 강제 텔레포트
+	//
+	// 배치:
+	// 789
+	// 456
+	// 123
+	//
+	// 숫자키 단독 입력은 아이템 사용 등에 넘기기 위해 여기서 consume하지 않는다.
+	// false이면 입력 상태만 갱신하고 실제 텔레포트는 하지 않는다.
+	// ---------------------------------------------------------------------
+
+	for ( int megaGridNumber = 1; megaGridNumber <= CSceneGrid::kMegaGridCount; ++megaGridNumber )
+	{
+		const bool down = ( pKeysBuffer['0' + megaGridNumber] & 0xF0 ) != 0;
+		const bool prevDown = m_bPrevLocalStageTeleportKeyDown[static_cast< size_t >( megaGridNumber )];
+
+		if ( down && !prevDown )
+		{
+			m_bPrevLocalStageTeleportKeyDown[static_cast< size_t >( megaGridNumber )] = true;
+
+			if ( stageTeleportModifierDown && m_bSimulateLocalStageTeleport )
+				return TryTeleportLocalPlayerToMegaGridByNumber(megaGridNumber);
+
+			return false;
+		}
+
+		m_bPrevLocalStageTeleportKeyDown[static_cast< size_t >( megaGridNumber )] = down;
+	}
+#else
+	UNREFERENCED_PARAMETER(pKeysBuffer);
+#endif
+
 	return false;
 }
 
@@ -4975,7 +7543,8 @@ FrameSnapshot CGameScene::BuildInterpolatedFrameSnapshot(const FrameSnapshot& la
 	if (m_lastReceivedServerTick <= kNetworkInterpolationDelayTicks)
 		return displaySnapshot;
 
-	const uint64_t renderTick = m_lastReceivedServerTick - kNetworkInterpolationDelayTicks;
+	const uint64_t ticksElapsed = static_cast<uint64_t>(m_timeSinceLastFramePacket / kServerTickSeconds);
+	const uint64_t renderTick = m_lastReceivedServerTick + ticksElapsed - kNetworkInterpolationDelayTicks;
 
 	const FrameSnapshot* older = nullptr;
 	const FrameSnapshot* newer = nullptr;
@@ -5097,14 +7666,22 @@ void CGameScene::AnimateObjects(float dt)
 		local = GetPlayerBySlot(0);
 
 #ifndef USING_NETWORK
-	if ( m_enemySpawner && local )
-	{
-		m_enemySpawner->Update(dt, local->GetPosition());
-	}
+	UpdateBossStageBossPositionRestores();
+	UpdateBossStageBossRenderGate();
+
+	UpdateBossSummonVisualFadeOut(dt);
+	UpdateBossStageSummonSequence(dt);
+	UpdateBossShockwave(dt);
+	UpdateBossCallSummonCircles(dt);
+	UpdateBossCallSummonWwwEffects(dt);
+
+	UpdateEnemySpawnerTimedGhoulWaves(dt);
 #endif
 
 	UpdateMuzzleFlashes(dt);
+	UpdateGunSmokes(dt);
 	UpdateSwordTrails(dt);
+	UpdateMonsterSwordTrails(dt);
 
 	UpdateMonsterDeathStates();
 
@@ -5118,10 +7695,26 @@ void CGameScene::AnimateObjects(float dt)
 
 #ifdef USING_NETWORK
     DequeueNetworkMessage(NetworkMessageType::FrameState);
+
+	std::unordered_map<uint64_t, CGameObject*> npcById;
+	{
+		UINT npcIndex = 0;
+		for ( UINT j = 0; j < ( UINT ) m_skinnedObjects.size(); ++j )
+		{
+			auto* obj = m_skinnedObjects[j].get();
+			if ( !obj ) continue;
+			auto* tag = obj->GetComponent<CActorTagComponent>();
+			if ( !tag || tag->kind != EActorKind::NPC ) continue;
+			npcById[npcIndex] = obj;
+			++npcIndex;
+		}
+	}
+
     if (std::holds_alternative<FrameSnapshot>(m_pendingNetworkMessage.data))
     {
         const FrameSnapshot& receivedSnapshot = std::get<FrameSnapshot>(m_pendingNetworkMessage.data);
 		PushNetworkFrameSnapshot(receivedSnapshot);
+		m_timeSinceLastFramePacket = 0.0f;
 		const FrameSnapshot& latestSnapshot =
 			m_frameSnapshotBuffer.empty() ? receivedSnapshot : m_frameSnapshotBuffer.back();
 		FrameSnapshot snapshot = BuildInterpolatedFrameSnapshot(latestSnapshot);
@@ -5134,43 +7727,40 @@ void CGameScene::AnimateObjects(float dt)
             CGameObject* player = GetPlayerBySlot(slot);
             if (!player) continue;
 
+			const bool isLocalPlayer = ( slot == m_localPlayerSlot );
 
-            if (slot == m_localPlayerSlot)
+			if (isLocalPlayer)
             {
+				constexpr float kLocalPlayerServerSnapDistance = 1.5f;
+				constexpr float kLocalPlayerServerSnapDistanceSq =
+					kLocalPlayerServerSnapDistance * kLocalPlayerServerSnapDistance;
+
                 const XMFLOAT3 currentPos = player->GetPosition();
                 const float dx = state.position.x - currentPos.x;
                 const float dy = state.position.y - currentPos.y;
                 const float dz = state.position.z - currentPos.z;
                 const float distSq = dx * dx + dy * dy + dz * dz;
 
-                if (distSq > 4.0f)
+                if (distSq > kLocalPlayerServerSnapDistanceSq)
                 {
                     player->SetPosition(state.position.x, state.position.y, state.position.z);
-                }
-                else if (distSq > 0.0001f)
-                {
-                    constexpr float kLocalCorrectionAlpha = 0.35f;
-                    player->SetPosition(
-                        currentPos.x + dx * kLocalCorrectionAlpha,
-                        currentPos.y + dy * kLocalCorrectionAlpha,
-                        currentPos.z + dz * kLocalCorrectionAlpha);
+
+					if ( auto* tr = player->GetComponent<CTransformComponent>() )
+						tr->SetYawDegrees(state.yaw);
+
+					if ( auto* controller = player->GetComponent<CPlayerControllerComponent>() )
+						controller->SetYawDegrees(state.yaw);
                 }
             }
             else
             {
                 player->SetPosition(state.position.x, state.position.y, state.position.z);
-            }
 
-            // yaw 회전 적용
-            if (auto* tr = player->GetComponent<CTransformComponent>())
-            {
-                tr->SetYawDegrees(state.yaw);
-            } 
-
-			if ( slot == m_localPlayerSlot )
-			{
-				if ( auto* controller = player->GetComponent<CPlayerControllerComponent>() )
-					controller->SetYawDegrees(state.yaw);
+				// yaw 회전 적용
+				if (auto* tr = player->GetComponent<CTransformComponent>())
+				{
+					tr->SetYawDegrees(state.yaw);
+				}
 			}
 			
 			if ( auto wc = player->GetComponent<CPlayerEquipmentComponent>() )
@@ -5288,22 +7878,6 @@ void CGameScene::AnimateObjects(float dt)
 
 
 		// Enemy 좌표 업데이트
-		// 1) NPC 인덱스 → 오브젝트 매핑 구축
-		std::unordered_map<uint64_t, CGameObject*> npcById;
-		{
-			UINT npcIndex = 0;
-			for ( UINT j = 0; j < ( UINT ) m_skinnedObjects.size(); ++j )
-			{
-				auto* obj = m_skinnedObjects[j].get();
-				if ( !obj ) continue;
-				auto* tag = obj->GetComponent<CActorTagComponent>();
-				if ( !tag || tag->kind != EActorKind::NPC ) continue;
-				npcById[npcIndex] = obj;
-				++npcIndex;
-			}
-		}
-
-		// 2) snapshot enemy를 ID 기준으로 적용
 		for ( const auto& state : snapshot.enemies )
 		{
 			auto it = npcById.find(state.id);
@@ -5327,10 +7901,9 @@ void CGameScene::AnimateObjects(float dt)
 
 					ctrl->SetLocomotionState(locomotionState);
 
-					static std::unordered_map<uint64_t, uint32_t> s_prevEnemyStateCode;
 					const uint32_t prevStateCode =
-						( s_prevEnemyStateCode.find(state.id) != s_prevEnemyStateCode.end() )
-						? s_prevEnemyStateCode[state.id]
+						( m_prevEnemyNetworkStateCode.find(state.id) != m_prevEnemyNetworkStateCode.end() )
+						? m_prevEnemyNetworkStateCode[state.id]
 						: 0u;
 					const DecodedAnimStateCode prevDecoded = DecodeStateCode(prevStateCode);
 
@@ -5354,15 +7927,40 @@ void CGameScene::AnimateObjects(float dt)
 						ctrl->RequestCommand(EMonsterAnimCommand::Attack);
 					}
 
-					s_prevEnemyStateCode[state.id] = state.animation.stateCode;
+					m_prevEnemyNetworkStateCode[state.id] = state.animation.stateCode;
 					ctrl->Update(0.0f);
 				}
 			}
 		}
 
 		// Projectile 동기화
-		size_t usedArrowCount = 0;
-		size_t usedBulletCount = 0;
+		std::unordered_set<uint64_t> visibleArrowIds;
+		std::unordered_set<uint64_t> visibleBulletIds;
+
+		auto AcquireNetworkProjectile = [] (
+			const std::vector<CGameObject*>& refs,
+			const std::unordered_map<uint64_t, CGameObject*>& activeById) -> CGameObject*
+		{
+			for ( CGameObject* obj : refs )
+			{
+				if ( !obj ) continue;
+
+				bool inUse = false;
+				for ( const auto& pair : activeById )
+				{
+					if ( pair.second == obj )
+					{
+						inUse = true;
+						break;
+					}
+				}
+
+				if ( !inUse )
+					return obj;
+			}
+
+			return nullptr;
+		};
 
 		for (const auto& b : snapshot.bullets)
 		{
@@ -5370,25 +7968,43 @@ void CGameScene::AnimateObjects(float dt)
 
 			if (isArrow)
 			{
-				if (usedArrowCount >= m_arrowRefs.size())
-					continue;
+				visibleArrowIds.insert(b.id);
 
-				CGameObject* arrowObj = m_arrowRefs[usedArrowCount++];
+				CGameObject* arrowObj = nullptr;
+				auto it = m_networkArrowById.find(b.id);
+				if ( it != m_networkArrowById.end() )
+					arrowObj = it->second;
+				else
+				{
+					arrowObj = AcquireNetworkProjectile(m_arrowRefs, m_networkArrowById);
+					if ( arrowObj )
+						m_networkArrowById[b.id] = arrowObj;
+				}
+
 				if (!arrowObj) continue;
 
 				if ( auto* arrow = arrowObj->GetComponent<CArrowComponent>() )
 				{
 					arrow->Activate(b.position, b.velocity, 2.0f);
-					auto arrowtransform = arrowObj->GetComponent<CTransformComponent>();
-					arrowtransform->SetLookDirection(b.velocity);
+					if ( auto* arrowtransform = arrowObj->GetComponent<CTransformComponent>() )
+						arrowtransform->SetLookDirection(b.velocity);
 				}
 			}
 			else
 			{
-				if (usedBulletCount >= m_bulletRefs.size())
-					continue;
+				visibleBulletIds.insert(b.id);
 
-				CGameObject* bulletObj = m_bulletRefs[usedBulletCount++];
+				CGameObject* bulletObj = nullptr;
+				auto it = m_networkBulletById.find(b.id);
+				if ( it != m_networkBulletById.end() )
+					bulletObj = it->second;
+				else
+				{
+					bulletObj = AcquireNetworkProjectile(m_bulletRefs, m_networkBulletById);
+					if ( bulletObj )
+						m_networkBulletById[b.id] = bulletObj;
+				}
+
 				if (!bulletObj) continue;
 
 				if ( auto* bullet = bulletObj->GetComponent<CBulletComponent>() )
@@ -5398,18 +8014,36 @@ void CGameScene::AnimateObjects(float dt)
 			}
 		}
 
-		for (size_t i = usedArrowCount; i < m_arrowRefs.size(); ++i)
+		for ( auto it = m_networkArrowById.begin(); it != m_networkArrowById.end(); )
 		{
-			if (!m_arrowRefs[i]) continue;
-			if (auto* arrow = m_arrowRefs[i]->GetComponent<CArrowComponent>())
-				arrow->Deactivate();
+			if ( visibleArrowIds.find(it->first) != visibleArrowIds.end() )
+			{
+				++it;
+				continue;
+			}
+
+			if ( it->second )
+			{
+				if ( auto* arrow = it->second->GetComponent<CArrowComponent>() )
+					arrow->Deactivate();
+			}
+			it = m_networkArrowById.erase(it);
 		}
 
-		for (size_t i = usedBulletCount; i < m_bulletRefs.size(); ++i)
+		for ( auto it = m_networkBulletById.begin(); it != m_networkBulletById.end(); )
 		{
-			if (!m_bulletRefs[i]) continue;
-			if (auto* bullet = m_bulletRefs[i]->GetComponent<CBulletComponent>())
-				bullet->Deactivate();
+			if ( visibleBulletIds.find(it->first) != visibleBulletIds.end() )
+			{
+				++it;
+				continue;
+			}
+
+			if ( it->second )
+			{
+				if ( auto* bullet = it->second->GetComponent<CBulletComponent>() )
+					bullet->Deactivate();
+			}
+			it = m_networkBulletById.erase(it);
 		}
 
 		// 사용이 끝난 data는 기본값으로 초기화 (선택적)
@@ -5417,6 +8051,8 @@ void CGameScene::AnimateObjects(float dt)
     }
 	else
 	{
+		m_timeSinceLastFramePacket += dt;
+
 		// 이전 state code를 따라가면서 그때의 애니메이션을 유지
 		for ( const auto& [id, stateCode] : m_prevPlayerNetworkStateCode )
 		{
@@ -5437,6 +8073,26 @@ void CGameScene::AnimateObjects(float dt)
 					ac->SetAnimState(decoded.hasMove ? EAnimState::Move : EAnimState::Idle);
 			}
 		}
+
+		for ( const auto& [id, stateCode] : m_prevEnemyNetworkStateCode )
+		{
+			auto it = npcById.find(id);
+			if ( it == npcById.end() ) continue;
+
+			auto* obj = it->second;
+			if ( auto* animComp = obj->GetComponent<CAnimatorComponent>() )
+			{
+				if ( auto* ctrl = animComp->EnsureMonsterController() )
+				{
+					const DecodedAnimStateCode decoded = DecodeStateCode(stateCode);
+					EMonsterAnimState locomotionState = EMonsterAnimState::Idle;
+					if ( decoded.hasMove )
+						locomotionState = decoded.run ? EMonsterAnimState::Run : EMonsterAnimState::Move;
+					ctrl->SetLocomotionState(locomotionState);
+				}
+			}
+		}
+
 	}
 #endif
 
@@ -5456,10 +8112,21 @@ void CGameScene::AnimateObjects(float dt)
 		CGameObject* obj = cache.object;
 		if ( !obj )
 			continue;
+#ifndef USING_NETWORK
+		if ( IsBossMonsterObject(obj) && !obj->GetActive() )
+		{
+			if ( cache.animator )
+				cache.animator->SetPoseEvaluationEnabled(false);
+
+			continue;
+		}
+#endif
 
 #ifndef USING_NETWORK
 		if ( ShouldSkipMonsterByMegaGrid(obj, j, activeMonsterMegaGridNumber) )
 		{
+			ResetMonsterToHomeForMegaGridSkip(obj);
+
 			if ( cache.animator )
 				cache.animator->SetPoseEvaluationEnabled(false);
 
@@ -5477,13 +8144,32 @@ void CGameScene::AnimateObjects(float dt)
 		if ( cache.animator )
 			cache.animator->SetPoseEvaluationEnabled(shouldEvaluatePose);
 
-		if ( !obj->GetActive() ) continue;
+		if ( !obj->GetActive() )
+			continue;
 
 		obj->Animate(dt);
 	}
 
+#ifndef USING_NETWORK
+	if ( CInventoryComponent* inventory = GetLocalPlayerInventory() )
+	{
+		if ( inventory->ConsumeAttackPowerDirty() )
+			RefreshPlayerWeaponAttackPowersForSlot(m_localPlayerSlot);
+	}
+
+	SyncLocalInventoryToHud();
+#endif
+
+#ifndef USING_NETWORK
+	UpdateBossMeleeSlashCasts(dt);
+	UpdateBossPoisonProjectileSpellCasts(dt);
+	UpdateBossPoisonProjectiles(dt);
+#endif
+
 	UpdateDynamicGridState();
+
 	UpdatePlayerFootstepSfx();
+	UpdateMonsterSfx(dt);
 
 	for ( CGameObject* obj : m_staticGameplayTickObjects )
 	{
@@ -5499,6 +8185,8 @@ void CGameScene::AnimateObjects(float dt)
 	UpdatePreparedBowArrows();
 #endif
 
+	UpdateArrowTrails(dt);
+
 	for ( UINT j = 0; j < ( UINT ) m_lightObjects.size(); ++j )
 	{
 		if ( !m_lightObjects[j] )
@@ -5510,25 +8198,76 @@ void CGameScene::AnimateObjects(float dt)
 
 void CGameScene::CollisionObjects()
 {
-	if ( !m_Collision ) return;
-
-	RefreshDynamicCollisionMegaGridMasks();
-
-	m_Collision->OnUpdateFiltered(
-		[ this ](
+	auto IsPlayerMonsterAttackCollisionCandidate =
+		[ ](
 			const CColliderComponent* a,
 			const CColliderComponent* b) -> bool
 		{
-			return ShouldKeepCollisionPairByMegaGrid(a, b);
-		}
-	);
+			if ( !a || !b )
+				return false;
 
-	// 아이템 빌보드는 CGameObject/Collider가 아니므로 별도 overlap 판정.
-	UpdateItemBillboardPickupCollision();
+			const uint32_t layerA = static_cast< uint32_t >( a->GetLayer() );
+			const uint32_t layerB = static_cast< uint32_t >( b->GetLayer() );
+
+			const bool playerWeaponHitsMonster =
+				( layerA == kCollisionLayerPlayerWeapon &&
+				  layerB == kCollisionLayerMonster ) ||
+				( layerB == kCollisionLayerPlayerWeapon &&
+				  layerA == kCollisionLayerMonster );
+
+			if ( playerWeaponHitsMonster )
+				return true;
+
+			const bool monsterWeaponHitsPlayer =
+				( layerA == kCollisionLayerMonsterWeapon &&
+				  layerB == kCollisionLayerPlayer ) ||
+				( layerB == kCollisionLayerMonsterWeapon &&
+				  layerA == kCollisionLayerPlayer );
+
+			if ( monsterWeaponHitsPlayer )
+				return true;
+
+			const bool monsterBodyWeaponCapsuleHitsPlayerBody =
+				( layerA == kCollisionLayerMonster &&
+				  layerB == kCollisionLayerPlayer ) ||
+				( layerB == kCollisionLayerMonster &&
+				  layerA == kCollisionLayerPlayer );
+
+			if ( monsterBodyWeaponCapsuleHitsPlayerBody )
+				return true;
+
+			return false;
+		};
+
+	if ( m_bSimulateLocalPlayerMonsterAttackCollision && m_Collision )
+	{
+		RefreshDynamicCollisionMegaGridMasks();
+
+		m_Collision->OnUpdateFiltered(
+			[ this, &IsPlayerMonsterAttackCollisionCandidate ](
+				const CColliderComponent* a,
+				const CColliderComponent* b) -> bool
+			{
+				if ( !IsPlayerMonsterAttackCollisionCandidate(a, b) )
+					return false;
+
+				return ShouldKeepCollisionPairByMegaGrid(a, b);
+			}
+		);
+	}
+
+	if ( m_bSimulateLocalItemPickup )
+	{
+		UpdateItemBillboardPickupCollision();
+	}
 
 #ifndef USING_NETWORK
-	TickTowerDoorPortalCooldowns();
-	TryTeleportLocalPlayerByTowerDoorPortal();
+	if ( m_bSimulateLocalTeleport )
+	{
+		TickTowerDoorPortalCooldowns();
+		TryTeleportLocalPlayerByTowerDoorPortal();
+		TryTeleportLocalPlayerByCastleDoorPortal();
+	}
 #endif
 
 	UpdateMonsterDeathStates();
@@ -5902,7 +8641,7 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 		RenderStaticInstanceGroups(cmd, camera);
 	}
 
-	if ( m_itemBillboardShader )
+	if ( m_itemBillboardState.shader )
 	{
 		RenderItemBillboards(cmd, camera);
 	}
@@ -5971,17 +8710,47 @@ void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* c
 
 	BindFrameRootParameters(cmd);
 
-	if ( m_transparentItemBillboardShader )
+	if ( m_itemBillboardState.transparentShader )
 	{
 		RenderTransparentItemBillboards(cmd, camera);
 	}
 
-	if ( m_swordTrailShader )
+	if ( m_bossCallSummonWwwEffect.shader )
+	{
+		RenderBossCallSummonWwwEffects(cmd, camera);
+	}
+
+	if ( m_bossPoisonProjectileEffect.shader )
+	{
+		RenderBossPoisonProjectiles(cmd, camera);
+	}
+
+	if ( m_swordTrailEffect.shader )
 	{
 		RenderSwordTrails(cmd, camera);
 	}
 
-	if ( m_muzzleFlashShader )
+	if ( m_monsterSwordTrailEffect.shader )
+	{
+		RenderMonsterSwordTrails(cmd, camera);
+	}
+
+	if ( m_arrowTrailEffect.shader )
+	{
+		RenderArrowTrails(cmd, camera);
+	}
+
+	if ( m_monsterArrowTrailEffect.shader )
+	{
+		RenderMonsterArrowTrails(cmd, camera);
+	}
+
+	if ( m_gunSmokeEffect.shader )
+	{
+		RenderGunSmokes(cmd, camera);
+	}
+
+	if ( m_muzzleFlashEffect.shader )
 	{
 		RenderMuzzleFlashes(cmd, camera);
 	}

@@ -34,24 +34,90 @@ public:
 	void SetTarget(CGameObject* target);
 	CGameObject* GetTarget() const { return m_pTarget; }
 
+	virtual bool ForceChaseTarget(CGameObject* target);
+
 	void ClearTarget();
+	void StopChaseAndReturnHome();
+
+	void SetHomeTransform(const XMFLOAT3& position, float yawDeg);
+	void CaptureHomeTransformFromOwner();
+
+	void ResetToHomeTransformForMegaGridSkip();
+	void SetPatrolEnabled(bool enabled);
+	bool IsPatrolEnabled() const { return m_bPatrolEnabled; }
+
+	void SetPatrolHalfDistance(float v)
+	{
+		m_patrolHalfDistance = ( v > 0.0f ) ? v : 0.0f;
+	}
+
+	void SetPatrolTurnSpeedDegrees(float v)
+	{
+		m_patrolTurnSpeedDegrees = ( v > 0.0f ) ? v : 360.0f;
+	}
 
 public:
 	void SetEnabledAI(bool enabled) { m_bAIEnabled = enabled; }
 	bool IsAIEnabled() const { return m_bAIEnabled; }
 
-	void SetDetectRange(float v) { m_detectRange = v; }
+	void SetDetectRange(float v) { SetChaseStopRange(v); }
+
+	void SetChaseStartRange(float v)
+	{
+		m_chaseStartRange = ( v > 0.0f ) ? v : 0.0f;
+	}
+
+	void SetChaseStopRange(float v)
+	{
+		m_chaseStopRange = ( v > 0.0f ) ? v : 0.0f;
+	}
+
+	void SetChaseRanges(float startRange, float stopRange)
+	{
+		SetChaseStartRange(startRange);
+		SetChaseStopRange(stopRange);
+	}
+
 	void SetAttackRange(float v) { m_attackRange = v; }
-	void SetMoveSpeed(float v) { m_moveSpeed = v; }
+
+	void SetMoveSpeed(float v) { SetRunMoveSpeed(v); }
+
+	void SetWalkMoveSpeed(float v)
+	{
+		m_walkMoveSpeed = ( v > 0.0f ) ? v : 0.0f;
+	}
+
+	void SetRunMoveSpeed(float v)
+	{
+		m_runMoveSpeed = ( v > 0.0f ) ? v : 0.0f;
+	}
+
+	void SetMoveSpeeds(float walkSpeed, float runSpeed)
+	{
+		SetWalkMoveSpeed(walkSpeed);
+		SetRunMoveSpeed(runSpeed);
+	}
+
 	void SetAttackCooldown(float v) { m_attackCooldown = v; }
 	void SetRepathInterval(float v) { m_repathInterval = v; }
 	void SetPathPointReachDistance(float v) { m_pathPointReachDistance = v; }
 	void SetGoalReachDistance(float v) { m_goalReachDistance = v; }
 	void SetFacingYawOffsetDegrees(float v) { m_facingYawOffsetDegrees = v; }
-	
-	float GetDetectRange() const { return m_detectRange; }
+
+	void SetChaseRunAnimationEnabled(bool enabled)
+	{
+		m_bChaseUsesRunAnimation = enabled;
+	}
+
+	float GetDetectRange() const { return m_chaseStopRange; }
+	float GetChaseStartRange() const { return m_chaseStartRange; }
+	float GetChaseStopRange() const { return m_chaseStopRange; }
+
 	float GetAttackRange() const { return m_attackRange; }
-	float GetMoveSpeed() const { return m_moveSpeed; }
+	float GetMoveSpeed() const { return m_runMoveSpeed; }
+
+	float GetWalkMoveSpeedValue() const { return m_walkMoveSpeed; }
+	float GetRunMoveSpeedValue() const { return m_runMoveSpeed; }
 	float GetAttackCooldown() const { return m_attackCooldown; }
 	float GetRepathInterval() const { return m_repathInterval; }
 	float GetPathPointReachDistance() const { return m_pathPointReachDistance; }
@@ -66,6 +132,13 @@ public:
 	float GetDistanceToPointXZ(const XMFLOAT3& p) const;
 
 	bool IsTargetInDetectRange() const;
+
+	bool IsObjectInChaseStartRange(CGameObject* obj) const;
+	bool IsObjectInChaseStopRange(CGameObject* obj) const;
+
+	bool IsTargetInChaseStartRange() const;
+	bool IsTargetInChaseStopRange() const;
+
 	bool IsTargetInAttackRange() const;
 
 	bool CanAttackNow() const;
@@ -81,12 +154,49 @@ protected:
 	virtual void UpdateBehavior(float dt);
 	virtual bool TryPerformAttack() = 0;
 
-	// 이동 정책
+	// 이동/공격 정책
 	virtual bool ShouldMoveTowardsTarget() const;
 	virtual bool ShouldRepath() const;
 	virtual bool CanMoveNow() const;
 	virtual bool CanThinkNow() const;
 	virtual bool CanAttackNowByState() const;
+	virtual bool CanRotateNow() const;
+
+	virtual bool CanStartAttackAgainstTarget() const;
+
+	bool IsAIActionLockedByAnimation() const;
+
+	bool IsObjectInChaseStartCone(CGameObject* obj) const;
+	bool IsPlayerRunning(CGameObject* player) const;
+	bool ShouldAcquireTargetFromIdle(CGameObject* candidate) const;
+	bool CanChaseTargetByMegaGridCenter(CGameObject* target) const;
+
+	bool EnsureHomeTransformCaptured();
+
+	bool BeginReturnHome();
+	bool BuildReturnPathToHomeOnce();
+	bool UpdateReturnHome(float dt);
+	void ClearReturnHomePath();
+
+	bool UpdateIdlePatrol(float dt);
+	void ResetPatrolState();
+	bool EnsurePatrolInitialized();
+
+	XMFLOAT3 GetPatrolEndpoint(int targetSign) const;
+	float GetPatrolFacingYawDegreesForTargetSign(int targetSign) const;
+
+	float GetOwnerYawDegrees() const;
+	void SetOwnerYawDegrees(float yawDeg);
+	bool RotateOwnerYawTowards(float targetYawDeg, float maxStepDeg);
+
+	bool IsAtHome(float tolerance = 0.20f) const;
+
+	bool FaceTowardsNoClamp(const XMFLOAT3& targetPos);
+	bool MoveTowardsNoClamp(const XMFLOAT3& targetPos, float maxStepDistance);
+
+	bool EnsureMovementBoundsInitialized();
+	XMFLOAT3 ClampPointToMovementBounds(const XMFLOAT3& p) const;
+	XMFLOAT3 GetTargetMoveGoalPosition() const;
 
 protected:
 	CNavMesh* GetNavMesh() const;
@@ -95,6 +205,12 @@ protected:
 	CMonsterAnimController* GetMonsterAnimController() const;
 	void SetMonsterLocomotionState(EMonsterAnimState state);
 
+	float GetChaseMoveSpeed() const;
+	float GetWalkMoveSpeed() const;
+
+	virtual EMonsterAnimState GetChaseLocomotionState() const;
+	virtual EMonsterAnimState GetWalkLocomotionState() const;
+
 	XMFLOAT3 GetOwnerPosition() const;
 	bool FaceTowards(const XMFLOAT3& targetPos);
 	bool MoveTowards(const XMFLOAT3& targetPos, float maxStepDistance);
@@ -102,6 +218,9 @@ protected:
 	bool TryMoveDirectlyToTarget(float dt);
 	bool FollowCurrentPath(float dt);
 
+	bool HasDirectNavMeshLineTo(
+		const XMFLOAT3& targetPos,
+		bool clampTargetToMovementBounds = true) const;
 	bool SampleNavMeshPosition(const XMFLOAT3& inPos, XMFLOAT3& outPos, int* outTri = nullptr) const;
 
 	void UpdateCooldowns(float dt);
@@ -113,9 +232,37 @@ protected:
 
 	bool m_bAIEnabled = true;
 
-	float m_detectRange = 12.0f;
+	bool m_bHomeTransformCaptured = false;
+	XMFLOAT3 m_homePosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	float m_homeYawDeg = 0.0f;
+
+	bool m_bReturningHome = false;
+	std::vector<int> m_returnTrianglePath;
+	std::vector<XMFLOAT3> m_returnPath;
+	size_t m_returnPathIndex = 0;
+
+	bool m_bPatrolEnabled = false;
+	bool m_bPatrolInitialized = false;
+	bool m_bPatrolTurning = false;
+
+	int m_patrolTargetSign = 1;
+
+	float m_patrolHalfDistance = 5.0f;
+	float m_patrolTurnSpeedDegrees = 240.0f;
+	float m_patrolEndpointReachDistance = 0.15f;
+	float m_patrolTurnTargetYawDeg = 0.0f;
+
+	float m_chaseStartRange = 12.0f;
+	float m_chaseStopRange = 12.0f;
+	float m_chaseStartConeCosHalfAngle = 0.5f;
+
 	float m_attackRange = 1.5f;
-	float m_moveSpeed = 2.0f;
+
+	float m_walkMoveSpeed = 1.0f;
+	float m_runMoveSpeed = 2.0f;
+
+	bool m_bChaseUsesRunAnimation = true;
+
 	float m_attackCooldown = 1.0f;
 	float m_repathInterval = 0.35f;
 
@@ -128,6 +275,12 @@ protected:
 	float m_postAttackMoveLockDuration = 0.25f;
 
 	float m_repathTimer = 0.0f;
+	bool m_bMovementBoundsInitialized = false;
+
+	float m_movementMinX = 0.0f;
+	float m_movementMaxX = 0.0f;
+	float m_movementMinZ = 0.0f;
+	float m_movementMaxZ = 0.0f;
 
 	std::vector<int> m_trianglePath;
 	std::vector<XMFLOAT3> m_currentPath;
