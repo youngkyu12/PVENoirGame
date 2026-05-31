@@ -266,9 +266,7 @@ void Room::TickAdvance()
 
 	for (auto enemy : enemies)
 	{
-		const GameMath::Vec3 prevPos = enemy.second->GetPosition();
 		enemy.second->Update(animClockTick);
-		ResolveWorldStaticCollision(enemy.second, prevPos);
 	}
 
 	// 화살 히트
