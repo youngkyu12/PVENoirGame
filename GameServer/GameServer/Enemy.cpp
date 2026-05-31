@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "Enemy.h"
 #include "MonsterAI.h"
+#include "Room.h"
 
 CEnemy::~CEnemy() = default;
 
@@ -37,6 +38,8 @@ void CEnemy::ApplyHit(uint32 serverTick, int damage, uint32 hitDurationTicks)
 		SetAnimTick(serverTick);
 		SetVelocity(GameMath::Vec3::Zero());
 		m_hitEndTick = 0;
+		if (GRoom)
+			GRoom->OnMonsterDeath(GetObjectId());
 		return;
 	}
 

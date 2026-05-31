@@ -1444,6 +1444,15 @@ private:
 
 	std::unordered_map<uint64_t, uint32_t> m_prevPlayerNetworkStateCode;
 	std::unordered_map<uint64_t, uint32_t> m_prevEnemyNetworkStateCode;
+
+	struct EnemyDRState
+	{
+		XMFLOAT3 predictedPos = {};
+		XMFLOAT3 moveDir     = { 0.0f, 0.0f, 1.0f };
+		float    speed       = 0.0f;
+		bool     initialized = false;
+	};
+	std::unordered_map<uint64_t, EnemyDRState> m_enemyDRStates;
 #endif
 
 	int m_playerWeaponDamageTierIndex = 0; 

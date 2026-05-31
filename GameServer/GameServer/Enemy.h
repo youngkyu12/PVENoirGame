@@ -23,6 +23,7 @@ public:
 	void Build(GameMath::Vec3 pos, GameMath::Vec3 rot);
 	void ApplyHit(uint32 serverTick, int damage, uint32 hitDurationTicks = 20);
 	void UpdateAI(float dt);
+	CMonsterAI* GetMonsterAI() { EnsureAI(); return m_monsterAI.get(); }
 
 private:
 	void EnsureAI();
