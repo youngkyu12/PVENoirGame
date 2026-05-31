@@ -181,7 +181,8 @@ namespace GameSceneHelper
 
 	static constexpr std::array<int, kPlayerWeaponDamageTierCount> kAttackPowerPlayerBulletByTier =
 	{
-		8, 18, 35
+		600, 600, 600
+		//8, 18, 35
 	};
 
 	static constexpr std::array<int, kPlayerWeaponDamageTierCount> kAttackPowerPlayerAxeByTier =
@@ -191,7 +192,8 @@ namespace GameSceneHelper
 
 	static constexpr std::array<int, kPlayerWeaponDamageTierCount> kAttackPowerPlayerSwordByTier =
 	{
-		10, 20, 40
+		600, 600, 600
+		//10, 20, 40
 	};
 
 	static constexpr int kAttackPowerGhoul = 5;
@@ -245,6 +247,11 @@ namespace GameSceneHelper
 	void DebugPrintTowerDoorPortalFloat3(const char* tag, const XMFLOAT3& v);
 	void DebugPrintTowerDoorPortalOOBB(const char* tag, const BoundingOrientedBox& box);
 #endif
+
+	bool ResolveStageFileSetFromMapId(
+	const std::string& mapId,
+	GameSceneStageFileSet& outFileSet
+	);
 
 	bool ResolvePlacementFilePathFromMapId(
 		const std::string& mapId,

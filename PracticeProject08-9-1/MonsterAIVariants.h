@@ -79,6 +79,63 @@ private:
 };
 
 //-----------------------------------------------------------------------------
+// Boss Stage Monster
+// 5번 메가그리드 전용.
+// - target 획득 조건: 플레이어가 5번 보스 스테이지에 있는가
+// - chase 이동: navmesh 없이 target 방향 직진
+// - target 없음: 기존 return-home 로직 사용
+// - SwordMan / BowMan patrol 전후 이동 없음
+//-----------------------------------------------------------------------------
+class CBossStageMonsterAIComponent final : public CMonsterAIComponent
+{
+public:
+	enum class EKind : uint8_t
+	{
+		Ghoul = 0,
+		SwordMan,
+		BowMan,
+		Mutant
+	};
+
+public:
+	explicit CBossStageMonsterAIComponent(CGameObject* owner);
+	~CBossStageMonsterAIComponent() override = default;
+
+public:
+	TypeId GetTypeId() const override
+	{
+		return CComponent::StaticTypeId<CBossStageMonsterAIComponent>();
+	}
+
+	void OnUpdate(float dt) override;
+
+	bool ForceChaseTarget(CGameObject* target) override;
+
+	void ConfigureBossStageMonsterAI(EKind kind);
+
+protected:
+	bool AcquireTarget() override;
+	void UpdateBehavior(float dt) override;
+
+	bool CanStartAttackAgainstTarget() const override;
+	bool TryPerformAttack() override;
+
+	EMonsterAnimState GetChaseLocomotionState() const override;
+	EMonsterAnimState GetWalkLocomotionState() const override;
+
+private:
+	bool IsPlayerValidBossStageTarget(CGameObject* player) const;
+	bool HasAnyValidPlayerInsideBossStage() const;
+	CGameObject* FindNearestPlayerInsideBossStage() const;
+
+	bool MoveDirectNoNavTowards(const XMFLOAT3& targetPos, float maxStepDistance);
+	bool MoveDirectNoNavByDirection(const XMFLOAT3& direction, float maxStepDistance);
+
+private:
+	EKind m_kind = EKind::Ghoul;
+};
+
+//-----------------------------------------------------------------------------
 // SwordMan
 //-----------------------------------------------------------------------------
 class CSwordManAIComponent final : public CMonsterAIComponent
@@ -151,6 +208,16 @@ public:
 		return CComponent::StaticTypeId<CBossAIComponent>();
 	}
 
+	void ResetBossCallState();
+	void ResetBossOpeningSpellState();
+
+	void ConfigureBossSimulation(
+		bool combatAIEnabled,
+		bool summonEnabled
+	);
+
+	void OnUpdate(float dt) override;
+
 protected:
 	bool AcquireTarget() override;
 	void UpdateBehavior(float dt) override;
@@ -167,25 +234,51 @@ private:
 	enum class EBossAttackIntent : uint8_t
 	{
 		Melee = 0,
-		Spell
+		Spell,
+		Call
 	};
 
 private:
 	void UpdateBossCooldowns(float dt);
 	void ConfigureBossHitReactionPolicy();
 
-	bool IsPlayerInsideBossBattleZone(CGameObject* player) const;
+	void UpdateBossCallThresholdState();
+	bool HasPendingBossCall() const;
+	bool TryRequestPendingBossCall(CGameObject* target, float dt);
+
+	void BeginBossCallRise();
+	bool UpdateBossCallRise(float dt);
+
+	void BeginBossCallDescend();
+	bool UpdateBossCallDescend(float dt);
+
+	bool IsBossCallVerticalSequenceActive() const;
+
+	bool UpdateBossCallSequence(
+		float dt,
+		CGameObject* target,
+		bool allowStartPendingCall
+	);
+
+	void ScheduleBossCallMonsterSpawn();
+	bool UpdateBossCallMonsterSpawnDelay(float dt);
+	void ExecuteBossCallMonsterSpawn(const char* reason);
+
+	bool IsPlayerInsideBossBattleZone(CGameObject* player) const; 
 	bool CanStartBossAction() const;
 
 	bool TryPerformBossCommand(EMonsterAnimCommand command);
 	bool TryPerformMeleeAttack();
 	bool TryPerformSpellAttack();
+	bool TryPerformCall();
 
 	void ConsumeBossMeleeCooldown();
 	void ConsumeBossSpellCooldown();
+	void ConsumeBossCallCooldown();
 
 	bool IsBossMeleeActionPlaying() const;
 	bool IsBossSpellActionPlaying() const;
+	bool IsBossCallActionPlaying() const;
 
 	bool SmoothFaceTowardsTarget(
 		CGameObject* target,
@@ -208,6 +301,9 @@ private:
 private:
 	EBossAttackIntent m_pendingAttackIntent = EBossAttackIntent::Melee;
 
+	bool m_bBossCombatAIEnabled = true;
+	bool m_bBossSummonEnabled = true;
+
 	float m_bossMeleeRange = 7.0f;
 	float m_bossPreferredSpellRange = 12.0f;
 
@@ -224,21 +320,51 @@ private:
 	static constexpr float kBossHitReactionAnimSuperArmorSec = 1.0f;
 	bool m_bBossHitReactionPolicyConfigured = false;
 
+	uint8_t m_bossCallThresholdMask = 0;
+	int m_bossPendingCallCount = 0;
+	int m_bossExecutedCallCount = 0;
+
+	bool m_bBossCallCommandRequested = false;
+	bool m_bBossCallConsumePendingOnStart = false;
+	float m_bossCallRequestAgeSec = 0.0f;
+	float m_bossCallTurnSpeedDegrees = 720.0f;
+
+	// Call 애니메이션 시작 후 실제 몬스터 생성 딜레이.
+	// 딜레이 값 자체는 GameScene에서 조절하고,
+	// 보스 AI는 Call phase 시작 시점에 그 값을 읽어 예약한다.
+	bool m_bBossCallMonsterSpawnPending = false;
+	int m_bossCallMonsterSpawnPendingCallIndex = -1;
+	float m_bossCallMonsterSpawnDelaySec = 0.0f;
+	float m_bossCallMonsterSpawnElapsedSec = 0.0f;
+
+	static constexpr float kBossCallLiftHeight = 3.0f;
+	static constexpr float kBossCallRiseDuration = 1.50f;
+	static constexpr float kBossCallDescendDuration = 2.0f;
+
+	bool m_bBossCallRising = false;
+	bool m_bBossCallRiseCompletedForCurrentCall = false;
+	bool m_bBossCallDescendPendingOnCallEnd = false;
+	bool m_bBossCallDescending = false;
+
+	float m_bossCallBaseY = 0.0f;
+
+	float m_bossCallRiseStartY = 0.0f;
+	float m_bossCallRiseElapsedSec = 0.0f;
+
+	float m_bossCallDescendStartY = 0.0f;
+	float m_bossCallDescendElapsedSec = 0.0f;
+
 	bool m_bBossOpeningSpellPending = true;
 	bool m_bBossOpeningSpellRequested = false;
 	float m_bossOpeningSpellRequestAgeSec = 0.0f;
 
-	// 근거리 공격 후 즉시 거리를 벌리는 회피 이동.
-	// 보스는 공중 몬스터이므로 별도 이동 애니메이션 없이 Idle 유지.
 	static constexpr float kBossPostMeleeEvadeDistance = 10.0f;
 	static constexpr float kBossPostMeleeEvadeSpeed = 32.0f;
 
-	// 보스 스테이지는 중심 (0, 0, 400), 안전 판정은 210 x 210 사용.
 	static constexpr float kBossPostMeleeEvadeStageCenterX = 0.0f;
 	static constexpr float kBossPostMeleeEvadeStageCenterZ = 400.0f;
 	static constexpr float kBossPostMeleeEvadeStageHalfExtent = 105.0f;
 
-	// 보스 크기/벽 끼임 방지용 여유.
 	static constexpr float kBossPostMeleeEvadeStagePadding = 5.0f;
 
 	bool m_bBossPostMeleeEvading = false;
