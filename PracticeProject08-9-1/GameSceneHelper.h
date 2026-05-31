@@ -282,7 +282,7 @@ namespace GameSceneHelper
 	// Terrain
 	// -------------------------------------------------------------------------
 	constexpr int kTerrainHeightMapSamples = 257;
-	constexpr float kTerrainWorldSize = 400.0f;
+	constexpr float kTerrainWorldSize = 1200.0f;
 	constexpr float kTerrainHorizontalScale = 
 		kTerrainWorldSize / static_cast<float>(kTerrainHeightMapSamples - 1);
 	constexpr float kTerrainHalfWorldSize = kTerrainWorldSize * 0.5f;
