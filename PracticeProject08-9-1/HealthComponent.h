@@ -55,6 +55,13 @@ public:
 		m_currentHp = m_maxHp;
 	}
 
+	void SetIncomingDamageScale(float scale)
+	{
+		m_incomingDamageScale = scale < 0.0f ? 0.0f : scale;
+	}
+
+	float GetIncomingDamageScale() const { return m_incomingDamageScale; }
+
 	bool TakeDamage(int damage)
 	{
 		if ( damage <= 0 )
@@ -63,9 +70,22 @@ public:
 		if ( IsDead() )
 			return false;
 
+		int effectiveDamage = damage;
+
+		if ( m_incomingDamageScale != 1.0f )
+		{
+			effectiveDamage = static_cast< int >( std::lround(static_cast< float >( damage ) * m_incomingDamageScale) );
+
+			if ( damage > 0 && m_incomingDamageScale > 0.0f && effectiveDamage < 1 )
+				effectiveDamage = 1;
+		}
+
+		if ( effectiveDamage <= 0 )
+			return false;
+
 		const int hpBefore = m_currentHp;
 
-		m_currentHp -= damage;
+		m_currentHp -= effectiveDamage;
 
 		if ( m_currentHp < 0 )
 			m_currentHp = 0;
@@ -74,7 +94,7 @@ public:
 
 		if ( actuallyDamaged )
 			PlayHitSfx();
-		
+
 		return true;
 	}
 
@@ -92,6 +112,7 @@ public:
 private:
 	int m_maxHp = 1;
 	int m_currentHp = 1;
+	float m_incomingDamageScale = 1.0f;
 
 public:
 	void SetAudioManager(CAudioManager* audioManager) { m_audioManager = audioManager; }

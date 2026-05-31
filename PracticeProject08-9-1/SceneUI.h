@@ -38,6 +38,9 @@ public:
 
 		ELayer layer = ELayer::Content;
 		bool visible = true;
+
+		// 0: normal, 1: disabled/desaturated, 2: force white text
+		int effectKind = 0;
 	};
 
 public:
@@ -58,6 +61,7 @@ public:
 		ELayer layer,
 		bool visible = true
 	);
+	int AddSolidRect(const char* name, const XMFLOAT4& rect, ELayer layer, bool visible = true);
 
 	int AddFitSprite(
 		ID3D12Device* dev,
@@ -77,6 +81,7 @@ public:
 
 	void SetSpriteVisible(int spriteIndex, bool visible);
 	void SetLayerVisible(ELayer layer, bool visible);
+	bool SetSpriteEffectKind(int spriteIndex, int effectKind);
 
 	bool GetSpriteRect(int spriteIndex, XMFLOAT4& outRect) const;
 	bool SetSpriteRect(int spriteIndex, const XMFLOAT4& rect);

@@ -101,14 +101,8 @@
     <Filter Include="SceneManager">
       <UniqueIdentifier>{8aa4149d-0def-49ad-837e-fc2348b3f423}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Components\FollowBoneComponent">
-      <UniqueIdentifier>{4ea87f93-3294-4dc5-924c-1762d261c0e4}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Global">
       <UniqueIdentifier>{6e4c0b33-06f8-47fd-9adc-ea78390121c3}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Components\PlayerEquipmentComponent">
-      <UniqueIdentifier>{62d5f888-2e6c-4738-b362-84ec00609cfd}</UniqueIdentifier>
     </Filter>
     <Filter Include="Components\Bullet">
       <UniqueIdentifier>{4ee5f8ae-15fa-4df4-bd07-0e898df3f8ef}</UniqueIdentifier>
@@ -119,9 +113,6 @@
     <Filter Include="BoundingCapsule">
       <UniqueIdentifier>{d0ac47c8-d1d6-4300-b584-0a4cad21299d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Components\ColliderComponent">
-      <UniqueIdentifier>{dad159b7-7326-4f8e-aed6-bf28373ffcbc}</UniqueIdentifier>
-    </Filter>
     <Filter Include="CollisionSystem">
       <UniqueIdentifier>{7897e45d-0980-4532-a0a1-518dbee876b1}</UniqueIdentifier>
     </Filter>
@@ -131,20 +122,8 @@
     <Filter Include="NavMesh">
       <UniqueIdentifier>{29fa9c05-5a78-40c4-898b-3f0e040081c8}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Components\AIComponent">
-      <UniqueIdentifier>{7a149549-114b-43fa-a74b-3b467bc953d2}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Components\WeaponHitboxComponent">
-      <UniqueIdentifier>{6003ae83-b712-4472-aea4-4987caeecc79}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Components\MonsterCombatComponent">
-      <UniqueIdentifier>{16aaad4e-f7aa-4e0a-a3f6-036a548f179e}</UniqueIdentifier>
-    </Filter>
     <Filter Include="AudioManager">
       <UniqueIdentifier>{aed301b5-8685-4e5f-8c74-475c77ee1c54}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Components\AudioComponent">
-      <UniqueIdentifier>{e293aa47-1d63-419e-8cb4-5a21d61efd73}</UniqueIdentifier>
     </Filter>
     <Filter Include="Scene\GameScene">
       <UniqueIdentifier>{ff521d59-8515-4d7f-aef1-dff665d834e7}</UniqueIdentifier>
@@ -158,29 +137,56 @@
     <Filter Include="SceneUI">
       <UniqueIdentifier>{82bffcad-a59b-4e2f-b10f-ef814845d86f}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Components\Health&amp;AttackPower">
-      <UniqueIdentifier>{a7c1173c-5085-4756-ba9a-40b4a0386bbf}</UniqueIdentifier>
-    </Filter>
     <Filter Include="ShadowMap">
       <UniqueIdentifier>{4004a651-92e4-4af2-b222-2eb75c2e37e5}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Scene\GameScene\GameSceneAttachmentBinder">
-      <UniqueIdentifier>{75471584-926c-408e-a72a-f01d62ee858b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Scene\GameScene\GameSceneContentCatalog">
-      <UniqueIdentifier>{575edd73-58a9-4694-a566-a8c942bd7e0d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Scene\GameScene\GameSceneHelper">
-      <UniqueIdentifier>{07137118-864a-4a0d-a2d0-cb706e6814b6}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Scene\GameScene\GameSceneHUD">
-      <UniqueIdentifier>{eeb33e69-f4dc-48b7-aa7b-4f7d80c4044b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Scene\GameScene\GameSceneObjectFactory">
-      <UniqueIdentifier>{8ebe87ca-6343-4559-a84b-d9c718eabacd}</UniqueIdentifier>
-    </Filter>
     <Filter Include="EnemySpawner">
       <UniqueIdentifier>{57fff3bd-1740-43c3-a1a4-367610ca4ec0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene\GameScene\Billboard">
+      <UniqueIdentifier>{7c58d22c-1efc-4bfd-8136-984c437466f6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene\GameScene\ObjectFactory">
+      <UniqueIdentifier>{8ebe87ca-6343-4559-a84b-d9c718eabacd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene\GameScene\HUD">
+      <UniqueIdentifier>{eeb33e69-f4dc-48b7-aa7b-4f7d80c4044b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene\GameScene\Helper">
+      <UniqueIdentifier>{07137118-864a-4a0d-a2d0-cb706e6814b6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene\GameScene\ContentCatalog">
+      <UniqueIdentifier>{575edd73-58a9-4694-a566-a8c942bd7e0d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene\GameScene\AttachmentBinder">
+      <UniqueIdentifier>{75471584-926c-408e-a72a-f01d62ee858b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Components\WeaponHitbox">
+      <UniqueIdentifier>{6003ae83-b712-4472-aea4-4987caeecc79}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Components\PlayerEquipment">
+      <UniqueIdentifier>{62d5f888-2e6c-4738-b362-84ec00609cfd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Components\MonsterCombat">
+      <UniqueIdentifier>{16aaad4e-f7aa-4e0a-a3f6-036a548f179e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Components\FollowBone">
+      <UniqueIdentifier>{4ea87f93-3294-4dc5-924c-1762d261c0e4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Components\Collider">
+      <UniqueIdentifier>{dad159b7-7326-4f8e-aed6-bf28373ffcbc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Components\AI">
+      <UniqueIdentifier>{7a149549-114b-43fa-a74b-3b467bc953d2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Components\Audio">
+      <UniqueIdentifier>{e293aa47-1d63-419e-8cb4-5a21d61efd73}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Components\Health">
+      <UniqueIdentifier>{a7c1173c-5085-4756-ba9a-40b4a0386bbf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Components\Inventory">
+      <UniqueIdentifier>{04de9da1-79ab-45bc-9a54-cebfc64840b8}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -305,7 +311,7 @@
       <Filter>Network\NetworkGlobal</Filter>
     </ClInclude>
     <ClInclude Include="FollowBoneComponent.h">
-      <Filter>Components\FollowBoneComponent</Filter>
+      <Filter>Components\FollowBone</Filter>
     </ClInclude>
     <ClInclude Include="GlobalValues.h">
       <Filter>Global</Filter>
@@ -314,7 +320,7 @@
       <Filter>Global</Filter>
     </ClInclude>
     <ClInclude Include="PlayerEquipmentComponent.h">
-      <Filter>Components\PlayerEquipmentComponent</Filter>
+      <Filter>Components\PlayerEquipment</Filter>
     </ClInclude>
     <ClInclude Include="ActorTagComponent.h">
       <Filter>Components\ActorTag</Filter>
@@ -332,7 +338,7 @@
       <Filter>BoundingCapsule</Filter>
     </ClInclude>
     <ClInclude Include="ColliderComponent.h">
-      <Filter>Components\ColliderComponent</Filter>
+      <Filter>Components\Collider</Filter>
     </ClInclude>
     <ClInclude Include="CollisionSystem.h">
       <Filter>CollisionSystem</Filter>
@@ -344,13 +350,13 @@
       <Filter>NavMesh</Filter>
     </ClInclude>
     <ClInclude Include="WeaponHitboxComponent.h">
-      <Filter>Components\WeaponHitboxComponent</Filter>
+      <Filter>Components\WeaponHitbox</Filter>
     </ClInclude>
     <ClInclude Include="MonsterCombatComponent.h">
-      <Filter>Components\MonsterCombatComponent</Filter>
+      <Filter>Components\MonsterCombat</Filter>
     </ClInclude>
     <ClInclude Include="MonsterWeaponHitboxComponent.h">
-      <Filter>Components\WeaponHitboxComponent</Filter>
+      <Filter>Components\WeaponHitbox</Filter>
     </ClInclude>
     <ClInclude Include="AudioManager.h">
       <Filter>AudioManager</Filter>
@@ -359,7 +365,7 @@
       <Filter>AudioManager</Filter>
     </ClInclude>
     <ClInclude Include="AudioComponent.h">
-      <Filter>Components\AudioComponent</Filter>
+      <Filter>Components\Audio</Filter>
     </ClInclude>
     <ClInclude Include="GameScene.h">
       <Filter>Scene\GameScene</Filter>
@@ -374,31 +380,31 @@
       <Filter>SceneUI</Filter>
     </ClInclude>
     <ClInclude Include="HealthComponent.h">
-      <Filter>Components\Health&amp;AttackPower</Filter>
+      <Filter>Components\Health</Filter>
     </ClInclude>
     <ClInclude Include="AttackPowerComponent.h">
-      <Filter>Components\Health&amp;AttackPower</Filter>
+      <Filter>Components\Health</Filter>
     </ClInclude>
     <ClInclude Include="ShadowMap.h">
       <Filter>ShadowMap</Filter>
     </ClInclude>
     <ClInclude Include="GameSceneAttachmentBinder.h">
-      <Filter>Scene\GameScene\GameSceneAttachmentBinder</Filter>
+      <Filter>Scene\GameScene\AttachmentBinder</Filter>
     </ClInclude>
     <ClInclude Include="GameSceneContentCatalog.h">
-      <Filter>Scene\GameScene\GameSceneContentCatalog</Filter>
+      <Filter>Scene\GameScene\ContentCatalog</Filter>
     </ClInclude>
     <ClInclude Include="GameSceneHelper.h">
-      <Filter>Scene\GameScene\GameSceneHelper</Filter>
+      <Filter>Scene\GameScene\Helper</Filter>
     </ClInclude>
     <ClInclude Include="GameSceneHUD.h">
-      <Filter>Scene\GameScene\GameSceneHUD</Filter>
+      <Filter>Scene\GameScene\HUD</Filter>
     </ClInclude>
     <ClInclude Include="GameSceneObjectFactory.h">
-      <Filter>Scene\GameScene\GameSceneObjectFactory</Filter>
+      <Filter>Scene\GameScene\ObjectFactory</Filter>
     </ClInclude>
     <ClInclude Include="GameScenePrivate.h">
-      <Filter>Scene\GameScene\GameSceneHelper</Filter>
+      <Filter>Scene\GameScene\Helper</Filter>
     </ClInclude>
     <ClInclude Include="MathHelper.h">
       <Filter>PCH</Filter>
@@ -407,10 +413,22 @@
       <Filter>EnemySpawner</Filter>
     </ClInclude>
     <ClInclude Include="MonsterAIVariants.h">
-      <Filter>Components\AIComponent</Filter>
+      <Filter>Components\AI</Filter>
     </ClInclude>
     <ClInclude Include="MonsterAIComponent.h">
-      <Filter>Components\AIComponent</Filter>
+      <Filter>Components\AI</Filter>
+    </ClInclude>
+    <ClInclude Include="GameSceneFrameUploadBuffer.h">
+      <Filter>Scene\GameScene\Billboard</Filter>
+    </ClInclude>
+    <ClInclude Include="GameSceneBillboardTypes.h">
+      <Filter>Scene\GameScene\Billboard</Filter>
+    </ClInclude>
+    <ClInclude Include="GameSceneBillboardCommon.h">
+      <Filter>Scene\GameScene\Billboard</Filter>
+    </ClInclude>
+    <ClInclude Include="InventoryComponent.h">
+      <Filter>Components\Inventory</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -511,13 +529,13 @@
       <Filter>Network\NetworkGlobal</Filter>
     </ClCompile>
     <ClCompile Include="FollowBoneComponent.cpp">
-      <Filter>Components\FollowBoneComponent</Filter>
+      <Filter>Components\FollowBone</Filter>
     </ClCompile>
     <ClCompile Include="GlobalValues.cpp">
       <Filter>Global</Filter>
     </ClCompile>
     <ClCompile Include="PlayerEquipmentComponent.cpp">
-      <Filter>Components\PlayerEquipmentComponent</Filter>
+      <Filter>Components\PlayerEquipment</Filter>
     </ClCompile>
     <ClCompile Include="ActorTagComponent.cpp">
       <Filter>Components\ActorTag</Filter>
@@ -532,7 +550,7 @@
       <Filter>BoundingCapsule</Filter>
     </ClCompile>
     <ClCompile Include="ColliderComponent.cpp">
-      <Filter>Components\ColliderComponent</Filter>
+      <Filter>Components\Collider</Filter>
     </ClCompile>
     <ClCompile Include="CollisionSystem.cpp">
       <Filter>CollisionSystem</Filter>
@@ -544,13 +562,13 @@
       <Filter>NavMesh</Filter>
     </ClCompile>
     <ClCompile Include="WeaponHitboxComponent.cpp">
-      <Filter>Components\WeaponHitboxComponent</Filter>
+      <Filter>Components\WeaponHitbox</Filter>
     </ClCompile>
     <ClCompile Include="MonsterCombatComponent.cpp">
-      <Filter>Components\MonsterCombatComponent</Filter>
+      <Filter>Components\MonsterCombat</Filter>
     </ClCompile>
     <ClCompile Include="MonsterWeaponHitboxComponent.cpp">
-      <Filter>Components\WeaponHitboxComponent</Filter>
+      <Filter>Components\WeaponHitbox</Filter>
     </ClCompile>
     <ClCompile Include="AudioManager.cpp">
       <Filter>AudioManager</Filter>
@@ -559,7 +577,7 @@
       <Filter>AudioManager</Filter>
     </ClCompile>
     <ClCompile Include="AudioComponent.cpp">
-      <Filter>Components\AudioComponent</Filter>
+      <Filter>Components\Audio</Filter>
     </ClCompile>
     <ClCompile Include="GameScene.cpp">
       <Filter>Scene\GameScene</Filter>
@@ -580,10 +598,7 @@
       <Filter>Scene\GameScene</Filter>
     </ClCompile>
     <ClCompile Include="HealthComponent.cpp">
-      <Filter>Components\Health&amp;AttackPower</Filter>
-    </ClCompile>
-    <ClCompile Include="GameSceneBillboard.cpp">
-      <Filter>Scene\GameScene</Filter>
+      <Filter>Components\Health</Filter>
     </ClCompile>
     <ClCompile Include="GameSceneAudio.cpp">
       <Filter>Scene\GameScene</Filter>
@@ -592,19 +607,19 @@
       <Filter>ShadowMap</Filter>
     </ClCompile>
     <ClCompile Include="GameSceneAttachmentBinder.cpp">
-      <Filter>Scene\GameScene\GameSceneAttachmentBinder</Filter>
+      <Filter>Scene\GameScene\AttachmentBinder</Filter>
     </ClCompile>
     <ClCompile Include="GameSceneContentCatalog.cpp">
-      <Filter>Scene\GameScene\GameSceneContentCatalog</Filter>
+      <Filter>Scene\GameScene\ContentCatalog</Filter>
     </ClCompile>
     <ClCompile Include="GameSceneHelper.cpp">
-      <Filter>Scene\GameScene\GameSceneHelper</Filter>
+      <Filter>Scene\GameScene\Helper</Filter>
     </ClCompile>
     <ClCompile Include="GameSceneHUD.cpp">
-      <Filter>Scene\GameScene\GameSceneHUD</Filter>
+      <Filter>Scene\GameScene\HUD</Filter>
     </ClCompile>
     <ClCompile Include="GameSceneObjectFactory.cpp">
-      <Filter>Scene\GameScene\GameSceneObjectFactory</Filter>
+      <Filter>Scene\GameScene\ObjectFactory</Filter>
     </ClCompile>
     <ClCompile Include="EnemySpawner.cpp">
       <Filter>EnemySpawner</Filter>
@@ -613,10 +628,43 @@
       <Filter>Scene\GameScene</Filter>
     </ClCompile>
     <ClCompile Include="MonsterAIVariants.cpp">
-      <Filter>Components\AIComponent</Filter>
+      <Filter>Components\AI</Filter>
     </ClCompile>
     <ClCompile Include="MonsterAIComponent.cpp">
-      <Filter>Components\AIComponent</Filter>
+      <Filter>Components\AI</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneBillboard.cpp">
+      <Filter>Scene\GameScene\Billboard</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneBillboardCommon.cpp">
+      <Filter>Scene\GameScene\Billboard</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneItemBillboard.cpp">
+      <Filter>Scene\GameScene\Billboard</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneMuzzleFlashEffects.cpp">
+      <Filter>Scene\GameScene\Billboard</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneProjectileEffects.cpp">
+      <Filter>Scene\GameScene\Billboard</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneTrailEffects.cpp">
+      <Filter>Scene\GameScene\Billboard</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneBossSummonEffects.cpp">
+      <Filter>Scene\GameScene\Billboard</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneBossShockwaveEffects.cpp">
+      <Filter>Scene\GameScene\Billboard</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneBossCombatEffectCasts.cpp">
+      <Filter>Scene\GameScene\Billboard</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneInventory.cpp">
+      <Filter>Scene\GameScene</Filter>
+    </ClCompile>
+    <ClCompile Include="InventoryComponent.cpp">
+      <Filter>Components\Inventory</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
