@@ -94,6 +94,54 @@ namespace
 	static constexpr float kMonsterGhoulWhooshDelaySeconds = 0.1494f;
 	static constexpr float kMonsterGhoulWhooshVolume = 0.5f;
 
+	static constexpr float kBossSummonSfxVolume = 5.0f;
+	static constexpr float kBossSummonCircleSfxVolume = 1.0f;
+
+	static constexpr float kBossCallSummonCircleSfxVolume = 1.0f;
+	static constexpr float kBossCallMonsterSpawnSfxVolume = 1.0f;
+
+	static constexpr float kEnemySpawnerSirenSfxVolume = 1.0f;
+
+	static constexpr float kBossAttackSfxDelaySeconds = 0.3320f;
+	static constexpr float kBossAttackSfxVolume = 1.0f;
+
+	static constexpr float kBossShockwaveWindSfxVolume = 1.0f;
+
+	static const char* GetBossSummonSfxPath()
+	{
+		return "Assets/Audio/BossSummon.wav";
+	}
+
+	static const char* GetBossCallMonsterSpawnSfxPath()
+	{
+		return "Assets/Audio/Summon.wav";
+	}
+
+	static const char* GetEnemySpawnerSirenSfxPath()
+	{
+		return "Assets/Audio/siren.wav";
+	}
+
+	static const char* GetBossAttackSfxPath()
+	{
+		return "Assets/Audio/BossAttack.wav";
+	}
+
+	static const char* GetBossShockwaveWindSfxPath()
+	{
+		return "Assets/Audio/BossSummonWind.wav";
+	}
+
+	static const char* GetBossSummonCircleSfxPath1()
+	{
+		return "Assets/Audio/mhj.wav";
+	}
+
+	static const char* GetBossCallSummonCircleSfxPath()
+	{
+		return "Assets/Audio/mhj2.wav";
+	}
+
 	static const char* GetMonsterMutantWhooshPath()
 	{
 		return "Assets/Audio/Whoosh_Sword2.wav";
@@ -155,6 +203,246 @@ namespace
 	{
 		return "Assets/Audio/Bow_Release.mp3";
 	}
+}
+
+void CGameScene::PlayBossSummonSfxAt(const XMFLOAT3& position)
+{
+	if ( !m_pAudioManager )
+		return;
+
+	const char* path = GetBossSummonSfxPath();
+
+	if ( !path || !path[0] )
+		return;
+
+	m_pAudioManager->PlaySound3D(
+		path,
+		position,
+		false,                 // loop: 1회 재생
+		false,                 // stream
+		kBossSummonSfxVolume,
+		false                  // startPaused
+	);
+}
+
+void CGameScene::PlayBossSummonCircleSfxAt(const XMFLOAT3& position)
+{
+	if ( !m_pAudioManager )
+		return;
+
+	const char* path = GetBossSummonCircleSfxPath1();
+
+	if ( path && path[0] )
+	{
+		m_pAudioManager->PlaySound3D(
+			path,
+			position,
+			false,                         // loop: 1회 재생
+			false,                         // stream
+			kBossSummonCircleSfxVolume,
+			false                          // startPaused
+		);
+	}
+}
+
+void CGameScene::PlayBossCallSummonCircleSfxAt(const XMFLOAT3& position)
+{
+	if ( !m_pAudioManager )
+		return;
+
+	const char* path = GetBossCallSummonCircleSfxPath();
+
+	if ( !path || !path[0] )
+		return;
+
+	m_pAudioManager->PlaySound3D(
+		path,
+		position,
+		false,                         // loop: 1회 재생
+		false,                         // stream
+		kBossCallSummonCircleSfxVolume,
+		false                          // startPaused
+	);
+}
+
+void CGameScene::PlayBossCallMonsterSpawnSfxAt(const XMFLOAT3& position)
+{
+	if ( !m_pAudioManager )
+		return;
+
+	const char* path = GetBossCallMonsterSpawnSfxPath();
+
+	if ( !path || !path[0] )
+		return;
+
+	m_pAudioManager->PlaySound3D(
+		path,
+		position,
+		false,                         // loop: 1회 재생
+		false,                         // stream
+		kBossCallMonsterSpawnSfxVolume,
+		false                          // startPaused
+	);
+}
+
+void CGameScene::PlayEnemySpawnerSirenSfxAt(const XMFLOAT3& position)
+{
+	if ( !m_pAudioManager )
+		return;
+
+	const char* path = GetEnemySpawnerSirenSfxPath();
+
+	if ( !path || !path[0] )
+		return;
+
+	m_pAudioManager->PlaySound3D(
+		path,
+		position,
+		false,                         // loop: 1회 재생
+		false,                         // stream
+		kEnemySpawnerSirenSfxVolume,
+		false                          // startPaused
+	);
+
+#if defined(_DEBUG)
+	char buf[512];
+	sprintf_s(
+		buf,
+		"[EnemySpawnerSirenSfx] sound=\"%s\" volume=%.2f pos=(%.3f, %.3f, %.3f)\n",
+		path,
+		kEnemySpawnerSirenSfxVolume,
+		position.x,
+		position.y,
+		position.z
+	);
+	OutputDebugStringA(buf);
+#endif
+}
+
+void CGameScene::PlayBossShockwaveWindSfxAt(const XMFLOAT3& position)
+{
+	ResetBossShockwaveWindSfxTracking();
+
+	if ( !m_pAudioManager )
+		return;
+
+	const char* path = GetBossShockwaveWindSfxPath();
+
+	if ( !path || !path[0] )
+		return;
+
+	FMOD::Channel* channel = m_pAudioManager->PlaySound3D(
+		path,
+		position,
+		false,                         // loop: 1회 재생
+		false,                         // stream
+		kBossShockwaveWindSfxVolume,
+		false                          // startPaused
+	);
+
+	if ( !channel )
+		return;
+
+	m_bossShockwaveWindSfxChannel = channel;
+	m_bossShockwaveWindSfxPrevPosition = position;
+	m_bossShockwaveWindSfxHasPrevPosition = true;
+	m_bBossShockwaveWindSfxTrackingActive = true;
+
+#if defined(_DEBUG)
+	char buf[512];
+	sprintf_s(
+		buf,
+		"[BossShockwaveWindSfx][Start] sound=\"%s\" volume=%.2f pos=(%.3f, %.3f, %.3f)\n",
+		path,
+		kBossShockwaveWindSfxVolume,
+		position.x,
+		position.y,
+		position.z
+	);
+	OutputDebugStringA(buf);
+#endif
+}
+
+void CGameScene::UpdateBossShockwaveWindSfx(float currentRadius)
+{
+	if ( !m_bBossShockwaveWindSfxTrackingActive )
+		return;
+
+	if ( !m_pAudioManager || !m_bossShockwaveWindSfxChannel )
+	{
+		ResetBossShockwaveWindSfxTracking();
+		return;
+	}
+
+	if ( !m_pAudioManager->IsChannelPlaying(m_bossShockwaveWindSfxChannel) )
+	{
+		ResetBossShockwaveWindSfxTracking();
+		return;
+	}
+
+	float radius = std::clamp(currentRadius, 0.0f, kBossShockwaveMaxRadius);
+
+	XMFLOAT3 dir = m_bossShockwaveWindSfxDirection;
+
+	// 로컬 플레이어 기준으로 충격파 원 위의 가장 가까운 지점을 사운드 발생점으로 쓴다.
+	// 즉, 사운드가 중앙에 고정되지 않고 플레이어 쪽으로 퍼지는 충격파 전면을 따라간다.
+	CGameObject* localPlayer = GetPlayer();
+
+	if ( localPlayer && !m_bLocalPlayerDead )
+	{
+		const XMFLOAT3 playerPos = localPlayer->GetPosition();
+
+		const float dx = playerPos.x - m_bossShockwaveCenter.x;
+		const float dz = playerPos.z - m_bossShockwaveCenter.z;
+		const float distSq = dx * dx + dz * dz;
+
+		const float minDirDistSq =
+			kBossShockwavePlayerMinDirectionDistance *
+			kBossShockwavePlayerMinDirectionDistance;
+
+		if ( distSq > minDirDistSq )
+		{
+			const float invDist = 1.0f / sqrtf(distSq);
+
+			dir.x = dx * invDist;
+			dir.y = 0.0f;
+			dir.z = dz * invDist;
+
+			m_bossShockwaveWindSfxDirection = dir;
+		}
+	}
+
+	XMFLOAT3 sourcePos = m_bossShockwaveCenter;
+	sourcePos.x += dir.x * radius;
+	sourcePos.y = 0.0f;
+	sourcePos.z += dir.z * radius;
+
+	XMFLOAT3 velocity(0.0f, 0.0f, 0.0f);
+
+	if ( m_bossShockwaveWindSfxHasPrevPosition )
+	{
+		velocity.x = sourcePos.x - m_bossShockwaveWindSfxPrevPosition.x;
+		velocity.y = sourcePos.y - m_bossShockwaveWindSfxPrevPosition.y;
+		velocity.z = sourcePos.z - m_bossShockwaveWindSfxPrevPosition.z;
+	}
+
+	m_pAudioManager->SetChannel3DAttributes(
+		m_bossShockwaveWindSfxChannel,
+		sourcePos,
+		velocity
+	);
+
+	m_bossShockwaveWindSfxPrevPosition = sourcePos;
+	m_bossShockwaveWindSfxHasPrevPosition = true;
+}
+
+void CGameScene::ResetBossShockwaveWindSfxTracking()
+{
+	m_bBossShockwaveWindSfxTrackingActive = false;
+	m_bossShockwaveWindSfxChannel = nullptr;
+	m_bossShockwaveWindSfxDirection = XMFLOAT3(0.0f, 0.0f, 1.0f);
+	m_bossShockwaveWindSfxPrevPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	m_bossShockwaveWindSfxHasPrevPosition = false;
 }
 
 void CGameScene::RequestPlayerAttackSfx(CGameObject* player)
@@ -817,6 +1105,27 @@ void CGameScene::RequestBowManLoadSfx(CGameObject* bowman)
 		kMonsterBowReleaseSfxVolume,
 		true
 	);
+}
+
+void CGameScene::RequestBossAttackSfx(CGameObject* boss)
+{
+	ScheduleMonsterSfx(
+		EMonsterSfxKind::BossAttack,
+		boss,
+		GetBossAttackSfxPath(),
+		kBossAttackSfxDelaySeconds,
+		kBossAttackSfxVolume,
+		true
+	);
+
+	char buf[256];
+	sprintf_s(
+		buf,
+		"[BossAttackSfx][Request] delay=%.4f sec (%.1f ms)\n",
+		kBossAttackSfxDelaySeconds,
+		kBossAttackSfxDelaySeconds * 1000.0f
+	);
+	OutputDebugStringA(buf);
 }
 
 void CGameScene::ScheduleMonsterSfx(
