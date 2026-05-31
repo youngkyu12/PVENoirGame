@@ -18,6 +18,7 @@
 
 class CGameObject;
 class CMesh;
+class TerrainData;
 struct CB_GAMEOBJECT_INFO;
 
 namespace GameSceneObjectFactory
@@ -70,6 +71,9 @@ namespace GameSceneObjectFactory
 
 		bool addAttackPower = false;
 		int attackPower = 0;
+
+		bool addTerrainAttach = false;
+		std::shared_ptr<TerrainData> terrainData;
 	};
 
 	struct SkinnedRenderableDesc

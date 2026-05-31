@@ -3195,6 +3195,7 @@ void CGameScene::ReleaseObjects()
 	m_castleDoorPortals.clear();
 #endif
 
+	m_terrainObjects.clear();
 	m_staticObjects.clear();
 	m_skinnedObjects.clear();
 
@@ -3300,6 +3301,7 @@ void CGameScene::ReleaseObjects()
 	m_shadowSkinnedShader.reset();
 	m_shadowAlphaClipSkinnedShader.reset();
 	m_skinnedAlphaClipShader.reset();
+	m_shadowTerrainShader.reset();
 
 	m_sceneRenderTargetCount = 0;
 	m_bSceneRenderTargetsReady = false;
@@ -3628,7 +3630,9 @@ void CGameScene::BuildStaticInstanceGroups()
 			UINT objectIndex,
 			const std::shared_ptr<CMesh>& mesh,
 			int lodLevel,
-			bool useTreeShader)
+			bool useTreeShader,
+			bool useTerrainShader,
+			bool useWaterShader)
 		{
 			if ( !mesh )
 				return;
@@ -3642,6 +3646,8 @@ void CGameScene::BuildStaticInstanceGroups()
 				key.mesh = mesh.get();
 				key.subMeshIndex = subMeshIndex;
 				key.useTreeShader = useTreeShader;
+				key.useTerrainShader = useTerrainShader;
+				key.useWaterShader = useWaterShader;
 				key.lodLevel = lodLevel;
 
 				size_t groupIndex = 0;
@@ -3654,6 +3660,8 @@ void CGameScene::BuildStaticInstanceGroups()
 					group.mesh = mesh;
 					group.subMeshIndex = subMeshIndex;
 					group.useTreeShader = useTreeShader;
+					group.useTerrainShader = useTerrainShader;
+					group.useWaterShader = useWaterShader;
 					group.lodLevel = lodLevel;
 
 					groupIndex = m_staticInstanceGroups.size();
@@ -3680,6 +3688,12 @@ void CGameScene::BuildStaticInstanceGroups()
 
 		const bool useTreeShader =
 			( m_treeAlphaClipObjects.find(obj) != m_treeAlphaClipObjects.end() );
+
+		const bool useTerrainShader =
+			( m_terrainObjects.find(obj) != m_terrainObjects.end() );
+
+		const bool useWaterShader =
+			( m_waterObjects.find(obj) != m_waterObjects.end() );
 
 		int lodEntryIndex = -1;
 		if ( objectIndex <
@@ -3721,7 +3735,9 @@ void CGameScene::BuildStaticInstanceGroups()
 						objectIndex,
 						lodMesh,
 						resolvedLod,
-						useTreeShader
+						useTreeShader,
+						useTerrainShader,
+						useWaterShader
 					);
 				}
 
@@ -3735,7 +3751,7 @@ void CGameScene::BuildStaticInstanceGroups()
 		for ( int meshIndex = 0; meshIndex < meshCount; ++meshIndex )
 		{
 			std::shared_ptr<CMesh> mesh = obj->GetMeshShared(meshIndex);
-			AddObjectToGroup(objectIndex, mesh, 0, useTreeShader);
+			AddObjectToGroup(objectIndex, mesh, 0, useTreeShader, useTerrainShader, useWaterShader);
 		}
 	}
 
@@ -3746,6 +3762,12 @@ void CGameScene::BuildStaticInstanceGroups()
 		{
 			if ( a.useTreeShader != b.useTreeShader )
 				return a.useTreeShader < b.useTreeShader;
+
+			if ( a.useTerrainShader != b.useTerrainShader )
+				return a.useTerrainShader < b.useTerrainShader;
+
+			if ( a.useWaterShader != b.useWaterShader )
+				return a.useWaterShader < b.useWaterShader;
 
 			if ( a.mesh.get() != b.mesh.get() )
 				return a.mesh.get() < b.mesh.get();
@@ -4251,8 +4273,7 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 	if ( !staticInstanceBuffer ) return;
 	if ( !mappedStaticInstanceBuffer ) return;
 
-	bool lastUseTreeShader = false;
-	bool hasBoundAnyShader = false;
+	int lastShaderKind = -1; // 0=static, 1=tree, 2=terrain
 
 	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -4301,9 +4322,29 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 		vbViews[1].SizeInBytes = sizeof(StaticInstanceVertex) * visibleInstanceCount;
 		vbViews[1].StrideInBytes = sizeof(StaticInstanceVertex);
 
-		if ( !hasBoundAnyShader || lastUseTreeShader != group.useTreeShader )
+		const int shaderKind =
+			group.useWaterShader ? 3 :
+			group.useTerrainShader ? 2 :
+			group.useTreeShader ? 1 :
+			0;
+
+		if ( lastShaderKind != shaderKind )
 		{
-			if ( group.useTreeShader )
+			if (shaderKind == 3)
+			{
+				if (m_waterShader)
+					m_waterShader->Render(cmd, camera, &m_staticBatch);
+				else if (m_staticBatch.shader)
+					m_staticBatch.shader->Render(cmd, camera, &m_staticBatch);
+			}
+			else if ( shaderKind == 2 )
+			{
+				if ( m_terrainShader )
+					m_terrainShader->Render(cmd, camera, &m_staticBatch);
+				else if ( m_staticBatch.shader )
+					m_staticBatch.shader->Render(cmd, camera, &m_staticBatch);
+			}
+			else if ( shaderKind == 1 )
 			{
 				if ( m_treeStaticShader )
 					m_treeStaticShader->Render(cmd, camera, &m_staticBatch);
@@ -4316,8 +4357,7 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 					m_staticBatch.shader->Render(cmd, camera, &m_staticBatch);
 			}
 
-			lastUseTreeShader = group.useTreeShader;
-			hasBoundAnyShader = true;
+			lastShaderKind = shaderKind;
 		}
 
 		const UINT mid = ( sm.materialId == 0xFFFFFFFFu ) ? 0u : sm.materialId;
@@ -4328,6 +4368,12 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 
 		cmd->IASetVertexBuffers(0, 2, vbViews);
 		cmd->IASetIndexBuffer(&sm.ibView);
+
+		cmd->IASetPrimitiveTopology(
+			(group.useTerrainShader || group.useWaterShader)
+			? D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP
+			: D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST
+		);
 
 		cmd->DrawIndexedInstanced(( UINT ) sm.indices.size(), visibleInstanceCount, 0, 0, 0);
 	}
@@ -4498,8 +4544,9 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 	if ( !mappedStaticInstanceBuffer ) return;
 	if ( !m_shadowStaticShader ) return;
 	if ( !m_shadowAlphaClipStaticShader ) return;
+	if ( !m_shadowTerrainShader ) return;
 
-	bool lastUseAlphaClipShader = false;
+	int lastShaderKind = -1; // 0=static, 1=tree alpha-clip, 2=terrain
 	bool hasBoundAnyShader = false;
 
 	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -4546,14 +4593,21 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 		if ( visibleInstanceCount == 0 )
 			continue;
 
-		if ( !hasBoundAnyShader || lastUseAlphaClipShader != group.useTreeShader )
+		const int shaderKind =
+			group.useTerrainShader ? 2 :
+			group.useTreeShader ? 1 :
+			0;
+
+		if ( !hasBoundAnyShader || lastShaderKind != shaderKind )
 		{
-			if ( group.useTreeShader )
+			if ( shaderKind == 2 )
+				m_shadowTerrainShader->Render(cmd, nullptr, &m_staticBatch);
+			else if ( shaderKind == 1 )
 				m_shadowAlphaClipStaticShader->Render(cmd, nullptr, &m_staticBatch);
 			else
 				m_shadowStaticShader->Render(cmd, nullptr, &m_staticBatch);
 
-			lastUseAlphaClipShader = group.useTreeShader;
+			lastShaderKind = shaderKind;
 			hasBoundAnyShader = true;
 		}
 
@@ -4578,6 +4632,12 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 
 		cmd->IASetVertexBuffers(0, 2, vbViews);
 		cmd->IASetIndexBuffer(&sm.ibView);
+
+		cmd->IASetPrimitiveTopology(
+			group.useTerrainShader
+			? D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP
+			: D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST
+		);
 
 		cmd->DrawIndexedInstanced(( UINT ) sm.indices.size(), visibleInstanceCount, 0, 0, 0);
 	}
@@ -7599,6 +7659,7 @@ float CGameScene::LerpYawDegrees(float a, float b, float t)
 void CGameScene::AnimateObjects(float dt)
 {
 	m_fElapsedTime = dt;
+	m_waterAccumulatedTime += dt;
 
 	CGameObject* local = GetPlayer();
 	if ( !local )
@@ -8270,6 +8331,91 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
 		}
 	}
 
+	TERRAIN* mappedTerrain = m_pcbMappedTerrain[frameIndex];
+
+	if ( mappedTerrain )
+	{
+		const XMFLOAT3 terrainScale = m_TerrainData->GetScale();
+		const UINT heightMapSrvIndex = m_TerrainData->GetsrvIndex();
+
+		mappedTerrain->gvTerrainScale = XMFLOAT4(
+			terrainScale.x,
+			terrainScale.y,
+			terrainScale.z,
+			(heightMapSrvIndex == UINT_MAX) ? 0.0f : 1.0f
+		);
+
+		mappedTerrain->gvTerrainHeightMapSize = XMFLOAT4(
+			static_cast<float>(m_TerrainData->GetHeightMapWidth()),
+			static_cast<float>(m_TerrainData->GetHeightMapLength()),
+			0.0f,
+			0.0f
+		);
+
+		mappedTerrain->gvTerrainTextureIndices = XMUINT4(
+			heightMapSrvIndex,
+			UINT_MAX,
+			UINT_MAX,
+			UINT_MAX
+		);
+
+		mappedTerrain->gvTerrainDiffuseTextureIndices = XMUINT4(
+			m_TerrainData->GetGrassDiffuseSrvIndex(),
+			m_TerrainData->GetGroundDiffuseSrvIndex(),
+			m_TerrainData->GetDirtDiffuseSrvIndex(),
+			UINT_MAX
+		);
+
+		mappedTerrain->gvTerrainNormalTextureIndices = XMUINT4(
+			m_TerrainData->GetGrassNormalSrvIndex(),
+			m_TerrainData->GetGroundNormalSrvIndex(),
+			m_TerrainData->GetDirtNormalSrvIndex(),
+			UINT_MAX
+		);
+
+		mappedTerrain->gvTerrainBlendParams = XMFLOAT4(
+			400.0f,
+			200.0f,
+			1.0f,
+			0.08f
+		);
+	}
+
+	WATER* mappedWater = m_pcbMappedWater[frameIndex];
+
+	if ( mappedWater )
+	{
+		mappedWater->gvWaterParams = XMFLOAT4(
+			m_waterAccumulatedTime,
+			m_waterHeight,
+			m_waterBaseUvScale,
+			m_waterAlpha
+		);
+
+		mappedWater->gvWaterTextureIndices = XMUINT4(
+			m_waterBaseSrvIndex,
+			m_waterDetail0SrvIndex,
+			m_waterDetail1SrvIndex,
+			UINT_MAX
+		);
+
+		mappedWater->gvWaterFlowParams = XMFLOAT4(
+			0.0f, 0.00125f,   // base flow
+			0.02f, 0.01f      // detail0 flow
+		);
+
+		mappedWater->gvWaterDetailParams = XMFLOAT4(
+			-0.01f, 0.015f,   // detail1 flow
+			10.0f,            // detail0 uv scale
+			5.0f              // detail1 uv scale
+		);
+
+		XMStoreFloat4x4(
+			&mappedWater->gf4x4TextureAnimation,
+			XMMatrixIdentity()
+		);
+	}
+
 	m_shadowMap.UpdateData(shadowFocus, directionalLightObj);
 	m_shadowMap.UploadConstantBuffer();
 
@@ -8439,6 +8585,22 @@ void CGameScene::BindFrameRootParameters(ID3D12GraphicsCommandList* cmd)
 		cmd->SetGraphicsRootConstantBufferView(
 			ROOT_PARAMETER_MATERIAL,
 			m_pd3dcbMaterials[frameIndex]->GetGPUVirtualAddress()
+		);
+	}
+
+	if ( m_pd3dcbTerrain[frameIndex] )
+	{
+		cmd->SetGraphicsRootConstantBufferView(
+			ROOT_PARAMETER_TERRAIN,
+			m_pd3dcbTerrain[frameIndex]->GetGPUVirtualAddress()
+		);
+	}
+
+	if ( m_pd3dcbWater[frameIndex] )
+	{
+		cmd->SetGraphicsRootConstantBufferView(
+			ROOT_PARAMETER_WATER,
+			m_pd3dcbWater[frameIndex]->GetGPUVirtualAddress()
 		);
 	}
 

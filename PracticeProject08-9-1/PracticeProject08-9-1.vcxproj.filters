@@ -412,6 +412,10 @@
     <ClInclude Include="EnemySpawner.h">
       <Filter>EnemySpawner</Filter>
     </ClInclude>
+    <ClInclude Include="TerrainData.h" />
+    <ClInclude Include="TerrainAttachComponent.h" />
+    <ClInclude Include="TerrainComponent.h" />
+    <ClInclude Include="HeightMapImage.h" />
     <ClInclude Include="MonsterAIVariants.h">
       <Filter>Components\AI</Filter>
     </ClInclude>
@@ -627,6 +631,10 @@
     <ClCompile Include="GameSceneBuild.cpp">
       <Filter>Scene\GameScene</Filter>
     </ClCompile>
+    <ClCompile Include="TerrainData.cpp" />
+    <ClCompile Include="TerrainAttachComponent.cpp" />
+    <ClCompile Include="TerrainComponent.cpp" />
+    <ClCompile Include="HeightMapImage.cpp" />
     <ClCompile Include="MonsterAIVariants.cpp">
       <Filter>Components\AI</Filter>
     </ClCompile>
@@ -732,5 +740,13 @@
     <None Include="Shadows.hlsl">
       <Filter>Resource\HLSL</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Terrain.hlsl">
+      <Filter>Resource\HLSL</Filter>
+    </FxCompile>
+    <FxCompile Include="Water.hlsl">
+      <Filter>Resource\HLSL</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

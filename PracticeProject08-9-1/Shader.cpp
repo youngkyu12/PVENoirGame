@@ -1140,6 +1140,16 @@ D3D12_SHADER_BYTECODE CShadowMapAlphaClipStaticShader::CreatePixelShader(ID3DBlo
 	);
 }
 
+D3D12_SHADER_BYTECODE CShadowMapTerrainShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(
+		L"Shaders.hlsl",
+		"VSShadowMapTerrainInstanced",
+		"vs_5_1",
+		ppd3dShaderBlob
+	);
+}
+
 D3D12_RASTERIZER_DESC CShadowMapStaticShader::CreateRasterizerState()
 {
 	D3D12_RASTERIZER_DESC rs = CShader::CreateRasterizerState();
@@ -1157,6 +1167,13 @@ D3D12_RASTERIZER_DESC CShadowMapAlphaClipStaticShader::CreateRasterizerState()
 	rs.DepthBias = 12000;
 	rs.SlopeScaledDepthBias = 0.75f;
 	rs.DepthBiasClamp = 0.0f;
+	return rs;
+}
+
+D3D12_RASTERIZER_DESC CShadowMapTerrainShader::CreateRasterizerState()
+{
+	D3D12_RASTERIZER_DESC rs = CShadowMapStaticShader::CreateRasterizerState();
+	rs.CullMode = D3D12_CULL_MODE_NONE;
 	return rs;
 }
 
@@ -1940,4 +1957,31 @@ void CTextureToFullScreenShader::UpdateShaderVariables(ID3D12GraphicsCommandList
 void CTextureToFullScreenShader::Render(ID3D12GraphicsCommandList* pd3dCommandList, CCamera* pCamera, void* pContext)
 {
 	CPostProcessingShader::Render(pd3dCommandList, pCamera, pContext);
+}
+
+D3D12_SHADER_BYTECODE CTerrainShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "VSTerrain", "vs_5_1", ppd3dShaderBlob));
+}
+
+D3D12_SHADER_BYTECODE CTerrainShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSTerrainToMultipleRTs", "ps_5_1", ppd3dShaderBlob));
+}
+
+D3D12_RASTERIZER_DESC CTerrainShader::CreateRasterizerState()
+{
+	D3D12_RASTERIZER_DESC rs = CShader::CreateRasterizerState();
+	rs.CullMode = D3D12_CULL_MODE_NONE;
+	return rs;
+}
+
+D3D12_SHADER_BYTECODE CWaterShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "VSWaterInstanced", "vs_5_1", ppd3dShaderBlob));
+}
+
+D3D12_SHADER_BYTECODE CWaterShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSWaterToMultipleRTs", "ps_5_1", ppd3dShaderBlob));
 }
