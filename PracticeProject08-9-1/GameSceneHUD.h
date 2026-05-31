@@ -11,6 +11,7 @@ class CCamera;
 class CGameSceneHUD final
 {
 public:
+	static constexpr int kInventorySlotCount = 4;
 	void ReleaseResources();
 
 	void BuildResources(
@@ -22,6 +23,8 @@ public:
 	void Render(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	
 	void SetHealthRatio(float ratio);
+	void SetInventoryItemCounts(const std::array<int, kInventorySlotCount>& counts);
+	void SetInventoryCooldownRatio(int slot, float ratio);
 
 	void SetInactiveOverlayVisible(bool visible);
 	bool IsInactiveOverlayVisible() const { return m_inactiveOverlayVisible; }
@@ -42,6 +45,20 @@ private:
 	int m_exitSpriteIndex = -1;
 
 	int m_hpFillSpriteIndex = -1;
+
+	std::array<int, kInventorySlotCount> m_inventorySpriteIndices = { -1, -1, -1, -1 };
+	std::array<int, kInventorySlotCount> m_inventoryIconSpriteIndices = { -1, -1, -1, -1 };
+	std::array<int, kInventorySlotCount> m_inventoryCooldownSpriteIndices = { -1, -1, -1, -1 };
+	std::array<XMFLOAT4, kInventorySlotCount> m_inventoryCooldownOriginalRects = {};
+	std::array<int, kInventorySlotCount> m_inventoryItemCounts = { 0, 0, 0, 0 };
+
+	static constexpr int kInventoryCountTextMaxDigits = 3;
+	static constexpr int kInventoryCountTextMaxChars = 1 + kInventoryCountTextMaxDigits;
+	static constexpr int kInventoryCountGlyphTypeCount = 11;
+	std::array<int, kInventorySlotCount* kInventoryCountTextMaxChars* kInventoryCountGlyphTypeCount> m_inventoryCountGlyphSpriteIndices = {};
+	
+	static constexpr int InventoryCountGlyphFlatIndex(int slot, int charIndex, int glyphIndex) { return ( slot * kInventoryCountTextMaxChars + charIndex ) * kInventoryCountGlyphTypeCount + glyphIndex; }
+	void UpdateInventoryCountTextSprites(int slot);
 
 	XMFLOAT4 m_hpFillOriginalRect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 	float m_healthRatio = 1.0f;
