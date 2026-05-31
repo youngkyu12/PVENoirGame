@@ -9,6 +9,7 @@
 #include "Texture.h"
 #include "Scene.h"
 #include "HeightMapImage.h"
+#include "GameSceneHelper.h"
 
 #include <filesystem>
 #include <cassert>
@@ -132,7 +133,7 @@ std::shared_ptr<CMesh> AssetManager::CreateMesh(
 		if (!heightMap)
 			return nullptr;
 		
-		return std::make_shared<CGridMesh>(
+		return std::make_shared<CHeightMapGridMesh>(
 			device,
 			cmd,
 			desc.terrainData->GetnBlockWidth(),
@@ -142,6 +143,23 @@ std::shared_ptr<CMesh> AssetManager::CreateMesh(
 			desc.terrainData->GetScale(),
 			XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),
 			heightMap
+		);
+	}
+	else if(desc.type == AssetType::Water)
+	{
+		XMFLOAT3 xmf3Scale(1.0f, 1.0f, 1.0f);
+		XMFLOAT4 xmf4Color(0.0f, 0.5f, 0.0f, 0.0f);
+
+		return std::make_shared<CWaterGridMesh>(
+			device,
+			cmd,
+			257,
+			257,
+			17,
+			17,
+			xmf3Scale,
+			xmf4Color,
+			nullptr
 		);
 	}
 

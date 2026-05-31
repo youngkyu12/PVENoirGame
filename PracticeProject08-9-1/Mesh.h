@@ -254,11 +254,32 @@ public:
 	int GetWidth() { return(m_nWidth); }
 	int GetLength() { return(m_nLength); }
 
-	//격자의 좌표가 (x, z)일 때 교점(정점)의 높이를 반환하는 함수이다.
-	virtual float OnGetHeight(int x, int z, void* pContext);
+	virtual float OnGetHeight(int x, int z, void* pContext) { return(0.0f); }
+	virtual XMFLOAT4 OnGetColor(int x, int z, void* pContext) { return(XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)); }
+};
 
-	//격자의 좌표가 (x, z)일 때 교점(정점)의 색상을 반환하는 함수이다.
+class CHeightMapGridMesh : public CGridMesh
+{
+public:
+	CHeightMapGridMesh(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, 
+		int nBlockWidth, int nBlockLength, int nWidth, int nLength, 
+		XMFLOAT3 xmf3Scale = XMFLOAT3(1.0f, 1.0f, 1.0f), 
+		XMFLOAT4 xmf4Color = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f), 
+		void *pContext = NULL);
+	virtual ~CHeightMapGridMesh();
+
+	virtual float OnGetHeight(int x, int z, void* pContext);
 	virtual XMFLOAT4 OnGetColor(int x, int z, void* pContext);
+};
+
+class CWaterGridMesh : public CGridMesh
+{
+public:
+	CWaterGridMesh(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList
+		* pd3dCommandList, int nBlockWidth, int nBlockLength, int nWidth, int nLength, XMFLOAT3 xmf3Scale =
+		XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT4 xmf4Color = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f), void
+		* pContext = NULL);
+	virtual ~CWaterGridMesh();
 };
 
 class CBoxMeshDiffused : public CMesh

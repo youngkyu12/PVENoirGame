@@ -28,10 +28,8 @@ enum class AssetType
     Boss,
 
     World,
-    Grass,
-    Ground,
 	Terrain,
-    DirtRoad,
+	Water,
     VillageWall,
     House,
     Tower,

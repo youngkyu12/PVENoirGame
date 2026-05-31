@@ -225,6 +225,7 @@ struct StaticInstanceGroup
 	UINT instanceBufferStart = 0;
 	bool useTreeShader = false;
 	bool useTerrainShader = false;
+	bool useWaterShader = false;
 
 	int lodLevel = 0;
 
@@ -371,6 +372,7 @@ public:
     void BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd) override;
 
 	void CreateTerrainData(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
+	void CreateWaterTextures(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
 
 protected:
     void CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target) override;
@@ -796,6 +798,7 @@ private:
     UINT m_building9Count = 1;
 	UINT m_towerCount = 1;
 	UINT m_terrainCount = 1;
+	UINT m_waterCount = 1;
 
     UINT m_ghoulCount = 4;
     UINT m_swordManCount = 3;
@@ -955,6 +958,23 @@ private:
 	std::array<ComPtr<ID3D12Resource>, kFrameResourceCount> m_pd3dcbTerrain;
 	std::array<TERRAIN*, kFrameResourceCount> m_pcbMappedTerrain = {};
 	UINT m_nTerrainCBElementBytes = 0;
+
+	std::array<ComPtr<ID3D12Resource>, kFrameResourceCount> m_pd3dcbWater;
+	std::array<WATER*, kFrameResourceCount> m_pcbMappedWater = {};
+	UINT m_nWaterCBElementBytes = 0;
+
+	std::shared_ptr<CTexture> m_waterBaseTexture;
+	std::shared_ptr<CTexture> m_waterDetail0Texture;
+	std::shared_ptr<CTexture> m_waterDetail1Texture;
+
+	UINT m_waterBaseSrvIndex = UINT_MAX;
+	UINT m_waterDetail0SrvIndex = UINT_MAX;
+	UINT m_waterDetail1SrvIndex = UINT_MAX;
+
+	float m_waterAccumulatedTime = 0.0f;
+	float m_waterHeight = -0.01f;
+	float m_waterBaseUvScale = 1.0f;
+	float m_waterAlpha = 1.0f;
 
 	UINT m_nFrameResourceIndex = 0;
 
@@ -1155,10 +1175,15 @@ private:
 	std::shared_ptr<CTerrainShader> m_terrainShader;
 	std::unordered_set<CGameObject*> m_terrainObjects;
 
+	// Water
+	std::shared_ptr<CWaterShader> m_waterShader;
+	std::unordered_set<CGameObject*> m_waterObjects;
+
 
 	bool ShouldAttachObjectToTerrain(const std::string& assetName)
 	{
-		return assetName != "Terrain";
+		return assetName != "Terrain" &&
+			assetName != "Water" ;
 	}
 	
 	void BuildStaticWorldSubmeshOOBBDebugObjects(

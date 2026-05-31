@@ -72,6 +72,23 @@ struct TERRAIN
 	XMFLOAT4 gvTerrainBlendParams;
 };
 
+struct WATER
+{
+	// x = current time, y = water height, z = base uv scale, w = alpha
+	XMFLOAT4 gvWaterParams;
+
+	// x = base texture, y = detail0 texture, z = detail1 texture, w = unused
+	XMUINT4 gvWaterTextureIndices;
+
+	// xy = base flow direction/speed, zw = detail0 flow direction/speed
+	XMFLOAT4 gvWaterFlowParams;
+
+	// xy = detail1 flow direction/speed, z = detail0 uv scale, w = detail1 uv scale
+	XMFLOAT4 gvWaterDetailParams;
+
+	XMFLOAT4X4 gf4x4TextureAnimation;
+};
+
 // -----------------------------------------------------------------------------
 // Scene-owned batches (Shader::Render()에서 참조)
 // -----------------------------------------------------------------------------

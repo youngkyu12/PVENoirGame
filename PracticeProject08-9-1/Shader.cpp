@@ -1822,3 +1822,13 @@ D3D12_RASTERIZER_DESC CTerrainShader::CreateRasterizerState()
 	rs.CullMode = D3D12_CULL_MODE_NONE;
 	return rs;
 }
+
+D3D12_SHADER_BYTECODE CWaterShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "VSWaterInstanced", "vs_5_1", ppd3dShaderBlob));
+}
+
+D3D12_SHADER_BYTECODE CWaterShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSWaterToMultipleRTs", "ps_5_1", ppd3dShaderBlob));
+}

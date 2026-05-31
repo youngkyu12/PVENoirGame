@@ -15,6 +15,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_bLocalPlayerDead = false;
 	m_bLocalPlayerRespawnUsed = false;
 	m_localPlayerRespawnTimer = 0.0f;
+	m_waterAccumulatedTime = 0.0f;
 
 #ifdef USING_NETWORK
 	m_prevPlayerNetworkStateCode.clear();
@@ -184,6 +185,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	auto pShadowAlphaClipSkinnedShader = std::make_shared<CShadowMapAlphaClipSkinnedShader>();
 	auto pTerrainShader = std::make_shared<CTerrainShader>();
 	auto pShadowTerrainShader = std::make_shared<CShadowMapTerrainShader>();
+	auto pWaterShader = std::make_shared<CWaterShader>();
 
 	m_staticBatch.shader = pStaticShader;
 	m_treeStaticShader = pTreeStaticShader;
@@ -197,6 +199,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_shadowAlphaClipSkinnedShader = pShadowAlphaClipSkinnedShader;
 	m_terrainShader = pTerrainShader;
 	m_shadowTerrainShader = pShadowTerrainShader;
+	m_waterShader = pWaterShader;
 
 	DXGI_FORMAT rtvFormats[5] =
 	{
@@ -283,6 +286,14 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		kDsvFormat
 	);
 
+	pWaterShader->CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		kRTCount,
+		rtvFormats,
+		kDsvFormat
+	);
+
 	pShadowTerrainShader->CreateShader(
 		dev,
 		m_pd3dGraphicsRootSignature.Get(),
@@ -292,6 +303,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	);
 
 	CreateTerrainData(dev, cmd);
+	CreateWaterTextures(dev, cmd);
 	BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
 	BuildItemBillboardBatch(dev, cmd, kRTCount, rtvFormats, kDsvFormat);
 
@@ -403,6 +415,56 @@ void CGameScene::CreateTerrainData(ID3D12Device* dev, ID3D12GraphicsCommandList*
 			LoadTerrainTexture(L"Assets/GroundPlane/Texture/dirt_normal.dds")
 		);
 	}
+}
+
+void CGameScene::CreateWaterTextures(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
+{
+	auto LoadWaterTexture = [&](const wchar_t* path) -> std::shared_ptr<CTexture>
+		{
+			auto texture = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
+			texture->LoadTextureFromFile(
+				dev,
+				cmd,
+				path,
+				RESOURCE_TEXTURE2D,
+				0
+			);
+
+			m_pDescriptorHeap->CreateShaderResourceViewsOther(
+				dev,
+				texture.get(),
+				ROOT_PARAMETER_GLOBAL_SRV
+			);
+
+			return texture;
+		};
+
+	m_waterBaseTexture = nullptr;
+	m_waterDetail0Texture = nullptr;
+	m_waterDetail1Texture = nullptr;
+
+	m_waterBaseSrvIndex = UINT_MAX;
+	m_waterDetail0SrvIndex = UINT_MAX;
+	m_waterDetail1SrvIndex = UINT_MAX;
+
+	if (!dev || !cmd || !m_pDescriptorHeap)
+		return;
+
+	m_waterBaseTexture = LoadWaterTexture(L"Image/Water_Base_Texture_0.dds");
+	m_waterDetail0Texture = LoadWaterTexture(L"Image/Water_Detail_Texture_0.dds");
+	m_waterDetail1Texture = LoadWaterTexture(L"Image/Detail_Texture_7.dds");
+
+	m_waterBaseSrvIndex = m_waterBaseTexture
+		? m_waterBaseTexture->GetBaseSrvIndex()
+		: UINT_MAX;
+
+	m_waterDetail0SrvIndex = m_waterDetail0Texture
+		? m_waterDetail0Texture->GetBaseSrvIndex()
+		: UINT_MAX;
+
+	m_waterDetail1SrvIndex = m_waterDetail1Texture
+		? m_waterDetail1Texture->GetBaseSrvIndex()
+		: UINT_MAX;
 }
 
 void CGameScene::BuildStaticBatch(
@@ -675,6 +737,8 @@ void CGameScene::BuildStaticBatch(
 
 		if ( placement.assetName == "Terrain" )
 			m_terrainObjects.insert(raw);
+		if ( placement.assetName == "Water" )
+			m_waterObjects.insert(raw);
 
 #ifndef USING_NETWORK
 		if ( placement.assetName == "Tower" )
@@ -1426,7 +1490,7 @@ void CGameScene::BuildSkinnedBatch(
 		};
 
 	const UINT fighterCount = m_PlayerCount;
-	const XMFLOAT3 playerBase(0.0f, 0.0f, -150.0f);
+	const XMFLOAT3 playerBase(0.0f, 0.0f, 650.0f);
 
 	m_swordManRefs.clear();
 	m_swordManRefs.reserve(m_swordManCount);
@@ -2675,6 +2739,7 @@ void CGameScene::ApplyStaticPlacementCounts()
 	for ( const auto& e : m_staticPlacementEntries )
 	{
 		if ( e.assetName == "Terrain" )     ++m_terrainCount;
+		else if ( e.assetName == "Water" ) ++m_waterCount;
 		else if ( e.assetName == "VillageWall" ) ++m_villagewallCount;
 		else if ( e.assetName == "Castle" )    ++m_castleCount;
 		else if ( e.assetName == "Building1" )   ++m_building1Count;
@@ -3317,6 +3382,30 @@ void CGameScene::CreateShaderVariables(ID3D12Device* dev, ID3D12GraphicsCommandL
 				0,
 				nullptr,
 				reinterpret_cast< void** >( &m_pcbMappedTerrain[i] )
+			);
+		}
+	}
+
+	m_nWaterCBElementBytes = ( ( sizeof(WATER) + 255 ) & ~255 );
+
+	for ( UINT i = 0; i < kFrameResourceCount; ++i )
+	{
+		m_pd3dcbWater[i] = ::CreateBufferResource(
+			dev,
+			cmd,
+			nullptr,
+			m_nWaterCBElementBytes,
+			D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+			nullptr
+		);
+
+		if ( m_pd3dcbWater[i] )
+		{
+			m_pd3dcbWater[i]->Map(
+				0,
+				nullptr,
+				reinterpret_cast< void** >( &m_pcbMappedWater[i] )
 			);
 		}
 	}

@@ -81,6 +81,7 @@ namespace GameSceneHelper
 		UINT subMeshIndex = 0;
 		bool useTreeShader = false;
 		bool useTerrainShader = false;
+		bool useWaterShader = false;
 		int lodLevel = 0;
 
 		bool operator==(const StaticGroupKey& rhs) const
@@ -89,6 +90,7 @@ namespace GameSceneHelper
 				subMeshIndex == rhs.subMeshIndex &&
 				useTreeShader == rhs.useTreeShader &&
 				useTerrainShader == rhs.useTerrainShader &&
+				useWaterShader == rhs.useWaterShader &&
 				lodLevel == rhs.lodLevel;
 		}
 	};
@@ -110,6 +112,11 @@ namespace GameSceneHelper
 				+ ( h >> 2 );
 
 			h ^= std::hash<bool>{}( k.useTerrainShader )
+				+ 0x9e3779b9
+				+ ( h << 6 )
+				+ ( h >> 2 );
+			
+			h ^= std::hash<bool>{}( k.useWaterShader )
 				+ 0x9e3779b9
 				+ ( h << 6 )
 				+ ( h >> 2 );

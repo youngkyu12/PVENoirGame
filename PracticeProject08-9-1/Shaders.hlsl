@@ -11,3 +11,4 @@
 #include "DepthFog.hlsl"
 #include "Shadows.hlsl"
 #include "Terrain.hlsl"
+#include "Water.hlsl"
