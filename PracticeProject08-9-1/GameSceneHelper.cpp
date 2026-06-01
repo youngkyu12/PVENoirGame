@@ -498,7 +498,7 @@ namespace GameSceneHelper
 			normalized == "mapdata_fullstage_with_boss" )
 		{
 			outFileSet = {
-				"MapData/MapData_fullstage(withBoss).txt",
+				"MapData/MapData_fullstage(withBoss)_TerrainOnly.txt",
 				"MapData/FullStageNavmeshAll.nvm",
 				"MapData/CubeBoxColliderReportWithCastle.txt",
 				"MapData/monster_spawn_points.txt"
