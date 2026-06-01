@@ -2,6 +2,28 @@
 #include "Player.h"
 #include "ColliderComponent.h"
 
+namespace
+{
+    constexpr int kSwordAttackAnimTicks = 24; // ceil(1.383333s / 0.060s)
+    constexpr int kAxeAttackAnimTicks = 27;   // ceil(1.583333s / 0.060s)
+    constexpr int kDefaultAttackAnimTicks = 10;
+
+    int GetPlayerAttackAnimTicks(Protocol::WeaponType weaponType, const CWeapon& weapon)
+    {
+        switch (weaponType)
+        {
+        case Protocol::WEAPON_TYPE_SWORD:
+            return kSwordAttackAnimTicks;
+        case Protocol::WEAPON_TYPE_AXE:
+            return kAxeAttackAnimTicks;
+        case Protocol::WEAPON_TYPE_BOW:
+            return weapon.IsAttacking() ? 0 : kDefaultAttackAnimTicks;
+        default:
+            return kDefaultAttackAnimTicks;
+        }
+    }
+}
+
 void Player::Update(uint32 serverTick)
 {
     if (m_lifeState == EPlayerLifeState::DeadAnimating)
@@ -27,8 +49,7 @@ void Player::Update(uint32 serverTick)
         case Protocol::ANIMATION_TYPE_WALK:   animDuration = 15; break;
         case Protocol::ANIMATION_TYPE_RUN:    animDuration = 10; break;
         case Protocol::ANIMATION_TYPE_ATTACK:
-            animDuration =
-                (weapon.GetWeaponState() == Protocol::WEAPON_TYPE_BOW && weapon.IsAttacking()) ? 0 : 10;
+            animDuration = GetPlayerAttackAnimTicks(weapon.GetWeaponState(), weapon);
             break;
         case Protocol::ANIMATION_TYPE_ROLL:   animDuration = 1;  break;
         case Protocol::ANIMATION_TYPE_DIE:    animDuration = 25; break;
