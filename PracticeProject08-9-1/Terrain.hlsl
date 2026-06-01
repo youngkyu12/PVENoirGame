@@ -33,6 +33,21 @@ float4 SampleTerrainTexture(uint textureIndex, float2 uv, float4 fallback)
     return gtxtGlobalTextures[textureIndex].Sample(gssDefaultSamplerState, uv);
 }
 
+float GetTerrainAabbMask(float2 positionXZ, float2 center, float2 halfSize)
+{
+    const float2 delta = abs(positionXZ - center);
+    return (delta.x <= halfSize.x && delta.y <= halfSize.y) ? 1.0f : 0.0f;
+}
+
+float GetTerrainRoadSegmentMask(float2 positionXZ, float2 startXZ, float2 endXZ, float halfWidth)
+{
+    const float2 minXZ = min(startXZ, endXZ) - float2(halfWidth, halfWidth);
+    const float2 maxXZ = max(startXZ, endXZ) + float2(halfWidth, halfWidth);
+    const float2 center = (minXZ + maxXZ) * 0.5f;
+    const float2 halfSize = (maxXZ - minXZ) * 0.5f;
+    return GetTerrainAabbMask(positionXZ, center, halfSize);
+}
+
 float GetTerrainVillageMask(float3 positionW)
 {
     const float megaSize = gvTerrainBlendParams.x;
@@ -44,50 +59,41 @@ float GetTerrainVillageMask(float3 positionW)
 
     const float2 localFromCenter = positionW.xz - float2(centerX, centerZ);
     const float maxAxis = max(abs(localFromCenter.x), abs(localFromCenter.y));
-
     const float villageHalfSize = villageSize * 0.5f;
 
-    return 1.0f - smoothstep(
-                villageHalfSize - blendWidth,
-                villageHalfSize + blendWidth,
-                maxAxis
-        );
+    float villageMask = 1.0f - smoothstep(villageHalfSize - blendWidth, villageHalfSize + blendWidth, maxAxis);
+
+    const float excludedGroundMask = GetTerrainAabbMask(positionW.xz, float2(-400.0f, 400.0f), float2(villageHalfSize, villageHalfSize));
+    villageMask *= 1.0f - excludedGroundMask;
+
+    return saturate(villageMask);
 }
 
 float GetTerrainDirtRoadMask(float3 positionW)
 {
-    const float megaSize = gvTerrainBlendParams.x;
-    const float villageSize = gvTerrainBlendParams.y;
-    const float blendWidth = gvTerrainBlendParams.z;
+    const float roadHalfWidth = 5.0f;
+    const float2 p = positionW.xz;
 
-    const float centerX = round(positionW.x / megaSize) * megaSize;
-    const float centerZ = round((positionW.z - megaSize) / megaSize) * megaSize + megaSize;
+    float dirtMask = 0.0f;
 
-    const float2 localFromCenter = positionW.xz - float2(centerX, centerZ);
-    const float2 absLocal = abs(localFromCenter);
+    dirtMask = max(dirtMask, GetTerrainRoadSegmentMask(p, float2(105.0f, 0.0f), float2(295.0f, 0.0f), roadHalfWidth));
+    dirtMask = max(dirtMask, GetTerrainRoadSegmentMask(p, float2(-295.0f, 0.0f), float2(-105.0f, 0.0f), roadHalfWidth));
 
-    const float terrainHalfSize = megaSize * 0.5f;
-    const float villageHalfSize = villageSize * 0.5f;
-    const float roadHalfWidth = villageSize * 0.25f; // 100 width -> half 50
+    dirtMask = max(dirtMask, GetTerrainRoadSegmentMask(p, float2(-400.0f, 105.0f), float2(-400.0f, 295.0f), roadHalfWidth));
+    dirtMask = max(dirtMask, GetTerrainRoadSegmentMask(p, float2(0.0f, 105.0f), float2(0.0f, 295.0f), roadHalfWidth));
+    dirtMask = max(dirtMask, GetTerrainRoadSegmentMask(p, float2(400.0f, 105.0f), float2(400.0f, 295.0f), roadHalfWidth));
 
-    const float northSouthLengthMask =
-                smoothstep(villageHalfSize - blendWidth, villageHalfSize + blendWidth, absLocal.y) *
-                (1.0f - smoothstep(terrainHalfSize - blendWidth, terrainHalfSize + blendWidth, absLocal.y));
+    dirtMask = max(dirtMask, GetTerrainRoadSegmentMask(p, float2(-400.0f, 505.0f), float2(-400.0f, 695.0f), roadHalfWidth));
+    dirtMask = max(dirtMask, GetTerrainRoadSegmentMask(p, float2(0.0f, 505.0f), float2(0.0f, 695.0f), roadHalfWidth));
+    dirtMask = max(dirtMask, GetTerrainRoadSegmentMask(p, float2(400.0f, 505.0f), float2(400.0f, 695.0f), roadHalfWidth));
 
-    const float northSouthWidthMask =
-                1.0f - smoothstep(roadHalfWidth - blendWidth, roadHalfWidth + blendWidth, absLocal.x);
+    dirtMask = max(dirtMask, GetTerrainRoadSegmentMask(p, float2(105.0f, 400.0f), float2(295.0f, 400.0f), roadHalfWidth));
+    dirtMask = max(dirtMask, GetTerrainRoadSegmentMask(p, float2(-295.0f, 400.0f), float2(-105.0f, 400.0f), roadHalfWidth));
 
-    const float eastWestLengthMask =
-                smoothstep(villageHalfSize - blendWidth, villageHalfSize + blendWidth, absLocal.x) *
-                (1.0f - smoothstep(terrainHalfSize - blendWidth, terrainHalfSize + blendWidth, absLocal.x));
+    dirtMask = max(dirtMask, GetTerrainRoadSegmentMask(p, float2(105.0f, 800.0f), float2(295.0f, 800.0f), roadHalfWidth));
+    dirtMask = max(dirtMask, GetTerrainRoadSegmentMask(p, float2(-295.0f, 800.0f), float2(-105.0f, 800.0f), roadHalfWidth));
 
-    const float eastWestWidthMask =
-                1.0f - smoothstep(roadHalfWidth - blendWidth, roadHalfWidth + blendWidth, absLocal.y);
-
-    const float northSouthRoad = northSouthLengthMask * northSouthWidthMask;
-    const float eastWestRoad = eastWestLengthMask * eastWestWidthMask;
-
-    return saturate(max(northSouthRoad, eastWestRoad));
+    return saturate(dirtMask);
 }
 
 float3 GetTerrainScale()
