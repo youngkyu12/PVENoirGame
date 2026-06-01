@@ -7,6 +7,7 @@ namespace
     constexpr int kSwordAttackAnimTicks = 24; // ceil(1.383333s / 0.060s)
     constexpr int kAxeAttackAnimTicks = 27;   // ceil(1.583333s / 0.060s)
     constexpr int kDefaultAttackAnimTicks = 10;
+    constexpr int kRollAnimTicks = 12; // ceil((1.516667s * (0.55 - 0.08)) / 0.060s)
 
     int GetPlayerAttackAnimTicks(Protocol::WeaponType weaponType, const CWeapon& weapon)
     {
@@ -38,8 +39,10 @@ void Player::Update(uint32 serverTick)
         return;
     }
 
+    const bool keepVelocity = (m_animState == Protocol::ANIMATION_TYPE_ROLL);
     Move(m_velocity);
-    SetVelocity(GameMath::Vec3::Zero());
+    if (!keepVelocity)
+        SetVelocity(GameMath::Vec3::Zero());
 
     if (m_animState != Protocol::ANIMATION_TYPE_IDLE)
     {
@@ -51,7 +54,7 @@ void Player::Update(uint32 serverTick)
         case Protocol::ANIMATION_TYPE_ATTACK:
             animDuration = GetPlayerAttackAnimTicks(weapon.GetWeaponState(), weapon);
             break;
-        case Protocol::ANIMATION_TYPE_ROLL:   animDuration = 1;  break;
+        case Protocol::ANIMATION_TYPE_ROLL:   animDuration = kRollAnimTicks;  break;
         case Protocol::ANIMATION_TYPE_DIE:    animDuration = 25; break;
         case Protocol::ANIMATION_TYPE_HIT:    animDuration = 10; break;
         default: animDuration = 0; break;
@@ -67,6 +70,7 @@ void Player::Update(uint32 serverTick)
             {
                 SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
                 SetAnimTick(serverTick);
+                SetVelocity(GameMath::Vec3::Zero());
             }
         }
     }

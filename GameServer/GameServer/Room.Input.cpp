@@ -58,6 +58,9 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	const uint32 combatClockTick = GetCombatClockTick();
 	Protocol::AnimationType prevAnimState = player->GetAnimState();
 
+	if (prevAnimState == Protocol::ANIMATION_TYPE_ROLL)
+		return;
+
 	if ((keyCodes & kDirLButton) != 0)
 	{
 		switch (player->GetWeaponState())
