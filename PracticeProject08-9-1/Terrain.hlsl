@@ -106,14 +106,6 @@ float2 GetTerrainHeightMapSize()
 		: heightMapSize;
 }
 
-float2 GetTerrainHeightMapCoordFromCenteredLocalXZ(float2 localXZ)
-{
-    const float3 terrainScale = GetTerrainScale();
-    const float2 heightMapSize = GetTerrainHeightMapSize();
-    const float2 terrainWorldSize = (heightMapSize - 1.0f) * terrainScale.xz;
-    return (localXZ + terrainWorldSize * 0.5f) / terrainScale.xz;
-}
-
 float LoadTerrainHeightMapValue(uint x, uint z)
 {
 	const uint heightMapIndex = gvTerrainTextureIndices.x;
@@ -126,45 +118,44 @@ float LoadTerrainHeightMapValue(uint x, uint z)
 
 float GetTerrainHeight(float fx, float fz)
 {
-	const float2 heightMapSize = GetTerrainHeightMapSize();
+    const float2 heightMapSize = GetTerrainHeightMapSize();
 
-	if (fx < 0.0f || fz < 0.0f ||
-		fx >= (heightMapSize.x - 1.0f) ||
-		fz >= (heightMapSize.y - 1.0f))
-	{
-		return 0.0f;
-	}
+    if (fx < 0.0f || fz < 0.0f || fx > (heightMapSize.x - 1.0f) || fz > (heightMapSize.y - 1.0f))
+        return 0.0f;
 
-	const uint x = (uint)fx;
-	const uint z = (uint)fz;
-	const float fxPercent = fx - x;
-	const float fzPercent = fz - z;
-	const bool reverseQuad = ((z % 2u) != 0u);
+    fx = min(fx, heightMapSize.x - 1.001f);
+    fz = min(fz, heightMapSize.y - 1.001f);
 
-	float bottomLeft = LoadTerrainHeightMapValue(x, z);
-	float bottomRight = LoadTerrainHeightMapValue(x + 1u, z);
-	float topLeft = LoadTerrainHeightMapValue(x, z + 1u);
-	float topRight = LoadTerrainHeightMapValue(x + 1u, z + 1u);
+    const uint x = (uint) fx;
+    const uint z = (uint) fz;
+    const float fxPercent = fx - x;
+    const float fzPercent = fz - z;
+    const bool reverseQuad = ((z % 2u) != 0u);
 
-	if (reverseQuad)
-	{
-		if (fzPercent >= fxPercent)
-			bottomRight = bottomLeft + (topRight - topLeft);
-		else
-			topLeft = topRight + (bottomLeft - bottomRight);
-	}
-	else
-	{
-		if (fzPercent < (1.0f - fxPercent))
-			topRight = topLeft + (bottomRight - bottomLeft);
-		else
-			bottomLeft = topLeft + (bottomRight - topRight);
-	}
+    float bottomLeft = LoadTerrainHeightMapValue(x, z);
+    float bottomRight = LoadTerrainHeightMapValue(x + 1u, z);
+    float topLeft = LoadTerrainHeightMapValue(x, z + 1u);
+    float topRight = LoadTerrainHeightMapValue(x + 1u, z + 1u);
 
-	const float topHeight = lerp(topLeft, topRight, fxPercent);
-	const float bottomHeight = lerp(bottomLeft, bottomRight, fxPercent);
+    if (reverseQuad)
+    {
+        if (fzPercent >= fxPercent)
+            bottomRight = bottomLeft + (topRight - topLeft);
+        else
+            topLeft = topRight + (bottomLeft - bottomRight);
+    }
+    else
+    {
+        if (fzPercent < (1.0f - fxPercent))
+            topRight = topLeft + (bottomRight - bottomLeft);
+        else
+            bottomLeft = topLeft + (bottomRight - topRight);
+    }
 
-	return lerp(bottomHeight, topHeight, fzPercent);
+    const float topHeight = lerp(topLeft, topRight, fxPercent);
+    const float bottomHeight = lerp(bottomLeft, bottomRight, fxPercent);
+
+    return lerp(bottomHeight, topHeight, fzPercent);
 }
 
 VS_TEXTURED_LIGHTING_OUTPUT VSTerrain(VS_TEXTURED_LIGHTING_INSTANCED_INPUT input)
@@ -182,8 +173,9 @@ VS_TEXTURED_LIGHTING_OUTPUT VSTerrain(VS_TEXTURED_LIGHTING_INSTANCED_INPUT input
 
     if (gvTerrainTextureIndices.x < MAX_GLOBAL_SRVS)
     {
-        const float2 heightMapCoord = GetTerrainHeightMapCoordFromCenteredLocalXZ(input.position.xz);
-        input.position.y = GetTerrainHeight(heightMapCoord.x, heightMapCoord.y) * 255.0f * terrainScale.y;
+        const float x = input.position.x / terrainScale.x;
+        const float z = input.position.z / terrainScale.z;
+        input.position.y = GetTerrainHeight(x, z) * 255.0f * terrainScale.y;
     }
 
     output.normalW = mul(input.normal, (float3x3) mtxInstanceWorld);
@@ -311,8 +303,9 @@ VS_SHADOW_MAP_OUTPUT VSShadowMapTerrainInstanced(
 
     if (gvTerrainTextureIndices.x < MAX_GLOBAL_SRVS)
     {
-        const float2 heightMapCoord = GetTerrainHeightMapCoordFromCenteredLocalXZ(input.position.xz);
-        input.position.y = GetTerrainHeight(heightMapCoord.x, heightMapCoord.y) * 255.0f * terrainScale.y;
+        const float x = input.position.x / terrainScale.x;
+        const float z = input.position.z / terrainScale.z;
+        input.position.y = GetTerrainHeight(x, z) * 255.0f * terrainScale.y;
     }
 
     float3 positionW =

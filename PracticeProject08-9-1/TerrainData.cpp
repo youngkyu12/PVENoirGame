@@ -1,3 +1,6 @@
+//-----------------------------------------------------------------------------
+// File: TerrainData.cpp
+//-----------------------------------------------------------------------------
 #include "stdafx.h"
 #include "TerrainData.h"
 #include "HeightMapImage.h"
@@ -49,21 +52,10 @@ XMFLOAT3 TerrainData::GetWorldPosition() const
 
 float TerrainData::GetHeight(float localX, float localZ, bool bReverseQuad) const
 {
-	UNREFERENCED_PARAMETER(bReverseQuad);
-
 	if ( !m_heightMapImage )
 		return 0.0f;
 
-	const float halfWidth = GetWorldWidth() * 0.5f;
-	const float halfLength = GetWorldLength() * 0.5f;
-
-	const float heightMapLocalX = localX + halfWidth;
-	const float heightMapLocalZ = localZ + halfLength;
-
-	const int sampleZ = static_cast< int >( heightMapLocalZ / m_xmf3Scale.z );
-	const bool reverseQuad = ( ( sampleZ % 2 ) != 0 );
-
-	return m_heightMapImage->GetHeight(heightMapLocalX, heightMapLocalZ, reverseQuad) * m_xmf3Scale.y;
+	return m_heightMapImage->GetHeight(localX, localZ, bReverseQuad) * m_xmf3Scale.y;
 }
 
 XMFLOAT3 TerrainData::GetNormal(float localX, float localZ) const
@@ -71,13 +63,7 @@ XMFLOAT3 TerrainData::GetNormal(float localX, float localZ) const
 	if ( !m_heightMapImage )
 		return XMFLOAT3(0.0f, 1.0f, 0.0f);
 
-	const float halfWidth = GetWorldWidth() * 0.5f;
-	const float halfLength = GetWorldLength() * 0.5f;
-
-	const float heightMapLocalX = localX + halfWidth;
-	const float heightMapLocalZ = localZ + halfLength;
-
-	return m_heightMapImage->GetHeightMapNormal(static_cast< int >( heightMapLocalX / m_xmf3Scale.x ), static_cast< int >( heightMapLocalZ / m_xmf3Scale.z ));
+	return m_heightMapImage->GetHeightMapNormal(static_cast< int >( localX / m_xmf3Scale.x ), static_cast< int >( localZ / m_xmf3Scale.z ));
 }
 
 int TerrainData::GetHeightMapWidth() const

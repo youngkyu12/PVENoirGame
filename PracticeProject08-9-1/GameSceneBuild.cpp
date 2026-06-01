@@ -502,7 +502,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
 void CGameScene::CreateTerrainData(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
-	XMFLOAT3 xmf3Scale(kTerrainHorizontalScale, 1.0f, kTerrainHorizontalScale);
+	XMFLOAT3 xmf3Scale(kTerrainHorizontalScale, kTerrainVerticalScale, kTerrainHorizontalScale);
 	XMFLOAT4 xmf4Color(0.0f, 0.2f, 0.0f, 0.0f);
 
 	auto LoadTerrainTexture = [&](const wchar_t* path) -> std::shared_ptr<CTexture>
