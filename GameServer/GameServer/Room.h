@@ -2,6 +2,7 @@
 #include "JobQueue.h"
 #include "CollisionSystem.h"
 #include "NavMesh.h"
+#include "ServerTerrain.h"
 #include <array>
 #include <vector>
 #include <unordered_set>
@@ -73,6 +74,9 @@ public:
 	map<uint64, EnemyRef> GetEnemies() { return enemies; }
 	const map<uint64, PlayerRef>& GetPlayers() const { return players; }
 	const CNavMesh* GetNavMesh() const { return m_navMesh.get(); }
+	bool HasTerrain() const;
+	float GetTerrainGroundHeight(float worldX, float worldZ) const;
+	GameMath::Vec3 SnapToTerrainIfBelow(const GameMath::Vec3& pos) const;
 	uint32 GetTick() const { return tick.load(); }
 	uint64 GetElapsedServerMs() const { return m_elapsedServerMs; }
 	const RoomTimingConfig& GetTimingConfig() const { return m_timing; }
@@ -321,6 +325,7 @@ private:
 	static constexpr int kMegaGridCellHeight = (kGridHeight / kMegaGridRows);
 
 	std::unique_ptr<CNavMesh> m_navMesh;
+	std::unique_ptr<CServerTerrain> m_serverTerrain;
 	static constexpr int kArrowPoolSize = 64;
 	static constexpr int kBulletPoolSize = 64;
 

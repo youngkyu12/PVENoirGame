@@ -66,6 +66,9 @@ namespace
 		outEntries.clear();
 
 		const std::vector<std::string> candidates = {
+			"MapFIle/MapData_fullstage(withBoss)_TerrainOnly.txt",
+			"GameServer/MapFIle/MapData_fullstage(withBoss)_TerrainOnly.txt",
+			"../GameServer/MapFIle/MapData_fullstage(withBoss)_TerrainOnly.txt",
 			"MapFIle/MapData_fullstage(withBoss).txt",
 			"GameServer/MapFIle/MapData_fullstage(withBoss).txt",
 			"../GameServer/MapFIle/MapData_fullstage(withBoss).txt"
@@ -75,7 +78,11 @@ namespace
 		for (const auto& path : candidates)
 		{
 			fin.open(path);
-			if (fin.is_open()) break;
+			if (fin.is_open())
+			{
+				cout << "[MapData] load " << path << endl;
+				break;
+			}
 			fin.clear();
 		}
 
@@ -209,6 +216,34 @@ void Room::BroadCastAll(SendBufferRef sendBuffer)
 		p.second->ownerSession->Send(sendBuffer);
 }
 
+bool Room::HasTerrain() const
+{
+	return m_serverTerrain && m_serverTerrain->IsLoaded();
+}
+
+float Room::GetTerrainGroundHeight(float worldX, float worldZ) const
+{
+	if (!HasTerrain())
+		return 0.0f;
+
+	return m_serverTerrain->SampleHeight(worldX, worldZ);
+}
+
+GameMath::Vec3 Room::SnapToTerrainIfBelow(const GameMath::Vec3& pos) const
+{
+	if (!HasTerrain())
+		return pos;
+
+	if (!m_serverTerrain->Contains(pos.x, pos.z))
+		return pos;
+
+	const float groundY = m_serverTerrain->SampleHeight(pos.x, pos.z);
+	if (pos.y >= groundY)
+		return pos;
+
+	return GameMath::Vec3(pos.x, groundY, pos.z);
+}
+
 bool Room::LoadMonsterSpawnEntries(std::vector<MonsterSpawnEntry>& outEntries)
 {
 	outEntries.clear();
@@ -284,6 +319,29 @@ void Room::BuildRoom()
 	m_bulletPool.clear();
 	InitializeCollisionSystem();
 	InitializeSpatialGrid();
+
+	m_serverTerrain = make_unique<CServerTerrain>();
+	const std::vector<std::string> terrainCandidates = {
+		"MapFIle/terrain.raw",
+		"GameServer/MapFIle/terrain.raw",
+		"../GameServer/MapFIle/terrain.raw"
+	};
+
+	bool terrainLoaded = false;
+	for (const auto& path : terrainCandidates)
+	{
+		if (m_serverTerrain->LoadFromFile(path))
+		{
+			terrainLoaded = true;
+			cout << "[Terrain] load success " << path << endl;
+			cout << "[Terrain] samples (-600,-200)=" << m_serverTerrain->SampleHeight(-600.0f, -200.0f)
+				<< " (0,0)=" << m_serverTerrain->SampleHeight(0.0f, 0.0f)
+				<< " (599,999)=" << m_serverTerrain->SampleHeight(599.0f, 999.0f) << endl;
+			break;
+		}
+	}
+	if (!terrainLoaded)
+		cout << "[Terrain] load skipped" << endl;
 
 	std::vector<PlacementEntry> entries;
 	if (LoadPlacementEntries(entries))
