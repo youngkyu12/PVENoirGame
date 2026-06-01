@@ -336,6 +336,10 @@ private:
 	void SpawnWeaponLevelUpFireworks();
 	void SpawnGoldFireworkBurstAtWeapon(CGameObject* weaponObject);
 
+	void SpawnInventoryUseBurst(CGameObject* player, int inventorySlot);
+	void UpdateInventoryBuffAmbientParticles(float dt);
+	void EmitInventoryBuffAmbientParticles(CGameObject* player, int inventorySlot, float dt, float& accumulatorSec);
+
 	void SpawnMagicCircleGlowParticle(
 		const XMFLOAT3& center,
 		float circleSize,
@@ -1563,6 +1567,7 @@ private:
 
 	std::array<int, CGameSceneHUD::kInventorySlotCount> m_inventoryItemCounts = { 0, 0, 0, 0 };
 	std::array<bool, CGameSceneHUD::kInventorySlotCount> m_bPrevInventoryUseKeyDown = { false, false, false, false };
+	std::array<std::array<float, CGameSceneHUD::kInventorySlotCount>, 4> m_inventoryBuffParticleEmitAccumulators = {};
 
 	CGameSceneHUD                       m_hud;
 	CShadowMapSystem					m_shadowMap;
