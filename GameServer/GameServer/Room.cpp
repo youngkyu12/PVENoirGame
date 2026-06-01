@@ -142,12 +142,12 @@ namespace
 	// ========================================
 	// MonsterAI — Per-type parameters
 	// ========================================
-	struct MonsterAIParam { float chaseStart; float chaseStop; float attackRange; float moveSpeed; };
-	constexpr MonsterAIParam kAI_Ghoul    {  10.f,       50.f,   1.5f,  2.f };
-	constexpr MonsterAIParam kAI_SwordMan {  35.f,       50.f,   3.0f,  8.f };
-	constexpr MonsterAIParam kAI_BowMan   {  50.f,       50.f,  25.0f,  8.f };
-	constexpr MonsterAIParam kAI_Mutant   {  25.f,       50.f,   2.7f, 12.f };
-	constexpr MonsterAIParam kAI_Boss     { 1e6f,        1e6f,   7.0f,  6.f };
+	struct MonsterAIParam { float chaseStart; float chaseStop; float attackRange; float moveSpeed; float walkSpeed; };
+	constexpr MonsterAIParam kAI_Ghoul    {  10.f,       50.f,   1.5f,  2.f, 1.f };
+	constexpr MonsterAIParam kAI_SwordMan {  35.f,       50.f,   3.0f,  8.f, 4.f };
+	constexpr MonsterAIParam kAI_BowMan   {  50.f,       50.f,  25.0f,  8.f, 4.f };
+	constexpr MonsterAIParam kAI_Mutant   {  25.f,       50.f,   2.7f, 12.f, 5.f };
+	constexpr MonsterAIParam kAI_Boss     { 1e6f,        1e6f,   7.0f,  6.f, 6.f };
 
 	const MonsterAIParam* GetMonsterAIParam(const string& typeName)
 	{
@@ -437,6 +437,7 @@ void Room::BuildRoom()
 		ai->SetChaseRanges(p->chaseStart, p->chaseStop);
 		ai->SetAttackRange(p->attackRange);
 		ai->SetMoveSpeed(p->moveSpeed);
+		ai->SetWalkMoveSpeed(p->walkSpeed);
 		ai->SetPatrolEnabled(t == "SwordMan" || t == "BowMan");
 	};
 
