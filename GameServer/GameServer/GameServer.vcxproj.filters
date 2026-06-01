@@ -138,6 +138,9 @@
     <ClCompile Include="Room.Packet.cpp">
       <Filter>Room</Filter>
     </ClCompile>
+    <ClCompile Include="ServerTerrain.cpp">
+      <Filter>GameContents\Map</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -201,6 +204,9 @@
       <Filter>GameObject\Enemy</Filter>
     </ClInclude>
     <ClInclude Include="NavMesh.h">
+      <Filter>GameContents\Map</Filter>
+    </ClInclude>
+    <ClInclude Include="ServerTerrain.h">
       <Filter>GameContents\Map</Filter>
     </ClInclude>
     <ClInclude Include="Projectile.h">

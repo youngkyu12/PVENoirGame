@@ -225,6 +225,7 @@
     <ClCompile Include="Room.Grid.cpp" />
     <ClCompile Include="Room.Input.cpp" />
     <ClCompile Include="Room.Packet.cpp" />
+    <ClCompile Include="ServerTerrain.cpp" />
     <ClCompile Include="ServerMap.cpp" />
     <ClCompile Include="ServerObject.cpp" />
     <ClCompile Include="Struct.pb.cc">
@@ -255,6 +256,7 @@
     <ClInclude Include="ClientPacketHandler.h" />
     <ClInclude Include="Protocol.pb.h" />
     <ClInclude Include="Room.h" />
+    <ClInclude Include="ServerTerrain.h" />
     <ClInclude Include="ServerObject.h" />
     <ClInclude Include="Struct.pb.h" />
   </ItemGroup>
