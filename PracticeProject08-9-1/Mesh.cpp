@@ -1660,11 +1660,6 @@ CHeightMapGridMesh::CHeightMapGridMesh(ID3D12Device* pd3dDevice, ID3D12GraphicsC
 	sm.subMeshMin = XMFLOAT3(FLT_MAX, FLT_MAX, FLT_MAX);
 	sm.subMeshMax = XMFLOAT3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
-	const float terrainWidth = ( vertexWidth > 1 ) ? static_cast< float >( vertexWidth - 1 ) * m_xmf3Scale.x : 0.0f;
-	const float terrainLength = ( vertexLength > 1 ) ? static_cast< float >( vertexLength - 1 ) * m_xmf3Scale.z : 0.0f;
-	const float halfWidth = terrainWidth * 0.5f;
-	const float halfLength = terrainLength * 0.5f;
-
 	for ( int z = 0; z < vertexLength; ++z )
 	{
 		for ( int x = 0; x < vertexWidth; ++x )
@@ -1673,11 +1668,7 @@ CHeightMapGridMesh::CHeightMapGridMesh(ID3D12Device* pd3dDevice, ID3D12GraphicsC
 				? OnGetHeight(x, z, pContext)
 				: 0.0f;
 
-			const XMFLOAT3 position(
-				x * m_xmf3Scale.x,
-				height,
-				z * m_xmf3Scale.z
-			);
+			const XMFLOAT3 position(static_cast< float >(x) * m_xmf3Scale.x, height, static_cast< float >(z) * m_xmf3Scale.z);
 
 			sm.positions.push_back(position);
 

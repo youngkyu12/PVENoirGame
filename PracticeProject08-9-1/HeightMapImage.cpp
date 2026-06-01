@@ -1,3 +1,7 @@
+//-----------------------------------------------------------------------------
+// File: HeightMapImage.cpp
+//-----------------------------------------------------------------------------
+
 #include "stdafx.h"
 #include "HeightMapImage.h"
 
@@ -40,40 +44,50 @@ float HeightMapImage::GetHeight(float fx, float fz, bool bReverseQuad)
 	fx = fx / m_xmf3Scale.x;
 	fz = fz / m_xmf3Scale.z;
 
-	/*지형의 좌표 (fx, fz)는 이미지 좌표계이다. 높이 맵의 x-좌표와 z-좌표가 높이 맵의 범위를 벗어나면 지형의 높이는 0이다.*/
-	if ( ( fx < 0.0f ) || ( fz < 0.0f ) || ( fx >= ( m_nWidth - 1 ) ) || ( fz >= ( m_nLength - 1 ) ) ) return( 0.0f );
+	if ( ( fx < 0.0f ) || ( fz < 0.0f ) || ( fx > static_cast< float >(m_nWidth - 1) ) || ( fz > static_cast< float >( m_nLength - 1 ) ) )
+		return 0.0f;
 
-	//높이 맵의 좌표의 정수 부분과 소수 부분을 계산한다.
-	int x = (int)fx;
-	int z = (int)fz;
+	const float maxFx = static_cast< float >( m_nWidth - 1 ) - 0.001f;
+	const float maxFz = static_cast< float >( m_nLength - 1 ) - 0.001f;
+
+	if ( fx > maxFx )
+		fx = maxFx;
+
+	if ( fz > maxFz )
+		fz = maxFz;
+
+	int x = static_cast< int >( fx );
+	int z = static_cast< int >( fz );
 	float fxPercent = fx - x;
 	float fzPercent = fz - z;
 
-	float fBottomLeft = (float)m_pHeightMapPixels[x + (z * m_nWidth)];
-	float fBottomRight = (float)m_pHeightMapPixels[(x + 1) + (z * m_nWidth)];
-	float fTopLeft = (float)m_pHeightMapPixels[x + ((z + 1) * m_nWidth)];
-	float fTopRight = (float)m_pHeightMapPixels[(x + 1) + ((z + 1) * m_nWidth)];
+	float fBottomLeft = static_cast< float >( m_pHeightMapPixels[x + ( z * m_nWidth )] );
+	float fBottomRight = static_cast< float >( m_pHeightMapPixels[( x + 1 ) + ( z * m_nWidth )] );
+	float fTopLeft = static_cast< float >( m_pHeightMapPixels[x + ( ( z + 1 ) * m_nWidth )] );
+	float fTopRight = static_cast< float >( m_pHeightMapPixels[( x + 1 ) + ( ( z + 1 ) * m_nWidth )] );
+
 #ifdef _WITH_APPROXIMATE_OPPOSITE_CORNER
-	if (bReverseQuad)
+	if ( bReverseQuad )
 	{
-		if (fzPercent >= fxPercent)
-			fBottomRight = fBottomLeft + (fTopRight - fTopLeft);
+		if ( fzPercent >= fxPercent )
+			fBottomRight = fBottomLeft + ( fTopRight - fTopLeft );
 		else
-			fTopLeft = fTopRight + (fBottomLeft - fBottomRight);
+			fTopLeft = fTopRight + ( fBottomLeft - fBottomRight );
 	}
 	else
 	{
-		if (fzPercent < (1.0f - fxPercent))
-			fTopRight = fTopLeft + (fBottomRight - fBottomLeft);
+		if ( fzPercent < ( 1.0f - fxPercent ) )
+			fTopRight = fTopLeft + ( fBottomRight - fBottomLeft );
 		else
-			fBottomLeft = fTopLeft + (fBottomRight - fTopRight);
+			fBottomLeft = fTopLeft + ( fBottomRight - fTopRight );
 	}
 #endif
-	float fTopHeight = fTopLeft * (1 - fxPercent) + fTopRight * fxPercent;
-	float fBottomHeight = fBottomLeft * (1 - fxPercent) + fBottomRight * fxPercent;
-	float fHeight = fBottomHeight * (1 - fzPercent) + fTopHeight * fzPercent;
 
-	return(fHeight);
+	float fTopHeight = fTopLeft * ( 1.0f - fxPercent ) + fTopRight * fxPercent;
+	float fBottomHeight = fBottomLeft * ( 1.0f - fxPercent ) + fBottomRight * fxPercent;
+	float fHeight = fBottomHeight * ( 1.0f - fzPercent ) + fTopHeight * fzPercent;
+
+	return fHeight;
 }
 
 XMFLOAT3 HeightMapImage::GetHeightMapNormal(int x, int z)
