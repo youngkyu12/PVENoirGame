@@ -435,6 +435,258 @@ void CGameScene::SpawnGoldFireworkBurstAtWeapon(CGameObject* weaponObject)
 	}
 }
 
+void CGameScene::SpawnInventoryUseBurst(CGameObject* player, int inventorySlot)
+{
+#ifndef USING_NETWORK
+	if ( !player )
+		return;
+
+	if ( inventorySlot < 0 || inventorySlot >= CGameSceneHUD::kInventorySlotCount )
+		return;
+
+	static std::mt19937 rng{ std::random_device{}( ) };
+
+	static std::uniform_real_distribution<float> zeroOneDist(0.0f, 1.0f);
+	static std::uniform_real_distribution<float> unitDist(-1.0f, 1.0f);
+	static std::uniform_real_distribution<float> rotDist(0.0f, XM_2PI);
+	static std::uniform_real_distribution<float> seedDist(0.0f, 1000.0f);
+
+	const std::array<XMFLOAT4, CGameSceneHUD::kInventorySlotCount> colors =
+	{
+		XMFLOAT4(1.00f, 0.08f, 0.06f, 0.95f),
+		XMFLOAT4(1.00f, 0.48f, 0.05f, 0.95f),
+		XMFLOAT4(0.18f, 0.48f, 1.00f, 0.95f),
+		XMFLOAT4(0.14f, 1.00f, 0.22f, 0.95f)
+	};
+
+	XMFLOAT3 origin = player->GetPosition();
+	origin.y += 1.05f;
+
+	const XMFLOAT4 color = colors[static_cast< size_t >( inventorySlot )];
+
+	constexpr int kInventoryUseBurstParticleCount = 56;
+
+	for ( int i = 0; i < kInventoryUseBurstParticleCount; ++i )
+	{
+		MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashEffect.entries);
+		if ( !e )
+			return;
+
+		const float y = unitDist(rng);
+		const float theta = zeroOneDist(rng) * XM_2PI;
+		const float horizontalRadius = std::sqrt(std::max(0.0f, 1.0f - y * y));
+
+		XMVECTOR dir = XMVectorSet(std::cos(theta) * horizontalRadius, y, std::sin(theta) * horizontalRadius, 0.0f);
+
+		if ( XMVectorGetX(XMVector3LengthSq(dir)) <= 1.0e-8f )
+			dir = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+		else
+			dir = XMVector3Normalize(dir);
+
+		const float spawnJitter = 0.10f + zeroOneDist(rng) * 0.18f;
+
+		XMVECTOR posV = XMLoadFloat3(&origin) + XMVectorScale(dir, spawnJitter);
+
+		XMFLOAT3 pos{};
+		XMStoreFloat3(&pos, posV);
+
+		const float speed = 3.60f + zeroOneDist(rng) * 2.70f;
+		const float life = 0.62f + zeroOneDist(rng) * 0.34f;
+		const float startSize = 0.14f + zeroOneDist(rng) * 0.11f;
+		const float endSize = 0.020f + zeroOneDist(rng) * 0.025f;
+
+		XMVECTOR velV = XMVectorScale(dir, speed);
+
+		XMFLOAT3 vel{};
+		XMStoreFloat3(&vel, velV);
+
+		e->active = true;
+		e->kind = EMuzzleFlashKind::GoldFirework;
+
+		e->position = pos;
+		e->velocity = vel;
+
+		e->age = 0.0f;
+		e->lifetime = life;
+
+		e->startWidth = startSize;
+		e->startHeight = startSize;
+		e->endWidth = endSize;
+		e->endHeight = endSize;
+
+		e->rotationRad = rotDist(rng);
+		e->intensity = 1.20f + zeroOneDist(rng) * 0.55f;
+
+		e->gravity = 0.35f + zeroOneDist(rng) * 0.35f;
+		e->drag = 0.25f + zeroOneDist(rng) * 0.25f;
+		e->seed = seedDist(rng);
+		e->color = color;
+	}
+#else
+	UNREFERENCED_PARAMETER(player);
+	UNREFERENCED_PARAMETER(inventorySlot);
+#endif
+}
+
+void CGameScene::UpdateInventoryBuffAmbientParticles(float dt)
+{
+#ifndef USING_NETWORK
+	if ( dt <= 0.0f )
+		return;
+
+	for ( int playerSlot = 0; playerSlot < 4; ++playerSlot )
+	{
+		CGameObject* player = GetPlayerBySlot(playerSlot);
+
+		if ( !player || !player->GetActive() )
+		{
+			for ( int inventorySlot = 1; inventorySlot <= 3; ++inventorySlot )
+				m_inventoryBuffParticleEmitAccumulators[static_cast< size_t >(playerSlot)][static_cast< size_t >(inventorySlot)] = 0.0f;
+
+			continue;
+		}
+
+		CInventoryComponent* inventory = player->GetComponent<CInventoryComponent>();
+
+		if ( !inventory )
+			continue;
+
+		const bool activeBuffs[4] =
+		{
+			false,
+			inventory->IsAttackPowerPotionActive(),
+			inventory->IsDefensePotionActive(),
+			inventory->IsMoveSpeedPotionActive()
+		};
+
+		for ( int inventorySlot = 1; inventorySlot <= 3; ++inventorySlot )
+		{
+			float& accumulator = m_inventoryBuffParticleEmitAccumulators[static_cast< size_t >( playerSlot )][static_cast< size_t >( inventorySlot )];
+
+			if ( !activeBuffs[inventorySlot] )
+			{
+				accumulator = 0.0f;
+				continue;
+			}
+
+			EmitInventoryBuffAmbientParticles(player, inventorySlot, dt, accumulator);
+		}
+	}
+#else
+	UNREFERENCED_PARAMETER(dt);
+#endif
+}
+
+void CGameScene::EmitInventoryBuffAmbientParticles(CGameObject* player, int inventorySlot, float dt, float& accumulatorSec)
+{
+#ifndef USING_NETWORK
+	if ( !player )
+		return;
+
+	if ( inventorySlot < 1 || inventorySlot > 3 )
+		return;
+
+	static std::mt19937 rng{ std::random_device{}( ) };
+
+	static std::uniform_real_distribution<float> zeroOneDist(0.0f, 1.0f);
+	static std::uniform_real_distribution<float> unitDist(-1.0f, 1.0f);
+	static std::uniform_real_distribution<float> rotDist(0.0f, XM_2PI);
+	static std::uniform_real_distribution<float> seedDist(0.0f, 1000.0f);
+
+	const std::array<XMFLOAT4, CGameSceneHUD::kInventorySlotCount> colors =
+	{
+		XMFLOAT4(1.00f, 0.08f, 0.06f, 0.82f),
+		XMFLOAT4(1.00f, 0.48f, 0.05f, 0.72f),
+		XMFLOAT4(0.18f, 0.48f, 1.00f, 0.72f),
+		XMFLOAT4(0.14f, 1.00f, 0.22f, 0.72f)
+	};
+
+	static constexpr float kEmitIntervalSec = 0.085f;
+	static constexpr int kParticlesPerEmit = 1;
+	static constexpr int kMaxEmitsPerFrame = 3;
+
+	accumulatorSec += dt;
+
+	int emitCount = 0;
+
+	while ( accumulatorSec >= kEmitIntervalSec && emitCount < kMaxEmitsPerFrame )
+	{
+		accumulatorSec -= kEmitIntervalSec;
+		++emitCount;
+
+		for ( int i = 0; i < kParticlesPerEmit; ++i )
+		{
+			MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashEffect.entries);
+			if ( !e )
+				return;
+
+			const XMFLOAT3 playerPos = player->GetPosition();
+
+			const float theta = zeroOneDist(rng) * XM_2PI;
+
+			// 기존 0.45~1.15보다 플레이어 몸 주변에 더 붙여서 생성.
+			const float radius = 0.24f + zeroOneDist(rng) * 0.62f;
+
+			// 발밑보다는 몸통~상체 주변에 떠다니도록 범위 유지.
+			const float yOffset = 0.55f + zeroOneDist(rng) * 1.10f;
+
+			XMFLOAT3 pos{};
+			pos.x = playerPos.x + std::cos(theta) * radius;
+			pos.y = playerPos.y + yOffset;
+			pos.z = playerPos.z + std::sin(theta) * radius;
+
+			XMVECTOR dir = XMVectorSet(unitDist(rng), unitDist(rng) * 0.45f, unitDist(rng), 0.0f);
+
+			if ( XMVectorGetX(XMVector3LengthSq(dir)) <= 1.0e-8f )
+				dir = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+			else
+				dir = XMVector3Normalize(dir);
+
+			// 기존 0.16~0.38보다 훨씬 느리게.
+			const float speed = 0.035f + zeroOneDist(rng) * 0.080f;
+
+			XMFLOAT3 vel{};
+			XMStoreFloat3(&vel, XMVectorScale(dir, speed));
+
+			// 기존 0.075~0.12보다 크게.
+			const float startSize = 0.145f + zeroOneDist(rng) * 0.085f;
+			const float endSize = startSize * ( 1.18f + zeroOneDist(rng) * 0.42f );
+
+			e->active = true;
+			e->kind = EMuzzleFlashKind::GoldFirework;
+
+			e->position = pos;
+			e->velocity = vel;
+
+			e->age = 0.0f;
+			e->lifetime = 1.35f + zeroOneDist(rng) * 0.85f;
+
+			e->startWidth = startSize;
+			e->startHeight = startSize;
+			e->endWidth = endSize;
+			e->endHeight = endSize;
+
+			e->rotationRad = rotDist(rng);
+			e->intensity = 0.78f + zeroOneDist(rng) * 0.42f;
+
+			// 버프 지속 파티클은 떠있는 느낌이므로 등속직선운동에 가깝게 유지한다.
+			e->gravity = 0.0f;
+			e->drag = 0.0f;
+
+			e->seed = seedDist(rng);
+			e->color = colors[static_cast< size_t >( inventorySlot )];
+		}
+	}
+
+	if ( emitCount >= kMaxEmitsPerFrame )
+		accumulatorSec = 0.0f;
+#else
+	UNREFERENCED_PARAMETER(player);
+	UNREFERENCED_PARAMETER(inventorySlot);
+	UNREFERENCED_PARAMETER(dt);
+	UNREFERENCED_PARAMETER(accumulatorSec);
+#endif
+}
 
 void CGameScene::SpawnWeaponLevelUpFireworks()
 {

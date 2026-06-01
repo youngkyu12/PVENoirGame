@@ -159,6 +159,9 @@ CGameScene::CGameScene()
 
 	m_inventoryItemCounts.fill(0);
 	m_bPrevInventoryUseKeyDown.fill(false);
+
+	for ( std::array<float, CGameSceneHUD::kInventorySlotCount>& accumulators : m_inventoryBuffParticleEmitAccumulators )
+		accumulators.fill(0.0f);
 }
 
 void CGameScene::SetFrameResourceIndex(UINT frameResourceIndex)
@@ -3339,6 +3342,9 @@ void CGameScene::ReleaseObjects()
 	m_itemBillboardState.bossCallSummonCircleVisual = BossCallSummonCircleVisualState{};
 	m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
 	m_itemBillboardState.bossCallSummonGlowParticleEmitAccumulatorSec = 0.0f;
+
+	for ( std::array<float, CGameSceneHUD::kInventorySlotCount>& accumulators : m_inventoryBuffParticleEmitAccumulators )
+		accumulators.fill(0.0f);
 
 	m_bossCallSummonPlanCallIndex = -1;
 	m_bossCallSummonPlanEntries.clear();
@@ -8259,6 +8265,8 @@ void CGameScene::AnimateObjects(float dt)
 	}
 
 #ifndef USING_NETWORK
+	UpdateInventoryBuffAmbientParticles(dt);
+
 	if ( CInventoryComponent* inventory = GetLocalPlayerInventory() )
 	{
 		if ( inventory->ConsumeAttackPowerDirty() )

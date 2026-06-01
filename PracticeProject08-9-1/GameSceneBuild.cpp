@@ -1959,7 +1959,7 @@ void CGameScene::BuildSkinnedBatch(
 		};
 
 	const UINT fighterCount = m_PlayerCount;
-	const XMFLOAT3 playerBase(-400.0f, 0.0f, 300.0f);
+	const XMFLOAT3 playerBase(0.0f, 0.0f, -150.0f);
 
 	m_ghoulRefs.clear();
 	m_ghoulRefs.reserve(m_ghoulCount);
