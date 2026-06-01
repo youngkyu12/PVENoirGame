@@ -322,6 +322,9 @@ void Room::BuildRoom()
 
 	m_serverTerrain = make_unique<CServerTerrain>();
 	const std::vector<std::string> terrainCandidates = {
+		"MapFIle/terrain_height_257_u8.raw",
+		"GameServer/MapFIle/terrain_height_257_u8.raw",
+		"../GameServer/MapFIle/terrain_height_257_u8.raw",
 		"MapFIle/terrain.raw",
 		"GameServer/MapFIle/terrain.raw",
 		"../GameServer/MapFIle/terrain.raw"
