@@ -448,6 +448,12 @@ void Room::BuildRoom()
 		ai->SetMoveSpeed(p->moveSpeed);
 		ai->SetWalkMoveSpeed(p->walkSpeed);
 		ai->SetPatrolEnabled(t == "SwordMan" || t == "BowMan");
+
+		Protocol::WeaponType wt = Protocol::WEAPON_TYPE_NONE;
+		if      (t == "BowMan")   wt = Protocol::WEAPON_TYPE_BOW;
+		else if (t == "SwordMan") wt = Protocol::WEAPON_TYPE_SWORD;
+		uint32 bullets = 0;
+		e->SetWeapon(wt, bullets);
 	};
 
 	auto makeSpawnEnemy = [&](const MonsterSpawnEntry& spawn)
