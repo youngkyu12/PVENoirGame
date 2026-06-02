@@ -78,11 +78,14 @@ void CTerrainAttachComponent::SnapToTerrain()
 	const float localX = pos.x - terrainPos.x;
 	const float localZ = pos.z - terrainPos.z;
 
-	const float fHeight = terrainPos.y + m_terrainData->GetHeight(localX, localZ);
+	const float terrainHeight =
+		terrainPos.y + m_terrainData->GetHeight(localX, localZ);
 
-	if ( pos.y < fHeight )
+	const float targetY = terrainHeight + m_heightOffset;
+
+	if ( std::fabs(pos.y - targetY) > 0.001f )
 	{
-		pos.y = fHeight;
+		pos.y = targetY;
 		owner->SetPosition(pos);
 	}
 }
