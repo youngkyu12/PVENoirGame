@@ -25,6 +25,7 @@ public:
 		m_remainingMs = 0;
 		m_ownerObjectId = 0;
 		m_bulletType = Protocol::BULLET_TYPE_NONE;
+		SetAttackPower(0);
 		SetVelocity(GameMath::Vec3::Zero());
 	}
 
