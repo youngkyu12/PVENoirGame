@@ -223,6 +223,8 @@ namespace GameSceneHelper
 
 	// Castle 텔레포트는 총 4개 이상의 메가그리드가 클리어된 뒤부터 허용한다.
 	static constexpr int kRequiredClearedMegaGridCountForCastlePortal = 4;
+	constexpr float kMegaGrid5CenterSquareHalfExtent = 125.0f;
+	bool IsWorldPositionInsideMegaGrid5CenterSquare250(float worldX, float worldZ);
 
 #ifndef USING_NETWORK
 	static constexpr int kTowerDoorPortalCooldownFrames = 30;
