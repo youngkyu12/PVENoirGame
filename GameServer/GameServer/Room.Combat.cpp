@@ -44,17 +44,80 @@ namespace
 	constexpr int kMeleeHitFrameStart = 5;
 	constexpr int kMeleeHitFrameEnd   = 15;
 
+	struct EnemyMeleeHitWindow
+	{
+		int startTick = 0;
+		int endTick = 0;
+		float reach = 0.0f;
+		float halfAngleDeg = 0.0f;
+		float yawOffsetDeg = 0.0f;
+	};
+
+	constexpr std::array<EnemyMeleeHitWindow, 3> kEnemySwordHitWindows =
+	{ {
+		{ 6, 7, 2.0f, 18.0f,  24.0f },
+		{ 8, 9, 2.7f, 24.0f,   0.0f },
+		{ 10, 10, 2.2f, 18.0f, -24.0f }
+	} };
+
+	constexpr std::array<EnemyMeleeHitWindow, 3> kEnemyAxeHitWindows =
+	{ {
+		{ 7, 8, 2.3f, 20.0f,  18.0f },
+		{ 9, 10, 3.0f, 28.0f,  0.0f },
+		{ 11, 11, 2.4f, 20.0f, -18.0f }
+	} };
+
+	constexpr std::array<EnemyMeleeHitWindow, 2> kEnemyDefaultHitWindows =
+	{ {
+		{ 6, 7, 1.5f, 22.0f,  12.0f },
+		{ 8, 8, 1.9f, 28.0f, -8.0f }
+	} };
+
 	// 근접 공격 사거리 / 판정 각도
 	constexpr float kMeleeReachSword         = 2.0f;
 	constexpr float kMeleeReachAxe           = 2.5f;
 	constexpr float kMeleeReachPlayerDefault = 1.5f;
-	constexpr float kMeleeReachEnemyDefault  = 5.0f;
 	constexpr float kMeleeHalfAngleSword     = 45.0f;
 	constexpr float kMeleeHalfAngleDefault   = 90.0f;
 
 	// 포탄
 	constexpr float kBulletSpeed     = 18.0f;
 	constexpr int   kBulletLifeTicks = 100;
+
+	template <size_t N>
+	bool TryFindEnemyMeleeHitWindow(
+		const std::array<EnemyMeleeHitWindow, N>& windows,
+		int elapsedTick,
+		EnemyMeleeHitWindow& outWindow)
+	{
+		for (const EnemyMeleeHitWindow& window : windows)
+		{
+			if (elapsedTick >= window.startTick &&
+				elapsedTick <= window.endTick)
+			{
+				outWindow = window;
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	bool TryGetEnemyMeleeHitWindow(
+		Protocol::WeaponType weapon,
+		int elapsedTick,
+		EnemyMeleeHitWindow& outWindow)
+	{
+		switch (weapon)
+		{
+		case Protocol::WEAPON_TYPE_SWORD:
+			return TryFindEnemyMeleeHitWindow(kEnemySwordHitWindows, elapsedTick, outWindow);
+		case Protocol::WEAPON_TYPE_AXE:
+			return TryFindEnemyMeleeHitWindow(kEnemyAxeHitWindows, elapsedTick, outWindow);
+		default:
+			return TryFindEnemyMeleeHitWindow(kEnemyDefaultHitWindows, elapsedTick, outWindow);
+		}
+	}
 
 	uint64 MakeMeleeHitKey(uint64 attackerId, uint64 targetId, uint32 attackAnimTick)
 	{
@@ -68,7 +131,8 @@ namespace
 		const GameMath::Vec3& attackerLook,
 		const GameMath::Vec3& targetPos,
 		float reach,
-		float halfAngleDeg)
+		float halfAngleDeg,
+		float yawOffsetDeg = 0.0f)
 	{
 		const float dx = targetPos.x - attackerPos.x;
 		const float dz = targetPos.z - attackerPos.z;
@@ -78,7 +142,12 @@ namespace
 		if (distSq < 1e-8f) return true;
 
 		const float dist = sqrtf(distSq);
-		const float dot = (dx / dist) * attackerLook.x + (dz / dist) * attackerLook.z;
+		const float yawOffsetRad = yawOffsetDeg * GameMath::DEG_TO_RAD;
+		const float cosOffset = cosf(yawOffsetRad);
+		const float sinOffset = sinf(yawOffsetRad);
+		const float arcLookX = attackerLook.x * cosOffset + attackerLook.z * sinOffset;
+		const float arcLookZ = -attackerLook.x * sinOffset + attackerLook.z * cosOffset;
+		const float dot = (dx / dist) * arcLookX + (dz / dist) * arcLookZ;
 		const float cosHalf = cosf(halfAngleDeg * GameMath::DEG_TO_RAD);
 
 		return dot >= cosHalf;
@@ -441,17 +510,10 @@ void Room::TickAdvance()
 		if (enemy->GetAnimState() != Protocol::ANIMATION_TYPE_ATTACK) continue;
 
 		const int elapsed = static_cast<int>(animClockTick) - enemy->GetAnimTick();
-		if (elapsed < kMeleeHitFrameStart || elapsed > kMeleeHitFrameEnd) continue;
+		EnemyMeleeHitWindow hitWindow{};
+		if (!TryGetEnemyMeleeHitWindow(enemy->GetWeaponState(), elapsed, hitWindow)) continue;
 
 		const int damage = enemy->GetAttackPower();
-
-		float reach, halfAngleDeg;
-		switch (enemy->GetWeaponState())
-		{
-		case Protocol::WEAPON_TYPE_SWORD: reach = kMeleeReachSword; halfAngleDeg = kMeleeHalfAngleSword;  break;
-		case Protocol::WEAPON_TYPE_AXE:   reach = kMeleeReachAxe;   halfAngleDeg = kMeleeHalfAngleSword;  break;
-		default:                          reach = kMeleeReachEnemyDefault; halfAngleDeg = kMeleeHalfAngleDefault; break;
-		}
 
 		for (auto& [pid, player] : players)
 		{
@@ -464,7 +526,7 @@ void Room::TickAdvance()
 			const uint16_t playerMask = ComputeObjectCurrentMegaGridMask(player.get());
 			if (enemyMask != 0 && playerMask != 0 && (enemyMask & playerMask) == 0) continue;
 			if (IsInArcXZ(enemy->GetPosition(), enemy->GetLook(),
-				player->GetPosition(), reach, halfAngleDeg))
+				player->GetPosition(), hitWindow.reach, hitWindow.halfAngleDeg, hitWindow.yawOffsetDeg))
 			{
 				const uint64 hitKey = MakeMeleeHitKey(
 					enemy->GetObjectId(),
