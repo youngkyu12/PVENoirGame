@@ -168,6 +168,19 @@ namespace GameSceneHelper
 		return out;
 	}
 
+	bool IsWorldPositionInsideMegaGrid5CenterSquare250(float worldX, float worldZ)
+	{
+		constexpr int kMegaGrid5Number = 5;
+		constexpr int zeroBased = kMegaGrid5Number - 1;
+		constexpr int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+		constexpr int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+		const float centerX = static_cast< float >( CSceneGrid::kGridMinX + megaX * CSceneGrid::kMegaGridCellWidth + CSceneGrid::kMegaGridCellWidth / 2 );
+		const float centerZ = static_cast< float >( CSceneGrid::kGridMinZ + megaZ * CSceneGrid::kMegaGridCellHeight + CSceneGrid::kMegaGridCellHeight / 2 );
+
+		return worldX >= centerX - kMegaGrid5CenterSquareHalfExtent && worldX <= centerX + kMegaGrid5CenterSquareHalfExtent && worldZ >= centerZ - kMegaGrid5CenterSquareHalfExtent && worldZ <= centerZ + kMegaGrid5CenterSquareHalfExtent;
+	}
+
 	bool ParsePlacementEntryLine(const std::string& line, StaticPlacementEntry& outEntry)
 	{
 		char asset[64] = {};
