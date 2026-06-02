@@ -44,6 +44,13 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		return;
 	}
 
+	Protocol::AnimationType prevAnimState = player->GetAnimState();
+	if (prevAnimState == Protocol::ANIMATION_TYPE_HIT)
+	{
+		player->SetVelocity(GameMath::Vec3::Zero());
+		player->ClearMoveKeyCodes();
+		return;
+	}
 
 	if (deltaX != 0.0f)
 	{
@@ -57,7 +64,6 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 
 	const uint32 animClockTick = GetAnimClockTick();
 	const uint32 combatClockTick = GetCombatClockTick();
-	Protocol::AnimationType prevAnimState = player->GetAnimState();
 
 	if (prevAnimState == Protocol::ANIMATION_TYPE_ROLL)
 		return;
