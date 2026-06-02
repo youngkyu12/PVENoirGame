@@ -317,6 +317,7 @@ void Room::BuildRoom()
 	m_castleDoorPortals.clear();
 	m_arrowPool.clear();
 	m_bulletPool.clear();
+	m_enemyArrowPool.clear();
 	InitializeCollisionSystem();
 	InitializeSpatialGrid();
 
@@ -382,6 +383,14 @@ void Room::BuildRoom()
 		p->SetObjectId(200000 + i);
 		p->Deactivate();
 		m_bulletPool.push_back(p);
+	}
+
+	for (int i = 0; i < kEnemyArrowPoolSize; ++i)
+	{
+		auto p = ObjectPool<CProjectile>::MakeShared();
+		p->SetObjectId(300000 + i);
+		p->Deactivate();
+		m_enemyArrowPool.push_back(p);
 	}
 
 	m_navMesh = make_unique<CNavMesh>();

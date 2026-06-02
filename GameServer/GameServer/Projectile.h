@@ -42,6 +42,13 @@ public:
 		if (!m_active)
 			return;
 
+		if (m_bulletType == Protocol::BULLET_TYPE_ARROW)
+		{
+			GameMath::Vec3 vel = GetVelocity();
+			vel.y += kArrowGravityY * dtSec;
+			SetVelocity(vel);
+		}
+
 		Move(GetVelocity() * dtSec);
 
 		if (elapsedMs >= m_remainingMs)
@@ -54,6 +61,8 @@ public:
 	}
 
 private:
+	static constexpr float kArrowGravityY = -2.5f;
+
 	bool m_active = false;
 	uint64 m_ownerObjectId = 0;
 	Protocol::BulletType m_bulletType = Protocol::BULLET_TYPE_NONE;
