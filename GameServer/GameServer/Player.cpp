@@ -4,9 +4,10 @@
 
 namespace
 {
-    constexpr int kSwordAttackAnimTicks = 24; // ceil(1.383333s / 0.060s)
+    constexpr int kSwordAttackAnimTicks = 19; // ceil(1.383333s / 0.060s)
     constexpr int kAxeAttackAnimTicks = 27;   // ceil(1.583333s / 0.060s)
     constexpr int kDefaultAttackAnimTicks = 10;
+    constexpr int kPlayerHitAnimTicks = 12;    // ceil(0.983333s / 0.060s)
     constexpr int kRollAnimTicks = 12; // ceil((1.516667s * (0.55 - 0.08)) / 0.060s)
 
     int GetPlayerAttackAnimTicks(Protocol::WeaponType weaponType, const CWeapon& weapon)
@@ -56,7 +57,7 @@ void Player::Update(uint32 serverTick)
             break;
         case Protocol::ANIMATION_TYPE_ROLL:   animDuration = kRollAnimTicks;  break;
         case Protocol::ANIMATION_TYPE_DIE:    animDuration = 25; break;
-        case Protocol::ANIMATION_TYPE_HIT:    animDuration = 10; break;
+        case Protocol::ANIMATION_TYPE_HIT:    animDuration = kPlayerHitAnimTicks; break;
         default: animDuration = 0; break;
         }
 
