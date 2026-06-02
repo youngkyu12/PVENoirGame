@@ -36,7 +36,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		return;
 	}
 
-	// [�߰�] ����/������ �� �Է� ����
+	// [추가] 죽음/리스폰 중 입력 차단
 	if (player->IsDead() || player->IsInputBlocked())
 	{
 		player->SetVelocity(GameMath::Vec3::Zero());
@@ -93,7 +93,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 			break;
 		}
 
-		// ���� �ִϸ��̼��� ���۵Ǹ� �̵� �Է��� ���õǾ�� �Ѵ�
+		// 공격 애니메이션이 시작되면 이동 입력은 무시되어야 한다
 	}
 	else if (prevAnimState != Protocol::ANIMATION_TYPE_ATTACK &&
 		prevAnimState != Protocol::ANIMATION_TYPE_ROLL &&
@@ -130,7 +130,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	GameMath::Vec3 shift = GameMath::Vec3::Zero();
 	GameMath::Vec3 moveDirection = GameMath::Vec3::Zero();
 
-	// �̵� ���⿡ ���� fdistaance ����
+	// 이동 방향에 따라 fdistaance 조절
 	if (keyCodes & kDirForward)
 	{
 		moveDirection += look;
@@ -168,12 +168,12 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 				(player->GetWeaponState() == Protocol::WEAPON_TYPE_BOW ||
 				 player->GetWeaponState() == Protocol::WEAPON_TYPE_CANON);
 			if (!canMoveWhileAttacking)
-				fDistance *= 0.0f; // ���� ���߿��� �̵� �ӵ� = 0
+				fDistance *= 0.0f; // 공격 도중에는 이동 속도 = 0
 			break;
 		}
 		case Protocol::ANIMATION_TYPE_IDLE:
 		{
-			// IDLE�� �̵��ϸ� �ȵ�
+			// IDLE도 이동하면 안됨
 			fDistance *= 0.0f;
 			break;
 		}
