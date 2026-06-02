@@ -258,6 +258,9 @@ void Room::MakeFrameState(uint32 tick)
 		for (auto& projectile : m_bulletPool)
 			AddVisibleBullet(projectile);
 
+		for (auto& projectile : m_enemyArrowPool)
+			AddVisibleBullet(projectile);
+
 		auto sendBuffer = ClientPacketHandler::MakeSendBuffer(frameStatePkt);
 		viewer->ownerSession->Send(sendBuffer);
 	}

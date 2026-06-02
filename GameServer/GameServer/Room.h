@@ -66,6 +66,7 @@ public:
     void SetPlayerReady(bool ready, uint32 playerId);
 	void OnMonsterFirstChase(uint64 enemyId);
 	void OnMonsterDeath(uint64 enemyId);
+	void FireEnemyArrow(CServerObject* shooter, float speed, uint32 lifeTicks);
 
 public:
     GameAreaRef GetArea(uint32 areaId);
@@ -328,9 +329,11 @@ private:
 	std::unique_ptr<CServerTerrain> m_serverTerrain;
 	static constexpr int kArrowPoolSize = 64;
 	static constexpr int kBulletPoolSize = 64;
+	static constexpr int kEnemyArrowPoolSize = 32;
 
 	Vector<ProjectileRef> m_arrowPool;
 	Vector<ProjectileRef> m_bulletPool;
+	Vector<ProjectileRef> m_enemyArrowPool;
 
 	std::unique_ptr<CCollisionSystem> _collision;
 

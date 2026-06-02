@@ -327,6 +327,28 @@ void Room::TickAdvance()
 		}
 	}
 
+	// 적 화살 히트
+	constexpr int kAtkEnemyArrow = 10;
+
+	for (auto& p : m_enemyArrowPool)
+	{
+		if (!p->IsActive()) continue;
+		p->Update(m_timing.projectileDtSec, m_timing.serverTickIntervalMs);
+
+		for (auto& [pid, player] : players)
+		{
+			if (!player || player->IsDead()) continue;
+
+			const float distSq = GameMath::DistSqXZ(player->GetPosition(), p->GetPosition());
+			const float yDiff  = std::abs(player->GetPosition().y - p->GetPosition().y);
+			if (distSq > kProjectileHitRadiusSq || yDiff > kProjectileHitYTol) continue;
+
+			player->ApplyHit(animClockTick, kAtkEnemyArrow, 10);
+			p->Deactivate();
+			break;
+		}
+	}
+
 	// 플레이어 근접 공격 히트 판정
 	for (auto& [pid, player] : players)
 	{
@@ -509,6 +531,27 @@ void Room::FireArrow(PlayerRef shooter, float speed, uint32 lifeTicks)
 
 	p->Activate(origin, forward * speed, lifeTicks, m_timing.projectileLifeTickMs, shooter->GetObjectId(), Protocol::BULLET_TYPE_ARROW);
 	shooter->OnFired(GetCombatClockTick());
+}
+
+void Room::FireEnemyArrow(CServerObject* shooter, float speed, uint32 lifeTicks)
+{
+	if (!shooter || shooter->IsDead()) return;
+
+	auto p = AcquireFromPool(m_enemyArrowPool);
+	if (!p) return;
+
+	const GameMath::Vec3 origin = shooter->GetPosition()
+		+ shooter->GetUp()   * 1.5f
+		+ shooter->GetLook() * 0.5f;
+
+	const GameMath::Vec3 forward = shooter->GetLook().Normalized();
+	const GameMath::Vec3 vel(forward.x * speed, 0.0f, forward.z * speed);
+
+	p->Activate(origin, vel, lifeTicks, m_timing.projectileLifeTickMs,
+				shooter->GetObjectId(), Protocol::BULLET_TYPE_ARROW);
+
+	cout << "[FireEnemyArrow] shooter=" << shooter->GetObjectId()
+		<< " pos=(" << origin.x << "," << origin.y << "," << origin.z << ")" << endl;
 }
 
 void Room::FireCannonball(PlayerRef shooter)

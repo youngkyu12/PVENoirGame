@@ -88,6 +88,13 @@ void CMonsterAI::OnUpdate(float dt)
 				GetOwner()->SetAnimTick(GRoom->GetAnimClockTick());
 				m_attackCooldownRemaining = m_attackCooldownSec;
 				m_postAttackMoveLockRemaining = m_postAttackMoveLockDuration;
+
+				if (static_cast<CEnemy*>(GetOwner())->GetWeaponState() == Protocol::WEAPON_TYPE_BOW)
+				{
+					constexpr float  kEnemyArrowSpeed     = 14.0f;
+					constexpr uint32 kEnemyArrowLifeTicks = 375;
+					GRoom->FireEnemyArrow(GetOwner(), kEnemyArrowSpeed, kEnemyArrowLifeTicks);
+				}
 			}
 			return;
 		}
@@ -146,6 +153,13 @@ void CMonsterAI::OnUpdate(float dt)
 			GetOwner()->SetAnimTick(GRoom->GetAnimClockTick());
 			m_attackCooldownRemaining = m_attackCooldownSec;
 			m_postAttackMoveLockRemaining = m_postAttackMoveLockDuration;
+
+			if (static_cast<CEnemy*>(GetOwner())->GetWeaponState() == Protocol::WEAPON_TYPE_BOW)
+			{
+				constexpr float  kEnemyArrowSpeed     = 14.0f;
+				constexpr uint32 kEnemyArrowLifeTicks = 375;
+				GRoom->FireEnemyArrow(GetOwner(), kEnemyArrowSpeed, kEnemyArrowLifeTicks);
+			}
 		}
 		return;
 	}
