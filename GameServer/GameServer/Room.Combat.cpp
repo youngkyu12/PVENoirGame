@@ -6,16 +6,35 @@
 #include "Projectile.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <vector>
 
 namespace
 {
 	// 플레이어 무기 피해량
-	constexpr int kAtkPlayerSword  = 10;
-	constexpr int kAtkPlayerAxe    = 15;
-	constexpr int kAtkPlayerArrow  = 15;
-	constexpr int kAtkPlayerBullet = 8;
+	constexpr int kPlayerWeaponDamageTierCount = 3;
+	constexpr int kPlayerWeaponDamageMaxTierIndex = kPlayerWeaponDamageTierCount - 1;
+
+	constexpr std::array<int, kPlayerWeaponDamageTierCount> kAtkPlayerSwordByTier =
+	{
+		10, 20, 40
+	};
+
+	constexpr std::array<int, kPlayerWeaponDamageTierCount> kAtkPlayerAxeByTier =
+	{
+		15, 30, 50
+	};
+
+	constexpr std::array<int, kPlayerWeaponDamageTierCount> kAtkPlayerArrowByTier =
+	{
+		15, 30, 50
+	};
+
+	constexpr std::array<int, kPlayerWeaponDamageTierCount> kAtkPlayerBulletByTier =
+	{
+		8, 18, 35
+	};
 
 	// 투사체 히트 판정
 	constexpr float kProjectileHitRadiusSq = 1.0f;
@@ -36,18 +55,6 @@ namespace
 	// 포탄
 	constexpr float kBulletSpeed     = 18.0f;
 	constexpr int   kBulletLifeTicks = 100;
-
-	int GetPlayerAttackPower(Protocol::WeaponType weapon)
-	{
-		switch (weapon)
-		{
-		case Protocol::WEAPON_TYPE_SWORD:  return kAtkPlayerSword;
-		case Protocol::WEAPON_TYPE_AXE:    return kAtkPlayerAxe;
-		case Protocol::WEAPON_TYPE_BOW:    return kAtkPlayerArrow;
-		case Protocol::WEAPON_TYPE_CANON:  return kAtkPlayerBullet;
-		default: return 5;
-		}
-	}
 
 	uint64 MakeMeleeHitKey(uint64 attackerId, uint64 targetId, uint32 attackAnimTick)
 	{
@@ -75,6 +82,34 @@ namespace
 		const float cosHalf = cosf(halfAngleDeg * GameMath::DEG_TO_RAD);
 
 		return dot >= cosHalf;
+	}
+}
+
+int Room::ComputePlayerWeaponDamageTierIndex() const
+{
+	int clearedCount = 0;
+
+	for (const MegaGridCell& cell : m_megaGridCells)
+	{
+		if (cell.isCleared)
+			++clearedCount;
+	}
+
+	return std::clamp(clearedCount, 0, kPlayerWeaponDamageMaxTierIndex);
+}
+
+int Room::GetPlayerAttackPower(Protocol::WeaponType weapon) const
+{
+	const int tier = ComputePlayerWeaponDamageTierIndex();
+	const size_t index = static_cast<size_t>(tier);
+
+	switch (weapon)
+	{
+	case Protocol::WEAPON_TYPE_SWORD: return kAtkPlayerSwordByTier[index];
+	case Protocol::WEAPON_TYPE_AXE:   return kAtkPlayerAxeByTier[index];
+	case Protocol::WEAPON_TYPE_BOW:   return kAtkPlayerArrowByTier[index];
+	case Protocol::WEAPON_TYPE_CANON: return kAtkPlayerBulletByTier[index];
+	default: return 5;
 	}
 }
 
@@ -292,7 +327,7 @@ void Room::TickAdvance()
 				&& enemy->GetPosition().y - p->GetPosition().y <= kProjectileHitYTol;
 			if (!hit) continue;
 
-			enemy->ApplyHit(animClockTick, kAtkPlayerArrow, 20);
+			enemy->ApplyHit(animClockTick, p->GetAttackPower(), 20);
 			p->Deactivate();
 			break;
 		}
@@ -321,7 +356,7 @@ void Room::TickAdvance()
 				&& enemy->GetPosition().y - p->GetPosition().y <= kProjectileHitYTol;
 			if (!hit) continue;
 
-			enemy->ApplyHit(animClockTick, kAtkPlayerBullet, 20);
+			enemy->ApplyHit(animClockTick, p->GetAttackPower(), 20);
 			p->Deactivate();
 			break;
 		}
@@ -530,6 +565,7 @@ void Room::FireArrow(PlayerRef shooter, float speed, uint32 lifeTicks)
 	const GameMath::Vec3 forward = shooter->GetLook().Normalized();
 
 	p->Activate(origin, forward * speed, lifeTicks, m_timing.projectileLifeTickMs, shooter->GetObjectId(), Protocol::BULLET_TYPE_ARROW);
+	p->SetAttackPower(GetPlayerAttackPower(Protocol::WEAPON_TYPE_BOW));
 	shooter->OnFired(GetCombatClockTick());
 }
 
@@ -549,6 +585,7 @@ void Room::FireEnemyArrow(CServerObject* shooter, float speed, uint32 lifeTicks)
 
 	p->Activate(origin, vel, lifeTicks, m_timing.projectileLifeTickMs,
 				shooter->GetObjectId(), Protocol::BULLET_TYPE_ARROW);
+	p->SetAttackPower(shooter->GetAttackPower());
 
 	cout << "[FireEnemyArrow] shooter=" << shooter->GetObjectId()
 		<< " pos=(" << origin.x << "," << origin.y << "," << origin.z << ")" << endl;
@@ -569,6 +606,7 @@ void Room::FireCannonball(PlayerRef shooter)
 	const GameMath::Vec3 forward = shooter->GetLook().Normalized();
 
 	p->Activate(origin, forward * kBulletSpeed, kBulletLifeTicks, m_timing.projectileLifeTickMs, shooter->GetObjectId(), Protocol::BULLET_TYPE_CANNONBALL);
+	p->SetAttackPower(GetPlayerAttackPower(Protocol::WEAPON_TYPE_CANON));
 	shooter->OnFired(GetCombatClockTick());
 	shooter->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
 }
