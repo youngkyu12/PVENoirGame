@@ -284,6 +284,6 @@ namespace GameSceneHelper
 	constexpr int kTerrainHeightMapSamples = 513;
 	constexpr float kTerrainWorldSize = 1200.0f;
 	constexpr float kTerrainHorizontalScale = kTerrainWorldSize / static_cast< float >( kTerrainHeightMapSamples - 1 );
-	constexpr float kTerrainVerticalScale = 1.0f;
+	constexpr float kTerrainVerticalScale = 2.352941f;
 
 }
