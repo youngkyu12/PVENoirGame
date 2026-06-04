@@ -155,8 +155,21 @@ struct S_FORCED_TRANSFORMDefaultTypeInternal {
   };
 };
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT S_FORCED_TRANSFORMDefaultTypeInternal _S_FORCED_TRANSFORM_default_instance_;
+constexpr C_DEBUG_COMMAND::C_DEBUG_COMMAND(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : commandtype_(0)
+{}
+struct C_DEBUG_COMMANDDefaultTypeInternal {
+  constexpr C_DEBUG_COMMANDDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~C_DEBUG_COMMANDDefaultTypeInternal() {}
+  union {
+    C_DEBUG_COMMAND _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT C_DEBUG_COMMANDDefaultTypeInternal _C_DEBUG_COMMAND_default_instance_;
 }  // namespace Protocol
-static ::PROTOBUF_NAMESPACE_ID::Metadata file_level_metadata_Protocol_2eproto[10];
+static ::PROTOBUF_NAMESPACE_ID::Metadata file_level_metadata_Protocol_2eproto[11];
 static constexpr ::PROTOBUF_NAMESPACE_ID::EnumDescriptor const** file_level_enum_descriptors_Protocol_2eproto = nullptr;
 static constexpr ::PROTOBUF_NAMESPACE_ID::ServiceDescriptor const** file_level_service_descriptors_Protocol_2eproto = nullptr;
 
@@ -238,6 +251,12 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_Protocol_2eproto::offsets[] PR
   PROTOBUF_FIELD_OFFSET(::Protocol::S_FORCED_TRANSFORM, playerid_),
   PROTOBUF_FIELD_OFFSET(::Protocol::S_FORCED_TRANSFORM, yawdelta_),
   PROTOBUF_FIELD_OFFSET(::Protocol::S_FORCED_TRANSFORM, reason_),
+  ~0u,  // no _has_bits_
+  PROTOBUF_FIELD_OFFSET(::Protocol::C_DEBUG_COMMAND, _internal_metadata_),
+  ~0u,  // no _extensions_
+  ~0u,  // no _oneof_case_
+  ~0u,  // no _weak_field_map_
+  PROTOBUF_FIELD_OFFSET(::Protocol::C_DEBUG_COMMAND, commandtype_),
 };
 static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
   { 0, -1, sizeof(::Protocol::C_LOGIN)},
@@ -250,6 +269,7 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOB
   { 50, -1, sizeof(::Protocol::C_INPUT)},
   { 60, -1, sizeof(::Protocol::S_FRAME_STATE)},
   { 69, -1, sizeof(::Protocol::S_FORCED_TRANSFORM)},
+  { 77, -1, sizeof(::Protocol::C_DEBUG_COMMAND)},
 };
 
 static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] = {
@@ -263,6 +283,7 @@ static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] =
   reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::Protocol::_C_INPUT_default_instance_),
   reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::Protocol::_S_FRAME_STATE_default_instance_),
   reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::Protocol::_S_FORCED_TRANSFORM_default_instance_),
+  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::Protocol::_C_DEBUG_COMMAND_default_instance_),
 };
 
 const char descriptor_table_protodef_Protocol_2eproto[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) =
@@ -287,7 +308,9 @@ const char descriptor_table_protodef_Protocol_2eproto[] PROTOBUF_SECTION_VARIABL
   "(\0132\020.Protocol.Bullet\"i\n\022S_FORCED_TRANSFO"
   "RM\022\020\n\010playerId\030\001 \001(\004\022\020\n\010yawDelta\030\002 \001(\002\022/"
   "\n\006reason\030\003 \001(\0162\037.Protocol.ForcedTransfor"
-  "mReasonb\006proto3"
+  "mReason\"B\n\017C_DEBUG_COMMAND\022/\n\013commandTyp"
+  "e\030\001 \001(\0162\032.Protocol.DebugCommandTypeb\006pro"
+  "to3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_Protocol_2eproto_deps[3] = {
   &::descriptor_table_Enum_2eproto,
@@ -296,8 +319,8 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor
 };
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_Protocol_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_Protocol_2eproto = {
-  false, false, 855, descriptor_table_protodef_Protocol_2eproto, "Protocol.proto", 
-  &descriptor_table_Protocol_2eproto_once, descriptor_table_Protocol_2eproto_deps, 3, 10,
+  false, false, 923, descriptor_table_protodef_Protocol_2eproto, "Protocol.proto", 
+  &descriptor_table_Protocol_2eproto_once, descriptor_table_Protocol_2eproto_deps, 3, 11,
   schemas, file_default_instances, TableStruct_Protocol_2eproto::offsets,
   file_level_metadata_Protocol_2eproto, file_level_enum_descriptors_Protocol_2eproto, file_level_service_descriptors_Protocol_2eproto,
 };
@@ -2753,6 +2776,197 @@ void S_FORCED_TRANSFORM::InternalSwap(S_FORCED_TRANSFORM* other) {
       file_level_metadata_Protocol_2eproto[9]);
 }
 
+// ===================================================================
+
+class C_DEBUG_COMMAND::_Internal {
+ public:
+};
+
+C_DEBUG_COMMAND::C_DEBUG_COMMAND(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor();
+  RegisterArenaDtor(arena);
+  // @@protoc_insertion_point(arena_constructor:Protocol.C_DEBUG_COMMAND)
+}
+C_DEBUG_COMMAND::C_DEBUG_COMMAND(const C_DEBUG_COMMAND& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  commandtype_ = from.commandtype_;
+  // @@protoc_insertion_point(copy_constructor:Protocol.C_DEBUG_COMMAND)
+}
+
+void C_DEBUG_COMMAND::SharedCtor() {
+commandtype_ = 0;
+}
+
+C_DEBUG_COMMAND::~C_DEBUG_COMMAND() {
+  // @@protoc_insertion_point(destructor:Protocol.C_DEBUG_COMMAND)
+  SharedDtor();
+  _internal_metadata_.Delete<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+void C_DEBUG_COMMAND::SharedDtor() {
+  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
+}
+
+void C_DEBUG_COMMAND::ArenaDtor(void* object) {
+  C_DEBUG_COMMAND* _this = reinterpret_cast< C_DEBUG_COMMAND* >(object);
+  (void)_this;
+}
+void C_DEBUG_COMMAND::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
+}
+void C_DEBUG_COMMAND::SetCachedSize(int size) const {
+  _cached_size_.Set(size);
+}
+
+void C_DEBUG_COMMAND::Clear() {
+// @@protoc_insertion_point(message_clear_start:Protocol.C_DEBUG_COMMAND)
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  commandtype_ = 0;
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* C_DEBUG_COMMAND::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::PROTOBUF_NAMESPACE_ID::uint32 tag;
+    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // .Protocol.DebugCommandType commandType = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 8)) {
+          ::PROTOBUF_NAMESPACE_ID::uint64 val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+          _internal_set_commandtype(static_cast<::Protocol::DebugCommandType>(val));
+        } else goto handle_unusual;
+        continue;
+      default: {
+      handle_unusual:
+        if ((tag == 0) || ((tag & 7) == 4)) {
+          CHK_(ptr);
+          ctx->SetLastTag(tag);
+          goto success;
+        }
+        ptr = UnknownFieldParse(tag,
+            _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+            ptr, ctx);
+        CHK_(ptr != nullptr);
+        continue;
+      }
+    }  // switch
+  }  // while
+success:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto success;
+#undef CHK_
+}
+
+::PROTOBUF_NAMESPACE_ID::uint8* C_DEBUG_COMMAND::_InternalSerialize(
+    ::PROTOBUF_NAMESPACE_ID::uint8* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:Protocol.C_DEBUG_COMMAND)
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // .Protocol.DebugCommandType commandType = 1;
+  if (this->commandtype() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteEnumToArray(
+      1, this->_internal_commandtype(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:Protocol.C_DEBUG_COMMAND)
+  return target;
+}
+
+size_t C_DEBUG_COMMAND::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:Protocol.C_DEBUG_COMMAND)
+  size_t total_size = 0;
+
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // .Protocol.DebugCommandType commandType = 1;
+  if (this->commandtype() != 0) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::EnumSize(this->_internal_commandtype());
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    return ::PROTOBUF_NAMESPACE_ID::internal::ComputeUnknownFieldsSize(
+        _internal_metadata_, total_size, &_cached_size_);
+  }
+  int cached_size = ::PROTOBUF_NAMESPACE_ID::internal::ToCachedSize(total_size);
+  SetCachedSize(cached_size);
+  return total_size;
+}
+
+void C_DEBUG_COMMAND::MergeFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) {
+// @@protoc_insertion_point(generalized_merge_from_start:Protocol.C_DEBUG_COMMAND)
+  GOOGLE_DCHECK_NE(&from, this);
+  const C_DEBUG_COMMAND* source =
+      ::PROTOBUF_NAMESPACE_ID::DynamicCastToGenerated<C_DEBUG_COMMAND>(
+          &from);
+  if (source == nullptr) {
+  // @@protoc_insertion_point(generalized_merge_from_cast_fail:Protocol.C_DEBUG_COMMAND)
+    ::PROTOBUF_NAMESPACE_ID::internal::ReflectionOps::Merge(from, this);
+  } else {
+  // @@protoc_insertion_point(generalized_merge_from_cast_success:Protocol.C_DEBUG_COMMAND)
+    MergeFrom(*source);
+  }
+}
+
+void C_DEBUG_COMMAND::MergeFrom(const C_DEBUG_COMMAND& from) {
+// @@protoc_insertion_point(class_specific_merge_from_start:Protocol.C_DEBUG_COMMAND)
+  GOOGLE_DCHECK_NE(&from, this);
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (from.commandtype() != 0) {
+    _internal_set_commandtype(from._internal_commandtype());
+  }
+}
+
+void C_DEBUG_COMMAND::CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) {
+// @@protoc_insertion_point(generalized_copy_from_start:Protocol.C_DEBUG_COMMAND)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+void C_DEBUG_COMMAND::CopyFrom(const C_DEBUG_COMMAND& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:Protocol.C_DEBUG_COMMAND)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool C_DEBUG_COMMAND::IsInitialized() const {
+  return true;
+}
+
+void C_DEBUG_COMMAND::InternalSwap(C_DEBUG_COMMAND* other) {
+  using std::swap;
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(commandtype_, other->commandtype_);
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata C_DEBUG_COMMAND::GetMetadata() const {
+  return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
+      &descriptor_table_Protocol_2eproto_getter, &descriptor_table_Protocol_2eproto_once,
+      file_level_metadata_Protocol_2eproto[10]);
+}
+
 // @@protoc_insertion_point(namespace_scope)
 }  // namespace Protocol
 PROTOBUF_NAMESPACE_OPEN
@@ -2785,6 +2999,9 @@ template<> PROTOBUF_NOINLINE ::Protocol::S_FRAME_STATE* Arena::CreateMaybeMessag
 }
 template<> PROTOBUF_NOINLINE ::Protocol::S_FORCED_TRANSFORM* Arena::CreateMaybeMessage< ::Protocol::S_FORCED_TRANSFORM >(Arena* arena) {
   return Arena::CreateMessageInternal< ::Protocol::S_FORCED_TRANSFORM >(arena);
+}
+template<> PROTOBUF_NOINLINE ::Protocol::C_DEBUG_COMMAND* Arena::CreateMaybeMessage< ::Protocol::C_DEBUG_COMMAND >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::Protocol::C_DEBUG_COMMAND >(arena);
 }
 PROTOBUF_NAMESPACE_CLOSE
 

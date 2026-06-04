@@ -374,6 +374,31 @@ inline bool ForcedTransformReason_Parse(
   return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<ForcedTransformReason>(
     ForcedTransformReason_descriptor(), name, value);
 }
+enum DebugCommandType : int {
+  DEBUG_COMMAND_NONE = 0,
+  DEBUG_COMMAND_KILL_MEGA5_ENEMIES = 1,
+  DebugCommandType_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
+  DebugCommandType_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
+};
+bool DebugCommandType_IsValid(int value);
+constexpr DebugCommandType DebugCommandType_MIN = DEBUG_COMMAND_NONE;
+constexpr DebugCommandType DebugCommandType_MAX = DEBUG_COMMAND_KILL_MEGA5_ENEMIES;
+constexpr int DebugCommandType_ARRAYSIZE = DebugCommandType_MAX + 1;
+
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* DebugCommandType_descriptor();
+template<typename T>
+inline const std::string& DebugCommandType_Name(T enum_t_value) {
+  static_assert(::std::is_same<T, DebugCommandType>::value ||
+    ::std::is_integral<T>::value,
+    "Incorrect type passed to function DebugCommandType_Name.");
+  return ::PROTOBUF_NAMESPACE_ID::internal::NameOfEnum(
+    DebugCommandType_descriptor(), enum_t_value);
+}
+inline bool DebugCommandType_Parse(
+    ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, DebugCommandType* value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<DebugCommandType>(
+    DebugCommandType_descriptor(), name, value);
+}
 // ===================================================================
 
 
@@ -450,6 +475,11 @@ template <> struct is_proto_enum< ::Protocol::ForcedTransformReason> : ::std::tr
 template <>
 inline const EnumDescriptor* GetEnumDescriptor< ::Protocol::ForcedTransformReason>() {
   return ::Protocol::ForcedTransformReason_descriptor();
+}
+template <> struct is_proto_enum< ::Protocol::DebugCommandType> : ::std::true_type {};
+template <>
+inline const EnumDescriptor* GetEnumDescriptor< ::Protocol::DebugCommandType>() {
+  return ::Protocol::DebugCommandType_descriptor();
 }
 
 PROTOBUF_NAMESPACE_CLOSE
