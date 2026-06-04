@@ -402,6 +402,7 @@ struct ItemBillboardState
 struct MonsterHpGaugeState
 {
 	std::shared_ptr<CTexture> hpTexture;
+	std::shared_ptr<CTexture> emptyHpTexture;
 	std::shared_ptr<CItemBillboardShader> shader;
 	std::shared_ptr<CMesh> quadMesh;
 	FrameUploadVertexBuffer<ItemBillboardInstanceVertex, kSceneBatchFrameResourceCount> instanceBuffer;
