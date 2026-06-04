@@ -1668,6 +1668,7 @@ private:
 	static constexpr float kBossCallMonsterSpawnDelaySec = 1.0f;
 
 	bool m_bBossStageBossActivated = false;
+	uint32_t m_serverBossRoomState = 0;
 
 	static constexpr float kBossStageBossHiddenYOffset = -100.0f;
 

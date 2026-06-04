@@ -6557,6 +6557,33 @@ bool CGameScene::TryBeginBossStageSummonSequence()
 	return true;
 #endif
 
+#ifdef USING_NETWORK
+	if ( m_bBossStageBossActivated ) return false;
+	if ( m_bBossSummonSequenceStarted ) return false;
+
+	CGameObject* boss = FindBossStageBossInMegaGrid(5);
+	XMFLOAT3 summonCenter = XMFLOAT3( 0.0f, 0.0f, 400.0f );
+	if ( boss )
+	{
+		const auto it = m_bossStageBossPositionStates.find(boss);
+		if ( it != m_bossStageBossPositionStates.end() )
+			summonCenter = it->second.originalPosition;
+		else
+			summonCenter = boss->GetPosition();
+	}
+	summonCenter.y = 0.0f;
+
+	m_pendingBossStageBoss = boss;
+	m_bBossSummonSequenceStarted = true;
+	m_bBossSummonCircleFadeAgeSec = 0.0f;
+	m_bBossSummonVisualFadeOutStarted = false;
+	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
+
+	SpawnBossSummonVisuals(summonCenter, 0.0f);
+	PlayBossSummonCircleSfxAt(summonCenter);
+	return true;
+#endif
+
 	return false;
 }
 
@@ -6600,18 +6627,46 @@ bool CGameScene::TryActivateBossStageBoss()
 	return true;
 #endif
 
+#ifdef USING_NETWORK
+	if ( m_bBossStageBossActivated ) return false;
+
+	CGameObject* boss = m_pendingBossStageBoss;
+	if ( !boss )
+		boss = FindBossStageBossInMegaGrid(5);
+	if ( !boss ) return false;
+
+	XMFLOAT3 shockwaveCenter = XMFLOAT3( 0.0f, 0.0f, 400.0f );
+	const auto bossPosIt = m_bossStageBossPositionStates.find(boss);
+	if ( bossPosIt != m_bossStageBossPositionStates.end() )
+		shockwaveCenter = bossPosIt->second.originalPosition;
+	else
+		shockwaveCenter = boss->GetPosition();
+	shockwaveCenter.y = 0.0f;
+
+	SetBossStageBossActive(boss, true, true);
+	SpawnBossShockwave(shockwaveCenter);
+
+	m_bBossStageBossActivated = true;
+	m_bBossSummonSequenceStarted = false;
+	m_bBossSummonCircleFadeAgeSec = kBossSummonCircleFadeInDurationSec;
+	m_pendingBossStageBoss = nullptr;
+
+	StartBossSummonVisualFadeOut();
+	return true;
+#endif
+
 	return false;
 }
 
 void CGameScene::UpdateBossStageSummonSequence(float dt)
 {
-#ifndef USING_NETWORK
 	if ( !m_bBossSummonSequenceStarted )
 		return;
 
 	if ( m_bBossStageBossActivated )
 		return;
 
+#ifndef USING_NETWORK
 	if ( !m_pendingBossStageBoss )
 	{
 		m_bBossSummonSequenceStarted = false;
@@ -6623,6 +6678,7 @@ void CGameScene::UpdateBossStageSummonSequence(float dt)
 
 		return;
 	}
+#endif
 
 	if ( dt < 0.0f )
 		dt = 0.0f;
@@ -6663,26 +6719,22 @@ void CGameScene::UpdateBossStageSummonSequence(float dt)
 	if ( alpha < 1.0f )
 		return;
 
+#ifndef USING_NETWORK
 	TryActivateBossStageBoss();
-#else
-	UNREFERENCED_PARAMETER(dt);
 #endif
 }
 
 void CGameScene::StartBossSummonVisualFadeOut()
 {
-#ifndef USING_NETWORK
 	m_bBossSummonVisualFadeOutStarted = true;
 	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
 
 	SetBossSummonVisualActive(true);
 	SetBossSummonVisualAlpha(1.0f);
-#endif
 }
 
 void CGameScene::UpdateBossSummonVisualFadeOut(float dt)
 {
-#ifndef USING_NETWORK
 	if ( !m_bBossSummonVisualFadeOutStarted )
 		return;
 
@@ -6744,9 +6796,6 @@ void CGameScene::UpdateBossSummonVisualFadeOut(float dt)
 	m_bBossSummonVisualFadeOutStarted = false;
 	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
 	m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
-#else
-	UNREFERENCED_PARAMETER(dt);
-#endif
 }
 
 void CGameScene::RegisterMutantKeyTriggerIfNeeded(
@@ -7687,6 +7736,13 @@ void CGameScene::AnimateObjects(float dt)
 	UpdateBossCallSummonWwwEffects(dt);
 
 	UpdateEnemySpawnerTimedGhoulWaves(dt);
+#else
+	UpdateBossStageBossPositionRestores();
+	UpdateBossStageBossRenderGate();
+
+	UpdateBossSummonVisualFadeOut(dt);
+	UpdateBossStageSummonSequence(dt);
+	UpdateBossShockwave(dt);
 #endif
 
 	UpdateMuzzleFlashes(dt);
@@ -7777,6 +7833,20 @@ void CGameScene::AnimateObjects(float dt)
 		const FrameSnapshot& latestSnapshot =
 			m_frameSnapshotBuffer.empty() ? receivedSnapshot : m_frameSnapshotBuffer.back();
 		FrameSnapshot snapshot = BuildInterpolatedFrameSnapshot(latestSnapshot);
+
+		const uint32_t newBossRoomState = receivedSnapshot.bossRoomState;
+		if ( newBossRoomState != m_serverBossRoomState )
+		{
+			const uint32_t prevState = m_serverBossRoomState;
+			m_serverBossRoomState = newBossRoomState;
+
+			if ( newBossRoomState == 1 ) // SummonFadeIn
+				TryBeginBossStageSummonSequence();
+			else if ( newBossRoomState == 3 ) // BossActive
+				TryActivateBossStageBoss();
+			else if ( newBossRoomState >= 4 ) // BossDead or Cleared
+				MarkMegaGridClearedByNumber(5);
+		}
 
         // Player 좌표 업데이트
         for (const auto& state : snapshot.players)
