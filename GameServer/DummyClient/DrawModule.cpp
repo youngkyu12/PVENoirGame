@@ -411,7 +411,7 @@ BOOL CreateGLWindow(const wchar_t* title, int width, int height, BYTE bits, bool
 		0,											// Shift Bit Ignored
 		0,											// No Accumulation Buffer
 		0, 0, 0, 0,									// Accumulation Bits Ignored
-		16,											// 16Bit Z-Buffer (Depth Buffer)  
+		16,											// 16Bit Z-Buffer (Depth Buffer)
 		0,											// No Stencil Buffer
 		0,											// No Auxiliary Buffer
 		PFD_MAIN_PLANE,								// Main Drawing Layer
@@ -579,6 +579,13 @@ int RunDrawModule()
 				{
 					return 0;						// Quit If Window Was Not Created
 				}
+			}
+
+								// F2: Kill all Mega5 enemies (debug)
+			if (keys[VK_F2])
+			{
+				keys[VK_F2] = FALSE;
+				SendDebugKillMega5();
 			}
 		}
 	}

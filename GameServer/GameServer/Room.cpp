@@ -823,3 +823,15 @@ void Room::OnMonsterDeath(uint64 enemyId)
 
 	m_spawnerKeyMutantIds.erase(it);
 }
+
+void Room::DebugKillMega5Enemies()
+{
+	const uint32 animTick = GetAnimClockTick();
+	for (auto& [id, enemy] : enemies)
+	{
+		if (!enemy || enemy->IsDead() || !enemy->IsActive()) continue;
+		if (enemy->type == Protocol::ENEMY_TYPE_BOSS) continue;
+		if (!IsPositionInsideMegaGridNumber(enemy->GetPosition(), 5)) continue;
+		enemy->ApplyHit(animTick, 999999, 0);
+	}
+}

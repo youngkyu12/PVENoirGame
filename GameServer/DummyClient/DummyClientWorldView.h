@@ -30,5 +30,6 @@ int GetConnectedStressClientCount();
 void RegisterStressSession(PacketSessionRef session);
 void UnregisterStressSession(PacketSessionRef session);
 void TickStressTest();
+void SendDebugKillMega5();
 
 int RunDrawModule();

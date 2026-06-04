@@ -77,6 +77,7 @@ public:
 	void OnMonsterFirstChase(uint64 enemyId);
 	void OnMonsterDeath(uint64 enemyId);
 	void FireEnemyArrow(CServerObject* shooter, float speed, uint32 lifeTicks);
+	void DebugKillMega5Enemies();
 
 public:
     GameAreaRef GetArea(uint32 areaId);
