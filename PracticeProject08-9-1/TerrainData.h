@@ -1,3 +1,6 @@
+//-----------------------------------------------------------------------------
+// File: TerrainData.h
+//-----------------------------------------------------------------------------
 #pragma once
 #include <memory>
 
@@ -18,8 +21,10 @@ public:
 	void SetHeightMapImage(HeightMapImage* heightMapImage);
 	void SetSize(int width, int length);
 	void SetScale(const XMFLOAT3& scale);
+	void SetWorldPosition(const XMFLOAT3& position);
+	XMFLOAT3 GetWorldPosition() const;
 
-	float GetHeight(float localX, float loaclZ, bool bReverseQuad = false) const;
+	float GetHeight(float localX, float loaclZ, bool bReverseQuad = false) const; 
 	XMFLOAT3 GetNormal(float localX, float loaclZ) const;
 	int GetHeightMapWidth() const;
 	int GetHeightMapLength() const;
@@ -62,6 +67,7 @@ private:
 	int m_nBlockLength = 0;
 
 	XMFLOAT3 m_xmf3Scale;
+	XMFLOAT3 m_xmf3WorldPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
 
 	std::shared_ptr<CTexture> m_heightMapTexture;
 	UINT srvHeightMapIndex = UINT_MAX;
