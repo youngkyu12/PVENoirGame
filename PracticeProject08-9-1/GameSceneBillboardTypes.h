@@ -398,3 +398,11 @@ struct ItemBillboardState
 	float bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
 	float bossCallSummonGlowParticleEmitAccumulatorSec = 0.0f;
 };
+
+struct MonsterHpGaugeState
+{
+	std::shared_ptr<CTexture> hpTexture;
+	std::shared_ptr<CItemBillboardShader> shader;
+	std::shared_ptr<CMesh> quadMesh;
+	FrameUploadVertexBuffer<ItemBillboardInstanceVertex, kSceneBatchFrameResourceCount> instanceBuffer;
+};

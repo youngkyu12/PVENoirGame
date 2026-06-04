@@ -315,11 +315,17 @@ private:
 	XMFLOAT3 AdjustItemBillboardPositionToTerrain(const XMFLOAT3& position) const;
 
 	void ReleaseItemBillboardGpuResources();
+	void ReleaseMonsterHpGaugeGpuResources();
 	void ReleaseAllGameSceneEffectGpuResources();
 
-	void UpdateItemBillboardDistanceCullSelection(CCamera* camera); 
+	void UpdateItemBillboardDistanceCullSelection(CCamera* camera);
 	void RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	void RenderTransparentItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
+	void BuildMonsterHpGaugeBatch(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, UINT rtCount, DXGI_FORMAT* rtvFormats, DXGI_FORMAT dsvFormat);
+	void RenderMonsterHpGauges(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	bool IsSkinnedMonsterHpGaugeRenderAllowed(const SkinnedWorldLodEntry& entry) const;
+	bool GetMonsterHpGaugeDesc(const SkinnedWorldLodEntry& entry, float& outYOffset, float& outMaxWidth, float& outHeight) const;
 
 	void BuildMuzzleFlashBatch(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, DXGI_FORMAT dsvFormat);
 
@@ -957,6 +963,7 @@ private:
 	static constexpr UINT kBossShockwaveMaterialId = MAX_MATERIALS - 5;
 	static constexpr UINT kBossShockwaveWallMaterialId = MAX_MATERIALS - 6;
 	static constexpr UINT kBossCallSummonCircleMaterialId = MAX_MATERIALS - 7;
+	static constexpr UINT kMonsterHpGaugeMaterialId = MAX_MATERIALS - 12;
 
 	static constexpr UINT kPotionItemBillboardMaterialBaseId = MAX_MATERIALS - 11;
 	static constexpr UINT kHealPotionItemBillboardMaterialId = MAX_MATERIALS - 11;
@@ -974,6 +981,7 @@ private:
 	static_assert( kPotionItemSpawnCountPerKind <= kPotionItemMaxCountPerKind, "Potion item spawn count exceeds max count per kind." );
 
 	ItemBillboardState m_itemBillboardState;
+	MonsterHpGaugeState m_monsterHpGaugeState;
 
 	static constexpr UINT kMuzzleFlashMaxCount = 4096;
 

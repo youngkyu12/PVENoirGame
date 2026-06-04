@@ -8689,6 +8689,11 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 		RenderSkinnedInstanceGroups(cmd, camera);
 	}
 
+	if ( m_monsterHpGaugeState.shader )
+	{
+		RenderMonsterHpGauges(cmd, camera);
+	}
+
 	{
 		PROFILE_RENDER_SCOPE("GameScene::RenderSceneGeometry::StaticOcclusionPass");
 		RenderStaticOcclusionPass(cmd, camera);
