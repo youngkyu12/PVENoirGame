@@ -159,6 +159,9 @@ CGameScene::CGameScene()
 
 	m_inventoryItemCounts.fill(0);
 	m_bPrevInventoryUseKeyDown.fill(false);
+
+	for ( std::array<float, CGameSceneHUD::kInventorySlotCount>& accumulators : m_inventoryBuffParticleEmitAccumulators )
+		accumulators.fill(0.0f);
 }
 
 void CGameScene::SetFrameResourceIndex(UINT frameResourceIndex)
@@ -1762,6 +1765,8 @@ void CGameScene::UpdateMegaGridState()
 	if ( !m_sceneGrid.IsInitialized() )
 		return;
 
+	bool isAnyPlayerInsideMegaGrid5CenterSquare = false;
+
 	for ( const GridDynamicTracker& tracker : m_playerGridTrackers )
 	{
 		if ( !tracker.occupied )
@@ -1773,37 +1778,27 @@ void CGameScene::UpdateMegaGridState()
 		if ( !m_sceneGrid.FineCellToMegaGridCell(tracker.prevCellX, tracker.prevCellZ, megaX, megaZ) )
 			continue;
 
-		// 중앙 메가그리드 Castle은 기존 200x200 approach zone으로 진입 처리하지 않는다.
-		// Castle 포탈 성공 여부로만 중앙 메가그리드 접근을 처리한다.
-		if ( megaX == kCastleCenterMegaGridX &&
-			 megaZ == kCastleCenterMegaGridZ )
+		if ( megaX == kCastleCenterMegaGridX && megaZ == kCastleCenterMegaGridZ )
 		{
-			if ( m_bLocalPlayerInsideCastleCenterMegaGrid )
+			if ( tracker.object )
 			{
-				m_sceneGrid.SetMegaGridPlayerApproached(
-					kCastleCenterMegaGridX,
-					kCastleCenterMegaGridZ,
-					true
-				);
+				const XMFLOAT3 pos = tracker.object->GetPosition();
+
+				if ( IsWorldPositionInsideMegaGrid5CenterSquare250(pos.x, pos.z) )
+					isAnyPlayerInsideMegaGrid5CenterSquare = true;
 			}
 
 			continue;
 		}
 
-		if ( !m_sceneGrid.IsFineCellInsideMegaGridApproachZone(
-			megaX,
-			megaZ,
-			tracker.prevCellX,
-			tracker.prevCellZ) )
-		{
+		if ( !m_sceneGrid.IsFineCellInsideMegaGridApproachZone(megaX, megaZ, tracker.prevCellX, tracker.prevCellZ) )
 			continue;
-		}
 
 		if ( !m_sceneGrid.HasMegaGridPlayerApproached(megaX, megaZ) )
-		{
 			m_sceneGrid.SetMegaGridPlayerApproached(megaX, megaZ, true);
-		}
 	}
+
+	m_sceneGrid.SetMegaGridPlayerApproached(kCastleCenterMegaGridX, kCastleCenterMegaGridZ, isAnyPlayerInsideMegaGrid5CenterSquare);
 }
 
 void CGameScene::UpdateMegaGrid5DirectionalLightState()
@@ -3012,52 +3007,22 @@ bool CGameScene::ShouldKeepCollisionPairByMegaGrid(
 
 void CGameScene::MarkLocalPlayerEnteredCastleCenterMegaGrid()
 {
-	if ( !m_sceneGrid.IsInitialized() )
-		return;
-
-	m_bLocalPlayerInsideCastleCenterMegaGrid = true;
-
-	// Castle 포탈을 탄 순간 중앙 메가그리드 중앙에 접근한 것으로 처리한다.
-	// 기존 200x200 approach zone 판정은 중앙 메가그리드에서는 쓰지 않는다.
-	m_sceneGrid.SetMegaGridPlayerApproached(
-		kCastleCenterMegaGridX,
-		kCastleCenterMegaGridZ,
-		true
-	);
+	UpdateCastleCenterMegaGridState();
 }
 
 bool CGameScene::IsLocalPlayerInsideCastleCenterMegaGridFullArea() const
 {
-	if ( !m_sceneGrid.IsInitialized() )
+	CGameObject* player = GetPlayer();
+
+	if ( !player )
+		player = GetPlayerBySlot(0);
+
+	if ( !player )
 		return false;
 
-	if ( m_localPlayerSlot < 0 ||
-		 m_localPlayerSlot >= static_cast< int >(m_playerGridTrackers.size()) )
-	{
-		return false;
-	}
+	const XMFLOAT3 pos = player->GetPosition();
 
-	const GridDynamicTracker& tracker =
-		m_playerGridTrackers[static_cast< size_t >(m_localPlayerSlot)];
-
-	if ( !tracker.occupied )
-		return false;
-
-	int megaX = -1;
-	int megaZ = -1;
-
-	if ( !m_sceneGrid.FineCellToMegaGridCell(
-		tracker.prevCellX,
-		tracker.prevCellZ,
-		megaX,
-		megaZ) )
-	{
-		return false;
-	}
-
-	return
-		megaX == kCastleCenterMegaGridX &&
-		megaZ == kCastleCenterMegaGridZ;
+	return IsWorldPositionInsideMegaGrid5CenterSquare250(pos.x, pos.z);
 }
 
 void CGameScene::UpdateCastleCenterMegaGridState()
@@ -3065,29 +3030,7 @@ void CGameScene::UpdateCastleCenterMegaGridState()
 	if ( !m_sceneGrid.IsInitialized() )
 		return;
 
-	if ( !m_bLocalPlayerInsideCastleCenterMegaGrid )
-		return;
-
-	// Castle 포탈 후에는 중앙 메가그리드 400x400 안에 있는 동안
-	// 계속 중앙 메가그리드 내부로 취급한다.
-	if ( IsLocalPlayerInsideCastleCenterMegaGridFullArea() )
-	{
-		m_sceneGrid.SetMegaGridPlayerApproached(
-			kCastleCenterMegaGridX,
-			kCastleCenterMegaGridZ,
-			true
-		);
-		return;
-	}
-
-	// 죽고 부활해서 중앙 메가그리드 400x400 밖으로 나간 경우.
-	m_bLocalPlayerInsideCastleCenterMegaGrid = false;
-
-	m_sceneGrid.SetMegaGridPlayerApproached(
-		kCastleCenterMegaGridX,
-		kCastleCenterMegaGridZ,
-		false
-	);
+	m_bLocalPlayerInsideCastleCenterMegaGrid = IsLocalPlayerInsideCastleCenterMegaGridFullArea();
 }
 
 void CGameScene::DumpStaticGridOccupancyLog() const
@@ -3339,6 +3282,9 @@ void CGameScene::ReleaseObjects()
 	m_itemBillboardState.bossCallSummonCircleVisual = BossCallSummonCircleVisualState{};
 	m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
 	m_itemBillboardState.bossCallSummonGlowParticleEmitAccumulatorSec = 0.0f;
+
+	for ( std::array<float, CGameSceneHUD::kInventorySlotCount>& accumulators : m_inventoryBuffParticleEmitAccumulators )
+		accumulators.fill(0.0f);
 
 	m_bossCallSummonPlanCallIndex = -1;
 	m_bossCallSummonPlanEntries.clear();
@@ -4171,6 +4117,12 @@ void CGameScene::BuildStaticVisibleListsForFrame(CCamera* camera)
 			if ( !cache.renderer->IsEnabled() )
 				continue;
 
+			if ( m_bLocalPlayerInsideCastleCenterMegaGrid &&
+				m_terrainObjects.find(cache.object) != m_terrainObjects.end() )
+			{
+				continue;
+			}
+
 			if ( objectIndex < static_cast< UINT >(m_staticDistanceCullFlags.size()) &&
 				 m_staticDistanceCullFlags[objectIndex] != 0 )
 			{
@@ -4229,6 +4181,12 @@ void CGameScene::BuildStaticShadowVisibleListsForFrame()
 
 			if ( !cache.renderer->IsEnabled() )
 				continue;
+
+			if ( m_bLocalPlayerInsideCastleCenterMegaGrid &&
+				m_terrainObjects.find(cache.object) != m_terrainObjects.end() )
+			{
+				continue;
+			}
 
 			if ( objectIndex < static_cast< UINT >(m_staticShadowCasterFlags.size()) &&
 				 m_staticShadowCasterFlags[objectIndex] == 0 )
@@ -5579,27 +5537,10 @@ bool CGameScene::IsPlayerInsideMegaGridCenter(const CGameObject* player) const
 	if ( !m_sceneGrid.FineCellToMegaGridCell(cellX, cellZ, megaX, megaZ) )
 		return false;
 
-	if ( megaX == kCastleCenterMegaGridX &&
-		 megaZ == kCastleCenterMegaGridZ )
-	{
-#ifdef USING_NETWORK
-		return true;
-#else
-		// 기존 로컬 플레이어의 Castle 포탈 진입 플래그는 그대로 유지한다.
-		// 단, slot 1~3 플레이어도 AI 타겟 후보로 쓸 수 있게 위치 기준은 허용한다.
-		if ( player == GetPlayer() || player == GetPlayerBySlot(m_localPlayerSlot) )
-			return m_bLocalPlayerInsideCastleCenterMegaGrid;
+	if ( megaX == kCastleCenterMegaGridX && megaZ == kCastleCenterMegaGridZ )
+		return IsWorldPositionInsideMegaGrid5CenterSquare250(pos.x, pos.z);
 
-		return true;
-#endif
-	}
-
-	return m_sceneGrid.IsFineCellInsideMegaGridApproachZone(
-		megaX,
-		megaZ,
-		cellX,
-		cellZ
-	);
+	return m_sceneGrid.IsFineCellInsideMegaGridApproachZone(megaX, megaZ, cellX, cellZ);
 }
 
 bool CGameScene::IsPlayerInsideBossStageBattleArea(const CGameObject* player) const
@@ -5624,23 +5565,10 @@ bool CGameScene::IsPlayerInsideBossStageBattleArea(const CGameObject* player) co
 	if ( !m_sceneGrid.FineCellToMegaGridCell(cellX, cellZ, megaX, megaZ) )
 		return false;
 
-	if ( megaX != kCastleCenterMegaGridX ||
-		 megaZ != kCastleCenterMegaGridZ )
-	{
+	if ( megaX != kCastleCenterMegaGridX || megaZ != kCastleCenterMegaGridZ )
 		return false;
-	}
 
-#ifdef USING_NETWORK
-	return true;
-#else
-	// 로컬 플레이어는 Castle 포탈 진입 플래그로만 보스성 내부 판정.
-	// 즉 200x200 approach zone을 쓰지 않는다.
-	if ( player == GetPlayer() || player == GetPlayerBySlot(m_localPlayerSlot) )
-		return m_bLocalPlayerInsideCastleCenterMegaGrid;
-
-	// 로컬 테스트용 slot 1~3 플레이어는 중앙 메가그리드 400x400 안에 있으면 허용.
-	return true;
-#endif
+	return IsWorldPositionInsideMegaGrid5CenterSquare250(pos.x, pos.z);
 }
 
 bool CGameScene::IsLocalPlayerInsideMegaGridCenter() const
@@ -8259,6 +8187,8 @@ void CGameScene::AnimateObjects(float dt)
 	}
 
 #ifndef USING_NETWORK
+	UpdateInventoryBuffAmbientParticles(dt);
+
 	if ( CInventoryComponent* inventory = GetLocalPlayerInventory() )
 	{
 		if ( inventory->ConsumeAttackPowerDirty() )

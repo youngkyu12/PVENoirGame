@@ -1668,11 +1668,7 @@ CHeightMapGridMesh::CHeightMapGridMesh(ID3D12Device* pd3dDevice, ID3D12GraphicsC
 				? OnGetHeight(x, z, pContext)
 				: 0.0f;
 
-			const XMFLOAT3 position(
-				x * m_xmf3Scale.x,
-				height,
-				z * m_xmf3Scale.z
-			);
+			const XMFLOAT3 position(static_cast< float >(x) * m_xmf3Scale.x, height, static_cast< float >(z) * m_xmf3Scale.z);
 
 			sm.positions.push_back(position);
 
