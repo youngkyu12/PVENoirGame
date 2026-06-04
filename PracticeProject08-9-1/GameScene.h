@@ -330,6 +330,7 @@ private:
 	bool GetMonsterHpGaugeDesc(const SkinnedWorldLodEntry& entry, float& outYOffset, float& outMaxWidth, float& outHeight) const;
 	bool FindSkinnedBatchObjectIndex(const CGameObject* object, UINT& outObjectIndex) const;
 	bool IsOtherPlayerWorldHpGaugeRenderAllowed(int playerSlot, CCamera* camera, UINT& outSkinnedBatchObjectIndex) const;
+	UINT GetPlayerWorldHpNameMaterialId(int playerSlot) const;
 
 	void BuildMuzzleFlashBatch(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, DXGI_FORMAT dsvFormat);
 
@@ -969,6 +970,7 @@ private:
 	static constexpr UINT kBossCallSummonCircleMaterialId = MAX_MATERIALS - 7;
 	static constexpr UINT kMonsterHpGaugeMaterialId = MAX_MATERIALS - 12;
 	static constexpr UINT kMonsterHpGaugeEmptyMaterialId = MAX_MATERIALS - 13;
+	static constexpr UINT kPlayerWorldHpNameMaterialBaseId = MAX_MATERIALS - 17;
 
 	static constexpr UINT kPotionItemBillboardMaterialBaseId = MAX_MATERIALS - 11;
 	static constexpr UINT kHealPotionItemBillboardMaterialId = MAX_MATERIALS - 11;
