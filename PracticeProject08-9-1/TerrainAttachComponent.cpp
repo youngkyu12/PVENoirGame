@@ -1,3 +1,6 @@
+//-----------------------------------------------------------------------------
+// File: TerrainAttachComponent.cpp
+//-----------------------------------------------------------------------------
 #include "stdafx.h"
 #include "TerrainAttachComponent.h"
 
@@ -66,19 +69,23 @@ void CTerrainAttachComponent::OnLateUpdate(float /*dt*/)
 void CTerrainAttachComponent::SnapToTerrain()
 {
 	CGameObject* owner = GetOwner();
-	if (!owner || !m_terrainData)
+	if ( !owner || !m_terrainData )
 		return;
 
 	XMFLOAT3 pos = owner->GetPosition();
-	const XMFLOAT3 terrainScale = m_terrainData->GetScale();
-	int z = (int)(pos.z / terrainScale.z);
-	bool bReverseQuad = ((z % 2) != 0);
-	float fHeight = m_terrainData->GetHeight(pos.x, pos.z, bReverseQuad);
+	const XMFLOAT3 terrainPos = m_terrainData->GetWorldPosition();
 
-	if (pos.y < fHeight)
+	const float localX = pos.x - terrainPos.x;
+	const float localZ = pos.z - terrainPos.z;
+
+	const float terrainHeight =
+		terrainPos.y + m_terrainData->GetHeight(localX, localZ);
+
+	const float targetY = terrainHeight + m_heightOffset;
+
+	if ( std::fabs(pos.y - targetY) > 0.001f )
 	{
-		pos.y = fHeight;
+		pos.y = targetY;
 		owner->SetPosition(pos);
 	}
-
 }

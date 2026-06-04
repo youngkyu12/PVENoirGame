@@ -168,6 +168,19 @@ namespace GameSceneHelper
 		return out;
 	}
 
+	bool IsWorldPositionInsideMegaGrid5CenterSquare250(float worldX, float worldZ)
+	{
+		constexpr int kMegaGrid5Number = 5;
+		constexpr int zeroBased = kMegaGrid5Number - 1;
+		constexpr int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+		constexpr int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+		const float centerX = static_cast< float >( CSceneGrid::kGridMinX + megaX * CSceneGrid::kMegaGridCellWidth + CSceneGrid::kMegaGridCellWidth / 2 );
+		const float centerZ = static_cast< float >( CSceneGrid::kGridMinZ + megaZ * CSceneGrid::kMegaGridCellHeight + CSceneGrid::kMegaGridCellHeight / 2 );
+
+		return worldX >= centerX - kMegaGrid5CenterSquareHalfExtent && worldX <= centerX + kMegaGrid5CenterSquareHalfExtent && worldZ >= centerZ - kMegaGrid5CenterSquareHalfExtent && worldZ <= centerZ + kMegaGrid5CenterSquareHalfExtent;
+	}
+
 	bool ParsePlacementEntryLine(const std::string& line, StaticPlacementEntry& outEntry)
 	{
 		char asset[64] = {};
@@ -449,86 +462,49 @@ namespace GameSceneHelper
 	}
 #endif
 
-	bool ResolveStageFileSetFromMapId(
-	const std::string& mapId,
-	GameSceneStageFileSet& outFileSet)
+	bool ResolveStageFileSetFromMapId(const std::string& mapId, GameSceneStageFileSet& outFileSet)
 	{
 		std::string normalized = ToLowerAscii(TrimString(mapId));
 
 		if ( normalized.size() >= 2 &&
-			normalized.front() == '"' &&
-			normalized.back() == '"' )
+			 normalized.front() == '"' &&
+			 normalized.back() == '"' )
 		{
 			normalized = normalized.substr(1, normalized.size() - 2);
 		}
 
-		if ( normalized.empty() ||
-			normalized == "full" ||
-			normalized == "fullstage" ||
-			normalized == "map_fullstage" ||
-			normalized == "mapdata_fullstage" )
-		{
-			outFileSet = {
-				"MapData/MapData_fullstage(NoTree).txt",
-				"MapData/Navmesh_FullStage.nvm",
-				"MapData/CubeBoxColliderReport.txt",
-				"MapData/monster_spawn_points.txt"
-			};
-			return true;
-		}
-
-		if ( normalized == "fullstage_tree" ||
-			normalized == "map_fullstage_tree" ||
-			normalized == "mapdata_fullstage_tree" )
-		{
-			outFileSet = {
-				"MapData/MapData_fullstage.txt",
-				"MapData/Navmesh_FullStage.nvm",
-				"MapData/CubeBoxColliderReport.txt",
-				"MapData/monster_spawn_points.txt"
-			};
-			return true;
-		}
-
-		if ( normalized == "fullstage_withboss" ||
-			normalized == "fullstagewithboss" ||
-			normalized == "map_fullstage_withboss" ||
-			normalized == "map_fullstage_with_boss" ||
-			normalized == "mapdata_fullstage_withboss" ||
-			normalized == "mapdata_fullstage_with_boss" )
-		{
-			outFileSet = {
-				"MapData/MapData_fullstage(withBoss)_TerrainOnly.txt",
-				"MapData/FullStageNavmeshAll.nvm",
-				"MapData/CubeBoxColliderReportWithCastle.txt",
-				"MapData/monster_spawn_points.txt"
-			};
-			return true;
-		}
-
-		if ( normalized == "stage1" ||
-			normalized == "map_stage1" ||
-			normalized == "mapdata_stage1" )
-		{
-			outFileSet = {
-				"MapData/MapData_stage1_with_Tree.txt",
-				"MapData/Navmesh_Stage1.nvm",
-				"MapData/CubeBoxColliderReport.txt",
-				"MapData/monster_spawn_points_little.txt"
-			};
-			return true;
-		}
 
 		if ( normalized == "test" ||
-			normalized == "tst" ||
-			normalized == "map_tst" ||
-			normalized == "mapdata_tst" )
+			 normalized == "tst" ||
+			 normalized == "map_tst" ||
+			 normalized == "mapdata_tst" )
 		{
 			outFileSet = {
 				"MapData/MapData_tst.txt",
 				"MapData/Navmesh_tst.nvm",
-				"MapData/CubeBoxColliderReportWithCastle.txt",
+				"MapData/CubeBoxCollider.txt",
 				"MapData/monster_spawn_points_little.txt"
+			};
+			return true;
+		}
+
+		if ( normalized.empty() ||
+			 normalized == "full" ||
+			 normalized == "fullstage" ||
+			 normalized == "fullstage_withboss" ||
+			 normalized == "fullstagewithboss" ||
+			 normalized == "map_fullstage" ||
+			 normalized == "map_fullstage_withboss" ||
+			 normalized == "map_fullstage_with_boss" ||
+			 normalized == "mapdata_fullstage" ||
+			 normalized == "mapdata_fullstage_withboss" ||
+			 normalized == "mapdata_fullstage_with_boss" )
+		{
+			outFileSet = {
+				"MapData/MapData_fullstage.txt",
+				"MapData/Navmesh_FullStage.nvm",
+				"MapData/CubeBoxCollider.txt",
+				"MapData/monster_spawn_points.txt"
 			};
 			return true;
 		}

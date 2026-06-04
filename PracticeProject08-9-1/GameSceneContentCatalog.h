@@ -33,9 +33,6 @@ struct GameSceneClipEntry
 enum class ELocalStagePreset : uint8_t
 {
 	Test,
-	Stage1,
-	FullStageNoTree,
-	FullStageNoBoss,
 	FullStage
 };
 

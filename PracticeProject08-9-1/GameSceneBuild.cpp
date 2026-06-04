@@ -49,7 +49,7 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 
 	m_bSimulateLocalAI = true;
 
-	m_bSimulateLocalGhoulAI = false;
+	m_bSimulateLocalGhoulAI = true;
 	m_bSimulateLocalBowManAI = false;
 	m_bSimulateLocalSwordManAI = false;
 	m_bSimulateLocalMutantAI = false;
@@ -502,7 +502,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
 void CGameScene::CreateTerrainData(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
-	XMFLOAT3 xmf3Scale(kTerrainHorizontalScale, 1.0f, kTerrainHorizontalScale);
+	XMFLOAT3 xmf3Scale(kTerrainHorizontalScale, kTerrainVerticalScale, kTerrainHorizontalScale);
 	XMFLOAT4 xmf4Color(0.0f, 0.2f, 0.0f, 0.0f);
 
 	auto LoadTerrainTexture = [&](const wchar_t* path) -> std::shared_ptr<CTexture>
@@ -886,7 +886,13 @@ void CGameScene::BuildStaticBatch(
 		CGameObject* raw = obj.get();
 
 		if ( placement.assetName == "Terrain" )
+		{
 			m_terrainObjects.insert(raw);
+
+			if ( m_TerrainData )
+				m_TerrainData->SetWorldPosition(placement.pos);
+		}
+
 		if ( placement.assetName == "Water" )
 			m_waterObjects.insert(raw);
 
@@ -1953,7 +1959,7 @@ void CGameScene::BuildSkinnedBatch(
 		};
 
 	const UINT fighterCount = m_PlayerCount;
-	const XMFLOAT3 playerBase(-400.0f, 0.0f, 300.0f);
+	const XMFLOAT3 playerBase(0.0f, 0.0f, -150.0f);
 
 	m_ghoulRefs.clear();
 	m_ghoulRefs.reserve(m_ghoulCount);
