@@ -42,6 +42,15 @@ void Room::UpdateBossRoomState()
 		m_bossRoomState = EBossRoomState::BossActive;
 		cout << "[BossRoom] BossActive" << endl;
 	}
+	else if (m_bossRoomState == EBossRoomState::BossDead)
+	{
+		constexpr uint64 kBossDeadDurationMs = 5000;
+		if (m_elapsedServerMs - m_bossRoomStateChangedMs >= kBossDeadDurationMs)
+		{
+			m_bossRoomState = EBossRoomState::Cleared;
+			cout << "[BossRoom] Cleared" << endl;
+		}
+	}
 }
 
 void Room::ActivateBoss()

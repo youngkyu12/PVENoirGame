@@ -72,6 +72,7 @@ message S_FRAME_STATE
 	repeated Player players = 2;
 	repeated Enemy enemies = 3;
 	repeated Bullet bullets = 4;
+	BossRoomState bossRoomState = 5;
 }
 
 message S_FORCED_TRANSFORM

@@ -130,7 +130,9 @@ constexpr S_FRAME_STATE::S_FRAME_STATE(
   : players_()
   , enemies_()
   , bullets_()
-  , servertick_(0u){}
+  , servertick_(0u)
+  , bossroomstate_(0)
+{}
 struct S_FRAME_STATEDefaultTypeInternal {
   constexpr S_FRAME_STATEDefaultTypeInternal()
     : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
@@ -243,6 +245,7 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_Protocol_2eproto::offsets[] PR
   PROTOBUF_FIELD_OFFSET(::Protocol::S_FRAME_STATE, players_),
   PROTOBUF_FIELD_OFFSET(::Protocol::S_FRAME_STATE, enemies_),
   PROTOBUF_FIELD_OFFSET(::Protocol::S_FRAME_STATE, bullets_),
+  PROTOBUF_FIELD_OFFSET(::Protocol::S_FRAME_STATE, bossroomstate_),
   ~0u,  // no _has_bits_
   PROTOBUF_FIELD_OFFSET(::Protocol::S_FORCED_TRANSFORM, _internal_metadata_),
   ~0u,  // no _extensions_
@@ -268,8 +271,8 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOB
   { 43, -1, sizeof(::Protocol::C_CLIENT_READY)},
   { 50, -1, sizeof(::Protocol::C_INPUT)},
   { 60, -1, sizeof(::Protocol::S_FRAME_STATE)},
-  { 69, -1, sizeof(::Protocol::S_FORCED_TRANSFORM)},
-  { 77, -1, sizeof(::Protocol::C_DEBUG_COMMAND)},
+  { 70, -1, sizeof(::Protocol::S_FORCED_TRANSFORM)},
+  { 78, -1, sizeof(::Protocol::C_DEBUG_COMMAND)},
 };
 
 static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] = {
@@ -301,16 +304,17 @@ const char descriptor_table_protodef_Protocol_2eproto[] PROTOBUF_SECTION_VARIABL
   "\001(\t\"1\n\016C_CLIENT_READY\022\020\n\010playerId\030\001 \001(\r\022"
   "\r\n\005ready\030\002 \001(\010\"f\n\007C_INPUT\022\020\n\010playerid\030\001 "
   "\001(\004\022\020\n\010keyCodes\030\002 \001(\005\022\016\n\006deltaX\030\003 \001(\002\022\016\n"
-  "\006deltaY\030\004 \001(\002\022\027\n\017clientDeltaTime\030\005 \001(\002\"\213"
+  "\006deltaY\030\004 \001(\002\022\027\n\017clientDeltaTime\030\005 \001(\002\"\273"
   "\001\n\rS_FRAME_STATE\022\022\n\nserverTick\030\001 \001(\r\022!\n\007"
   "players\030\002 \003(\0132\020.Protocol.Player\022 \n\007enemi"
   "es\030\003 \003(\0132\017.Protocol.Enemy\022!\n\007bullets\030\004 \003"
-  "(\0132\020.Protocol.Bullet\"i\n\022S_FORCED_TRANSFO"
-  "RM\022\020\n\010playerId\030\001 \001(\004\022\020\n\010yawDelta\030\002 \001(\002\022/"
-  "\n\006reason\030\003 \001(\0162\037.Protocol.ForcedTransfor"
-  "mReason\"B\n\017C_DEBUG_COMMAND\022/\n\013commandTyp"
-  "e\030\001 \001(\0162\032.Protocol.DebugCommandTypeb\006pro"
-  "to3"
+  "(\0132\020.Protocol.Bullet\022.\n\rbossRoomState\030\005 "
+  "\001(\0162\027.Protocol.BossRoomState\"i\n\022S_FORCED"
+  "_TRANSFORM\022\020\n\010playerId\030\001 \001(\004\022\020\n\010yawDelta"
+  "\030\002 \001(\002\022/\n\006reason\030\003 \001(\0162\037.Protocol.Forced"
+  "TransformReason\"B\n\017C_DEBUG_COMMAND\022/\n\013co"
+  "mmandType\030\001 \001(\0162\032.Protocol.DebugCommandT"
+  "ypeb\006proto3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_Protocol_2eproto_deps[3] = {
   &::descriptor_table_Enum_2eproto,
@@ -319,7 +323,7 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor
 };
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_Protocol_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_Protocol_2eproto = {
-  false, false, 923, descriptor_table_protodef_Protocol_2eproto, "Protocol.proto", 
+  false, false, 971, descriptor_table_protodef_Protocol_2eproto, "Protocol.proto", 
   &descriptor_table_Protocol_2eproto_once, descriptor_table_Protocol_2eproto_deps, 3, 11,
   schemas, file_default_instances, TableStruct_Protocol_2eproto::offsets,
   file_level_metadata_Protocol_2eproto, file_level_enum_descriptors_Protocol_2eproto, file_level_service_descriptors_Protocol_2eproto,
@@ -2264,12 +2268,17 @@ S_FRAME_STATE::S_FRAME_STATE(const S_FRAME_STATE& from)
       enemies_(from.enemies_),
       bullets_(from.bullets_) {
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
-  servertick_ = from.servertick_;
+  ::memcpy(&servertick_, &from.servertick_,
+    static_cast<size_t>(reinterpret_cast<char*>(&bossroomstate_) -
+    reinterpret_cast<char*>(&servertick_)) + sizeof(bossroomstate_));
   // @@protoc_insertion_point(copy_constructor:Protocol.S_FRAME_STATE)
 }
 
 void S_FRAME_STATE::SharedCtor() {
-servertick_ = 0u;
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&servertick_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&bossroomstate_) -
+    reinterpret_cast<char*>(&servertick_)) + sizeof(bossroomstate_));
 }
 
 S_FRAME_STATE::~S_FRAME_STATE() {
@@ -2301,7 +2310,9 @@ void S_FRAME_STATE::Clear() {
   players_.Clear();
   enemies_.Clear();
   bullets_.Clear();
-  servertick_ = 0u;
+  ::memset(&servertick_, 0, static_cast<size_t>(
+      reinterpret_cast<char*>(&bossroomstate_) -
+      reinterpret_cast<char*>(&servertick_)) + sizeof(bossroomstate_));
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
@@ -2352,6 +2363,14 @@ const char* S_FRAME_STATE::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
           } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<34>(ptr));
+        } else goto handle_unusual;
+        continue;
+      // .Protocol.BossRoomState bossRoomState = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 40)) {
+          ::PROTOBUF_NAMESPACE_ID::uint64 val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+          _internal_set_bossroomstate(static_cast<::Protocol::BossRoomState>(val));
         } else goto handle_unusual;
         continue;
       default: {
@@ -2413,6 +2432,13 @@ failure:
       InternalWriteMessage(4, this->_internal_bullets(i), target, stream);
   }
 
+  // .Protocol.BossRoomState bossRoomState = 5;
+  if (this->bossroomstate() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteEnumToArray(
+      5, this->_internal_bossroomstate(), target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -2457,6 +2483,12 @@ size_t S_FRAME_STATE::ByteSizeLong() const {
         this->_internal_servertick());
   }
 
+  // .Protocol.BossRoomState bossRoomState = 5;
+  if (this->bossroomstate() != 0) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::EnumSize(this->_internal_bossroomstate());
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     return ::PROTOBUF_NAMESPACE_ID::internal::ComputeUnknownFieldsSize(
         _internal_metadata_, total_size, &_cached_size_);
@@ -2494,6 +2526,9 @@ void S_FRAME_STATE::MergeFrom(const S_FRAME_STATE& from) {
   if (from.servertick() != 0) {
     _internal_set_servertick(from._internal_servertick());
   }
+  if (from.bossroomstate() != 0) {
+    _internal_set_bossroomstate(from._internal_bossroomstate());
+  }
 }
 
 void S_FRAME_STATE::CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) {
@@ -2520,7 +2555,12 @@ void S_FRAME_STATE::InternalSwap(S_FRAME_STATE* other) {
   players_.InternalSwap(&other->players_);
   enemies_.InternalSwap(&other->enemies_);
   bullets_.InternalSwap(&other->bullets_);
-  swap(servertick_, other->servertick_);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(S_FRAME_STATE, bossroomstate_)
+      + sizeof(S_FRAME_STATE::bossroomstate_)
+      - PROTOBUF_FIELD_OFFSET(S_FRAME_STATE, servertick_)>(
+          reinterpret_cast<char*>(&servertick_),
+          reinterpret_cast<char*>(&other->servertick_));
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata S_FRAME_STATE::GetMetadata() const {

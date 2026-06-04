@@ -206,6 +206,8 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 		data.bullets.push_back(std::move(b));
 	}
 
+	data.bossRoomState = static_cast<uint32_t>(pkt.bossroomstate());
+
 	g_NetworkQueue.PushFrameState(std::move(data));
 	return false;
 }

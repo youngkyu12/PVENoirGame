@@ -1451,6 +1451,7 @@ class S_FRAME_STATE final :
     kEnemiesFieldNumber = 3,
     kBulletsFieldNumber = 4,
     kServerTickFieldNumber = 1,
+    kBossRoomStateFieldNumber = 5,
   };
   // repeated .Protocol.Player players = 2;
   int players_size() const;
@@ -1515,6 +1516,15 @@ class S_FRAME_STATE final :
   void _internal_set_servertick(::PROTOBUF_NAMESPACE_ID::uint32 value);
   public:
 
+  // .Protocol.BossRoomState bossRoomState = 5;
+  void clear_bossroomstate();
+  ::Protocol::BossRoomState bossroomstate() const;
+  void set_bossroomstate(::Protocol::BossRoomState value);
+  private:
+  ::Protocol::BossRoomState _internal_bossroomstate() const;
+  void _internal_set_bossroomstate(::Protocol::BossRoomState value);
+  public:
+
   // @@protoc_insertion_point(class_scope:Protocol.S_FRAME_STATE)
  private:
   class _Internal;
@@ -1526,6 +1536,7 @@ class S_FRAME_STATE final :
   ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Enemy > enemies_;
   ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Bullet > bullets_;
   ::PROTOBUF_NAMESPACE_ID::uint32 servertick_;
+  int bossroomstate_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_Protocol_2eproto;
 };
@@ -2527,6 +2538,26 @@ inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Bullet >&
 S_FRAME_STATE::bullets() const {
   // @@protoc_insertion_point(field_list:Protocol.S_FRAME_STATE.bullets)
   return bullets_;
+}
+
+// .Protocol.BossRoomState bossRoomState = 5;
+inline void S_FRAME_STATE::clear_bossroomstate() {
+  bossroomstate_ = 0;
+}
+inline ::Protocol::BossRoomState S_FRAME_STATE::_internal_bossroomstate() const {
+  return static_cast< ::Protocol::BossRoomState >(bossroomstate_);
+}
+inline ::Protocol::BossRoomState S_FRAME_STATE::bossroomstate() const {
+  // @@protoc_insertion_point(field_get:Protocol.S_FRAME_STATE.bossRoomState)
+  return _internal_bossroomstate();
+}
+inline void S_FRAME_STATE::_internal_set_bossroomstate(::Protocol::BossRoomState value) {
+  
+  bossroomstate_ = value;
+}
+inline void S_FRAME_STATE::set_bossroomstate(::Protocol::BossRoomState value) {
+  _internal_set_bossroomstate(value);
+  // @@protoc_insertion_point(field_set:Protocol.S_FRAME_STATE.bossRoomState)
 }
 
 // -------------------------------------------------------------------
