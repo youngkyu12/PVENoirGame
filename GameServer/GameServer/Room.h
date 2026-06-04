@@ -303,6 +303,11 @@ private:
 	bool IsPlayerInsideCastleCenterMegaGridFullArea(uint64 playerId) const;
 	void UpdateCastleCenterMegaGridState();
 
+	bool AreAllPreBossMonstersDeadInMega5() const;
+	bool IsPreBossMonster(uint64 enemyId) const;
+	void UpdateBossRoomState();
+	void ActivateBoss();
+
 	void ResetDynamicGridCounts();
 	bool TryGetTrackedCell(const CServerObject* obj, int& outCellX, int& outCellZ) const;
 	void RefreshDynamicTracker(GridDynamicTracker& tracker, EGridDynamicKind kind);
@@ -383,10 +388,12 @@ private:
 	uint64 m_bossEnemyId = UINT64_MAX;
 	GameMath::Vec3 m_bossOriginalPos = GameMath::Vec3::Zero();
 	float m_bossOriginalYaw = 0.0f;
+	uint64 m_bossRoomStateChangedMs = 0;
+	std::unordered_set<uint64> m_bossSummonedEnemyIds;
 
     Atomic<uint32> tick = 0;
 };
 
 extern shared_ptr<Room> GRoom;
-constexpr int MaxPlayers = 1;
+constexpr int MaxPlayers = 2;
 
