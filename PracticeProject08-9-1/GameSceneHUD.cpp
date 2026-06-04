@@ -19,6 +19,9 @@ void CGameSceneHUD::ReleaseResources()
 	m_exitSpriteIndex = -1;
 
 	m_hpFillSpriteIndex = -1;
+	m_bossHpEmptySpriteIndex = -1;
+	m_bossHpFillSpriteIndex = -1;
+	m_bossHpFillOriginalRect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 
 	m_otherPlayerHpEmptySpriteIndices.fill(-1);
 	m_otherPlayerHpFillSpriteIndices.fill(-1);
@@ -49,6 +52,9 @@ void CGameSceneHUD::BuildResources(
 	m_pauseSpriteIndex = -1;
 	m_resumeSpriteIndex = -1;
 	m_exitSpriteIndex = -1;
+	m_bossHpEmptySpriteIndex = -1;
+	m_bossHpFillSpriteIndex = -1;
+	m_bossHpFillOriginalRect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 
 	m_otherPlayerHpEmptySpriteIndices.fill(-1);
 	m_otherPlayerHpFillSpriteIndices.fill(-1);
@@ -219,6 +225,21 @@ void CGameSceneHUD::BuildResources(
 	for ( int slot = 0; slot < kInventorySlotCount; ++slot )
 		UpdateInventoryCountTextSprites(slot);
 
+	// --------------------------------------------------------------------
+	// Boss HP gauge
+	// - 화면 하단 중앙에 표시한다.
+	// - 우측 하단 세로 아이템 슬롯과 겹치지 않도록 폭을 제한한다.
+	// - EmptyHP를 먼저 그리고 HP를 그 위에 그린다.
+	// --------------------------------------------------------------------
+	const float bossHpWidth = 400.0f;
+	const float bossHpHeight = 16.0f;
+	const float bossHpBottomMargin = 34.0f;
+	const XMFLOAT4 bossHpRect(screenW * 0.5f, screenH - bossHpBottomMargin, bossHpWidth, bossHpHeight);
+
+	m_bossHpEmptySpriteIndex = m_ui.AddSprite(dev, cmd, "BossEmptyHP", L"Assets/UI/EmptyHP.dds", bossHpRect, CSceneUI::ELayer::Content, false);
+	m_bossHpFillOriginalRect = bossHpRect;
+	m_bossHpFillSpriteIndex = m_ui.AddSprite(dev, cmd, "BossHP", L"Assets/UI/HP.dds", bossHpRect, CSceneUI::ELayer::Content, false);
+
 	const XMFLOAT4 pauseRect(
 		screenW * 0.5f,
 		screenH * 0.5f,
@@ -295,6 +316,39 @@ void CGameSceneHUD::SetHealthRatio(float ratio)
 		m_hpFillSpriteIndex,
 		XMFLOAT4(newCenterX, originalCenterY, newWidth, originalHeight)
 	);
+}
+
+void CGameSceneHUD::SetBossHealthRatio(float ratio, bool visible)
+{
+	if ( m_bossHpEmptySpriteIndex >= 0 )
+		m_ui.SetSpriteVisible(m_bossHpEmptySpriteIndex, visible);
+
+	if ( !visible || m_bossHpFillSpriteIndex < 0 )
+	{
+		if ( m_bossHpFillSpriteIndex >= 0 )
+			m_ui.SetSpriteVisible(m_bossHpFillSpriteIndex, false);
+
+		return;
+	}
+
+	const float clampedRatio = std::clamp(ratio, 0.0f, 1.0f);
+	const float originalCenterX = m_bossHpFillOriginalRect.x;
+	const float originalCenterY = m_bossHpFillOriginalRect.y;
+	const float originalWidth = m_bossHpFillOriginalRect.z;
+	const float originalHeight = m_bossHpFillOriginalRect.w;
+
+	if ( clampedRatio <= 0.001f || originalWidth <= 0.0f || originalHeight <= 0.0f )
+	{
+		m_ui.SetSpriteVisible(m_bossHpFillSpriteIndex, false);
+		return;
+	}
+
+	const float newWidth = originalWidth * clampedRatio;
+	const float leftX = originalCenterX - originalWidth * 0.5f;
+	const float newCenterX = leftX + newWidth * 0.5f;
+
+	m_ui.SetSpriteRect(m_bossHpFillSpriteIndex, XMFLOAT4(newCenterX, originalCenterY, newWidth, originalHeight));
+	m_ui.SetSpriteVisible(m_bossHpFillSpriteIndex, true);
 }
 
 void CGameSceneHUD::SetOtherPlayerHealthRatios(int localPlayerSlot, const std::array<float, 4>& playerHpRatios, const std::array<bool, 4>& playerHpVisible, const std::array<bool, 4>& playerWorldHpGaugeVisible)
