@@ -194,61 +194,7 @@ bool CGameScene::FindSkinnedBatchObjectIndex(const CGameObject* object, UINT& ou
 
 bool CGameScene::IsOtherPlayerWorldHpGaugeRenderAllowed(int playerSlot, CCamera* camera, UINT& outSkinnedBatchObjectIndex) const
 {
-	outSkinnedBatchObjectIndex = UINT_MAX;
-
-	if ( playerSlot < 0 || playerSlot >= 4 )
-		return false;
-
-	if ( playerSlot == m_localPlayerSlot )
-		return false;
-
-	CGameObject* player = GetPlayerBySlot(playerSlot);
-
-	if ( !player )
-		return false;
-
-	if ( !player->GetActive() )
-		return false;
-
-	if ( !FindSkinnedBatchObjectIndex(player, outSkinnedBatchObjectIndex) )
-		return false;
-
-	if ( outSkinnedBatchObjectIndex >= static_cast< UINT >( m_skinnedBatch.objectRefs.size() ) )
-		return false;
-
-	if ( outSkinnedBatchObjectIndex < static_cast< UINT >(m_skinnedDistanceCullFlags.size()) && m_skinnedDistanceCullFlags[outSkinnedBatchObjectIndex] != 0 )
-		return false;
-
-	if ( outSkinnedBatchObjectIndex < static_cast< UINT >(m_skinnedOcclusionCullFlags.size()) && m_skinnedOcclusionCullFlags[outSkinnedBatchObjectIndex] != 0 )
-		return false;
-
-	if ( camera && !player->IsVisible(camera) )
-		return false;
-
-	const XMFLOAT3 objectPos = player->GetPosition();
-
-	if ( objectPos.y < -50.0f )
-		return false;
-
-	const CSkinnedMeshRendererComponent* renderer = player->GetComponent<CSkinnedMeshRendererComponent>();
-
-	if ( !renderer || !renderer->IsEnabled() )
-		return false;
-
-	const CSkinningComponent* skin = player->GetComponent<CSkinningComponent>();
-
-	if ( !skin || !skin->IsSkinned() )
-		return false;
-
-	const CHealthComponent* health = player->GetComponent<CHealthComponent>();
-
-	if ( !health )
-		return false;
-
-	if ( health->GetCurrentHp() <= 0 || health->GetMaxHp() <= 0 )
-		return false;
-
-	return true;
+	return IsOtherPlayerSkinnedBodyRenderedThisFrame(playerSlot, camera, outSkinnedBatchObjectIndex);
 }
 
 void CGameScene::ResetMonsterHpGaugeVisibilityState()
@@ -432,8 +378,7 @@ void CGameScene::RenderMonsterHpGauges(ID3D12GraphicsCommandList* cmd, CCamera* 
 
 	UINT visibleGaugeCount = 0;
 	UINT visiblePlayerNameCount = 0;
-	std::array<bool, 4> playerWorldHpGaugeVisible = { false, false, false, false };
-
+	
 	for ( const SkinnedWorldLodEntry& entry : m_skinnedWorldLodEntries )
 	{
 		if ( !IsSkinnedMonsterHpGaugeRenderAllowed(entry) )
@@ -503,33 +448,8 @@ void CGameScene::RenderMonsterHpGauges(ID3D12GraphicsCommandList* cmd, CCamera* 
 		StoreMonsterHpGaugeWorldRows(mappedInstanceBuffer[foregroundInstanceStart + visibleGaugeCount], player->GetPosition(), hpYOffset, hpMaxWidth, hpHeight, hpRatio, targetPos, kMonsterHpGaugeMaterialId);
 		StoreMonsterHpGaugeCenteredWorldRows(mappedInstanceBuffer[playerNameInstanceStart + visiblePlayerNameCount], player->GetPosition(), nameYOffset, nameWidth, nameHeight, targetPos, GetPlayerWorldHpNameMaterialId(slot));
 
-		playerWorldHpGaugeVisible[slot] = true;
 		++visibleGaugeCount;
 		++visiblePlayerNameCount;
-	}
-
-	if ( playerWorldHpGaugeVisible[0] || playerWorldHpGaugeVisible[1] || playerWorldHpGaugeVisible[2] || playerWorldHpGaugeVisible[3] )
-	{
-		std::array<float, 4> playerHpRatios = { 0.0f, 0.0f, 0.0f, 0.0f };
-		std::array<bool, 4> playerHpVisible = { false, false, false, false };
-
-		for ( int slot = 0; slot < 4; ++slot )
-		{
-			CGameObject* player = GetPlayerBySlot(slot);
-
-			if ( !player )
-				continue;
-
-			CHealthComponent* hp = player->GetComponent<CHealthComponent>();
-
-			if ( !hp )
-				continue;
-
-			playerHpRatios[slot] = hp->GetHpRatio();
-			playerHpVisible[slot] = true;
-		}
-
-		m_hud.SetOtherPlayerHealthRatios(m_localPlayerSlot, playerHpRatios, playerHpVisible, playerWorldHpGaugeVisible);
 	}
 
 	if ( visibleGaugeCount == 0 )

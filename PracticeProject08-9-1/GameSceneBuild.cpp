@@ -3289,6 +3289,9 @@ void CGameScene::BuildSkinnedBatch(
 			if ( slot >= 0 && slot <= 3 )
 				m_playersBySlot[( size_t ) slot] = raw;
 
+			std::array<std::shared_ptr<CMesh>, 3> playerNoLodMeshes = { playerAsset.mesh, nullptr, nullptr };
+			RegisterSkinnedCullEntry(raw, i, "Player", pos, playerNoLodMeshes, false, 0.0f, 0.0f, 120.0f);
+
 			m_skinnedObjects.push_back(std::move(obj));
 			b->objectRefs.push_back(raw);
 			SetObjectCollisionMegaGridMask(raw, 0, false);

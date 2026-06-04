@@ -335,6 +335,8 @@ private:
 	bool IsSkinnedMonsterHpGaugeRenderAllowed(const SkinnedWorldLodEntry& entry) const;
 	bool GetMonsterHpGaugeDesc(const SkinnedWorldLodEntry& entry, float& outYOffset, float& outMaxWidth, float& outHeight) const;
 	bool FindSkinnedBatchObjectIndex(const CGameObject* object, UINT& outObjectIndex) const;
+	bool IsOtherPlayerSkinnedBodyRenderedThisFrame(int playerSlot, CCamera* camera, UINT& outSkinnedBatchObjectIndex) const;
+	void UpdateOtherPlayerWorldHpGaugeVisibilityForHud(CCamera* camera);
 	bool IsOtherPlayerWorldHpGaugeRenderAllowed(int playerSlot, CCamera* camera, UINT& outSkinnedBatchObjectIndex) const;
 	UINT GetPlayerWorldHpNameMaterialId(int playerSlot) const;
 
@@ -878,7 +880,8 @@ private:
 	int ApplyPlayerAttackPowerPotionMultiplier(int playerSlot, int attackPower) const;
 
 	// slot 0..3 플레이어 포인터(소유는 m_skinnedObjects가 함)
-    std::array<CGameObject*, 4> m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
+	std::array<CGameObject*, 4> m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
+	std::array<bool, 4> m_otherPlayerWorldHpGaugeVisibleForHud = { false, false, false, false };
 
 	std::array<bool, 4> m_playerFootstepTrackingValid = { false, false, false, false };
 	std::array<int, 4> m_playerFootstepMode = { 0, 0, 0, 0 }; // 0=None, 1=Walk, 2=Run
