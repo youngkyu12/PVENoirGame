@@ -84,8 +84,8 @@ void CGameScene::BuildMonsterHpGaugeBatch(ID3D12Device* dev, ID3D12GraphicsComma
 
 	m_monsterHpGaugeState.quadMesh = CreateItemBillboardQuadMesh(dev, cmd);
 
-	const UINT monsterHpGaugeMonsterCapacity = m_ghoulCount + m_swordManCount + m_bowManCount + m_MutantCount;
-	const UINT monsterHpGaugeInstanceCapacity = monsterHpGaugeMonsterCapacity * 2;
+	const UINT monsterHpGaugeObjectCapacity = m_ghoulCount + m_swordManCount + m_bowManCount + m_MutantCount + 3;
+	const UINT monsterHpGaugeInstanceCapacity = monsterHpGaugeObjectCapacity * 2;
 
 	if ( monsterHpGaugeInstanceCapacity == 0 )
 		return;
@@ -100,6 +100,84 @@ void CGameScene::ReleaseMonsterHpGaugeGpuResources()
 	m_monsterHpGaugeState.emptyHpTexture.reset();
 	m_monsterHpGaugeState.shader.reset();
 	m_monsterHpGaugeState.quadMesh.reset();
+}
+
+bool CGameScene::FindSkinnedBatchObjectIndex(const CGameObject* object, UINT& outObjectIndex) const
+{
+	outObjectIndex = UINT_MAX;
+
+	if ( !object )
+		return false;
+
+	for ( UINT i = 0; i < static_cast< UINT >(m_skinnedBatch.objectRefs.size()); ++i )
+	{
+		if ( m_skinnedBatch.objectRefs[i] == object )
+		{
+			outObjectIndex = i;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool CGameScene::IsOtherPlayerWorldHpGaugeRenderAllowed(int playerSlot, CCamera* camera, UINT& outSkinnedBatchObjectIndex) const
+{
+	outSkinnedBatchObjectIndex = UINT_MAX;
+
+	if ( playerSlot < 0 || playerSlot >= 4 )
+		return false;
+
+	if ( playerSlot == m_localPlayerSlot )
+		return false;
+
+	CGameObject* player = GetPlayerBySlot(playerSlot);
+
+	if ( !player )
+		return false;
+
+	if ( !player->GetActive() )
+		return false;
+
+	if ( !FindSkinnedBatchObjectIndex(player, outSkinnedBatchObjectIndex) )
+		return false;
+
+	if ( outSkinnedBatchObjectIndex >= static_cast< UINT >( m_skinnedBatch.objectRefs.size() ) )
+		return false;
+
+	if ( outSkinnedBatchObjectIndex < static_cast< UINT >(m_skinnedDistanceCullFlags.size()) && m_skinnedDistanceCullFlags[outSkinnedBatchObjectIndex] != 0 )
+		return false;
+
+	if ( outSkinnedBatchObjectIndex < static_cast< UINT >(m_skinnedOcclusionCullFlags.size()) && m_skinnedOcclusionCullFlags[outSkinnedBatchObjectIndex] != 0 )
+		return false;
+
+	if ( camera && !player->IsVisible(camera) )
+		return false;
+
+	const XMFLOAT3 objectPos = player->GetPosition();
+
+	if ( objectPos.y < -50.0f )
+		return false;
+
+	const CSkinnedMeshRendererComponent* renderer = player->GetComponent<CSkinnedMeshRendererComponent>();
+
+	if ( !renderer || !renderer->IsEnabled() )
+		return false;
+
+	const CSkinningComponent* skin = player->GetComponent<CSkinningComponent>();
+
+	if ( !skin || !skin->IsSkinned() )
+		return false;
+
+	const CHealthComponent* health = player->GetComponent<CHealthComponent>();
+
+	if ( !health )
+		return false;
+
+	if ( health->GetCurrentHp() <= 0 || health->GetMaxHp() <= 0 )
+		return false;
+
+	return true;
 }
 
 void CGameScene::ResetMonsterHpGaugeVisibilityState()
@@ -275,12 +353,13 @@ void CGameScene::RenderMonsterHpGauges(ID3D12GraphicsCommandList* cmd, CCamera* 
 	if ( sm.indices.empty() )
 		return;
 
-	const UINT monsterInstanceCapacity = instanceBufferCapacity / 2;
-	const UINT foregroundInstanceStart = monsterInstanceCapacity;
+	const UINT gaugeObjectCapacity = instanceBufferCapacity / 2;
+	const UINT foregroundInstanceStart = gaugeObjectCapacity;
 
 	const XMFLOAT3 targetPos = camera->GetPosition();
 
-	UINT visibleMonsterCount = 0;
+	UINT visibleGaugeCount = 0;
+	std::array<bool, 4> playerWorldHpGaugeVisible = { false, false, false, false };
 
 	for ( const SkinnedWorldLodEntry& entry : m_skinnedWorldLodEntries )
 	{
@@ -304,16 +383,76 @@ void CGameScene::RenderMonsterHpGauges(ID3D12GraphicsCommandList* cmd, CCamera* 
 		if ( hpRatio <= 0.0f )
 			continue;
 
-		if ( visibleMonsterCount >= monsterInstanceCapacity )
+		if ( visibleGaugeCount >= gaugeObjectCapacity )
 			break;
 
-		StoreMonsterHpGaugeWorldRows(mappedInstanceBuffer[visibleMonsterCount], entry.object->GetPosition(), yOffset, maxWidth, height, 1.0f, targetPos, kMonsterHpGaugeEmptyMaterialId);
-		StoreMonsterHpGaugeWorldRows(mappedInstanceBuffer[foregroundInstanceStart + visibleMonsterCount], entry.object->GetPosition(), yOffset, maxWidth, height, hpRatio, targetPos, kMonsterHpGaugeMaterialId);
+		StoreMonsterHpGaugeWorldRows(mappedInstanceBuffer[visibleGaugeCount], entry.object->GetPosition(), yOffset, maxWidth, height, 1.0f, targetPos, kMonsterHpGaugeEmptyMaterialId);
+		StoreMonsterHpGaugeWorldRows(mappedInstanceBuffer[foregroundInstanceStart + visibleGaugeCount], entry.object->GetPosition(), yOffset, maxWidth, height, hpRatio, targetPos, kMonsterHpGaugeMaterialId);
 
-		++visibleMonsterCount;
+		++visibleGaugeCount;
 	}
 
-	if ( visibleMonsterCount == 0 )
+	for ( int slot = 0; slot < 4; ++slot )
+	{
+		UINT playerSkinnedBatchObjectIndex = UINT_MAX;
+
+		if ( !IsOtherPlayerWorldHpGaugeRenderAllowed(slot, camera, playerSkinnedBatchObjectIndex) )
+			continue;
+
+		CGameObject* player = GetPlayerBySlot(slot);
+
+		if ( !player )
+			continue;
+
+		const CHealthComponent* health = player->GetComponent<CHealthComponent>();
+
+		if ( !health )
+			continue;
+
+		const float hpRatio = health->GetHpRatio();
+
+		if ( hpRatio <= 0.0f )
+			continue;
+
+		if ( visibleGaugeCount >= gaugeObjectCapacity )
+			break;
+
+		const float yOffset = 2.0f;
+		const float maxWidth = 1.0f;
+		const float height = 0.12f;
+
+		StoreMonsterHpGaugeWorldRows(mappedInstanceBuffer[visibleGaugeCount], player->GetPosition(), yOffset, maxWidth, height, 1.0f, targetPos, kMonsterHpGaugeEmptyMaterialId);
+		StoreMonsterHpGaugeWorldRows(mappedInstanceBuffer[foregroundInstanceStart + visibleGaugeCount], player->GetPosition(), yOffset, maxWidth, height, hpRatio, targetPos, kMonsterHpGaugeMaterialId);
+
+		playerWorldHpGaugeVisible[slot] = true;
+		++visibleGaugeCount;
+	}
+
+	if ( playerWorldHpGaugeVisible[0] || playerWorldHpGaugeVisible[1] || playerWorldHpGaugeVisible[2] || playerWorldHpGaugeVisible[3] )
+	{
+		std::array<float, 4> playerHpRatios = { 0.0f, 0.0f, 0.0f, 0.0f };
+		std::array<bool, 4> playerHpVisible = { false, false, false, false };
+
+		for ( int slot = 0; slot < 4; ++slot )
+		{
+			CGameObject* player = GetPlayerBySlot(slot);
+
+			if ( !player )
+				continue;
+
+			CHealthComponent* hp = player->GetComponent<CHealthComponent>();
+
+			if ( !hp )
+				continue;
+
+			playerHpRatios[slot] = hp->GetHpRatio();
+			playerHpVisible[slot] = true;
+		}
+
+		m_hud.SetOtherPlayerHealthRatios(m_localPlayerSlot, playerHpRatios, playerHpVisible, playerWorldHpGaugeVisible);
+	}
+
+	if ( visibleGaugeCount == 0 )
 		return;
 
 	m_monsterHpGaugeState.shader->Render(cmd, camera, nullptr);
@@ -322,13 +461,13 @@ void CGameScene::RenderMonsterHpGauges(ID3D12GraphicsCommandList* cmd, CCamera* 
 	vbViews[0] = sm.vbView;
 
 	vbViews[1].BufferLocation = instanceBuffer->GetGPUVirtualAddress();
-	vbViews[1].SizeInBytes = sizeof(ItemBillboardInstanceVertex) * ( foregroundInstanceStart + visibleMonsterCount );
+	vbViews[1].SizeInBytes = sizeof(ItemBillboardInstanceVertex) * ( foregroundInstanceStart + visibleGaugeCount );
 	vbViews[1].StrideInBytes = sizeof(ItemBillboardInstanceVertex);
 
 	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	cmd->IASetVertexBuffers(0, 2, vbViews);
 	cmd->IASetIndexBuffer(&sm.ibView);
 
-	cmd->DrawIndexedInstanced(static_cast< UINT >( sm.indices.size() ), visibleMonsterCount, 0, 0, 0);
-	cmd->DrawIndexedInstanced(static_cast< UINT >( sm.indices.size() ), visibleMonsterCount, 0, 0, foregroundInstanceStart);
+	cmd->DrawIndexedInstanced(static_cast< UINT >( sm.indices.size() ), visibleGaugeCount, 0, 0, 0);
+	cmd->DrawIndexedInstanced(static_cast< UINT >( sm.indices.size() ), visibleGaugeCount, 0, 0, foregroundInstanceStart);
 }

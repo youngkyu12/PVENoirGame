@@ -8511,8 +8511,10 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
 			}
 		}
 
+		std::array<bool, 4> playerWorldHpGaugeVisible = { false, false, false, false };
+
 		m_hud.SetHealthRatio(localHpRatio);
-		m_hud.SetOtherPlayerHealthRatios(m_localPlayerSlot, playerHpRatios, playerHpVisible);
+		m_hud.SetOtherPlayerHealthRatios(m_localPlayerSlot, playerHpRatios, playerHpVisible, playerWorldHpGaugeVisible);
 	}
 
 	if ( m_staticBatch.mappedGameObjects[frameIndex] && !m_staticBatch.objectRefs.empty() )

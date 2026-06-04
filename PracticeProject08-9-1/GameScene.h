@@ -328,6 +328,8 @@ private:
 	void RenderMonsterHpGauges(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	bool IsSkinnedMonsterHpGaugeRenderAllowed(const SkinnedWorldLodEntry& entry) const;
 	bool GetMonsterHpGaugeDesc(const SkinnedWorldLodEntry& entry, float& outYOffset, float& outMaxWidth, float& outHeight) const;
+	bool FindSkinnedBatchObjectIndex(const CGameObject* object, UINT& outObjectIndex) const;
+	bool IsOtherPlayerWorldHpGaugeRenderAllowed(int playerSlot, CCamera* camera, UINT& outSkinnedBatchObjectIndex) const;
 
 	void BuildMuzzleFlashBatch(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, DXGI_FORMAT dsvFormat);
 
