@@ -550,6 +550,7 @@ void Room::TickAdvance()
 	UpdateDynamicGridState();
 	UpdateKeyPickupCollision();
 	UpdateSpawnerWaves(m_timing.playerInputDtSec);
+	UpdateBossRoomState();
 
 	const auto elapsedMs = static_cast<uint64>(
 		std::chrono::duration_cast<std::chrono::milliseconds>(

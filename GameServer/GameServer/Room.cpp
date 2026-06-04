@@ -811,17 +811,24 @@ void Room::OnMonsterFirstChase(uint64 enemyId)
 void Room::OnMonsterDeath(uint64 enemyId)
 {
 	auto it = m_spawnerKeyMutantIds.find(enemyId);
-	if (it == m_spawnerKeyMutantIds.end()) return;
-
-	const int megaGrid = it->second;
-	if (megaGrid == 6 || megaGrid == 8)
+	if (it != m_spawnerKeyMutantIds.end())
 	{
-		m_keyPickupUnlockedByMegaGrid[static_cast<size_t>(megaGrid)] = true;
-		cout << "[Key Unlock] MegaGrid " << megaGrid
-			<< " unlocked by enemy " << enemyId << " death" << endl;
+		const int megaGrid = it->second;
+		if (megaGrid == 6 || megaGrid == 8)
+		{
+			m_keyPickupUnlockedByMegaGrid[static_cast<size_t>(megaGrid)] = true;
+			cout << "[Key Unlock] MegaGrid " << megaGrid
+				<< " unlocked by enemy " << enemyId << " death" << endl;
+		}
+		m_spawnerKeyMutantIds.erase(it);
 	}
 
-	m_spawnerKeyMutantIds.erase(it);
+	if (m_bossRoomState == EBossRoomState::PreBossCombat && AreAllPreBossMonstersDeadInMega5())
+	{
+		m_bossRoomState = EBossRoomState::SummonFadeIn;
+		m_bossRoomStateChangedMs = m_elapsedServerMs;
+		cout << "[BossRoom] All pre-boss monsters dead -> SummonFadeIn" << endl;
+	}
 }
 
 void Room::DebugKillMega5Enemies()
