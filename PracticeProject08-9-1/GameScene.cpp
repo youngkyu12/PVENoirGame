@@ -10,8 +10,9 @@ using namespace GameSceneHelper;
 
 CGameScene::CGameScene()
 {
-    m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
-    m_localPlayerSlot = 0;
+	m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
+	m_otherPlayerWorldHpGaugeVisibleForHud.fill(false);
+	m_localPlayerSlot = 0;
 
 	m_grassCount = 1;
     m_groundCount = 1;
@@ -3146,6 +3147,7 @@ void CGameScene::ReleaseObjects()
 	m_pPlayerSpotFollower = nullptr;
 
 	m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
+	m_otherPlayerWorldHpGaugeVisibleForHud.fill(false);
 
 	m_staticBatch.objectRefs.clear();
 	m_skinnedBatch.objectRefs.clear();
@@ -8628,10 +8630,10 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
 			}
 		}
 
-		std::array<bool, 4> playerWorldHpGaugeVisible = { false, false, false, false };
+		const std::array<bool, 4> playerWorldHpGaugeVisible = m_otherPlayerWorldHpGaugeVisibleForHud;
 
 		m_hud.SetHealthRatio(localHpRatio);
-		m_hud.SetOtherPlayerHealthRatios(m_localPlayerSlot, playerHpRatios, playerHpVisible, playerWorldHpGaugeVisible);
+		m_hud.SetOtherPlayerHealthRatios(m_localPlayerSlot, playerHpRatios, playerHpVisible, playerWorldHpGaugeVisible); 
 		UpdateBossHpGaugeHud();
 	}
 
@@ -8756,6 +8758,74 @@ void CGameScene::UpdateFrameRenderState(CCamera* camera)
 	{
 		PROFILE_RENDER_SCOPE("UFRS::UpdateSkinnedOcclusionCullSelection");
 		UpdateSkinnedOcclusionCullSelection(camera);
+	}
+	UpdateOtherPlayerWorldHpGaugeVisibilityForHud(camera);
+}
+
+bool CGameScene::IsOtherPlayerSkinnedBodyRenderedThisFrame(int playerSlot, CCamera* camera, UINT& outSkinnedBatchObjectIndex) const
+{
+	outSkinnedBatchObjectIndex = UINT_MAX;
+
+	if ( playerSlot < 0 || playerSlot >= 4 )
+		return false;
+
+	if ( playerSlot == m_localPlayerSlot )
+		return false;
+
+	CGameObject* player = GetPlayerBySlot(playerSlot);
+
+	if ( !player )
+		return false;
+
+	if ( !player->GetActive() )
+		return false;
+
+	if ( !FindSkinnedBatchObjectIndex(player, outSkinnedBatchObjectIndex) )
+		return false;
+
+	if ( outSkinnedBatchObjectIndex >= static_cast< UINT >( m_skinnedBatch.objectRefs.size() ) )
+		return false;
+
+	if ( outSkinnedBatchObjectIndex < static_cast< UINT >(m_skinnedDistanceCullFlags.size()) && m_skinnedDistanceCullFlags[outSkinnedBatchObjectIndex] != 0 )
+		return false;
+
+	if ( outSkinnedBatchObjectIndex < static_cast< UINT >(m_skinnedOcclusionCullFlags.size()) && m_skinnedOcclusionCullFlags[outSkinnedBatchObjectIndex] != 0 )
+		return false;
+
+	if ( camera && !player->IsVisible(camera) )
+		return false;
+
+	const CSkinnedMeshRendererComponent* renderer = player->GetComponent<CSkinnedMeshRendererComponent>();
+
+	if ( !renderer || !renderer->IsEnabled() )
+		return false;
+
+	const CSkinningComponent* skin = player->GetComponent<CSkinningComponent>();
+
+	if ( !skin || !skin->IsSkinned() )
+		return false;
+
+	const CHealthComponent* health = player->GetComponent<CHealthComponent>();
+
+	if ( !health )
+		return false;
+
+	if ( health->GetCurrentHp() <= 0 || health->GetMaxHp() <= 0 )
+		return false;
+
+	return true;
+}
+
+void CGameScene::UpdateOtherPlayerWorldHpGaugeVisibilityForHud(CCamera* camera)
+{
+	m_otherPlayerWorldHpGaugeVisibleForHud.fill(false);
+
+	for ( int slot = 0; slot < 4; ++slot )
+	{
+		UINT skinnedBatchObjectIndex = UINT_MAX;
+
+		if ( IsOtherPlayerSkinnedBodyRenderedThisFrame(slot, camera, skinnedBatchObjectIndex) )
+			m_otherPlayerWorldHpGaugeVisibleForHud[slot] = true;
 	}
 }
 
