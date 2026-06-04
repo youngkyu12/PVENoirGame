@@ -23,7 +23,7 @@ bool Handle_S_LOGIN(PacketSessionRef& session, Protocol::S_LOGIN& pkt)
 {
 	if (pkt.success() == false)
 	{
-		// 로그인 실패 처리
+		session->Disconnect(L"Room full");
 		return true;
 	}
 

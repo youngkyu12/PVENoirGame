@@ -59,6 +59,9 @@ bool Handle_C_LOGIN(PacketSessionRef& session, Protocol::C_LOGIN& pkt)
 	auto SendBuffer = ClientPacketHandler::MakeSendBuffer(loginPkt);
 	session->Send(SendBuffer);
 
+	if (!loginPkt.success())
+		session->Disconnect(L"Room full");
+
 	return true;
 }
 
@@ -112,6 +115,13 @@ bool Handle_C_INPUT(PacketSessionRef& session, Protocol::C_INPUT& pkt)
 	GRoom->DoAsync(&Room::ProcessInput, pkt.playerid(), pkt.keycodes(), 
 		pkt.deltax(), pkt.deltay(), pkt.clientdeltatime());
 
+	return true;
+}
+
+bool Handle_C_DEBUG_COMMAND(PacketSessionRef& session, Protocol::C_DEBUG_COMMAND& pkt)
+{
+	if (pkt.commandtype() == Protocol::DEBUG_COMMAND_KILL_MEGA5_ENEMIES)
+		GRoom->DoAsync(&Room::DebugKillMega5Enemies);
 	return true;
 }
 
