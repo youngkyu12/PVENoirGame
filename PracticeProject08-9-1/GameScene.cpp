@@ -3370,6 +3370,12 @@ void CGameScene::ReleaseUploadBuffers()
 
 	if ( m_monsterHpGaugeState.emptyHpTexture )
 		m_monsterHpGaugeState.emptyHpTexture->ReleaseUploadBuffers();
+
+	for ( auto& texture : m_monsterHpGaugeState.playerNameTextures )
+	{
+		if ( texture )
+			texture->ReleaseUploadBuffers();
+	}
 }
 
 void CGameScene::ReleaseShaderVariables()
