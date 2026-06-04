@@ -49,7 +49,7 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 
 	m_bSimulateLocalAI = true;
 
-	m_bSimulateLocalGhoulAI = false;
+	m_bSimulateLocalGhoulAI = true;
 	m_bSimulateLocalBowManAI = false;
 	m_bSimulateLocalSwordManAI = false;
 	m_bSimulateLocalMutantAI = false;
