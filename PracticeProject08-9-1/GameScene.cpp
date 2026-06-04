@@ -6201,7 +6201,6 @@ void CGameScene::ScheduleBossStageBossPositionRestore(
 
 void CGameScene::UpdateBossStageBossPositionRestores()
 {
-#ifndef USING_NETWORK
 	for ( auto& kv : m_bossStageBossPositionStates )
 	{
 		CGameObject* boss = kv.first;
@@ -6233,7 +6232,6 @@ void CGameScene::UpdateBossStageBossPositionRestores()
 
 		state.pendingRestore = false;
 	}
-#endif
 }
 
 bool CGameScene::IsBossStageBossRenderAllowed(const CGameObject* boss) const
@@ -6278,7 +6276,6 @@ void CGameScene::SetBossStageBossRenderAllowed(
 
 void CGameScene::UpdateBossStageBossRenderGate()
 {
-#ifndef USING_NETWORK
 	for ( auto& kv : m_bossStageBossPositionStates )
 	{
 		CGameObject* boss = kv.first;
@@ -6319,7 +6316,6 @@ void CGameScene::UpdateBossStageBossRenderGate()
 		if ( renderer )
 			renderer->SetEnabled(true);
 	}
-#endif
 }
 
 void CGameScene::SetBossStageBossActive(

@@ -803,7 +803,6 @@ void CGameScene::SpawnBloodSplash(CGameObject* victim, const XMFLOAT3* hitPositi
 
 void CGameScene::SpawnBossMeleeSlashEffect(CGameObject* boss)
 {
-#ifndef USING_NETWORK
 	if ( !boss )
 		return;
 
@@ -989,10 +988,6 @@ void CGameScene::SpawnBossMeleeSlashEffect(CGameObject* boss)
 		XMFLOAT3(0.88f, 1.00f, 0.55f),
 		31.7f
 	);
-
-#else
-	UNREFERENCED_PARAMETER(boss);
-#endif
 }
 
 
