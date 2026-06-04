@@ -164,14 +164,16 @@ void CGameSceneHUD::BuildResources(
 	// --------------------------------------------------------------------
 	// Inventory layer
 	// rect = (centerX, centerY, width, height)
+	// - 우측 하단 기준 세로 정렬.
+	// - 슬롯 순서는 위에서부터 0, 1, 2, 3.
 	// --------------------------------------------------------------------
-	const float inventorySlotWidth = 72.0f;
-	const float inventorySlotHeight = 72.0f;
-	const float inventoryRightMargin = 10.0f;
-	const float inventoryBottomMargin = 10.0f;
-	const float inventoryTotalWidth = inventorySlotWidth * static_cast< float >( kInventorySlotCount );
-	const float inventoryStartCenterX = screenW - inventoryRightMargin - inventoryTotalWidth + inventorySlotWidth * 0.5f;
-	const float inventoryCenterY = screenH - inventoryBottomMargin - inventorySlotHeight * 0.5f;
+	const float inventorySlotWidth = 72.0f * 0.80f;
+	const float inventorySlotHeight = 72.0f * 0.80f;
+	const float inventoryRightMargin = 10.0f * 0.80f;
+	const float inventoryBottomMargin = 10.0f * 0.80f;
+	const float inventoryTotalHeight = inventorySlotHeight * static_cast< float >( kInventorySlotCount );
+	const float inventoryCenterX = screenW - inventoryRightMargin - inventorySlotWidth * 0.5f;
+	const float inventoryStartCenterY = screenH - inventoryBottomMargin - inventoryTotalHeight + inventorySlotHeight * 0.5f;
 	const float inventoryIconSize = inventorySlotWidth * 0.92f;
 	const char* inventorySpriteNames[kInventorySlotCount] = { "InventorySlot0", "InventorySlot1", "InventorySlot2", "InventorySlot3" };
 	const char* inventoryIconSpriteNames[kInventorySlotCount] = { "InventoryPotionHeal", "InventoryPotionAttackUp", "InventoryPotionDefenceUp", "InventoryPotionSpeedUp" };
@@ -179,18 +181,17 @@ void CGameSceneHUD::BuildResources(
 
 	for ( int i = 0; i < kInventorySlotCount; ++i )
 	{
-		const float centerX = inventoryStartCenterX + inventorySlotWidth * static_cast< float >(i);
-		m_inventorySpriteIndices[i] = m_ui.AddSprite(dev, cmd, inventorySpriteNames[i], L"Assets/UI/Inventory.dds", XMFLOAT4(centerX, inventoryCenterY, inventorySlotWidth, inventorySlotHeight), CSceneUI::ELayer::Frame, true);
-		m_inventoryIconSpriteIndices[i] = m_ui.AddSprite(dev, cmd, inventoryIconSpriteNames[i], inventoryIconTexturePaths[i], XMFLOAT4(centerX, inventoryCenterY, inventoryIconSize, inventoryIconSize), CSceneUI::ELayer::Content, true);
+		const float centerY = inventoryStartCenterY + inventorySlotHeight * static_cast< float >(i);
+		m_inventorySpriteIndices[i] = m_ui.AddSprite(dev, cmd, inventorySpriteNames[i], L"Assets/UI/Inventory.dds", XMFLOAT4(inventoryCenterX, centerY, inventorySlotWidth, inventorySlotHeight), CSceneUI::ELayer::Frame, true);
+		m_inventoryIconSpriteIndices[i] = m_ui.AddSprite(dev, cmd, inventoryIconSpriteNames[i], inventoryIconTexturePaths[i], XMFLOAT4(inventoryCenterX, centerY, inventoryIconSize, inventoryIconSize), CSceneUI::ELayer::Content, true);
 	}
 
 	for ( int slot = 0; slot < kInventorySlotCount; ++slot )
 	{
-		const float centerX = inventoryStartCenterX + inventorySlotWidth * static_cast< float >(slot);
+		const float centerY = inventoryStartCenterY + inventorySlotHeight * static_cast< float >(slot);
 		char cooldownSpriteName[64] = {};
 		sprintf_s(cooldownSpriteName, "InventoryCooldown_%d", slot);
-
-		m_inventoryCooldownOriginalRects[slot] = XMFLOAT4(centerX, inventoryCenterY, inventorySlotWidth, inventorySlotHeight);
+		m_inventoryCooldownOriginalRects[slot] = XMFLOAT4(inventoryCenterX, centerY, inventorySlotWidth, inventorySlotHeight);
 		m_inventoryCooldownSpriteIndices[slot] = m_ui.AddSolidRect(cooldownSpriteName, m_inventoryCooldownOriginalRects[slot], CSceneUI::ELayer::Content, false);
 	}
 
@@ -467,11 +468,11 @@ void CGameSceneHUD::UpdateInventoryCountTextSprites(int slot)
 	if ( static_cast< int >( text.size() ) > kInventoryCountTextMaxChars )
 		text = text.substr(0, kInventoryCountTextMaxChars);
 
-	const float charWidth = 36.0f;
-	const float charHeight = 42.0f;
-	const float charAdvance = 13.0f;
-	const float rightPadding = -8.0f;
-	const float bottomPadding = -8.0f;
+	const float charWidth = 24.0f;
+	const float charHeight = 28.0f;
+	const float charAdvance = 8.0f;
+	const float rightPadding = -5.0f;
+	const float bottomPadding = -5.0f;
 
 	const int charCount = static_cast< int >( text.size() );
 	const float totalWidth = charWidth + charAdvance * static_cast< float >( charCount - 1 );
