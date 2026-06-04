@@ -34,7 +34,7 @@ namespace
 		else
 			right = XMVector3Normalize(right);
 
-		center = XMVectorAdd(center, XMVectorScale(right, ( width - maxWidth ) * 0.5f));
+		center = XMVectorAdd(center, XMVectorScale(right, ( maxWidth - width ) * 0.5f));
 
 		const XMVECTOR scaledRight = XMVectorScale(right, width);
 		const XMVECTOR scaledUp = XMVectorScale(up, height);
@@ -109,7 +109,7 @@ bool CGameScene::GetMonsterHpGaugeDesc(const SkinnedWorldLodEntry& entry, float&
 
 	if ( entry.assetName == "BowMan" || entry.assetName == "SwordMan" )
 	{
-		outYOffset = 3.0f;
+		outYOffset = 3.5f;
 		outMaxWidth = 1.5f;
 		return true;
 	}
