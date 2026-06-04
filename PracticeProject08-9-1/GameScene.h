@@ -966,6 +966,7 @@ private:
 	static constexpr UINT kBossShockwaveWallMaterialId = MAX_MATERIALS - 6;
 	static constexpr UINT kBossCallSummonCircleMaterialId = MAX_MATERIALS - 7;
 	static constexpr UINT kMonsterHpGaugeMaterialId = MAX_MATERIALS - 12;
+	static constexpr UINT kMonsterHpGaugeEmptyMaterialId = MAX_MATERIALS - 13;
 
 	static constexpr UINT kPotionItemBillboardMaterialBaseId = MAX_MATERIALS - 11;
 	static constexpr UINT kHealPotionItemBillboardMaterialId = MAX_MATERIALS - 11;

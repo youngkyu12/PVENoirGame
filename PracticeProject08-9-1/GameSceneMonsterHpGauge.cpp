@@ -69,7 +69,7 @@ void CGameScene::BuildMonsterHpGaugeBatch(ID3D12Device* dev, ID3D12GraphicsComma
 	ReleaseMonsterHpGaugeGpuResources();
 	ResetMonsterHpGaugeVisibilityState();
 
-	m_monsterHpGaugeState.shader = std::make_shared<CItemBillboardShader>(); 
+	m_monsterHpGaugeState.shader = std::make_shared<CItemBillboardShader>();
 	m_monsterHpGaugeState.shader->CreateShader(dev, m_pd3dGraphicsRootSignature.Get(), rtCount, rtvFormats, dsvFormat);
 
 	m_monsterHpGaugeState.hpTexture = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
@@ -77,20 +77,27 @@ void CGameScene::BuildMonsterHpGaugeBatch(ID3D12Device* dev, ID3D12GraphicsComma
 	CScene::m_pDescriptorHeap->CreateShaderResourceViews(dev, m_monsterHpGaugeState.hpTexture.get(), ROOT_PARAMETER_GLOBAL_SRV);
 	SetMaterialDiffuseSrvIndex(static_cast< int >( kMonsterHpGaugeMaterialId ), m_monsterHpGaugeState.hpTexture->GetBaseSrvIndex());
 
+	m_monsterHpGaugeState.emptyHpTexture = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
+	m_monsterHpGaugeState.emptyHpTexture->LoadTextureFromFile(dev, cmd, L"Assets/UI/EmptyHP.dds", RESOURCE_TEXTURE2D, 0);
+	CScene::m_pDescriptorHeap->CreateShaderResourceViews(dev, m_monsterHpGaugeState.emptyHpTexture.get(), ROOT_PARAMETER_GLOBAL_SRV);
+	SetMaterialDiffuseSrvIndex(static_cast< int >( kMonsterHpGaugeEmptyMaterialId ), m_monsterHpGaugeState.emptyHpTexture->GetBaseSrvIndex());
+
 	m_monsterHpGaugeState.quadMesh = CreateItemBillboardQuadMesh(dev, cmd);
 
-	const UINT monsterHpGaugeCapacity = m_ghoulCount + m_swordManCount + m_bowManCount + m_MutantCount;
+	const UINT monsterHpGaugeMonsterCapacity = m_ghoulCount + m_swordManCount + m_bowManCount + m_MutantCount;
+	const UINT monsterHpGaugeInstanceCapacity = monsterHpGaugeMonsterCapacity * 2;
 
-	if ( monsterHpGaugeCapacity == 0 )
+	if ( monsterHpGaugeInstanceCapacity == 0 )
 		return;
 
-	m_monsterHpGaugeState.instanceBuffer.Create(dev, cmd, monsterHpGaugeCapacity, [ dev, cmd ] (UINT bufferBytes) { return ::CreateBufferResource(dev, cmd, nullptr, bufferBytes, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr); });
+	m_monsterHpGaugeState.instanceBuffer.Create(dev, cmd, monsterHpGaugeInstanceCapacity, [ dev, cmd ] (UINT bufferBytes) { return ::CreateBufferResource(dev, cmd, nullptr, bufferBytes, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr); });
 }
 
 void CGameScene::ReleaseMonsterHpGaugeGpuResources()
 {
 	m_monsterHpGaugeState.instanceBuffer.Release();
 	m_monsterHpGaugeState.hpTexture.reset();
+	m_monsterHpGaugeState.emptyHpTexture.reset();
 	m_monsterHpGaugeState.shader.reset();
 	m_monsterHpGaugeState.quadMesh.reset();
 }
@@ -260,7 +267,7 @@ void CGameScene::RenderMonsterHpGauges(ID3D12GraphicsCommandList* cmd, CCamera* 
 
 	if ( !instanceBuffer ) return;
 	if ( !mappedInstanceBuffer ) return;
-	if ( instanceBufferCapacity == 0 ) return;
+	if ( instanceBufferCapacity < 2 ) return;
 	if ( m_monsterHpGaugeState.quadMesh->m_SubMeshes.empty() ) return;
 
 	const SubMesh& sm = m_monsterHpGaugeState.quadMesh->m_SubMeshes[0];
@@ -268,9 +275,12 @@ void CGameScene::RenderMonsterHpGauges(ID3D12GraphicsCommandList* cmd, CCamera* 
 	if ( sm.indices.empty() )
 		return;
 
+	const UINT monsterInstanceCapacity = instanceBufferCapacity / 2;
+	const UINT foregroundInstanceStart = monsterInstanceCapacity;
+
 	const XMFLOAT3 targetPos = camera->GetPosition();
 
-	UINT visibleInstanceCount = 0;
+	UINT visibleMonsterCount = 0;
 
 	for ( const SkinnedWorldLodEntry& entry : m_skinnedWorldLodEntries )
 	{
@@ -294,15 +304,16 @@ void CGameScene::RenderMonsterHpGauges(ID3D12GraphicsCommandList* cmd, CCamera* 
 		if ( hpRatio <= 0.0f )
 			continue;
 
-		if ( visibleInstanceCount >= instanceBufferCapacity )
+		if ( visibleMonsterCount >= monsterInstanceCapacity )
 			break;
 
-		StoreMonsterHpGaugeWorldRows(mappedInstanceBuffer[visibleInstanceCount], entry.object->GetPosition(), yOffset, maxWidth, height, hpRatio, targetPos, kMonsterHpGaugeMaterialId);
+		StoreMonsterHpGaugeWorldRows(mappedInstanceBuffer[visibleMonsterCount], entry.object->GetPosition(), yOffset, maxWidth, height, 1.0f, targetPos, kMonsterHpGaugeEmptyMaterialId);
+		StoreMonsterHpGaugeWorldRows(mappedInstanceBuffer[foregroundInstanceStart + visibleMonsterCount], entry.object->GetPosition(), yOffset, maxWidth, height, hpRatio, targetPos, kMonsterHpGaugeMaterialId);
 
-		++visibleInstanceCount;
+		++visibleMonsterCount;
 	}
 
-	if ( visibleInstanceCount == 0 )
+	if ( visibleMonsterCount == 0 )
 		return;
 
 	m_monsterHpGaugeState.shader->Render(cmd, camera, nullptr);
@@ -311,12 +322,13 @@ void CGameScene::RenderMonsterHpGauges(ID3D12GraphicsCommandList* cmd, CCamera* 
 	vbViews[0] = sm.vbView;
 
 	vbViews[1].BufferLocation = instanceBuffer->GetGPUVirtualAddress();
-	vbViews[1].SizeInBytes = sizeof(ItemBillboardInstanceVertex) * visibleInstanceCount;
+	vbViews[1].SizeInBytes = sizeof(ItemBillboardInstanceVertex) * ( foregroundInstanceStart + visibleMonsterCount );
 	vbViews[1].StrideInBytes = sizeof(ItemBillboardInstanceVertex);
 
 	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	cmd->IASetVertexBuffers(0, 2, vbViews);
 	cmd->IASetIndexBuffer(&sm.ibView);
 
-	cmd->DrawIndexedInstanced(static_cast< UINT >( sm.indices.size() ), visibleInstanceCount, 0, 0, 0);
+	cmd->DrawIndexedInstanced(static_cast< UINT >( sm.indices.size() ), visibleMonsterCount, 0, 0, 0);
+	cmd->DrawIndexedInstanced(static_cast< UINT >( sm.indices.size() ), visibleMonsterCount, 0, 0, foregroundInstanceStart);
 }

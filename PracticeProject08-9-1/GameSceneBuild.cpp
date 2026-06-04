@@ -4245,6 +4245,25 @@ void CGameScene::BuildLightsAndMaterials()
 	}
 
 	{
+		MATERIAL& monsterHpEmptyMat = m_pMaterials->m_pReflections[kMonsterHpGaugeEmptyMaterialId];
+
+		monsterHpEmptyMat.m_xmf4Ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+		monsterHpEmptyMat.m_xmf4Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+		monsterHpEmptyMat.m_xmf4Specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+		monsterHpEmptyMat.m_xmf4Emissive = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+
+		monsterHpEmptyMat.m_xmn4TextureIndices = XMUINT4(0, 0, 0, 0);
+
+		monsterHpEmptyMat.m_xmf4DiffuseUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+		monsterHpEmptyMat.m_xmf4NormalUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+		monsterHpEmptyMat.m_xmf4EmissiveUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+		monsterHpEmptyMat.m_xmf4SpecularUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+
+		monsterHpEmptyMat.m_xmn4WrapModes0 = XMUINT4(0, 0, 0, 0);
+		monsterHpEmptyMat.m_xmn4WrapModes1 = XMUINT4(0, 0, 0, 0);
+	}
+
+	{
 		for ( UINT i = 0; i < kPotionItemKindCount; ++i )
 		{
 			MATERIAL& potionMat = m_pMaterials->m_pReflections[kPotionItemBillboardMaterialBaseId + i];

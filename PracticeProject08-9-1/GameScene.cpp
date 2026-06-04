@@ -3361,6 +3361,15 @@ void CGameScene::ReleaseUploadBuffers()
 
 	if ( m_itemBillboardState.bossSummonCircleTexture )
 		m_itemBillboardState.bossSummonCircleTexture->ReleaseUploadBuffers();
+	
+	if ( m_monsterHpGaugeState.quadMesh )
+		m_monsterHpGaugeState.quadMesh->ReleaseUploadBuffers();
+
+	if ( m_monsterHpGaugeState.hpTexture )
+		m_monsterHpGaugeState.hpTexture->ReleaseUploadBuffers();
+
+	if ( m_monsterHpGaugeState.emptyHpTexture )
+		m_monsterHpGaugeState.emptyHpTexture->ReleaseUploadBuffers();
 }
 
 void CGameScene::ReleaseShaderVariables()
