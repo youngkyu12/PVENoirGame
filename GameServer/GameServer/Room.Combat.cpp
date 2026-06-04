@@ -216,6 +216,7 @@ void Room::WakeEnemiesNearPlayer(const PlayerRef& player)
 		if (!enemy) continue;
 		if (!enemy->IsActive()) continue;
 		if (enemy->IsDead()) continue;
+		if (enemy->type == Protocol::ENEMY_TYPE_BOSS) continue;
 		if (GameMath::DistSqXZ(player->GetPosition(), enemy->GetPosition()) > wakeRangeSq) continue;
 
 		m_aiAwakeEnemyIds.insert(enemyId);
@@ -242,6 +243,12 @@ void Room::ProcessEnemyAI()
 		}
 
 		EnemyRef& enemy = enemyIt->second;
+		if (enemy->type == Protocol::ENEMY_TYPE_BOSS)
+		{
+			it = m_aiAwakeEnemyIds.erase(it);
+			continue;
+		}
+
 		CMonsterAI* ai = enemy->GetMonsterAI();
 		if (ai && ai->IsOutsideHomeMegaGrid())
 		{

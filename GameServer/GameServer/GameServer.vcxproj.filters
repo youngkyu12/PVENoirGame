@@ -141,6 +141,9 @@
     <ClCompile Include="ServerTerrain.cpp">
       <Filter>GameContents\Map</Filter>
     </ClCompile>
+    <ClCompile Include="BossEnemy.cpp">
+      <Filter>GameObject\Enemy</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -211,6 +214,9 @@
     </ClInclude>
     <ClInclude Include="Projectile.h">
       <Filter>GameObject\Tile</Filter>
+    </ClInclude>
+    <ClInclude Include="BossEnemy.h">
+      <Filter>GameObject\Enemy</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
