@@ -132,7 +132,7 @@ ENTRY|asset="Building9"|object="building_9_153_28"|pos=(457.4,0,735.4)|rot=(0,-0
 ENTRY|asset="Building2"|object="building_2_184_11"|pos=(477.6,0,719.8)|rot=(0,-0.707107,0,0.707107)
 ENTRY|asset="VillageWall"|object="VillageWall"|pos=(400,0,800)|rot=(0,0,0,1)
 ENTRY|asset="VillageWall"|object="VillageWall"|pos=(-400,0,400)|rot=(0,0,0,1)
-ENTRY|asset="Water"|object="Water"|pos=(-500,12.0,300)|rot=(0,0,0,1)
+ENTRY|asset="Water"|object="Water"|pos=(-500,3.0,300)|rot=(0,0,0,1)
 ENTRY|asset="Building5"|object="building_5_11_9"|pos=(312.3,0,315.1)|rot=(0,-0.692143,0,0.72176)
 ENTRY|asset="Building5"|object="building_5_11_9 (1)"|pos=(326.6,0,392.7)|rot=(0,0,0,1)
 ENTRY|asset="Building8"|object="building_8_21_39"|pos=(327.19,0,333.81)|rot=(0,0,0,1)
