@@ -33,6 +33,16 @@ struct RoomTimingConfig
 	uint64 combatClockIntervalMs = 60;
 };
 
+enum class EBossRoomState
+{
+	PreBossCombat,
+	SummonFadeIn,
+	BossAppearing,
+	BossActive,
+	BossDead,
+	Cleared
+};
+
 class Room : public JobQueue
 {
 public:
@@ -367,6 +377,11 @@ private:
 
 	RoomTimingConfig m_timing;
 	uint64 m_elapsedServerMs = 0;
+
+	EBossRoomState m_bossRoomState = EBossRoomState::PreBossCombat;
+	uint64 m_bossEnemyId = UINT64_MAX;
+	GameMath::Vec3 m_bossOriginalPos = GameMath::Vec3::Zero();
+	float m_bossOriginalYaw = 0.0f;
 
     Atomic<uint32> tick = 0;
 };

@@ -179,6 +179,7 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="BossEnemy.cpp" />
     <ClCompile Include="BoundingCapsule.cpp" />
     <ClCompile Include="Building.cpp" />
     <ClCompile Include="ColliderComponent.cpp" />
@@ -236,6 +237,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BossEnemy.h" />
     <ClInclude Include="BoundingCapsule.h" />
     <ClInclude Include="Building.h" />
     <ClInclude Include="ColliderComponent.h" />

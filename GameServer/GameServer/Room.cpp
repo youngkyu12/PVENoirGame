@@ -2,6 +2,7 @@
 #include "Room.h"
 #include "Player.h"
 #include "Enemy.h"
+#include "BossEnemy.h"
 #include "Building.h"
 #include "GameSession.h"
 #include "GameArea.h"
@@ -465,17 +466,33 @@ void Room::BuildRoom()
 		else if (spawn.type == "Boss")     enemyType = Protocol::ENEMY_TYPE_BOSS;
 
 		const uint64 enemyId = nextEnemyId++;
-		auto enemy = make_shared<CEnemy>(enemyId, spawn.type, enemyType, nullptr);
+		const bool isBoss = (enemyType == Protocol::ENEMY_TYPE_BOSS);
+
+		shared_ptr<CEnemy> enemy;
+		if (isBoss)
+			enemy = make_shared<CBossEnemy>(enemyId, spawn.type, enemyType, nullptr);
+		else
+			enemy = make_shared<CEnemy>(enemyId, spawn.type, enemyType, nullptr);
+
 		enemy->Build(SampleEnemySpawn(spawn.position), GameMath::Vec3(0, 0, 0));
 		enemy->SetYaw(GameMath::NormalizeYaw(spawn.yawDeg));
 		enemy->SetMaxHp(GetEnemyHp(spawn.type));
 		enemy->SetAttackPower(GetEnemyAttackPower(spawn.type));
-		enemy->SetActive(true);
+		enemy->SetActive(!isBoss);
 		RegisterDynamicCollider(enemy);
-		SetObjectCollisionMegaGridMask(enemy, ComputeObjectCurrentMegaGridMask(enemy.get()), true);
+		SetObjectCollisionMegaGridMask(enemy, isBoss ? 0 : ComputeObjectCurrentMegaGridMask(enemy.get()), true);
 		enemies[enemyId] = enemy;
+
+		if (isBoss)
+		{
+			m_bossEnemyId = enemyId;
+			m_bossOriginalPos = enemy->GetPosition();
+			m_bossOriginalYaw = enemy->GetYaw();
+		}
+
 		applyMonsterAIParams(enemy.get(), spawn.type);
-		enemy->GetMonsterAI()->SetHomePosition(enemy->GetPosition());
+		if (auto* ai = enemy->GetMonsterAI())
+			ai->SetHomePosition(enemy->GetPosition());
 
 		if (spawn.type == "Mutant")
 		{
