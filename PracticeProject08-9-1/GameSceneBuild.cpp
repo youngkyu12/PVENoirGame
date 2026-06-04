@@ -453,6 +453,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	CreateWaterTextures(dev, cmd);
 	BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
 	BuildItemBillboardBatch(dev, cmd, kRTCount, rtvFormats, kDsvFormat);
+	BuildMonsterHpGaugeBatch(dev, cmd, kRTCount, rtvFormats, kDsvFormat);
 
 #ifndef USING_NETWORK
 	//DumpStaticGridOccupancyLog();
@@ -4221,6 +4222,25 @@ void CGameScene::BuildLightsAndMaterials()
 
 		transparentMat.m_xmn4WrapModes0 = XMUINT4(0, 0, 0, 0);
 		transparentMat.m_xmn4WrapModes1 = XMUINT4(0, 0, 0, 0);
+	}
+
+	{
+		MATERIAL& monsterHpMat = m_pMaterials->m_pReflections[kMonsterHpGaugeMaterialId];
+
+		monsterHpMat.m_xmf4Ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+		monsterHpMat.m_xmf4Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+		monsterHpMat.m_xmf4Specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+		monsterHpMat.m_xmf4Emissive = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+
+		monsterHpMat.m_xmn4TextureIndices = XMUINT4(0, 0, 0, 0);
+
+		monsterHpMat.m_xmf4DiffuseUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+		monsterHpMat.m_xmf4NormalUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+		monsterHpMat.m_xmf4EmissiveUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+		monsterHpMat.m_xmf4SpecularUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+
+		monsterHpMat.m_xmn4WrapModes0 = XMUINT4(0, 0, 0, 0);
+		monsterHpMat.m_xmn4WrapModes1 = XMUINT4(0, 0, 0, 0);
 	}
 
 	{
