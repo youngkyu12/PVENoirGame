@@ -38,8 +38,8 @@ bool CServerTerrain::LoadFromFile(const std::string& path)
 
 bool CServerTerrain::Contains(float worldX, float worldZ) const
 {
-	const float maxX = kTerrainOriginX + (kTerrainTileCols * kTerrainTileSize);
-	const float maxZ = kTerrainOriginZ + (kTerrainTileRows * kTerrainTileSize);
+	const float maxX = kTerrainOriginX + kTerrainWorldSize;
+	const float maxZ = kTerrainOriginZ + kTerrainWorldSize;
 	return worldX >= kTerrainOriginX && worldX < maxX &&
 		worldZ >= kTerrainOriginZ && worldZ < maxZ;
 }
@@ -49,19 +49,13 @@ float CServerTerrain::SampleHeight(float worldX, float worldZ) const
 	if (!m_loaded || !Contains(worldX, worldZ))
 		return 0.0f;
 
-	const int tileX = static_cast<int>(std::floor((worldX - kTerrainOriginX) / kTerrainTileSize));
-	const int tileZ = static_cast<int>(std::floor((worldZ - kTerrainOriginZ) / kTerrainTileSize));
+	const float localX = worldX - kTerrainOriginX;
+	const float localZ = worldZ - kTerrainOriginZ;
 
-	const float tileOriginX = kTerrainOriginX + (static_cast<float>(tileX) * kTerrainTileSize);
-	const float tileOriginZ = kTerrainOriginZ + (static_cast<float>(tileZ) * kTerrainTileSize);
-	const float localX = worldX - tileOriginX;
-	const float localZ = worldZ - tileOriginZ;
-
-	const bool reverseQuad = (static_cast<int>(std::floor(localZ / kTerrainScale)) % 2) != 0;
-	return kTerrainPlacementY + SampleLocalHeight(localX, localZ, reverseQuad);
+	return kTerrainPlacementY + SampleLocalHeight(localX, localZ);
 }
 
-float CServerTerrain::SampleLocalHeight(float localX, float localZ, bool reverseQuad) const
+float CServerTerrain::SampleLocalHeight(float localX, float localZ) const
 {
 	const float fx = localX / kTerrainScale;
 	const float fz = localZ / kTerrainScale;
@@ -77,29 +71,14 @@ float CServerTerrain::SampleLocalHeight(float localX, float localZ, bool reverse
 	const float fxPercent = fx - static_cast<float>(x);
 	const float fzPercent = fz - static_cast<float>(z);
 
-	float bottomLeft = static_cast<float>(SamplePixel(x, z));
-	float bottomRight = static_cast<float>(SamplePixel(x + 1, z));
-	float topLeft = static_cast<float>(SamplePixel(x, z + 1));
-	float topRight = static_cast<float>(SamplePixel(x + 1, z + 1));
+	const float h00 = static_cast<float>(SamplePixel(x,     z    ));
+	const float h10 = static_cast<float>(SamplePixel(x + 1, z    ));
+	const float h01 = static_cast<float>(SamplePixel(x,     z + 1));
+	const float h11 = static_cast<float>(SamplePixel(x + 1, z + 1));
 
-	if (reverseQuad)
-	{
-		if (fzPercent >= fxPercent)
-			bottomRight = bottomLeft + (topRight - topLeft);
-		else
-			topLeft = topRight + (bottomLeft - bottomRight);
-	}
-	else
-	{
-		if (fzPercent < (1.0f - fxPercent))
-			topRight = topLeft + (bottomRight - bottomLeft);
-		else
-			bottomLeft = topLeft + (bottomRight - topRight);
-	}
-
-	const float topHeight = topLeft * (1.0f - fxPercent) + topRight * fxPercent;
-	const float bottomHeight = bottomLeft * (1.0f - fxPercent) + bottomRight * fxPercent;
-	return bottomHeight * (1.0f - fzPercent) + topHeight * fzPercent;
+	const float bottom = h00 * (1.0f - fxPercent) + h10 * fxPercent;
+	const float top    = h01 * (1.0f - fxPercent) + h11 * fxPercent;
+	return (bottom * (1.0f - fzPercent) + top * fzPercent) * kTerrainVerticalScale;
 }
 
 uint8_t CServerTerrain::SamplePixel(int x, int z) const

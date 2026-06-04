@@ -184,12 +184,12 @@ namespace
 void Room::Enter(PlayerRef player)
 {
 	player->Build();
-	player->SetPosition(GetInitialPlayerSpawnPosition(player->playerId));
+	player->SetPosition(SnapToTerrainIfBelow(GetInitialPlayerSpawnPosition(player->playerId)));
 	player->SetMaxHp(kHpPlayer);
 
 	// life-state 초기 정상화
 	player->OnRespawnEnter(GetAnimClockTick()); // 위치를 내부에서 덮어쓰면 아래 순서 조정 필요
-	player->SetPosition(GetInitialPlayerSpawnPosition(player->playerId));
+	player->SetPosition(SnapToTerrainIfBelow(GetInitialPlayerSpawnPosition(player->playerId)));
 
 	player->SetWeapon(
 		static_cast<Protocol::WeaponType>(player->playerId + 1), 0);
@@ -324,9 +324,6 @@ void Room::BuildRoom()
 
 	m_serverTerrain = make_unique<CServerTerrain>();
 	const std::vector<std::string> terrainCandidates = {
-		"MapFIle/terrain_height_257_u8.raw",
-		"GameServer/MapFIle/terrain_height_257_u8.raw",
-		"../GameServer/MapFIle/terrain_height_257_u8.raw",
 		"MapFIle/terrain.raw",
 		"GameServer/MapFIle/terrain.raw",
 		"../GameServer/MapFIle/terrain.raw"
@@ -408,10 +405,13 @@ void Room::BuildRoom()
 
 	auto SampleEnemySpawn = [&](const GameMath::Vec3& desiredPos)
 		{
-			if (!m_navMesh) return desiredPos;
-			GameMath::Vec3 projected{};
-			if (m_navMesh->SamplePosition(desiredPos, projected)) return projected;
-			return desiredPos;
+			GameMath::Vec3 pos = desiredPos;
+			if (m_navMesh)
+			{
+				GameMath::Vec3 projected{};
+				if (m_navMesh->SamplePosition(pos, projected)) pos = projected;
+			}
+			return SnapToTerrainIfBelow(pos);
 		};
 
 	if (!m_navMesh->IsLoaded())
@@ -674,6 +674,7 @@ float Room::ComputeSpawnerDoorYaw(int wall) const
 CEnemy* Room::ActivateSpawnerEnemy(int megaGrid, Protocol::EnemyType type,
                                    const GameMath::Vec3& pos, float yawDeg)
 {
+	const GameMath::Vec3 spawnPos = SnapToTerrainIfBelow(pos);
 	for (auto& [eid, enemy] : enemies)
 	{
 		if (enemy->IsActive()) continue;
@@ -682,7 +683,7 @@ CEnemy* Room::ActivateSpawnerEnemy(int megaGrid, Protocol::EnemyType type,
 		auto it = m_poolEnemyMegaGrid.find(eid);
 		if (it == m_poolEnemyMegaGrid.end() || it->second != megaGrid) continue;
 
-		enemy->SetPosition(pos);
+		enemy->SetPosition(spawnPos);
 		enemy->SetYaw(yawDeg);
 		enemy->ResetHpToMax();
 		enemy->SetActive(true);
@@ -703,7 +704,7 @@ CEnemy* Room::ActivateSpawnerEnemy(int megaGrid, Protocol::EnemyType type,
 
 		if (CMonsterAI* ai = enemy->GetMonsterAI())
 		{
-			ai->SetHomePosition(pos);
+			ai->SetHomePosition(spawnPos);
 			ai->SetDirectMoveMode(60.f, homeDir, 50.f, megaCenter);
 		}
 

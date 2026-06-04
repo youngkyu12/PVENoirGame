@@ -2222,7 +2222,13 @@ void CGameScene::BuildSkinnedBatch(
 
 			CGameObject* raw = obj.get();
 			if ( m_TerrainData )
-				raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
+			{
+				auto* terrainAttach = raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
+#ifdef USING_NETWORK
+				if ( terrainAttach )
+					terrainAttach->SetAutoSnapEnabled(false);
+#endif
+			}
 
 			RegisterMonsterToMegaGrid(raw, pos, i);
 
@@ -2320,7 +2326,13 @@ void CGameScene::BuildSkinnedBatch(
 					CGameObject* raw = obj.get();
 
 					if ( m_TerrainData )
-						raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
+					{
+						auto* terrainAttach = raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
+#ifdef USING_NETWORK
+						if ( terrainAttach )
+							terrainAttach->SetAutoSnapEnabled(false);
+#endif
+					}
 
 					if ( useSpawnerRushGhoulAI )
 					{
@@ -2456,7 +2468,13 @@ void CGameScene::BuildSkinnedBatch(
 
 			CGameObject* raw = obj.get();
 			if ( m_TerrainData )
-				raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
+			{
+				auto* terrainAttach = raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
+#ifdef USING_NETWORK
+				if ( terrainAttach )
+					terrainAttach->SetAutoSnapEnabled(false);
+#endif
+			}
 
 			RegisterMonsterToMegaGrid(raw, pos, i);
 
@@ -2673,7 +2691,13 @@ void CGameScene::BuildSkinnedBatch(
 
 			CGameObject* raw = obj.get();
 			if ( m_TerrainData )
-				raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
+			{
+				auto* terrainAttach = raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
+#ifdef USING_NETWORK
+				if ( terrainAttach )
+					terrainAttach->SetAutoSnapEnabled(false);
+#endif
+			}
 
 			RegisterMonsterToMegaGrid(raw, pos, i);
 
@@ -2900,7 +2924,13 @@ void CGameScene::BuildSkinnedBatch(
 
 			CGameObject* raw = obj.get();
 			if ( m_TerrainData )
-				raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
+			{
+				auto* terrainAttach = raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
+#ifdef USING_NETWORK
+				if ( terrainAttach )
+					terrainAttach->SetAutoSnapEnabled(false);
+#endif
+			}
 
 			RegisterMonsterToMegaGrid(raw, pos, i);
 
@@ -3135,7 +3165,13 @@ void CGameScene::BuildSkinnedBatch(
 
 			CGameObject* raw = obj.get();
 			if ( m_TerrainData )
-				raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
+			{
+				auto* terrainAttach = raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
+#ifdef USING_NETWORK
+				if ( terrainAttach )
+					terrainAttach->SetAutoSnapEnabled(false);
+#endif
+			}
 
 			m_bossRefs.push_back(raw);
 
@@ -3254,7 +3290,13 @@ void CGameScene::BuildSkinnedBatch(
 
 			CGameObject* raw = obj.get();
 			if ( m_TerrainData )
-				raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
+			{
+				auto* terrainAttach = raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
+#ifdef USING_NETWORK
+				if ( terrainAttach )
+					terrainAttach->SetAutoSnapEnabled(false);
+#endif
+			}
 
 			if ( auto* equip = raw->GetComponent<CPlayerEquipmentComponent>() )
 			{
