@@ -395,5 +395,5 @@ private:
 };
 
 extern shared_ptr<Room> GRoom;
-constexpr int MaxPlayers = 2;
+constexpr int MaxPlayers = 1;
 

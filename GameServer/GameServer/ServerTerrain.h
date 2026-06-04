@@ -14,17 +14,16 @@ public:
 	bool Contains(float worldX, float worldZ) const;
 
 private:
-	float SampleLocalHeight(float localX, float localZ, bool reverseQuad) const;
+	float SampleLocalHeight(float localX, float localZ) const;
 	uint8_t SamplePixel(int x, int z) const;
 
-	static constexpr int kTerrainSamples = 257;
-	static constexpr float kTerrainTileSize = 400.0f;
-	static constexpr float kTerrainScale = kTerrainTileSize / float(kTerrainSamples - 1);
-	static constexpr float kTerrainOriginX = -600.0f;
-	static constexpr float kTerrainOriginZ = -200.0f;
-	static constexpr float kTerrainPlacementY = -0.01f;
-	static constexpr int kTerrainTileCols = 3;
-	static constexpr int kTerrainTileRows = 3;
+	static constexpr int   kTerrainSamples      = 1025;
+	static constexpr float kTerrainWorldSize     = 1200.0f;
+	static constexpr float kTerrainScale         = kTerrainWorldSize / float(kTerrainSamples - 1);
+	static constexpr float kTerrainOriginX       = -600.0f;
+	static constexpr float kTerrainOriginZ       = -200.0f;
+	static constexpr float kTerrainVerticalScale = 0.0738f;
+	static constexpr float kTerrainPlacementY    = -0.01f;
 
 	bool m_loaded = false;
 	std::vector<uint8_t> m_pixels;

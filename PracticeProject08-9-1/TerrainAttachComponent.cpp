@@ -48,6 +48,11 @@ void CTerrainAttachComponent::SetHeightOffset(float offset)
 	m_captureInitialOffset = false;
 }
 
+void CTerrainAttachComponent::SetAutoSnapEnabled(bool enabled)
+{
+	m_autoSnapEnabled = enabled;
+}
+
 void CTerrainAttachComponent::OnCreate(
 	ID3D12Device* /*dev*/,
 	ID3D12GraphicsCommandList* /*cmd*/)
@@ -58,11 +63,17 @@ void CTerrainAttachComponent::OnCreate(
 		m_captureInitialOffset = false;
 	}
 
+	if (!m_autoSnapEnabled)
+		return;
+
 	SnapToTerrain();
 }
 
 void CTerrainAttachComponent::OnLateUpdate(float /*dt*/)
 {
+	if (!m_autoSnapEnabled)
+		return;
+
 	SnapToTerrain();
 }
 

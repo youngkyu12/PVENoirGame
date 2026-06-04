@@ -274,6 +274,7 @@ void Room::ProcessEnemyAI()
 		}
 
 		enemy->UpdateAI(fixedDtSec);
+		enemy->SetPosition(SnapToTerrainIfBelow(enemy->GetPosition()));
 		++it;
 	}
 
@@ -350,7 +351,10 @@ void Room::TickAdvance()
 			TryTeleportPlayerByCastleDoorPortal(player.second);
 
 		if (!teleported)
+		{
 			ResolveWorldStaticCollision(player.second, prevPos);
+			player.second->SetPosition(SnapToTerrainIfBelow(player.second->GetPosition()));
+		}
 
 		WakeEnemiesNearPlayer(player.second);
 	}

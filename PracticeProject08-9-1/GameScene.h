@@ -626,6 +626,9 @@ public:
 	bool IsPlayerInsideBossStageBattleArea(const CGameObject* player) const;
 	bool IsLocalPlayerDead() const { return m_bLocalPlayerDead; }
 	bool RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& previousPos);
+#ifdef USING_NETWORK
+	void ApplyNetworkPredictedTerrainY(CGameObject* obj);
+#endif
     
 	void RequestFireArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f, float yOffset = 0.0f);
 	bool IsLocalPlayerInsideMegaGridCenter() const;
@@ -1447,8 +1450,23 @@ private:
 	static XMFLOAT3 LerpPosition(const XMFLOAT3& a, const XMFLOAT3& b, float t);
 	static float LerpYawDegrees(float a, float b, float t);
 
+	struct NetworkActorYState
+	{
+		bool useServerY = false;
+		float serverYHoldSec = 0.0f;
+	};
+
+	float SampleClientTerrainY(float worldX, float worldZ, float fallbackY) const;
+	XMFLOAT3 ResolveNetworkActorY(
+		uint64_t actorId,
+		bool isPlayer,
+		const XMFLOAT3& serverPos,
+		float dt);
+
 	std::unordered_map<uint64_t, uint32_t> m_prevPlayerNetworkStateCode;
 	std::unordered_map<uint64_t, uint32_t> m_prevEnemyNetworkStateCode;
+	std::unordered_map<uint64_t, NetworkActorYState> m_networkPlayerYStates;
+	std::unordered_map<uint64_t, NetworkActorYState> m_networkEnemyYStates;
 
 	struct EnemyDRState
 	{

@@ -7638,6 +7638,79 @@ float CGameScene::LerpYawDegrees(float a, float b, float t)
 	while (result < 0.0f) result += 360.0f;
 	return result;
 }
+
+float CGameScene::SampleClientTerrainY(float worldX, float worldZ, float fallbackY) const
+{
+	if ( !m_TerrainData )
+		return fallbackY;
+
+	const XMFLOAT3 terrainPos = m_TerrainData->GetWorldPosition();
+	const float localX = worldX - terrainPos.x;
+	const float localZ = worldZ - terrainPos.z;
+
+	if ( localX < 0.0f || localZ < 0.0f ||
+		 localX >= m_TerrainData->GetWorldWidth() ||
+		 localZ >= m_TerrainData->GetWorldLength() )
+		return fallbackY;
+
+	return terrainPos.y + m_TerrainData->GetHeight(localX, localZ);
+}
+
+XMFLOAT3 CGameScene::ResolveNetworkActorY(
+	uint64_t actorId,
+	bool isPlayer,
+	const XMFLOAT3& serverPos,
+	float dt)
+{
+	constexpr float kEnterServerYThreshold = 1.0f;
+	constexpr float kExitServerYThreshold = 0.25f;
+	constexpr float kServerYHoldSeconds = 0.5f;
+
+	XMFLOAT3 resolved = serverPos;
+	const float terrainY = SampleClientTerrainY(serverPos.x, serverPos.z, serverPos.y);
+	const float serverDelta = std::fabs(serverPos.y - terrainY);
+
+	auto& states = isPlayer ? m_networkPlayerYStates : m_networkEnemyYStates;
+	NetworkActorYState& yState = states[actorId];
+
+	if ( !yState.useServerY )
+	{
+		if ( serverDelta > kEnterServerYThreshold )
+		{
+			yState.useServerY = true;
+			yState.serverYHoldSec = kServerYHoldSeconds;
+		}
+	}
+	else
+	{
+		if ( yState.serverYHoldSec > 0.0f )
+			yState.serverYHoldSec = std::max(0.0f, yState.serverYHoldSec - dt);
+		else if ( serverDelta < kExitServerYThreshold )
+			yState.useServerY = false;
+	}
+
+	resolved.y = yState.useServerY ? serverPos.y : terrainY;
+	return resolved;
+}
+
+void CGameScene::ApplyNetworkPredictedTerrainY(CGameObject* obj)
+{
+	if ( !obj )
+		return;
+
+	const int slot = m_localPlayerSlot;
+	NetworkActorYState& yState = m_networkPlayerYStates[static_cast<uint64_t>(slot)];
+	if ( yState.useServerY )
+		return;
+
+	XMFLOAT3 pos = obj->GetPosition();
+	const float terrainY = SampleClientTerrainY(pos.x, pos.z, pos.y);
+	if ( std::fabs(pos.y - terrainY) <= 0.001f )
+		return;
+
+	pos.y = terrainY;
+	obj->SetPosition(pos);
+}
 #endif
 
 void CGameScene::AnimateObjects(float dt)
@@ -7781,6 +7854,8 @@ void CGameScene::AnimateObjects(float dt)
             if (!player) continue;
 
 			const bool isLocalPlayer = ( slot == m_localPlayerSlot );
+			const XMFLOAT3 resolvedPosition =
+				ResolveNetworkActorY(state.id, true, state.position, dt);
 
 			if (isLocalPlayer)
             {
@@ -7792,14 +7867,14 @@ void CGameScene::AnimateObjects(float dt)
 					kLocalPlayerServerSnapDistance * kLocalPlayerServerSnapDistance;
 
                 const XMFLOAT3 currentPos = player->GetPosition();
-                const float dx = state.position.x - currentPos.x;
-                const float dy = state.position.y - currentPos.y;
-                const float dz = state.position.z - currentPos.z;
+                const float dx = resolvedPosition.x - currentPos.x;
+                const float dy = resolvedPosition.y - currentPos.y;
+                const float dz = resolvedPosition.z - currentPos.z;
                 const float distSq = dx * dx + dy * dy + dz * dz;
 
                 if (distSq > kLocalPlayerServerSnapDistanceSq)
                 {
-                    player->SetPosition(state.position.x, state.position.y, state.position.z);
+                    player->SetPosition(resolvedPosition.x, resolvedPosition.y, resolvedPosition.z);
 
 					if ( auto* tr = player->GetComponent<CTransformComponent>() )
 						tr->SetYawDegrees(state.yaw);
@@ -7810,7 +7885,7 @@ void CGameScene::AnimateObjects(float dt)
             }
             else
             {
-                player->SetPosition(state.position.x, state.position.y, state.position.z);
+                player->SetPosition(resolvedPosition.x, resolvedPosition.y, resolvedPosition.z);
 
 				// yaw 회전 적용
 				if (auto* tr = player->GetComponent<CTransformComponent>())
@@ -7960,16 +8035,18 @@ void CGameScene::AnimateObjects(float dt)
 			}
 
 			// DR 상태 갱신: 최초엔 서버 위치로 초기화, 이후엔 소프트 교정
+			const XMFLOAT3 resolvedServerPosition =
+				ResolveNetworkActorY(state.id, false, state.position, dt);
 			EnemyDRState& dr = m_enemyDRStates[state.id];
 			if ( !dr.initialized )
 			{
-				dr.predictedPos = state.position;
+				dr.predictedPos = resolvedServerPosition;
 				dr.initialized  = true;
 			}
 			else
 			{
 				constexpr float kCorrectionAlpha = 0.35f;
-				dr.predictedPos = LerpPosition(dr.predictedPos, state.position, kCorrectionAlpha);
+				dr.predictedPos = LerpPosition(dr.predictedPos, resolvedServerPosition, kCorrectionAlpha);
 			}
 			dr.moveDir = moveDir;
 			dr.speed   = drSpeed;
