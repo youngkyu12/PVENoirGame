@@ -273,6 +273,9 @@ private:
     void LinkSceneObjects();
 
 	void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd);
+	void UpdateBossHpGaugeHud();
+	bool ShouldRenderBossHpGaugeHud(CGameObject* boss) const;
+	bool IsBossStageBossAppearFinishedForHud(CGameObject* boss) const;
 	void UpdateFrameRenderState(CCamera* camera);
 	void BindFrameRootParameters(ID3D12GraphicsCommandList* cmd);
 
@@ -1833,6 +1836,8 @@ private:
 
 		bool renderAllowed = false;
 		bool waitAppearBeforeRender = false;
+		bool appearPhaseSeen = false;
+		bool appearFinished = false;
 	};
 
 	std::unordered_map<CGameObject*, BossStageBossPositionState> m_bossStageBossPositionStates;

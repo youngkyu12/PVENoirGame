@@ -6088,6 +6088,8 @@ void CGameScene::RegisterBossStageBossOriginalPosition(
 
 	state.renderAllowed = false;
 	state.waitAppearBeforeRender = false;
+	state.appearPhaseSeen = false;
+	state.appearFinished = false;
 }
 
 void CGameScene::MoveBossStageBossToHiddenPosition(CGameObject* boss)
@@ -6231,37 +6233,48 @@ void CGameScene::UpdateBossStageBossRenderGate()
 		if ( !boss )
 			continue;
 
-		if ( state.renderAllowed )
-			continue;
-
-		if ( !state.waitAppearBeforeRender )
-			continue;
-
 		if ( !boss->GetActive() )
 			continue;
 
 		auto* renderer = boss->GetComponent<CSkinnedMeshRendererComponent>();
-
-		// 게이트가 열리기 전까지 renderer도 계속 꺼둔다.
-		if ( renderer )
-			renderer->SetEnabled(false);
-
 		auto* animComp = boss->GetComponent<CAnimatorComponent>();
+
 		if ( !animComp )
 			continue;
 
 		auto* ctrl = animComp->EnsureMonsterController();
+
 		if ( !ctrl )
 			continue;
 
-		if ( !ctrl->IsAppearPhase() )
+		const bool isAppearPhase = ctrl->IsAppearPhase();
+
+		if ( state.waitAppearBeforeRender && !state.renderAllowed )
+		{
+			if ( renderer )
+				renderer->SetEnabled(false);
+		}
+
+		if ( isAppearPhase )
+		{
+			state.appearPhaseSeen = true;
+
+			if ( state.waitAppearBeforeRender || !state.renderAllowed )
+			{
+				state.renderAllowed = true;
+				state.waitAppearBeforeRender = false;
+
+				if ( renderer )
+					renderer->SetEnabled(true);
+			}
+
 			continue;
+		}
 
-		state.renderAllowed = true;
-		state.waitAppearBeforeRender = false;
-
-		if ( renderer )
-			renderer->SetEnabled(true);
+		if ( state.appearPhaseSeen && !ctrl->IsBusy() && !ctrl->HasPendingCommand() )
+		{
+			state.appearFinished = true;
+		}
 	}
 #endif
 }
@@ -6302,6 +6315,8 @@ void CGameScene::SetBossStageBossActive(
 			{
 				it->second.renderAllowed = false;
 				it->second.waitAppearBeforeRender = false;
+				it->second.appearPhaseSeen = false;
+				it->second.appearFinished = false;
 			}
 		}
 
@@ -6401,6 +6416,8 @@ void CGameScene::SetBossStageBossActive(
 		{
 			it->second.renderAllowed = false;
 			it->second.waitAppearBeforeRender = true;
+			it->second.appearPhaseSeen = false;
+			it->second.appearFinished = false;
 		}
 
 		// Appear phase가 실제로 확인되기 전까지 renderer도 꺼둔다.
@@ -6414,6 +6431,14 @@ void CGameScene::SetBossStageBossActive(
 	else
 	{
 		SetBossStageBossRenderAllowed(boss, true);
+
+		auto it = m_bossStageBossPositionStates.find(boss);
+
+		if ( it != m_bossStageBossPositionStates.end() )
+		{
+			it->second.appearPhaseSeen = true;
+			it->second.appearFinished = true;
+		}
 
 		if ( renderer )
 			renderer->SetEnabled(true);
@@ -8332,6 +8357,74 @@ void CGameScene::CollisionObjects()
 #endif
 }
 
+bool CGameScene::IsBossStageBossAppearFinishedForHud(CGameObject* boss) const
+{
+	if ( !boss )
+		return false;
+
+	const auto it = m_bossStageBossPositionStates.find(boss);
+
+	if ( it == m_bossStageBossPositionStates.end() )
+		return false;
+
+	return it->second.appearFinished;
+}
+
+bool CGameScene::ShouldRenderBossHpGaugeHud(CGameObject* boss) const
+{
+	if ( !boss )
+		return false;
+
+	if ( !boss->GetActive() )
+		return false;
+
+	if ( !IsBossStageBossAppearFinishedForHud(boss) )
+		return false;
+
+	CGameObject* localPlayer = GetPlayer();
+
+	if ( !localPlayer )
+		localPlayer = GetPlayerBySlot(0);
+
+	if ( !IsPlayerInsideBossStageBattleArea(localPlayer) )
+		return false;
+
+	const CHealthComponent* health = boss->GetComponent<CHealthComponent>();
+
+	if ( !health )
+		return false;
+
+	if ( health->GetCurrentHp() <= 0 || health->GetMaxHp() <= 0 )
+		return false;
+
+	return true;
+}
+
+void CGameScene::UpdateBossHpGaugeHud()
+{
+#ifndef USING_NETWORK
+	UpdateBossStageBossRenderGate();
+#endif
+
+	CGameObject* boss = FindBossStageBossInMegaGrid(5);
+
+	if ( !ShouldRenderBossHpGaugeHud(boss) )
+	{
+		m_hud.SetBossHealthRatio(1.0f, false);
+		return;
+	}
+
+	const CHealthComponent* health = boss->GetComponent<CHealthComponent>();
+
+	if ( !health )
+	{
+		m_hud.SetBossHealthRatio(1.0f, false);
+		return;
+	}
+
+	m_hud.SetBossHealthRatio(health->GetHpRatio(), true);
+}
+
 void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
 {
 	PROFILE_RENDER_SCOPE("GameScene::UpdateShaderVariables");
@@ -8521,6 +8614,7 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
 
 		m_hud.SetHealthRatio(localHpRatio);
 		m_hud.SetOtherPlayerHealthRatios(m_localPlayerSlot, playerHpRatios, playerHpVisible, playerWorldHpGaugeVisible);
+		UpdateBossHpGaugeHud();
 	}
 
 	if ( m_staticBatch.mappedGameObjects[frameIndex] && !m_staticBatch.objectRefs.empty() )
