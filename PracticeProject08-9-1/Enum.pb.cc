@@ -18,7 +18,7 @@
 PROTOBUF_PRAGMA_INIT_SEG
 namespace Protocol {
 }  // namespace Protocol
-static const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* file_level_enum_descriptors_Enum_2eproto[12];
+static const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* file_level_enum_descriptors_Enum_2eproto[13];
 static constexpr ::PROTOBUF_NAMESPACE_ID::ServiceDescriptor const** file_level_service_descriptors_Enum_2eproto = nullptr;
 const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_Enum_2eproto::offsets[1] = {};
 static constexpr ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema* schemas = nullptr;
@@ -73,11 +73,16 @@ const char descriptor_table_protodef_Enum_2eproto[] PROTOBUF_SECTION_VARIABLE(pr
   "TAL\020\002\022#\n\037FORCED_TRANSFORM_REASON_RESPAWN"
   "\020\003*P\n\020DebugCommandType\022\026\n\022DEBUG_COMMAND_"
   "NONE\020\000\022$\n DEBUG_COMMAND_KILL_MEGA5_ENEMI"
-  "ES\020\001b\006proto3"
+  "ES\020\001*\331\001\n\rBossRoomState\022#\n\037BOSS_ROOM_STAT"
+  "E_PRE_BOSS_COMBAT\020\000\022\"\n\036BOSS_ROOM_STATE_S"
+  "UMMON_FADE_IN\020\001\022\"\n\036BOSS_ROOM_STATE_BOSS_"
+  "APPEARING\020\002\022\037\n\033BOSS_ROOM_STATE_BOSS_ACTI"
+  "VE\020\003\022\035\n\031BOSS_ROOM_STATE_BOSS_DEAD\020\004\022\033\n\027B"
+  "OSS_ROOM_STATE_CLEARED\020\005b\006proto3"
   ;
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_Enum_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_Enum_2eproto = {
-  false, false, 1932, descriptor_table_protodef_Enum_2eproto, "Enum.proto", 
+  false, false, 2152, descriptor_table_protodef_Enum_2eproto, "Enum.proto", 
   &descriptor_table_Enum_2eproto_once, nullptr, 0, 0,
   schemas, file_default_instances, TableStruct_Enum_2eproto::offsets,
   nullptr, file_level_enum_descriptors_Enum_2eproto, file_level_service_descriptors_Enum_2eproto,
@@ -294,6 +299,24 @@ bool DebugCommandType_IsValid(int value) {
   switch (value) {
     case 0:
     case 1:
+      return true;
+    default:
+      return false;
+  }
+}
+
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* BossRoomState_descriptor() {
+  ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_Enum_2eproto);
+  return file_level_enum_descriptors_Enum_2eproto[12];
+}
+bool BossRoomState_IsValid(int value) {
+  switch (value) {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+    case 5:
       return true;
     default:
       return false;

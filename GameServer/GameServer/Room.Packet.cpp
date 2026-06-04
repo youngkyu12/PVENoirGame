@@ -261,6 +261,8 @@ void Room::MakeFrameState(uint32 tick)
 		for (auto& projectile : m_enemyArrowPool)
 			AddVisibleBullet(projectile);
 
+		frameStatePkt.set_bossroomstate(static_cast<Protocol::BossRoomState>(static_cast<int>(m_bossRoomState)));
+
 		auto sendBuffer = ClientPacketHandler::MakeSendBuffer(frameStatePkt);
 		viewer->ownerSession->Send(sendBuffer);
 	}

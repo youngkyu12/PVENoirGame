@@ -829,6 +829,13 @@ void Room::OnMonsterDeath(uint64 enemyId)
 		m_bossRoomStateChangedMs = m_elapsedServerMs;
 		cout << "[BossRoom] All pre-boss monsters dead -> SummonFadeIn" << endl;
 	}
+
+	if (enemyId == m_bossEnemyId && m_bossRoomState == EBossRoomState::BossActive)
+	{
+		m_bossRoomState = EBossRoomState::BossDead;
+		m_bossRoomStateChangedMs = m_elapsedServerMs;
+		cout << "[BossRoom] BossDead" << endl;
+	}
 }
 
 void Room::DebugKillMega5Enemies()
