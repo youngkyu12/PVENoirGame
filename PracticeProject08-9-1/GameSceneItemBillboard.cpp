@@ -5,8 +5,27 @@
 #include "stdafx.h"
 #include "GameScenePrivate.h"
 #include "GameSceneBillboardCommon.h"
+#include "TerrainData.h"
 
 using namespace GameSceneBillboardCommon;
+
+XMFLOAT3 CGameScene::AdjustItemBillboardPositionToTerrain(const XMFLOAT3& position) const
+{
+	if ( !m_TerrainData )
+		return position;
+
+	const XMFLOAT3 terrainWorldPosition = m_TerrainData->GetWorldPosition();
+	const float localX = position.x - terrainWorldPosition.x;
+	const float localZ = position.z - terrainWorldPosition.z;
+
+	if ( localX < 0.0f || localZ < 0.0f || localX > m_TerrainData->GetWorldWidth() || localZ > m_TerrainData->GetWorldLength() )
+		return position;
+
+	XMFLOAT3 adjusted = position;
+	adjusted.y += terrainWorldPosition.y + m_TerrainData->GetHeight(localX, localZ);
+
+	return adjusted;
+}
 
 std::shared_ptr<CMesh> CGameScene::CreateItemBillboardQuadMesh(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
@@ -214,7 +233,9 @@ void CGameScene::AddPotionItemBillboardEntries()
 				potion.inventorySlot = static_cast< int >( slot );
 				potion.megaGridNumber = megaGridNumber;
 
-				potion.position = XMFLOAT3(static_cast< float >( CSceneGrid::kGridMinX + cellX ) + 0.5f, 0.0f, static_cast< float >( CSceneGrid::kGridMinZ + cellZ ) + 0.5f);
+				potion.position = AdjustItemBillboardPositionToTerrain(
+					XMFLOAT3(static_cast< float >( CSceneGrid::kGridMinX + cellX ) + 0.5f, 
+						0.0f, static_cast< float >( CSceneGrid::kGridMinZ + cellZ ) + 0.5f));
 
 				potion.width = 1.25f;
 				potion.height = 1.25f;
@@ -356,7 +377,7 @@ void CGameScene::BuildItemBillboardBatch(ID3D12Device* dev, ID3D12GraphicsComman
 		key.distanceCulled = false;
 		key.kind = EItemBillboardKind::Key;
 
-		key.position = keyPositions[i];
+		key.position = AdjustItemBillboardPositionToTerrain(keyPositions[i]);
 		key.megaGridNumber =
 			m_sceneGrid.MegaGridNumberFromWorldPosition(
 				key.position.x,

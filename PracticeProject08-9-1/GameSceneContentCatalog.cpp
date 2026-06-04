@@ -65,50 +65,23 @@ const GameSceneStageFileSet& GetLocalStageFileSet(ELocalStagePreset preset)
 	{
 		"MapData/MapData_tst.txt",
 		"MapData/Navmesh_tst.nvm",
-		"MapData/CubeBoxColliderReportWithCastle.txt",
+		"MapData/CubeBoxCollider.txt",
 		"MapData/monster_spawn_points_little.txt"
-	};
-
-	static const GameSceneStageFileSet kStage1 =
-	{
-		"MapData/MapData_stage1_with_Tree.txt",
-		"MapData/Navmesh_Stage1.nvm",
-		"MapData/CubeBoxColliderReport.txt",
-		"MapData/monster_spawn_points_little.txt"
-	};
-
-	static const GameSceneStageFileSet kFullStageNoBoss =
-	{
-		"MapData/MapData_fullstage.txt",
-		"MapData/Navmesh_FullStage.nvm",
-		"MapData/CubeBoxColliderReport.txt",
-		"MapData/monster_spawn_points.txt"
-	};
-
-	static const GameSceneStageFileSet kFullStageNoTree =
-	{
-		"MapData/MapData_fullstage(NoTree).txt",
-		"MapData/Navmesh_FullStage.nvm",
-		"MapData/CubeBoxColliderReport.txt",
-		"MapData/monster_spawn_points.txt"
 	};
 
 	static const GameSceneStageFileSet kFullStage =
 	{
-		"MapData/MapData_fullstage(withBoss)_TerrainOnly.txt",
-		"MapData/FullStageNavmeshAll.nvm",
-		"MapData/CubeBoxColliderReportWithCastle.txt",
+		"MapData/MapData_fullstage.txt",
+		"MapData/Navmesh_FullStage.nvm",
+		"MapData/CubeBoxCollider.txt",
 		"MapData/monster_spawn_points.txt"
 	};
 
 	switch ( preset )
 	{
-	case ELocalStagePreset::Test:           return kTest;
-	case ELocalStagePreset::Stage1:         return kStage1;
-	case ELocalStagePreset::FullStage:      return kFullStage;
-	case ELocalStagePreset::FullStageNoTree:return kFullStageNoTree;
-	case ELocalStagePreset::FullStageNoBoss:return kFullStageNoBoss;
-	default:                                return kTest;
+	case ELocalStagePreset::Test:      return kTest;
+	case ELocalStagePreset::FullStage: return kFullStage;
+	default:                           return kFullStage;
 	}
 }
 

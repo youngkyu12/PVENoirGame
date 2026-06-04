@@ -1,3 +1,6 @@
+//-----------------------------------------------------------------------------
+// File: TerrainData.cpp
+//-----------------------------------------------------------------------------
 #include "stdafx.h"
 #include "TerrainData.h"
 #include "HeightMapImage.h"
@@ -37,22 +40,30 @@ void TerrainData::SetScale(const XMFLOAT3& scale)
 	m_xmf3Scale = scale;
 }
 
-float TerrainData::GetHeight(float localX, float loaclZ, bool bReverseQuad) const
+void TerrainData::SetWorldPosition(const XMFLOAT3& position)
 {
-	if (!m_heightMapImage)
-		return 0.0f;
-
-	return m_heightMapImage->GetHeight(localX, loaclZ, bReverseQuad) * m_xmf3Scale.y;
+	m_xmf3WorldPosition = position;
 }
 
-XMFLOAT3 TerrainData::GetNormal(float localX, float loaclZ) const
+XMFLOAT3 TerrainData::GetWorldPosition() const
 {
-	if (!m_heightMapImage)
+	return m_xmf3WorldPosition;
+}
+
+float TerrainData::GetHeight(float localX, float localZ, bool bReverseQuad) const
+{
+	if ( !m_heightMapImage )
+		return 0.0f;
+
+	return m_heightMapImage->GetHeight(localX, localZ, bReverseQuad) * m_xmf3Scale.y;
+}
+
+XMFLOAT3 TerrainData::GetNormal(float localX, float localZ) const
+{
+	if ( !m_heightMapImage )
 		return XMFLOAT3(0.0f, 1.0f, 0.0f);
 
-	return m_heightMapImage->GetHeightMapNormal(
-		int(localX / m_xmf3Scale.x),
-		int(loaclZ / m_xmf3Scale.z));
+	return m_heightMapImage->GetHeightMapNormal(static_cast< int >( localX / m_xmf3Scale.x ), static_cast< int >( localZ / m_xmf3Scale.z ));
 }
 
 int TerrainData::GetHeightMapWidth() const
@@ -88,12 +99,12 @@ int TerrainData::GetLengthCount() const
 
 float TerrainData::GetWorldWidth() const
 {
-	return m_nWidth * m_xmf3Scale.x;
+	return ( m_nWidth > 1 ) ? float(m_nWidth - 1) * m_xmf3Scale.x : 0.0f;
 }
 
 float TerrainData::GetWorldLength() const
 {
-	return m_nLength * m_xmf3Scale.z;
+	return ( m_nLength > 1 ) ? float(m_nLength - 1) * m_xmf3Scale.z : 0.0f;
 }
 
 int TerrainData::GetnBlockWidth() const
