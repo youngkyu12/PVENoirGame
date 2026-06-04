@@ -48,6 +48,11 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	if (prevAnimState == Protocol::ANIMATION_TYPE_HIT)
 	{
 		player->SetVelocity(GameMath::Vec3::Zero());
+		if (deltaX != 0.0f)
+		{
+			float currentYaw = player->GetYaw();
+			player->SetYaw(GameMath::NormalizeYaw(currentYaw + deltaX));
+		}
 		player->ClearMoveKeyCodes();
 		return;
 	}
