@@ -19,6 +19,12 @@ void CGameSceneHUD::ReleaseResources()
 	m_exitSpriteIndex = -1;
 
 	m_hpFillSpriteIndex = -1;
+
+	m_otherPlayerHpEmptySpriteIndices.fill(-1);
+	m_otherPlayerHpFillSpriteIndices.fill(-1);
+	m_otherPlayerHpSlotByGauge.fill(-1);
+	for ( XMFLOAT4& rect : m_otherPlayerHpOriginalRects ) rect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+
 	m_inventorySpriteIndices.fill(-1);
 	m_inventoryIconSpriteIndices.fill(-1);
 	m_inventoryCooldownSpriteIndices.fill(-1);
@@ -41,6 +47,12 @@ void CGameSceneHUD::BuildResources(
 	m_pauseSpriteIndex = -1;
 	m_resumeSpriteIndex = -1;
 	m_exitSpriteIndex = -1;
+
+	m_otherPlayerHpEmptySpriteIndices.fill(-1);
+	m_otherPlayerHpFillSpriteIndices.fill(-1);
+	m_otherPlayerHpSlotByGauge.fill(-1);
+	for ( XMFLOAT4& rect : m_otherPlayerHpOriginalRects ) rect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+
 	m_inventorySpriteIndices.fill(-1);
 	m_inventoryIconSpriteIndices.fill(-1);
 	m_inventoryCooldownSpriteIndices.fill(-1);
@@ -95,6 +107,36 @@ void CGameSceneHUD::BuildResources(
 	// --------------------------------------------------------------------
 	const float screenW = static_cast< float >( FRAME_BUFFER_WIDTH );
 	const float screenH = static_cast< float >( FRAME_BUFFER_HEIGHT );
+
+	// --------------------------------------------------------------------
+	// Other player HP gauges
+	// - rect = (centerX, centerY, width, height)
+	// - 로컬 플레이어 HP 게이지 바로 아래에 로컬 플레이어를 제외한 3명의 HP를 표시한다.
+	// - EmptyHP를 먼저 추가하고, HP를 그 뒤에 추가해서 같은 레이어 안에서 EmptyHP -> HP 순서로 렌더되게 한다.
+	// --------------------------------------------------------------------
+	const float otherHpGaugeWidth = 115.0f;
+	const float otherHpGaugeHeight = 10.0f;
+	const float otherHpGaugeVerticalGap = 16.0f;
+	const float otherHpGaugeTopMargin = 10.0f;
+	const float otherHpGaugeCenterX = hpBarCenterX - hpBarWidth * 0.5f + otherHpGaugeWidth * 0.5f;
+	const float otherHpGaugeStartCenterY = hpFrameCenterY + hpFrameHeight * 0.5f + otherHpGaugeTopMargin + otherHpGaugeHeight * 0.5f;
+
+	for ( int i = 0; i < kOtherPlayerHpGaugeCount; ++i )
+	{
+		const float centerY = otherHpGaugeStartCenterY + otherHpGaugeVerticalGap * static_cast< float >(i);
+		const XMFLOAT4 gaugeRect(otherHpGaugeCenterX, centerY, otherHpGaugeWidth, otherHpGaugeHeight);
+
+		m_otherPlayerHpOriginalRects[i] = gaugeRect;
+
+		char emptySpriteName[64] = {};
+		sprintf_s(emptySpriteName, "OtherPlayerEmptyHP_%d", i);
+
+		char fillSpriteName[64] = {};
+		sprintf_s(fillSpriteName, "OtherPlayerHP_%d", i);
+
+		m_otherPlayerHpEmptySpriteIndices[i] = m_ui.AddSprite(dev, cmd, emptySpriteName, L"Assets/UI/EmptyHP.dds", gaugeRect, CSceneUI::ELayer::Content, true);
+		m_otherPlayerHpFillSpriteIndices[i] = m_ui.AddSprite(dev, cmd, fillSpriteName, L"Assets/UI/HP.dds", gaugeRect, CSceneUI::ELayer::Content, true);
+	}
 
 	// --------------------------------------------------------------------
 	// Inventory layer
@@ -229,6 +271,68 @@ void CGameSceneHUD::SetHealthRatio(float ratio)
 		m_hpFillSpriteIndex,
 		XMFLOAT4(newCenterX, originalCenterY, newWidth, originalHeight)
 	);
+}
+
+void CGameSceneHUD::SetOtherPlayerHealthRatios(int localPlayerSlot, const std::array<float, 4>& playerHpRatios, const std::array<bool, 4>& playerHpVisible)
+{
+	int gaugeIndex = 0;
+
+	for ( int slot = 0; slot < 4; ++slot )
+	{
+		if ( slot == localPlayerSlot )
+			continue;
+
+		if ( gaugeIndex >= kOtherPlayerHpGaugeCount )
+			break;
+
+		const int emptySpriteIndex = m_otherPlayerHpEmptySpriteIndices[gaugeIndex];
+		const int fillSpriteIndex = m_otherPlayerHpFillSpriteIndices[gaugeIndex];
+
+		m_otherPlayerHpSlotByGauge[gaugeIndex] = slot;
+
+		const bool visible = playerHpVisible[slot];
+
+		if ( emptySpriteIndex >= 0 )
+			m_ui.SetSpriteVisible(emptySpriteIndex, visible);
+
+		if ( fillSpriteIndex >= 0 )
+			m_ui.SetSpriteVisible(fillSpriteIndex, visible);
+
+		if ( visible && fillSpriteIndex >= 0 )
+		{
+			const float ratio = std::clamp(playerHpRatios[slot], 0.0f, 1.0f);
+			const XMFLOAT4 originalRect = m_otherPlayerHpOriginalRects[gaugeIndex];
+
+			if ( ratio <= 0.001f || originalRect.z <= 0.0f || originalRect.w <= 0.0f )
+			{
+				m_ui.SetSpriteVisible(fillSpriteIndex, false);
+			}
+			else
+			{
+				const float newWidth = originalRect.z * ratio;
+
+				// 왼쪽 고정, 오른쪽만 줄어드는 방식.
+				const float leftX = originalRect.x - originalRect.z * 0.5f;
+				const float newCenterX = leftX + newWidth * 0.5f;
+
+				m_ui.SetSpriteRect(fillSpriteIndex, XMFLOAT4(newCenterX, originalRect.y, newWidth, originalRect.w));
+				m_ui.SetSpriteVisible(fillSpriteIndex, true);
+			}
+		}
+
+		++gaugeIndex;
+	}
+
+	for ( ; gaugeIndex < kOtherPlayerHpGaugeCount; ++gaugeIndex )
+	{
+		m_otherPlayerHpSlotByGauge[gaugeIndex] = -1;
+
+		if ( m_otherPlayerHpEmptySpriteIndices[gaugeIndex] >= 0 )
+			m_ui.SetSpriteVisible(m_otherPlayerHpEmptySpriteIndices[gaugeIndex], false);
+
+		if ( m_otherPlayerHpFillSpriteIndices[gaugeIndex] >= 0 )
+			m_ui.SetSpriteVisible(m_otherPlayerHpFillSpriteIndices[gaugeIndex], false);
+	}
 }
 
 void CGameSceneHUD::SetInventoryItemCounts(const std::array<int, kInventorySlotCount>& counts)
