@@ -2194,7 +2194,7 @@ int CGameScene::SpawnBossCallMonsters(int callIndex)
 
 	if ( spawnedTotal > 0 )
 	{
-		XMFLOAT3 sfxPos = XMFLOAT3(400.0f, 0.0f, 400.0f);
+		XMFLOAT3 sfxPos = AlignPositionYToTerrainGround(XMFLOAT3(400.0f, 0.0f, 400.0f), 0.0f);
 		PlayBossCallMonsterSpawnSfxAt(sfxPos);
 	}
 
@@ -4353,6 +4353,28 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 	}
 }
 
+float CGameScene::GetTerrainGroundYOrFallback(float worldX, float worldZ, float fallbackY) const
+{
+	if ( !m_TerrainData )
+		return fallbackY;
+
+	const XMFLOAT3 terrainWorldPosition = m_TerrainData->GetWorldPosition();
+	const float localX = worldX - terrainWorldPosition.x;
+	const float localZ = worldZ - terrainWorldPosition.z;
+
+	if ( localX < 0.0f || localZ < 0.0f || localX > m_TerrainData->GetWorldWidth() || localZ > m_TerrainData->GetWorldLength() )
+		return fallbackY;
+
+	return terrainWorldPosition.y + m_TerrainData->GetHeight(localX, localZ);
+}
+
+XMFLOAT3 CGameScene::AlignPositionYToTerrainGround(const XMFLOAT3& position, float yOffset) const
+{
+	XMFLOAT3 adjusted = position;
+	adjusted.y = GetTerrainGroundYOrFallback(position.x, position.z, position.y) + yOffset;
+	return adjusted;
+}
+
 void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	if ( !cmd ) return;
@@ -6072,17 +6094,14 @@ void CGameScene::SetBossStageBossAIEnabled(CGameObject* boss, bool enabled)
 	Configure(boss->GetComponent<CMonsterAIComponent>());
 }
 
-void CGameScene::RegisterBossStageBossOriginalPosition(
-	CGameObject* boss,
-	const XMFLOAT3& originalPosition)
+void CGameScene::RegisterBossStageBossOriginalPosition(CGameObject* boss, const XMFLOAT3& originalPosition)
 {
 	if ( !boss )
 		return;
 
-	BossStageBossPositionState& state =
-		m_bossStageBossPositionStates[boss];
+	BossStageBossPositionState& state = m_bossStageBossPositionStates[boss];
 
-	state.originalPosition = originalPosition;
+	state.originalPosition = AlignPositionYToTerrainGround(originalPosition, 0.0f);
 	state.restoreFramesRemaining = 0;
 	state.pendingRestore = false;
 
@@ -6101,7 +6120,6 @@ void CGameScene::MoveBossStageBossToHiddenPosition(CGameObject* boss)
 
 	if ( it == m_bossStageBossPositionStates.end() )
 	{
-		// fallback: 현재 위치를 원래 위치로 간주한다.
 		RegisterBossStageBossOriginalPosition(boss, boss->GetPosition());
 		it = m_bossStageBossPositionStates.find(boss);
 	}
@@ -6109,10 +6127,17 @@ void CGameScene::MoveBossStageBossToHiddenPosition(CGameObject* boss)
 	if ( it == m_bossStageBossPositionStates.end() )
 		return;
 
-	XMFLOAT3 hiddenPosition = it->second.originalPosition;
-	hiddenPosition.y += kBossStageBossHiddenYOffset;
-
-	boss->SetPosition(hiddenPosition);
+	if ( auto* terrainAttach = boss->GetComponent<CTerrainAttachComponent>() )
+	{
+		terrainAttach->SetHeightOffset(kBossStageBossHiddenYOffset);
+		terrainAttach->SnapToTerrain();
+	}
+	else
+	{
+		XMFLOAT3 hiddenPosition = it->second.originalPosition;
+		hiddenPosition.y += kBossStageBossHiddenYOffset;
+		boss->SetPosition(hiddenPosition);
+	}
 
 	if ( auto* collider = boss->GetComponent<CColliderComponent>() )
 	{
@@ -6165,7 +6190,15 @@ void CGameScene::UpdateBossStageBossPositionRestores()
 		if ( state.restoreFramesRemaining > 0 )
 			continue;
 
-		boss->SetPosition(state.originalPosition);
+		if ( auto* terrainAttach = boss->GetComponent<CTerrainAttachComponent>() )
+		{
+			terrainAttach->SetHeightOffset(0.0f);
+			terrainAttach->SnapToTerrain();
+		}
+		else
+		{
+			boss->SetPosition(state.originalPosition);
+		}
 
 		if ( auto* collider = boss->GetComponent<CColliderComponent>() )
 		{
@@ -6173,8 +6206,6 @@ void CGameScene::UpdateBossStageBossPositionRestores()
 			collider->UpdateWorldBounds();
 		}
 
-		// 위치가 원래 자리로 돌아온 뒤부터 AI를 켠다.
-		// 지하에 있는 1프레임 동안 추적/이동이 끼어드는 것을 막는다.
 		SetBossStageBossAIEnabled(boss, true);
 
 		state.pendingRestore = false;
@@ -6511,7 +6542,7 @@ bool CGameScene::TryBeginBossStageSummonSequence()
 	else
 		summonCenter = boss->GetPosition();
 
-	summonCenter.y = 0.0f;
+	summonCenter = AlignPositionYToTerrainGround(summonCenter, 0.0f);
 
 	m_pendingBossStageBoss = boss;
 	m_bBossSummonSequenceStarted = true;
@@ -6553,7 +6584,7 @@ bool CGameScene::TryActivateBossStageBoss()
 	else
 		shockwaveCenter = boss->GetPosition();
 
-	shockwaveCenter.y = 0.0f;
+	shockwaveCenter = AlignPositionYToTerrainGround(shockwaveCenter, 0.0f);
 
 	SetBossStageBossActive(boss, true, true);
 
@@ -6615,18 +6646,14 @@ void CGameScene::UpdateBossStageSummonSequence(float dt)
 	if ( m_pendingBossStageBoss )
 	{
 		XMFLOAT3 center = m_pendingBossStageBoss->GetPosition();
-		center.y = 0.05f;
 
-		EmitMagicCircleGlowParticles(
-			center,
-			110.0f,
-			alpha,
-			dt,
-			m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec,
-			kBossSummonGlowParticleEmitIntervalSec,
-			kBossSummonGlowParticlesPerEmit,
-			kBossSummonGlowParticleIntensityScale
-		);
+		const auto it = m_bossStageBossPositionStates.find(m_pendingBossStageBoss);
+		if ( it != m_bossStageBossPositionStates.end() )
+			center = it->second.originalPosition;
+
+		center = AlignPositionYToTerrainGround(center, 0.05f);
+
+		EmitMagicCircleGlowParticles(center, 110.0f, alpha, dt, m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec, kBossSummonGlowParticleEmitIntervalSec, kBossSummonGlowParticlesPerEmit, kBossSummonGlowParticleIntensityScale);
 	}
 
 	if ( alpha < 1.0f )
@@ -6690,18 +6717,9 @@ void CGameScene::UpdateBossSummonVisualFadeOut(float dt)
 				center = it->second.originalPosition;
 		}
 
-		center.y = 0.05f;
+		center = AlignPositionYToTerrainGround(center, 0.05f);
 
-		EmitMagicCircleGlowParticles(
-			center,
-			110.0f,
-			alpha,
-			dt,
-			m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec,
-			kBossSummonGlowParticleEmitIntervalSec,
-			kBossSummonGlowParticlesPerEmit,
-			kBossSummonGlowParticleIntensityScale
-		);
+		EmitMagicCircleGlowParticles(center, 110.0f, alpha, dt, m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec, kBossSummonGlowParticleEmitIntervalSec, kBossSummonGlowParticlesPerEmit, kBossSummonGlowParticleIntensityScale);
 	}
 
 	if ( t < 1.0f )
