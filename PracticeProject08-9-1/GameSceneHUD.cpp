@@ -116,8 +116,8 @@ void CGameSceneHUD::BuildResources(
 	// --------------------------------------------------------------------
 	const float otherHpGaugeWidth = 115.0f;
 	const float otherHpGaugeHeight = 10.0f;
-	const float otherHpGaugeVerticalGap = 16.0f;
-	const float otherHpGaugeTopMargin = 10.0f;
+	const float otherHpGaugeVerticalGap = 24.0f;
+	const float otherHpGaugeTopMargin = 18.0f;
 	const float otherHpGaugeCenterX = hpBarCenterX - hpBarWidth * 0.5f + otherHpGaugeWidth * 0.5f;
 	const float otherHpGaugeStartCenterY = hpFrameCenterY + hpFrameHeight * 0.5f + otherHpGaugeTopMargin + otherHpGaugeHeight * 0.5f;
 
@@ -273,13 +273,16 @@ void CGameSceneHUD::SetHealthRatio(float ratio)
 	);
 }
 
-void CGameSceneHUD::SetOtherPlayerHealthRatios(int localPlayerSlot, const std::array<float, 4>& playerHpRatios, const std::array<bool, 4>& playerHpVisible)
+void CGameSceneHUD::SetOtherPlayerHealthRatios(int localPlayerSlot, const std::array<float, 4>& playerHpRatios, const std::array<bool, 4>& playerHpVisible, const std::array<bool, 4>& playerWorldHpGaugeVisible)
 {
 	int gaugeIndex = 0;
 
 	for ( int slot = 0; slot < 4; ++slot )
 	{
 		if ( slot == localPlayerSlot )
+			continue;
+
+		if ( playerWorldHpGaugeVisible[slot] )
 			continue;
 
 		if ( gaugeIndex >= kOtherPlayerHpGaugeCount )
@@ -310,8 +313,6 @@ void CGameSceneHUD::SetOtherPlayerHealthRatios(int localPlayerSlot, const std::a
 			else
 			{
 				const float newWidth = originalRect.z * ratio;
-
-				// 왼쪽 고정, 오른쪽만 줄어드는 방식.
 				const float leftX = originalRect.x - originalRect.z * 0.5f;
 				const float newCenterX = leftX + newWidth * 0.5f;
 

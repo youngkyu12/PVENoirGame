@@ -23,7 +23,7 @@ public:
 	void Render(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	
 	void SetHealthRatio(float ratio);
-	void SetOtherPlayerHealthRatios(int localPlayerSlot, const std::array<float, 4>& playerHpRatios, const std::array<bool, 4>& playerHpVisible);
+	void SetOtherPlayerHealthRatios(int localPlayerSlot, const std::array<float, 4>& playerHpRatios, const std::array<bool, 4>& playerHpVisible, const std::array<bool, 4>& playerWorldHpGaugeVisible); 
 	void SetInventoryItemCounts(const std::array<int, kInventorySlotCount>& counts);
 	void SetInventoryCooldownRatio(int slot, float ratio);
 
