@@ -323,6 +323,8 @@ private:
 	void RenderTransparentItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 	void BuildMonsterHpGaugeBatch(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, UINT rtCount, DXGI_FORMAT* rtvFormats, DXGI_FORMAT dsvFormat);
+	void UpdateMonsterHpGaugeTimers(float dt);
+	void ResetMonsterHpGaugeVisibilityState();
 	void RenderMonsterHpGauges(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	bool IsSkinnedMonsterHpGaugeRenderAllowed(const SkinnedWorldLodEntry& entry) const;
 	bool GetMonsterHpGaugeDesc(const SkinnedWorldLodEntry& entry, float& outYOffset, float& outMaxWidth, float& outHeight) const;
@@ -982,6 +984,16 @@ private:
 
 	ItemBillboardState m_itemBillboardState;
 	MonsterHpGaugeState m_monsterHpGaugeState;
+
+	struct MonsterHpGaugeRuntimeState
+	{
+		int previousHp = -1;
+		float visibleTimerSec = 0.0f;
+	};
+
+	static constexpr float kMonsterHpGaugeVisibleDurationSec = 5.0f;
+
+	std::unordered_map<CGameObject*, MonsterHpGaugeRuntimeState> m_monsterHpGaugeRuntimeStates;
 
 	static constexpr UINT kMuzzleFlashMaxCount = 4096;
 
