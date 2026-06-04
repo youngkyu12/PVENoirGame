@@ -22,8 +22,10 @@ void CGameSceneHUD::ReleaseResources()
 
 	m_otherPlayerHpEmptySpriteIndices.fill(-1);
 	m_otherPlayerHpFillSpriteIndices.fill(-1);
+	for ( auto& nameSpriteIndices : m_otherPlayerHpNameSpriteIndices ) nameSpriteIndices.fill(-1);
 	m_otherPlayerHpSlotByGauge.fill(-1);
 	for ( XMFLOAT4& rect : m_otherPlayerHpOriginalRects ) rect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	for ( XMFLOAT4& rect : m_otherPlayerHpNameOriginalRects ) rect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 
 	m_inventorySpriteIndices.fill(-1);
 	m_inventoryIconSpriteIndices.fill(-1);
@@ -50,8 +52,10 @@ void CGameSceneHUD::BuildResources(
 
 	m_otherPlayerHpEmptySpriteIndices.fill(-1);
 	m_otherPlayerHpFillSpriteIndices.fill(-1);
+	for ( auto& nameSpriteIndices : m_otherPlayerHpNameSpriteIndices ) nameSpriteIndices.fill(-1);
 	m_otherPlayerHpSlotByGauge.fill(-1);
 	for ( XMFLOAT4& rect : m_otherPlayerHpOriginalRects ) rect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	for ( XMFLOAT4& rect : m_otherPlayerHpNameOriginalRects ) rect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 
 	m_inventorySpriteIndices.fill(-1);
 	m_inventoryIconSpriteIndices.fill(-1);
@@ -111,22 +115,34 @@ void CGameSceneHUD::BuildResources(
 	// --------------------------------------------------------------------
 	// Other player HP gauges
 	// - rect = (centerX, centerY, width, height)
-	// - 로컬 플레이어 HP 게이지 바로 아래에 로컬 플레이어를 제외한 3명의 HP를 표시한다.
-	// - EmptyHP를 먼저 추가하고, HP를 그 뒤에 추가해서 같은 레이어 안에서 EmptyHP -> HP 순서로 렌더되게 한다.
+	// - 로컬 플레이어 HP 게이지 아래에 로컬 플레이어를 제외한 3명의 이름 + HP를 표시한다.
+	// - 이름은 게이지 좌측 끝에 맞춰 게이지 위에 표시한다.
+	// - EmptyHP -> HP -> Name 순서로 추가한다.
 	// --------------------------------------------------------------------
 	const float otherHpGaugeWidth = 115.0f;
 	const float otherHpGaugeHeight = 10.0f;
-	const float otherHpGaugeVerticalGap = 24.0f;
-	const float otherHpGaugeTopMargin = 18.0f;
-	const float otherHpGaugeCenterX = hpBarCenterX - hpBarWidth * 0.5f + otherHpGaugeWidth * 0.5f;
-	const float otherHpGaugeStartCenterY = hpFrameCenterY + hpFrameHeight * 0.5f + otherHpGaugeTopMargin + otherHpGaugeHeight * 0.5f;
+	const float otherHpNameWidth = 68.0f;
+	const float otherHpNameHeight = 30.0f;
+	const float otherHpNameToGaugeGap = -2.0f;
+	const float otherHpGaugeVerticalGap = 38.0f;
+	const float otherHpGroupTopMargin = 6.0f;
+	const float otherHpLeftX = hpBarCenterX - hpBarWidth * 0.5f;
+	const float otherHpGaugeCenterX = otherHpLeftX + otherHpGaugeWidth * 0.5f;
+	const float otherHpNameCenterX = otherHpLeftX + otherHpNameWidth * 0.5f;
+	const float otherHpFirstNameCenterY = hpFrameCenterY + hpFrameHeight * 0.5f + otherHpGroupTopMargin + otherHpNameHeight * 0.5f;
+	const float otherHpGaugeStartCenterY = otherHpFirstNameCenterY + otherHpNameHeight * 0.5f + otherHpNameToGaugeGap + otherHpGaugeHeight * 0.5f;
+
+	const wchar_t* otherHpNameTexturePaths[4] = { L"Assets/UI/Player0txt.dds", L"Assets/UI/Player1txt.dds", L"Assets/UI/Player2txt.dds", L"Assets/UI/Player3txt.dds" };
 
 	for ( int i = 0; i < kOtherPlayerHpGaugeCount; ++i )
 	{
-		const float centerY = otherHpGaugeStartCenterY + otherHpGaugeVerticalGap * static_cast< float >(i);
-		const XMFLOAT4 gaugeRect(otherHpGaugeCenterX, centerY, otherHpGaugeWidth, otherHpGaugeHeight);
+		const float gaugeCenterY = otherHpGaugeStartCenterY + otherHpGaugeVerticalGap * static_cast< float >(i);
+		const float nameCenterY = otherHpFirstNameCenterY + otherHpGaugeVerticalGap * static_cast< float >(i);
+		const XMFLOAT4 gaugeRect(otherHpGaugeCenterX, gaugeCenterY, otherHpGaugeWidth, otherHpGaugeHeight);
+		const XMFLOAT4 nameRect(otherHpNameCenterX, nameCenterY, otherHpNameWidth, otherHpNameHeight);
 
 		m_otherPlayerHpOriginalRects[i] = gaugeRect;
+		m_otherPlayerHpNameOriginalRects[i] = nameRect;
 
 		char emptySpriteName[64] = {};
 		sprintf_s(emptySpriteName, "OtherPlayerEmptyHP_%d", i);
@@ -136,6 +152,13 @@ void CGameSceneHUD::BuildResources(
 
 		m_otherPlayerHpEmptySpriteIndices[i] = m_ui.AddSprite(dev, cmd, emptySpriteName, L"Assets/UI/EmptyHP.dds", gaugeRect, CSceneUI::ELayer::Content, true);
 		m_otherPlayerHpFillSpriteIndices[i] = m_ui.AddSprite(dev, cmd, fillSpriteName, L"Assets/UI/HP.dds", gaugeRect, CSceneUI::ELayer::Content, true);
+
+		for ( int slot = 0; slot < 4; ++slot )
+		{
+			char nameSpriteName[64] = {};
+			sprintf_s(nameSpriteName, "OtherPlayerName_%d_%d", i, slot);
+			m_otherPlayerHpNameSpriteIndices[i][slot] = m_ui.AddSprite(dev, cmd, nameSpriteName, otherHpNameTexturePaths[slot], nameRect, CSceneUI::ELayer::Content, false);
+		}
 	}
 
 	// --------------------------------------------------------------------
@@ -291,6 +314,13 @@ void CGameSceneHUD::SetOtherPlayerHealthRatios(int localPlayerSlot, const std::a
 		const int emptySpriteIndex = m_otherPlayerHpEmptySpriteIndices[gaugeIndex];
 		const int fillSpriteIndex = m_otherPlayerHpFillSpriteIndices[gaugeIndex];
 
+		for ( int nameSlot = 0; nameSlot < 4; ++nameSlot )
+		{
+			const int nameSpriteIndex = m_otherPlayerHpNameSpriteIndices[gaugeIndex][nameSlot];
+			if ( nameSpriteIndex >= 0 )
+				m_ui.SetSpriteVisible(nameSpriteIndex, false);
+		}
+
 		m_otherPlayerHpSlotByGauge[gaugeIndex] = slot;
 
 		const bool visible = playerHpVisible[slot];
@@ -300,6 +330,16 @@ void CGameSceneHUD::SetOtherPlayerHealthRatios(int localPlayerSlot, const std::a
 
 		if ( fillSpriteIndex >= 0 )
 			m_ui.SetSpriteVisible(fillSpriteIndex, visible);
+
+		if ( slot >= 0 && slot < 4 )
+		{
+			const int nameSpriteIndex = m_otherPlayerHpNameSpriteIndices[gaugeIndex][slot];
+			if ( nameSpriteIndex >= 0 )
+			{
+				m_ui.SetSpriteRect(nameSpriteIndex, m_otherPlayerHpNameOriginalRects[gaugeIndex]);
+				m_ui.SetSpriteVisible(nameSpriteIndex, visible);
+			}
+		}
 
 		if ( visible && fillSpriteIndex >= 0 )
 		{
@@ -333,6 +373,13 @@ void CGameSceneHUD::SetOtherPlayerHealthRatios(int localPlayerSlot, const std::a
 
 		if ( m_otherPlayerHpFillSpriteIndices[gaugeIndex] >= 0 )
 			m_ui.SetSpriteVisible(m_otherPlayerHpFillSpriteIndices[gaugeIndex], false);
+
+		for ( int nameSlot = 0; nameSlot < 4; ++nameSlot )
+		{
+			const int nameSpriteIndex = m_otherPlayerHpNameSpriteIndices[gaugeIndex][nameSlot];
+			if ( nameSpriteIndex >= 0 )
+				m_ui.SetSpriteVisible(nameSpriteIndex, false);
+		}
 	}
 }
 

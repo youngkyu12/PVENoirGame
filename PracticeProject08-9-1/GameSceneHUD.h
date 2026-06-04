@@ -51,7 +51,9 @@ private:
 
 	std::array<int, kOtherPlayerHpGaugeCount> m_otherPlayerHpEmptySpriteIndices = { -1, -1, -1 };
 	std::array<int, kOtherPlayerHpGaugeCount> m_otherPlayerHpFillSpriteIndices = { -1, -1, -1 };
+	std::array<std::array<int, 4>, kOtherPlayerHpGaugeCount> m_otherPlayerHpNameSpriteIndices = { { { -1, -1, -1, -1 }, { -1, -1, -1, -1 }, { -1, -1, -1, -1 } } };
 	std::array<XMFLOAT4, kOtherPlayerHpGaugeCount> m_otherPlayerHpOriginalRects = {};
+	std::array<XMFLOAT4, kOtherPlayerHpGaugeCount> m_otherPlayerHpNameOriginalRects = {};
 	std::array<int, kOtherPlayerHpGaugeCount> m_otherPlayerHpSlotByGauge = { -1, -1, -1 };
 
 	std::array<int, kInventorySlotCount> m_inventorySpriteIndices = { -1, -1, -1, -1 };
