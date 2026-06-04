@@ -312,6 +312,7 @@ private:
 	);
 
 	void AddPotionItemBillboardEntries();
+	XMFLOAT3 AdjustItemBillboardPositionToTerrain(const XMFLOAT3& position) const;
 
 	void ReleaseItemBillboardGpuResources();
 	void ReleaseAllGameSceneEffectGpuResources();
