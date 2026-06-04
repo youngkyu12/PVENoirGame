@@ -3160,6 +3160,7 @@ void CGameScene::ReleaseObjects()
 	m_bowManRefs.clear();
 	m_MutantRefs.clear();
 	m_bossRefs.clear();
+	m_monsterHpGaugeRuntimeStates.clear();
 	m_bossStageBossPositionStates.clear();
 
 	m_bBossStageBossActivated = false;
@@ -8208,6 +8209,7 @@ void CGameScene::AnimateObjects(float dt)
 
 	UpdatePlayerFootstepSfx();
 	UpdateMonsterSfx(dt);
+	UpdateMonsterHpGaugeTimers(dt);
 
 	for ( CGameObject* obj : m_staticGameplayTickObjects )
 	{

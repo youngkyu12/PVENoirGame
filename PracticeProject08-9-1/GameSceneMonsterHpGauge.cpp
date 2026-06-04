@@ -67,8 +67,9 @@ void CGameScene::BuildMonsterHpGaugeBatch(ID3D12Device* dev, ID3D12GraphicsComma
 		return;
 
 	ReleaseMonsterHpGaugeGpuResources();
+	ResetMonsterHpGaugeVisibilityState();
 
-	m_monsterHpGaugeState.shader = std::make_shared<CItemBillboardShader>();
+	m_monsterHpGaugeState.shader = std::make_shared<CItemBillboardShader>(); 
 	m_monsterHpGaugeState.shader->CreateShader(dev, m_pd3dGraphicsRootSignature.Get(), rtCount, rtvFormats, dsvFormat);
 
 	m_monsterHpGaugeState.hpTexture = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
@@ -92,6 +93,79 @@ void CGameScene::ReleaseMonsterHpGaugeGpuResources()
 	m_monsterHpGaugeState.hpTexture.reset();
 	m_monsterHpGaugeState.shader.reset();
 	m_monsterHpGaugeState.quadMesh.reset();
+}
+
+void CGameScene::ResetMonsterHpGaugeVisibilityState()
+{
+	m_monsterHpGaugeRuntimeStates.clear();
+}
+
+void CGameScene::UpdateMonsterHpGaugeTimers(float dt)
+{
+	if ( dt < 0.0f )
+		dt = 0.0f;
+
+	std::unordered_set<CGameObject*> validMonsterObjects;
+
+	for ( const SkinnedWorldLodEntry& entry : m_skinnedWorldLodEntries )
+	{
+		CGameObject* monster = entry.object;
+
+		if ( !monster )
+			continue;
+
+		float yOffset = 0.0f;
+		float maxWidth = 0.0f;
+		float height = 0.0f;
+
+		if ( !GetMonsterHpGaugeDesc(entry, yOffset, maxWidth, height) )
+			continue;
+
+		validMonsterObjects.insert(monster);
+
+		const CHealthComponent* health = monster->GetComponent<CHealthComponent>();
+
+		if ( !health )
+			continue;
+
+		const int currentHp = health->GetCurrentHp();
+
+		MonsterHpGaugeRuntimeState& state = m_monsterHpGaugeRuntimeStates[monster];
+
+		if ( state.previousHp < 0 )
+		{
+			state.previousHp = currentHp;
+			state.visibleTimerSec = 0.0f;
+			continue;
+		}
+
+		if ( currentHp < state.previousHp && currentHp > 0 )
+		{
+			state.visibleTimerSec = kMonsterHpGaugeVisibleDurationSec;
+		}
+		else if ( currentHp > state.previousHp )
+		{
+			state.visibleTimerSec = 0.0f;
+		}
+
+		state.previousHp = currentHp;
+
+		if ( state.visibleTimerSec > 0.0f )
+		{
+			state.visibleTimerSec -= dt;
+
+			if ( state.visibleTimerSec < 0.0f )
+				state.visibleTimerSec = 0.0f;
+		}
+	}
+
+	for ( auto it = m_monsterHpGaugeRuntimeStates.begin(); it != m_monsterHpGaugeRuntimeStates.end(); )
+	{
+		if ( validMonsterObjects.find(it->first) == validMonsterObjects.end() )
+			it = m_monsterHpGaugeRuntimeStates.erase(it);
+		else
+			++it;
+	}
 }
 
 bool CGameScene::GetMonsterHpGaugeDesc(const SkinnedWorldLodEntry& entry, float& outYOffset, float& outMaxWidth, float& outHeight) const
@@ -136,6 +210,14 @@ bool CGameScene::IsSkinnedMonsterHpGaugeRenderAllowed(const SkinnedWorldLodEntry
 	if ( !GetMonsterHpGaugeDesc(entry, yOffset, maxWidth, height) )
 		return false;
 
+	const auto timerIt = m_monsterHpGaugeRuntimeStates.find(entry.object);
+
+	if ( timerIt == m_monsterHpGaugeRuntimeStates.end() )
+		return false;
+
+	if ( timerIt->second.visibleTimerSec <= 0.0f )
+		return false;
+
 	if ( entry.skinnedBatchObjectIndex >= static_cast< UINT >( m_skinnedBatch.objectRefs.size() ) )
 		return false;
 
@@ -167,6 +249,8 @@ void CGameScene::RenderMonsterHpGauges(ID3D12GraphicsCommandList* cmd, CCamera* 
 	if ( !camera ) return;
 	if ( !m_monsterHpGaugeState.shader ) return;
 	if ( !m_monsterHpGaugeState.quadMesh ) return;
+
+	UpdateMonsterHpGaugeTimers(0.0f);
 
 	const UINT frameIndex = m_nFrameResourceIndex % kSceneBatchFrameResourceCount;
 

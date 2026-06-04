@@ -102,6 +102,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
 	m_playerWeaponOwnerByObject.clear();
 	m_deadMonsters.clear();
+	ResetMonsterHpGaugeVisibilityState();
 
 	ResetEnemySpawnerTimedGhoulWaveStates();
 
