@@ -7726,11 +7726,11 @@ void CGameScene::AnimateObjects(float dt)
 
 			const bool isLocalPlayer = ( slot == m_localPlayerSlot );
 
-			if (isLocalPlayer)
-            {
-				if ( auto* hp = player->GetComponent<CHealthComponent>() )
-					hp->SetCurrentHp(static_cast<int>(state.hp));
+			if ( auto* hp = player->GetComponent<CHealthComponent>() )
+				hp->SetCurrentHp(static_cast< int >( state.hp ));
 
+			if ( isLocalPlayer )
+			{
 				constexpr float kLocalPlayerServerSnapDistance = 1.5f;
 				constexpr float kLocalPlayerServerSnapDistanceSq =
 					kLocalPlayerServerSnapDistance * kLocalPlayerServerSnapDistance;
@@ -8472,21 +8472,48 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
 	m_depthFog.UploadConstantBuffer();
 
 	{
-		float hpRatio = 1.0f;
+		float localHpRatio = 1.0f;
 
-		CGameObject* localPlayer = GetPlayer();
-		if ( !localPlayer )
-			localPlayer = GetPlayerBySlot(0);
+		std::array<float, 4> playerHpRatios = { 0.0f, 0.0f, 0.0f, 0.0f };
+		std::array<bool, 4> playerHpVisible = { false, false, false, false };
 
-		if ( localPlayer )
+		for ( int slot = 0; slot < 4; ++slot )
 		{
-			if ( auto* hp = localPlayer->GetComponent<CHealthComponent>() )
-				hpRatio = hp->GetHpRatio();
+			CGameObject* player = GetPlayerBySlot(slot);
+
+			if ( !player )
+				continue;
+
+			CHealthComponent* hp = player->GetComponent<CHealthComponent>();
+
+			if ( !hp )
+				continue;
+
+			playerHpRatios[slot] = hp->GetHpRatio();
+			playerHpVisible[slot] = true;
 		}
 
-		m_hud.SetHealthRatio(hpRatio);
-	}
+		if ( m_localPlayerSlot >= 0 && m_localPlayerSlot < 4 && playerHpVisible[m_localPlayerSlot] )
+		{
+			localHpRatio = playerHpRatios[m_localPlayerSlot];
+		}
+		else
+		{
+			CGameObject* localPlayer = GetPlayer();
 
+			if ( !localPlayer )
+				localPlayer = GetPlayerBySlot(0);
+
+			if ( localPlayer )
+			{
+				if ( auto* hp = localPlayer->GetComponent<CHealthComponent>() )
+					localHpRatio = hp->GetHpRatio();
+			}
+		}
+
+		m_hud.SetHealthRatio(localHpRatio);
+		m_hud.SetOtherPlayerHealthRatios(m_localPlayerSlot, playerHpRatios, playerHpVisible);
+	}
 
 	if ( m_staticBatch.mappedGameObjects[frameIndex] && !m_staticBatch.objectRefs.empty() )
 	{
