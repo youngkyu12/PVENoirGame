@@ -317,6 +317,9 @@ private:
 	void AddPotionItemBillboardEntries();
 	XMFLOAT3 AdjustItemBillboardPositionToTerrain(const XMFLOAT3& position) const;
 
+	float GetTerrainGroundYOrFallback(float worldX, float worldZ, float fallbackY) const;
+	XMFLOAT3 AlignPositionYToTerrainGround(const XMFLOAT3& position, float yOffset = 0.0f) const;
+
 	void ReleaseItemBillboardGpuResources();
 	void ReleaseMonsterHpGaugeGpuResources();
 	void ReleaseAllGameSceneEffectGpuResources();
@@ -428,10 +431,7 @@ private:
 
 	void ReleaseBossCallSummonWwwGpuResources();
 
-	void SpawnBossCallSummonWwwEffect(
-		const XMFLOAT3& center,
-		EEnemySpawnerEnemyKind kind
-	);
+	void SpawnBossCallSummonWwwEffect(const XMFLOAT3& center, EEnemySpawnerEnemyKind kind);
 
 	void UpdateBossCallSummonWwwEffects(float dt);
 	void RenderBossCallSummonWwwEffects(ID3D12GraphicsCommandList* cmd, CCamera* camera);
@@ -450,10 +450,7 @@ private:
 	void ClearBossCallSummonCircleVisuals();
 
 	float GetBossCallSummonCircleSize(EEnemySpawnerEnemyKind kind) const;
-	void AddBossCallSummonCircle(
-		const XMFLOAT3& center,
-		EEnemySpawnerEnemyKind kind
-	);
+	void AddBossCallSummonCircle(const XMFLOAT3& center, EEnemySpawnerEnemyKind kind);
 
 	void SpawnBossSummonCircle(const XMFLOAT3& center, float alpha);
 	void SpawnBossSummonGlow(const XMFLOAT3& center, float alpha);

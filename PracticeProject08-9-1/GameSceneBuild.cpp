@@ -1534,37 +1534,22 @@ XMFLOAT3 CGameScene::ComputeEnemySpawnerSpawnPosition(
 
 XMFLOAT3 CGameScene::ComputeBossCallMonsterSpawnPosition() const
 {
-	// 5번 메가그리드 중심.
 	constexpr int megaGridNumber = 5;
 
 	const int zeroBased = megaGridNumber - 1;
 	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
 	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
 
-	const float centerX =
-		static_cast< float >(
-			CSceneGrid::kGridMinX +
-			megaX * CSceneGrid::kMegaGridCellWidth +
-			CSceneGrid::kMegaGridCellWidth / 2
-		);
-
-	const float centerZ =
-		static_cast< float >(
-			CSceneGrid::kGridMinZ +
-			megaZ * CSceneGrid::kMegaGridCellHeight +
-			CSceneGrid::kMegaGridCellHeight / 2
-		);
-
-	// 200 x 200 내부 랜덤.
-	constexpr float halfExtent = 100.0f;
+	const float centerX = static_cast< float >( CSceneGrid::kGridMinX + megaX * CSceneGrid::kMegaGridCellWidth + CSceneGrid::kMegaGridCellWidth / 2 );
+	const float centerZ = static_cast< float >( CSceneGrid::kGridMinZ + megaZ * CSceneGrid::kMegaGridCellHeight + CSceneGrid::kMegaGridCellHeight / 2 );
 
 	static std::mt19937 rng{ std::random_device{}( ) };
-	std::uniform_real_distribution<float> dist(-halfExtent, halfExtent);
+	static std::uniform_real_distribution<float> dist(-100.0f, 100.0f);
 
 	XMFLOAT3 pos{};
 	pos.x = centerX + dist(rng);
-	pos.y = 0.0f;
 	pos.z = centerZ + dist(rng);
+	pos.y = GetTerrainGroundYOrFallback(pos.x, pos.z, 0.0f);
 
 	return pos;
 }
@@ -2225,7 +2210,13 @@ void CGameScene::BuildSkinnedBatch(
 
 			CGameObject* raw = obj.get();
 			if ( m_TerrainData )
-				raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
+			{
+				if ( auto* terrainAttach = raw->AddComponent<CTerrainAttachComponent>(m_TerrainData) )
+				{
+					terrainAttach->SetHeightOffset(0.0f);
+					terrainAttach->SnapToTerrain();
+				}
+			}
 
 			RegisterMonsterToMegaGrid(raw, pos, i);
 
@@ -2323,7 +2314,13 @@ void CGameScene::BuildSkinnedBatch(
 					CGameObject* raw = obj.get();
 
 					if ( m_TerrainData )
-						raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
+					{
+						if ( auto* terrainAttach = raw->AddComponent<CTerrainAttachComponent>(m_TerrainData) )
+						{
+							terrainAttach->SetHeightOffset(0.0f);
+							terrainAttach->SnapToTerrain();
+						}
+					}
 
 					if ( useSpawnerRushGhoulAI )
 					{
@@ -2459,7 +2456,13 @@ void CGameScene::BuildSkinnedBatch(
 
 			CGameObject* raw = obj.get();
 			if ( m_TerrainData )
-				raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
+			{
+				if ( auto* terrainAttach = raw->AddComponent<CTerrainAttachComponent>(m_TerrainData) )
+				{
+					terrainAttach->SetHeightOffset(0.0f);
+					terrainAttach->SnapToTerrain();
+				}
+			}
 
 			RegisterMonsterToMegaGrid(raw, pos, i);
 
@@ -2676,7 +2679,13 @@ void CGameScene::BuildSkinnedBatch(
 
 			CGameObject* raw = obj.get();
 			if ( m_TerrainData )
-				raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
+			{
+				if ( auto* terrainAttach = raw->AddComponent<CTerrainAttachComponent>(m_TerrainData) )
+				{
+					terrainAttach->SetHeightOffset(0.0f);
+					terrainAttach->SnapToTerrain();
+				}
+			}
 
 			RegisterMonsterToMegaGrid(raw, pos, i);
 
@@ -2903,7 +2912,13 @@ void CGameScene::BuildSkinnedBatch(
 
 			CGameObject* raw = obj.get();
 			if ( m_TerrainData )
-				raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
+			{
+				if ( auto* terrainAttach = raw->AddComponent<CTerrainAttachComponent>(m_TerrainData) )
+				{
+					terrainAttach->SetHeightOffset(0.0f);
+					terrainAttach->SnapToTerrain();
+				}
+			}
 
 			RegisterMonsterToMegaGrid(raw, pos, i);
 
@@ -3137,8 +3152,15 @@ void CGameScene::BuildSkinnedBatch(
 			++enemyIndex;
 
 			CGameObject* raw = obj.get();
+
 			if ( m_TerrainData )
-				raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
+			{
+				if ( auto* terrainAttach = raw->AddComponent<CTerrainAttachComponent>(m_TerrainData) )
+				{
+					terrainAttach->SetHeightOffset(0.0f);
+					terrainAttach->SnapToTerrain();
+				}
+			}
 
 			m_bossRefs.push_back(raw);
 
