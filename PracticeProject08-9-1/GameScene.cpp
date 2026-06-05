@@ -6411,7 +6411,6 @@ void CGameScene::SetBossStageBossActive(
 
 CGameObject* CGameScene::FindBossStageBossInMegaGrid(int megaGridNumber) const
 {
-#ifndef USING_NETWORK
 	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
 		return nullptr;
 
@@ -6432,9 +6431,6 @@ CGameObject* CGameScene::FindBossStageBossInMegaGrid(int megaGridNumber) const
 		if ( bossMegaNumber == megaGridNumber )
 			return boss;
 	}
-#else
-	UNREFERENCED_PARAMETER(megaGridNumber);
-#endif
 
 	return nullptr;
 }
@@ -7740,6 +7736,8 @@ void CGameScene::AnimateObjects(float dt)
 	UpdateBossSummonVisualFadeOut(dt);
 	UpdateBossStageSummonSequence(dt);
 	UpdateBossShockwave(dt);
+	UpdateBossCallSummonCircles(dt);
+	UpdateBossCallSummonWwwEffects(dt);
 #endif
 
 	UpdateMuzzleFlashes(dt);
