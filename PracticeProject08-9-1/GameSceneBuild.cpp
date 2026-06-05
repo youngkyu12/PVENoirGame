@@ -3181,9 +3181,11 @@ void CGameScene::BuildSkinnedBatch(
 			// x/z는 유지하고 y만 -100 정도 내려서, 혹시 1프레임 렌더되어도 화면에 보이지 않게 한다.
 			RegisterBossStageBossOriginalPosition(raw, pos);
 			MoveBossStageBossToHiddenPosition(raw);
+#else
+			RegisterBossStageBossOriginalPosition(raw, pos);
+#endif
 
 			SetBossStageBossActive(raw, false, false);
-#endif
 
 			RegisterMonsterToMegaGrid(raw, pos, i); 
 
