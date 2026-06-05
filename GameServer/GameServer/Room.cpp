@@ -67,9 +67,9 @@ namespace
 		outEntries.clear();
 
 		const std::vector<std::string> candidates = {
-			"MapFIle/MapData_fullstage(withBoss)_TerrainOnly.txt",
-			"GameServer/MapFIle/MapData_fullstage(withBoss)_TerrainOnly.txt",
-			"../GameServer/MapFIle/MapData_fullstage(withBoss)_TerrainOnly.txt",
+			"MapFIle/MapData_fullstage.txt",
+			"GameServer/MapFIle/MapData_fullstage.txt",
+			"../GameServer/MapFIle/MapData_fullstage.txt",
 			"MapFIle/MapData_fullstage(withBoss).txt",
 			"GameServer/MapFIle/MapData_fullstage(withBoss).txt",
 			"../GameServer/MapFIle/MapData_fullstage(withBoss).txt"
@@ -97,6 +97,12 @@ namespace
 			outEntries.push_back(std::move(entry));
 		}
 		return !outEntries.empty();
+	}
+
+	static bool ShouldAttachPlacementToTerrain(const std::string& asset)
+	{
+		return asset != "Terrain" &&
+			asset != "Water";
 	}
 
 	static GameMath::Vec3 GetInitialPlayerSpawnPosition(uint64 playerId)
@@ -239,9 +245,6 @@ GameMath::Vec3 Room::SnapToTerrainIfBelow(const GameMath::Vec3& pos) const
 		return pos;
 
 	const float groundY = m_serverTerrain->SampleHeight(pos.x, pos.z);
-	if (pos.y >= groundY)
-		return pos;
-
 	return GameMath::Vec3(pos.x, groundY, pos.z);
 }
 
@@ -351,9 +354,17 @@ void Room::BuildRoom()
 		uint64 buildingId = 1;
 		for (const auto& e : entries)
 		{
+			GameMath::Vec3 placementPos = e.position;
+			if (ShouldAttachPlacementToTerrain(e.asset) &&
+				HasTerrain() &&
+				m_serverTerrain->Contains(placementPos.x, placementPos.z))
+			{
+				placementPos.y = m_serverTerrain->SampleHeight(placementPos.x, placementPos.z) + e.position.y;
+			}
+
 			auto building = std::make_shared<CBuilding>();
 			building->SetObjectId(buildingId);
-			building->SetPosition(e.position);
+			building->SetPosition(placementPos);
 			building->SetYaw(GameMath::NormalizeYaw(e.yawDeg));
 			building->SetBuildingType(ReportHelper::AssetToBuildingType(e.asset));
 			building->SetActive(true);
@@ -393,10 +404,10 @@ void Room::BuildRoom()
 
 	m_navMesh = make_unique<CNavMesh>();
 	const std::vector<std::string> navCandidates = {
-		"MapFIle/FullStageNavmeshAll.nvm",
 		"MapFIle/Navmesh_FullStage.nvm",
-		"GameServer/MapFIle/FullStageNavmeshAll.nvm",
-		"GameServer/MapFIle/Navmesh_FullStage.nvm"
+		"GameServer/MapFIle/Navmesh_FullStage.nvm",
+		"MapFIle/FullStageNavmeshAll.nvm",
+		"GameServer/MapFIle/FullStageNavmeshAll.nvm"
 	};
 	for (const auto& path : navCandidates)
 	{

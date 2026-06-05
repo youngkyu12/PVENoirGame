@@ -81,6 +81,7 @@ void Player::Build()
 {
     ClearPendingPortalTeleport();
 	ClearPendingForcedTransform();
+	SetTerrainSnapSuppressed(false);
     SetPosition(0.0f, 0.0f, 0.0f);
     Rotate(0.0f, 0.0f, 0.0f);
     weapon.SetWeapon(Protocol::WEAPON_TYPE_SWORD, 0);
@@ -114,6 +115,7 @@ void Player::OnDeathEnter(uint32 serverTick)
     ClearMoveKeyCodes();
     ClearPendingPortalTeleport();
 	ClearPendingForcedTransform();
+	SetTerrainSnapSuppressed(false);
     m_deathTick = serverTick;
 
     if (auto* collider = GetComponent<CColliderComponent>())
@@ -142,6 +144,7 @@ void Player::OnRespawnEnter(uint32 serverTick)
     SetVelocity(GameMath::Vec3::Zero());
     ClearMoveKeyCodes();
     ClearPendingPortalTeleport();
+	SetTerrainSnapSuppressed(false);
     SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
     SetAnimTick(serverTick);
 
