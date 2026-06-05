@@ -30,7 +30,6 @@ namespace
 	constexpr float kCastleDoorPortalExitOffset = 2.0f;
 	constexpr float kTowerDoorPortalLowerExitYOffset = 0.0f;
 	constexpr float kTowerDoorPortalUpperExitYOffset = 3.5f;
-	constexpr float kTowerDoorPortalUpperHeightThreshold = 10.0f;
 	constexpr int kRequiredClearedMegaGridCountForCastlePortal = 4;
 	constexpr bool kDebugForceCastleDoorPortalUnlocked = true;
 	constexpr bool kDebugCastleDoorPortalLog = false;
@@ -808,10 +807,9 @@ bool Room::TryQueueTowerDoorPortalTeleport(const PlayerRef& player)
 			XMStoreFloat3(&dst, targetV + XMVectorScale(exitDir, kTowerDoorPortalExitOffset));
 
 			float targetBottomY = 0.0f;
-			bool targetIsUpper = false;
+			const bool targetIsUpper = (&targetRefs == &portal.doorBRefs);
 			if (ComputeDoorGroupBottomY(portal, targetRefs, targetBottomY))
 			{
-				targetIsUpper = targetBottomY > kTowerDoorPortalUpperHeightThreshold;
 				dst.y = targetBottomY +
 					(targetIsUpper
 						? kTowerDoorPortalUpperExitYOffset
@@ -1210,10 +1208,9 @@ bool Room::TryTeleportPlayerByTowerDoorPortal(const PlayerRef& player)
 			XMStoreFloat3(&dst, targetV + XMVectorScale(exitDir, kTowerDoorPortalExitOffset));
 
 			float targetBottomY = 0.0f;
-			bool targetIsUpper = false;
+			const bool targetIsUpper = (&targetRefs == &portal.doorBRefs);
 			if (ComputeDoorGroupBottomY(portal, targetRefs, targetBottomY))
 			{
-				targetIsUpper = targetBottomY > kTowerDoorPortalUpperHeightThreshold;
 				dst.y = targetBottomY +
 					(targetIsUpper
 						? kTowerDoorPortalUpperExitYOffset
