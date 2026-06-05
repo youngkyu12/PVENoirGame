@@ -674,9 +674,8 @@ bool Room::TryQueuePortalTeleportFromBlockedMove(const PlayerRef& player, const 
 
 	const bool blocked = HasCollisionWithNearbyWorldStatic(playerCollider);
 	const bool queued =
-		blocked &&
-		(TryQueueTowerDoorPortalTeleport(player) ||
-		 TryQueueCastleDoorPortalTeleport(player));
+		TryQueueTowerDoorPortalTeleport(player) ||
+		(blocked && TryQueueCastleDoorPortalTeleport(player));
 
 	player->SetPosition(originPos);
 	playerCollider->OnUpdate(0.0f);
@@ -809,10 +808,12 @@ bool Room::TryQueueTowerDoorPortalTeleport(const PlayerRef& player)
 			XMStoreFloat3(&dst, targetV + XMVectorScale(exitDir, kTowerDoorPortalExitOffset));
 
 			float targetBottomY = 0.0f;
+			bool targetIsUpper = false;
 			if (ComputeDoorGroupBottomY(portal, targetRefs, targetBottomY))
 			{
+				targetIsUpper = targetBottomY > kTowerDoorPortalUpperHeightThreshold;
 				dst.y = targetBottomY +
-					((targetBottomY > kTowerDoorPortalUpperHeightThreshold)
+					(targetIsUpper
 						? kTowerDoorPortalUpperExitYOffset
 						: kTowerDoorPortalLowerExitYOffset);
 			}
@@ -825,7 +826,8 @@ bool Room::TryQueueTowerDoorPortalTeleport(const PlayerRef& player)
 				GameMath::Vec3(dst.x, dst.y, dst.z),
 				GameMath::NormalizeYaw(player->GetYaw() + 180.0f),
 				180.0f,
-				Protocol::FORCED_TRANSFORM_REASON_TOWER_PORTAL);
+				Protocol::FORCED_TRANSFORM_REASON_TOWER_PORTAL,
+				targetIsUpper);
 			portal.cooldownTicks = kTowerDoorPortalCooldownTicks;
 			return true;
 		};
@@ -1208,10 +1210,12 @@ bool Room::TryTeleportPlayerByTowerDoorPortal(const PlayerRef& player)
 			XMStoreFloat3(&dst, targetV + XMVectorScale(exitDir, kTowerDoorPortalExitOffset));
 
 			float targetBottomY = 0.0f;
+			bool targetIsUpper = false;
 			if (ComputeDoorGroupBottomY(portal, targetRefs, targetBottomY))
 			{
+				targetIsUpper = targetBottomY > kTowerDoorPortalUpperHeightThreshold;
 				dst.y = targetBottomY +
-					((targetBottomY > kTowerDoorPortalUpperHeightThreshold)
+					(targetIsUpper
 						? kTowerDoorPortalUpperExitYOffset
 						: kTowerDoorPortalLowerExitYOffset);
 			}
@@ -1222,6 +1226,7 @@ bool Room::TryTeleportPlayerByTowerDoorPortal(const PlayerRef& player)
 
 			player->SetPosition(GameMath::Vec3(dst.x, dst.y, dst.z));
 			player->SetYaw(GameMath::NormalizeYaw(player->GetYaw() + 180.0f));
+			player->SetTerrainSnapSuppressed(targetIsUpper);
 			SendForcedTransformYawDelta(
 				player,
 				180.0f,

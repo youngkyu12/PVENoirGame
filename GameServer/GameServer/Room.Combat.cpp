@@ -314,14 +314,17 @@ void Room::TickAdvance()
 		float portalYaw = 0.0f;
 		float forcedYawDelta = 0.0f;
 		int32 forcedTransformReason = 0;
+		bool suppressTerrainSnap = false;
 		if (player.second->ConsumePendingPortalTeleport(
 			portalDestination,
 			portalYaw,
 			&forcedYawDelta,
-			&forcedTransformReason))
+			&forcedTransformReason,
+			&suppressTerrainSnap))
 		{
 			player.second->SetVelocity(GameMath::Vec3::Zero());
 			player.second->ClearMoveKeyCodes();
+			player.second->SetTerrainSnapSuppressed(suppressTerrainSnap);
 			player.second->SetPosition(portalDestination);
 			player.second->SetYaw(portalYaw);
 			if (forcedTransformReason != Protocol::FORCED_TRANSFORM_REASON_NONE)
@@ -353,7 +356,8 @@ void Room::TickAdvance()
 		if (!teleported)
 		{
 			ResolveWorldStaticCollision(player.second, prevPos);
-			player.second->SetPosition(SnapToTerrainIfBelow(player.second->GetPosition()));
+			if (!player.second->IsTerrainSnapSuppressed())
+				player.second->SetPosition(SnapToTerrainIfBelow(player.second->GetPosition()));
 		}
 
 		WakeEnemiesNearPlayer(player.second);

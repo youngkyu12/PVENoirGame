@@ -38,19 +38,22 @@ public:
 		const GameMath::Vec3& destination,
 		float yaw,
 		float forcedYawDelta = 0.0f,
-		int32 forcedTransformReason = 0)
+		int32 forcedTransformReason = 0,
+		bool suppressTerrainSnap = false)
 	{
 		m_pendingPortalTeleport.active = true;
 		m_pendingPortalTeleport.destination = destination;
 		m_pendingPortalTeleport.yaw = yaw;
 		m_pendingPortalTeleport.forcedYawDelta = forcedYawDelta;
 		m_pendingPortalTeleport.forcedTransformReason = forcedTransformReason;
+		m_pendingPortalTeleport.suppressTerrainSnap = suppressTerrainSnap;
 	}
 	bool ConsumePendingPortalTeleport(
 		GameMath::Vec3& outDestination,
 		float& outYaw,
 		float* outForcedYawDelta = nullptr,
-		int32* outForcedTransformReason = nullptr)
+		int32* outForcedTransformReason = nullptr,
+		bool* outSuppressTerrainSnap = nullptr)
 	{
 		if (!m_pendingPortalTeleport.active)
 			return false;
@@ -61,11 +64,15 @@ public:
 			*outForcedYawDelta = m_pendingPortalTeleport.forcedYawDelta;
 		if (outForcedTransformReason)
 			*outForcedTransformReason = m_pendingPortalTeleport.forcedTransformReason;
+		if (outSuppressTerrainSnap)
+			*outSuppressTerrainSnap = m_pendingPortalTeleport.suppressTerrainSnap;
 		m_pendingPortalTeleport = PendingPortalTeleport{};
 		return true;
 	}
 	void ClearPendingPortalTeleport() { m_pendingPortalTeleport = PendingPortalTeleport{}; }
 	void ClearPendingForcedTransform() { m_pendingForcedTransform = PendingForcedTransform{}; }
+	void SetTerrainSnapSuppressed(bool suppressed) { m_suppressTerrainSnap = suppressed; }
+	bool IsTerrainSnapSuppressed() const { return m_suppressTerrainSnap; }
 
 	void QueueForcedTransformYawDelta(float yawDelta, int32 reason)
 	{
@@ -98,8 +105,10 @@ private:
 		float yaw = 0.0f;
 		float forcedYawDelta = 0.0f;
 		int32 forcedTransformReason = 0;
+		bool suppressTerrainSnap = false;
 	};
 	PendingPortalTeleport m_pendingPortalTeleport;
+	bool m_suppressTerrainSnap = false;
 
 	struct PendingForcedTransform
 	{
