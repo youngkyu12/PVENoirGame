@@ -49,7 +49,7 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 
 	m_bSimulateLocalAI = true;
 
-	m_bSimulateLocalGhoulAI = true;
+	m_bSimulateLocalGhoulAI = false;
 	m_bSimulateLocalBowManAI = false;
 	m_bSimulateLocalSwordManAI = false;
 	m_bSimulateLocalMutantAI = false;
@@ -908,7 +908,8 @@ void CGameScene::BuildStaticBatch(
 #endif
 
 		const bool isTreeObject = ( resolvedAssetType == AssetType::Tree );
-		const bool castsShadow = ShouldStaticPlacementCastShadow(placement.assetName);
+		//const bool castsShadow = ShouldStaticPlacementCastShadow(placement.assetName);
+		const bool castsShadow = ( placement.assetName == "Water" ) ? false : ShouldStaticPlacementCastShadow(placement.assetName);
 
 		if ( isTreeObject )
 		{
