@@ -74,25 +74,25 @@
     <IncludePath>$(SolutionDir)..\Libraries\include\;$(SolutionDir)..\Common\ServerCore;$(SolutionDir)..\Common\BaseComponent;$(IncludePath)</IncludePath>
     <ExecutablePath>$(ExecutablePath)</ExecutablePath>
     <LibraryPath>$(SolutionDir)..\Libraries\Libs\;$(LibraryPath)</LibraryPath>
-    <PreBuildEventUseInBuild>false</PreBuildEventUseInBuild>
+    <PreBuildEventUseInBuild>true</PreBuildEventUseInBuild>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <IncludePath>$(SolutionDir)..\Libraries\include\;$(SolutionDir)..\Common\ServerCore;$(SolutionDir)..\Common\BaseComponent;$(IncludePath)</IncludePath>
     <ExecutablePath>$(ExecutablePath)</ExecutablePath>
     <LibraryPath>$(SolutionDir)..\Libraries\Libs\;$(LibraryPath)</LibraryPath>
-    <PreBuildEventUseInBuild>false</PreBuildEventUseInBuild>
+    <PreBuildEventUseInBuild>true</PreBuildEventUseInBuild>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <IncludePath>$(SolutionDir)..\Libraries\include\;$(SolutionDir)..\Common\ServerCore;$(SolutionDir)..\Common\BaseComponent;$(IncludePath)</IncludePath>
     <ExecutablePath>$(ExecutablePath)</ExecutablePath>
     <LibraryPath>$(SolutionDir)..\Libraries\Libs\;$(LibraryPath)</LibraryPath>
-    <PreBuildEventUseInBuild>false</PreBuildEventUseInBuild>
+    <PreBuildEventUseInBuild>true</PreBuildEventUseInBuild>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <IncludePath>$(SolutionDir)..\Libraries\include\;$(SolutionDir)..\Common\ServerCore;$(SolutionDir)..\Common\BaseComponent;$(IncludePath)</IncludePath>
     <ExecutablePath>$(ExecutablePath)</ExecutablePath>
     <LibraryPath>$(SolutionDir)..\Libraries\Libs\;$(LibraryPath)</LibraryPath>
-    <PreBuildEventUseInBuild>false</PreBuildEventUseInBuild>
+    <PreBuildEventUseInBuild>true</PreBuildEventUseInBuild>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

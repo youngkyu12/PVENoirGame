@@ -172,8 +172,11 @@ static int lua_boss_start_action(lua_State* L)
 	if (!boss) return 0;
 
 	Protocol::AnimationType anim = Protocol::ANIMATION_TYPE_IDLE;
-	if (std::strcmp(name, "Melee") == 0)       anim = Protocol::ANIMATION_TYPE_ATTACK;
-	else if (std::strcmp(name, "Die") == 0)    anim = Protocol::ANIMATION_TYPE_DIE;
+	if      (std::strcmp(name, "Melee")  == 0) anim = Protocol::ANIMATION_TYPE_ATTACK;
+	else if (std::strcmp(name, "Die")    == 0) anim = Protocol::ANIMATION_TYPE_DIE;
+	else if (std::strcmp(name, "Appear") == 0) anim = Protocol::ANIMATION_TYPE_BOSS_APPEAR;
+	else if (std::strcmp(name, "Spell")  == 0) anim = Protocol::ANIMATION_TYPE_BOSS_SPELL;
+	else if (std::strcmp(name, "Call")   == 0) anim = Protocol::ANIMATION_TYPE_BOSS_CALL;
 
 	boss->SetAnimState(anim);
 	return 0;

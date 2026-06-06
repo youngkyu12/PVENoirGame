@@ -65,12 +65,15 @@ enum AnimationType : int {
   ANIMATION_TYPE_ROLL = 5,
   ANIMATION_TYPE_DIE = 6,
   ANIMATION_TYPE_HIT = 7,
+  ANIMATION_TYPE_BOSS_APPEAR = 8,
+  ANIMATION_TYPE_BOSS_SPELL = 9,
+  ANIMATION_TYPE_BOSS_CALL = 10,
   AnimationType_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
   AnimationType_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
 };
 bool AnimationType_IsValid(int value);
 constexpr AnimationType AnimationType_MIN = ANIMATION_TYPE_NONE;
-constexpr AnimationType AnimationType_MAX = ANIMATION_TYPE_HIT;
+constexpr AnimationType AnimationType_MAX = ANIMATION_TYPE_BOSS_CALL;
 constexpr int AnimationType_ARRAYSIZE = AnimationType_MAX + 1;
 
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* AnimationType_descriptor();
