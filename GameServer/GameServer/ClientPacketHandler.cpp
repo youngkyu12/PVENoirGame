@@ -136,6 +136,10 @@ bool Handle_C_DEBUG_COMMAND(PacketSessionRef& session, Protocol::C_DEBUG_COMMAND
 			GRoom->DoAsync(&Room::DebugTeleportToMegaGrid, pid, grid);
 		}
 	}
+	else if (pkt.commandtype() == Protocol::DEBUG_COMMAND_DAMAGE_BOSS)
+	{
+		GRoom->DoAsync(&Room::DebugDamageBoss);
+	}
 	return true;
 }
 

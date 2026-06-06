@@ -21,13 +21,28 @@ struct CBossAIContext
 	float spellActionElapsed    = -1.0f;
 	bool  spellProjectileSpawned = false;
 
+	float callRiseElapsed    = -1.0f;
+	float callActionElapsed  = -1.0f;
+	float callDescendElapsed = -1.0f;
+	bool  callSummonDone     = false;
+	float callStartY         = 0.0f;
+	int   callExecutedCount  = 0;
+
+	bool IsCalling() const
+	{
+		return callRiseElapsed >= 0.0f || callActionElapsed >= 0.0f || callDescendElapsed >= 0.0f;
+	}
+
 	void TickCooldowns(float dt)
 	{
 		for (auto& [name, remaining] : cooldowns)
 			if (remaining > 0.0f) remaining -= dt;
 
-		if (meleeActionElapsed >= 0.0f) meleeActionElapsed += dt;
+		if (meleeActionElapsed  >= 0.0f) meleeActionElapsed  += dt;
 		if (spellActionElapsed  >= 0.0f) spellActionElapsed  += dt;
+		if (callRiseElapsed     >= 0.0f) callRiseElapsed     += dt;
+		if (callActionElapsed   >= 0.0f) callActionElapsed   += dt;
+		if (callDescendElapsed  >= 0.0f) callDescendElapsed  += dt;
 	}
 
 	float GetCooldown(const std::string& name) const

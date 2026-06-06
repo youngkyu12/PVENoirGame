@@ -187,7 +187,17 @@ static int lua_boss_start_action(lua_State* L)
 		ctx->spellActionElapsed     = 0.0f;
 		ctx->spellProjectileSpawned = false;
 	}
-	else if (std::strcmp(name, "Call")   == 0) anim = Protocol::ANIMATION_TYPE_BOSS_CALL;
+	else if (std::strcmp(name, "Call") == 0)
+	{
+		// Rise first; C++ sets BOSS_CALL anim after rise completes
+		ctx->callRiseElapsed    = 0.0f;
+		ctx->callActionElapsed  = -1.0f;
+		ctx->callDescendElapsed = -1.0f;
+		ctx->callSummonDone     = false;
+		ctx->callStartY         = boss->GetPosition().y;
+		ctx->callExecutedCount++;
+		return 0;
+	}
 
 	boss->SetAnimState(anim);
 	return 0;
@@ -216,6 +226,12 @@ static int lua_boss_rand_float(lua_State* L)
 	float lo = static_cast<float>(luaL_checknumber(L, 1));
 	float hi = static_cast<float>(luaL_checknumber(L, 2));
 	lua_pushnumber(L, ctx->RandFloat(lo, hi));
+	return 1;
+}
+
+static int lua_boss_is_calling(lua_State* L)
+{
+	lua_pushboolean(L, GetCtx(L)->IsCalling() ? 1 : 0);
 	return 1;
 }
 
@@ -284,6 +300,7 @@ void CBossScriptHost::RegisterBossAPI(CBossAIContext* ctx)
 		{ "boss_get_cooldown",        lua_boss_get_cooldown },
 		{ "boss_set_cooldown",        lua_boss_set_cooldown },
 		{ "boss_rand_float",          lua_boss_rand_float },
+		{ "boss_is_calling",          lua_boss_is_calling },
 		{ "boss_log",                 lua_boss_log },
 		{ nullptr, nullptr }
 	};

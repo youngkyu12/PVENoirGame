@@ -83,6 +83,7 @@ public:
 	void FireEnemyArrow(CServerObject* shooter, float speed, uint32 lifeTicks);
 	void DebugKillMega5Enemies();
 	void DebugTeleportToMegaGrid(uint64 playerId, int megaGridNumber);
+	void DebugDamageBoss();
 
 public:
     GameAreaRef GetArea(uint32 areaId);
@@ -319,6 +320,9 @@ private:
 	void ProcessBossSpellAction();
 	void SpawnBossPoisonProjectile();
 	void UpdateBossPoisonProjectiles(float dt);
+	void ProcessBossCallAction();
+	void SpawnBossCallWave();
+	CEnemy* SpawnBossCallEnemy(Protocol::EnemyType type);
 
 	void ResetDynamicGridCounts();
 	bool TryGetTrackedCell(const CServerObject* obj, int& outCellX, int& outCellZ) const;
