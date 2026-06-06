@@ -559,6 +559,8 @@ void Room::TickAdvance()
 	UpdateKeyPickupCollision();
 	UpdateSpawnerWaves(m_timing.playerInputDtSec);
 	UpdateBossRoomState();
+	if (m_bossRoomState == EBossRoomState::BossActive)
+		CallBossScriptUpdate(m_timing.playerInputDtSec);
 
 	const auto elapsedMs = static_cast<uint64>(
 		std::chrono::duration_cast<std::chrono::milliseconds>(
