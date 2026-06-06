@@ -6483,14 +6483,6 @@ bool CGameScene::TryBeginBossStageSummonSequence()
 
 	CGameObject* boss = FindBossStageBossInMegaGrid(5);
 	XMFLOAT3 summonCenter = XMFLOAT3( 0.0f, 0.0f, 400.0f );
-	if ( boss )
-	{
-		const auto it = m_bossStageBossPositionStates.find(boss);
-		if ( it != m_bossStageBossPositionStates.end() )
-			summonCenter = it->second.originalPosition;
-		else
-			summonCenter = boss->GetPosition();
-	}
 	summonCenter.y = 0.0f;
 
 	m_pendingBossStageBoss = boss;
@@ -6556,11 +6548,6 @@ bool CGameScene::TryActivateBossStageBoss()
 	if ( !boss ) return false;
 
 	XMFLOAT3 shockwaveCenter = XMFLOAT3( 0.0f, 0.0f, 400.0f );
-	const auto bossPosIt = m_bossStageBossPositionStates.find(boss);
-	if ( bossPosIt != m_bossStageBossPositionStates.end() )
-		shockwaveCenter = bossPosIt->second.originalPosition;
-	else
-		shockwaveCenter = boss->GetPosition();
 	shockwaveCenter.y = 0.0f;
 
 	SetBossStageBossActive(boss, true, true);
