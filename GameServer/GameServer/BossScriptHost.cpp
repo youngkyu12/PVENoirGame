@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "BossScriptHost.h"
 #include "BossAIContext.h"
 #include "Room.h"
@@ -127,6 +127,44 @@ static int lua_boss_face_player(lua_State* L)
 	return 0;
 }
 
+static int lua_boss_move_towards_player(lua_State* L)
+{
+	CBossAIContext* ctx = GetCtx(L);
+	CEnemy* boss = GetBoss(L);
+	lua_Integer pidArg = luaL_checkinteger(L, 1);
+	float speed       = static_cast<float>(luaL_checknumber(L, 2));
+	float dt          = static_cast<float>(luaL_checknumber(L, 3));
+
+	if (!boss || pidArg < 0) return 0;
+	uint64 playerId = static_cast<uint64>(pidArg);
+
+	const auto& players = ctx->room->GetPlayers();
+	auto it = players.find(playerId);
+	if (it == players.end() || !it->second) return 0;
+
+	auto bPos = boss->GetPosition();
+	auto pPos = it->second->GetPosition();
+	float dx = pPos.x - bPos.x;
+	float dz = pPos.z - bPos.z;
+	float dist = std::sqrt(dx * dx + dz * dz);
+	if (dist < 0.001f) return 0;
+
+	float step = speed * dt;
+	if (step > dist) step = dist;
+
+	float nx = bPos.x + (dx / dist) * step;
+	float nz = bPos.z + (dz / dist) * step;
+
+	// Boss Room bounds clamp: x=[-100,100], z=[300,500]
+	if (nx < -100.0f) nx = -100.0f;
+	if (nx >  100.0f) nx =  100.0f;
+	if (nz <  300.0f) nz =  300.0f;
+	if (nz >  500.0f) nz =  500.0f;
+
+	boss->SetPosition(nx, bPos.y, nz);
+	return 0;
+}
+
 static int lua_boss_start_action(lua_State* L)
 {
 	CEnemy* boss = GetBoss(L);
@@ -221,6 +259,7 @@ void CBossScriptHost::RegisterBossAPI(CBossAIContext* ctx)
 	*reinterpret_cast<CBossAIContext**>(lua_getextraspace(m_L)) = ctx;
 
 	static const luaL_Reg kBossAPI[] = {
+		{ "boss_move_towards_player", lua_boss_move_towards_player },
 		{ "boss_get_hp",              lua_boss_get_hp },
 		{ "boss_get_max_hp",          lua_boss_get_max_hp },
 		{ "boss_get_pos",             lua_boss_get_pos },
