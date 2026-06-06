@@ -49,6 +49,7 @@ enum class EBossRoomState
 class Room : public JobQueue
 {
 public:
+    ~Room();
     void Enter(PlayerRef player);
     void Leave(PlayerRef player);
     void BroadCastAll(SendBufferRef sendBuffer); // 전체 공지용
@@ -88,6 +89,8 @@ public:
 
 	map<uint64, EnemyRef> GetEnemies() { return enemies; }
 	const map<uint64, PlayerRef>& GetPlayers() const { return players; }
+	CEnemy* GetBossEnemy();
+	EBossRoomState GetBossRoomState() const { return m_bossRoomState; }
 	const CNavMesh* GetNavMesh() const { return m_navMesh.get(); }
 	bool HasTerrain() const;
 	float GetTerrainGroundHeight(float worldX, float worldZ) const;
@@ -311,8 +314,6 @@ private:
 	void UpdateBossRoomState();
 	void ActivateBoss();
 	void CallBossScriptUpdate(float dt);
-	CEnemy* GetBossEnemy();
-	EBossRoomState GetBossRoomState() const { return m_bossRoomState; }
 
 	void ResetDynamicGridCounts();
 	bool TryGetTrackedCell(const CServerObject* obj, int& outCellX, int& outCellZ) const;
