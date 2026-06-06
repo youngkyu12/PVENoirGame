@@ -79,6 +79,9 @@ void Room::ProcessBossSpellAction()
 	{
 		SpawnBossPoisonProjectile();
 		m_bossAIContext->spellProjectileSpawned = true;
+
+		CEnemy* boss = GetBossEnemy();
+		if (boss) boss->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
 	}
 }
 
