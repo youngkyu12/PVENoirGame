@@ -193,6 +193,12 @@ namespace
 
 void Room::Enter(PlayerRef player)
 {
+	if (static_cast<int>(players.size()) >= MaxPlayers)
+	{
+		player->ownerSession->Disconnect(L"Room full");
+		return;
+	}
+
 	player->Build();
 	player->SetPosition(SnapToTerrainIfBelow(GetInitialPlayerSpawnPosition(player->playerId)));
 	player->SetMaxHp(kHpPlayer);
@@ -864,4 +870,20 @@ void Room::DebugKillMega5Enemies()
 		if (!IsPositionInsideMegaGridNumber(enemy->GetPosition(), 5)) continue;
 		enemy->ApplyHit(animTick, 999999, 0);
 	}
+}
+
+void Room::DebugTeleportToMegaGrid(uint64 playerId, int megaGridNumber)
+{
+	auto it = players.find(playerId);
+	if (it == players.end() || !it->second) return;
+
+	float minX, maxX, minZ, maxZ;
+	if (!GetMegaGridCenterMovementBounds(megaGridNumber, minX, maxX, minZ, maxZ)) return;
+
+	float cx = (minX + maxX) * 0.5f;
+	float cz = (minZ + maxZ) * 0.5f;
+	auto pos = it->second->GetPosition();
+	it->second->SetPosition(cx, pos.y, cz);
+	cout << "[Debug] Player " << playerId << " teleported to MegaGrid " << megaGridNumber
+		<< " (" << cx << ", " << cz << ")" << endl;
 }

@@ -85,4 +85,5 @@ message S_FORCED_TRANSFORM
 message C_DEBUG_COMMAND
 {
 	DebugCommandType commandType = 1;
+	int32 megaGridNumber = 2;
 }

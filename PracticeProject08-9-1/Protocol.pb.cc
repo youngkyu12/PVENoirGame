@@ -160,7 +160,8 @@ PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT S_FORCED_TRANSFORMDefaultTypeIn
 constexpr C_DEBUG_COMMAND::C_DEBUG_COMMAND(
   ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
   : commandtype_(0)
-{}
+
+  , megagridnumber_(0){}
 struct C_DEBUG_COMMANDDefaultTypeInternal {
   constexpr C_DEBUG_COMMANDDefaultTypeInternal()
     : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
@@ -260,6 +261,7 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_Protocol_2eproto::offsets[] PR
   ~0u,  // no _oneof_case_
   ~0u,  // no _weak_field_map_
   PROTOBUF_FIELD_OFFSET(::Protocol::C_DEBUG_COMMAND, commandtype_),
+  PROTOBUF_FIELD_OFFSET(::Protocol::C_DEBUG_COMMAND, megagridnumber_),
 };
 static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
   { 0, -1, sizeof(::Protocol::C_LOGIN)},
@@ -312,9 +314,9 @@ const char descriptor_table_protodef_Protocol_2eproto[] PROTOBUF_SECTION_VARIABL
   "\001(\0162\027.Protocol.BossRoomState\"i\n\022S_FORCED"
   "_TRANSFORM\022\020\n\010playerId\030\001 \001(\004\022\020\n\010yawDelta"
   "\030\002 \001(\002\022/\n\006reason\030\003 \001(\0162\037.Protocol.Forced"
-  "TransformReason\"B\n\017C_DEBUG_COMMAND\022/\n\013co"
+  "TransformReason\"Z\n\017C_DEBUG_COMMAND\022/\n\013co"
   "mmandType\030\001 \001(\0162\032.Protocol.DebugCommandT"
-  "ypeb\006proto3"
+  "ype\022\026\n\016megaGridNumber\030\002 \001(\005b\006proto3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_Protocol_2eproto_deps[3] = {
   &::descriptor_table_Enum_2eproto,
@@ -323,7 +325,7 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor
 };
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_Protocol_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_Protocol_2eproto = {
-  false, false, 971, descriptor_table_protodef_Protocol_2eproto, "Protocol.proto", 
+  false, false, 995, descriptor_table_protodef_Protocol_2eproto, "Protocol.proto", 
   &descriptor_table_Protocol_2eproto_once, descriptor_table_Protocol_2eproto_deps, 3, 11,
   schemas, file_default_instances, TableStruct_Protocol_2eproto::offsets,
   file_level_metadata_Protocol_2eproto, file_level_enum_descriptors_Protocol_2eproto, file_level_service_descriptors_Protocol_2eproto,
@@ -2831,12 +2833,17 @@ C_DEBUG_COMMAND::C_DEBUG_COMMAND(::PROTOBUF_NAMESPACE_ID::Arena* arena)
 C_DEBUG_COMMAND::C_DEBUG_COMMAND(const C_DEBUG_COMMAND& from)
   : ::PROTOBUF_NAMESPACE_ID::Message() {
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
-  commandtype_ = from.commandtype_;
+  ::memcpy(&commandtype_, &from.commandtype_,
+    static_cast<size_t>(reinterpret_cast<char*>(&megagridnumber_) -
+    reinterpret_cast<char*>(&commandtype_)) + sizeof(megagridnumber_));
   // @@protoc_insertion_point(copy_constructor:Protocol.C_DEBUG_COMMAND)
 }
 
 void C_DEBUG_COMMAND::SharedCtor() {
-commandtype_ = 0;
+::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
+    reinterpret_cast<char*>(&commandtype_) - reinterpret_cast<char*>(this)),
+    0, static_cast<size_t>(reinterpret_cast<char*>(&megagridnumber_) -
+    reinterpret_cast<char*>(&commandtype_)) + sizeof(megagridnumber_));
 }
 
 C_DEBUG_COMMAND::~C_DEBUG_COMMAND() {
@@ -2865,7 +2872,9 @@ void C_DEBUG_COMMAND::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  commandtype_ = 0;
+  ::memset(&commandtype_, 0, static_cast<size_t>(
+      reinterpret_cast<char*>(&megagridnumber_) -
+      reinterpret_cast<char*>(&commandtype_)) + sizeof(megagridnumber_));
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
@@ -2881,6 +2890,13 @@ const char* C_DEBUG_COMMAND::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPAC
           ::PROTOBUF_NAMESPACE_ID::uint64 val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
           CHK_(ptr);
           _internal_set_commandtype(static_cast<::Protocol::DebugCommandType>(val));
+        } else goto handle_unusual;
+        continue;
+      // int32 megaGridNumber = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 16)) {
+          megagridnumber_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
         } else goto handle_unusual;
         continue;
       default: {
@@ -2919,6 +2935,12 @@ failure:
       1, this->_internal_commandtype(), target);
   }
 
+  // int32 megaGridNumber = 2;
+  if (this->megagridnumber() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteInt32ToArray(2, this->_internal_megagridnumber(), target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -2939,6 +2961,13 @@ size_t C_DEBUG_COMMAND::ByteSizeLong() const {
   if (this->commandtype() != 0) {
     total_size += 1 +
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::EnumSize(this->_internal_commandtype());
+  }
+
+  // int32 megaGridNumber = 2;
+  if (this->megagridnumber() != 0) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::Int32Size(
+        this->_internal_megagridnumber());
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
@@ -2975,6 +3004,9 @@ void C_DEBUG_COMMAND::MergeFrom(const C_DEBUG_COMMAND& from) {
   if (from.commandtype() != 0) {
     _internal_set_commandtype(from._internal_commandtype());
   }
+  if (from.megagridnumber() != 0) {
+    _internal_set_megagridnumber(from._internal_megagridnumber());
+  }
 }
 
 void C_DEBUG_COMMAND::CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) {
@@ -2998,7 +3030,12 @@ bool C_DEBUG_COMMAND::IsInitialized() const {
 void C_DEBUG_COMMAND::InternalSwap(C_DEBUG_COMMAND* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
-  swap(commandtype_, other->commandtype_);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(C_DEBUG_COMMAND, megagridnumber_)
+      + sizeof(C_DEBUG_COMMAND::megagridnumber_)
+      - PROTOBUF_FIELD_OFFSET(C_DEBUG_COMMAND, commandtype_)>(
+          reinterpret_cast<char*>(&commandtype_),
+          reinterpret_cast<char*>(&other->commandtype_));
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata C_DEBUG_COMMAND::GetMetadata() const {

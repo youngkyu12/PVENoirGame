@@ -587,6 +587,20 @@ int RunDrawModule()
 				keys[VK_F2] = FALSE;
 				SendDebugKillMega5();
 			}
+
+							// Ctrl+1~9: Teleport all dummy clients to MegaGrid N
+			if (GetAsyncKeyState(VK_CONTROL) & 0x8000)
+			{
+				static const int kNumKeys[9] = { '1','2','3','4','5','6','7','8','9' };
+				for (int i = 0; i < 9; ++i)
+				{
+					if (keys[kNumKeys[i]])
+					{
+						keys[kNumKeys[i]] = FALSE;
+						SendDebugTeleportToMegaGrid(i + 1);
+					}
+				}
+			}
 		}
 	}
 

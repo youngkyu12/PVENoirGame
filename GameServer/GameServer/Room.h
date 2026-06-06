@@ -82,6 +82,7 @@ public:
 	void OnMonsterDeath(uint64 enemyId);
 	void FireEnemyArrow(CServerObject* shooter, float speed, uint32 lifeTicks);
 	void DebugKillMega5Enemies();
+	void DebugTeleportToMegaGrid(uint64 playerId, int megaGridNumber);
 
 public:
     GameAreaRef GetArea(uint32 areaId);

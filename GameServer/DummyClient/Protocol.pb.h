@@ -1805,6 +1805,7 @@ class C_DEBUG_COMMAND final :
 
   enum : int {
     kCommandTypeFieldNumber = 1,
+    kMegaGridNumberFieldNumber = 2,
   };
   // .Protocol.DebugCommandType commandType = 1;
   void clear_commandtype();
@@ -1815,6 +1816,15 @@ class C_DEBUG_COMMAND final :
   void _internal_set_commandtype(::Protocol::DebugCommandType value);
   public:
 
+  // int32 megaGridNumber = 2;
+  void clear_megagridnumber();
+  ::PROTOBUF_NAMESPACE_ID::int32 megagridnumber() const;
+  void set_megagridnumber(::PROTOBUF_NAMESPACE_ID::int32 value);
+  private:
+  ::PROTOBUF_NAMESPACE_ID::int32 _internal_megagridnumber() const;
+  void _internal_set_megagridnumber(::PROTOBUF_NAMESPACE_ID::int32 value);
+  public:
+
   // @@protoc_insertion_point(class_scope:Protocol.C_DEBUG_COMMAND)
  private:
   class _Internal;
@@ -1823,6 +1833,7 @@ class C_DEBUG_COMMAND final :
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
   int commandtype_;
+  ::PROTOBUF_NAMESPACE_ID::int32 megagridnumber_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_Protocol_2eproto;
 };
@@ -2646,6 +2657,26 @@ inline void C_DEBUG_COMMAND::_internal_set_commandtype(::Protocol::DebugCommandT
 inline void C_DEBUG_COMMAND::set_commandtype(::Protocol::DebugCommandType value) {
   _internal_set_commandtype(value);
   // @@protoc_insertion_point(field_set:Protocol.C_DEBUG_COMMAND.commandType)
+}
+
+// int32 megaGridNumber = 2;
+inline void C_DEBUG_COMMAND::clear_megagridnumber() {
+  megagridnumber_ = 0;
+}
+inline ::PROTOBUF_NAMESPACE_ID::int32 C_DEBUG_COMMAND::_internal_megagridnumber() const {
+  return megagridnumber_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::int32 C_DEBUG_COMMAND::megagridnumber() const {
+  // @@protoc_insertion_point(field_get:Protocol.C_DEBUG_COMMAND.megaGridNumber)
+  return _internal_megagridnumber();
+}
+inline void C_DEBUG_COMMAND::_internal_set_megagridnumber(::PROTOBUF_NAMESPACE_ID::int32 value) {
+  
+  megagridnumber_ = value;
+}
+inline void C_DEBUG_COMMAND::set_megagridnumber(::PROTOBUF_NAMESPACE_ID::int32 value) {
+  _internal_set_megagridnumber(value);
+  // @@protoc_insertion_point(field_set:Protocol.C_DEBUG_COMMAND.megaGridNumber)
 }
 
 #ifdef __GNUC__
