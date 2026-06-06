@@ -31,6 +31,22 @@ CGameFramework::~CGameFramework()
 {
 }
 
+void CGameFramework::SetDisplayMode(DisplayMode DM, int Width, int Height)
+{
+	switch ( DM )
+	{
+	case DisplayMode::Windowed:
+
+		break;
+	case DisplayMode::BorderlessFullscreen:
+		break;
+	case DisplayMode::ExclusiveFullscreen:
+		break;
+	default:
+		break;
+	}
+}
+
 bool CGameFramework::OnCreate(HINSTANCE hInstance, HWND hMainWnd)
 {
 	m_hInstance = hInstance;
@@ -225,7 +241,6 @@ void CGameFramework::CreateDirect3DDevice()
 		nDXGIFactoryFlags,
 		IID_PPV_ARGS(&m_pdxgiFactory));
 
-	ComPtr<IDXGIAdapter1> pd3dAdapter;
 	if ( FAILED(hResult) )
 		return;
 
@@ -235,22 +250,22 @@ void CGameFramework::CreateDirect3DDevice()
 		hResult = m_pdxgiFactory->EnumAdapterByGpuPreference(
 			i,
 			DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
-			IID_PPV_ARGS(&pd3dAdapter));
+			IID_PPV_ARGS(&m_pd3dAdapter));
 
 		if ( hResult == DXGI_ERROR_NOT_FOUND )
 			break;
 
 		if ( FAILED(hResult) )
 			continue;
-
+	
 		DXGI_ADAPTER_DESC1 desc = {};
-		pd3dAdapter->GetDesc1(&desc);
+		m_pd3dAdapter->GetDesc1(&desc);
 
 		if ( desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE )
 			continue;
 
 		hResult = D3D12CreateDevice(
-			pd3dAdapter.Get(),
+			m_pd3dAdapter.Get(),
 			D3D_FEATURE_LEVEL_12_0,
 			IID_PPV_ARGS(&m_pd3dDevice));
 
@@ -260,9 +275,9 @@ void CGameFramework::CreateDirect3DDevice()
 	
 	if (!m_pd3dDevice)
 	{
-		hResult = m_pdxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&pd3dAdapter));
+		hResult = m_pdxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&m_pd3dAdapter));
 		hResult = D3D12CreateDevice(
-			pd3dAdapter.Get(),
+			m_pd3dAdapter.Get(),
 			D3D_FEATURE_LEVEL_11_0,
 			IID_PPV_ARGS(&m_pd3dDevice));
 	}
@@ -296,8 +311,126 @@ void CGameFramework::CreateDirect3DDevice()
 
 	m_hFenceEvent = ::CreateEvent(nullptr, FALSE, FALSE, nullptr);
 
+	ComPtr<IDXGIOutput> pOutput;
+	UINT nModes = 0;
+	UINT nDXGIOutputFlags = DXGI_ENUM_MODES_INTERLACED/*0*/;
+
+	pOutput = FindOutputForCurrentWindow();
+
+	hResult = pOutput->GetDisplayModeList(
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		nDXGIOutputFlags,
+		&nModes,
+		nullptr
+	);
+
+	if (FAILED(hResult) || nModes == 0)
+		return;
+
+	m_DisplayModeList.resize(nModes);
+
+	hResult = pOutput->GetDisplayModeList(
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		nDXGIOutputFlags,
+		&nModes,
+		m_DisplayModeList.data()
+	);
+
+
 	::gnRtvDescriptorIncrementSize = m_pd3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	::gnCbvSrvDescriptorIncrementSize = m_pd3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+}
+
+ComPtr<IDXGIOutput> CGameFramework::FindOutputForCurrentWindow() const
+{
+	HMONITOR targetMonitor = ::MonitorFromWindow(
+		m_hWnd,
+		MONITOR_DEFAULTTONEAREST
+	);
+
+	if (!targetMonitor)
+		return nullptr;
+
+	for (UINT adapterIndex = 0; ; ++adapterIndex)
+	{
+		ComPtr<IDXGIAdapter1> adapter;
+
+		HRESULT hr = m_pdxgiFactory->EnumAdapters1(adapterIndex, &adapter);
+		if (hr == DXGI_ERROR_NOT_FOUND)
+			break;
+
+		if (FAILED(hr) || !adapter)
+			continue;
+
+		DXGI_ADAPTER_DESC1 adapterDesc{};
+		adapter->GetDesc1(&adapterDesc);
+
+		if (adapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+			continue;
+
+		for (UINT outputIndex = 0; ; ++outputIndex)
+		{
+			ComPtr<IDXGIOutput> output;
+
+			hr = adapter->EnumOutputs(outputIndex, &output);
+			if (hr == DXGI_ERROR_NOT_FOUND)
+				break;
+
+			if (FAILED(hr) || !output)
+				continue;
+
+			DXGI_OUTPUT_DESC outputDesc{};
+			hr = output->GetDesc(&outputDesc);
+			if (FAILED(hr))
+				continue;
+
+			if (outputDesc.Monitor == targetMonitor)
+				return output;
+		}
+	}
+
+	return nullptr;
+}
+
+void CGameFramework::BuildDisplayModeListForCurrentWindow()
+{
+	m_DisplayModeList.clear();
+
+	ComPtr<IDXGIOutput> output = FindOutputForCurrentWindow();
+	if (!output)
+		return;
+
+	constexpr DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	constexpr UINT flags = DXGI_ENUM_MODES_SCALING;
+
+	UINT modeCount = 0;
+
+	HRESULT hr = output->GetDisplayModeList(
+		format,
+		flags,
+		&modeCount,
+		nullptr
+	);
+
+	if (FAILED(hr) || modeCount == 0)
+		return;
+
+	m_DisplayModeList.resize(modeCount);
+
+	hr = output->GetDisplayModeList(
+		format,
+		flags,
+		&modeCount,
+		m_DisplayModeList.data()
+	);
+
+	if (FAILED(hr))
+	{
+		m_DisplayModeList.clear();
+		return;
+	}
+
+	m_DisplayModeList.resize(modeCount);
 }
 
 void CGameFramework::CreateCommandQueueAndList()
@@ -1053,12 +1186,49 @@ void CGameFramework::ChangeSwapChainState()
 {
 	FlushGpu();
 
-	BOOL bFullScreenState = FALSE;
-	HRESULT hResult = m_pdxgiSwapChain->GetFullscreenState(&bFullScreenState, NULL);
-	( void ) hResult;
+	BOOL fullscreen = FALSE;
+	HRESULT hResult = m_pdxgiSwapChain->GetFullscreenState(&fullscreen, nullptr);
+	if (FAILED(hResult))
+		return;
 
-	hResult = m_pdxgiSwapChain->SetFullscreenState(!bFullScreenState, NULL);
-	( void ) hResult;
+	const BOOL nextFullscreen = !fullscreen;
+
+	hResult = m_pdxgiSwapChain->SetFullscreenState(nextFullscreen, nullptr);
+	if (FAILED(hResult))
+		return;
+
+	if (nextFullscreen)	// 전체화면으로 전환
+	{
+		/*ComPtr<IDXGIOutput> pOutput;
+
+		m_pd3dAdapter->EnumOutputs(0, &pOutput);
+
+		DXGI_OUTPUT_DESC OutputDesc{};
+		pOutput->GetDesc(&OutputDesc);
+
+		const RECT& rc = OutputDesc.DesktopCoordinates;*/
+
+		m_nWndClientWidth = 2560;
+		m_nWndClientHeight = 1600;
+	}
+	else // 창모드로 전환
+	{
+		m_nWndClientWidth = FRAME_BUFFER_WIDTH;
+		m_nWndClientHeight = FRAME_BUFFER_HEIGHT;
+	}
+
+	OnResize();
+}
+
+void CGameFramework::OnResize()
+{
+	if (!m_pd3dDevice || !m_pdxgiSwapChain)
+		return;
+
+	if (m_nWndClientWidth <= 0 || m_nWndClientHeight <= 0)
+		return;
+
+	FlushGpu();
 
 	DXGI_MODE_DESC dxgiTargetParameters;
 	::ZeroMemory(&dxgiTargetParameters, sizeof(DXGI_MODE_DESC));
@@ -1070,14 +1240,17 @@ void CGameFramework::ChangeSwapChainState()
 	dxgiTargetParameters.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
 	dxgiTargetParameters.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
 
-	hResult = m_pdxgiSwapChain->ResizeTarget(&dxgiTargetParameters);
+	HRESULT hResult = m_pdxgiSwapChain->ResizeTarget(&dxgiTargetParameters);
 	( void ) hResult;
-
+	
 	for ( int i = 0; i < m_nSwapChainBuffers; ++i )
 	{
 		if ( m_ppd3dSwapChainBackBuffers[i] )
 			m_ppd3dSwapChainBackBuffers[i].Reset();
 	}
+
+	if (m_pd3dDepthStencilBuffer)
+		m_pd3dDepthStencilBuffer.Reset();
 
 	DXGI_SWAP_CHAIN_DESC dxgiSwapChainDesc;
 	::ZeroMemory(&dxgiSwapChainDesc, sizeof(DXGI_SWAP_CHAIN_DESC));
@@ -1097,6 +1270,16 @@ void CGameFramework::ChangeSwapChainState()
 	m_nSwapChainBufferIndex = m_pdxgiSwapChain->GetCurrentBackBufferIndex();
 
 	CreateSwapChainRenderTargetViews();
+	CreateDepthStencilView();
+
+	CScene* scene = m_SceneManager.GetScene();
+	if (scene)
+		scene->OnResize(m_nWndClientWidth, m_nWndClientHeight);
+
+	m_pCamera = scene ? scene->GetMainCamera() : nullptr;
+
+	if (m_pCamera)
+		m_pCamera->SetFrameResourceIndex(m_nFrameContextIndex);
 
 	for ( UINT i = 0; i < m_nFrameContexts; ++i )
 		m_frameContexts[i].fenceValue = 0;
