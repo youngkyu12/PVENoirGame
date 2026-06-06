@@ -328,12 +328,13 @@ enum BulletType : int {
   BULLET_TYPE_NONE = 0,
   BULLET_TYPE_ARROW = 1,
   BULLET_TYPE_CANNONBALL = 2,
+  BULLET_TYPE_BOSS_POISON = 3,
   BulletType_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
   BulletType_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
 };
 bool BulletType_IsValid(int value);
 constexpr BulletType BulletType_MIN = BULLET_TYPE_NONE;
-constexpr BulletType BulletType_MAX = BULLET_TYPE_CANNONBALL;
+constexpr BulletType BulletType_MAX = BULLET_TYPE_BOSS_POISON;
 constexpr int BulletType_ARRAYSIZE = BulletType_MAX + 1;
 
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* BulletType_descriptor();

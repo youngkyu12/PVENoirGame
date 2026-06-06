@@ -8088,6 +8088,7 @@ void CGameScene::AnimateObjects(float dt)
 		// Projectile 동기화
 		std::unordered_set<uint64_t> visibleArrowIds;
 		std::unordered_set<uint64_t> visibleBulletIds;
+		std::unordered_set<uint64_t> visibleBossPoisonIds;
 
 		auto AcquireNetworkProjectile = [] (
 			const std::vector<CGameObject*>& refs,
@@ -8116,9 +8117,7 @@ void CGameScene::AnimateObjects(float dt)
 
 		for (const auto& b : snapshot.bullets)
 		{
-			const bool isArrow = (b.bulletType == 1u); // Protocol::BULLET_TYPE_ARROW
-
-			if (isArrow)
+			if (b.bulletType == 1u) // BULLET_TYPE_ARROW
 			{
 				visibleArrowIds.insert(b.id);
 
@@ -8142,7 +8141,47 @@ void CGameScene::AnimateObjects(float dt)
 						arrowtransform->SetLookDirection(b.velocity);
 				}
 			}
-			else
+			else if (b.bulletType == 3u) // BULLET_TYPE_BOSS_POISON
+			{
+				visibleBossPoisonIds.insert(b.id);
+
+				int entryIdx = -1;
+				auto it = m_networkBossPoisonById.find(b.id);
+				if (it != m_networkBossPoisonById.end())
+				{
+					entryIdx = it->second;
+				}
+				else
+				{
+					auto& pool = m_bossPoisonProjectileEffect.entries;
+					for (int i = 0; i < (int)pool.size(); ++i)
+					{
+						bool inUse = false;
+						for (auto& kv : m_networkBossPoisonById)
+							if (kv.second == i) { inUse = true; break; }
+						if (!inUse) { entryIdx = i; m_networkBossPoisonById[b.id] = i; break; }
+					}
+				}
+
+				if (entryIdx < 0 || entryIdx >= (int)m_bossPoisonProjectileEffect.entries.size()) continue;
+
+				auto& entry = m_bossPoisonProjectileEffect.entries[entryIdx];
+				entry.active   = true;
+				entry.owner    = nullptr;
+				entry.position = b.position;
+				entry.velocity = b.velocity;
+
+				float spd = std::sqrt(b.velocity.x*b.velocity.x + b.velocity.y*b.velocity.y + b.velocity.z*b.velocity.z);
+				if (spd > 0.001f)
+					entry.direction = XMFLOAT3(b.velocity.x/spd, b.velocity.y/spd, b.velocity.z/spd);
+
+				entry.coreDiameter = 4.0f;
+				entry.coreRadius   = 2.0f;
+				entry.gasDiameter  = 8.0f;
+				entry.speed        = 18.0f;
+				entry.visualSeed   = static_cast<float>(b.id % 1000);
+			}
+			else // BULLET_TYPE_CANNONBALL etc.
 			{
 				visibleBulletIds.insert(b.id);
 
@@ -8196,6 +8235,16 @@ void CGameScene::AnimateObjects(float dt)
 					bullet->Deactivate();
 			}
 			it = m_networkBulletById.erase(it);
+		}
+
+		for (auto it = m_networkBossPoisonById.begin(); it != m_networkBossPoisonById.end(); )
+		{
+			if (visibleBossPoisonIds.count(it->first)) { ++it; continue; }
+
+			int idx = it->second;
+			if (idx >= 0 && idx < (int)m_bossPoisonProjectileEffect.entries.size())
+				m_bossPoisonProjectileEffect.entries[idx].active = false;
+			it = m_networkBossPoisonById.erase(it);
 		}
 
 		// 사용이 끝난 data는 기본값으로 초기화 (선택적)

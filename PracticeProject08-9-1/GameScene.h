@@ -1187,6 +1187,7 @@ private:
 	std::vector<CGameObject*> m_bulletRefs;
 	std::unordered_map<uint64_t, CGameObject*> m_networkArrowById;
 	std::unordered_map<uint64_t, CGameObject*> m_networkBulletById;
+	std::unordered_map<uint64_t, int>          m_networkBossPoisonById;
 
 	std::array<CGameObject*, 4> m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr };
 	std::array<bool, 4> m_prevBowReleasePhase = { false, false, false, false };

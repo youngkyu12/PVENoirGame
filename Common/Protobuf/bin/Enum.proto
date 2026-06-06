@@ -104,6 +104,7 @@ enum BulletType
 	BULLET_TYPE_NONE = 0;
 	BULLET_TYPE_ARROW = 1;
 	BULLET_TYPE_CANNONBALL = 2;
+	BULLET_TYPE_BOSS_POISON = 3;
 }
 
 enum ForcedTransformReason

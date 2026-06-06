@@ -1,9 +1,12 @@
 #include "pch.h"
 #include "Room.h"
 #include "Enemy.h"
+#include "Player.h"
 #include "BossScriptHost.h"
 #include "BossAIContext.h"
+#include "Projectile.h"
 #include <lua/lua.hpp>
+#include <cmath>
 
 bool Room::IsPreBossMonster(uint64 enemyId) const
 {
@@ -55,6 +58,169 @@ void Room::CallBossScriptUpdate(float dt)
 	{
 		cout << "[BossRoom] Script update error: " << lua_tostring(L, -1) << endl;
 		lua_pop(L, 1);
+	}
+
+	ProcessBossMeleeHit();
+	ProcessBossSpellAction();
+	UpdateBossPoisonProjectiles(dt);
+}
+
+void Room::ProcessBossSpellAction()
+{
+	if (!m_bossAIContext) return;
+
+	constexpr float kSpellProjectileDelay = 1.025f;
+
+	float elapsed = m_bossAIContext->spellActionElapsed;
+	if (elapsed < 0.0f || m_bossAIContext->spellProjectileSpawned) return;
+
+	if (elapsed >= kSpellProjectileDelay)
+	{
+		SpawnBossPoisonProjectile();
+		m_bossAIContext->spellProjectileSpawned = true;
+	}
+}
+
+void Room::SpawnBossPoisonProjectile()
+{
+	CEnemy* boss = GetBossEnemy();
+	if (!boss) return;
+
+	ProjectileRef slot;
+	for (auto& p : m_bossPoisonPool)
+	{
+		if (!p->IsActive()) { slot = p; break; }
+	}
+	if (!slot) { cout << "[BossRoom] Poison pool exhausted" << endl; return; }
+
+	constexpr float kSpawnOffsetY   = 3.3f;
+	constexpr float kSpawnOffsetFwd = 4.0f;
+	constexpr float kSpeed          = 18.0f;
+	constexpr uint64 kLifetimeMs    = 15000;
+
+	float yawRad = boss->GetYaw() * (3.14159265f / 180.0f);
+	float fwdX = std::sin(yawRad);
+	float fwdZ = std::cos(yawRad);
+
+	auto bossPos = boss->GetPosition();
+	GameMath::Vec3 spawnPos(
+		bossPos.x + fwdX * kSpawnOffsetFwd,
+		bossPos.y + kSpawnOffsetY,
+		bossPos.z + fwdZ * kSpawnOffsetFwd);
+
+	GameMath::Vec3 vel(fwdX * kSpeed, 0.0f, fwdZ * kSpeed);
+
+	slot->Activate(spawnPos, vel, 1, kLifetimeMs, boss->GetObjectId(), Protocol::BULLET_TYPE_BOSS_POISON);
+	m_bossPoisonHitMap[slot->GetObjectId()].clear();
+
+	cout << "[BossRoom] Poison projectile spawned id=" << slot->GetObjectId() << endl;
+}
+
+void Room::UpdateBossPoisonProjectiles(float dt)
+{
+	constexpr float kStageHalfExtent  = 110.0f;
+	constexpr float kStageCenterX     = 0.0f;
+	constexpr float kStageCenterZ     = 400.0f;
+	constexpr float kHitRadiusXZ      = 4.65f;  // gas radius 4.0 + player collision radius 0.65
+	constexpr float kHitToleranceY    = 5.15f;  // gas radius 4.0 + player half height 1.15
+	constexpr float kPlayerHitCenterY = 1.0f;
+	constexpr int   kPoisonDamage     = 50;
+
+	const uint32 animTick = GetAnimClockTick();
+	const uint64 dtMs = static_cast<uint64>(dt * 1000.0f);
+
+	for (auto& proj : m_bossPoisonPool)
+	{
+		if (!proj->IsActive()) continue;
+
+		proj->Update(dt, dtMs);
+		if (!proj->IsActive()) { m_bossPoisonHitMap.erase(proj->GetObjectId()); continue; }
+
+		auto pos = proj->GetPosition();
+
+		// Stage bounds check
+		if (std::abs(pos.x - kStageCenterX) > kStageHalfExtent ||
+			std::abs(pos.z - kStageCenterZ) > kStageHalfExtent)
+		{
+			proj->Deactivate();
+			m_bossPoisonHitMap.erase(proj->GetObjectId());
+			continue;
+		}
+
+		// Player hit check
+		auto& hitSet = m_bossPoisonHitMap[proj->GetObjectId()];
+		for (auto& [pid, player] : players)
+		{
+			if (!player || !player->IsActive() || player->IsDead()) continue;
+			if (hitSet.count(pid)) continue;
+
+			auto pPos = player->GetPosition();
+			float dx = pPos.x - pos.x;
+			float dz = pPos.z - pos.z;
+			if (dx * dx + dz * dz > kHitRadiusXZ * kHitRadiusXZ) continue;
+			if (std::abs((pPos.y + kPlayerHitCenterY) - pos.y) > kHitToleranceY) continue;
+
+			player->ApplyHit(animTick, kPoisonDamage);
+			hitSet.insert(pid);
+			cout << "[BossRoom] Poison hit player " << pid << " for " << kPoisonDamage << endl;
+		}
+	}
+}
+
+void Room::ProcessBossMeleeHit()
+{
+	if (!m_bossAIContext) return;
+
+	constexpr float kMeleeClipDuration = 1.5f;
+	constexpr float kHitWindowStart    = 0.20f * kMeleeClipDuration;
+	constexpr float kHitWindowEnd      = 0.55f * kMeleeClipDuration;
+	constexpr float kMeleeRange        = 7.0f;
+	constexpr float kMeleeArcCos       = 0.5f; // cos(60deg), ±60 degree arc
+	constexpr int   kMeleeDamage       = 50;
+
+	float elapsed = m_bossAIContext->meleeActionElapsed;
+	if (elapsed < 0.0f) return;
+
+	if (elapsed > kMeleeClipDuration)
+	{
+		m_bossAIContext->meleeActionElapsed = -1.0f;
+		m_bossAIContext->meleeHitPlayerIds.clear();
+		return;
+	}
+
+	if (elapsed < kHitWindowStart || elapsed > kHitWindowEnd) return;
+
+	CEnemy* boss = GetBossEnemy();
+	if (!boss) return;
+
+	auto bossPos = boss->GetPosition();
+	float yawRad = boss->GetYaw() * (3.14159265f / 180.0f);
+	float fwdX = std::sin(yawRad);
+	float fwdZ = std::cos(yawRad);
+
+	const uint32 animTick = GetAnimClockTick();
+
+	for (auto& [pid, player] : players)
+	{
+		if (!player || !player->IsActive() || player->IsDead()) continue;
+		if (m_bossAIContext->meleeHitPlayerIds.count(pid)) continue;
+
+		auto pPos = player->GetPosition();
+		float dx = pPos.x - bossPos.x;
+		float dz = pPos.z - bossPos.z;
+		float distSq = dx * dx + dz * dz;
+		if (distSq > kMeleeRange * kMeleeRange) continue;
+
+		float dist = std::sqrt(distSq);
+		if (dist > 0.001f)
+		{
+			float dot = (dx / dist) * fwdX + (dz / dist) * fwdZ;
+			if (dot < kMeleeArcCos) continue;
+		}
+
+		player->ApplyHit(animTick, kMeleeDamage);
+		m_bossAIContext->meleeHitPlayerIds.insert(pid);
+		cout << "[BossRoom] Melee hit player " << pid << " for " << kMeleeDamage << endl;
 	}
 }
 
