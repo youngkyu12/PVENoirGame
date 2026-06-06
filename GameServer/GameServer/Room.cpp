@@ -8,10 +8,14 @@
 #include "GameArea.h"
 #include "ColliderComponent.h"
 #include "Projectile.h"
+#include "BossScriptHost.h"
+#include "BossAIContext.h"
 
 #include "Protocol.pb.h"
 #include "ClientPacketHandler.h"
 #include "ReportHelper.h"
+
+Room::~Room() = default;
 
 #include <algorithm>
 #include <fstream>

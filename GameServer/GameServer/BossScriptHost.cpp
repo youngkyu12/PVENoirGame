@@ -22,11 +22,7 @@ static CBossAIContext* GetCtx(lua_State* L)
 // ---------------------------------------------------------------------------
 static CEnemy* GetBoss(lua_State* L)
 {
-	CBossAIContext* ctx = GetCtx(L);
-	auto& enemies = ctx->room->GetEnemies();
-	auto it = enemies.find(ctx->bossEnemyId);
-	if (it == enemies.end() || !it->second) return nullptr;
-	return it->second.get();
+	return GetCtx(L)->room->GetBossEnemy();
 }
 
 // ---------------------------------------------------------------------------
@@ -60,12 +56,12 @@ static int lua_boss_nearest_player(lua_State* L)
 {
 	CBossAIContext* ctx = GetCtx(L);
 	CEnemy* boss = GetBoss(L);
-	if (!boss) { lua_pushinteger(L, 0); return 1; }
+	if (!boss) { lua_pushinteger(L, -1); return 1; }
 
 	auto bossPos = boss->GetPosition();
 	const auto& players = ctx->room->GetPlayers();
 
-	uint64 nearestId = 0;
+	lua_Integer nearestId = -1;
 	float nearestDistSq = FLT_MAX;
 
 	for (auto& [id, player] : players)
@@ -80,11 +76,11 @@ static int lua_boss_nearest_player(lua_State* L)
 		if (distSq < nearestDistSq)
 		{
 			nearestDistSq = distSq;
-			nearestId = id;
+			nearestId = static_cast<lua_Integer>(id);
 		}
 	}
 
-	lua_pushinteger(L, static_cast<lua_Integer>(nearestId));
+	lua_pushinteger(L, nearestId);
 	return 1;
 }
 
@@ -92,9 +88,10 @@ static int lua_boss_distance_to_player(lua_State* L)
 {
 	CBossAIContext* ctx = GetCtx(L);
 	CEnemy* boss = GetBoss(L);
-	uint64 playerId = static_cast<uint64>(luaL_checkinteger(L, 1));
+	lua_Integer pidArg = luaL_checkinteger(L, 1);
 
-	if (!boss) { lua_pushnumber(L, 0.0f); return 1; }
+	if (!boss || pidArg < 0) { lua_pushnumber(L, FLT_MAX); return 1; }
+	uint64 playerId = static_cast<uint64>(pidArg);
 
 	const auto& players = ctx->room->GetPlayers();
 	auto it = players.find(playerId);
@@ -112,9 +109,10 @@ static int lua_boss_face_player(lua_State* L)
 {
 	CBossAIContext* ctx = GetCtx(L);
 	CEnemy* boss = GetBoss(L);
-	uint64 playerId = static_cast<uint64>(luaL_checkinteger(L, 1));
+	lua_Integer pidArg = luaL_checkinteger(L, 1);
 
-	if (!boss) return 0;
+	if (!boss || pidArg < 0) return 0;
+	uint64 playerId = static_cast<uint64>(pidArg);
 
 	const auto& players = ctx->room->GetPlayers();
 	auto it = players.find(playerId);
