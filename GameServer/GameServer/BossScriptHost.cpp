@@ -167,15 +167,26 @@ static int lua_boss_move_towards_player(lua_State* L)
 
 static int lua_boss_start_action(lua_State* L)
 {
+	CBossAIContext* ctx = GetCtx(L);
 	CEnemy* boss = GetBoss(L);
 	const char* name = luaL_checkstring(L, 1);
 	if (!boss) return 0;
 
 	Protocol::AnimationType anim = Protocol::ANIMATION_TYPE_IDLE;
-	if      (std::strcmp(name, "Melee")  == 0) anim = Protocol::ANIMATION_TYPE_ATTACK;
+	if      (std::strcmp(name, "Melee")  == 0)
+	{
+		anim = Protocol::ANIMATION_TYPE_ATTACK;
+		ctx->meleeActionElapsed = 0.0f;
+		ctx->meleeHitPlayerIds.clear();
+	}
 	else if (std::strcmp(name, "Die")    == 0) anim = Protocol::ANIMATION_TYPE_DIE;
 	else if (std::strcmp(name, "Appear") == 0) anim = Protocol::ANIMATION_TYPE_BOSS_APPEAR;
-	else if (std::strcmp(name, "Spell")  == 0) anim = Protocol::ANIMATION_TYPE_BOSS_SPELL;
+	else if (std::strcmp(name, "Spell")  == 0)
+	{
+		anim = Protocol::ANIMATION_TYPE_BOSS_SPELL;
+		ctx->spellActionElapsed     = 0.0f;
+		ctx->spellProjectileSpawned = false;
+	}
 	else if (std::strcmp(name, "Call")   == 0) anim = Protocol::ANIMATION_TYPE_BOSS_CALL;
 
 	boss->SetAnimState(anim);

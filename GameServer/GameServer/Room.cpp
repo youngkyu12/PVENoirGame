@@ -332,6 +332,8 @@ void Room::BuildRoom()
 	m_arrowPool.clear();
 	m_bulletPool.clear();
 	m_enemyArrowPool.clear();
+	m_bossPoisonPool.clear();
+	m_bossPoisonHitMap.clear();
 	InitializeCollisionSystem();
 	InitializeSpatialGrid();
 
@@ -410,6 +412,14 @@ void Room::BuildRoom()
 		p->SetObjectId(300000 + i);
 		p->Deactivate();
 		m_enemyArrowPool.push_back(p);
+	}
+
+	for (int i = 0; i < kBossPoisonPoolSize; ++i)
+	{
+		auto p = ObjectPool<CProjectile>::MakeShared();
+		p->SetObjectId(400000 + i);
+		p->Deactivate();
+		m_bossPoisonPool.push_back(p);
 	}
 
 	m_navMesh = make_unique<CNavMesh>();

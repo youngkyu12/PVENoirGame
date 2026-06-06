@@ -315,6 +315,10 @@ private:
 	void UpdateBossRoomState();
 	void ActivateBoss();
 	void CallBossScriptUpdate(float dt);
+	void ProcessBossMeleeHit();
+	void ProcessBossSpellAction();
+	void SpawnBossPoisonProjectile();
+	void UpdateBossPoisonProjectiles(float dt);
 
 	void ResetDynamicGridCounts();
 	bool TryGetTrackedCell(const CServerObject* obj, int& outCellX, int& outCellZ) const;
@@ -353,13 +357,17 @@ private:
 
 	std::unique_ptr<CNavMesh> m_navMesh;
 	std::unique_ptr<CServerTerrain> m_serverTerrain;
-	static constexpr int kArrowPoolSize = 64;
-	static constexpr int kBulletPoolSize = 64;
+	static constexpr int kArrowPoolSize      = 64;
+	static constexpr int kBulletPoolSize     = 64;
 	static constexpr int kEnemyArrowPoolSize = 32;
+	static constexpr int kBossPoisonPoolSize = 8;
 
 	Vector<ProjectileRef> m_arrowPool;
 	Vector<ProjectileRef> m_bulletPool;
 	Vector<ProjectileRef> m_enemyArrowPool;
+	Vector<ProjectileRef> m_bossPoisonPool;
+
+	std::unordered_map<uint64, std::unordered_set<uint64>> m_bossPoisonHitMap;
 
 	std::unique_ptr<CCollisionSystem> _collision;
 
