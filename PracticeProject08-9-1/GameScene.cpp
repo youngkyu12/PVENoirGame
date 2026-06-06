@@ -8079,6 +8079,16 @@ void CGameScene::AnimateObjects(float dt)
 						ctrl->RequestCommand(EMonsterAnimCommand::Attack);
 					}
 
+					else if ( decoded.bossSpell && !prevDecoded.bossSpell )
+					{
+						ctrl->RequestCommand(EMonsterAnimCommand::Spell);
+					}
+
+					else if ( decoded.bossCall && !prevDecoded.bossCall )
+					{
+						ctrl->RequestCommand(EMonsterAnimCommand::Call);
+					}
+
 					m_prevEnemyNetworkStateCode[state.id] = state.animation.stateCode;
 					ctrl->Update(0.0f);
 				}
