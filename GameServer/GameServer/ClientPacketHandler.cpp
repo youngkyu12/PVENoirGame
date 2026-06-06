@@ -28,13 +28,15 @@ bool Handle_C_LOGIN(PacketSessionRef& session, Protocol::C_LOGIN& pkt)
 	// DB���� �÷��� ���� ��������
 	// GameSession�� �÷��� ���� ���� (�޸�)
 
-	// ID �߱�
+	// ID 발급
 	static Atomic<uint64> idGenerator = 0;
-	if(idGenerator < MaxPlayers) // �ο��� ����
+	uint64 playerId = idGenerator.fetch_add(1);
+
+	if (playerId < static_cast<uint64>(MaxPlayers)) // �ο��� ����
 	{
-		loginPkt.set_playerid(idGenerator);
+		loginPkt.set_playerid(playerId);
 		auto player = loginPkt.add_players();
-		player->set_id(idGenerator++);
+		player->set_id(playerId);
 		player->set_name(u8"Player");
 		player->set_playertype(Protocol::PLAYER_TYPE_KNIGHT);
 
