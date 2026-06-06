@@ -588,6 +588,13 @@ int RunDrawModule()
 				SendDebugKillMega5();
 			}
 
+								// F3: Deal 1200 damage (25%) to Boss (debug)
+			if (keys[VK_F3])
+			{
+				keys[VK_F3] = FALSE;
+				SendDebugDamageBoss();
+			}
+
 							// Ctrl+1~9: Teleport all dummy clients to MegaGrid N
 			if (GetAsyncKeyState(VK_CONTROL) & 0x8000)
 			{

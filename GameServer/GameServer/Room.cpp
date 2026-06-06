@@ -137,7 +137,7 @@ namespace
 	// ========================================
 	constexpr int kSpawnerMega6GhoulCount    = 200;
 	constexpr int kSpawnerMega8GhoulCount    = 200;
-	constexpr int kSpawnerMega5GhoulCount    = 60;
+	constexpr int kSpawnerMega5GhoulCount    = 70;
 	constexpr int kSpawnerMega5SwordManCount = 10;
 	constexpr int kSpawnerMega5BowManCount   = 10;
 	constexpr int kSpawnerMega5MutantCount   = 5;

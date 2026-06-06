@@ -74,19 +74,20 @@ const char descriptor_table_protodef_Enum_2eproto[] PROTOBUF_SECTION_VARIABLE(pr
   "\020\000\022(\n$FORCED_TRANSFORM_REASON_TOWER_PORT"
   "AL\020\001\022)\n%FORCED_TRANSFORM_REASON_CASTLE_P"
   "ORTAL\020\002\022#\n\037FORCED_TRANSFORM_REASON_RESPA"
-  "WN\020\003*y\n\020DebugCommandType\022\026\n\022DEBUG_COMMAN"
-  "D_NONE\020\000\022$\n DEBUG_COMMAND_KILL_MEGA5_ENE"
-  "MIES\020\001\022\'\n#DEBUG_COMMAND_TELEPORT_TO_MEGA"
-  "_GRID\020\002*\331\001\n\rBossRoomState\022#\n\037BOSS_ROOM_S"
-  "TATE_PRE_BOSS_COMBAT\020\000\022\"\n\036BOSS_ROOM_STAT"
-  "E_SUMMON_FADE_IN\020\001\022\"\n\036BOSS_ROOM_STATE_BO"
-  "SS_APPEARING\020\002\022\037\n\033BOSS_ROOM_STATE_BOSS_A"
-  "CTIVE\020\003\022\035\n\031BOSS_ROOM_STATE_BOSS_DEAD\020\004\022\033"
-  "\n\027BOSS_ROOM_STATE_CLEARED\020\005b\006proto3"
+  "WN\020\003*\230\001\n\020DebugCommandType\022\026\n\022DEBUG_COMMA"
+  "ND_NONE\020\000\022$\n DEBUG_COMMAND_KILL_MEGA5_EN"
+  "EMIES\020\001\022\'\n#DEBUG_COMMAND_TELEPORT_TO_MEG"
+  "A_GRID\020\002\022\035\n\031DEBUG_COMMAND_DAMAGE_BOSS\020\003*"
+  "\331\001\n\rBossRoomState\022#\n\037BOSS_ROOM_STATE_PRE"
+  "_BOSS_COMBAT\020\000\022\"\n\036BOSS_ROOM_STATE_SUMMON"
+  "_FADE_IN\020\001\022\"\n\036BOSS_ROOM_STATE_BOSS_APPEA"
+  "RING\020\002\022\037\n\033BOSS_ROOM_STATE_BOSS_ACTIVE\020\003\022"
+  "\035\n\031BOSS_ROOM_STATE_BOSS_DEAD\020\004\022\033\n\027BOSS_R"
+  "OOM_STATE_CLEARED\020\005b\006proto3"
   ;
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_Enum_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_Enum_2eproto = {
-  false, false, 2315, descriptor_table_protodef_Enum_2eproto, "Enum.proto", 
+  false, false, 2347, descriptor_table_protodef_Enum_2eproto, "Enum.proto", 
   &descriptor_table_Enum_2eproto_once, nullptr, 0, 0,
   schemas, file_default_instances, TableStruct_Enum_2eproto::offsets,
   nullptr, file_level_enum_descriptors_Enum_2eproto, file_level_service_descriptors_Enum_2eproto,
@@ -308,6 +309,7 @@ bool DebugCommandType_IsValid(int value) {
     case 0:
     case 1:
     case 2:
+    case 3:
       return true;
     default:
       return false;

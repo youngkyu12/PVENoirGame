@@ -62,6 +62,7 @@ void Room::CallBossScriptUpdate(float dt)
 
 	ProcessBossMeleeHit();
 	ProcessBossSpellAction();
+	ProcessBossCallAction();
 	UpdateBossPoisonProjectiles(dt);
 }
 
@@ -286,4 +287,120 @@ void Room::ActivateBoss()
 	cout << "[BossRoom] Boss activated at ("
 		<< m_bossOriginalPos.x << ", " << m_bossOriginalPos.y << ", " << m_bossOriginalPos.z
 		<< ")" << endl;
+}
+
+void Room::ProcessBossCallAction()
+{
+	if (!m_bossAIContext) return;
+
+	constexpr float kRiseDuration    = 1.5f;
+	constexpr float kRiseHeight      = 3.0f;
+	constexpr float kCallClipDuration= 2.0f;
+	constexpr float kSummonDelay     = 1.0f;
+	constexpr float kDescendDuration = 2.0f;
+
+	CEnemy* boss = GetBossEnemy();
+	if (!boss) return;
+
+	auto& ctx = *m_bossAIContext;
+
+	if (ctx.callRiseElapsed >= 0.0f)
+	{
+		float t = (std::min)(ctx.callRiseElapsed / kRiseDuration, 1.0f);
+		auto pos = boss->GetPosition();
+		boss->SetPosition(pos.x, ctx.callStartY + kRiseHeight * t, pos.z);
+
+		if (ctx.callRiseElapsed >= kRiseDuration)
+		{
+			boss->SetAnimState(Protocol::ANIMATION_TYPE_BOSS_CALL);
+			ctx.callRiseElapsed  = -1.0f;
+			ctx.callActionElapsed = 0.0f;
+			cout << "[BossRoom] Call wave " << ctx.callExecutedCount << " rising complete" << endl;
+		}
+		return;
+	}
+
+	if (ctx.callActionElapsed >= 0.0f)
+	{
+		if (!ctx.callSummonDone && ctx.callActionElapsed >= kSummonDelay)
+		{
+			SpawnBossCallWave();
+			ctx.callSummonDone = true;
+		}
+
+		if (ctx.callActionElapsed >= kCallClipDuration)
+		{
+			boss->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
+			ctx.callActionElapsed  = -1.0f;
+			ctx.callDescendElapsed = 0.0f;
+		}
+		return;
+	}
+
+	if (ctx.callDescendElapsed >= 0.0f)
+	{
+		float t = (std::min)(ctx.callDescendElapsed / kDescendDuration, 1.0f);
+		auto pos = boss->GetPosition();
+		boss->SetPosition(pos.x, ctx.callStartY + (kRiseHeight * (1.0f - t)), pos.z);
+
+		if (ctx.callDescendElapsed >= kDescendDuration)
+		{
+			boss->SetPosition(pos.x, ctx.callStartY, pos.z);
+			ctx.callDescendElapsed = -1.0f;
+			cout << "[BossRoom] Call sequence complete" << endl;
+		}
+	}
+}
+
+void Room::SpawnBossCallWave()
+{
+	if (!m_bossAIContext) return;
+
+	const int waveIndex = m_bossAIContext->callExecutedCount - 1;
+
+	struct SpawnReq { Protocol::EnemyType type; int count; };
+	std::vector<SpawnReq> wave;
+
+	if (waveIndex == 0)
+		wave = { { Protocol::ENEMY_TYPE_BASIC, 30 } };
+	else if (waveIndex == 1)
+		wave = { { Protocol::ENEMY_TYPE_BASIC, 20 }, { Protocol::ENEMY_TYPE_ARCHER, 5 }, { Protocol::ENEMY_TYPE_WARRIOR, 5 } };
+	else if (waveIndex == 2)
+		wave = { { Protocol::ENEMY_TYPE_BASIC, 20 }, { Protocol::ENEMY_TYPE_ARCHER, 5 }, { Protocol::ENEMY_TYPE_WARRIOR, 5 }, { Protocol::ENEMY_TYPE_MUTANT, 5 } };
+	else
+		return;
+
+	int spawned = 0;
+	for (auto& req : wave)
+		for (int i = 0; i < req.count; i++)
+			if (SpawnBossCallEnemy(req.type)) spawned++;
+
+	cout << "[BossRoom] Call wave " << (waveIndex + 1) << " spawned " << spawned << " enemies" << endl;
+}
+
+CEnemy* Room::SpawnBossCallEnemy(Protocol::EnemyType type)
+{
+	if (!m_bossAIContext) return nullptr;
+
+	float x   = m_bossAIContext->RandFloat(-100.0f,  100.0f);
+	float z   = m_bossAIContext->RandFloat( 300.0f,  500.0f);
+	float yaw = m_bossAIContext->RandFloat(-180.0f,  180.0f);
+
+	CEnemy* activated = ActivateSpawnerEnemy(5, type, GameMath::Vec3(x, 0.0f, z), yaw);
+	if (activated)
+		m_bossSummonedEnemyIds.insert(activated->GetObjectId());
+
+	return activated;
+}
+
+void Room::DebugDamageBoss()
+{
+	if (m_bossRoomState != EBossRoomState::BossActive) return;
+
+	CEnemy* boss = GetBossEnemy();
+	if (!boss) return;
+
+	constexpr int kDebugDamage = 1200; // 25% of max HP 4800
+	boss->ApplyHit(GetAnimClockTick(), kDebugDamage);
+	cout << "[BossRoom] Debug: Boss HP " << boss->GetCurrentHp() << "/" << boss->GetMaxHp() << endl;
 }

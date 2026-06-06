@@ -565,6 +565,28 @@ void SendDebugKillMega5()
 	target->Send(sendBuffer);
 }
 
+void SendDebugDamageBoss()
+{
+	PacketSessionRef target;
+	{
+		std::lock_guard<std::mutex> lock(g_stressLock);
+		for (auto& kv : g_clients)
+		{
+			if (kv.second.session && kv.second.gameStarted)
+			{
+				target = kv.second.session;
+				break;
+			}
+		}
+	}
+	if (!target) return;
+
+	Protocol::C_DEBUG_COMMAND pkt;
+	pkt.set_commandtype(Protocol::DEBUG_COMMAND_DAMAGE_BOSS);
+	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(pkt);
+	target->Send(sendBuffer);
+}
+
 void SendDebugTeleportToMegaGrid(int megaGridNumber)
 {
 	std::vector<PacketSessionRef> targets;
