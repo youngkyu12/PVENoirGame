@@ -3,9 +3,12 @@
 #include "CollisionSystem.h"
 #include "NavMesh.h"
 #include "ServerTerrain.h"
+class CBossScriptHost;
+struct CBossAIContext;
 #include <array>
 #include <vector>
 #include <unordered_set>
+#include <memory>
 
 namespace Protocol
 {
@@ -307,6 +310,9 @@ private:
 	bool IsPreBossMonster(uint64 enemyId) const;
 	void UpdateBossRoomState();
 	void ActivateBoss();
+	void CallBossScriptUpdate(float dt);
+	CEnemy* GetBossEnemy();
+	EBossRoomState GetBossRoomState() const { return m_bossRoomState; }
 
 	void ResetDynamicGridCounts();
 	bool TryGetTrackedCell(const CServerObject* obj, int& outCellX, int& outCellZ) const;
@@ -390,6 +396,8 @@ private:
 	float m_bossOriginalYaw = 0.0f;
 	uint64 m_bossRoomStateChangedMs = 0;
 	std::unordered_set<uint64> m_bossSummonedEnemyIds;
+	std::unique_ptr<CBossScriptHost>  m_bossScriptHost;
+	std::unique_ptr<CBossAIContext>   m_bossAIContext;
 
     Atomic<uint32> tick = 0;
 };

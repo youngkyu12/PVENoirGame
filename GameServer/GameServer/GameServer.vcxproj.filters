@@ -49,6 +49,12 @@
     <Filter Include="Collider">
       <UniqueIdentifier>{63c0f701-9f50-4f4d-a529-97a18d1e0de6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="GameObject\Enemy\Boss">
+      <UniqueIdentifier>{64701f2d-7bd5-4565-b02d-1940a745a103}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource">
+      <UniqueIdentifier>{71982022-4a84-4630-9c94-63aaed986700}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GameServer.cpp">
@@ -141,11 +147,14 @@
     <ClCompile Include="ServerTerrain.cpp">
       <Filter>GameContents\Map</Filter>
     </ClCompile>
-    <ClCompile Include="BossEnemy.cpp">
-      <Filter>GameObject\Enemy</Filter>
-    </ClCompile>
     <ClCompile Include="Room.BossRoom.cpp">
       <Filter>Room</Filter>
+    </ClCompile>
+    <ClCompile Include="BossEnemy.cpp">
+      <Filter>GameObject\Enemy\Boss</Filter>
+    </ClCompile>
+    <ClCompile Include="BossScriptHost.cpp">
+      <Filter>GameObject\Enemy\Boss</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -219,7 +228,10 @@
       <Filter>GameObject\Tile</Filter>
     </ClInclude>
     <ClInclude Include="BossEnemy.h">
-      <Filter>GameObject\Enemy</Filter>
+      <Filter>GameObject\Enemy\Boss</Filter>
+    </ClInclude>
+    <ClInclude Include="BossScriptHost.h">
+      <Filter>GameObject\Enemy\Boss</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -237,6 +249,9 @@
     </None>
     <None Include="..\..\Common\Protobuf\bin\Struct.proto">
       <Filter>Protocol</Filter>
+    </None>
+    <None Include="..\Scripts\Boss\BossStageBoss.lua">
+      <Filter>Resource</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

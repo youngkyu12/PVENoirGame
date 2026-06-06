@@ -180,6 +180,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="BossEnemy.cpp" />
+    <ClCompile Include="BossScriptHost.cpp" />
     <ClCompile Include="BoundingCapsule.cpp" />
     <ClCompile Include="Building.cpp" />
     <ClCompile Include="ColliderComponent.cpp" />
@@ -238,7 +239,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BossAIContext.h" />
     <ClInclude Include="BossEnemy.h" />
+    <ClInclude Include="BossScriptHost.h" />
     <ClInclude Include="BoundingCapsule.h" />
     <ClInclude Include="Building.h" />
     <ClInclude Include="ColliderComponent.h" />
@@ -275,6 +278,7 @@
     <None Include="..\..\Common\Protobuf\bin\InitStruct.proto" />
     <None Include="..\..\Common\Protobuf\bin\Protocol.proto" />
     <None Include="..\..\Common\Protobuf\bin\Struct.proto" />
+    <None Include="..\Scripts\Boss\BossStageBoss.lua" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="MapFIle\placement_export_full.txt" />
