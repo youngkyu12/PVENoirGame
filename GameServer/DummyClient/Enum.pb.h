@@ -377,12 +377,13 @@ inline bool ForcedTransformReason_Parse(
 enum DebugCommandType : int {
   DEBUG_COMMAND_NONE = 0,
   DEBUG_COMMAND_KILL_MEGA5_ENEMIES = 1,
+  DEBUG_COMMAND_TELEPORT_TO_MEGA_GRID = 2,
   DebugCommandType_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
   DebugCommandType_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
 };
 bool DebugCommandType_IsValid(int value);
 constexpr DebugCommandType DebugCommandType_MIN = DEBUG_COMMAND_NONE;
-constexpr DebugCommandType DebugCommandType_MAX = DEBUG_COMMAND_KILL_MEGA5_ENEMIES;
+constexpr DebugCommandType DebugCommandType_MAX = DEBUG_COMMAND_TELEPORT_TO_MEGA_GRID;
 constexpr int DebugCommandType_ARRAYSIZE = DebugCommandType_MAX + 1;
 
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* DebugCommandType_descriptor();

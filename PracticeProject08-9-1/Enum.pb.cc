@@ -71,18 +71,19 @@ const char descriptor_table_protodef_Enum_2eproto[] PROTOBUF_SECTION_VARIABLE(pr
   "\022(\n$FORCED_TRANSFORM_REASON_TOWER_PORTAL"
   "\020\001\022)\n%FORCED_TRANSFORM_REASON_CASTLE_POR"
   "TAL\020\002\022#\n\037FORCED_TRANSFORM_REASON_RESPAWN"
-  "\020\003*P\n\020DebugCommandType\022\026\n\022DEBUG_COMMAND_"
+  "\020\003*y\n\020DebugCommandType\022\026\n\022DEBUG_COMMAND_"
   "NONE\020\000\022$\n DEBUG_COMMAND_KILL_MEGA5_ENEMI"
-  "ES\020\001*\331\001\n\rBossRoomState\022#\n\037BOSS_ROOM_STAT"
-  "E_PRE_BOSS_COMBAT\020\000\022\"\n\036BOSS_ROOM_STATE_S"
-  "UMMON_FADE_IN\020\001\022\"\n\036BOSS_ROOM_STATE_BOSS_"
-  "APPEARING\020\002\022\037\n\033BOSS_ROOM_STATE_BOSS_ACTI"
-  "VE\020\003\022\035\n\031BOSS_ROOM_STATE_BOSS_DEAD\020\004\022\033\n\027B"
-  "OSS_ROOM_STATE_CLEARED\020\005b\006proto3"
+  "ES\020\001\022\'\n#DEBUG_COMMAND_TELEPORT_TO_MEGA_G"
+  "RID\020\002*\331\001\n\rBossRoomState\022#\n\037BOSS_ROOM_STA"
+  "TE_PRE_BOSS_COMBAT\020\000\022\"\n\036BOSS_ROOM_STATE_"
+  "SUMMON_FADE_IN\020\001\022\"\n\036BOSS_ROOM_STATE_BOSS"
+  "_APPEARING\020\002\022\037\n\033BOSS_ROOM_STATE_BOSS_ACT"
+  "IVE\020\003\022\035\n\031BOSS_ROOM_STATE_BOSS_DEAD\020\004\022\033\n\027"
+  "BOSS_ROOM_STATE_CLEARED\020\005b\006proto3"
   ;
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_Enum_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_Enum_2eproto = {
-  false, false, 2152, descriptor_table_protodef_Enum_2eproto, "Enum.proto", 
+  false, false, 2193, descriptor_table_protodef_Enum_2eproto, "Enum.proto", 
   &descriptor_table_Enum_2eproto_once, nullptr, 0, 0,
   schemas, file_default_instances, TableStruct_Enum_2eproto::offsets,
   nullptr, file_level_enum_descriptors_Enum_2eproto, file_level_service_descriptors_Enum_2eproto,
@@ -299,6 +300,7 @@ bool DebugCommandType_IsValid(int value) {
   switch (value) {
     case 0:
     case 1:
+    case 2:
       return true;
     default:
       return false;
