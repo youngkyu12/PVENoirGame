@@ -48,6 +48,17 @@ void CTerrainAttachComponent::SetHeightOffset(float offset)
 	m_captureInitialOffset = false;
 }
 
+void CTerrainAttachComponent::SetFixedY(float y)
+{
+	m_fixedY = y;
+	m_fixedYEnabled = true;
+}
+
+void CTerrainAttachComponent::ClearFixedY()
+{
+	m_fixedYEnabled = false;
+}
+
 void CTerrainAttachComponent::OnCreate(
 	ID3D12Device* /*dev*/,
 	ID3D12GraphicsCommandList* /*cmd*/)
@@ -69,10 +80,25 @@ void CTerrainAttachComponent::OnLateUpdate(float /*dt*/)
 void CTerrainAttachComponent::SnapToTerrain()
 {
 	CGameObject* owner = GetOwner();
-	if ( !owner || !m_terrainData )
+	if ( !owner )
 		return;
 
 	XMFLOAT3 pos = owner->GetPosition();
+
+	if ( m_fixedYEnabled )
+	{
+		if ( std::fabs(pos.y - m_fixedY) > 0.001f )
+		{
+			pos.y = m_fixedY;
+			owner->SetPosition(pos);
+		}
+
+		return;
+	}
+
+	if ( !m_terrainData )
+		return;
+
 	const XMFLOAT3 terrainPos = m_terrainData->GetWorldPosition();
 
 	const float localX = pos.x - terrainPos.x;

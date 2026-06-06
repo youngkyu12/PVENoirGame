@@ -1121,21 +1121,44 @@ bool CGameScene::TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog)
 			XMFLOAT3 dst{};
 			XMStoreFloat3(&dst, dstV);
 
+			float sourceBottomY = 0.0f;
 			float targetBottomY = 0.0f;
 			float appliedYOffset = 0.0f;
 
-			if ( ComputeDoorGroupBottomY(portal, targetRefs, targetBottomY) )
+			bool lockPlayerYAfterTeleport = false;
+
+			const bool hasSourceBottom =
+				ComputeDoorGroupBottomY(portal, sourceRefs, sourceBottomY);
+
+			const bool hasTargetBottom =
+				ComputeDoorGroupBottomY(portal, targetRefs, targetBottomY);
+
+			if ( hasTargetBottom )
 			{
+				// source 문보다 target 문이 충분히 높을 때만 "타워 위로 올라감"으로 판단한다.
+				// 절대 높이 threshold만 쓰면 하단 문 OOBB가 약간 높게 잡힌 경우에도 FixedY가 걸릴 수 있다.
+				constexpr float kTowerDoorPortalLevelDeltaEpsilon = 5.0f;
+
+				const bool targetIsUpper =
+					hasSourceBottom
+					? ( targetBottomY > sourceBottomY + kTowerDoorPortalLevelDeltaEpsilon )
+					: ( targetBottomY > kTowerDoorPortalUpperHeightThreshold );
+
 				appliedYOffset =
-					( targetBottomY > kTowerDoorPortalUpperHeightThreshold )
+					targetIsUpper
 					? kTowerDoorPortalUpperExitYOffset
 					: kTowerDoorPortalLowerExitYOffset;
 
 				dst.y = targetBottomY + appliedYOffset;
+
+				lockPlayerYAfterTeleport = targetIsUpper;
 			}
 			else
 			{
 				dst.y = playerPos.y;
+
+				// target 문의 bottom을 못 구한 경우에는 안전하게 terrain attach 모드로 복귀시킨다.
+				lockPlayerYAfterTeleport = false;
 			}
 
 			if ( m_Collision )
@@ -1174,6 +1197,25 @@ bool CGameScene::TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog)
 			}
 
 			player->SetPosition(dst);
+
+			if ( auto* terrainAttach = player->GetComponent<CTerrainAttachComponent>() )
+			{
+				if ( lockPlayerYAfterTeleport )
+				{
+					terrainAttach->SetFixedY(dst.y);
+				}
+				else
+				{
+					terrainAttach->ClearFixedY();
+
+					// 하단으로 내려온 경우에는 다음 LateUpdate까지 기다리지 말고
+					// 즉시 terrain attach 상태로 복귀시킨다.
+					terrainAttach->SnapToTerrain();
+
+					// SnapToTerrain()이 y를 바꿨을 수 있으므로 dst도 갱신한다.
+					dst = player->GetPosition();
+				}
+			}
 
 			float oldCameraYaw = 0.0f;
 			float newCameraYaw = 0.0f;
