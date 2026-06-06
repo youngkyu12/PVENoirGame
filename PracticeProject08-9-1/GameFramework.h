@@ -3,9 +3,6 @@
 //-----------------------------------------------------------------------------
 #pragma once
 
-#define FRAME_BUFFER_WIDTH		640
-#define FRAME_BUFFER_HEIGHT		480
-
 #include "Timer.h"
 #include "SceneManager.h"
 
@@ -61,7 +58,7 @@ public:
 	// Frame / Render
 public:
 	void ChangeSwapChainState();
-	void OnResize();
+	void OnResize(int width, int height);
 
 	void ProcessInput();
 	void AnimateObjects();
@@ -108,7 +105,7 @@ private:
 
 	// DXGI / Device
 	ComPtr<IDXGIFactory6>				m_pdxgiFactory;
-	ComPtr<IDXGIAdapter1>				m_pd3dAdapter;
+	ComPtr<IDXGIAdapter1>				m_pd3dGPUAdapter;
 	ComPtr<IDXGISwapChain3>				m_pdxgiSwapChain;
 	ComPtr<ID3D12Device>				m_pd3dDevice;
 
@@ -178,6 +175,7 @@ private:
 
 	// AdapterDisplayModes
 	vector<DXGI_MODE_DESC>				m_DisplayModeList;
+	DXGI_OUTPUT_DESC					m_OutputDesc;
 
 	int									m_nWndClientWidth = FRAME_BUFFER_WIDTH;
 	int									m_nWndClientHeight = FRAME_BUFFER_HEIGHT;

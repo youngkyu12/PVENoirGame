@@ -12,6 +12,21 @@ class CGameSceneHUD final
 {
 public:
 	static constexpr int kInventorySlotCount = 4;
+
+	struct HudLayout
+	{
+		XMFLOAT4 hpFrameRect;
+		XMFLOAT4 hpFillRect;
+
+		std::array<XMFLOAT4, kInventorySlotCount> inventorySlotRects;
+		std::array<XMFLOAT4, kInventorySlotCount> inventoryIconRects;
+		std::array<XMFLOAT4, kInventorySlotCount> inventoryCooldownRects;
+
+		XMFLOAT4 pauseRect;
+		XMFLOAT4 resumeRect;
+		XMFLOAT4 exitRect;
+	};
+
 	void ReleaseResources();
 
 	void BuildResources(
@@ -37,8 +52,13 @@ public:
 	bool IsPointInResumeButton(POINT clientPt) const;
 	bool IsPointInExitButton(POINT clientPt) const;
 
+	void OnResize(int width, int height);
+	HudLayout CalculateLayout() const;
+
 private:
 	CSceneUI m_ui;
+
+	int m_hpFrameSpriteIndex = -1;
 
 	int m_pauseSpriteIndex = -1;
 	int m_resumeSpriteIndex = -1;
@@ -56,7 +76,8 @@ private:
 	static constexpr int kInventoryCountTextMaxChars = 1 + kInventoryCountTextMaxDigits;
 	static constexpr int kInventoryCountGlyphTypeCount = 11;
 	std::array<int, kInventorySlotCount* kInventoryCountTextMaxChars* kInventoryCountGlyphTypeCount> m_inventoryCountGlyphSpriteIndices = {};
-	
+	std::array<float, kInventorySlotCount> m_inventoryCooldownRatios = {};
+
 	static constexpr int InventoryCountGlyphFlatIndex(int slot, int charIndex, int glyphIndex) { return ( slot * kInventoryCountTextMaxChars + charIndex ) * kInventoryCountGlyphTypeCount + glyphIndex; }
 	void UpdateInventoryCountTextSprites(int slot);
 
@@ -64,4 +85,7 @@ private:
 	float m_healthRatio = 1.0f;
 
 	bool m_inactiveOverlayVisible = false;
+
+	float m_screenWidth = FRAME_BUFFER_WIDTH;
+	float m_screenHeight = FRAME_BUFFER_HEIGHT;
 };

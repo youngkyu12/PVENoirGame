@@ -316,19 +316,25 @@ void CDepthFogSystem::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 	opt.m_xmu4PostSrvIdx1 = XMUINT4(0, 0, 0, 0);
 
 	opt.m_xmf4UiRect = XMFLOAT4(
-		FRAME_BUFFER_WIDTH * 0.5f,
-		FRAME_BUFFER_HEIGHT * 0.5f,
-		static_cast< float >( FRAME_BUFFER_WIDTH ),
-		static_cast< float >( FRAME_BUFFER_HEIGHT )
+		m_screenWidth * 0.5f,
+		m_screenHeight * 0.5f,
+		static_cast< float >( m_screenWidth ),
+		static_cast< float >( m_screenHeight )
 	);
 
 	opt.m_xmf4Viewport = XMFLOAT4(
-		static_cast< float >( FRAME_BUFFER_WIDTH ),
-		static_cast< float >( FRAME_BUFFER_HEIGHT ),
-		1.0f / static_cast< float >( FRAME_BUFFER_WIDTH ),
-		1.0f / static_cast< float >( FRAME_BUFFER_HEIGHT )
+		static_cast< float >( m_screenWidth ),
+		static_cast< float >( m_screenHeight ),
+		1.0f / static_cast< float >( m_screenWidth ),
+		1.0f / static_cast< float >( m_screenHeight )
 	);
 
 	m_shader->ResetDrawOptionWriteIndex();
 	m_shader->Render(cmd, camera, &opt);
+}
+
+void CDepthFogSystem::OnResize(int width, int height)
+{
+	m_screenWidth = static_cast<float>(width);
+	m_screenHeight = static_cast<float>(height);
 }

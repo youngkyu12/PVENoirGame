@@ -9,7 +9,6 @@
 #include <array>
 #include <cstdint>
 
-#include "stdafx.h"
 #include "DescriptorHeap.h"
 #include "NetworkQueue.h"
 constexpr UINT LEGACY_SRV_COUNT = 6; // t0(1) + t1~t5(5)
@@ -46,6 +45,7 @@ public:
     virtual void BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd) = 0;
     virtual void BuildObjectsCollider() {}
 	virtual void InitShadowMap() {};
+	virtual void OnResize(int Width, int Height) {};
 
 protected:
     void CreateGraphicsRootSignature(ID3D12Device* dev);
@@ -109,6 +109,9 @@ protected:
     std::unique_ptr<CGameObject> m_pMainCameraObject;
     CCamera* m_pMainCamera = nullptr;
 	CAudioManager* m_pAudioManager = nullptr;
+
+	int m_viewportWidth = FRAME_BUFFER_WIDTH;
+	int m_viewportHeight = FRAME_BUFFER_HEIGHT;
 
 protected:
 	NetworkMessage m_pendingNetworkMessage;
