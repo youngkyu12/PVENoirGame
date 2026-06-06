@@ -66,6 +66,8 @@ public:
 
 	const CB_FOG& GetFogData() const { return m_fogData; }
 
+	void OnResize(int width, int height);
+
 private:
 	std::shared_ptr<CDepthFogShader> m_shader;
 
@@ -91,4 +93,7 @@ private:
 
 	UINT m_sceneColorSrvIndex = UINT_MAX;
 	UINT m_sceneDepthSrvIndex = UINT_MAX;
+
+	float m_screenWidth = FRAME_BUFFER_WIDTH;
+	float m_screenHeight = FRAME_BUFFER_HEIGHT;
 };

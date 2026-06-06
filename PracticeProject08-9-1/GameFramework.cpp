@@ -250,7 +250,7 @@ void CGameFramework::CreateDirect3DDevice()
 		hResult = m_pdxgiFactory->EnumAdapterByGpuPreference(
 			i,
 			DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
-			IID_PPV_ARGS(&m_pd3dAdapter));
+			IID_PPV_ARGS(&m_pd3dGPUAdapter));
 
 		if ( hResult == DXGI_ERROR_NOT_FOUND )
 			break;
@@ -259,13 +259,13 @@ void CGameFramework::CreateDirect3DDevice()
 			continue;
 	
 		DXGI_ADAPTER_DESC1 desc = {};
-		m_pd3dAdapter->GetDesc1(&desc);
+		m_pd3dGPUAdapter->GetDesc1(&desc);
 
 		if ( desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE )
 			continue;
 
 		hResult = D3D12CreateDevice(
-			m_pd3dAdapter.Get(),
+			m_pd3dGPUAdapter.Get(),
 			D3D_FEATURE_LEVEL_12_0,
 			IID_PPV_ARGS(&m_pd3dDevice));
 
@@ -275,9 +275,9 @@ void CGameFramework::CreateDirect3DDevice()
 	
 	if (!m_pd3dDevice)
 	{
-		hResult = m_pdxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&m_pd3dAdapter));
+		hResult = m_pdxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&m_pd3dGPUAdapter));
 		hResult = D3D12CreateDevice(
-			m_pd3dAdapter.Get(),
+			m_pd3dGPUAdapter.Get(),
 			D3D_FEATURE_LEVEL_11_0,
 			IID_PPV_ARGS(&m_pd3dDevice));
 	}
@@ -335,7 +335,7 @@ void CGameFramework::CreateDirect3DDevice()
 		&nModes,
 		m_DisplayModeList.data()
 	);
-
+	pOutput->GetDesc(&m_OutputDesc);
 
 	::gnRtvDescriptorIncrementSize = m_pd3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	::gnCbvSrvDescriptorIncrementSize = m_pd3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -390,47 +390,6 @@ ComPtr<IDXGIOutput> CGameFramework::FindOutputForCurrentWindow() const
 	}
 
 	return nullptr;
-}
-
-void CGameFramework::BuildDisplayModeListForCurrentWindow()
-{
-	m_DisplayModeList.clear();
-
-	ComPtr<IDXGIOutput> output = FindOutputForCurrentWindow();
-	if (!output)
-		return;
-
-	constexpr DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	constexpr UINT flags = DXGI_ENUM_MODES_SCALING;
-
-	UINT modeCount = 0;
-
-	HRESULT hr = output->GetDisplayModeList(
-		format,
-		flags,
-		&modeCount,
-		nullptr
-	);
-
-	if (FAILED(hr) || modeCount == 0)
-		return;
-
-	m_DisplayModeList.resize(modeCount);
-
-	hr = output->GetDisplayModeList(
-		format,
-		flags,
-		&modeCount,
-		m_DisplayModeList.data()
-	);
-
-	if (FAILED(hr))
-	{
-		m_DisplayModeList.clear();
-		return;
-	}
-
-	m_DisplayModeList.resize(modeCount);
 }
 
 void CGameFramework::CreateCommandQueueAndList()
@@ -975,16 +934,10 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 		m_pd3dCommandList.Get(),
 		5,
 		pdxgiResourceFormats,
-		d3dRtvCPUDescriptorHandle
+		d3dRtvCPUDescriptorHandle,
+		static_cast<UINT>(m_nWndClientWidth),
+		static_cast<UINT>(m_nWndClientHeight)
 	);
-
-	D3D12_GPU_DESCRIPTOR_HANDLE d3dDsvGPUDescriptorHandle =
-		CScene::m_pDescriptorHeap->CreateShaderResourceView(
-			m_pd3dDevice.Get(),
-			m_pd3dDepthStencilBuffer.Get(),
-			DXGI_FORMAT_R24_UNORM_X8_TYPELESS
-		);
-	( void ) d3dDsvGPUDescriptorHandle;
 
 	if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
 	{
@@ -1193,23 +1146,10 @@ void CGameFramework::ChangeSwapChainState()
 
 	const BOOL nextFullscreen = !fullscreen;
 
-	hResult = m_pdxgiSwapChain->SetFullscreenState(nextFullscreen, nullptr);
-	if (FAILED(hResult))
-		return;
-
 	if (nextFullscreen)	// 전체화면으로 전환
 	{
-		/*ComPtr<IDXGIOutput> pOutput;
-
-		m_pd3dAdapter->EnumOutputs(0, &pOutput);
-
-		DXGI_OUTPUT_DESC OutputDesc{};
-		pOutput->GetDesc(&OutputDesc);
-
-		const RECT& rc = OutputDesc.DesktopCoordinates;*/
-
-		m_nWndClientWidth = 2560;
-		m_nWndClientHeight = 1600;
+		m_nWndClientWidth = m_OutputDesc.DesktopCoordinates.right - m_OutputDesc.DesktopCoordinates.left;
+		m_nWndClientHeight = m_OutputDesc.DesktopCoordinates.bottom - m_OutputDesc.DesktopCoordinates.top;
 	}
 	else // 창모드로 전환
 	{
@@ -1217,24 +1157,31 @@ void CGameFramework::ChangeSwapChainState()
 		m_nWndClientHeight = FRAME_BUFFER_HEIGHT;
 	}
 
-	OnResize();
+	hResult = m_pdxgiSwapChain->SetFullscreenState(nextFullscreen, nullptr);
+	if (FAILED(hResult))
+		return;
+
+	OnResize(m_nWndClientWidth, m_nWndClientHeight);
 }
 
-void CGameFramework::OnResize()
+void CGameFramework::OnResize(int width, int height)
 {
 	if (!m_pd3dDevice || !m_pdxgiSwapChain)
 		return;
 
-	if (m_nWndClientWidth <= 0 || m_nWndClientHeight <= 0)
+	if (width <= 0 || height <= 0)
 		return;
+
+	m_nWndClientWidth = width;
+	m_nWndClientHeight = height;
 
 	FlushGpu();
 
 	DXGI_MODE_DESC dxgiTargetParameters;
 	::ZeroMemory(&dxgiTargetParameters, sizeof(DXGI_MODE_DESC));
 	dxgiTargetParameters.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	dxgiTargetParameters.Width = m_nWndClientWidth;
-	dxgiTargetParameters.Height = m_nWndClientHeight;
+	dxgiTargetParameters.Width = width;
+	dxgiTargetParameters.Height = height;
 	dxgiTargetParameters.RefreshRate.Numerator = 60;
 	dxgiTargetParameters.RefreshRate.Denominator = 1;
 	dxgiTargetParameters.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
@@ -1260,8 +1207,8 @@ void CGameFramework::OnResize()
 
 	hResult = m_pdxgiSwapChain->ResizeBuffers(
 		m_nSwapChainBuffers,
-		m_nWndClientWidth,
-		m_nWndClientHeight,
+		width,
+		height,
 		dxgiSwapChainDesc.BufferDesc.Format,
 		dxgiSwapChainDesc.Flags
 	);
@@ -1272,9 +1219,51 @@ void CGameFramework::OnResize()
 	CreateSwapChainRenderTargetViews();
 	CreateDepthStencilView();
 
+	if (m_pPostProcessingShader)
+	{
+		m_pPostProcessingShader->ReleaseShaderVariables();
+
+		D3D12_CPU_DESCRIPTOR_HANDLE postProcessRtvHandle =
+			m_pd3dRtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+
+		postProcessRtvHandle.ptr +=
+			(::gnRtvDescriptorIncrementSize * m_nSwapChainBuffers);
+
+		DXGI_FORMAT postProcessFormats[5] =
+		{
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT_R32_FLOAT
+		};
+
+		m_pPostProcessingShader->CreateResourcesAndRtvsSrvs(
+			m_pd3dDevice.Get(),
+			m_pd3dCommandList.Get(),
+			5,
+			postProcessFormats,
+			postProcessRtvHandle,
+			static_cast<UINT>(width),
+			static_cast<UINT>(height)
+		);
+	}
+
 	CScene* scene = m_SceneManager.GetScene();
+
+	if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
+	{
+		if ( m_pPostProcessingShader && m_pPostProcessingShader->GetTexture() )
+		{
+			gameScene->SetDepthFogSourceSrvIndices(
+				m_pPostProcessingShader->GetTexture()->GetSrvIndex(0),
+				m_pPostProcessingShader->GetTexture()->GetSrvIndex(4)
+			);
+		}
+	}
+
 	if (scene)
-		scene->OnResize(m_nWndClientWidth, m_nWndClientHeight);
+		scene->OnResize(width, height);
 
 	m_pCamera = scene ? scene->GetMainCamera() : nullptr;
 

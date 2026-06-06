@@ -610,6 +610,49 @@ void CGameScene::CreateWaterTextures(ID3D12Device* dev, ID3D12GraphicsCommandLis
 		: UINT_MAX;
 }
 
+void CGameScene::OnResize(int width, int height)
+{
+	if (width <= 0 || height <= 0)
+		return;
+	
+	m_viewportWidth = width;
+	m_viewportHeight = height;
+
+	m_hud.OnResize(width, height);
+	m_depthFog.OnResize(width, height);
+
+	if (!m_pMainCamera)
+		return;
+
+	const float aspectRatio =
+		static_cast<float>(width) / static_cast<float>(height);
+
+	m_pMainCamera->GenerateProjectionMatrix(
+		1.01f,
+		5000.0f,
+		aspectRatio,
+		60.0f
+	);
+
+	m_pMainCamera->SetViewport(
+		0,
+		0,
+		width,
+		height,
+		0.0f,
+		1.0f
+	);
+
+	m_pMainCamera->SetScissorRect(
+		0,
+		0,
+		width,
+		height
+	);
+
+	m_pMainCamera->UpdateBoundingFrustum();
+}
+
 void CGameScene::BuildStaticBatch(
 	ID3D12Device* dev,
 	ID3D12GraphicsCommandList* cmd,
@@ -4565,10 +4608,12 @@ void CGameScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* 
 	{
 		cam->GetYaw() = 0.0f;
 	}
+	const float aspectRatio =
+		static_cast<float>(m_viewportWidth) / static_cast<float>(m_viewportHeight);
 
-	cam->GenerateProjectionMatrix(1.01f, 5000.0f, ASPECT_RATIO, 60.0f);
-	cam->SetViewport(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, 0.0f, 1.0f);
-	cam->SetScissorRect(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
+	cam->GenerateProjectionMatrix(1.01f, 5000.0f, aspectRatio, 60.0f);
+	cam->SetViewport(0, 0, m_viewportWidth, m_viewportHeight, 0.0f, 1.0f);
+	cam->SetScissorRect(0, 0, m_viewportWidth, m_viewportHeight);
 
 	m_pMainCameraObject->CreateComponents(dev, cmd);
 

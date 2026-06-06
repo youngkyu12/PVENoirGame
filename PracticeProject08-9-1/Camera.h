@@ -4,8 +4,6 @@
 
 #include "Component.h"
 
-#define ASPECT_RATIO				(float(FRAME_BUFFER_WIDTH) / float(FRAME_BUFFER_HEIGHT))
-
 #define THIRD_PERSON_CAMERA			0x03
 
 struct VS_CB_CAMERA_INFO
