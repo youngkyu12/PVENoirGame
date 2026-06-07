@@ -411,7 +411,7 @@ BOOL CreateGLWindow(const wchar_t* title, int width, int height, BYTE bits, bool
 		0,											// Shift Bit Ignored
 		0,											// No Accumulation Buffer
 		0, 0, 0, 0,									// Accumulation Bits Ignored
-		16,											// 16Bit Z-Buffer (Depth Buffer)  
+		16,											// 16Bit Z-Buffer (Depth Buffer)
 		0,											// No Stencil Buffer
 		0,											// No Auxiliary Buffer
 		PFD_MAIN_PLANE,								// Main Drawing Layer
@@ -578,6 +578,34 @@ int RunDrawModule()
 				if (!CreateGLWindow(L"DummyClient World View", 900, 900, 16, fullscreen))
 				{
 					return 0;						// Quit If Window Was Not Created
+				}
+			}
+
+								// F2: Kill all Mega5 enemies (debug)
+			if (keys[VK_F2])
+			{
+				keys[VK_F2] = FALSE;
+				SendDebugKillMega5();
+			}
+
+								// F3: Deal 1200 damage (25%) to Boss (debug)
+			if (keys[VK_F3])
+			{
+				keys[VK_F3] = FALSE;
+				SendDebugDamageBoss();
+			}
+
+							// Ctrl+1~9: Teleport all dummy clients to MegaGrid N
+			if (GetAsyncKeyState(VK_CONTROL) & 0x8000)
+			{
+				static const int kNumKeys[9] = { '1','2','3','4','5','6','7','8','9' };
+				for (int i = 0; i < 9; ++i)
+				{
+					if (keys[kNumKeys[i]])
+					{
+						keys[kNumKeys[i]] = FALSE;
+						SendDebugTeleportToMegaGrid(i + 1);
+					}
 				}
 			}
 		}

@@ -2,15 +2,20 @@
 #include "Room.h"
 #include "Player.h"
 #include "Enemy.h"
+#include "BossEnemy.h"
 #include "Building.h"
 #include "GameSession.h"
 #include "GameArea.h"
 #include "ColliderComponent.h"
 #include "Projectile.h"
+#include "BossScriptHost.h"
+#include "BossAIContext.h"
 
 #include "Protocol.pb.h"
 #include "ClientPacketHandler.h"
 #include "ReportHelper.h"
+
+Room::~Room() = default;
 
 #include <algorithm>
 #include <fstream>
@@ -66,6 +71,9 @@ namespace
 		outEntries.clear();
 
 		const std::vector<std::string> candidates = {
+			"MapFIle/MapData_fullstage.txt",
+			"GameServer/MapFIle/MapData_fullstage.txt",
+			"../GameServer/MapFIle/MapData_fullstage.txt",
 			"MapFIle/MapData_fullstage(withBoss).txt",
 			"GameServer/MapFIle/MapData_fullstage(withBoss).txt",
 			"../GameServer/MapFIle/MapData_fullstage(withBoss).txt"
@@ -75,7 +83,11 @@ namespace
 		for (const auto& path : candidates)
 		{
 			fin.open(path);
-			if (fin.is_open()) break;
+			if (fin.is_open())
+			{
+				cout << "[MapData] load " << path << endl;
+				break;
+			}
 			fin.clear();
 		}
 
@@ -89,6 +101,12 @@ namespace
 			outEntries.push_back(std::move(entry));
 		}
 		return !outEntries.empty();
+	}
+
+	static bool ShouldAttachPlacementToTerrain(const std::string& asset)
+	{
+		return asset != "Terrain" &&
+			asset != "Water";
 	}
 
 	static GameMath::Vec3 GetInitialPlayerSpawnPosition(uint64 playerId)
@@ -119,7 +137,7 @@ namespace
 	// ========================================
 	constexpr int kSpawnerMega6GhoulCount    = 200;
 	constexpr int kSpawnerMega8GhoulCount    = 200;
-	constexpr int kSpawnerMega5GhoulCount    = 60;
+	constexpr int kSpawnerMega5GhoulCount    = 70;
 	constexpr int kSpawnerMega5SwordManCount = 10;
 	constexpr int kSpawnerMega5BowManCount   = 10;
 	constexpr int kSpawnerMega5MutantCount   = 5;
@@ -135,12 +153,12 @@ namespace
 	// ========================================
 	// MonsterAI — Per-type parameters
 	// ========================================
-	struct MonsterAIParam { float chaseStart; float chaseStop; float attackRange; float moveSpeed; };
-	constexpr MonsterAIParam kAI_Ghoul    {  10.f,       50.f,   1.5f,  2.f };
-	constexpr MonsterAIParam kAI_SwordMan {  35.f,       50.f,   3.0f,  8.f };
-	constexpr MonsterAIParam kAI_BowMan   {  50.f,       50.f,  25.0f,  8.f };
-	constexpr MonsterAIParam kAI_Mutant   {  25.f,       50.f,   2.7f, 12.f };
-	constexpr MonsterAIParam kAI_Boss     { 1e6f,        1e6f,   7.0f,  6.f };
+	struct MonsterAIParam { float chaseStart; float chaseStop; float attackRange; float moveSpeed; float walkSpeed; };
+	constexpr MonsterAIParam kAI_Ghoul    {  10.f,       50.f,   1.5f,  2.f, 1.f };
+	constexpr MonsterAIParam kAI_SwordMan {  35.f,       50.f,   3.0f,  8.f, 4.f };
+	constexpr MonsterAIParam kAI_BowMan   {  50.f,       50.f,  25.0f,  8.f, 4.f };
+	constexpr MonsterAIParam kAI_Mutant   {  25.f,       50.f,   2.7f, 12.f, 5.f };
+	constexpr MonsterAIParam kAI_Boss     { 1e6f,        1e6f,   7.0f,  6.f, 6.f };
 
 	const MonsterAIParam* GetMonsterAIParam(const string& typeName)
 	{
@@ -175,16 +193,22 @@ namespace
 
 void Room::Enter(PlayerRef player)
 {
+	if (static_cast<int>(players.size()) >= MaxPlayers)
+	{
+		player->ownerSession->Disconnect(L"Room full");
+		return;
+	}
+
 	player->Build();
-	player->SetPosition(GetInitialPlayerSpawnPosition(player->playerId));
+	player->SetPosition(SnapToTerrainIfBelow(GetInitialPlayerSpawnPosition(player->playerId)));
 	player->SetMaxHp(kHpPlayer);
 
 	// life-state 초기 정상화
 	player->OnRespawnEnter(GetAnimClockTick()); // 위치를 내부에서 덮어쓰면 아래 순서 조정 필요
-	player->SetPosition(GetInitialPlayerSpawnPosition(player->playerId));
+	player->SetPosition(SnapToTerrainIfBelow(GetInitialPlayerSpawnPosition(player->playerId)));
 
 	player->SetWeapon(
-		static_cast<Protocol::WeaponType>(player->playerId + 2), 0);
+		static_cast<Protocol::WeaponType>(player->playerId + 1), 0);
 
 	players[player->playerId] = player;
 	player->SetActive(false); // 기존 참여/ready 정책 유지
@@ -207,6 +231,31 @@ void Room::BroadCastAll(SendBufferRef sendBuffer)
 {
 	for (auto& p : players)
 		p.second->ownerSession->Send(sendBuffer);
+}
+
+bool Room::HasTerrain() const
+{
+	return m_serverTerrain && m_serverTerrain->IsLoaded();
+}
+
+float Room::GetTerrainGroundHeight(float worldX, float worldZ) const
+{
+	if (!HasTerrain())
+		return 0.0f;
+
+	return m_serverTerrain->SampleHeight(worldX, worldZ);
+}
+
+GameMath::Vec3 Room::SnapToTerrainIfBelow(const GameMath::Vec3& pos) const
+{
+	if (!HasTerrain())
+		return pos;
+
+	if (!m_serverTerrain->Contains(pos.x, pos.z))
+		return pos;
+
+	const float groundY = m_serverTerrain->SampleHeight(pos.x, pos.z);
+	return GameMath::Vec3(pos.x, groundY, pos.z);
 }
 
 bool Room::LoadMonsterSpawnEntries(std::vector<MonsterSpawnEntry>& outEntries)
@@ -282,8 +331,34 @@ void Room::BuildRoom()
 	m_castleDoorPortals.clear();
 	m_arrowPool.clear();
 	m_bulletPool.clear();
+	m_enemyArrowPool.clear();
+	m_bossPoisonPool.clear();
+	m_bossPoisonHitMap.clear();
 	InitializeCollisionSystem();
 	InitializeSpatialGrid();
+
+	m_serverTerrain = make_unique<CServerTerrain>();
+	const std::vector<std::string> terrainCandidates = {
+		"MapFIle/terrain.raw",
+		"GameServer/MapFIle/terrain.raw",
+		"../GameServer/MapFIle/terrain.raw"
+	};
+
+	bool terrainLoaded = false;
+	for (const auto& path : terrainCandidates)
+	{
+		if (m_serverTerrain->LoadFromFile(path))
+		{
+			terrainLoaded = true;
+			cout << "[Terrain] load success " << path << endl;
+			cout << "[Terrain] samples (-600,-200)=" << m_serverTerrain->SampleHeight(-600.0f, -200.0f)
+				<< " (0,0)=" << m_serverTerrain->SampleHeight(0.0f, 0.0f)
+				<< " (599,999)=" << m_serverTerrain->SampleHeight(599.0f, 999.0f) << endl;
+			break;
+		}
+	}
+	if (!terrainLoaded)
+		cout << "[Terrain] load skipped" << endl;
 
 	std::vector<PlacementEntry> entries;
 	if (LoadPlacementEntries(entries))
@@ -291,9 +366,17 @@ void Room::BuildRoom()
 		uint64 buildingId = 1;
 		for (const auto& e : entries)
 		{
+			GameMath::Vec3 placementPos = e.position;
+			if (ShouldAttachPlacementToTerrain(e.asset) &&
+				HasTerrain() &&
+				m_serverTerrain->Contains(placementPos.x, placementPos.z))
+			{
+				placementPos.y = m_serverTerrain->SampleHeight(placementPos.x, placementPos.z) + e.position.y;
+			}
+
 			auto building = std::make_shared<CBuilding>();
 			building->SetObjectId(buildingId);
-			building->SetPosition(e.position);
+			building->SetPosition(placementPos);
 			building->SetYaw(GameMath::NormalizeYaw(e.yawDeg));
 			building->SetBuildingType(ReportHelper::AssetToBuildingType(e.asset));
 			building->SetActive(true);
@@ -323,12 +406,28 @@ void Room::BuildRoom()
 		m_bulletPool.push_back(p);
 	}
 
+	for (int i = 0; i < kEnemyArrowPoolSize; ++i)
+	{
+		auto p = ObjectPool<CProjectile>::MakeShared();
+		p->SetObjectId(300000 + i);
+		p->Deactivate();
+		m_enemyArrowPool.push_back(p);
+	}
+
+	for (int i = 0; i < kBossPoisonPoolSize; ++i)
+	{
+		auto p = ObjectPool<CProjectile>::MakeShared();
+		p->SetObjectId(400000 + i);
+		p->Deactivate();
+		m_bossPoisonPool.push_back(p);
+	}
+
 	m_navMesh = make_unique<CNavMesh>();
 	const std::vector<std::string> navCandidates = {
-		"MapFIle/FullStageNavmeshAll.nvm",
 		"MapFIle/Navmesh_FullStage.nvm",
-		"GameServer/MapFIle/FullStageNavmeshAll.nvm",
-		"GameServer/MapFIle/Navmesh_FullStage.nvm"
+		"GameServer/MapFIle/Navmesh_FullStage.nvm",
+		"MapFIle/FullStageNavmeshAll.nvm",
+		"GameServer/MapFIle/FullStageNavmeshAll.nvm"
 	};
 	for (const auto& path : navCandidates)
 	{
@@ -337,10 +436,13 @@ void Room::BuildRoom()
 
 	auto SampleEnemySpawn = [&](const GameMath::Vec3& desiredPos)
 		{
-			if (!m_navMesh) return desiredPos;
-			GameMath::Vec3 projected{};
-			if (m_navMesh->SamplePosition(desiredPos, projected)) return projected;
-			return desiredPos;
+			GameMath::Vec3 pos = desiredPos;
+			if (m_navMesh)
+			{
+				GameMath::Vec3 projected{};
+				if (m_navMesh->SamplePosition(pos, projected)) pos = projected;
+			}
+			return SnapToTerrainIfBelow(pos);
 		};
 
 	if (!m_navMesh->IsLoaded())
@@ -376,7 +478,14 @@ void Room::BuildRoom()
 		ai->SetChaseRanges(p->chaseStart, p->chaseStop);
 		ai->SetAttackRange(p->attackRange);
 		ai->SetMoveSpeed(p->moveSpeed);
+		ai->SetWalkMoveSpeed(p->walkSpeed);
 		ai->SetPatrolEnabled(t == "SwordMan" || t == "BowMan");
+
+		Protocol::WeaponType wt = Protocol::WEAPON_TYPE_NONE;
+		if      (t == "BowMan")   wt = Protocol::WEAPON_TYPE_BOW;
+		else if (t == "SwordMan") wt = Protocol::WEAPON_TYPE_SWORD;
+		uint32 bullets = 0;
+		e->SetWeapon(wt, bullets);
 	};
 
 	auto makeSpawnEnemy = [&](const MonsterSpawnEntry& spawn)
@@ -388,17 +497,33 @@ void Room::BuildRoom()
 		else if (spawn.type == "Boss")     enemyType = Protocol::ENEMY_TYPE_BOSS;
 
 		const uint64 enemyId = nextEnemyId++;
-		auto enemy = make_shared<CEnemy>(enemyId, spawn.type, enemyType, nullptr);
+		const bool isBoss = (enemyType == Protocol::ENEMY_TYPE_BOSS);
+
+		shared_ptr<CEnemy> enemy;
+		if (isBoss)
+			enemy = make_shared<CBossEnemy>(enemyId, spawn.type, enemyType, nullptr);
+		else
+			enemy = make_shared<CEnemy>(enemyId, spawn.type, enemyType, nullptr);
+
 		enemy->Build(SampleEnemySpawn(spawn.position), GameMath::Vec3(0, 0, 0));
 		enemy->SetYaw(GameMath::NormalizeYaw(spawn.yawDeg));
 		enemy->SetMaxHp(GetEnemyHp(spawn.type));
 		enemy->SetAttackPower(GetEnemyAttackPower(spawn.type));
-		enemy->SetActive(true);
+		enemy->SetActive(!isBoss);
 		RegisterDynamicCollider(enemy);
-		SetObjectCollisionMegaGridMask(enemy, ComputeObjectCurrentMegaGridMask(enemy.get()), true);
+		SetObjectCollisionMegaGridMask(enemy, isBoss ? 0 : ComputeObjectCurrentMegaGridMask(enemy.get()), true);
 		enemies[enemyId] = enemy;
+
+		if (isBoss)
+		{
+			m_bossEnemyId = enemyId;
+			m_bossOriginalPos = enemy->GetPosition();
+			m_bossOriginalYaw = enemy->GetYaw();
+		}
+
 		applyMonsterAIParams(enemy.get(), spawn.type);
-		enemy->GetMonsterAI()->SetHomePosition(enemy->GetPosition());
+		if (auto* ai = enemy->GetMonsterAI())
+			ai->SetHomePosition(enemy->GetPosition());
 
 		if (spawn.type == "Mutant")
 		{
@@ -580,6 +705,7 @@ float Room::ComputeSpawnerDoorYaw(int wall) const
 CEnemy* Room::ActivateSpawnerEnemy(int megaGrid, Protocol::EnemyType type,
                                    const GameMath::Vec3& pos, float yawDeg)
 {
+	const GameMath::Vec3 spawnPos = SnapToTerrainIfBelow(pos);
 	for (auto& [eid, enemy] : enemies)
 	{
 		if (enemy->IsActive()) continue;
@@ -588,7 +714,7 @@ CEnemy* Room::ActivateSpawnerEnemy(int megaGrid, Protocol::EnemyType type,
 		auto it = m_poolEnemyMegaGrid.find(eid);
 		if (it == m_poolEnemyMegaGrid.end() || it->second != megaGrid) continue;
 
-		enemy->SetPosition(pos);
+		enemy->SetPosition(spawnPos);
 		enemy->SetYaw(yawDeg);
 		enemy->ResetHpToMax();
 		enemy->SetActive(true);
@@ -609,7 +735,7 @@ CEnemy* Room::ActivateSpawnerEnemy(int megaGrid, Protocol::EnemyType type,
 
 		if (CMonsterAI* ai = enemy->GetMonsterAI())
 		{
-			ai->SetHomePosition(pos);
+			ai->SetHomePosition(spawnPos);
 			ai->SetDirectMoveMode(60.f, homeDir, 50.f, megaCenter);
 		}
 
@@ -717,15 +843,57 @@ void Room::OnMonsterFirstChase(uint64 enemyId)
 void Room::OnMonsterDeath(uint64 enemyId)
 {
 	auto it = m_spawnerKeyMutantIds.find(enemyId);
-	if (it == m_spawnerKeyMutantIds.end()) return;
-
-	const int megaGrid = it->second;
-	if (megaGrid == 6 || megaGrid == 8)
+	if (it != m_spawnerKeyMutantIds.end())
 	{
-		m_keyPickupUnlockedByMegaGrid[static_cast<size_t>(megaGrid)] = true;
-		cout << "[Key Unlock] MegaGrid " << megaGrid
-			<< " unlocked by enemy " << enemyId << " death" << endl;
+		const int megaGrid = it->second;
+		if (megaGrid == 6 || megaGrid == 8)
+		{
+			m_keyPickupUnlockedByMegaGrid[static_cast<size_t>(megaGrid)] = true;
+			cout << "[Key Unlock] MegaGrid " << megaGrid
+				<< " unlocked by enemy " << enemyId << " death" << endl;
+		}
+		m_spawnerKeyMutantIds.erase(it);
 	}
 
-	m_spawnerKeyMutantIds.erase(it);
+	if (m_bossRoomState == EBossRoomState::PreBossCombat && AreAllPreBossMonstersDeadInMega5())
+	{
+		m_bossRoomState = EBossRoomState::SummonFadeIn;
+		m_bossRoomStateChangedMs = m_elapsedServerMs;
+		cout << "[BossRoom] All pre-boss monsters dead -> SummonFadeIn" << endl;
+	}
+
+	if (enemyId == m_bossEnemyId && m_bossRoomState == EBossRoomState::BossActive)
+	{
+		m_bossRoomState = EBossRoomState::BossDead;
+		m_bossRoomStateChangedMs = m_elapsedServerMs;
+		cout << "[BossRoom] BossDead" << endl;
+	}
+}
+
+void Room::DebugKillMega5Enemies()
+{
+	const uint32 animTick = GetAnimClockTick();
+	for (auto& [id, enemy] : enemies)
+	{
+		if (!enemy || enemy->IsDead() || !enemy->IsActive()) continue;
+		if (enemy->type == Protocol::ENEMY_TYPE_BOSS) continue;
+		if (!IsPositionInsideMegaGridNumber(enemy->GetPosition(), 5)) continue;
+		enemy->ApplyHit(animTick, 999999, 0);
+	}
+}
+
+void Room::DebugTeleportToMegaGrid(uint64 playerId, int megaGridNumber)
+{
+	auto it = players.find(playerId);
+	if (it == players.end() || !it->second) return;
+
+	float minX, maxX, minZ, maxZ;
+	if (!GetMegaGridCenterMovementBounds(megaGridNumber, minX, maxX, minZ, maxZ)) return;
+
+	float cx = (minX + maxX) * 0.5f;
+	float cz = (minZ + maxZ) * 0.5f;
+	auto pos = it->second->GetPosition();
+	it->second->SetPosition(cx, pos.y, cz);
+	cout << "[Debug] Player " << playerId << " teleported to MegaGrid " << megaGridNumber
+		<< " (" << cx << ", " << cz << ")" << endl;
 }

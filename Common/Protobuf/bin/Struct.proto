@@ -29,7 +29,7 @@ message ObjectStatus
 message Animation
 {
 	//AnimationType animationType = 1;
-	// stateCode ±¸¼º
+	// stateCode bit layout.
 	// [die][hit][run][roll][attack][up][down][left][right][move]
 	uint32 stateCode = 1;
 	uint32 animationTick = 2;
