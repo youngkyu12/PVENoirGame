@@ -8141,6 +8141,9 @@ void CGameScene::AnimateObjects(float dt)
 
 			obj->SetPosition(dr.predictedPos.x, dr.predictedPos.y, dr.predictedPos.z);
 
+			if ( auto* hp = obj->GetComponent<CHealthComponent>() )
+				hp->SetCurrentHp(static_cast<int>(state.hp));
+
 			if ( auto* tr = obj->GetComponent<CTransformComponent>() )
 				tr->SetYawDegrees(state.yaw);
 
