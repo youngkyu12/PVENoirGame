@@ -64,7 +64,7 @@ message Enemy
 	Transform transform = 4;
 	Animation animation = 5;
 	WeaponType weaponType = 6;
-	//stats
+	uint32 hp = 7;
 }
 
 message Building
