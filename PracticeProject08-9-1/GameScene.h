@@ -273,6 +273,9 @@ private:
     void LinkSceneObjects();
 
 	void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd);
+	void UpdateBossHpGaugeHud();
+	bool ShouldRenderBossHpGaugeHud(CGameObject* boss) const;
+	bool IsBossStageBossAppearFinishedForHud(CGameObject* boss) const;
 	void UpdateFrameRenderState(CCamera* camera);
 	void BindFrameRootParameters(ID3D12GraphicsCommandList* cmd);
 
@@ -314,12 +317,28 @@ private:
 	void AddPotionItemBillboardEntries();
 	XMFLOAT3 AdjustItemBillboardPositionToTerrain(const XMFLOAT3& position) const;
 
+	float GetTerrainGroundYOrFallback(float worldX, float worldZ, float fallbackY) const;
+	XMFLOAT3 AlignPositionYToTerrainGround(const XMFLOAT3& position, float yOffset = 0.0f) const;
+
 	void ReleaseItemBillboardGpuResources();
+	void ReleaseMonsterHpGaugeGpuResources();
 	void ReleaseAllGameSceneEffectGpuResources();
 
-	void UpdateItemBillboardDistanceCullSelection(CCamera* camera); 
+	void UpdateItemBillboardDistanceCullSelection(CCamera* camera);
 	void RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	void RenderTransparentItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
+	void BuildMonsterHpGaugeBatch(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, UINT rtCount, DXGI_FORMAT* rtvFormats, DXGI_FORMAT dsvFormat);
+	void UpdateMonsterHpGaugeTimers(float dt);
+	void ResetMonsterHpGaugeVisibilityState();
+	void RenderMonsterHpGauges(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	bool IsSkinnedMonsterHpGaugeRenderAllowed(const SkinnedWorldLodEntry& entry) const;
+	bool GetMonsterHpGaugeDesc(const SkinnedWorldLodEntry& entry, float& outYOffset, float& outMaxWidth, float& outHeight) const;
+	bool FindSkinnedBatchObjectIndex(const CGameObject* object, UINT& outObjectIndex) const;
+	bool IsOtherPlayerSkinnedBodyRenderedThisFrame(int playerSlot, CCamera* camera, UINT& outSkinnedBatchObjectIndex) const;
+	void UpdateOtherPlayerWorldHpGaugeVisibilityForHud(CCamera* camera);
+	bool IsOtherPlayerWorldHpGaugeRenderAllowed(int playerSlot, CCamera* camera, UINT& outSkinnedBatchObjectIndex) const;
+	UINT GetPlayerWorldHpNameMaterialId(int playerSlot) const;
 
 	void BuildMuzzleFlashBatch(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, DXGI_FORMAT dsvFormat);
 
@@ -414,10 +433,7 @@ private:
 
 	void ReleaseBossCallSummonWwwGpuResources();
 
-	void SpawnBossCallSummonWwwEffect(
-		const XMFLOAT3& center,
-		EEnemySpawnerEnemyKind kind
-	);
+	void SpawnBossCallSummonWwwEffect(const XMFLOAT3& center, EEnemySpawnerEnemyKind kind);
 
 	void UpdateBossCallSummonWwwEffects(float dt);
 	void RenderBossCallSummonWwwEffects(ID3D12GraphicsCommandList* cmd, CCamera* camera);
@@ -436,10 +452,7 @@ private:
 	void ClearBossCallSummonCircleVisuals();
 
 	float GetBossCallSummonCircleSize(EEnemySpawnerEnemyKind kind) const;
-	void AddBossCallSummonCircle(
-		const XMFLOAT3& center,
-		EEnemySpawnerEnemyKind kind
-	);
+	void AddBossCallSummonCircle(const XMFLOAT3& center, EEnemySpawnerEnemyKind kind);
 
 	void SpawnBossSummonCircle(const XMFLOAT3& center, float alpha);
 	void SpawnBossSummonGlow(const XMFLOAT3& center, float alpha);
@@ -870,7 +883,8 @@ private:
 	int ApplyPlayerAttackPowerPotionMultiplier(int playerSlot, int attackPower) const;
 
 	// slot 0..3 플레이어 포인터(소유는 m_skinnedObjects가 함)
-    std::array<CGameObject*, 4> m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
+	std::array<CGameObject*, 4> m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
+	std::array<bool, 4> m_otherPlayerWorldHpGaugeVisibleForHud = { false, false, false, false };
 
 	std::array<bool, 4> m_playerFootstepTrackingValid = { false, false, false, false };
 	std::array<int, 4> m_playerFootstepMode = { 0, 0, 0, 0 }; // 0=None, 1=Walk, 2=Run
@@ -960,6 +974,9 @@ private:
 	static constexpr UINT kBossShockwaveMaterialId = MAX_MATERIALS - 5;
 	static constexpr UINT kBossShockwaveWallMaterialId = MAX_MATERIALS - 6;
 	static constexpr UINT kBossCallSummonCircleMaterialId = MAX_MATERIALS - 7;
+	static constexpr UINT kMonsterHpGaugeMaterialId = MAX_MATERIALS - 12;
+	static constexpr UINT kMonsterHpGaugeEmptyMaterialId = MAX_MATERIALS - 13;
+	static constexpr UINT kPlayerWorldHpNameMaterialBaseId = MAX_MATERIALS - 17;
 
 	static constexpr UINT kPotionItemBillboardMaterialBaseId = MAX_MATERIALS - 11;
 	static constexpr UINT kHealPotionItemBillboardMaterialId = MAX_MATERIALS - 11;
@@ -977,6 +994,17 @@ private:
 	static_assert( kPotionItemSpawnCountPerKind <= kPotionItemMaxCountPerKind, "Potion item spawn count exceeds max count per kind." );
 
 	ItemBillboardState m_itemBillboardState;
+	MonsterHpGaugeState m_monsterHpGaugeState;
+
+	struct MonsterHpGaugeRuntimeState
+	{
+		int previousHp = -1;
+		float visibleTimerSec = 0.0f;
+	};
+
+	static constexpr float kMonsterHpGaugeVisibleDurationSec = 5.0f;
+
+	std::unordered_map<CGameObject*, MonsterHpGaugeRuntimeState> m_monsterHpGaugeRuntimeStates;
 
 	static constexpr UINT kMuzzleFlashMaxCount = 4096;
 
@@ -1828,6 +1856,8 @@ private:
 
 		bool renderAllowed = false;
 		bool waitAppearBeforeRender = false;
+		bool appearPhaseSeen = false;
+		bool appearFinished = false;
 	};
 
 	std::unordered_map<CGameObject*, BossStageBossPositionState> m_bossStageBossPositionStates;

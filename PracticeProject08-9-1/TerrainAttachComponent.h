@@ -20,6 +20,10 @@ public:
 	float GetHeightOffset() const { return m_heightOffset; }
 	void SetAutoSnapEnabled(bool enabled);
 
+	void SetFixedY(float y);
+	void ClearFixedY();
+	bool IsFixedYEnabled() const { return m_fixedYEnabled; }
+
 	void SnapToTerrain();
 
 	void OnCreate(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd) override;
@@ -29,5 +33,7 @@ private:
 	std::shared_ptr<TerrainData> m_terrainData;
 	float m_heightOffset = 0.0f;
 	bool m_captureInitialOffset = true;
-	bool m_autoSnapEnabled = true;
+
+	bool m_fixedYEnabled = false;
+	float m_fixedY = 0.0f;
 };
