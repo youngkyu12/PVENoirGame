@@ -33,6 +33,7 @@ private:
 	std::shared_ptr<TerrainData> m_terrainData;
 	float m_heightOffset = 0.0f;
 	bool m_captureInitialOffset = true;
+	bool m_autoSnapEnabled = true;
 
 	bool m_fixedYEnabled = false;
 	float m_fixedY = 0.0f;
