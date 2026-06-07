@@ -1268,6 +1268,7 @@ class Enemy final :
     kEnemyTypeFieldNumber = 2,
     kEnemyStateFieldNumber = 3,
     kWeaponTypeFieldNumber = 6,
+    kHpFieldNumber = 7,
   };
   // .Protocol.Transform transform = 4;
   bool has_transform() const;
@@ -1341,6 +1342,15 @@ class Enemy final :
   void _internal_set_weapontype(::Protocol::WeaponType value);
   public:
 
+  // uint32 hp = 7;
+  void clear_hp();
+  ::PROTOBUF_NAMESPACE_ID::uint32 hp() const;
+  void set_hp(::PROTOBUF_NAMESPACE_ID::uint32 value);
+  private:
+  ::PROTOBUF_NAMESPACE_ID::uint32 _internal_hp() const;
+  void _internal_set_hp(::PROTOBUF_NAMESPACE_ID::uint32 value);
+  public:
+
   // @@protoc_insertion_point(class_scope:Protocol.Enemy)
  private:
   class _Internal;
@@ -1354,6 +1364,7 @@ class Enemy final :
   int enemytype_;
   int enemystate_;
   int weapontype_;
+  ::PROTOBUF_NAMESPACE_ID::uint32 hp_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_Struct_2eproto;
 };
@@ -2702,6 +2713,26 @@ inline void Enemy::_internal_set_weapontype(::Protocol::WeaponType value) {
 inline void Enemy::set_weapontype(::Protocol::WeaponType value) {
   _internal_set_weapontype(value);
   // @@protoc_insertion_point(field_set:Protocol.Enemy.weaponType)
+}
+
+// uint32 hp = 7;
+inline void Enemy::clear_hp() {
+  hp_ = 0u;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint32 Enemy::_internal_hp() const {
+  return hp_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint32 Enemy::hp() const {
+  // @@protoc_insertion_point(field_get:Protocol.Enemy.hp)
+  return _internal_hp();
+}
+inline void Enemy::_internal_set_hp(::PROTOBUF_NAMESPACE_ID::uint32 value) {
+  
+  hp_ = value;
+}
+inline void Enemy::set_hp(::PROTOBUF_NAMESPACE_ID::uint32 value) {
+  _internal_set_hp(value);
+  // @@protoc_insertion_point(field_set:Protocol.Enemy.hp)
 }
 
 // -------------------------------------------------------------------

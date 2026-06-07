@@ -219,6 +219,7 @@ void Room::MakeFrameState(uint32 tick)
 			auto e = frameStatePkt.add_enemies();
 			e->set_id(enemyId);
 			e->set_enemytype(enemy->type);
+			e->set_hp(static_cast<uint32>(enemy->GetCurrentHp()));
 			e->set_weapontype(enemy->GetWeaponState());
 			Protocol::Animation* anim = e->mutable_animation();
 			anim->set_statecode(s_EnemyStateCodeCache[enemyId]);
