@@ -37,10 +37,7 @@ void CGameScene::ReleaseBossCallSummonWwwGpuResources()
 	m_bossCallSummonWwwEffect.vertexBuffer.Release();
 }
 
-
-void CGameScene::SpawnBossCallSummonWwwEffect(
-	const XMFLOAT3& center,
-	EEnemySpawnerEnemyKind kind)
+void CGameScene::SpawnBossCallSummonWwwEffect(const XMFLOAT3& center, EEnemySpawnerEnemyKind kind)
 {
 #ifndef USING_NETWORK
 	static std::mt19937 rng{ std::random_device{}( ) };
@@ -65,9 +62,7 @@ void CGameScene::SpawnBossCallSummonWwwEffect(
 
 	const float circleSize = GetBossCallSummonCircleSize(kind);
 	const float radius = std::max(0.10f, circleSize * 0.5f);
-
-	XMFLOAT3 fixedCenter = center;
-	fixedCenter.y = 0.0f;
+	const XMFLOAT3 fixedCenter = AlignPositionYToTerrainGround(center, 0.0f);
 
 	*entry = BossCallSummonWwwEntry{};
 
@@ -83,7 +78,6 @@ void CGameScene::SpawnBossCallSummonWwwEffect(
 	entry->retargetTimer = 0.0f;
 	entry->seed = seedDist(rng);
 
-	// 잔광 색상과 동일 계열.
 	entry->color = XMFLOAT4(0.10f, 0.90f, 0.18f, 0.78f);
 
 	for ( UINT i = 0; i < kBossCallSummonWwwPeakCount; ++i )
@@ -92,9 +86,7 @@ void CGameScene::SpawnBossCallSummonWwwEffect(
 
 		entry->peakHeights[i] = h;
 		entry->targetPeakHeights[i] = zeroOneDist(rng) * entry->maxHeight;
-
-		entry->peakMoveSpeeds[i] =
-			entry->maxHeight * ( 2.8f + zeroOneDist(rng) * 4.2f );
+		entry->peakMoveSpeeds[i] = entry->maxHeight * ( 2.8f + zeroOneDist(rng) * 4.2f );
 	}
 #else
 	UNREFERENCED_PARAMETER(center);
@@ -482,8 +474,6 @@ void CGameScene::RenderBossCallSummonWwwEffects(ID3D12GraphicsCommandList* cmd, 
 #endif
 }
 
-
-
 void CGameScene::SpawnBossSummonCircle(const XMFLOAT3& center, float alpha)
 {
 	for ( ItemBillboardEntry& item : m_itemBillboardState.entries )
@@ -491,8 +481,7 @@ void CGameScene::SpawnBossSummonCircle(const XMFLOAT3& center, float alpha)
 		if ( item.kind != EItemBillboardKind::BossSummonCircle )
 			continue;
 
-		XMFLOAT3 fixedCenter = center;
-		fixedCenter.y = 0.0f;
+		const XMFLOAT3 fixedCenter = AlignPositionYToTerrainGround(center, 0.0f);
 
 		item.active = true;
 		item.distanceCulled = false;
@@ -526,8 +515,7 @@ void CGameScene::SpawnBossSummonGlow(const XMFLOAT3& center, float alpha)
 		if ( item.kind != EItemBillboardKind::BossSummonGlow )
 			continue;
 
-		XMFLOAT3 fixedCenter = center;
-		fixedCenter.y = 0.0f;
+		const XMFLOAT3 fixedCenter = AlignPositionYToTerrainGround(center, 0.0f);
 
 		item.active = true;
 		item.distanceCulled = false;
@@ -618,9 +606,7 @@ void CGameScene::ClearBossCallSummonCircleVisuals()
 	SetBossCallSummonCircleAlpha(0.0f);
 }
 
-void CGameScene::AddBossCallSummonCircle(
-	const XMFLOAT3& center,
-	EEnemySpawnerEnemyKind kind)
+void CGameScene::AddBossCallSummonCircle(const XMFLOAT3& center, EEnemySpawnerEnemyKind kind)
 {
 	const float size = GetBossCallSummonCircleSize(kind);
 
@@ -634,8 +620,7 @@ void CGameScene::AddBossCallSummonCircle(
 		if ( item.active )
 			continue;
 
-		XMFLOAT3 fixedCenter = center;
-		fixedCenter.y = 0.0f;
+		const XMFLOAT3 fixedCenter = AlignPositionYToTerrainGround(center, 0.0f);
 
 		item.active = true;
 		item.distanceCulled = false;
@@ -658,14 +643,10 @@ void CGameScene::AddBossCallSummonCircle(
 		return;
 	}
 
-	OutputDebugStringA(
-		"[BossCallSummonCircle] add failed: no free BossCallSummonCircle entry.\n"
-	);
+	OutputDebugStringA("[BossCallSummonCircle] add failed: no free BossCallSummonCircle entry.\n");
 }
 
-void CGameScene::BeginBossCallMonsterSummonVisuals(
-	int callIndex,
-	float fadeInDurationSec)
+void CGameScene::BeginBossCallMonsterSummonVisuals(int callIndex, float fadeInDurationSec)
 {
 #ifndef USING_NETWORK
 	ClearBossCallSummonCircleVisuals();
@@ -766,7 +747,7 @@ void CGameScene::BeginBossCallMonsterSummonVisuals(
 	SetBossCallSummonCircleAlpha(0.0f);
 
 	{
-		XMFLOAT3 sfxPos = XMFLOAT3(400.0f, 0.0f, 400.0f);
+		XMFLOAT3 sfxPos = AlignPositionYToTerrainGround(XMFLOAT3(400.0f, 0.0f, 400.0f), 0.0f);
 
 		if ( !m_bossCallSummonPlanEntries.empty() )
 		{
