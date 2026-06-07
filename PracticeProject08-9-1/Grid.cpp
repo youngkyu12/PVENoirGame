@@ -702,6 +702,25 @@ void CSceneGrid::MarkTreeCullBlockerCells(const std::unordered_set<int>& touched
 	}
 }
 
+bool CSceneGrid::IsStaticBuildingCell(int cellX, int cellZ) const
+{
+	if ( !m_initialized )
+		return true;
+
+	if ( !IsValidCell(cellX, cellZ) )
+		return true;
+
+	const int cellIndex = GridCellIndex(cellX, cellZ);
+
+	if ( cellIndex < 0 || cellIndex >= kGridCellCount )
+		return true;
+
+	if ( cellIndex >= static_cast< int >(m_staticCells.size()) )
+		return true;
+
+	return m_staticCells[static_cast< size_t >(cellIndex)].buildingCount > 0;
+}
+
 void CSceneGrid::DumpStaticGridOccupancyLog() const
 {
 	if ( !m_initialized )

@@ -102,7 +102,8 @@ namespace
 		if (anim == Protocol::ANIMATION_TYPE_RUN) code |= kStateRun;
 		if (anim == Protocol::ANIMATION_TYPE_HIT) code |= kStateHit;
 
-		if (anim == Protocol::ANIMATION_TYPE_RUN)
+		if (anim == Protocol::ANIMATION_TYPE_WALK ||
+			anim == Protocol::ANIMATION_TYPE_RUN)
 		{
 			code |= kStateMove;
 
@@ -172,6 +173,7 @@ void Room::MakeFrameState(uint32 tick)
 			p->set_id(player->playerId);
 			p->set_name(player->name);
 			p->set_playertype(player->type);
+			p->set_hp(static_cast<uint32>(player->GetCurrentHp()));
 
 			Protocol::Animation* anim = p->mutable_animation();
 			anim->set_statecode(BuildStateCode(*player));
@@ -200,6 +202,8 @@ void Room::MakeFrameState(uint32 tick)
 
 			EnemyRef& enemy = it->second;
 			if (!enemy)
+				continue;
+			if (!enemy->IsActive())
 				continue;
 
 			if (GameMath::DistSqXZ(viewerPos, enemy->GetPosition()) > kEnemyViewRangeSq)
@@ -262,6 +266,20 @@ void Room::MakeFrameState(uint32 tick)
 
 }
 
+void Room::SendForcedTransformYawDelta(const PlayerRef& player, float yawDelta, int32 reason)
+{
+	if (!player || !player->ownerSession)
+		return;
+
+	Protocol::S_FORCED_TRANSFORM pkt;
+	pkt.set_playerid(player->playerId);
+	pkt.set_yawdelta(yawDelta);
+	pkt.set_reason(static_cast<Protocol::ForcedTransformReason>(reason));
+
+	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(pkt);
+	player->ownerSession->Send(sendBuffer);
+}
+
 void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
 {
 	gameStartPkt.set_mapid("MapData_fullstage_withBoss");
@@ -275,6 +293,7 @@ void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
 		p->set_id(player->playerId);
 		p->set_name(player->name);
 		p->set_playertype(player->type);
+		p->set_hp(static_cast<uint32>(player->GetCurrentHp()));
 
 		Protocol::Transform* transform = p->mutable_transform();
 		Protocol::Vec3f* position = transform->mutable_position();

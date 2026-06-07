@@ -2,6 +2,22 @@
 #include "Room.h"
 #include "Player.h"
 
+namespace
+{
+	constexpr int kDirForward        = 1 << 0;
+	constexpr int kDirBackward       = 1 << 1;
+	constexpr int kDirLeft           = 1 << 2;
+	constexpr int kDirRight          = 1 << 3;
+	constexpr int kDirLButton        = 1 << 7;
+	constexpr int kDirRun            = 1 << 8;
+	constexpr int kDirRoll           = 1 << 9;
+	constexpr int kDirMoveMask       = kDirForward | kDirBackward | kDirLeft | kDirRight;
+	constexpr int kDirPacketMoveMask = kDirMoveMask | kDirRun;
+
+	constexpr float kPlayerWalkSpeed     = 5.0f;
+	constexpr float kPlayerRunMultiplier = 2.0f;
+}
+
 void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float deltaY, float clientDeltaTime)
 {
 	auto it = players.find(playerId);
@@ -33,16 +49,6 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		float currentYaw = player->GetYaw();
 		player->SetYaw(GameMath::NormalizeYaw(currentYaw + deltaX));
 	}
-
-	constexpr int kDirForward = 1 << 0;
-	constexpr int kDirBackward = 1 << 1;
-	constexpr int kDirLeft = 1 << 2;
-	constexpr int kDirRight = 1 << 3;
-	constexpr int kDirLButton = 1 << 7;
-	constexpr int kDirRun = 1 << 8;
-	constexpr int kDirRoll = 1 << 9;
-	constexpr int kDirMoveMask = kDirForward | kDirBackward | kDirLeft | kDirRight;
-	constexpr int kDirPacketMoveMask = kDirMoveMask | kDirRun;
 
 	const int32 moveKeyCodes = keyCodes & kDirMoveMask;
 	const int32 packetMoveKeyCodes = (moveKeyCodes != 0) ? (keyCodes & kDirPacketMoveMask) : 0;
@@ -103,7 +109,6 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	GameMath::Vec3 look = player->GetLook();
 	GameMath::Vec3 right = player->GetRight();
 
-	const float speed = 5.0f;
 	float dt = clientDeltaTime;
 	if (!(dt > 0.0f))
 		dt = m_timing.playerInputDtSec;
@@ -111,7 +116,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		dt = 0.001f;
 	if (dt > 0.05f)
 		dt = 0.05f;
-	float fDistance = speed * dt;
+	float fDistance = kPlayerWalkSpeed * dt;
 
 	GameMath::Vec3 shift = GameMath::Vec3::Zero();
 	GameMath::Vec3 moveDirection = GameMath::Vec3::Zero();
@@ -165,7 +170,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		}
 		case Protocol::ANIMATION_TYPE_RUN:
 		{
-			fDistance *= 2.0f;
+			fDistance *= kPlayerRunMultiplier;
 			break;
 		}
 		case Protocol::ANIMATION_TYPE_WALK:

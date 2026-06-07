@@ -53,9 +53,9 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 	m_bSimulateLocalBowManAI = false;
 	m_bSimulateLocalSwordManAI = false;
 	m_bSimulateLocalMutantAI = false;
-	m_bSimulateLocalBossAI = false;
+	m_bSimulateLocalBossAI = true;
 	m_bSimulateLocalBossSummon = true;
-	m_bSimulateLocalBossStageMonsterAI = true;
+	m_bSimulateLocalBossStageMonsterAI = false;
 
 	m_bSimulateLocalMonsterChase = true;
 	m_bSimulateLocalEnemySpawner = true;
@@ -115,6 +115,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_bLocalPlayerDead = false;
 	m_bLocalPlayerRespawnUsed = false;
 	m_localPlayerRespawnTimer = 0.0f;
+	m_waterAccumulatedTime = 0.0f;
 	ResetBossPoisonProjectileState();
 
 #ifdef USING_NETWORK
@@ -187,8 +188,15 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 			break;
 		}
 	}
+
+	OutputDebugStringA(("[BuildSkinnedBatch] enemy type counts from server:\n"
+		"  Ghoul   = " + std::to_string(m_ghoulCount)    + "\n"
+		"  SwordMan= " + std::to_string(m_swordManCount) + "\n"
+		"  BowMan  = " + std::to_string(m_bowManCount)   + "\n"
+		"  Mutant  = " + std::to_string(m_MutantCount)   + "\n"
+		"  Boss    = " + std::to_string(m_bossCount)     + "\n").c_str());
 #else
-	m_localPlayerSlot = 3;
+	m_localPlayerSlot = 0;
 
 	const GameSceneStageFileSet& stageFiles = GetLocalStageFileSet(kLocalStagePreset);
 
@@ -289,8 +297,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		m_PlayerSwordCount +
 		m_PlayerAxeCount +
 		m_PlayerGunCount +
-		m_swordManCount +
-		m_terrainCount;
+		m_swordManCount;
 
 	m_skinnedBatch.capacity =
 		m_ghoulCount +
@@ -321,6 +328,9 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	auto pShadowAlphaClipStaticShader = std::make_shared<CShadowMapAlphaClipStaticShader>();
 	auto pShadowSkinnedShader = std::make_shared<CShadowMapSkinnedShader>();
 	auto pShadowAlphaClipSkinnedShader = std::make_shared<CShadowMapAlphaClipSkinnedShader>();
+	auto pTerrainShader = std::make_shared<CTerrainShader>();
+	auto pShadowTerrainShader = std::make_shared<CShadowMapTerrainShader>();
+	auto pWaterShader = std::make_shared<CWaterShader>();
 
 	m_staticBatch.shader = pStaticShader;
 	m_treeStaticShader = pTreeStaticShader;
@@ -332,6 +342,9 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_shadowAlphaClipStaticShader = pShadowAlphaClipStaticShader;
 	m_shadowSkinnedShader = pShadowSkinnedShader;
 	m_shadowAlphaClipSkinnedShader = pShadowAlphaClipSkinnedShader;
+	m_terrainShader = pTerrainShader;
+	m_shadowTerrainShader = pShadowTerrainShader;
+	m_waterShader = pWaterShader;
 
 	DXGI_FORMAT rtvFormats[5] =
 	{
@@ -344,6 +357,8 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
 	BuildLightsAndMaterials();
 	m_hud.BuildResources(dev, cmd, GetGraphicsRootSignature());
+	InitializeInventoryItemCounts();
+	m_hud.SetInventoryItemCounts(m_inventoryItemCounts);
 	m_hud.SetInactiveOverlayVisible(m_bInactiveOverlayVisible);
 	BuildDepthFogResources(dev, cmd);
 	m_shadowMap.BuildResources(dev, cmd, m_pDescriptorHeap.get());
@@ -410,6 +425,32 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		kDsvFormat
 	);
 
+	pTerrainShader->CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		kRTCount,
+		rtvFormats,
+		kDsvFormat
+	);
+
+	pWaterShader->CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		kRTCount,
+		rtvFormats,
+		kDsvFormat
+	);
+
+	pShadowTerrainShader->CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		0,
+		nullptr,
+		DXGI_FORMAT_D24_UNORM_S8_UINT
+	);
+
+	CreateTerrainData(dev, cmd);
+	CreateWaterTextures(dev, cmd);
 	BuildStaticBatch(dev, cmd, pStaticShader, kRTCount, rtvFormats, kDsvFormat);
 	BuildItemBillboardBatch(dev, cmd, kRTCount, rtvFormats, kDsvFormat);
 
@@ -433,6 +474,8 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	}
 
 	LinkSceneObjects();
+	AttachInventoryComponentsToPlayers();
+	SyncLocalInventoryToHud();
 
 	CreateShaderVariables(dev, cmd);
 
@@ -455,6 +498,123 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(iamReady);
 	g_clientService->BroadCast(sendBuffer);
 #endif
+}
+
+void CGameScene::CreateTerrainData(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
+{
+	XMFLOAT3 xmf3Scale(kTerrainHorizontalScale, kTerrainVerticalScale, kTerrainHorizontalScale);
+	XMFLOAT4 xmf4Color(0.0f, 0.2f, 0.0f, 0.0f);
+
+	auto LoadTerrainTexture = [&](const wchar_t* path) -> std::shared_ptr<CTexture>
+		{
+			auto texture = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
+			texture->LoadTextureFromFile(
+				dev,
+				cmd,
+				path,
+				RESOURCE_TEXTURE2D,
+				0
+			);
+
+			m_pDescriptorHeap->CreateShaderResourceViewsOther(
+				dev,
+				texture.get(),
+				ROOT_PARAMETER_GLOBAL_SRV
+			);
+
+			return texture;
+		};
+
+	m_TerrainData = std::make_shared<TerrainData>(
+		_T("Image/terrain.raw"),
+		kTerrainHeightMapSamples,
+		kTerrainHeightMapSamples,
+		kTerrainHeightMapSamples,
+		kTerrainHeightMapSamples,
+		xmf3Scale,
+		xmf4Color
+	);
+
+	if (dev && cmd && m_pDescriptorHeap)
+	{
+		m_TerrainData->SetHeightMapTexture(
+			LoadTerrainTexture(L"Image/terrain(Flipped).dds")
+		);
+
+		m_TerrainData->SetGrassDiffuseTexture(
+			LoadTerrainTexture(L"Assets/GroundPlane/Texture/grass_diff.dds")
+		);
+
+		m_TerrainData->SetGroundDiffuseTexture(
+			LoadTerrainTexture(L"Assets/GroundPlane/Texture/ground_diff.dds")
+		);
+
+		m_TerrainData->SetDirtDiffuseTexture(
+			LoadTerrainTexture(L"Assets/GroundPlane/Texture/dirt_diff.dds")
+		);
+
+		m_TerrainData->SetGrassNormalTexture(
+			LoadTerrainTexture(L"Assets/GroundPlane/Texture/grass_normal.dds")
+		);
+
+		m_TerrainData->SetGroundNormalTexture(
+			LoadTerrainTexture(L"Assets/GroundPlane/Texture/ground_nm.dds")
+		);
+
+		m_TerrainData->SetDirtNormalTexture(
+			LoadTerrainTexture(L"Assets/GroundPlane/Texture/dirt_normal.dds")
+		);
+	}
+}
+
+void CGameScene::CreateWaterTextures(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
+{
+	auto LoadWaterTexture = [&](const wchar_t* path) -> std::shared_ptr<CTexture>
+		{
+			auto texture = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
+			texture->LoadTextureFromFile(
+				dev,
+				cmd,
+				path,
+				RESOURCE_TEXTURE2D,
+				0
+			);
+
+			m_pDescriptorHeap->CreateShaderResourceViewsOther(
+				dev,
+				texture.get(),
+				ROOT_PARAMETER_GLOBAL_SRV
+			);
+
+			return texture;
+		};
+
+	m_waterBaseTexture = nullptr;
+	m_waterDetail0Texture = nullptr;
+	m_waterDetail1Texture = nullptr;
+
+	m_waterBaseSrvIndex = UINT_MAX;
+	m_waterDetail0SrvIndex = UINT_MAX;
+	m_waterDetail1SrvIndex = UINT_MAX;
+
+	if (!dev || !cmd || !m_pDescriptorHeap)
+		return;
+
+	m_waterBaseTexture = LoadWaterTexture(L"Image/Water_Base_Texture_0.dds");
+	m_waterDetail0Texture = LoadWaterTexture(L"Image/Water_Detail_Texture_0.dds");
+	m_waterDetail1Texture = LoadWaterTexture(L"Image/Detail_Texture_7.dds");
+
+	m_waterBaseSrvIndex = m_waterBaseTexture
+		? m_waterBaseTexture->GetBaseSrvIndex()
+		: UINT_MAX;
+
+	m_waterDetail0SrvIndex = m_waterDetail0Texture
+		? m_waterDetail0Texture->GetBaseSrvIndex()
+		: UINT_MAX;
+
+	m_waterDetail1SrvIndex = m_waterDetail1Texture
+		? m_waterDetail1Texture->GetBaseSrvIndex()
+		: UINT_MAX;
 }
 
 void CGameScene::BuildStaticBatch(
@@ -595,6 +755,9 @@ void CGameScene::BuildStaticBatch(
 		if ( !ResolveStaticAssetDesc(placement.assetName, desc, &resolvedAssetType) )
 			continue;
 
+		if ( placement.assetName == "Terrain" )
+			desc.terrainData = m_TerrainData;
+
 		std::shared_ptr<CMesh> selectedMesh = nullptr;
 		std::array<std::shared_ptr<CMesh>, 3> loadedLodMeshes = { nullptr, nullptr, nullptr };
 		bool enableStaticWorldLod = false;
@@ -666,6 +829,9 @@ void CGameScene::BuildStaticBatch(
 		createDesc.colliderType = EColliderType::OOBB;
 		createDesc.colliderLayer = kCollisionLayerWorldStatic;
 		createDesc.colliderMask = CollisionBit(kCollisionLayerPlayer);
+		
+		createDesc.addTerrainAttach = ShouldAttachObjectToTerrain(placement.assetName);
+		createDesc.terrainData = m_TerrainData;
 
 		const bool logCastleVillageWallColliderBuild =
 			kEnableCastleVillageWallColliderBuildLog &&
@@ -719,6 +885,17 @@ void CGameScene::BuildStaticBatch(
 
 		CGameObject* raw = obj.get();
 
+		if ( placement.assetName == "Terrain" )
+		{
+			m_terrainObjects.insert(raw);
+
+			if ( m_TerrainData )
+				m_TerrainData->SetWorldPosition(placement.pos);
+		}
+
+		if ( placement.assetName == "Water" )
+			m_waterObjects.insert(raw);
+
 #ifndef USING_NETWORK
 		if ( placement.assetName == "Tower" )
 		{
@@ -731,7 +908,8 @@ void CGameScene::BuildStaticBatch(
 #endif
 
 		const bool isTreeObject = ( resolvedAssetType == AssetType::Tree );
-		const bool castsShadow = ShouldStaticPlacementCastShadow(placement.assetName);
+		//const bool castsShadow = ShouldStaticPlacementCastShadow(placement.assetName);
+		const bool castsShadow = ( placement.assetName == "Water" ) ? false : ShouldStaticPlacementCastShadow(placement.assetName);
 
 		if ( isTreeObject )
 		{
@@ -841,65 +1019,6 @@ void CGameScene::BuildStaticBatch(
 		m_staticDynamicWorldMatrixFlags.push_back(0);
 		b->count = ( UINT ) b->objectRefs.size();
 	}
-
-	// Terrain 연결
-	/*for ( UINT k = 0; k < m_terrainCount; ++k )
-	{
-		if ( b->objectRefs.size() >= b->capacity ) break;
-
-		const UINT i = ( UINT ) b->objectRefs.size();
-		const StaticPlacementEntry& placement = m_staticPlacementEntries[k];
-
-		const bool createWorldStaticCollider = false;
-		const bool isStaticWorldLodTarget = false;
-		const bool enableDistanceCull = false;
-
-		std::shared_ptr<CMesh> selectedMesh = nullptr;
-
-		if ( !selectedMesh )
-		{
-
-
-		}
-
-		if ( !selectedMesh )
-			continue;
-
-		GameSceneObjectFactory::StaticRenderableDesc createDesc{};
-		createDesc.ctx = MakeStaticContext(i);
-		createDesc.mesh = selectedMesh;
-		createDesc.position = placement.pos;
-		createDesc.yawDeg = placement.yawDeg;
-
-		createDesc.addCollider = false;
-		const bool logCastleVillageWallColliderBuild = false;
-
-		createDesc.debugColliderBuildLog = logCastleVillageWallColliderBuild;
-		createDesc.debugColliderAssetName = placement.assetName;
-		createDesc.debugColliderObjectName = placement.objectName;
-
-		auto obj = GameSceneObjectFactory::CreateStaticRenderable(createDesc);
-		if ( !obj )
-			continue;
-
-		CGameObject* raw = obj.get();
-
-		const bool castsShadow = false;
-
-		RegisterStaticPlacementToGrid(placement, raw);
-
-		const uint16_t collisionMegaGridMask =
-			createWorldStaticCollider ? ComputeStaticObjectMegaGridMask(raw) : 0;
-
-		if ( collisionMegaGridMask != 0 )
-			m_collisionMegaGridMaskByObject[raw] = collisionMegaGridMask;
-
-		m_staticObjects.push_back(std::move(obj));
-		b->objectRefs.push_back(raw);
-		m_staticShadowCasterFlags.push_back(castsShadow ? 1 : 0);
-		m_staticCollisionMegaGridMasks.push_back(collisionMegaGridMask);
-		b->count = ( UINT ) b->objectRefs.size();
-	}*/
 
 #ifndef USING_NETWORK
 	if ( kEnableStaticWorldLocalOOBBReportExport )
@@ -1108,7 +1227,7 @@ void CGameScene::BuildStaticBatch(
 			createDesc.addPlayerWeaponHitbox = true;
 
 			createDesc.addAttackPower = true;
-			createDesc.attackPower = GetCurrentPlayerSwordAttackPower();
+			createDesc.attackPower = GetPlayerSwordAttackPower(static_cast< int >( k ));
 
 			auto obj = GameSceneObjectFactory::CreateStaticRenderable(createDesc);
 			if ( !obj )
@@ -1163,7 +1282,7 @@ void CGameScene::BuildStaticBatch(
 			createDesc.addPlayerWeaponHitbox = true;
 
 			createDesc.addAttackPower = true;
-			createDesc.attackPower = GetCurrentPlayerAxeAttackPower();
+			createDesc.attackPower = GetPlayerAxeAttackPower(static_cast< int >( k ));
 
 			auto obj = GameSceneObjectFactory::CreateStaticRenderable(createDesc);
 			if ( !obj )
@@ -1889,7 +2008,7 @@ void CGameScene::BuildSkinnedBatch(
 			return true;
 		};
 
-	auto GetNetworkPlayerSpawn = [ & ] (UINT index, XMFLOAT3& outPos, float& outYaw, EWeaponType& outWeapon) -> bool
+	auto GetNetworkPlayerSpawn = [ & ] (UINT index, XMFLOAT3& outPos, float& outYaw, EWeaponType& outWeapon, uint32_t& outHp) -> bool
 		{
 			if ( index >= static_cast< UINT >( gameStartData.players.size() ) )
 				return false;
@@ -1898,6 +2017,7 @@ void CGameScene::BuildSkinnedBatch(
 			outPos = state.position;
 			outYaw = state.yaw;
 			outWeapon = state.weaponType;
+			outHp = state.hp;
 			return true;
 		};
 #endif
@@ -2102,6 +2222,8 @@ void CGameScene::BuildSkinnedBatch(
 			++enemyIndex;
 
 			CGameObject* raw = obj.get();
+			if ( m_TerrainData )
+				raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
 
 			RegisterMonsterToMegaGrid(raw, pos, i);
 
@@ -2198,6 +2320,9 @@ void CGameScene::BuildSkinnedBatch(
 
 					CGameObject* raw = obj.get();
 
+					if ( m_TerrainData )
+						raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
+
 					if ( useSpawnerRushGhoulAI )
 					{
 						if ( auto* ai = raw->GetComponent<CEnemySpawnerGhoulAIComponent>() )
@@ -2205,7 +2330,7 @@ void CGameScene::BuildSkinnedBatch(
 							ai->ConfigureSpawnerGhoulAI(megaGridNumber, 60.0f);
 						}
 					}
-
+					
 					RegisterMonsterToMegaGrid(raw, pos, i);
 
 					RegisterSkinnedCullEntry(
@@ -2331,6 +2456,8 @@ void CGameScene::BuildSkinnedBatch(
 			++enemyIndex;
 
 			CGameObject* raw = obj.get();
+			if ( m_TerrainData )
+				raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
 
 			RegisterMonsterToMegaGrid(raw, pos, i);
 
@@ -2546,6 +2673,8 @@ void CGameScene::BuildSkinnedBatch(
 			++enemyIndex;
 
 			CGameObject* raw = obj.get();
+			if ( m_TerrainData )
+				raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
 
 			RegisterMonsterToMegaGrid(raw, pos, i);
 
@@ -2771,6 +2900,8 @@ void CGameScene::BuildSkinnedBatch(
 			++enemyIndex;
 
 			CGameObject* raw = obj.get();
+			if ( m_TerrainData )
+				raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
 
 			RegisterMonsterToMegaGrid(raw, pos, i);
 
@@ -3004,6 +3135,8 @@ void CGameScene::BuildSkinnedBatch(
 			++enemyIndex;
 
 			CGameObject* raw = obj.get();
+			if ( m_TerrainData )
+				raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
 
 			m_bossRefs.push_back(raw);
 
@@ -3066,7 +3199,8 @@ void CGameScene::BuildSkinnedBatch(
 
 #ifdef USING_NETWORK
 			EWeaponType initialWeapon = EWeaponType::Sword;
-			if ( !GetNetworkPlayerSpawn(k, pos, yaw, initialWeapon) )
+			uint32_t initialHp = static_cast<uint32_t>(kHpPlayer);
+			if ( !GetNetworkPlayerSpawn(k, pos, yaw, initialWeapon, initialHp) )
 				break;
 #else
 			pos.x = playerBase.x + 2.0f * ( float ) slot;
@@ -3112,9 +3246,17 @@ void CGameScene::BuildSkinnedBatch(
 			{
 				equipComp->SetLoadout(initialWeapon);
 			}
+
+			if ( auto* hp = obj->GetComponent<CHealthComponent>() )
+			{
+				hp->SetCurrentHp(static_cast<int>(initialHp));
+			}
 #endif
 
 			CGameObject* raw = obj.get();
+			if ( m_TerrainData )
+				raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
+
 			if ( auto* equip = raw->GetComponent<CPlayerEquipmentComponent>() )
 			{
 				equip->SetAudioManager(m_pAudioManager);
@@ -3485,11 +3627,9 @@ void CGameScene::BuildColliderBatch(
 
 void CGameScene::ResetStaticPlacementCounts()
 {
-	m_grassCount = 0;
-	m_groundCount = 0;
+	m_terrainCount = 0;
 	m_villagewallCount = 0;
 	m_castleCount = 0;
-	m_dirtRoadCount = 0;
 
 	m_building1Count = 0;
 	m_building2Count = 0;
@@ -3509,11 +3649,10 @@ void CGameScene::ApplyStaticPlacementCounts()
 
 	for ( const auto& e : m_staticPlacementEntries )
 	{
-		if ( e.assetName == "Grass" )       ++m_grassCount;
-		else if ( e.assetName == "Ground" )      ++m_groundCount;
+		if ( e.assetName == "Terrain" )     ++m_terrainCount;
+		else if ( e.assetName == "Water" ) ++m_waterCount;
 		else if ( e.assetName == "VillageWall" ) ++m_villagewallCount;
 		else if ( e.assetName == "Castle" )    ++m_castleCount;
-		else if ( e.assetName == "DirtRoad" )    ++m_dirtRoadCount;
 		else if ( e.assetName == "Building1" )   ++m_building1Count;
 		else if ( e.assetName == "Building2" )   ++m_building2Count;
 		else if ( e.assetName == "Building3" )   ++m_building3Count;
@@ -3629,6 +3768,9 @@ bool CGameScene::LoadStaticPlacementFile(const std::string& filePath)
 	if ( !fin.is_open() )
 		return false;
 
+	const size_t TerrainPlacementCount = 9;
+	size_t terrainCount = 0;
+
 	std::string line;
 	while ( std::getline(fin, line) )
 	{
@@ -3645,7 +3787,7 @@ bool CGameScene::LoadStaticPlacementFile(const std::string& filePath)
 		entry.yawDeg = QuaternionToYawDegrees(entry.rot);
 		m_staticPlacementEntries.push_back(std::move(entry));
 	}
-
+	
 	ApplyStaticPlacementCounts();
 	return !m_staticPlacementEntries.empty();
 }
@@ -3805,7 +3947,7 @@ void CGameScene::BuildStaticWorldSubmeshOOBBDebugObjects(
 				std::shared_ptr<CMesh> debugMesh =
 					std::make_shared<CBoxMeshDiffused>(dev, cmd, debugCollider);
 
-				debugObj->SetMesh(0, debugMesh);
+				debugObj->SetMesh(0,  std::make_shared<CBoxMeshDiffused>(dev, cmd, debugCollider));
 
 				// bake 끝났으니 object transform은 identity로 돌려야 이중 변환이 안 생김
 				debugObj->SetWorldMatrix(BuildIdentityMatrix4x4());
@@ -4082,6 +4224,28 @@ void CGameScene::BuildLightsAndMaterials()
 	}
 
 	{
+		for ( UINT i = 0; i < kPotionItemKindCount; ++i )
+		{
+			MATERIAL& potionMat = m_pMaterials->m_pReflections[kPotionItemBillboardMaterialBaseId + i];
+
+			potionMat.m_xmf4Ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+			potionMat.m_xmf4Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+			potionMat.m_xmf4Specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+			potionMat.m_xmf4Emissive = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+
+			potionMat.m_xmn4TextureIndices = XMUINT4(0, 0, 0, 0);
+
+			potionMat.m_xmf4DiffuseUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+			potionMat.m_xmf4NormalUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+			potionMat.m_xmf4EmissiveUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+			potionMat.m_xmf4SpecularUVST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
+
+			potionMat.m_xmn4WrapModes0 = XMUINT4(0, 0, 0, 0);
+			potionMat.m_xmn4WrapModes1 = XMUINT4(0, 0, 0, 0);
+		}
+	}
+
+	{
 		MATERIAL& bossSummonMat =
 			m_pMaterials->m_pReflections[kBossSummonCircleMaterialId];
 
@@ -4238,6 +4402,54 @@ void CGameScene::CreateShaderVariables(ID3D12Device* dev, ID3D12GraphicsCommandL
 		}
 	}
 
+	m_nTerrainCBElementBytes = ( ( sizeof(TERRAIN) + 255 ) & ~255 );
+
+	for ( UINT i = 0; i < kFrameResourceCount; ++i )
+	{
+		m_pd3dcbTerrain[i] = ::CreateBufferResource(
+			dev,
+			cmd,
+			nullptr,
+			m_nTerrainCBElementBytes,
+			D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+			nullptr
+		);
+
+		if ( m_pd3dcbTerrain[i] )
+		{
+			m_pd3dcbTerrain[i]->Map(
+				0,
+				nullptr,
+				reinterpret_cast< void** >( &m_pcbMappedTerrain[i] )
+			);
+		}
+	}
+
+	m_nWaterCBElementBytes = ( ( sizeof(WATER) + 255 ) & ~255 );
+
+	for ( UINT i = 0; i < kFrameResourceCount; ++i )
+	{
+		m_pd3dcbWater[i] = ::CreateBufferResource(
+			dev,
+			cmd,
+			nullptr,
+			m_nWaterCBElementBytes,
+			D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+			nullptr
+		);
+
+		if ( m_pd3dcbWater[i] )
+		{
+			m_pd3dcbWater[i]->Map(
+				0,
+				nullptr,
+				reinterpret_cast< void** >( &m_pcbMappedWater[i] )
+			);
+		}
+	}
+
 	m_nFrameResourceIndex = 0;
 
 	m_depthFog.CreateConstantBuffer(dev, cmd);
@@ -4281,6 +4493,72 @@ void CGameScene::LinkSceneObjects()
 #endif
 
 	GameSceneAttachmentBinder::LinkSceneObjects(input, m_attachmentBinds);
+}
+
+void CGameScene::AttachInventoryComponentsToPlayers()
+{
+	for ( int slot = 0; slot < 4; ++slot )
+	{
+		CGameObject* player = GetPlayerBySlot(slot);
+		if ( !player )
+			continue;
+
+		CInventoryComponent* inventory = player->GetComponent<CInventoryComponent>();
+		if ( !inventory )
+			inventory = player->AddComponent<CInventoryComponent>();
+
+		if ( !inventory )
+			continue;
+
+		std::array<int, CInventoryComponent::kInventorySlotCount> counts = { 0, 0, 0, 0 };
+		const int copyCount = ( CInventoryComponent::kInventorySlotCount < CGameSceneHUD::kInventorySlotCount ) ? CInventoryComponent::kInventorySlotCount : CGameSceneHUD::kInventorySlotCount;
+
+		for ( int i = 0; i < copyCount; ++i )
+			counts[static_cast< size_t >(i)] = m_inventoryItemCounts[static_cast< size_t >(i)];
+
+		inventory->SetItemCounts(counts);
+	}
+}
+
+CInventoryComponent* CGameScene::GetInventoryByPlayerSlot(int slot) const
+{
+	CGameObject* player = GetPlayerBySlot(slot);
+	if ( !player )
+		return nullptr;
+
+	return player->GetComponent<CInventoryComponent>();
+}
+
+CInventoryComponent* CGameScene::GetLocalPlayerInventory() const
+{
+	return GetInventoryByPlayerSlot(m_localPlayerSlot);
+}
+
+void CGameScene::SyncLocalInventoryToHud()
+{
+	std::array<int, CGameSceneHUD::kInventorySlotCount> hudCounts = { 0, 0, 0, 0 };
+
+	CInventoryComponent* inventory = GetLocalPlayerInventory();
+
+	if ( inventory )
+	{
+		const std::array<int, CInventoryComponent::kInventorySlotCount>& inventoryCounts = inventory->GetItemCounts();
+		const int copyCount = ( CInventoryComponent::kInventorySlotCount < CGameSceneHUD::kInventorySlotCount ) ? CInventoryComponent::kInventorySlotCount : CGameSceneHUD::kInventorySlotCount;
+
+		for ( int i = 0; i < copyCount; ++i )
+			hudCounts[static_cast< size_t >(i)] = inventoryCounts[static_cast< size_t >(i)];
+	}
+
+	for ( int i = 0; i < CGameSceneHUD::kInventorySlotCount; ++i )
+		m_inventoryItemCounts[static_cast< size_t >(i)] = hudCounts[static_cast< size_t >(i)];
+
+	m_hud.SetInventoryItemCounts(hudCounts);
+
+	for ( int slot = 0; slot < CGameSceneHUD::kInventorySlotCount; ++slot )
+	{
+		const float cooldownRatio = inventory ? inventory->GetCooldownRatio(slot) : 0.0f;
+		m_hud.SetInventoryCooldownRatio(slot, cooldownRatio);
+	}
 }
 
 void CGameScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target)

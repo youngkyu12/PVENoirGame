@@ -7,13 +7,6 @@
 #include "RenderTypes.hlsl"
 #include "Skinned.hlsl"
 
-struct VS_SHADOW_MAP_OUTPUT
-{
-    float4 position : SV_POSITION;
-    float2 uv : TEXCOORD0;
-    nointerpolation uint materialId : MATERIAL_ID;
-};
-
 VS_SHADOW_MAP_OUTPUT VSShadowMapStaticInstanced(
     VS_TEXTURED_LIGHTING_INSTANCED_INPUT input)
 {
