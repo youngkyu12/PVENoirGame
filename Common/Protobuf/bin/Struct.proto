@@ -53,7 +53,7 @@ message Player
 	Transform transform = 5;
 	Animation animation = 6;
 	WeaponType weaponType = 7;
-	// stats
+	uint32 hp = 8;
 }
 
 message Enemy

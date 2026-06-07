@@ -101,18 +101,56 @@ namespace
 	// ========================================
 	// HP / Attack Power Tables
 	// ========================================
-	constexpr int kHpPlayer = 100;
-	constexpr int kHpGhoul = 30;
-	constexpr int kHpBowMan = 120;
+	constexpr int kHpPlayer   = 100;
+	constexpr int kHpGhoul    = 30;
+	constexpr int kHpBowMan   = 120;
 	constexpr int kHpSwordMan = 120;
-	constexpr int kHpMutant = 240;
-	constexpr int kHpBoss = 4800;
+	constexpr int kHpMutant   = 240;
+	constexpr int kHpBoss     = 4800;
 
-	constexpr int kAtkGhoul = 5;
-	constexpr int kAtkSword = 10;
+	constexpr int kAtkGhoul  = 5;
+	constexpr int kAtkSword  = 10;
 	constexpr int kAtkArcher = 10;
 	constexpr int kAtkMutant = 20;
-	constexpr int kAtkBoss = 50;
+	constexpr int kAtkBoss   = 50;
+
+	// ========================================
+	// EnemySpawner — Pool 수량 (클라이언트 상수와 동일)
+	// ========================================
+	constexpr int kSpawnerMega6GhoulCount    = 200;
+	constexpr int kSpawnerMega8GhoulCount    = 200;
+	constexpr int kSpawnerMega5GhoulCount    = 60;
+	constexpr int kSpawnerMega5SwordManCount = 10;
+	constexpr int kSpawnerMega5BowManCount   = 10;
+	constexpr int kSpawnerMega5MutantCount   = 5;
+
+	// EnemySpawner — 스폰 문 지오메트리 / 웨이브 타이밍
+	constexpr int   kSpawnerWallCount        = 4;
+	constexpr int   kSpawnerSlotsPerWall     = 5;
+	constexpr int   kSpawnerBatchCount       = 10;
+	constexpr float kSpawnerBatchIntervalSec = 1.0f;
+	constexpr float kSpawnerWallHalfExtent   = 99.0f;
+	constexpr float kSpawnerSlotSpacing      = 2.0f;
+
+	// ========================================
+	// MonsterAI — Per-type parameters
+	// ========================================
+	struct MonsterAIParam { float chaseStart; float chaseStop; float attackRange; float moveSpeed; };
+	constexpr MonsterAIParam kAI_Ghoul    {  10.f,       50.f,   1.5f,  2.f };
+	constexpr MonsterAIParam kAI_SwordMan {  35.f,       50.f,   3.0f,  8.f };
+	constexpr MonsterAIParam kAI_BowMan   {  50.f,       50.f,  25.0f,  8.f };
+	constexpr MonsterAIParam kAI_Mutant   {  25.f,       50.f,   2.7f, 12.f };
+	constexpr MonsterAIParam kAI_Boss     { 1e6f,        1e6f,   7.0f,  6.f };
+
+	const MonsterAIParam* GetMonsterAIParam(const string& typeName)
+	{
+		if (typeName == "Ghoul")    return &kAI_Ghoul;
+		if (typeName == "SwordMan") return &kAI_SwordMan;
+		if (typeName == "BowMan")   return &kAI_BowMan;
+		if (typeName == "Mutant")   return &kAI_Mutant;
+		if (typeName == "Boss")     return &kAI_Boss;
+		return nullptr;
+	}
 
 	int GetEnemyHp(const string& typeName)
 	{
@@ -215,6 +253,7 @@ bool Room::LoadMonsterSpawnEntries(std::vector<MonsterSpawnEntry>& outEntries)
 
 		if (matched != 9) continue;
 
+		entry.megaId = megaId;
 		entry.type = type;
 		entry.position = GameMath::Vec3(px, py, pz);
 		entry.yawDeg = yawDeg;
@@ -234,6 +273,11 @@ void Room::BuildRoom()
 	enemies.clear();
 	m_aiAwakeEnemyIds.clear();
 	m_castleCenterPlayerIds.clear();
+	m_meleeHitKeys.clear();
+	m_spawnerKeyMutantIds.clear();
+	m_keyPickupUnlockedByMegaGrid.fill(true);
+	m_keyPickupUnlockedByMegaGrid[6] = false;
+	m_keyPickupUnlockedByMegaGrid[8] = false;
 	m_towerDoorPortals.clear();
 	m_castleDoorPortals.clear();
 	m_arrowPool.clear();
@@ -315,35 +359,104 @@ void Room::BuildRoom()
 	else
 		cout << "[MonsterSpawn] load success count=" << spawnEntries.size() << endl;
 
+	// enemyId를 클라이언트 BuildSkinnedBatch 루프 순서와 완전히 일치하도록 부여한다.
+	// 각 타입 그룹 내에서 일반 적(spawn file) → 풀 적(dormant) 순으로 묶어서 연속 ID를 부여하면
+	// 클라이언트의 npcById[npcIndex] == state.id 가 성립한다.
+	// 순서: Ghoul → SwordMan → BowMan → Mutant → Boss
 	uint64 nextEnemyId = 0;
-	for (const MonsterSpawnEntry& spawn : spawnEntries)
+	uint64 mega6TriggerMutantId = UINT64_MAX;
+	uint64 mega8TriggerMutantId = UINT64_MAX;
+
+	auto applyMonsterAIParams = [](CEnemy* e, const std::string& t)
 	{
-		uint64 enemyId = 0;
-		if (spawn.index >= 0 && enemies.find(static_cast<uint64>(spawn.index)) == enemies.end())
-			enemyId = static_cast<uint64>(spawn.index);
-		else
-			enemyId = nextEnemyId;
+		auto* ai = e->GetMonsterAI();
+		if (!ai) return;
+		const MonsterAIParam* p = GetMonsterAIParam(t);
+		if (!p) return;
+		ai->SetChaseRanges(p->chaseStart, p->chaseStop);
+		ai->SetAttackRange(p->attackRange);
+		ai->SetMoveSpeed(p->moveSpeed);
+		ai->SetPatrolEnabled(t == "SwordMan" || t == "BowMan");
+	};
 
-		while (enemies.find(enemyId) != enemies.end())
-			++enemyId;
+	auto makeSpawnEnemy = [&](const MonsterSpawnEntry& spawn)
+	{
+		Protocol::EnemyType enemyType = Protocol::ENEMY_TYPE_BASIC;
+		if      (spawn.type == "BowMan")   enemyType = Protocol::ENEMY_TYPE_ARCHER;
+		else if (spawn.type == "SwordMan") enemyType = Protocol::ENEMY_TYPE_WARRIOR;
+		else if (spawn.type == "Mutant")   enemyType = Protocol::ENEMY_TYPE_MUTANT;
+		else if (spawn.type == "Boss")     enemyType = Protocol::ENEMY_TYPE_BOSS;
 
-		nextEnemyId = std::max(nextEnemyId, enemyId + 1);
-
-		const bool isArcher = (spawn.type == "BowMan");
-		const Protocol::EnemyType enemyType = isArcher
-			? Protocol::ENEMY_TYPE_ARCHER
-			: Protocol::ENEMY_TYPE_BASIC;
-
+		const uint64 enemyId = nextEnemyId++;
 		auto enemy = make_shared<CEnemy>(enemyId, spawn.type, enemyType, nullptr);
 		enemy->Build(SampleEnemySpawn(spawn.position), GameMath::Vec3(0, 0, 0));
 		enemy->SetYaw(GameMath::NormalizeYaw(spawn.yawDeg));
 		enemy->SetMaxHp(GetEnemyHp(spawn.type));
 		enemy->SetAttackPower(GetEnemyAttackPower(spawn.type));
-
+		enemy->SetActive(true);
 		RegisterDynamicCollider(enemy);
 		SetObjectCollisionMegaGridMask(enemy, ComputeObjectCurrentMegaGridMask(enemy.get()), true);
 		enemies[enemyId] = enemy;
-	}
+		applyMonsterAIParams(enemy.get(), spawn.type);
+		enemy->GetMonsterAI()->SetHomePosition(enemy->GetPosition());
+
+		if (spawn.type == "Mutant")
+		{
+			if (mega6TriggerMutantId == UINT64_MAX && spawn.megaId == 6)
+				mega6TriggerMutantId = enemyId;
+			if (mega8TriggerMutantId == UINT64_MAX && spawn.megaId == 8)
+				mega8TriggerMutantId = enemyId;
+		}
+	};
+
+	struct SpawnerPoolSpec { int megaGrid; const char* type; int count; Protocol::EnemyType enemyType; };
+	auto makePoolEnemies = [&](const SpawnerPoolSpec& spec)
+	{
+		const int zeroBased = spec.megaGrid - 1;
+		const int mgX = zeroBased % kMegaGridCols;
+		const int mgZ = zeroBased / kMegaGridCols;
+		const float centerX = kGridMinX + mgX * kMegaGridCellWidth  + kMegaGridCellWidth  * 0.5f;
+		const float centerZ = kGridMinZ + mgZ * kMegaGridCellHeight + kMegaGridCellHeight * 0.5f;
+
+		for (int i = 0; i < spec.count; ++i)
+		{
+			const uint64 enemyId = nextEnemyId++;
+			auto dormant = make_shared<CEnemy>(enemyId, spec.type, spec.enemyType, nullptr);
+			dormant->Build(GameMath::Vec3(centerX, -100.0f, centerZ), GameMath::Vec3::Zero());
+			dormant->SetMaxHp(GetEnemyHp(spec.type));
+			dormant->SetAttackPower(GetEnemyAttackPower(spec.type));
+			dormant->SetActive(false);
+			RegisterDynamicCollider(dormant);
+			SetObjectCollisionMegaGridMask(dormant, 0, true);
+			enemies[enemyId] = dormant;
+			applyMonsterAIParams(dormant.get(), spec.type);
+			m_poolEnemyMegaGrid[enemyId] = spec.megaGrid;
+		}
+	};
+
+	// Ghoul: 일반 → 풀(Mega6, Mega8, Mega5)
+	for (const auto& s : spawnEntries) if (s.type == "Ghoul")   makeSpawnEnemy(s);
+	makePoolEnemies({ 6, "Ghoul",    kSpawnerMega6GhoulCount,    Protocol::ENEMY_TYPE_BASIC   });
+	makePoolEnemies({ 8, "Ghoul",    kSpawnerMega8GhoulCount,    Protocol::ENEMY_TYPE_BASIC   });
+	makePoolEnemies({ 5, "Ghoul",    kSpawnerMega5GhoulCount,    Protocol::ENEMY_TYPE_BASIC   });
+
+	// SwordMan: 일반 → 풀
+	for (const auto& s : spawnEntries) if (s.type == "SwordMan") makeSpawnEnemy(s);
+	makePoolEnemies({ 5, "SwordMan", kSpawnerMega5SwordManCount, Protocol::ENEMY_TYPE_WARRIOR });
+
+	// BowMan: 일반 → 풀
+	for (const auto& s : spawnEntries) if (s.type == "BowMan")  makeSpawnEnemy(s);
+	makePoolEnemies({ 5, "BowMan",   kSpawnerMega5BowManCount,   Protocol::ENEMY_TYPE_ARCHER  });
+
+	// Mutant: 일반 → 풀
+	for (const auto& s : spawnEntries) if (s.type == "Mutant")  makeSpawnEnemy(s);
+	makePoolEnemies({ 5, "Mutant",   kSpawnerMega5MutantCount,   Protocol::ENEMY_TYPE_MUTANT  });
+
+	// Boss: 일반만
+	for (const auto& s : spawnEntries) if (s.type == "Boss")    makeSpawnEnemy(s);
+
+	if (mega6TriggerMutantId != UINT64_MAX) m_spawnerKeyMutantIds[mega6TriggerMutantId] = 6;
+	if (mega8TriggerMutantId != UINT64_MAX) m_spawnerKeyMutantIds[mega8TriggerMutantId] = 8;
 
 	for (auto& playerPair : players)
 	{
@@ -418,4 +531,201 @@ GameAreaRef Room::GetArea(uint32 areaId)
 
 void Room::TransferPlayer(PlayerRef player, uint32 fromAreaId, uint32 toAreaId)
 {
+}
+
+// ============================================================
+// Phase 3 — 스폰 문 위치 / 방향 계산 (클라이언트 동일 계산식)
+// ============================================================
+
+GameMath::Vec3 Room::ComputeSpawnerDoorPosition(int megaGrid, int wall, int slot) const
+{
+	const int zeroBased = megaGrid - 1;
+	const int mgX = zeroBased % kMegaGridCols;
+	const int mgZ = zeroBased / kMegaGridCols;
+
+	const float centerX = kGridMinX + mgX * kMegaGridCellWidth  + kMegaGridCellWidth  * 0.5f;
+	const float centerZ = kGridMinZ + mgZ * kMegaGridCellHeight + kMegaGridCellHeight * 0.5f;
+
+	wall = std::clamp(wall, 0, kSpawnerWallCount - 1);
+	slot = std::clamp(slot, 0, kSpawnerSlotsPerWall - 1);
+
+	const float offset =
+		(static_cast<float>(slot) - static_cast<float>(kSpawnerSlotsPerWall - 1) * 0.5f)
+		* kSpawnerSlotSpacing;
+
+	switch (wall)
+	{
+	case 0: return { centerX - kSpawnerWallHalfExtent, 0.0f, centerZ + offset }; // left  → +X
+	case 1: return { centerX + kSpawnerWallHalfExtent, 0.0f, centerZ + offset }; // right → -X
+	case 2: return { centerX + offset, 0.0f, centerZ - kSpawnerWallHalfExtent }; // bottom→ +Z
+	default:return { centerX + offset, 0.0f, centerZ + kSpawnerWallHalfExtent }; // top   → -Z
+	}
+}
+
+float Room::ComputeSpawnerDoorYaw(int wall) const
+{
+	switch (wall)
+	{
+	case 0: return  90.0f;  // left  → center (+X)
+	case 1: return -90.0f;  // right → center (-X)
+	case 2: return   0.0f;  // bottom→ center (+Z)
+	default:return 180.0f;  // top   → center (-Z)
+	}
+}
+
+// ============================================================
+// Phase 4 — dormant enemy 활성화
+// ============================================================
+
+CEnemy* Room::ActivateSpawnerEnemy(int megaGrid, Protocol::EnemyType type,
+                                   const GameMath::Vec3& pos, float yawDeg)
+{
+	for (auto& [eid, enemy] : enemies)
+	{
+		if (enemy->IsActive()) continue;
+		if (enemy->type != type) continue;
+
+		auto it = m_poolEnemyMegaGrid.find(eid);
+		if (it == m_poolEnemyMegaGrid.end() || it->second != megaGrid) continue;
+
+		enemy->SetPosition(pos);
+		enemy->SetYaw(yawDeg);
+		enemy->ResetHpToMax();
+		enemy->SetActive(true);
+		SetObjectCollisionMegaGridMask(enemy, ComputeObjectCurrentMegaGridMask(enemy.get()), true);
+
+		const int zeroBased = megaGrid - 1;
+		const int mgX = zeroBased % kMegaGridCols;
+		const int mgZ = zeroBased / kMegaGridCols;
+		const GameMath::Vec3 megaCenter(
+			kGridMinX + mgX * kMegaGridCellWidth  + kMegaGridCellWidth  * 0.5f,
+			0.f,
+			kGridMinZ + mgZ * kMegaGridCellHeight + kMegaGridCellHeight * 0.5f);
+		GameMath::Vec3 toCenter(megaCenter.x - pos.x, 0.f, megaCenter.z - pos.z);
+		const float len = toCenter.LengthXZ();
+		const GameMath::Vec3 homeDir = (len > 1e-6f)
+			? GameMath::Vec3(toCenter.x / len, 0.f, toCenter.z / len)
+			: GameMath::Vec3(0.f, 0.f, 1.f);
+
+		if (CMonsterAI* ai = enemy->GetMonsterAI())
+		{
+			ai->SetHomePosition(pos);
+			ai->SetDirectMoveMode(60.f, homeDir, 50.f, megaCenter);
+		}
+
+		return enemy.get();
+	}
+	return nullptr;
+}
+
+int Room::ActivateSpawnerDoorBatch(int megaGrid, int batchIndex)
+{
+	if (batchIndex < 0 || batchIndex >= kSpawnerBatchCount) return 0;
+
+	int activated = 0;
+	for (int wall = 0; wall < kSpawnerWallCount; ++wall)
+	{
+		const float yaw = ComputeSpawnerDoorYaw(wall);
+		for (int slot = 0; slot < kSpawnerSlotsPerWall; ++slot)
+		{
+			const GameMath::Vec3 pos = ComputeSpawnerDoorPosition(megaGrid, wall, slot);
+			if (ActivateSpawnerEnemy(megaGrid, Protocol::ENEMY_TYPE_BASIC, pos, yaw))
+				++activated;
+		}
+	}
+	return activated;
+}
+
+bool Room::BeginSpawnerWave(int megaGrid)
+{
+	if (megaGrid < 1 || megaGrid > kMegaGridCount) return false;
+
+	SpawnerWaveState& state = m_spawnerWaveStates[static_cast<size_t>(megaGrid)];
+	if (state.active) return false;
+
+	state = SpawnerWaveState{};
+	state.active = true;
+
+	const int spawned = ActivateSpawnerDoorBatch(megaGrid, state.nextBatchIndex++);
+	if (spawned <= 0)
+	{
+		state = SpawnerWaveState{};
+		return false;
+	}
+
+	if (state.nextBatchIndex >= kSpawnerBatchCount)
+		state.active = false;
+
+	return true;
+}
+
+// ============================================================
+// Phase 5 — 웨이브 타이머 (TickAdvance 에서 호출)
+// ============================================================
+
+void Room::UpdateSpawnerWaves(float dt)
+{
+	for (int mg = 1; mg <= kMegaGridCount; ++mg)
+	{
+		SpawnerWaveState& state = m_spawnerWaveStates[static_cast<size_t>(mg)];
+		if (!state.active) continue;
+
+		state.accumulatorSec += dt;
+
+		while (state.active && state.accumulatorSec >= kSpawnerBatchIntervalSec)
+		{
+			state.accumulatorSec -= kSpawnerBatchIntervalSec;
+
+			if (state.nextBatchIndex >= kSpawnerBatchCount)
+			{
+				state.active = false;
+				break;
+			}
+
+			ActivateSpawnerDoorBatch(mg, state.nextBatchIndex++);
+
+			if (state.nextBatchIndex >= kSpawnerBatchCount)
+				state.active = false;
+		}
+	}
+}
+
+// ============================================================
+// Phase 6 — 트리거 연결
+// ============================================================
+
+void Room::OnMonsterFirstChase(uint64 enemyId)
+{
+	auto it = m_spawnerKeyMutantIds.find(enemyId);
+	if (it == m_spawnerKeyMutantIds.end()) return;
+
+	const int megaGrid = it->second;
+
+	if (megaGrid == 6 && IsMegaGridCleared(3)) return;
+	if (megaGrid == 8 && IsMegaGridCleared(7)) return;
+
+	MegaGridCell& cell = m_megaGridCells[static_cast<size_t>(megaGrid - 1)];
+	if (cell.hasEventOccurred) return;
+
+	if (BeginSpawnerWave(megaGrid))
+	{
+		cell.hasEventOccurred = true;
+		cout << "[Spawner] MegaGrid " << megaGrid << " wave triggered by enemy " << enemyId << endl;
+	}
+}
+
+void Room::OnMonsterDeath(uint64 enemyId)
+{
+	auto it = m_spawnerKeyMutantIds.find(enemyId);
+	if (it == m_spawnerKeyMutantIds.end()) return;
+
+	const int megaGrid = it->second;
+	if (megaGrid == 6 || megaGrid == 8)
+	{
+		m_keyPickupUnlockedByMegaGrid[static_cast<size_t>(megaGrid)] = true;
+		cout << "[Key Unlock] MegaGrid " << megaGrid
+			<< " unlocked by enemy " << enemyId << " death" << endl;
+	}
+
+	m_spawnerKeyMutantIds.erase(it);
 }

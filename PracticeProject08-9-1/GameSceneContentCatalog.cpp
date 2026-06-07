@@ -65,50 +65,23 @@ const GameSceneStageFileSet& GetLocalStageFileSet(ELocalStagePreset preset)
 	{
 		"MapData/MapData_tst.txt",
 		"MapData/Navmesh_tst.nvm",
-		"MapData/CubeBoxColliderReportWithCastle.txt",
+		"MapData/CubeBoxCollider.txt",
 		"MapData/monster_spawn_points_little.txt"
-	};
-
-	static const GameSceneStageFileSet kStage1 =
-	{
-		"MapData/MapData_stage1_with_Tree.txt",
-		"MapData/Navmesh_Stage1.nvm",
-		"MapData/CubeBoxColliderReport.txt",
-		"MapData/monster_spawn_points_little.txt"
-	};
-
-	static const GameSceneStageFileSet kFullStageNoBoss =
-	{
-		"MapData/MapData_fullstage.txt",
-		"MapData/Navmesh_FullStage.nvm",
-		"MapData/CubeBoxColliderReport.txt",
-		"MapData/monster_spawn_points.txt"
-	};
-
-	static const GameSceneStageFileSet kFullStageNoTree =
-	{
-		"MapData/MapData_fullstage(NoTree).txt",
-		"MapData/Navmesh_FullStage.nvm",
-		"MapData/CubeBoxColliderReport.txt",
-		"MapData/monster_spawn_points.txt"
 	};
 
 	static const GameSceneStageFileSet kFullStage =
 	{
-		"MapData/MapData_fullstage(withBoss).txt",
-		"MapData/FullStageNavmeshAll.nvm",
-		"MapData/CubeBoxColliderReportWithCastle.txt",
+		"MapData/MapData_fullstage.txt",
+		"MapData/Navmesh_FullStage.nvm",
+		"MapData/CubeBoxCollider.txt",
 		"MapData/monster_spawn_points.txt"
 	};
 
 	switch ( preset )
 	{
-	case ELocalStagePreset::Test:           return kTest;
-	case ELocalStagePreset::Stage1:         return kStage1;
-	case ELocalStagePreset::FullStage:      return kFullStage;
-	case ELocalStagePreset::FullStageNoTree:return kFullStageNoTree;
-	case ELocalStagePreset::FullStageNoBoss:return kFullStageNoBoss;
-	default:                                return kTest;
+	case ELocalStagePreset::Test:      return kTest;
+	case ELocalStagePreset::FullStage: return kFullStage;
+	default:                           return kFullStage;
 	}
 }
 
@@ -273,24 +246,19 @@ const std::vector<GameSceneClipEntry>& GetBossClipEntries()
 
 bool ResolveStaticAssetPathDesc(const std::string& assetName, StaticAssetPathDesc& outDesc)
 {
-	if ( assetName == "Grass" )
+	if ( assetName == "Terrain" )
 	{
-		outDesc = { AssetType::Grass, "Assets/GroundPlane/Mesh/Grass.bin", "Assets/GroundPlane/Texture" };
+		outDesc = { AssetType::Terrain, "", "Assets/GroundPlane/Texture" };
 		return true;
 	}
-	if ( assetName == "Ground" )
+	if ( assetName == "Water" )
 	{
-		outDesc = { AssetType::Ground, "Assets/GroundPlane/Mesh/Ground.bin", "Assets/GroundPlane/Texture" };
+		outDesc = { AssetType::Water, "", "" };
 		return true;
 	}
 	if ( assetName == "VillageWall" )
 	{
 		outDesc = { AssetType::VillageWall, "Assets/VillageWall/Mesh/VillageWall.bin", "Assets/VillageWall/Texture" };
-		return true;
-	}
-	if ( assetName == "DirtRoad" )
-	{
-		outDesc = { AssetType::DirtRoad, "Assets/GroundPlane/Mesh/DirtRoad.bin", "Assets/GroundPlane/Texture" };
 		return true;
 	}
 	if ( assetName == "Building1" )
@@ -384,9 +352,8 @@ bool ResolveStaticAssetPathDesc(const std::string& assetName, StaticAssetPathDes
 
 bool IsStaticWorldLodSupportedAssetName(const std::string& assetName)
 {
-	if ( assetName == "Grass" ) return false;
-	if ( assetName == "Ground" ) return false;
-	if ( assetName == "DirtRoad" ) return false;
+	if ( assetName == "Terrain" ) return false;
+	if ( assetName == "Water" ) return false;
 
 	if ( assetName == "VillageWall" ) return true;
 
@@ -415,9 +382,8 @@ bool IsStaticWorldLodSupportedAssetName(const std::string& assetName)
 
 bool ShouldUseStaticWorldDistanceCull(const std::string& assetName)
 {
-	if ( assetName == "Grass" ) return false;
-	if ( assetName == "Ground" ) return false;
-	if ( assetName == "DirtRoad" ) return false;
+	if ( assetName == "Terrain" ) return false;
+	if ( assetName == "Water" ) return false;
 	if ( assetName == "VillageWall" ) return false;
 	if ( assetName == "Castle" ) return false;
 
@@ -492,9 +458,8 @@ bool ResolveGhoulSkinnedLodAssetDesc(int lodLevel, AssetBuildDesc& outDesc)
 
 bool ShouldCreateWorldStaticCollider(const std::string& assetName)
 {
-	if ( assetName == "Grass" )    return false;
-	if ( assetName == "Ground" )   return false;
-	if ( assetName == "DirtRoad" ) return false;
+	if ( assetName == "Terrain" )    return false;
+	else if ( assetName == "Water" )    return false;
 	return true;
 }
 

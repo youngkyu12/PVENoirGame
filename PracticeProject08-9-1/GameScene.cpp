@@ -156,6 +156,12 @@ CGameScene::CGameScene()
 
 	m_bLocalPlayerInsideCastleCenterMegaGrid = false;
 	m_bMegaGrid5DirectionalLightProfileActive = false;
+
+	m_inventoryItemCounts.fill(0);
+	m_bPrevInventoryUseKeyDown.fill(false);
+
+	for ( std::array<float, CGameSceneHUD::kInventorySlotCount>& accumulators : m_inventoryBuffParticleEmitAccumulators )
+		accumulators.fill(0.0f);
 }
 
 void CGameScene::SetFrameResourceIndex(UINT frameResourceIndex)
@@ -1759,6 +1765,8 @@ void CGameScene::UpdateMegaGridState()
 	if ( !m_sceneGrid.IsInitialized() )
 		return;
 
+	bool isAnyPlayerInsideMegaGrid5CenterSquare = false;
+
 	for ( const GridDynamicTracker& tracker : m_playerGridTrackers )
 	{
 		if ( !tracker.occupied )
@@ -1770,37 +1778,27 @@ void CGameScene::UpdateMegaGridState()
 		if ( !m_sceneGrid.FineCellToMegaGridCell(tracker.prevCellX, tracker.prevCellZ, megaX, megaZ) )
 			continue;
 
-		// 중앙 메가그리드 Castle은 기존 200x200 approach zone으로 진입 처리하지 않는다.
-		// Castle 포탈 성공 여부로만 중앙 메가그리드 접근을 처리한다.
-		if ( megaX == kCastleCenterMegaGridX &&
-			 megaZ == kCastleCenterMegaGridZ )
+		if ( megaX == kCastleCenterMegaGridX && megaZ == kCastleCenterMegaGridZ )
 		{
-			if ( m_bLocalPlayerInsideCastleCenterMegaGrid )
+			if ( tracker.object )
 			{
-				m_sceneGrid.SetMegaGridPlayerApproached(
-					kCastleCenterMegaGridX,
-					kCastleCenterMegaGridZ,
-					true
-				);
+				const XMFLOAT3 pos = tracker.object->GetPosition();
+
+				if ( IsWorldPositionInsideMegaGrid5CenterSquare250(pos.x, pos.z) )
+					isAnyPlayerInsideMegaGrid5CenterSquare = true;
 			}
 
 			continue;
 		}
 
-		if ( !m_sceneGrid.IsFineCellInsideMegaGridApproachZone(
-			megaX,
-			megaZ,
-			tracker.prevCellX,
-			tracker.prevCellZ) )
-		{
+		if ( !m_sceneGrid.IsFineCellInsideMegaGridApproachZone(megaX, megaZ, tracker.prevCellX, tracker.prevCellZ) )
 			continue;
-		}
 
 		if ( !m_sceneGrid.HasMegaGridPlayerApproached(megaX, megaZ) )
-		{
 			m_sceneGrid.SetMegaGridPlayerApproached(megaX, megaZ, true);
-		}
 	}
+
+	m_sceneGrid.SetMegaGridPlayerApproached(kCastleCenterMegaGridX, kCastleCenterMegaGridZ, isAnyPlayerInsideMegaGrid5CenterSquare);
 }
 
 void CGameScene::UpdateMegaGrid5DirectionalLightState()
@@ -3009,52 +3007,22 @@ bool CGameScene::ShouldKeepCollisionPairByMegaGrid(
 
 void CGameScene::MarkLocalPlayerEnteredCastleCenterMegaGrid()
 {
-	if ( !m_sceneGrid.IsInitialized() )
-		return;
-
-	m_bLocalPlayerInsideCastleCenterMegaGrid = true;
-
-	// Castle 포탈을 탄 순간 중앙 메가그리드 중앙에 접근한 것으로 처리한다.
-	// 기존 200x200 approach zone 판정은 중앙 메가그리드에서는 쓰지 않는다.
-	m_sceneGrid.SetMegaGridPlayerApproached(
-		kCastleCenterMegaGridX,
-		kCastleCenterMegaGridZ,
-		true
-	);
+	UpdateCastleCenterMegaGridState();
 }
 
 bool CGameScene::IsLocalPlayerInsideCastleCenterMegaGridFullArea() const
 {
-	if ( !m_sceneGrid.IsInitialized() )
+	CGameObject* player = GetPlayer();
+
+	if ( !player )
+		player = GetPlayerBySlot(0);
+
+	if ( !player )
 		return false;
 
-	if ( m_localPlayerSlot < 0 ||
-		 m_localPlayerSlot >= static_cast< int >(m_playerGridTrackers.size()) )
-	{
-		return false;
-	}
+	const XMFLOAT3 pos = player->GetPosition();
 
-	const GridDynamicTracker& tracker =
-		m_playerGridTrackers[static_cast< size_t >(m_localPlayerSlot)];
-
-	if ( !tracker.occupied )
-		return false;
-
-	int megaX = -1;
-	int megaZ = -1;
-
-	if ( !m_sceneGrid.FineCellToMegaGridCell(
-		tracker.prevCellX,
-		tracker.prevCellZ,
-		megaX,
-		megaZ) )
-	{
-		return false;
-	}
-
-	return
-		megaX == kCastleCenterMegaGridX &&
-		megaZ == kCastleCenterMegaGridZ;
+	return IsWorldPositionInsideMegaGrid5CenterSquare250(pos.x, pos.z);
 }
 
 void CGameScene::UpdateCastleCenterMegaGridState()
@@ -3062,29 +3030,7 @@ void CGameScene::UpdateCastleCenterMegaGridState()
 	if ( !m_sceneGrid.IsInitialized() )
 		return;
 
-	if ( !m_bLocalPlayerInsideCastleCenterMegaGrid )
-		return;
-
-	// Castle 포탈 후에는 중앙 메가그리드 400x400 안에 있는 동안
-	// 계속 중앙 메가그리드 내부로 취급한다.
-	if ( IsLocalPlayerInsideCastleCenterMegaGridFullArea() )
-	{
-		m_sceneGrid.SetMegaGridPlayerApproached(
-			kCastleCenterMegaGridX,
-			kCastleCenterMegaGridZ,
-			true
-		);
-		return;
-	}
-
-	// 죽고 부활해서 중앙 메가그리드 400x400 밖으로 나간 경우.
-	m_bLocalPlayerInsideCastleCenterMegaGrid = false;
-
-	m_sceneGrid.SetMegaGridPlayerApproached(
-		kCastleCenterMegaGridX,
-		kCastleCenterMegaGridZ,
-		false
-	);
+	m_bLocalPlayerInsideCastleCenterMegaGrid = IsLocalPlayerInsideCastleCenterMegaGridFullArea();
 }
 
 void CGameScene::DumpStaticGridOccupancyLog() const
@@ -3172,8 +3118,8 @@ CGameScene::~CGameScene()
 
 void CGameScene::ReleaseObjects()
 {
-    m_staticBatch.shader.reset();
-    m_skinnedBatch.shader.reset();
+	m_staticBatch.shader.reset();
+	m_skinnedBatch.shader.reset();
 
 	m_treeStaticShader.reset();
 	m_treeAlphaClipObjects.clear();
@@ -3192,16 +3138,17 @@ void CGameScene::ReleaseObjects()
 	m_castleDoorPortals.clear();
 #endif
 
+	m_terrainObjects.clear();
 	m_staticObjects.clear();
 	m_skinnedObjects.clear();
 
-    m_lightObjects.clear();
-    m_pPlayerSpotFollower = nullptr;
+	m_lightObjects.clear();
+	m_pPlayerSpotFollower = nullptr;
 
-    m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
+	m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
 
-    m_staticBatch.objectRefs.clear();
-    m_skinnedBatch.objectRefs.clear();
+	m_staticBatch.objectRefs.clear();
+	m_skinnedBatch.objectRefs.clear();
 
 	m_colliderBatch.shader.reset();
 	m_colliderBatch.objectRefs.clear();
@@ -3233,8 +3180,8 @@ void CGameScene::ReleaseObjects()
 
 	ResetBossShockwaveWindSfxTracking();
 
-	m_bossPoisonProjectiles.clear();
-	m_bossPoisonSpellCastStates.clear();
+	m_bossPoisonProjectileEffect.entries.clear();
+	m_bossPoisonProjectileEffect.spellCastStates.clear();
 	m_bossMeleeSlashCastStates.clear();
 
 	m_bBossStageBossActivated = false;
@@ -3282,7 +3229,7 @@ void CGameScene::ReleaseObjects()
 	ResetPlayerFootstepSfxState();
 	ResetMonsterSfxState();
 
-	m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr }; 
+	m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr };
 	m_prevBowLoadPhase = { false, false, false, false };
 	m_prevBowReleasePhase = { false, false, false, false };
 	m_preparedBowmanArrows.clear();
@@ -3297,6 +3244,7 @@ void CGameScene::ReleaseObjects()
 	m_shadowSkinnedShader.reset();
 	m_shadowAlphaClipSkinnedShader.reset();
 	m_skinnedAlphaClipShader.reset();
+	m_shadowTerrainShader.reset();
 
 	m_sceneRenderTargetCount = 0;
 	m_bSceneRenderTargetsReady = false;
@@ -3310,46 +3258,61 @@ void CGameScene::ReleaseObjects()
 	m_bLocalPlayerDead = false;
 	m_bLocalPlayerRespawnUsed = false;
 	m_localPlayerRespawnTimer = 0.0f;
+
 #ifdef USING_NETWORK
 	m_prevPlayerNetworkStateCode.clear();
 	m_prevEnemyNetworkStateCode.clear();
 #endif
+
 	m_playerWeaponDamageTierIndex = 0;
 	m_deadMonsters.clear();
 	m_skinnedMonsterMegaGridNumbers.clear();
 
-	m_itemBillboardShader.reset();
-	m_transparentItemBillboardShader.reset();
+	m_itemBillboardState.shader.reset();
+	m_itemBillboardState.transparentShader.reset();
+	m_itemBillboardState.quadMesh.reset();
+	m_itemBillboardState.keyTexture.reset();
 
-	m_itemBillboardQuadMesh.reset();
-	m_itemBillboards.clear();
-	m_activeBossCallSummonCircleItemIndices.clear();
-	m_bossCallSummonCircleVisualState = BossCallSummonCircleVisualState{};
+	for ( std::shared_ptr<CTexture>& potionTexture : m_itemBillboardState.potionTextures )
+		potionTexture.reset();
+
+	m_itemBillboardState.bossSummonCircleTexture.reset();
+	m_itemBillboardState.entries.clear();
+	m_itemBillboardState.activeBossCallSummonCircleItemIndices.clear();
+	m_itemBillboardState.bossCallSummonCircleVisual = BossCallSummonCircleVisualState{};
+	m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
+	m_itemBillboardState.bossCallSummonGlowParticleEmitAccumulatorSec = 0.0f;
+
+	for ( std::array<float, CGameSceneHUD::kInventorySlotCount>& accumulators : m_inventoryBuffParticleEmitAccumulators )
+		accumulators.fill(0.0f);
 
 	m_bossCallSummonPlanCallIndex = -1;
 	m_bossCallSummonPlanEntries.clear();
 
-	m_keyItemTexture.reset();
-	m_bossSummonCircleTexture.reset();
+	ReleaseAllGameSceneEffectGpuResources();
 
-	ReleaseItemBillboardGpuResources();
+	m_muzzleFlashEffect.shader.reset();
+	m_muzzleFlashEffect.entries.clear();
 
-	m_muzzleFlashShader.reset();
-	m_muzzleFlashes.clear();
+	m_gunSmokeEffect.shader.reset();
+	m_gunSmokeEffect.entries.clear();
 
-	m_bossPoisonProjectileShader.reset();
+	m_bossPoisonProjectileEffect.shader.reset();
 
-	m_bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
-	m_bossCallSummonGlowParticleEmitAccumulatorSec = 0.0f;
+	m_swordTrailEffect.shader.reset();
+	m_swordTrailEffect.entries.clear();
 
-	m_swordTrailShader.reset();
-	m_swordTrails.clear();
+	m_monsterSwordTrailEffect.shader.reset();
+	m_monsterSwordTrailEffect.entries.clear();
 
-	m_monsterSwordTrailShader.reset();
-	m_monsterSwordTrails.clear();
+	m_arrowTrailEffect.shader.reset();
+	m_arrowTrailEffect.entries.clear();
 
-	m_bossCallSummonWwwShader.reset();
-	m_bossCallSummonWwwEntries.clear();
+	m_monsterArrowTrailEffect.shader.reset();
+	m_monsterArrowTrailEffect.entries.clear();
+
+	m_bossCallSummonWwwEffect.shader.reset();
+	m_bossCallSummonWwwEffect.entries.clear();
 
 	m_staticRenderObjectCache.clear();
 	m_staticGameplayTickObjects.clear();
@@ -3367,36 +3330,41 @@ void CGameScene::ReleaseObjects()
 
 void CGameScene::ReleaseUploadBuffers()
 {
-    for (UINT j = 0; j < (UINT)m_staticObjects.size(); ++j)
-    {
-        if (!m_staticObjects[j]) continue;
-        m_staticObjects[j]->ReleaseUploadBuffers();
-    }
-    for (UINT j = 0; j < (UINT)m_skinnedObjects.size(); ++j)
-    {
-        if (!m_skinnedObjects[j]) continue;
-        m_skinnedObjects[j]->ReleaseUploadBuffers();
-    }
+	for ( UINT j = 0; j < ( UINT ) m_staticObjects.size(); ++j )
+	{
+		if ( !m_staticObjects[j] ) continue;
+		m_staticObjects[j]->ReleaseUploadBuffers();
+	}
+
+	for ( UINT j = 0; j < ( UINT ) m_skinnedObjects.size(); ++j )
+	{
+		if ( !m_skinnedObjects[j] ) continue;
+		m_skinnedObjects[j]->ReleaseUploadBuffers();
+	}
 
 #ifdef _WITH_BATCH_MATERIAL
-    if (m_staticBatch.material)  m_staticBatch.material->ReleaseUploadBuffers();
+	if ( m_staticBatch.material ) m_staticBatch.material->ReleaseUploadBuffers();
 #endif
 
-	if ( m_itemBillboardQuadMesh )
-		m_itemBillboardQuadMesh->ReleaseUploadBuffers();
+	if ( m_itemBillboardState.quadMesh )
+		m_itemBillboardState.quadMesh->ReleaseUploadBuffers();
 
-	if ( m_keyItemTexture )
-		m_keyItemTexture->ReleaseUploadBuffers();
+	if ( m_itemBillboardState.keyTexture )
+		m_itemBillboardState.keyTexture->ReleaseUploadBuffers();
 
-	if ( m_bossSummonCircleTexture )
-		m_bossSummonCircleTexture->ReleaseUploadBuffers();
+	for ( std::shared_ptr<CTexture>& potionTexture : m_itemBillboardState.potionTextures )
+	{
+		if ( potionTexture )
+			potionTexture->ReleaseUploadBuffers();
+	}
+
+	if ( m_itemBillboardState.bossSummonCircleTexture )
+		m_itemBillboardState.bossSummonCircleTexture->ReleaseUploadBuffers();
 }
 
 void CGameScene::ReleaseShaderVariables()
 {
-	ReleaseItemBillboardGpuResources();
-	ReleaseBossPoisonProjectileGpuResources();
-	ReleaseBossCallSummonWwwGpuResources();
+	ReleaseAllGameSceneEffectGpuResources();
 	ReleaseStaticOcclusionGpuResources();
 	ReleaseSkinnedOcclusionGpuResources();
 
@@ -3608,7 +3576,9 @@ void CGameScene::BuildStaticInstanceGroups()
 			UINT objectIndex,
 			const std::shared_ptr<CMesh>& mesh,
 			int lodLevel,
-			bool useTreeShader)
+			bool useTreeShader,
+			bool useTerrainShader,
+			bool useWaterShader)
 		{
 			if ( !mesh )
 				return;
@@ -3622,6 +3592,8 @@ void CGameScene::BuildStaticInstanceGroups()
 				key.mesh = mesh.get();
 				key.subMeshIndex = subMeshIndex;
 				key.useTreeShader = useTreeShader;
+				key.useTerrainShader = useTerrainShader;
+				key.useWaterShader = useWaterShader;
 				key.lodLevel = lodLevel;
 
 				size_t groupIndex = 0;
@@ -3634,6 +3606,8 @@ void CGameScene::BuildStaticInstanceGroups()
 					group.mesh = mesh;
 					group.subMeshIndex = subMeshIndex;
 					group.useTreeShader = useTreeShader;
+					group.useTerrainShader = useTerrainShader;
+					group.useWaterShader = useWaterShader;
 					group.lodLevel = lodLevel;
 
 					groupIndex = m_staticInstanceGroups.size();
@@ -3660,6 +3634,12 @@ void CGameScene::BuildStaticInstanceGroups()
 
 		const bool useTreeShader =
 			( m_treeAlphaClipObjects.find(obj) != m_treeAlphaClipObjects.end() );
+
+		const bool useTerrainShader =
+			( m_terrainObjects.find(obj) != m_terrainObjects.end() );
+
+		const bool useWaterShader =
+			( m_waterObjects.find(obj) != m_waterObjects.end() );
 
 		int lodEntryIndex = -1;
 		if ( objectIndex <
@@ -3701,7 +3681,9 @@ void CGameScene::BuildStaticInstanceGroups()
 						objectIndex,
 						lodMesh,
 						resolvedLod,
-						useTreeShader
+						useTreeShader,
+						useTerrainShader,
+						useWaterShader
 					);
 				}
 
@@ -3715,7 +3697,7 @@ void CGameScene::BuildStaticInstanceGroups()
 		for ( int meshIndex = 0; meshIndex < meshCount; ++meshIndex )
 		{
 			std::shared_ptr<CMesh> mesh = obj->GetMeshShared(meshIndex);
-			AddObjectToGroup(objectIndex, mesh, 0, useTreeShader);
+			AddObjectToGroup(objectIndex, mesh, 0, useTreeShader, useTerrainShader, useWaterShader);
 		}
 	}
 
@@ -3726,6 +3708,12 @@ void CGameScene::BuildStaticInstanceGroups()
 		{
 			if ( a.useTreeShader != b.useTreeShader )
 				return a.useTreeShader < b.useTreeShader;
+
+			if ( a.useTerrainShader != b.useTerrainShader )
+				return a.useTerrainShader < b.useTerrainShader;
+
+			if ( a.useWaterShader != b.useWaterShader )
+				return a.useWaterShader < b.useWaterShader;
 
 			if ( a.mesh.get() != b.mesh.get() )
 				return a.mesh.get() < b.mesh.get();
@@ -4129,6 +4117,12 @@ void CGameScene::BuildStaticVisibleListsForFrame(CCamera* camera)
 			if ( !cache.renderer->IsEnabled() )
 				continue;
 
+			if ( m_bLocalPlayerInsideCastleCenterMegaGrid &&
+				m_terrainObjects.find(cache.object) != m_terrainObjects.end() )
+			{
+				continue;
+			}
+
 			if ( objectIndex < static_cast< UINT >(m_staticDistanceCullFlags.size()) &&
 				 m_staticDistanceCullFlags[objectIndex] != 0 )
 			{
@@ -4188,6 +4182,12 @@ void CGameScene::BuildStaticShadowVisibleListsForFrame()
 			if ( !cache.renderer->IsEnabled() )
 				continue;
 
+			if ( m_bLocalPlayerInsideCastleCenterMegaGrid &&
+				m_terrainObjects.find(cache.object) != m_terrainObjects.end() )
+			{
+				continue;
+			}
+
 			if ( objectIndex < static_cast< UINT >(m_staticShadowCasterFlags.size()) &&
 				 m_staticShadowCasterFlags[objectIndex] == 0 )
 			{
@@ -4231,8 +4231,7 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 	if ( !staticInstanceBuffer ) return;
 	if ( !mappedStaticInstanceBuffer ) return;
 
-	bool lastUseTreeShader = false;
-	bool hasBoundAnyShader = false;
+	int lastShaderKind = -1; // 0=static, 1=tree, 2=terrain
 
 	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -4281,9 +4280,29 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 		vbViews[1].SizeInBytes = sizeof(StaticInstanceVertex) * visibleInstanceCount;
 		vbViews[1].StrideInBytes = sizeof(StaticInstanceVertex);
 
-		if ( !hasBoundAnyShader || lastUseTreeShader != group.useTreeShader )
+		const int shaderKind =
+			group.useWaterShader ? 3 :
+			group.useTerrainShader ? 2 :
+			group.useTreeShader ? 1 :
+			0;
+
+		if ( lastShaderKind != shaderKind )
 		{
-			if ( group.useTreeShader )
+			if (shaderKind == 3)
+			{
+				if (m_waterShader)
+					m_waterShader->Render(cmd, camera, &m_staticBatch);
+				else if (m_staticBatch.shader)
+					m_staticBatch.shader->Render(cmd, camera, &m_staticBatch);
+			}
+			else if ( shaderKind == 2 )
+			{
+				if ( m_terrainShader )
+					m_terrainShader->Render(cmd, camera, &m_staticBatch);
+				else if ( m_staticBatch.shader )
+					m_staticBatch.shader->Render(cmd, camera, &m_staticBatch);
+			}
+			else if ( shaderKind == 1 )
 			{
 				if ( m_treeStaticShader )
 					m_treeStaticShader->Render(cmd, camera, &m_staticBatch);
@@ -4296,8 +4315,7 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 					m_staticBatch.shader->Render(cmd, camera, &m_staticBatch);
 			}
 
-			lastUseTreeShader = group.useTreeShader;
-			hasBoundAnyShader = true;
+			lastShaderKind = shaderKind;
 		}
 
 		const UINT mid = ( sm.materialId == 0xFFFFFFFFu ) ? 0u : sm.materialId;
@@ -4308,6 +4326,12 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 
 		cmd->IASetVertexBuffers(0, 2, vbViews);
 		cmd->IASetIndexBuffer(&sm.ibView);
+
+		cmd->IASetPrimitiveTopology(
+			(group.useTerrainShader || group.useWaterShader)
+			? D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP
+			: D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST
+		);
 
 		cmd->DrawIndexedInstanced(( UINT ) sm.indices.size(), visibleInstanceCount, 0, 0, 0);
 	}
@@ -4478,8 +4502,9 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 	if ( !mappedStaticInstanceBuffer ) return;
 	if ( !m_shadowStaticShader ) return;
 	if ( !m_shadowAlphaClipStaticShader ) return;
+	if ( !m_shadowTerrainShader ) return;
 
-	bool lastUseAlphaClipShader = false;
+	int lastShaderKind = -1; // 0=static, 1=tree alpha-clip, 2=terrain
 	bool hasBoundAnyShader = false;
 
 	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -4526,14 +4551,21 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 		if ( visibleInstanceCount == 0 )
 			continue;
 
-		if ( !hasBoundAnyShader || lastUseAlphaClipShader != group.useTreeShader )
+		const int shaderKind =
+			group.useTerrainShader ? 2 :
+			group.useTreeShader ? 1 :
+			0;
+
+		if ( !hasBoundAnyShader || lastShaderKind != shaderKind )
 		{
-			if ( group.useTreeShader )
+			if ( shaderKind == 2 )
+				m_shadowTerrainShader->Render(cmd, nullptr, &m_staticBatch);
+			else if ( shaderKind == 1 )
 				m_shadowAlphaClipStaticShader->Render(cmd, nullptr, &m_staticBatch);
 			else
 				m_shadowStaticShader->Render(cmd, nullptr, &m_staticBatch);
 
-			lastUseAlphaClipShader = group.useTreeShader;
+			lastShaderKind = shaderKind;
 			hasBoundAnyShader = true;
 		}
 
@@ -4558,6 +4590,12 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 
 		cmd->IASetVertexBuffers(0, 2, vbViews);
 		cmd->IASetIndexBuffer(&sm.ibView);
+
+		cmd->IASetPrimitiveTopology(
+			group.useTerrainShader
+			? D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP
+			: D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST
+		);
 
 		cmd->DrawIndexedInstanced(( UINT ) sm.indices.size(), visibleInstanceCount, 0, 0, 0);
 	}
@@ -4939,7 +4977,7 @@ void CGameScene::SetBossSummonVisualAlpha(float alpha)
 
 void CGameScene::SetBossSummonVisualActive(bool active)
 {
-	for ( ItemBillboardEntry& item : m_itemBillboards )
+	for ( ItemBillboardEntry& item : m_itemBillboardState.entries )
 	{
 		if ( item.kind != EItemBillboardKind::BossSummonCircle &&
 			 item.kind != EItemBillboardKind::BossSummonGlow )
@@ -5225,7 +5263,7 @@ void CGameScene::RequestPrepareArrow(CGameObject* shooter, float pullBackDistanc
 
         if (arrow->IsActive()) continue;
 
-		SetObjectAttackPower(arrowObj, GetCurrentPlayerArrowAttackPower());
+		SetObjectAttackPower(arrowObj, GetPlayerArrowAttackPower(slot));
 
 		m_playerWeaponOwnerByObject[arrowObj] = shooter;
 
@@ -5499,27 +5537,10 @@ bool CGameScene::IsPlayerInsideMegaGridCenter(const CGameObject* player) const
 	if ( !m_sceneGrid.FineCellToMegaGridCell(cellX, cellZ, megaX, megaZ) )
 		return false;
 
-	if ( megaX == kCastleCenterMegaGridX &&
-		 megaZ == kCastleCenterMegaGridZ )
-	{
-#ifdef USING_NETWORK
-		return true;
-#else
-		// 기존 로컬 플레이어의 Castle 포탈 진입 플래그는 그대로 유지한다.
-		// 단, slot 1~3 플레이어도 AI 타겟 후보로 쓸 수 있게 위치 기준은 허용한다.
-		if ( player == GetPlayer() || player == GetPlayerBySlot(m_localPlayerSlot) )
-			return m_bLocalPlayerInsideCastleCenterMegaGrid;
+	if ( megaX == kCastleCenterMegaGridX && megaZ == kCastleCenterMegaGridZ )
+		return IsWorldPositionInsideMegaGrid5CenterSquare250(pos.x, pos.z);
 
-		return true;
-#endif
-	}
-
-	return m_sceneGrid.IsFineCellInsideMegaGridApproachZone(
-		megaX,
-		megaZ,
-		cellX,
-		cellZ
-	);
+	return m_sceneGrid.IsFineCellInsideMegaGridApproachZone(megaX, megaZ, cellX, cellZ);
 }
 
 bool CGameScene::IsPlayerInsideBossStageBattleArea(const CGameObject* player) const
@@ -5544,23 +5565,10 @@ bool CGameScene::IsPlayerInsideBossStageBattleArea(const CGameObject* player) co
 	if ( !m_sceneGrid.FineCellToMegaGridCell(cellX, cellZ, megaX, megaZ) )
 		return false;
 
-	if ( megaX != kCastleCenterMegaGridX ||
-		 megaZ != kCastleCenterMegaGridZ )
-	{
+	if ( megaX != kCastleCenterMegaGridX || megaZ != kCastleCenterMegaGridZ )
 		return false;
-	}
 
-#ifdef USING_NETWORK
-	return true;
-#else
-	// 로컬 플레이어는 Castle 포탈 진입 플래그로만 보스성 내부 판정.
-	// 즉 200x200 approach zone을 쓰지 않는다.
-	if ( player == GetPlayer() || player == GetPlayerBySlot(m_localPlayerSlot) )
-		return m_bLocalPlayerInsideCastleCenterMegaGrid;
-
-	// 로컬 테스트용 slot 1~3 플레이어는 중앙 메가그리드 400x400 안에 있으면 허용.
-	return true;
-#endif
+	return IsWorldPositionInsideMegaGrid5CenterSquare250(pos.x, pos.z);
 }
 
 bool CGameScene::IsLocalPlayerInsideMegaGridCenter() const
@@ -5705,68 +5713,108 @@ int CGameScene::ComputePlayerWeaponDamageTierIndexFromClearedMegaGrids() const
 	);
 }
 
-int CGameScene::GetCurrentPlayerSwordAttackPower() const
+int CGameScene::GetPlayerSwordAttackPower(int playerSlot) const
 {
-	const int tier = std::clamp(
-		m_playerWeaponDamageTierIndex,
-		0,
-		kPlayerWeaponDamageMaxTierIndex
-	);
-
-	return kAttackPowerPlayerSwordByTier[static_cast< size_t >( tier )];
+	const int tier = std::clamp(m_playerWeaponDamageTierIndex, 0, kPlayerWeaponDamageMaxTierIndex);
+	const int baseAttackPower = kAttackPowerPlayerSwordByTier[static_cast< size_t >( tier )];
+	return ApplyPlayerAttackPowerPotionMultiplier(playerSlot, baseAttackPower);
 }
 
-int CGameScene::GetCurrentPlayerAxeAttackPower() const
+int CGameScene::GetPlayerAxeAttackPower(int playerSlot) const
 {
-	const int tier = std::clamp(
-		m_playerWeaponDamageTierIndex,
-		0,
-		kPlayerWeaponDamageMaxTierIndex
-	);
-
-	return kAttackPowerPlayerAxeByTier[static_cast< size_t >( tier )];
+	const int tier = std::clamp(m_playerWeaponDamageTierIndex, 0, kPlayerWeaponDamageMaxTierIndex);
+	const int baseAttackPower = kAttackPowerPlayerAxeByTier[static_cast< size_t >( tier )];
+	return ApplyPlayerAttackPowerPotionMultiplier(playerSlot, baseAttackPower);
 }
 
-int CGameScene::GetCurrentPlayerArrowAttackPower() const
+int CGameScene::GetPlayerArrowAttackPower(int playerSlot) const
 {
-	const int tier = std::clamp(
-		m_playerWeaponDamageTierIndex,
-		0,
-		kPlayerWeaponDamageMaxTierIndex
-	);
-
-	return kAttackPowerPlayerArrowByTier[static_cast< size_t >( tier )];
+	const int tier = std::clamp(m_playerWeaponDamageTierIndex, 0, kPlayerWeaponDamageMaxTierIndex);
+	const int baseAttackPower = kAttackPowerPlayerArrowByTier[static_cast< size_t >( tier )];
+	return ApplyPlayerAttackPowerPotionMultiplier(playerSlot, baseAttackPower);
 }
 
-int CGameScene::GetCurrentPlayerBulletAttackPower() const
+int CGameScene::GetPlayerBulletAttackPower(int playerSlot) const
 {
-	const int tier = std::clamp(
-		m_playerWeaponDamageTierIndex,
-		0,
-		kPlayerWeaponDamageMaxTierIndex
-	);
+	const int tier = std::clamp(m_playerWeaponDamageTierIndex, 0, kPlayerWeaponDamageMaxTierIndex);
+	const int baseAttackPower = kAttackPowerPlayerBulletByTier[static_cast< size_t >( tier )];
+	return ApplyPlayerAttackPowerPotionMultiplier(playerSlot, baseAttackPower);
+}
 
-	return kAttackPowerPlayerBulletByTier[static_cast< size_t >( tier )];
+void CGameScene::RefreshPlayerWeaponAttackPowersForSlot(int playerSlot)
+{
+	if ( playerSlot < 0 || playerSlot >= 4 )
+		return;
+
+	const size_t index = static_cast< size_t >(playerSlot);
+
+	if ( index < m_PlayerSwordRefs.size() )
+		SetObjectAttackPower(m_PlayerSwordRefs[index], GetPlayerSwordAttackPower(playerSlot));
+
+	if ( index < m_PlayerAxeRefs.size() )
+		SetObjectAttackPower(m_PlayerAxeRefs[index], GetPlayerAxeAttackPower(playerSlot));
+
+	if ( index < m_preparedPlayerArrows.size() && m_preparedPlayerArrows[index] )
+		SetObjectAttackPower(m_preparedPlayerArrows[index], GetPlayerArrowAttackPower(playerSlot));
 }
 
 void CGameScene::RefreshPlayerWeaponAttackPowers()
 {
-	const int swordDamage = GetCurrentPlayerSwordAttackPower();
-	const int axeDamage = GetCurrentPlayerAxeAttackPower();
-	const int arrowDamage = GetCurrentPlayerArrowAttackPower();
-	const int bulletDamage = GetCurrentPlayerBulletAttackPower();
+	for ( int slot = 0; slot < 4; ++slot )
+		RefreshPlayerWeaponAttackPowersForSlot(slot);
+}
 
-	for ( CGameObject* obj : m_PlayerSwordRefs )
-		SetObjectAttackPower(obj, swordDamage);
+void CGameScene::RefreshPlayerWeaponEffectVisuals()
+{
+	const int visualLevelIndex = GetPlayerWeaponEffectLevelIndex();
 
-	for ( CGameObject* obj : m_PlayerAxeRefs )
-		SetObjectAttackPower(obj, axeDamage);
+	for ( SwordTrailEntry& trail : m_swordTrailEffect.entries )
+	{
+		if ( !trail.active )
+			continue;
 
-	for ( CGameObject* obj : m_preparedPlayerArrows )
-		SetObjectAttackPower(obj, arrowDamage);
+		switch ( trail.kind )
+		{
+		case EWeaponTrailKind::Sword:
+		{
+			const PlayerMeleeTrailVisualDesc& visual = m_playerSwordTrailVisualDescs[static_cast< size_t >( visualLevelIndex )];
+			trail.rootLocal = visual.rootLocal;
+			trail.tipLocal = visual.tipLocal;
+			trail.widthScale = visual.widthScale;
+			trail.color = visual.color;
+			trail.alphaScale = visual.alphaScale;
+		}
+		break;
 
-	for ( CGameObject* obj : m_bulletRefs )
-		SetObjectAttackPower(obj, bulletDamage);
+		case EWeaponTrailKind::Axe:
+		{
+			const PlayerMeleeTrailVisualDesc& visual = m_playerAxeTrailVisualDescs[static_cast< size_t >( visualLevelIndex )];
+			trail.rootLocal = visual.rootLocal;
+			trail.tipLocal = visual.tipLocal;
+			trail.widthScale = visual.widthScale;
+			trail.color = visual.color;
+			trail.alphaScale = visual.alphaScale;
+		}
+		break;
+
+		default:
+			break;
+		}
+	}
+
+	for ( ArrowTrailEntry& trail : m_arrowTrailEffect.entries )
+	{
+		if ( !trail.active )
+			continue;
+
+		const PlayerArrowTrailVisualDesc& visual = m_playerArrowTrailVisualDescs[static_cast< size_t >( visualLevelIndex )];
+		trail.sampleLifetimeSec = visual.sampleLifetimeSec;
+		trail.halfWidth = visual.halfWidth;
+		trail.color = visual.color;
+		trail.tailAlpha = visual.tailAlpha;
+		trail.headAlpha = visual.headAlpha;
+		trail.alphaScale = visual.alphaScale;
+	}
 }
 
 void CGameScene::RefreshPlayerWeaponDamageTierFromClearedMegaGrids()
@@ -5778,7 +5826,9 @@ void CGameScene::RefreshPlayerWeaponDamageTierFromClearedMegaGrids()
 		return;
 
 	m_playerWeaponDamageTierIndex = newTier;
+
 	RefreshPlayerWeaponAttackPowers();
+	RefreshPlayerWeaponEffectVisuals();
 
 	if ( newTier > oldTier )
 		SpawnWeaponLevelUpFireworks();
@@ -6494,7 +6544,7 @@ void CGameScene::UpdateBossStageSummonSequence(float dt)
 	{
 		m_bBossSummonSequenceStarted = false;
 		m_bBossSummonCircleFadeAgeSec = 0.0f;
-		m_bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
+		m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
 
 		SetBossSummonVisualAlpha(0.0f);
 		SetBossSummonVisualActive(false);
@@ -6531,7 +6581,7 @@ void CGameScene::UpdateBossStageSummonSequence(float dt)
 			110.0f,
 			alpha,
 			dt,
-			m_bossSummonGlowParticleEmitAccumulatorSec,
+			m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec,
 			kBossSummonGlowParticleEmitIntervalSec,
 			kBossSummonGlowParticlesPerEmit,
 			kBossSummonGlowParticleIntensityScale
@@ -6606,7 +6656,7 @@ void CGameScene::UpdateBossSummonVisualFadeOut(float dt)
 			110.0f,
 			alpha,
 			dt,
-			m_bossSummonGlowParticleEmitAccumulatorSec,
+			m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec,
 			kBossSummonGlowParticleEmitIntervalSec,
 			kBossSummonGlowParticlesPerEmit,
 			kBossSummonGlowParticleIntensityScale
@@ -6621,7 +6671,7 @@ void CGameScene::UpdateBossSummonVisualFadeOut(float dt)
 
 	m_bBossSummonVisualFadeOutStarted = false;
 	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
-	m_bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
+	m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
 #else
 	UNREFERENCED_PARAMETER(dt);
 #endif
@@ -6645,15 +6695,6 @@ void CGameScene::RegisterMutantKeyTriggerIfNeeded(
 
 	m_mutantKeyTriggerRegisteredByMega[( size_t ) megaGridNumber] = true;
 	m_mutantKeyTriggerMegaByObject[mutant] = megaGridNumber;
-
-	char buf[256];
-	sprintf_s(
-		buf,
-		"[MutantKeyTrigger] Registered first Mutant for mega grid %d. mutant=%p\n",
-		megaGridNumber,
-		static_cast< void* >( mutant )
-	);
-	OutputDebugStringA(buf);
 }
 
 void CGameScene::UnlockKeyBillboardForMegaGrid(int megaGridNumber)
@@ -6661,7 +6702,7 @@ void CGameScene::UnlockKeyBillboardForMegaGrid(int megaGridNumber)
 	if ( megaGridNumber != 6 && megaGridNumber != 8 )
 		return;
 
-	for ( ItemBillboardEntry& item : m_itemBillboards )
+	for ( ItemBillboardEntry& item : m_itemBillboardState.entries )
 	{
 		if ( item.kind != EItemBillboardKind::Key )
 			continue;
@@ -6679,14 +6720,6 @@ void CGameScene::UnlockKeyBillboardForMegaGrid(int megaGridNumber)
 
 		item.active = true;
 		item.distanceCulled = false;
-
-		char buf[256];
-		sprintf_s(
-			buf,
-			"[MutantKeyTrigger] Key billboard unlocked for mega grid %d.\n",
-			megaGridNumber
-		);
-		OutputDebugStringA(buf);
 
 		return;
 	}
@@ -6810,6 +6843,11 @@ void CGameScene::BeginMonsterDeath(CGameObject* monster)
 
 	m_deadMonsters.insert(monster);
 
+	if ( IsBossMonsterObject(monster) )
+	{
+		PlayBossDeathSfxAt(monster->GetPosition());
+	}
+
 	HandleMutantKeyTriggerDeath(monster);
 
 	CancelMonsterPreparedActions(monster);
@@ -6888,8 +6926,22 @@ void CGameScene::BeginLocalPlayerDeath(CGameObject* player)
 	if ( m_bLocalPlayerDead )
 		return;
 
+#ifndef USING_NETWORK
+	if ( CInventoryComponent* inventory = player->GetComponent<CInventoryComponent>() )
+	{
+		inventory->ForceRestoreAllEffects();
+
+		if ( inventory->ConsumeAttackPowerDirty() )
+			RefreshPlayerWeaponAttackPowersForSlot(m_localPlayerSlot);
+
+		SyncLocalInventoryToHud();
+	}
+#endif
+
 	m_bLocalPlayerDead = true;
 	m_localPlayerRespawnTimer = 0.0f;
+
+	PlayPlayerDeathSfxAt(player->GetPosition());
 
 	SetLocalPlayerControlEnabled(false);
 	CancelLocalPlayerPreparedActions();
@@ -6918,7 +6970,10 @@ void CGameScene::RespawnLocalPlayer(CGameObject* player)
 	player->SetPosition(kLocalPlayerRespawnPosition);
 
 	if ( auto* hp = player->GetComponent<CHealthComponent>() )
+	{
 		hp->ResetToMax();
+		hp->SetIncomingDamageScale(1.0f);
+	}
 
 	if ( auto* collider = player->GetComponent<CColliderComponent>() )
 	{
@@ -7019,6 +7074,17 @@ bool CGameScene::RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& p
 #endif
 		return false;
 	}
+
+#ifdef USING_NETWORK
+	// A server teleport can be valid in the authoritative collision set while
+	// overlapping a client-side static collider that disagrees with it. Do not
+	// trap prediction at that origin; let server-validated input move it out.
+	const bool hitWorldStaticAtPreviousPos = TestPositionAgainstWorldStatic(previousPos);
+	localPlayer->SetPosition(currentPos);
+	collider->UpdateWorldBounds();
+	if ( hitWorldStaticAtPreviousPos )
+		return false;
+#endif
 
 #ifndef USING_NETWORK
 	if ( kEnableTowerDoorPortalCollisionLog )
@@ -7169,14 +7235,18 @@ void CGameScene::RequestFireArrow(CGameObject* shooter, float speed, float lifeS
         startPos.y += yOffset;
     }
 
-    const XMFLOAT3 vel =
-    {
-        dirN.x * speed,
-        dirN.y * speed,
-        dirN.z * speed
-    };
+	const XMFLOAT3 vel =
+	{
+		dirN.x * speed,
+		dirN.y * speed,
+		dirN.z * speed
+	};
 
-    for (CGameObject* arrowObj : m_arrowRefs)
+	const int slot = GetPlayerSlotFromObject(shooter);
+	if ( slot < 0 || slot >= 4 )
+		return;
+
+	for ( CGameObject* arrowObj : m_arrowRefs )
     {
         if (!arrowObj) continue;
 
@@ -7185,7 +7255,7 @@ void CGameScene::RequestFireArrow(CGameObject* shooter, float speed, float lifeS
 
 		if ( arrow->IsActive() ) continue;
 
-		SetObjectAttackPower(arrowObj, GetCurrentPlayerArrowAttackPower());
+		SetObjectAttackPower(arrowObj, GetPlayerArrowAttackPower(slot));
 
 		m_playerWeaponOwnerByObject[arrowObj] = shooter;
 
@@ -7211,6 +7281,10 @@ void CGameScene::RequestFireBullet(CGameObject* shooter, float speed, float life
 	CGameObject* spawnSource = gunObj ? gunObj : shooter;
 	CGameObject* directionSource = shooter;
 
+	const int slot = GetPlayerSlotFromObject(shooter);
+	if ( slot < 0 || slot >= 4 )
+		return;
+
 	for ( CGameObject* bulletObj : m_bulletRefs )
 	{
 		if ( !bulletObj ) continue;
@@ -7219,7 +7293,7 @@ void CGameScene::RequestFireBullet(CGameObject* shooter, float speed, float life
 		if ( !bullet ) continue;
 		if ( bullet->IsActive() ) continue;
 
-		SetObjectAttackPower(bulletObj, GetCurrentPlayerBulletAttackPower());
+		SetObjectAttackPower(bulletObj, GetPlayerBulletAttackPower(slot));
 
 		m_playerWeaponOwnerByObject[bulletObj] = shooter;
 
@@ -7257,6 +7331,7 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 		m_bPrevLocalMonsterChaseToggleKeyDown = false;
 		m_bPrevDebugDamageMegaGrid5KeyDown = false;
 		m_bPrevLocalStageTeleportKeyDown.fill(false);
+		m_bPrevInventoryUseKeyDown.fill(false);
 
 		return false;
 	}
@@ -7290,45 +7365,50 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 
 	m_bPrevDebugDamageMegaGrid5KeyDown = enterDown;
 
+	const bool stageTeleportModifierDown = ( ( pKeysBuffer[VK_LCONTROL] & 0xF0 ) != 0 ) || ( ( pKeysBuffer[VK_RCONTROL] & 0xF0 ) != 0 );
+
 	// ---------------------------------------------------------------------
-	// 1~9: 로컬 스테이지 메가그리드 강제 텔레포트
+	// 1~4: 인벤토리 아이템 사용 요청
+	// ---------------------------------------------------------------------
+	for ( int slot = 0; slot < CGameSceneHUD::kInventorySlotCount; ++slot )
+	{
+		const bool down = ( pKeysBuffer['1' + slot] & 0xF0 ) != 0;
+		const bool prevDown = m_bPrevInventoryUseKeyDown[static_cast< size_t >(slot)];
+
+		if ( down && !prevDown && !stageTeleportModifierDown )
+			RequestUseInventoryItemSlot(slot);
+
+		m_bPrevInventoryUseKeyDown[static_cast< size_t >(slot)] = down;
+	}
+
+	// ---------------------------------------------------------------------
+	// Ctrl + 1~9: 로컬 스테이지 메가그리드 강제 텔레포트
 	//
 	// 배치:
 	// 789
 	// 456
 	// 123
 	//
+	// 숫자키 단독 입력은 아이템 사용 등에 넘기기 위해 여기서 consume하지 않는다.
 	// false이면 입력 상태만 갱신하고 실제 텔레포트는 하지 않는다.
 	// ---------------------------------------------------------------------
-	for ( int megaGridNumber = 1;
-		  megaGridNumber <= CSceneGrid::kMegaGridCount;
-		  ++megaGridNumber )
-	{
-		const bool down =
-			( pKeysBuffer['0' + megaGridNumber] & 0xF0 ) != 0;
 
-		const bool prevDown =
-			m_bPrevLocalStageTeleportKeyDown[
-				static_cast< size_t >( megaGridNumber )
-			];
+	for ( int megaGridNumber = 1; megaGridNumber <= CSceneGrid::kMegaGridCount; ++megaGridNumber )
+	{
+		const bool down = ( pKeysBuffer['0' + megaGridNumber] & 0xF0 ) != 0;
+		const bool prevDown = m_bPrevLocalStageTeleportKeyDown[static_cast< size_t >( megaGridNumber )];
 
 		if ( down && !prevDown )
 		{
-			m_bPrevLocalStageTeleportKeyDown[
-				static_cast< size_t >( megaGridNumber )
-			] = true;
+			m_bPrevLocalStageTeleportKeyDown[static_cast< size_t >( megaGridNumber )] = true;
 
-			if ( m_bSimulateLocalStageTeleport )
-			{
+			if ( stageTeleportModifierDown && m_bSimulateLocalStageTeleport )
 				return TryTeleportLocalPlayerToMegaGridByNumber(megaGridNumber);
-			}
 
 			return false;
 		}
 
-		m_bPrevLocalStageTeleportKeyDown[
-			static_cast< size_t >( megaGridNumber )
-		] = down;
+		m_bPrevLocalStageTeleportKeyDown[static_cast< size_t >( megaGridNumber )] = down;
 	}
 #else
 	UNREFERENCED_PARAMETER(pKeysBuffer);
@@ -7518,6 +7598,7 @@ float CGameScene::LerpYawDegrees(float a, float b, float t)
 void CGameScene::AnimateObjects(float dt)
 {
 	m_fElapsedTime = dt;
+	m_waterAccumulatedTime += dt;
 
 	CGameObject* local = GetPlayer();
 	if ( !local )
@@ -7537,6 +7618,7 @@ void CGameScene::AnimateObjects(float dt)
 #endif
 
 	UpdateMuzzleFlashes(dt);
+	UpdateGunSmokes(dt);
 	UpdateSwordTrails(dt);
 	UpdateMonsterSwordTrails(dt);
 
@@ -7551,6 +7633,54 @@ void CGameScene::AnimateObjects(float dt)
     // ------------------------------------------------------------------------
 
 #ifdef USING_NETWORK
+	ForcedTransformEvent forcedTransformEvent{};
+	while (g_NetworkQueue.TryPopForcedTransform(forcedTransformEvent))
+	{
+		const int slot = static_cast<int>(forcedTransformEvent.playerId);
+		if (slot != m_localPlayerSlot)
+			continue;
+
+		CGameObject* player = GetPlayerBySlot(slot);
+		if (!player)
+			continue;
+
+		const float yawDeltaDeg = forcedTransformEvent.yawDelta;
+
+		CCamera* camera = GetMainCamera();
+		float targetYaw = 0.0f;
+		if (camera)
+		{
+			targetYaw = NormalizeYawDegrees180(camera->GetYaw() + yawDeltaDeg);
+			camera->GetYaw() = targetYaw;
+
+			XMFLOAT3 cameraTarget = player->GetPosition();
+			cameraTarget.y += 1.7f;
+			camera->Update(cameraTarget, 0.0f);
+			camera->SetLookAt(cameraTarget);
+			camera->RegenerateViewMatrix();
+		}
+		else if (auto* tr = player->GetComponent<CTransformComponent>())
+		{
+			targetYaw = NormalizeYawDegrees180(QuaternionToYawDegrees(tr->rotation) + yawDeltaDeg);
+		}
+		else
+		{
+			targetYaw = NormalizeYawDegrees180(yawDeltaDeg);
+		}
+
+		if (auto* controller = player->GetComponent<CPlayerControllerComponent>())
+		{
+			controller->SetYawDegrees(targetYaw);
+			controller->SetVelocity(XMFLOAT3(0.0f, 0.0f, 0.0f));
+			controller->SetInputDirection(static_cast<DWORD>(0));
+			controller->SetRunRequested(false);
+		}
+		else if (auto* tr = player->GetComponent<CTransformComponent>())
+		{
+			tr->SetYawDegrees(targetYaw);
+		}
+	}
+
     DequeueNetworkMessage(NetworkMessageType::FrameState);
 
 	std::unordered_map<uint64_t, CGameObject*> npcById;
@@ -7588,6 +7718,9 @@ void CGameScene::AnimateObjects(float dt)
 
 			if (isLocalPlayer)
             {
+				if ( auto* hp = player->GetComponent<CHealthComponent>() )
+					hp->SetCurrentHp(static_cast<int>(state.hp));
+
 				constexpr float kLocalPlayerServerSnapDistance = 1.5f;
 				constexpr float kLocalPlayerServerSnapDistanceSq =
 					kLocalPlayerServerSnapDistance * kLocalPlayerServerSnapDistance;
@@ -7690,6 +7823,9 @@ void CGameScene::AnimateObjects(float dt)
 					if ( !prevDecoded.hit )
 					{
 						SpawnBloodSplash(player, nullptr, nullptr);
+
+						if ( auto* hp = player->GetComponent<CHealthComponent>() )
+							hp->RequestHitSfx();
 					}
 
 					ac->RequestHit();
@@ -7734,14 +7870,45 @@ void CGameScene::AnimateObjects(float dt)
         }
 
 
-		// Enemy 좌표 업데이트
+		// Enemy 좌표 업데이트 (Dead Reckoning + 서버 교정)
 		for ( const auto& state : snapshot.enemies )
 		{
 			auto it = npcById.find(state.id);
 			if ( it == npcById.end() ) continue;
 
 			auto* obj = it->second;
-			obj->SetPosition(state.position.x, state.position.y, state.position.z);
+
+			// 이동 방향 벡터 (yaw → forward)
+			const float yawRad = XMConvertToRadians(state.yaw);
+			const XMFLOAT3 moveDir(std::sinf(yawRad), 0.0f, std::cosf(yawRad));
+
+			// 이동 속도 (애니메이션 상태로 결정)
+			const DecodedAnimStateCode decodedDR = DecodeStateCode(state.animation.stateCode);
+			float drSpeed = 0.0f;
+			if ( decodedDR.hasMove && !decodedDR.die && !decodedDR.hit )
+			{
+				if ( auto* ai = obj->GetComponent<CMonsterAIComponent>() )
+					drSpeed = decodedDR.run ? ai->GetRunMoveSpeedValue() : ai->GetWalkMoveSpeedValue();
+				else
+					drSpeed = decodedDR.run ? 2.0f : 1.0f;
+			}
+
+			// DR 상태 갱신: 최초엔 서버 위치로 초기화, 이후엔 소프트 교정
+			EnemyDRState& dr = m_enemyDRStates[state.id];
+			if ( !dr.initialized )
+			{
+				dr.predictedPos = state.position;
+				dr.initialized  = true;
+			}
+			else
+			{
+				constexpr float kCorrectionAlpha = 0.35f;
+				dr.predictedPos = LerpPosition(dr.predictedPos, state.position, kCorrectionAlpha);
+			}
+			dr.moveDir = moveDir;
+			dr.speed   = drSpeed;
+
+			obj->SetPosition(dr.predictedPos.x, dr.predictedPos.y, dr.predictedPos.z);
 
 			if ( auto* tr = obj->GetComponent<CTransformComponent>() )
 				tr->SetYawDegrees(state.yaw);
@@ -7948,6 +8115,18 @@ void CGameScene::AnimateObjects(float dt)
 					ctrl->SetLocomotionState(locomotionState);
 				}
 			}
+
+			// Dead Reckoning: 마지막으로 받은 이동 방향/속도로 매 프레임 전진
+			auto drIt = m_enemyDRStates.find(id);
+			if ( drIt == m_enemyDRStates.end() ) continue;
+
+			EnemyDRState& dr = drIt->second;
+			if ( !dr.initialized || dr.speed <= 0.0f ) continue;
+
+			dr.predictedPos.x += dr.moveDir.x * dr.speed * dt;
+			dr.predictedPos.z += dr.moveDir.z * dr.speed * dt;
+
+			obj->SetPosition(dr.predictedPos.x, dr.predictedPos.y, dr.predictedPos.z);
 		}
 
 	}
@@ -8008,6 +8187,18 @@ void CGameScene::AnimateObjects(float dt)
 	}
 
 #ifndef USING_NETWORK
+	UpdateInventoryBuffAmbientParticles(dt);
+
+	if ( CInventoryComponent* inventory = GetLocalPlayerInventory() )
+	{
+		if ( inventory->ConsumeAttackPowerDirty() )
+			RefreshPlayerWeaponAttackPowersForSlot(m_localPlayerSlot);
+	}
+
+	SyncLocalInventoryToHud();
+#endif
+
+#ifndef USING_NETWORK
 	UpdateBossMeleeSlashCasts(dt);
 	UpdateBossPoisonProjectileSpellCasts(dt);
 	UpdateBossPoisonProjectiles(dt);
@@ -8031,6 +8222,8 @@ void CGameScene::AnimateObjects(float dt)
 #else
 	UpdatePreparedBowArrows();
 #endif
+
+	UpdateArrowTrails(dt);
 
 	for ( UINT j = 0; j < ( UINT ) m_lightObjects.size(); ++j )
 	{
@@ -8174,6 +8367,91 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
 			directionalLightObj = lightObj.get();
 			break;
 		}
+	}
+
+	TERRAIN* mappedTerrain = m_pcbMappedTerrain[frameIndex];
+
+	if ( mappedTerrain )
+	{
+		const XMFLOAT3 terrainScale = m_TerrainData->GetScale();
+		const UINT heightMapSrvIndex = m_TerrainData->GetsrvIndex();
+
+		mappedTerrain->gvTerrainScale = XMFLOAT4(
+			terrainScale.x,
+			terrainScale.y,
+			terrainScale.z,
+			(heightMapSrvIndex == UINT_MAX) ? 0.0f : 1.0f
+		);
+
+		mappedTerrain->gvTerrainHeightMapSize = XMFLOAT4(
+			static_cast<float>(m_TerrainData->GetHeightMapWidth()),
+			static_cast<float>(m_TerrainData->GetHeightMapLength()),
+			0.0f,
+			0.0f
+		);
+
+		mappedTerrain->gvTerrainTextureIndices = XMUINT4(
+			heightMapSrvIndex,
+			UINT_MAX,
+			UINT_MAX,
+			UINT_MAX
+		);
+
+		mappedTerrain->gvTerrainDiffuseTextureIndices = XMUINT4(
+			m_TerrainData->GetGrassDiffuseSrvIndex(),
+			m_TerrainData->GetGroundDiffuseSrvIndex(),
+			m_TerrainData->GetDirtDiffuseSrvIndex(),
+			UINT_MAX
+		);
+
+		mappedTerrain->gvTerrainNormalTextureIndices = XMUINT4(
+			m_TerrainData->GetGrassNormalSrvIndex(),
+			m_TerrainData->GetGroundNormalSrvIndex(),
+			m_TerrainData->GetDirtNormalSrvIndex(),
+			UINT_MAX
+		);
+
+		mappedTerrain->gvTerrainBlendParams = XMFLOAT4(
+			400.0f,
+			200.0f,
+			1.0f,
+			0.08f
+		);
+	}
+
+	WATER* mappedWater = m_pcbMappedWater[frameIndex];
+
+	if ( mappedWater )
+	{
+		mappedWater->gvWaterParams = XMFLOAT4(
+			m_waterAccumulatedTime,
+			m_waterHeight,
+			m_waterBaseUvScale,
+			m_waterAlpha
+		);
+
+		mappedWater->gvWaterTextureIndices = XMUINT4(
+			m_waterBaseSrvIndex,
+			m_waterDetail0SrvIndex,
+			m_waterDetail1SrvIndex,
+			UINT_MAX
+		);
+
+		mappedWater->gvWaterFlowParams = XMFLOAT4(
+			0.0f, 0.00125f,   // base flow
+			0.02f, 0.01f      // detail0 flow
+		);
+
+		mappedWater->gvWaterDetailParams = XMFLOAT4(
+			-0.01f, 0.015f,   // detail1 flow
+			10.0f,            // detail0 uv scale
+			5.0f              // detail1 uv scale
+		);
+
+		XMStoreFloat4x4(
+			&mappedWater->gf4x4TextureAnimation,
+			XMMatrixIdentity()
+		);
 	}
 
 	m_shadowMap.UpdateData(shadowFocus, directionalLightObj);
@@ -8348,6 +8626,22 @@ void CGameScene::BindFrameRootParameters(ID3D12GraphicsCommandList* cmd)
 		);
 	}
 
+	if ( m_pd3dcbTerrain[frameIndex] )
+	{
+		cmd->SetGraphicsRootConstantBufferView(
+			ROOT_PARAMETER_TERRAIN,
+			m_pd3dcbTerrain[frameIndex]->GetGPUVirtualAddress()
+		);
+	}
+
+	if ( m_pd3dcbWater[frameIndex] )
+	{
+		cmd->SetGraphicsRootConstantBufferView(
+			ROOT_PARAMETER_WATER,
+			m_pd3dcbWater[frameIndex]->GetGPUVirtualAddress()
+		);
+	}
+
 	m_depthFog.BindConstantBuffer(cmd);
 	m_shadowMap.BindConstantBuffer(cmd);
 }
@@ -8385,7 +8679,7 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 		RenderStaticInstanceGroups(cmd, camera);
 	}
 
-	if ( m_itemBillboardShader )
+	if ( m_itemBillboardState.shader )
 	{
 		RenderItemBillboards(cmd, camera);
 	}
@@ -8454,32 +8748,47 @@ void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* c
 
 	BindFrameRootParameters(cmd);
 
-	if ( m_transparentItemBillboardShader )
+	if ( m_itemBillboardState.transparentShader )
 	{
 		RenderTransparentItemBillboards(cmd, camera);
 	}
 
-	if ( m_bossCallSummonWwwShader )
+	if ( m_bossCallSummonWwwEffect.shader )
 	{
 		RenderBossCallSummonWwwEffects(cmd, camera);
 	}
 
-	if ( m_bossPoisonProjectileShader )
+	if ( m_bossPoisonProjectileEffect.shader )
 	{
 		RenderBossPoisonProjectiles(cmd, camera);
 	}
 
-	if ( m_swordTrailShader )
+	if ( m_swordTrailEffect.shader )
 	{
 		RenderSwordTrails(cmd, camera);
 	}
 
-	if ( m_monsterSwordTrailShader )
+	if ( m_monsterSwordTrailEffect.shader )
 	{
 		RenderMonsterSwordTrails(cmd, camera);
 	}
 
-	if ( m_muzzleFlashShader )
+	if ( m_arrowTrailEffect.shader )
+	{
+		RenderArrowTrails(cmd, camera);
+	}
+
+	if ( m_monsterArrowTrailEffect.shader )
+	{
+		RenderMonsterArrowTrails(cmd, camera);
+	}
+
+	if ( m_gunSmokeEffect.shader )
+	{
+		RenderGunSmokes(cmd, camera);
+	}
+
+	if ( m_muzzleFlashEffect.shader )
 	{
 		RenderMuzzleFlashes(cmd, camera);
 	}

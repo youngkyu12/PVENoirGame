@@ -6,6 +6,7 @@
 #include "stdafx.h"
 #include "AnimatorData.h"
 #include "SceneRenderTypes.h"
+#include "TerrainData.h"
 
 #include <string>
 #include <unordered_map>
@@ -27,9 +28,8 @@ enum class AssetType
     Boss,
 
     World,
-    Grass,
-    Ground,
-    DirtRoad,
+	Terrain,
+	Water,
     VillageWall,
     House,
     Tower,
@@ -50,6 +50,8 @@ struct AssetBuildDesc
     AssetType type;
     std::string meshBinPath;
     std::string textureRoot;
+
+	std::shared_ptr<TerrainData> terrainData = nullptr;
 };
 
 struct BuiltAsset
@@ -88,6 +90,11 @@ private:
         ID3D12GraphicsCommandList* cmd,
         const AssetBuildDesc& desc
     );
+
+	static std::shared_ptr<CMesh> CreateMesh(
+		ID3D12Device* device, 
+		ID3D12GraphicsCommandList* cmd, 
+		const AssetBuildDesc& desc);
 
     static void ApplyBuiltAssetToSceneMaterials(
         const BuiltAsset& asset,

@@ -1,58 +1,29 @@
+//-----------------------------------------------------------------------------
+// File: TerrainComponent.h
+//-----------------------------------------------------------------------------
 #pragma once
 
-#include "Mesh.h"
 #include "Component.h"
 
-class CModelComponent;
+class TerrainData;
+class CTransformComponent;
 
 class TerrainComponent final : public CComponentT<TerrainComponent>
 {
 public:
-	TerrainComponent(
-		CGameObject* owner,
-		ID3D12RootSignature* pd3dGraphicsRootSignature,
-		LPCTSTR pFileName,
-		int nWidth,
-		int nLength,
-		int nBlockWidth,
-		int nBlockLength,
-		XMFLOAT3 xmf3Scale,
-		XMFLOAT4 xmf4Color);
-
-	void OnCreate(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList) override;
+	TerrainComponent() = default;
+	explicit TerrainComponent(CGameObject* owner);
+	virtual ~TerrainComponent() = default;
 
 public:
-	float GetHeight(float x, float z) const;
-	XMFLOAT3 GetNormal(float x, float z) const;
+	void SetTerrainData(std::shared_ptr<TerrainData> terrainData);
 
-	int GetHeightMapWidth() const { return m_nWidth; }
-	int GetHeightMapLength() const { return m_nLength; }
-	XMFLOAT3 GetScale() const { return m_xmf3Scale; }
-
-	float GetWidth() const { return m_nWidth * m_xmf3Scale.x; }
-	float GetLength() const { return m_nLength * m_xmf3Scale.z; }
-
-	float SampleHeightMap(int x, int z) const;
-	XMFLOAT3 SampleHeightMapNormal(int x, int z) const;
+	float GetHeightWorld(float worldX, float worldZ) const;
+	XMFLOAT3 GetNormalWorld(float worldX, float worldZ) const;
+	float GetWidth() const;
+	float GetLength() const;
 
 private:
-	bool LoadHeightMapRaw(LPCTSTR pFileName, int nWidth, int nLength);
-	float SampleHeightMapRaw01(int x, int z) const;
-	int ClampX(int x) const;
-	int ClampZ(int z) const;
-
-private:
-	CModelComponent* mModel = nullptr;
-	ID3D12RootSignature* m_pd3dGraphicsRootSignature = nullptr;
-
-	std::vector<BYTE> m_heightMapPixels;
-	std::wstring m_heightMapPath;
-
-	int m_nWidth = 0;
-	int m_nLength = 0;
-	int m_nBlockWidth = 0;
-	int m_nBlockLength = 0;
-
-	XMFLOAT3 m_xmf3Scale = XMFLOAT3(1.0f, 1.0f, 1.0f);
-	XMFLOAT4 m_xmf4Color = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	CTransformComponent* mTransform = nullptr;
+	std::shared_ptr<TerrainData> m_terrainData;
 };

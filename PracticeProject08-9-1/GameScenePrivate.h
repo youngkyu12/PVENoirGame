@@ -57,6 +57,8 @@
 #include "MonsterAIVariants.h"
 #include "HealthComponent.h"
 #include "AttackPowerComponent.h"
+#include "TerrainAttachComponent.h"
+#include "InventoryComponent.h"
 
 #include "AudioManager.h"
 #include "MusicDirector.h"

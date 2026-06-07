@@ -11,10 +11,31 @@
 
 namespace
 {
-	constexpr int kAtkPlayerSword = 10;
-	constexpr int kAtkPlayerAxe = 15;
-	constexpr int kAtkPlayerArrow = 15;
+	// ÌîåÎ†àÏù¥Ïñ¥ Î¨¥Í∏∞ ÌîºÌï¥Îüâ
+	constexpr int kAtkPlayerSword  = 10;
+	constexpr int kAtkPlayerAxe    = 15;
+	constexpr int kAtkPlayerArrow  = 15;
 	constexpr int kAtkPlayerBullet = 8;
+
+	// Ìà¨ÏÇ¨Ï≤¥ ÌûàÌä∏ ÌåêÏ†ï
+	constexpr float kProjectileHitRadiusSq = 1.0f;
+	constexpr float kProjectileHitYTol     = 1.0f;
+
+	// Í∑ºÏ†ë Í≥µÍ≤© Ïú†Ìö® ÌîÑÎ†àÏûÑ (Ïï†Îãò ÌÅ¥ÎùΩ Í∏∞Ï§Ä)
+	constexpr int kMeleeHitFrameStart = 5;
+	constexpr int kMeleeHitFrameEnd   = 15;
+
+	// Í∑ºÏ†ë Í≥µÍ≤© ÏÇ¨Í±∞Î¶¨ / ÌåêÏ†ï Í∞ÅÎèÑ
+	constexpr float kMeleeReachSword         = 2.0f;
+	constexpr float kMeleeReachAxe           = 2.5f;
+	constexpr float kMeleeReachPlayerDefault = 1.5f;
+	constexpr float kMeleeReachEnemyDefault  = 5.0f;
+	constexpr float kMeleeHalfAngleSword     = 45.0f;
+	constexpr float kMeleeHalfAngleDefault   = 90.0f;
+
+	// Ìè¨ÌÉÑ
+	constexpr float kBulletSpeed     = 18.0f;
+	constexpr int   kBulletLifeTicks = 100;
 
 	int GetPlayerAttackPower(Protocol::WeaponType weapon)
 	{
@@ -28,6 +49,12 @@ namespace
 		}
 	}
 
+	uint64 MakeMeleeHitKey(uint64 attackerId, uint64 targetId, uint32 attackAnimTick)
+	{
+		return ((attackerId & 0xFFFFFu) << 44) |
+			((targetId & 0xFFFFFu) << 24) |
+			(static_cast<uint64>(attackAnimTick) & 0xFFFFFFu);
+	}
 
 	bool IsInArcXZ(
 		const GameMath::Vec3& attackerPos,
@@ -83,6 +110,7 @@ void Room::WakeEnemiesNearPlayer(const PlayerRef& player)
 
 		const EnemyRef& enemy = enemyIt->second;
 		if (!enemy) continue;
+		if (!enemy->IsActive()) continue;
 		if (enemy->IsDead()) continue;
 		if (GameMath::DistSqXZ(player->GetPosition(), enemy->GetPosition()) > wakeRangeSq) continue;
 
@@ -103,21 +131,32 @@ void Room::ProcessEnemyAI()
 	{
 		const uint64 enemyId = *it;
 		auto enemyIt = enemies.find(enemyId);
-		if (enemyIt == enemies.end() || !enemyIt->second || enemyIt->second->IsDead())
+		if (enemyIt == enemies.end() || !enemyIt->second || !enemyIt->second->IsActive() || enemyIt->second->IsDead())
 		{
 			it = m_aiAwakeEnemyIds.erase(it);
 			continue;
 		}
 
 		EnemyRef& enemy = enemyIt->second;
-		if (!IsEnemyNearAnyPlayerExact(enemy->GetPosition(), sleepRangeSq))
+		CMonsterAI* ai = enemy->GetMonsterAI();
+		if (ai && ai->IsOutsideHomeMegaGrid())
+		{
+			ai->ResetToHome();
+
+			enemy->SetVelocity(GameMath::Vec3::Zero());
+			enemy->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
+			enemy->SetAnimTick(animClockTick);
+
+			it = m_aiAwakeEnemyIds.erase(it);
+			continue;
+		}
+
+		if (!IsEnemyNearAnyPlayerExact(enemy->GetPosition(), sleepRangeSq) &&
+			(!ai || ai->IsAtHomeForAwakeRemoval()))
 		{
 			enemy->SetVelocity(GameMath::Vec3::Zero());
-			if (enemy->GetAnimState() == Protocol::ANIMATION_TYPE_RUN)
-			{
-				enemy->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
-				enemy->SetAnimTick(animClockTick);
-			}
+			enemy->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
+			enemy->SetAnimTick(animClockTick);
 
 			it = m_aiAwakeEnemyIds.erase(it);
 			continue;
@@ -150,6 +189,9 @@ void Room::TickAdvance()
 	const uint32 animClockTick = GetAnimClockTick();
 	const uint32 combatClockTick = GetCombatClockTick();
 
+	if (m_meleeHitKeys.size() > 4096)
+		m_meleeHitKeys.clear();
+
 	TickDoorPortalCooldowns();
 
 	for (auto player : players)
@@ -158,12 +200,20 @@ void Room::TickAdvance()
 
 		GameMath::Vec3 portalDestination = GameMath::Vec3::Zero();
 		float portalYaw = 0.0f;
-		if (player.second->ConsumePendingPortalTeleport(portalDestination, portalYaw))
+		float forcedYawDelta = 0.0f;
+		int32 forcedTransformReason = 0;
+		if (player.second->ConsumePendingPortalTeleport(
+			portalDestination,
+			portalYaw,
+			&forcedYawDelta,
+			&forcedTransformReason))
 		{
 			player.second->SetVelocity(GameMath::Vec3::Zero());
 			player.second->ClearMoveKeyCodes();
 			player.second->SetPosition(portalDestination);
 			player.second->SetYaw(portalYaw);
+			if (forcedTransformReason != Protocol::FORCED_TRANSFORM_REASON_NONE)
+				SendForcedTransformYawDelta(player.second, forcedYawDelta, forcedTransformReason);
 
 			if (auto* collider = player.second->GetComponent<CColliderComponent>())
 				collider->OnUpdate(0.0f);
@@ -175,6 +225,14 @@ void Room::TickAdvance()
 
 		const GameMath::Vec3 prevPos = player.second->GetPosition();
 		player.second->Update(animClockTick);
+
+		int32 respawnForcedTransformReason = 0;
+		float respawnForcedYawDelta = 0.0f;
+		if (player.second->ConsumeForcedTransformYawDelta(respawnForcedYawDelta, respawnForcedTransformReason) &&
+			respawnForcedTransformReason != Protocol::FORCED_TRANSFORM_REASON_NONE)
+		{
+			SendForcedTransformYawDelta(player.second, respawnForcedYawDelta, respawnForcedTransformReason);
+		}
 
 		const bool teleported =
 			TryTeleportPlayerByTowerDoorPortal(player.second) ||
@@ -208,19 +266,16 @@ void Room::TickAdvance()
 
 	for (auto enemy : enemies)
 	{
-		const GameMath::Vec3 prevPos = enemy.second->GetPosition();
 		enemy.second->Update(animClockTick);
-		ResolveWorldStaticCollision(enemy.second, prevPos);
 	}
 
-	// »≠ªÏ »˜∆Æ
+	// ÌôîÏÇ¥ ÌûàÌä∏
 	for (auto& p : m_arrowPool)
 	{
 		if (!p->IsActive()) continue;
 		p->Update(m_timing.projectileDtSec, m_timing.serverTickIntervalMs);
 		const uint16_t projectileMask = ComputeObjectCurrentMegaGridMask(p.get());
 
-		constexpr float kHitRadiusSq = 1.0f;
 		for (auto& enemyPair : enemies)
 		{
 			auto& enemy = enemyPair.second;
@@ -231,11 +286,10 @@ void Room::TickAdvance()
 			if (enemyMask == 0)
 				enemyMask = ComputeObjectCurrentMegaGridMask(enemy.get());
 			if (projectileMask != 0 && enemyMask != 0 && (projectileMask & enemyMask) == 0) continue;
-			//const GameMath::Vec3 d = enemy->GetPosition() - p->GetPosition();
 
-			float distSq = GameMath::DistSqXZ(enemy->GetPosition(), p->GetPosition());
-			const bool hit = distSq <= kHitRadiusSq
-				&& enemy->GetPosition().y - p->GetPosition().y <= 1.0f;
+			const float distSq = GameMath::DistSqXZ(enemy->GetPosition(), p->GetPosition());
+			const bool hit = distSq <= kProjectileHitRadiusSq
+				&& enemy->GetPosition().y - p->GetPosition().y <= kProjectileHitYTol;
 			if (!hit) continue;
 
 			enemy->ApplyHit(animClockTick, kAtkPlayerArrow, 20);
@@ -244,14 +298,13 @@ void Room::TickAdvance()
 		}
 	}
 
-	// ∆˜≈∫ »˜∆Æ
+	// Ìè¨ÌÉÑ ÌûàÌä∏
 	for (auto& p : m_bulletPool)
 	{
 		if (!p->IsActive()) continue;
 		p->Update(m_timing.projectileDtSec, m_timing.serverTickIntervalMs);
 		const uint16_t projectileMask = ComputeObjectCurrentMegaGridMask(p.get());
 
-		constexpr float kHitRadiusSq = 1.0f;
 		for (auto& enemyPair : enemies)
 		{
 			auto& enemy = enemyPair.second;
@@ -262,11 +315,10 @@ void Room::TickAdvance()
 			if (enemyMask == 0)
 				enemyMask = ComputeObjectCurrentMegaGridMask(enemy.get());
 			if (projectileMask != 0 && enemyMask != 0 && (projectileMask & enemyMask) == 0) continue;
-			//const GameMath::Vec3 d = enemy->GetPosition() - p->GetPosition();
 
-			float distSq = GameMath::DistSqXZ(enemy->GetPosition(), p->GetPosition());
-			const bool hit = distSq <= kHitRadiusSq
-				&& enemy->GetPosition().y - p->GetPosition().y <= 1.0f;
+			const float distSq = GameMath::DistSqXZ(enemy->GetPosition(), p->GetPosition());
+			const bool hit = distSq <= kProjectileHitRadiusSq
+				&& enemy->GetPosition().y - p->GetPosition().y <= kProjectileHitYTol;
 			if (!hit) continue;
 
 			enemy->ApplyHit(animClockTick, kAtkPlayerBullet, 20);
@@ -275,7 +327,7 @@ void Room::TickAdvance()
 		}
 	}
 
-	// «√∑π¿ÃæÓ ±Ÿ¡¢ ∞¯∞› »˜∆Æ ∆«¡§
+	// ÌîåÎ†àÏù¥Ïñ¥ Í∑ºÏ†ë Í≥µÍ≤© ÌûàÌä∏ ÌåêÏ†ï
 	for (auto& [pid, player] : players)
 	{
 		if (player->IsDead()) continue;
@@ -286,18 +338,16 @@ void Room::TickAdvance()
 			weaponType == Protocol::WEAPON_TYPE_CANON) continue;
 
 		const int elapsed = static_cast<int>(animClockTick) - player->GetAnimTick();
-		constexpr int kHitFrameStart = 5;
-		constexpr int kHitFrameEnd = 15;
-		if (elapsed < kHitFrameStart || elapsed > kHitFrameEnd) continue;
+		if (elapsed < kMeleeHitFrameStart || elapsed > kMeleeHitFrameEnd) continue;
 
 		const int damage = GetPlayerAttackPower(weaponType);
 
 		float reach, halfAngleDeg;
 		switch (weaponType)
 		{
-		case Protocol::WEAPON_TYPE_SWORD: reach = 2.0f; halfAngleDeg = 45.0f; break;
-		case Protocol::WEAPON_TYPE_AXE:   reach = 2.5f; halfAngleDeg = 45.0f; break;
-		default:                          reach = 1.5f; halfAngleDeg = 90.0f; break;
+		case Protocol::WEAPON_TYPE_SWORD: reach = kMeleeReachSword; halfAngleDeg = kMeleeHalfAngleSword;   break;
+		case Protocol::WEAPON_TYPE_AXE:   reach = kMeleeReachAxe;   halfAngleDeg = kMeleeHalfAngleSword;   break;
+		default:                          reach = kMeleeReachPlayerDefault; halfAngleDeg = kMeleeHalfAngleDefault; break;
 		}
 
 		for (auto& [eid, enemy] : enemies)
@@ -313,6 +363,13 @@ void Room::TickAdvance()
 			if (IsInArcXZ(player->GetPosition(), player->GetLook(),
 				enemy->GetPosition(), reach, halfAngleDeg))
 			{
+				const uint64 hitKey = MakeMeleeHitKey(
+					player->GetObjectId(),
+					enemy->GetObjectId(),
+					player->GetAnimTick());
+				if (!m_meleeHitKeys.insert(hitKey).second)
+					continue;
+
 				cout << "Player " << player->GetObjectId() << " hits Enemy " << enemy->GetObjectId()
 					<< " (dmg=" << damage << " hp=" << enemy->GetCurrentHp() << ")" << endl;
 				enemy->ApplyHit(animClockTick, damage, 20);
@@ -320,25 +377,23 @@ void Room::TickAdvance()
 		}
 	}
 
-	// ¿˚ ±Ÿ¡¢ ∞¯∞› »˜∆Æ ∆«¡§
+	// Ï†Å Í∑ºÏ†ë Í≥µÍ≤© ÌûàÌä∏ ÌåêÏ†ï
 	for (auto& [eid, enemy] : enemies)
 	{
 		if (enemy->IsDead()) continue;
 		if (enemy->GetAnimState() != Protocol::ANIMATION_TYPE_ATTACK) continue;
 
 		const int elapsed = static_cast<int>(animClockTick) - enemy->GetAnimTick();
-		constexpr int kHitFrameStart = 5;
-		constexpr int kHitFrameEnd = 15;
-		if (elapsed < kHitFrameStart || elapsed > kHitFrameEnd) continue;
+		if (elapsed < kMeleeHitFrameStart || elapsed > kMeleeHitFrameEnd) continue;
 
 		const int damage = enemy->GetAttackPower();
 
 		float reach, halfAngleDeg;
 		switch (enemy->GetWeaponState())
 		{
-		case Protocol::WEAPON_TYPE_SWORD: reach = 2.0f; halfAngleDeg = 45.0f; break;
-		case Protocol::WEAPON_TYPE_AXE:   reach = 2.5f; halfAngleDeg = 45.0f; break;
-		default:                          reach = 5.0f; halfAngleDeg = 90.0f; break;
+		case Protocol::WEAPON_TYPE_SWORD: reach = kMeleeReachSword; halfAngleDeg = kMeleeHalfAngleSword;  break;
+		case Protocol::WEAPON_TYPE_AXE:   reach = kMeleeReachAxe;   halfAngleDeg = kMeleeHalfAngleSword;  break;
+		default:                          reach = kMeleeReachEnemyDefault; halfAngleDeg = kMeleeHalfAngleDefault; break;
 		}
 
 		for (auto& [pid, player] : players)
@@ -354,13 +409,21 @@ void Room::TickAdvance()
 			if (IsInArcXZ(enemy->GetPosition(), enemy->GetLook(),
 				player->GetPosition(), reach, halfAngleDeg))
 			{
+				const uint64 hitKey = MakeMeleeHitKey(
+					enemy->GetObjectId(),
+					player->GetObjectId(),
+					enemy->GetAnimTick());
+				if (!m_meleeHitKeys.insert(hitKey).second)
+					continue;
+
 				player->ApplyHit(animClockTick, damage, 10);
 			}
 		}
 	}
 
 	UpdateDynamicGridState();
-
+	UpdateKeyPickupCollision();
+	UpdateSpawnerWaves(m_timing.playerInputDtSec);
 
 	const auto elapsedMs = static_cast<uint64>(
 		std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -387,6 +450,46 @@ ProjectileRef Room::AcquireFromPool(Vector<ProjectileRef>& pool)
 		if (!p->IsActive()) return p;
 	}
 	return nullptr;
+}
+
+void Room::UpdateKeyPickupCollision()
+{
+	constexpr float kPickupRadiusSq = 1.25f * 1.25f;
+	constexpr float kPickupYTolerance = 2.0f;
+
+	for (const auto& key : kKeyPositions)
+	{
+		const int megaGrid = key.megaGridIndex + 1;
+		if (!m_keyPickupUnlockedByMegaGrid[static_cast<size_t>(megaGrid)])
+			continue;
+
+		MegaGridCell& cell = m_megaGridCells[static_cast<size_t>(key.megaGridIndex)];
+		if (cell.isCleared)
+			continue;
+
+		for (auto& [pid, player] : players)
+		{
+			if (!player || player->IsDead())
+				continue;
+
+			const GameMath::Vec3 pos = player->GetPosition();
+			if (pos.y < -100.0f)
+				continue;
+
+			const float dx = pos.x - key.x;
+			const float dz = pos.z - key.z;
+			if (dx * dx + dz * dz > kPickupRadiusSq)
+				continue;
+
+			if (std::abs(pos.y - key.y) > kPickupYTolerance)
+				continue;
+
+			cell.isCleared = true;
+			cout << "[Key Pickup] MegaGrid " << (key.megaGridIndex + 1)
+				<< " cleared by Player " << player->GetObjectId() << endl;
+			break;
+		}
+	}
 }
 
 void Room::FireArrow(PlayerRef shooter, float speed, uint32 lifeTicks)
@@ -421,8 +524,6 @@ void Room::FireCannonball(PlayerRef shooter)
 		shooter->GetUp() * 1.5665f +
 		shooter->GetLook() * 0.2778f;
 	const GameMath::Vec3 forward = shooter->GetLook().Normalized();
-	constexpr float kBulletSpeed = 18.0f;
-	constexpr int   kBulletLifeTicks = 100;
 
 	p->Activate(origin, forward * kBulletSpeed, kBulletLifeTicks, m_timing.projectileLifeTickMs, shooter->GetObjectId(), Protocol::BULLET_TYPE_CANNONBALL);
 	shooter->OnFired(GetCombatClockTick());
