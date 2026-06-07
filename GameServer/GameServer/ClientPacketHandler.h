@@ -17,6 +17,7 @@ enum : uint16
 	PKT_C_INPUT = 1007,
 	PKT_S_FRAME_STATE = 1008,
 	PKT_S_FORCED_TRANSFORM = 1009,
+	PKT_C_DEBUG_COMMAND = 1010,
 };
 
 // 자동화 예정
@@ -27,6 +28,7 @@ bool Handle_C_ENTER_GAME(PacketSessionRef& session, Protocol::C_ENTER_GAME& pkt)
 bool Handle_C_GAME_START(PacketSessionRef& session, Protocol::C_GAME_START& pkt);
 bool Handle_C_CLIENT_READY(PacketSessionRef& session, Protocol::C_CLIENT_READY& pkt);
 bool Handle_C_INPUT(PacketSessionRef& session, Protocol::C_INPUT& pkt);
+bool Handle_C_DEBUG_COMMAND(PacketSessionRef& session, Protocol::C_DEBUG_COMMAND& pkt);
 
 
 class ClientPacketHandler
@@ -42,6 +44,7 @@ public:
 		GPacketHandler[PKT_C_GAME_START] = [](PacketSessionRef& session, BYTE* buffer, int32 len){return HandlePacket<Protocol::C_GAME_START>(Handle_C_GAME_START, session, buffer, len);};
 		GPacketHandler[PKT_C_CLIENT_READY] = [](PacketSessionRef& session, BYTE* buffer, int32 len){return HandlePacket<Protocol::C_CLIENT_READY>(Handle_C_CLIENT_READY, session, buffer, len);};
 		GPacketHandler[PKT_C_INPUT] = [](PacketSessionRef& session, BYTE* buffer, int32 len){return HandlePacket<Protocol::C_INPUT>(Handle_C_INPUT, session, buffer, len);};
+		GPacketHandler[PKT_C_DEBUG_COMMAND] = [](PacketSessionRef& session, BYTE* buffer, int32 len){return HandlePacket<Protocol::C_DEBUG_COMMAND>(Handle_C_DEBUG_COMMAND, session, buffer, len);};
 
 	}
 	static bool HandlePacket(PacketSessionRef& session, BYTE* buffer, int32 len)

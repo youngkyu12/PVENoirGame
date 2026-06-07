@@ -1,6 +1,6 @@
 #pragma once
 
-#define WIN32_LEAN_AND_MEAN // °ÅÀÇ »ç¿ëµÇÁö ¾Ê´Â ³»¿ëÀ» Windows Çì´õ¿¡¼­ Á¦¿ÜÇÕ´Ï´Ù.
+#define WIN32_LEAN_AND_MEAN // ì˜ ì•ˆì“°ëŠ” WIndows íŒŒì¼ë“¤ ê±°ë¥´ê¸°.
 
 #ifdef _DEBUG
 #pragma comment(lib, "ServerCore\\Debug\\ServerCore.lib")
@@ -11,6 +11,8 @@
 #pragma comment(lib, "Protobuf\\Release\\libprotobuf.lib")
 #pragma comment(lib, "BaseComponent\\Release\\BaseComponent.lib")
 #endif
+
+#pragma comment(lib, "LUA\\lua55.lib")
 
 #include "CorePch.h"
 #include "ComponentPch.h"

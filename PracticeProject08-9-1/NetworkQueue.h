@@ -90,6 +90,7 @@ struct FrameSnapshot
     std::vector<PlayerState> players;
     std::vector<EnemyState> enemies;
     std::vector<BulletState> bullets;
+	uint32_t bossRoomState = 0;
 };
 
 // ============================================================

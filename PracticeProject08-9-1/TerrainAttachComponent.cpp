@@ -69,11 +69,17 @@ void CTerrainAttachComponent::OnCreate(
 		m_captureInitialOffset = false;
 	}
 
+	if (!m_autoSnapEnabled)
+		return;
+
 	SnapToTerrain();
 }
 
 void CTerrainAttachComponent::OnLateUpdate(float /*dt*/)
 {
+	if (!m_autoSnapEnabled)
+		return;
+
 	SnapToTerrain();
 }
 

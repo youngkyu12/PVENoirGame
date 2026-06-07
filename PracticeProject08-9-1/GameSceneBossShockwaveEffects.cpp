@@ -106,7 +106,6 @@ void CGameScene::SpawnBossShockwave(const XMFLOAT3& center)
 
 void CGameScene::UpdateBossShockwave(float dt)
 {
-#ifndef USING_NETWORK
 	if ( !m_bBossShockwaveActive )
 		return;
 
@@ -260,14 +259,10 @@ void CGameScene::UpdateBossShockwave(float dt)
 
 	SetBossShockwaveAlpha(floorAlpha);
 	SetBossShockwaveWallAlpha(wallAlpha);
-#else
-	UNREFERENCED_PARAMETER(dt);
-#endif
 }
 
 void CGameScene::ApplyBossShockwavePushToLocalPlayer(float previousRadius, float currentRadius)
 {
-#ifndef USING_NETWORK
 	if ( !m_bBossShockwavePushLocalPlayer )
 		return;
 
@@ -341,8 +336,4 @@ void CGameScene::ApplyBossShockwavePushToLocalPlayer(float previousRadius, float
 	}
 
 	UpdateDynamicGridState();
-#else
-	UNREFERENCED_PARAMETER(previousRadius);
-	UNREFERENCED_PARAMETER(currentRadius);
-#endif
 }
