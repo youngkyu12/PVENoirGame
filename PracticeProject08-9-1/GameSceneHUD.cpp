@@ -112,7 +112,7 @@ void CGameSceneHUD::BuildResources(
         true
   );
 
-	m_poisonOverlaySpriteIndex = m_ui.AddSolidRect("PoisonEdgeOverlay", CSceneUI::GetFullscreenRect(), CSceneUI::ELayer::Background, false, XMFLOAT4(0.10f, 0.95f, 0.18f, 0.0f), 4, XMFLOAT4(kPoisonOverlayThicknessPx, 0.0f, 0.0f, 0.0f));
+	m_poisonOverlaySpriteIndex = m_ui.AddSolidRect("PoisonEdgeOverlay", CSceneUI::GetFullscreenRect(static_cast< int >( m_screenWidth ), static_cast< int >( m_screenHeight )), CSceneUI::ELayer::Background, false, XMFLOAT4(0.10f, 0.95f, 0.18f, 0.0f), 4, XMFLOAT4(kPoisonOverlayThicknessPx, 0.0f, 0.0f, 0.0f));
 
 	// --------------------------------------------------------------------
 	// Other player HP gauges
