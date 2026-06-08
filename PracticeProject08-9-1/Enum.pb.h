@@ -405,6 +405,35 @@ inline bool DebugCommandType_Parse(
   return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<DebugCommandType>(
     DebugCommandType_descriptor(), name, value);
 }
+enum ItemType : int {
+  ITEM_TYPE_NONE = 0,
+  ITEM_TYPE_HEAL_POTION = 1,
+  ITEM_TYPE_ATTACK_POWER_POTION = 2,
+  ITEM_TYPE_DEFENSE_POTION = 3,
+  ITEM_TYPE_MOVE_SPEED_POTION = 4,
+  ITEM_TYPE_KEY = 5,
+  ItemType_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
+  ItemType_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
+};
+bool ItemType_IsValid(int value);
+constexpr ItemType ItemType_MIN = ITEM_TYPE_NONE;
+constexpr ItemType ItemType_MAX = ITEM_TYPE_KEY;
+constexpr int ItemType_ARRAYSIZE = ItemType_MAX + 1;
+
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* ItemType_descriptor();
+template<typename T>
+inline const std::string& ItemType_Name(T enum_t_value) {
+  static_assert(::std::is_same<T, ItemType>::value ||
+    ::std::is_integral<T>::value,
+    "Incorrect type passed to function ItemType_Name.");
+  return ::PROTOBUF_NAMESPACE_ID::internal::NameOfEnum(
+    ItemType_descriptor(), enum_t_value);
+}
+inline bool ItemType_Parse(
+    ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, ItemType* value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<ItemType>(
+    ItemType_descriptor(), name, value);
+}
 enum BossRoomState : int {
   BOSS_ROOM_STATE_PRE_BOSS_COMBAT = 0,
   BOSS_ROOM_STATE_SUMMON_FADE_IN = 1,
@@ -515,6 +544,11 @@ template <> struct is_proto_enum< ::Protocol::DebugCommandType> : ::std::true_ty
 template <>
 inline const EnumDescriptor* GetEnumDescriptor< ::Protocol::DebugCommandType>() {
   return ::Protocol::DebugCommandType_descriptor();
+}
+template <> struct is_proto_enum< ::Protocol::ItemType> : ::std::true_type {};
+template <>
+inline const EnumDescriptor* GetEnumDescriptor< ::Protocol::ItemType>() {
+  return ::Protocol::ItemType_descriptor();
 }
 template <> struct is_proto_enum< ::Protocol::BossRoomState> : ::std::true_type {};
 template <>
