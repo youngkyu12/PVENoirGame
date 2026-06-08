@@ -25,6 +25,9 @@ public:
 	void UpdateAI(float dt);
 	CMonsterAI* GetMonsterAI() { EnsureAI(); return m_monsterAI.get(); }
 
+protected:
+	virtual bool UsesMonsterAI() const { return true; }
+
 private:
 	void EnsureAI();
 

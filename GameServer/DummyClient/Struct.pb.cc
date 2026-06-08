@@ -122,7 +122,8 @@ constexpr Enemy::Enemy(
   , enemystate_(0)
 
   , weapontype_(0)
-{}
+
+  , hp_(0u){}
 struct EnemyDefaultTypeInternal {
   constexpr EnemyDefaultTypeInternal()
     : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
@@ -219,6 +220,7 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_Struct_2eproto::offsets[] PROT
   PROTOBUF_FIELD_OFFSET(::Protocol::Enemy, transform_),
   PROTOBUF_FIELD_OFFSET(::Protocol::Enemy, animation_),
   PROTOBUF_FIELD_OFFSET(::Protocol::Enemy, weapontype_),
+  PROTOBUF_FIELD_OFFSET(::Protocol::Enemy, hp_),
   ~0u,  // no _has_bits_
   PROTOBUF_FIELD_OFFSET(::Protocol::Building, _internal_metadata_),
   ~0u,  // no _extensions_
@@ -236,7 +238,7 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOB
   { 32, -1, sizeof(::Protocol::Bullet)},
   { 42, -1, sizeof(::Protocol::Player)},
   { 55, -1, sizeof(::Protocol::Enemy)},
-  { 66, -1, sizeof(::Protocol::Building)},
+  { 67, -1, sizeof(::Protocol::Building)},
 };
 
 static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] = {
@@ -268,23 +270,23 @@ const char descriptor_table_protodef_Struct_2eproto[] PROTOBUF_SECTION_VARIABLE(
   "tocol.PlayerState\022&\n\ttransform\030\005 \001(\0132\023.P"
   "rotocol.Transform\022&\n\tanimation\030\006 \001(\0132\023.P"
   "rotocol.Animation\022(\n\nweaponType\030\007 \001(\0162\024."
-  "Protocol.WeaponType\022\n\n\002hp\030\010 \001(\r\"\337\001\n\005Enem"
+  "Protocol.WeaponType\022\n\n\002hp\030\010 \001(\r\"\353\001\n\005Enem"
   "y\022\n\n\002id\030\001 \001(\004\022&\n\tenemyType\030\002 \001(\0162\023.Proto"
   "col.EnemyType\022(\n\nenemyState\030\003 \001(\0162\024.Prot"
   "ocol.EnemyState\022&\n\ttransform\030\004 \001(\0132\023.Pro"
   "tocol.Transform\022&\n\tanimation\030\005 \001(\0132\023.Pro"
   "tocol.Animation\022(\n\nweaponType\030\006 \001(\0162\024.Pr"
-  "otocol.WeaponType\"l\n\010Building\022\n\n\002id\030\001 \001("
-  "\004\022&\n\ttransform\030\002 \001(\0132\023.Protocol.Transfor"
-  "m\022,\n\014buildingType\030\003 \001(\0162\026.Protocol.Build"
-  "ingTypeb\006proto3"
+  "otocol.WeaponType\022\n\n\002hp\030\007 \001(\r\"l\n\010Buildin"
+  "g\022\n\n\002id\030\001 \001(\004\022&\n\ttransform\030\002 \001(\0132\023.Proto"
+  "col.Transform\022,\n\014buildingType\030\003 \001(\0162\026.Pr"
+  "otocol.BuildingTypeb\006proto3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_Struct_2eproto_deps[1] = {
   &::descriptor_table_Enum_2eproto,
 };
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_Struct_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_Struct_2eproto = {
-  false, false, 1055, descriptor_table_protodef_Struct_2eproto, "Struct.proto", 
+  false, false, 1067, descriptor_table_protodef_Struct_2eproto, "Struct.proto", 
   &descriptor_table_Struct_2eproto_once, descriptor_table_Struct_2eproto_deps, 1, 8,
   schemas, file_default_instances, TableStruct_Struct_2eproto::offsets,
   file_level_metadata_Struct_2eproto, file_level_enum_descriptors_Struct_2eproto, file_level_service_descriptors_Struct_2eproto,
@@ -2095,16 +2097,16 @@ Enemy::Enemy(const Enemy& from)
     animation_ = nullptr;
   }
   ::memcpy(&id_, &from.id_,
-    static_cast<size_t>(reinterpret_cast<char*>(&weapontype_) -
-    reinterpret_cast<char*>(&id_)) + sizeof(weapontype_));
+    static_cast<size_t>(reinterpret_cast<char*>(&hp_) -
+    reinterpret_cast<char*>(&id_)) + sizeof(hp_));
   // @@protoc_insertion_point(copy_constructor:Protocol.Enemy)
 }
 
 void Enemy::SharedCtor() {
 ::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
     reinterpret_cast<char*>(&transform_) - reinterpret_cast<char*>(this)),
-    0, static_cast<size_t>(reinterpret_cast<char*>(&weapontype_) -
-    reinterpret_cast<char*>(&transform_)) + sizeof(weapontype_));
+    0, static_cast<size_t>(reinterpret_cast<char*>(&hp_) -
+    reinterpret_cast<char*>(&transform_)) + sizeof(hp_));
 }
 
 Enemy::~Enemy() {
@@ -2144,8 +2146,8 @@ void Enemy::Clear() {
   }
   animation_ = nullptr;
   ::memset(&id_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&weapontype_) -
-      reinterpret_cast<char*>(&id_)) + sizeof(weapontype_));
+      reinterpret_cast<char*>(&hp_) -
+      reinterpret_cast<char*>(&id_)) + sizeof(hp_));
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
@@ -2198,6 +2200,13 @@ const char* Enemy::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::inte
           ::PROTOBUF_NAMESPACE_ID::uint64 val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
           CHK_(ptr);
           _internal_set_weapontype(static_cast<::Protocol::WeaponType>(val));
+        } else goto handle_unusual;
+        continue;
+      // uint32 hp = 7;
+      case 7:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 56)) {
+          hp_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
         } else goto handle_unusual;
         continue;
       default: {
@@ -2272,6 +2281,12 @@ failure:
       6, this->_internal_weapontype(), target);
   }
 
+  // uint32 hp = 7;
+  if (this->hp() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteUInt32ToArray(7, this->_internal_hp(), target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -2327,6 +2342,13 @@ size_t Enemy::ByteSizeLong() const {
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::EnumSize(this->_internal_weapontype());
   }
 
+  // uint32 hp = 7;
+  if (this->hp() != 0) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::UInt32Size(
+        this->_internal_hp());
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     return ::PROTOBUF_NAMESPACE_ID::internal::ComputeUnknownFieldsSize(
         _internal_metadata_, total_size, &_cached_size_);
@@ -2376,6 +2398,9 @@ void Enemy::MergeFrom(const Enemy& from) {
   if (from.weapontype() != 0) {
     _internal_set_weapontype(from._internal_weapontype());
   }
+  if (from.hp() != 0) {
+    _internal_set_hp(from._internal_hp());
+  }
 }
 
 void Enemy::CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) {
@@ -2400,8 +2425,8 @@ void Enemy::InternalSwap(Enemy* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(Enemy, weapontype_)
-      + sizeof(Enemy::weapontype_)
+      PROTOBUF_FIELD_OFFSET(Enemy, hp_)
+      + sizeof(Enemy::hp_)
       - PROTOBUF_FIELD_OFFSET(Enemy, transform_)>(
           reinterpret_cast<char*>(&transform_),
           reinterpret_cast<char*>(&other->transform_));

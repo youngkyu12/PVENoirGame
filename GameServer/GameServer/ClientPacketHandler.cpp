@@ -7,12 +7,12 @@
 
 PacketHandlerFunc GPacketHandler[UINT16_MAX];
 
-// ÄÁÅÙÃ÷ ÀÛ¾÷ÀÚ°¡ Á÷Á¢
+// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Û¾ï¿½ï¿½Ú°ï¿½ ï¿½ï¿½ï¿½ï¿½
 
 bool Handle_INVALID(PacketSessionRef& session, BYTE* buffer, int32 len)
 {
 	PacketHeader* header = reinterpret_cast<PacketHeader*>(buffer);
-	// TODO : ·Î±× ³²±â±â
+	// TODO : ï¿½Î±ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½
 	return false;
 }
 
@@ -25,16 +25,18 @@ bool Handle_C_LOGIN(PacketSessionRef& session, Protocol::C_LOGIN& pkt)
 	Protocol::S_LOGIN loginPkt;
 	loginPkt.set_success(true);
 
-	// DB¿¡¼­ ÇÃ·¹ÀÌ Á¤º¸ °¡Á®¿À±â
-	// GameSession¿¡ ÇÃ·¹ÀÌ Á¤º¸ ÀúÀå (¸Þ¸ð¸®)
+	// DBï¿½ï¿½ï¿½ï¿½ ï¿½Ã·ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+	// GameSessionï¿½ï¿½ ï¿½Ã·ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½Þ¸ï¿½)
 
-	// ID ¹ß±Þ
+	// ID ë°œê¸‰
 	static Atomic<uint64> idGenerator = 0;
-	if(idGenerator < MaxPlayers) // ÀÎ¿ø¼ö Á¦ÇÑ
+	uint64 playerId = idGenerator.fetch_add(1);
+
+	if (playerId < static_cast<uint64>(MaxPlayers)) // ï¿½Î¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	{
-		loginPkt.set_playerid(idGenerator);
+		loginPkt.set_playerid(playerId);
 		auto player = loginPkt.add_players();
-		player->set_id(idGenerator++);
+		player->set_id(playerId);
 		player->set_name(u8"Player");
 		player->set_playertype(Protocol::PLAYER_TYPE_KNIGHT);
 
@@ -58,6 +60,9 @@ bool Handle_C_LOGIN(PacketSessionRef& session, Protocol::C_LOGIN& pkt)
 	std::cout << "ByteSizeLong=" << loginPkt.ByteSizeLong() << "\n";
 	auto SendBuffer = ClientPacketHandler::MakeSendBuffer(loginPkt);
 	session->Send(SendBuffer);
+
+	if (!loginPkt.success())
+		session->Disconnect(L"Room full");
 
 	return true;
 }
@@ -108,10 +113,33 @@ bool Handle_C_INPUT(PacketSessionRef& session, Protocol::C_INPUT& pkt)
 {
 	GameSessionRef gameSession = static_pointer_cast<GameSession>(session);
 
-	// TODO: ÇØ´ç ÇÃ·¹ÀÌ¾îÀÇ id¿¡ À§Ä¡ ¾÷µ¥ÀÌÆ® Àû¿ë
+	// TODO: ï¿½Ø´ï¿½ ï¿½Ã·ï¿½ï¿½Ì¾ï¿½ï¿½ï¿½ idï¿½ï¿½ ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½
 	GRoom->DoAsync(&Room::ProcessInput, pkt.playerid(), pkt.keycodes(), 
 		pkt.deltax(), pkt.deltay(), pkt.clientdeltatime());
 
+	return true;
+}
+
+bool Handle_C_DEBUG_COMMAND(PacketSessionRef& session, Protocol::C_DEBUG_COMMAND& pkt)
+{
+	if (pkt.commandtype() == Protocol::DEBUG_COMMAND_KILL_MEGA5_ENEMIES)
+	{
+		GRoom->DoAsync(&Room::DebugKillMega5Enemies);
+	}
+	else if (pkt.commandtype() == Protocol::DEBUG_COMMAND_TELEPORT_TO_MEGA_GRID)
+	{
+		GameSessionRef gameSession = static_pointer_cast<GameSession>(session);
+		if (gameSession->_currentPlayer)
+		{
+			uint64 pid = gameSession->_currentPlayer->GetObjectId();
+			int grid = pkt.megagridnumber();
+			GRoom->DoAsync(&Room::DebugTeleportToMegaGrid, pid, grid);
+		}
+	}
+	else if (pkt.commandtype() == Protocol::DEBUG_COMMAND_DAMAGE_BOSS)
+	{
+		GRoom->DoAsync(&Room::DebugDamageBoss);
+	}
 	return true;
 }
 

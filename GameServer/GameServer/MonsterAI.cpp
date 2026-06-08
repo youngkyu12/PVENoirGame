@@ -88,6 +88,13 @@ void CMonsterAI::OnUpdate(float dt)
 				GetOwner()->SetAnimTick(GRoom->GetAnimClockTick());
 				m_attackCooldownRemaining = m_attackCooldownSec;
 				m_postAttackMoveLockRemaining = m_postAttackMoveLockDuration;
+
+				if (static_cast<CEnemy*>(GetOwner())->GetWeaponState() == Protocol::WEAPON_TYPE_BOW)
+				{
+					constexpr float  kEnemyArrowSpeed     = 14.0f;
+					constexpr uint32 kEnemyArrowLifeTicks = 375;
+					GRoom->FireEnemyArrow(GetOwner(), kEnemyArrowSpeed, kEnemyArrowLifeTicks);
+				}
 			}
 			return;
 		}
@@ -108,6 +115,7 @@ void CMonsterAI::OnUpdate(float dt)
 		return;
 	}
 
+	const bool wasChasing = m_isChasing;
 	if (!AcquireTarget())
 	{
 		m_pTarget = nullptr;
@@ -115,10 +123,12 @@ void CMonsterAI::OnUpdate(float dt)
 		m_trianglePath.clear();
 		m_currentPathIndex = 0;
 
-		if (!IsAtHome())
+		if (wasChasing && !IsAtHome())
 			BeginReturnHome();
 		else if (UpdateIdlePatrol(dt))
 			return;
+		else if (!IsAtHome())
+			BeginReturnHome();
 		else
 			GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
 		return;
@@ -143,6 +153,13 @@ void CMonsterAI::OnUpdate(float dt)
 			GetOwner()->SetAnimTick(GRoom->GetAnimClockTick());
 			m_attackCooldownRemaining = m_attackCooldownSec;
 			m_postAttackMoveLockRemaining = m_postAttackMoveLockDuration;
+
+			if (static_cast<CEnemy*>(GetOwner())->GetWeaponState() == Protocol::WEAPON_TYPE_BOW)
+			{
+				constexpr float  kEnemyArrowSpeed     = 14.0f;
+				constexpr uint32 kEnemyArrowLifeTicks = 375;
+				GRoom->FireEnemyArrow(GetOwner(), kEnemyArrowSpeed, kEnemyArrowLifeTicks);
+			}
 		}
 		return;
 	}
@@ -302,6 +319,31 @@ void CMonsterAI::FaceTowards(const GameMath::Vec3& goal)
 	const float yawDeg = atan2f(dx, dz) * GameMath::RAD_TO_DEG;
 	if (auto* tr = GetOwner()->GetComponent<CCommonTransformComponent>())
 		tr->SetYawDegrees(yawDeg);
+}
+
+bool CMonsterAI::RotateOwnerYawTowards(float targetYawDeg, float maxStepDeg)
+{
+	if (!GetOwner())
+		return false;
+
+	const float currentYaw = GetOwner()->GetYaw();
+	const float targetYaw = GameMath::NormalizeYaw(targetYawDeg);
+	float deltaYaw = targetYaw - currentYaw;
+	if (deltaYaw > 180.0f)
+		deltaYaw -= 360.0f;
+	else if (deltaYaw < -180.0f)
+		deltaYaw += 360.0f;
+
+	const float absDelta = fabsf(deltaYaw);
+	if (absDelta <= maxStepDeg)
+	{
+		GetOwner()->SetYaw(targetYaw);
+		return true;
+	}
+
+	const float step = (deltaYaw > 0.0f) ? maxStepDeg : -maxStepDeg;
+	GetOwner()->SetYaw(currentYaw + step);
+	return false;
 }
 
 bool CMonsterAI::MoveTowards(const GameMath::Vec3& goal, float maxStep, bool clampToMovementBounds)
@@ -496,6 +538,7 @@ bool CMonsterAI::BeginReturnHome()
 {
 	m_bReturningHome = true;
 	m_pTarget = nullptr;
+	ResetPatrolState();
 	m_currentPath.clear();
 	m_trianglePath.clear();
 	m_currentPathIndex = 0;
@@ -654,6 +697,7 @@ void CMonsterAI::ResetPatrolState()
 	m_bPatrolInitialized = false;
 	m_bPatrolTurning = false;
 	m_patrolTargetSign = 1;
+	m_patrolTurnTargetYawDeg = 0.0f;
 }
 
 GameMath::Vec3 CMonsterAI::GetPatrolEndpoint(int targetSign) const
@@ -666,6 +710,15 @@ GameMath::Vec3 CMonsterAI::GetPatrolEndpoint(int targetSign) const
 		m_homePosition.z + forward.z * m_patrolHalfDistance * static_cast<float>(sign));
 }
 
+float CMonsterAI::GetPatrolFacingYawDegreesForTargetSign(int targetSign) const
+{
+	const int sign = (targetSign < 0) ? -1 : 1;
+	const GameMath::Vec3 forward = GameMath::YawToLook(m_homeYawDeg);
+	return GameMath::NormalizeYaw(
+		atan2f(forward.x * static_cast<float>(sign), forward.z * static_cast<float>(sign)) *
+		GameMath::RAD_TO_DEG);
+}
+
 bool CMonsterAI::UpdateIdlePatrol(float dt)
 {
 	if (!m_bPatrolEnabled || m_bReturningHome || !GetOwner())
@@ -676,6 +729,7 @@ bool CMonsterAI::UpdateIdlePatrol(float dt)
 		m_bPatrolInitialized = true;
 		m_bPatrolTurning = false;
 		m_patrolTargetSign = 1;
+		m_patrolTurnTargetYawDeg = GetPatrolFacingYawDegreesForTargetSign(m_patrolTargetSign);
 	}
 
 	if (dt <= 0.f || !CanMoveNow())
@@ -684,17 +738,27 @@ bool CMonsterAI::UpdateIdlePatrol(float dt)
 		return true;
 	}
 
+	if (m_bPatrolTurning)
+	{
+		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_WALK);
+		if (RotateOwnerYawTowards(m_patrolTurnTargetYawDeg, m_patrolTurnSpeedDegrees * dt))
+			m_bPatrolTurning = false;
+		return true;
+	}
+
 	const GameMath::Vec3 endpoint = GetPatrolEndpoint(m_patrolTargetSign);
 	if (DistSqXZ(GetOwner()->GetPosition(), endpoint) <=
 		m_patrolEndpointReachDistance * m_patrolEndpointReachDistance)
 	{
 		m_patrolTargetSign = -m_patrolTargetSign;
+		m_patrolTurnTargetYawDeg = GetPatrolFacingYawDegreesForTargetSign(m_patrolTargetSign);
 		m_bPatrolTurning = true;
 		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_WALK);
+		RotateOwnerYawTowards(m_patrolTurnTargetYawDeg, m_patrolTurnSpeedDegrees * dt);
 		return true;
 	}
 
-	const float moveDistance = m_moveSpeed * dt;
+	const float moveDistance = m_walkMoveSpeed * dt;
 	if (moveDistance <= 0.f)
 		return true;
 

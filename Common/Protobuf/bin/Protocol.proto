@@ -13,8 +13,8 @@ message C_LOGIN
 message S_LOGIN
 {
 	bool success = 1;
-	repeated Player players = 2;	// id 발급 이전
-	uint32 playerId = 3;	// id 발급 이후
+	repeated Player players = 2;	// Before player id assignment
+	uint32 playerId = 3;	// Assigned player id
 }
 
 message C_ENTER_GAME
@@ -39,12 +39,12 @@ message C_GAME_START
 
 message S_GAME_START
 {
-	// 월드의 초기 상태를 전달
+	// Initial dynamic world manifest.
 	InitStruct initStruct = 1;
 	string mapId = 2;
 }
 
-// 게임이 시작된 후, 클라이언트가 준비되었음을 서버에 알리는 메시지
+// Sent after the client finishes loading and is ready to play.
 message C_CLIENT_READY
 {
 	uint32 playerId = 1;
@@ -53,9 +53,9 @@ message C_CLIENT_READY
 
 message C_INPUT
 {
-	// 1. 키보드 입력
+	// Keyboard input bits.
 	// 0: up, 1: down, 2: left, 3: right, 4: attack
-	// 2. 마우스 입력
+	// Mouse input deltas.
 	// deltaX, deltaY
 
 	uint64 playerid = 1;
@@ -67,11 +67,12 @@ message C_INPUT
 
 message S_FRAME_STATE
 {
-	// 서버의 Tick을 같이 전송
+	// Server-authoritative frame snapshot.
 	uint32 serverTick = 1;
 	repeated Player players = 2;
 	repeated Enemy enemies = 3;
 	repeated Bullet bullets = 4;
+	BossRoomState bossRoomState = 5;
 }
 
 message S_FORCED_TRANSFORM
@@ -79,4 +80,10 @@ message S_FORCED_TRANSFORM
 	uint64 playerId = 1;
 	float yawDelta = 2;
 	ForcedTransformReason reason = 3;
+}
+
+message C_DEBUG_COMMAND
+{
+	DebugCommandType commandType = 1;
+	int32 megaGridNumber = 2;
 }

@@ -40,6 +40,8 @@ namespace GameSceneHelper
 		bool hit = false;
 		bool roll = false;
 		bool attack = false;
+		bool bossSpell = false;
+		bool bossCall  = false;
 	};
 
 	void ConfigureProjectileCollider(CColliderComponent* collider, bool firedByPlayer);

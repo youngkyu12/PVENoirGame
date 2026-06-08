@@ -6333,7 +6333,6 @@ void CGameScene::ScheduleBossStageBossPositionRestore(
 
 void CGameScene::UpdateBossStageBossPositionRestores()
 {
-#ifndef USING_NETWORK
 	for ( auto& kv : m_bossStageBossPositionStates )
 	{
 		CGameObject* boss = kv.first;
@@ -6371,7 +6370,6 @@ void CGameScene::UpdateBossStageBossPositionRestores()
 
 		state.pendingRestore = false;
 	}
-#endif
 }
 
 bool CGameScene::IsBossStageBossRenderAllowed(const CGameObject* boss) const
@@ -6416,7 +6414,6 @@ void CGameScene::SetBossStageBossRenderAllowed(
 
 void CGameScene::UpdateBossStageBossRenderGate()
 {
-#ifndef USING_NETWORK
 	for ( auto& kv : m_bossStageBossPositionStates )
 	{
 		CGameObject* boss = kv.first;
@@ -6468,7 +6465,6 @@ void CGameScene::UpdateBossStageBossRenderGate()
 			state.appearFinished = true;
 		}
 	}
-#endif
 }
 
 void CGameScene::SetBossStageBossActive(
@@ -6648,7 +6644,6 @@ void CGameScene::SetBossStageBossActive(
 
 CGameObject* CGameScene::FindBossStageBossInMegaGrid(int megaGridNumber) const
 {
-#ifndef USING_NETWORK
 	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
 		return nullptr;
 
@@ -6669,9 +6664,6 @@ CGameObject* CGameScene::FindBossStageBossInMegaGrid(int megaGridNumber) const
 		if ( bossMegaNumber == megaGridNumber )
 			return boss;
 	}
-#else
-	UNREFERENCED_PARAMETER(megaGridNumber);
-#endif
 
 	return nullptr;
 }
@@ -6718,6 +6710,25 @@ bool CGameScene::TryBeginBossStageSummonSequence()
 	return true;
 #endif
 
+#ifdef USING_NETWORK
+	if ( m_bBossStageBossActivated ) return false;
+	if ( m_bBossSummonSequenceStarted ) return false;
+
+	CGameObject* boss = FindBossStageBossInMegaGrid(5);
+	XMFLOAT3 summonCenter = XMFLOAT3( 0.0f, 0.0f, 400.0f );
+	summonCenter.y = 0.0f;
+
+	m_pendingBossStageBoss = boss;
+	m_bBossSummonSequenceStarted = true;
+	m_bBossSummonCircleFadeAgeSec = 0.0f;
+	m_bBossSummonVisualFadeOutStarted = false;
+	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
+
+	SpawnBossSummonVisuals(summonCenter, 0.0f);
+	PlayBossSummonCircleSfxAt(summonCenter);
+	return true;
+#endif
+
 	return false;
 }
 
@@ -6761,18 +6772,41 @@ bool CGameScene::TryActivateBossStageBoss()
 	return true;
 #endif
 
+#ifdef USING_NETWORK
+	if ( m_bBossStageBossActivated ) return false;
+
+	CGameObject* boss = m_pendingBossStageBoss;
+	if ( !boss )
+		boss = FindBossStageBossInMegaGrid(5);
+	if ( !boss ) return false;
+
+	XMFLOAT3 shockwaveCenter = XMFLOAT3( 0.0f, 0.0f, 400.0f );
+	shockwaveCenter.y = 0.0f;
+
+	SetBossStageBossActive(boss, true, true);
+	SpawnBossShockwave(shockwaveCenter);
+
+	m_bBossStageBossActivated = true;
+	m_bBossSummonSequenceStarted = false;
+	m_bBossSummonCircleFadeAgeSec = kBossSummonCircleFadeInDurationSec;
+	m_pendingBossStageBoss = nullptr;
+
+	StartBossSummonVisualFadeOut();
+	return true;
+#endif
+
 	return false;
 }
 
 void CGameScene::UpdateBossStageSummonSequence(float dt)
 {
-#ifndef USING_NETWORK
 	if ( !m_bBossSummonSequenceStarted )
 		return;
 
 	if ( m_bBossStageBossActivated )
 		return;
 
+#ifndef USING_NETWORK
 	if ( !m_pendingBossStageBoss )
 	{
 		m_bBossSummonSequenceStarted = false;
@@ -6784,6 +6818,7 @@ void CGameScene::UpdateBossStageSummonSequence(float dt)
 
 		return;
 	}
+#endif
 
 	if ( dt < 0.0f )
 		dt = 0.0f;
@@ -6820,26 +6855,22 @@ void CGameScene::UpdateBossStageSummonSequence(float dt)
 	if ( alpha < 1.0f )
 		return;
 
+#ifndef USING_NETWORK
 	TryActivateBossStageBoss();
-#else
-	UNREFERENCED_PARAMETER(dt);
 #endif
 }
 
 void CGameScene::StartBossSummonVisualFadeOut()
 {
-#ifndef USING_NETWORK
 	m_bBossSummonVisualFadeOutStarted = true;
 	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
 
 	SetBossSummonVisualActive(true);
 	SetBossSummonVisualAlpha(1.0f);
-#endif
 }
 
 void CGameScene::UpdateBossSummonVisualFadeOut(float dt)
 {
-#ifndef USING_NETWORK
 	if ( !m_bBossSummonVisualFadeOutStarted )
 		return;
 
@@ -6892,9 +6923,6 @@ void CGameScene::UpdateBossSummonVisualFadeOut(float dt)
 	m_bBossSummonVisualFadeOutStarted = false;
 	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
 	m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
-#else
-	UNREFERENCED_PARAMETER(dt);
-#endif
 }
 
 void CGameScene::RegisterMutantKeyTriggerIfNeeded(
@@ -7813,6 +7841,79 @@ float CGameScene::LerpYawDegrees(float a, float b, float t)
 	while (result < 0.0f) result += 360.0f;
 	return result;
 }
+
+float CGameScene::SampleClientTerrainY(float worldX, float worldZ, float fallbackY) const
+{
+	if ( !m_TerrainData )
+		return fallbackY;
+
+	const XMFLOAT3 terrainPos = m_TerrainData->GetWorldPosition();
+	const float localX = worldX - terrainPos.x;
+	const float localZ = worldZ - terrainPos.z;
+
+	if ( localX < 0.0f || localZ < 0.0f ||
+		 localX >= m_TerrainData->GetWorldWidth() ||
+		 localZ >= m_TerrainData->GetWorldLength() )
+		return fallbackY;
+
+	return terrainPos.y + m_TerrainData->GetHeight(localX, localZ);
+}
+
+XMFLOAT3 CGameScene::ResolveNetworkActorY(
+	uint64_t actorId,
+	bool isPlayer,
+	const XMFLOAT3& serverPos,
+	float dt)
+{
+	constexpr float kEnterServerYThreshold = 1.0f;
+	constexpr float kExitServerYThreshold = 0.25f;
+	constexpr float kServerYHoldSeconds = 0.5f;
+
+	XMFLOAT3 resolved = serverPos;
+	const float terrainY = SampleClientTerrainY(serverPos.x, serverPos.z, serverPos.y);
+	const float serverDelta = std::fabs(serverPos.y - terrainY);
+
+	auto& states = isPlayer ? m_networkPlayerYStates : m_networkEnemyYStates;
+	NetworkActorYState& yState = states[actorId];
+
+	if ( !yState.useServerY )
+	{
+		if ( serverDelta > kEnterServerYThreshold )
+		{
+			yState.useServerY = true;
+			yState.serverYHoldSec = kServerYHoldSeconds;
+		}
+	}
+	else
+	{
+		if ( yState.serverYHoldSec > 0.0f )
+			yState.serverYHoldSec = std::max(0.0f, yState.serverYHoldSec - dt);
+		else if ( serverDelta < kExitServerYThreshold )
+			yState.useServerY = false;
+	}
+
+	resolved.y = yState.useServerY ? serverPos.y : terrainY;
+	return resolved;
+}
+
+void CGameScene::ApplyNetworkPredictedTerrainY(CGameObject* obj)
+{
+	if ( !obj )
+		return;
+
+	const int slot = m_localPlayerSlot;
+	NetworkActorYState& yState = m_networkPlayerYStates[static_cast<uint64_t>(slot)];
+	if ( yState.useServerY )
+		return;
+
+	XMFLOAT3 pos = obj->GetPosition();
+	const float terrainY = SampleClientTerrainY(pos.x, pos.z, pos.y);
+	if ( std::fabs(pos.y - terrainY) <= 0.001f )
+		return;
+
+	pos.y = terrainY;
+	obj->SetPosition(pos);
+}
 #endif
 
 void CGameScene::AnimateObjects(float dt)
@@ -7835,6 +7936,15 @@ void CGameScene::AnimateObjects(float dt)
 	UpdateBossCallSummonWwwEffects(dt);
 
 	UpdateEnemySpawnerTimedGhoulWaves(dt);
+#else
+	UpdateBossStageBossPositionRestores();
+	UpdateBossStageBossRenderGate();
+
+	UpdateBossSummonVisualFadeOut(dt);
+	UpdateBossStageSummonSequence(dt);
+	UpdateBossShockwave(dt);
+	UpdateBossCallSummonCircles(dt);
+	UpdateBossCallSummonWwwEffects(dt);
 #endif
 
 	UpdateMuzzleFlashes(dt);
@@ -7926,6 +8036,20 @@ void CGameScene::AnimateObjects(float dt)
 			m_frameSnapshotBuffer.empty() ? receivedSnapshot : m_frameSnapshotBuffer.back();
 		FrameSnapshot snapshot = BuildInterpolatedFrameSnapshot(latestSnapshot);
 
+		const uint32_t newBossRoomState = receivedSnapshot.bossRoomState;
+		if ( newBossRoomState != m_serverBossRoomState )
+		{
+			const uint32_t prevState = m_serverBossRoomState;
+			m_serverBossRoomState = newBossRoomState;
+
+			if ( newBossRoomState == 1 ) // SummonFadeIn
+				TryBeginBossStageSummonSequence();
+			else if ( newBossRoomState == 3 ) // BossActive
+				TryActivateBossStageBoss();
+			else if ( newBossRoomState >= 4 ) // BossDead or Cleared
+				MarkMegaGridClearedByNumber(5);
+		}
+
         // Player 좌표 업데이트
         for (const auto& state : snapshot.players)
         {
@@ -7935,6 +8059,8 @@ void CGameScene::AnimateObjects(float dt)
             if (!player) continue;
 
 			const bool isLocalPlayer = ( slot == m_localPlayerSlot );
+			const XMFLOAT3 resolvedPosition =
+				ResolveNetworkActorY(state.id, true, state.position, dt);
 
 			if ( auto* hp = player->GetComponent<CHealthComponent>() )
 				hp->SetCurrentHp(static_cast< int >( state.hp ));
@@ -7946,14 +8072,14 @@ void CGameScene::AnimateObjects(float dt)
 					kLocalPlayerServerSnapDistance * kLocalPlayerServerSnapDistance;
 
                 const XMFLOAT3 currentPos = player->GetPosition();
-                const float dx = state.position.x - currentPos.x;
-                const float dy = state.position.y - currentPos.y;
-                const float dz = state.position.z - currentPos.z;
+                const float dx = resolvedPosition.x - currentPos.x;
+                const float dy = resolvedPosition.y - currentPos.y;
+                const float dz = resolvedPosition.z - currentPos.z;
                 const float distSq = dx * dx + dy * dy + dz * dz;
 
                 if (distSq > kLocalPlayerServerSnapDistanceSq)
                 {
-                    player->SetPosition(state.position.x, state.position.y, state.position.z);
+                    player->SetPosition(resolvedPosition.x, resolvedPosition.y, resolvedPosition.z);
 
 					if ( auto* tr = player->GetComponent<CTransformComponent>() )
 						tr->SetYawDegrees(state.yaw);
@@ -7964,7 +8090,7 @@ void CGameScene::AnimateObjects(float dt)
             }
             else
             {
-                player->SetPosition(state.position.x, state.position.y, state.position.z);
+                player->SetPosition(resolvedPosition.x, resolvedPosition.y, resolvedPosition.z);
 
 				// yaw 회전 적용
 				if (auto* tr = player->GetComponent<CTransformComponent>())
@@ -8114,21 +8240,26 @@ void CGameScene::AnimateObjects(float dt)
 			}
 
 			// DR 상태 갱신: 최초엔 서버 위치로 초기화, 이후엔 소프트 교정
+			const XMFLOAT3 resolvedServerPosition =
+				ResolveNetworkActorY(state.id, false, state.position, dt);
 			EnemyDRState& dr = m_enemyDRStates[state.id];
 			if ( !dr.initialized )
 			{
-				dr.predictedPos = state.position;
+				dr.predictedPos = resolvedServerPosition;
 				dr.initialized  = true;
 			}
 			else
 			{
 				constexpr float kCorrectionAlpha = 0.35f;
-				dr.predictedPos = LerpPosition(dr.predictedPos, state.position, kCorrectionAlpha);
+				dr.predictedPos = LerpPosition(dr.predictedPos, resolvedServerPosition, kCorrectionAlpha);
 			}
 			dr.moveDir = moveDir;
 			dr.speed   = drSpeed;
 
 			obj->SetPosition(dr.predictedPos.x, dr.predictedPos.y, dr.predictedPos.z);
+
+			if ( auto* hp = obj->GetComponent<CHealthComponent>() )
+				hp->SetCurrentHp(static_cast<int>(state.hp));
 
 			if ( auto* tr = obj->GetComponent<CTransformComponent>() )
 				tr->SetYawDegrees(state.yaw);
@@ -8171,6 +8302,16 @@ void CGameScene::AnimateObjects(float dt)
 						ctrl->RequestCommand(EMonsterAnimCommand::Attack);
 					}
 
+					else if ( decoded.bossSpell && !prevDecoded.bossSpell )
+					{
+						ctrl->RequestCommand(EMonsterAnimCommand::Spell);
+					}
+
+					else if ( decoded.bossCall && !prevDecoded.bossCall )
+					{
+						ctrl->RequestCommand(EMonsterAnimCommand::Call);
+					}
+
 					m_prevEnemyNetworkStateCode[state.id] = state.animation.stateCode;
 					ctrl->Update(0.0f);
 				}
@@ -8180,6 +8321,7 @@ void CGameScene::AnimateObjects(float dt)
 		// Projectile 동기화
 		std::unordered_set<uint64_t> visibleArrowIds;
 		std::unordered_set<uint64_t> visibleBulletIds;
+		std::unordered_set<uint64_t> visibleBossPoisonIds;
 
 		auto AcquireNetworkProjectile = [] (
 			const std::vector<CGameObject*>& refs,
@@ -8208,9 +8350,7 @@ void CGameScene::AnimateObjects(float dt)
 
 		for (const auto& b : snapshot.bullets)
 		{
-			const bool isArrow = (b.bulletType == 1u); // Protocol::BULLET_TYPE_ARROW
-
-			if (isArrow)
+			if (b.bulletType == 1u) // BULLET_TYPE_ARROW
 			{
 				visibleArrowIds.insert(b.id);
 
@@ -8234,7 +8374,47 @@ void CGameScene::AnimateObjects(float dt)
 						arrowtransform->SetLookDirection(b.velocity);
 				}
 			}
-			else
+			else if (b.bulletType == 3u) // BULLET_TYPE_BOSS_POISON
+			{
+				visibleBossPoisonIds.insert(b.id);
+
+				int entryIdx = -1;
+				auto it = m_networkBossPoisonById.find(b.id);
+				if (it != m_networkBossPoisonById.end())
+				{
+					entryIdx = it->second;
+				}
+				else
+				{
+					auto& pool = m_bossPoisonProjectileEffect.entries;
+					for (int i = 0; i < (int)pool.size(); ++i)
+					{
+						bool inUse = false;
+						for (auto& kv : m_networkBossPoisonById)
+							if (kv.second == i) { inUse = true; break; }
+						if (!inUse) { entryIdx = i; m_networkBossPoisonById[b.id] = i; break; }
+					}
+				}
+
+				if (entryIdx < 0 || entryIdx >= (int)m_bossPoisonProjectileEffect.entries.size()) continue;
+
+				auto& entry = m_bossPoisonProjectileEffect.entries[entryIdx];
+				entry.active   = true;
+				entry.owner    = nullptr;
+				entry.position = b.position;
+				entry.velocity = b.velocity;
+
+				float spd = std::sqrt(b.velocity.x*b.velocity.x + b.velocity.y*b.velocity.y + b.velocity.z*b.velocity.z);
+				if (spd > 0.001f)
+					entry.direction = XMFLOAT3(b.velocity.x/spd, b.velocity.y/spd, b.velocity.z/spd);
+
+				entry.coreDiameter = 4.0f;
+				entry.coreRadius   = 2.0f;
+				entry.gasDiameter  = 8.0f;
+				entry.speed        = 18.0f;
+				entry.visualSeed   = static_cast<float>(b.id % 1000);
+			}
+			else // BULLET_TYPE_CANNONBALL etc.
 			{
 				visibleBulletIds.insert(b.id);
 
@@ -8288,6 +8468,16 @@ void CGameScene::AnimateObjects(float dt)
 					bullet->Deactivate();
 			}
 			it = m_networkBulletById.erase(it);
+		}
+
+		for (auto it = m_networkBossPoisonById.begin(); it != m_networkBossPoisonById.end(); )
+		{
+			if (visibleBossPoisonIds.count(it->first)) { ++it; continue; }
+
+			int idx = it->second;
+			if (idx >= 0 && idx < (int)m_bossPoisonProjectileEffect.entries.size())
+				m_bossPoisonProjectileEffect.entries[idx].active = false;
+			it = m_networkBossPoisonById.erase(it);
 		}
 
 		// 사용이 끝난 data는 기본값으로 초기화 (선택적)
