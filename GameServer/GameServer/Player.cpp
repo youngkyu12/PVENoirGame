@@ -159,3 +159,45 @@ void Player::Respawn(uint32 serverTick)
 {
     OnRespawnEnter(serverTick);
 }
+
+int Player::GetInventoryCount(Protocol::ItemType kind) const
+{
+    const int slot = static_cast<int>(kind) - 1;
+    if (slot < 0 || slot >= kInventorySlotCount) return 0;
+    return m_inventoryCounts[static_cast<size_t>(slot)];
+}
+
+void Player::AddInventoryItem(Protocol::ItemType kind)
+{
+    const int slot = static_cast<int>(kind) - 1;
+    if (slot < 0 || slot >= kInventorySlotCount) return;
+    ++m_inventoryCounts[static_cast<size_t>(slot)];
+}
+
+bool Player::UseInventoryItem(Protocol::ItemType kind, uint64 serverMs)
+{
+    const int slot = static_cast<int>(kind) - 1;
+    if (slot < 0 || slot >= kInventorySlotCount) return false;
+    if (m_inventoryCounts[static_cast<size_t>(slot)] <= 0) return false;
+
+    --m_inventoryCounts[static_cast<size_t>(slot)];
+
+    switch (kind)
+    {
+    case Protocol::ITEM_TYPE_HEAL_POTION:
+        Heal(kHealPotionAmount);
+        break;
+    case Protocol::ITEM_TYPE_ATTACK_POWER_POTION:
+        m_attackBuffEndMs = serverMs + kBuffDurationMs;
+        break;
+    case Protocol::ITEM_TYPE_DEFENSE_POTION:
+        m_defenseBuffEndMs = serverMs + kBuffDurationMs;
+        break;
+    case Protocol::ITEM_TYPE_MOVE_SPEED_POTION:
+        m_speedBuffEndMs = serverMs + kBuffDurationMs;
+        break;
+    default:
+        break;
+    }
+    return true;
+}
