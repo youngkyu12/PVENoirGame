@@ -39,8 +39,11 @@ public:
 		ELayer layer = ELayer::Content;
 		bool visible = true;
 
-		// 0: normal, 1: disabled/desaturated, 2: force white text
+		// 0: normal, 1: disabled/desaturated, 2: force white text, 3: solid rect, 4: poison edge overlay
 		int effectKind = 0;
+
+		XMFLOAT4 color = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+		XMFLOAT4 params0 = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 	};
 
 public:
@@ -63,6 +66,7 @@ public:
 		bool visible = true
 	);
 	int AddSolidRect(const char* name, const XMFLOAT4& rect, ELayer layer, bool visible = true);
+	int AddSolidRect(const char* name, const XMFLOAT4& rect, ELayer layer, bool visible, const XMFLOAT4& color, int effectKind, const XMFLOAT4& params0 = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f));
 
 	int AddFitSprite(
 		ID3D12Device* dev,
@@ -83,6 +87,9 @@ public:
 	void SetSpriteVisible(int spriteIndex, bool visible);
 	void SetLayerVisible(ELayer layer, bool visible);
 	bool SetSpriteEffectKind(int spriteIndex, int effectKind);
+
+	bool SetSpriteColor(int spriteIndex, const XMFLOAT4& color);
+	bool SetSpriteParams0(int spriteIndex, const XMFLOAT4& params0);
 
 	bool GetSpriteRect(int spriteIndex, XMFLOAT4& outRect) const;
 	bool SetSpriteRect(int spriteIndex, const XMFLOAT4& rect);

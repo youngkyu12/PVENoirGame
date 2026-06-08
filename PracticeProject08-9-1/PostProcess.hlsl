@@ -77,9 +77,31 @@ VS_SCREEN_RECT_TEXTURED_OUTPUT VSScreenRectSamplingTextured(uint nVertexID : SV_
 
 float4 PSScreenRectSamplingTextured(VS_SCREEN_RECT_TEXTURED_OUTPUT input) : SV_Target
 {
-    // 'S' = solid cooldown rect
     if (gvDrawOptions.x == 83)
-        return float4(0.0f, 0.0f, 0.0f, 0.55f);
+    {
+        if (gvDrawOptions.y == 4)
+        {
+            float2 pixelPos = input.position.xy;
+            float2 viewportSize = gvViewport.xy;
+            float2 center = viewportSize * 0.5f;
+
+            float thickness = max(gvUIParams0.x, 1.0f);
+            float cornerRadius = thickness * 1.35f;
+
+            float2 innerHalfSize = max(center - thickness, float2(1.0f, 1.0f));
+            cornerRadius = min(cornerRadius, min(innerHalfSize.x, innerHalfSize.y));
+
+            float2 q = abs(pixelPos - center) - (innerHalfSize - cornerRadius);
+            float outsideDistance = length(max(q, 0.0f)) + min(max(q.x, q.y), 0.0f) - cornerRadius;
+
+            float edge = saturate(outsideDistance / thickness);
+            edge = edge * edge * (3.0f - 2.0f * edge);
+
+            return float4(gvUIColor.rgb, gvUIColor.a * edge);
+        }
+
+        return gvUIColor;
+    }
 
     uint idx = 0xFFFFFFFFu;
 
@@ -87,19 +109,19 @@ float4 PSScreenRectSamplingTextured(VS_SCREEN_RECT_TEXTURED_OUTPUT input) : SV_T
     {
         case 84:
             idx = gvPostSrvIdx0.x;
-            break; // 'T'
+            break;
         case 76:
             idx = gvPostSrvIdx0.y;
-            break; // 'L'
+            break;
         case 78:
             idx = gvPostSrvIdx0.z;
-            break; // 'N'
+            break;
         case 68:
             idx = gvPostSrvIdx0.w;
-            break; // 'D'
+            break;
         case 90:
             idx = gvPostSrvIdx1.x;
-            break; // 'Z'
+            break;
         default:
             return float4(0, 0, 0, 1);
     }
@@ -115,10 +137,6 @@ float4 PSScreenRectSamplingTextured(VS_SCREEN_RECT_TEXTURED_OUTPUT input) : SV_T
 
     float4 color = gtxtGlobalTextures[idx].Sample(gssDefaultSamplerState, input.uv);
 
-        // gvDrawOptions.y:
-    // 0 = normal
-    // 1 = disabled item icon: desaturate + darken
-    // 2 = count text: force white
     if (gvDrawOptions.y == 1)
     {
         float gray = dot(color.rgb, float3(0.299f, 0.587f, 0.114f));

@@ -163,6 +163,8 @@ CGameScene::CGameScene()
 
 	for ( std::array<float, CGameSceneHUD::kInventorySlotCount>& accumulators : m_inventoryBuffParticleEmitAccumulators )
 		accumulators.fill(0.0f);
+
+	m_megaGrid4LowYPoisonStates = {};
 }
 
 void CGameScene::SetFrameResourceIndex(UINT frameResourceIndex)
@@ -1945,6 +1947,119 @@ void CGameScene::ApplyMegaGrid5DirectionalLightProfile(bool enabled)
 #endif
 }
 
+bool CGameScene::IsPlayerInsideMegaGrid4LowYPoisonArea(const CGameObject* player) const
+{
+	if ( !player )
+		return false;
+
+	const XMFLOAT3 pos = player->GetPosition();
+
+	if ( pos.y > kMegaGrid4LowYPoisonMaxY )
+		return false;
+
+	const XMFLOAT3 center = ComputeMegaGridCenterPosition(kMegaGrid4LowYPoisonMegaGridNumber, 0.0f);
+
+	const float dx = std::fabs(pos.x - center.x);
+	const float dz = std::fabs(pos.z - center.z);
+
+	return dx <= kMegaGrid4LowYPoisonHalfExtent && dz <= kMegaGrid4LowYPoisonHalfExtent;
+}
+
+void CGameScene::UpdateMegaGrid4LowYPoison(float dt)
+{
+#ifndef USING_NETWORK
+	if ( dt <= 0.0f )
+		return;
+
+	for ( int slot = 0; slot < static_cast< int >(m_playersBySlot.size()); ++slot )
+	{
+		CGameObject* player = m_playersBySlot[static_cast< size_t >(slot)];
+		MegaGrid4LowYPoisonState& state = m_megaGrid4LowYPoisonStates[static_cast< size_t >(slot)];
+
+		if ( !player )
+		{
+			state = MegaGrid4LowYPoisonState{};
+			continue;
+		}
+
+		CHealthComponent* hp = player->GetComponent<CHealthComponent>();
+
+		if ( !hp || hp->IsDead() )
+		{
+			state = MegaGrid4LowYPoisonState{};
+			continue;
+		}
+
+		const bool insidePoisonArea = IsPlayerInsideMegaGrid4LowYPoisonArea(player);
+
+		if ( insidePoisonArea )
+		{
+			state.exposureSec += dt;
+
+			if ( state.exposureSec >= kMegaGrid4LowYPoisonGraceSec )
+			{
+				state.exposureSec = kMegaGrid4LowYPoisonGraceSec;
+				state.poisoned = true;
+			}
+		}
+		else
+		{
+			state.exposureSec -= dt;
+
+			if ( state.exposureSec <= 0.0f )
+			{
+				state = MegaGrid4LowYPoisonState{};
+				continue;
+			}
+
+			if ( !state.poisoned )
+				state.damageAccumulatorSec = 0.0f;
+		}
+
+		if ( !state.poisoned )
+			continue;
+
+		if ( !insidePoisonArea )
+		{
+			state.damageAccumulatorSec = 0.0f;
+			continue;
+		}
+
+		state.damageAccumulatorSec += dt;
+
+		if ( state.damageAccumulatorSec < kMegaGrid4LowYPoisonDamageIntervalSec )
+			continue;
+
+		const int tickCount = static_cast< int >(state.damageAccumulatorSec / kMegaGrid4LowYPoisonDamageIntervalSec);
+		state.damageAccumulatorSec -= static_cast< float >(tickCount) * kMegaGrid4LowYPoisonDamageIntervalSec;
+
+		const int damage = tickCount * kMegaGrid4LowYPoisonDamagePerTick;
+		hp->TakeDamage(damage);
+	}
+
+	float poisonOverlayAlpha = 0.0f;
+
+	if ( m_localPlayerSlot >= 0 && m_localPlayerSlot < static_cast< int >(m_megaGrid4LowYPoisonStates.size()) )
+	{
+		const MegaGrid4LowYPoisonState& localState = m_megaGrid4LowYPoisonStates[static_cast< size_t >(m_localPlayerSlot)];
+
+		if ( kMegaGrid4LowYPoisonGraceSec > 0.0f )
+			poisonOverlayAlpha = localState.exposureSec / kMegaGrid4LowYPoisonGraceSec;
+
+		if ( poisonOverlayAlpha < 0.0f )
+			poisonOverlayAlpha = 0.0f;
+
+		if ( poisonOverlayAlpha > 1.0f )
+			poisonOverlayAlpha = 1.0f;
+	}
+
+	m_hud.SetPoisonOverlayAlpha(poisonOverlayAlpha);
+#else
+	UNREFERENCED_PARAMETER(dt);
+	m_hud.SetPoisonOverlayAlpha(0.0f);
+#endif
+}
+
 XMFLOAT3 CGameScene::ComputeMegaGridCenterPosition(
 	int megaGridNumber,
 	float y) const
@@ -3330,6 +3445,8 @@ void CGameScene::ReleaseObjects()
 
 	for ( std::array<float, CGameSceneHUD::kInventorySlotCount>& accumulators : m_inventoryBuffParticleEmitAccumulators )
 		accumulators.fill(0.0f);
+
+	m_megaGrid4LowYPoisonStates = {};
 
 	m_bossCallSummonPlanCallIndex = -1;
 	m_bossCallSummonPlanEntries.clear();
@@ -8530,6 +8647,8 @@ void CGameScene::AnimateObjects(float dt)
 #endif
 
 	UpdateDynamicGridState();
+
+	UpdateMegaGrid4LowYPoison(dt);
 
 	UpdatePlayerFootstepSfx();
 	UpdateMonsterSfx(dt);
