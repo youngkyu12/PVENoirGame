@@ -46,7 +46,7 @@ public:
 	bool OnCreate(HINSTANCE hInstance, HWND hMainWnd);
 
 	void CreateDirect3DDevice();
-	ComPtr<IDXGIOutput> FindOutputForCurrentWindow() const;
+	void FindOutputForCurrentWindow();
 	void CreateCommandQueueAndList();
 	void CreateRtvAndDsvDescriptorHeaps();
 	void CreateSwapChain();
@@ -59,6 +59,9 @@ public:
 public:
 	void ChangeSwapChainState();
 	void OnResize(int width, int height);
+	void EnterBorderlessFullscreen();
+	void LeaveBorderlessFullscreen();
+	bool CanUseExclusiveFullscreen() const;
 
 	void ProcessInput();
 	void AnimateObjects();
@@ -175,14 +178,16 @@ private:
 
 	// AdapterDisplayModes
 	vector<DXGI_MODE_DESC>				m_DisplayModeList;
-	DXGI_OUTPUT_DESC					m_OutputDesc;
+	DXGI_OUTPUT_DESC					m_OutputDesc {};
 
 	int									m_nWndClientWidth = FRAME_BUFFER_WIDTH;
 	int									m_nWndClientHeight = FRAME_BUFFER_HEIGHT;
 
 	DisplayMode							m_DisplayMode = DisplayMode::Windowed;
+	bool								m_bHasGpuOutput = false;
+	DWORD								m_dwWindowedStyle = 0;
+	WINDOWPLACEMENT						m_WindowedPlacement {};
 
-	
 	bool HandlePauseClick(UINT nMessageID, LPARAM lParam);
 	void ClearInputPause();
 };
