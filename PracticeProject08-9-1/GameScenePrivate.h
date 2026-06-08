@@ -59,6 +59,7 @@
 #include "AttackPowerComponent.h"
 #include "TerrainAttachComponent.h"
 #include "InventoryComponent.h"
+#include "TerrainData.h"
 
 #include "AudioManager.h"
 #include "MusicDirector.h"

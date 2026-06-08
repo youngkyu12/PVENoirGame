@@ -24,7 +24,9 @@ namespace
 		kStateRoll = 1u << 6,
 		kStateRun = 1u << 7,
 		kStateHit = 1u << 8,
-		kStateDie = 1u << 9
+		kStateDie = 1u << 9,
+		kStateBossSpell = 1u << 10,
+		kStateBossCall  = 1u << 11
 	};
 
 	enum : int32
@@ -96,13 +98,16 @@ namespace
 		uint32 code = 0;
 		const auto anim = obj.GetAnimState();
 
-		if (anim == Protocol::ANIMATION_TYPE_DIE) code |= kStateDie;
-		if (anim == Protocol::ANIMATION_TYPE_ATTACK) code |= kStateAttack;
-		if (anim == Protocol::ANIMATION_TYPE_ROLL) code |= kStateRoll;
-		if (anim == Protocol::ANIMATION_TYPE_RUN) code |= kStateRun;
-		if (anim == Protocol::ANIMATION_TYPE_HIT) code |= kStateHit;
+		if (anim == Protocol::ANIMATION_TYPE_DIE)        code |= kStateDie;
+		if (anim == Protocol::ANIMATION_TYPE_ATTACK)     code |= kStateAttack;
+		if (anim == Protocol::ANIMATION_TYPE_ROLL)       code |= kStateRoll;
+		if (anim == Protocol::ANIMATION_TYPE_RUN)        code |= kStateRun;
+		if (anim == Protocol::ANIMATION_TYPE_HIT)        code |= kStateHit;
+		if (anim == Protocol::ANIMATION_TYPE_BOSS_SPELL) code |= kStateBossSpell;
+		if (anim == Protocol::ANIMATION_TYPE_BOSS_CALL)  code |= kStateBossCall;
 
-		if (anim == Protocol::ANIMATION_TYPE_RUN)
+		if (anim == Protocol::ANIMATION_TYPE_WALK ||
+			anim == Protocol::ANIMATION_TYPE_RUN)
 		{
 			code |= kStateMove;
 
@@ -172,6 +177,7 @@ void Room::MakeFrameState(uint32 tick)
 			p->set_id(player->playerId);
 			p->set_name(player->name);
 			p->set_playertype(player->type);
+			p->set_hp(static_cast<uint32>(player->GetCurrentHp()));
 
 			Protocol::Animation* anim = p->mutable_animation();
 			anim->set_statecode(BuildStateCode(*player));
@@ -201,6 +207,8 @@ void Room::MakeFrameState(uint32 tick)
 			EnemyRef& enemy = it->second;
 			if (!enemy)
 				continue;
+			if (!enemy->IsActive())
+				continue;
 
 			if (GameMath::DistSqXZ(viewerPos, enemy->GetPosition()) > kEnemyViewRangeSq)
 				continue;
@@ -211,6 +219,7 @@ void Room::MakeFrameState(uint32 tick)
 			auto e = frameStatePkt.add_enemies();
 			e->set_id(enemyId);
 			e->set_enemytype(enemy->type);
+			e->set_hp(static_cast<uint32>(enemy->GetCurrentHp()));
 			e->set_weapontype(enemy->GetWeaponState());
 			Protocol::Animation* anim = e->mutable_animation();
 			anim->set_statecode(s_EnemyStateCodeCache[enemyId]);
@@ -254,12 +263,34 @@ void Room::MakeFrameState(uint32 tick)
 		for (auto& projectile : m_bulletPool)
 			AddVisibleBullet(projectile);
 
+		for (auto& projectile : m_enemyArrowPool)
+			AddVisibleBullet(projectile);
+
+		for (auto& projectile : m_bossPoisonPool)
+			AddVisibleBullet(projectile);
+
+		frameStatePkt.set_bossroomstate(static_cast<Protocol::BossRoomState>(static_cast<int>(m_bossRoomState)));
+
 		auto sendBuffer = ClientPacketHandler::MakeSendBuffer(frameStatePkt);
 		viewer->ownerSession->Send(sendBuffer);
 	}
 
 
 
+}
+
+void Room::SendForcedTransformYawDelta(const PlayerRef& player, float yawDelta, int32 reason)
+{
+	if (!player || !player->ownerSession)
+		return;
+
+	Protocol::S_FORCED_TRANSFORM pkt;
+	pkt.set_playerid(player->playerId);
+	pkt.set_yawdelta(yawDelta);
+	pkt.set_reason(static_cast<Protocol::ForcedTransformReason>(reason));
+
+	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(pkt);
+	player->ownerSession->Send(sendBuffer);
 }
 
 void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
@@ -275,6 +306,7 @@ void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
 		p->set_id(player->playerId);
 		p->set_name(player->name);
 		p->set_playertype(player->type);
+		p->set_hp(static_cast<uint32>(player->GetCurrentHp()));
 
 		Protocol::Transform* transform = p->mutable_transform();
 		Protocol::Vec3f* position = transform->mutable_position();

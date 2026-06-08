@@ -7,8 +7,7 @@
 
 void CGameScene::SpawnBossShockwave(const XMFLOAT3& center)
 {
-	XMFLOAT3 fixedCenter = center;
-	fixedCenter.y = 0.0f;
+	XMFLOAT3 fixedCenter = AlignPositionYToTerrainGround(center, 0.0f);
 
 	m_bossShockwaveCenter = fixedCenter;
 	m_bBossShockwaveActive = true;
@@ -48,14 +47,10 @@ void CGameScene::SpawnBossShockwave(const XMFLOAT3& center)
 			dist = 0.0f;
 		}
 
-		// 바람 사운드는 이 방향으로 퍼지는 충격파 전면을 따라간다.
 		m_bossShockwaveWindSfxDirection = radialDir;
 
-		const float maxAffectRadius =
-			kBossShockwaveMaxRadius + kBossShockwavePlayerRangePadding;
-
-		const float maxAffectRadiusSq =
-			maxAffectRadius * maxAffectRadius;
+		const float maxAffectRadius = kBossShockwaveMaxRadius + kBossShockwavePlayerRangePadding;
+		const float maxAffectRadiusSq = maxAffectRadius * maxAffectRadius;
 
 		if ( distSq <= maxAffectRadiusSq )
 		{
@@ -65,15 +60,12 @@ void CGameScene::SpawnBossShockwave(const XMFLOAT3& center)
 		}
 	}
 
-	// 바람 생성 순간에는 보스/충격파 중심에서 1회 재생한다.
-	// 이후 UpdateBossShockwaveWindSfx()가 충격파 반지름에 맞춰 위치를 이동시킨다.
 	PlayBossShockwaveWindSfxAt(fixedCenter);
 
 	SetBossShockwaveAlpha(1.0f);
 	SetBossShockwaveWallAlpha(0.72f);
 
-	const float correctedRadius =
-		kBossShockwaveStartRadius / kBossShockwaveShaderRingCenter;
+	const float correctedRadius = kBossShockwaveStartRadius / kBossShockwaveShaderRingCenter;
 
 	for ( ItemBillboardEntry& item : m_itemBillboardState.entries )
 	{
@@ -87,6 +79,7 @@ void CGameScene::SpawnBossShockwave(const XMFLOAT3& center)
 			item.width = correctedRadius * 2.0f;
 			item.height = correctedRadius * 2.0f;
 			item.yOffset = 0.075f;
+
 			item.cullDistance = 1000000.0f;
 			item.pickupRadius = 0.0f;
 			item.pickupHeightTolerance = 0.0f;
@@ -113,7 +106,6 @@ void CGameScene::SpawnBossShockwave(const XMFLOAT3& center)
 
 void CGameScene::UpdateBossShockwave(float dt)
 {
-#ifndef USING_NETWORK
 	if ( !m_bBossShockwaveActive )
 		return;
 
@@ -250,7 +242,7 @@ void CGameScene::UpdateBossShockwave(float dt)
 		XMFLOAT3 pos = m_bossShockwaveCenter;
 		pos.x += cosf(angle) * radius;
 		pos.z += sinf(angle) * radius;
-		pos.y = 0.0f;
+		pos = AlignPositionYToTerrainGround(pos, 0.0f);
 
 		item.active = true;
 		item.distanceCulled = false;
@@ -267,14 +259,10 @@ void CGameScene::UpdateBossShockwave(float dt)
 
 	SetBossShockwaveAlpha(floorAlpha);
 	SetBossShockwaveWallAlpha(wallAlpha);
-#else
-	UNREFERENCED_PARAMETER(dt);
-#endif
 }
 
 void CGameScene::ApplyBossShockwavePushToLocalPlayer(float previousRadius, float currentRadius)
 {
-#ifndef USING_NETWORK
 	if ( !m_bBossShockwavePushLocalPlayer )
 		return;
 
@@ -348,8 +336,4 @@ void CGameScene::ApplyBossShockwavePushToLocalPlayer(float previousRadius, float
 	}
 
 	UpdateDynamicGridState();
-#else
-	UNREFERENCED_PARAMETER(previousRadius);
-	UNREFERENCED_PARAMETER(currentRadius);
-#endif
 }

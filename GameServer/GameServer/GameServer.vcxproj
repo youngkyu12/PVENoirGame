@@ -179,6 +179,8 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="BossEnemy.cpp" />
+    <ClCompile Include="BossScriptHost.cpp" />
     <ClCompile Include="BoundingCapsule.cpp" />
     <ClCompile Include="Building.cpp" />
     <ClCompile Include="ColliderComponent.cpp" />
@@ -220,11 +222,13 @@
     </ClCompile>
     <ClCompile Include="ReportHelper.cpp" />
     <ClCompile Include="Room.Collision.cpp" />
+    <ClCompile Include="Room.BossRoom.cpp" />
     <ClCompile Include="Room.Combat.cpp" />
     <ClCompile Include="Room.cpp" />
     <ClCompile Include="Room.Grid.cpp" />
     <ClCompile Include="Room.Input.cpp" />
     <ClCompile Include="Room.Packet.cpp" />
+    <ClCompile Include="ServerTerrain.cpp" />
     <ClCompile Include="ServerMap.cpp" />
     <ClCompile Include="ServerObject.cpp" />
     <ClCompile Include="Struct.pb.cc">
@@ -235,6 +239,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BossAIContext.h" />
+    <ClInclude Include="BossEnemy.h" />
+    <ClInclude Include="BossScriptHost.h" />
     <ClInclude Include="BoundingCapsule.h" />
     <ClInclude Include="Building.h" />
     <ClInclude Include="ColliderComponent.h" />
@@ -255,6 +262,7 @@
     <ClInclude Include="ClientPacketHandler.h" />
     <ClInclude Include="Protocol.pb.h" />
     <ClInclude Include="Room.h" />
+    <ClInclude Include="ServerTerrain.h" />
     <ClInclude Include="ServerObject.h" />
     <ClInclude Include="Struct.pb.h" />
   </ItemGroup>
@@ -270,6 +278,7 @@
     <None Include="..\..\Common\Protobuf\bin\InitStruct.proto" />
     <None Include="..\..\Common\Protobuf\bin\Protocol.proto" />
     <None Include="..\..\Common\Protobuf\bin\Struct.proto" />
+    <None Include="..\Scripts\Boss\BossStageBoss.lua" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="MapFIle\placement_export_full.txt" />

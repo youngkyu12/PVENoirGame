@@ -65,6 +65,10 @@ bool CGameScene::RequestUseInventoryItemSlot(int slot)
 	if ( m_bLocalPlayerDead )
 		return false;
 
+	CGameObject* localPlayer = GetPlayerBySlot(m_localPlayerSlot);
+	if ( !localPlayer )
+		return false;
+
 	CInventoryComponent* inventory = GetLocalPlayerInventory();
 	if ( !inventory )
 		return false;
@@ -72,6 +76,8 @@ bool CGameScene::RequestUseInventoryItemSlot(int slot)
 	const CInventoryComponent::EUseResult result = inventory->UseItemSlot(slot);
 	if ( result == CInventoryComponent::EUseResult::Failed )
 		return false;
+
+	SpawnInventoryUseBurst(localPlayer, slot);
 
 	if ( result == CInventoryComponent::EUseResult::AttackPowerStateChanged )
 	{

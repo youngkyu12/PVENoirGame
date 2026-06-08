@@ -8,6 +8,7 @@
 #include "MonsterAnimController.h"
 #include "HealthComponent.h"
 #include "ColliderComponent.h"
+#include "TerrainAttachComponent.h"
 
 namespace
 {
@@ -410,6 +411,15 @@ namespace
 
 		outDirection = finalDir;
 		return true;
+	}
+
+	static void SetBossTerrainAttachHeightOffset(CGameObject* owner, float offset)
+	{
+		if ( !owner )
+			return;
+
+		if ( auto* terrainAttach = owner->GetComponent<CTerrainAttachComponent>() )
+			terrainAttach->SetHeightOffset(offset);
 	}
 }
 
@@ -1918,9 +1928,10 @@ void CBossAIComponent::BeginBossCallRise()
 	const XMFLOAT3 pos = owner->GetPosition();
 
 	m_bossCallBaseY = pos.y;
-
 	m_bossCallRiseStartY = pos.y;
 	m_bossCallRiseElapsedSec = 0.0f;
+
+	SetBossTerrainAttachHeightOffset(owner, 0.0f);
 
 	m_bBossCallRising = true;
 	m_bBossCallRiseCompletedForCurrentCall = false;
@@ -1930,11 +1941,7 @@ void CBossAIComponent::BeginBossCallRise()
 	if ( CGameScene* scene = GetScene() )
 	{
 		const int nextCallIndex = m_bossExecutedCallCount + 1;
-
-		scene->BeginBossCallMonsterSummonVisuals(
-			nextCallIndex,
-			kBossCallRiseDuration
-		);
+		scene->BeginBossCallMonsterSummonVisuals(nextCallIndex, kBossCallRiseDuration);
 	}
 
 	ClearPath();
@@ -1959,22 +1966,15 @@ bool CBossAIComponent::UpdateBossCallRise(float dt)
 	if ( dt > 0.0f )
 		m_bossCallRiseElapsedSec += dt;
 
-	const float duration =
-		( kBossCallRiseDuration > 0.0f )
-		? kBossCallRiseDuration
-		: 0.001f;
-
-	const float t =
-		std::clamp(
-			m_bossCallRiseElapsedSec / duration,
-			0.0f,
-			1.0f
-		);
-
+	const float duration = ( kBossCallRiseDuration > 0.0f ) ? kBossCallRiseDuration : 0.001f;
+	const float t = std::clamp(m_bossCallRiseElapsedSec / duration, 0.0f, 1.0f);
 	const float easedT = SmoothStep01Local(t);
+	const float verticalOffset = kBossCallLiftHeight * easedT;
 
 	XMFLOAT3 pos = owner->GetPosition();
-	pos.y = m_bossCallRiseStartY + kBossCallLiftHeight * easedT;
+	pos.y = m_bossCallRiseStartY + verticalOffset;
+
+	SetBossTerrainAttachHeightOffset(owner, verticalOffset);
 	owner->SetPosition(pos);
 
 	if ( auto* collider = owner->GetComponent<CColliderComponent>() )
@@ -1983,6 +1983,8 @@ bool CBossAIComponent::UpdateBossCallRise(float dt)
 	if ( t >= 1.0f )
 	{
 		pos.y = m_bossCallBaseY + kBossCallLiftHeight;
+
+		SetBossTerrainAttachHeightOffset(owner, kBossCallLiftHeight);
 		owner->SetPosition(pos);
 
 		if ( auto* collider = owner->GetComponent<CColliderComponent>() )
@@ -1992,7 +1994,6 @@ bool CBossAIComponent::UpdateBossCallRise(float dt)
 		m_bBossCallRiseCompletedForCurrentCall = true;
 		m_bossCallRiseElapsedSec = 0.0f;
 
-		// 이번 프레임에 바로 Call 요청 단계로 넘어갈 수 있게 false 반환.
 		return false;
 	}
 
@@ -2035,24 +2036,15 @@ bool CBossAIComponent::UpdateBossCallDescend(float dt)
 	if ( dt > 0.0f )
 		m_bossCallDescendElapsedSec += dt;
 
-	const float duration =
-		( kBossCallDescendDuration > 0.0f )
-		? kBossCallDescendDuration
-		: 0.001f;
+	const float duration = ( kBossCallDescendDuration > 0.0f ) ? kBossCallDescendDuration : 0.001f;
+	const float t = std::clamp(m_bossCallDescendElapsedSec / duration, 0.0f, 1.0f);
 
-	const float t =
-		std::clamp(
-			m_bossCallDescendElapsedSec / duration,
-			0.0f,
-			1.0f
-		);
-
-	// 등속 하강.
 	XMFLOAT3 pos = owner->GetPosition();
-	pos.y =
-		m_bossCallDescendStartY +
-		( m_bossCallBaseY - m_bossCallDescendStartY ) * t;
+	pos.y = m_bossCallDescendStartY + ( m_bossCallBaseY - m_bossCallDescendStartY ) * t;
 
+	const float verticalOffset = pos.y - m_bossCallBaseY;
+
+	SetBossTerrainAttachHeightOffset(owner, verticalOffset);
 	owner->SetPosition(pos);
 
 	if ( auto* collider = owner->GetComponent<CColliderComponent>() )
@@ -2061,6 +2053,8 @@ bool CBossAIComponent::UpdateBossCallDescend(float dt)
 	if ( t >= 1.0f )
 	{
 		pos.y = m_bossCallBaseY;
+
+		SetBossTerrainAttachHeightOffset(owner, 0.0f);
 		owner->SetPosition(pos);
 
 		if ( auto* collider = owner->GetComponent<CColliderComponent>() )

@@ -674,6 +674,9 @@
     <ClCompile Include="InventoryComponent.cpp">
       <Filter>Components\Inventory</Filter>
     </ClCompile>
+    <ClCompile Include="GameSceneMonsterHpGauge.cpp">
+      <Filter>Scene\GameScene\Billboard</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PracticeProject08-9-1.rc">

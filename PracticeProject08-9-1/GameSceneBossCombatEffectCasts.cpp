@@ -7,7 +7,6 @@
 
 void CGameScene::UpdateBossMeleeSlashCasts(float dt)
 {
-#ifndef USING_NETWORK
 	if ( dt < 0.0f )
 		dt = 0.0f;
 
@@ -77,7 +76,4 @@ void CGameScene::UpdateBossMeleeSlashCasts(float dt)
 			state.pendingSpawn = false;
 		}
 	}
-#else
-	UNREFERENCED_PARAMETER(dt);
-#endif
 }
