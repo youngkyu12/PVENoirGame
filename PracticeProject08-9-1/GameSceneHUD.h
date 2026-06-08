@@ -46,6 +46,7 @@ public:
 	void SetOtherPlayerHealthRatios(int localPlayerSlot, const std::array<float, 4>& playerHpRatios, const std::array<bool, 4>& playerHpVisible, const std::array<bool, 4>& playerWorldHpGaugeVisible);
 	void SetInventoryItemCounts(const std::array<int, kInventorySlotCount>& counts); 
 	void SetInventoryCooldownRatio(int slot, float ratio);
+	void SetPoisonOverlayAlpha(float alpha);
 
 	void SetInactiveOverlayVisible(bool visible);
 	bool IsInactiveOverlayVisible() const { return m_inactiveOverlayVisible; }
@@ -65,6 +66,9 @@ private:
 	CSceneUI m_ui;
 
 	int m_hpFrameSpriteIndex = -1;
+	int m_poisonOverlaySpriteIndex = -1;
+	static constexpr float kPoisonOverlayThicknessPx = 76.0f;
+	static constexpr float kPoisonOverlayMaxAlpha = 0.62f;
 
 	int m_pauseSpriteIndex = -1;
 	int m_resumeSpriteIndex = -1;

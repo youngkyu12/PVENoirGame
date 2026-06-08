@@ -19,6 +19,7 @@ void CGameSceneHUD::ReleaseResources()
 	m_pauseSpriteIndex = -1;
 	m_resumeSpriteIndex = -1;
 	m_exitSpriteIndex = -1;
+	m_poisonOverlaySpriteIndex = -1;
 
 	m_hpFillSpriteIndex = -1;
 	m_bossHpEmptySpriteIndex = -1;
@@ -57,6 +58,7 @@ void CGameSceneHUD::BuildResources(
 	m_pauseSpriteIndex = -1;
 	m_resumeSpriteIndex = -1;
 	m_exitSpriteIndex = -1;
+	m_poisonOverlaySpriteIndex = -1;
 	m_bossHpEmptySpriteIndex = -1;
 	m_bossHpFillSpriteIndex = -1;
 	m_bossHpFillOriginalRect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
@@ -109,6 +111,8 @@ void CGameSceneHUD::BuildResources(
         CSceneUI::ELayer::Content,
         true
   );
+
+	m_poisonOverlaySpriteIndex = m_ui.AddSolidRect("PoisonEdgeOverlay", CSceneUI::GetFullscreenRect(), CSceneUI::ELayer::Background, false, XMFLOAT4(0.10f, 0.95f, 0.18f, 0.0f), 4, XMFLOAT4(kPoisonOverlayThicknessPx, 0.0f, 0.0f, 0.0f));
 
 	// --------------------------------------------------------------------
 	// Other player HP gauges
@@ -529,6 +533,26 @@ void CGameSceneHUD::UpdateInventoryCountTextSprites(int slot)
 			m_ui.SetSpriteVisible(textSpriteIndex, true);
 		}
 	}
+}
+
+void CGameSceneHUD::SetPoisonOverlayAlpha(float alpha)
+{
+	alpha = std::clamp(alpha, 0.0f, 1.0f);
+
+	if ( m_poisonOverlaySpriteIndex < 0 )
+		return;
+
+	if ( alpha <= 0.001f )
+	{
+		m_ui.SetSpriteVisible(m_poisonOverlaySpriteIndex, false);
+		return;
+	}
+
+	const float finalAlpha = alpha * kPoisonOverlayMaxAlpha;
+
+	m_ui.SetSpriteColor(m_poisonOverlaySpriteIndex, XMFLOAT4(0.10f, 0.95f, 0.18f, finalAlpha));
+	m_ui.SetSpriteParams0(m_poisonOverlaySpriteIndex, XMFLOAT4(kPoisonOverlayThicknessPx, 0.0f, 0.0f, 0.0f));
+	m_ui.SetSpriteVisible(m_poisonOverlaySpriteIndex, true);
 }
 
 void CGameSceneHUD::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
