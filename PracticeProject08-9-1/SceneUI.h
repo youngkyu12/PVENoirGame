@@ -48,6 +48,7 @@ public:
 
 public:
 	void ReleaseResources();
+	void OnResize(int width, int height);
 
 	void BuildShader(
 		ID3D12Device* dev,
@@ -96,7 +97,7 @@ public:
 
 	const SpriteEntry* GetSprite(int spriteIndex) const;
 
-	static XMFLOAT4 GetFullscreenRect();
+	static XMFLOAT4 GetFullscreenRect(int width, int height);
 	static XMFLOAT4 MakeFitRect(
 		const std::shared_ptr<CTexture>& texture,
 		float centerX,
@@ -121,4 +122,6 @@ private:
 		true,
 		true
 	};
+	float m_screenWidth = FRAME_BUFFER_WIDTH;
+	float m_screenHeight = FRAME_BUFFER_HEIGHT;
 };
