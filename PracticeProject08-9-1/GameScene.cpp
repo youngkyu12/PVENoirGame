@@ -7456,7 +7456,6 @@ void CGameScene::RequestFireBullet(CGameObject* shooter, float speed, float life
 
 bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 {
-#ifndef USING_NETWORK
 	if ( !pKeysBuffer )
 	{
 		m_bPrevLocalMonsterChaseToggleKeyDown = false;
@@ -7467,6 +7466,9 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 		return false;
 	}
 
+	const bool stageTeleportModifierDown = ( ( pKeysBuffer[VK_LCONTROL] & 0xF0 ) != 0 ) || ( ( pKeysBuffer[VK_RCONTROL] & 0xF0 ) != 0 );
+
+#ifndef USING_NETWORK
 	// ---------------------------------------------------------------------
 	// Q: 로컬 몬스터 추적 on/off
 	// ---------------------------------------------------------------------
@@ -7495,8 +7497,7 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 	}
 
 	m_bPrevDebugDamageMegaGrid5KeyDown = enterDown;
-
-	const bool stageTeleportModifierDown = ( ( pKeysBuffer[VK_LCONTROL] & 0xF0 ) != 0 ) || ( ( pKeysBuffer[VK_RCONTROL] & 0xF0 ) != 0 );
+#endif
 
 	// ---------------------------------------------------------------------
 	// 1~4: 인벤토리 아이템 사용 요청
@@ -7512,6 +7513,7 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 		m_bPrevInventoryUseKeyDown[static_cast< size_t >(slot)] = down;
 	}
 
+#ifndef USING_NETWORK
 	// ---------------------------------------------------------------------
 	// Ctrl + 1~9: 로컬 스테이지 메가그리드 강제 텔레포트
 	//
@@ -7541,8 +7543,6 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 
 		m_bPrevLocalStageTeleportKeyDown[static_cast< size_t >( megaGridNumber )] = down;
 	}
-#else
-	UNREFERENCED_PARAMETER(pKeysBuffer);
 #endif
 
 	return false;
