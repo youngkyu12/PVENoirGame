@@ -16,6 +16,7 @@ public:
 	void SetChaseRanges(float startRange, float stopRange);
 	void SetAttackRange(float range) { m_attackRange = range; }
 	void SetMoveSpeed(float speed)   { m_moveSpeed   = speed; }
+	void SetWalkMoveSpeed(float speed) { m_walkMoveSpeed = (speed > 0.f) ? speed : 0.f; }
 	void SetHomePosition(const GameMath::Vec3& pos);
 	void SetPatrolEnabled(bool enabled) { m_bPatrolEnabled = enabled; ResetPatrolState(); }
 	void ResetToHome();
@@ -46,6 +47,8 @@ private:
 	bool UpdateIdlePatrol(float dt);
 	void ResetPatrolState();
 	GameMath::Vec3 GetPatrolEndpoint(int targetSign) const;
+	float GetPatrolFacingYawDegreesForTargetSign(int targetSign) const;
+	bool RotateOwnerYawTowards(float targetYawDeg, float maxStepDeg);
 
 private:
 	CServerObject* m_pTarget = nullptr;
@@ -53,6 +56,7 @@ private:
 	float m_attackRange = 1.5f;
 	float m_meleeArcDeg = 360.0f;     // ���� ���� ��ä�� ����
 	float m_moveSpeed = 2.0f;
+	float m_walkMoveSpeed = 1.0f;
 	float m_attackCooldownSec = 1.0f;
 	float m_postAttackMoveLockDuration = 0.25f;
 	float m_repathInterval = 0.15f;
@@ -90,8 +94,10 @@ private:
 	bool m_bPatrolInitialized = false;
 	bool m_bPatrolTurning = false;
 	int m_patrolTargetSign = 1;
+	float m_patrolTurnTargetYawDeg = 0.0f;
 	float m_patrolHalfDistance = 5.0f;
 	float m_patrolEndpointReachDistance = 0.15f;
+	float m_patrolTurnSpeedDegrees = 240.0f;
 
 	// spawner pool
 	bool m_useDirectMove = false;

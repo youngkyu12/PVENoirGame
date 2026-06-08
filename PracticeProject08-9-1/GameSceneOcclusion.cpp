@@ -207,7 +207,8 @@ namespace
 			( assetName == "SwordMan" ) ||
 			( assetName == "BowMan" ) ||
 			( assetName == "Mutant" ) ||
-			( assetName == "Boss" );
+			( assetName == "Boss" ) ||
+			( assetName == "Player" );
 	}
 
 	static XMFLOAT3 GetSkinnedOcclusionExtentsByAssetName(const std::string& assetName)
@@ -226,6 +227,9 @@ namespace
 
 		if ( assetName == "Boss" )
 			return XMFLOAT3(1.80f, 2.50f, 1.80f);
+
+		if ( assetName == "Player" )
+			return XMFLOAT3(0.75f, 1.45f, 0.75f);
 
 		return XMFLOAT3(0.80f, 1.50f, 0.80f);
 	}
