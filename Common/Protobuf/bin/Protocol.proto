@@ -73,6 +73,7 @@ message S_FRAME_STATE
 	repeated Enemy enemies = 3;
 	repeated Bullet bullets = 4;
 	BossRoomState bossRoomState = 5;
+	repeated Item items = 6;
 }
 
 message S_FORCED_TRANSFORM
@@ -80,6 +81,12 @@ message S_FORCED_TRANSFORM
 	uint64 playerId = 1;
 	float yawDelta = 2;
 	ForcedTransformReason reason = 3;
+}
+
+message C_USE_ITEM
+{
+	uint64 playerId = 1;
+	int32  slot     = 2;
 }
 
 message C_DEBUG_COMMAND

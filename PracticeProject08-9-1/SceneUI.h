@@ -39,12 +39,16 @@ public:
 		ELayer layer = ELayer::Content;
 		bool visible = true;
 
-		// 0: normal, 1: disabled/desaturated, 2: force white text
+		// 0: normal, 1: disabled/desaturated, 2: force white text, 3: solid rect, 4: poison edge overlay
 		int effectKind = 0;
+
+		XMFLOAT4 color = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+		XMFLOAT4 params0 = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 	};
 
 public:
 	void ReleaseResources();
+	void OnResize(int width, int height);
 
 	void BuildShader(
 		ID3D12Device* dev,
@@ -62,6 +66,7 @@ public:
 		bool visible = true
 	);
 	int AddSolidRect(const char* name, const XMFLOAT4& rect, ELayer layer, bool visible = true);
+	int AddSolidRect(const char* name, const XMFLOAT4& rect, ELayer layer, bool visible, const XMFLOAT4& color, int effectKind, const XMFLOAT4& params0 = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f));
 
 	int AddFitSprite(
 		ID3D12Device* dev,
@@ -83,13 +88,16 @@ public:
 	void SetLayerVisible(ELayer layer, bool visible);
 	bool SetSpriteEffectKind(int spriteIndex, int effectKind);
 
+	bool SetSpriteColor(int spriteIndex, const XMFLOAT4& color);
+	bool SetSpriteParams0(int spriteIndex, const XMFLOAT4& params0);
+
 	bool GetSpriteRect(int spriteIndex, XMFLOAT4& outRect) const;
 	bool SetSpriteRect(int spriteIndex, const XMFLOAT4& rect);
 	bool IsPointInSprite(int spriteIndex, POINT pt) const;
 
 	const SpriteEntry* GetSprite(int spriteIndex) const;
 
-	static XMFLOAT4 GetFullscreenRect();
+	static XMFLOAT4 GetFullscreenRect(int width, int height);
 	static XMFLOAT4 MakeFitRect(
 		const std::shared_ptr<CTexture>& texture,
 		float centerX,
@@ -114,4 +122,6 @@ private:
 		true,
 		true
 	};
+	float m_screenWidth = FRAME_BUFFER_WIDTH;
+	float m_screenHeight = FRAME_BUFFER_HEIGHT;
 };

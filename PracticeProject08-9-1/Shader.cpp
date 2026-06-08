@@ -1707,8 +1707,19 @@ void CPostProcessingShader::CreateResourcesAndRtvsSrvs(
 	ID3D12GraphicsCommandList* pd3dCommandList, 
 	UINT nRenderTargets, 
 	DXGI_FORMAT* pdxgiFormats, 
-	D3D12_CPU_DESCRIPTOR_HANDLE d3dRtvCPUDescriptorHandle)
+	D3D12_CPU_DESCRIPTOR_HANDLE d3dRtvCPUDescriptorHandle,
+	UINT width,
+	UINT height)
 {
+	if (!pd3dDevice || !pdxgiFormats || nRenderTargets == 0 || width == 0 || height == 0)
+		return;
+
+	const UINT previousBaseSrvIndex =
+		m_pTexture ? m_pTexture->GetBaseSrvIndex() : UINT_MAX;
+
+	m_screenWidth = static_cast<float>(width);
+	m_screenHeight = static_cast<float>(height);
+
 	m_pTexture = make_shared<CTexture>(nRenderTargets, RESOURCE_TEXTURE2D, 0, 1);
 
 	D3D12_CLEAR_VALUE d3dClearValue = { DXGI_FORMAT_R8G8B8A8_UNORM, { 1.0f, 1.0f, 1.0f, 1.0f } };
@@ -1717,8 +1728,8 @@ void CPostProcessingShader::CreateResourcesAndRtvsSrvs(
 		d3dClearValue.Format = pdxgiFormats[i];
 		m_pTexture->CreateTexture(
 			pd3dDevice,
-			FRAME_BUFFER_WIDTH,
-			FRAME_BUFFER_HEIGHT,
+			width,
+			height,
 			pdxgiFormats[i],
 			D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
 			D3D12_RESOURCE_STATE_COMMON,
@@ -1729,10 +1740,25 @@ void CPostProcessingShader::CreateResourcesAndRtvsSrvs(
 
 	CreateShaderVariables(pd3dDevice, pd3dCommandList);
 #ifdef _WITH_SCENE_ROOT_SIGNATURE
-	CScene::m_pDescriptorHeap->CreateShaderResourceViewsOther(
-		pd3dDevice,
-		m_pTexture.get(),
-		ROOT_PARAMETER_GLOBAL_SRV);
+	if (previousBaseSrvIndex != UINT_MAX)
+	{
+		m_pTexture->SetBaseSrvIndex(previousBaseSrvIndex);
+
+		CScene::m_pDescriptorHeap->CreateShaderResourceViews(
+			pd3dDevice,
+			m_pTexture.get(),
+			previousBaseSrvIndex,
+			ROOT_PARAMETER_GLOBAL_SRV
+		);
+	}
+	else
+	{
+		CScene::m_pDescriptorHeap->CreateShaderResourceViewsOther(
+			pd3dDevice,
+			m_pTexture.get(),
+			ROOT_PARAMETER_GLOBAL_SRV
+		);
+	}
 
 #else
 	CScene::m_pDescriptorHeap->CreateShaderResourceViewsOther(
@@ -1929,18 +1955,32 @@ void CTextureToFullScreenShader::UpdateShaderVariables(ID3D12GraphicsCommandList
 
 	pDrawOptions->m_xmn4DrawOptions.x = *( ( int* ) pContext );
 
+	pDrawOptions->m_xmu4PostSrvIdx0 = XMUINT4(
+		m_pTexture ? m_pTexture->GetSrvIndex(1) : UINT_MAX, // T: texture
+		m_pTexture ? m_pTexture->GetSrvIndex(2) : UINT_MAX, // L: lighting
+		m_pTexture ? m_pTexture->GetSrvIndex(3) : UINT_MAX, // N: normal
+		m_pTexture ? m_pTexture->GetSrvIndex(4) : UINT_MAX  // D: z depth MRT
+	);
+
+	pDrawOptions->m_xmu4PostSrvIdx1 = XMUINT4(
+		m_pTexture ? m_pTexture->GetSrvIndex(4) : UINT_MAX, // Z: same z depth MRT
+		0,
+		0,
+		0
+	);
+
 	pDrawOptions->m_xmf4UiRect = XMFLOAT4(
-		FRAME_BUFFER_WIDTH * 0.5f,
-		FRAME_BUFFER_HEIGHT * 0.5f,
-		static_cast< float >( FRAME_BUFFER_WIDTH ),
-		static_cast< float >( FRAME_BUFFER_HEIGHT )
+		m_screenWidth * 0.5f,
+		m_screenHeight * 0.5f,
+		m_screenWidth,
+		m_screenHeight
 	);
 
 	pDrawOptions->m_xmf4Viewport = XMFLOAT4(
-		static_cast< float >( FRAME_BUFFER_WIDTH ),
-		static_cast< float >( FRAME_BUFFER_HEIGHT ),
-		1.0f / static_cast< float >( FRAME_BUFFER_WIDTH ),
-		1.0f / static_cast< float >( FRAME_BUFFER_HEIGHT )
+		m_screenWidth,
+		m_screenHeight,
+		1.0f / m_screenWidth,
+		1.0f / m_screenHeight
 	);
 
 	const D3D12_GPU_VIRTUAL_ADDRESS d3dGpuVirtualAddress =
@@ -1984,4 +2024,9 @@ D3D12_SHADER_BYTECODE CWaterShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlo
 D3D12_SHADER_BYTECODE CWaterShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
 {
 	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSWaterToMultipleRTs", "ps_5_1", ppd3dShaderBlob));
+}
+
+void CSsaoShader::CreateShader(ID3D12Device* dev, ID3D12RootSignature* sceneRootSig, UINT nRenderTargets, DXGI_FORMAT* rtvFormats, DXGI_FORMAT dsvFormat)
+{
+
 }

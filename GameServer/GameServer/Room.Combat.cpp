@@ -182,6 +182,12 @@ int Room::GetPlayerAttackPower(Protocol::WeaponType weapon) const
 	}
 }
 
+int Room::GetPlayerAttackPower(const PlayerRef& player, Protocol::WeaponType weapon) const
+{
+	const int baseDamage = GetPlayerAttackPower(weapon);
+	return player ? player->ApplyAttackBuffToDamage(baseDamage, m_elapsedServerMs) : baseDamage;
+}
+
 bool Room::IsEnemyNearAnyPlayerExact(const GameMath::Vec3& enemyPos, float rangeSq) const
 {
 	for (const auto& playerPair : players)
@@ -462,7 +468,7 @@ void Room::TickAdvance()
 			const float yDiff  = std::abs(player->GetPosition().y - p->GetPosition().y);
 			if (distSq > kProjectileHitRadiusSq || yDiff > kProjectileHitYTol) continue;
 
-			player->ApplyHit(animClockTick, kAtkEnemyArrow, 10);
+			player->ApplyHit(animClockTick, kAtkEnemyArrow, 10, m_elapsedServerMs);
 			p->Deactivate();
 			break;
 		}
@@ -481,7 +487,7 @@ void Room::TickAdvance()
 		const int elapsed = static_cast<int>(animClockTick) - player->GetAnimTick();
 		if (elapsed < kMeleeHitFrameStart || elapsed > kMeleeHitFrameEnd) continue;
 
-		const int damage = GetPlayerAttackPower(weaponType);
+		const int damage = GetPlayerAttackPower(player, weaponType);
 
 		float reach, halfAngleDeg;
 		switch (weaponType)
@@ -550,13 +556,14 @@ void Room::TickAdvance()
 				if (!m_meleeHitKeys.insert(hitKey).second)
 					continue;
 
-				player->ApplyHit(animClockTick, damage, 10);
+				player->ApplyHit(animClockTick, damage, 10, m_elapsedServerMs);
 			}
 		}
 	}
 
 	UpdateDynamicGridState();
 	UpdateKeyPickupCollision();
+	UpdateItemPickupCollision();
 	UpdateSpawnerWaves(m_timing.playerInputDtSec);
 	UpdateBossRoomState();
 	if (m_bossRoomState == EBossRoomState::BossActive)
@@ -645,7 +652,7 @@ void Room::FireArrow(PlayerRef shooter, float speed, uint32 lifeTicks)
 	const GameMath::Vec3 forward = shooter->GetLook().Normalized();
 
 	p->Activate(origin, forward * speed, lifeTicks, m_timing.projectileLifeTickMs, shooter->GetObjectId(), Protocol::BULLET_TYPE_ARROW);
-	p->SetAttackPower(GetPlayerAttackPower(Protocol::WEAPON_TYPE_BOW));
+	p->SetAttackPower(GetPlayerAttackPower(shooter, Protocol::WEAPON_TYPE_BOW));
 	shooter->OnFired(GetCombatClockTick());
 }
 
@@ -686,7 +693,7 @@ void Room::FireCannonball(PlayerRef shooter)
 	const GameMath::Vec3 forward = shooter->GetLook().Normalized();
 
 	p->Activate(origin, forward * kBulletSpeed, kBulletLifeTicks, m_timing.projectileLifeTickMs, shooter->GetObjectId(), Protocol::BULLET_TYPE_CANNONBALL);
-	p->SetAttackPower(GetPlayerAttackPower(Protocol::WEAPON_TYPE_CANON));
+	p->SetAttackPower(GetPlayerAttackPower(shooter, Protocol::WEAPON_TYPE_CANON));
 	shooter->OnFired(GetCombatClockTick());
 	shooter->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
 }

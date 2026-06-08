@@ -31,6 +31,22 @@ CGameFramework::~CGameFramework()
 {
 }
 
+void CGameFramework::SetDisplayMode(DisplayMode DM, int Width, int Height)
+{
+	switch ( DM )
+	{
+	case DisplayMode::Windowed:
+
+		break;
+	case DisplayMode::BorderlessFullscreen:
+		break;
+	case DisplayMode::ExclusiveFullscreen:
+		break;
+	default:
+		break;
+	}
+}
+
 bool CGameFramework::OnCreate(HINSTANCE hInstance, HWND hMainWnd)
 {
 	m_hInstance = hInstance;
@@ -225,32 +241,31 @@ void CGameFramework::CreateDirect3DDevice()
 		nDXGIFactoryFlags,
 		IID_PPV_ARGS(&m_pdxgiFactory));
 
-	ComPtr<IDXGIAdapter1> pd3dAdapter;
 	if ( FAILED(hResult) )
 		return;
 
 	for ( UINT i = 0; ; ++i )
 	{
-		
+		// 1. 고성능 GPU 어댑터 생성
 		hResult = m_pdxgiFactory->EnumAdapterByGpuPreference(
 			i,
 			DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
-			IID_PPV_ARGS(&pd3dAdapter));
+			IID_PPV_ARGS(&m_pd3dGPUAdapter));
 
 		if ( hResult == DXGI_ERROR_NOT_FOUND )
 			break;
 
 		if ( FAILED(hResult) )
 			continue;
-
+	
 		DXGI_ADAPTER_DESC1 desc = {};
-		pd3dAdapter->GetDesc1(&desc);
+		m_pd3dGPUAdapter->GetDesc1(&desc);
 
 		if ( desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE )
 			continue;
 
 		hResult = D3D12CreateDevice(
-			pd3dAdapter.Get(),
+			m_pd3dGPUAdapter.Get(),
 			D3D_FEATURE_LEVEL_12_0,
 			IID_PPV_ARGS(&m_pd3dDevice));
 
@@ -260,9 +275,9 @@ void CGameFramework::CreateDirect3DDevice()
 	
 	if (!m_pd3dDevice)
 	{
-		hResult = m_pdxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&pd3dAdapter));
+		hResult = m_pdxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&m_pd3dGPUAdapter));
 		hResult = D3D12CreateDevice(
-			pd3dAdapter.Get(),
+			m_pd3dGPUAdapter.Get(),
 			D3D_FEATURE_LEVEL_11_0,
 			IID_PPV_ARGS(&m_pd3dDevice));
 	}
@@ -296,8 +311,131 @@ void CGameFramework::CreateDirect3DDevice()
 
 	m_hFenceEvent = ::CreateEvent(nullptr, FALSE, FALSE, nullptr);
 
+	FindOutputForCurrentWindow();
+
 	::gnRtvDescriptorIncrementSize = m_pd3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	::gnCbvSrvDescriptorIncrementSize = m_pd3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+}
+
+void CGameFramework::FindOutputForCurrentWindow()
+{
+	HMONITOR targetMonitor = ::MonitorFromWindow(
+		m_hWnd,
+		MONITOR_DEFAULTTONEAREST
+	);
+
+	if (!targetMonitor)
+		return;
+
+	if ( m_OutputDesc.Monitor == targetMonitor && !m_DisplayModeList.empty())
+		return;
+
+	ComPtr<IDXGIOutput> pOutput;
+	UINT nModes = 0;
+	UINT nDXGIOutputFlags = DXGI_ENUM_MODES_INTERLACED/*0*/;
+
+	for (UINT outputIndex = 0; ; ++outputIndex)
+	{
+
+		HRESULT hr = m_pd3dGPUAdapter->EnumOutputs(outputIndex, &pOutput);
+
+		if (hr == DXGI_ERROR_NOT_FOUND)
+			break;
+
+		if (FAILED(hr) || !pOutput)
+			continue;
+
+		hr = pOutput->GetDesc(&m_OutputDesc);
+
+		if (FAILED(hr))
+			continue;
+
+		if (m_OutputDesc.Monitor == targetMonitor)
+		{
+			m_bHasGpuOutput = true;
+
+			hr = pOutput->GetDisplayModeList(
+				DXGI_FORMAT_R8G8B8A8_UNORM,
+				nDXGIOutputFlags,
+				&nModes,
+				nullptr
+			);
+
+			if (FAILED(hr) || nModes == 0)
+				return;
+
+			m_DisplayModeList.resize(nModes);
+
+			hr = pOutput->GetDisplayModeList(
+				DXGI_FORMAT_R8G8B8A8_UNORM,
+				nDXGIOutputFlags,
+				&nModes,
+				m_DisplayModeList.data()
+			);
+
+			return;
+		}
+	}
+
+	for (UINT adapterIndex = 0; ; ++adapterIndex)
+	{
+		ComPtr<IDXGIAdapter1> adapter;
+
+		HRESULT hr = m_pdxgiFactory->EnumAdapters1(adapterIndex, &adapter);
+		if (hr == DXGI_ERROR_NOT_FOUND)
+			break;
+
+		if (FAILED(hr) || !adapter)
+			continue;
+
+		DXGI_ADAPTER_DESC1 adapterDesc{};
+		adapter->GetDesc1(&adapterDesc);
+
+		if (adapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+			continue;
+
+		for (UINT outputIndex = 0; ; ++outputIndex)
+		{
+			hr = adapter->EnumOutputs(outputIndex, &pOutput);
+			if (hr == DXGI_ERROR_NOT_FOUND)
+				break;
+
+			if (FAILED(hr) || !pOutput)
+				continue;
+
+			hr = pOutput->GetDesc(&m_OutputDesc);
+			if (FAILED(hr))
+				continue;
+
+			if (m_OutputDesc.Monitor == targetMonitor)
+			{
+				m_bHasGpuOutput = false;
+
+				hr = pOutput->GetDisplayModeList(
+					DXGI_FORMAT_R8G8B8A8_UNORM,
+					nDXGIOutputFlags,
+					&nModes,
+					nullptr
+				);
+
+				if (FAILED(hr) || nModes == 0)
+					return;
+
+				m_DisplayModeList.resize(nModes);
+
+				hr = pOutput->GetDisplayModeList(
+					DXGI_FORMAT_R8G8B8A8_UNORM,
+					nDXGIOutputFlags,
+					&nModes,
+					m_DisplayModeList.data()
+				);
+
+				return;
+			}
+		}
+	}
+
+	return;
 }
 
 void CGameFramework::CreateCommandQueueAndList()
@@ -842,16 +980,10 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 		m_pd3dCommandList.Get(),
 		5,
 		pdxgiResourceFormats,
-		d3dRtvCPUDescriptorHandle
+		d3dRtvCPUDescriptorHandle,
+		static_cast<UINT>(m_nWndClientWidth),
+		static_cast<UINT>(m_nWndClientHeight)
 	);
-
-	D3D12_GPU_DESCRIPTOR_HANDLE d3dDsvGPUDescriptorHandle =
-		CScene::m_pDescriptorHeap->CreateShaderResourceView(
-			m_pd3dDevice.Get(),
-			m_pd3dDepthStencilBuffer.Get(),
-			DXGI_FORMAT_R24_UNORM_X8_TYPELESS
-		);
-	( void ) d3dDsvGPUDescriptorHandle;
 
 	if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
 	{
@@ -1053,31 +1185,81 @@ void CGameFramework::ChangeSwapChainState()
 {
 	FlushGpu();
 
-	BOOL bFullScreenState = FALSE;
-	HRESULT hResult = m_pdxgiSwapChain->GetFullscreenState(&bFullScreenState, NULL);
-	( void ) hResult;
+	FindOutputForCurrentWindow();
 
-	hResult = m_pdxgiSwapChain->SetFullscreenState(!bFullScreenState, NULL);
-	( void ) hResult;
+	if (m_DisplayMode == DisplayMode::Windowed)
+	{
+		if (m_bHasGpuOutput)
+		{
+			HRESULT hr = m_pdxgiSwapChain->SetFullscreenState(TRUE, nullptr);
+
+			if (SUCCEEDED(hr))
+			{
+				m_DisplayMode = DisplayMode::ExclusiveFullscreen;
+
+				m_nWndClientWidth = m_OutputDesc.DesktopCoordinates.right - m_OutputDesc.DesktopCoordinates.left;
+				m_nWndClientHeight = m_OutputDesc.DesktopCoordinates.bottom - m_OutputDesc.DesktopCoordinates.top;
+				
+				OnResize(m_nWndClientWidth, m_nWndClientHeight);
+				return;
+			}
+		}
+		else
+		{
+			EnterBorderlessFullscreen();
+			return;
+		}
+		
+	}
+	else if (m_DisplayMode == DisplayMode::ExclusiveFullscreen)
+	{
+		m_pdxgiSwapChain->SetFullscreenState(FALSE, nullptr);
+		m_DisplayMode = DisplayMode::Windowed;
+		OnResize(FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
+		return;
+	}
+	else if (m_DisplayMode == DisplayMode::BorderlessFullscreen)
+	{
+		m_DisplayMode = DisplayMode::Windowed;
+		LeaveBorderlessFullscreen();
+		return;
+	}
+}
+
+void CGameFramework::OnResize(int width, int height)
+{
+	if (!m_pd3dDevice || !m_pdxgiSwapChain)
+		return;
+
+	if (width <= 0 || height <= 0)
+		return;
+
+	m_nWndClientWidth = width;
+	m_nWndClientHeight = height;
+
+	FlushGpu();
 
 	DXGI_MODE_DESC dxgiTargetParameters;
 	::ZeroMemory(&dxgiTargetParameters, sizeof(DXGI_MODE_DESC));
 	dxgiTargetParameters.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	dxgiTargetParameters.Width = m_nWndClientWidth;
-	dxgiTargetParameters.Height = m_nWndClientHeight;
+	dxgiTargetParameters.Width = width;
+	dxgiTargetParameters.Height = height;
 	dxgiTargetParameters.RefreshRate.Numerator = 60;
 	dxgiTargetParameters.RefreshRate.Denominator = 1;
 	dxgiTargetParameters.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
 	dxgiTargetParameters.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
 
-	hResult = m_pdxgiSwapChain->ResizeTarget(&dxgiTargetParameters);
+	HRESULT hResult = m_pdxgiSwapChain->ResizeTarget(&dxgiTargetParameters);
 	( void ) hResult;
-
+	
 	for ( int i = 0; i < m_nSwapChainBuffers; ++i )
 	{
 		if ( m_ppd3dSwapChainBackBuffers[i] )
 			m_ppd3dSwapChainBackBuffers[i].Reset();
 	}
+
+	if (m_pd3dDepthStencilBuffer)
+		m_pd3dDepthStencilBuffer.Reset();
 
 	DXGI_SWAP_CHAIN_DESC dxgiSwapChainDesc;
 	::ZeroMemory(&dxgiSwapChainDesc, sizeof(DXGI_SWAP_CHAIN_DESC));
@@ -1087,8 +1269,8 @@ void CGameFramework::ChangeSwapChainState()
 
 	hResult = m_pdxgiSwapChain->ResizeBuffers(
 		m_nSwapChainBuffers,
-		m_nWndClientWidth,
-		m_nWndClientHeight,
+		width,
+		height,
 		dxgiSwapChainDesc.BufferDesc.Format,
 		dxgiSwapChainDesc.Flags
 	);
@@ -1097,6 +1279,58 @@ void CGameFramework::ChangeSwapChainState()
 	m_nSwapChainBufferIndex = m_pdxgiSwapChain->GetCurrentBackBufferIndex();
 
 	CreateSwapChainRenderTargetViews();
+	CreateDepthStencilView();
+
+	if (m_pPostProcessingShader)
+	{
+		m_pPostProcessingShader->ReleaseShaderVariables();
+
+		D3D12_CPU_DESCRIPTOR_HANDLE postProcessRtvHandle =
+			m_pd3dRtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+
+		postProcessRtvHandle.ptr +=
+			(::gnRtvDescriptorIncrementSize * m_nSwapChainBuffers);
+
+		DXGI_FORMAT postProcessFormats[5] =
+		{
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT_R32_FLOAT
+		};
+
+		m_pPostProcessingShader->CreateResourcesAndRtvsSrvs(
+			m_pd3dDevice.Get(),
+			m_pd3dCommandList.Get(),
+			5,
+			postProcessFormats,
+			postProcessRtvHandle,
+			static_cast<UINT>(width),
+			static_cast<UINT>(height)
+		);
+	}
+
+	CScene* scene = m_SceneManager.GetScene();
+
+	if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
+	{
+		if ( m_pPostProcessingShader && m_pPostProcessingShader->GetTexture() )
+		{
+			gameScene->SetDepthFogSourceSrvIndices(
+				m_pPostProcessingShader->GetTexture()->GetSrvIndex(0),
+				m_pPostProcessingShader->GetTexture()->GetSrvIndex(4)
+			);
+		}
+	}
+
+	if (scene)
+		scene->OnResize(width, height);
+
+	m_pCamera = scene ? scene->GetMainCamera() : nullptr;
+
+	if (m_pCamera)
+		m_pCamera->SetFrameResourceIndex(m_nFrameContextIndex);
 
 	for ( UINT i = 0; i < m_nFrameContexts; ++i )
 		m_frameContexts[i].fenceValue = 0;
@@ -1104,6 +1338,100 @@ void CGameFramework::ChangeSwapChainState()
 	m_nFrameContextIndex = 0;
 	m_pd3dCommandAllocator = m_frameContexts[m_nFrameContextIndex].commandAllocator;
 	m_pd3dCommandList = m_frameContexts[m_nFrameContextIndex].commandList;
+}
+
+void CGameFramework::EnterBorderlessFullscreen()
+{
+	// 1. 기존 창 스타일 저장
+	m_dwWindowedStyle = GetWindowLong(m_hWnd, GWL_STYLE);
+
+	// 2. 기존 창 위치/크기/상태 저장
+	m_WindowedPlacement.length = sizeof(WINDOWPLACEMENT);
+	GetWindowPlacement(m_hWnd, &m_WindowedPlacement);
+
+	// 3. 현재 창이 위치한 모니터 정보 얻기
+	MONITORINFO mi{};
+	mi.cbSize = sizeof(MONITORINFO);
+
+	HMONITOR hMonitor = MonitorFromWindow(m_hWnd, MONITOR_DEFAULTTONEAREST);
+	GetMonitorInfo(hMonitor, &mi);
+
+	const int width = mi.rcMonitor.right - mi.rcMonitor.left;
+	const int height = mi.rcMonitor.bottom - mi.rcMonitor.top;
+
+	// 4. 창 스타일에서 테두리/타이틀바 제거
+	SetWindowLong(
+		m_hWnd,
+		GWL_STYLE,
+		m_dwWindowedStyle & ~WS_OVERLAPPEDWINDOW
+	);
+
+	// 5. 창을 모니터 전체 영역으로 이동/확대
+	SetWindowPos(
+		m_hWnd,
+		HWND_TOP,
+		mi.rcMonitor.left,
+		mi.rcMonitor.top,
+		width,
+		height,
+		SWP_FRAMECHANGED | SWP_NOOWNERZORDER | SWP_SHOWWINDOW
+	);
+
+	// 6. 내부 상태 갱신
+	m_DisplayMode = DisplayMode::BorderlessFullscreen;
+
+	// 7. 렌더 타겟/백버퍼 크기 갱신
+	OnResize(width, height);
+}
+
+void CGameFramework::LeaveBorderlessFullscreen()
+{
+	SetWindowLong(m_hWnd, GWL_STYLE, m_dwWindowedStyle);
+	SetWindowPlacement(m_hWnd, &m_WindowedPlacement);
+
+	SetWindowPos(
+		m_hWnd,
+		nullptr,
+		0, 0, 0, 0,
+		SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED
+	);
+
+	OnResize(FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
+}
+
+bool CGameFramework::CanUseExclusiveFullscreen() const
+{
+	if (!m_pd3dGPUAdapter || !m_hWnd)
+		return false;
+
+	HMONITOR targetMonitor = MonitorFromWindow(
+		m_hWnd,
+		MONITOR_DEFAULTTONEAREST
+	);
+
+	if (!targetMonitor)
+		return false;
+
+	for (UINT i = 0; ; ++i)
+	{
+		ComPtr<IDXGIOutput> output;
+		HRESULT hr = m_pd3dGPUAdapter->EnumOutputs(i, &output);
+
+		if (hr == DXGI_ERROR_NOT_FOUND)
+			break;
+
+		if (FAILED(hr) || !output)
+			continue;
+
+		DXGI_OUTPUT_DESC desc{};
+		if (FAILED(output->GetDesc(&desc)))
+			continue;
+
+		if (desc.Monitor == targetMonitor)
+			return true;
+	}
+
+	return false;
 }
 
 void CGameFramework::ProcessInput()

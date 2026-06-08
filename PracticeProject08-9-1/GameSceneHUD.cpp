@@ -14,14 +14,19 @@ void CGameSceneHUD::ReleaseResources()
 {
 	m_ui.ReleaseResources();
 
+	m_hpFrameSpriteIndex = -1;
+
 	m_pauseSpriteIndex = -1;
 	m_resumeSpriteIndex = -1;
 	m_exitSpriteIndex = -1;
+	m_poisonOverlaySpriteIndex = -1;
 
 	m_hpFillSpriteIndex = -1;
 	m_bossHpEmptySpriteIndex = -1;
 	m_bossHpFillSpriteIndex = -1;
 	m_bossHpFillOriginalRect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	m_bossHealthRatio = 1.0f;
+	m_bossHealthVisible = false;
 
 	m_otherPlayerHpEmptySpriteIndices.fill(-1);
 	m_otherPlayerHpFillSpriteIndices.fill(-1);
@@ -36,6 +41,7 @@ void CGameSceneHUD::ReleaseResources()
 	for ( XMFLOAT4& rect : m_inventoryCooldownOriginalRects ) rect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 	m_inventoryItemCounts.fill(0);
 	m_inventoryCountGlyphSpriteIndices.fill(-1);
+	m_inventoryCooldownRatios.fill(0.0f);
 	m_hpFillOriginalRect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f); 
 	m_healthRatio = 1.0f;
 
@@ -52,9 +58,12 @@ void CGameSceneHUD::BuildResources(
 	m_pauseSpriteIndex = -1;
 	m_resumeSpriteIndex = -1;
 	m_exitSpriteIndex = -1;
+	m_poisonOverlaySpriteIndex = -1;
 	m_bossHpEmptySpriteIndex = -1;
 	m_bossHpFillSpriteIndex = -1;
 	m_bossHpFillOriginalRect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	m_bossHealthRatio = 1.0f;
+	m_bossHealthVisible = false;
 
 	m_otherPlayerHpEmptySpriteIndices.fill(-1);
 	m_otherPlayerHpFillSpriteIndices.fill(-1);
@@ -73,25 +82,17 @@ void CGameSceneHUD::BuildResources(
 	// UI layout tuning block
 	// - rect = (centerX, centerY, width, height)
 	// --------------------------------------------------------------------
-	const float hpFrameCenterX = 150.0f;
-	const float hpFrameCenterY = 20.0f;
-	const float hpFrameWidth = 300.0f;
-	const float hpFrameHeight = 40.0f;
-
-	const float hpBarCenterX = hpFrameCenterX;
-	const float hpBarCenterY = hpFrameCenterY;
-	const float hpBarWidth = 290.0f;
-	const float hpBarHeight = 34.0f;
+	const HudLayout layout = CalculateLayout();
 
 	// --------------------------------------------------------------------
 	// Frame layer
 	// --------------------------------------------------------------------
-	m_ui.AddSprite(
+	m_hpFrameSpriteIndex = m_ui.AddSprite(
 		dev,
 		cmd,
 		"HPFrame",
 		L"Assets/UI/low_darkness_bar.dds",
-		XMFLOAT4(hpFrameCenterX, hpFrameCenterY, hpFrameWidth, hpFrameHeight),
+		layout.hpFrameRect,
 		CSceneUI::ELayer::Frame,
 		true
 	);
@@ -99,24 +100,19 @@ void CGameSceneHUD::BuildResources(
 	// --------------------------------------------------------------------
 	// Content layer
 	// --------------------------------------------------------------------
-	m_hpFillOriginalRect = XMFLOAT4(hpBarCenterX, hpBarCenterY, hpBarWidth, hpBarHeight);
+	m_hpFillOriginalRect = layout.hpFillRect;
 
 	m_hpFillSpriteIndex = m_ui.AddSprite(
-		dev,
-		cmd,
-		"HPFill",
-		L"Assets/UI/HP.dds",
-		m_hpFillOriginalRect,
-		CSceneUI::ELayer::Content,
-		true
-	);
+        dev,
+        cmd,
+        "HPFill",
+        L"Assets/UI/HP.dds",
+        m_hpFillOriginalRect,
+        CSceneUI::ELayer::Content,
+        true
+  );
 
-	// --------------------------------------------------------------------
-	// Pause layer
-	// rect = (centerX, centerY, width, height)
-	// --------------------------------------------------------------------
-	const float screenW = static_cast< float >( FRAME_BUFFER_WIDTH );
-	const float screenH = static_cast< float >( FRAME_BUFFER_HEIGHT );
+	m_poisonOverlaySpriteIndex = m_ui.AddSolidRect("PoisonEdgeOverlay", CSceneUI::GetFullscreenRect(static_cast< int >( m_screenWidth ), static_cast< int >( m_screenHeight )), CSceneUI::ELayer::Background, false, XMFLOAT4(0.10f, 0.95f, 0.18f, 0.0f), 4, XMFLOAT4(kPoisonOverlayThicknessPx, 0.0f, 0.0f, 0.0f));
 
 	// --------------------------------------------------------------------
 	// Other player HP gauges
@@ -125,27 +121,13 @@ void CGameSceneHUD::BuildResources(
 	// - 이름은 게이지 좌측 끝에 맞춰 게이지 위에 표시한다.
 	// - EmptyHP -> HP -> Name 순서로 추가한다.
 	// --------------------------------------------------------------------
-	const float otherHpGaugeWidth = 115.0f;
-	const float otherHpGaugeHeight = 10.0f;
-	const float otherHpNameWidth = 68.0f;
-	const float otherHpNameHeight = 30.0f;
-	const float otherHpNameToGaugeGap = -2.0f;
-	const float otherHpGaugeVerticalGap = 38.0f;
-	const float otherHpGroupTopMargin = 6.0f;
-	const float otherHpLeftX = hpBarCenterX - hpBarWidth * 0.5f;
-	const float otherHpGaugeCenterX = otherHpLeftX + otherHpGaugeWidth * 0.5f;
-	const float otherHpNameCenterX = otherHpLeftX + otherHpNameWidth * 0.5f;
-	const float otherHpFirstNameCenterY = hpFrameCenterY + hpFrameHeight * 0.5f + otherHpGroupTopMargin + otherHpNameHeight * 0.5f;
-	const float otherHpGaugeStartCenterY = otherHpFirstNameCenterY + otherHpNameHeight * 0.5f + otherHpNameToGaugeGap + otherHpGaugeHeight * 0.5f;
-
+	
 	const wchar_t* otherHpNameTexturePaths[4] = { L"Assets/UI/Player0txt.dds", L"Assets/UI/Player1txt.dds", L"Assets/UI/Player2txt.dds", L"Assets/UI/Player3txt.dds" };
 
 	for ( int i = 0; i < kOtherPlayerHpGaugeCount; ++i )
 	{
-		const float gaugeCenterY = otherHpGaugeStartCenterY + otherHpGaugeVerticalGap * static_cast< float >(i);
-		const float nameCenterY = otherHpFirstNameCenterY + otherHpGaugeVerticalGap * static_cast< float >(i);
-		const XMFLOAT4 gaugeRect(otherHpGaugeCenterX, gaugeCenterY, otherHpGaugeWidth, otherHpGaugeHeight);
-		const XMFLOAT4 nameRect(otherHpNameCenterX, nameCenterY, otherHpNameWidth, otherHpNameHeight);
+		const XMFLOAT4 gaugeRect = layout.otherPlayerHpGaugeRects[i];
+		const XMFLOAT4 nameRect = layout.otherPlayerHpNameRects[i];
 
 		m_otherPlayerHpOriginalRects[i] = gaugeRect;
 		m_otherPlayerHpNameOriginalRects[i] = nameRect;
@@ -173,31 +155,28 @@ void CGameSceneHUD::BuildResources(
 	// - 우측 하단 기준 세로 정렬.
 	// - 슬롯 순서는 위에서부터 0, 1, 2, 3.
 	// --------------------------------------------------------------------
-	const float inventorySlotWidth = 72.0f * 0.80f;
-	const float inventorySlotHeight = 72.0f * 0.80f;
-	const float inventoryRightMargin = 10.0f * 0.80f;
-	const float inventoryBottomMargin = 10.0f * 0.80f;
-	const float inventoryTotalHeight = inventorySlotHeight * static_cast< float >( kInventorySlotCount );
-	const float inventoryCenterX = screenW - inventoryRightMargin - inventorySlotWidth * 0.5f;
-	const float inventoryStartCenterY = screenH - inventoryBottomMargin - inventoryTotalHeight + inventorySlotHeight * 0.5f;
-	const float inventoryIconSize = inventorySlotWidth * 0.92f;
 	const char* inventorySpriteNames[kInventorySlotCount] = { "InventorySlot0", "InventorySlot1", "InventorySlot2", "InventorySlot3" };
 	const char* inventoryIconSpriteNames[kInventorySlotCount] = { "InventoryPotionHeal", "InventoryPotionAttackUp", "InventoryPotionDefenceUp", "InventoryPotionSpeedUp" };
 	const wchar_t* inventoryIconTexturePaths[kInventorySlotCount] = { L"Assets/UI/Potion_Heal.dds", L"Assets/UI/Potion_AttackUP.dds", L"Assets/UI/Potion_DefenseUP.dds", L"Assets/UI/Potion_SpeedUP.dds" };
 
 	for ( int i = 0; i < kInventorySlotCount; ++i )
 	{
-		const float centerY = inventoryStartCenterY + inventorySlotHeight * static_cast< float >(i);
-		m_inventorySpriteIndices[i] = m_ui.AddSprite(dev, cmd, inventorySpriteNames[i], L"Assets/UI/Inventory.dds", XMFLOAT4(inventoryCenterX, centerY, inventorySlotWidth, inventorySlotHeight), CSceneUI::ELayer::Frame, true);
-		m_inventoryIconSpriteIndices[i] = m_ui.AddSprite(dev, cmd, inventoryIconSpriteNames[i], inventoryIconTexturePaths[i], XMFLOAT4(inventoryCenterX, centerY, inventoryIconSize, inventoryIconSize), CSceneUI::ELayer::Content, true);
+		m_inventorySpriteIndices[i] = m_ui.AddSprite(
+			dev, cmd, inventorySpriteNames[i], L"Assets/UI/Inventory.dds",
+			layout.inventorySlotRects[i], CSceneUI::ELayer::Frame, true
+		);
+		m_inventoryIconSpriteIndices[i] = m_ui.AddSprite(
+			dev, cmd, inventoryIconSpriteNames[i], inventoryIconTexturePaths[i],
+			layout.inventoryIconRects[i], CSceneUI::ELayer::Content, true
+		);
 	}
 
 	for ( int slot = 0; slot < kInventorySlotCount; ++slot )
 	{
-		const float centerY = inventoryStartCenterY + inventorySlotHeight * static_cast< float >(slot);
 		char cooldownSpriteName[64] = {};
 		sprintf_s(cooldownSpriteName, "InventoryCooldown_%d", slot);
-		m_inventoryCooldownOriginalRects[slot] = XMFLOAT4(inventoryCenterX, centerY, inventorySlotWidth, inventorySlotHeight);
+
+		m_inventoryCooldownOriginalRects[slot] = layout.inventoryCooldownRects[slot];
 		m_inventoryCooldownSpriteIndices[slot] = m_ui.AddSolidRect(cooldownSpriteName, m_inventoryCooldownOriginalRects[slot], CSceneUI::ELayer::Content, false);
 	}
 
@@ -231,34 +210,24 @@ void CGameSceneHUD::BuildResources(
 	// - 우측 하단 세로 아이템 슬롯과 겹치지 않도록 폭을 제한한다.
 	// - EmptyHP를 먼저 그리고 HP를 그 위에 그린다.
 	// --------------------------------------------------------------------
-	const float bossHpWidth = 400.0f;
-	const float bossHpHeight = 16.0f;
-	const float bossHpBottomMargin = 34.0f;
-	const XMFLOAT4 bossHpRect(screenW * 0.5f, screenH - bossHpBottomMargin, bossHpWidth, bossHpHeight);
-
-	m_bossHpEmptySpriteIndex = m_ui.AddSprite(dev, cmd, "BossEmptyHP", L"Assets/UI/EmptyHP.dds", bossHpRect, CSceneUI::ELayer::Content, false);
-	m_bossHpFillOriginalRect = bossHpRect;
-	m_bossHpFillSpriteIndex = m_ui.AddSprite(dev, cmd, "BossHP", L"Assets/UI/HP.dds", bossHpRect, CSceneUI::ELayer::Content, false);
-
-	const XMFLOAT4 pauseRect(
-		screenW * 0.5f,
-		screenH * 0.5f,
-		screenW,
-		screenH
+	m_bossHpEmptySpriteIndex = m_ui.AddSprite(
+		dev, cmd,
+		"BossEmptyHP",
+		L"Assets/UI/EmptyHP.dds",
+		layout.bossHpRect,
+		CSceneUI::ELayer::Content,
+		false
 	);
 
-	const XMFLOAT4 resumeRect(
-		screenW * 0.5f,
-		screenH * 0.43f,
-		screenW * 0.40f,
-		screenH * 0.16f
-	);
+	m_bossHpFillOriginalRect = layout.bossHpRect;
 
-	const XMFLOAT4 exitRect(
-		screenW * 0.5f,
-		screenH * 0.66f,
-		screenW * 0.40f,
-		screenH * 0.16f
+	m_bossHpFillSpriteIndex = m_ui.AddSprite(
+		dev, cmd,
+		"BossHP",
+		L"Assets/UI/HP.dds",
+		layout.bossHpRect,
+		CSceneUI::ELayer::Content,
+		false
 	);
 
 	m_pauseSpriteIndex = m_ui.AddSprite(
@@ -266,7 +235,7 @@ void CGameSceneHUD::BuildResources(
 		cmd,
 		"Pause",
 		L"Assets/UI/Pause.dds",
-		pauseRect,
+		layout.pauseRect,
 		CSceneUI::ELayer::Pause,
 		true
 	);
@@ -276,7 +245,7 @@ void CGameSceneHUD::BuildResources(
 		cmd,
 		"Resume",
 		L"Assets/UI/Resume.dds",
-		resumeRect,
+		layout.resumeRect,
 		CSceneUI::ELayer::Pause,
 		true
 	);
@@ -286,7 +255,7 @@ void CGameSceneHUD::BuildResources(
 		cmd,
 		"Exit",
 		L"Assets/UI/Exit.dds",
-		exitRect,
+		layout.exitRect,
 		CSceneUI::ELayer::Pause,
 		true
 	);
@@ -320,6 +289,9 @@ void CGameSceneHUD::SetHealthRatio(float ratio)
 
 void CGameSceneHUD::SetBossHealthRatio(float ratio, bool visible)
 {
+	m_bossHealthRatio = std::clamp(ratio, 0.0f, 1.0f);
+	m_bossHealthVisible = visible;
+
 	if ( m_bossHpEmptySpriteIndex >= 0 )
 		m_ui.SetSpriteVisible(m_bossHpEmptySpriteIndex, visible);
 
@@ -467,6 +439,8 @@ void CGameSceneHUD::SetInventoryCooldownRatio(int slot, float ratio)
 	if ( ratio > 1.0f )
 		ratio = 1.0f;
 
+	m_inventoryCooldownRatios[slot] = ratio;
+
 	const int spriteIndex = m_inventoryCooldownSpriteIndices[slot];
 
 	if ( spriteIndex < 0 )
@@ -561,6 +535,26 @@ void CGameSceneHUD::UpdateInventoryCountTextSprites(int slot)
 	}
 }
 
+void CGameSceneHUD::SetPoisonOverlayAlpha(float alpha)
+{
+	alpha = std::clamp(alpha, 0.0f, 1.0f);
+
+	if ( m_poisonOverlaySpriteIndex < 0 )
+		return;
+
+	if ( alpha <= 0.001f )
+	{
+		m_ui.SetSpriteVisible(m_poisonOverlaySpriteIndex, false);
+		return;
+	}
+
+	const float finalAlpha = alpha * kPoisonOverlayMaxAlpha;
+
+	m_ui.SetSpriteColor(m_poisonOverlaySpriteIndex, XMFLOAT4(0.10f, 0.95f, 0.18f, finalAlpha));
+	m_ui.SetSpriteParams0(m_poisonOverlaySpriteIndex, XMFLOAT4(kPoisonOverlayThicknessPx, 0.0f, 0.0f, 0.0f));
+	m_ui.SetSpriteVisible(m_poisonOverlaySpriteIndex, true);
+}
+
 void CGameSceneHUD::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	m_ui.SetLayerVisible(CSceneUI::ELayer::Pause, m_inactiveOverlayVisible);
@@ -601,4 +595,165 @@ bool CGameSceneHUD::IsPointInResumeButton(POINT clientPt) const
 bool CGameSceneHUD::IsPointInExitButton(POINT clientPt) const
 {
 	return m_ui.IsPointInSprite(m_exitSpriteIndex, clientPt);
+}
+
+void CGameSceneHUD::OnResize(int width, int height)
+{
+	if (width <= 0 || height <= 0)
+		return;
+
+	m_screenWidth = static_cast<float>(width);
+	m_screenHeight = static_cast<float>(height);
+
+	m_ui.OnResize(width, height);
+
+	const HudLayout layout = CalculateLayout();
+
+	m_ui.SetSpriteRect(m_hpFrameSpriteIndex, layout.hpFrameRect);
+
+	m_hpFillOriginalRect = layout.hpFillRect;
+	SetHealthRatio(m_healthRatio);
+
+	for (int i = 0; i < kInventorySlotCount; ++i)
+	{
+		m_ui.SetSpriteRect(m_inventorySpriteIndices[i], layout.inventorySlotRects[i]);
+		m_ui.SetSpriteRect(m_inventoryIconSpriteIndices[i], layout.inventoryIconRects[i]);
+
+		m_inventoryCooldownOriginalRects[i] = layout.inventoryCooldownRects[i];
+		SetInventoryCooldownRatio(i, m_inventoryCooldownRatios[i]);
+
+		UpdateInventoryCountTextSprites(i);
+	}
+
+	m_ui.SetSpriteRect(m_pauseSpriteIndex, layout.pauseRect);
+	m_ui.SetSpriteRect(m_resumeSpriteIndex, layout.resumeRect);
+	m_ui.SetSpriteRect(m_exitSpriteIndex, layout.exitRect);
+
+	m_ui.SetSpriteRect(m_bossHpEmptySpriteIndex, layout.bossHpRect);
+	m_ui.SetSpriteRect(m_bossHpFillSpriteIndex, layout.bossHpRect);
+
+	m_bossHpFillOriginalRect = layout.bossHpRect;
+	SetBossHealthRatio(m_bossHealthRatio, m_bossHealthVisible);
+
+	for ( int i = 0; i < kOtherPlayerHpGaugeCount; ++i )
+	{
+		m_otherPlayerHpOriginalRects[i] = layout.otherPlayerHpGaugeRects[i];
+		m_otherPlayerHpNameOriginalRects[i] = layout.otherPlayerHpNameRects[i];
+
+		m_ui.SetSpriteRect(m_otherPlayerHpEmptySpriteIndices[i], layout.otherPlayerHpGaugeRects[i]);
+		m_ui.SetSpriteRect(m_otherPlayerHpFillSpriteIndices[i], layout.otherPlayerHpGaugeRects[i]);
+
+		for ( int slot = 0; slot < 4; ++slot )
+		{
+			m_ui.SetSpriteRect(m_otherPlayerHpNameSpriteIndices[i][slot], layout.otherPlayerHpNameRects[i]);
+		}
+	}
+}
+
+CGameSceneHUD::HudLayout CGameSceneHUD::CalculateLayout() const
+{
+	HudLayout layout{};
+
+	const float screenW = m_screenWidth;
+	const float screenH = m_screenHeight;
+
+	const float hpFrameMarginLeft = 12.0f;
+	const float hpFrameMarginTop = 12.0f;
+
+	const float hpFrameWidth =
+		std::clamp(screenW * 0.18f, 260.0f, 380.0f);
+
+	const float hpFrameHeight =
+		std::clamp(screenH * 0.035f, 34.0f, 48.0f);
+
+	const float hpFrameCenterX =
+		hpFrameMarginLeft + hpFrameWidth * 0.5f;
+
+	const float hpFrameCenterY =
+		hpFrameMarginTop + hpFrameHeight * 0.5f;
+
+	layout.hpFrameRect =
+		XMFLOAT4(hpFrameCenterX, hpFrameCenterY, hpFrameWidth, hpFrameHeight);
+
+	layout.hpFillRect =
+		XMFLOAT4(hpFrameCenterX, hpFrameCenterY, hpFrameWidth - 10.0f, hpFrameHeight - 6.0f);
+
+	const float inventorySlotSize =
+		std::clamp(screenH * 0.075f, 56.0f, 84.0f);
+
+	const float inventoryRightMargin = 10.0f;
+	const float inventoryBottomMargin = 10.0f;
+	const float inventoryTotalWidth =
+		inventorySlotSize * static_cast<float>(kInventorySlotCount);
+
+	const float inventoryStartCenterX =
+		screenW - inventoryRightMargin - inventoryTotalWidth + inventorySlotSize * 0.5f;
+
+	const float inventoryCenterY =
+		screenH - inventoryBottomMargin - inventorySlotSize * 0.5f;
+
+	const float inventoryIconSize = inventorySlotSize * 0.92f;
+
+	for (int i = 0; i < kInventorySlotCount; ++i)
+	{
+		const float centerX =
+			inventoryStartCenterX + inventorySlotSize * static_cast<float>(i);
+
+		layout.inventorySlotRects[i] =
+			XMFLOAT4(centerX, inventoryCenterY, inventorySlotSize, inventorySlotSize);
+
+		layout.inventoryIconRects[i] =
+			XMFLOAT4(centerX, inventoryCenterY, inventoryIconSize, inventoryIconSize);
+
+		layout.inventoryCooldownRects[i] =
+			layout.inventorySlotRects[i];
+	}
+
+	layout.pauseRect =
+		XMFLOAT4(screenW * 0.5f, screenH * 0.5f, screenW, screenH);
+
+	layout.resumeRect =
+		XMFLOAT4(screenW * 0.5f, screenH * 0.43f, screenW * 0.40f, screenH * 0.16f);
+
+	layout.exitRect =
+		XMFLOAT4(screenW * 0.5f, screenH * 0.66f, screenW * 0.40f, screenH * 0.16f);
+
+	const float bossHpWidth = std::clamp(screenW * 0.32f, 320.0f, 520.0f);
+	const float bossHpHeight = std::clamp(screenH * 0.018f, 14.0f, 22.0f);
+	const float bossHpBottomMargin = std::clamp(screenH * 0.045f, 28.0f, 48.0f);
+
+	layout.bossHpRect =	XMFLOAT4(screenW * 0.5f, screenH - bossHpBottomMargin, bossHpWidth, bossHpHeight);
+
+	const float otherHpGaugeWidth = 115.0f;
+	const float otherHpGaugeHeight = 10.0f;
+	const float otherHpNameWidth = 68.0f;
+	const float otherHpNameHeight = 30.0f;
+	const float otherHpNameToGaugeGap = -2.0f;
+	const float otherHpGaugeVerticalGap = 38.0f;
+	const float otherHpGroupTopMargin = 6.0f;
+	const float otherHpLeftX = layout.hpFillRect.x - layout.hpFillRect.z * 0.5f;
+	const float otherHpGaugeCenterX = otherHpLeftX + otherHpGaugeWidth * 0.5f;
+	const float otherHpNameCenterX = otherHpLeftX + otherHpNameWidth * 0.5f;
+	const float otherHpFirstNameCenterY = 
+		layout.hpFrameRect.y + layout.hpFrameRect.w * 0.5f
+		+ otherHpGroupTopMargin
+		+ otherHpNameHeight * 0.5f;
+	const float otherHpGaugeStartCenterY = otherHpFirstNameCenterY + otherHpNameHeight * 0.5f + otherHpNameToGaugeGap + otherHpGaugeHeight * 0.5f;
+
+	for ( int i = 0; i < kOtherPlayerHpGaugeCount; ++i )
+	{
+		const float gaugeCenterY =
+			otherHpGaugeStartCenterY + otherHpGaugeVerticalGap * static_cast<float>(i);
+
+		const float nameCenterY =
+			otherHpFirstNameCenterY + otherHpGaugeVerticalGap * static_cast<float>(i);
+
+		layout.otherPlayerHpGaugeRects[i] =
+			XMFLOAT4(otherHpGaugeCenterX, gaugeCenterY, otherHpGaugeWidth, otherHpGaugeHeight);
+
+		layout.otherPlayerHpNameRects[i] =
+			XMFLOAT4(otherHpNameCenterX, nameCenterY, otherHpNameWidth, otherHpNameHeight);
+	}
+
+	return layout;
 }

@@ -20,7 +20,7 @@ public:
 public:
 	virtual void Update(uint32 serverTick) override;
 	void Build();
-	void ApplyHit(uint32 serverTick, int damage, uint32 hitDurationTicks = 10);
+	void ApplyHit(uint32 serverTick, int damage, uint32 hitDurationTicks, uint64 serverMs);
 	void Respawn(uint32 serverTick);
 
 	void SetLastMoveKeyCodes(int32 keyCodes) { m_lastMoveKeyCodes = keyCodes; }
@@ -90,13 +90,25 @@ public:
 		m_pendingForcedTransform = PendingForcedTransform{};
 		return true;
 	}
-
+public:
+	static constexpr int kInventorySlotCount = 4;
 private:
 	CWeapon weapon;
 	uint32 m_hitEndTick = 0;
 	uint32 m_deathTick = 0;
 	int32 m_lastMoveKeyCodes = 0;
 	int32 m_rollMoveKeyCodes = 0;
+
+	static constexpr uint64 kBuffDurationMs   = 10000;
+	static constexpr int    kHealPotionAmount = 20;
+	static constexpr int    kAttackBuffDamageMultiplier = 2;
+	static constexpr float  kDefenseBuffIncomingDamageScale = 0.5f;
+	static constexpr float  kSpeedBuffMoveMultiplier = 2.0f;
+
+	std::array<int, kInventorySlotCount> m_inventoryCounts = {};
+	uint64 m_attackBuffEndMs  = 0;
+	uint64 m_defenseBuffEndMs = 0;
+	uint64 m_speedBuffEndMs   = 0;
 
 	struct PendingPortalTeleport
 	{
@@ -117,6 +129,19 @@ private:
 		int32 reason = 0;
 	};
 	PendingForcedTransform m_pendingForcedTransform;
+
+public:
+
+	int  GetInventoryCount(Protocol::ItemType kind) const;
+	void AddInventoryItem(Protocol::ItemType kind);
+	bool UseInventoryItem(Protocol::ItemType kind, uint64 serverMs);
+
+	bool IsAttackBuffActive(uint64 serverMs)  const { return serverMs < m_attackBuffEndMs; }
+	bool IsDefenseBuffActive(uint64 serverMs) const { return serverMs < m_defenseBuffEndMs; }
+	bool IsSpeedBuffActive(uint64 serverMs)   const { return serverMs < m_speedBuffEndMs; }
+	int ApplyAttackBuffToDamage(int damage, uint64 serverMs) const;
+	int ApplyDefenseBuffToIncomingDamage(int damage, uint64 serverMs) const;
+	float GetMoveSpeedMultiplier(uint64 serverMs) const;
 
 public:
 	void SetWeapon(Protocol::WeaponType& type, uint32& currentBullets)

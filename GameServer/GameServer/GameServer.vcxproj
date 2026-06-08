@@ -227,6 +227,7 @@
     <ClCompile Include="Room.cpp" />
     <ClCompile Include="Room.Grid.cpp" />
     <ClCompile Include="Room.Input.cpp" />
+    <ClCompile Include="Room.Item.cpp" />
     <ClCompile Include="Room.Packet.cpp" />
     <ClCompile Include="ServerTerrain.cpp" />
     <ClCompile Include="ServerMap.cpp" />
