@@ -101,6 +101,11 @@ int CSceneUI::AddSprite(
 
 int CSceneUI::AddSolidRect(const char* name, const XMFLOAT4& rect, ELayer layer, bool visible)
 {
+	return AddSolidRect(name, rect, layer, visible, XMFLOAT4(0.0f, 0.0f, 0.0f, 0.55f), 3, XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f));
+}
+
+int CSceneUI::AddSolidRect(const char* name, const XMFLOAT4& rect, ELayer layer, bool visible, const XMFLOAT4& color, int effectKind, const XMFLOAT4& params0)
+{
 	SpriteEntry entry{};
 
 	if ( name )
@@ -111,7 +116,9 @@ int CSceneUI::AddSolidRect(const char* name, const XMFLOAT4& rect, ELayer layer,
 	entry.rect = rect;
 	entry.layer = layer;
 	entry.visible = visible;
-	entry.effectKind = 3;
+	entry.effectKind = effectKind;
+	entry.color = color;
+	entry.params0 = params0;
 
 	m_sprites.push_back(std::move(entry));
 	return static_cast< int >( m_sprites.size() - 1 );
@@ -190,7 +197,7 @@ void CSceneUI::RenderSprite(ID3D12GraphicsCommandList* cmd, CCamera* camera, int
 	if ( !sprite.visible )
 		return;
 
-	const bool solidRect = ( sprite.effectKind == 3 );
+	const bool solidRect = ( sprite.effectKind == 3 || sprite.effectKind == 4 );
 
 	if ( !solidRect && sprite.srvIndex == UINT_MAX )
 		return;
@@ -200,12 +207,9 @@ void CSceneUI::RenderSprite(ID3D12GraphicsCommandList* cmd, CCamera* camera, int
 	opt.m_xmu4PostSrvIdx0 = XMUINT4(solidRect ? 0 : sprite.srvIndex, 0, 0, 0);
 	opt.m_xmu4PostSrvIdx1 = XMUINT4(0, 0, 0, 0);
 	opt.m_xmf4UiRect = sprite.rect;
-	opt.m_xmf4Viewport = XMFLOAT4(
-		static_cast< float >( FRAME_BUFFER_WIDTH ),
-		static_cast< float >( FRAME_BUFFER_HEIGHT ),
-		1.0f / static_cast< float >( FRAME_BUFFER_WIDTH ),
-		1.0f / static_cast< float >( FRAME_BUFFER_HEIGHT )
-	);
+	opt.m_xmf4Viewport = XMFLOAT4(static_cast< float >( FRAME_BUFFER_WIDTH ), static_cast< float >( FRAME_BUFFER_HEIGHT ), 1.0f / static_cast< float >( FRAME_BUFFER_WIDTH ), 1.0f / static_cast< float >( FRAME_BUFFER_HEIGHT ));
+	opt.m_xmf4Color = sprite.color;
+	opt.m_xmf4Params0 = sprite.params0;
 
 	m_shader->Render(cmd, camera, &opt);
 }
@@ -237,6 +241,24 @@ bool CSceneUI::SetSpriteEffectKind(int spriteIndex, int effectKind)
 		effectKind = 0;
 
 	m_sprites[static_cast< size_t >(spriteIndex)].effectKind = effectKind;
+	return true;
+}
+
+bool CSceneUI::SetSpriteColor(int spriteIndex, const XMFLOAT4& color)
+{
+	if ( !IsValidSpriteIndex(spriteIndex) )
+		return false;
+
+	m_sprites[static_cast< size_t >( spriteIndex )].color = color;
+	return true;
+}
+
+bool CSceneUI::SetSpriteParams0(int spriteIndex, const XMFLOAT4& params0)
+{
+	if ( !IsValidSpriteIndex(spriteIndex) )
+		return false;
+
+	m_sprites[static_cast< size_t >( spriteIndex )].params0 = params0;
 	return true;
 }
 

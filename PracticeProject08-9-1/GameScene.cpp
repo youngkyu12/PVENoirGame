@@ -2037,8 +2037,26 @@ void CGameScene::UpdateMegaGrid4LowYPoison(float dt)
 		hp->TakeDamage(damage);
 	}
 
+	float poisonOverlayAlpha = 0.0f;
+
+	if ( m_localPlayerSlot >= 0 && m_localPlayerSlot < static_cast< int >(m_megaGrid4LowYPoisonStates.size()) )
+	{
+		const MegaGrid4LowYPoisonState& localState = m_megaGrid4LowYPoisonStates[static_cast< size_t >(m_localPlayerSlot)];
+
+		if ( kMegaGrid4LowYPoisonGraceSec > 0.0f )
+			poisonOverlayAlpha = localState.exposureSec / kMegaGrid4LowYPoisonGraceSec;
+
+		if ( poisonOverlayAlpha < 0.0f )
+			poisonOverlayAlpha = 0.0f;
+
+		if ( poisonOverlayAlpha > 1.0f )
+			poisonOverlayAlpha = 1.0f;
+	}
+
+	m_hud.SetPoisonOverlayAlpha(poisonOverlayAlpha);
 #else
 	UNREFERENCED_PARAMETER(dt);
+	m_hud.SetPoisonOverlayAlpha(0.0f);
 #endif
 }
 
