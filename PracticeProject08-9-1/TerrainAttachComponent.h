@@ -18,6 +18,11 @@ public:
 	void SetTerrainData(std::shared_ptr<TerrainData> terrainData);
 	void SetHeightOffset(float offset);
 	float GetHeightOffset() const { return m_heightOffset; }
+	void SetAutoSnapEnabled(bool enabled);
+
+	void SetFixedY(float y);
+	void ClearFixedY();
+	bool IsFixedYEnabled() const { return m_fixedYEnabled; }
 
 	void SnapToTerrain();
 
@@ -28,4 +33,8 @@ private:
 	std::shared_ptr<TerrainData> m_terrainData;
 	float m_heightOffset = 0.0f;
 	bool m_captureInitialOffset = true;
+	bool m_autoSnapEnabled = true;
+
+	bool m_fixedYEnabled = false;
+	float m_fixedY = 0.0f;
 };

@@ -7,6 +7,7 @@ CEnemy::~CEnemy() = default;
 
 void CEnemy::EnsureAI()
 {
+	if (!UsesMonsterAI()) return;
 	if (!m_monsterAI)
 		m_monsterAI = std::make_unique<CMonsterAI>(this);
 }

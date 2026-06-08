@@ -1,0 +1,476 @@
+//-----------------------------------------------------------------------------
+// File: GameSceneMonsterHpGauge.cpp
+//-----------------------------------------------------------------------------
+
+#include "stdafx.h"
+#include "GameScenePrivate.h"
+
+namespace
+{
+	void StoreMonsterHpGaugeWorldRows(ItemBillboardInstanceVertex& dst, const XMFLOAT3& objectPosition, float yOffset, float maxWidth, float height, float hpRatio, const XMFLOAT3& targetPosition, UINT materialId)
+	{
+		const float ratio = std::clamp(hpRatio, 0.0f, 1.0f);
+		const float width = maxWidth * ratio;
+
+		const XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+
+		XMVECTOR center = XMLoadFloat3(&objectPosition);
+		center = XMVectorAdd(center, XMVectorSet(0.0f, yOffset, 0.0f, 0.0f));
+
+		XMVECTOR target = XMLoadFloat3(&targetPosition);
+
+		XMVECTOR forward = XMVectorSubtract(target, center);
+		forward = XMVectorSetY(forward, 0.0f);
+
+		if ( XMVectorGetX(XMVector3LengthSq(forward)) <= 1.0e-6f )
+			forward = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+		else
+			forward = XMVector3Normalize(forward);
+
+		XMVECTOR right = XMVector3Cross(up, forward);
+
+		if ( XMVectorGetX(XMVector3LengthSq(right)) <= 1.0e-6f )
+			right = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+		else
+			right = XMVector3Normalize(right);
+
+		center = XMVectorAdd(center, XMVectorScale(right, ( maxWidth - width ) * 0.5f));
+
+		const XMVECTOR scaledRight = XMVectorScale(right, width);
+		const XMVECTOR scaledUp = XMVectorScale(up, height);
+
+		XMFLOAT3 r{};
+		XMFLOAT3 u{};
+		XMFLOAT3 f{};
+		XMFLOAT3 c{};
+
+		XMStoreFloat3(&r, scaledRight);
+		XMStoreFloat3(&u, scaledUp);
+		XMStoreFloat3(&f, forward);
+		XMStoreFloat3(&c, center);
+
+		dst.world0 = XMFLOAT4(r.x, r.y, r.z, 0.0f);
+		dst.world1 = XMFLOAT4(u.x, u.y, u.z, 0.0f);
+		dst.world2 = XMFLOAT4(f.x, f.y, f.z, 0.0f);
+		dst.world3 = XMFLOAT4(c.x, c.y, c.z, 1.0f);
+
+		dst.materialId = materialId;
+		dst.pad[0] = 0;
+		dst.pad[1] = 0;
+		dst.pad[2] = 0;
+	}
+
+	void StoreMonsterHpGaugeCenteredWorldRows(ItemBillboardInstanceVertex& dst, const XMFLOAT3& objectPosition, float yOffset, float width, float height, const XMFLOAT3& targetPosition, UINT materialId)
+	{
+		const XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+
+		XMVECTOR center = XMLoadFloat3(&objectPosition);
+		center = XMVectorAdd(center, XMVectorSet(0.0f, yOffset, 0.0f, 0.0f));
+
+		XMVECTOR target = XMLoadFloat3(&targetPosition);
+
+		XMVECTOR forward = XMVectorSubtract(target, center);
+		forward = XMVectorSetY(forward, 0.0f);
+
+		if ( XMVectorGetX(XMVector3LengthSq(forward)) <= 1.0e-6f )
+			forward = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+		else
+			forward = XMVector3Normalize(forward);
+
+		XMVECTOR right = XMVector3Cross(up, forward);
+
+		if ( XMVectorGetX(XMVector3LengthSq(right)) <= 1.0e-6f )
+			right = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+		else
+			right = XMVector3Normalize(right);
+
+		// 이름 텍스처는 현재 빌보드 right 방향 기준으로 좌우 반전되어 보이므로, 이름 빌보드의 가로축만 뒤집는다.
+		const XMVECTOR scaledRight = XMVectorScale(right, -width);
+		const XMVECTOR scaledUp = XMVectorScale(up, height);
+
+		XMFLOAT3 r{};
+		XMFLOAT3 u{};
+		XMFLOAT3 f{};
+		XMFLOAT3 c{};
+
+		XMStoreFloat3(&r, scaledRight);
+		XMStoreFloat3(&u, scaledUp);
+		XMStoreFloat3(&f, forward);
+		XMStoreFloat3(&c, center);
+
+		dst.world0 = XMFLOAT4(r.x, r.y, r.z, 0.0f);
+		dst.world1 = XMFLOAT4(u.x, u.y, u.z, 0.0f);
+		dst.world2 = XMFLOAT4(f.x, f.y, f.z, 0.0f);
+		dst.world3 = XMFLOAT4(c.x, c.y, c.z, 1.0f);
+
+		dst.materialId = materialId;
+		dst.pad[0] = 0;
+		dst.pad[1] = 0;
+		dst.pad[2] = 0;
+	}
+}
+
+UINT CGameScene::GetPlayerWorldHpNameMaterialId(int playerSlot) const
+{
+	if ( playerSlot < 0 )
+		playerSlot = 0;
+
+	if ( playerSlot > 3 )
+		playerSlot = 3;
+
+	return kPlayerWorldHpNameMaterialBaseId + static_cast< UINT >( playerSlot );
+}
+
+void CGameScene::BuildMonsterHpGaugeBatch(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, UINT rtCount, DXGI_FORMAT* rtvFormats, DXGI_FORMAT dsvFormat)
+{
+	if ( !dev || !cmd )
+		return;
+
+	ReleaseMonsterHpGaugeGpuResources();
+	ResetMonsterHpGaugeVisibilityState();
+
+	m_monsterHpGaugeState.shader = std::make_shared<CItemBillboardShader>();
+	m_monsterHpGaugeState.shader->CreateShader(dev, m_pd3dGraphicsRootSignature.Get(), rtCount, rtvFormats, dsvFormat);
+
+	m_monsterHpGaugeState.hpTexture = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
+	m_monsterHpGaugeState.hpTexture->LoadTextureFromFile(dev, cmd, L"Assets/UI/HP.dds", RESOURCE_TEXTURE2D, 0);
+	CScene::m_pDescriptorHeap->CreateShaderResourceViews(dev, m_monsterHpGaugeState.hpTexture.get(), ROOT_PARAMETER_GLOBAL_SRV);
+	SetMaterialDiffuseSrvIndex(static_cast< int >( kMonsterHpGaugeMaterialId ), m_monsterHpGaugeState.hpTexture->GetBaseSrvIndex());
+
+	m_monsterHpGaugeState.emptyHpTexture = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
+	m_monsterHpGaugeState.emptyHpTexture->LoadTextureFromFile(dev, cmd, L"Assets/UI/EmptyHP.dds", RESOURCE_TEXTURE2D, 0);
+	CScene::m_pDescriptorHeap->CreateShaderResourceViews(dev, m_monsterHpGaugeState.emptyHpTexture.get(), ROOT_PARAMETER_GLOBAL_SRV);
+	SetMaterialDiffuseSrvIndex(static_cast< int >( kMonsterHpGaugeEmptyMaterialId ), m_monsterHpGaugeState.emptyHpTexture->GetBaseSrvIndex());
+
+	const wchar_t* playerNameTexturePaths[4] = { L"Assets/UI/Player0txt.dds", L"Assets/UI/Player1txt.dds", L"Assets/UI/Player2txt.dds", L"Assets/UI/Player3txt.dds" };
+
+	for ( int slot = 0; slot < 4; ++slot )
+	{
+		m_monsterHpGaugeState.playerNameTextures[slot] = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
+		m_monsterHpGaugeState.playerNameTextures[slot]->LoadTextureFromFile(dev, cmd, playerNameTexturePaths[slot], RESOURCE_TEXTURE2D, 0);
+		CScene::m_pDescriptorHeap->CreateShaderResourceViews(dev, m_monsterHpGaugeState.playerNameTextures[slot].get(), ROOT_PARAMETER_GLOBAL_SRV);
+		SetMaterialDiffuseSrvIndex(static_cast< int >(GetPlayerWorldHpNameMaterialId(slot)), m_monsterHpGaugeState.playerNameTextures[slot]->GetBaseSrvIndex());
+	}
+
+	m_monsterHpGaugeState.quadMesh = CreateItemBillboardQuadMesh(dev, cmd);
+
+	const UINT monsterHpGaugeObjectCapacity = m_ghoulCount + m_swordManCount + m_bowManCount + m_MutantCount + 3;
+	const UINT monsterHpGaugeInstanceCapacity = monsterHpGaugeObjectCapacity * 3;
+
+	if ( monsterHpGaugeInstanceCapacity == 0 )
+		return;
+
+	m_monsterHpGaugeState.instanceBuffer.Create(dev, cmd, monsterHpGaugeInstanceCapacity, [ dev, cmd ] (UINT bufferBytes) { return ::CreateBufferResource(dev, cmd, nullptr, bufferBytes, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr); });
+}
+
+void CGameScene::ReleaseMonsterHpGaugeGpuResources()
+{
+	m_monsterHpGaugeState.instanceBuffer.Release();
+	m_monsterHpGaugeState.hpTexture.reset();
+	m_monsterHpGaugeState.emptyHpTexture.reset();
+	for ( auto& texture : m_monsterHpGaugeState.playerNameTextures ) texture.reset();
+	m_monsterHpGaugeState.shader.reset();
+	m_monsterHpGaugeState.quadMesh.reset();
+}
+
+bool CGameScene::FindSkinnedBatchObjectIndex(const CGameObject* object, UINT& outObjectIndex) const
+{
+	outObjectIndex = UINT_MAX;
+
+	if ( !object )
+		return false;
+
+	for ( UINT i = 0; i < static_cast< UINT >(m_skinnedBatch.objectRefs.size()); ++i )
+	{
+		if ( m_skinnedBatch.objectRefs[i] == object )
+		{
+			outObjectIndex = i;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool CGameScene::IsOtherPlayerWorldHpGaugeRenderAllowed(int playerSlot, CCamera* camera, UINT& outSkinnedBatchObjectIndex) const
+{
+	return IsOtherPlayerSkinnedBodyRenderedThisFrame(playerSlot, camera, outSkinnedBatchObjectIndex);
+}
+
+void CGameScene::ResetMonsterHpGaugeVisibilityState()
+{
+	m_monsterHpGaugeRuntimeStates.clear();
+}
+
+void CGameScene::UpdateMonsterHpGaugeTimers(float dt)
+{
+	if ( dt < 0.0f )
+		dt = 0.0f;
+
+	std::unordered_set<CGameObject*> validMonsterObjects;
+
+	for ( const SkinnedWorldLodEntry& entry : m_skinnedWorldLodEntries )
+	{
+		CGameObject* monster = entry.object;
+
+		if ( !monster )
+			continue;
+
+		float yOffset = 0.0f;
+		float maxWidth = 0.0f;
+		float height = 0.0f;
+
+		if ( !GetMonsterHpGaugeDesc(entry, yOffset, maxWidth, height) )
+			continue;
+
+		validMonsterObjects.insert(monster);
+
+		const CHealthComponent* health = monster->GetComponent<CHealthComponent>();
+
+		if ( !health )
+			continue;
+
+		const int currentHp = health->GetCurrentHp();
+
+		MonsterHpGaugeRuntimeState& state = m_monsterHpGaugeRuntimeStates[monster];
+
+		if ( state.previousHp < 0 )
+		{
+			state.previousHp = currentHp;
+			state.visibleTimerSec = 0.0f;
+			continue;
+		}
+
+		if ( currentHp < state.previousHp && currentHp > 0 )
+		{
+			state.visibleTimerSec = kMonsterHpGaugeVisibleDurationSec;
+		}
+		else if ( currentHp > state.previousHp )
+		{
+			state.visibleTimerSec = 0.0f;
+		}
+
+		state.previousHp = currentHp;
+
+		if ( state.visibleTimerSec > 0.0f )
+		{
+			state.visibleTimerSec -= dt;
+
+			if ( state.visibleTimerSec < 0.0f )
+				state.visibleTimerSec = 0.0f;
+		}
+	}
+
+	for ( auto it = m_monsterHpGaugeRuntimeStates.begin(); it != m_monsterHpGaugeRuntimeStates.end(); )
+	{
+		if ( validMonsterObjects.find(it->first) == validMonsterObjects.end() )
+			it = m_monsterHpGaugeRuntimeStates.erase(it);
+		else
+			++it;
+	}
+}
+
+bool CGameScene::GetMonsterHpGaugeDesc(const SkinnedWorldLodEntry& entry, float& outYOffset, float& outMaxWidth, float& outHeight) const
+{
+	outYOffset = 0.0f;
+	outMaxWidth = 0.0f;
+	outHeight = 0.12f;
+
+	if ( entry.assetName == "Ghoul" )
+	{
+		outYOffset = 2.0f;
+		outMaxWidth = 1.0f;
+		return true;
+	}
+
+	if ( entry.assetName == "BowMan" || entry.assetName == "SwordMan" )
+	{
+		outYOffset = 3.5f;
+		outMaxWidth = 1.5f;
+		return true;
+	}
+
+	if ( entry.assetName == "Mutant" )
+	{
+		outYOffset = 3.5f;
+		outMaxWidth = 2.0f;
+		return true;
+	}
+
+	return false;
+}
+
+bool CGameScene::IsSkinnedMonsterHpGaugeRenderAllowed(const SkinnedWorldLodEntry& entry) const
+{
+	if ( !entry.object )
+		return false;
+
+	float yOffset = 0.0f;
+	float maxWidth = 0.0f;
+	float height = 0.0f;
+
+	if ( !GetMonsterHpGaugeDesc(entry, yOffset, maxWidth, height) )
+		return false;
+
+	const auto timerIt = m_monsterHpGaugeRuntimeStates.find(entry.object);
+
+	if ( timerIt == m_monsterHpGaugeRuntimeStates.end() )
+		return false;
+
+	if ( timerIt->second.visibleTimerSec <= 0.0f )
+		return false;
+
+	if ( entry.skinnedBatchObjectIndex >= static_cast< UINT >( m_skinnedBatch.objectRefs.size() ) )
+		return false;
+
+	if ( entry.skinnedBatchObjectIndex < static_cast< UINT >(m_skinnedDistanceCullFlags.size()) && m_skinnedDistanceCullFlags[entry.skinnedBatchObjectIndex] != 0 )
+		return false;
+
+	if ( entry.skinnedBatchObjectIndex < static_cast< UINT >(m_skinnedOcclusionCullFlags.size()) && m_skinnedOcclusionCullFlags[entry.skinnedBatchObjectIndex] != 0 )
+		return false;
+
+	const XMFLOAT3 objectPos = entry.object->GetPosition();
+
+	if ( objectPos.y < -50.0f )
+		return false;
+
+	const CHealthComponent* health = entry.object->GetComponent<CHealthComponent>();
+
+	if ( !health )
+		return false;
+
+	if ( health->GetCurrentHp() <= 0 || health->GetMaxHp() <= 0 )
+		return false;
+
+	return true;
+}
+
+void CGameScene::RenderMonsterHpGauges(ID3D12GraphicsCommandList* cmd, CCamera* camera)
+{
+	if ( !cmd ) return;
+	if ( !camera ) return;
+	if ( !m_monsterHpGaugeState.shader ) return;
+	if ( !m_monsterHpGaugeState.quadMesh ) return;
+
+	UpdateMonsterHpGaugeTimers(0.0f);
+
+	const UINT frameIndex = m_nFrameResourceIndex % kSceneBatchFrameResourceCount;
+
+	ID3D12Resource* instanceBuffer = m_monsterHpGaugeState.instanceBuffer.Resource(frameIndex);
+	ItemBillboardInstanceVertex* mappedInstanceBuffer = m_monsterHpGaugeState.instanceBuffer.Mapped(frameIndex);
+	const UINT instanceBufferCapacity = m_monsterHpGaugeState.instanceBuffer.Capacity();
+
+	if ( !instanceBuffer ) return;
+	if ( !mappedInstanceBuffer ) return;
+	if ( instanceBufferCapacity < 3 ) return;
+	if ( m_monsterHpGaugeState.quadMesh->m_SubMeshes.empty() ) return;
+
+	const SubMesh& sm = m_monsterHpGaugeState.quadMesh->m_SubMeshes[0];
+
+	if ( sm.indices.empty() )
+		return;
+
+	const UINT gaugeObjectCapacity = instanceBufferCapacity / 3;
+	const UINT foregroundInstanceStart = gaugeObjectCapacity;
+	const UINT playerNameInstanceStart = gaugeObjectCapacity * 2;
+
+	const XMFLOAT3 targetPos = camera->GetPosition();
+
+	UINT visibleGaugeCount = 0;
+	UINT visiblePlayerNameCount = 0;
+	
+	for ( const SkinnedWorldLodEntry& entry : m_skinnedWorldLodEntries )
+	{
+		if ( !IsSkinnedMonsterHpGaugeRenderAllowed(entry) )
+			continue;
+
+		float yOffset = 0.0f;
+		float maxWidth = 0.0f;
+		float height = 0.0f;
+
+		if ( !GetMonsterHpGaugeDesc(entry, yOffset, maxWidth, height) )
+			continue;
+
+		const CHealthComponent* health = entry.object->GetComponent<CHealthComponent>();
+
+		if ( !health )
+			continue;
+
+		const float hpRatio = health->GetHpRatio();
+
+		if ( hpRatio <= 0.0f )
+			continue;
+
+		if ( visibleGaugeCount >= gaugeObjectCapacity )
+			break;
+
+		StoreMonsterHpGaugeWorldRows(mappedInstanceBuffer[visibleGaugeCount], entry.object->GetPosition(), yOffset, maxWidth, height, 1.0f, targetPos, kMonsterHpGaugeEmptyMaterialId);
+		StoreMonsterHpGaugeWorldRows(mappedInstanceBuffer[foregroundInstanceStart + visibleGaugeCount], entry.object->GetPosition(), yOffset, maxWidth, height, hpRatio, targetPos, kMonsterHpGaugeMaterialId);
+
+		++visibleGaugeCount;
+	}
+
+	for ( int slot = 0; slot < 4; ++slot )
+	{
+		UINT playerSkinnedBatchObjectIndex = UINT_MAX;
+
+		if ( !IsOtherPlayerWorldHpGaugeRenderAllowed(slot, camera, playerSkinnedBatchObjectIndex) )
+			continue;
+
+		CGameObject* player = GetPlayerBySlot(slot);
+
+		if ( !player )
+			continue;
+
+		const CHealthComponent* health = player->GetComponent<CHealthComponent>();
+
+		if ( !health )
+			continue;
+
+		const float hpRatio = health->GetHpRatio();
+
+		if ( hpRatio <= 0.0f )
+			continue;
+
+		if ( visibleGaugeCount >= gaugeObjectCapacity || visiblePlayerNameCount >= gaugeObjectCapacity )
+			break;
+
+		const float hpYOffset = 2.0f;
+		const float hpMaxWidth = 1.0f;
+		const float hpHeight = 0.12f;
+
+		const float nameWidth = 0.60f;
+		const float nameHeight = 0.26f;
+		const float nameToGaugeGap = -0.02f;
+		const float nameYOffset = hpYOffset + hpHeight * 0.5f + nameToGaugeGap + nameHeight * 0.5f;
+
+		StoreMonsterHpGaugeWorldRows(mappedInstanceBuffer[visibleGaugeCount], player->GetPosition(), hpYOffset, hpMaxWidth, hpHeight, 1.0f, targetPos, kMonsterHpGaugeEmptyMaterialId);
+		StoreMonsterHpGaugeWorldRows(mappedInstanceBuffer[foregroundInstanceStart + visibleGaugeCount], player->GetPosition(), hpYOffset, hpMaxWidth, hpHeight, hpRatio, targetPos, kMonsterHpGaugeMaterialId);
+		StoreMonsterHpGaugeCenteredWorldRows(mappedInstanceBuffer[playerNameInstanceStart + visiblePlayerNameCount], player->GetPosition(), nameYOffset, nameWidth, nameHeight, targetPos, GetPlayerWorldHpNameMaterialId(slot));
+
+		++visibleGaugeCount;
+		++visiblePlayerNameCount;
+	}
+
+	if ( visibleGaugeCount == 0 )
+		return;
+
+	m_monsterHpGaugeState.shader->Render(cmd, camera, nullptr);
+
+	D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
+	vbViews[0] = sm.vbView;
+
+	vbViews[1].BufferLocation = instanceBuffer->GetGPUVirtualAddress();
+	vbViews[1].SizeInBytes = sizeof(ItemBillboardInstanceVertex) * instanceBufferCapacity;
+	vbViews[1].StrideInBytes = sizeof(ItemBillboardInstanceVertex);
+
+	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	cmd->IASetVertexBuffers(0, 2, vbViews);
+	cmd->IASetIndexBuffer(&sm.ibView);
+
+	cmd->DrawIndexedInstanced(static_cast< UINT >( sm.indices.size() ), visibleGaugeCount, 0, 0, 0);
+	cmd->DrawIndexedInstanced(static_cast< UINT >( sm.indices.size() ), visibleGaugeCount, 0, 0, foregroundInstanceStart);
+
+	if ( visiblePlayerNameCount > 0 )
+		cmd->DrawIndexedInstanced(static_cast< UINT >( sm.indices.size() ), visiblePlayerNameCount, 0, 0, playerNameInstanceStart);
+}

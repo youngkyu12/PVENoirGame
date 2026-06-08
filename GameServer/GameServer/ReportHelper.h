@@ -94,6 +94,7 @@ namespace ReportHelper
 		if (asset == "Building9") return Protocol::BUILDING_TYPE_BUILDING9;
 		if (asset == "VillageWall") return Protocol::BUILDING_TYPE_VILLAGE_WALL;
 		if (asset == "DirtRoad") return Protocol::BUILDING_TYPE_DIRT_ROAD;
+		if (asset == "Terrain") return Protocol::BUILDING_TYPE_GROUND;
 		if (asset == "Tower") return Protocol::BUILDING_TYPE_TOWER;
     if (asset == "Castle") return Protocol::BUILDING_TYPE_CASTLE;
 		return Protocol::BUILDING_TYPE_NONE;
