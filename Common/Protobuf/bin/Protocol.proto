@@ -73,7 +73,7 @@ message S_FRAME_STATE
 	repeated Enemy enemies = 3;
 	repeated Bullet bullets = 4;
 	BossRoomState bossRoomState = 5;
-	repeated uint64 pickedUpItemIds = 6;
+	repeated Item items = 6;
 }
 
 message S_FORCED_TRANSFORM

@@ -132,6 +132,7 @@ bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
 		s.id       = item.id();
 		s.kind     = static_cast<uint32_t>(item.kind());
 		s.position = XMFLOAT3(pos.x(), pos.y(), pos.z());
+		s.active   = item.active();
 		data.items.push_back(std::move(s));
 	}
 
@@ -230,8 +231,20 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 
 	data.bossRoomState = static_cast<uint32_t>(pkt.bossroomstate());
 
-	for (auto id : pkt.pickedupitemids())
-		data.pickedUpItemIds.push_back(static_cast<uint64_t>(id));
+	auto items = pkt.items();
+	data.items.reserve(items.size());
+	for (auto& item : items)
+	{
+		auto pos = item.position();
+
+		ItemSpawnState s{};
+		s.id       = item.id();
+		s.kind     = static_cast<uint32_t>(item.kind());
+		s.position = XMFLOAT3(pos.x(), pos.y(), pos.z());
+		s.active   = item.active();
+
+		data.items.push_back(std::move(s));
+	}
 
 	g_NetworkQueue.PushFrameState(std::move(data));
 	return false;

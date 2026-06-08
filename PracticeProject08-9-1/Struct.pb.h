@@ -1815,6 +1815,7 @@ class Item final :
     kPositionFieldNumber = 3,
     kIdFieldNumber = 1,
     kKindFieldNumber = 2,
+    kActiveFieldNumber = 4,
   };
   // .Protocol.Vec3f position = 3;
   bool has_position() const;
@@ -1852,6 +1853,15 @@ class Item final :
   void _internal_set_kind(::Protocol::ItemType value);
   public:
 
+  // bool active = 4;
+  void clear_active();
+  bool active() const;
+  void set_active(bool value);
+  private:
+  bool _internal_active() const;
+  void _internal_set_active(bool value);
+  public:
+
   // @@protoc_insertion_point(class_scope:Protocol.Item)
  private:
   class _Internal;
@@ -1862,6 +1872,7 @@ class Item final :
   ::Protocol::Vec3f* position_;
   ::PROTOBUF_NAMESPACE_ID::uint64 id_;
   int kind_;
+  bool active_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_Struct_2eproto;
 };
@@ -3404,6 +3415,26 @@ inline void Item::set_allocated_position(::Protocol::Vec3f* position) {
   }
   position_ = position;
   // @@protoc_insertion_point(field_set_allocated:Protocol.Item.position)
+}
+
+// bool active = 4;
+inline void Item::clear_active() {
+  active_ = false;
+}
+inline bool Item::_internal_active() const {
+  return active_;
+}
+inline bool Item::active() const {
+  // @@protoc_insertion_point(field_get:Protocol.Item.active)
+  return _internal_active();
+}
+inline void Item::_internal_set_active(bool value) {
+  
+  active_ = value;
+}
+inline void Item::set_active(bool value) {
+  _internal_set_active(value);
+  // @@protoc_insertion_point(field_set:Protocol.Item.active)
 }
 
 #ifdef __GNUC__

@@ -168,7 +168,8 @@ constexpr Item::Item(
   : position_(nullptr)
   , id_(uint64_t{0u})
   , kind_(0)
-{}
+
+  , active_(false){}
 struct ItemDefaultTypeInternal {
   constexpr ItemDefaultTypeInternal()
     : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
@@ -275,6 +276,7 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_Struct_2eproto::offsets[] PROT
   PROTOBUF_FIELD_OFFSET(::Protocol::Item, id_),
   PROTOBUF_FIELD_OFFSET(::Protocol::Item, kind_),
   PROTOBUF_FIELD_OFFSET(::Protocol::Item, position_),
+  PROTOBUF_FIELD_OFFSET(::Protocol::Item, active_),
 };
 static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
   { 0, -1, sizeof(::Protocol::Vec3f)},
@@ -332,16 +334,17 @@ const char descriptor_table_protodef_Struct_2eproto[] PROTOBUF_SECTION_VARIABLE(
   "eaponType\022\n\n\002hp\030\007 \001(\r\"l\n\010Building\022\n\n\002id\030"
   "\001 \001(\004\022&\n\ttransform\030\002 \001(\0132\023.Protocol.Tran"
   "sform\022,\n\014buildingType\030\003 \001(\0162\026.Protocol.B"
-  "uildingType\"W\n\004Item\022\n\n\002id\030\001 \001(\004\022 \n\004kind\030"
+  "uildingType\"g\n\004Item\022\n\n\002id\030\001 \001(\004\022 \n\004kind\030"
   "\002 \001(\0162\022.Protocol.ItemType\022!\n\010position\030\003 "
-  "\001(\0132\017.Protocol.Vec3fb\006proto3"
+  "\001(\0132\017.Protocol.Vec3f\022\016\n\006active\030\004 \001(\010b\006pr"
+  "oto3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_Struct_2eproto_deps[1] = {
   &::descriptor_table_Enum_2eproto,
 };
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_Struct_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_Struct_2eproto = {
-  false, false, 1268, descriptor_table_protodef_Struct_2eproto, "Struct.proto", 
+  false, false, 1284, descriptor_table_protodef_Struct_2eproto, "Struct.proto", 
   &descriptor_table_Struct_2eproto_once, descriptor_table_Struct_2eproto_deps, 1, 10,
   schemas, file_default_instances, TableStruct_Struct_2eproto::offsets,
   file_level_metadata_Struct_2eproto, file_level_enum_descriptors_Struct_2eproto, file_level_service_descriptors_Struct_2eproto,
@@ -3043,16 +3046,16 @@ Item::Item(const Item& from)
     position_ = nullptr;
   }
   ::memcpy(&id_, &from.id_,
-    static_cast<size_t>(reinterpret_cast<char*>(&kind_) -
-    reinterpret_cast<char*>(&id_)) + sizeof(kind_));
+    static_cast<size_t>(reinterpret_cast<char*>(&active_) -
+    reinterpret_cast<char*>(&id_)) + sizeof(active_));
   // @@protoc_insertion_point(copy_constructor:Protocol.Item)
 }
 
 void Item::SharedCtor() {
 ::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
     reinterpret_cast<char*>(&position_) - reinterpret_cast<char*>(this)),
-    0, static_cast<size_t>(reinterpret_cast<char*>(&kind_) -
-    reinterpret_cast<char*>(&position_)) + sizeof(kind_));
+    0, static_cast<size_t>(reinterpret_cast<char*>(&active_) -
+    reinterpret_cast<char*>(&position_)) + sizeof(active_));
 }
 
 Item::~Item() {
@@ -3087,8 +3090,8 @@ void Item::Clear() {
   }
   position_ = nullptr;
   ::memset(&id_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&kind_) -
-      reinterpret_cast<char*>(&id_)) + sizeof(kind_));
+      reinterpret_cast<char*>(&active_) -
+      reinterpret_cast<char*>(&id_)) + sizeof(active_));
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
@@ -3117,6 +3120,13 @@ const char* Item::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::inter
       case 3:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 26)) {
           ptr = ctx->ParseMessage(_internal_mutable_position(), ptr);
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      // bool active = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 32)) {
+          active_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
           CHK_(ptr);
         } else goto handle_unusual;
         continue;
@@ -3170,6 +3180,12 @@ failure:
         3, _Internal::position(this), target, stream);
   }
 
+  // bool active = 4;
+  if (this->active() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteBoolToArray(4, this->_internal_active(), target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -3204,6 +3220,11 @@ size_t Item::ByteSizeLong() const {
   if (this->kind() != 0) {
     total_size += 1 +
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::EnumSize(this->_internal_kind());
+  }
+
+  // bool active = 4;
+  if (this->active() != 0) {
+    total_size += 1 + 1;
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
@@ -3246,6 +3267,9 @@ void Item::MergeFrom(const Item& from) {
   if (from.kind() != 0) {
     _internal_set_kind(from._internal_kind());
   }
+  if (from.active() != 0) {
+    _internal_set_active(from._internal_active());
+  }
 }
 
 void Item::CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) {
@@ -3270,8 +3294,8 @@ void Item::InternalSwap(Item* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(Item, kind_)
-      + sizeof(Item::kind_)
+      PROTOBUF_FIELD_OFFSET(Item, active_)
+      + sizeof(Item::active_)
       - PROTOBUF_FIELD_OFFSET(Item, position_)>(
           reinterpret_cast<char*>(&position_),
           reinterpret_cast<char*>(&other->position_));

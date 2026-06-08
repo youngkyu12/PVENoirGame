@@ -8363,15 +8363,16 @@ void CGameScene::AnimateObjects(float dt)
 			it = m_networkBossPoisonById.erase(it);
 		}
 
-		// 픽업된 아이템 billboard 비활성화
-		for ( uint64_t pickedId : receivedSnapshot.pickedUpItemIds )
+		// 서버 item snapshot으로 billboard 상태 reconcile
+		for ( const ItemSpawnState& itemState : receivedSnapshot.items )
 		{
 			for ( ItemBillboardEntry& entry : m_itemBillboardState.entries )
 			{
-				if ( entry.serverId == pickedId )
+				if ( entry.serverId == itemState.id )
 				{
-					entry.active = false;
-					entry.distanceCulled = true;
+					entry.active = itemState.active;
+					if ( !itemState.active )
+						entry.distanceCulled = true;
 					break;
 				}
 			}

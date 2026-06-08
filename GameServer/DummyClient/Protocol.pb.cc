@@ -130,8 +130,7 @@ constexpr S_FRAME_STATE::S_FRAME_STATE(
   : players_()
   , enemies_()
   , bullets_()
-  , pickedupitemids_()
-  , _pickedupitemids_cached_byte_size_()
+  , items_()
   , servertick_(0u)
   , bossroomstate_(0)
 {}
@@ -262,7 +261,7 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_Protocol_2eproto::offsets[] PR
   PROTOBUF_FIELD_OFFSET(::Protocol::S_FRAME_STATE, enemies_),
   PROTOBUF_FIELD_OFFSET(::Protocol::S_FRAME_STATE, bullets_),
   PROTOBUF_FIELD_OFFSET(::Protocol::S_FRAME_STATE, bossroomstate_),
-  PROTOBUF_FIELD_OFFSET(::Protocol::S_FRAME_STATE, pickedupitemids_),
+  PROTOBUF_FIELD_OFFSET(::Protocol::S_FRAME_STATE, items_),
   ~0u,  // no _has_bits_
   PROTOBUF_FIELD_OFFSET(::Protocol::S_FORCED_TRANSFORM, _internal_metadata_),
   ~0u,  // no _extensions_
@@ -331,19 +330,19 @@ const char descriptor_table_protodef_Protocol_2eproto[] PROTOBUF_SECTION_VARIABL
   "\001(\t\"1\n\016C_CLIENT_READY\022\020\n\010playerId\030\001 \001(\r\022"
   "\r\n\005ready\030\002 \001(\010\"f\n\007C_INPUT\022\020\n\010playerid\030\001 "
   "\001(\004\022\020\n\010keyCodes\030\002 \001(\005\022\016\n\006deltaX\030\003 \001(\002\022\016\n"
-  "\006deltaY\030\004 \001(\002\022\027\n\017clientDeltaTime\030\005 \001(\002\"\324"
+  "\006deltaY\030\004 \001(\002\022\027\n\017clientDeltaTime\030\005 \001(\002\"\332"
   "\001\n\rS_FRAME_STATE\022\022\n\nserverTick\030\001 \001(\r\022!\n\007"
   "players\030\002 \003(\0132\020.Protocol.Player\022 \n\007enemi"
   "es\030\003 \003(\0132\017.Protocol.Enemy\022!\n\007bullets\030\004 \003"
   "(\0132\020.Protocol.Bullet\022.\n\rbossRoomState\030\005 "
-  "\001(\0162\027.Protocol.BossRoomState\022\027\n\017pickedUp"
-  "ItemIds\030\006 \003(\004\"i\n\022S_FORCED_TRANSFORM\022\020\n\010p"
-  "layerId\030\001 \001(\004\022\020\n\010yawDelta\030\002 \001(\002\022/\n\006reaso"
-  "n\030\003 \001(\0162\037.Protocol.ForcedTransformReason"
-  "\",\n\nC_USE_ITEM\022\020\n\010playerId\030\001 \001(\004\022\014\n\004slot"
-  "\030\002 \001(\005\"Z\n\017C_DEBUG_COMMAND\022/\n\013commandType"
-  "\030\001 \001(\0162\032.Protocol.DebugCommandType\022\026\n\016me"
-  "gaGridNumber\030\002 \001(\005b\006proto3"
+  "\001(\0162\027.Protocol.BossRoomState\022\035\n\005items\030\006 "
+  "\003(\0132\016.Protocol.Item\"i\n\022S_FORCED_TRANSFOR"
+  "M\022\020\n\010playerId\030\001 \001(\004\022\020\n\010yawDelta\030\002 \001(\002\022/\n"
+  "\006reason\030\003 \001(\0162\037.Protocol.ForcedTransform"
+  "Reason\",\n\nC_USE_ITEM\022\020\n\010playerId\030\001 \001(\004\022\014"
+  "\n\004slot\030\002 \001(\005\"Z\n\017C_DEBUG_COMMAND\022/\n\013comma"
+  "ndType\030\001 \001(\0162\032.Protocol.DebugCommandType"
+  "\022\026\n\016megaGridNumber\030\002 \001(\005b\006proto3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_Protocol_2eproto_deps[3] = {
   &::descriptor_table_Enum_2eproto,
@@ -352,7 +351,7 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor
 };
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_Protocol_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_Protocol_2eproto = {
-  false, false, 1066, descriptor_table_protodef_Protocol_2eproto, "Protocol.proto", 
+  false, false, 1072, descriptor_table_protodef_Protocol_2eproto, "Protocol.proto", 
   &descriptor_table_Protocol_2eproto_once, descriptor_table_Protocol_2eproto_deps, 3, 12,
   schemas, file_default_instances, TableStruct_Protocol_2eproto::offsets,
   file_level_metadata_Protocol_2eproto, file_level_enum_descriptors_Protocol_2eproto, file_level_service_descriptors_Protocol_2eproto,
@@ -2282,12 +2281,15 @@ void S_FRAME_STATE::clear_enemies() {
 void S_FRAME_STATE::clear_bullets() {
   bullets_.Clear();
 }
+void S_FRAME_STATE::clear_items() {
+  items_.Clear();
+}
 S_FRAME_STATE::S_FRAME_STATE(::PROTOBUF_NAMESPACE_ID::Arena* arena)
   : ::PROTOBUF_NAMESPACE_ID::Message(arena),
   players_(arena),
   enemies_(arena),
   bullets_(arena),
-  pickedupitemids_(arena) {
+  items_(arena) {
   SharedCtor();
   RegisterArenaDtor(arena);
   // @@protoc_insertion_point(arena_constructor:Protocol.S_FRAME_STATE)
@@ -2297,7 +2299,7 @@ S_FRAME_STATE::S_FRAME_STATE(const S_FRAME_STATE& from)
       players_(from.players_),
       enemies_(from.enemies_),
       bullets_(from.bullets_),
-      pickedupitemids_(from.pickedupitemids_) {
+      items_(from.items_) {
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   ::memcpy(&servertick_, &from.servertick_,
     static_cast<size_t>(reinterpret_cast<char*>(&bossroomstate_) -
@@ -2341,7 +2343,7 @@ void S_FRAME_STATE::Clear() {
   players_.Clear();
   enemies_.Clear();
   bullets_.Clear();
-  pickedupitemids_.Clear();
+  items_.Clear();
   ::memset(&servertick_, 0, static_cast<size_t>(
       reinterpret_cast<char*>(&bossroomstate_) -
       reinterpret_cast<char*>(&servertick_)) + sizeof(bossroomstate_));
@@ -2405,14 +2407,16 @@ const char* S_FRAME_STATE::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_
           _internal_set_bossroomstate(static_cast<::Protocol::BossRoomState>(val));
         } else goto handle_unusual;
         continue;
-      // repeated uint64 pickedUpItemIds = 6;
+      // repeated .Protocol.Item items = 6;
       case 6:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 50)) {
-          ptr = ::PROTOBUF_NAMESPACE_ID::internal::PackedUInt64Parser(_internal_mutable_pickedupitemids(), ptr, ctx);
-          CHK_(ptr);
-        } else if (static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 48) {
-          _internal_add_pickedupitemids(::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr));
-          CHK_(ptr);
+          ptr -= 1;
+          do {
+            ptr += 1;
+            ptr = ctx->ParseMessage(_internal_add_items(), ptr);
+            CHK_(ptr);
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<50>(ptr));
         } else goto handle_unusual;
         continue;
       default: {
@@ -2481,13 +2485,12 @@ failure:
       5, this->_internal_bossroomstate(), target);
   }
 
-  // repeated uint64 pickedUpItemIds = 6;
-  {
-    int byte_size = _pickedupitemids_cached_byte_size_.load(std::memory_order_relaxed);
-    if (byte_size > 0) {
-      target = stream->WriteUInt64Packed(
-          6, _internal_pickedupitemids(), byte_size, target);
-    }
+  // repeated .Protocol.Item items = 6;
+  for (unsigned int i = 0,
+      n = static_cast<unsigned int>(this->_internal_items_size()); i < n; i++) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(6, this->_internal_items(i), target, stream);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
@@ -2527,19 +2530,11 @@ size_t S_FRAME_STATE::ByteSizeLong() const {
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
   }
 
-  // repeated uint64 pickedUpItemIds = 6;
-  {
-    size_t data_size = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-      UInt64Size(this->pickedupitemids_);
-    if (data_size > 0) {
-      total_size += 1 +
-        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::Int32Size(
-            static_cast<::PROTOBUF_NAMESPACE_ID::int32>(data_size));
-    }
-    int cached_size = ::PROTOBUF_NAMESPACE_ID::internal::ToCachedSize(data_size);
-    _pickedupitemids_cached_byte_size_.store(cached_size,
-                                    std::memory_order_relaxed);
-    total_size += data_size;
+  // repeated .Protocol.Item items = 6;
+  total_size += 1UL * this->_internal_items_size();
+  for (const auto& msg : this->items_) {
+    total_size +=
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
   }
 
   // uint32 serverTick = 1;
@@ -2589,7 +2584,7 @@ void S_FRAME_STATE::MergeFrom(const S_FRAME_STATE& from) {
   players_.MergeFrom(from.players_);
   enemies_.MergeFrom(from.enemies_);
   bullets_.MergeFrom(from.bullets_);
-  pickedupitemids_.MergeFrom(from.pickedupitemids_);
+  items_.MergeFrom(from.items_);
   if (from.servertick() != 0) {
     _internal_set_servertick(from._internal_servertick());
   }
@@ -2622,7 +2617,7 @@ void S_FRAME_STATE::InternalSwap(S_FRAME_STATE* other) {
   players_.InternalSwap(&other->players_);
   enemies_.InternalSwap(&other->enemies_);
   bullets_.InternalSwap(&other->bullets_);
-  pickedupitemids_.InternalSwap(&other->pickedupitemids_);
+  items_.InternalSwap(&other->items_);
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
       PROTOBUF_FIELD_OFFSET(S_FRAME_STATE, bossroomstate_)
       + sizeof(S_FRAME_STATE::bossroomstate_)

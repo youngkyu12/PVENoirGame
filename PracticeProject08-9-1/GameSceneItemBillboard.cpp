@@ -346,17 +346,6 @@ void CGameScene::BuildItemBillboardBatch(ID3D12Device* dev, ID3D12GraphicsComman
 	if ( !m_itemBillboardState.quadMesh )
 		return;
 
-	const std::array<XMFLOAT3, kKeyItemBillboardCount> keyPositions =
-	{
-		XMFLOAT3(380.0f, 100.5f, -24.0f),
-		XMFLOAT3(400.0f, 0.0f, 400.0f),
-		XMFLOAT3(400.0f, 0.0f, 800.0f),
-		XMFLOAT3(0.0f, 0.0f, 800.0f),
-		XMFLOAT3(-430.0f, 100.5f, 774.0f),
-		XMFLOAT3(-400.0f, 0.0f, 400.0f),
-		XMFLOAT3(-400.0f, 0.0f, 0.0f)
-	};
-
 	m_itemBillboardState.entries.clear();
 	m_itemBillboardState.entries.reserve(
 		kKeyItemBillboardCount +
@@ -366,72 +355,131 @@ void CGameScene::BuildItemBillboardBatch(ID3D12Device* dev, ID3D12GraphicsComman
 		kBossCallSummonCircleMaxCount
 	);
 
-	for ( UINT i = 0; i < kKeyItemBillboardCount; ++i )
-	{
-		ItemBillboardEntry key{};
-		key.active = true;
-		key.distanceCulled = false;
-		key.kind = EItemBillboardKind::Key;
-
-		key.position = AdjustItemBillboardPositionToTerrain(keyPositions[i]);
-		key.megaGridNumber =
-			m_sceneGrid.MegaGridNumberFromWorldPosition(
-				key.position.x,
-				key.position.z
-			);
-
-		if ( key.megaGridNumber == 6 || key.megaGridNumber == 8 )
-		{
-			key.active = false;
-			key.distanceCulled = true;
-		}
-
-		key.width = 2.0f;
-		key.height = 2.0f;
-		key.yOffset = 2.0f;
-
-		key.cullDistance = 300.0f;
-
-		key.pickupRadius = 1.25f;
-		key.pickupHeightTolerance = 2.0f;
-
-		key.transparent = true;
-		key.materialId = kTransparentItemBillboardMaterialId;
-
-		m_itemBillboardState.entries.push_back(key);
-	}
-
-	AddPotionItemBillboardEntries();
-
 #ifdef USING_NETWORK
+	bool builtNetworkItemBillboards = false;
 	if ( std::holds_alternative<GameStartData>(m_pendingNetworkMessage.data) )
 	{
 		const GameStartData& netData = std::get<GameStartData>(m_pendingNetworkMessage.data);
 
-		// XZ 위치로 server item과 매칭해 serverId 할당
-		for ( ItemBillboardEntry& entry : m_itemBillboardState.entries )
+		for ( const ItemSpawnState& si : netData.items )
 		{
-			if ( entry.kind != EItemBillboardKind::Key &&
-				 entry.kind != EItemBillboardKind::HealPotion &&
-				 entry.kind != EItemBillboardKind::AttackPowerPotion &&
-				 entry.kind != EItemBillboardKind::DefensePotion &&
-				 entry.kind != EItemBillboardKind::MoveSpeedPotion )
-				continue;
+			ItemBillboardEntry item{};
+			item.serverId = si.id;
+			item.active = si.active;
+			item.distanceCulled = !si.active;
+			item.position = si.position;
+			item.megaGridNumber =
+				m_sceneGrid.MegaGridNumberFromWorldPosition(
+					item.position.x,
+					item.position.z
+				);
+			item.pickupRadius = 1.25f;
+			item.pickupHeightTolerance = 2.0f;
+			item.transparent = true;
+			item.cullDistance = 300.0f;
 
-			constexpr float kMatchEps = 0.1f;
-			for ( const ItemSpawnState& si : netData.items )
+			switch ( si.kind )
 			{
-				const float dx = entry.position.x - si.position.x;
-				const float dz = entry.position.z - si.position.z;
-				if ( dx * dx + dz * dz < kMatchEps * kMatchEps )
-				{
-					entry.serverId = si.id;
-					break;
-				}
+			case 1:
+				item.kind = EItemBillboardKind::HealPotion;
+				item.inventorySlot = 0;
+				item.width = 1.25f;
+				item.height = 1.25f;
+				item.yOffset = 1.20f;
+				item.materialId = kHealPotionItemBillboardMaterialId;
+				break;
+			case 2:
+				item.kind = EItemBillboardKind::AttackPowerPotion;
+				item.inventorySlot = 1;
+				item.width = 1.25f;
+				item.height = 1.25f;
+				item.yOffset = 1.20f;
+				item.materialId = kAttackPotionItemBillboardMaterialId;
+				break;
+			case 3:
+				item.kind = EItemBillboardKind::DefensePotion;
+				item.inventorySlot = 2;
+				item.width = 1.25f;
+				item.height = 1.25f;
+				item.yOffset = 1.20f;
+				item.materialId = kDefensePotionItemBillboardMaterialId;
+				break;
+			case 4:
+				item.kind = EItemBillboardKind::MoveSpeedPotion;
+				item.inventorySlot = 3;
+				item.width = 1.25f;
+				item.height = 1.25f;
+				item.yOffset = 1.20f;
+				item.materialId = kMoveSpeedPotionItemBillboardMaterialId;
+				break;
+			case 5:
+				item.kind = EItemBillboardKind::Key;
+				item.width = 2.0f;
+				item.height = 2.0f;
+				item.yOffset = 2.0f;
+				item.materialId = kTransparentItemBillboardMaterialId;
+				break;
+			default:
+				continue;
 			}
+
+			m_itemBillboardState.entries.push_back(item);
 		}
+
+		builtNetworkItemBillboards = true;
 	}
+
+	if ( !builtNetworkItemBillboards )
 #endif
+	{
+		const std::array<XMFLOAT3, kKeyItemBillboardCount> keyPositions =
+		{
+			XMFLOAT3(380.0f, 100.5f, -24.0f),
+			XMFLOAT3(400.0f, 0.0f, 400.0f),
+			XMFLOAT3(400.0f, 0.0f, 800.0f),
+			XMFLOAT3(0.0f, 0.0f, 800.0f),
+			XMFLOAT3(-430.0f, 100.5f, 774.0f),
+			XMFLOAT3(-400.0f, 0.0f, 400.0f),
+			XMFLOAT3(-400.0f, 0.0f, 0.0f)
+		};
+
+		for ( UINT i = 0; i < kKeyItemBillboardCount; ++i )
+		{
+			ItemBillboardEntry key{};
+			key.active = true;
+			key.distanceCulled = false;
+			key.kind = EItemBillboardKind::Key;
+
+			key.position = AdjustItemBillboardPositionToTerrain(keyPositions[i]);
+			key.megaGridNumber =
+				m_sceneGrid.MegaGridNumberFromWorldPosition(
+					key.position.x,
+					key.position.z
+				);
+
+			if ( key.megaGridNumber == 6 || key.megaGridNumber == 8 )
+			{
+				key.active = false;
+				key.distanceCulled = true;
+			}
+
+			key.width = 2.0f;
+			key.height = 2.0f;
+			key.yOffset = 2.0f;
+
+			key.cullDistance = 300.0f;
+
+			key.pickupRadius = 1.25f;
+			key.pickupHeightTolerance = 2.0f;
+
+			key.transparent = true;
+			key.materialId = kTransparentItemBillboardMaterialId;
+
+			m_itemBillboardState.entries.push_back(key);
+		}
+
+		AddPotionItemBillboardEntries();
+	}
 
 	{
 		ItemBillboardEntry summonGlow{};
