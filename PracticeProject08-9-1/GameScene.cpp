@@ -163,6 +163,8 @@ CGameScene::CGameScene()
 
 	for ( std::array<float, CGameSceneHUD::kInventorySlotCount>& accumulators : m_inventoryBuffParticleEmitAccumulators )
 		accumulators.fill(0.0f);
+
+	m_megaGrid4LowYDamageAccumulators.fill(0.0f);
 }
 
 void CGameScene::SetFrameResourceIndex(UINT frameResourceIndex)
@@ -1945,6 +1947,85 @@ void CGameScene::ApplyMegaGrid5DirectionalLightProfile(bool enabled)
 #endif
 }
 
+bool CGameScene::IsPlayerInsideMegaGrid4LowYDamageArea(const CGameObject* player) const
+{
+	if ( !player )
+		return false;
+
+	const XMFLOAT3 pos = player->GetPosition();
+
+	if ( pos.y > kMegaGrid4LowYDamageMaxY )
+		return false;
+
+	const XMFLOAT3 center =
+		ComputeMegaGridCenterPosition(
+			kMegaGrid4LowYDamageMegaGridNumber,
+			0.0f
+		);
+
+	const float dx = std::fabs(pos.x - center.x);
+	const float dz = std::fabs(pos.z - center.z);
+
+	return
+		dx <= kMegaGrid4LowYDamageHalfExtent &&
+		dz <= kMegaGrid4LowYDamageHalfExtent;
+}
+
+void CGameScene::UpdateMegaGrid4LowYDamage(float dt)
+{
+#ifndef USING_NETWORK
+	if ( dt <= 0.0f )
+		return;
+
+	for ( int slot = 0; slot < static_cast< int >(m_playersBySlot.size()); ++slot )
+	{
+		CGameObject* player = m_playersBySlot[static_cast< size_t >(slot)];
+
+		if ( !player )
+		{
+			m_megaGrid4LowYDamageAccumulators[static_cast< size_t >(slot)] = 0.0f;
+			continue;
+		}
+
+		CHealthComponent* hp = player->GetComponent<CHealthComponent>();
+
+		if ( !hp || hp->IsDead() )
+		{
+			m_megaGrid4LowYDamageAccumulators[static_cast< size_t >( slot )] = 0.0f;
+			continue;
+		}
+
+		if ( !IsPlayerInsideMegaGrid4LowYDamageArea(player) )
+		{
+			m_megaGrid4LowYDamageAccumulators[static_cast< size_t >( slot )] = 0.0f;
+			continue;
+		}
+
+		float& accumulator =
+			m_megaGrid4LowYDamageAccumulators[static_cast< size_t >( slot )];
+
+		accumulator += dt;
+
+		if ( accumulator < kMegaGrid4LowYDamageIntervalSec )
+			continue;
+
+		const int tickCount =
+			static_cast< int >(accumulator / kMegaGrid4LowYDamageIntervalSec);
+
+		accumulator -=
+			static_cast< float >(tickCount) * kMegaGrid4LowYDamageIntervalSec;
+
+		const int damage =
+			tickCount * kMegaGrid4LowYDamagePerTick;
+
+		hp->TakeDamage(damage);
+	}
+
+#else
+	UNREFERENCED_PARAMETER(dt);
+#endif
+}
+
 XMFLOAT3 CGameScene::ComputeMegaGridCenterPosition(
 	int megaGridNumber,
 	float y) const
@@ -3330,6 +3411,8 @@ void CGameScene::ReleaseObjects()
 
 	for ( std::array<float, CGameSceneHUD::kInventorySlotCount>& accumulators : m_inventoryBuffParticleEmitAccumulators )
 		accumulators.fill(0.0f);
+
+	m_megaGrid4LowYDamageAccumulators.fill(0.0f);
 
 	m_bossCallSummonPlanCallIndex = -1;
 	m_bossCallSummonPlanEntries.clear();
@@ -8308,6 +8391,8 @@ void CGameScene::AnimateObjects(float dt)
 #endif
 
 	UpdateDynamicGridState();
+
+	UpdateMegaGrid4LowYDamage(dt);
 
 	UpdatePlayerFootstepSfx();
 	UpdateMonsterSfx(dt);
