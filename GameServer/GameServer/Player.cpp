@@ -87,12 +87,12 @@ void Player::Build()
     weapon.SetWeapon(Protocol::WEAPON_TYPE_SWORD, 0);
 }
 
-void Player::ApplyHit(uint32 serverTick, int damage, uint32 hitDurationTicks)
+void Player::ApplyHit(uint32 serverTick, int damage, uint32 hitDurationTicks, uint64 serverMs)
 {
     if (IsDead()) return;
 
     weapon.CancelAttack();
-    TakeDamage(damage);
+    TakeDamage(ApplyDefenseBuffToIncomingDamage(damage, serverMs));
 
     if (IsDead())
     {
@@ -176,29 +176,54 @@ void Player::AddInventoryItem(Protocol::ItemType kind)
 
 bool Player::UseInventoryItem(Protocol::ItemType kind, uint64 serverMs)
 {
-    const volatile int slot = static_cast<int>(kind) - 1;
+    const int slot = static_cast<int>(kind) - 1;
     if (slot < 0 || slot >= kInventorySlotCount) return false;
     if (m_inventoryCounts[static_cast<size_t>(slot)] <= 0) return false;
-
-    cout << m_inventoryCounts[static_cast<size_t>(slot)] << endl;
-    --m_inventoryCounts[static_cast<size_t>(slot)];
 
     switch (kind)
     {
     case Protocol::ITEM_TYPE_HEAL_POTION:
+        if (GetCurrentHp() >= GetMaxHp()) return false;
+        --m_inventoryCounts[static_cast<size_t>(slot)];
         Heal(kHealPotionAmount);
         break;
     case Protocol::ITEM_TYPE_ATTACK_POWER_POTION:
+        if (IsAttackBuffActive(serverMs)) return false;
+        --m_inventoryCounts[static_cast<size_t>(slot)];
         m_attackBuffEndMs = serverMs + kBuffDurationMs;
         break;
     case Protocol::ITEM_TYPE_DEFENSE_POTION:
+        if (IsDefenseBuffActive(serverMs)) return false;
+        --m_inventoryCounts[static_cast<size_t>(slot)];
         m_defenseBuffEndMs = serverMs + kBuffDurationMs;
         break;
     case Protocol::ITEM_TYPE_MOVE_SPEED_POTION:
+        if (IsSpeedBuffActive(serverMs)) return false;
+        --m_inventoryCounts[static_cast<size_t>(slot)];
         m_speedBuffEndMs = serverMs + kBuffDurationMs;
         break;
     default:
-        break;
+        return false;
     }
     return true;
+}
+
+int Player::ApplyAttackBuffToDamage(int damage, uint64 serverMs) const
+{
+    if (damage <= 0) return damage;
+    return IsAttackBuffActive(serverMs) ? damage * kAttackBuffDamageMultiplier : damage;
+}
+
+int Player::ApplyDefenseBuffToIncomingDamage(int damage, uint64 serverMs) const
+{
+    if (damage <= 0) return damage;
+    if (!IsDefenseBuffActive(serverMs)) return damage;
+
+    const int scaledDamage = static_cast<int>(damage * kDefenseBuffIncomingDamageScale);
+    return scaledDamage < 1 ? 1 : scaledDamage;
+}
+
+float Player::GetMoveSpeedMultiplier(uint64 serverMs) const
+{
+    return IsSpeedBuffActive(serverMs) ? kSpeedBuffMoveMultiplier : 1.0f;
 }
