@@ -415,7 +415,6 @@ private:
     //array<GameAreaRef, 9> gameAreas; // 9개 구역
 
 	std::vector<ItemEntry> m_items;
-	std::vector<uint64>    m_framePickedUpItemIds;
 
 	RoomTimingConfig m_timing;
 	uint64 m_elapsedServerMs = 0;

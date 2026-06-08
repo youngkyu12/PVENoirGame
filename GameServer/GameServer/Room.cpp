@@ -335,7 +335,6 @@ void Room::BuildRoom()
 	m_bossPoisonPool.clear();
 	m_bossPoisonHitMap.clear();
 	m_items.clear();
-	m_framePickedUpItemIds.clear();
 	InitializeCollisionSystem();
 	InitializeSpatialGrid();
 

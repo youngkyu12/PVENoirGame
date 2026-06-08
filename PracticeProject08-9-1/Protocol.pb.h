@@ -1454,7 +1454,7 @@ class S_FRAME_STATE final :
     kPlayersFieldNumber = 2,
     kEnemiesFieldNumber = 3,
     kBulletsFieldNumber = 4,
-    kPickedUpItemIdsFieldNumber = 6,
+    kItemsFieldNumber = 6,
     kServerTickFieldNumber = 1,
     kBossRoomStateFieldNumber = 5,
   };
@@ -1512,27 +1512,23 @@ class S_FRAME_STATE final :
   const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Bullet >&
       bullets() const;
 
-  // repeated uint64 pickedUpItemIds = 6;
-  int pickedupitemids_size() const;
+  // repeated .Protocol.Item items = 6;
+  int items_size() const;
   private:
-  int _internal_pickedupitemids_size() const;
+  int _internal_items_size() const;
   public:
-  void clear_pickedupitemids();
+  void clear_items();
+  ::Protocol::Item* mutable_items(int index);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Item >*
+      mutable_items();
   private:
-  ::PROTOBUF_NAMESPACE_ID::uint64 _internal_pickedupitemids(int index) const;
-  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< ::PROTOBUF_NAMESPACE_ID::uint64 >&
-      _internal_pickedupitemids() const;
-  void _internal_add_pickedupitemids(::PROTOBUF_NAMESPACE_ID::uint64 value);
-  ::PROTOBUF_NAMESPACE_ID::RepeatedField< ::PROTOBUF_NAMESPACE_ID::uint64 >*
-      _internal_mutable_pickedupitemids();
+  const ::Protocol::Item& _internal_items(int index) const;
+  ::Protocol::Item* _internal_add_items();
   public:
-  ::PROTOBUF_NAMESPACE_ID::uint64 pickedupitemids(int index) const;
-  void set_pickedupitemids(int index, ::PROTOBUF_NAMESPACE_ID::uint64 value);
-  void add_pickedupitemids(::PROTOBUF_NAMESPACE_ID::uint64 value);
-  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< ::PROTOBUF_NAMESPACE_ID::uint64 >&
-      pickedupitemids() const;
-  ::PROTOBUF_NAMESPACE_ID::RepeatedField< ::PROTOBUF_NAMESPACE_ID::uint64 >*
-      mutable_pickedupitemids();
+  const ::Protocol::Item& items(int index) const;
+  ::Protocol::Item* add_items();
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Item >&
+      items() const;
 
   // uint32 serverTick = 1;
   void clear_servertick();
@@ -1562,8 +1558,7 @@ class S_FRAME_STATE final :
   ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Player > players_;
   ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Enemy > enemies_;
   ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Bullet > bullets_;
-  ::PROTOBUF_NAMESPACE_ID::RepeatedField< ::PROTOBUF_NAMESPACE_ID::uint64 > pickedupitemids_;
-  mutable std::atomic<int> _pickedupitemids_cached_byte_size_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Item > items_;
   ::PROTOBUF_NAMESPACE_ID::uint32 servertick_;
   int bossroomstate_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
@@ -2743,51 +2738,40 @@ inline void S_FRAME_STATE::set_bossroomstate(::Protocol::BossRoomState value) {
   // @@protoc_insertion_point(field_set:Protocol.S_FRAME_STATE.bossRoomState)
 }
 
-// repeated uint64 pickedUpItemIds = 6;
-inline int S_FRAME_STATE::_internal_pickedupitemids_size() const {
-  return pickedupitemids_.size();
+// repeated .Protocol.Item items = 6;
+inline int S_FRAME_STATE::_internal_items_size() const {
+  return items_.size();
 }
-inline int S_FRAME_STATE::pickedupitemids_size() const {
-  return _internal_pickedupitemids_size();
+inline int S_FRAME_STATE::items_size() const {
+  return _internal_items_size();
 }
-inline void S_FRAME_STATE::clear_pickedupitemids() {
-  pickedupitemids_.Clear();
+inline ::Protocol::Item* S_FRAME_STATE::mutable_items(int index) {
+  // @@protoc_insertion_point(field_mutable:Protocol.S_FRAME_STATE.items)
+  return items_.Mutable(index);
 }
-inline ::PROTOBUF_NAMESPACE_ID::uint64 S_FRAME_STATE::_internal_pickedupitemids(int index) const {
-  return pickedupitemids_.Get(index);
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Item >*
+S_FRAME_STATE::mutable_items() {
+  // @@protoc_insertion_point(field_mutable_list:Protocol.S_FRAME_STATE.items)
+  return &items_;
 }
-inline ::PROTOBUF_NAMESPACE_ID::uint64 S_FRAME_STATE::pickedupitemids(int index) const {
-  // @@protoc_insertion_point(field_get:Protocol.S_FRAME_STATE.pickedUpItemIds)
-  return _internal_pickedupitemids(index);
+inline const ::Protocol::Item& S_FRAME_STATE::_internal_items(int index) const {
+  return items_.Get(index);
 }
-inline void S_FRAME_STATE::set_pickedupitemids(int index, ::PROTOBUF_NAMESPACE_ID::uint64 value) {
-  pickedupitemids_.Set(index, value);
-  // @@protoc_insertion_point(field_set:Protocol.S_FRAME_STATE.pickedUpItemIds)
+inline const ::Protocol::Item& S_FRAME_STATE::items(int index) const {
+  // @@protoc_insertion_point(field_get:Protocol.S_FRAME_STATE.items)
+  return _internal_items(index);
 }
-inline void S_FRAME_STATE::_internal_add_pickedupitemids(::PROTOBUF_NAMESPACE_ID::uint64 value) {
-  pickedupitemids_.Add(value);
+inline ::Protocol::Item* S_FRAME_STATE::_internal_add_items() {
+  return items_.Add();
 }
-inline void S_FRAME_STATE::add_pickedupitemids(::PROTOBUF_NAMESPACE_ID::uint64 value) {
-  _internal_add_pickedupitemids(value);
-  // @@protoc_insertion_point(field_add:Protocol.S_FRAME_STATE.pickedUpItemIds)
+inline ::Protocol::Item* S_FRAME_STATE::add_items() {
+  // @@protoc_insertion_point(field_add:Protocol.S_FRAME_STATE.items)
+  return _internal_add_items();
 }
-inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< ::PROTOBUF_NAMESPACE_ID::uint64 >&
-S_FRAME_STATE::_internal_pickedupitemids() const {
-  return pickedupitemids_;
-}
-inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< ::PROTOBUF_NAMESPACE_ID::uint64 >&
-S_FRAME_STATE::pickedupitemids() const {
-  // @@protoc_insertion_point(field_list:Protocol.S_FRAME_STATE.pickedUpItemIds)
-  return _internal_pickedupitemids();
-}
-inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< ::PROTOBUF_NAMESPACE_ID::uint64 >*
-S_FRAME_STATE::_internal_mutable_pickedupitemids() {
-  return &pickedupitemids_;
-}
-inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< ::PROTOBUF_NAMESPACE_ID::uint64 >*
-S_FRAME_STATE::mutable_pickedupitemids() {
-  // @@protoc_insertion_point(field_mutable_list:Protocol.S_FRAME_STATE.pickedUpItemIds)
-  return _internal_mutable_pickedupitemids();
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Item >&
+S_FRAME_STATE::items() const {
+  // @@protoc_insertion_point(field_list:Protocol.S_FRAME_STATE.items)
+  return items_;
 }
 
 // -------------------------------------------------------------------

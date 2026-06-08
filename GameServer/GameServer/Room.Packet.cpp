@@ -283,16 +283,22 @@ void Room::MakeFrameState(uint32 tick)
 
 		frameStatePkt.set_bossroomstate(static_cast<Protocol::BossRoomState>(static_cast<int>(m_bossRoomState)));
 
-		for (uint64 pickedId : m_framePickedUpItemIds)
-			frameStatePkt.add_pickedupitemids(pickedId);
+		for (const auto& item : m_items)
+		{
+			auto* i = frameStatePkt.add_items();
+			i->set_id(item.id);
+			i->set_kind(item.kind);
+			i->set_active(item.active);
+
+			Protocol::Vec3f* pos = i->mutable_position();
+			pos->set_x(item.position.x);
+			pos->set_y(item.position.y);
+			pos->set_z(item.position.z);
+		}
 
 		auto sendBuffer = ClientPacketHandler::MakeSendBuffer(frameStatePkt);
 		viewer->ownerSession->Send(sendBuffer);
 	}
-
-	m_framePickedUpItemIds.clear();
-
-
 
 }
 
@@ -353,6 +359,7 @@ void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
 		auto* i = initStruct->add_items();
 		i->set_id(item.id);
 		i->set_kind(item.kind);
+		i->set_active(item.active);
 		Protocol::Vec3f* pos = i->mutable_position();
 		pos->set_x(item.position.x);
 		pos->set_y(item.position.y);

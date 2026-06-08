@@ -8,7 +8,6 @@
 void Room::InitializeItems()
 {
 	m_items.clear();
-	m_framePickedUpItemIds.clear();
 	uint64 nextItemId = 1;
 
 	// Key items — fixed positions
@@ -123,7 +122,6 @@ void Room::UpdateItemPickupCollision()
 			if (std::abs(pos.y - item.position.y) > kPickupYTolerance) continue;
 
 			item.active = false;
-			m_framePickedUpItemIds.push_back(item.id);
 			player->AddInventoryItem(item.kind);
 
 			cout << "[Item Pickup] Player " << player->GetObjectId()

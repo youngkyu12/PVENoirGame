@@ -37,6 +37,7 @@ struct ItemSpawnState
     uint64_t id   = 0;
     uint32_t kind = 0;
     XMFLOAT3 position{};
+    bool active = false;
 };
 
 // ============================================================
@@ -109,8 +110,8 @@ struct FrameSnapshot
     std::vector<PlayerState>  players;
     std::vector<EnemyState>   enemies;
     std::vector<BulletState>  bullets;
+    std::vector<ItemSpawnState> items;
     uint32_t bossRoomState = 0;
-    std::vector<uint64_t> pickedUpItemIds;
 };
 
 // ============================================================
