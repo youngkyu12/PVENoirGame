@@ -20,7 +20,7 @@ public:
 public:
 	virtual void Update(uint32 serverTick) override;
 	void Build();
-	void ApplyHit(uint32 serverTick, int damage, uint32 hitDurationTicks = 10);
+	void ApplyHit(uint32 serverTick, int damage, uint32 hitDurationTicks, uint64 serverMs);
 	void Respawn(uint32 serverTick);
 
 	void SetLastMoveKeyCodes(int32 keyCodes) { m_lastMoveKeyCodes = keyCodes; }
@@ -101,6 +101,9 @@ private:
 
 	static constexpr uint64 kBuffDurationMs   = 10000;
 	static constexpr int    kHealPotionAmount = 20;
+	static constexpr int    kAttackBuffDamageMultiplier = 2;
+	static constexpr float  kDefenseBuffIncomingDamageScale = 0.5f;
+	static constexpr float  kSpeedBuffMoveMultiplier = 2.0f;
 
 	std::array<int, kInventorySlotCount> m_inventoryCounts = {};
 	uint64 m_attackBuffEndMs  = 0;
@@ -136,6 +139,9 @@ public:
 	bool IsAttackBuffActive(uint64 serverMs)  const { return serverMs < m_attackBuffEndMs; }
 	bool IsDefenseBuffActive(uint64 serverMs) const { return serverMs < m_defenseBuffEndMs; }
 	bool IsSpeedBuffActive(uint64 serverMs)   const { return serverMs < m_speedBuffEndMs; }
+	int ApplyAttackBuffToDamage(int damage, uint64 serverMs) const;
+	int ApplyDefenseBuffToIncomingDamage(int damage, uint64 serverMs) const;
+	float GetMoveSpeedMultiplier(uint64 serverMs) const;
 
 public:
 	void SetWeapon(Protocol::WeaponType& type, uint32& currentBullets)

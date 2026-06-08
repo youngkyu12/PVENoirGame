@@ -192,6 +192,7 @@ private:
 	bool ShouldKeepCollisionPairByMegaGrid(const CColliderComponent* a, const CColliderComponent* b) const;
 	int ComputePlayerWeaponDamageTierIndex() const;
 	int GetPlayerAttackPower(Protocol::WeaponType weapon) const;
+	int GetPlayerAttackPower(const PlayerRef& player, Protocol::WeaponType weapon) const;
 
 	enum class EGridDynamicKind : uint8_t
 	{
