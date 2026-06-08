@@ -137,7 +137,6 @@ void CGameScene::ApplyBossPoisonProjectileHitToPlayer(
 	int playerSlot,
 	CGameObject* player)
 {
-#ifndef USING_NETWORK
 	if ( playerSlot < 0 || playerSlot >= 4 )
 		return;
 
@@ -215,18 +214,11 @@ void CGameScene::ApplyBossPoisonProjectileHitToPlayer(
 			ctrl->RequestHit();
 		}
 	}
-
-#else
-	UNREFERENCED_PARAMETER(entry);
-	UNREFERENCED_PARAMETER(playerSlot);
-	UNREFERENCED_PARAMETER(player);
-#endif
 }
 
 void CGameScene::ApplyBossPoisonProjectilePlayerHits(
 	BossPoisonProjectileEntry& entry)
 {
-#ifndef USING_NETWORK
 	if ( !entry.active )
 		return;
 
@@ -247,15 +239,11 @@ void CGameScene::ApplyBossPoisonProjectilePlayerHits(
 
 		ApplyBossPoisonProjectileHitToPlayer(entry, slot, player);
 	}
-#else
-	UNREFERENCED_PARAMETER(entry);
-#endif
 }
 
 
 void CGameScene::UpdateBossPoisonProjectileSpellCasts(float dt)
 {
-#ifndef USING_NETWORK
 	if ( dt < 0.0f )
 		dt = 0.0f;
 
@@ -321,15 +309,11 @@ void CGameScene::UpdateBossPoisonProjectileSpellCasts(float dt)
 			state.pendingFire = false;
 		}
 	}
-#else
-	UNREFERENCED_PARAMETER(dt);
-#endif
 }
 
 
 void CGameScene::SpawnBossPoisonProjectileDust(BossPoisonProjectileEntry& entry)
 {
-#ifndef USING_NETWORK
 	if ( !entry.active )
 		return;
 
@@ -457,14 +441,10 @@ void CGameScene::SpawnBossPoisonProjectileDust(BossPoisonProjectileEntry& entry)
 
 		e->color = XMFLOAT4(0.015f, 0.24f, 0.020f, alpha);
 	}
-#else
-	UNREFERENCED_PARAMETER(entry);
-#endif
 }
 
 void CGameScene::SpawnBossPoisonProjectile(CGameObject* boss)
 {
-#ifndef USING_NETWORK
 	if ( !boss )
 		return;
 
@@ -525,14 +505,10 @@ void CGameScene::SpawnBossPoisonProjectile(CGameObject* boss)
 	entry->hitPlayerSlots.fill(false);
 
 	PlayBossSpellSfxAt(spawnPos);
-#else
-	UNREFERENCED_PARAMETER(boss);
-#endif
 }
 
 void CGameScene::UpdateBossPoisonProjectiles(float dt)
 {
-#ifndef USING_NETWORK
 	if ( dt <= 0.0f )
 		return;
 
@@ -600,9 +576,6 @@ void CGameScene::UpdateBossPoisonProjectiles(float dt)
 			entry = BossPoisonProjectileEntry{};
 		}
 	}
-#else
-	UNREFERENCED_PARAMETER(dt);
-#endif
 }
 
 void CGameScene::RenderBossPoisonProjectiles(ID3D12GraphicsCommandList* cmd, CCamera* camera)

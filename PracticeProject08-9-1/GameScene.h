@@ -276,6 +276,9 @@ private:
     void LinkSceneObjects();
 
 	void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd);
+	void UpdateBossHpGaugeHud();
+	bool ShouldRenderBossHpGaugeHud(CGameObject* boss) const;
+	bool IsBossStageBossAppearFinishedForHud(CGameObject* boss) const;
 	void UpdateFrameRenderState(CCamera* camera);
 	void BindFrameRootParameters(ID3D12GraphicsCommandList* cmd);
 
@@ -315,13 +318,30 @@ private:
 	);
 
 	void AddPotionItemBillboardEntries();
+	XMFLOAT3 AdjustItemBillboardPositionToTerrain(const XMFLOAT3& position) const;
+
+	float GetTerrainGroundYOrFallback(float worldX, float worldZ, float fallbackY) const;
+	XMFLOAT3 AlignPositionYToTerrainGround(const XMFLOAT3& position, float yOffset = 0.0f) const;
 
 	void ReleaseItemBillboardGpuResources();
+	void ReleaseMonsterHpGaugeGpuResources();
 	void ReleaseAllGameSceneEffectGpuResources();
 
-	void UpdateItemBillboardDistanceCullSelection(CCamera* camera); 
+	void UpdateItemBillboardDistanceCullSelection(CCamera* camera);
 	void RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	void RenderTransparentItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+
+	void BuildMonsterHpGaugeBatch(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, UINT rtCount, DXGI_FORMAT* rtvFormats, DXGI_FORMAT dsvFormat);
+	void UpdateMonsterHpGaugeTimers(float dt);
+	void ResetMonsterHpGaugeVisibilityState();
+	void RenderMonsterHpGauges(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	bool IsSkinnedMonsterHpGaugeRenderAllowed(const SkinnedWorldLodEntry& entry) const;
+	bool GetMonsterHpGaugeDesc(const SkinnedWorldLodEntry& entry, float& outYOffset, float& outMaxWidth, float& outHeight) const;
+	bool FindSkinnedBatchObjectIndex(const CGameObject* object, UINT& outObjectIndex) const;
+	bool IsOtherPlayerSkinnedBodyRenderedThisFrame(int playerSlot, CCamera* camera, UINT& outSkinnedBatchObjectIndex) const;
+	void UpdateOtherPlayerWorldHpGaugeVisibilityForHud(CCamera* camera);
+	bool IsOtherPlayerWorldHpGaugeRenderAllowed(int playerSlot, CCamera* camera, UINT& outSkinnedBatchObjectIndex) const;
+	UINT GetPlayerWorldHpNameMaterialId(int playerSlot) const;
 
 	void BuildMuzzleFlashBatch(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, DXGI_FORMAT dsvFormat);
 
@@ -338,6 +358,10 @@ private:
 
 	void SpawnWeaponLevelUpFireworks();
 	void SpawnGoldFireworkBurstAtWeapon(CGameObject* weaponObject);
+
+	void SpawnInventoryUseBurst(CGameObject* player, int inventorySlot);
+	void UpdateInventoryBuffAmbientParticles(float dt);
+	void EmitInventoryBuffAmbientParticles(CGameObject* player, int inventorySlot, float dt, float& accumulatorSec);
 
 	void SpawnMagicCircleGlowParticle(
 		const XMFLOAT3& center,
@@ -412,10 +436,7 @@ private:
 
 	void ReleaseBossCallSummonWwwGpuResources();
 
-	void SpawnBossCallSummonWwwEffect(
-		const XMFLOAT3& center,
-		EEnemySpawnerEnemyKind kind
-	);
+	void SpawnBossCallSummonWwwEffect(const XMFLOAT3& center, EEnemySpawnerEnemyKind kind);
 
 	void UpdateBossCallSummonWwwEffects(float dt);
 	void RenderBossCallSummonWwwEffects(ID3D12GraphicsCommandList* cmd, CCamera* camera);
@@ -434,10 +455,7 @@ private:
 	void ClearBossCallSummonCircleVisuals();
 
 	float GetBossCallSummonCircleSize(EEnemySpawnerEnemyKind kind) const;
-	void AddBossCallSummonCircle(
-		const XMFLOAT3& center,
-		EEnemySpawnerEnemyKind kind
-	);
+	void AddBossCallSummonCircle(const XMFLOAT3& center, EEnemySpawnerEnemyKind kind);
 
 	void SpawnBossSummonCircle(const XMFLOAT3& center, float alpha);
 	void SpawnBossSummonGlow(const XMFLOAT3& center, float alpha);
@@ -624,6 +642,9 @@ public:
 	bool IsPlayerInsideBossStageBattleArea(const CGameObject* player) const;
 	bool IsLocalPlayerDead() const { return m_bLocalPlayerDead; }
 	bool RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& previousPos);
+#ifdef USING_NETWORK
+	void ApplyNetworkPredictedTerrainY(CGameObject* obj);
+#endif
     
 	void RequestFireArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f, float yOffset = 0.0f);
 	bool IsLocalPlayerInsideMegaGridCenter() const;
@@ -865,7 +886,8 @@ private:
 	int ApplyPlayerAttackPowerPotionMultiplier(int playerSlot, int attackPower) const;
 
 	// slot 0..3 플레이어 포인터(소유는 m_skinnedObjects가 함)
-    std::array<CGameObject*, 4> m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
+	std::array<CGameObject*, 4> m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
+	std::array<bool, 4> m_otherPlayerWorldHpGaugeVisibleForHud = { false, false, false, false };
 
 	std::array<bool, 4> m_playerFootstepTrackingValid = { false, false, false, false };
 	std::array<int, 4> m_playerFootstepMode = { 0, 0, 0, 0 }; // 0=None, 1=Walk, 2=Run
@@ -955,6 +977,9 @@ private:
 	static constexpr UINT kBossShockwaveMaterialId = MAX_MATERIALS - 5;
 	static constexpr UINT kBossShockwaveWallMaterialId = MAX_MATERIALS - 6;
 	static constexpr UINT kBossCallSummonCircleMaterialId = MAX_MATERIALS - 7;
+	static constexpr UINT kMonsterHpGaugeMaterialId = MAX_MATERIALS - 12;
+	static constexpr UINT kMonsterHpGaugeEmptyMaterialId = MAX_MATERIALS - 13;
+	static constexpr UINT kPlayerWorldHpNameMaterialBaseId = MAX_MATERIALS - 17;
 
 	static constexpr UINT kPotionItemBillboardMaterialBaseId = MAX_MATERIALS - 11;
 	static constexpr UINT kHealPotionItemBillboardMaterialId = MAX_MATERIALS - 11;
@@ -972,6 +997,17 @@ private:
 	static_assert( kPotionItemSpawnCountPerKind <= kPotionItemMaxCountPerKind, "Potion item spawn count exceeds max count per kind." );
 
 	ItemBillboardState m_itemBillboardState;
+	MonsterHpGaugeState m_monsterHpGaugeState;
+
+	struct MonsterHpGaugeRuntimeState
+	{
+		int previousHp = -1;
+		float visibleTimerSec = 0.0f;
+	};
+
+	static constexpr float kMonsterHpGaugeVisibleDurationSec = 5.0f;
+
+	std::unordered_map<CGameObject*, MonsterHpGaugeRuntimeState> m_monsterHpGaugeRuntimeStates;
 
 	static constexpr UINT kMuzzleFlashMaxCount = 4096;
 
@@ -1182,6 +1218,7 @@ private:
 	std::vector<CGameObject*> m_bulletRefs;
 	std::unordered_map<uint64_t, CGameObject*> m_networkArrowById;
 	std::unordered_map<uint64_t, CGameObject*> m_networkBulletById;
+	std::unordered_map<uint64_t, int>          m_networkBossPoisonById;
 
 	std::array<CGameObject*, 4> m_preparedPlayerArrows = { nullptr, nullptr, nullptr, nullptr };
 	std::array<bool, 4> m_prevBowReleasePhase = { false, false, false, false };
@@ -1445,8 +1482,32 @@ private:
 	static XMFLOAT3 LerpPosition(const XMFLOAT3& a, const XMFLOAT3& b, float t);
 	static float LerpYawDegrees(float a, float b, float t);
 
+	struct NetworkActorYState
+	{
+		bool useServerY = false;
+		float serverYHoldSec = 0.0f;
+	};
+
+	float SampleClientTerrainY(float worldX, float worldZ, float fallbackY) const;
+	XMFLOAT3 ResolveNetworkActorY(
+		uint64_t actorId,
+		bool isPlayer,
+		const XMFLOAT3& serverPos,
+		float dt);
+
 	std::unordered_map<uint64_t, uint32_t> m_prevPlayerNetworkStateCode;
 	std::unordered_map<uint64_t, uint32_t> m_prevEnemyNetworkStateCode;
+	std::unordered_map<uint64_t, NetworkActorYState> m_networkPlayerYStates;
+	std::unordered_map<uint64_t, NetworkActorYState> m_networkEnemyYStates;
+
+	struct EnemyDRState
+	{
+		XMFLOAT3 predictedPos = {};
+		XMFLOAT3 moveDir     = { 0.0f, 0.0f, 1.0f };
+		float    speed       = 0.0f;
+		bool     initialized = false;
+	};
+	std::unordered_map<uint64_t, EnemyDRState> m_enemyDRStates;
 #endif
 
 	int m_playerWeaponDamageTierIndex = 0; 
@@ -1557,6 +1618,7 @@ private:
 
 	std::array<int, CGameSceneHUD::kInventorySlotCount> m_inventoryItemCounts = { 0, 0, 0, 0 };
 	std::array<bool, CGameSceneHUD::kInventorySlotCount> m_bPrevInventoryUseKeyDown = { false, false, false, false };
+	std::array<std::array<float, CGameSceneHUD::kInventorySlotCount>, 4> m_inventoryBuffParticleEmitAccumulators = {};
 
 	CGameSceneHUD                       m_hud;
 	CShadowMapSystem					m_shadowMap;
@@ -1665,6 +1727,7 @@ private:
 	static constexpr float kBossCallMonsterSpawnDelaySec = 1.0f;
 
 	bool m_bBossStageBossActivated = false;
+	uint32_t m_serverBossRoomState = 0;
 
 	static constexpr float kBossStageBossHiddenYOffset = -100.0f;
 
@@ -1799,6 +1862,8 @@ private:
 
 		bool renderAllowed = false;
 		bool waitAppearBeforeRender = false;
+		bool appearPhaseSeen = false;
+		bool appearFinished = false;
 	};
 
 	std::unordered_map<CGameObject*, BossStageBossPositionState> m_bossStageBossPositionStates;

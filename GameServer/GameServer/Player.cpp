@@ -2,6 +2,30 @@
 #include "Player.h"
 #include "ColliderComponent.h"
 
+namespace
+{
+    constexpr int kSwordAttackAnimTicks = 19; // ceil(1.383333s / 0.060s)
+    constexpr int kAxeAttackAnimTicks = 27;   // ceil(1.583333s / 0.060s)
+    constexpr int kDefaultAttackAnimTicks = 10;
+    constexpr int kPlayerHitAnimTicks = 12;    // ceil(0.983333s / 0.060s)
+    constexpr int kRollAnimTicks = 12; // ceil((1.516667s * (0.55 - 0.08)) / 0.060s)
+
+    int GetPlayerAttackAnimTicks(Protocol::WeaponType weaponType, const CWeapon& weapon)
+    {
+        switch (weaponType)
+        {
+        case Protocol::WEAPON_TYPE_SWORD:
+            return kSwordAttackAnimTicks;
+        case Protocol::WEAPON_TYPE_AXE:
+            return kAxeAttackAnimTicks;
+        case Protocol::WEAPON_TYPE_BOW:
+            return weapon.IsAttacking() ? 0 : kDefaultAttackAnimTicks;
+        default:
+            return kDefaultAttackAnimTicks;
+        }
+    }
+}
+
 void Player::Update(uint32 serverTick)
 {
     if (m_lifeState == EPlayerLifeState::DeadAnimating)
@@ -16,8 +40,10 @@ void Player::Update(uint32 serverTick)
         return;
     }
 
+    const bool keepVelocity = (m_animState == Protocol::ANIMATION_TYPE_ROLL);
     Move(m_velocity);
-    SetVelocity(GameMath::Vec3::Zero());
+    if (!keepVelocity)
+        SetVelocity(GameMath::Vec3::Zero());
 
     if (m_animState != Protocol::ANIMATION_TYPE_IDLE)
     {
@@ -27,12 +53,11 @@ void Player::Update(uint32 serverTick)
         case Protocol::ANIMATION_TYPE_WALK:   animDuration = 15; break;
         case Protocol::ANIMATION_TYPE_RUN:    animDuration = 10; break;
         case Protocol::ANIMATION_TYPE_ATTACK:
-            animDuration =
-                (weapon.GetWeaponState() == Protocol::WEAPON_TYPE_BOW && weapon.IsAttacking()) ? 0 : 10;
+            animDuration = GetPlayerAttackAnimTicks(weapon.GetWeaponState(), weapon);
             break;
-        case Protocol::ANIMATION_TYPE_ROLL:   animDuration = 1;  break;
+        case Protocol::ANIMATION_TYPE_ROLL:   animDuration = kRollAnimTicks;  break;
         case Protocol::ANIMATION_TYPE_DIE:    animDuration = 25; break;
-        case Protocol::ANIMATION_TYPE_HIT:    animDuration = 10; break;
+        case Protocol::ANIMATION_TYPE_HIT:    animDuration = kPlayerHitAnimTicks; break;
         default: animDuration = 0; break;
         }
 
@@ -46,6 +71,7 @@ void Player::Update(uint32 serverTick)
             {
                 SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
                 SetAnimTick(serverTick);
+                SetVelocity(GameMath::Vec3::Zero());
             }
         }
     }
@@ -54,6 +80,8 @@ void Player::Update(uint32 serverTick)
 void Player::Build()
 {
     ClearPendingPortalTeleport();
+	ClearPendingForcedTransform();
+	SetTerrainSnapSuppressed(false);
     SetPosition(0.0f, 0.0f, 0.0f);
     Rotate(0.0f, 0.0f, 0.0f);
     weapon.SetWeapon(Protocol::WEAPON_TYPE_SWORD, 0);
@@ -86,6 +114,8 @@ void Player::OnDeathEnter(uint32 serverTick)
     SetVelocity(GameMath::Vec3::Zero());
     ClearMoveKeyCodes();
     ClearPendingPortalTeleport();
+	ClearPendingForcedTransform();
+	SetTerrainSnapSuppressed(false);
     m_deathTick = serverTick;
 
     if (auto* collider = GetComponent<CColliderComponent>())
@@ -93,19 +123,28 @@ void Player::OnDeathEnter(uint32 serverTick)
         collider->OnUpdate(0.0f);
     }
 
-    // active¥¬ ¬¸ø© ªÛ≈¬øÕ ∫–∏Æ: ø©±‚º≠ SetActive(false) «œ¡ˆ æ ¿Ω
+    // activeÎäî Ï∞∏Ïó¨ ÏÉÅÌÉúÏôÄ Î∂ÑÎ¶¨: Ïó¨Í∏∞ÏÑú SetActive(false) ÌïòÏßÄ ÏïäÏùå
 }
 
 void Player::OnRespawnEnter(uint32 serverTick)
 {
+	const bool isActualRespawn = (m_lifeState == EPlayerLifeState::DeadAnimating);
     m_lifeState = EPlayerLifeState::Alive;
 
     ResetHpToMax();
+	const float prevYaw = GetYaw();
     SetPosition(GameMath::Vec3(0.0f, 0.0f, -200.0f));
 	SetYaw(180.0f);
+	if (isActualRespawn)
+	{
+		QueueForcedTransformYawDelta(
+			GameMath::NormalizeYaw(GetYaw() - prevYaw),
+			Protocol::FORCED_TRANSFORM_REASON_RESPAWN);
+	}
     SetVelocity(GameMath::Vec3::Zero());
     ClearMoveKeyCodes();
     ClearPendingPortalTeleport();
+	SetTerrainSnapSuppressed(false);
     SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
     SetAnimTick(serverTick);
 
@@ -115,7 +154,7 @@ void Player::OnRespawnEnter(uint32 serverTick)
     }
 }
 
-// ±‚¡∏ Respawn »£√‚∫ŒøÕ »£»Ø«œ∑¡∏È ∑°∆€ ¿Ø¡ˆ
+// Í∏∞Ï°¥ Respawn Ìò∏Ï∂úÎ∂ÄÏôÄ Ìò∏ÌôòÌïòÎ†§Î©¥ ÎûòÌçº Ïú†ÏßÄ
 void Player::Respawn(uint32 serverTick)
 {
     OnRespawnEnter(serverTick);

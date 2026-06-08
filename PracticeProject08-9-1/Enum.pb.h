@@ -65,12 +65,15 @@ enum AnimationType : int {
   ANIMATION_TYPE_ROLL = 5,
   ANIMATION_TYPE_DIE = 6,
   ANIMATION_TYPE_HIT = 7,
+  ANIMATION_TYPE_BOSS_APPEAR = 8,
+  ANIMATION_TYPE_BOSS_SPELL = 9,
+  ANIMATION_TYPE_BOSS_CALL = 10,
   AnimationType_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
   AnimationType_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
 };
 bool AnimationType_IsValid(int value);
 constexpr AnimationType AnimationType_MIN = ANIMATION_TYPE_NONE;
-constexpr AnimationType AnimationType_MAX = ANIMATION_TYPE_HIT;
+constexpr AnimationType AnimationType_MAX = ANIMATION_TYPE_BOSS_CALL;
 constexpr int AnimationType_ARRAYSIZE = AnimationType_MAX + 1;
 
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* AnimationType_descriptor();
@@ -148,12 +151,13 @@ enum EnemyType : int {
   ENEMY_TYPE_ARCHER = 2,
   ENEMY_TYPE_WARRIOR = 3,
   ENEMY_TYPE_BOSS = 4,
+  ENEMY_TYPE_MUTANT = 5,
   EnemyType_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
   EnemyType_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
 };
 bool EnemyType_IsValid(int value);
 constexpr EnemyType EnemyType_MIN = ENEMY_TYPE_NONE;
-constexpr EnemyType EnemyType_MAX = ENEMY_TYPE_BOSS;
+constexpr EnemyType EnemyType_MAX = ENEMY_TYPE_MUTANT;
 constexpr int EnemyType_ARRAYSIZE = EnemyType_MAX + 1;
 
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* EnemyType_descriptor();
@@ -324,12 +328,13 @@ enum BulletType : int {
   BULLET_TYPE_NONE = 0,
   BULLET_TYPE_ARROW = 1,
   BULLET_TYPE_CANNONBALL = 2,
+  BULLET_TYPE_BOSS_POISON = 3,
   BulletType_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
   BulletType_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
 };
 bool BulletType_IsValid(int value);
 constexpr BulletType BulletType_MIN = BULLET_TYPE_NONE;
-constexpr BulletType BulletType_MAX = BULLET_TYPE_CANNONBALL;
+constexpr BulletType BulletType_MAX = BULLET_TYPE_BOSS_POISON;
 constexpr int BulletType_ARRAYSIZE = BulletType_MAX + 1;
 
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* BulletType_descriptor();
@@ -345,6 +350,89 @@ inline bool BulletType_Parse(
     ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, BulletType* value) {
   return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<BulletType>(
     BulletType_descriptor(), name, value);
+}
+enum ForcedTransformReason : int {
+  FORCED_TRANSFORM_REASON_NONE = 0,
+  FORCED_TRANSFORM_REASON_TOWER_PORTAL = 1,
+  FORCED_TRANSFORM_REASON_CASTLE_PORTAL = 2,
+  FORCED_TRANSFORM_REASON_RESPAWN = 3,
+  ForcedTransformReason_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
+  ForcedTransformReason_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
+};
+bool ForcedTransformReason_IsValid(int value);
+constexpr ForcedTransformReason ForcedTransformReason_MIN = FORCED_TRANSFORM_REASON_NONE;
+constexpr ForcedTransformReason ForcedTransformReason_MAX = FORCED_TRANSFORM_REASON_RESPAWN;
+constexpr int ForcedTransformReason_ARRAYSIZE = ForcedTransformReason_MAX + 1;
+
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* ForcedTransformReason_descriptor();
+template<typename T>
+inline const std::string& ForcedTransformReason_Name(T enum_t_value) {
+  static_assert(::std::is_same<T, ForcedTransformReason>::value ||
+    ::std::is_integral<T>::value,
+    "Incorrect type passed to function ForcedTransformReason_Name.");
+  return ::PROTOBUF_NAMESPACE_ID::internal::NameOfEnum(
+    ForcedTransformReason_descriptor(), enum_t_value);
+}
+inline bool ForcedTransformReason_Parse(
+    ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, ForcedTransformReason* value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<ForcedTransformReason>(
+    ForcedTransformReason_descriptor(), name, value);
+}
+enum DebugCommandType : int {
+  DEBUG_COMMAND_NONE = 0,
+  DEBUG_COMMAND_KILL_MEGA5_ENEMIES = 1,
+  DEBUG_COMMAND_TELEPORT_TO_MEGA_GRID = 2,
+  DEBUG_COMMAND_DAMAGE_BOSS = 3,
+  DebugCommandType_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
+  DebugCommandType_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
+};
+bool DebugCommandType_IsValid(int value);
+constexpr DebugCommandType DebugCommandType_MIN = DEBUG_COMMAND_NONE;
+constexpr DebugCommandType DebugCommandType_MAX = DEBUG_COMMAND_DAMAGE_BOSS;
+constexpr int DebugCommandType_ARRAYSIZE = DebugCommandType_MAX + 1;
+
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* DebugCommandType_descriptor();
+template<typename T>
+inline const std::string& DebugCommandType_Name(T enum_t_value) {
+  static_assert(::std::is_same<T, DebugCommandType>::value ||
+    ::std::is_integral<T>::value,
+    "Incorrect type passed to function DebugCommandType_Name.");
+  return ::PROTOBUF_NAMESPACE_ID::internal::NameOfEnum(
+    DebugCommandType_descriptor(), enum_t_value);
+}
+inline bool DebugCommandType_Parse(
+    ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, DebugCommandType* value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<DebugCommandType>(
+    DebugCommandType_descriptor(), name, value);
+}
+enum BossRoomState : int {
+  BOSS_ROOM_STATE_PRE_BOSS_COMBAT = 0,
+  BOSS_ROOM_STATE_SUMMON_FADE_IN = 1,
+  BOSS_ROOM_STATE_BOSS_APPEARING = 2,
+  BOSS_ROOM_STATE_BOSS_ACTIVE = 3,
+  BOSS_ROOM_STATE_BOSS_DEAD = 4,
+  BOSS_ROOM_STATE_CLEARED = 5,
+  BossRoomState_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
+  BossRoomState_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
+};
+bool BossRoomState_IsValid(int value);
+constexpr BossRoomState BossRoomState_MIN = BOSS_ROOM_STATE_PRE_BOSS_COMBAT;
+constexpr BossRoomState BossRoomState_MAX = BOSS_ROOM_STATE_CLEARED;
+constexpr int BossRoomState_ARRAYSIZE = BossRoomState_MAX + 1;
+
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* BossRoomState_descriptor();
+template<typename T>
+inline const std::string& BossRoomState_Name(T enum_t_value) {
+  static_assert(::std::is_same<T, BossRoomState>::value ||
+    ::std::is_integral<T>::value,
+    "Incorrect type passed to function BossRoomState_Name.");
+  return ::PROTOBUF_NAMESPACE_ID::internal::NameOfEnum(
+    BossRoomState_descriptor(), enum_t_value);
+}
+inline bool BossRoomState_Parse(
+    ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, BossRoomState* value) {
+  return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<BossRoomState>(
+    BossRoomState_descriptor(), name, value);
 }
 // ===================================================================
 
@@ -417,6 +505,21 @@ template <> struct is_proto_enum< ::Protocol::BulletType> : ::std::true_type {};
 template <>
 inline const EnumDescriptor* GetEnumDescriptor< ::Protocol::BulletType>() {
   return ::Protocol::BulletType_descriptor();
+}
+template <> struct is_proto_enum< ::Protocol::ForcedTransformReason> : ::std::true_type {};
+template <>
+inline const EnumDescriptor* GetEnumDescriptor< ::Protocol::ForcedTransformReason>() {
+  return ::Protocol::ForcedTransformReason_descriptor();
+}
+template <> struct is_proto_enum< ::Protocol::DebugCommandType> : ::std::true_type {};
+template <>
+inline const EnumDescriptor* GetEnumDescriptor< ::Protocol::DebugCommandType>() {
+  return ::Protocol::DebugCommandType_descriptor();
+}
+template <> struct is_proto_enum< ::Protocol::BossRoomState> : ::std::true_type {};
+template <>
+inline const EnumDescriptor* GetEnumDescriptor< ::Protocol::BossRoomState>() {
+  return ::Protocol::BossRoomState_descriptor();
 }
 
 PROTOBUF_NAMESPACE_CLOSE

@@ -1635,6 +1635,7 @@ void CGameFramework::ProcessInput()
 
 			if ( CGameScene* gameScene = dynamic_cast< CGameScene* >( scene ) )
 			{
+				gameScene->ApplyNetworkPredictedTerrainY(playerObj);
 				gameScene->RollbackLocalPlayerMoveIfCollidingWorldStatic(prevPos);
 			}
 		}

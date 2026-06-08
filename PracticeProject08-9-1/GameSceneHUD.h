@@ -38,7 +38,9 @@ public:
 	void Render(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	
 	void SetHealthRatio(float ratio);
-	void SetInventoryItemCounts(const std::array<int, kInventorySlotCount>& counts);
+	void SetBossHealthRatio(float ratio, bool visible);
+	void SetOtherPlayerHealthRatios(int localPlayerSlot, const std::array<float, 4>& playerHpRatios, const std::array<bool, 4>& playerHpVisible, const std::array<bool, 4>& playerWorldHpGaugeVisible);
+	void SetInventoryItemCounts(const std::array<int, kInventorySlotCount>& counts); 
 	void SetInventoryCooldownRatio(int slot, float ratio);
 
 	void SetInactiveOverlayVisible(bool visible);
@@ -65,6 +67,19 @@ private:
 	int m_exitSpriteIndex = -1;
 
 	int m_hpFillSpriteIndex = -1;
+
+	int m_bossHpEmptySpriteIndex = -1;
+	int m_bossHpFillSpriteIndex = -1;
+	XMFLOAT4 m_bossHpFillOriginalRect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+
+	static constexpr int kOtherPlayerHpGaugeCount = 3;
+
+	std::array<int, kOtherPlayerHpGaugeCount> m_otherPlayerHpEmptySpriteIndices = { -1, -1, -1 };
+	std::array<int, kOtherPlayerHpGaugeCount> m_otherPlayerHpFillSpriteIndices = { -1, -1, -1 };
+	std::array<std::array<int, 4>, kOtherPlayerHpGaugeCount> m_otherPlayerHpNameSpriteIndices = { { { -1, -1, -1, -1 }, { -1, -1, -1, -1 }, { -1, -1, -1, -1 } } };
+	std::array<XMFLOAT4, kOtherPlayerHpGaugeCount> m_otherPlayerHpOriginalRects = {};
+	std::array<XMFLOAT4, kOtherPlayerHpGaugeCount> m_otherPlayerHpNameOriginalRects = {};
+	std::array<int, kOtherPlayerHpGaugeCount> m_otherPlayerHpSlotByGauge = { -1, -1, -1 };
 
 	std::array<int, kInventorySlotCount> m_inventorySpriteIndices = { -1, -1, -1, -1 };
 	std::array<int, kInventorySlotCount> m_inventoryIconSpriteIndices = { -1, -1, -1, -1 };

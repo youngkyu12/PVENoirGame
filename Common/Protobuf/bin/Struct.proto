@@ -29,7 +29,7 @@ message ObjectStatus
 message Animation
 {
 	//AnimationType animationType = 1;
-	// stateCode ±¸¼º
+	// stateCode bit layout.
 	// [die][hit][run][roll][attack][up][down][left][right][move]
 	uint32 stateCode = 1;
 	uint32 animationTick = 2;
@@ -53,7 +53,7 @@ message Player
 	Transform transform = 5;
 	Animation animation = 6;
 	WeaponType weaponType = 7;
-	// stats
+	uint32 hp = 8;
 }
 
 message Enemy
@@ -64,7 +64,7 @@ message Enemy
 	Transform transform = 4;
 	Animation animation = 5;
 	WeaponType weaponType = 6;
-	//stats
+	uint32 hp = 7;
 }
 
 message Building

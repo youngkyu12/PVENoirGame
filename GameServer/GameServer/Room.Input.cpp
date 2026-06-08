@@ -2,6 +2,23 @@
 #include "Room.h"
 #include "Player.h"
 
+namespace
+{
+	constexpr int kDirForward        = 1 << 0;
+	constexpr int kDirBackward       = 1 << 1;
+	constexpr int kDirLeft           = 1 << 2;
+	constexpr int kDirRight          = 1 << 3;
+	constexpr int kDirLButton        = 1 << 7;
+	constexpr int kDirRun            = 1 << 8;
+	constexpr int kDirRoll           = 1 << 9;
+	constexpr int kDirMoveMask       = kDirForward | kDirBackward | kDirLeft | kDirRight;
+	constexpr int kDirPacketMoveMask = kDirMoveMask | kDirRun;
+
+	constexpr float kPlayerWalkSpeed     = 5.0f;
+	constexpr float kPlayerRollSpeed     = 5.0f;
+	constexpr float kPlayerRunMultiplier = 2.0f;
+}
+
 void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float deltaY, float clientDeltaTime)
 {
 	auto it = players.find(playerId);
@@ -19,7 +36,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		return;
 	}
 
-	// [Ãß°¡] Á×À½/¸®½ºÆù Áß ÀÔ·Â Â÷´Ü
+	// [ì¶”ê°€] ì£½ìŒ/ë¦¬ìŠ¤í° ì¤‘ ìž…ë ¥ ì°¨ë‹¨
 	if (player->IsDead() || player->IsInputBlocked())
 	{
 		player->SetVelocity(GameMath::Vec3::Zero());
@@ -27,6 +44,18 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		return;
 	}
 
+	Protocol::AnimationType prevAnimState = player->GetAnimState();
+	if (prevAnimState == Protocol::ANIMATION_TYPE_HIT)
+	{
+		player->SetVelocity(GameMath::Vec3::Zero());
+		if (deltaX != 0.0f)
+		{
+			float currentYaw = player->GetYaw();
+			player->SetYaw(GameMath::NormalizeYaw(currentYaw + deltaX));
+		}
+		player->ClearMoveKeyCodes();
+		return;
+	}
 
 	if (deltaX != 0.0f)
 	{
@@ -34,23 +63,15 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		player->SetYaw(GameMath::NormalizeYaw(currentYaw + deltaX));
 	}
 
-	constexpr int kDirForward = 1 << 0;
-	constexpr int kDirBackward = 1 << 1;
-	constexpr int kDirLeft = 1 << 2;
-	constexpr int kDirRight = 1 << 3;
-	constexpr int kDirLButton = 1 << 7;
-	constexpr int kDirRun = 1 << 8;
-	constexpr int kDirRoll = 1 << 9;
-	constexpr int kDirMoveMask = kDirForward | kDirBackward | kDirLeft | kDirRight;
-	constexpr int kDirPacketMoveMask = kDirMoveMask | kDirRun;
-
 	const int32 moveKeyCodes = keyCodes & kDirMoveMask;
 	const int32 packetMoveKeyCodes = (moveKeyCodes != 0) ? (keyCodes & kDirPacketMoveMask) : 0;
 	player->SetLastMoveKeyCodes(packetMoveKeyCodes);
 
 	const uint32 animClockTick = GetAnimClockTick();
 	const uint32 combatClockTick = GetCombatClockTick();
-	Protocol::AnimationType prevAnimState = player->GetAnimState();
+
+	if (prevAnimState == Protocol::ANIMATION_TYPE_ROLL)
+		return;
 
 	if ((keyCodes & kDirLButton) != 0)
 	{
@@ -77,7 +98,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 			break;
 		}
 
-		// °ø°Ý ¾Ö´Ï¸ÞÀÌ¼ÇÀÌ ½ÃÀÛµÇ¸é ÀÌµ¿ ÀÔ·ÂÀº ¹«½ÃµÇ¾î¾ß ÇÑ´Ù
+		// ê³µê²© ì• ë‹ˆë©”ì´ì…˜ì´ ì‹œìž‘ë˜ë©´ ì´ë™ ìž…ë ¥ì€ ë¬´ì‹œë˜ì–´ì•¼ í•œë‹¤
 	}
 	else if (prevAnimState != Protocol::ANIMATION_TYPE_ATTACK &&
 		prevAnimState != Protocol::ANIMATION_TYPE_ROLL &&
@@ -88,8 +109,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 			Protocol::ANIMATION_TYPE_IDLE);
 	}
 
-	const bool rollStarted = moveKeyCodes != 0 &&
-		(keyCodes & kDirRoll) != 0 &&
+	const bool rollStarted = (keyCodes & kDirRoll) != 0 &&
 		prevAnimState != Protocol::ANIMATION_TYPE_ROLL;
 	if (rollStarted)
 	{
@@ -103,7 +123,6 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 	GameMath::Vec3 look = player->GetLook();
 	GameMath::Vec3 right = player->GetRight();
 
-	const float speed = 5.0f;
 	float dt = clientDeltaTime;
 	if (!(dt > 0.0f))
 		dt = m_timing.playerInputDtSec;
@@ -111,12 +130,12 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		dt = 0.001f;
 	if (dt > 0.05f)
 		dt = 0.05f;
-	float fDistance = speed * dt;
+	float fDistance = kPlayerWalkSpeed * dt;
 
 	GameMath::Vec3 shift = GameMath::Vec3::Zero();
 	GameMath::Vec3 moveDirection = GameMath::Vec3::Zero();
 
-	// ÀÌµ¿ ¹æÇâ¿¡ µû¶ó fdistaance Á¶Àý
+	// ì´ë™ ë°©í–¥ì— ë”°ë¼ fdistaance ì¡°ì ˆ
 	if (keyCodes & kDirForward)
 	{
 		moveDirection += look;
@@ -145,7 +164,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 
 		case Protocol::ANIMATION_TYPE_ROLL:
 		{
-			// ±¸¸£±â´Â ±âÁ¸ »óÅÂ¸¦ °è¼Ó À¯Áö
+			fDistance = kPlayerRollSpeed * m_timing.playerInputDtSec;
 			break;
 		}
 		case Protocol::ANIMATION_TYPE_ATTACK:
@@ -154,18 +173,18 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 				(player->GetWeaponState() == Protocol::WEAPON_TYPE_BOW ||
 				 player->GetWeaponState() == Protocol::WEAPON_TYPE_CANON);
 			if (!canMoveWhileAttacking)
-				fDistance *= 0.0f; // °ø°Ý µµÁß¿¡´Â ÀÌµ¿ ¼Óµµ = 0
+				fDistance *= 0.0f; // ê³µê²© ë„ì¤‘ì—ëŠ” ì´ë™ ì†ë„ = 0
 			break;
 		}
 		case Protocol::ANIMATION_TYPE_IDLE:
 		{
-			// IDLEµµ ÀÌµ¿ÇÏ¸é ¾ÈµÊ
+			// IDLEë„ ì´ë™í•˜ë©´ ì•ˆë¨
 			fDistance *= 0.0f;
 			break;
 		}
 		case Protocol::ANIMATION_TYPE_RUN:
 		{
-			fDistance *= 2.0f;
+			fDistance *= kPlayerRunMultiplier;
 			break;
 		}
 		case Protocol::ANIMATION_TYPE_WALK:
@@ -180,22 +199,10 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		}
 	}
 
-	if(player->GetAnimState() == Protocol::ANIMATION_TYPE_ROLL)
+	if (player->GetAnimState() == Protocol::ANIMATION_TYPE_ROLL)
 	{
-		// ±¸¸£±â´Â ÀÌµ¿ ¹æÇâÀÌ °íÁ¤µÇ¾î¾ß ÇÑ´Ù
-		if (prevAnimState == Protocol::ANIMATION_TYPE_IDLE || prevAnimState == Protocol::ANIMATION_TYPE_WALK || prevAnimState == Protocol::ANIMATION_TYPE_RUN)
-		{
-			// ±¸¸£±â°¡ ½ÃÀÛµÈ ½ÃÁ¡À¸·Î, ´ç½Ã ÀÔ·ÂµÈ ¹æÇâÅ° ±âÁØÀ¸·Î Á¶Á¤ÇÔ
-			// ÀÌ¹Ì ¹æÇâÅ° Á¤º¸ ¹Ý¿µÀº ¾Õ¿¡¼­ Çß´Ù. ³Ñ±ä´Ù
-			
-
-			//moveDirection = player->GetLook();
-		}
-		else
-		{
-			// ¿ø·¡ÀÇ ¼Óµµ/¹æÇâÀ» À¯Áö
-			moveDirection = player->GetVelocity().Normalized();
-		}
+		if (GameMath::Vec3::Dot(moveDirection, moveDirection) <= 1e-8f)
+			moveDirection = player->GetLook().Normalized();
 	}
 	shift += moveDirection * fDistance;
 
@@ -213,7 +220,10 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		desiredShift = ResolvePreBlockedShift(player, desiredShift);
 	}
 
-	player->SetVelocity(player->GetVelocity() + desiredShift);
+	if (rollStarted)
+		player->SetVelocity(desiredShift);
+	else
+		player->SetVelocity(player->GetVelocity() + desiredShift);
 
 	//cout << "=====" << player->GetObjectId() << " Input Access!" << 
 	//	 "=====" << endl << endl;

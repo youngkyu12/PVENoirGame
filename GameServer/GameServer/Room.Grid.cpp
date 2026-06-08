@@ -139,6 +139,66 @@ bool Room::WorldToMegaGridCell(float worldX, float worldZ, int& outMegaX, int& o
 	return FineCellToMegaGridCell(cellX, cellZ, outMegaX, outMegaZ);
 }
 
+int Room::GetMegaGridNumberFromWorldPosition(const GameMath::Vec3& pos) const
+{
+	int megaX = -1;
+	int megaZ = -1;
+	if (!WorldToMegaGridCell(pos.x, pos.z, megaX, megaZ))
+		return 0;
+
+	return MegaGridIndex(megaX, megaZ) + 1;
+}
+
+bool Room::IsPositionInsideMegaGridNumber(const GameMath::Vec3& pos, int megaGridNumber) const
+{
+	if (megaGridNumber < 1 || megaGridNumber > kMegaGridCount)
+		return false;
+
+	return GetMegaGridNumberFromWorldPosition(pos) == megaGridNumber;
+}
+
+bool Room::IsPositionInsideMegaGridApproachZone(const GameMath::Vec3& pos) const
+{
+	int cellX = -1;
+	int cellZ = -1;
+	if (!WorldToGridCell(pos.x, pos.z, cellX, cellZ))
+		return false;
+
+	int megaX = -1;
+	int megaZ = -1;
+	if (!FineCellToMegaGridCell(cellX, cellZ, megaX, megaZ))
+		return false;
+
+	return IsFineCellInsideMegaGridApproachZone(megaX, megaZ, cellX, cellZ);
+}
+
+bool Room::GetMegaGridCenterMovementBounds(
+	int megaGridNumber,
+	float& outMinX,
+	float& outMaxX,
+	float& outMinZ,
+	float& outMaxZ) const
+{
+	if (megaGridNumber < 1 || megaGridNumber > kMegaGridCount)
+		return false;
+
+	const int zeroBased = megaGridNumber - 1;
+	const int megaX = zeroBased % kMegaGridCols;
+	const int megaZ = zeroBased / kMegaGridCols;
+	const float centerX = static_cast<float>(kGridMinX + megaX * kMegaGridCellWidth) +
+		static_cast<float>(kMegaGridCellWidth) * 0.5f;
+	const float centerZ = static_cast<float>(kGridMinZ + megaZ * kMegaGridCellHeight) +
+		static_cast<float>(kMegaGridCellHeight) * 0.5f;
+
+	constexpr float kMonsterMoveCenterSize = 200.0f;
+	constexpr float kMonsterMoveCenterHalf = kMonsterMoveCenterSize * 0.5f;
+	outMinX = centerX - kMonsterMoveCenterHalf;
+	outMaxX = centerX + kMonsterMoveCenterHalf;
+	outMinZ = centerZ - kMonsterMoveCenterHalf;
+	outMaxZ = centerZ + kMonsterMoveCenterHalf;
+	return true;
+}
+
 bool Room::GetMegaGridRangeForCircle(
 	const GameMath::Vec3& center,
 	float radius,
@@ -545,6 +605,7 @@ void Room::RebuildMegaGridEnemyIds()
 	for (auto& [enemyId, enemy] : enemies)
 	{
 		if (!enemy) continue;
+		if (!enemy->IsActive()) continue;
 
 		int megaX = -1;
 		int megaZ = -1;

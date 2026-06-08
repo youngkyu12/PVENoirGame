@@ -40,6 +40,8 @@ namespace GameSceneHelper
 		bool hit = false;
 		bool roll = false;
 		bool attack = false;
+		bool bossSpell = false;
+		bool bossCall  = false;
 	};
 
 	void ConfigureProjectileCollider(CColliderComponent* collider, bool firedByPlayer);
@@ -195,8 +197,8 @@ namespace GameSceneHelper
 
 	static constexpr std::array<int, kPlayerWeaponDamageTierCount> kAttackPowerPlayerBulletByTier =
 	{
-		600, 600, 600
-		//8, 18, 35
+		//600, 600, 600
+		8, 18, 35
 	};
 
 	static constexpr std::array<int, kPlayerWeaponDamageTierCount> kAttackPowerPlayerAxeByTier =
@@ -206,8 +208,8 @@ namespace GameSceneHelper
 
 	static constexpr std::array<int, kPlayerWeaponDamageTierCount> kAttackPowerPlayerSwordByTier =
 	{
-		600, 600, 600
-		//10, 20, 40
+		//600, 600, 600
+		10, 20, 40
 	};
 
 	static constexpr int kAttackPowerGhoul = 5;
@@ -223,6 +225,8 @@ namespace GameSceneHelper
 
 	// Castle 텔레포트는 총 4개 이상의 메가그리드가 클리어된 뒤부터 허용한다.
 	static constexpr int kRequiredClearedMegaGridCountForCastlePortal = 4;
+	constexpr float kMegaGrid5CenterSquareHalfExtent = 125.0f;
+	bool IsWorldPositionInsideMegaGrid5CenterSquare250(float worldX, float worldZ);
 
 #ifndef USING_NETWORK
 	static constexpr int kTowerDoorPortalCooldownFrames = 30;
@@ -248,10 +252,10 @@ namespace GameSceneHelper
 	bool ParseVector3Tuple(const std::string& text, XMFLOAT3& outValue);
 	bool ParseVector4Tuple(const std::string& text, XMFLOAT4& outValue);
 	std::string ToLowerAscii(const std::string& text);
+	float NormalizeYawDegrees180(float yaw);
 
 #ifndef USING_NETWORK
 	std::string NormalizeTowerDoorNameForMatch(const std::string& text);
-	float NormalizeYawDegrees180(float yaw);
 	bool IsTowerDoorFrame2Name(const std::string& meshName, const std::string& authoringPath);
 	int GetCastleDoorFrameIndexFromMeshName(const std::string& meshName);
 	const char* GetCastleDoorFrameDebugName(int index);
@@ -281,10 +285,8 @@ namespace GameSceneHelper
 	// -------------------------------------------------------------------------
 	// Terrain
 	// -------------------------------------------------------------------------
-	constexpr int kTerrainHeightMapSamples = 257;
-	constexpr float kTerrainWorldSize = 400.0f;
-	constexpr float kTerrainHorizontalScale = 
-		kTerrainWorldSize / static_cast<float>(kTerrainHeightMapSamples - 1);
-	constexpr float kTerrainHalfWorldSize = kTerrainWorldSize * 0.5f;
-
+	constexpr int kTerrainHeightMapSamples = 1025;
+	constexpr float kTerrainWorldSize = 1200.0f;
+	constexpr float kTerrainHorizontalScale = kTerrainWorldSize / static_cast< float >( kTerrainHeightMapSamples - 1 );
+	constexpr float kTerrainVerticalScale = 0.0738f;
 }

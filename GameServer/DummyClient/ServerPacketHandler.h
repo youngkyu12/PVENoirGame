@@ -16,6 +16,8 @@ enum : uint16
 	PKT_C_CLIENT_READY = 1006,
 	PKT_C_INPUT = 1007,
 	PKT_S_FRAME_STATE = 1008,
+	PKT_S_FORCED_TRANSFORM = 1009,
+	PKT_C_DEBUG_COMMAND = 1010,
 };
 
 // 자동화 예정
@@ -25,6 +27,7 @@ bool Handle_S_LOGIN(PacketSessionRef& session, Protocol::S_LOGIN& pkt);
 bool Handle_S_ENTER_GAME(PacketSessionRef& session, Protocol::S_ENTER_GAME& pkt);
 bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt);
 bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pkt);
+bool Handle_S_FORCED_TRANSFORM(PacketSessionRef& session, Protocol::S_FORCED_TRANSFORM& pkt);
 
 
 class ServerPacketHandler
@@ -39,6 +42,7 @@ public:
 		GPacketHandler[PKT_S_ENTER_GAME] = [](PacketSessionRef& session, BYTE* buffer, int32 len){return HandlePacket<Protocol::S_ENTER_GAME>(Handle_S_ENTER_GAME, session, buffer, len);};
 		GPacketHandler[PKT_S_GAME_START] = [](PacketSessionRef& session, BYTE* buffer, int32 len){return HandlePacket<Protocol::S_GAME_START>(Handle_S_GAME_START, session, buffer, len);};
 		GPacketHandler[PKT_S_FRAME_STATE] = [](PacketSessionRef& session, BYTE* buffer, int32 len){return HandlePacket<Protocol::S_FRAME_STATE>(Handle_S_FRAME_STATE, session, buffer, len);};
+		GPacketHandler[PKT_S_FORCED_TRANSFORM] = [](PacketSessionRef& session, BYTE* buffer, int32 len){return HandlePacket<Protocol::S_FORCED_TRANSFORM>(Handle_S_FORCED_TRANSFORM, session, buffer, len);};
 
 	}
 	static bool HandlePacket(PacketSessionRef& session, BYTE* buffer, int32 len)
@@ -51,6 +55,7 @@ public:
 	static SendBufferRef MakeSendBuffer(Protocol::C_GAME_START& pkt) { return _MakeSendBuffer(pkt, PKT_C_GAME_START); }
 	static SendBufferRef MakeSendBuffer(Protocol::C_CLIENT_READY& pkt) { return _MakeSendBuffer(pkt, PKT_C_CLIENT_READY); }
 	static SendBufferRef MakeSendBuffer(Protocol::C_INPUT& pkt) { return _MakeSendBuffer(pkt, PKT_C_INPUT); }
+	static SendBufferRef MakeSendBuffer(Protocol::C_DEBUG_COMMAND& pkt) { return _MakeSendBuffer(pkt, PKT_C_DEBUG_COMMAND); }
 
 private:
 	template<typename PacketType, typename ProcessFunc>

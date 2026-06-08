@@ -2,9 +2,13 @@
 #include "JobQueue.h"
 #include "CollisionSystem.h"
 #include "NavMesh.h"
+#include "ServerTerrain.h"
+class CBossScriptHost;
+struct CBossAIContext;
 #include <array>
 #include <vector>
 #include <unordered_set>
+#include <memory>
 
 namespace Protocol
 {
@@ -32,15 +36,26 @@ struct RoomTimingConfig
 	uint64 combatClockIntervalMs = 60;
 };
 
+enum class EBossRoomState
+{
+	PreBossCombat,
+	SummonFadeIn,
+	BossAppearing,
+	BossActive,
+	BossDead,
+	Cleared
+};
+
 class Room : public JobQueue
 {
 public:
+    ~Room();
     void Enter(PlayerRef player);
     void Leave(PlayerRef player);
-    void BroadCastAll(SendBufferRef sendBuffer); // ÀüÃ¼ °øÁö¿ë
+    void BroadCastAll(SendBufferRef sendBuffer); // ì „ì²´ ê³µì§€ìš©
 
 public:
-    void BuildRoom(); // ¹æ ÃÊ±âÈ­ (°ÔÀÓ ½ÃÀÛ Àü)
+    void BuildRoom(); // ë°© ì´ˆê¸°í™” (ê²Œì„ ì‹œì‘ ì „)
     void StartGame(bool ready, uint32 index);
     void EndGame();
 
@@ -54,15 +69,21 @@ public:
 	void MakeInitStruct(Protocol::S_GAME_START gameStartPkt);
 	void MakeEnterGameStruct(Protocol::S_ENTER_GAME enterGamePkt);
 
-	// TODO: ¸ğµç ÇÃ·¹ÀÌ¾î°¡ ready¸¦ º¸³Â´ÂÁö È®ÀÎÇÏ´Â ÇÔ¼ö
+	// TODO: ëª¨ë“  í”Œë ˆì´ì–´ê°€ readyë¥¼ ë³´ëƒˆëŠ”ì§€ í™•ì¸í•˜ëŠ” í•¨ìˆ˜
     void CheckClientReady();
 
 public:
-	// Enemy¿¡ ´ëÇÑ AI Ã³¸® ÇÔ¼ö¸¦ ¿öÄ¿ ¾²·¹µå°¡ ²¨³» ¾µ ¼ö ÀÖµµ·Ï µû·Î ÇÔ¼ö¸¦ ÆÇ´Ù
+	// Enemyì— ëŒ€í•œ AI ì²˜ë¦¬ í•¨ìˆ˜ë¥¼ ì›Œì»¤ ì“°ë ˆë“œê°€ êº¼ë‚´ ì“¸ ìˆ˜ ìˆë„ë¡ ë”°ë¡œ í•¨ìˆ˜ë¥¼ íŒë‹¤
 	void ProcessEnemyAI();
 
 public:
     void SetPlayerReady(bool ready, uint32 playerId);
+	void OnMonsterFirstChase(uint64 enemyId);
+	void OnMonsterDeath(uint64 enemyId);
+	void FireEnemyArrow(CServerObject* shooter, float speed, uint32 lifeTicks);
+	void DebugKillMega5Enemies();
+	void DebugTeleportToMegaGrid(uint64 playerId, int megaGridNumber);
+	void DebugDamageBoss();
 
 public:
     GameAreaRef GetArea(uint32 areaId);
@@ -70,10 +91,24 @@ public:
 
 	map<uint64, EnemyRef> GetEnemies() { return enemies; }
 	const map<uint64, PlayerRef>& GetPlayers() const { return players; }
+	CEnemy* GetBossEnemy();
+	EBossRoomState GetBossRoomState() const { return m_bossRoomState; }
 	const CNavMesh* GetNavMesh() const { return m_navMesh.get(); }
+	bool HasTerrain() const;
+	float GetTerrainGroundHeight(float worldX, float worldZ) const;
+	GameMath::Vec3 SnapToTerrainIfBelow(const GameMath::Vec3& pos) const;
 	uint32 GetTick() const { return tick.load(); }
 	uint64 GetElapsedServerMs() const { return m_elapsedServerMs; }
 	const RoomTimingConfig& GetTimingConfig() const { return m_timing; }
+	int GetMegaGridNumberFromWorldPosition(const GameMath::Vec3& pos) const;
+	bool IsPositionInsideMegaGridNumber(const GameMath::Vec3& pos, int megaGridNumber) const;
+	bool IsPositionInsideMegaGridApproachZone(const GameMath::Vec3& pos) const;
+	bool GetMegaGridCenterMovementBounds(
+		int megaGridNumber,
+		float& outMinX,
+		float& outMaxX,
+		float& outMinZ,
+		float& outMaxZ) const;
 	uint32 GetAnimClockTick() const
 	{
 		if (m_timing.animClockIntervalMs == 0)
@@ -100,8 +135,18 @@ private:
 	void FireArrow(PlayerRef shooter, float speed, uint32 lifeTicks);
 	void FireCannonball(PlayerRef shooter);
 	ProjectileRef AcquireFromPool(Vector<ProjectileRef>& pool);
+	void UpdateKeyPickupCollision();
 	void WakeEnemiesNearPlayer(const PlayerRef& player);
 	bool IsEnemyNearAnyPlayerExact(const GameMath::Vec3& enemyPos, float rangeSq) const;
+
+	bool IsMegaGridCleared(int megaGrid) const;
+
+	GameMath::Vec3 ComputeSpawnerDoorPosition(int megaGrid, int wall, int slot) const;
+	float ComputeSpawnerDoorYaw(int wall) const;
+	CEnemy* ActivateSpawnerEnemy(int megaGrid, Protocol::EnemyType type, const GameMath::Vec3& pos, float yawDeg);
+	int ActivateSpawnerDoorBatch(int megaGrid, int batchIndex);
+	bool BeginSpawnerWave(int megaGrid);
+	void UpdateSpawnerWaves(float dt);
 
 	void InitializeSpatialGrid();
 	void ShutdownSpatialGrid();
@@ -140,6 +185,8 @@ private:
 	void SetObjectCollisionMegaGridMask(const shared_ptr<CServerObject>& obj, uint16_t mask, bool fixedMask);
 	void RefreshDynamicCollisionMegaGridMasks();
 	bool ShouldKeepCollisionPairByMegaGrid(const CColliderComponent* a, const CColliderComponent* b) const;
+	int ComputePlayerWeaponDamageTierIndex() const;
+	int GetPlayerAttackPower(Protocol::WeaponType weapon) const;
 
 	enum class EGridDynamicKind : uint8_t
 	{
@@ -176,12 +223,36 @@ private:
 		std::vector<uint64> enemyIds;
 	};
 
+	struct SpawnerWaveState
+	{
+		bool  active         = false;
+		int   nextBatchIndex = 0;
+		float accumulatorSec = 0.0f;
+	};
+
 	struct GridDynamicTracker
 	{
 		CServerObject* object = nullptr;
 		int prevCellX = -1;
 		int prevCellZ = -1;
 		bool occupied = false;
+	};
+
+	struct KeyEntry
+	{
+		float x, y, z;
+		int megaGridIndex;
+	};
+
+	static constexpr int kKeyCount = 7;
+	static constexpr KeyEntry kKeyPositions[kKeyCount] = {
+		{  380.0f, 100.5f,  -24.0f, 2 }, // megaGrid 3
+		{  400.0f,   0.0f,  400.0f, 5 }, // megaGrid 6
+		{  400.0f,   0.0f,  800.0f, 8 }, // megaGrid 9
+		{    0.0f,   0.0f,  800.0f, 7 }, // megaGrid 8
+		{ -430.0f, 100.5f,  774.0f, 6 }, // megaGrid 7
+		{ -400.0f,   0.0f,  400.0f, 3 }, // megaGrid 4
+		{ -400.0f,   0.0f,    0.0f, 0 }, // megaGrid 1
 	};
 
 	struct DoorPortalSubBoxRef
@@ -230,6 +301,7 @@ private:
 	void ProcessDoorPortals();
 	bool TryTeleportPlayerByTowerDoorPortal(const PlayerRef& player);
 	bool TryTeleportPlayerByCastleDoorPortal(const PlayerRef& player);
+	void SendForcedTransformYawDelta(const PlayerRef& player, float yawDelta, int32 reason);
 	bool TryQueuePortalTeleportFromBlockedMove(const PlayerRef& player, const GameMath::Vec3& desiredShift);
 	bool TryQueueTowerDoorPortalTeleport(const PlayerRef& player);
 	bool TryQueueCastleDoorPortalTeleport(const PlayerRef& player);
@@ -238,6 +310,19 @@ private:
 	void MarkPlayerEnteredCastleCenterMegaGrid(uint64 playerId);
 	bool IsPlayerInsideCastleCenterMegaGridFullArea(uint64 playerId) const;
 	void UpdateCastleCenterMegaGridState();
+
+	bool AreAllPreBossMonstersDeadInMega5() const;
+	bool IsPreBossMonster(uint64 enemyId) const;
+	void UpdateBossRoomState();
+	void ActivateBoss();
+	void CallBossScriptUpdate(float dt);
+	void ProcessBossMeleeHit();
+	void ProcessBossSpellAction();
+	void SpawnBossPoisonProjectile();
+	void UpdateBossPoisonProjectiles(float dt);
+	void ProcessBossCallAction();
+	void SpawnBossCallWave();
+	CEnemy* SpawnBossCallEnemy(Protocol::EnemyType type);
 
 	void ResetDynamicGridCounts();
 	bool TryGetTrackedCell(const CServerObject* obj, int& outCellX, int& outCellZ) const;
@@ -250,6 +335,7 @@ private:
 	struct MonsterSpawnEntry
 	{
 		int index = -1;
+		int megaId = -1;
 		std::string type;
 		GameMath::Vec3 position = GameMath::Vec3::Zero();
 		float yawDeg = 0.0f;
@@ -274,18 +360,26 @@ private:
 	static constexpr int kMegaGridCellHeight = (kGridHeight / kMegaGridRows);
 
 	std::unique_ptr<CNavMesh> m_navMesh;
-	static constexpr int kArrowPoolSize = 64;
-	static constexpr int kBulletPoolSize = 64;
+	std::unique_ptr<CServerTerrain> m_serverTerrain;
+	static constexpr int kArrowPoolSize      = 64;
+	static constexpr int kBulletPoolSize     = 64;
+	static constexpr int kEnemyArrowPoolSize = 32;
+	static constexpr int kBossPoisonPoolSize = 8;
+
 	Vector<ProjectileRef> m_arrowPool;
 	Vector<ProjectileRef> m_bulletPool;
+	Vector<ProjectileRef> m_enemyArrowPool;
+	Vector<ProjectileRef> m_bossPoisonPool;
+
+	std::unordered_map<uint64, std::unordered_set<uint64>> m_bossPoisonHitMap;
 
 	std::unique_ptr<CCollisionSystem> _collision;
 
     USE_LOCK;
-    map<uint64, PlayerRef> players; // ÀüÃ¼ ÇÃ·¹ÀÌ¾î ÂüÁ¶
-	map<uint64, EnemyRef> fighters; //  Æ¯¼ö Àû ÂüÁ¶ (¿É¼Ç)
-	map<uint64, EnemyRef> enemies; // ÀüÃ¼ Àû ÂüÁ¶ (¿É¼Ç)
-	map<uint64, BuildingRef> buildings; // ¸Ê ÆÄÀÏ ±â¹İ Á¤Àû ¿ÀºêÁ§Æ®
+    map<uint64, PlayerRef> players; // ì „ì²´ í”Œë ˆì´ì–´ ì°¸ì¡°
+	map<uint64, EnemyRef> fighters; //  íŠ¹ìˆ˜ ì  ì°¸ì¡° (ì˜µì…˜)
+	map<uint64, EnemyRef> enemies; // ì „ì²´ ì  ì°¸ì¡° (ì˜µì…˜)
+	map<uint64, BuildingRef> buildings; // ë§µ íŒŒì¼ ê¸°ë°˜ ì •ì  ì˜¤ë¸Œì íŠ¸
 
 	bool m_spatialGridInitialized = false;
 	std::vector<GridStaticCell> m_gridStaticCells;
@@ -298,16 +392,30 @@ private:
 	std::vector<GridDynamicTracker> m_bulletGridTrackers;
 	std::unordered_set<uint64> m_aiAwakeEnemyIds;
 	std::unordered_set<uint64> m_castleCenterPlayerIds;
+	std::unordered_set<uint64> m_meleeHitKeys;
+	std::unordered_map<uint64, int> m_poolEnemyMegaGrid;
+	std::unordered_map<uint64, int> m_spawnerKeyMutantIds;
+	std::array<SpawnerWaveState, kMegaGridCount + 1> m_spawnerWaveStates = {};
+	std::array<bool, kMegaGridCount + 1> m_keyPickupUnlockedByMegaGrid = {};
 	std::vector<TowerDoorPortalEntry> m_towerDoorPortals;
 	std::vector<CastleDoorPortalEntry> m_castleDoorPortals;
-    //array<GameAreaRef, 9> gameAreas; // 9°³ ±¸¿ª
+    //array<GameAreaRef, 9> gameAreas; // 9ê°œ êµ¬ì—­
 
 	RoomTimingConfig m_timing;
 	uint64 m_elapsedServerMs = 0;
+
+	EBossRoomState m_bossRoomState = EBossRoomState::PreBossCombat;
+	uint64 m_bossEnemyId = UINT64_MAX;
+	GameMath::Vec3 m_bossOriginalPos = GameMath::Vec3::Zero();
+	float m_bossOriginalYaw = 0.0f;
+	uint64 m_bossRoomStateChangedMs = 0;
+	std::unordered_set<uint64> m_bossSummonedEnemyIds;
+	std::unique_ptr<CBossScriptHost>  m_bossScriptHost;
+	std::unique_ptr<CBossAIContext>   m_bossAIContext;
 
     Atomic<uint32> tick = 0;
 };
 
 extern shared_ptr<Room> GRoom;
-constexpr int MaxPlayers = 1;
+constexpr int MaxPlayers = 4;
 
