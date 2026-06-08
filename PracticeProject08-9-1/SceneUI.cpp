@@ -23,6 +23,15 @@ void CSceneUI::ReleaseResources()
 		visible = true;
 }
 
+void CSceneUI::OnResize(int width, int height)
+{
+	if (width <= 0 || height <= 0)
+		return;
+
+	m_screenWidth = static_cast<float>(width);
+	m_screenHeight = static_cast<float>(height);
+}
+
 void CSceneUI::BuildShader(
 	ID3D12Device* dev,
 	ID3D12GraphicsCommandList* cmd,
@@ -201,10 +210,10 @@ void CSceneUI::RenderSprite(ID3D12GraphicsCommandList* cmd, CCamera* camera, int
 	opt.m_xmu4PostSrvIdx1 = XMUINT4(0, 0, 0, 0);
 	opt.m_xmf4UiRect = sprite.rect;
 	opt.m_xmf4Viewport = XMFLOAT4(
-		static_cast< float >( FRAME_BUFFER_WIDTH ),
-		static_cast< float >( FRAME_BUFFER_HEIGHT ),
-		1.0f / static_cast< float >( FRAME_BUFFER_WIDTH ),
-		1.0f / static_cast< float >( FRAME_BUFFER_HEIGHT )
+		static_cast< float >( m_screenWidth ),
+		static_cast< float >( m_screenHeight ),
+		1.0f / static_cast< float >( m_screenWidth ),
+		1.0f / static_cast< float >( m_screenHeight )
 	);
 
 	m_shader->Render(cmd, camera, &opt);
@@ -283,13 +292,13 @@ const CSceneUI::SpriteEntry* CSceneUI::GetSprite(int spriteIndex) const
 	return &m_sprites[static_cast< size_t >( spriteIndex )];
 }
 
-XMFLOAT4 CSceneUI::GetFullscreenRect()
+XMFLOAT4 CSceneUI::GetFullscreenRect(int width, int height)
 {
 	return XMFLOAT4(
-		FRAME_BUFFER_WIDTH * 0.5f,
-		FRAME_BUFFER_HEIGHT * 0.5f,
-		static_cast< float >( FRAME_BUFFER_WIDTH ),
-		static_cast< float >( FRAME_BUFFER_HEIGHT )
+		width * 0.5f,
+		height * 0.5f,
+		static_cast< float >( width ),
+		static_cast< float >( height )
 	);
 }
 

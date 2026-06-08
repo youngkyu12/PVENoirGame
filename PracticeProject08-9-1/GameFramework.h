@@ -3,9 +3,6 @@
 //-----------------------------------------------------------------------------
 #pragma once
 
-#define FRAME_BUFFER_WIDTH		640
-#define FRAME_BUFFER_HEIGHT		480
-
 #include "Timer.h"
 #include "SceneManager.h"
 
@@ -17,6 +14,12 @@
 #define DRAW_SCENE_Z_DEPTH				'Z'
 #define DRAW_SCENE_DEPTH				'D'
 
+enum class DisplayMode{
+	Windowed,
+	BorderlessFullscreen,
+	ExclusiveFullscreen
+};
+
 class CScene;
 class CCamera;
 class CPostProcessingShader;
@@ -27,6 +30,8 @@ public:
 	CGameFramework();
 	~CGameFramework();
 
+	void SetDisplayMode(DisplayMode DM, int Width, int Height);
+	
 	// Lifecycle
 public:
 	void OnDestroy();
@@ -41,6 +46,7 @@ public:
 	bool OnCreate(HINSTANCE hInstance, HWND hMainWnd);
 
 	void CreateDirect3DDevice();
+	void FindOutputForCurrentWindow();
 	void CreateCommandQueueAndList();
 	void CreateRtvAndDsvDescriptorHeaps();
 	void CreateSwapChain();
@@ -52,6 +58,10 @@ public:
 	// Frame / Render
 public:
 	void ChangeSwapChainState();
+	void OnResize(int width, int height);
+	void EnterBorderlessFullscreen();
+	void LeaveBorderlessFullscreen();
+	bool CanUseExclusiveFullscreen() const;
 
 	void ProcessInput();
 	void AnimateObjects();
@@ -84,20 +94,21 @@ private:
 	void UnlockGameCursor();
 	void UpdateGameCursorLock();
 
+	
+
 	bool								m_sceneSwitchPending = false;
 	ESceneId							m_pendingScene = ESceneId::Menu;
 	bool								m_sceneSwitchReadyToApply = false;
+	bool								m_bResizePending = false;
 
 private:
 	// Window
 	HINSTANCE							m_hInstance = nullptr;
 	HWND								m_hWnd = nullptr;
 
-	int									m_nWndClientWidth = FRAME_BUFFER_WIDTH;
-	int									m_nWndClientHeight = FRAME_BUFFER_HEIGHT;
-
 	// DXGI / Device
 	ComPtr<IDXGIFactory6>				m_pdxgiFactory;
+	ComPtr<IDXGIAdapter1>				m_pd3dGPUAdapter;
 	ComPtr<IDXGISwapChain3>				m_pdxgiSwapChain;
 	ComPtr<ID3D12Device>				m_pd3dDevice;
 
@@ -164,7 +175,19 @@ private:
 	bool								m_bConsumeNextMouseClick = false;
 	bool								m_bUserPaused = false;
 	bool								m_bGameCursorLocked = false;
-	
+
+	// AdapterDisplayModes
+	vector<DXGI_MODE_DESC>				m_DisplayModeList;
+	DXGI_OUTPUT_DESC					m_OutputDesc {};
+
+	int									m_nWndClientWidth = FRAME_BUFFER_WIDTH;
+	int									m_nWndClientHeight = FRAME_BUFFER_HEIGHT;
+
+	DisplayMode							m_DisplayMode = DisplayMode::Windowed;
+	bool								m_bHasGpuOutput = false;
+	DWORD								m_dwWindowedStyle = 0;
+	WINDOWPLACEMENT						m_WindowedPlacement {};
+
 	bool HandlePauseClick(UINT nMessageID, LPARAM lParam);
 	void ClearInputPause();
 };
