@@ -476,7 +476,7 @@ protected:
 
 struct PS_CB_DRAW_OPTIONS
 {
-	XMINT4  m_xmn4DrawOptions;     // x='T','L','N','D','Z'
+	XMINT4  m_xmn4DrawOptions;     // x='T','L','N','D','Z','S'
 	XMUINT4 m_xmu4PostSrvIdx0;     // x=T, y=L, z=N, w=D
 	XMUINT4 m_xmu4PostSrvIdx1;     // x=Z
 
@@ -487,6 +487,13 @@ struct PS_CB_DRAW_OPTIONS
 	// viewport
 	// x=width, y=height, z=1/width, w=1/height
 	XMFLOAT4 m_xmf4Viewport;
+
+	// rgba
+	XMFLOAT4 m_xmf4Color;
+
+	// effect params
+	// poison overlay: x=edge thickness pixels
+	XMFLOAT4 m_xmf4Params0;
 };
 
 class CTextureToFullScreenShader : public CPostProcessingShader
