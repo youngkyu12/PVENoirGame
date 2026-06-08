@@ -78,6 +78,9 @@ public:
 protected:
 	ComPtr<ID3D12PipelineState>				m_pd3dPipelineState;
 	ComPtr<ID3D12RootSignature>				m_pd3dGraphicsRootSignature;
+
+	float m_screenWidth = FRAME_BUFFER_WIDTH;
+	float m_screenHeight = FRAME_BUFFER_HEIGHT;
 };
 
 class CDiffusedShader : public CShader
@@ -434,7 +437,9 @@ public:
 		ID3D12GraphicsCommandList* pd3dCommandList,
 		UINT nRenderTargets,
 		DXGI_FORMAT* pdxgiFormats,
-		D3D12_CPU_DESCRIPTOR_HANDLE d3dRtvCPUDescriptorHandle
+		D3D12_CPU_DESCRIPTOR_HANDLE d3dRtvCPUDescriptorHandle,
+		UINT width,
+		UINT height
 	);
 
 	// RenderTarget
@@ -471,7 +476,7 @@ protected:
 
 struct PS_CB_DRAW_OPTIONS
 {
-	XMINT4  m_xmn4DrawOptions;     // x='T','L','N','D','Z'
+	XMINT4  m_xmn4DrawOptions;     // x='T','L','N','D','Z','S'
 	XMUINT4 m_xmu4PostSrvIdx0;     // x=T, y=L, z=N, w=D
 	XMUINT4 m_xmu4PostSrvIdx1;     // x=Z
 
@@ -482,6 +487,13 @@ struct PS_CB_DRAW_OPTIONS
 	// viewport
 	// x=width, y=height, z=1/width, w=1/height
 	XMFLOAT4 m_xmf4Viewport;
+
+	// rgba
+	XMFLOAT4 m_xmf4Color;
+
+	// effect params
+	// poison overlay: x=edge thickness pixels
+	XMFLOAT4 m_xmf4Params0;
 };
 
 class CTextureToFullScreenShader : public CPostProcessingShader
@@ -561,4 +573,34 @@ public:
 	D3D12_DEPTH_STENCIL_DESC CreateDepthStencilState() override;
 
 	void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd, void* pContext) override;
+};
+
+class CSsaoShader : public CTextureToFullScreenShader
+{
+public:
+	CSsaoShader() = default;
+	~CSsaoShader() override = default;
+
+	void CreateShader(
+		ID3D12Device* dev,
+		ID3D12RootSignature* sceneRootSig,
+		UINT nRenderTargets,
+		DXGI_FORMAT* rtvFormats,
+		DXGI_FORMAT dsvFormat
+	) override;
+
+	D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob) override;
+	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
+
+	D3D12_DEPTH_STENCIL_DESC CreateDepthStencilState() override;
+};
+
+class CSsaoBlurShader final : public CTextureToFullScreenShader
+{
+public:
+	CSsaoBlurShader() = default;
+	~CSsaoBlurShader() override = default;
+
+	D3D12_SHADER_BYTECODE CreateVertexShader(ID3DBlob** ppd3dShaderBlob) override;
+	D3D12_SHADER_BYTECODE CreatePixelShader(ID3DBlob** ppd3dShaderBlob) override;
 };

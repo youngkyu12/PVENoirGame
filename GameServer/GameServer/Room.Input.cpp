@@ -130,7 +130,7 @@ void Room::ProcessInput(uint64 playerId, int32 keyCodes, float deltaX, float del
 		dt = 0.001f;
 	if (dt > 0.05f)
 		dt = 0.05f;
-	float fDistance = kPlayerWalkSpeed * dt;
+	float fDistance = kPlayerWalkSpeed * player->GetMoveSpeedMultiplier(m_elapsedServerMs) * dt;
 
 	GameMath::Vec3 shift = GameMath::Vec3::Zero();
 	GameMath::Vec3 moveDirection = GameMath::Vec3::Zero();

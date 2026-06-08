@@ -133,6 +133,13 @@ public:
 
     void ResetHpToMax() { m_currentHp = m_maxHp; }
 
+    void Heal(int amount)
+    {
+        if (amount <= 0 || IsDead()) return;
+        m_currentHp += amount;
+        if (m_currentHp > m_maxHp) m_currentHp = m_maxHp;
+    }
+
     void SetAttackPower(int ap) { m_attackPower = ap; }
     int  GetAttackPower() const { return m_attackPower; }
 

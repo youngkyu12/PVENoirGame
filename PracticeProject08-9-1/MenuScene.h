@@ -26,6 +26,8 @@ public:
 	bool OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam) override;
 	bool ConsumeSceneRequest(ESceneRequest& outReq) override;
 
+	void OnResize(int width, int height) override;
+
 private:
 	bool m_startGameRequested = false;
 	bool m_showLoading = false;

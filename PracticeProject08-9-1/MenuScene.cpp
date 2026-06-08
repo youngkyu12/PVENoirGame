@@ -17,7 +17,7 @@ void CMenuScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_menuBackgroundSpriteIndex = m_menuUI.AddSprite(dev, cmd,
 		"MenuBackground",
 		L"Assets/UI/MenuImage.dds",
-		CSceneUI::GetFullscreenRect(),
+		CSceneUI::GetFullscreenRect(m_viewportWidth, m_viewportHeight),
 		CSceneUI::ELayer::Background,
 		true
 	);
@@ -25,10 +25,10 @@ void CMenuScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_startButtonSpriteIndex = m_menuUI.AddFitSprite(dev, cmd,
 		"StartButton",
 		L"Assets/UI/StartButton.dds",
-		FRAME_BUFFER_WIDTH * 0.5f,
-		FRAME_BUFFER_HEIGHT * 0.78f,
-		FRAME_BUFFER_WIDTH * 0.40f,
-		FRAME_BUFFER_HEIGHT * 0.18f,
+		m_viewportWidth * 0.5f,
+		m_viewportHeight * 0.78f,
+		m_viewportWidth * 0.40f,
+		m_viewportHeight * 0.18f,
 		CSceneUI::ELayer::Content,
 		true
 	);
@@ -36,7 +36,7 @@ void CMenuScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_loadingSpriteIndex = m_menuUI.AddSprite(dev, cmd,
 		"Loading",
 		L"Assets/UI/LoadingImage.dds",
-		CSceneUI::GetFullscreenRect(),
+		CSceneUI::GetFullscreenRect(m_viewportWidth, m_viewportHeight),
 		CSceneUI::ELayer::Content,
 		false
 	);
@@ -75,9 +75,12 @@ void CMenuScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* 
 	cam->SetTimeLag(0.0f);
 	cam->SetOffset(XMFLOAT3(0.0f, 0.0f, 0.0f));
 
-	cam->GenerateProjectionMatrix(1.01f, 5000.0f, ASPECT_RATIO, 60.0f);
-	cam->SetViewport(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, 0.0f, 1.0f);
-	cam->SetScissorRect(0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT);
+	const float aspectRatio =
+		static_cast<float>(m_viewportWidth) / static_cast<float>(m_viewportHeight);
+
+	cam->GenerateProjectionMatrix(1.01f, 5000.0f, aspectRatio, 60.0f);
+	cam->SetViewport(0, 0, m_viewportWidth, m_viewportHeight, 0.0f, 1.0f);
+	cam->SetScissorRect(0, 0, m_viewportWidth, m_viewportHeight);
 
 	m_pMainCameraObject->CreateComponents(dev, cmd);
 
@@ -153,4 +156,36 @@ bool CMenuScene::ConsumeSceneRequest(ESceneRequest& outReq)
 	m_startGameRequested = false;
 	outReq = ESceneRequest::SwitchToGame;
 	return true;
+}
+
+void CMenuScene::OnResize(int width, int height)
+{
+	m_menuUI.OnResize(width, height);
+
+	m_viewportWidth = static_cast<float>(width);
+	m_viewportHeight = static_cast<float>(height);
+
+	m_menuUI.SetSpriteRect(
+		m_menuBackgroundSpriteIndex,
+		XMFLOAT4(m_viewportWidth * 0.5f, m_viewportHeight * 0.5f, m_viewportWidth, m_viewportHeight)
+	);
+
+	if (const auto* start = m_menuUI.GetSprite(m_startButtonSpriteIndex))
+	{
+		m_menuUI.SetSpriteRect(
+			m_startButtonSpriteIndex,
+			CSceneUI::MakeFitRect(
+				start->texture,
+				m_viewportWidth * 0.5f,
+				m_viewportHeight * 0.78f,
+				m_viewportWidth * 0.40f,
+				m_viewportHeight * 0.18f
+			)
+		);
+	}
+
+	m_menuUI.SetSpriteRect(
+		m_loadingSpriteIndex,
+		XMFLOAT4(m_viewportWidth * 0.5f, m_viewportHeight * 0.5f, m_viewportWidth, m_viewportHeight)
+	);
 }

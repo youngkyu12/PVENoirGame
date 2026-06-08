@@ -40,9 +40,9 @@ SamplerComparisonState gssShadowSampler : register(s1);
 
 cbuffer cbDrawOptions : register(b5)
 {
-    int4 gvDrawOptions; // x = 'T','L','N','D','Z'
+    int4 gvDrawOptions; // x = 'T','L','N','D','Z','S'
     uint4 gvPostSrvIdx0; // x=T, y=L, z=N, w=D
-    uint4 gvPostSrvIdx1; // x=Z, ������ �е�
+    uint4 gvPostSrvIdx1; // x=Z
 
     // UI rectangle in pixels
     // x = centerX, y = centerY, z = width, w = height
@@ -52,6 +52,13 @@ cbuffer cbDrawOptions : register(b5)
     // x = viewportWidth, y = viewportHeight
     // z = 1/viewportWidth, w = 1/viewportHeight
     float4 gvViewport;
+
+    // rgba
+    float4 gvUIColor;
+
+    // effect params
+    // poison overlay: x=edge thickness pixels
+    float4 gvUIParams0;
 };
 
 cbuffer cbPerDrawMaterialId : register(b6)
