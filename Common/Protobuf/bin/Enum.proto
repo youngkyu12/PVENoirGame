@@ -123,6 +123,16 @@ enum DebugCommandType
 	DEBUG_COMMAND_DAMAGE_BOSS = 3;
 }
 
+enum ItemType
+{
+	ITEM_TYPE_NONE               = 0;
+	ITEM_TYPE_HEAL_POTION        = 1;
+	ITEM_TYPE_ATTACK_POWER_POTION = 2;
+	ITEM_TYPE_DEFENSE_POTION     = 3;
+	ITEM_TYPE_MOVE_SPEED_POTION  = 4;
+	ITEM_TYPE_KEY                = 5;
+}
+
 enum BossRoomState
 {
 	BOSS_ROOM_STATE_PRE_BOSS_COMBAT = 0;
