@@ -557,6 +557,7 @@ void Room::TickAdvance()
 
 	UpdateDynamicGridState();
 	UpdateKeyPickupCollision();
+	UpdateItemPickupCollision();
 	UpdateSpawnerWaves(m_timing.playerInputDtSec);
 	UpdateBossRoomState();
 	if (m_bossRoomState == EBossRoomState::BossActive)

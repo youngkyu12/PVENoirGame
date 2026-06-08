@@ -135,9 +135,6 @@ std::shared_ptr<CMesh> CGameScene::CreateItemBillboardQuadMesh(ID3D12Device* dev
 
 void CGameScene::AddPotionItemBillboardEntries()
 {
-#ifdef USING_NETWORK
-	return;
-#else
 	if ( !m_sceneGrid.IsInitialized() )
 		return;
 
@@ -164,7 +161,7 @@ void CGameScene::AddPotionItemBillboardEntries()
 
 	static constexpr int kPotionPlacementCenterSizeCells = 200;
 
-	std::mt19937 rng{ std::random_device{}( ) };
+	std::mt19937 rng{ 12345u };
 
 	std::unordered_set<int> usedPotionCells;
 	usedPotionCells.reserve(kPotionItemBillboardCount * 2);
@@ -256,7 +253,6 @@ void CGameScene::AddPotionItemBillboardEntries()
 	char buf[160];
 	sprintf_s(buf, "[PotionItemSpawn] complete count=%zu perKind=%u\n", m_itemBillboardState.entries.size(), kPotionItemSpawnCountPerKind);
 	OutputDebugStringA(buf);
-#endif
 }
 
 void CGameScene::BuildItemBillboardBatch(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, UINT rtCount, DXGI_FORMAT* rtvFormats, DXGI_FORMAT dsvFormat)
@@ -406,6 +402,36 @@ void CGameScene::BuildItemBillboardBatch(ID3D12Device* dev, ID3D12GraphicsComman
 	}
 
 	AddPotionItemBillboardEntries();
+
+#ifdef USING_NETWORK
+	if ( std::holds_alternative<GameStartData>(m_pendingNetworkMessage.data) )
+	{
+		const GameStartData& netData = std::get<GameStartData>(m_pendingNetworkMessage.data);
+
+		// XZ 위치로 server item과 매칭해 serverId 할당
+		for ( ItemBillboardEntry& entry : m_itemBillboardState.entries )
+		{
+			if ( entry.kind != EItemBillboardKind::Key &&
+				 entry.kind != EItemBillboardKind::HealPotion &&
+				 entry.kind != EItemBillboardKind::AttackPowerPotion &&
+				 entry.kind != EItemBillboardKind::DefensePotion &&
+				 entry.kind != EItemBillboardKind::MoveSpeedPotion )
+				continue;
+
+			constexpr float kMatchEps = 0.1f;
+			for ( const ItemSpawnState& si : netData.items )
+			{
+				const float dx = entry.position.x - si.position.x;
+				const float dz = entry.position.z - si.position.z;
+				if ( dx * dx + dz * dz < kMatchEps * kMatchEps )
+				{
+					entry.serverId = si.id;
+					break;
+				}
+			}
+		}
+	}
+#endif
 
 	{
 		ItemBillboardEntry summonGlow{};

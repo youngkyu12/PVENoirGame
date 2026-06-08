@@ -60,7 +60,17 @@ bool CGameScene::RequestUseInventoryItemSlot(int slot)
 		return false;
 
 #ifdef USING_NETWORK
-	return false;
+	if ( m_bLocalPlayerDead )
+		return false;
+
+	{
+		Protocol::C_USE_ITEM pkt;
+		pkt.set_playerid(g_myPlayerId);
+		pkt.set_slot(slot);
+		auto sendBuffer = ServerPacketHandler::MakeSendBuffer(pkt);
+		g_clientService->BroadCast(sendBuffer);
+	}
+	return true;
 #else
 	if ( m_bLocalPlayerDead )
 		return false;

@@ -334,6 +334,8 @@ void Room::BuildRoom()
 	m_enemyArrowPool.clear();
 	m_bossPoisonPool.clear();
 	m_bossPoisonHitMap.clear();
+	m_items.clear();
+	m_framePickedUpItemIds.clear();
 	InitializeCollisionSystem();
 	InitializeSpatialGrid();
 
@@ -591,6 +593,7 @@ void Room::BuildRoom()
 
 	RebuildDynamicGridState();
 	RebuildMegaGridEnemyIds();
+	InitializeItems();
 }
 
 void Room::StartGame(bool ready, uint32 index)

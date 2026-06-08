@@ -8363,6 +8363,37 @@ void CGameScene::AnimateObjects(float dt)
 			it = m_networkBossPoisonById.erase(it);
 		}
 
+		// 픽업된 아이템 billboard 비활성화
+		for ( uint64_t pickedId : receivedSnapshot.pickedUpItemIds )
+		{
+			for ( ItemBillboardEntry& entry : m_itemBillboardState.entries )
+			{
+				if ( entry.serverId == pickedId )
+				{
+					entry.active = false;
+					entry.distanceCulled = true;
+					break;
+				}
+			}
+		}
+
+		// 로컬 플레이어 인벤토리 동기화
+		for ( const auto& playerState : receivedSnapshot.players )
+		{
+			if ( static_cast<int>(playerState.id) != m_localPlayerSlot )
+				continue;
+
+			std::array<int, CGameSceneHUD::kInventorySlotCount> counts = { 0, 0, 0, 0 };
+			for ( const InventoryEntryState& inv : playerState.inventory )
+			{
+				const int slot = static_cast<int>(inv.kind) - 1;
+				if ( slot >= 0 && slot < CGameSceneHUD::kInventorySlotCount )
+					counts[static_cast<size_t>(slot)] = inv.count;
+			}
+			SetInventoryItemCounts(counts);
+			break;
+		}
+
 		// 사용이 끝난 data는 기본값으로 초기화 (선택적)
 		m_pendingNetworkMessage.data = LoadoutData{};
     }

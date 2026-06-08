@@ -123,6 +123,18 @@ bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
 		data.enemies.push_back(std::move(state));
 	}
 
+	auto items = worldInit.items();
+	data.items.reserve(items.size());
+	for (auto& item : items)
+	{
+		auto pos = item.position();
+		ItemSpawnState s{};
+		s.id       = item.id();
+		s.kind     = static_cast<uint32_t>(item.kind());
+		s.position = XMFLOAT3(pos.x(), pos.y(), pos.z());
+		data.items.push_back(std::move(s));
+	}
+
 	// networkQueue에 게임 시작 패킷 push
 	g_NetworkQueue.PushGameStart(std::move(data));
 
@@ -162,6 +174,14 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 		state.yaw = yaw;
 		state.animation = animState;
 		state.weaponType = eweaponType;
+
+		for (auto& inv : player.inventory())
+		{
+			InventoryEntryState e{};
+			e.kind  = static_cast<uint32_t>(inv.kind());
+			e.count = inv.count();
+			state.inventory.push_back(e);
+		}
 
 		data.players.push_back(std::move(state));
 	}
@@ -209,6 +229,9 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 	}
 
 	data.bossRoomState = static_cast<uint32_t>(pkt.bossroomstate());
+
+	for (auto id : pkt.pickedupitemids())
+		data.pickedUpItemIds.push_back(static_cast<uint64_t>(id));
 
 	g_NetworkQueue.PushFrameState(std::move(data));
 	return false;
