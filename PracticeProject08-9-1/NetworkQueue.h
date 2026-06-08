@@ -41,6 +41,7 @@ struct EnemyState
 {
     uint64_t    id = 0;
     uint32_t    enemyType = 0;
+    uint32_t    hp = 0;
     XMFLOAT3    position = XMFLOAT3(0.0f, 0.0f, 0.0f);
     float       yaw = 0.0f;
     AnimationState animation{};
@@ -90,6 +91,7 @@ struct FrameSnapshot
     std::vector<PlayerState> players;
     std::vector<EnemyState> enemies;
     std::vector<BulletState> bullets;
+	uint32_t bossRoomState = 0;
 };
 
 // ============================================================

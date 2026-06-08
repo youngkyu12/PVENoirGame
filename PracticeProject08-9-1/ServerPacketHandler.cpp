@@ -23,7 +23,7 @@ bool Handle_S_LOGIN(PacketSessionRef& session, Protocol::S_LOGIN& pkt)
 {
 	if (pkt.success() == false)
 	{
-		// 로그인 실패 처리
+		session->Disconnect(L"Room full");
 		return true;
 	}
 
@@ -115,6 +115,7 @@ bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
         EnemyState state{};
 		state.id = enemy.id();
 		state.enemyType = static_cast<uint32_t>(enemy.enemytype());
+		state.hp = enemy.hp();
 		state.position = XMFLOAT3(position.x(), position.y(), position.z());
 		state.yaw = yaw;
 		state.weaponType = static_cast<EWeaponType>(enemy.weapontype() - 1);
@@ -182,6 +183,7 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 		EnemyState state{};
 		state.id = enemy.id();
 		state.enemyType = static_cast<uint32_t>(enemy.enemytype());
+		state.hp = enemy.hp();
 		state.position = XMFLOAT3(position.x(), position.y(), position.z());
 		state.yaw = yaw;
 		state.animation = animState;
@@ -205,6 +207,8 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 
 		data.bullets.push_back(std::move(b));
 	}
+
+	data.bossRoomState = static_cast<uint32_t>(pkt.bossroomstate());
 
 	g_NetworkQueue.PushFrameState(std::move(data));
 	return false;

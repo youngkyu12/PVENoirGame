@@ -39,7 +39,6 @@ void CGameScene::ReleaseBossCallSummonWwwGpuResources()
 
 void CGameScene::SpawnBossCallSummonWwwEffect(const XMFLOAT3& center, EEnemySpawnerEnemyKind kind)
 {
-#ifndef USING_NETWORK
 	static std::mt19937 rng{ std::random_device{}( ) };
 
 	static std::uniform_real_distribution<float> zeroOneDist(0.0f, 1.0f);
@@ -88,15 +87,10 @@ void CGameScene::SpawnBossCallSummonWwwEffect(const XMFLOAT3& center, EEnemySpaw
 		entry->targetPeakHeights[i] = zeroOneDist(rng) * entry->maxHeight;
 		entry->peakMoveSpeeds[i] = entry->maxHeight * ( 2.8f + zeroOneDist(rng) * 4.2f );
 	}
-#else
-	UNREFERENCED_PARAMETER(center);
-	UNREFERENCED_PARAMETER(kind);
-#endif
 }
 
 void CGameScene::UpdateBossCallSummonWwwEffects(float dt)
 {
-#ifndef USING_NETWORK
 	if ( dt <= 0.0f )
 		return;
 
@@ -163,13 +157,9 @@ void CGameScene::UpdateBossCallSummonWwwEffects(float dt)
 				);
 		}
 	}
-#else
-	UNREFERENCED_PARAMETER(dt);
-#endif
 }
 void CGameScene::RenderBossCallSummonWwwEffects(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
-#ifndef USING_NETWORK
 	if ( !cmd ) return;
 	if ( !camera ) return;
 	if ( !m_bossCallSummonWwwEffect.shader ) return;
@@ -468,10 +458,6 @@ void CGameScene::RenderBossCallSummonWwwEffects(ID3D12GraphicsCommandList* cmd, 
 			cmd->DrawInstanced(range.vertexCount, 1, range.startVertex, 0);
 		}
 	}
-#else
-	UNREFERENCED_PARAMETER(cmd);
-	UNREFERENCED_PARAMETER(camera);
-#endif
 }
 
 void CGameScene::SpawnBossSummonCircle(const XMFLOAT3& center, float alpha)
@@ -648,7 +634,6 @@ void CGameScene::AddBossCallSummonCircle(const XMFLOAT3& center, EEnemySpawnerEn
 
 void CGameScene::BeginBossCallMonsterSummonVisuals(int callIndex, float fadeInDurationSec)
 {
-#ifndef USING_NETWORK
 	ClearBossCallSummonCircleVisuals();
 
 	m_bossCallSummonPlanCallIndex = -1;
@@ -775,16 +760,10 @@ void CGameScene::BeginBossCallMonsterSummonVisuals(int callIndex, float fadeInDu
 		PlayBossCallSummonCircleSfxAt(sfxPos);
 
 	}
-
-#else
-	UNREFERENCED_PARAMETER(callIndex);
-	UNREFERENCED_PARAMETER(fadeInDurationSec);
-#endif
 }
 
 void CGameScene::StartBossCallSummonCircleFadeOut()
 {
-#ifndef USING_NETWORK
 	if ( !m_itemBillboardState.bossCallSummonCircleVisual.active )
 		return;
 
@@ -798,14 +777,12 @@ void CGameScene::StartBossCallSummonCircleFadeOut()
 		( kBossCallSummonCircleFadeOutDurationSec > 1.0e-6f )
 		? kBossCallSummonCircleFadeOutDurationSec
 		: 0.001f;
-#endif
 }
 
 void CGameScene::EmitBossCallSummonCircleGlowParticles(
 	float dt,
 	float alpha)
 {
-#ifndef USING_NETWORK
 	if ( dt <= 0.0f )
 		return;
 
@@ -875,15 +852,10 @@ void CGameScene::EmitBossCallSummonCircleGlowParticles(
 			}
 		}
 	}
-#else
-	UNREFERENCED_PARAMETER(dt);
-	UNREFERENCED_PARAMETER(alpha);
-#endif
 }
 
 void CGameScene::UpdateBossCallSummonCircles(float dt)
 {
-#ifndef USING_NETWORK
 	if ( !m_itemBillboardState.bossCallSummonCircleVisual.active )
 		return;
 
@@ -948,7 +920,5 @@ void CGameScene::UpdateBossCallSummonCircles(float dt)
 		EmitBossCallSummonCircleGlowParticles(dt, 1.0f);
 		return;
 	}
-#else
-	UNREFERENCED_PARAMETER(dt);
-#endif
+
 }

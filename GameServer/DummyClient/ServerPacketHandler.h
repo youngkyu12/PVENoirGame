@@ -17,6 +17,7 @@ enum : uint16
 	PKT_C_INPUT = 1007,
 	PKT_S_FRAME_STATE = 1008,
 	PKT_S_FORCED_TRANSFORM = 1009,
+	PKT_C_DEBUG_COMMAND = 1010,
 };
 
 // 자동화 예정
@@ -54,6 +55,7 @@ public:
 	static SendBufferRef MakeSendBuffer(Protocol::C_GAME_START& pkt) { return _MakeSendBuffer(pkt, PKT_C_GAME_START); }
 	static SendBufferRef MakeSendBuffer(Protocol::C_CLIENT_READY& pkt) { return _MakeSendBuffer(pkt, PKT_C_CLIENT_READY); }
 	static SendBufferRef MakeSendBuffer(Protocol::C_INPUT& pkt) { return _MakeSendBuffer(pkt, PKT_C_INPUT); }
+	static SendBufferRef MakeSendBuffer(Protocol::C_DEBUG_COMMAND& pkt) { return _MakeSendBuffer(pkt, PKT_C_DEBUG_COMMAND); }
 
 private:
 	template<typename PacketType, typename ProcessFunc>

@@ -49,11 +49,13 @@ namespace GameSceneHelper
 			out.run = out.hasMove && ( ( stateCode & ( 1u << 7 ) ) != 0u );
 		}
 
-		// 우선순위: die > hit > roll > attack
-		out.die = ( stateCode & ( 1u << 9 ) ) != 0u;
-		out.hit = !out.die && ( ( stateCode & ( 1u << 8 ) ) != 0u );
-		out.roll = !out.die && !out.hit && ( ( stateCode & ( 1u << 6 ) ) != 0u );
-		out.attack = !out.die && !out.hit && !out.roll && ( ( stateCode & ( 1u << 5 ) ) != 0u );
+		// 우선순위: die > hit > roll > attack > bossSpell > bossCall
+		out.die       = ( stateCode & ( 1u << 9  ) ) != 0u;
+		out.hit       = !out.die && ( ( stateCode & ( 1u << 8 ) ) != 0u );
+		out.roll      = !out.die && !out.hit && ( ( stateCode & ( 1u << 6 ) ) != 0u );
+		out.attack    = !out.die && !out.hit && !out.roll && ( ( stateCode & ( 1u << 5 ) ) != 0u );
+		out.bossSpell = !out.die && ( ( stateCode & ( 1u << 10 ) ) != 0u );
+		out.bossCall  = !out.die && ( ( stateCode & ( 1u << 11 ) ) != 0u );
 
 		return out;
 	}
@@ -472,6 +474,7 @@ namespace GameSceneHelper
 		{
 			normalized = normalized.substr(1, normalized.size() - 2);
 		}
+
 
 		if ( normalized == "test" ||
 			 normalized == "tst" ||

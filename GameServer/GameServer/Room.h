@@ -2,9 +2,13 @@
 #include "JobQueue.h"
 #include "CollisionSystem.h"
 #include "NavMesh.h"
+#include "ServerTerrain.h"
+class CBossScriptHost;
+struct CBossAIContext;
 #include <array>
 #include <vector>
 #include <unordered_set>
+#include <memory>
 
 namespace Protocol
 {
@@ -32,9 +36,20 @@ struct RoomTimingConfig
 	uint64 combatClockIntervalMs = 60;
 };
 
+enum class EBossRoomState
+{
+	PreBossCombat,
+	SummonFadeIn,
+	BossAppearing,
+	BossActive,
+	BossDead,
+	Cleared
+};
+
 class Room : public JobQueue
 {
 public:
+    ~Room();
     void Enter(PlayerRef player);
     void Leave(PlayerRef player);
     void BroadCastAll(SendBufferRef sendBuffer); // 전체 공지용
@@ -65,6 +80,10 @@ public:
     void SetPlayerReady(bool ready, uint32 playerId);
 	void OnMonsterFirstChase(uint64 enemyId);
 	void OnMonsterDeath(uint64 enemyId);
+	void FireEnemyArrow(CServerObject* shooter, float speed, uint32 lifeTicks);
+	void DebugKillMega5Enemies();
+	void DebugTeleportToMegaGrid(uint64 playerId, int megaGridNumber);
+	void DebugDamageBoss();
 
 public:
     GameAreaRef GetArea(uint32 areaId);
@@ -72,7 +91,12 @@ public:
 
 	map<uint64, EnemyRef> GetEnemies() { return enemies; }
 	const map<uint64, PlayerRef>& GetPlayers() const { return players; }
+	CEnemy* GetBossEnemy();
+	EBossRoomState GetBossRoomState() const { return m_bossRoomState; }
 	const CNavMesh* GetNavMesh() const { return m_navMesh.get(); }
+	bool HasTerrain() const;
+	float GetTerrainGroundHeight(float worldX, float worldZ) const;
+	GameMath::Vec3 SnapToTerrainIfBelow(const GameMath::Vec3& pos) const;
 	uint32 GetTick() const { return tick.load(); }
 	uint64 GetElapsedServerMs() const { return m_elapsedServerMs; }
 	const RoomTimingConfig& GetTimingConfig() const { return m_timing; }
@@ -161,6 +185,8 @@ private:
 	void SetObjectCollisionMegaGridMask(const shared_ptr<CServerObject>& obj, uint16_t mask, bool fixedMask);
 	void RefreshDynamicCollisionMegaGridMasks();
 	bool ShouldKeepCollisionPairByMegaGrid(const CColliderComponent* a, const CColliderComponent* b) const;
+	int ComputePlayerWeaponDamageTierIndex() const;
+	int GetPlayerAttackPower(Protocol::WeaponType weapon) const;
 
 	enum class EGridDynamicKind : uint8_t
 	{
@@ -285,6 +311,19 @@ private:
 	bool IsPlayerInsideCastleCenterMegaGridFullArea(uint64 playerId) const;
 	void UpdateCastleCenterMegaGridState();
 
+	bool AreAllPreBossMonstersDeadInMega5() const;
+	bool IsPreBossMonster(uint64 enemyId) const;
+	void UpdateBossRoomState();
+	void ActivateBoss();
+	void CallBossScriptUpdate(float dt);
+	void ProcessBossMeleeHit();
+	void ProcessBossSpellAction();
+	void SpawnBossPoisonProjectile();
+	void UpdateBossPoisonProjectiles(float dt);
+	void ProcessBossCallAction();
+	void SpawnBossCallWave();
+	CEnemy* SpawnBossCallEnemy(Protocol::EnemyType type);
+
 	void ResetDynamicGridCounts();
 	bool TryGetTrackedCell(const CServerObject* obj, int& outCellX, int& outCellZ) const;
 	void RefreshDynamicTracker(GridDynamicTracker& tracker, EGridDynamicKind kind);
@@ -321,11 +360,18 @@ private:
 	static constexpr int kMegaGridCellHeight = (kGridHeight / kMegaGridRows);
 
 	std::unique_ptr<CNavMesh> m_navMesh;
-	static constexpr int kArrowPoolSize = 64;
-	static constexpr int kBulletPoolSize = 64;
+	std::unique_ptr<CServerTerrain> m_serverTerrain;
+	static constexpr int kArrowPoolSize      = 64;
+	static constexpr int kBulletPoolSize     = 64;
+	static constexpr int kEnemyArrowPoolSize = 32;
+	static constexpr int kBossPoisonPoolSize = 8;
 
 	Vector<ProjectileRef> m_arrowPool;
 	Vector<ProjectileRef> m_bulletPool;
+	Vector<ProjectileRef> m_enemyArrowPool;
+	Vector<ProjectileRef> m_bossPoisonPool;
+
+	std::unordered_map<uint64, std::unordered_set<uint64>> m_bossPoisonHitMap;
 
 	std::unique_ptr<CCollisionSystem> _collision;
 
@@ -358,9 +404,18 @@ private:
 	RoomTimingConfig m_timing;
 	uint64 m_elapsedServerMs = 0;
 
+	EBossRoomState m_bossRoomState = EBossRoomState::PreBossCombat;
+	uint64 m_bossEnemyId = UINT64_MAX;
+	GameMath::Vec3 m_bossOriginalPos = GameMath::Vec3::Zero();
+	float m_bossOriginalYaw = 0.0f;
+	uint64 m_bossRoomStateChangedMs = 0;
+	std::unordered_set<uint64> m_bossSummonedEnemyIds;
+	std::unique_ptr<CBossScriptHost>  m_bossScriptHost;
+	std::unique_ptr<CBossAIContext>   m_bossAIContext;
+
     Atomic<uint32> tick = 0;
 };
 
 extern shared_ptr<Room> GRoom;
-constexpr int MaxPlayers = 1;
+constexpr int MaxPlayers = 4;
 

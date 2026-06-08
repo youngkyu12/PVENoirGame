@@ -24,7 +24,9 @@ namespace
 		kStateRoll = 1u << 6,
 		kStateRun = 1u << 7,
 		kStateHit = 1u << 8,
-		kStateDie = 1u << 9
+		kStateDie = 1u << 9,
+		kStateBossSpell = 1u << 10,
+		kStateBossCall  = 1u << 11
 	};
 
 	enum : int32
@@ -96,11 +98,13 @@ namespace
 		uint32 code = 0;
 		const auto anim = obj.GetAnimState();
 
-		if (anim == Protocol::ANIMATION_TYPE_DIE) code |= kStateDie;
-		if (anim == Protocol::ANIMATION_TYPE_ATTACK) code |= kStateAttack;
-		if (anim == Protocol::ANIMATION_TYPE_ROLL) code |= kStateRoll;
-		if (anim == Protocol::ANIMATION_TYPE_RUN) code |= kStateRun;
-		if (anim == Protocol::ANIMATION_TYPE_HIT) code |= kStateHit;
+		if (anim == Protocol::ANIMATION_TYPE_DIE)        code |= kStateDie;
+		if (anim == Protocol::ANIMATION_TYPE_ATTACK)     code |= kStateAttack;
+		if (anim == Protocol::ANIMATION_TYPE_ROLL)       code |= kStateRoll;
+		if (anim == Protocol::ANIMATION_TYPE_RUN)        code |= kStateRun;
+		if (anim == Protocol::ANIMATION_TYPE_HIT)        code |= kStateHit;
+		if (anim == Protocol::ANIMATION_TYPE_BOSS_SPELL) code |= kStateBossSpell;
+		if (anim == Protocol::ANIMATION_TYPE_BOSS_CALL)  code |= kStateBossCall;
 
 		if (anim == Protocol::ANIMATION_TYPE_WALK ||
 			anim == Protocol::ANIMATION_TYPE_RUN)
@@ -215,6 +219,7 @@ void Room::MakeFrameState(uint32 tick)
 			auto e = frameStatePkt.add_enemies();
 			e->set_id(enemyId);
 			e->set_enemytype(enemy->type);
+			e->set_hp(static_cast<uint32>(enemy->GetCurrentHp()));
 			e->set_weapontype(enemy->GetWeaponState());
 			Protocol::Animation* anim = e->mutable_animation();
 			anim->set_statecode(s_EnemyStateCodeCache[enemyId]);
@@ -257,6 +262,14 @@ void Room::MakeFrameState(uint32 tick)
 
 		for (auto& projectile : m_bulletPool)
 			AddVisibleBullet(projectile);
+
+		for (auto& projectile : m_enemyArrowPool)
+			AddVisibleBullet(projectile);
+
+		for (auto& projectile : m_bossPoisonPool)
+			AddVisibleBullet(projectile);
+
+		frameStatePkt.set_bossroomstate(static_cast<Protocol::BossRoomState>(static_cast<int>(m_bossRoomState)));
 
 		auto sendBuffer = ClientPacketHandler::MakeSendBuffer(frameStatePkt);
 		viewer->ownerSession->Send(sendBuffer);

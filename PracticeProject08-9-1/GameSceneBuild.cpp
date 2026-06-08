@@ -2340,8 +2340,12 @@ void CGameScene::BuildSkinnedBatch(
 						{
 							if ( auto* terrainAttach = raw->AddComponent<CTerrainAttachComponent>(m_TerrainData) )
 							{
+#ifdef USING_NETWORK
+								terrainAttach->SetAutoSnapEnabled(false);
+#else
 								terrainAttach->SetHeightOffset(0.0f);
 								terrainAttach->SnapToTerrain();
+#endif
 							}
 						}
 					}
@@ -2461,8 +2465,12 @@ void CGameScene::BuildSkinnedBatch(
 							{
 								if ( auto* terrainAttach = raw->AddComponent<CTerrainAttachComponent>(m_TerrainData) )
 								{
+#ifdef USING_NETWORK
+									terrainAttach->SetAutoSnapEnabled(false);
+#else
 									terrainAttach->SetHeightOffset(0.0f);
 									terrainAttach->SnapToTerrain();
+#endif
 								}
 							}
 						}
@@ -2636,8 +2644,12 @@ void CGameScene::BuildSkinnedBatch(
 					{
 						if ( auto* terrainAttach = raw->AddComponent<CTerrainAttachComponent>(m_TerrainData) )
 						{
+#ifdef USING_NETWORK
+							terrainAttach->SetAutoSnapEnabled(false);
+#else
 							terrainAttach->SetHeightOffset(0.0f);
 							terrainAttach->SnapToTerrain();
+#endif
 						}
 					}
 
@@ -2881,8 +2893,12 @@ void CGameScene::BuildSkinnedBatch(
 					{
 						if ( auto* terrainAttach = raw->AddComponent<CTerrainAttachComponent>(m_TerrainData) )
 						{
+#ifdef USING_NETWORK
+							terrainAttach->SetAutoSnapEnabled(false);
+#else
 							terrainAttach->SetHeightOffset(0.0f);
 							terrainAttach->SnapToTerrain();
+#endif
 						}
 					}
 
@@ -3136,8 +3152,12 @@ void CGameScene::BuildSkinnedBatch(
 					{
 						if ( auto* terrainAttach = raw->AddComponent<CTerrainAttachComponent>(m_TerrainData) )
 						{
+#ifdef USING_NETWORK
+							terrainAttach->SetAutoSnapEnabled(false);
+#else
 							terrainAttach->SetHeightOffset(0.0f);
 							terrainAttach->SnapToTerrain();
+#endif
 						}
 					}
 
@@ -3400,8 +3420,12 @@ void CGameScene::BuildSkinnedBatch(
 					{
 						if ( auto* terrainAttach = raw->AddComponent<CTerrainAttachComponent>(m_TerrainData) )
 						{
+#ifdef USING_NETWORK
+							terrainAttach->SetAutoSnapEnabled(false);
+#else
 							terrainAttach->SetHeightOffset(0.0f);
 							terrainAttach->SnapToTerrain();
+#endif
 						}
 					}
 
@@ -3534,7 +3558,17 @@ void CGameScene::BuildSkinnedBatch(
 
 				CGameObject* raw = obj.get();
 				if ( m_TerrainData )
-					raw->AddComponent<CTerrainAttachComponent>(m_TerrainData);
+				{
+					if ( auto* terrainAttach = raw->AddComponent<CTerrainAttachComponent>(m_TerrainData) )
+					{
+#ifdef USING_NETWORK
+						terrainAttach->SetAutoSnapEnabled(false);
+#else
+						terrainAttach->SetHeightOffset(0.0f);
+						terrainAttach->SnapToTerrain();
+#endif
+					}
+				}
 
 				if ( auto* equip = raw->GetComponent<CPlayerEquipmentComponent>() )
 				{

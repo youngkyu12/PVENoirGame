@@ -543,6 +543,70 @@ void UnregisterStressSession(PacketSessionRef session)
 	g_clients.erase(SessionKey(session));
 }
 
+void SendDebugKillMega5()
+{
+	PacketSessionRef target;
+	{
+		std::lock_guard<std::mutex> lock(g_stressLock);
+		for (auto& kv : g_clients)
+		{
+			if (kv.second.session && kv.second.gameStarted)
+			{
+				target = kv.second.session;
+				break;
+			}
+		}
+	}
+	if (!target) return;
+
+	Protocol::C_DEBUG_COMMAND pkt;
+	pkt.set_commandtype(Protocol::DEBUG_COMMAND_KILL_MEGA5_ENEMIES);
+	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(pkt);
+	target->Send(sendBuffer);
+}
+
+void SendDebugDamageBoss()
+{
+	PacketSessionRef target;
+	{
+		std::lock_guard<std::mutex> lock(g_stressLock);
+		for (auto& kv : g_clients)
+		{
+			if (kv.second.session && kv.second.gameStarted)
+			{
+				target = kv.second.session;
+				break;
+			}
+		}
+	}
+	if (!target) return;
+
+	Protocol::C_DEBUG_COMMAND pkt;
+	pkt.set_commandtype(Protocol::DEBUG_COMMAND_DAMAGE_BOSS);
+	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(pkt);
+	target->Send(sendBuffer);
+}
+
+void SendDebugTeleportToMegaGrid(int megaGridNumber)
+{
+	std::vector<PacketSessionRef> targets;
+	{
+		std::lock_guard<std::mutex> lock(g_stressLock);
+		for (auto& kv : g_clients)
+		{
+			if (kv.second.session && kv.second.gameStarted)
+				targets.push_back(kv.second.session);
+		}
+	}
+
+	Protocol::C_DEBUG_COMMAND pkt;
+	pkt.set_commandtype(Protocol::DEBUG_COMMAND_TELEPORT_TO_MEGA_GRID);
+	pkt.set_megagridnumber(megaGridNumber);
+	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(pkt);
+	for (auto& s : targets)
+		s->Send(sendBuffer);
+}
+
 void TickStressTest()
 {
 	std::vector<ClientState> clients;
