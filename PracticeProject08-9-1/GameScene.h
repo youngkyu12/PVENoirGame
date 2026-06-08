@@ -753,6 +753,9 @@ private:
 	void UpdateMegaGrid5DirectionalLightState();
 	void ApplyMegaGrid5DirectionalLightProfile(bool enabled);
 
+	void UpdateMegaGrid4LowYDamage(float dt);
+	bool IsPlayerInsideMegaGrid4LowYDamageArea(const CGameObject* player) const;
+
 	bool TryTeleportLocalPlayerToMegaGridByNumber(int megaGridNumber);
 	XMFLOAT3 ComputeLocalStageTeleportPosition(int megaGridNumber) const;
 	XMFLOAT3 ComputeMegaGridCenterPosition(int megaGridNumber, float y) const;
@@ -1613,6 +1616,14 @@ private:
 
 	bool m_bLocalPlayerInsideCastleCenterMegaGrid = false;
 	bool m_bMegaGrid5DirectionalLightProfileActive = false;
+
+	static constexpr int   kMegaGrid4LowYDamageMegaGridNumber = 4;
+	static constexpr float kMegaGrid4LowYDamageHalfExtent = 100.0f; // 중앙 200 x 200
+	static constexpr float kMegaGrid4LowYDamageMaxY = 2.8f;
+	static constexpr float kMegaGrid4LowYDamageIntervalSec = 1.0f;
+	static constexpr int   kMegaGrid4LowYDamagePerTick = 5;
+
+	std::array<float, 4> m_megaGrid4LowYDamageAccumulators = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 	bool GetPauseOverlayRect(XMFLOAT4& outRect) const;
 
