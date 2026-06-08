@@ -39,6 +39,7 @@ class CHealthComponent;
 class CActorTagComponent;
 class TerrainData;
 class CInventoryComponent;
+class Ssao;
 
 namespace FMOD
 {
@@ -232,6 +233,8 @@ public:
 
 	void CreateTerrainData(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
 	void CreateWaterTextures(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
+
+	void OnResize(int Width, int Height) override;
 
 protected:
     void CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, CGameObject* target) override;
@@ -1685,6 +1688,9 @@ private:
 	// Water
 	std::shared_ptr<CWaterShader> m_waterShader;
 	std::unordered_set<CGameObject*> m_waterObjects;
+
+	// Ssao
+	//std::unique_ptr<Ssao> mSsao;
 
 
 	bool ShouldAttachObjectToTerrain(const std::string& assetName)
