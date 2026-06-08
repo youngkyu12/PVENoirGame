@@ -176,10 +176,11 @@ void Player::AddInventoryItem(Protocol::ItemType kind)
 
 bool Player::UseInventoryItem(Protocol::ItemType kind, uint64 serverMs)
 {
-    const int slot = static_cast<int>(kind) - 1;
+    const volatile int slot = static_cast<int>(kind) - 1;
     if (slot < 0 || slot >= kInventorySlotCount) return false;
     if (m_inventoryCounts[static_cast<size_t>(slot)] <= 0) return false;
 
+    cout << m_inventoryCounts[static_cast<size_t>(slot)] << endl;
     --m_inventoryCounts[static_cast<size_t>(slot)];
 
     switch (kind)

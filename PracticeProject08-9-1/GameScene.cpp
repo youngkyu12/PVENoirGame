@@ -136,7 +136,7 @@ CGameScene::CGameScene()
 	m_bSimulateLocalEnemySpawner = false;
 	m_bSimulateLocalPlayerWorldStaticRollback = false;
 	m_bSimulateLocalTeleport = false;
-	m_bSimulateLocalItemPickup = true;
+	m_bSimulateLocalItemPickup = false;
 	m_bCanBossStageDirectly = false;
 	m_bSimulateLocalStageTeleport = false;
 	m_bPrevLocalStageTeleportKeyDown.fill(false);
