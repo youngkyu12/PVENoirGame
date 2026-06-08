@@ -24,6 +24,8 @@ void CGameSceneHUD::ReleaseResources()
 	m_bossHpEmptySpriteIndex = -1;
 	m_bossHpFillSpriteIndex = -1;
 	m_bossHpFillOriginalRect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	m_bossHealthRatio = 1.0f;
+	m_bossHealthVisible = false;
 
 	m_otherPlayerHpEmptySpriteIndices.fill(-1);
 	m_otherPlayerHpFillSpriteIndices.fill(-1);
@@ -58,6 +60,8 @@ void CGameSceneHUD::BuildResources(
 	m_bossHpEmptySpriteIndex = -1;
 	m_bossHpFillSpriteIndex = -1;
 	m_bossHpFillOriginalRect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	m_bossHealthRatio = 1.0f;
+	m_bossHealthVisible = false;
 
 	m_otherPlayerHpEmptySpriteIndices.fill(-1);
 	m_otherPlayerHpFillSpriteIndices.fill(-1);
@@ -107,40 +111,19 @@ void CGameSceneHUD::BuildResources(
   );
 
 	// --------------------------------------------------------------------
-	// Pause layer
-	// rect = (centerX, centerY, width, height)
-	// --------------------------------------------------------------------
-	const float screenW = static_cast< float >( m_screenWidth );
-	const float screenH = static_cast< float >( m_screenHeight );
-
-	// --------------------------------------------------------------------
 	// Other player HP gauges
 	// - rect = (centerX, centerY, width, height)
 	// - 로컬 플레이어 HP 게이지 아래에 로컬 플레이어를 제외한 3명의 이름 + HP를 표시한다.
 	// - 이름은 게이지 좌측 끝에 맞춰 게이지 위에 표시한다.
 	// - EmptyHP -> HP -> Name 순서로 추가한다.
 	// --------------------------------------------------------------------
-	const float otherHpGaugeWidth = 115.0f;
-	const float otherHpGaugeHeight = 10.0f;
-	const float otherHpNameWidth = 68.0f;
-	const float otherHpNameHeight = 30.0f;
-	const float otherHpNameToGaugeGap = -2.0f;
-	const float otherHpGaugeVerticalGap = 38.0f;
-	const float otherHpGroupTopMargin = 6.0f;
-	const float otherHpLeftX = hpBarCenterX - hpBarWidth * 0.5f;
-	const float otherHpGaugeCenterX = otherHpLeftX + otherHpGaugeWidth * 0.5f;
-	const float otherHpNameCenterX = otherHpLeftX + otherHpNameWidth * 0.5f;
-	const float otherHpFirstNameCenterY = hpFrameCenterY + hpFrameHeight * 0.5f + otherHpGroupTopMargin + otherHpNameHeight * 0.5f;
-	const float otherHpGaugeStartCenterY = otherHpFirstNameCenterY + otherHpNameHeight * 0.5f + otherHpNameToGaugeGap + otherHpGaugeHeight * 0.5f;
-
+	
 	const wchar_t* otherHpNameTexturePaths[4] = { L"Assets/UI/Player0txt.dds", L"Assets/UI/Player1txt.dds", L"Assets/UI/Player2txt.dds", L"Assets/UI/Player3txt.dds" };
 
 	for ( int i = 0; i < kOtherPlayerHpGaugeCount; ++i )
 	{
-		const float gaugeCenterY = otherHpGaugeStartCenterY + otherHpGaugeVerticalGap * static_cast< float >(i);
-		const float nameCenterY = otherHpFirstNameCenterY + otherHpGaugeVerticalGap * static_cast< float >(i);
-		const XMFLOAT4 gaugeRect(otherHpGaugeCenterX, gaugeCenterY, otherHpGaugeWidth, otherHpGaugeHeight);
-		const XMFLOAT4 nameRect(otherHpNameCenterX, nameCenterY, otherHpNameWidth, otherHpNameHeight);
+		const XMFLOAT4 gaugeRect = layout.otherPlayerHpGaugeRects[i];
+		const XMFLOAT4 nameRect = layout.otherPlayerHpNameRects[i];
 
 		m_otherPlayerHpOriginalRects[i] = gaugeRect;
 		m_otherPlayerHpNameOriginalRects[i] = nameRect;
@@ -168,21 +151,12 @@ void CGameSceneHUD::BuildResources(
 	// - 우측 하단 기준 세로 정렬.
 	// - 슬롯 순서는 위에서부터 0, 1, 2, 3.
 	// --------------------------------------------------------------------
-	const float inventorySlotWidth = 72.0f * 0.80f;
-	const float inventorySlotHeight = 72.0f * 0.80f;
-	const float inventoryRightMargin = 10.0f * 0.80f;
-	const float inventoryBottomMargin = 10.0f * 0.80f;
-	const float inventoryTotalHeight = inventorySlotHeight * static_cast< float >( kInventorySlotCount );
-	const float inventoryCenterX = screenW - inventoryRightMargin - inventorySlotWidth * 0.5f;
-	const float inventoryStartCenterY = screenH - inventoryBottomMargin - inventoryTotalHeight + inventorySlotHeight * 0.5f;
-	const float inventoryIconSize = inventorySlotWidth * 0.92f;
 	const char* inventorySpriteNames[kInventorySlotCount] = { "InventorySlot0", "InventorySlot1", "InventorySlot2", "InventorySlot3" };
 	const char* inventoryIconSpriteNames[kInventorySlotCount] = { "InventoryPotionHeal", "InventoryPotionAttackUp", "InventoryPotionDefenceUp", "InventoryPotionSpeedUp" };
 	const wchar_t* inventoryIconTexturePaths[kInventorySlotCount] = { L"Assets/UI/Potion_Heal.dds", L"Assets/UI/Potion_AttackUP.dds", L"Assets/UI/Potion_DefenseUP.dds", L"Assets/UI/Potion_SpeedUP.dds" };
 
 	for ( int i = 0; i < kInventorySlotCount; ++i )
 	{
-		const float centerX = inventoryStartCenterX + inventorySlotWidth * static_cast< float >(i);
 		m_inventorySpriteIndices[i] = m_ui.AddSprite(
 			dev, cmd, inventorySpriteNames[i], L"Assets/UI/Inventory.dds",
 			layout.inventorySlotRects[i], CSceneUI::ELayer::Frame, true
@@ -195,7 +169,6 @@ void CGameSceneHUD::BuildResources(
 
 	for ( int slot = 0; slot < kInventorySlotCount; ++slot )
 	{
-		const float centerY = inventoryStartCenterY + inventorySlotHeight * static_cast< float >(slot);
 		char cooldownSpriteName[64] = {};
 		sprintf_s(cooldownSpriteName, "InventoryCooldown_%d", slot);
 
@@ -233,34 +206,24 @@ void CGameSceneHUD::BuildResources(
 	// - 우측 하단 세로 아이템 슬롯과 겹치지 않도록 폭을 제한한다.
 	// - EmptyHP를 먼저 그리고 HP를 그 위에 그린다.
 	// --------------------------------------------------------------------
-	const float bossHpWidth = 400.0f;
-	const float bossHpHeight = 16.0f;
-	const float bossHpBottomMargin = 34.0f;
-	const XMFLOAT4 bossHpRect(screenW * 0.5f, screenH - bossHpBottomMargin, bossHpWidth, bossHpHeight);
-
-	m_bossHpEmptySpriteIndex = m_ui.AddSprite(dev, cmd, "BossEmptyHP", L"Assets/UI/EmptyHP.dds", bossHpRect, CSceneUI::ELayer::Content, false);
-	m_bossHpFillOriginalRect = bossHpRect;
-	m_bossHpFillSpriteIndex = m_ui.AddSprite(dev, cmd, "BossHP", L"Assets/UI/HP.dds", bossHpRect, CSceneUI::ELayer::Content, false);
-
-	const XMFLOAT4 pauseRect(
-		screenW * 0.5f,
-		screenH * 0.5f,
-		screenW,
-		screenH
+	m_bossHpEmptySpriteIndex = m_ui.AddSprite(
+		dev, cmd,
+		"BossEmptyHP",
+		L"Assets/UI/EmptyHP.dds",
+		layout.bossHpRect,
+		CSceneUI::ELayer::Content,
+		false
 	);
 
-	const XMFLOAT4 resumeRect(
-		screenW * 0.5f,
-		screenH * 0.43f,
-		screenW * 0.40f,
-		screenH * 0.16f
-	);
+	m_bossHpFillOriginalRect = layout.bossHpRect;
 
-	const XMFLOAT4 exitRect(
-		screenW * 0.5f,
-		screenH * 0.66f,
-		screenW * 0.40f,
-		screenH * 0.16f
+	m_bossHpFillSpriteIndex = m_ui.AddSprite(
+		dev, cmd,
+		"BossHP",
+		L"Assets/UI/HP.dds",
+		layout.bossHpRect,
+		CSceneUI::ELayer::Content,
+		false
 	);
 
 	m_pauseSpriteIndex = m_ui.AddSprite(
@@ -322,6 +285,9 @@ void CGameSceneHUD::SetHealthRatio(float ratio)
 
 void CGameSceneHUD::SetBossHealthRatio(float ratio, bool visible)
 {
+	m_bossHealthRatio = std::clamp(ratio, 0.0f, 1.0f);
+	m_bossHealthVisible = visible;
+
 	if ( m_bossHpEmptySpriteIndex >= 0 )
 		m_ui.SetSpriteVisible(m_bossHpEmptySpriteIndex, visible);
 
@@ -638,6 +604,26 @@ void CGameSceneHUD::OnResize(int width, int height)
 	m_ui.SetSpriteRect(m_pauseSpriteIndex, layout.pauseRect);
 	m_ui.SetSpriteRect(m_resumeSpriteIndex, layout.resumeRect);
 	m_ui.SetSpriteRect(m_exitSpriteIndex, layout.exitRect);
+
+	m_ui.SetSpriteRect(m_bossHpEmptySpriteIndex, layout.bossHpRect);
+	m_ui.SetSpriteRect(m_bossHpFillSpriteIndex, layout.bossHpRect);
+
+	m_bossHpFillOriginalRect = layout.bossHpRect;
+	SetBossHealthRatio(m_bossHealthRatio, m_bossHealthVisible);
+
+	for ( int i = 0; i < kOtherPlayerHpGaugeCount; ++i )
+	{
+		m_otherPlayerHpOriginalRects[i] = layout.otherPlayerHpGaugeRects[i];
+		m_otherPlayerHpNameOriginalRects[i] = layout.otherPlayerHpNameRects[i];
+
+		m_ui.SetSpriteRect(m_otherPlayerHpEmptySpriteIndices[i], layout.otherPlayerHpGaugeRects[i]);
+		m_ui.SetSpriteRect(m_otherPlayerHpFillSpriteIndices[i], layout.otherPlayerHpGaugeRects[i]);
+
+		for ( int slot = 0; slot < 4; ++slot )
+		{
+			m_ui.SetSpriteRect(m_otherPlayerHpNameSpriteIndices[i][slot], layout.otherPlayerHpNameRects[i]);
+		}
+	}
 }
 
 CGameSceneHUD::HudLayout CGameSceneHUD::CalculateLayout() const
@@ -707,6 +693,43 @@ CGameSceneHUD::HudLayout CGameSceneHUD::CalculateLayout() const
 
 	layout.exitRect =
 		XMFLOAT4(screenW * 0.5f, screenH * 0.66f, screenW * 0.40f, screenH * 0.16f);
+
+	const float bossHpWidth = std::clamp(screenW * 0.32f, 320.0f, 520.0f);
+	const float bossHpHeight = std::clamp(screenH * 0.018f, 14.0f, 22.0f);
+	const float bossHpBottomMargin = std::clamp(screenH * 0.045f, 28.0f, 48.0f);
+
+	layout.bossHpRect =	XMFLOAT4(screenW * 0.5f, screenH - bossHpBottomMargin, bossHpWidth, bossHpHeight);
+
+	const float otherHpGaugeWidth = 115.0f;
+	const float otherHpGaugeHeight = 10.0f;
+	const float otherHpNameWidth = 68.0f;
+	const float otherHpNameHeight = 30.0f;
+	const float otherHpNameToGaugeGap = -2.0f;
+	const float otherHpGaugeVerticalGap = 38.0f;
+	const float otherHpGroupTopMargin = 6.0f;
+	const float otherHpLeftX = layout.hpFillRect.x - layout.hpFillRect.z * 0.5f;
+	const float otherHpGaugeCenterX = otherHpLeftX + otherHpGaugeWidth * 0.5f;
+	const float otherHpNameCenterX = otherHpLeftX + otherHpNameWidth * 0.5f;
+	const float otherHpFirstNameCenterY = 
+		layout.hpFrameRect.y + layout.hpFrameRect.w * 0.5f
+		+ otherHpGroupTopMargin
+		+ otherHpNameHeight * 0.5f;
+	const float otherHpGaugeStartCenterY = otherHpFirstNameCenterY + otherHpNameHeight * 0.5f + otherHpNameToGaugeGap + otherHpGaugeHeight * 0.5f;
+
+	for ( int i = 0; i < kOtherPlayerHpGaugeCount; ++i )
+	{
+		const float gaugeCenterY =
+			otherHpGaugeStartCenterY + otherHpGaugeVerticalGap * static_cast<float>(i);
+
+		const float nameCenterY =
+			otherHpFirstNameCenterY + otherHpGaugeVerticalGap * static_cast<float>(i);
+
+		layout.otherPlayerHpGaugeRects[i] =
+			XMFLOAT4(otherHpGaugeCenterX, gaugeCenterY, otherHpGaugeWidth, otherHpGaugeHeight);
+
+		layout.otherPlayerHpNameRects[i] =
+			XMFLOAT4(otherHpNameCenterX, nameCenterY, otherHpNameWidth, otherHpNameHeight);
+	}
 
 	return layout;
 }

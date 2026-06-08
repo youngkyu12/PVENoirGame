@@ -12,15 +12,19 @@ class CGameSceneHUD final
 {
 public:
 	static constexpr int kInventorySlotCount = 4;
+	static constexpr int kOtherPlayerHpGaugeCount = 3;
 
 	struct HudLayout
 	{
 		XMFLOAT4 hpFrameRect;
 		XMFLOAT4 hpFillRect;
+		XMFLOAT4 bossHpRect;
 
 		std::array<XMFLOAT4, kInventorySlotCount> inventorySlotRects;
 		std::array<XMFLOAT4, kInventorySlotCount> inventoryIconRects;
 		std::array<XMFLOAT4, kInventorySlotCount> inventoryCooldownRects;
+		std::array<XMFLOAT4, kOtherPlayerHpGaugeCount> otherPlayerHpGaugeRects;
+		std::array<XMFLOAT4, kOtherPlayerHpGaugeCount> otherPlayerHpNameRects;
 
 		XMFLOAT4 pauseRect;
 		XMFLOAT4 resumeRect;
@@ -72,8 +76,6 @@ private:
 	int m_bossHpFillSpriteIndex = -1;
 	XMFLOAT4 m_bossHpFillOriginalRect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 
-	static constexpr int kOtherPlayerHpGaugeCount = 3;
-
 	std::array<int, kOtherPlayerHpGaugeCount> m_otherPlayerHpEmptySpriteIndices = { -1, -1, -1 };
 	std::array<int, kOtherPlayerHpGaugeCount> m_otherPlayerHpFillSpriteIndices = { -1, -1, -1 };
 	std::array<std::array<int, 4>, kOtherPlayerHpGaugeCount> m_otherPlayerHpNameSpriteIndices = { { { -1, -1, -1, -1 }, { -1, -1, -1, -1 }, { -1, -1, -1, -1 } } };
@@ -98,6 +100,9 @@ private:
 
 	XMFLOAT4 m_hpFillOriginalRect = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 	float m_healthRatio = 1.0f;
+
+	float m_bossHealthRatio = 1.0f;
+	bool m_bossHealthVisible = false;
 
 	bool m_inactiveOverlayVisible = false;
 
