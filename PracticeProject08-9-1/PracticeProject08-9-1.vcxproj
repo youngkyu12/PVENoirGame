@@ -292,6 +292,7 @@
     <ClCompile Include="GameSceneBillboard.cpp" />
     <ClCompile Include="GameSceneBillboardCommon.cpp" />
     <ClCompile Include="GameSceneBossCombatEffectCasts.cpp" />
+    <ClCompile Include="GameSceneBossDeathEffects.cpp" />
     <ClCompile Include="GameSceneBossShockwaveEffects.cpp" />
     <ClCompile Include="GameSceneBossSummonEffects.cpp" />
     <ClCompile Include="GameSceneBuild.cpp" />
