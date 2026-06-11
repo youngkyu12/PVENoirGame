@@ -1424,7 +1424,7 @@ void CGameFramework::EnterBorderlessFullscreen()
 
 void CGameFramework::LeaveBorderlessFullscreen()
 {
-	SetWindowLong(m_hWnd, GWL_STYLE, m_dwWindowedStyle);
+	SetWindowLong(m_hWnd, GWL_STYLE, m_dwWindowedStyle | WS_OVERLAPPEDWINDOW);
 	SetWindowPlacement(m_hWnd, &m_WindowedPlacement);
 
 	SetWindowPos(
