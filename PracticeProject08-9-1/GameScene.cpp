@@ -3548,6 +3548,7 @@ void CGameScene::ReleaseShaderVariables()
 	m_nFrameResourceIndex = 0;
 
 	m_depthFog.ReleaseConstantBuffer();
+	ReleaseSsaoConstantBuffer();
 
 	m_shadowMap.ReleaseResources();
 
@@ -3570,6 +3571,116 @@ void CGameScene::ReleaseShaderVariables()
 
 	m_hud.ReleaseResources();
 	m_depthFog.ReleaseShaderVariables();
+	ReleaseSsaoResources();
+}
+
+void CGameScene::ReleaseSsaoConstantBuffer()
+{
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+	{
+		if ( m_pd3dcbSsao[frameIndex] )
+		{
+			if ( m_pcbMappedSsao[frameIndex] )
+			{
+				m_pd3dcbSsao[frameIndex]->Unmap(0, nullptr);
+				m_pcbMappedSsao[frameIndex] = nullptr;
+			}
+
+			m_pd3dcbSsao[frameIndex].Reset();
+		}
+
+		m_pcbMappedSsao[frameIndex] = nullptr;
+	}
+
+	m_nSsaoCBElementBytes = 0;
+}
+
+void CGameScene::ReleaseSsaoResources()
+{
+	mSsaoShader.reset();
+	mSsaoBlurShader.reset();
+	mSsaoNormalMap.reset();
+	mSsaoAmbientMap0.reset();
+	mSsaoAmbientMap1.reset();
+	mSsaoRandomVectorMap.reset();
+	mSsao.reset();
+
+	mSsaoNormalMapSrvIndex = UINT_MAX;
+	mSsaoSceneNormalMapSrvIndex = UINT_MAX;
+	mSsaoAmbientMap0SrvIndex = UINT_MAX;
+	mSsaoAmbientMap1SrvIndex = UINT_MAX;
+	mSsaoRandomVectorMapSrvIndex = UINT_MAX;
+	mSsaoDepthMapSrvIndex = UINT_MAX;
+	mSsaoRtvHandles = {};
+	m_bSsaoResourcesReady = false;
+	m_bSsaoRtvsReady = false;
+	m_pd3dSsaoDevice = nullptr;
+}
+
+void CGameScene::UpdateSsaoCB(CCamera* camera)
+{
+	if ( !mSsao || !camera )
+		return;
+
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+	SsaoCB* mappedSsao = m_pcbMappedSsao[frameIndex];
+
+	if ( !mappedSsao )
+		return;
+
+	SsaoCB ssaoCB{};
+
+	const XMFLOAT4X4 proj = camera->GetProjectionMatrix();
+	const XMMATRIX P = XMLoadFloat4x4(&proj);
+	const XMMATRIX invP = XMMatrixInverse(nullptr, P);
+
+	const XMMATRIX T(
+		0.5f, 0.0f, 0.0f, 0.0f,
+		0.0f, -0.5f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.5f, 0.5f, 0.0f, 1.0f
+	);
+
+	XMStoreFloat4x4(&ssaoCB.Proj, XMMatrixTranspose(P));
+	XMStoreFloat4x4(&ssaoCB.InvProj, XMMatrixTranspose(invP));
+	XMStoreFloat4x4(&ssaoCB.ProjTex, XMMatrixTranspose(P * T));
+
+	mSsao->GetOffsetVectors(ssaoCB.OffsetVectors);
+
+	const std::vector<float> blurWeights = mSsao->CalcGaussWeights(2.5f);
+	if ( blurWeights.size() >= 11 )
+	{
+		ssaoCB.BlurWeights[0] = XMFLOAT4(&blurWeights[0]);
+		ssaoCB.BlurWeights[1] = XMFLOAT4(&blurWeights[4]);
+		ssaoCB.BlurWeights[2] = XMFLOAT4(&blurWeights[8]);
+	}
+
+	const UINT ssaoWidth = mSsao->SsaoMapWidth();
+	const UINT ssaoHeight = mSsao->SsaoMapHeight();
+
+	if ( ssaoWidth > 0 && ssaoHeight > 0 )
+	{
+		ssaoCB.InvRenderTargetSize = XMFLOAT2(
+			1.0f / static_cast< float >( ssaoWidth ),
+			1.0f / static_cast< float >( ssaoHeight )
+		);
+	}
+
+	ssaoCB.OcclusionRadius = 0.5f;
+	ssaoCB.OcclusionFadeStart = 0.2f;
+	ssaoCB.OcclusionFadeEnd = 1.0f;
+	ssaoCB.SurfaceEpsilon = 0.05f;
+
+	ssaoCB.NormalMapIndex =
+		( mSsaoSceneNormalMapSrvIndex != UINT_MAX )
+		? mSsaoSceneNormalMapSrvIndex
+		: mSsaoNormalMapSrvIndex;
+	ssaoCB.DepthMapIndex = mSsaoDepthMapSrvIndex;
+	ssaoCB.RandomVecMapIndex = mSsaoRandomVectorMapSrvIndex;
+	ssaoCB.InputMapIndex = mSsaoAmbientMap0SrvIndex;
+	ssaoCB.HorizontalBlur = 0;
+
+	*mappedSsao = ssaoCB;
 }
 
 float CGameScene::QuaternionToYawDegrees(const XMFLOAT4& q)
@@ -4819,6 +4930,148 @@ void CGameScene::RenderDepthFog(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 	m_depthFog.Render(cmd, camera);
 }
 
+void CGameScene::RenderSsao(ID3D12GraphicsCommandList* cmd, CCamera* camera)
+{
+	if ( !cmd || !camera )
+		return;
+
+	if ( !m_bSsaoResourcesReady || !m_bSsaoRtvsReady )
+		return;
+
+	if ( !mSsao || !mSsaoShader || !mSsaoBlurShader )
+		return;
+
+	if ( !mSsaoAmbientMap0 || !mSsaoAmbientMap1 )
+		return;
+
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+	SsaoCB* mappedSsao = m_pcbMappedSsao[frameIndex];
+
+	if ( !mappedSsao || !m_pd3dcbSsao[frameIndex] )
+		return;
+
+	auto bindSsaoRootState = [this, cmd, frameIndex]()
+	{
+		if ( m_pDescriptorHeap )
+		{
+			cmd->SetGraphicsRootDescriptorTable(
+				ROOT_PARAMETER_GLOBAL_SRV,
+				m_pDescriptorHeap->GetGPUSrvDescriptorStartHandle()
+			);
+		}
+
+		cmd->SetGraphicsRootConstantBufferView(
+			ROOT_PARAMETER_SSAO,
+			m_pd3dcbSsao[frameIndex]->GetGPUVirtualAddress()
+		);
+	};
+
+	if ( mSsaoNormalMap )
+	{
+		::SynchronizeResourceTransition(
+			cmd,
+			mSsaoNormalMap->GetResource(0),
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			D3D12_RESOURCE_STATE_RENDER_TARGET
+		);
+
+		const float normalClearValue[] = { 0.0f, 0.0f, 1.0f, 0.0f };
+		cmd->ClearRenderTargetView(mSsaoRtvHandles[0], normalClearValue, 0, nullptr);
+
+		::SynchronizeResourceTransition(
+			cmd,
+			mSsaoNormalMap->GetResource(0),
+			D3D12_RESOURCE_STATE_RENDER_TARGET,
+			D3D12_RESOURCE_STATE_GENERIC_READ
+		);
+	}
+
+	cmd->RSSetViewports(1, &mSsao->Viewport());
+	cmd->RSSetScissorRects(1, &mSsao->ScissorRect());
+
+	::SynchronizeResourceTransition(
+		cmd,
+		mSsaoAmbientMap0->GetResource(0),
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		D3D12_RESOURCE_STATE_RENDER_TARGET
+	);
+
+	const float clearValue[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	cmd->ClearRenderTargetView(mSsaoRtvHandles[1], clearValue, 0, nullptr);
+	cmd->OMSetRenderTargets(1, &mSsaoRtvHandles[1], TRUE, nullptr);
+
+	mappedSsao->InputMapIndex = UINT_MAX;
+	mappedSsao->HorizontalBlur = 0;
+
+	mSsaoShader->OnPrepareRender(cmd);
+	bindSsaoRootState();
+	cmd->IASetVertexBuffers(0, 0, nullptr);
+	cmd->IASetIndexBuffer(nullptr);
+	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	cmd->DrawInstanced(6, 1, 0, 0);
+
+	::SynchronizeResourceTransition(
+		cmd,
+		mSsaoAmbientMap0->GetResource(0),
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		D3D12_RESOURCE_STATE_GENERIC_READ
+	);
+
+	for ( int blurIndex = 0; blurIndex < 3; ++blurIndex )
+	{
+		struct BlurPass
+		{
+			CTexture* input = nullptr;
+			CTexture* output = nullptr;
+			D3D12_CPU_DESCRIPTOR_HANDLE outputRtv = {};
+			UINT inputSrvIndex = UINT_MAX;
+			UINT horizontal = 0;
+		};
+
+		const BlurPass passes[2] =
+		{
+			{ mSsaoAmbientMap0.get(), mSsaoAmbientMap1.get(), mSsaoRtvHandles[2], mSsaoAmbientMap0SrvIndex, 1 },
+			{ mSsaoAmbientMap1.get(), mSsaoAmbientMap0.get(), mSsaoRtvHandles[1], mSsaoAmbientMap1SrvIndex, 0 }
+		};
+
+		for ( const BlurPass& pass : passes )
+		{
+			if ( !pass.output )
+				continue;
+
+			mappedSsao->InputMapIndex = pass.inputSrvIndex;
+			mappedSsao->HorizontalBlur = pass.horizontal;
+
+			::SynchronizeResourceTransition(
+				cmd,
+				pass.output->GetResource(0),
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				D3D12_RESOURCE_STATE_RENDER_TARGET
+			);
+
+			cmd->ClearRenderTargetView(pass.outputRtv, clearValue, 0, nullptr);
+			cmd->OMSetRenderTargets(1, &pass.outputRtv, TRUE, nullptr);
+
+			mSsaoBlurShader->OnPrepareRender(cmd);
+			bindSsaoRootState();
+			cmd->IASetVertexBuffers(0, 0, nullptr);
+			cmd->IASetIndexBuffer(nullptr);
+			cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			cmd->DrawInstanced(6, 1, 0, 0);
+
+			::SynchronizeResourceTransition(
+				cmd,
+				pass.output->GetResource(0),
+				D3D12_RESOURCE_STATE_RENDER_TARGET,
+				D3D12_RESOURCE_STATE_GENERIC_READ
+			);
+		}
+	}
+
+	RestoreSceneRenderTargets(cmd, camera);
+	BindFrameRootParameters(cmd);
+}
+
 bool CGameScene::IsStaticObjectInsideShadowBox(UINT objectIndex) const
 {
 	if ( objectIndex >= ( UINT ) m_staticShadowOcclusionEntryIndices.size() )
@@ -4901,8 +5154,10 @@ void CGameScene::RestoreSceneRenderTargets(ID3D12GraphicsCommandList* cmd, CCame
 	if ( !m_bSceneRenderTargetsReady ) return;
 	if ( m_sceneRenderTargetCount == 0 ) return;
 
+	const UINT sceneMrtCount = std::min<UINT>(m_sceneRenderTargetCount, 5);
+
 	cmd->OMSetRenderTargets(
-		m_sceneRenderTargetCount,
+		sceneMrtCount,
 		m_sceneRtvHandles.data(),
 		FALSE,
 		&m_sceneDsvHandle
@@ -8821,6 +9076,7 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
 
 	UpdateDepthFogState(m_fElapsedTime);
 	m_depthFog.UploadConstantBuffer();
+	UpdateSsaoCB(m_pMainCamera);
 
 	{
 		float localHpRatio = 1.0f;
@@ -9099,6 +9355,14 @@ void CGameScene::BindFrameRootParameters(ID3D12GraphicsCommandList* cmd)
 		cmd->SetGraphicsRootConstantBufferView(
 			ROOT_PARAMETER_WATER,
 			m_pd3dcbWater[frameIndex]->GetGPUVirtualAddress()
+		);
+	}
+
+	if ( m_pd3dcbSsao[frameIndex] )
+	{
+		cmd->SetGraphicsRootConstantBufferView(
+			ROOT_PARAMETER_SSAO,
+			m_pd3dcbSsao[frameIndex]->GetGPUVirtualAddress()
 		);
 	}
 

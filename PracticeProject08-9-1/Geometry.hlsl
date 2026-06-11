@@ -164,7 +164,8 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs(
     output.cTexture = texColor;
     output.cIllumination = illumination;
     output.color = illumination;
-    output.normal = float4(normalW * 0.5f + 0.5f, 1.0f);
+    float3 normalV = normalize(mul(normalW, (float3x3) gmtxView));
+    output.normal = float4(normalV, 1.0f);
     output.zDepth = input.position.z;
 
     return output;
@@ -225,7 +226,8 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTexturedLightingToMultipleRTs_AlphaClip(
     output.cTexture = texColor;
     output.cIllumination = illumination;
     output.color = illumination;
-    output.normal = float4(normalW * 0.5f + 0.5f, 1.0f);
+    float3 normalV = normalize(mul(normalW, (float3x3) gmtxView));
+    output.normal = float4(normalV, 1.0f);
     output.zDepth = input.position.z;
 
     return output;

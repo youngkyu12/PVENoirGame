@@ -2028,5 +2028,41 @@ D3D12_SHADER_BYTECODE CWaterShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob
 
 void CSsaoShader::CreateShader(ID3D12Device* dev, ID3D12RootSignature* sceneRootSig, UINT nRenderTargets, DXGI_FORMAT* rtvFormats, DXGI_FORMAT dsvFormat)
 {
+	m_pd3dGraphicsRootSignature = sceneRootSig;
 
+	CShader::CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		nRenderTargets,
+		rtvFormats,
+		dsvFormat
+	);
+}
+
+D3D12_SHADER_BYTECODE CSsaoShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(L"Ssao.hlsl", "VSSsao", "vs_5_1", ppd3dShaderBlob);
+}
+
+D3D12_SHADER_BYTECODE CSsaoShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(L"Ssao.hlsl", "PSSsao", "ps_5_1", ppd3dShaderBlob);
+}
+
+D3D12_DEPTH_STENCIL_DESC CSsaoShader::CreateDepthStencilState()
+{
+	D3D12_DEPTH_STENCIL_DESC desc = CTextureToFullScreenShader::CreateDepthStencilState();
+	desc.DepthEnable = FALSE;
+	desc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	return desc;
+}
+
+D3D12_SHADER_BYTECODE CSsaoBlurShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(L"SsaoBlur.hlsl", "VSSsaoBlur", "vs_5_1", ppd3dShaderBlob);
+}
+
+D3D12_SHADER_BYTECODE CSsaoBlurShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(L"SsaoBlur.hlsl", "PSSsaoBlur", "ps_5_1", ppd3dShaderBlob);
 }
