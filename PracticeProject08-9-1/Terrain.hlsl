@@ -255,7 +255,8 @@ PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSTerrainToMultipleRTs(
     output.cTexture = texColor;
     output.cIllumination = illumination;
     output.color = illumination;
-    output.normal = float4(normalW * 0.5f + 0.5f, 1.0f);
+    const float3 normalV = normalize(mul(normalW, (float3x3) gmtxView));
+    output.normal = float4(normalV, 1.0f);
     output.zDepth = input.position.z;
 
     return output;

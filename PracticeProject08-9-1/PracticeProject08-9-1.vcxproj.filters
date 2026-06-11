@@ -434,6 +434,7 @@
     <ClInclude Include="InventoryComponent.h">
       <Filter>Components\Inventory</Filter>
     </ClInclude>
+    <ClInclude Include="Ssao.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animator.cpp">
@@ -677,6 +678,7 @@
     <ClCompile Include="GameSceneMonsterHpGauge.cpp">
       <Filter>Scene\GameScene\Billboard</Filter>
     </ClCompile>
+    <ClCompile Include="Ssao.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PracticeProject08-9-1.rc">
