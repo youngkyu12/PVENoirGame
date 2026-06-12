@@ -367,62 +367,6 @@ void CGameScene::UpdateSkinnedWorldLodSelection(CCamera* camera)
 		anyLodChanged = true;
 	}
 
-	// --------------------------------------------------------------------
-	// body가 culled 되면 attachment follower도 같이 culled 처리
-	// - static follower : sword, helmet 등
-	// - skinned follower: bow 등
-	// --------------------------------------------------------------------
-	std::unordered_map<const CGameObject*, UINT> staticIndexByObject;
-	staticIndexByObject.reserve(m_staticBatch.objectRefs.size());
-
-	for ( UINT i = 0; i < ( UINT ) m_staticBatch.objectRefs.size(); ++i )
-	{
-		if ( m_staticBatch.objectRefs[i] )
-			staticIndexByObject[m_staticBatch.objectRefs[i]] = i;
-	}
-
-	std::unordered_map<const CGameObject*, UINT> skinnedIndexByObject;
-	skinnedIndexByObject.reserve(m_skinnedBatch.objectRefs.size());
-
-	for ( UINT i = 0; i < ( UINT ) m_skinnedBatch.objectRefs.size(); ++i )
-	{
-		if ( m_skinnedBatch.objectRefs[i] )
-			skinnedIndexByObject[m_skinnedBatch.objectRefs[i]] = i;
-	}
-
-	for ( const AttachmentBindSpec& spec : m_attachmentBinds )
-	{
-		if ( !spec.follower || !spec.target )
-			continue;
-
-		auto targetIt = skinnedIndexByObject.find(spec.target);
-		if ( targetIt == skinnedIndexByObject.end() )
-			continue;
-
-		const UINT targetIndex = targetIt->second;
-		if ( targetIndex >= ( UINT ) m_skinnedDistanceCullFlags.size() )
-			continue;
-
-		if ( m_skinnedDistanceCullFlags[targetIndex] == 0 )
-			continue;
-
-		auto followerStaticIt = staticIndexByObject.find(spec.follower);
-		if ( followerStaticIt != staticIndexByObject.end() )
-		{
-			const UINT followerIndex = followerStaticIt->second;
-			if ( followerIndex < ( UINT ) m_staticDistanceCullFlags.size() )
-				m_staticDistanceCullFlags[followerIndex] = 1;
-		}
-
-		auto followerSkinnedIt = skinnedIndexByObject.find(spec.follower);
-		if ( followerSkinnedIt != skinnedIndexByObject.end() )
-		{
-			const UINT followerIndex = followerSkinnedIt->second;
-			if ( followerIndex < ( UINT ) m_skinnedDistanceCullFlags.size() )
-				m_skinnedDistanceCullFlags[followerIndex] = 1;
-		}
-	}
-
 	if ( anyLodChanged )
 	{
 		BuildSkinnedInstanceGroups();

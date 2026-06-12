@@ -285,6 +285,7 @@ private:
 	);
 
     void LinkSceneObjects();
+	void ApplyAttachmentCullFromSkinnedOwners();
 
 	void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd);
 	void UpdateBossHpGaugeHud();

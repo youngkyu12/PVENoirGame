@@ -9133,27 +9133,36 @@ void CGameScene::UpdateFrameRenderState(CCamera* camera)
 		PROFILE_RENDER_SCOPE("UFRS::UpdateStaticWorldLodSelection");
 		UpdateStaticWorldLodSelection(camera);
 	}
-		BeginStaticOcclusionReadback();
+
+	BeginStaticOcclusionReadback();
+
 	{
 		PROFILE_RENDER_SCOPE("UFRS::UpdateStaticOcclusionCullSelection");
 		UpdateStaticOcclusionCullSelection(camera);
 	}
+
 	UpdateStaticTreeGridCullSelection(camera);
-	{
-		PROFILE_RENDER_SCOPE("UFRS::UpdateStaticOcclusionCullSelection");
-		BuildStaticVisibleListsForFrame(camera);
-	}
 	UpdateItemBillboardDistanceCullSelection(camera);
-	
+
 	{
 		PROFILE_RENDER_SCOPE("UFRS::UpdateSkinnedWorldLodSelection");
 		UpdateSkinnedWorldLodSelection(camera);
 	}
+
 	BeginSkinnedOcclusionReadback();
+
 	{
 		PROFILE_RENDER_SCOPE("UFRS::UpdateSkinnedOcclusionCullSelection");
 		UpdateSkinnedOcclusionCullSelection(camera);
 	}
+
+	ApplyAttachmentCullFromSkinnedOwners();
+
+	{
+		PROFILE_RENDER_SCOPE("UFRS::BuildStaticVisibleListsForFrame");
+		BuildStaticVisibleListsForFrame(camera);
+	}
+
 	UpdateOtherPlayerWorldHpGaugeVisibilityForHud(camera);
 }
 

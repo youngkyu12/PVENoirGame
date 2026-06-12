@@ -4964,6 +4964,74 @@ void CGameScene::LinkSceneObjects()
 	GameSceneAttachmentBinder::LinkSceneObjects(input, m_attachmentBinds);
 }
 
+void CGameScene::ApplyAttachmentCullFromSkinnedOwners()
+{
+	if ( m_attachmentBinds.empty() )
+		return;
+
+	std::unordered_map<const CGameObject*, UINT> staticIndexByObject;
+	staticIndexByObject.reserve(m_staticBatch.objectRefs.size());
+
+	for ( UINT i = 0; i < static_cast< UINT >(m_staticBatch.objectRefs.size()); ++i )
+	{
+		if ( m_staticBatch.objectRefs[i] )
+			staticIndexByObject[m_staticBatch.objectRefs[i]] = i;
+	}
+
+	std::unordered_map<const CGameObject*, UINT> skinnedIndexByObject;
+	skinnedIndexByObject.reserve(m_skinnedBatch.objectRefs.size());
+
+	for ( UINT i = 0; i < static_cast< UINT >(m_skinnedBatch.objectRefs.size()); ++i )
+	{
+		if ( m_skinnedBatch.objectRefs[i] )
+			skinnedIndexByObject[m_skinnedBatch.objectRefs[i]] = i;
+	}
+
+	for ( const AttachmentBindSpec& spec : m_attachmentBinds )
+	{
+		if ( !spec.follower || !spec.target )
+			continue;
+
+		auto targetIt = skinnedIndexByObject.find(spec.target);
+		if ( targetIt == skinnedIndexByObject.end() )
+			continue;
+
+		const UINT targetIndex = targetIt->second;
+
+		bool ownerCulled = false;
+
+		if ( !spec.target->GetActive() )
+			ownerCulled = true;
+
+		if ( targetIndex < static_cast< UINT >(m_skinnedDistanceCullFlags.size()) && m_skinnedDistanceCullFlags[targetIndex] != 0 )
+			ownerCulled = true;
+
+		if ( targetIndex < static_cast< UINT >(m_skinnedOcclusionCullFlags.size()) && m_skinnedOcclusionCullFlags[targetIndex] != 0 )
+			ownerCulled = true;
+
+		if ( !ownerCulled )
+			continue;
+
+		auto followerStaticIt = staticIndexByObject.find(spec.follower);
+		if ( followerStaticIt != staticIndexByObject.end() )
+		{
+			const UINT followerIndex = followerStaticIt->second;
+
+			if ( followerIndex < static_cast< UINT >(m_staticDistanceCullFlags.size()) )
+				m_staticDistanceCullFlags[followerIndex] = 1;
+		}
+
+		auto followerSkinnedIt = skinnedIndexByObject.find(spec.follower);
+		if ( followerSkinnedIt != skinnedIndexByObject.end() )
+		{
+			const UINT followerIndex = followerSkinnedIt->second;
+
+			if ( followerIndex < static_cast< UINT >(m_skinnedDistanceCullFlags.size()) )
+				m_skinnedDistanceCullFlags[followerIndex] = 1;
+		}
+	}
+}
+
 void CGameScene::AttachInventoryComponentsToPlayers()
 {
 	for ( int slot = 0; slot < 4; ++slot )
@@ -5200,6 +5268,3 @@ void CGameScene::ReleaseBuildOnlySceneData()
 	ClearUnorderedSetAndFreeMemory(m_treeAlphaClipObjects);
 	ClearUnorderedSetAndFreeMemory(m_skinnedAlphaClipObjects);
 }
-
-
-
