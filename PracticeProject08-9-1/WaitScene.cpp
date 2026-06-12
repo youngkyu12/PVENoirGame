@@ -8,6 +8,7 @@
 #include "Camera.h"
 #include "AudioManager.h"
 #include "MusicDirector.h"
+#include "GlobalValues.h"
 
 XMFLOAT4 CWaitScene::GetStartButtonRect() const
 {
@@ -107,6 +108,9 @@ void CWaitScene::SetPlayerWeaponSelection(int playerIndex, int weaponSlot)
 	m_playerSelectedWeaponSlots[safePlayerIndex] = safeWeaponSlot;
 	m_playerWeaponSelectionKnown[safePlayerIndex] = true;
 
+	g_waitSceneSelectedWeaponSlots[safePlayerIndex] = safeWeaponSlot;
+	g_waitSceneWeaponSelectionKnown[safePlayerIndex] = true;
+
 	UpdatePlayerMarkerSpriteRect(safePlayerIndex);
 }
 
@@ -159,11 +163,23 @@ void CWaitScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	CreateMainCamera(dev, cmd, nullptr);
 	m_waitUI.BuildShader(dev, cmd, GetGraphicsRootSignature());
 
+#ifdef USING_NETWORK
+	m_localPlayerIndex = ( g_myPlayerId <= 3 ) ? static_cast< int >( g_myPlayerId ) : 0;
+#else
 	m_localPlayerIndex = 0;
+#endif
+
 	m_playerSelectedWeaponSlots = { -1, -1, -1, -1 };
 	m_playerWeaponSelectionKnown = { false, false, false, false };
+
+	g_waitSceneSelectedWeaponSlots = { -1, -1, -1, -1 };
+	g_waitSceneWeaponSelectionKnown = { false, false, false, false };
+
 	m_playerSelectedWeaponSlots[m_localPlayerIndex] = 0;
 	m_playerWeaponSelectionKnown[m_localPlayerIndex] = true;
+
+	g_waitSceneSelectedWeaponSlots[m_localPlayerIndex] = 0;
+	g_waitSceneWeaponSelectionKnown[m_localPlayerIndex] = true;
 
 	m_waitBackgroundSpriteIndex = m_waitUI.AddSprite(dev, cmd, "WaitBackground", L"Assets/UI/WaitSceneImage.dds", CSceneUI::GetFullscreenRect(m_viewportWidth, m_viewportHeight), CSceneUI::ELayer::Background, true);
 
