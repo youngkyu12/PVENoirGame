@@ -19,6 +19,9 @@ private:
 	std::array<int, 4> m_weaponFrameSpriteIndices = { -1, -1, -1, -1 };
 	std::array<int, 4> m_weaponSpriteIndices = { -1, -1, -1, -1 };
 	std::array<int, 4> m_playerMarkerSpriteIndices = { -1, -1, -1, -1 };
+	std::array<int, 4> m_playerSelectedWeaponSlots = { -1, -1, -1, -1 };
+	std::array<bool, 4> m_playerWeaponSelectionKnown = { false, false, false, false };
+	int m_localPlayerIndex = 0;
 	int m_hoveredWeaponSlot = -1;
 	int m_startButtonSpriteIndex = -1;
 	int m_loadingSpriteIndex = -1;
@@ -32,6 +35,8 @@ public:
 	bool OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam) override;
 	bool ConsumeSceneRequest(ESceneRequest& outReq) override;
 	void OnResize(int width, int height) override;
+	void SetLocalPlayerIndex(int playerIndex);
+	void SetPlayerWeaponSelection(int playerIndex, int weaponSlot);
 
 private:
 	XMFLOAT4 GetStartButtonRect() const;
@@ -39,9 +44,10 @@ private:
 	XMFLOAT4 GetWeaponFrameRect(int frameSlot) const;
 	XMFLOAT4 GetWeaponSpriteRect(int frameSlot) const;
 	XMFLOAT4 GetWeaponSelectedRect(int frameSlot) const;
-	XMFLOAT4 GetPlayerMarkerRect(int playerIndex) const;
+	XMFLOAT4 GetPlayerMarkerRect(int playerIndex, int weaponSlot) const;
 	int GetWeaponSlotAtPoint(POINT ptClient) const;
 	void UpdateHoveredWeaponSlot(POINT ptClient);
+	void UpdatePlayerMarkerSpriteRect(int playerIndex);
 	bool m_startGameRequested = false;
 	bool m_showLoading = false;
 };
