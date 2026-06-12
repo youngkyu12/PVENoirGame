@@ -143,6 +143,7 @@ CGameScene::CGameScene()
 #endif
 
 	m_bossMeleeSlashCastStates.clear();
+	m_bossDeathEffect = BossDeathEffectState{};
 
 	m_bLocalPlayerDead = false;
 	m_bLocalPlayerRespawnUsed = false;
@@ -7094,6 +7095,7 @@ void CGameScene::BeginMonsterDeath(CGameObject* monster)
 	if ( IsBossMonsterObject(monster) )
 	{
 		PlayBossDeathSfxAt(monster->GetPosition());
+		BeginBossDeathEffect(monster);
 	}
 
 	HandleMutantKeyTriggerDeath(monster);
@@ -7947,6 +7949,7 @@ void CGameScene::AnimateObjects(float dt)
 	UpdateBossCallSummonWwwEffects(dt);
 #endif
 
+	UpdateBossDeathEffect(dt);
 	UpdateMuzzleFlashes(dt);
 	UpdateGunSmokes(dt);
 	UpdateSwordTrails(dt);
