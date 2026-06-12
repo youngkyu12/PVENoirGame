@@ -52,6 +52,13 @@ XMFLOAT4 CWaitScene::GetWeaponFrameRect(int frameSlot) const
 	return XMFLOAT4(centerX, centerY, frameW, frameH);
 }
 
+XMFLOAT4 CWaitScene::GetWeaponSpriteRect(int frameSlot) const
+{
+	const XMFLOAT4 frameRect = GetWeaponFrameRect(frameSlot);
+	constexpr float kWeaponScale = 0.8f;
+	return XMFLOAT4(frameRect.x, frameRect.y, frameRect.z * kWeaponScale, frameRect.w * kWeaponScale);
+}
+
 void CWaitScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
 	CreateGraphicsRootSignature(dev);
@@ -64,6 +71,28 @@ void CWaitScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	{
 		const XMFLOAT4 frameRect = GetWeaponFrameRect(i);
 		m_weaponFrameSpriteIndices[i] = m_waitUI.AddFitSprite(dev, cmd, "WeaponFrame", L"Assets/UI/Frame.dds", frameRect.x, frameRect.y, frameRect.z, frameRect.w, CSceneUI::ELayer::Content, true);
+	}
+
+	static constexpr const wchar_t* kWeaponTexturePaths[4] =
+	{
+		L"Assets/UI/Sword.dds",
+		L"Assets/UI/Bow.dds",
+		L"Assets/UI/Axe.dds",
+		L"Assets/UI/Gun.dds"
+	};
+
+	static constexpr const char* kWeaponSpriteNames[4] =
+	{
+		"WeaponSword",
+		"WeaponBow",
+		"WeaponAxe",
+		"WeaponGun"
+	};
+
+	for ( int i = 0; i < 4; ++i )
+	{
+		const XMFLOAT4 weaponRect = GetWeaponSpriteRect(i);
+		m_weaponSpriteIndices[i] = m_waitUI.AddFitSprite(dev, cmd, kWeaponSpriteNames[i], kWeaponTexturePaths[i], weaponRect.x, weaponRect.y, weaponRect.z, weaponRect.w, CSceneUI::ELayer::Content, true);
 	}
 
 	const XMFLOAT4 startRect = GetStartButtonRect();
@@ -85,6 +114,7 @@ void CWaitScene::ReleaseObjects()
 	m_waitUI.ReleaseResources();
 	m_waitBackgroundSpriteIndex = -1;
 	m_weaponFrameSpriteIndices = { -1, -1, -1, -1 };
+	m_weaponSpriteIndices = { -1, -1, -1, -1 };
 	m_startButtonSpriteIndex = -1;
 	m_loadingSpriteIndex = -1;
 	CScene::ReleaseObjects();
@@ -128,7 +158,11 @@ void CWaitScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 	if ( !cmd ) return;
 	if ( !camera ) camera = m_pMainCamera;
 
-	for ( int i = 0; i < 4; ++i ) m_waitUI.SetSpriteVisible(m_weaponFrameSpriteIndices[i], !m_showLoading);
+	for ( int i = 0; i < 4; ++i )
+	{
+		m_waitUI.SetSpriteVisible(m_weaponFrameSpriteIndices[i], !m_showLoading);
+		m_waitUI.SetSpriteVisible(m_weaponSpriteIndices[i], !m_showLoading);
+	}
 
 	m_waitUI.SetSpriteVisible(m_startButtonSpriteIndex, !m_showLoading);
 	m_waitUI.SetSpriteVisible(m_loadingSpriteIndex, m_showLoading);
@@ -179,7 +213,13 @@ void CWaitScene::OnResize(int width, int height)
 	for ( int i = 0; i < 4; ++i )
 	{
 		const XMFLOAT4 frameRect = GetWeaponFrameRect(i);
+
 		if ( const auto* frame = m_waitUI.GetSprite(m_weaponFrameSpriteIndices[i]) ) m_waitUI.SetSpriteRect(m_weaponFrameSpriteIndices[i], CSceneUI::MakeFitRect(frame->texture, frameRect.x, frameRect.y, frameRect.z, frameRect.w));
+		if ( const auto* weapon = m_waitUI.GetSprite(m_weaponSpriteIndices[i]) )
+		{
+			const XMFLOAT4 weaponRect = GetWeaponSpriteRect(i);
+			m_waitUI.SetSpriteRect(m_weaponSpriteIndices[i], CSceneUI::MakeFitRect(weapon->texture, weaponRect.x, weaponRect.y, weaponRect.z, weaponRect.w));
+		}
 	}
 
 	if ( const auto* start = m_waitUI.GetSprite(m_startButtonSpriteIndex) )
