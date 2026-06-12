@@ -7102,9 +7102,9 @@ void CGameScene::BeginMonsterDeath(CGameObject* monster)
 
 	CancelMonsterPreparedActions(monster);
 
-	// 더 이상 플레이어 무기 충돌을 받지 않게 함.
+	// 더 이상 플레이어 무기 충돌을 받지 않게 하되, 사망 애니메이션 동안 bone capsule 갱신은 유지한다.
 	if ( auto* collider = monster->GetComponent<CColliderComponent>() )
-		collider->SetEnabled(false);
+		collider->DisableCollisionAndKeepUpdatingForSeconds(5.0f);
 
 	// 현재 실제로 붙는 AI는 CGhoulAIComponent지만,
 	// base 타입으로도 잡히는 구조라면 같이 처리.
@@ -7197,7 +7197,7 @@ void CGameScene::BeginLocalPlayerDeath(CGameObject* player)
 	CancelLocalPlayerPreparedActions();
 
 	if ( auto* collider = player->GetComponent<CColliderComponent>() )
-		collider->SetEnabled(false);
+		collider->DisableCollisionAndKeepUpdatingForSeconds(5.0f);
 
 	if ( auto* animComp = player->GetComponent<CAnimatorComponent>() )
 	{
@@ -7227,7 +7227,9 @@ void CGameScene::RespawnLocalPlayer(CGameObject* player)
 
 	if ( auto* collider = player->GetComponent<CColliderComponent>() )
 	{
+		collider->CancelDeferredDisable();
 		collider->SetEnabled(true);
+		collider->SetCollisionEnabled(true);
 		collider->UpdateWorldBounds();
 	}
 
