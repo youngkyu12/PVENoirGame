@@ -89,6 +89,20 @@ namespace
 			meshName == "Carpet2" ||
 			meshName == "Floor";
 	}
+
+	static void PushUniqueInt(std::vector<int>& values, int value)
+	{
+		if ( value < 0 )
+			return;
+
+		for ( int existing : values )
+		{
+			if ( existing == value )
+				return;
+		}
+
+		values.push_back(value);
+	}
 }
 
 BoundingOrientedBox CColliderComponent::MakeLocalOOBB(const XMFLOAT3& Min, const XMFLOAT3& Max)
@@ -1425,6 +1439,7 @@ void CColliderComponent::BuildBoneCapsulesFromSkeleton()
 	}
 
 	mWorldBoneCapsules.resize(mBoneCapsuleLinks.size());
+	RebuildFrustumCullBoneCapsuleSelection();
 	RebuildWeaponBoneCapsuleSelection();
 }
 
@@ -1483,6 +1498,140 @@ void CColliderComponent::SetWeaponBoneCapsuleRoots(const std::vector<std::string
 
 	if ( !mBoneCapsuleLinks.empty() )
 		UpdateBoneCapsulesFromCurrentPose();
+}
+
+void CColliderComponent::RebuildFrustumCullBoneCapsuleSelection()
+{
+	mFrustumCullBoneCapsuleIndices.clear();
+
+	if ( !mModel )
+		return;
+
+	const std::vector<Bone>& bones = mModel->GetBones();
+
+	if ( bones.empty() )
+		return;
+
+	if ( mBoneCapsuleLinks.empty() )
+		return;
+
+	std::vector<uint8_t> hasChild(bones.size(), 0u);
+
+	for ( const Bone& bone : bones )
+	{
+		const int parentIndex = bone.parentIndex;
+
+		if ( parentIndex < 0 )
+			continue;
+
+		if ( parentIndex >= static_cast< int >(hasChild.size()) )
+			continue;
+
+		hasChild[static_cast< size_t >(parentIndex)] = 1u;
+	}
+
+	std::vector<XMFLOAT4X4> bindGlobal(bones.size());
+
+	for ( size_t i = 0; i < bones.size(); ++i )
+	{
+		XMMATRIX local = XMLoadFloat4x4(&bones[i].bindLocal);
+
+		if ( bones[i].parentIndex >= 0 )
+		{
+			XMMATRIX parentGlobal = XMLoadFloat4x4(&bindGlobal[static_cast< size_t >(bones[i].parentIndex)]);
+			XMStoreFloat4x4(&bindGlobal[i], local * parentGlobal);
+		}
+		else
+		{
+			XMStoreFloat4x4(&bindGlobal[i], local);
+		}
+	}
+
+	int topIndex = -1;
+	int bottomIndex = -1;
+	int leftIndex = -1;
+	int rightIndex = -1;
+	int frontIndex = -1;
+	int backIndex = -1;
+
+	float topY = -FLT_MAX;
+	float bottomY = FLT_MAX;
+	float leftX = FLT_MAX;
+	float rightX = -FLT_MAX;
+	float frontZ = -FLT_MAX;
+	float backZ = FLT_MAX;
+
+	for ( size_t linkIndex = 0; linkIndex < mBoneCapsuleLinks.size(); ++linkIndex )
+	{
+		const BoneCapsuleLink& link = mBoneCapsuleLinks[linkIndex];
+
+		if ( link.childBoneIndex < 0 )
+			continue;
+
+		if ( link.childBoneIndex >= static_cast< int >(bones.size()) )
+			continue;
+
+		const size_t childIndex = static_cast< size_t >(link.childBoneIndex);
+
+		if ( hasChild[childIndex] )
+			continue;
+
+		XMVECTOR childPosV = XMVector3TransformCoord(XMVectorZero(), XMLoadFloat4x4(&bindGlobal[childIndex]));
+
+		XMFLOAT3 childPos{};
+		XMStoreFloat3(&childPos, childPosV);
+
+		const int candidateIndex = static_cast< int >( linkIndex );
+
+		if ( childPos.y > topY )
+		{
+			topY = childPos.y;
+			topIndex = candidateIndex;
+		}
+
+		if ( childPos.y < bottomY )
+		{
+			bottomY = childPos.y;
+			bottomIndex = candidateIndex;
+		}
+
+		if ( childPos.x < leftX )
+		{
+			leftX = childPos.x;
+			leftIndex = candidateIndex;
+		}
+
+		if ( childPos.x > rightX )
+		{
+			rightX = childPos.x;
+			rightIndex = candidateIndex;
+		}
+
+		if ( childPos.z > frontZ )
+		{
+			frontZ = childPos.z;
+			frontIndex = candidateIndex;
+		}
+
+		if ( childPos.z < backZ )
+		{
+			backZ = childPos.z;
+			backIndex = candidateIndex;
+		}
+	}
+
+	PushUniqueInt(mFrustumCullBoneCapsuleIndices, topIndex);
+	PushUniqueInt(mFrustumCullBoneCapsuleIndices, bottomIndex);
+	PushUniqueInt(mFrustumCullBoneCapsuleIndices, leftIndex);
+	PushUniqueInt(mFrustumCullBoneCapsuleIndices, rightIndex);
+	PushUniqueInt(mFrustumCullBoneCapsuleIndices, frontIndex);
+	PushUniqueInt(mFrustumCullBoneCapsuleIndices, backIndex);
+
+	if ( !mFrustumCullBoneCapsuleIndices.empty() )
+		return;
+
+	for ( size_t linkIndex = 0; linkIndex < mBoneCapsuleLinks.size(); ++linkIndex )
+		mFrustumCullBoneCapsuleIndices.push_back(static_cast< int >(linkIndex));
 }
 
 void CColliderComponent::ClearWeaponBoneCapsuleRoots()

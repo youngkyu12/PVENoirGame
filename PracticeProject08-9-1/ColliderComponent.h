@@ -85,6 +85,7 @@ public:
 	bool IsRender() const { return mRender->IsEnabled(); }
 
 	const std::vector<BoundingCapsule>& GetBoneCapsules() const { return mWorldBoneCapsules; }
+	const std::vector<int>& GetFrustumCullBoneCapsuleIndices() const { return mFrustumCullBoneCapsuleIndices; }
 	bool HasBoneCapsules() const { return !mWorldBoneCapsules.empty(); }
 
 	bool IntersectsBoneCapsulesHierarchical(const BoundingOrientedBox& box) const;
@@ -145,6 +146,7 @@ private:
 private:
 	std::vector<BoneCapsuleLink> mBoneCapsuleLinks;
 	std::vector<BoundingCapsule> mWorldBoneCapsules;
+	std::vector<int> mFrustumCullBoneCapsuleIndices;
 
 	uint16_t m_collisionMegaGridMask = 0;
 	bool m_collisionMegaGridMaskFixed = false;
@@ -189,6 +191,7 @@ public:
 
 private:
 	void RebuildWeaponBoneCapsuleSelection();
+	void RebuildFrustumCullBoneCapsuleSelection();
 
 	bool mDebugColliderBuildLogEnabled = false;
 	std::string mDebugColliderAssetName;
