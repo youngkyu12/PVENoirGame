@@ -25,6 +25,7 @@ private:
 	int m_hoveredWeaponSlot = -1;
 	int m_startButtonSpriteIndex = -1;
 	int m_loadingSpriteIndex = -1;
+	bool m_isReady = false;
 
 public:
 	void BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList) override;

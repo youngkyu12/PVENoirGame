@@ -164,7 +164,7 @@ void Room::UpdateBossPoisonProjectiles(float dt)
 			if (dx * dx + dz * dz > kHitRadiusXZ * kHitRadiusXZ) continue;
 			if (std::abs((pPos.y + kPlayerHitCenterY) - pos.y) > kHitToleranceY) continue;
 
-			player->ApplyHit(animTick, kPoisonDamage);
+			player->ApplyHit(animTick, kPoisonDamage, 10, m_elapsedServerMs);
 			hitSet.insert(pid);
 			cout << "[BossRoom] Poison hit player " << pid << " for " << kPoisonDamage << endl;
 		}
@@ -222,7 +222,7 @@ void Room::ProcessBossMeleeHit()
 			if (dot < kMeleeArcCos) continue;
 		}
 
-		player->ApplyHit(animTick, kMeleeDamage);
+		player->ApplyHit(animTick, kMeleeDamage, 10, m_elapsedServerMs);
 		m_bossAIContext->meleeHitPlayerIds.insert(pid);
 		cout << "[BossRoom] Melee hit player " << pid << " for " << kMeleeDamage << endl;
 	}

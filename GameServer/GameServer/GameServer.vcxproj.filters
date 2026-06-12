@@ -156,6 +156,9 @@
     <ClCompile Include="BossScriptHost.cpp">
       <Filter>GameObject\Enemy\Boss</Filter>
     </ClCompile>
+    <ClCompile Include="Room.Item.cpp">
+      <Filter>Room</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">

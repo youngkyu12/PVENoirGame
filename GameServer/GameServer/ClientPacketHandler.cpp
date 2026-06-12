@@ -120,6 +120,12 @@ bool Handle_C_INPUT(PacketSessionRef& session, Protocol::C_INPUT& pkt)
 	return true;
 }
 
+bool Handle_C_USE_ITEM(PacketSessionRef& session, Protocol::C_USE_ITEM& pkt)
+{
+	GRoom->DoAsync(&Room::UseItem, pkt.playerid(), pkt.slot());
+	return true;
+}
+
 bool Handle_C_DEBUG_COMMAND(PacketSessionRef& session, Protocol::C_DEBUG_COMMAND& pkt)
 {
 	if (pkt.commandtype() == Protocol::DEBUG_COMMAND_KILL_MEGA5_ENEMIES)
