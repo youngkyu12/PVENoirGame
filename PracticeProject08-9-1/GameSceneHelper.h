@@ -282,6 +282,8 @@ namespace GameSceneHelper
 		EMonsterAnimState locomotion = EMonsterAnimState::Idle
 	);
 
+	EWeaponType ResolveWaitSceneWeaponTypeForPlayerSlot(int playerSlot);
+
 	// -------------------------------------------------------------------------
 	// Terrain
 	// -------------------------------------------------------------------------
