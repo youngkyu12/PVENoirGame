@@ -13,7 +13,7 @@ void CMenuScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_menuUI.BuildShader(dev, cmd, GetGraphicsRootSignature());
 
 	m_menuBackgroundSpriteIndex = m_menuUI.AddSprite(dev, cmd, "MenuBackground", L"Assets/UI/MenuImage.dds", CSceneUI::GetFullscreenRect(m_viewportWidth, m_viewportHeight), CSceneUI::ELayer::Background, true);
-	m_startButtonSpriteIndex = m_menuUI.AddFitSprite(dev, cmd, "StartButton", L"Assets/UI/StartButton.dds", m_viewportWidth * 0.5f, m_viewportHeight * 0.78f, m_viewportWidth * 0.40f, m_viewportHeight * 0.18f, CSceneUI::ELayer::Content, true);
+	m_startButtonSpriteIndex = m_menuUI.AddFitSprite(dev, cmd, "StartButton", L"Assets/UI/JoinButton.dds", m_viewportWidth * 0.5f, m_viewportHeight * 0.78f, m_viewportWidth * 0.40f, m_viewportHeight * 0.18f, CSceneUI::ELayer::Content, true);
 
 	if ( m_pAudioManager )
 	{
