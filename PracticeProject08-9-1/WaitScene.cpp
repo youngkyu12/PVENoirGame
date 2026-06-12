@@ -69,6 +69,30 @@ XMFLOAT4 CWaitScene::GetWeaponSelectedRect(int frameSlot) const
 	return XMFLOAT4(frameRect.x, frameRect.y, frameRect.z * kSelectedScaleX, frameRect.w * kSelectedScaleY);
 }
 
+XMFLOAT4 CWaitScene::GetPlayerMarkerRect(int playerIndex) const
+{
+	const int safePlayerIndex = std::clamp(playerIndex, 0, 3);
+	const XMFLOAT4 frameRect = GetWeaponFrameRect(0);
+
+	const float markerW = frameRect.z * 0.52f;
+	const float markerH = markerW * 0.55f;
+	const float insetX = frameRect.z * -0.1f;
+	const float gapY = frameRect.w * -0.05f;
+
+	const float frameLeft = frameRect.x - frameRect.z * 0.5f;
+	const float frameRight = frameRect.x + frameRect.z * 0.5f;
+	const float frameTop = frameRect.y - frameRect.w * 0.5f;
+	const float frameBottom = frameRect.y + frameRect.w * 0.5f;
+
+	const bool isLeft = ( safePlayerIndex == 0 || safePlayerIndex == 2 );
+	const bool isTop = ( safePlayerIndex == 0 || safePlayerIndex == 1 );
+
+	const float centerX = isLeft ? frameLeft + insetX + markerW * 0.5f : frameRight - insetX - markerW * 0.5f;
+	const float centerY = isTop ? frameTop - gapY - markerH * 0.5f : frameBottom + gapY + markerH * 0.5f;
+
+	return XMFLOAT4(centerX, centerY, markerW, markerH);
+}
+
 int CWaitScene::GetWeaponSlotAtPoint(POINT ptClient) const
 {
 	for ( int i = 0; i < 4; ++i )
@@ -125,6 +149,15 @@ void CWaitScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		m_weaponSpriteIndices[i] = m_waitUI.AddFitSprite(dev, cmd, kWeaponSpriteNames[i], kWeaponTexturePaths[i], weaponRect.x, weaponRect.y, weaponRect.z, weaponRect.w, CSceneUI::ELayer::Content, true);
 	}
 
+	static constexpr const wchar_t* kPlayerMarkerTexturePaths[4] = { L"Assets/UI/1P.dds", L"Assets/UI/2P.dds", L"Assets/UI/3P.dds", L"Assets/UI/4P.dds" };
+	static constexpr const char* kPlayerMarkerSpriteNames[4] = { "PlayerMarker1P", "PlayerMarker2P", "PlayerMarker3P", "PlayerMarker4P" };
+
+	for ( int i = 0; i < 4; ++i )
+	{
+		const XMFLOAT4 markerRect = GetPlayerMarkerRect(i);
+		m_playerMarkerSpriteIndices[i] = m_waitUI.AddFitSprite(dev, cmd, kPlayerMarkerSpriteNames[i], kPlayerMarkerTexturePaths[i], markerRect.x, markerRect.y, markerRect.z, markerRect.w, CSceneUI::ELayer::Content, true);
+	}
+
 	const XMFLOAT4 startRect = GetStartButtonRect();
 	m_startButtonSpriteIndex = m_waitUI.AddFitSprite(dev, cmd, "WaitStartButton", L"Assets/UI/ReadyButton.dds", startRect.x, startRect.y, startRect.z, startRect.w, CSceneUI::ELayer::Content, true);
 	m_loadingSpriteIndex = m_waitUI.AddSprite(dev, cmd, "WaitLoading", L"Assets/UI/LoadingImage.dds", CSceneUI::GetFullscreenRect(m_viewportWidth, m_viewportHeight), CSceneUI::ELayer::Content, false);
@@ -146,6 +179,7 @@ void CWaitScene::ReleaseObjects()
 	m_weaponSelectedSpriteIndices = { -1, -1, -1, -1 };
 	m_weaponFrameSpriteIndices = { -1, -1, -1, -1 };
 	m_weaponSpriteIndices = { -1, -1, -1, -1 };
+	m_playerMarkerSpriteIndices = { -1, -1, -1, -1 };
 	m_hoveredWeaponSlot = -1;
 	m_startButtonSpriteIndex = -1;
 	m_loadingSpriteIndex = -1;
@@ -196,6 +230,7 @@ void CWaitScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 		m_waitUI.SetSpriteVisible(m_weaponSelectedSpriteIndices[i], showWeaponUi && ( m_hoveredWeaponSlot == i ));
 		m_waitUI.SetSpriteVisible(m_weaponFrameSpriteIndices[i], showWeaponUi);
 		m_waitUI.SetSpriteVisible(m_weaponSpriteIndices[i], showWeaponUi);
+		m_waitUI.SetSpriteVisible(m_playerMarkerSpriteIndices[i], showWeaponUi);
 	}
 
 	m_waitUI.SetSpriteVisible(m_startButtonSpriteIndex, !m_showLoading);
@@ -258,13 +293,19 @@ void CWaitScene::OnResize(int width, int height)
 		const XMFLOAT4 selectedRect = GetWeaponSelectedRect(i);
 		const XMFLOAT4 frameRect = GetWeaponFrameRect(i);
 
-		m_waitUI.SetSpriteRect(m_weaponSelectedSpriteIndices[i], selectedRect); 
+		m_waitUI.SetSpriteRect(m_weaponSelectedSpriteIndices[i], selectedRect);
 		if ( const auto* frame = m_waitUI.GetSprite(m_weaponFrameSpriteIndices[i]) ) m_waitUI.SetSpriteRect(m_weaponFrameSpriteIndices[i], CSceneUI::MakeFitRect(frame->texture, frameRect.x, frameRect.y, frameRect.z, frameRect.w));
 
 		if ( const auto* weapon = m_waitUI.GetSprite(m_weaponSpriteIndices[i]) )
 		{
 			const XMFLOAT4 weaponRect = GetWeaponSpriteRect(i);
 			m_waitUI.SetSpriteRect(m_weaponSpriteIndices[i], CSceneUI::MakeFitRect(weapon->texture, weaponRect.x, weaponRect.y, weaponRect.z, weaponRect.w));
+		}
+
+		if ( const auto* marker = m_waitUI.GetSprite(m_playerMarkerSpriteIndices[i]) )
+		{
+			const XMFLOAT4 markerRect = GetPlayerMarkerRect(i);
+			m_waitUI.SetSpriteRect(m_playerMarkerSpriteIndices[i], CSceneUI::MakeFitRect(marker->texture, markerRect.x, markerRect.y, markerRect.z, markerRect.w));
 		}
 	}
 
