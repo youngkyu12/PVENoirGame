@@ -18,7 +18,7 @@
 PROTOBUF_PRAGMA_INIT_SEG
 namespace Protocol {
 }  // namespace Protocol
-static const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* file_level_enum_descriptors_Enum_2eproto[13];
+static const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* file_level_enum_descriptors_Enum_2eproto[14];
 static constexpr ::PROTOBUF_NAMESPACE_ID::ServiceDescriptor const** file_level_service_descriptors_Enum_2eproto = nullptr;
 const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_Enum_2eproto::offsets[1] = {};
 static constexpr ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema* schemas = nullptr;
@@ -78,16 +78,21 @@ const char descriptor_table_protodef_Enum_2eproto[] PROTOBUF_SECTION_VARIABLE(pr
   "ND_NONE\020\000\022$\n DEBUG_COMMAND_KILL_MEGA5_EN"
   "EMIES\020\001\022\'\n#DEBUG_COMMAND_TELEPORT_TO_MEG"
   "A_GRID\020\002\022\035\n\031DEBUG_COMMAND_DAMAGE_BOSS\020\003*"
-  "\331\001\n\rBossRoomState\022#\n\037BOSS_ROOM_STATE_PRE"
-  "_BOSS_COMBAT\020\000\022\"\n\036BOSS_ROOM_STATE_SUMMON"
-  "_FADE_IN\020\001\022\"\n\036BOSS_ROOM_STATE_BOSS_APPEA"
-  "RING\020\002\022\037\n\033BOSS_ROOM_STATE_BOSS_ACTIVE\020\003\022"
-  "\035\n\031BOSS_ROOM_STATE_BOSS_DEAD\020\004\022\033\n\027BOSS_R"
-  "OOM_STATE_CLEARED\020\005b\006proto3"
+  "\256\001\n\010ItemType\022\022\n\016ITEM_TYPE_NONE\020\000\022\031\n\025ITEM"
+  "_TYPE_HEAL_POTION\020\001\022!\n\035ITEM_TYPE_ATTACK_"
+  "POWER_POTION\020\002\022\034\n\030ITEM_TYPE_DEFENSE_POTI"
+  "ON\020\003\022\037\n\033ITEM_TYPE_MOVE_SPEED_POTION\020\004\022\021\n"
+  "\rITEM_TYPE_KEY\020\005*\331\001\n\rBossRoomState\022#\n\037BO"
+  "SS_ROOM_STATE_PRE_BOSS_COMBAT\020\000\022\"\n\036BOSS_"
+  "ROOM_STATE_SUMMON_FADE_IN\020\001\022\"\n\036BOSS_ROOM"
+  "_STATE_BOSS_APPEARING\020\002\022\037\n\033BOSS_ROOM_STA"
+  "TE_BOSS_ACTIVE\020\003\022\035\n\031BOSS_ROOM_STATE_BOSS"
+  "_DEAD\020\004\022\033\n\027BOSS_ROOM_STATE_CLEARED\020\005b\006pr"
+  "oto3"
   ;
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_Enum_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_Enum_2eproto = {
-  false, false, 2347, descriptor_table_protodef_Enum_2eproto, "Enum.proto", 
+  false, false, 2524, descriptor_table_protodef_Enum_2eproto, "Enum.proto", 
   &descriptor_table_Enum_2eproto_once, nullptr, 0, 0,
   schemas, file_default_instances, TableStruct_Enum_2eproto::offsets,
   nullptr, file_level_enum_descriptors_Enum_2eproto, file_level_service_descriptors_Enum_2eproto,
@@ -316,9 +321,27 @@ bool DebugCommandType_IsValid(int value) {
   }
 }
 
-const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* BossRoomState_descriptor() {
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* ItemType_descriptor() {
   ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_Enum_2eproto);
   return file_level_enum_descriptors_Enum_2eproto[12];
+}
+bool ItemType_IsValid(int value) {
+  switch (value) {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+    case 5:
+      return true;
+    default:
+      return false;
+  }
+}
+
+const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* BossRoomState_descriptor() {
+  ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_Enum_2eproto);
+  return file_level_enum_descriptors_Enum_2eproto[13];
 }
 bool BossRoomState_IsValid(int value) {
   switch (value) {

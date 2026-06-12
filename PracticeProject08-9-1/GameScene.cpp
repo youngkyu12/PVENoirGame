@@ -136,7 +136,7 @@ CGameScene::CGameScene()
 	m_bSimulateLocalEnemySpawner = false;
 	m_bSimulateLocalPlayerWorldStaticRollback = false;
 	m_bSimulateLocalTeleport = false;
-	m_bSimulateLocalItemPickup = true;
+	m_bSimulateLocalItemPickup = false;
 	m_bCanBossStageDirectly = false;
 	m_bSimulateLocalStageTeleport = false;
 	m_bPrevLocalStageTeleportKeyDown.fill(false);
@@ -7575,7 +7575,6 @@ void CGameScene::RequestFireBullet(CGameObject* shooter, float speed, float life
 
 bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 {
-#ifndef USING_NETWORK
 	if ( !pKeysBuffer )
 	{
 		m_bPrevLocalMonsterChaseToggleKeyDown = false;
@@ -7586,6 +7585,9 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 		return false;
 	}
 
+	const bool stageTeleportModifierDown = ( ( pKeysBuffer[VK_LCONTROL] & 0xF0 ) != 0 ) || ( ( pKeysBuffer[VK_RCONTROL] & 0xF0 ) != 0 );
+
+#ifndef USING_NETWORK
 	// ---------------------------------------------------------------------
 	// Q: 로컬 몬스터 추적 on/off
 	// ---------------------------------------------------------------------
@@ -7614,8 +7616,7 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 	}
 
 	m_bPrevDebugDamageMegaGrid5KeyDown = enterDown;
-
-	const bool stageTeleportModifierDown = ( ( pKeysBuffer[VK_LCONTROL] & 0xF0 ) != 0 ) || ( ( pKeysBuffer[VK_RCONTROL] & 0xF0 ) != 0 );
+#endif
 
 	// ---------------------------------------------------------------------
 	// 1~4: 인벤토리 아이템 사용 요청
@@ -7631,6 +7632,7 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 		m_bPrevInventoryUseKeyDown[static_cast< size_t >(slot)] = down;
 	}
 
+#ifndef USING_NETWORK
 	// ---------------------------------------------------------------------
 	// Ctrl + 1~9: 로컬 스테이지 메가그리드 강제 텔레포트
 	//
@@ -7660,8 +7662,6 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 
 		m_bPrevLocalStageTeleportKeyDown[static_cast< size_t >( megaGridNumber )] = down;
 	}
-#else
-	UNREFERENCED_PARAMETER(pKeysBuffer);
 #endif
 
 	return false;
@@ -8481,6 +8481,38 @@ void CGameScene::AnimateObjects(float dt)
 			if (idx >= 0 && idx < (int)m_bossPoisonProjectileEffect.entries.size())
 				m_bossPoisonProjectileEffect.entries[idx].active = false;
 			it = m_networkBossPoisonById.erase(it);
+		}
+
+		// 서버 item snapshot으로 billboard 상태 reconcile
+		for ( const ItemSpawnState& itemState : receivedSnapshot.items )
+		{
+			for ( ItemBillboardEntry& entry : m_itemBillboardState.entries )
+			{
+				if ( entry.serverId == itemState.id )
+				{
+					entry.active = itemState.active;
+					if ( !itemState.active )
+						entry.distanceCulled = true;
+					break;
+				}
+			}
+		}
+
+		// 로컬 플레이어 인벤토리 동기화
+		for ( const auto& playerState : receivedSnapshot.players )
+		{
+			if ( static_cast<int>(playerState.id) != m_localPlayerSlot )
+				continue;
+
+			std::array<int, CGameSceneHUD::kInventorySlotCount> counts = { 0, 0, 0, 0 };
+			for ( const InventoryEntryState& inv : playerState.inventory )
+			{
+				const int slot = static_cast<int>(inv.kind) - 1;
+				if ( slot >= 0 && slot < CGameSceneHUD::kInventorySlotCount )
+					counts[static_cast<size_t>(slot)] = inv.count;
+			}
+			SetInventoryItemCounts(counts);
+			break;
 		}
 
 		// 사용이 끝난 data는 기본값으로 초기화 (선택적)

@@ -6,7 +6,8 @@ import "Struct.proto";
 
 message InitStruct
 {
-	repeated Player players = 1;
-	repeated Enemy enemies = 2;
-	repeated Building buildings = 3;
+	repeated Player    players   = 1;
+	repeated Enemy     enemies   = 2;
+	repeated Building  buildings = 3;
+	repeated Item      items     = 4;
 }

@@ -44,6 +44,12 @@ message Bullet
 	Vec3f velocity = 5;
 }
 
+message InventoryEntry
+{
+	ItemType kind  = 1;
+	int32    count = 2;
+}
+
 message Player
 {
 	uint64 id = 1;
@@ -54,6 +60,7 @@ message Player
 	Animation animation = 6;
 	WeaponType weaponType = 7;
 	uint32 hp = 8;
+	repeated InventoryEntry inventory = 9;
 }
 
 message Enemy
@@ -72,5 +79,13 @@ message Building
 	uint64 id = 1;
 	Transform transform = 2;
 	BuildingType buildingType = 3;
+}
+
+message Item
+{
+	uint64   id       = 1;
+	ItemType kind     = 2;
+	Vec3f    position = 3;
+	bool     active   = 4;
 }
 
