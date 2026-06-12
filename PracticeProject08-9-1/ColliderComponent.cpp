@@ -1600,6 +1600,29 @@ bool CColliderComponent::IntersectsActiveWeaponBoneCapsulesAgainstBody(const CCo
 	return false;
 }
 
+void CColliderComponent::DisableCollisionAndKeepUpdatingForSeconds(float seconds)
+{
+	mCollisionEnabled = false;
+	mWeaponBoneCapsulesActive = false;
+	SetEnabled(true);
+	UpdateWorldBounds();
+
+	if ( seconds <= 0.0f )
+	{
+		mDeferredDisableSeconds = -1.0f;
+		SetEnabled(false);
+		return;
+	}
+
+	mDeferredDisableSeconds = seconds;
+}
+
+void CColliderComponent::CancelDeferredDisable()
+{
+	mDeferredDisableSeconds = -1.0f;
+	SetEnabled(true);
+}
+
 void CColliderComponent::OnUpdate(float dt)
 {
 	UNREFERENCED_PARAMETER(dt);
@@ -1607,6 +1630,18 @@ void CColliderComponent::OnUpdate(float dt)
 
 void CColliderComponent::OnLateUpdate(float dt)
 {
-	UNREFERENCED_PARAMETER(dt);
 	UpdateWorldBounds();
+
+	if ( mDeferredDisableSeconds < 0.0f )
+		return;
+
+	if ( dt > 0.0f )
+		mDeferredDisableSeconds -= dt;
+
+	if ( mDeferredDisableSeconds > 0.0f )
+		return;
+
+	mDeferredDisableSeconds = -1.0f;
+	UpdateWorldBounds();
+	SetEnabled(false);
 }

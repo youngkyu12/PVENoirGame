@@ -96,8 +96,10 @@ public:
 
 	void OnLateUpdate(float dt) override;
 
-	void SetCollisionEnabled(bool enabled) { mCollisionEnabled = enabled; }
+	void SetCollisionEnabled(bool enabled) { mCollisionEnabled = enabled; if ( enabled ) mDeferredDisableSeconds = -1.0f; }
 	bool IsCollisionEnabled() const { return mCollisionEnabled; }
+	void DisableCollisionAndKeepUpdatingForSeconds(float seconds);
+	void CancelDeferredDisable();
 
 private:
 	static BoundingOrientedBox MakeLocalOOBB(const XMFLOAT3& Min, const XMFLOAT3& Max);
@@ -139,6 +141,7 @@ private:
 	bool mIsTrigger = false;
 
 	bool mCollisionEnabled = true;
+	float mDeferredDisableSeconds = -1.0f;
 private:
 	std::vector<BoneCapsuleLink> mBoneCapsuleLinks;
 	std::vector<BoundingCapsule> mWorldBoneCapsules;
