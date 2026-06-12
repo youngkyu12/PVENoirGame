@@ -77,6 +77,9 @@ public:
 	void ProcessEnemyAI();
 
 public:
+	void UseItem(uint64 playerId, int32 slot);
+
+public:
     void SetPlayerReady(bool ready, uint32 playerId);
 	void OnMonsterFirstChase(uint64 enemyId);
 	void OnMonsterDeath(uint64 enemyId);
@@ -136,6 +139,8 @@ private:
 	void FireCannonball(PlayerRef shooter);
 	ProjectileRef AcquireFromPool(Vector<ProjectileRef>& pool);
 	void UpdateKeyPickupCollision();
+	void UpdateItemPickupCollision();
+	void InitializeItems();
 	void WakeEnemiesNearPlayer(const PlayerRef& player);
 	bool IsEnemyNearAnyPlayerExact(const GameMath::Vec3& enemyPos, float rangeSq) const;
 
@@ -187,6 +192,7 @@ private:
 	bool ShouldKeepCollisionPairByMegaGrid(const CColliderComponent* a, const CColliderComponent* b) const;
 	int ComputePlayerWeaponDamageTierIndex() const;
 	int GetPlayerAttackPower(Protocol::WeaponType weapon) const;
+	int GetPlayerAttackPower(const PlayerRef& player, Protocol::WeaponType weapon) const;
 
 	enum class EGridDynamicKind : uint8_t
 	{
@@ -236,6 +242,14 @@ private:
 		int prevCellX = -1;
 		int prevCellZ = -1;
 		bool occupied = false;
+	};
+
+	struct ItemEntry
+	{
+		uint64               id       = 0;
+		Protocol::ItemType   kind     = Protocol::ITEM_TYPE_NONE;
+		GameMath::Vec3       position = GameMath::Vec3::Zero();
+		bool                 active   = true;
 	};
 
 	struct KeyEntry
@@ -400,6 +414,8 @@ private:
 	std::vector<TowerDoorPortalEntry> m_towerDoorPortals;
 	std::vector<CastleDoorPortalEntry> m_castleDoorPortals;
     //array<GameAreaRef, 9> gameAreas; // 9개 구역
+
+	std::vector<ItemEntry> m_items;
 
 	RoomTimingConfig m_timing;
 	uint64 m_elapsedServerMs = 0;

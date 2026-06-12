@@ -9,6 +9,9 @@
 #include "AudioManager.h"
 #include "MusicDirector.h"
 #include "GlobalValues.h"
+#include "Service.h"
+#include "ServerPacketHandler.h"
+#include "GlobalValues.h"
 
 XMFLOAT4 CWaitScene::GetStartButtonRect() const
 {
@@ -185,6 +188,7 @@ void CWaitScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
 	m_playerSelectedWeaponSlots[m_localPlayerIndex] = 0;
 	m_playerWeaponSelectionKnown[m_localPlayerIndex] = true;
+	m_isReady = false;
 
 	g_waitSceneSelectedWeaponSlots[m_localPlayerIndex] = 0;
 	g_waitSceneWeaponSelectionKnown[m_localPlayerIndex] = true;
@@ -250,6 +254,7 @@ void CWaitScene::ReleaseObjects()
 	m_hoveredWeaponSlot = -1;
 	m_startButtonSpriteIndex = -1;
 	m_loadingSpriteIndex = -1;
+	m_isReady = false;
 	CScene::ReleaseObjects();
 }
 
@@ -333,6 +338,18 @@ bool CWaitScene::OnProcessingMouseMessage(HWND /*hWnd*/, UINT nMessageID, WPARAM
 	if ( !m_waitUI.IsPointInSprite(m_startButtonSpriteIndex, ptClient) ) return false;
 
 	if ( m_pAudioManager ) m_pAudioManager->PlaySound2D("Assets/Audio/StartEffect.mp3", false, false, 1.0f, false);
+
+	m_isReady = true;
+
+#ifdef USING_NETWORK
+	Protocol::C_GAME_START startPkt;
+	startPkt.set_playerid(g_myPlayerId);
+	startPkt.set_playerweapon(0x1010);
+	startPkt.set_ready(m_isReady);
+
+	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(startPkt);
+	g_clientService->BroadCast(sendBuffer);
+#endif
 
 	m_showLoading = true;
 	m_hoveredWeaponSlot = -1;

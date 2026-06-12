@@ -21,7 +21,8 @@ constexpr InitStruct::InitStruct(
   ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
   : players_()
   , enemies_()
-  , buildings_(){}
+  , buildings_()
+  , items_(){}
 struct InitStructDefaultTypeInternal {
   constexpr InitStructDefaultTypeInternal()
     : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
@@ -45,6 +46,7 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_InitStruct_2eproto::offsets[] 
   PROTOBUF_FIELD_OFFSET(::Protocol::InitStruct, players_),
   PROTOBUF_FIELD_OFFSET(::Protocol::InitStruct, enemies_),
   PROTOBUF_FIELD_OFFSET(::Protocol::InitStruct, buildings_),
+  PROTOBUF_FIELD_OFFSET(::Protocol::InitStruct, items_),
 };
 static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
   { 0, -1, sizeof(::Protocol::InitStruct)},
@@ -56,10 +58,11 @@ static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] =
 
 const char descriptor_table_protodef_InitStruct_2eproto[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) =
   "\n\020InitStruct.proto\022\010Protocol\032\nEnum.proto"
-  "\032\014Struct.proto\"x\n\nInitStruct\022!\n\007players\030"
-  "\001 \003(\0132\020.Protocol.Player\022 \n\007enemies\030\002 \003(\013"
-  "2\017.Protocol.Enemy\022%\n\tbuildings\030\003 \003(\0132\022.P"
-  "rotocol.Buildingb\006proto3"
+  "\032\014Struct.proto\"\227\001\n\nInitStruct\022!\n\007players"
+  "\030\001 \003(\0132\020.Protocol.Player\022 \n\007enemies\030\002 \003("
+  "\0132\017.Protocol.Enemy\022%\n\tbuildings\030\003 \003(\0132\022."
+  "Protocol.Building\022\035\n\005items\030\004 \003(\0132\016.Proto"
+  "col.Itemb\006proto3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_InitStruct_2eproto_deps[2] = {
   &::descriptor_table_Enum_2eproto,
@@ -67,7 +70,7 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor
 };
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_InitStruct_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_InitStruct_2eproto = {
-  false, false, 184, descriptor_table_protodef_InitStruct_2eproto, "InitStruct.proto", 
+  false, false, 216, descriptor_table_protodef_InitStruct_2eproto, "InitStruct.proto", 
   &descriptor_table_InitStruct_2eproto_once, descriptor_table_InitStruct_2eproto_deps, 2, 1,
   schemas, file_default_instances, TableStruct_InitStruct_2eproto::offsets,
   file_level_metadata_InitStruct_2eproto, file_level_enum_descriptors_InitStruct_2eproto, file_level_service_descriptors_InitStruct_2eproto,
@@ -95,11 +98,15 @@ void InitStruct::clear_enemies() {
 void InitStruct::clear_buildings() {
   buildings_.Clear();
 }
+void InitStruct::clear_items() {
+  items_.Clear();
+}
 InitStruct::InitStruct(::PROTOBUF_NAMESPACE_ID::Arena* arena)
   : ::PROTOBUF_NAMESPACE_ID::Message(arena),
   players_(arena),
   enemies_(arena),
-  buildings_(arena) {
+  buildings_(arena),
+  items_(arena) {
   SharedCtor();
   RegisterArenaDtor(arena);
   // @@protoc_insertion_point(arena_constructor:Protocol.InitStruct)
@@ -108,7 +115,8 @@ InitStruct::InitStruct(const InitStruct& from)
   : ::PROTOBUF_NAMESPACE_ID::Message(),
       players_(from.players_),
       enemies_(from.enemies_),
-      buildings_(from.buildings_) {
+      buildings_(from.buildings_),
+      items_(from.items_) {
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   // @@protoc_insertion_point(copy_constructor:Protocol.InitStruct)
 }
@@ -145,6 +153,7 @@ void InitStruct::Clear() {
   players_.Clear();
   enemies_.Clear();
   buildings_.Clear();
+  items_.Clear();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
@@ -188,6 +197,18 @@ const char* InitStruct::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID:
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
           } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<26>(ptr));
+        } else goto handle_unusual;
+        continue;
+      // repeated .Protocol.Item items = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 34)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            ptr = ctx->ParseMessage(_internal_add_items(), ptr);
+            CHK_(ptr);
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<34>(ptr));
         } else goto handle_unusual;
         continue;
       default: {
@@ -243,6 +264,14 @@ failure:
       InternalWriteMessage(3, this->_internal_buildings(i), target, stream);
   }
 
+  // repeated .Protocol.Item items = 4;
+  for (unsigned int i = 0,
+      n = static_cast<unsigned int>(this->_internal_items_size()); i < n; i++) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(4, this->_internal_items(i), target, stream);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -276,6 +305,13 @@ size_t InitStruct::ByteSizeLong() const {
   // repeated .Protocol.Building buildings = 3;
   total_size += 1UL * this->_internal_buildings_size();
   for (const auto& msg : this->buildings_) {
+    total_size +=
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
+  }
+
+  // repeated .Protocol.Item items = 4;
+  total_size += 1UL * this->_internal_items_size();
+  for (const auto& msg : this->items_) {
     total_size +=
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
   }
@@ -314,6 +350,7 @@ void InitStruct::MergeFrom(const InitStruct& from) {
   players_.MergeFrom(from.players_);
   enemies_.MergeFrom(from.enemies_);
   buildings_.MergeFrom(from.buildings_);
+  items_.MergeFrom(from.items_);
 }
 
 void InitStruct::CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) {
@@ -340,6 +377,7 @@ void InitStruct::InternalSwap(InitStruct* other) {
   players_.InternalSwap(&other->players_);
   enemies_.InternalSwap(&other->enemies_);
   buildings_.InternalSwap(&other->buildings_);
+  items_.InternalSwap(&other->items_);
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata InitStruct::GetMetadata() const {
