@@ -1,3 +1,6 @@
+//-----------------------------------------------------------------------------
+// File: WaitScene.h
+//-----------------------------------------------------------------------------
 #pragma once
 
 #include "Scene.h"
@@ -11,6 +14,7 @@ public:
 
 private:
 	CSceneUI m_waitUI;
+	int m_waitBackgroundSpriteIndex = -1;
 	int m_startButtonSpriteIndex = -1;
 	int m_loadingSpriteIndex = -1;
 

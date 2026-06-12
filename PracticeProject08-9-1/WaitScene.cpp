@@ -1,3 +1,6 @@
+//-----------------------------------------------------------------------------
+// File: WaitScene.cpp
+//-----------------------------------------------------------------------------
 #include "stdafx.h"
 #include "WaitScene.h"
 
@@ -23,8 +26,10 @@ void CWaitScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	CreateMainCamera(dev, cmd, nullptr);
 	m_waitUI.BuildShader(dev, cmd, GetGraphicsRootSignature());
 
+	m_waitBackgroundSpriteIndex = m_waitUI.AddSprite(dev, cmd, "WaitBackground", L"Assets/UI/WaitSceneImage.dds", CSceneUI::GetFullscreenRect(m_viewportWidth, m_viewportHeight), CSceneUI::ELayer::Background, true);
+
 	const XMFLOAT4 startRect = GetStartButtonRect();
-	m_startButtonSpriteIndex = m_waitUI.AddFitSprite(dev, cmd, "WaitStartButton", L"Assets/UI/StartButton.dds", startRect.x, startRect.y, startRect.z, startRect.w, CSceneUI::ELayer::Content, true);
+	m_startButtonSpriteIndex = m_waitUI.AddFitSprite(dev, cmd, "WaitStartButton", L"Assets/UI/ReadyButton.dds", startRect.x, startRect.y, startRect.z, startRect.w, CSceneUI::ELayer::Content, true);
 	m_loadingSpriteIndex = m_waitUI.AddSprite(dev, cmd, "WaitLoading", L"Assets/UI/LoadingImage.dds", CSceneUI::GetFullscreenRect(m_viewportWidth, m_viewportHeight), CSceneUI::ELayer::Content, false);
 
 	if ( m_pAudioManager )
@@ -40,6 +45,7 @@ void CWaitScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 void CWaitScene::ReleaseObjects()
 {
 	m_waitUI.ReleaseResources();
+	m_waitBackgroundSpriteIndex = -1;
 	m_startButtonSpriteIndex = -1;
 	m_loadingSpriteIndex = -1;
 	CScene::ReleaseObjects();
@@ -126,6 +132,8 @@ void CWaitScene::OnResize(int width, int height)
 
 	m_viewportWidth = width;
 	m_viewportHeight = height;
+
+	m_waitUI.SetSpriteRect(m_waitBackgroundSpriteIndex, CSceneUI::GetFullscreenRect(m_viewportWidth, m_viewportHeight));
 
 	if ( const auto* start = m_waitUI.GetSprite(m_startButtonSpriteIndex) )
 	{
