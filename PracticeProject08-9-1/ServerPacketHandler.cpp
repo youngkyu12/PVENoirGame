@@ -53,15 +53,7 @@ bool Handle_S_LOGIN(PacketSessionRef& session, Protocol::S_LOGIN& pkt)
 
 bool Handle_S_ENTER_GAME(PacketSessionRef& session, Protocol::S_ENTER_GAME& pkt)
 {
-	// GAME_START 패킷을 계속 전송함
-	Protocol::C_GAME_START startPkt;
-	startPkt.set_playerid(g_myPlayerId);
-	startPkt.set_playerweapon(0x1010);
-	startPkt.set_ready(true);
-
-	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(startPkt);
-	session->Send(sendBuffer);
-
+	// C_GAME_START is sent when the player confirms ready in the wait scene.
 	return true;
 }
 
