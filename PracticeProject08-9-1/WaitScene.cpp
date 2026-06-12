@@ -234,7 +234,8 @@ void CWaitScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	{
 		if ( auto* music = m_pAudioManager->GetMusicDirector() )
 		{
-			music->RequestState(EMusicState::Menu, true);
+			music->SetCrossFadeSeconds(0.35f);
+			music->RequestState(EMusicState::Wait, false);
 			music->BeginPendingTransition();
 		}
 	}

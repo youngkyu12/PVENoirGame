@@ -567,6 +567,16 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(iamReady);
 	g_clientService->BroadCast(sendBuffer);
 #endif
+
+	if ( m_pAudioManager )
+	{
+		if ( auto* music = m_pAudioManager->GetMusicDirector() )
+		{
+			music->SetCrossFadeSeconds(1.5f);
+			music->RequestState(EMusicState::Gameplay, false);
+			music->BeginPendingTransition();
+		}
+	}
 }
 
 void CGameScene::CreateTerrainData(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
