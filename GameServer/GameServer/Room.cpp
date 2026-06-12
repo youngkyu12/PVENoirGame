@@ -595,6 +595,19 @@ void Room::BuildRoom()
 	InitializeItems();
 }
 
+void Room::SetPlayerLobbyWeapon(uint32 index, uint32 playerWeapon)
+{
+	auto playerIt = players.find(index);
+	if (playerIt == players.end()) return;
+
+	if (playerWeapon >= Protocol::WEAPON_TYPE_SWORD &&
+		playerWeapon <= Protocol::WEAPON_TYPE_CANON)
+	{
+		playerIt->second->SetWeapon(
+			static_cast<Protocol::WeaponType>(playerWeapon), 0);
+	}
+}
+
 void Room::StartGame(bool ready, uint32 index)
 {
 	if (players.find(index) == players.end()) return;

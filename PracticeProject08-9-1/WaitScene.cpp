@@ -115,6 +115,26 @@ void CWaitScene::SetPlayerWeaponSelection(int playerIndex, int weaponSlot)
 	g_waitSceneWeaponSelectionKnown[safePlayerIndex] = true;
 
 	UpdatePlayerMarkerSpriteRect(safePlayerIndex);
+
+	if ( safePlayerIndex == m_localPlayerIndex )
+		SendLobbyState();
+}
+
+void CWaitScene::SendLobbyState()
+{
+#ifdef USING_NETWORK
+	const int weaponSlot = g_waitSceneSelectedWeaponSlots[m_localPlayerIndex];
+	if ( weaponSlot < 0 || weaponSlot > 3 )
+		return;
+
+	Protocol::C_GAME_START startPkt;
+	startPkt.set_playerid(g_myPlayerId);
+	startPkt.set_playerweapon(static_cast< uint32_t >( weaponSlot + 1 ));
+	startPkt.set_ready(m_isReady);
+
+	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(startPkt);
+	g_clientService->BroadCast(sendBuffer);
+#endif
 }
 
 void CWaitScene::UpdatePlayerMarkerSpriteRect(int playerIndex)
@@ -332,16 +352,7 @@ bool CWaitScene::OnProcessingMouseMessage(HWND /*hWnd*/, UINT nMessageID, WPARAM
 	if ( m_pAudioManager ) m_pAudioManager->PlaySound2D("Assets/Audio/StartEffect.mp3", false, false, 1.0f, false);
 
 	m_isReady = true;
-
-#ifdef USING_NETWORK
-	Protocol::C_GAME_START startPkt;
-	startPkt.set_playerid(g_myPlayerId);
-	startPkt.set_playerweapon(0x1010);
-	startPkt.set_ready(m_isReady);
-
-	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(startPkt);
-	g_clientService->BroadCast(sendBuffer);
-#endif
+	SendLobbyState();
 
 	m_showLoading = true;
 	m_hoveredWeaponSlot = -1;
