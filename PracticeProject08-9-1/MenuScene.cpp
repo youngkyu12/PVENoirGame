@@ -86,7 +86,7 @@ bool CMenuScene::OnProcessingMouseMessage(HWND /*hWnd*/, UINT nMessageID, WPARAM
 
 	if ( !m_menuUI.IsPointInSprite(m_startButtonSpriteIndex, ptClient) ) return false;
 
-	if ( m_pAudioManager ) m_pAudioManager->PlaySound2D("Assets/Audio/StartEffect.mp3", false, false, 1.0f, false);
+	if ( m_pAudioManager ) m_pAudioManager->PlaySound2D("Assets/Audio/StartEffect.mp3", false, false, 0.5f, false);
 
 	m_waitSceneRequested = true;
 	return true;
