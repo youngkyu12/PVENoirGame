@@ -128,8 +128,16 @@ struct StaticWorldLodEntry
 	float cullDistance = 1000000.0f;
 };
 
+enum class EStaticOcclusionEntryKind : uint8_t
+{
+	Object = 0,
+	TreeDoorProbe
+};
+
 struct StaticOcclusionEntry
 {
+	EStaticOcclusionEntryKind kind = EStaticOcclusionEntryKind::Object;
+
 	CGameObject* object = nullptr;
 	UINT staticBatchObjectIndex = UINT_MAX;
 
@@ -138,6 +146,9 @@ struct StaticOcclusionEntry
 
 	BoundingOrientedBox worldBounds{};
 	bool hasWorldBounds = false;
+
+	int treeProbeMegaGridNumber = -1;
+	int treeProbeDoorIndex = -1;
 };
 
 struct SkinnedWorldLodEntry
@@ -746,14 +757,8 @@ private:
 	void InitializeSpatialGrid();
 	void ShutdownSpatialGrid();
 
-	bool TryGetTreeCullReferenceGridCell(
-		CCamera* camera,
-		int& outCellX,
-		int& outCellZ,
-		int& outMegaX,
-		int& outMegaZ) const;
-
-	bool ShouldCullTreesByVillageGrid(CCamera* camera) const;
+	bool ShouldCullTreesByVillageDoorProbes(CCamera* camera) const;
+	bool IsAnyVillageWallTreeCullDoorProbeVisible(int megaGridNumber, CCamera* camera) const;
 
 	void AddDynamicCount(int cellX, int cellZ, EGridDynamicKind kind, int delta);
 	void RegisterStaticPlacementToGrid(const StaticPlacementEntry& placement, CGameObject* obj);
