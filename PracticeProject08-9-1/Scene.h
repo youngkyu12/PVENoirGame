@@ -72,11 +72,12 @@ public:
     virtual bool OnProcessingKeyboardMessage(HWND /*hWnd*/, UINT /*msg*/, WPARAM /*wParam*/, LPARAM /*lParam*/) { return false; }
 
 public:
-    enum class ESceneRequest : uint8_t
-    {
-        None = 0,
-        SwitchToGame,
-    };
+	enum class ESceneRequest : uint8_t
+	{
+		None = 0,
+		SwitchToWait,
+		SwitchToGame,
+	};
 
     virtual bool ConsumeSceneRequest(ESceneRequest& outReq)
     {

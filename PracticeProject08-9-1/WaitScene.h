@@ -3,16 +3,16 @@
 #include "Scene.h"
 #include "SceneUI.h"
 
-class CMenuScene final : public CScene
+class CWaitScene final : public CScene
 {
 public:
-	CMenuScene() = default;
-	~CMenuScene() override = default;
+	CWaitScene() = default;
+	~CWaitScene() override = default;
 
 private:
-	CSceneUI m_menuUI;
-	int m_menuBackgroundSpriteIndex = -1;
+	CSceneUI m_waitUI;
 	int m_startButtonSpriteIndex = -1;
+	int m_loadingSpriteIndex = -1;
 
 public:
 	void BuildObjects(ID3D12Device* pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList) override;
@@ -25,5 +25,7 @@ public:
 	void OnResize(int width, int height) override;
 
 private:
-	bool m_waitSceneRequested = false;
+	XMFLOAT4 GetStartButtonRect() const;
+	bool m_startGameRequested = false;
+	bool m_showLoading = false;
 };
