@@ -347,6 +347,8 @@ struct ItemBillboardEntry
 
 	EItemBillboardKind kind = EItemBillboardKind::Key;
 
+	uint64_t serverId = 0;
+
 	// 1~9. 유효하지 않으면 -1.
 	int megaGridNumber = -1;
 

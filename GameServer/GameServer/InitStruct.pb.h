@@ -178,6 +178,7 @@ class InitStruct final :
     kPlayersFieldNumber = 1,
     kEnemiesFieldNumber = 2,
     kBuildingsFieldNumber = 3,
+    kItemsFieldNumber = 4,
   };
   // repeated .Protocol.Player players = 1;
   int players_size() const;
@@ -233,6 +234,24 @@ class InitStruct final :
   const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Building >&
       buildings() const;
 
+  // repeated .Protocol.Item items = 4;
+  int items_size() const;
+  private:
+  int _internal_items_size() const;
+  public:
+  void clear_items();
+  ::Protocol::Item* mutable_items(int index);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Item >*
+      mutable_items();
+  private:
+  const ::Protocol::Item& _internal_items(int index) const;
+  ::Protocol::Item* _internal_add_items();
+  public:
+  const ::Protocol::Item& items(int index) const;
+  ::Protocol::Item* add_items();
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Item >&
+      items() const;
+
   // @@protoc_insertion_point(class_scope:Protocol.InitStruct)
  private:
   class _Internal;
@@ -243,6 +262,7 @@ class InitStruct final :
   ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Player > players_;
   ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Enemy > enemies_;
   ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Building > buildings_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Item > items_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_InitStruct_2eproto;
 };
@@ -363,6 +383,42 @@ inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Building >&
 InitStruct::buildings() const {
   // @@protoc_insertion_point(field_list:Protocol.InitStruct.buildings)
   return buildings_;
+}
+
+// repeated .Protocol.Item items = 4;
+inline int InitStruct::_internal_items_size() const {
+  return items_.size();
+}
+inline int InitStruct::items_size() const {
+  return _internal_items_size();
+}
+inline ::Protocol::Item* InitStruct::mutable_items(int index) {
+  // @@protoc_insertion_point(field_mutable:Protocol.InitStruct.items)
+  return items_.Mutable(index);
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Item >*
+InitStruct::mutable_items() {
+  // @@protoc_insertion_point(field_mutable_list:Protocol.InitStruct.items)
+  return &items_;
+}
+inline const ::Protocol::Item& InitStruct::_internal_items(int index) const {
+  return items_.Get(index);
+}
+inline const ::Protocol::Item& InitStruct::items(int index) const {
+  // @@protoc_insertion_point(field_get:Protocol.InitStruct.items)
+  return _internal_items(index);
+}
+inline ::Protocol::Item* InitStruct::_internal_add_items() {
+  return items_.Add();
+}
+inline ::Protocol::Item* InitStruct::add_items() {
+  // @@protoc_insertion_point(field_add:Protocol.InitStruct.items)
+  return _internal_add_items();
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::Item >&
+InitStruct::items() const {
+  // @@protoc_insertion_point(field_list:Protocol.InitStruct.items)
+  return items_;
 }
 
 #ifdef __GNUC__
