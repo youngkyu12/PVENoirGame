@@ -164,7 +164,7 @@ void CWaitScene::UpdateHoveredWeaponSlot(POINT ptClient)
 
 	if ( nextHoveredWeaponSlot >= 0 && nextHoveredWeaponSlot != previousHoveredWeaponSlot )
 	{
-		if ( m_pAudioManager ) m_pAudioManager->PlaySound2D("Assets/Audio/Weaponselecting.wav", false, false, 1.0f, false);
+		if ( m_pAudioManager ) m_pAudioManager->PlaySound2D("Assets/Audio/Weaponselecting.wav", false, false, 0.1f, false);
 	}
 }
 
@@ -332,6 +332,7 @@ bool CWaitScene::OnProcessingMouseMessage(HWND /*hWnd*/, UINT nMessageID, WPARAM
 	if ( clickedWeaponSlot >= 0 )
 	{
 		SetPlayerWeaponSelection(m_localPlayerIndex, clickedWeaponSlot);
+		if ( m_pAudioManager ) m_pAudioManager->PlaySound2D("Assets/Audio/Weaponselect.wav", false, false, 1.0f, false);
 		return true;
 	}
 
