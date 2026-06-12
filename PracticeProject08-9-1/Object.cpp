@@ -408,6 +408,26 @@ bool CGameObject::IsVisible(CCamera* pCamera)
 			return false;
 
 		const std::vector<BoundingCapsule>& boneCapsules = m_pCollider->GetBoneCapsules();
+		const std::vector<int>& cullIndices = m_pCollider->GetFrustumCullBoneCapsuleIndices();
+
+		if ( !cullIndices.empty() )
+		{
+			for ( int capsuleIndex : cullIndices )
+			{
+				if ( capsuleIndex < 0 )
+					continue;
+
+				if ( capsuleIndex >= static_cast< int >(boneCapsules.size()) )
+					continue;
+
+				BoundingCapsule testCapsule = boneCapsules[static_cast< size_t >(capsuleIndex)];
+				if ( pCamera->IsInFrustum(testCapsule) )
+					return true;
+			}
+
+			return false;
+		}
+
 		for ( const BoundingCapsule& boneCapsule : boneCapsules )
 		{
 			BoundingCapsule testCapsule = boneCapsule;
