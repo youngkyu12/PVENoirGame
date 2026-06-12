@@ -15,6 +15,7 @@ public:
 private:
 	CSceneUI m_waitUI;
 	int m_waitBackgroundSpriteIndex = -1;
+	std::array<int, 4> m_weaponFrameSpriteIndices = { -1, -1, -1, -1 };
 	int m_startButtonSpriteIndex = -1;
 	int m_loadingSpriteIndex = -1;
 
@@ -30,6 +31,8 @@ public:
 
 private:
 	XMFLOAT4 GetStartButtonRect() const;
+	XMFLOAT4 GetWeaponGridRect() const;
+	XMFLOAT4 GetWeaponFrameRect(int frameSlot) const;
 	bool m_startGameRequested = false;
 	bool m_showLoading = false;
 };
