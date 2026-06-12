@@ -334,6 +334,8 @@ enum class EItemBillboardKind : UINT
 	AttackPowerPotion = 7,
 	DefensePotion = 8,
 	MoveSpeedPotion = 9,
+	BossDeathCircle = 10,
+	BossDeathRing = 11,
 };
 
 struct ItemBillboardEntry
