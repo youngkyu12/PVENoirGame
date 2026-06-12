@@ -46,7 +46,9 @@ XMFLOAT4 CWaitScene::GetWeaponFrameRect(int frameSlot) const
 	const float baseY = static_cast< float >( m_viewportHeight ) * 0.50f;
 	const float yOffset = static_cast< float >( m_viewportHeight ) * 0.045f;
 
-	const float centerX = left + cellW * ( static_cast< float >( safeSlot ) + 0.5f );
+	const float groupCenterX = ( left + right ) * 0.5f;
+	const float spacingX = cellW * 1.1f;
+	const float centerX = groupCenterX + ( static_cast< float >( safeSlot ) - 1.5f ) * spacingX;
 	const float centerY = baseY + ( ( safeSlot % 2 == 0 ) ? -yOffset : yOffset );
 
 	return XMFLOAT4(centerX, centerY, frameW, frameH);
@@ -59,6 +61,41 @@ XMFLOAT4 CWaitScene::GetWeaponSpriteRect(int frameSlot) const
 	return XMFLOAT4(frameRect.x, frameRect.y, frameRect.z * kWeaponScale, frameRect.w * kWeaponScale);
 }
 
+XMFLOAT4 CWaitScene::GetWeaponSelectedRect(int frameSlot) const
+{
+	const XMFLOAT4 frameRect = GetWeaponFrameRect(frameSlot);
+	constexpr float kSelectedScaleX = 1.7f;
+	constexpr float kSelectedScaleY = 1.3f;
+	return XMFLOAT4(frameRect.x, frameRect.y, frameRect.z * kSelectedScaleX, frameRect.w * kSelectedScaleY);
+}
+
+int CWaitScene::GetWeaponSlotAtPoint(POINT ptClient) const
+{
+	for ( int i = 0; i < 4; ++i )
+	{
+		const XMFLOAT4 rect = GetWeaponFrameRect(i);
+		const float left = rect.x - rect.z * 0.5f;
+		const float right = rect.x + rect.z * 0.5f;
+		const float top = rect.y - rect.w * 0.5f;
+		const float bottom = rect.y + rect.w * 0.5f;
+
+		if ( static_cast< float >(ptClient.x) >= left && static_cast< float >(ptClient.x) <= right && static_cast< float >(ptClient.y) >= top && static_cast< float >(ptClient.y) <= bottom ) return i;
+	}
+
+	return -1;
+}
+
+void CWaitScene::UpdateHoveredWeaponSlot(POINT ptClient)
+{
+	if ( m_showLoading )
+	{
+		m_hoveredWeaponSlot = -1;
+		return;
+	}
+
+	m_hoveredWeaponSlot = GetWeaponSlotAtPoint(ptClient);
+}
+
 void CWaitScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
 	CreateGraphicsRootSignature(dev);
@@ -69,25 +106,18 @@ void CWaitScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
 	for ( int i = 0; i < 4; ++i )
 	{
+		const XMFLOAT4 selectedRect = GetWeaponSelectedRect(i);
+		m_weaponSelectedSpriteIndices[i] = m_waitUI.AddSprite(dev, cmd, "WeaponSelected", L"Assets/UI/SelectedWeapons.dds", selectedRect, CSceneUI::ELayer::Content, false);
+	}
+
+	for ( int i = 0; i < 4; ++i )
+	{
 		const XMFLOAT4 frameRect = GetWeaponFrameRect(i);
 		m_weaponFrameSpriteIndices[i] = m_waitUI.AddFitSprite(dev, cmd, "WeaponFrame", L"Assets/UI/Frame.dds", frameRect.x, frameRect.y, frameRect.z, frameRect.w, CSceneUI::ELayer::Content, true);
 	}
 
-	static constexpr const wchar_t* kWeaponTexturePaths[4] =
-	{
-		L"Assets/UI/Sword.dds",
-		L"Assets/UI/Bow.dds",
-		L"Assets/UI/Axe.dds",
-		L"Assets/UI/Gun.dds"
-	};
-
-	static constexpr const char* kWeaponSpriteNames[4] =
-	{
-		"WeaponSword",
-		"WeaponBow",
-		"WeaponAxe",
-		"WeaponGun"
-	};
+	static constexpr const wchar_t* kWeaponTexturePaths[4] = { L"Assets/UI/Sword.dds", L"Assets/UI/Bow.dds", L"Assets/UI/Axe.dds", L"Assets/UI/Gun.dds" };
+	static constexpr const char* kWeaponSpriteNames[4] = { "WeaponSword", "WeaponBow", "WeaponAxe", "WeaponGun" };
 
 	for ( int i = 0; i < 4; ++i )
 	{
@@ -113,8 +143,10 @@ void CWaitScene::ReleaseObjects()
 {
 	m_waitUI.ReleaseResources();
 	m_waitBackgroundSpriteIndex = -1;
+	m_weaponSelectedSpriteIndices = { -1, -1, -1, -1 };
 	m_weaponFrameSpriteIndices = { -1, -1, -1, -1 };
 	m_weaponSpriteIndices = { -1, -1, -1, -1 };
+	m_hoveredWeaponSlot = -1;
 	m_startButtonSpriteIndex = -1;
 	m_loadingSpriteIndex = -1;
 	CScene::ReleaseObjects();
@@ -160,8 +192,10 @@ void CWaitScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 
 	for ( int i = 0; i < 4; ++i )
 	{
-		m_waitUI.SetSpriteVisible(m_weaponFrameSpriteIndices[i], !m_showLoading);
-		m_waitUI.SetSpriteVisible(m_weaponSpriteIndices[i], !m_showLoading);
+		const bool showWeaponUi = !m_showLoading;
+		m_waitUI.SetSpriteVisible(m_weaponSelectedSpriteIndices[i], showWeaponUi && ( m_hoveredWeaponSlot == i ));
+		m_waitUI.SetSpriteVisible(m_weaponFrameSpriteIndices[i], showWeaponUi);
+		m_waitUI.SetSpriteVisible(m_weaponSpriteIndices[i], showWeaponUi);
 	}
 
 	m_waitUI.SetSpriteVisible(m_startButtonSpriteIndex, !m_showLoading);
@@ -171,19 +205,28 @@ void CWaitScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 
 bool CWaitScene::OnProcessingMouseMessage(HWND /*hWnd*/, UINT nMessageID, WPARAM /*wParam*/, LPARAM lParam)
 {
-	if ( nMessageID != WM_LBUTTONDOWN ) return false;
-
-	if ( m_showLoading ) return true;
-
 	POINT ptClient{};
 	ptClient.x = GET_X_LPARAM(lParam);
 	ptClient.y = GET_Y_LPARAM(lParam);
+
+	if ( nMessageID == WM_MOUSEMOVE )
+	{
+		UpdateHoveredWeaponSlot(ptClient);
+		return false;
+	}
+
+	if ( nMessageID != WM_LBUTTONDOWN ) return false;
+
+	UpdateHoveredWeaponSlot(ptClient);
+
+	if ( m_showLoading ) return true;
 
 	if ( !m_waitUI.IsPointInSprite(m_startButtonSpriteIndex, ptClient) ) return false;
 
 	if ( m_pAudioManager ) m_pAudioManager->PlaySound2D("Assets/Audio/StartEffect.mp3", false, false, 1.0f, false);
 
 	m_showLoading = true;
+	m_hoveredWeaponSlot = -1;
 	m_startGameRequested = true;
 	return true;
 }
@@ -212,9 +255,12 @@ void CWaitScene::OnResize(int width, int height)
 
 	for ( int i = 0; i < 4; ++i )
 	{
+		const XMFLOAT4 selectedRect = GetWeaponSelectedRect(i);
 		const XMFLOAT4 frameRect = GetWeaponFrameRect(i);
 
+		m_waitUI.SetSpriteRect(m_weaponSelectedSpriteIndices[i], selectedRect); 
 		if ( const auto* frame = m_waitUI.GetSprite(m_weaponFrameSpriteIndices[i]) ) m_waitUI.SetSpriteRect(m_weaponFrameSpriteIndices[i], CSceneUI::MakeFitRect(frame->texture, frameRect.x, frameRect.y, frameRect.z, frameRect.w));
+
 		if ( const auto* weapon = m_waitUI.GetSprite(m_weaponSpriteIndices[i]) )
 		{
 			const XMFLOAT4 weaponRect = GetWeaponSpriteRect(i);
