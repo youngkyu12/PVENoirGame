@@ -20,6 +20,38 @@ XMFLOAT4 CWaitScene::GetStartButtonRect() const
 	return XMFLOAT4(centerX, centerY, buttonW, buttonH);
 }
 
+XMFLOAT4 CWaitScene::GetWeaponGridRect() const
+{
+	const float left = static_cast< float >( m_viewportWidth ) * 0.08f;
+	const float top = static_cast< float >( m_viewportHeight ) * 0.13f;
+	const float right = static_cast< float >( m_viewportWidth ) * 0.92f;
+	const float bottom = static_cast< float >( m_viewportHeight ) * 0.76f;
+	const float width = right - left;
+	const float height = bottom - top;
+	return XMFLOAT4(left + width * 0.5f, top + height * 0.5f, width, height);
+}
+
+XMFLOAT4 CWaitScene::GetWeaponFrameRect(int frameSlot) const
+{
+	const int safeSlot = std::clamp(frameSlot, 0, 3);
+
+	const float left = static_cast< float >( m_viewportWidth ) * 0.08f;
+	const float right = static_cast< float >( m_viewportWidth ) * 0.88f;
+	const float usableW = right - left;
+	const float cellW = usableW / 4.0f;
+
+	const float frameW = cellW * 0.95f;
+	const float frameH = frameW * 2.0f;
+
+	const float baseY = static_cast< float >( m_viewportHeight ) * 0.50f;
+	const float yOffset = static_cast< float >( m_viewportHeight ) * 0.045f;
+
+	const float centerX = left + cellW * ( static_cast< float >( safeSlot ) + 0.5f );
+	const float centerY = baseY + ( ( safeSlot % 2 == 0 ) ? -yOffset : yOffset );
+
+	return XMFLOAT4(centerX, centerY, frameW, frameH);
+}
+
 void CWaitScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
 	CreateGraphicsRootSignature(dev);
@@ -27,6 +59,12 @@ void CWaitScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_waitUI.BuildShader(dev, cmd, GetGraphicsRootSignature());
 
 	m_waitBackgroundSpriteIndex = m_waitUI.AddSprite(dev, cmd, "WaitBackground", L"Assets/UI/WaitSceneImage.dds", CSceneUI::GetFullscreenRect(m_viewportWidth, m_viewportHeight), CSceneUI::ELayer::Background, true);
+
+	for ( int i = 0; i < 4; ++i )
+	{
+		const XMFLOAT4 frameRect = GetWeaponFrameRect(i);
+		m_weaponFrameSpriteIndices[i] = m_waitUI.AddFitSprite(dev, cmd, "WeaponFrame", L"Assets/UI/Frame.dds", frameRect.x, frameRect.y, frameRect.z, frameRect.w, CSceneUI::ELayer::Content, true);
+	}
 
 	const XMFLOAT4 startRect = GetStartButtonRect();
 	m_startButtonSpriteIndex = m_waitUI.AddFitSprite(dev, cmd, "WaitStartButton", L"Assets/UI/ReadyButton.dds", startRect.x, startRect.y, startRect.z, startRect.w, CSceneUI::ELayer::Content, true);
@@ -46,6 +84,7 @@ void CWaitScene::ReleaseObjects()
 {
 	m_waitUI.ReleaseResources();
 	m_waitBackgroundSpriteIndex = -1;
+	m_weaponFrameSpriteIndices = { -1, -1, -1, -1 };
 	m_startButtonSpriteIndex = -1;
 	m_loadingSpriteIndex = -1;
 	CScene::ReleaseObjects();
@@ -88,6 +127,8 @@ void CWaitScene::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	if ( !cmd ) return;
 	if ( !camera ) camera = m_pMainCamera;
+
+	for ( int i = 0; i < 4; ++i ) m_waitUI.SetSpriteVisible(m_weaponFrameSpriteIndices[i], !m_showLoading);
 
 	m_waitUI.SetSpriteVisible(m_startButtonSpriteIndex, !m_showLoading);
 	m_waitUI.SetSpriteVisible(m_loadingSpriteIndex, m_showLoading);
@@ -134,6 +175,12 @@ void CWaitScene::OnResize(int width, int height)
 	m_viewportHeight = height;
 
 	m_waitUI.SetSpriteRect(m_waitBackgroundSpriteIndex, CSceneUI::GetFullscreenRect(m_viewportWidth, m_viewportHeight));
+
+	for ( int i = 0; i < 4; ++i )
+	{
+		const XMFLOAT4 frameRect = GetWeaponFrameRect(i);
+		if ( const auto* frame = m_waitUI.GetSprite(m_weaponFrameSpriteIndices[i]) ) m_waitUI.SetSpriteRect(m_weaponFrameSpriteIndices[i], CSceneUI::MakeFitRect(frame->texture, frameRect.x, frameRect.y, frameRect.z, frameRect.w));
+	}
 
 	if ( const auto* start = m_waitUI.GetSprite(m_startButtonSpriteIndex) )
 	{
