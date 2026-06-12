@@ -154,7 +154,15 @@ void CWaitScene::UpdateHoveredWeaponSlot(POINT ptClient)
 		return;
 	}
 
-	m_hoveredWeaponSlot = GetWeaponSlotAtPoint(ptClient);
+	const int previousHoveredWeaponSlot = m_hoveredWeaponSlot;
+	const int nextHoveredWeaponSlot = GetWeaponSlotAtPoint(ptClient);
+
+	m_hoveredWeaponSlot = nextHoveredWeaponSlot;
+
+	if ( nextHoveredWeaponSlot >= 0 && nextHoveredWeaponSlot != previousHoveredWeaponSlot )
+	{
+		if ( m_pAudioManager ) m_pAudioManager->PlaySound2D("Assets/Audio/Weaponselecting.wav", false, false, 1.0f, false);
+	}
 }
 
 void CWaitScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
