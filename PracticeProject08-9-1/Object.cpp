@@ -386,35 +386,42 @@ bool CGameObject::IsVisible(CCamera* pCamera)
 	if ( !m_pCollider )
 		return true;
 
-	bool bIsVisible = false;
 	switch ( m_pCollider->GetType() )
 	{
 	case EColliderType::AABB:
 	{
 		BoundingBox xmBoundingBox = m_pCollider->GetAABB();
-		bIsVisible = pCamera->IsInFrustum(xmBoundingBox);
-		break;
+		return pCamera->IsInFrustum(xmBoundingBox);
 	}
 	case EColliderType::OOBB:
 	{
 		BoundingOrientedBox xmBoundingBox = m_pCollider->GetOOBB();
-		bIsVisible = pCamera->IsInFrustum(xmBoundingBox);
-		break;
+		return pCamera->IsInFrustum(xmBoundingBox);
 	}
 	case EColliderType::BCapsule:
 	{
 		BoundingCapsule xmBoundingCapsule = m_pCollider->GetBCapsule();
-		bIsVisible = pCamera->IsInFrustum(xmBoundingCapsule);
-		break;
+		if ( pCamera->IsInFrustum(xmBoundingCapsule) )
+			return true;
+
+		if ( !m_pCollider->HasBoneCapsules() )
+			return false;
+
+		const std::vector<BoundingCapsule>& boneCapsules = m_pCollider->GetBoneCapsules();
+		for ( const BoundingCapsule& boneCapsule : boneCapsules )
+		{
+			BoundingCapsule testCapsule = boneCapsule;
+			if ( pCamera->IsInFrustum(testCapsule) )
+				return true;
+		}
+
+		return false;
 	}
 	default:
-		// 지원하지 않는 충돌체 타입은 렌더링 보수적으로 허용한다.
-		bIsVisible = true;
-		break;
+		return true;
 	}
-
-	return bIsVisible;
 }
+
 // ============================================================================
 // Movement helpers
 // ============================================================================
