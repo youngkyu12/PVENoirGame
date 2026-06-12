@@ -7,6 +7,7 @@
 
 #include "Scene.h"
 #include "MenuScene.h"
+#include "WaitScene.h"
 #include "GameScene.h"
 
 #include "GlobalValues.h"
@@ -22,27 +23,28 @@ void CSceneManager::ReleaseCurrent()
 
 void CSceneManager::BuildScene(ESceneId id, ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
-    ReleaseCurrent();
+	ReleaseCurrent();
 
-    switch (id)
-    {
-    case ESceneId::Menu:
-        m_pScene = std::make_unique<CMenuScene>();
-        break;
-    case ESceneId::Game:
-        m_pScene = std::make_unique<CGameScene>();
-        break;
-    default:
-        m_pScene = std::make_unique<CMenuScene>();
-        id = ESceneId::Menu;
-        break;
-    }
+	switch ( id )
+	{
+	case ESceneId::Menu:
+		m_pScene = std::make_unique<CMenuScene>();
+		break;
+	case ESceneId::Wait:
+		m_pScene = std::make_unique<CWaitScene>();
+		break;
+	case ESceneId::Game:
+		m_pScene = std::make_unique<CGameScene>();
+		break;
+	default:
+		m_pScene = std::make_unique<CMenuScene>();
+		id = ESceneId::Menu;
+		break;
+	}
 
 	m_sceneId = id;
 
-	if ( m_pScene )
-		m_pScene->SetAudioManager(m_pAudioManager);
+	if ( m_pScene ) m_pScene->SetAudioManager(m_pAudioManager);
 
-	// Scene 빌드(각 Scene이 내부에서 카메라까지 구성)
 	m_pScene->BuildObjects(dev, cmd);
 }
