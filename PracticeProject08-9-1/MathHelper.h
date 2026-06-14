@@ -16,6 +16,22 @@ inline bool IsZero(float fValue) { return( ( fabsf(fValue) < EPSILON ) ); }
 inline bool IsEqual(float fA, float fB) { return( ::IsZero(fA - fB) ); }
 inline float InverseSqrt(float fValue) { return 1.0f / sqrtf(fValue); }
 inline void Swap(float* pfS, float* pfT) { float fTemp = *pfS; *pfS = *pfT; *pfT = fTemp; }
+// Returns random float in [0, 1).
+inline float RandF()
+{
+	return (float)(rand()) / (float)RAND_MAX;
+}
+
+// Returns random float in [a, b).
+inline float RandF(float a, float b)
+{
+	return a + RandF()*(b-a);
+}
+
+inline int Rand(int a, int b)
+{
+	return a + rand() % ((b - a) + 1);
+}
 
 namespace Vector3
 {
