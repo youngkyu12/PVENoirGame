@@ -332,13 +332,10 @@ void CGameScene::BuildItemBillboardBatch(ID3D12Device* dev, ID3D12GraphicsComman
 			ROOT_PARAMETER_GLOBAL_SRV
 		);
 
-		SetBossSummonCircleDiffuseSrvIndex(
-			m_itemBillboardState.bossSummonCircleTexture->GetBaseSrvIndex()
-		);
-
-		SetBossCallSummonCircleDiffuseSrvIndex(
-			m_itemBillboardState.bossSummonCircleTexture->GetBaseSrvIndex()
-		);
+		SetBossSummonCircleDiffuseSrvIndex(m_itemBillboardState.bossSummonCircleTexture->GetBaseSrvIndex());
+		SetBossCallSummonCircleDiffuseSrvIndex(m_itemBillboardState.bossSummonCircleTexture->GetBaseSrvIndex());
+		SetMaterialDiffuseSrvIndex(static_cast< int >( kBossDeathCircleMaterialId ), m_itemBillboardState.bossSummonCircleTexture->GetBaseSrvIndex());
+		SetMaterialDiffuseSrvIndex(static_cast< int >( kBossDeathRingMaterialId ), m_itemBillboardState.bossSummonCircleTexture->GetBaseSrvIndex());
 	}
 
 	m_itemBillboardState.quadMesh = CreateItemBillboardQuadMesh(dev, cmd);
@@ -347,13 +344,7 @@ void CGameScene::BuildItemBillboardBatch(ID3D12Device* dev, ID3D12GraphicsComman
 		return;
 
 	m_itemBillboardState.entries.clear();
-	m_itemBillboardState.entries.reserve(
-		kKeyItemBillboardCount +
-		kPotionItemBillboardCount +
-		3 +
-		kBossShockwaveWallSegmentCount +
-		kBossCallSummonCircleMaxCount
-	);
+	m_itemBillboardState.entries.reserve(kKeyItemBillboardCount + kPotionItemBillboardCount + 5 + kBossShockwaveWallSegmentCount + kBossCallSummonCircleMaxCount);
 
 #ifdef USING_NETWORK
 	bool builtNetworkItemBillboards = false;
@@ -561,6 +552,46 @@ void CGameScene::BuildItemBillboardBatch(ID3D12Device* dev, ID3D12GraphicsComman
 		shockwave.materialId = kBossShockwaveMaterialId;
 
 		m_itemBillboardState.entries.push_back(shockwave);
+	}
+
+	{
+		ItemBillboardEntry deathCircle{};
+
+		deathCircle.active = false;
+		deathCircle.distanceCulled = true;
+		deathCircle.transparent = true;
+		deathCircle.kind = EItemBillboardKind::BossDeathCircle;
+		deathCircle.megaGridNumber = 5;
+		deathCircle.position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		deathCircle.width = 0.0f;
+		deathCircle.height = 0.0f;
+		deathCircle.yOffset = 0.060f;
+		deathCircle.cullDistance = 1000000.0f;
+		deathCircle.pickupRadius = 0.0f;
+		deathCircle.pickupHeightTolerance = 0.0f;
+		deathCircle.materialId = kBossDeathCircleMaterialId;
+
+		m_itemBillboardState.entries.push_back(deathCircle);
+	}
+
+	{
+		ItemBillboardEntry deathRing{};
+
+		deathRing.active = false;
+		deathRing.distanceCulled = true;
+		deathRing.transparent = true;
+		deathRing.kind = EItemBillboardKind::BossDeathRing;
+		deathRing.megaGridNumber = 5;
+		deathRing.position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		deathRing.width = 0.0f;
+		deathRing.height = 0.0f;
+		deathRing.yOffset = 0.090f;
+		deathRing.cullDistance = 1000000.0f;
+		deathRing.pickupRadius = 0.0f;
+		deathRing.pickupHeightTolerance = 0.0f;
+		deathRing.materialId = kBossDeathRingMaterialId;
+
+		m_itemBillboardState.entries.push_back(deathRing);
 	}
 
 	for ( UINT i = 0; i < kBossShockwaveWallSegmentCount; ++i )
@@ -921,10 +952,7 @@ void CGameScene::RenderTransparentItemBillboards(ID3D12GraphicsCommandList* cmd,
 		ItemBillboardInstanceVertex& dst =
 			mappedTransparentItemBillboardInstanceBuffer[visibleInstanceCount];
 
-		if ( item->kind == EItemBillboardKind::BossSummonCircle ||
-			item->kind == EItemBillboardKind::BossSummonGlow ||
-			item->kind == EItemBillboardKind::BossShockwave ||
-			item->kind == EItemBillboardKind::BossCallSummonCircle )
+		if ( item->kind == EItemBillboardKind::BossSummonCircle || item->kind == EItemBillboardKind::BossSummonGlow || item->kind == EItemBillboardKind::BossShockwave || item->kind == EItemBillboardKind::BossCallSummonCircle || item->kind == EItemBillboardKind::BossDeathCircle || item->kind == EItemBillboardKind::BossDeathRing )
 		{
 			StoreXZPlaneItemBillboardWorldRows(
 				dst,

@@ -208,8 +208,8 @@ namespace GameSceneHelper
 
 	static constexpr std::array<int, kPlayerWeaponDamageTierCount> kAttackPowerPlayerSwordByTier =
 	{
-		//600, 600, 600
-		10, 20, 40
+		600, 600, 600
+		//10, 20, 40
 	};
 
 	static constexpr int kAttackPowerGhoul = 5;
@@ -281,6 +281,8 @@ namespace GameSceneHelper
 		EMonsterAnimCommand cmd,
 		EMonsterAnimState locomotion = EMonsterAnimState::Idle
 	);
+
+	EWeaponType ResolveWaitSceneWeaponTypeForPlayerSlot(int playerSlot);
 
 	// -------------------------------------------------------------------------
 	// Terrain
