@@ -24,6 +24,7 @@ enum class EMusicState : uint8_t
 {
 	None = 0,
 	Menu,
+	Wait,
 	Gameplay,
 	Boss,
 	Pause

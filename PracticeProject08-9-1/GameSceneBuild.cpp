@@ -584,6 +584,16 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(iamReady);
 	g_clientService->BroadCast(sendBuffer);
 #endif
+
+	if ( m_pAudioManager )
+	{
+		if ( auto* music = m_pAudioManager->GetMusicDirector() )
+		{
+			music->SetCrossFadeSeconds(1.5f);
+			music->RequestState(EMusicState::Gameplay, false);
+			music->BeginPendingTransition();
+		}
+	}
 }
 
 void CGameScene::CreateTerrainData(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
@@ -2525,7 +2535,7 @@ void CGameScene::BuildSkinnedBatch(
 						RegisterSkinnedCullEntry(
 							raw, i, "Ghoul", pos,
 							ghoulLodMeshes, true,
-							35.0f, 90.0f, 120.0f
+							10.0f, 90.0f, 120.0f
 						);
 					}
 
@@ -2658,7 +2668,7 @@ void CGameScene::BuildSkinnedBatch(
 							RegisterSkinnedCullEntry(
 								raw, i, "Ghoul", pos,
 								ghoulLodMeshes, true,
-								35.0f, 90.0f, 120.0f
+								10.0f, 40.0f, 220.0f
 							);
 						}
 
@@ -2830,7 +2840,7 @@ void CGameScene::BuildSkinnedBatch(
 					RegisterSkinnedCullEntry(
 						raw, i, "SwordMan", pos,
 						noLodMeshes, false,
-						0.0f, 0.0f, 90.0f
+						0.0f, 0.0f, 120.0f
 					);
 
 					m_skinnedObjects.push_back(std::move(obj));
@@ -2918,7 +2928,7 @@ void CGameScene::BuildSkinnedBatch(
 						RegisterSkinnedCullEntry(
 							raw, i, "SwordMan", pos,
 							noLodMeshes, false,
-							0.0f, 0.0f, 90.0f
+							0.0f, 0.0f, 220.0f
 						);
 
 						RegisterEnemySpawnerPoolObject(
@@ -3079,7 +3089,7 @@ void CGameScene::BuildSkinnedBatch(
 					RegisterSkinnedCullEntry(
 						raw, i, "BowMan", pos,
 						noLodMeshes, false,
-						0.0f, 0.0f, 100.0f
+						0.0f, 0.0f, 120.0f
 					);
 
 					m_skinnedObjects.push_back(std::move(obj));
@@ -3170,7 +3180,7 @@ void CGameScene::BuildSkinnedBatch(
 						RegisterSkinnedCullEntry(
 							raw, i, "BowMan", pos,
 							noLodMeshes, false,
-							0.0f, 0.0f, 100.0f
+							0.0f, 0.0f, 220.0f
 						);
 
 						RegisterEnemySpawnerPoolObject(
@@ -3343,7 +3353,7 @@ void CGameScene::BuildSkinnedBatch(
 					RegisterSkinnedCullEntry(
 						raw, i, "Mutant", pos,
 						noLodMeshes, false,
-						0.0f, 0.0f, 110.0f
+						0.0f, 0.0f, 200.0f
 					);
 
 					m_skinnedObjects.push_back(std::move(obj));
@@ -3440,7 +3450,7 @@ void CGameScene::BuildSkinnedBatch(
 						RegisterSkinnedCullEntry(
 							raw, i, "Mutant", pos,
 							noLodMeshes, false,
-							0.0f, 0.0f, 110.0f
+							0.0f, 0.0f, 220.0f
 						);
 
 						RegisterEnemySpawnerPoolObject(
@@ -3617,7 +3627,7 @@ void CGameScene::BuildSkinnedBatch(
 					RegisterSkinnedCullEntry(
 						raw, i, "Boss", pos,
 						noLodMeshes, false,
-						0.0f, 0.0f, 160.0f
+						0.0f, 0.0f, 300.0f
 					);
 
 					m_skinnedObjects.push_back(std::move(obj));
@@ -3749,7 +3759,7 @@ void CGameScene::BuildSkinnedBatch(
 					m_playersBySlot[( size_t ) slot] = raw;
 
 				std::array<std::shared_ptr<CMesh>, 3> playerNoLodMeshes = { playerAsset.mesh, nullptr, nullptr };
-				RegisterSkinnedCullEntry(raw, i, "Player", pos, playerNoLodMeshes, false, 0.0f, 0.0f, 120.0f);
+				RegisterSkinnedCullEntry(raw, i, "Player", pos, playerNoLodMeshes, false, 0.0f, 0.0f, 300.0f);
 
 				m_skinnedObjects.push_back(std::move(obj));
 				b->objectRefs.push_back(raw);
@@ -5300,6 +5310,74 @@ void CGameScene::LinkSceneObjects()
 	input.applyOfflineTestLoadout = false;
 
 	GameSceneAttachmentBinder::LinkSceneObjects(input, m_attachmentBinds);
+}
+
+void CGameScene::ApplyAttachmentCullFromSkinnedOwners()
+{
+	if ( m_attachmentBinds.empty() )
+		return;
+
+	std::unordered_map<const CGameObject*, UINT> staticIndexByObject;
+	staticIndexByObject.reserve(m_staticBatch.objectRefs.size());
+
+	for ( UINT i = 0; i < static_cast< UINT >(m_staticBatch.objectRefs.size()); ++i )
+	{
+		if ( m_staticBatch.objectRefs[i] )
+			staticIndexByObject[m_staticBatch.objectRefs[i]] = i;
+	}
+
+	std::unordered_map<const CGameObject*, UINT> skinnedIndexByObject;
+	skinnedIndexByObject.reserve(m_skinnedBatch.objectRefs.size());
+
+	for ( UINT i = 0; i < static_cast< UINT >(m_skinnedBatch.objectRefs.size()); ++i )
+	{
+		if ( m_skinnedBatch.objectRefs[i] )
+			skinnedIndexByObject[m_skinnedBatch.objectRefs[i]] = i;
+	}
+
+	for ( const AttachmentBindSpec& spec : m_attachmentBinds )
+	{
+		if ( !spec.follower || !spec.target )
+			continue;
+
+		auto targetIt = skinnedIndexByObject.find(spec.target);
+		if ( targetIt == skinnedIndexByObject.end() )
+			continue;
+
+		const UINT targetIndex = targetIt->second;
+
+		bool ownerCulled = false;
+
+		if ( !spec.target->GetActive() )
+			ownerCulled = true;
+
+		if ( targetIndex < static_cast< UINT >(m_skinnedDistanceCullFlags.size()) && m_skinnedDistanceCullFlags[targetIndex] != 0 )
+			ownerCulled = true;
+
+		if ( targetIndex < static_cast< UINT >(m_skinnedOcclusionCullFlags.size()) && m_skinnedOcclusionCullFlags[targetIndex] != 0 )
+			ownerCulled = true;
+
+		if ( !ownerCulled )
+			continue;
+
+		auto followerStaticIt = staticIndexByObject.find(spec.follower);
+		if ( followerStaticIt != staticIndexByObject.end() )
+		{
+			const UINT followerIndex = followerStaticIt->second;
+
+			if ( followerIndex < static_cast< UINT >(m_staticDistanceCullFlags.size()) )
+				m_staticDistanceCullFlags[followerIndex] = 1;
+		}
+
+		auto followerSkinnedIt = skinnedIndexByObject.find(spec.follower);
+		if ( followerSkinnedIt != skinnedIndexByObject.end() )
+		{
+			const UINT followerIndex = followerSkinnedIt->second;
+
+			if ( followerIndex < static_cast< UINT >(m_skinnedDistanceCullFlags.size()) )
+				m_skinnedDistanceCullFlags[followerIndex] = 1;
+		}
+	}
 }
 
 void CGameScene::AttachInventoryComponentsToPlayers()
