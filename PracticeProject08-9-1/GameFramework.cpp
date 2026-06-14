@@ -77,6 +77,7 @@ bool CGameFramework::OnCreate(HINSTANCE hInstance, HWND hMainWnd)
 	if ( auto* music = m_pAudioManager->GetMusicDirector() )
 	{
 		music->RegisterMusic(EMusicState::Menu, "Assets/Audio/MainMenuBGM_Test.mp3");
+		music->RegisterMusic(EMusicState::Wait, "Assets/Audio/WaitSceneBGM.mp3");
 		music->RegisterMusic(EMusicState::Gameplay, "Assets/Audio/ForestBGMWithBird.wav");
 		music->SetCrossFadeSeconds(1.5f);
 	}

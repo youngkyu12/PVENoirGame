@@ -286,31 +286,67 @@ void CGameScene::ShutdownSpatialGrid()
 	m_bulletGridTrackers.clear();
 }
 
-bool CGameScene::TryGetTreeCullReferenceGridCell(
-	CCamera* camera,
-	int& outCellX,
-	int& outCellZ,
-	int& outMegaX,
-	int& outMegaZ) const
+bool CGameScene::IsAnyVillageWallTreeCullDoorProbeVisible(int megaGridNumber, CCamera* camera) const
 {
-	outCellX = -1;
-	outCellZ = -1;
-	outMegaX = -1;
-	outMegaZ = -1;
+	if ( !camera )
+		return true;
 
+	bool foundProbe = false;
+
+	for ( size_t i = 0; i < m_staticOcclusionEntries.size(); ++i )
+	{
+		const StaticOcclusionEntry& entry = m_staticOcclusionEntries[i];
+
+		if ( entry.kind != EStaticOcclusionEntryKind::TreeDoorProbe )
+			continue;
+
+		if ( entry.treeProbeMegaGridNumber != megaGridNumber )
+			continue;
+
+		if ( !entry.enabled )
+			continue;
+
+		if ( !entry.hasWorldBounds )
+			continue;
+
+		foundProbe = true;
+
+		BoundingOrientedBox testBounds = entry.worldBounds;
+		if ( !camera->IsInFrustum(testBounds) )
+			continue;
+
+		if ( !m_bStaticOcclusionQueryResultsValid )
+			return true;
+
+		if ( i >= m_staticOcclusionQuerySampleCounts.size() )
+			return true;
+
+		if ( i >= m_staticOcclusionLastFrameIssuedFlags.size() )
+			return true;
+
+		if ( i >= m_staticOcclusionZeroSampleFrameCounts.size() )
+			return true;
+
+		if ( m_staticOcclusionLastFrameIssuedFlags[i] == 0 )
+			return true;
+
+		if ( m_staticOcclusionQuerySampleCounts[i] > 0ull )
+			return true;
+
+		if ( m_staticOcclusionZeroSampleFrameCounts[i] < m_staticOcclusionHideFrameThreshold )
+			return true;
+	}
+
+	return !foundProbe;
+}
+
+bool CGameScene::ShouldCullTreesByVillageDoorProbes(CCamera* camera) const
+{
 	if ( !m_sceneGrid.IsInitialized() )
 		return false;
 
-	if ( camera )
-	{
-		const XMFLOAT3 cameraPosition = camera->GetPosition();
-
-		if ( m_sceneGrid.WorldToCell(cameraPosition.x, cameraPosition.z, outCellX, outCellZ) )
-		{
-			if ( m_sceneGrid.FineCellToMegaGridCell(outCellX, outCellZ, outMegaX, outMegaZ) )
-				return true;
-		}
-	}
+	if ( !camera )
+		return false;
 
 	CGameObject* localPlayer = GetPlayer();
 
@@ -318,50 +354,24 @@ bool CGameScene::TryGetTreeCullReferenceGridCell(
 		localPlayer = GetPlayerBySlot(0);
 
 	if ( !localPlayer )
+		return false;
+
+	if ( !IsPlayerInsideMegaGridCenter(localPlayer) )
 		return false;
 
 	const XMFLOAT3 playerPosition = localPlayer->GetPosition();
+	const int megaGridNumber = m_sceneGrid.MegaGridNumberFromWorldPosition(playerPosition.x, playerPosition.z);
 
-	if ( !m_sceneGrid.WorldToCell(playerPosition.x, playerPosition.z, outCellX, outCellZ) )
+	if ( megaGridNumber == 4 )
 		return false;
 
-	return m_sceneGrid.FineCellToMegaGridCell(outCellX, outCellZ, outMegaX, outMegaZ);
-}
-
-bool CGameScene::ShouldCullTreesByVillageGrid(CCamera* camera) const
-{
-	if ( !m_sceneGrid.IsInitialized() )
-		return false;
-
-	// Castle 포탈로 중앙 성 내부에 들어간 경우에는
-	// 기존 문/성벽 시야 판정과 무관하게 모든 나무를 컬링한다.
-	if ( m_bLocalPlayerInsideCastleCenterMegaGrid )
+	if ( megaGridNumber == 5 )
 		return true;
 
-	CGameObject* localPlayer = GetPlayer();
-
-	if ( !localPlayer )
-		localPlayer = GetPlayerBySlot(0);
-
-	if ( localPlayer )
-	{
-		const XMFLOAT3 playerPosition = localPlayer->GetPosition();
-
-		// Tower 포탈 등으로 위로 올라간 경우에는
-		// 성벽/문 기준 나무 컬링을 하지 않는다.
-		if ( playerPosition.y >= kDisableVillageTreeCullPlayerHeight )
-			return false;
-	}
-
-	int cellX = -1;
-	int cellZ = -1;
-	int megaX = -1;
-	int megaZ = -1;
-
-	if ( !TryGetTreeCullReferenceGridCell(camera, cellX, cellZ, megaX, megaZ) )
+	if ( playerPosition.y >= kDisableVillageTreeCullPlayerHeight )
 		return false;
 
-	return m_sceneGrid.ShouldCullTreesByVillageGridCell(megaX, megaZ, cellX, cellZ);
+	return !IsAnyVillageWallTreeCullDoorProbeVisible(megaGridNumber, camera);
 }
 
 void CGameScene::AddDynamicCount(int cellX, int cellZ, EGridDynamicKind kind, int delta)
@@ -427,9 +437,6 @@ void CGameScene::RegisterStaticPlacementToGrid(const StaticPlacementEntry& place
 	}
 
 	m_sceneGrid.AddStaticTouchedCells(touchedCells);
-
-	if ( IsTreeCullBlockerAssetName(placement.assetName) )
-		m_sceneGrid.MarkTreeCullBlockerCells(touchedCells);
 }
 
 #ifndef USING_NETWORK
@@ -3858,14 +3865,14 @@ void CGameScene::UpdateStaticTreeGridCullSelection(CCamera* camera)
 	if ( !camera )
 		return;
 
-	const bool shouldCullTrees = ShouldCullTreesByVillageGrid(camera);
+	const bool shouldCullTrees = ShouldCullTreesByVillageDoorProbes(camera);
 
 	if ( !shouldCullTrees )
 		return;
 
 	for ( UINT objectIndex : m_staticTreeObjectIndices )
 	{
-		if ( objectIndex >= ( UINT ) m_staticTreeGridCullFlags.size() )
+		if ( objectIndex >= static_cast< UINT >( m_staticTreeGridCullFlags.size() ) )
 			continue;
 
 		m_staticTreeGridCullFlags[objectIndex] = 1;
@@ -7381,9 +7388,9 @@ void CGameScene::BeginMonsterDeath(CGameObject* monster)
 
 	CancelMonsterPreparedActions(monster);
 
-	// 더 이상 플레이어 무기 충돌을 받지 않게 함.
+	// 더 이상 플레이어 무기 충돌을 받지 않게 하되, 사망 애니메이션 동안 bone capsule 갱신은 유지한다.
 	if ( auto* collider = monster->GetComponent<CColliderComponent>() )
-		collider->SetEnabled(false);
+		collider->DisableCollisionAndKeepUpdatingForSeconds(5.0f);
 
 	// 현재 실제로 붙는 AI는 CGhoulAIComponent지만,
 	// base 타입으로도 잡히는 구조라면 같이 처리.
@@ -7476,7 +7483,7 @@ void CGameScene::BeginLocalPlayerDeath(CGameObject* player)
 	CancelLocalPlayerPreparedActions();
 
 	if ( auto* collider = player->GetComponent<CColliderComponent>() )
-		collider->SetEnabled(false);
+		collider->DisableCollisionAndKeepUpdatingForSeconds(5.0f);
 
 	if ( auto* animComp = player->GetComponent<CAnimatorComponent>() )
 	{
@@ -7506,7 +7513,9 @@ void CGameScene::RespawnLocalPlayer(CGameObject* player)
 
 	if ( auto* collider = player->GetComponent<CColliderComponent>() )
 	{
+		collider->CancelDeferredDisable();
 		collider->SetEnabled(true);
+		collider->SetCollisionEnabled(true);
 		collider->UpdateWorldBounds();
 	}
 
@@ -9404,27 +9413,36 @@ void CGameScene::UpdateFrameRenderState(CCamera* camera)
 		PROFILE_RENDER_SCOPE("UFRS::UpdateStaticWorldLodSelection");
 		UpdateStaticWorldLodSelection(camera);
 	}
-		BeginStaticOcclusionReadback();
+
+	BeginStaticOcclusionReadback();
+
 	{
 		PROFILE_RENDER_SCOPE("UFRS::UpdateStaticOcclusionCullSelection");
 		UpdateStaticOcclusionCullSelection(camera);
 	}
+
 	UpdateStaticTreeGridCullSelection(camera);
-	{
-		PROFILE_RENDER_SCOPE("UFRS::UpdateStaticOcclusionCullSelection");
-		BuildStaticVisibleListsForFrame(camera);
-	}
 	UpdateItemBillboardDistanceCullSelection(camera);
-	
+
 	{
 		PROFILE_RENDER_SCOPE("UFRS::UpdateSkinnedWorldLodSelection");
 		UpdateSkinnedWorldLodSelection(camera);
 	}
+
 	BeginSkinnedOcclusionReadback();
+
 	{
 		PROFILE_RENDER_SCOPE("UFRS::UpdateSkinnedOcclusionCullSelection");
 		UpdateSkinnedOcclusionCullSelection(camera);
 	}
+
+	ApplyAttachmentCullFromSkinnedOwners();
+
+	{
+		PROFILE_RENDER_SCOPE("UFRS::BuildStaticVisibleListsForFrame");
+		BuildStaticVisibleListsForFrame(camera);
+	}
+
 	UpdateOtherPlayerWorldHpGaugeVisibilityForHud(camera);
 }
 

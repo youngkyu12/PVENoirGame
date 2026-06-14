@@ -451,129 +451,22 @@ bool CSceneGrid::RaycastTreeCullGridClear(
 	return true;
 }
 
-bool CSceneGrid::CanFineCellSeeOutsideThroughVillageGate(
-	int megaX,
-	int megaZ,
-	int cellX,
-	int cellZ) const
+bool CSceneGrid::CanFineCellSeeOutsideThroughVillageGate(int megaX, int megaZ, int cellX, int cellZ) const
 {
-	if ( !IsFineCellInsideTreeCullVillageCenter(megaX, megaZ, cellX, cellZ) )
-		return true;
-
-	if ( m_treeCullBlockerCells.empty() )
-		return true;
-
-	if ( IsFineCellInsideLooseTreeVisibleGateZone(megaX, megaZ, cellX, cellZ) )
-		return true;
-
-	const int centerSize = kTreeCullVillageCenterSizeCells;
-
-	const int megaStartX = megaX * kMegaGridCellWidth;
-	const int megaStartZ = megaZ * kMegaGridCellHeight;
-
-	const int centerStartX =
-		megaStartX + ( ( kMegaGridCellWidth - centerSize ) / 2 );
-
-	const int centerStartZ =
-		megaStartZ + ( ( kMegaGridCellHeight - centerSize ) / 2 );
-
-	const int centerEndX = centerStartX + centerSize;
-	const int centerEndZ = centerStartZ + centerSize;
-
-	const int centerMidX = centerStartX + ( centerSize / 2 );
-	const int centerMidZ = centerStartZ + ( centerSize / 2 );
-
-	const int gateHalfCells =
-		static_cast< int >( std::ceil(kTreeCullGateHalfWidth) ) +
-		kTreeCullRaycastExtraGateHalfWidthCells;
-
-	const int gateDepthCells =
-		static_cast< int >( std::ceil(kTreeCullGateDepth) ) +
-		kTreeCullRaycastExtraGateDepthCells;
-
-	auto TestNorthGate = [ & ] () -> bool
-		{
-			const int targetZ = centerEndZ + gateDepthCells;
-
-			for ( int offset = -gateHalfCells; offset <= gateHalfCells; ++offset )
-			{
-				const int targetX = centerMidX + offset;
-
-				if ( RaycastTreeCullGridClear(cellX, cellZ, targetX, targetZ) )
-					return true;
-			}
-
-			return false;
-		};
-
-	auto TestSouthGate = [ & ] () -> bool
-		{
-			const int targetZ = centerStartZ - gateDepthCells - 1;
-
-			for ( int offset = -gateHalfCells; offset <= gateHalfCells; ++offset )
-			{
-				const int targetX = centerMidX + offset;
-
-				if ( RaycastTreeCullGridClear(cellX, cellZ, targetX, targetZ) )
-					return true;
-			}
-
-			return false;
-		};
-
-	auto TestEastGate = [ & ] () -> bool
-		{
-			const int targetX = centerEndX + gateDepthCells;
-
-			for ( int offset = -gateHalfCells; offset <= gateHalfCells; ++offset )
-			{
-				const int targetZ = centerMidZ + offset;
-
-				if ( RaycastTreeCullGridClear(cellX, cellZ, targetX, targetZ) )
-					return true;
-			}
-
-			return false;
-		};
-
-	auto TestWestGate = [ & ] () -> bool
-		{
-			const int targetX = centerStartX - gateDepthCells - 1;
-
-			for ( int offset = -gateHalfCells; offset <= gateHalfCells; ++offset )
-			{
-				const int targetZ = centerMidZ + offset;
-
-				if ( RaycastTreeCullGridClear(cellX, cellZ, targetX, targetZ) )
-					return true;
-			}
-
-			return false;
-		};
-
-	return
-		TestNorthGate() ||
-		TestSouthGate() ||
-		TestEastGate() ||
-		TestWestGate();
+	UNREFERENCED_PARAMETER(megaX);
+	UNREFERENCED_PARAMETER(megaZ);
+	UNREFERENCED_PARAMETER(cellX);
+	UNREFERENCED_PARAMETER(cellZ);
+	return true;
 }
 
-bool CSceneGrid::ShouldCullTreesByVillageGridCell(
-	int megaX,
-	int megaZ,
-	int cellX,
-	int cellZ) const
+bool CSceneGrid::ShouldCullTreesByVillageGridCell(int megaX, int megaZ, int cellX, int cellZ) const
 {
-	if ( !m_initialized )
-		return false;
-
-	if ( !IsFineCellInsideTreeCullVillageCenter(megaX, megaZ, cellX, cellZ) )
-		return false;
-
-	if ( CanFineCellSeeOutsideThroughVillageGate(megaX, megaZ, cellX, cellZ) )
-		return false;
-
-	return true;
+	UNREFERENCED_PARAMETER(megaX);
+	UNREFERENCED_PARAMETER(megaZ);
+	UNREFERENCED_PARAMETER(cellX);
+	UNREFERENCED_PARAMETER(cellZ);
+	return false;
 }
 
 void CSceneGrid::AddDynamicCount(int cellX, int cellZ, EDynamicKind kind, int delta)
@@ -690,16 +583,7 @@ void CSceneGrid::AddStaticTouchedCells(const std::unordered_set<int>& touchedCel
 
 void CSceneGrid::MarkTreeCullBlockerCells(const std::unordered_set<int>& touchedCells)
 {
-	for ( int cellIndex : touchedCells )
-	{
-		if ( cellIndex < 0 || cellIndex >= kGridCellCount )
-			continue;
-
-		if ( cellIndex >= static_cast< int >(m_treeCullBlockerCells.size()) )
-			continue;
-
-		m_treeCullBlockerCells[( size_t ) cellIndex] = 1;
-	}
+	UNREFERENCED_PARAMETER(touchedCells);
 }
 
 bool CSceneGrid::IsStaticBuildingCell(int cellX, int cellZ) const
