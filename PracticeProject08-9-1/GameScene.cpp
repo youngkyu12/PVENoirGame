@@ -3159,8 +3159,30 @@ CGameScene::~CGameScene()
 {
 }
 
+void CGameScene::ReleaseSkyBoxResources()
+{
+	m_skyBox.shader.reset();
+	m_skyBox.texture.reset();
+	m_skyBox.vertexBuffer.Reset();
+	m_skyBox.vertexUploadBuffer.Reset();
+	m_skyBox.vertexBufferView = {};
+	m_skyBox.vertexCount = 0;
+	m_skyBox.textureBaseSrvIndex = UINT_MAX;
+	m_skyBox.objectCB = {};
+}
+
+void CGameScene::ReleaseSkyBoxUploadBuffers()
+{
+	m_skyBox.vertexUploadBuffer.Reset();
+
+	if ( m_skyBox.texture )
+		m_skyBox.texture->ReleaseUploadBuffers();
+}
+
 void CGameScene::ReleaseObjects()
 {
+	ReleaseSkyBoxResources();
+
 	m_staticBatch.shader.reset();
 	m_skinnedBatch.shader.reset();
 
@@ -3375,6 +3397,8 @@ void CGameScene::ReleaseObjects()
 
 void CGameScene::ReleaseUploadBuffers()
 {
+	ReleaseSkyBoxUploadBuffers();
+
 	for ( UINT j = 0; j < ( UINT ) m_staticObjects.size(); ++j )
 	{
 		if ( !m_staticObjects[j] ) continue;
@@ -9378,6 +9402,32 @@ void CGameScene::RebindFrameRenderState(ID3D12GraphicsCommandList* cmd, CCamera*
 	BindFrameRootParameters(cmd);
 }
 
+void CGameScene::RenderSkyBox(ID3D12GraphicsCommandList* cmd, CCamera* camera)
+{
+	if ( !cmd || !camera )
+		return;
+
+	if ( !m_skyBox.shader || !m_skyBox.vertexBuffer || m_skyBox.vertexCount == 0 )
+		return;
+
+	if ( m_skyBox.textureBaseSrvIndex == UINT_MAX )
+		return;
+
+	CScene::OnPrepareRender(cmd, camera);
+	BindFrameRootParameters(cmd);
+
+	m_skyBox.shader->Render(cmd, camera, nullptr);
+
+	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	cmd->IASetVertexBuffers(0, 1, &m_skyBox.vertexBufferView);
+	cmd->SetGraphicsRoot32BitConstant(
+		ROOT_PARAMETER_MATERIAL_ID,
+		m_skyBox.textureBaseSrvIndex,
+		0
+	);
+	cmd->DrawInstanced(m_skyBox.vertexCount, 1, 0, 0);
+}
+
 void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
 	PROFILE_RENDER_SCOPE("GameScene::RenderSceneGeometry(total)");
@@ -9476,6 +9526,8 @@ void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* c
 	RenderDepthFog(cmd, camera);
 
 	BindFrameRootParameters(cmd);
+
+	RenderSkyBox(cmd, camera);
 
 	if ( m_itemBillboardState.transparentShader )
 	{

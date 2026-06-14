@@ -351,6 +351,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	auto pTerrainShader = std::make_shared<CTerrainShader>();
 	auto pShadowTerrainShader = std::make_shared<CShadowMapTerrainShader>();
 	auto pWaterShader = std::make_shared<CWaterShader>();
+	auto pSkyBoxShader = std::make_shared<CSkyBoxShader>();
 
 	m_staticBatch.shader = pStaticShader;
 	m_treeStaticShader = pTreeStaticShader;
@@ -365,6 +366,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_terrainShader = pTerrainShader;
 	m_shadowTerrainShader = pShadowTerrainShader;
 	m_waterShader = pWaterShader;
+	m_skyBox.shader = pSkyBoxShader;
 
 	DXGI_FORMAT rtvFormats[5] =
 	{
@@ -478,6 +480,15 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 			kDsvFormat
 		);
 
+		DXGI_FORMAT skyBoxRtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+		pSkyBoxShader->CreateShader(
+			dev,
+			m_pd3dGraphicsRootSignature.Get(),
+			1,
+			&skyBoxRtvFormat,
+			kDsvFormat
+		);
+
 		pShadowTerrainShader->CreateShader(
 			dev,
 			m_pd3dGraphicsRootSignature.Get(),
@@ -492,6 +503,9 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	}
 	{
 		CreateWaterTextures(dev, cmd);
+	}
+	{
+		BuildSkyBox(dev, cmd);
 	}
 	{
 		PROFILE_RENDER_SCOPE("CGameScene::BuildObjects::BuildStaticBatch");
@@ -689,6 +703,110 @@ void CGameScene::CreateWaterTextures(ID3D12Device* dev, ID3D12GraphicsCommandLis
 	m_waterDetail1SrvIndex = m_waterDetail1Texture
 		? m_waterDetail1Texture->GetBaseSrvIndex()
 		: UINT_MAX;
+}
+
+void CGameScene::BuildSkyBox(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
+{
+	if ( !dev || !cmd || !m_pDescriptorHeap )
+		return;
+
+	m_skyBox.texture = std::make_shared<CTexture>(6, RESOURCE_TEXTURE2D, 0, 1);
+
+	const wchar_t* texturePaths[6] =
+	{
+		L"Image/SkyBox_Front_0.dds",
+		L"Image/SkyBox_Back_0.dds",
+		L"Image/SkyBox_Left_0.dds",
+		L"Image/SkyBox_Right_0.dds",
+		L"Image/SkyBox_Top_0.dds",
+		L"Image/SkyBox_Bottom_0.dds"
+	};
+
+	for ( UINT i = 0; i < 6; ++i )
+	{
+		m_skyBox.texture->LoadTextureFromFile(
+			dev,
+			cmd,
+			texturePaths[i],
+			RESOURCE_TEXTURE2D,
+			i
+		);
+	}
+
+	m_pDescriptorHeap->CreateShaderResourceViews(
+		dev,
+		m_skyBox.texture.get(),
+		ROOT_PARAMETER_GLOBAL_SRV
+	);
+
+	m_skyBox.textureBaseSrvIndex = m_skyBox.texture->GetBaseSrvIndex();
+
+	const SkyBoxVertex vertices[] =
+	{
+		// Front (+Z)
+		{ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT2(1.0f, 1.0f) },
+
+		// Back (-Z)
+		{ XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(1.0f, 1.0f) },
+
+		// Left (-X)
+		{ XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT2(1.0f, 1.0f) },
+
+		// Right (+X)
+		{ XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT2(1.0f, 1.0f) },
+
+		// Top (+Y)
+		{ XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT2(1.0f, 1.0f) },
+
+		// Bottom (-Y)
+		{ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT2(1.0f, 1.0f) },
+	};
+
+	m_skyBox.vertexCount = static_cast< UINT >(_countof(vertices));
+	m_skyBox.vertexBuffer = ::CreateBufferResource(
+		dev,
+		cmd,
+		(void*)vertices,
+		sizeof(vertices),
+		D3D12_HEAP_TYPE_DEFAULT,
+		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+		m_skyBox.vertexUploadBuffer.GetAddressOf()
+	);
+
+	m_skyBox.vertexBufferView = {};
+	m_skyBox.vertexBufferView.BufferLocation = m_skyBox.vertexBuffer->GetGPUVirtualAddress();
+	m_skyBox.vertexBufferView.StrideInBytes = sizeof(SkyBoxVertex);
+	m_skyBox.vertexBufferView.SizeInBytes = sizeof(vertices);
 }
 
 void CGameScene::OnResize(int width, int height)
@@ -5421,5 +5539,3 @@ void CGameScene::ReleaseBuildOnlySceneData()
 	ClearUnorderedSetAndFreeMemory(m_treeAlphaClipObjects);
 	ClearUnorderedSetAndFreeMemory(m_skinnedAlphaClipObjects);
 }
-
-
