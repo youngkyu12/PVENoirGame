@@ -15,8 +15,9 @@ class CAudioManager;
 
 enum class ESceneId : uint8_t
 {
-    Menu = 0,
-    Game = 1,
+	Menu = 0,
+	Wait = 1,
+	Game = 2,
 };
 
 class CSceneManager
