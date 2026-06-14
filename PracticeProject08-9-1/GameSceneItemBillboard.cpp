@@ -135,9 +135,6 @@ std::shared_ptr<CMesh> CGameScene::CreateItemBillboardQuadMesh(ID3D12Device* dev
 
 void CGameScene::AddPotionItemBillboardEntries()
 {
-#ifdef USING_NETWORK
-	return;
-#else
 	if ( !m_sceneGrid.IsInitialized() )
 		return;
 
@@ -164,7 +161,7 @@ void CGameScene::AddPotionItemBillboardEntries()
 
 	static constexpr int kPotionPlacementCenterSizeCells = 200;
 
-	std::mt19937 rng{ std::random_device{}( ) };
+	std::mt19937 rng{ 12345u };
 
 	std::unordered_set<int> usedPotionCells;
 	usedPotionCells.reserve(kPotionItemBillboardCount * 2);
@@ -256,7 +253,6 @@ void CGameScene::AddPotionItemBillboardEntries()
 	char buf[160];
 	sprintf_s(buf, "[PotionItemSpawn] complete count=%zu perKind=%u\n", m_itemBillboardState.entries.size(), kPotionItemSpawnCountPerKind);
 	OutputDebugStringA(buf);
-#endif
 }
 
 void CGameScene::BuildItemBillboardBatch(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, UINT rtCount, DXGI_FORMAT* rtvFormats, DXGI_FORMAT dsvFormat)
@@ -336,13 +332,10 @@ void CGameScene::BuildItemBillboardBatch(ID3D12Device* dev, ID3D12GraphicsComman
 			ROOT_PARAMETER_GLOBAL_SRV
 		);
 
-		SetBossSummonCircleDiffuseSrvIndex(
-			m_itemBillboardState.bossSummonCircleTexture->GetBaseSrvIndex()
-		);
-
-		SetBossCallSummonCircleDiffuseSrvIndex(
-			m_itemBillboardState.bossSummonCircleTexture->GetBaseSrvIndex()
-		);
+		SetBossSummonCircleDiffuseSrvIndex(m_itemBillboardState.bossSummonCircleTexture->GetBaseSrvIndex());
+		SetBossCallSummonCircleDiffuseSrvIndex(m_itemBillboardState.bossSummonCircleTexture->GetBaseSrvIndex());
+		SetMaterialDiffuseSrvIndex(static_cast< int >( kBossDeathCircleMaterialId ), m_itemBillboardState.bossSummonCircleTexture->GetBaseSrvIndex());
+		SetMaterialDiffuseSrvIndex(static_cast< int >( kBossDeathRingMaterialId ), m_itemBillboardState.bossSummonCircleTexture->GetBaseSrvIndex());
 	}
 
 	m_itemBillboardState.quadMesh = CreateItemBillboardQuadMesh(dev, cmd);
@@ -350,62 +343,134 @@ void CGameScene::BuildItemBillboardBatch(ID3D12Device* dev, ID3D12GraphicsComman
 	if ( !m_itemBillboardState.quadMesh )
 		return;
 
-	const std::array<XMFLOAT3, kKeyItemBillboardCount> keyPositions =
-	{
-		XMFLOAT3(380.0f, 100.5f, -24.0f),
-		XMFLOAT3(400.0f, 0.0f, 400.0f),
-		XMFLOAT3(400.0f, 0.0f, 800.0f),
-		XMFLOAT3(0.0f, 0.0f, 800.0f),
-		XMFLOAT3(-430.0f, 100.5f, 774.0f),
-		XMFLOAT3(-400.0f, 0.0f, 400.0f),
-		XMFLOAT3(-400.0f, 0.0f, 0.0f)
-	};
-
 	m_itemBillboardState.entries.clear();
-	m_itemBillboardState.entries.reserve(
-		kKeyItemBillboardCount +
-		kPotionItemBillboardCount +
-		3 +
-		kBossShockwaveWallSegmentCount +
-		kBossCallSummonCircleMaxCount
-	);
+	m_itemBillboardState.entries.reserve(kKeyItemBillboardCount + kPotionItemBillboardCount + 5 + kBossShockwaveWallSegmentCount + kBossCallSummonCircleMaxCount);
 
-	for ( UINT i = 0; i < kKeyItemBillboardCount; ++i )
+#ifdef USING_NETWORK
+	bool builtNetworkItemBillboards = false;
+	if ( std::holds_alternative<GameStartData>(m_pendingNetworkMessage.data) )
 	{
-		ItemBillboardEntry key{};
-		key.active = true;
-		key.distanceCulled = false;
-		key.kind = EItemBillboardKind::Key;
+		const GameStartData& netData = std::get<GameStartData>(m_pendingNetworkMessage.data);
 
-		key.position = AdjustItemBillboardPositionToTerrain(keyPositions[i]);
-		key.megaGridNumber =
-			m_sceneGrid.MegaGridNumberFromWorldPosition(
-				key.position.x,
-				key.position.z
-			);
-
-		if ( key.megaGridNumber == 6 || key.megaGridNumber == 8 )
+		for ( const ItemSpawnState& si : netData.items )
 		{
-			key.active = false;
-			key.distanceCulled = true;
+			ItemBillboardEntry item{};
+			item.serverId = si.id;
+			item.active = si.active;
+			item.distanceCulled = !si.active;
+			item.position = si.position;
+			item.megaGridNumber =
+				m_sceneGrid.MegaGridNumberFromWorldPosition(
+					item.position.x,
+					item.position.z
+				);
+			item.pickupRadius = 1.25f;
+			item.pickupHeightTolerance = 2.0f;
+			item.transparent = true;
+			item.cullDistance = 300.0f;
+
+			switch ( si.kind )
+			{
+			case 1:
+				item.kind = EItemBillboardKind::HealPotion;
+				item.inventorySlot = 0;
+				item.width = 1.25f;
+				item.height = 1.25f;
+				item.yOffset = 1.20f;
+				item.materialId = kHealPotionItemBillboardMaterialId;
+				break;
+			case 2:
+				item.kind = EItemBillboardKind::AttackPowerPotion;
+				item.inventorySlot = 1;
+				item.width = 1.25f;
+				item.height = 1.25f;
+				item.yOffset = 1.20f;
+				item.materialId = kAttackPotionItemBillboardMaterialId;
+				break;
+			case 3:
+				item.kind = EItemBillboardKind::DefensePotion;
+				item.inventorySlot = 2;
+				item.width = 1.25f;
+				item.height = 1.25f;
+				item.yOffset = 1.20f;
+				item.materialId = kDefensePotionItemBillboardMaterialId;
+				break;
+			case 4:
+				item.kind = EItemBillboardKind::MoveSpeedPotion;
+				item.inventorySlot = 3;
+				item.width = 1.25f;
+				item.height = 1.25f;
+				item.yOffset = 1.20f;
+				item.materialId = kMoveSpeedPotionItemBillboardMaterialId;
+				break;
+			case 5:
+				item.kind = EItemBillboardKind::Key;
+				item.width = 2.0f;
+				item.height = 2.0f;
+				item.yOffset = 2.0f;
+				item.materialId = kTransparentItemBillboardMaterialId;
+				break;
+			default:
+				continue;
+			}
+
+			m_itemBillboardState.entries.push_back(item);
 		}
 
-		key.width = 2.0f;
-		key.height = 2.0f;
-		key.yOffset = 2.0f;
-
-		key.cullDistance = 300.0f;
-
-		key.pickupRadius = 1.25f;
-		key.pickupHeightTolerance = 2.0f;
-
-		key.transparent = true;
-		key.materialId = kTransparentItemBillboardMaterialId;
-
-		m_itemBillboardState.entries.push_back(key);
+		builtNetworkItemBillboards = true;
 	}
 
-	AddPotionItemBillboardEntries();
+	if ( !builtNetworkItemBillboards )
+#endif
+	{
+		const std::array<XMFLOAT3, kKeyItemBillboardCount> keyPositions =
+		{
+			XMFLOAT3(380.0f, 100.5f, -24.0f),
+			XMFLOAT3(400.0f, 0.0f, 400.0f),
+			XMFLOAT3(400.0f, 0.0f, 800.0f),
+			XMFLOAT3(0.0f, 0.0f, 800.0f),
+			XMFLOAT3(-430.0f, 100.5f, 774.0f),
+			XMFLOAT3(-400.0f, 0.0f, 400.0f),
+			XMFLOAT3(-400.0f, 0.0f, 0.0f)
+		};
+
+		for ( UINT i = 0; i < kKeyItemBillboardCount; ++i )
+		{
+			ItemBillboardEntry key{};
+			key.active = true;
+			key.distanceCulled = false;
+			key.kind = EItemBillboardKind::Key;
+
+			key.position = AdjustItemBillboardPositionToTerrain(keyPositions[i]);
+			key.megaGridNumber =
+				m_sceneGrid.MegaGridNumberFromWorldPosition(
+					key.position.x,
+					key.position.z
+				);
+
+			if ( key.megaGridNumber == 6 || key.megaGridNumber == 8 )
+			{
+				key.active = false;
+				key.distanceCulled = true;
+			}
+
+			key.width = 2.0f;
+			key.height = 2.0f;
+			key.yOffset = 2.0f;
+
+			key.cullDistance = 300.0f;
+
+			key.pickupRadius = 1.25f;
+			key.pickupHeightTolerance = 2.0f;
+
+			key.transparent = true;
+			key.materialId = kTransparentItemBillboardMaterialId;
+
+			m_itemBillboardState.entries.push_back(key);
+		}
+
+		AddPotionItemBillboardEntries();
+	}
 
 	{
 		ItemBillboardEntry summonGlow{};
@@ -487,6 +552,46 @@ void CGameScene::BuildItemBillboardBatch(ID3D12Device* dev, ID3D12GraphicsComman
 		shockwave.materialId = kBossShockwaveMaterialId;
 
 		m_itemBillboardState.entries.push_back(shockwave);
+	}
+
+	{
+		ItemBillboardEntry deathCircle{};
+
+		deathCircle.active = false;
+		deathCircle.distanceCulled = true;
+		deathCircle.transparent = true;
+		deathCircle.kind = EItemBillboardKind::BossDeathCircle;
+		deathCircle.megaGridNumber = 5;
+		deathCircle.position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		deathCircle.width = 0.0f;
+		deathCircle.height = 0.0f;
+		deathCircle.yOffset = 0.060f;
+		deathCircle.cullDistance = 1000000.0f;
+		deathCircle.pickupRadius = 0.0f;
+		deathCircle.pickupHeightTolerance = 0.0f;
+		deathCircle.materialId = kBossDeathCircleMaterialId;
+
+		m_itemBillboardState.entries.push_back(deathCircle);
+	}
+
+	{
+		ItemBillboardEntry deathRing{};
+
+		deathRing.active = false;
+		deathRing.distanceCulled = true;
+		deathRing.transparent = true;
+		deathRing.kind = EItemBillboardKind::BossDeathRing;
+		deathRing.megaGridNumber = 5;
+		deathRing.position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		deathRing.width = 0.0f;
+		deathRing.height = 0.0f;
+		deathRing.yOffset = 0.090f;
+		deathRing.cullDistance = 1000000.0f;
+		deathRing.pickupRadius = 0.0f;
+		deathRing.pickupHeightTolerance = 0.0f;
+		deathRing.materialId = kBossDeathRingMaterialId;
+
+		m_itemBillboardState.entries.push_back(deathRing);
 	}
 
 	for ( UINT i = 0; i < kBossShockwaveWallSegmentCount; ++i )
@@ -847,10 +952,7 @@ void CGameScene::RenderTransparentItemBillboards(ID3D12GraphicsCommandList* cmd,
 		ItemBillboardInstanceVertex& dst =
 			mappedTransparentItemBillboardInstanceBuffer[visibleInstanceCount];
 
-		if ( item->kind == EItemBillboardKind::BossSummonCircle ||
-			item->kind == EItemBillboardKind::BossSummonGlow ||
-			item->kind == EItemBillboardKind::BossShockwave ||
-			item->kind == EItemBillboardKind::BossCallSummonCircle )
+		if ( item->kind == EItemBillboardKind::BossSummonCircle || item->kind == EItemBillboardKind::BossSummonGlow || item->kind == EItemBillboardKind::BossShockwave || item->kind == EItemBillboardKind::BossCallSummonCircle || item->kind == EItemBillboardKind::BossDeathCircle || item->kind == EItemBillboardKind::BossDeathRing )
 		{
 			StoreXZPlaneItemBillboardWorldRows(
 				dst,

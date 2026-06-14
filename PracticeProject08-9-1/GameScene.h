@@ -464,6 +464,16 @@ private:
 	void SpawnBossSummonGlow(const XMFLOAT3& center, float alpha);
 	void SpawnBossSummonVisuals(const XMFLOAT3& center, float alpha);
 
+	void SetBossDeathCircleAlpha(float alpha);
+	void SetBossDeathRingAlpha(float alpha);
+	void BeginBossDeathEffect(CGameObject* boss);
+	void UpdateBossDeathEffect(float dt);
+	void ClearBossDeathVisualBillboards();
+	void SetBossDeathRendererVisible(CGameObject* boss, bool visible);
+	void SpawnBossDeathAbsorbParticles(const XMFLOAT3& center, float alpha, int count);
+	void SpawnBossDeathBlackSmoke(const XMFLOAT3& center, int count, float sizeScale, float upwardBias);
+	void SpawnBossDeathGreenBurst(const XMFLOAT3& center);
+
 	void SetBossShockwaveAlpha(float alpha);
 	void SpawnBossShockwave(const XMFLOAT3& center);
 	void UpdateBossShockwave(float dt);
@@ -771,6 +781,9 @@ private:
 	void UpdateMegaGrid5DirectionalLightState();
 	void ApplyMegaGrid5DirectionalLightProfile(bool enabled);
 
+	void UpdateMegaGrid4LowYPoison(float dt);
+	bool IsPlayerInsideMegaGrid4LowYPoisonArea(const CGameObject* player) const;
+
 	bool TryTeleportLocalPlayerToMegaGridByNumber(int megaGridNumber);
 	XMFLOAT3 ComputeLocalStageTeleportPosition(int megaGridNumber) const;
 	XMFLOAT3 ComputeMegaGridCenterPosition(int megaGridNumber, float y) const;
@@ -994,6 +1007,8 @@ private:
 	static constexpr UINT kBossShockwaveMaterialId = MAX_MATERIALS - 5;
 	static constexpr UINT kBossShockwaveWallMaterialId = MAX_MATERIALS - 6;
 	static constexpr UINT kBossCallSummonCircleMaterialId = MAX_MATERIALS - 7;
+	static constexpr UINT kBossDeathCircleMaterialId = MAX_MATERIALS - 18;
+	static constexpr UINT kBossDeathRingMaterialId = MAX_MATERIALS - 19;
 	static constexpr UINT kMonsterHpGaugeMaterialId = MAX_MATERIALS - 12;
 	static constexpr UINT kMonsterHpGaugeEmptyMaterialId = MAX_MATERIALS - 13;
 	static constexpr UINT kPlayerWorldHpNameMaterialBaseId = MAX_MATERIALS - 17;
@@ -1696,6 +1711,22 @@ private:
 	bool m_bLocalPlayerInsideCastleCenterMegaGrid = false;
 	bool m_bMegaGrid5DirectionalLightProfileActive = false;
 
+	struct MegaGrid4LowYPoisonState
+	{
+		float exposureSec = 0.0f;
+		float damageAccumulatorSec = 0.0f;
+		bool poisoned = false;
+	};
+
+	static constexpr int   kMegaGrid4LowYPoisonMegaGridNumber = 4;
+	static constexpr float kMegaGrid4LowYPoisonHalfExtent = 100.0f; // 중앙 200 x 200
+	static constexpr float kMegaGrid4LowYPoisonMaxY = 2.8f;
+	static constexpr float kMegaGrid4LowYPoisonGraceSec = 1.0f;
+	static constexpr float kMegaGrid4LowYPoisonDamageIntervalSec = 1.0f;
+	static constexpr int   kMegaGrid4LowYPoisonDamagePerTick = 5;
+
+	std::array<MegaGrid4LowYPoisonState, 4> m_megaGrid4LowYPoisonStates = {};
+
 	bool GetPauseOverlayRect(XMFLOAT4& outRect) const;
 
 	std::vector<SkinnedInstanceGroup>   m_skinnedInstanceGroups;
@@ -1858,6 +1889,42 @@ private:
 	XMFLOAT3 m_bossShockwaveWindSfxDirection = XMFLOAT3(0.0f, 0.0f, 1.0f);
 	XMFLOAT3 m_bossShockwaveWindSfxPrevPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
 	bool m_bossShockwaveWindSfxHasPrevPosition = false;
+
+	static constexpr float kBossDeathEffectDurationSec = 2.0f;
+	static constexpr float kBossDeathCircleStartSec = 0.10f;
+	static constexpr float kBossDeathCircleFadeInSec = 0.35f;
+	static constexpr float kBossDeathCircleFadeOutStartSec = 1.45f;
+	static constexpr float kBossDeathCircleFadeOutSec = 0.55f;
+	static constexpr float kBossDeathLiftStartSec = 0.20f;
+	static constexpr float kBossDeathLiftDurationSec = 0.65f;
+	static constexpr float kBossDeathMaxLift = 0.45f;
+	static constexpr float kBossDeathAbsorbStartSec = 0.35f;
+	static constexpr float kBossDeathSmokeStartSec = 0.55f;
+	static constexpr float kBossDeathRendererHideTimeSec = 1.00f;
+	static constexpr float kBossDeathBurstTimeSec = 1.00f;
+	static constexpr float kBossDeathGlowEmitIntervalSec = 0.055f;
+	static constexpr float kBossDeathSmokeEmitIntervalSec = 0.070f;
+	static constexpr float kBossDeathCircleSize = 26.0f;
+	static constexpr float kBossDeathRingStartSize = 6.0f;
+	static constexpr float kBossDeathRingEndSize = 42.0f;
+	static constexpr float kBossDeathRingExpandSec = 0.45f;
+	static constexpr float kBossDeathRingFadeSec = 0.55f;
+	static constexpr int kBossDeathAbsorbParticlesPerEmit = 5;
+
+	struct BossDeathEffectState
+	{
+		bool active = false;
+		CGameObject* boss = nullptr;
+		XMFLOAT3 originalPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		XMFLOAT3 groundCenter = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		float ageSec = 0.0f;
+		float glowEmitAccumulatorSec = 0.0f;
+		float smokeEmitAccumulatorSec = 0.0f;
+		bool rendererHidden = false;
+		bool burstSpawned = false;
+	};
+
+	BossDeathEffectState m_bossDeathEffect;
 
 	static constexpr UINT  kBossPoisonProjectileMaxCount = 8;
 

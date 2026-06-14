@@ -548,4 +548,19 @@ namespace GameSceneHelper
 		ctrl->SetLocomotionState(locomotion);
 		ctrl->RequestCommand(cmd);
 	}
+
+	EWeaponType ResolveWaitSceneWeaponTypeForPlayerSlot(int playerSlot)
+	{
+		const int safePlayerSlot = std::clamp(playerSlot, 0, 3);
+
+		if ( !g_waitSceneWeaponSelectionKnown[safePlayerSlot] )
+			return EWeaponType::Sword;
+
+		const int weaponSlot = g_waitSceneSelectedWeaponSlots[safePlayerSlot];
+
+		if ( weaponSlot < 0 || weaponSlot > 3 )
+			return EWeaponType::Sword;
+
+		return static_cast< EWeaponType >( weaponSlot );
+	}
 }

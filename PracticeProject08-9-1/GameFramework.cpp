@@ -1091,11 +1091,8 @@ void CGameFramework::OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM
 		CScene::ESceneRequest req;
 		if ( scene->ConsumeSceneRequest(req) )
 		{
-			if ( req == CScene::ESceneRequest::SwitchToGame )
-			{
-				// MenuScene을 "로딩 UI 상태"로 1프레임 더 보여준 뒤 실제 전환
-				RequestSceneSwitch(ESceneId::Game, true);
-			}
+			if ( req == CScene::ESceneRequest::SwitchToWait ) RequestSceneSwitch(ESceneId::Wait, false);
+			else if ( req == CScene::ESceneRequest::SwitchToGame ) RequestSceneSwitch(ESceneId::Game, true);
 		}
 	}
 

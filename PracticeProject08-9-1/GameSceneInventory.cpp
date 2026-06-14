@@ -60,7 +60,25 @@ bool CGameScene::RequestUseInventoryItemSlot(int slot)
 		return false;
 
 #ifdef USING_NETWORK
-	return false;
+	if ( m_bLocalPlayerDead )
+		return false;
+
+	if ( m_inventoryItemCounts[static_cast<size_t>(slot)] <= 0 )
+		return false;
+
+	{
+		Protocol::C_USE_ITEM pkt;
+		pkt.set_playerid(g_myPlayerId);
+		pkt.set_slot(slot);
+		auto sendBuffer = ServerPacketHandler::MakeSendBuffer(pkt);
+		g_clientService->BroadCast(sendBuffer);
+	}
+
+	std::array<int, CGameSceneHUD::kInventorySlotCount> counts = m_inventoryItemCounts;
+	--counts[static_cast<size_t>(slot)];
+	SetInventoryItemCounts(counts);
+
+	return true;
 #else
 	if ( m_bLocalPlayerDead )
 		return false;

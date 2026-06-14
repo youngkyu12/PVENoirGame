@@ -41,11 +41,11 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 	m_bSimulateLocalEnemySpawner = true;
 	m_bSimulateLocalPlayerWorldStaticRollback = true;
 	m_bSimulateLocalTeleport = false;
-	m_bSimulateLocalItemPickup = true;
+	m_bSimulateLocalItemPickup = false;
 	m_bCanBossStageDirectly = false;
 	m_bSimulateLocalStageTeleport = false;
 #else
-	m_bSimulateLocalPlayerMonsterAttackCollision = false;
+	m_bSimulateLocalPlayerMonsterAttackCollision = true;
 
 	m_bSimulateLocalAI = true;
 
@@ -3664,15 +3664,18 @@ void CGameScene::BuildSkinnedBatch(
 				float yaw = 0.0f;
 
 #ifdef USING_NETWORK
-				EWeaponType initialWeapon = EWeaponType::Sword;
+				EWeaponType serverWeapon = EWeaponType::Sword;
 				uint32_t initialHp = static_cast< uint32_t >( kHpPlayer );
-				if ( !GetNetworkPlayerSpawn(k, pos, yaw, initialWeapon, initialHp) )
+				if ( !GetNetworkPlayerSpawn(k, pos, yaw, serverWeapon, initialHp) )
 					break;
+				( void ) serverWeapon;
 #else
 				pos.x = playerBase.x + 2.0f * ( float ) slot;
 				pos.y = playerBase.y;
 				pos.z = playerBase.z;
 #endif
+
+				const EWeaponType initialWeapon = ResolveWaitSceneWeaponTypeForPlayerSlot(slot);
 
 				GameSceneObjectFactory::SkinnedRenderableDesc createDesc{};
 				createDesc.ctx = MakeSkinnedContext(i);
@@ -3711,12 +3714,12 @@ void CGameScene::BuildSkinnedBatch(
 				if ( !obj )
 					continue;
 
-#ifdef USING_NETWORK
 				if ( auto* equipComp = obj->GetComponent<CPlayerEquipmentComponent>() )
 				{
 					equipComp->SetLoadout(initialWeapon);
 				}
 
+#ifdef USING_NETWORK
 				if ( auto* hp = obj->GetComponent<CHealthComponent>() )
 				{
 					hp->SetCurrentHp(static_cast< int >( initialHp ));
@@ -5294,11 +5297,7 @@ void CGameScene::LinkSceneObjects()
 	input.mutantRefs = &m_MutantRefs;
 	input.helmetRefs = &m_helmetRefs;
 
-#ifndef USING_NETWORK
-	input.applyOfflineTestLoadout = true;
-#else
 	input.applyOfflineTestLoadout = false;
-#endif
 
 	GameSceneAttachmentBinder::LinkSceneObjects(input, m_attachmentBinds);
 }

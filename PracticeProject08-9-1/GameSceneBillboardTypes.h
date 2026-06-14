@@ -334,6 +334,8 @@ enum class EItemBillboardKind : UINT
 	AttackPowerPotion = 7,
 	DefensePotion = 8,
 	MoveSpeedPotion = 9,
+	BossDeathCircle = 10,
+	BossDeathRing = 11,
 };
 
 struct ItemBillboardEntry
@@ -344,6 +346,8 @@ struct ItemBillboardEntry
 	bool transparent = false;
 
 	EItemBillboardKind kind = EItemBillboardKind::Key;
+
+	uint64_t serverId = 0;
 
 	// 1~9. 유효하지 않으면 -1.
 	int megaGridNumber = -1;

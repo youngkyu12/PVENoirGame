@@ -254,6 +254,7 @@
     <ClInclude Include="Texture.h" />
     <ClInclude Include="Timer.h" />
     <ClInclude Include="MathHelper.h" />
+    <ClInclude Include="WaitScene.h" />
     <ClInclude Include="WeaponHitboxComponent.h" />
   </ItemGroup>
   <ItemGroup>
@@ -293,6 +294,7 @@
     <ClCompile Include="GameSceneBillboard.cpp" />
     <ClCompile Include="GameSceneBillboardCommon.cpp" />
     <ClCompile Include="GameSceneBossCombatEffectCasts.cpp" />
+    <ClCompile Include="GameSceneBossDeathEffects.cpp" />
     <ClCompile Include="GameSceneBossShockwaveEffects.cpp" />
     <ClCompile Include="GameSceneBossSummonEffects.cpp" />
     <ClCompile Include="GameSceneBuild.cpp" />
@@ -366,6 +368,7 @@
     <ClCompile Include="TerrainData.cpp" />
     <ClCompile Include="Texture.cpp" />
     <ClCompile Include="Timer.cpp" />
+    <ClCompile Include="WaitScene.cpp" />
     <ClCompile Include="WeaponHitboxComponent.cpp" />
   </ItemGroup>
   <ItemGroup>

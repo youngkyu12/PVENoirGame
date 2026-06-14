@@ -136,13 +136,14 @@ CGameScene::CGameScene()
 	m_bSimulateLocalEnemySpawner = false;
 	m_bSimulateLocalPlayerWorldStaticRollback = false;
 	m_bSimulateLocalTeleport = false;
-	m_bSimulateLocalItemPickup = true;
+	m_bSimulateLocalItemPickup = false;
 	m_bCanBossStageDirectly = false;
 	m_bSimulateLocalStageTeleport = false;
 	m_bPrevLocalStageTeleportKeyDown.fill(false);
 #endif
 
 	m_bossMeleeSlashCastStates.clear();
+	m_bossDeathEffect = BossDeathEffectState{};
 
 	m_bLocalPlayerDead = false;
 	m_bLocalPlayerRespawnUsed = false;
@@ -163,6 +164,8 @@ CGameScene::CGameScene()
 
 	for ( std::array<float, CGameSceneHUD::kInventorySlotCount>& accumulators : m_inventoryBuffParticleEmitAccumulators )
 		accumulators.fill(0.0f);
+
+	m_megaGrid4LowYPoisonStates = {};
 }
 
 void CGameScene::SetFrameResourceIndex(UINT frameResourceIndex)
@@ -1945,6 +1948,119 @@ void CGameScene::ApplyMegaGrid5DirectionalLightProfile(bool enabled)
 #endif
 }
 
+bool CGameScene::IsPlayerInsideMegaGrid4LowYPoisonArea(const CGameObject* player) const
+{
+	if ( !player )
+		return false;
+
+	const XMFLOAT3 pos = player->GetPosition();
+
+	if ( pos.y > kMegaGrid4LowYPoisonMaxY )
+		return false;
+
+	const XMFLOAT3 center = ComputeMegaGridCenterPosition(kMegaGrid4LowYPoisonMegaGridNumber, 0.0f);
+
+	const float dx = std::fabs(pos.x - center.x);
+	const float dz = std::fabs(pos.z - center.z);
+
+	return dx <= kMegaGrid4LowYPoisonHalfExtent && dz <= kMegaGrid4LowYPoisonHalfExtent;
+}
+
+void CGameScene::UpdateMegaGrid4LowYPoison(float dt)
+{
+#ifndef USING_NETWORK
+	if ( dt <= 0.0f )
+		return;
+
+	for ( int slot = 0; slot < static_cast< int >(m_playersBySlot.size()); ++slot )
+	{
+		CGameObject* player = m_playersBySlot[static_cast< size_t >(slot)];
+		MegaGrid4LowYPoisonState& state = m_megaGrid4LowYPoisonStates[static_cast< size_t >(slot)];
+
+		if ( !player )
+		{
+			state = MegaGrid4LowYPoisonState{};
+			continue;
+		}
+
+		CHealthComponent* hp = player->GetComponent<CHealthComponent>();
+
+		if ( !hp || hp->IsDead() )
+		{
+			state = MegaGrid4LowYPoisonState{};
+			continue;
+		}
+
+		const bool insidePoisonArea = IsPlayerInsideMegaGrid4LowYPoisonArea(player);
+
+		if ( insidePoisonArea )
+		{
+			state.exposureSec += dt;
+
+			if ( state.exposureSec >= kMegaGrid4LowYPoisonGraceSec )
+			{
+				state.exposureSec = kMegaGrid4LowYPoisonGraceSec;
+				state.poisoned = true;
+			}
+		}
+		else
+		{
+			state.exposureSec -= dt;
+
+			if ( state.exposureSec <= 0.0f )
+			{
+				state = MegaGrid4LowYPoisonState{};
+				continue;
+			}
+
+			if ( !state.poisoned )
+				state.damageAccumulatorSec = 0.0f;
+		}
+
+		if ( !state.poisoned )
+			continue;
+
+		if ( !insidePoisonArea )
+		{
+			state.damageAccumulatorSec = 0.0f;
+			continue;
+		}
+
+		state.damageAccumulatorSec += dt;
+
+		if ( state.damageAccumulatorSec < kMegaGrid4LowYPoisonDamageIntervalSec )
+			continue;
+
+		const int tickCount = static_cast< int >(state.damageAccumulatorSec / kMegaGrid4LowYPoisonDamageIntervalSec);
+		state.damageAccumulatorSec -= static_cast< float >(tickCount) * kMegaGrid4LowYPoisonDamageIntervalSec;
+
+		const int damage = tickCount * kMegaGrid4LowYPoisonDamagePerTick;
+		hp->TakeDamage(damage);
+	}
+
+	float poisonOverlayAlpha = 0.0f;
+
+	if ( m_localPlayerSlot >= 0 && m_localPlayerSlot < static_cast< int >(m_megaGrid4LowYPoisonStates.size()) )
+	{
+		const MegaGrid4LowYPoisonState& localState = m_megaGrid4LowYPoisonStates[static_cast< size_t >(m_localPlayerSlot)];
+
+		if ( kMegaGrid4LowYPoisonGraceSec > 0.0f )
+			poisonOverlayAlpha = localState.exposureSec / kMegaGrid4LowYPoisonGraceSec;
+
+		if ( poisonOverlayAlpha < 0.0f )
+			poisonOverlayAlpha = 0.0f;
+
+		if ( poisonOverlayAlpha > 1.0f )
+			poisonOverlayAlpha = 1.0f;
+	}
+
+	m_hud.SetPoisonOverlayAlpha(poisonOverlayAlpha);
+#else
+	UNREFERENCED_PARAMETER(dt);
+	m_hud.SetPoisonOverlayAlpha(0.0f);
+#endif
+}
+
 XMFLOAT3 CGameScene::ComputeMegaGridCenterPosition(
 	int megaGridNumber,
 	float y) const
@@ -3352,6 +3468,8 @@ void CGameScene::ReleaseObjects()
 
 	for ( std::array<float, CGameSceneHUD::kInventorySlotCount>& accumulators : m_inventoryBuffParticleEmitAccumulators )
 		accumulators.fill(0.0f);
+
+	m_megaGrid4LowYPoisonStates = {};
 
 	m_bossCallSummonPlanCallIndex = -1;
 	m_bossCallSummonPlanEntries.clear();
@@ -7256,6 +7374,7 @@ void CGameScene::BeginMonsterDeath(CGameObject* monster)
 	if ( IsBossMonsterObject(monster) )
 	{
 		PlayBossDeathSfxAt(monster->GetPosition());
+		BeginBossDeathEffect(monster);
 	}
 
 	HandleMutantKeyTriggerDeath(monster);
@@ -7735,7 +7854,6 @@ void CGameScene::RequestFireBullet(CGameObject* shooter, float speed, float life
 
 bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 {
-#ifndef USING_NETWORK
 	if ( !pKeysBuffer )
 	{
 		m_bPrevLocalMonsterChaseToggleKeyDown = false;
@@ -7746,6 +7864,9 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 		return false;
 	}
 
+	const bool stageTeleportModifierDown = ( ( pKeysBuffer[VK_LCONTROL] & 0xF0 ) != 0 ) || ( ( pKeysBuffer[VK_RCONTROL] & 0xF0 ) != 0 );
+
+#ifndef USING_NETWORK
 	// ---------------------------------------------------------------------
 	// Q: 로컬 몬스터 추적 on/off
 	// ---------------------------------------------------------------------
@@ -7774,8 +7895,7 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 	}
 
 	m_bPrevDebugDamageMegaGrid5KeyDown = enterDown;
-
-	const bool stageTeleportModifierDown = ( ( pKeysBuffer[VK_LCONTROL] & 0xF0 ) != 0 ) || ( ( pKeysBuffer[VK_RCONTROL] & 0xF0 ) != 0 );
+#endif
 
 	// ---------------------------------------------------------------------
 	// 1~4: 인벤토리 아이템 사용 요청
@@ -7791,6 +7911,7 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 		m_bPrevInventoryUseKeyDown[static_cast< size_t >(slot)] = down;
 	}
 
+#ifndef USING_NETWORK
 	// ---------------------------------------------------------------------
 	// Ctrl + 1~9: 로컬 스테이지 메가그리드 강제 텔레포트
 	//
@@ -7820,8 +7941,6 @@ bool CGameScene::ProcessInput(UCHAR* pKeysBuffer)
 
 		m_bPrevLocalStageTeleportKeyDown[static_cast< size_t >( megaGridNumber )] = down;
 	}
-#else
-	UNREFERENCED_PARAMETER(pKeysBuffer);
 #endif
 
 	return false;
@@ -8109,6 +8228,7 @@ void CGameScene::AnimateObjects(float dt)
 	UpdateBossCallSummonWwwEffects(dt);
 #endif
 
+	UpdateBossDeathEffect(dt);
 	UpdateMuzzleFlashes(dt);
 	UpdateGunSmokes(dt);
 	UpdateSwordTrails(dt);
@@ -8642,6 +8762,38 @@ void CGameScene::AnimateObjects(float dt)
 			it = m_networkBossPoisonById.erase(it);
 		}
 
+		// 서버 item snapshot으로 billboard 상태 reconcile
+		for ( const ItemSpawnState& itemState : receivedSnapshot.items )
+		{
+			for ( ItemBillboardEntry& entry : m_itemBillboardState.entries )
+			{
+				if ( entry.serverId == itemState.id )
+				{
+					entry.active = itemState.active;
+					if ( !itemState.active )
+						entry.distanceCulled = true;
+					break;
+				}
+			}
+		}
+
+		// 로컬 플레이어 인벤토리 동기화
+		for ( const auto& playerState : receivedSnapshot.players )
+		{
+			if ( static_cast<int>(playerState.id) != m_localPlayerSlot )
+				continue;
+
+			std::array<int, CGameSceneHUD::kInventorySlotCount> counts = { 0, 0, 0, 0 };
+			for ( const InventoryEntryState& inv : playerState.inventory )
+			{
+				const int slot = static_cast<int>(inv.kind) - 1;
+				if ( slot >= 0 && slot < CGameSceneHUD::kInventorySlotCount )
+					counts[static_cast<size_t>(slot)] = inv.count;
+			}
+			SetInventoryItemCounts(counts);
+			break;
+		}
+
 		// 사용이 끝난 data는 기본값으로 초기화 (선택적)
 		m_pendingNetworkMessage.data = LoadoutData{};
     }
@@ -8777,6 +8929,8 @@ void CGameScene::AnimateObjects(float dt)
 #endif
 
 	UpdateDynamicGridState();
+
+	UpdateMegaGrid4LowYPoison(dt);
 
 	UpdatePlayerFootstepSfx();
 	UpdateMonsterSfx(dt);
