@@ -280,6 +280,10 @@ private:
 	bool IsBossStageBossAppearFinishedForHud(CGameObject* boss) const;
 	void UpdateFrameRenderState(CCamera* camera);
 	void BindFrameRootParameters(ID3D12GraphicsCommandList* cmd);
+	void BuildSkyBox(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
+	void RenderSkyBox(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	void ReleaseSkyBoxResources();
+	void ReleaseSkyBoxUploadBuffers();
 
 	void BuildStaticInstanceGroups();
 
@@ -1651,6 +1655,26 @@ private:
 	std::shared_ptr<CShadowMapTerrainShader>			  m_shadowTerrainShader;
 	std::shared_ptr<CShadowMapSkinnedShader>              m_shadowSkinnedShader;
 	std::shared_ptr<CShadowMapAlphaClipSkinnedShader>     m_shadowAlphaClipSkinnedShader;
+
+	struct SkyBoxVertex
+	{
+		XMFLOAT3 position;
+		XMFLOAT2 uv;
+	};
+
+	struct SkyBoxState
+	{
+		std::shared_ptr<CSkyBoxShader> shader;
+		std::shared_ptr<CTexture> texture;
+		ComPtr<ID3D12Resource> vertexBuffer;
+		ComPtr<ID3D12Resource> vertexUploadBuffer;
+		D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
+		UINT vertexCount = 0;
+		UINT textureBaseSrvIndex = UINT_MAX;
+		CB_GAMEOBJECT_INFO objectCB{};
+	};
+
+	SkyBoxState m_skyBox;
 
 	std::array<int, CGameSceneHUD::kInventorySlotCount> m_inventoryItemCounts = { 0, 0, 0, 0 };
 	std::array<bool, CGameSceneHUD::kInventorySlotCount> m_bPrevInventoryUseKeyDown = { false, false, false, false };

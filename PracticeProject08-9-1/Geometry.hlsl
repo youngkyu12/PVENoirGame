@@ -71,6 +71,40 @@ float4 PSTextured(VS_TEXTURED_OUTPUT input, uint nPrimitiveID : SV_PrimitiveID) 
     return diffuseSample * mat.m_cDiffuse;
 }
 
+struct VS_SKYBOX_INPUT
+{
+    float3 position : POSITION;
+    float2 uv : TEXCOORD;
+};
+
+struct VS_SKYBOX_OUTPUT
+{
+    float4 position : SV_POSITION;
+    float2 uv : TEXCOORD;
+    nointerpolation uint faceIndex : FACE_INDEX;
+};
+
+VS_SKYBOX_OUTPUT VSSkyBox(VS_SKYBOX_INPUT input, uint vertexId : SV_VertexID)
+{
+    VS_SKYBOX_OUTPUT output;
+
+    float3 posWLocal = input.position * 1000.0f;
+    float4 posW = float4(gvCameraPosition + posWLocal, 1.0f);
+    float4 posH = mul(mul(posW, gmtxView), gmtxProjection);
+
+    output.position = posH.xyww;
+    output.uv = input.uv;
+    output.faceIndex = vertexId / 6;
+
+    return output;
+}
+
+float4 PSSkyBox(VS_SKYBOX_OUTPUT input) : SV_TARGET
+{
+    uint textureIndex = gnMaterialID + input.faceIndex;
+    return gtxtGlobalTextures[textureIndex].Sample(gssDefaultSamplerState, input.uv);
+}
+
 VS_TEXTURED_LIGHTING_OUTPUT VSTexturedLighting(VS_TEXTURED_LIGHTING_INPUT input)
 {
     VS_TEXTURED_LIGHTING_OUTPUT output;
