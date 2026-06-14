@@ -185,6 +185,18 @@ void Room::MakeFrameState(uint32 tick)
 
 			p->set_weapontype(player->GetWeaponState());
 
+			for (int slot = 0; slot < Player::kInventorySlotCount; ++slot)
+			{
+				const Protocol::ItemType kind = static_cast<Protocol::ItemType>(slot + 1);
+				const int count = player->GetInventoryCount(kind);
+				if (count > 0)
+				{
+					auto* inv = p->add_inventory();
+					inv->set_kind(kind);
+					inv->set_count(count);
+				}
+			}
+
 			Protocol::Transform* transform = p->mutable_transform();
 			Protocol::Vec3f* position = transform->mutable_position();
 			position->set_x(player->GetPosition().x);
@@ -271,11 +283,22 @@ void Room::MakeFrameState(uint32 tick)
 
 		frameStatePkt.set_bossroomstate(static_cast<Protocol::BossRoomState>(static_cast<int>(m_bossRoomState)));
 
+		for (const auto& item : m_items)
+		{
+			auto* i = frameStatePkt.add_items();
+			i->set_id(item.id);
+			i->set_kind(item.kind);
+			i->set_active(item.active);
+
+			Protocol::Vec3f* pos = i->mutable_position();
+			pos->set_x(item.position.x);
+			pos->set_y(item.position.y);
+			pos->set_z(item.position.z);
+		}
+
 		auto sendBuffer = ClientPacketHandler::MakeSendBuffer(frameStatePkt);
 		viewer->ownerSession->Send(sendBuffer);
 	}
-
-
 
 }
 
@@ -329,6 +352,18 @@ void Room::MakeInitStruct(Protocol::S_GAME_START gameStartPkt)
 		position->set_y(enemy->GetPosition().y);
 		position->set_z(enemy->GetPosition().z);
 		transform->set_yaw(enemy->GetYaw());
+	}
+
+	for (const auto& item : m_items)
+	{
+		auto* i = initStruct->add_items();
+		i->set_id(item.id);
+		i->set_kind(item.kind);
+		i->set_active(item.active);
+		Protocol::Vec3f* pos = i->mutable_position();
+		pos->set_x(item.position.x);
+		pos->set_y(item.position.y);
+		pos->set_z(item.position.z);
 	}
 
 	auto sendBuffer = ClientPacketHandler::MakeSendBuffer(gameStartPkt);
