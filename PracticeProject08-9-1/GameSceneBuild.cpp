@@ -2411,7 +2411,7 @@ void CGameScene::BuildSkinnedBatch(
 						RegisterSkinnedCullEntry(
 							raw, i, "Ghoul", pos,
 							ghoulLodMeshes, true,
-							35.0f, 90.0f, 120.0f
+							10.0f, 90.0f, 120.0f
 						);
 					}
 
@@ -2544,7 +2544,7 @@ void CGameScene::BuildSkinnedBatch(
 							RegisterSkinnedCullEntry(
 								raw, i, "Ghoul", pos,
 								ghoulLodMeshes, true,
-								35.0f, 90.0f, 120.0f
+								10.0f, 40.0f, 220.0f
 							);
 						}
 
@@ -2716,7 +2716,7 @@ void CGameScene::BuildSkinnedBatch(
 					RegisterSkinnedCullEntry(
 						raw, i, "SwordMan", pos,
 						noLodMeshes, false,
-						0.0f, 0.0f, 90.0f
+						0.0f, 0.0f, 120.0f
 					);
 
 					m_skinnedObjects.push_back(std::move(obj));
@@ -2804,7 +2804,7 @@ void CGameScene::BuildSkinnedBatch(
 						RegisterSkinnedCullEntry(
 							raw, i, "SwordMan", pos,
 							noLodMeshes, false,
-							0.0f, 0.0f, 90.0f
+							0.0f, 0.0f, 220.0f
 						);
 
 						RegisterEnemySpawnerPoolObject(
@@ -2965,7 +2965,7 @@ void CGameScene::BuildSkinnedBatch(
 					RegisterSkinnedCullEntry(
 						raw, i, "BowMan", pos,
 						noLodMeshes, false,
-						0.0f, 0.0f, 100.0f
+						0.0f, 0.0f, 120.0f
 					);
 
 					m_skinnedObjects.push_back(std::move(obj));
@@ -3056,7 +3056,7 @@ void CGameScene::BuildSkinnedBatch(
 						RegisterSkinnedCullEntry(
 							raw, i, "BowMan", pos,
 							noLodMeshes, false,
-							0.0f, 0.0f, 100.0f
+							0.0f, 0.0f, 220.0f
 						);
 
 						RegisterEnemySpawnerPoolObject(
@@ -3229,7 +3229,7 @@ void CGameScene::BuildSkinnedBatch(
 					RegisterSkinnedCullEntry(
 						raw, i, "Mutant", pos,
 						noLodMeshes, false,
-						0.0f, 0.0f, 110.0f
+						0.0f, 0.0f, 200.0f
 					);
 
 					m_skinnedObjects.push_back(std::move(obj));
@@ -3326,7 +3326,7 @@ void CGameScene::BuildSkinnedBatch(
 						RegisterSkinnedCullEntry(
 							raw, i, "Mutant", pos,
 							noLodMeshes, false,
-							0.0f, 0.0f, 110.0f
+							0.0f, 0.0f, 220.0f
 						);
 
 						RegisterEnemySpawnerPoolObject(
@@ -3503,7 +3503,7 @@ void CGameScene::BuildSkinnedBatch(
 					RegisterSkinnedCullEntry(
 						raw, i, "Boss", pos,
 						noLodMeshes, false,
-						0.0f, 0.0f, 160.0f
+						0.0f, 0.0f, 300.0f
 					);
 
 					m_skinnedObjects.push_back(std::move(obj));
@@ -3635,7 +3635,7 @@ void CGameScene::BuildSkinnedBatch(
 					m_playersBySlot[( size_t ) slot] = raw;
 
 				std::array<std::shared_ptr<CMesh>, 3> playerNoLodMeshes = { playerAsset.mesh, nullptr, nullptr };
-				RegisterSkinnedCullEntry(raw, i, "Player", pos, playerNoLodMeshes, false, 0.0f, 0.0f, 120.0f);
+				RegisterSkinnedCullEntry(raw, i, "Player", pos, playerNoLodMeshes, false, 0.0f, 0.0f, 300.0f);
 
 				m_skinnedObjects.push_back(std::move(obj));
 				b->objectRefs.push_back(raw);
