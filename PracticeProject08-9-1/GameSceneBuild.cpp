@@ -351,6 +351,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	auto pTerrainShader = std::make_shared<CTerrainShader>();
 	auto pShadowTerrainShader = std::make_shared<CShadowMapTerrainShader>();
 	auto pWaterShader = std::make_shared<CWaterShader>();
+	auto pSkyBoxShader = std::make_shared<CSkyBoxShader>();
 
 	m_staticBatch.shader = pStaticShader;
 	m_treeStaticShader = pTreeStaticShader;
@@ -365,6 +366,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_terrainShader = pTerrainShader;
 	m_shadowTerrainShader = pShadowTerrainShader;
 	m_waterShader = pWaterShader;
+	m_skyBox.shader = pSkyBoxShader;
 
 	DXGI_FORMAT rtvFormats[5] =
 	{
@@ -388,6 +390,9 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	}
 	{
 		BuildDepthFogResources(dev, cmd);
+	}
+	{
+		BuildSsaoResources(dev, cmd);
 	}
 	{
 		m_shadowMap.BuildResources(dev, cmd, m_pDescriptorHeap.get());
@@ -475,6 +480,15 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 			kDsvFormat
 		);
 
+		DXGI_FORMAT skyBoxRtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+		pSkyBoxShader->CreateShader(
+			dev,
+			m_pd3dGraphicsRootSignature.Get(),
+			1,
+			&skyBoxRtvFormat,
+			kDsvFormat
+		);
+
 		pShadowTerrainShader->CreateShader(
 			dev,
 			m_pd3dGraphicsRootSignature.Get(),
@@ -489,6 +503,9 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	}
 	{
 		CreateWaterTextures(dev, cmd);
+	}
+	{
+		BuildSkyBox(dev, cmd);
 	}
 	{
 		PROFILE_RENDER_SCOPE("CGameScene::BuildObjects::BuildStaticBatch");
@@ -698,6 +715,110 @@ void CGameScene::CreateWaterTextures(ID3D12Device* dev, ID3D12GraphicsCommandLis
 		: UINT_MAX;
 }
 
+void CGameScene::BuildSkyBox(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
+{
+	if ( !dev || !cmd || !m_pDescriptorHeap )
+		return;
+
+	m_skyBox.texture = std::make_shared<CTexture>(6, RESOURCE_TEXTURE2D, 0, 1);
+
+	const wchar_t* texturePaths[6] =
+	{
+		L"Image/SkyBox_Front_0.dds",
+		L"Image/SkyBox_Back_0.dds",
+		L"Image/SkyBox_Left_0.dds",
+		L"Image/SkyBox_Right_0.dds",
+		L"Image/SkyBox_Top_0.dds",
+		L"Image/SkyBox_Bottom_0.dds"
+	};
+
+	for ( UINT i = 0; i < 6; ++i )
+	{
+		m_skyBox.texture->LoadTextureFromFile(
+			dev,
+			cmd,
+			texturePaths[i],
+			RESOURCE_TEXTURE2D,
+			i
+		);
+	}
+
+	m_pDescriptorHeap->CreateShaderResourceViews(
+		dev,
+		m_skyBox.texture.get(),
+		ROOT_PARAMETER_GLOBAL_SRV
+	);
+
+	m_skyBox.textureBaseSrvIndex = m_skyBox.texture->GetBaseSrvIndex();
+
+	const SkyBoxVertex vertices[] =
+	{
+		// Front (+Z)
+		{ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT2(1.0f, 1.0f) },
+
+		// Back (-Z)
+		{ XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(1.0f, 1.0f) },
+
+		// Left (-X)
+		{ XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT2(1.0f, 1.0f) },
+
+		// Right (+X)
+		{ XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT2(1.0f, 1.0f) },
+
+		// Top (+Y)
+		{ XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT2(1.0f, 1.0f) },
+
+		// Bottom (-Y)
+		{ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT2(1.0f, 1.0f) },
+	};
+
+	m_skyBox.vertexCount = static_cast< UINT >(_countof(vertices));
+	m_skyBox.vertexBuffer = ::CreateBufferResource(
+		dev,
+		cmd,
+		(void*)vertices,
+		sizeof(vertices),
+		D3D12_HEAP_TYPE_DEFAULT,
+		D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+		m_skyBox.vertexUploadBuffer.GetAddressOf()
+	);
+
+	m_skyBox.vertexBufferView = {};
+	m_skyBox.vertexBufferView.BufferLocation = m_skyBox.vertexBuffer->GetGPUVirtualAddress();
+	m_skyBox.vertexBufferView.StrideInBytes = sizeof(SkyBoxVertex);
+	m_skyBox.vertexBufferView.SizeInBytes = sizeof(vertices);
+}
+
 void CGameScene::OnResize(int width, int height)
 {
 	if (width <= 0 || height <= 0)
@@ -708,6 +829,9 @@ void CGameScene::OnResize(int width, int height)
 
 	m_hud.OnResize(width, height);
 	m_depthFog.OnResize(width, height);
+
+	if ( m_pd3dSsaoDevice )
+		BuildSsaoResources(m_pd3dSsaoDevice, nullptr);
 
 	if (!m_pMainCamera)
 		return;
@@ -4926,11 +5050,235 @@ void CGameScene::CreateShaderVariables(ID3D12Device* dev, ID3D12GraphicsCommandL
 	m_nFrameResourceIndex = 0;
 
 	m_depthFog.CreateConstantBuffer(dev, cmd);
+
+	m_nSsaoCBElementBytes = ( ( sizeof(SsaoCB) + 255 ) & ~255 );
+
+	for ( UINT i = 0; i < kFrameResourceCount; ++i )
+	{
+		m_pd3dcbSsao[i] = ::CreateBufferResource(
+			dev,
+			cmd,
+			nullptr,
+			m_nSsaoCBElementBytes,
+			D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+			nullptr
+		);
+
+		if ( m_pd3dcbSsao[i] )
+		{
+			m_pd3dcbSsao[i]->Map(
+				0,
+				nullptr,
+				reinterpret_cast< void** >( &m_pcbMappedSsao[i] )
+			);
+		}
+	}
 }
 
 void CGameScene::BuildDepthFogResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
 	m_depthFog.BuildResources(dev, cmd, GetGraphicsRootSignature());
+}
+
+void CGameScene::BuildSsaoResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
+{
+	if ( !dev )
+		return;
+
+	m_pd3dSsaoDevice = dev;
+
+	if ( !mSsao )
+		mSsao = std::make_unique<Ssao>(
+			static_cast< UINT >( m_viewportWidth ),
+			static_cast< UINT >( m_viewportHeight )
+		);
+	else
+		mSsao->OnResize(
+			static_cast< UINT >( m_viewportWidth ),
+			static_cast< UINT >( m_viewportHeight )
+		);
+
+	if ( mSsaoDepthMapSrvIndex != UINT_MAX )
+		mSsao->SetDepthSrvIndex(mSsaoDepthMapSrvIndex);
+
+	mSsaoNormalMap = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
+	mSsaoAmbientMap0 = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
+	mSsaoAmbientMap1 = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
+	mSsaoRandomVectorMap = std::make_shared<CTexture>(1, RESOURCE_TEXTURE2D, 0, 1);
+
+	float normalClearColor[] = { 0.0f, 0.0f, 1.0f, 0.0f };
+	CD3DX12_CLEAR_VALUE normalClear(Ssao::NormalMapFormat, normalClearColor);
+
+	mSsaoNormalMap->CreateTexture(
+		dev,
+		static_cast< UINT >( m_viewportWidth ),
+		static_cast< UINT >( m_viewportHeight ),
+		Ssao::NormalMapFormat,
+		D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		&normalClear,
+		RESOURCE_TEXTURE2D,
+		0
+	);
+
+	float ambientClearColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	CD3DX12_CLEAR_VALUE ambientClear(Ssao::AmbientMapFormat, ambientClearColor);
+
+	mSsaoAmbientMap0->CreateTexture(
+		dev,
+		mSsao->SsaoMapWidth(),
+		mSsao->SsaoMapHeight(),
+		Ssao::AmbientMapFormat,
+		D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		&ambientClear,
+		RESOURCE_TEXTURE2D,
+		0
+	);
+
+	mSsaoAmbientMap1->CreateTexture(
+		dev,
+		mSsao->SsaoMapWidth(),
+		mSsao->SsaoMapHeight(),
+		Ssao::AmbientMapFormat,
+		D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		&ambientClear,
+		RESOURCE_TEXTURE2D,
+		0
+	);
+
+	mSsaoRandomVectorMap->CreateTexture(
+		dev,
+		256,
+		256,
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		D3D12_RESOURCE_FLAG_NONE,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		RESOURCE_TEXTURE2D,
+		0
+	);
+
+	if ( m_pDescriptorHeap )
+	{
+		if ( mSsaoNormalMapSrvIndex != UINT_MAX )
+		{
+			mSsaoNormalMap->SetBaseSrvIndex(mSsaoNormalMapSrvIndex);
+			m_pDescriptorHeap->CreateShaderResourceViews(dev, mSsaoNormalMap.get(), mSsaoNormalMapSrvIndex, ROOT_PARAMETER_GLOBAL_SRV);
+		}
+		else
+		{
+			m_pDescriptorHeap->CreateShaderResourceViewsOther(dev, mSsaoNormalMap.get(), ROOT_PARAMETER_GLOBAL_SRV);
+		}
+
+		if ( mSsaoAmbientMap0SrvIndex != UINT_MAX )
+		{
+			mSsaoAmbientMap0->SetBaseSrvIndex(mSsaoAmbientMap0SrvIndex);
+			m_pDescriptorHeap->CreateShaderResourceViews(dev, mSsaoAmbientMap0.get(), mSsaoAmbientMap0SrvIndex, ROOT_PARAMETER_GLOBAL_SRV);
+		}
+		else
+		{
+			m_pDescriptorHeap->CreateShaderResourceViewsOther(dev, mSsaoAmbientMap0.get(), ROOT_PARAMETER_GLOBAL_SRV);
+		}
+
+		if ( mSsaoAmbientMap1SrvIndex != UINT_MAX )
+		{
+			mSsaoAmbientMap1->SetBaseSrvIndex(mSsaoAmbientMap1SrvIndex);
+			m_pDescriptorHeap->CreateShaderResourceViews(dev, mSsaoAmbientMap1.get(), mSsaoAmbientMap1SrvIndex, ROOT_PARAMETER_GLOBAL_SRV);
+		}
+		else
+		{
+			m_pDescriptorHeap->CreateShaderResourceViewsOther(dev, mSsaoAmbientMap1.get(), ROOT_PARAMETER_GLOBAL_SRV);
+		}
+
+		if ( mSsaoRandomVectorMapSrvIndex != UINT_MAX )
+		{
+			mSsaoRandomVectorMap->SetBaseSrvIndex(mSsaoRandomVectorMapSrvIndex);
+			m_pDescriptorHeap->CreateShaderResourceViews(dev, mSsaoRandomVectorMap.get(), mSsaoRandomVectorMapSrvIndex, ROOT_PARAMETER_GLOBAL_SRV);
+		}
+		else
+		{
+			m_pDescriptorHeap->CreateShaderResourceViewsOther(dev, mSsaoRandomVectorMap.get(), ROOT_PARAMETER_GLOBAL_SRV);
+		}
+
+		mSsaoNormalMapSrvIndex = mSsaoNormalMap->GetBaseSrvIndex();
+		mSsaoAmbientMap0SrvIndex = mSsaoAmbientMap0->GetBaseSrvIndex();
+		mSsaoAmbientMap1SrvIndex = mSsaoAmbientMap1->GetBaseSrvIndex();
+		mSsaoRandomVectorMapSrvIndex = mSsaoRandomVectorMap->GetBaseSrvIndex();
+		m_depthFog.SetAmbientOcclusionSrvIndex(mSsaoAmbientMap0SrvIndex);
+	}
+
+	mSsaoShader = std::make_shared<CSsaoShader>();
+	mSsaoBlurShader = std::make_shared<CSsaoBlurShader>();
+
+	DXGI_FORMAT ssaoRtvFormat = Ssao::AmbientMapFormat;
+	mSsaoShader->CreateShader(
+		dev,
+		GetGraphicsRootSignature(),
+		1,
+		&ssaoRtvFormat,
+		DXGI_FORMAT_UNKNOWN
+	);
+	mSsaoBlurShader->CreateShader(
+		dev,
+		GetGraphicsRootSignature(),
+		1,
+		&ssaoRtvFormat,
+		DXGI_FORMAT_UNKNOWN
+	);
+
+	CreateSsaoRtvs(dev);
+
+	m_bSsaoResourcesReady =
+		mSsao &&
+		mSsaoNormalMap &&
+		mSsaoAmbientMap0 &&
+		mSsaoAmbientMap1 &&
+		mSsaoRandomVectorMap;
+}
+
+void CGameScene::CreateSsaoRtvs(ID3D12Device* dev)
+{
+	if ( !dev )
+		return;
+
+	if ( !mSsaoNormalMap || !mSsaoAmbientMap0 || !mSsaoAmbientMap1 )
+		return;
+
+	if ( m_sceneRenderTargetCount < 8 )
+		return;
+
+	mSsaoRtvHandles[0] = m_sceneRtvHandles[5];
+	mSsaoRtvHandles[1] = m_sceneRtvHandles[6];
+	mSsaoRtvHandles[2] = m_sceneRtvHandles[7];
+
+	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+	rtvDesc.Texture2D.MipSlice = 0;
+	rtvDesc.Texture2D.PlaneSlice = 0;
+
+	rtvDesc.Format = Ssao::NormalMapFormat;
+	dev->CreateRenderTargetView(
+		mSsaoNormalMap->GetResource(0),
+		&rtvDesc,
+		mSsaoRtvHandles[0]
+	);
+
+	rtvDesc.Format = Ssao::AmbientMapFormat;
+	dev->CreateRenderTargetView(
+		mSsaoAmbientMap0->GetResource(0),
+		&rtvDesc,
+		mSsaoRtvHandles[1]
+	);
+	dev->CreateRenderTargetView(
+		mSsaoAmbientMap1->GetResource(0),
+		&rtvDesc,
+		mSsaoRtvHandles[2]
+	);
+
+	m_bSsaoRtvsReady = true;
 }
 
 void CGameScene::LinkSceneObjects()
