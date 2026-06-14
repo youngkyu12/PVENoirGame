@@ -434,6 +434,7 @@
     <ClInclude Include="InventoryComponent.h">
       <Filter>Components\Inventory</Filter>
     </ClInclude>
+    <ClInclude Include="Ssao.h" />
     <ClInclude Include="WaitScene.h">
       <Filter>Scene</Filter>
     </ClInclude>
@@ -680,6 +681,7 @@
     <ClCompile Include="GameSceneMonsterHpGauge.cpp">
       <Filter>Scene\GameScene\Billboard</Filter>
     </ClCompile>
+    <ClCompile Include="Ssao.cpp" />
     <ClCompile Include="GameSceneBossDeathEffects.cpp">
       <Filter>Scene\GameScene\Billboard</Filter>
     </ClCompile>
