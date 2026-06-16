@@ -364,6 +364,9 @@ bool CWaitScene::ConsumeSceneRequest(ESceneRequest& outReq)
 
 void CWaitScene::OnResize(int width, int height)
 {
+	if ( width <= 0 || height <= 0 )
+		return;
+
 	m_waitUI.OnResize(width, height);
 
 	m_viewportWidth = width;
@@ -395,4 +398,13 @@ void CWaitScene::OnResize(int width, int height)
 	}
 
 	m_waitUI.SetSpriteRect(m_loadingSpriteIndex, CSceneUI::GetFullscreenRect(m_viewportWidth, m_viewportHeight));
+
+	if ( !m_pMainCamera )
+		return;
+
+	const float aspectRatio = static_cast< float >( width ) / static_cast< float >( height );
+	m_pMainCamera->GenerateProjectionMatrix(1.01f, 5000.0f, aspectRatio, 60.0f);
+	m_pMainCamera->SetViewport(0, 0, width, height, 0.0f, 1.0f);
+	m_pMainCamera->SetScissorRect(0, 0, width, height);
+	m_pMainCamera->UpdateBoundingFrustum();
 }
