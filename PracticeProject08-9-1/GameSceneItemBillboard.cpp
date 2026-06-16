@@ -786,11 +786,14 @@ void CGameScene::UpdateItemBillboardPickupCollision()
 				}
 			}
 
+			const XMFLOAT3 pickupPosition = item.position;
+
 			item.active = false;
 			item.distanceCulled = true;
 
 			if ( isKeyItem )
 			{
+				if ( m_pAudioManager ) m_pAudioManager->PlaySound3D("Assets/Audio/Key.wav", pickupPosition, false, false, 1.0f, false);
 				MarkMegaGridClearedByNumber(item.megaGridNumber);
 			}
 

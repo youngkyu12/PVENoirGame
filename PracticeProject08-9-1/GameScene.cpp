@@ -6317,7 +6317,11 @@ void CGameScene::RefreshPlayerWeaponDamageTierFromClearedMegaGrids()
 	RefreshPlayerWeaponEffectVisuals();
 
 	if ( newTier > oldTier )
+	{
 		SpawnWeaponLevelUpFireworks();
+
+		if ( m_pAudioManager ) m_pAudioManager->PlaySound2D("Assets/Audio/LevelUp.wav", false, false, 0.5f, false);
+	}
 }
 
 void CGameScene::MarkMegaGridClearedByNumber(int megaGridNumber)
