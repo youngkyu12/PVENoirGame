@@ -629,6 +629,16 @@ void Room::UpdateKeyPickupCollision()
 				continue;
 
 			cell.isCleared = true;
+			for (auto& item : m_items)
+			{
+				if (item.kind != Protocol::ITEM_TYPE_KEY) continue;
+				if (std::abs(item.position.x - key.x) < 0.1f &&
+					std::abs(item.position.z - key.z) < 0.1f)
+				{
+					item.active = false;
+					break;
+				}
+			}
 			cout << "[Key Pickup] MegaGrid " << (key.megaGridIndex + 1)
 				<< " cleared by Player " << player->GetObjectId() << endl;
 			break;
