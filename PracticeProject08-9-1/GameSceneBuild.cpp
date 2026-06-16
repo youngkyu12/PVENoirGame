@@ -724,12 +724,12 @@ void CGameScene::BuildSkyBox(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
 	const wchar_t* texturePaths[6] =
 	{
-		L"Image/SkyBox_Front_0.dds",
-		L"Image/SkyBox_Back_0.dds",
-		L"Image/SkyBox_Left_0.dds",
-		L"Image/SkyBox_Right_0.dds",
-		L"Image/SkyBox_Top_0.dds",
-		L"Image/SkyBox_Bottom_0.dds"
+		L"Image/skybox/SkyBox_Front_0.dds",
+		L"Image/skybox/SkyBox_Back_0.dds",
+		L"Image/skybox/SkyBox_Left_0.dds",
+		L"Image/skybox/SkyBox_Right_0.dds",
+		L"Image/skybox/SkyBox_Top_0.dds",
+		L"Image/skybox/SkyBox_Bottom_0.dds"
 	};
 
 	for ( UINT i = 0; i < 6; ++i )
