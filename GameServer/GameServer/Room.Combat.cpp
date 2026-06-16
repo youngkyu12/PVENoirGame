@@ -625,9 +625,6 @@ void Room::UpdateKeyPickupCollision()
 			if (dx * dx + dz * dz > kPickupRadiusSq)
 				continue;
 
-			if (std::abs(pos.y - key.y) > kPickupYTolerance)
-				continue;
-
 			cell.isCleared = true;
 			for (auto& item : m_items)
 			{
