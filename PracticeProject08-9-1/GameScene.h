@@ -15,6 +15,7 @@
 #include "GameSceneHUD.h"
 #include "ShadowMap.h"
 #include "EnemySpawner.h"
+#include "Ssao.h"
 
 #include <unordered_map>
 #include <unordered_set>
@@ -39,8 +40,6 @@ class CHealthComponent;
 class CActorTagComponent;
 class TerrainData;
 class CInventoryComponent;
-class Ssao;
-
 namespace FMOD
 {
 	class Channel;
@@ -128,8 +127,16 @@ struct StaticWorldLodEntry
 	float cullDistance = 1000000.0f;
 };
 
+enum class EStaticOcclusionEntryKind : uint8_t
+{
+	Object = 0,
+	TreeDoorProbe
+};
+
 struct StaticOcclusionEntry
 {
+	EStaticOcclusionEntryKind kind = EStaticOcclusionEntryKind::Object;
+
 	CGameObject* object = nullptr;
 	UINT staticBatchObjectIndex = UINT_MAX;
 
@@ -138,6 +145,9 @@ struct StaticOcclusionEntry
 
 	BoundingOrientedBox worldBounds{};
 	bool hasWorldBounds = false;
+
+	int treeProbeMegaGridNumber = -1;
+	int treeProbeDoorIndex = -1;
 };
 
 struct SkinnedWorldLodEntry
@@ -274,6 +284,7 @@ private:
 	);
 
     void LinkSceneObjects();
+	void ApplyAttachmentCullFromSkinnedOwners();
 
 	void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd);
 	void UpdateBossHpGaugeHud();
@@ -281,6 +292,10 @@ private:
 	bool IsBossStageBossAppearFinishedForHud(CGameObject* boss) const;
 	void UpdateFrameRenderState(CCamera* camera);
 	void BindFrameRootParameters(ID3D12GraphicsCommandList* cmd);
+	void BuildSkyBox(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
+	void RenderSkyBox(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	void ReleaseSkyBoxResources();
+	void ReleaseSkyBoxUploadBuffers();
 
 	void BuildStaticInstanceGroups();
 
@@ -581,6 +596,7 @@ public:
 		void Render(ID3D12GraphicsCommandList* cmd, CCamera* camera = nullptr) override;
 		void RenderShadowPrePass(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 		void RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+		void RenderSsao(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 		void RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 		void RebindFrameRenderState(ID3D12GraphicsCommandList* cmd, CCamera* camera);
@@ -614,9 +630,14 @@ public:
 		m_hud.SetInactiveOverlayVisible(visible);
 	}
 
-	void SetDepthFogSourceSrvIndices(UINT sceneColorSrvIndex, UINT sceneDepthSrvIndex)
+	void SetDepthFogSourceSrvIndices(UINT sceneColorSrvIndex, UINT sceneNormalSrvIndex, UINT sceneDepthSrvIndex)
 	{
 		m_depthFog.SetSourceSrvIndices(sceneColorSrvIndex, sceneDepthSrvIndex);
+		mSsaoSceneNormalMapSrvIndex = sceneNormalSrvIndex;
+		mSsaoDepthMapSrvIndex = sceneDepthSrvIndex;
+
+		if ( mSsao )
+			mSsao->SetDepthSrvIndex(sceneDepthSrvIndex);
 	}
 
 	void SetSceneRenderTargets(
@@ -633,6 +654,9 @@ public:
 
 		m_sceneDsvHandle = dsv;
 		m_bSceneRenderTargetsReady = ( m_sceneRenderTargetCount > 0 );
+
+		if ( m_pd3dSsaoDevice )
+			CreateSsaoRtvs(m_pd3dSsaoDevice);
 	}
 
 	void SetDepthFogPassEnabled(bool enabled) { m_depthFog.SetPassEnabled(enabled); }
@@ -746,14 +770,8 @@ private:
 	void InitializeSpatialGrid();
 	void ShutdownSpatialGrid();
 
-	bool TryGetTreeCullReferenceGridCell(
-		CCamera* camera,
-		int& outCellX,
-		int& outCellZ,
-		int& outMegaX,
-		int& outMegaZ) const;
-
-	bool ShouldCullTreesByVillageGrid(CCamera* camera) const;
+	bool ShouldCullTreesByVillageDoorProbes(CCamera* camera) const;
+	bool IsAnyVillageWallTreeCullDoorProbeVisible(int megaGridNumber, CCamera* camera) const;
 
 	void AddDynamicCount(int cellX, int cellZ, EGridDynamicKind kind, int delta);
 	void RegisterStaticPlacementToGrid(const StaticPlacementEntry& placement, CGameObject* obj);
@@ -877,6 +895,11 @@ private:
 
 private:
 	void BuildDepthFogResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
+	void BuildSsaoResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
+	void CreateSsaoRtvs(ID3D12Device* dev);
+	void ReleaseSsaoResources();
+	void ReleaseSsaoConstantBuffer();
+	void UpdateSsaoCB(CCamera* camera);
 	void RenderDepthFog(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 	bool IsStaticObjectInsideShadowBox(UINT objectIndex) const;
@@ -1453,6 +1476,10 @@ private:
 	std::array<WATER*, kFrameResourceCount> m_pcbMappedWater = {};
 	UINT m_nWaterCBElementBytes = 0;
 
+	std::array<ComPtr<ID3D12Resource>, kFrameResourceCount> m_pd3dcbSsao;
+	std::array<SsaoCB*, kFrameResourceCount> m_pcbMappedSsao = {};
+	UINT m_nSsaoCBElementBytes = 0;
+
 	std::shared_ptr<CTexture> m_waterBaseTexture;
 	std::shared_ptr<CTexture> m_waterDetail0Texture;
 	std::shared_ptr<CTexture> m_waterDetail1Texture;
@@ -1460,6 +1487,25 @@ private:
 	UINT m_waterBaseSrvIndex = UINT_MAX;
 	UINT m_waterDetail0SrvIndex = UINT_MAX;
 	UINT m_waterDetail1SrvIndex = UINT_MAX;
+
+	std::unique_ptr<Ssao> mSsao;
+	std::shared_ptr<CTexture> mSsaoNormalMap;
+	std::shared_ptr<CTexture> mSsaoAmbientMap0;
+	std::shared_ptr<CTexture> mSsaoAmbientMap1;
+	std::shared_ptr<CTexture> mSsaoRandomVectorMap;
+	std::shared_ptr<CSsaoShader> mSsaoShader;
+	std::shared_ptr<CSsaoBlurShader> mSsaoBlurShader;
+
+	UINT mSsaoNormalMapSrvIndex = UINT_MAX;
+	UINT mSsaoSceneNormalMapSrvIndex = UINT_MAX;
+	UINT mSsaoAmbientMap0SrvIndex = UINT_MAX;
+	UINT mSsaoAmbientMap1SrvIndex = UINT_MAX;
+	UINT mSsaoRandomVectorMapSrvIndex = UINT_MAX;
+	UINT mSsaoDepthMapSrvIndex = UINT_MAX;
+	std::array<D3D12_CPU_DESCRIPTOR_HANDLE, 3> mSsaoRtvHandles = {};
+	bool m_bSsaoResourcesReady = false;
+	bool m_bSsaoRtvsReady = false;
+	ID3D12Device* m_pd3dSsaoDevice = nullptr;
 
 	float m_waterAccumulatedTime = 0.0f;
 	float m_waterHeight = -0.01f;
@@ -1631,6 +1677,26 @@ private:
 	std::shared_ptr<CShadowMapTerrainShader>			  m_shadowTerrainShader;
 	std::shared_ptr<CShadowMapSkinnedShader>              m_shadowSkinnedShader;
 	std::shared_ptr<CShadowMapAlphaClipSkinnedShader>     m_shadowAlphaClipSkinnedShader;
+
+	struct SkyBoxVertex
+	{
+		XMFLOAT3 position;
+		XMFLOAT2 uv;
+	};
+
+	struct SkyBoxState
+	{
+		std::shared_ptr<CSkyBoxShader> shader;
+		std::shared_ptr<CTexture> texture;
+		ComPtr<ID3D12Resource> vertexBuffer;
+		ComPtr<ID3D12Resource> vertexUploadBuffer;
+		D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
+		UINT vertexCount = 0;
+		UINT textureBaseSrvIndex = UINT_MAX;
+		CB_GAMEOBJECT_INFO objectCB{};
+	};
+
+	SkyBoxState m_skyBox;
 
 	std::array<int, CGameSceneHUD::kInventorySlotCount> m_inventoryItemCounts = { 0, 0, 0, 0 };
 	std::array<bool, CGameSceneHUD::kInventorySlotCount> m_bPrevInventoryUseKeyDown = { false, false, false, false };

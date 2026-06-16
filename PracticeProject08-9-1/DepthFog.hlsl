@@ -65,6 +65,7 @@ float4 PSDepthFog(VS_SCREEN_RECT_TEXTURED_OUTPUT input) : SV_Target
 {
     const uint sceneColorIdx = gvPostSrvIdx0.x;
     const uint sceneDepthIdx = gvPostSrvIdx0.y;
+    const uint ambientOcclusionIdx = gvPostSrvIdx0.z;
 
     if (sceneColorIdx == 0xFFFFFFFFu || sceneColorIdx >= MAX_GLOBAL_SRVS)
         return float4(1, 0, 1, 1);
@@ -72,8 +73,15 @@ float4 PSDepthFog(VS_SCREEN_RECT_TEXTURED_OUTPUT input) : SV_Target
     if (sceneDepthIdx == 0xFFFFFFFFu || sceneDepthIdx >= MAX_GLOBAL_SRVS)
         return float4(1, 0, 1, 1);
 
-    const float4 sceneColor =
+    float4 sceneColor =
         gtxtGlobalTextures[sceneColorIdx].Sample(gssDefaultSamplerState, input.uv);
+
+    if (ambientOcclusionIdx != 0xFFFFFFFFu && ambientOcclusionIdx < MAX_GLOBAL_SRVS)
+    {
+        const float ambientAccess =
+            gtxtGlobalTextures[ambientOcclusionIdx].Sample(gssDefaultSamplerState, input.uv).r;
+        sceneColor.rgb *= saturate(ambientAccess);
+    }
 
     const float deviceZ =
         gtxtGlobalTextures[sceneDepthIdx].Load(

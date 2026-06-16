@@ -7,7 +7,7 @@
 
 #define WIN32_LEAN_AND_MEAN             // 거의 사용되지 않는 내용은 Windows 헤더에서 제외합니다.
 
-#define USING_NETWORK					// 네트워크 사용 여부
+//#define USING_NETWORK					// 네트워크 사용 여부
 
 //ServerCore
 #ifdef _DEBUG
@@ -132,6 +132,7 @@ extern void SynchronizeResourceTransition(ID3D12GraphicsCommandList* pd3dCommand
 #define ROOT_PARAMETER_SHADOW_PASS		10 //쓰면 안되긴 하는데, 일단 지금은 컴파일 에러 막기용.
 #define ROOT_PARAMETER_TERRAIN          11
 #define ROOT_PARAMETER_WATER            12
+#define ROOT_PARAMETER_SSAO             13
 
 #define EPSILON							1.0e-10f
 

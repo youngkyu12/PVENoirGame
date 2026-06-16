@@ -256,6 +256,20 @@ namespace
 
 		return true;
 	}
+
+	static BoundingOrientedBox MakeVillageWallTreeDoorProbeWorldBounds(const StaticPlacementEntry& placement, const XMFLOAT3& localCenter, const XMFLOAT3& size)
+	{
+		BoundingOrientedBox localBox{};
+		localBox.Center = localCenter;
+		localBox.Extents = XMFLOAT3(size.x * 0.5f, size.y * 0.5f, size.z * 0.5f);
+		localBox.Orientation = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+
+		const XMMATRIX world = XMMatrixRotationY(XMConvertToRadians(placement.yawDeg)) * XMMatrixTranslation(placement.pos.x, placement.pos.y, placement.pos.z);
+
+		BoundingOrientedBox worldBox{};
+		localBox.Transform(worldBox, world);
+		return worldBox;
+	}
 }
 
 void CGameScene::ResetStaticOcclusionEntries()
@@ -284,7 +298,7 @@ void CGameScene::BuildStaticOcclusionEntries()
 		if ( lodEntry.staticBatchObjectIndex == UINT_MAX )
 			continue;
 
-		if ( lodEntry.staticBatchObjectIndex >= ( UINT ) m_staticBatch.objectRefs.size() )
+		if ( lodEntry.staticBatchObjectIndex >= static_cast< UINT >( m_staticBatch.objectRefs.size() ) )
 			continue;
 
 		const std::string& assetName = lodEntry.assetName;
@@ -307,14 +321,60 @@ void CGameScene::BuildStaticOcclusionEntries()
 			continue;
 
 		StaticOcclusionEntry entry{};
+		entry.kind = EStaticOcclusionEntryKind::Object;
 		entry.object = lodEntry.object;
 		entry.staticBatchObjectIndex = lodEntry.staticBatchObjectIndex;
 		entry.assetName = assetName;
 		entry.enabled = true;
-		entry.hasWorldBounds =
-			TryBuildStaticOcclusionWorldBounds(entry.object, entry.worldBounds);
+		entry.hasWorldBounds = TryBuildStaticOcclusionWorldBounds(entry.object, entry.worldBounds);
 
 		m_staticOcclusionEntries.push_back(std::move(entry));
+	}
+
+	const std::array<XMFLOAT3, 4> localCenters =
+	{
+		XMFLOAT3(105.0f, 0.0f, 0.0f),
+		XMFLOAT3(-105.0f, 0.0f, 0.0f),
+		XMFLOAT3(0.0f, 0.0f, 105.0f),
+		XMFLOAT3(0.0f, 0.0f, -105.0f)
+	};
+
+	const std::array<XMFLOAT3, 4> sizes =
+	{
+		XMFLOAT3(1.0f, 10.0f, 10.0f),
+		XMFLOAT3(1.0f, 10.0f, 10.0f),
+		XMFLOAT3(10.0f, 10.0f, 1.0f),
+		XMFLOAT3(10.0f, 10.0f, 1.0f)
+	};
+
+	for ( const StaticPlacementEntry& placement : m_staticPlacementEntries )
+	{
+		if ( placement.assetName != "VillageWall" )
+			continue;
+
+		const int megaGridNumber = m_sceneGrid.MegaGridNumberFromWorldPosition(placement.pos.x, placement.pos.z);
+
+		if ( megaGridNumber <= 0 )
+			continue;
+
+		if ( megaGridNumber == 4 || megaGridNumber == 5 )
+			continue;
+
+		for ( int doorIndex = 0; doorIndex < 4; ++doorIndex )
+		{
+			StaticOcclusionEntry entry{};
+			entry.kind = EStaticOcclusionEntryKind::TreeDoorProbe;
+			entry.object = nullptr;
+			entry.staticBatchObjectIndex = UINT_MAX;
+			entry.assetName = "TreeDoorProbe";
+			entry.enabled = true;
+			entry.worldBounds = MakeVillageWallTreeDoorProbeWorldBounds(placement, localCenters[static_cast< size_t >(doorIndex)], sizes[static_cast< size_t >(doorIndex)]);
+			entry.hasWorldBounds = true;
+			entry.treeProbeMegaGridNumber = megaGridNumber;
+			entry.treeProbeDoorIndex = doorIndex;
+
+			m_staticOcclusionEntries.push_back(std::move(entry));
+		}
 	}
 }
 
@@ -646,57 +706,75 @@ void CGameScene::RenderStaticOcclusionPass(ID3D12GraphicsCommandList* cmd, CCame
 
 		bool issueRealQuery = true;
 
-		if ( !entry.enabled )
-			issueRealQuery = false;
-
-		if ( !entry.hasWorldBounds )
-			issueRealQuery = false;
-
-		if ( !entry.object )
-			issueRealQuery = false;
-
-		if ( entry.staticBatchObjectIndex == UINT_MAX )
-			issueRealQuery = false;
-
-		if ( entry.staticBatchObjectIndex >= ( UINT ) m_staticBatch.objectRefs.size() )
-			issueRealQuery = false;
-
-		if ( entry.staticBatchObjectIndex < ( UINT ) m_staticDistanceCullFlags.size() )
+		if ( entry.kind == EStaticOcclusionEntryKind::TreeDoorProbe )
 		{
-			if ( m_staticDistanceCullFlags[entry.staticBatchObjectIndex] != 0 )
+			if ( !entry.enabled )
 				issueRealQuery = false;
-		}
 
-		if ( issueRealQuery )
-		{
-			if ( !entry.object->IsVisible(camera) )
+			if ( !entry.hasWorldBounds )
 				issueRealQuery = false;
-		}
 
-		if ( issueRealQuery )
-		{
-			const float dx = cameraPosition.x - entry.worldBounds.Center.x;
-			const float dy = cameraPosition.y - entry.worldBounds.Center.y;
-			const float dz = cameraPosition.z - entry.worldBounds.Center.z;
-			const float distSq = dx * dx + dy * dy + dz * dz;
-
-			if ( distSq < minTestDistanceSq )
+			if ( issueRealQuery )
 			{
-				issueRealQuery = false;
+				BoundingOrientedBox testBounds = entry.worldBounds;
+				if ( !camera->IsInFrustum(testBounds) )
+					issueRealQuery = false;
 			}
-			else
+		}
+		else
+		{
+			if ( !entry.enabled )
+				issueRealQuery = false;
+
+			if ( !entry.hasWorldBounds )
+				issueRealQuery = false;
+
+			if ( !entry.object )
+				issueRealQuery = false;
+
+			if ( entry.staticBatchObjectIndex == UINT_MAX )
+				issueRealQuery = false;
+
+			if ( entry.staticBatchObjectIndex >= static_cast< UINT >( m_staticBatch.objectRefs.size() ) )
+				issueRealQuery = false;
+
+			if ( entry.staticBatchObjectIndex < static_cast< UINT >(m_staticDistanceCullFlags.size()) )
 			{
-				const float dist = std::sqrt(distSq);
-				float maxExtent = entry.worldBounds.Extents.x;
-				if (entry.worldBounds.Extents.y > maxExtent) maxExtent = entry.worldBounds.Extents.y;
-				if (entry.worldBounds.Extents.z > maxExtent) maxExtent = entry.worldBounds.Extents.z;
+				if ( m_staticDistanceCullFlags[entry.staticBatchObjectIndex] != 0 )
+					issueRealQuery = false;
+			}
 
-				if ( dist > 0.0001f )
+			if ( issueRealQuery )
+			{
+				if ( !entry.object->IsVisible(camera) )
+					issueRealQuery = false;
+			}
+
+			if ( issueRealQuery )
+			{
+				const float dx = cameraPosition.x - entry.worldBounds.Center.x;
+				const float dy = cameraPosition.y - entry.worldBounds.Center.y;
+				const float dz = cameraPosition.z - entry.worldBounds.Center.z;
+				const float distSq = dx * dx + dy * dy + dz * dz;
+
+				if ( distSq < minTestDistanceSq )
 				{
-					const float extentDistanceRatio = maxExtent / dist;
+					issueRealQuery = false;
+				}
+				else
+				{
+					const float dist = std::sqrt(distSq);
+					float maxExtent = entry.worldBounds.Extents.x;
+					if ( entry.worldBounds.Extents.y > maxExtent ) maxExtent = entry.worldBounds.Extents.y;
+					if ( entry.worldBounds.Extents.z > maxExtent ) maxExtent = entry.worldBounds.Extents.z;
 
-					if ( extentDistanceRatio > m_staticOcclusionMaxCullExtentDistanceRatio )
-						issueRealQuery = false;
+					if ( dist > 0.0001f )
+					{
+						const float extentDistanceRatio = maxExtent / dist;
+
+						if ( extentDistanceRatio > m_staticOcclusionMaxCullExtentDistanceRatio )
+							issueRealQuery = false;
+					}
 				}
 			}
 		}
@@ -966,12 +1044,68 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 		return;
 
 	const XMFLOAT3 cameraPosition = camera->GetPosition();
-	const float minTestDistanceSq =
-		m_staticOcclusionMinTestDistance * m_staticOcclusionMinTestDistance;
+	const float minTestDistanceSq = m_staticOcclusionMinTestDistance * m_staticOcclusionMinTestDistance;
 
 	for ( size_t occlusionIndex = 0; occlusionIndex < m_staticOcclusionEntries.size(); ++occlusionIndex )
 	{
 		const StaticOcclusionEntry& entry = m_staticOcclusionEntries[occlusionIndex];
+
+		if ( occlusionIndex >= m_staticOcclusionZeroSampleFrameCounts.size() )
+			continue;
+
+		if ( entry.kind == EStaticOcclusionEntryKind::TreeDoorProbe )
+		{
+			if ( !entry.enabled || !entry.hasWorldBounds )
+			{
+				m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+				continue;
+			}
+
+			BoundingOrientedBox testBounds = entry.worldBounds;
+			if ( !camera->IsInFrustum(testBounds) )
+			{
+				m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+				continue;
+			}
+
+			if ( !m_bStaticOcclusionQueryResultsValid )
+			{
+				m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+				continue;
+			}
+
+			if ( occlusionIndex >= m_staticOcclusionQuerySampleCounts.size() )
+			{
+				m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+				continue;
+			}
+
+			if ( occlusionIndex >= m_staticOcclusionLastFrameIssuedFlags.size() )
+			{
+				m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+				continue;
+			}
+
+			if ( m_staticOcclusionLastFrameIssuedFlags[occlusionIndex] == 0 )
+			{
+				m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+				continue;
+			}
+
+			if ( m_staticOcclusionQuerySampleCounts[occlusionIndex] == 0ull )
+			{
+				uint8_t& zeroFrameCount = m_staticOcclusionZeroSampleFrameCounts[occlusionIndex];
+
+				if ( zeroFrameCount < 255 )
+					++zeroFrameCount;
+			}
+			else
+			{
+				m_staticOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
+			}
+
+			continue;
+		}
 
 		if ( !entry.enabled )
 			continue;
@@ -985,13 +1119,10 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 		if ( entry.staticBatchObjectIndex == UINT_MAX )
 			continue;
 
-		if ( entry.staticBatchObjectIndex >= ( UINT ) m_staticOcclusionCullFlags.size() )
+		if ( entry.staticBatchObjectIndex >= static_cast< UINT >( m_staticOcclusionCullFlags.size() ) )
 			continue;
 
-		if ( occlusionIndex >= m_staticOcclusionZeroSampleFrameCounts.size() )
-			continue;
-
-		if ( entry.staticBatchObjectIndex < ( UINT ) m_staticDistanceCullFlags.size() )
+		if ( entry.staticBatchObjectIndex < static_cast< UINT >(m_staticDistanceCullFlags.size()) )
 		{
 			if ( m_staticDistanceCullFlags[entry.staticBatchObjectIndex] != 0 )
 			{
@@ -1019,8 +1150,8 @@ void CGameScene::UpdateStaticOcclusionCullSelection(CCamera* camera)
 
 		const float dist = std::sqrt(distSq);
 		float maxExtent = entry.worldBounds.Extents.x;
-		if (entry.worldBounds.Extents.y > maxExtent) maxExtent = entry.worldBounds.Extents.y;
-		if (entry.worldBounds.Extents.z > maxExtent) maxExtent = entry.worldBounds.Extents.z;
+		if ( entry.worldBounds.Extents.y > maxExtent ) maxExtent = entry.worldBounds.Extents.y;
+		if ( entry.worldBounds.Extents.z > maxExtent ) maxExtent = entry.worldBounds.Extents.z;
 
 		if ( dist > 0.0001f )
 		{
@@ -1474,57 +1605,6 @@ void CGameScene::UpdateSkinnedOcclusionCullSelection(CCamera* camera)
 		else
 		{
 			m_skinnedOcclusionZeroSampleFrameCounts[occlusionIndex] = 0;
-		}
-	}
-
-	std::unordered_map<const CGameObject*, UINT> staticIndexByObject;
-	staticIndexByObject.reserve(m_staticBatch.objectRefs.size());
-
-	for ( UINT i = 0; i < ( UINT ) m_staticBatch.objectRefs.size(); ++i )
-	{
-		if ( m_staticBatch.objectRefs[i] )
-			staticIndexByObject[m_staticBatch.objectRefs[i]] = i;
-	}
-
-	std::unordered_map<const CGameObject*, UINT> skinnedIndexByObject;
-	skinnedIndexByObject.reserve(m_skinnedBatch.objectRefs.size());
-
-	for ( UINT i = 0; i < ( UINT ) m_skinnedBatch.objectRefs.size(); ++i )
-	{
-		if ( m_skinnedBatch.objectRefs[i] )
-			skinnedIndexByObject[m_skinnedBatch.objectRefs[i]] = i;
-	}
-
-	for ( const AttachmentBindSpec& spec : m_attachmentBinds )
-	{
-		if ( !spec.follower || !spec.target )
-			continue;
-
-		auto targetIt = skinnedIndexByObject.find(spec.target);
-		if ( targetIt == skinnedIndexByObject.end() )
-			continue;
-
-		const UINT targetIndex = targetIt->second;
-		if ( targetIndex >= ( UINT ) m_skinnedOcclusionCullFlags.size() )
-			continue;
-
-		if ( m_skinnedOcclusionCullFlags[targetIndex] == 0 )
-			continue;
-
-		auto followerStaticIt = staticIndexByObject.find(spec.follower);
-		if ( followerStaticIt != staticIndexByObject.end() )
-		{
-			const UINT followerIndex = followerStaticIt->second;
-			if ( followerIndex < ( UINT ) m_staticDistanceCullFlags.size() )
-				m_staticDistanceCullFlags[followerIndex] = 1;
-		}
-
-		auto followerSkinnedIt = skinnedIndexByObject.find(spec.follower);
-		if ( followerSkinnedIt != skinnedIndexByObject.end() )
-		{
-			const UINT followerIndex = followerSkinnedIt->second;
-			if ( followerIndex < ( UINT ) m_skinnedDistanceCullFlags.size() )
-				m_skinnedDistanceCullFlags[followerIndex] = 1;
 		}
 	}
 }

@@ -63,7 +63,7 @@ bool CGameScene::RequestUseInventoryItemSlot(int slot)
 	if ( m_bLocalPlayerDead )
 		return false;
 
-	if ( m_inventoryItemCounts[static_cast<size_t>(slot)] <= 0 )
+	if ( m_inventoryItemCounts[static_cast< size_t >(slot)] <= 0 )
 		return false;
 
 	{
@@ -75,8 +75,10 @@ bool CGameScene::RequestUseInventoryItemSlot(int slot)
 	}
 
 	std::array<int, CGameSceneHUD::kInventorySlotCount> counts = m_inventoryItemCounts;
-	--counts[static_cast<size_t>(slot)];
+	--counts[static_cast< size_t >( slot )];
 	SetInventoryItemCounts(counts);
+
+	if ( m_pAudioManager ) m_pAudioManager->PlaySound2D("Assets/Audio/ItemUse.wav", false, false, 1.0f, false);
 
 	return true;
 #else
@@ -94,6 +96,8 @@ bool CGameScene::RequestUseInventoryItemSlot(int slot)
 	const CInventoryComponent::EUseResult result = inventory->UseItemSlot(slot);
 	if ( result == CInventoryComponent::EUseResult::Failed )
 		return false;
+
+	if ( m_pAudioManager ) m_pAudioManager->PlaySound2D("Assets/Audio/ItemUse.wav", false, false, 0.2f, false);
 
 	SpawnInventoryUseBurst(localPlayer, slot);
 

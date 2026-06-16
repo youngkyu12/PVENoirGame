@@ -286,31 +286,67 @@ void CGameScene::ShutdownSpatialGrid()
 	m_bulletGridTrackers.clear();
 }
 
-bool CGameScene::TryGetTreeCullReferenceGridCell(
-	CCamera* camera,
-	int& outCellX,
-	int& outCellZ,
-	int& outMegaX,
-	int& outMegaZ) const
+bool CGameScene::IsAnyVillageWallTreeCullDoorProbeVisible(int megaGridNumber, CCamera* camera) const
 {
-	outCellX = -1;
-	outCellZ = -1;
-	outMegaX = -1;
-	outMegaZ = -1;
+	if ( !camera )
+		return true;
 
+	bool foundProbe = false;
+
+	for ( size_t i = 0; i < m_staticOcclusionEntries.size(); ++i )
+	{
+		const StaticOcclusionEntry& entry = m_staticOcclusionEntries[i];
+
+		if ( entry.kind != EStaticOcclusionEntryKind::TreeDoorProbe )
+			continue;
+
+		if ( entry.treeProbeMegaGridNumber != megaGridNumber )
+			continue;
+
+		if ( !entry.enabled )
+			continue;
+
+		if ( !entry.hasWorldBounds )
+			continue;
+
+		foundProbe = true;
+
+		BoundingOrientedBox testBounds = entry.worldBounds;
+		if ( !camera->IsInFrustum(testBounds) )
+			continue;
+
+		if ( !m_bStaticOcclusionQueryResultsValid )
+			return true;
+
+		if ( i >= m_staticOcclusionQuerySampleCounts.size() )
+			return true;
+
+		if ( i >= m_staticOcclusionLastFrameIssuedFlags.size() )
+			return true;
+
+		if ( i >= m_staticOcclusionZeroSampleFrameCounts.size() )
+			return true;
+
+		if ( m_staticOcclusionLastFrameIssuedFlags[i] == 0 )
+			return true;
+
+		if ( m_staticOcclusionQuerySampleCounts[i] > 0ull )
+			return true;
+
+		if ( m_staticOcclusionZeroSampleFrameCounts[i] < m_staticOcclusionHideFrameThreshold )
+			return true;
+	}
+
+	return !foundProbe;
+}
+
+bool CGameScene::ShouldCullTreesByVillageDoorProbes(CCamera* camera) const
+{
 	if ( !m_sceneGrid.IsInitialized() )
 		return false;
 
-	if ( camera )
-	{
-		const XMFLOAT3 cameraPosition = camera->GetPosition();
-
-		if ( m_sceneGrid.WorldToCell(cameraPosition.x, cameraPosition.z, outCellX, outCellZ) )
-		{
-			if ( m_sceneGrid.FineCellToMegaGridCell(outCellX, outCellZ, outMegaX, outMegaZ) )
-				return true;
-		}
-	}
+	if ( !camera )
+		return false;
 
 	CGameObject* localPlayer = GetPlayer();
 
@@ -318,50 +354,24 @@ bool CGameScene::TryGetTreeCullReferenceGridCell(
 		localPlayer = GetPlayerBySlot(0);
 
 	if ( !localPlayer )
+		return false;
+
+	if ( !IsPlayerInsideMegaGridCenter(localPlayer) )
 		return false;
 
 	const XMFLOAT3 playerPosition = localPlayer->GetPosition();
+	const int megaGridNumber = m_sceneGrid.MegaGridNumberFromWorldPosition(playerPosition.x, playerPosition.z);
 
-	if ( !m_sceneGrid.WorldToCell(playerPosition.x, playerPosition.z, outCellX, outCellZ) )
+	if ( megaGridNumber == 4 )
 		return false;
 
-	return m_sceneGrid.FineCellToMegaGridCell(outCellX, outCellZ, outMegaX, outMegaZ);
-}
-
-bool CGameScene::ShouldCullTreesByVillageGrid(CCamera* camera) const
-{
-	if ( !m_sceneGrid.IsInitialized() )
-		return false;
-
-	// Castle 포탈로 중앙 성 내부에 들어간 경우에는
-	// 기존 문/성벽 시야 판정과 무관하게 모든 나무를 컬링한다.
-	if ( m_bLocalPlayerInsideCastleCenterMegaGrid )
+	if ( megaGridNumber == 5 )
 		return true;
 
-	CGameObject* localPlayer = GetPlayer();
-
-	if ( !localPlayer )
-		localPlayer = GetPlayerBySlot(0);
-
-	if ( localPlayer )
-	{
-		const XMFLOAT3 playerPosition = localPlayer->GetPosition();
-
-		// Tower 포탈 등으로 위로 올라간 경우에는
-		// 성벽/문 기준 나무 컬링을 하지 않는다.
-		if ( playerPosition.y >= kDisableVillageTreeCullPlayerHeight )
-			return false;
-	}
-
-	int cellX = -1;
-	int cellZ = -1;
-	int megaX = -1;
-	int megaZ = -1;
-
-	if ( !TryGetTreeCullReferenceGridCell(camera, cellX, cellZ, megaX, megaZ) )
+	if ( playerPosition.y >= kDisableVillageTreeCullPlayerHeight )
 		return false;
 
-	return m_sceneGrid.ShouldCullTreesByVillageGridCell(megaX, megaZ, cellX, cellZ);
+	return !IsAnyVillageWallTreeCullDoorProbeVisible(megaGridNumber, camera);
 }
 
 void CGameScene::AddDynamicCount(int cellX, int cellZ, EGridDynamicKind kind, int delta)
@@ -427,9 +437,6 @@ void CGameScene::RegisterStaticPlacementToGrid(const StaticPlacementEntry& place
 	}
 
 	m_sceneGrid.AddStaticTouchedCells(touchedCells);
-
-	if ( IsTreeCullBlockerAssetName(placement.assetName) )
-		m_sceneGrid.MarkTreeCullBlockerCells(touchedCells);
 }
 
 #ifndef USING_NETWORK
@@ -3275,8 +3282,30 @@ CGameScene::~CGameScene()
 {
 }
 
+void CGameScene::ReleaseSkyBoxResources()
+{
+	m_skyBox.shader.reset();
+	m_skyBox.texture.reset();
+	m_skyBox.vertexBuffer.Reset();
+	m_skyBox.vertexUploadBuffer.Reset();
+	m_skyBox.vertexBufferView = {};
+	m_skyBox.vertexCount = 0;
+	m_skyBox.textureBaseSrvIndex = UINT_MAX;
+	m_skyBox.objectCB = {};
+}
+
+void CGameScene::ReleaseSkyBoxUploadBuffers()
+{
+	m_skyBox.vertexUploadBuffer.Reset();
+
+	if ( m_skyBox.texture )
+		m_skyBox.texture->ReleaseUploadBuffers();
+}
+
 void CGameScene::ReleaseObjects()
 {
+	ReleaseSkyBoxResources();
+
 	m_staticBatch.shader.reset();
 	m_skinnedBatch.shader.reset();
 
@@ -3493,6 +3522,8 @@ void CGameScene::ReleaseObjects()
 
 void CGameScene::ReleaseUploadBuffers()
 {
+	ReleaseSkyBoxUploadBuffers();
+
 	for ( UINT j = 0; j < ( UINT ) m_staticObjects.size(); ++j )
 	{
 		if ( !m_staticObjects[j] ) continue;
@@ -3666,6 +3697,7 @@ void CGameScene::ReleaseShaderVariables()
 	m_nFrameResourceIndex = 0;
 
 	m_depthFog.ReleaseConstantBuffer();
+	ReleaseSsaoConstantBuffer();
 
 	m_shadowMap.ReleaseResources();
 
@@ -3688,6 +3720,116 @@ void CGameScene::ReleaseShaderVariables()
 
 	m_hud.ReleaseResources();
 	m_depthFog.ReleaseShaderVariables();
+	ReleaseSsaoResources();
+}
+
+void CGameScene::ReleaseSsaoConstantBuffer()
+{
+	for ( UINT frameIndex = 0; frameIndex < kFrameResourceCount; ++frameIndex )
+	{
+		if ( m_pd3dcbSsao[frameIndex] )
+		{
+			if ( m_pcbMappedSsao[frameIndex] )
+			{
+				m_pd3dcbSsao[frameIndex]->Unmap(0, nullptr);
+				m_pcbMappedSsao[frameIndex] = nullptr;
+			}
+
+			m_pd3dcbSsao[frameIndex].Reset();
+		}
+
+		m_pcbMappedSsao[frameIndex] = nullptr;
+	}
+
+	m_nSsaoCBElementBytes = 0;
+}
+
+void CGameScene::ReleaseSsaoResources()
+{
+	mSsaoShader.reset();
+	mSsaoBlurShader.reset();
+	mSsaoNormalMap.reset();
+	mSsaoAmbientMap0.reset();
+	mSsaoAmbientMap1.reset();
+	mSsaoRandomVectorMap.reset();
+	mSsao.reset();
+
+	mSsaoNormalMapSrvIndex = UINT_MAX;
+	mSsaoSceneNormalMapSrvIndex = UINT_MAX;
+	mSsaoAmbientMap0SrvIndex = UINT_MAX;
+	mSsaoAmbientMap1SrvIndex = UINT_MAX;
+	mSsaoRandomVectorMapSrvIndex = UINT_MAX;
+	mSsaoDepthMapSrvIndex = UINT_MAX;
+	mSsaoRtvHandles = {};
+	m_bSsaoResourcesReady = false;
+	m_bSsaoRtvsReady = false;
+	m_pd3dSsaoDevice = nullptr;
+}
+
+void CGameScene::UpdateSsaoCB(CCamera* camera)
+{
+	if ( !mSsao || !camera )
+		return;
+
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+	SsaoCB* mappedSsao = m_pcbMappedSsao[frameIndex];
+
+	if ( !mappedSsao )
+		return;
+
+	SsaoCB ssaoCB{};
+
+	const XMFLOAT4X4 proj = camera->GetProjectionMatrix();
+	const XMMATRIX P = XMLoadFloat4x4(&proj);
+	const XMMATRIX invP = XMMatrixInverse(nullptr, P);
+
+	const XMMATRIX T(
+		0.5f, 0.0f, 0.0f, 0.0f,
+		0.0f, -0.5f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.5f, 0.5f, 0.0f, 1.0f
+	);
+
+	XMStoreFloat4x4(&ssaoCB.Proj, XMMatrixTranspose(P));
+	XMStoreFloat4x4(&ssaoCB.InvProj, XMMatrixTranspose(invP));
+	XMStoreFloat4x4(&ssaoCB.ProjTex, XMMatrixTranspose(P * T));
+
+	mSsao->GetOffsetVectors(ssaoCB.OffsetVectors);
+
+	const std::vector<float> blurWeights = mSsao->CalcGaussWeights(2.5f);
+	if ( blurWeights.size() >= 11 )
+	{
+		ssaoCB.BlurWeights[0] = XMFLOAT4(&blurWeights[0]);
+		ssaoCB.BlurWeights[1] = XMFLOAT4(&blurWeights[4]);
+		ssaoCB.BlurWeights[2] = XMFLOAT4(&blurWeights[8]);
+	}
+
+	const UINT ssaoWidth = mSsao->SsaoMapWidth();
+	const UINT ssaoHeight = mSsao->SsaoMapHeight();
+
+	if ( ssaoWidth > 0 && ssaoHeight > 0 )
+	{
+		ssaoCB.InvRenderTargetSize = XMFLOAT2(
+			1.0f / static_cast< float >( ssaoWidth ),
+			1.0f / static_cast< float >( ssaoHeight )
+		);
+	}
+
+	ssaoCB.OcclusionRadius = 0.5f;
+	ssaoCB.OcclusionFadeStart = 0.2f;
+	ssaoCB.OcclusionFadeEnd = 1.0f;
+	ssaoCB.SurfaceEpsilon = 0.05f;
+
+	ssaoCB.NormalMapIndex =
+		( mSsaoSceneNormalMapSrvIndex != UINT_MAX )
+		? mSsaoSceneNormalMapSrvIndex
+		: mSsaoNormalMapSrvIndex;
+	ssaoCB.DepthMapIndex = mSsaoDepthMapSrvIndex;
+	ssaoCB.RandomVecMapIndex = mSsaoRandomVectorMapSrvIndex;
+	ssaoCB.InputMapIndex = mSsaoAmbientMap0SrvIndex;
+	ssaoCB.HorizontalBlur = 0;
+
+	*mappedSsao = ssaoCB;
 }
 
 float CGameScene::QuaternionToYawDegrees(const XMFLOAT4& q)
@@ -3723,14 +3865,14 @@ void CGameScene::UpdateStaticTreeGridCullSelection(CCamera* camera)
 	if ( !camera )
 		return;
 
-	const bool shouldCullTrees = ShouldCullTreesByVillageGrid(camera);
+	const bool shouldCullTrees = ShouldCullTreesByVillageDoorProbes(camera);
 
 	if ( !shouldCullTrees )
 		return;
 
 	for ( UINT objectIndex : m_staticTreeObjectIndices )
 	{
-		if ( objectIndex >= ( UINT ) m_staticTreeGridCullFlags.size() )
+		if ( objectIndex >= static_cast< UINT >( m_staticTreeGridCullFlags.size() ) )
 			continue;
 
 		m_staticTreeGridCullFlags[objectIndex] = 1;
@@ -4937,6 +5079,148 @@ void CGameScene::RenderDepthFog(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 	m_depthFog.Render(cmd, camera);
 }
 
+void CGameScene::RenderSsao(ID3D12GraphicsCommandList* cmd, CCamera* camera)
+{
+	if ( !cmd || !camera )
+		return;
+
+	if ( !m_bSsaoResourcesReady || !m_bSsaoRtvsReady )
+		return;
+
+	if ( !mSsao || !mSsaoShader || !mSsaoBlurShader )
+		return;
+
+	if ( !mSsaoAmbientMap0 || !mSsaoAmbientMap1 )
+		return;
+
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+	SsaoCB* mappedSsao = m_pcbMappedSsao[frameIndex];
+
+	if ( !mappedSsao || !m_pd3dcbSsao[frameIndex] )
+		return;
+
+	auto bindSsaoRootState = [this, cmd, frameIndex]()
+	{
+		if ( m_pDescriptorHeap )
+		{
+			cmd->SetGraphicsRootDescriptorTable(
+				ROOT_PARAMETER_GLOBAL_SRV,
+				m_pDescriptorHeap->GetGPUSrvDescriptorStartHandle()
+			);
+		}
+
+		cmd->SetGraphicsRootConstantBufferView(
+			ROOT_PARAMETER_SSAO,
+			m_pd3dcbSsao[frameIndex]->GetGPUVirtualAddress()
+		);
+	};
+
+	if ( mSsaoNormalMap )
+	{
+		::SynchronizeResourceTransition(
+			cmd,
+			mSsaoNormalMap->GetResource(0),
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			D3D12_RESOURCE_STATE_RENDER_TARGET
+		);
+
+		const float normalClearValue[] = { 0.0f, 0.0f, 1.0f, 0.0f };
+		cmd->ClearRenderTargetView(mSsaoRtvHandles[0], normalClearValue, 0, nullptr);
+
+		::SynchronizeResourceTransition(
+			cmd,
+			mSsaoNormalMap->GetResource(0),
+			D3D12_RESOURCE_STATE_RENDER_TARGET,
+			D3D12_RESOURCE_STATE_GENERIC_READ
+		);
+	}
+
+	cmd->RSSetViewports(1, &mSsao->Viewport());
+	cmd->RSSetScissorRects(1, &mSsao->ScissorRect());
+
+	::SynchronizeResourceTransition(
+		cmd,
+		mSsaoAmbientMap0->GetResource(0),
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		D3D12_RESOURCE_STATE_RENDER_TARGET
+	);
+
+	const float clearValue[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	cmd->ClearRenderTargetView(mSsaoRtvHandles[1], clearValue, 0, nullptr);
+	cmd->OMSetRenderTargets(1, &mSsaoRtvHandles[1], TRUE, nullptr);
+
+	mappedSsao->InputMapIndex = UINT_MAX;
+	mappedSsao->HorizontalBlur = 0;
+
+	mSsaoShader->OnPrepareRender(cmd);
+	bindSsaoRootState();
+	cmd->IASetVertexBuffers(0, 0, nullptr);
+	cmd->IASetIndexBuffer(nullptr);
+	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	cmd->DrawInstanced(6, 1, 0, 0);
+
+	::SynchronizeResourceTransition(
+		cmd,
+		mSsaoAmbientMap0->GetResource(0),
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		D3D12_RESOURCE_STATE_GENERIC_READ
+	);
+
+	for ( int blurIndex = 0; blurIndex < 3; ++blurIndex )
+	{
+		struct BlurPass
+		{
+			CTexture* input = nullptr;
+			CTexture* output = nullptr;
+			D3D12_CPU_DESCRIPTOR_HANDLE outputRtv = {};
+			UINT inputSrvIndex = UINT_MAX;
+			UINT horizontal = 0;
+		};
+
+		const BlurPass passes[2] =
+		{
+			{ mSsaoAmbientMap0.get(), mSsaoAmbientMap1.get(), mSsaoRtvHandles[2], mSsaoAmbientMap0SrvIndex, 1 },
+			{ mSsaoAmbientMap1.get(), mSsaoAmbientMap0.get(), mSsaoRtvHandles[1], mSsaoAmbientMap1SrvIndex, 0 }
+		};
+
+		for ( const BlurPass& pass : passes )
+		{
+			if ( !pass.output )
+				continue;
+
+			mappedSsao->InputMapIndex = pass.inputSrvIndex;
+			mappedSsao->HorizontalBlur = pass.horizontal;
+
+			::SynchronizeResourceTransition(
+				cmd,
+				pass.output->GetResource(0),
+				D3D12_RESOURCE_STATE_GENERIC_READ,
+				D3D12_RESOURCE_STATE_RENDER_TARGET
+			);
+
+			cmd->ClearRenderTargetView(pass.outputRtv, clearValue, 0, nullptr);
+			cmd->OMSetRenderTargets(1, &pass.outputRtv, TRUE, nullptr);
+
+			mSsaoBlurShader->OnPrepareRender(cmd);
+			bindSsaoRootState();
+			cmd->IASetVertexBuffers(0, 0, nullptr);
+			cmd->IASetIndexBuffer(nullptr);
+			cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			cmd->DrawInstanced(6, 1, 0, 0);
+
+			::SynchronizeResourceTransition(
+				cmd,
+				pass.output->GetResource(0),
+				D3D12_RESOURCE_STATE_RENDER_TARGET,
+				D3D12_RESOURCE_STATE_GENERIC_READ
+			);
+		}
+	}
+
+	RestoreSceneRenderTargets(cmd, camera);
+	BindFrameRootParameters(cmd);
+}
+
 bool CGameScene::IsStaticObjectInsideShadowBox(UINT objectIndex) const
 {
 	if ( objectIndex >= ( UINT ) m_staticShadowOcclusionEntryIndices.size() )
@@ -5019,8 +5303,10 @@ void CGameScene::RestoreSceneRenderTargets(ID3D12GraphicsCommandList* cmd, CCame
 	if ( !m_bSceneRenderTargetsReady ) return;
 	if ( m_sceneRenderTargetCount == 0 ) return;
 
+	const UINT sceneMrtCount = std::min<UINT>(m_sceneRenderTargetCount, 5);
+
 	cmd->OMSetRenderTargets(
-		m_sceneRenderTargetCount,
+		sceneMrtCount,
 		m_sceneRtvHandles.data(),
 		FALSE,
 		&m_sceneDsvHandle
@@ -7102,9 +7388,9 @@ void CGameScene::BeginMonsterDeath(CGameObject* monster)
 
 	CancelMonsterPreparedActions(monster);
 
-	// 더 이상 플레이어 무기 충돌을 받지 않게 함.
+	// 더 이상 플레이어 무기 충돌을 받지 않게 하되, 사망 애니메이션 동안 bone capsule 갱신은 유지한다.
 	if ( auto* collider = monster->GetComponent<CColliderComponent>() )
-		collider->SetEnabled(false);
+		collider->DisableCollisionAndKeepUpdatingForSeconds(5.0f);
 
 	// 현재 실제로 붙는 AI는 CGhoulAIComponent지만,
 	// base 타입으로도 잡히는 구조라면 같이 처리.
@@ -7197,7 +7483,7 @@ void CGameScene::BeginLocalPlayerDeath(CGameObject* player)
 	CancelLocalPlayerPreparedActions();
 
 	if ( auto* collider = player->GetComponent<CColliderComponent>() )
-		collider->SetEnabled(false);
+		collider->DisableCollisionAndKeepUpdatingForSeconds(5.0f);
 
 	if ( auto* animComp = player->GetComponent<CAnimatorComponent>() )
 	{
@@ -7227,7 +7513,9 @@ void CGameScene::RespawnLocalPlayer(CGameObject* player)
 
 	if ( auto* collider = player->GetComponent<CColliderComponent>() )
 	{
+		collider->CancelDeferredDisable();
 		collider->SetEnabled(true);
+		collider->SetCollisionEnabled(true);
 		collider->UpdateWorldBounds();
 	}
 
@@ -9003,6 +9291,7 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
 
 	UpdateDepthFogState(m_fElapsedTime);
 	m_depthFog.UploadConstantBuffer();
+	UpdateSsaoCB(m_pMainCamera);
 
 	{
 		float localHpRatio = 1.0f;
@@ -9152,27 +9441,36 @@ void CGameScene::UpdateFrameRenderState(CCamera* camera)
 		PROFILE_RENDER_SCOPE("UFRS::UpdateStaticWorldLodSelection");
 		UpdateStaticWorldLodSelection(camera);
 	}
-		BeginStaticOcclusionReadback();
+
+	BeginStaticOcclusionReadback();
+
 	{
 		PROFILE_RENDER_SCOPE("UFRS::UpdateStaticOcclusionCullSelection");
 		UpdateStaticOcclusionCullSelection(camera);
 	}
+
 	UpdateStaticTreeGridCullSelection(camera);
-	{
-		PROFILE_RENDER_SCOPE("UFRS::UpdateStaticOcclusionCullSelection");
-		BuildStaticVisibleListsForFrame(camera);
-	}
 	UpdateItemBillboardDistanceCullSelection(camera);
-	
+
 	{
 		PROFILE_RENDER_SCOPE("UFRS::UpdateSkinnedWorldLodSelection");
 		UpdateSkinnedWorldLodSelection(camera);
 	}
+
 	BeginSkinnedOcclusionReadback();
+
 	{
 		PROFILE_RENDER_SCOPE("UFRS::UpdateSkinnedOcclusionCullSelection");
 		UpdateSkinnedOcclusionCullSelection(camera);
 	}
+
+	ApplyAttachmentCullFromSkinnedOwners();
+
+	{
+		PROFILE_RENDER_SCOPE("UFRS::BuildStaticVisibleListsForFrame");
+		BuildStaticVisibleListsForFrame(camera);
+	}
+
 	UpdateOtherPlayerWorldHpGaugeVisibilityForHud(camera);
 }
 
@@ -9284,6 +9582,14 @@ void CGameScene::BindFrameRootParameters(ID3D12GraphicsCommandList* cmd)
 		);
 	}
 
+	if ( m_pd3dcbSsao[frameIndex] )
+	{
+		cmd->SetGraphicsRootConstantBufferView(
+			ROOT_PARAMETER_SSAO,
+			m_pd3dcbSsao[frameIndex]->GetGPUVirtualAddress()
+		);
+	}
+
 	m_depthFog.BindConstantBuffer(cmd);
 	m_shadowMap.BindConstantBuffer(cmd);
 }
@@ -9294,6 +9600,32 @@ void CGameScene::RebindFrameRenderState(ID3D12GraphicsCommandList* cmd, CCamera*
 
 	CScene::OnPrepareRender(cmd, camera);
 	BindFrameRootParameters(cmd);
+}
+
+void CGameScene::RenderSkyBox(ID3D12GraphicsCommandList* cmd, CCamera* camera)
+{
+	if ( !cmd || !camera )
+		return;
+
+	if ( !m_skyBox.shader || !m_skyBox.vertexBuffer || m_skyBox.vertexCount == 0 )
+		return;
+
+	if ( m_skyBox.textureBaseSrvIndex == UINT_MAX )
+		return;
+
+	CScene::OnPrepareRender(cmd, camera);
+	BindFrameRootParameters(cmd);
+
+	m_skyBox.shader->Render(cmd, camera, nullptr);
+
+	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	cmd->IASetVertexBuffers(0, 1, &m_skyBox.vertexBufferView);
+	cmd->SetGraphicsRoot32BitConstant(
+		ROOT_PARAMETER_MATERIAL_ID,
+		m_skyBox.textureBaseSrvIndex,
+		0
+	);
+	cmd->DrawInstanced(m_skyBox.vertexCount, 1, 0, 0);
 }
 
 void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* camera)
@@ -9394,6 +9726,8 @@ void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* c
 	RenderDepthFog(cmd, camera);
 
 	BindFrameRootParameters(cmd);
+
+	RenderSkyBox(cmd, camera);
 
 	if ( m_itemBillboardState.transparentShader )
 	{

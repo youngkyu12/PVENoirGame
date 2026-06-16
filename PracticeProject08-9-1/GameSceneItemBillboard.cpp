@@ -780,7 +780,11 @@ void CGameScene::UpdateItemBillboardPickupCollision()
 				inventory->AddItemCount(item.inventorySlot, 1);
 
 				if ( playerSlot == m_localPlayerSlot )
+				{
 					SyncLocalInventoryToHud();
+
+					if ( m_pAudioManager ) m_pAudioManager->PlaySound2D("Assets/Audio/ItemDrop.wav", false, false, 0.2f, false);
+				}
 			}
 
 			item.active = false;
@@ -795,7 +799,6 @@ void CGameScene::UpdateItemBillboardPickupCollision()
 		}
 	}
 }
-
 
 void CGameScene::RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
