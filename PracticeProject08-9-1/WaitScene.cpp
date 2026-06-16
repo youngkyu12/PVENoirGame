@@ -177,7 +177,15 @@ void CWaitScene::UpdateHoveredWeaponSlot(POINT ptClient)
 		return;
 	}
 
-	m_hoveredWeaponSlot = GetWeaponSlotAtPoint(ptClient);
+	const int previousHoveredWeaponSlot = m_hoveredWeaponSlot;
+	const int nextHoveredWeaponSlot = GetWeaponSlotAtPoint(ptClient);
+
+	m_hoveredWeaponSlot = nextHoveredWeaponSlot;
+
+	if ( nextHoveredWeaponSlot >= 0 && nextHoveredWeaponSlot != previousHoveredWeaponSlot )
+	{
+		if ( m_pAudioManager ) m_pAudioManager->PlaySound2D("Assets/Audio/Weaponselecting.wav", false, false, 0.1f, false);
+	}
 }
 
 void CWaitScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
@@ -246,7 +254,10 @@ void CWaitScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	{
 		if ( auto* music = m_pAudioManager->GetMusicDirector() )
 		{
-			music->RequestState(EMusicState::Menu, true);
+			m_pAudioManager->SetGroupVolume(m_pAudioManager->GetBgmGroup(), 0.15f);
+
+			music->SetCrossFadeSeconds(0.35f);
+			music->RequestState(EMusicState::Wait, false);
 			music->BeginPendingTransition();
 		}
 	}
@@ -344,12 +355,13 @@ bool CWaitScene::OnProcessingMouseMessage(HWND /*hWnd*/, UINT nMessageID, WPARAM
 	if ( clickedWeaponSlot >= 0 )
 	{
 		SetPlayerWeaponSelection(m_localPlayerIndex, clickedWeaponSlot);
+		if ( m_pAudioManager ) m_pAudioManager->PlaySound2D("Assets/Audio/Weaponselect.wav", false, false, 0.5f, false);
 		return true;
 	}
 
 	if ( !m_waitUI.IsPointInSprite(m_startButtonSpriteIndex, ptClient) ) return false;
 
-	if ( m_pAudioManager ) m_pAudioManager->PlaySound2D("Assets/Audio/StartEffect.mp3", false, false, 1.0f, false);
+	if ( m_pAudioManager ) m_pAudioManager->PlaySound2D("Assets/Audio/StartEffect.mp3", false, false, 0.5f, false);
 
 	m_isReady = true;
 	SendLobbyState();

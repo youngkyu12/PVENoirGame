@@ -85,6 +85,7 @@ public:
 	bool IsRender() const { return mRender->IsEnabled(); }
 
 	const std::vector<BoundingCapsule>& GetBoneCapsules() const { return mWorldBoneCapsules; }
+	const std::vector<int>& GetFrustumCullBoneCapsuleIndices() const { return mFrustumCullBoneCapsuleIndices; }
 	bool HasBoneCapsules() const { return !mWorldBoneCapsules.empty(); }
 
 	bool IntersectsBoneCapsulesHierarchical(const BoundingOrientedBox& box) const;
@@ -96,8 +97,10 @@ public:
 
 	void OnLateUpdate(float dt) override;
 
-	void SetCollisionEnabled(bool enabled) { mCollisionEnabled = enabled; }
+	void SetCollisionEnabled(bool enabled) { mCollisionEnabled = enabled; if ( enabled ) mDeferredDisableSeconds = -1.0f; }
 	bool IsCollisionEnabled() const { return mCollisionEnabled; }
+	void DisableCollisionAndKeepUpdatingForSeconds(float seconds);
+	void CancelDeferredDisable();
 
 private:
 	static BoundingOrientedBox MakeLocalOOBB(const XMFLOAT3& Min, const XMFLOAT3& Max);
@@ -139,9 +142,11 @@ private:
 	bool mIsTrigger = false;
 
 	bool mCollisionEnabled = true;
+	float mDeferredDisableSeconds = -1.0f;
 private:
 	std::vector<BoneCapsuleLink> mBoneCapsuleLinks;
 	std::vector<BoundingCapsule> mWorldBoneCapsules;
+	std::vector<int> mFrustumCullBoneCapsuleIndices;
 
 	uint16_t m_collisionMegaGridMask = 0;
 	bool m_collisionMegaGridMaskFixed = false;
@@ -186,6 +191,7 @@ public:
 
 private:
 	void RebuildWeaponBoneCapsuleSelection();
+	void RebuildFrustumCullBoneCapsuleSelection();
 
 	bool mDebugColliderBuildLogEnabled = false;
 	std::string mDebugColliderAssetName;

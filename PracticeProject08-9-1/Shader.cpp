@@ -403,6 +403,32 @@ D3D12_SHADER_BYTECODE CTexturedShader::CreatePixelShader(ID3DBlob** ppd3dShaderB
 	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSTextured", "ps_5_1", ppd3dShaderBlob));
 }
 
+D3D12_SHADER_BYTECODE CSkyBoxShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(L"Shaders.hlsl", "VSSkyBox", "vs_5_1", ppd3dShaderBlob);
+}
+
+D3D12_SHADER_BYTECODE CSkyBoxShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSSkyBox", "ps_5_1", ppd3dShaderBlob);
+}
+
+D3D12_RASTERIZER_DESC CSkyBoxShader::CreateRasterizerState()
+{
+	D3D12_RASTERIZER_DESC desc = CShader::CreateRasterizerState();
+	desc.CullMode = D3D12_CULL_MODE_NONE;
+	return desc;
+}
+
+D3D12_DEPTH_STENCIL_DESC CSkyBoxShader::CreateDepthStencilState()
+{
+	D3D12_DEPTH_STENCIL_DESC desc = CShader::CreateDepthStencilState();
+	desc.DepthEnable = TRUE;
+	desc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	desc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	return desc;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 CIlluminatedTexturedShader::CIlluminatedTexturedShader()
@@ -2028,5 +2054,41 @@ D3D12_SHADER_BYTECODE CWaterShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob
 
 void CSsaoShader::CreateShader(ID3D12Device* dev, ID3D12RootSignature* sceneRootSig, UINT nRenderTargets, DXGI_FORMAT* rtvFormats, DXGI_FORMAT dsvFormat)
 {
+	m_pd3dGraphicsRootSignature = sceneRootSig;
 
+	CShader::CreateShader(
+		dev,
+		m_pd3dGraphicsRootSignature.Get(),
+		nRenderTargets,
+		rtvFormats,
+		dsvFormat
+	);
+}
+
+D3D12_SHADER_BYTECODE CSsaoShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(L"Ssao.hlsl", "VSSsao", "vs_5_1", ppd3dShaderBlob);
+}
+
+D3D12_SHADER_BYTECODE CSsaoShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(L"Ssao.hlsl", "PSSsao", "ps_5_1", ppd3dShaderBlob);
+}
+
+D3D12_DEPTH_STENCIL_DESC CSsaoShader::CreateDepthStencilState()
+{
+	D3D12_DEPTH_STENCIL_DESC desc = CTextureToFullScreenShader::CreateDepthStencilState();
+	desc.DepthEnable = FALSE;
+	desc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	return desc;
+}
+
+D3D12_SHADER_BYTECODE CSsaoBlurShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(L"SsaoBlur.hlsl", "VSSsaoBlur", "vs_5_1", ppd3dShaderBlob);
+}
+
+D3D12_SHADER_BYTECODE CSsaoBlurShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return CShader::CompileShaderFromFile(L"SsaoBlur.hlsl", "PSSsaoBlur", "ps_5_1", ppd3dShaderBlob);
 }
