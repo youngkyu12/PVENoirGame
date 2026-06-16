@@ -111,8 +111,8 @@ namespace
 
 	static GameMath::Vec3 GetInitialPlayerSpawnPosition(uint64 playerId)
 	{
-		constexpr float kBaseZ = 1.2f;
-		constexpr float kSpacingX = 4.0f;
+		constexpr float kBaseZ = -150.0f;
+		constexpr float kSpacingX = 2.0f;
 		return GameMath::Vec3(static_cast<float>(playerId) * kSpacingX, 0.0f, kBaseZ);
 	}
 
