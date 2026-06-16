@@ -158,6 +158,7 @@ CGameScene::CGameScene()
 
 	m_bLocalPlayerInsideCastleCenterMegaGrid = false;
 	m_bMegaGrid5DirectionalLightProfileActive = false;
+	m_bBossStageBgmActive = false;
 
 	m_inventoryItemCounts.fill(0);
 	m_bPrevInventoryUseKeyDown.fill(false);
@@ -3199,6 +3200,58 @@ void CGameScene::UpdateCastleCenterMegaGridState()
 	m_bLocalPlayerInsideCastleCenterMegaGrid = IsLocalPlayerInsideCastleCenterMegaGridFullArea();
 }
 
+bool CGameScene::ShouldUseBossStageBgm() const
+{
+	if ( m_bLocalPlayerDead )
+		return false;
+
+	CGameObject* boss = FindBossStageBossInMegaGrid(5);
+
+	if ( !boss )
+		return false;
+
+	if ( IsMonsterDead(boss) )
+		return false;
+
+	const bool bossActive = m_bBossStageBossActivated && boss->GetActive();
+
+	const float bossAppearLeadSeconds = 1.0f;
+	const float summonBgmStartAge = std::max(0.0f, kBossSummonCircleFadeInDurationSec - bossAppearLeadSeconds);
+
+	const bool bossWillAppearSoon =
+		m_bBossSummonSequenceStarted &&
+		!m_bBossStageBossActivated &&
+		m_pendingBossStageBoss == boss &&
+		m_bBossSummonCircleFadeAgeSec >= summonBgmStartAge;
+
+	if ( !bossActive && !bossWillAppearSoon )
+		return false;
+
+	return IsLocalPlayerInsideCastleCenterMegaGridFullArea();
+}
+
+void CGameScene::UpdateBossStageBgmState()
+{
+	if ( !m_pAudioManager )
+		return;
+
+	CMusicDirector* music = m_pAudioManager->GetMusicDirector();
+
+	if ( !music )
+		return;
+
+	const bool shouldUseBossStageBgm = ShouldUseBossStageBgm();
+
+	if ( shouldUseBossStageBgm == m_bBossStageBgmActive )
+		return;
+
+	m_bBossStageBgmActive = shouldUseBossStageBgm;
+
+	music->SetCrossFadeSeconds(1.5f);
+	music->RequestState(shouldUseBossStageBgm ? EMusicState::Boss : EMusicState::Gameplay, false);
+	music->BeginPendingTransition();
+}
+
 void CGameScene::DumpStaticGridOccupancyLog() const
 {
 	m_sceneGrid.DumpStaticGridOccupancyLog();
@@ -3440,6 +3493,7 @@ void CGameScene::ReleaseObjects()
 	m_bSceneRenderTargetsReady = false;
 	m_bInactiveOverlayVisible = false;
 	m_bStartedGameplayMusic = false;
+	m_bBossStageBgmActive = false;
 	m_bWasLocalPlayerInsideMegaGridCenter = false;
 	m_bLocalPlayerInsideCastleCenterMegaGrid = false;
 
@@ -8942,6 +8996,8 @@ void CGameScene::AnimateObjects(float dt)
 #endif
 
 	UpdateDynamicGridState();
+
+	UpdateBossStageBgmState();
 
 	UpdateMegaGrid4LowYPoison(dt);
 
