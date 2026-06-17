@@ -200,6 +200,34 @@ bool CMonsterAI::AcquireTarget()
 	float bestSq = FLT_MAX;
 	const auto myPos = GetOwner()->GetPosition();
 
+	if (m_useInfiniteDirectChase)
+	{
+		for (const auto& [id, player] : GRoom->GetPlayers())
+		{
+			if (!player) continue;
+			if (player->IsDead()) continue;
+
+			const float dSq = DistSqXZ(myPos, player->GetPosition());
+			if (dSq < bestSq)
+			{
+				bestSq = dSq;
+				nearest = player.get();
+			}
+		}
+
+		const bool hadTarget = (m_pTarget != nullptr);
+		m_pTarget = nearest;
+		m_isChasing = (m_pTarget != nullptr);
+
+		if (!hadTarget && m_pTarget != nullptr && !m_hasNotifiedFirstChase)
+		{
+			m_hasNotifiedFirstChase = true;
+			GRoom->OnMonsterFirstChase(GetOwner()->GetObjectId());
+		}
+
+		return m_pTarget != nullptr;
+	}
+
 	const float innerZoneSq = (m_innerZoneRadius > 0.f) ? (m_innerZoneRadius * m_innerZoneRadius) : -1.f;
 
 	for (const auto& [id, player] : GRoom->GetPlayers())
@@ -461,10 +489,33 @@ void CMonsterAI::SetChaseRanges(float startRange, float stopRange)
 void CMonsterAI::SetDirectMoveMode(float advanceDist, const GameMath::Vec3& homeDir, float innerZoneRadius, const GameMath::Vec3& zoneCenter)
 {
 	m_useDirectMove = true;
+	m_useInfiniteDirectChase = false;
 	m_initialAdvanceDist = advanceDist;
 	m_initialAdvanceDir = homeDir;
 	m_innerZoneRadius = innerZoneRadius;
 	m_innerZoneCenter = zoneCenter;
+	m_hasNotifiedFirstChase = false;
+	m_isChasing = false;
+	m_pTarget = nullptr;
+	m_currentPath.clear();
+	m_trianglePath.clear();
+	m_currentPathIndex = 0;
+	m_bReturningHome = false;
+	m_returnPath.clear();
+	m_returnTrianglePath.clear();
+	m_returnPathIndex = 0;
+	m_bPatrolEnabled = false;
+	ResetPatrolState();
+}
+
+void CMonsterAI::SetInfiniteDirectChaseMode()
+{
+	m_useDirectMove = true;
+	m_useInfiniteDirectChase = true;
+	m_initialAdvanceDist = 0.f;
+	m_initialAdvanceDir = GameMath::Vec3::Zero();
+	m_innerZoneRadius = 0.f;
+	m_innerZoneCenter = GameMath::Vec3::Zero();
 	m_hasNotifiedFirstChase = false;
 	m_isChasing = false;
 	m_pTarget = nullptr;
