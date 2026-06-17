@@ -409,6 +409,7 @@ void CGameScene::BuildItemBillboardBatch(ID3D12Device* dev, ID3D12GraphicsComman
 				item.height = 2.0f;
 				item.yOffset = 2.0f;
 				item.materialId = kTransparentItemBillboardMaterialId;
+				item.position = AdjustItemBillboardPositionToTerrain(item.position);
 				break;
 			default:
 				continue;

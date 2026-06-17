@@ -1561,6 +1561,7 @@ private:
 
 	std::unordered_map<uint64_t, uint32_t> m_prevPlayerNetworkStateCode;
 	std::unordered_map<uint64_t, uint32_t> m_prevEnemyNetworkStateCode;
+	std::unordered_map<uint64_t, int>      m_prevPlayerAnimTick;
 	std::unordered_map<uint64_t, NetworkActorYState> m_networkPlayerYStates;
 	std::unordered_map<uint64_t, NetworkActorYState> m_networkEnemyYStates;
 

@@ -8505,9 +8505,15 @@ void CGameScene::AnimateObjects(float dt)
 
                 if (decoded.die)
                 {
-					if ( slot == m_localPlayerSlot )
-						m_bLocalPlayerDead = true;
-					ac->RequestDeath();
+					const int curAnimTick = state.animation.animTick;
+					const auto tickIt = m_prevPlayerAnimTick.find(state.id);
+					if (tickIt == m_prevPlayerAnimTick.end() || tickIt->second != curAnimTick)
+					{
+						m_prevPlayerAnimTick[state.id] = curAnimTick;
+						if ( slot == m_localPlayerSlot )
+							m_bLocalPlayerDead = true;
+						ac->RequestDeath();
+					}
                     ac->SetAnimState(EAnimState::Die);
 					m_prevPlayerNetworkStateCode[state.id] = state.animation.stateCode;
 					continue;
@@ -8515,15 +8521,16 @@ void CGameScene::AnimateObjects(float dt)
 
 				else if ( decoded.hit )
 				{
-					if ( !prevDecoded.hit )
+					const int curAnimTick = state.animation.animTick;
+					const auto tickIt = m_prevPlayerAnimTick.find(state.id);
+					if (tickIt == m_prevPlayerAnimTick.end() || tickIt->second != curAnimTick)
 					{
+						m_prevPlayerAnimTick[state.id] = curAnimTick;
 						SpawnBloodSplash(player, nullptr, nullptr);
-
 						if ( auto* hp = player->GetComponent<CHealthComponent>() )
 							hp->RequestHitSfx();
+						ac->RequestHit();
 					}
-
-					ac->RequestHit();
 					m_prevPlayerNetworkStateCode[state.id] = state.animation.stateCode;
 					continue;
 				}
@@ -8546,12 +8553,27 @@ void CGameScene::AnimateObjects(float dt)
 				}
 				else if ( decoded.attack )
 				{
-					if ( !prevDecoded.attack )
+					const int curAnimTick = state.animation.animTick;
+					const auto tickIt = m_prevPlayerAnimTick.find(state.id);
+					if (tickIt == m_prevPlayerAnimTick.end() || tickIt->second != curAnimTick)
 					{
+						m_prevPlayerAnimTick[state.id] = curAnimTick;
 						RequestPlayerAttackSfx(player);
+						if ( state.weaponType == EWeaponType::Sword )
+							BeginSwordTrail(player);
+						else if ( state.weaponType == EWeaponType::Axe )
+							BeginAxeTrail(player);
+						else if ( state.weaponType == EWeaponType::Gun )
+						{
+							const XMFLOAT3 dirN = GetSafeObjectForward(player);
+							XMFLOAT3 muzzlePos = player->GetPosition();
+							muzzlePos.y += 1.15f;
+							muzzlePos.x += dirN.x * 0.85f;
+							muzzlePos.z += dirN.z * 0.85f;
+							SpawnMuzzleFlash(muzzlePos, dirN);
+						}
+						ac->RequestAttack();
 					}
-
-					ac->RequestAttack();
 					m_prevPlayerNetworkStateCode[state.id] = state.animation.stateCode;
 					continue;
 				}
@@ -8836,9 +8858,14 @@ void CGameScene::AnimateObjects(float dt)
 			{
 				if ( entry.serverId == itemState.id )
 				{
+					const bool wasActive = entry.active;
 					entry.active = itemState.active;
 					if ( !itemState.active )
+					{
 						entry.distanceCulled = true;
+						if ( wasActive && entry.kind == EItemBillboardKind::Key )
+							MarkMegaGridClearedByNumber(entry.megaGridNumber);
+					}
 					break;
 				}
 			}
@@ -8989,8 +9016,9 @@ void CGameScene::AnimateObjects(float dt)
 	SyncLocalInventoryToHud();
 #endif
 
-#ifndef USING_NETWORK
 	UpdateBossMeleeSlashCasts(dt);
+
+#ifndef USING_NETWORK
 	UpdateBossPoisonProjectileSpellCasts(dt);
 	UpdateBossPoisonProjectiles(dt);
 #endif

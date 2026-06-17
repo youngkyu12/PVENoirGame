@@ -111,8 +111,8 @@ namespace
 
 	static GameMath::Vec3 GetInitialPlayerSpawnPosition(uint64 playerId)
 	{
-		constexpr float kBaseZ = 1.2f;
-		constexpr float kSpacingX = 4.0f;
+		constexpr float kBaseZ = -150.0f;
+		constexpr float kSpacingX = 2.0f;
 		return GameMath::Vec3(static_cast<float>(playerId) * kSpacingX, 0.0f, kBaseZ);
 	}
 
@@ -595,6 +595,19 @@ void Room::BuildRoom()
 	InitializeItems();
 }
 
+void Room::SetPlayerLobbyWeapon(uint32 index, uint32 playerWeapon)
+{
+	auto playerIt = players.find(index);
+	if (playerIt == players.end()) return;
+
+	if (playerWeapon >= Protocol::WEAPON_TYPE_SWORD &&
+		playerWeapon <= Protocol::WEAPON_TYPE_CANON)
+	{
+		playerIt->second->SetWeapon(
+			static_cast<Protocol::WeaponType>(playerWeapon), 0);
+	}
+}
+
 void Room::StartGame(bool ready, uint32 index)
 {
 	if (players.find(index) == players.end()) return;
@@ -851,6 +864,21 @@ void Room::OnMonsterDeath(uint64 enemyId)
 		if (megaGrid == 6 || megaGrid == 8)
 		{
 			m_keyPickupUnlockedByMegaGrid[static_cast<size_t>(megaGrid)] = true;
+			for (int ki = 0; ki < kKeyCount; ++ki)
+			{
+				if (kKeyPositions[ki].megaGridIndex + 1 != megaGrid) continue;
+				for (auto& item : m_items)
+				{
+					if (item.kind != Protocol::ITEM_TYPE_KEY) continue;
+					if (std::abs(item.position.x - kKeyPositions[ki].x) < 0.1f &&
+						std::abs(item.position.z - kKeyPositions[ki].z) < 0.1f)
+					{
+						item.active = true;
+						break;
+					}
+				}
+				break;
+			}
 			cout << "[Key Unlock] MegaGrid " << megaGrid
 				<< " unlocked by enemy " << enemyId << " death" << endl;
 		}
