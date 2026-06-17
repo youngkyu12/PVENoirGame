@@ -49,6 +49,7 @@ private:
 	int GetWeaponSlotAtPoint(POINT ptClient) const;
 	void UpdateHoveredWeaponSlot(POINT ptClient);
 	void UpdatePlayerMarkerSpriteRect(int playerIndex);
+	void SendLobbyState();
 	bool m_startGameRequested = false;
 	bool m_showLoading = false;
 };

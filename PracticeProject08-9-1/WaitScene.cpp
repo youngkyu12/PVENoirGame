@@ -115,6 +115,26 @@ void CWaitScene::SetPlayerWeaponSelection(int playerIndex, int weaponSlot)
 	g_waitSceneWeaponSelectionKnown[safePlayerIndex] = true;
 
 	UpdatePlayerMarkerSpriteRect(safePlayerIndex);
+
+	if ( safePlayerIndex == m_localPlayerIndex )
+		SendLobbyState();
+}
+
+void CWaitScene::SendLobbyState()
+{
+#ifdef USING_NETWORK
+	const int weaponSlot = g_waitSceneSelectedWeaponSlots[m_localPlayerIndex];
+	if ( weaponSlot < 0 || weaponSlot > 3 )
+		return;
+
+	Protocol::C_GAME_START startPkt;
+	startPkt.set_playerid(g_myPlayerId);
+	startPkt.set_playerweapon(static_cast< uint32_t >( weaponSlot + 1 ));
+	startPkt.set_ready(m_isReady);
+
+	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(startPkt);
+	g_clientService->BroadCast(sendBuffer);
+#endif
 }
 
 void CWaitScene::UpdatePlayerMarkerSpriteRect(int playerIndex)
@@ -157,7 +177,15 @@ void CWaitScene::UpdateHoveredWeaponSlot(POINT ptClient)
 		return;
 	}
 
-	m_hoveredWeaponSlot = GetWeaponSlotAtPoint(ptClient);
+	const int previousHoveredWeaponSlot = m_hoveredWeaponSlot;
+	const int nextHoveredWeaponSlot = GetWeaponSlotAtPoint(ptClient);
+
+	m_hoveredWeaponSlot = nextHoveredWeaponSlot;
+
+	if ( nextHoveredWeaponSlot >= 0 && nextHoveredWeaponSlot != previousHoveredWeaponSlot )
+	{
+		if ( m_pAudioManager ) m_pAudioManager->PlaySound2D("Assets/Audio/Weaponselecting.wav", false, false, 0.1f, false);
+	}
 }
 
 void CWaitScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
@@ -226,7 +254,10 @@ void CWaitScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	{
 		if ( auto* music = m_pAudioManager->GetMusicDirector() )
 		{
-			music->RequestState(EMusicState::Menu, true);
+			m_pAudioManager->SetGroupVolume(m_pAudioManager->GetBgmGroup(), 0.15f);
+
+			music->SetCrossFadeSeconds(0.35f);
+			music->RequestState(EMusicState::Wait, false);
 			music->BeginPendingTransition();
 		}
 	}
@@ -324,24 +355,16 @@ bool CWaitScene::OnProcessingMouseMessage(HWND /*hWnd*/, UINT nMessageID, WPARAM
 	if ( clickedWeaponSlot >= 0 )
 	{
 		SetPlayerWeaponSelection(m_localPlayerIndex, clickedWeaponSlot);
+		if ( m_pAudioManager ) m_pAudioManager->PlaySound2D("Assets/Audio/Weaponselect.wav", false, false, 0.5f, false);
 		return true;
 	}
 
 	if ( !m_waitUI.IsPointInSprite(m_startButtonSpriteIndex, ptClient) ) return false;
 
-	if ( m_pAudioManager ) m_pAudioManager->PlaySound2D("Assets/Audio/StartEffect.mp3", false, false, 1.0f, false);
+	if ( m_pAudioManager ) m_pAudioManager->PlaySound2D("Assets/Audio/StartEffect.mp3", false, false, 0.5f, false);
 
 	m_isReady = true;
-
-#ifdef USING_NETWORK
-	Protocol::C_GAME_START startPkt;
-	startPkt.set_playerid(g_myPlayerId);
-	startPkt.set_playerweapon(0x1010);
-	startPkt.set_ready(m_isReady);
-
-	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(startPkt);
-	g_clientService->BroadCast(sendBuffer);
-#endif
+	SendLobbyState();
 
 	m_showLoading = true;
 	m_hoveredWeaponSlot = -1;
