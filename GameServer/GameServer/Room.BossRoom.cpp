@@ -391,7 +391,11 @@ CEnemy* Room::SpawnBossCallEnemy(Protocol::EnemyType type)
 
 	CEnemy* activated = ActivateSpawnerEnemy(5, type, GameMath::Vec3(x, 0.0f, z), yaw);
 	if (activated)
+	{
 		m_bossSummonedEnemyIds.insert(activated->GetObjectId());
+		if (CMonsterAI* ai = activated->GetMonsterAI())
+			ai->SetInfiniteDirectChaseMode();
+	}
 
 	return activated;
 }

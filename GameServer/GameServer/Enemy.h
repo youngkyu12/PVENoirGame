@@ -50,4 +50,5 @@ public:
 
 private:
 	uint32 m_hitEndTick = 0;
+	uint32 m_bossHitReactionSuperArmorEndTick = 0;
 };

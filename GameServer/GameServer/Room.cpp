@@ -200,12 +200,15 @@ void Room::Enter(PlayerRef player)
 	}
 
 	player->Build();
-	player->SetPosition(SnapToTerrainIfBelow(GetInitialPlayerSpawnPosition(player->playerId)));
+	const GameMath::Vec3 initialSpawnPosition =
+		SnapToTerrainIfBelow(GetInitialPlayerSpawnPosition(player->playerId));
+	player->SetInitialSpawnPosition(initialSpawnPosition);
+	player->SetPosition(initialSpawnPosition);
 	player->SetMaxHp(kHpPlayer);
 
 	// life-state 초기 정상화
 	player->OnRespawnEnter(GetAnimClockTick()); // 위치를 내부에서 덮어쓰면 아래 순서 조정 필요
-	player->SetPosition(SnapToTerrainIfBelow(GetInitialPlayerSpawnPosition(player->playerId)));
+	player->SetPosition(initialSpawnPosition);
 
 	player->SetWeapon(
 		static_cast<Protocol::WeaponType>(player->playerId + 1), 0);
