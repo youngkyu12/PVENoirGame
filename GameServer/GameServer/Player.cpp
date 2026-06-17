@@ -7,7 +7,7 @@ namespace
     constexpr int kSwordAttackAnimTicks = 19; // ceil(1.383333s / 0.060s)
     constexpr int kAxeAttackAnimTicks = 27;   // ceil(1.583333s / 0.060s)
     constexpr int kDefaultAttackAnimTicks = 10;
-    constexpr int kPlayerHitAnimTicks = 12;    // ceil(0.983333s / 0.060s)
+    constexpr int kPlayerHitAnimTicks = 4;     // short hit-stun; long values make damage lock feel excessive
     constexpr int kRollAnimTicks = 12; // ceil((1.516667s * (0.55 - 0.08)) / 0.060s)
 
     int GetPlayerAttackAnimTicks(Protocol::WeaponType weaponType, const CWeapon& weapon)
@@ -57,7 +57,11 @@ void Player::Update(uint32 serverTick)
             break;
         case Protocol::ANIMATION_TYPE_ROLL:   animDuration = kRollAnimTicks;  break;
         case Protocol::ANIMATION_TYPE_DIE:    animDuration = 25; break;
-        case Protocol::ANIMATION_TYPE_HIT:    animDuration = kPlayerHitAnimTicks; break;
+        case Protocol::ANIMATION_TYPE_HIT:
+            animDuration = (m_hitEndTick > GetAnimTick())
+                ? static_cast<int>(m_hitEndTick - GetAnimTick())
+                : kPlayerHitAnimTicks;
+            break;
         default: animDuration = 0; break;
         }
 
@@ -90,6 +94,7 @@ void Player::Build()
 void Player::ApplyHit(uint32 serverTick, int damage, uint32 hitDurationTicks, uint64 serverMs)
 {
     if (IsDead()) return;
+    if (IsRollInvincible()) return;
 
     weapon.CancelAttack();
     TakeDamage(ApplyDefenseBuffToIncomingDamage(damage, serverMs));
@@ -100,8 +105,11 @@ void Player::ApplyHit(uint32 serverTick, int damage, uint32 hitDurationTicks, ui
         return;
     }
 
+    const uint32 clampedHitDurationTicks =
+        std::min<uint32>(hitDurationTicks, kPlayerHitAnimTicks);
     SetAnimState(Protocol::ANIMATION_TYPE_HIT);
     SetAnimTick(serverTick);
+    m_hitEndTick = serverTick + clampedHitDurationTicks;
 }
 
 void Player::OnDeathEnter(uint32 serverTick)
@@ -133,7 +141,7 @@ void Player::OnRespawnEnter(uint32 serverTick)
 
     ResetHpToMax();
 	const float prevYaw = GetYaw();
-    SetPosition(GameMath::Vec3(0.0f, 0.0f, -200.0f));
+    SetPosition(m_initialSpawnPosition);
 	SetYaw(180.0f);
 	if (isActualRespawn)
 	{
