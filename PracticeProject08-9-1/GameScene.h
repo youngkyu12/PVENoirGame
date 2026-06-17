@@ -787,6 +787,9 @@ private:
 	void UpdateMegaGrid5DirectionalLightState();
 	void ApplyMegaGrid5DirectionalLightProfile(bool enabled);
 
+	bool ShouldUseBossStageBgm() const;
+	void UpdateBossStageBgmState();
+
 	void UpdateMegaGrid4LowYPoison(float dt);
 	bool IsPlayerInsideMegaGrid4LowYPoisonArea(const CGameObject* player) const;
 
@@ -1712,6 +1715,7 @@ private:
 
 	bool                                m_bInactiveOverlayVisible = false;
 	bool                                m_bStartedGameplayMusic = false;
+	bool                                m_bBossStageBgmActive = false;
 	bool                                m_bWasLocalPlayerInsideMegaGridCenter = false;
 	bool                                m_bShowShadowMapOverlay = true;
 
