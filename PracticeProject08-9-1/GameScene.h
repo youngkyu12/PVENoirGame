@@ -127,8 +127,16 @@ struct StaticWorldLodEntry
 	float cullDistance = 1000000.0f;
 };
 
+enum class EStaticOcclusionEntryKind : uint8_t
+{
+	Object = 0,
+	TreeDoorProbe
+};
+
 struct StaticOcclusionEntry
 {
+	EStaticOcclusionEntryKind kind = EStaticOcclusionEntryKind::Object;
+
 	CGameObject* object = nullptr;
 	UINT staticBatchObjectIndex = UINT_MAX;
 
@@ -137,6 +145,9 @@ struct StaticOcclusionEntry
 
 	BoundingOrientedBox worldBounds{};
 	bool hasWorldBounds = false;
+
+	int treeProbeMegaGridNumber = -1;
+	int treeProbeDoorIndex = -1;
 };
 
 struct SkinnedWorldLodEntry
@@ -273,6 +284,7 @@ private:
 	);
 
     void LinkSceneObjects();
+	void ApplyAttachmentCullFromSkinnedOwners();
 
 	void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd);
 	void UpdateBossHpGaugeHud();
@@ -758,14 +770,8 @@ private:
 	void InitializeSpatialGrid();
 	void ShutdownSpatialGrid();
 
-	bool TryGetTreeCullReferenceGridCell(
-		CCamera* camera,
-		int& outCellX,
-		int& outCellZ,
-		int& outMegaX,
-		int& outMegaZ) const;
-
-	bool ShouldCullTreesByVillageGrid(CCamera* camera) const;
+	bool ShouldCullTreesByVillageDoorProbes(CCamera* camera) const;
+	bool IsAnyVillageWallTreeCullDoorProbeVisible(int megaGridNumber, CCamera* camera) const;
 
 	void AddDynamicCount(int cellX, int cellZ, EGridDynamicKind kind, int delta);
 	void RegisterStaticPlacementToGrid(const StaticPlacementEntry& placement, CGameObject* obj);
@@ -780,6 +786,9 @@ private:
 
 	void UpdateMegaGrid5DirectionalLightState();
 	void ApplyMegaGrid5DirectionalLightProfile(bool enabled);
+
+	bool ShouldUseBossStageBgm() const;
+	void UpdateBossStageBgmState();
 
 	void UpdateMegaGrid4LowYPoison(float dt);
 	bool IsPlayerInsideMegaGrid4LowYPoisonArea(const CGameObject* player) const;
@@ -1552,6 +1561,7 @@ private:
 
 	std::unordered_map<uint64_t, uint32_t> m_prevPlayerNetworkStateCode;
 	std::unordered_map<uint64_t, uint32_t> m_prevEnemyNetworkStateCode;
+	std::unordered_map<uint64_t, int>      m_prevPlayerAnimTick;
 	std::unordered_map<uint64_t, NetworkActorYState> m_networkPlayerYStates;
 	std::unordered_map<uint64_t, NetworkActorYState> m_networkEnemyYStates;
 
@@ -1705,6 +1715,7 @@ private:
 
 	bool                                m_bInactiveOverlayVisible = false;
 	bool                                m_bStartedGameplayMusic = false;
+	bool                                m_bBossStageBgmActive = false;
 	bool                                m_bWasLocalPlayerInsideMegaGridCenter = false;
 	bool                                m_bShowShadowMapOverlay = true;
 

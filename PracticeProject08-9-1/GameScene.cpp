@@ -158,6 +158,7 @@ CGameScene::CGameScene()
 
 	m_bLocalPlayerInsideCastleCenterMegaGrid = false;
 	m_bMegaGrid5DirectionalLightProfileActive = false;
+	m_bBossStageBgmActive = false;
 
 	m_inventoryItemCounts.fill(0);
 	m_bPrevInventoryUseKeyDown.fill(false);
@@ -286,31 +287,67 @@ void CGameScene::ShutdownSpatialGrid()
 	m_bulletGridTrackers.clear();
 }
 
-bool CGameScene::TryGetTreeCullReferenceGridCell(
-	CCamera* camera,
-	int& outCellX,
-	int& outCellZ,
-	int& outMegaX,
-	int& outMegaZ) const
+bool CGameScene::IsAnyVillageWallTreeCullDoorProbeVisible(int megaGridNumber, CCamera* camera) const
 {
-	outCellX = -1;
-	outCellZ = -1;
-	outMegaX = -1;
-	outMegaZ = -1;
+	if ( !camera )
+		return true;
 
+	bool foundProbe = false;
+
+	for ( size_t i = 0; i < m_staticOcclusionEntries.size(); ++i )
+	{
+		const StaticOcclusionEntry& entry = m_staticOcclusionEntries[i];
+
+		if ( entry.kind != EStaticOcclusionEntryKind::TreeDoorProbe )
+			continue;
+
+		if ( entry.treeProbeMegaGridNumber != megaGridNumber )
+			continue;
+
+		if ( !entry.enabled )
+			continue;
+
+		if ( !entry.hasWorldBounds )
+			continue;
+
+		foundProbe = true;
+
+		BoundingOrientedBox testBounds = entry.worldBounds;
+		if ( !camera->IsInFrustum(testBounds) )
+			continue;
+
+		if ( !m_bStaticOcclusionQueryResultsValid )
+			return true;
+
+		if ( i >= m_staticOcclusionQuerySampleCounts.size() )
+			return true;
+
+		if ( i >= m_staticOcclusionLastFrameIssuedFlags.size() )
+			return true;
+
+		if ( i >= m_staticOcclusionZeroSampleFrameCounts.size() )
+			return true;
+
+		if ( m_staticOcclusionLastFrameIssuedFlags[i] == 0 )
+			return true;
+
+		if ( m_staticOcclusionQuerySampleCounts[i] > 0ull )
+			return true;
+
+		if ( m_staticOcclusionZeroSampleFrameCounts[i] < m_staticOcclusionHideFrameThreshold )
+			return true;
+	}
+
+	return !foundProbe;
+}
+
+bool CGameScene::ShouldCullTreesByVillageDoorProbes(CCamera* camera) const
+{
 	if ( !m_sceneGrid.IsInitialized() )
 		return false;
 
-	if ( camera )
-	{
-		const XMFLOAT3 cameraPosition = camera->GetPosition();
-
-		if ( m_sceneGrid.WorldToCell(cameraPosition.x, cameraPosition.z, outCellX, outCellZ) )
-		{
-			if ( m_sceneGrid.FineCellToMegaGridCell(outCellX, outCellZ, outMegaX, outMegaZ) )
-				return true;
-		}
-	}
+	if ( !camera )
+		return false;
 
 	CGameObject* localPlayer = GetPlayer();
 
@@ -318,50 +355,24 @@ bool CGameScene::TryGetTreeCullReferenceGridCell(
 		localPlayer = GetPlayerBySlot(0);
 
 	if ( !localPlayer )
+		return false;
+
+	if ( !IsPlayerInsideMegaGridCenter(localPlayer) )
 		return false;
 
 	const XMFLOAT3 playerPosition = localPlayer->GetPosition();
+	const int megaGridNumber = m_sceneGrid.MegaGridNumberFromWorldPosition(playerPosition.x, playerPosition.z);
 
-	if ( !m_sceneGrid.WorldToCell(playerPosition.x, playerPosition.z, outCellX, outCellZ) )
+	if ( megaGridNumber == 4 )
 		return false;
 
-	return m_sceneGrid.FineCellToMegaGridCell(outCellX, outCellZ, outMegaX, outMegaZ);
-}
-
-bool CGameScene::ShouldCullTreesByVillageGrid(CCamera* camera) const
-{
-	if ( !m_sceneGrid.IsInitialized() )
-		return false;
-
-	// Castle 포탈로 중앙 성 내부에 들어간 경우에는
-	// 기존 문/성벽 시야 판정과 무관하게 모든 나무를 컬링한다.
-	if ( m_bLocalPlayerInsideCastleCenterMegaGrid )
+	if ( megaGridNumber == 5 )
 		return true;
 
-	CGameObject* localPlayer = GetPlayer();
-
-	if ( !localPlayer )
-		localPlayer = GetPlayerBySlot(0);
-
-	if ( localPlayer )
-	{
-		const XMFLOAT3 playerPosition = localPlayer->GetPosition();
-
-		// Tower 포탈 등으로 위로 올라간 경우에는
-		// 성벽/문 기준 나무 컬링을 하지 않는다.
-		if ( playerPosition.y >= kDisableVillageTreeCullPlayerHeight )
-			return false;
-	}
-
-	int cellX = -1;
-	int cellZ = -1;
-	int megaX = -1;
-	int megaZ = -1;
-
-	if ( !TryGetTreeCullReferenceGridCell(camera, cellX, cellZ, megaX, megaZ) )
+	if ( playerPosition.y >= kDisableVillageTreeCullPlayerHeight )
 		return false;
 
-	return m_sceneGrid.ShouldCullTreesByVillageGridCell(megaX, megaZ, cellX, cellZ);
+	return !IsAnyVillageWallTreeCullDoorProbeVisible(megaGridNumber, camera);
 }
 
 void CGameScene::AddDynamicCount(int cellX, int cellZ, EGridDynamicKind kind, int delta)
@@ -427,9 +438,6 @@ void CGameScene::RegisterStaticPlacementToGrid(const StaticPlacementEntry& place
 	}
 
 	m_sceneGrid.AddStaticTouchedCells(touchedCells);
-
-	if ( IsTreeCullBlockerAssetName(placement.assetName) )
-		m_sceneGrid.MarkTreeCullBlockerCells(touchedCells);
 }
 
 #ifndef USING_NETWORK
@@ -3192,6 +3200,58 @@ void CGameScene::UpdateCastleCenterMegaGridState()
 	m_bLocalPlayerInsideCastleCenterMegaGrid = IsLocalPlayerInsideCastleCenterMegaGridFullArea();
 }
 
+bool CGameScene::ShouldUseBossStageBgm() const
+{
+	if ( m_bLocalPlayerDead )
+		return false;
+
+	CGameObject* boss = FindBossStageBossInMegaGrid(5);
+
+	if ( !boss )
+		return false;
+
+	if ( IsMonsterDead(boss) )
+		return false;
+
+	const bool bossActive = m_bBossStageBossActivated && boss->GetActive();
+
+	const float bossAppearLeadSeconds = 1.0f;
+	const float summonBgmStartAge = std::max(0.0f, kBossSummonCircleFadeInDurationSec - bossAppearLeadSeconds);
+
+	const bool bossWillAppearSoon =
+		m_bBossSummonSequenceStarted &&
+		!m_bBossStageBossActivated &&
+		m_pendingBossStageBoss == boss &&
+		m_bBossSummonCircleFadeAgeSec >= summonBgmStartAge;
+
+	if ( !bossActive && !bossWillAppearSoon )
+		return false;
+
+	return IsLocalPlayerInsideCastleCenterMegaGridFullArea();
+}
+
+void CGameScene::UpdateBossStageBgmState()
+{
+	if ( !m_pAudioManager )
+		return;
+
+	CMusicDirector* music = m_pAudioManager->GetMusicDirector();
+
+	if ( !music )
+		return;
+
+	const bool shouldUseBossStageBgm = ShouldUseBossStageBgm();
+
+	if ( shouldUseBossStageBgm == m_bBossStageBgmActive )
+		return;
+
+	m_bBossStageBgmActive = shouldUseBossStageBgm;
+
+	music->SetCrossFadeSeconds(1.5f);
+	music->RequestState(shouldUseBossStageBgm ? EMusicState::Boss : EMusicState::Gameplay, false);
+	music->BeginPendingTransition();
+}
+
 void CGameScene::DumpStaticGridOccupancyLog() const
 {
 	m_sceneGrid.DumpStaticGridOccupancyLog();
@@ -3433,6 +3493,7 @@ void CGameScene::ReleaseObjects()
 	m_bSceneRenderTargetsReady = false;
 	m_bInactiveOverlayVisible = false;
 	m_bStartedGameplayMusic = false;
+	m_bBossStageBgmActive = false;
 	m_bWasLocalPlayerInsideMegaGridCenter = false;
 	m_bLocalPlayerInsideCastleCenterMegaGrid = false;
 
@@ -3855,14 +3916,14 @@ void CGameScene::UpdateStaticTreeGridCullSelection(CCamera* camera)
 	if ( !camera )
 		return;
 
-	const bool shouldCullTrees = ShouldCullTreesByVillageGrid(camera);
+	const bool shouldCullTrees = ShouldCullTreesByVillageDoorProbes(camera);
 
 	if ( !shouldCullTrees )
 		return;
 
 	for ( UINT objectIndex : m_staticTreeObjectIndices )
 	{
-		if ( objectIndex >= ( UINT ) m_staticTreeGridCullFlags.size() )
+		if ( objectIndex >= static_cast< UINT >( m_staticTreeGridCullFlags.size() ) )
 			continue;
 
 		m_staticTreeGridCullFlags[objectIndex] = 1;
@@ -6293,7 +6354,11 @@ void CGameScene::RefreshPlayerWeaponDamageTierFromClearedMegaGrids()
 	RefreshPlayerWeaponEffectVisuals();
 
 	if ( newTier > oldTier )
+	{
 		SpawnWeaponLevelUpFireworks();
+
+		if ( m_pAudioManager ) m_pAudioManager->PlaySound2D("Assets/Audio/LevelUp.wav", false, false, 0.5f, false);
+	}
 }
 
 void CGameScene::MarkMegaGridClearedByNumber(int megaGridNumber)
@@ -7364,9 +7429,9 @@ void CGameScene::BeginMonsterDeath(CGameObject* monster)
 
 	CancelMonsterPreparedActions(monster);
 
-	// 더 이상 플레이어 무기 충돌을 받지 않게 함.
+	// 더 이상 플레이어 무기 충돌을 받지 않게 하되, 사망 애니메이션 동안 bone capsule 갱신은 유지한다.
 	if ( auto* collider = monster->GetComponent<CColliderComponent>() )
-		collider->SetEnabled(false);
+		collider->DisableCollisionAndKeepUpdatingForSeconds(5.0f);
 
 	// 현재 실제로 붙는 AI는 CGhoulAIComponent지만,
 	// base 타입으로도 잡히는 구조라면 같이 처리.
@@ -7459,7 +7524,7 @@ void CGameScene::BeginLocalPlayerDeath(CGameObject* player)
 	CancelLocalPlayerPreparedActions();
 
 	if ( auto* collider = player->GetComponent<CColliderComponent>() )
-		collider->SetEnabled(false);
+		collider->DisableCollisionAndKeepUpdatingForSeconds(5.0f);
 
 	if ( auto* animComp = player->GetComponent<CAnimatorComponent>() )
 	{
@@ -7489,7 +7554,9 @@ void CGameScene::RespawnLocalPlayer(CGameObject* player)
 
 	if ( auto* collider = player->GetComponent<CColliderComponent>() )
 	{
+		collider->CancelDeferredDisable();
 		collider->SetEnabled(true);
+		collider->SetCollisionEnabled(true);
 		collider->UpdateWorldBounds();
 	}
 
@@ -8421,9 +8488,15 @@ void CGameScene::AnimateObjects(float dt)
 
                 if (decoded.die)
                 {
-					if ( slot == m_localPlayerSlot )
-						m_bLocalPlayerDead = true;
-					ac->RequestDeath();
+					const int curAnimTick = state.animation.animTick;
+					const auto tickIt = m_prevPlayerAnimTick.find(state.id);
+					if (tickIt == m_prevPlayerAnimTick.end() || tickIt->second != curAnimTick)
+					{
+						m_prevPlayerAnimTick[state.id] = curAnimTick;
+						if ( slot == m_localPlayerSlot )
+							m_bLocalPlayerDead = true;
+						ac->RequestDeath();
+					}
                     ac->SetAnimState(EAnimState::Die);
 					m_prevPlayerNetworkStateCode[state.id] = state.animation.stateCode;
 					continue;
@@ -8431,15 +8504,16 @@ void CGameScene::AnimateObjects(float dt)
 
 				else if ( decoded.hit )
 				{
-					if ( !prevDecoded.hit )
+					const int curAnimTick = state.animation.animTick;
+					const auto tickIt = m_prevPlayerAnimTick.find(state.id);
+					if (tickIt == m_prevPlayerAnimTick.end() || tickIt->second != curAnimTick)
 					{
+						m_prevPlayerAnimTick[state.id] = curAnimTick;
 						SpawnBloodSplash(player, nullptr, nullptr);
-
 						if ( auto* hp = player->GetComponent<CHealthComponent>() )
 							hp->RequestHitSfx();
+						ac->RequestHit();
 					}
-
-					ac->RequestHit();
 					m_prevPlayerNetworkStateCode[state.id] = state.animation.stateCode;
 					continue;
 				}
@@ -8462,12 +8536,27 @@ void CGameScene::AnimateObjects(float dt)
 				}
 				else if ( decoded.attack )
 				{
-					if ( !prevDecoded.attack )
+					const int curAnimTick = state.animation.animTick;
+					const auto tickIt = m_prevPlayerAnimTick.find(state.id);
+					if (tickIt == m_prevPlayerAnimTick.end() || tickIt->second != curAnimTick)
 					{
+						m_prevPlayerAnimTick[state.id] = curAnimTick;
 						RequestPlayerAttackSfx(player);
+						if ( state.weaponType == EWeaponType::Sword )
+							BeginSwordTrail(player);
+						else if ( state.weaponType == EWeaponType::Axe )
+							BeginAxeTrail(player);
+						else if ( state.weaponType == EWeaponType::Gun )
+						{
+							const XMFLOAT3 dirN = GetSafeObjectForward(player);
+							XMFLOAT3 muzzlePos = player->GetPosition();
+							muzzlePos.y += 1.15f;
+							muzzlePos.x += dirN.x * 0.85f;
+							muzzlePos.z += dirN.z * 0.85f;
+							SpawnMuzzleFlash(muzzlePos, dirN);
+						}
+						ac->RequestAttack();
 					}
-
-					ac->RequestAttack();
 					m_prevPlayerNetworkStateCode[state.id] = state.animation.stateCode;
 					continue;
 				}
@@ -8752,9 +8841,14 @@ void CGameScene::AnimateObjects(float dt)
 			{
 				if ( entry.serverId == itemState.id )
 				{
+					const bool wasActive = entry.active;
 					entry.active = itemState.active;
 					if ( !itemState.active )
+					{
 						entry.distanceCulled = true;
+						if ( wasActive && entry.kind == EItemBillboardKind::Key )
+							MarkMegaGridClearedByNumber(entry.megaGridNumber);
+					}
 					break;
 				}
 			}
@@ -8905,13 +8999,16 @@ void CGameScene::AnimateObjects(float dt)
 	SyncLocalInventoryToHud();
 #endif
 
-#ifndef USING_NETWORK
 	UpdateBossMeleeSlashCasts(dt);
+
+#ifndef USING_NETWORK
 	UpdateBossPoisonProjectileSpellCasts(dt);
 	UpdateBossPoisonProjectiles(dt);
 #endif
 
 	UpdateDynamicGridState();
+
+	UpdateBossStageBgmState();
 
 	UpdateMegaGrid4LowYPoison(dt);
 
@@ -9387,27 +9484,36 @@ void CGameScene::UpdateFrameRenderState(CCamera* camera)
 		PROFILE_RENDER_SCOPE("UFRS::UpdateStaticWorldLodSelection");
 		UpdateStaticWorldLodSelection(camera);
 	}
-		BeginStaticOcclusionReadback();
+
+	BeginStaticOcclusionReadback();
+
 	{
 		PROFILE_RENDER_SCOPE("UFRS::UpdateStaticOcclusionCullSelection");
 		UpdateStaticOcclusionCullSelection(camera);
 	}
+
 	UpdateStaticTreeGridCullSelection(camera);
-	{
-		PROFILE_RENDER_SCOPE("UFRS::UpdateStaticOcclusionCullSelection");
-		BuildStaticVisibleListsForFrame(camera);
-	}
 	UpdateItemBillboardDistanceCullSelection(camera);
-	
+
 	{
 		PROFILE_RENDER_SCOPE("UFRS::UpdateSkinnedWorldLodSelection");
 		UpdateSkinnedWorldLodSelection(camera);
 	}
+
 	BeginSkinnedOcclusionReadback();
+
 	{
 		PROFILE_RENDER_SCOPE("UFRS::UpdateSkinnedOcclusionCullSelection");
 		UpdateSkinnedOcclusionCullSelection(camera);
 	}
+
+	ApplyAttachmentCullFromSkinnedOwners();
+
+	{
+		PROFILE_RENDER_SCOPE("UFRS::BuildStaticVisibleListsForFrame");
+		BuildStaticVisibleListsForFrame(camera);
+	}
+
 	UpdateOtherPlayerWorldHpGaugeVisibilityForHud(camera);
 }
 
