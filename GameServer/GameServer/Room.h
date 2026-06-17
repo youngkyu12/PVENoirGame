@@ -57,6 +57,7 @@ public:
 public:
     void BuildRoom(); // 방 초기화 (게임 시작 전)
     void StartGame(bool ready, uint32 index);
+    void SetPlayerLobbyWeapon(uint32 index, uint32 playerWeapon);
     void EndGame();
 
 public:
