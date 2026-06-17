@@ -3874,10 +3874,7 @@ void CGameScene::UpdateSsaoCB(CCamera* camera)
 	ssaoCB.OcclusionFadeEnd = 1.0f;
 	ssaoCB.SurfaceEpsilon = 0.05f;
 
-	ssaoCB.NormalMapIndex =
-		( mSsaoSceneNormalMapSrvIndex != UINT_MAX )
-		? mSsaoSceneNormalMapSrvIndex
-		: mSsaoNormalMapSrvIndex;
+	ssaoCB.NormalMapIndex = mSsaoSceneNormalMapSrvIndex;
 	ssaoCB.DepthMapIndex = mSsaoDepthMapSrvIndex;
 	ssaoCB.RandomVecMapIndex = mSsaoRandomVectorMapSrvIndex;
 	ssaoCB.InputMapIndex = mSsaoAmbientMap0SrvIndex;
@@ -5153,6 +5150,12 @@ void CGameScene::RenderSsao(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 	if ( !mappedSsao || !m_pd3dcbSsao[frameIndex] )
 		return;
 
+	if ( mappedSsao->NormalMapIndex == UINT_MAX ||
+		 mappedSsao->DepthMapIndex == UINT_MAX ||
+		 mSsaoAmbientMap0SrvIndex == UINT_MAX ||
+		 mSsaoAmbientMap1SrvIndex == UINT_MAX )
+		return;
+
 	auto bindSsaoRootState = [this, cmd, frameIndex]()
 	{
 		if ( m_pDescriptorHeap )
@@ -5168,26 +5171,6 @@ void CGameScene::RenderSsao(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 			m_pd3dcbSsao[frameIndex]->GetGPUVirtualAddress()
 		);
 	};
-
-	if ( mSsaoNormalMap )
-	{
-		::SynchronizeResourceTransition(
-			cmd,
-			mSsaoNormalMap->GetResource(0),
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			D3D12_RESOURCE_STATE_RENDER_TARGET
-		);
-
-		const float normalClearValue[] = { 0.0f, 0.0f, 1.0f, 0.0f };
-		cmd->ClearRenderTargetView(mSsaoRtvHandles[0], normalClearValue, 0, nullptr);
-
-		::SynchronizeResourceTransition(
-			cmd,
-			mSsaoNormalMap->GetResource(0),
-			D3D12_RESOURCE_STATE_RENDER_TARGET,
-			D3D12_RESOURCE_STATE_GENERIC_READ
-		);
-	}
 
 	cmd->RSSetViewports(1, &mSsao->Viewport());
 	cmd->RSSetScissorRects(1, &mSsao->ScissorRect());
