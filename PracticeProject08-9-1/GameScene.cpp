@@ -155,6 +155,11 @@ CGameScene::CGameScene()
 	m_enemyDRStates.clear();
 	m_playerDRStates.clear();
 	m_projectileDRStates.clear();
+	m_networkBossCallIndex = 0;
+	m_networkBossCallPendingSummonEffects = 0;
+	m_networkBossCallSummonEffectWindowSec = 0.0f;
+	m_networkBossCallSummonEffectEnemyIds.clear();
+	m_prevNetworkEnemyPositions.clear();
 #endif
 	m_playerWeaponDamageTierIndex = 0;
 	m_deadMonsters.clear();
@@ -3513,6 +3518,11 @@ void CGameScene::ReleaseObjects()
 #ifdef USING_NETWORK
 	m_prevPlayerNetworkStateCode.clear();
 	m_prevEnemyNetworkStateCode.clear();
+	m_networkBossCallIndex = 0;
+	m_networkBossCallPendingSummonEffects = 0;
+	m_networkBossCallSummonEffectWindowSec = 0.0f;
+	m_networkBossCallSummonEffectEnemyIds.clear();
+	m_prevNetworkEnemyPositions.clear();
 #endif
 
 	m_playerWeaponDamageTierIndex = 0;
@@ -8649,16 +8659,114 @@ void CGameScene::AnimateObjects(float dt)
 
 				m_prevPlayerNetworkStateCode[state.id] = state.animation.stateCode;
             }
-        }
+		}
 
 
 		// Enemy 좌표 업데이트 (Dead Reckoning + 서버 교정)
+		auto MapBossCallSummonKind =
+			[] (uint32_t enemyType, EEnemySpawnerEnemyKind& outKind) -> bool
+			{
+				switch ( enemyType )
+				{
+				case kNetworkEnemyTypeBasic:
+					outKind = EEnemySpawnerEnemyKind::Ghoul;
+					return true;
+				case kNetworkEnemyTypeArcher:
+					outKind = EEnemySpawnerEnemyKind::BowMan;
+					return true;
+				case kNetworkEnemyTypeWarrior:
+					outKind = EEnemySpawnerEnemyKind::SwordMan;
+					return true;
+				case kNetworkEnemyTypeMutant:
+					outKind = EEnemySpawnerEnemyKind::Mutant;
+					return true;
+				default:
+					return false;
+				}
+			};
+
+		auto BossCallSummonCountForCall =
+			[] (int callIndex) -> int
+			{
+				switch ( callIndex )
+				{
+				case 1: return 30;
+				case 2: return 30;
+				case 3: return 35;
+				default: return 0;
+				}
+			};
+
+		auto IsInsideNetworkBossCallSummonArea =
+			[] (const XMFLOAT3& pos) -> bool
+			{
+				constexpr float kMargin = 5.0f;
+				return
+					pos.x >= -100.0f - kMargin &&
+					pos.x <=  100.0f + kMargin &&
+					pos.z >=  300.0f - kMargin &&
+					pos.z <=  500.0f + kMargin;
+			};
+
+		for ( const EnemyState& state : snapshot.enemies )
+		{
+			if ( state.enemyType != kNetworkEnemyTypeBoss )
+				continue;
+
+			const DecodedAnimStateCode decoded = DecodeStateCode(state.animation.stateCode);
+			const auto prevIt = m_prevEnemyNetworkStateCode.find(state.id);
+			const uint32_t prevStateCode =
+				( prevIt != m_prevEnemyNetworkStateCode.end() )
+				? prevIt->second
+				: 0u;
+			const DecodedAnimStateCode prevDecoded = DecodeStateCode(prevStateCode);
+
+			if ( decoded.bossCall && !prevDecoded.bossCall )
+			{
+				++m_networkBossCallIndex;
+				m_networkBossCallPendingSummonEffects =
+					BossCallSummonCountForCall(m_networkBossCallIndex);
+				m_networkBossCallSummonEffectWindowSec =
+					( m_networkBossCallPendingSummonEffects > 0 )
+					? ( kBossCallMonsterSpawnDelaySec + 3.0f )
+					: 0.0f;
+				if ( m_networkBossCallPendingSummonEffects > 0 )
+					ClearBossCallSummonCircleVisuals();
+			}
+		}
+
+		if ( m_networkBossCallSummonEffectWindowSec > 0.0f )
+		{
+			m_networkBossCallSummonEffectWindowSec -= dt;
+			if ( m_networkBossCallSummonEffectWindowSec <= 0.0f )
+			{
+				m_networkBossCallSummonEffectWindowSec = 0.0f;
+				m_networkBossCallPendingSummonEffects = 0;
+				StartBossCallSummonCircleFadeOut();
+			}
+		}
+
+		XMFLOAT3 bossCallSummonEffectPosSum(0.0f, 0.0f, 0.0f);
+		int bossCallSummonEffectCountThisFrame = 0;
+
 		for ( const auto& state : snapshot.enemies )
 		{
 			auto it = npcById.find(state.id);
 			if ( it == npcById.end() ) continue;
 
 			auto* obj = it->second;
+			const auto prevNetworkPosIt =
+				m_prevNetworkEnemyPositions.find(state.id);
+			const XMFLOAT3 previousObjectPosition = obj->GetPosition();
+			const bool wasInactiveByNetworkPosition =
+				(
+					prevNetworkPosIt != m_prevNetworkEnemyPositions.end() &&
+					prevNetworkPosIt->second.y <= kEnemySpawnerInactiveY + 1.0f
+				) ||
+				(
+					prevNetworkPosIt == m_prevNetworkEnemyPositions.end() &&
+					previousObjectPosition.y <= kEnemySpawnerInactiveY + 1.0f
+				);
 
 			// 이동 방향 벡터 (yaw → forward)
 			const float yawRad = XMConvertToRadians(state.yaw);
@@ -8699,6 +8807,35 @@ void CGameScene::AnimateObjects(float dt)
 
 			if ( auto* tr = obj->GetComponent<CTransformComponent>() )
 				tr->SetYawDegrees(state.yaw);
+
+			if ( wasInactiveByNetworkPosition &&
+				 IsInsideNetworkBossCallSummonArea(resolvedServerPosition) &&
+				 m_networkBossCallSummonEffectEnemyIds.insert(state.id).second )
+			{
+				EEnemySpawnerEnemyKind summonKind = EEnemySpawnerEnemyKind::Ghoul;
+				if ( MapBossCallSummonKind(state.enemyType, summonKind) )
+				{
+					SpawnBossCallSummonWwwEffect(resolvedServerPosition, summonKind);
+
+					bossCallSummonEffectPosSum.x += resolvedServerPosition.x;
+					bossCallSummonEffectPosSum.y += resolvedServerPosition.y;
+					bossCallSummonEffectPosSum.z += resolvedServerPosition.z;
+					++bossCallSummonEffectCountThisFrame;
+
+					if ( m_networkBossCallPendingSummonEffects > 0 )
+					{
+						--m_networkBossCallPendingSummonEffects;
+						if ( m_networkBossCallPendingSummonEffects <= 0 )
+						{
+							m_networkBossCallPendingSummonEffects = 0;
+							m_networkBossCallSummonEffectWindowSec = 0.0f;
+							StartBossCallSummonCircleFadeOut();
+						}
+					}
+				}
+			}
+
+			m_prevNetworkEnemyPositions[state.id] = resolvedServerPosition;
 
 			if ( auto* animComp = obj->GetComponent<CAnimatorComponent>() )
 			{
@@ -8752,6 +8889,20 @@ void CGameScene::AnimateObjects(float dt)
 					ctrl->Update(0.0f);
 				}
 			}
+		}
+
+		if ( bossCallSummonEffectCountThisFrame > 0 )
+		{
+			const float invCount =
+				1.0f /
+				static_cast< float >( bossCallSummonEffectCountThisFrame );
+
+			XMFLOAT3 sfxPos{};
+			sfxPos.x = bossCallSummonEffectPosSum.x * invCount;
+			sfxPos.y = bossCallSummonEffectPosSum.y * invCount;
+			sfxPos.z = bossCallSummonEffectPosSum.z * invCount;
+
+			PlayBossCallMonsterSpawnSfxAt(sfxPos);
 		}
 
 		// Projectile 동기화
