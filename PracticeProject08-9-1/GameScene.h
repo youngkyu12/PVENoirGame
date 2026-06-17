@@ -1572,7 +1572,22 @@ private:
 		float    speed       = 0.0f;
 		bool     initialized = false;
 	};
+	struct PlayerDRState
+	{
+		XMFLOAT3 predictedPos = {};
+		XMFLOAT3 moveDir     = { 0.0f, 0.0f, 1.0f };
+		float    speed       = 0.0f;
+		bool     initialized = false;
+	};
+	struct ProjectileDRState
+	{
+		XMFLOAT3 predictedPos = {};
+		XMFLOAT3 velocity     = {};
+		bool     initialized  = false;
+	};
 	std::unordered_map<uint64_t, EnemyDRState> m_enemyDRStates;
+	std::unordered_map<uint64_t, PlayerDRState> m_playerDRStates;
+	std::unordered_map<uint64_t, ProjectileDRState> m_projectileDRStates;
 #endif
 
 	int m_playerWeaponDamageTierIndex = 0; 

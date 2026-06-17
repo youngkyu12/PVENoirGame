@@ -152,6 +152,9 @@ CGameScene::CGameScene()
 #ifdef USING_NETWORK
 	m_prevPlayerNetworkStateCode.clear();
 	m_prevEnemyNetworkStateCode.clear();
+	m_enemyDRStates.clear();
+	m_playerDRStates.clear();
+	m_projectileDRStates.clear();
 #endif
 	m_playerWeaponDamageTierIndex = 0;
 	m_deadMonsters.clear();
@@ -3440,6 +3443,10 @@ void CGameScene::ReleaseObjects()
 	m_bulletRefs.clear();
 	m_networkArrowById.clear();
 	m_networkBulletById.clear();
+	m_networkBossPoisonById.clear();
+	m_enemyDRStates.clear();
+	m_playerDRStates.clear();
+	m_projectileDRStates.clear();
 
 	m_attachmentBinds.clear();
 	m_staticInstanceGroups.clear();
@@ -5526,7 +5533,7 @@ void CGameScene::SetBossSummonVisualActive(bool active)
 		}
 
 		item.active = active;
-		item.distanceCulled = false;
+		item.distanceCulled = !active;
 	}
 }
 
@@ -7442,13 +7449,17 @@ void CGameScene::BeginMonsterDeath(CGameObject* monster)
 		BeginBossDeathEffect(monster);
 	}
 
+	const bool isMutantKeyTrigger =
+		m_mutantKeyTriggerMegaByObject.find(monster) !=
+		m_mutantKeyTriggerMegaByObject.end();
+
 	HandleMutantKeyTriggerDeath(monster);
 
 	CancelMonsterPreparedActions(monster);
 
-	// 더 이상 플레이어 무기 충돌을 받지 않게 하되, 사망 애니메이션 동안 bone capsule 갱신은 유지한다.
+	// 열쇠 트리거 뮤턴트는 사망 위치에 열쇠가 열리므로 바디 콜라이더를 즉시 제거한다.
 	if ( auto* collider = monster->GetComponent<CColliderComponent>() )
-		collider->DisableCollisionAndKeepUpdatingForSeconds(5.0f);
+		collider->DisableCollisionAndKeepUpdatingForSeconds(isMutantKeyTrigger ? 0.0f : 5.0f);
 
 	// 현재 실제로 붙는 AI는 CGhoulAIComponent지만,
 	// base 타입으로도 잡히는 구조라면 같이 처리.
@@ -8400,6 +8411,33 @@ void CGameScene::AnimateObjects(float dt)
 		}
 
         // Player 좌표 업데이트
+		auto ComputePlayerMoveDir = [] (uint32_t moveDirBits, float yawDeg) -> XMFLOAT3
+		{
+			constexpr uint32_t kDirForward  = 0x01;
+			constexpr uint32_t kDirBackward = 0x02;
+			constexpr uint32_t kDirLeft     = 0x04;
+			constexpr uint32_t kDirRight    = 0x08;
+
+			const float yawRad = XMConvertToRadians(yawDeg);
+			const XMVECTOR look = XMVectorSet(std::sinf(yawRad), 0.0f, std::cosf(yawRad), 0.0f);
+			const XMVECTOR right = XMVectorSet(std::cosf(yawRad), 0.0f, -std::sinf(yawRad), 0.0f);
+			XMVECTOR dir = XMVectorZero();
+
+			if ( moveDirBits & kDirForward )  dir += look;
+			if ( moveDirBits & kDirBackward ) dir -= look;
+			if ( moveDirBits & kDirRight )    dir += right;
+			if ( moveDirBits & kDirLeft )     dir -= right;
+
+			if ( XMVectorGetX(XMVector3LengthSq(dir)) > 1e-8f )
+				dir = XMVector3Normalize(dir);
+			else
+				dir = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+
+			XMFLOAT3 out{};
+			XMStoreFloat3(&out, dir);
+			return out;
+		};
+
         for (const auto& state : snapshot.players)
         {
             // id를 slot으로 사용 (0~3)
@@ -8439,7 +8477,34 @@ void CGameScene::AnimateObjects(float dt)
             }
             else
             {
-                player->SetPosition(resolvedPosition.x, resolvedPosition.y, resolvedPosition.z);
+				const DecodedAnimStateCode decodedDR =
+					DecodeStateCode(state.animation.stateCode);
+				float drSpeed = 0.0f;
+				XMFLOAT3 moveDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
+				if ( decodedDR.hasMove && !decodedDR.die && !decodedDR.hit )
+				{
+					moveDir = ComputePlayerMoveDir(decodedDR.moveDirBits, state.yaw);
+					if ( auto* controller = player->GetComponent<CPlayerControllerComponent>() )
+						drSpeed = decodedDR.run ? controller->GetRunMoveSpeed() : controller->GetWalkMoveSpeed();
+					else
+						drSpeed = decodedDR.run ? 10.0f : 5.0f;
+				}
+
+				PlayerDRState& dr = m_playerDRStates[state.id];
+				if ( !dr.initialized )
+				{
+					dr.predictedPos = resolvedPosition;
+					dr.initialized = true;
+				}
+				else
+				{
+					constexpr float kCorrectionAlpha = 0.35f;
+					dr.predictedPos = LerpPosition(dr.predictedPos, resolvedPosition, kCorrectionAlpha);
+				}
+				dr.moveDir = moveDir;
+				dr.speed = drSpeed;
+
+                player->SetPosition(dr.predictedPos.x, dr.predictedPos.y, dr.predictedPos.z);
 
 				// yaw 회전 적용
 				if (auto* tr = player->GetComponent<CTransformComponent>())
@@ -8719,8 +8784,38 @@ void CGameScene::AnimateObjects(float dt)
 			return nullptr;
 		};
 
+		auto ResolveProjectileDR = [ & ] (const BulletState& b) -> XMFLOAT3
+		{
+			ProjectileDRState& dr = m_projectileDRStates[b.id];
+			if ( !dr.initialized )
+			{
+				dr.predictedPos = b.position;
+				dr.initialized = true;
+			}
+			else
+			{
+				constexpr float kCorrectionAlpha = 0.35f;
+				dr.predictedPos = LerpPosition(dr.predictedPos, b.position, kCorrectionAlpha);
+			}
+
+			dr.velocity = b.velocity;
+			return dr.predictedPos;
+		};
+
+		for ( auto& [id, dr] : m_projectileDRStates )
+		{
+			if ( !dr.initialized )
+				continue;
+
+			dr.predictedPos.x += dr.velocity.x * dt;
+			dr.predictedPos.y += dr.velocity.y * dt;
+			dr.predictedPos.z += dr.velocity.z * dt;
+		}
+
 		for (const auto& b : snapshot.bullets)
 		{
+			const XMFLOAT3 predictedProjectilePos = ResolveProjectileDR(b);
+
 			if (b.bulletType == 1u) // BULLET_TYPE_ARROW
 			{
 				visibleArrowIds.insert(b.id);
@@ -8740,7 +8835,7 @@ void CGameScene::AnimateObjects(float dt)
 
 				if ( auto* arrow = arrowObj->GetComponent<CArrowComponent>() )
 				{
-					arrow->Activate(b.position, b.velocity, 2.0f);
+					arrow->Activate(predictedProjectilePos, b.velocity, 2.0f);
 					if ( auto* arrowtransform = arrowObj->GetComponent<CTransformComponent>() )
 						arrowtransform->SetLookDirection(b.velocity);
 				}
@@ -8772,7 +8867,7 @@ void CGameScene::AnimateObjects(float dt)
 				auto& entry = m_bossPoisonProjectileEffect.entries[entryIdx];
 				entry.active   = true;
 				entry.owner    = nullptr;
-				entry.position = b.position;
+				entry.position = predictedProjectilePos;
 				entry.velocity = b.velocity;
 
 				float spd = std::sqrt(b.velocity.x*b.velocity.x + b.velocity.y*b.velocity.y + b.velocity.z*b.velocity.z);
@@ -8804,7 +8899,7 @@ void CGameScene::AnimateObjects(float dt)
 
 				if ( auto* bullet = bulletObj->GetComponent<CBulletComponent>() )
 				{
-					bullet->Activate(b.position, b.velocity, 2.0f, true);
+					bullet->Activate(predictedProjectilePos, b.velocity, 2.0f, true);
 				}
 			}
 		}
@@ -8822,6 +8917,7 @@ void CGameScene::AnimateObjects(float dt)
 				if ( auto* arrow = it->second->GetComponent<CArrowComponent>() )
 					arrow->Deactivate();
 			}
+			m_projectileDRStates.erase(it->first);
 			it = m_networkArrowById.erase(it);
 		}
 
@@ -8838,6 +8934,7 @@ void CGameScene::AnimateObjects(float dt)
 				if ( auto* bullet = it->second->GetComponent<CBulletComponent>() )
 					bullet->Deactivate();
 			}
+			m_projectileDRStates.erase(it->first);
 			it = m_networkBulletById.erase(it);
 		}
 
@@ -8848,6 +8945,7 @@ void CGameScene::AnimateObjects(float dt)
 			int idx = it->second;
 			if (idx >= 0 && idx < (int)m_bossPoisonProjectileEffect.entries.size())
 				m_bossPoisonProjectileEffect.entries[idx].active = false;
+			m_projectileDRStates.erase(it->first);
 			it = m_networkBossPoisonById.erase(it);
 		}
 
@@ -8914,6 +9012,20 @@ void CGameScene::AnimateObjects(float dt)
 				else
 					ac->SetAnimState(decoded.hasMove ? EAnimState::Move : EAnimState::Idle);
 			}
+
+			if ( static_cast< int >( id ) == m_localPlayerSlot )
+				continue;
+
+			auto drIt = m_playerDRStates.find(id);
+			if ( drIt == m_playerDRStates.end() ) continue;
+
+			PlayerDRState& dr = drIt->second;
+			if ( !dr.initialized || dr.speed <= 0.0f ) continue;
+
+			dr.predictedPos.x += dr.moveDir.x * dr.speed * dt;
+			dr.predictedPos.z += dr.moveDir.z * dr.speed * dt;
+
+			player->SetPosition(dr.predictedPos.x, dr.predictedPos.y, dr.predictedPos.z);
 		}
 
 		for ( const auto& [id, stateCode] : m_prevEnemyNetworkStateCode )
@@ -8945,6 +9057,33 @@ void CGameScene::AnimateObjects(float dt)
 			dr.predictedPos.z += dr.moveDir.z * dr.speed * dt;
 
 			obj->SetPosition(dr.predictedPos.x, dr.predictedPos.y, dr.predictedPos.z);
+		}
+
+		for ( auto& [id, dr] : m_projectileDRStates )
+		{
+			if ( !dr.initialized ) continue;
+
+			dr.predictedPos.x += dr.velocity.x * dt;
+			dr.predictedPos.y += dr.velocity.y * dt;
+			dr.predictedPos.z += dr.velocity.z * dt;
+		}
+
+		for ( const auto& [id, entryIndex] : m_networkBossPoisonById )
+		{
+			if ( entryIndex < 0 ||
+				 entryIndex >= static_cast< int >(m_bossPoisonProjectileEffect.entries.size()) )
+				continue;
+
+			auto drIt = m_projectileDRStates.find(id);
+			if ( drIt == m_projectileDRStates.end() ) continue;
+
+			ProjectileDRState& dr = drIt->second;
+			if ( !dr.initialized ) continue;
+
+			BossPoisonProjectileEntry& entry =
+				m_bossPoisonProjectileEffect.entries[entryIndex];
+			entry.position = dr.predictedPos;
+			entry.velocity = dr.velocity;
 		}
 
 	}
