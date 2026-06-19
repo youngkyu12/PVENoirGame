@@ -52,10 +52,10 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 	m_bSimulateLocalGhoulAI = false;
 	m_bSimulateLocalBowManAI = false;
 	m_bSimulateLocalSwordManAI = false;
-	m_bSimulateLocalMutantAI = false;
+	m_bSimulateLocalMutantAI = true;
 	m_bSimulateLocalBossAI = true;
 	m_bSimulateLocalBossSummon = true;
-	m_bSimulateLocalBossStageMonsterAI = false;
+	m_bSimulateLocalBossStageMonsterAI = true;
 
 	m_bSimulateLocalMonsterChase = true;
 	m_bSimulateLocalEnemySpawner = true;
@@ -104,7 +104,7 @@ void CGameScene::ResetLogicalMonsterState()
 	m_logicalMonsterIndexByObject.clear();
 }
 
-int CGameScene::AddLogicalMonster(ELogicalMonsterKind kind, uint64_t serverId, const XMFLOAT3& position, float yawDeg, int maxHp, bool active)
+int CGameScene::AddLogicalMonster(ELogicalMonsterKind kind, uint64_t serverId, const XMFLOAT3& position, float yawDeg, int maxHp, bool active, bool spawnerEntry)
 {
 	const int logicalIndex = static_cast< int >( m_logicalMonsters.size() );
 
@@ -119,6 +119,8 @@ int CGameScene::AddLogicalMonster(ELogicalMonsterKind kind, uint64_t serverId, c
 	state.maxHp = maxHp;
 	state.active = active;
 	state.dead = false;
+	state.spawnerEntry = spawnerEntry;
+	state.spawnerConsumed = false;
 	state.animationStateCode = 0;
 	state.boundObject = nullptr;
 	state.boundSkinnedBatchObjectIndex = UINT_MAX;
@@ -207,7 +209,7 @@ void CGameScene::BuildLogicalMonstersFromCurrentStageData()
 					? ComputeBossCallMonsterSpawnYawDeg()
 					: 180.0f;
 
-				AddLogicalMonster(kind, static_cast< uint64_t >( -1 ), pos, yaw, maxHp, false);
+				AddLogicalMonster(kind, static_cast< uint64_t >( -1 ), pos, yaw, maxHp, false, true);
 			}
 		};
 

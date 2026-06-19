@@ -249,6 +249,9 @@ struct LogicalMonsterState
 	bool active = true;
 	bool dead = false;
 
+	bool spawnerEntry = false;
+	bool spawnerConsumed = false;
+
 	uint32_t animationStateCode = 0;
 
 	CGameObject* boundObject = nullptr;
@@ -870,7 +873,7 @@ private:
 	void ResetEnemySpawnerTimedGhoulWaveStates();
 
 	void ResetLogicalMonsterState();
-	int AddLogicalMonster(ELogicalMonsterKind kind, uint64_t serverId, const XMFLOAT3& position, float yawDeg, int maxHp, bool active);
+	int AddLogicalMonster(ELogicalMonsterKind kind, uint64_t serverId, const XMFLOAT3& position, float yawDeg, int maxHp, bool active, bool spawnerEntry = false); 
 	void BuildLogicalMonstersFromCurrentStageData();
 	void LinkActualMonsterToLogical(CGameObject* monster, UINT skinnedBatchObjectIndex, int logicalMonsterIndex);
 	int FindLogicalMonsterIndexByObject(const CGameObject* monster) const;
@@ -886,6 +889,15 @@ private:
 	void SyncActualMonsterFromLogicalState(CGameObject* monster, int logicalMonsterIndex, bool resetRuntimeState);
 	void UpdateActualMonsterMegaGridBinding(CGameObject* monster, UINT skinnedBatchObjectIndex, int megaGridNumber);
 	void RebuildSceneGridMonsterRefsFromLogicalBindings();
+
+	ELogicalMonsterKind ConvertEnemySpawnerKindToLogicalKind(EEnemySpawnerEnemyKind kind) const;
+	int FindFreeLogicalSpawnerMonster(int megaGridNumber, EEnemySpawnerEnemyKind kind) const;
+	int PeekLogicalSpawnerEntries(int megaGridNumber, EEnemySpawnerEnemyKind kind, int count, std::vector<EnemySpawnerPreviewEntry>& outEntries) const;
+	CGameObject* ActivateLogicalSpawnerMonster(int logicalMonsterIndex, const XMFLOAT3* overridePosition, const float* overrideYawDeg);
+	CGameObject* SpawnLogicalEnemyAt(int megaGridNumber, EEnemySpawnerEnemyKind kind, const XMFLOAT3& position, float yawDeg);
+	CGameObject* SpawnLogicalPreviewEntry(const EnemySpawnerPreviewEntry& preview);
+	int SpawnLogicalMegaGrid(int megaGridNumber);
+	void ConfigureLogicalSpawnerVisualRuntime(CGameObject* monster, int logicalMonsterIndex);
 
 	void RegisterMonsterToMegaGrid(CGameObject* monster, const XMFLOAT3& spawnPosition, UINT skinnedBatchObjectIndex);
 	int GetLocalPlayerMegaGridNumberForMonsterTick() const;
