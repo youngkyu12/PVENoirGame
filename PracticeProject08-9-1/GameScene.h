@@ -871,8 +871,10 @@ private:
 
 	void ResetLogicalMonsterState();
 	int AddLogicalMonster(ELogicalMonsterKind kind, uint64_t serverId, const XMFLOAT3& position, float yawDeg, int maxHp, bool active);
+	void BuildLogicalMonstersFromCurrentStageData();
 	void LinkActualMonsterToLogical(CGameObject* monster, UINT skinnedBatchObjectIndex, int logicalMonsterIndex);
 	int FindLogicalMonsterIndexByObject(const CGameObject* monster) const;
+	int FindUnboundLogicalMonsterForActual(ELogicalMonsterKind kind, uint64_t serverId, const XMFLOAT3& position) const;
 	void SyncLogicalMonsterFromActualObject(CGameObject* monster);
 
 	void RegisterMonsterToMegaGrid(CGameObject* monster, const XMFLOAT3& spawnPosition, UINT skinnedBatchObjectIndex);
@@ -1033,12 +1035,24 @@ private:
 	static constexpr UINT kEnemySpawnerMega5SwordManCount = 10;
 	static constexpr UINT kEnemySpawnerMega5MutantCount = 5;
 
+	static constexpr UINT kMonsterVisualPoolGhoulCount = 320;
+	static constexpr UINT kMonsterVisualPoolBowManCount = 15;
+	static constexpr UINT kMonsterVisualPoolSwordManCount = 15;
+	static constexpr UINT kMonsterVisualPoolMutantCount = 8;
+	static constexpr UINT kMonsterVisualPoolBossCount = 1;
+
 	UINT m_EnemySpawnCount = 0;
 
 	UINT m_EnemySpawnGhoulCount = 0;
 	UINT m_EnemySpawnBowManCount = 0;
 	UINT m_EnemySpawnSwordManCount = 0;
 	UINT m_EnemySpawnMutantCount = 0;
+
+	UINT m_logicalGhoulCount = 0;
+	UINT m_logicalBowManCount = 0;
+	UINT m_logicalSwordManCount = 0;
+	UINT m_logicalMutantCount = 0;
+	UINT m_logicalBossCount = 0;
 
     std::vector<std::unique_ptr<CGameObject>> m_staticObjects;
     std::vector<std::unique_ptr<CGameObject>> m_skinnedObjects;
