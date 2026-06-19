@@ -3511,6 +3511,7 @@ void CGameScene::ReleaseObjects()
 	m_playerWeaponDamageTierIndex = 0;
 	m_deadMonsters.clear();
 	m_skinnedMonsterMegaGridNumbers.clear();
+	ResetLogicalMonsterState();
 
 	m_itemBillboardState.shader.reset();
 	m_itemBillboardState.transparentShader.reset();
@@ -8972,9 +8973,13 @@ void CGameScene::AnimateObjects(float dt)
 			cache.animator->SetPoseEvaluationEnabled(shouldEvaluatePose);
 
 		if ( !obj->GetActive() )
+		{
+			SyncLogicalMonsterFromActualObject(obj);
 			continue;
+		}
 
 		obj->Animate(dt);
+		SyncLogicalMonsterFromActualObject(obj);
 	}
 
 #ifndef USING_NETWORK

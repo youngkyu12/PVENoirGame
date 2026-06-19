@@ -93,6 +93,102 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 	m_bPrevLocalStageTeleportKeyDown.fill(false);
 }
 
+void CGameScene::ResetLogicalMonsterState()
+{
+	m_logicalMonsters.clear();
+
+	for ( std::vector<int>& indices : m_logicalMonsterIndicesByMegaGrid )
+		indices.clear();
+
+	m_logicalMonsterIndexByServerId.clear();
+	m_logicalMonsterIndexByObject.clear();
+}
+
+int CGameScene::AddLogicalMonster(ELogicalMonsterKind kind, uint64_t serverId, const XMFLOAT3& position, float yawDeg, int maxHp, bool active)
+{
+	const int logicalIndex = static_cast< int >( m_logicalMonsters.size() );
+
+	LogicalMonsterState state{};
+	state.logicalId = logicalIndex;
+	state.serverId = serverId;
+	state.kind = kind;
+	state.position = position;
+	state.homePosition = position;
+	state.yawDeg = yawDeg;
+	state.hp = maxHp;
+	state.maxHp = maxHp;
+	state.active = active;
+	state.dead = false;
+	state.animationStateCode = 0;
+	state.boundObject = nullptr;
+	state.boundSkinnedBatchObjectIndex = UINT_MAX;
+
+	state.megaGridNumber = m_sceneGrid.MegaGridNumberFromWorldPosition(position.x, position.z);
+
+	m_logicalMonsters.push_back(state);
+
+	if ( state.megaGridNumber >= 1 && state.megaGridNumber <= CSceneGrid::kMegaGridCount )
+		m_logicalMonsterIndicesByMegaGrid[static_cast< size_t >( state.megaGridNumber )].push_back(logicalIndex);
+
+	if ( serverId != static_cast< uint64_t >( -1 ) )
+		m_logicalMonsterIndexByServerId[serverId] = logicalIndex;
+
+	return logicalIndex;
+}
+
+void CGameScene::LinkActualMonsterToLogical(CGameObject* monster, UINT skinnedBatchObjectIndex, int logicalMonsterIndex)
+{
+	if ( !monster )
+		return;
+
+	if ( logicalMonsterIndex < 0 || logicalMonsterIndex >= static_cast< int >(m_logicalMonsters.size()) )
+		return;
+
+	LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalMonsterIndex)];
+	logical.boundObject = monster;
+	logical.boundSkinnedBatchObjectIndex = skinnedBatchObjectIndex;
+
+	m_logicalMonsterIndexByObject[monster] = logicalMonsterIndex;
+}
+
+int CGameScene::FindLogicalMonsterIndexByObject(const CGameObject* monster) const
+{
+	if ( !monster )
+		return -1;
+
+	auto it = m_logicalMonsterIndexByObject.find(const_cast< CGameObject* >( monster ));
+	if ( it == m_logicalMonsterIndexByObject.end() )
+		return -1;
+
+	return it->second;
+}
+
+void CGameScene::SyncLogicalMonsterFromActualObject(CGameObject* monster)
+{
+	const int logicalIndex = FindLogicalMonsterIndexByObject(monster);
+	if ( logicalIndex < 0 || logicalIndex >= static_cast< int >(m_logicalMonsters.size()) )
+		return;
+
+	LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalIndex)];
+
+	logical.position = monster->GetPosition();
+	logical.active = monster->GetActive();
+
+	if ( auto* tr = monster->GetComponent<CTransformComponent>() )
+		logical.yawDeg = QuaternionToYawDegrees(tr->rotation);
+
+	if ( auto* hp = monster->GetComponent<CHealthComponent>() )
+	{
+		logical.hp = hp->GetCurrentHp();
+		logical.maxHp = hp->GetMaxHp();
+		logical.dead = hp->IsDead();
+	}
+	else
+	{
+		logical.dead = !monster->GetActive();
+	}
+}
+
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
 	PROFILE_RENDER_SCOPE("CGameScene::BuildObjects");
@@ -102,6 +198,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
 	ResetPlayerFootstepSfxState();
 	ResetMonsterSfxState();
+	ResetLogicalMonsterState();
 
 	m_playerWeaponOwnerByObject.clear();
 	m_deadMonsters.clear();
@@ -2435,8 +2532,10 @@ void CGameScene::BuildSkinnedBatch(
 
 				XMFLOAT3 pos{};
 				float yaw = 180.0f;
+				uint64_t logicalServerId = static_cast< uint64_t >(-1);
 
 #ifdef USING_NETWORK
+				logicalServerId = static_cast< uint64_t >( enemyIndex );
 				if ( !GetNetworkEnemySpawn(enemyIndex, pos, yaw) )
 					break;
 #else
@@ -2527,25 +2626,22 @@ void CGameScene::BuildSkinnedBatch(
 						}
 					}
 
-					{
-						RegisterMonsterToMegaGrid(raw, pos, i);
-					}
+					RegisterMonsterToMegaGrid(raw, pos, i);
+					const int logicalIndex = AddLogicalMonster(ELogicalMonsterKind::Ghoul, logicalServerId, pos, yaw, kHpGhoul, true);
+					LinkActualMonsterToLogical(raw, i, logicalIndex);
 
-					{
-						RegisterSkinnedCullEntry(
-							raw, i, "Ghoul", pos,
-							ghoulLodMeshes, true,
-							10.0f, 90.0f, 120.0f
-						);
-					}
 
-					{
-						m_skinnedObjects.push_back(std::move(obj));
-						b->objectRefs.push_back(raw);
-						b->count = ( UINT ) b->objectRefs.size();
+					RegisterSkinnedCullEntry(
+						raw, i, "Ghoul", pos,
+						ghoulLodMeshes, true,
+						10.0f, 90.0f, 120.0f
+					);
 
-						m_ghoulRefs.push_back(raw);
-					}
+					m_skinnedObjects.push_back(std::move(obj));
+					b->objectRefs.push_back(raw);
+					b->count = ( UINT ) b->objectRefs.size();
+
+					m_ghoulRefs.push_back(raw);
 				}
 			}
 		}
@@ -2660,34 +2756,30 @@ void CGameScene::BuildSkinnedBatch(
 							}
 						}
 
-						{
-							RegisterMonsterToMegaGrid(raw, pos, i);
-						}
 
-						{
-							RegisterSkinnedCullEntry(
-								raw, i, "Ghoul", pos,
-								ghoulLodMeshes, true,
-								10.0f, 40.0f, 220.0f
-							);
-						}
+						RegisterMonsterToMegaGrid(raw, pos, i);
+						const int logicalIndex = AddLogicalMonster(ELogicalMonsterKind::Ghoul, static_cast< uint64_t >( -1 ), pos, yaw, kHpGhoul, false);
+						LinkActualMonsterToLogical(raw, i, logicalIndex);
 
-						{
-							RegisterEnemySpawnerPoolObject(
-								raw,
-								EEnemySpawnerEnemyKind::Ghoul,
-								megaGridNumber,
-								pos
-							);
-						}
+						RegisterSkinnedCullEntry(
+							raw, i, "Ghoul", pos,
+							ghoulLodMeshes, true,
+							10.0f, 40.0f, 220.0f
+						);
 
-						{
-							m_skinnedObjects.push_back(std::move(obj));
-							b->objectRefs.push_back(raw);
-							b->count = static_cast< UINT >( b->objectRefs.size() );
+						RegisterEnemySpawnerPoolObject(
+							raw,
+							EEnemySpawnerEnemyKind::Ghoul,
+							megaGridNumber,
+							pos
+						);
 
-							m_ghoulRefs.push_back(raw);
-						}
+
+						m_skinnedObjects.push_back(std::move(obj));
+						b->objectRefs.push_back(raw);
+						b->count = static_cast< UINT >( b->objectRefs.size() );
+
+						m_ghoulRefs.push_back(raw);
 					}
 				}
 			};
@@ -2752,8 +2844,10 @@ void CGameScene::BuildSkinnedBatch(
 
 					XMFLOAT3 pos{};
 					float yaw = 180.0f;
+					uint64_t logicalServerId = static_cast< uint64_t >(-1);
 
 #ifdef USING_NETWORK
+					logicalServerId = static_cast< uint64_t >( enemyIndex );
 					if ( !GetNetworkEnemySpawn(enemyIndex, pos, yaw) )
 						break;
 #else
@@ -2831,6 +2925,9 @@ void CGameScene::BuildSkinnedBatch(
 					}
 
 					RegisterMonsterToMegaGrid(raw, pos, i);
+					const int logicalIndex = AddLogicalMonster(ELogicalMonsterKind::SwordMan, logicalServerId, pos, yaw, kHpSwordMan, true);
+					LinkActualMonsterToLogical(raw, i, logicalIndex);
+
 
 					std::array<std::shared_ptr<CMesh>, 3> noLodMeshes =
 					{
@@ -2919,6 +3016,9 @@ void CGameScene::BuildSkinnedBatch(
 						CGameObject* raw = obj.get();
 
 						RegisterMonsterToMegaGrid(raw, pos, i);
+						const int logicalIndex = AddLogicalMonster(ELogicalMonsterKind::SwordMan, static_cast< uint64_t >( -1 ), pos, yaw, kHpSwordMan, false);
+						LinkActualMonsterToLogical(raw, i, logicalIndex);
+
 
 						std::array<std::shared_ptr<CMesh>, 3> noLodMeshes =
 						{
@@ -2998,8 +3098,10 @@ void CGameScene::BuildSkinnedBatch(
 
 					XMFLOAT3 pos{};
 					float yaw = 180.0f;
+					uint64_t logicalServerId = static_cast< uint64_t >(-1);
 
 #ifdef USING_NETWORK
+					logicalServerId = static_cast< uint64_t >( enemyIndex );
 					if ( !GetNetworkEnemySpawn(enemyIndex, pos, yaw) )
 						break;
 #else
@@ -3080,6 +3182,9 @@ void CGameScene::BuildSkinnedBatch(
 					}
 
 					RegisterMonsterToMegaGrid(raw, pos, i);
+					const int logicalIndex = AddLogicalMonster(ELogicalMonsterKind::BowMan, logicalServerId, pos, yaw, kHpBowMan, true);
+					LinkActualMonsterToLogical(raw, i, logicalIndex);
+
 
 					std::array<std::shared_ptr<CMesh>, 3> noLodMeshes =
 					{
@@ -3171,6 +3276,9 @@ void CGameScene::BuildSkinnedBatch(
 						CGameObject* raw = obj.get();
 
 						RegisterMonsterToMegaGrid(raw, pos, i);
+						const int logicalIndex = AddLogicalMonster(ELogicalMonsterKind::BowMan, static_cast< uint64_t >( -1 ), pos, yaw, kHpBowMan, false);
+						LinkActualMonsterToLogical(raw, i, logicalIndex);
+
 
 						std::array<std::shared_ptr<CMesh>, 3> noLodMeshes =
 						{
@@ -3250,8 +3358,10 @@ void CGameScene::BuildSkinnedBatch(
 
 					XMFLOAT3 pos{};
 					float yaw = 180.0f;
+					uint64_t logicalServerId = static_cast< uint64_t >(-1);
 
 #ifdef USING_NETWORK
+					logicalServerId = static_cast< uint64_t >( enemyIndex );
 					if ( !GetNetworkEnemySpawn(enemyIndex, pos, yaw) )
 						break;
 #else
@@ -3339,6 +3449,9 @@ void CGameScene::BuildSkinnedBatch(
 					}
 
 					RegisterMonsterToMegaGrid(raw, pos, i);
+					const int logicalIndex = AddLogicalMonster(ELogicalMonsterKind::Mutant, logicalServerId, pos, yaw, kHpMutant, true);
+					LinkActualMonsterToLogical(raw, i, logicalIndex);
+					
 
 					const int mutantMegaGridNumber =
 						m_sceneGrid.MegaGridNumberFromWorldPosition(pos.x, pos.z);
@@ -3441,6 +3554,9 @@ void CGameScene::BuildSkinnedBatch(
 						CGameObject* raw = obj.get();
 
 						RegisterMonsterToMegaGrid(raw, pos, i);
+						const int logicalIndex = AddLogicalMonster(ELogicalMonsterKind::Mutant, static_cast< uint64_t >( -1 ), pos, yaw, kHpMutant, false);
+						LinkActualMonsterToLogical(raw, i, logicalIndex);
+						
 
 						std::array<std::shared_ptr<CMesh>, 3> noLodMeshes =
 						{
@@ -3520,8 +3636,10 @@ void CGameScene::BuildSkinnedBatch(
 
 					XMFLOAT3 pos{};
 					float yaw = 180.0f;
+					uint64_t logicalServerId = static_cast< uint64_t >(-1);
 
 #ifdef USING_NETWORK
+					logicalServerId = static_cast< uint64_t >( enemyIndex );
 					if ( !GetNetworkEnemySpawn(enemyIndex, pos, yaw) )
 						break;
 #else
@@ -3618,6 +3736,13 @@ void CGameScene::BuildSkinnedBatch(
 #endif
 
 					RegisterMonsterToMegaGrid(raw, pos, i);
+#ifdef USING_NETWORK
+					const bool logicalBossActive = true;
+#else
+					const bool logicalBossActive = false;
+#endif
+					const int logicalIndex = AddLogicalMonster(ELogicalMonsterKind::Boss, logicalServerId, pos, yaw, kHpBoss, logicalBossActive);
+					LinkActualMonsterToLogical(raw, i, logicalIndex);
 
 					std::array<std::shared_ptr<CMesh>, 3> noLodMeshes =
 					{

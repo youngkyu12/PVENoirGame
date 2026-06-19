@@ -222,6 +222,39 @@ struct SkinnedComponentCache
 	bool isPlayer = false;
 };
 
+enum class ELogicalMonsterKind : uint8_t
+{
+	Ghoul = 0,
+	SwordMan,
+	BowMan,
+	Mutant,
+	Boss
+};
+
+struct LogicalMonsterState
+{
+	int logicalId = -1;
+	uint64_t serverId = static_cast< uint64_t >( -1 );
+
+	ELogicalMonsterKind kind = ELogicalMonsterKind::Ghoul;
+	int megaGridNumber = -1;
+
+	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT3 homePosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	float yawDeg = 0.0f;
+
+	int hp = 1;
+	int maxHp = 1;
+
+	bool active = true;
+	bool dead = false;
+
+	uint32_t animationStateCode = 0;
+
+	CGameObject* boundObject = nullptr;
+	UINT boundSkinnedBatchObjectIndex = UINT_MAX;
+};
+
 // ============================================================================
 // GameScene
 // ============================================================================
@@ -835,6 +868,12 @@ private:
 	) const;
 
 	void ResetEnemySpawnerTimedGhoulWaveStates();
+
+	void ResetLogicalMonsterState();
+	int AddLogicalMonster(ELogicalMonsterKind kind, uint64_t serverId, const XMFLOAT3& position, float yawDeg, int maxHp, bool active);
+	void LinkActualMonsterToLogical(CGameObject* monster, UINT skinnedBatchObjectIndex, int logicalMonsterIndex);
+	int FindLogicalMonsterIndexByObject(const CGameObject* monster) const;
+	void SyncLogicalMonsterFromActualObject(CGameObject* monster);
 
 	void RegisterMonsterToMegaGrid(CGameObject* monster, const XMFLOAT3& spawnPosition, UINT skinnedBatchObjectIndex);
 	int GetLocalPlayerMegaGridNumberForMonsterTick() const;
@@ -1602,6 +1641,10 @@ private:
 	std::vector<GridDynamicTracker> m_bulletGridTrackers;
 
 	std::vector<int> m_skinnedMonsterMegaGridNumbers;
+	std::vector<LogicalMonsterState> m_logicalMonsters;
+	std::array<std::vector<int>, CSceneGrid::kMegaGridCount + 1> m_logicalMonsterIndicesByMegaGrid = {};
+	std::unordered_map<uint64_t, int> m_logicalMonsterIndexByServerId;
+	std::unordered_map<CGameObject*, int> m_logicalMonsterIndexByObject;
 
 private:
     bool LoadStaticPlacementFile(const std::string& filePath);
