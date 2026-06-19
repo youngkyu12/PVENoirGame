@@ -121,6 +121,8 @@ int CGameScene::AddLogicalMonster(ELogicalMonsterKind kind, uint64_t serverId, c
 	state.dead = false;
 	state.spawnerEntry = spawnerEntry;
 	state.spawnerConsumed = false;
+	state.keyTrigger = false;
+	state.keyTriggerMegaGridNumber = -1;
 	state.animationStateCode = 0;
 	state.boundObject = nullptr;
 	state.boundSkinnedBatchObjectIndex = UINT_MAX;
@@ -182,15 +184,28 @@ void CGameScene::BuildLogicalMonstersFromCurrentStageData()
 		AddLogicalMonster(kind, enemyState.id, enemyState.position, enemyState.yaw, maxHp, true);
 	}
 #else
-	auto AddPlacedLogicalMonsters =
-		[ this ] (const char* typeName, ELogicalMonsterKind kind, int maxHp)
+	auto AddPlacedLogicalMonsters = [ this ] (const char* typeName, ELogicalMonsterKind kind, int maxHp)
 		{
+			std::vector<const MonsterSpawnEntry*> entries;
+			entries.reserve(m_monsterSpawnEntries.size());
+
 			for ( const MonsterSpawnEntry& entry : m_monsterSpawnEntries )
 			{
-				if ( entry.type != typeName )
+				if ( entry.type == typeName )
+					entries.push_back(&entry);
+			}
+
+			std::sort(entries.begin(), entries.end(), [ ] (const MonsterSpawnEntry* a, const MonsterSpawnEntry* b)
+			{
+						return a->index < b->index;
+			});
+
+			for ( const MonsterSpawnEntry* entry : entries )
+			{
+				if ( !entry )
 					continue;
 
-				AddLogicalMonster(kind, static_cast< uint64_t >( -1 ), entry.pos, entry.yawDeg, maxHp, true);
+				AddLogicalMonster(kind, static_cast< uint64_t >(-1), entry->pos, entry->yawDeg, maxHp, true);
 			}
 		};
 
@@ -226,6 +241,8 @@ void CGameScene::BuildLogicalMonstersFromCurrentStageData()
 	AddSpawnerLogicalMonsters(ELogicalMonsterKind::SwordMan, 5, kEnemySpawnerMega5SwordManCount, kHpSwordMan);
 	AddSpawnerLogicalMonsters(ELogicalMonsterKind::Mutant, 5, kEnemySpawnerMega5MutantCount, kHpMutant);
 #endif
+
+	RegisterLogicalMutantKeyTriggers();
 
 	m_logicalGhoulCount = 0;
 	m_logicalBowManCount = 0;
@@ -265,6 +282,48 @@ void CGameScene::BuildLogicalMonstersFromCurrentStageData()
 		"  Mutant  = " + std::to_string(m_logicalMutantCount) + "\n" +
 		"  Boss    = " + std::to_string(m_logicalBossCount) + "\n"
 		).c_str());
+}
+
+void CGameScene::RegisterLogicalMutantKeyTriggers()
+{
+	m_mutantKeyTriggerRegisteredByMega.fill(false);
+	m_mutantKeyTriggerMegaByObject.clear();
+
+	for ( LogicalMonsterState& logical : m_logicalMonsters )
+	{
+		logical.keyTrigger = false;
+		logical.keyTriggerMegaGridNumber = -1;
+	}
+
+	for ( int megaGridNumber : { 6, 8 } )
+	{
+		if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+			continue;
+
+		for ( int logicalIndex : m_logicalMonsterIndicesByMegaGrid[static_cast< size_t >( megaGridNumber )] )
+		{
+			if ( logicalIndex < 0 || logicalIndex >= static_cast< int >(m_logicalMonsters.size()) )
+				continue;
+
+			LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalIndex)];
+
+			if ( logical.kind != ELogicalMonsterKind::Mutant )
+				continue;
+
+			if ( logical.spawnerEntry )
+				continue;
+
+			logical.keyTrigger = true;
+			logical.keyTriggerMegaGridNumber = megaGridNumber;
+			m_mutantKeyTriggerRegisteredByMega[static_cast< size_t >( megaGridNumber )] = true;
+
+			char buf[256];
+			sprintf_s(buf, "[LogicalKeyMutant] registered logical=%d mega=%d pos=(%.3f, %.3f, %.3f)\n", logicalIndex, megaGridNumber, logical.position.x, logical.position.y, logical.position.z);
+			OutputDebugStringA(buf);
+
+			break;
+		}
+	}
 }
 
 void CGameScene::LinkActualMonsterToLogical(CGameObject* monster, UINT skinnedBatchObjectIndex, int logicalMonsterIndex)
@@ -341,6 +400,9 @@ int CGameScene::FindUnboundLogicalMonsterForActual(ELogicalMonsterKind kind, uin
 
 void CGameScene::SyncLogicalMonsterFromActualObject(CGameObject* monster)
 {
+	if ( !monster )
+		return;
+
 	const int logicalIndex = FindLogicalMonsterIndexByObject(monster);
 	if ( logicalIndex < 0 || logicalIndex >= static_cast< int >(m_logicalMonsters.size()) )
 		return;
@@ -357,7 +419,7 @@ void CGameScene::SyncLogicalMonsterFromActualObject(CGameObject* monster)
 	{
 		logical.hp = hp->GetCurrentHp();
 		logical.maxHp = hp->GetMaxHp();
-		logical.dead = hp->IsDead();
+		logical.dead = hp->IsDead() || m_deadMonsters.find(monster) != m_deadMonsters.end();
 	}
 	else
 	{

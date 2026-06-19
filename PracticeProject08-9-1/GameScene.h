@@ -252,6 +252,9 @@ struct LogicalMonsterState
 	bool spawnerEntry = false;
 	bool spawnerConsumed = false;
 
+	bool keyTrigger = false;
+	int keyTriggerMegaGridNumber = -1;
+
 	uint32_t animationStateCode = 0;
 
 	CGameObject* boundObject = nullptr;
@@ -875,6 +878,8 @@ private:
 	void ResetLogicalMonsterState();
 	int AddLogicalMonster(ELogicalMonsterKind kind, uint64_t serverId, const XMFLOAT3& position, float yawDeg, int maxHp, bool active, bool spawnerEntry = false); 
 	void BuildLogicalMonstersFromCurrentStageData();
+	void RegisterLogicalMutantKeyTriggers();
+	void DisableAllMonsterAIComponents(CGameObject* monster) const;
 	void LinkActualMonsterToLogical(CGameObject* monster, UINT skinnedBatchObjectIndex, int logicalMonsterIndex);
 	int FindLogicalMonsterIndexByObject(const CGameObject* monster) const;
 	int FindUnboundLogicalMonsterForActual(ELogicalMonsterKind kind, uint64_t serverId, const XMFLOAT3& position) const;
