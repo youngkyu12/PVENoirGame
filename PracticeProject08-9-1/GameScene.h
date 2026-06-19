@@ -876,6 +876,16 @@ private:
 	int FindLogicalMonsterIndexByObject(const CGameObject* monster) const;
 	int FindUnboundLogicalMonsterForActual(ELogicalMonsterKind kind, uint64_t serverId, const XMFLOAT3& position) const;
 	void SyncLogicalMonsterFromActualObject(CGameObject* monster);
+	std::vector<CGameObject*>* GetLogicalMonsterVisualPool(ELogicalMonsterKind kind);
+	const std::vector<CGameObject*>* GetLogicalMonsterVisualPool(ELogicalMonsterKind kind) const;
+	CGameObject* AcquireFreeLogicalMonsterVisual(ELogicalMonsterKind kind) const;
+	void BuildWantedLogicalMonsterSet(std::vector<int>& outWantedLogicalIndices) const;
+	void ReconcileLogicalMonsterVisualBindings();
+	void BindLogicalMonsterToActualObject(int logicalMonsterIndex, CGameObject* monster);
+	void UnbindActualMonsterFromLogical(CGameObject* monster);
+	void SyncActualMonsterFromLogicalState(CGameObject* monster, int logicalMonsterIndex, bool resetRuntimeState);
+	void UpdateActualMonsterMegaGridBinding(CGameObject* monster, UINT skinnedBatchObjectIndex, int megaGridNumber);
+	void RebuildSceneGridMonsterRefsFromLogicalBindings();
 
 	void RegisterMonsterToMegaGrid(CGameObject* monster, const XMFLOAT3& spawnPosition, UINT skinnedBatchObjectIndex);
 	int GetLocalPlayerMegaGridNumberForMonsterTick() const;
