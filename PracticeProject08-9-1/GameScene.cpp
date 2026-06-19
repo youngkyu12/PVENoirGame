@@ -2843,17 +2843,37 @@ void CGameScene::BuildWantedLogicalMonsterSet(std::vector<int>& outWantedLogical
 	{
 		const LogicalMonsterState& lhs = m_logicalMonsters[static_cast< size_t >( a )];
 		const LogicalMonsterState& rhs = m_logicalMonsters[static_cast< size_t >( b )];
+	
+		auto GetPriority = [ ] (const LogicalMonsterState& logical) -> int
+			{
+				if ( logical.keyTrigger )
+					return 0;
+	
+				if ( logical.spawnerEntry && logical.active && logical.spawnerConsumed )
+					return 1;
+	
+				if ( logical.dead || logical.hp <= 0 )
+					return 3;
+	
+				return 2;
+			};
 
-		const float ldx = lhs.position.x - playerPos.x;
-		const float ldz = lhs.position.z - playerPos.z;
-		const float rdx = rhs.position.x - playerPos.x;
-		const float rdz = rhs.position.z - playerPos.z;
+	const int lhsPriority = GetPriority(lhs);
+	const int rhsPriority = GetPriority(rhs);
 
-		const float lhsDistSq = ldx * ldx + ldz * ldz;
-		const float rhsDistSq = rdx * rdx + rdz * rdz;
+	if ( lhsPriority != rhsPriority )
+		return lhsPriority < rhsPriority;
 
-		return lhsDistSq < rhsDistSq;
-	});
+	const float ldx = lhs.position.x - playerPos.x;
+	const float ldz = lhs.position.z - playerPos.z;
+	const float rdx = rhs.position.x - playerPos.x;
+	const float rdz = rhs.position.z - playerPos.z;
+
+	const float lhsDistSq = ldx * ldx + ldz * ldz;
+	const float rhsDistSq = rdx * rdx + rdz * rdz;
+
+	return lhsDistSq < rhsDistSq;
+});
 
 	UINT ghoulCount = 0;
 	UINT swordManCount = 0;
@@ -2991,6 +3011,7 @@ void CGameScene::BindLogicalMonsterToActualObject(int logicalMonsterIndex, CGame
 
 	LinkActualMonsterToLogical(monster, skinnedBatchObjectIndex, logicalMonsterIndex);
 	SyncActualMonsterFromLogicalState(monster, logicalMonsterIndex, true);
+	ConfigureLogicalSpawnerVisualRuntime(monster, logicalMonsterIndex);
 	UpdateActualMonsterMegaGridBinding(monster, skinnedBatchObjectIndex, logical.megaGridNumber);
 }
 
@@ -3015,6 +3036,7 @@ void CGameScene::UnbindActualMonsterFromLogical(CGameObject* monster)
 	m_deadMonsters.erase(monster);
 
 	CancelMonsterPreparedActions(monster);
+	DisableAllMonsterAIComponents(monster);
 
 	if ( auto* renderer = monster->GetComponent<CSkinnedMeshRendererComponent>() )
 		renderer->SetEnabled(false);
@@ -3049,6 +3071,9 @@ void CGameScene::SyncActualMonsterFromLogicalState(CGameObject* monster, int log
 
 	LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalMonsterIndex)];
 
+	const bool logicalDead = logical.dead || logical.hp <= 0;
+	const bool wasRuntimeDead = m_deadMonsters.find(monster) != m_deadMonsters.end();
+
 	XMFLOAT3 position = logical.position;
 	position.y = GetTerrainGroundYOrFallback(position.x, position.z, position.y);
 
@@ -3058,34 +3083,63 @@ void CGameScene::SyncActualMonsterFromLogicalState(CGameObject* monster, int log
 		tr->SetYawDegrees(logical.yawDeg);
 
 	const bool shouldActivate = logical.active;
-
 	monster->SetActive(shouldActivate);
 
 	if ( auto* renderer = monster->GetComponent<CSkinnedMeshRendererComponent>() )
 		renderer->SetEnabled(shouldActivate);
 
+	if ( auto* hp = monster->GetComponent<CHealthComponent>() )
+	{
+		if ( logicalDead )
+		{
+			hp->SetCurrentHp(0);
+		}
+		else
+		{
+			hp->ResetToMax();
+			const int restoredHp = std::clamp(logical.hp, 1, std::max(1, logical.maxHp));
+			hp->SetCurrentHp(restoredHp);
+		}
+	}
+
 	if ( auto* collider = monster->GetComponent<CColliderComponent>() )
 	{
-		const bool collisionEnabled = shouldActivate && !logical.dead && logical.hp > 0;
+		collider->CancelDeferredDisable();
+
+		const bool collisionEnabled = shouldActivate && !logicalDead;
 		collider->SetEnabled(collisionEnabled);
 		collider->SetCollisionEnabled(collisionEnabled);
 		collider->UpdateWorldBounds();
 	}
 
-	if ( auto* hp = monster->GetComponent<CHealthComponent>() )
-	{
-		hp->SetCurrentHp(std::max(0, logical.hp));
-	}
+	if ( auto* weaponHitbox = monster->GetComponent<CMonsterWeaponHitboxComponent>() )
+		weaponHitbox->SetEnabled(false);
 
-	if ( resetRuntimeState )
+	if ( logicalDead )
 	{
-		if ( logical.dead || logical.hp <= 0 )
+		m_deadMonsters.insert(monster);
+		CancelMonsterPreparedActions(monster);
+		DisableAllMonsterAIComponents(monster);
+
+		if ( resetRuntimeState || wasRuntimeDead )
 		{
-			m_deadMonsters.insert(monster);
+			if ( auto* animComp = monster->GetComponent<CAnimatorComponent>() )
+			{
+				if ( auto* ctrl = animComp->EnsureMonsterController() )
+				{
+					ctrl->SetLocomotionState(EMonsterAnimState::Idle);
+					ctrl->RequestCommand(EMonsterAnimCommand::Death);
+				}
+			}
 		}
-		else
+	}
+	else
+	{
+		m_deadMonsters.erase(monster);
+
+		if ( resetRuntimeState || wasRuntimeDead )
 		{
-			m_deadMonsters.erase(monster);
+			CancelMonsterPreparedActions(monster);
 
 			if ( auto* animComp = monster->GetComponent<CAnimatorComponent>() )
 			{
@@ -3405,27 +3459,12 @@ void CGameScene::ConfigureLogicalSpawnerVisualRuntime(CGameObject* monster, int 
 
 	const LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalMonsterIndex)];
 
-	if ( !logical.spawnerEntry )
+	DisableAllMonsterAIComponents(monster);
+
+	if ( logical.dead || logical.hp <= 0 )
 		return;
 
-	auto DisableAI = [ ] (CMonsterAIComponent* ai)
-		{
-			if ( !ai )
-				return;
-
-			ai->SetEnabledAI(false);
-			ai->ClearTarget();
-			ai->ClearPath();
-		};
-
-	DisableAI(monster->GetComponent<CGhoulAIComponent>());
-	DisableAI(monster->GetComponent<CSwordManAIComponent>());
-	DisableAI(monster->GetComponent<CBowManAIComponent>());
-	DisableAI(monster->GetComponent<CMutantAIComponent>());
-	DisableAI(monster->GetComponent<CBossStageMonsterAIComponent>());
-	DisableAI(monster->GetComponent<CEnemySpawnerGhoulAIComponent>());
-
-	if ( logical.megaGridNumber == 5 )
+	if ( logical.megaGridNumber == 5 && logical.kind != ELogicalMonsterKind::Boss )
 	{
 		CBossStageMonsterAIComponent* ai = monster->GetComponent<CBossStageMonsterAIComponent>();
 		if ( !ai )
@@ -3458,7 +3497,7 @@ void CGameScene::ConfigureLogicalSpawnerVisualRuntime(CGameObject* monster, int 
 		return;
 	}
 
-	if ( logical.kind == ELogicalMonsterKind::Ghoul && ( logical.megaGridNumber == 6 || logical.megaGridNumber == 8 ) )
+	if ( logical.kind == ELogicalMonsterKind::Ghoul && logical.spawnerEntry && ( logical.megaGridNumber == 6 || logical.megaGridNumber == 8 ) )
 	{
 		CEnemySpawnerGhoulAIComponent* ai = monster->GetComponent<CEnemySpawnerGhoulAIComponent>();
 		if ( !ai )
@@ -4007,13 +4046,19 @@ void CGameScene::NotifyMonsterChaseStarted(CGameObject* monster)
 	if ( !monster )
 		return;
 
-	const auto it = m_mutantKeyTriggerMegaByObject.find(monster);
-	if ( it == m_mutantKeyTriggerMegaByObject.end() )
+	const int logicalIndex = FindLogicalMonsterIndexByObject(monster);
+	if ( logicalIndex < 0 || logicalIndex >= static_cast< int >(m_logicalMonsters.size()) )
 		return;
 
-	const int megaGridNumber = it->second;
+	const LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalIndex)];
 
-	// 6/8번 열쇠 담당 1번째 뮤턴트가 추적을 시작하면 스포너 이벤트 가동.
+	if ( !logical.keyTrigger )
+		return;
+
+	const int megaGridNumber = logical.keyTriggerMegaGridNumber;
+	if ( megaGridNumber != 6 && megaGridNumber != 8 )
+		return;
+
 	TryRunEnemySpawnerEventForMegaGrid(megaGridNumber);
 #else
 	UNREFERENCED_PARAMETER(monster);
@@ -7161,7 +7206,7 @@ bool CGameScene::IsEnemySpawnerMonsterObject(const CGameObject* monster) const
 	if ( logicalIndex >= 0 && logicalIndex < static_cast< int >(m_logicalMonsters.size()) )
 		return m_logicalMonsters[static_cast< size_t >(logicalIndex)].spawnerEntry;
 
-	return std::find(m_EnemySpawnRefs.begin(), m_EnemySpawnRefs.end(), monster) != m_EnemySpawnRefs.end();
+	return false;
 }
 
 bool CGameScene::AreAllPreBossMonstersInMegaGridDead(int megaGridNumber) const
@@ -7992,9 +8037,7 @@ void CGameScene::UpdateBossSummonVisualFadeOut(float dt)
 	m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec = 0.0f;
 }
 
-void CGameScene::RegisterMutantKeyTriggerIfNeeded(
-	CGameObject* mutant,
-	int megaGridNumber)
+void CGameScene::RegisterMutantKeyTriggerIfNeeded(CGameObject* mutant, int megaGridNumber)
 {
 	if ( !mutant )
 		return;
@@ -8002,14 +8045,24 @@ void CGameScene::RegisterMutantKeyTriggerIfNeeded(
 	if ( megaGridNumber != 6 && megaGridNumber != 8 )
 		return;
 
-	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+	const int logicalIndex = FindLogicalMonsterIndexByObject(mutant);
+	if ( logicalIndex < 0 || logicalIndex >= static_cast< int >(m_logicalMonsters.size()) )
 		return;
 
-	if ( m_mutantKeyTriggerRegisteredByMega[( size_t ) megaGridNumber] )
+	LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalIndex)];
+
+	if ( logical.kind != ELogicalMonsterKind::Mutant )
 		return;
 
-	m_mutantKeyTriggerRegisteredByMega[( size_t ) megaGridNumber] = true;
-	m_mutantKeyTriggerMegaByObject[mutant] = megaGridNumber;
+	if ( logical.spawnerEntry )
+		return;
+
+	if ( m_mutantKeyTriggerRegisteredByMega[static_cast< size_t >( megaGridNumber )] && !logical.keyTrigger )
+		return;
+
+	logical.keyTrigger = true;
+	logical.keyTriggerMegaGridNumber = megaGridNumber;
+	m_mutantKeyTriggerRegisteredByMega[static_cast< size_t >( megaGridNumber )] = true;
 }
 
 void CGameScene::UnlockKeyBillboardForMegaGrid(int megaGridNumber)
@@ -8045,15 +8098,23 @@ void CGameScene::HandleMutantKeyTriggerDeath(CGameObject* monster)
 	if ( !monster )
 		return;
 
-	const auto it = m_mutantKeyTriggerMegaByObject.find(monster);
-	if ( it == m_mutantKeyTriggerMegaByObject.end() )
+	const int logicalIndex = FindLogicalMonsterIndexByObject(monster);
+	if ( logicalIndex < 0 || logicalIndex >= static_cast< int >(m_logicalMonsters.size()) )
 		return;
 
-	const int megaGridNumber = it->second;
+	LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalIndex)];
+
+	if ( !logical.keyTrigger )
+		return;
+
+	const int megaGridNumber = logical.keyTriggerMegaGridNumber;
+	if ( megaGridNumber != 6 && megaGridNumber != 8 )
+		return;
 
 	UnlockKeyBillboardForMegaGrid(megaGridNumber);
 
-	m_mutantKeyTriggerMegaByObject.erase(it);
+	logical.keyTrigger = false;
+	logical.keyTriggerMegaGridNumber = -1;
 }
 
 void CGameScene::UpdateMegaGridClearStateFromMonsterDeaths()
@@ -8144,6 +8205,31 @@ void CGameScene::CancelMonsterPreparedActions(CGameObject* monster)
 		ownerWeaponHitbox->SetEnabled(false);
 }
 
+void CGameScene::DisableAllMonsterAIComponents(CGameObject* monster) const
+{
+	if ( !monster )
+		return;
+
+	auto DisableAI = [ ] (CMonsterAIComponent* ai)
+		{
+			if ( !ai )
+				return;
+
+			ai->SetEnabledAI(false);
+			ai->ClearTarget();
+			ai->ClearPath();
+		};
+
+	DisableAI(monster->GetComponent<CGhoulAIComponent>());
+	DisableAI(monster->GetComponent<CSwordManAIComponent>());
+	DisableAI(monster->GetComponent<CBowManAIComponent>());
+	DisableAI(monster->GetComponent<CMutantAIComponent>());
+	DisableAI(monster->GetComponent<CBossAIComponent>());
+	DisableAI(monster->GetComponent<CBossStageMonsterAIComponent>());
+	DisableAI(monster->GetComponent<CEnemySpawnerGhoulAIComponent>());
+	DisableAI(monster->GetComponent<CMonsterAIComponent>());
+}
+
 void CGameScene::BeginMonsterDeath(CGameObject* monster)
 {
 	if ( !monster )
@@ -8157,6 +8243,18 @@ void CGameScene::BeginMonsterDeath(CGameObject* monster)
 		return;
 
 	m_deadMonsters.insert(monster);
+	const int logicalIndex = FindLogicalMonsterIndexByObject(monster);
+	if ( logicalIndex >= 0 && logicalIndex < static_cast< int >(m_logicalMonsters.size()) )
+	{
+		LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalIndex)];
+		logical.position = monster->GetPosition();
+		logical.hp = 0;
+		logical.dead = true;
+		logical.active = true;
+
+		if ( auto* tr = monster->GetComponent<CTransformComponent>() )
+			logical.yawDeg = QuaternionToYawDegrees(tr->rotation);
+	}
 
 	if ( IsBossMonsterObject(monster) )
 	{
@@ -8172,21 +8270,7 @@ void CGameScene::BeginMonsterDeath(CGameObject* monster)
 	if ( auto* collider = monster->GetComponent<CColliderComponent>() )
 		collider->DisableCollisionAndKeepUpdatingForSeconds(5.0f);
 
-	// 현재 실제로 붙는 AI는 CGhoulAIComponent지만,
-	// base 타입으로도 잡히는 구조라면 같이 처리.
-	if ( auto* ai = monster->GetComponent<CMonsterAIComponent>() )
-	{
-		ai->SetEnabledAI(false);
-		ai->ClearTarget();
-		ai->ClearPath();
-	}
-
-	if ( auto* ghoulAI = monster->GetComponent<CGhoulAIComponent>() )
-	{
-		ghoulAI->SetEnabledAI(false);
-		ghoulAI->ClearTarget();
-		ghoulAI->ClearPath();
-	}
+	DisableAllMonsterAIComponents(monster);
 
 	if ( auto* animComp = monster->GetComponent<CAnimatorComponent>() )
 	{
@@ -8210,6 +8294,13 @@ void CGameScene::UpdateMonsterDeathStates()
 			continue;
 
 		if ( !cache.isNpc )
+			continue;
+
+		if ( !obj->GetActive() )
+			continue;
+
+		const int logicalIndex = FindLogicalMonsterIndexByObject(obj);
+		if ( logicalIndex < 0 || logicalIndex >= static_cast< int >(m_logicalMonsters.size()) )
 			continue;
 
 		if ( !cache.health )
