@@ -3072,6 +3072,7 @@ void CGameScene::SyncActualMonsterFromLogicalState(CGameObject* monster, int log
 	LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalMonsterIndex)];
 
 	const bool logicalDead = logical.dead || logical.hp <= 0;
+	const bool shouldActivate = logical.active;
 	const bool wasRuntimeDead = m_deadMonsters.find(monster) != m_deadMonsters.end();
 
 	XMFLOAT3 position = logical.position;
@@ -3082,7 +3083,6 @@ void CGameScene::SyncActualMonsterFromLogicalState(CGameObject* monster, int log
 	if ( auto* tr = monster->GetComponent<CTransformComponent>() )
 		tr->SetYawDegrees(logical.yawDeg);
 
-	const bool shouldActivate = logical.active;
 	monster->SetActive(shouldActivate);
 
 	if ( auto* renderer = monster->GetComponent<CSkinnedMeshRendererComponent>() )
@@ -3097,8 +3097,7 @@ void CGameScene::SyncActualMonsterFromLogicalState(CGameObject* monster, int log
 		else
 		{
 			hp->ResetToMax();
-			const int restoredHp = std::clamp(logical.hp, 1, std::max(1, logical.maxHp));
-			hp->SetCurrentHp(restoredHp);
+			hp->SetCurrentHp(std::clamp(logical.hp, 1, std::max(1, logical.maxHp)));
 		}
 	}
 
@@ -3112,44 +3111,55 @@ void CGameScene::SyncActualMonsterFromLogicalState(CGameObject* monster, int log
 		collider->UpdateWorldBounds();
 	}
 
-	if ( auto* weaponHitbox = monster->GetComponent<CMonsterWeaponHitboxComponent>() )
-		weaponHitbox->SetEnabled(false);
-
 	if ( logicalDead )
 	{
-		m_deadMonsters.insert(monster);
-		CancelMonsterPreparedActions(monster);
-		DisableAllMonsterAIComponents(monster);
+		const bool shouldApplyDeathVisualState = resetRuntimeState || !wasRuntimeDead;
 
-		if ( resetRuntimeState || wasRuntimeDead )
+		m_deadMonsters.insert(monster);
+
+		if ( shouldApplyDeathVisualState )
 		{
+			CancelMonsterPreparedActions(monster);
+			DisableAllMonsterAIComponents(monster);
+
+			if ( auto* weaponHitbox = monster->GetComponent<CMonsterWeaponHitboxComponent>() )
+				weaponHitbox->SetEnabled(false);
+
 			if ( auto* animComp = monster->GetComponent<CAnimatorComponent>() )
 			{
 				if ( auto* ctrl = animComp->EnsureMonsterController() )
 				{
-					ctrl->SetLocomotionState(EMonsterAnimState::Idle);
-					ctrl->RequestCommand(EMonsterAnimCommand::Death);
+					if ( resetRuntimeState )
+						ctrl->PlayDeathFinalPose();
+					else
+						ctrl->PlayDeathFromStart();
 				}
 			}
 		}
 	}
 	else
 	{
+		const bool shouldResetAliveRuntime = resetRuntimeState || wasRuntimeDead;
+
 		m_deadMonsters.erase(monster);
 
-		if ( resetRuntimeState || wasRuntimeDead )
+		if ( shouldResetAliveRuntime )
 		{
 			CancelMonsterPreparedActions(monster);
+
+			if ( auto* weaponHitbox = monster->GetComponent<CMonsterWeaponHitboxComponent>() )
+				weaponHitbox->SetEnabled(false);
 
 			if ( auto* animComp = monster->GetComponent<CAnimatorComponent>() )
 			{
 				if ( auto* ctrl = animComp->EnsureMonsterController() )
-					ctrl->SetLocomotionState(EMonsterAnimState::Idle);
+					ctrl->ResetRuntimeState(EMonsterAnimState::Idle);
 			}
 		}
 	}
 
 	logical.position = position;
+	logical.active = shouldActivate;
 }
 
 void CGameScene::UpdateActualMonsterMegaGridBinding(CGameObject* monster, UINT skinnedBatchObjectIndex, int megaGridNumber)
@@ -3464,6 +3474,15 @@ void CGameScene::ConfigureLogicalSpawnerVisualRuntime(CGameObject* monster, int 
 	if ( logical.dead || logical.hp <= 0 )
 		return;
 
+	auto ResetAndEnableAI = [ &logical ] (CMonsterAIComponent* ai, bool enabled)
+		{
+			if ( !ai )
+				return;
+
+			ai->ResetRuntimeStateForReuse(logical.homePosition, logical.yawDeg);
+			ai->SetEnabledAI(enabled);
+		};
+
 	if ( logical.megaGridNumber == 5 && logical.kind != ELogicalMonsterKind::Boss )
 	{
 		CBossStageMonsterAIComponent* ai = monster->GetComponent<CBossStageMonsterAIComponent>();
@@ -3473,6 +3492,7 @@ void CGameScene::ConfigureLogicalSpawnerVisualRuntime(CGameObject* monster, int 
 		if ( ai )
 		{
 			ai->SetScene(this);
+			ai->ResetRuntimeStateForReuse(logical.homePosition, logical.yawDeg);
 
 			switch ( logical.kind )
 			{
@@ -3506,7 +3526,7 @@ void CGameScene::ConfigureLogicalSpawnerVisualRuntime(CGameObject* monster, int 
 		if ( ai )
 		{
 			ai->SetScene(this);
-			ai->SetHomeTransform(logical.homePosition, logical.yawDeg);
+			ai->ResetRuntimeStateForReuse(logical.homePosition, logical.yawDeg);
 			ai->ConfigureSpawnerGhoulAI(logical.megaGridNumber, 60.0f);
 			ai->SetEnabledAI(m_bSimulateLocalEnemySpawner);
 		}
@@ -3523,10 +3543,9 @@ void CGameScene::ConfigureLogicalSpawnerVisualRuntime(CGameObject* monster, int 
 			ai = monster->AddComponent<CGhoulAIComponent>();
 
 		if ( ai )
-		{
 			ai->SetScene(this);
-			ai->SetEnabledAI(m_bSimulateLocalGhoulAI);
-		}
+
+		ResetAndEnableAI(ai, m_bSimulateLocalGhoulAI);
 		break;
 	}
 	case ELogicalMonsterKind::SwordMan:
@@ -3536,10 +3555,9 @@ void CGameScene::ConfigureLogicalSpawnerVisualRuntime(CGameObject* monster, int 
 			ai = monster->AddComponent<CSwordManAIComponent>();
 
 		if ( ai )
-		{
 			ai->SetScene(this);
-			ai->SetEnabledAI(m_bSimulateLocalSwordManAI);
-		}
+
+		ResetAndEnableAI(ai, m_bSimulateLocalSwordManAI);
 		break;
 	}
 	case ELogicalMonsterKind::BowMan:
@@ -3549,10 +3567,9 @@ void CGameScene::ConfigureLogicalSpawnerVisualRuntime(CGameObject* monster, int 
 			ai = monster->AddComponent<CBowManAIComponent>();
 
 		if ( ai )
-		{
 			ai->SetScene(this);
-			ai->SetEnabledAI(m_bSimulateLocalBowManAI);
-		}
+
+		ResetAndEnableAI(ai, m_bSimulateLocalBowManAI);
 		break;
 	}
 	case ELogicalMonsterKind::Mutant:
@@ -3562,10 +3579,9 @@ void CGameScene::ConfigureLogicalSpawnerVisualRuntime(CGameObject* monster, int 
 			ai = monster->AddComponent<CMutantAIComponent>();
 
 		if ( ai )
-		{
 			ai->SetScene(this);
-			ai->SetEnabledAI(m_bSimulateLocalMutantAI);
-		}
+
+		ResetAndEnableAI(ai, m_bSimulateLocalMutantAI);
 		break;
 	}
 	default:
@@ -8210,23 +8226,28 @@ void CGameScene::DisableAllMonsterAIComponents(CGameObject* monster) const
 	if ( !monster )
 		return;
 
-	auto DisableAI = [ ] (CMonsterAIComponent* ai)
+	float yawDeg = 0.0f;
+	if ( auto* tr = monster->GetComponent<CTransformComponent>() )
+		yawDeg = QuaternionToYawDegrees(tr->rotation);
+
+	const XMFLOAT3 homePosition = monster->GetPosition();
+
+	auto DisableAI = [ homePosition, yawDeg ] (CMonsterAIComponent* ai)
 		{
 			if ( !ai )
 				return;
 
 			ai->SetEnabledAI(false);
-			ai->ClearTarget();
-			ai->ClearPath();
+			ai->ResetRuntimeStateForReuse(homePosition, yawDeg);
 		};
 
 	DisableAI(monster->GetComponent<CGhoulAIComponent>());
+	DisableAI(monster->GetComponent<CEnemySpawnerGhoulAIComponent>());
+	DisableAI(monster->GetComponent<CBossStageMonsterAIComponent>());
 	DisableAI(monster->GetComponent<CSwordManAIComponent>());
 	DisableAI(monster->GetComponent<CBowManAIComponent>());
 	DisableAI(monster->GetComponent<CMutantAIComponent>());
 	DisableAI(monster->GetComponent<CBossAIComponent>());
-	DisableAI(monster->GetComponent<CBossStageMonsterAIComponent>());
-	DisableAI(monster->GetComponent<CEnemySpawnerGhoulAIComponent>());
 	DisableAI(monster->GetComponent<CMonsterAIComponent>());
 }
 
@@ -8276,8 +8297,7 @@ void CGameScene::BeginMonsterDeath(CGameObject* monster)
 	{
 		if ( auto* ctrl = animComp->EnsureMonsterController() )
 		{
-			ctrl->SetLocomotionState(EMonsterAnimState::Idle);
-			ctrl->RequestCommand(EMonsterAnimCommand::Death);
+			ctrl->PlayDeathFromStart();
 			return;
 		}
 	}
