@@ -42,6 +42,7 @@ public:
 	void SetHomeTransform(const XMFLOAT3& position, float yawDeg);
 	void CaptureHomeTransformFromOwner();
 
+	void ResetRuntimeStateForReuse(const XMFLOAT3& homePosition, float homeYawDeg);
 	void ResetToHomeTransformForMegaGridSkip();
 	void SetPatrolEnabled(bool enabled);
 	bool IsPatrolEnabled() const { return m_bPatrolEnabled; }
