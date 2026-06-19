@@ -3361,7 +3361,7 @@ void CGameScene::BuildSkinnedBatch(
 					}
 
 					RegisterMonsterToMegaGrid(raw, pos, i);
-					const int logicalIndex = AddLogicalMonster(ELogicalMonsterKind::BowMan, logicalServerId, pos, yaw, kHpBowMan, true);
+					const int logicalIndex = FindUnboundLogicalMonsterForActual(ELogicalMonsterKind::BowMan, logicalServerId, pos);
 					LinkActualMonsterToLogical(raw, i, logicalIndex);
 
 
