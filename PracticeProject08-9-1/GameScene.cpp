@@ -2817,6 +2817,404 @@ void CGameScene::ResetEnemySpawnerTimedGhoulWaveStates()
 	}
 }
 
+std::vector<CGameObject*>* CGameScene::GetLogicalMonsterVisualPool(ELogicalMonsterKind kind)
+{
+	switch ( kind )
+	{
+	case ELogicalMonsterKind::Ghoul:
+		return &m_ghoulRefs;
+	case ELogicalMonsterKind::SwordMan:
+		return &m_swordManRefs;
+	case ELogicalMonsterKind::BowMan:
+		return &m_bowManRefs;
+	case ELogicalMonsterKind::Mutant:
+		return &m_MutantRefs;
+	case ELogicalMonsterKind::Boss:
+		return &m_bossRefs;
+	default:
+		return nullptr;
+	}
+}
+
+const std::vector<CGameObject*>* CGameScene::GetLogicalMonsterVisualPool(ELogicalMonsterKind kind) const
+{
+	switch ( kind )
+	{
+	case ELogicalMonsterKind::Ghoul:
+		return &m_ghoulRefs;
+	case ELogicalMonsterKind::SwordMan:
+		return &m_swordManRefs;
+	case ELogicalMonsterKind::BowMan:
+		return &m_bowManRefs;
+	case ELogicalMonsterKind::Mutant:
+		return &m_MutantRefs;
+	case ELogicalMonsterKind::Boss:
+		return &m_bossRefs;
+	default:
+		return nullptr;
+	}
+}
+
+CGameObject* CGameScene::AcquireFreeLogicalMonsterVisual(ELogicalMonsterKind kind) const
+{
+	const std::vector<CGameObject*>* pool = GetLogicalMonsterVisualPool(kind);
+	if ( !pool )
+		return nullptr;
+
+	for ( CGameObject* object : *pool )
+	{
+		if ( !object )
+			continue;
+
+		if ( FindLogicalMonsterIndexByObject(object) >= 0 )
+			continue;
+
+		return object;
+	}
+
+	return nullptr;
+}
+
+void CGameScene::BuildWantedLogicalMonsterSet(std::vector<int>& outWantedLogicalIndices) const
+{
+	outWantedLogicalIndices.clear();
+
+	const int activeMegaGridNumber = GetLocalPlayerMegaGridNumberForMonsterTick();
+	if ( activeMegaGridNumber < 1 || activeMegaGridNumber > CSceneGrid::kMegaGridCount )
+		return;
+
+	CGameObject* player = GetPlayer();
+	if ( !player )
+		player = GetPlayerBySlot(0);
+
+	const XMFLOAT3 playerPos = player ? player->GetPosition() : XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	std::vector<int> candidates;
+
+	const std::vector<int>& logicalIndices = m_logicalMonsterIndicesByMegaGrid[static_cast< size_t >( activeMegaGridNumber )];
+	candidates.reserve(logicalIndices.size());
+
+	for ( int logicalIndex : logicalIndices )
+	{
+		if ( logicalIndex < 0 || logicalIndex >= static_cast< int >(m_logicalMonsters.size()) )
+			continue;
+
+		const LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalIndex)];
+
+		if ( !logical.active )
+			continue;
+
+		if ( logical.kind == ELogicalMonsterKind::Boss )
+			continue;
+
+		candidates.push_back(logicalIndex);
+	}
+
+	std::stable_sort(candidates.begin(), candidates.end(), [ this, playerPos ] (int a, int b)
+	{
+		const LogicalMonsterState& lhs = m_logicalMonsters[static_cast< size_t >( a )];
+		const LogicalMonsterState& rhs = m_logicalMonsters[static_cast< size_t >( b )];
+
+		const float ldx = lhs.position.x - playerPos.x;
+		const float ldz = lhs.position.z - playerPos.z;
+		const float rdx = rhs.position.x - playerPos.x;
+		const float rdz = rhs.position.z - playerPos.z;
+
+		const float lhsDistSq = ldx * ldx + ldz * ldz;
+		const float rhsDistSq = rdx * rdx + rdz * rdz;
+
+		return lhsDistSq < rhsDistSq;
+	});
+
+	UINT ghoulCount = 0;
+	UINT swordManCount = 0;
+	UINT bowManCount = 0;
+	UINT mutantCount = 0;
+
+	for ( int logicalIndex : candidates )
+	{
+		const LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalIndex)];
+
+		switch ( logical.kind )
+		{
+		case ELogicalMonsterKind::Ghoul:
+			if ( ghoulCount >= static_cast< UINT >( m_ghoulRefs.size() ) )
+				continue;
+			++ghoulCount;
+			break;
+		case ELogicalMonsterKind::SwordMan:
+			if ( swordManCount >= static_cast< UINT >( m_swordManRefs.size() ) )
+				continue;
+			++swordManCount;
+			break;
+		case ELogicalMonsterKind::BowMan:
+			if ( bowManCount >= static_cast< UINT >( m_bowManRefs.size() ) )
+				continue;
+			++bowManCount;
+			break;
+		case ELogicalMonsterKind::Mutant:
+			if ( mutantCount >= static_cast< UINT >( m_MutantRefs.size() ) )
+				continue;
+			++mutantCount;
+			break;
+		default:
+			continue;
+		}
+
+		outWantedLogicalIndices.push_back(logicalIndex);
+	}
+}
+
+void CGameScene::ReconcileLogicalMonsterVisualBindings()
+{
+	std::vector<CGameObject*> currentlyBoundObjects;
+	currentlyBoundObjects.reserve(m_logicalMonsterIndexByObject.size());
+
+	for ( const auto& kv : m_logicalMonsterIndexByObject )
+	{
+		if ( kv.first )
+			currentlyBoundObjects.push_back(kv.first);
+	}
+
+	for ( CGameObject* object : currentlyBoundObjects )
+	{
+		if ( !object )
+			continue;
+
+		if ( IsBossMonsterObject(object) )
+			continue;
+
+		if ( object->GetActive() )
+			SyncLogicalMonsterFromActualObject(object);
+	}
+
+	std::vector<int> wantedLogicalIndices;
+	BuildWantedLogicalMonsterSet(wantedLogicalIndices);
+
+	std::unordered_set<int> wantedSet;
+	wantedSet.reserve(wantedLogicalIndices.size());
+
+	for ( int logicalIndex : wantedLogicalIndices )
+		wantedSet.insert(logicalIndex);
+
+	for ( int logicalIndex = 0; logicalIndex < static_cast< int >(m_logicalMonsters.size()); ++logicalIndex )
+	{
+		LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalIndex)];
+
+		if ( logical.kind == ELogicalMonsterKind::Boss )
+			continue;
+
+		if ( !logical.boundObject )
+			continue;
+
+		if ( wantedSet.find(logicalIndex) != wantedSet.end() )
+			continue;
+
+		UnbindActualMonsterFromLogical(logical.boundObject);
+	}
+
+	for ( int logicalIndex : wantedLogicalIndices )
+	{
+		if ( logicalIndex < 0 || logicalIndex >= static_cast< int >(m_logicalMonsters.size()) )
+			continue;
+
+		LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalIndex)];
+
+		if ( logical.boundObject )
+		{
+			SyncActualMonsterFromLogicalState(logical.boundObject, logicalIndex, false);
+			continue;
+		}
+
+		CGameObject* freeObject = AcquireFreeLogicalMonsterVisual(logical.kind);
+		if ( !freeObject )
+			continue;
+
+		BindLogicalMonsterToActualObject(logicalIndex, freeObject);
+	}
+
+	RebuildSceneGridMonsterRefsFromLogicalBindings();
+}
+
+void CGameScene::BindLogicalMonsterToActualObject(int logicalMonsterIndex, CGameObject* monster)
+{
+	if ( !monster )
+		return;
+
+	if ( logicalMonsterIndex < 0 || logicalMonsterIndex >= static_cast< int >(m_logicalMonsters.size()) )
+		return;
+
+	LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalMonsterIndex)];
+
+	if ( logical.kind == ELogicalMonsterKind::Boss )
+		return;
+
+	const int oldLogicalIndex = FindLogicalMonsterIndexByObject(monster);
+	if ( oldLogicalIndex >= 0 && oldLogicalIndex != logicalMonsterIndex )
+		UnbindActualMonsterFromLogical(monster);
+
+	if ( logical.boundObject && logical.boundObject != monster )
+		UnbindActualMonsterFromLogical(logical.boundObject);
+
+	UINT skinnedBatchObjectIndex = UINT_MAX;
+	if ( !FindSkinnedBatchObjectIndex(monster, skinnedBatchObjectIndex) )
+		return;
+
+	LinkActualMonsterToLogical(monster, skinnedBatchObjectIndex, logicalMonsterIndex);
+	SyncActualMonsterFromLogicalState(monster, logicalMonsterIndex, true);
+	UpdateActualMonsterMegaGridBinding(monster, skinnedBatchObjectIndex, logical.megaGridNumber);
+}
+
+void CGameScene::UnbindActualMonsterFromLogical(CGameObject* monster)
+{
+	if ( !monster )
+		return;
+
+	const int logicalIndex = FindLogicalMonsterIndexByObject(monster);
+
+	if ( logicalIndex >= 0 && logicalIndex < static_cast< int >(m_logicalMonsters.size()) )
+	{
+		if ( monster->GetActive() )
+			SyncLogicalMonsterFromActualObject(monster);
+
+		LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalIndex)];
+		logical.boundObject = nullptr;
+		logical.boundSkinnedBatchObjectIndex = UINT_MAX;
+	}
+
+	m_logicalMonsterIndexByObject.erase(monster);
+	m_deadMonsters.erase(monster);
+
+	CancelMonsterPreparedActions(monster);
+
+	if ( auto* renderer = monster->GetComponent<CSkinnedMeshRendererComponent>() )
+		renderer->SetEnabled(false);
+
+	if ( auto* collider = monster->GetComponent<CColliderComponent>() )
+	{
+		collider->SetEnabled(false);
+		collider->SetCollisionEnabled(false);
+		collider->UpdateWorldBounds();
+	}
+
+	if ( auto* weaponHitbox = monster->GetComponent<CMonsterWeaponHitboxComponent>() )
+		weaponHitbox->SetEnabled(false);
+
+	XMFLOAT3 inactivePosition = monster->GetPosition();
+	inactivePosition.y = kEnemySpawnerInactiveY;
+	monster->SetPosition(inactivePosition);
+	monster->SetActive(false);
+
+	UINT skinnedBatchObjectIndex = UINT_MAX;
+	if ( FindSkinnedBatchObjectIndex(monster, skinnedBatchObjectIndex) )
+		UpdateActualMonsterMegaGridBinding(monster, skinnedBatchObjectIndex, -1);
+}
+
+void CGameScene::SyncActualMonsterFromLogicalState(CGameObject* monster, int logicalMonsterIndex, bool resetRuntimeState)
+{
+	if ( !monster )
+		return;
+
+	if ( logicalMonsterIndex < 0 || logicalMonsterIndex >= static_cast< int >(m_logicalMonsters.size()) )
+		return;
+
+	LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalMonsterIndex)];
+
+	XMFLOAT3 position = logical.position;
+	position.y = GetTerrainGroundYOrFallback(position.x, position.z, position.y);
+
+	monster->SetPosition(position);
+
+	if ( auto* tr = monster->GetComponent<CTransformComponent>() )
+		tr->SetYawDegrees(logical.yawDeg);
+
+	const bool shouldActivate = logical.active;
+
+	monster->SetActive(shouldActivate);
+
+	if ( auto* renderer = monster->GetComponent<CSkinnedMeshRendererComponent>() )
+		renderer->SetEnabled(shouldActivate);
+
+	if ( auto* collider = monster->GetComponent<CColliderComponent>() )
+	{
+		const bool collisionEnabled = shouldActivate && !logical.dead && logical.hp > 0;
+		collider->SetEnabled(collisionEnabled);
+		collider->SetCollisionEnabled(collisionEnabled);
+		collider->UpdateWorldBounds();
+	}
+
+	if ( auto* hp = monster->GetComponent<CHealthComponent>() )
+	{
+		hp->SetCurrentHp(std::max(0, logical.hp));
+	}
+
+	if ( resetRuntimeState )
+	{
+		if ( logical.dead || logical.hp <= 0 )
+		{
+			m_deadMonsters.insert(monster);
+		}
+		else
+		{
+			m_deadMonsters.erase(monster);
+
+			if ( auto* animComp = monster->GetComponent<CAnimatorComponent>() )
+			{
+				if ( auto* ctrl = animComp->EnsureMonsterController() )
+					ctrl->SetLocomotionState(EMonsterAnimState::Idle);
+			}
+		}
+	}
+
+	logical.position = position;
+}
+
+void CGameScene::UpdateActualMonsterMegaGridBinding(CGameObject* monster, UINT skinnedBatchObjectIndex, int megaGridNumber)
+{
+	if ( !monster )
+		return;
+
+	if ( skinnedBatchObjectIndex >= static_cast< UINT >( m_skinnedMonsterMegaGridNumbers.size() ) )
+		m_skinnedMonsterMegaGridNumbers.resize(static_cast< size_t >( skinnedBatchObjectIndex ) + 1, -1);
+
+	m_skinnedMonsterMegaGridNumbers[static_cast< size_t >( skinnedBatchObjectIndex )] = megaGridNumber;
+
+	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
+	{
+		SetObjectCollisionMegaGridMask(monster, 0, true);
+		return;
+	}
+
+	const uint16_t monsterMegaGridMask = static_cast< uint16_t >( 1u << ( megaGridNumber - 1 ) );
+	SetObjectCollisionMegaGridMask(monster, monsterMegaGridMask, true);
+}
+
+void CGameScene::RebuildSceneGridMonsterRefsFromLogicalBindings()
+{
+	m_sceneGrid.ClearMegaGridMonsters();
+
+	for ( const LogicalMonsterState& logical : m_logicalMonsters )
+	{
+		if ( !logical.boundObject )
+			continue;
+
+		if ( !logical.active )
+			continue;
+
+		if ( !logical.boundObject->GetActive() )
+			continue;
+
+		if ( logical.megaGridNumber < 1 || logical.megaGridNumber > CSceneGrid::kMegaGridCount )
+			continue;
+
+		const int zeroBased = logical.megaGridNumber - 1;
+		const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
+		const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+
+		m_sceneGrid.AddMonsterToMegaGrid(megaX, megaZ, logical.boundObject);
+	}
+}
+
 void CGameScene::RegisterMonsterToMegaGrid(
 	CGameObject* monster,
 	const XMFLOAT3& spawnPosition,
@@ -8275,6 +8673,8 @@ void CGameScene::AnimateObjects(float dt)
 		local = GetPlayerBySlot(0);
 
 #ifndef USING_NETWORK
+	ReconcileLogicalMonsterVisualBindings();
+
 	UpdateBossStageBossPositionRestores();
 	UpdateBossStageBossRenderGate();
 
