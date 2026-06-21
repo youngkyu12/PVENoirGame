@@ -2925,6 +2925,7 @@ void CGameScene::ReconcileLogicalMonsterVisualBindings()
 			currentlyBoundObjects.push_back(kv.first);
 	}
 
+#ifndef USING_NETWORK
 	for ( CGameObject* object : currentlyBoundObjects )
 	{
 		if ( !object )
@@ -2936,6 +2937,7 @@ void CGameScene::ReconcileLogicalMonsterVisualBindings()
 		if ( object->GetActive() )
 			SyncLogicalMonsterFromActualObject(object);
 	}
+#endif
 
 	std::vector<int> wantedLogicalIndices;
 	BuildWantedLogicalMonsterSet(wantedLogicalIndices);
@@ -3024,8 +3026,10 @@ void CGameScene::UnbindActualMonsterFromLogical(CGameObject* monster)
 
 	if ( logicalIndex >= 0 && logicalIndex < static_cast< int >(m_logicalMonsters.size()) )
 	{
+#ifndef USING_NETWORK
 		if ( monster->GetActive() )
 			SyncLogicalMonsterFromActualObject(monster);
+#endif
 
 		LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalIndex)];
 		logical.boundObject = nullptr;
@@ -3208,6 +3212,30 @@ void CGameScene::RebuildSceneGridMonsterRefsFromLogicalBindings()
 	}
 }
 
+void CGameScene::UpdateLogicalMonsterMegaGridIndex(int logicalMonsterIndex, int oldMegaGridNumber)
+{
+	if ( logicalMonsterIndex < 0 || logicalMonsterIndex >= static_cast< int >(m_logicalMonsters.size()) )
+		return;
+
+	const LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalMonsterIndex)];
+
+	if ( oldMegaGridNumber == logical.megaGridNumber )
+		return;
+
+	if ( oldMegaGridNumber >= 1 && oldMegaGridNumber <= CSceneGrid::kMegaGridCount )
+	{
+		std::vector<int>& oldList = m_logicalMonsterIndicesByMegaGrid[static_cast< size_t >(oldMegaGridNumber)];
+		oldList.erase(std::remove(oldList.begin(), oldList.end(), logicalMonsterIndex), oldList.end());
+	}
+
+	if ( logical.megaGridNumber >= 1 && logical.megaGridNumber <= CSceneGrid::kMegaGridCount )
+	{
+		std::vector<int>& newList = m_logicalMonsterIndicesByMegaGrid[static_cast< size_t >( logical.megaGridNumber )];
+		if ( std::find(newList.begin(), newList.end(), logicalMonsterIndex) == newList.end() )
+			newList.push_back(logicalMonsterIndex);
+	}
+}
+
 ELogicalMonsterKind CGameScene::ConvertEnemySpawnerKindToLogicalKind(EEnemySpawnerEnemyKind kind) const
 {
 	switch ( kind )
@@ -3327,17 +3355,7 @@ CGameObject* CGameScene::ActivateLogicalSpawnerMonster(int logicalMonsterIndex, 
 		logical.homePosition = *overridePosition;
 		logical.megaGridNumber = m_sceneGrid.MegaGridNumberFromWorldPosition(logical.position.x, logical.position.z);
 
-		if ( oldMegaGridNumber != logical.megaGridNumber )
-		{
-			if ( oldMegaGridNumber >= 1 && oldMegaGridNumber <= CSceneGrid::kMegaGridCount )
-			{
-				std::vector<int>& oldList = m_logicalMonsterIndicesByMegaGrid[static_cast< size_t >( oldMegaGridNumber )];
-				oldList.erase(std::remove(oldList.begin(), oldList.end(), logicalMonsterIndex), oldList.end());
-			}
-
-			if ( logical.megaGridNumber >= 1 && logical.megaGridNumber <= CSceneGrid::kMegaGridCount )
-				m_logicalMonsterIndicesByMegaGrid[static_cast< size_t >( logical.megaGridNumber )].push_back(logicalMonsterIndex);
-		}
+		UpdateLogicalMonsterMegaGridIndex(logicalMonsterIndex, oldMegaGridNumber);
 	}
 
 	if ( overrideYawDeg )
@@ -9077,6 +9095,140 @@ XMFLOAT3 CGameScene::ResolveNetworkActorY(
 	return resolved;
 }
 
+#ifdef USING_NETWORK
+void CGameScene::ApplyNetworkEnemySnapshotToLogicalMonsters(const FrameSnapshot& snapshot, float dt)
+{
+	for ( const EnemyState& state : snapshot.enemies )
+	{
+		auto logicalIt = m_logicalMonsterIndexByServerId.find(state.id);
+		if ( logicalIt == m_logicalMonsterIndexByServerId.end() )
+			continue;
+
+		const int logicalIndex = logicalIt->second;
+		if ( logicalIndex < 0 || logicalIndex >= static_cast< int >(m_logicalMonsters.size()) )
+			continue;
+
+		LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalIndex)];
+
+		const DecodedAnimStateCode decoded = DecodeStateCode(state.animation.stateCode);
+		const XMFLOAT3 resolvedServerPosition = ResolveNetworkActorY(state.id, false, state.position, dt);
+
+		EnemyDRState& dr = m_enemyDRStates[state.id];
+		if ( !dr.initialized )
+		{
+			dr.predictedPos = resolvedServerPosition;
+			dr.initialized = true;
+		}
+		else
+		{
+			constexpr float kCorrectionAlpha = 0.35f;
+			dr.predictedPos = LerpPosition(dr.predictedPos, resolvedServerPosition, kCorrectionAlpha);
+		}
+
+		const float yawRad = XMConvertToRadians(state.yaw);
+		dr.moveDir = XMFLOAT3(std::sinf(yawRad), 0.0f, std::cosf(yawRad));
+		dr.speed = ( decoded.hasMove && !decoded.die && !decoded.hit ) ? ( decoded.run ? 2.0f : 1.0f ) : 0.0f;
+
+		const int oldMegaGridNumber = logical.megaGridNumber;
+
+		logical.position = dr.predictedPos;
+		logical.yawDeg = state.yaw;
+		logical.hp = static_cast< int >( state.hp );
+		logical.active = true;
+		logical.dead = decoded.die || state.hp <= 0;
+		logical.animationStateCode = state.animation.stateCode;
+		logical.megaGridNumber = m_sceneGrid.MegaGridNumberFromWorldPosition(logical.position.x, logical.position.z);
+
+		UpdateLogicalMonsterMegaGridIndex(logicalIndex, oldMegaGridNumber);
+
+		if ( !logical.boundObject )
+			m_prevEnemyNetworkStateCode[state.id] = state.animation.stateCode;
+	}
+}
+
+void CGameScene::ApplyNetworkEnemyVisualSnapshot(CGameObject* monster, int logicalMonsterIndex, const EnemyState& state, float dt)
+{
+	if ( !monster )
+		return;
+
+	if ( logicalMonsterIndex < 0 || logicalMonsterIndex >= static_cast< int >(m_logicalMonsters.size()) )
+		return;
+
+	LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalMonsterIndex)];
+
+	monster->SetPosition(logical.position.x, logical.position.y, logical.position.z);
+
+	if ( auto* hp = monster->GetComponent<CHealthComponent>() )
+		hp->SetCurrentHp(static_cast< int >(state.hp));
+
+	if ( auto* tr = monster->GetComponent<CTransformComponent>() )
+		tr->SetYawDegrees(state.yaw);
+
+	if ( auto* collider = monster->GetComponent<CColliderComponent>() )
+	{
+		const bool collisionEnabled = logical.active && !logical.dead && logical.hp > 0;
+		collider->CancelDeferredDisable();
+		collider->SetEnabled(collisionEnabled);
+		collider->SetCollisionEnabled(collisionEnabled);
+		collider->UpdateWorldBounds();
+	}
+
+	if ( logical.dead )
+		m_deadMonsters.insert(monster);
+	else
+		m_deadMonsters.erase(monster);
+
+	if ( auto* animComp = monster->GetComponent<CAnimatorComponent>() )
+	{
+		if ( auto* ctrl = animComp->EnsureMonsterController() )
+		{
+			const DecodedAnimStateCode decoded = DecodeStateCode(state.animation.stateCode);
+
+			EMonsterAnimState locomotionState = EMonsterAnimState::Idle;
+			if ( decoded.hasMove )
+				locomotionState = decoded.run ? EMonsterAnimState::Run : EMonsterAnimState::Move;
+
+			ctrl->SetLocomotionState(locomotionState);
+
+			const uint32_t prevStateCode = ( m_prevEnemyNetworkStateCode.find(state.id) != m_prevEnemyNetworkStateCode.end() ) ? m_prevEnemyNetworkStateCode[state.id] : 0u;
+			const DecodedAnimStateCode prevDecoded = DecodeStateCode(prevStateCode);
+
+			if ( decoded.die && !prevDecoded.die )
+			{
+				CancelMonsterPreparedActions(monster);
+				DisableAllMonsterAIComponents(monster);
+				ctrl->PlayDeathFromStart();
+			}
+			else if ( decoded.hit && !prevDecoded.hit )
+			{
+				ctrl->RequestCommand(EMonsterAnimCommand::Hit);
+				SpawnBloodSplash(monster, nullptr, nullptr);
+
+				if ( auto* hp = monster->GetComponent<CHealthComponent>() )
+					hp->RequestHitSfx();
+			}
+			else if ( decoded.attack && !prevDecoded.attack )
+			{
+				ctrl->RequestCommand(EMonsterAnimCommand::Attack);
+			}
+			else if ( decoded.bossSpell && !prevDecoded.bossSpell )
+			{
+				ctrl->RequestCommand(EMonsterAnimCommand::Spell);
+			}
+			else if ( decoded.bossCall && !prevDecoded.bossCall )
+			{
+				ctrl->RequestCommand(EMonsterAnimCommand::Call);
+			}
+
+			m_prevEnemyNetworkStateCode[state.id] = state.animation.stateCode;
+			ctrl->Update(0.0f);
+		}
+	}
+
+	UNREFERENCED_PARAMETER(dt);
+}
+#endif
+
 void CGameScene::ApplyNetworkPredictedTerrainY(CGameObject* obj)
 {
 	if ( !obj )
@@ -9196,20 +9348,6 @@ void CGameScene::AnimateObjects(float dt)
 	}
 
     DequeueNetworkMessage(NetworkMessageType::FrameState);
-
-	std::unordered_map<uint64_t, CGameObject*> npcById;
-	{
-		UINT npcIndex = 0;
-		for ( UINT j = 0; j < ( UINT ) m_skinnedObjects.size(); ++j )
-		{
-			auto* obj = m_skinnedObjects[j].get();
-			if ( !obj ) continue;
-			auto* tag = obj->GetComponent<CActorTagComponent>();
-			if ( !tag || tag->kind != EActorKind::NPC ) continue;
-			npcById[npcIndex] = obj;
-			++npcIndex;
-		}
-	}
 
     if (std::holds_alternative<FrameSnapshot>(m_pendingNetworkMessage.data))
     {
@@ -9400,106 +9538,33 @@ void CGameScene::AnimateObjects(float dt)
         }
 
 
-		// Enemy 좌표 업데이트 (Dead Reckoning + 서버 교정)
-		for ( const auto& state : snapshot.enemies )
+		ApplyNetworkEnemySnapshotToLogicalMonsters(snapshot, dt);
+		ReconcileLogicalMonsterVisualBindings();
+
+		for ( const EnemyState& state : snapshot.enemies )
 		{
-			auto it = npcById.find(state.id);
-			if ( it == npcById.end() ) continue;
-
-			auto* obj = it->second;
-
-			// 이동 방향 벡터 (yaw → forward)
-			const float yawRad = XMConvertToRadians(state.yaw);
-			const XMFLOAT3 moveDir(std::sinf(yawRad), 0.0f, std::cosf(yawRad));
-
-			// 이동 속도 (애니메이션 상태로 결정)
-			const DecodedAnimStateCode decodedDR = DecodeStateCode(state.animation.stateCode);
-			float drSpeed = 0.0f;
-			if ( decodedDR.hasMove && !decodedDR.die && !decodedDR.hit )
+			auto logicalIt = m_logicalMonsterIndexByServerId.find(state.id);
+			if ( logicalIt == m_logicalMonsterIndexByServerId.end() )
 			{
-				if ( auto* ai = obj->GetComponent<CMonsterAIComponent>() )
-					drSpeed = decodedDR.run ? ai->GetRunMoveSpeedValue() : ai->GetWalkMoveSpeedValue();
-				else
-					drSpeed = decodedDR.run ? 2.0f : 1.0f;
+				m_prevEnemyNetworkStateCode[state.id] = state.animation.stateCode;
+				continue;
 			}
 
-			// DR 상태 갱신: 최초엔 서버 위치로 초기화, 이후엔 소프트 교정
-			const XMFLOAT3 resolvedServerPosition =
-				ResolveNetworkActorY(state.id, false, state.position, dt);
-			EnemyDRState& dr = m_enemyDRStates[state.id];
-			if ( !dr.initialized )
+			const int logicalIndex = logicalIt->second;
+			if ( logicalIndex < 0 || logicalIndex >= static_cast< int >(m_logicalMonsters.size()) )
 			{
-				dr.predictedPos = resolvedServerPosition;
-				dr.initialized  = true;
+				m_prevEnemyNetworkStateCode[state.id] = state.animation.stateCode;
+				continue;
 			}
-			else
+
+			LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalIndex)];
+			if ( !logical.boundObject )
 			{
-				constexpr float kCorrectionAlpha = 0.35f;
-				dr.predictedPos = LerpPosition(dr.predictedPos, resolvedServerPosition, kCorrectionAlpha);
+				m_prevEnemyNetworkStateCode[state.id] = state.animation.stateCode;
+				continue;
 			}
-			dr.moveDir = moveDir;
-			dr.speed   = drSpeed;
 
-			obj->SetPosition(dr.predictedPos.x, dr.predictedPos.y, dr.predictedPos.z);
-
-			if ( auto* hp = obj->GetComponent<CHealthComponent>() )
-				hp->SetCurrentHp(static_cast<int>(state.hp));
-
-			if ( auto* tr = obj->GetComponent<CTransformComponent>() )
-				tr->SetYawDegrees(state.yaw);
-
-			if ( auto* animComp = obj->GetComponent<CAnimatorComponent>() )
-			{
-				if ( auto* ctrl = animComp->EnsureMonsterController() )
-				{
-					const DecodedAnimStateCode decoded = DecodeStateCode(state.animation.stateCode);
-
-					EMonsterAnimState locomotionState = EMonsterAnimState::Idle;
-					if ( decoded.hasMove )
-						locomotionState = decoded.run ? EMonsterAnimState::Run : EMonsterAnimState::Move;
-
-					ctrl->SetLocomotionState(locomotionState);
-
-					const uint32_t prevStateCode =
-						( m_prevEnemyNetworkStateCode.find(state.id) != m_prevEnemyNetworkStateCode.end() )
-						? m_prevEnemyNetworkStateCode[state.id]
-						: 0u;
-					const DecodedAnimStateCode prevDecoded = DecodeStateCode(prevStateCode);
-
-					if ( decoded.die && !prevDecoded.die )
-					{
-						ctrl->RequestCommand(EMonsterAnimCommand::Death);
-					}
-
-					else if ( decoded.hit && !prevDecoded.hit )
-					{
-						ctrl->RequestCommand(EMonsterAnimCommand::Hit);
-
-						SpawnBloodSplash(obj, nullptr, nullptr);
-
-						if ( auto* hp = obj->GetComponent<CHealthComponent>() )
-							hp->RequestHitSfx();
-					}
-
-					else if ( decoded.attack && !prevDecoded.attack )
-					{
-						ctrl->RequestCommand(EMonsterAnimCommand::Attack);
-					}
-
-					else if ( decoded.bossSpell && !prevDecoded.bossSpell )
-					{
-						ctrl->RequestCommand(EMonsterAnimCommand::Spell);
-					}
-
-					else if ( decoded.bossCall && !prevDecoded.bossCall )
-					{
-						ctrl->RequestCommand(EMonsterAnimCommand::Call);
-					}
-
-					m_prevEnemyNetworkStateCode[state.id] = state.animation.stateCode;
-					ctrl->Update(0.0f);
-				}
-			}
+			ApplyNetworkEnemyVisualSnapshot(logical.boundObject, logicalIndex, state, dt);
 		}
 
 		// Projectile 동기화
@@ -9726,10 +9791,19 @@ void CGameScene::AnimateObjects(float dt)
 
 		for ( const auto& [id, stateCode] : m_prevEnemyNetworkStateCode )
 		{
-			auto it = npcById.find(id);
-			if ( it == npcById.end() ) continue;
+			auto logicalIt = m_logicalMonsterIndexByServerId.find(id);
+			if ( logicalIt == m_logicalMonsterIndexByServerId.end() )
+				continue;
 
-			auto* obj = it->second;
+			const int logicalIndex = logicalIt->second;
+			if ( logicalIndex < 0 || logicalIndex >= static_cast< int >(m_logicalMonsters.size()) )
+				continue;
+
+			LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalIndex)];
+			CGameObject* obj = logical.boundObject;
+			if ( !obj )
+				continue;
+
 			if ( auto* animComp = obj->GetComponent<CAnimatorComponent>() )
 			{
 				if ( auto* ctrl = animComp->EnsureMonsterController() )
@@ -9742,18 +9816,31 @@ void CGameScene::AnimateObjects(float dt)
 				}
 			}
 
-			// Dead Reckoning: 마지막으로 받은 이동 방향/속도로 매 프레임 전진
 			auto drIt = m_enemyDRStates.find(id);
-			if ( drIt == m_enemyDRStates.end() ) continue;
+			if ( drIt == m_enemyDRStates.end() )
+				continue;
 
 			EnemyDRState& dr = drIt->second;
-			if ( !dr.initialized || dr.speed <= 0.0f ) continue;
+			if ( !dr.initialized || dr.speed <= 0.0f )
+				continue;
 
 			dr.predictedPos.x += dr.moveDir.x * dr.speed * dt;
 			dr.predictedPos.z += dr.moveDir.z * dr.speed * dt;
 
-			obj->SetPosition(dr.predictedPos.x, dr.predictedPos.y, dr.predictedPos.z);
+			const int oldMegaGridNumber = logical.megaGridNumber;
+
+			logical.position = dr.predictedPos;
+			logical.megaGridNumber = m_sceneGrid.MegaGridNumberFromWorldPosition(logical.position.x, logical.position.z);
+
+			UpdateLogicalMonsterMegaGridIndex(logicalIndex, oldMegaGridNumber);
+
+			obj->SetPosition(logical.position.x, logical.position.y, logical.position.z);
+
+			if ( auto* tr = obj->GetComponent<CTransformComponent>() )
+				tr->SetYawDegrees(logical.yawDeg);
 		}
+
+		RebuildSceneGridMonsterRefsFromLogicalBindings();
 
 	}
 #endif
@@ -9808,12 +9895,17 @@ void CGameScene::AnimateObjects(float dt)
 
 		if ( !obj->GetActive() )
 		{
+#ifndef USING_NETWORK
 			SyncLogicalMonsterFromActualObject(obj);
+#endif
 			continue;
 		}
 
 		obj->Animate(dt);
+
+#ifndef USING_NETWORK
 		SyncLogicalMonsterFromActualObject(obj);
+#endif
 	}
 
 #ifndef USING_NETWORK
