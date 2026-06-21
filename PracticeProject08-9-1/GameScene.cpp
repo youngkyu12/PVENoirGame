@@ -8247,13 +8247,21 @@ void CGameScene::CancelMonsterPreparedActions(CGameObject* monster)
 	if ( !monster )
 		return;
 
-	// ---------------------------------------------------------------------
-	// 1) BowMan이 Bow_Load 중 죽은 경우 준비 중인 화살 제거
-	// ---------------------------------------------------------------------
+	for ( size_t i = 0; i < m_ghoulRefs.size(); ++i )
+	{
+		if ( m_ghoulRefs[i] != monster )
+			continue;
+
+		if ( i < m_prevGhoulAttackPhase.size() )
+			m_prevGhoulAttackPhase[i] = false;
+
+		break;
+	}
+
 	const int bowmanIndex = GetBowManIndexFromObject(monster);
 	if ( bowmanIndex >= 0 )
 	{
-		const size_t idx = static_cast< size_t >( bowmanIndex );
+		const size_t idx = static_cast< size_t >(bowmanIndex);
 
 		if ( idx < m_preparedBowmanArrows.size() )
 		{
@@ -8268,20 +8276,22 @@ void CGameScene::CancelMonsterPreparedActions(CGameObject* monster)
 
 		if ( idx < m_prevEnemyBowReleasePhase.size() )
 			m_prevEnemyBowReleasePhase[idx] = false;
+
+		if ( idx < m_prevBowManSfxLoadPhase.size() )
+			m_prevBowManSfxLoadPhase[idx] = false;
 	}
 
-	// ---------------------------------------------------------------------
-	// 2) SwordMan의 외부 무기 collider 비활성화
-	//    m_swordManRefs와 m_EnemySwordRefs는 같은 순서로 연결되어 있음.
-	// ---------------------------------------------------------------------
-	for ( size_t i = 0; i < m_swordManRefs.size(); ++i )
+	const int swordManIndex = GetSwordManIndexFromObject(monster);
+	if ( swordManIndex >= 0 )
 	{
-		if ( m_swordManRefs[i] != monster )
-			continue;
+		const size_t idx = static_cast< size_t >(swordManIndex);
 
-		if ( i < m_EnemySwordRefs.size() )
+		if ( idx < m_prevSwordManAttackPhase.size() )
+			m_prevSwordManAttackPhase[idx] = false;
+
+		if ( idx < m_EnemySwordRefs.size() )
 		{
-			CGameObject* sword = m_EnemySwordRefs[i];
+			CGameObject* sword = m_EnemySwordRefs[idx];
 
 			if ( sword )
 			{
@@ -8292,13 +8302,19 @@ void CGameScene::CancelMonsterPreparedActions(CGameObject* monster)
 					hitbox->SetEnabled(false);
 			}
 		}
+	}
+
+	for ( size_t i = 0; i < m_MutantRefs.size(); ++i )
+	{
+		if ( m_MutantRefs[i] != monster )
+			continue;
+
+		if ( i < m_prevMutantAttackPhase.size() )
+			m_prevMutantAttackPhase[i] = false;
 
 		break;
 	}
 
-	// ---------------------------------------------------------------------
-	// 3) Ghoul / Mutant / Boss처럼 owner bone weapon capsule을 쓰는 경우
-	// ---------------------------------------------------------------------
 	if ( auto* ownerWeaponHitbox = monster->GetComponent<CMonsterWeaponHitboxComponent>() )
 		ownerWeaponHitbox->SetEnabled(false);
 }
