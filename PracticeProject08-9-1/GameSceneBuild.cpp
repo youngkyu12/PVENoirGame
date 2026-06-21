@@ -458,8 +458,19 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	ResetBossPoisonProjectileState();
 
 #ifdef USING_NETWORK
+	m_frameSnapshotBuffer.clear();
+	m_lastReceivedServerTick = 0;
+	m_timeSinceLastFramePacket = 0.0f;
+
 	m_prevPlayerNetworkStateCode.clear();
 	m_prevEnemyNetworkStateCode.clear();
+	m_networkPlayerYStates.clear();
+	m_networkEnemyYStates.clear();
+	m_enemyDRStates.clear();
+
+	m_networkArrowById.clear();
+	m_networkBulletById.clear();
+	m_networkBossPoisonById.clear();
 
 	while ( false == g_GameStarted )
 	{

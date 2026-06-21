@@ -3080,7 +3080,10 @@ void CGameScene::SyncActualMonsterFromLogicalState(CGameObject* monster, int log
 	const bool wasRuntimeDead = m_deadMonsters.find(monster) != m_deadMonsters.end();
 
 	XMFLOAT3 position = logical.position;
+
+#ifndef USING_NETWORK
 	position.y = GetTerrainGroundYOrFallback(position.x, position.z, position.y);
+#endif
 
 	monster->SetPosition(position);
 
@@ -7200,23 +7203,23 @@ bool CGameScene::AreAllMonstersInMegaGridDead(int megaGridNumber) const
 	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
 		return false;
 
-	const int zeroBased = megaGridNumber - 1;
-	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
-	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
+	bool hasRelevantMonster = false;
 
-	const std::vector<CGameObject*>& monsters =
-		m_sceneGrid.GetMegaGridMonsters(megaX, megaZ);
-
-	if ( monsters.empty() )
-		return false;
-
-	for ( const CGameObject* monster : monsters )
+	for ( const LogicalMonsterState& logical : m_logicalMonsters )
 	{
-		if ( !IsMonsterDead(monster) )
+		if ( logical.megaGridNumber != megaGridNumber )
+			continue;
+
+		if ( !logical.active && !logical.dead )
+			continue;
+
+		hasRelevantMonster = true;
+
+		if ( logical.active && !logical.dead && logical.hp > 0 )
 			return false;
 	}
 
-	return true;
+	return hasRelevantMonster;
 }
 
 bool CGameScene::IsBossMonsterObject(const CGameObject* monster) const
@@ -7248,35 +7251,28 @@ bool CGameScene::AreAllPreBossMonstersInMegaGridDead(int megaGridNumber) const
 	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
 		return false;
 
-	const int zeroBased = megaGridNumber - 1;
-	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
-	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
-
-	const std::vector<CGameObject*>& monsters =
-		m_sceneGrid.GetMegaGridMonsters(megaX, megaZ);
-
 	bool hasPreBossMonster = false;
 
-	for ( const CGameObject* monster : monsters )
+	for ( const LogicalMonsterState& logical : m_logicalMonsters )
 	{
-		if ( !monster )
+		if ( logical.megaGridNumber != megaGridNumber )
 			continue;
 
-		// 보스는 "보스 등장 조건" 검사에서 제외한다.
-		if ( IsBossMonsterObject(monster) )
+		if ( logical.kind == ELogicalMonsterKind::Boss )
 			continue;
 
-		// 에네미 스포너 풀/스포너 생성 몬스터는 제외한다.
-		if ( IsEnemySpawnerMonsterObject(monster) )
+		if ( logical.spawnerEntry )
+			continue;
+
+		if ( !logical.active && !logical.dead )
 			continue;
 
 		hasPreBossMonster = true;
 
-		if ( !IsMonsterDead(monster) )
+		if ( logical.active && !logical.dead && logical.hp > 0 )
 			return false;
 	}
 
-	// 5번에 원래 배치 몬스터가 하나도 없으면 보스 조건을 만족한 것으로 보지 않는다.
 	return hasPreBossMonster;
 }
 
@@ -8164,12 +8160,18 @@ void CGameScene::UpdateMegaGridClearStateFromMonsterDeaths()
 	// 보스를 바로 활성화하지 않고, 소환 마법진 fade-in부터 시작한다.
 	TryBeginBossStageSummonSequence();
 
-	// 5번 메가그리드: 최종 클리어는 보스 사망 시 처리.
+	// 5번 메가그리드: 최종 클리어는 logical boss 사망 시 처리.
 	if ( !m_sceneGrid.IsMegaGridCleared(1, 1) )
 	{
-		for ( const CGameObject* boss : m_bossRefs )
+		for ( const LogicalMonsterState& logical : m_logicalMonsters )
 		{
-			if ( IsMonsterDead(boss) )
+			if ( logical.kind != ELogicalMonsterKind::Boss )
+				continue;
+
+			if ( logical.megaGridNumber != 5 )
+				continue;
+
+			if ( logical.active && ( logical.dead || logical.hp <= 0 ) )
 			{
 				MarkMegaGridClearedByNumber(5);
 				break;
@@ -8323,6 +8325,10 @@ void CGameScene::BeginMonsterDeath(CGameObject* monster)
 
 void CGameScene::UpdateMonsterDeathStates()
 {
+#ifdef USING_NETWORK
+	return;
+#endif
+
 	bool deathStateChanged = false;
 
 	for ( const SkinnedComponentCache& cache : m_skinnedComponentCache )
@@ -9195,9 +9201,30 @@ void CGameScene::ApplyNetworkEnemyVisualSnapshot(CGameObject* monster, int logic
 
 			if ( decoded.die && !prevDecoded.die )
 			{
+				logical.position = monster->GetPosition();
+				logical.hp = 0;
+				logical.dead = true;
+				logical.active = true;
+
 				CancelMonsterPreparedActions(monster);
 				DisableAllMonsterAIComponents(monster);
+
+				if ( auto* weaponHitbox = monster->GetComponent<CMonsterWeaponHitboxComponent>() )
+					weaponHitbox->SetEnabled(false);
+
+				if ( auto* collider = monster->GetComponent<CColliderComponent>() )
+					collider->DisableCollisionAndKeepUpdatingForSeconds(5.0f);
+
+				if ( IsBossMonsterObject(monster) )
+				{
+					PlayBossDeathSfxAt(monster->GetPosition());
+					BeginBossDeathEffect(monster);
+				}
+
+				HandleMutantKeyTriggerDeath(monster);
+
 				ctrl->PlayDeathFromStart();
+				UpdateMegaGridClearStateFromMonsterDeaths();
 			}
 			else if ( decoded.hit && !prevDecoded.hit )
 			{
