@@ -1129,7 +1129,7 @@ private:
 
 	static constexpr float kMonsterHpGaugeVisibleDurationSec = 5.0f;
 
-	std::unordered_map<CGameObject*, MonsterHpGaugeRuntimeState> m_monsterHpGaugeRuntimeStates;
+	std::unordered_map<int, MonsterHpGaugeRuntimeState> m_monsterHpGaugeRuntimeStates;
 
 	static constexpr UINT kMuzzleFlashMaxCount = 4096;
 
