@@ -7285,40 +7285,80 @@ void CGameScene::DamagePreBossMonstersInMegaGrid(int megaGridNumber, int damage)
 	if ( megaGridNumber < 1 || megaGridNumber > CSceneGrid::kMegaGridCount )
 		return;
 
-	const int zeroBased = megaGridNumber - 1;
-	const int megaX = zeroBased % CSceneGrid::kMegaGridCols;
-	const int megaZ = zeroBased / CSceneGrid::kMegaGridCols;
-
-	const std::vector<CGameObject*>& monsters =
-		m_sceneGrid.GetMegaGridMonsters(megaX, megaZ);
-
 	int damagedCount = 0;
 
-	for ( CGameObject* monster : monsters )
+	for ( int logicalIndex = 0; logicalIndex < static_cast< int >(m_logicalMonsters.size()); ++logicalIndex )
 	{
-		if ( !monster )
+		LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalIndex)];
+
+		if ( logical.megaGridNumber != megaGridNumber )
 			continue;
 
-		if ( IsBossMonsterObject(monster) )
+		if ( logical.kind == ELogicalMonsterKind::Boss )
 			continue;
 
-		if ( IsEnemySpawnerMonsterObject(monster) )
+		if ( logical.spawnerEntry )
 			continue;
 
-		if ( IsMonsterDead(monster) )
+		if ( !logical.active )
 			continue;
 
-		auto* hp = monster->GetComponent<CHealthComponent>();
-		if ( !hp )
+		if ( logical.dead || logical.hp <= 0 )
 			continue;
 
-		hp->TakeDamage(damage);
+		CGameObject* monster = logical.boundObject;
 
-		hp->RequestHitSfx();
-		SpawnBloodSplash(monster, nullptr, nullptr);
+		if ( monster )
+		{
+			if ( IsMonsterDead(monster) )
+			{
+				logical.hp = 0;
+				logical.dead = true;
+				continue;
+			}
 
-		if ( hp->IsDead() )
-			BeginMonsterDeath(monster);
+			auto* hp = monster->GetComponent<CHealthComponent>();
+			if ( hp )
+			{
+				hp->TakeDamage(damage);
+				logical.hp = hp->GetCurrentHp();
+				logical.maxHp = hp->GetMaxHp();
+
+				hp->RequestHitSfx();
+				SpawnBloodSplash(monster, nullptr, nullptr);
+
+				if ( hp->IsDead() )
+					BeginMonsterDeath(monster);
+			}
+			else
+			{
+				logical.hp = std::max(0, logical.hp - damage);
+				if ( logical.hp <= 0 )
+				{
+					logical.dead = true;
+					logical.active = true;
+				}
+			}
+		}
+		else
+		{
+			logical.hp = std::max(0, logical.hp - damage);
+			if ( logical.hp <= 0 )
+			{
+				logical.dead = true;
+				logical.active = true;
+
+				if ( logical.keyTrigger )
+				{
+					const int keyMegaGridNumber = logical.keyTriggerMegaGridNumber;
+					if ( keyMegaGridNumber == 6 || keyMegaGridNumber == 8 )
+						UnlockKeyBillboardForMegaGrid(keyMegaGridNumber);
+
+					logical.keyTrigger = false;
+					logical.keyTriggerMegaGridNumber = -1;
+				}
+			}
+		}
 
 		++damagedCount;
 	}
@@ -7326,14 +7366,7 @@ void CGameScene::DamagePreBossMonstersInMegaGrid(int megaGridNumber, int damage)
 	UpdateMegaGridClearStateFromMonsterDeaths();
 
 	char buf[256];
-	sprintf_s(
-		buf,
-		"[BossStageTest] DamagePreBossMonstersInMegaGrid mega=%d damage=%d damaged=%d allDead=%d\n",
-		megaGridNumber,
-		damage,
-		damagedCount,
-		AreAllPreBossMonstersInMegaGridDead(megaGridNumber) ? 1 : 0
-	);
+	sprintf_s(buf, "[BossStageTest] DamagePreBossMonstersInMegaGrid mega=%d damage=%d damaged=%d allDead=%d\n", megaGridNumber, damage, damagedCount, AreAllPreBossMonstersInMegaGridDead(megaGridNumber) ? 1 : 0);
 	OutputDebugStringA(buf);
 #else
 	UNREFERENCED_PARAMETER(megaGridNumber);
@@ -9116,6 +9149,9 @@ void CGameScene::ApplyNetworkEnemySnapshotToLogicalMonsters(const FrameSnapshot&
 
 		LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalIndex)];
 
+		const DecodedAnimStateCode previousDecoded = DecodeStateCode(logical.animationStateCode);
+		const bool wasDead = logical.dead || logical.hp <= 0 || previousDecoded.die;
+
 		const DecodedAnimStateCode decoded = DecodeStateCode(state.animation.stateCode);
 		const XMFLOAT3 resolvedServerPosition = ResolveNetworkActorY(state.id, false, state.position, dt);
 
@@ -9146,6 +9182,22 @@ void CGameScene::ApplyNetworkEnemySnapshotToLogicalMonsters(const FrameSnapshot&
 		logical.megaGridNumber = m_sceneGrid.MegaGridNumberFromWorldPosition(logical.position.x, logical.position.z);
 
 		UpdateLogicalMonsterMegaGridIndex(logicalIndex, oldMegaGridNumber);
+
+		const bool isNowDead = logical.dead || logical.hp <= 0 || decoded.die;
+		if ( isNowDead && !wasDead )
+		{
+			if ( logical.keyTrigger )
+			{
+				const int keyMegaGridNumber = logical.keyTriggerMegaGridNumber;
+				if ( keyMegaGridNumber == 6 || keyMegaGridNumber == 8 )
+					UnlockKeyBillboardForMegaGrid(keyMegaGridNumber);
+
+				logical.keyTrigger = false;
+				logical.keyTriggerMegaGridNumber = -1;
+			}
+
+			UpdateMegaGridClearStateFromMonsterDeaths();
+		}
 
 		if ( !logical.boundObject )
 			m_prevEnemyNetworkStateCode[state.id] = state.animation.stateCode;
