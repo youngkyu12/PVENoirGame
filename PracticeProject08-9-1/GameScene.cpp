@@ -9880,18 +9880,22 @@ void CGameScene::AnimateObjects(float dt)
 
 			LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalIndex)];
 			CGameObject* obj = logical.boundObject;
-			if ( !obj )
-				continue;
 
-			if ( auto* animComp = obj->GetComponent<CAnimatorComponent>() )
+			const DecodedAnimStateCode decoded = DecodeStateCode(stateCode);
+
+			if ( obj )
 			{
-				if ( auto* ctrl = animComp->EnsureMonsterController() )
+				if ( auto* animComp = obj->GetComponent<CAnimatorComponent>() )
 				{
-					const DecodedAnimStateCode decoded = DecodeStateCode(stateCode);
-					EMonsterAnimState locomotionState = EMonsterAnimState::Idle;
-					if ( decoded.hasMove )
-						locomotionState = decoded.run ? EMonsterAnimState::Run : EMonsterAnimState::Move;
-					ctrl->SetLocomotionState(locomotionState);
+					if ( auto* ctrl = animComp->EnsureMonsterController() )
+					{
+						EMonsterAnimState locomotionState = EMonsterAnimState::Idle;
+
+						if ( decoded.hasMove )
+							locomotionState = decoded.run ? EMonsterAnimState::Run : EMonsterAnimState::Move;
+
+						ctrl->SetLocomotionState(locomotionState);
+					}
 				}
 			}
 
@@ -9913,10 +9917,13 @@ void CGameScene::AnimateObjects(float dt)
 
 			UpdateLogicalMonsterMegaGridIndex(logicalIndex, oldMegaGridNumber);
 
-			obj->SetPosition(logical.position.x, logical.position.y, logical.position.z);
+			if ( obj )
+			{
+				obj->SetPosition(logical.position.x, logical.position.y, logical.position.z);
 
-			if ( auto* tr = obj->GetComponent<CTransformComponent>() )
-				tr->SetYawDegrees(logical.yawDeg);
+				if ( auto* tr = obj->GetComponent<CTransformComponent>() )
+					tr->SetYawDegrees(logical.yawDeg);
+			}
 		}
 
 		RebuildSceneGridMonsterRefsFromLogicalBindings();
