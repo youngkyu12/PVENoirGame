@@ -894,6 +894,7 @@ private:
 	void SyncActualMonsterFromLogicalState(CGameObject* monster, int logicalMonsterIndex, bool resetRuntimeState);
 	void UpdateActualMonsterMegaGridBinding(CGameObject* monster, UINT skinnedBatchObjectIndex, int megaGridNumber);
 	void RebuildSceneGridMonsterRefsFromLogicalBindings();
+	void UpdateLogicalMonsterMegaGridIndex(int logicalMonsterIndex, int oldMegaGridNumber);
 
 	ELogicalMonsterKind ConvertEnemySpawnerKindToLogicalKind(EEnemySpawnerEnemyKind kind) const;
 	int FindFreeLogicalSpawnerMonster(int megaGridNumber, EEnemySpawnerEnemyKind kind) const;
@@ -1625,6 +1626,9 @@ private:
 	static const EnemyState* FindEnemyState(const FrameSnapshot& snapshot, uint64_t id);
 	static XMFLOAT3 LerpPosition(const XMFLOAT3& a, const XMFLOAT3& b, float t);
 	static float LerpYawDegrees(float a, float b, float t);
+
+	void ApplyNetworkEnemySnapshotToLogicalMonsters(const FrameSnapshot& snapshot, float dt);
+	void ApplyNetworkEnemyVisualSnapshot(CGameObject* monster, int logicalMonsterIndex, const EnemyState& state, float dt);
 
 	struct NetworkActorYState
 	{

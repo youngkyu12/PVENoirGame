@@ -97,7 +97,7 @@ private:
 	float    m_friction = 0.0f;
 
 	float    m_walkMoveSpeed = 5.0f;
-	float    m_runMoveSpeed = 50.0f;
+	float    m_runMoveSpeed = 10.0f;
 
 	DWORD    m_inputDir = 0;
 	bool     m_isRunRequested = false;
