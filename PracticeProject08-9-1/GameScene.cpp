@@ -6621,6 +6621,18 @@ void CGameScene::RequestPrepareBowmanArrow(CGameObject* bowman, float pullBackDi
 {
 	if ( !bowman ) return;
 
+	if ( !bowman->GetActive() ) return;
+
+	const int logicalIndex = FindLogicalMonsterIndexByObject(bowman);
+	if ( logicalIndex < 0 || logicalIndex >= static_cast< int >(m_logicalMonsters.size()) ) return;
+
+	const LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalIndex)];
+
+	if ( logical.kind != ELogicalMonsterKind::BowMan ) return;
+	if ( logical.boundObject != bowman ) return;
+	if ( !logical.active ) return;
+	if ( logical.dead || logical.hp <= 0 ) return;
+
 	const int bowmanIndex = GetBowManIndexFromObject(bowman);
 	if ( bowmanIndex < 0 ) return;
 
@@ -6629,7 +6641,6 @@ void CGameScene::RequestPrepareBowmanArrow(CGameObject* bowman, float pullBackDi
 	if ( idx >= m_preparedBowmanArrows.size() ) return;
 	if ( idx >= m_EnemyBowRefs.size() ) return;
 
-	// 이미 준비된 화살이 있으면 중복 생성 안 함
 	if ( m_preparedBowmanArrows[idx] )
 		return;
 
@@ -6657,6 +6668,18 @@ void CGameScene::RequestPrepareBowmanArrow(CGameObject* bowman, float pullBackDi
 void CGameScene::RequestReleasePreparedBowmanArrow(CGameObject* bowman, float speed, float lifeSec)
 {
 	if ( !bowman ) return;
+
+	if ( !bowman->GetActive() ) return;
+
+	const int logicalIndex = FindLogicalMonsterIndexByObject(bowman);
+	if ( logicalIndex < 0 || logicalIndex >= static_cast< int >(m_logicalMonsters.size()) ) return;
+
+	const LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalIndex)];
+
+	if ( logical.kind != ELogicalMonsterKind::BowMan ) return;
+	if ( logical.boundObject != bowman ) return;
+	if ( !logical.active ) return;
+	if ( logical.dead || logical.hp <= 0 ) return;
 
 	const int bowmanIndex = GetBowManIndexFromObject(bowman);
 	if ( bowmanIndex < 0 ) return;
@@ -6718,35 +6741,35 @@ void CGameScene::UpdatePreparedBowArrows()
 	constexpr float kEnemyArrowSpeed = 14.0f;
 	constexpr float kEnemyArrowLife = 6.0f;
 
-    for (int slot = 0; slot < 4; ++slot)
-    {
-        CGameObject* player = GetPlayerBySlot(slot);
+	for ( int slot = 0; slot < 4; ++slot )
+	{
+		CGameObject* player = GetPlayerBySlot(slot);
 
-        bool isBowLoad = false;
-        bool isBowRelease = false;
-        bool hasBowEquipped = false;
+		bool isBowLoad = false;
+		bool isBowRelease = false;
+		bool hasBowEquipped = false;
 
-        if (player)
-        {
-            if (auto* equip = player->GetComponent<CPlayerEquipmentComponent>())
-            {
-                hasBowEquipped = (equip->GetEquippedWeapon() == EWeaponType::Bow);
-            }
+		if ( player )
+		{
+			if ( auto* equip = player->GetComponent<CPlayerEquipmentComponent>() )
+			{
+				hasBowEquipped = ( equip->GetEquippedWeapon() == EWeaponType::Bow );
+			}
 
-            if (auto* animComp = player->GetComponent<CAnimatorComponent>())
-            {
-                if (auto* ctrl = animComp->EnsureController())
-                {
-                    isBowLoad = ctrl->IsBowLoadPhase();
-                    isBowRelease = ctrl->IsBowReleasePhase();
-                }
-            }
-            else if (auto* ctrl = player->GetAnimController())
-            {
-                isBowLoad = ctrl->IsBowLoadPhase();
-                isBowRelease = ctrl->IsBowReleasePhase();
-            }
-        }
+			if ( auto* animComp = player->GetComponent<CAnimatorComponent>() )
+			{
+				if ( auto* ctrl = animComp->EnsureController() )
+				{
+					isBowLoad = ctrl->IsBowLoadPhase();
+					isBowRelease = ctrl->IsBowReleasePhase();
+				}
+			}
+			else if ( auto* ctrl = player->GetAnimController() )
+			{
+				isBowLoad = ctrl->IsBowLoadPhase();
+				isBowRelease = ctrl->IsBowReleasePhase();
+			}
+		}
 
 		const size_t slotIndex = static_cast< size_t >( slot );
 
@@ -6755,103 +6778,109 @@ void CGameScene::UpdatePreparedBowArrows()
 			if ( auto* equip = player ? player->GetComponent<CPlayerEquipmentComponent>() : nullptr )
 			{
 				equip->RequestBowLoadingSfx();
-
-				// 릴리즈 사운드는 릴리즈 phase에서 틀지 않고,
-				// 로딩 phase 시작 시점에 미리 예약한다.
 				equip->RequestBowReleaseSfxFromLoadPhase();
 			}
 		}
 
 		if ( hasBowEquipped && isBowRelease && !m_prevBowReleasePhase[slotIndex] )
 		{
-			// 사운드는 이미 Bow_Load 진입 시 예약했으므로 여기서는 화살만 발사.
 			RequestReleasePreparedArrow(player, kArrowSpeed, kArrowLife);
 		}
 
-		// 공격이 끝났거나 장비가 바뀌면 준비 화살 정리
 		if ( ( !hasBowEquipped || ( !isBowLoad && !isBowRelease ) ) && m_preparedPlayerArrows[slotIndex] )
 		{
 			if ( auto* arrow = m_preparedPlayerArrows[slotIndex]->GetComponent<CArrowComponent>() )
-			{
 				arrow->Deactivate();
-			}
+
 			m_preparedPlayerArrows[slotIndex] = nullptr;
 		}
 
 		m_prevBowLoadPhase[slotIndex] = isBowLoad;
 		m_prevBowReleasePhase[slotIndex] = isBowRelease;
-    }
+	}
+
+	auto ClearPreparedBowmanArrowByIndex = [ this ] (size_t index)
+		{
+			if ( index < m_preparedBowmanArrows.size() )
+			{
+				if ( m_preparedBowmanArrows[index] )
+				{
+					if ( auto* arrow = m_preparedBowmanArrows[index]->GetComponent<CArrowComponent>() )
+						arrow->Deactivate();
+
+					m_preparedBowmanArrows[index] = nullptr;
+				}
+			}
+
+			if ( index < m_prevEnemyBowReleasePhase.size() )
+				m_prevEnemyBowReleasePhase[index] = false;
+		};
+
 	for ( size_t i = 0; i < m_bowManRefs.size(); ++i )
 	{
 		CGameObject* bowman = m_bowManRefs[i];
-		if ( IsMonsterDead(bowman) )
+
+		bool validBoundBowman = false;
+
+		if ( bowman && bowman->GetActive() )
 		{
-			if ( i < m_preparedBowmanArrows.size() && m_preparedBowmanArrows[i] )
+			const int logicalIndex = FindLogicalMonsterIndexByObject(bowman);
+
+			if ( logicalIndex >= 0 && logicalIndex < static_cast< int >(m_logicalMonsters.size()) )
 			{
-				if ( auto* arrow = m_preparedBowmanArrows[i]->GetComponent<CArrowComponent>() )
-					arrow->Deactivate();
+				const LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalIndex)];
 
-				m_preparedBowmanArrows[i] = nullptr;
+				validBoundBowman =
+					logical.kind == ELogicalMonsterKind::BowMan &&
+					logical.boundObject == bowman &&
+					logical.active &&
+					!logical.dead &&
+					logical.hp > 0;
 			}
+		}
 
-			if ( i < m_prevEnemyBowReleasePhase.size() )
-				m_prevEnemyBowReleasePhase[i] = false;
-
+		if ( !validBoundBowman || IsMonsterDead(bowman) )
+		{
+			ClearPreparedBowmanArrowByIndex(i);
 			continue;
 		}
 
 		bool isBowLoad = false;
 		bool isBowRelease = false;
 
-		if ( bowman )
+		if ( auto* animComp = bowman->GetComponent<CAnimatorComponent>() )
 		{
-			if ( auto* animComp = bowman->GetComponent<CAnimatorComponent>() )
+			if ( auto* ctrl = animComp->EnsureMonsterController() )
 			{
-				if ( auto* ctrl = animComp->EnsureMonsterController() )
-				{
-					isBowLoad = ctrl->IsAttackPrimaryPhase();   // Bow_Load
-					isBowRelease = ctrl->IsAttackChainPhase();  // Bow_Release
-				}
+				isBowLoad = ctrl->IsAttackPrimaryPhase();
+				isBowRelease = ctrl->IsAttackChainPhase();
 			}
 		}
 
-		// Bow_Load 상태이면 준비 화살 생성
 		if ( isBowLoad )
 		{
 			if ( i < m_preparedBowmanArrows.size() && m_preparedBowmanArrows[i] == nullptr )
-			{
 				RequestPrepareBowmanArrow(bowman, kEnemyArrowPullBackDistance);
-			}
 		}
 
-		// Bow_Release 진입 순간에만 발사
 		if ( i < m_prevEnemyBowReleasePhase.size() )
 		{
 			if ( isBowRelease && !m_prevEnemyBowReleasePhase[i] )
-			{
 				RequestReleasePreparedBowmanArrow(bowman, kEnemyArrowSpeed, kEnemyArrowLife);
-			}
 		}
 
-		// 공격이 끝났거나 다른 액션으로 빠지면 준비 화살 정리
-		if ( ( !isBowLoad && !isBowRelease ) &&
-			i < m_preparedBowmanArrows.size() &&
-			m_preparedBowmanArrows[i] )
+		if ( !isBowLoad && !isBowRelease && i < m_preparedBowmanArrows.size() && m_preparedBowmanArrows[i] )
 		{
 			if ( auto* arrow = m_preparedBowmanArrows[i]->GetComponent<CArrowComponent>() )
-			{
 				arrow->Deactivate();
-			}
+
 			m_preparedBowmanArrows[i] = nullptr;
 		}
 
 		if ( i < m_prevEnemyBowReleasePhase.size() )
-		{
 			m_prevEnemyBowReleasePhase[i] = isBowRelease;
-		}
 	}
 }
-
 
 CGameObject* CGameScene::GetPlayerBySlot(int slot) const
 {
