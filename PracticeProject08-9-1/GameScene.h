@@ -1645,6 +1645,7 @@ private:
 
 	std::unordered_map<uint64_t, uint32_t> m_prevPlayerNetworkStateCode;
 	std::unordered_map<uint64_t, uint32_t> m_prevEnemyNetworkStateCode;
+	std::unordered_map<uint64_t, int>      m_prevPlayerAnimTick;
 	std::unordered_map<uint64_t, NetworkActorYState> m_networkPlayerYStates;
 	std::unordered_map<uint64_t, NetworkActorYState> m_networkEnemyYStates;
 
@@ -1655,7 +1656,22 @@ private:
 		float    speed       = 0.0f;
 		bool     initialized = false;
 	};
+	struct PlayerDRState
+	{
+		XMFLOAT3 predictedPos = {};
+		XMFLOAT3 moveDir     = { 0.0f, 0.0f, 1.0f };
+		float    speed       = 0.0f;
+		bool     initialized = false;
+	};
+	struct ProjectileDRState
+	{
+		XMFLOAT3 predictedPos = {};
+		XMFLOAT3 velocity     = {};
+		bool     initialized  = false;
+	};
 	std::unordered_map<uint64_t, EnemyDRState> m_enemyDRStates;
+	std::unordered_map<uint64_t, PlayerDRState> m_playerDRStates;
+	std::unordered_map<uint64_t, ProjectileDRState> m_projectileDRStates;
 #endif
 
 	int m_playerWeaponDamageTierIndex = 0; 
@@ -1949,6 +1965,14 @@ private:
 
 	int m_bossCallSummonPlanCallIndex = -1;
 	std::vector<EnemySpawnerPreviewEntry> m_bossCallSummonPlanEntries;
+
+#ifdef USING_NETWORK
+	int m_networkBossCallIndex = 0;
+	int m_networkBossCallPendingSummonEffects = 0;
+	float m_networkBossCallSummonEffectWindowSec = 0.0f;
+	std::unordered_set<uint64_t> m_networkBossCallSummonEffectEnemyIds;
+	std::unordered_map<uint64_t, XMFLOAT3> m_prevNetworkEnemyPositions;
+#endif
 
 	bool m_bBossSummonSequenceStarted = false;
 	float m_bBossSummonCircleFadeAgeSec = 0.0f;

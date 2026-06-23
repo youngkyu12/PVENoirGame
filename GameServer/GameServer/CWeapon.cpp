@@ -21,7 +21,7 @@ void MakeFireRateMap()
 	g_defaultWeaponTunings[Protocol::WEAPON_TYPE_NONE].fireRate = 0.0f;
 	g_defaultWeaponTunings[Protocol::WEAPON_TYPE_SWORD].fireRate = 1.0f;
 	g_defaultWeaponTunings[Protocol::WEAPON_TYPE_AXE].fireRate = 0.5f;
-	g_defaultWeaponTunings[Protocol::WEAPON_TYPE_CANON].fireRate = 0.2f;
+	g_defaultWeaponTunings[Protocol::WEAPON_TYPE_CANON].fireRate = 1.667f;
 
 	WeaponTuning& bow = g_defaultWeaponTunings[Protocol::WEAPON_TYPE_BOW];
 	bow.fireRate = 2.0f;

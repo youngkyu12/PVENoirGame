@@ -409,6 +409,7 @@ void CGameScene::BuildItemBillboardBatch(ID3D12Device* dev, ID3D12GraphicsComman
 				item.height = 2.0f;
 				item.yOffset = 2.0f;
 				item.materialId = kTransparentItemBillboardMaterialId;
+				item.position = AdjustItemBillboardPositionToTerrain(item.position);
 				break;
 			default:
 				continue;
@@ -921,6 +922,16 @@ void CGameScene::RenderTransparentItemBillboards(ID3D12GraphicsCommandList* cmd,
 
 		if ( item.distanceCulled )
 			continue;
+
+		if ( item.kind == EItemBillboardKind::BossSummonCircle ||
+			 item.kind == EItemBillboardKind::BossSummonGlow )
+		{
+			const bool bossSummonVisualVisible =
+				m_bBossSummonSequenceStarted ||
+				m_bBossSummonVisualFadeOutStarted;
+			if ( !bossSummonVisualVisible )
+				continue;
+		}
 
 		visibleItems.push_back(&item);
 	}

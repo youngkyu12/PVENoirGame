@@ -13,6 +13,7 @@ public:
 
 	void OnUpdate(float dt) override;
 	void SetDirectMoveMode(float advanceDist, const GameMath::Vec3& homeDir, float innerZoneRadius, const GameMath::Vec3& zoneCenter);
+	void SetInfiniteDirectChaseMode();
 	void SetChaseRanges(float startRange, float stopRange);
 	void SetAttackRange(float range) { m_attackRange = range; }
 	void SetMoveSpeed(float speed)   { m_moveSpeed   = speed; }
@@ -101,6 +102,7 @@ private:
 
 	// spawner pool
 	bool m_useDirectMove = false;
+	bool m_useInfiniteDirectChase = false;
 	float m_initialAdvanceDist = 0.f;
 	GameMath::Vec3 m_initialAdvanceDir{};
 	float m_innerZoneRadius = 0.f;
