@@ -5693,7 +5693,7 @@ void CGameScene::LinkSceneObjects()
 	GameSceneAttachmentBinder::LinkSceneObjects(input, m_attachmentBinds);
 }
 
-void CGameScene::ApplyAttachmentCullFromSkinnedOwners()
+void CGameScene::ApplyAttachmentCullFromSkinnedOwners(CCamera* camera)
 {
 	if ( m_attachmentBinds.empty() )
 		return;
@@ -5732,11 +5732,28 @@ void CGameScene::ApplyAttachmentCullFromSkinnedOwners()
 		if ( !spec.target->GetActive() )
 			ownerCulled = true;
 
+		if ( camera && !spec.target->IsVisible(camera) )
+			ownerCulled = true;
+
 		if ( targetIndex < static_cast< UINT >(m_skinnedDistanceCullFlags.size()) && m_skinnedDistanceCullFlags[targetIndex] != 0 )
 			ownerCulled = true;
 
 		if ( targetIndex < static_cast< UINT >(m_skinnedOcclusionCullFlags.size()) && m_skinnedOcclusionCullFlags[targetIndex] != 0 )
 			ownerCulled = true;
+
+		const SkinnedComponentCache* targetCache = GetSkinnedComponentCache(targetIndex);
+
+		if ( !targetCache || targetCache->object != spec.target )
+			ownerCulled = true;
+
+		if ( targetCache )
+		{
+			if ( !targetCache->renderer || !targetCache->renderer->IsEnabled() )
+				ownerCulled = true;
+
+			if ( !targetCache->skinning || !targetCache->skinning->IsSkinned() )
+				ownerCulled = true;
+		}
 
 		if ( !ownerCulled )
 			continue;
@@ -5748,6 +5765,9 @@ void CGameScene::ApplyAttachmentCullFromSkinnedOwners()
 
 			if ( followerIndex < static_cast< UINT >(m_staticDistanceCullFlags.size()) )
 				m_staticDistanceCullFlags[followerIndex] = 1;
+
+			if ( followerIndex < static_cast< UINT >(m_staticOcclusionCullFlags.size()) )
+				m_staticOcclusionCullFlags[followerIndex] = 1;
 		}
 
 		auto followerSkinnedIt = skinnedIndexByObject.find(spec.follower);
@@ -5757,6 +5777,9 @@ void CGameScene::ApplyAttachmentCullFromSkinnedOwners()
 
 			if ( followerIndex < static_cast< UINT >(m_skinnedDistanceCullFlags.size()) )
 				m_skinnedDistanceCullFlags[followerIndex] = 1;
+
+			if ( followerIndex < static_cast< UINT >(m_skinnedOcclusionCullFlags.size()) )
+				m_skinnedOcclusionCullFlags[followerIndex] = 1;
 		}
 	}
 }
