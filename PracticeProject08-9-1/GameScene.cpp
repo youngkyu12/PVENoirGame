@@ -3920,7 +3920,7 @@ void CGameScene::SetObjectCollisionMegaGridMask(
 
 void CGameScene::RefreshDynamicCollisionMegaGridMasks()
 {
-	auto RefreshObject = [ this ] (CGameObject* obj)
+	auto ClearDynamicCollisionMask = [ ] (CGameObject* obj)
 		{
 			if ( !obj )
 				return;
@@ -3932,19 +3932,123 @@ void CGameScene::RefreshDynamicCollisionMegaGridMasks()
 			if ( collider->IsCollisionMegaGridMaskFixed() )
 				return;
 
+			collider->SetCollisionMegaGridMask(0);
+		};
+
+	auto DisableDynamicCollisionObject = [ &ClearDynamicCollisionMask ] (CGameObject* obj)
+		{
+			if ( !obj )
+				return;
+
+			if ( auto* collider = obj->GetComponent<CColliderComponent>() )
+			{
+				collider->SetEnabled(false);
+				collider->SetCollisionEnabled(false);
+
+				if ( !collider->IsCollisionMegaGridMaskFixed() )
+					collider->SetCollisionMegaGridMask(0);
+			}
+
+			if ( auto* monsterWeaponHitbox = obj->GetComponent<CMonsterWeaponHitboxComponent>() )
+				monsterWeaponHitbox->SetEnabled(false);
+
+			if ( auto* playerWeaponHitbox = obj->GetComponent<CWeaponHitboxComponent>() )
+				playerWeaponHitbox->SetEnabled(false);
+		};
+
+	auto IsValidBoundLogicalMonster = [ this ] (CGameObject* monster, ELogicalMonsterKind expectedKind) -> bool
+		{
+			if ( !monster )
+				return false;
+
+			if ( !monster->GetActive() )
+				return false;
+
+			if ( IsMonsterDead(monster) )
+				return false;
+
+			const int logicalIndex = FindLogicalMonsterIndexByObject(monster);
+			if ( logicalIndex < 0 || logicalIndex >= static_cast< int >(m_logicalMonsters.size()) )
+				return false;
+
+			const LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalIndex)];
+
+			if ( logical.kind != expectedKind )
+				return false;
+
+			if ( logical.boundObject != monster )
+				return false;
+
+			if ( !logical.active )
+				return false;
+
+			if ( logical.dead || logical.hp <= 0 )
+				return false;
+
+			return true;
+		};
+
+	auto RefreshObject = [ this, &ClearDynamicCollisionMask ] (CGameObject* obj)
+		{
+			if ( !obj )
+				return;
+
+			CColliderComponent* collider = obj->GetComponent<CColliderComponent>();
+			if ( !collider )
+				return;
+
+			if ( collider->IsCollisionMegaGridMaskFixed() )
+				return;
+
+			if ( !obj->GetActive() )
+			{
+				collider->SetCollisionMegaGridMask(0);
+				return;
+			}
+
+			if ( !collider->IsCollisionEnabled() )
+			{
+				collider->SetCollisionMegaGridMask(0);
+				return;
+			}
+
 			const uint16_t mask = ComputeObjectCurrentMegaGridMask(obj);
 			collider->SetCollisionMegaGridMask(mask);
 		};
 
-	// 플레이어는 위치가 계속 변한다.
+	for ( size_t i = 0; i < m_EnemySwordRefs.size(); ++i )
+	{
+		CGameObject* sword = m_EnemySwordRefs[i];
+		CGameObject* owner = ( i < m_swordManRefs.size() ) ? m_swordManRefs[i] : nullptr;
+
+		if ( !IsValidBoundLogicalMonster(owner, ELogicalMonsterKind::SwordMan) )
+			DisableDynamicCollisionObject(sword);
+	}
+
+	for ( size_t i = 0; i < m_EnemyBowRefs.size(); ++i )
+	{
+		CGameObject* bow = m_EnemyBowRefs[i];
+		CGameObject* owner = ( i < m_bowManRefs.size() ) ? m_bowManRefs[i] : nullptr;
+
+		if ( !IsValidBoundLogicalMonster(owner, ELogicalMonsterKind::BowMan) )
+			DisableDynamicCollisionObject(bow);
+	}
+
+	for ( size_t i = 0; i < m_helmetRefs.size(); ++i )
+	{
+		CGameObject* helmet = m_helmetRefs[i];
+		CGameObject* owner = ( i < m_MutantRefs.size() ) ? m_MutantRefs[i] : nullptr;
+
+		if ( !IsValidBoundLogicalMonster(owner, ELogicalMonsterKind::Mutant) )
+			DisableDynamicCollisionObject(helmet);
+	}
+
 	for ( CGameObject* player : m_playersBySlot )
 		RefreshObject(player);
 
-	// static batch에 있지만 transform이 변하는 gameplay object들.
 	for ( CGameObject* obj : m_staticGameplayTickObjects )
 		RefreshObject(obj);
 
-	// PlayerBow / EnemyBow는 skinned batch 쪽이므로 staticGameplayTickObjects에 없다.
 	for ( CGameObject* obj : m_PlayerBowRefs )
 		RefreshObject(obj);
 
