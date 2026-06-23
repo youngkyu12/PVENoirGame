@@ -94,8 +94,16 @@ bool Handle_C_GAME_START(PacketSessionRef& session, Protocol::C_GAME_START& pkt)
 	//cout << "Send World Info..." << endl;		
 
 
-	//GRoom->DoAsync(&Room::StartGame, pkt.ready(), pkt.playerid());
-	GRoom->DoTimer(1000, &Room::StartGame, pkt.ready(), pkt.playerid());
+	GRoom->DoAsync(
+		&Room::SetPlayerLobbyWeapon,
+		pkt.playerid(),
+		pkt.playerweapon());
+
+	GRoom->DoTimer(
+		1000,
+		&Room::StartGame,
+		pkt.ready(),
+		pkt.playerid());
 
 	return true;
 }

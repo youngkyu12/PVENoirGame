@@ -115,6 +115,26 @@ void CWaitScene::SetPlayerWeaponSelection(int playerIndex, int weaponSlot)
 	g_waitSceneWeaponSelectionKnown[safePlayerIndex] = true;
 
 	UpdatePlayerMarkerSpriteRect(safePlayerIndex);
+
+	if ( safePlayerIndex == m_localPlayerIndex )
+		SendLobbyState();
+}
+
+void CWaitScene::SendLobbyState()
+{
+#ifdef USING_NETWORK
+	const int weaponSlot = g_waitSceneSelectedWeaponSlots[m_localPlayerIndex];
+	if ( weaponSlot < 0 || weaponSlot > 3 )
+		return;
+
+	Protocol::C_GAME_START startPkt;
+	startPkt.set_playerid(g_myPlayerId);
+	startPkt.set_playerweapon(static_cast< uint32_t >( weaponSlot + 1 ));
+	startPkt.set_ready(m_isReady);
+
+	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(startPkt);
+	g_clientService->BroadCast(sendBuffer);
+#endif
 }
 
 void CWaitScene::UpdatePlayerMarkerSpriteRect(int playerIndex)
@@ -344,16 +364,7 @@ bool CWaitScene::OnProcessingMouseMessage(HWND /*hWnd*/, UINT nMessageID, WPARAM
 	if ( m_pAudioManager ) m_pAudioManager->PlaySound2D("Assets/Audio/StartEffect.mp3", false, false, 0.5f, false);
 
 	m_isReady = true;
-
-#ifdef USING_NETWORK
-	Protocol::C_GAME_START startPkt;
-	startPkt.set_playerid(g_myPlayerId);
-	startPkt.set_playerweapon(0x1010);
-	startPkt.set_ready(m_isReady);
-
-	auto sendBuffer = ServerPacketHandler::MakeSendBuffer(startPkt);
-	g_clientService->BroadCast(sendBuffer);
-#endif
+	SendLobbyState();
 
 	m_showLoading = true;
 	m_hoveredWeaponSlot = -1;
@@ -376,6 +387,9 @@ bool CWaitScene::ConsumeSceneRequest(ESceneRequest& outReq)
 
 void CWaitScene::OnResize(int width, int height)
 {
+	if ( width <= 0 || height <= 0 )
+		return;
+
 	m_waitUI.OnResize(width, height);
 
 	m_viewportWidth = width;
@@ -407,4 +421,13 @@ void CWaitScene::OnResize(int width, int height)
 	}
 
 	m_waitUI.SetSpriteRect(m_loadingSpriteIndex, CSceneUI::GetFullscreenRect(m_viewportWidth, m_viewportHeight));
+
+	if ( !m_pMainCamera )
+		return;
+
+	const float aspectRatio = static_cast< float >( width ) / static_cast< float >( height );
+	m_pMainCamera->GenerateProjectionMatrix(1.01f, 5000.0f, aspectRatio, 60.0f);
+	m_pMainCamera->SetViewport(0, 0, width, height, 0.0f, 1.0f);
+	m_pMainCamera->SetScissorRect(0, 0, width, height);
+	m_pMainCamera->UpdateBoundingFrustum();
 }

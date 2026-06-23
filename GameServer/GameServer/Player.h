@@ -22,6 +22,8 @@ public:
 	void Build();
 	void ApplyHit(uint32 serverTick, int damage, uint32 hitDurationTicks, uint64 serverMs);
 	void Respawn(uint32 serverTick);
+	void SetInitialSpawnPosition(const GameMath::Vec3& pos) { m_initialSpawnPosition = pos; }
+	const GameMath::Vec3& GetInitialSpawnPosition() const { return m_initialSpawnPosition; }
 
 	void SetLastMoveKeyCodes(int32 keyCodes) { m_lastMoveKeyCodes = keyCodes; }
 	int32 GetLastMoveKeyCodes() const { return m_lastMoveKeyCodes; }
@@ -96,6 +98,7 @@ private:
 	CWeapon weapon;
 	uint32 m_hitEndTick = 0;
 	uint32 m_deathTick = 0;
+	GameMath::Vec3 m_initialSpawnPosition = GameMath::Vec3::Zero();
 	int32 m_lastMoveKeyCodes = 0;
 	int32 m_rollMoveKeyCodes = 0;
 
@@ -179,6 +182,7 @@ public:
 
 	EPlayerLifeState GetLifeState() const { return m_lifeState; }
 	bool IsInputBlocked() const { return m_lifeState != EPlayerLifeState::Alive; }
+	bool IsRollInvincible() const { return m_animState == Protocol::ANIMATION_TYPE_ROLL; }
 
 	void OnDeathEnter(uint32 serverTick);
 	void OnRespawnEnter(uint32 serverTick);

@@ -1131,6 +1131,12 @@ void CGameFramework::OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPA
 
 	if (nMessageID == WM_KEYUP)
 	{
+		if ( wParam == VK_F9 )
+		{
+			ChangeSwapChainState();
+			return;
+		}
+
 		if ( wParam == VK_ESCAPE )
 		{
 			if ( dynamic_cast< CGameScene* >( m_SceneManager.GetScene() ) )
@@ -1150,22 +1156,6 @@ void CGameFramework::OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPA
 
 	CScene* scene = m_SceneManager.GetScene();
 	if (scene) scene->OnProcessingKeyboardMessage(hWnd, nMessageID, wParam, lParam);
-
-	switch (nMessageID)
-	{
-	case WM_KEYUP:
-		switch (wParam)
-		{
-		case VK_F9:
-			ChangeSwapChainState();
-			break;
-		default:
-			break;
-		}
-		break;
-	default:
-		break;
-	}
 }
 
 LRESULT CALLBACK CGameFramework::OnProcessingWindowMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam)
