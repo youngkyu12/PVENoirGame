@@ -8529,21 +8529,49 @@ void CGameScene::UpdateMonsterDeathStates()
 		if ( logicalIndex < 0 || logicalIndex >= static_cast< int >(m_logicalMonsters.size()) )
 			continue;
 
+		LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalIndex)];
+
+		const bool wasAlreadyDead = ( m_deadMonsters.find(obj) != m_deadMonsters.end() );
+
+		logical.position = obj->GetPosition();
+		logical.active = true;
+
+		if ( auto* tr = obj->GetComponent<CTransformComponent>() )
+			logical.yawDeg = QuaternionToYawDegrees(tr->rotation);
+
 		if ( !cache.health )
-			continue;
-
-		if ( cache.health->IsDead() )
 		{
-			const bool wasAlreadyDead =
-				( m_deadMonsters.find(obj) != m_deadMonsters.end() );
+			logical.dead = wasAlreadyDead;
 
+			if ( wasAlreadyDead )
+				logical.hp = 0;
+
+			continue;
+		}
+
+		logical.maxHp = std::max(1, cache.health->GetMaxHp());
+		logical.hp = std::clamp(cache.health->GetCurrentHp(), 0, logical.maxHp);
+
+		const bool healthDead = cache.health->IsDead() || logical.hp <= 0;
+
+		if ( healthDead || wasAlreadyDead )
+		{
+			logical.hp = 0;
+			logical.dead = true;
+			logical.active = true;
+		}
+		else
+		{
+			logical.dead = false;
+			logical.active = true;
+		}
+
+		if ( healthDead )
+		{
 			BeginMonsterDeath(obj);
 
-			if ( !wasAlreadyDead &&
-				 m_deadMonsters.find(obj) != m_deadMonsters.end() )
-			{
+			if ( !wasAlreadyDead && m_deadMonsters.find(obj) != m_deadMonsters.end() )
 				deathStateChanged = true;
-			}
 		}
 	}
 
