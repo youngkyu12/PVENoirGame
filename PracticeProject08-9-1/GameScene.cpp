@@ -152,6 +152,7 @@ CGameScene::CGameScene()
 #ifdef USING_NETWORK
 	m_prevPlayerNetworkStateCode.clear();
 	m_prevEnemyNetworkStateCode.clear();
+	m_prevPlayerAnimTick.clear();
 	m_enemyDRStates.clear();
 	m_playerDRStates.clear();
 	m_projectileDRStates.clear();
@@ -4356,9 +4357,12 @@ void CGameScene::ReleaseObjects()
 	m_networkArrowById.clear();
 	m_networkBulletById.clear();
 	m_networkBossPoisonById.clear();
+
+#ifdef USING_NETWORK
 	m_enemyDRStates.clear();
 	m_playerDRStates.clear();
 	m_projectileDRStates.clear();
+#endif
 
 	m_attachmentBinds.clear();
 	m_staticInstanceGroups.clear();
@@ -10021,28 +10025,7 @@ void CGameScene::AnimateObjects(float dt)
 
 		if ( bossCallSummonEffectCountThisFrame > 0 )
 		{
-			const float invCount = 1.0f / static_cast< float >(bossCallSummonEffectCountThisFrame);
-
-			XMFLOAT3 sfxPos{};
-			sfxPos.x = bossCallSummonEffectPosSum.x * invCount;
-			sfxPos.y = bossCallSummonEffectPosSum.y * invCount;
-			sfxPos.z = bossCallSummonEffectPosSum.z * invCount;
-
-			PlayBossCallMonsterSpawnSfxAt(sfxPos);
-		}
-			{
-				m_prevEnemyNetworkStateCode[state.id] = state.animation.stateCode;
-				continue;
-			}
-
-			ApplyNetworkEnemyVisualSnapshot(logical.boundObject, logicalIndex, state, dt);
-		}
-
-		if ( bossCallSummonEffectCountThisFrame > 0 )
-		{
-			const float invCount =
-				1.0f /
-				static_cast< float >( bossCallSummonEffectCountThisFrame );
+			const float invCount = 1.0f / static_cast< float >( bossCallSummonEffectCountThisFrame );
 
 			XMFLOAT3 sfxPos{};
 			sfxPos.x = bossCallSummonEffectPosSum.x * invCount;
@@ -10133,7 +10116,7 @@ void CGameScene::AnimateObjects(float dt)
 
 				if ( auto* arrow = arrowObj->GetComponent<CArrowComponent>() )
 				{
-					arrow->Activate(predictedProjectilePos, b.velocity, 2.0f);
+					arrow->Activate(predictedProjectilePos, b.velocity, 2.0f, true);
 					if ( auto* arrowtransform = arrowObj->GetComponent<CTransformComponent>() )
 						arrowtransform->SetLookDirection(b.velocity);
 				}
