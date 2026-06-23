@@ -10558,7 +10558,7 @@ void CGameScene::UpdateFrameRenderState(CCamera* camera)
 		UpdateSkinnedOcclusionCullSelection(camera);
 	}
 
-	ApplyAttachmentCullFromSkinnedOwners();
+	ApplyAttachmentCullFromSkinnedOwners(camera);
 
 	{
 		PROFILE_RENDER_SCOPE("UFRS::BuildStaticVisibleListsForFrame");

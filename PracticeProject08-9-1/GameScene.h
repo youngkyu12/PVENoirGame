@@ -323,7 +323,7 @@ private:
 	);
 
     void LinkSceneObjects();
-	void ApplyAttachmentCullFromSkinnedOwners();
+	void ApplyAttachmentCullFromSkinnedOwners(CCamera* camera);
 
 	void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd);
 	void UpdateBossHpGaugeHud();
