@@ -639,9 +639,6 @@ void CGameScene::BeginBossCallMonsterSummonVisuals(int callIndex, float fadeInDu
 	m_bossCallSummonPlanCallIndex = -1;
 	m_bossCallSummonPlanEntries.clear();
 
-	if ( !m_enemySpawner )
-		return;
-
 	if ( callIndex < 1 || callIndex > 3 )
 		return;
 
@@ -661,13 +658,7 @@ void CGameScene::BeginBossCallMonsterSummonVisuals(int callIndex, float fadeInDu
 			std::vector<EnemySpawnerPreviewEntry> previews;
 			previews.reserve(static_cast< size_t >( count ));
 
-			const int found =
-				m_enemySpawner->PeekSpawnEntries(
-					megaGridNumber,
-					kind,
-					count,
-					previews
-				);
+			const int found = PeekLogicalSpawnerEntries(megaGridNumber, kind, count, previews);
 
 			for ( const EnemySpawnerPreviewEntry& preview : previews )
 			{
