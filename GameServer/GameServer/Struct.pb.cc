@@ -138,7 +138,10 @@ constexpr Enemy::Enemy(
 
   , weapontype_(0)
 
-  , hp_(0u){}
+  , hp_(0u)
+  , spawnfxtype_(0u)
+  , spawnfxtick_(0u)
+  , spawnfxserial_(0u){}
 struct EnemyDefaultTypeInternal {
   constexpr EnemyDefaultTypeInternal()
     : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
@@ -260,6 +263,9 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_Struct_2eproto::offsets[] PROT
   PROTOBUF_FIELD_OFFSET(::Protocol::Enemy, animation_),
   PROTOBUF_FIELD_OFFSET(::Protocol::Enemy, weapontype_),
   PROTOBUF_FIELD_OFFSET(::Protocol::Enemy, hp_),
+  PROTOBUF_FIELD_OFFSET(::Protocol::Enemy, spawnfxtype_),
+  PROTOBUF_FIELD_OFFSET(::Protocol::Enemy, spawnfxtick_),
+  PROTOBUF_FIELD_OFFSET(::Protocol::Enemy, spawnfxserial_),
   ~0u,  // no _has_bits_
   PROTOBUF_FIELD_OFFSET(::Protocol::Building, _internal_metadata_),
   ~0u,  // no _extensions_
@@ -287,8 +293,8 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOB
   { 42, -1, sizeof(::Protocol::InventoryEntry)},
   { 49, -1, sizeof(::Protocol::Player)},
   { 63, -1, sizeof(::Protocol::Enemy)},
-  { 75, -1, sizeof(::Protocol::Building)},
-  { 83, -1, sizeof(::Protocol::Item)},
+  { 78, -1, sizeof(::Protocol::Building)},
+  { 86, -1, sizeof(::Protocol::Item)},
 };
 
 static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] = {
@@ -325,26 +331,27 @@ const char descriptor_table_protodef_Struct_2eproto[] PROTOBUF_SECTION_VARIABLE(
   "form\022&\n\tanimation\030\006 \001(\0132\023.Protocol.Anima"
   "tion\022(\n\nweaponType\030\007 \001(\0162\024.Protocol.Weap"
   "onType\022\n\n\002hp\030\010 \001(\r\022+\n\tinventory\030\t \003(\0132\030."
-  "Protocol.InventoryEntry\"\353\001\n\005Enemy\022\n\n\002id\030"
+  "Protocol.InventoryEntry\"\254\002\n\005Enemy\022\n\n\002id\030"
   "\001 \001(\004\022&\n\tenemyType\030\002 \001(\0162\023.Protocol.Enem"
   "yType\022(\n\nenemyState\030\003 \001(\0162\024.Protocol.Ene"
   "myState\022&\n\ttransform\030\004 \001(\0132\023.Protocol.Tr"
   "ansform\022&\n\tanimation\030\005 \001(\0132\023.Protocol.An"
   "imation\022(\n\nweaponType\030\006 \001(\0162\024.Protocol.W"
-  "eaponType\022\n\n\002hp\030\007 \001(\r\"l\n\010Building\022\n\n\002id\030"
-  "\001 \001(\004\022&\n\ttransform\030\002 \001(\0132\023.Protocol.Tran"
-  "sform\022,\n\014buildingType\030\003 \001(\0162\026.Protocol.B"
-  "uildingType\"g\n\004Item\022\n\n\002id\030\001 \001(\004\022 \n\004kind\030"
-  "\002 \001(\0162\022.Protocol.ItemType\022!\n\010position\030\003 "
-  "\001(\0132\017.Protocol.Vec3f\022\016\n\006active\030\004 \001(\010b\006pr"
-  "oto3"
+  "eaponType\022\n\n\002hp\030\007 \001(\r\022\023\n\013spawnFxType\030\010 \001"
+  "(\r\022\023\n\013spawnFxTick\030\t \001(\r\022\025\n\rspawnFxSerial"
+  "\030\n \001(\r\"l\n\010Building\022\n\n\002id\030\001 \001(\004\022&\n\ttransf"
+  "orm\030\002 \001(\0132\023.Protocol.Transform\022,\n\014buildi"
+  "ngType\030\003 \001(\0162\026.Protocol.BuildingType\"g\n\004"
+  "Item\022\n\n\002id\030\001 \001(\004\022 \n\004kind\030\002 \001(\0162\022.Protoco"
+  "l.ItemType\022!\n\010position\030\003 \001(\0132\017.Protocol."
+  "Vec3f\022\016\n\006active\030\004 \001(\010b\006proto3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_Struct_2eproto_deps[1] = {
   &::descriptor_table_Enum_2eproto,
 };
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_Struct_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_Struct_2eproto = {
-  false, false, 1284, descriptor_table_protodef_Struct_2eproto, "Struct.proto", 
+  false, false, 1349, descriptor_table_protodef_Struct_2eproto, "Struct.proto", 
   &descriptor_table_Struct_2eproto_once, descriptor_table_Struct_2eproto_deps, 1, 10,
   schemas, file_default_instances, TableStruct_Struct_2eproto::offsets,
   file_level_metadata_Struct_2eproto, file_level_enum_descriptors_Struct_2eproto, file_level_service_descriptors_Struct_2eproto,
@@ -2413,16 +2420,16 @@ Enemy::Enemy(const Enemy& from)
     animation_ = nullptr;
   }
   ::memcpy(&id_, &from.id_,
-    static_cast<size_t>(reinterpret_cast<char*>(&hp_) -
-    reinterpret_cast<char*>(&id_)) + sizeof(hp_));
+    static_cast<size_t>(reinterpret_cast<char*>(&spawnfxserial_) -
+    reinterpret_cast<char*>(&id_)) + sizeof(spawnfxserial_));
   // @@protoc_insertion_point(copy_constructor:Protocol.Enemy)
 }
 
 void Enemy::SharedCtor() {
 ::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
     reinterpret_cast<char*>(&transform_) - reinterpret_cast<char*>(this)),
-    0, static_cast<size_t>(reinterpret_cast<char*>(&hp_) -
-    reinterpret_cast<char*>(&transform_)) + sizeof(hp_));
+    0, static_cast<size_t>(reinterpret_cast<char*>(&spawnfxserial_) -
+    reinterpret_cast<char*>(&transform_)) + sizeof(spawnfxserial_));
 }
 
 Enemy::~Enemy() {
@@ -2462,8 +2469,8 @@ void Enemy::Clear() {
   }
   animation_ = nullptr;
   ::memset(&id_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&hp_) -
-      reinterpret_cast<char*>(&id_)) + sizeof(hp_));
+      reinterpret_cast<char*>(&spawnfxserial_) -
+      reinterpret_cast<char*>(&id_)) + sizeof(spawnfxserial_));
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
@@ -2522,6 +2529,27 @@ const char* Enemy::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::inte
       case 7:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 56)) {
           hp_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      // uint32 spawnFxType = 8;
+      case 8:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 64)) {
+          spawnfxtype_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      // uint32 spawnFxTick = 9;
+      case 9:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 72)) {
+          spawnfxtick_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      // uint32 spawnFxSerial = 10;
+      case 10:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 80)) {
+          spawnfxserial_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
           CHK_(ptr);
         } else goto handle_unusual;
         continue;
@@ -2603,6 +2631,24 @@ failure:
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteUInt32ToArray(7, this->_internal_hp(), target);
   }
 
+  // uint32 spawnFxType = 8;
+  if (this->spawnfxtype() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteUInt32ToArray(8, this->_internal_spawnfxtype(), target);
+  }
+
+  // uint32 spawnFxTick = 9;
+  if (this->spawnfxtick() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteUInt32ToArray(9, this->_internal_spawnfxtick(), target);
+  }
+
+  // uint32 spawnFxSerial = 10;
+  if (this->spawnfxserial() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteUInt32ToArray(10, this->_internal_spawnfxserial(), target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -2665,6 +2711,27 @@ size_t Enemy::ByteSizeLong() const {
         this->_internal_hp());
   }
 
+  // uint32 spawnFxType = 8;
+  if (this->spawnfxtype() != 0) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::UInt32Size(
+        this->_internal_spawnfxtype());
+  }
+
+  // uint32 spawnFxTick = 9;
+  if (this->spawnfxtick() != 0) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::UInt32Size(
+        this->_internal_spawnfxtick());
+  }
+
+  // uint32 spawnFxSerial = 10;
+  if (this->spawnfxserial() != 0) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::UInt32Size(
+        this->_internal_spawnfxserial());
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     return ::PROTOBUF_NAMESPACE_ID::internal::ComputeUnknownFieldsSize(
         _internal_metadata_, total_size, &_cached_size_);
@@ -2717,6 +2784,15 @@ void Enemy::MergeFrom(const Enemy& from) {
   if (from.hp() != 0) {
     _internal_set_hp(from._internal_hp());
   }
+  if (from.spawnfxtype() != 0) {
+    _internal_set_spawnfxtype(from._internal_spawnfxtype());
+  }
+  if (from.spawnfxtick() != 0) {
+    _internal_set_spawnfxtick(from._internal_spawnfxtick());
+  }
+  if (from.spawnfxserial() != 0) {
+    _internal_set_spawnfxserial(from._internal_spawnfxserial());
+  }
 }
 
 void Enemy::CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) {
@@ -2741,8 +2817,8 @@ void Enemy::InternalSwap(Enemy* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(Enemy, hp_)
-      + sizeof(Enemy::hp_)
+      PROTOBUF_FIELD_OFFSET(Enemy, spawnfxserial_)
+      + sizeof(Enemy::spawnfxserial_)
       - PROTOBUF_FIELD_OFFSET(Enemy, transform_)>(
           reinterpret_cast<char*>(&transform_),
           reinterpret_cast<char*>(&other->transform_));
