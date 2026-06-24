@@ -43,7 +43,10 @@ void Room::CallBossScriptUpdate(float dt)
 		return;
 
 	if (m_bossAIContext)
+	{
 		m_bossAIContext->TickCooldowns(dt);
+		m_bossAIContext->movedThisUpdate = false;
+	}
 
 	lua_State* L = m_bossScriptHost->GetState();
 	lua_getglobal(L, "update");
@@ -58,6 +61,21 @@ void Room::CallBossScriptUpdate(float dt)
 	{
 		cout << "[BossRoom] Script update error: " << lua_tostring(L, -1) << endl;
 		lua_pop(L, 1);
+	}
+
+	if (m_bossAIContext && !m_bossAIContext->movedThisUpdate)
+	{
+		CEnemy* boss = GetBossEnemy();
+		if (boss)
+		{
+			const Protocol::AnimationType anim = boss->GetAnimState();
+			if (anim == Protocol::ANIMATION_TYPE_RUN ||
+				anim == Protocol::ANIMATION_TYPE_WALK)
+			{
+				boss->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
+				boss->SetLastMoveDir(GameMath::Vec3::Zero());
+			}
+		}
 	}
 
 	ProcessBossMeleeHit();
