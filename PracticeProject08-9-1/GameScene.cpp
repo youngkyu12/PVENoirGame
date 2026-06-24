@@ -9389,6 +9389,22 @@ void CGameScene::ApplyNetworkEnemyVisualSnapshot(CGameObject* monster, int logic
 
 	monster->SetPosition(logical.position.x, logical.position.y, logical.position.z);
 
+	const bool logicalVisible =
+		logical.active && !logical.dead && logical.hp > 0;
+	const bool bossSnapshotShouldRender =
+		logicalVisible && m_serverBossRoomState >= 3;
+
+	if ( IsBossMonsterObject(monster) && bossSnapshotShouldRender )
+	{
+		if ( !monster->GetActive() || !IsBossStageBossRenderAllowed(monster) )
+		{
+			SetBossStageBossActive(monster, true, false);
+			m_bBossStageBossActivated = true;
+			m_bBossSummonSequenceStarted = false;
+			m_pendingBossStageBoss = nullptr;
+		}
+	}
+
 	if ( auto* hp = monster->GetComponent<CHealthComponent>() )
 		hp->SetCurrentHp(static_cast< int >(state.hp));
 
