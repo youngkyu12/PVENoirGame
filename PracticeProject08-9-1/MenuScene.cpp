@@ -107,6 +107,9 @@ bool CMenuScene::ConsumeSceneRequest(ESceneRequest& outReq)
 
 void CMenuScene::OnResize(int width, int height)
 {
+	if ( width <= 0 || height <= 0 )
+		return;
+
 	m_menuUI.OnResize(width, height);
 
 	m_viewportWidth = width;
@@ -115,4 +118,13 @@ void CMenuScene::OnResize(int width, int height)
 	m_menuUI.SetSpriteRect(m_menuBackgroundSpriteIndex, XMFLOAT4(m_viewportWidth * 0.5f, m_viewportHeight * 0.5f, static_cast< float >( m_viewportWidth ), static_cast< float >( m_viewportHeight )));
 
 	if ( const auto* start = m_menuUI.GetSprite(m_startButtonSpriteIndex) ) m_menuUI.SetSpriteRect(m_startButtonSpriteIndex, CSceneUI::MakeFitRect(start->texture, m_viewportWidth * 0.5f, m_viewportHeight * 0.78f, m_viewportWidth * 0.40f, m_viewportHeight * 0.18f));
+
+	if ( !m_pMainCamera )
+		return;
+
+	const float aspectRatio = static_cast< float >( width ) / static_cast< float >( height );
+	m_pMainCamera->GenerateProjectionMatrix(1.01f, 5000.0f, aspectRatio, 60.0f);
+	m_pMainCamera->SetViewport(0, 0, width, height, 0.0f, 1.0f);
+	m_pMainCamera->SetScissorRect(0, 0, width, height);
+	m_pMainCamera->UpdateBoundingFrustum();
 }

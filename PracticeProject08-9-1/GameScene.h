@@ -222,6 +222,45 @@ struct SkinnedComponentCache
 	bool isPlayer = false;
 };
 
+enum class ELogicalMonsterKind : uint8_t
+{
+	Ghoul = 0,
+	SwordMan,
+	BowMan,
+	Mutant,
+	Boss
+};
+
+struct LogicalMonsterState
+{
+	int logicalId = -1;
+	uint64_t serverId = static_cast< uint64_t >( -1 );
+
+	ELogicalMonsterKind kind = ELogicalMonsterKind::Ghoul;
+	int megaGridNumber = -1;
+
+	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT3 homePosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	float yawDeg = 0.0f;
+
+	int hp = 1;
+	int maxHp = 1;
+
+	bool active = true;
+	bool dead = false;
+
+	bool spawnerEntry = false;
+	bool spawnerConsumed = false;
+
+	bool keyTrigger = false;
+	int keyTriggerMegaGridNumber = -1;
+
+	uint32_t animationStateCode = 0;
+
+	CGameObject* boundObject = nullptr;
+	UINT boundSkinnedBatchObjectIndex = UINT_MAX;
+};
+
 // ============================================================================
 // GameScene
 // ============================================================================
@@ -284,7 +323,7 @@ private:
 	);
 
     void LinkSceneObjects();
-	void ApplyAttachmentCullFromSkinnedOwners();
+	void ApplyAttachmentCullFromSkinnedOwners(CCamera* camera);
 
 	void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd);
 	void UpdateBossHpGaugeHud();
@@ -836,6 +875,36 @@ private:
 
 	void ResetEnemySpawnerTimedGhoulWaveStates();
 
+	void ResetLogicalMonsterState();
+	int AddLogicalMonster(ELogicalMonsterKind kind, uint64_t serverId, const XMFLOAT3& position, float yawDeg, int maxHp, bool active, bool spawnerEntry = false); 
+	void BuildLogicalMonstersFromCurrentStageData();
+	void RegisterLogicalMutantKeyTriggers();
+	void DisableAllMonsterAIComponents(CGameObject* monster) const;
+	void LinkActualMonsterToLogical(CGameObject* monster, UINT skinnedBatchObjectIndex, int logicalMonsterIndex);
+	int FindLogicalMonsterIndexByObject(const CGameObject* monster) const;
+	int FindUnboundLogicalMonsterForActual(ELogicalMonsterKind kind, uint64_t serverId, const XMFLOAT3& position) const;
+	void SyncLogicalMonsterFromActualObject(CGameObject* monster);
+	std::vector<CGameObject*>* GetLogicalMonsterVisualPool(ELogicalMonsterKind kind);
+	const std::vector<CGameObject*>* GetLogicalMonsterVisualPool(ELogicalMonsterKind kind) const;
+	CGameObject* AcquireFreeLogicalMonsterVisual(ELogicalMonsterKind kind) const;
+	void BuildWantedLogicalMonsterSet(std::vector<int>& outWantedLogicalIndices) const;
+	void ReconcileLogicalMonsterVisualBindings();
+	void BindLogicalMonsterToActualObject(int logicalMonsterIndex, CGameObject* monster);
+	void UnbindActualMonsterFromLogical(CGameObject* monster);
+	void SyncActualMonsterFromLogicalState(CGameObject* monster, int logicalMonsterIndex, bool resetRuntimeState);
+	void UpdateActualMonsterMegaGridBinding(CGameObject* monster, UINT skinnedBatchObjectIndex, int megaGridNumber);
+	void RebuildSceneGridMonsterRefsFromLogicalBindings();
+	void UpdateLogicalMonsterMegaGridIndex(int logicalMonsterIndex, int oldMegaGridNumber);
+
+	ELogicalMonsterKind ConvertEnemySpawnerKindToLogicalKind(EEnemySpawnerEnemyKind kind) const;
+	int FindFreeLogicalSpawnerMonster(int megaGridNumber, EEnemySpawnerEnemyKind kind) const;
+	int PeekLogicalSpawnerEntries(int megaGridNumber, EEnemySpawnerEnemyKind kind, int count, std::vector<EnemySpawnerPreviewEntry>& outEntries) const;
+	CGameObject* ActivateLogicalSpawnerMonster(int logicalMonsterIndex, const XMFLOAT3* overridePosition, const float* overrideYawDeg);
+	CGameObject* SpawnLogicalEnemyAt(int megaGridNumber, EEnemySpawnerEnemyKind kind, const XMFLOAT3& position, float yawDeg);
+	CGameObject* SpawnLogicalPreviewEntry(const EnemySpawnerPreviewEntry& preview);
+	int SpawnLogicalMegaGrid(int megaGridNumber);
+	void ConfigureLogicalSpawnerVisualRuntime(CGameObject* monster, int logicalMonsterIndex);
+
 	void RegisterMonsterToMegaGrid(CGameObject* monster, const XMFLOAT3& spawnPosition, UINT skinnedBatchObjectIndex);
 	int GetLocalPlayerMegaGridNumberForMonsterTick() const;
 	bool ShouldSkipMonsterByMegaGrid(const CGameObject* monster, UINT skinnedBatchObjectIndex, int activeMegaGridNumber) const;
@@ -994,12 +1063,24 @@ private:
 	static constexpr UINT kEnemySpawnerMega5SwordManCount = 10;
 	static constexpr UINT kEnemySpawnerMega5MutantCount = 5;
 
+	static constexpr UINT kMonsterVisualPoolGhoulCount = 320;
+	static constexpr UINT kMonsterVisualPoolBowManCount = 15;
+	static constexpr UINT kMonsterVisualPoolSwordManCount = 15;
+	static constexpr UINT kMonsterVisualPoolMutantCount = 8;
+	static constexpr UINT kMonsterVisualPoolBossCount = 1;
+
 	UINT m_EnemySpawnCount = 0;
 
 	UINT m_EnemySpawnGhoulCount = 0;
 	UINT m_EnemySpawnBowManCount = 0;
 	UINT m_EnemySpawnSwordManCount = 0;
 	UINT m_EnemySpawnMutantCount = 0;
+
+	UINT m_logicalGhoulCount = 0;
+	UINT m_logicalBowManCount = 0;
+	UINT m_logicalSwordManCount = 0;
+	UINT m_logicalMutantCount = 0;
+	UINT m_logicalBossCount = 0;
 
     std::vector<std::unique_ptr<CGameObject>> m_staticObjects;
     std::vector<std::unique_ptr<CGameObject>> m_skinnedObjects;
@@ -1048,7 +1129,7 @@ private:
 
 	static constexpr float kMonsterHpGaugeVisibleDurationSec = 5.0f;
 
-	std::unordered_map<CGameObject*, MonsterHpGaugeRuntimeState> m_monsterHpGaugeRuntimeStates;
+	std::unordered_map<int, MonsterHpGaugeRuntimeState> m_monsterHpGaugeRuntimeStates;
 
 	static constexpr UINT kMuzzleFlashMaxCount = 4096;
 
@@ -1546,6 +1627,9 @@ private:
 	static XMFLOAT3 LerpPosition(const XMFLOAT3& a, const XMFLOAT3& b, float t);
 	static float LerpYawDegrees(float a, float b, float t);
 
+	void ApplyNetworkEnemySnapshotToLogicalMonsters(const FrameSnapshot& snapshot, float dt);
+	void ApplyNetworkEnemyVisualSnapshot(CGameObject* monster, int logicalMonsterIndex, const EnemyState& state, float dt);
+
 	struct NetworkActorYState
 	{
 		bool useServerY = false;
@@ -1618,6 +1702,10 @@ private:
 	std::vector<GridDynamicTracker> m_bulletGridTrackers;
 
 	std::vector<int> m_skinnedMonsterMegaGridNumbers;
+	std::vector<LogicalMonsterState> m_logicalMonsters;
+	std::array<std::vector<int>, CSceneGrid::kMegaGridCount + 1> m_logicalMonsterIndicesByMegaGrid = {};
+	std::unordered_map<uint64_t, int> m_logicalMonsterIndexByServerId;
+	std::unordered_map<CGameObject*, int> m_logicalMonsterIndexByObject;
 
 private:
     bool LoadStaticPlacementFile(const std::string& filePath);
