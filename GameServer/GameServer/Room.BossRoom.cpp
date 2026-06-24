@@ -8,6 +8,11 @@
 #include <lua/lua.hpp>
 #include <cmath>
 
+namespace
+{
+	constexpr uint32 kSpawnFxBossCallSummon = 1;
+}
+
 bool Room::IsPreBossMonster(uint64 enemyId) const
 {
 	if (enemyId == m_bossEnemyId) return false;
@@ -411,6 +416,10 @@ CEnemy* Room::SpawnBossCallEnemy(Protocol::EnemyType type)
 	if (activated)
 	{
 		m_bossSummonedEnemyIds.insert(activated->GetObjectId());
+		uint32 serial = ++m_spawnFxSerial;
+		if (serial == 0)
+			serial = ++m_spawnFxSerial;
+		activated->SetSpawnFx(kSpawnFxBossCallSummon, GetTick(), serial);
 		if (CMonsterAI* ai = activated->GetMonsterAI())
 			ai->SetInfiniteDirectChaseMode();
 	}
