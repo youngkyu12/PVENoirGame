@@ -3985,10 +3985,11 @@ void CGameScene::BuildSkinnedBatch(
 
 					m_bossRefs.push_back(raw);
 
+					RegisterBossStageBossOriginalPosition(raw, pos);
+
 #ifndef USING_NETWORK
 					// 보스는 처음부터 실제 스폰 위치가 아니라 지하에 숨겨 둔다.
 					// x/z는 유지하고 y만 -100 정도 내려서, 혹시 1프레임 렌더되어도 화면에 보이지 않게 한다.
-					RegisterBossStageBossOriginalPosition(raw, pos);
 					MoveBossStageBossToHiddenPosition(raw);
 
 					SetBossStageBossActive(raw, false, false);
