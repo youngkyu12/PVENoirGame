@@ -82,6 +82,62 @@ bool CMonsterAnimController::StartAction(CAnimator* anim, const std::string& cli
 	return true;
 }
 
+void CMonsterAnimController::ResetRuntimeState(EMonsterAnimState locomotionState)
+{
+	m_locomotionState = locomotionState;
+	m_pendingCommand = EMonsterAnimCommand::None;
+	m_actionPhase = EActionPhase::None;
+	m_hitReactionAnimSuperArmorRemainingSec = 0.0f;
+
+	CAnimator* anim = ResolveAnimator();
+	if ( !anim )
+		return;
+
+	const std::string clip = ResolveLocomotionClip();
+	if ( clip.empty() )
+		return;
+
+	if ( !anim->HasClip(clip) )
+		return;
+
+	anim->Play(clip, true, 0.0f);
+}
+
+void CMonsterAnimController::PlayDeathFromStart()
+{
+	m_locomotionState = EMonsterAnimState::Idle;
+	m_pendingCommand = EMonsterAnimCommand::None;
+	m_actionPhase = EActionPhase::None;
+	m_hitReactionAnimSuperArmorRemainingSec = 0.0f;
+
+	CAnimator* anim = ResolveAnimator();
+	if ( !anim )
+		return;
+
+	StartAction(anim, m_profile.deathClip, EActionPhase::Death, 0.0f, false);
+}
+
+void CMonsterAnimController::PlayDeathFinalPose()
+{
+	m_locomotionState = EMonsterAnimState::Idle;
+	m_pendingCommand = EMonsterAnimCommand::None;
+	m_actionPhase = EActionPhase::None;
+	m_hitReactionAnimSuperArmorRemainingSec = 0.0f;
+
+	CAnimator* anim = ResolveAnimator();
+	if ( !anim )
+		return;
+
+	if ( m_profile.deathClip.empty() )
+		return;
+
+	if ( !anim->HasClip(m_profile.deathClip) )
+		return;
+
+	anim->Play(m_profile.deathClip, false, 9999.0f);
+	m_actionPhase = EActionPhase::Death;
+}
+
 void CMonsterAnimController::RequestCommand(EMonsterAnimCommand cmd)
 {
 	if ( cmd == EMonsterAnimCommand::None )
@@ -90,6 +146,9 @@ void CMonsterAnimController::RequestCommand(EMonsterAnimCommand cmd)
 	// Death는 최우선
 	if ( cmd == EMonsterAnimCommand::Death )
 	{
+		if ( m_actionPhase == EActionPhase::Death && m_pendingCommand == EMonsterAnimCommand::None )
+			return;
+
 		m_pendingCommand = cmd;
 		return;
 	}

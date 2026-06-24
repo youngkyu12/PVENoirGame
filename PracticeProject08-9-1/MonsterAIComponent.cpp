@@ -329,6 +329,35 @@ void CMonsterAIComponent::SetHomeTransform(const XMFLOAT3& position, float yawDe
 	ResetPatrolState();
 }
 
+void CMonsterAIComponent::ResetRuntimeStateForReuse(const XMFLOAT3& homePosition, float homeYawDeg)
+{
+	m_pTarget = nullptr;
+
+	m_trianglePath.clear();
+	m_currentPath.clear();
+	m_currentPathIndex = 0;
+
+	m_bReturningHome = false;
+	m_returnTrianglePath.clear();
+	m_returnPath.clear();
+	m_returnPathIndex = 0;
+
+	ResetPatrolState();
+
+	m_attackCooldownRemaining = 0.0f;
+	m_postAttackMoveLockRemaining = 0.0f;
+	m_repathTimer = 0.0f;
+
+	m_bMovementBoundsInitialized = false;
+	m_movementMinX = 0.0f;
+	m_movementMaxX = 0.0f;
+	m_movementMinZ = 0.0f;
+	m_movementMaxZ = 0.0f;
+
+	SetHomeTransform(homePosition, homeYawDeg);
+	SetMonsterLocomotionState(EMonsterAnimState::Idle);
+}
+
 void CMonsterAIComponent::CaptureHomeTransformFromOwner()
 {
 	CGameObject* owner = GetOwner();
