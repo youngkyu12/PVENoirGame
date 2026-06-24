@@ -4819,10 +4819,8 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 			if ( !obj ) continue;
 			if ( !obj->GetActive() ) continue;
 
-#ifndef USING_NETWORK
 			if ( IsBossMonsterObject(obj) && !IsBossStageBossRenderAllowed(obj) )
 				continue;
-#endif
 
 			if ( !obj->IsVisible(camera) ) continue;
 
@@ -5086,10 +5084,8 @@ void CGameScene::RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandLis
 			if ( !obj ) continue;
 			if ( !obj->GetActive() ) continue;
 
-#ifndef USING_NETWORK
 			if ( IsBossMonsterObject(obj) && !IsBossStageBossRenderAllowed(obj) )
 				continue;
-#endif
 
 			if ( !IsSkinnedObjectInsideShadowBox(objectIndex) )
 				continue;

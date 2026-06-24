@@ -926,9 +926,16 @@ void CGameScene::RenderTransparentItemBillboards(ID3D12GraphicsCommandList* cmd,
 		if ( item.kind == EItemBillboardKind::BossSummonCircle ||
 			 item.kind == EItemBillboardKind::BossSummonGlow )
 		{
+#ifdef USING_NETWORK
+			const bool bossSummonVisualVisible =
+				m_serverBossRoomState == 1 ||
+				m_serverBossRoomState == 2 ||
+				m_bBossSummonVisualFadeOutStarted;
+#else
 			const bool bossSummonVisualVisible =
 				m_bBossSummonSequenceStarted ||
 				m_bBossSummonVisualFadeOutStarted;
+#endif
 			if ( !bossSummonVisualVisible )
 				continue;
 		}
