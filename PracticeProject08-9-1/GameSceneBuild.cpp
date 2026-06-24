@@ -473,11 +473,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_playerDRStates.clear();
 	m_projectileDRStates.clear();
 
-	m_networkBossCallIndex = 0;
-	m_networkBossCallPendingSummonEffects = 0;
-	m_networkBossCallSummonEffectWindowSec = 0.0f;
-	m_networkBossCallSummonEffectEnemyIds.clear();
-	m_prevNetworkEnemyPositions.clear();
+	m_playedSpawnFxKeys.clear();
 
 	m_networkArrowById.clear();
 	m_networkBulletById.clear();
