@@ -13,6 +13,9 @@
 
 namespace
 {
+	constexpr uint32 kSpawnFxNone = 0;
+	constexpr uint32 kSpawnFxSnapshotLifetimeMs = 2000;
+
 	enum : uint32
 	{
 		kStateMove = 1u << 0,
@@ -154,6 +157,10 @@ void Room::MakeFrameState(uint32 tick)
 	constexpr float kEnemyViewRangeSq = kEnemyViewRange * kEnemyViewRange;
 	constexpr float kBulletViewRange = 100.0f;
 	constexpr float kBulletViewRangeSq = kBulletViewRange * kBulletViewRange;
+	const uint32 spawnFxSnapshotLifetimeTicks =
+		(m_timing.serverTickIntervalMs > 0)
+		? static_cast<uint32>((kSpawnFxSnapshotLifetimeMs + m_timing.serverTickIntervalMs - 1) / m_timing.serverTickIntervalMs)
+		: kSpawnFxSnapshotLifetimeMs;
 
 	std::unordered_map<uint64, uint32> enemyStateCodeCache;
 	RebuildMegaGridEnemyIds();
@@ -233,6 +240,18 @@ void Room::MakeFrameState(uint32 tick)
 			e->set_enemytype(enemy->type);
 			e->set_hp(static_cast<uint32>(enemy->GetCurrentHp()));
 			e->set_weapontype(enemy->GetWeaponState());
+			const uint32 spawnFxType = enemy->GetSpawnFxType();
+			const uint32 spawnFxSerial = enemy->GetSpawnFxSerial();
+			if (spawnFxType != kSpawnFxNone && spawnFxSerial != 0)
+			{
+				const uint32 spawnFxAgeTicks = tick - enemy->GetSpawnFxTick();
+				if (spawnFxAgeTicks <= spawnFxSnapshotLifetimeTicks)
+				{
+					e->set_spawnfxtype(spawnFxType);
+					e->set_spawnfxtick(enemy->GetSpawnFxTick());
+					e->set_spawnfxserial(spawnFxSerial);
+				}
+			}
 			Protocol::Animation* anim = e->mutable_animation();
 			anim->set_statecode(enemyStateCodeCache[enemyId]);
 			anim->set_animationtick(enemy->GetAnimTick());

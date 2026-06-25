@@ -156,11 +156,7 @@ CGameScene::CGameScene()
 	m_enemyDRStates.clear();
 	m_playerDRStates.clear();
 	m_projectileDRStates.clear();
-	m_networkBossCallIndex = 0;
-	m_networkBossCallPendingSummonEffects = 0;
-	m_networkBossCallSummonEffectWindowSec = 0.0f;
-	m_networkBossCallSummonEffectEnemyIds.clear();
-	m_prevNetworkEnemyPositions.clear();
+	m_playedSpawnFxKeys.clear();
 #endif
 	m_playerWeaponDamageTierIndex = 0;
 	m_deadMonsters.clear();
@@ -636,7 +632,7 @@ void CGameScene::RegisterCastleDoorPortal(CGameObject* castle)
 		};
 
 	// Unity 기준:
-	// Double Door Frame (1) -> Double Door Frame 
+	// Double Door Frame (1) -> Double Door Frame
 	// Double Door Frame (2) -> Double Door Frame (4)
 	// Double Door Frame (3) -> Double Door Frame (5)
 	// Double Door Frame (7) -> Double Door Frame (6)
@@ -2852,18 +2848,18 @@ void CGameScene::BuildWantedLogicalMonsterSet(std::vector<int>& outWantedLogical
 	{
 		const LogicalMonsterState& lhs = m_logicalMonsters[static_cast< size_t >( a )];
 		const LogicalMonsterState& rhs = m_logicalMonsters[static_cast< size_t >( b )];
-	
+
 		auto GetPriority = [ ] (const LogicalMonsterState& logical) -> int
 			{
 				if ( logical.keyTrigger )
 					return 0;
-	
+
 				if ( logical.spawnerEntry && logical.active && logical.spawnerConsumed )
 					return 1;
-	
+
 				if ( logical.dead || logical.hp <= 0 )
 					return 3;
-	
+
 				return 2;
 			};
 
@@ -4429,11 +4425,7 @@ void CGameScene::ReleaseObjects()
 #ifdef USING_NETWORK
 	m_prevPlayerNetworkStateCode.clear();
 	m_prevEnemyNetworkStateCode.clear();
-	m_networkBossCallIndex = 0;
-	m_networkBossCallPendingSummonEffects = 0;
-	m_networkBossCallSummonEffectWindowSec = 0.0f;
-	m_networkBossCallSummonEffectEnemyIds.clear();
-	m_prevNetworkEnemyPositions.clear();
+	m_playedSpawnFxKeys.clear();
 #endif
 
 	m_playerWeaponDamageTierIndex = 0;
@@ -4537,7 +4529,7 @@ void CGameScene::ReleaseUploadBuffers()
 
 	if ( m_itemBillboardState.bossSummonCircleTexture )
 		m_itemBillboardState.bossSummonCircleTexture->ReleaseUploadBuffers();
-	
+
 	if ( m_monsterHpGaugeState.quadMesh )
 		m_monsterHpGaugeState.quadMesh->ReleaseUploadBuffers();
 
@@ -5728,10 +5720,8 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 			if ( !obj ) continue;
 			if ( !obj->GetActive() ) continue;
 
-#ifndef USING_NETWORK
 			if ( IsBossMonsterObject(obj) && !IsBossStageBossRenderAllowed(obj) )
 				continue;
-#endif
 
 			if ( !obj->IsVisible(camera) ) continue;
 
@@ -5895,7 +5885,7 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 		vbViews[0] = sm.vbView;
 		vbViews[1].BufferLocation =
 			staticInstanceBuffer->GetGPUVirtualAddress() +
-			( UINT64 ) ( sizeof(StaticInstanceVertex) * instanceBase ); 
+			( UINT64 ) ( sizeof(StaticInstanceVertex) * instanceBase );
 		vbViews[1].SizeInBytes = sizeof(StaticInstanceVertex) * visibleInstanceCount;
 		vbViews[1].StrideInBytes = sizeof(StaticInstanceVertex);
 
@@ -5995,10 +5985,8 @@ void CGameScene::RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandLis
 			if ( !obj ) continue;
 			if ( !obj->GetActive() ) continue;
 
-#ifndef USING_NETWORK
 			if ( IsBossMonsterObject(obj) && !IsBossStageBossRenderAllowed(obj) )
 				continue;
-#endif
 
 			if ( !IsSkinnedObjectInsideShadowBox(objectIndex) )
 				continue;
@@ -9401,6 +9389,22 @@ void CGameScene::ApplyNetworkEnemyVisualSnapshot(CGameObject* monster, int logic
 
 	monster->SetPosition(logical.position.x, logical.position.y, logical.position.z);
 
+	const bool logicalVisible =
+		logical.active && !logical.dead && logical.hp > 0;
+	const bool bossSnapshotShouldRender =
+		logicalVisible && m_serverBossRoomState >= 3;
+
+	if ( IsBossMonsterObject(monster) && bossSnapshotShouldRender )
+	{
+		if ( !monster->GetActive() || !IsBossStageBossRenderAllowed(monster) )
+		{
+			SetBossStageBossActive(monster, true, false);
+			m_bBossStageBossActivated = true;
+			m_bBossSummonSequenceStarted = false;
+			m_pendingBossStageBoss = nullptr;
+		}
+	}
+
 	if ( auto* hp = monster->GetComponent<CHealthComponent>() )
 		hp->SetCurrentHp(static_cast< int >(state.hp));
 
@@ -9738,7 +9742,7 @@ void CGameScene::AnimateObjects(float dt)
 					tr->SetYawDegrees(state.yaw);
 				}
 			}
-			
+
 			if ( auto wc = player->GetComponent<CPlayerEquipmentComponent>() )
 			{
 				wc->SetLoadout(state.weaponType);
@@ -9901,62 +9905,21 @@ void CGameScene::AnimateObjects(float dt)
 				}
 			};
 
-		auto BossCallSummonCountForCall = [] (int callIndex) -> int
+		auto MakeSpawnFxKey =
+			[] (uint64_t enemyId, uint32_t spawnFxSerial) -> uint64_t
 			{
-				switch ( callIndex )
-				{
-				case 1: return 30;
-				case 2: return 30;
-				case 3: return 35;
-				default: return 0;
-				}
+				uint64_t key = enemyId;
+				key ^= static_cast< uint64_t >( spawnFxSerial ) +
+					0x9e3779b97f4a7c15ull +
+					(key << 6) +
+					(key >> 2);
+				return key;
 			};
-
-		auto IsInsideNetworkBossCallSummonArea = [] (const XMFLOAT3& pos) -> bool
-			{
-				constexpr float kMargin = 5.0f;
-				return pos.x >= -100.0f - kMargin && pos.x <= 100.0f + kMargin && pos.z >= 300.0f - kMargin && pos.z <= 500.0f + kMargin;
-			};
-
-		for ( const EnemyState& state : snapshot.enemies )
-		{
-			if ( state.enemyType != kNetworkEnemyTypeBoss )
-				continue;
-
-			const DecodedAnimStateCode decoded = DecodeStateCode(state.animation.stateCode);
-
-			const auto prevIt = m_prevEnemyNetworkStateCode.find(state.id);
-			const uint32_t prevStateCode = ( prevIt != m_prevEnemyNetworkStateCode.end() ) ? prevIt->second : 0u;
-			const DecodedAnimStateCode prevDecoded = DecodeStateCode(prevStateCode);
-
-			if ( decoded.bossCall && !prevDecoded.bossCall )
-			{
-				++m_networkBossCallIndex;
-				m_networkBossCallPendingSummonEffects = BossCallSummonCountForCall(m_networkBossCallIndex);
-				m_networkBossCallSummonEffectWindowSec = ( m_networkBossCallPendingSummonEffects > 0 ) ? ( kBossCallMonsterSpawnDelaySec + 3.0f ) : 0.0f;
-
-				if ( m_networkBossCallPendingSummonEffects > 0 )
-				{
-					m_networkBossCallSummonEffectEnemyIds.clear();
-					ClearBossCallSummonCircleVisuals();
-				}
-			}
-		}
-
-		if ( m_networkBossCallSummonEffectWindowSec > 0.0f )
-		{
-			m_networkBossCallSummonEffectWindowSec -= dt;
-
-			if ( m_networkBossCallSummonEffectWindowSec <= 0.0f )
-			{
-				m_networkBossCallSummonEffectWindowSec = 0.0f;
-				m_networkBossCallPendingSummonEffects = 0;
-				StartBossCallSummonCircleFadeOut();
-			}
-		}
 
 		XMFLOAT3 bossCallSummonEffectPosSum(0.0f, 0.0f, 0.0f);
 		int bossCallSummonEffectCountThisFrame = 0;
+		const bool allowBossCallSpawnFxPlayback =
+			GetLocalPlayerMegaGridNumberForMonsterTick() == 5;
 
 		ApplyNetworkEnemySnapshotToLogicalMonsters(snapshot, dt);
 		ReconcileLogicalMonsterVisualBindings();
@@ -9980,12 +9943,15 @@ void CGameScene::AnimateObjects(float dt)
 			LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalIndex)];
 			const XMFLOAT3 resolvedNetworkPosition = logical.position;
 
-			const auto prevNetworkPosIt = m_prevNetworkEnemyPositions.find(state.id);
-			const bool wasInactiveByNetworkPosition =
-				( prevNetworkPosIt != m_prevNetworkEnemyPositions.end() && prevNetworkPosIt->second.y <= kEnemySpawnerInactiveY + 1.0f ) ||
-				( prevNetworkPosIt == m_prevNetworkEnemyPositions.end() && m_networkBossCallSummonEffectWindowSec > 0.0f );
-
-			if ( m_networkBossCallSummonEffectWindowSec > 0.0f && wasInactiveByNetworkPosition && IsInsideNetworkBossCallSummonArea(resolvedNetworkPosition) && m_networkBossCallSummonEffectEnemyIds.insert(state.id).second )
+			constexpr uint32_t kSpawnFxBossCallSummon = 1;
+			const bool hasBossCallSpawnFx =
+				state.spawnFxType == kSpawnFxBossCallSummon &&
+				state.spawnFxSerial != 0;
+			const uint64_t spawnFxKey =
+				MakeSpawnFxKey(state.id, state.spawnFxSerial);
+			if ( allowBossCallSpawnFxPlayback &&
+				 hasBossCallSpawnFx &&
+				 m_playedSpawnFxKeys.insert(spawnFxKey).second )
 			{
 				EEnemySpawnerEnemyKind summonKind = EEnemySpawnerEnemyKind::Ghoul;
 
@@ -9997,29 +9963,14 @@ void CGameScene::AnimateObjects(float dt)
 					bossCallSummonEffectPosSum.y += resolvedNetworkPosition.y;
 					bossCallSummonEffectPosSum.z += resolvedNetworkPosition.z;
 					++bossCallSummonEffectCountThisFrame;
-
-					if ( m_networkBossCallPendingSummonEffects > 0 )
-					{
-						--m_networkBossCallPendingSummonEffects;
-
-						if ( m_networkBossCallPendingSummonEffects <= 0 )
-						{
-							m_networkBossCallPendingSummonEffects = 0;
-							m_networkBossCallSummonEffectWindowSec = 0.0f;
-							StartBossCallSummonCircleFadeOut();
-						}
-					}
 				}
 			}
-
-			m_prevNetworkEnemyPositions[state.id] = resolvedNetworkPosition;
 
 			if ( !logical.boundObject )
 			{
 				m_prevEnemyNetworkStateCode[state.id] = state.animation.stateCode;
 				continue;
 			}
-
 			ApplyNetworkEnemyVisualSnapshot(logical.boundObject, logicalIndex, state, dt);
 		}
 
@@ -10855,7 +10806,7 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
 		const std::array<bool, 4> playerWorldHpGaugeVisible = m_otherPlayerWorldHpGaugeVisibleForHud;
 
 		m_hud.SetHealthRatio(localHpRatio);
-		m_hud.SetOtherPlayerHealthRatios(m_localPlayerSlot, playerHpRatios, playerHpVisible, playerWorldHpGaugeVisible); 
+		m_hud.SetOtherPlayerHealthRatios(m_localPlayerSlot, playerHpRatios, playerHpVisible, playerWorldHpGaugeVisible);
 		UpdateBossHpGaugeHud();
 	}
 

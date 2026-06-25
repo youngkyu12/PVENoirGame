@@ -86,7 +86,7 @@ public:
 	void OnMonsterDeath(uint64 enemyId);
 	void FireEnemyArrow(CServerObject* shooter, float speed, uint32 lifeTicks);
 	void DebugKillMega5Enemies();
-	void DebugTeleportToMegaGrid(uint64 playerId, int megaGridNumber);
+	void DebugTeleportPlayersToMegaGrid(int megaGridNumber);
 	void DebugDamageBoss();
 
 public:
@@ -427,6 +427,7 @@ private:
 	float m_bossOriginalYaw = 0.0f;
 	uint64 m_bossRoomStateChangedMs = 0;
 	std::unordered_set<uint64> m_bossSummonedEnemyIds;
+	uint32 m_spawnFxSerial = 0;
 	std::unique_ptr<CBossScriptHost>  m_bossScriptHost;
 	std::unique_ptr<CBossAIContext>   m_bossAIContext;
 

@@ -23,7 +23,7 @@ message ObjectStatus
 	uint32 attack = 2;
 	uint32 defense = 3;
 	uint32 speed = 4;
-	
+
 }
 
 message Animation
@@ -72,6 +72,9 @@ message Enemy
 	Animation animation = 5;
 	WeaponType weaponType = 6;
 	uint32 hp = 7;
+	uint32 spawnFxType = 8;
+	uint32 spawnFxTick = 9;
+	uint32 spawnFxSerial = 10;
 }
 
 message Building
