@@ -37,6 +37,22 @@ jobs:
                 -Force
           }
 
+      - name: Verify native build dependencies
+        shell: powershell
+        run: |
+          $requiredFiles = @(
+              "PracticeProject08-9-1\External\FMOD\lib\x64\fmod_vc.lib",
+              "Libraries\Libs\Protobuf\Release\libprotobuf.lib",
+              "Libraries\Libs\Protobuf\Release\libprotobuf.dll",
+              "Libraries\Libs\LUA\lua55.lib"
+          )
+
+          foreach ($file in $requiredFiles) {
+              if (-not (Test-Path $file)) {
+                  throw "Required native build dependency was not found: $file"
+              }
+          }
+
       - name: Restore client solution
         run: msbuild "${{ env.CLIENT_SOLUTION }}" /t:Restore
 
@@ -84,6 +100,10 @@ jobs:
               Copy-Item "PracticeProject08-9-1\fmod.dll" "Executable\Client\fmod.dll" -Force
           }
 
+          if (Test-Path "Libraries\Libs\Protobuf\Release\libprotobuf.dll") {
+              Copy-Item "Libraries\Libs\Protobuf\Release\libprotobuf.dll" "Executable\Client\libprotobuf.dll" -Force
+          }
+
       - name: Copy client resources
         shell: powershell
         run: |
@@ -124,6 +144,14 @@ jobs:
           Copy-Item `
             -Destination "Executable\Server" `
             -Force
+
+          if (Test-Path "Libraries\Libs\Protobuf\Release\libprotobuf.dll") {
+              Copy-Item "Libraries\Libs\Protobuf\Release\libprotobuf.dll" "Executable\Server\libprotobuf.dll" -Force
+          }
+
+          if (Test-Path "Libraries\Libs\LUA\lua55.dll") {
+              Copy-Item "Libraries\Libs\LUA\lua55.dll" "Executable\Server\lua55.dll" -Force
+          }
 
       - name: Copy server resources
         shell: powershell
