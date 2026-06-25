@@ -53,16 +53,16 @@ void CDepthFogSystem::ResetState()
 	m_zoneDensePreset = base;
 	m_zoneDensePreset.fogColor = XMFLOAT4(0.62f, 0.67f, 0.72f, 1.0f);
 	m_zoneDensePreset.fogParams0 = XMFLOAT4(
-		20.0f,  // fogStart
-		40.0f,  // fogEnd
-		0.0f,   // fogDensity, Linear 모드에서는 사실상 미사용
-		1.0f    // fogEnable
+		20.0f,
+		40.0f,
+		0.0f,
+		1.0f
 	);
 	m_zoneDensePreset.fogParams1 = XMFLOAT4(
 		1.01f,
 		5000.0f,
-		0.0f,   // 0 = Linear
-		1.0f    // fadeAlpha
+		0.0f,
+		1.0f
 	);
 
 	// 안개 구역 외부용 넓은 안개.
@@ -71,15 +71,15 @@ void CDepthFogSystem::ResetState()
 	m_outerWidePreset = base;
 	m_outerWidePreset.fogColor = XMFLOAT4(0.62f, 0.67f, 0.72f, 1.0f);
 	m_outerWidePreset.fogParams0 = XMFLOAT4(
-		300.0f, // fogStart
-		500.0f, // fogEnd
-		0.0f,   // fogDensity
-		1.0f    // fogEnable
+		300.0f,
+		500.0f,
+		0.0f,
+		1.0f
 	);
 	m_outerWidePreset.fogParams1 = XMFLOAT4(
 		1.01f,
 		5000.0f,
-		0.0f,   // 0 = Linear
+		0.0f,
 		1.0f
 	);
 
@@ -129,6 +129,7 @@ void CDepthFogSystem::ReleaseResources()
 
 	m_sceneColorSrvIndex = UINT_MAX;
 	m_sceneDepthSrvIndex = UINT_MAX;
+	m_ambientOcclusionSrvIndex = UINT_MAX;
 
 	ResetState();
 }
@@ -205,6 +206,11 @@ void CDepthFogSystem::SetSourceSrvIndices(UINT sceneColorSrvIndex, UINT sceneDep
 {
 	m_sceneColorSrvIndex = sceneColorSrvIndex;
 	m_sceneDepthSrvIndex = sceneDepthSrvIndex;
+}
+
+void CDepthFogSystem::SetAmbientOcclusionSrvIndex(UINT ambientOcclusionSrvIndex)
+{
+	m_ambientOcclusionSrvIndex = ambientOcclusionSrvIndex;
 }
 
 void CDepthFogSystem::SetFrameResourceIndex(UINT frameResourceIndex)
@@ -309,7 +315,7 @@ void CDepthFogSystem::Render(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 	opt.m_xmu4PostSrvIdx0 = XMUINT4(
 		m_sceneColorSrvIndex,
 		m_sceneDepthSrvIndex,
-		0,
+		m_ambientOcclusionSrvIndex,
 		0
 	);
 

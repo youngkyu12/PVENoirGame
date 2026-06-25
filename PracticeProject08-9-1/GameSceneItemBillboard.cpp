@@ -409,6 +409,7 @@ void CGameScene::BuildItemBillboardBatch(ID3D12Device* dev, ID3D12GraphicsComman
 				item.height = 2.0f;
 				item.yOffset = 2.0f;
 				item.materialId = kTransparentItemBillboardMaterialId;
+				item.position = AdjustItemBillboardPositionToTerrain(item.position);
 				break;
 			default:
 				continue;
@@ -779,14 +780,21 @@ void CGameScene::UpdateItemBillboardPickupCollision()
 				inventory->AddItemCount(item.inventorySlot, 1);
 
 				if ( playerSlot == m_localPlayerSlot )
+				{
 					SyncLocalInventoryToHud();
+
+					if ( m_pAudioManager ) m_pAudioManager->PlaySound2D("Assets/Audio/ItemDrop.wav", false, false, 0.2f, false);
+				}
 			}
+
+			const XMFLOAT3 pickupPosition = item.position;
 
 			item.active = false;
 			item.distanceCulled = true;
 
 			if ( isKeyItem )
 			{
+				if ( m_pAudioManager ) m_pAudioManager->PlaySound3D("Assets/Audio/Key.wav", pickupPosition, false, false, 1.0f, false);
 				MarkMegaGridClearedByNumber(item.megaGridNumber);
 			}
 
@@ -794,7 +802,6 @@ void CGameScene::UpdateItemBillboardPickupCollision()
 		}
 	}
 }
-
 
 void CGameScene::RenderItemBillboards(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
@@ -915,6 +922,23 @@ void CGameScene::RenderTransparentItemBillboards(ID3D12GraphicsCommandList* cmd,
 
 		if ( item.distanceCulled )
 			continue;
+
+		if ( item.kind == EItemBillboardKind::BossSummonCircle ||
+			 item.kind == EItemBillboardKind::BossSummonGlow )
+		{
+#ifdef USING_NETWORK
+			const bool bossSummonVisualVisible =
+				m_serverBossRoomState == 1 ||
+				m_serverBossRoomState == 2 ||
+				m_bBossSummonVisualFadeOutStarted;
+#else
+			const bool bossSummonVisualVisible =
+				m_bBossSummonSequenceStarted ||
+				m_bBossSummonVisualFadeOutStarted;
+#endif
+			if ( !bossSummonVisualVisible )
+				continue;
+		}
 
 		visibleItems.push_back(&item);
 	}

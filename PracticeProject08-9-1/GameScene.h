@@ -15,6 +15,7 @@
 #include "GameSceneHUD.h"
 #include "ShadowMap.h"
 #include "EnemySpawner.h"
+#include "Ssao.h"
 
 #include <unordered_map>
 #include <unordered_set>
@@ -39,8 +40,6 @@ class CHealthComponent;
 class CActorTagComponent;
 class TerrainData;
 class CInventoryComponent;
-class Ssao;
-
 namespace FMOD
 {
 	class Channel;
@@ -128,8 +127,16 @@ struct StaticWorldLodEntry
 	float cullDistance = 1000000.0f;
 };
 
+enum class EStaticOcclusionEntryKind : uint8_t
+{
+	Object = 0,
+	TreeDoorProbe
+};
+
 struct StaticOcclusionEntry
 {
+	EStaticOcclusionEntryKind kind = EStaticOcclusionEntryKind::Object;
+
 	CGameObject* object = nullptr;
 	UINT staticBatchObjectIndex = UINT_MAX;
 
@@ -138,6 +145,9 @@ struct StaticOcclusionEntry
 
 	BoundingOrientedBox worldBounds{};
 	bool hasWorldBounds = false;
+
+	int treeProbeMegaGridNumber = -1;
+	int treeProbeDoorIndex = -1;
 };
 
 struct SkinnedWorldLodEntry
@@ -212,6 +222,45 @@ struct SkinnedComponentCache
 	bool isPlayer = false;
 };
 
+enum class ELogicalMonsterKind : uint8_t
+{
+	Ghoul = 0,
+	SwordMan,
+	BowMan,
+	Mutant,
+	Boss
+};
+
+struct LogicalMonsterState
+{
+	int logicalId = -1;
+	uint64_t serverId = static_cast< uint64_t >( -1 );
+
+	ELogicalMonsterKind kind = ELogicalMonsterKind::Ghoul;
+	int megaGridNumber = -1;
+
+	XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT3 homePosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	float yawDeg = 0.0f;
+
+	int hp = 1;
+	int maxHp = 1;
+
+	bool active = true;
+	bool dead = false;
+
+	bool spawnerEntry = false;
+	bool spawnerConsumed = false;
+
+	bool keyTrigger = false;
+	int keyTriggerMegaGridNumber = -1;
+
+	uint32_t animationStateCode = 0;
+
+	CGameObject* boundObject = nullptr;
+	UINT boundSkinnedBatchObjectIndex = UINT_MAX;
+};
+
 // ============================================================================
 // GameScene
 // ============================================================================
@@ -274,6 +323,7 @@ private:
 	);
 
     void LinkSceneObjects();
+	void ApplyAttachmentCullFromSkinnedOwners(CCamera* camera);
 
 	void UpdateShaderVariables(ID3D12GraphicsCommandList* cmd);
 	void UpdateBossHpGaugeHud();
@@ -281,6 +331,10 @@ private:
 	bool IsBossStageBossAppearFinishedForHud(CGameObject* boss) const;
 	void UpdateFrameRenderState(CCamera* camera);
 	void BindFrameRootParameters(ID3D12GraphicsCommandList* cmd);
+	void BuildSkyBox(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
+	void RenderSkyBox(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	void ReleaseSkyBoxResources();
+	void ReleaseSkyBoxUploadBuffers();
 
 	void BuildStaticInstanceGroups();
 
@@ -300,7 +354,7 @@ private:
 	void BeginStaticOcclusionReadback();
 	void RenderStaticOcclusionPass(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	void ResolveStaticOcclusionQueries(ID3D12GraphicsCommandList* cmd);
-	
+
 	int ComputeStaticWorldLodLevel(const XMFLOAT3& cameraPosition, const StaticWorldLodEntry& entry) const;
 	bool ComputeStaticWorldDistanceCulled(const XMFLOAT3& cameraPosition, const StaticWorldLodEntry& entry) const;
 	void UpdateStaticWorldLodSelection(CCamera* camera);
@@ -518,7 +572,7 @@ private:
 	BossPoisonProjectileEntry* AcquireFreeBossPoisonProjectileEntry();
 
 	CGameObject* FindBossStageBossInMegaGrid(int megaGridNumber) const;
-	
+
 	std::shared_ptr<CMesh> CreateItemBillboardQuadMesh(
 		ID3D12Device* dev,
 		ID3D12GraphicsCommandList* cmd
@@ -558,8 +612,8 @@ private:
 		const XMFLOAT3& cameraPosition,
 		const XMFLOAT3& objectPosition,
 		const SkinnedWorldLodEntry& entry
-	) const; 
-	
+	) const;
+
 	void UpdateSkinnedWorldLodSelection(CCamera* camera);
 	void RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	bool ShouldEvaluateSkinnedPoseThisFrame(UINT objectIndex, CCamera* camera) const;
@@ -581,6 +635,7 @@ public:
 		void Render(ID3D12GraphicsCommandList* cmd, CCamera* camera = nullptr) override;
 		void RenderShadowPrePass(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 		void RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+		void RenderSsao(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 		void RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 		void RebindFrameRenderState(ID3D12GraphicsCommandList* cmd, CCamera* camera);
@@ -614,9 +669,14 @@ public:
 		m_hud.SetInactiveOverlayVisible(visible);
 	}
 
-	void SetDepthFogSourceSrvIndices(UINT sceneColorSrvIndex, UINT sceneDepthSrvIndex)
+	void SetDepthFogSourceSrvIndices(UINT sceneColorSrvIndex, UINT sceneNormalSrvIndex, UINT sceneDepthSrvIndex)
 	{
 		m_depthFog.SetSourceSrvIndices(sceneColorSrvIndex, sceneDepthSrvIndex);
+		mSsaoSceneNormalMapSrvIndex = sceneNormalSrvIndex;
+		mSsaoDepthMapSrvIndex = sceneDepthSrvIndex;
+
+		if ( mSsao )
+			mSsao->SetDepthSrvIndex(sceneDepthSrvIndex);
 	}
 
 	void SetSceneRenderTargets(
@@ -633,6 +693,9 @@ public:
 
 		m_sceneDsvHandle = dsv;
 		m_bSceneRenderTargetsReady = ( m_sceneRenderTargetCount > 0 );
+
+		if ( m_pd3dSsaoDevice )
+			CreateSsaoRtvs(m_pd3dSsaoDevice);
 	}
 
 	void SetDepthFogPassEnabled(bool enabled) { m_depthFog.SetPassEnabled(enabled); }
@@ -655,7 +718,7 @@ public:
 #ifdef USING_NETWORK
 	void ApplyNetworkPredictedTerrainY(CGameObject* obj);
 #endif
-    
+
 	void RequestFireArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f, float yOffset = 0.0f);
 	bool IsLocalPlayerInsideMegaGridCenter() const;
 	bool IsLocalMonsterChaseEnabled() const { return m_bSimulateLocalMonsterChase; }
@@ -746,14 +809,8 @@ private:
 	void InitializeSpatialGrid();
 	void ShutdownSpatialGrid();
 
-	bool TryGetTreeCullReferenceGridCell(
-		CCamera* camera,
-		int& outCellX,
-		int& outCellZ,
-		int& outMegaX,
-		int& outMegaZ) const;
-
-	bool ShouldCullTreesByVillageGrid(CCamera* camera) const;
+	bool ShouldCullTreesByVillageDoorProbes(CCamera* camera) const;
+	bool IsAnyVillageWallTreeCullDoorProbeVisible(int megaGridNumber, CCamera* camera) const;
 
 	void AddDynamicCount(int cellX, int cellZ, EGridDynamicKind kind, int delta);
 	void RegisterStaticPlacementToGrid(const StaticPlacementEntry& placement, CGameObject* obj);
@@ -768,6 +825,9 @@ private:
 
 	void UpdateMegaGrid5DirectionalLightState();
 	void ApplyMegaGrid5DirectionalLightProfile(bool enabled);
+
+	bool ShouldUseBossStageBgm() const;
+	void UpdateBossStageBgmState();
 
 	void UpdateMegaGrid4LowYPoison(float dt);
 	bool IsPlayerInsideMegaGrid4LowYPoisonArea(const CGameObject* player) const;
@@ -815,6 +875,36 @@ private:
 
 	void ResetEnemySpawnerTimedGhoulWaveStates();
 
+	void ResetLogicalMonsterState();
+	int AddLogicalMonster(ELogicalMonsterKind kind, uint64_t serverId, const XMFLOAT3& position, float yawDeg, int maxHp, bool active, bool spawnerEntry = false); 
+	void BuildLogicalMonstersFromCurrentStageData();
+	void RegisterLogicalMutantKeyTriggers();
+	void DisableAllMonsterAIComponents(CGameObject* monster) const;
+	void LinkActualMonsterToLogical(CGameObject* monster, UINT skinnedBatchObjectIndex, int logicalMonsterIndex);
+	int FindLogicalMonsterIndexByObject(const CGameObject* monster) const;
+	int FindUnboundLogicalMonsterForActual(ELogicalMonsterKind kind, uint64_t serverId, const XMFLOAT3& position) const;
+	void SyncLogicalMonsterFromActualObject(CGameObject* monster);
+	std::vector<CGameObject*>* GetLogicalMonsterVisualPool(ELogicalMonsterKind kind);
+	const std::vector<CGameObject*>* GetLogicalMonsterVisualPool(ELogicalMonsterKind kind) const;
+	CGameObject* AcquireFreeLogicalMonsterVisual(ELogicalMonsterKind kind) const;
+	void BuildWantedLogicalMonsterSet(std::vector<int>& outWantedLogicalIndices) const;
+	void ReconcileLogicalMonsterVisualBindings();
+	void BindLogicalMonsterToActualObject(int logicalMonsterIndex, CGameObject* monster);
+	void UnbindActualMonsterFromLogical(CGameObject* monster);
+	void SyncActualMonsterFromLogicalState(CGameObject* monster, int logicalMonsterIndex, bool resetRuntimeState);
+	void UpdateActualMonsterMegaGridBinding(CGameObject* monster, UINT skinnedBatchObjectIndex, int megaGridNumber);
+	void RebuildSceneGridMonsterRefsFromLogicalBindings();
+	void UpdateLogicalMonsterMegaGridIndex(int logicalMonsterIndex, int oldMegaGridNumber);
+
+	ELogicalMonsterKind ConvertEnemySpawnerKindToLogicalKind(EEnemySpawnerEnemyKind kind) const;
+	int FindFreeLogicalSpawnerMonster(int megaGridNumber, EEnemySpawnerEnemyKind kind) const;
+	int PeekLogicalSpawnerEntries(int megaGridNumber, EEnemySpawnerEnemyKind kind, int count, std::vector<EnemySpawnerPreviewEntry>& outEntries) const;
+	CGameObject* ActivateLogicalSpawnerMonster(int logicalMonsterIndex, const XMFLOAT3* overridePosition, const float* overrideYawDeg);
+	CGameObject* SpawnLogicalEnemyAt(int megaGridNumber, EEnemySpawnerEnemyKind kind, const XMFLOAT3& position, float yawDeg);
+	CGameObject* SpawnLogicalPreviewEntry(const EnemySpawnerPreviewEntry& preview);
+	int SpawnLogicalMegaGrid(int megaGridNumber);
+	void ConfigureLogicalSpawnerVisualRuntime(CGameObject* monster, int logicalMonsterIndex);
+
 	void RegisterMonsterToMegaGrid(CGameObject* monster, const XMFLOAT3& spawnPosition, UINT skinnedBatchObjectIndex);
 	int GetLocalPlayerMegaGridNumberForMonsterTick() const;
 	bool ShouldSkipMonsterByMegaGrid(const CGameObject* monster, UINT skinnedBatchObjectIndex, int activeMegaGridNumber) const;
@@ -840,7 +930,7 @@ private:
 		const CColliderComponent* b
 	) const;
 
-	void MarkLocalPlayerEnteredCastleCenterMegaGrid(); 
+	void MarkLocalPlayerEnteredCastleCenterMegaGrid();
 	bool IsLocalPlayerInsideCastleCenterMegaGridFullArea() const;
 	void UpdateCastleCenterMegaGridState();
 
@@ -877,6 +967,11 @@ private:
 
 private:
 	void BuildDepthFogResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
+	void BuildSsaoResources(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd);
+	void CreateSsaoRtvs(ID3D12Device* dev);
+	void ReleaseSsaoResources();
+	void ReleaseSsaoConstantBuffer();
+	void UpdateSsaoCB(CCamera* camera);
 	void RenderDepthFog(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 	bool IsStaticObjectInsideShadowBox(UINT objectIndex) const;
@@ -968,12 +1063,24 @@ private:
 	static constexpr UINT kEnemySpawnerMega5SwordManCount = 10;
 	static constexpr UINT kEnemySpawnerMega5MutantCount = 5;
 
+	static constexpr UINT kMonsterVisualPoolGhoulCount = 320;
+	static constexpr UINT kMonsterVisualPoolBowManCount = 15;
+	static constexpr UINT kMonsterVisualPoolSwordManCount = 15;
+	static constexpr UINT kMonsterVisualPoolMutantCount = 8;
+	static constexpr UINT kMonsterVisualPoolBossCount = 1;
+
 	UINT m_EnemySpawnCount = 0;
 
 	UINT m_EnemySpawnGhoulCount = 0;
 	UINT m_EnemySpawnBowManCount = 0;
 	UINT m_EnemySpawnSwordManCount = 0;
 	UINT m_EnemySpawnMutantCount = 0;
+
+	UINT m_logicalGhoulCount = 0;
+	UINT m_logicalBowManCount = 0;
+	UINT m_logicalSwordManCount = 0;
+	UINT m_logicalMutantCount = 0;
+	UINT m_logicalBossCount = 0;
 
     std::vector<std::unique_ptr<CGameObject>> m_staticObjects;
     std::vector<std::unique_ptr<CGameObject>> m_skinnedObjects;
@@ -1022,7 +1129,7 @@ private:
 
 	static constexpr float kMonsterHpGaugeVisibleDurationSec = 5.0f;
 
-	std::unordered_map<CGameObject*, MonsterHpGaugeRuntimeState> m_monsterHpGaugeRuntimeStates;
+	std::unordered_map<int, MonsterHpGaugeRuntimeState> m_monsterHpGaugeRuntimeStates;
 
 	static constexpr UINT kMuzzleFlashMaxCount = 4096;
 
@@ -1413,7 +1520,7 @@ private:
 	void StartBossSummonVisualFadeOut();
 	void UpdateBossSummonVisualFadeOut(float dt);
 
-	void SetBossStageBossAIEnabled(CGameObject* boss, bool enabled); 
+	void SetBossStageBossAIEnabled(CGameObject* boss, bool enabled);
 	void RegisterBossStageBossOriginalPosition(CGameObject* boss, const XMFLOAT3& originalPosition);
 	void MoveBossStageBossToHiddenPosition(CGameObject* boss);
 	void ScheduleBossStageBossPositionRestore(CGameObject* boss, int delayFrames);
@@ -1453,6 +1560,10 @@ private:
 	std::array<WATER*, kFrameResourceCount> m_pcbMappedWater = {};
 	UINT m_nWaterCBElementBytes = 0;
 
+	std::array<ComPtr<ID3D12Resource>, kFrameResourceCount> m_pd3dcbSsao;
+	std::array<SsaoCB*, kFrameResourceCount> m_pcbMappedSsao = {};
+	UINT m_nSsaoCBElementBytes = 0;
+
 	std::shared_ptr<CTexture> m_waterBaseTexture;
 	std::shared_ptr<CTexture> m_waterDetail0Texture;
 	std::shared_ptr<CTexture> m_waterDetail1Texture;
@@ -1460,6 +1571,25 @@ private:
 	UINT m_waterBaseSrvIndex = UINT_MAX;
 	UINT m_waterDetail0SrvIndex = UINT_MAX;
 	UINT m_waterDetail1SrvIndex = UINT_MAX;
+
+	std::unique_ptr<Ssao> mSsao;
+	std::shared_ptr<CTexture> mSsaoNormalMap;
+	std::shared_ptr<CTexture> mSsaoAmbientMap0;
+	std::shared_ptr<CTexture> mSsaoAmbientMap1;
+	std::shared_ptr<CTexture> mSsaoRandomVectorMap;
+	std::shared_ptr<CSsaoShader> mSsaoShader;
+	std::shared_ptr<CSsaoBlurShader> mSsaoBlurShader;
+
+	UINT mSsaoNormalMapSrvIndex = UINT_MAX;
+	UINT mSsaoSceneNormalMapSrvIndex = UINT_MAX;
+	UINT mSsaoAmbientMap0SrvIndex = UINT_MAX;
+	UINT mSsaoAmbientMap1SrvIndex = UINT_MAX;
+	UINT mSsaoRandomVectorMapSrvIndex = UINT_MAX;
+	UINT mSsaoDepthMapSrvIndex = UINT_MAX;
+	std::array<D3D12_CPU_DESCRIPTOR_HANDLE, 3> mSsaoRtvHandles = {};
+	bool m_bSsaoResourcesReady = false;
+	bool m_bSsaoRtvsReady = false;
+	ID3D12Device* m_pd3dSsaoDevice = nullptr;
 
 	float m_waterAccumulatedTime = 0.0f;
 	float m_waterHeight = -0.01f;
@@ -1497,6 +1627,9 @@ private:
 	static XMFLOAT3 LerpPosition(const XMFLOAT3& a, const XMFLOAT3& b, float t);
 	static float LerpYawDegrees(float a, float b, float t);
 
+	void ApplyNetworkEnemySnapshotToLogicalMonsters(const FrameSnapshot& snapshot, float dt);
+	void ApplyNetworkEnemyVisualSnapshot(CGameObject* monster, int logicalMonsterIndex, const EnemyState& state, float dt);
+
 	struct NetworkActorYState
 	{
 		bool useServerY = false;
@@ -1512,6 +1645,7 @@ private:
 
 	std::unordered_map<uint64_t, uint32_t> m_prevPlayerNetworkStateCode;
 	std::unordered_map<uint64_t, uint32_t> m_prevEnemyNetworkStateCode;
+	std::unordered_map<uint64_t, int>      m_prevPlayerAnimTick;
 	std::unordered_map<uint64_t, NetworkActorYState> m_networkPlayerYStates;
 	std::unordered_map<uint64_t, NetworkActorYState> m_networkEnemyYStates;
 
@@ -1522,10 +1656,25 @@ private:
 		float    speed       = 0.0f;
 		bool     initialized = false;
 	};
+	struct PlayerDRState
+	{
+		XMFLOAT3 predictedPos = {};
+		XMFLOAT3 moveDir     = { 0.0f, 0.0f, 1.0f };
+		float    speed       = 0.0f;
+		bool     initialized = false;
+	};
+	struct ProjectileDRState
+	{
+		XMFLOAT3 predictedPos = {};
+		XMFLOAT3 velocity     = {};
+		bool     initialized  = false;
+	};
 	std::unordered_map<uint64_t, EnemyDRState> m_enemyDRStates;
+	std::unordered_map<uint64_t, PlayerDRState> m_playerDRStates;
+	std::unordered_map<uint64_t, ProjectileDRState> m_projectileDRStates;
 #endif
 
-	int m_playerWeaponDamageTierIndex = 0; 
+	int m_playerWeaponDamageTierIndex = 0;
 	std::unordered_set<CGameObject*> m_deadMonsters;
 
     unique_ptr<CCollisionSystem> m_Collision;
@@ -1553,6 +1702,10 @@ private:
 	std::vector<GridDynamicTracker> m_bulletGridTrackers;
 
 	std::vector<int> m_skinnedMonsterMegaGridNumbers;
+	std::vector<LogicalMonsterState> m_logicalMonsters;
+	std::array<std::vector<int>, CSceneGrid::kMegaGridCount + 1> m_logicalMonsterIndicesByMegaGrid = {};
+	std::unordered_map<uint64_t, int> m_logicalMonsterIndexByServerId;
+	std::unordered_map<CGameObject*, int> m_logicalMonsterIndexByObject;
 
 private:
     bool LoadStaticPlacementFile(const std::string& filePath);
@@ -1631,6 +1784,26 @@ private:
 	std::shared_ptr<CShadowMapSkinnedShader>              m_shadowSkinnedShader;
 	std::shared_ptr<CShadowMapAlphaClipSkinnedShader>     m_shadowAlphaClipSkinnedShader;
 
+	struct SkyBoxVertex
+	{
+		XMFLOAT3 position;
+		XMFLOAT2 uv;
+	};
+
+	struct SkyBoxState
+	{
+		std::shared_ptr<CSkyBoxShader> shader;
+		std::shared_ptr<CTexture> texture;
+		ComPtr<ID3D12Resource> vertexBuffer;
+		ComPtr<ID3D12Resource> vertexUploadBuffer;
+		D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
+		UINT vertexCount = 0;
+		UINT textureBaseSrvIndex = UINT_MAX;
+		CB_GAMEOBJECT_INFO objectCB{};
+	};
+
+	SkyBoxState m_skyBox;
+
 	std::array<int, CGameSceneHUD::kInventorySlotCount> m_inventoryItemCounts = { 0, 0, 0, 0 };
 	std::array<bool, CGameSceneHUD::kInventorySlotCount> m_bPrevInventoryUseKeyDown = { false, false, false, false };
 	std::array<std::array<float, CGameSceneHUD::kInventorySlotCount>, 4> m_inventoryBuffParticleEmitAccumulators = {};
@@ -1645,6 +1818,7 @@ private:
 
 	bool                                m_bInactiveOverlayVisible = false;
 	bool                                m_bStartedGameplayMusic = false;
+	bool                                m_bBossStageBgmActive = false;
 	bool                                m_bWasLocalPlayerInsideMegaGridCenter = false;
 	bool                                m_bShowShadowMapOverlay = true;
 
@@ -1729,7 +1903,7 @@ private:
 		return assetName != "Terrain" &&
 			assetName != "Water" ;
 	}
-	
+
 	void BuildStaticWorldSubmeshOOBBDebugObjects(
 	ID3D12Device* dev,
 	ID3D12GraphicsCommandList* cmd
@@ -1791,6 +1965,10 @@ private:
 
 	int m_bossCallSummonPlanCallIndex = -1;
 	std::vector<EnemySpawnerPreviewEntry> m_bossCallSummonPlanEntries;
+
+#ifdef USING_NETWORK
+	std::unordered_set<uint64_t> m_playedSpawnFxKeys;
+#endif
 
 	bool m_bBossSummonSequenceStarted = false;
 	float m_bBossSummonCircleFadeAgeSec = 0.0f;
@@ -1919,7 +2097,7 @@ private:
 
 	std::unordered_map<CGameObject*, BossMeleeSlashCastState> m_bossMeleeSlashCastStates;
 
-	
+
 	struct BossStageBossPositionState
 	{
 		XMFLOAT3 originalPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);

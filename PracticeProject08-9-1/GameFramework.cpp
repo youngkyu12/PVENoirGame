@@ -77,7 +77,9 @@ bool CGameFramework::OnCreate(HINSTANCE hInstance, HWND hMainWnd)
 	if ( auto* music = m_pAudioManager->GetMusicDirector() )
 	{
 		music->RegisterMusic(EMusicState::Menu, "Assets/Audio/MainMenuBGM_Test.mp3");
+		music->RegisterMusic(EMusicState::Wait, "Assets/Audio/WaitSceneBGM.mp3");
 		music->RegisterMusic(EMusicState::Gameplay, "Assets/Audio/ForestBGMWithBird.wav");
+		music->RegisterMusic(EMusicState::Boss, "Assets/Audio/BossStage.mp3");
 		music->SetCrossFadeSeconds(1.5f);
 	}
 
@@ -498,7 +500,7 @@ void CGameFramework::CreateRtvAndDsvDescriptorHeaps()
 
 	D3D12_DESCRIPTOR_HEAP_DESC d3dDescriptorHeapDesc;
 	::ZeroMemory(&d3dDescriptorHeapDesc, sizeof(D3D12_DESCRIPTOR_HEAP_DESC));
-	d3dDescriptorHeapDesc.NumDescriptors = m_nSwapChainBuffers + 5;
+	d3dDescriptorHeapDesc.NumDescriptors = m_nSwapChainBuffers + 8;
 	d3dDescriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	d3dDescriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	d3dDescriptorHeapDesc.NodeMask = 0;
@@ -990,7 +992,26 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 		gameScene->SetFrameResourceIndex(m_nFrameContextIndex);
 		gameScene->SetDepthFogSourceSrvIndices(
 			m_pPostProcessingShader->GetTexture()->GetSrvIndex(0),
+			m_pPostProcessingShader->GetTexture()->GetSrvIndex(3),
 			m_pPostProcessingShader->GetTexture()->GetSrvIndex(4)
+		);
+
+		D3D12_CPU_DESCRIPTOR_HANDLE sceneRtvs[8] = {};
+		D3D12_CPU_DESCRIPTOR_HANDLE sceneRtvHandle =
+			m_pd3dRtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+		sceneRtvHandle.ptr +=
+			( ::gnRtvDescriptorIncrementSize * m_nSwapChainBuffers );
+
+		for ( UINT i = 0; i < 8; ++i )
+		{
+			sceneRtvs[i] = sceneRtvHandle;
+			sceneRtvHandle.ptr += ::gnRtvDescriptorIncrementSize;
+		}
+
+		gameScene->SetSceneRenderTargets(
+			8,
+			sceneRtvs,
+			m_d3dDsvDescriptorCPUHandle
 		);
 	}
 
@@ -1110,6 +1131,12 @@ void CGameFramework::OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPA
 
 	if (nMessageID == WM_KEYUP)
 	{
+		if ( wParam == VK_F9 )
+		{
+			ChangeSwapChainState();
+			return;
+		}
+
 		if ( wParam == VK_ESCAPE )
 		{
 			if ( dynamic_cast< CGameScene* >( m_SceneManager.GetScene() ) )
@@ -1129,22 +1156,6 @@ void CGameFramework::OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPA
 
 	CScene* scene = m_SceneManager.GetScene();
 	if (scene) scene->OnProcessingKeyboardMessage(hWnd, nMessageID, wParam, lParam);
-
-	switch (nMessageID)
-	{
-	case WM_KEYUP:
-		switch (wParam)
-		{
-		case VK_F9:
-			ChangeSwapChainState();
-			break;
-		default:
-			break;
-		}
-		break;
-	default:
-		break;
-	}
 }
 
 LRESULT CALLBACK CGameFramework::OnProcessingWindowMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam)
@@ -1316,9 +1327,28 @@ void CGameFramework::OnResize(int width, int height)
 		{
 			gameScene->SetDepthFogSourceSrvIndices(
 				m_pPostProcessingShader->GetTexture()->GetSrvIndex(0),
+				m_pPostProcessingShader->GetTexture()->GetSrvIndex(3),
 				m_pPostProcessingShader->GetTexture()->GetSrvIndex(4)
 			);
 		}
+
+		D3D12_CPU_DESCRIPTOR_HANDLE sceneRtvs[8] = {};
+		D3D12_CPU_DESCRIPTOR_HANDLE sceneRtvHandle =
+			m_pd3dRtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+		sceneRtvHandle.ptr +=
+			( ::gnRtvDescriptorIncrementSize * m_nSwapChainBuffers );
+
+		for ( UINT i = 0; i < 8; ++i )
+		{
+			sceneRtvs[i] = sceneRtvHandle;
+			sceneRtvHandle.ptr += ::gnRtvDescriptorIncrementSize;
+		}
+
+		gameScene->SetSceneRenderTargets(
+			8,
+			sceneRtvs,
+			m_d3dDsvDescriptorCPUHandle
+		);
 	}
 
 	if (scene)
@@ -1383,7 +1413,7 @@ void CGameFramework::EnterBorderlessFullscreen()
 
 void CGameFramework::LeaveBorderlessFullscreen()
 {
-	SetWindowLong(m_hWnd, GWL_STYLE, m_dwWindowedStyle);
+	SetWindowLong(m_hWnd, GWL_STYLE, m_dwWindowedStyle | WS_OVERLAPPEDWINDOW);
 	SetWindowPlacement(m_hWnd, &m_WindowedPlacement);
 
 	SetWindowPos(
@@ -1848,15 +1878,26 @@ void CGameFramework::FrameAdvance()
 					m_pPostProcessingShader->GetTexture()->GetTextures()
 				);
 
-				if ( sceneRtvCount > 8 )
-					sceneRtvCount = 8;
+				if ( sceneRtvCount > 5 )
+					sceneRtvCount = 5;
 
 				for ( UINT i = 0; i < sceneRtvCount; ++i )
 					sceneRtvs[i] = m_pPostProcessingShader->GetRtvCPUDescriptorHandle(i);
 			}
 
+			D3D12_CPU_DESCRIPTOR_HANDLE ssaoRtvHandle =
+				m_pd3dRtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+			ssaoRtvHandle.ptr +=
+				( ::gnRtvDescriptorIncrementSize * ( m_nSwapChainBuffers + 5 ) );
+
+			for ( UINT i = 5; i < 8; ++i )
+			{
+				sceneRtvs[i] = ssaoRtvHandle;
+				ssaoRtvHandle.ptr += ::gnRtvDescriptorIncrementSize;
+			}
+
 			gameScene->SetSceneRenderTargets(
-				sceneRtvCount,
+				8,
 				sceneRtvs,
 				m_d3dDsvDescriptorCPUHandle
 			);
@@ -1865,6 +1906,40 @@ void CGameFramework::FrameAdvance()
 			gameScene->RenderShadowPrePass(m_pd3dCommandList.Get(), m_pCamera);
 			gameScene->RebindFrameRenderState(m_pd3dCommandList.Get(), m_pCamera);
 			gameScene->RenderSceneGeometry(m_pd3dCommandList.Get(), m_pCamera);
+
+			if ( m_pPostProcessingShader && m_pPostProcessingShader->GetTexture() )
+			{
+				::SynchronizeResourceTransition(
+					m_pd3dCommandList.Get(),
+					m_pPostProcessingShader->GetTextureResource(3),
+					D3D12_RESOURCE_STATE_RENDER_TARGET,
+					D3D12_RESOURCE_STATE_GENERIC_READ
+				);
+				::SynchronizeResourceTransition(
+					m_pd3dCommandList.Get(),
+					m_pPostProcessingShader->GetTextureResource(4),
+					D3D12_RESOURCE_STATE_RENDER_TARGET,
+					D3D12_RESOURCE_STATE_GENERIC_READ
+				);
+			}
+
+			gameScene->RenderSsao(m_pd3dCommandList.Get(), m_pCamera);
+
+			if ( m_pPostProcessingShader && m_pPostProcessingShader->GetTexture() )
+			{
+				::SynchronizeResourceTransition(
+					m_pd3dCommandList.Get(),
+					m_pPostProcessingShader->GetTextureResource(3),
+					D3D12_RESOURCE_STATE_GENERIC_READ,
+					D3D12_RESOURCE_STATE_RENDER_TARGET
+				);
+				::SynchronizeResourceTransition(
+					m_pd3dCommandList.Get(),
+					m_pPostProcessingShader->GetTextureResource(4),
+					D3D12_RESOURCE_STATE_GENERIC_READ,
+					D3D12_RESOURCE_STATE_RENDER_TARGET
+				);
+			}
 			
 
 			m_pPostProcessingShader->OnPostRenderTarget(m_pd3dCommandList.Get());

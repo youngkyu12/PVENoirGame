@@ -28,6 +28,8 @@ struct CBossAIContext
 	float callStartY         = 0.0f;
 	int   callExecutedCount  = 0;
 
+	bool movedThisUpdate = false;
+
 	bool IsCalling() const
 	{
 		return callRiseElapsed >= 0.0f || callActionElapsed >= 0.0f || callDescendElapsed >= 0.0f;

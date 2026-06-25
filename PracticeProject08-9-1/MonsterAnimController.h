@@ -32,6 +32,9 @@ public:
 	void SetLocomotionState(EMonsterAnimState state) { m_locomotionState = state; }
 	EMonsterAnimState GetLocomotionState() const { return m_locomotionState; }
 
+	void ResetRuntimeState(EMonsterAnimState locomotionState = EMonsterAnimState::Idle);
+	void PlayDeathFromStart();
+	void PlayDeathFinalPose();
 	void RequestCommand(EMonsterAnimCommand cmd);
 	void Update(float dt);
 

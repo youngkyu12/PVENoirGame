@@ -1440,6 +1440,9 @@ class Enemy final :
     kEnemyStateFieldNumber = 3,
     kWeaponTypeFieldNumber = 6,
     kHpFieldNumber = 7,
+    kSpawnFxTypeFieldNumber = 8,
+    kSpawnFxTickFieldNumber = 9,
+    kSpawnFxSerialFieldNumber = 10,
   };
   // .Protocol.Transform transform = 4;
   bool has_transform() const;
@@ -1522,6 +1525,33 @@ class Enemy final :
   void _internal_set_hp(::PROTOBUF_NAMESPACE_ID::uint32 value);
   public:
 
+  // uint32 spawnFxType = 8;
+  void clear_spawnfxtype();
+  ::PROTOBUF_NAMESPACE_ID::uint32 spawnfxtype() const;
+  void set_spawnfxtype(::PROTOBUF_NAMESPACE_ID::uint32 value);
+  private:
+  ::PROTOBUF_NAMESPACE_ID::uint32 _internal_spawnfxtype() const;
+  void _internal_set_spawnfxtype(::PROTOBUF_NAMESPACE_ID::uint32 value);
+  public:
+
+  // uint32 spawnFxTick = 9;
+  void clear_spawnfxtick();
+  ::PROTOBUF_NAMESPACE_ID::uint32 spawnfxtick() const;
+  void set_spawnfxtick(::PROTOBUF_NAMESPACE_ID::uint32 value);
+  private:
+  ::PROTOBUF_NAMESPACE_ID::uint32 _internal_spawnfxtick() const;
+  void _internal_set_spawnfxtick(::PROTOBUF_NAMESPACE_ID::uint32 value);
+  public:
+
+  // uint32 spawnFxSerial = 10;
+  void clear_spawnfxserial();
+  ::PROTOBUF_NAMESPACE_ID::uint32 spawnfxserial() const;
+  void set_spawnfxserial(::PROTOBUF_NAMESPACE_ID::uint32 value);
+  private:
+  ::PROTOBUF_NAMESPACE_ID::uint32 _internal_spawnfxserial() const;
+  void _internal_set_spawnfxserial(::PROTOBUF_NAMESPACE_ID::uint32 value);
+  public:
+
   // @@protoc_insertion_point(class_scope:Protocol.Enemy)
  private:
   class _Internal;
@@ -1536,6 +1566,9 @@ class Enemy final :
   int enemystate_;
   int weapontype_;
   ::PROTOBUF_NAMESPACE_ID::uint32 hp_;
+  ::PROTOBUF_NAMESPACE_ID::uint32 spawnfxtype_;
+  ::PROTOBUF_NAMESPACE_ID::uint32 spawnfxtick_;
+  ::PROTOBUF_NAMESPACE_ID::uint32 spawnfxserial_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_Struct_2eproto;
 };
@@ -3161,6 +3194,66 @@ inline void Enemy::_internal_set_hp(::PROTOBUF_NAMESPACE_ID::uint32 value) {
 inline void Enemy::set_hp(::PROTOBUF_NAMESPACE_ID::uint32 value) {
   _internal_set_hp(value);
   // @@protoc_insertion_point(field_set:Protocol.Enemy.hp)
+}
+
+// uint32 spawnFxType = 8;
+inline void Enemy::clear_spawnfxtype() {
+  spawnfxtype_ = 0u;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint32 Enemy::_internal_spawnfxtype() const {
+  return spawnfxtype_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint32 Enemy::spawnfxtype() const {
+  // @@protoc_insertion_point(field_get:Protocol.Enemy.spawnFxType)
+  return _internal_spawnfxtype();
+}
+inline void Enemy::_internal_set_spawnfxtype(::PROTOBUF_NAMESPACE_ID::uint32 value) {
+  
+  spawnfxtype_ = value;
+}
+inline void Enemy::set_spawnfxtype(::PROTOBUF_NAMESPACE_ID::uint32 value) {
+  _internal_set_spawnfxtype(value);
+  // @@protoc_insertion_point(field_set:Protocol.Enemy.spawnFxType)
+}
+
+// uint32 spawnFxTick = 9;
+inline void Enemy::clear_spawnfxtick() {
+  spawnfxtick_ = 0u;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint32 Enemy::_internal_spawnfxtick() const {
+  return spawnfxtick_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint32 Enemy::spawnfxtick() const {
+  // @@protoc_insertion_point(field_get:Protocol.Enemy.spawnFxTick)
+  return _internal_spawnfxtick();
+}
+inline void Enemy::_internal_set_spawnfxtick(::PROTOBUF_NAMESPACE_ID::uint32 value) {
+  
+  spawnfxtick_ = value;
+}
+inline void Enemy::set_spawnfxtick(::PROTOBUF_NAMESPACE_ID::uint32 value) {
+  _internal_set_spawnfxtick(value);
+  // @@protoc_insertion_point(field_set:Protocol.Enemy.spawnFxTick)
+}
+
+// uint32 spawnFxSerial = 10;
+inline void Enemy::clear_spawnfxserial() {
+  spawnfxserial_ = 0u;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint32 Enemy::_internal_spawnfxserial() const {
+  return spawnfxserial_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint32 Enemy::spawnfxserial() const {
+  // @@protoc_insertion_point(field_get:Protocol.Enemy.spawnFxSerial)
+  return _internal_spawnfxserial();
+}
+inline void Enemy::_internal_set_spawnfxserial(::PROTOBUF_NAMESPACE_ID::uint32 value) {
+  
+  spawnfxserial_ = value;
+}
+inline void Enemy::set_spawnfxserial(::PROTOBUF_NAMESPACE_ID::uint32 value) {
+  _internal_set_spawnfxserial(value);
+  // @@protoc_insertion_point(field_set:Protocol.Enemy.spawnFxSerial)
 }
 
 // -------------------------------------------------------------------

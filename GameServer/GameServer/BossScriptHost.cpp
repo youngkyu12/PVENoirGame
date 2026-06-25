@@ -161,7 +161,17 @@ static int lua_boss_move_towards_player(lua_State* L)
 	if (nz <  300.0f) nz =  300.0f;
 	if (nz >  500.0f) nz =  500.0f;
 
+	const float moveX = nx - bPos.x;
+	const float moveZ = nz - bPos.z;
+	const float moveLen = std::sqrt(moveX * moveX + moveZ * moveZ);
+
 	boss->SetPosition(nx, bPos.y, nz);
+	if (moveLen > 0.001f)
+	{
+		boss->SetAnimState(Protocol::ANIMATION_TYPE_RUN);
+		boss->SetLastMoveDir(GameMath::Vec3(moveX / moveLen, 0.0f, moveZ / moveLen));
+		ctx->movedThisUpdate = true;
+	}
 	return 0;
 }
 
