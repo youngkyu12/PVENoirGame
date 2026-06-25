@@ -9431,12 +9431,10 @@ void CGameScene::ApplyNetworkEnemyVisualSnapshot(CGameObject* monster, int logic
 
 	if ( IsBossMonsterObject(monster) && bossSnapshotShouldRender )
 	{
-		if ( !monster->GetActive() || !IsBossStageBossRenderAllowed(monster) )
+		if ( !m_bBossStageBossActivated )
 		{
-			SetBossStageBossActive(monster, true, false);
-			m_bBossStageBossActivated = true;
-			m_bBossSummonSequenceStarted = false;
-			m_pendingBossStageBoss = nullptr;
+			m_pendingBossStageBoss = monster;
+			TryActivateBossStageBoss();
 		}
 	}
 
@@ -9448,7 +9446,13 @@ void CGameScene::ApplyNetworkEnemyVisualSnapshot(CGameObject* monster, int logic
 
 	if ( auto* collider = monster->GetComponent<CColliderComponent>() )
 	{
-		const bool collisionEnabled = logical.active && !logical.dead && logical.hp > 0;
+		const bool bossWaitingForAppearRender =
+			IsBossMonsterObject(monster) &&
+			m_bBossStageBossActivated &&
+			!IsBossStageBossRenderAllowed(monster);
+		const bool collisionEnabled =
+			logical.active && !logical.dead && logical.hp > 0 &&
+			!bossWaitingForAppearRender;
 		collider->CancelDeferredDisable();
 		collider->SetEnabled(collisionEnabled);
 		collider->SetCollisionEnabled(collisionEnabled);
