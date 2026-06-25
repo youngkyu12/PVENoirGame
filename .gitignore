@@ -106,6 +106,10 @@ bld/
 [Ll]og/
 [Ll]ogs/
 !Common/Protobuf/bin/
+!Libraries/Libs/Protobuf/
+!Libraries/Libs/Protobuf/Release/
+!Libraries/Libs/Protobuf/Release/libprotobuf.lib
+!Libraries/Libs/Protobuf/Release/libprotobuf.dll
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/
