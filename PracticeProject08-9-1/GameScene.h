@@ -1967,6 +1967,11 @@ private:
 	std::vector<EnemySpawnerPreviewEntry> m_bossCallSummonPlanEntries;
 
 #ifdef USING_NETWORK
+	int m_networkBossCallIndex = 0;
+	int m_networkBossCallPendingSummonEffects = 0;
+	float m_networkBossCallSummonEffectWindowSec = 0.0f;
+	std::unordered_set<uint64_t> m_networkBossCallSummonEffectEnemyIds;
+	std::unordered_map<uint64_t, XMFLOAT3> m_prevNetworkEnemyPositions;
 	std::unordered_set<uint64_t> m_playedSpawnFxKeys;
 #endif
 

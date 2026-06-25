@@ -181,7 +181,7 @@ void CGameScene::BuildLogicalMonstersFromCurrentStageData()
 			break;
 		}
 
-		AddLogicalMonster(kind, enemyState.id, enemyState.position, enemyState.yaw, maxHp, true);
+		AddLogicalMonster(kind, enemyState.id, enemyState.position, enemyState.yaw, maxHp, false);
 	}
 #else
 	auto AddPlacedLogicalMonsters = [ this ] (const char* typeName, ELogicalMonsterKind kind, int maxHp)
