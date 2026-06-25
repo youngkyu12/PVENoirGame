@@ -64,6 +64,9 @@ struct EnemyState
     float       yaw = 0.0f;
     AnimationState animation{};
     EWeaponType weaponType = EWeaponType::None;
+    uint32_t    spawnFxType = 0;
+    uint32_t    spawnFxTick = 0;
+    uint32_t    spawnFxSerial = 0;
 };
 
 // ============================================================
@@ -184,7 +187,7 @@ public:
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         if (m_messages.empty()) return false;
-		
+
 		// 큐가 빌 때까지 전부 뽑아서, 마지막 값을 적용하는 방식으로 변경함
 		// 만약 이전 시기의 데이터를 사용해야 하는 상황을 위해 큐 형태 자체는 남겨놓는다
 		while ( !m_messages.empty() )

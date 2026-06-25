@@ -111,8 +111,8 @@ namespace
 
 	static GameMath::Vec3 GetInitialPlayerSpawnPosition(uint64 playerId)
 	{
-		constexpr float kBaseZ = 1.2f;
-		constexpr float kSpacingX = 4.0f;
+		constexpr float kBaseZ = -150.0f;
+		constexpr float kSpacingX = 2.0f;
 		return GameMath::Vec3(static_cast<float>(playerId) * kSpacingX, 0.0f, kBaseZ);
 	}
 
@@ -200,12 +200,15 @@ void Room::Enter(PlayerRef player)
 	}
 
 	player->Build();
-	player->SetPosition(SnapToTerrainIfBelow(GetInitialPlayerSpawnPosition(player->playerId)));
+	const GameMath::Vec3 initialSpawnPosition =
+		SnapToTerrainIfBelow(GetInitialPlayerSpawnPosition(player->playerId));
+	player->SetInitialSpawnPosition(initialSpawnPosition);
+	player->SetPosition(initialSpawnPosition);
 	player->SetMaxHp(kHpPlayer);
 
 	// life-state 초기 정상화
 	player->OnRespawnEnter(GetAnimClockTick()); // 위치를 내부에서 덮어쓰면 아래 순서 조정 필요
-	player->SetPosition(SnapToTerrainIfBelow(GetInitialPlayerSpawnPosition(player->playerId)));
+	player->SetPosition(initialSpawnPosition);
 
 	player->SetWeapon(
 		static_cast<Protocol::WeaponType>(player->playerId + 1), 0);
@@ -595,6 +598,19 @@ void Room::BuildRoom()
 	InitializeItems();
 }
 
+void Room::SetPlayerLobbyWeapon(uint32 index, uint32 playerWeapon)
+{
+	auto playerIt = players.find(index);
+	if (playerIt == players.end()) return;
+
+	if (playerWeapon >= Protocol::WEAPON_TYPE_SWORD &&
+		playerWeapon <= Protocol::WEAPON_TYPE_CANON)
+	{
+		playerIt->second->SetWeapon(
+			static_cast<Protocol::WeaponType>(playerWeapon), 0);
+	}
+}
+
 void Room::StartGame(bool ready, uint32 index)
 {
 	if (players.find(index) == players.end()) return;
@@ -851,6 +867,21 @@ void Room::OnMonsterDeath(uint64 enemyId)
 		if (megaGrid == 6 || megaGrid == 8)
 		{
 			m_keyPickupUnlockedByMegaGrid[static_cast<size_t>(megaGrid)] = true;
+			for (int ki = 0; ki < kKeyCount; ++ki)
+			{
+				if (kKeyPositions[ki].megaGridIndex + 1 != megaGrid) continue;
+				for (auto& item : m_items)
+				{
+					if (item.kind != Protocol::ITEM_TYPE_KEY) continue;
+					if (std::abs(item.position.x - kKeyPositions[ki].x) < 0.1f &&
+						std::abs(item.position.z - kKeyPositions[ki].z) < 0.1f)
+					{
+						item.active = true;
+						break;
+					}
+				}
+				break;
+			}
 			cout << "[Key Unlock] MegaGrid " << megaGrid
 				<< " unlocked by enemy " << enemyId << " death" << endl;
 		}
@@ -884,18 +915,124 @@ void Room::DebugKillMega5Enemies()
 	}
 }
 
-void Room::DebugTeleportToMegaGrid(uint64 playerId, int megaGridNumber)
+void Room::DebugTeleportPlayersToMegaGrid(int megaGridNumber)
 {
-	auto it = players.find(playerId);
-	if (it == players.end() || !it->second) return;
+	if (megaGridNumber < 1 || megaGridNumber > kMegaGridCount)
+		return;
 
-	float minX, maxX, minZ, maxZ;
-	if (!GetMegaGridCenterMovementBounds(megaGridNumber, minX, maxX, minZ, maxZ)) return;
+	GameMath::Vec3 base = GameMath::Vec3::Zero();
+	GameMath::Vec3 forward(0.0f, 0.0f, 1.0f);
 
-	float cx = (minX + maxX) * 0.5f;
-	float cz = (minZ + maxZ) * 0.5f;
-	auto pos = it->second->GetPosition();
-	it->second->SetPosition(cx, pos.y, cz);
-	cout << "[Debug] Player " << playerId << " teleported to MegaGrid " << megaGridNumber
-		<< " (" << cx << ", " << cz << ")" << endl;
+	if (megaGridNumber == 5)
+	{
+		base = GameMath::Vec3(0.0f, 0.0f, 300.0f);
+		forward = GameMath::Vec3(0.0f, 0.0f, 1.0f);
+	}
+	else
+	{
+		int wall = 2;
+		switch (megaGridNumber)
+		{
+		case 1:
+		case 4:
+		case 7:
+			wall = 1;
+			forward = GameMath::Vec3(-1.0f, 0.0f, 0.0f);
+			break;
+		case 3:
+		case 6:
+		case 9:
+			wall = 0;
+			forward = GameMath::Vec3(1.0f, 0.0f, 0.0f);
+			break;
+		case 2:
+			wall = 3;
+			forward = GameMath::Vec3(0.0f, 0.0f, -1.0f);
+			break;
+		case 8:
+			wall = 2;
+			forward = GameMath::Vec3(0.0f, 0.0f, 1.0f);
+			break;
+		default:
+			break;
+		}
+
+		constexpr int kDebugTeleportDoorSlot = 2;
+		constexpr float kDebugTeleportDoorInsideOffset = 8.0f;
+		base = ComputeSpawnerDoorPosition(megaGridNumber, wall, kDebugTeleportDoorSlot) +
+			forward * kDebugTeleportDoorInsideOffset;
+	}
+
+	const GameMath::Vec3 right(forward.z, 0.0f, -forward.x);
+	const float yaw = GameMath::NormalizeYaw(
+		atan2f(forward.x, forward.z) * GameMath::RAD_TO_DEG);
+	const int playerCount = static_cast<int>(players.size());
+	if (playerCount <= 0)
+		return;
+
+	auto ResolveClearDestination = [&](const PlayerRef& player, const GameMath::Vec3& desired) -> GameMath::Vec3
+		{
+			auto* collider = player ? player->GetComponent<CColliderComponent>() : nullptr;
+			if (!player || !collider)
+				return SnapToTerrainIfBelow(desired);
+
+			const GameMath::Vec3 restore = player->GetPosition();
+			constexpr float kStep = 2.0f;
+			for (int i = 0; i < 5; ++i)
+			{
+				const GameMath::Vec3 candidate =
+					SnapToTerrainIfBelow(desired + forward * (static_cast<float>(i) * kStep));
+				player->SetPosition(candidate);
+				collider->OnUpdate(0.0f);
+				if (!HasCollisionWithNearbyWorldStatic(collider))
+				{
+					player->SetPosition(restore);
+					collider->OnUpdate(0.0f);
+					return candidate;
+				}
+			}
+
+			player->SetPosition(restore);
+			collider->OnUpdate(0.0f);
+			return SnapToTerrainIfBelow(desired);
+		};
+
+	std::vector<PlayerRef> teleportedPlayers;
+	teleportedPlayers.reserve(players.size());
+
+	int slot = 0;
+	for (auto& [pid, player] : players)
+	{
+		if (!player) continue;
+
+		const float centeredSlot =
+			static_cast<float>(slot) -
+			static_cast<float>(playerCount - 1) * 0.5f;
+		const GameMath::Vec3 desired =
+			base + right * (centeredSlot * 2.0f);
+		const GameMath::Vec3 destination =
+			ResolveClearDestination(player, desired);
+
+		player->SetVelocity(GameMath::Vec3::Zero());
+		player->ClearMoveKeyCodes();
+		player->ClearPendingPortalTeleport();
+		player->ClearPendingForcedTransform();
+		player->SetTerrainSnapSuppressed(false);
+		player->SetPosition(destination);
+		player->SetYaw(yaw);
+
+		if (auto* collider = player->GetComponent<CColliderComponent>())
+			collider->OnUpdate(0.0f);
+
+		teleportedPlayers.push_back(player);
+		++slot;
+	}
+
+	UpdateDynamicGridState();
+	for (const PlayerRef& player : teleportedPlayers)
+		WakeEnemiesNearPlayer(player);
+
+	cout << "[Debug] Teleported " << teleportedPlayers.size()
+		<< " players to MegaGrid " << megaGridNumber
+		<< " near entry (" << base.x << ", " << base.z << ")" << endl;
 }

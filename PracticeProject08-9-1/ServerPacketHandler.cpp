@@ -111,6 +111,9 @@ bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
 		state.position = XMFLOAT3(position.x(), position.y(), position.z());
 		state.yaw = yaw;
 		state.weaponType = static_cast<EWeaponType>(enemy.weapontype() - 1);
+		state.spawnFxType = enemy.spawnfxtype();
+		state.spawnFxTick = enemy.spawnfxtick();
+		state.spawnFxSerial = enemy.spawnfxserial();
 
 		data.enemies.push_back(std::move(state));
 	}
@@ -201,6 +204,9 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 		state.yaw = yaw;
 		state.animation = animState;
 		state.weaponType = eweaponType;
+		state.spawnFxType = enemy.spawnfxtype();
+		state.spawnFxTick = enemy.spawnfxtick();
+		state.spawnFxSerial = enemy.spawnfxserial();
 
 		data.enemies.push_back(std::move(state));
 	}

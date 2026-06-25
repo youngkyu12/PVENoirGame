@@ -54,6 +54,7 @@ public:
 	);
 
 	void SetSourceSrvIndices(UINT sceneColorSrvIndex, UINT sceneDepthSrvIndex);
+	void SetAmbientOcclusionSrvIndex(UINT ambientOcclusionSrvIndex);
 	void SetFrameResourceIndex(UINT frameResourceIndex);
 	void SetPassEnabled(bool enabled) { m_passEnabled = enabled; }
 	bool IsPassEnabled() const { return m_passEnabled; }
@@ -93,6 +94,7 @@ private:
 
 	UINT m_sceneColorSrvIndex = UINT_MAX;
 	UINT m_sceneDepthSrvIndex = UINT_MAX;
+	UINT m_ambientOcclusionSrvIndex = UINT_MAX;
 
 	float m_screenWidth = FRAME_BUFFER_WIDTH;
 	float m_screenHeight = FRAME_BUFFER_HEIGHT;

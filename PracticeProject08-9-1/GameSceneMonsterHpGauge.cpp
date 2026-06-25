@@ -207,32 +207,26 @@ void CGameScene::UpdateMonsterHpGaugeTimers(float dt)
 	if ( dt < 0.0f )
 		dt = 0.0f;
 
-	std::unordered_set<CGameObject*> validMonsterObjects;
+	std::unordered_set<int> validLogicalIndices;
 
-	for ( const SkinnedWorldLodEntry& entry : m_skinnedWorldLodEntries )
+	for ( int logicalIndex = 0; logicalIndex < static_cast< int >(m_logicalMonsters.size()); ++logicalIndex )
 	{
-		CGameObject* monster = entry.object;
+		const LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalIndex)];
 
-		if ( !monster )
+		if ( !logical.active )
 			continue;
 
-		float yOffset = 0.0f;
-		float maxWidth = 0.0f;
-		float height = 0.0f;
-
-		if ( !GetMonsterHpGaugeDesc(entry, yOffset, maxWidth, height) )
+		if ( logical.kind == ELogicalMonsterKind::Boss )
 			continue;
 
-		validMonsterObjects.insert(monster);
-
-		const CHealthComponent* health = monster->GetComponent<CHealthComponent>();
-
-		if ( !health )
+		if ( logical.maxHp <= 0 )
 			continue;
 
-		const int currentHp = health->GetCurrentHp();
+		validLogicalIndices.insert(logicalIndex);
 
-		MonsterHpGaugeRuntimeState& state = m_monsterHpGaugeRuntimeStates[monster];
+		const int currentHp = std::clamp(logical.hp, 0, logical.maxHp);
+
+		MonsterHpGaugeRuntimeState& state = m_monsterHpGaugeRuntimeStates[logicalIndex];
 
 		if ( state.previousHp < 0 )
 		{
@@ -245,7 +239,7 @@ void CGameScene::UpdateMonsterHpGaugeTimers(float dt)
 		{
 			state.visibleTimerSec = kMonsterHpGaugeVisibleDurationSec;
 		}
-		else if ( currentHp > state.previousHp )
+		else if ( currentHp <= 0 || currentHp > state.previousHp )
 		{
 			state.visibleTimerSec = 0.0f;
 		}
@@ -263,7 +257,7 @@ void CGameScene::UpdateMonsterHpGaugeTimers(float dt)
 
 	for ( auto it = m_monsterHpGaugeRuntimeStates.begin(); it != m_monsterHpGaugeRuntimeStates.end(); )
 	{
-		if ( validMonsterObjects.find(it->first) == validMonsterObjects.end() )
+		if ( validLogicalIndices.find(it->first) == validLogicalIndices.end() )
 			it = m_monsterHpGaugeRuntimeStates.erase(it);
 		else
 			++it;
@@ -305,6 +299,9 @@ bool CGameScene::IsSkinnedMonsterHpGaugeRenderAllowed(const SkinnedWorldLodEntry
 	if ( !entry.object )
 		return false;
 
+	if ( !entry.object->GetActive() )
+		return false;
+
 	float yOffset = 0.0f;
 	float maxWidth = 0.0f;
 	float height = 0.0f;
@@ -312,7 +309,23 @@ bool CGameScene::IsSkinnedMonsterHpGaugeRenderAllowed(const SkinnedWorldLodEntry
 	if ( !GetMonsterHpGaugeDesc(entry, yOffset, maxWidth, height) )
 		return false;
 
-	const auto timerIt = m_monsterHpGaugeRuntimeStates.find(entry.object);
+	const int logicalIndex = FindLogicalMonsterIndexByObject(entry.object);
+
+	if ( logicalIndex < 0 || logicalIndex >= static_cast< int >(m_logicalMonsters.size()) )
+		return false;
+
+	const LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalIndex)];
+
+	if ( logical.boundObject != entry.object )
+		return false;
+
+	if ( !logical.active )
+		return false;
+
+	if ( logical.dead || logical.hp <= 0 || logical.maxHp <= 0 )
+		return false;
+
+	const auto timerIt = m_monsterHpGaugeRuntimeStates.find(logicalIndex);
 
 	if ( timerIt == m_monsterHpGaugeRuntimeStates.end() )
 		return false;
@@ -332,14 +345,6 @@ bool CGameScene::IsSkinnedMonsterHpGaugeRenderAllowed(const SkinnedWorldLodEntry
 	const XMFLOAT3 objectPos = entry.object->GetPosition();
 
 	if ( objectPos.y < -50.0f )
-		return false;
-
-	const CHealthComponent* health = entry.object->GetComponent<CHealthComponent>();
-
-	if ( !health )
-		return false;
-
-	if ( health->GetCurrentHp() <= 0 || health->GetMaxHp() <= 0 )
 		return false;
 
 	return true;
@@ -391,12 +396,17 @@ void CGameScene::RenderMonsterHpGauges(ID3D12GraphicsCommandList* cmd, CCamera* 
 		if ( !GetMonsterHpGaugeDesc(entry, yOffset, maxWidth, height) )
 			continue;
 
-		const CHealthComponent* health = entry.object->GetComponent<CHealthComponent>();
+		const int logicalIndex = FindLogicalMonsterIndexByObject(entry.object);
 
-		if ( !health )
+		if ( logicalIndex < 0 || logicalIndex >= static_cast< int >(m_logicalMonsters.size()) )
 			continue;
 
-		const float hpRatio = health->GetHpRatio();
+		const LogicalMonsterState& logical = m_logicalMonsters[static_cast< size_t >(logicalIndex)];
+
+		if ( logical.maxHp <= 0 )
+			continue;
+
+		const float hpRatio = std::clamp(static_cast< float >(logical.hp) / static_cast< float >(logical.maxHp), 0.0f, 1.0f);
 
 		if ( hpRatio <= 0.0f )
 			continue;
