@@ -145,9 +145,8 @@ bool Handle_C_DEBUG_COMMAND(PacketSessionRef& session, Protocol::C_DEBUG_COMMAND
 		GameSessionRef gameSession = static_pointer_cast<GameSession>(session);
 		if (gameSession->_currentPlayer)
 		{
-			uint64 pid = gameSession->_currentPlayer->GetObjectId();
 			int grid = pkt.megagridnumber();
-			GRoom->DoAsync(&Room::DebugTeleportToMegaGrid, pid, grid);
+			GRoom->DoAsync(&Room::DebugTeleportPlayersToMegaGrid, grid);
 		}
 	}
 	else if (pkt.commandtype() == Protocol::DEBUG_COMMAND_DAMAGE_BOSS)

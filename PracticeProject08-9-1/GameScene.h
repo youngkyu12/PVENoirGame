@@ -354,7 +354,7 @@ private:
 	void BeginStaticOcclusionReadback();
 	void RenderStaticOcclusionPass(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	void ResolveStaticOcclusionQueries(ID3D12GraphicsCommandList* cmd);
-	
+
 	int ComputeStaticWorldLodLevel(const XMFLOAT3& cameraPosition, const StaticWorldLodEntry& entry) const;
 	bool ComputeStaticWorldDistanceCulled(const XMFLOAT3& cameraPosition, const StaticWorldLodEntry& entry) const;
 	void UpdateStaticWorldLodSelection(CCamera* camera);
@@ -572,7 +572,7 @@ private:
 	BossPoisonProjectileEntry* AcquireFreeBossPoisonProjectileEntry();
 
 	CGameObject* FindBossStageBossInMegaGrid(int megaGridNumber) const;
-	
+
 	std::shared_ptr<CMesh> CreateItemBillboardQuadMesh(
 		ID3D12Device* dev,
 		ID3D12GraphicsCommandList* cmd
@@ -612,8 +612,8 @@ private:
 		const XMFLOAT3& cameraPosition,
 		const XMFLOAT3& objectPosition,
 		const SkinnedWorldLodEntry& entry
-	) const; 
-	
+	) const;
+
 	void UpdateSkinnedWorldLodSelection(CCamera* camera);
 	void RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 	bool ShouldEvaluateSkinnedPoseThisFrame(UINT objectIndex, CCamera* camera) const;
@@ -718,7 +718,7 @@ public:
 #ifdef USING_NETWORK
 	void ApplyNetworkPredictedTerrainY(CGameObject* obj);
 #endif
-    
+
 	void RequestFireArrow(CGameObject* shooter, float speed, float lifeSec = 3.0f, float yOffset = 0.0f);
 	bool IsLocalPlayerInsideMegaGridCenter() const;
 	bool IsLocalMonsterChaseEnabled() const { return m_bSimulateLocalMonsterChase; }
@@ -930,7 +930,7 @@ private:
 		const CColliderComponent* b
 	) const;
 
-	void MarkLocalPlayerEnteredCastleCenterMegaGrid(); 
+	void MarkLocalPlayerEnteredCastleCenterMegaGrid();
 	bool IsLocalPlayerInsideCastleCenterMegaGridFullArea() const;
 	void UpdateCastleCenterMegaGridState();
 
@@ -1520,7 +1520,7 @@ private:
 	void StartBossSummonVisualFadeOut();
 	void UpdateBossSummonVisualFadeOut(float dt);
 
-	void SetBossStageBossAIEnabled(CGameObject* boss, bool enabled); 
+	void SetBossStageBossAIEnabled(CGameObject* boss, bool enabled);
 	void RegisterBossStageBossOriginalPosition(CGameObject* boss, const XMFLOAT3& originalPosition);
 	void MoveBossStageBossToHiddenPosition(CGameObject* boss);
 	void ScheduleBossStageBossPositionRestore(CGameObject* boss, int delayFrames);
@@ -1674,7 +1674,7 @@ private:
 	std::unordered_map<uint64_t, ProjectileDRState> m_projectileDRStates;
 #endif
 
-	int m_playerWeaponDamageTierIndex = 0; 
+	int m_playerWeaponDamageTierIndex = 0;
 	std::unordered_set<CGameObject*> m_deadMonsters;
 
     unique_ptr<CCollisionSystem> m_Collision;
@@ -1903,7 +1903,7 @@ private:
 		return assetName != "Terrain" &&
 			assetName != "Water" ;
 	}
-	
+
 	void BuildStaticWorldSubmeshOOBBDebugObjects(
 	ID3D12Device* dev,
 	ID3D12GraphicsCommandList* cmd
@@ -1967,11 +1967,7 @@ private:
 	std::vector<EnemySpawnerPreviewEntry> m_bossCallSummonPlanEntries;
 
 #ifdef USING_NETWORK
-	int m_networkBossCallIndex = 0;
-	int m_networkBossCallPendingSummonEffects = 0;
-	float m_networkBossCallSummonEffectWindowSec = 0.0f;
-	std::unordered_set<uint64_t> m_networkBossCallSummonEffectEnemyIds;
-	std::unordered_map<uint64_t, XMFLOAT3> m_prevNetworkEnemyPositions;
+	std::unordered_set<uint64_t> m_playedSpawnFxKeys;
 #endif
 
 	bool m_bBossSummonSequenceStarted = false;
@@ -2101,7 +2097,7 @@ private:
 
 	std::unordered_map<CGameObject*, BossMeleeSlashCastState> m_bossMeleeSlashCastStates;
 
-	
+
 	struct BossStageBossPositionState
 	{
 		XMFLOAT3 originalPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);

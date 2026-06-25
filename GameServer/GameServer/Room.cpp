@@ -915,18 +915,124 @@ void Room::DebugKillMega5Enemies()
 	}
 }
 
-void Room::DebugTeleportToMegaGrid(uint64 playerId, int megaGridNumber)
+void Room::DebugTeleportPlayersToMegaGrid(int megaGridNumber)
 {
-	auto it = players.find(playerId);
-	if (it == players.end() || !it->second) return;
+	if (megaGridNumber < 1 || megaGridNumber > kMegaGridCount)
+		return;
 
-	float minX, maxX, minZ, maxZ;
-	if (!GetMegaGridCenterMovementBounds(megaGridNumber, minX, maxX, minZ, maxZ)) return;
+	GameMath::Vec3 base = GameMath::Vec3::Zero();
+	GameMath::Vec3 forward(0.0f, 0.0f, 1.0f);
 
-	float cx = (minX + maxX) * 0.5f;
-	float cz = (minZ + maxZ) * 0.5f;
-	auto pos = it->second->GetPosition();
-	it->second->SetPosition(cx, pos.y, cz);
-	cout << "[Debug] Player " << playerId << " teleported to MegaGrid " << megaGridNumber
-		<< " (" << cx << ", " << cz << ")" << endl;
+	if (megaGridNumber == 5)
+	{
+		base = GameMath::Vec3(0.0f, 0.0f, 300.0f);
+		forward = GameMath::Vec3(0.0f, 0.0f, 1.0f);
+	}
+	else
+	{
+		int wall = 2;
+		switch (megaGridNumber)
+		{
+		case 1:
+		case 4:
+		case 7:
+			wall = 1;
+			forward = GameMath::Vec3(-1.0f, 0.0f, 0.0f);
+			break;
+		case 3:
+		case 6:
+		case 9:
+			wall = 0;
+			forward = GameMath::Vec3(1.0f, 0.0f, 0.0f);
+			break;
+		case 2:
+			wall = 3;
+			forward = GameMath::Vec3(0.0f, 0.0f, -1.0f);
+			break;
+		case 8:
+			wall = 2;
+			forward = GameMath::Vec3(0.0f, 0.0f, 1.0f);
+			break;
+		default:
+			break;
+		}
+
+		constexpr int kDebugTeleportDoorSlot = 2;
+		constexpr float kDebugTeleportDoorInsideOffset = 8.0f;
+		base = ComputeSpawnerDoorPosition(megaGridNumber, wall, kDebugTeleportDoorSlot) +
+			forward * kDebugTeleportDoorInsideOffset;
+	}
+
+	const GameMath::Vec3 right(forward.z, 0.0f, -forward.x);
+	const float yaw = GameMath::NormalizeYaw(
+		atan2f(forward.x, forward.z) * GameMath::RAD_TO_DEG);
+	const int playerCount = static_cast<int>(players.size());
+	if (playerCount <= 0)
+		return;
+
+	auto ResolveClearDestination = [&](const PlayerRef& player, const GameMath::Vec3& desired) -> GameMath::Vec3
+		{
+			auto* collider = player ? player->GetComponent<CColliderComponent>() : nullptr;
+			if (!player || !collider)
+				return SnapToTerrainIfBelow(desired);
+
+			const GameMath::Vec3 restore = player->GetPosition();
+			constexpr float kStep = 2.0f;
+			for (int i = 0; i < 5; ++i)
+			{
+				const GameMath::Vec3 candidate =
+					SnapToTerrainIfBelow(desired + forward * (static_cast<float>(i) * kStep));
+				player->SetPosition(candidate);
+				collider->OnUpdate(0.0f);
+				if (!HasCollisionWithNearbyWorldStatic(collider))
+				{
+					player->SetPosition(restore);
+					collider->OnUpdate(0.0f);
+					return candidate;
+				}
+			}
+
+			player->SetPosition(restore);
+			collider->OnUpdate(0.0f);
+			return SnapToTerrainIfBelow(desired);
+		};
+
+	std::vector<PlayerRef> teleportedPlayers;
+	teleportedPlayers.reserve(players.size());
+
+	int slot = 0;
+	for (auto& [pid, player] : players)
+	{
+		if (!player) continue;
+
+		const float centeredSlot =
+			static_cast<float>(slot) -
+			static_cast<float>(playerCount - 1) * 0.5f;
+		const GameMath::Vec3 desired =
+			base + right * (centeredSlot * 2.0f);
+		const GameMath::Vec3 destination =
+			ResolveClearDestination(player, desired);
+
+		player->SetVelocity(GameMath::Vec3::Zero());
+		player->ClearMoveKeyCodes();
+		player->ClearPendingPortalTeleport();
+		player->ClearPendingForcedTransform();
+		player->SetTerrainSnapSuppressed(false);
+		player->SetPosition(destination);
+		player->SetYaw(yaw);
+
+		if (auto* collider = player->GetComponent<CColliderComponent>())
+			collider->OnUpdate(0.0f);
+
+		teleportedPlayers.push_back(player);
+		++slot;
+	}
+
+	UpdateDynamicGridState();
+	for (const PlayerRef& player : teleportedPlayers)
+		WakeEnemiesNearPlayer(player);
+
+	cout << "[Debug] Teleported " << teleportedPlayers.size()
+		<< " players to MegaGrid " << megaGridNumber
+		<< " near entry (" << base.x << ", " << base.z << ")" << endl;
 }

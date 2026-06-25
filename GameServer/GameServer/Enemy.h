@@ -24,6 +24,15 @@ public:
 	void ApplyHit(uint32 serverTick, int damage, uint32 hitDurationTicks = 20);
 	void UpdateAI(float dt);
 	CMonsterAI* GetMonsterAI() { EnsureAI(); return m_monsterAI.get(); }
+	void SetSpawnFx(uint32 type, uint32 tick, uint32 serial)
+	{
+		m_spawnFxType = type;
+		m_spawnFxTick = tick;
+		m_spawnFxSerial = serial;
+	}
+	uint32 GetSpawnFxType() const { return m_spawnFxType; }
+	uint32 GetSpawnFxTick() const { return m_spawnFxTick; }
+	uint32 GetSpawnFxSerial() const { return m_spawnFxSerial; }
 
 protected:
 	virtual bool UsesMonsterAI() const { return true; }
@@ -51,4 +60,7 @@ public:
 private:
 	uint32 m_hitEndTick = 0;
 	uint32 m_bossHitReactionSuperArmorEndTick = 0;
+	uint32 m_spawnFxType = 0;
+	uint32 m_spawnFxTick = 0;
+	uint32 m_spawnFxSerial = 0;
 };
