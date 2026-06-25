@@ -2,7 +2,6 @@ name: Build Executable Package
 
 on:
   workflow_dispatch:
-
   push:
     branches:
       - main
@@ -12,9 +11,14 @@ jobs:
     runs-on: windows-latest
 
     env:
-      SOLUTION_PATH: GraduationProject.sln
       BUILD_CONFIGURATION: Release
       BUILD_PLATFORM: x64
+      CLIENT_SOLUTION: PracticeProject08-9-1\PracticeProject08-9-1.sln
+      SERVER_SOLUTION: GameServer\GameServer.sln
+      CLIENT_OUTPUT: PracticeProject08-9-1\x64\Release
+      SERVER_OUTPUT: GameServer\x64\Release
+      CLIENT_EXE: PracticeProject08-9-1.exe
+      SERVER_EXE: GameServer.exe
 
     steps:
       - name: Checkout repository
@@ -23,110 +27,118 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      # NuGet packages.config 또는 PackageReference를 사용한다면 필요
-      - name: Restore NuGet packages
-        run: msbuild "${{ env.SOLUTION_PATH }}" /t:Restore
+      - name: Extract FMOD SDK
+        shell: powershell
+        run: |
+          if (-not (Test-Path "PracticeProject08-9-1\External\FMOD\lib\x64\fmod_vc.lib")) {
+              Expand-Archive `
+                -Path "PracticeProject08-9-1\External\FMOD.zip" `
+                -DestinationPath "PracticeProject08-9-1\External" `
+                -Force
+          }
 
-      - name: Build solution
+      - name: Restore client solution
+        run: msbuild "${{ env.CLIENT_SOLUTION }}" /t:Restore
+
+      - name: Restore server solution
+        run: msbuild "${{ env.SERVER_SOLUTION }}" /t:Restore
+
+      - name: Build client
         run: >
-          msbuild "${{ env.SOLUTION_PATH }}"
+          msbuild "${{ env.CLIENT_SOLUTION }}"
           /m
           /p:Configuration=${{ env.BUILD_CONFIGURATION }}
           /p:Platform=${{ env.BUILD_PLATFORM }}
 
-      - name: Create Executable directories
+      - name: Build server
+        run: >
+          msbuild "${{ env.SERVER_SOLUTION }}"
+          /m
+          /p:Configuration=${{ env.BUILD_CONFIGURATION }}
+          /p:Platform=${{ env.BUILD_PLATFORM }}
+
+      - name: Create package directories
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path "Executable\Client"
           New-Item -ItemType Directory -Force -Path "Executable\Server"
 
-      - name: Copy client executable
+      - name: Copy client executable and DLLs
         shell: powershell
         run: |
           Copy-Item `
-            "Client\x64\Release\GraduationProject.exe" `
-            "Executable\Client\GraduationProject.exe" `
+            "${{ env.CLIENT_OUTPUT }}\${{ env.CLIENT_EXE }}" `
+            "Executable\Client\${{ env.CLIENT_EXE }}" `
             -Force
+
+          Get-ChildItem `
+            -Path "${{ env.CLIENT_OUTPUT }}" `
+            -Filter "*.dll" `
+            -File `
+            -ErrorAction SilentlyContinue |
+          Copy-Item `
+            -Destination "Executable\Client" `
+            -Force
+
+          if (Test-Path "PracticeProject08-9-1\fmod.dll") {
+              Copy-Item "PracticeProject08-9-1\fmod.dll" "Executable\Client\fmod.dll" -Force
+          }
 
       - name: Copy client resources
         shell: powershell
         run: |
-          if (Test-Path "Client\Assets") {
-              Copy-Item `
-                "Client\Assets" `
-                "Executable\Client\Assets" `
-                -Recurse -Force
+          $clientRoot = "PracticeProject08-9-1"
+          $clientPackage = "Executable\Client"
+
+          foreach ($dir in @("Assets", "Image", "MapData", "NetworkSettings")) {
+              $src = Join-Path $clientRoot $dir
+              if (Test-Path $src) {
+                  Copy-Item `
+                    $src `
+                    (Join-Path $clientPackage $dir) `
+                    -Recurse -Force
+              }
           }
 
-          if (Test-Path "Client\Shaders") {
-              Copy-Item `
-                "Client\Shaders" `
-                "Executable\Client\Shaders" `
-                -Recurse -Force
-          }
+          Get-ChildItem `
+            -Path $clientRoot `
+            -Filter "*.hlsl" `
+            -File |
+          Copy-Item `
+            -Destination $clientPackage `
+            -Force
 
-          if (Test-Path "Client\Config") {
-              Copy-Item `
-                "Client\Config" `
-                "Executable\Client\Config" `
-                -Recurse -Force
-          }
-
-      - name: Copy client DLLs
-        shell: powershell
-        run: |
-          $clientOutput = "Client\x64\Release"
-
-          if (Test-Path $clientOutput) {
-              Get-ChildItem `
-                -Path $clientOutput `
-                -Filter "*.dll" `
-                -File `
-                -ErrorAction SilentlyContinue |
-              Copy-Item `
-                -Destination "Executable\Client" `
-                -Force
-          }
-
-      - name: Copy server executable
+      - name: Copy server executable and DLLs
         shell: powershell
         run: |
           Copy-Item `
-            "Server\x64\Release\GameServer.exe" `
-            "Executable\Server\GameServer.exe" `
+            "${{ env.SERVER_OUTPUT }}\${{ env.SERVER_EXE }}" `
+            "Executable\Server\${{ env.SERVER_EXE }}" `
+            -Force
+
+          Get-ChildItem `
+            -Path "${{ env.SERVER_OUTPUT }}" `
+            -Filter "*.dll" `
+            -File `
+            -ErrorAction SilentlyContinue |
+          Copy-Item `
+            -Destination "Executable\Server" `
             -Force
 
       - name: Copy server resources
         shell: powershell
         run: |
-          if (Test-Path "Server\Config") {
-              Copy-Item `
-                "Server\Config" `
-                "Executable\Server\Config" `
-                -Recurse -Force
-          }
+          $serverRoot = "GameServer\GameServer"
+          $serverPackage = "Executable\Server"
 
-          if (Test-Path "Server\Data") {
-              Copy-Item `
-                "Server\Data" `
-                "Executable\Server\Data" `
-                -Recurse -Force
-          }
-
-      - name: Copy server DLLs
-        shell: powershell
-        run: |
-          $serverOutput = "Server\x64\Release"
-
-          if (Test-Path $serverOutput) {
-              Get-ChildItem `
-                -Path $serverOutput `
-                -Filter "*.dll" `
-                -File `
-                -ErrorAction SilentlyContinue |
-              Copy-Item `
-                -Destination "Executable\Server" `
-                -Force
+          foreach ($dir in @("MapFIle", "Scripts")) {
+              $src = Join-Path $serverRoot $dir
+              if (Test-Path $src) {
+                  Copy-Item `
+                    $src `
+                    (Join-Path $serverPackage $dir) `
+                    -Recurse -Force
+              }
           }
 
       - name: Create launcher scripts
@@ -143,7 +155,7 @@ jobs:
           @'
           @echo off
           cd /d "%~dp0Client"
-          GraduationProject.exe
+          PracticeProject08-9-1.exe
           '@ | Set-Content `
             -Path "Executable\StartClient.bat" `
             -Encoding ascii
@@ -152,16 +164,18 @@ jobs:
         shell: powershell
         run: |
           @'
-          Graduation Project
+          PVENoirGame
 
           1. StartServer.bat을 실행합니다.
           2. 서버 실행 후 StartClient.bat을 실행합니다.
 
           Client:
-          - DirectX 12 클라이언트
+          - DirectX 12 client
+          - Includes Assets, Image, MapData, NetworkSettings, HLSL files, and DLLs.
 
           Server:
-          - IOCP 기반 게임 서버
+          - IOCP game server
+          - Includes MapFIle and Scripts.
           '@ | Set-Content `
             -Path "Executable\README.txt" `
             -Encoding utf8
@@ -169,12 +183,18 @@ jobs:
       - name: Verify package
         shell: powershell
         run: |
-          if (-not (Test-Path "Executable\Client\GraduationProject.exe")) {
+          if (-not (Test-Path "Executable\Client\${{ env.CLIENT_EXE }}")) {
               throw "Client executable was not found."
           }
 
-          if (-not (Test-Path "Executable\Server\GameServer.exe")) {
+          if (-not (Test-Path "Executable\Server\${{ env.SERVER_EXE }}")) {
               throw "Server executable was not found."
+          }
+
+          $protoFiles = Get-ChildItem "Executable" -Recurse -Filter "*.proto" -File -ErrorAction SilentlyContinue
+          if ($protoFiles) {
+              $protoFiles | Select-Object FullName
+              throw "Proto source files should not be included in the executable package."
           }
 
           Write-Host "Executable package contents:"
@@ -186,12 +206,12 @@ jobs:
         run: |
           Compress-Archive `
             -Path "Executable" `
-            -DestinationPath "GraduationProject-Windows-x64.zip" `
+            -DestinationPath "PVENoirGame-Windows-x64.zip" `
             -Force
 
       - name: Upload executable package
         uses: actions/upload-artifact@v4
         with:
-          name: GraduationProject-Windows-x64
-          path: GraduationProject-Windows-x64.zip
+          name: PVENoirGame-Windows-x64
+          path: PVENoirGame-Windows-x64.zip
           if-no-files-found: error
