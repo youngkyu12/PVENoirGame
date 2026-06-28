@@ -9,7 +9,7 @@ enum class ELightType : int
 {
     Point = POINT_LIGHT,
     Spot = SPOT_LIGHT,
-    Directional = DIRECTIONAL_LIGHT,
+    Directional = DIRECTIONAL_LIGHT
 };
 
 class CLightComponent final : public CComponentT<CLightComponent>
