@@ -936,7 +936,6 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 		return;
 	}
 
-	scene->OnResize(m_nWndClientWidth, m_nWndClientHeight);
 	m_bUserPaused = false;
 	m_bConsumeNextMouseClick = false;
 
@@ -1166,75 +1165,28 @@ LRESULT CALLBACK CGameFramework::OnProcessingWindowMessage(HWND hWnd, UINT nMess
 	case WM_ACTIVATE:
 	{
 		UpdateWindowActivationState();
-		return 0;
+		break;
 	}
 	case WM_ACTIVATEAPP:
 	{
 		UpdateWindowActivationState();
-		return 0;
+		break;
 	}
 	case WM_SIZE:
-		m_nWndClientWidth = LOWORD(lParam);
-		m_nWndClientHeight = HIWORD(lParam);
-		if( m_pd3dDevice )
-		{
-			if( wParam == SIZE_MINIMIZED )
-			{
-				m_AppPaused = true;
-				m_Minimized = true;
-				m_Maximized = false;
-			}
-			else if( wParam == SIZE_MAXIMIZED )
-			{
-				m_AppPaused = false;
-				m_Minimized = false;
-				m_Maximized = true;
-				//OnResize();
-			}
-			else if( wParam == SIZE_RESTORED )
-			{
-
-				if( m_Minimized )
-				{
-					m_AppPaused = false;
-					m_Minimized = false;
-					//OnResize();
-				}
-
-				else if( m_Maximized )
-				{
-					m_AppPaused = false;
-					m_Maximized = false;
-					//OnResize();
-				}
-				else if( m_Resizing )
-				{
-					
-				}
-				else 
-				{
-					//OnResize();
-				}
-			}
-		}
-		return 0;
+		break;
 	case WM_LBUTTONDOWN:
 	case WM_RBUTTONDOWN:
 	case WM_LBUTTONUP:
 	case WM_RBUTTONUP:
 	case WM_MOUSEMOVE:
 		OnProcessingMouseMessage(hWnd, nMessageID, wParam, lParam);
-		return 0;
+		break;
 	case WM_KEYDOWN:
 	case WM_KEYUP:
 		OnProcessingKeyboardMessage(hWnd, nMessageID, wParam, lParam);
-		return 0;
-	case WM_DESTROY:
-		g_End = false;
-		::PostQuitMessage(0);
-		return 0;
+		break;
 	}
-	return(::DefWindowProc(hWnd, nMessageID, wParam, lParam));
+	return(0);
 }
 
 void CGameFramework::ChangeSwapChainState()

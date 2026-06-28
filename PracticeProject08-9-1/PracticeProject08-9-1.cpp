@@ -284,7 +284,46 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	}
 
 	CGameFramework* gGameFramework = (CGameFramework*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
-	return gGameFramework->OnProcessingWindowMessage(hWnd, message, wParam, lParam);
+
+	switch (message)
+	{
+	case WM_SIZE:
+	case WM_LBUTTONDOWN:
+	case WM_LBUTTONUP:
+	case WM_RBUTTONDOWN:
+	case WM_RBUTTONUP:
+	case WM_MOUSEMOVE:
+	case WM_KEYDOWN:
+	case WM_KEYUP:
+		gGameFramework->OnProcessingWindowMessage(hWnd, message, wParam, lParam);
+		break;
+	case WM_COMMAND:
+		wmId = LOWORD(wParam);
+		wmEvent = HIWORD(wParam);
+		switch (wmId)
+		{
+		case IDM_ABOUT:
+			::DialogBox(ghAppInstance, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
+			break;
+		case IDM_EXIT:
+			::DestroyWindow(hWnd);
+			break;
+		default:
+			return(::DefWindowProc(hWnd, message, wParam, lParam));
+		}
+		break;
+	case WM_PAINT:
+		hdc = ::BeginPaint(hWnd, &ps);
+		EndPaint(hWnd, &ps);
+		break;
+	case WM_DESTROY:
+		g_End = false;
+		::PostQuitMessage(0);
+		break;
+	default:
+		return(::DefWindowProc(hWnd, message, wParam, lParam));
+	}
+	return 0;
 }
 
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)

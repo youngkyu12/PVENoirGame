@@ -188,11 +188,6 @@ private:
 	DWORD								m_dwWindowedStyle = 0;
 	WINDOWPLACEMENT						m_WindowedPlacement {};
 
-	bool								m_AppPaused = false;
-	bool								m_Minimized = false;
-	bool								m_Maximized = false;
-	bool								m_Resizing = false;
-
 	bool HandlePauseClick(UINT nMessageID, LPARAM lParam);
 	void ClearInputPause();
 };
