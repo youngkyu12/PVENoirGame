@@ -510,6 +510,10 @@ private:
 
 	float GetBossCallSummonCircleSize(EEnemySpawnerEnemyKind kind) const;
 	void AddBossCallSummonCircle(const XMFLOAT3& center, EEnemySpawnerEnemyKind kind);
+#ifdef USING_NETWORK
+	XMFLOAT3 ComputeNetworkBossCallSummonVisualPosition(EEnemySpawnerEnemyKind kind, int index, int totalCount) const;
+	void BeginNetworkBossCallMonsterSummonVisuals(int callIndex, float fadeInDurationSec);
+#endif
 
 	void SpawnBossSummonCircle(const XMFLOAT3& center, float alpha);
 	void SpawnBossSummonGlow(const XMFLOAT3& center, float alpha);
@@ -1967,9 +1971,16 @@ private:
 	std::vector<EnemySpawnerPreviewEntry> m_bossCallSummonPlanEntries;
 
 #ifdef USING_NETWORK
+	struct BossCallSummonVisualPreview
+	{
+		XMFLOAT3 position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		EEnemySpawnerEnemyKind kind = EEnemySpawnerEnemyKind::Ghoul;
+	};
+
 	int m_networkBossCallIndex = 0;
 	int m_networkBossCallPendingSummonEffects = 0;
 	float m_networkBossCallSummonEffectWindowSec = 0.0f;
+	std::vector<BossCallSummonVisualPreview> m_networkBossCallSummonVisualPreviews;
 	std::unordered_set<uint64_t> m_networkBossCallSummonEffectEnemyIds;
 	std::unordered_map<uint64_t, XMFLOAT3> m_prevNetworkEnemyPositions;
 	std::unordered_set<uint64_t> m_playedSpawnFxKeys;

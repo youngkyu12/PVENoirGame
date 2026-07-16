@@ -171,6 +171,7 @@ CGameScene::CGameScene()
 	m_networkBossCallIndex = 0;
 	m_networkBossCallPendingSummonEffects = 0;
 	m_networkBossCallSummonEffectWindowSec = 0.0f;
+	m_networkBossCallSummonVisualPreviews.clear();
 	m_networkBossCallSummonEffectEnemyIds.clear();
 	m_prevNetworkEnemyPositions.clear();
 	m_playedSpawnFxKeys.clear();
@@ -4451,6 +4452,7 @@ void CGameScene::ReleaseObjects()
 	m_networkBossCallIndex = 0;
 	m_networkBossCallPendingSummonEffects = 0;
 	m_networkBossCallSummonEffectWindowSec = 0.0f;
+	m_networkBossCallSummonVisualPreviews.clear();
 	m_networkBossCallSummonEffectEnemyIds.clear();
 	m_prevNetworkEnemyPositions.clear();
 	m_playedSpawnFxKeys.clear();
@@ -10044,7 +10046,10 @@ void CGameScene::AnimateObjects(float dt)
 				if ( m_networkBossCallPendingSummonEffects > 0 )
 				{
 					m_networkBossCallSummonEffectEnemyIds.clear();
-					ClearBossCallSummonCircleVisuals();
+					BeginNetworkBossCallMonsterSummonVisuals(
+						m_networkBossCallIndex,
+						kBossCallMonsterSpawnDelaySec
+					);
 				}
 			}
 		}
