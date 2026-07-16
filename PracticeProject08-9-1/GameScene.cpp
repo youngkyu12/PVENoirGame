@@ -70,6 +70,9 @@ CGameScene::CGameScene()
 	m_bBossSummonSequenceStarted = false;
 	m_bBossSummonCircleFadeAgeSec = 0.0f;
 	m_pendingBossStageBoss = nullptr;
+#ifdef USING_NETWORK
+	m_bossSummonVisualCenter = XMFLOAT3(0.0f, 0.0f, 400.0f);
+#endif
 
 	m_bBossSummonVisualFadeOutStarted = false;
 	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
@@ -86,6 +89,9 @@ CGameScene::CGameScene()
 	m_bBossSummonSequenceStarted = false;
 	m_bBossSummonCircleFadeAgeSec = 0.0f;
 	m_pendingBossStageBoss = nullptr;
+#ifdef USING_NETWORK
+	m_bossSummonVisualCenter = XMFLOAT3(0.0f, 0.0f, 400.0f);
+#endif
 
 	m_bSimulateLocalMonsterChase = true;
 	m_bPrevLocalMonsterChaseToggleKeyDown = false;
@@ -114,6 +120,9 @@ CGameScene::CGameScene()
 	m_bBossSummonSequenceStarted = false;
 	m_bBossSummonCircleFadeAgeSec = 0.0f;
 	m_pendingBossStageBoss = nullptr;
+#ifdef USING_NETWORK
+	m_bossSummonVisualCenter = XMFLOAT3(0.0f, 0.0f, 400.0f);
+#endif
 
 	m_bBossSummonVisualFadeOutStarted = false;
 	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
@@ -130,6 +139,9 @@ CGameScene::CGameScene()
 	m_bBossSummonSequenceStarted = false;
 	m_bBossSummonCircleFadeAgeSec = 0.0f;
 	m_pendingBossStageBoss = nullptr;
+#ifdef USING_NETWORK
+	m_bossSummonVisualCenter = XMFLOAT3(0.0f, 0.0f, 400.0f);
+#endif
 
 	m_bSimulateLocalMonsterChase = false;
 	m_bPrevLocalMonsterChaseToggleKeyDown = false;
@@ -4326,6 +4338,9 @@ void CGameScene::ReleaseObjects()
 	m_bBossSummonSequenceStarted = false;
 	m_bBossSummonCircleFadeAgeSec = 0.0f;
 	m_pendingBossStageBoss = nullptr;
+#ifdef USING_NETWORK
+	m_bossSummonVisualCenter = XMFLOAT3(0.0f, 0.0f, 400.0f);
+#endif
 
 	m_bBossSummonVisualFadeOutStarted = false;
 	m_bBossSummonVisualFadeOutAgeSec = 0.0f;
@@ -4348,6 +4363,9 @@ void CGameScene::ReleaseObjects()
 	m_bBossSummonSequenceStarted = false;
 	m_bBossSummonCircleFadeAgeSec = 0.0f;
 	m_pendingBossStageBoss = nullptr;
+#ifdef USING_NETWORK
+	m_bossSummonVisualCenter = XMFLOAT3(0.0f, 0.0f, 400.0f);
+#endif
 
 	m_mutantKeyTriggerMegaByObject.clear();
 	m_mutantKeyTriggerRegisteredByMega.fill(false);
@@ -8026,7 +8044,18 @@ bool CGameScene::TryBeginBossStageSummonSequence()
 
 	CGameObject* boss = FindBossStageBossInMegaGrid(5);
 	XMFLOAT3 summonCenter = XMFLOAT3( 0.0f, 0.0f, 400.0f );
-	summonCenter.y = 0.0f;
+
+	if ( boss )
+	{
+		const auto it = m_bossStageBossPositionStates.find(boss);
+		if ( it != m_bossStageBossPositionStates.end() )
+			summonCenter = it->second.originalPosition;
+		else
+			summonCenter = boss->GetPosition();
+	}
+
+	summonCenter = AlignPositionYToTerrainGround(summonCenter, 0.0f);
+	m_bossSummonVisualCenter = AlignPositionYToTerrainGround(summonCenter, 0.05f);
 
 	m_pendingBossStageBoss = boss;
 	m_bBossSummonSequenceStarted = true;
@@ -8149,18 +8178,30 @@ void CGameScene::UpdateBossStageSummonSequence(float dt)
 
 	SetBossSummonVisualAlpha(alpha);
 
+	bool shouldEmitSummonParticles = false;
+	XMFLOAT3 center = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
 	if ( m_pendingBossStageBoss )
 	{
-		XMFLOAT3 center = m_pendingBossStageBoss->GetPosition();
+		center = m_pendingBossStageBoss->GetPosition();
 
 		const auto it = m_bossStageBossPositionStates.find(m_pendingBossStageBoss);
 		if ( it != m_bossStageBossPositionStates.end() )
 			center = it->second.originalPosition;
 
 		center = AlignPositionYToTerrainGround(center, 0.05f);
-
-		EmitMagicCircleGlowParticles(center, 110.0f, alpha, dt, m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec, kBossSummonGlowParticleEmitIntervalSec, kBossSummonGlowParticlesPerEmit, kBossSummonGlowParticleIntensityScale);
+		shouldEmitSummonParticles = true;
 	}
+#ifdef USING_NETWORK
+	else
+	{
+		center = m_bossSummonVisualCenter;
+		shouldEmitSummonParticles = true;
+	}
+#endif
+
+	if ( shouldEmitSummonParticles )
+		EmitMagicCircleGlowParticles(center, 110.0f, alpha, dt, m_itemBillboardState.bossSummonGlowParticleEmitAccumulatorSec, kBossSummonGlowParticleEmitIntervalSec, kBossSummonGlowParticlesPerEmit, kBossSummonGlowParticleIntensityScale);
 
 	if ( alpha < 1.0f )
 		return;
@@ -8204,7 +8245,11 @@ void CGameScene::UpdateBossSummonVisualFadeOut(float dt)
 
 	if ( alpha > 0.001f )
 	{
+#ifdef USING_NETWORK
+		XMFLOAT3 center = m_bossSummonVisualCenter;
+#else
 		XMFLOAT3 center = XMFLOAT3(400.0f, 0.0f, 400.0f);
+#endif
 
 		if ( m_pendingBossStageBoss )
 		{

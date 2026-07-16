@@ -1978,6 +1978,9 @@ private:
 	bool m_bBossSummonSequenceStarted = false;
 	float m_bBossSummonCircleFadeAgeSec = 0.0f;
 	CGameObject* m_pendingBossStageBoss = nullptr;
+#ifdef USING_NETWORK
+	XMFLOAT3 m_bossSummonVisualCenter = XMFLOAT3(0.0f, 0.0f, 400.0f);
+#endif
 
 	bool m_bBossSummonVisualFadeOutStarted = false;
 	float m_bBossSummonVisualFadeOutAgeSec = 0.0f;
