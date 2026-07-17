@@ -6,6 +6,9 @@
 #include "MaterialTexture.hlsl"
 #include "RenderTypes.hlsl"
 
+#define TRANSPARENT_ITEM_BILLBOARD_MATERIAL_ID (MAX_MATERIALS - 2)
+#define HEAL_POTION_ITEM_MATERIAL_ID           (MAX_MATERIALS - 11)
+#define MOVE_SPEED_POTION_ITEM_MATERIAL_ID     (MAX_MATERIALS - 8)
 #define BOSS_SUMMON_GLOW_MATERIAL_ID      (MAX_MATERIALS - 4)
 #define BOSS_SHOCKWAVE_MATERIAL_ID        (MAX_MATERIALS - 5)
 #define BOSS_SHOCKWAVE_WALL_MATERIAL_ID   (MAX_MATERIALS - 6)
@@ -140,6 +143,49 @@ float4 MakeBossShockwaveWallColor(float2 uv, float4 materialDiffuse)
     return float4(rgb, alpha);
 }
 
+bool ShouldApplyDepthFogToItemBillboard(uint materialId)
+{
+    return materialId == TRANSPARENT_ITEM_BILLBOARD_MATERIAL_ID ||
+        (materialId >= HEAL_POTION_ITEM_MATERIAL_ID && materialId <= MOVE_SPEED_POTION_ITEM_MATERIAL_ID);
+}
+
+float ComputeItemBillboardFogFactor(float3 positionW)
+{
+    if (gvFogParams0.w <= 0.0f)
+        return 0.0f;
+
+    const float linearDepth = max(0.0f, mul(float4(positionW, 1.0f), gmtxView).z);
+    const uint fogMode = (uint) (gvFogParams1.z + 0.5f);
+
+    float baseFogFactor = 0.0f;
+
+    if (fogMode == 1u)
+    {
+        const float density = max(0.0001f, gvFogParams0.z);
+        baseFogFactor = saturate(1.0f - exp(-linearDepth * density));
+    }
+    else if (fogMode == 2u)
+    {
+        const float density = max(0.0001f, gvFogParams0.z);
+        const float x = linearDepth * density;
+        baseFogFactor = saturate(1.0f - exp(-(x * x)));
+    }
+    else
+    {
+        const float fogStart = max(0.0f, gvFogParams0.x);
+        const float fogEnd = max(fogStart + 0.0001f, gvFogParams0.y);
+        baseFogFactor = saturate((linearDepth - fogStart) / (fogEnd - fogStart));
+    }
+
+    return baseFogFactor * saturate(gvFogParams1.w);
+}
+
+float3 ApplyItemBillboardFog(float3 rgb, float3 positionW)
+{
+    const float fogFactor = ComputeItemBillboardFogFactor(positionW);
+    return lerp(rgb, gvFogColor.rgb, fogFactor);
+}
+
 PS_MULTIPLE_RENDER_TARGETS_OUTPUT PSItemBillboardUnlitAlphaClip(
     VS_TEXTURED_LIGHTING_OUTPUT input,
     uint nPrimitiveID : SV_PrimitiveID)
@@ -251,6 +297,9 @@ float4 PSItemBillboardUnlitTransparentForward(
     }
 
     clip(color.a - 0.001f);
+
+    if (ShouldApplyDepthFogToItemBillboard(materialId))
+        color.rgb = ApplyItemBillboardFog(color.rgb, input.positionW);
 
     return color;
 }
