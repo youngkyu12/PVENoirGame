@@ -37,6 +37,7 @@ public:
 	float GetCooldownRatio(int slot) const;
 
 	bool IsMoveSpeedPotionActive() const { return m_bMoveSpeedPotionActive; }
+	bool TryBeginPredictedMoveSpeedPotion();
 	bool IsAttackPowerPotionActive() const { return m_bAttackPowerPotionActive; }
 	bool IsDefensePotionActive() const { return m_bDefensePotionActive; }
 

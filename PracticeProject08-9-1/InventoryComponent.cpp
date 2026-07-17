@@ -152,6 +152,11 @@ void CInventoryComponent::ForceRestoreAllEffects()
 	RestoreDefensePotion();
 }
 
+bool CInventoryComponent::TryBeginPredictedMoveSpeedPotion()
+{
+	return TryBeginMoveSpeedPotion();
+}
+
 bool CInventoryComponent::TryUseHealPotion()
 {
 	if ( !m_pOwner )
