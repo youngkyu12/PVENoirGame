@@ -1162,7 +1162,6 @@ void CGameScene::RequestBossAttackSfx(CGameObject* boss)
 		kBossAttackSfxDelaySeconds,
 		kBossAttackSfxDelaySeconds * 1000.0f
 	);
-	OutputDebugStringA(buf);
 }
 
 void CGameScene::ScheduleMonsterSfx(

@@ -514,7 +514,6 @@ void CGameScene::RegisterTowerDoorPortal(CGameObject* tower)
 						isDoorA ? 1 : 0,
 						isDoorB ? 1 : 0
 					);
-					OutputDebugStringA(buf);
 				}
 			}
 
@@ -546,7 +545,6 @@ void CGameScene::RegisterTowerDoorPortal(CGameObject* tower)
 				entry.doorARefs.size(),
 				entry.doorBRefs.size()
 			);
-			OutputDebugStringA(buf);
 		}
 		return;
 	}
@@ -559,7 +557,6 @@ void CGameScene::RegisterTowerDoorPortal(CGameObject* tower)
 		entry.doorARefs.size(),
 		entry.doorBRefs.size()
 	);
-	OutputDebugStringA(buf);
 
 	m_towerDoorPortals.push_back(std::move(entry));
 }
@@ -620,7 +617,6 @@ void CGameScene::RegisterCastleDoorPortal(CGameObject* castle)
 					doorIndex,
 					GetCastleDoorFrameDebugName(doorIndex)
 				);
-				OutputDebugStringA(buf);
 			}
 		}
 	}
@@ -678,7 +674,6 @@ void CGameScene::RegisterCastleDoorPortal(CGameObject* castle)
 				entry.doorRefsByIndex[6].size(),
 				entry.doorRefsByIndex[7].size()
 			);
-			OutputDebugStringA(buf);
 		}
 		return;
 	}
@@ -700,7 +695,6 @@ void CGameScene::RegisterCastleDoorPortal(CGameObject* castle)
 			entry.doorRefsByIndex[6].size(),
 			entry.doorRefsByIndex[7].size()
 		);
-		OutputDebugStringA(buf);
 	}
 
 	m_castleDoorPortals.push_back(std::move(entry));
@@ -775,7 +769,6 @@ bool CGameScene::TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog)
 			m_towerDoorPortals.size(),
 			m_bLocalPlayerDead ? 1 : 0
 		);
-		OutputDebugStringA(buf);
 	}
 
 	if ( m_bLocalPlayerDead )
@@ -866,7 +859,6 @@ bool CGameScene::TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog)
 							ref.meshSetIndex,
 							ref.subIndex
 						);
-						OutputDebugStringA(buf);
 					}
 					continue;
 				}
@@ -893,7 +885,6 @@ bool CGameScene::TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog)
 						box->Extents.y,
 						box->Extents.z
 					);
-					OutputDebugStringA(buf);
 				}
 
 				if ( hit )
@@ -1294,7 +1285,6 @@ bool CGameScene::TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog)
 					static_cast< void* >( portal.tower ),
 					portal.cooldownFrames
 				);
-				OutputDebugStringA(buf);
 			}
 			continue;
 		}
@@ -1330,7 +1320,6 @@ bool CGameScene::TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog)
 				hitDoorA ? 1 : 0,
 				hitDoorB ? 1 : 0
 			);
-			OutputDebugStringA(buf);
 		}
 
 		// 양쪽이 동시에 맞으면 문 중앙/겹침 상태일 수 있으므로 이번 프레임은 무시.
@@ -1388,7 +1377,6 @@ bool CGameScene::TryTeleportLocalPlayerByCastleDoorPortal(bool forceLog)
 				CountClearedMegaGrids(),
 				kRequiredClearedMegaGridCountForCastlePortal
 			);
-			OutputDebugStringA(buf);
 		}
 
 		return false;
@@ -1477,7 +1465,6 @@ bool CGameScene::TryTeleportLocalPlayerByCastleDoorPortal(bool forceLog)
 						box->Extents.y,
 						box->Extents.z
 					);
-					OutputDebugStringA(buf);
 				}
 
 				if ( hit )
@@ -1667,7 +1654,6 @@ bool CGameScene::TryTeleportLocalPlayerByCastleDoorPortal(bool forceLog)
 					exitDirF.z,
 					sideSign
 				);
-				OutputDebugStringA(buf);
 			}
 
 			return true;
@@ -1682,7 +1668,6 @@ bool CGameScene::TryTeleportLocalPlayerByCastleDoorPortal(bool forceLog)
 			m_castleDoorPortals.size(),
 			m_bLocalPlayerDead ? 1 : 0
 		);
-		OutputDebugStringA(buf);
 	}
 
 	for ( CastleDoorPortalEntry& portal : m_castleDoorPortals )
@@ -1698,7 +1683,6 @@ bool CGameScene::TryTeleportLocalPlayerByCastleDoorPortal(bool forceLog)
 					static_cast< void* >( portal.castle ),
 					portal.cooldownFrames
 				);
-				OutputDebugStringA(buf);
 			}
 			continue;
 		}
@@ -1728,7 +1712,6 @@ bool CGameScene::TryTeleportLocalPlayerByCastleDoorPortal(bool forceLog)
 					pair.targetRefs.size(),
 					hitSource ? 1 : 0
 				);
-				OutputDebugStringA(buf);
 			}
 
 			if ( !hitSource )
@@ -1975,7 +1958,6 @@ void CGameScene::ApplyMegaGrid5DirectionalLightProfile(bool enabled)
 		directionalLight->diffuse.z,
 		directionalLight->diffuse.w
 	);
-	OutputDebugStringA(buf);
 #endif
 }
 
@@ -2212,7 +2194,6 @@ int CGameScene::SpawnPreparedEnemiesInMegaGrid(int megaGridNumber)
 	{
 		char buf[256];
 		sprintf_s(buf, "[LogicalEnemySpawner] blocked. targetMega=%d blockerMega=%d alreadyCleared=1\n", megaGridNumber, blockerMegaGridNumber);
-		OutputDebugStringA(buf);
 		return 0;
 	}
 
@@ -2222,7 +2203,6 @@ int CGameScene::SpawnPreparedEnemiesInMegaGrid(int megaGridNumber)
 	{
 		char buf[256];
 		sprintf_s(buf, "[LogicalEnemySpawner] SpawnPreparedEnemiesInMegaGrid mega=%d spawned=%d\n", megaGridNumber, spawnedCount);
-		OutputDebugStringA(buf);
 	}
 
 	return spawnedCount;
@@ -2495,7 +2475,6 @@ bool CGameScene::BeginEnemySpawnerTimedGhoulWave(int megaGridNumber)
 		megaGridNumber,
 		spawnedNow
 	);
-	OutputDebugStringA(buf);
 
 	return true;
 #else
@@ -2553,7 +2532,6 @@ void CGameScene::UpdateEnemySpawnerTimedGhoulWaves(float dt)
 					"[EnemySpawnerWave] finished. mega=%d\n",
 					megaGridNumber
 				);
-				OutputDebugStringA(buf);
 			}
 		}
 	}
@@ -2654,7 +2632,6 @@ int CGameScene::SpawnEnemySpawnerDoorGhoulBatch(int megaGridNumber, int batchInd
 
 	char buf[256];
 	sprintf_s(buf, "[LogicalEnemySpawnerWave] mega=%d batch=%d spawned=%d\n", megaGridNumber, batchIndex, spawnedCount);
-	OutputDebugStringA(buf);
 
 	return spawnedCount;
 #else
@@ -3765,12 +3742,10 @@ void CGameScene::SetLocalMonsterChaseEnabled(bool enabled)
 
 	if ( !enabled )
 	{
-		OutputDebugStringA("[MonsterAI] Local monster chase disabled\n");
 		StopAllLocalMonsterChaseAndReturnHome();
 	}
 	else
 	{
-		OutputDebugStringA("[MonsterAI] Local monster chase enabled\n");
 	}
 }
 
@@ -5331,7 +5306,6 @@ void CGameScene::BuildStaticGameplayTickList()
 		m_staticGameplayTickObjects.size(),
 		m_staticBatch.objectRefs.size()
 	);
-	OutputDebugStringA(buf);
 }
 
 void CGameScene::BuildStaticRenderObjectCache()
@@ -7522,7 +7496,6 @@ void CGameScene::DamagePreBossMonstersInMegaGrid(int megaGridNumber, int damage)
 
 	char buf[256];
 	sprintf_s(buf, "[BossStageTest] DamagePreBossMonstersInMegaGrid mega=%d damage=%d damaged=%d allDead=%d\n", megaGridNumber, damage, damagedCount, AreAllPreBossMonstersInMegaGridDead(megaGridNumber) ? 1 : 0);
-	OutputDebugStringA(buf);
 #else
 	UNREFERENCED_PARAMETER(megaGridNumber);
 	UNREFERENCED_PARAMETER(damage);
@@ -8785,7 +8758,6 @@ bool CGameScene::RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& p
 				currentPos.y,
 				currentPos.z
 			);
-			OutputDebugStringA(buf);
 		}
 #endif
 		return false;
@@ -8817,7 +8789,6 @@ bool CGameScene::RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& p
 			previousPos.z,
 			m_towerDoorPortals.size()
 		);
-		OutputDebugStringA(buf);
 	}
 
 	localPlayer->SetPosition(currentPos);
@@ -11358,13 +11329,11 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 
 					if ( isInsideMegaGridCenter )
 					{
-						OutputDebugStringA("[MegaGridBGM] local player entered center zone\n");
 						music->RequestState(EMusicState::None, false);
 						music->BeginPendingTransition();
 					}
 					else
 					{
-						OutputDebugStringA("[MegaGridBGM] local player left center zone\n");
 						music->RequestState(EMusicState::Gameplay, false);
 						music->BeginPendingTransition();
 					}

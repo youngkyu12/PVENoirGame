@@ -209,7 +209,6 @@ void CGameScene::AddPotionItemBillboardEntries()
 			{
 				char buf[192];
 				sprintf_s(buf, "[PotionItemSpawn] warning: slot=%u megaGrid=%d spawnCount=%u requested=%u\n", slot, megaGridNumber, spawnCount, kPotionItemCountPerMegaGrid);
-				OutputDebugStringA(buf);
 			}
 
 			for ( UINT i = 0; i < spawnCount; ++i )
@@ -252,7 +251,6 @@ void CGameScene::AddPotionItemBillboardEntries()
 
 	char buf[160];
 	sprintf_s(buf, "[PotionItemSpawn] complete count=%zu perKind=%u\n", m_itemBillboardState.entries.size(), kPotionItemSpawnCountPerKind);
-	OutputDebugStringA(buf);
 }
 
 void CGameScene::BuildItemBillboardBatch(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd, UINT rtCount, DXGI_FORMAT* rtvFormats, DXGI_FORMAT dsvFormat)
