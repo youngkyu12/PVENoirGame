@@ -701,6 +701,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	auto pTerrainShader = std::make_shared<CTerrainShader>();
 	auto pShadowTerrainShader = std::make_shared<CShadowMapTerrainShader>();
 	auto pWaterShader = std::make_shared<CWaterShader>();
+	auto pTransparentWaterShader = std::make_shared<CTransparentWaterShader>();
 	auto pSkyBoxShader = std::make_shared<CSkyBoxShader>();
 
 	m_staticBatch.shader = pStaticShader;
@@ -716,6 +717,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_terrainShader = pTerrainShader;
 	m_shadowTerrainShader = pShadowTerrainShader;
 	m_waterShader = pWaterShader;
+	m_transparentWaterShader = pTransparentWaterShader;
 	m_skyBox.shader = pSkyBoxShader;
 
 	DXGI_FORMAT rtvFormats[5] =
@@ -827,6 +829,15 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 			m_pd3dGraphicsRootSignature.Get(),
 			kRTCount,
 			rtvFormats,
+			kDsvFormat
+		);
+
+		DXGI_FORMAT transparentWaterRtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+		pTransparentWaterShader->CreateShader(
+			dev,
+			m_pd3dGraphicsRootSignature.Get(),
+			1,
+			&transparentWaterRtvFormat,
 			kDsvFormat
 		);
 

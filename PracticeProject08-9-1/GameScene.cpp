@@ -4268,6 +4268,7 @@ void CGameScene::ReleaseObjects()
 	m_skinnedBatch.shader.reset();
 
 	m_treeStaticShader.reset();
+	m_transparentWaterShader.reset();
 	m_treeAlphaClipObjects.clear();
 	m_skinnedAlphaClipObjects.clear();
 
@@ -5533,6 +5534,9 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 
 	for ( const StaticInstanceGroup& group : m_staticInstanceGroups )
 	{
+		if ( group.useWaterShader )
+			continue;
+
 		if ( !group.mesh ) continue;
 		if ( group.subMeshIndex >= group.mesh->m_SubMeshes.size() ) continue;
 
@@ -5629,6 +5633,87 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 			: D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST
 		);
 
+		cmd->DrawIndexedInstanced(( UINT ) sm.indices.size(), visibleInstanceCount, 0, 0, 0);
+	}
+}
+
+void CGameScene::RenderTransparentWaterInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera)
+{
+	PROFILE_RENDER_SCOPE("GameScene::RenderTransparentWaterInstanceGroups");
+
+	if ( !cmd ) return;
+	if ( !m_transparentWaterShader ) return;
+
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	ID3D12Resource* staticInstanceBuffer =
+		m_pd3dStaticInstanceBuffer[frameIndex].Get();
+
+	StaticInstanceVertex* mappedStaticInstanceBuffer =
+		m_pMappedStaticInstanceBuffer[frameIndex];
+
+	if ( !staticInstanceBuffer ) return;
+	if ( !mappedStaticInstanceBuffer ) return;
+
+	m_transparentWaterShader->Render(cmd, camera, &m_staticBatch);
+
+	for ( const StaticInstanceGroup& group : m_staticInstanceGroups )
+	{
+		if ( !group.useWaterShader )
+			continue;
+
+		if ( !group.mesh ) continue;
+		if ( group.subMeshIndex >= group.mesh->m_SubMeshes.size() ) continue;
+
+		const SubMesh& sm = group.mesh->m_SubMeshes[group.subMeshIndex];
+		if ( sm.indices.empty() ) continue;
+
+		const UINT maxInstanceCount =
+			static_cast< UINT >( group.visibleSceneObjectIndices.size() );
+
+		if ( maxInstanceCount == 0 )
+			continue;
+
+		const UINT instanceBase = group.instanceBufferStart;
+
+		if ( ( instanceBase + maxInstanceCount ) > m_staticInstanceBufferCapacity )
+			continue;
+
+		UINT visibleInstanceCount = 0;
+
+		for ( UINT i = 0; i < maxInstanceCount; ++i )
+		{
+			const UINT objectIndex = group.visibleSceneObjectIndices[i];
+
+			StaticInstanceVertex& dst =
+				mappedStaticInstanceBuffer[instanceBase + visibleInstanceCount];
+
+			if ( !WriteStaticInstanceVertexFromCache(dst, objectIndex) )
+				continue;
+
+			++visibleInstanceCount;
+		}
+
+		if ( visibleInstanceCount == 0 )
+			continue;
+
+		D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
+		vbViews[0] = sm.vbView;
+		vbViews[1].BufferLocation =
+			staticInstanceBuffer->GetGPUVirtualAddress() +
+			( UINT64 ) ( sizeof(StaticInstanceVertex) * instanceBase );
+		vbViews[1].SizeInBytes = sizeof(StaticInstanceVertex) * visibleInstanceCount;
+		vbViews[1].StrideInBytes = sizeof(StaticInstanceVertex);
+
+		const UINT mid = ( sm.materialId == 0xFFFFFFFFu ) ? 0u : sm.materialId;
+		cmd->SetGraphicsRoot32BitConstant(ROOT_PARAMETER_MATERIAL_ID, mid, 0);
+
+		if ( sm.material && sm.material->NeedsLegacyBinding() )
+			sm.material->UpdateShaderVariables(cmd);
+
+		cmd->IASetVertexBuffers(0, 2, vbViews);
+		cmd->IASetIndexBuffer(&sm.ibView);
+		cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 		cmd->DrawIndexedInstanced(( UINT ) sm.indices.size(), visibleInstanceCount, 0, 0, 0);
 	}
 }
@@ -11352,6 +11437,11 @@ void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* c
 	BindFrameRootParameters(cmd);
 
 	RenderSkyBox(cmd, camera);
+
+	if ( m_transparentWaterShader )
+	{
+		RenderTransparentWaterInstanceGroups(cmd, camera);
+	}
 
 	if ( m_itemBillboardState.transparentShader )
 	{
