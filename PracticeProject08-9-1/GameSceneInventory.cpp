@@ -66,6 +66,8 @@ bool CGameScene::RequestUseInventoryItemSlot(int slot)
 	if ( m_inventoryItemCounts[static_cast< size_t >(slot)] <= 0 )
 		return false;
 
+	const bool predictMoveSpeedPotion = ( slot == 3 );
+
 	{
 		Protocol::C_USE_ITEM pkt;
 		pkt.set_playerid(g_myPlayerId);
@@ -77,6 +79,13 @@ bool CGameScene::RequestUseInventoryItemSlot(int slot)
 	std::array<int, CGameSceneHUD::kInventorySlotCount> counts = m_inventoryItemCounts;
 	--counts[static_cast< size_t >( slot )];
 	SetInventoryItemCounts(counts);
+
+	if ( predictMoveSpeedPotion )
+	{
+		CInventoryComponent* inventory = GetLocalPlayerInventory();
+		if ( inventory )
+			inventory->TryBeginPredictedMoveSpeedPotion();
+	}
 
 	if ( m_pAudioManager ) m_pAudioManager->PlaySound2D("Assets/Audio/ItemUse.wav", false, false, 1.0f, false);
 

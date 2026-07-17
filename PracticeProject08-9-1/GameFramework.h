@@ -175,7 +175,6 @@ private:
 	bool								m_bConsumeNextMouseClick = false;
 	bool								m_bUserPaused = false;
 	bool								m_bGameCursorLocked = false;
-	bool								m_Fullscreen = false;
 
 	// AdapterDisplayModes
 	vector<DXGI_MODE_DESC>				m_DisplayModeList;

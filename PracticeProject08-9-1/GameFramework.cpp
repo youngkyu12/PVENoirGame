@@ -936,14 +936,6 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 		return;
 	}
 
-	scene->OnResize(m_nWndClientWidth, m_nWndClientHeight);
-
-	if(scene && !m_Fullscreen)
-	{
-		m_Fullscreen = true;
-		ChangeSwapChainState();
-	}
-
 	m_bUserPaused = false;
 	m_bConsumeNextMouseClick = false;
 
