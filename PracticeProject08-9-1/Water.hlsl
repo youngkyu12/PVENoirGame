@@ -43,8 +43,8 @@ float ComputeTerrainEdgeWaterAlpha(float2 positionXZ)
     const float2 fadeCenter = float2(0.0f, 400.0f);
     const float opaqueInnerHalfExtent = 500.0f;
     const float translucentHalfExtent = 590.0f;
-    const float outerHalfExtent = 600.0f;
-    const float translucentAlpha = 0.8f;
+    const float outerHalfExtent = 620.0f;
+    const float translucentAlpha = 0.9f;
     const float opaqueAlpha = 1.0f;
 
     float2 centeredXZ = abs(positionXZ - fadeCenter);

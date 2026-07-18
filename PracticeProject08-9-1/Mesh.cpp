@@ -1645,8 +1645,58 @@ CHeightMapGridMesh::CHeightMapGridMesh(ID3D12Device* pd3dDevice, ID3D12GraphicsC
 	sm.diffuseTransform.uvST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
 	sm.normalTransform.uvST = XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f);
 
-	const int vertexWidth = m_nWidth;
-	const int vertexLength = m_nLength;
+	constexpr float kTerrainRenderEdgeExtension = 200.0f;
+	constexpr int kMaxTerrainRenderEdgeExtensionCells = 64;
+	const int extensionCellsX = max(
+		1,
+		min(
+			kMaxTerrainRenderEdgeExtensionCells,
+			static_cast< int >( ( kTerrainRenderEdgeExtension / m_xmf3Scale.x ) + 0.5f )
+		)
+	);
+	const int extensionCellsZ = max(
+		1,
+		min(
+			kMaxTerrainRenderEdgeExtensionCells,
+			static_cast< int >( ( kTerrainRenderEdgeExtension / m_xmf3Scale.z ) + 0.5f )
+		)
+	);
+
+	const int sourceVertexWidth = m_nWidth;
+	const int sourceVertexLength = m_nLength;
+	const int vertexWidth = sourceVertexWidth + ( extensionCellsX * 2 );
+	const int vertexLength = sourceVertexLength + ( extensionCellsZ * 2 );
+	const float sourceMaxX = static_cast< float >( sourceVertexWidth - 1 ) * m_xmf3Scale.x;
+	const float sourceMaxZ = static_cast< float >( sourceVertexLength - 1 ) * m_xmf3Scale.z;
+
+	auto GetExpandedAxisPosition =
+		[ ](
+			int renderIndex,
+			int extensionCells,
+			int sourceVertexCount,
+			float sourceScale,
+			float sourceMax,
+			float extensionDistance) -> float
+		{
+			if ( renderIndex < extensionCells )
+			{
+				const float t =
+					static_cast< float >( renderIndex ) /
+					static_cast< float >( extensionCells );
+				return -extensionDistance + ( extensionDistance * t );
+			}
+
+			const int sourceIndex = renderIndex - extensionCells;
+
+			if ( sourceIndex < sourceVertexCount )
+				return static_cast< float >( sourceIndex ) * sourceScale;
+
+			const float t =
+				static_cast< float >( sourceIndex - ( sourceVertexCount - 1 ) ) /
+				static_cast< float >( extensionCells );
+			return sourceMax + ( extensionDistance * t );
+		};
+
 	const size_t vertexCount =
 		static_cast< size_t >( vertexWidth ) * static_cast< size_t >( vertexLength );
 
@@ -1664,23 +1714,48 @@ CHeightMapGridMesh::CHeightMapGridMesh(ID3D12Device* pd3dDevice, ID3D12GraphicsC
 	{
 		for ( int x = 0; x < vertexWidth; ++x )
 		{
-			const float height = pHeightMapImage
-				? OnGetHeight(x, z, pContext)
+			const int sourceX = x - extensionCellsX;
+			const int sourceZ = z - extensionCellsZ;
+			const bool insideSourceTerrain =
+				( sourceX >= 0 ) &&
+				( sourceZ >= 0 ) &&
+				( sourceX < sourceVertexWidth ) &&
+				( sourceZ < sourceVertexLength );
+
+			const float height = ( pHeightMapImage && insideSourceTerrain )
+				? OnGetHeight(sourceX, sourceZ, pContext)
 				: 0.0f;
 
-			const XMFLOAT3 position(static_cast< float >(x) * m_xmf3Scale.x, height, static_cast< float >(z) * m_xmf3Scale.z);
+			const float positionX = GetExpandedAxisPosition(
+				x,
+				extensionCellsX,
+				sourceVertexWidth,
+				m_xmf3Scale.x,
+				sourceMaxX,
+				kTerrainRenderEdgeExtension
+			);
+			const float positionZ = GetExpandedAxisPosition(
+				z,
+				extensionCellsZ,
+				sourceVertexLength,
+				m_xmf3Scale.z,
+				sourceMaxZ,
+				kTerrainRenderEdgeExtension
+			);
+
+			const XMFLOAT3 position(positionX, height, positionZ);
 
 			sm.positions.push_back(position);
 
 			sm.normals.push_back(
-				pHeightMapImage
-				? pHeightMapImage->GetHeightMapNormal(x, z)
+				pHeightMapImage && insideSourceTerrain
+				? pHeightMapImage->GetHeightMapNormal(sourceX, sourceZ)
 				: XMFLOAT3(0.0f, 1.0f, 0.0f)
 			);
 
 			sm.uvs.emplace_back(
-				static_cast< float >( x ) / static_cast< float >( vertexWidth - 1 ),
-				static_cast< float >( vertexLength - 1 - z ) / static_cast< float >( vertexLength - 1 )
+				positionX / sourceMaxX,
+				1.0f - ( positionZ / sourceMaxZ )
 			);
 
 			sm.tangents.emplace_back(1.0f, 0.0f, 0.0f, 1.0f);
