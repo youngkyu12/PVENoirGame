@@ -8,6 +8,27 @@
 
 using namespace GameSceneHelper;
 
+namespace
+{
+	float ComputeSeaBgmBlendForPosition(const XMFLOAT3& position)
+	{
+		constexpr float kSeaBgmCenterX = 0.0f;
+		constexpr float kSeaBgmCenterZ = 400.0f;
+		constexpr float kSeaBgmInnerExtent = 520.0f;
+		constexpr float kSeaBgmOuterExtent = 600.0f;
+
+		const float dx = std::fabs(position.x - kSeaBgmCenterX);
+		const float dz = std::fabs(position.z - kSeaBgmCenterZ);
+		const float edgeDistance = std::max(dx, dz);
+		const float blendRange = kSeaBgmOuterExtent - kSeaBgmInnerExtent;
+
+		if ( blendRange <= 0.0f )
+			return 0.0f;
+
+		return std::clamp(( edgeDistance - kSeaBgmInnerExtent ) / blendRange, 0.0f, 1.0f);
+	}
+}
+
 CGameScene::CGameScene()
 {
 	m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
@@ -10862,6 +10883,19 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
 {
 	PROFILE_RENDER_SCOPE("GameScene::UpdateShaderVariables");
 	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	if ( m_pAudioManager )
+	{
+		if ( CMusicDirector* music = m_pAudioManager->GetMusicDirector() )
+		{
+			CGameObject* localPlayer = GetPlayer();
+			if ( !localPlayer )
+				localPlayer = GetPlayerBySlot(0);
+
+			const float seaBlend = localPlayer ? ComputeSeaBgmBlendForPosition(localPlayer->GetPosition()) : 0.0f;
+			music->SetGameplaySeaBlend(seaBlend);
+		}
+	}
 
 	LIGHTS* mappedLights = m_pcbMappedLights[frameIndex];
 
