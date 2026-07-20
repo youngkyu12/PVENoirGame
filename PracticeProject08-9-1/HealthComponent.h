@@ -62,7 +62,7 @@ public:
 
 	float GetIncomingDamageScale() const { return m_incomingDamageScale; }
 
-	bool TakeDamage(int damage)
+	bool TakeDamage(int damage, bool playHitSfx = true)
 	{
 		if ( damage <= 0 )
 			return false;
@@ -92,7 +92,7 @@ public:
 
 		const bool actuallyDamaged = ( m_currentHp < hpBefore );
 
-		if ( actuallyDamaged )
+		if ( actuallyDamaged && playHitSfx )
 			PlayHitSfx();
 
 		return true;

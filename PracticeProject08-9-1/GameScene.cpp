@@ -2069,7 +2069,7 @@ void CGameScene::UpdateMegaGrid4LowYPoison(float dt)
 		state.damageAccumulatorSec -= static_cast< float >(tickCount) * kMegaGrid4LowYPoisonDamageIntervalSec;
 
 		const int damage = tickCount * kMegaGrid4LowYPoisonDamagePerTick;
-		hp->TakeDamage(damage);
+		hp->TakeDamage(damage, false);
 	}
 
 	float poisonOverlayAlpha = 0.0f;
