@@ -537,7 +537,14 @@ void CGameScene::PlayPlayerFootstepSfx(CGameObject* player)
 	if ( !player )
 		return;
 
-	const bool useBlockFootstep = IsLocalPlayerInsideMegaGridCenter();
+	const XMFLOAT3 pos = player->GetPosition();
+	bool useBlockFootstep = IsLocalPlayerInsideMegaGridCenter();
+
+	if ( useBlockFootstep &&
+		m_sceneGrid.MegaGridNumberFromWorldPosition(pos.x, pos.z) == 4 )
+	{
+		useBlockFootstep = false;
+	}
 
 	const char* path =
 		useBlockFootstep
@@ -546,8 +553,6 @@ void CGameScene::PlayPlayerFootstepSfx(CGameObject* player)
 
 	if ( !path || !path[0] )
 		return;
-
-	const XMFLOAT3 pos = player->GetPosition();
 
 	m_pAudioManager->PlaySound3D(
 		path,
