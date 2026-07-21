@@ -26,15 +26,19 @@ void CMusicDirector::Shutdown()
 {
 	if ( m_audioManager )
 	{
+		m_audioManager->StopChannel(m_seaLayerChannel);
 		m_audioManager->StopChannel(m_nextChannel);
 		m_audioManager->StopChannel(m_currentChannel);
 	}
 
 	m_musicFileTable.clear();
+	m_seaLayerFilePath.clear();
 
 	m_currentState = EMusicState::None;
 	m_requestedState = EMusicState::None;
 	m_transitionElapsed = 0.0f;
+	m_seaLayerBlend = 0.0f;
+	m_seaLayerVolume = 0.0f;
 	m_isCrossFading = false;
 	m_hasPendingTransition = false;
 	m_pendingImmediate = false;
@@ -47,6 +51,14 @@ void CMusicDirector::RegisterMusic(EMusicState state, const char* filePath)
 		return;
 
 	m_musicFileTable[state] = filePath;
+}
+
+void CMusicDirector::RegisterSeaLayerMusic(const char* filePath)
+{
+	if ( !filePath || !filePath[0] )
+		return;
+
+	m_seaLayerFilePath = filePath;
 }
 
 void CMusicDirector::RequestState(EMusicState nextState, bool immediate)
@@ -82,6 +94,8 @@ void CMusicDirector::StartImmediate(EMusicState state)
 
 	m_audioManager->StopChannel(m_nextChannel);
 	m_audioManager->StopChannel(m_currentChannel);
+	if ( state != EMusicState::Gameplay )
+		StopSeaLayer();
 
 	m_nextChannel = nullptr;
 	m_currentChannel = nullptr;
@@ -150,11 +164,123 @@ void CMusicDirector::StartCrossFade(EMusicState state)
 		m_currentState = EMusicState::None;
 		m_transitionElapsed = 0.0f;
 		m_isCrossFading = false;
+		StopSeaLayer();
 		return;
 	}
 
+	if ( state != EMusicState::Gameplay )
+		StopSeaLayer();
+
 	m_transitionElapsed = 0.0f;
 	m_isCrossFading = true;
+}
+
+void CMusicDirector::StopSeaLayer()
+{
+	if ( m_audioManager )
+		m_audioManager->StopChannel(m_seaLayerChannel);
+
+	m_seaLayerChannel = nullptr;
+	m_seaLayerBlend = 0.0f;
+	m_seaLayerVolume = 0.0f;
+}
+
+void CMusicDirector::SetGameplaySeaBlend(float seaBlend)
+{
+	if ( !m_audioManager )
+		return;
+
+	m_seaLayerBlend = std::clamp(seaBlend, 0.0f, 1.0f);
+
+	const bool canUseGameplayLayer =
+		( m_currentState == EMusicState::Gameplay ) &&
+		!m_isCrossFading &&
+		!m_hasPendingTransition;
+
+	if ( !canUseGameplayLayer || m_seaLayerFilePath.empty() || m_seaLayerBlend <= 0.0f )
+		return;
+
+	if ( !m_seaLayerChannel || !m_audioManager->IsChannelPlaying(m_seaLayerChannel) )
+	{
+		m_seaLayerChannel = m_audioManager->PlaySound2D(
+			m_seaLayerFilePath.c_str(),
+			true,
+			true,
+			0.0f,
+			false
+		);
+
+		if ( m_seaLayerChannel )
+		{
+			FMOD::ChannelGroup* bgmGroup = m_audioManager->GetBgmGroup();
+			if ( bgmGroup )
+				m_seaLayerChannel->setChannelGroup(bgmGroup);
+		}
+	}
+
+	if ( m_seaLayerChannel )
+		m_audioManager->SetChannelVolume(m_seaLayerChannel, m_seaLayerVolume);
+}
+
+void CMusicDirector::UpdateSeaLayerVolumes(float dt)
+{
+	const bool canUseGameplayLayer =
+		( m_currentState == EMusicState::Gameplay ) &&
+		!m_isCrossFading &&
+		!m_hasPendingTransition;
+
+	if ( !canUseGameplayLayer )
+	{
+		m_seaLayerVolume = 0.0f;
+		if ( m_seaLayerChannel )
+			m_audioManager->SetChannelVolume(m_seaLayerChannel, 0.0f);
+		return;
+	}
+
+	const float fadeStep = ( m_crossFadeSeconds > 0.0f )
+		? std::clamp(dt / m_crossFadeSeconds, 0.0f, 1.0f)
+		: 1.0f;
+
+	if ( m_seaLayerVolume < m_seaLayerBlend )
+	{
+		m_seaLayerVolume += fadeStep;
+		if ( m_seaLayerVolume > m_seaLayerBlend )
+			m_seaLayerVolume = m_seaLayerBlend;
+	}
+	else if ( m_seaLayerVolume > m_seaLayerBlend )
+	{
+		m_seaLayerVolume -= fadeStep;
+		if ( m_seaLayerVolume < m_seaLayerBlend )
+			m_seaLayerVolume = m_seaLayerBlend;
+	}
+
+	if ( m_currentChannel )
+		m_audioManager->SetChannelVolume(m_currentChannel, 1.0f - m_seaLayerVolume);
+
+	if ( m_seaLayerBlend > 0.0f && !m_seaLayerFilePath.empty() &&
+		( !m_seaLayerChannel || !m_audioManager->IsChannelPlaying(m_seaLayerChannel) ) )
+	{
+		m_seaLayerChannel = m_audioManager->PlaySound2D(
+			m_seaLayerFilePath.c_str(),
+			true,
+			true,
+			0.0f,
+			false
+		);
+
+		if ( m_seaLayerChannel )
+		{
+			FMOD::ChannelGroup* bgmGroup = m_audioManager->GetBgmGroup();
+			if ( bgmGroup )
+				m_seaLayerChannel->setChannelGroup(bgmGroup);
+		}
+	}
+
+	if ( m_seaLayerChannel )
+		m_audioManager->SetChannelVolume(m_seaLayerChannel, m_seaLayerVolume);
+
+	if ( m_seaLayerBlend <= 0.0f && m_seaLayerVolume <= 0.0f )
+		StopSeaLayer();
 }
 
 void CMusicDirector::Update()
@@ -162,14 +288,21 @@ void CMusicDirector::Update()
 	if ( !m_audioManager )
 		return;
 
+	const float dt = 1.0f / 60.0f;
+
 	if ( m_hasPendingTransition )
+	{
+		UpdateSeaLayerVolumes(dt);
 		return;
+	}
 
 	if ( !m_isCrossFading )
+	{
+		UpdateSeaLayerVolumes(dt);
 		return;
+	}
 
 	// 프로젝트 타이머와 연결해서 바꾸면 더 좋다.
-	const float dt = 1.0f / 60.0f;
 	m_transitionElapsed += dt;
 
 	float t = 1.0f;
@@ -191,5 +324,9 @@ void CMusicDirector::Update()
 		m_currentState = m_requestedState;
 		m_transitionElapsed = 0.0f;
 		m_isCrossFading = false;
+		if ( m_currentState != EMusicState::Gameplay )
+			StopSeaLayer();
 	}
+
+	UpdateSeaLayerVolumes(dt);
 }

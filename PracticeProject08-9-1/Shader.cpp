@@ -2052,6 +2052,62 @@ D3D12_SHADER_BYTECODE CWaterShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob
 	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSWaterToMultipleRTs", "ps_5_1", ppd3dShaderBlob));
 }
 
+D3D12_RASTERIZER_DESC CWaterShader::CreateRasterizerState()
+{
+	D3D12_RASTERIZER_DESC rs = CShader::CreateRasterizerState();
+	rs.CullMode = D3D12_CULL_MODE_NONE;
+	return rs;
+}
+
+D3D12_SHADER_BYTECODE CTransparentWaterShader::CreateVertexShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "VSWaterInstanced", "vs_5_1", ppd3dShaderBlob));
+}
+
+D3D12_SHADER_BYTECODE CTransparentWaterShader::CreatePixelShader(ID3DBlob** ppd3dShaderBlob)
+{
+	return(CShader::CompileShaderFromFile(L"Shaders.hlsl", "PSWaterForward", "ps_5_1", ppd3dShaderBlob));
+}
+
+D3D12_RASTERIZER_DESC CTransparentWaterShader::CreateRasterizerState()
+{
+	D3D12_RASTERIZER_DESC rs = CShader::CreateRasterizerState();
+	rs.CullMode = D3D12_CULL_MODE_NONE;
+	return rs;
+}
+
+D3D12_BLEND_DESC CTransparentWaterShader::CreateBlendState()
+{
+	D3D12_BLEND_DESC bs{};
+	bs.AlphaToCoverageEnable = FALSE;
+	bs.IndependentBlendEnable = FALSE;
+
+	D3D12_RENDER_TARGET_BLEND_DESC rt{};
+	rt.BlendEnable = TRUE;
+	rt.LogicOpEnable = FALSE;
+	rt.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	rt.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	rt.BlendOp = D3D12_BLEND_OP_ADD;
+	rt.SrcBlendAlpha = D3D12_BLEND_ONE;
+	rt.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+	rt.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	rt.LogicOp = D3D12_LOGIC_OP_NOOP;
+	rt.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+	bs.RenderTarget[0] = rt;
+
+	return bs;
+}
+
+D3D12_DEPTH_STENCIL_DESC CTransparentWaterShader::CreateDepthStencilState()
+{
+	D3D12_DEPTH_STENCIL_DESC ds = CShader::CreateDepthStencilState();
+	ds.DepthEnable = TRUE;
+	ds.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	ds.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	return ds;
+}
+
 void CSsaoShader::CreateShader(ID3D12Device* dev, ID3D12RootSignature* sceneRootSig, UINT nRenderTargets, DXGI_FORMAT* rtvFormats, DXGI_FORMAT dsvFormat)
 {
 	m_pd3dGraphicsRootSignature = sceneRootSig;

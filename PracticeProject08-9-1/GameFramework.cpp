@@ -80,6 +80,7 @@ bool CGameFramework::OnCreate(HINSTANCE hInstance, HWND hMainWnd)
 		music->RegisterMusic(EMusicState::Wait, "Assets/Audio/WaitSceneBGM.mp3");
 		music->RegisterMusic(EMusicState::Gameplay, "Assets/Audio/ForestBGMWithBird.wav");
 		music->RegisterMusic(EMusicState::Boss, "Assets/Audio/BossStage.mp3");
+		music->RegisterSeaLayerMusic("Assets/Audio/Sea.wav");
 		music->SetCrossFadeSeconds(1.5f);
 	}
 

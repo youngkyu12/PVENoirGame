@@ -8,6 +8,27 @@
 
 using namespace GameSceneHelper;
 
+namespace
+{
+	float ComputeSeaBgmBlendForPosition(const XMFLOAT3& position)
+	{
+		constexpr float kSeaBgmCenterX = 0.0f;
+		constexpr float kSeaBgmCenterZ = 400.0f;
+		constexpr float kSeaBgmInnerExtent = 520.0f;
+		constexpr float kSeaBgmOuterExtent = 600.0f;
+
+		const float dx = std::fabs(position.x - kSeaBgmCenterX);
+		const float dz = std::fabs(position.z - kSeaBgmCenterZ);
+		const float edgeDistance = std::max(dx, dz);
+		const float blendRange = kSeaBgmOuterExtent - kSeaBgmInnerExtent;
+
+		if ( blendRange <= 0.0f )
+			return 0.0f;
+
+		return std::clamp(( edgeDistance - kSeaBgmInnerExtent ) / blendRange, 0.0f, 1.0f);
+	}
+}
+
 CGameScene::CGameScene()
 {
 	m_playersBySlot = { nullptr, nullptr, nullptr, nullptr };
@@ -514,7 +535,6 @@ void CGameScene::RegisterTowerDoorPortal(CGameObject* tower)
 						isDoorA ? 1 : 0,
 						isDoorB ? 1 : 0
 					);
-					OutputDebugStringA(buf);
 				}
 			}
 
@@ -546,7 +566,6 @@ void CGameScene::RegisterTowerDoorPortal(CGameObject* tower)
 				entry.doorARefs.size(),
 				entry.doorBRefs.size()
 			);
-			OutputDebugStringA(buf);
 		}
 		return;
 	}
@@ -559,7 +578,6 @@ void CGameScene::RegisterTowerDoorPortal(CGameObject* tower)
 		entry.doorARefs.size(),
 		entry.doorBRefs.size()
 	);
-	OutputDebugStringA(buf);
 
 	m_towerDoorPortals.push_back(std::move(entry));
 }
@@ -620,7 +638,6 @@ void CGameScene::RegisterCastleDoorPortal(CGameObject* castle)
 					doorIndex,
 					GetCastleDoorFrameDebugName(doorIndex)
 				);
-				OutputDebugStringA(buf);
 			}
 		}
 	}
@@ -678,7 +695,6 @@ void CGameScene::RegisterCastleDoorPortal(CGameObject* castle)
 				entry.doorRefsByIndex[6].size(),
 				entry.doorRefsByIndex[7].size()
 			);
-			OutputDebugStringA(buf);
 		}
 		return;
 	}
@@ -700,7 +716,6 @@ void CGameScene::RegisterCastleDoorPortal(CGameObject* castle)
 			entry.doorRefsByIndex[6].size(),
 			entry.doorRefsByIndex[7].size()
 		);
-		OutputDebugStringA(buf);
 	}
 
 	m_castleDoorPortals.push_back(std::move(entry));
@@ -775,7 +790,6 @@ bool CGameScene::TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog)
 			m_towerDoorPortals.size(),
 			m_bLocalPlayerDead ? 1 : 0
 		);
-		OutputDebugStringA(buf);
 	}
 
 	if ( m_bLocalPlayerDead )
@@ -866,7 +880,6 @@ bool CGameScene::TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog)
 							ref.meshSetIndex,
 							ref.subIndex
 						);
-						OutputDebugStringA(buf);
 					}
 					continue;
 				}
@@ -893,7 +906,6 @@ bool CGameScene::TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog)
 						box->Extents.y,
 						box->Extents.z
 					);
-					OutputDebugStringA(buf);
 				}
 
 				if ( hit )
@@ -1294,7 +1306,6 @@ bool CGameScene::TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog)
 					static_cast< void* >( portal.tower ),
 					portal.cooldownFrames
 				);
-				OutputDebugStringA(buf);
 			}
 			continue;
 		}
@@ -1330,7 +1341,6 @@ bool CGameScene::TryTeleportLocalPlayerByTowerDoorPortal(bool forceLog)
 				hitDoorA ? 1 : 0,
 				hitDoorB ? 1 : 0
 			);
-			OutputDebugStringA(buf);
 		}
 
 		// 양쪽이 동시에 맞으면 문 중앙/겹침 상태일 수 있으므로 이번 프레임은 무시.
@@ -1388,7 +1398,6 @@ bool CGameScene::TryTeleportLocalPlayerByCastleDoorPortal(bool forceLog)
 				CountClearedMegaGrids(),
 				kRequiredClearedMegaGridCountForCastlePortal
 			);
-			OutputDebugStringA(buf);
 		}
 
 		return false;
@@ -1477,7 +1486,6 @@ bool CGameScene::TryTeleportLocalPlayerByCastleDoorPortal(bool forceLog)
 						box->Extents.y,
 						box->Extents.z
 					);
-					OutputDebugStringA(buf);
 				}
 
 				if ( hit )
@@ -1667,7 +1675,6 @@ bool CGameScene::TryTeleportLocalPlayerByCastleDoorPortal(bool forceLog)
 					exitDirF.z,
 					sideSign
 				);
-				OutputDebugStringA(buf);
 			}
 
 			return true;
@@ -1682,7 +1689,6 @@ bool CGameScene::TryTeleportLocalPlayerByCastleDoorPortal(bool forceLog)
 			m_castleDoorPortals.size(),
 			m_bLocalPlayerDead ? 1 : 0
 		);
-		OutputDebugStringA(buf);
 	}
 
 	for ( CastleDoorPortalEntry& portal : m_castleDoorPortals )
@@ -1698,7 +1704,6 @@ bool CGameScene::TryTeleportLocalPlayerByCastleDoorPortal(bool forceLog)
 					static_cast< void* >( portal.castle ),
 					portal.cooldownFrames
 				);
-				OutputDebugStringA(buf);
 			}
 			continue;
 		}
@@ -1728,7 +1733,6 @@ bool CGameScene::TryTeleportLocalPlayerByCastleDoorPortal(bool forceLog)
 					pair.targetRefs.size(),
 					hitSource ? 1 : 0
 				);
-				OutputDebugStringA(buf);
 			}
 
 			if ( !hitSource )
@@ -1975,7 +1979,6 @@ void CGameScene::ApplyMegaGrid5DirectionalLightProfile(bool enabled)
 		directionalLight->diffuse.z,
 		directionalLight->diffuse.w
 	);
-	OutputDebugStringA(buf);
 #endif
 }
 
@@ -2066,7 +2069,7 @@ void CGameScene::UpdateMegaGrid4LowYPoison(float dt)
 		state.damageAccumulatorSec -= static_cast< float >(tickCount) * kMegaGrid4LowYPoisonDamageIntervalSec;
 
 		const int damage = tickCount * kMegaGrid4LowYPoisonDamagePerTick;
-		hp->TakeDamage(damage);
+		hp->TakeDamage(damage, false);
 	}
 
 	float poisonOverlayAlpha = 0.0f;
@@ -2212,7 +2215,6 @@ int CGameScene::SpawnPreparedEnemiesInMegaGrid(int megaGridNumber)
 	{
 		char buf[256];
 		sprintf_s(buf, "[LogicalEnemySpawner] blocked. targetMega=%d blockerMega=%d alreadyCleared=1\n", megaGridNumber, blockerMegaGridNumber);
-		OutputDebugStringA(buf);
 		return 0;
 	}
 
@@ -2222,7 +2224,6 @@ int CGameScene::SpawnPreparedEnemiesInMegaGrid(int megaGridNumber)
 	{
 		char buf[256];
 		sprintf_s(buf, "[LogicalEnemySpawner] SpawnPreparedEnemiesInMegaGrid mega=%d spawned=%d\n", megaGridNumber, spawnedCount);
-		OutputDebugStringA(buf);
 	}
 
 	return spawnedCount;
@@ -2495,7 +2496,6 @@ bool CGameScene::BeginEnemySpawnerTimedGhoulWave(int megaGridNumber)
 		megaGridNumber,
 		spawnedNow
 	);
-	OutputDebugStringA(buf);
 
 	return true;
 #else
@@ -2553,7 +2553,6 @@ void CGameScene::UpdateEnemySpawnerTimedGhoulWaves(float dt)
 					"[EnemySpawnerWave] finished. mega=%d\n",
 					megaGridNumber
 				);
-				OutputDebugStringA(buf);
 			}
 		}
 	}
@@ -2654,7 +2653,6 @@ int CGameScene::SpawnEnemySpawnerDoorGhoulBatch(int megaGridNumber, int batchInd
 
 	char buf[256];
 	sprintf_s(buf, "[LogicalEnemySpawnerWave] mega=%d batch=%d spawned=%d\n", megaGridNumber, batchIndex, spawnedCount);
-	OutputDebugStringA(buf);
 
 	return spawnedCount;
 #else
@@ -3765,12 +3763,10 @@ void CGameScene::SetLocalMonsterChaseEnabled(bool enabled)
 
 	if ( !enabled )
 	{
-		OutputDebugStringA("[MonsterAI] Local monster chase disabled\n");
 		StopAllLocalMonsterChaseAndReturnHome();
 	}
 	else
 	{
-		OutputDebugStringA("[MonsterAI] Local monster chase enabled\n");
 	}
 }
 
@@ -4293,6 +4289,7 @@ void CGameScene::ReleaseObjects()
 	m_skinnedBatch.shader.reset();
 
 	m_treeStaticShader.reset();
+	m_transparentWaterShader.reset();
 	m_treeAlphaClipObjects.clear();
 	m_skinnedAlphaClipObjects.clear();
 
@@ -5331,7 +5328,6 @@ void CGameScene::BuildStaticGameplayTickList()
 		m_staticGameplayTickObjects.size(),
 		m_staticBatch.objectRefs.size()
 	);
-	OutputDebugStringA(buf);
 }
 
 void CGameScene::BuildStaticRenderObjectCache()
@@ -5559,6 +5555,9 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 
 	for ( const StaticInstanceGroup& group : m_staticInstanceGroups )
 	{
+		if ( group.useWaterShader )
+			continue;
+
 		if ( !group.mesh ) continue;
 		if ( group.subMeshIndex >= group.mesh->m_SubMeshes.size() ) continue;
 
@@ -5655,6 +5654,87 @@ void CGameScene::RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCam
 			: D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST
 		);
 
+		cmd->DrawIndexedInstanced(( UINT ) sm.indices.size(), visibleInstanceCount, 0, 0, 0);
+	}
+}
+
+void CGameScene::RenderTransparentWaterInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera)
+{
+	PROFILE_RENDER_SCOPE("GameScene::RenderTransparentWaterInstanceGroups");
+
+	if ( !cmd ) return;
+	if ( !m_transparentWaterShader ) return;
+
+	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
+
+	ID3D12Resource* staticInstanceBuffer =
+		m_pd3dStaticInstanceBuffer[frameIndex].Get();
+
+	StaticInstanceVertex* mappedStaticInstanceBuffer =
+		m_pMappedStaticInstanceBuffer[frameIndex];
+
+	if ( !staticInstanceBuffer ) return;
+	if ( !mappedStaticInstanceBuffer ) return;
+
+	m_transparentWaterShader->Render(cmd, camera, &m_staticBatch);
+
+	for ( const StaticInstanceGroup& group : m_staticInstanceGroups )
+	{
+		if ( !group.useWaterShader )
+			continue;
+
+		if ( !group.mesh ) continue;
+		if ( group.subMeshIndex >= group.mesh->m_SubMeshes.size() ) continue;
+
+		const SubMesh& sm = group.mesh->m_SubMeshes[group.subMeshIndex];
+		if ( sm.indices.empty() ) continue;
+
+		const UINT maxInstanceCount =
+			static_cast< UINT >( group.visibleSceneObjectIndices.size() );
+
+		if ( maxInstanceCount == 0 )
+			continue;
+
+		const UINT instanceBase = group.instanceBufferStart;
+
+		if ( ( instanceBase + maxInstanceCount ) > m_staticInstanceBufferCapacity )
+			continue;
+
+		UINT visibleInstanceCount = 0;
+
+		for ( UINT i = 0; i < maxInstanceCount; ++i )
+		{
+			const UINT objectIndex = group.visibleSceneObjectIndices[i];
+
+			StaticInstanceVertex& dst =
+				mappedStaticInstanceBuffer[instanceBase + visibleInstanceCount];
+
+			if ( !WriteStaticInstanceVertexFromCache(dst, objectIndex) )
+				continue;
+
+			++visibleInstanceCount;
+		}
+
+		if ( visibleInstanceCount == 0 )
+			continue;
+
+		D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
+		vbViews[0] = sm.vbView;
+		vbViews[1].BufferLocation =
+			staticInstanceBuffer->GetGPUVirtualAddress() +
+			( UINT64 ) ( sizeof(StaticInstanceVertex) * instanceBase );
+		vbViews[1].SizeInBytes = sizeof(StaticInstanceVertex) * visibleInstanceCount;
+		vbViews[1].StrideInBytes = sizeof(StaticInstanceVertex);
+
+		const UINT mid = ( sm.materialId == 0xFFFFFFFFu ) ? 0u : sm.materialId;
+		cmd->SetGraphicsRoot32BitConstant(ROOT_PARAMETER_MATERIAL_ID, mid, 0);
+
+		if ( sm.material && sm.material->NeedsLegacyBinding() )
+			sm.material->UpdateShaderVariables(cmd);
+
+		cmd->IASetVertexBuffers(0, 2, vbViews);
+		cmd->IASetIndexBuffer(&sm.ibView);
+		cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 		cmd->DrawIndexedInstanced(( UINT ) sm.indices.size(), visibleInstanceCount, 0, 0, 0);
 	}
 }
@@ -7522,7 +7602,6 @@ void CGameScene::DamagePreBossMonstersInMegaGrid(int megaGridNumber, int damage)
 
 	char buf[256];
 	sprintf_s(buf, "[BossStageTest] DamagePreBossMonstersInMegaGrid mega=%d damage=%d damaged=%d allDead=%d\n", megaGridNumber, damage, damagedCount, AreAllPreBossMonstersInMegaGridDead(megaGridNumber) ? 1 : 0);
-	OutputDebugStringA(buf);
 #else
 	UNREFERENCED_PARAMETER(megaGridNumber);
 	UNREFERENCED_PARAMETER(damage);
@@ -8785,7 +8864,6 @@ bool CGameScene::RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& p
 				currentPos.y,
 				currentPos.z
 			);
-			OutputDebugStringA(buf);
 		}
 #endif
 		return false;
@@ -8817,7 +8895,6 @@ bool CGameScene::RollbackLocalPlayerMoveIfCollidingWorldStatic(const XMFLOAT3& p
 			previousPos.z,
 			m_towerDoorPortals.size()
 		);
-		OutputDebugStringA(buf);
 	}
 
 	localPlayer->SetPosition(currentPos);
@@ -10807,6 +10884,19 @@ void CGameScene::UpdateShaderVariables(ID3D12GraphicsCommandList* /*cmd*/)
 	PROFILE_RENDER_SCOPE("GameScene::UpdateShaderVariables");
 	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
 
+	if ( m_pAudioManager )
+	{
+		if ( CMusicDirector* music = m_pAudioManager->GetMusicDirector() )
+		{
+			CGameObject* localPlayer = GetPlayer();
+			if ( !localPlayer )
+				localPlayer = GetPlayerBySlot(0);
+
+			const float seaBlend = localPlayer ? ComputeSeaBgmBlendForPosition(localPlayer->GetPosition()) : 0.0f;
+			music->SetGameplaySeaBlend(seaBlend);
+		}
+	}
+
 	LIGHTS* mappedLights = m_pcbMappedLights[frameIndex];
 
 	if ( mappedLights )
@@ -11358,13 +11448,11 @@ void CGameScene::RenderSceneGeometry(ID3D12GraphicsCommandList* cmd, CCamera* ca
 
 					if ( isInsideMegaGridCenter )
 					{
-						OutputDebugStringA("[MegaGridBGM] local player entered center zone\n");
 						music->RequestState(EMusicState::None, false);
 						music->BeginPendingTransition();
 					}
 					else
 					{
-						OutputDebugStringA("[MegaGridBGM] local player left center zone\n");
 						music->RequestState(EMusicState::Gameplay, false);
 						music->BeginPendingTransition();
 					}
@@ -11383,6 +11471,11 @@ void CGameScene::RenderSceneComposite(ID3D12GraphicsCommandList* cmd, CCamera* c
 	BindFrameRootParameters(cmd);
 
 	RenderSkyBox(cmd, camera);
+
+	if ( m_transparentWaterShader )
+	{
+		RenderTransparentWaterInstanceGroups(cmd, camera);
+	}
 
 	if ( m_itemBillboardState.transparentShader )
 	{
