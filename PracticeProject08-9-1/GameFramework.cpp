@@ -1205,28 +1205,8 @@ void CGameFramework::ChangeSwapChainState()
 	FindOutputForCurrentWindow();
 
 	if (m_DisplayMode == DisplayMode::Windowed)
-	{
-		if (m_bHasGpuOutput)
-		{
-			HRESULT hr = m_pdxgiSwapChain->SetFullscreenState(TRUE, nullptr);
-
-			if (SUCCEEDED(hr))
-			{
-				m_DisplayMode = DisplayMode::ExclusiveFullscreen;
-
-				m_nWndClientWidth = m_OutputDesc.DesktopCoordinates.right - m_OutputDesc.DesktopCoordinates.left;
-				m_nWndClientHeight = m_OutputDesc.DesktopCoordinates.bottom - m_OutputDesc.DesktopCoordinates.top;
-				
-				OnResize(m_nWndClientWidth, m_nWndClientHeight);
-				return;
-			}
-		}
-		else
-		{
-			EnterBorderlessFullscreen();
-			return;
-		}
-		
+	{		
+		EnterBorderlessFullscreen();
 	}
 	else if (m_DisplayMode == DisplayMode::ExclusiveFullscreen)
 	{
