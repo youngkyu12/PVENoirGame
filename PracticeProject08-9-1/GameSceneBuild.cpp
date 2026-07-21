@@ -472,6 +472,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 
 	while ( false == g_GameStarted )
 	{
+		OutputDebugStringA("Waiting for game start message...\n");
 	}
 
 	DequeueNetworkMessage(NetworkMessageType::GameStart);
