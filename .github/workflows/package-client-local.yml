@@ -1,0 +1,157 @@
+name: Package Local Client
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  package-client-local:
+    runs-on: windows-latest
+
+    env:
+      BUILD_CONFIGURATION: Release
+      BUILD_PLATFORM: x64
+      CLIENT_SOLUTION: PracticeProject08-9-1\PracticeProject08-9-1.sln
+      CLIENT_OUTPUT: PracticeProject08-9-1\x64\Release
+      CLIENT_EXE: PracticeProject08-9-1.exe
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Force local client mode
+        shell: powershell
+        run: |
+          $stdafx = "PracticeProject08-9-1\stdafx.h"
+          $content = Get-Content $stdafx -Raw
+          $content = $content -replace '(?m)^\s*#define\s+USING_NETWORK\b', '//#define USING_NETWORK'
+          Set-Content -Path $stdafx -Value $content -Encoding utf8
+
+      - name: Extract FMOD SDK
+        shell: powershell
+        run: |
+          if (-not (Test-Path "PracticeProject08-9-1\External\FMOD\lib\x64\fmod_vc.lib")) {
+              Expand-Archive `
+                -Path "PracticeProject08-9-1\External\FMOD.zip" `
+                -DestinationPath "PracticeProject08-9-1\External" `
+                -Force
+          }
+
+      - name: Verify native build dependencies
+        shell: powershell
+        run: |
+          $requiredFiles = @(
+              "PracticeProject08-9-1\External\FMOD\lib\x64\fmod_vc.lib",
+              "Libraries\Libs\Protobuf\Release\libprotobuf.lib",
+              "Libraries\Libs\Protobuf\Release\libprotobuf.dll"
+          )
+
+          foreach ($file in $requiredFiles) {
+              if (-not (Test-Path $file)) {
+                  throw "Required native build dependency was not found: $file"
+              }
+          }
+
+      - name: Restore client solution
+        run: msbuild "${{ env.CLIENT_SOLUTION }}" /t:Restore
+
+      - name: Build local client
+        run: >
+          msbuild "${{ env.CLIENT_SOLUTION }}"
+          /m
+          /p:Configuration=${{ env.BUILD_CONFIGURATION }}
+          /p:Platform=${{ env.BUILD_PLATFORM }}
+
+      - name: Create local client package
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path "Executable\Client"
+
+          Copy-Item `
+            "${{ env.CLIENT_OUTPUT }}\${{ env.CLIENT_EXE }}" `
+            "Executable\Client\${{ env.CLIENT_EXE }}" `
+            -Force
+
+          Get-ChildItem `
+            -Path "${{ env.CLIENT_OUTPUT }}" `
+            -Filter "*.dll" `
+            -File `
+            -ErrorAction SilentlyContinue |
+          Copy-Item `
+            -Destination "Executable\Client" `
+            -Force
+
+          if (Test-Path "PracticeProject08-9-1\fmod.dll") {
+              Copy-Item "PracticeProject08-9-1\fmod.dll" "Executable\Client\fmod.dll" -Force
+          }
+
+          Copy-Item `
+            "Libraries\Libs\Protobuf\Release\libprotobuf.dll" `
+            "Executable\Client\libprotobuf.dll" `
+            -Force
+
+          $clientRoot = "PracticeProject08-9-1"
+          foreach ($dir in @("Assets", "Image", "MapData", "NetworkSettings")) {
+              $src = Join-Path $clientRoot $dir
+              if (Test-Path $src) {
+                  Copy-Item `
+                    $src `
+                    (Join-Path "Executable\Client" $dir) `
+                    -Recurse -Force
+              }
+          }
+
+          Get-ChildItem `
+            -Path $clientRoot `
+            -Filter "*.hlsl" `
+            -File |
+          Copy-Item `
+            -Destination "Executable\Client" `
+            -Force
+
+          @'
+          @echo off
+          cd /d "%~dp0Client"
+          PracticeProject08-9-1.exe
+          '@ | Set-Content `
+            -Path "Executable\StartClient.bat" `
+            -Encoding ascii
+
+          @'
+          PVENoirGame Local Client Package
+
+          Run StartClient.bat.
+          '@ | Set-Content `
+            -Path "Executable\README.txt" `
+            -Encoding utf8
+
+      - name: Verify local client package
+        shell: powershell
+        run: |
+          if (-not (Test-Path "Executable\Client\${{ env.CLIENT_EXE }}")) {
+              throw "Client executable was not found."
+          }
+
+          $protoFiles = Get-ChildItem "Executable" -Recurse -Filter "*.proto" -File -ErrorAction SilentlyContinue
+          if ($protoFiles) {
+              $protoFiles | Select-Object FullName
+              throw "Proto source files should not be included in the executable package."
+          }
+
+      - name: Stage artifact
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path "Artifact"
+          Copy-Item "Executable" "Artifact" -Recurse -Force
+
+      - name: Upload local client package
+        uses: actions/upload-artifact@v4
+        with:
+          name: PVENoirGame-Client-Local-Windows-x64
+          path: Artifact
+          if-no-files-found: error

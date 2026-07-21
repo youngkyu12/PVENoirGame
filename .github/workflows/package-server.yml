@@ -1,0 +1,131 @@
+name: Package Server
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  package-server:
+    runs-on: windows-latest
+
+    env:
+      BUILD_CONFIGURATION: Release
+      BUILD_PLATFORM: x64
+      SERVER_SOLUTION: GameServer\GameServer.sln
+      SERVER_OUTPUT: GameServer\x64\Release
+      SERVER_EXE: GameServer.exe
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Verify native build dependencies
+        shell: powershell
+        run: |
+          $requiredFiles = @(
+              "Libraries\Libs\Protobuf\Release\libprotobuf.lib",
+              "Libraries\Libs\Protobuf\Release\libprotobuf.dll",
+              "Libraries\Libs\LUA\lua55.lib"
+          )
+
+          foreach ($file in $requiredFiles) {
+              if (-not (Test-Path $file)) {
+                  throw "Required native build dependency was not found: $file"
+              }
+          }
+
+      - name: Restore server solution
+        run: msbuild "${{ env.SERVER_SOLUTION }}" /t:Restore
+
+      - name: Build server
+        run: >
+          msbuild "${{ env.SERVER_SOLUTION }}"
+          /m
+          /p:Configuration=${{ env.BUILD_CONFIGURATION }}
+          /p:Platform=${{ env.BUILD_PLATFORM }}
+
+      - name: Create server package
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path "Executable\Server"
+
+          Copy-Item `
+            "${{ env.SERVER_OUTPUT }}\${{ env.SERVER_EXE }}" `
+            "Executable\Server\${{ env.SERVER_EXE }}" `
+            -Force
+
+          Get-ChildItem `
+            -Path "${{ env.SERVER_OUTPUT }}" `
+            -Filter "*.dll" `
+            -File `
+            -ErrorAction SilentlyContinue |
+          Copy-Item `
+            -Destination "Executable\Server" `
+            -Force
+
+          Copy-Item `
+            "Libraries\Libs\Protobuf\Release\libprotobuf.dll" `
+            "Executable\Server\libprotobuf.dll" `
+            -Force
+
+          if (Test-Path "Libraries\Libs\LUA\lua55.dll") {
+              Copy-Item "Libraries\Libs\LUA\lua55.dll" "Executable\Server\lua55.dll" -Force
+          }
+
+          $serverRoot = "GameServer\GameServer"
+          foreach ($dir in @("MapFIle", "Scripts")) {
+              $src = Join-Path $serverRoot $dir
+              if (Test-Path $src) {
+                  Copy-Item `
+                    $src `
+                    (Join-Path "Executable\Server" $dir) `
+                    -Recurse -Force
+              }
+          }
+
+          @'
+          @echo off
+          cd /d "%~dp0Server"
+          GameServer.exe
+          '@ | Set-Content `
+            -Path "Executable\StartServer.bat" `
+            -Encoding ascii
+
+          @'
+          PVENoirGame Server Package
+
+          Run StartServer.bat.
+          '@ | Set-Content `
+            -Path "Executable\README.txt" `
+            -Encoding utf8
+
+      - name: Verify server package
+        shell: powershell
+        run: |
+          if (-not (Test-Path "Executable\Server\${{ env.SERVER_EXE }}")) {
+              throw "Server executable was not found."
+          }
+
+          $protoFiles = Get-ChildItem "Executable" -Recurse -Filter "*.proto" -File -ErrorAction SilentlyContinue
+          if ($protoFiles) {
+              $protoFiles | Select-Object FullName
+              throw "Proto source files should not be included in the executable package."
+          }
+
+      - name: Stage artifact
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path "Artifact"
+          Copy-Item "Executable" "Artifact" -Recurse -Force
+
+      - name: Upload server package
+        uses: actions/upload-artifact@v4
+        with:
+          name: PVENoirGame-Server-Windows-x64
+          path: Artifact
+          if-no-files-found: error

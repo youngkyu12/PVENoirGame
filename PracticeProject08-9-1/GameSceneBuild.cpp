@@ -274,14 +274,6 @@ void CGameScene::BuildLogicalMonstersFromCurrentStageData()
 		}
 	}
 
-	OutputDebugStringA((
-		"[LogicalMonster] built logical monster list:\n"
-		"  Ghoul   = " + std::to_string(m_logicalGhoulCount) + "\n" +
-		"  SwordMan= " + std::to_string(m_logicalSwordManCount) + "\n" +
-		"  BowMan  = " + std::to_string(m_logicalBowManCount) + "\n" +
-		"  Mutant  = " + std::to_string(m_logicalMutantCount) + "\n" +
-		"  Boss    = " + std::to_string(m_logicalBossCount) + "\n"
-		).c_str());
 }
 
 void CGameScene::RegisterLogicalMutantKeyTriggers()
@@ -319,7 +311,6 @@ void CGameScene::RegisterLogicalMutantKeyTriggers()
 
 			char buf[256];
 			sprintf_s(buf, "[LogicalKeyMutant] registered logical=%d mega=%d pos=(%.3f, %.3f, %.3f)\n", logicalIndex, megaGridNumber, logical.position.x, logical.position.y, logical.position.z);
-			OutputDebugStringA(buf);
 
 			break;
 		}
@@ -550,12 +541,6 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 		}
 	}
 
-	OutputDebugStringA(( "[BuildSkinnedBatch] enemy type counts from server:\n"
-		"  Ghoul   = " + std::to_string(m_ghoulCount) + "\n"
-		"  SwordMan= " + std::to_string(m_swordManCount) + "\n"
-		"  BowMan  = " + std::to_string(m_bowManCount) + "\n"
-		"  Mutant  = " + std::to_string(m_MutantCount) + "\n"
-		"  Boss    = " + std::to_string(m_bossCount) + "\n" ).c_str());
 #else
 	m_localPlayerSlot = 0;
 
@@ -664,14 +649,6 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_helmetCount = m_MutantCount;
 	m_terrainCount = 1;
 
-	OutputDebugStringA((
-		"[MonsterPool] visual pool counts:\n"
-		"  Ghoul   = " + std::to_string(m_ghoulCount) + " / logical " + std::to_string(m_logicalGhoulCount) + "\n" +
-		"  SwordMan= " + std::to_string(m_swordManCount) + " / logical " + std::to_string(m_logicalSwordManCount) + "\n" +
-		"  BowMan  = " + std::to_string(m_bowManCount) + " / logical " + std::to_string(m_logicalBowManCount) + "\n" +
-		"  Mutant  = " + std::to_string(m_MutantCount) + " / logical " + std::to_string(m_logicalMutantCount) + "\n" +
-		"  Boss    = " + std::to_string(m_bossCount) + " / logical " + std::to_string(m_logicalBossCount) + "\n"
-		).c_str());
 
 #ifdef USING_NETWORK
 	const UINT worldStaticCount = static_cast< UINT >( m_staticPlacementEntries.size() );
@@ -725,6 +702,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	auto pTerrainShader = std::make_shared<CTerrainShader>();
 	auto pShadowTerrainShader = std::make_shared<CShadowMapTerrainShader>();
 	auto pWaterShader = std::make_shared<CWaterShader>();
+	auto pTransparentWaterShader = std::make_shared<CTransparentWaterShader>();
 	auto pSkyBoxShader = std::make_shared<CSkyBoxShader>();
 
 	m_staticBatch.shader = pStaticShader;
@@ -740,6 +718,7 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_terrainShader = pTerrainShader;
 	m_shadowTerrainShader = pShadowTerrainShader;
 	m_waterShader = pWaterShader;
+	m_transparentWaterShader = pTransparentWaterShader;
 	m_skyBox.shader = pSkyBoxShader;
 
 	DXGI_FORMAT rtvFormats[5] =
@@ -854,6 +833,15 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 			kDsvFormat
 		);
 
+		DXGI_FORMAT transparentWaterRtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+		pTransparentWaterShader->CreateShader(
+			dev,
+			m_pd3dGraphicsRootSignature.Get(),
+			1,
+			&transparentWaterRtvFormat,
+			kDsvFormat
+		);
+
 		DXGI_FORMAT skyBoxRtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 		pSkyBoxShader->CreateShader(
 			dev,
@@ -904,19 +892,11 @@ void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 			cache.health->SetAudioManager(m_pAudioManager);
 	}
 
-	{
-		LinkSceneObjects();
-	}
-	{
-		AttachInventoryComponentsToPlayers();
-	}
-	{
-		SyncLocalInventoryToHud();
-	}
+	LinkSceneObjects();
+	AttachInventoryComponentsToPlayers();
+	SyncLocalInventoryToHud();
 
-	{
-		CreateShaderVariables(dev, cmd);
-	}
+	CreateShaderVariables(dev, cmd);
 
 	CGameObject* local = GetPlayer();
 	if ( !local )
@@ -1487,7 +1467,6 @@ void CGameScene::BuildStaticBatch(
 							authoredIt->second.size(),
 							authoredBoxTotal
 						);
-						OutputDebugStringA(buf);
 					}
 				}
 				else if ( logCastleVillageWallColliderBuild )
@@ -1499,7 +1478,6 @@ void CGameScene::BuildStaticBatch(
 						placement.assetName.c_str(),
 						placement.objectName.c_str()
 					);
-					OutputDebugStringA(buf);
 				}
 			}
 
@@ -1657,11 +1635,9 @@ void CGameScene::BuildStaticBatch(
 			exportedWorldStaticPlacementIndices,
 			exportedWorldStaticObjects) )
 		{
-			OutputDebugStringA("[StaticWorldLocalOOBBReport] export failed\n");
 		}
 		else
 		{
-			OutputDebugStringA("[StaticWorldLocalOOBBReport] export complete\n");
 		}
 	}
 #endif
@@ -4308,16 +4284,6 @@ void CGameScene::BuildSkinnedBatch(
 	m_pendingMonsterSfxList.clear();
 	m_activeMonsterSfxList.clear();
 
-	OutputDebugStringA((
-		"[SkinnedBatch] actual refs after pool build:\n"
-		"  skinnedObjectRefs = " + std::to_string(m_skinnedBatch.objectRefs.size()) + " / capacity " + std::to_string(m_skinnedBatch.capacity) + "\n" +
-		"  Ghoul            = " + std::to_string(m_ghoulRefs.size()) + "\n" +
-		"  SwordMan         = " + std::to_string(m_swordManRefs.size()) + "\n" +
-		"  BowMan           = " + std::to_string(m_bowManRefs.size()) + "\n" +
-		"  Mutant           = " + std::to_string(m_MutantRefs.size()) + "\n" +
-		"  Boss             = " + std::to_string(m_bossRefs.size()) + "\n" +
-		"  PlayerSlot0      = " + std::string(m_playersBySlot[0] ? "valid" : "null") + "\n"
-		).c_str());
 	
 	BuildSkinnedComponentCache();
 	BuildSkinnedInstanceGroups();
@@ -4833,7 +4799,6 @@ void CGameScene::BuildStaticWorldSubmeshOOBBDebugObjects(
 			{
 				if ( m_ColliderCount >= m_colliderBatch.capacity )
 				{
-					OutputDebugStringA("[DebugOOBB] capacity reached\n");
 					return;
 				}
 
@@ -5870,7 +5835,7 @@ void CGameScene::CreateMainCamera(ID3D12Device* dev, ID3D12GraphicsCommandList* 
 
 	cam->SetTimeLag(0.0f);
 
-	cam->SetOffset(XMFLOAT3(0.0f, 0.0f, -2.0f));
+	cam->SetOffset(XMFLOAT3(0.0f, 0.0f, -3.0f));
 
 	cam->GetPitch() = 12.0f;
 

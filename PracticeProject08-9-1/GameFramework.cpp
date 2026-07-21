@@ -80,6 +80,7 @@ bool CGameFramework::OnCreate(HINSTANCE hInstance, HWND hMainWnd)
 		music->RegisterMusic(EMusicState::Wait, "Assets/Audio/WaitSceneBGM.mp3");
 		music->RegisterMusic(EMusicState::Gameplay, "Assets/Audio/ForestBGMWithBird.wav");
 		music->RegisterMusic(EMusicState::Boss, "Assets/Audio/BossStage.mp3");
+		music->RegisterSeaLayerMusic("Assets/Audio/Sea.wav");
 		music->SetCrossFadeSeconds(1.5f);
 	}
 
@@ -936,6 +937,14 @@ void CGameFramework::BuildSceneInternal(ESceneId id, bool resetTimer)
 		return;
 	}
 
+	scene->OnResize(m_nWndClientWidth, m_nWndClientHeight);
+
+	if(scene && !m_Fullscreen)
+	{
+		m_Fullscreen = true;
+		ChangeSwapChainState();
+	}
+
 	m_bUserPaused = false;
 	m_bConsumeNextMouseClick = false;
 
@@ -1196,28 +1205,8 @@ void CGameFramework::ChangeSwapChainState()
 	FindOutputForCurrentWindow();
 
 	if (m_DisplayMode == DisplayMode::Windowed)
-	{
-		if (m_bHasGpuOutput)
-		{
-			HRESULT hr = m_pdxgiSwapChain->SetFullscreenState(TRUE, nullptr);
-
-			if (SUCCEEDED(hr))
-			{
-				m_DisplayMode = DisplayMode::ExclusiveFullscreen;
-
-				m_nWndClientWidth = m_OutputDesc.DesktopCoordinates.right - m_OutputDesc.DesktopCoordinates.left;
-				m_nWndClientHeight = m_OutputDesc.DesktopCoordinates.bottom - m_OutputDesc.DesktopCoordinates.top;
-				
-				OnResize(m_nWndClientWidth, m_nWndClientHeight);
-				return;
-			}
-		}
-		else
-		{
-			EnterBorderlessFullscreen();
-			return;
-		}
-		
+	{		
+		EnterBorderlessFullscreen();
 	}
 	else if (m_DisplayMode == DisplayMode::ExclusiveFullscreen)
 	{

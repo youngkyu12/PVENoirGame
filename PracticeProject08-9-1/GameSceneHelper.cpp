@@ -414,8 +414,6 @@ namespace GameSceneHelper
 		if ( !kEnableTowerDoorPortalCollisionLog )
 			return;
 
-		OutputDebugStringA(text);
-		OutputDebugStringA("\n");
 	}
 
 	void DebugPrintTowerDoorPortalFloat3(
@@ -436,7 +434,6 @@ namespace GameSceneHelper
 			v.z
 		);
 
-		OutputDebugStringA(buf);
 	}
 
 	void DebugPrintTowerDoorPortalOOBB(
@@ -460,7 +457,6 @@ namespace GameSceneHelper
 			box.Extents.z
 		);
 
-		OutputDebugStringA(buf);
 	}
 #endif
 

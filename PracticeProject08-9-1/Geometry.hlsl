@@ -102,7 +102,17 @@ VS_SKYBOX_OUTPUT VSSkyBox(VS_SKYBOX_INPUT input, uint vertexId : SV_VertexID)
 float4 PSSkyBox(VS_SKYBOX_OUTPUT input) : SV_TARGET
 {
     uint textureIndex = gnMaterialID + input.faceIndex;
-    return gtxtGlobalTextures[textureIndex].Sample(gssDefaultSamplerState, input.uv);
+    float4 skyColor = gtxtGlobalTextures[textureIndex].Sample(gssDefaultSamplerState, input.uv);
+
+    const float denseFogEnd = 40.0f;
+    const float outerFogEnd = 500.0f;
+    const float maxSkyFogBlend = 0.80f;
+
+    float denseFogBlend = saturate((outerFogEnd - gvFogParams0.y) / (outerFogEnd - denseFogEnd));
+    float skyFogBlend = denseFogBlend * maxSkyFogBlend * saturate(gvFogParams0.w);
+    skyColor.rgb = lerp(skyColor.rgb, gvFogColor.rgb, skyFogBlend);
+
+    return skyColor;
 }
 
 VS_TEXTURED_LIGHTING_OUTPUT VSTexturedLighting(VS_TEXTURED_LIGHTING_INPUT input)

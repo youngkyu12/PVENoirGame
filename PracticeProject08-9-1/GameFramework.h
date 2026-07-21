@@ -187,6 +187,7 @@ private:
 	bool								m_bHasGpuOutput = false;
 	DWORD								m_dwWindowedStyle = 0;
 	WINDOWPLACEMENT						m_WindowedPlacement {};
+	bool								m_Fullscreen = false;
 
 	bool HandlePauseClick(UINT nMessageID, LPARAM lParam);
 	void ClearInputPause();
