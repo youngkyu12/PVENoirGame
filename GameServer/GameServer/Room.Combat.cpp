@@ -259,6 +259,81 @@ void Room::RefreshBossRoomChaseState()
 	}
 }
 
+bool Room::IsPlayerInsideMegaGrid4LowYPoisonArea(const PlayerRef& player) const
+{
+	if (!player || player->GetPosition().y > kMegaGrid4LowYPoisonMaxY)
+		return false;
+
+	const int zeroBased = kMegaGrid4LowYPoisonMegaGridNumber - 1;
+	const int megaX = zeroBased % kMegaGridCols;
+	const int megaZ = zeroBased / kMegaGridCols;
+	const float centerX = static_cast<float>(
+		kGridMinX + megaX * kMegaGridCellWidth + kMegaGridCellWidth / 2);
+	const float centerZ = static_cast<float>(
+		kGridMinZ + megaZ * kMegaGridCellHeight + kMegaGridCellHeight / 2);
+	const GameMath::Vec3 pos = player->GetPosition();
+
+	return std::abs(pos.x - centerX) <= kMegaGrid4LowYPoisonHalfExtent &&
+		std::abs(pos.z - centerZ) <= kMegaGrid4LowYPoisonHalfExtent;
+}
+
+void Room::UpdateMegaGrid4LowYPoison()
+{
+	const uint64 dtMs = m_timing.serverTickIntervalMs;
+	const uint32 animClockTick = GetAnimClockTick();
+
+	for (const auto& [playerId, player] : players)
+	{
+		if (!player || !player->IsActive() || player->IsDead())
+		{
+			m_megaGrid4LowYPoisonStates.erase(playerId);
+			continue;
+		}
+
+		MegaGrid4LowYPoisonState& state = m_megaGrid4LowYPoisonStates[playerId];
+		const bool insidePoisonArea = IsPlayerInsideMegaGrid4LowYPoisonArea(player);
+
+		if (insidePoisonArea)
+		{
+			state.exposureMs = (std::min)(kMegaGrid4LowYPoisonGraceMs, state.exposureMs + dtMs);
+			if (state.exposureMs >= kMegaGrid4LowYPoisonGraceMs)
+				state.poisoned = true;
+		}
+		else
+		{
+			state.exposureMs = (state.exposureMs > dtMs) ? (state.exposureMs - dtMs) : 0;
+			if (state.exposureMs == 0)
+			{
+				m_megaGrid4LowYPoisonStates.erase(playerId);
+				continue;
+			}
+			if (!state.poisoned)
+				state.damageAccumulatorMs = 0;
+		}
+
+		if (!state.poisoned)
+			continue;
+		if (!insidePoisonArea)
+		{
+			state.damageAccumulatorMs = 0;
+			continue;
+		}
+
+		state.damageAccumulatorMs += dtMs;
+		if (state.damageAccumulatorMs < kMegaGrid4LowYPoisonDamageIntervalMs)
+			continue;
+
+		const uint64 tickCount = state.damageAccumulatorMs / kMegaGrid4LowYPoisonDamageIntervalMs;
+		state.damageAccumulatorMs -= tickCount * kMegaGrid4LowYPoisonDamageIntervalMs;
+		player->ApplyEnvironmentalDamage(
+			animClockTick,
+			static_cast<int>(tickCount) * kMegaGrid4LowYPoisonDamagePerTick,
+			m_elapsedServerMs);
+		if (player->IsDead())
+			m_megaGrid4LowYPoisonStates.erase(playerId);
+	}
+}
+
 void Room::WakeEnemiesNearPlayer(const PlayerRef& player)
 {
 	if (!player) return;
@@ -429,6 +504,7 @@ void Room::TickAdvance()
 	}
 
 	RefreshBossRoomChaseState();
+	UpdateMegaGrid4LowYPoison();
 
 	RefreshDynamicCollisionMegaGridMasks();
 

@@ -147,6 +147,8 @@ private:
 	bool IsEnemyNearAnyPlayerExact(const GameMath::Vec3& enemyPos, float rangeSq) const;
 	void RefreshBossRoomChaseState();
 	bool IsBossRoomPersistentChaseActive(uint64 enemyId) const;
+	void UpdateMegaGrid4LowYPoison();
+	bool IsPlayerInsideMegaGrid4LowYPoisonArea(const PlayerRef& player) const;
 
 	bool IsMegaGridCleared(int megaGrid) const;
 
@@ -420,6 +422,19 @@ private:
 	std::unordered_set<uint64> m_aiAwakeEnemyIds;
 	std::unordered_set<uint64> m_castleCenterPlayerIds;
 	std::unordered_set<uint64> m_meleeHitKeys;
+	struct MegaGrid4LowYPoisonState
+	{
+		uint64 exposureMs = 0;
+		uint64 damageAccumulatorMs = 0;
+		bool poisoned = false;
+	};
+	static constexpr int kMegaGrid4LowYPoisonMegaGridNumber = 4;
+	static constexpr float kMegaGrid4LowYPoisonHalfExtent = 100.0f;
+	static constexpr float kMegaGrid4LowYPoisonMaxY = 2.8f;
+	static constexpr uint64 kMegaGrid4LowYPoisonGraceMs = 1000;
+	static constexpr uint64 kMegaGrid4LowYPoisonDamageIntervalMs = 1000;
+	static constexpr int kMegaGrid4LowYPoisonDamagePerTick = 5;
+	std::unordered_map<uint64, MegaGrid4LowYPoisonState> m_megaGrid4LowYPoisonStates;
 	std::unordered_map<uint64, int> m_poolEnemyMegaGrid;
 	std::unordered_map<uint64, int> m_spawnerKeyMutantIds;
 	std::array<SpawnerWaveState, kMegaGridCount + 1> m_spawnerWaveStates = {};

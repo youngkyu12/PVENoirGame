@@ -2003,7 +2003,6 @@ bool CGameScene::IsPlayerInsideMegaGrid4LowYPoisonArea(const CGameObject* player
 
 void CGameScene::UpdateMegaGrid4LowYPoison(float dt)
 {
-#ifndef USING_NETWORK
 	if ( dt <= 0.0f )
 		return;
 
@@ -2070,7 +2069,11 @@ void CGameScene::UpdateMegaGrid4LowYPoison(float dt)
 		state.damageAccumulatorSec -= static_cast< float >(tickCount) * kMegaGrid4LowYPoisonDamageIntervalSec;
 
 		const int damage = tickCount * kMegaGrid4LowYPoisonDamagePerTick;
+#ifndef USING_NETWORK
 		hp->TakeDamage(damage, false);
+#else
+		UNREFERENCED_PARAMETER(damage);
+#endif
 	}
 
 	float poisonOverlayAlpha = 0.0f;
@@ -2090,10 +2093,6 @@ void CGameScene::UpdateMegaGrid4LowYPoison(float dt)
 	}
 
 	m_hud.SetPoisonOverlayAlpha(poisonOverlayAlpha);
-#else
-	UNREFERENCED_PARAMETER(dt);
-	m_hud.SetPoisonOverlayAlpha(0.0f);
-#endif
 }
 
 XMFLOAT3 CGameScene::ComputeMegaGridCenterPosition(

@@ -228,6 +228,7 @@ void Room::Leave(PlayerRef player)
 			_collision->UnregisterCollider(collider);
 	}
 	players.erase(player->playerId);
+	m_megaGrid4LowYPoisonStates.erase(player->playerId);
 	RefreshBossRoomChaseState();
 }
 
@@ -327,6 +328,7 @@ void Room::BuildRoom()
 	m_aiAwakeEnemyIds.clear();
 	m_castleCenterPlayerIds.clear();
 	m_meleeHitKeys.clear();
+	m_megaGrid4LowYPoisonStates.clear();
 	m_spawnerKeyMutantIds.clear();
 	m_keyPickupUnlockedByMegaGrid.fill(true);
 	m_keyPickupUnlockedByMegaGrid[6] = false;
