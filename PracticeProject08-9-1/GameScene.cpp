@@ -7446,6 +7446,12 @@ bool CGameScene::AreAllMonstersInMegaGridDead(int megaGridNumber) const
 		if ( logical.megaGridNumber != megaGridNumber )
 			continue;
 
+#ifdef USING_NETWORK
+		hasRelevantMonster = true;
+
+		if ( !logical.dead && logical.hp > 0 )
+			return false;
+#else
 		if ( !logical.active && !logical.dead )
 			continue;
 
@@ -7453,6 +7459,7 @@ bool CGameScene::AreAllMonstersInMegaGridDead(int megaGridNumber) const
 
 		if ( logical.active && !logical.dead && logical.hp > 0 )
 			return false;
+#endif
 	}
 
 	return hasRelevantMonster;
@@ -8121,6 +8128,7 @@ bool CGameScene::TryBeginBossStageSummonSequence()
 #endif
 
 #ifdef USING_NETWORK
+	if ( m_serverBossRoomState != 1 ) return false;
 	if ( m_bBossStageBossActivated ) return false;
 	if ( m_bBossSummonSequenceStarted ) return false;
 
