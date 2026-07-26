@@ -228,6 +228,7 @@ void Room::Leave(PlayerRef player)
 			_collision->UnregisterCollider(collider);
 	}
 	players.erase(player->playerId);
+	RefreshBossRoomChaseState();
 }
 
 void Room::BroadCastAll(SendBufferRef sendBuffer)
@@ -338,6 +339,8 @@ void Room::BuildRoom()
 	m_bossPoisonPool.clear();
 	m_bossPoisonHitMap.clear();
 	m_bossSummonedEnemyIds.clear();
+	m_bossRoomEnemyIds.clear();
+	m_bossRoomPlayerIds.clear();
 	m_pendingBossCallSpawns.clear();
 	m_reservedBossCallEnemyIds.clear();
 	m_spawnFxSerial = 0;
@@ -521,6 +524,8 @@ void Room::BuildRoom()
 		RegisterDynamicCollider(enemy);
 		SetObjectCollisionMegaGridMask(enemy, isBoss ? 0 : ComputeObjectCurrentMegaGridMask(enemy.get()), true);
 		enemies[enemyId] = enemy;
+		if (!isBoss && spawn.megaId == 5)
+			m_bossRoomEnemyIds.insert(enemyId);
 
 		if (isBoss)
 		{

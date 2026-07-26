@@ -460,11 +460,15 @@ void Room::ActivatePreparedBossCallWave()
 		activated->SetSpawnFx(kSpawnFxBossCallSummon, GetTick(), reservation.spawnFxSerial);
 
 		m_bossSummonedEnemyIds.insert(reservation.enemyId);
-		m_aiAwakeEnemyIds.insert(reservation.enemyId);
+		m_bossRoomEnemyIds.insert(reservation.enemyId);
 		if (CMonsterAI* ai = activated->GetMonsterAI())
 		{
 			ai->SetHomePosition(reservation.position);
-			ai->SetInfiniteDirectChaseMode();
+			if (!m_bossRoomPlayerIds.empty())
+			{
+				ai->SetInfiniteDirectChaseMode();
+				m_aiAwakeEnemyIds.insert(reservation.enemyId);
+			}
 		}
 		++activatedCount;
 	}

@@ -206,6 +206,7 @@ bool CMonsterAI::AcquireTarget()
 		{
 			if (!player) continue;
 			if (player->IsDead()) continue;
+			if (!GRoom->IsBossRoomChaseTarget(id)) continue;
 
 			const float dSq = DistSqXZ(myPos, player->GetPosition());
 			if (dSq < bestSq)
@@ -528,6 +529,24 @@ void CMonsterAI::SetInfiniteDirectChaseMode()
 	m_returnPathIndex = 0;
 	m_bPatrolEnabled = false;
 	ResetPatrolState();
+}
+
+void CMonsterAI::ClearInfiniteDirectChaseMode()
+{
+	if (!m_useInfiniteDirectChase) return;
+
+	m_useInfiniteDirectChase = false;
+	m_useDirectMove = false;
+	m_pTarget = nullptr;
+	m_isChasing = false;
+	m_currentPath.clear();
+	m_trianglePath.clear();
+	m_currentPathIndex = 0;
+	m_bReturningHome = false;
+	m_returnPath.clear();
+	m_returnTrianglePath.clear();
+	m_returnPathIndex = 0;
+	BeginReturnHome();
 }
 
 void CMonsterAI::ConfigureFromWeapon(Protocol::WeaponType weaponType)

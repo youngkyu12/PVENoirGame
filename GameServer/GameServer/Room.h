@@ -107,6 +107,7 @@ public:
 	int GetMegaGridNumberFromWorldPosition(const GameMath::Vec3& pos) const;
 	bool IsPositionInsideMegaGridNumber(const GameMath::Vec3& pos, int megaGridNumber) const;
 	bool IsPositionInsideMegaGridApproachZone(const GameMath::Vec3& pos) const;
+	bool IsBossRoomChaseTarget(uint64 playerId) const;
 	bool GetMegaGridCenterMovementBounds(
 		int megaGridNumber,
 		float& outMinX,
@@ -144,6 +145,8 @@ private:
 	void InitializeItems();
 	void WakeEnemiesNearPlayer(const PlayerRef& player);
 	bool IsEnemyNearAnyPlayerExact(const GameMath::Vec3& enemyPos, float rangeSq) const;
+	void RefreshBossRoomChaseState();
+	bool IsBossRoomPersistentChaseActive(uint64 enemyId) const;
 
 	bool IsMegaGridCleared(int megaGrid) const;
 
@@ -436,6 +439,8 @@ private:
 	float m_bossOriginalYaw = 0.0f;
 	uint64 m_bossRoomStateChangedMs = 0;
 	std::unordered_set<uint64> m_bossSummonedEnemyIds;
+	std::unordered_set<uint64> m_bossRoomEnemyIds;
+	std::unordered_set<uint64> m_bossRoomPlayerIds;
 	std::vector<BossCallSpawnReservation> m_pendingBossCallSpawns;
 	std::unordered_set<uint64> m_reservedBossCallEnemyIds;
 	uint32 m_spawnFxSerial = 0;
