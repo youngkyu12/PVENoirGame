@@ -362,6 +362,7 @@ private:
 	void UpdateStaticTreeGridCullSelection(CCamera* camera);
 	bool IsStaticTreeObject(const CGameObject* obj) const;
 	void RenderStaticInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
+	void RenderTransparentWaterInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera);
 
 	void BuildItemBillboardBatch(
 		ID3D12Device* dev,
@@ -1896,6 +1897,7 @@ private:
 
 	// Water
 	std::shared_ptr<CWaterShader> m_waterShader;
+	std::shared_ptr<CTransparentWaterShader> m_transparentWaterShader;
 	std::unordered_set<CGameObject*> m_waterObjects;
 
 	// Ssao

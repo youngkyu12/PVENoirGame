@@ -8,6 +8,7 @@
 namespace
 {
 	static constexpr float kFootstepSfxVolume = 0.04f;
+	static constexpr float kWaterFootstepSfxVolume = 0.10f;
 	static constexpr float kPlayerDeathSfxVolume = 1.0f;
 
 	static bool IsWalkClipName(const std::string& clipName)
@@ -78,6 +79,24 @@ namespace
 		}
 
 		return "Assets/Audio/Walk_Block1.wav";
+	}
+
+	static const char* SelectRandomFootstepWaterSfxPath()
+	{
+		static std::mt19937 rng{ std::random_device{}( ) };
+		static std::uniform_int_distribution<int> dist(1, 5);
+
+		switch ( dist(rng) )
+		{
+		case 1: return "Assets/Audio/Footsteps_WaterV2_Walk_01.wav";
+		case 2: return "Assets/Audio/Footsteps_WaterV2_Walk_02.wav";
+		case 3: return "Assets/Audio/Footsteps_WaterV2_Walk_03.wav";
+		case 4: return "Assets/Audio/Footsteps_WaterV2_Walk_04.wav";
+		case 5: return "Assets/Audio/Footsteps_WaterV2_Walk_05.wav";
+		default: break;
+		}
+
+		return "Assets/Audio/Footsteps_WaterV2_Walk_01.wav";
 	}
 
 	static constexpr float kMonsterFootstepSfxVolume = 0.04f;
@@ -537,24 +556,37 @@ void CGameScene::PlayPlayerFootstepSfx(CGameObject* player)
 	if ( !player )
 		return;
 
-	const bool useBlockFootstep = IsLocalPlayerInsideMegaGridCenter();
+	const XMFLOAT3 pos = player->GetPosition();
+	const bool useWaterFootstep =
+		( pos.y <= 1.2f ) ||
+		IsPlayerInsideMegaGrid4LowYPoisonArea(player);
+
+	bool useBlockFootstep = IsLocalPlayerInsideMegaGridCenter();
+
+	if ( useBlockFootstep &&
+		m_sceneGrid.MegaGridNumberFromWorldPosition(pos.x, pos.z) == 4 )
+	{
+		useBlockFootstep = false;
+	}
 
 	const char* path =
-		useBlockFootstep
+		useWaterFootstep
+		? SelectRandomFootstepWaterSfxPath()
+		: useBlockFootstep
 		? SelectRandomFootstepBlockSfxPath()
 		: SelectRandomFootstepGrassSfxPath();
 
 	if ( !path || !path[0] )
 		return;
 
-	const XMFLOAT3 pos = player->GetPosition();
+	const float volume = useWaterFootstep ? kWaterFootstepSfxVolume : kFootstepSfxVolume;
 
 	m_pAudioManager->PlaySound3D(
 		path,
 		pos,
 		false,                 // loop
 		false,                 // stream
-		kFootstepSfxVolume,
+		volume,
 		false                  // startPaused
 	);
 }
@@ -1162,7 +1194,6 @@ void CGameScene::RequestBossAttackSfx(CGameObject* boss)
 		kBossAttackSfxDelaySeconds,
 		kBossAttackSfxDelaySeconds * 1000.0f
 	);
-	OutputDebugStringA(buf);
 }
 
 void CGameScene::ScheduleMonsterSfx(

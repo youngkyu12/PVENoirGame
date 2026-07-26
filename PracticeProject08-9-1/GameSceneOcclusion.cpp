@@ -421,7 +421,6 @@ void CGameScene::BuildStaticOcclusionGpuResources(ID3D12Device* dev)
 
 	if ( FAILED(hr) )
 	{
-		OutputDebugStringA("[Occlusion] CreateQueryHeap failed.\n");
 		return;
 	}
 
@@ -456,7 +455,6 @@ void CGameScene::BuildStaticOcclusionGpuResources(ID3D12Device* dev)
 
 	if ( FAILED(hr) )
 	{
-		OutputDebugStringA("[Occlusion] Create readback buffer failed.\n");
 		ReleaseStaticOcclusionGpuResources();
 		return;
 	}
@@ -473,7 +471,6 @@ void CGameScene::BuildStaticOcclusionGpuResources(ID3D12Device* dev)
 
 	if ( FAILED(hr) || !m_pMappedStaticOcclusionReadbackBuffer )
 	{
-		OutputDebugStringA("[Occlusion] Map readback buffer failed.\n");
 		ReleaseStaticOcclusionGpuResources();
 		return;
 	}
@@ -511,7 +508,6 @@ void CGameScene::BuildStaticOcclusionGpuResources(ID3D12Device* dev)
 
 		if ( FAILED(hr) )
 		{
-			OutputDebugStringA("[Occlusion] Create occlusion instance buffer failed.\n");
 			ReleaseStaticOcclusionGpuResources();
 			return;
 		}
@@ -524,7 +520,6 @@ void CGameScene::BuildStaticOcclusionGpuResources(ID3D12Device* dev)
 
 		if ( FAILED(hr) || !m_pMappedStaticOcclusionInstanceBuffer[frameIndex] )
 		{
-			OutputDebugStringA("[Occlusion] Map occlusion instance buffer failed.\n");
 			ReleaseStaticOcclusionGpuResources();
 			return;
 		}
@@ -1281,7 +1276,6 @@ void CGameScene::BuildSkinnedOcclusionGpuResources(ID3D12Device* dev)
 
 	if ( FAILED(hr) )
 	{
-		OutputDebugStringA("[SkinnedOcclusion] CreateQueryHeap failed.\n");
 		return;
 	}
 
@@ -1316,7 +1310,6 @@ void CGameScene::BuildSkinnedOcclusionGpuResources(ID3D12Device* dev)
 
 	if ( FAILED(hr) )
 	{
-		OutputDebugStringA("[SkinnedOcclusion] Create readback buffer failed.\n");
 		ReleaseSkinnedOcclusionGpuResources();
 		return;
 	}
@@ -1333,7 +1326,6 @@ void CGameScene::BuildSkinnedOcclusionGpuResources(ID3D12Device* dev)
 
 	if ( FAILED(hr) || !m_pMappedSkinnedOcclusionReadbackBuffer )
 	{
-		OutputDebugStringA("[SkinnedOcclusion] Map readback buffer failed.\n");
 		ReleaseSkinnedOcclusionGpuResources();
 		return;
 	}
@@ -1371,7 +1363,6 @@ void CGameScene::BuildSkinnedOcclusionGpuResources(ID3D12Device* dev)
 
 		if ( FAILED(hr) )
 		{
-			OutputDebugStringA("[SkinnedOcclusion] Create instance buffer failed.\n");
 			ReleaseSkinnedOcclusionGpuResources();
 			return;
 		}
@@ -1384,7 +1375,6 @@ void CGameScene::BuildSkinnedOcclusionGpuResources(ID3D12Device* dev)
 
 		if ( FAILED(hr) || !m_pMappedSkinnedOcclusionInstanceBuffer[frameIndex] )
 		{
-			OutputDebugStringA("[SkinnedOcclusion] Map instance buffer failed.\n");
 			ReleaseSkinnedOcclusionGpuResources();
 			return;
 		}
