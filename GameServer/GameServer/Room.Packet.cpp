@@ -14,6 +14,7 @@
 namespace
 {
 	constexpr uint32 kSpawnFxNone = 0;
+	constexpr uint32 kSpawnFxBossCallSummon = 1;
 	constexpr uint32 kSpawnFxSnapshotLifetimeMs = 2000;
 
 	enum : uint32
@@ -262,6 +263,36 @@ void Room::MakeFrameState(uint32 tick)
 			position->set_y(enemy->GetPosition().y);
 			position->set_z(enemy->GetPosition().z);
 			transform->set_yaw(enemy->GetYaw());
+		}
+
+		if (IsPositionInsideMegaGridNumber(viewerPos, 5))
+		{
+			for (const BossCallSpawnReservation& reservation : m_pendingBossCallSpawns)
+			{
+				auto enemyIt = enemies.find(reservation.enemyId);
+				if (enemyIt == enemies.end() || !enemyIt->second)
+					continue;
+
+				const EnemyRef& enemy = enemyIt->second;
+				if (enemy->IsActive())
+					continue;
+
+				auto e = frameStatePkt.add_enemies();
+				e->set_id(reservation.enemyId);
+				e->set_enemytype(reservation.type);
+				e->set_enemystate(Protocol::ENEMY_STATE_SPAWN_PENDING);
+				e->set_hp(static_cast<uint32>(enemy->GetCurrentHp()));
+				e->set_weapontype(enemy->GetWeaponState());
+				e->set_spawnfxtype(kSpawnFxBossCallSummon);
+				e->set_spawnfxserial(reservation.spawnFxSerial);
+
+				Protocol::Transform* transform = e->mutable_transform();
+				Protocol::Vec3f* position = transform->mutable_position();
+				position->set_x(reservation.position.x);
+				position->set_y(reservation.position.y);
+				position->set_z(reservation.position.z);
+				transform->set_yaw(reservation.yawDeg);
+			}
 		}
 
 		auto AddVisibleBullet = [&](ProjectileRef projectile)

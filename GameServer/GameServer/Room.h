@@ -336,8 +336,17 @@ private:
 	void SpawnBossPoisonProjectile();
 	void UpdateBossPoisonProjectiles(float dt);
 	void ProcessBossCallAction();
-	void SpawnBossCallWave();
-	CEnemy* SpawnBossCallEnemy(Protocol::EnemyType type);
+	void PrepareBossCallWave();
+	void ActivatePreparedBossCallWave();
+
+	struct BossCallSpawnReservation
+	{
+		uint64 enemyId = 0;
+		Protocol::EnemyType type = Protocol::ENEMY_TYPE_NONE;
+		GameMath::Vec3 position = GameMath::Vec3::Zero();
+		float yawDeg = 0.0f;
+		uint32 spawnFxSerial = 0;
+	};
 
 	void ResetDynamicGridCounts();
 	bool TryGetTrackedCell(const CServerObject* obj, int& outCellX, int& outCellZ) const;
@@ -427,6 +436,8 @@ private:
 	float m_bossOriginalYaw = 0.0f;
 	uint64 m_bossRoomStateChangedMs = 0;
 	std::unordered_set<uint64> m_bossSummonedEnemyIds;
+	std::vector<BossCallSpawnReservation> m_pendingBossCallSpawns;
+	std::unordered_set<uint64> m_reservedBossCallEnemyIds;
 	uint32 m_spawnFxSerial = 0;
 	std::unique_ptr<CBossScriptHost>  m_bossScriptHost;
 	std::unique_ptr<CBossAIContext>   m_bossAIContext;

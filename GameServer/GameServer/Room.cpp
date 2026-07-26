@@ -337,6 +337,10 @@ void Room::BuildRoom()
 	m_enemyArrowPool.clear();
 	m_bossPoisonPool.clear();
 	m_bossPoisonHitMap.clear();
+	m_bossSummonedEnemyIds.clear();
+	m_pendingBossCallSpawns.clear();
+	m_reservedBossCallEnemyIds.clear();
+	m_spawnFxSerial = 0;
 	m_items.clear();
 	InitializeCollisionSystem();
 	InitializeSpatialGrid();
@@ -897,6 +901,8 @@ void Room::OnMonsterDeath(uint64 enemyId)
 
 	if (enemyId == m_bossEnemyId && m_bossRoomState == EBossRoomState::BossActive)
 	{
+		m_pendingBossCallSpawns.clear();
+		m_reservedBossCallEnemyIds.clear();
 		m_bossRoomState = EBossRoomState::BossDead;
 		m_bossRoomStateChangedMs = m_elapsedServerMs;
 		cout << "[BossRoom] BossDead" << endl;

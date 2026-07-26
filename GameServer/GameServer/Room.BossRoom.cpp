@@ -341,6 +341,7 @@ void Room::ProcessBossCallAction()
 			boss->SetAnimState(Protocol::ANIMATION_TYPE_BOSS_CALL);
 			ctx.callRiseElapsed  = -1.0f;
 			ctx.callActionElapsed = 0.0f;
+			PrepareBossCallWave();
 			cout << "[BossRoom] Call wave " << ctx.callExecutedCount << " rising complete" << endl;
 		}
 		return;
@@ -350,7 +351,7 @@ void Room::ProcessBossCallAction()
 	{
 		if (!ctx.callSummonDone && ctx.callActionElapsed >= kSummonDelay)
 		{
-			SpawnBossCallWave();
+			ActivatePreparedBossCallWave();
 			ctx.callSummonDone = true;
 		}
 
@@ -378,9 +379,11 @@ void Room::ProcessBossCallAction()
 	}
 }
 
-void Room::SpawnBossCallWave()
+void Room::PrepareBossCallWave()
 {
 	if (!m_bossAIContext) return;
+	m_pendingBossCallSpawns.clear();
+	m_reservedBossCallEnemyIds.clear();
 
 	const int waveIndex = m_bossAIContext->callExecutedCount - 1;
 
@@ -396,35 +399,79 @@ void Room::SpawnBossCallWave()
 	else
 		return;
 
-	int spawned = 0;
+	int reserved = 0;
 	for (auto& req : wave)
-		for (int i = 0; i < req.count; i++)
-			if (SpawnBossCallEnemy(req.type)) spawned++;
-
-	cout << "[BossRoom] Call wave " << (waveIndex + 1) << " spawned " << spawned << " enemies" << endl;
-}
-
-CEnemy* Room::SpawnBossCallEnemy(Protocol::EnemyType type)
-{
-	if (!m_bossAIContext) return nullptr;
-
-	float x   = m_bossAIContext->RandFloat(-100.0f,  100.0f);
-	float z   = m_bossAIContext->RandFloat( 300.0f,  500.0f);
-	float yaw = m_bossAIContext->RandFloat(-180.0f,  180.0f);
-
-	CEnemy* activated = ActivateSpawnerEnemy(5, type, GameMath::Vec3(x, 0.0f, z), yaw);
-	if (activated)
 	{
-		m_bossSummonedEnemyIds.insert(activated->GetObjectId());
-		uint32 serial = ++m_spawnFxSerial;
-		if (serial == 0)
-			serial = ++m_spawnFxSerial;
-		activated->SetSpawnFx(kSpawnFxBossCallSummon, GetTick(), serial);
-		if (CMonsterAI* ai = activated->GetMonsterAI())
-			ai->SetInfiniteDirectChaseMode();
+		for (int i = 0; i < req.count; i++)
+		{
+			CEnemy* selected = nullptr;
+			for (auto& [enemyId, enemy] : enemies)
+			{
+				if (!enemy || enemy->IsActive()) continue;
+				if (enemy->type != req.type) continue;
+				if (m_reservedBossCallEnemyIds.count(enemyId)) continue;
+
+				auto poolIt = m_poolEnemyMegaGrid.find(enemyId);
+				if (poolIt == m_poolEnemyMegaGrid.end() || poolIt->second != 5) continue;
+
+				selected = enemy.get();
+				break;
+			}
+
+			if (!selected) continue;
+
+			BossCallSpawnReservation reservation{};
+			reservation.enemyId = selected->GetObjectId();
+			reservation.type = req.type;
+			reservation.position = SnapToTerrainIfBelow(GameMath::Vec3(
+				m_bossAIContext->RandFloat(-100.0f, 100.0f),
+				0.0f,
+				m_bossAIContext->RandFloat(300.0f, 500.0f)));
+			reservation.yawDeg = m_bossAIContext->RandFloat(-180.0f, 180.0f);
+			reservation.spawnFxSerial = ++m_spawnFxSerial;
+			if (reservation.spawnFxSerial == 0)
+				reservation.spawnFxSerial = ++m_spawnFxSerial;
+
+			m_reservedBossCallEnemyIds.insert(reservation.enemyId);
+			m_pendingBossCallSpawns.push_back(reservation);
+			++reserved;
+		}
 	}
 
-	return activated;
+	cout << "[BossRoom] Call wave " << (waveIndex + 1) << " reserved " << reserved << " enemies" << endl;
+}
+
+void Room::ActivatePreparedBossCallWave()
+{
+	int activatedCount = 0;
+	for (const BossCallSpawnReservation& reservation : m_pendingBossCallSpawns)
+	{
+		auto enemyIt = enemies.find(reservation.enemyId);
+		if (enemyIt == enemies.end() || !enemyIt->second) continue;
+
+		EnemyRef& activated = enemyIt->second;
+		if (activated->IsActive()) continue;
+
+		activated->SetPosition(reservation.position);
+		activated->SetYaw(reservation.yawDeg);
+		activated->ResetHpToMax();
+		activated->SetActive(true);
+		SetObjectCollisionMegaGridMask(activated, ComputeObjectCurrentMegaGridMask(activated.get()), true);
+		activated->SetSpawnFx(kSpawnFxBossCallSummon, GetTick(), reservation.spawnFxSerial);
+
+		m_bossSummonedEnemyIds.insert(reservation.enemyId);
+		m_aiAwakeEnemyIds.insert(reservation.enemyId);
+		if (CMonsterAI* ai = activated->GetMonsterAI())
+		{
+			ai->SetHomePosition(reservation.position);
+			ai->SetInfiniteDirectChaseMode();
+		}
+		++activatedCount;
+	}
+
+	m_pendingBossCallSpawns.clear();
+	m_reservedBossCallEnemyIds.clear();
+	cout << "[BossRoom] Activated " << activatedCount << " prepared Call enemies" << endl;
 }
 
 void Room::DebugDamageBoss()

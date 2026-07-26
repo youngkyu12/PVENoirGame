@@ -247,12 +247,13 @@ enum EnemyState : int {
   ENEMY_STATE_MOVE = 2,
   ENEMY_STATE_ATTACK = 3,
   ENEMY_STATE_DIE = 4,
+  ENEMY_STATE_SPAWN_PENDING = 5,
   EnemyState_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::min(),
   EnemyState_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<::PROTOBUF_NAMESPACE_ID::int32>::max()
 };
 bool EnemyState_IsValid(int value);
 constexpr EnemyState EnemyState_MIN = ENEMY_STATE_NONE;
-constexpr EnemyState EnemyState_MAX = ENEMY_STATE_DIE;
+constexpr EnemyState EnemyState_MAX = ENEMY_STATE_SPAWN_PENDING;
 constexpr int EnemyState_ARRAYSIZE = EnemyState_MAX + 1;
 
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* EnemyState_descriptor();

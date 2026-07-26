@@ -193,6 +193,7 @@ CGameScene::CGameScene()
 	m_networkBossCallPendingSummonEffects = 0;
 	m_networkBossCallSummonEffectWindowSec = 0.0f;
 	m_networkBossCallSummonVisualPreviews.clear();
+	m_networkBossCallSummonPreviewKeys.clear();
 	m_networkBossCallSummonEffectEnemyIds.clear();
 	m_prevNetworkEnemyPositions.clear();
 	m_playedSpawnFxKeys.clear();
@@ -4450,6 +4451,7 @@ void CGameScene::ReleaseObjects()
 	m_networkBossCallPendingSummonEffects = 0;
 	m_networkBossCallSummonEffectWindowSec = 0.0f;
 	m_networkBossCallSummonVisualPreviews.clear();
+	m_networkBossCallSummonPreviewKeys.clear();
 	m_networkBossCallSummonEffectEnemyIds.clear();
 	m_prevNetworkEnemyPositions.clear();
 	m_playedSpawnFxKeys.clear();
@@ -9448,7 +9450,11 @@ void CGameScene::ApplyNetworkEnemySnapshotToLogicalMonsters(const FrameSnapshot&
 	snapshotEnemyIds.reserve(snapshot.enemies.size());
 
 	for ( const EnemyState& state : snapshot.enemies )
+	{
+		if ( state.lifecycleState == static_cast< uint32_t >(Protocol::ENEMY_STATE_SPAWN_PENDING) )
+			continue;
 		snapshotEnemyIds.insert(state.id);
+	}
 
 	for ( int logicalIndex = 0; logicalIndex < static_cast< int >(m_logicalMonsters.size()); ++logicalIndex )
 	{
@@ -9471,6 +9477,9 @@ void CGameScene::ApplyNetworkEnemySnapshotToLogicalMonsters(const FrameSnapshot&
 
 	for ( const EnemyState& state : snapshot.enemies )
 	{
+		if ( state.lifecycleState == static_cast< uint32_t >(Protocol::ENEMY_STATE_SPAWN_PENDING) )
+			continue;
+
 		auto logicalIt = m_logicalMonsterIndexByServerId.find(state.id);
 		if ( logicalIt == m_logicalMonsterIndexByServerId.end() )
 			continue;
@@ -10131,6 +10140,33 @@ void CGameScene::AnimateObjects(float dt)
 			}
 		}
 
+		if ( m_itemBillboardState.bossCallSummonCircleVisual.active )
+		{
+			for ( const EnemyState& state : snapshot.enemies )
+			{
+				if ( state.lifecycleState != static_cast< uint32_t >(Protocol::ENEMY_STATE_SPAWN_PENDING) )
+					continue;
+
+				constexpr uint32_t kSpawnFxBossCallSummon = 1;
+				if ( state.spawnFxType != kSpawnFxBossCallSummon || state.spawnFxSerial == 0 )
+					continue;
+
+				const uint64_t previewKey = MakeSpawnFxKey(state.id, state.spawnFxSerial);
+				if ( !m_networkBossCallSummonPreviewKeys.insert(previewKey).second )
+					continue;
+
+				EEnemySpawnerEnemyKind summonKind = EEnemySpawnerEnemyKind::Ghoul;
+				if ( !MapBossCallSummonKind(state.enemyType, summonKind) )
+					continue;
+
+				BossCallSummonVisualPreview preview{};
+				preview.kind = summonKind;
+				preview.position = state.position;
+				m_networkBossCallSummonVisualPreviews.push_back(preview);
+				AddBossCallSummonCircle(preview.position, preview.kind);
+			}
+		}
+
 		if ( m_networkBossCallSummonEffectWindowSec > 0.0f )
 		{
 			m_networkBossCallSummonEffectWindowSec -= dt;
@@ -10152,6 +10188,9 @@ void CGameScene::AnimateObjects(float dt)
 
 		for ( const EnemyState& state : snapshot.enemies )
 		{
+			if ( state.lifecycleState == static_cast< uint32_t >(Protocol::ENEMY_STATE_SPAWN_PENDING) )
+				continue;
+
 			auto logicalIt = m_logicalMonsterIndexByServerId.find(state.id);
 			if ( logicalIt == m_logicalMonsterIndexByServerId.end() )
 			{
