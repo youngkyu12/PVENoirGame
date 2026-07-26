@@ -9396,6 +9396,130 @@ float CGameScene::LerpYawDegrees(float a, float b, float t)
 	return result;
 }
 
+void CGameScene::UpdateRemotePlayerMotionSamples(const FrameSnapshot& snapshot)
+{
+	constexpr float kDiscontinuityDistance = 5.0f;
+	constexpr float kDiscontinuityDistanceSq =
+		kDiscontinuityDistance * kDiscontinuityDistance;
+
+	for (const PlayerState& state : snapshot.players)
+	{
+		if (static_cast<int>(state.id) == m_localPlayerSlot)
+			continue;
+
+		PlayerDRState& dr = m_playerDRStates[state.id];
+		if (!dr.initialized)
+		{
+			dr.lastServerPos = state.position;
+			dr.lastServerYaw = state.yaw;
+			dr.lastServerTick = snapshot.frameId;
+			dr.velocity = {};
+			dr.initialized = true;
+			dr.discontinuous = false;
+			continue;
+		}
+		if (snapshot.frameId <= dr.lastServerTick)
+			continue;
+
+		const float dx = state.position.x - dr.lastServerPos.x;
+		const float dy = state.position.y - dr.lastServerPos.y;
+		const float dz = state.position.z - dr.lastServerPos.z;
+		const float distanceSq = dx * dx + dy * dy + dz * dz;
+		const uint64_t tickDelta = snapshot.frameId - dr.lastServerTick;
+		const float elapsedSec = static_cast<float>(tickDelta) * kServerTickSeconds;
+
+		if (distanceSq >= kDiscontinuityDistanceSq || elapsedSec <= 0.0f)
+		{
+			dr.velocity = {};
+			dr.discontinuous = true;
+		}
+		else
+		{
+			dr.velocity = XMFLOAT3(dx / elapsedSec, dy / elapsedSec, dz / elapsedSec);
+			dr.discontinuous = false;
+		}
+
+		const DecodedAnimStateCode decoded = DecodeStateCode(state.animation.stateCode);
+		if (!decoded.hasMove || decoded.die || decoded.hit)
+			dr.velocity = {};
+
+		dr.lastServerPos = state.position;
+		dr.lastServerYaw = state.yaw;
+		dr.lastServerTick = snapshot.frameId;
+	}
+}
+
+void CGameScene::UpdateRemotePlayerNetworkMovement(float dt)
+{
+	if (m_frameSnapshotBuffer.empty() ||
+		m_lastReceivedServerTick <= kNetworkInterpolationDelayTicks)
+		return;
+
+	const float elapsedTicks = m_timeSinceLastFramePacket / kServerTickSeconds;
+	const uint64_t elapsedWholeTicks = static_cast<uint64_t>(elapsedTicks);
+	const float tickFraction = elapsedTicks - static_cast<float>(elapsedWholeTicks);
+	const uint64_t renderTick =
+		m_lastReceivedServerTick + elapsedWholeTicks - kNetworkInterpolationDelayTicks;
+
+	const FrameSnapshot* older = nullptr;
+	const FrameSnapshot* newer = nullptr;
+	float baseAlpha = 0.0f;
+	const bool hasInterpolationPair =
+		GetInterpolationSnapshots(renderTick, older, newer, baseAlpha) && older && newer;
+
+	for (auto& [id, dr] : m_playerDRStates)
+	{
+		if (static_cast<int>(id) == m_localPlayerSlot || !dr.initialized)
+			continue;
+
+		CGameObject* player = GetPlayerBySlot(static_cast<int>(id));
+		if (!player)
+			continue;
+
+		XMFLOAT3 displayPos = dr.lastServerPos;
+		float displayYaw = dr.lastServerYaw;
+		bool interpolated = false;
+
+		if (!dr.discontinuous && hasInterpolationPair)
+		{
+			const PlayerState* oldState = FindPlayerState(*older, id);
+			const PlayerState* newState = FindPlayerState(*newer, id);
+			if (oldState && newState)
+			{
+				const uint64_t tickSpan = newer->frameId - older->frameId;
+				float alpha = baseAlpha;
+				if (tickSpan > 0)
+					alpha += tickFraction / static_cast<float>(tickSpan);
+				alpha = std::clamp(alpha, 0.0f, 1.0f);
+
+				displayPos = LerpPosition(oldState->position, newState->position, alpha);
+				displayYaw = LerpYawDegrees(oldState->yaw, newState->yaw, alpha);
+				interpolated = true;
+			}
+		}
+
+		if (!interpolated && !dr.discontinuous)
+		{
+			float aheadTicks = tickFraction;
+			if (renderTick >= dr.lastServerTick)
+				aheadTicks += static_cast<float>(renderTick - dr.lastServerTick);
+			else
+				aheadTicks = 0.0f;
+
+			const float extrapolationSec = (std::min)(
+				aheadTicks * kServerTickSeconds,
+				kMaxRemotePlayerExtrapolationSeconds);
+			displayPos.x += dr.velocity.x * extrapolationSec;
+			displayPos.z += dr.velocity.z * extrapolationSec;
+		}
+
+		displayPos = ResolveNetworkActorY(id, true, displayPos, dt);
+		player->SetPosition(displayPos.x, displayPos.y, displayPos.z);
+		if (auto* tr = player->GetComponent<CTransformComponent>())
+			tr->SetYawDegrees(displayYaw);
+	}
+}
+
 float CGameScene::SampleClientTerrainY(float worldX, float worldZ, float fallbackY) const
 {
 	if ( !m_TerrainData )
@@ -9805,6 +9929,7 @@ void CGameScene::AnimateObjects(float dt)
         const FrameSnapshot& receivedSnapshot = std::get<FrameSnapshot>(m_pendingNetworkMessage.data);
 		PushNetworkFrameSnapshot(receivedSnapshot);
 		m_timeSinceLastFramePacket = 0.0f;
+		UpdateRemotePlayerMotionSamples(receivedSnapshot);
 		const FrameSnapshot& latestSnapshot =
 			m_frameSnapshotBuffer.empty() ? receivedSnapshot : m_frameSnapshotBuffer.back();
 		FrameSnapshot snapshot = BuildInterpolatedFrameSnapshot(latestSnapshot);
@@ -9824,33 +9949,6 @@ void CGameScene::AnimateObjects(float dt)
 		}
 
         // Player 좌표 업데이트
-		auto ComputePlayerMoveDir = [] (uint32_t moveDirBits, float yawDeg) -> XMFLOAT3
-		{
-			constexpr uint32_t kDirForward  = 0x01;
-			constexpr uint32_t kDirBackward = 0x02;
-			constexpr uint32_t kDirLeft     = 0x04;
-			constexpr uint32_t kDirRight    = 0x08;
-
-			const float yawRad = XMConvertToRadians(yawDeg);
-			const XMVECTOR look = XMVectorSet(std::sinf(yawRad), 0.0f, std::cosf(yawRad), 0.0f);
-			const XMVECTOR right = XMVectorSet(std::cosf(yawRad), 0.0f, -std::sinf(yawRad), 0.0f);
-			XMVECTOR dir = XMVectorZero();
-
-			if ( moveDirBits & kDirForward )  dir += look;
-			if ( moveDirBits & kDirBackward ) dir -= look;
-			if ( moveDirBits & kDirRight )    dir += right;
-			if ( moveDirBits & kDirLeft )     dir -= right;
-
-			if ( XMVectorGetX(XMVector3LengthSq(dir)) > 1e-8f )
-				dir = XMVector3Normalize(dir);
-			else
-				dir = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
-
-			XMFLOAT3 out{};
-			XMStoreFloat3(&out, dir);
-			return out;
-		};
-
         for (const auto& state : snapshot.players)
         {
             // id를 slot으로 사용 (0~3)
@@ -9859,14 +9957,14 @@ void CGameScene::AnimateObjects(float dt)
             if (!player) continue;
 
 			const bool isLocalPlayer = ( slot == m_localPlayerSlot );
-			const XMFLOAT3 resolvedPosition =
-				ResolveNetworkActorY(state.id, true, state.position, dt);
 
 			if ( auto* hp = player->GetComponent<CHealthComponent>() )
 				hp->SetCurrentHp(static_cast< int >( state.hp ));
 
 			if ( isLocalPlayer )
 			{
+				const XMFLOAT3 resolvedPosition =
+					ResolveNetworkActorY(state.id, true, state.position, dt);
 				constexpr float kLocalPlayerServerSnapDistance = 1.5f;
 				constexpr float kLocalPlayerServerSnapDistanceSq =
 					kLocalPlayerServerSnapDistance * kLocalPlayerServerSnapDistance;
@@ -9890,40 +9988,7 @@ void CGameScene::AnimateObjects(float dt)
             }
             else
             {
-				const DecodedAnimStateCode decodedDR =
-					DecodeStateCode(state.animation.stateCode);
-				float drSpeed = 0.0f;
-				XMFLOAT3 moveDir = XMFLOAT3(0.0f, 0.0f, 1.0f);
-				if ( decodedDR.hasMove && !decodedDR.die && !decodedDR.hit )
-				{
-					moveDir = ComputePlayerMoveDir(decodedDR.moveDirBits, state.yaw);
-					if ( auto* controller = player->GetComponent<CPlayerControllerComponent>() )
-						drSpeed = decodedDR.run ? controller->GetRunMoveSpeed() : controller->GetWalkMoveSpeed();
-					else
-						drSpeed = decodedDR.run ? 10.0f : 5.0f;
-				}
-
-				PlayerDRState& dr = m_playerDRStates[state.id];
-				if ( !dr.initialized )
-				{
-					dr.predictedPos = resolvedPosition;
-					dr.initialized = true;
-				}
-				else
-				{
-					constexpr float kCorrectionAlpha = 0.35f;
-					dr.predictedPos = LerpPosition(dr.predictedPos, resolvedPosition, kCorrectionAlpha);
-				}
-				dr.moveDir = moveDir;
-				dr.speed = drSpeed;
-
-                player->SetPosition(dr.predictedPos.x, dr.predictedPos.y, dr.predictedPos.z);
-
-				// yaw 회전 적용
-				if (auto* tr = player->GetComponent<CTransformComponent>())
-				{
-					tr->SetYawDegrees(state.yaw);
-				}
+				// Remote transforms are sampled from the buffered server timeline below.
 			}
 
 			if ( auto wc = player->GetComponent<CPlayerEquipmentComponent>() )
@@ -10557,19 +10622,6 @@ void CGameScene::AnimateObjects(float dt)
 					ac->SetAnimState(decoded.hasMove ? EAnimState::Move : EAnimState::Idle);
 			}
 
-			if ( static_cast< int >( id ) == m_localPlayerSlot )
-				continue;
-
-			auto drIt = m_playerDRStates.find(id);
-			if ( drIt == m_playerDRStates.end() ) continue;
-
-			PlayerDRState& dr = drIt->second;
-			if ( !dr.initialized || dr.speed <= 0.0f ) continue;
-
-			dr.predictedPos.x += dr.moveDir.x * dr.speed * dt;
-			dr.predictedPos.z += dr.moveDir.z * dr.speed * dt;
-
-			player->SetPosition(dr.predictedPos.x, dr.predictedPos.y, dr.predictedPos.z);
 		}
 
 		for ( const auto& [id, stateCode] : m_prevEnemyNetworkStateCode )
@@ -10661,6 +10713,8 @@ void CGameScene::AnimateObjects(float dt)
 		RebuildSceneGridMonsterRefsFromLogicalBindings();
 
 	}
+
+	UpdateRemotePlayerNetworkMovement(dt);
 #endif
 
 	CCamera* camera = GetMainCamera();
