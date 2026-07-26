@@ -1023,6 +1023,7 @@ void Room::DebugTeleportPlayersToMegaGrid(int megaGridNumber)
 			base + right * (centeredSlot * 2.0f);
 		const GameMath::Vec3 destination =
 			ResolveClearDestination(player, desired);
+		const float previousYaw = player->GetYaw();
 
 		player->SetVelocity(GameMath::Vec3::Zero());
 		player->ClearMoveKeyCodes();
@@ -1031,6 +1032,10 @@ void Room::DebugTeleportPlayersToMegaGrid(int megaGridNumber)
 		player->SetTerrainSnapSuppressed(false);
 		player->SetPosition(destination);
 		player->SetYaw(yaw);
+		SendForcedTransformYawDelta(
+			player,
+			GameMath::NormalizeYaw(yaw - previousYaw),
+			Protocol::FORCED_TRANSFORM_REASON_NONE);
 
 		if (auto* collider = player->GetComponent<CColliderComponent>())
 			collider->OnUpdate(0.0f);
