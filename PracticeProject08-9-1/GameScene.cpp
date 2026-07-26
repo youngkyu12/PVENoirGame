@@ -9640,6 +9640,10 @@ void CGameScene::ApplyNetworkEnemyVisualSnapshot(CGameObject* monster, int logic
 					PlayBossDeathSfxAt(monster->GetPosition());
 					BeginBossDeathEffect(monster);
 				}
+				else if ( auto* hp = monster->GetComponent<CHealthComponent>() )
+				{
+					hp->RequestHitSfx();
+				}
 
 				HandleMutantKeyTriggerDeath(monster);
 
