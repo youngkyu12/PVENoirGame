@@ -112,6 +112,15 @@ void Player::ApplyHit(uint32 serverTick, int damage, uint32 hitDurationTicks, ui
     m_hitEndTick = serverTick + clampedHitDurationTicks;
 }
 
+void Player::ApplyEnvironmentalDamage(uint32 serverTick, int damage, uint64 serverMs)
+{
+    if (IsDead() || damage <= 0) return;
+
+    TakeDamage(ApplyDefenseBuffToIncomingDamage(damage, serverMs));
+    if (IsDead())
+        OnDeathEnter(serverTick);
+}
+
 void Player::OnDeathEnter(uint32 serverTick)
 {
     m_lifeState = EPlayerLifeState::DeadAnimating;

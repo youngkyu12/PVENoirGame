@@ -630,100 +630,15 @@ void CGameScene::AddBossCallSummonCircle(const XMFLOAT3& center, EEnemySpawnerEn
 }
 
 #ifdef USING_NETWORK
-XMFLOAT3 CGameScene::ComputeNetworkBossCallSummonVisualPosition(
-	EEnemySpawnerEnemyKind kind,
-	int index,
-	int totalCount) const
-{
-	const float angleCount =
-		static_cast< float >( std::max(1, totalCount) );
-
-	const float angle =
-		XM_2PI *
-		static_cast< float >( std::max(0, index) ) /
-		angleCount;
-
-	float radius = 36.0f;
-
-	switch ( kind )
-	{
-	case EEnemySpawnerEnemyKind::BowMan:
-		radius = 52.0f;
-		break;
-
-	case EEnemySpawnerEnemyKind::SwordMan:
-		radius = 44.0f;
-		break;
-
-	case EEnemySpawnerEnemyKind::Mutant:
-		radius = 26.0f;
-		break;
-
-	case EEnemySpawnerEnemyKind::Ghoul:
-	default:
-		radius = 34.0f;
-		break;
-	}
-
-	XMFLOAT3 pos = XMFLOAT3(0.0f, 0.0f, 400.0f);
-	pos.x += std::cos(angle) * radius;
-	pos.z += std::sin(angle) * radius;
-
-	return AlignPositionYToTerrainGround(pos, 0.0f);
-}
-
 void CGameScene::BeginNetworkBossCallMonsterSummonVisuals(
 	int callIndex,
 	float fadeInDurationSec)
 {
 	ClearBossCallSummonCircleVisuals();
 	m_networkBossCallSummonVisualPreviews.clear();
+	m_networkBossCallSummonPreviewKeys.clear();
 
 	if ( callIndex < 1 || callIndex > 3 )
-		return;
-
-	auto AddVisualKind =
-		[ this ](EEnemySpawnerEnemyKind kind, int count)
-		{
-			if ( count <= 0 )
-				return;
-
-			for ( int i = 0; i < count; ++i )
-			{
-				BossCallSummonVisualPreview preview{};
-				preview.kind = kind;
-				preview.position =
-					ComputeNetworkBossCallSummonVisualPosition(kind, i, count);
-
-				m_networkBossCallSummonVisualPreviews.push_back(preview);
-				AddBossCallSummonCircle(preview.position, preview.kind);
-			}
-		};
-
-	switch ( callIndex )
-	{
-	case 1:
-		AddVisualKind(EEnemySpawnerEnemyKind::Ghoul, 30);
-		break;
-
-	case 2:
-		AddVisualKind(EEnemySpawnerEnemyKind::Ghoul, 20);
-		AddVisualKind(EEnemySpawnerEnemyKind::BowMan, 5);
-		AddVisualKind(EEnemySpawnerEnemyKind::SwordMan, 5);
-		break;
-
-	case 3:
-		AddVisualKind(EEnemySpawnerEnemyKind::Ghoul, 20);
-		AddVisualKind(EEnemySpawnerEnemyKind::BowMan, 5);
-		AddVisualKind(EEnemySpawnerEnemyKind::SwordMan, 5);
-		AddVisualKind(EEnemySpawnerEnemyKind::Mutant, 5);
-		break;
-
-	default:
-		break;
-	}
-
-	if ( m_itemBillboardState.activeBossCallSummonCircleItemIndices.empty() )
 		return;
 
 	m_itemBillboardState.bossCallSummonCircleVisual =
@@ -743,10 +658,8 @@ void CGameScene::BeginNetworkBossCallMonsterSummonVisuals(
 	char buf[256];
 	sprintf_s(
 		buf,
-		"[NetworkBossCallCircle] call=%d previews=%zu activeCircles=%zu\n",
-		callIndex,
-		m_networkBossCallSummonVisualPreviews.size(),
-		m_itemBillboardState.activeBossCallSummonCircleItemIndices.size()
+		"[NetworkBossCallCircle] call=%d awaiting server previews\n",
+		callIndex
 	);
 }
 #endif

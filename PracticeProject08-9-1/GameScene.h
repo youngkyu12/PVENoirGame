@@ -512,7 +512,6 @@ private:
 	float GetBossCallSummonCircleSize(EEnemySpawnerEnemyKind kind) const;
 	void AddBossCallSummonCircle(const XMFLOAT3& center, EEnemySpawnerEnemyKind kind);
 #ifdef USING_NETWORK
-	XMFLOAT3 ComputeNetworkBossCallSummonVisualPosition(EEnemySpawnerEnemyKind kind, int index, int totalCount) const;
 	void BeginNetworkBossCallMonsterSummonVisuals(int callIndex, float fadeInDurationSec);
 #endif
 
@@ -1617,7 +1616,8 @@ private:
 
 	static constexpr uint64_t kNetworkInterpolationDelayTicks = 6;
 	static constexpr size_t kMaxNetworkFrameSnapshotBufferSize = 8;
-	static constexpr float kServerTickSeconds = 1.0f / 60.0f;
+	static constexpr float kServerTickSeconds = 0.016f;
+	static constexpr float kMaxRemotePlayerExtrapolationSeconds = 0.15f;
 
 	void PushNetworkFrameSnapshot(const FrameSnapshot& snapshot);
 	FrameSnapshot BuildInterpolatedFrameSnapshot(const FrameSnapshot& latestSnapshot) const;
@@ -1631,6 +1631,8 @@ private:
 	static const EnemyState* FindEnemyState(const FrameSnapshot& snapshot, uint64_t id);
 	static XMFLOAT3 LerpPosition(const XMFLOAT3& a, const XMFLOAT3& b, float t);
 	static float LerpYawDegrees(float a, float b, float t);
+	void UpdateRemotePlayerMotionSamples(const FrameSnapshot& snapshot);
+	void UpdateRemotePlayerNetworkMovement(float dt);
 
 	void ApplyNetworkEnemySnapshotToLogicalMonsters(const FrameSnapshot& snapshot, float dt);
 	void ApplyNetworkEnemyVisualSnapshot(CGameObject* monster, int logicalMonsterIndex, const EnemyState& state, float dt);
@@ -1663,10 +1665,12 @@ private:
 	};
 	struct PlayerDRState
 	{
-		XMFLOAT3 predictedPos = {};
-		XMFLOAT3 moveDir     = { 0.0f, 0.0f, 1.0f };
-		float    speed       = 0.0f;
-		bool     initialized = false;
+		XMFLOAT3 lastServerPos = {};
+		XMFLOAT3 velocity = {};
+		float lastServerYaw = 0.0f;
+		uint64_t lastServerTick = 0;
+		bool initialized = false;
+		bool discontinuous = false;
 	};
 	struct ProjectileDRState
 	{
@@ -1983,6 +1987,7 @@ private:
 	int m_networkBossCallPendingSummonEffects = 0;
 	float m_networkBossCallSummonEffectWindowSec = 0.0f;
 	std::vector<BossCallSummonVisualPreview> m_networkBossCallSummonVisualPreviews;
+	std::unordered_set<uint64_t> m_networkBossCallSummonPreviewKeys;
 	std::unordered_set<uint64_t> m_networkBossCallSummonEffectEnemyIds;
 	std::unordered_map<uint64_t, XMFLOAT3> m_prevNetworkEnemyPositions;
 	std::unordered_set<uint64_t> m_playedSpawnFxKeys;

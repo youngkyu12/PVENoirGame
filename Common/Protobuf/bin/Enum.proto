@@ -80,6 +80,7 @@ enum EnemyState
 	ENEMY_STATE_MOVE = 2;
 	ENEMY_STATE_ATTACK = 3;
 	ENEMY_STATE_DIE = 4;
+	ENEMY_STATE_SPAWN_PENDING = 5;
 }
 
 enum GameState

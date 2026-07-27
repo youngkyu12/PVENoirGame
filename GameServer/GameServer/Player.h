@@ -184,6 +184,7 @@ public:
 	bool IsInputBlocked() const { return m_lifeState != EPlayerLifeState::Alive; }
 	bool IsRollInvincible() const { return m_animState == Protocol::ANIMATION_TYPE_ROLL; }
 
+	void ApplyEnvironmentalDamage(uint32 serverTick, int damage, uint64 serverMs);
 	void OnDeathEnter(uint32 serverTick);
 	void OnRespawnEnter(uint32 serverTick);
 

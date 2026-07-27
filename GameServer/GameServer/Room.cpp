@@ -228,6 +228,8 @@ void Room::Leave(PlayerRef player)
 			_collision->UnregisterCollider(collider);
 	}
 	players.erase(player->playerId);
+	m_megaGrid4LowYPoisonStates.erase(player->playerId);
+	RefreshBossRoomChaseState();
 }
 
 void Room::BroadCastAll(SendBufferRef sendBuffer)
@@ -326,6 +328,7 @@ void Room::BuildRoom()
 	m_aiAwakeEnemyIds.clear();
 	m_castleCenterPlayerIds.clear();
 	m_meleeHitKeys.clear();
+	m_megaGrid4LowYPoisonStates.clear();
 	m_spawnerKeyMutantIds.clear();
 	m_keyPickupUnlockedByMegaGrid.fill(true);
 	m_keyPickupUnlockedByMegaGrid[6] = false;
@@ -337,6 +340,12 @@ void Room::BuildRoom()
 	m_enemyArrowPool.clear();
 	m_bossPoisonPool.clear();
 	m_bossPoisonHitMap.clear();
+	m_bossSummonedEnemyIds.clear();
+	m_bossRoomEnemyIds.clear();
+	m_bossRoomPlayerIds.clear();
+	m_pendingBossCallSpawns.clear();
+	m_reservedBossCallEnemyIds.clear();
+	m_spawnFxSerial = 0;
 	m_items.clear();
 	InitializeCollisionSystem();
 	InitializeSpatialGrid();
@@ -517,6 +526,8 @@ void Room::BuildRoom()
 		RegisterDynamicCollider(enemy);
 		SetObjectCollisionMegaGridMask(enemy, isBoss ? 0 : ComputeObjectCurrentMegaGridMask(enemy.get()), true);
 		enemies[enemyId] = enemy;
+		if (!isBoss && spawn.megaId == 5)
+			m_bossRoomEnemyIds.insert(enemyId);
 
 		if (isBoss)
 		{
@@ -897,6 +908,8 @@ void Room::OnMonsterDeath(uint64 enemyId)
 
 	if (enemyId == m_bossEnemyId && m_bossRoomState == EBossRoomState::BossActive)
 	{
+		m_pendingBossCallSpawns.clear();
+		m_reservedBossCallEnemyIds.clear();
 		m_bossRoomState = EBossRoomState::BossDead;
 		m_bossRoomStateChangedMs = m_elapsedServerMs;
 		cout << "[BossRoom] BossDead" << endl;
@@ -1012,6 +1025,7 @@ void Room::DebugTeleportPlayersToMegaGrid(int megaGridNumber)
 			base + right * (centeredSlot * 2.0f);
 		const GameMath::Vec3 destination =
 			ResolveClearDestination(player, desired);
+		const float previousYaw = player->GetYaw();
 
 		player->SetVelocity(GameMath::Vec3::Zero());
 		player->ClearMoveKeyCodes();
@@ -1020,6 +1034,10 @@ void Room::DebugTeleportPlayersToMegaGrid(int megaGridNumber)
 		player->SetTerrainSnapSuppressed(false);
 		player->SetPosition(destination);
 		player->SetYaw(yaw);
+		SendForcedTransformYawDelta(
+			player,
+			GameMath::NormalizeYaw(yaw - previousYaw),
+			Protocol::FORCED_TRANSFORM_REASON_NONE);
 
 		if (auto* collider = player->GetComponent<CColliderComponent>())
 			collider->OnUpdate(0.0f);

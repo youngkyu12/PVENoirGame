@@ -64,9 +64,10 @@ struct EnemyState
     float       yaw = 0.0f;
     AnimationState animation{};
     EWeaponType weaponType = EWeaponType::None;
-    uint32_t    spawnFxType = 0;
-    uint32_t    spawnFxTick = 0;
-    uint32_t    spawnFxSerial = 0;
+	uint32_t    spawnFxType = 0;
+	uint32_t    spawnFxTick = 0;
+	uint32_t    spawnFxSerial = 0;
+	uint32_t    lifecycleState = 0;
 };
 
 // ============================================================

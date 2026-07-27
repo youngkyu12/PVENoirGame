@@ -114,6 +114,7 @@ bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt)
 		state.spawnFxType = enemy.spawnfxtype();
 		state.spawnFxTick = enemy.spawnfxtick();
 		state.spawnFxSerial = enemy.spawnfxserial();
+		state.lifecycleState = static_cast<uint32_t>(enemy.enemystate());
 
 		data.enemies.push_back(std::move(state));
 	}
@@ -207,6 +208,7 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 		state.spawnFxType = enemy.spawnfxtype();
 		state.spawnFxTick = enemy.spawnfxtick();
 		state.spawnFxSerial = enemy.spawnfxserial();
+		state.lifecycleState = static_cast<uint32_t>(enemy.enemystate());
 
 		data.enemies.push_back(std::move(state));
 	}

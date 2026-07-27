@@ -202,6 +202,138 @@ bool Room::IsEnemyNearAnyPlayerExact(const GameMath::Vec3& enemyPos, float range
 	return false;
 }
 
+bool Room::IsBossRoomChaseTarget(uint64 playerId) const
+{
+	if (!m_bossRoomPlayerIds.count(playerId)) return false;
+
+	auto playerIt = players.find(playerId);
+	if (playerIt == players.end() || !playerIt->second) return false;
+
+	const PlayerRef& player = playerIt->second;
+	return player->IsActive() &&
+		!player->IsDead() &&
+		IsPositionInsideMegaGridNumber(player->GetPosition(), 5);
+}
+
+bool Room::IsBossRoomPersistentChaseActive(uint64 enemyId) const
+{
+	return !m_bossRoomPlayerIds.empty() && m_bossRoomEnemyIds.count(enemyId) != 0;
+}
+
+void Room::RefreshBossRoomChaseState()
+{
+	std::unordered_set<uint64> nextPlayerIds;
+	for (const auto& [playerId, player] : players)
+	{
+		if (!player || !player->IsActive() || player->IsDead()) continue;
+		if (!IsPositionInsideMegaGridNumber(player->GetPosition(), 5)) continue;
+		nextPlayerIds.insert(playerId);
+	}
+
+	const bool chaseWasActive = !m_bossRoomPlayerIds.empty();
+	const bool chaseIsActive = !nextPlayerIds.empty();
+	m_bossRoomPlayerIds.swap(nextPlayerIds);
+
+	if (chaseWasActive == chaseIsActive) return;
+
+	for (uint64 enemyId : m_bossRoomEnemyIds)
+	{
+		auto enemyIt = enemies.find(enemyId);
+		if (enemyIt == enemies.end() || !enemyIt->second) continue;
+
+		EnemyRef& enemy = enemyIt->second;
+		if (!enemy->IsActive() || enemy->IsDead()) continue;
+
+		CMonsterAI* ai = enemy->GetMonsterAI();
+		if (!ai) continue;
+
+		if (chaseIsActive)
+		{
+			ai->SetInfiniteDirectChaseMode();
+			m_aiAwakeEnemyIds.insert(enemyId);
+		}
+		else
+		{
+			ai->ClearInfiniteDirectChaseMode();
+		}
+	}
+}
+
+bool Room::IsPlayerInsideMegaGrid4LowYPoisonArea(const PlayerRef& player) const
+{
+	if (!player || player->GetPosition().y > kMegaGrid4LowYPoisonMaxY)
+		return false;
+
+	const int zeroBased = kMegaGrid4LowYPoisonMegaGridNumber - 1;
+	const int megaX = zeroBased % kMegaGridCols;
+	const int megaZ = zeroBased / kMegaGridCols;
+	const float centerX = static_cast<float>(
+		kGridMinX + megaX * kMegaGridCellWidth + kMegaGridCellWidth / 2);
+	const float centerZ = static_cast<float>(
+		kGridMinZ + megaZ * kMegaGridCellHeight + kMegaGridCellHeight / 2);
+	const GameMath::Vec3 pos = player->GetPosition();
+
+	return std::abs(pos.x - centerX) <= kMegaGrid4LowYPoisonHalfExtent &&
+		std::abs(pos.z - centerZ) <= kMegaGrid4LowYPoisonHalfExtent;
+}
+
+void Room::UpdateMegaGrid4LowYPoison()
+{
+	const uint64 dtMs = m_timing.serverTickIntervalMs;
+	const uint32 animClockTick = GetAnimClockTick();
+
+	for (const auto& [playerId, player] : players)
+	{
+		if (!player || !player->IsActive() || player->IsDead())
+		{
+			m_megaGrid4LowYPoisonStates.erase(playerId);
+			continue;
+		}
+
+		MegaGrid4LowYPoisonState& state = m_megaGrid4LowYPoisonStates[playerId];
+		const bool insidePoisonArea = IsPlayerInsideMegaGrid4LowYPoisonArea(player);
+
+		if (insidePoisonArea)
+		{
+			state.exposureMs = (std::min)(kMegaGrid4LowYPoisonGraceMs, state.exposureMs + dtMs);
+			if (state.exposureMs >= kMegaGrid4LowYPoisonGraceMs)
+				state.poisoned = true;
+		}
+		else
+		{
+			state.exposureMs = (state.exposureMs > dtMs) ? (state.exposureMs - dtMs) : 0;
+			if (state.exposureMs == 0)
+			{
+				m_megaGrid4LowYPoisonStates.erase(playerId);
+				continue;
+			}
+			if (!state.poisoned)
+				state.damageAccumulatorMs = 0;
+		}
+
+		if (!state.poisoned)
+			continue;
+		if (!insidePoisonArea)
+		{
+			state.damageAccumulatorMs = 0;
+			continue;
+		}
+
+		state.damageAccumulatorMs += dtMs;
+		if (state.damageAccumulatorMs < kMegaGrid4LowYPoisonDamageIntervalMs)
+			continue;
+
+		const uint64 tickCount = state.damageAccumulatorMs / kMegaGrid4LowYPoisonDamageIntervalMs;
+		state.damageAccumulatorMs -= tickCount * kMegaGrid4LowYPoisonDamageIntervalMs;
+		player->ApplyEnvironmentalDamage(
+			animClockTick,
+			static_cast<int>(tickCount) * kMegaGrid4LowYPoisonDamagePerTick,
+			m_elapsedServerMs);
+		if (player->IsDead())
+			m_megaGrid4LowYPoisonStates.erase(playerId);
+	}
+}
+
 void Room::WakeEnemiesNearPlayer(const PlayerRef& player)
 {
 	if (!player) return;
@@ -256,7 +388,8 @@ void Room::ProcessEnemyAI()
 		}
 
 		CMonsterAI* ai = enemy->GetMonsterAI();
-		if (ai && ai->IsOutsideHomeMegaGrid())
+		const bool persistentBossRoomChase = IsBossRoomPersistentChaseActive(enemyId);
+		if (!persistentBossRoomChase && ai && ai->IsOutsideHomeMegaGrid())
 		{
 			ai->ResetToHome();
 
@@ -268,7 +401,8 @@ void Room::ProcessEnemyAI()
 			continue;
 		}
 
-		if (!IsEnemyNearAnyPlayerExact(enemy->GetPosition(), sleepRangeSq) &&
+		if (!persistentBossRoomChase &&
+			!IsEnemyNearAnyPlayerExact(enemy->GetPosition(), sleepRangeSq) &&
 			(!ai || ai->IsAtHomeForAwakeRemoval()))
 		{
 			enemy->SetVelocity(GameMath::Vec3::Zero());
@@ -368,6 +502,9 @@ void Room::TickAdvance()
 
 		WakeEnemiesNearPlayer(player.second);
 	}
+
+	RefreshBossRoomChaseState();
+	UpdateMegaGrid4LowYPoison();
 
 	RefreshDynamicCollisionMegaGridMasks();
 
