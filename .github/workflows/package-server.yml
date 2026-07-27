@@ -1,4 +1,4 @@
-name: Package Server
+name: Package Server and Dummy Client
 
 on:
   workflow_dispatch:
@@ -16,6 +16,7 @@ jobs:
       SERVER_SOLUTION: GameServer\GameServer.sln
       SERVER_OUTPUT: GameServer\x64\Release
       SERVER_EXE: GameServer.exe
+      DUMMY_CLIENT_EXE: DummyClient.exe
 
     steps:
       - name: Checkout repository
@@ -42,17 +43,18 @@ jobs:
       - name: Restore server solution
         run: msbuild "${{ env.SERVER_SOLUTION }}" /t:Restore
 
-      - name: Build server
+      - name: Build server and dummy client
         run: >
           msbuild "${{ env.SERVER_SOLUTION }}"
           /m
           /p:Configuration=${{ env.BUILD_CONFIGURATION }}
           /p:Platform=${{ env.BUILD_PLATFORM }}
 
-      - name: Create server package
+      - name: Create server and dummy client package
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path "Executable\Server"
+          New-Item -ItemType Directory -Force -Path "Executable\DummyClient"
 
           Copy-Item `
             "${{ env.SERVER_OUTPUT }}\${{ env.SERVER_EXE }}" `
@@ -71,6 +73,25 @@ jobs:
           Copy-Item `
             "Libraries\Libs\Protobuf\Release\libprotobuf.dll" `
             "Executable\Server\libprotobuf.dll" `
+            -Force
+
+          Copy-Item `
+            "${{ env.SERVER_OUTPUT }}\${{ env.DUMMY_CLIENT_EXE }}" `
+            "Executable\DummyClient\${{ env.DUMMY_CLIENT_EXE }}" `
+            -Force
+
+          Get-ChildItem `
+            -Path "${{ env.SERVER_OUTPUT }}" `
+            -Filter "*.dll" `
+            -File `
+            -ErrorAction SilentlyContinue |
+          Copy-Item `
+            -Destination "Executable\DummyClient" `
+            -Force
+
+          Copy-Item `
+            "Libraries\Libs\Protobuf\Release\libprotobuf.dll" `
+            "Executable\DummyClient\libprotobuf.dll" `
             -Force
 
           if (Test-Path "Libraries\Libs\LUA\lua55.dll") {
@@ -97,18 +118,31 @@ jobs:
             -Encoding ascii
 
           @'
-          PVENoirGame Server Package
+          @echo off
+          cd /d "%~dp0DummyClient"
+          DummyClient.exe
+          '@ | Set-Content `
+            -Path "Executable\StartDummyClient.bat" `
+            -Encoding ascii
+
+          @'
+          PVENoirGame Server and Dummy Client Package
 
           Run StartServer.bat.
+          Run StartDummyClient.bat after the game server is running.
           '@ | Set-Content `
             -Path "Executable\README.txt" `
             -Encoding utf8
 
-      - name: Verify server package
+      - name: Verify server and dummy client package
         shell: powershell
         run: |
           if (-not (Test-Path "Executable\Server\${{ env.SERVER_EXE }}")) {
               throw "Server executable was not found."
+          }
+
+          if (-not (Test-Path "Executable\DummyClient\${{ env.DUMMY_CLIENT_EXE }}")) {
+              throw "Dummy client executable was not found."
           }
 
           $protoFiles = Get-ChildItem "Executable" -Recurse -Filter "*.proto" -File -ErrorAction SilentlyContinue

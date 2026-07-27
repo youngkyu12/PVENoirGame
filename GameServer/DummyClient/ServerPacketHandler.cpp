@@ -612,58 +612,19 @@ void SendDebugTeleportToMegaGrid(int megaGridNumber)
 
 void TickStressTest()
 {
-	std::vector<ClientState> clients;
+	std::vector<std::pair<PacketSessionRef, uint32>> clients;
 	{
 		std::lock_guard<std::mutex> lock(g_stressLock);
-		for (auto& kv : g_clients)
-			clients.push_back(kv.second);
-	}
-
-	if (clients.empty())
-		return;
-
-	std::sort(clients.begin(), clients.end(), [](const ClientState& a, const ClientState& b) { return a.index < b.index; });
-
-	const auto now = std::chrono::steady_clock::now();
-	for (auto& c : clients)
-	{
-		if (!c.gameStarted || !c.session || !c.hasSelfTransform || now < c.startAt)
+		for (const auto& entry : g_clients)
 		{
-			if (c.session)
-				SendMoveInput(c.session, c.playerId, false, 0.0f);
-			continue;
-		}
-
-		GameMath::Vec3 target = PatrolWaypointAt(c.waypointIndex, c.clockwise);
-		if (GameMath::DistSqXZ(c.selfPos, target) <= kWaypointReachDist * kWaypointReachDist)
-		{
-			++c.waypointIndex;
-			if ((c.waypointIndex % 8) == 0)
-				++c.lapCount;
-			target = PatrolWaypointAt(c.waypointIndex, c.clockwise);
-		}
-
-		const GameMath::Vec3 desiredDirection = NormalizeXZ(target - c.selfPos);
-		const GameMath::Vec3 moveDirection = AvoidObstacles(c, desiredDirection);
-		const float targetYaw = YawToTarget(c.selfPos, c.selfPos + moveDirection);
-		const float deltaYaw = Clamp(NormalizeSignedYaw(targetYaw - c.selfYaw), -kMaxDeltaYaw, kMaxDeltaYaw);
-
-		SendMoveInput(c.session, c.playerId, true, deltaYaw);
-	}
-
-	{
-		std::lock_guard<std::mutex> lock(g_stressLock);
-		for (const auto& c : clients)
-		{
-			auto it = g_clients.find(SessionKey(c.session));
-			if (it != g_clients.end())
-			{
-				it->second.waypointIndex = c.waypointIndex;
-				it->second.lapCount = c.lapCount;
-			}
+			const ClientState& client = entry.second;
+			if (client.session)
+				clients.emplace_back(client.session, client.playerId);
 		}
 	}
 
+	for (const auto& [session, playerId] : clients)
+		SendMoveInput(session, playerId, false, 0.0f);
 }
 
 

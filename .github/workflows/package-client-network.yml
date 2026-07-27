@@ -90,7 +90,7 @@ jobs:
             -Force
 
           $clientRoot = "PracticeProject08-9-1"
-          foreach ($dir in @("Assets", "Image", "MapData", "NetworkSettings")) {
+          foreach ($dir in @("NetworkSettings")) {
               $src = Join-Path $clientRoot $dir
               if (Test-Path $src) {
                   Copy-Item `
