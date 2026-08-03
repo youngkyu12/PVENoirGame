@@ -6099,6 +6099,9 @@ void CGameScene::RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandLis
 			if ( IsBossMonsterObject(obj) && !IsBossStageBossRenderAllowed(obj) )
 				continue;
 
+			if ( !ShouldRenderSkinnedObjectShadow(obj) )
+				continue;
+
 			if ( !IsSkinnedObjectInsideShadowBox(objectIndex) )
 				continue;
 
@@ -6328,6 +6331,41 @@ bool CGameScene::IsSkinnedObjectInsideShadowBox(UINT objectIndex) const
 		return true;
 
 	return m_shadowMap.IsWorldOOBBInsideShadowBox(entry.worldBounds);
+}
+
+bool CGameScene::ShouldRenderSkinnedObjectShadow(const CGameObject* object) const
+{
+	if ( !object )
+		return false;
+
+	for ( const CGameObject* player : m_playersBySlot )
+	{
+		if ( object == player )
+			return true;
+	}
+
+	if ( IsBossMonsterObject(object) )
+		return true;
+
+	CGameObject* localPlayer = GetPlayer();
+	if ( !localPlayer )
+		localPlayer = GetPlayerBySlot(0);
+
+	if ( !localPlayer )
+		return true;
+
+	constexpr float kSkinnedMonsterShadowMaxDistance = 80.0f;
+	constexpr float kSkinnedMonsterShadowMaxDistanceSq =
+		kSkinnedMonsterShadowMaxDistance * kSkinnedMonsterShadowMaxDistance;
+
+	const XMFLOAT3 objectPos = object->GetPosition();
+	const XMFLOAT3 playerPos = localPlayer->GetPosition();
+
+	const float dx = objectPos.x - playerPos.x;
+	const float dz = objectPos.z - playerPos.z;
+	const float distanceSq = dx * dx + dz * dz;
+
+	return distanceSq <= kSkinnedMonsterShadowMaxDistanceSq;
 }
 
 void CGameScene::RenderShadowMap(ID3D12GraphicsCommandList* cmd)

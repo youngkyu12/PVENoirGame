@@ -7,7 +7,7 @@
 
 #define WIN32_LEAN_AND_MEAN             // 거의 사용되지 않는 내용은 Windows 헤더에서 제외합니다.
 
-#define USING_NETWORK					// 네트워크 사용 여부
+//#define USING_NETWORK					// 네트워크 사용 여부
 
 //ServerCore
 #ifdef _DEBUG
@@ -151,7 +151,7 @@ static void DBG_PrintF(const char* fmt, ...)
 // Render profiling log
 // ============================================================================
 // 1 = 켬, 0 = 끔
-#define LOG_RENDER_PROFILE 0
+#define LOG_RENDER_PROFILE 1
 
 // 너무 작은 함수까지 전부 찍기 싫으면 0.05f, 0.1f 같은 값으로 올리면 됨.
 // 일단 병목 찾는 단계에서는 0.0f 권장.

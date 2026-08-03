@@ -980,6 +980,7 @@ private:
 
 	bool IsStaticObjectInsideShadowBox(UINT objectIndex) const;
 	bool IsSkinnedObjectInsideShadowBox(UINT objectIndex) const;
+	bool ShouldRenderSkinnedObjectShadow(const CGameObject* object) const;
 
 	void RenderShadowMap(ID3D12GraphicsCommandList* cmd);
 	void RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList* cmd);
