@@ -52,10 +52,10 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 	m_bSimulateLocalGhoulAI = false;
 	m_bSimulateLocalBowManAI = false;
 	m_bSimulateLocalSwordManAI = false;
-	m_bSimulateLocalMutantAI = true;
+	m_bSimulateLocalMutantAI = false;
 	m_bSimulateLocalBossAI = true;
 	m_bSimulateLocalBossSummon = true;
-	m_bSimulateLocalBossStageMonsterAI = true;
+	m_bSimulateLocalBossStageMonsterAI = false;
 
 	m_bSimulateLocalMonsterChase = true;
 	m_bSimulateLocalEnemySpawner = true;
@@ -4329,6 +4329,7 @@ void CGameScene::BuildSkinnedBatch(
 
 	m_skinnedBonePaletteBaseByObject.resize(skinnedObjectCount, 0);
 	m_skinnedBonePaletteCountByObject.resize(skinnedObjectCount, 0);
+	m_skinnedBonePaletteUploadedThisFrame.assign(skinnedObjectCount, 0);
 
 	UINT runningBonePaletteBase = 0;
 

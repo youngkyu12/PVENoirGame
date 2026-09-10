@@ -592,7 +592,7 @@ private:
 		UINT meshIndex,
 		UINT subMeshIndex,
 		XMFLOAT4X4* mappedSkinnedBonePaletteBuffer
-	) const;
+	);
 
 	void BuildSkinnedInstanceGroups();
 	void ResetSkinnedWorldLodEntries();
@@ -980,6 +980,7 @@ private:
 
 	bool IsStaticObjectInsideShadowBox(UINT objectIndex) const;
 	bool IsSkinnedObjectInsideShadowBox(UINT objectIndex) const;
+	bool ShouldRenderSkinnedObjectShadow(const CGameObject* object) const;
 
 	void RenderShadowMap(ID3D12GraphicsCommandList* cmd);
 	void RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList* cmd);
@@ -1891,6 +1892,7 @@ private:
 	std::vector<UINT>                   m_skinnedBonePaletteBaseByObject;
 
 	std::vector<UINT>                   m_skinnedBonePaletteCountByObject;
+	std::vector<unsigned char>          m_skinnedBonePaletteUploadedThisFrame;
 
 	UINT                                m_skinnedBonePaletteCapacity = 0;
 
