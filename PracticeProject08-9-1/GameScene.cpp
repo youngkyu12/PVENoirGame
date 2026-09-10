@@ -217,6 +217,7 @@ CGameScene::CGameScene()
 void CGameScene::SetFrameResourceIndex(UINT frameResourceIndex)
 {
 	m_nFrameResourceIndex = frameResourceIndex % kFrameResourceCount;
+	m_skinnedBonePaletteUploadedThisFrame.assign(m_skinnedBonePaletteBaseByObject.size(), 0);
 
 	m_depthFog.SetFrameResourceIndex(m_nFrameResourceIndex);
 	m_shadowMap.SetFrameResourceIndex(m_nFrameResourceIndex);
@@ -4634,6 +4635,7 @@ void CGameScene::ReleaseShaderVariables()
 
 	m_skinnedBonePaletteBaseByObject.clear();
 	m_skinnedBonePaletteCountByObject.clear();
+	m_skinnedBonePaletteUploadedThisFrame.clear();
 	m_skinnedBonePaletteCapacity = 0;
 
 	// ---- Static batch CB ----
@@ -5114,7 +5116,7 @@ bool CGameScene::WriteSkinnedInstanceVertexFromCache(
 	UINT objectIndex,
 	UINT meshIndex,
 	UINT subMeshIndex,
-	XMFLOAT4X4* mappedSkinnedBonePaletteBuffer) const
+	XMFLOAT4X4* mappedSkinnedBonePaletteBuffer)
 {
 	PROFILE_RENDER_SCOPE("Skin::InstancePrepareIncludingPalette");
 	CGameObject* obj = cache.object;
@@ -5167,6 +5169,15 @@ bool CGameScene::WriteSkinnedInstanceVertexFromCache(
 	dst.materialId = ( objSm.materialId == 0xFFFFFFFFu ) ? 0u : objSm.materialId;
 	dst.bonePaletteBase = bonePaletteBase;
 
+	if ( objectIndex >= m_skinnedBonePaletteUploadedThisFrame.size() )
+		return false;
+
+	if ( m_skinnedBonePaletteUploadedThisFrame[objectIndex] )
+	{
+		PROFILE_RENDER_COUNT("Skin::PaletteCopiesSkipped", 1);
+		return true;
+	}
+
 	const XMFLOAT4X4* srcBoneMats = skin->GetCpuBoneMatrices();
 	const UINT boneCount = static_cast< UINT >( skin->GetBoneCount() );
 
@@ -5195,6 +5206,7 @@ bool CGameScene::WriteSkinnedInstanceVertexFromCache(
 			srcBoneMats,
 			sizeof(XMFLOAT4X4) * copyBoneCount
 		);
+		m_skinnedBonePaletteUploadedThisFrame[objectIndex] = 1;
 	}
 
 	return true;

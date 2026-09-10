@@ -592,7 +592,7 @@ private:
 		UINT meshIndex,
 		UINT subMeshIndex,
 		XMFLOAT4X4* mappedSkinnedBonePaletteBuffer
-	) const;
+	);
 
 	void BuildSkinnedInstanceGroups();
 	void ResetSkinnedWorldLodEntries();
@@ -1892,6 +1892,7 @@ private:
 	std::vector<UINT>                   m_skinnedBonePaletteBaseByObject;
 
 	std::vector<UINT>                   m_skinnedBonePaletteCountByObject;
+	std::vector<unsigned char>          m_skinnedBonePaletteUploadedThisFrame;
 
 	UINT                                m_skinnedBonePaletteCapacity = 0;
 

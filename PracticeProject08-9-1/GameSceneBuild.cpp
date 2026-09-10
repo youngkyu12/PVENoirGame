@@ -4329,6 +4329,7 @@ void CGameScene::BuildSkinnedBatch(
 
 	m_skinnedBonePaletteBaseByObject.resize(skinnedObjectCount, 0);
 	m_skinnedBonePaletteCountByObject.resize(skinnedObjectCount, 0);
+	m_skinnedBonePaletteUploadedThisFrame.assign(skinnedObjectCount, 0);
 
 	UINT runningBonePaletteBase = 0;
 
