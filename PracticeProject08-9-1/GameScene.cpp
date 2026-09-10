@@ -5167,7 +5167,7 @@ bool CGameScene::WriteSkinnedInstanceVertexFromCache(
 	dst.materialId = ( objSm.materialId == 0xFFFFFFFFu ) ? 0u : objSm.materialId;
 	dst.bonePaletteBase = bonePaletteBase;
 
-	const XMFLOAT4X4* srcBoneMats = skin->GetMappedBoneMatrices();
+	const XMFLOAT4X4* srcBoneMats = skin->GetCpuBoneMatrices();
 	const UINT boneCount = static_cast< UINT >( skin->GetBoneCount() );
 
 	if ( mappedSkinnedBonePaletteBuffer && srcBoneMats && boneCount > 0 )

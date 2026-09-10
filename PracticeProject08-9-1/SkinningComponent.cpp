@@ -44,6 +44,7 @@ void CSkinningComponent::Enable(ID3D12Device* dev, int nBones)
     // 초기 identity(전치)
     XMFLOAT4X4 I;
     XMStoreFloat4x4(&I, XMMatrixTranspose(XMMatrixIdentity()));
+    m_cpuBoneMatrices.assign(m_nBones, I);
     for (int i = 0; i < m_nBones; ++i)
         m_mapped[i] = I;
 }
@@ -52,6 +53,7 @@ void CSkinningComponent::Disable()
 {
     m_skinned = false;
     m_nBones = 0;
+    m_cpuBoneMatrices.clear();
 
     if (m_cbBone)
     {
@@ -72,6 +74,7 @@ void CSkinningComponent::Upload(const XMFLOAT4X4* boneMats, int nMats)
     {
         XMMATRIX m = XMLoadFloat4x4(&boneMats[i]);
         m = XMMatrixTranspose(m);
+        XMStoreFloat4x4(&m_cpuBoneMatrices[i], m);
         XMStoreFloat4x4(&m_mapped[i], m);
     }
 }
