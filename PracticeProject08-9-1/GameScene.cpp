@@ -5116,6 +5116,7 @@ bool CGameScene::WriteSkinnedInstanceVertexFromCache(
 	UINT subMeshIndex,
 	XMFLOAT4X4* mappedSkinnedBonePaletteBuffer) const
 {
+	PROFILE_RENDER_SCOPE("Skin::InstancePrepareIncludingPalette");
 	CGameObject* obj = cache.object;
 	if ( !obj )
 		return false;
@@ -5176,6 +5177,19 @@ bool CGameScene::WriteSkinnedInstanceVertexFromCache(
 		if ( copyBoneCount > reservedBoneCount )
 			copyBoneCount = reservedBoneCount;
 
+		PROFILE_RENDER_COUNT("Skin::PaletteCopies", 1);
+		#if LOG_RENDER_PROFILE
+		static thread_local std::vector<unsigned long long> paletteFrames;
+		if (paletteFrames.size() <= objectIndex) paletteFrames.resize(objectIndex + 1, 0);
+		const auto& profileState = RenderProfile::GetState();
+		if (profileState.active && paletteFrames[objectIndex] != profileState.frame)
+		{
+			paletteFrames[objectIndex] = profileState.frame;
+			PROFILE_RENDER_COUNT("Skin::UniquePaletteObjects", 1);
+		}
+		#endif
+		PROFILE_RENDER_COUNT("Skin::PaletteBytes", sizeof(XMFLOAT4X4) * copyBoneCount);
+		PROFILE_RENDER_SCOPE("Skin::PaletteMemcpy");
 		memcpy(
 			mappedSkinnedBonePaletteBuffer + bonePaletteBase,
 			srcBoneMats,
@@ -5188,6 +5202,8 @@ bool CGameScene::WriteSkinnedInstanceVertexFromCache(
 
 void CGameScene::BuildSkinnedInstanceGroups()
 {
+	PROFILE_RENDER_SCOPE("Skin::RebuildGroups");
+	PROFILE_RENDER_COUNT("Skin::GroupRebuilds", 1);
 	m_skinnedInstanceGroups.clear();
 	m_skinnedInstanceGroups.reserve(m_skinnedBatch.objectRefs.size() * 2);
 
@@ -5764,6 +5780,7 @@ XMFLOAT3 CGameScene::AlignPositionYToTerrainGround(const XMFLOAT3& position, flo
 
 void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCamera* camera)
 {
+	PROFILE_RENDER_SCOPE("Skin::MainPassCPU");
 	if ( !cmd ) return;
 
 	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
@@ -5812,6 +5829,7 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 
 		for ( UINT i = 0; i < maxInstanceCount; ++i )
 		{
+			PROFILE_RENDER_COUNT("Skin::MainCandidates", 1);
 			const UINT objectIndex = group.objectIndices[i];
 			if ( objectIndex >= ( UINT ) m_skinnedBatch.objectRefs.size() ) continue;
 
@@ -5892,6 +5910,9 @@ void CGameScene::RenderSkinnedInstanceGroups(ID3D12GraphicsCommandList* cmd, CCa
 			hasBoundAnyShader = true;
 		}
 
+		PROFILE_RENDER_COUNT("Skin::MainInstances", visibleInstanceCount);
+		PROFILE_RENDER_COUNT("Skin::MainDraws", 1);
+		PROFILE_RENDER_SCOPE("Skin::MainDrawCommands");
 		D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
 		vbViews[0] = repSm.vbView;
 		vbViews[1].BufferLocation =
@@ -6026,6 +6047,7 @@ void CGameScene::RenderStaticInstanceGroupsToShadowMap(ID3D12GraphicsCommandList
 
 void CGameScene::RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandList* cmd)
 {
+	PROFILE_RENDER_SCOPE("Skin::ShadowPassCPU");
 	if ( !cmd ) return;
 
 	const UINT frameIndex = m_nFrameResourceIndex % kFrameResourceCount;
@@ -6083,6 +6105,7 @@ void CGameScene::RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandLis
 
 		for ( UINT i = 0; i < maxInstanceCount; ++i )
 		{
+			PROFILE_RENDER_COUNT("Skin::ShadowCandidates", 1);
 			const UINT objectIndex = group.objectIndices[i];
 			if ( objectIndex >= ( UINT ) m_skinnedBatch.objectRefs.size() ) continue;
 
@@ -6141,6 +6164,9 @@ void CGameScene::RenderSkinnedInstanceGroupsToShadowMap(ID3D12GraphicsCommandLis
 			hasBoundAnyShader = true;
 		}
 
+		PROFILE_RENDER_COUNT("Skin::ShadowInstances", visibleInstanceCount);
+		PROFILE_RENDER_COUNT("Skin::ShadowDraws", 1);
+		PROFILE_RENDER_SCOPE("Skin::ShadowDrawCommands");
 		D3D12_VERTEX_BUFFER_VIEW vbViews[2] = {};
 		vbViews[0] = repSm.vbView;
 		vbViews[1].BufferLocation =
@@ -6313,6 +6339,7 @@ bool CGameScene::IsStaticObjectInsideShadowBox(UINT objectIndex) const
 
 bool CGameScene::IsSkinnedObjectInsideShadowBox(UINT objectIndex) const
 {
+	PROFILE_RENDER_SCOPE("Skin::ShadowBoxTests");
 	if ( objectIndex >= ( UINT ) m_skinnedShadowOcclusionEntryIndices.size() )
 		return true;
 

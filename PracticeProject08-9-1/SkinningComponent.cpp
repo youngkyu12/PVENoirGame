@@ -63,6 +63,7 @@ void CSkinningComponent::Disable()
 
 void CSkinningComponent::Upload(const XMFLOAT4X4* boneMats, int nMats)
 {
+    PROFILE_RENDER_SCOPE("Skin::PoseTransposeUpload");
     if (!m_skinned || !m_mapped || !boneMats) return;
 
     int count = (nMats < m_nBones) ? nMats : m_nBones;
