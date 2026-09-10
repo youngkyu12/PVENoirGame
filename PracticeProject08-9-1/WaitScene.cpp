@@ -55,8 +55,6 @@ XMFLOAT4 CWaitScene::GetWeaponFrameRect(int frameSlot) const
 	const float centerX = groupCenterX + ( static_cast< float >( safeSlot ) - 1.5f ) * spacingX;
 	const float centerY = baseY + ( ( safeSlot % 2 == 0 ) ? -yOffset : yOffset );
 
-	// Fit sprites stop growing at their native texture size. Use that same
-	// visible frame for its contents, highlight, markers and hit testing.
 	if ( const auto* frame = m_waitUI.GetSprite(m_weaponFrameSpriteIndices[safeSlot]) )
 		return CSceneUI::MakeFitRect(frame->texture, centerX, centerY, frameW, frameH);
 
@@ -255,8 +253,6 @@ void CWaitScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	m_startButtonSpriteIndex = m_waitUI.AddFitSprite(dev, cmd, "WaitStartButton", L"Assets/UI/ReadyButton.dds", startRect.x, startRect.y, startRect.z, startRect.w, CSceneUI::ELayer::Content, true);
 	m_loadingSpriteIndex = m_waitUI.AddSprite(dev, cmd, "WaitLoading", L"Assets/UI/LoadingImage.dds", CSceneUI::GetFullscreenRect(m_viewportWidth, m_viewportHeight), CSceneUI::ELayer::Content, false);
 
-	// Highlights are created before frame textures are loaded. Refit all UI
-	// once those dimensions are available, including startup in fullscreen.
 	OnResize(m_viewportWidth, m_viewportHeight);
 
 	if ( m_pAudioManager )

@@ -606,6 +606,7 @@ void CGameSceneHUD::OnResize(int width, int height)
 	m_screenHeight = static_cast<float>(height);
 
 	m_ui.OnResize(width, height);
+	m_ui.SetSpriteRect(m_poisonOverlaySpriteIndex, CSceneUI::GetFullscreenRect(width, height));
 
 	const HudLayout layout = CalculateLayout();
 
