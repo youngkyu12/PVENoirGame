@@ -5,6 +5,7 @@
 
 #include "Component.h"
 #include <wrl.h>
+#include <vector>
 
 using Microsoft::WRL::ComPtr;
 
@@ -30,7 +31,7 @@ public:
 
     void OnDestroy() override { Disable(); }
 
-	const XMFLOAT4X4* GetMappedBoneMatrices() const { return m_mapped; }
+	const XMFLOAT4X4* GetCpuBoneMatrices() const { return m_cpuBoneMatrices.empty() ? nullptr : m_cpuBoneMatrices.data(); }
 
 private:
     static UINT Align256(UINT x) { return (x + 255u) & ~255u; }
@@ -41,4 +42,5 @@ private:
 
     ComPtr<ID3D12Resource> m_cbBone;
     XMFLOAT4X4* m_mapped = nullptr;
+    std::vector<XMFLOAT4X4> m_cpuBoneMatrices;
 };

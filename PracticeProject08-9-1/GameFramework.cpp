@@ -1760,6 +1760,7 @@ void CGameFramework::MoveToNextFrame()
 
 void CGameFramework::FrameAdvance()
 {
+	PROFILE_RENDER_FRAME();
 	PROFILE_RENDER_SCOPE("Framework::FrameAdvance(total)");
 
 	HRESULT hResult;

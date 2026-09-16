@@ -55,6 +55,9 @@ XMFLOAT4 CWaitScene::GetWeaponFrameRect(int frameSlot) const
 	const float centerX = groupCenterX + ( static_cast< float >( safeSlot ) - 1.5f ) * spacingX;
 	const float centerY = baseY + ( ( safeSlot % 2 == 0 ) ? -yOffset : yOffset );
 
+	if ( const auto* frame = m_waitUI.GetSprite(m_weaponFrameSpriteIndices[safeSlot]) )
+		return CSceneUI::MakeFitRect(frame->texture, centerX, centerY, frameW, frameH);
+
 	return XMFLOAT4(centerX, centerY, frameW, frameH);
 }
 
@@ -249,6 +252,8 @@ void CWaitScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 	const XMFLOAT4 startRect = GetStartButtonRect();
 	m_startButtonSpriteIndex = m_waitUI.AddFitSprite(dev, cmd, "WaitStartButton", L"Assets/UI/ReadyButton.dds", startRect.x, startRect.y, startRect.z, startRect.w, CSceneUI::ELayer::Content, true);
 	m_loadingSpriteIndex = m_waitUI.AddSprite(dev, cmd, "WaitLoading", L"Assets/UI/LoadingImage.dds", CSceneUI::GetFullscreenRect(m_viewportWidth, m_viewportHeight), CSceneUI::ELayer::Content, false);
+
+	OnResize(m_viewportWidth, m_viewportHeight);
 
 	if ( m_pAudioManager )
 	{
