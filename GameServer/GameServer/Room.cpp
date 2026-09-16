@@ -10,6 +10,7 @@
 #include "Projectile.h"
 #include "BossScriptHost.h"
 #include "BossAIContext.h"
+#include "MonsterAITrace.h"
 
 #include "Protocol.pb.h"
 #include "ClientPacketHandler.h"
@@ -765,7 +766,9 @@ CEnemy* Room::ActivateSpawnerEnemy(int megaGrid, Protocol::EnemyType type,
 		if (CMonsterAI* ai = enemy->GetMonsterAI())
 		{
 			ai->SetHomePosition(spawnPos);
-			ai->SetDirectMoveMode(60.f, homeDir, 50.f, megaCenter);
+			ai->ApplyProfile(
+				EMonsterAIProfile::SpawnerRush,
+				MonsterAIProfileTransition::EnterSpawnerRush(60.f, homeDir, 50.f, megaCenter));
 		}
 
 		return enemy.get();
@@ -851,6 +854,13 @@ void Room::UpdateSpawnerWaves(float dt)
 
 void Room::OnMonsterFirstChase(uint64 enemyId)
 {
+	auto enemyIt = enemies.find(enemyId);
+	if (enemyIt != enemies.end() && enemyIt->second)
+	{
+		if (CMonsterAI* ai = enemyIt->second->GetMonsterAI())
+			MONSTER_AI_TRACE(*ai, ai->GetState(), EMonsterAITraceEvent::FirstChaseNotified, true);
+	}
+
 	auto it = m_spawnerKeyMutantIds.find(enemyId);
 	if (it == m_spawnerKeyMutantIds.end()) return;
 

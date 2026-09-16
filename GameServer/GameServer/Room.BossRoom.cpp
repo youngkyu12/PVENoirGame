@@ -5,6 +5,7 @@
 #include "BossScriptHost.h"
 #include "BossAIContext.h"
 #include "Projectile.h"
+#include "MonsterAITrace.h"
 #include <lua/lua.hpp>
 #include <cmath>
 
@@ -466,8 +467,12 @@ void Room::ActivatePreparedBossCallWave()
 			ai->SetHomePosition(reservation.position);
 			if (!m_bossRoomPlayerIds.empty())
 			{
-				ai->SetInfiniteDirectChaseMode();
-				m_aiAwakeEnemyIds.insert(reservation.enemyId);
+				ai->ApplyProfile(
+					EMonsterAIProfile::BossRoomPersistent,
+					MonsterAIProfileTransition::EnterBossRoom());
+				const bool inserted = m_aiAwakeEnemyIds.insert(reservation.enemyId).second;
+				if (inserted)
+					MONSTER_AI_TRACE(*ai, ai->GetState(), EMonsterAITraceEvent::AwakeEntered, true);
 			}
 		}
 		++activatedCount;
