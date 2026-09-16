@@ -131,7 +131,7 @@ namespace
 	constexpr int kAtkSword  = 10;
 	constexpr int kAtkArcher = 10;
 	constexpr int kAtkMutant = 20;
-	constexpr int kAtkBoss   = 50;
+	constexpr int kAtkBoss   = 25;
 
 	// ========================================
 	// EnemySpawner — Pool 수량 (클라이언트 상수와 동일)

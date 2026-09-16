@@ -20,7 +20,8 @@ void MakeFireRateMap()
 {
 	g_defaultWeaponTunings[Protocol::WEAPON_TYPE_NONE].fireRate = 0.0f;
 	g_defaultWeaponTunings[Protocol::WEAPON_TYPE_SWORD].fireRate = 1.0f;
-	g_defaultWeaponTunings[Protocol::WEAPON_TYPE_AXE].fireRate = 0.5f;
+	// 25 server ticks * 60 ms = 1.5 seconds between axe attacks.
+	g_defaultWeaponTunings[Protocol::WEAPON_TYPE_AXE].fireRate = 0.667f;
 	g_defaultWeaponTunings[Protocol::WEAPON_TYPE_CANON].fireRate = 1.667f;
 
 	WeaponTuning& bow = g_defaultWeaponTunings[Protocol::WEAPON_TYPE_BOW];

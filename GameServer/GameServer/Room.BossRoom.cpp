@@ -152,7 +152,7 @@ void Room::UpdateBossPoisonProjectiles(float dt)
 	constexpr float kHitRadiusXZ      = 4.65f;  // gas radius 4.0 + player collision radius 0.65
 	constexpr float kHitToleranceY    = 5.15f;  // gas radius 4.0 + player half height 1.15
 	constexpr float kPlayerHitCenterY = 1.0f;
-	constexpr int   kPoisonDamage     = 50;
+	constexpr int   kPoisonDamage     = 25;
 
 	const uint32 animTick = GetAnimClockTick();
 	const uint64 dtMs = static_cast<uint64>(dt * 1000.0f);
@@ -204,7 +204,7 @@ void Room::ProcessBossMeleeHit()
 	constexpr float kHitWindowEnd      = 0.55f * kMeleeClipDuration;
 	constexpr float kMeleeRange        = 7.0f;
 	constexpr float kMeleeArcCos       = 0.5f; // cos(60deg), ±60 degree arc
-	constexpr int   kMeleeDamage       = 50;
+	constexpr int   kMeleeDamage       = 25;
 
 	float elapsed = m_bossAIContext->meleeActionElapsed;
 	if (elapsed < 0.0f) return;
