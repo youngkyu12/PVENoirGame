@@ -2607,23 +2607,57 @@ void CGameScene::BuildSkinnedBatch(
 		gameStartData = std::get<GameStartData>(m_pendingNetworkMessage.data);
 	}
 
-	auto GetNetworkEnemySpawn = [ & ] (UINT index, XMFLOAT3& outPos, float& outYaw) -> bool
+	std::vector<const EnemyState*> networkGhoulStates;
+	std::vector<const EnemyState*> networkSwordManStates;
+	std::vector<const EnemyState*> networkBowManStates;
+	std::vector<const EnemyState*> networkMutantStates;
+	std::vector<const EnemyState*> networkBossStates;
+
+	networkGhoulStates.reserve(gameStartData.enemies.size());
+	networkSwordManStates.reserve(gameStartData.enemies.size());
+	networkBowManStates.reserve(gameStartData.enemies.size());
+	networkMutantStates.reserve(gameStartData.enemies.size());
+	networkBossStates.reserve(gameStartData.enemies.size());
+
+	for ( const EnemyState& state : gameStartData.enemies )
+	{
+		switch ( state.enemyType )
 		{
-			if ( index >= static_cast< UINT >( gameStartData.enemies.size() ) )
-				return false;
+		case kNetworkEnemyTypeArcher:
+			networkBowManStates.push_back(&state);
+			break;
+		case kNetworkEnemyTypeWarrior:
+			networkSwordManStates.push_back(&state);
+			break;
+		case kNetworkEnemyTypeBoss:
+			networkBossStates.push_back(&state);
+			break;
+		case kNetworkEnemyTypeMutant:
+			networkMutantStates.push_back(&state);
+			break;
+		case kNetworkEnemyTypeNone:
+		case kNetworkEnemyTypeBasic:
+		default:
+			networkGhoulStates.push_back(&state);
+			break;
+		}
+	}
 
-			const auto& state = gameStartData.enemies[index];
-			outPos = state.position;
-			outYaw = state.yaw;
-			return true;
-		};
+	assert(m_ghoulCount <= static_cast< UINT >( networkGhoulStates.size() ));
+	assert(m_swordManCount <= static_cast< UINT >( networkSwordManStates.size() ));
+	assert(m_bowManCount <= static_cast< UINT >( networkBowManStates.size() ));
+	assert(m_MutantCount <= static_cast< UINT >( networkMutantStates.size() ));
+	assert(m_bossCount <= static_cast< UINT >( networkBossStates.size() ));
 
-	auto GetNetworkEnemyServerId = [ & ] (UINT index) -> uint64_t
+	auto GetNetworkEnemyState = [ ] (
+		const std::vector<const EnemyState*>& states,
+		UINT index
+	) -> const EnemyState*
 		{
-			if ( index >= static_cast< UINT >( gameStartData.enemies.size() ) )
-				return static_cast< uint64_t >( -1 );
+			if ( index >= static_cast< UINT >( states.size() ) )
+				return nullptr;
 
-			return gameStartData.enemies[index].id;
+			return states[index];
 		};
 
 	auto GetNetworkPlayerSpawn = [ & ] (UINT index, XMFLOAT3& outPos, float& outYaw, EWeaponType& outWeapon, uint32_t& outHp) -> bool
@@ -2639,8 +2673,6 @@ void CGameScene::BuildSkinnedBatch(
 			return true;
 		};
 #endif
-
-	UINT enemyIndex = 0;
 
 #ifndef USING_NETWORK
 	auto RegisterEnemySpawnerPoolObject =
@@ -2779,9 +2811,13 @@ void CGameScene::BuildSkinnedBatch(
 				uint64_t logicalServerId = static_cast< uint64_t >(-1);
 
 #ifdef USING_NETWORK
-				logicalServerId = GetNetworkEnemyServerId(enemyIndex);
-				if ( !GetNetworkEnemySpawn(enemyIndex, pos, yaw) )
+				const EnemyState* networkState = GetNetworkEnemyState(networkGhoulStates, k);
+				if ( !networkState )
 					break;
+
+				logicalServerId = networkState->id;
+				pos = networkState->position;
+				yaw = networkState->yaw;
 #else
 				if ( k >= ghoulSpawns.size() )
 					break;
@@ -2851,8 +2887,6 @@ void CGameScene::BuildSkinnedBatch(
 							: ELocalMonsterAIKind::Ghoul
 					);
 #endif
-
-					++enemyIndex;
 
 					CGameObject* raw = obj.get();
 					{
@@ -3085,9 +3119,13 @@ void CGameScene::BuildSkinnedBatch(
 					uint64_t logicalServerId = static_cast< uint64_t >(-1);
 
 #ifdef USING_NETWORK
-					logicalServerId = GetNetworkEnemyServerId(enemyIndex);
-					if ( !GetNetworkEnemySpawn(enemyIndex, pos, yaw) )
+					const EnemyState* networkState = GetNetworkEnemyState(networkSwordManStates, k);
+					if ( !networkState )
 						break;
+
+					logicalServerId = networkState->id;
+					pos = networkState->position;
+					yaw = networkState->yaw;
 #else
 					if ( k >= swordSpawns.size() )
 						break;
@@ -3146,8 +3184,6 @@ void CGameScene::BuildSkinnedBatch(
 							: ELocalMonsterAIKind::SwordMan
 					);
 #endif
-					++enemyIndex;
-
 					CGameObject* raw = obj.get();
 					if ( m_TerrainData )
 					{
@@ -3338,9 +3374,13 @@ void CGameScene::BuildSkinnedBatch(
 					uint64_t logicalServerId = static_cast< uint64_t >(-1);
 
 #ifdef USING_NETWORK
-					logicalServerId = GetNetworkEnemyServerId(enemyIndex);
-					if ( !GetNetworkEnemySpawn(enemyIndex, pos, yaw) )
+					const EnemyState* networkState = GetNetworkEnemyState(networkBowManStates, k);
+					if ( !networkState )
 						break;
+
+					logicalServerId = networkState->id;
+					pos = networkState->position;
+					yaw = networkState->yaw;
 #else
 					if ( k >= bowSpawns.size() )
 						break;
@@ -3401,8 +3441,6 @@ void CGameScene::BuildSkinnedBatch(
 							: ELocalMonsterAIKind::BowMan
 					);
 #endif
-
-					++enemyIndex;
 
 					CGameObject* raw = obj.get();
 					if ( m_TerrainData )
@@ -3597,9 +3635,13 @@ void CGameScene::BuildSkinnedBatch(
 					uint64_t logicalServerId = static_cast< uint64_t >(-1);
 
 #ifdef USING_NETWORK
-					logicalServerId = GetNetworkEnemyServerId(enemyIndex);
-					if ( !GetNetworkEnemySpawn(enemyIndex, pos, yaw) )
+					const EnemyState* networkState = GetNetworkEnemyState(networkMutantStates, k);
+					if ( !networkState )
 						break;
+
+					logicalServerId = networkState->id;
+					pos = networkState->position;
+					yaw = networkState->yaw;
 #else
 					if ( k >= mutantSpawns.size() )
 						break;
@@ -3667,8 +3709,6 @@ void CGameScene::BuildSkinnedBatch(
 							: ELocalMonsterAIKind::Mutant
 					);
 #endif
-
-					++enemyIndex;
 
 					CGameObject* raw = obj.get();
 					if ( m_TerrainData )
@@ -3874,9 +3914,13 @@ void CGameScene::BuildSkinnedBatch(
 					uint64_t logicalServerId = static_cast< uint64_t >(-1);
 
 #ifdef USING_NETWORK
-					logicalServerId = GetNetworkEnemyServerId(enemyIndex);
-					if ( !GetNetworkEnemySpawn(enemyIndex, pos, yaw) )
+					const EnemyState* networkState = GetNetworkEnemyState(networkBossStates, k);
+					if ( !networkState )
 						break;
+
+					logicalServerId = networkState->id;
+					pos = networkState->position;
+					yaw = networkState->yaw;
 #else
 					if ( k >= bossSpawns.size() )
 						break;
@@ -3941,8 +3985,6 @@ void CGameScene::BuildSkinnedBatch(
 #ifndef USING_NETWORK
 					AttachMonsterAIToMonster(obj, ELocalMonsterAIKind::Boss);
 #endif
-
-					++enemyIndex;
 
 					CGameObject* raw = obj.get();
 

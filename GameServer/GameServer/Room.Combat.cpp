@@ -4,6 +4,8 @@
 #include "Enemy.h"
 #include "ColliderComponent.h"
 #include "Projectile.h"
+#include "MonsterAITrace.h"
+#include "MonsterAIPerformance.h"
 
 #include <algorithm>
 #include <array>
@@ -249,12 +251,21 @@ void Room::RefreshBossRoomChaseState()
 
 		if (chaseIsActive)
 		{
-			ai->SetInfiniteDirectChaseMode();
-			m_aiAwakeEnemyIds.insert(enemyId);
+			ai->ApplyProfile(
+				EMonsterAIProfile::BossRoomPersistent,
+				MonsterAIProfileTransition::EnterBossRoom());
+			const bool inserted = m_aiAwakeEnemyIds.insert(enemyId).second;
+			if (inserted)
+				MONSTER_AI_TRACE(*ai, ai->GetState(), EMonsterAITraceEvent::AwakeEntered, true);
 		}
 		else
 		{
-			ai->ClearInfiniteDirectChaseMode();
+			if (ai->GetProfileId() == EMonsterAIProfile::BossRoomPersistent)
+			{
+				ai->ApplyProfile(
+					EMonsterAIProfile::BossRoomExit,
+					MonsterAIProfileTransition::LeaveBossRoom());
+			}
 		}
 	}
 }
@@ -357,13 +368,19 @@ void Room::WakeEnemiesNearPlayer(const PlayerRef& player)
 		if (enemy->type == Protocol::ENEMY_TYPE_BOSS) continue;
 		if (GameMath::DistSqXZ(player->GetPosition(), enemy->GetPosition()) > wakeRangeSq) continue;
 
-		m_aiAwakeEnemyIds.insert(enemyId);
+		const bool inserted = m_aiAwakeEnemyIds.insert(enemyId).second;
+		if (inserted)
+		{
+			if (CMonsterAI* ai = enemy->GetMonsterAI())
+				MONSTER_AI_TRACE(*ai, ai->GetState(), EMonsterAITraceEvent::AwakeEntered, true);
+		}
 	}
 }
 
 void Room::ProcessEnemyAI()
 {
 	const auto frameStart = std::chrono::steady_clock::now();
+	MONSTER_AI_PERF_BEGIN_BATCH();
 
 	const float fixedDtSec = m_timing.enemyAiDtSec;
 	const float sleepRange = m_timing.enemyAiSleepRange;
@@ -396,6 +413,8 @@ void Room::ProcessEnemyAI()
 			enemy->SetVelocity(GameMath::Vec3::Zero());
 			enemy->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
 			enemy->SetAnimTick(animClockTick);
+			MONSTER_AI_TRACE(*ai, ai->GetState(), EMonsterAITraceEvent::ForcedHomeReset, true);
+			MONSTER_AI_TRACE(*ai, ai->GetState(), EMonsterAITraceEvent::SleepEntered, false);
 
 			it = m_aiAwakeEnemyIds.erase(it);
 			continue;
@@ -408,15 +427,20 @@ void Room::ProcessEnemyAI()
 			enemy->SetVelocity(GameMath::Vec3::Zero());
 			enemy->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
 			enemy->SetAnimTick(animClockTick);
+			if (ai)
+				MONSTER_AI_TRACE(*ai, ai->GetState(), EMonsterAITraceEvent::SleepEntered, false);
 
 			it = m_aiAwakeEnemyIds.erase(it);
 			continue;
 		}
 
+		MONSTER_AI_PERF_MONSTER_START(monsterUpdateStartedAt);
 		enemy->UpdateAI(fixedDtSec);
+		MONSTER_AI_PERF_MONSTER_END(monsterUpdateStartedAt);
 		enemy->SetPosition(SnapToTerrainIfBelow(enemy->GetPosition()));
 		++it;
 	}
+	MONSTER_AI_PERF_END_BATCH();
 
 	const auto elapsedMs = static_cast<uint64>(
 		std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -817,6 +841,12 @@ void Room::FireEnemyArrow(CServerObject* shooter, float speed, uint32 lifeTicks)
 	p->Activate(origin, vel, lifeTicks, m_timing.projectileLifeTickMs,
 				shooter->GetObjectId(), Protocol::BULLET_TYPE_ARROW);
 	p->SetAttackPower(shooter->GetAttackPower());
+	auto enemyIt = enemies.find(shooter->GetObjectId());
+	if (enemyIt != enemies.end() && enemyIt->second)
+	{
+		if (CMonsterAI* ai = enemyIt->second->GetMonsterAI())
+			MONSTER_AI_TRACE(*ai, ai->GetState(), EMonsterAITraceEvent::ArrowSpawned, true);
+	}
 
 	cout << "[FireEnemyArrow] shooter=" << shooter->GetObjectId()
 		<< " pos=(" << origin.x << "," << origin.y << "," << origin.z << ")" << endl;

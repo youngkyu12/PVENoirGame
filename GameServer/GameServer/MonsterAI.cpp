@@ -5,15 +5,20 @@
 #include "Player.h"
 #include "Room.h"
 #include "NavMesh.h"
+#include "MonsterAITrace.h"
+#include "MonsterAIPerformance.h"
 
 CMonsterAI::CMonsterAI(OwnerT* owner)
 	: CComponentT(owner)
+	, m_profile(&GetMonsterAIProfile(EMonsterAIProfile::FieldIdle))
 {
+	assert(ValidateMonsterAIProfiles());
 }
 
 void CMonsterAI::OnUpdate(float dt)
 {
 	if (!GetOwner()) return;
+	MONSTER_AI_TRACE_FRAME(*this);
 
 	if (GetOwner()->IsDead()) return;
 
@@ -49,88 +54,15 @@ void CMonsterAI::OnUpdate(float dt)
 
 	m_repathTimer -= dt;
 
-	// 직선 이동 모드 (spawner pool Ghoul)
-	if (m_useDirectMove)
-	{
-		if (m_initialAdvanceDist > 0.f)
-		{
-			const float step = m_moveSpeed * dt;
-			const auto pos = GetOwner()->GetPosition();
-			const GameMath::Vec3 next(
-				pos.x + m_initialAdvanceDir.x * step,
-				pos.y,
-				pos.z + m_initialAdvanceDir.z * step);
-			FaceTowards(next);
-			GetOwner()->SetPosition(next);
-			GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_RUN);
-			GetOwner()->SetLastMoveDir(m_initialAdvanceDir);
-			m_initialAdvanceDist = std::max(0.f, m_initialAdvanceDist - step);
-			return;
-		}
-
-		if (!AcquireTarget())
-		{
-			m_pTarget = nullptr;
-			GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
-			return;
-		}
-
-		const auto myPos = GetOwner()->GetPosition();
-		const auto targetPos = m_pTarget->GetPosition();
-		const float distSq = DistSqXZ(myPos, targetPos);
-
-		if (distSq <= m_attackRange * m_attackRange)
-		{
-			FaceTowards(targetPos);
-			if (m_attackCooldownRemaining <= 0.f)
-			{
-				GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
-				GetOwner()->SetAnimTick(GRoom->GetAnimClockTick());
-				m_attackCooldownRemaining = m_attackCooldownSec;
-				m_postAttackMoveLockRemaining = m_postAttackMoveLockDuration;
-
-				if (static_cast<CEnemy*>(GetOwner())->GetWeaponState() == Protocol::WEAPON_TYPE_BOW)
-				{
-					constexpr float  kEnemyArrowSpeed     = 14.0f;
-					constexpr uint32 kEnemyArrowLifeTicks = 375;
-					GRoom->FireEnemyArrow(GetOwner(), kEnemyArrowSpeed, kEnemyArrowLifeTicks);
-				}
-			}
-			return;
-		}
-
-		if (CanMoveNow())
-			MoveDirectTowards(targetPos, m_moveSpeed * dt);
-		else
-			GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
+	if (m_profile->lifecyclePolicy->UpdateBeforeTargeting(*this, dt))
 		return;
-	}
-
-	// 일반 NavMesh 모드
-
-	// 귀환 중이면 귀환만 처리 (재감지 없음)
-	if (m_bReturningHome)
-	{
-		UpdateReturnHome(dt);
-		return;
-	}
 
 	const bool wasChasing = m_isChasing;
 	if (!AcquireTarget())
 	{
 		m_pTarget = nullptr;
-		m_currentPath.clear();
-		m_trianglePath.clear();
-		m_currentPathIndex = 0;
-
-		if (wasChasing && !IsAtHome())
-			BeginReturnHome();
-		else if (UpdateIdlePatrol(dt))
-			return;
-		else if (!IsAtHome())
-			BeginReturnHome();
-		else
-			GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
+		ClearChasePath();
+		m_profile->lifecyclePolicy->UpdateNoTarget(*this, dt, wasChasing);
 		return;
 	}
 
@@ -142,15 +74,15 @@ void CMonsterAI::OnUpdate(float dt)
 
 	if (distSq <= m_attackRange * m_attackRange)
 	{
-		m_currentPath.clear();
-		m_trianglePath.clear();
-		m_currentPathIndex = 0;
+		ClearChasePath();
+		m_state = EMonsterAIState::Attack;
 		FaceTowards(targetPos);
 
 		if (m_attackCooldownRemaining <= 0.f)
 		{
 			GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_ATTACK);
 			GetOwner()->SetAnimTick(GRoom->GetAnimClockTick());
+			MONSTER_AI_TRACE(*this, m_state, EMonsterAITraceEvent::AttackStarted, true);
 			m_attackCooldownRemaining = m_attackCooldownSec;
 			m_postAttackMoveLockRemaining = m_postAttackMoveLockDuration;
 
@@ -164,35 +96,16 @@ void CMonsterAI::OnUpdate(float dt)
 		return;
 	}
 
-	if (!CanMoveNow())
-	{
-		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
-		return;
-	}
-
-	// 직선 LOS 통과 시 A* 생략
-	const auto moveGoalPos = GetTargetMoveGoalPosition();
-	if (HasDirectNavMeshLineTo(moveGoalPos))
-	{
-		m_currentPath.clear();
-		m_trianglePath.clear();
-		m_currentPathIndex = 0;
-		MoveTowards(moveGoalPos, m_moveSpeed * dt);
-		return;
-	}
-
-	if (m_repathTimer <= 0.f || m_currentPath.empty() || m_currentPathIndex >= m_currentPath.size())
-		RebuildPathToTarget();
-
-	const bool followingPath = FollowCurrentPath(dt);
-	if (!followingPath)
-	{
-		FaceTowards(targetPos);
-		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
-	}
+	m_profile->chasePolicy->UpdateChase(*this, dt);
 }
 
 bool CMonsterAI::AcquireTarget()
+{
+	MONSTER_AI_PERF_INCREMENT(EMonsterAIPerformanceCounter::AcquireTarget);
+	return m_profile && m_profile->targetPolicy && m_profile->targetPolicy->FindTarget(*this);
+}
+
+bool CMonsterAI::FindBossRoomTarget()
 {
 	if (!GRoom) return false;
 
@@ -200,36 +113,47 @@ bool CMonsterAI::AcquireTarget()
 	float bestSq = FLT_MAX;
 	const auto myPos = GetOwner()->GetPosition();
 
-	if (m_useInfiniteDirectChase)
+	for (const auto& [id, player] : GRoom->GetPlayers())
 	{
-		for (const auto& [id, player] : GRoom->GetPlayers())
+		if (!player) continue;
+		if (player->IsDead()) continue;
+		if (!GRoom->IsBossRoomChaseTarget(id)) continue;
+
+		const float dSq = DistSqXZ(myPos, player->GetPosition());
+		if (dSq < bestSq)
 		{
-			if (!player) continue;
-			if (player->IsDead()) continue;
-			if (!GRoom->IsBossRoomChaseTarget(id)) continue;
-
-			const float dSq = DistSqXZ(myPos, player->GetPosition());
-			if (dSq < bestSq)
-			{
-				bestSq = dSq;
-				nearest = player.get();
-			}
+			bestSq = dSq;
+			nearest = player.get();
 		}
-
-		const bool hadTarget = (m_pTarget != nullptr);
-		m_pTarget = nearest;
-		m_isChasing = (m_pTarget != nullptr);
-
-		if (!hadTarget && m_pTarget != nullptr && !m_hasNotifiedFirstChase)
-		{
-			m_hasNotifiedFirstChase = true;
-			GRoom->OnMonsterFirstChase(GetOwner()->GetObjectId());
-		}
-
-		return m_pTarget != nullptr;
 	}
 
-	const float innerZoneSq = (m_innerZoneRadius > 0.f) ? (m_innerZoneRadius * m_innerZoneRadius) : -1.f;
+	const bool hadTarget = (m_pTarget != nullptr);
+	m_pTarget = nearest;
+	m_isChasing = (m_pTarget != nullptr);
+	if (!hadTarget && m_pTarget)
+		MONSTER_AI_TRACE(*this, m_state, EMonsterAITraceEvent::TargetAcquired, true);
+	else if (hadTarget && !m_pTarget)
+		MONSTER_AI_TRACE(*this, m_state, EMonsterAITraceEvent::TargetLost, true);
+
+	if (!hadTarget && m_pTarget != nullptr && !m_hasNotifiedFirstChase)
+	{
+		m_hasNotifiedFirstChase = true;
+		GRoom->OnMonsterFirstChase(GetOwner()->GetObjectId());
+	}
+
+	return m_pTarget != nullptr;
+}
+
+bool CMonsterAI::FindRangeConeTarget(bool useInnerZone)
+{
+	if (!GRoom) return false;
+
+	CServerObject* nearest = nullptr;
+	float bestSq = FLT_MAX;
+	const auto myPos = GetOwner()->GetPosition();
+	const float innerZoneSq = useInnerZone && m_innerZoneRadius > 0.f
+		? m_innerZoneRadius * m_innerZoneRadius
+		: -1.f;
 
 	for (const auto& [id, player] : GRoom->GetPlayers())
 	{
@@ -282,6 +206,10 @@ bool CMonsterAI::AcquireTarget()
 
 	const bool hadTarget = (m_pTarget != nullptr);
 	m_pTarget = nearest;
+	if (!hadTarget && m_pTarget)
+		MONSTER_AI_TRACE(*this, m_state, EMonsterAITraceEvent::TargetAcquired, true);
+	else if (hadTarget && !m_pTarget)
+		MONSTER_AI_TRACE(*this, m_state, EMonsterAITraceEvent::TargetLost, true);
 
 	if (!hadTarget && m_pTarget != nullptr && !m_hasNotifiedFirstChase)
 	{
@@ -321,6 +249,7 @@ bool CMonsterAI::RebuildPathToTarget()
 	std::vector<int> newTrianglePath;
 	std::vector<GameMath::Vec3> newPath;
 
+	MONSTER_AI_PERF_INCREMENT(EMonsterAIPerformanceCounter::FindPath);
 	if (!nav->FindPath(startPos, goalPos, newTrianglePath, newPath))
 		return false;
 
@@ -404,6 +333,7 @@ bool CMonsterAI::MoveTowards(const GameMath::Vec3& goal, float maxStep, bool cla
 
 bool CMonsterAI::FollowCurrentPath(float dt)
 {
+	MONSTER_AI_PERF_INCREMENT(EMonsterAIPerformanceCounter::FollowPath);
 	if (m_currentPath.empty()) return false;
 	if (m_currentPathIndex >= m_currentPath.size()) return false;
 
@@ -446,6 +376,7 @@ bool CMonsterAI::FollowCurrentPath(float dt)
 
 bool CMonsterAI::MoveDirectTowards(const GameMath::Vec3& goal, float maxStep)
 {
+	MONSTER_AI_PERF_INCREMENT(EMonsterAIPerformanceCounter::DirectMove);
 	const auto pos = GetOwner()->GetPosition();
 	GameMath::Vec3 d(goal.x - pos.x, 0.f, goal.z - pos.z);
 	const float len = d.LengthXZ();
@@ -487,66 +418,39 @@ void CMonsterAI::SetChaseRanges(float startRange, float stopRange)
 	m_isChasing       = false;
 }
 
-void CMonsterAI::SetDirectMoveMode(float advanceDist, const GameMath::Vec3& homeDir, float innerZoneRadius, const GameMath::Vec3& zoneCenter)
+void CMonsterAI::ApplyProfile(EMonsterAIProfile profile, const MonsterAIProfileTransition& transition)
 {
-	m_useDirectMove = true;
-	m_useInfiniteDirectChase = false;
-	m_initialAdvanceDist = advanceDist;
-	m_initialAdvanceDir = homeDir;
-	m_innerZoneRadius = innerZoneRadius;
-	m_innerZoneCenter = zoneCenter;
+	m_profile = &GetMonsterAIProfile(profile);
+	m_initialAdvanceDist = transition.initialAdvanceDistance;
+	m_initialAdvanceDir = transition.initialAdvanceDirection;
+	m_innerZoneRadius = transition.innerZoneRadius;
+	m_innerZoneCenter = transition.innerZoneCenter;
 	m_hasNotifiedFirstChase = false;
 	m_isChasing = false;
 	m_pTarget = nullptr;
-	m_currentPath.clear();
-	m_trianglePath.clear();
-	m_currentPathIndex = 0;
+	ClearChasePath();
 	m_bReturningHome = false;
-	m_returnPath.clear();
-	m_returnTrianglePath.clear();
-	m_returnPathIndex = 0;
+	ClearReturnPath();
 	m_bPatrolEnabled = false;
 	ResetPatrolState();
+	m_state = EMonsterAIState::Idle;
+
+	if (transition.beginReturnHome)
+		BeginReturnHome();
 }
 
-void CMonsterAI::SetInfiniteDirectChaseMode()
+void CMonsterAI::SetPatrolEnabled(bool enabled)
 {
-	m_useDirectMove = true;
-	m_useInfiniteDirectChase = true;
-	m_initialAdvanceDist = 0.f;
-	m_initialAdvanceDir = GameMath::Vec3::Zero();
-	m_innerZoneRadius = 0.f;
-	m_innerZoneCenter = GameMath::Vec3::Zero();
-	m_hasNotifiedFirstChase = false;
-	m_isChasing = false;
-	m_pTarget = nullptr;
-	m_currentPath.clear();
-	m_trianglePath.clear();
-	m_currentPathIndex = 0;
-	m_bReturningHome = false;
-	m_returnPath.clear();
-	m_returnTrianglePath.clear();
-	m_returnPathIndex = 0;
-	m_bPatrolEnabled = false;
+	m_bPatrolEnabled = enabled;
 	ResetPatrolState();
-}
 
-void CMonsterAI::ClearInfiniteDirectChaseMode()
-{
-	if (!m_useInfiniteDirectChase) return;
-
-	m_useInfiniteDirectChase = false;
-	m_useDirectMove = false;
-	m_pTarget = nullptr;
-	m_isChasing = false;
-	m_currentPath.clear();
-	m_trianglePath.clear();
-	m_currentPathIndex = 0;
-	m_bReturningHome = false;
-	m_returnPath.clear();
-	m_returnTrianglePath.clear();
-	m_returnPathIndex = 0;
-	BeginReturnHome();
+	const EMonsterAIProfile current = m_profile->id;
+	if (current == EMonsterAIProfile::FieldIdle || current == EMonsterAIProfile::FieldPatrol)
+	{
+		m_profile = &GetMonsterAIProfile(enabled
+			? EMonsterAIProfile::FieldPatrol
+			: EMonsterAIProfile::FieldIdle);
+	}
 }
 
 void CMonsterAI::ConfigureFromWeapon(Protocol::WeaponType weaponType)
@@ -596,6 +500,7 @@ void CMonsterAI::ResetToHome()
 	ResetPatrolState();
 	GetOwner()->SetPosition(m_homePosition);
 	GetOwner()->SetYaw(m_homeYawDeg);
+	m_state = EMonsterAIState::Idle;
 }
 
 bool CMonsterAI::IsAtHome() const
@@ -606,19 +511,22 @@ bool CMonsterAI::IsAtHome() const
 
 bool CMonsterAI::BeginReturnHome()
 {
+	const bool wasReturningHome = m_bReturningHome;
+	const EMonsterAIState previousState = m_state;
 	m_bReturningHome = true;
+	m_state = EMonsterAIState::ReturnHome;
 	m_pTarget = nullptr;
 	ResetPatrolState();
-	m_currentPath.clear();
-	m_trianglePath.clear();
-	m_currentPathIndex = 0;
-	m_returnPath.clear();
-	m_returnTrianglePath.clear();
-	m_returnPathIndex = 0;
+	ClearChasePath();
+	ClearReturnPath();
+	if (!wasReturningHome)
+		MONSTER_AI_TRACE(*this, previousState, EMonsterAITraceEvent::ReturnStarted, true);
 
 	if (IsAtHome())
 	{
 		m_bReturningHome = false;
+		m_state = EMonsterAIState::Idle;
+		MONSTER_AI_TRACE(*this, EMonsterAIState::ReturnHome, EMonsterAITraceEvent::ReturnCompleted, true);
 		return true;
 	}
 
@@ -629,6 +537,7 @@ bool CMonsterAI::BeginReturnHome()
 	if (!SampleNavMeshPosition(GetOwner()->GetPosition(), startPos)) return false;
 	if (!SampleNavMeshPosition(m_homePosition, goalPos))             return false;
 
+	MONSTER_AI_PERF_INCREMENT(EMonsterAIPerformanceCounter::FindPath);
 	if (!nav->FindPath(startPos, goalPos, m_returnTrianglePath, m_returnPath))
 		return false;
 
@@ -648,9 +557,9 @@ bool CMonsterAI::UpdateReturnHome(float dt)
 	if (IsAtHome())
 	{
 		m_bReturningHome = false;
-		m_returnPath.clear();
-		m_returnTrianglePath.clear();
-		m_returnPathIndex = 0;
+		ClearReturnPath();
+		m_state = EMonsterAIState::Idle;
+		MONSTER_AI_TRACE(*this, EMonsterAIState::ReturnHome, EMonsterAITraceEvent::ReturnCompleted, true);
 		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
 		return true;
 	}
@@ -680,12 +589,14 @@ bool CMonsterAI::UpdateReturnHome(float dt)
 	}
 
 	ResetToHome();
+	MONSTER_AI_TRACE(*this, EMonsterAIState::ReturnHome, EMonsterAITraceEvent::ReturnCompleted, true);
 	GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
 	return false;
 }
 
 bool CMonsterAI::HasDirectNavMeshLineTo(const GameMath::Vec3& target) const
 {
+	MONSTER_AI_PERF_INCREMENT(EMonsterAIPerformanceCounter::NavMeshLineOfSight);
 	const CNavMesh* nav = GetNavMesh();
 	if (!nav || !nav->IsLoaded()) return false;
 	return nav->HasLineOfSight(GetOwner()->GetPosition(), target);
@@ -770,6 +681,26 @@ void CMonsterAI::ResetPatrolState()
 	m_patrolTurnTargetYawDeg = 0.0f;
 }
 
+void CMonsterAI::ClearChasePath()
+{
+	m_currentPath.clear();
+	m_trianglePath.clear();
+	m_currentPathIndex = 0;
+}
+
+void CMonsterAI::ClearReturnPath()
+{
+	m_returnPath.clear();
+	m_returnTrianglePath.clear();
+	m_returnPathIndex = 0;
+}
+
+void CMonsterAI::SetIdleState()
+{
+	m_state = EMonsterAIState::Idle;
+	GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
+}
+
 GameMath::Vec3 CMonsterAI::GetPatrolEndpoint(int targetSign) const
 {
 	const int sign = (targetSign < 0) ? -1 : 1;
@@ -802,6 +733,8 @@ bool CMonsterAI::UpdateIdlePatrol(float dt)
 		m_patrolTurnTargetYawDeg = GetPatrolFacingYawDegreesForTargetSign(m_patrolTargetSign);
 	}
 
+	m_state = EMonsterAIState::Patrol;
+
 	if (dt <= 0.f || !CanMoveNow())
 	{
 		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_IDLE);
@@ -821,6 +754,7 @@ bool CMonsterAI::UpdateIdlePatrol(float dt)
 		m_patrolEndpointReachDistance * m_patrolEndpointReachDistance)
 	{
 		m_patrolTargetSign = -m_patrolTargetSign;
+		MONSTER_AI_TRACE(*this, m_state, EMonsterAITraceEvent::PatrolDirectionChanged, true);
 		m_patrolTurnTargetYawDeg = GetPatrolFacingYawDegreesForTargetSign(m_patrolTargetSign);
 		m_bPatrolTurning = true;
 		GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_WALK);

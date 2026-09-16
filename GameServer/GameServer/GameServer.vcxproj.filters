@@ -126,6 +126,18 @@
     <ClCompile Include="MonsterAI.cpp">
       <Filter>GameObject\Enemy</Filter>
     </ClCompile>
+    <ClCompile Include="MonsterAIPolicies.cpp">
+      <Filter>GameObject\Enemy</Filter>
+    </ClCompile>
+    <ClCompile Include="MonsterAIPerformance.cpp">
+      <Filter>GameObject\Enemy</Filter>
+    </ClCompile>
+    <ClCompile Include="MonsterAIProfile.cpp">
+      <Filter>GameObject\Enemy</Filter>
+    </ClCompile>
+    <ClCompile Include="MonsterAITrace.cpp">
+      <Filter>GameObject\Enemy</Filter>
+    </ClCompile>
     <ClCompile Include="NavMesh.cpp">
       <Filter>GameContents\Map</Filter>
     </ClCompile>
@@ -219,6 +231,24 @@
       <Filter>Collider</Filter>
     </ClInclude>
     <ClInclude Include="MonsterAI.h">
+      <Filter>GameObject\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="MonsterAIPolicies.h">
+      <Filter>GameObject\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="MonsterAIPerformance.h">
+      <Filter>GameObject\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="MonsterAIPolicy.h">
+      <Filter>GameObject\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="MonsterAIProfile.h">
+      <Filter>GameObject\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="MonsterAITypes.h">
+      <Filter>GameObject\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="MonsterAITrace.h">
       <Filter>GameObject\Enemy</Filter>
     </ClInclude>
     <ClInclude Include="NavMesh.h">

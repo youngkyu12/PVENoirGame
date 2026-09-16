@@ -2,6 +2,7 @@
 
 #include "BaseComponent.h"
 #include "GameMath.h"
+#include "MonsterAIProfile.h"
 
 class CNavMesh;
 class CServerObject;
@@ -12,21 +13,23 @@ public:
 	explicit CMonsterAI(OwnerT* owner);
 
 	void OnUpdate(float dt) override;
-	void SetDirectMoveMode(float advanceDist, const GameMath::Vec3& homeDir, float innerZoneRadius, const GameMath::Vec3& zoneCenter);
-	void SetInfiniteDirectChaseMode();
-	void ClearInfiniteDirectChaseMode();
+	void ApplyProfile(EMonsterAIProfile profile, const MonsterAIProfileTransition& transition = {});
 	void SetChaseRanges(float startRange, float stopRange);
 	void SetAttackRange(float range) { m_attackRange = range; }
 	void SetMoveSpeed(float speed)   { m_moveSpeed   = speed; }
 	void SetWalkMoveSpeed(float speed) { m_walkMoveSpeed = (speed > 0.f) ? speed : 0.f; }
 	void SetHomePosition(const GameMath::Vec3& pos);
-	void SetPatrolEnabled(bool enabled) { m_bPatrolEnabled = enabled; ResetPatrolState(); }
+	void SetPatrolEnabled(bool enabled);
 	void ResetToHome();
 	bool IsOutsideHomeMegaGrid() const;
 	bool IsAtHomeForAwakeRemoval() const;
+	EMonsterAIProfile GetProfileId() const { return m_profile->id; }
+	EMonsterAIState GetState() const { return m_state; }
 
 private:
 	bool AcquireTarget();
+	bool FindRangeConeTarget(bool useInnerZone);
+	bool FindBossRoomTarget();
 	bool RebuildPathToTarget();
 	bool FollowCurrentPath(float dt);
 	bool MoveTowards(const GameMath::Vec3& goal, float maxStep, bool clampToMovementBounds = true);
@@ -51,6 +54,21 @@ private:
 	GameMath::Vec3 GetPatrolEndpoint(int targetSign) const;
 	float GetPatrolFacingYawDegreesForTargetSign(int targetSign) const;
 	bool RotateOwnerYawTowards(float targetYawDeg, float maxStepDeg);
+	void ClearChasePath();
+	void ClearReturnPath();
+	void SetIdleState();
+
+	friend class CRangeConeTargetPolicy;
+	friend class CInnerZoneTargetPolicy;
+	friend class CBossRoomTargetPolicy;
+	friend class CNavMeshHybridChasePolicy;
+	friend class CDirectChasePolicy;
+	friend class CReturnIdleLifecyclePolicy;
+	friend class CReturnPatrolLifecyclePolicy;
+	friend class CSpawnerRushLifecyclePolicy;
+	friend class CBossRoomLifecyclePolicy;
+	friend class CBossRoomExitLifecyclePolicy;
+	friend class CMonsterAITrace;
 
 private:
 	CServerObject* m_pTarget = nullptr;
@@ -101,12 +119,12 @@ private:
 	float m_patrolEndpointReachDistance = 0.15f;
 	float m_patrolTurnSpeedDegrees = 240.0f;
 
-	// spawner pool
-	bool m_useDirectMove = false;
-	bool m_useInfiniteDirectChase = false;
+	// runtime-composed policy profile
 	float m_initialAdvanceDist = 0.f;
 	GameMath::Vec3 m_initialAdvanceDir{};
 	float m_innerZoneRadius = 0.f;
 	GameMath::Vec3 m_innerZoneCenter{};
 	bool m_hasNotifiedFirstChase = false;
+	const MonsterAIProfile* m_profile = nullptr;
+	EMonsterAIState m_state = EMonsterAIState::Idle;
 };
