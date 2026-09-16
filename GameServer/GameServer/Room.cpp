@@ -394,7 +394,11 @@ void Room::BuildRoom()
 			building->SetYaw(GameMath::NormalizeYaw(e.yawDeg));
 			building->SetBuildingType(ReportHelper::AssetToBuildingType(e.asset));
 			building->SetActive(true);
-			RegisterStaticCollider(building);
+			// Water is a visual placement, not a solid world-static object.
+			// It maps to BUILDING_TYPE_NONE, whose fallback bounds would otherwise
+			// create an invisible blocker at each water placement origin.
+			if (e.asset != "Water")
+				RegisterStaticCollider(building);
 			RegisterStaticBuildingToGrid(building);
 			RegisterDoorPortal(building);
 			buildings[buildingId] = building;
