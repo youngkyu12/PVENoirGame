@@ -216,7 +216,7 @@ namespace GameSceneHelper
 	static constexpr int kAttackPowerEnemySword = 10;
 	static constexpr int kAttackPowerEnemyArrow = 10;
 	static constexpr int kAttackPowerMutant = 20;
-	static constexpr int kAttackPowerBoss = 50;
+	static constexpr int kAttackPowerBoss = 25;
 
 	static constexpr float kDisableVillageTreeCullPlayerHeight = 3.0f;
 

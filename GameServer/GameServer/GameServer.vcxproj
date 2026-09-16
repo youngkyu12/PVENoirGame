@@ -205,6 +205,10 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="MonsterAI.cpp" />
+    <ClCompile Include="MonsterAIPolicies.cpp" />
+    <ClCompile Include="MonsterAIPerformance.cpp" />
+    <ClCompile Include="MonsterAIProfile.cpp" />
+    <ClCompile Include="MonsterAITrace.cpp" />
     <ClCompile Include="NavMesh.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -247,6 +251,12 @@
     <ClInclude Include="Building.h" />
     <ClInclude Include="ColliderComponent.h" />
     <ClInclude Include="MonsterAI.h" />
+    <ClInclude Include="MonsterAIPolicies.h" />
+    <ClInclude Include="MonsterAIPerformance.h" />
+    <ClInclude Include="MonsterAIPolicy.h" />
+    <ClInclude Include="MonsterAIProfile.h" />
+    <ClInclude Include="MonsterAITypes.h" />
+    <ClInclude Include="MonsterAITrace.h" />
     <ClInclude Include="NavMesh.h" />
     <ClInclude Include="Projectile.h" />
     <ClInclude Include="ReportHelper.h" />

@@ -11013,8 +11013,15 @@ bool CGameScene::ShouldRenderBossHpGaugeHud(CGameObject* boss) const
 	if ( !boss->GetActive() )
 		return false;
 
+#ifdef USING_NETWORK
+	if ( m_serverBossRoomState !=
+		 static_cast< uint32_t >( Protocol::BOSS_ROOM_STATE_BOSS_ACTIVE ) )
+		return false;
+
+#else
 	if ( !IsBossStageBossAppearFinishedForHud(boss) )
 		return false;
+#endif
 
 	CGameObject* localPlayer = GetPlayer();
 
