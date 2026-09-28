@@ -180,7 +180,7 @@ namespace GameSceneHelper
 	static constexpr int kHpBowMan = 120;
 	static constexpr int kHpSwordMan = 120;
 	static constexpr int kHpMutant = 240;
-	static constexpr int kHpBoss = 4800;
+	static constexpr int kHpBoss = 2400;
 	static constexpr int kHpPlayer = 100;
 
 	// -------------------------------------------------------------------------

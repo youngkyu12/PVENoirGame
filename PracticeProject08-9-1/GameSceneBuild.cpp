@@ -49,13 +49,13 @@ void CGameScene::ConfigureLocalGameplaySimulationSwitches()
 
 	m_bSimulateLocalAI = true;
 
-	m_bSimulateLocalGhoulAI = false;
-	m_bSimulateLocalBowManAI = false;
-	m_bSimulateLocalSwordManAI = false;
-	m_bSimulateLocalMutantAI = false;
+	m_bSimulateLocalGhoulAI = true;
+	m_bSimulateLocalBowManAI = true;
+	m_bSimulateLocalSwordManAI = true;
+	m_bSimulateLocalMutantAI = true;
 	m_bSimulateLocalBossAI = true;
 	m_bSimulateLocalBossSummon = true;
-	m_bSimulateLocalBossStageMonsterAI = false;
+	m_bSimulateLocalBossStageMonsterAI = true;
 
 	m_bSimulateLocalMonsterChase = true;
 	m_bSimulateLocalEnemySpawner = true;
@@ -3967,12 +3967,14 @@ void CGameScene::BuildSkinnedBatch(
 					createDesc.monsterProfile.spellClip = "Spell";
 
 					createDesc.useOwnerBoneWeaponCapsules = true;
+#ifdef USING_NETWORK
 					createDesc.monsterWeaponConfigs.push_back(
 						{ "AttackLeft", 0.20f, 0.55f, { "Wrist_L" } }
 					);
 					createDesc.monsterWeaponConfigs.push_back(
 						{ "AttackRight", 0.20f, 0.55f, { "Wrist_R" } }
 					);
+#endif
 
 					auto obj = [ & ] ()
 						{
