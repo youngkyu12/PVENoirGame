@@ -1131,7 +1131,8 @@ void CGameScene::SpawnBossMeleeSlashEffect(CGameObject* boss)
 			float sideOffset,
 			float verticalOffset,
 			const XMFLOAT3& rgb,
-			float seedBias)
+			float seedBias,
+			bool dealsMeleeDamage)
 		{
 			MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashEffect.entries);
 
@@ -1168,6 +1169,9 @@ void CGameScene::SpawnBossMeleeSlashEffect(CGameObject* boss)
 
 			e->active = true;
 			e->kind = EMuzzleFlashKind::BossMeleeSlash;
+#ifndef USING_NETWORK
+			e->meleeOwner = dealsMeleeDamage ? boss : nullptr;
+#endif
 
 			e->position = centerF;
 			e->velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
@@ -1206,7 +1210,8 @@ void CGameScene::SpawnBossMeleeSlashEffect(CGameObject* boss)
 		-1.15f,
 		-0.15f,
 		XMFLOAT3(0.26f, 0.95f, 0.04f),
-		77.3f
+		77.3f,
+		false
 	);
 
 	// 2) 메인 칼날: 밝은 연두색.
@@ -1222,7 +1227,8 @@ void CGameScene::SpawnBossMeleeSlashEffect(CGameObject* boss)
 		-0.95f,
 		0.00f,
 		XMFLOAT3(0.58f, 1.00f, 0.08f),
-		0.0f
+		0.0f,
+		true
 	);
 
 	// 3) 내부 하이라이트: 흰빛 섞인 연두색.
@@ -1238,7 +1244,8 @@ void CGameScene::SpawnBossMeleeSlashEffect(CGameObject* boss)
 		-0.75f,
 		0.25f,
 		XMFLOAT3(0.88f, 1.00f, 0.55f),
-		31.7f
+		31.7f,
+		false
 	);
 }
 

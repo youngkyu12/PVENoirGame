@@ -10956,6 +10956,9 @@ void CGameScene::CollisionObjects()
 
 	if ( m_bSimulateLocalPlayerMonsterAttackCollision && m_Collision )
 	{
+#ifndef USING_NETWORK
+		ApplyBossMeleeSlashPlayerHits();
+#endif
 		RefreshDynamicCollisionMegaGridMasks();
 
 		m_Collision->OnUpdateFiltered(

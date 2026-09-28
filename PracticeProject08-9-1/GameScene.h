@@ -551,6 +551,7 @@ private:
 
 	void UpdateBossPoisonProjectileSpellCasts(float dt);
 	void UpdateBossMeleeSlashCasts(float dt);
+	void ApplyBossMeleeSlashPlayerHits();
 	void SpawnBossPoisonProjectile(CGameObject* boss);
 	void UpdateBossPoisonProjectiles(float dt);
 	void RenderBossPoisonProjectiles(ID3D12GraphicsCommandList* cmd, CCamera* camera);

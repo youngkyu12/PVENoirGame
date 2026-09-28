@@ -3967,12 +3967,14 @@ void CGameScene::BuildSkinnedBatch(
 					createDesc.monsterProfile.spellClip = "Spell";
 
 					createDesc.useOwnerBoneWeaponCapsules = true;
+#ifdef USING_NETWORK
 					createDesc.monsterWeaponConfigs.push_back(
 						{ "AttackLeft", 0.20f, 0.55f, { "Wrist_L" } }
 					);
 					createDesc.monsterWeaponConfigs.push_back(
 						{ "AttackRight", 0.20f, 0.55f, { "Wrist_R" } }
 					);
+#endif
 
 					auto obj = [ & ] ()
 						{
