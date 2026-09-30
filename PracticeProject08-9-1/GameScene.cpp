@@ -3176,15 +3176,40 @@ void CGameScene::SyncActualMonsterFromLogicalState(CGameObject* monster, int log
 		{
 			CancelMonsterPreparedActions(monster);
 
-			if ( auto* weaponHitbox = monster->GetComponent<CMonsterWeaponHitboxComponent>() )
-				weaponHitbox->SetEnabled(false);
-
 			if ( auto* animComp = monster->GetComponent<CAnimatorComponent>() )
 			{
 				if ( auto* ctrl = animComp->EnsureMonsterController() )
 					ctrl->ResetRuntimeState(EMonsterAnimState::Idle);
 			}
 		}
+
+		// Restore attack updates after pooling or revival. Keep the hit window closed
+		// until the attack animation opens it again.
+		auto RestoreWeaponHitbox = [shouldActivate, shouldResetAliveRuntime](CGameObject* owner)
+			{
+				if ( !owner )
+					return;
+
+				auto* hitbox = owner->GetComponent<CMonsterWeaponHitboxComponent>();
+				if ( !hitbox )
+					return;
+
+				if ( shouldResetAliveRuntime || !hitbox->IsEnabled() || !shouldActivate )
+					hitbox->ResetRuntimeState();
+
+				hitbox->SetEnabled(shouldActivate);
+				if ( auto* collider = owner->GetComponent<CColliderComponent>() )
+				{
+					collider->CancelDeferredDisable();
+					collider->SetEnabled(shouldActivate);
+				}
+			};
+
+		RestoreWeaponHitbox(monster);
+
+		const int swordManIndex = GetSwordManIndexFromObject(monster);
+		if ( swordManIndex >= 0 && static_cast<size_t>(swordManIndex) < m_EnemySwordRefs.size() )
+			RestoreWeaponHitbox(m_EnemySwordRefs[static_cast<size_t>(swordManIndex)]);
 	}
 
 	logical.position = position;
@@ -8899,9 +8924,6 @@ void CGameScene::UpdateLocalPlayerDeathAndRespawn(float dt)
 	}
 
 	if ( !m_bLocalPlayerDead )
-		return;
-
-	if ( m_bLocalPlayerRespawnUsed )
 		return;
 
 	if ( dt > 0.0f )

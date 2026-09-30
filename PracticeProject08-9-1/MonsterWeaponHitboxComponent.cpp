@@ -27,6 +27,12 @@ CMonsterWeaponHitboxComponent::CMonsterWeaponHitboxComponent(CGameObject* owner)
 
 void CMonsterWeaponHitboxComponent::OnCreate(ID3D12Device* /*dev*/, ID3D12GraphicsCommandList* /*cmd*/)
 {
+	ResetRuntimeState();
+}
+
+void CMonsterWeaponHitboxComponent::ResetRuntimeState()
+{
+	ClearHitTargets();
 	m_bPrevHitboxActive = false;
 	m_activeBoneWeaponConfigIndex = -1;
 
