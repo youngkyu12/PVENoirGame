@@ -7,6 +7,7 @@
 #include "Component.h"
 
 #include <array>
+#include <cstdint>
 
 class CInventoryComponent final : public CComponentT<CInventoryComponent>
 {
@@ -35,6 +36,9 @@ public:
 	void OnDestroy() override;
 
 	float GetCooldownRatio(int slot) const;
+	bool IsPotionVisualActive(int slot) const;
+	void SyncNetworkBuffVisuals(uint64_t serverMs, uint64_t attackEndMs,
+		uint64_t defenseEndMs, uint64_t speedEndMs);
 
 	bool IsMoveSpeedPotionActive() const { return m_bMoveSpeedPotionActive; }
 	bool TryBeginPredictedMoveSpeedPotion();
@@ -63,6 +67,8 @@ private:
 
 private:
 	std::array<int, kInventorySlotCount> m_itemCounts = { 0, 0, 0, 0 };
+	// Presentation only; server buff state must not apply local stat modifiers.
+	std::array<float, kInventorySlotCount> m_networkBuffVisualRemainingSec = {};
 
 	static constexpr int kHealPotionRecoverAmount = 20;
 

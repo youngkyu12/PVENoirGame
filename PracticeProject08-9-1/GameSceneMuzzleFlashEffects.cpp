@@ -530,7 +530,6 @@ void CGameScene::SpawnInventoryUseBurst(CGameObject* player, int inventorySlot)
 
 void CGameScene::UpdateInventoryBuffAmbientParticles(float dt)
 {
-#ifndef USING_NETWORK
 	if ( dt <= 0.0f )
 		return;
 
@@ -554,9 +553,9 @@ void CGameScene::UpdateInventoryBuffAmbientParticles(float dt)
 		const bool activeBuffs[4] =
 		{
 			false,
-			inventory->IsAttackPowerPotionActive(),
-			inventory->IsDefensePotionActive(),
-			inventory->IsMoveSpeedPotionActive()
+			inventory->IsPotionVisualActive(1),
+			inventory->IsPotionVisualActive(2),
+			inventory->IsPotionVisualActive(3)
 		};
 
 		for ( int inventorySlot = 1; inventorySlot <= 3; ++inventorySlot )
@@ -572,14 +571,10 @@ void CGameScene::UpdateInventoryBuffAmbientParticles(float dt)
 			EmitInventoryBuffAmbientParticles(player, inventorySlot, dt, accumulator);
 		}
 	}
-#else
-	UNREFERENCED_PARAMETER(dt);
-#endif
 }
 
 void CGameScene::EmitInventoryBuffAmbientParticles(CGameObject* player, int inventorySlot, float dt, float& accumulatorSec)
 {
-#ifndef USING_NETWORK
 	if ( !player )
 		return;
 
@@ -680,12 +675,6 @@ void CGameScene::EmitInventoryBuffAmbientParticles(CGameObject* player, int inve
 
 	if ( emitCount >= kMaxEmitsPerFrame )
 		accumulatorSec = 0.0f;
-#else
-	UNREFERENCED_PARAMETER(player);
-	UNREFERENCED_PARAMETER(inventorySlot);
-	UNREFERENCED_PARAMETER(dt);
-	UNREFERENCED_PARAMETER(accumulatorSec);
-#endif
 }
 
 void CGameScene::SpawnWeaponLevelUpFireworks()

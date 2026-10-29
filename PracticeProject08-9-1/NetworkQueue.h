@@ -53,6 +53,9 @@ struct PlayerState
     AnimationState animation{};
     EWeaponType weaponType = EWeaponType::None;
     std::vector<InventoryEntryState> inventory;
+    uint64_t attackBuffEndMs = 0;
+    uint64_t defenseBuffEndMs = 0;
+    uint64_t speedBuffEndMs = 0;
 };
 
 struct EnemyState

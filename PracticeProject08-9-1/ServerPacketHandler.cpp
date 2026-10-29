@@ -171,6 +171,9 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 		state.yaw = yaw;
 		state.animation = animState;
 		state.weaponType = eweaponType;
+		state.attackBuffEndMs = player.attackbuffendms();
+		state.defenseBuffEndMs = player.defensebuffendms();
+		state.speedBuffEndMs = player.speedbuffendms();
 
 		for (auto& inv : player.inventory())
 		{
