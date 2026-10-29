@@ -4309,6 +4309,10 @@ void CGameScene::ReleaseSkyBoxUploadBuffers()
 
 void CGameScene::ReleaseObjects()
 {
+#ifdef USING_NETWORK
+	g_NetworkQueue.ClearItemUseEvents();
+#endif
+
 	ReleaseSkyBoxResources();
 
 	m_staticBatch.shader.reset();
@@ -10830,6 +10834,18 @@ void CGameScene::AnimateObjects(float dt)
 	}
 
 	UpdateRemotePlayerNetworkMovement(dt);
+
+	ItemUseEvent itemUseEvent{};
+	while (g_NetworkQueue.TryPopItemUse(itemUseEvent))
+	{
+		if (itemUseEvent.playerId >= 4 || itemUseEvent.slot < 0 ||
+			itemUseEvent.slot >= CInventoryComponent::kInventorySlotCount)
+			continue;
+
+		CGameObject* player = GetPlayerBySlot(static_cast<int>(itemUseEvent.playerId));
+		if (player && player->GetActive())
+			SpawnInventoryUseBurst(player, itemUseEvent.slot);
+	}
 #endif
 
 	CCamera* camera = GetMainCamera();

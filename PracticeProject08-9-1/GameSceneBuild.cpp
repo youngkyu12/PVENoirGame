@@ -420,6 +420,10 @@ void CGameScene::SyncLogicalMonsterFromActualObject(CGameObject* monster)
 
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
+#ifdef USING_NETWORK
+	g_NetworkQueue.ClearItemUseEvents();
+#endif
+
 	PROFILE_RENDER_SCOPE("CGameScene::BuildObjects");
 	{
 		ConfigureLocalGameplaySimulationSwitches();

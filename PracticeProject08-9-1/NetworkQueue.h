@@ -138,6 +138,12 @@ struct ForcedTransformEvent
     uint32_t reason = 0;
 };
 
+struct ItemUseEvent
+{
+    uint64_t playerId = 0;
+    int32_t slot = 0;
+};
+
 struct NetworkMessage
 {
     NetworkMessageType type;
@@ -177,6 +183,19 @@ public:
     }
 
 
+    void PushItemUse(ItemUseEvent&& event)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_itemUseEvents.push(std::move(event));
+    }
+
+    void ClearItemUseEvents()
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        std::queue<ItemUseEvent> empty;
+        std::swap(m_itemUseEvents, empty);
+    }
+
     void Clear()
     {
         std::lock_guard<std::mutex> lock(m_mutex);
@@ -184,6 +203,8 @@ public:
         std::swap(m_messages, empty);
         std::queue<ForcedTransformEvent> emptyForcedTransforms;
         std::swap(m_forcedTransforms, emptyForcedTransforms);
+        std::queue<ItemUseEvent> emptyItemUseEvents;
+        std::swap(m_itemUseEvents, emptyItemUseEvents);
 	}
 
     // 게임 스레드에서 호출
@@ -213,14 +234,26 @@ public:
         return true;
     }
 
+    bool TryPopItemUse(ItemUseEvent& out)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (m_itemUseEvents.empty())
+            return false;
+
+        out = std::move(m_itemUseEvents.front());
+        m_itemUseEvents.pop();
+        return true;
+    }
+
     bool IsEmpty() const
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        return m_messages.empty() && m_forcedTransforms.empty();
+        return m_messages.empty() && m_forcedTransforms.empty() && m_itemUseEvents.empty();
     }
 
 private:
     std::queue<NetworkMessage> m_messages;
     std::queue<ForcedTransformEvent> m_forcedTransforms;
+    std::queue<ItemUseEvent> m_itemUseEvents;
     mutable std::mutex m_mutex;
 };

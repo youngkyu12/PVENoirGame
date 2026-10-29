@@ -266,3 +266,16 @@ bool Handle_S_FORCED_TRANSFORM(PacketSessionRef& session, Protocol::S_FORCED_TRA
 	return true;
 }
 
+bool Handle_S_USE_ITEM(PacketSessionRef& session, Protocol::S_USE_ITEM& pkt)
+{
+	UNREFERENCED_PARAMETER(session);
+	if (pkt.playerid() >= 4 || pkt.slot() < 0 || pkt.slot() >= 4)
+		return false;
+
+	ItemUseEvent event{};
+	event.playerId = pkt.playerid();
+	event.slot = pkt.slot();
+	g_NetworkQueue.PushItemUse(std::move(event));
+	return true;
+}
+

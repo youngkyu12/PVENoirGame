@@ -437,7 +437,6 @@ void CGameScene::SpawnGoldFireworkBurstAtWeapon(CGameObject* weaponObject)
 
 void CGameScene::SpawnInventoryUseBurst(CGameObject* player, int inventorySlot)
 {
-#ifndef USING_NETWORK
 	if ( !player )
 		return;
 
@@ -522,10 +521,6 @@ void CGameScene::SpawnInventoryUseBurst(CGameObject* player, int inventorySlot)
 		e->seed = seedDist(rng);
 		e->color = color;
 	}
-#else
-	UNREFERENCED_PARAMETER(player);
-	UNREFERENCED_PARAMETER(inventorySlot);
-#endif
 }
 
 void CGameScene::UpdateInventoryBuffAmbientParticles(float dt)
