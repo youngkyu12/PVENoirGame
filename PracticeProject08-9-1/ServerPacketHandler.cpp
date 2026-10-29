@@ -171,6 +171,9 @@ bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pk
 		state.yaw = yaw;
 		state.animation = animState;
 		state.weaponType = eweaponType;
+		state.attackBuffEndMs = player.attackbuffendms();
+		state.defenseBuffEndMs = player.defensebuffendms();
+		state.speedBuffEndMs = player.speedbuffendms();
 
 		for (auto& inv : player.inventory())
 		{
@@ -260,6 +263,19 @@ bool Handle_S_FORCED_TRANSFORM(PacketSessionRef& session, Protocol::S_FORCED_TRA
 	event.reason = static_cast<uint32_t>(pkt.reason());
 
 	g_NetworkQueue.PushForcedTransform(std::move(event));
+	return true;
+}
+
+bool Handle_S_USE_ITEM(PacketSessionRef& session, Protocol::S_USE_ITEM& pkt)
+{
+	UNREFERENCED_PARAMETER(session);
+	if (pkt.playerid() >= 4 || pkt.slot() < 0 || pkt.slot() >= 4)
+		return false;
+
+	ItemUseEvent event{};
+	event.playerId = pkt.playerid();
+	event.slot = pkt.slot();
+	g_NetworkQueue.PushItemUse(std::move(event));
 	return true;
 }
 

@@ -61,6 +61,10 @@ message Player
 	WeaponType weaponType = 7;
 	uint32 hp = 8;
 	repeated InventoryEntry inventory = 9;
+	// Buff expiry on the server simulation clock (serverTick * 16ms).
+	uint64 attackBuffEndMs = 10;
+	uint64 defenseBuffEndMs = 11;
+	uint64 speedBuffEndMs = 12;
 }
 
 message Enemy

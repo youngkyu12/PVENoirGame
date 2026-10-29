@@ -102,6 +102,9 @@ void CInventoryComponent::OnUpdate(float dt)
 	UpdateMoveSpeedPotion(dt);
 	UpdateAttackPowerPotion(dt);
 	UpdateDefensePotion(dt);
+
+	for ( float& remainingSec : m_networkBuffVisualRemainingSec )
+		remainingSec = remainingSec > dt ? remainingSec - dt : 0.0f;
 }
 
 void CInventoryComponent::OnDestroy()
@@ -114,6 +117,16 @@ float CInventoryComponent::GetCooldownRatio(int slot) const
 	if ( slot < 0 || slot >= kInventorySlotCount )
 		return 0.0f;
 
+#ifdef USING_NETWORK
+	const float remainingSec = m_networkBuffVisualRemainingSec[static_cast<size_t>(slot)];
+	switch ( slot )
+	{
+	case 1: return Clamp01(remainingSec / kAttackPowerPotionDurationSec);
+	case 2: return Clamp01(remainingSec / kDefensePotionDurationSec);
+	case 3: return Clamp01(remainingSec / kMoveSpeedPotionDurationSec);
+	default: return 0.0f;
+	}
+#else
 	switch ( slot )
 	{
 	case 1:
@@ -127,6 +140,27 @@ float CInventoryComponent::GetCooldownRatio(int slot) const
 
 	default:
 		return 0.0f;
+	}
+#endif
+}
+
+bool CInventoryComponent::IsPotionVisualActive(int slot) const
+{
+	return GetCooldownRatio(slot) > 0.0f;
+}
+
+void CInventoryComponent::SyncNetworkBuffVisuals(uint64_t serverMs,
+	uint64_t attackEndMs, uint64_t defenseEndMs, uint64_t speedEndMs)
+{
+	const std::array<uint64_t, kInventorySlotCount> endTimes =
+	{
+		0, attackEndMs, defenseEndMs, speedEndMs
+	};
+	for ( int slot = 1; slot < kInventorySlotCount; ++slot )
+	{
+		const uint64_t endMs = endTimes[static_cast<size_t>(slot)];
+		m_networkBuffVisualRemainingSec[static_cast<size_t>(slot)] =
+			endMs > serverMs ? static_cast<float>(endMs - serverMs) / 1000.0f : 0.0f;
 	}
 }
 
@@ -147,6 +181,7 @@ bool CInventoryComponent::ConsumeAttackPowerDirty()
 
 void CInventoryComponent::ForceRestoreAllEffects()
 {
+	m_networkBuffVisualRemainingSec.fill(0.0f);
 	RestoreMoveSpeedPotion();
 	RestoreAttackPowerPotion();
 	RestoreDefensePotion();

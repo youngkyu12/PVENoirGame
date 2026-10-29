@@ -19,6 +19,7 @@ enum : uint16
 	PKT_S_FORCED_TRANSFORM = 1009,
 	PKT_C_USE_ITEM = 1010,
 	PKT_C_DEBUG_COMMAND = 1011,
+	PKT_S_USE_ITEM = 1012,
 };
 
 // 자동화 예정
@@ -60,6 +61,7 @@ public:
 	static SendBufferRef MakeSendBuffer(Protocol::S_GAME_START& pkt) { return _MakeSendBuffer(pkt, PKT_S_GAME_START); }
 	static SendBufferRef MakeSendBuffer(Protocol::S_FRAME_STATE& pkt) { return _MakeSendBuffer(pkt, PKT_S_FRAME_STATE); }
 	static SendBufferRef MakeSendBuffer(Protocol::S_FORCED_TRANSFORM& pkt) { return _MakeSendBuffer(pkt, PKT_S_FORCED_TRANSFORM); }
+	static SendBufferRef MakeSendBuffer(Protocol::S_USE_ITEM& pkt) { return _MakeSendBuffer(pkt, PKT_S_USE_ITEM); }
 
 private:
 	template<typename PacketType, typename ProcessFunc>

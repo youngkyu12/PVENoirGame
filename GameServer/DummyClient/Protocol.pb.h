@@ -49,7 +49,7 @@ struct TableStruct_Protocol_2eproto {
     PROTOBUF_SECTION_VARIABLE(protodesc_cold);
   static const ::PROTOBUF_NAMESPACE_ID::internal::AuxiliaryParseTableField aux[]
     PROTOBUF_SECTION_VARIABLE(protodesc_cold);
-  static const ::PROTOBUF_NAMESPACE_ID::internal::ParseTable schema[12]
+  static const ::PROTOBUF_NAMESPACE_ID::internal::ParseTable schema[13]
     PROTOBUF_SECTION_VARIABLE(protodesc_cold);
   static const ::PROTOBUF_NAMESPACE_ID::internal::FieldMetadata field_metadata[];
   static const ::PROTOBUF_NAMESPACE_ID::internal::SerializationTable serialization_table[];
@@ -93,6 +93,9 @@ extern S_GAME_STARTDefaultTypeInternal _S_GAME_START_default_instance_;
 class S_LOGIN;
 struct S_LOGINDefaultTypeInternal;
 extern S_LOGINDefaultTypeInternal _S_LOGIN_default_instance_;
+class S_USE_ITEM;
+struct S_USE_ITEMDefaultTypeInternal;
+extern S_USE_ITEMDefaultTypeInternal _S_USE_ITEM_default_instance_;
 }  // namespace Protocol
 PROTOBUF_NAMESPACE_OPEN
 template<> ::Protocol::C_CLIENT_READY* Arena::CreateMaybeMessage<::Protocol::C_CLIENT_READY>(Arena*);
@@ -107,6 +110,7 @@ template<> ::Protocol::S_FORCED_TRANSFORM* Arena::CreateMaybeMessage<::Protocol:
 template<> ::Protocol::S_FRAME_STATE* Arena::CreateMaybeMessage<::Protocol::S_FRAME_STATE>(Arena*);
 template<> ::Protocol::S_GAME_START* Arena::CreateMaybeMessage<::Protocol::S_GAME_START>(Arena*);
 template<> ::Protocol::S_LOGIN* Arena::CreateMaybeMessage<::Protocol::S_LOGIN>(Arena*);
+template<> ::Protocol::S_USE_ITEM* Arena::CreateMaybeMessage<::Protocol::S_USE_ITEM>(Arena*);
 PROTOBUF_NAMESPACE_CLOSE
 namespace Protocol {
 
@@ -2004,6 +2008,149 @@ class C_DEBUG_COMMAND final :
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_Protocol_2eproto;
 };
+// -------------------------------------------------------------------
+
+class S_USE_ITEM final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:Protocol.S_USE_ITEM) */ {
+ public:
+  inline S_USE_ITEM() : S_USE_ITEM(nullptr) {}
+  ~S_USE_ITEM() override;
+  explicit constexpr S_USE_ITEM(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  S_USE_ITEM(const S_USE_ITEM& from);
+  S_USE_ITEM(S_USE_ITEM&& from) noexcept
+    : S_USE_ITEM() {
+    *this = ::std::move(from);
+  }
+
+  inline S_USE_ITEM& operator=(const S_USE_ITEM& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline S_USE_ITEM& operator=(S_USE_ITEM&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const S_USE_ITEM& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const S_USE_ITEM* internal_default_instance() {
+    return reinterpret_cast<const S_USE_ITEM*>(
+               &_S_USE_ITEM_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    12;
+
+  friend void swap(S_USE_ITEM& a, S_USE_ITEM& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(S_USE_ITEM* other) {
+    if (other == this) return;
+    if (GetOwningArena() == other->GetOwningArena()) {
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(S_USE_ITEM* other) {
+    if (other == this) return;
+    GOOGLE_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  inline S_USE_ITEM* New() const final {
+    return new S_USE_ITEM();
+  }
+
+  S_USE_ITEM* New(::PROTOBUF_NAMESPACE_ID::Arena* arena) const final {
+    return CreateMaybeMessage<S_USE_ITEM>(arena);
+  }
+  void CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) final;
+  void MergeFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) final;
+  void CopyFrom(const S_USE_ITEM& from);
+  void MergeFrom(const S_USE_ITEM& from);
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::PROTOBUF_NAMESPACE_ID::uint8* _InternalSerialize(
+      ::PROTOBUF_NAMESPACE_ID::uint8* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _cached_size_.Get(); }
+
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(S_USE_ITEM* other);
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
+    return "Protocol.S_USE_ITEM";
+  }
+  protected:
+  explicit S_USE_ITEM(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  private:
+  static void ArenaDtor(void* object);
+  inline void RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kPlayerIdFieldNumber = 1,
+    kSlotFieldNumber = 2,
+  };
+  // uint64 playerId = 1;
+  void clear_playerid();
+  ::PROTOBUF_NAMESPACE_ID::uint64 playerid() const;
+  void set_playerid(::PROTOBUF_NAMESPACE_ID::uint64 value);
+  private:
+  ::PROTOBUF_NAMESPACE_ID::uint64 _internal_playerid() const;
+  void _internal_set_playerid(::PROTOBUF_NAMESPACE_ID::uint64 value);
+  public:
+
+  // int32 slot = 2;
+  void clear_slot();
+  ::PROTOBUF_NAMESPACE_ID::int32 slot() const;
+  void set_slot(::PROTOBUF_NAMESPACE_ID::int32 value);
+  private:
+  ::PROTOBUF_NAMESPACE_ID::int32 _internal_slot() const;
+  void _internal_set_slot(::PROTOBUF_NAMESPACE_ID::int32 value);
+  public:
+
+  // @@protoc_insertion_point(class_scope:Protocol.S_USE_ITEM)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  ::PROTOBUF_NAMESPACE_ID::uint64 playerid_;
+  ::PROTOBUF_NAMESPACE_ID::int32 slot_;
+  mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  friend struct ::TableStruct_Protocol_2eproto;
+};
 // ===================================================================
 
 
@@ -2926,9 +3073,55 @@ inline void C_DEBUG_COMMAND::set_megagridnumber(::PROTOBUF_NAMESPACE_ID::int32 v
   // @@protoc_insertion_point(field_set:Protocol.C_DEBUG_COMMAND.megaGridNumber)
 }
 
+// -------------------------------------------------------------------
+
+// S_USE_ITEM
+
+// uint64 playerId = 1;
+inline void S_USE_ITEM::clear_playerid() {
+  playerid_ = uint64_t{0u};
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint64 S_USE_ITEM::_internal_playerid() const {
+  return playerid_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint64 S_USE_ITEM::playerid() const {
+  // @@protoc_insertion_point(field_get:Protocol.S_USE_ITEM.playerId)
+  return _internal_playerid();
+}
+inline void S_USE_ITEM::_internal_set_playerid(::PROTOBUF_NAMESPACE_ID::uint64 value) {
+  
+  playerid_ = value;
+}
+inline void S_USE_ITEM::set_playerid(::PROTOBUF_NAMESPACE_ID::uint64 value) {
+  _internal_set_playerid(value);
+  // @@protoc_insertion_point(field_set:Protocol.S_USE_ITEM.playerId)
+}
+
+// int32 slot = 2;
+inline void S_USE_ITEM::clear_slot() {
+  slot_ = 0;
+}
+inline ::PROTOBUF_NAMESPACE_ID::int32 S_USE_ITEM::_internal_slot() const {
+  return slot_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::int32 S_USE_ITEM::slot() const {
+  // @@protoc_insertion_point(field_get:Protocol.S_USE_ITEM.slot)
+  return _internal_slot();
+}
+inline void S_USE_ITEM::_internal_set_slot(::PROTOBUF_NAMESPACE_ID::int32 value) {
+  
+  slot_ = value;
+}
+inline void S_USE_ITEM::set_slot(::PROTOBUF_NAMESPACE_ID::int32 value) {
+  _internal_set_slot(value);
+  // @@protoc_insertion_point(field_set:Protocol.S_USE_ITEM.slot)
+}
+
 #ifdef __GNUC__
   #pragma GCC diagnostic pop
 #endif  // __GNUC__
+// -------------------------------------------------------------------
+
 // -------------------------------------------------------------------
 
 // -------------------------------------------------------------------

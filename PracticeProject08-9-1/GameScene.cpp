@@ -4309,6 +4309,10 @@ void CGameScene::ReleaseSkyBoxUploadBuffers()
 
 void CGameScene::ReleaseObjects()
 {
+#ifdef USING_NETWORK
+	g_NetworkQueue.ClearItemUseEvents();
+#endif
+
 	ReleaseSkyBoxResources();
 
 	m_staticBatch.shader.reset();
@@ -10026,7 +10030,23 @@ void CGameScene::AnimateObjects(float dt)
     if (std::holds_alternative<FrameSnapshot>(m_pendingNetworkMessage.data))
     {
         const FrameSnapshot& receivedSnapshot = std::get<FrameSnapshot>(m_pendingNetworkMessage.data);
+		const bool isNewSnapshot = receivedSnapshot.frameId > m_lastReceivedServerTick;
 		PushNetworkFrameSnapshot(receivedSnapshot);
+		if ( isNewSnapshot )
+		{
+			// Buffs use the authoritative snapshot time, not the delayed render timeline.
+			const uint64_t serverMs = receivedSnapshot.frameId * kServerTickIntervalMs;
+			for ( const PlayerState& state : receivedSnapshot.players )
+			{
+				if ( state.id >= 4 )
+					continue;
+				if ( CInventoryComponent* inventory = GetInventoryByPlayerSlot(static_cast<int>(state.id)) )
+				{
+					inventory->SyncNetworkBuffVisuals(serverMs,
+						state.attackBuffEndMs, state.defenseBuffEndMs, state.speedBuffEndMs);
+				}
+			}
+		}
 		m_timeSinceLastFramePacket = 0.0f;
 		UpdateRemotePlayerMotionSamples(receivedSnapshot);
 		const FrameSnapshot& latestSnapshot =
@@ -10814,6 +10834,18 @@ void CGameScene::AnimateObjects(float dt)
 	}
 
 	UpdateRemotePlayerNetworkMovement(dt);
+
+	ItemUseEvent itemUseEvent{};
+	while (g_NetworkQueue.TryPopItemUse(itemUseEvent))
+	{
+		if (itemUseEvent.playerId >= 4 || itemUseEvent.slot < 0 ||
+			itemUseEvent.slot >= CInventoryComponent::kInventorySlotCount)
+			continue;
+
+		CGameObject* player = GetPlayerBySlot(static_cast<int>(itemUseEvent.playerId));
+		if (player && player->GetActive())
+			SpawnInventoryUseBurst(player, itemUseEvent.slot);
+	}
 #endif
 
 	CCamera* camera = GetMainCamera();
@@ -10879,17 +10911,17 @@ void CGameScene::AnimateObjects(float dt)
 #endif
 	}
 
-#ifndef USING_NETWORK
 	UpdateInventoryBuffAmbientParticles(dt);
 
+#ifndef USING_NETWORK
 	if ( CInventoryComponent* inventory = GetLocalPlayerInventory() )
 	{
 		if ( inventory->ConsumeAttackPowerDirty() )
 			RefreshPlayerWeaponAttackPowersForSlot(m_localPlayerSlot);
 	}
 
-	SyncLocalInventoryToHud();
 #endif
+	SyncLocalInventoryToHud();
 
 	UpdateBossMeleeSlashCasts(dt);
 

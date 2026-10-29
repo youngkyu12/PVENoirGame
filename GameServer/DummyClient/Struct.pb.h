@@ -1190,6 +1190,9 @@ class Player final :
     kPlayerStateFieldNumber = 4,
     kWeaponTypeFieldNumber = 7,
     kHpFieldNumber = 8,
+    kAttackBuffEndMsFieldNumber = 10,
+    kDefenseBuffEndMsFieldNumber = 11,
+    kSpeedBuffEndMsFieldNumber = 12,
   };
   // repeated .Protocol.InventoryEntry inventory = 9;
   int inventory_size() const;
@@ -1304,6 +1307,33 @@ class Player final :
   void _internal_set_hp(::PROTOBUF_NAMESPACE_ID::uint32 value);
   public:
 
+  // uint64 attackBuffEndMs = 10;
+  void clear_attackbuffendms();
+  ::PROTOBUF_NAMESPACE_ID::uint64 attackbuffendms() const;
+  void set_attackbuffendms(::PROTOBUF_NAMESPACE_ID::uint64 value);
+  private:
+  ::PROTOBUF_NAMESPACE_ID::uint64 _internal_attackbuffendms() const;
+  void _internal_set_attackbuffendms(::PROTOBUF_NAMESPACE_ID::uint64 value);
+  public:
+
+  // uint64 defenseBuffEndMs = 11;
+  void clear_defensebuffendms();
+  ::PROTOBUF_NAMESPACE_ID::uint64 defensebuffendms() const;
+  void set_defensebuffendms(::PROTOBUF_NAMESPACE_ID::uint64 value);
+  private:
+  ::PROTOBUF_NAMESPACE_ID::uint64 _internal_defensebuffendms() const;
+  void _internal_set_defensebuffendms(::PROTOBUF_NAMESPACE_ID::uint64 value);
+  public:
+
+  // uint64 speedBuffEndMs = 12;
+  void clear_speedbuffendms();
+  ::PROTOBUF_NAMESPACE_ID::uint64 speedbuffendms() const;
+  void set_speedbuffendms(::PROTOBUF_NAMESPACE_ID::uint64 value);
+  private:
+  ::PROTOBUF_NAMESPACE_ID::uint64 _internal_speedbuffendms() const;
+  void _internal_set_speedbuffendms(::PROTOBUF_NAMESPACE_ID::uint64 value);
+  public:
+
   // @@protoc_insertion_point(class_scope:Protocol.Player)
  private:
   class _Internal;
@@ -1320,6 +1350,9 @@ class Player final :
   int playerstate_;
   int weapontype_;
   ::PROTOBUF_NAMESPACE_ID::uint32 hp_;
+  ::PROTOBUF_NAMESPACE_ID::uint64 attackbuffendms_;
+  ::PROTOBUF_NAMESPACE_ID::uint64 defensebuffendms_;
+  ::PROTOBUF_NAMESPACE_ID::uint64 speedbuffendms_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_Struct_2eproto;
 };
@@ -2924,6 +2957,66 @@ inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::Protocol::InventoryEnt
 Player::inventory() const {
   // @@protoc_insertion_point(field_list:Protocol.Player.inventory)
   return inventory_;
+}
+
+// uint64 attackBuffEndMs = 10;
+inline void Player::clear_attackbuffendms() {
+  attackbuffendms_ = uint64_t{0u};
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint64 Player::_internal_attackbuffendms() const {
+  return attackbuffendms_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint64 Player::attackbuffendms() const {
+  // @@protoc_insertion_point(field_get:Protocol.Player.attackBuffEndMs)
+  return _internal_attackbuffendms();
+}
+inline void Player::_internal_set_attackbuffendms(::PROTOBUF_NAMESPACE_ID::uint64 value) {
+  
+  attackbuffendms_ = value;
+}
+inline void Player::set_attackbuffendms(::PROTOBUF_NAMESPACE_ID::uint64 value) {
+  _internal_set_attackbuffendms(value);
+  // @@protoc_insertion_point(field_set:Protocol.Player.attackBuffEndMs)
+}
+
+// uint64 defenseBuffEndMs = 11;
+inline void Player::clear_defensebuffendms() {
+  defensebuffendms_ = uint64_t{0u};
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint64 Player::_internal_defensebuffendms() const {
+  return defensebuffendms_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint64 Player::defensebuffendms() const {
+  // @@protoc_insertion_point(field_get:Protocol.Player.defenseBuffEndMs)
+  return _internal_defensebuffendms();
+}
+inline void Player::_internal_set_defensebuffendms(::PROTOBUF_NAMESPACE_ID::uint64 value) {
+  
+  defensebuffendms_ = value;
+}
+inline void Player::set_defensebuffendms(::PROTOBUF_NAMESPACE_ID::uint64 value) {
+  _internal_set_defensebuffendms(value);
+  // @@protoc_insertion_point(field_set:Protocol.Player.defenseBuffEndMs)
+}
+
+// uint64 speedBuffEndMs = 12;
+inline void Player::clear_speedbuffendms() {
+  speedbuffendms_ = uint64_t{0u};
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint64 Player::_internal_speedbuffendms() const {
+  return speedbuffendms_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint64 Player::speedbuffendms() const {
+  // @@protoc_insertion_point(field_get:Protocol.Player.speedBuffEndMs)
+  return _internal_speedbuffendms();
+}
+inline void Player::_internal_set_speedbuffendms(::PROTOBUF_NAMESPACE_ID::uint64 value) {
+  
+  speedbuffendms_ = value;
+}
+inline void Player::set_speedbuffendms(::PROTOBUF_NAMESPACE_ID::uint64 value) {
+  _internal_set_speedbuffendms(value);
+  // @@protoc_insertion_point(field_set:Protocol.Player.speedBuffEndMs)
 }
 
 // -------------------------------------------------------------------

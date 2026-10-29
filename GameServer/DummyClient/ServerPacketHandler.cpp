@@ -477,6 +477,13 @@ bool Handle_S_FORCED_TRANSFORM(PacketSessionRef& session, Protocol::S_FORCED_TRA
 	return true;
 }
 
+bool Handle_S_USE_ITEM(PacketSessionRef& session, Protocol::S_USE_ITEM& pkt)
+{
+	UNREFERENCED_PARAMETER(session);
+	UNREFERENCED_PARAMETER(pkt);
+	return true;
+}
+
 void GetWorldDrawSnapshot(DrawSnapshot& outSnapshot)
 {
 	outSnapshot.players.clear();
