@@ -8,6 +8,37 @@
 #include "MonsterAITrace.h"
 #include "MonsterAIPerformance.h"
 
+#include <algorithm>
+#include <cmath>
+
+namespace
+{
+	uint32 HashCrowdEnemyId(uint64 id)
+	{
+		id ^= id >> 33;
+		id *= 0xff51afd7ed558ccdULL;
+		id ^= id >> 33;
+		id *= 0xc4ceb9fe1a85ec53ULL;
+		id ^= id >> 33;
+		return static_cast<uint32>(id ^ (id >> 32));
+	}
+
+	float CrowdHash01(uint32 hash)
+	{
+		return static_cast<float>(hash & 0x00FFFFFFu) / 16777216.0f;
+	}
+
+	bool NormalizeCrowdDirection(GameMath::Vec3& direction)
+	{
+		const float length = direction.LengthXZ();
+		if (length <= 1.0e-6f) return false;
+		direction.x /= length;
+		direction.y = 0.0f;
+		direction.z /= length;
+		return true;
+	}
+}
+
 CMonsterAI::CMonsterAI(OwnerT* owner)
 	: CComponentT(owner)
 	, m_profile(&GetMonsterAIProfile(EMonsterAIProfile::FieldIdle))
@@ -374,20 +405,122 @@ bool CMonsterAI::FollowCurrentPath(float dt)
 	return false;
 }
 
+bool CMonsterAI::ComputeCrowdChaseDirection(
+	const GameMath::Vec3& goal,
+	GameMath::Vec3& direction,
+	float& goalDistance,
+	float& speedScale) const
+{
+	const auto pos = GetOwner()->GetPosition();
+	direction = GameMath::Vec3(goal.x - pos.x, 0.0f, goal.z - pos.z);
+	const float targetDistance = direction.LengthXZ();
+	goalDistance = targetDistance;
+	speedScale = 1.0f;
+	if (!NormalizeCrowdDirection(direction)) return false;
+
+	// Only the two no-NavMesh chase profiles use crowd steering.
+	const auto profile = GetProfileId();
+	if (profile != EMonsterAIProfile::SpawnerRush && profile != EMonsterAIProfile::BossRoomPersistent)
+		return true;
+
+	float slotRadiusMin = 2.0f;
+	float slotRadiusMax = 6.0f;
+	float slotStartDistance = 36.0f;
+	float slotFullDistance = 20.0f;
+	float separationRadius = 3.0f;
+	float separationWeight = 1.15f;
+	if (profile == EMonsterAIProfile::SpawnerRush)
+	{
+		slotStartDistance = 32.0f;
+		slotFullDistance = 18.0f;
+		separationWeight = 1.20f;
+	}
+	else
+	{
+		const auto* enemy = static_cast<const CEnemy*>(GetOwner());
+		switch (enemy->type)
+		{
+		case Protocol::ENEMY_TYPE_WARRIOR:
+			slotRadiusMin = 3.0f;
+			slotRadiusMax = 8.0f;
+			slotStartDistance = 42.0f;
+			slotFullDistance = 24.0f;
+			separationRadius = 3.5f;
+			separationWeight = 1.20f;
+			break;
+		case Protocol::ENEMY_TYPE_ARCHER:
+			slotRadiusMin = 14.0f;
+			slotRadiusMax = 24.0f;
+			slotStartDistance = 70.0f;
+			slotFullDistance = 45.0f;
+			separationRadius = 4.0f;
+			separationWeight = 1.05f;
+			break;
+		case Protocol::ENEMY_TYPE_MUTANT:
+			slotRadiusMin = 4.0f;
+			slotRadiusMax = 9.0f;
+			slotStartDistance = 48.0f;
+			slotFullDistance = 28.0f;
+			separationRadius = 4.5f;
+			separationWeight = 1.30f;
+			break;
+		default:
+			break;
+		}
+	}
+
+	// Match the local distance blend: straight at range, spread on approach,
+	// then fade steering near attack range so melee enemies can reach the target.
+	const float farBlend = std::clamp(
+		(slotStartDistance - targetDistance) / std::max(0.001f, slotStartDistance - slotFullDistance), 0.0f, 1.0f);
+	const float nearBlend = std::clamp((targetDistance - m_attackRange - 2.0f) / 6.0f, 0.0f, 1.0f);
+	const float blend = (std::min)(farBlend, nearBlend);
+	const float slotBlend = blend * blend * (3.0f - 2.0f * blend);
+
+	const uint32 hash = HashCrowdEnemyId(GetOwner()->GetObjectId());
+	speedScale = 0.96f + CrowdHash01(hash ^ 0x9E3779B9u) * 0.08f;
+	GameMath::Vec3 chaseGoal = goal;
+	if (slotBlend > 1.0e-4f)
+	{
+		const float angle = CrowdHash01(hash) * 6.28318530718f;
+		const float radius = slotRadiusMin + (slotRadiusMax - slotRadiusMin) *
+			CrowdHash01(hash * 1664525u + 1013904223u);
+		chaseGoal.x += std::cos(angle) * radius * slotBlend;
+		chaseGoal.z += std::sin(angle) * radius * slotBlend;
+	}
+
+	GameMath::Vec3 seek(chaseGoal.x - pos.x, 0.0f, chaseGoal.z - pos.z);
+	goalDistance = seek.LengthXZ();
+	if (!NormalizeCrowdDirection(seek)) seek = direction;
+	direction = seek;
+	if (GRoom && slotBlend > 0.0f)
+	{
+		const auto separation = GRoom->GetEnemyCrowdSeparation(GetOwner()->GetObjectId(), pos, separationRadius);
+		direction.x += separation.x * separationWeight * slotBlend;
+		direction.z += separation.z * separationWeight * slotBlend;
+	}
+	if (!NormalizeCrowdDirection(direction)) direction = seek;
+	return true;
+}
+
 bool CMonsterAI::MoveDirectTowards(const GameMath::Vec3& goal, float maxStep)
 {
 	MONSTER_AI_PERF_INCREMENT(EMonsterAIPerformanceCounter::DirectMove);
-	const auto pos = GetOwner()->GetPosition();
-	GameMath::Vec3 d(goal.x - pos.x, 0.f, goal.z - pos.z);
-	const float len = d.LengthXZ();
-	if (len <= 1e-6f) return false;
+	if (maxStep <= 0.0f) return false;
 
-	const float step = (maxStep < len) ? maxStep : len;
-	const GameMath::Vec3 dir(d.x / len, 0.f, d.z / len);
-	FaceTowards(goal);
-	GetOwner()->SetPosition(GameMath::Vec3(pos.x + dir.x * step, pos.y, pos.z + dir.z * step));
+	GameMath::Vec3 direction{};
+	float goalDistance = 0.0f;
+	float speedScale = 1.0f;
+	if (!ComputeCrowdChaseDirection(goal, direction, goalDistance, speedScale)) return false;
+	const float step = (std::min)(maxStep * speedScale, goalDistance);
+	if (step <= 0.0f) return false;
+
+	const auto pos = GetOwner()->GetPosition();
+	const GameMath::Vec3 next(pos.x + direction.x * step, pos.y, pos.z + direction.z * step);
+	FaceTowards(GameMath::Vec3(pos.x + direction.x, pos.y, pos.z + direction.z));
+	GetOwner()->SetPosition(next);
 	GetOwner()->SetAnimState(Protocol::ANIMATION_TYPE_RUN);
-	GetOwner()->SetLastMoveDir(dir);
+	GetOwner()->SetLastMoveDir(direction);
 	return true;
 }
 

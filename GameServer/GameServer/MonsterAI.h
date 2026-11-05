@@ -34,6 +34,7 @@ private:
 	bool FollowCurrentPath(float dt);
 	bool MoveTowards(const GameMath::Vec3& goal, float maxStep, bool clampToMovementBounds = true);
 	bool MoveDirectTowards(const GameMath::Vec3& goal, float maxStep);
+	bool ComputeCrowdChaseDirection(const GameMath::Vec3& goal, GameMath::Vec3& direction, float& goalDistance, float& speedScale) const;
 	void FaceTowards(const GameMath::Vec3& goal);
 	bool SampleNavMeshPosition(const GameMath::Vec3& in, GameMath::Vec3& out) const;
 	const CNavMesh* GetNavMesh() const;
