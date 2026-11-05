@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cmath>
 #include <vector>
 
 namespace
@@ -377,6 +378,76 @@ void Room::WakeEnemiesNearPlayer(const PlayerRef& player)
 	}
 }
 
+void Room::BuildEnemyCrowdSnapshot()
+{
+	m_enemyCrowdBuckets.clear();
+	// Include idle/sleeping living neighbors too, but exclude dormant pool entries
+	// and the scripted boss. Never read a neighbor's already-updated position.
+	for (const auto& [enemyId, enemy] : enemies)
+	{
+		if (!enemy || !enemy->IsActive() || enemy->IsDead() || enemy->type == Protocol::ENEMY_TYPE_BOSS)
+			continue;
+		const auto position = enemy->GetPosition();
+		const int cellX = static_cast<int>(std::floor(position.x / kEnemyCrowdCellSize));
+		const int cellZ = static_cast<int>(std::floor(position.z / kEnemyCrowdCellSize));
+		m_enemyCrowdBuckets[{cellX, cellZ}].push_back({enemyId, position});
+	}
+}
+
+GameMath::Vec3 Room::GetEnemyCrowdSeparation(uint64 enemyId, const GameMath::Vec3& position, float radius) const
+{
+	GameMath::Vec3 separation{};
+	if (radius <= 0.0f) return separation;
+	const int minX = static_cast<int>(std::floor((position.x - radius) / kEnemyCrowdCellSize));
+	const int maxX = static_cast<int>(std::floor((position.x + radius) / kEnemyCrowdCellSize));
+	const int minZ = static_cast<int>(std::floor((position.z - radius) / kEnemyCrowdCellSize));
+	const int maxZ = static_cast<int>(std::floor((position.z + radius) / kEnemyCrowdCellSize));
+	const float radiusSq = radius * radius;
+	for (int z = minZ; z <= maxZ; ++z)
+	{
+		for (int x = minX; x <= maxX; ++x)
+		{
+			const auto bucket = m_enemyCrowdBuckets.find({x, z});
+			if (bucket == m_enemyCrowdBuckets.end()) continue;
+			for (const auto& other : bucket->second)
+			{
+				if (other.enemyId == enemyId) continue;
+				const float dx = position.x - other.position.x;
+				const float dz = position.z - other.position.z;
+				const float distanceSq = dx * dx + dz * dz;
+				if (distanceSq > radiusSq) continue;
+				if (distanceSq <= 1.0e-6f)
+				{
+					// Symmetric pair seed, opposite signs: coincident enemies can separate.
+					const uint64 low = (std::min)(enemyId, other.enemyId);
+					const uint64 high = std::max(enemyId, other.enemyId);
+					uint64 hash = low ^ (high * 0x9E3779B97F4A7C15ULL);
+					hash ^= hash >> 33;
+					hash *= 0xff51afd7ed558ccdULL;
+					hash ^= hash >> 33;
+					const float angle = static_cast<float>(hash & 0x00FFFFFFu) / 16777216.0f * 6.28318530718f;
+					const float sign = enemyId == low ? 1.0f : -1.0f;
+					separation.x += std::cos(angle) * sign;
+					separation.z += std::sin(angle) * sign;
+					continue;
+				}
+				const float distance = std::sqrt(distanceSq);
+				const float falloff = 1.0f - distance / radius;
+				const float weight = falloff * falloff;
+				separation.x += dx / distance * weight;
+				separation.z += dz / distance * weight;
+			}
+		}
+	}
+	const float length = separation.LengthXZ();
+	if (length > 1.0f)
+	{
+		separation.x /= length;
+		separation.z /= length;
+	}
+	return separation;
+}
+
 void Room::ProcessEnemyAI()
 {
 	const auto frameStart = std::chrono::steady_clock::now();
@@ -387,6 +458,7 @@ void Room::ProcessEnemyAI()
 	const float sleepRangeSq = sleepRange * sleepRange;
 	const uint32 animClockTick = GetAnimClockTick();
 
+	BuildEnemyCrowdSnapshot();
 	for (auto it = m_aiAwakeEnemyIds.begin(); it != m_aiAwakeEnemyIds.end();)
 	{
 		const uint64 enemyId = *it;
@@ -440,6 +512,7 @@ void Room::ProcessEnemyAI()
 		enemy->SetPosition(SnapToTerrainIfBelow(enemy->GetPosition()));
 		++it;
 	}
+	m_enemyCrowdBuckets.clear();
 	MONSTER_AI_PERF_END_BATCH();
 
 	const auto elapsedMs = static_cast<uint64>(
