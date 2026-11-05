@@ -9,7 +9,6 @@
 #include "Animator.h"
 #include "AnimatorComponent.h"
 
-#ifndef USING_NETWORK
 #include <random>
 
 void CMonsterAnimController::ResetLocomotionDelay()
@@ -18,7 +17,6 @@ void CMonsterAnimController::ResetLocomotionDelay()
 	m_locomotionDelayRemainingSec = 0.0f;
 	m_locomotionTransitionStarted = false;
 }
-#endif
 
 CAnimator* CMonsterAnimController::ResolveAnimator() const
 {
@@ -95,9 +93,7 @@ bool CMonsterAnimController::StartAction(CAnimator* anim, const std::string& cli
 
 void CMonsterAnimController::ResetRuntimeState(EMonsterAnimState locomotionState)
 {
-#ifndef USING_NETWORK
 	ResetLocomotionDelay();
-#endif
 	m_locomotionState = locomotionState;
 	m_pendingCommand = EMonsterAnimCommand::None;
 	m_actionPhase = EActionPhase::None;
@@ -119,9 +115,7 @@ void CMonsterAnimController::ResetRuntimeState(EMonsterAnimState locomotionState
 
 void CMonsterAnimController::PlayDeathFromStart()
 {
-#ifndef USING_NETWORK
 	ResetLocomotionDelay();
-#endif
 	m_locomotionState = EMonsterAnimState::Idle;
 	m_pendingCommand = EMonsterAnimCommand::None;
 	m_actionPhase = EActionPhase::None;
@@ -136,9 +130,7 @@ void CMonsterAnimController::PlayDeathFromStart()
 
 void CMonsterAnimController::PlayDeathFinalPose()
 {
-#ifndef USING_NETWORK
 	ResetLocomotionDelay();
-#endif
 	m_locomotionState = EMonsterAnimState::Idle;
 	m_pendingCommand = EMonsterAnimCommand::None;
 	m_actionPhase = EActionPhase::None;
@@ -209,7 +201,6 @@ void CMonsterAnimController::StartLocomotionIfNeeded(CAnimator* anim, float dt)
 	if ( clip.empty() ) return;
 	if ( !anim->HasClip(clip) ) return;
 
-#ifndef USING_NETWORK
 	// Delay only actual walk/run clips, never an Idle fallback or the initial pose.
 	const bool delayMovement = m_locomotionState != EMonsterAnimState::Idle &&
 		clip != m_profile.idleClip && !anim->GetCurrentClipName().empty();
@@ -246,7 +237,6 @@ void CMonsterAnimController::StartLocomotionIfNeeded(CAnimator* anim, float dt)
 			m_locomotionTransitionStarted = true;
 		}
 	}
-#endif
 
 	if ( anim->GetCurrentClipName().empty() )
 	{
@@ -255,9 +245,7 @@ void CMonsterAnimController::StartLocomotionIfNeeded(CAnimator* anim, float dt)
 	}
 
 	if ( anim->GetCurrentClipName() != clip
-#ifndef USING_NETWORK
 		|| anim->IsBlending() // Also cancel an outgoing blend when returning to its source.
-#endif
 		)
 	{
 		if ( !anim->CrossFade(clip, m_profile.locomotionBlendTime, true, 0.0f) )
@@ -280,9 +268,7 @@ void CMonsterAnimController::Update(float dt)
 
 	if ( m_pendingCommand != EMonsterAnimCommand::None )
 	{
-#ifndef USING_NETWORK
 		ResetLocomotionDelay();
-#endif
 		switch ( m_pendingCommand )
 		{
 		case EMonsterAnimCommand::Attack:

@@ -69,12 +69,10 @@ private:
 
 	void StartLocomotionIfNeeded(CAnimator* anim, float dt);
 
-#ifndef USING_NETWORK
 	void ResetLocomotionDelay();
 	std::string m_delayedLocomotionClip;
 	float m_locomotionDelayRemainingSec = 0.0f;
 	bool m_locomotionTransitionStarted = false;
-#endif
 	bool StartAction(CAnimator* anim, const std::string& clipName, EActionPhase phase, float blendTimeSec, bool loop);
 
 private:
