@@ -19,6 +19,7 @@ enum : uint16
 	PKT_S_FORCED_TRANSFORM = 1009,
 	PKT_C_USE_ITEM = 1010,
 	PKT_C_DEBUG_COMMAND = 1011,
+	PKT_S_USE_ITEM = 1012,
 };
 
 // 자동화 예정
@@ -29,6 +30,7 @@ bool Handle_S_ENTER_GAME(PacketSessionRef& session, Protocol::S_ENTER_GAME& pkt)
 bool Handle_S_GAME_START(PacketSessionRef& session, Protocol::S_GAME_START& pkt);
 bool Handle_S_FRAME_STATE(PacketSessionRef& session, Protocol::S_FRAME_STATE& pkt);
 bool Handle_S_FORCED_TRANSFORM(PacketSessionRef& session, Protocol::S_FORCED_TRANSFORM& pkt);
+bool Handle_S_USE_ITEM(PacketSessionRef& session, Protocol::S_USE_ITEM& pkt);
 
 
 class ServerPacketHandler
@@ -44,6 +46,7 @@ public:
 		GPacketHandler[PKT_S_GAME_START] = [](PacketSessionRef& session, BYTE* buffer, int32 len){return HandlePacket<Protocol::S_GAME_START>(Handle_S_GAME_START, session, buffer, len);};
 		GPacketHandler[PKT_S_FRAME_STATE] = [](PacketSessionRef& session, BYTE* buffer, int32 len){return HandlePacket<Protocol::S_FRAME_STATE>(Handle_S_FRAME_STATE, session, buffer, len);};
 		GPacketHandler[PKT_S_FORCED_TRANSFORM] = [](PacketSessionRef& session, BYTE* buffer, int32 len){return HandlePacket<Protocol::S_FORCED_TRANSFORM>(Handle_S_FORCED_TRANSFORM, session, buffer, len);};
+		GPacketHandler[PKT_S_USE_ITEM] = [](PacketSessionRef& session, BYTE* buffer, int32 len){return HandlePacket<Protocol::S_USE_ITEM>(Handle_S_USE_ITEM, session, buffer, len);};
 
 	}
 	static bool HandlePacket(PacketSessionRef& session, BYTE* buffer, int32 len)

@@ -180,7 +180,7 @@ namespace GameSceneHelper
 	static constexpr int kHpBowMan = 120;
 	static constexpr int kHpSwordMan = 120;
 	static constexpr int kHpMutant = 240;
-	static constexpr int kHpBoss = 4800;
+	static constexpr int kHpBoss = 1200;
 	static constexpr int kHpPlayer = 100;
 
 	// -------------------------------------------------------------------------
@@ -208,8 +208,8 @@ namespace GameSceneHelper
 
 	static constexpr std::array<int, kPlayerWeaponDamageTierCount> kAttackPowerPlayerSwordByTier =
 	{
-		600, 600, 600
-		//10, 20, 40
+		//600, 600, 600
+		10, 20, 40
 	};
 
 	static constexpr int kAttackPowerGhoul = 5;

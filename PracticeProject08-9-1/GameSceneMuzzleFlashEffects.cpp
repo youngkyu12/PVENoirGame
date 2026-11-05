@@ -437,7 +437,6 @@ void CGameScene::SpawnGoldFireworkBurstAtWeapon(CGameObject* weaponObject)
 
 void CGameScene::SpawnInventoryUseBurst(CGameObject* player, int inventorySlot)
 {
-#ifndef USING_NETWORK
 	if ( !player )
 		return;
 
@@ -522,15 +521,10 @@ void CGameScene::SpawnInventoryUseBurst(CGameObject* player, int inventorySlot)
 		e->seed = seedDist(rng);
 		e->color = color;
 	}
-#else
-	UNREFERENCED_PARAMETER(player);
-	UNREFERENCED_PARAMETER(inventorySlot);
-#endif
 }
 
 void CGameScene::UpdateInventoryBuffAmbientParticles(float dt)
 {
-#ifndef USING_NETWORK
 	if ( dt <= 0.0f )
 		return;
 
@@ -554,9 +548,9 @@ void CGameScene::UpdateInventoryBuffAmbientParticles(float dt)
 		const bool activeBuffs[4] =
 		{
 			false,
-			inventory->IsAttackPowerPotionActive(),
-			inventory->IsDefensePotionActive(),
-			inventory->IsMoveSpeedPotionActive()
+			inventory->IsPotionVisualActive(1),
+			inventory->IsPotionVisualActive(2),
+			inventory->IsPotionVisualActive(3)
 		};
 
 		for ( int inventorySlot = 1; inventorySlot <= 3; ++inventorySlot )
@@ -572,14 +566,10 @@ void CGameScene::UpdateInventoryBuffAmbientParticles(float dt)
 			EmitInventoryBuffAmbientParticles(player, inventorySlot, dt, accumulator);
 		}
 	}
-#else
-	UNREFERENCED_PARAMETER(dt);
-#endif
 }
 
 void CGameScene::EmitInventoryBuffAmbientParticles(CGameObject* player, int inventorySlot, float dt, float& accumulatorSec)
 {
-#ifndef USING_NETWORK
 	if ( !player )
 		return;
 
@@ -680,12 +670,6 @@ void CGameScene::EmitInventoryBuffAmbientParticles(CGameObject* player, int inve
 
 	if ( emitCount >= kMaxEmitsPerFrame )
 		accumulatorSec = 0.0f;
-#else
-	UNREFERENCED_PARAMETER(player);
-	UNREFERENCED_PARAMETER(inventorySlot);
-	UNREFERENCED_PARAMETER(dt);
-	UNREFERENCED_PARAMETER(accumulatorSec);
-#endif
 }
 
 void CGameScene::SpawnWeaponLevelUpFireworks()
@@ -1131,7 +1115,8 @@ void CGameScene::SpawnBossMeleeSlashEffect(CGameObject* boss)
 			float sideOffset,
 			float verticalOffset,
 			const XMFLOAT3& rgb,
-			float seedBias)
+			float seedBias,
+			bool dealsMeleeDamage)
 		{
 			MuzzleFlashEntry* e = AcquireFreeMuzzleFlashEntry(m_muzzleFlashEffect.entries);
 
@@ -1168,6 +1153,9 @@ void CGameScene::SpawnBossMeleeSlashEffect(CGameObject* boss)
 
 			e->active = true;
 			e->kind = EMuzzleFlashKind::BossMeleeSlash;
+#ifndef USING_NETWORK
+			e->meleeOwner = dealsMeleeDamage ? boss : nullptr;
+#endif
 
 			e->position = centerF;
 			e->velocity = XMFLOAT3(0.0f, 0.0f, 0.0f);
@@ -1206,7 +1194,8 @@ void CGameScene::SpawnBossMeleeSlashEffect(CGameObject* boss)
 		-1.15f,
 		-0.15f,
 		XMFLOAT3(0.26f, 0.95f, 0.04f),
-		77.3f
+		77.3f,
+		false
 	);
 
 	// 2) 메인 칼날: 밝은 연두색.
@@ -1222,7 +1211,8 @@ void CGameScene::SpawnBossMeleeSlashEffect(CGameObject* boss)
 		-0.95f,
 		0.00f,
 		XMFLOAT3(0.58f, 1.00f, 0.08f),
-		0.0f
+		0.0f,
+		true
 	);
 
 	// 3) 내부 하이라이트: 흰빛 섞인 연두색.
@@ -1238,7 +1228,8 @@ void CGameScene::SpawnBossMeleeSlashEffect(CGameObject* boss)
 		-0.75f,
 		0.25f,
 		XMFLOAT3(0.88f, 1.00f, 0.55f),
-		31.7f
+		31.7f,
+		false
 	);
 }
 

@@ -81,6 +81,10 @@ struct MuzzleFlashInstanceVertex
 
 struct MuzzleFlashEntry
 {
+	// Only the main boss slash layer deals damage; glow/highlights stay visual.
+	CGameObject* meleeOwner = nullptr;
+	std::array<bool, 4> meleeHitPlayerSlots = { false, false, false, false };
+
 	bool active = false;
 	EMuzzleFlashKind kind = EMuzzleFlashKind::Core;
 

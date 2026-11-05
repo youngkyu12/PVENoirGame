@@ -9,6 +9,15 @@
 #include "Animator.h"
 #include "AnimatorComponent.h"
 
+#include <random>
+
+void CMonsterAnimController::ResetLocomotionDelay()
+{
+	m_delayedLocomotionClip.clear();
+	m_locomotionDelayRemainingSec = 0.0f;
+	m_locomotionTransitionStarted = false;
+}
+
 CAnimator* CMonsterAnimController::ResolveAnimator() const
 {
 	if ( !m_pOwner ) return nullptr;
@@ -84,6 +93,7 @@ bool CMonsterAnimController::StartAction(CAnimator* anim, const std::string& cli
 
 void CMonsterAnimController::ResetRuntimeState(EMonsterAnimState locomotionState)
 {
+	ResetLocomotionDelay();
 	m_locomotionState = locomotionState;
 	m_pendingCommand = EMonsterAnimCommand::None;
 	m_actionPhase = EActionPhase::None;
@@ -105,6 +115,7 @@ void CMonsterAnimController::ResetRuntimeState(EMonsterAnimState locomotionState
 
 void CMonsterAnimController::PlayDeathFromStart()
 {
+	ResetLocomotionDelay();
 	m_locomotionState = EMonsterAnimState::Idle;
 	m_pendingCommand = EMonsterAnimCommand::None;
 	m_actionPhase = EActionPhase::None;
@@ -119,6 +130,7 @@ void CMonsterAnimController::PlayDeathFromStart()
 
 void CMonsterAnimController::PlayDeathFinalPose()
 {
+	ResetLocomotionDelay();
 	m_locomotionState = EMonsterAnimState::Idle;
 	m_pendingCommand = EMonsterAnimCommand::None;
 	m_actionPhase = EActionPhase::None;
@@ -180,7 +192,7 @@ void CMonsterAnimController::RequestCommand(EMonsterAnimCommand cmd)
 	m_pendingCommand = cmd;
 }
 
-void CMonsterAnimController::StartLocomotionIfNeeded(CAnimator* anim)
+void CMonsterAnimController::StartLocomotionIfNeeded(CAnimator* anim, float dt)
 {
 	if ( !anim ) return;
 	if ( m_actionPhase != EActionPhase::None ) return;
@@ -189,13 +201,52 @@ void CMonsterAnimController::StartLocomotionIfNeeded(CAnimator* anim)
 	if ( clip.empty() ) return;
 	if ( !anim->HasClip(clip) ) return;
 
+	// Delay only actual walk/run clips, never an Idle fallback or the initial pose.
+	const bool delayMovement = m_locomotionState != EMonsterAnimState::Idle &&
+		clip != m_profile.idleClip && !anim->GetCurrentClipName().empty();
+	if ( !delayMovement )
+	{
+		ResetLocomotionDelay();
+	}
+	else
+	{
+		if ( m_delayedLocomotionClip != clip )
+		{
+			ResetLocomotionDelay();
+			// The current clip may still be the source of an outgoing blend.
+			if ( anim->GetCurrentClipName() != clip )
+			{
+				static thread_local std::mt19937 rng{ std::random_device{}() };
+				// A walk/run cycle normally contains two steps; spread starts by up to one step.
+				constexpr float kMaxLocomotionStartDelayCycles = 0.5f;
+				const float duration = anim->GetClipDuration(clip);
+				const float maxDelaySec = duration > 0.0f
+					? duration * kMaxLocomotionStartDelayCycles : 0.0f;
+				std::uniform_real_distribution<float> delay(0.0f, maxDelaySec);
+				m_delayedLocomotionClip = clip;
+				m_locomotionDelayRemainingSec = delay(rng);
+			}
+		}
+
+		if ( !m_delayedLocomotionClip.empty() && !m_locomotionTransitionStarted )
+		{
+			if ( dt > 0.0f )
+				m_locomotionDelayRemainingSec -= dt;
+			if ( m_locomotionDelayRemainingSec > 0.0f )
+				return;
+			m_locomotionTransitionStarted = true;
+		}
+	}
+
 	if ( anim->GetCurrentClipName().empty() )
 	{
 		anim->Play(clip, true, 0.0f);
 		return;
 	}
 
-	if ( anim->GetCurrentClipName() != clip )
+	if ( anim->GetCurrentClipName() != clip
+		|| anim->IsBlending() // Also cancel an outgoing blend when returning to its source.
+		)
 	{
 		if ( !anim->CrossFade(clip, m_profile.locomotionBlendTime, true, 0.0f) )
 			anim->Play(clip, true, 0.0f);
@@ -217,6 +268,7 @@ void CMonsterAnimController::Update(float dt)
 
 	if ( m_pendingCommand != EMonsterAnimCommand::None )
 	{
+		ResetLocomotionDelay();
 		switch ( m_pendingCommand )
 		{
 		case EMonsterAnimCommand::Attack:
@@ -273,5 +325,5 @@ void CMonsterAnimController::Update(float dt)
 		m_actionPhase = EActionPhase::None;
 	}
 
-	StartLocomotionIfNeeded(anim);
+	StartLocomotionIfNeeded(anim, dt);
 }

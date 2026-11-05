@@ -26,6 +26,7 @@ public:
 	bool CanHitTarget(CGameObject* target) const;
 	void MarkHitTarget(CGameObject* target);
 	void ClearHitTargets() { m_hitTargets.clear(); }
+	void ResetRuntimeState();
 
 private:
 	bool IsAttackWindowOpen() const;

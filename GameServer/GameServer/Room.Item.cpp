@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "Room.h"
 #include "Player.h"
+#include "ClientPacketHandler.h"
 
 #include <random>
 #include <unordered_set>
@@ -141,5 +142,11 @@ void Room::UseItem(uint64 playerId, int32 slot)
 
 	if (slot < 0 || slot >= Player::kInventorySlotCount) return;
 	const Protocol::ItemType kind = static_cast<Protocol::ItemType>(slot + 1);
-	player->UseInventoryItem(kind, m_elapsedServerMs);
+	if (!player->UseInventoryItem(kind, m_elapsedServerMs))
+		return;
+
+	Protocol::S_USE_ITEM pkt;
+	pkt.set_playerid(playerId);
+	pkt.set_slot(slot);
+	BroadCastAll(ClientPacketHandler::MakeSendBuffer(pkt));
 }

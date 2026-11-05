@@ -420,6 +420,10 @@ void CGameScene::SyncLogicalMonsterFromActualObject(CGameObject* monster)
 
 void CGameScene::BuildObjects(ID3D12Device* dev, ID3D12GraphicsCommandList* cmd)
 {
+#ifdef USING_NETWORK
+	g_NetworkQueue.ClearItemUseEvents();
+#endif
+
 	PROFILE_RENDER_SCOPE("CGameScene::BuildObjects");
 	{
 		ConfigureLocalGameplaySimulationSwitches();
@@ -3967,12 +3971,14 @@ void CGameScene::BuildSkinnedBatch(
 					createDesc.monsterProfile.spellClip = "Spell";
 
 					createDesc.useOwnerBoneWeaponCapsules = true;
+#ifdef USING_NETWORK
 					createDesc.monsterWeaponConfigs.push_back(
 						{ "AttackLeft", 0.20f, 0.55f, { "Wrist_L" } }
 					);
 					createDesc.monsterWeaponConfigs.push_back(
 						{ "AttackRight", 0.20f, 0.55f, { "Wrist_R" } }
 					);
+#endif
 
 					auto obj = [ & ] ()
 						{

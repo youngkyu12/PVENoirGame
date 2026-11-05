@@ -67,7 +67,12 @@ private:
 
 	bool CanAcceptHitReactionCommand() const;
 
-	void StartLocomotionIfNeeded(CAnimator* anim);
+	void StartLocomotionIfNeeded(CAnimator* anim, float dt);
+
+	void ResetLocomotionDelay();
+	std::string m_delayedLocomotionClip;
+	float m_locomotionDelayRemainingSec = 0.0f;
+	bool m_locomotionTransitionStarted = false;
 	bool StartAction(CAnimator* anim, const std::string& clipName, EActionPhase phase, float blendTimeSec, bool loop);
 
 private:

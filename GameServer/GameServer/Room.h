@@ -9,6 +9,8 @@ struct CBossAIContext;
 #include <vector>
 #include <unordered_set>
 #include <memory>
+#include <map>
+#include <utility>
 
 namespace Protocol
 {
@@ -19,7 +21,7 @@ namespace Protocol
 struct RoomTimingConfig
 {
 	uint64 serverTickIntervalMs = 16;
-	uint64 frameStateIntervalMs = 100;
+	uint64 frameStateIntervalMs = 50;
 	uint64 enemyAiIntervalMs = 250;
 	uint64 clientReadyPollIntervalMs = 100;
 	uint64 gameStartDelayMs = 100;
@@ -96,6 +98,7 @@ public:
 	map<uint64, EnemyRef> GetEnemies() { return enemies; }
 	const map<uint64, PlayerRef>& GetPlayers() const { return players; }
 	CEnemy* GetBossEnemy();
+	GameMath::Vec3 GetEnemyCrowdSeparation(uint64 enemyId, const GameMath::Vec3& position, float radius) const;
 	EBossRoomState GetBossRoomState() const { return m_bossRoomState; }
 	const CNavMesh* GetNavMesh() const { return m_navMesh.get(); }
 	bool HasTerrain() const;
@@ -144,6 +147,7 @@ private:
 	void UpdateItemPickupCollision();
 	void InitializeItems();
 	void WakeEnemiesNearPlayer(const PlayerRef& player);
+	void BuildEnemyCrowdSnapshot();
 	bool IsEnemyNearAnyPlayerExact(const GameMath::Vec3& enemyPos, float rangeSq) const;
 	void RefreshBossRoomChaseState();
 	bool IsBossRoomPersistentChaseActive(uint64 enemyId) const;
@@ -419,6 +423,14 @@ private:
 	std::vector<GridDynamicTracker> m_monsterGridTrackers;
 	std::vector<GridDynamicTracker> m_arrowGridTrackers;
 	std::vector<GridDynamicTracker> m_bulletGridTrackers;
+	// Immutable positions for one AI batch; 5m buckets cover the local steering radii.
+	struct EnemyCrowdSample
+	{
+		uint64 enemyId = 0;
+		GameMath::Vec3 position{};
+	};
+	static constexpr float kEnemyCrowdCellSize = 5.0f;
+	std::map<std::pair<int, int>, std::vector<EnemyCrowdSample>> m_enemyCrowdBuckets;
 	std::unordered_set<uint64> m_aiAwakeEnemyIds;
 	std::unordered_set<uint64> m_castleCenterPlayerIds;
 	std::unordered_set<uint64> m_meleeHitKeys;

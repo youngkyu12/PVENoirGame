@@ -138,6 +138,9 @@ public:
 	int  GetInventoryCount(Protocol::ItemType kind) const;
 	void AddInventoryItem(Protocol::ItemType kind);
 	bool UseInventoryItem(Protocol::ItemType kind, uint64 serverMs);
+	uint64 GetAttackBuffEndMs() const { return m_attackBuffEndMs; }
+	uint64 GetDefenseBuffEndMs() const { return m_defenseBuffEndMs; }
+	uint64 GetSpeedBuffEndMs() const { return m_speedBuffEndMs; }
 
 	bool IsAttackBuffActive(uint64 serverMs)  const { return serverMs < m_attackBuffEndMs; }
 	bool IsDefenseBuffActive(uint64 serverMs) const { return serverMs < m_defenseBuffEndMs; }

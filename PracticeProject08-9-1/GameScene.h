@@ -551,6 +551,7 @@ private:
 
 	void UpdateBossPoisonProjectileSpellCasts(float dt);
 	void UpdateBossMeleeSlashCasts(float dt);
+	void ApplyBossMeleeSlashPlayerHits();
 	void SpawnBossPoisonProjectile(CGameObject* boss);
 	void UpdateBossPoisonProjectiles(float dt);
 	void RenderBossPoisonProjectiles(ID3D12GraphicsCommandList* cmd, CCamera* camera);
@@ -1617,7 +1618,8 @@ private:
 
 	static constexpr uint64_t kNetworkInterpolationDelayTicks = 6;
 	static constexpr size_t kMaxNetworkFrameSnapshotBufferSize = 8;
-	static constexpr float kServerTickSeconds = 0.016f;
+	static constexpr uint64_t kServerTickIntervalMs = 16;
+	static constexpr float kServerTickSeconds = static_cast<float>(kServerTickIntervalMs) / 1000.0f;
 	static constexpr float kMaxRemotePlayerExtrapolationSeconds = 0.15f;
 
 	void PushNetworkFrameSnapshot(const FrameSnapshot& snapshot);

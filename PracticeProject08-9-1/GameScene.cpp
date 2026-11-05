@@ -3176,15 +3176,40 @@ void CGameScene::SyncActualMonsterFromLogicalState(CGameObject* monster, int log
 		{
 			CancelMonsterPreparedActions(monster);
 
-			if ( auto* weaponHitbox = monster->GetComponent<CMonsterWeaponHitboxComponent>() )
-				weaponHitbox->SetEnabled(false);
-
 			if ( auto* animComp = monster->GetComponent<CAnimatorComponent>() )
 			{
 				if ( auto* ctrl = animComp->EnsureMonsterController() )
 					ctrl->ResetRuntimeState(EMonsterAnimState::Idle);
 			}
 		}
+
+		// Restore attack updates after pooling or revival. Keep the hit window closed
+		// until the attack animation opens it again.
+		auto RestoreWeaponHitbox = [shouldActivate, shouldResetAliveRuntime](CGameObject* owner)
+			{
+				if ( !owner )
+					return;
+
+				auto* hitbox = owner->GetComponent<CMonsterWeaponHitboxComponent>();
+				if ( !hitbox )
+					return;
+
+				if ( shouldResetAliveRuntime || !hitbox->IsEnabled() || !shouldActivate )
+					hitbox->ResetRuntimeState();
+
+				hitbox->SetEnabled(shouldActivate);
+				if ( auto* collider = owner->GetComponent<CColliderComponent>() )
+				{
+					collider->CancelDeferredDisable();
+					collider->SetEnabled(shouldActivate);
+				}
+			};
+
+		RestoreWeaponHitbox(monster);
+
+		const int swordManIndex = GetSwordManIndexFromObject(monster);
+		if ( swordManIndex >= 0 && static_cast<size_t>(swordManIndex) < m_EnemySwordRefs.size() )
+			RestoreWeaponHitbox(m_EnemySwordRefs[static_cast<size_t>(swordManIndex)]);
 	}
 
 	logical.position = position;
@@ -4284,6 +4309,10 @@ void CGameScene::ReleaseSkyBoxUploadBuffers()
 
 void CGameScene::ReleaseObjects()
 {
+#ifdef USING_NETWORK
+	g_NetworkQueue.ClearItemUseEvents();
+#endif
+
 	ReleaseSkyBoxResources();
 
 	m_staticBatch.shader.reset();
@@ -8901,9 +8930,6 @@ void CGameScene::UpdateLocalPlayerDeathAndRespawn(float dt)
 	if ( !m_bLocalPlayerDead )
 		return;
 
-	if ( m_bLocalPlayerRespawnUsed )
-		return;
-
 	if ( dt > 0.0f )
 		m_localPlayerRespawnTimer += dt;
 
@@ -10004,7 +10030,23 @@ void CGameScene::AnimateObjects(float dt)
     if (std::holds_alternative<FrameSnapshot>(m_pendingNetworkMessage.data))
     {
         const FrameSnapshot& receivedSnapshot = std::get<FrameSnapshot>(m_pendingNetworkMessage.data);
+		const bool isNewSnapshot = receivedSnapshot.frameId > m_lastReceivedServerTick;
 		PushNetworkFrameSnapshot(receivedSnapshot);
+		if ( isNewSnapshot )
+		{
+			// Buffs use the authoritative snapshot time, not the delayed render timeline.
+			const uint64_t serverMs = receivedSnapshot.frameId * kServerTickIntervalMs;
+			for ( const PlayerState& state : receivedSnapshot.players )
+			{
+				if ( state.id >= 4 )
+					continue;
+				if ( CInventoryComponent* inventory = GetInventoryByPlayerSlot(static_cast<int>(state.id)) )
+				{
+					inventory->SyncNetworkBuffVisuals(serverMs,
+						state.attackBuffEndMs, state.defenseBuffEndMs, state.speedBuffEndMs);
+				}
+			}
+		}
 		m_timeSinceLastFramePacket = 0.0f;
 		UpdateRemotePlayerMotionSamples(receivedSnapshot);
 		const FrameSnapshot& latestSnapshot =
@@ -10792,6 +10834,18 @@ void CGameScene::AnimateObjects(float dt)
 	}
 
 	UpdateRemotePlayerNetworkMovement(dt);
+
+	ItemUseEvent itemUseEvent{};
+	while (g_NetworkQueue.TryPopItemUse(itemUseEvent))
+	{
+		if (itemUseEvent.playerId >= 4 || itemUseEvent.slot < 0 ||
+			itemUseEvent.slot >= CInventoryComponent::kInventorySlotCount)
+			continue;
+
+		CGameObject* player = GetPlayerBySlot(static_cast<int>(itemUseEvent.playerId));
+		if (player && player->GetActive())
+			SpawnInventoryUseBurst(player, itemUseEvent.slot);
+	}
 #endif
 
 	CCamera* camera = GetMainCamera();
@@ -10857,17 +10911,17 @@ void CGameScene::AnimateObjects(float dt)
 #endif
 	}
 
-#ifndef USING_NETWORK
 	UpdateInventoryBuffAmbientParticles(dt);
 
+#ifndef USING_NETWORK
 	if ( CInventoryComponent* inventory = GetLocalPlayerInventory() )
 	{
 		if ( inventory->ConsumeAttackPowerDirty() )
 			RefreshPlayerWeaponAttackPowersForSlot(m_localPlayerSlot);
 	}
 
-	SyncLocalInventoryToHud();
 #endif
+	SyncLocalInventoryToHud();
 
 	UpdateBossMeleeSlashCasts(dt);
 
@@ -10956,6 +11010,9 @@ void CGameScene::CollisionObjects()
 
 	if ( m_bSimulateLocalPlayerMonsterAttackCollision && m_Collision )
 	{
+#ifndef USING_NETWORK
+		ApplyBossMeleeSlashPlayerHits();
+#endif
 		RefreshDynamicCollisionMegaGridMasks();
 
 		m_Collision->OnUpdateFiltered(

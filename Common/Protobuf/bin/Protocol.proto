@@ -94,3 +94,9 @@ message C_DEBUG_COMMAND
 	DebugCommandType commandType = 1;
 	int32 megaGridNumber = 2;
 }
+
+message S_USE_ITEM
+{
+	uint64 playerId = 1;
+	int32 slot = 2;
+}

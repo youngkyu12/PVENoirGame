@@ -186,6 +186,9 @@ void Room::MakeFrameState(uint32 tick)
 			p->set_name(player->name);
 			p->set_playertype(player->type);
 			p->set_hp(static_cast<uint32>(player->GetCurrentHp()));
+			p->set_attackbuffendms(player->GetAttackBuffEndMs());
+			p->set_defensebuffendms(player->GetDefenseBuffEndMs());
+			p->set_speedbuffendms(player->GetSpeedBuffEndMs());
 
 			Protocol::Animation* anim = p->mutable_animation();
 			anim->set_statecode(BuildStateCode(*player));
